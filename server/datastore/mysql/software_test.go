@@ -2771,6 +2771,14 @@ func TestReconcileSoftwareTitles(t *testing.T) {
 		{Name: "bar", Version: "0.0.3", Source: "deb_packages"},
 		{Name: "baz", Version: "0.0.1", Source: "deb_packages"},
 	}
+	expectedTitlesByNSB := map[string]fleet.SoftwareTitle{}
+	for _, s := range expectedSoftware {
+		expectedTitlesByNSB[s.Name+s.Source+s.Browser] = fleet.SoftwareTitle{
+			Name:    s.Name,
+			Source:  s.Source,
+			Browser: s.Browser,
+		}
+	}
 
 	software1 := []fleet.Software{expectedSoftware[0], expectedSoftware[2]}
 	software2 := []fleet.Software{expectedSoftware[1], expectedSoftware[2], expectedSoftware[3]}
@@ -2803,8 +2811,7 @@ func TestReconcileSoftwareTitles(t *testing.T) {
 		return swt, nil
 	}
 
-	expectedTitlesByNSB := map[string]fleet.SoftwareTitle{}
-	assertSoftware := func(t *testing.T, wantSoftware []fleet.Software, wantNilTitleID []fleet.Software) {
+	assertSoftware := func(t *testing.T, wantSoftware []fleet.Software) {
 		gotSoftware, err := getSoftware()
 		require.NoError(t, err)
 		require.Len(t, gotSoftware, len(wantSoftware))
@@ -2818,25 +2825,13 @@ func TestReconcileSoftwareTitles(t *testing.T) {
 			_, ok := byNSBV[r.Name+r.Source+r.Browser+r.Version]
 			require.True(t, ok)
 
-			if r.TitleID == nil {
-				var found bool
-				for _, s := range wantNilTitleID {
-					if s.Name == r.Name && s.Source == r.Source && s.Browser == r.Browser && s.Version == r.Version {
-						found = true
-						break
-					}
-				}
-				require.True(t, found)
-			} else {
-				require.NotNil(t, r.TitleID)
-				swt, ok := expectedTitlesByNSB[r.Name+r.Source+r.Browser]
-				require.True(t, ok)
-				require.NotNil(t, r.TitleID)
-				require.Equal(t, swt.ID, *r.TitleID)
-				require.Equal(t, swt.Name, r.Name)
-				require.Equal(t, swt.Source, r.Source)
-				require.Equal(t, swt.Browser, r.Browser)
-			}
+			assert.NotNil(t, r.TitleID)
+			swt, ok := expectedTitlesByNSB[r.Name+r.Source+r.Browser]
+			require.True(t, ok)
+			assert.Equal(t, swt.ID, *r.TitleID)
+			assert.Equal(t, swt.Name, r.Name)
+			assert.Equal(t, swt.Source, r.Source)
+			assert.Equal(t, swt.Browser, r.Browser)
 		}
 	}
 
@@ -2854,8 +2849,14 @@ func TestReconcileSoftwareTitles(t *testing.T) {
 		}
 	}
 
-	// title_id is initially nil for all software entries
-	assertSoftware(t, expectedSoftware, expectedSoftware)
+	swTitles, err := getTitles()
+	for _, swt := range swTitles {
+		if _, ok := expectedTitlesByNSB[swt.Name+swt.Source+swt.Browser]; ok {
+			expectedTitlesByNSB[swt.Name+swt.Source+swt.Browser] = swt
+		}
+	}
+
+	assertSoftware(t, expectedSoftware)
 
 	// reconcile software titles
 	require.NoError(t, ds.ReconcileSoftwareTitles(ctx))
@@ -2883,15 +2884,15 @@ func TestReconcileSoftwareTitles(t *testing.T) {
 	require.Equal(t, swt[3].Browser, "chrome")
 	expectedTitlesByNSB[swt[3].Name+swt[3].Source+swt[3].Browser] = swt[3]
 
-	// title_id is now populated for all software entries
-	assertSoftware(t, expectedSoftware, nil)
+	// Double check software and titles
+	assertSoftware(t, expectedSoftware)
 
 	// remove the bar software title from host 2
 	_, err = ds.UpdateHostSoftware(context.Background(), host2.ID, software2[:2])
 	require.NoError(t, err)
 	// SyncHostsSoftware will remove the above software item from the software table
 	require.NoError(t, ds.SyncHostsSoftware(context.Background(), time.Now()))
-	assertSoftware(t, []fleet.Software{expectedSoftware[0], expectedSoftware[1], expectedSoftware[2], expectedSoftware[4]}, nil)
+	assertSoftware(t, []fleet.Software{expectedSoftware[0], expectedSoftware[1], expectedSoftware[2], expectedSoftware[4]})
 
 	// bar is no longer associated with any host so the title should be deleted
 	require.NoError(t, ds.ReconcileSoftwareTitles(context.Background()))
@@ -2904,18 +2905,6 @@ func TestReconcileSoftwareTitles(t *testing.T) {
 	_, err = ds.UpdateHostSoftware(context.Background(), host3.ID, []fleet.Software{expectedSoftware[3], expectedSoftware[4]})
 	require.NoError(t, err)
 	require.NoError(t, ds.SyncHostsSoftware(context.Background(), time.Now()))
-
-	// title_id is initially nil for new software entries
-	assertSoftware(t, expectedSoftware, []fleet.Software{expectedSoftware[3]})
-
-	// bar isn't added back to software titles until we reconcile software titles
-	gotTitles, err = getTitles()
-	require.NoError(t, err)
-	require.Len(t, gotTitles, 3)
-	assertTitles(t, gotTitles, []string{"bar"})
-
-	// reconcile software titles
-	require.NoError(t, ds.ReconcileSoftwareTitles(ctx))
 	gotTitles, err = getTitles()
 	require.NoError(t, err)
 	require.Len(t, gotTitles, 4)
@@ -2926,38 +2915,24 @@ func TestReconcileSoftwareTitles(t *testing.T) {
 	require.NotEqual(t, expectedTitlesByNSB[gotTitles[0].Name+gotTitles[0].Source], gotTitles[0].ID)
 	expectedTitlesByNSB[gotTitles[0].Name+gotTitles[0].Source] = gotTitles[0]
 	assertTitles(t, gotTitles, nil)
-
-	// title_id is now populated for bar
-	assertSoftware(t, expectedSoftware, nil)
+	assertSoftware(t, expectedSoftware)
 
 	// add a new version of foo to host 3
 	expectedSoftware = append(expectedSoftware, fleet.Software{Name: "foo", Version: "0.0.4", Source: "chrome_extensions"})
 	_, err = ds.UpdateHostSoftware(ctx, host3.ID, expectedSoftware[3:])
 	require.NoError(t, err)
-
-	// title_id is initially nil for new software entries
-	assertSoftware(t, expectedSoftware, []fleet.Software{expectedSoftware[5]})
-
-	// new version of foo doesn't result in a new software title entry
-	require.NoError(t, ds.ReconcileSoftwareTitles(ctx))
 	gotTitles, err = getTitles()
 	require.NoError(t, err)
 	require.Len(t, gotTitles, 4)
 	assertTitles(t, gotTitles, nil)
-
-	// title_id is now populated for new version of foo
-	assertSoftware(t, expectedSoftware, nil)
+	assertSoftware(t, expectedSoftware)
 
 	// add a new source of foo to host 3
 	expectedSoftware = append(expectedSoftware, fleet.Software{Name: "foo", Version: "0.0.4", Source: "rpm_packages"})
 	_, err = ds.UpdateHostSoftware(ctx, host3.ID, expectedSoftware[3:])
 	require.NoError(t, err)
 
-	// title_id is initially nil for new software entries
-	assertSoftware(t, expectedSoftware, []fleet.Software{expectedSoftware[6]})
-
 	// new source of foo results in a new software title entry
-	require.NoError(t, ds.ReconcileSoftwareTitles(ctx))
 	gotTitles, err = getTitles()
 	require.NoError(t, err)
 	require.Len(t, gotTitles, 5)
@@ -2966,9 +2941,7 @@ func TestReconcileSoftwareTitles(t *testing.T) {
 	require.Equal(t, "", gotTitles[4].Browser)
 	expectedTitlesByNSB[gotTitles[4].Name+gotTitles[4].Source+gotTitles[4].Browser] = gotTitles[4]
 	assertTitles(t, gotTitles, nil)
-
-	// title_id is now populated for new source of foo
-	assertSoftware(t, expectedSoftware, nil)
+	assertSoftware(t, expectedSoftware)
 }
 
 func testUpdateHostSoftwareDeadlock(t *testing.T, ds *Datastore) {
