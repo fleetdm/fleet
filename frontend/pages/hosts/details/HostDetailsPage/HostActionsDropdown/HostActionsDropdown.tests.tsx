@@ -785,7 +785,7 @@ describe("Host Actions Dropdown", () => {
       expect(screen.queryByText("Unlock")).not.toBeInTheDocument();
     });
 
-    it("does not renders when a mac host but does not have Fleet mac mdm enabled and configured", async () => {
+    it("does not renders when a macOS host but does not have Fleet mac mdm enabled and configured", async () => {
       const render = createCustomRenderer({
         context: {
           app: {
@@ -921,7 +921,7 @@ describe("Host Actions Dropdown", () => {
       expect(screen.queryByText("Wipe")).not.toBeInTheDocument();
     });
 
-    it("does not renders when a mac host but does not have Fleet mac mdm enabled and configured", async () => {
+    it("does not renders when a macOS host but does not have Fleet macOS mdm enabled and configured", async () => {
       const render = createCustomRenderer({
         context: {
           app: {
@@ -1139,8 +1139,8 @@ describe("Host Actions Dropdown", () => {
     });
   });
 
-  describe("Does not render dropdown for certain platforms", () => {
-    it("does not render dropdown for iOS", async () => {
+  describe("Does not render query or show disk encryption key for iOS and iPadOS", () => {
+    it("does not render query or show disk encryption key for iOS for iOS", async () => {
       const render = createCustomRenderer({
         context: {
           app: {
@@ -1150,7 +1150,7 @@ describe("Host Actions Dropdown", () => {
         },
       });
 
-      render(
+      const { user } = render(
         <HostActionsDropdown
           hostTeamId={null}
           onSelect={noop}
@@ -1162,10 +1162,12 @@ describe("Host Actions Dropdown", () => {
         />
       );
 
-      expect(screen.queryByText("Actions")).not.toBeInTheDocument();
+      await user.click(screen.getByText("Actions"));
+
+      expect(screen.queryByText("Query")).not.toBeInTheDocument();
     });
 
-    it("does not render dropdown for iPadOS", async () => {
+    it("does not render query or show disk encryption key for iOS for iPadOS", async () => {
       const render = createCustomRenderer({
         context: {
           app: {
@@ -1175,7 +1177,7 @@ describe("Host Actions Dropdown", () => {
         },
       });
 
-      render(
+      const { user } = render(
         <HostActionsDropdown
           hostTeamId={null}
           onSelect={noop}
@@ -1187,7 +1189,11 @@ describe("Host Actions Dropdown", () => {
         />
       );
 
-      expect(screen.queryByText("Actions")).not.toBeInTheDocument();
+      await user.click(screen.getByText("Actions"));
+
+      expect(
+        screen.queryByText("Show disk encryption key")
+      ).not.toBeInTheDocument();
     });
   });
 });

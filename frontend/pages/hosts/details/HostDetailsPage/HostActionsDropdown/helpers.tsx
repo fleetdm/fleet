@@ -86,6 +86,7 @@ const canTransferTeam = (config: IHostActionConfigOptions) => {
 
 const canEditMdm = (config: IHostActionConfigOptions) => {
   const {
+    hostPlatform,
     isGlobalAdmin,
     isGlobalMaintainer,
     isTeamAdmin,
@@ -95,12 +96,21 @@ const canEditMdm = (config: IHostActionConfigOptions) => {
     isMacMdmEnabledAndConfigured,
   } = config;
   return (
-    config.hostPlatform === "darwin" &&
+    (hostPlatform === "darwin" ||
+      hostPlatform === "ios" ||
+      hostPlatform === "ipados") &&
     isMacMdmEnabledAndConfigured &&
     isEnrolledInMdm &&
     isFleetMdm &&
     (isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer)
   );
+};
+
+const canQueryHost = ({ hostPlatform }: IHostActionConfigOptions) => {
+  // Currently we cannot query iOS or iPadOS
+  const isIosOrIpadosHost = hostPlatform === "ios" || hostPlatform === "ipados";
+
+  return !isIosOrIpadosHost;
 };
 
 const canLockHost = ({
@@ -115,9 +125,11 @@ const canLockHost = ({
   isTeamMaintainer,
   hostMdmDeviceStatus,
 }: IHostActionConfigOptions) => {
-  // macOS hosts can be locked if they are enrolled in MDM and the MDM is enabled
-  const canLockDarwin =
-    hostPlatform === "darwin" &&
+  // AppleOS such as macOS, iOS, iPadOS hosts can be locked if they are enrolled in MDM and the MDM is enabled
+  const canLockAppleOS =
+    (hostPlatform === "darwin" ||
+      hostPlatform === "ios" ||
+      hostPlatform === "ipados") &&
     isFleetMdm &&
     isMacMdmEnabledAndConfigured &&
     isEnrolledInMdm;
@@ -127,7 +139,7 @@ const canLockHost = ({
     hostMdmDeviceStatus === "unlocked" &&
     (hostPlatform === "windows" ||
       isLinuxLike(hostPlatform) ||
-      canLockDarwin) &&
+      canLockAppleOS) &&
     (isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer)
   );
 };
@@ -146,17 +158,21 @@ const canWipeHost = ({
   hostMdmDeviceStatus,
 }: IHostActionConfigOptions) => {
   const hostMdmEnabled =
-    (hostPlatform === "darwin" && isMacMdmEnabledAndConfigured) ||
+    ((hostPlatform === "darwin" ||
+      hostPlatform === "ios" ||
+      hostPlatform === "ipados") &&
+      isMacMdmEnabledAndConfigured) ||
     (hostPlatform === "windows" && isWindowsMdmEnabledAndConfigured);
 
-  // macOS and Windows hosts have the same conditions and can be wiped if they
+  // Windows and AppleOS such as macOS, iOS, iPadOS hosts have the same conditions and can be wiped if they
   // are enrolled in MDM and the MDM is enabled.
-  const canWipeMacOrWindows = hostMdmEnabled && isFleetMdm && isEnrolledInMdm;
+  const canWipeWindowsOrAppleOS =
+    hostMdmEnabled && isFleetMdm && isEnrolledInMdm;
 
   return (
     isPremiumTier &&
     hostMdmDeviceStatus === "unlocked" &&
-    (isLinuxLike(hostPlatform) || canWipeMacOrWindows) &&
+    (isLinuxLike(hostPlatform) || canWipeWindowsOrAppleOS) &&
     (isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer)
   );
 };
@@ -173,24 +189,31 @@ const canUnlock = ({
   hostPlatform,
   hostMdmDeviceStatus,
 }: IHostActionConfigOptions) => {
-  const canUnlockDarwin =
-    hostPlatform === "darwin" &&
+  const canUnlockAppleOS =
+    (hostPlatform === "darwin" ||
+      hostPlatform === "ios" ||
+      hostPlatform === "ipados") &&
     isFleetMdm &&
     isMacMdmEnabledAndConfigured &&
     isEnrolledInMdm;
 
-  // "unlocking" for a macOS host means that somebody saw the unlock pin, but
-  // shouldn't prevent users from trying to see the pin again, which is
-  // considered an "unlock"
+  // "unlocking" for a AppleOS host (such as macOS, iOS, iPadOS) means that somebody
+  // saw the unlock pin, but shouldn't prevent users from trying to see the pin again,
+  // which is considered an "unlock"
   const isValidState =
-    (hostMdmDeviceStatus === "unlocking" && hostPlatform === "darwin") ||
+    (hostMdmDeviceStatus === "unlocking" &&
+      (hostPlatform === "darwin" ||
+        hostPlatform === "ios" ||
+        hostPlatform === "ipados")) ||
     hostMdmDeviceStatus === "locked";
 
   return (
     isPremiumTier &&
     isValidState &&
     (isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer) &&
-    (canUnlockDarwin || hostPlatform === "windows" || isLinuxLike(hostPlatform))
+    (canUnlockAppleOS ||
+      hostPlatform === "windows" ||
+      isLinuxLike(hostPlatform))
   );
 };
 
@@ -237,6 +260,10 @@ const removeUnavailableOptions = (
     options = options.filter((option) => option.value !== "transfer");
   }
 
+  if (!canQueryHost(config)) {
+    options = options.filter((option) => option.value !== "query");
+  }
+
   if (!canShowDiskEncryption(config)) {
     options = options.filter((option) => option.value !== "diskEncryption");
   }
@@ -266,9 +293,8 @@ const removeUnavailableOptions = (
   }
 
   // TODO: refactor to filter in one pass using predefined filters specified for each of the
-  // DEFAULT_OPTIONS. Note that as currently, structured the default is to include all options. For
-  // example, "Query" is implicitly included by default because there is no equivalent `canQuery`
-  // filter being applied here. This is a bit confusing since
+  // DEFAULT_OPTIONS. Note that as currently, structured the default is to include all options.
+  // This is a bit confusing since we remove options instead of add options
 
   return options;
 };
