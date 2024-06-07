@@ -5859,8 +5859,9 @@ _Available in Fleet Premium_
 
 ```json
 {
-  "org_name": "Fleet Device Management",
+  "org_name": "Acme Inc.",
   "renew_date": "2023-11-29T00:00:00Z",
+  "location": "Acme Inc. Main Address"
 }
 ```
 
