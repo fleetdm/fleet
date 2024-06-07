@@ -20,7 +20,7 @@ import Pagination from "pages/ManageControlsPage/components/Pagination";
 import UploadList from "../../../components/UploadList";
 
 import AddProfileCard from "./components/ProfileUploader/components/AddProfileCard";
-import AddProfileModal from "./components/ProfileUploader/components/AddProfileModal";
+import AddProfileModal from "./components/ProfileUploader/components/AddProfileModal/AddProfileModal";
 import DeleteProfileModal from "./components/DeleteProfileModal/DeleteProfileModal";
 import ProfileLabelsModal from "./components/ProfileLabelsModal/ProfileLabelsModal";
 import ProfileListItem from "./components/ProfileListItem";
@@ -189,7 +189,6 @@ const CustomSettings = ({
       )}
       {showAddProfileModal && (
         <AddProfileModal
-          baseClass="add-profile"
           currentTeamId={currentTeamId}
           isPremiumTier={!!isPremiumTier}
           onUpload={onUploadProfile}

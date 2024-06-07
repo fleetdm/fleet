@@ -46,6 +46,8 @@ export interface IUploadProfileApiParams {
   file: File;
   teamId?: number;
   labels?: string[];
+  labelsIncludeAll?: string[];
+  labelsExcludeAny?: string[];
 }
 
 export const isDDMProfile = (profile: IMdmProfile | IHostMdmProfile) => {
@@ -97,7 +99,12 @@ const mdmService = {
     return sendRequest("GET", path);
   },
 
-  uploadProfile: ({ file, teamId, labels }: IUploadProfileApiParams) => {
+  uploadProfile: ({
+    file,
+    teamId,
+    labelsIncludeAll,
+    labelsExcludeAny,
+  }: IUploadProfileApiParams) => {
     const { MDM_PROFILES } = endpoints;
 
     const formData = new FormData();
@@ -107,9 +114,15 @@ const mdmService = {
       formData.append("team_id", teamId.toString());
     }
 
-    labels?.forEach((label) => {
-      formData.append("labels", label);
-    });
+    if (labelsIncludeAll || labelsExcludeAny) {
+      const labels = labelsIncludeAll || labelsExcludeAny;
+      const labelKey = labelsIncludeAll
+        ? "labels_include_all"
+        : "labels_exclude_any";
+      labels?.forEach((label) => {
+        formData.append(labelKey, label);
+      });
+    }
 
     return sendRequest("POST", MDM_PROFILES, formData);
   },
