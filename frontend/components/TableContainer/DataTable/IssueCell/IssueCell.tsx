@@ -15,7 +15,7 @@ interface IIssueCellProps<T> {
 
 const IssueCell = ({ issues, rowId }: IIssueCellProps<any>): JSX.Element => {
   if (isEmpty(issues) || issues.total_issues_count === 0) {
-    <span className="text-muted">{DEFAULT_EMPTY_CELL_VALUE}</span>;
+    return <span className="text-muted">{DEFAULT_EMPTY_CELL_VALUE}</span>;
   }
 
   return (
