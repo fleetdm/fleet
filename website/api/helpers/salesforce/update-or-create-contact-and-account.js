@@ -103,6 +103,7 @@ module.exports = {
       } else {
         // If no existing account record was found, create a new one.
         // Create a timestamp to use for the new account's assigned date.
+        salesforceAccountOwnerId = '0054x00000735wDAAQ';// « "Integrations admin" user.
         let today = new Date();
         let nowOn = today.toISOString().replace('Z', '+0000');
 
@@ -117,6 +118,7 @@ module.exports = {
           Website: enrichmentData.employer.emailDomain,
           LinkedIn_company_URL__c: enrichmentData.employer.linkedinCompanyPageUrl,// eslint-disable-line camelcase
           NumberOfEmployees: enrichmentData.employer.numberOfEmployees,
+          OwnerId: salesforceAccountOwnerId
         });
         salesforceAccountId = newAccountRecord.id;
       }//ﬁ
