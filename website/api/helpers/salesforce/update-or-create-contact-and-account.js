@@ -117,6 +117,7 @@ module.exports = {
           Website: enrichmentData.employer.emailDomain,
           LinkedIn_company_URL__c: enrichmentData.employer.linkedinCompanyPageUrl,// eslint-disable-line camelcase
           NumberOfEmployees: enrichmentData.employer.numberOfEmployees,
+          OwnerId: '0054x00000735wDAAQ',// « "Integrations admin" user.
         });
         salesforceAccountId = newAccountRecord.id;
       }//ﬁ
@@ -180,7 +181,7 @@ module.exports = {
       let newContactRecord = await salesforceConnection.sobject('Contact')
       .create({
         AccountId: salesforceAccountId,
-        OwnerId: salesforceAccountOwnerId,
+        OwnerId: '0054x00000735wDAAQ',// « "Integrations admin" user.
         FirstName: firstName,
         LastName: lastName,
         ...valuesToSet,
