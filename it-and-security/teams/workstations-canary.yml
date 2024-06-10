@@ -86,6 +86,7 @@ controls:
       - path: ../lib/configuration-profiles/macos-password.mobileconfig
       - path: ../lib/configuration-profiles/macos-prevent-autologon.mobileconfig
       - path: ../lib/configuration-profiles/macos-secure-terminal-keyboard.mobileconfig
+      - path: ../lib/configuration-profiles/macos-disable-update-notifications.mobileconfig
       - path: ../lib/configuration-profiles/passcode-settings-ddm.json
   macos_setup:
     bootstrap_package: ""
@@ -103,12 +104,13 @@ controls:
     - path: ../lib/collect-fleetd-logs.sh
     - path: ../lib/macos-see-automatic-enrollment-profile.sh
     - path: ../lib/macos-remove-old-nudge.sh
+    - path: ../lib/macos-mdm-migration.sh
     - path: ../lib/windows-remove-fleetd.ps1
     - path: ../lib/windows-turn-off-mdm.ps1
     - path: ../lib/windows-install-bitdefender.ps1
     - path: ../lib/windows-enable-ms-defender.ps1
 policies:
-  - path: ../lib/macos-device-health.policies.yml
+  - path: ../lib/macos-device-health-canary.policies.yml
   - path: ../lib/windows-device-health.policies.yml
   - path: ../lib/linux-device-health.policies.yml
 queries:
