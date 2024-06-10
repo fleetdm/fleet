@@ -36,6 +36,10 @@ variable "geolite2_license" {}
 variable "fleet_sentry_dsn" {}
 variable "elastic_url" {}
 variable "elastic_token" {}
+variable "fleet_calendar_periodicity" {
+  default     = "30s"
+  description = "The refresh period for the calendar integration."
+}
 
 data "aws_caller_identity" "current" {}
 
