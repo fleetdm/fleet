@@ -1,5 +1,0 @@
-MySQL query optimizations:
-- During software ingestion, switched to updating last_opened_at as a batch (for 1 host).
-- Removed DELETE FROM software statement that ran for every host update (when software was deleted). The cleanup of unused software is now only done during the vulnerability job.
-- `/api/v1/fleet/software/versions/:id` endpoint can return software even if it has been recently deleted from all hosts. During hourly cleanup, this software item will be removed from the database.
-- Moved aggregated query stats calculations to read replica DB to reduce load on the master.
