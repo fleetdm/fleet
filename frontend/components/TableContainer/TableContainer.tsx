@@ -64,10 +64,6 @@ interface ITableContainerProps<T = any> {
   primarySelectAction?: IActionButtonProps;
   /** Secondary button/s after selecting a row */
   secondarySelectActions?: IActionButtonProps[]; // TODO: Combine with primarySelectAction as these are all rendered in the same spot
-  /**
-   * @deprecated please use renderCount instead
-   * */
-  filteredCount?: number;
   searchToolTipText?: string;
   // TODO - consolidate this functionality within `filters`
   searchQueryColumn?: string;
@@ -140,7 +136,6 @@ const TableContainer = <T,>({
   disableCount,
   primarySelectAction,
   secondarySelectActions,
-  filteredCount,
   searchToolTipText,
   isClientSidePagination,
   onClientSidePaginationChange,
@@ -254,13 +249,11 @@ const TableContainer = <T,>({
 
   // TODO: refactor existing components relying on displayCount to use renderCount pattern
   const displayCount = useCallback((): any => {
-    if (typeof filteredCount === "number") {
-      return filteredCount;
-    } else if (typeof clientFilterCount === "number") {
+    if (typeof clientFilterCount === "number") {
       return clientFilterCount;
     }
     return data?.length || 0;
-  }, [filteredCount, clientFilterCount, data]);
+  }, [clientFilterCount, data]);
 
   const renderPagination = useCallback(() => {
     if (disablePagination || isClientSidePagination) {

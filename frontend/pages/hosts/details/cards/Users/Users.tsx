@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useCallback } from "react";
 
 import { IHostUser } from "interfaces/host_users";
 import TableContainer from "components/TableContainer";
@@ -27,6 +27,16 @@ const Users = ({
   hostUsersEnabled,
 }: IUsersProps): JSX.Element => {
   const tableHeaders = generateUsersTableHeaders();
+
+  const renderUsersCount = useCallback(() => {
+    return (
+      <div className={`${baseClass}__count `}>
+        <span>{`${usersState.length} user${
+          usersState.length === 1 ? "" : "s"
+        }`}</span>
+      </div>
+    );
+  }, [usersState.length]);
 
   if (!hostUsersEnabled) {
     return (
@@ -83,7 +93,7 @@ const Users = ({
             isAllPagesSelected={false}
             searchable
             wideSearch
-            filteredCount={usersState.length}
+            renderCount={renderUsersCount}
             isClientSidePagination
           />
         ) : (
