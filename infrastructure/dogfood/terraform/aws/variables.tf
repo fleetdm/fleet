@@ -144,3 +144,7 @@ variable "region" {
   default     = "us-east-2"
   description = "the default availability zone to utilize for infrastructure"
 }
+
+variable "fleet_calendar_periodicity {
+  default     = "30s"
+  description = "The refresh period for the calendar integration."
