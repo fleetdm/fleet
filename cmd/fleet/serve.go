@@ -196,7 +196,7 @@ the way that the Fleet server works.
 			}
 			ds = mds
 
-			if config.S3.Bucket != "" {
+			if config.S3.CarvesBucket != "" {
 				carveStore, err = s3.NewCarveStore(config.S3, ds)
 				if err != nil {
 					initFatal(err, "initializing S3 carvestore")
@@ -691,13 +691,16 @@ the way that the Fleet server works.
 			var softwareInstallStore fleet.SoftwareInstallerStore
 			if license.IsPremium() {
 				profileMatcher := apple_mdm.NewProfileMatcher(redisPool)
-				if config.S3.Bucket != "" {
+				if config.S3.SoftwareInstallersBucket != "" {
+					if config.S3.BucketsAndPrefixesMatch() {
+						level.Warn(logger).Log("msg", "the S3 buckets and prefixes for carves and software installers appear to be identical, this can cause issues")
+					}
 					store, err := s3.NewSoftwareInstallerStore(config.S3)
 					if err != nil {
 						initFatal(err, "initializing S3 software installer store")
 					}
 					softwareInstallStore = store
-					level.Info(logger).Log("msg", "using S3 software installer store", "bucket", config.S3.Bucket)
+					level.Info(logger).Log("msg", "using S3 software installer store", "bucket", config.S3.SoftwareInstallersBucket)
 				} else {
 					installerDir := os.TempDir()
 					if dir := os.Getenv("FLEET_SOFTWARE_INSTALLER_STORE_DIR"); dir != "" {
