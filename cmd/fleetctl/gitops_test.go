@@ -181,22 +181,29 @@ func TestBasicTeamGitOps(t *testing.T) {
 		CreatedAt: time.Now(),
 		Name:      teamName,
 	}
+	var savedTeam *fleet.Team
 	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
-		if name == teamName {
-			return team, nil
+		if name == teamName && savedTeam != nil {
+			return savedTeam, nil
 		}
-		return nil, nil
+		return nil, &notFoundError{}
 	}
 	ds.TeamFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
 		if tid == team.ID {
-			return team, nil
+			return savedTeam, nil
 		}
 		return nil, nil
+	}
+	var enrolledTeamSecrets []*fleet.EnrollSecret
+	ds.NewTeamFunc = func(ctx context.Context, newTeam *fleet.Team) (*fleet.Team, error) {
+		newTeam.ID = team.ID
+		savedTeam = newTeam
+		enrolledTeamSecrets = newTeam.Secrets
+		return newTeam, nil
 	}
 	ds.IsEnrollSecretAvailableFunc = func(ctx context.Context, secret string, new bool, teamID *uint) (bool, error) {
 		return true, nil
 	}
-	var savedTeam *fleet.Team
 	ds.SaveTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
 		savedTeam = team
 		return team, nil
@@ -205,10 +212,6 @@ func TestBasicTeamGitOps(t *testing.T) {
 		require.ElementsMatch(t, labels, []string{fleet.BuiltinLabelMacOS14Plus})
 		return map[string]uint{fleet.BuiltinLabelMacOS14Plus: 1}, nil
 	}
-	ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error) {
-		declaration.DeclarationUUID = uuid.NewString()
-		return declaration, nil
-	}
 	ds.DeleteMDMAppleDeclarationByNameFunc = func(ctx context.Context, teamID *uint, name string) error {
 		return nil
 	}
@@ -216,16 +219,15 @@ func TestBasicTeamGitOps(t *testing.T) {
 		return nil
 	}
 
-	var enrolledSecrets []*fleet.EnrollSecret
 	ds.ApplyEnrollSecretsFunc = func(ctx context.Context, teamID *uint, secrets []*fleet.EnrollSecret) error {
-		enrolledSecrets = secrets
+		enrolledTeamSecrets = secrets
 		return nil
 	}
 
 	tmpFile, err := os.CreateTemp(t.TempDir(), "*.yml")
 	require.NoError(t, err)
 
-	t.Setenv("TEST_SECRET", secret)
+	t.Setenv("TEST_SECRET", "")
 
 	_, err = tmpFile.WriteString(
 		`
@@ -235,7 +237,7 @@ policies:
 agent_options:
 name: ${TEST_TEAM_NAME}
 team_settings:
-  secrets: [{"secret":"${TEST_SECRET}"}]
+  secrets: ${TEST_SECRET}
 `,
 	)
 	require.NoError(t, err)
@@ -255,8 +257,17 @@ team_settings:
 	_ = runAppForTest(t, []string{"gitops", "-f", tmpFile.Name()})
 	require.NotNil(t, savedTeam)
 	assert.Equal(t, teamName, savedTeam.Name)
-	require.Len(t, enrolledSecrets, 1)
-	assert.Equal(t, secret, enrolledSecrets[0].Secret)
+	assert.Empty(t, enrolledTeamSecrets)
+
+	// The previous run created the team, so let's rerun with an existing team
+	_ = runAppForTest(t, []string{"gitops", "-f", tmpFile.Name()})
+	assert.Empty(t, enrolledTeamSecrets)
+
+	// Add a secret
+	t.Setenv("TEST_SECRET", fmt.Sprintf("[{\"secret\":\"%s\"}]", secret))
+	_ = runAppForTest(t, []string{"gitops", "-f", tmpFile.Name()})
+	require.Len(t, enrolledTeamSecrets, 1)
+	assert.Equal(t, secret, enrolledTeamSecrets[0].Secret)
 }
 
 func TestFullGlobalGitOps(t *testing.T) {
