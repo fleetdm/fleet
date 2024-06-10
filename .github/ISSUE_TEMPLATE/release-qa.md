@@ -99,6 +99,12 @@ Smoke tests are limited to core functionality and serve as a pre-release final r
 3. Verify able to run MDM commands on both macOS and Windows hosts from the CLI.
 </td><td>pass/fail</td></tr>
 
+<tr><td>MDM migration flow</td><td>Verify MDM enrollments, run MDM commands</td><td>
+  
+1. Turn off MDM on an ADE-eligible macOS host and verify that the native, "Device Enrollment" macOS notification appears.
+2. Follow the "Turn on MDM" instructions and verify that MDM is turned on.
+</td><td>pass/fail</td></tr>
+
 <tr><td>Scripts</td><td>Verify script library and execution</td><td>
 
 1. Verify able to run a script on all host types from CLI.
