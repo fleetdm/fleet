@@ -265,7 +265,7 @@ variable "fleet_config" {
   default = {
     mem                          = 512
     cpu                          = 256
-    image                        = "fleetdm/fleet:v4.31.1"
+    image                        = "fleetdm/fleet:v4.51.0"
     family                       = "fleet"
     sidecars                     = []
     depends_on                   = []
