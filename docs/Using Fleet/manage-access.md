@@ -45,6 +45,9 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 | Transfer hosts between teams\*                                                                                                             |          |            | ✅         | ✅    | ✅      |
 | Create, edit, and delete labels                                                                                                            |          |            | ✅         | ✅    | ✅      |
 | View all software                                                                                                                          | ✅       | ✅         | ✅         | ✅    |         |
+| Add and delete software                                                                                                                    |          |           | ✅         | ✅    | ✅       |
+| Download added software                                                                                                                    |          |           | ✅         | ✅    |         |
+| Install software on hosts                                                                                                                  |          |           | ✅         | ✅    |         |
 | Filter software by [vulnerabilities](https://fleetdm.com/docs/using-fleet/vulnerability-processing#vulnerability-processing)               | ✅       | ✅         | ✅         | ✅    |         |
 | Filter hosts by software                                                                                                                   | ✅       | ✅         | ✅         | ✅    |         |
 | Filter software by team\*                                                                                                                  | ✅       | ✅         | ✅         | ✅    |         |
@@ -88,10 +91,10 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 | View all [MDM settings](https://fleetdm.com/docs/using-fleet/mdm-macos-settings)                                                           |          |            |            | ✅    | ✅      |
 | Edit setup experience (end user authentication, bootstrap package, Setup Assistant)\*                                                                                         |          |            | ✅             | ✅    | ✅          |
 | Edit end user license agreement (EULA)\*                                                                                         |          |            |              | ✅    |         |
-| Run arbitrary scripts on hosts\*                                                                                                           |          |            | ✅         | ✅    |         |
-| View saved scripts\*                                                                                                                       | ✅       | ✅         | ✅         | ✅    |         |
-| Edit/upload saved scripts\*                                                                                                                |          |            | ✅         | ✅    | ✅      |
-| Run saved scripts on hosts\*                                                                                                               | ✅       | ✅         | ✅         | ✅    |         |
+| Run arbitrary scripts on hosts                                                                                                             |          |            | ✅         | ✅    |         |
+| View saved scripts                                                                                                                         | ✅       | ✅         | ✅         | ✅    |         |
+| Edit/upload saved scripts                                                                                                                  |          |            | ✅         | ✅    | ✅      |
+| Run saved scripts on hosts                                                                                                                 | ✅       | ✅         | ✅         | ✅    |         |
 | Lock, unlock, and wipe hosts\*                                                                                                             |          |            | ✅         | ✅    |         |
 
 \* Applies only to Fleet Premium
@@ -123,6 +126,10 @@ Users with access to multiple teams can be assigned different roles for each tea
 | Target hosts using labels                                                                                                        | ✅            | ✅             | ✅              | ✅         |             |
 | Add/remove manual labels to/from hosts                                                                                           |               |                | ✅              | ✅         | ✅          |
 | Add and delete hosts                                                                                                             |               |                | ✅              | ✅         |             |
+| View software                                                                                                                    | ✅            | ✅               | ✅              | ✅        |             |
+| Add and delete software                                                                                                          |               |                | ✅              | ✅         | ✅            |
+| Download added software                                                                                                          |               |                | ✅              | ✅         |              |
+| Install software on hosts                                                                                                        |               |                | ✅              | ✅         |              |
 | Filter software by [vulnerabilities](https://fleetdm.com/docs/using-fleet/vulnerability-processing#vulnerability-processing)     | ✅            | ✅             | ✅              | ✅         |             |
 | Filter hosts by software                                                                                                         | ✅            | ✅             | ✅              | ✅         |             |
 | Filter software                                                                                                                  | ✅            | ✅             | ✅              | ✅         |             |
