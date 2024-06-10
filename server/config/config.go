@@ -325,6 +325,20 @@ type S3Config struct {
 	SoftwareInstallersForceS3PathStyle bool   `yaml:"software_installers_force_s3_path_style"`
 }
 
+func (s S3Config) BucketsAndPrefixesMatch() bool {
+	cb := s.CarvesBucket
+	if cb == "" {
+		cb = s.Bucket
+	}
+
+	cp := s.CarvesPrefix
+	if cp == "" {
+		cp = s.Prefix
+	}
+
+	return s.SoftwareInstallersBucket == cb && s.SoftwareInstallersPrefix == cp
+}
+
 func (s S3Config) SoftwareInstallersToInternalCfg() S3ConfigInternal {
 	return S3ConfigInternal{
 		Bucket:           s.SoftwareInstallersBucket,
