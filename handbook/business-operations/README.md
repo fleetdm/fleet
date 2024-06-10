@@ -312,6 +312,15 @@ Create a [new montly accounting issue](https://github.com/fleetdm/confidential/i
 - **When is the issue created?** We create and close the monthly accounting issue for the previous month within the first 7 days of the following month.  For example, the monthly accounting issue to close out the month of January is created promptly in February and closed before the end of the day, Feb 7th.  A convenient trick is to create the issue on the first Friday of the month and close it ASAP.
 
 
+### Respond to low credit alert
+Fleet admins will receive an email alert when the usage of company cards for the month is aproaching the company credit limit. To avoid the limit being exceeded, a Brex admin will follow these steps:
+1. Sign in to Fleet's Brex account.
+2. On the landing page, use the "Move money" button to "Add funds to your Brex business accounts".
+3. Select "Transfer from a connected account" and select the primary business account.
+4. Choose the "One time" transfer option and process the transfer.
+
+No further action needs to be taken, the amount available for use will increase without disruption to regular processes.
+
 ### Check franchise tax status
 No later than the second month of every quarter, we check [Delaware divison of corporations](https://icis.corp.delaware.gov) to ensure that Fleet has paid the quarterly franchise tax amounts to remain in good standing with the state of Delaware.
 - Go to the [DCIS - eCorp website](https://icis.corp.delaware.gov/ecorp/logintax.aspx?FilingType=FranchiseTax) and use the details in 1Password to look up Fleet's status.
