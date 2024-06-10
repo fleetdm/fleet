@@ -175,7 +175,7 @@ func createUserCommand() *cli.Command {
 			}
 
 			if apiOnly && sessionKey != nil && *sessionKey != "" {
-				fmt.Printf("Success! The API token for your new user is: %s\n", *sessionKey)
+				fmt.Fprintf(c.App.Writer, "Success! The API token for your new user is: %s\n", *sessionKey)
 			}
 
 			return nil

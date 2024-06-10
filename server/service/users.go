@@ -34,7 +34,7 @@ type createUserRequest struct {
 
 type createUserResponse struct {
 	User *fleet.User `json:"user,omitempty"`
-	// Token is only returned when creating API-only users.
+	// Token is only returned when creating API-only (non-SSO) users.
 	Token *string `json:"token,omitempty"`
 	Err   error   `json:"error,omitempty"`
 }
@@ -100,9 +100,9 @@ func (svc *Service) CreateUser(ctx context.Context, p fleet.UserPayload) (*fleet
 		return nil, nil, ctxerr.Wrap(ctx, err, "create user")
 	}
 
-	// The sessionKey is returned for API-only users only.
+	// The sessionKey is returned for API-only non-SSO users only.
 	var sessionKey *string
-	if user.APIOnly {
+	if user.APIOnly && !user.SSOEnabled {
 		if p.Password == nil {
 			// Should not happen but let's log just in case.
 			level.Error(svc.logger).Log("err", err, "msg", "password not set during admin user creation")
