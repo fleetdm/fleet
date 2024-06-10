@@ -121,7 +121,7 @@ policies:
     platform: darwin
     calendar_events_enabled: false  
   - name: macOS - MDM migration complete
-    query: SELECT 1 AS result FROM system_info WHERE local_hostname != 'Titanosauria';
+    query: SELECT 1 AS result FROM system_info WHERE computer_name NOT IN ('Titanosauria', 'Drew’s MacBook Pro','fleetwoodmike');
     critical: false
     description: Determines if the device has completed MDM migration to Fleet.
     resolution: We will migrate your macOS MDM to Fleet.
