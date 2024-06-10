@@ -87,6 +87,7 @@ module.exports.routes = {
     skipAssets: false,
     action: 'docs/view-basic-documentation',// Meta title and description set in view action
     locals: {
+      hideStartCTA: true,
       currentSection: 'documentation',
     }
   },// handles /docs and /docs/foo/bar
@@ -99,18 +100,12 @@ module.exports.routes = {
     }
   },// handles /handbook and /handbook/foo/bar
 
-  'GET /transparency': {
-    action: 'view-transparency',
-    locals: {
-      pageTitleForMeta: 'Transparency | Fleet',
-      pageDescriptionForMeta: 'Learn what data osquery can see.',
-    }
-  },
   'GET /new-license': {
     action: 'customers/view-new-license',
     locals: {
       hideHeaderLinks: true,
       hideFooterLinks: true,
+      hideStartCTA: true,
       pageTitleForMeta: 'Get Fleet Premium | Fleet',
       pageDescriptionForMeta: 'Generate your quote and start using Fleet Premium today.',
     }
@@ -138,6 +133,7 @@ module.exports.routes = {
     locals: {
       hideHeaderLinks: true,
       hideFooterLinks: true,
+      hideStartCTA: true,
       pageTitleForMeta: 'Customer dashboard | Fleet',
       pageDescriptionForMeta: 'View and edit information about your Fleet Premium license.',
     }
@@ -147,6 +143,7 @@ module.exports.routes = {
     locals: {
       hideHeaderLinks: true,
       hideFooterLinks: true,
+      hideStartCTA: true,
       pageTitleForMeta: 'Forgot password | Fleet',
       pageDescriptionForMeta: 'Recover the password for your Fleet customer account.',
     }
@@ -156,6 +153,7 @@ module.exports.routes = {
     locals: {
       hideHeaderLinks: true,
       hideFooterLinks: true,
+      hideStartCTA: true,
       pageTitleForMeta: 'New password | Fleet',
       pageDescriptionForMeta: 'Change the password for your Fleet customer account.',
     }
@@ -190,6 +188,7 @@ module.exports.routes = {
     locals: {
       hideFooterLinks: true,
       showAdminLinks: true,
+      hideStartCTA: true,
     },
   },
 
@@ -199,6 +198,7 @@ module.exports.routes = {
     locals: {
       hideFooterLinks: true,
       showAdminLinks: true,
+      hideStartCTA: true,
     },
   },
 
@@ -207,6 +207,7 @@ module.exports.routes = {
     locals: {
       hideFooterLinks: true,
       showAdminLinks: true,
+      hideStartCTA: true,
     },
   },
 
@@ -222,6 +223,7 @@ module.exports.routes = {
     locals: {
       hideFooterLinks: true,
       showAdminLinks: true,
+      hideStartCTA: true,
     }
   },
 
@@ -284,8 +286,17 @@ module.exports.routes = {
     locals: {
       hideFooterLinks: true,
       hideGetStartedButton: true,
+      hideStartCTA: true,
       pageTitleForMeta: 'Start | Fleet',
       pageDescriptionForMeta: 'Get Started with Fleet. Spin up a local demo or get your Premium license key.',
+    }
+  },
+
+  'GET /better': {
+    action: 'view-transparency',
+    locals: {
+      pageDescriptionForMeta: 'Discover how Fleet simplifies IT and security, prioritizing privacy, transparency, and trust for end users.',
+      pageTitleForMeta: 'Better with Fleet | Fleet'
     }
   },
 
@@ -440,6 +451,7 @@ module.exports.routes = {
   'GET /docs/deploy/deploy-on-render': '/guides/deploy-fleet-on-render',
   'GET /docs/deploy/deploy-fleet-on-kubernetes': '/guides/deploy-fleet-on-kubernetes',
   'GET /docs/using-fleet/mdm-macos-setup': '/docs/using-fleet/mdm-setup',
+  'GET /transparency': '/better',
 
   //  ╔╦╗╦╔═╗╔═╗  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗   ┬   ╔╦╗╔═╗╦ ╦╔╗╔╦  ╔═╗╔═╗╔╦╗╔═╗
   //  ║║║║╚═╗║    ╠╦╝║╣  ║║║╠╦╝║╣ ║   ║ ╚═╗  ┌┼─   ║║║ ║║║║║║║║  ║ ║╠═╣ ║║╚═╗
@@ -510,7 +522,9 @@ module.exports.routes = {
   'GET /learn-more-about/calendar-events': '/announcements/fleet-in-your-calendar-introducing-maintenance-windows',
   'GET /learn-more-about/setup-windows-mdm': '/docs/using-fleet/mdm-setup',
   'GET /learn-more-about/setup-abm': '/docs/using-fleet/mdm-setup#apple-business-manager-abm',
-  'GET /learn-more-about/renew-apns': '/docs/using-fleet/mdm-setup#renewing-apns',
+  'GET /learn-more-about/renew-apns': '/docs/using-fleet/mdm-setup#apple-push-notification-service-apns',
+  'GET /learn-more-about/renew-abm': '/docs/using-fleet/mdm-setup#apple-business-manager-abm',
+  'GET /learn-more-about/fleet-server-private-key': '/docs/configuration/fleet-server-configuration#server-private-key',
 
   // Sitemap
   // =============================================================================================================
@@ -583,4 +597,5 @@ module.exports.routes = {
   'POST /api/v1/admin/provision-sandbox-instance-and-deliver-email': { action: 'admin/provision-sandbox-instance-and-deliver-email' },
   'POST /api/v1/deliver-talk-to-us-form-submission': { action: 'deliver-talk-to-us-form-submission' },
   'POST /api/v1/save-questionnaire-progress': { action: 'save-questionnaire-progress' },
+  'POST /api/v1/account/update-start-cta-visibility': { action: 'account/update-start-cta-visibility' },
 };

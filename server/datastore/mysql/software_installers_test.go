@@ -71,16 +71,30 @@ func testListPendingSoftwareInstalls(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	hostInstall1, err := ds.InsertSoftwareInstallRequest(ctx, host1.ID, installerID1)
+	installerID3, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:     "banana",
+		PreInstallQuery:   "SELECT 3",
+		PostInstallScript: "apple",
+		InstallerFile:     bytes.NewReader([]byte("hello")),
+		StorageID:         "storage3",
+		Filename:          "file3",
+		Title:             "file3",
+		Version:           "3.0",
+		Source:            "apps",
+		SelfService:       true,
+	})
 	require.NoError(t, err)
 
-	hostInstall2, err := ds.InsertSoftwareInstallRequest(ctx, host1.ID, installerID2)
+	hostInstall1, err := ds.InsertSoftwareInstallRequest(ctx, host1.ID, installerID1, false)
 	require.NoError(t, err)
 
-	hostInstall3, err := ds.InsertSoftwareInstallRequest(ctx, host2.ID, installerID1)
+	hostInstall2, err := ds.InsertSoftwareInstallRequest(ctx, host1.ID, installerID2, false)
 	require.NoError(t, err)
 
-	hostInstall4, err := ds.InsertSoftwareInstallRequest(ctx, host2.ID, installerID2)
+	hostInstall3, err := ds.InsertSoftwareInstallRequest(ctx, host2.ID, installerID1, false)
+	require.NoError(t, err)
+
+	hostInstall4, err := ds.InsertSoftwareInstallRequest(ctx, host2.ID, installerID2, false)
 	require.NoError(t, err)
 
 	err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
@@ -90,7 +104,7 @@ func testListPendingSoftwareInstalls(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	hostInstall5, err := ds.InsertSoftwareInstallRequest(ctx, host2.ID, installerID2)
+	hostInstall5, err := ds.InsertSoftwareInstallRequest(ctx, host2.ID, installerID2, false)
 	require.NoError(t, err)
 
 	err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
@@ -122,6 +136,29 @@ func testListPendingSoftwareInstalls(t *testing.T, ds *Datastore) {
 	require.Equal(t, "world", exec1.PostInstallScript)
 	require.Equal(t, installerID1, exec1.InstallerID)
 	require.Equal(t, "SELECT 1", exec1.PreInstallCondition)
+	require.False(t, exec1.SelfService)
+
+	hostInstall6, err := ds.InsertSoftwareInstallRequest(ctx, host1.ID, installerID3, true)
+	require.NoError(t, err)
+
+	err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
+		HostID:                    host1.ID,
+		InstallUUID:               hostInstall6,
+		PreInstallConditionOutput: ptr.String("output"),
+	})
+	require.NoError(t, err)
+
+	exec2, err := ds.GetSoftwareInstallDetails(ctx, hostInstall6)
+	require.NoError(t, err)
+
+	require.Equal(t, host1.ID, exec2.HostID)
+	require.Equal(t, hostInstall6, exec2.ExecutionID)
+	require.Equal(t, "banana", exec2.InstallScript)
+	require.Equal(t, "apple", exec2.PostInstallScript)
+	require.Equal(t, installerID3, exec2.InstallerID)
+	require.Equal(t, "SELECT 3", exec2.PreInstallCondition)
+	require.True(t, exec2.SelfService)
+
 }
 
 func testSoftwareInstallRequests(t *testing.T, ds *Datastore) {
@@ -161,7 +198,7 @@ func testSoftwareInstallRequests(t *testing.T, ds *Datastore) {
 			require.Equal(t, "foo.pkg", si.Name)
 
 			// non-existent host
-			_, err = ds.InsertSoftwareInstallRequest(ctx, 12, si.InstallerID)
+			_, err = ds.InsertSoftwareInstallRequest(ctx, 12, si.InstallerID, false)
 			require.ErrorAs(t, err, &nfe)
 
 			// successful insert
@@ -174,7 +211,7 @@ func testSoftwareInstallRequests(t *testing.T, ds *Datastore) {
 				TeamID:        teamID,
 			})
 			require.NoError(t, err)
-			_, err = ds.InsertSoftwareInstallRequest(ctx, host.ID, si.InstallerID)
+			_, err = ds.InsertSoftwareInstallRequest(ctx, host.ID, si.InstallerID, false)
 			require.NoError(t, err)
 
 			// list hosts with software install requests
@@ -270,7 +307,7 @@ func testGetSoftwareInstallResult(t *testing.T, ds *Datastore) {
 			})
 			require.NoError(t, err)
 
-			installUUID, err := ds.InsertSoftwareInstallRequest(ctx, host.ID, installerID)
+			installUUID, err := ds.InsertSoftwareInstallRequest(ctx, host.ID, installerID, false)
 			require.NoError(t, err)
 			err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
 				HostID:                    host.ID,

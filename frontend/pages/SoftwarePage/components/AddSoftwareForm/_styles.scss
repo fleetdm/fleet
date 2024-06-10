@@ -1,5 +1,4 @@
 .add-software-form {
-
   &__uploading-message {
     display: flex;
     align-items: center;
@@ -7,7 +6,7 @@
     gap: $pad-large;
 
     p {
-      margin: 0
+      margin: 0;
     }
   }
 
@@ -19,25 +18,5 @@
 
   &__file-uploader {
     box-sizing: border-box;
-  }
-
-  &__selected-file {
-    display: flex;
-    gap: $pad-medium;
-    align-items: center;
-    width: 100%;
-    text-align: left;
-
-    &--details {
-      &--name {
-        font-size: $x-small;
-        font-weight: $bold;
-      }
-
-      &--platform {
-        font-size: $xx-small;
-        color: $ui-fleet-black-75;
-      }
-    }
   }
 }

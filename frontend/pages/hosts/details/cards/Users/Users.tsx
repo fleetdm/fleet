@@ -31,7 +31,7 @@ const Users = ({
   if (!hostUsersEnabled) {
     return (
       <Card
-        borderRadiusSize="large"
+        borderRadiusSize="xxlarge"
         includeShadow
         largePadding
         className={baseClass}
@@ -56,7 +56,7 @@ const Users = ({
 
   return (
     <Card
-      borderRadiusSize="large"
+      borderRadiusSize="xxlarge"
       includeShadow
       largePadding
       className={baseClass}

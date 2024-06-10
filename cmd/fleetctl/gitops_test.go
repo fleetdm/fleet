@@ -13,10 +13,12 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/tokenpki"
 	"github.com/fleetdm/fleet/v4/server/mock"
+	mdmmock "github.com/fleetdm/fleet/v4/server/mock/mdm"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -265,12 +267,12 @@ func TestFullGlobalGitOps(t *testing.T) {
 	testCertPEM := tokenpki.PEMCertificate(testCert.Raw)
 	testKeyPEM := tokenpki.PEMRSAPrivateKey(testKey)
 	fleetCfg := config.TestConfig()
-	config.SetTestMDMConfig(t, &fleetCfg, testCertPEM, testKeyPEM, nil, "../../server/service/testdata")
+	config.SetTestMDMConfig(t, &fleetCfg, testCertPEM, testKeyPEM, "../../server/service/testdata")
 
 	// License is not needed because we are not using any premium features in our config.
 	_, ds := runServerWithMockedDS(
 		t, &service.TestServerOpts{
-			MDMStorage:  new(mock.MDMAppleStore),
+			MDMStorage:  new(mdmmock.MDMAppleStore),
 			MDMPusher:   mockPusher{},
 			FleetConfig: &fleetCfg,
 		},
@@ -432,13 +434,13 @@ func TestFullTeamGitOps(t *testing.T) {
 	testCertPEM := tokenpki.PEMCertificate(testCert.Raw)
 	testKeyPEM := tokenpki.PEMRSAPrivateKey(testKey)
 	fleetCfg := config.TestConfig()
-	config.SetTestMDMConfig(t, &fleetCfg, testCertPEM, testKeyPEM, nil, "../../server/service/testdata")
+	config.SetTestMDMConfig(t, &fleetCfg, testCertPEM, testKeyPEM, "../../server/service/testdata")
 
 	// License is not needed because we are not using any premium features in our config.
 	_, ds := runServerWithMockedDS(
 		t, &service.TestServerOpts{
 			License:          license,
-			MDMStorage:       new(mock.MDMAppleStore),
+			MDMStorage:       new(mdmmock.MDMAppleStore),
 			MDMPusher:        mockPusher{},
 			FleetConfig:      &fleetCfg,
 			NoCacheDatastore: true,
@@ -717,12 +719,18 @@ func TestBasicGlobalAndTeamGitOps(t *testing.T) {
 		ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile,
 		macDecls []*fleet.MDMAppleDeclaration,
 	) error {
+		assert.Empty(t, macProfiles)
+		assert.Empty(t, winProfiles)
 		return nil
 	}
-	ds.BatchSetScriptsFunc = func(ctx context.Context, tmID *uint, scripts []*fleet.Script) error { return nil }
+	ds.BatchSetScriptsFunc = func(ctx context.Context, tmID *uint, scripts []*fleet.Script) error {
+		assert.Empty(t, scripts)
+		return nil
+	}
 	ds.BulkSetPendingMDMHostProfilesFunc = func(
 		ctx context.Context, hostIDs []uint, teamIDs []uint, profileUUIDs []string, hostUUIDs []string,
 	) error {
+		assert.Empty(t, profileUUIDs)
 		return nil
 	}
 	ds.DeleteMDMAppleDeclarationByNameFunc = func(ctx context.Context, teamID *uint, name string) error {
@@ -753,25 +761,25 @@ func TestBasicGlobalAndTeamGitOps(t *testing.T) {
 	}
 	ds.TeamFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
 		if tid == team.ID {
-			return team, nil
+			return savedTeam, nil
 		}
 		return nil, nil
 	}
 	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
-		if name == teamName {
-			return team, nil
+		if name == teamName && savedTeam != nil {
+			return savedTeam, nil
 		}
-		return nil, nil
+		return nil, &notFoundError{}
+	}
+	ds.NewTeamFunc = func(ctx context.Context, newTeam *fleet.Team) (*fleet.Team, error) {
+		newTeam.ID = team.ID
+		savedTeam = newTeam
+		enrolledTeamSecrets = newTeam.Secrets
+		return newTeam, nil
 	}
 	ds.SaveTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
 		savedTeam = team
 		return team, nil
-	}
-	ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration) (
-		*fleet.MDMAppleDeclaration, error,
-	) {
-		declaration.DeclarationUUID = uuid.NewString()
-		return declaration, nil
 	}
 	ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, teamID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
 		return nil
@@ -942,11 +950,27 @@ func TestFullGlobalAndTeamGitOps(t *testing.T) {
 		return *savedTeamPtr, nil
 	}
 
+	apnsCert, apnsKey, err := mysql.GenerateTestCertBytes()
+	require.NoError(t, err)
+	crt, key, err := apple_mdm.NewSCEPCACertKey()
+	require.NoError(t, err)
+	scepCert := tokenpki.PEMCertificate(crt.Raw)
+	scepKey := tokenpki.PEMRSAPrivateKey(key)
+
+	ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+		return map[fleet.MDMAssetName]fleet.MDMConfigAsset{
+			fleet.MDMAssetCACert:   {Value: scepCert},
+			fleet.MDMAssetCAKey:    {Value: scepKey},
+			fleet.MDMAssetAPNSKey:  {Value: apnsKey},
+			fleet.MDMAssetAPNSCert: {Value: apnsCert},
+		}, nil
+	}
+
 	globalFile := "./testdata/gitops/global_config_no_paths.yml"
 	teamFile := "./testdata/gitops/team_config_no_paths.yml"
 
 	// Dry run on global file should fail because Apple BM Default Team does not exist (and has not been provided)
-	_, err := runAppNoChecks([]string{"gitops", "-f", globalFile, "--dry-run"})
+	_, err = runAppNoChecks([]string{"gitops", "-f", globalFile, "--dry-run"})
 	require.Error(t, err)
 	assert.True(t, strings.Contains(err.Error(), "team name not found"))
 
@@ -1010,6 +1034,7 @@ func TestTeamSofwareInstallersGitOps(t *testing.T) {
 		{"testdata/gitops/team_software_installer_install_not_found.yml", "no such file or directory"},
 		{"testdata/gitops/team_software_installer_post_install_not_found.yml", "no such file or directory"},
 		{"testdata/gitops/team_software_installer_no_url.yml", "software URL is required"},
+		{"testdata/gitops/team_software_installer_invalid_self_service_value.yml", "cannot unmarshal string into Go struct field TeamSpecSoftware.self_service of type bool"},
 	}
 	for _, c := range cases {
 		t.Run(filepath.Base(c.file), func(t *testing.T) {
@@ -1032,12 +1057,12 @@ func setupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig,
 	testCertPEM := tokenpki.PEMCertificate(testCert.Raw)
 	testKeyPEM := tokenpki.PEMRSAPrivateKey(testKey)
 	fleetCfg := config.TestConfig()
-	config.SetTestMDMConfig(t, &fleetCfg, testCertPEM, testKeyPEM, nil, "../../server/service/testdata")
+	config.SetTestMDMConfig(t, &fleetCfg, testCertPEM, testKeyPEM, "../../server/service/testdata")
 
 	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
 	_, ds := runServerWithMockedDS(
 		t, &service.TestServerOpts{
-			MDMStorage:       new(mock.MDMAppleStore),
+			MDMStorage:       new(mdmmock.MDMAppleStore),
 			MDMPusher:        mockPusher{},
 			FleetConfig:      &fleetCfg,
 			License:          license,

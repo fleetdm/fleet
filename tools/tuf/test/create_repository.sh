@@ -106,7 +106,9 @@ for system in $SYSTEMS; do
         --platform macos \
         --name desktop \
         --version 42.0.0 -t 42.0 -t 42 -t stable
-        rm desktop.app.tar.gz
+        if [[ -z "$MACOS_USE_PREBUILT_DESKTOP_APP_TAR_GZ" ]]; then
+            rm desktop.app.tar.gz
+        fi
     fi
 
     # Add Nudge application on macos (if enabled).

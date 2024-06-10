@@ -12,7 +12,6 @@ import {
 import { SelectedPlatform } from "interfaces/platform";
 import {
   IHostSoftware,
-  ISoftwareTitle,
   ISoftware,
   SoftwareInstallStatus,
 } from "interfaces/software";
@@ -34,7 +33,7 @@ export interface ISortOption {
 export interface ILoadHostsResponse {
   hosts: IHost[];
   software: ISoftware | undefined;
-  software_title: ISoftwareTitle | undefined;
+  software_title: { name: string; version?: string } | null | undefined; // TODO: confirm type
   munki_issue: IMunkiIssuesAggregate;
   mobile_device_management_solution: IMdmSolution;
 }

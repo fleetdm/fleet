@@ -499,7 +499,7 @@ type Datastore interface {
 	// InsertSoftwareInstallRequest tracks a new request to install the provided
 	// software installer in the host. It returns the auto-generated installation
 	// uuid.
-	InsertSoftwareInstallRequest(ctx context.Context, hostID uint, softwareTitleID uint) (string, error)
+	InsertSoftwareInstallRequest(ctx context.Context, hostID uint, softwareTitleID uint, selfService bool) (string, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// SoftwareStore
@@ -555,7 +555,7 @@ type Datastore interface {
 	InsertCVEMeta(ctx context.Context, cveMeta []CVEMeta) error
 	ListCVEs(ctx context.Context, maxAge time.Duration) ([]CVEMeta, error)
 
-	ListHostSoftware(ctx context.Context, host *Host, includeAvailableForInstall bool, opts ListOptions) ([]*HostSoftwareWithInstaller, *PaginationMetadata, error)
+	ListHostSoftware(ctx context.Context, host *Host, opts HostSoftwareTitleListOptions) ([]*HostSoftwareWithInstaller, *PaginationMetadata, error)
 
 	// SetHostSoftwareInstallResult records the result of a software installation
 	// attempt on the host.
@@ -1256,6 +1256,24 @@ type Datastore interface {
 	// the provided value.
 	MDMAppleSetPendingDeclarationsAs(ctx context.Context, hostUUID string, status *MDMDeliveryStatus, detail string) error
 
+	// InsertMDMConfigAssets inserts MDM related config assets, such as SCEP and APNS certs and keys.
+	InsertMDMConfigAssets(ctx context.Context, assets []MDMConfigAsset) error
+
+	// GetAllMDMConfigAssetsByName returns the requested config assets.
+	//
+	// If it doesn't find all the assets requested, it returns a `mysql.ErrPartialResult`
+	GetAllMDMConfigAssetsByName(ctx context.Context, assetNames []MDMAssetName) (map[MDMAssetName]MDMConfigAsset, error)
+
+	// GetAllMDMConfigAssetsHashes behaves like
+	// GetAllMDMConfigAssetsByName, but only returns a sha256 checksum of
+	// each asset
+	//
+	// If it doesn't find all the assets requested, it returns a `mysql.ErrPartialResult`
+	GetAllMDMConfigAssetsHashes(ctx context.Context, assetNames []MDMAssetName) (map[MDMAssetName]string, error)
+
+	// DeleteMDMConfigAssetsByName soft deletes the given MDM config assets.
+	DeleteMDMConfigAssetsByName(ctx context.Context, assetNames []MDMAssetName) error
+
 	///////////////////////////////////////////////////////////////////////////////
 	// Microsoft MDM
 
@@ -1522,8 +1540,13 @@ type Datastore interface {
 // Fleet-specific use cases.
 type MDMAppleStore interface {
 	storage.AllStorage
+	MDMAssetRetriever
 	EnqueueDeviceLockCommand(ctx context.Context, host *Host, cmd *mdm.Command, pin string) error
 	EnqueueDeviceWipeCommand(ctx context.Context, host *Host, cmd *mdm.Command) error
+}
+
+type MDMAssetRetriever interface {
+	GetAllMDMConfigAssetsByName(ctx context.Context, assetNames []MDMAssetName) (map[MDMAssetName]MDMConfigAsset, error)
 }
 
 // Cloner represents any type that can clone itself. Used for the cached_mysql

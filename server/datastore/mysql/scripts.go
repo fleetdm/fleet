@@ -298,7 +298,7 @@ VALUES
 	res, err := tx.ExecContext(ctx, insertStmt,
 		script.TeamID, globalOrTeamID, script.Name, scriptContentsID)
 	if err != nil {
-		if isDuplicate(err) {
+		if IsDuplicate(err) {
 			// name already exists for this team/global
 			err = alreadyExists("Script", script.Name)
 		} else if isChildForeignKeyError(err) {
@@ -331,7 +331,11 @@ ON DUPLICATE KEY UPDATE
 }
 
 func md5ChecksumScriptContent(s string) string {
-	rawChecksum := md5.Sum([]byte(s)) //nolint:gosec
+	return md5ChecksumBytes([]byte(s))
+}
+
+func md5ChecksumBytes(b []byte) string {
+	rawChecksum := md5.Sum(b) //nolint:gosec
 	return strings.ToUpper(hex.EncodeToString(rawChecksum[:]))
 }
 
@@ -1090,6 +1094,10 @@ WHERE
     SELECT 1 FROM host_script_results WHERE script_content_id = script_contents.id)
   AND NOT EXISTS (
     SELECT 1 FROM scripts WHERE script_content_id = script_contents.id)
+  AND NOT EXISTS (
+    SELECT 1 FROM software_installers si
+    WHERE script_contents.id IN (si.install_script_content_id, si.post_install_script_content_id)
+  )
 		`
 	_, err := ds.writer(ctx).ExecContext(ctx, deleteStmt)
 	if err != nil {

@@ -149,6 +149,7 @@ func TestCPETranslations(t *testing.T) {
 }
 
 func TestSyncCPEDatabase(t *testing.T) {
+	t.Skip("REMOVEME: when API keys are restored")
 	nettest.Run(t)
 
 	tempDir := t.TempDir()
@@ -466,6 +467,7 @@ func TestLegacyCPEDB(t *testing.T) {
 }
 
 func TestCPEFromSoftwareIntegration(t *testing.T) {
+	t.Skip("REMOVEME: when API keys are restored")
 	testCases := []struct {
 		software fleet.Software
 		cpe      string

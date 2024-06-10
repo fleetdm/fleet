@@ -37,7 +37,7 @@ Recurring monthly or annual expenses, such as the tools we use throughout Fleet,
 
 
 ### Access a background check
-Fleet team members with access to Fleet's infrastructure undergo a background check provided through [Vetty](https://vetty.co/). Only the most recent background checks appear on the home page of Vetty's dashboard. To access a complete list of background checks run in Vetty, scroll down to the bottom of the candidates page and click "View Historical".
+All Fleet team members undergo a background check provided through [Vetty](https://vetty.co/). Only the most recent background checks appear on the home page of Vetty's dashboard. To access a complete list of background checks run in Vetty, scroll down to the bottom of the candidates page and click "View Historical".
 
 
 ### Process an email from a state agency
@@ -252,7 +252,36 @@ When BizOps receives notification of a Fleetie's manager changing, follow these 
     - For a team member moving from "classified" to "confidential" access, check Gusto, Plane, and other systems to remove their access.
 
 > **Note:** The Fleeties spreadsheet is the source of truth for who everyone's manager is and their job titles.
- 
+
+### Recognize employee workiversaries
+
+At Fleet, everyone is recognized on their [workiversary](https://fleetdm.com/handbook/company/communications#workiversaries). To ensure this happens, take the following steps:
+
+1. Bimonthly, use [Fleeties (private google doc)](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) to determine who is celebrating their workiversary in the following two months.
+2. Post in the #help-classifed Slack channel and cc the Head of Business Operations. Use the following template:
+
+   
+    ```
+    [Month]
+    [workiversary date (DD-MMM)] - [teammate name] - [number of years at Fleet]
+    ```
+
+    
+   The Apprentice to the CEO will also use this post to update the [All hands](https://fleetdm.com/handbook/company/communications#all-hands) deck.
+3. On the day prior to a workiversary, send the teammate’s manager a DM on Slack:
+
+
+    ```
+    Hey! Just a heads up, tomorrow is [teammate’s name] [number of years at Fleet] workiversary at Fleet.
+    BizOps were planning on posting something in the #random channel to recognize them, but I was wondering if you would like to instead?
+    ```
+
+    
+   > If a manager elects to post and hasn't done so by 2pm ET on the day of the workiversary, send them a friendly reminder and offer to post instead.
+
+4. If the manager has deferred to BizOps, schedule a Slack post for the following day to recognize the teammate's contributions at Fleet. If you’re unsure about what to post, take a look at what’s been [posted previously](https://docs.google.com/document/d/1Va4TYAs9Tb0soDQPeoeMr-qHxk0Xrlf-DUlBe4jn29Q/edit).
+
+
 
 ### Prepare salary benchmarking information
 1. Use the relevant template text in the README section of the [¶¶ 💌 Compensation decisions document](https://docs.google.com/document/d/1NQ-IjcOTbyFluCWqsFLMfP4SvnopoXDcX0civ-STS5c/edit?usp=sharing) for a current Fleetie, a new role, a prospective hire, or other benchmarking use case.
@@ -282,6 +311,15 @@ Create a [new montly accounting issue](https://github.com/fleetdm/confidential/i
 - The close date is tracked each month in [KPIs](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit).
 - **When is the issue created?** We create and close the monthly accounting issue for the previous month within the first 7 days of the following month.  For example, the monthly accounting issue to close out the month of January is created promptly in February and closed before the end of the day, Feb 7th.  A convenient trick is to create the issue on the first Friday of the month and close it ASAP.
 
+
+### Respond to low credit alert
+Fleet admins will receive an email alert when the usage of company cards for the month is aproaching the company credit limit. To avoid the limit being exceeded, a Brex admin will follow these steps:
+1. Sign in to Fleet's Brex account.
+2. On the landing page, use the "Move money" button to "Add funds to your Brex business accounts".
+3. Select "Transfer from a connected account" and select the primary business account.
+4. Choose the "One time" transfer option and process the transfer.
+
+No further action needs to be taken, the amount available for use will increase without disruption to regular processes.
 
 ### Check franchise tax status
 No later than the second month of every quarter, we check [Delaware divison of corporations](https://icis.corp.delaware.gov) to ensure that Fleet has paid the quarterly franchise tax amounts to remain in good standing with the state of Delaware.
