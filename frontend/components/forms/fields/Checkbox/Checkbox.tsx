@@ -12,6 +12,7 @@ export interface ICheckboxProps {
   children?: ReactNode;
   className?: string;
   disabled?: boolean;
+  disabledGrey?: boolean;
   name?: string;
   onChange?: any; // TODO: meant to be an event; figure out type for this
   onBlur?: any;
@@ -29,6 +30,7 @@ const Checkbox = (props: ICheckboxProps) => {
     children,
     className,
     disabled = false,
+    disabledGrey = false,
     name,
     onChange = noop,
     onBlur = noop,
@@ -57,12 +59,14 @@ const Checkbox = (props: ICheckboxProps) => {
   );
 
   const checkBoxTickClass = classnames(`${baseClass}__tick`, {
-    [`${baseClass}__tick--disabled`]: disabled,
+    [`${baseClass}__tick--disabled`]: disabled || disabledGrey,
+    [`${baseClass}__tick--disabled-grey`]: disabledGrey,
     [`${baseClass}__tick--indeterminate`]: indeterminate,
   });
 
   const checkBoxLabelClass = classnames(checkBoxClass, {
-    [`${baseClass}__label--disabled`]: disabled,
+    [`${baseClass}__label--disabled`]: disabled || disabledGrey,
+    [`${baseClass}__label--disabled-grey`]: disabledGrey,
   });
 
   const formFieldProps = {

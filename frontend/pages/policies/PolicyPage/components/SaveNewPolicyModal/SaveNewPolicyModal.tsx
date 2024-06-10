@@ -212,7 +212,7 @@ const SaveNewPolicyModal = ({
             label="Name"
             autofocus
             ignore1password
-            disabled={disableForm}
+            disabledGrey={disableForm}
           />
           <InputField
             name="description"
@@ -222,7 +222,7 @@ const SaveNewPolicyModal = ({
             label={renderAutofillLabel("Description")}
             helpText="How does this policy's failure put the organization at risk?"
             type="textarea"
-            disabled={disableForm}
+            disabledGrey={disableForm}
           />
           <InputField
             name="resolution"
@@ -232,7 +232,7 @@ const SaveNewPolicyModal = ({
             label={renderAutofillLabel("Resolution")}
             type="textarea"
             helpText="If this policy fails, what should the end user expect?"
-            disabled={disableForm}
+            disabledGrey={disableForm}
           />
           {platformSelector.render()}
           {isPremiumTier && (
@@ -242,7 +242,7 @@ const SaveNewPolicyModal = ({
                 onChange={(value: boolean) => setLastEditedQueryCritical(value)}
                 value={lastEditedQueryCritical}
                 isLeftLabel
-                disabled={disableForm}
+                disabledGrey={disableForm}
               >
                 <TooltipWrapper
                   tipContent={
