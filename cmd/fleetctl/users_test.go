@@ -75,21 +75,14 @@ func TestUserCreateForcePasswordReset(t *testing.T) {
 		return nil
 	}
 	ds.UserByEmailFunc = func(ctx context.Context, email string) (*fleet.User, error) {
-		switch email {
-		case "bar@example.com":
+		if email == "bar@example.com" {
 			apiOnlyUser := &fleet.User{
 				ID:    1,
 				Email: email,
 			}
-			apiOnlyUser.SetPassword(pwd, 24, 10)
+			err := apiOnlyUser.SetPassword(pwd, 24, 10)
+			require.NoError(t, err)
 			return apiOnlyUser, nil
-		case "baz@example.com":
-			apiOnlyUserSSO := &fleet.User{
-				ID:    3,
-				Email: email,
-			}
-			apiOnlyUserSSO.SetFakePassword(24, 10)
-			return apiOnlyUserSSO, nil
 		}
 		return nil, &notFoundError{}
 	}
