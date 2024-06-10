@@ -1094,6 +1094,10 @@ WHERE
     SELECT 1 FROM host_script_results WHERE script_content_id = script_contents.id)
   AND NOT EXISTS (
     SELECT 1 FROM scripts WHERE script_content_id = script_contents.id)
+  AND NOT EXISTS (
+    SELECT 1 FROM software_installers si
+    WHERE script_contents.id IN (si.install_script_content_id, si.post_install_script_content_id)
+  )
 		`
 	_, err := ds.writer(ctx).ExecContext(ctx, deleteStmt)
 	if err != nil {
