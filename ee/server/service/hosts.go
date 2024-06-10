@@ -249,7 +249,7 @@ func (svc *Service) WipeHost(ctx context.Context, hostID uint) error {
 	// uses scripts, not MDM.
 	var requireMDM bool
 	switch host.FleetPlatform() {
-	case "darwin":
+	case "darwin", "ios", "ipados":
 		if err := svc.VerifyMDMAppleConfigured(ctx); err != nil {
 			if errors.Is(err, fleet.ErrMDMNotConfigured) {
 				err = fleet.NewInvalidArgumentError("host_id", fleet.AppleMDMNotConfiguredMessage).WithStatus(http.StatusBadRequest)
@@ -449,7 +449,7 @@ func (svc *Service) enqueueWipeHostRequest(ctx context.Context, host *fleet.Host
 	}
 
 	switch wipeStatus.HostFleetPlatform {
-	case "darwin":
+	case "darwin", "ios", "ipados":
 		wipeCommandUUID := uuid.NewString()
 		if err := svc.mdmAppleCommander.EraseDevice(ctx, host, wipeCommandUUID); err != nil {
 			return ctxerr.Wrap(ctx, err, "enqueuing wipe request for darwin")

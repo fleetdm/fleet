@@ -316,7 +316,6 @@ func hostMdmActionSetup(c *cli.Context, hostIdent string, actionType string) (cl
 	if err != nil {
 		var nfe service.NotFoundErr
 		if errors.As(err, &nfe) {
-			fmt.Println(hostIdent)
 			return nil, nil, errors.New("The host doesn't exist. Please provide a valid host identifier.")
 		}
 
@@ -327,6 +326,21 @@ func hostMdmActionSetup(c *cli.Context, hostIdent string, actionType string) (cl
 			}
 		}
 		return nil, nil, err
+	}
+
+	switch actionType {
+	case "unlock":
+		if host.MDM.DeviceStatus == nil || *host.MDM.DeviceStatus != "locked" {
+			return nil, nil, errors.New("Can't unlock host because it's not locked.")
+		}
+	case "wipe":
+		if host.MDM.DeviceStatus == nil || *host.MDM.DeviceStatus == "wiped" {
+			return nil, nil, errors.New("Can't wipe host because it's already wiped.")
+		}
+	case "lock":
+		if actionType == "lock" && (host.Platform == "ios" || host.Platform == "ipados") {
+			return nil, nil, errors.New("Can't lock iOS or iPadOS hosts. Use wipe instead.")
+		}
 	}
 
 	// check mdm is on for the host
