@@ -17,6 +17,8 @@ new_wallpaper_url="https://fleetdm.com/images/demo/fleet-desktop-migration.png"
 # Define the path where the new wallpaper will be saved
 new_wallpaper_path="/tmp/fleet-desktop-migration.png"
 
+current_user=$(ls -l /dev/console | awk '{print $3}')
+
 # Download the new wallpaper
 curl -o "$new_wallpaper_path" "$new_wallpaper_url"
 
@@ -77,7 +79,7 @@ sleep 5
 
 # Open Chrome with a specific URL and maximize the window and set full screen and unmute
 chrome_url="https://www.loom.com/share/e5f733b92773476690b8d4f38592b35d?t=254&sid=f993c904-bf49-40e4-b55c-26c81a91c60&autoplay=1"
-osascript -e "
+sudo -u "$current_user" osascript -e "
 tell application \"Google Chrome\"
     activate
     open location \"$chrome_url\"
@@ -90,19 +92,6 @@ tell application \"Google Chrome\"
     end tell
 end tell"
 
-# Wait for 1 second and press the "F" key
-sleep 1
-osascript -e '
-tell application "System Events"
-    keystroke "F"
-end tell'
-
-# Wait for 1 more second and press the "M" key
-sleep 1
-osascript -e '
-tell application "System Events"
-    keystroke "M"
-end tell'
 # Wait for 30 seconds
 sleep 30
 
