@@ -511,21 +511,19 @@ type FleetConfig struct {
 	Kinesis          KinesisConfig
 	Lambda           LambdaConfig
 	S3               S3Config
-	// CarvesS3             S3Config `yaml:"s3"`
-	// SoftwareInstallersS3 S3Config
-	Email           EmailConfig
-	SES             SESConfig
-	PubSub          PubSubConfig
-	Filesystem      FilesystemConfig
-	KafkaREST       KafkaRESTConfig
-	License         LicenseConfig
-	Vulnerabilities VulnerabilitiesConfig
-	Upgrades        UpgradesConfig
-	Sentry          SentryConfig
-	GeoIP           GeoIPConfig
-	Prometheus      PrometheusConfig
-	Packaging       PackagingConfig
-	MDM             MDMConfig
+	Email            EmailConfig
+	SES              SESConfig
+	PubSub           PubSubConfig
+	Filesystem       FilesystemConfig
+	KafkaREST        KafkaRESTConfig
+	License          LicenseConfig
+	Vulnerabilities  VulnerabilitiesConfig
+	Upgrades         UpgradesConfig
+	Sentry           SentryConfig
+	GeoIP            GeoIPConfig
+	Prometheus       PrometheusConfig
+	Packaging        PackagingConfig
+	MDM              MDMConfig
 }
 
 type MDMConfig struct {
@@ -1458,7 +1456,6 @@ func (man Manager) LoadConfig() FleetConfig {
 			StsExternalID:    man.getConfigString("lambda.sts_external_id"),
 		},
 		S3: man.loadS3Config(),
-		// SoftwareInstallersS3: S3Config{},
 		Email: EmailConfig{
 			EmailBackend: man.getConfigString("email.backend"),
 		},

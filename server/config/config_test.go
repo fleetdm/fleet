@@ -577,9 +577,6 @@ func TestMicrosoftWSTEPConfig(t *testing.T) {
 	}
 }
 
-func TestS3Config(t *testing.T) {
-}
-
 var (
 	testCA = []byte(`-----BEGIN CERTIFICATE-----
 MIIFSzCCAzOgAwIBAgIUf4lOcb9bkN2+u6FjWL0fSFCjGGgwDQYJKoZIhvcNAQEL
