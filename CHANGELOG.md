@@ -1,4 +1,4 @@
-## Fleet 4.51.0 (Jun 07, 2024)
+## Fleet 4.51.0 (Jun 10, 2024)
 
 ### Endpoint Operations
 - Added support for environment variables in configuration profiles for GitOps.
