@@ -231,14 +231,31 @@ func (ds *Datastore) MarkActivitiesAsStreamed(ctx context.Context, activityIDs [
 // software to install, etc.) and provides a unified view of those upcoming
 // tasks.
 func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint, opt fleet.ListOptions) ([]*fleet.Activity, *fleet.PaginationMetadata, error) {
+	// NOTE: Be sure to update both the count (here) and list statements (below)
+	// if the query condition is modified.
 	countStmts := []string{
-		`SELECT COUNT(*) c FROM host_script_results WHERE host_id = :host_id AND exit_code IS NULL`,
-		`SELECT COUNT(*) c FROM host_software_installs WHERE host_id = :host_id AND pre_install_query_output IS NULL AND install_script_exit_code IS NULL`,
+		`SELECT
+			COUNT(*) c
+			FROM host_script_results
+			WHERE host_id = :host_id AND
+						exit_code IS NULL AND
+						(sync_request = 0 OR created_at >= DATE_SUB(NOW(), INTERVAL :max_wait_time SECOND))`,
+		`SELECT
+			COUNT(*) c
+			FROM host_software_installs
+			WHERE host_id = :host_id AND
+						pre_install_query_output IS NULL AND
+						install_script_exit_code IS NULL`,
 	}
 
 	var count uint
 	countStmt := `SELECT SUM(c) FROM ( ` + strings.Join(countStmts, " UNION ALL ") + ` ) AS counts`
-	countStmt, args, err := sqlx.Named(countStmt, map[string]any{"host_id": hostID})
+
+	seconds := int(scripts.MaxServerWaitTime.Seconds())
+	countStmt, args, err := sqlx.Named(countStmt, map[string]any{
+		"host_id":       hostID,
+		"max_wait_time": seconds,
+	})
 	if err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "build count query from named args")
 	}
@@ -249,7 +266,8 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 		return []*fleet.Activity{}, &fleet.PaginationMetadata{}, nil
 	}
 
-	// NOTE: Be sure to update both the count and list statements if the list query is modified
+	// NOTE: Be sure to update both the count (above) and list statements (below)
+	// if the query condition is modified.
 	listStmts := []string{
 		// list pending scripts
 		`SELECT
@@ -318,7 +336,6 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 		`, softwareInstallerHostStatusNamedQuery("hsi", "")),
 	}
 
-	seconds := int(scripts.MaxServerWaitTime.Seconds())
 	listStmt := `
 		SELECT
 			uuid,

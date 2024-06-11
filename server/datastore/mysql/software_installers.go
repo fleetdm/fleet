@@ -472,9 +472,10 @@ INSERT INTO software_installers (
 	pre_install_query,
 	post_install_script_content_id,
 	platform,
+	self_service,
 	title_id
 ) VALUES (
-  ?, ?, ?, ?, ?, ?, ?, ?, ?,
+  ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
   (SELECT id FROM software_titles WHERE name = ? AND source = ? AND browser = '')
 )
 ON DUPLICATE KEY UPDATE
@@ -484,7 +485,8 @@ ON DUPLICATE KEY UPDATE
   filename = VALUES(filename),
   version = VALUES(version),
   pre_install_query = VALUES(pre_install_query),
-  platform = VALUES(platform)
+  platform = VALUES(platform),
+  self_service = VALUES(self_service)
 `
 
 	// use a team id of 0 if no-team
@@ -555,6 +557,7 @@ ON DUPLICATE KEY UPDATE
 				installer.PreInstallQuery,
 				postInstallScriptID,
 				installer.Platform,
+				installer.SelfService,
 				installer.Title,
 				installer.Source,
 			}

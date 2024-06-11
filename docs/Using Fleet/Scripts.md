@@ -2,7 +2,8 @@
 
 In Fleet you can execute a custom script to remediate an issue on your macOS, Windows, and Linux hosts.
 
-Shell scripts are supported on macOS and Linux. All scripts will run in the host's (root) default shell (`/bin/sh`). Other interpreters are not supported yet.
+Shell scripts are supported on macOS and Linux. By default, shell scripts will run in the host's (root) shell (`/bin/sh`). We also support `/bin/zsh` interpreter.
+Note: To run in `/bin/zsh`, create `.sh` file (only supported extension) and add an interpreter at the first line.
 
 PowerShell scripts are supported on Windows. Other types of scripts are not supported yet.
 

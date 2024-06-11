@@ -35,8 +35,7 @@ import AdvancedOptionsModal from "../AdvancedOptionsModal";
 const baseClass = "software-package-card";
 
 /** TODO: pull this hook and SoftwareName component out. We could use this other places */
-
-function useTruncatedElement(ref: any) {
+function useTruncatedElement<T extends HTMLElement>(ref: React.RefObject<T>) {
   const [isTruncated, setIsTruncated] = useState(false);
 
   useLayoutEffect(() => {
@@ -64,6 +63,7 @@ const SoftwareName = ({ name }: ISoftwareNameProps) => {
       position="top"
       underline={false}
       disableTooltip={!isTruncated}
+      showArrow
     >
       <div ref={titleRef} className={`${baseClass}__title`}>
         {name}
@@ -125,6 +125,7 @@ const PackageStatusCount = ({
           position="top"
           tipContent={displayData.tooltip}
           underline={false}
+          showArrow
         >
           <div className={`${baseClass}__status-title`}>
             <Icon name={displayData.iconName} />
@@ -311,7 +312,7 @@ const SoftwarePackageCard = ({
         </div>
       </div>
       <div className={`${baseClass}__actions-wrapper`}>
-        {true && (
+        {softwarePackage.self_service && (
           <div className={`${baseClass}__self-service-badge`}>
             <Icon
               name="install-self-service"
