@@ -4,7 +4,7 @@
 
 HTTP calls from the SOFA macOS tables now identified by a 'fleetd' user agent
 
-When orbit gets host info from osquery at startup, ignore and log osquery error when valid data is returned.
+Fixed Orbit to ignore-and-log osquery errors when it gets valid host info from osquery at startup.
 
 * Add `fleetd_logs` table
 
