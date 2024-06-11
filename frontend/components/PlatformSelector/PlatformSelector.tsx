@@ -30,7 +30,7 @@ export const PlatformSelector = ({
   const baseClass = "platform-selector";
 
   const labelClasses = classNames("form-field__label", {
-    [`form-field__label--disabled-grey`]: disabled,
+    [`form-field__label--disabled`]: disabled,
   });
 
   return (
