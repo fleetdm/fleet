@@ -416,7 +416,7 @@ func updateMDMWindowsHostProfileStatusFromResponseDB(
 		WHERE host_uuid = ? AND command_uuid IN (?)`
 
 	// grab command UUIDs to find matching entries using `getMatchingHostProfilesStmt`
-	commandUUIDs := make([]string, len(payloads))
+	commandUUIDs := make([]string, 0, len(payloads))
 	// also grab the payloads keyed by the command uuid, so we can easily
 	// grab the corresponding `Detail` and `Status` from the matching
 	// command later on.

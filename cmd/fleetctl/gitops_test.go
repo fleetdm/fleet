@@ -719,12 +719,18 @@ func TestBasicGlobalAndTeamGitOps(t *testing.T) {
 		ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile,
 		macDecls []*fleet.MDMAppleDeclaration,
 	) error {
+		assert.Empty(t, macProfiles)
+		assert.Empty(t, winProfiles)
 		return nil
 	}
-	ds.BatchSetScriptsFunc = func(ctx context.Context, tmID *uint, scripts []*fleet.Script) error { return nil }
+	ds.BatchSetScriptsFunc = func(ctx context.Context, tmID *uint, scripts []*fleet.Script) error {
+		assert.Empty(t, scripts)
+		return nil
+	}
 	ds.BulkSetPendingMDMHostProfilesFunc = func(
 		ctx context.Context, hostIDs []uint, teamIDs []uint, profileUUIDs []string, hostUUIDs []string,
 	) error {
+		assert.Empty(t, profileUUIDs)
 		return nil
 	}
 	ds.DeleteMDMAppleDeclarationByNameFunc = func(ctx context.Context, teamID *uint, name string) error {
@@ -755,25 +761,25 @@ func TestBasicGlobalAndTeamGitOps(t *testing.T) {
 	}
 	ds.TeamFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
 		if tid == team.ID {
-			return team, nil
+			return savedTeam, nil
 		}
 		return nil, nil
 	}
 	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
-		if name == teamName {
-			return team, nil
+		if name == teamName && savedTeam != nil {
+			return savedTeam, nil
 		}
-		return nil, nil
+		return nil, &notFoundError{}
+	}
+	ds.NewTeamFunc = func(ctx context.Context, newTeam *fleet.Team) (*fleet.Team, error) {
+		newTeam.ID = team.ID
+		savedTeam = newTeam
+		enrolledTeamSecrets = newTeam.Secrets
+		return newTeam, nil
 	}
 	ds.SaveTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
 		savedTeam = team
 		return team, nil
-	}
-	ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration) (
-		*fleet.MDMAppleDeclaration, error,
-	) {
-		declaration.DeclarationUUID = uuid.NewString()
-		return declaration, nil
 	}
 	ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, teamID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
 		return nil

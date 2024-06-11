@@ -36,6 +36,10 @@ variable "geolite2_license" {}
 variable "fleet_sentry_dsn" {}
 variable "elastic_url" {}
 variable "elastic_token" {}
+variable "fleet_calendar_periodicity" {
+  default     = "30s"
+  description = "The refresh period for the calendar integration."
+}
 
 data "aws_caller_identity" "current" {}
 
@@ -55,6 +59,7 @@ locals {
     ELASTIC_APM_SERVER_URL                     = var.elastic_url
     ELASTIC_APM_SECRET_TOKEN                   = var.elastic_token
     ELASTIC_APM_SERVICE_NAME                   = "dogfood"
+    FLEET_CALENDAR_PERIODICITY                 = var.fleet_calendar_periodicity
   }
   sentry_secrets = {
     FLEET_SENTRY_DSN = "${aws_secretsmanager_secret.sentry.arn}:FLEET_SENTRY_DSN::"
