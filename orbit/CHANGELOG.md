@@ -6,7 +6,7 @@ HTTP calls from the SOFA macOS tables now identified by a 'fleetd' user agent
 
 Fixed Orbit to ignore-and-log osquery errors when it gets valid host info from osquery at startup.
 
-* Add `fleetd_logs` table
+* Added `fleetd_logs` table
 
 * Fixed scripts that were blocking execution of other scripts after timing out on Windows.
 
