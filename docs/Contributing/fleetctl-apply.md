@@ -1,19 +1,8 @@
-# Configuration files
+# fleetctl apply
 
-- [Queries](#queries)
-- [Labels](#labels)
-- [Enroll secrets](#enroll-secrets)
-  - [Multiple enroll secrets](#multiple-enroll-secrets)
-  - [Rotating enroll secrets](#rotating-enroll-secrets)
-- [Teams](#teams)
-  - [Team agent options](#team-agent-options)
-  - [Team enroll secrets](#team-enroll-secrets)
-  - [Mobile device management settings for teams](#mobile-device-management-mdm-settings-for-teams)
-- [Organization settings](#organization-settings)
+The `fleectly apply` command and YAML format is maintained for imports and backwards compatibility GitOps.
 
-Fleet can be managed with configuration files (YAML syntax) and the fleetctl command line tool. This page tells you how to write these configuration files.
-
-Changes are applied to Fleet when the configuration file is applied using fleetctl. Check out the [fleetctl documentation](https://fleetdm.com/docs/using-fleet/fleetctl-cli#using-fleetctl-to-configure-fleet) to learn how to apply configuration files.
+Learn how to use Fleet's best practice GitOps workflow [here](https://fleetdm.com/using-fleet/gitops).
 
 ## Queries
 

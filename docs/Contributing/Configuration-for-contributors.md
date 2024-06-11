@@ -6,7 +6,8 @@
 
 This document includes configuration files and settings that are helpful when developing or contributing to Fleet.
 
-Unlike the [configuration files documentation](https://fleetdm.com/docs/using-fleet/configuration-files), the files and settings in this document are not recommended for production use. Each setting includes the best practice for being successful in production.
+Unlike the [fleetctl apply format](https://github.com/fleetdm/fleet/tree/main/docs/Contributing/fleetctl-apply.md), the files and settings in this document are not recommended for production use. Each setting includes the best practice for being successful in production.
+
 ## Integrations
 
 Integration settings in Fleet can be configured using the `integrations` section of the `config` YAML file. To see all settings in this file, check out the [configuration files documentation](https://fleetdm.com/docs/using-fleet/configuration-files#organization-settings).
