@@ -1,6 +1,14 @@
-import React, { FormEvent, useCallback, useMemo, useState } from "react";
+import React, {
+  FormEvent,
+  useCallback,
+  useMemo,
+  useState,
+  useContext,
+} from "react";
 
 import mdmAppleBusinessManagerApi from "services/entities/mdm_apple_bm";
+import { NotificationContext } from "context/notification";
+import { getErrorReason } from "interfaces/errors";
 
 import Icon from "components/Icon";
 import Button from "components/buttons/Button";
@@ -23,6 +31,7 @@ const useDownloadABMKey = ({
   onError,
 }: Omit<IDownloadABMKeyProps, "baseClass">) => {
   const [downloadState, setDownloadState] = useState<RequestState>(undefined);
+  const { renderFlash } = useContext(NotificationContext);
 
   const handleDownload = useCallback(
     async (evt: FormEvent) => {
@@ -34,6 +43,8 @@ const useDownloadABMKey = ({
         setDownloadState("success");
         onSuccess && onSuccess();
       } catch (e) {
+        const msg = getErrorReason(e);
+        renderFlash("error", msg);
         setDownloadState("error");
         onError && onError(e);
       }

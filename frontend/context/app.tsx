@@ -323,6 +323,20 @@ const reducer = (state: InitialStateType, action: IAction) => {
         enrollSecret,
       };
     }
+    case ACTIONS.SET_ABM_EXPIRY: {
+      const { abmExpiry } = action;
+      return {
+        ...state,
+        abmExpiry,
+      };
+    }
+    case ACTIONS.SET_APNS_EXPIRY: {
+      const { apnsExpiry } = action;
+      return {
+        ...state,
+        apnsExpiry,
+      };
+    }
     case ACTIONS.SET_SANDBOX_EXPIRY: {
       const { sandboxExpiry } = action;
       return {
