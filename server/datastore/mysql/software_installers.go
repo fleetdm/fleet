@@ -296,7 +296,7 @@ SELECT
 	hsi.post_install_script_output,
 	hsi.install_script_output,
 	hsi.host_id AS host_id,
-	COALESCE(h.computer_name, '') AS host_display_name,
+	h.computer_name AS host_display_name,
 	st.name AS software_title,
 	st.id AS software_title_id,
 	COALESCE(%s, '') AS status,
@@ -305,17 +305,14 @@ SELECT
 	hsi.user_id AS user_id,
 	hsi.post_install_script_exit_code,
 	hsi.install_script_exit_code,
-	hsi.self_service,
-	hsi.host_deleted_at
+    hsi.self_service
 FROM
 	host_software_installs hsi
-	LEFT JOIN hosts h ON h.id = hsi.host_id
+	JOIN hosts h ON h.id = hsi.host_id
 	JOIN software_installers si ON si.id = hsi.software_installer_id
 	JOIN software_titles st ON si.title_id = st.id
 WHERE
-	hsi.execution_id = :execution_id AND
-	-- must have a valid host unless it is marked as soft-deleted
-	(h.id IS NOT NULL OR hsi.host_deleted_at IS NOT NULL)
+	hsi.execution_id = :execution_id
 	`, softwareInstallerHostStatusNamedQuery("hsi", ""))
 
 	stmt, args, err := sqlx.Named(query, map[string]any{

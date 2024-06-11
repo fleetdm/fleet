@@ -273,11 +273,9 @@ func (svc *Service) GetSoftwareInstallResults(ctx context.Context, resultUUID st
 		return nil, err
 	}
 
-	if res.HostDeletedAt == nil {
-		// if we have a host (not deleted), then authorize on the host's team
-		if err := svc.authz.Authorize(ctx, &fleet.HostSoftwareInstallerResultAuthz{HostTeamID: res.HostTeamID}, fleet.ActionRead); err != nil {
-			return nil, err
-		}
+	// Team specific auth check
+	if err := svc.authz.Authorize(ctx, &fleet.HostSoftwareInstallerResultAuthz{HostTeamID: res.HostTeamID}, fleet.ActionRead); err != nil {
+		return nil, err
 	}
 
 	res.EnhanceOutputDetails()

@@ -530,7 +530,6 @@ var additionalHostRefsByUUID = map[string]string{
 // performed by setting a timestamp column to the current time.
 var additionalHostRefsSoftDelete = map[string]string{
 	"host_script_results":    "host_deleted_at",
-	"host_software_installs": "host_deleted_at",
 }
 
 func (ds *Datastore) DeleteHost(ctx context.Context, hid uint) error {

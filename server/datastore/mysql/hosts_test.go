@@ -6580,17 +6580,6 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	_, err = ds.NewHostScriptExecutionRequest(context.Background(), &fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "foo"})
 	require.NoError(t, err)
-	installerID, err := ds.MatchOrCreateSoftwareInstaller(context.Background(), &fleet.UploadSoftwareInstallerPayload{
-		InstallScript: "echo 'a'",
-		InstallerFile: strings.NewReader(`foo`),
-		StorageID:     uuid.NewString(),
-		Filename:      "foo.deb",
-		Title:         "foo",
-		Platform:      "linux",
-	})
-	require.NoError(t, err)
-	_, err = ds.InsertSoftwareInstallRequest(context.Background(), host.ID, installerID, false)
-	require.NoError(t, err)
 
 	_, err = ds.writer(context.Background()).Exec(`
           INSERT INTO host_mdm_windows_profiles (host_uuid, profile_uuid, command_uuid)
