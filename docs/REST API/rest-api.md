@@ -8389,7 +8389,6 @@ Returns information about the specified software. By default, `versions` are sor
     "id": 12,
     "name": "Firefox.app",
     "bundle_identifier": "org.mozilla.firefox",
-    "store_id": "",
     "software_package": {
       "type": "installer",
       "name": "FalconSensor-6.44.pkg",
@@ -8402,8 +8401,7 @@ Returns information about the specified software. By default, `versions` are sor
         "installed": 3,
         "pending": 1,
         "failed": 2,
-      },
-      "licenses": null
+      }
     },
     "source": "apps",
     "browser": "",
