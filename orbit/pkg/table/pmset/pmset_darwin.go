@@ -41,7 +41,7 @@ func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[strin
 		}
 	}
 
-	output, err := exec.CommandContext(ctx, "/usr/bin/pmset", "-g", getting).CombinedOutput()
+	output, err := exec.CommandContext(ctx, "/usr/bin/pmset", "-g", "custom", getting).CombinedOutput()
 	if err != nil {
 		return nil, err
 	}
