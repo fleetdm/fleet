@@ -386,9 +386,12 @@ func (ds *Datastore) applyChangesForNewSoftwareDB(
 
 func (ds *Datastore) getExistingSoftware(
 	ctx context.Context, current map[string]fleet.Software, incoming map[string]fleet.Software,
-) ([]softwareIDChecksum, map[string]fleet.Software, map[string]fleet.SoftwareTitle, error) {
+) (
+	currentSoftware []softwareIDChecksum, incomingChecksumToSoftware map[string]fleet.Software,
+	incomingChecksumToTitle map[string]fleet.SoftwareTitle, err error,
+) {
 	// Compute checksums for all incoming software, which we will use for faster retrieval, since checksum is a unique index
-	incomingByChecksum := make(map[string]fleet.Software, len(current))
+	incomingChecksumToSoftware = make(map[string]fleet.Software, len(current))
 	newSoftware := make(map[string]struct{})
 	for uniqueName, s := range incoming {
 		if _, ok := current[uniqueName]; !ok {
@@ -396,26 +399,24 @@ func (ds *Datastore) getExistingSoftware(
 			if err != nil {
 				return nil, nil, nil, err
 			}
-			incomingByChecksum[string(checksum)] = s
+			incomingChecksumToSoftware[string(checksum)] = s
 			newSoftware[string(checksum)] = struct{}{}
 		}
 	}
 
-	var existingSoftware []softwareIDChecksum
-	if len(incomingByChecksum) > 0 {
-		keys := make([]string, 0, len(incomingByChecksum))
-		for checksum := range incomingByChecksum {
+	if len(incomingChecksumToSoftware) > 0 {
+		keys := make([]string, 0, len(incomingChecksumToSoftware))
+		for checksum := range incomingChecksumToSoftware {
 			keys = append(keys, checksum)
 		}
 		// We use the replica DB for retrieval to minimize the traffic to the master DB.
 		// It is OK if the software is not found in the replica DB, because we will then attempt to insert it in the master DB.
-		var err error
-		existingSoftware, err = getSoftwareIDsByChecksums(ctx, ds.reader(ctx), keys)
+		currentSoftware, err = getSoftwareIDsByChecksums(ctx, ds.reader(ctx), keys)
 		if err != nil {
 			return nil, nil, nil, err
 		}
-		for _, s := range existingSoftware {
-			_, ok := incomingByChecksum[s.Checksum]
+		for _, s := range currentSoftware {
+			_, ok := incomingChecksumToSoftware[s.Checksum]
 			if !ok {
 				// This should never happen. If it does, we have a bug.
 				return nil, nil, nil, ctxerr.New(
@@ -427,7 +428,7 @@ func (ds *Datastore) getExistingSoftware(
 	}
 
 	// Get software titles for new software, if any
-	softwareChecksumToTitle := make(map[string]fleet.SoftwareTitle, len(newSoftware))
+	incomingChecksumToTitle = make(map[string]fleet.SoftwareTitle, len(newSoftware))
 	if len(newSoftware) > 0 {
 		totalToProcess := len(newSoftware)
 		const numberOfArgsPerSoftwareTitle = 3 // number of ? in each WHERE clause
@@ -441,7 +442,7 @@ func (ds *Datastore) getExistingSoftware(
 		args := make([]interface{}, 0, totalToProcess*numberOfArgsPerSoftwareTitle)
 		uniqueTitleStrToChecksum := make(map[string]string, totalToProcess)
 		for checksum := range newSoftware {
-			sw := incomingByChecksum[checksum]
+			sw := incomingChecksumToSoftware[checksum]
 			args = append(args, sw.Name, sw.Source, sw.Browser)
 			// Map software title identifier to software checksums so that we can map checksums to actual titles later.
 			uniqueTitleStrToChecksum[UniqueSoftwareTitleStr(sw.Name, sw.Source, sw.Browser)] = checksum
@@ -455,12 +456,12 @@ func (ds *Datastore) getExistingSoftware(
 		for _, title := range existingSoftwareTitlesForNewSoftware {
 			checksum, ok := uniqueTitleStrToChecksum[UniqueSoftwareTitleStr(title.Name, title.Source, title.Browser)]
 			if ok {
-				softwareChecksumToTitle[checksum] = title
+				incomingChecksumToTitle[checksum] = title
 			}
 		}
 	}
 
-	return existingSoftware, incomingByChecksum, softwareChecksumToTitle, nil
+	return currentSoftware, incomingChecksumToSoftware, incomingChecksumToTitle, nil
 }
 
 // UniqueSoftwareTitleStr creates a unique string representation of the software title
@@ -514,7 +515,8 @@ func computeRawChecksum(sw fleet.Software) ([]byte, error) {
 	return h.Sum(nil), nil
 }
 
-// insert host_software that is in incoming map, but not in current map.
+// Insert host_software that is in softwareChecksums map, but not in existingSoftware.
+// Also insert any new software titles that are needed.
 // returns the inserted software on the host
 func (ds *Datastore) insertNewInstalledHostSoftwareDB(
 	ctx context.Context,
@@ -527,7 +529,7 @@ func (ds *Datastore) insertNewInstalledHostSoftwareDB(
 	var insertsHostSoftware []interface{}
 	var insertedSoftware []fleet.Software
 
-	// First, we check if host's new software already exists in the software table.
+	// First, we remove incoming software that already exists in the software table.
 	if len(softwareChecksums) > 0 {
 		for _, s := range existingSoftware {
 			software, ok := softwareChecksums[s.Checksum]
