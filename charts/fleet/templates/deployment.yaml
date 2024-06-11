@@ -31,9 +31,9 @@ spec:
     spec:
       containers:
       - name: fleet
-        #command: [/usr/bin/fleet]
         command: [/usr/bin/fleet]
-        args: ["serve", "--dev_license"]
+        command: [/usr/bin/fleet]
+        args: ["serve"]
         image: fleetdm/fleet:{{ .Values.imageTag }}
         ports:
         - name: fleet
