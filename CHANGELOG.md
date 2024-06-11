@@ -2,7 +2,7 @@
 
 ### Bug fixes
 
-* Added S3 config variables with a `carves_` and `software_installers` prefix, which were used to configure buckets for those features. The existing non-prefixed variables were kept for backwards compatibility.
+* Added S3 config variables with a `carves` and `software_installers` prefix, which were used to configure buckets for those features. The existing non-prefixed variables were kept for backwards compatibility.
 
 ## Fleet 4.51.0 (Jun 10, 2024)
 
