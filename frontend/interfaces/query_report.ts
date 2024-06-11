@@ -9,4 +9,5 @@ export interface IQueryReportResultRow {
 export interface IQueryReport {
   query_id: number;
   results: IQueryReportResultRow[];
+  report_clipped: boolean;
 }
