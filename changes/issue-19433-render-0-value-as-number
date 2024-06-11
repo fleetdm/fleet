@@ -1,0 +1,1 @@
+- Makes the rendering of empty text cell values consistent. Also render the '0' value as a number instead of the default value `---`.
