@@ -2,11 +2,13 @@
 
 _Available in Fleet Premium_
 
-In Fleet, you can group hosts together in a "team" in Fleet. A host can only belong to one team.
+In Fleet, you can group hosts together in a "team" in Fleet. This way, you can apply queries, policies, scripts, and more that are tailored to the hosts' risk/compliance needs.
 
-You can give users access to only some teams. Learn more [here](./manage-access.md#team-user-permissions).
+A host can only belong to one team. 
 
-You can manage teams by selecting **Settings** > **Teams** in the top navigation.
+You can give users access to only some teams.
+
+You can manage teams by selecting your avatar in the top navigation and then **Settings > Teams**.
 
 ## Best practice
 
