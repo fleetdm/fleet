@@ -2,7 +2,7 @@
 # All settings related to how Fleet is deployed in Kubernetes
 hostName: fleet.localhost
 replicas: 3 # The number of Fleet instances to deploy
-imageTag: v4.46.2 # Version of Fleet to deploy
+imageTag: v4.51.1 # Version of Fleet to deploy
 podAnnotations: {} # Additional annotations to add to the Fleet pod
 serviceAccountAnnotations: {} # Additional annotations to add to the Fleet service account
 resources:
@@ -38,11 +38,11 @@ affinity:
 ingress:
   enabled: false
   className: ""
-  annotations:
+  annotations: {}
     # kubernetes.io/tls-acme: "true"
     # nginx.ingress.kubernetes.io/proxy-body-size: 10m
     # kubernetes.io/ingress.class: nginx
-    cert-manager.io/cluster-issuer: letsencrypt
+    # cert-manager.io/cluster-issuer: letsencrypt
   hosts:
     - host: chart-example.local
       paths:
@@ -90,13 +90,8 @@ fleet:
       accessKeyID: ""
       secretKey: s3-bucket
       stsAssumeRoleARN: ""
-  extraVolumes:
-    - name: mdm-secrets
-      emptyDir: {}
-  extraVolumeMounts:
-    - name: mdm-secrets
-      mountPath: /secrets/mdm
-
+  extraVolumes: []
+  extraVolumeMounts: []
 
 ## Section: osquery
 # All of the settings related to osquery's interactions with the Fleet server
@@ -206,62 +201,23 @@ gke:
 # All of the environment variables that can be set for Fleet
 environments:
   # MDM Settings
-  # The following environment variables are used to configure Fleet to work with
-  # Apple's MDM service. These are optional and only required if you are using
-  # Fleet to manage Apple devices.
-  # To more information: https://fleetdm.com/docs/using-fleet/mdm-macos-setup#step-3-configure-fleet-with-the-required-files
-  #FLEET_MDM_APPLE_APNS_CERT_BYTES: ""
-  #FLEET_MDM_APPLE_APNS_KEY_BYTES: ""
-  #FLEET_MDM_APPLE_SCEP_CERT_BYTES: ""
-  #FLEET_MDM_APPLE_SCEP_KEY_BYTES: ""
-  DERP: ""
+  # The following environment variable is required if you are using
+  # Fleet's macOS MDM features.
+  # To more information: https://fleetdm.com/docs/using-fleet/fleet-server-configuration#server-private-key
+  FLEET_SERVER_PRIVATE_KEY: ""
 
-envsFrom:
-  - name: FLEET_MDM_APPLE_APNS_CERT_BYTES
-    valueFrom:
-      secretKeyRef:
-        name: fleet-mdm-apns-cert
-        key: mdmcert.download.push.pem
-  - name: FLEET_MDM_APPLE_APNS_KEY_BYTES
-    valueFrom:
-      secretKeyRef:
-        name: fleet-mdm-apns-key
-        key: mdmcert.download.push.key
-  - name: FLEET_MDM_APPLE_SCEP_CERT_BYTES
-    valueFrom:
-      secretKeyRef:
-        name: fleet-mdm-scep-cert
-        key: fleet-mdm-apple-scep.crt
-  - name: FLEET_MDM_APPLE_SCEP_KEY_BYTES
-    valueFrom:
-      secretKeyRef:
-        name: fleet-mdm-scep-key
-        key: fleet-mdm-apple-scep.key
-  - name: FLEET_MDM_WINDOWS_WSTEP_IDENTITY_CERT_BYTES
-    valueFrom:
-      secretKeyRef:
-        name: fleet-mdm-scep-cert
-        key: fleet-mdm-apple-scep.crt
-  - name: FLEET_MDM_WINDOWS_WSTEP_IDENTITY_KEY_BYTES
-    valueFrom:
-      secretKeyRef:
-        name: fleet-mdm-scep-key
-        key: fleet-mdm-apple-scep.key
-  - name: FLEET_MDM_APPLE_BM_SERVER_TOKEN_BYTES
-    valueFrom:
-      secretKeyRef:
-        name: fleet-mdm-bm-server-token
-        key: downloadtoken.p7m
-  - name: FLEET_MDM_APPLE_BM_CERT_BYTES
-    valueFrom:
-      secretKeyRef:
-        name: fleet-mdm-bm-cert
-        key: fleet-apple-mdm-bm-public-key.crt
-  - name: FLEET_MDM_APPLE_BM_KEY_BYTES
-    valueFrom:
-      secretKeyRef:
-        name: fleet-mdm-bm-key
-        key: fleet-apple-mdm-bm-private.key
+## Section: Environment Variables from Secrets/CMs
+# envsFrom:
+# - name: MY_ENV_NAME_1
+#   valueFrom:
+#     configMapKeyRef:
+#       name: cm-name
+#       key: cm-key-name
+# - name: MY_ENV_NAME_2
+#   valueFrom:
+#     secretKeyRef:
+#       name: secret-name
+#       key: secret-key-name
 
 mysql:
   enabled: false
