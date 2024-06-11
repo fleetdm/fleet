@@ -1665,16 +1665,16 @@ func testApplyPolicySpecWithQueryPlatformChanges(t *testing.T, ds *Datastore) {
 	// Update host failure counts and ensure they are correct
 	teamHosts, err = ds.UpdatePolicyFailureCountsForHosts(ctx, teamHosts)
 	require.NoError(t, err)
-	assert.Equal(t, 6, teamHosts[hostWin].FailingPoliciesCount)
-	assert.Equal(t, 6, teamHosts[hostMac].FailingPoliciesCount)
-	assert.Equal(t, 6, teamHosts[hostDeb].FailingPoliciesCount)
-	assert.Equal(t, 6, teamHosts[hostLin].FailingPoliciesCount)
+	assert.Equal(t, uint64(6), teamHosts[hostWin].FailingPoliciesCount)
+	assert.Equal(t, uint64(6), teamHosts[hostMac].FailingPoliciesCount)
+	assert.Equal(t, uint64(6), teamHosts[hostDeb].FailingPoliciesCount)
+	assert.Equal(t, uint64(6), teamHosts[hostLin].FailingPoliciesCount)
 	globalHosts, err = ds.UpdatePolicyFailureCountsForHosts(ctx, globalHosts)
 	require.NoError(t, err)
-	assert.Equal(t, 3, globalHosts[hostWin].FailingPoliciesCount)
-	assert.Equal(t, 3, globalHosts[hostMac].FailingPoliciesCount)
-	assert.Equal(t, 3, globalHosts[hostDeb].FailingPoliciesCount)
-	assert.Equal(t, 3, globalHosts[hostLin].FailingPoliciesCount)
+	assert.Equal(t, uint64(3), globalHosts[hostWin].FailingPoliciesCount)
+	assert.Equal(t, uint64(3), globalHosts[hostMac].FailingPoliciesCount)
+	assert.Equal(t, uint64(3), globalHosts[hostDeb].FailingPoliciesCount)
+	assert.Equal(t, uint64(3), globalHosts[hostLin].FailingPoliciesCount)
 
 	// Ensure policy passing and failing counts are correct
 	gPolicies, err = ds.ListGlobalPolicies(ctx, fleet.ListOptions{})
@@ -1758,16 +1758,16 @@ func testApplyPolicySpecWithQueryPlatformChanges(t *testing.T, ds *Datastore) {
 	// Update host failure counts and ensure they are correct
 	teamHosts, err = ds.UpdatePolicyFailureCountsForHosts(ctx, teamHosts)
 	require.NoError(t, err)
-	assert.Equal(t, 1, teamHosts[hostWin].FailingPoliciesCount) // kept result from globalNames[0]
-	assert.Equal(t, 3, teamHosts[hostMac].FailingPoliciesCount)
-	assert.Equal(t, 2, teamHosts[hostDeb].FailingPoliciesCount)
-	assert.Equal(t, 2, teamHosts[hostLin].FailingPoliciesCount)
+	assert.Equal(t, uint64(1), teamHosts[hostWin].FailingPoliciesCount) // kept result from globalNames[0]
+	assert.Equal(t, uint64(3), teamHosts[hostMac].FailingPoliciesCount)
+	assert.Equal(t, uint64(2), teamHosts[hostDeb].FailingPoliciesCount)
+	assert.Equal(t, uint64(2), teamHosts[hostLin].FailingPoliciesCount)
 	globalHosts, err = ds.UpdatePolicyFailureCountsForHosts(ctx, globalHosts)
 	require.NoError(t, err)
-	assert.Equal(t, 1, globalHosts[hostWin].FailingPoliciesCount)
-	assert.Equal(t, 2, globalHosts[hostMac].FailingPoliciesCount)
-	assert.Equal(t, 1, globalHosts[hostDeb].FailingPoliciesCount)
-	assert.Equal(t, 1, globalHosts[hostLin].FailingPoliciesCount)
+	assert.Equal(t, uint64(1), globalHosts[hostWin].FailingPoliciesCount)
+	assert.Equal(t, uint64(2), globalHosts[hostMac].FailingPoliciesCount)
+	assert.Equal(t, uint64(1), globalHosts[hostDeb].FailingPoliciesCount)
+	assert.Equal(t, uint64(1), globalHosts[hostLin].FailingPoliciesCount)
 
 	// Ensure policy passing and failing counts are correct
 	gPolicies, err = ds.ListGlobalPolicies(ctx, fleet.ListOptions{})
@@ -2900,20 +2900,20 @@ func testUpdatePolicyFailureCountsForHosts(t *testing.T, ds *Datastore) {
 	require.Len(t, hostsUpdated, 4)
 
 	// host 0 should have 1 failing policy
-	assert.Equal(t, 1, hostsUpdated[0].TotalIssuesCount)
-	assert.Equal(t, 1, hostsUpdated[0].FailingPoliciesCount)
+	assert.Equal(t, uint64(1), hostsUpdated[0].TotalIssuesCount)
+	assert.Equal(t, uint64(1), hostsUpdated[0].FailingPoliciesCount)
 
 	// host 1 should have 0 failing policies
-	assert.Equal(t, 0, hostsUpdated[1].TotalIssuesCount)
-	assert.Equal(t, 0, hostsUpdated[1].FailingPoliciesCount)
+	assert.Zero(t, hostsUpdated[1].TotalIssuesCount)
+	assert.Zero(t, hostsUpdated[1].FailingPoliciesCount)
 
 	// host 2 should have 2 failing policies
-	assert.Equal(t, 2, hostsUpdated[2].TotalIssuesCount)
-	assert.Equal(t, 2, hostsUpdated[2].FailingPoliciesCount)
+	assert.Equal(t, uint64(2), hostsUpdated[2].TotalIssuesCount)
+	assert.Equal(t, uint64(2), hostsUpdated[2].FailingPoliciesCount)
 
 	// host 3 doesn't have any policy membership
-	assert.Equal(t, 0, hostsUpdated[3].TotalIssuesCount)
-	assert.Equal(t, 0, hostsUpdated[3].FailingPoliciesCount)
+	assert.Zero(t, hostsUpdated[3].TotalIssuesCount)
+	assert.Zero(t, hostsUpdated[3].FailingPoliciesCount)
 
 	// return empty list if no hosts are passed
 	hostsUpdated, err = ds.UpdatePolicyFailureCountsForHosts(ctx, []*fleet.Host{})
