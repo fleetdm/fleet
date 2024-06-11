@@ -20,7 +20,7 @@ import Pagination from "pages/ManageControlsPage/components/Pagination";
 import UploadList from "../../../components/UploadList";
 
 import AddProfileCard from "./components/ProfileUploader/components/AddProfileCard";
-import AddProfileModal from "./components/ProfileUploader/components/AddProfileModal";
+import AddProfileModal from "./components/ProfileUploader/components/AddProfileModal/AddProfileModal";
 import DeleteProfileModal from "./components/DeleteProfileModal/DeleteProfileModal";
 import ProfileLabelsModal from "./components/ProfileLabelsModal/ProfileLabelsModal";
 import ProfileListItem from "./components/ProfileListItem";
@@ -101,7 +101,7 @@ const CustomSettings = ({
       onMutation();
       renderFlash("success", "Successfully deleted!");
     } catch (e) {
-      renderFlash("error", "Couldn’t delete. Please try again.");
+      renderFlash("error", "Couldn't delete. Please try again.");
     } finally {
       selectedProfile.current = null;
       setShowDeleteProfileModal(false);
@@ -169,6 +169,10 @@ const CustomSettings = ({
     );
   };
 
+  const hasLabels =
+    !!profileLabelsModalData?.labels_include_all?.length ||
+    !!profileLabelsModalData?.labels_exclude_any?.length;
+
   return (
     <div className={baseClass}>
       <SectionHeader title="Custom settings" />
@@ -189,7 +193,6 @@ const CustomSettings = ({
       )}
       {showAddProfileModal && (
         <AddProfileModal
-          baseClass="add-profile"
           currentTeamId={currentTeamId}
           isPremiumTier={!!isPremiumTier}
           onUpload={onUploadProfile}
@@ -204,7 +207,7 @@ const CustomSettings = ({
           onDelete={onDeleteProfile}
         />
       )}
-      {!!isPremiumTier && !!profileLabelsModalData?.labels?.length && (
+      {isPremiumTier && hasLabels && (
         <ProfileLabelsModal
           baseClass={baseClass}
           profile={profileLabelsModalData}
