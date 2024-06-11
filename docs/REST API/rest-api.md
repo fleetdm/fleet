@@ -8390,7 +8390,6 @@ Returns information about the specified software. By default, `versions` are sor
     "name": "Firefox.app",
     "bundle_identifier": "org.mozilla.firefox",
     "software_package": {
-      "type": "installer",
       "name": "FalconSensor-6.44.pkg",
       "version": "6.44",
       "uploaded_at": "2024-04-01T14:22:58Z",
