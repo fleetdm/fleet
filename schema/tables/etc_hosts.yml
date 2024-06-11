@@ -10,9 +10,9 @@ notes: |-
   The `hosts` file is customized by many organizations. As part of a defense-in-depth security posture it's important to track `hosts` modifications. Endpoints with a modified `hosts` configuration connected to enterprise networks can potentially bypass network rules, proxies and firewalls or be routed to malicious sites.
   
   File paths to `hosts`:
-  - Linux: /etc/hosts
-  - macOS: /private/etc/hosts
-  - Windows: C:\Windows\system32\drivers\etc
+  - Linux: `/etc/hosts`
+  - macOS: `/private/etc/hosts`
+  - Windows: `C:\Windows\system32\drivers\etc`
 
   **More info**:
   - [DNS](https://en.wikipedia.org/wiki/Domain_Name_System)
