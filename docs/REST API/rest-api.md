@@ -4024,9 +4024,19 @@ To lock a macOS host, the host must have MDM turned on. To lock a Windows or Lin
 
 `POST /api/v1/fleet/hosts/123/lock`
 
-##### Default response
+##### Default response (Windows or Linux hosts)
 
 `Status: 204`
+
+##### Default response (macOS hosts)
+
+`Status: 200`
+
+```json
+{
+  "unlock_pin": "123456"
+}
+```
 
 ### Unlock host
 
@@ -4062,7 +4072,6 @@ To unlock a Windows or Linux host, the host must have [scripts enabled](https://
   "unlock_pin": "123456"
 }
 ```
-
 
 ### Wipe host
 
