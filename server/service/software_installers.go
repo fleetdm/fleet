@@ -36,7 +36,7 @@ func (uploadSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http
 	err := r.ParseMultipartForm(512 * units.MiB)
 	if err != nil {
 		return nil, &fleet.BadRequestError{
-			Message:     "failed to parse multipart form",
+			Message:     "failed to parse multipart form: " + err.Error(),
 			InternalErr: err,
 		}
 	}
