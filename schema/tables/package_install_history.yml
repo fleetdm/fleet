@@ -1,5 +1,5 @@
 name: package_install_history
-description: The Fleet `package_install_history` table provides a detailed log of all installed packages on macOS.
+description: The `package_install_history` table provides a detailed log of all packages installled on macOS.
 examples: |-
   Basic query:
 
