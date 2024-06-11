@@ -567,7 +567,7 @@ func newAgent(
 				SCEPChallenge: mdmSCEPChallenge,
 				SCEPURL:       serverAddress + apple_mdm.SCEPPath,
 				MDMURL:        serverAddress + apple_mdm.MDMPath,
-			})
+			}, "MacBookPro16,1")
 			// Have the osquery agent match the MDM device serial number and UUID.
 			serialNumber = macMDMClient.SerialNumber
 			hostUUID = macMDMClient.UUID
@@ -2150,6 +2150,54 @@ func (a *agent) submitLogs(results []resultLog) error {
 	return nil
 }
 
+func runAppleIDeviceMDMLoop(i int, stats *Stats, model string, serverURL string, mdmSCEPChallenge string, mdmCheckInInterval time.Duration) {
+	udid := mdmtest.RandUDID()
+
+	mdmClient := mdmtest.NewTestMDMClientAppleDirect(mdmtest.AppleEnrollInfo{
+		SCEPChallenge: mdmSCEPChallenge,
+		SCEPURL:       serverURL + apple_mdm.SCEPPath,
+		MDMURL:        serverURL + apple_mdm.MDMPath,
+	}, model)
+	mdmClient.UUID = udid
+	mdmClient.SerialNumber = mdmtest.RandSerialNumber()
+	deviceName := fmt.Sprintf("%s-%d", model, i)
+	productName := model
+
+	if err := mdmClient.Enroll(); err != nil {
+		log.Printf("%s MDM enroll failed: %s", model, err)
+		stats.IncrementMDMErrors()
+		return
+	}
+
+	stats.IncrementMDMEnrollments()
+
+	mdmCheckInTicker := time.Tick(mdmCheckInInterval)
+
+	for range mdmCheckInTicker {
+		mdmCommandPayload, err := mdmClient.Idle()
+		if err != nil {
+			log.Printf("MDM Idle request failed: %s: %s", model, err)
+			stats.IncrementMDMErrors()
+			continue
+		}
+		stats.IncrementMDMSessions()
+
+		for mdmCommandPayload != nil {
+			stats.IncrementMDMCommandsReceived()
+			if mdmCommandPayload.Command.RequestType == "DeviceInformation" {
+				mdmCommandPayload, err = mdmClient.AcknowledgeDeviceInformation(udid, mdmCommandPayload.CommandUUID, deviceName, productName)
+			} else {
+				mdmCommandPayload, err = mdmClient.Acknowledge(mdmCommandPayload.CommandUUID)
+			}
+			if err != nil {
+				log.Printf("MDM Acknowledge request failed: %s: %s", model, err)
+				stats.IncrementMDMErrors()
+				break
+			}
+		}
+	}
+}
+
 // rows returns a set of rows for use in tests for query results.
 func rows(num int) string {
 	b := strings.Builder{}
@@ -2197,6 +2245,8 @@ func main() {
 		"windows_11_22H2_2861.tmpl": true,
 		"windows_11_22H2_3007.tmpl": true,
 		"ubuntu_22.04.tmpl":         true,
+		"iphone_14.6.tmpl":          true,
+		"ipad_13.18.tmpl":           true,
 	}
 	allowedTemplateNames := make([]string, 0, len(validTemplateNames))
 	for k := range validTemplateNames {
@@ -2347,6 +2397,16 @@ func main() {
 			}
 		} else {
 			tmpl = tmplss[i%len(tmplss)]
+		}
+
+		if tmpl.Name() == "iphone_14.6.tmpl" || tmpl.Name() == "ipad_13.18.tmpl" {
+			model := "iPhone 14,6"
+			if tmpl.Name() == "ipad_13.18.tmpl" {
+				model = "iPad 13,18"
+			}
+			go runAppleIDeviceMDMLoop(i, stats, model, *serverURL, *mdmSCEPChallenge, *mdmCheckInInterval)
+			time.Sleep(sleepTime)
+			continue
 		}
 
 		a := newAgent(i+1,
