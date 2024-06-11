@@ -9739,7 +9739,7 @@
     ],
     "evented": false,
     "cacheable": true,
-    "notes": "The `hosts` file is customized by many organizations. As part of a defense-in-depth security posture it's important to track `hosts` modifications. Endpoints with a modified `hosts` configuration connected to enterprise networks can potentially bypass network rules, proxies and firewalls or be routed to malicious sites.\n\nFile paths:\nLinux: /etc/hosts\nmacOS: /private/etc/hosts\nWindows: C:\\Windows\\system32\\drivers\\etc\n\n- [DNS](https://en.wikipedia.org/wiki/Domain_Name_System)\n- The `/etc/hosts` [Guide For Linux](https://thelinuxcode.com/etc-hosts-file-complete-guide-for-linux/)\n- [How to edit the hosts file on Windows](https://www.howtogeek.com/784196/how-to-edit-the-hosts-file-on-windows-10-or-11)",
+    "notes": "The `hosts` file is customized by many organizations. As part of a defense-in-depth security posture it's important to track `hosts` modifications. Endpoints with a modified `hosts` configuration connected to enterprise networks can potentially bypass network rules, proxies and firewalls or be routed to malicious sites.\n\nFile paths to `hosts`:\n- Linux: `/etc/hosts`\n- macOS: `/private/etc/hosts`\n- Windows: `C:\\Windows\\system32\\drivers\\etc`\n\n**More info**:\n- [DNS](https://en.wikipedia.org/wiki/Domain_Name_System)\n- The `/etc/hosts` [Guide For Linux](https://thelinuxcode.com/etc-hosts-file-complete-guide-for-linux/)\n- [How to edit the hosts file on Windows](https://www.howtogeek.com/784196/how-to-edit-the-hosts-file-on-windows-10-or-11)",
     "examples": "This query detects if the macOS `/private/etc/hosts` file has been modified from its default state:\n\n```\nSELECT * FROM etc_hosts WHERE address != '127.0.0.1' AND address != '::1' AND address != '255.255.255.255';\n```",
     "columns": [
       {
@@ -18670,15 +18670,15 @@
   },
   {
     "name": "package_bom",
-    "description": "macOS package bill of materials (BOM) file list.",
+    "description": "The \"bill of materials\" (`.bom`) file in a macOS installer package (`.pkg`) lists all files installed by the package. The `package_bom` osquery table collects the data from the `.bom` files created in `/private/var/db/receipts` by macOS when a `.pkg` file is executed.",
     "url": "https://fleetdm.com/tables/package_bom",
     "platforms": [
       "darwin"
     ],
     "evented": false,
     "cacheable": false,
-    "notes": "",
-    "examples": "List the bill of materials of a package. The receipts directory contains\npackages to installed applications.\n\n```\nSELECT * FROM package_bom WHERE path='/private/var/db/receipts/com.yubico.ykman.bom';\n```",
+    "notes": "Keeping track of files installed by applications is critical for upholding software management best security practices.\n\nApple’s [installer package documentation](https://developer.apple.com/documentation/xcode/packaging-mac-software-for-distribution)",
+    "examples": "This query collects the filepath and time of installation for the libVFXCore.dylib (Dynamic Library) file installed as part of Xcode.app:\n\n```\nSELECT filepath,modified_time FROM package_bom WHERE path='/private/var/db/receipts/com.apple.pkg.Xcode.bom' AND filepath LIKE '%libVFXCore.dylib';\n```",
     "columns": [
       {
         "name": "filepath",
@@ -18748,15 +18748,15 @@
   },
   {
     "name": "package_install_history",
-    "description": "macOS package install history.",
+    "description": "The `package_install_history` table provides a detailed log of all packages installled on macOS.",
     "url": "https://fleetdm.com/tables/package_install_history",
     "platforms": [
       "darwin"
     ],
     "evented": false,
     "cacheable": false,
-    "notes": "",
-    "examples": "See a list of packages installed in the last week.\n\n```\nSELECT name, version, source,  datetime(time,'unixepoch') AS install_time from package_install_history WHERE install_time |-= datetime('now','-7 days');\n```",
+    "notes": "\nMonitoring the macOS package install history is useful for:\n- Regularly checking for newly installed packages and identifying suspicious software\n- Verifying that only approved packages are installed\n- Creating a Fleet policy to receive alerts for any unauthorized or vulnerable installations\n\nApple’s [installer package documentation](https://developer.apple.com/documentation/xcode/packaging-mac-software-for-distribution)",
+    "examples": "Basic query:\n\n```\nSELECT name,package_id,version,source,datetime(time,'unixepoch') AS install_time FROM package_install_history WHERE install_time >= datetime('now','-7 days');\n```\n\nThis query fetches the following data for a macOS package:\n- Name\n- Package ID\n- Version\n- Source\n- Install time\n\nThe `WHERE` clause filters the results to show only packages installed in the past 7 days.",
     "columns": [
       {
         "name": "package_id",
@@ -19500,15 +19500,15 @@
   },
   {
     "name": "pipes",
-    "description": "Named and Anonymous pipes.",
+    "description": "Named pipes in Windows can be used to provide communication between processes on a computer or between processes on different computers across a network. The `pipes` osquery table lists the named pipes currently running on a Windows computer.",
     "url": "https://fleetdm.com/tables/pipes",
     "platforms": [
       "windows"
     ],
     "evented": false,
     "cacheable": false,
-    "notes": "",
-    "examples": "```\nselect * from pipes\n```",
+    "notes": "Running the following command at a prompt in PowerShell lists the named pipes currently open on a Windows computer:\n\n```\nget-childitem \\\\.\\pipe\\\n```\n\nLinks:\n- Microsoft documentation on [named pipes](https://learn.microsoft.com/en-us/windows/win32/ipc/named-pipes)\n- Discover files linked to processes with Windows [Process Explorer](https://learn.microsoft.com/en-us/sysinternals/downloads/process-explorer)",
+    "examples": "This query displays all attributes (columns) for the named pipe enabled by opening PowerShell:\n\n```\nSELECT * FROM pipes WHERE name LIKE '%powershell';\n```",
     "columns": [
       {
         "name": "pid",
@@ -19556,12 +19556,11 @@
         "index": false
       }
     ],
-    "osqueryRepoUrl": "https://github.com/osquery/osquery/blob/master/specs/windows/pipes.table",
-    "fleetRepoUrl": "https://github.com/fleetdm/fleet/new/main/schema?filename=tables%2Fpipes.yml&value=name%3A%20pipes%0Adescription%3A%20%7C-%20%23%20(required)%20string%20-%20The%20description%20for%20this%20table.%20Note%3A%20this%20field%20supports%20Markdown%0A%09%23%20Add%20description%20here%0Aexamples%3A%20%7C-%20%23%20(optional)%20string%20-%20An%20example%20query%20for%20this%20table.%20Note%3A%20This%20field%20supports%20Markdown%0A%09%23%20Add%20examples%20here%0Anotes%3A%20%7C-%20%23%20(optional)%20string%20-%20Notes%20about%20this%20table.%20Note%3A%20This%20field%20supports%20Markdown.%0A%09%23%20Add%20notes%20here%0Acolumns%3A%20%23%20(required)%0A%09-%20name%3A%20%23%20(required)%20string%20-%20The%20name%20of%20the%20column%0A%09%20%20description%3A%20%23%20(required)%20string%20-%20The%20column's%20description.%20Note%3A%20this%20field%20supports%20Markdown%0A%09%20%20type%3A%20%23%20(required)%20string%20-%20the%20column's%20data%20type%0A%09%20%20required%3A%20%23%20(required)%20boolean%20-%20whether%20or%20not%20this%20column%20is%20required%20to%20query%20this%20table."
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/pipes.yml"
   },
   {
     "name": "platform_info",
-    "description": "Information about EFI/UEFI/ROM and platform/boot.",
+    "description": "The `platform_info` osquery table collects boot platform information from a computer. The `platform_info` table works on Linux, macOS and Windows.",
     "url": "https://fleetdm.com/tables/platform_info",
     "platforms": [
       "darwin",
@@ -19570,8 +19569,8 @@
     ],
     "evented": false,
     "cacheable": false,
-    "notes": "",
-    "examples": "See version information about the boot system, such as iBoot on Apple Silicon\n\n```\nSELECT version FROM platform_info;\n```",
+    "notes": "Links:\n- EFI: https://en.wikipedia.org/wiki/EFI_system_partition \n- iboot: https://en.wikipedia.org/wiki/IBoot \n- UEFI: https://en.wikipedia.org/wiki/UEFI#Classes \n- System booting: https://en.wikipedia.org/wiki/Booting ",
+    "examples": "Basic query:\n\n```\nSELECT extra,firmware_type,vendor FROM platform_info;\n```\n\nThis query results in a listing of the following attributes on a macOS host running a Windows 11 virtual machine in the Parallels.app:\n\nMac -\n- extra = \"Darwin Kernel Version 23.5.0: Wed May 1 20:14:38 PDT 2024; root:xnu-10063.121.3~5/RELEASE_ARM64_T6020\"\n- firmware_type = \"iboot\"\n- vendor = \"Apple Inc.\"\n\nWindows -\n- extra = \"\"\n- firmware_type = \"uefi\"\n- vendor = \"Parallels International GmbH.\"",
     "columns": [
       {
         "name": "vendor",
