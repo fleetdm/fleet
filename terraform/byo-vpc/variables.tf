@@ -167,6 +167,7 @@ variable "fleet_config" {
   type = object({
     mem                          = optional(number, 4096)
     cpu                          = optional(number, 512)
+    pid_mode                     = optional(string, null)
     image                        = optional(string, "fleetdm/fleet:v4.51.0")
     family                       = optional(string, "fleet")
     sidecars                     = optional(list(any), [])
@@ -265,6 +266,7 @@ variable "fleet_config" {
   default = {
     mem                          = 512
     cpu                          = 256
+    pid_mode                     = null
     image                        = "fleetdm/fleet:v4.51.0"
     family                       = "fleet"
     sidecars                     = []

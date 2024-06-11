@@ -60,6 +60,7 @@ resource "aws_ecs_task_definition" "backend" {
   execution_role_arn       = aws_iam_role.execution.arn
   cpu                      = var.fleet_config.cpu
   memory                   = var.fleet_config.mem
+  pid_mode                 = var.fleet_config.pid_mode
   container_definitions = jsonencode(
     concat([
       {

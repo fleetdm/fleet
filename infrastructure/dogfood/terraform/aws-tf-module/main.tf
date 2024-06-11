@@ -101,6 +101,7 @@ module "main" {
     family = local.customer
     cpu    = 1024
     mem    = 4096
+    pid_mode = "task"
     autoscaling = {
       min_capacity = 2
       max_capacity = 5
@@ -137,6 +138,68 @@ module "main" {
     #   container_name   = "fleet"
     #   container_port   = 8080
     # }]
+    sidecars = [
+      {
+        name        = "osquery"
+        image       = module.osquery_docker.ecr_images["${local.osquery_version}-ubuntu24.04"]
+        cpu         = 256
+        memory      = 512
+        mountPoints = []
+        volumesFrom = []
+        essential   = true
+        ulimits = [
+          {
+            softLimit = 999999,
+            hardLimit = 999999,
+            name      = "nofile"
+          }
+        ]
+        networkMode = "awsvpc"
+        logConfiguration = {
+          logDriver = "awslogs"
+          options = {
+            awslogs-group         = local.customer
+            awslogs-region        = "us-east-2"
+            awslogs-stream-prefix = "osquery"
+          }
+        }
+        secrets = [
+          {
+            name      = "ENROLL_SECRET"
+            valueFrom = aws_secretsmanager_secret.osquery_enroll.arn
+          }
+        ]
+        workingDirectory = "/",
+        command = [
+          "osqueryd",
+          "--tls_hostname=dogfood.fleetdm.com",
+          "--force=true",
+          # Ensure that the host identifier remains the same between invocations
+          # "--host_identifier=specified",
+          # "--specified_identifier=${random_uuid.osquery[each.key].result}",
+          "--verbose=true",
+          "--tls_dump=true",
+          "--enroll_secret_env=ENROLL_SECRET",
+          "--enroll_tls_endpoint=/api/osquery/enroll",
+          "--config_plugin=tls",
+          "--config_tls_endpoint=/api/osquery/config",
+          "--config_refresh=10",
+          "--disable_distributed=false",
+          "--distributed_plugin=tls",
+          "--distributed_interval=10",
+          "--distributed_tls_max_attempts=3",
+          "--distributed_tls_read_endpoint=/api/osquery/distributed/read",
+          "--distributed_tls_write_endpoint=/api/osquery/distributed/write",
+          "--logger_plugin=tls",
+          "--logger_tls_endpoint=/api/osquery/log",
+          "--logger_tls_period=10",
+          "--disable_carver=false",
+          "--carver_start_endpoint=/api/osquery/carve/begin",
+          "--carver_continue_endpoint=/api/osquery/carve/block",
+          "--carver_block_size=8000000",
+        ]
+      }
+    ]
   }
   alb_config = {
     name = local.customer
