@@ -308,13 +308,6 @@ var hostDetailQueries = map[string]DetailQuery{
 	},
 	"system_info": {
 		Query: "select * from system_info limit 1",
-		// TODO(JVE): this host is the one from the ctx, so we can check what we have in DB against
-		// what we're ingesting!! check the system_info.UUID and the serial number, and if MacOS,
-		// then throw a fit, Hopefully the error goes back to orbit as a 409 conflict error. On
-		// orbit, we add a script that resets orbit and causes a re-enrollment.
-		// If errors from here don't bubble up to orbit, we will need a flag on Fleet's side that
-		// indicates that we're resetting the host, and then we send the notification to reset
-		// itself
 
 		IngestFunc: func(ctx context.Context, logger log.Logger, host *fleet.Host, rows []map[string]string) error {
 			if len(rows) != 1 {

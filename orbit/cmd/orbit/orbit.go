@@ -616,6 +616,28 @@ func main() {
 			Platform:       osqueryHostInfo.Platform,
 		}
 
+		// Get the hardware UUID. We use a temporary RocksDB location in order to guarantee that
+		// we're getting true UUID, not a cached UUID. foobar
+
+		oi, err := getHostInfo(osquerydPath, filepath.Join(os.TempDir(), "tmp-db"))
+		if err != nil {
+			return fmt.Errorf("get UUID: %w", err)
+		}
+
+		if oi.HardwareUUID != orbitHostInfo.HardwareUUID {
+			// then we have moved to a new physical machine, so we should restart!
+			if err := os.RemoveAll(filepath.Join(c.String("root-dir"), "osquery.db")); err != nil {
+				return fmt.Errorf("removing old osquery.db: %w", err)
+			}
+
+			if err := os.RemoveAll(filepath.Join(c.String("root-dir"), constant.OrbitNodeKeyFileName)); err != nil {
+				return fmt.Errorf("removing old orbit node key file: %w", err)
+			}
+			return fmt.Errorf("mismatch in hardware uuids, restarting")
+		}
+
+		// TODO(JVE): should we remove that temporary osquery db?
+
 		// Only send osquery's `instance_id` if the user is running orbit with `--host-identifier=instance`.
 		// When not set, orbit and osquery will be matched using the hardware UUID (orbitHostInfo.HardwareUUID).
 		if c.String("host-identifier") == "instance" {
@@ -792,6 +814,7 @@ func main() {
 					log.Info().Err(err).Msg("network error")
 				},
 			},
+			osquerydPath,
 		)
 		if err != nil {
 			return fmt.Errorf("error new orbit client: %w", err)
@@ -1053,6 +1076,7 @@ func main() {
 					log.Info().Err(err).Msg("network error")
 				},
 			},
+			osquerydPath,
 		)
 		if err != nil {
 			return fmt.Errorf("new client for capabilities checker: %w", err)

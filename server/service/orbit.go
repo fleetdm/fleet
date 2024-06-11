@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log/slog"
 	"net/http"
 
 	"github.com/fleetdm/fleet/v4/server"
@@ -174,7 +173,6 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 	svc.authz.SkipAuthorization(ctx)
 
 	host, ok := hostctx.FromContext(ctx)
-	slog.With("filename", "server/service/orbit.go", "func", "GetOrbitConfig").Info("JVE_LOG: does this include the serial number? ", "serverSerial", host.HardwareSerial)
 	if !ok {
 		return fleet.OrbitConfig{}, fleet.OrbitError{Message: "internal error: missing host from request context"}
 	}
