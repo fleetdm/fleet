@@ -5282,6 +5282,34 @@ func (ds *Datastore) HostnamesByIdentifiers(ctx context.Context, identifiers []s
 	return hostnames, nil
 }
 
+func (ds *Datastore) UpdateHostIssuesFailingPolicies(ctx context.Context, hostIDs []uint) error {
+	var tx sqlx.ExecerContext = ds.writer(ctx)
+	return updateHostIssuesFailingPolicies(ctx, tx, hostIDs)
+}
+
+func updateHostIssuesFailingPolicies(ctx context.Context, tx sqlx.ExecerContext, hostIDs []uint) error {
+	if len(hostIDs) == 0 {
+		return nil
+	}
+	stmt := `
+	INSERT INTO host_issues (host_id, failing_policies_count, total_issues_count)
+	SELECT
+		pm.host_id, SUM(!passes), SUM(!passes)
+		FROM policy_membership pm WHERE host_id IN (?)
+		GROUP BY pm.host_id
+	ON DUPLICATE KEY UPDATE
+		failing_policies_count = VALUES(failing_policies_count),
+		total_issues_count = failing_policies_count + critical_vulnerabilities_count`
+	stmt, args, err := sqlx.In(stmt, hostIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "building IN statement for updating failing policies in host issues")
+	}
+	if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "update failing policies in host issues")
+	}
+	return nil
+}
+
 const criticalCVSSScoreCutoff = 8.9
 
 func (ds *Datastore) SyncHostIssues(ctx context.Context) error {

@@ -150,18 +150,21 @@ func (ds *Datastore) SavePolicy(ctx context.Context, p *fleet.Policy, shouldRemo
 		return ctxerr.Wrap(ctx, notFound("Policy").WithID(p.ID))
 	}
 
-	return cleanupPolicy(ctx, ds.writer(ctx), p.ID, p.Platform, shouldRemoveAllPolicyMemberships, removePolicyStats, ds.logger)
+	return cleanupPolicy(
+		ctx, ds.reader(ctx), ds.writer(ctx), p.ID, p.Platform, shouldRemoveAllPolicyMemberships, removePolicyStats, ds.logger,
+	)
 }
 
 func cleanupPolicy(
-	ctx context.Context, extContext sqlx.ExtContext, policyID uint, policyPlatform string, shouldRemoveAllPolicyMemberships bool,
+	ctx context.Context, queryerContext sqlx.QueryerContext, extContext sqlx.ExtContext, policyID uint, policyPlatform string,
+	shouldRemoveAllPolicyMemberships bool,
 	removePolicyStats bool, logger kitlog.Logger,
 ) error {
 	var err error
 	if shouldRemoveAllPolicyMemberships {
-		err = cleanupPolicyMembershipForPolicy(ctx, extContext, policyID)
+		err = cleanupPolicyMembershipForPolicy(ctx, queryerContext, extContext, policyID)
 	} else {
-		err = cleanupPolicyMembershipOnPolicyUpdate(ctx, extContext, policyID, policyPlatform)
+		err = cleanupPolicyMembershipOnPolicyUpdate(ctx, queryerContext, extContext, policyID, policyPlatform)
 	}
 	if err != nil {
 		return err
@@ -321,6 +324,11 @@ func (ds *Datastore) RecordPolicyQueryExecutions(ctx context.Context, host *flee
 	})
 	if err != nil {
 		return err
+	}
+	if len(results) > 0 {
+		if err := ds.UpdateHostIssuesFailingPolicies(ctx, []uint{host.ID}); err != nil {
+			return err
+		}
 	}
 
 	if deferredSaveHost {
@@ -803,7 +811,7 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 							}
 						}
 						if err = cleanupPolicy(
-							ctx, tx, uint(lastID), spec.Platform, shouldRemoveAllPolicyMemberships, removePolicyStats, ds.logger,
+							ctx, tx, tx, uint(lastID), spec.Platform, shouldRemoveAllPolicyMemberships, removePolicyStats, ds.logger,
 						); err != nil {
 							return err
 						}
@@ -838,13 +846,23 @@ func (ds *Datastore) AsyncBatchInsertPolicyMembership(ctx context.Context, batch
 	sql += ` ON DUPLICATE KEY UPDATE updated_at = VALUES(updated_at), passes = VALUES(passes)`
 
 	vals := make([]interface{}, 0, len(batch)*3)
+	hostIDs := make([]uint, 0, len(batch))
 	for _, tup := range batch {
 		vals = append(vals, tup.PolicyID, tup.HostID, tup.Passes)
+		hostIDs = append(hostIDs, tup.HostID)
 	}
-	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		_, err := tx.ExecContext(ctx, sql, vals...)
-		return ctxerr.Wrap(ctx, err, "insert into policy_membership")
-	})
+	err := ds.withRetryTxx(
+		ctx, func(tx sqlx.ExtContext) error {
+			_, err := tx.ExecContext(ctx, sql, vals...)
+			return ctxerr.Wrap(ctx, err, "insert into policy_membership")
+		})
+	if err != nil {
+		return err
+	}
+	if err = ds.UpdateHostIssuesFailingPolicies(ctx, hostIDs); err != nil {
+		return err
+	}
+	return nil
 }
 
 // AsyncBatchUpdatePolicyTimestamp updates the hosts' policy_updated_at timestamp
@@ -877,6 +895,9 @@ func deleteAllPolicyMemberships(ctx context.Context, tx sqlx.ExtContext, hostIDs
 	if _, err := tx.ExecContext(ctx, query, args...); err != nil {
 		return ctxerr.Wrap(ctx, err, "exec delete policies")
 	}
+	if err = updateHostIssuesFailingPolicies(ctx, tx, hostIDs); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -890,6 +911,9 @@ func cleanupPolicyMembershipOnTeamChange(ctx context.Context, tx sqlx.ExtContext
 	}
 	if _, err := tx.ExecContext(ctx, query, args...); err != nil {
 		return ctxerr.Wrap(ctx, err, "exec clean old policy memberships")
+	}
+	if err = updateHostIssuesFailingPolicies(ctx, tx, hostIDs); err != nil {
+		return err
 	}
 	return nil
 }
@@ -910,7 +934,9 @@ func cleanupQueryResultsOnTeamChange(ctx context.Context, tx sqlx.ExtContext, ho
 	return nil
 }
 
-func cleanupPolicyMembershipOnPolicyUpdate(ctx context.Context, db sqlx.ExecerContext, policyID uint, platforms string) error {
+func cleanupPolicyMembershipOnPolicyUpdate(
+	ctx context.Context, queryerContext sqlx.QueryerContext, db sqlx.ExecerContext, policyID uint, platforms string,
+) error {
 	if platforms == "" {
 		// all platforms allowed, nothing to clean up
 		return nil
@@ -930,18 +956,62 @@ func cleanupPolicyMembershipOnPolicyUpdate(ctx context.Context, db sqlx.ExecerCo
 	  ( h.id IS NULL OR
 		FIND_IN_SET(h.platform, ?) = 0 )`
 
+	selectStmt := `
+	SELECT DISTINCT
+	  h.host_id
+	FROM
+	  policy_membership pm
+	INNER JOIN
+	  hosts h
+	ON
+	  pm.host_id = h.id
+	WHERE
+	  pm.policy_id = ? AND
+	  FIND_IN_SET(h.platform, ?) = 0`
+
 	var expandedPlatforms []string
 	splitPlatforms := strings.Split(platforms, ",")
 	for _, platform := range splitPlatforms {
 		expandedPlatforms = append(expandedPlatforms, fleet.ExpandPlatform(strings.TrimSpace(platform))...)
 	}
-	_, err := db.ExecContext(ctx, delStmt, policyID, strings.Join(expandedPlatforms, ","))
-	return ctxerr.Wrap(ctx, err, "cleanup policy membership")
+
+	// Find the impacted host IDs, so we can update their host issues entries
+	var hostIDs []uint
+	err := sqlx.SelectContext(ctx, queryerContext, &hostIDs, selectStmt, policyID, strings.Join(expandedPlatforms, ","))
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "select hosts to cleanup policy membership")
+	}
+
+	_, err = db.ExecContext(ctx, delStmt, policyID, strings.Join(expandedPlatforms, ","))
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "cleanup policy membership")
+	}
+
+	// Update host issues entries
+	if err = updateHostIssuesFailingPolicies(ctx, db, hostIDs); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // cleanupPolicyMembership is similar to cleanupPolicyMembershipOnPolicyUpdate but without the platform constraints.
 // Used when we want to remove all policy membership.
-func cleanupPolicyMembershipForPolicy(ctx context.Context, exec sqlx.ExecerContext, policyID uint) error {
+func cleanupPolicyMembershipForPolicy(
+	ctx context.Context, queryerContext sqlx.QueryerContext, exec sqlx.ExecerContext, policyID uint,
+) error {
+	selectStmt := `
+	SELECT DISTINCT
+	  h.host_id
+	FROM
+	  policy_membership pm
+	INNER JOIN
+	  hosts h
+	ON
+	  pm.host_id = h.id
+	WHERE
+	  pm.policy_id = ?`
+
 	// delete all policy memberships for the policy
 	delStmt := `
 		DELETE
@@ -956,9 +1026,21 @@ func cleanupPolicyMembershipForPolicy(ctx context.Context, exec sqlx.ExecerConte
 			pm.policy_id = ?
 	`
 
-	_, err := exec.ExecContext(ctx, delStmt, policyID)
+	// Find the impacted host IDs, so we can update their host issues entries
+	var hostIDs []uint
+	err := sqlx.SelectContext(ctx, queryerContext, &hostIDs, selectStmt, policyID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "select hosts to cleanup policy membership for policy")
+	}
+
+	_, err = exec.ExecContext(ctx, delStmt, policyID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "cleanup policy membership")
+	}
+
+	// Update host issues entries
+	if err = updateHostIssuesFailingPolicies(ctx, exec, hostIDs); err != nil {
+		return err
 	}
 
 	return nil
@@ -983,19 +1065,6 @@ func (ds *Datastore) CleanupPolicyMembership(ctx context.Context, now time.Time)
 			WHERE
 				p.updated_at >= DATE_SUB(?, INTERVAL ? SECOND) AND
 				p.created_at < p.updated_at`
-
-		deleteMembershipStmt = `
-			DELETE
-				pm
-			FROM
-				policy_membership pm
-			INNER JOIN
-				hosts h
-			ON
-				pm.host_id = h.id
-			WHERE
-				pm.policy_id = ? AND
-				FIND_IN_SET(h.platform, ?) = 0`
 	)
 
 	var pols []*fleet.Policy
@@ -1004,18 +1073,8 @@ func (ds *Datastore) CleanupPolicyMembership(ctx context.Context, now time.Time)
 	}
 
 	for _, pol := range pols {
-		if pol.Platform == "" {
-			continue
-		}
-
-		var expandedPlatforms []string
-		splitPlatforms := strings.Split(pol.Platform, ",")
-		for _, platform := range splitPlatforms {
-			expandedPlatforms = append(expandedPlatforms, fleet.ExpandPlatform(strings.TrimSpace(platform))...)
-		}
-
-		if _, err := ds.writer(ctx).ExecContext(ctx, deleteMembershipStmt, pol.ID, strings.Join(expandedPlatforms, ",")); err != nil {
-			return ctxerr.Wrapf(ctx, err, "delete outdated hosts membership for policy: %d; platforms: %v", pol.ID, expandedPlatforms)
+		if err := cleanupPolicyMembershipOnPolicyUpdate(ctx, ds.reader(ctx), ds.writer(ctx), pol.ID, pol.Platform); err != nil {
+			return ctxerr.Wrapf(ctx, err, "delete outdated hosts membership for policy: %d; platforms: %v", pol.ID, pol.Platform)
 		}
 	}
 

@@ -290,6 +290,8 @@ type Datastore interface {
 	// HostnamesByIdentifiers returns the hostnames corresponding to the provided identifiers,
 	// as understood by HostByIdentifier.
 	HostnamesByIdentifiers(ctx context.Context, identifiers []string) ([]string, error)
+	// UpdateHostIssuesFailingPolicies updates the failing policies count in host_issues table for the provided hosts.
+	UpdateHostIssuesFailingPolicies(ctx context.Context, hostIDs []uint) error
 	// SyncHostIssues calculates failing policies and critical vulnerabilities for each host.
 	SyncHostIssues(ctx context.Context) error
 
