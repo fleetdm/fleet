@@ -1,6 +1,6 @@
 ## Orbit 1.26.0 (Jun 11, 2024)
 
-* Add `tcc_access` table to `fleetd` for macOS.
+* Added `tcc_access` table to `fleetd` for macOS.
 
 HTTP calls from the SOFA macOS tables now identified by a 'fleetd' user agent
 
