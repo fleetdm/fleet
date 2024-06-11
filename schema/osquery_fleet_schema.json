@@ -9730,7 +9730,7 @@
   },
   {
     "name": "etc_hosts",
-    "description": "Line-parsed /etc/hosts.",
+    "description": "The `hosts` file comprises a local, plain-text configuration for mapping IP addresses to host names. It does not necessarily rely on an external Domain Name System (DNS) for routing. The `etc_hosts` osquery table expresses the data in the `hosts` file.",
     "url": "https://fleetdm.com/tables/etc_hosts",
     "platforms": [
       "darwin",
@@ -9739,8 +9739,8 @@
     ],
     "evented": false,
     "cacheable": true,
-    "notes": "",
-    "examples": "Identify host\"name\"s pointed to IP addresses using the hosts file. This\ntechnique is often abused by malware, but can also indicate services that do\nnot have proper DNS configuration to be reached from workstations.\n\n```\nSELECT * FROM etc_hosts WHERE address!='127.0.0.1' AND address!='::1' AND address!='255.255.255.255';\n```",
+    "notes": "The `hosts` file is customized by many organizations. As part of a defense-in-depth security posture it's important to track `hosts` modifications. Endpoints with a modified `hosts` configuration connected to enterprise networks can potentially bypass network rules, proxies and firewalls or be routed to malicious sites.\n\nFile paths:\nLinux: /etc/hosts\nmacOS: /private/etc/hosts\nWindows: C:\\Windows\\system32\\drivers\\etc\n\n- [DNS](https://en.wikipedia.org/wiki/Domain_Name_System)\n- The `/etc/hosts` [Guide For Linux](https://thelinuxcode.com/etc-hosts-file-complete-guide-for-linux/)\n- [How to edit the hosts file on Windows](https://www.howtogeek.com/784196/how-to-edit-the-hosts-file-on-windows-10-or-11)",
+    "examples": "This query detects if the macOS `/private/etc/hosts` file has been modified from its default state:\n\n```\nSELECT * FROM etc_hosts WHERE address != '127.0.0.1' AND address != '::1' AND address != '255.255.255.255';\n```",
     "columns": [
       {
         "name": "address",
@@ -11046,6 +11046,51 @@
     ],
     "url": "https://fleetdm.com/tables/firmwarepasswd",
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/firmwarepasswd.yml"
+  },
+  {
+    "name": "fleetd_logs",
+    "evented": false,
+    "platforms": [
+      "darwin",
+      "windows",
+      "linux"
+    ],
+    "description": "Returns the logs from fleetd's current session. Logs are stored in memory, so they are erased when it restarts.",
+    "examples": "```\nSELECT * FROM fleetd_logs\n```\n\nReturn only log entries with errors attached\n\n```\nSELECT * FROM fleetd_logs WHERE error != \"\"\n```",
+    "columns": [
+      {
+        "name": "time",
+        "description": "The time the event was captured, UTC.",
+        "type": "text",
+        "required": false
+      },
+      {
+        "name": "level",
+        "description": "The log-level of the event. Info, Debug, etc.",
+        "type": "text",
+        "required": false
+      },
+      {
+        "name": "error",
+        "description": "The error attached to the event",
+        "type": "text",
+        "required": false
+      },
+      {
+        "name": "message",
+        "description": "The message attached to the event",
+        "type": "text",
+        "required": false
+      },
+      {
+        "name": "payload",
+        "description": "Any extra data attached to the event, JSON",
+        "type": "text",
+        "required": false
+      }
+    ],
+    "url": "https://fleetdm.com/tables/fleetd_logs",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/fleetd_logs.yml"
   },
   {
     "name": "gatekeeper",
