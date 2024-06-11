@@ -1,6 +1,6 @@
 name: pipes
 description: |- # (required) string - The description for this table. Note: this field supports Markdown
-  	Named pipes in Windows can be used to provide communication between processes on a computer or between processes on different computers across a network. The `pipes` osquery table lists the named pipes currently running on a Windows computer.
+  Named pipes in Windows can be used to provide communication between processes on a computer or between processes on different computers across a network. The `pipes` osquery table lists the named pipes currently running on a Windows computer.
 examples: |- # (optional) string - An example query for this table. Note: This field supports Markdown
   This query displays all attributes (columns) for the named pipe enabled by opening PowerShell:
 
@@ -17,8 +17,3 @@ notes: |- # (optional) string - Notes about this table. Note: This field support
   Links:
   - Microsoft documentation on [named pipes](https://learn.microsoft.com/en-us/windows/win32/ipc/named-pipes)
   - Discover files linked to processes with Windows [Process Explorer](https://learn.microsoft.com/en-us/sysinternals/downloads/process-explorer)
-columns: # (required)
-	- name: # (required) string - The name of the column
-	  description: # (required) string - The column's description. Note: this field supports Markdown
-	  type: # (required) string - the column's data type
-	  required: # (required) boolean - whether or not this column is required to query this table.
