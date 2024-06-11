@@ -1,0 +1,1 @@
+- /api/latest/fleet/hosts now returns `critical_vulnerabilities_count` for premium users. This data is held in the new `host_issues` table which is updated every hour after vulnerabilities job.

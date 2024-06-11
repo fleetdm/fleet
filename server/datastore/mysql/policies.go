@@ -1051,8 +1051,8 @@ func (ds *Datastore) UpdatePolicyFailureCountsForHosts(ctx context.Context, host
 	}
 
 	var policyFailureCounts []struct {
-		HostID             uint `db:"host_id"`
-		FailingPolicyCount int  `db:"failing_policy_count"`
+		HostID             uint   `db:"host_id"`
+		FailingPolicyCount uint64 `db:"failing_policy_count"`
 	}
 
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &policyFailureCounts, query, args...); err != nil {
@@ -1060,7 +1060,7 @@ func (ds *Datastore) UpdatePolicyFailureCountsForHosts(ctx context.Context, host
 	}
 
 	// Map policy failure counts to hosts
-	hostIDToPolicyFailureCounts := make(map[uint]int)
+	hostIDToPolicyFailureCounts := make(map[uint]uint64)
 	for _, policyFailureCount := range policyFailureCounts {
 		hostIDToPolicyFailureCounts[policyFailureCount.HostID] = policyFailureCount.FailingPolicyCount
 	}

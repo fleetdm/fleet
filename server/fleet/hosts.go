@@ -765,8 +765,14 @@ func (h *Host) DisplayName() string {
 }
 
 type HostIssues struct {
-	TotalIssuesCount     int `json:"total_issues_count" db:"total_issues_count" csv:"issues"` // when exporting in CSV, we want that value as the "issues" column
-	FailingPoliciesCount int `json:"failing_policies_count" db:"failing_policies_count" csv:"-"`
+	FailingPoliciesCount uint64 `json:"failing_policies_count" db:"failing_policies_count" csv:"-"`
+	TotalIssuesCount     uint64 `json:"total_issues_count" db:"total_issues_count" csv:"issues"` // when exporting in CSV, we want that value as the "issues" column
+}
+
+type HostIssuesPremium struct {
+	FailingPoliciesCount         uint64 `json:"failing_policies_count" db:"failing_policies_count" csv:"-"`
+	CriticalVulnerabilitiesCount uint64 `json:"critical_vulnerabilities_count" db:"critical_vulnerabilities_count" csv:"-"`
+	TotalIssuesCount             uint64 `json:"total_issues_count" db:"total_issues_count" csv:"issues"` // when exporting in CSV, we want that value as the "issues" column
 }
 
 func (h Host) AuthzType() string {

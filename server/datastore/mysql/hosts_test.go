@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"math/rand"
 	"regexp"
 	"sort"
@@ -166,6 +167,7 @@ func TestHosts(t *testing.T) {
 		{"GetHostOrbitInfo", testGetHostOrbitInfo},
 		{"HostnamesByIdentifiers", testHostnamesByIdentifiers},
 		{"HostsAddToTeamCleansUpTeamQueryResults", testHostsAddToTeamCleansUpTeamQueryResults},
+		{"SyncHostIssues", testSyncHostIssues},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -9138,4 +9140,266 @@ func testHostsAddToTeamCleansUpTeamQueryResults(t *testing.T, ds *Datastore) {
 	require.Equal(t, query0Global.ID, hostStaticOnTeam1.PackStats[0].QueryStats[0].ScheduledQueryID)
 	require.Len(t, hostStaticOnTeam1.PackStats[1].QueryStats, 1)
 	require.Equal(t, query1Team1.ID, hostStaticOnTeam1.PackStats[1].QueryStats[0].ScheduledQueryID)
+}
+
+func testSyncHostIssues(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	hosts := make([]*fleet.Host, 10)
+	for i := range hosts {
+		h, err := ds.NewHost(
+			ctx, &fleet.Host{
+				DetailUpdatedAt: time.Now(),
+				LabelUpdatedAt:  time.Now(),
+				PolicyUpdatedAt: time.Now(),
+				SeenTime:        time.Now(),
+				OsqueryHostID:   ptr.String(fmt.Sprintf("host%d", i)),
+				NodeKey:         ptr.String(fmt.Sprintf("%d", i)),
+				UUID:            fmt.Sprintf("%d", i),
+				Hostname:        fmt.Sprintf("foo.%d.local", i),
+			},
+		)
+		require.NoError(t, err)
+		hosts[i] = h
+	}
+
+	// Insert an issue
+	ExecAdhocSQL(
+		t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `INSERT INTO host_issues (host_id) VALUES (?)`, hosts[0].ID)
+			return err
+		},
+	)
+
+	// No issues expected
+	assert.NoError(t, ds.SyncHostIssues(ctx))
+	type issue struct {
+		HostID uint `db:"host_id"`
+		fleet.HostIssuesPremium
+	}
+	var issues []issue
+	assert.NoError(
+		t, sqlx.SelectContext(
+			ctx, ds.reader(ctx), &issues,
+			"SELECT host_id, failing_policies_count, critical_vulnerabilities_count, total_issues_count from host_issues",
+		),
+	)
+	assert.Empty(t, issues)
+
+	// Add some policy fails and critical vulnerabilities.
+	// Hosts 0,1,8,9 don't have any issues
+	// Hosts 2,3,4,5 have 2,3,4,5 policy fails
+	// Hosts 4,5,6,7 have 1,2,3,4 critical vulnerabilities
+
+	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+
+	policies := make([]*fleet.Policy, 0, 6)
+	for i := 0; i < 6; i++ {
+		q := test.NewQuery(t, ds, nil, fmt.Sprintf("query%d", i), "select 1", 0, true)
+		p, err := ds.NewGlobalPolicy(
+			context.Background(), &user1.ID, fleet.PolicyPayload{
+				QueryID: &q.ID,
+			},
+		)
+		require.NoError(t, err)
+		policies = append(policies, p)
+	}
+	for i := 2; i < 6; i++ {
+		results := make(map[uint]*bool, 6)
+		for j := 0; j < 1; j++ {
+			results[policies[j].ID] = ptr.Bool(true) // pass
+		}
+		for j := 1; j <= i; j++ {
+			results[policies[j].ID] = ptr.Bool(false) // fail
+		}
+		for j := i + 1; j < 6; j++ {
+			results[policies[j].ID] = ptr.Bool(true) // pass
+		}
+		require.NoError(
+			t, ds.RecordPolicyQueryExecutions(
+				context.Background(), hosts[i], results, time.Now(), false,
+			),
+		)
+	}
+
+	// seed software
+	software := []fleet.Software{
+		{Name: "foo0", Version: "0", Source: "chrome_extensions"},
+		{Name: "foo1", Version: "1", Source: "chrome_extensions"},
+		{Name: "foo2", Version: "2", Source: "chrome_extensions"},
+		{Name: "foo3", Version: "3", Source: "chrome_extensions"},
+		{Name: "foo4", Version: "4", Source: "chrome_extensions"}, // vulnerable
+		{Name: "foo5", Version: "5", Source: "chrome_extensions"}, // vulnerable
+		{Name: "foo6", Version: "6", Source: "chrome_extensions"}, // vulnerable
+		{Name: "foo7", Version: "7", Source: "chrome_extensions"}, // vulnerable
+	}
+
+	for i := 0; i < len(software); i++ {
+		_, err := ds.UpdateHostSoftware(context.Background(), hosts[i].ID, software[:i+1])
+		require.NoError(t, err)
+	}
+
+	softwareItems := make([]fleet.Software, 0, len(software))
+	require.NoError(t, sqlx.SelectContext(ctx, ds.reader(ctx), &softwareItems, "SELECT id, version FROM software"))
+	require.Len(t, softwareItems, len(software))
+
+	for _, sw := range softwareItems {
+		_, err := ds.InsertSoftwareVulnerability(
+			context.Background(), fleet.SoftwareVulnerability{
+				CVE:        fmt.Sprintf("CVE-%s", sw.Version),
+				SoftwareID: sw.ID,
+			}, fleet.NVDSource,
+		)
+		require.NoError(t, err)
+	}
+	require.NoError(
+		t, ds.InsertCVEMeta(
+			ctx, []fleet.CVEMeta{
+				{
+					CVE:       "CVE-3",
+					CVSSScore: ptr.Float64(criticalCVSSScoreCutoff), // not critical
+				},
+				{
+					CVE:       "CVE-4",
+					CVSSScore: ptr.Float64(criticalCVSSScoreCutoff + 0.001),
+				},
+				{
+					CVE:       "CVE-5",
+					CVSSScore: ptr.Float64(criticalCVSSScoreCutoff + 0.01),
+				},
+				{
+					CVE:       "CVE-6",
+					CVSSScore: ptr.Float64(criticalCVSSScoreCutoff + 0.1),
+				},
+				{
+					CVE:       "CVE-7",
+					CVSSScore: ptr.Float64(criticalCVSSScoreCutoff + 1),
+				},
+			},
+		),
+	)
+
+	// Test normal
+	assert.NoError(t, ds.SyncHostIssues(ctx))
+	issues = nil
+	assert.NoError(
+		t, sqlx.SelectContext(
+			ctx, ds.reader(ctx), &issues,
+			"SELECT host_id, failing_policies_count, critical_vulnerabilities_count, total_issues_count from host_issues ORDER BY host_id",
+		),
+	)
+	assert.Len(t, issues, 4)
+	for i, hostIssue := range issues {
+		count := i + 2
+		assert.Equal(t, hosts[count].ID, hostIssue.HostID)
+		assert.Equal(t, uint64(count), hostIssue.FailingPoliciesCount)
+		assert.Zero(t, hostIssue.CriticalVulnerabilitiesCount)
+		assert.Equal(t, uint64(count), hostIssue.TotalIssuesCount)
+	}
+
+	// Test with small batch size and premium license
+	ctx = license.NewContext(ctx, &fleet.LicenseInfo{Tier: fleet.TierPremium})
+	insertBatchSizeOrig := hostIssuesInsertBatchSize
+	t.Cleanup(
+		func() {
+			hostIssuesInsertBatchSize = insertBatchSizeOrig
+		},
+	)
+	hostIssuesInsertBatchSize = 2
+	// Insert a couple issues
+	ExecAdhocSQL(
+		t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `INSERT INTO host_issues (host_id) VALUES (?),(?)`, hosts[0].ID, hosts[len(hosts)-1].ID)
+			return err
+		},
+	)
+
+	assert.NoError(t, ds.SyncHostIssues(ctx))
+	issues = nil
+	assert.NoError(
+		t, sqlx.SelectContext(
+			ctx, ds.reader(ctx), &issues,
+			"SELECT host_id, failing_policies_count, critical_vulnerabilities_count, total_issues_count from host_issues ORDER BY host_id",
+		),
+	)
+	assert.Len(t, issues, 6)
+	for i, hostIssue := range issues {
+		var policiesCount = uint64(i + 2)
+		var criticalCount = uint64(0)
+		if i > 1 {
+			criticalCount = uint64(i - 1)
+		}
+		if i > 3 {
+			policiesCount = 0
+		}
+		assert.Equal(t, hosts[i+2].ID, hostIssue.HostID)
+		assert.Equal(t, policiesCount, hostIssue.FailingPoliciesCount)
+		assert.Equal(t, criticalCount, hostIssue.CriticalVulnerabilitiesCount)
+		assert.Equal(t, policiesCount+criticalCount, hostIssue.TotalIssuesCount)
+	}
+
+	// Test with os vulnerability. First clear existing issues.
+	ExecAdhocSQL(
+		t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `DELETE FROM policy_membership`)
+			return err
+		},
+	)
+	ExecAdhocSQL(
+		t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `DELETE FROM cve_meta`)
+			return err
+		},
+	)
+
+	// seed critical os vulnerability
+	os := fleet.OperatingSystem{
+		Name:          "Ubuntu",
+		Version:       "20.4.0 LTS",
+		Arch:          "x86_64",
+		Platform:      "ubuntu",
+		KernelVersion: "5.10.76-linuxkit",
+	}
+	require.NoError(t, ds.UpdateHostOperatingSystem(context.Background(), hosts[1].ID, os))
+	var osID uint
+	assert.NoError(
+		t, sqlx.Get(
+			ds.writer(ctx), &osID,
+			"SELECT os_id FROM host_operating_system WHERE host_id = ?",
+			hosts[1].ID,
+		),
+	)
+
+	osVulns := []fleet.OSVulnerability{
+		{
+			OSID: osID,
+			CVE:  "CVE-100",
+		},
+	}
+	_, err := ds.InsertOSVulnerabilities(context.Background(), osVulns, fleet.NVDSource)
+	require.NoError(t, err)
+	require.NoError(
+		t, ds.InsertCVEMeta(
+			ctx, []fleet.CVEMeta{
+				{
+					CVE:       "CVE-100",
+					CVSSScore: ptr.Float64(criticalCVSSScoreCutoff + 1), // critical
+				},
+			},
+		),
+	)
+	assert.NoError(t, ds.SyncHostIssues(ctx))
+	issues = nil
+	assert.NoError(
+		t, sqlx.SelectContext(
+			ctx, ds.reader(ctx), &issues,
+			"SELECT host_id, failing_policies_count, critical_vulnerabilities_count, total_issues_count from host_issues ORDER BY host_id",
+		),
+	)
+	assert.Len(t, issues, 1)
+	hostIssue := issues[0]
+	assert.Equal(t, hosts[1].ID, hostIssue.HostID)
+	assert.Zero(t, hostIssue.FailingPoliciesCount)
+	assert.Equal(t, uint64(1), hostIssue.CriticalVulnerabilitiesCount)
+	assert.Equal(t, uint64(1), hostIssue.TotalIssuesCount)
 }

@@ -24,6 +24,10 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
+// Since many hosts may have issues, we need to batch the inserts of host issues.
+// This is a variable, so it can be adjusted during unit testing.
+var hostIssuesInsertBatchSize = 10000
+
 var (
 	hostSearchColumns             = []string{"hostname", "computer_name", "uuid", "hardware_serial", "primary_ip"}
 	wildCardableHostSearchColumns = []string{"hostname", "computer_name"}
@@ -5276,4 +5280,133 @@ func (ds *Datastore) HostnamesByIdentifiers(ctx context.Context, identifiers []s
 		return nil, ctxerr.Wrap(ctx, err, "get hostnames by identifiers")
 	}
 	return hostnames, nil
+}
+
+const criticalCVSSScoreCutoff = 8.9
+
+func (ds *Datastore) SyncHostIssues(ctx context.Context) error {
+	failingPoliciesCountStmt := `
+		SELECT
+			pm.host_id,
+			COUNT(*) AS count
+		FROM
+			policy_membership pm
+		WHERE
+			pm.passes = 0
+		GROUP BY
+			pm.host_id`
+	type issuesCount struct {
+		HostID uint64 `db:"host_id"`
+		Count  uint64 `db:"count"`
+	}
+	var failingPoliciesCounts []issuesCount
+	err := sqlx.SelectContext(ctx, ds.reader(ctx), &failingPoliciesCounts, failingPoliciesCountStmt)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get failing policies count")
+	}
+
+	var criticalCounts []issuesCount
+	if license.IsPremium(ctx) {
+		criticalVulnerabilitiesCountStmt := `
+		SELECT combined.host_id, COUNT(*) as count
+		FROM (SELECT host_id, cve
+			FROM host_software hs
+			INNER JOIN software_cve sc ON sc.software_id = hs.software_id
+			UNION
+			SELECT host_id, cve
+			FROM host_operating_system hos
+			INNER JOIN operating_system_vulnerabilities osv ON osv.operating_system_id = hos.os_id) combined
+		INNER JOIN cve_meta cm ON cm.cve = combined.cve
+		WHERE cm.cvss_score > ?
+		GROUP BY combined.host_id`
+		err = sqlx.SelectContext(ctx, ds.reader(ctx), &criticalCounts, criticalVulnerabilitiesCountStmt, criticalCVSSScoreCutoff)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "get critical vulnerabilities count")
+		}
+	}
+
+	// Combine the above results
+	issues := make(map[uint64]fleet.HostIssuesPremium, len(failingPoliciesCounts))
+	for _, fp := range failingPoliciesCounts {
+		issues[fp.HostID] = fleet.HostIssuesPremium{
+			FailingPoliciesCount: fp.Count,
+			TotalIssuesCount:     fp.Count,
+		}
+	}
+	for _, cv := range criticalCounts {
+		if i, ok := issues[cv.HostID]; ok {
+			issues[cv.HostID] = fleet.HostIssuesPremium{
+				FailingPoliciesCount:         i.FailingPoliciesCount,
+				CriticalVulnerabilitiesCount: cv.Count,
+				TotalIssuesCount:             i.TotalIssuesCount + cv.Count,
+			}
+		} else {
+			issues[cv.HostID] = fleet.HostIssuesPremium{
+				CriticalVulnerabilitiesCount: cv.Count,
+				TotalIssuesCount:             cv.Count,
+			}
+		}
+	}
+	// Sort issue keys in ascending order, so we process the host IDs in order.
+	issueKeys := make([]uint64, 0, len(issues))
+	for k := range issues {
+		issueKeys = append(issueKeys, k)
+	}
+	sort.Slice(issueKeys, func(i, j int) bool { return issueKeys[i] < issueKeys[j] })
+
+	// Update the host_issues table, including deleting items with no issues
+	deleteAll := len(issueKeys) == 0
+	for i := 0; i < len(issueKeys); i += hostIssuesInsertBatchSize {
+		start := i
+		end := i + hostIssuesInsertBatchSize
+		if end > len(issueKeys) {
+			end = len(issueKeys)
+		}
+		totalToProcess := end - start
+		const numberOfArgsPerIssue = 4 // number of ? in each VALUES clause
+		values := strings.TrimSuffix(
+			strings.Repeat("(?,?,?,?),", totalToProcess), ",",
+		)
+		stmt := fmt.Sprintf(
+			`INSERT INTO host_issues (host_id, failing_policies_count, critical_vulnerabilities_count, total_issues_count) VALUES %s
+					ON DUPLICATE KEY UPDATE
+					failing_policies_count = VALUES(failing_policies_count),
+					critical_vulnerabilities_count = VALUES(critical_vulnerabilities_count),
+					total_issues_count = VALUES(total_issues_count)`,
+			values,
+		)
+		args := make([]interface{}, 0, totalToProcess*numberOfArgsPerIssue)
+		for j := start; j < end; j++ {
+			issue := issues[issueKeys[j]]
+			args = append(
+				args, issueKeys[j], issue.FailingPoliciesCount, issue.CriticalVulnerabilitiesCount, issue.TotalIssuesCount,
+			)
+		}
+		if _, err := ds.writer(ctx).ExecContext(ctx, stmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "insert host_issues")
+		}
+
+		// Delete any host_issues rows that have no issues
+		stmt, args, err = sqlx.In("DELETE FROM host_issues WHERE host_id NOT IN (?)", issueKeys[start:end])
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "building IN statement for deleting host_issues")
+		}
+		if start != 0 {
+			stmt += " AND host_id >= ?"
+			args = append(args, issueKeys[start])
+		}
+		if end != len(issueKeys) {
+			stmt += " AND host_id < ?"
+			args = append(args, issueKeys[end])
+		}
+		if _, err := ds.writer(ctx).ExecContext(ctx, stmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "delete host_issues")
+		}
+	}
+	if deleteAll {
+		if _, err := ds.writer(ctx).ExecContext(ctx, "DELETE FROM host_issues"); err != nil {
+			return ctxerr.Wrap(ctx, err, "delete all host_issues")
+		}
+	}
+	return nil
 }

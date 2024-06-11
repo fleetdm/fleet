@@ -183,6 +183,12 @@ func getVulnFuncs(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger,
 				return ds.SyncHostsSoftwareTitles(ctx, time.Now())
 			},
 		},
+		{
+			Name: "sync_host_issues",
+			VulnFunc: func(ctx context.Context) error {
+				return ds.SyncHostIssues(ctx)
+			},
+		},
 	}
 
 	return vulnFuncs
