@@ -183,11 +183,6 @@ type HostSoftwareInstallerResult struct {
 	// SelfService indicates that the installation was queued by the
 	// end user and not an administrator
 	SelfService bool `json:"self_service" db:"self_service"`
-	// HostDeletedAt indicates if the results are associated with a deleted host.
-	// This supports the soft-delete feature for software install results so that
-	// the results can still be returned to see activity details after the host
-	// got deleted.
-	HostDeletedAt *time.Time `json:"-" db:"host_deleted_at"`
 }
 
 const (
