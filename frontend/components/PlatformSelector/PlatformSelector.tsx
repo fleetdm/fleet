@@ -41,7 +41,7 @@ export const PlatformSelector = ({
           value={checkDarwin}
           onChange={(value: boolean) => setCheckDarwin(value)}
           wrapperClassName={`${baseClass}__platform-checkbox-wrapper`}
-          disabledGrey={disabled}
+          disabled={disabled}
         >
           macOS
         </Checkbox>
@@ -49,7 +49,7 @@ export const PlatformSelector = ({
           value={checkWindows}
           onChange={(value: boolean) => setCheckWindows(value)}
           wrapperClassName={`${baseClass}__platform-checkbox-wrapper`}
-          disabledGrey={disabled}
+          disabled={disabled}
         >
           Windows
         </Checkbox>
@@ -57,7 +57,7 @@ export const PlatformSelector = ({
           value={checkLinux}
           onChange={(value: boolean) => setCheckLinux(value)}
           wrapperClassName={`${baseClass}__platform-checkbox-wrapper`}
-          disabledGrey={disabled}
+          disabled={disabled}
         >
           Linux
         </Checkbox>
@@ -65,7 +65,7 @@ export const PlatformSelector = ({
           value={checkChrome}
           onChange={(value: boolean) => setCheckChrome(value)}
           wrapperClassName={`${baseClass}__platform-checkbox-wrapper`}
-          disabledGrey={disabled}
+          disabled={disabled}
         >
           ChromeOS
         </Checkbox>
