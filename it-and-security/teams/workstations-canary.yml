@@ -127,7 +127,7 @@ policies:
     resolution: We will migrate your macOS MDM to Fleet.
     platform: darwin
     calendar_events_enabled: false
-  - name: macOS - system maintenance complete
+  - name: macOS - System maintenance complete
     query: SELECT 1 AS result FROM system_info WHERE computer_name NOT IN ('Titanosauria', 'Drew’s MacBook Pro','fleetwoodmike');
     critical: false
     description: Determines if the device has completed system maintenance.
