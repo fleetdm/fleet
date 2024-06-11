@@ -209,6 +209,8 @@ type AddHostsToTeamFunc func(ctx context.Context, teamID *uint, hostIDs []uint) 
 
 type HostnamesByIdentifiersFunc func(ctx context.Context, identifiers []string) ([]string, error)
 
+type SyncHostIssuesFunc func(ctx context.Context) error
+
 type TotalAndUnseenHostsSinceFunc func(ctx context.Context, teamID *uint, daysCount int) (total int, unseen []uint, err error)
 
 type DeleteHostsFunc func(ctx context.Context, ids []uint) error
@@ -1254,6 +1256,9 @@ type DataStore struct {
 
 	HostnamesByIdentifiersFunc        HostnamesByIdentifiersFunc
 	HostnamesByIdentifiersFuncInvoked bool
+
+	SyncHostIssuesFunc        SyncHostIssuesFunc
+	SyncHostIssuesFuncInvoked bool
 
 	TotalAndUnseenHostsSinceFunc        TotalAndUnseenHostsSinceFunc
 	TotalAndUnseenHostsSinceFuncInvoked bool
@@ -3061,6 +3066,13 @@ func (s *DataStore) HostnamesByIdentifiers(ctx context.Context, identifiers []st
 	s.HostnamesByIdentifiersFuncInvoked = true
 	s.mu.Unlock()
 	return s.HostnamesByIdentifiersFunc(ctx, identifiers)
+}
+
+func (s *DataStore) SyncHostIssues(ctx context.Context) error {
+	s.mu.Lock()
+	s.SyncHostIssuesFuncInvoked = true
+	s.mu.Unlock()
+	return s.SyncHostIssuesFunc(ctx)
 }
 
 func (s *DataStore) TotalAndUnseenHostsSince(ctx context.Context, teamID *uint, daysCount int) (total int, unseen []uint, err error) {
