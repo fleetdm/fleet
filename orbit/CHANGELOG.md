@@ -1,3 +1,19 @@
+## Orbit 1.26.0 (Jun 11, 2024)
+
+* Add `tcc_access` table to `fleetd` for macOS.
+
+HTTP calls from the SOFA macOS tables now identified by a 'fleetd' user agent
+
+When orbit gets host info from osquery at startup, ignore and log osquery error when valid data is returned.
+
+* Add `fleetd_logs` table
+
+* Fixed scripts that were blocking execution of other scripts after timing out on Windows.
+
+* Added the `Self-service` menu item to Fleet Desktop.
+
+* Update Go version to go1.22.3
+
 ## Orbit 1.25.0 (May 22, 2024)
 
 * Added code to detect value of `DISPLAY` variable of user instead of defaulting to `:0` (to support Ubuntu 24.04 with Xorg).
