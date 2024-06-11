@@ -75,9 +75,8 @@ func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[strin
 				if errors.Is(err, os.ErrNotExist) {
 					log.Debug().Err(err).Msgf("file for user %s not found: %s", username, tccPath)
 					continue
-				} else {
-					return nil, err
 				}
+				return nil, err
 			}
 			uRs, err := getTCCAccessRows(uid, tccPath)
 			if err != nil {
