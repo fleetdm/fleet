@@ -21,7 +21,7 @@
     border-color: $core-vibrant-blue;
   }
 
-  &:hover &:not(.input-field--disabled) {
+  &:hover &:not(.input-field--read-only) {
     box-shadow: none;
     border: 1px solid $core-vibrant-blue;
   }
