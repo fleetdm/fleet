@@ -105,6 +105,7 @@ controls:
     - path: ../lib/macos-see-automatic-enrollment-profile.sh
     - path: ../lib/macos-remove-old-nudge.sh
     - path: ../lib/macos-mdm-migration.sh
+    - path: ../lib/macos-system-maintenance.sh
     - path: ../lib/windows-remove-fleetd.ps1
     - path: ../lib/windows-turn-off-mdm.ps1
     - path: ../lib/windows-install-bitdefender.ps1
