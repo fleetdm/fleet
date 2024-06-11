@@ -2,9 +2,9 @@
 
 * Added `tcc_access` table to `fleetd` for macOS.
 
-HTTP calls from the SOFA macOS tables now identified by a 'fleetd' user agent
+* Fixed fleetd agent to identify HTTP calls from the SOFA macOS tables.
 
-Fixed Orbit to ignore-and-log osquery errors when it gets valid host info from osquery at startup.
+* Fixed Orbit to ignore-and-log osquery errors when it gets valid host info from osquery at startup.
 
 * Added `fleetd_logs` table
 
