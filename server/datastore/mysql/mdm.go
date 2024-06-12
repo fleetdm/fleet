@@ -1215,7 +1215,6 @@ func getTableAndColumnNameForHostMDMProfileUUID(profUUID string) (table, column 
 }
 
 func (ds *Datastore) AreHostsConnectedToFleetMDM(ctx context.Context, hosts []*fleet.Host) (map[string]bool, error) {
-
 	var (
 		appleUUIDs []any
 		winUUIDs   []any
