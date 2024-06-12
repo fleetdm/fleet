@@ -1,4 +1,4 @@
-import { HOST_LINUX_PLATFORMS, HOST_APPLE_PLATFORMS } from "./platform";
+import { HOST_LINUX_PLATFORMS } from "./platform";
 
 export interface IScript {
   id: number;
@@ -9,9 +9,7 @@ export interface IScript {
 }
 
 export const isScriptSupportedPlatform = (hostPlatform: string) =>
-  ["windows", ...HOST_APPLE_PLATFORMS, ...HOST_LINUX_PLATFORMS].includes(
-    hostPlatform
-  ); // excludes chrome, see also https://github.com/fleetdm/fleet/blob/5a21e2cfb029053ddad0508869eb9f1f23997bf2/server/fleet/hosts.go#L775
+  ["windows", ...HOST_LINUX_PLATFORMS].includes(hostPlatform); // excludes chrome, ios, ipados see also https://github.com/fleetdm/fleet/blob/5a21e2cfb029053ddad0508869eb9f1f23997bf2/server/fleet/hosts.go#L775
 
 export type IScriptExecutionStatus = "ran" | "pending" | "error";
 

@@ -1172,6 +1172,7 @@ describe("Host Actions Dropdown", () => {
       expect(screen.queryByText("Delete")).toBeInTheDocument();
 
       expect(screen.queryByText("Query")).not.toBeInTheDocument();
+      expect(screen.queryByText("Run script")).not.toBeInTheDocument();
       expect(
         screen.queryByText("Show disk encryption key")
       ).not.toBeInTheDocument();
@@ -1211,6 +1212,7 @@ describe("Host Actions Dropdown", () => {
       expect(screen.queryByText("Delete")).toBeInTheDocument();
 
       expect(screen.queryByText("Query")).not.toBeInTheDocument();
+      expect(screen.queryByText("Run script")).not.toBeInTheDocument();
       expect(
         screen.queryByText("Show disk encryption key")
       ).not.toBeInTheDocument();
