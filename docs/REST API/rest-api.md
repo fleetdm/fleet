@@ -8179,7 +8179,7 @@ Content-Type: application/octet-stream
 
 _Available in Fleet Premium._
 
-`GET /api/v1/fleet/software/titles/:software_title_id?alt=media`
+`GET /api/v1/fleet/software/titles/:software_title_id/package?alt=media`
 
 #### Parameters
 
