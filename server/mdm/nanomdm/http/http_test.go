@@ -44,7 +44,7 @@ type slowReader struct {
 
 func (s slowReader) Read(p []byte) (n int, err error) {
 	if len(s.b) == 0 {
-		err = io.EOF
+		return 0, io.EOF
 	}
 
 	time.Sleep(200 * time.Millisecond)
