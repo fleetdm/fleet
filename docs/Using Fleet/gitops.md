@@ -12,7 +12,9 @@ The [`fleetctl apply`]((https://github.com/fleetdm/fleet/blob/main/docs/Contribu
 
 Polcies can be specified inline in your `default.yml` file or `teams/team-name.yml` files. They can also be specified in separate files in your `lib/` folder.
 
-- Inline example:
+### Example
+
+#### Inline
   
   `default.yml` or `teams/team-name.yml`
 
@@ -27,58 +29,46 @@ Polcies can be specified inline in your `default.yml` file or `teams/team-name.y
       calendar_event_enabled: false
   ```
 
-- Separate file example:
+#### Separate file
  
- `lib/policies-name.policies.yml`
+`lib/policies-name.policies.yml`
 
-  ```yaml
-  - name: macOS - Enable FileVault
-    description: This policy checks if FileVault (disk encryption) is enabled.
-    resolution: As an IT admin, turn on disk encryption in Fleet.
-    query: SELECT 1 FROM filevault_status WHERE status = 'FileVault is On.';
-    platform: darwin
-    critical: false
-    calendar_event_enabled: false
-  - name: macOS - Disable guest account
-    description: This policy checks if the guest account is disabled.
-    resolution: An an IT admin, deploy a macOS, login window profile with the DisableGuestAccount option set to true.
-    query: SELECT 1 FROM managed_policies WHERE domain='com.apple.loginwindow' AND username = '' AND name='DisableGuestAccount' AND CAST(value AS INT) = 1;
-    platform: darwin
-    critical: false
-    calendar_event_enabled: false
-  ```
+```yaml
+- name: macOS - Enable FileVault
+  description: This policy checks if FileVault (disk encryption) is enabled.
+  resolution: As an IT admin, turn on disk encryption in Fleet.
+  query: SELECT 1 FROM filevault_status WHERE status = 'FileVault is On.';
+  platform: darwin
+  critical: false
+  calendar_event_enabled: false
+- name: macOS - Disable guest account
+  description: This policy checks if the guest account is disabled.
+  resolution: An an IT admin, deploy a macOS, login window profile with the DisableGuestAccount option set to true.
+  query: SELECT 1 FROM managed_policies WHERE domain='com.apple.loginwindow' AND username = '' AND name='DisableGuestAccount' AND CAST(value AS INT) = 1;
+  platform: darwin
+  critical: false
+  calendar_event_enabled: false
+```
 
-  `default.yml` or `teams/team-name.yml`
+`default.yml` or `teams/team-name.yml`
 
-  ```yaml
-  policies:
-    - path: `path-to/lib/policies-name.policies.yml`
-  ```
+```yaml
+policies:
+  - path: `path-to/lib/policies-name.policies.yml`
+```
 
 ## Queries
 
 Queries can be specified inline in your `default.yml` file or `teams/team-name.yml` files. They can also be specified in separate files in your `lib/` folder.
 
-- Inline example:
+### Example
+
+#### Inline
   
-  `default.yml` or `teams/team-name.yml`
+`default.yml` or `teams/team-name.yml`
 
-  ```yaml
-  queries:
-    - name: Collect failed login attempts
-      description: Lists the users at least one failed login attempt and timestamp of failed login. Number of failed login attempts reset to zero after a user successfully logs in.
-      query: SELECT users.username, account_policy_data.failed_login_count, account_policy_data.failed_login_timestamp FROM users INNER JOIN account_policy_data using (uid) WHERE account_policy_data.failed_login_count > 0;
-      platform: darwin,linux,windows
-      interval: 300
-      observer_can_run: false
-      automations_enabled: false
-  ```
-
-- Separate file example:
- 
- `lib/queries-name.queries.yml`
-
-  ```yaml
+```yaml
+queries:
   - name: Collect failed login attempts
     description: Lists the users at least one failed login attempt and timestamp of failed login. Number of failed login attempts reset to zero after a user successfully logs in.
     query: SELECT users.username, account_policy_data.failed_login_count, account_policy_data.failed_login_timestamp FROM users INNER JOIN account_policy_data using (uid) WHERE account_policy_data.failed_login_count > 0;
@@ -86,21 +76,35 @@ Queries can be specified inline in your `default.yml` file or `teams/team-name.y
     interval: 300
     observer_can_run: false
     automations_enabled: false
-  - name: Collect USB devices
-    description: Collects the USB devices that are currently connected to macOS and Linux hosts.
-    query: SELECT model, vendor FROM usb_devices;
-    platform: darwin,linux
-    interval: 300
-    observer_can_run: true
-    automations_enabled: false
-  ```
+```
 
-  `default.yml` or `teams/team-name.yml`
+#### Separate file
+ 
+`lib/queries-name.queries.yml`
 
-  ```yaml
-  queries:
-    - path: `path-to/lib/queries-name.queries.yml`
-  ```
+```yaml
+- name: Collect failed login attempts
+  description: Lists the users at least one failed login attempt and timestamp of failed login. Number of failed login attempts reset to zero after a user successfully logs in.
+  query: SELECT users.username, account_policy_data.failed_login_count, account_policy_data.failed_login_timestamp FROM users INNER JOIN account_policy_data using (uid) WHERE account_policy_data.failed_login_count > 0;
+  platform: darwin,linux,windows
+  interval: 300
+  observer_can_run: false
+  automations_enabled: false
+- name: Collect USB devices
+  description: Collects the USB devices that are currently connected to macOS and Linux hosts.
+  query: SELECT model, vendor FROM usb_devices;
+  platform: darwin,linux
+  interval: 300
+  observer_can_run: true
+  automations_enabled: false
+```
+
+`default.yml` or `teams/team-name.yml`
+
+```yaml
+queries:
+  - path: `path-to/lib/queries-name.queries.yml`
+```
 
 ## Agent options
 
