@@ -1,5 +1,5 @@
 import React from "react";
-import { isApplePlatform } from "interfaces/platform";
+import { isAppleDevice } from "interfaces/platform";
 import { HostMdmDeviceStatusUIState } from "../../helpers";
 
 interface IDeviceStatusTag {
@@ -24,7 +24,7 @@ export const DEVICE_STATUS_TAGS: DeviceStatusTagConfig = {
     title: "LOCKED",
     tagType: "warning",
     generateTooltip: (platform) =>
-      isApplePlatform(platform)
+      isAppleDevice(platform)
         ? "Host is locked. The end user can’t use the host until the six-digit PIN has been entered."
         : "Host is locked. The end user can’t use the host until the host has been unlocked.",
   },
@@ -44,7 +44,7 @@ export const DEVICE_STATUS_TAGS: DeviceStatusTagConfig = {
     title: "WIPED",
     tagType: "error",
     generateTooltip: (platform) =>
-      isApplePlatform(platform)
+      isAppleDevice(platform)
         ? "Host is wiped. To prevent the host from automatically reenrolling to Fleet, first release the host from Apple Business Manager and then delete the host in Fleet."
         : "Host is wiped.",
   },

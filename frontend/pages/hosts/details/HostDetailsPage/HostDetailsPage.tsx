@@ -39,7 +39,6 @@ import {
   IQueryKeyQueriesLoadAll,
   ISchedulableQuery,
 } from "interfaces/schedulable_query";
-import { isApplePlatform } from "interfaces/platform";
 
 import {
   normalizeEmptyValues,
@@ -1009,8 +1008,7 @@ const HostDetailsPage = ({
             platform={host.platform}
             hostName={host.display_name}
             onSuccess={() => {
-              !isApplePlatform(host.platform) &&
-                setHostMdmDeviceState("unlocking");
+              host.platform !== "darwin" && setHostMdmDeviceState("unlocking");
             }}
             onClose={() => setShowUnlockHostModal(false)}
           />

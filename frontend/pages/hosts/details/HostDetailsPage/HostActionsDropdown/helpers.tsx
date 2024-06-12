@@ -2,7 +2,7 @@ import React from "react";
 import { cloneDeep } from "lodash";
 
 import { IDropdownOption } from "interfaces/dropdownOption";
-import { isLinuxLike, isApplePlatform } from "interfaces/platform";
+import { isLinuxLike, isAppleDevice } from "interfaces/platform";
 import { isScriptSupportedPlatform } from "interfaces/script";
 
 import {
@@ -96,7 +96,7 @@ const canEditMdm = (config: IHostActionConfigOptions) => {
     isMacMdmEnabledAndConfigured,
   } = config;
   return (
-    isApplePlatform(hostPlatform) &&
+    hostPlatform === "darwin" &&
     isMacMdmEnabledAndConfigured &&
     isEnrolledInMdm &&
     isFleetMdm &&
@@ -123,9 +123,9 @@ const canLockHost = ({
   isTeamMaintainer,
   hostMdmDeviceStatus,
 }: IHostActionConfigOptions) => {
-  // Apple platforms (i.e. as macOS, iOS, iPadOS) hosts can be locked if they are enrolled in MDM and the MDM is enabled
-  const canLockAppleOS =
-    isApplePlatform(hostPlatform) &&
+  // macOS hosts can be locked if they are enrolled in MDM and the MDM is enabled
+  const canLockDarwin =
+    hostPlatform === "darwin" &&
     isFleetMdm &&
     isMacMdmEnabledAndConfigured &&
     isEnrolledInMdm;
@@ -135,7 +135,7 @@ const canLockHost = ({
     hostMdmDeviceStatus === "unlocked" &&
     (hostPlatform === "windows" ||
       isLinuxLike(hostPlatform) ||
-      canLockAppleOS) &&
+      canLockDarwin) &&
     (isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer)
   );
 };
@@ -154,10 +154,10 @@ const canWipeHost = ({
   hostMdmDeviceStatus,
 }: IHostActionConfigOptions) => {
   const hostMdmEnabled =
-    (isApplePlatform(hostPlatform) && isMacMdmEnabledAndConfigured) ||
+    (isAppleDevice(hostPlatform) && isMacMdmEnabledAndConfigured) ||
     (hostPlatform === "windows" && isWindowsMdmEnabledAndConfigured);
 
-  // Windows and Apple platforms (i.e. macOS, iOS, iPadOS) have the same conditions and can be wiped if they
+  // Windows and Apple devices (i.e. macOS, iOS, iPadOS) have the same conditions and can be wiped if they
   // are enrolled in MDM and the MDM is enabled.
   const canWipeWindowsOrAppleOS =
     hostMdmEnabled && isFleetMdm && isEnrolledInMdm;
@@ -182,26 +182,24 @@ const canUnlock = ({
   hostPlatform,
   hostMdmDeviceStatus,
 }: IHostActionConfigOptions) => {
-  const canUnlockAppleOS =
-    isApplePlatform(hostPlatform) &&
+  const canUnlockDarwin =
+    hostPlatform === "darwin" &&
     isFleetMdm &&
     isMacMdmEnabledAndConfigured &&
     isEnrolledInMdm;
 
-  // "unlocking" for a Apple platform (i.e. macOS, iOS, iPadOS) means that somebody
-  // saw the unlock pin, but shouldn't prevent users from trying to see the pin again,
-  // which is considered an "unlock"
+  // "unlocking" for a macOS host means that somebody saw the unlock pin, but
+  // shouldn't prevent users from trying to see the pin again, which is
+  // considered an "unlock"
   const isValidState =
-    (hostMdmDeviceStatus === "unlocking" && isApplePlatform(hostPlatform)) ||
+    (hostMdmDeviceStatus === "unlocking" && hostPlatform === "darwin") ||
     hostMdmDeviceStatus === "locked";
 
   return (
     isPremiumTier &&
     isValidState &&
     (isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer) &&
-    (canUnlockAppleOS ||
-      hostPlatform === "windows" ||
-      isLinuxLike(hostPlatform))
+    (canUnlockDarwin || hostPlatform === "windows" || isLinuxLike(hostPlatform))
   );
 };
 

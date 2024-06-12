@@ -1139,12 +1139,14 @@ describe("Host Actions Dropdown", () => {
     });
   });
 
-  describe("Does not render query or show disk encryption key for iOS and iPadOS", () => {
-    it("does not render query or show disk encryption key for iOS for iOS", async () => {
+  describe("Render options only available for iOS and iPadOS", () => {
+    it("renders only the transfer, wipe, and delete options for iOS", async () => {
       const render = createCustomRenderer({
         context: {
           app: {
+            isPremiumTier: true,
             isGlobalAdmin: true,
+            isMacMdmEnabledAndConfigured: true,
             currentUser: createMockUser(),
           },
         },
@@ -1156,7 +1158,8 @@ describe("Host Actions Dropdown", () => {
           onSelect={noop}
           hostStatus="online"
           hostPlatform="ios"
-          hostMdmEnrollmentStatus={null}
+          hostMdmEnrollmentStatus="On (automatic)"
+          mdmName="Fleet"
           hostMdmDeviceStatus={"unlocked"}
           hostScriptsEnabled={false}
         />
@@ -1164,14 +1167,25 @@ describe("Host Actions Dropdown", () => {
 
       await user.click(screen.getByText("Actions"));
 
+      expect(screen.queryByText("Transfer")).toBeInTheDocument();
+      expect(screen.queryByText("Wipe")).toBeInTheDocument();
+      expect(screen.queryByText("Delete")).toBeInTheDocument();
+
       expect(screen.queryByText("Query")).not.toBeInTheDocument();
+      expect(
+        screen.queryByText("Show disk encryption key")
+      ).not.toBeInTheDocument();
+      expect(screen.queryByText("Turn off MDM")).not.toBeInTheDocument();
+      expect(screen.queryByText("Lock")).not.toBeInTheDocument();
     });
 
-    it("does not render query or show disk encryption key for iOS for iPadOS", async () => {
+    it("renders only the transfer, wipe, and delete options for iPadOS", async () => {
       const render = createCustomRenderer({
         context: {
           app: {
+            isPremiumTier: true,
             isGlobalAdmin: true,
+            isMacMdmEnabledAndConfigured: true,
             currentUser: createMockUser(),
           },
         },
@@ -1183,7 +1197,8 @@ describe("Host Actions Dropdown", () => {
           onSelect={noop}
           hostStatus="online"
           hostPlatform="ipados"
-          hostMdmEnrollmentStatus={null}
+          hostMdmEnrollmentStatus="On (automatic)"
+          mdmName="Fleet"
           hostMdmDeviceStatus={"unlocked"}
           hostScriptsEnabled={false}
         />
@@ -1191,9 +1206,16 @@ describe("Host Actions Dropdown", () => {
 
       await user.click(screen.getByText("Actions"));
 
+      expect(screen.queryByText("Transfer")).toBeInTheDocument();
+      expect(screen.queryByText("Wipe")).toBeInTheDocument();
+      expect(screen.queryByText("Delete")).toBeInTheDocument();
+
+      expect(screen.queryByText("Query")).not.toBeInTheDocument();
       expect(
         screen.queryByText("Show disk encryption key")
       ).not.toBeInTheDocument();
+      expect(screen.queryByText("Turn off MDM")).not.toBeInTheDocument();
+      expect(screen.queryByText("Lock")).not.toBeInTheDocument();
     });
   });
 });

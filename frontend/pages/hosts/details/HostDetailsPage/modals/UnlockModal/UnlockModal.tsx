@@ -10,7 +10,6 @@ import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import Spinner from "components/Spinner";
 import DataError from "components/DataError";
-import { isApplePlatform } from "interfaces/platform";
 
 const baseClass = "unlock-modal";
 
@@ -40,7 +39,7 @@ const UnlockModal = ({
     ["mac-unlock-pin", id],
     () => hostAPI.unlockHost(id),
     {
-      enabled: isApplePlatform(platform),
+      enabled: platform === "darwin",
       refetchOnWindowFocus: false,
       refetchOnReconnect: false,
       retry: false,
@@ -61,7 +60,7 @@ const UnlockModal = ({
   };
 
   const renderModalContent = () => {
-    if (isApplePlatform(platform)) {
+    if (platform === "darwin") {
       if (macIsLoading) return <Spinner />;
       if (macIsError) return <DataError />;
 
@@ -91,7 +90,7 @@ const UnlockModal = ({
   };
 
   const renderModalButtons = () => {
-    if (isApplePlatform(platform)) {
+    if (platform === "darwin") {
       return (
         <>
           <Button type="button" onClick={onClose} variant="brand">
