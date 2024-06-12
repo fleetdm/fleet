@@ -58,15 +58,9 @@ func (c *Client) runHostScript(verb, path string, hostID uint, scriptContents []
 		}
 		return nil, errors.New(fleet.RunScriptForbiddenErrMsg)
 	case http.StatusGatewayTimeout:
-		errMsg, err := extractServerErrMsg(verb, path, res)
-		if err != nil {
-			return nil, err
-		}
 		// The GatewayTimeout error message is not very helpful so instead we
 		// want to return the script timeout error message.
-		if strings.Contains(errMsg, fleet.RunScriptGatewayTimeoutErrMsg) {
-			return nil, errors.New(fleet.RunScriptScriptTimeoutErrMsg)
-		}
+		return nil, errors.New(fleet.RunScriptScriptTimeoutErrMsg)
 	case http.StatusPaymentRequired:
 		if teamID > 0 {
 			return nil, errors.New("Team id parameter requires Fleet Premium license.")

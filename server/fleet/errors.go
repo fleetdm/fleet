@@ -550,7 +550,6 @@ const (
 	RunScriptAsyncScriptEnqueuedErrMsg     = "Script is running or will run when the host comes online."
 	RunScripSavedMaxLenErrMsg              = "Script is too large. It's limited to 500,000 characters (approximately 10,000 lines)."
 	RunScripUnsavedMaxLenErrMsg            = "Script is too large. It's limited to 10,000 characters (approximately 125 lines)."
-	RunScriptGatewayTimeoutErrMsg          = "invalid character '<' looking for beginning of value"
 
 	// End user authentication
 	EndUserAuthDEPWebURLConfiguredErrMsg = `End user authentication can't be configured when the configured automatic enrollment (DEP) profile specifies a configuration_web_url.` // #nosec G101
