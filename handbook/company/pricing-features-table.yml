@@ -39,6 +39,12 @@
   tier: Premium
   productCategories: [Endpoint operations]
   pricingTableCategories: [Endpoint operations]
+- industryName: AI-generated descriptions
+  description: Use AI to explain why your security policies matter.
+  documentationUrl: https://github.com/fleetdm/fleet/issues/18187
+  tier: Free
+  productCategories: [Endpoint operations]
+  pricingTableCategories: [Endpoint operations]
 #
 #  ╔═╗╔═╗╦═╗╦╔═╗╔╦╗  ╔═╗═╗ ╦╔═╗╔═╗╦ ╦╔╦╗╦╔═╗╔╗╔
 #  ╚═╗║  ╠╦╝║╠═╝ ║   ║╣ ╔╩╦╝║╣ ║  ║ ║ ║ ║║ ║║║║
@@ -915,9 +921,6 @@
   productCategories: [Endpoint operations]
   pricingTableCategories: [Endpoint operations]
   buzzwords: [Real-time export,Ship logs]
-  waysToUse:
-    - description: Choose different file sizes for automated query results and agent logs. Coming soon (2024-04-22) #Customer-blanco
-      moreInfoUrl: https://github.com/fleetdm/fleet/issues/11999
 - industryName: File carving (AWS S3)
   documentationUrl: https://fleetdm.com/docs/configuration/fleet-server-configuration#s-3-file-carving-backend
   tier: Free

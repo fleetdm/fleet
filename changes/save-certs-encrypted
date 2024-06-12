@@ -1,2 +1,0 @@
-- Adds a new Fleet server config variable, `FLEET_SERVER_PRIVATE_KEY`. This variable contains the
-  private key used to encrypt the MDM certificates and keys stored in Fleet.

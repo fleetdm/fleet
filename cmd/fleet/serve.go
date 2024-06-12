@@ -58,6 +58,7 @@ import (
 	"github.com/go-kit/kit/log/level"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	"github.com/go-kit/log"
+	"github.com/google/uuid"
 	"github.com/ngrok/sqlmw"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -195,7 +196,7 @@ the way that the Fleet server works.
 			}
 			ds = mds
 
-			if config.S3.Bucket != "" {
+			if config.S3.CarvesBucket != "" {
 				carveStore, err = s3.NewCarveStore(config.S3, ds)
 				if err != nil {
 					initFatal(err, "initializing S3 carvestore")
@@ -497,6 +498,10 @@ the way that the Fleet server works.
 					initFatal(errors.New("Apple SCEP MDM configuration must be provided when Apple APNs is provided"), "validate Apple MDM")
 				}
 
+				if len(config.Server.PrivateKey) == 0 {
+					initFatal(errors.New("inserting APNs and SCEP assets"), "missing required private key. Learn how to configure the private key here: https://fleetdm.com/learn-more-about/fleet-server-private-key")
+				}
+
 				apnsCert, apnsCertPEM, apnsKeyPEM, err := config.MDM.AppleAPNs()
 				if err != nil {
 					initFatal(err, "validate Apple APNs certificate and key")
@@ -542,6 +547,10 @@ the way that the Fleet server works.
 			if config.MDM.IsAppleBMSet() {
 				if !license.IsPremium() {
 					initFatal(errors.New("Apple Business Manager configuration is only available in Fleet Premium"), "validate Apple BM")
+				}
+
+				if len(config.Server.PrivateKey) == 0 {
+					initFatal(errors.New("inserting MDM ABM assets"), "missing required private key. Learn how to configure the private key here: https://fleetdm.com/learn-more-about/fleet-server-private-key")
 				}
 
 				appleBM, err := config.MDM.AppleBM()
@@ -682,13 +691,16 @@ the way that the Fleet server works.
 			var softwareInstallStore fleet.SoftwareInstallerStore
 			if license.IsPremium() {
 				profileMatcher := apple_mdm.NewProfileMatcher(redisPool)
-				if config.S3.Bucket != "" {
+				if config.S3.SoftwareInstallersBucket != "" {
+					if config.S3.BucketsAndPrefixesMatch() {
+						level.Warn(logger).Log("msg", "the S3 buckets and prefixes for carves and software installers appear to be identical, this can cause issues")
+					}
 					store, err := s3.NewSoftwareInstallerStore(config.S3)
 					if err != nil {
 						initFatal(err, "initializing S3 software installer store")
 					}
 					softwareInstallStore = store
-					level.Info(logger).Log("msg", "using S3 software installer store", "bucket", config.S3.Bucket)
+					level.Info(logger).Log("msg", "using S3 software installer store", "bucket", config.S3.SoftwareInstallersBucket)
 				} else {
 					installerDir := os.TempDir()
 					if dir := os.Getenv("FLEET_SOFTWARE_INSTALLER_STORE_DIR"); dir != "" {
@@ -851,7 +863,12 @@ the way that the Fleet server works.
 			if license.IsPremium() {
 				if err := cronSchedules.StartCronSchedule(
 					func() (fleet.CronSchedule, error) {
-						return cron.NewCalendarSchedule(ctx, instanceID, ds, 5*time.Minute, logger)
+						if config.Calendar.Periodicity > 0 {
+							config.Calendar.SetAlwaysReloadEvent(true)
+						} else {
+							config.Calendar.Periodicity = 5 * time.Minute
+						}
+						return cron.NewCalendarSchedule(ctx, instanceID, ds, config.Calendar, logger)
 					},
 				); err != nil {
 					initFatal(err, "failed to register calendar schedule")
@@ -952,14 +969,36 @@ the way that the Fleet server works.
 			rootMux.Handle("/version", service.PrometheusMetricsHandler("version", version.Handler()))
 			rootMux.Handle("/assets/", service.PrometheusMetricsHandler("static_assets", service.ServeStaticAssets("/assets/")))
 
-			commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
-			ddmService := service.NewMDMAppleDDMService(ds, logger)
-			mdmCheckinAndCommandService := service.NewMDMAppleCheckinAndCommandService(ds, commander, logger)
+			if len(config.Server.PrivateKey) > 0 {
+				commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
+				ddmService := service.NewMDMAppleDDMService(ds, logger)
+				mdmCheckinAndCommandService := service.NewMDMAppleCheckinAndCommandService(ds, commander, logger)
 
-			// TODO(roberto): we should always register the
-			// protocol services and generate a SCEP challenge if
-			// not provided.
-			if config.MDM.AppleSCEPChallenge != "" {
+				hasSCEPChallenge, err := checkMDMAssets([]fleet.MDMAssetName{fleet.MDMAssetSCEPChallenge})
+				if err != nil {
+					initFatal(err, "checking SCEP challenge in database")
+				}
+				if !hasSCEPChallenge {
+					scepChallenge := config.MDM.AppleSCEPChallenge
+					if scepChallenge == "" {
+						scepChallenge = uuid.NewString()
+					}
+
+					err = ds.InsertMDMConfigAssets(context.Background(), []fleet.MDMConfigAsset{
+						{Name: fleet.MDMAssetSCEPChallenge, Value: []byte(scepChallenge)},
+					})
+					if err != nil {
+						// duplicate key errors mean that we already
+						// have a value for those keys in the
+						// database, fail to initalize on other
+						// cases.
+						if !mysql.IsDuplicate(err) {
+							initFatal(err, "inserting SCEP challenge")
+						}
+
+						level.Warn(logger).Log("msg", "Your server already has stored a SCEP challenge. Fleet will ignore this value provided via environment variables when this happens.")
+					}
+				}
 				if err := service.RegisterAppleMDMProtocolServices(
 					rootMux,
 					config.MDM,
@@ -988,7 +1027,7 @@ the way that the Fleet server works.
 				}
 			}
 
-			// We must wrap the Handler here to set special per-endpoint Write
+			// We must wrap the Handler here to set special per-endpoint Read/Write
 			// timeouts, so that we have access to the raw http.ResponseWriter.
 			// Otherwise, the handler is wrapped by the promhttp response delegator,
 			// which does not support the Unwrap call needed to work with
@@ -999,12 +1038,28 @@ the way that the Fleet server works.
 			// does not implement.
 			rootMux.HandleFunc("/api/", func(rw http.ResponseWriter, req *http.Request) {
 				if req.Method == http.MethodPost && strings.HasSuffix(req.URL.Path, "/fleet/scripts/run/sync") {
+					// when running a script synchronously, we wait a while for a script
+					// execution result, so the write timeout (to write the response)
+					// must be extended.
 					rc := http.NewResponseController(rw)
 					// add an additional 30 seconds to prevent race conditions where the
 					// request is terminated early.
 					if err := rc.SetWriteDeadline(time.Now().Add(scripts.MaxServerWaitTime + (30 * time.Second))); err != nil {
 						level.Error(logger).Log("msg", "http middleware failed to override endpoint write timeout", "err", err)
 					}
+				}
+
+				if req.Method == http.MethodPost && strings.HasSuffix(req.URL.Path, "/fleet/software/package") {
+					// when uploading a software installer, the file might be large so
+					// the read timeout (to read the full request body) must be extended.
+					rc := http.NewResponseController(rw)
+					// the frontend times out waiting for the upload after 2 minutes, so
+					// use that same timeout:
+					// https://www.figma.com/design/oQl2oQUG0iRkUy0YOxc307/%2314921-Deploy-security-agents-to-macOS%2C-Windows%2C-and-Linux-hosts?node-id=773-18032&t=QjEU6tc73tddNSqn-0
+					if err := rc.SetReadDeadline(time.Now().Add(2 * time.Minute)); err != nil {
+						level.Error(logger).Log("msg", "http middleware failed to override endpoint read timeout", "err", err)
+					}
+					req.Body = http.MaxBytesReader(rw, req.Body, service.MaxSoftwareInstallerSize)
 				}
 				apiHandler.ServeHTTP(rw, req)
 			})

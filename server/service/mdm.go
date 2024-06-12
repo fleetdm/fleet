@@ -2120,6 +2120,9 @@ func (svc *Service) ResendHostMDMProfile(ctx context.Context, hostID uint, profi
 // GET /mdm/apple/request_csr
 ////////////////////////////////////////////////////////////////////////////////
 
+// Used for overriding the env var value in testing
+var testSetEmptyPrivateKey bool
+
 type getMDMAppleCSRRequest struct{}
 
 type getMDMAppleCSRResponse struct {
@@ -2143,8 +2146,13 @@ func (svc *Service) GetMDMAppleCSR(ctx context.Context) ([]byte, error) {
 		return nil, err
 	}
 
-	if len(svc.config.Server.PrivateKey) == 0 {
-		return nil, ctxerr.New(ctx, "no private key configured")
+	privateKey := svc.config.Server.PrivateKey
+	if testSetEmptyPrivateKey {
+		privateKey = ""
+	}
+
+	if len(privateKey) == 0 {
+		return nil, ctxerr.New(ctx, "Couldn't download signed CSR. Missing required private key. Learn how to configure the private key here: https://fleetdm.com/learn-more-about/fleet-server-private-key")
 	}
 
 	vc, ok := viewer.FromContext(ctx)
@@ -2296,6 +2304,15 @@ func uploadMDMAppleAPNSCertEndpoint(ctx context.Context, request interface{}, sv
 func (svc *Service) UploadMDMAppleAPNSCert(ctx context.Context, cert io.ReadSeeker) error {
 	if err := svc.authz.Authorize(ctx, &fleet.AppleCSR{}, fleet.ActionWrite); err != nil {
 		return err
+	}
+
+	privateKey := svc.config.Server.PrivateKey
+	if testSetEmptyPrivateKey {
+		privateKey = ""
+	}
+
+	if len(privateKey) == 0 {
+		return ctxerr.New(ctx, "Couldn't upload APNs certificate. Missing required private key. Learn how to configure the private key here: https://fleetdm.com/learn-more-about/fleet-server-private-key")
 	}
 
 	if cert == nil {
