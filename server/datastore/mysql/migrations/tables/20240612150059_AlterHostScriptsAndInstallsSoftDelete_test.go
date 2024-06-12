@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20240528150059(t *testing.T) {
+func TestUp_20240612150059(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	script1 := execNoErrLastID(t, db, "INSERT INTO script_contents(contents, md5_checksum) VALUES ('echo hello', 'a')")
