@@ -961,7 +961,7 @@ func cleanupPolicyMembershipOnPolicyUpdate(
 
 	selectStmt := `
 	SELECT DISTINCT
-	  h.host_id
+	  h.id
 	FROM
 	  policy_membership pm
 	INNER JOIN
@@ -1005,7 +1005,7 @@ func cleanupPolicyMembershipForPolicy(
 ) error {
 	selectStmt := `
 	SELECT DISTINCT
-	  h.host_id
+	  h.id
 	FROM
 	  policy_membership pm
 	INNER JOIN
