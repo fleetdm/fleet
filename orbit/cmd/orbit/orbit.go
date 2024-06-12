@@ -42,6 +42,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/secure"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/service"
+	"github.com/google/uuid"
 	"github.com/oklog/run"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -616,20 +617,27 @@ func main() {
 			Platform:       osqueryHostInfo.Platform,
 		}
 
-		// Get the hardware UUID. We use a temporary RocksDB location in order to guarantee that
+		// Get the hardware UUID. We use a temporary osquery DB location in order to guarantee that
 		// we're getting true UUID, not a cached UUID. See
 		// https://github.com/fleetdm/fleet/issues/17934 and
 		// https://github.com/osquery/osquery/issues/7509 for more details.
 
-		oi, err := getHostInfo(osquerydPath, filepath.Join(os.TempDir(), "tmp-db"))
+		tmpDBPath := filepath.Join(os.TempDir(), strings.Join([]string{uuid.NewString(), "tmp-db"}, "-"))
+		oi, err := getHostInfo(osquerydPath, tmpDBPath)
 		if err != nil {
 			return fmt.Errorf("get UUID from temp db: %w", err)
 		}
 
+		defer func() {
+			if tmpErr := os.RemoveAll(tmpDBPath); tmpErr != nil {
+				err = tmpErr
+			}
+		}()
+
 		if oi.HardwareUUID != orbitHostInfo.HardwareUUID {
 			// Then we have moved to a new physical machine, so we should restart!
 			// Removing the osquery DB should trigger a re-enrollment when fleetd is restarted.
-			if err := os.RemoveAll(filepath.Join(c.String("root-dir"), "osquery.db")); err != nil {
+			if err := os.RemoveAll(osqueryDB); err != nil {
 				return fmt.Errorf("removing old osquery.db: %w", err)
 			}
 
