@@ -6026,28 +6026,18 @@ For example, a policy might ask “Is Gatekeeper enabled on macOS devices?“ Th
 
 ### Add policy
 
-There are two ways of adding a policy:
-1. Preferred: By setting `name`, `query`, and `description`.
-2. Legacy: By setting `query_id` to reuse the data of an existing query. If `query_id` is set,
-then `query` must not be set, and `name` and `description` are ignored.
-
-An error is returned if both `query` and `query_id` are set on the request.
-
 `POST /api/v1/fleet/global/policies`
 
 #### Parameters
 
 | Name        | Type    | In   | Description                          |
 | ----------  | ------- | ---- | ------------------------------------ |
-| name        | string  | body | The query's name.                    |
-| query       | string  | body | The query in SQL.                    |
-| description | string  | body | The query's description.             |
+| name        | string  | body | The policy's name.                    |
+| query       | string  | body | The policy's query in SQL.                    |
+| description | string  | body | The policy's description.             |
 | resolution  | string  | body | The resolution steps for the policy. |
-| query_id    | integer | body | An existing query's ID (legacy).     |
 | platform    | string  | body | Comma-separated target platforms, currently supported values are "windows", "linux", "darwin". The default, an empty string means target all platforms. |
 | critical    | boolean | body | _Available in Fleet Premium_. Mark policy as critical/high impact. |
-
-Either `query` or `query_id` must be provided.
 
 #### Example (preferred)
 
@@ -6065,47 +6055,6 @@ Either `query` or `query_id` must be provided.
   "critical": true
 }
 ```
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "policy": {
-    "id": 43,
-    "name": "Gatekeeper enabled",
-    "query": "SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;",
-    "description": "Checks if gatekeeper is enabled on macOS devices",
-    "critical": true,
-    "author_id": 42,
-    "author_name": "John",
-    "author_email": "john@example.com",
-    "team_id": null,
-    "resolution": "Resolution steps",
-    "platform": "darwin",
-    "created_at": "2022-03-17T20:15:55Z",
-    "updated_at": "2022-03-17T20:15:55Z",
-    "passing_host_count": 0,
-    "failing_host_count": 0,
-    "host_count_updated_at": null
-  }
-}
-```
-
-#### Example (legacy)
-
-`POST /api/v1/fleet/global/policies`
-
-#### Request body
-
-```json
-{
-  "query_id": 12
-}
-```
-
-Where `query_id` references an existing `query`.
 
 ##### Default response
 
@@ -6514,11 +6463,10 @@ The semantics for creating a team policy are the same as for global policies, se
 | Name        | Type    | In   | Description                          |
 | ----------  | ------- | ---- | ------------------------------------ |
 | id         | integer | path | Defines what team ID to operate on.  |
-| name        | string  | body | The query's name.                    |
-| query       | string  | body | The query in SQL.                    |
-| description | string  | body | The query's description.             |
+| name        | string  | body | The policy's name.                    |
+| query       | string  | body | The policy's query in SQL.                    |
+| description | string  | body | The policy's description.             |
 | resolution  | string  | body | The resolution steps for the policy. |
-| query_id    | integer | body | An existing query's ID (legacy).     |
 | platform    | string  | body | Comma-separated target platforms, currently supported values are "windows", "linux", "darwin". The default, an empty string means target all platforms. |
 | critical    | boolean | body | _Available in Fleet Premium_. Mark policy as critical/high impact. |
 
