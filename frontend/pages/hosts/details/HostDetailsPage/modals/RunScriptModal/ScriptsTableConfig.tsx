@@ -37,40 +37,10 @@ interface IDropdownCellProps {
   };
 }
 
-const ScriptRunActionDropdownLabel = ({
-  scriptId,
-  disabled,
-}: {
-  scriptId: number;
-  disabled: boolean;
-}) => {
-  const tipId = `run-script-${scriptId}`;
-  return disabled ? (
-    <>
-      <span data-tip data-for={tipId}>
-        Run
-      </span>
-      <ReactTooltip
-        place="bottom"
-        type="dark"
-        effect="solid"
-        id={tipId}
-        backgroundColor={COLORS["tooltip-bg"]}
-        delayHide={100}
-        delayUpdate={500}
-      >
-        Script is already running.
-      </ReactTooltip>
-    </>
-  ) : (
-    <>Run</>
-  );
-};
-
 const generateActionDropdownOptions = (
   currentUser: IUser | null,
   teamId: number | null,
-  { script_id, last_execution }: IHostScript
+  { last_execution }: IHostScript
 ): IDropdownOption[] => {
   const hasRunPermission =
     !!currentUser &&
@@ -89,14 +59,10 @@ const generateActionDropdownOptions = (
       value: "showDetails",
     },
     {
-      label: (
-        <ScriptRunActionDropdownLabel
-          scriptId={script_id}
-          disabled={last_execution?.status === "pending"}
-        />
-      ),
+      label: "Run",
       disabled: last_execution?.status === "pending",
       value: "run",
+      tooltipContent: "Script is already running.",
     },
   ];
   return hasRunPermission ? options : options.slice(0, 1);
