@@ -6647,6 +6647,12 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 		require.NoError(t, err, tbl)
 		require.True(t, ok, "table: %s", tbl)
 	}
+	for tbl, col := range additionalHostRefsSoftDelete {
+		var ok bool
+		err = ds.writer(context.Background()).Get(&ok, fmt.Sprintf("SELECT 1 FROM %s WHERE host_id = ? AND %s IS NULL", tbl, col), host.ID)
+		require.NoError(t, err, tbl)
+		require.True(t, ok, "table: %s", tbl)
+	}
 
 	err = ds.DeleteHosts(context.Background(), []uint{host.ID})
 	require.NoError(t, err)
@@ -6663,6 +6669,12 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 		err = ds.writer(context.Background()).Get(&ok, fmt.Sprintf("SELECT 1 FROM %s WHERE %s = ?", tbl, col), host.UUID)
 		require.True(t, err == nil || errors.Is(err, sql.ErrNoRows), "table: %s", tbl)
 		require.False(t, ok, "table: %s", tbl)
+	}
+	for tbl, col := range additionalHostRefsSoftDelete {
+		var ok bool
+		err = ds.writer(context.Background()).Get(&ok, fmt.Sprintf("SELECT 1 FROM %s WHERE host_id = ? AND %s IS NULL", tbl, col), host.ID)
+		require.True(t, err == nil || errors.Is(err, sql.ErrNoRows), "table: %s", tbl)
+		require.False(t, ok, "table: %s", tbl) // the soft-delete column is not null anymore, so no row is found
 	}
 }
 

@@ -500,7 +500,6 @@ var hostRefs = []string{
 	"host_updates",
 	"host_disk_encryption_keys",
 	"host_software_installed_paths",
-	"host_script_results",
 	"query_results",
 	"host_activities",
 	"host_mdm_actions",
@@ -524,6 +523,13 @@ var additionalHostRefsByUUID = map[string]string{
 	"host_mdm_apple_bootstrap_packages": "host_uuid",
 	"host_mdm_windows_profiles":         "host_uuid",
 	"host_mdm_apple_declarations":       "host_uuid",
+}
+
+// additionalHostRefsSoftDelete are tables that reference a host but for which
+// the rows are not deleted when the host is deleted, only a soft delete is
+// performed by setting a timestamp column to the current time.
+var additionalHostRefsSoftDelete = map[string]string{
+	"host_script_results": "host_deleted_at",
 }
 
 func (ds *Datastore) DeleteHost(ctx context.Context, hid uint) error {
@@ -565,6 +571,13 @@ func (ds *Datastore) DeleteHost(ctx context.Context, hid uint) error {
 				if _, err := tx.ExecContext(ctx, fmt.Sprintf("DELETE FROM `%s` WHERE `%s`=?", table, col), hostUUID); err != nil {
 					return ctxerr.Wrapf(ctx, err, "deleting %s for host uuid %s", table, hostUUID)
 				}
+			}
+		}
+
+		// perform the soft-deletion of host-referencing tables
+		for table, col := range additionalHostRefsSoftDelete {
+			if _, err := tx.ExecContext(ctx, fmt.Sprintf("UPDATE `%s` SET `%s` = NOW() WHERE host_id=?", table, col), hid); err != nil {
+				return ctxerr.Wrapf(ctx, err, "soft-deleting %s for host id %d", table, hid)
 			}
 		}
 
