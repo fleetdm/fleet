@@ -8191,7 +8191,7 @@ _Available in Fleet Premium._
 
 #### Example
 
-`GET /api/v1/fleet/software/titles/123?alt=media?team_id=2`
+`GET /api/v1/fleet/software/titles/123/package?alt=media?team_id=2`
 
 ##### Default response
 
