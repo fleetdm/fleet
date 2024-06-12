@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"strconv"
+	"strings"
 	"sync"
 	"text/template"
 	"time"
@@ -48,10 +50,18 @@ const mdmUnenrollmentTotalWaitTime = 90 * time.Second
 // between unenrollment checks.
 const defaultUnenrollmentRetryInterval = 5 * time.Second
 
-var mdmMigrationTemplate = template.Must(template.New("mdmMigrationTemplate").Parse(`
+var mdmMigrationTemplatePreSonoma = template.Must(template.New("mdmMigrationTemplate").Parse(`
 ## Migrate to Fleet
 
 Select **Start** and look for this notification in your notification center:` +
+	"\n\n![Image showing MDM migration notification](https://fleetdm.com/images/permanent/mdm-migration-screenshot-notification-2048x480.png)\n\n" +
+	"After you start, this window will popup every 15-20 minutes until you finish.",
+))
+
+var mdmMigrationTemplate = template.Must(template.New("mdmMigrationTemplate").Parse(`
+## Migrate to Fleet
+
+Select **Start** and Remote Management window will appear soon:` +
 	"\n\n![Image showing MDM migration notification](https://fleetdm.com/images/permanent/mdm-migration-screenshot-notification-2048x480.png)\n\n" +
 	"After you start, this window will popup every 15-20 minutes until you finish.",
 ))
@@ -292,7 +302,7 @@ func (m *swiftDialogMDMMigrator) waitForUnenrollment() error {
 
 func (m *swiftDialogMDMMigrator) renderMigration() error {
 	var message bytes.Buffer
-	if err := mdmMigrationTemplate.Execute(
+	if err := mdmMigrationTemplatePreSonoma.Execute(
 		&message,
 		m.props,
 	); err != nil {
@@ -418,4 +428,45 @@ func (m *swiftDialogMDMMigrator) ShowInterval() error {
 
 func (m *swiftDialogMDMMigrator) SetProps(props MDMMigratorProps) {
 	m.props = props
+}
+
+func (m *swiftDialogMDMMigrator) getMessage() (*bytes.Buffer, error) {
+	var tmpl *template.Template
+	vers, err := m.getMacOSMajorVersion()
+	if err != nil {
+		return nil, err
+	}
+	if vers < 14 {
+		tmpl = mdmMigrationTemplatePreSonoma
+	} else {
+		tmpl = mdmMigrationTemplate
+	}
+
+	var message bytes.Buffer
+	if err := tmpl.Execute(
+		&message,
+		m.props,
+	); err != nil {
+		return nil, fmt.Errorf("execute template: %w", err)
+	}
+
+	return &message, nil
+}
+
+// TODO: make this a variable for testing
+func (m *swiftDialogMDMMigrator) getMacOSMajorVersion() (int, error) {
+	cmd := exec.Command("sw_vers", "-productVersion")
+	out, err := cmd.Output()
+	if err != nil {
+		return 0, fmt.Errorf("getting macOS version: %w", err)
+	}
+	parts := strings.SplitN(string(out), ".", 2)
+	if len(parts) != 2 {
+		return 0, fmt.Errorf("parsing macOS major version: expected two parts in macOS version string but got %s", out)
+	}
+	major, err := strconv.Atoi(parts[0])
+	if err != nil {
+		return 0, fmt.Errorf("parsing macOS major version: %w", err)
+	}
+	return major, nil
 }
