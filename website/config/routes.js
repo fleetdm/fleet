@@ -524,11 +524,7 @@ module.exports.routes = {
   'GET /learn-more-about/setup-abm': '/docs/using-fleet/mdm-setup#apple-business-manager-abm',
   'GET /learn-more-about/renew-apns': '/docs/using-fleet/mdm-setup#apple-push-notification-service-apns',
   'GET /learn-more-about/renew-abm': '/docs/using-fleet/mdm-setup#apple-business-manager-abm',
-<<<<<<< HEAD
-  'GET /learn-more-about/fleet-server-private-key': '/docs/using-fleet/fleet-server-configuration#server-private-key',
-=======
   'GET /learn-more-about/fleet-server-private-key': '/docs/configuration/fleet-server-configuration#server-private-key',
->>>>>>> 943a4566f4cf2f0e82e466eec657aeade4cf18e2
 
   // Sitemap
   // =============================================================================================================
