@@ -109,10 +109,10 @@ func (h *renewEnrollmentProfileConfigReceiver) Run(config *fleet.OrbitConfig) er
 					// limited by Apple. For now, wait at least 2 minutes before retrying.
 					h.lastRun = time.Now().Add(-h.Frequency).Add(2 * time.Minute)
 					return nil
-				} else {
-					h.lastRun = time.Now()
-					log.Info().Msg("successfully called /usr/bin/profiles to renew enrollment profile")
 				}
+				h.lastRun = time.Now()
+				log.Info().Msg("successfully called /usr/bin/profiles to renew enrollment profile")
+
 			} else {
 				log.Debug().Msg("skipped calling /usr/bin/profiles to renew enrollment profile, last run was too recent")
 			}
