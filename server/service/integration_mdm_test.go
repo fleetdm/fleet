@@ -6312,30 +6312,12 @@ func (s *integrationMDMTestSuite) TestValidManagementUnenrollRequest() {
 
 func (s *integrationMDMTestSuite) TestRunMDMCommands() {
 	t := s.T()
-	ctx := context.Background()
 
 	// create a Windows host enrolled in MDM
 	enrolledWindows := createOrbitEnrolledHost(t, "windows", "h1", s.ds)
-	deviceID := "DB257C3A08778F4FB61E2749066C1F27"
-	enrolledDevice := &fleet.MDMWindowsEnrolledDevice{
-		MDMDeviceID:            deviceID,
-		MDMHardwareID:          uuid.New().String() + uuid.New().String(),
-		MDMDeviceState:         uuid.New().String(),
-		MDMDeviceType:          "CIMClient_Windows",
-		MDMDeviceName:          "DESKTOP-1C3ARC1",
-		MDMEnrollType:          "ProgrammaticEnrollment",
-		MDMEnrollUserID:        "",
-		MDMEnrollProtoVersion:  "5.0",
-		MDMEnrollClientVersion: "10.0.19045.2965",
-		MDMNotInOOBE:           false,
-		HostUUID:               enrolledWindows.UUID,
-	}
-	err := s.ds.SetOrUpdateMDMData(ctx, enrolledWindows.ID, false, true, s.server.URL, false, fleet.WellKnownMDMFleet, "")
-	require.NoError(t, err)
-
-	err = s.ds.MDMWindowsInsertEnrolledDevice(context.Background(), enrolledDevice)
-	require.NoError(t, err)
-	err = s.ds.UpdateMDMWindowsEnrollmentsHostUUID(context.Background(), enrolledDevice.HostUUID, enrolledDevice.MDMDeviceID)
+	//deviceID := "DB257C3A08778F4FB61E2749066C1F27"
+	mdmDevice := mdmtest.NewTestMDMClientWindowsProgramatic(s.server.URL, *enrolledWindows.OrbitNodeKey)
+	err := mdmDevice.Enroll()
 	require.NoError(t, err)
 
 	// create an unenrolled Windows host
@@ -6622,8 +6604,9 @@ func (s *integrationMDMTestSuite) TestHostDiskEncryptionKey() {
 	msg := extractServerErrorText(res.Body)
 	require.Contains(t, msg, "host is not enrolled with fleet")
 
-	// mark it as enrolled in Fleet
-	err := s.ds.SetOrUpdateMDMData(ctx, host.ID, false, true, s.server.URL, false, fleet.WellKnownMDMFleet, "")
+	// enroll it in fleet
+	mdmDevice := mdmtest.NewTestMDMClientWindowsProgramatic(s.server.URL, *host.OrbitNodeKey)
+	err := mdmDevice.Enroll()
 	require.NoError(t, err)
 
 	// set its encryption key
@@ -6636,6 +6619,10 @@ func (s *integrationMDMTestSuite) TestHostDiskEncryptionKey() {
 	require.NoError(t, err)
 	require.NotNil(t, hdek.Decryptable)
 	require.True(t, *hdek.Decryptable)
+
+	// mark it as non-server
+	err = s.ds.SetOrUpdateMDMData(ctx, host.ID, false, true, s.server.URL, false, fleet.WellKnownMDMFleet, "")
+	require.NoError(t, err)
 
 	var hostResp getHostResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &hostResp)

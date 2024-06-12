@@ -200,7 +200,8 @@ type HostListOptions struct {
 	// VulnerabilityFilter filters the hosts by the presence of a vulnerability (CVE)
 	VulnerabilityFilter *string
 
-	// TODO
+	// ConnectedToFleetFilter filters hosts that have an active MDM
+	// connection with this Fleet instance.
 	ConnectedToFleetFilter *bool
 }
 
@@ -468,7 +469,9 @@ type MDMHostData struct {
 	DeviceStatus  *string `json:"device_status,omitempty" db:"-" csv:"-"`
 	PendingAction *string `json:"pending_action,omitempty" db:"-" csv:"-"`
 
-	// TODO
+	// ConnectedToFleet indicates if the host has an active MDM connection
+	// with this Fleet instance. This boolean is not filled by all
+	// host-returning methods.
 	ConnectedToFleet *bool `json:"-" csv:"-"`
 }
 
@@ -706,17 +709,16 @@ func (h *Host) NeedsDEPEnrollment(connectedToFleet bool) bool {
 func (h *Host) IsEligibleForWindowsMDMEnrollment() bool {
 	return h.FleetPlatform() == "windows" &&
 		h.IsOsqueryEnrolled() &&
-		h.MDMInfo != nil &&
-		!h.MDMInfo.IsServer &&
-		!h.MDMInfo.Enrolled
+		// NOTE(roberto): during a refactor I found this `h.MDMInfo ==
+		// nil` check, but seems wrong to me, we're assuming that if
+		// there's no data in `host_mdm` it's fine to enroll a host.
+		// I'm leaving it as-is just in case I'm missing something.
+		(h.MDMInfo == nil || (!h.MDMInfo.IsServer && !h.MDMInfo.Enrolled))
 }
 
 // IsEligibleForWindowsMDMUnenrollment returns true if the host must be
 // unenrolled from Fleet's Windows MDM (if it MDM was disabled).
 func (h *Host) IsEligibleForWindowsMDMUnenrollment(connectedToFleet bool) bool {
-	if h.MDMInfo == nil {
-		return false
-	}
 	return h.FleetPlatform() == "windows" &&
 		h.IsOsqueryEnrolled() &&
 		connectedToFleet

@@ -329,7 +329,7 @@ type Datastore interface {
 	// updated in the given `interval`).
 	ListIOSAndIPadOSToRefetch(ctx context.Context, refetchInterval time.Duration) (uuids []string, err error)
 
-	// IsHostConnectedToFleetMDM TODO
+	// IsHostConnectedToFleetMDM verifies if the host has an active Fleet MDM enrollment with this server
 	IsHostConnectedToFleetMDM(ctx context.Context, host *Host) (bool, error)
 
 	// AreHostsConnectedToFleetMDM TODO

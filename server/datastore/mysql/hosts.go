@@ -764,31 +764,35 @@ func queryStatsToScheduledQueryStats(queriesStats []fleet.QueryStats, packName s
 	return scheduledQueriesStats
 }
 
-const winHostConnectedToFleetCond = `
-	SELECT id
-	FROM mdm_windows_enrollments
-	WHERE host_uuid = h.uuid
-	AND device_state = '` + microsoft_mdm.MDMDeviceStateEnrolled + `'
-`
-
-const appleHostConnectedToFleetCond = `
+func winHostConnectedToFleetCond(in string) string {
+	return fmt.Sprintf(`
 	SELECT host_uuid
-	FROM nano_enrollments
-	WHERE id = h.uuid
-	AND enabled = 1
-	AND type = 'Device'
-`
+	FROM mdm_windows_enrollments
+	WHERE host_uuid IN (%s)
+	AND device_state = '%s'`,
+		in,
+		microsoft_mdm.MDMDeviceStateEnrolled)
+}
 
-const caseConnectedToFleet = `
+func appleHostConnectedToFleetCond(in string) string {
+	return fmt.Sprintf(`
+	SELECT id
+	FROM nano_enrollments
+	WHERE id IN (%s)
+	AND enabled = 1
+	AND type = 'Device'`, in)
+}
+
+var caseConnectedToFleet = `
 CASE
 	WHEN h.platform = 'windows' THEN (
-		SELECT CASE  WHEN EXISTS (` + winHostConnectedToFleetCond + `)
+		SELECT CASE  WHEN EXISTS (` + winHostConnectedToFleetCond("h.uuid") + `)
 		THEN CAST(TRUE AS JSON)
 		ELSE CAST(FALSE AS JSON)
 		END
 	)
 	WHEN h.platform IN ('ios', 'ipados', 'darwin') THEN (
-		SELECT CASE  WHEN EXISTS (` + appleHostConnectedToFleetCond + `)
+		SELECT CASE  WHEN EXISTS (` + appleHostConnectedToFleetCond("h.uuid") + `)
 		THEN CAST(TRUE AS JSON)
 		ELSE CAST(FALSE AS JSON)
 		END
@@ -799,7 +803,7 @@ END
 
 // hostMDMSelect is the SQL fragment used to construct the JSON object
 // of MDM host data. It assumes that hostMDMJoin is included in the query.
-const hostMDMSelect = `,
+var hostMDMSelect = `,
 	JSON_OBJECT(
 		'enrollment_status',
 		CASE
@@ -1119,7 +1123,7 @@ func (ds *Datastore) applyHostFilters(
 	}
 
 	connectedToFleetJoin := ""
-	if opt.ConnectedToFleetFilter != nil ||
+	if opt.ConnectedToFleetFilter != nil && *opt.ConnectedToFleetFilter ||
 		opt.OSSettingsFilter.IsValid() ||
 		opt.MacOSSettingsFilter.IsValid() ||
 		opt.MacOSSettingsDiskEncryptionFilter.IsValid() {
@@ -1257,7 +1261,7 @@ func filterHostsByMDM(sql string, opt fleet.HostListOptions, params []interface{
 }
 
 func filterHostsByConnectedToFleet(sql string, opt fleet.HostListOptions, params []any) (string, []any) {
-	if opt.ConnectedToFleetFilter != nil {
+	if opt.ConnectedToFleetFilter != nil && *opt.ConnectedToFleetFilter {
 		sql += "AND (ne.id IS NOT NULL OR we.host_uuid IS NOT NULL)"
 	}
 	return sql, params
@@ -1355,7 +1359,6 @@ func filterHostsByMacOSDiskEncryptionStatus(sql string, opt fleet.HostListOption
 	return sql + fmt.Sprintf(` AND EXISTS (%s) AND AND ne.id IS NOT NULL`, subquery), append(params, subqueryParams...)
 }
 
-// TODO: this method needs to be adjusted
 func (ds *Datastore) filterHostsByOSSettingsStatus(sql string, opt fleet.HostListOptions, params []interface{}, isDiskEncryptionEnabled bool) (string, []interface{}, error) {
 	if !opt.OSSettingsFilter.IsValid() {
 		return sql, params, nil
@@ -2412,8 +2415,7 @@ func (ds *Datastore) LoadHostByDeviceAuthToken(ctx context.Context, authToken st
       COALESCE(hd.gigs_disk_space_available, 0) as gigs_disk_space_available,
       COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available,
       COALESCE(hd.gigs_total_disk_space, 0) as gigs_total_disk_space,
-      IF(hdep.host_id AND ISNULL(hdep.deleted_at), true, false) AS dep_assigned_to_fleet,
-      COALESCE(hdek.decryptable, false) as encryption_key_available,` +
+      IF(hdep.host_id AND ISNULL(hdep.deleted_at), true, false) AS dep_assigned_to_fleet,` +
 		hostWithMDMInfoSelect + `
     FROM
       host_device_auth hda
