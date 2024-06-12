@@ -628,11 +628,9 @@ func main() {
 			return fmt.Errorf("get UUID from temp db: %w", err)
 		}
 
-		defer func() {
-			if tmpErr := os.RemoveAll(tmpDBPath); tmpErr != nil {
-				err = tmpErr
-			}
-		}()
+		if err := os.RemoveAll(tmpDBPath); err != nil {
+			log.Info().Err(err).Msg("failed to remove temporary osquery db")
+		}
 
 		if oi.HardwareUUID != orbitHostInfo.HardwareUUID {
 			// Then we have moved to a new physical machine, so we should restart!
