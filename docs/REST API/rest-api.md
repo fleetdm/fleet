@@ -8107,9 +8107,9 @@ Deletes the session specified by ID. When the user associated with the session n
 
 ## Software
 
-- [Add software](#add-software)
-- [Download software](#download-software)
-- [Delete software](#delete-software)
+- [Add software package](#add-software)
+- [Download software package](#download-software)
+- [Delete software available for install](#delete-software)
 - [Get installation result](#get-installation-result)
 - [List software](#list-software)
 - [List software versions](#list-software-versions)
@@ -8118,7 +8118,7 @@ Deletes the session specified by ID. When the user associated with the session n
 - [Get available App Store apps](#get-available-app-store-apps)
 - [Add App Store app](#add-app-store-app)
 
-### Add software
+### Add software package
 
 _Available in Fleet Premium._
 
@@ -8175,13 +8175,11 @@ Content-Type: application/octet-stream
 `Status: 200`
 
 
-### Download software
+### Download software available for install
 
 _Available in Fleet Premium._
 
-Download a software package.
-
-`GET /api/v1/fleet/software/titles/:software_title_id/package/?alt=media`
+`GET /api/v1/fleet/software/titles/:software_title_id?alt=media`
 
 #### Parameters
 
@@ -8193,7 +8191,7 @@ Download a software package.
 
 #### Example
 
-`GET /api/v1/fleet/software/titles/123/package?alt=media?team_id=2`
+`GET /api/v1/fleet/software/titles/123?alt=media?team_id=2`
 
 ##### Default response
 
@@ -8207,24 +8205,24 @@ Content-Length: <length>
 Body: <blob>
 ```
 
-### Delete software
+### Delete software available for install
 
 _Available in Fleet Premium._
 
-Delete a software package.
+Deletes software that's available for install (package or App Store app).
 
-`DELETE /api/v1/fleet/software/titles/:software_title_id/package`
+`DELETE /api/v1/fleet/software/titles/:software_title_id`
 
 #### Parameters
 
 | Name            | Type    | In   | Description                                      |
 | ----            | ------- | ---- | --------------------------------------------     |
-| software_title_id              | integer | path | **Required**. The ID of the software title for the software package to delete. |
+| software_title_id              | integer | path | **Required**. The ID of the software title to delete software available for install. |
 | team_id | integer | query | **Required**. The team ID. Deletes a software package added to the specified team. |
 
 #### Example
 
-`DELETE /api/v1/fleet/software/titles/24/package?team_id=2`
+`DELETE /api/v1/fleet/software/titles/24?team_id=2`
 
 ##### Default response
 
