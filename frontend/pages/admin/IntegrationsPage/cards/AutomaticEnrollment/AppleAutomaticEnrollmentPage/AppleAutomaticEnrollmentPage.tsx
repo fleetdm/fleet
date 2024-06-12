@@ -189,7 +189,7 @@ const AppleAutomaticEnrollmentPage = ({
                     />
                     <br />
                     If your organization doesn’t have an account, select{" "}
-                    <b>Enroll now</b>.
+                    <b>Sign up now</b>.
                   </span>
                 </span>
               </li>

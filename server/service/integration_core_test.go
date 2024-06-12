@@ -6012,7 +6012,7 @@ func (s *integrationTestSuite) TestPremiumEndpointsWithoutLicense() {
 
 	// apply team specs
 	var specResp applyTeamSpecsResponse
-	teamSpecs := applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{Name: "newteam", Secrets: []fleet.EnrollSecret{{Secret: "ABC"}}}}}
+	teamSpecs := applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{Name: "newteam", Secrets: &[]fleet.EnrollSecret{{Secret: "ABC"}}}}}
 	s.DoJSON("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusPaymentRequired, &specResp)
 
 	// modify team agent options
@@ -6211,6 +6211,9 @@ func (s *integrationTestSuite) TestTeamPoliciesTeamNotExists() {
 	teamPoliciesResponse := listTeamPoliciesResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", 9999999), nil, http.StatusNotFound, &teamPoliciesResponse)
 	require.Len(t, teamPoliciesResponse.Policies, 0)
+
+	deleteTeamPoliciesResponse := deleteTeamPoliciesResponse{}
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/delete", 9999999), deleteTeamPoliciesRequest{IDs: []uint{1, 1000}}, http.StatusNotFound, &deleteTeamPoliciesResponse)
 }
 
 func (s *integrationTestSuite) TestSessionInfo() {
@@ -7907,6 +7910,12 @@ func (s *integrationTestSuite) TestGetHostSoftwareUpdatedAt() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
 	require.Equal(t, host.ID, getHostResp.Host.ID)
 	require.Len(t, getHostResp.Host.Software, len(software))
+	require.Greater(t, getHostResp.Host.SoftwareUpdatedAt, getHostResp.Host.CreatedAt)
+
+	getHostResp = getHostResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp, "exclude_software", "true")
+	require.Equal(t, host.ID, getHostResp.Host.ID)
+	require.Empty(t, getHostResp.Host.Software)
 	require.Greater(t, getHostResp.Host.SoftwareUpdatedAt, getHostResp.Host.CreatedAt)
 }
 
@@ -11262,8 +11271,9 @@ func (s *integrationTestSuite) TestListHostUpcomingActivities() {
 	endTime = mysql.SetOrderedCreatedAtTimestamps(t, s.ds, endTime, "host_software_installs", "execution_id", h1Foo)
 	mysql.SetOrderedCreatedAtTimestamps(t, s.ds, endTime, "host_script_results", "execution_id", h1C, h1D, h1E)
 
-	// modify the timestamp h1A and h1B to simulate an script that has
-	// been pending for a long time
+	// modify the timestamp h1A and h1B to simulate an script that has been
+	// pending for a long time (h1A is a sync request, so it will be ignored for
+	// upcoming activities)
 	mysql.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
 		_, err := tx.ExecContext(ctx, "UPDATE host_script_results SET created_at = ? WHERE execution_id IN (?, ?)", time.Now().Add(-24*time.Hour), h1A, h1B)
 		return err
@@ -11320,7 +11330,7 @@ func (s *integrationTestSuite) TestListHostUpcomingActivities() {
 			queryArgs := c.queries
 			s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming", host1.ID), nil, http.StatusOK, &listResp, queryArgs...)
 
-			require.Equal(t, uint(6), listResp.Count)
+			require.Equal(t, uint(5), listResp.Count)
 			require.Equal(t, len(c.wantExecs), len(listResp.Activities))
 			require.Equal(t, c.wantMeta, listResp.Meta)
 

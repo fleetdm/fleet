@@ -232,10 +232,12 @@ export interface IHostSoftware {
   installed_versions: ISoftwareInstallVersion[] | null;
 }
 
-export interface IDeviceSoftware extends IHostSoftware {
-  package_available_for_install: never;
+export type IDeviceSoftware = Omit<
+  IHostSoftware,
+  "package_available_for_install"
+> & {
   package: {
     name: string;
     version: string;
   };
-}
+};

@@ -238,7 +238,8 @@ func (ds *Datastore) getHostScriptExecutionResultDB(ctx context.Context, q sqlx.
     hsr.exit_code,
     hsr.created_at,
     hsr.user_id,
-    hsr.sync_request
+    hsr.sync_request,
+    hsr.host_deleted_at
   FROM
     host_script_results hsr
   JOIN
@@ -1096,7 +1097,7 @@ WHERE
     SELECT 1 FROM scripts WHERE script_content_id = script_contents.id)
   AND NOT EXISTS (
     SELECT 1 FROM software_installers si
-    WHERE install_script_content_id IN (si.install_script_content_id, si.post_install_script_content_id)
+    WHERE script_contents.id IN (si.install_script_content_id, si.post_install_script_content_id)
   )
 		`
 	_, err := ds.writer(ctx).ExecContext(ctx, deleteStmt)

@@ -1,2 +1,0 @@
-- Adds 2 new endpoints: `POST` and `DELETE /fleet/mdm/apple/apns_certificate`. These endpoints let
-  users manage APNS certificates in Fleet.

@@ -37,7 +37,7 @@ type InstallerStore struct {
 
 // NewInstallerStore creates a new instance with the given S3 config
 func NewInstallerStore(config config.S3Config) (*InstallerStore, error) {
-	s3store, err := newS3store(config)
+	s3store, err := newS3store(config.CarvesToInternalCfg())
 	if err != nil {
 		return nil, err
 	}
@@ -48,7 +48,6 @@ func NewInstallerStore(config config.S3Config) (*InstallerStore, error) {
 func (i *InstallerStore) Get(ctx context.Context, installer fleet.Installer) (io.ReadCloser, int64, error) {
 	key := i.keyForInstaller(installer)
 	req, err := i.s3client.GetObject(&s3.GetObjectInput{Bucket: &i.bucket, Key: &key})
-
 	if err != nil {
 		if aerr, ok := err.(awserr.Error); ok {
 			switch aerr.Code() {
@@ -78,7 +77,6 @@ func (i *InstallerStore) Put(ctx context.Context, installer fleet.Installer) (st
 func (i *InstallerStore) Exists(ctx context.Context, installer fleet.Installer) (bool, error) {
 	key := i.keyForInstaller(installer)
 	_, err := i.s3client.HeadObject(&s3.HeadObjectInput{Bucket: &i.bucket, Key: &key})
-
 	if err != nil {
 		if aerr, ok := err.(awserr.Error); ok {
 			switch aerr.Code() {

@@ -6645,6 +6645,12 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 		require.NoError(t, err, tbl)
 		require.True(t, ok, "table: %s", tbl)
 	}
+	for tbl, col := range additionalHostRefsSoftDelete {
+		var ok bool
+		err = ds.writer(context.Background()).Get(&ok, fmt.Sprintf("SELECT 1 FROM %s WHERE host_id = ? AND %s IS NULL", tbl, col), host.ID)
+		require.NoError(t, err, tbl)
+		require.True(t, ok, "table: %s", tbl)
+	}
 
 	err = ds.DeleteHosts(context.Background(), []uint{host.ID})
 	require.NoError(t, err)
@@ -6661,6 +6667,12 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 		err = ds.writer(context.Background()).Get(&ok, fmt.Sprintf("SELECT 1 FROM %s WHERE %s = ?", tbl, col), host.UUID)
 		require.True(t, err == nil || errors.Is(err, sql.ErrNoRows), "table: %s", tbl)
 		require.False(t, ok, "table: %s", tbl)
+	}
+	for tbl, col := range additionalHostRefsSoftDelete {
+		var ok bool
+		err = ds.writer(context.Background()).Get(&ok, fmt.Sprintf("SELECT 1 FROM %s WHERE host_id = ? AND %s IS NULL", tbl, col), host.ID)
+		require.True(t, err == nil || errors.Is(err, sql.ErrNoRows), "table: %s", tbl)
+		require.False(t, ok, "table: %s", tbl) // the soft-delete column is not null anymore, so no row is found
 	}
 }
 
@@ -8063,6 +8075,62 @@ func testHostsEnrollOrbit(t *testing.T, ds *Datastore) {
 		platform := platform
 		t.Run("scenarioC_"+platform, func(t *testing.T) {
 			scenarioC(platform)
+		})
+	}
+
+	// Scenario D:
+	//	- Fleet with MDM disabled.
+	// 	- two linux|darwin|windows hosts with the same hardware identifiers (e.g. two cloned VMs).
+	//	- fleetd running with host identifier set to uuid (default).
+	//	- orbit enrolls first, then osquery
+	// Expected output: The two fleetd instances should be enrolled as one host.
+	scenarioD := func(platform string) {
+		dupUUID := uuid.New().String()
+		dupHWSerial := uuid.New().String()
+
+		h1Orbit, err := ds.EnrollOrbit(ctx, false, fleet.OrbitHostInfo{
+			HardwareUUID:   dupUUID,
+			HardwareSerial: dupHWSerial,
+			Platform:       platform,
+		}, uuid.New().String(), nil)
+		require.NoError(t, err)
+		h1OrbitFetched, err := ds.Host(ctx, h1Orbit.ID)
+		require.NoError(t, err)
+		time.Sleep(1 * time.Second) // to test the update of last_enrolled_at
+		h1Osquery, err := ds.EnrollHost(ctx, false, dupUUID, dupUUID, dupHWSerial, uuid.New().String(), nil, 0)
+		require.NoError(t, err)
+		h1OsqueryFetched, err := ds.Host(ctx, h1Osquery.ID)
+		require.NoError(t, err)
+		require.NotEqual(t, h1OrbitFetched.LastEnrolledAt, h1OsqueryFetched.LastEnrolledAt)
+		require.Equal(t, h1Orbit.ID, h1Osquery.ID)
+		time.Sleep(1 * time.Second) // to test the update of last_enrolled_at
+		h2Orbit, err := ds.EnrollOrbit(ctx, false, fleet.OrbitHostInfo{
+			HardwareUUID:   dupUUID,
+			HardwareSerial: dupHWSerial,
+			Platform:       platform,
+		}, uuid.New().String(), nil)
+		require.NoError(t, err)
+		h2OrbitFetched, err := ds.Host(ctx, h2Orbit.ID)
+		require.NoError(t, err)
+		require.NotEqual(t, h1OsqueryFetched.LastEnrolledAt, h2OrbitFetched.LastEnrolledAt)
+		time.Sleep(1 * time.Second) // to test the update of last_enrolled_at
+		h2Osquery, err := ds.EnrollHost(ctx, false, dupUUID, dupUUID, dupHWSerial, uuid.New().String(), nil, 0)
+		require.NoError(t, err)
+		require.Equal(t, h2Orbit.ID, h2Osquery.ID)
+		h2OsqueryFetched, err := ds.Host(ctx, h2Osquery.ID)
+		require.NoError(t, err)
+		require.NotEqual(t, h2OrbitFetched.LastEnrolledAt, h2OsqueryFetched.LastEnrolledAt)
+
+		// the hosts compete for the host entry (all have same row id)
+		require.Equal(t, h1Orbit.ID, h2Orbit.ID)
+		require.Equal(t, h1Orbit.ID, h1Osquery.ID)
+		require.Equal(t, h2Orbit.ID, h2Osquery.ID)
+	}
+	for _, platform := range []string{"ubuntu", "windows", "darwin"} {
+		platform := platform
+		t.Run("scenarioD_"+platform, func(t *testing.T) {
+			t.Parallel()
+			scenarioD(platform)
 		})
 	}
 }
