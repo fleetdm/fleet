@@ -61,8 +61,10 @@ policies:
   - path: ../lib/macos-device-health.policies.yml
   - path: ../lib/windows-device-health.policies.yml
   - path: ../lib/linux-device-health.policies.yml
+  - path: ../lib/macos-cis.policies.yml
+  - path: ../lib/windows-cis.policies.yml
   - name: macOS - Check if latest version
-    query: SELECT 1 FROM os_version WHERE major = '14' AND minor = '5';
+    query: SELECT 1 FROM os_version WHERE major = '14' OR major = '15';
     critical: false
     description: Using an outdated macOS version risks exposure to security vulnerabilities and potential system instability.
     resolution: We will update your macOS to the latest version.

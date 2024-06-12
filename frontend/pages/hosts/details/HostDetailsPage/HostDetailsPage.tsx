@@ -866,6 +866,7 @@ const HostDetailsPage = ({
             <TabPanel>
               <SoftwareCard
                 id={host.id}
+                softwareUpdatedAt={host.software_updated_at}
                 isFleetdHost={!!host.orbit_version}
                 isSoftwareEnabled={featuresConfig?.enable_software_inventory}
                 router={router}

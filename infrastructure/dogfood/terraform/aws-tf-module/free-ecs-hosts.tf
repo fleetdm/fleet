@@ -1,16 +1,18 @@
 ## Linux hosts in ECS
 
 locals {
+  osquery_version = "5.12.2"
   osquery_hosts = {
-    "5.8.2-ubuntu22.04@sha256:b77c7b06c4d7f2a3c58cc3a34e51fffc480e97795fb3c75cb1dc1cf3709e3dc6" = "Skys-laptop"
-    "5.8.2-ubuntu20.04@sha256:3496ffd0ad570c88a9f405e6ef517079cfeed6ce405b9d22db4dc5ef6ed3faac" = "Cloud-City-server"
-    "5.8.2-ubuntu18.04@sha256:372575e876c218dde3c5c0e24fd240d193800fca9b314e94b4ad4e6e22006c9b" = "Mists-laptop"
-    "5.8.2-ubuntu16.04@sha256:112655c42951960d8858c116529fb4c64951e4cf2e34cb7c08cd599a009025bb" = "Ethers-laptop"
-    "5.8.2-debian10@sha256:de29337896aac89b2b03c7642805859d3fb6d52e5dc08230f987bbab4eeba9c5"    = "Breezes-laptop"
-    "5.8.2-debian9@sha256:47e46c19cebdf0dc704dd0061328856bda7e1e86b8c0fefdd6f78bd092c6200e"     = "Aero-server"
-    "5.8.2-centos8@sha256:88a8adde80bd3b1b257e098bc6e41b6afea840f60033653dcb9fe984f36b0f97"     = "Stratuss-laptop"
-    "5.8.2-centos7@sha256:ff251de4935b80a91c5fc1ac352aebdab9a6bbbf5bda1aaada8e26d22b50202d"     = "Zephyrs-Laptop"
-    "5.8.2-centos6@sha256:b56736be8436288d3fbd2549ec6165e0588cd7197e91600de4a2f00f1df28617"     = "Halo-server"
+    "${local.osquery_version}-ubuntu24.04" = "Atmosphere-database"
+    "${local.osquery_version}-ubuntu22.04" = "Skys-laptop"
+    "${local.osquery_version}-ubuntu20.04" = "Cloud-City-server"
+    "${local.osquery_version}-ubuntu18.04" = "Mists-laptop"
+    "${local.osquery_version}-ubuntu16.04" = "Ethers-laptop"
+    "${local.osquery_version}-debian10"    = "Breezes-laptop"
+    "${local.osquery_version}-debian9"     = "Aero-server"
+    "${local.osquery_version}-centos8"     = "Stratuss-laptop"
+    "${local.osquery_version}-centos7"     = "Zephyrs-Laptop"
+    "${local.osquery_version}-centos6"     = "Halo-server"
   }
 
 }
@@ -123,10 +125,10 @@ provider "docker" {
 }
 
 module "osquery_docker" {
-  for_each    = local.osquery_hosts
-  source      = "./docker"
-  ecr_repo    = aws_ecr_repository.osquery.repository_url
-  osquery_tag = each.key
+  source          = "./docker"
+  ecr_repo        = aws_ecr_repository.osquery.repository_url
+  osquery_version = local.osquery_version
+  osquery_tags    = keys(local.osquery_hosts)
 }
 
 resource "random_uuid" "osquery" {
@@ -135,7 +137,7 @@ resource "random_uuid" "osquery" {
 
 resource "aws_ecs_task_definition" "osquery" {
   for_each = local.osquery_hosts
-  // e.g. 5-8-2-ubuntu22-04 to match naming requirements 
+  // e.g. ${osquery_version}-ubuntu22-04 to match naming requirements
   family                   = "osquery-${replace(split("@sha256", each.key)[0], ".", "-")}"
   network_mode             = "awsvpc"
   requires_compatibilities = ["FARGATE"]
@@ -147,7 +149,7 @@ resource "aws_ecs_task_definition" "osquery" {
     [
       {
         name        = "osquery"
-        image       = module.osquery_docker[each.key].ecr_image
+        image       = module.osquery_docker.ecr_images[each.key]
         cpu         = 256
         memory      = 512
         mountPoints = []
@@ -215,8 +217,8 @@ resource "aws_ecs_task_definition" "osquery" {
 
 resource "aws_ecs_service" "osquery" {
   for_each = local.osquery_hosts
-  # Name must match ^[A-Za-z-_]+$ e.g. 5-8-2-ubuntu22-04
-  name            = "osquery_${replace(split("@sha256", each.key)[0], ".", "-")}"
+  # Name must match ^[A-Za-z-_]+$ e.g. 5.12.2-ubuntu22-04
+  name            = "osquery_${replace(each.key, ".", "-")}"
   launch_type     = "FARGATE"
   cluster         = module.free.byo-db.byo-ecs.service.cluster
   task_definition = aws_ecs_task_definition.osquery[each.key].arn
