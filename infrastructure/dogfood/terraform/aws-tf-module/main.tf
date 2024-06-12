@@ -521,7 +521,7 @@ module "geolite2" {
 }
 
 module "vuln-processing" {
-  source                              = "github.com/fleetdm/fleet//terraform/addons/external-vuln-scans?ref=tf-mod-addon-external-vuln-scans-v2.1.0"
+  source                              = "github.com/fleetdm/fleet//terraform/addons/external-vuln-scans?ref=tf-mod-addon-external-vuln-scans-v2.2.0"
   ecs_cluster                         = module.main.byo-vpc.byo-db.byo-ecs.service.cluster
   execution_iam_role_arn              = module.main.byo-vpc.byo-db.byo-ecs.execution_iam_role_arn
   subnets                             = module.main.byo-vpc.byo-db.byo-ecs.service.network_configuration[0].subnets
@@ -529,6 +529,8 @@ module "vuln-processing" {
   fleet_config                        = module.main.byo-vpc.byo-db.byo-ecs.fleet_config
   task_role_arn                       = module.main.byo-vpc.byo-db.byo-ecs.iam_role_arn
   fleet_server_private_key_secret_arn = module.main.byo-vpc.byo-db.byo-ecs.fleet_server_private_key_secret_arn
+  vuln_processing_task_memory         = 5120
+  vuln_processing_task_cpu            = 2048
   awslogs_config = {
     group  = module.main.byo-vpc.byo-db.byo-ecs.fleet_config.awslogs.name
     region = module.main.byo-vpc.byo-db.byo-ecs.fleet_config.awslogs.region
