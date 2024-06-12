@@ -12,6 +12,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -415,6 +416,7 @@ func TestApplyTeamSpecEnrollSecretForNewTeams(t *testing.T) {
 	})
 
 	t.Run("does not create enroll secret when one is included for a new team spec", func(t *testing.T) {
+		ds.NewTeamFuncInvoked = false
 		enrollSecret := fleet.EnrollSecret{Secret: "test"}
 
 		ds.NewTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
@@ -422,9 +424,31 @@ func TestApplyTeamSpecEnrollSecretForNewTeams(t *testing.T) {
 			require.Equal(t, enrollSecret.Secret, team.Secrets[0].Secret)
 			return &fleet.Team{ID: 1}, nil
 		}
+		ds.NewTeamFuncInvoked = false
 
+		// Dry run -- secret already used
+		ds.IsEnrollSecretAvailableFunc = func(ctx context.Context, secret string, new bool, teamID *uint) (bool, error) {
+			return false, nil
+		}
 		_, err := svc.ApplyTeamSpecs(
-			ctx, []*fleet.TeamSpec{{Name: "Foo", Secrets: []fleet.EnrollSecret{enrollSecret}}}, fleet.ApplyTeamSpecOptions{},
+			ctx, []*fleet.TeamSpec{{Name: "Foo", Secrets: &[]fleet.EnrollSecret{enrollSecret}}},
+			fleet.ApplyTeamSpecOptions{ApplySpecOptions: fleet.ApplySpecOptions{DryRun: true}},
+		)
+		assert.ErrorContains(t, err, "is already being used")
+
+		// Normal dry run
+		ds.IsEnrollSecretAvailableFunc = func(ctx context.Context, secret string, new bool, teamID *uint) (bool, error) {
+			return true, nil
+		}
+		_, err = svc.ApplyTeamSpecs(
+			ctx, []*fleet.TeamSpec{{Name: "Foo", Secrets: &[]fleet.EnrollSecret{enrollSecret}}},
+			fleet.ApplyTeamSpecOptions{ApplySpecOptions: fleet.ApplySpecOptions{DryRun: true}},
+		)
+		assert.NoError(t, err)
+		assert.False(t, ds.NewTeamFuncInvoked)
+
+		_, err = svc.ApplyTeamSpecs(
+			ctx, []*fleet.TeamSpec{{Name: "Foo", Secrets: &[]fleet.EnrollSecret{enrollSecret}}}, fleet.ApplyTeamSpecOptions{},
 		)
 		require.NoError(t, err)
 		require.True(t, ds.TeamByNameFuncInvoked)

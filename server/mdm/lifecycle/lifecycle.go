@@ -58,9 +58,9 @@ func New(ds fleet.Datastore, logger kitlog.Logger) *HostLifecycle {
 // Do executes the provided HostAction based on the platform requested
 func (t *HostLifecycle) Do(ctx context.Context, opts HostOptions) error {
 	switch opts.Platform {
-	case "darwin":
+	case "darwin", "ios", "ipados":
 		err := t.doDarwin(ctx, opts)
-		return ctxerr.Wrapf(ctx, err, "running darwin lifecycle action %s", opts.Action)
+		return ctxerr.Wrapf(ctx, err, "running apple lifecycle action %s", opts.Action)
 	case "windows":
 		err := t.doWindows(ctx, opts)
 		return ctxerr.Wrapf(ctx, err, "running windows lifecycle action %s", opts.Action)
@@ -124,6 +124,7 @@ func (t *HostLifecycle) resetDarwin(ctx context.Context, opts HostOptions) error
 		UUID:           opts.UUID,
 		HardwareSerial: opts.HardwareSerial,
 		HardwareModel:  opts.HardwareModel,
+		Platform:       opts.Platform,
 	}
 	if err := t.ds.MDMAppleUpsertHost(ctx, host); err != nil {
 		return ctxerr.Wrap(ctx, err, "upserting mdm host")
@@ -170,6 +171,7 @@ func (t *HostLifecycle) turnOnDarwin(ctx context.Context, opts HostOptions) erro
 			t.logger,
 			worker.AppleMDMPostDEPEnrollmentTask,
 			opts.UUID,
+			opts.Platform,
 			tmID,
 			opts.EnrollReference,
 		)
@@ -184,6 +186,7 @@ func (t *HostLifecycle) turnOnDarwin(ctx context.Context, opts HostOptions) erro
 			t.logger,
 			worker.AppleMDMPostManualEnrollmentTask,
 			opts.UUID,
+			opts.Platform,
 			tmID,
 			opts.EnrollReference,
 		); err != nil {

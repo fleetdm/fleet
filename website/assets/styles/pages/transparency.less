@@ -1,19 +1,108 @@
-#transparency {
 
+#transparency {
+  h2 {
+    font-size: 32px;
+    font-weight: 800;
+    line-height: 120%;
+  }
   h3 {
     font-size: 24px;
-    line-height: 35px;
+    line-height: 120%;
   }
 
   h4 {
     font-weight: 700;
     font-size: 20px;
-    line-height: 28px;
+    line-height: 120%;
   }
 
   a {
     color: @core-vibrant-blue;
   }
+
+  [purpose='logos'] {
+    max-width: 100%;
+  }
+  [purpose='hero-text'] {
+    text-align: center;
+    margin-bottom: 104px;
+    h1 {
+      font-size: 48px;
+      font-weight: 800;
+      line-height: 120%;
+    }
+    p {
+      margin-left: auto;
+      margin-right: auto;
+      max-width: 526px;
+      margin-bottom: 0px;
+    }
+  }
+  [purpose='bottom-gradient'] {
+    background: linear-gradient(180deg, #FFF 0%, #E4F3F4 59.5%);
+  }
+  [purpose='calendar-feature'] {
+     margin-bottom: 104px;
+     h3 {
+       margin-bottom: 24px;
+     }
+     [purpose='calendar-feature-text'] {
+       max-width: 480px;
+     }
+     [purpose='calendar-checklist'] {
+       margin-top: 8px;
+       margin-bottom: 24px;
+       p {
+         font-size: 14px;
+         font-style: normal;
+         font-weight: 400;
+         line-height: 21px;
+         padding-left: 37px;
+         text-indent: -37px;
+         margin-bottom: 1.5rem;
+         &:last-of-type {
+           margin-bottom: 0px;
+         }
+       }
+       p::before {
+         content: ' ';
+         background-image: url('/images/icon-checkmark-green-20x20@2x.png');
+         background-size: 20px 20px;
+         display: inline-block;
+         position: relative;
+         top: 5px;
+         margin-right: 16px;
+         width: 20px;
+         height: 20px;
+       }
+     }
+     [purpose='feature-video'] {
+       margin-left: 80px;
+       max-width: 468px;
+       video {
+         max-width: 100%;
+         max-height: 100%;
+         border-radius: 16px;
+       }
+     }
+     [purpose='contact-button'] {
+       margin-top: 12px;
+       cursor: pointer;
+       padding: 12px 32px;
+       width: fit-content;
+       font-size: 14px;
+       font-weight: 700;
+       line-height: 21px;
+       color: #FFF;
+       &:hover {
+        color: #FFF;
+       }
+     }
+   }
+
+ [parasails-component='parallax-city'] {
+  background: none;
+ }
 
   .accordion {
       font-weight: bold;
@@ -31,10 +120,43 @@
 
   }
 
+  @media (max-width: 991px) {
+
+    [purpose='calendar-feature'] {
+      margin-bottom: 64px;
+      [purpose='feature-video'] {
+        margin-left: auto;
+        margin-right: auto;
+        margin-bottom: 40px;
+      }
+      [purpose='contact-button'] {
+        width: 100%;
+      }
+    }
+    [purpose='hero-text'] {
+      text-align: center;
+      margin-bottom: 64px;
+    }
+  }
+
   @media (min-width: 576px) {
     h3 {
       font-size: 28px;
       line-height: 40px;
+    }
+  }
+
+  @media (max-width: 375px) {
+    [purpose='hero-text'] {
+      h1 {
+        font-size: 32px;
+      }
+      margin-bottom: 40px;
+    }
+    [purpose='calendar-feature-text'] {
+      h2 {
+        font-size: 24px;
+      }
     }
   }
 

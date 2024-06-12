@@ -1,10 +1,8 @@
 name: apps
-examples: >-
+examples: |-
   See the last time applications were used. Useful to know if a vulnerable
   application is being used as well as for licensing purposes.
 
   ```
-
   SELECT *, strftime('%Y-%m-%d %H:%M:%S',last_opened_time,'unixepoch') as LastUseDate FROM apps WHERE last_opened_time!='-1.0';
-
   ```

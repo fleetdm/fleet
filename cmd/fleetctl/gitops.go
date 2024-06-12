@@ -81,6 +81,8 @@ func gitopsCommand() *cli.Command {
 			if totalFilenames > 1 {
 				firstFileMustBeGlobal = ptr.Bool(true)
 			}
+			// We keep track of the secrets to check if duplicates exist during dry run
+			secrets := make(map[string]struct{})
 			for _, flFilename := range flFilenames.Value() {
 				baseDir := filepath.Dir(flFilename)
 				config, err := spec.GitOpsFromFile(flFilename, baseDir)
@@ -108,6 +110,15 @@ func gitopsCommand() *cli.Command {
 				}
 				logf := func(format string, a ...interface{}) {
 					_, _ = fmt.Fprintf(c.App.Writer, format, a...)
+				}
+				if flDryRun {
+					incomingSecrets := fleetClient.GetGitOpsSecrets(config)
+					for _, secret := range incomingSecrets {
+						if _, ok := secrets[secret]; ok {
+							return fmt.Errorf("duplicate enroll secret found in %s", flFilename)
+						}
+						secrets[secret] = struct{}{}
+					}
 				}
 				assumptions, err := fleetClient.DoGitOps(c.Context, config, baseDir, logf, flDryRun, teamDryRunAssumptions, appConfig)
 				if err != nil {

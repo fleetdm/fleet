@@ -73,6 +73,7 @@ export const SOFTWARE_SOURCE_TO_ICON_MAP = {
 
 export const SOFTWARE_ICON_SIZES: Record<string, string> = {
   medium: "24",
+  meduim_large: "64", // TODO: rename this to large and update large to xlarge
   large: "96",
 } as const;
 

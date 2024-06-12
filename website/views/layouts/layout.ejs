@@ -9,7 +9,7 @@
   var hideFooterLinks;// Hides footer links, reduces the height of the footer to 60px;
   var showAdminLinks;// Shows links to admin pages to admin users.
   var hideGetStartedButton;// Hides the 'Get started' button in the website's navigation header.
-  
+  var hideStartCTA;
   // Applies personalization for who people come from ads, so that the website makes more sense for them:
   var primaryBuyingSituation;
   var defaultMetaTitle = 'Fleet | Open-source '+(primaryBuyingSituation === 'mdm' ? 'device management' : primaryBuyingSituation === 'vm' ? 'vulnerability management' : 'endpoint ops');
@@ -426,8 +426,10 @@
             </div>
           </div>
       <% } %>
+    <%if(!hideStartCTA){%>
+      <%- partial('../partials/continue.partial.ejs') %>
+    <%}%>
     </div>
-
     <% /*
       Client-side JavaScript
       ========================
@@ -631,6 +633,13 @@
     <script>
     $(function() {
       $('[data-hide-until-rendered]').removeClass('invisible'); // Note: invisible is a bootstrap 4 class
+    });
+    $(function() {
+      // Clean up URLs that contain UTM parameters
+      if (window.location.search && window.location.search.includes('utm_content')) {
+        let queryParameterLessUrl = window.location.protocol + '//' + window.location.host + window.location.pathname + window.location.hash;
+        window.history.replaceState({}, '', queryParameterLessUrl);// https://caniuse.com/mdn-api_history_replacestate
+      }
     });
     <%/* Adding hover events to header dropdown menus*/%>
     $(function(){

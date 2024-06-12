@@ -13,6 +13,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/authz"
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -586,15 +587,36 @@ func (svc *Service) DeleteTeam(ctx context.Context, teamID uint) error {
 }
 
 func (svc *Service) GetTeam(ctx context.Context, teamID uint) (*fleet.Team, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.Team{ID: teamID}, fleet.ActionRead); err != nil {
-		return nil, err
+	alreadyAuthd := svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceToken)
+	if alreadyAuthd {
+		// device-authenticated request can only get the device's team
+		host, ok := hostctx.FromContext(ctx)
+		if !ok {
+			err := ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("internal error: missing host from request context"))
+			return nil, err
+		}
+		if host.TeamID == nil || *host.TeamID != teamID {
+			return nil, authz.ForbiddenWithInternal("device-authenticated host does not belong to requested team", nil, "team", "read")
+		}
+	} else {
+		if err := svc.authz.Authorize(ctx, &fleet.Team{ID: teamID}, fleet.ActionRead); err != nil {
+			return nil, err
+		}
 	}
 
 	logging.WithExtras(ctx, "id", teamID)
 
-	vc, ok := viewer.FromContext(ctx)
-	if !ok {
-		return nil, fleet.ErrNoContext
+	var user *fleet.User
+	if alreadyAuthd {
+		// device-authenticated, there is no user in the context, use a global
+		// observer with no special permissions
+		user = &fleet.User{GlobalRole: ptr.String(fleet.RoleObserver)}
+	} else {
+		vc, ok := viewer.FromContext(ctx)
+		if !ok {
+			return nil, fleet.ErrNoContext
+		}
+		user = vc.User
 	}
 
 	team, err := svc.ds.Team(ctx, teamID)
@@ -602,7 +624,7 @@ func (svc *Service) GetTeam(ctx context.Context, teamID uint) (*fleet.Team, erro
 		return nil, err
 	}
 
-	if err = obfuscateSecrets(vc.User, []*fleet.Team{team}); err != nil {
+	if err = obfuscateSecrets(user, []*fleet.Team{team}); err != nil {
 		return nil, err
 	}
 
@@ -751,10 +773,17 @@ func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec,
 
 	for _, spec := range specs {
 		var secrets []*fleet.EnrollSecret
-		for _, secret := range spec.Secrets {
-			secrets = append(secrets, &fleet.EnrollSecret{
-				Secret: secret.Secret,
-			})
+		// When secrets slice is empty, all secrets are removed.
+		// When secrets slice is nil, existing secrets are kept.
+		if spec.Secrets != nil {
+			secrets = make([]*fleet.EnrollSecret, 0, len(*spec.Secrets))
+			for _, secret := range *spec.Secrets {
+				secrets = append(
+					secrets, &fleet.EnrollSecret{
+						Secret: secret.Secret,
+					},
+				)
+			}
 		}
 
 		var create bool
@@ -782,7 +811,7 @@ func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec,
 				}
 			}
 		}
-		if len(spec.Secrets) > fleet.MaxEnrollSecretsCount {
+		if len(secrets) > fleet.MaxEnrollSecretsCount {
 			return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("secrets", "too many secrets"), "validate secrets")
 		}
 		if err := spec.MDM.MacOSUpdates.Validate(); err != nil {
@@ -794,8 +823,9 @@ func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec,
 
 		if create {
 
-			// create a new team enroll secret if none is provided for a new team.
-			if len(secrets) == 0 {
+			// create a new team enroll secret if none is provided for a new team,
+			// unless the user explicitly passed in an empty array
+			if secrets == nil {
 				secret, err := server.GenerateRandomText(fleet.EnrollSecretDefaultLength)
 				if err != nil {
 					return nil, ctxerr.Wrap(ctx, err, "generate enroll secret string")
@@ -915,6 +945,20 @@ func (svc *Service) createTeamFromSpec(
 		fleet.ValidateEnabledHostStatusIntegrations(*spec.WebhookSettings.HostStatusWebhook, invalid)
 		hostStatusWebhook = spec.WebhookSettings.HostStatusWebhook
 	}
+
+	if dryRun {
+		for _, secret := range secrets {
+			available, err := svc.ds.IsEnrollSecretAvailable(ctx, secret.Secret, true, nil)
+			if err != nil {
+				return nil, err
+			}
+			if !available {
+				invalid.Append("secrets", fmt.Sprintf("a provided enroll secret for team '%s' is already being used", spec.Name))
+				break
+			}
+		}
+	}
+
 	if invalid.HasErrors() {
 		return nil, ctxerr.Wrap(ctx, invalid)
 	}
@@ -1089,7 +1133,7 @@ func (svc *Service) editTeamFromSpec(
 		team.Config.Software = spec.Software
 	}
 
-	if len(secrets) > 0 {
+	if secrets != nil {
 		team.Secrets = secrets
 	}
 
@@ -1118,6 +1162,19 @@ func (svc *Service) editTeamFromSpec(
 		team.Config.Integrations.GoogleCalendar = spec.Integrations.GoogleCalendar
 	}
 
+	if opts.DryRun {
+		for _, secret := range secrets {
+			available, err := svc.ds.IsEnrollSecretAvailable(ctx, secret.Secret, false, &team.ID)
+			if err != nil {
+				return err
+			}
+			if !available {
+				invalid.Append("secrets", fmt.Sprintf("a provided enroll secret for team '%s' is already being used", spec.Name))
+				break
+			}
+		}
+	}
+
 	if invalid.HasErrors() {
 		return ctxerr.Wrap(ctx, invalid)
 	}
@@ -1130,8 +1187,8 @@ func (svc *Service) editTeamFromSpec(
 		return err
 	}
 
-	// only replace enroll secrets if at least one is provided (#6774)
-	if len(secrets) > 0 {
+	// If no secrets are provided and user did not explicitly specify an empty list, do not replace secrets. (#6774)
+	if secrets != nil {
 		if err := svc.ds.ApplyEnrollSecrets(ctx, ptr.Uint(team.ID), secrets); err != nil {
 			return err
 		}

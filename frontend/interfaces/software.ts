@@ -57,6 +57,7 @@ export interface ISoftwarePackage {
   install_script: string;
   pre_install_query?: string;
   post_install_script?: string;
+  self_service: boolean;
   status: {
     installed: number;
     pending: number;
@@ -64,15 +65,28 @@ export interface ISoftwarePackage {
   };
 }
 
-export interface ISoftwareTitle {
+interface ISoftwareTitle {
   id: number;
   name: string;
-  software_package: ISoftwarePackage | null;
+  software_package: ISoftwarePackage | string | null;
   versions_count: number;
   source: string;
   hosts_count: number;
   versions: ISoftwareTitleVersion[] | null;
   browser: string;
+  self_service?: boolean;
+}
+
+export interface ISoftwareTitleWithPackageName
+  extends Omit<ISoftwareTitle, "software_package" | "self-service"> {
+  software_package: string | null;
+  self_service: boolean;
+}
+
+export interface ISoftwareTitleWithPackageDetail
+  extends Omit<ISoftwareTitle, "software_package" | "self-service"> {
+  software_package: ISoftwarePackage | null;
+  self_service?: never;
 }
 
 export interface ISoftwareVulnerability {
@@ -210,9 +224,20 @@ export interface IHostSoftware {
   id: number;
   name: string;
   package_available_for_install?: string | null;
+  self_service: boolean;
   source: string;
   bundle_identifier?: string;
   status: SoftwareInstallStatus | null;
   last_install: ISoftwareLastInstall | null;
   installed_versions: ISoftwareInstallVersion[] | null;
 }
+
+export type IDeviceSoftware = Omit<
+  IHostSoftware,
+  "package_available_for_install"
+> & {
+  package: {
+    name: string;
+    version: string;
+  };
+};

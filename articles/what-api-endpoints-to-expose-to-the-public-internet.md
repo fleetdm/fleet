@@ -61,7 +61,7 @@ If you would like to use Fleet's Windows MDM features, the following endpoints n
 
 The `/api/*/fleet/*` endpoints accessed by the fleetd agent can use mTLS with the certificate provided via the `--fleet-tls-client-certificate` flag in the `fleetctl package` command.
 
-The `/mdm/apple/mdm` and `/api/mdm/apple/enroll` endpoints can use mTLS with the [SCEP certificate issued by the Fleet server](https://fleetdm.com/docs/configuration/fleet-server-configuration#mdm-apple-scep-cert-bytes).
+The `/mdm/apple/mdm` and `/api/mdm/apple/enroll` endpoints can use mTLS with the SCEP certificate issued by the Fleet server.
 
 These endpoints don't use mTLS:
 - `/mdm/apple/scep`

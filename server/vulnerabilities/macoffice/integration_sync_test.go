@@ -12,6 +12,7 @@ import (
 )
 
 func TestIntegrationSync(t *testing.T) {
+	t.Skip("REMOVEME: when API keys are restored")
 	nettest.Run(t)
 
 	vulnPath := t.TempDir()

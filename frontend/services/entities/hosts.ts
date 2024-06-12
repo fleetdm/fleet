@@ -12,7 +12,6 @@ import {
 import { SelectedPlatform } from "interfaces/platform";
 import {
   IHostSoftware,
-  ISoftwareTitle,
   ISoftware,
   SoftwareInstallStatus,
 } from "interfaces/software";
@@ -34,7 +33,7 @@ export interface ISortOption {
 export interface ILoadHostsResponse {
   hosts: IHost[];
   software: ISoftware | undefined;
-  software_title: ISoftwareTitle | undefined;
+  software_title: { name: string; version?: string } | null | undefined; // TODO: confirm type
   munki_issue: IMunkiIssuesAggregate;
   mobile_device_management_solution: IMdmSolution;
 }
@@ -170,6 +169,7 @@ export interface IHostSoftwareQueryParams extends QueryParams {
 export interface IHostSoftwareQueryKey extends IHostSoftwareQueryParams {
   scope: "host_software";
   id: number;
+  softwareUpdatedAt?: string;
 }
 
 export type ILoadHostDetailsExtension = "device_mapping" | "macadmins";
@@ -440,7 +440,7 @@ export default {
   },
   loadHostDetails: (hostID: number) => {
     const { HOSTS } = endpoints;
-    const path = `${HOSTS}/${hostID}`;
+    const path = `${HOSTS}/${hostID}?exclude_software=true`;
 
     return sendRequest("GET", path);
   },

@@ -57,6 +57,7 @@ import Download from "./Download";
 import Upload from "./Upload";
 import Refresh from "./Refresh";
 import Install from "./Install";
+import InstallSelfService from "./InstallSelfService";
 import Settings from "./Settings";
 
 // a mapping of the usable names of icons to the icon source.
@@ -119,6 +120,7 @@ export const ICON_MAP = {
   upload: Upload,
   refresh: Refresh,
   install: Install,
+  "install-self-service": InstallSelfService,
   settings: Settings,
 };
 

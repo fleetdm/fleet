@@ -65,7 +65,7 @@ const generateReportColumnConfigsFromResults = (
             isSortedDesc={headerProps.column.isSortedDesc}
           />
         ),
-        accessor: key,
+        accessor: (data) => data[key],
         Cell: (cellProps: ITableCellProps) => {
           if (typeof cellProps.cell.value !== "string") return null;
 

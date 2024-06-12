@@ -1,5 +1,3 @@
-import software from "interfaces/software";
-
 const API_VERSION = "latest";
 
 export default {
@@ -31,6 +29,8 @@ export default {
   DEVICE_USER_DETAILS: `/${API_VERSION}/fleet/device`,
   DEVICE_SOFTWARE: (token: string) =>
     `/${API_VERSION}/fleet/device/${token}/software`,
+  DEVICE_SOFTWARE_INSTALL: (token: string, softwareTitleId: number) =>
+    `/${API_VERSION}/fleet/device/${token}/software/install/${softwareTitleId}`,
   DEVICE_USER_RESET_ENCRYPTION_KEY: (token: string): string => {
     return `/${API_VERSION}/fleet/device/${token}/rotate_encryption_key`;
   },
@@ -76,7 +76,11 @@ export default {
 
   // MDM endpoints
   MDM_APPLE: `/${API_VERSION}/fleet/mdm/apple`,
-  MDM_APPLE_BM: `/${API_VERSION}/fleet/mdm/apple_bm`,
+  MDM_APPLE_ABM_TOKEN: `/${API_VERSION}/fleet/mdm/apple/abm_token`,
+  MDM_APPLE_ABM_PUBLIC_KEY: `/${API_VERSION}/fleet/mdm/apple/abm_public_key`,
+  MDM_APPLE_APNS_CERTIFICATE: `/${API_VERSION}/fleet/mdm/apple/apns_certificate`,
+  MDM_APPLE_PNS: `/${API_VERSION}/fleet/apns`,
+  MDM_APPLE_BM: `/${API_VERSION}/fleet/abm`,
   MDM_APPLE_BM_KEYS: `/${API_VERSION}/fleet/mdm/apple/dep/key_pair`,
   MDM_SUMMARY: `/${API_VERSION}/fleet/hosts/summary/mdm`,
   MDM_REQUEST_CSR: `/${API_VERSION}/fleet/mdm/apple/request_csr`,

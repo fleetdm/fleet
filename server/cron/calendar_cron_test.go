@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/stretchr/testify/assert"
 	"os"
@@ -19,6 +20,8 @@ import (
 	kitlog "github.com/go-kit/log"
 	"github.com/stretchr/testify/require"
 )
+
+var defaultCalendarConfig = config.CalendarConfig{Periodicity: 5 * time.Minute}
 
 func TestGetPreferredCalendarEventDate(t *testing.T) {
 	t.Parallel()
@@ -195,7 +198,7 @@ func TestEventForDifferentHost(t *testing.T) {
 		return hcEvent, calEvent, nil
 	}
 
-	err := cronCalendarEvents(ctx, ds, logger)
+	err := cronCalendarEvents(ctx, ds, defaultCalendarConfig, logger)
 	require.NoError(t, err)
 }
 
@@ -365,7 +368,7 @@ func TestCalendarEventsMultipleHosts(t *testing.T) {
 		return nil, nil
 	}
 
-	err := cronCalendarEvents(ctx, ds, logger)
+	err := cronCalendarEvents(ctx, ds, defaultCalendarConfig, logger)
 	require.NoError(t, err)
 
 	eventsMu.Lock()
@@ -650,7 +653,7 @@ func TestCalendarEvents1KHosts(t *testing.T) {
 		return nil, nil
 	}
 
-	err := cronCalendarEvents(ctx, ds, logger)
+	err := cronCalendarEvents(ctx, ds, defaultCalendarConfig, logger)
 	require.NoError(t, err)
 
 	createdCalendarEvents := calendar.ListGoogleMockEvents()
@@ -687,7 +690,7 @@ func TestCalendarEvents1KHosts(t *testing.T) {
 		return nil
 	}
 
-	err = cronCalendarEvents(ctx, ds, logger)
+	err = cronCalendarEvents(ctx, ds, defaultCalendarConfig, logger)
 	require.NoError(t, err)
 
 	createdCalendarEvents = calendar.ListGoogleMockEvents()
@@ -925,7 +928,7 @@ func TestEventDescription(t *testing.T) {
 		return nil, nil
 	}
 
-	err := cronCalendarEvents(ctx, ds, logger)
+	err := cronCalendarEvents(ctx, ds, defaultCalendarConfig, logger)
 	require.NoError(t, err)
 
 	numberOfEvents := 7

@@ -163,6 +163,7 @@ type TeamSpecSoftwareAsset struct {
 
 type TeamSpecSoftware struct {
 	URL               string                `json:"url"`
+	SelfService       bool                  `json:"self_service"`
 	PreInstallQuery   TeamSpecSoftwareAsset `json:"pre_install_query"`
 	InstallScript     TeamSpecSoftwareAsset `json:"install_script"`
 	PostInstallScript TeamSpecSoftwareAsset `json:"post_install_script"`
@@ -418,7 +419,7 @@ type TeamSpec struct {
 	// set to the agent options JSON object.
 	AgentOptions       json.RawMessage                 `json:"agent_options,omitempty"` // marshals as "null" if omitempty is not set
 	HostExpirySettings *HostExpirySettings             `json:"host_expiry_settings,omitempty"`
-	Secrets            []EnrollSecret                  `json:"secrets,omitempty"`
+	Secrets            *[]EnrollSecret                 `json:"secrets,omitempty"`
 	Features           *json.RawMessage                `json:"features"`
 	MDM                TeamSpecMDM                     `json:"mdm"`
 	Scripts            optjson.Slice[string]           `json:"scripts"`
@@ -485,7 +486,7 @@ func TeamSpecFromTeam(t *Team) (*TeamSpec, error) {
 		Name:               t.Name,
 		AgentOptions:       agentOptions,
 		Features:           &featuresJSON,
-		Secrets:            secrets,
+		Secrets:            &secrets,
 		MDM:                mdmSpec,
 		HostExpirySettings: &t.Config.HostExpirySettings,
 		WebhookSettings:    webhookSettings,

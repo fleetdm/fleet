@@ -1,9 +1,7 @@
 name: azure_instance_metadata
-examples: >-
+examples: |-
   See in which Azure location a VM is located
   
   ```
-  
   SELECT location FROM azure_instance_metadata;
-  
   ```

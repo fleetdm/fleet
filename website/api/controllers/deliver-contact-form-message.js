@@ -80,7 +80,7 @@ module.exports = {
         leadSource: 'Website - Contact forms',
         leadDescription: `Sent a contact form message: ${message}`,
       }).tolerate((err)=>{
-        sails.log.warn(`Background task failed: When a user submitted a contact form message, a lead/contact could not be updated in the CRM for this email address: ${emailAddress}. Error:`, err.raw);
+        sails.log.warn(`Background task failed: When a user submitted a contact form message, a lead/contact could not be updated in the CRM for this email address: ${emailAddress}.`, err);
       });
     });//_∏_  (Meanwhile...)
 

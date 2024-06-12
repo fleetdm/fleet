@@ -58,7 +58,7 @@ type GitOps struct {
 	Software []*fleet.TeamSpecSoftware
 }
 
-// GitOpsFromBytes parses a GitOps yaml file.
+// GitOpsFromFile parses a GitOps yaml file.
 func GitOpsFromFile(filePath, baseDir string) (*GitOps, error) {
 	b, err := os.ReadFile(filePath)
 	if err != nil {
@@ -244,7 +244,8 @@ func parseSecrets(result *GitOps, multiError *multierror.Error) *multierror.Erro
 			return multierror.Append(multiError, errors.New("'team_settings.secrets' is required"))
 		}
 	}
-	var enrollSecrets []*fleet.EnrollSecret
+	// When secrets slice is empty, all secrets are removed.
+	enrollSecrets := make([]*fleet.EnrollSecret, 0)
 	if rawSecrets != nil {
 		secrets, ok := rawSecrets.([]interface{})
 		if !ok {

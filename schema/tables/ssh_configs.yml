@@ -1,17 +1,13 @@
 name: ssh_configs
-examples: >-
+examples: |-
   ```
-
   SELECT * FROM users CROSS JOIN ssh_configs USING (uid);
-
   ```
 
   Identify SSH clients configured to send their locales to the server.
   
   ```
-  
   SELECT * FROM ssh_configs WHERE option='sendenv lang lc_*'; 
-  
   ```
 columns:
   - name: uid

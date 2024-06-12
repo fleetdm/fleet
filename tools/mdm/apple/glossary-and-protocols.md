@@ -126,7 +126,7 @@ Resources:
 
 - https://en.wikipedia.org/wiki/Public_key_infrastructure#Certificate_authorities
 
-## SCEP summary
+### SCEP summary
 
 SCEP is a [PKI](#pki-public-key-infrastructure) protocol that allows devices to
 request certificates from a [CA](#ca-certificate-authoriy) (in our context, the
@@ -136,9 +136,9 @@ server (in our context, the Fleet server also acts as the MDM server.)
 To enroll, a client provides a distinguished name and a public key, and the
 server responds with a X.509 certificate.
 
-The CA server might also request a `challengePassword`, which is a shared
-secret that the server uses gate access to certificates, its omission allows
-for unauthenticated authorisation of enrolment requests.
+During enrollment, the SCEP CA server may also require a `challengePassword`,
+a shared secret essential for authenticating certificate access. Its absence could lead to
+unauthorized enrollment requests.
 
 More generally, the protocol is specified in [RFC
 8894](https://datatracker.ietf.org/doc/html/rfc8894) and allows:
@@ -149,37 +149,39 @@ More generally, the protocol is specified in [RFC
 - Certificate query
 - Query (not perform) certificate revocation
 
-## MDM Protocol summary
+### MDM Protocol summary
 
 This is a rough summary of the [MDM Protocol
 Reference](https://developer.apple.com/business/documentation/MDM-Protocol-Reference.pdf).
 
 The protocol is composed by the MDM Check-in protocol and the main MDM protocol.
 
-### MDM Check-in Protocol
+#### MDM Check-in Protocol
 
 Used during initialization, validates if the device can be enrolled and
 notifies the server.
 
 It's composed by three different messages sent by the device to the server.
 
+Check-in requests are also used to implement [DDM](#ddm-declarative-device-management) on top of the MDM protocol.
+
 **Authenticate**
 
-When the MDM payload is being installed, the device tries to establish a
+When the enrollment profile is being installed, the device tries to establish a
 connection with the server. This is when the
 [SCEP](#scep-simple-certificate-enrollment-protocol) exchange takes place.
 
 The device sends its UDID and the [topic](#push-notification-topic) that should
 be used for push notifications.
 
-The server shouldn't assume that the device has installed the MDM payload, as
+The server shouldn't assume that the device has installed the enrollment profile, as
 other payloads in the profile may still fail to install. When the device has
-successfully installed the MDM payload, it sends a `TokenUpdate` message.
+successfully installed the enrollment profile, it sends a `TokenUpdate` message.
 
 **TokenUpdate**
 
 A device sends a token update message to the server when it has installed the
-MDM payload or whenever its device push token, push magic, or unlock token
+enrollment profile or whenever its device push token, push magic, or unlock token
 change. These fields are needed by the server to send the device push
 notifications or passcode resets.
 
@@ -191,13 +193,13 @@ first token update message.
 The device attempts to notify the server when the MDM profile is removed.
 
 - In macOS v10.9, this only happens if the `CheckOutWhenRemoved` key in the
-  [MDM payload](#enrollment-profile) is set to true.
+  enrollment profile is set to `true`.
 - In macOS v10.8, this always happens.
 
 If network conditions don't allow the message to be delivered successfully,
 the device makes no further attempts to send the message.
 
-### Main MDM Protocol
+#### Main MDM Protocol
 
 After the device is enrolled, the server (at some point in the future) sends
 out a push notification to the device, then:
@@ -211,7 +213,7 @@ out a push notification to the device, then:
 To see all available commands, look under "Support for macOS Requests" in the
 MDM Protocol Reference.
 
-## DEP Workflow Summary
+### DEP Workflow Summary
 
 In order to get information about devices enrolled through DEP, the MDM server
 needs to communicate with Apple servers periodically.
@@ -226,8 +228,23 @@ The workflow looks like:
    `GET https://mdmenrollment.apple.com/devices/sync` to get
    information about newly enrolled devices and changes on devices already
    enrolled.
-3. The MDM server defines and assigns profiles to devices using `POST
+3. The MDM server defines and assigns DEP profiles (JSON) to devices using `POST
    https://mdmenrollment.apple.com/profile` and `PUT
    https://mdmenrollment.apple.com/profile/devices`
-4. The MDM server removes profiles from a device using `DELETE
+4. The MDM server removes DEP profiles (JSON) from a device using `DELETE
    https://mdmenrollment.apple.com/profile/devices`
+
+### DDM: Declarative Device Management
+
+Declarative device management is an update to the existing protocol for device management that can be used in combination with the existing MDM protocol capabilities. It allows the device to asynchronously apply settings and report status back to the MDM server without constant polling.
+
+Some new MDM features will only be available through DDM.
+
+All DDM messages are JSON messages embedded (base64 encoded) within XML messages (because DDM is built on top of the existing MDM protocol).
+- DDM uses the `DeclarativeManagement` MDM command, used to enable DDM and set a set of declarations for the device (from server to device).
+- DDM uses the `CheckIn` MDM command to send `DeclarativeManagement` commands from device to MDM server.
+
+Resources: 
+- [WWDC21](https://developer.apple.com/videos/play/wwdc2021/10131)
+- [WWDC22](https://developer.apple.com/videos/play/wwdc2022/10046)
+- [WWDC23](https://developer.apple.com/videos/play/wwdc2023/10041)

@@ -249,6 +249,12 @@ type HostScriptResult struct {
 	// execution. It is otherwise not part of the host_script_results table and
 	// not returned as part of the resulting JSON.
 	Hostname string `json:"-" db:"-"`
+
+	// HostDeletedAt indicates if the results are associated with a deleted host.
+	// This supports the soft-delete feature for script results so that the
+	// results can still be returned to see activity details after the host got
+	// deleted.
+	HostDeletedAt *time.Time `json:"-" db:"host_deleted_at"`
 }
 
 func (hsr HostScriptResult) AuthzType() string {
@@ -363,6 +369,7 @@ type SoftwareInstallerPayload struct {
 	PreInstallQuery   string `json:"pre_install_query"`
 	InstallScript     string `json:"install_script"`
 	PostInstallScript string `json:"post_install_script"`
+	SelfService       bool   `json:"self_service"`
 }
 
 type HostLockWipeStatus struct {

@@ -2,7 +2,6 @@ import validator from "validator";
 
 // @ts-ignore
 import validateQuery from "components/forms/validators/validate_query";
-import { getPlatformDisplayName } from "utilities/file/fileUtils";
 
 import { IAddSoftwareFormData, IFormValidation } from "./AddSoftwareForm";
 
@@ -104,6 +103,10 @@ const FORM_VALIDATION_CONFIG: Record<
       },
     ],
   },
+  selfService: {
+    // no validations related to self service
+    validations: [],
+  },
 };
 
 const getErrorMessage = (
@@ -155,9 +158,4 @@ export const generateFormValidation = (
   return formValidation;
 };
 
-export const getFileDetails = (file: File) => {
-  return {
-    name: file.name,
-    platform: getPlatformDisplayName(file),
-  };
-};
+export default generateFormValidation;
