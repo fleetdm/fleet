@@ -57,9 +57,11 @@ func (c *Client) runHostScript(verb, path string, hostID uint, scriptContents []
 			return nil, errors.New(fleet.RunScriptScriptsDisabledGloballyErrMsg)
 		}
 		return nil, errors.New(fleet.RunScriptForbiddenErrMsg)
+	// Its possible we get a GatewayTimeout error message from nginx, so we
+	// want to return the script timeout error message in this case. The nginx
+	// GatewayTimeout error message is not very helpful so instead we
+	// want to return the script timeout error message instead.
 	case http.StatusGatewayTimeout:
-		// The GatewayTimeout error message is not very helpful so instead we
-		// want to return the script timeout error message.
 		return nil, errors.New(fleet.RunScriptScriptTimeoutErrMsg)
 	case http.StatusPaymentRequired:
 		if teamID > 0 {
