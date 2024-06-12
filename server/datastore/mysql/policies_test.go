@@ -2034,23 +2034,41 @@ func testCachedPolicyCountDeletesOnPolicyChange(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	// teamHost and globalHost pass all policies
-	require.NoError(t, ds.RecordPolicyQueryExecutions(ctx, teamHost, map[uint]*bool{globalPolicy.ID: ptr.Bool(true), globalPolicy.ID: ptr.Bool(true)}, time.Now(), false))
-	require.NoError(t, ds.RecordPolicyQueryExecutions(ctx, teamHost, map[uint]*bool{teamPolicy.ID: ptr.Bool(true), teamPolicy.ID: ptr.Bool(true)}, time.Now(), false))
-	require.NoError(t, ds.RecordPolicyQueryExecutions(ctx, globalHost, map[uint]*bool{globalPolicy.ID: ptr.Bool(true), globalPolicy.ID: ptr.Bool(true)}, time.Now(), false))
+	// teamHost and globalHost fail all policies
+	require.NoError(
+		t, ds.RecordPolicyQueryExecutions(
+			ctx, teamHost, map[uint]*bool{globalPolicy.ID: ptr.Bool(false), globalPolicy.ID: ptr.Bool(false)}, time.Now(), false,
+		),
+	)
+	require.NoError(
+		t, ds.RecordPolicyQueryExecutions(
+			ctx, teamHost, map[uint]*bool{teamPolicy.ID: ptr.Bool(false), teamPolicy.ID: ptr.Bool(false)}, time.Now(), false,
+		),
+	)
+	require.NoError(
+		t, ds.RecordPolicyQueryExecutions(
+			ctx, globalHost, map[uint]*bool{globalPolicy.ID: ptr.Bool(false), globalPolicy.ID: ptr.Bool(false)}, time.Now(), false,
+		),
+	)
 
 	err = ds.UpdateHostPolicyCounts(ctx)
 	require.NoError(t, err)
 
 	globalPolicy, err = ds.Policy(ctx, globalPolicy.ID)
 	require.NoError(t, err)
-	assert.Equal(t, uint(2), globalPolicy.PassingHostCount)
+	assert.Equal(t, uint(2), globalPolicy.FailingHostCount)
 	teamPolicies, inheritedPolicies, err := ds.ListTeamPolicies(ctx, team1.ID, fleet.ListOptions{}, fleet.ListOptions{})
 	require.NoError(t, err)
 	require.Len(t, teamPolicies, 1)
 	require.Len(t, inheritedPolicies, 1)
-	assert.Equal(t, uint(1), teamPolicies[0].PassingHostCount)
-	assert.Equal(t, uint(1), inheritedPolicies[0].PassingHostCount)
+	assert.Equal(t, uint(1), teamPolicies[0].FailingHostCount)
+	assert.Equal(t, uint(1), inheritedPolicies[0].FailingHostCount)
+
+	var count uint64
+	require.NoError(t, ds.writer(ctx).Get(&count, "select COUNT(*) from host_issues WHERE total_issues_count > 0"))
+	assert.Equal(t, uint64(2), count)
+	require.NoError(t, ds.writer(ctx).Get(&count, "select COUNT(*) from host_issues WHERE total_issues_count = 2"))
+	assert.Equal(t, uint64(1), count)
 
 	// Update the global policy sql to trigger a cache invalidation
 	err = ds.SavePolicy(ctx, globalPolicy, true, true)
@@ -2058,13 +2076,20 @@ func testCachedPolicyCountDeletesOnPolicyChange(t *testing.T, ds *Datastore) {
 
 	globalPolicy, err = ds.Policy(ctx, globalPolicy.ID)
 	require.NoError(t, err)
-	assert.Equal(t, uint(0), globalPolicy.PassingHostCount)
+	assert.Equal(t, uint(0), globalPolicy.FailingHostCount)
 	teamPolicies, inheritedPolicies, err = ds.ListTeamPolicies(ctx, team1.ID, fleet.ListOptions{}, fleet.ListOptions{})
 	require.NoError(t, err)
 	require.Len(t, teamPolicies, 1)
 	require.Len(t, inheritedPolicies, 1)
-	assert.Equal(t, uint(1), teamPolicies[0].PassingHostCount)
-	assert.Equal(t, uint(0), inheritedPolicies[0].PassingHostCount)
+	assert.Equal(t, uint(1), teamPolicies[0].FailingHostCount)
+	assert.Equal(t, uint(0), inheritedPolicies[0].FailingHostCount)
+	// Only the team host now has issues
+	require.NoError(t, ds.writer(ctx).Get(&count, "select COUNT(*) from host_issues WHERE total_issues_count > 0"))
+	assert.Equal(t, uint64(1), count)
+	require.NoError(
+		t, ds.writer(ctx).Get(&count, "select COUNT(*) from host_issues WHERE total_issues_count = 1 AND host_id = ?", teamHost.ID),
+	)
+	assert.Equal(t, uint64(1), count)
 
 	// Update the team policy platform to trigger a cache invalidation
 	err = ds.SavePolicy(ctx, teamPolicy, false, true)
@@ -2074,8 +2099,8 @@ func testCachedPolicyCountDeletesOnPolicyChange(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, teamPolicies, 1)
 	require.Len(t, inheritedPolicies, 1)
-	assert.Equal(t, uint(0), teamPolicies[0].PassingHostCount)
-	assert.Equal(t, uint(0), inheritedPolicies[0].PassingHostCount)
+	assert.Equal(t, uint(0), teamPolicies[0].FailingHostCount)
+	assert.Equal(t, uint(0), inheritedPolicies[0].FailingHostCount)
 }
 
 func testPoliciesDelUser(t *testing.T, ds *Datastore) {
@@ -2668,17 +2693,22 @@ func testPolicyCleanupPolicyMembership(t *testing.T, ds *Datastore) {
 	err := ds.CleanupPolicyMembership(ctx, time.Now())
 	require.NoError(t, err)
 	assertPolicyMembership(t, ds, polsByName, wantHostsByPol)
+	var count uint64
+	require.NoError(t, ds.writer(ctx).Get(&count, "select COUNT(*) from host_issues"))
+	assert.Zero(t, count)
 
 	// record results for each policy, all hosts, even if invalid for the policy
 	for _, h := range hosts {
 		res := map[uint]*bool{
-			polsByName["p1"].ID: ptr.Bool(true),
+			polsByName["p1"].ID: ptr.Bool(false), // This failing policy will increment the host_issues count.
 			polsByName["p2"].ID: ptr.Bool(true),
 			polsByName["p3"].ID: ptr.Bool(true),
 		}
 		err = ds.RecordPolicyQueryExecutions(ctx, h, res, time.Now(), false)
 		require.NoError(t, err)
 	}
+	require.NoError(t, ds.writer(ctx).Get(&count, "select COUNT(*) from host_issues WHERE total_issues_count > 0"))
+	assert.Equal(t, uint64(len(hosts)), count)
 
 	// no recently updated policies, so no host gets cleaned up
 	wantHostsByPol = map[string][]uint{
@@ -2711,6 +2741,8 @@ func testPolicyCleanupPolicyMembership(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	wantHostsByPol["p1"] = []uint{hosts[hostWin].ID}
 	assertPolicyMembership(t, ds, polsByName, wantHostsByPol)
+	require.NoError(t, ds.writer(ctx).Get(&count, "select COUNT(*) from host_issues WHERE total_issues_count > 0"))
+	assert.Equal(t, uint64(1), count, "only the Windows host should have issues")
 
 	// update policy p2 to "linux,darwin", but cleanup with a timestamp of just over 24h, so
 	// not "recently updated", no changes
@@ -2804,12 +2836,18 @@ func testDeleteAllPolicyMemberships(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, 1, count)
 
+	require.NoError(t, ds.writer(ctx).Get(&count, "select COUNT(*) from host_issues WHERE total_issues_count > 0"))
+	assert.Equal(t, 1, count)
+
 	err = deleteAllPolicyMemberships(ctx, ds.writer(ctx), []uint{host.ID})
 	require.NoError(t, err)
 
 	err = ds.writer(ctx).Get(&count, "select COUNT(*) from policy_membership")
 	require.NoError(t, err)
 	require.Equal(t, 0, count)
+
+	require.NoError(t, ds.writer(ctx).Get(&count, "select COUNT(*) from host_issues WHERE total_issues_count > 0"))
+	assert.Zero(t, count)
 }
 
 func testIncreasePolicyAutomationIteration(t *testing.T, ds *Datastore) {

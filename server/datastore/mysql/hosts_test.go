@@ -2618,6 +2618,15 @@ func testHostsAddToTeam(t *testing.T, ds *Datastore) {
 		assert.Equal(t, expectedID, host.TeamID)
 	}
 
+	// Update batch size
+	addHostsToTeamBatchSizeOrig := addHostsToTeamBatchSize
+	t.Cleanup(
+		func() {
+			addHostsToTeamBatchSize = addHostsToTeamBatchSizeOrig
+		},
+	)
+	addHostsToTeamBatchSize = 2
+
 	require.NoError(t, ds.AddHostsToTeam(context.Background(), nil, []uint{1, 2, 3, 4}))
 	require.NoError(t, ds.AddHostsToTeam(context.Background(), &team1.ID, []uint{5, 6, 7, 8, 9, 10}))
 
@@ -7212,11 +7221,15 @@ func testHostsSetOrUpdateHostDisksSpace(t *testing.T, ds *Datastore) {
 // testHostOrder tests listing a host sorted by different keys.
 func testHostOrder(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
-	_, err := ds.NewHost(ctx, &fleet.Host{ID: 1, OsqueryHostID: ptr.String("1"), Hostname: "0001", NodeKey: ptr.String("1")})
+	createdHosts := make([]*fleet.Host, 3)
+	var err error
+	createdHosts[0], err = ds.NewHost(ctx, &fleet.Host{ID: 1, OsqueryHostID: ptr.String("1"), Hostname: "0001", NodeKey: ptr.String("1")})
 	require.NoError(t, err)
-	_, err = ds.NewHost(ctx, &fleet.Host{ID: 2, OsqueryHostID: ptr.String("2"), Hostname: "0002", ComputerName: "0004", NodeKey: ptr.String("2")})
+	createdHosts[1], err = ds.NewHost(
+		ctx, &fleet.Host{ID: 2, OsqueryHostID: ptr.String("2"), Hostname: "0002", ComputerName: "0004", NodeKey: ptr.String("2")},
+	)
 	require.NoError(t, err)
-	_, err = ds.NewHost(ctx, &fleet.Host{ID: 3, OsqueryHostID: ptr.String("3"), Hostname: "0003", NodeKey: ptr.String("3")})
+	createdHosts[2], err = ds.NewHost(ctx, &fleet.Host{ID: 3, OsqueryHostID: ptr.String("3"), Hostname: "0003", NodeKey: ptr.String("3")})
 	require.NoError(t, err)
 	chk := func(hosts []*fleet.Host, expect ...string) {
 		require.Len(t, hosts, len(expect))
@@ -7254,6 +7267,50 @@ func testHostOrder(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 	chk(hosts, "0003", "0004", "0001")
+
+	// Test sorting by issues
+	policies := make([]*fleet.Policy, 0, 3)
+	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	for i := 0; i < 6; i++ {
+		q := test.NewQuery(t, ds, nil, fmt.Sprintf("query%d", i), "select 1", 0, true)
+		p, err := ds.NewGlobalPolicy(
+			context.Background(), &user1.ID, fleet.PolicyPayload{
+				QueryID: &q.ID,
+			},
+		)
+		require.NoError(t, err)
+		policies = append(policies, p)
+	}
+	for i := 0; i < 3; i++ {
+		results := make(map[uint]*bool, 3)
+		for j := 0; j <= i; j++ {
+			results[policies[j].ID] = ptr.Bool(false) // fail
+		}
+		for j := i + 1; j < 3; j++ {
+			results[policies[j].ID] = ptr.Bool(true) // pass
+		}
+		require.NoError(
+			t, ds.RecordPolicyQueryExecutions(
+				context.Background(), createdHosts[i], results, time.Now(), false,
+			),
+		)
+	}
+	hostIDs := make([]uint, len(createdHosts))
+	for i, host := range createdHosts {
+		hostIDs[i] = host.ID
+	}
+	assert.NoError(t, ds.UpdateHostIssuesFailingPolicies(ctx, hostIDs))
+	hosts, err = ds.ListHosts(
+		ctx, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{
+			ListOptions: fleet.ListOptions{
+				OrderKey:       "issues",
+				OrderDirection: fleet.OrderDescending,
+			},
+		},
+	)
+	require.NoError(t, err)
+	chk(hosts, "0003", "0004", "0001")
+
 }
 
 func testHostIDsByOSID(t *testing.T, ds *Datastore) {
@@ -9228,6 +9285,7 @@ func testUpdateHostIssues(t *testing.T, ds *Datastore) {
 			results[policies[j].ID] = ptr.Bool(true) // pass
 		}
 		require.NoError(
+			// RecordPolicyQueryExecutions should call UpdateHostIssuesFailingPolicies, so we don't have to
 			t, ds.RecordPolicyQueryExecutions(
 				context.Background(), hosts[i], results, time.Now(), false,
 			),
@@ -9291,8 +9349,7 @@ func testUpdateHostIssues(t *testing.T, ds *Datastore) {
 		),
 	)
 
-	// Test normal
-	assert.NoError(t, ds.UpdateHostIssuesFailingPolicies(ctx, hostIDs))
+	// Test normal. UpdateHostIssuesFailingPolicies should not need to be called.
 	assert.NoError(t, ds.UpdateHostIssuesVulnerabilities(ctx))
 	issues = nil
 	assert.NoError(

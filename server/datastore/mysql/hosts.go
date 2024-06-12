@@ -28,6 +28,9 @@ import (
 // This is a variable, so it can be adjusted during unit testing.
 var hostIssuesInsertBatchSize = 10000
 
+// A large number of hosts could be changing teams at once, so we need to batch this operation to prevent excessive locks
+var addHostsToTeamBatchSize = 10000
+
 var (
 	hostSearchColumns             = []string{"hostname", "computer_name", "uuid", "hardware_serial", "primary_ip"}
 	wildCardableHostSearchColumns = []string{"hostname", "computer_name"}
@@ -2844,8 +2847,6 @@ func (ds *Datastore) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs [
 		return nil
 	}
 
-	// A large number of hosts could be changing teams at once, so we need to batch this operation to prevent excessive locks
-	const addHostsToTeamBatchSize = 10000
 	for i := 0; i < len(hostIDs); i += addHostsToTeamBatchSize {
 		start := i
 		end := i + addHostsToTeamBatchSize
