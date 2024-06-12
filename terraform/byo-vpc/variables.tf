@@ -165,6 +165,8 @@ variable "ecs_cluster" {
 
 variable "fleet_config" {
   type = object({
+    task_mem                     = optional(number, null)
+    task_cpu                     = optional(number, null)
     mem                          = optional(number, 4096)
     cpu                          = optional(number, 512)
     pid_mode                     = optional(string, null)
@@ -264,6 +266,8 @@ variable "fleet_config" {
     })
   })
   default = {
+    task_mem                     = null
+    task_cpu                     = null
     mem                          = 512
     cpu                          = 256
     pid_mode                     = null

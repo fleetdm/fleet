@@ -40,6 +40,7 @@ variable "fleet_calendar_periodicity" {
   default     = "30s"
   description = "The refresh period for the calendar integration."
 }
+variable "dogfood_sidecar_enroll_secret" {}
 
 data "aws_caller_identity" "current" {}
 
@@ -68,7 +69,8 @@ locals {
 }
 
 module "main" {
-  source          = "github.com/fleetdm/fleet//terraform?ref=tf-mod-root-v1.8.0"
+  # source = "github.com/fleetdm/fleet//terraform?ref=tf-mod-root-v1.8.0"
+  source          = "../../../../terraform"
   certificate_arn = module.acm.acm_certificate_arn
   vpc = {
     name = local.customer
@@ -97,10 +99,12 @@ module "main" {
     cluster_name = local.customer
   }
   fleet_config = {
-    image  = local.geolite2_image
-    family = local.customer
-    cpu    = 1024
-    mem    = 4096
+    image    = local.geolite2_image
+    family   = local.customer
+    task_cpu = 2048
+    task_mem = 5120
+    cpu      = 1024
+    mem      = 4096
     pid_mode = "task"
     autoscaling = {
       min_capacity = 2
@@ -121,7 +125,7 @@ module "main" {
       }
     }
     extra_iam_policies           = concat(module.firehose-logging.fleet_extra_iam_policies, module.osquery-carve.fleet_extra_iam_policies, module.ses.fleet_extra_iam_policies)
-    extra_execution_iam_policies = concat(module.mdm.extra_execution_iam_policies, [aws_iam_policy.sentry.arn]) #, module.saml_auth_proxy.fleet_extra_execution_policies)
+    extra_execution_iam_policies = concat(module.mdm.extra_execution_iam_policies, [aws_iam_policy.sentry.arn, aws_iam_policy.osquery_sidecar.arn]) #, module.saml_auth_proxy.fleet_extra_execution_policies)
     extra_environment_variables = merge(
       module.mdm.extra_environment_variables,
       module.firehose-logging.fleet_extra_environment_variables,
@@ -142,8 +146,8 @@ module "main" {
       {
         name        = "osquery"
         image       = module.osquery_docker.ecr_images["${local.osquery_version}-ubuntu24.04"]
-        cpu         = 256
-        memory      = 512
+        cpu         = 1024
+        memory      = 1024
         mountPoints = []
         volumesFrom = []
         essential   = true
@@ -166,7 +170,7 @@ module "main" {
         secrets = [
           {
             name      = "ENROLL_SECRET"
-            valueFrom = aws_secretsmanager_secret.osquery_enroll.arn
+            valueFrom = aws_secretsmanager_secret.dogfood_sidecar_enroll_secret.arn
           }
         ]
         workingDirectory = "/",
@@ -531,4 +535,48 @@ module "vuln-processing" {
     region = module.main.byo-vpc.byo-db.byo-ecs.fleet_config.awslogs.region
     prefix = module.main.byo-vpc.byo-db.byo-ecs.fleet_config.awslogs.prefix
   }
+}
+
+resource "aws_secretsmanager_secret" "dogfood_sidecar_enroll_secret" {
+  name = "dogfood-sidecar-enroll-secret"
+}
+
+resource "aws_secretsmanager_secret_version" "dogfood_sidecar_enroll_secret" {
+  secret_id     = aws_secretsmanager_secret.dogfood_sidecar_enroll_secret.id
+  secret_string = var.dogfood_sidecar_enroll_secret
+}
+
+data "aws_iam_policy_document" "osquery_sidecar" {
+  statement {
+    actions = [
+      "ecr:BatchCheckLayerAvailability",
+      "ecr:BatchGetImage",
+      "ecr:GetDownloadUrlForLayer",
+      "ecr:GetAuthorizationToken"
+    ]
+    resources = ["*"]
+  }
+  statement {
+    actions = [ #tfsec:ignore:aws-iam-no-policy-wildcards
+      "kms:Encrypt*",
+      "kms:Decrypt*",
+      "kms:ReEncrypt*",
+      "kms:GenerateDataKey*",
+      "kms:Describe*"
+    ]
+    resources = [aws_kms_key.osquery.arn]
+  }
+  statement {
+    actions = [ #tfsec:ignore:aws-iam-no-policy-wildcards
+      "secretsmanager:GetSecretValue"
+    ]
+    resources = [aws_secretsmanager_secret.dogfood_sidecar_enroll_secret.arn]
+
+  }
+}
+
+resource "aws_iam_policy" "osquery_sidecar" {
+  name        = "osquery-sidecar-policy"
+  description = "IAM policy that Osquery sidecar containers use to define access to AWS resources"
+  policy      = data.aws_iam_policy_document.osquery_sidecar.json
 }

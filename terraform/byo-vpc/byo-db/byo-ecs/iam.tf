@@ -21,8 +21,8 @@ data "aws_iam_policy_document" "assume_role" {
 data "aws_iam_policy_document" "fleet-execution" {
   // allow fleet application to obtain the database password from secrets manager
   statement {
-    effect    = "Allow"
-    actions   = ["secretsmanager:GetSecretValue"]
+    effect  = "Allow"
+    actions = ["secretsmanager:GetSecretValue"]
     resources = [
       var.fleet_config.database.password_secret_arn,
       aws_secretsmanager_secret.fleet_server_private_key.arn
