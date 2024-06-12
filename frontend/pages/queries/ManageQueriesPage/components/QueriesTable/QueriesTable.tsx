@@ -1,5 +1,11 @@
 /* eslint-disable react/prop-types */
-import React, { useContext, useCallback, useMemo } from "react";
+import React, {
+  useContext,
+  useCallback,
+  useMemo,
+  useState,
+  useEffect,
+} from "react";
 import { InjectedRouter } from "react-router";
 
 import { AppContext } from "context/app";
@@ -91,6 +97,26 @@ const QueriesTable = ({
   currentTeamId,
 }: IQueriesTableProps): JSX.Element | null => {
   const { currentUser } = useContext(AppContext);
+
+  const [queriesState, setQueriesState] = useState<IEnhancedQuery[]>();
+  const [isQueriesStateLoading, setIsQueriesStateLoading] = useState(true);
+
+  useEffect(() => {
+    setIsQueriesStateLoading(true);
+    if (queriesList) {
+      setQueriesState(
+        queriesList.filter((query) => {
+          if (queryParams?.query) {
+            return query.name
+              .toLowerCase()
+              .includes(queryParams?.query.toLowerCase());
+          }
+          return query.name.toLowerCase();
+        }) || []
+      );
+    }
+    setIsQueriesStateLoading(false);
+  }, [queriesList, queryParams?.query]);
 
   // Functions to avoid race conditions
   const initialSearchQuery = (() => queryParams?.query ?? "")();
@@ -236,6 +262,20 @@ const QueriesTable = ({
     );
   }, [platform, queryParams, router]);
 
+  const renderQueriesCount = useCallback(() => {
+    if (isQueriesStateLoading) {
+      return <></>;
+    }
+
+    return (
+      <div className={`${baseClass}__count `}>
+        <span>
+          {queriesState?.length} quer{queriesState?.length === 1 ? "y" : "ies"}
+        </span>
+      </div>
+    );
+  }, [queriesState?.length, queriesList]);
+
   const columnConfigs = useMemo(
     () =>
       currentUser &&
@@ -308,6 +348,7 @@ const QueriesTable = ({
         primarySelectAction={deleteQueryTableActionButtonProps}
         // TODO - consolidate this functionality within `filters`
         selectedDropdownFilter={platform}
+        renderCount={renderQueriesCount}
         show0Count
       />
     </div>
