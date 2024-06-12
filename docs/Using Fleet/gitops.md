@@ -33,7 +33,7 @@ For possible options, see the parameters for the [Add policy API endpoint](../RE
 `default.yml` or `teams/team-name.yml`
 
 ```yaml
-polcies:
+policies:
   - name: macOS - Enable FileVault
     description: This policy checks if FileVault (disk encryption) is enabled.
     resolution: As an IT admin, turn on disk encryption in Fleet.
