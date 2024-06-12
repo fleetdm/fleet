@@ -375,7 +375,7 @@ const Calendars = (): JSX.Element => {
               <li>
                 For the OAuth scopes, paste the following value:
                 <InputField
-                  disabled
+                  readOnly
                   inputWrapperClass={`${baseClass}__oauth-scopes`}
                   name="oauth-scopes"
                   label={renderOauthLabel()}

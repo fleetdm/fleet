@@ -8,6 +8,8 @@ services:
     preDeployCommand: "fleet prepare --no-prompt=true db"
     healthCheckPath: /healthz
     envVars:
+      - key: FLEET_SERVER_PRIVATE_KEY
+        generateValue: true
       - key: FLEET_MYSQL_ADDRESS
         fromService:
           name: fleet-mysql

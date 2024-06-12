@@ -353,9 +353,6 @@ const SoftwareTable = ({
         pageSize={perPage}
         showMarkAllPages={false}
         isAllPagesSelected={false}
-        disablePagination={
-          !data?.meta.has_next_results && !data?.meta.has_previous_results
-        }
         disableNextPage={!data?.meta.has_next_results}
         searchable={searchable}
         inputPlaceHolder="Search by name or vulnerabilities (CVEs)"
