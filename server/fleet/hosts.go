@@ -765,14 +765,9 @@ func (h *Host) DisplayName() string {
 }
 
 type HostIssues struct {
-	FailingPoliciesCount uint64 `json:"failing_policies_count" db:"failing_policies_count" csv:"-"`
-	TotalIssuesCount     uint64 `json:"total_issues_count" db:"total_issues_count" csv:"issues"` // when exporting in CSV, we want that value as the "issues" column
-}
-
-type HostIssuesPremium struct {
-	FailingPoliciesCount         uint64 `json:"failing_policies_count" db:"failing_policies_count" csv:"-"`
-	CriticalVulnerabilitiesCount uint64 `json:"critical_vulnerabilities_count" db:"critical_vulnerabilities_count" csv:"-"`
-	TotalIssuesCount             uint64 `json:"total_issues_count" db:"total_issues_count" csv:"issues"` // when exporting in CSV, we want that value as the "issues" column
+	FailingPoliciesCount         uint64  `json:"failing_policies_count" db:"failing_policies_count" csv:"-"`
+	CriticalVulnerabilitiesCount *uint64 `json:"critical_vulnerabilities_count,omitempty" db:"critical_vulnerabilities_count" csv:"-"` // We set it to nil if the license is not premium
+	TotalIssuesCount             uint64  `json:"total_issues_count" db:"total_issues_count" csv:"issues"`                              // when exporting in CSV, we want that value as the "issues" column
 }
 
 func (h Host) AuthzType() string {

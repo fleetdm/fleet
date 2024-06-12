@@ -9182,7 +9182,7 @@ func testUpdateHostIssues(t *testing.T, ds *Datastore) {
 	assert.NoError(t, ds.UpdateHostIssuesVulnerabilities(ctx))
 	type issue struct {
 		HostID uint `db:"host_id"`
-		fleet.HostIssuesPremium
+		fleet.HostIssues
 	}
 	var issues []issue
 	assert.NoError(
@@ -9193,7 +9193,7 @@ func testUpdateHostIssues(t *testing.T, ds *Datastore) {
 	)
 	for _, is := range issues {
 		assert.Zero(t, is.FailingPoliciesCount)
-		assert.Zero(t, is.CriticalVulnerabilitiesCount)
+		assert.Zero(t, *is.CriticalVulnerabilitiesCount)
 		assert.Zero(t, is.TotalIssuesCount)
 	}
 
@@ -9307,7 +9307,7 @@ func testUpdateHostIssues(t *testing.T, ds *Datastore) {
 	for _, hostIssue := range issues {
 		if hostIssue.TotalIssuesCount == 0 {
 			assert.Zero(t, hostIssue.FailingPoliciesCount)
-			assert.Zero(t, hostIssue.CriticalVulnerabilitiesCount)
+			assert.Zero(t, *hostIssue.CriticalVulnerabilitiesCount)
 			continue
 		}
 		nonZeroIssues = append(nonZeroIssues, hostIssue)
@@ -9317,7 +9317,7 @@ func testUpdateHostIssues(t *testing.T, ds *Datastore) {
 		count := i + 2
 		assert.Equal(t, hosts[count].ID, hostIssue.HostID)
 		assert.Equal(t, uint64(count), hostIssue.FailingPoliciesCount)
-		assert.Zero(t, hostIssue.CriticalVulnerabilitiesCount)
+		assert.Zero(t, *hostIssue.CriticalVulnerabilitiesCount)
 		assert.Equal(t, uint64(count), hostIssue.TotalIssuesCount)
 	}
 
@@ -9344,7 +9344,7 @@ func testUpdateHostIssues(t *testing.T, ds *Datastore) {
 	for _, hostIssue := range issues {
 		if hostIssue.TotalIssuesCount == 0 {
 			assert.Zero(t, hostIssue.FailingPoliciesCount)
-			assert.Zero(t, hostIssue.CriticalVulnerabilitiesCount)
+			assert.Zero(t, *hostIssue.CriticalVulnerabilitiesCount)
 			continue
 		}
 		nonZeroIssues = append(nonZeroIssues, hostIssue)
@@ -9361,7 +9361,7 @@ func testUpdateHostIssues(t *testing.T, ds *Datastore) {
 		}
 		assert.Equal(t, hosts[i+2].ID, hostIssue.HostID)
 		assert.Equal(t, policiesCount, hostIssue.FailingPoliciesCount)
-		assert.Equal(t, criticalCount, hostIssue.CriticalVulnerabilitiesCount)
+		assert.Equal(t, criticalCount, *hostIssue.CriticalVulnerabilitiesCount)
 		assert.Equal(t, policiesCount+criticalCount, hostIssue.TotalIssuesCount)
 	}
 
@@ -9430,12 +9430,12 @@ func testUpdateHostIssues(t *testing.T, ds *Datastore) {
 			hostIssueFound = true
 			assert.Equal(t, hosts[1].ID, hostIssue.HostID)
 			assert.Zero(t, hostIssue.FailingPoliciesCount)
-			assert.Equal(t, uint64(1), hostIssue.CriticalVulnerabilitiesCount)
+			assert.Equal(t, uint64(1), *hostIssue.CriticalVulnerabilitiesCount)
 			assert.Equal(t, uint64(1), hostIssue.TotalIssuesCount)
 			continue
 		}
 		assert.Zero(t, hostIssue.FailingPoliciesCount)
-		assert.Zero(t, hostIssue.CriticalVulnerabilitiesCount)
+		assert.Zero(t, *hostIssue.CriticalVulnerabilitiesCount)
 		assert.Zero(t, hostIssue.TotalIssuesCount, "host issue: %+v", hostIssue)
 	}
 	assert.True(t, hostIssueFound)
