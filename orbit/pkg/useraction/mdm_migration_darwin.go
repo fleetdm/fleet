@@ -62,7 +62,7 @@ var mdmMigrationTemplate = template.Must(template.New("mdmMigrationTemplate").Pa
 ## Migrate to Fleet
 
 Select **Start** and Remote Management window will appear soon:` +
-	"\n\n![Image showing MDM migration notification](https://fleetdm.com/images/permanent/mdm-migration-screenshot-notification-2048x480.png)\n\n" +
+	"\n\n![Image showing MDM migration notification](https://fleetdm.com/images/permanent/mdm-migration-sonoma-1500x938.png)\n\n" +
 	"After you start, this window will popup every 15-20 minutes until you finish.",
 ))
 
@@ -301,29 +301,9 @@ func (m *swiftDialogMDMMigrator) waitForUnenrollment() error {
 }
 
 func (m *swiftDialogMDMMigrator) renderMigration() error {
-	var message bytes.Buffer
-	if err := mdmMigrationTemplatePreSonoma.Execute(
-		&message,
-		m.props,
-	); err != nil {
-		return fmt.Errorf("execute template: %w", err)
-	}
-
-	flags := []string{
-		// main button
-		"--button1text", "Start",
-		// secondary button
-		"--button2text", "Later",
-		"--height", "440",
-	}
-
-	if m.props.OrgInfo.ContactURL != "" {
-		flags = append(flags,
-			// info button
-			"--infobuttontext", "Unsure? Contact IT",
-			"--infobuttonaction", m.props.OrgInfo.ContactURL,
-			"--quitoninfo",
-		)
+	message, flags, err := m.getMessageAndFlags()
+	if err != nil {
+		return fmt.Errorf("getting mdm migrator message: %w", err)
 	}
 
 	exitCodeCh, errCh := m.render(message.String(), flags...)
@@ -430,15 +410,18 @@ func (m *swiftDialogMDMMigrator) SetProps(props MDMMigratorProps) {
 	m.props = props
 }
 
-func (m *swiftDialogMDMMigrator) getMessage() (*bytes.Buffer, error) {
+func (m *swiftDialogMDMMigrator) getMessageAndFlags() (*bytes.Buffer, []string, error) {
 	var tmpl *template.Template
+	var height string
 	vers, err := m.getMacOSMajorVersion()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	if vers < 14 {
+		height = "440"
 		tmpl = mdmMigrationTemplatePreSonoma
 	} else {
+		height = "669"
 		tmpl = mdmMigrationTemplate
 	}
 
@@ -447,10 +430,27 @@ func (m *swiftDialogMDMMigrator) getMessage() (*bytes.Buffer, error) {
 		&message,
 		m.props,
 	); err != nil {
-		return nil, fmt.Errorf("execute template: %w", err)
+		return nil, nil, fmt.Errorf("execute template: %w", err)
 	}
 
-	return &message, nil
+	flags := []string{
+		// main button
+		"--button1text", "Start",
+		// secondary button
+		"--button2text", "Later",
+		"--height", height,
+	}
+
+	if m.props.OrgInfo.ContactURL != "" {
+		flags = append(flags,
+			// info button
+			"--infobuttontext", "Unsure? Contact IT",
+			"--infobuttonaction", m.props.OrgInfo.ContactURL,
+			"--quitoninfo",
+		)
+	}
+
+	return &message, flags, nil
 }
 
 // TODO: make this a variable for testing
