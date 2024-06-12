@@ -250,19 +250,12 @@ spec:
       macos_settings:
         custom_settings:
           - path: '/path/to/profile1.mobileconfig'
-            labels:
-              - Label name 1
           - path: '/path/to/profile2.mobileconfig'
           - path: '/path/to/profile3.mobileconfig'
-            labels:
-              - Label name 2
-              - Label name 3
         enable_disk_encryption: true
       windows_settings:
         custom_settings:
           - path: '/path/to/profile4.xml'
-            labels:
-              - Label name 4
           - path: '/path/to/profile5.xml'
     scripts:
         - path/to/script1.sh
@@ -474,19 +467,12 @@ spec:
     macos_settings:
       custom_settings:
         - path: '/path/to/profile1.mobileconfig'
-          labels:
-            - Label name 1
         - path: '/path/to/profile2.mobileconfig'
         - path: '/path/to/profile3.mobileconfig'
-          labels:
-            - Label name 2
-            - Label name 3
       enable_disk_encryption: true
     windows_settings:
       custom_settings:
         - path: '/path/to/profile4.xml'
-          labels:
-            - Label name 4
         - path: '/path/to/profile5.xml'
 ```
 
@@ -1233,11 +1219,11 @@ If you're using Fleet Premium, these profiles apply to all hosts assigned to no 
     macos_settings:
       custom_settings:
         - path: '/path/to/profile1.mobileconfig'
-          labels:
+          labels_include_all:
             - Label name 1
         - path: '/path/to/profile2.mobileconfig'
         - path: '/path/to/profile3.mobileconfig'
-          labels:
+          labels_exclude_any:
             - Label name 2
             - Label name 3
   ```
@@ -1279,7 +1265,7 @@ If you're using Fleet Premium, these profiles apply to all hosts assigned to no 
     windows_settings:
       custom_settings:
         - path: '/path/to/profile1.xml'
-          labels:
+          labels_include_all:
             - Label name 1
         - path: '/path/to/profile2.xml'
   ```
