@@ -5223,6 +5223,9 @@ func (s *integrationMDMTestSuite) TestAppConfigWindowsMDM() {
 		}
 	}
 
+	// turn on MDM for a host
+	orbitHost, _ := createWindowsHostThenEnrollMDM(s.ds, s.server.URL, t)
+
 	// disable Microsoft MDM
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 		"mdm": { "windows_enabled_and_configured": false }
@@ -5230,16 +5233,11 @@ func (s *integrationMDMTestSuite) TestAppConfigWindowsMDM() {
 	assert.False(t, acResp.MDM.WindowsEnabledAndConfigured)
 	s.lastActivityOfTypeMatches(fleet.ActivityTypeDisabledWindowsMDM{}.ActivityName(), `{}`, 0)
 
-	// set the win-no-team host as enrolled in Windows MDM
-	noTeamHost := hostsBySuffix["win-no-team"]
-	err = s.ds.SetOrUpdateMDMData(ctx, noTeamHost.ID, false, true, "https://example.com", false, fleet.WellKnownMDMFleet, "")
-	require.NoError(t, err)
-
 	// get the orbit config for win-no-team should return true for the
 	// unenrollment notification
 	var resp orbitGetConfigResponse
 	s.DoJSON("POST", "/api/fleet/orbit/config",
-		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *noTeamHost.OrbitNodeKey)),
+		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *orbitHost.OrbitNodeKey)),
 		http.StatusOK, &resp)
 	require.True(t, resp.Notifications.NeedsProgrammaticWindowsMDMUnenrollment)
 	require.False(t, resp.Notifications.NeedsProgrammaticWindowsMDMEnrollment)

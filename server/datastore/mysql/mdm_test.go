@@ -14,6 +14,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	mdm_types "github.com/fleetdm/fleet/v4/server/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
+	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/service/certauth"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -46,6 +47,7 @@ func TestMDMShared(t *testing.T) {
 		{"TestGetHostCertAssociationsToExpire", testSCEPRenewalHelpers},
 		{"TestSCEPRenewalHelpers", testSCEPRenewalHelpers},
 		{"TestMDMProfilesSummaryAndHostFilters", testMDMProfilesSummaryAndHostFilters},
+		{"TestIsHostConnectedToFleetMDM", testIsHostConnectedToFleetMDM},
 	}
 
 	for _, c := range cases {
@@ -6709,4 +6711,57 @@ func testMDMProfilesSummaryAndHostFilters(t *testing.T, ds *Datastore) {
 	checkMacHostProfiles(t, hosts[9].UUID, expectedHostProfiles)
 
 	cleanupTables(t)
+}
+
+func testIsHostConnectedToFleetMDM(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	macH, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:      "macos-test",
+		OsqueryHostID: ptr.String("osquery-macos"),
+		NodeKey:       ptr.String("node-key-macos"),
+		UUID:          uuid.NewString(),
+		Platform:      "darwin",
+	})
+	require.NoError(t, err)
+
+	connected, err := ds.IsHostConnectedToFleetMDM(ctx, macH)
+	require.NoError(t, err)
+	require.False(t, connected)
+
+	nanoEnroll(t, ds, macH, false)
+	connected, err = ds.IsHostConnectedToFleetMDM(ctx, macH)
+	require.NoError(t, err)
+	require.True(t, connected)
+
+	windowsH, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:      "windows-test",
+		OsqueryHostID: ptr.String("osquery-windows"),
+		NodeKey:       ptr.String("node-key-windows"),
+		UUID:          uuid.NewString(),
+		Platform:      "windows",
+	})
+	require.NoError(t, err)
+	connected, err = ds.IsHostConnectedToFleetMDM(ctx, windowsH)
+	require.NoError(t, err)
+	require.False(t, connected)
+
+	windowsEnrollment := &fleet.MDMWindowsEnrolledDevice{
+		MDMDeviceID:            uuid.New().String(),
+		MDMHardwareID:          uuid.New().String() + uuid.New().String(),
+		MDMDeviceState:         microsoft_mdm.MDMDeviceStateEnrolled,
+		MDMDeviceType:          "CIMClient_Windows",
+		MDMDeviceName:          "DESKTOP-1C3ARC1",
+		MDMEnrollType:          "ProgrammaticEnrollment",
+		MDMEnrollUserID:        "",
+		MDMEnrollProtoVersion:  "5.0",
+		MDMEnrollClientVersion: "10.0.19045.2965",
+		MDMNotInOOBE:           false,
+		HostUUID:               windowsH.UUID,
+	}
+	err = ds.MDMWindowsInsertEnrolledDevice(ctx, windowsEnrollment)
+	require.NoError(t, err)
+
+	connected, err = ds.IsHostConnectedToFleetMDM(ctx, windowsH)
+	require.NoError(t, err)
+	require.True(t, connected)
 }

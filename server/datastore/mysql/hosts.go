@@ -17,6 +17,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
@@ -750,6 +751,39 @@ func queryStatsToScheduledQueryStats(queriesStats []fleet.QueryStats, packName s
 	return scheduledQueriesStats
 }
 
+const winHostConnectedToFleetCond = `
+	SELECT id
+	FROM mdm_windows_enrollments
+	WHERE host_uuid = h.uuid
+	AND device_state = '` + microsoft_mdm.MDMDeviceStateEnrolled + `'
+`
+
+const appleHostConnectedToFleetCond = `
+	SELECT host_uuid
+	FROM nano_enrollments
+	WHERE id = h.uuid
+	AND enabled = 1
+	AND type = 'Device'
+`
+
+const caseConnectedToFleet = `
+CASE
+	WHEN h.platform = 'windows' THEN (
+		SELECT CASE  WHEN EXISTS (` + winHostConnectedToFleetCond + `)
+		THEN CAST(TRUE AS JSON)
+		ELSE CAST(FALSE AS JSON)
+		END
+	)
+	WHEN h.platform IN ('ios', 'ipados', 'darwin') THEN (
+		SELECT CASE  WHEN EXISTS (` + appleHostConnectedToFleetCond + `)
+		THEN CAST(TRUE AS JSON)
+		ELSE CAST(FALSE AS JSON)
+		END
+	)
+	ELSE CAST(FALSE AS JSON)
+END
+`
+
 // hostMDMSelect is the SQL fragment used to construct the JSON object
 // of MDM host data. It assumes that hostMDMJoin is included in the query.
 const hostMDMSelect = `,
@@ -775,11 +809,11 @@ const hostMDMSelect = `,
 		END,
 		'encryption_key_available',
 		CASE
-                       /* roberto: this is the only way I have found for MySQL to
-                        * return true and false instead of 0 and 1 in the JSON, the
-                        * unmarshaller was having problems converting int values to
-                        * booleans.
-                        */
+			/* roberto: this is the only way I have found for MySQL to
+			* return true and false instead of 0 and 1 in the JSON, the
+			* unmarshaller was having problems converting int values to
+			* booleans.
+			*/
 			WHEN hdek.decryptable IS NULL OR hdek.decryptable = 0 THEN CAST(FALSE AS JSON)
 			ELSE CAST(TRUE AS JSON)
 		END,
@@ -788,6 +822,8 @@ const hostMDMSelect = `,
 			WHEN hdek.host_id IS NULL THEN -1
 			ELSE hdek.decryptable
 		END,
+		'connected_to_fleet',
+		` + caseConnectedToFleet + `,
 		'name', hmdm.name
 	) mdm_host_data
 	`
@@ -1069,6 +1105,17 @@ func (ds *Datastore) applyHostFilters(
 		whereParams = append(whereParams, *opt.LowDiskSpaceFilter)
 	}
 
+	connectedToFleetJoin := ""
+	if opt.ConnectedToFleetFilter != nil ||
+		opt.OSSettingsFilter.IsValid() ||
+		opt.MacOSSettingsFilter.IsValid() ||
+		opt.MacOSSettingsDiskEncryptionFilter.IsValid() {
+		connectedToFleetJoin = `
+				LEFT JOIN nano_enrollments ne ON ne.id = h.uuid AND ne.enabled = 1 AND ne.type = 'Device'
+				LEFT JOIN mdm_windows_enrollments we ON we.host_uuid = h.uuid AND we.device_state = ?`
+		whereParams = append(whereParams, microsoft_mdm.MDMDeviceStateEnrolled)
+	}
+
 	sqlStmt += fmt.Sprintf(
 		`FROM hosts h
     LEFT JOIN host_seen_times hst ON (h.id = hst.host_id)
@@ -1082,7 +1129,8 @@ func (ds *Datastore) applyHostFilters(
     %s
     %s
     %s
-	%s
+    %s
+    %s
 		WHERE TRUE AND %s AND %s AND %s AND %s
     `,
 
@@ -1095,6 +1143,7 @@ func (ds *Datastore) applyHostFilters(
 		operatingSystemJoin,
 		munkiJoin,
 		displayNameJoin,
+		connectedToFleetJoin,
 
 		// Conditions
 		ds.whereFilterHostsByTeams(filter, "h"),
@@ -1108,6 +1157,7 @@ func (ds *Datastore) applyHostFilters(
 	sqlStmt, whereParams = filterHostsByTeam(sqlStmt, opt, whereParams)
 	sqlStmt, whereParams = filterHostsByPolicy(sqlStmt, opt, whereParams)
 	sqlStmt, whereParams = filterHostsByMDM(sqlStmt, opt, whereParams)
+	sqlStmt, whereParams = filterHostsByConnectedToFleet(sqlStmt, opt, whereParams)
 	var err error
 	sqlStmt, whereParams, err = filterHostsByMacOSSettingsStatus(sqlStmt, opt, whereParams)
 	if err != nil {
@@ -1193,6 +1243,13 @@ func filterHostsByMDM(sql string, opt fleet.HostListOptions, params []interface{
 	return sql, params
 }
 
+func filterHostsByConnectedToFleet(sql string, opt fleet.HostListOptions, params []any) (string, []any) {
+	if opt.ConnectedToFleetFilter != nil {
+		sql += "AND (ne.id IS NOT NULL OR we.host_uuid IS NOT NULL)"
+	}
+	return sql, params
+}
+
 func filterHostsByOS(sql string, opt fleet.HostListOptions, params []interface{}) (string, []interface{}) {
 	if opt.OSIDFilter != nil {
 		sql += ` AND hos.os_id = ?`
@@ -1241,7 +1298,8 @@ func filterHostsByMacOSSettingsStatus(sql string, opt fleet.HostListOptions, par
 		return sql, params, nil
 	}
 
-	whereStatus := ""
+	// ensure the host has MDM turned on
+	whereStatus := "AND ne.id IS NOT NULL"
 	// macOS settings filter is not compatible with the "all teams" option so append the "no
 	// team" filter here (note that filterHostsByTeam applies the "no team" filter if TeamFilter == 0)
 	if opt.TeamFilter == nil {
@@ -1281,21 +1339,14 @@ func filterHostsByMacOSDiskEncryptionStatus(sql string, opt fleet.HostListOption
 		subquery, subqueryParams = subqueryFileVaultRemovingEnforcement()
 	}
 
-	return sql + fmt.Sprintf(` AND EXISTS (%s)`, subquery), append(params, subqueryParams...)
+	return sql + fmt.Sprintf(` AND EXISTS (%s) AND AND ne.id IS NOT NULL`, subquery), append(params, subqueryParams...)
 }
 
+// TODO: this method needs to be adjusted
 func (ds *Datastore) filterHostsByOSSettingsStatus(sql string, opt fleet.HostListOptions, params []interface{}, isDiskEncryptionEnabled bool) (string, []interface{}, error) {
 	if !opt.OSSettingsFilter.IsValid() {
 		return sql, params, nil
 	}
-
-	// TODO: Look into ways we can convert some of the LEFT JOINs in the main list hosts query
-	// to INNER JOINs if the OSSettingsFilter is set. This would allow us to use indices
-	// from the `host_mdm` table, for example, to cut down on the number of rows that need
-	// to be scanned. For now, this method assumes that LEFT JOINs are used in the main query
-	// and adds extra where clauses to filter out Windows hosts that are not enrolled to Fleet MDM
-	// or are servers. Similar logic could be applied to macOS hosts but is not included in this
-	// current implementation.
 
 	sqlFmt := ` AND h.platform IN('windows', 'darwin', 'ios', 'ipados')`
 	if opt.TeamFilter == nil {
@@ -1313,11 +1364,14 @@ OR ((h.platform = 'darwin' OR h.platform = 'ios' OR h.platform = 'ipados') AND (
 		return "", nil, err
 	}
 	whereMacOS += ` = ?`
+	// ensure the host has MDM turned on
+	whereMacOS += " AND ne.id IS NOT NULL"
 	paramsMacOS = append(paramsMacOS, opt.OSSettingsFilter)
 
 	// construct the WHERE for windows
-	whereWindows = `hmdm.name = ? AND hmdm.enrolled = 1 AND hmdm.is_server = 0`
-	paramsWindows := []interface{}{fleet.WellKnownMDMFleet}
+	// ensure the host has MDM turned on
+	whereWindows = `we.host_uuid IS NOT NULL`
+	paramsWindows := []any{}
 	subqueryFailed, paramsFailed, err := subqueryHostsMDMWindowsOSSettingsStatusFailed()
 	if err != nil {
 		return "", nil, err
@@ -2122,6 +2176,16 @@ type hostWithMDMInfo struct {
 	DEPProfileAssignStatus *string `db:"dep_profile_assign_status"`
 }
 
+const hostWithMDMInfoSelect = `
+      hm.host_id,
+      hm.enrolled,
+      hm.server_url,
+      hm.installed_from_dep,
+      COALESCE(hm.is_server, false) AS is_server,
+      hm.mdm_id,
+      COALESCE(mdms.name, ?) AS name,
+      hdep.assign_profile_response AS dep_profile_assign_status`
+
 // LoadHostByOrbitNodeKey loads the whole host identified by the node key.
 // If the node key is invalid it returns a NotFoundError.
 func (ds *Datastore) LoadHostByOrbitNodeKey(ctx context.Context, nodeKey string) (*fleet.Host, error) {
@@ -2167,19 +2231,12 @@ func (ds *Datastore) LoadHostByOrbitNodeKey(ctx context.Context, nodeKey string)
       h.policy_updated_at,
       h.public_ip,
       h.orbit_node_key,
-      hm.host_id,
-      hm.enrolled,
-      hm.server_url,
-      hm.installed_from_dep,
-      hm.mdm_id,
-      COALESCE(hm.is_server, false) AS is_server,
-      COALESCE(mdms.name, ?) AS name,
       COALESCE(hdek.reset_requested, false) AS disk_encryption_reset_requested,
-      COALESCE(hdek.decryptable, false) as encryption_key_available,
       IF(hdep.host_id AND ISNULL(hdep.deleted_at), true, false) AS dep_assigned_to_fleet,
       hd.encrypted as disk_encryption_enabled,
-      t.name as team_name,
-      hdep.assign_profile_response AS dep_profile_assign_status
+      COALESCE(hdek.decryptable, false) as encryption_key_available,
+      t.name as team_name,` +
+		hostWithMDMInfoSelect + `
     FROM
       hosts h
     LEFT OUTER JOIN
@@ -2285,15 +2342,9 @@ func (ds *Datastore) LoadHostByDeviceAuthToken(ctx context.Context, authToken st
       COALESCE(hd.gigs_disk_space_available, 0) as gigs_disk_space_available,
       COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available,
       COALESCE(hd.gigs_total_disk_space, 0) as gigs_total_disk_space,
-      hm.host_id,
-      hm.enrolled,
-      hm.server_url,
-      hm.installed_from_dep,
-      hm.mdm_id,
-      COALESCE(hm.is_server, false) AS is_server,
-      COALESCE(mdms.name, ?) AS name,
       IF(hdep.host_id AND ISNULL(hdep.deleted_at), true, false) AS dep_assigned_to_fleet,
-      hdep.assign_profile_response AS dep_profile_assign_status
+      COALESCE(hdek.decryptable, false) as encryption_key_available,` +
+		hostWithMDMInfoSelect + `
     FROM
       host_device_auth hda
     INNER JOIN
@@ -2560,13 +2611,8 @@ SELECT
 	h.policy_updated_at,
 	h.refetch_requested,
 	h.refetch_critical_queries_until,
-	hm.host_id,
-	hm.enrolled,
-	hm.server_url,
-	hm.installed_from_dep,
-	hm.mdm_id,
-	COALESCE(hm.is_server, false) AS is_server,
-	COALESCE(mdms.name, ?) AS name
+	IF(hdep.host_id AND ISNULL(hdep.deleted_at), true, false) AS dep_assigned_to_fleet,
+	`+hostWithMDMInfoSelect+`
 FROM
 	hosts h
 LEFT OUTER JOIN
@@ -2577,6 +2623,10 @@ LEFT OUTER JOIN
 	mobile_device_management_solutions mdms
 ON
 	hm.mdm_id = mdms.id
+LEFT OUTER JOIN
+	host_dep_assignments hdep
+ON
+	hdep.host_id = h.id AND hdep.deleted_at IS NULL
 WHERE h.uuid IN (?) AND %s
 		`, ds.whereFilterHostsByTeams(filter, "h"),
 	)

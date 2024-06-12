@@ -11,7 +11,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
-	"github.com/go-kit/kit/log/level"
+	"github.com/go-kit/log/level"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -1212,4 +1212,67 @@ func getTableAndColumnNameForHostMDMProfileUUID(profUUID string) (table, column 
 	default:
 		return "", "", fmt.Errorf("invalid profile UUID prefix %s", profUUID)
 	}
+}
+
+func (ds *Datastore) AreHostsConnectedToFleetMDM(ctx context.Context, hosts []*fleet.Host) (map[string]bool, error) {
+
+	var (
+		appleStmt  = appleHostConnectedToFleetCond + "AND id IN (?)"
+		appleUUIDs []any
+		winStmt    = winHostConnectedToFleetCond + "AND host_uuid IN (?)"
+		winUUIDs   []any
+	)
+
+	res := make(map[string]bool, len(hosts))
+	for _, h := range hosts {
+		switch h.Platform {
+		case "darwin", "ipados", "ios":
+			appleUUIDs = append(appleUUIDs, h.UUID)
+		case "windows":
+			winUUIDs = append(winUUIDs, h.UUID)
+		default:
+			return nil, ctxerr.Errorf(ctx, "unsupported platform %s", h.Platform)
+		}
+		res[h.UUID] = false
+	}
+
+	foo := func(stmt string, uuids []any, mp map[string]bool) error {
+		var res []string
+
+		if len(uuids) > 0 {
+			stmt, args, err := sqlx.In(stmt, uuids)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "building statement to get hosts connected to fleet")
+			}
+			err = sqlx.SelectContext(ctx, ds.reader(ctx), &res, stmt, args...)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "retrieving hosts connected to fleet")
+			}
+		}
+
+		for _, uuid := range res {
+			mp[uuid] = true
+		}
+
+		return nil
+	}
+
+	if err := foo(appleStmt, appleUUIDs, res); err != nil {
+		return nil, err
+	}
+
+	if err := foo(winStmt, winUUIDs, res); err != nil {
+		return nil, err
+	}
+
+	return res, nil
+
+}
+
+func (ds *Datastore) IsHostConnectedToFleetMDM(ctx context.Context, host *fleet.Host) (bool, error) {
+	mp, err := ds.AreHostsConnectedToFleetMDM(ctx, []*fleet.Host{host})
+	if err != nil {
+		return false, err
+	}
+	return mp[host.UUID], nil
 }

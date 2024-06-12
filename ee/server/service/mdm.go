@@ -892,16 +892,16 @@ func (svc *Service) MDMAppleMatchPreassignment(ctx context.Context, externalHost
 		return err // will return a not found error if host does not exist
 	}
 
-	hostMDM, err := svc.ds.GetHostMDM(ctx, host.ID)
-	if err != nil || !hostMDM.IsFleetEnrolled() {
-		if err == nil || fleet.IsNotFound(err) {
-			err = errors.New("host is not enrolled in Fleet MDM")
-			return ctxerr.Wrap(ctx, &fleet.BadRequestError{
-				Message:     err.Error(),
-				InternalErr: err,
-			})
-		}
-		return err
+	connected, err := svc.ds.IsHostConnectedToFleetMDM(ctx, host)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "checking if host is connected to Fleet")
+	}
+	if !connected {
+		err = errors.New("host is not enrolled in Fleet MDM")
+		return ctxerr.Wrap(ctx, &fleet.BadRequestError{
+			Message:     err.Error(),
+			InternalErr: err,
+		})
 	}
 
 	// Collect the profiles' groups in case we need to create a new team,

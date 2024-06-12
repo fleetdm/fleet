@@ -6038,7 +6038,6 @@ func testHostsLoadHostByDeviceAuthToken(t *testing.T, ds *Datastore) {
 	require.NotNil(t, loadSimple.MDMInfo)
 	require.Equal(t, hSimple.ID, loadSimple.MDMInfo.HostID)
 	require.True(t, loadSimple.IsOsqueryEnrolled())
-	require.False(t, loadSimple.MDMInfo.IsPendingDEPFleetEnrollment())
 
 	// create a host that will be pending enrollment in Fleet MDM
 	hFleet := createHostWithDeviceToken("fleet")
@@ -6051,7 +6050,6 @@ func testHostsLoadHostByDeviceAuthToken(t *testing.T, ds *Datastore) {
 	require.NotNil(t, loadFleet.MDMInfo)
 	require.Equal(t, hFleet.ID, loadFleet.MDMInfo.HostID)
 	require.True(t, loadFleet.IsOsqueryEnrolled())
-	require.True(t, loadFleet.MDMInfo.IsPendingDEPFleetEnrollment())
 	require.False(t, loadFleet.MDMInfo.IsServer)
 
 	// force its is_server mdm field to NULL, should be same as false
@@ -7500,8 +7498,7 @@ func testHostsLoadHostByOrbitNodeKey(t *testing.T, ds *Datastore) {
 	require.NotNil(t, loadSimple.MDMInfo)
 	require.Equal(t, hSimple.ID, loadSimple.MDMInfo.HostID)
 	require.True(t, loadSimple.IsOsqueryEnrolled())
-	require.False(t, loadSimple.MDMInfo.IsPendingDEPFleetEnrollment())
-	require.False(t, loadSimple.IsEligibleForDEPMigration())
+	require.False(t, loadSimple.IsEligibleForDEPMigration(false))
 
 	// create a host that will be pending enrollment in Fleet MDM
 	hFleet := createOrbitHost("fleet")
@@ -7514,10 +7511,9 @@ func testHostsLoadHostByOrbitNodeKey(t *testing.T, ds *Datastore) {
 	require.NotNil(t, loadFleet.MDMInfo)
 	require.Equal(t, hFleet.ID, loadFleet.MDMInfo.HostID)
 	require.True(t, loadFleet.IsOsqueryEnrolled())
-	require.True(t, loadFleet.MDMInfo.IsPendingDEPFleetEnrollment())
 	require.False(t, loadFleet.MDMInfo.IsServer)
 	require.Empty(t, loadFleet.MDMInfo.DEPProfileAssignStatus)
-	require.False(t, loadFleet.IsEligibleForDEPMigration())
+	require.False(t, loadFleet.IsEligibleForDEPMigration(false))
 
 	// force its is_server mdm field to NULL, should be same as false
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
@@ -7528,7 +7524,7 @@ func testHostsLoadHostByOrbitNodeKey(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, hFleet.ID, loadFleet.ID)
 	require.False(t, loadFleet.MDMInfo.IsServer)
-	require.False(t, loadFleet.IsEligibleForDEPMigration())
+	require.False(t, loadFleet.IsEligibleForDEPMigration(false))
 
 	// fill in disk encryption information
 	require.NoError(t, ds.SetOrUpdateHostDisksEncryption(context.Background(), hFleet.ID, true))
@@ -7542,7 +7538,7 @@ func testHostsLoadHostByOrbitNodeKey(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.NotNil(t, loadFleet.DiskEncryptionEnabled)
 	require.True(t, *loadFleet.DiskEncryptionEnabled)
-	require.False(t, loadFleet.IsEligibleForDEPMigration())
+	require.False(t, loadFleet.IsEligibleForDEPMigration(false))
 	require.Empty(t, loadFleet.MDMInfo.DEPProfileAssignStatus)
 
 	// simulate the device being assigned to Fleet in ABM

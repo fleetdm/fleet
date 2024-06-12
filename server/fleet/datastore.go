@@ -329,6 +329,12 @@ type Datastore interface {
 	// updated in the given `interval`).
 	ListIOSAndIPadOSToRefetch(ctx context.Context, refetchInterval time.Duration) (uuids []string, err error)
 
+	// IsHostConnectedToFleetMDM TODO
+	IsHostConnectedToFleetMDM(ctx context.Context, host *Host) (bool, error)
+
+	// AreHostsConnectedToFleetMDM TODO
+	AreHostsConnectedToFleetMDM(ctx context.Context, hosts []*Host) (map[string]bool, error)
+
 	AggregatedMunkiVersion(ctx context.Context, teamID *uint) ([]AggregatedMunkiVersion, time.Time, error)
 	AggregatedMunkiIssues(ctx context.Context, teamID *uint) ([]AggregatedMunkiIssue, time.Time, error)
 	AggregatedMDMStatus(ctx context.Context, teamID *uint, platform string) (AggregatedMDMStatus, time.Time, error)
