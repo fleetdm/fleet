@@ -12,22 +12,26 @@ The [`fleetctl apply`]((https://github.com/fleetdm/fleet/blob/main/docs/Contribu
 
 Polcies can be specified inline in your `default.yml` file or `teams/team-name.yml` files. They can also be specified in separate files in your `lib/` folder.
 
+### Options
+
+For possible options, see the parameters for the [Add policy API endpoint](../REST%20API/rest-api.md#add-policices).
+
 ### Example
 
 #### Inline
   
-  `default.yml` or `teams/team-name.yml`
+`default.yml` or `teams/team-name.yml`
 
-  ```yaml
-  polcies:
-    - name: macOS - Enable FileVault
-      description: This policy checks if FileVault (disk encryption) is enabled.
-      resolution: As an IT admin, turn on disk encryption in Fleet.
-      query: SELECT 1 FROM filevault_status WHERE status = 'FileVault is On.';
-      platform: darwin
-      critical: false
-      calendar_event_enabled: false
-  ```
+```yaml
+polcies:
+  - name: macOS - Enable FileVault
+    description: This policy checks if FileVault (disk encryption) is enabled.
+    resolution: As an IT admin, turn on disk encryption in Fleet.
+    query: SELECT 1 FROM filevault_status WHERE status = 'FileVault is On.';
+    platform: darwin
+    critical: false
+    calendar_event_enabled: false
+```
 
 #### Separate file
  
@@ -60,6 +64,12 @@ policies:
 ## Queries
 
 Queries can be specified inline in your `default.yml` file or `teams/team-name.yml` files. They can also be specified in separate files in your `lib/` folder.
+
+Note that the `team_id` option isn't supported in GitOps.
+
+### Options
+
+For possible options, see the parameter for the parameters of the [Create query API endpoint](../REST%20API/rest-api.md#create-query).
 
 ### Example
 
@@ -112,7 +122,55 @@ Agent options can be specified inline in your `default.yml` file or `teams/team-
 
 See "[Agent configuration](https://fleetdm.com/docs/configuration/agent-configuration)" to find all possible options.
 
-TODO examples
+### Example
+
+#### Inline
+  
+`default.yml` or `teams/team-name.yml`
+
+```yaml
+agent_options:
+  config:
+    decorators:
+      load:
+        - SELECT uuid AS host_uuid FROM system_info;
+        - SELECT hostname AS hostname FROM system_info;
+    options:
+      disable_distributed: false
+      distributed_interval: 10
+      distributed_plugin: tls
+      distributed_tls_max_attempts: 3
+      logger_tls_endpoint: /api/osquery/log
+      logger_tls_period: 10
+      pack_delimiter: /
+```
+
+#### Separate file
+ 
+`lib/agent-options.yml`
+
+```yaml
+config:
+  decorators:
+    load:
+      - SELECT uuid AS host_uuid FROM system_info;
+      - SELECT hostname AS hostname FROM system_info;
+  options:
+    disable_distributed: false
+    distributed_interval: 10
+    distributed_plugin: tls
+    distributed_tls_max_attempts: 3
+    logger_tls_endpoint: /api/osquery/log
+    logger_tls_period: 10
+    pack_delimiter: /
+```
+
+`default.yml` or `teams/team-name.yml`
+
+```yaml
+queries:
+  - path: `path-to/lib/agent-options.yml`
+```
 
 ## Default
 
