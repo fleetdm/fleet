@@ -46,8 +46,6 @@ type OrbitClient struct {
 	lastIdleConnectionsCleanupMu sync.Mutex
 	lastIdleConnectionsCleanup   time.Time
 
-	rootDirPath string
-
 	// TestNodeKey is used for testing only.
 	TestNodeKey string
 
@@ -60,8 +58,6 @@ type OrbitClient struct {
 	ReceiverUpdateContext context.Context
 	// ReceiverUpdateCancelFunc will be called when ReceiverUpdateContext is cancelled
 	ReceiverUpdateCancelFunc context.CancelFunc
-
-	OsqueryDPath string
 }
 
 // time-to-live for config cache
@@ -150,7 +146,6 @@ func NewOrbitClient(
 	fleetClientCert *tls.Certificate,
 	orbitHostInfo fleet.OrbitHostInfo,
 	onGetConfigErrFns *OnGetConfigErrFuncs,
-	osquerydPath string,
 ) (*OrbitClient, error) {
 	orbitCapabilities := fleet.CapabilityMap{}
 	bc, err := newBaseClient(addr, insecureSkipVerify, rootCA, "", fleetClientCert, orbitCapabilities)
@@ -169,11 +164,9 @@ func NewOrbitClient(
 		enrolled:                   false,
 		onGetConfigErrFns:          onGetConfigErrFns,
 		lastIdleConnectionsCleanup: time.Now(),
-		rootDirPath:                rootDir,
 		ReceiverUpdateInterval:     defaultOrbitConfigReceiverInterval,
 		ReceiverUpdateContext:      ctx,
 		ReceiverUpdateCancelFunc:   cancelFunc,
-		OsqueryDPath:               osquerydPath,
 	}, nil
 }
 
@@ -206,15 +199,6 @@ func (oc *OrbitClient) closeIdleConnections() {
 	}
 
 	t.CloseIdleConnections()
-}
-
-func (oc *OrbitClient) resetOrbit() error {
-	// if err := os.RemoveAll(filepath.Join(oc.rootDirPath, "osquery.db")); err != nil {
-	// 	return err
-	// }
-
-	// oc.InterruptConfigReceivers(fmt.Errorf("resetting Fleet, this is a new machine")) foobar
-	return nil
 }
 
 func (oc *OrbitClient) RunConfigReceivers() error {

@@ -817,7 +817,6 @@ func main() {
 					log.Info().Err(err).Msg("network error")
 				},
 			},
-			osquerydPath,
 		)
 		if err != nil {
 			return fmt.Errorf("error new orbit client: %w", err)
@@ -1079,7 +1078,6 @@ func main() {
 					log.Info().Err(err).Msg("network error")
 				},
 			},
-			osquerydPath,
 		)
 		if err != nil {
 			return fmt.Errorf("new client for capabilities checker: %w", err)

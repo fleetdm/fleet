@@ -308,7 +308,6 @@ var hostDetailQueries = map[string]DetailQuery{
 	},
 	"system_info": {
 		Query: "select * from system_info limit 1",
-
 		IngestFunc: func(ctx context.Context, logger log.Logger, host *fleet.Host, rows []map[string]string) error {
 			if len(rows) != 1 {
 				logger.Log("component", "service", "method", "IngestFunc", "err",

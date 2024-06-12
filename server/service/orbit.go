@@ -312,7 +312,6 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 		}
 
 		return fleet.OrbitConfig{
-			SerialNumber:   host.HardwareSerial,
 			Flags:          opts.CommandLineStartUpFlags,
 			Extensions:     extensionsFiltered,
 			Notifications:  notifs,
@@ -373,7 +372,6 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 	}
 
 	return fleet.OrbitConfig{
-		SerialNumber:   host.HardwareSerial,
 		Flags:          opts.CommandLineStartUpFlags,
 		Extensions:     extensionsFiltered,
 		Notifications:  notifs,
