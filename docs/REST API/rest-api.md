@@ -8631,27 +8631,6 @@ Add App Store (VPP) app purchased in Apple Business Manager.
 
 `Status: 200`
 
-### Delete App Store app
-
-_Available in Fleet Premium._
-
-`DELETE /api/v1/fleet/software/titles/:software_title_id/app_store`
-
-#### Parameters
-
-| Name            | Type    | In   | Description                                      |
-| ----            | ------- | ---- | --------------------------------------------     |
-| software_title_id              | integer | path | **Required**. The ID of the software title to delete App Store app. |
-| team_id | integer | query | **Required**. The team ID. Deletes a software package added to the specified team. |
-
-#### Example
-
-`DELETE /api/v1/fleet/software/titles/24/app_store?team_id=2`
-
-##### Default response
-
-`Status: 204`
-
 ## Vulnerabilities
 
 - [List vulnerabilities](#list-vulnerabilities)
