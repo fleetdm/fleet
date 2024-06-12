@@ -29,16 +29,17 @@ module.exports.http = {
     *                                                                          *
     ***************************************************************************/
 
-    // order: [
-    //   'cookieParser',
-    //   'session',
-    //   'bodyParser',
-    //   'compress',
-    //   'poweredBy',
-    //   'router',
-    //   'www',
-    //   'favicon',
-    // ],
+    order: [
+      'cookieParser',
+      'session',
+      'bodyParser',
+      'compress',
+      'poweredBy',
+      'router',
+      'www',
+      'favicon',
+      'middlewareErrorHandler'
+    ],
 
 
     /***************************************************************************
@@ -66,6 +67,15 @@ module.exports.http = {
       });
       return middlewareFn;
     })(),
+
+    middlewareErrorHandler: function(err, req, res, next) {
+      // If this error was from the serve-static middleware throwing a 'RangeNotSatisfiableError', respond with a 416 status code
+      if (err.message === 'Range Not Satisfiable') {
+        return res.status(416).send();
+      } else {
+        return next(err);
+      }
+    },
 
   },
 
