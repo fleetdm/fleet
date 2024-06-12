@@ -217,7 +217,97 @@ TODO
 
 ### `org_settings` and `team_settings`
 
-TODO
+#### `features`
+
+The `features` section of the configuration YAML lets you define what predefined queries are sent to the hosts and later on processed by Fleet for different functionalities.
+- `additional_queries` adds extra host details. This information will be updated at the same time as other host details and is returned by the API when host objects are returned (default: empty).
+- `enable_host_users` specifies whether or not Fleet collects user data from hosts (default: `true`).
+- `enable_software_inventory` specifies whether or not Fleet collects softwre inventory from hosts (default: `true`).
+
+Example:
+
+```yaml
+org_settings:
+  features:
+    additional_queries:
+      time: SELECT * FROM time
+      macs: SELECT mac FROM interface_details
+    enable_host_users: true
+    enable_software_inventory: true
+```
+
+#### `fleet_desktop`
+
+Direct end users to a custom URL when they select **Transparency** in the Fleet Desktop dropdown (default: [https://fleetdm.com/transparency](https://fleetdm.com/transparency)).
+
+Can only be configure for all teams (`org_settings`).
+
+Example:
+
+```yaml
+org_settings:
+  fleet_desktop:
+    transparency_url: "https://example.org/transparency"
+```
+
+#### `host_expiry_settings`
+
+The `host_expiry_settings` section lets you define if and when hosts should be automatically deleted from Fleet if they have not checked in.
+- `host_expiry_enabled` (default: `false`)
+- `host_expiry_window` if a host has not communicated with Fleet in the specified number of days, it will be removed. Must be > `0` when host expiry is enabled (default: `0`).
+
+Example:
+
+```yaml
+org_settings:
+  host_expiry_settings:
+  	host_expiry_enabled: true
+    host_expiry_window: 10
+```
+
+#### `org_info`
+
+- `name` is the name of your organization (default: empty)
+- `logo_url` is a public URL of the logo for your organization (default: Fleet logo).
+- `org_logo_url_light_background` is a public URL of the logo for your organization that can be used with light backgrounds (default: Fleet logo).
+- `contact_url` is a URL that appears in error messages presented to end users (default: https://fleetdm.com/company/contact)
+
+Can only be configure for all teams (`org_settings`).
+
+Example:
+
+```yaml
+org_settings:
+  org_info:
+    org_name: Fleet
+    org_logo_url: https://example.com/logo.png
+    org_logo_url_light_background: https://example.com/logo-light.png
+    contact_url: https://fleetdm.com/company/contact
+```
+
+#### `server_settings`
+
+- `enable_analytics` specifies whether or not to enable Fleet's [usage statistics](../Using%20Fleet/Usage-statistics.md) (default: `true`).
+- `live_query_disabled` disables the ability to run live queries (ad hoc queries executed via the UI or fleetctl) (default: `false`).
+- `query_reports_disabled` disables query reports and deletes existing repors (default: `false`).
+- `scripts_disabled` blocks access to run scripts. Scripts may still be added in the UI and CLI (defaul: `false`).
+- `server_url` is the base URL of the Fleet instance (default: provided during Fleet setup)
+
+Can only be configure for all teams (`org_settings`).
+
+Example:
+
+  ```yaml
+org_settings:
+  server_settings:
+    enable_analytics: true
+    live_query_disabled: false
+    query_reports_disabled: false
+    scripts_disabled: false
+    server_url: https://instance.fleet.com
+  ```
+
+TODO is SMTP down from new fleetctl-apply.md doc
 
 ## Environment variables
 
