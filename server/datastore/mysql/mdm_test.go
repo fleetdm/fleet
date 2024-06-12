@@ -6808,6 +6808,7 @@ func testAreHostsConnectedToFleetMDM(t *testing.T, ds *Datastore) {
 		UUID:          uuid.NewString(),
 		Platform:      "linux",
 	})
+	require.NoError(t, err)
 	_, err = ds.AreHostsConnectedToFleetMDM(ctx, []*fleet.Host{
 		notConnectedMac,
 		connectedMac,
