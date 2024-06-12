@@ -1,4 +1,4 @@
- # REST API
+# REST API
 
 - [Authentication](#authentication)
 - [Activities](#activities)
@@ -5332,7 +5332,7 @@ Deletes the custom MDM setup enrollment profile assigned to a team or no team.
 
 ### Get manual enrollment profile
 
-Retrieves the manual enrollment profile for macOS hosts. Install this profile on macOS hosts to turn on MDM features manually.
+Retrieves an unsigned manual enrollment profile for macOS hosts. Install this profile on macOS hosts to turn on MDM features manually.
 
 `GET /api/v1/fleet/enrollment_profiles/manual`
 
