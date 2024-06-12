@@ -31,6 +31,10 @@ variable "customer_prefix" {
   default = "fleet"
 }
 
+variable "fleet_s3_software_installers_config" {
+  type        = map(string)
+  description = "use the output of the byo-vpc module with the same name"
+}
 
 variable "fleet_server_private_key_secret_arn" {
   type        = string

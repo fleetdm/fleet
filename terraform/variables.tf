@@ -309,6 +309,17 @@ variable "fleet_config" {
       }), {
       name = "fleetdm-execution-role"
     })
+    software_installers = optional(object({
+      create_bucket    = optional(bool, true)
+      bucket_name      = optional(string, null)
+      bucket_prefix    = optional(string, "fleet-software-installers-")
+      s3_object_prefix = optional(string, "software_installers/")
+      }), {
+      create_bucket    = true
+      bucket_name      = null
+      bucket_prefix    = "fleet-software-installers-"
+      s3_object_prefix = "software_installers/"
+    })
   })
   default = {
     mem                          = 512
@@ -372,6 +383,12 @@ variable "fleet_config" {
         name        = "fleet-execution-role"
         policy_name = "fleet-iam-policy-execution"
       }
+    }
+    software_installers = {
+      create_bucket    = true
+      bucket_name      = null
+      bucket_prefix    = "fleet-software-installers-"
+      s3_object_prefix = "software_installers/"
     }
   }
   description = "The configuration object for Fleet itself. Fields that default to null will have their respective resources created if not specified."
