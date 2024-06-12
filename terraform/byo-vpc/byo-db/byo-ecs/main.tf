@@ -58,8 +58,9 @@ resource "aws_ecs_task_definition" "backend" {
   requires_compatibilities = ["FARGATE"]
   task_role_arn            = var.fleet_config.iam_role_arn == null ? aws_iam_role.main[0].arn : var.fleet_config.iam_role_arn
   execution_role_arn       = aws_iam_role.execution.arn
-  cpu                      = var.fleet_config.cpu
-  memory                   = var.fleet_config.mem
+  cpu                      = var.fleet_config.task_cpu == null ? var.fleet_config.cpu : var.fleet_config.task_cpu
+  memory                   = var.fleet_config.task_mem == null ? var.fleet_config.mem : var.fleet_config.task_mem
+  pid_mode                 = var.fleet_config.pid_mode
   container_definitions = jsonencode(
     concat([
       {
