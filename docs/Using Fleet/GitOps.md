@@ -181,3 +181,7 @@ config:
 queries:
   - path: `path-to/lib/agent-options.yml`
 ```
+
+## Environment variables
+
+TODO
