@@ -1,0 +1,1 @@
+* Added the database migrations to create the new `exclude` column for labels associated with MDM profiles (and declarations).
