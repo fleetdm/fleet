@@ -1084,57 +1084,6 @@ func (ds *Datastore) CleanupPolicyMembership(ctx context.Context, now time.Time)
 	return nil
 }
 
-func (ds *Datastore) UpdatePolicyFailureCountsForHosts(ctx context.Context, hosts []*fleet.Host) ([]*fleet.Host, error) {
-	if len(hosts) == 0 {
-		return hosts, nil
-	}
-
-	// Get policy failure counts for each host
-	hostIDs := make([]uint, 0, len(hosts))
-
-	for _, host := range hosts {
-		hostIDs = append(hostIDs, host.ID)
-	}
-
-	query, args, err := sqlx.In(`
-		SELECT
-			pm.host_id,
-			COUNT(*) AS failing_policy_count
-		FROM
-			policy_membership pm
-		WHERE
-			pm.passes = 0 AND
-			pm.host_id IN (?)
-		GROUP BY
-			pm.host_id
-	`, hostIDs)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "build policy failure count query")
-	}
-
-	var policyFailureCounts []struct {
-		HostID             uint   `db:"host_id"`
-		FailingPolicyCount uint64 `db:"failing_policy_count"`
-	}
-
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &policyFailureCounts, query, args...); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "get policy failure counts for hosts")
-	}
-
-	// Map policy failure counts to hosts
-	hostIDToPolicyFailureCounts := make(map[uint]uint64)
-	for _, policyFailureCount := range policyFailureCounts {
-		hostIDToPolicyFailureCounts[policyFailureCount.HostID] = policyFailureCount.FailingPolicyCount
-	}
-
-	for _, host := range hosts {
-		host.TotalIssuesCount = hostIDToPolicyFailureCounts[host.ID]
-		host.FailingPoliciesCount = hostIDToPolicyFailureCounts[host.ID]
-	}
-
-	return hosts, nil
-}
-
 // PolicyViolationDays is a structure used for aggregate counts of policy violation days.
 type PolicyViolationDays struct {
 	// FailingHostCount is an aggregate count of actual policy violations days. One actual policy

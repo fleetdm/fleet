@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"sort"
 	"strconv"
 	"strings"
@@ -51,7 +52,6 @@ func TestPolicies(t *testing.T) {
 		{"PolicyViolationDays", testPolicyViolationDays},
 		{"IncreasePolicyAutomationIteration", testIncreasePolicyAutomationIteration},
 		{"OutdatedAutomationBatch", testOutdatedAutomationBatch},
-		{"TestUpdatePolicyFailureCountsForHosts", testUpdatePolicyFailureCountsForHosts},
 		{"TestListGlobalPoliciesCanPaginate", testListGlobalPoliciesCanPaginate},
 		{"TestListTeamPoliciesCanPaginate", testListTeamPoliciesCanPaginate},
 		{"TestCountPolicies", testCountPolicies},
@@ -1522,6 +1522,59 @@ func testApplyPolicySpec(t *testing.T, ds *Datastore) {
 			}))
 }
 
+func updatePolicyFailureCountsForHosts(ctx context.Context, ds *Datastore, hosts []*fleet.Host) ([]*fleet.Host, error) {
+	if len(hosts) == 0 {
+		return hosts, nil
+	}
+
+	// Get policy failure counts for each host
+	hostIDs := make([]uint, 0, len(hosts))
+
+	for _, host := range hosts {
+		hostIDs = append(hostIDs, host.ID)
+	}
+
+	query, args, err := sqlx.In(
+		`
+		SELECT
+			pm.host_id,
+			COUNT(*) AS failing_policy_count
+		FROM
+			policy_membership pm
+		WHERE
+			pm.passes = 0 AND
+			pm.host_id IN (?)
+		GROUP BY
+			pm.host_id
+	`, hostIDs,
+	)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "build policy failure count query")
+	}
+
+	var policyFailureCounts []struct {
+		HostID             uint   `db:"host_id"`
+		FailingPolicyCount uint64 `db:"failing_policy_count"`
+	}
+
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &policyFailureCounts, query, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get policy failure counts for hosts")
+	}
+
+	// Map policy failure counts to hosts
+	hostIDToPolicyFailureCounts := make(map[uint]uint64)
+	for _, policyFailureCount := range policyFailureCounts {
+		hostIDToPolicyFailureCounts[policyFailureCount.HostID] = policyFailureCount.FailingPolicyCount
+	}
+
+	for _, host := range hosts {
+		host.TotalIssuesCount = hostIDToPolicyFailureCounts[host.ID]
+		host.FailingPoliciesCount = hostIDToPolicyFailureCounts[host.ID]
+	}
+
+	return hosts, nil
+}
+
 func testApplyPolicySpecWithQueryPlatformChanges(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 	unicode, _ := strconv.Unquote(`"\uAC00"`)         // 가
@@ -1663,13 +1716,13 @@ func testApplyPolicySpecWithQueryPlatformChanges(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// Update host failure counts and ensure they are correct
-	teamHosts, err = ds.UpdatePolicyFailureCountsForHosts(ctx, teamHosts)
+	teamHosts, err = updatePolicyFailureCountsForHosts(ctx, ds, teamHosts)
 	require.NoError(t, err)
 	assert.Equal(t, uint64(6), teamHosts[hostWin].FailingPoliciesCount)
 	assert.Equal(t, uint64(6), teamHosts[hostMac].FailingPoliciesCount)
 	assert.Equal(t, uint64(6), teamHosts[hostDeb].FailingPoliciesCount)
 	assert.Equal(t, uint64(6), teamHosts[hostLin].FailingPoliciesCount)
-	globalHosts, err = ds.UpdatePolicyFailureCountsForHosts(ctx, globalHosts)
+	globalHosts, err = updatePolicyFailureCountsForHosts(ctx, ds, globalHosts)
 	require.NoError(t, err)
 	assert.Equal(t, uint64(3), globalHosts[hostWin].FailingPoliciesCount)
 	assert.Equal(t, uint64(3), globalHosts[hostMac].FailingPoliciesCount)
@@ -1756,13 +1809,13 @@ func testApplyPolicySpecWithQueryPlatformChanges(t *testing.T, ds *Datastore) {
 	)
 
 	// Update host failure counts and ensure they are correct
-	teamHosts, err = ds.UpdatePolicyFailureCountsForHosts(ctx, teamHosts)
+	teamHosts, err = updatePolicyFailureCountsForHosts(ctx, ds, teamHosts)
 	require.NoError(t, err)
 	assert.Equal(t, uint64(1), teamHosts[hostWin].FailingPoliciesCount) // kept result from globalNames[0]
 	assert.Equal(t, uint64(3), teamHosts[hostMac].FailingPoliciesCount)
 	assert.Equal(t, uint64(2), teamHosts[hostDeb].FailingPoliciesCount)
 	assert.Equal(t, uint64(2), teamHosts[hostLin].FailingPoliciesCount)
-	globalHosts, err = ds.UpdatePolicyFailureCountsForHosts(ctx, globalHosts)
+	globalHosts, err = updatePolicyFailureCountsForHosts(ctx, ds, globalHosts)
 	require.NoError(t, err)
 	assert.Equal(t, uint64(1), globalHosts[hostWin].FailingPoliciesCount)
 	assert.Equal(t, uint64(2), globalHosts[hostMac].FailingPoliciesCount)
@@ -2852,73 +2905,6 @@ func testOutdatedAutomationBatch(t *testing.T, ds *Datastore) {
 	batch, err = ds.OutdatedAutomationBatch(ctx)
 	require.NoError(t, err)
 	require.ElementsMatch(t, batch, []fleet.PolicyFailure{})
-}
-
-func testUpdatePolicyFailureCountsForHosts(t *testing.T, ds *Datastore) {
-	ctx := context.Background()
-
-	// create 4 hosts
-	var hosts []*fleet.Host
-	for i := 0; i < 4; i++ {
-		h, err := ds.NewHost(ctx, &fleet.Host{OsqueryHostID: ptr.String(fmt.Sprintf("host%d", i)), NodeKey: ptr.String(fmt.Sprintf("host%d", i))})
-		require.NoError(t, err)
-		hosts = append(hosts, h)
-	}
-
-	// create 2 policies
-	var pols []*fleet.Policy
-	for i := 0; i < 2; i++ {
-		p, err := ds.NewGlobalPolicy(ctx, nil, fleet.PolicyPayload{Name: fmt.Sprintf("policy%d", i)})
-		require.NoError(t, err)
-		pols = append(pols, p)
-	}
-
-	// create policy membership for hosts
-	_, err := ds.writer(ctx).ExecContext(ctx, `
-		INSERT INTO policy_membership (policy_id, host_id, passes)
-		VALUES
-			(?, ?, 1),
-			(?, ?, 1),
-			(?, ?, 0),
-			(?, ?, 0),
-			(?, ?, 1),
-			(?, ?, 0)
-	`,
-		pols[0].ID, hosts[0].ID,
-		pols[0].ID, hosts[1].ID,
-		pols[0].ID, hosts[2].ID,
-		pols[1].ID, hosts[0].ID,
-		pols[1].ID, hosts[1].ID,
-		pols[1].ID, hosts[2].ID,
-	)
-
-	require.NoError(t, err)
-
-	// update policy failure counts for hosts
-	hostsUpdated, err := ds.UpdatePolicyFailureCountsForHosts(ctx, hosts)
-	require.NoError(t, err)
-	require.Len(t, hostsUpdated, 4)
-
-	// host 0 should have 1 failing policy
-	assert.Equal(t, uint64(1), hostsUpdated[0].TotalIssuesCount)
-	assert.Equal(t, uint64(1), hostsUpdated[0].FailingPoliciesCount)
-
-	// host 1 should have 0 failing policies
-	assert.Zero(t, hostsUpdated[1].TotalIssuesCount)
-	assert.Zero(t, hostsUpdated[1].FailingPoliciesCount)
-
-	// host 2 should have 2 failing policies
-	assert.Equal(t, uint64(2), hostsUpdated[2].TotalIssuesCount)
-	assert.Equal(t, uint64(2), hostsUpdated[2].FailingPoliciesCount)
-
-	// host 3 doesn't have any policy membership
-	assert.Zero(t, hostsUpdated[3].TotalIssuesCount)
-	assert.Zero(t, hostsUpdated[3].FailingPoliciesCount)
-
-	// return empty list if no hosts are passed
-	hostsUpdated, err = ds.UpdatePolicyFailureCountsForHosts(ctx, []*fleet.Host{})
-	require.NoError(t, err)
-	require.Len(t, hostsUpdated, 0)
 }
 
 func testListGlobalPoliciesCanPaginate(t *testing.T, ds *Datastore) {
