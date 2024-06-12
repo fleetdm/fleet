@@ -24,7 +24,8 @@
   &__title {
     font-size: $x-small;
     font-weight: $bold;
-    @include ellipse-text(290px);
+    @include ellipse-text;
+    max-width: 290px;
   }
 
   &__details {

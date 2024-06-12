@@ -132,6 +132,7 @@ How to unenroll a host from Fleet:
 - [Finding fleetd logs](#finding-fleetd-logs)
 - [Using system keystore for enroll secret](#using-system-keystore-for-enroll-secret)
 - [Generating fleetd for Windows using local WiX toolset](#generating-fleetd-for-windows-using-local-wix-toolset)
+- [Config-less fleetd agent deployment](#config-less-fleetd-agent-deployment)
 - [Experimental features](#experimental-features)
 
 ### fleetd components
@@ -341,6 +342,12 @@ so:
      If the provided path doesn't contain all 3 binaries, the command will fail.
 
 >**Note:** Creating a fleetd agent for Windows (.msi) on macOS also requires Wine. To install Wine see the script [here](https://fleetdm.com/install-wine).
+
+### Config-less fleetd agent deployment
+
+Config-less deployment allows for Fleet's agent (fleetd) to be installed without embedding configuration settings directly into the package. This approach is ideal for environments requiring flexibility in managing enrollment secrets and server URLs. For detailed instructions, visit the [Config-less fleetd agent deployment guide](https://fleetdm.com/guides/config-less-fleetd-agent-deployment).
+
+>**Warning:** If you remove the configuration profile with the settings from macOS, `fleetd` won't work anymore until a similar profile is installed again. If the profile is delivered via MDM, and MDM is turned off, you might face this scenario.
 
 ### Experimental features
 

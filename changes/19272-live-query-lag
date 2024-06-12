@@ -1,1 +1,0 @@
-Live queries now work via UI with large (~1 second) replication lag (for master-replica DB setup).

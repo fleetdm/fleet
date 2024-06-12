@@ -98,15 +98,15 @@
         </div>
         <div class="category__informational">
           <div v-for="query of queriesList">
-            <div class="card results" @click="clickCard(query.slug)">
+            <a class="card results" :href="'/queries/'+query.slug">
               <div class="card-body">
                 <div class="row justify-content-between align-items-center query-card">
                   <div class="col-12">
                     <div class="d-flex flex-row align-items-center flex-wrap">
                       <h5 class="card-title m-0 mb-1 mr-2">{{query.name}}</h5>
-                      <a purpose="critical-badge" class="mr-2" v-if="query.critical">Critical</a>
-                      <a purpose="requires-mdm-badge" class="mr-2" v-if="query.requiresMdm">Requires MDM</a>
-                      <span class="mr-2 my-sm-0 my-1 text-nowrap d-inline-flex" purpose="query-tag" v-for="tag in query.tags" @click.stop="clickSelectTag(tag)">{{tag}}</span>
+                      <span purpose="critical-badge" class="mr-2" v-if="query.critical">Critical</span>
+                      <span purpose="requires-mdm-badge" class="mr-2" v-if="query.requiresMdm">Requires MDM</span>
+                      <span class="mr-2 my-sm-0 my-1 text-nowrap d-inline-flex" purpose="query-tag" v-for="tag in query.tags" @click.stop.prevent="clickSelectTag(tag)">{{tag}}</span>
                     </div>
                   </div>
                   <div class="col-sm-9 col-md-9">
@@ -141,7 +141,8 @@
                 </div>
               </div>
               <div class="divider"></div>
-            </div>
+
+            </a>
           </div>
           <div purpose="query-list-empty-state" v-if="queriesList.length === 0">
             <p class="mb-0">There are no results that match your filters. <a target="_blank" href="https://github.com/fleetdm/fleet/edit/main/docs/01-Using-Fleet/standard-query-library/standard-query-library.yml">Everyone can contribute</a>.</p>
