@@ -8515,7 +8515,7 @@ Returns the list of software purchased in Apple Business Manager.
     {
       "name": "Logic Pro",
       "latest_version": "2.04",
-      "store_id": 634148309
+      "app_store_id": 634148309
     },
 }
 }
