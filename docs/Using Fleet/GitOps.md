@@ -10,52 +10,105 @@ The [`fleetctl apply`]((https://github.com/fleetdm/fleet/blob/main/docs/Contribu
 
 ## Policies
 
-The `lib/{name}.policies.yml` files control policies in Fleet.
+Polcies can be specified inline in your `default.yml` file or `teams/team-name.yml` files. They can also be specified in separate files in your `lib/` folder.
 
-- Optional
-- Array of dictionaries
-- Config format:
+- Inline example:
+  
+  `default.yml` or `teams/team-name.yml`
+
+  ```yaml
+  polcies:
+    - name: macOS - Enable FileVault
+      description: This policy checks if FileVault (disk encryption) is enabled.
+      resolution: As an IT admin, turn on disk encryption in Fleet.
+      query: SELECT 1 FROM filevault_status WHERE status = 'FileVault is On.';
+      platform: darwin
+      critical: false
+      calendar_event_enabled: false
+  ```
+
+- Separate file example:
+ 
+ `lib/policies-name.policies.yml`
+
   ```yaml
   - name: macOS - Enable FileVault
-    platform: darwin
     description: This policy checks if FileVault (disk encryption) is enabled.
     resolution: As an IT admin, turn on disk encryption in Fleet.
     query: SELECT 1 FROM filevault_status WHERE status = 'FileVault is On.';
-  - name: macOS - Disable guest account
     platform: darwin
+    critical: false
+    calendar_event_enabled: false
+  - name: macOS - Disable guest account
     description: This policy checks if the guest account is disabled.
     resolution: An an IT admin, deploy a macOS, login window profile with the DisableGuestAccount option set to true.
     query: SELECT 1 FROM managed_policies WHERE domain='com.apple.loginwindow' AND username = '' AND name='DisableGuestAccount' AND CAST(value AS INT) = 1;
+    platform: darwin
+    critical: false
+    calendar_event_enabled: false
+  ```
+
+  `default.yml` or `teams/team-name.yml`
+
+  ```yaml
+  policies:
+    - path: `path-to/lib/policies-name.policies.yml`
   ```
 
 ## Queries
 
-The `lib/{name}.queries.yml` files control saved queries in Fleet.
+Queries can be specified inline in your `default.yml` file or `teams/team-name.yml` files. They can also be specified in separate files in your `lib/` folder.
 
-- Optional
-- Array of dictionaries
-- Config format:  
+- Inline example:
+  
+  `default.yml` or `teams/team-name.yml`
+
+  ```yaml
+  queries:
+    - name: Collect failed login attempts
+      description: Lists the users at least one failed login attempt and timestamp of failed login. Number of failed login attempts reset to zero after a user successfully logs in.
+      query: SELECT users.username, account_policy_data.failed_login_count, account_policy_data.failed_login_timestamp FROM users INNER JOIN account_policy_data using (uid) WHERE account_policy_data.failed_login_count > 0;
+      platform: darwin,linux,windows
+      interval: 300
+      observer_can_run: false
+      automations_enabled: false
+  ```
+
+- Separate file example:
+ 
+ `lib/queries-name.queries.yml`
+
   ```yaml
   - name: Collect failed login attempts
     description: Lists the users at least one failed login attempt and timestamp of failed login. Number of failed login attempts reset to zero after a user successfully logs in.
     query: SELECT users.username, account_policy_data.failed_login_count, account_policy_data.failed_login_timestamp FROM users INNER JOIN account_policy_data using (uid) WHERE account_policy_data.failed_login_count > 0;
-    interval: 300 # 5 minutes
+    platform: darwin,linux,windows
+    interval: 300
     observer_can_run: false
     automations_enabled: false
-    platform: darwin,linux,windows
   - name: Collect USB devices
     description: Collects the USB devices that are currently connected to macOS and Linux hosts.
     query: SELECT model, vendor FROM usb_devices;
+    platform: darwin,linux
     interval: 300
     observer_can_run: true
     automations_enabled: false
-  ``` 
+  ```
+
+  `default.yml` or `teams/team-name.yml`
+
+  ```yaml
+  queries:
+    - path: `path-to/lib/queries-name.queries.yml`
+  ```
 
 ## Agent options
 
-The `agent_options` key controls the settings applied to the agent on all your hosts. These settings are applied when each host checks in.
+Agent options can be specified inline in your `default.yml` file or `teams/team-name.yml` files. They can also be specified in separate files in your `lib/` folder.
 
 See "[Agent configuration](https://fleetdm.com/docs/configuration/agent-configuration)" to find all possible options.
+
+TODO examples
 
 ## Default
 
