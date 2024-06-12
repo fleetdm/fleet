@@ -14,94 +14,9 @@ TODO
 
 ## Teams
 
-### Controls
-
-The `controls` section defines device management settings (OS updates, configuration profiles, disk encryption, OS updates, and scripts). This is the top-level key, and all options referenced below are under this one.
-
-#### macos_settings.custom_settings
-
-Configures OS settings for macOS hosts.
-
-Defines configuration profile files to apply to macOS hosts.
-
-- Optional
-- Default value: none
-- Config format:
-  ```yaml
-  macos_settings:
-    custom_settings:
-      - path: '/path/to/profile1.mobileconfig'
-        labels:
-          - Label name 1
-        - path: '/path/to/profile2.mobileconfig'
-  ```
-  The `labels` key is optional.
-
-#### windows_settings.custom_settings
-
-Configures OS settings for Windows hosts.
-
-Defines configuration profile files to apply to Window hosts.
-
-- Optional
-- Default value: none
-- Config format:
-  ```yaml
-  windows_settings:
-    custom_settings:
-      - path: '/path/to/profile1.xml'
-        labels:
-          - Label name 1
-        - path: '/path/to/profile2.xml'
-  ```
-  The `labels` key is optional.
-
-##### enable​_disk​_encryption
-
 _Available in Fleet Premium_
 
-Enables disk encryption on macOS and Windows hosts.
-
-- Optional
-- Default value: `false`
-- Config format:
-  ```yaml
-  macos_settings:
-    enable_disk_encryption: true
-  ```
-
-#### macos​_updates
-
-_Available in Fleet Premium_
-
-Configures OS update enforcement for macOS hosts.
-
-- Requires `mdm.macos_updates.deadline` to be set  
-- Default value: `""`
-- Config format:
-  ```yaml
-  macos_updates:
-    minimum_version: "14.3.0"
-    deadline: "2022-01-01"
-  ```
-
-#### windows​_updates
-
-_Available in Fleet Premium_
-
-Configures OS update enforcement for Windows hosts.
-
-A deadline in days.
-
-- Optional
-- Default value: `""`
-- Config format:
-  ```yaml
-  mdm:
-    windows_updates:
-      deadline_days: "5"
-      grace_period_days: "2"
-  ```
+TODO
 
 ## Policies
 
