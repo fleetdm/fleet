@@ -7,7 +7,7 @@
           <%/* Hero text */%>
           <div purpose="hero-text"  class="d-flex flex-column justify-content-center">
             <h1><%- partial('../partials/primary-tagline.partial.ejs') %></h1>
-            <p>Replace the sprawl with open-source code that works the way you want.</p>
+            <p>Replace the sprawl with secure, open-source <%= primaryBuyingSituation === 'mdm'? 'device management' : primaryBuyingSituation === 'vm'? 'reporting' : 'software' %> that works the way you want.</p>
             <div purpose="button-row" class="d-flex flex-sm-row flex-column justify-content-center align-items-center">
               <a purpose="cta-button" href="/register">Start now</a>
               <a purpose="animated-arrow-button-red" href="/contact">Talk to us</a>
@@ -30,26 +30,29 @@
         <div purpose="calendar-feature-text" class="d-flex flex-column">
         <div purpose="new-badge">NEW</div>
         <% if(!primaryBuyingSituation) {%>
-          <h2>Stop nudging</h2>
-          <p>Stop installing updates and forcing restarts when your users are busy using their computers. Fleet finds time in the calendar for a reboot and uses AI to explain why.</p>
-        <%} else if(['mdm', 'eo-it'].includes(primaryBuyingSituation)) {%>
-          <h2>Put IT in your calendar</h2>
+          <h2>"This is a terrible time to mess with my computer."</h2> <!-- Turn OS updates into coffee breaks --> <!-- Break time for you, update time for your computer -->
+          <p>Install updates and force restarts when your users’ computers are actually free.</p>
+        <%} else if(['mdm'].includes(primaryBuyingSituation)) {%>
+          <h2>Timing is everything</h2>
+          <p>Install updates and force restarts when your users’ computers are actually free.</p>
+        <%} else if(['eo-it'].includes(primaryBuyingSituation)) {%>
+          <h2>Patch your C-suite with confidence</h2>
           <p>Install updates and force restarts when your users’ computers are actually free.</p>
         <%} else if(['vm', 'eo-security'].includes(primaryBuyingSituation)) {%>
           <h2>Tell employees why</h2>
           <p>Use AI to explain why your security policies matter, and install required updates en masse without locking people out of meetings.</p>
-        <%}%>
-          <div purpose="calendar-checklist" class="flex-column d-flex">
+        <%} %>
+          <% if (primaryBuyingSituation && !['eo-security'].includes(primaryBuyingSituation)) { %><div purpose="calendar-checklist" class="flex-column d-flex">
             <p>Say goodbye to annoying IT notifications and restarts.</p>
             <p>Use AI to explain why your security policies matter.</p>
             <p>Stop making exceptions for executives when OS updates lock them out of important meetings.</p>
-          </div>
+          </div><% } %>
           <div purpose="video-button" class="d-flex flex-row align-items-center" @click="clickOpenVideoModal('calendar')">
             <img src="/images/icon-play-video-32x32@2x.png" alt="play button">Watch the video
           </div>
         </div>
         <div purpose="feature-video">
-          <video autoplay loop muted purpose="calendar-video"><source src="/videos/calendar-feature-video.mp4" type="video/mp4"></video>
+          <video autoplay loop muted playsinline purpose="calendar-video"><source src="/videos/calendar-feature-video.mp4" type="video/mp4"></video>
         </div>
       </div>
 
@@ -234,7 +237,7 @@
                 <img alt="Custom IT workflows" src="/images/integration-icon-custom-workflows-32x36@2x.png">
                 <% if(['vm', 'eo-security'].includes(primaryBuyingSituation)){%>
                 <strong>Kick off automations</strong>
-                <p>Use git, yaml, webhooks, file carving, vuln feeds, the REST API, and a GUI for security automations</p>
+                <p>Use git, yaml, webhooks, file carving, vuln feeds, the REST API, and a GUI for security automations.</p>
                 <% } else { %>
                 <strong>Custom IT workflows</strong>
                 <p>Use git, yaml, webhooks, realtime device access, file carving, vuln feeds, the REST API, and a GUI for IT automation.</p>

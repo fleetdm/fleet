@@ -20,19 +20,26 @@ package file
 
 import (
 	"bytes"
+	"compress/bzip2"
 	"compress/zlib"
 	"crypto"
+	"crypto/sha256"
 	"encoding/binary"
 	"encoding/xml"
 	"errors"
 	"fmt"
 	"io"
+	"strings"
 )
 
-// xarMagic is the [file signature][1] (or magic bytes) for xar
-//
-// [1]: https://en.wikipedia.org/wiki/List_of_file_signatures
-const xarMagic = 0x78617221
+const (
+	// xarMagic is the [file signature][1] (or magic bytes) for xar
+	//
+	// [1]: https://en.wikipedia.org/wiki/List_of_file_signatures
+	xarMagic = 0x78617221
+
+	xarHeaderSize = 28
+)
 
 const (
 	hashNone uint32 = iota
@@ -67,6 +74,140 @@ type tocXar struct {
 type toc struct {
 	Signature  *any `xml:"signature"`
 	XSignature *any `xml:"x-signature"`
+}
+
+type xmlXar struct {
+	XMLName xml.Name `xml:"xar"`
+	TOC     xmlTOC
+}
+
+type xmlTOC struct {
+	XMLName xml.Name   `xml:"toc"`
+	Files   []*xmlFile `xml:"file"`
+}
+
+type xmlFileData struct {
+	XMLName  xml.Name `xml:"data"`
+	Length   int64    `xml:"length"`
+	Offset   int64    `xml:"offset"`
+	Size     int64    `xml:"size"`
+	Encoding struct {
+		Style string `xml:"style,attr"`
+	} `xml:"encoding"`
+}
+
+type xmlFile struct {
+	XMLName xml.Name `xml:"file"`
+	Name    string   `xml:"name"`
+	Data    *xmlFileData
+}
+
+type distributionXML struct {
+	Title   string   `xml:"title"`
+	PkgRef  []pkgRef `xml:"pkg-ref"`
+	Product struct {
+		ID      string `xml:"id,attr"`
+		Version string `xml:"version,attr"`
+	} `xml:"product"`
+}
+
+type pkgRef struct {
+	ID      string `xml:"id,attr"`
+	Version string `xml:"version,attr,omitempty"`
+	Auth    string `xml:"auth,attr,omitempty"`
+	Content string `xml:",chardata"`
+}
+
+// ExtractXARMetadata extracts the name and version metadata from a .pkg file
+// in the XAR format.
+func ExtractXARMetadata(r io.Reader) (name, version string, shaSum []byte, err error) {
+	var hdr xarHeader
+
+	h := sha256.New()
+	r = io.TeeReader(r, h)
+	b, err := io.ReadAll(r)
+	if err != nil {
+		return "", "", nil, fmt.Errorf("failed to read all content: %w", err)
+	}
+
+	rr := bytes.NewReader(b)
+	if err := binary.Read(rr, binary.BigEndian, &hdr); err != nil {
+		return "", "", nil, fmt.Errorf("decode xar header: %w", err)
+	}
+
+	zr, err := zlib.NewReader(io.LimitReader(rr, hdr.CompressedSize))
+	if err != nil {
+		return "", "", nil, fmt.Errorf("create zlib reader: %w", err)
+	}
+	defer zr.Close()
+
+	var root xmlXar
+	decoder := xml.NewDecoder(zr)
+	decoder.Strict = false
+	if err := decoder.Decode(&root); err != nil {
+		return "", "", nil, fmt.Errorf("decode xar xml: %w", err)
+	}
+
+	heapOffset := xarHeaderSize + hdr.CompressedSize
+	for _, f := range root.TOC.Files {
+		if f.Name == "Distribution" {
+			var fileReader io.Reader
+			heapReader := io.NewSectionReader(rr, heapOffset, int64(len(b))-heapOffset)
+			fileReader = io.NewSectionReader(heapReader, f.Data.Offset, f.Data.Length)
+
+			// the distribution file can be compressed differently than the TOC, the
+			// actual compression is specified in the Encoding.Style field.
+			if strings.Contains(f.Data.Encoding.Style, "x-gzip") {
+				// despite the name, x-gzip fails to decode with the gzip package
+				// (invalid header), but it works with zlib.
+				zr, err := zlib.NewReader(fileReader)
+				if err != nil {
+					return "", "", nil, fmt.Errorf("create zlib reader: %w", err)
+				}
+				defer zr.Close()
+				fileReader = zr
+			} else if strings.Contains(f.Data.Encoding.Style, "x-bzip2") {
+				fileReader = bzip2.NewReader(fileReader)
+			}
+			// TODO: what other compression methods are supported?
+
+			contents, err := io.ReadAll(fileReader)
+			if err != nil {
+				return "", "", nil, fmt.Errorf("reading Distribution file: %w", err)
+			}
+
+			var distXML distributionXML
+			if err := xml.Unmarshal(contents, &distXML); err != nil {
+				return "", "", nil, fmt.Errorf("unmarshal Distribution XML: %w", err)
+			}
+
+			// Get the name from (in order of priority):
+			// - Title
+			// - product.id
+			// - pkg-ref[0].id
+			//
+			// Get the version from (in order of priority):
+			// - product.version
+			// - pkg-ref[0].version
+			name := strings.TrimSpace(distXML.Title)
+			if name == "" {
+				name = strings.TrimSpace(distXML.Product.ID)
+			}
+			version := strings.TrimSpace(distXML.Product.Version)
+			if len(distXML.PkgRef) > 0 {
+				if name == "" {
+					name = strings.TrimSpace(distXML.PkgRef[0].ID)
+				}
+				if version == "" {
+					version = strings.TrimSpace(distXML.PkgRef[0].Version)
+				}
+				return name, version, h.Sum(nil), nil
+			}
+			break
+		}
+	}
+
+	return "", "", h.Sum(nil), nil
 }
 
 // CheckPKGSignature checks if the provided bytes correspond to a signed pkg

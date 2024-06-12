@@ -114,7 +114,7 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
   },
   {
     Header: (cellProps: IHostTableHeaderProps) => (
-      <HeaderCell value="Hosts" isSortedDesc={cellProps.column.isSortedDesc} />
+      <HeaderCell value="Host" isSortedDesc={cellProps.column.isSortedDesc} />
     ),
     accessor: "display_name",
     id: "display_name",
@@ -122,8 +122,10 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
       if (
         // if the host is pending, we want to disable the link to host details
         cellProps.row.original.mdm.enrollment_status === "Pending" &&
-        // pending status is only supported for macos devices
-        cellProps.row.original.platform === "darwin" &&
+        // pending status is only supported for Apple devices
+        (cellProps.row.original.platform === "darwin" ||
+          cellProps.row.original.platform === "ios" ||
+          cellProps.row.original.platform === "ipados") &&
         // osquery version is populated along with the rest of host details so use it
         // here to check if we already have host details and don't need to disable the link
         !cellProps.row.original.osquery_version
@@ -234,6 +236,12 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
     accessor: "status",
     id: "status",
     Cell: (cellProps: IHostTableStringCellProps) => {
+      if (
+        cellProps.row.original.platform === "ios" ||
+        cellProps.row.original.platform === "ipados"
+      ) {
+        return NotSupported;
+      }
       const value = cellProps.cell.value;
       const tooltip = {
         tooltipText: getHostStatusTooltipText(value),
@@ -247,12 +255,20 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
     disableSortBy: true,
     accessor: "issues",
     id: "issues",
-    Cell: (cellProps: IIssuesCellProps) => (
-      <IssueCell
-        issues={cellProps.row.original.issues}
-        rowId={cellProps.row.original.id}
-      />
-    ),
+    Cell: (cellProps: IIssuesCellProps) => {
+      if (
+        cellProps.row.original.platform === "ios" ||
+        cellProps.row.original.platform === "ipados"
+      ) {
+        return NotSupported;
+      }
+      return (
+        <IssueCell
+          issues={cellProps.row.original.issues}
+          rowId={cellProps.row.original.id}
+        />
+      );
+    },
   },
   {
     title: "Disk space available",
@@ -308,9 +324,15 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
     ),
     accessor: "osquery_version",
     id: "osquery_version",
-    Cell: (cellProps: IHostTableStringCellProps) => (
-      <TextCell value={cellProps.cell.value} />
-    ),
+    Cell: (cellProps: IHostTableStringCellProps) => {
+      if (
+        cellProps.row.original.platform === "ios" ||
+        cellProps.row.original.platform === "ipados"
+      ) {
+        return NotSupported;
+      }
+      return <TextCell value={cellProps.cell.value} />;
+    },
   },
   {
     title: "Used by",
@@ -361,9 +383,15 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
     ),
     accessor: "primary_ip",
     id: "primary_ip",
-    Cell: (cellProps: IHostTableStringCellProps) => (
-      <TextCell value={cellProps.cell.value} />
-    ),
+    Cell: (cellProps: IHostTableStringCellProps) => {
+      if (
+        cellProps.row.original.platform === "ios" ||
+        cellProps.row.original.platform === "ipados"
+      ) {
+        return NotSupported;
+      }
+      return <TextCell value={cellProps.cell.value} />;
+    },
   },
   {
     title: "MDM status",
@@ -434,6 +462,12 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
     accessor: "public_ip",
     id: "public_ip",
     Cell: (cellProps: IHostTableStringCellProps) => {
+      if (
+        cellProps.row.original.platform === "ios" ||
+        cellProps.row.original.platform === "ipados"
+      ) {
+        return NotSupported;
+      }
       return (
         <TextCell value={cellProps.cell.value ?? DEFAULT_EMPTY_CELL_VALUE} />
       );
@@ -494,12 +528,20 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
     },
     accessor: "seen_time",
     id: "seen_time",
-    Cell: (cellProps: IHostTableStringCellProps) => (
-      <TextCell
-        value={{ timeString: cellProps.cell.value }}
-        formatter={HumanTimeDiffWithFleetLaunchCutoff}
-      />
-    ),
+    Cell: (cellProps: IHostTableStringCellProps) => {
+      if (
+        cellProps.row.original.platform === "ios" ||
+        cellProps.row.original.platform === "ipados"
+      ) {
+        return NotSupported;
+      }
+      return (
+        <TextCell
+          value={{ timeString: cellProps.cell.value }}
+          formatter={HumanTimeDiffWithFleetLaunchCutoff}
+        />
+      );
+    },
   },
   {
     title: "UUID",
@@ -525,7 +567,11 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
     Cell: (cellProps: IHostTableStringCellProps) => {
       const { platform, last_restarted_at } = cellProps.row.original;
 
-      if (platform === "chrome") {
+      if (
+        platform === "ios" ||
+        platform === "ipados" ||
+        platform === "chrome"
+      ) {
         return NotSupported;
       }
       return (
@@ -544,9 +590,15 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
     disableSortBy: true,
     accessor: "cpu_type",
     id: "cpu_type",
-    Cell: (cellProps: IHostTableStringCellProps) => (
-      <TextCell value={cellProps.cell.value} />
-    ),
+    Cell: (cellProps: IHostTableStringCellProps) => {
+      if (
+        cellProps.row.original.platform === "ios" ||
+        cellProps.row.original.platform === "ipados"
+      ) {
+        return NotSupported;
+      }
+      return <TextCell value={cellProps.cell.value} />;
+    },
   },
   {
     title: "RAM",
@@ -555,9 +607,17 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
     ),
     accessor: "memory",
     id: "memory",
-    Cell: (cellProps: IHostTableNumberCellProps) => (
-      <TextCell value={cellProps.cell.value} formatter={humanHostMemory} />
-    ),
+    Cell: (cellProps: IHostTableNumberCellProps) => {
+      if (
+        cellProps.row.original.platform === "ios" ||
+        cellProps.row.original.platform === "ipados"
+      ) {
+        return NotSupported;
+      }
+      return (
+        <TextCell value={cellProps.cell.value} formatter={humanHostMemory} />
+      );
+    },
   },
   {
     title: "MAC address",

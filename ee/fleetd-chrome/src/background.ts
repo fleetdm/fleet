@@ -1,4 +1,5 @@
 import VirtualDatabase from "./db";
+import {E_ALREADY_LOCKED, Mutex, tryAcquire, withTimeout} from 'async-mutex';
 
 // ENV Vars
 declare var FLEET_URL: string;
@@ -36,6 +37,15 @@ const request = async ({ path, body = {} }: requestArgs): Promise<any> => {
     response = await fetch(target, options);
     response_body = await response.json();
   } catch (err) {
+    if (response && !response.ok) {
+      let text = ""
+      try {
+        text = await response.text()
+      } catch (e) {
+        // ignore, since we already know response is not ok
+      }
+      throw new Error(`Failed to fetch ${target}: ${response.status} ${response.statusText} ${text}`);
+    }
     console.warn(`Failed to fetch ${target}: ${err}`);
     throw new Error(`${path} request failed`);
   }
@@ -65,8 +75,7 @@ const authenticatedRequest = async ({
   }
 
   try {
-    const response_body = await request({ path, body: { ...body, node_key } });
-    return response_body;
+    return await request({path, body: {...body, node_key}});
   } catch (err) {
     // Reenroll if it's a node_invalid issue (and we haven't already tried a reenroll), otherwise
     // rethrow the error.
@@ -236,6 +245,12 @@ class NodeInvalidError extends Error {
   }
 }
 
+// We use a mutex to ensure that only one instance of main is running at a time.
+const mutexWithTimeout = withTimeout(new Mutex(), 60 * 1000) // 60 second timeout
+async function runExclusive(callback: () => Promise<void>) {
+  await tryAcquire(mutexWithTimeout).runExclusive(callback)
+}
+
 // QUESTION maybe we should use one of the persistence mechanisms described in
 // https://stackoverflow.com/a/66618269/491710? The "offscreen API" mechanism might be useful. On
 // the other hand, this seems to work decently well and adding the complexity might not be worth it.
@@ -247,16 +262,20 @@ class NodeInvalidError extends Error {
 let mainTimeout: ReturnType<typeof setTimeout>;
 const mainLoop = async () => {
   try {
-    await main();
-    clearTimeout(mainTimeout);
-    mainTimeout = setTimeout(mainLoop, 10 * 1000);
+    await runExclusive(main);
   } catch (err) {
+    if (err === E_ALREADY_LOCKED) {
+      console.info("'main' mutex already locked, skipping run")
+      return
+    }
     console.error(err);
     if (err.message === MEMORY_RUNTIME_ERROR_MESSAGE) {
       console.info("Restarting DB after wa-sqlite RuntimeError")
       await initDB();
     }
   }
+  clearTimeout(mainTimeout);
+  mainTimeout = setTimeout(mainLoop, 10 * 1000);
 };
 mainLoop();
 

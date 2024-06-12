@@ -278,9 +278,10 @@ changelog_and_versions() {
             *)          echo "unknown distro to parse version"
         esac
         git add terraform charts infrastructure tools
-        git commit -m "Adding changes for patch $target_milestone"
+        git commit -m "Adding changes for Fleet v$target_milestone"
         git push origin $branch_for_changelog -f
         gh pr create -f -B $source_branch
+        gh workflow run goreleaser-snapshot-fleet.yaml --ref $source_branch # Manually trigger workflow run
     else
         echo "DRYRUN: Would have created Changelog / verison pr from $branch_for_changelog to $source_branch"
     fi
@@ -673,24 +674,32 @@ fi
 next_tag="fleet-$next_ver"
 
 if [[ "$target_milestone_number" == "" ]]; then
-    echo "Missing milestone $target_milestone, Please create one and tie tickets to the milestone to continue"
-    exit 1
+    if [ "$announce_only" = "false" ]; then
+        echo "Missing milestone $target_milestone, Please create one and tie tickets to the milestone to continue"
+        exit 1
+    fi
 fi
 echo "Found milestone $target_milestone with number $target_milestone_number"
 
 if [ "$print_info" = "true" ]; then
-    print_announce_info
-    exit 0
+    if [ "$announce_only" = "false" ]; then
+        print_announce_info
+        exit 0
+    fi
 fi
 
 if [ "$do_tag" = "true" ]; then
-    tag
-    exit 0
+    if [ "$announce_only" = "false" ]; then
+        tag
+        exit 0
+    fi
 fi
 
 if [ "$release_notes" = "true" ]; then
-    update_release_notes
-    exit 0
+    if [ "$announce_only" = "false" ]; then
+        update_release_notes
+        exit 0
+    fi
 fi
 
 if [ "$publish_release" = "true" ]; then
@@ -734,7 +743,7 @@ if [ "$cherry_pick_resolved" = "false" ]; then
         prs_for_issue=`gh api repos/fleetdm/fleet/issues/$issue/timeline --paginate | jq -r '.[]' | $GREP_CMD "fleetdm/fleet/" | $GREP_CMD -oP "pulls\/\K(?:\d+)"`
         echo -n "https://github.com/fleetdm/fleet/issues/$issue"
         if [[ "$prs_for_issue" == "" ]]; then
-            echo -n "NO PR's found, please verify they are not missing in the issue, if no PR's were required for this ticket please reconsider adding it to this release."
+            echo -n " NO PR's found, please verify they are not missing in the issue, if no PR's were required for this ticket please reconsider adding it to this release."
         fi
         for val in $prs_for_issue; do
             echo -n " $val"

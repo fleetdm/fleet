@@ -50,14 +50,43 @@ export interface ISoftwareTitleVersion {
   hosts_count?: number;
 }
 
-export interface ISoftwareTitle {
+export interface ISoftwarePackage {
+  name: string;
+  version: string;
+  uploaded_at: string;
+  install_script: string;
+  pre_install_query?: string;
+  post_install_script?: string;
+  self_service: boolean;
+  status: {
+    installed: number;
+    pending: number;
+    failed: number;
+  };
+}
+
+interface ISoftwareTitle {
   id: number;
   name: string;
+  software_package: ISoftwarePackage | string | null;
   versions_count: number;
   source: string;
   hosts_count: number;
   versions: ISoftwareTitleVersion[] | null;
   browser: string;
+  self_service?: boolean;
+}
+
+export interface ISoftwareTitleWithPackageName
+  extends Omit<ISoftwareTitle, "software_package" | "self-service"> {
+  software_package: string | null;
+  self_service: boolean;
+}
+
+export interface ISoftwareTitleWithPackageDetail
+  extends Omit<ISoftwareTitle, "software_package" | "self-service"> {
+  software_package: ISoftwarePackage | null;
+  self_service?: never;
 }
 
 export interface ISoftwareVulnerability {
@@ -123,7 +152,7 @@ export const formatSoftwareType = ({
   browser,
 }: {
   source: string;
-  browser: string;
+  browser?: string;
 }) => {
   let type = SOURCE_TYPE_CONVERSION[source] || "Unknown";
   if (browser) {
@@ -132,4 +161,83 @@ export const formatSoftwareType = ({
     })`;
   }
   return type;
+};
+
+/**
+ * This list comprises all possible states of software install operations.
+ */
+export const SOFTWARE_INSTALL_STATUSES = [
+  "failed",
+  "installed",
+  "pending",
+] as const;
+
+/*
+ * SoftwareInstallStatus represents the possible states of software install operations.
+ */
+export type SoftwareInstallStatus = typeof SOFTWARE_INSTALL_STATUSES[number];
+
+export const isValidSoftwareInstallStatus = (
+  s: string | undefined
+): s is SoftwareInstallStatus =>
+  !!s && SOFTWARE_INSTALL_STATUSES.includes(s as SoftwareInstallStatus);
+
+/**
+ * ISoftwareInstallResult is the shape of a software install result object
+ * returned by the Fleet API.
+ */
+export interface ISoftwareInstallResult {
+  install_uuid: string;
+  software_title: string;
+  software_title_id: number;
+  software_package: string;
+  host_id: number;
+  host_display_name: string;
+  status: SoftwareInstallStatus;
+  detail: string;
+  output: string;
+  pre_install_query_output: string;
+  post_install_script_output: string;
+}
+
+export interface ISoftwareInstallResults {
+  results: ISoftwareInstallResult;
+}
+
+// ISoftwareInstallerType defines the supported installer types for
+// software uploaded by the IT admin.
+export type ISoftwareInstallerType = "pkg" | "msi" | "deb" | "exe";
+
+export interface ISoftwareLastInstall {
+  install_uuid: string;
+  installed_at: string;
+}
+
+export interface ISoftwareInstallVersion {
+  version: string;
+  last_opened_at: string | null;
+  vulnerabilities: string[] | null;
+  installed_paths: string[];
+}
+
+export interface IHostSoftware {
+  id: number;
+  name: string;
+  package_available_for_install?: string | null;
+  self_service: boolean;
+  source: string;
+  bundle_identifier?: string;
+  status: SoftwareInstallStatus | null;
+  last_install: ISoftwareLastInstall | null;
+  installed_versions: ISoftwareInstallVersion[] | null;
+}
+
+export type IDeviceSoftware = Omit<
+  IHostSoftware,
+  "package_available_for_install"
+> & {
+  package: {
+    name: string;
+    version: string;
+  };
 };

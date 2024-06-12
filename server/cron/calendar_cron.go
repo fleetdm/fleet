@@ -5,10 +5,13 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/ee/server/calendar"
+	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/schedule"
@@ -18,12 +21,19 @@ import (
 )
 
 const calendarConsumers = 18
+const defaultDescription = "needs to make sure your device meets the organization's requirements."
+const defaultResolution = "During this maintenance window, you can expect updates to be applied automatically. Your device may be unavailable during this time."
+
+type calendarConfig struct {
+	config.CalendarConfig
+	fleet.GoogleCalendarIntegration
+}
 
 func NewCalendarSchedule(
 	ctx context.Context,
 	instanceID string,
 	ds fleet.Datastore,
-	interval time.Duration,
+	serverConfig config.CalendarConfig,
 	logger kitlog.Logger,
 ) (*schedule.Schedule, error) {
 	const (
@@ -31,7 +41,7 @@ func NewCalendarSchedule(
 	)
 	logger = kitlog.With(logger, "cron", name)
 	s := schedule.New(
-		ctx, name, instanceID, interval, ds, ds,
+		ctx, name, instanceID, serverConfig.Periodicity, ds, ds,
 		schedule.WithAltLockID("calendar"),
 		schedule.WithLogger(logger),
 		schedule.WithJob(
@@ -43,7 +53,7 @@ func NewCalendarSchedule(
 		schedule.WithJob(
 			"calendar_events",
 			func(ctx context.Context) error {
-				return cronCalendarEvents(ctx, ds, logger)
+				return cronCalendarEvents(ctx, ds, serverConfig, logger)
 			},
 		),
 	)
@@ -51,7 +61,7 @@ func NewCalendarSchedule(
 	return s, nil
 }
 
-func cronCalendarEvents(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger) error {
+func cronCalendarEvents(ctx context.Context, ds fleet.Datastore, serverConfig config.CalendarConfig, logger kitlog.Logger) error {
 	appConfig, err := ds.AppConfig(ctx)
 	if err != nil {
 		return fmt.Errorf("load app config: %w", err)
@@ -63,18 +73,24 @@ func cronCalendarEvents(ctx context.Context, ds fleet.Datastore, logger kitlog.L
 	googleCalendarIntegrationConfig := appConfig.Integrations.GoogleCalendar[0]
 	domain := googleCalendarIntegrationConfig.Domain
 
-	teams, err := ds.ListTeams(ctx, fleet.TeamFilter{
-		User: &fleet.User{
-			GlobalRole: ptr.String(fleet.RoleAdmin),
-		},
-	}, fleet.ListOptions{})
+	teams, err := ds.ListTeams(
+		ctx, fleet.TeamFilter{
+			User: &fleet.User{
+				GlobalRole: ptr.String(fleet.RoleAdmin),
+			},
+		}, fleet.ListOptions{},
+	)
 	if err != nil {
 		return fmt.Errorf("list teams: %w", err)
 	}
 
+	localConfig := calendarConfig{
+		CalendarConfig:            serverConfig,
+		GoogleCalendarIntegration: *googleCalendarIntegrationConfig,
+	}
 	for _, team := range teams {
 		if err := cronCalendarEventsForTeam(
-			ctx, ds, googleCalendarIntegrationConfig, *team, appConfig.OrgInfo.OrgName, domain, logger,
+			ctx, ds, localConfig, *team, appConfig.OrgInfo.OrgName, domain, logger,
 		); err != nil {
 			level.Info(logger).Log("msg", "events calendar cron", "team_id", team.ID, "err", err)
 		}
@@ -95,7 +111,7 @@ func createUserCalendarFromConfig(ctx context.Context, config *fleet.GoogleCalen
 func cronCalendarEventsForTeam(
 	ctx context.Context,
 	ds fleet.Datastore,
-	calendarConfig *fleet.GoogleCalendarIntegration,
+	calendarConfig calendarConfig,
 	team fleet.Team,
 	orgName string,
 	domain string,
@@ -170,7 +186,7 @@ func cronCalendarEventsForTeam(
 	// policies on one of its hosts, and possibly create a new calendar event if they have
 	// another failing host on the same team.
 	start := time.Now()
-	removeCalendarEventsFromPassingHosts(ctx, ds, calendarConfig, passingHosts, logger)
+	removeCalendarEventsFromPassingHosts(ctx, ds, &calendarConfig.GoogleCalendarIntegration, passingHosts, logger)
 	level.Debug(logger).Log(
 		"msg", "passing_hosts", "took", time.Since(start),
 	)
@@ -182,7 +198,7 @@ func cronCalendarEventsForTeam(
 		"msg", "failing_hosts", "took", time.Since(start),
 	)
 
-	// At last we want to log the hosts that are failing and don't have an associated email.
+	// At last, we want to log the hosts that are failing and don't have an associated email.
 	logHostsWithoutAssociatedEmail(
 		domain,
 		failingHostsWithoutAssociatedEmail,
@@ -195,7 +211,7 @@ func cronCalendarEventsForTeam(
 func processCalendarFailingHosts(
 	ctx context.Context,
 	ds fleet.Datastore,
-	calendarConfig *fleet.GoogleCalendarIntegration,
+	calendarConfig calendarConfig,
 	orgName string,
 	hosts []fleet.HostPolicyMembershipData,
 	logger kitlog.Logger,
@@ -204,6 +220,9 @@ func processCalendarFailingHosts(
 
 	hostsCh := make(chan fleet.HostPolicyMembershipData)
 	var wg sync.WaitGroup
+	// policyIDtoPolicy maps policy IDs to policies.
+	// It is a cache to avoid querying the database for each host.
+	policyIDtoPolicy := sync.Map{}
 
 	for i := 0; i < calendarConsumers; i++ {
 		wg.Add(+1)
@@ -239,7 +258,7 @@ func processCalendarFailingHosts(
 					}
 				}
 
-				userCalendar := createUserCalendarFromConfig(ctx, calendarConfig, logger)
+				userCalendar := createUserCalendarFromConfig(ctx, &calendarConfig.GoogleCalendarIntegration, logger)
 				if err := userCalendar.Configure(host.Email); err != nil {
 					level.Error(logger).Log("msg", "configure user calendar", "err", err)
 					continue // continue with next host
@@ -248,14 +267,14 @@ func processCalendarFailingHosts(
 				switch {
 				case err == nil && !expiredEvent:
 					if err := processFailingHostExistingCalendarEvent(
-						ctx, ds, userCalendar, orgName, hostCalendarEvent, calendarEvent, host,
+						ctx, ds, userCalendar, orgName, hostCalendarEvent, calendarEvent, host, &policyIDtoPolicy, calendarConfig, logger,
 					); err != nil {
 						level.Info(logger).Log("msg", "process failing host existing calendar event", "err", err)
 						continue // continue with next host
 					}
 				case fleet.IsNotFound(err) || expiredEvent:
 					if err := processFailingHostCreateCalendarEvent(
-						ctx, ds, userCalendar, orgName, host,
+						ctx, ds, userCalendar, orgName, host, &policyIDtoPolicy, logger,
 					); err != nil {
 						level.Info(logger).Log("msg", "process failing host create calendar event", "err", err)
 						continue // continue with next host
@@ -303,16 +322,21 @@ func processFailingHostExistingCalendarEvent(
 	hostCalendarEvent *fleet.HostCalendarEvent,
 	calendarEvent *fleet.CalendarEvent,
 	host fleet.HostPolicyMembershipData,
+	policyIDtoPolicy *sync.Map,
+	calendarConfig calendarConfig,
+	logger kitlog.Logger,
 ) error {
 	updatedEvent := calendarEvent
 	updated := false
 	now := time.Now()
 
-	if shouldReloadCalendarEvent(now, calendarEvent, hostCalendarEvent) {
+	if calendarConfig.AlwaysReloadEvent() || shouldReloadCalendarEvent(now, calendarEvent, hostCalendarEvent) {
 		var err error
-		updatedEvent, _, err = calendar.GetAndUpdateEvent(calendarEvent, func(conflict bool) string {
-			return generateCalendarEventBody(orgName, host.HostDisplayName, conflict)
-		})
+		updatedEvent, _, err = calendar.GetAndUpdateEvent(
+			calendarEvent, func(conflict bool) string {
+				return generateCalendarEventBody(ctx, ds, orgName, host, policyIDtoPolicy, conflict, logger)
+			},
+		)
 		if err != nil {
 			return fmt.Errorf("get event calendar on db: %w", err)
 		}
@@ -321,7 +345,8 @@ func processFailingHostExistingCalendarEvent(
 	}
 
 	if updated {
-		if err := ds.UpdateCalendarEvent(ctx,
+		if err := ds.UpdateCalendarEvent(
+			ctx,
 			calendarEvent.ID,
 			updatedEvent.StartTime,
 			updatedEvent.EndTime,
@@ -400,28 +425,36 @@ func processFailingHostCreateCalendarEvent(
 	userCalendar fleet.UserCalendar,
 	orgName string,
 	host fleet.HostPolicyMembershipData,
+	policyIDtoPolicy *sync.Map,
+	logger kitlog.Logger,
 ) error {
-	calendarEvent, err := attemptCreatingEventOnUserCalendar(orgName, host, userCalendar)
+	calendarEvent, err := attemptCreatingEventOnUserCalendar(ctx, ds, orgName, host, userCalendar, policyIDtoPolicy, logger)
 	if err != nil {
 		return fmt.Errorf("create event on user calendar: %w", err)
 	}
-	if _, err := ds.CreateOrUpdateCalendarEvent(ctx, host.Email, calendarEvent.StartTime, calendarEvent.EndTime, calendarEvent.Data, host.HostID, fleet.CalendarWebhookStatusNone); err != nil {
+	if _, err := ds.CreateOrUpdateCalendarEvent(
+		ctx, host.Email, calendarEvent.StartTime, calendarEvent.EndTime, calendarEvent.Data, host.HostID, fleet.CalendarWebhookStatusNone,
+	); err != nil {
 		return fmt.Errorf("create calendar event on db: %w", err)
 	}
 	return nil
 }
 
 func attemptCreatingEventOnUserCalendar(
+	ctx context.Context,
+	ds fleet.Datastore,
 	orgName string,
 	host fleet.HostPolicyMembershipData,
 	userCalendar fleet.UserCalendar,
+	policyIDtoPolicy *sync.Map,
+	logger kitlog.Logger,
 ) (*fleet.CalendarEvent, error) {
 	year, month, today := time.Now().Date()
 	preferredDate := getPreferredCalendarEventDate(year, month, today)
 	for {
 		calendarEvent, err := userCalendar.CreateEvent(
 			preferredDate, func(conflict bool) string {
-				return generateCalendarEventBody(orgName, host.HostDisplayName, conflict)
+				return generateCalendarEventBody(ctx, ds, orgName, host, policyIDtoPolicy, conflict, logger)
 			},
 		)
 		var dee fleet.DayEndedError
@@ -469,6 +502,8 @@ func addBusinessDay(date time.Time) time.Time {
 		nextBusinessDay += 2
 	case time.Saturday:
 		nextBusinessDay += 1
+	default:
+		// nextBusinessDay is 1
 	}
 	return date.AddDate(0, 0, nextBusinessDay)
 }
@@ -490,10 +525,12 @@ func removeCalendarEventsFromPassingHosts(
 	}
 	emails := make([]emailWithHosts, 0, len(hostIDsByEmail))
 	for email, hostIDs := range hostIDsByEmail {
-		emails = append(emails, emailWithHosts{
-			email:   email,
-			hostIDs: hostIDs,
-		})
+		emails = append(
+			emails, emailWithHosts{
+				email:   email,
+				hostIDs: hostIDs,
+			},
+		)
 	}
 
 	emailsCh := make(chan emailWithHosts)
@@ -555,17 +592,72 @@ func logHostsWithoutAssociatedEmail(
 	)
 }
 
-func generateCalendarEventBody(orgName, hostDisplayName string, conflict bool) string {
+func generateCalendarEventBody(
+	ctx context.Context, ds fleet.Datastore, orgName string, host fleet.HostPolicyMembershipData, policyIDtoPolicy *sync.Map, conflict bool,
+	logger kitlog.Logger,
+) string {
+	description, resolution := getCalendarEventDescriptionAndResolution(ctx, ds, orgName, host, policyIDtoPolicy, logger)
+
 	conflictStr := ""
 	if conflict {
 		conflictStr = " because there was no remaining availability"
 	}
-	return fmt.Sprintf(`Please leave your computer on and connected to power.
+	return fmt.Sprintf(
+		`%s reserved this time to make some changes to your work computer%s.
 
-Expect an automated restart.
+Please leave your device on and connected to power.
 
-%s reserved this time to fix %s%s.`, orgName, hostDisplayName, conflictStr,
+<b>Why it matters</b>
+%s
+
+<b>What we'll do</b>
+%s
+`,
+		orgName, conflictStr, description, resolution,
 	)
+}
+
+func getCalendarEventDescriptionAndResolution(
+	ctx context.Context, ds fleet.Datastore, orgName string, host fleet.HostPolicyMembershipData, policyIDtoPolicy *sync.Map,
+	logger kitlog.Logger,
+) (string, string) {
+	getDefaultDescription := func() string {
+		return fmt.Sprintf(`%s %s`, orgName, defaultDescription)
+	}
+
+	var description, resolution string
+	policyIDs := strings.Split(host.FailingPolicyIDs, ",")
+	if len(policyIDs) == 1 && policyIDs[0] != "" {
+		var policy *fleet.PolicyLite
+		policyAny, ok := policyIDtoPolicy.Load(policyIDs[0])
+		if !ok {
+			id, err := strconv.ParseUint(policyIDs[0], 10, 64)
+			if err != nil {
+				level.Error(logger).Log("msg", "parse policy id", "err", err)
+				return getDefaultDescription(), defaultResolution
+			}
+			policy, err = ds.PolicyLite(ctx, uint(id))
+			if err != nil {
+				level.Error(logger).Log("msg", "get policy", "err", err)
+				return getDefaultDescription(), defaultResolution
+			}
+			policyIDtoPolicy.Store(policyIDs[0], policy)
+		} else {
+			policy = policyAny.(*fleet.PolicyLite)
+		}
+		policyDescription := strings.TrimSpace(policy.Description)
+		if policyDescription == "" || policy.Resolution == nil || strings.TrimSpace(*policy.Resolution) == "" {
+			description = getDefaultDescription()
+			resolution = defaultResolution
+		} else {
+			description = policyDescription
+			resolution = strings.TrimSpace(*policy.Resolution)
+		}
+	} else {
+		description = getDefaultDescription()
+		resolution = defaultResolution
+	}
+	return description, resolution
 }
 
 func isHostOnline(ctx context.Context, ds fleet.Datastore, hostID uint) (bool, error) {
@@ -616,11 +708,13 @@ func cronCalendarEventsCleanup(ctx context.Context, ds fleet.Datastore, logger k
 	// Feature is configured globally, but now we have to check team by team.
 	//
 
-	teams, err := ds.ListTeams(ctx, fleet.TeamFilter{
-		User: &fleet.User{
-			GlobalRole: ptr.String(fleet.RoleAdmin),
-		},
-	}, fleet.ListOptions{})
+	teams, err := ds.ListTeams(
+		ctx, fleet.TeamFilter{
+			User: &fleet.User{
+				GlobalRole: ptr.String(fleet.RoleAdmin),
+			},
+		}, fleet.ListOptions{},
+	)
 	if err != nil {
 		return fmt.Errorf("list teams: %w", err)
 	}
@@ -709,13 +803,15 @@ func cleanupTeamCalendarEvents(
 			return nil
 		}
 		// Feature is enabled but there are no calendar policies,
-		// so we want to cleanup all calendar events for the team.
+		// so we want to clean up all calendar events for the team.
 	}
 
 	return deleteAllCalendarEvents(ctx, ds, calendarConfig, &team.ID, logger)
 }
 
-func deleteCalendarEvent(ctx context.Context, ds fleet.Datastore, userCalendar fleet.UserCalendar, calendarEvent *fleet.CalendarEvent) error {
+func deleteCalendarEvent(
+	ctx context.Context, ds fleet.Datastore, userCalendar fleet.UserCalendar, calendarEvent *fleet.CalendarEvent,
+) error {
 	if userCalendar != nil {
 		// Only delete events from the user's calendar if the event is in the future.
 		if eventInFuture := time.Now().Before(calendarEvent.StartTime); eventInFuture {

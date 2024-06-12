@@ -183,7 +183,7 @@ const SoftwareOSDetailsPage = ({
               name={osVersionDetails.platform}
             />
             <Card
-              borderRadiusSize="large"
+              borderRadiusSize="xxlarge"
               includeShadow
               className={`${baseClass}__vulnerabilities-section`}
             >

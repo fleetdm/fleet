@@ -4,9 +4,9 @@ module.exports = {
   friendlyName: 'Deliver Apple CSR',
 
 
-  description: 'Generate and deliver a signed certificate signing request to a requesting user\'s email address.',
+  description: 'Generate and optionally deliver a signed certificate signing request to a requesting user\'s email address.',
 
-  extendedDescription: 'Uses the mdm-gen-cert binary to generate a signed CSR for the user and sends the result to the requesting user\'s email address',
+  extendedDescription: 'Uses the mdm-gen-cert binary to generate a signed CSR for the user and optionally sends the result to the requesting user\'s email address',
 
 
   inputs: {
@@ -14,6 +14,12 @@ module.exports = {
       required: true,
       type: 'string',
       description: 'Base64 encoded CSR submitted from the Fleet server or `fleetctl` on behalf of the user.'
+    },
+    deliveryMethod: {
+      type: 'string',
+      description: 'How the signed CSR will be delivered to the user. ',
+      defaultsTo: 'email',
+      isIn: ['email', 'json']
     }
   },
 
@@ -21,7 +27,9 @@ module.exports = {
   exits: {
 
     success: {
-      description: 'Delivered email to specified email address with certificate signing request attached.'
+      description: 'Signed the provided CSR.',
+      outputType: {csr:'string'},
+      outputFriendlyName: 'Signed CSR',
     },
 
     invalidEmailDomain: {
@@ -35,7 +43,7 @@ module.exports = {
 
   },
 
-  fn: async function({unsignedCsrData}) {
+  fn: async function({unsignedCsrData, deliveryMethod}) {
     let path = require('path');
 
     let signingToolExists = await sails.helpers.fs.exists(path.resolve(sails.config.appPath, '.tools/mdm-gen-cert'));
@@ -113,26 +121,42 @@ module.exports = {
       organization: generateCertificateResult.org,
     });
 
-    // Send an email to the user, with the result from the mdm-gen-cert command attached as a plain text file.
-    await sails.helpers.sendTemplateEmail.with({
-      to: generateCertificateResult.email,
-      subject: 'Your certificate signing request from Fleet',
-      from: sails.config.custom.fromEmailAddress,
-      fromName: sails.config.custom.fromName,
-      template: 'email-signed-csr-for-apns',
-      templateData: {},
-      attachments: [{
-        // When the file is provided as an attachment to the Sails helper, it
-        // gets decoded, since we need for the signed CSR to be delivered in
-        // base64 format, we doubly encode the contents before sending the
-        // email.
-        contentBytes: Buffer.from(generateCertificateResult.request).toString('base64'),
-        name: 'apple-apns-csr.txt',
-        type: 'text/plain',
-      }],
-    }).intercept((err)=>{
-      return new Error(`When trying to send a signed CSR to a user (${generateCertificateResult.email}), an error occured. Full error: ${err}`);
-    });
+    // respBody contains the raw response body content, it defaults to
+    // `undefined` as this was the default behavior of this endpoint before the
+    // 'deliveryMethod' parameter was introduced.
+    var respBody;
+    switch(deliveryMethod) {
+      case 'json':
+        this.res.type('application/json');
+        respBody = JSON.stringify({
+          csr: Buffer.from(generateCertificateResult.request).toString('base64'),
+        });
+        break;
+      case 'email':
+        // Send an email to the user, with the result from the mdm-gen-cert command attached as a plain text file.
+        await sails.helpers.sendTemplateEmail.with({
+          to: generateCertificateResult.email,
+          subject: 'Your certificate signing request from Fleet',
+          from: sails.config.custom.fromEmailAddress,
+          fromName: sails.config.custom.fromName,
+          template: 'email-signed-csr-for-apns',
+          templateData: {},
+          attachments: [{
+            // When the file is provided as an attachment to the Sails helper, it
+            // gets decoded, since we need for the signed CSR to be delivered in
+            // base64 format, we doubly encode the contents before sending the
+            // email.
+            contentBytes: Buffer.from(generateCertificateResult.request).toString('base64'),
+            name: 'apple-apns-csr.txt',
+            type: 'text/plain',
+          }],
+        }).intercept((err)=>{
+          return new Error(`When trying to send a signed CSR to a user (${generateCertificateResult.email}), an error occured. Full error: ${err}`);
+        });
+        break;
+      default:
+        throw 'badRequest';
+    }
 
     // Send a message to Slack.
     await sails.helpers.http.post(sails.config.custom.slackWebhookUrlForMDMSignups, {
@@ -140,7 +164,7 @@ module.exports = {
     });
 
 
-    return;
+    return respBody;
   }
 
 };

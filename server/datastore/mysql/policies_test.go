@@ -35,6 +35,7 @@ func TestPolicies(t *testing.T) {
 		{"MembershipViewNotDeferred", func(t *testing.T, ds *Datastore) { testPoliciesMembershipView(false, t, ds) }},
 		{"TeamPolicyLegacy", testTeamPolicyLegacy},
 		{"TeamPolicyProprietary", testTeamPolicyProprietary},
+		{"ListMergedTeamPolicies", testListMergedTeamPolicies},
 		{"PolicyQueriesForHost", testPolicyQueriesForHost},
 		{"PolicyQueriesForHostPlatforms", testPolicyQueriesForHostPlatforms},
 		{"PoliciesByID", testPoliciesByID},
@@ -707,6 +708,126 @@ func testTeamPolicyProprietary(t *testing.T, ds *Datastore) {
 	assert.Equal(t, "query2 other resolution", *teamPolicies[0].Resolution)
 	require.NotNil(t, team2Policies[0].AuthorID)
 	require.Equal(t, user1.ID, *team2Policies[0].AuthorID)
+}
+
+func testListMergedTeamPolicies(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	gpol, err := ds.NewGlobalPolicy(ctx, nil, fleet.PolicyPayload{
+		Name:        "query1 global",
+		Query:       "select 1;",
+		Description: "query1 desc",
+		Resolution:  "query1 resolution",
+	})
+	require.NoError(t, err)
+
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+
+	team1policy, err := ds.NewTeamPolicy(ctx, team1.ID, nil, fleet.PolicyPayload{
+		Name:        "query2 team1",
+		Query:       "select 1;",
+		Description: "query1 desc",
+		Resolution:  "query1 resolution",
+	})
+	require.NoError(t, err)
+
+	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "team2"})
+	require.NoError(t, err)
+
+	team2policy, err := ds.NewTeamPolicy(ctx, team2.ID, nil, fleet.PolicyPayload{
+		Name:        "query3 team2",
+		Query:       "select 2;",
+		Description: "query2 desc",
+		Resolution:  "query2 resolution",
+	})
+	require.NoError(t, err)
+
+	// Test list options affect both global and team policies
+	merged, err := ds.ListMergedTeamPolicies(ctx, team1.ID, fleet.ListOptions{
+		OrderKey:       "name",
+		OrderDirection: fleet.OrderDescending,
+	})
+	require.NoError(t, err)
+
+	require.Len(t, merged, 2)
+	assert.Equal(t, team1policy.ID, merged[0].ID)
+	assert.Equal(t, gpol.ID, merged[1].ID)
+
+	// Test filter
+	merged, err = ds.ListMergedTeamPolicies(ctx, team1.ID, fleet.ListOptions{
+		MatchQuery: "query1",
+	})
+	require.NoError(t, err)
+	require.Len(t, merged, 1)
+	assert.Equal(t, gpol.ID, merged[0].ID)
+
+	merged, err = ds.ListMergedTeamPolicies(ctx, team1.ID, fleet.ListOptions{
+		MatchQuery: "query2",
+	})
+	require.NoError(t, err)
+	require.Len(t, merged, 1)
+	assert.Equal(t, team1policy.ID, merged[0].ID)
+
+	// Test HostPolicyCounts
+
+	// Global Host
+	host, err := ds.NewHost(context.Background(), &fleet.Host{OsqueryHostID: ptr.String(fmt.Sprint("host1")), NodeKey: ptr.String(fmt.Sprint("host1", 1)), TeamID: nil})
+	require.NoError(t, err)
+
+	err = ds.RecordPolicyQueryExecutions(ctx, host, map[uint]*bool{gpol.ID: ptr.Bool(true)}, time.Now(), false)
+	require.NoError(t, err)
+
+	err = ds.UpdateHostPolicyCounts(context.Background())
+	require.NoError(t, err)
+
+	// team 1 shows no host counts
+	merged, err = ds.ListMergedTeamPolicies(ctx, team1.ID, fleet.ListOptions{
+		OrderKey: "name",
+	})
+	require.NoError(t, err)
+	require.Len(t, merged, 2)
+	assert.Equal(t, gpol.ID, merged[0].ID)
+	assert.Equal(t, uint(0), merged[0].PassingHostCount)
+	assert.Equal(t, uint(0), merged[0].FailingHostCount)
+	assert.Equal(t, team1policy.ID, merged[1].ID)
+	assert.Equal(t, uint(0), merged[1].PassingHostCount)
+	assert.Equal(t, uint(0), merged[1].FailingHostCount)
+
+	// move host to team1
+	err = ds.AddHostsToTeam(ctx, &team1.ID, []uint{host.ID})
+	require.NoError(t, err)
+
+	err = ds.RecordPolicyQueryExecutions(ctx, host, map[uint]*bool{team1policy.ID: ptr.Bool(true)}, time.Now(), false)
+	require.NoError(t, err)
+
+	err = ds.UpdateHostPolicyCounts(context.Background())
+	require.NoError(t, err)
+
+	// team 1 shows host counts
+	merged, err = ds.ListMergedTeamPolicies(ctx, team1.ID, fleet.ListOptions{
+		OrderKey: "name",
+	})
+	require.NoError(t, err)
+	require.Len(t, merged, 2)
+	assert.Equal(t, gpol.ID, merged[0].ID)
+	assert.Equal(t, uint(1), merged[0].PassingHostCount)
+	assert.Equal(t, uint(0), merged[0].FailingHostCount)
+	assert.Equal(t, team1policy.ID, merged[1].ID)
+	assert.Equal(t, uint(1), merged[1].PassingHostCount)
+	assert.Equal(t, uint(0), merged[1].FailingHostCount)
+
+	// team2 shows no host counts
+	merged, err = ds.ListMergedTeamPolicies(ctx, team2.ID, fleet.ListOptions{
+		OrderKey: "name",
+	})
+	require.NoError(t, err)
+	require.Len(t, merged, 2)
+	assert.Equal(t, gpol.ID, merged[0].ID)
+	assert.Equal(t, uint(0), merged[0].PassingHostCount)
+	assert.Equal(t, uint(0), merged[0].FailingHostCount)
+	assert.Equal(t, team2policy.ID, merged[1].ID)
+	assert.Equal(t, uint(0), merged[1].PassingHostCount)
+	assert.Equal(t, uint(0), merged[1].FailingHostCount)
 }
 
 func newTestHostWithPlatform(t *testing.T, ds *Datastore, hostname, platform string, teamID *uint) *fleet.Host {
@@ -1690,7 +1811,6 @@ func testApplyPolicySpecWithQueryPlatformChanges(t *testing.T, ds *Datastore) {
 	assert.Equal(t, uint(2), polsByName[teamNames[0]].FailingHostCount)   // updated platform
 	assert.Equal(t, uint(1), polsByName[teamNames[1]].FailingHostCount)   // platform is "darwin" -- no change
 	assert.Equal(t, uint(0), polsByName[teamNames[2]].FailingHostCount)   // updated query
-
 }
 
 func testPoliciesSave(t *testing.T, ds *Datastore) {
@@ -2899,6 +3019,10 @@ func testCountPolicies(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	assert.Equal(t, 0, teamCount)
 
+	mergedCount, err := ds.CountMergedTeamPolicies(ctx, tm.ID, "")
+	require.NoError(t, err)
+	assert.Equal(t, 0, mergedCount)
+
 	// 10 global policies
 	for i := 0; i < 10; i++ {
 		_, err := ds.NewGlobalPolicy(ctx, nil, fleet.PolicyPayload{Name: fmt.Sprintf("global policy %d", i)})
@@ -2913,6 +3037,10 @@ func testCountPolicies(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	assert.Equal(t, 0, teamCount)
 
+	mergedCount, err = ds.CountMergedTeamPolicies(ctx, tm.ID, "")
+	require.NoError(t, err)
+	assert.Equal(t, 10, mergedCount)
+
 	// add 5 team policies
 	for i := 0; i < 5; i++ {
 		_, err := ds.NewTeamPolicy(ctx, tm.ID, nil, fleet.PolicyPayload{Name: fmt.Sprintf("team policy %d", i)})
@@ -2926,6 +3054,23 @@ func testCountPolicies(t *testing.T, ds *Datastore) {
 	globalCount, err = ds.CountPolicies(ctx, nil, "")
 	require.NoError(t, err)
 	assert.Equal(t, 10, globalCount)
+
+	mergedCount, err = ds.CountMergedTeamPolicies(ctx, tm.ID, "")
+	require.NoError(t, err)
+	assert.Equal(t, 15, mergedCount)
+
+	// test filter
+	globalCount, err = ds.CountPolicies(ctx, nil, "global policy 1")
+	require.NoError(t, err)
+	assert.Equal(t, 1, globalCount)
+
+	teamCount, err = ds.CountPolicies(ctx, &tm.ID, "team policy 1")
+	require.NoError(t, err)
+	assert.Equal(t, 1, teamCount)
+
+	mergedCount, err = ds.CountMergedTeamPolicies(ctx, tm.ID, "policy 1")
+	require.NoError(t, err)
+	assert.Equal(t, 2, mergedCount)
 }
 
 func testUpdatePolicyHostCounts(t *testing.T, ds *Datastore) {
@@ -2933,34 +3078,18 @@ func testUpdatePolicyHostCounts(t *testing.T, ds *Datastore) {
 	policy, err := ds.NewGlobalPolicy(context.Background(), nil, fleet.PolicyPayload{Name: "global policy 1"})
 	require.NoError(t, err)
 
-	team, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team1"})
-	require.NoError(t, err)
-
-	// create 4 team hosts
-	var teamHosts []*fleet.Host
-	for i := 0; i < 4; i++ {
-		h, err := ds.NewHost(context.Background(), &fleet.Host{OsqueryHostID: ptr.String(fmt.Sprintf("host%d", i)), NodeKey: ptr.String(fmt.Sprintf("host%d", i)), TeamID: &team.ID})
-		require.NoError(t, err)
-		teamHosts = append(teamHosts, h)
-	}
-
 	// create 4 global hosts
 	var globalHosts []*fleet.Host
-	for i := 4; i < 8; i++ {
-		h, err := ds.NewHost(context.Background(), &fleet.Host{OsqueryHostID: ptr.String(fmt.Sprintf("host%d", i)), NodeKey: ptr.String(fmt.Sprintf("host%d", i)), TeamID: nil})
+	for i := 100; i < 104; i++ {
+		h, err := ds.NewHost(
+			context.Background(),
+			&fleet.Host{OsqueryHostID: ptr.String(fmt.Sprintf("host%d", i)), NodeKey: ptr.String(fmt.Sprintf("host%d", i)), TeamID: nil},
+		)
 		require.NoError(t, err)
 		globalHosts = append(globalHosts, h)
 	}
 
-	// add policy responses
-	for _, h := range teamHosts {
-		res := map[uint]*bool{
-			policy.ID: ptr.Bool(true),
-		}
-		err = ds.RecordPolicyQueryExecutions(context.Background(), h, res, time.Now(), false)
-		require.NoError(t, err)
-	}
-
+	// add policy responses to global hosts
 	for _, h := range globalHosts {
 		res := map[uint]*bool{
 			policy.ID: ptr.Bool(true),
@@ -2986,13 +3115,133 @@ func testUpdatePolicyHostCounts(t *testing.T, ds *Datastore) {
 	policy, err = ds.Policy(context.Background(), policy.ID)
 	require.NoError(t, err)
 	require.Equal(t, uint(0), policy.FailingHostCount)
-	require.Equal(t, uint(8), policy.PassingHostCount)
+	require.Equal(t, uint(4), policy.PassingHostCount)
 	require.NotNil(t, policy.HostCountUpdatedAt)
 	assert.True(
 		t, policy.HostCountUpdatedAt.Compare(now) >= 0, fmt.Sprintf("reference:%v HostCountUpdatedAt:%v", now, *policy.HostCountUpdatedAt),
 	)
 	assert.True(
 		t, policy.HostCountUpdatedAt.Compare(later) < 0, fmt.Sprintf("later:%v HostCountUpdatedAt:%v", later, *policy.HostCountUpdatedAt),
+	)
+
+	team, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+
+	// create 4 team hosts
+	var teamHosts []*fleet.Host
+	for i := 0; i < 4; i++ {
+		h, err := ds.NewHost(context.Background(), &fleet.Host{OsqueryHostID: ptr.String(fmt.Sprintf("host%d", i)), NodeKey: ptr.String(fmt.Sprintf("host%d", i)), TeamID: &team.ID})
+		require.NoError(t, err)
+		teamHosts = append(teamHosts, h)
+	}
+
+	// add policy responses to team hosts
+	for _, h := range teamHosts {
+		var result *bool
+		switch h.ID % 5 {
+		case 0, 1: // 2 fails
+			result = ptr.Bool(false)
+		case 2: // 1 pass
+			result = ptr.Bool(true)
+		default:
+			// remain null
+		}
+
+		res := map[uint]*bool{
+			policy.ID: result,
+		}
+		err = ds.RecordPolicyQueryExecutions(context.Background(), h, res, time.Now(), false)
+		require.NoError(t, err)
+	}
+
+	// update policy host counts
+	now = time.Now().Truncate(time.Second)
+	later = now.Add(10 * time.Second)
+	err = ds.UpdateHostPolicyCounts(context.Background())
+	require.NoError(t, err)
+
+	// check policy host counts
+	policy, err = ds.Policy(context.Background(), policy.ID)
+	require.NoError(t, err)
+	require.Equal(t, uint(2), policy.FailingHostCount)
+	require.Equal(t, uint(5), policy.PassingHostCount)
+	require.NotNil(t, policy.HostCountUpdatedAt)
+	assert.True(
+		t, policy.HostCountUpdatedAt.Compare(now) >= 0, fmt.Sprintf("reference:%v HostCountUpdatedAt:%v", now, *policy.HostCountUpdatedAt),
+	)
+	assert.True(
+		t, policy.HostCountUpdatedAt.Compare(later) < 0, fmt.Sprintf("later:%v HostCountUpdatedAt:%v", later, *policy.HostCountUpdatedAt),
+	)
+
+	// new global policy
+	policy2, err := ds.NewGlobalPolicy(context.Background(), nil, fleet.PolicyPayload{Name: "global policy 2"})
+	require.NoError(t, err)
+
+	// new team
+	team2, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team2"})
+	require.NoError(t, err)
+
+	// create 4 team2 hosts
+	for i := 4; i < 8; i++ {
+		h, err := ds.NewHost(
+			context.Background(), &fleet.Host{
+				OsqueryHostID: ptr.String(fmt.Sprintf("host%d", i)), NodeKey: ptr.String(fmt.Sprintf("host%d", i)), TeamID: &team2.ID,
+			},
+		)
+		require.NoError(t, err)
+		teamHosts = append(teamHosts, h)
+	}
+
+	// Update policy results for all hosts.
+	// All fail policy 1, all pass policy 2
+	for _, h := range globalHosts {
+		res := map[uint]*bool{
+			policy.ID:  ptr.Bool(false),
+			policy2.ID: ptr.Bool(true),
+		}
+		err = ds.RecordPolicyQueryExecutions(context.Background(), h, res, time.Now(), false)
+		require.NoError(t, err)
+	}
+	for _, h := range teamHosts {
+		res := map[uint]*bool{
+			policy.ID:  ptr.Bool(false),
+			policy2.ID: ptr.Bool(true),
+		}
+		err = ds.RecordPolicyQueryExecutions(context.Background(), h, res, time.Now(), false)
+		require.NoError(t, err)
+	}
+
+	// update policy host counts
+	now = time.Now().Truncate(time.Second)
+	later = now.Add(10 * time.Second)
+	err = ds.UpdateHostPolicyCounts(context.Background())
+	require.NoError(t, err)
+
+	// check policy 1 host counts
+	policy, err = ds.Policy(context.Background(), policy.ID)
+	require.NoError(t, err)
+	require.Equal(t, uint(12), policy.FailingHostCount)
+	require.Equal(t, uint(0), policy.PassingHostCount)
+	require.NotNil(t, policy.HostCountUpdatedAt)
+	assert.True(
+		t, policy.HostCountUpdatedAt.Compare(now) >= 0, fmt.Sprintf("reference:%v HostCountUpdatedAt:%v", now, *policy.HostCountUpdatedAt),
+	)
+	assert.True(
+		t, policy.HostCountUpdatedAt.Compare(later) < 0, fmt.Sprintf("later:%v HostCountUpdatedAt:%v", later, *policy.HostCountUpdatedAt),
+	)
+
+	// check policy 2 host counts
+	policy2, err = ds.Policy(context.Background(), policy2.ID)
+	require.NoError(t, err)
+	require.Equal(t, uint(0), policy2.FailingHostCount)
+	require.Equal(t, uint(12), policy2.PassingHostCount)
+	require.NotNil(t, policy2.HostCountUpdatedAt)
+	assert.True(
+		t, policy2.HostCountUpdatedAt.Compare(now) >= 0,
+		fmt.Sprintf("reference:%v HostCountUpdatedAt:%v", now, *policy2.HostCountUpdatedAt),
+	)
+	assert.True(
+		t, policy2.HostCountUpdatedAt.Compare(later) < 0, fmt.Sprintf("later:%v HostCountUpdatedAt:%v", later, *policy2.HostCountUpdatedAt),
 	)
 }
 
@@ -3019,7 +3268,7 @@ func testPoliciesNameUnicode(t *testing.T, ds *Datastore) {
 	err = ds.SavePolicy(
 		context.Background(), &fleet.Policy{PolicyData: fleet.PolicyData{ID: policyEmoji.ID, Name: equivalentNames[1]}}, false, false,
 	)
-	assert.True(t, isDuplicate(err), err)
+	assert.True(t, IsDuplicate(err), err)
 
 	// Try to find policy with equivalent name
 	policies, err := ds.ListGlobalPolicies(context.Background(), fleet.ListOptions{MatchQuery: equivalentNames[1]})

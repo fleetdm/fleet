@@ -94,9 +94,17 @@ Smoke tests are limited to core functionality and serve as a pre-release final r
 
 <tr><td>MDM enrollment flow</td><td>Verify MDM enrollments, run MDM commands</td><td>
   
-1. Erase an ADE-eligible macOS host and verify able to complete auomated enrollment flow.
+1. Erase an ADE-eligible macOS host and verify able to complete automated enrollment flow.
 2. With Windows MDM turned On, enroll a Windows host and verify MDM is turned On for the host.
 3. Verify able to run MDM commands on both macOS and Windows hosts from the CLI.
+</td><td>pass/fail</td></tr>
+
+<tr><td>MDM migration flow</td><td>Verify MDM migration for ADE and non-ADE hosts</td><td>
+  
+1. Turn off MDM on an ADE-eligible macOS host and verify that the native, "Device Enrollment" macOS notification appears.
+2. On the My device page, follow the "Turn on MDM" instructions and verify that MDM is turned on.
+3. Turn off MDM on a non ADE-eligible macOS host.
+4. On the My device page, follow the "Turn on MDM" instructions and verify that MDM is turned on.
 </td><td>pass/fail</td></tr>
 
 <tr><td>Scripts</td><td>Verify script library and execution</td><td>
@@ -137,11 +145,6 @@ Smoke tests are limited to core functionality and serve as a pre-release final r
 Using the migration scripts located in fleet/test/upgrade/
 1. Run the upgrade_test.go script using the most recent stable version of Fleet and `main`.
 2. Upgrade test returns an 'OK' response.
-</td><td>pass/fail</td></tr>
-
-<tr><td>Migration Test with Percona XtraDB MySQL Server</td><td>Verify Fleet can migrate to the next version without issues when using a specific version of Percona XtraDB Server.</td><td>
-
-Run the instructions in [tools/percona/test/README.md](../../tools/percona/test/README.md)
 </td><td>pass/fail</td></tr>
   
 <tr><td>Release blockers</td><td>Verify there are no outstanding release blocking tickets.</td><td>

@@ -33,7 +33,7 @@ const Labels = ({ onLabelClick, labels }: ILabelsProps): JSX.Element => {
 
   return (
     <Card
-      borderRadiusSize="large"
+      borderRadiusSize="xxlarge"
       includeShadow
       largePadding
       className={classNames}

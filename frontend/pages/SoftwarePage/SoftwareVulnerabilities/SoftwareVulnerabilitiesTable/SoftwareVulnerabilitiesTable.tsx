@@ -7,10 +7,7 @@ import { Row } from "react-table";
 import PATHS from "router/paths";
 
 import { AppContext } from "context/app";
-import {
-  GITHUB_NEW_ISSUE_LINK,
-  EXPLOITED_VULNERABILITIES_DROPDOWN_OPTIONS,
-} from "utilities/constants";
+import { GITHUB_NEW_ISSUE_LINK } from "utilities/constants";
 
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
@@ -46,6 +43,7 @@ interface ISoftwareVulnerabilitiesTableProps {
   currentPage: number;
   teamId?: number;
   isLoading: boolean;
+  resetPageIndex: boolean;
 }
 
 const SoftwareVulnerabilitiesTable = ({
@@ -60,6 +58,7 @@ const SoftwareVulnerabilitiesTable = ({
   currentPage,
   teamId,
   isLoading,
+  resetPageIndex,
 }: ISoftwareVulnerabilitiesTableProps) => {
   const { isPremiumTier, isSandboxMode, noSandboxHosts } = useContext(
     AppContext
@@ -227,12 +226,34 @@ const SoftwareVulnerabilitiesTable = ({
     );
   };
 
+  const getExploitedVulnerabiltiesDropdownOptions = () => {
+    const disabledTooltipContent = "Available in Fleet Premium.";
+
+    return [
+      {
+        disabled: false,
+        label: "All vulnerabilities",
+        value: false,
+        helpText: "All vulnerabilities detected on your hosts.",
+      },
+      {
+        disabled: !isPremiumTier,
+        label: "Exploited vulnerabilities",
+        value: true,
+        helpText:
+          "Vulnerabilities that have been actively exploited in the wild.",
+        tooltipContent: !isPremiumTier && disabledTooltipContent,
+      },
+    ];
+  };
+
+  // Exploited vulnerabilities is a premium feature
   const renderExploitedVulnerabilitiesDropdown = () => {
     return (
       <Dropdown
         value={showExploitedVulnerabilitiesOnly}
         className={`${baseClass}__exploited-vulnerabilities-dropdown`}
-        options={EXPLOITED_VULNERABILITIES_DROPDOWN_OPTIONS}
+        options={getExploitedVulnerabiltiesDropdownOptions()}
         searchable={false}
         onChange={handleExploitedVulnFilterDropdownChange}
         tableFilterDropdown
@@ -248,11 +269,7 @@ const SoftwareVulnerabilitiesTable = ({
         isLoading={isLoading}
         resultsTitle={"items"}
         emptyComponent={() => (
-          <EmptySoftwareTable
-            isSoftwareDisabled={!isSoftwareEnabled}
-            isSandboxMode={isSandboxMode}
-            noSandboxHosts={noSandboxHosts}
-          />
+          <EmptySoftwareTable isSoftwareDisabled={!isSoftwareEnabled} />
         )}
         defaultSortHeader={orderKey}
         defaultSortDirection={orderDirection}
@@ -273,6 +290,7 @@ const SoftwareVulnerabilitiesTable = ({
         renderFooter={renderTableFooter}
         disableMultiRowSelect
         onSelectSingleRow={handleRowSelect}
+        resetPageIndex={resetPageIndex}
       />
     </div>
   );

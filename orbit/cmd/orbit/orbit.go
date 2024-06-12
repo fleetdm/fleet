@@ -23,6 +23,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/execuser"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/insecure"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/installer"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/keystore"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/logging"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/osquery"
@@ -30,6 +31,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/platform"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/profiles"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/fleetd_logs"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/orbit_info"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/token"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update"
@@ -243,16 +245,24 @@ func main() {
 			}
 			if runtime.GOOS == "windows" {
 				// On Windows, Orbit runs as a "Windows Service", which fails to write to os.Stderr with
-				// "write /dev/stderr: The handle is invalid" (see #3100). Thus, we log to the logFile only.
-				log.Logger = log.Output(zerolog.ConsoleWriter{Out: logFile, TimeFormat: time.RFC3339Nano, NoColor: true})
+				// "write /dev/stderr: The handle is invalid" (see
+				// #3100). Thus, we log to the logFile only.
+				log.Logger = log.Output(zerolog.MultiLevelWriter(
+					zerolog.ConsoleWriter{Out: logFile, TimeFormat: time.RFC3339Nano, NoColor: true},
+					&fleetd_logs.Logger,
+				))
 			} else {
 				log.Logger = log.Output(zerolog.MultiLevelWriter(
 					zerolog.ConsoleWriter{Out: logFile, TimeFormat: time.RFC3339Nano, NoColor: true},
 					zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.RFC3339Nano, NoColor: true},
+					&fleetd_logs.Logger,
 				))
 			}
 		} else {
-			log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.RFC3339Nano, NoColor: true})
+			log.Logger = log.Output(zerolog.MultiLevelWriter(
+				zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.RFC3339Nano, NoColor: true},
+				&fleetd_logs.Logger,
+			))
 		}
 
 		zerolog.SetGlobalLevel(zerolog.InfoLevel)
@@ -803,81 +813,53 @@ func main() {
 			windowsMDMEnrollmentCommandFrequency   = time.Hour
 			windowsMDMBitlockerCommandFrequency    = time.Hour
 		)
-		configFetcher := update.ApplyRenewEnrollmentProfileConfigFetcherMiddleware(orbitClient, renewEnrollmentProfileCommandFrequency, fleetURL)
-		configFetcher, scriptsEnabledFn := update.ApplyRunScriptsConfigFetcherMiddleware(
-			configFetcher, c.Bool("enable-scripts"), orbitClient,
+
+		orbitClient.RegisterConfigReceiver(update.ApplyRenewEnrollmentProfileConfigFetcherMiddleware(orbitClient, renewEnrollmentProfileCommandFrequency, fleetURL))
+		scriptConfigReceiver, scriptsEnabledFn := update.ApplyRunScriptsConfigFetcherMiddleware(
+			c.Bool("enable-scripts"), orbitClient,
 		)
+		orbitClient.RegisterConfigReceiver(scriptConfigReceiver)
 
 		switch runtime.GOOS {
 		case "darwin":
 			// add middleware to handle nudge installation and updates
 			const nudgeLaunchInterval = 30 * time.Minute
-			configFetcher = update.ApplyNudgeConfigFetcherMiddleware(configFetcher, update.NudgeConfigFetcherOptions{
+			orbitClient.RegisterConfigReceiver(update.ApplyNudgeConfigReceiverMiddleware(update.NudgeConfigFetcherOptions{
 				UpdateRunner: updateRunner, RootDir: c.String("root-dir"), Interval: nudgeLaunchInterval,
-			})
-
-			configFetcher = update.ApplyDiskEncryptionRunnerMiddleware(configFetcher)
-			configFetcher = update.ApplySwiftDialogDownloaderMiddleware(configFetcher, updateRunner)
+			}))
+			orbitClient.RegisterConfigReceiver(update.ApplyDiskEncryptionRunnerMiddleware())
+			orbitClient.RegisterConfigReceiver(update.ApplySwiftDialogDownloaderMiddleware(updateRunner))
 		case "windows":
-			configFetcher = update.ApplyWindowsMDMEnrollmentFetcherMiddleware(configFetcher, windowsMDMEnrollmentCommandFrequency, orbitHostInfo.HardwareUUID, orbitClient)
-			configFetcher = update.ApplyWindowsMDMBitlockerFetcherMiddleware(configFetcher, windowsMDMBitlockerCommandFrequency, orbitClient)
+			orbitClient.RegisterConfigReceiver(update.ApplyWindowsMDMEnrollmentFetcherMiddleware(windowsMDMEnrollmentCommandFrequency, orbitHostInfo.HardwareUUID, orbitClient))
+			orbitClient.RegisterConfigReceiver(update.ApplyWindowsMDMBitlockerFetcherMiddleware(windowsMDMBitlockerCommandFrequency, orbitClient))
 		}
 
-		const orbitFlagsUpdateInterval = 30 * time.Second
-		flagRunner := update.NewFlagRunner(configFetcher, update.FlagUpdateOptions{
-			CheckInterval: orbitFlagsUpdateInterval,
-			RootDir:       c.String("root-dir"),
+		flagUpdateReciver := update.NewFlagReceiver(orbitClient.ReceiverUpdateCancelFunc, update.FlagUpdateOptions{
+			RootDir: c.String("root-dir"),
 		})
-		// Try performing a flags update to use latest configured osquery flags from get-go.
-		// This also takes care of populating the server's capabilities as it calls the orbit
-		// config endpoint.
-		if _, err := flagRunner.DoFlagsUpdate(); err != nil {
-			// Just log, OK to continue, since flagRunner will retry
-			// in flagRunner.Execute.
-			log.Debug().Err(err).Msg("initial flags update failed")
-		}
-		g.Add(flagRunner.Execute, flagRunner.Interrupt)
+		orbitClient.RegisterConfigReceiver(flagUpdateReciver)
 
 		if !c.Bool("disable-updates") {
-			const serverOverridesInterval = 30 * time.Second
-			serverOverridesRunner := newServerOverridesRunner(
-				configFetcher,
+			serverOverridesReceiver := newServerOverridesReceiver(
 				c.String("root-dir"),
-				serverOverridesInterval,
 				fallbackServerOverridesConfig{
 					OsquerydPath: osquerydPath,
 					DesktopPath:  desktopPath,
 				},
 				c.Bool("fleet-desktop"),
+				orbitClient.ReceiverUpdateCancelFunc,
 			)
-			// Perform initial run to update overrides as soon as possible.
-			didUpdate, err := serverOverridesRunner.run()
-			if err != nil {
-				// Just log, OK to continue, since serverOverridesRunner will retry
-				// in serverOverridesRunner.Execute.
-				log.Debug().Err(err).Msg("initial flags update failed")
-			}
-			if didUpdate {
-				log.Info().Msg("exiting due to early update of server overrides")
-				return nil
-			}
-			g.Add(serverOverridesRunner.Execute, serverOverridesRunner.Interrupt)
+
+			orbitClient.RegisterConfigReceiver(serverOverridesReceiver)
 		}
 
 		// only setup extensions autoupdate if we have enabled updates
 		// for extensions autoupdate, we can only proceed after orbit is enrolled in fleet
 		// and all relevant things for it (like certs, enroll secrets, tls proxy, etc) is configured
 		if !c.Bool("disable-updates") || c.Bool("dev-mode") {
-			const orbitExtensionUpdateInterval = 60 * time.Second
-			extRunner := update.NewExtensionConfigUpdateRunner(configFetcher, update.ExtensionUpdateOptions{
-				CheckInterval: orbitExtensionUpdateInterval,
-				RootDir:       c.String("root-dir"),
-			}, updateRunner)
-
-			if _, err := extRunner.DoExtensionConfigUpdate(); err != nil {
-				// just log, OK to continue since this will get retry
-				logging.LogErrIfEnvNotSet(constant.SilenceEnrollLogErrorEnvVar, err, "initial update to fetch extensions from /config API failed")
-			}
+			extRunner := update.NewExtensionConfigUpdateRunner(update.ExtensionUpdateOptions{
+				RootDir: c.String("root-dir"),
+			}, updateRunner, orbitClient.ReceiverUpdateCancelFunc)
 
 			// call UpdateAction on the updateRunner after we have fetched extensions from Fleet
 			_, err := updateRunner.UpdateAction()
@@ -904,8 +886,15 @@ func main() {
 			default:
 				logging.LogErrIfEnvNotSet(constant.SilenceEnrollLogErrorEnvVar, err, "error with extensions.load file at "+extensionAutoLoadFile)
 			}
-			g.Add(extRunner.Execute, extRunner.Interrupt)
+
+			orbitClient.RegisterConfigReceiver(extRunner)
 		}
+
+		if err := orbitClient.RunConfigReceivers(); err != nil {
+			log.Error().Msgf("failed initial config fetch: %s", err)
+		}
+
+		g.Add(orbitClient.ExecuteConfigReceivers, orbitClient.InterruptConfigReceivers)
 
 		var trw *token.ReadWriter
 		if c.Bool("fleet-desktop") {
@@ -1168,6 +1157,9 @@ func main() {
 				}
 			}
 		}
+
+		softwareRunner := installer.NewRunner(orbitClient, r.ExtensionSocketPath(), scriptsEnabledFn)
+		orbitClient.RegisterConfigReceiver(softwareRunner)
 
 		// Install a signal handler
 		ctx, cancel := context.WithCancel(context.Background())
@@ -1502,17 +1494,27 @@ func getHostInfo(osqueryPath string, osqueryDBPath string) (*osqueryHostInfo, er
 	)
 	cmd.Stdout = &osquerydStdout
 	cmd.Stderr = &osquerydStderr
-	if err := cmd.Run(); err != nil {
-		log.Error().Str(
-			"output", string(osquerydStdout.Bytes()),
-		).Str(
-			"stderr", string(osquerydStderr.Bytes()),
-		).Msg("getHostInfo via osquery")
-		return nil, err
-	}
 	var info []osqueryHostInfo
-	if err := json.Unmarshal(osquerydStdout.Bytes(), &info); err != nil {
-		return nil, err
+	if err := cmd.Run(); err != nil {
+		// osquery may return correct data with an exit status 78, in which case we only log the error
+		// Related issue: https://github.com/osquery/osquery/issues/6566
+		unmarshalErr := json.Unmarshal(osquerydStdout.Bytes(), &info)
+		// Note: Unmarshal will fail on an empty buffer output.
+		if unmarshalErr != nil {
+			// Since the original command failed, we log the original error and the output for debugging purposes.
+			log.Error().Str(
+				"output", string(osquerydStdout.Bytes()),
+			).Str(
+				"stderr", string(osquerydStderr.Bytes()),
+			).Msg("getHostInfo via osquery")
+			return nil, err
+		}
+		log.Warn().Str("status", err.Error()).Msg("getHostInfo via osquery returned data, but with a non-zero exit status")
+	}
+	if len(info) == 0 {
+		if err := json.Unmarshal(osquerydStdout.Bytes(), &info); err != nil {
+			return nil, err
+		}
 	}
 	if len(info) != 1 {
 		return nil, fmt.Errorf("invalid number of rows from system info query: %d", len(info))
@@ -1663,87 +1665,50 @@ func writeSecret(enrollSecret string, orbitRoot string) error {
 
 // serverOverridesRunner is a oklog.Group runner that polls for configuration overrides from Fleet.
 type serverOverridesRunner struct {
-	configFetcher  update.OrbitConfigFetcher
-	interval       time.Duration
-	rootDir        string
-	fallbackCfg    fallbackServerOverridesConfig
-	desktopEnabled bool
-	cancel         chan struct{}
+	rootDir           string
+	fallbackCfg       fallbackServerOverridesConfig
+	desktopEnabled    bool
+	cancel            chan struct{}
+	queueOrbitRestart context.CancelFunc
 }
 
-// newServerOverridesRunner creates a runner for updating server overrides configuration with values fetched from Fleet.
-func newServerOverridesRunner(
-	configFetcher update.OrbitConfigFetcher,
+// newServerOverridesReveiver creates a runner for updating server overrides configuration with values fetched from Fleet.
+func newServerOverridesReceiver(
 	rootDir string,
-	interval time.Duration,
 	fallbackCfg fallbackServerOverridesConfig,
 	desktopEnabled bool,
+	queueOrbitRestart context.CancelFunc,
 ) *serverOverridesRunner {
 	return &serverOverridesRunner{
-		configFetcher:  configFetcher,
-		interval:       interval,
-		rootDir:        rootDir,
-		fallbackCfg:    fallbackCfg,
-		desktopEnabled: desktopEnabled,
-		cancel:         make(chan struct{}),
+		rootDir:           rootDir,
+		fallbackCfg:       fallbackCfg,
+		desktopEnabled:    desktopEnabled,
+		cancel:            make(chan struct{}),
+		queueOrbitRestart: queueOrbitRestart,
 	}
 }
 
-// Execute starts the loop that polls for server overrides configuration from Fleet.
-func (r *serverOverridesRunner) Execute() error {
-	log.Debug().Msg("starting server overrides runner")
-
-	ticker := time.NewTicker(r.interval)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-r.cancel:
-			return nil
-		case <-ticker.C:
-			log.Debug().Msg("calling server overrides run")
-			didUpdate, err := r.run()
-			if err != nil {
-				logging.LogErrIfEnvNotSet(constant.SilenceEnrollLogErrorEnvVar, err, "server overrides run failed")
-			}
-			if didUpdate {
-				log.Info().Msg("server overrides updated, exiting")
-				return nil
-			}
-		}
-	}
-}
-
-// Interrupt is the oklog/run interrupt method that stops orbit when interrupt is received
-func (r *serverOverridesRunner) Interrupt(err error) {
-	close(r.cancel)
-	log.Error().Err(err).Msg("interrupt for server overrides runner")
-}
-
-func (r *serverOverridesRunner) run() (bool, error) {
+func (r *serverOverridesRunner) Run(orbitCfg *fleet.OrbitConfig) error {
 	overrideCfg, err := loadServerOverrides(r.rootDir)
 	if err != nil {
-		return false, err
+		return err
 	}
 
-	orbitCfg, err := r.configFetcher.GetConfig()
-	if err != nil {
-		return false, err
-	}
 	if orbitCfg.UpdateChannels == nil {
 		// Server is not setting or doesn't know of
 		// this feature (old server version), so nothing to do.
-		return false, nil
+		return nil
 	}
 
 	if cfgsDiffer(overrideCfg, orbitCfg, r.desktopEnabled) {
 		if err := r.updateServerOverrides(orbitCfg); err != nil {
-			return false, err
+			return err
 		}
-		return true, nil
+		r.queueOrbitRestart()
+		return nil
 	}
 
-	return false, nil
+	return nil
 }
 
 // cfgsDiffer returns whether the local server overrides differ from the fetched remotely.

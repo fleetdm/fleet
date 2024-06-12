@@ -36,6 +36,10 @@ variable "geolite2_license" {}
 variable "fleet_sentry_dsn" {}
 variable "elastic_url" {}
 variable "elastic_token" {}
+variable "fleet_calendar_periodicity" {
+  default     = "30s"
+  description = "The refresh period for the calendar integration."
+}
 
 data "aws_caller_identity" "current" {}
 
@@ -55,6 +59,7 @@ locals {
     ELASTIC_APM_SERVER_URL                     = var.elastic_url
     ELASTIC_APM_SECRET_TOKEN                   = var.elastic_token
     ELASTIC_APM_SERVICE_NAME                   = "dogfood"
+    FLEET_CALENDAR_PERIODICITY                 = var.fleet_calendar_periodicity
   }
   sentry_secrets = {
     FLEET_SENTRY_DSN = "${aws_secretsmanager_secret.sentry.arn}:FLEET_SENTRY_DSN::"
@@ -63,7 +68,7 @@ locals {
 }
 
 module "main" {
-  source          = "github.com/fleetdm/fleet//terraform?ref=tf-mod-root-v1.7.1"
+  source          = "github.com/fleetdm/fleet//terraform?ref=tf-mod-root-v1.8.0"
   certificate_arn = module.acm.acm_certificate_arn
   vpc = {
     name = local.customer
@@ -125,7 +130,8 @@ module "main" {
       module.geolite2.extra_environment_variables,
       module.vuln-processing.extra_environment_variables
     )
-    extra_secrets = merge(module.mdm.extra_secrets, local.sentry_secrets)
+    extra_secrets           = merge(module.mdm.extra_secrets, local.sentry_secrets)
+    private_key_secret_name = "${local.customer}-fleet-server-private-key"
     # extra_load_balancers         = [{
     #   target_group_arn = module.saml_auth_proxy.lb_target_group_arn
     #   container_name   = "fleet"
@@ -287,9 +293,10 @@ module "firehose-logging" {
 }
 
 module "osquery-carve" {
-  source = "github.com/fleetdm/fleet//terraform/addons/osquery-carve?ref=tf-mod-addon-osquery-carve-v1.0.0"
+  source = "github.com/fleetdm/fleet//terraform/addons/osquery-carve?ref=tf-mod-addon-osquery-carve-v1.0.1"
   osquery_carve_s3_bucket = {
-    name = "${local.customer}-osquery-carve"
+    name         = "fleet-${local.customer}-osquery-carve"
+    expires_days = 3650
   }
 }
 
@@ -319,7 +326,7 @@ module "monitoring" {
     subnet_ids                 = module.main.vpc.private_subnets
     vpc_id                     = module.main.vpc.vpc_id
     # Format of https://pkg.go.dev/time#ParseDuration
-    delay_tolerance = "2h"
+    delay_tolerance = "4h"
     # Interval format for: https://docs.aws.amazon.com/scheduler/latest/UserGuide/schedule-types.html#rate-based
     run_interval = "1 hour"
   }
@@ -448,13 +455,14 @@ module "geolite2" {
 }
 
 module "vuln-processing" {
-  source                 = "github.com/fleetdm/fleet//terraform/addons/external-vuln-scans?ref=tf-mod-addon-external-vuln-scans-v2.0.2"
-  ecs_cluster            = module.main.byo-vpc.byo-db.byo-ecs.service.cluster
-  execution_iam_role_arn = module.main.byo-vpc.byo-db.byo-ecs.execution_iam_role_arn
-  subnets                = module.main.byo-vpc.byo-db.byo-ecs.service.network_configuration[0].subnets
-  security_groups        = module.main.byo-vpc.byo-db.byo-ecs.service.network_configuration[0].security_groups
-  fleet_config           = module.main.byo-vpc.byo-db.byo-ecs.fleet_config
-  task_role_arn          = module.main.byo-vpc.byo-db.byo-ecs.iam_role_arn
+  source                              = "github.com/fleetdm/fleet//terraform/addons/external-vuln-scans?ref=tf-mod-addon-external-vuln-scans-v2.1.0"
+  ecs_cluster                         = module.main.byo-vpc.byo-db.byo-ecs.service.cluster
+  execution_iam_role_arn              = module.main.byo-vpc.byo-db.byo-ecs.execution_iam_role_arn
+  subnets                             = module.main.byo-vpc.byo-db.byo-ecs.service.network_configuration[0].subnets
+  security_groups                     = module.main.byo-vpc.byo-db.byo-ecs.service.network_configuration[0].security_groups
+  fleet_config                        = module.main.byo-vpc.byo-db.byo-ecs.fleet_config
+  task_role_arn                       = module.main.byo-vpc.byo-db.byo-ecs.iam_role_arn
+  fleet_server_private_key_secret_arn = module.main.byo-vpc.byo-db.byo-ecs.fleet_server_private_key_secret_arn
   awslogs_config = {
     group  = module.main.byo-vpc.byo-db.byo-ecs.fleet_config.awslogs.name
     region = module.main.byo-vpc.byo-db.byo-ecs.fleet_config.awslogs.region

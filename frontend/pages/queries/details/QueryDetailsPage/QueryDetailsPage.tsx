@@ -21,7 +21,7 @@ import {
   isGlobalObserver,
   isTeamObserver,
 } from "utilities/permissions/permissions";
-import { DOCUMENT_TITLE_SUFFIX } from "utilities/constants";
+import { DOCUMENT_TITLE_SUFFIX, SUPPORT_LINK } from "utilities/constants";
 import { buildQueryStringFromParams } from "utilities/url";
 import useTeamIdParam from "hooks/useTeamIdParam";
 
@@ -332,13 +332,7 @@ const QueryDetailsPage = ({
   const renderClippedBanner = () => (
     <InfoBanner
       color="yellow"
-      cta={
-        <CustomLink
-          url="https://www.fleetdm.com/support"
-          text="Get help"
-          newTab
-        />
-      }
+      cta={<CustomLink url={SUPPORT_LINK} text="Get help" newTab />}
     >
       <div>
         <b>Report clipped.</b> A sample of this query&apos;s results is included

@@ -38,3 +38,7 @@ output "non_circular" {
 output "fleet_config" {
   value = var.fleet_config
 }
+
+output "fleet_server_private_key_secret_arn" {
+  value = aws_secretsmanager_secret.fleet_server_private_key.arn
+}

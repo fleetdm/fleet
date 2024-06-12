@@ -1,11 +1,9 @@
 name: routes
-examples: >-
+examples: |-
   Identify static routes
   
   ```
-  
   SELECT destination, interface, type FROM routes WHERE type='static';
-  
   ```
 columns:
   - name: hopcount

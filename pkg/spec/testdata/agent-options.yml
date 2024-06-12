@@ -1,10 +1,10 @@
 command_line_flags:
-  distributed_denylist_duration: 0
+  distributed_denylist_duration: $DISTRIBUTED_DENYLIST_DURATION
 config:
   decorators:
     load:
-    - SELECT uuid AS host_uuid FROM system_info;
-    - SELECT hostname AS hostname FROM system_info;
+      - SELECT uuid AS host_uuid FROM system_info;
+      - SELECT hostname AS hostname FROM system_info;
   options:
     disable_distributed: false
     distributed_interval: 10

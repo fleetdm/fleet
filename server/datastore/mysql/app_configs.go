@@ -80,6 +80,28 @@ func (ds *Datastore) VerifyEnrollSecret(ctx context.Context, secret string) (*fl
 	return &s, nil
 }
 
+func (ds *Datastore) IsEnrollSecretAvailable(ctx context.Context, secret string, new bool, teamID *uint) (bool, error) {
+	secretTeamID := sql.NullInt64{}
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &secretTeamID, "SELECT team_id FROM enroll_secrets WHERE secret = ?", secret)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return true, nil
+		}
+		return false, ctxerr.Wrap(ctx, err, "check enroll secret availability")
+	}
+	if new {
+		// Secret is already in use, so a new team can't use it
+		return false, nil
+	}
+	// Secret is in use, but we're checking if it's already assigned to the team
+	if (teamID == nil && !secretTeamID.Valid) || (teamID != nil && secretTeamID.Valid && uint(secretTeamID.Int64) == *teamID) {
+		return true, nil
+	}
+
+	// Secret is in use by another team or globally
+	return false, nil
+}
+
 func (ds *Datastore) ApplyEnrollSecrets(ctx context.Context, teamID *uint, secrets []*fleet.EnrollSecret) error {
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		return applyEnrollSecretsDB(ctx, tx, teamID, secrets)
@@ -147,7 +169,7 @@ func applyEnrollSecretsDB(ctx context.Context, q sqlx.ExtContext, teamID *uint, 
 			args = append(args, s.Secret, teamID, secretCreatedAt)
 		}
 		if _, err := q.ExecContext(ctx, sql, args...); err != nil {
-			if isDuplicate(err) {
+			if IsDuplicate(err) {
 				// Obfuscate the secret in the error message
 				err = alreadyExists("secret", fleet.MaskedPassword)
 			}
