@@ -109,6 +109,14 @@ resource "aws_ecs_task_definition" "vuln-processing" {
           name  = "FLEET_SERVER_TLS"
           value = "false"
         },
+        {
+          name  = "FLEET_S3_SOFTWARE_INSTALLERS_BUCKET"
+          value = var.fleet_s3_software_installers_config.bucket_name
+        },
+        {
+          name  = "FLEET_S3_SOFTWARE_INSTALLERS_BUCKET_PREFIX"
+          value = var.fleet_s3_software_installers_config.s3_object_prefix
+        },
       ], local.environment),
       logConfiguration = {
         logDriver = "awslogs"
