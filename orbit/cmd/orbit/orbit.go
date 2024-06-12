@@ -617,26 +617,29 @@ func main() {
 		}
 
 		// Get the hardware UUID. We use a temporary RocksDB location in order to guarantee that
-		// we're getting true UUID, not a cached UUID. foobar
+		// we're getting true UUID, not a cached UUID. See
+		// https://github.com/fleetdm/fleet/issues/17934 and
+		// https://github.com/osquery/osquery/issues/7509 for more details.
 
 		oi, err := getHostInfo(osquerydPath, filepath.Join(os.TempDir(), "tmp-db"))
 		if err != nil {
-			return fmt.Errorf("get UUID: %w", err)
+			return fmt.Errorf("get UUID from temp db: %w", err)
 		}
 
 		if oi.HardwareUUID != orbitHostInfo.HardwareUUID {
-			// then we have moved to a new physical machine, so we should restart!
+			// Then we have moved to a new physical machine, so we should restart!
+			// Removing the osquery DB should trigger a re-enrollment when fleetd is restarted.
 			if err := os.RemoveAll(filepath.Join(c.String("root-dir"), "osquery.db")); err != nil {
 				return fmt.Errorf("removing old osquery.db: %w", err)
 			}
 
+			// We can remove this because we want it to be regenerated during the re-enrollment.
 			if err := os.RemoveAll(filepath.Join(c.String("root-dir"), constant.OrbitNodeKeyFileName)); err != nil {
 				return fmt.Errorf("removing old orbit node key file: %w", err)
 			}
-			return fmt.Errorf("mismatch in hardware uuids, restarting")
-		}
 
-		// TODO(JVE): should we remove that temporary osquery db?
+			return errors.New("found a new hardware uuid, restarting")
+		}
 
 		// Only send osquery's `instance_id` if the user is running orbit with `--host-identifier=instance`.
 		// When not set, orbit and osquery will be matched using the hardware UUID (orbitHostInfo.HardwareUUID).
