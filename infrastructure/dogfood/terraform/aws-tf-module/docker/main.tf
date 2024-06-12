@@ -28,25 +28,28 @@ variable "ecr_repo" {
 
 resource "local_file" "osquery_patch" {
   content         = templatefile("${path.module}/osquery-docker.patch.tmpl", { osquery_version = var.osquery_version })
-  filename        = "${path.module}/osuqery-docker.patch"
+  filename        = "${path.module}/osquery-docker.patch"
   file_permission = "0644"
 }
 
 resource "null_resource" "build_osquery" {
+  depends_on = [local_file.osquery_patch]
   triggers = {
     osquery_version_changed = var.osquery_version
     osquery_tags_changed    = sha256(jsonencode(var.osquery_tags))
   }
   provisioner "local-exec" {
-    working_dir = "${path.module}/osquery"
+    working_dir = "${path.module}"
     command     = <<-EOT
+      mkdir -p osquery
+      cd osquery
       if [ "$(git remote -vvv | head -n1 | awk '{ print $2 }')" = "https://github.com/osquery/osquery.git" ]; then
         git reset --hard
         git pull
       else
         git clone https://github.com/osquery/osquery.git .
       fi
-      git patch ${path.module}/osquery-docker.patch
+      git apply ../osquery-docker.patch
       cd tools/docker
       ./build.sh
     EOT
@@ -54,6 +57,7 @@ resource "null_resource" "build_osquery" {
 }
 
 resource "docker_tag" "osquery" {
+  depends_on   = [null_resource.build_osquery]
   for_each     = toset(var.osquery_tags)
   source_image = "osquery/osquery:${each.key}"
   # We can't include the sha256 when pushing even if they match
