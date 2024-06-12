@@ -8,27 +8,56 @@ To learn how to set up GitOps workflow see [Fleet GitOps repo](https://github.co
 
 The [`fleetctl apply`]((https://github.com/fleetdm/fleet/blob/main/docs/Contributing/Configuration-files.md)) format is maintained for imports and backwards compatibility GitOps.
 
-## Default
+## File structure
 
-TODO
+- `default.yml`- file where you define the queries, policies, controls, and agent options for all hosts. If you're using Fleet Premium, this file updates queries and policies that run on all hosts ("All teams"). Controls and agent options are defined for hosts on "No team."
+- `teams/` - folder where you define your teams in Fleet. These `teams/team-name.yml` files define the controls, queries, policies, and agent options for hosts assigned to the specified team. Teams are available in Fleet Premium.
+- `lib/` - folder where you define policies, queries, configuration profiles, scripts, and agent options. These files can be referenced in top level keys in the `default.yml` file and the files in the `teams/` folder.
 
-## Teams
+The following files are responsible for running the GitHub action. Most users don't need to edit these file.
+- `.github/workflows/workflow.yml` - the GitHub workflow file that applies the latest configuration to Fleet.
+- `gitops.sh` - the bash script that applies the latest configuration to Fleet. This script is used in the GitHub action file.
+- `.github/gitops-action/action.yml` - the GitHub action that runs `gitops.sh`. This action is used in the GitHub workflow file. It can also be used in other workflows.
 
-_Available in Fleet Premium_
+## Configuration options
 
-TODO
+- [`policies`](#policies)
+- [`queries`](#queries)
+- [`agent_options`](#agent_options)
+- [`controls`](#controls)
+- [`org_settings` and `team_settings`](#org_settings-and-team_settings)
 
-## Policies
+The following are the required keys in the `default.yml` file:
+
+```yaml
+policies:
+queries:
+agent_options:
+controls:
+org_settings:
+```
+
+The follow are the required keys in any `teams/team-name.yml` file:
+
+```yaml
+policies:
+queries:
+agent_options:
+controls:
+team_settings:
+```
+
+### `policies`
 
 Polcies can be specified inline in your `default.yml` file or `teams/team-name.yml` files. They can also be specified in separate files in your `lib/` folder.
 
-### Options
+#### Options
 
 For possible options, see the parameters for the [Add policy API endpoint](../REST%20API/rest-api.md#add-policices).
 
-### Example
+#### Example
 
-#### Inline
+##### Inline
   
 `default.yml` or `teams/team-name.yml`
 
@@ -43,7 +72,7 @@ policies:
     calendar_event_enabled: false
 ```
 
-#### Separate file
+##### Separate file
  
 `lib/policies-name.policies.yml`
 
@@ -71,19 +100,19 @@ policies:
   - path: `path-to/lib/policies-name.policies.yml`
 ```
 
-## Queries
+### `queries`
 
 Queries can be specified inline in your `default.yml` file or `teams/team-name.yml` files. They can also be specified in separate files in your `lib/` folder.
 
 Note that the `team_id` option isn't supported in GitOps.
 
-### Options
+#### Options
 
 For possible options, see the parameter for the parameters of the [Create query API endpoint](../REST%20API/rest-api.md#create-query).
 
-### Example
+#### Example
 
-#### Inline
+##### Inline
   
 `default.yml` or `teams/team-name.yml`
 
@@ -98,7 +127,7 @@ queries:
     automations_enabled: false
 ```
 
-#### Separate file
+##### Separate file
  
 `lib/queries-name.queries.yml`
 
@@ -126,15 +155,15 @@ queries:
   - path: `path-to/lib/queries-name.queries.yml`
 ```
 
-## Agent options
+### `agent_options`
 
 Agent options can be specified inline in your `default.yml` file or `teams/team-name.yml` files. They can also be specified in separate files in your `lib/` folder.
 
 See "[Agent configuration](https://fleetdm.com/docs/configuration/agent-configuration)" to find all possible options.
 
-### Example
+#### Example
 
-#### Inline
+##### Inline
   
 `default.yml` or `teams/team-name.yml`
 
@@ -155,7 +184,7 @@ agent_options:
       pack_delimiter: /
 ```
 
-#### Separate file
+##### Separate file
  
 `lib/agent-options.yml`
 
@@ -181,6 +210,14 @@ config:
 queries:
   - path: `path-to/lib/agent-options.yml`
 ```
+
+### `controls`
+
+TODO
+
+### `org_settings` and `team_settings`
+
+TODO
 
 ## Environment variables
 
