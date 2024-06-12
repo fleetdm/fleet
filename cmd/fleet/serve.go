@@ -1027,7 +1027,7 @@ the way that the Fleet server works.
 				}
 			}
 
-			// We must wrap the Handler here to set special per-endpoint Write
+			// We must wrap the Handler here to set special per-endpoint Read/Write
 			// timeouts, so that we have access to the raw http.ResponseWriter.
 			// Otherwise, the handler is wrapped by the promhttp response delegator,
 			// which does not support the Unwrap call needed to work with
@@ -1038,12 +1038,28 @@ the way that the Fleet server works.
 			// does not implement.
 			rootMux.HandleFunc("/api/", func(rw http.ResponseWriter, req *http.Request) {
 				if req.Method == http.MethodPost && strings.HasSuffix(req.URL.Path, "/fleet/scripts/run/sync") {
+					// when running a script synchronously, we wait a while for a script
+					// execution result, so the write timeout (to write the response)
+					// must be extended.
 					rc := http.NewResponseController(rw)
 					// add an additional 30 seconds to prevent race conditions where the
 					// request is terminated early.
 					if err := rc.SetWriteDeadline(time.Now().Add(scripts.MaxServerWaitTime + (30 * time.Second))); err != nil {
 						level.Error(logger).Log("msg", "http middleware failed to override endpoint write timeout", "err", err)
 					}
+				}
+
+				if req.Method == http.MethodPost && strings.HasSuffix(req.URL.Path, "/fleet/software/package") {
+					// when uploading a software installer, the file might be large so
+					// the read timeout (to read the full request body) must be extended.
+					rc := http.NewResponseController(rw)
+					// the frontend times out waiting for the upload after 2 minutes, so
+					// use that same timeout:
+					// https://www.figma.com/design/oQl2oQUG0iRkUy0YOxc307/%2314921-Deploy-security-agents-to-macOS%2C-Windows%2C-and-Linux-hosts?node-id=773-18032&t=QjEU6tc73tddNSqn-0
+					if err := rc.SetReadDeadline(time.Now().Add(2 * time.Minute)); err != nil {
+						level.Error(logger).Log("msg", "http middleware failed to override endpoint read timeout", "err", err)
+					}
+					req.Body = http.MaxBytesReader(rw, req.Body, service.MaxSoftwareInstallerSize)
 				}
 				apiHandler.ServeHTTP(rw, req)
 			})
