@@ -292,8 +292,10 @@ type Datastore interface {
 	HostnamesByIdentifiers(ctx context.Context, identifiers []string) ([]string, error)
 	// UpdateHostIssuesFailingPolicies updates the failing policies count in host_issues table for the provided hosts.
 	UpdateHostIssuesFailingPolicies(ctx context.Context, hostIDs []uint) error
-	// SyncHostIssues calculates failing policies and critical vulnerabilities for each host.
-	SyncHostIssues(ctx context.Context) error
+	// UpdateHostIssuesVulnerabilities updates the critical vulnerabilities counts in host_issues.
+	UpdateHostIssuesVulnerabilities(ctx context.Context) error
+	// CleanupHostIssues deletes host issues that no longer belong to a host.
+	CleanupHostIssues(ctx context.Context) error
 
 	TotalAndUnseenHostsSince(ctx context.Context, teamID *uint, daysCount int) (total int, unseen []uint, err error)
 

@@ -895,6 +895,7 @@ func deleteAllPolicyMemberships(ctx context.Context, tx sqlx.ExtContext, hostIDs
 	if _, err := tx.ExecContext(ctx, query, args...); err != nil {
 		return ctxerr.Wrap(ctx, err, "exec delete policies")
 	}
+	// This method is currently only called for 1 host at a time, so it is not a performance concern.
 	if err = updateHostIssuesFailingPolicies(ctx, tx, hostIDs); err != nil {
 		return err
 	}
@@ -912,6 +913,8 @@ func cleanupPolicyMembershipOnTeamChange(ctx context.Context, tx sqlx.ExtContext
 	if _, err := tx.ExecContext(ctx, query, args...); err != nil {
 		return ctxerr.Wrap(ctx, err, "exec clean old policy memberships")
 	}
+	// This method is currently called for a batch of hosts. Performance should be monitored. If performance becomes a concern,
+	// we can reduce batch size or move this method outside the transaction.
 	if err = updateHostIssuesFailingPolicies(ctx, tx, hostIDs); err != nil {
 		return err
 	}
@@ -987,7 +990,7 @@ func cleanupPolicyMembershipOnPolicyUpdate(
 		return ctxerr.Wrap(ctx, err, "cleanup policy membership")
 	}
 
-	// Update host issues entries
+	// Update host issues entries. This method is rarely called, so performance should not be a concern.
 	if err = updateHostIssuesFailingPolicies(ctx, db, hostIDs); err != nil {
 		return err
 	}
@@ -1038,7 +1041,7 @@ func cleanupPolicyMembershipForPolicy(
 		return ctxerr.Wrap(ctx, err, "cleanup policy membership")
 	}
 
-	// Update host issues entries
+	// Update host issues entries. This method is rarely called, so performance should not be a concern.
 	if err = updateHostIssuesFailingPolicies(ctx, exec, hostIDs); err != nil {
 		return err
 	}

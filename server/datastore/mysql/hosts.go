@@ -2877,29 +2877,45 @@ func (ds *Datastore) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs [
 		return nil
 	}
 
-	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		if err := cleanupPolicyMembershipOnTeamChange(ctx, tx, hostIDs); err != nil {
-			return ctxerr.Wrap(ctx, err, "AddHostsToTeam delete policy membership")
+	// A large number of hosts could be changing teams at once, so we need to batch this operation to prevent excessive locks
+	const addHostsToTeamBatchSize = 10000
+	for i := 0; i < len(hostIDs); i += addHostsToTeamBatchSize {
+		start := i
+		end := i + addHostsToTeamBatchSize
+		if end > len(hostIDs) {
+			end = len(hostIDs)
 		}
-		if err := cleanupQueryResultsOnTeamChange(ctx, tx, hostIDs); err != nil {
-			return ctxerr.Wrap(ctx, err, "AddHostsToTeam delete query results")
-		}
+		hostIDsBatch := hostIDs[start:end]
+		err := ds.withRetryTxx(
+			ctx, func(tx sqlx.ExtContext) error {
+				if err := cleanupPolicyMembershipOnTeamChange(ctx, tx, hostIDsBatch); err != nil {
+					return ctxerr.Wrap(ctx, err, "AddHostsToTeam delete policy membership")
+				}
+				if err := cleanupQueryResultsOnTeamChange(ctx, tx, hostIDsBatch); err != nil {
+					return ctxerr.Wrap(ctx, err, "AddHostsToTeam delete query results")
+				}
 
-		query, args, err := sqlx.In(`UPDATE hosts SET team_id = ? WHERE id IN (?)`, teamID, hostIDs)
+				query, args, err := sqlx.In(`UPDATE hosts SET team_id = ? WHERE id IN (?)`, teamID, hostIDsBatch)
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "sqlx.In AddHostsToTeam")
+				}
+
+				if _, err := tx.ExecContext(ctx, query, args...); err != nil {
+					return ctxerr.Wrap(ctx, err, "exec AddHostsToTeam")
+				}
+
+				if err := cleanupDiskEncryptionKeysOnTeamChangeDB(ctx, tx, hostIDsBatch, teamID); err != nil {
+					return ctxerr.Wrap(ctx, err, "AddHostsToTeam cleanup disk encryption keys")
+				}
+
+				return nil
+			},
+		)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "sqlx.In AddHostsToTeam")
+			return err
 		}
-
-		if _, err := tx.ExecContext(ctx, query, args...); err != nil {
-			return ctxerr.Wrap(ctx, err, "exec AddHostsToTeam")
-		}
-
-		if err := cleanupDiskEncryptionKeysOnTeamChangeDB(ctx, tx, hostIDs, teamID); err != nil {
-			return ctxerr.Wrap(ctx, err, "AddHostsToTeam cleanup disk encryption keys")
-		}
-
-		return nil
-	})
+	}
+	return nil
 }
 
 func (ds *Datastore) SaveHostAdditional(ctx context.Context, hostID uint, additional *json.RawMessage) error {
@@ -5291,51 +5307,66 @@ func updateHostIssuesFailingPolicies(ctx context.Context, tx sqlx.ExecerContext,
 	if len(hostIDs) == 0 {
 		return nil
 	}
-	stmt := `
+
+	masterStmt := `
 	INSERT INTO host_issues (host_id, failing_policies_count, total_issues_count)
-	SELECT
-		pm.host_id, SUM(!passes), SUM(!passes)
-		FROM policy_membership pm WHERE host_id IN (?)
-		GROUP BY pm.host_id
+	SELECT host_ids.id, COALESCE(SUM(!pm.passes), 0), COALESCE(SUM(!pm.passes), 0)
+		FROM policy_membership pm
+		RIGHT JOIN (%s) as host_ids
+		ON pm.host_id = host_ids.id
+		GROUP BY host_ids.id
 	ON DUPLICATE KEY UPDATE
 		failing_policies_count = VALUES(failing_policies_count),
-		total_issues_count = failing_policies_count + critical_vulnerabilities_count`
-	stmt, args, err := sqlx.In(stmt, hostIDs)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "building IN statement for updating failing policies in host issues")
-	}
-	if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
-		return ctxerr.Wrap(ctx, err, "update failing policies in host issues")
+		total_issues_count = VALUES(failing_policies_count) + critical_vulnerabilities_count`
+
+	// Large number of hosts could be impacted, so we update their host issues entries in batches to reduce lock time.
+	for i := 0; i < len(hostIDs); i += hostIssuesInsertBatchSize {
+		start := i
+		end := i + hostIssuesInsertBatchSize
+		if end > len(hostIDs) {
+			end = len(hostIDs)
+		}
+		totalToProcess := end - start
+		hostIDsBatch := hostIDs[start:end]
+
+		inlineTable := strings.TrimSuffix(
+			strings.Repeat("SELECT ? AS id UNION ALL ", totalToProcess), " UNION ALL ",
+		)
+
+		args := make([]interface{}, totalToProcess)
+		for j := range hostIDsBatch {
+			args[j] = hostIDsBatch[j]
+		}
+		if _, err := tx.ExecContext(ctx, fmt.Sprintf(masterStmt, inlineTable), args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "update failing policies in host issues")
+		}
 	}
 	return nil
 }
 
 const criticalCVSSScoreCutoff = 8.9
 
-func (ds *Datastore) SyncHostIssues(ctx context.Context) error {
-	failingPoliciesCountStmt := `
-		SELECT
-			pm.host_id,
-			COUNT(*) AS count
-		FROM
-			policy_membership pm
-		WHERE
-			pm.passes = 0
-		GROUP BY
-			pm.host_id`
+func (ds *Datastore) UpdateHostIssuesVulnerabilities(ctx context.Context) error {
+	clearAllFn := func() error {
+		stmt := `UPDATE host_issues SET critical_vulnerabilities_count = 0, total_issues_count = failing_policies_count`
+		if _, err := ds.writer(ctx).ExecContext(ctx, stmt); err != nil {
+			return ctxerr.Wrap(ctx, err, "reset critical vulnerabilities count")
+		}
+		return nil
+	}
+	if !license.IsPremium(ctx) {
+		// This will rarely be needed, but we need to reset the critical vulnerabilities count if the license went from premium to free
+		// or if DB got messed up (like during dev testing).
+		return clearAllFn()
+	}
+
 	type issuesCount struct {
 		HostID uint64 `db:"host_id"`
 		Count  uint64 `db:"count"`
 	}
-	var failingPoliciesCounts []issuesCount
-	err := sqlx.SelectContext(ctx, ds.reader(ctx), &failingPoliciesCounts, failingPoliciesCountStmt)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "get failing policies count")
-	}
 
 	var criticalCounts []issuesCount
-	if license.IsPremium(ctx) {
-		criticalVulnerabilitiesCountStmt := `
+	criticalVulnerabilitiesCountStmt := `
 		SELECT combined.host_id, COUNT(*) as count
 		FROM (SELECT host_id, cve
 			FROM host_software hs
@@ -5346,95 +5377,82 @@ func (ds *Datastore) SyncHostIssues(ctx context.Context) error {
 			INNER JOIN operating_system_vulnerabilities osv ON osv.operating_system_id = hos.os_id) combined
 		INNER JOIN cve_meta cm ON cm.cve = combined.cve
 		WHERE cm.cvss_score > ?
-		GROUP BY combined.host_id`
-		err = sqlx.SelectContext(ctx, ds.reader(ctx), &criticalCounts, criticalVulnerabilitiesCountStmt, criticalCVSSScoreCutoff)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "get critical vulnerabilities count")
-		}
+		GROUP BY combined.host_id
+		ORDER BY combined.host_id`
+	err := sqlx.SelectContext(ctx, ds.reader(ctx), &criticalCounts, criticalVulnerabilitiesCountStmt, criticalCVSSScoreCutoff)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get critical vulnerabilities count")
 	}
-
-	// Combine the above results
-	issues := make(map[uint64]fleet.HostIssuesPremium, len(failingPoliciesCounts))
-	for _, fp := range failingPoliciesCounts {
-		issues[fp.HostID] = fleet.HostIssuesPremium{
-			FailingPoliciesCount: fp.Count,
-			TotalIssuesCount:     fp.Count,
-		}
-	}
-	for _, cv := range criticalCounts {
-		if i, ok := issues[cv.HostID]; ok {
-			issues[cv.HostID] = fleet.HostIssuesPremium{
-				FailingPoliciesCount:         i.FailingPoliciesCount,
-				CriticalVulnerabilitiesCount: cv.Count,
-				TotalIssuesCount:             i.TotalIssuesCount + cv.Count,
-			}
-		} else {
-			issues[cv.HostID] = fleet.HostIssuesPremium{
-				CriticalVulnerabilitiesCount: cv.Count,
-				TotalIssuesCount:             cv.Count,
-			}
-		}
-	}
-	// Sort issue keys in ascending order, so we process the host IDs in order.
-	issueKeys := make([]uint64, 0, len(issues))
-	for k := range issues {
-		issueKeys = append(issueKeys, k)
-	}
-	sort.Slice(issueKeys, func(i, j int) bool { return issueKeys[i] < issueKeys[j] })
 
 	// Update the host_issues table, including deleting items with no issues
-	deleteAll := len(issueKeys) == 0
-	for i := 0; i < len(issueKeys); i += hostIssuesInsertBatchSize {
+	clearAll := len(criticalCounts) == 0
+	for i := 0; i < len(criticalCounts); i += hostIssuesInsertBatchSize {
 		start := i
 		end := i + hostIssuesInsertBatchSize
-		if end > len(issueKeys) {
-			end = len(issueKeys)
+		if end > len(criticalCounts) {
+			end = len(criticalCounts)
 		}
 		totalToProcess := end - start
-		const numberOfArgsPerIssue = 4 // number of ? in each VALUES clause
+		const numberOfArgsPerIssue = 3 // number of ? in each VALUES clause
 		values := strings.TrimSuffix(
-			strings.Repeat("(?,?,?,?),", totalToProcess), ",",
+			strings.Repeat("(?,?,?),", totalToProcess), ",",
 		)
 		stmt := fmt.Sprintf(
-			`INSERT INTO host_issues (host_id, failing_policies_count, critical_vulnerabilities_count, total_issues_count) VALUES %s
+			`INSERT INTO host_issues (host_id, critical_vulnerabilities_count, total_issues_count) VALUES %s
 					ON DUPLICATE KEY UPDATE
-					failing_policies_count = VALUES(failing_policies_count),
 					critical_vulnerabilities_count = VALUES(critical_vulnerabilities_count),
-					total_issues_count = VALUES(total_issues_count)`,
+					total_issues_count = failing_policies_count + VALUES(critical_vulnerabilities_count)`,
 			values,
 		)
 		args := make([]interface{}, 0, totalToProcess*numberOfArgsPerIssue)
 		for j := start; j < end; j++ {
-			issue := issues[issueKeys[j]]
+			criticalCount := criticalCounts[j]
 			args = append(
-				args, issueKeys[j], issue.FailingPoliciesCount, issue.CriticalVulnerabilitiesCount, issue.TotalIssuesCount,
+				args, criticalCount.HostID, criticalCount.Count, criticalCount.Count,
 			)
 		}
 		if _, err := ds.writer(ctx).ExecContext(ctx, stmt, args...); err != nil {
-			return ctxerr.Wrap(ctx, err, "insert host_issues")
+			return ctxerr.Wrap(ctx, err, "insert critical vulnerabilities into host_issues")
 		}
 
-		// Delete any host_issues rows that have no issues
-		stmt, args, err = sqlx.In("DELETE FROM host_issues WHERE host_id NOT IN (?)", issueKeys[start:end])
+		// Clear critical vulnerabilities count for hosts that have no critical vulnerabilities
+		hostIDs := make([]uint64, 0, totalToProcess)
+		for j := start; j < end; j++ {
+			hostIDs = append(hostIDs, criticalCounts[j].HostID)
+		}
+		stmt, args, err = sqlx.In(
+			"UPDATE host_issues SET critical_vulnerabilities_count = 0, total_issues_count = failing_policies_count WHERE host_id NOT IN (?)",
+			hostIDs,
+		)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "building IN statement for deleting host_issues")
+			return ctxerr.Wrap(ctx, err, "building IN statement for clearing critical vulnerabilities in host_issues")
 		}
 		if start != 0 {
 			stmt += " AND host_id >= ?"
-			args = append(args, issueKeys[start])
+			args = append(args, criticalCounts[start].HostID)
 		}
-		if end != len(issueKeys) {
+		if end != len(criticalCounts) {
 			stmt += " AND host_id < ?"
-			args = append(args, issueKeys[end])
+			args = append(args, criticalCounts[end].HostID)
 		}
 		if _, err := ds.writer(ctx).ExecContext(ctx, stmt, args...); err != nil {
-			return ctxerr.Wrap(ctx, err, "delete host_issues")
+			return ctxerr.Wrap(ctx, err, "clear critical vulnerabilities in host_issues")
 		}
 	}
-	if deleteAll {
-		if _, err := ds.writer(ctx).ExecContext(ctx, "DELETE FROM host_issues"); err != nil {
-			return ctxerr.Wrap(ctx, err, "delete all host_issues")
-		}
+	if clearAll {
+		return clearAllFn()
+	}
+	return nil
+}
+
+func (ds *Datastore) CleanupHostIssues(ctx context.Context) error {
+	stmt := `
+	DELETE hi
+	FROM host_issues hi
+	LEFT JOIN hosts h ON h.id = hi.host_id
+	WHERE h.id IS NULL`
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt); err != nil {
+		return ctxerr.Wrap(ctx, err, "cleanup host issues")
 	}
 	return nil
 }

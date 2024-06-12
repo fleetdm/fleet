@@ -167,7 +167,7 @@ func TestHosts(t *testing.T) {
 		{"GetHostOrbitInfo", testGetHostOrbitInfo},
 		{"HostnamesByIdentifiers", testHostnamesByIdentifiers},
 		{"HostsAddToTeamCleansUpTeamQueryResults", testHostsAddToTeamCleansUpTeamQueryResults},
-		{"SyncHostIssues", testSyncHostIssues},
+		{"UpdateHostIssues", testUpdateHostIssues},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -9144,7 +9144,7 @@ func testHostsAddToTeamCleansUpTeamQueryResults(t *testing.T, ds *Datastore) {
 	require.Equal(t, query1Team1.ID, hostStaticOnTeam1.PackStats[1].QueryStats[0].ScheduledQueryID)
 }
 
-func testSyncHostIssues(t *testing.T, ds *Datastore) {
+func testUpdateHostIssues(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
 	hosts := make([]*fleet.Host, 10)
@@ -9164,17 +9164,22 @@ func testSyncHostIssues(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		hosts[i] = h
 	}
+	var hostIDs []uint
+	for _, h := range hosts {
+		hostIDs = append(hostIDs, h.ID)
+	}
 
-	// Insert an issue
+	// Insert an issue for a non-existent host
 	ExecAdhocSQL(
 		t, ds, func(q sqlx.ExtContext) error {
-			_, err := q.ExecContext(ctx, `INSERT INTO host_issues (host_id) VALUES (?)`, hosts[0].ID)
+			_, err := q.ExecContext(ctx, `INSERT INTO host_issues (host_id) VALUES (?)`, hosts[len(hosts)-1].ID+1)
 			return err
 		},
 	)
 
-	// No issues expected
-	assert.NoError(t, ds.SyncHostIssues(ctx))
+	// No issues with positive counts expected
+	assert.NoError(t, ds.UpdateHostIssuesFailingPolicies(ctx, hostIDs))
+	assert.NoError(t, ds.UpdateHostIssuesVulnerabilities(ctx))
 	type issue struct {
 		HostID uint `db:"host_id"`
 		fleet.HostIssuesPremium
@@ -9186,7 +9191,14 @@ func testSyncHostIssues(t *testing.T, ds *Datastore) {
 			"SELECT host_id, failing_policies_count, critical_vulnerabilities_count, total_issues_count from host_issues",
 		),
 	)
-	assert.Empty(t, issues)
+	for _, is := range issues {
+		assert.Zero(t, is.FailingPoliciesCount)
+		assert.Zero(t, is.CriticalVulnerabilitiesCount)
+		assert.Zero(t, is.TotalIssuesCount)
+	}
+
+	// Clear the issues for non-existent hosts
+	assert.NoError(t, ds.CleanupHostIssues(ctx))
 
 	// Add some policy fails and critical vulnerabilities.
 	// Hosts 0,1,8,9 don't have any issues
@@ -9282,7 +9294,8 @@ func testSyncHostIssues(t *testing.T, ds *Datastore) {
 	)
 
 	// Test normal
-	assert.NoError(t, ds.SyncHostIssues(ctx))
+	assert.NoError(t, ds.UpdateHostIssuesFailingPolicies(ctx, hostIDs))
+	assert.NoError(t, ds.UpdateHostIssuesVulnerabilities(ctx))
 	issues = nil
 	assert.NoError(
 		t, sqlx.SelectContext(
@@ -9290,8 +9303,17 @@ func testSyncHostIssues(t *testing.T, ds *Datastore) {
 			"SELECT host_id, failing_policies_count, critical_vulnerabilities_count, total_issues_count from host_issues ORDER BY host_id",
 		),
 	)
-	assert.Len(t, issues, 4)
-	for i, hostIssue := range issues {
+	nonZeroIssues := make([]issue, 0, 4)
+	for _, hostIssue := range issues {
+		if hostIssue.TotalIssuesCount == 0 {
+			assert.Zero(t, hostIssue.FailingPoliciesCount)
+			assert.Zero(t, hostIssue.CriticalVulnerabilitiesCount)
+			continue
+		}
+		nonZeroIssues = append(nonZeroIssues, hostIssue)
+	}
+	assert.Len(t, nonZeroIssues, 4)
+	for i, hostIssue := range nonZeroIssues {
 		count := i + 2
 		assert.Equal(t, hosts[count].ID, hostIssue.HostID)
 		assert.Equal(t, uint64(count), hostIssue.FailingPoliciesCount)
@@ -9308,15 +9330,9 @@ func testSyncHostIssues(t *testing.T, ds *Datastore) {
 		},
 	)
 	hostIssuesInsertBatchSize = 2
-	// Insert a couple issues
-	ExecAdhocSQL(
-		t, ds, func(q sqlx.ExtContext) error {
-			_, err := q.ExecContext(ctx, `INSERT INTO host_issues (host_id) VALUES (?),(?)`, hosts[0].ID, hosts[len(hosts)-1].ID)
-			return err
-		},
-	)
 
-	assert.NoError(t, ds.SyncHostIssues(ctx))
+	assert.NoError(t, ds.UpdateHostIssuesFailingPolicies(ctx, hostIDs))
+	assert.NoError(t, ds.UpdateHostIssuesVulnerabilities(ctx))
 	issues = nil
 	assert.NoError(
 		t, sqlx.SelectContext(
@@ -9324,8 +9340,17 @@ func testSyncHostIssues(t *testing.T, ds *Datastore) {
 			"SELECT host_id, failing_policies_count, critical_vulnerabilities_count, total_issues_count from host_issues ORDER BY host_id",
 		),
 	)
-	assert.Len(t, issues, 6)
-	for i, hostIssue := range issues {
+	nonZeroIssues = make([]issue, 0, 6)
+	for _, hostIssue := range issues {
+		if hostIssue.TotalIssuesCount == 0 {
+			assert.Zero(t, hostIssue.FailingPoliciesCount)
+			assert.Zero(t, hostIssue.CriticalVulnerabilitiesCount)
+			continue
+		}
+		nonZeroIssues = append(nonZeroIssues, hostIssue)
+	}
+	assert.Len(t, nonZeroIssues, 6)
+	for i, hostIssue := range nonZeroIssues {
 		var policiesCount = uint64(i + 2)
 		var criticalCount = uint64(0)
 		if i > 1 {
@@ -9390,7 +9415,8 @@ func testSyncHostIssues(t *testing.T, ds *Datastore) {
 			},
 		),
 	)
-	assert.NoError(t, ds.SyncHostIssues(ctx))
+	assert.NoError(t, ds.UpdateHostIssuesFailingPolicies(ctx, hostIDs))
+	assert.NoError(t, ds.UpdateHostIssuesVulnerabilities(ctx))
 	issues = nil
 	assert.NoError(
 		t, sqlx.SelectContext(
@@ -9398,10 +9424,19 @@ func testSyncHostIssues(t *testing.T, ds *Datastore) {
 			"SELECT host_id, failing_policies_count, critical_vulnerabilities_count, total_issues_count from host_issues ORDER BY host_id",
 		),
 	)
-	assert.Len(t, issues, 1)
-	hostIssue := issues[0]
-	assert.Equal(t, hosts[1].ID, hostIssue.HostID)
-	assert.Zero(t, hostIssue.FailingPoliciesCount)
-	assert.Equal(t, uint64(1), hostIssue.CriticalVulnerabilitiesCount)
-	assert.Equal(t, uint64(1), hostIssue.TotalIssuesCount)
+	hostIssueFound := false
+	for _, hostIssue := range issues {
+		if hostIssue.HostID == hosts[1].ID {
+			hostIssueFound = true
+			assert.Equal(t, hosts[1].ID, hostIssue.HostID)
+			assert.Zero(t, hostIssue.FailingPoliciesCount)
+			assert.Equal(t, uint64(1), hostIssue.CriticalVulnerabilitiesCount)
+			assert.Equal(t, uint64(1), hostIssue.TotalIssuesCount)
+			continue
+		}
+		assert.Zero(t, hostIssue.FailingPoliciesCount)
+		assert.Zero(t, hostIssue.CriticalVulnerabilitiesCount)
+		assert.Zero(t, hostIssue.TotalIssuesCount, "host issue: %+v", hostIssue)
+	}
+	assert.True(t, hostIssueFound)
 }

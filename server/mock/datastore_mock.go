@@ -3080,7 +3080,7 @@ func (s *DataStore) UpdateHostIssuesFailingPolicies(ctx context.Context, hostIDs
 	return s.UpdateHostIssuesFailingPoliciesFunc(ctx, hostIDs)
 }
 
-func (s *DataStore) SyncHostIssues(ctx context.Context) error {
+func (s *DataStore) UpdateHostIssuesVulnerabilities(ctx context.Context) error {
 	s.mu.Lock()
 	s.SyncHostIssuesFuncInvoked = true
 	s.mu.Unlock()
