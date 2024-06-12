@@ -8527,7 +8527,7 @@ _Available in Fleet Premium._
 
 Add a VPP software form App Store to the Fleet software title.
 
-`POST /api/v1/fleet/software/vpp/:id`
+`POST /api/v1/fleet/software/vpp/:app_store_id`
 
 #### Parameters
 
