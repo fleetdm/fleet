@@ -1,1 +1,0 @@
-When orbit gets host info from osquery at startup, ignore and log osquery error when valid data is returned.

@@ -347,6 +347,11 @@ func (ds *Datastore) applyChangesForNewSoftwareDB(
 		return r, nil
 	}
 
+	existingSoftware, incomingByChecksum, existingTitlesForNewSoftware, err := ds.getExistingSoftware(ctx, current, incoming)
+	if err != nil {
+		return r, err
+	}
+
 	err = ds.withRetryTxx(
 		ctx, func(tx sqlx.ExtContext) error {
 			deleted, err := deleteUninstalledHostSoftwareDB(ctx, tx, hostID, current, incoming)
@@ -355,7 +360,9 @@ func (ds *Datastore) applyChangesForNewSoftwareDB(
 			}
 			r.Deleted = deleted
 
-			inserted, err := ds.insertNewInstalledHostSoftwareDB(ctx, tx, hostID, current, incoming)
+			inserted, err := ds.insertNewInstalledHostSoftwareDB(
+				ctx, tx, hostID, existingSoftware, incomingByChecksum, existingTitlesForNewSoftware,
+			)
 			if err != nil {
 				return err
 			}
@@ -375,6 +382,91 @@ func (ds *Datastore) applyChangesForNewSoftwareDB(
 		return nil, err
 	}
 	return r, err
+}
+
+func (ds *Datastore) getExistingSoftware(
+	ctx context.Context, current map[string]fleet.Software, incoming map[string]fleet.Software,
+) (
+	currentSoftware []softwareIDChecksum, incomingChecksumToSoftware map[string]fleet.Software,
+	incomingChecksumToTitle map[string]fleet.SoftwareTitle, err error,
+) {
+	// Compute checksums for all incoming software, which we will use for faster retrieval, since checksum is a unique index
+	incomingChecksumToSoftware = make(map[string]fleet.Software, len(current))
+	newSoftware := make(map[string]struct{})
+	for uniqueName, s := range incoming {
+		if _, ok := current[uniqueName]; !ok {
+			checksum, err := computeRawChecksum(s)
+			if err != nil {
+				return nil, nil, nil, err
+			}
+			incomingChecksumToSoftware[string(checksum)] = s
+			newSoftware[string(checksum)] = struct{}{}
+		}
+	}
+
+	if len(incomingChecksumToSoftware) > 0 {
+		keys := make([]string, 0, len(incomingChecksumToSoftware))
+		for checksum := range incomingChecksumToSoftware {
+			keys = append(keys, checksum)
+		}
+		// We use the replica DB for retrieval to minimize the traffic to the master DB.
+		// It is OK if the software is not found in the replica DB, because we will then attempt to insert it in the master DB.
+		currentSoftware, err = getSoftwareIDsByChecksums(ctx, ds.reader(ctx), keys)
+		if err != nil {
+			return nil, nil, nil, err
+		}
+		for _, s := range currentSoftware {
+			_, ok := incomingChecksumToSoftware[s.Checksum]
+			if !ok {
+				// This should never happen. If it does, we have a bug.
+				return nil, nil, nil, ctxerr.New(
+					ctx, fmt.Sprintf("software not found for checksum %s", hex.EncodeToString([]byte(s.Checksum))),
+				)
+			}
+			delete(newSoftware, s.Checksum)
+		}
+	}
+
+	// Get software titles for new software, if any
+	incomingChecksumToTitle = make(map[string]fleet.SoftwareTitle, len(newSoftware))
+	if len(newSoftware) > 0 {
+		totalToProcess := len(newSoftware)
+		const numberOfArgsPerSoftwareTitle = 3 // number of ? in each WHERE clause
+		whereClause := strings.TrimSuffix(
+			strings.Repeat("(name = ? AND source = ? AND browser = ?) OR", totalToProcess), " OR",
+		)
+		stmt := fmt.Sprintf(
+			"SELECT id, name, source, browser FROM software_titles WHERE %s",
+			whereClause,
+		)
+		args := make([]interface{}, 0, totalToProcess*numberOfArgsPerSoftwareTitle)
+		uniqueTitleStrToChecksum := make(map[string]string, totalToProcess)
+		for checksum := range newSoftware {
+			sw := incomingChecksumToSoftware[checksum]
+			args = append(args, sw.Name, sw.Source, sw.Browser)
+			// Map software title identifier to software checksums so that we can map checksums to actual titles later.
+			uniqueTitleStrToChecksum[UniqueSoftwareTitleStr(sw.Name, sw.Source, sw.Browser)] = checksum
+		}
+		var existingSoftwareTitlesForNewSoftware []fleet.SoftwareTitle
+		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &existingSoftwareTitlesForNewSoftware, stmt, args...); err != nil {
+			return nil, nil, nil, ctxerr.Wrap(ctx, err, "get existing titles")
+		}
+
+		// Map software titles to software checksums.
+		for _, title := range existingSoftwareTitlesForNewSoftware {
+			checksum, ok := uniqueTitleStrToChecksum[UniqueSoftwareTitleStr(title.Name, title.Source, title.Browser)]
+			if ok {
+				incomingChecksumToTitle[checksum] = title
+			}
+		}
+	}
+
+	return currentSoftware, incomingChecksumToSoftware, incomingChecksumToTitle, nil
+}
+
+// UniqueSoftwareTitleStr creates a unique string representation of the software title
+func UniqueSoftwareTitleStr(values ...string) string {
+	return strings.Join(values, fleet.SoftwareFieldSeparator)
 }
 
 // delete host_software that is in current map, but not in incoming map.
@@ -423,59 +515,22 @@ func computeRawChecksum(sw fleet.Software) ([]byte, error) {
 	return h.Sum(nil), nil
 }
 
-// insert host_software that is in incoming map, but not in current map.
+// Insert host_software that is in softwareChecksums map, but not in existingSoftware.
+// Also insert any new software titles that are needed.
 // returns the inserted software on the host
-//
-//nolint:gocritic // This function uses a read from DB replica inside a transaction. This is an intentional optimization to reduce master DB load.
 func (ds *Datastore) insertNewInstalledHostSoftwareDB(
 	ctx context.Context,
 	tx sqlx.ExtContext,
 	hostID uint,
-	currentMap map[string]fleet.Software,
-	incomingMap map[string]fleet.Software,
+	existingSoftware []softwareIDChecksum,
+	softwareChecksums map[string]fleet.Software,
+	existingTitlesForNewSoftware map[string]fleet.SoftwareTitle,
 ) ([]fleet.Software, error) {
 	var insertsHostSoftware []interface{}
 	var insertedSoftware []fleet.Software
 
-	type softwareWithUniqueName struct {
-		uniqueName string
-		software   fleet.Software
-	}
-	incomingOrdered := make([]softwareWithUniqueName, 0, len(incomingMap))
-	for uniqueName, software := range incomingMap {
-		incomingOrdered = append(incomingOrdered, softwareWithUniqueName{
-			uniqueName: uniqueName,
-			software:   software,
-		})
-	}
-	sort.Slice(incomingOrdered, func(i, j int) bool {
-		return incomingOrdered[i].uniqueName < incomingOrdered[j].uniqueName
-	})
-
-	// Compute checksums for all incoming software, which we will use for faster retrieval, since checksum is a unique index
-	softwareChecksums := make(map[string]*fleet.Software, 0)
-	for i, s := range incomingOrdered {
-		if _, ok := currentMap[s.uniqueName]; !ok {
-			checksum, err := computeRawChecksum(s.software)
-			if err != nil {
-				return nil, err
-			}
-			softwareChecksums[string(checksum)] = &incomingOrdered[i].software // we can't use `s` here because it is a pointer to a loop variable
-		}
-	}
-
-	// First, we check if host's new software already exists in the software table.
+	// First, we remove incoming software that already exists in the software table.
 	if len(softwareChecksums) > 0 {
-		keys := make([]string, 0, len(softwareChecksums))
-		for checksum := range softwareChecksums {
-			keys = append(keys, checksum)
-		}
-		// We use the replica DB for retrieval to minimize the traffic to the master DB.
-		// It is OK if the software is not found in the replica DB, because we will then attempt to insert it in the master DB.
-		existingSoftware, err := getSoftwareIDsByChecksums(ctx, ds.reader(ctx), keys)
-		if err != nil {
-			return nil, err
-		}
 		for _, s := range existingSoftware {
 			software, ok := softwareChecksums[s.Checksum]
 			if !ok {
@@ -483,7 +538,7 @@ func (ds *Datastore) insertNewInstalledHostSoftwareDB(
 			}
 			software.ID = s.ID
 			insertsHostSoftware = append(insertsHostSoftware, hostID, software.ID, software.LastOpenedAt)
-			insertedSoftware = append(insertedSoftware, *software)
+			insertedSoftware = append(insertedSoftware, software)
 			delete(softwareChecksums, s.Checksum)
 		}
 	}
@@ -501,42 +556,92 @@ func (ds *Datastore) insertNewInstalledHostSoftwareDB(
 				end = len(keys)
 			}
 			totalToProcess := end - start
-			const numberOfArgsPerSoftware = 10 // number of ? in each VALUES clause
+
+			// Insert into software
+			const numberOfArgsPerSoftware = 11 // number of ? in each VALUES clause
 			values := strings.TrimSuffix(
-				strings.Repeat("(?,?,?,?,?,?,?,?,?,?),", totalToProcess), ",",
+				strings.Repeat("(?,?,?,?,?,?,?,?,?,?,?),", totalToProcess), ",",
 			)
 			// INSERT IGNORE is used to avoid duplicate key errors, which may occur since our previous read came from the replica.
 			stmt := fmt.Sprintf(
-				"INSERT IGNORE INTO software (name, version, source, `release`, vendor, arch, bundle_identifier, extension_id, browser, checksum) VALUES %s",
+				"INSERT IGNORE INTO software (name, version, source, `release`, vendor, arch, bundle_identifier, extension_id, browser, title_id, checksum) VALUES %s",
 				values,
 			)
 			args := make([]interface{}, 0, totalToProcess*numberOfArgsPerSoftware)
+			newTitlesNeeded := make(map[string]fleet.SoftwareTitle)
 			for j := start; j < end; j++ {
 				checksum := keys[j]
 				sw := softwareChecksums[checksum]
+				var titleID *uint
+				title, ok := existingTitlesForNewSoftware[checksum]
+				if ok {
+					titleID = &title.ID
+				} else if _, ok := newTitlesNeeded[checksum]; !ok {
+					newTitlesNeeded[checksum] = fleet.SoftwareTitle{
+						Name:    sw.Name,
+						Source:  sw.Source,
+						Browser: sw.Browser,
+					}
+				}
 				args = append(
 					args, sw.Name, sw.Version, sw.Source, sw.Release, sw.Vendor, sw.Arch, sw.BundleIdentifier, sw.ExtensionID, sw.Browser,
-					checksum,
+					titleID, checksum,
 				)
 			}
 			if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "insert software")
 			}
+
+			// Insert into software_titles
+			totalTitlesToProcess := len(newTitlesNeeded)
+			if totalTitlesToProcess > 0 {
+				const numberOfArgsPerSoftwareTitles = 3 // number of ? in each VALUES clause
+				titlesValues := strings.TrimSuffix(strings.Repeat("(?,?,?),", totalTitlesToProcess), ",")
+				// INSERT IGNORE is used to avoid duplicate key errors, which may occur since our previous read came from the replica.
+				titlesStmt := fmt.Sprintf("INSERT IGNORE INTO software_titles (name, source, browser) VALUES %s", titlesValues)
+				titlesArgs := make([]interface{}, 0, totalTitlesToProcess*numberOfArgsPerSoftwareTitles)
+				titleChecksums := make([]string, totalTitlesToProcess)
+				for checksum, title := range newTitlesNeeded {
+					titlesArgs = append(titlesArgs, title.Name, title.Source, title.Browser)
+					titleChecksums = append(titleChecksums, checksum)
+				}
+				if _, err := tx.ExecContext(ctx, titlesStmt, titlesArgs...); err != nil {
+					return nil, ctxerr.Wrap(ctx, err, "insert software_titles")
+				}
+
+				// update new title ids for new software table entries
+				updateSoftwareStmt := `
+				UPDATE
+					software s,
+					software_titles st
+				SET
+					s.title_id = st.id
+				WHERE
+					(s.name, s.source, s.browser) = (st.name, st.source, st.browser)
+					AND s.checksum IN (?)`
+				updateSoftwareStmt, updateArgs, err := sqlx.In(updateSoftwareStmt, titleChecksums)
+				if err != nil {
+					return nil, ctxerr.Wrap(ctx, err, "build update software title_id")
+				}
+				if _, err = tx.ExecContext(ctx, updateSoftwareStmt, updateArgs...); err != nil {
+					return nil, ctxerr.Wrap(ctx, err, "update software title_id")
+				}
+			}
 		}
 
 		// Here, we use the transaction (tx) for retrieval because we must retrieve the software IDs that we just inserted.
-		existingSoftware, err := getSoftwareIDsByChecksums(ctx, tx, keys)
+		updatedExistingSoftware, err := getSoftwareIDsByChecksums(ctx, tx, keys)
 		if err != nil {
 			return nil, err
 		}
-		for _, s := range existingSoftware {
+		for _, s := range updatedExistingSoftware {
 			software, ok := softwareChecksums[s.Checksum]
 			if !ok {
 				return nil, ctxerr.New(ctx, fmt.Sprintf("software not found for checksum %s", hex.EncodeToString([]byte(s.Checksum))))
 			}
 			software.ID = s.ID
 			insertsHostSoftware = append(insertsHostSoftware, hostID, software.ID, software.LastOpenedAt)
-			insertedSoftware = append(insertedSoftware, *software)
+			insertedSoftware = append(insertedSoftware, software)
 			delete(softwareChecksums, s.Checksum)
 		}
 	}

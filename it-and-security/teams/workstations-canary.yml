@@ -105,6 +105,7 @@ controls:
     - path: ../lib/macos-see-automatic-enrollment-profile.sh
     - path: ../lib/macos-remove-old-nudge.sh
     - path: ../lib/macos-mdm-migration.sh
+    - path: ../lib/macos-system-maintenance.sh
     - path: ../lib/windows-remove-fleetd.ps1
     - path: ../lib/windows-turn-off-mdm.ps1
     - path: ../lib/windows-install-bitdefender.ps1
@@ -121,10 +122,17 @@ policies:
     platform: darwin
     calendar_events_enabled: false  
   - name: macOS - MDM migration complete
-    query: SELECT 1 AS result FROM system_info WHERE computer_name NOT IN ('Titanosauria', 'Drew’s MacBook Pro','fleetwoodmike');
+    query: SELECT 1 AS result FROM system_info WHERE computer_name NOT IN ('Titanosauria2', 'Drew’s MacBook Pro2','fleetwoodmike2');
     critical: false
     description: Determines if the device has completed MDM migration to Fleet.
     resolution: We will migrate your macOS MDM to Fleet.
+    platform: darwin
+    calendar_events_enabled: false
+  - name: macOS - System maintenance complete
+    query: SELECT 1 AS result FROM system_info WHERE computer_name NOT IN ('Titanosauria', 'Drew’s MacBook Pro','fleetwoodmike');
+    critical: false
+    description: Determines if the device has completed system maintenance.
+    resolution: We will perform system maintenance on your device.
     platform: darwin
     calendar_events_enabled: true
 queries:
