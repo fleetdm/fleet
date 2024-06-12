@@ -1,6 +1,6 @@
 # Commands
 
-In Fleet you can run MDM commands to take action on your macO, iOS, iPadOS, and Windows hosts, like restarting the host, remotely.
+In Fleet you can run MDM commands to take action on your macOS, iOS, iPadOS, and Windows hosts, like restarting the host, remotely.
 
 ## Custom commands
 
