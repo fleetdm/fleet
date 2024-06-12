@@ -8026,8 +8026,8 @@ Deletes the session specified by ID. When the user associated with the session n
 - [List software versions](#list-software-versions)
 - [Get software](#get-software)
 - [Get software version](#get-software-version)
-- [Get VPP software](#get-vpp-software)
-- [Add VPP software](#add-vpp-software)
+- [Get available App Store apps](#get-available-app-store-apps)
+- [Add App Store app](#add-app-store-app)
 
 ### Add software
 
@@ -8484,11 +8484,11 @@ Returns information about the specified software version.
 }
 ```
 
-### Get VPP software
+### Get available App Store apps
 
-Returns the list of software purchased in Apple Business Manager.
+Returns the list of App Store (VPP) apps purchased in Apple Business Manager.
 
-`GET /api/v1/fleet/software/vpp/:team_id`
+`GET /api/v1/fleet/software/app_store/:team_id`
 
 #### Parameters
 
@@ -8498,7 +8498,7 @@ Returns the list of software purchased in Apple Business Manager.
 
 #### Example
 
-`GET /api/v1/fleet/software/vpp/3`
+`GET /api/v1/fleet/software/app_store/3`
 
 ##### Default response
 
@@ -8506,7 +8506,7 @@ Returns the list of software purchased in Apple Business Manager.
 
 ```json
 {
-  "vpp_software": {
+  "app_store_apps": {
     {
       "name": "Xcode",
       "latest_version": "15.4",
@@ -8521,47 +8521,45 @@ Returns the list of software purchased in Apple Business Manager.
 }
 ```
 
-### Add VPP software
+### Add App Store app
 
 _Available in Fleet Premium._
 
-Add a VPP software form App Store to the Fleet software title.
+Add App Store (VPP) app purchased in Apple Business Manager.
 
-`POST /api/v1/fleet/software/vpp/:app_store_id`
+`POST /api/v1/fleet/software/app_store/:app_store_id`
 
 #### Parameters
 
 | Name | Type | In | Description |
 | ---- | ---- | -- | ----------- |
-| app_store_id   | integer | path | **Required.** The ID of Apple App Store app. |
+| app_store_id   | integer | path | **Required.** The ID of App Store app. |
 | team_id       | integer | query | **Required**. The team ID. Adds VPP software to the specified team.  |
 
 #### Example
 
-`POST /api/v1/fleet/software/vpp/2?team_id=3`
+`POST /api/v1/fleet/software/app_store/2?team_id=3`
 
 ##### Default response
 
 `Status: 200`
 
-### Delete VPP software
+### Delete App Store app
 
 _Available in Fleet Premium._
 
-Delete a VPP app from software title.
-
-`DELETE /api/v1/fleet/software/titles/:software_title_id/vpp`
+`DELETE /api/v1/fleet/software/titles/:software_title_id/app_store`
 
 #### Parameters
 
 | Name            | Type    | In   | Description                                      |
 | ----            | ------- | ---- | --------------------------------------------     |
-| software_title_id              | integer | path | **Required**. The ID of the software title for the VPP app to delete. |
+| software_title_id              | integer | path | **Required**. The ID of the software title to delete App Store app. |
 | team_id | integer | query | **Required**. The team ID. Deletes a software package added to the specified team. |
 
 #### Example
 
-`DELETE /api/v1/fleet/software/titles/24/vpp?team_id=2`
+`DELETE /api/v1/fleet/software/titles/24/app_store?team_id=2`
 
 ##### Default response
 
