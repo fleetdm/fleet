@@ -31,6 +31,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/platform"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/profiles"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/fleetd_logs"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/orbit_info"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/token"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update"
@@ -244,16 +245,24 @@ func main() {
 			}
 			if runtime.GOOS == "windows" {
 				// On Windows, Orbit runs as a "Windows Service", which fails to write to os.Stderr with
-				// "write /dev/stderr: The handle is invalid" (see #3100). Thus, we log to the logFile only.
-				log.Logger = log.Output(zerolog.ConsoleWriter{Out: logFile, TimeFormat: time.RFC3339Nano, NoColor: true})
+				// "write /dev/stderr: The handle is invalid" (see
+				// #3100). Thus, we log to the logFile only.
+				log.Logger = log.Output(zerolog.MultiLevelWriter(
+					zerolog.ConsoleWriter{Out: logFile, TimeFormat: time.RFC3339Nano, NoColor: true},
+					&fleetd_logs.Logger,
+				))
 			} else {
 				log.Logger = log.Output(zerolog.MultiLevelWriter(
 					zerolog.ConsoleWriter{Out: logFile, TimeFormat: time.RFC3339Nano, NoColor: true},
 					zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.RFC3339Nano, NoColor: true},
+					&fleetd_logs.Logger,
 				))
 			}
 		} else {
-			log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.RFC3339Nano, NoColor: true})
+			log.Logger = log.Output(zerolog.MultiLevelWriter(
+				zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.RFC3339Nano, NoColor: true},
+				&fleetd_logs.Logger,
+			))
 		}
 
 		zerolog.SetGlobalLevel(zerolog.InfoLevel)
