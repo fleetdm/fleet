@@ -141,6 +141,9 @@ module "main" {
     #   container_name   = "fleet"
     #   container_port   = 8080
     # }]
+    software_installers = {
+      bucket_prefix = "${local.customer}-software-installers-"
+    }
     sidecars = [
       {
         name        = "osquery"
@@ -536,6 +539,7 @@ module "vuln-processing" {
     region = module.main.byo-vpc.byo-db.byo-ecs.fleet_config.awslogs.region
     prefix = module.main.byo-vpc.byo-db.byo-ecs.fleet_config.awslogs.prefix
   }
+  fleet_s3_software_installers_config = module.main.byo-vpc.byo-db.byo-ecs.fleet_s3_software_installers_config
 }
 
 resource "aws_secretsmanager_secret" "dogfood_sidecar_enroll_secret" {
