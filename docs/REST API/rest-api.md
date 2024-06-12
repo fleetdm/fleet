@@ -8533,7 +8533,7 @@ Add a VPP software form App Store to the Fleet software title.
 
 | Name | Type | In | Description |
 | ---- | ---- | -- | ----------- |
-| id   | integer | path | **Required.** The VPP software's ID. |
+| app_store_id   | integer | path | **Required.** The ID of Apple App Store app. |
 | team_id       | integer | query | **Required**. The team ID. Adds VPP software to the specified team.  |
 
 #### Example
