@@ -550,6 +550,7 @@ const (
 	RunScriptAsyncScriptEnqueuedErrMsg     = "Script is running or will run when the host comes online."
 	RunScripSavedMaxLenErrMsg              = "Script is too large. It's limited to 500,000 characters (approximately 10,000 lines)."
 	RunScripUnsavedMaxLenErrMsg            = "Script is too large. It's limited to 10,000 characters (approximately 125 lines)."
+	RunScriptGatewayTimeoutErrMsg          = "Gateway timeout. Fleet didn't hear back from the host in time. This could be due to a network timeout outside of the fleet server. Consider increasing the timeout or you can check for execution results in Fleet."
 
 	// End user authentication
 	EndUserAuthDEPWebURLConfiguredErrMsg = `End user authentication can't be configured when the configured automatic enrollment (DEP) profile specifies a configuration_web_url.` // #nosec G101
