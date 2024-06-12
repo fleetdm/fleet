@@ -699,7 +699,7 @@ var mdmQueries = map[string]DetailQuery{
 		QueryFunc:        buildConfigProfilesWindowsQuery,
 		Platforms:        []string{"windows"},
 		DirectIngestFunc: directIngestWindowsProfiles,
-		Discovery:        discoveryTable("mdm_bridge"),
+		Discovery:        discoveryTableAndServer("mdm_bridge"),
 	},
 	// There are two mutually-exclusive queries used to read the FileVaultPRK depending on which
 	// extension tables are discovered on the agent. The preferred query uses the newer custom
@@ -752,6 +752,21 @@ var mdmQueries = map[string]DetailQuery{
 		DirectIngestFunc: directIngestMDMDeviceIDWindows,
 	},
 }
+
+func discoveryTableAndServer(tableName string) string {
+	discoveryTableServerQuery := `
+SELECT 1
+FROM osquery_registry
+WHERE active = true
+  AND registry = 'table'
+  AND name = '%s'
+INNER JOIN
+   (SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\InstallationType' AND data <> 'Server')
+`
+	return fmt.Sprintf(discoveryTableServerQuery, tableName)
+}
+
+const DiscoveryServer = `SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\InstallationType' AND data <> 'Server' LIMIT 1`
 
 // discoveryTable returns a query to determine whether a table exists or not.
 func discoveryTable(tableName string) string {
@@ -1121,14 +1136,14 @@ var SoftwareOverrideQueries = map[string]DetailQuery{
 		Description: "A software override query[^1] to differentiate between Firefox and Firefox ESR on macOS.  Requires `fleetd`",
 		Query: `
 			WITH app_paths AS (
-				SELECT path 
-				FROM apps 
+				SELECT path
+				FROM apps
 				WHERE bundle_identifier = 'org.mozilla.firefox'
-			),	
+			),
 			remoting_name AS (
-				SELECT value, path 
-				FROM parse_ini 
-				WHERE key = 'RemotingName' 
+				SELECT value, path
+				FROM parse_ini
+				WHERE key = 'RemotingName'
 				AND path IN (SELECT CONCAT(path, '/Contents/Resources/application.ini') FROM app_paths)
 			)
 			SELECT
