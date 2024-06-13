@@ -315,7 +315,7 @@ const Advanced = ({
                 </em>
               </>
             }
-            helpText="Only policy queries (SQL) are sent to the LLM. Fleet doesn’t use this data to train models."
+            helpText="If enabled, only policy queries (SQL) are sent to the LLM. Fleet doesn’t use this data to train models."
           >
             Disable generative AI features
           </Checkbox>

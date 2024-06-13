@@ -42,6 +42,7 @@ type CPEMatchingRule struct {
 	// IgnoreAll will cause all CPEs to not match hence ignoring a CVE.
 	IgnoreAll bool
 	// IgnoreIf is a function that can determine if a CPE matching rule should be ignored or not.
+	// If IgnoreIf is set, CPESpecs will not be evaluated.
 	IgnoreIf func(cpeMeta *wfn.Attributes) bool
 }
 
@@ -55,8 +56,11 @@ func (rule CPEMatchingRule) CPEMatches(cpeMeta *wfn.Attributes) bool {
 		return false
 	}
 
-	if rule.IgnoreIf != nil && rule.IgnoreIf(cpeMeta) {
-		return false
+	if rule.IgnoreIf != nil {
+		if rule.IgnoreIf(cpeMeta) {
+			return false
+		}
+		return true
 	}
 
 	ver, err := semver.NewVersion(wfn.StripSlashes(cpeMeta.Version))

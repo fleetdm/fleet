@@ -479,7 +479,8 @@ func (svc *Service) SearchHosts(ctx context.Context, matchQuery string, queryID 
 /////////////////////////////////////////////////////////////////////////////////
 
 type getHostRequest struct {
-	ID uint `url:"id"`
+	ID              uint `url:"id"`
+	ExcludeSoftware bool `query:"exclude_software,optional"`
 }
 
 type getHostResponse struct {
@@ -493,7 +494,8 @@ func getHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service
 	req := request.(*getHostRequest)
 	opts := fleet.HostDetailOptions{
 		IncludeCVEScores: false,
-		IncludePolicies:  true, // intentionally true to preserve existing behavior
+		IncludePolicies:  true, // intentionally true to preserve existing behavior,
+		ExcludeSoftware:  req.ExcludeSoftware,
 	}
 	host, err := svc.GetHost(ctx, req.ID, opts)
 	if err != nil {
@@ -1009,8 +1011,10 @@ func (svc *Service) RefetchHost(ctx context.Context, id uint) error {
 }
 
 func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts fleet.HostDetailOptions) (*fleet.HostDetail, error) {
-	if err := svc.ds.LoadHostSoftware(ctx, host, opts.IncludeCVEScores); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "load host software")
+	if !opts.ExcludeSoftware {
+		if err := svc.ds.LoadHostSoftware(ctx, host, opts.IncludeCVEScores); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "load host software")
+		}
 	}
 
 	labels, err := svc.ds.ListLabelsForHost(ctx, host.ID)
