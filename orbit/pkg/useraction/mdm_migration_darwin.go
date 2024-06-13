@@ -466,7 +466,7 @@ func (m *swiftDialogMDMMigrator) getMacOSMajorVersion() (int, error) {
 		return 0, errors.New("getting macOS version: sw_vers command returned no output")
 	case 1:
 		// unexpected, so log for debugging
-		log.Debug().Msgf("parsing macOS version: expected at least 2 parts, got 1: %s", out)
+		log.Debug().Msgf("parsing macOS version: expected 2 parts, got 1: %s", out)
 	default:
 		// ok
 	}
