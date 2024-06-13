@@ -24,3 +24,4 @@ notes: |-
   
   - [About System Integrity Protection](https://support.apple.com/en-us/102149)
   - [Disabling and Enabling System Integrity Protection](https://developer.apple.com/documentation/security/disabling_and_enabling_system_integrity_protection/)
+  - [Gatekeeper and runtime protection in macOS](https://support.apple.com/guide/security/gatekeeper-and-runtime-protection-sec5599b66df/web)
