@@ -99,7 +99,7 @@ Note that the `team_id` option isn't supported in GitOps.
 
 #### Options
 
-For possible options, see the parameter for the parameters of the [Create query API endpoint](../REST%20API/rest-api.md#create-query).
+For possible options, see the parameters for the [Create query API endpoint](../REST%20API/rest-api.md#create-query).
 
 #### Example
 
@@ -350,6 +350,17 @@ org_settings:
     org_logo_url: https://example.com/logo.png
     org_logo_url_light_background: https://example.com/logo-light.png
     contact_url: https://fleetdm.com/company/contact
+```
+
+#### secrets
+
+The `secrets` section defines the valid secrets that hosts can use to enroll to Fleet. Supply one of these secrets when generating the fleetd agent you'll use to enroll hosts. Learn more [here](../Using%20Fleet/enroll-hosts.md).
+
+##### Example
+
+```yaml
+org_settings:
+  secrets: $ENROLL_SECRET
 ```
 
 #### server_settings
