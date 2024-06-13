@@ -22,6 +22,7 @@ const baseClass = "software-vulnerabilities-table";
 interface ISoftwareVulnerabilitiesTableProps {
   data: ISoftwareVulnerability[];
   isSoftwareEnabled?: boolean;
+  itemName?: string;
   isLoading: boolean;
   className?: string;
   router: InjectedRouter;
@@ -38,11 +39,12 @@ const SoftwareVulnerabilitiesTable = ({
   data,
   isSoftwareEnabled,
   isLoading,
+  itemName,
   className,
   router,
   teamIdForApi,
 }: ISoftwareVulnerabilitiesTableProps) => {
-  const { isPremiumTier, isSandboxMode } = useContext(AppContext);
+  const { isPremiumTier } = useContext(AppContext);
 
   const classNames = classnames(baseClass, className);
 
@@ -62,14 +64,8 @@ const SoftwareVulnerabilitiesTable = ({
   };
 
   const tableHeaders = useMemo(
-    () =>
-      generateTableConfig(
-        Boolean(isPremiumTier),
-        Boolean(isSandboxMode),
-        router,
-        teamIdForApi
-      ),
-    [isPremiumTier, isSandboxMode]
+    () => generateTableConfig(Boolean(isPremiumTier), router, teamIdForApi),
+    [isPremiumTier]
   );
   return (
     <div className={classNames}>

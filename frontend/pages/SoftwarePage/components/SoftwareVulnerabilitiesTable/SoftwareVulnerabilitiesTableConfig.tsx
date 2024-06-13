@@ -49,7 +49,6 @@ interface IDataColumn {
 
 const generateTableConfig = (
   isPremiumTier: boolean,
-  isSandboxMode: boolean,
   router: InjectedRouter,
   teamId?: number
 ): IDataColumn[] => {
@@ -108,7 +107,6 @@ const generateTableConfig = (
               value={titleWithTooltip}
               isSortedDesc={headerProps.column.isSortedDesc}
             />
-            {isSandboxMode && <PremiumFeatureIconWithTooltip />}
           </>
         );
       },
@@ -141,7 +139,6 @@ const generateTableConfig = (
               value={titleWithTooltip}
               isSortedDesc={headerProps.column.isSortedDesc}
             />
-            {isSandboxMode && <PremiumFeatureIconWithTooltip />}
           </>
         );
       },
@@ -175,7 +172,6 @@ const generateTableConfig = (
               value={titleWithTooltip}
               isSortedDesc={headerProps.column.isSortedDesc}
             />
-            {isSandboxMode && <PremiumFeatureIconWithTooltip />}
           </>
         );
       },
@@ -209,7 +205,6 @@ const generateTableConfig = (
               value={titleWithTooltip}
               isSortedDesc={headerProps.column.isSortedDesc}
             />
-            {isSandboxMode && <PremiumFeatureIconWithTooltip />}
           </>
         );
       },
