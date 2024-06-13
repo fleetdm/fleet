@@ -756,13 +756,13 @@ var mdmQueries = map[string]DetailQuery{
 func discoveryTableAndServer(tableName string) string {
 	discoveryTableServerQuery := `
 SELECT 1
-FROM osquery_registry
-WHERE active = true
-  AND registry = 'table'
-  AND name = '%s'
+FROM osquery_registry o
 INNER JOIN
    (SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\InstallationType' AND data <> 'Server')
-`
+WHERE o.active = true
+  AND o.registry = 'table'
+  AND o.name = 'mdm_bridge'`
+
 	return fmt.Sprintf(discoveryTableServerQuery, tableName)
 }
 
