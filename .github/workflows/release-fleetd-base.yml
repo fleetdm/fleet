@@ -230,13 +230,13 @@ jobs:
 
       - name: Set up files and directories for upload
         run: |
-          echo "{
-            \"fleetd_base_pkg_url\": \"${{ env.BASE_URL }}/${{ env.FULL_DATE_DIR }}/fleetd-base.pkg\",
-            \"fleetd_base_pkg_sha256\": \"${{ needs.update-fleetd-base-pkg.outputs.fleetd_base_pkg_sha256 }}\",
-            \"fleetd_base_msi_url\": \"${{ env.BASE_URL }}/${{ env.FULL_DATE_DIR }}/fleetd-base.msi\",
-            \"fleetd_base_msi_sha256\": \"${{ needs.update-fleetd-base-msi.outputs.fleetd_base_msi_sha256 }}\",
-            \"timestamp\": \"$(date -u +%Y-%m-%d_%H-%M-%S)\",
-          }" > meta.json
+          echo '{
+            "fleetd_base_pkg_url": "${{ env.BASE_URL }}/${{ env.FULL_DATE_DIR }}/fleetd-base.pkg",
+            "fleetd_base_pkg_sha256\": "${{ needs.update-fleetd-base-pkg.outputs.fleetd_base_pkg_sha256 }}",
+            "fleetd_base_msi_url": "${{ env.BASE_URL }}/${{ env.FULL_DATE_DIR }}/fleetd-base.msi",
+            "fleetd_base_msi_sha256": "${{ needs.update-fleetd-base-msi.outputs.fleetd_base_msi_sha256 }}",
+            "version": "${{ needs.check-for-fleetd-component-updates.outputs.date_dir }}"
+          }' > meta.json
           cp latest-tuf-meta.json stable/tuf-meta.json
           cp latest-tuf-meta.json ${{ env.FULL_DATE_DIR }}/tuf-meta.json
           cp meta.json stable/meta.json
