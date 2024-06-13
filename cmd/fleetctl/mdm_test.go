@@ -1118,6 +1118,9 @@ func TestMDMWipeCommand(t *testing.T) {
 			return nil, nil
 		}
 	}
+	ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, host *fleet.Host) (bool, error) {
+		return host.MDM.ConnectedToFleet != nil && *host.MDM.ConnectedToFleet, nil
+	}
 
 	appCfgAllMDM, appCfgWinMDM, appCfgMacMDM, appCfgNoMDM := setupAppConigs()
 	appCfgScriptsDisabled := &fleet.AppConfig{ServerSettings: fleet.ServerSettings{ScriptsDisabled: true}}
