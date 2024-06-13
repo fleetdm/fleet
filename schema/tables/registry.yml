@@ -31,13 +31,13 @@ examples: |- # (optional) string - An example query for this table. Note: This f
   FROM firewall;
   ```
 notes: |- # (optional) string - Notes about this table. Note: This field supports Markdown.
-  The registry table is ideal for use in Fleet policies and queries because of the critical operating system and application data stored in the Windows Registry.
+  The `registry` table is ideal for use in Fleet policies and queries because of the critical operating system and application data stored in the Windows Registry.
 
   Links:
 
-  - Windows Registry: https://learn.microsoft.com/en-us/windows/win32/sysinfo/registry
-  - Fleet Windows MDM Setup: https://fleetdm.com/guides/windows-mdm-setup
-  - Windows Firewall: https://learn.microsoft.com/en-us/windows/security/operating-system-security/network-security/windows-firewall/
+  - [Windows Registry](https://learn.microsoft.com/en-us/windows/win32/sysinfo/registry)
+  - [Fleet Windows MDM Setup](https://fleetdm.com/guides/windows-mdm-setup)
+  - [Windows Firewall](https://learn.microsoft.com/en-us/windows/security/operating-system-security/network-security/windows-firewall/)
 columns: # (required)
 	- name: # (required) string - The name of the column
 	  description: # (required) string - The column's description. Note: this field supports Markdown
