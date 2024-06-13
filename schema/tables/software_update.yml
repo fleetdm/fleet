@@ -24,4 +24,6 @@ notes: |-
   ```
   softwareupdate --list --verbose
   ```
+
+  [Update Your Apple Software](https://support.apple.com/guide/personal-safety/update-your-apple-software-ips4930e3486/web)
 evented: false
