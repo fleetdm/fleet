@@ -112,10 +112,6 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
             console.error(error);
           }
         }
-        if (configResponse.mdm.enabled_and_configured) {
-          const apnsInfo = await mdmAppleAPI.getAppleAPNInfo();
-          setAPNsExpiry(apnsInfo.renew_date);
-        }
       }
 
       setConfig(configResponse);
