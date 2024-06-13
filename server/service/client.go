@@ -340,7 +340,11 @@ func getProfilesContents(baseDir string, macProfiles []fleet.MDMProfileSpec, win
 				case ".mobileconfig", ".xml": // allowing .xml for backwards compatibility
 					mc, err := fleet.NewMDMAppleConfigProfile(fileContents, nil)
 					if err != nil {
-						return nil, fmt.Errorf("%s: %s", prefixErrMsg, strings.TrimPrefix(err.Error(), "new MDMAppleConfigProfile: "))
+						errForMsg := errors.Unwrap(err)
+						if errForMsg == nil {
+							errForMsg = err
+						}
+						return nil, fmt.Errorf("%s: %w", prefixErrMsg, errForMsg)
 					}
 					name = strings.TrimSpace(mc.Name)
 				case ".json":
