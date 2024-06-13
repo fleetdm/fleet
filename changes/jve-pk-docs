@@ -1,2 +1,0 @@
-- Updates the private key requirements to allow keys longer than 32 bytes
-- Adds documentation around the new `FLEET_SERVER_PRIVATE_KEY` var

@@ -69,6 +69,9 @@ func (cm *cpeMatch) Match(attrs []*wfn.Attributes, requireVersion bool) (matches
 		if cm.match(attr, requireVersion) {
 			matches = append(matches, attr)
 		}
+		if osMatch := cm.MatchTargetSW(attr); osMatch != nil {
+			matches = append(matches, osMatch)
+		}
 	}
 	return matches
 }

@@ -1,0 +1,28 @@
+diff --git a/tools/docker/build.sh b/tools/docker/build.sh
+index 9efba34f6..34ecd8a4e 100755
+--- a/tools/docker/build.sh
++++ b/tools/docker/build.sh
+@@ -6,7 +6,7 @@ build_deb() {
+ 
+     TAG=$(echo $OS | sed 's/://g')
+ 
+-    docker build -f deb-dockerfile . --build-arg OSQUERY_URL=https://pkg.osquery.io/deb/osquery_$${VERSION}-1.linux_amd64.deb --build-arg OS_IMAGE=$OS -t osquery/osquery:$${VERSION}-$${TAG}
++    docker build --platform=linux/amd64 -f deb-dockerfile . --build-arg OSQUERY_URL=https://pkg.osquery.io/deb/osquery_$${VERSION}-1.linux_amd64.deb --build-arg OS_IMAGE=$OS -t osquery/osquery:$${VERSION}-$${TAG}
+ }
+ 
+ build_rpm() {
+@@ -15,11 +15,11 @@ build_rpm() {
+ 
+     TAG=$(echo $OS | sed 's/://g')
+ 
+-    docker build -f rpm-dockerfile . --build-arg OSQUERY_URL=https://pkg.osquery.io/rpm/osquery-$${VERSION}-1.linux.x86_64.rpm --build-arg OS_IMAGE=$OS -t osquery/osquery:$${VERSION}-$${TAG}
++    docker build --platform=linux/amd64 -f rpm-dockerfile . --build-arg OSQUERY_URL=https://pkg.osquery.io/rpm/osquery-$${VERSION}-1.linux.x86_64.rpm --build-arg OS_IMAGE=$OS -t osquery/osquery:$${VERSION}-$${TAG}
+ }
+ 
+-versions='5.2.3'
+-deb_platforms='ubuntu:16.04 ubuntu:18.04 ubuntu:20.04 ubuntu:22.04 debian:10 debian:9 debian:8 debian:7'
++versions='${osquery_version}'
++deb_platforms='ubuntu:16.04 ubuntu:18.04 ubuntu:20.04 ubuntu:22.04 ubuntu:24.04 debian:10 debian:9 debian:8 debian:7'
+ rpm_platforms='centos:6 centos:7 centos:8'
+ 
+ for v in $versions

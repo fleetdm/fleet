@@ -1235,6 +1235,7 @@ type OSVersion struct {
 type HostDetailOptions struct {
 	IncludeCVEScores bool
 	IncludePolicies  bool
+	ExcludeSoftware  bool
 }
 
 // EnrollHostLimiter defines the methods to support enforcement of enrolled

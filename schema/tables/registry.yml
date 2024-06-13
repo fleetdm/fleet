@@ -1,0 +1,40 @@
+name: registry
+description: The Windows Registry is a database that stores Windows application data and low-level Windows settings like driver, security, service, system and user information. The `registry` osquery table expresses the data in the Windows Registry.
+examples: |- # (optional) string - An example query for this table. Note: This field supports Markdown
+  This query returns the date a Windows Host was enrolled in Fleet:
+
+  ```
+  SELECT strftime('%Y-%m-%d %H:%M:%S', mtime, 'unixepoch') AS enroll_time FROM registry WHERE path LIKE 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Enrollments\%%\DeviceEnroller';
+  ```
+
+  This query returns the state of the configurable profiles (i.e., domain, public, standard) in the Windows firewall settings (a value of 1 means the firewall is enabled for the profile):
+
+  ```
+  WITH profiles AS (
+  SELECT SPLIT(KEY, '\', 7) AS enabled,name,data,'profile' AS grpkey
+  FROM registry r
+  WHERE r.path IN (
+  '\HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\SharedAccess\Parameters\FirewallPolicy\DomainProfile\EnableFirewall', 
+  '\HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\SharedAccess\Parameters\FirewallPolicy\PublicProfile\EnableFirewall',
+  '\HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\SharedAccess\Parameters\FirewallPolicy\StandardProfile\EnableFirewall'
+      )
+  ),
+  firewall AS (
+  SELECT
+      MAX(CASE WHEN enabled='DomainProfile' THEN DATA END) AS domain_enabled,
+      MAX(CASE WHEN enabled='PublicProfile' THEN DATA END) AS public_enabled,
+      MAX(CASE WHEN enabled='StandardProfile' THEN DATA END) AS standard_enabled
+  FROM profiles
+  GROUP BY grpkey
+  )
+  SELECT *
+  FROM firewall;
+  ```
+notes: |- # (optional) string - Notes about this table. Note: This field supports Markdown.
+  The `registry` table is ideal for use in Fleet policies and queries because of the critical operating system and application data stored in the Windows Registry.
+
+  Links:
+
+  - [Windows Registry](https://learn.microsoft.com/en-us/windows/win32/sysinfo/registry)
+  - [Fleet Windows MDM Setup](https://fleetdm.com/guides/windows-mdm-setup)
+  - [Windows Firewall](https://learn.microsoft.com/en-us/windows/security/operating-system-security/network-security/windows-firewall/)
