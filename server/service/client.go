@@ -456,7 +456,6 @@ func (c *Client) ApplyGroup(
 	if specs.AppConfig != nil {
 		windowsCustomSettings := extractAppCfgWindowsCustomSettings(specs.AppConfig)
 		macosCustomSettings := extractAppCfgMacOSCustomSettings(specs.AppConfig)
-		allCustomSettings := append(macosCustomSettings, windowsCustomSettings...) // TODO: can we get rid of this?
 
 		// if there is no custom setting but the windows and mac settings are
 		// non-nil, this means that we want to clear the existing custom settings,
@@ -465,7 +464,7 @@ func (c *Client) ApplyGroup(
 		// TODO(mna): shouldn't that be an || instead of && ? I.e. if there are no
 		// custom settings but windows is present and empty (but mac is absent),
 		// shouldn't that clear the windows ones?
-		if (windowsCustomSettings != nil && macosCustomSettings != nil) || len(allCustomSettings) > 0 {
+		if (windowsCustomSettings != nil && macosCustomSettings != nil) || len(windowsCustomSettings)+len(macosCustomSettings) > 0 {
 			fileContents, err := getProfilesContents(baseDir, macosCustomSettings, windowsCustomSettings, opts.ExpandEnvConfigProfiles)
 			if err != nil {
 				return nil, err
@@ -558,7 +557,7 @@ func (c *Client) ApplyGroup(
 		for k, profileSpecs := range tmMDMSettings {
 			fileContents, err := getProfilesContents(baseDir, profileSpecs.macos, profileSpecs.windows, opts.ExpandEnvConfigProfiles)
 			if err != nil {
-				return nil, fmt.Errorf("Team %s: %w", k, err) // TODO: add team name to error messages for other parts of the config
+				return nil, fmt.Errorf("Team %s: %w", k, err) // TODO: consider adding team name to improve error messages generally for other parts of the config because multiple team configs can be processed at once
 			}
 			tmFileContents[k] = fileContents
 		}
@@ -945,13 +944,6 @@ func extractTmSpecsMDMCustomSettings(tmSpecs []json.RawMessage) map[string]profi
 			if macOSSettings != nil || windowsSettings != nil {
 				m[spec.Name] = result
 			}
-
-			// if macOSSettings != nil || windowsSettings != nil {
-			// 	m[spec.Name] = profileSpecsByPlatform{
-			// 		macos:   macOSSettings,
-			// 		windows: windowsSettings,
-			// 	}
-			// }
 		}
 	}
 	return m
