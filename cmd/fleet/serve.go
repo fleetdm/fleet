@@ -196,7 +196,7 @@ the way that the Fleet server works.
 			}
 			ds = mds
 
-			if config.S3.CarvesBucket != "" {
+			if config.S3.CarvesBucket != "" || config.S3.Bucket != "" {
 				carveStore, err = s3.NewCarveStore(config.S3, ds)
 				if err != nil {
 					initFatal(err, "initializing S3 carvestore")
