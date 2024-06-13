@@ -268,12 +268,12 @@ variable "fleet_config" {
       create_bucket    = optional(bool, true)
       bucket_name      = optional(string, null)
       bucket_prefix    = optional(string, "fleet-software-installers-")
-      s3_object_prefix = optional(string, "software_installers/")
+      s3_object_prefix = optional(string, "")
       }), {
       create_bucket    = true
       bucket_name      = null
       bucket_prefix    = "fleet-software-installers-"
-      s3_object_prefix = "software_installers/"
+      s3_object_prefix = ""
     })
   })
   default = {
@@ -346,7 +346,7 @@ variable "fleet_config" {
       create_bucket    = true
       bucket_name      = null
       bucket_prefix    = "fleet-software-installers-"
-      s3_object_prefix = "software_installers/"
+      s3_object_prefix = ""
     }
   }
   description = "The configuration object for Fleet itself. Fields that default to null will have their respective resources created if not specified."
