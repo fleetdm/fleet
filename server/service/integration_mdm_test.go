@@ -8038,7 +8038,9 @@ func (s *integrationMDMTestSuite) TestLockUnlockWipeMacOS() {
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/unlock", host.ID), nil, http.StatusConflict, &unlockResp)
 
 	// lock the host
-	s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/lock", host.ID), nil, http.StatusNoContent)
+	var lockResp lockHostResponse
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/lock", host.ID), nil, http.StatusOK, &lockResp)
+	assert.Len(t, lockResp.UnlockPIN, 6)
 
 	// refresh the host's status, it is now pending lock
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
