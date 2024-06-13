@@ -785,7 +785,7 @@ describe("Host Actions Dropdown", () => {
       expect(screen.queryByText("Unlock")).not.toBeInTheDocument();
     });
 
-    it("does not renders when a mac host but does not have Fleet mac mdm enabled and configured", async () => {
+    it("does not renders when a macOS host but does not have Fleet mac mdm enabled and configured", async () => {
       const render = createCustomRenderer({
         context: {
           app: {
@@ -921,7 +921,7 @@ describe("Host Actions Dropdown", () => {
       expect(screen.queryByText("Wipe")).not.toBeInTheDocument();
     });
 
-    it("does not renders when a mac host but does not have Fleet mac mdm enabled and configured", async () => {
+    it("does not renders when a macOS host but does not have Fleet macOS mdm enabled and configured", async () => {
       const render = createCustomRenderer({
         context: {
           app: {
@@ -1139,55 +1139,85 @@ describe("Host Actions Dropdown", () => {
     });
   });
 
-  describe("Does not render dropdown for certain platforms", () => {
-    it("does not render dropdown for iOS", async () => {
+  describe("Render options only available for iOS and iPadOS", () => {
+    it("renders only the transfer, wipe, and delete options for iOS", async () => {
       const render = createCustomRenderer({
         context: {
           app: {
+            isPremiumTier: true,
             isGlobalAdmin: true,
+            isMacMdmEnabledAndConfigured: true,
             currentUser: createMockUser(),
           },
         },
       });
 
-      render(
+      const { user } = render(
         <HostActionsDropdown
           hostTeamId={null}
           onSelect={noop}
           hostStatus="online"
           hostPlatform="ios"
-          hostMdmEnrollmentStatus={null}
+          hostMdmEnrollmentStatus="On (automatic)"
+          mdmName="Fleet"
           hostMdmDeviceStatus={"unlocked"}
           hostScriptsEnabled={false}
         />
       );
 
-      expect(screen.queryByText("Actions")).not.toBeInTheDocument();
+      await user.click(screen.getByText("Actions"));
+
+      expect(screen.queryByText("Transfer")).toBeInTheDocument();
+      expect(screen.queryByText("Wipe")).toBeInTheDocument();
+      expect(screen.queryByText("Delete")).toBeInTheDocument();
+
+      expect(screen.queryByText("Query")).not.toBeInTheDocument();
+      expect(screen.queryByText("Run script")).not.toBeInTheDocument();
+      expect(
+        screen.queryByText("Show disk encryption key")
+      ).not.toBeInTheDocument();
+      expect(screen.queryByText("Turn off MDM")).not.toBeInTheDocument();
+      expect(screen.queryByText("Lock")).not.toBeInTheDocument();
     });
 
-    it("does not render dropdown for iPadOS", async () => {
+    it("renders only the transfer, wipe, and delete options for iPadOS", async () => {
       const render = createCustomRenderer({
         context: {
           app: {
+            isPremiumTier: true,
             isGlobalAdmin: true,
+            isMacMdmEnabledAndConfigured: true,
             currentUser: createMockUser(),
           },
         },
       });
 
-      render(
+      const { user } = render(
         <HostActionsDropdown
           hostTeamId={null}
           onSelect={noop}
           hostStatus="online"
           hostPlatform="ipados"
-          hostMdmEnrollmentStatus={null}
+          hostMdmEnrollmentStatus="On (automatic)"
+          mdmName="Fleet"
           hostMdmDeviceStatus={"unlocked"}
           hostScriptsEnabled={false}
         />
       );
 
-      expect(screen.queryByText("Actions")).not.toBeInTheDocument();
+      await user.click(screen.getByText("Actions"));
+
+      expect(screen.queryByText("Transfer")).toBeInTheDocument();
+      expect(screen.queryByText("Wipe")).toBeInTheDocument();
+      expect(screen.queryByText("Delete")).toBeInTheDocument();
+
+      expect(screen.queryByText("Query")).not.toBeInTheDocument();
+      expect(screen.queryByText("Run script")).not.toBeInTheDocument();
+      expect(
+        screen.queryByText("Show disk encryption key")
+      ).not.toBeInTheDocument();
+      expect(screen.queryByText("Turn off MDM")).not.toBeInTheDocument();
+      expect(screen.queryByText("Lock")).not.toBeInTheDocument();
     });
   });
 });
