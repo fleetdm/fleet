@@ -993,6 +993,10 @@ None.
       "enable_vulnerabilities_webhook":true,
       "destination_url": "https://server.com",
       "host_batch_size": 1000
+    },
+    "activities_webhook":{
+      "enable_activities_webhook":true,
+      "destination_url": "https://server.com"
     }
   },
   "integrations": {
@@ -1108,6 +1112,8 @@ Modifies the Fleet's configuration with the supplied information.
 | enable_vulnerabilities_webhook    | boolean | body  | _webhook_settings.vulnerabilities_webhook settings_. Whether or not the vulnerabilities webhook is enabled. |
 | destination_url                   | string  | body  | _webhook_settings.vulnerabilities_webhook settings_. The URL to deliver the webhook requests to.                                                     |
 | host_batch_size                   | integer | body  | _webhook_settings.vulnerabilities_webhook settings_. Maximum number of hosts to batch on vulnerabilities webhook requests. The default, 0, means no batching (all vulnerable hosts are sent on one request). |
+| enable_activities_webhook   | boolean | body  | _webhook_settings.activities_webhook settings_. Whether or not the activity feed webhook is enabled. |
+| destination_url                   | string  | body  | _webhook_settings.activities_webhook settings_. The URL to deliver the webhook requests to.                                                     |
 | enable_software_vulnerabilities   | boolean | body  | _integrations.jira[] settings_. Whether or not Jira integration is enabled for software vulnerabilities. Only one vulnerability automation can be enabled at a given time (enable_vulnerabilities_webhook and enable_software_vulnerabilities). |
 | enable_failing_policies           | boolean | body  | _integrations.jira[] settings_. Whether or not Jira integration is enabled for failing policies. Only one failing policy automation can be enabled at a given time (enable_failing_policies_webhook and enable_failing_policies). |
 | url                               | string  | body  | _integrations.jira[] settings_. The URL of the Jira server to integrate with. |
@@ -1314,6 +1320,10 @@ Note that when making changes to the `integrations` object, all integrations mus
       "enable_vulnerabilities_webhook":true,
       "destination_url": "https://server.com",
       "host_batch_size": 1000
+    },
+    "activities_webhook":{
+      "enable_activities_webhook":true,
+      "destination_url": "https://server.com"
     }
   },
   "integrations": {
