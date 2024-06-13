@@ -540,5 +540,7 @@ org_settings:
 
 Can only be configure for all teams (`org_settings`).
 
-<meta name="description" value="Documentation for Fleet's GitOps reference. See examples for each confiugration option.">
-<meta name="pageOrderInSection" value="1300">
+<meta name="title" value="GitOps">
+<meta name="description" value="Reference documentation for Fleet's GitOps workflow. See examples and configuration options.">
+<meta name="pageOrderInSection" value="1500">
+<meta name="navSection" value="The basics">
