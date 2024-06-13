@@ -775,6 +775,7 @@ func testHostListOptionsTeamFilter(t *testing.T, ds *Datastore) {
 		h := test.NewHost(t, ds, fmt.Sprintf("foo.local.%d", i), "1.1.1.1",
 			fmt.Sprintf("%d", i), fmt.Sprintf("%d", i), time.Now(), opts...)
 		hosts = append(hosts, h)
+		nanoEnroll(t, ds, h, false)
 	}
 	userFilter := fleet.TeamFilter{User: test.UserAdmin}
 
@@ -3285,6 +3286,7 @@ func testHostsListMacOSSettingsDiskEncryptionStatus(t *testing.T, ds *Datastore)
 		})
 		require.NoError(t, err)
 		hosts = append(hosts, h)
+		nanoEnroll(t, ds, h, false)
 	}
 
 	// set up data

@@ -258,10 +258,7 @@ func TestIsEligibleForBitLockerEncryption(t *testing.T) {
 	require.True(t, hostThatNeedsEnforcement.IsEligibleForBitLockerEncryption(true))
 
 	// hosts that are not enrolled in MDM are not elegible
-	hostThatNeedsEnforcement.MDMInfo.Enrolled = false
-	require.False(t, hostThatNeedsEnforcement.IsEligibleForBitLockerEncryption(true))
-	hostThatNeedsEnforcement.MDMInfo.Enrolled = true
-	require.True(t, hostThatNeedsEnforcement.IsEligibleForBitLockerEncryption(true))
+	require.False(t, hostThatNeedsEnforcement.IsEligibleForBitLockerEncryption(false))
 }
 
 func TestIsEligibleForDEPMigration(t *testing.T) {

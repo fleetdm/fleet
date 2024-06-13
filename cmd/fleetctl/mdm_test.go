@@ -36,14 +36,14 @@ func TestMDMRunCommand(t *testing.T) {
 		UUID:     "mac-enrolled",
 		Platform: "darwin",
 		MDMInfo:  &fleet.HostMDM{Enrolled: true, Name: fleet.WellKnownMDMFleet},
-		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("On (manual)")},
+		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("On (manual)"), ConnectedToFleet: ptr.Bool(true)},
 	}
 	winEnrolled := &fleet.Host{
 		ID:       2,
 		UUID:     "win-enrolled",
 		Platform: "windows",
 		MDMInfo:  &fleet.HostMDM{Enrolled: true, Name: fleet.WellKnownMDMFleet},
-		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("On (manual)")},
+		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("On (manual)"), ConnectedToFleet: ptr.Bool(true)},
 	}
 	macUnenrolled := &fleet.Host{
 		ID:       3,
@@ -65,42 +65,42 @@ func TestMDMRunCommand(t *testing.T) {
 		UUID:     "mac-enrolled-2",
 		Platform: "darwin",
 		MDMInfo:  &fleet.HostMDM{Enrolled: true, Name: fleet.WellKnownMDMFleet},
-		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("On (manual)")},
+		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("On (manual)"), ConnectedToFleet: ptr.Bool(true)},
 	}
 	winEnrolled2 := &fleet.Host{
 		ID:       7,
 		UUID:     "win-enrolled-2",
 		Platform: "windows",
 		MDMInfo:  &fleet.HostMDM{Enrolled: true, Name: fleet.WellKnownMDMFleet},
-		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("On (manual)")},
+		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("On (manual)"), ConnectedToFleet: ptr.Bool(true)},
 	}
 	macNonFleetEnrolled := &fleet.Host{
 		ID:       8,
 		UUID:     "mac-non-fleet-enrolled",
 		Platform: "darwin",
 		MDMInfo:  &fleet.HostMDM{Enrolled: true, Name: fleet.WellKnownMDMJamf},
-		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMJamf, EnrollmentStatus: ptr.String("On (manual)")},
+		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMJamf, EnrollmentStatus: ptr.String("On (manual)"), ConnectedToFleet: ptr.Bool(false)},
 	}
 	winNonFleetEnrolled := &fleet.Host{
 		ID:       9,
 		UUID:     "win-non-fleet-enrolled",
 		Platform: "windows",
 		MDMInfo:  &fleet.HostMDM{Enrolled: true, Name: fleet.WellKnownMDMIntune},
-		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMIntune, EnrollmentStatus: ptr.String("On (manual)")},
+		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMIntune, EnrollmentStatus: ptr.String("On (manual)"), ConnectedToFleet: ptr.Bool(false)},
 	}
 	macPending := &fleet.Host{
 		ID:       10,
 		UUID:     "mac-pending",
 		Platform: "darwin",
 		MDMInfo:  &fleet.HostMDM{Enrolled: false, Name: fleet.WellKnownMDMFleet},
-		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("Pending")},
+		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("Pending"), ConnectedToFleet: ptr.Bool(false)},
 	}
 	winPending := &fleet.Host{
 		ID:       11,
 		UUID:     "win-pending",
 		Platform: "windows",
 		MDMInfo:  &fleet.HostMDM{Enrolled: false, Name: fleet.WellKnownMDMFleet},
-		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("Pending")},
+		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("Pending"), ConnectedToFleet: ptr.Bool(false)},
 	}
 	hostByUUID := make(map[string]*fleet.Host)
 	hostByID := make(map[uint]*fleet.Host)
@@ -232,6 +232,13 @@ func TestMDMRunCommand(t *testing.T) {
 					return nil, &notFoundError{}
 				}
 				return h.MDMInfo, nil
+			}
+			ds.AreHostsConnectedToFleetMDMFunc = func(ctx context.Context, hosts []*fleet.Host) (map[string]bool, error) {
+				res := make(map[string]bool, len(hosts))
+				for _, h := range hosts {
+					res[h.UUID] = h.MDM.ConnectedToFleet != nil && *h.MDM.ConnectedToFleet
+				}
+				return res, nil
 			}
 
 			enqueuer.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.Command) (map[string]error, error) {

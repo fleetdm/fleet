@@ -332,7 +332,9 @@ type Datastore interface {
 	// IsHostConnectedToFleetMDM verifies if the host has an active Fleet MDM enrollment with this server
 	IsHostConnectedToFleetMDM(ctx context.Context, host *Host) (bool, error)
 
-	// AreHostsConnectedToFleetMDM TODO
+	// AreHostsConnectedToFleetMDM checks each host MDM enrollment with
+	// this server and returns a map indexed by the host uuid and a boolean
+	// indicating if the enrollment is active.
 	AreHostsConnectedToFleetMDM(ctx context.Context, hosts []*Host) (map[string]bool, error)
 
 	AggregatedMunkiVersion(ctx context.Context, teamID *uint) ([]AggregatedMunkiVersion, time.Time, error)

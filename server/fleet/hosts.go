@@ -739,6 +739,7 @@ func (h *Host) IsEligibleForBitLockerEncryption(connectedToFleet bool) bool {
 		h.IsOsqueryEnrolled() &&
 		connectedToFleet &&
 		!isServer &&
+		h.MDMInfo != nil &&
 		(needsEncryption || encryptedWithoutKey)
 }
 
