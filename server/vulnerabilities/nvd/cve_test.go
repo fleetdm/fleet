@@ -307,6 +307,12 @@ func TestTranslateCPEToCVE(t *testing.T) {
 			},
 			continuesToUpdate: false,
 		},
+		"cpe:2.3:a:adobe:animate:*:*:*:*:*:macos:*:*": {
+			includedCVEs: []cve{
+				{ID: "CVE-2023-44325"},
+			},
+			continuesToUpdate: true,
+		},
 	}
 
 	cveOSTests := []struct {
