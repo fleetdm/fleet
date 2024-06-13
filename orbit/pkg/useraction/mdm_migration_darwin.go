@@ -411,18 +411,17 @@ func (m *swiftDialogMDMMigrator) SetProps(props MDMMigratorProps) {
 }
 
 func (m *swiftDialogMDMMigrator) getMessageAndFlags() (*bytes.Buffer, []string, error) {
-	var tmpl *template.Template
-	var height string
 	vers, err := m.getMacOSMajorVersion()
 	if err != nil {
-		return nil, nil, err
+		// log error for debugging and continue with default template
+		log.Error().Err(err).Msg("getting macOS major version failed: using default migration template")
 	}
-	if vers < 14 {
+
+	tmpl := mdmMigrationTemplate
+	height := "669"
+	if vers != 0 && vers < 14 {
 		height = "440"
 		tmpl = mdmMigrationTemplatePreSonoma
-	} else {
-		height = "669"
-		tmpl = mdmMigrationTemplate
 	}
 
 	var message bytes.Buffer
@@ -430,7 +429,7 @@ func (m *swiftDialogMDMMigrator) getMessageAndFlags() (*bytes.Buffer, []string, 
 		&message,
 		m.props,
 	); err != nil {
-		return nil, nil, fmt.Errorf("execute template: %w", err)
+		return nil, nil, fmt.Errorf("executing migrqation template: %w", err)
 	}
 
 	flags := []string{
@@ -461,9 +460,17 @@ func (m *swiftDialogMDMMigrator) getMacOSMajorVersion() (int, error) {
 		return 0, fmt.Errorf("getting macOS version: %w", err)
 	}
 	parts := strings.SplitN(string(out), ".", 2)
-	if len(parts) != 2 {
-		return 0, fmt.Errorf("parsing macOS major version: expected two parts in macOS version string but got %s", out)
+	switch len(parts) {
+	case 0:
+		// this should never happen
+		return 0, errors.New("getting macOS version: sw_vers command returned no output")
+	case 1:
+		// unexpected, so log for debugging
+		log.Debug().Msgf("parsing macOS version: expected at least 2 parts, got 1: %s", out)
+	default:
+		// ok
 	}
+
 	major, err := strconv.Atoi(parts[0])
 	if err != nil {
 		return 0, fmt.Errorf("parsing macOS major version: %w", err)
