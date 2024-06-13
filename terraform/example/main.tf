@@ -50,7 +50,7 @@ locals {
 }
 
 module "fleet" {
-  source          = "github.com/fleetdm/fleet//terraform?ref=tf-mod-root-v1.8.0"
+  source          = "github.com/fleetdm/fleet//terraform?ref=tf-mod-root-v1.9.1"
   certificate_arn = module.acm.acm_certificate_arn
 
   vpc = {
@@ -116,7 +116,7 @@ module "fleet" {
 # doesn't directly support all the features required.  the aws cli is invoked via a null-resource.
 
 module "migrations" {
-  source                   = "github.com/fleetdm/fleet//terraform/addons/migrations?ref=tf-mod-addon-migrations-v2.0.0"
+  source                   = "github.com/fleetdm/fleet//terraform/addons/migrations?ref=tf-mod-addon-migrations-v2.0.1"
   ecs_cluster              = module.fleet.byo-vpc.byo-db.byo-ecs.service.cluster
   task_definition          = module.fleet.byo-vpc.byo-db.byo-ecs.task_definition.family
   task_definition_revision = module.fleet.byo-vpc.byo-db.byo-ecs.task_definition.revision
@@ -129,7 +129,7 @@ module "migrations" {
 
 module "osquery-carve" {
   # The carve bucket also stores software.
-  source = "github.com/fleetdm/fleet//terraform/addons/osquery-carve?ref=tf-mod-addon-osquery-carve-v1.0.1"
+  source = "github.com/fleetdm/fleet//terraform/addons/osquery-carve?ref=tf-mod-addon-osquery-carve-v1.1.0"
   osquery_carve_s3_bucket = {
     name = local.osquery_carve_bucket_name
   }   

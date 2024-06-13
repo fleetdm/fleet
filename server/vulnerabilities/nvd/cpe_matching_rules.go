@@ -197,6 +197,18 @@ func GetKnownNVDBugRules() (CPEMatchingRules, error) {
 				return cpeMeta.TargetSW == "visual_studio_code"
 			},
 		},
+		// Issue #18733 incorrect CPEs that should be matching
+		// visual studio code extensions
+		CPEMatchingRule{
+			CVEs: map[string]struct{}{
+				"CVE-2021-28967": {},
+				"CVE-2020-1192":  {},
+				"CVE-2020-1171":  {},
+			},
+			IgnoreIf: func(cpeMeta *wfn.Attributes) bool {
+				return cpeMeta.Product == "visual_studio_code" && cpeMeta.TargetSW == wfn.Any
+			},
+		},
 	}
 
 	for i, rule := range rules {
