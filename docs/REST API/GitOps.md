@@ -13,9 +13,9 @@ The [`fleetctl apply`]((https://github.com/fleetdm/fleet/blob/main/docs/Contribu
 - `default.yml`- file where you define the queries, policies, controls, and agent options for all hosts. If you're using Fleet Premium, this file updates queries and policies that run on all hosts ("All teams"). Controls and agent options are defined for hosts on "No team."
 - `teams/` - folder where you define your teams in Fleet. These `teams/team-name.yml` files define the controls, queries, policies, and agent options for hosts assigned to the specified team. Teams are available in Fleet Premium.
 - `lib/` - folder where you define policies, queries, configuration profiles, scripts, and agent options. These files can be referenced in top level keys in the `default.yml` file and the files in the `teams/` folder.
+- `.github/workflows/workflow.yml` - the GitHub workflow file where you can add [environment variables](https://docs.github.com/en/actions/learn-github-actions/variables#defining-environment-variables-for-a-single-workflow).
 
 The following files are responsible for running the GitHub action. Most users don't need to edit these file.
-- `.github/workflows/workflow.yml` - the GitHub workflow file that applies the latest configuration to Fleet.
 - `gitops.sh` - the bash script that applies the latest configuration to Fleet. This script is used in the GitHub action file.
 - `.github/gitops-action/action.yml` - the GitHub action that runs `gitops.sh`. This action is used in the GitHub workflow file. It can also be used in other workflows.
 
@@ -204,15 +204,21 @@ queries:
 
 ### controls
 
-The `controls` section allows you to configure MDM features in Fleet.
+The `controls` section allows you to configure scripts and device management (MDM) features in Fleet.
 
-- `windows_enabled_and_configured` - specifies whether or not to turn on Windows MDM features (default: `false`). Can only be configure for all teams (`default.yml`).
-- `enable_disk_encryption` - specifies whether or not to enforce disk encryption on macOS and Widnows hosts (default: `false`).
+- `scripts` is a list of paths to macOS, Windows, or Linux scripts.
+
+- `windows_enabled_and_configured` specifies whether or not to turn on Windows MDM features (default: `false`). Can only be configure for all teams (`default.yml`).
+- `enable_disk_encryption` specifies whether or not to enforce disk encryption on macOS and Widnows hosts (default: `false`).
 
 ##### Example
 
 ```yaml
 controls:
+  scripts:
+    - path: ../lib/macos-script.sh
+    - path: ../lib/windows-script.ps1
+    - path: ../lib/linux-script.sh
   windows_enabled_and_configured: true
   enable_disk_encryption: true # Available in Fleet Premium
   macos_updates: # Available in Fleet Premium
@@ -222,12 +228,12 @@ controls:
     deadline_days: 5
     grace_period_days: 2
   macos_settings:
-    - path: ../lib/profile1.mobileconfig
+    - path: ../lib/macos-profile1.mobileconfig
       labels:
         - Label name 1
-    - path: ../lib/profile2.json
+    - path: ../lib/macos-profile2.json
   windows_settings:
-    - path: ../lib/profile1.xml
+    - path: ../lib/windows-profile.xml
   macos_setup: # Available in Fleet Premium
     bootstrap_package: https://example.org/bootstrap_package.pkg
     enable_end_user_authentication: true
@@ -390,16 +396,61 @@ Can only be configure for all teams (`org_settings`).
 org_settings:
   sso_settings:
     enable_sso: true
-    idp_name: "SimpleSAML"
-    entity_id: "https://example.com"
-    metadata: "<md:EntityDescriptor entityID="https://idp.example.org/SAML2"> ... /md:EntityDescriptor>"
+    idp_name: SimpleSAML
+    entity_id: https://example.com
+    metadata: $SSO_METADATA
     enable_jit_provisioning: true # Available in Fleet Premium
     enable_sso_idp_login: true
 ```
 
+#### integrations
+
+The `integrations` section lets you define calendar events and ticket settings for failing policy and vulnerablity automations. Learn more about automations in Fleet [here](../Using%20Fleet/Automations.md).
+
+##### Example
+
+```yaml
+org_settings:
+  integrations:
+    google_calendar:
+      - api_key_json: $GOOGLE_CALENDAR_API_KEY_JSON
+        domain: fleetdm.com
+    jira:
+      - url: https://example.atlassian.net
+        username: user1
+        api_token: $JIRA_API_TOKEN
+        project_key: PJ1
+    zendesk:
+      - url: https://example.zendesk.com
+        email: user1@example.com
+        api_token: $ZENDESK_API_TOKEN
+        group_id: 1234
+```
+
+For secrets, you can add [GitHub environment variables](https://docs.github.com/en/actions/learn-github-actions/variables#defining-environment-variables-for-a-single-workflow)
+
+##### google_calendar
+
+- `api_key_json` is the contents of the JSON file downloaded when you create your Google Workspace service account API key (default: empty).
+- `domain` is the primary domain used to identify your end user's work calendar (default: emtpy).
+
+##### jira
+
+- `url` is the URL of your Jira (default: empty)
+- `username` is the username of your Jira account (default: empty).
+- `api_token` is the Jira API token (default: empty).
+- `project_key` is the project key location in your Jira project's URL. For example, in "jira.example.com/projects/EXMPL," "EXMPL" is the project key (default: empty).
+
+##### zendesk
+
+- `url` is the URL of your Zendesk (default: empty)
+- `username` is the username of your Zendesk account (default: empty).
+- `api_token` is the Zendesk API token (default: empty).
+- `group_id`is found by selecting **Admin > People > Groups** in Zendesk. Find your group and select it. The group ID will appear in the search field.
+
 #### webhook_settings
 
-The `webhook_settings` section lets you enable and define settings for failing policies, vulnerabilities, and host status automations. Learn more about automations in Fleet [here](../Using%20Fleet/Automations.md).
+The `webhook_settings` section lets you define webhook settings for failing policy, vulnerability, and host status automations. Learn more about automations in Fleet [here](../Using%20Fleet/Automations.md).
 
 ##### failing_policies_webhook
 
@@ -477,10 +528,6 @@ org_settings:
 ```
 
 Can only be configure for all teams (`org_settings`).
-
-## Environment variables
-
-TODO
 
 <meta name="description" value="Documentation for Fleet's GitOps reference. See examples for each confiugration option.">
 <meta name="pageOrderInSection" value="40">
