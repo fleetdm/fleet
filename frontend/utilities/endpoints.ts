@@ -1,5 +1,3 @@
-import software from "interfaces/software";
-
 const API_VERSION = "latest";
 
 export default {

@@ -64,11 +64,4 @@
   description: Looks for PDF files with file names typically used by 1Password for emergency recovery kits. To protect the performance of your devices, the search is one level deep and limited to the Desktop, Documents, Downloads, and Shared folders.
   resolution: Delete 1Password emergency kits from your computer, and empty the trash. 1Password emergency kits should only be printed and stored in a physically secure location.
   platform: darwin
-- name: macOS - Check if latest version
-  query: SELECT 1 FROM os_version WHERE major = '14' AND minor = '5';
-  # patch query: SELECT 1 FROM os_version WHERE major = "14" AND minor = "5" AND patch >= "1";
-  critical: false
-  description: Using an outdated macOS version risks exposure to security vulnerabilities and potential system instability.
-  resolution: We will update your macOS to the latest version.
-  platform: darwin
-  calendar_events_enabled: true  
+  

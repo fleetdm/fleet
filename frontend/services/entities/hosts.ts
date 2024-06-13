@@ -169,6 +169,7 @@ export interface IHostSoftwareQueryParams extends QueryParams {
 export interface IHostSoftwareQueryKey extends IHostSoftwareQueryParams {
   scope: "host_software";
   id: number;
+  softwareUpdatedAt?: string;
 }
 
 export type ILoadHostDetailsExtension = "device_mapping" | "macadmins";
@@ -439,7 +440,7 @@ export default {
   },
   loadHostDetails: (hostID: number) => {
     const { HOSTS } = endpoints;
-    const path = `${HOSTS}/${hostID}`;
+    const path = `${HOSTS}/${hostID}?exclude_software=true`;
 
     return sendRequest("GET", path);
   },

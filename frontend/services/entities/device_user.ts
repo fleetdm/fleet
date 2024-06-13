@@ -10,6 +10,7 @@ export type ILoadHostDetailsExtension = "device_mapping" | "macadmins";
 export interface IDeviceSoftwareQueryKey extends IHostSoftwareQueryParams {
   scope: "device_software";
   id: string;
+  softwareUpdatedAt?: string;
 }
 
 export interface IGetDeviceSoftwareResponse {

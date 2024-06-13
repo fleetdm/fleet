@@ -181,7 +181,7 @@ func (svc *Service) getSoftwareInstallerBinary(ctx context.Context, storageID st
 		return nil, ctxerr.Wrap(ctx, err, "checking if installer exists")
 	}
 	if !exists {
-		return nil, ctxerr.Wrap(ctx, err, "does not exist in software installer store")
+		return nil, ctxerr.Wrap(ctx, notFoundError{}, "does not exist in software installer store")
 	}
 
 	// get the installer from the store

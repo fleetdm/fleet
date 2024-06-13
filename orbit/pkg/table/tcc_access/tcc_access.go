@@ -8,10 +8,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"os/exec"
 	"strings"
 
 	"github.com/osquery/osquery-go/plugin/table"
+	"github.com/rs/zerolog/log"
 )
 
 var (
@@ -69,6 +71,13 @@ func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[strin
 
 		if satisfiesUidConstraints {
 			tccPath := tccPathPrefix + "/Users/" + username + tccPathSuffix
+			if _, err := os.Stat(tccPath); err != nil {
+				if errors.Is(err, os.ErrNotExist) {
+					log.Debug().Err(err).Msgf("file for user %s not found: %s", username, tccPath)
+					continue
+				}
+				return nil, err
+			}
 			uRs, err := getTCCAccessRows(uid, tccPath)
 			if err != nil {
 				return nil, err
@@ -98,7 +107,7 @@ func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[strin
 }
 
 func getTCCAccessRows(uid, tccPath string) ([]map[string]string, error) {
-	// querying direclty with sqlite3 avoids additional C compilation requirements that would be introduced by using
+	// querying directly with sqlite3 avoids additional C compilation requirements that would be introduced by using
 	// https://github.com/mattn/go-sqlite3
 	cmd := exec.Command(sqlite3Path, tccPath, dbQuery)
 	var dbOut bytes.Buffer

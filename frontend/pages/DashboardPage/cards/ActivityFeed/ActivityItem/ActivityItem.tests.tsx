@@ -245,6 +245,15 @@ describe("Activity Feed", () => {
       screen.getByText("successfully logged in from public IP 192.168.0.1.")
     ).toBeInTheDocument();
   });
+  it("renders a user_logged_in type activity without public IP", () => {
+    const activity = createMockActivity({
+      type: ActivityType.UserLoggedIn,
+      details: {},
+    });
+    render(<ActivityItem activity={activity} isPremiumTier />);
+
+    expect(screen.getByText("successfully logged in.")).toBeInTheDocument();
+  });
 
   it("renders a user_failed_login type activity globally", () => {
     const activity = createMockActivity({

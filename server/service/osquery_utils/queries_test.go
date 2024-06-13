@@ -304,7 +304,7 @@ func TestGetDetailQueries(t *testing.T) {
 	sortedKeysCompare(t, queriesWithUsers, qs)
 
 	queriesWithUsersAndSoftware := GetDetailQueries(context.Background(), config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}}, nil, &fleet.Features{EnableHostUsers: true, EnableSoftwareInventory: true})
-	qs = append(baseQueries, "users", "users_chrome", "software_macos", "software_linux", "software_windows", "software_vscode_extensions", "software_chrome", "scheduled_query_stats")
+	qs = append(baseQueries, "users", "users_chrome", "software_macos", "software_linux", "software_windows", "software_vscode_extensions", "software_chrome", "scheduled_query_stats", "software_macos_firefox")
 	require.Len(t, queriesWithUsersAndSoftware, len(qs))
 	sortedKeysCompare(t, queriesWithUsersAndSoftware, qs)
 
@@ -1935,12 +1935,25 @@ func TestIngestNetworkInterface(t *testing.T) {
 }
 
 func TestGenerateSQLForAllExists(t *testing.T) {
+	// Combine two queries
 	query1 := "SELECT 1 WHERE foo = bar"
 	query2 := "SELECT 1 WHERE baz = qux"
-
 	sql := generateSQLForAllExists(query1, query2)
 	assert.Equal(t, "SELECT 1 WHERE EXISTS (SELECT 1 WHERE foo = bar) AND EXISTS (SELECT 1 WHERE baz = qux)", sql)
 
+	// Default
 	sql = generateSQLForAllExists()
 	require.Equal(t, "SELECT 0 LIMIT 0", sql)
+
+	// sanitize semicolons from subqueries
+	query1 = "SELECT 1 WHERE foo = bar;"
+	query2 = "SELECT 1 WHERE baz = qux;"
+	sql = generateSQLForAllExists(query1, query2)
+	assert.Equal(t, "SELECT 1 WHERE EXISTS (SELECT 1 WHERE foo = bar) AND EXISTS (SELECT 1 WHERE baz = qux)", sql)
+
+	// sanitize only trailing semicolons
+	query1 = "SELECT 1 WHERE foo = 'ba;r';"
+	query2 = "SELECT 1 WHERE baz = 'qu;x';;; "
+	sql = generateSQLForAllExists(query1, query2)
+	assert.Equal(t, "SELECT 1 WHERE EXISTS (SELECT 1 WHERE foo = 'ba;r') AND EXISTS (SELECT 1 WHERE baz = 'qu;x')", sql)
 }
