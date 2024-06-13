@@ -7,26 +7,37 @@
   a {
     color: @core-fleet-black-75;
     text-decoration: underline;
+    text-underline-offset: 2px;
   }
   [purpose='page-heading'] {
     padding-left: 30px;
     padding-right: 30px;
+    text-align: center;
+    margin-bottom: 40px;
   }
 
+  [purpose='login-link'] {
+    margin-bottom: 4px;
+    a {
+      float: right;
+      color: @core-fleet-black-75;
+      text-decoration: underline;
+      font-size: 14px;
+    }
+  }
   [purpose='customer-portal-form'] {
     max-width: 560px;
     border-radius: 16px;
-    padding: 30px;
+    margin-bottom: 40px;
+    padding: 20px 32px 32px 32px;
     label {
+      color: @core-fleet-black;
       font-weight: 700;
       margin-bottom: 4px;
     }
     .form-control {
       height: 40px;
       border-radius: 6px;
-    }
-    .card-body {
-      padding: 2em;
     }
     .selectbox {
 
@@ -55,7 +66,6 @@
     border-radius: 8px;
     padding-top: 16px;
     padding-bottom: 16px;
-    height: 48px;
     display: flex;
     align-items: center;
     span {
@@ -63,32 +73,12 @@
       margin-left: auto;
       margin-right: auto;
       font-size: 16px;
-      line-height: 20px;
+      line-height: 16px;
       text-align: center;
       font-weight: 700;
     }
   }
 
-  [purpose='features-list'] {
-    padding-left: 40px;
-    font-size: 14px;
-    word-wrap: overflow;
-    ul {
-     list-style-type: none;
-     padding-inline-start: 0px;
-    }
-    li {
-    padding-bottom: 12px;
-    color: @core-fleet-black-75;
-    white-space: nowrap;
-   }
-   img {
-    display: inline;
-    height: 16px;
-    margin-right: 8px;
-   }
-
-  }
 
   @media (max-width: 768px) {
     padding-top: 60px;

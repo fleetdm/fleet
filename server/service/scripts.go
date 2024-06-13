@@ -202,6 +202,13 @@ func (svc *Service) RunHostScript(ctx context.Context, request *fleet.HostScript
 		return nil, fleet.NewUserMessageError(errors.New(fleet.RunScriptDisabledErrMsg), http.StatusUnprocessableEntity)
 	}
 
+	// If scripts are disabled (according to the last detail query), we return an error.
+	// host.ScriptsEnabled may be nil for older orbit versions.
+	if host.ScriptsEnabled != nil && !*host.ScriptsEnabled {
+		svc.authz.SkipAuthorization(ctx)
+		return nil, fleet.NewUserMessageError(errors.New(fleet.RunScriptsOrbitDisabledErrMsg), http.StatusUnprocessableEntity)
+	}
+
 	maxPending := maxPendingScripts
 
 	// authorize with the host's team and the script id provided, as both affect
@@ -393,23 +400,30 @@ func (svc *Service) GetScriptResult(ctx context.Context, execID string) (*fleet.
 		return nil, ctxerr.Wrap(ctx, err, "get script result")
 	}
 
-	host, err := svc.ds.HostLite(ctx, scriptResult.HostID)
-	if err != nil {
-		// if error is because the host does not exist, check first if the user
-		// had access to run a script (to prevent leaking valid host ids).
-		if fleet.IsNotFound(err) {
-			if err := svc.authz.Authorize(ctx, &fleet.HostScriptResult{}, fleet.ActionRead); err != nil {
-				return nil, err
+	if scriptResult.HostDeletedAt == nil {
+		// host is not deleted, get it and authorize for the host's team
+		host, err := svc.ds.HostLite(ctx, scriptResult.HostID)
+		if err != nil {
+			// if error is because the host does not exist, check first if the user
+			// had access to run a script (to prevent leaking valid host ids).
+			if fleet.IsNotFound(err) {
+				if err := svc.authz.Authorize(ctx, &fleet.HostScriptResult{}, fleet.ActionRead); err != nil {
+					return nil, err
+				}
 			}
+			svc.authz.SkipAuthorization(ctx)
+			return nil, ctxerr.Wrap(ctx, err, "get host lite")
 		}
-		svc.authz.SkipAuthorization(ctx)
-		return nil, ctxerr.Wrap(ctx, err, "get host lite")
+		if err := svc.authz.Authorize(ctx, &fleet.HostScriptResult{TeamID: host.TeamID}, fleet.ActionRead); err != nil {
+			return nil, err
+		}
+		scriptResult.Hostname = host.DisplayName()
+	} else {
+		// host was deleted, authorize for no-team as a fallback
+		if err := svc.authz.Authorize(ctx, &fleet.HostScriptResult{}, fleet.ActionRead); err != nil {
+			return nil, err
+		}
 	}
-	if err := svc.authz.Authorize(ctx, &fleet.HostScriptResult{TeamID: host.TeamID}, fleet.ActionRead); err != nil {
-		return nil, err
-	}
-
-	scriptResult.Hostname = host.DisplayName()
 
 	return scriptResult, nil
 }
@@ -517,7 +531,7 @@ func (svc *Service) NewScript(ctx context.Context, teamID *uint, name string, r 
 		teamName = &tm.Name
 	}
 
-	if err := svc.ds.NewActivity(
+	if err := svc.NewActivity(
 		ctx,
 		authz.UserFromContext(ctx),
 		fleet.ActivityTypeAddedScript{
@@ -575,7 +589,7 @@ func (svc *Service) DeleteScript(ctx context.Context, scriptID uint) error {
 		teamName = &tm.Name
 	}
 
-	if err := svc.ds.NewActivity(
+	if err := svc.NewActivity(
 		ctx,
 		authz.UserFromContext(ctx),
 		fleet.ActivityTypeDeletedScript{
@@ -858,10 +872,11 @@ func (svc *Service) BatchSetScripts(ctx context.Context, maybeTmID *uint, maybeT
 		return ctxerr.Wrap(ctx, err, "batch saving scripts")
 	}
 
-	if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeEditedScript{
-		TeamID:   teamID,
-		TeamName: teamName,
-	}); err != nil {
+	if err := svc.NewActivity(
+		ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeEditedScript{
+			TeamID:   teamID,
+			TeamName: teamName,
+		}); err != nil {
 		return ctxerr.Wrap(ctx, err, "logging activity for edited scripts")
 	}
 	return nil

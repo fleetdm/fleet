@@ -1,46 +1,36 @@
 # Segment hosts
 
-`Applies only to Fleet Premium`
+_Available in Fleet Premium_
 
-```
-ℹ️  In Fleet 4.0, Teams were introduced.
-```
+In Fleet, you can group hosts together in a "team" in Fleet. This way, you can apply queries, policies, scripts, and more that are tailored to the hosts' risk/compliance needs.
 
-- [Overview](#overview)
-- [Best practice](#best-practice)
-- [Transfer hosts to a team](#transfer-hosts-to-a-team)
+A host can only belong to one team. 
 
-## Overview
+You can give users access to only some teams.
 
-In Fleet, you can group hosts together in a team.
-
-Then, you can give users access to only some teams.
-
-This means you manage permissions so that some users can only run queries and manage hosts on the teams these users have access to.
-
-You can manage teams in the Fleet UI by selecting **Settings** > **Teams** in the top navigation. From there, you can add or remove teams, manage user access to teams, transfer hosts, or modify team settings.
+You can manage teams by selecting your avatar in the top navigation and then **Settings > Teams**.
 
 ## Best practice
 
-The best practice is to create these teams: `Workstations`, `Workstations (canary)`, `Servers`, and `Servers (canary)`.
+Fleet's best practice teams: 
+- `Workstations`: End user's production work computers (macOS, Windows, and Linux)
+- `Workstations (canary)`: IT team's test work computers. Sometimes, for demos or testing, includes end user's work computers. Used for [dogfooding](https://en.wikipedia.org/wiki/Eating_your_own_dog_food) a new workflow or feature that may or may not be rolled out to the "Workstations" team.
+- `Servers`: Security team's production servers.
+- `Servers (canary)`: Security team's test servers.
+- `Compliance exclusions`: All contributors' test work computers or virtual machines (VMs). Used for validating workflows for Fleet customers or reproducing bugs in the Fleet product.
+- `iPhones`: All contributors' test iOS hosts. Used to dogfood Fleet's iOS features (coming soon).
 
-
+If some of your hosts don't fall under the above teams, what are these hosts for? The answer determines the the hosts' risk/compliance needs, and thus their security basline, and thus their "team" in Fleet. If the hosts' have a different compliance needs, and thus different security baseline, then it's time to create a new team in Fleet.
 
 ## Adding hosts to a team
 
-Hosts can only belong to one team in Fleet.
-
 You can add hosts to a new team in Fleet by either enrolling the host with a team's enroll secret or by transferring the host via the Fleet UI after the host has been enrolled to Fleet.
 
-To automatically add hosts to a team in Fleet, check out the [**Adding hosts** documentation](https://fleetdm.com/docs/using-fleet/adding-hosts#automatically-adding-hosts-to-a-team).
+## Advanced
 
-> If a host was previously enrolled using a global enroll secret, changing the host's osquery enroll
-> secret will not cause the host to be transferred to the desired team. You must delete the
-> `osquery/osquery.db` file on the host, which forces the host to re-enroll
-> using the new team enroll secret. Alternatively, you can transfer the host via the Fleet UI, the
-> fleetctl CLI using `fleetctl hosts transfer`, or the [transfer host API endpoint](https://fleetdm.com/docs/using-fleet/rest-api#transfer-hosts-to-a-team).
+You can automatically enroll hosts to a specific team in Fleet by installing a fleetd with a team enroll secret. Learn more [here](./enroll-hosts.md#enroll-host-to-a-specific-team).
 
-
+Changing the host's enroll secret after enrollment will not cause the host to be transferred to a different team.
 
 <meta name="pageOrderInSection" value="1000">
 <meta name="description" value="Learn how to group hosts in Fleet to apply specific queries, policies, and agent options using teams.">

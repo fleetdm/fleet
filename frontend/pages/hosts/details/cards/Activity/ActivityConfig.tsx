@@ -3,7 +3,9 @@ import React from "react";
 import {
   ActivityType,
   IHostPastActivityType,
-  IPastActivity,
+  IHostPastActivity,
+  IHostUpcomingActivityType,
+  IHostUpcomingActivity,
 } from "interfaces/activity";
 
 import { ShowActivityDetailsHandler } from "./Activity";
@@ -11,10 +13,12 @@ import { ShowActivityDetailsHandler } from "./Activity";
 import RanScriptActivityItem from "./ActivityItems/RanScriptActivityItem";
 import LockedHostActivityItem from "./ActivityItems/LockedHostActivityItem";
 import UnlockedHostActivityItem from "./ActivityItems/UnlockedHostActivityItem";
+import InstalledSoftwareActivityItem from "./ActivityItems/InstalledSoftwareActivityItem";
 
 /** The component props that all host activity items must adhere to */
 export interface IHostActivityItemComponentProps {
-  activity: IPastActivity;
+  activity: IHostPastActivity | IHostUpcomingActivity;
+  tab: "past" | "upcoming";
 }
 
 /** Used for activity items component that need a show details handler */
@@ -31,4 +35,14 @@ export const pastActivityComponentMap: Record<
   [ActivityType.RanScript]: RanScriptActivityItem,
   [ActivityType.LockedHost]: LockedHostActivityItem,
   [ActivityType.UnlockedHost]: UnlockedHostActivityItem,
+  [ActivityType.InstalledSoftware]: InstalledSoftwareActivityItem,
+};
+
+export const upcomingActivityComponentMap: Record<
+  IHostUpcomingActivityType,
+  | React.FC<IHostActivityItemComponentProps>
+  | React.FC<IHostActivityItemComponentPropsWithShowDetails>
+> = {
+  [ActivityType.RanScript]: RanScriptActivityItem,
+  [ActivityType.InstalledSoftware]: InstalledSoftwareActivityItem,
 };

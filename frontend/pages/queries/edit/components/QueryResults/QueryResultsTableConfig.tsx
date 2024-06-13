@@ -4,11 +4,11 @@
 import React from "react";
 
 import { CellProps, Column, HeaderProps } from "react-table";
-import { find } from "lodash";
 
 import DefaultColumnFilter from "components/TableContainer/DataTable/DefaultColumnFilter";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
 import {
+  getSortTypeFromColumnType,
   getUniqueColumnNamesFromRows,
   internallyTruncateText,
 } from "utilities/helpers";
@@ -34,28 +34,11 @@ const _unshiftHostname = <T extends object>(columns: Column<T>[]) => {
   return newHeaders;
 };
 
-// Sorts numerical columns correctly while perserving case insensitive sort for text columns
-const sortType = (
-  colName: string | number | symbol,
-  osqueryTableColumns?: IQueryTableColumn[] | []
-) => {
-  if (typeof colName === "string" && !!osqueryTableColumns) {
-    const numberTypes = ["integer", "bigint", "unsigned_bigint", "double"];
-
-    const type = find(osqueryTableColumns, { name: colName })?.type;
-
-    if (type && numberTypes.includes(type)) {
-      return "alphanumeric";
-    }
-  }
-  return "caseInsensitive";
-};
-
 const generateColumnConfigsFromRows = <T extends Record<keyof T, unknown>>(
   // TODO - narrow typing down this entire chain of logic
   // typed as any[] to accomodate loose typing of websocket API
   results: T[], // {col:val, ...} for each row of query results
-  osqueryTableColumns?: IQueryTableColumn[] | []
+  tableColumns?: IQueryTableColumn[] | []
 ): Column<T>[] => {
   const uniqueColumnNames = getUniqueColumnNamesFromRows(results);
   const columnsConfigs = uniqueColumnNames.map<Column<T>>((colName) => {
@@ -67,7 +50,7 @@ const generateColumnConfigsFromRows = <T extends Record<keyof T, unknown>>(
           isSortedDesc={headerProps.column.isSortedDesc}
         />
       ),
-      accessor: colName,
+      accessor: (data) => data[colName],
       Cell: (cellProps: CellProps<T>) => {
         const val = cellProps?.cell?.value;
         return !!val?.length && val.length > 300
@@ -76,7 +59,7 @@ const generateColumnConfigsFromRows = <T extends Record<keyof T, unknown>>(
       },
       Filter: DefaultColumnFilter,
       disableSortBy: false,
-      sortType: sortType(colName, osqueryTableColumns),
+      sortType: getSortTypeFromColumnType(colName, tableColumns),
     };
   });
   return _unshiftHostname(columnsConfigs);

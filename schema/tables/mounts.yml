@@ -1,9 +1,7 @@
 name: mounts
-examples: >-
+examples: |-
   Returns the drive free space in gigabytes and as percentage.
 
   ```
-
   SELECT path, type, ROUND((blocks_available * blocks_size * 10e-10), 2) AS free_gb, ROUND ((blocks_available * 1.0 / blocks * 1.0) * 100, 2) AS free_pc FROM mounts WHERE path = '/';
-
   ```

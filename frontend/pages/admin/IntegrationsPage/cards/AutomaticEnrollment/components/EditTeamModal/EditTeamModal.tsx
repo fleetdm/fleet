@@ -1,6 +1,7 @@
-import React, { useState, useContext, FormEvent } from "react";
+import React, { useState, useContext, FormEvent, useCallback } from "react";
 
 import { AppContext } from "context/app";
+import { NotificationContext } from "context/notification";
 import {
   APP_CONTEXT_NO_TEAM_ID,
   APP_CONTEX_NO_TEAM_SUMMARY,
@@ -15,7 +16,6 @@ import Button from "components/buttons/Button";
 interface IEditTeamModal {
   onCancel: () => void;
   defaultTeamName: string;
-  onUpdateSuccess: (newName: string) => void;
 }
 
 const baseClass = "edit-team-modal";
@@ -23,9 +23,9 @@ const baseClass = "edit-team-modal";
 const EditTeamModal = ({
   onCancel,
   defaultTeamName,
-  onUpdateSuccess,
 }: IEditTeamModal): JSX.Element => {
-  const { availableTeams } = useContext(AppContext);
+  const { availableTeams, setConfig } = useContext(AppContext);
+  const { renderFlash } = useContext(NotificationContext);
 
   const [selectedTeam, setSelectedTeam] = useState(defaultTeamName);
 
@@ -43,19 +43,34 @@ const EditTeamModal = ({
 
   const [isLoading, setIsLoading] = useState(false);
 
-  const onFormSubmit = async (event: FormEvent) => {
-    event.preventDefault();
-    try {
+  const handleUpdateTeam = useCallback(
+    async (newName: string) => {
+      try {
+        const configData = await configAPI.update({
+          mdm: { apple_bm_default_team: newName },
+        });
+        renderFlash("success", "Default team updated successfully.");
+        setConfig(configData);
+      } catch (e) {
+        renderFlash(
+          "error",
+          "Unable to update default team. Please try again."
+        );
+      } finally {
+        onCancel();
+      }
+    },
+    [renderFlash, setConfig, onCancel]
+  );
+
+  const onFormSubmit = useCallback(
+    (evt: FormEvent<HTMLFormElement>) => {
+      evt.preventDefault();
       setIsLoading(true);
-      const configData = await configAPI.update({
-        mdm: { apple_bm_default_team: selectedTeam },
-      });
-      setIsLoading(false);
-      onUpdateSuccess(configData.mdm.apple_bm_default_team);
-    } finally {
-      onCancel();
-    }
-  };
+      handleUpdateTeam(selectedTeam);
+    },
+    [selectedTeam, setIsLoading, handleUpdateTeam]
+  );
 
   return (
     <Modal title="Edit team" onExit={onCancel} className={baseClass}>

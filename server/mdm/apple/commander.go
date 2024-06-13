@@ -10,6 +10,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/appmanifest"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
+	mdmcrypto "github.com/fleetdm/fleet/v4/server/mdm/crypto"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	nanomdm_push "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
 	"github.com/groob/plist"
@@ -43,7 +44,12 @@ func NewMDMAppleCommander(mdmStorage fleet.MDMAppleStore, mdmPushService nanomdm
 // InstallProfile sends the homonymous MDM command to the given hosts, it also
 // takes care of the base64 encoding of the provided profile bytes.
 func (svc *MDMAppleCommander) InstallProfile(ctx context.Context, hostUUIDs []string, profile mobileconfig.Mobileconfig, uuid string) error {
-	base64Profile := base64.StdEncoding.EncodeToString(profile)
+	signedProfile, err := mdmcrypto.Sign(ctx, profile, svc.storage)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "signing profile")
+	}
+
+	base64Profile := base64.StdEncoding.EncodeToString(signedProfile)
 	raw := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -59,7 +65,7 @@ func (svc *MDMAppleCommander) InstallProfile(ctx context.Context, hostUUIDs []st
 	</dict>
 </dict>
 </plist>`, uuid, base64Profile)
-	err := svc.EnqueueCommand(ctx, hostUUIDs, raw)
+	err = svc.EnqueueCommand(ctx, hostUUIDs, raw)
 	return ctxerr.Wrap(ctx, err, "commander install profile")
 }
 
@@ -222,6 +228,28 @@ func (svc *MDMAppleCommander) AccountConfiguration(ctx context.Context, hostUUID
     <string>%s</string>
   </dict>
 </plist>`, fullName, userName, uuid)
+
+	return svc.EnqueueCommand(ctx, hostUUIDs, raw)
+}
+
+// DeclarativeManagement sends the homonym [command][1] to the device to enable DDM or start a new DDM session.
+//
+// [1]: https://developer.apple.com/documentation/devicemanagement/declarativemanagementcommand
+func (svc *MDMAppleCommander) DeclarativeManagement(ctx context.Context, hostUUIDs []string, uuid string) error {
+	raw := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+ <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+ <plist version="1.0">
+   <dict>
+     <key>Command</key>
+     <dict>
+       <key>RequestType</key>
+       <string>DeclarativeManagement</string>
+     </dict>
+
+     <key>CommandUUID</key>
+     <string>%s</string>
+   </dict>
+ </plist>`, uuid)
 
 	return svc.EnqueueCommand(ctx, hostUUIDs, raw)
 }

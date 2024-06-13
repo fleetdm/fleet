@@ -60,7 +60,8 @@ const RefetchButton = ({
     : "Refetch";
 
   // add additonal props when we need to display a tooltip for the button
-  const conditionalProps: any = {};
+  const conditionalProps: { "data-tip"?: boolean; "data-for"?: string } = {};
+
   if (tooltip) {
     conditionalProps["data-tip"] = true;
     conditionalProps["data-for"] = "refetch-tooltip";
@@ -115,7 +116,7 @@ interface IHostSummaryProps {
   onRefetchHost: (
     evt: React.MouseEvent<HTMLButtonElement, React.MouseEvent>
   ) => void;
-  renderActionButtons: () => JSX.Element | null;
+  renderActionDropdown: () => JSX.Element | null;
   deviceUser?: boolean;
   osSettings?: IOSSettings;
   hostMdmDeviceStatus?: HostMdmDeviceStatusUIState;
@@ -174,7 +175,7 @@ const HostSummary = ({
   mdmName,
   showRefetchSpinner,
   onRefetchHost,
-  renderActionButtons,
+  renderActionDropdown,
   deviceUser,
   osSettings,
   hostMdmDeviceStatus,
@@ -185,7 +186,14 @@ const HostSummary = ({
     disk_encryption_enabled: diskEncryptionEnabled,
   } = summaryData;
 
+  const isChromeHost = platform === "chrome";
+  const isIosOrIpadosHost = platform === "ios" || platform === "ipados";
+
   const renderRefetch = () => {
+    if (isIosOrIpadosHost) {
+      return null;
+    }
+
     const isOnline = summaryData.status === "online";
     let isDisabled = false;
     let tooltip: React.ReactNode = <></>;
@@ -290,7 +298,7 @@ const HostSummary = ({
 
     let statusText;
     switch (true) {
-      case platform === "chrome":
+      case isChromeHost:
         statusText = "Always on";
         break;
       case diskEncryptionEnabled === true:
@@ -317,6 +325,45 @@ const HostSummary = ({
     );
   };
 
+  const renderAgentSummary = () => {
+    if (isChromeHost) {
+      return <DataSet title="Agent" value={summaryData.osquery_version} />;
+    }
+
+    if (isIosOrIpadosHost) {
+      return null;
+    }
+
+    if (summaryData.orbit_version !== DEFAULT_EMPTY_CELL_VALUE) {
+      return (
+        <DataSet
+          title="Agent"
+          value={
+            <TooltipWrapper
+              tipContent={
+                <>
+                  osquery: {summaryData.osquery_version}
+                  <br />
+                  Orbit: {summaryData.orbit_version}
+                  {summaryData.fleet_desktop_version !==
+                    DEFAULT_EMPTY_CELL_VALUE && (
+                    <>
+                      <br />
+                      Fleet Desktop: {summaryData.fleet_desktop_version}
+                    </>
+                  )}
+                </>
+              }
+            >
+              {summaryData.orbit_version}
+            </TooltipWrapper>
+          }
+        />
+      );
+    }
+    return <DataSet title="Osquery" value={summaryData.osquery_version} />;
+  };
+
   const renderSummary = () => {
     // for windows hosts we have to manually add a profile for disk encryption
     // as this is not currently included in the `profiles` value from the API
@@ -337,29 +384,30 @@ const HostSummary = ({
 
     return (
       <Card
-        borderRadiusSize="large"
+        borderRadiusSize="xxlarge"
         includeShadow
         largePadding
         className={`${baseClass}-card`}
       >
-        <DataSet
-          title="Status"
-          value={
-            <StatusIndicator
-              value={status || ""} // temporary work around of integration test bug
-              tooltip={{
-                tooltipText: getHostStatusTooltipText(status),
-                position: "bottom",
-              }}
-            />
-          }
-        />
+        {!isIosOrIpadosHost && (
+          <DataSet
+            title="Status"
+            value={
+              <StatusIndicator
+                value={status || ""} // temporary work around of integration test bug
+                tooltip={{
+                  tooltipText: getHostStatusTooltipText(status),
+                  position: "bottom",
+                }}
+              />
+            }
+          />
+        )}
         {(summaryData.issues?.total_issues_count > 0 || isSandboxMode) &&
           isPremiumTier &&
+          !isIosOrIpadosHost &&
           renderIssues()}
-
         {isPremiumTier && renderHostTeam()}
-
         {/* Rendering of OS Settings data */}
         {(platform === "darwin" || platform === "windows") &&
           isPremiumTier &&
@@ -378,8 +426,7 @@ const HostSummary = ({
               }
             />
           )}
-
-        {bootstrapPackageData?.status && (
+        {bootstrapPackageData?.status && !isIosOrIpadosHost && (
           <DataSet
             title="Bootstrap package"
             value={
@@ -390,18 +437,19 @@ const HostSummary = ({
             }
           />
         )}
-
-        {platform !== "chrome" && renderDiskSpaceSummary()}
-
+        {!isChromeHost && renderDiskSpaceSummary()}
         {renderDiskEncryptionSummary()}
-
-        <DataSet
-          title="Memory"
-          value={wrapFleetHelper(humanHostMemory, summaryData.memory)}
-        />
-        <DataSet title="Processor type" value={summaryData.cpu_type} />
+        {!isIosOrIpadosHost && (
+          <DataSet
+            title="Memory"
+            value={wrapFleetHelper(humanHostMemory, summaryData.memory)}
+          />
+        )}
+        {!isIosOrIpadosHost && (
+          <DataSet title="Processor type" value={summaryData.cpu_type} />
+        )}
         <DataSet title="Operating system" value={summaryData.os_version} />
-        <DataSet title="Osquery" value={summaryData.osquery_version} />
+        {!isIosOrIpadosHost && renderAgentSummary()}
       </Card>
     );
   };
@@ -463,7 +511,7 @@ const HostSummary = ({
             {renderRefetch()}
           </div>
         </div>
-        {renderActionButtons()}
+        {renderActionDropdown()}
       </div>
       {renderSummary()}
     </div>

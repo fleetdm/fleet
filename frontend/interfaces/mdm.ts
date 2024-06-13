@@ -1,3 +1,5 @@
+import { IConfigServerSettings } from "./config";
+
 export interface IMdmApple {
   common_name: string;
   serial_number: string;
@@ -12,6 +14,10 @@ export interface IMdmAppleBm {
   mdm_server_url: string;
   renew_date: string;
 }
+
+export const getMdmServerUrl = ({ server_url }: IConfigServerSettings) => {
+  return server_url.concat("/mdm/apple/mdm");
+};
 
 export const MDM_ENROLLMENT_STATUS = {
   "On (manual)": "manual",
@@ -81,6 +87,11 @@ export interface IMdmProfile {
 }
 
 export type MdmProfileStatus = "verified" | "verifying" | "pending" | "failed";
+export type MdmDDMProfileStatus =
+  | "success"
+  | "pending"
+  | "failed"
+  | "acknowledged";
 
 export type ProfileOperationType = "remove" | "install";
 
@@ -89,7 +100,7 @@ export interface IHostMdmProfile {
   name: string;
   operation_type: ProfileOperationType | null;
   platform: ProfilePlatform;
-  status: MdmProfileStatus;
+  status: MdmProfileStatus | MdmDDMProfileStatus;
   detail: string;
 }
 

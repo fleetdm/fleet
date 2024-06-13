@@ -249,6 +249,12 @@ type HostScriptResult struct {
 	// execution. It is otherwise not part of the host_script_results table and
 	// not returned as part of the resulting JSON.
 	Hostname string `json:"-" db:"-"`
+
+	// HostDeletedAt indicates if the results are associated with a deleted host.
+	// This supports the soft-delete feature for script results so that the
+	// results can still be returned to see activity details after the host got
+	// deleted.
+	HostDeletedAt *time.Time `json:"-" db:"host_deleted_at"`
 }
 
 func (hsr HostScriptResult) AuthzType() string {
@@ -297,7 +303,23 @@ const (
 )
 
 // anchored, so that it matches to the end of the line
-var scriptHashbangValidation = regexp.MustCompile(`^#!\s*/bin/sh\s*$`)
+var scriptHashbangValidation = regexp.MustCompile(`^#!\s*(:?/usr)?/bin/z?sh(?:\s*|\s+.*)$`)
+var ErrUnsupportedInterpreter = errors.New(`Interpreter not supported. Shell scripts must run in "#!/bin/sh" or "#!/bin/zsh."`)
+
+// ValidateShebang validates if we support a script, and whether we
+// can execute it directly, or need to pass it to a shell interpreter.
+func ValidateShebang(s string) (directExecute bool, err error) {
+	if strings.HasPrefix(s, "#!") {
+		// read the first line in a portable way
+		s := bufio.NewScanner(strings.NewReader(s))
+		// if a hashbang is present, it can only be `/bin/sh` or `(/usr)/bin/zsh` for now
+		if s.Scan() && !scriptHashbangValidation.MatchString(s.Text()) {
+			return false, ErrUnsupportedInterpreter
+		}
+		return true, nil
+	}
+	return false, nil
+}
 
 func ValidateHostScriptContents(s string, isSavedScript bool) error {
 	if s == "" {
@@ -330,13 +352,8 @@ func ValidateHostScriptContents(s string, isSavedScript bool) error {
 		return errors.New("Wrong data format. Only plain text allowed.")
 	}
 
-	if strings.HasPrefix(s, "#!") {
-		// read the first line in a portable way
-		s := bufio.NewScanner(strings.NewReader(s))
-		// if a hashbang is present, it can only be `/bin/sh` for now
-		if s.Scan() && !scriptHashbangValidation.MatchString(s.Text()) {
-			return errors.New(`Interpreter not supported. Bash scripts must run in "#!/bin/sh”.`)
-		}
+	if _, err := ValidateShebang(s); err != nil {
+		return err
 	}
 
 	return nil
@@ -345,6 +362,14 @@ func ValidateHostScriptContents(s string, isSavedScript bool) error {
 type ScriptPayload struct {
 	Name           string `json:"name"`
 	ScriptContents []byte `json:"script_contents"`
+}
+
+type SoftwareInstallerPayload struct {
+	URL               string `json:"url"`
+	PreInstallQuery   string `json:"pre_install_query"`
+	InstallScript     string `json:"install_script"`
+	PostInstallScript string `json:"post_install_script"`
+	SelfService       bool   `json:"self_service"`
 }
 
 type HostLockWipeStatus struct {

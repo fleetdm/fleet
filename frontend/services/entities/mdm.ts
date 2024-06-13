@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/explicit-module-boundary-types */
 import {
   DiskEncryptionStatus,
+  IHostMdmProfile,
   IMdmProfile,
   MdmProfileStatus,
 } from "interfaces/mdm";
@@ -47,6 +48,10 @@ export interface IUploadProfileApiParams {
   labels?: string[];
 }
 
+export const isDDMProfile = (profile: IMdmProfile | IHostMdmProfile) => {
+  return profile.profile_uuid.startsWith("d");
+};
+
 interface IUpdateSetupExperienceBody {
   team_id?: number;
   enable_release_device_manually: boolean;
@@ -61,10 +66,6 @@ export interface IAppleSetupEnrollmentProfileResponse {
 }
 
 const mdmService = {
-  downloadDeviceUserEnrollmentProfile: (token: string) => {
-    const { DEVICE_USER_MDM_ENROLLMENT_PROFILE } = endpoints;
-    return sendRequest("GET", DEVICE_USER_MDM_ENROLLMENT_PROFILE(token));
-  },
   resetEncryptionKey: (token: string) => {
     const { DEVICE_USER_RESET_ENCRYPTION_KEY } = endpoints;
     return sendRequest("POST", DEVICE_USER_RESET_ENCRYPTION_KEY(token));
@@ -79,13 +80,10 @@ const mdmService = {
       timeout
     );
   },
-  requestCSR: (email: string, organization: string) => {
+  requestCSR: () => {
     const { MDM_REQUEST_CSR } = endpoints;
 
-    return sendRequest("POST", MDM_REQUEST_CSR, {
-      email_address: email,
-      organization,
-    });
+    return sendRequest("GET", MDM_REQUEST_CSR);
   },
 
   getProfiles: (

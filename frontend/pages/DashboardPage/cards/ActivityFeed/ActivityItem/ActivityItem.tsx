@@ -16,6 +16,7 @@ import Icon from "components/Icon";
 import ReactTooltip from "react-tooltip";
 import PremiumFeatureIconWithTooltip from "components/PremiumFeatureIconWithTooltip";
 import { COLORS } from "styles/var/colors";
+import { getSoftwareInstallStatusPredicate } from "pages/hosts/details/cards/Activity/ActivityItems/InstalledSoftwareActivityItem/InstalledSoftwareActivityItem";
 
 const baseClass = "activity-item";
 
@@ -181,7 +182,14 @@ const TAGGED_TEMPLATES = {
     return "was added to Fleet by SSO.";
   },
   userLoggedIn: (activity: IActivity) => {
-    return `successfully logged in from public IP ${activity.details?.public_ip}.`;
+    return (
+      <>
+        successfully logged in
+        {activity.details?.public_ip &&
+          ` from public IP ${activity.details?.public_ip}`}
+        .
+      </>
+    );
   },
   userFailedLogin: (activity: IActivity) => {
     return (
@@ -599,7 +607,7 @@ const TAGGED_TEMPLATES = {
     );
   },
 
-  enabledWindowsMdm: (activity: IActivity) => {
+  enabledWindowsMdm: () => {
     return (
       <>
         {" "}
@@ -608,7 +616,7 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
-  disabledWindowsMdm: (activity: IActivity) => {
+  disabledWindowsMdm: () => {
     return <> told Fleet to turn off Windows MDM features.</>;
   },
   // TODO: Combine ranScript template with host details page templates
@@ -727,7 +735,7 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
-  deletedMultipleSavedQuery: (activity: IActivity) => {
+  deletedMultipleSavedQuery: () => {
     return <> deleted multiple queries.</>;
   },
   lockedHost: (activity: IActivity) => {
@@ -760,6 +768,131 @@ const TAGGED_TEMPLATES = {
       <>
         {" "}
         wiped <b>{activity.details?.host_display_name}</b>.
+      </>
+    );
+  },
+  createdDeclarationProfile: (activity: IActivity, isPremiumTier: boolean) => {
+    return (
+      <>
+        {" "}
+        added declaration (DDM) profile <b>
+          {activity.details?.profile_name}
+        </b>{" "}
+        to{" "}
+        {getProfileMessageSuffix(
+          isPremiumTier,
+          "darwin",
+          activity.details?.team_name
+        )}
+        .
+      </>
+    );
+  },
+  deletedDeclarationProfile: (activity: IActivity, isPremiumTier: boolean) => {
+    return (
+      <>
+        {" "}
+        removed declaration (DDM) profile{" "}
+        <b>{activity.details?.profile_name}</b> from{" "}
+        {getProfileMessageSuffix(
+          isPremiumTier,
+          "darwin",
+          activity.details?.team_name
+        )}
+        .
+      </>
+    );
+  },
+  editedDeclarationProfile: (activity: IActivity, isPremiumTier: boolean) => {
+    return (
+      <>
+        {" "}
+        edited declaration (DDM) profiles{" "}
+        <b>{activity.details?.profile_name}</b> for{" "}
+        {getProfileMessageSuffix(
+          isPremiumTier,
+          "darwin",
+          activity.details?.team_name
+        )}{" "}
+        via fleetctl.
+      </>
+    );
+  },
+
+  resentConfigProfile: (activity: IActivity) => {
+    return (
+      <>
+        {" "}
+        resent {activity.details?.profile_name} configuration profile to{" "}
+        {activity.details?.host_display_name}.
+      </>
+    );
+  },
+  addedSoftware: (activity: IActivity) => {
+    return (
+      <>
+        {" "}
+        added <b>{activity.details?.software_title}</b> (
+        {activity.details?.software_package}) software to{" "}
+        {activity.details?.team_name ? (
+          <>
+            {" "}
+            the <b>{activity.details?.team_name}</b> team.
+          </>
+        ) : (
+          "no team."
+        )}
+      </>
+    );
+  },
+  deletedSoftware: (activity: IActivity) => {
+    return (
+      <>
+        {" "}
+        deleted <b>{activity.details?.software_title}</b> (
+        {activity.details?.software_package}) software from{" "}
+        {activity.details?.team_name ? (
+          <>
+            {" "}
+            the <b>{activity.details?.team_name}</b> team.
+          </>
+        ) : (
+          "no team."
+        )}
+      </>
+    );
+  },
+  installedSoftware: (
+    activity: IActivity,
+    onDetailsClick?: (type: ActivityType, details: IActivityDetails) => void
+  ) => {
+    const { details } = activity;
+    if (!details) {
+      return TAGGED_TEMPLATES.defaultActivityTemplate(activity);
+    }
+
+    const {
+      host_display_name: hostName,
+      software_title: title,
+      status,
+      install_uuid,
+    } = details;
+
+    return (
+      <>
+        {" "}
+        {getSoftwareInstallStatusPredicate(status)} <b>{title}</b> software on{" "}
+        <b>{hostName}</b>.{" "}
+        <Button
+          className={`${baseClass}__show-query-link`}
+          variant="text-link"
+          onClick={() =>
+            onDetailsClick?.(ActivityType.InstalledSoftware, { install_uuid })
+          }
+        >
+          Show details{" "}
+          <Icon className={`${baseClass}__show-query-icon`} name="eye" />
+        </Button>
       </>
     );
   },
@@ -886,10 +1019,10 @@ const getDetail = (
       return TAGGED_TEMPLATES.transferredHosts(activity);
     }
     case ActivityType.EnabledWindowsMdm: {
-      return TAGGED_TEMPLATES.enabledWindowsMdm(activity);
+      return TAGGED_TEMPLATES.enabledWindowsMdm();
     }
     case ActivityType.DisabledWindowsMdm: {
-      return TAGGED_TEMPLATES.disabledWindowsMdm(activity);
+      return TAGGED_TEMPLATES.disabledWindowsMdm();
     }
     case ActivityType.RanScript: {
       return TAGGED_TEMPLATES.ranScript(activity, onDetailsClick);
@@ -907,7 +1040,7 @@ const getDetail = (
       return TAGGED_TEMPLATES.editedWindowsUpdates(activity);
     }
     case ActivityType.DeletedMultipleSavedQuery: {
-      return TAGGED_TEMPLATES.deletedMultipleSavedQuery(activity);
+      return TAGGED_TEMPLATES.deletedMultipleSavedQuery();
     }
     case ActivityType.LockedHost: {
       return TAGGED_TEMPLATES.lockedHost(activity);
@@ -918,6 +1051,34 @@ const getDetail = (
     case ActivityType.WipedHost: {
       return TAGGED_TEMPLATES.wipedHost(activity);
     }
+    case ActivityType.CreatedDeclarationProfile: {
+      return TAGGED_TEMPLATES.createdDeclarationProfile(
+        activity,
+        isPremiumTier
+      );
+    }
+    case ActivityType.DeletedDeclarationProfile: {
+      return TAGGED_TEMPLATES.deletedDeclarationProfile(
+        activity,
+        isPremiumTier
+      );
+    }
+    case ActivityType.EditedDeclarationProfile: {
+      return TAGGED_TEMPLATES.editedDeclarationProfile(activity, isPremiumTier);
+    }
+    case ActivityType.ResentConfigurationProfile: {
+      return TAGGED_TEMPLATES.resentConfigProfile(activity);
+    }
+    case ActivityType.AddedSoftware: {
+      return TAGGED_TEMPLATES.addedSoftware(activity);
+    }
+    case ActivityType.DeletedSoftware: {
+      return TAGGED_TEMPLATES.deletedSoftware(activity);
+    }
+    case ActivityType.InstalledSoftware: {
+      return TAGGED_TEMPLATES.installedSoftware(activity, onDetailsClick);
+    }
+
     default: {
       return TAGGED_TEMPLATES.defaultActivityTemplate(activity);
     }
@@ -955,18 +1116,30 @@ const ActivityItem = ({
     isSandboxMode && PREMIUM_ACTIVITIES.has(activity.type);
 
   const renderActivityPrefix = () => {
-    if (activity.type === ActivityType.UserLoggedIn) {
-      return <b>{activity.actor_email} </b>;
+    const DEFAULT_ACTOR_DISPLAY = <b>{activity.actor_full_name} </b>;
+
+    switch (activity.type) {
+      case ActivityType.UserLoggedIn:
+        return <b>{activity.actor_email} </b>;
+      case ActivityType.UserChangedGlobalRole:
+      case ActivityType.UserChangedTeamRole:
+        return activity.actor_id === activity.details?.user_id ? (
+          <b>{activity.details?.user_email} </b>
+        ) : (
+          DEFAULT_ACTOR_DISPLAY
+        );
+      case ActivityType.InstalledSoftware:
+        return activity.details?.self_service ? (
+          <span>An end user</span>
+        ) : (
+          DEFAULT_ACTOR_DISPLAY
+        );
+
+      default:
+        return DEFAULT_ACTOR_DISPLAY;
     }
-    if (
-      (activity.type === ActivityType.UserChangedGlobalRole ||
-        activity.type === ActivityType.UserChangedTeamRole) &&
-      activity.actor_id === activity.details?.user_id
-    ) {
-      return <b>{activity.details?.user_email} </b>;
-    }
-    return <b>{activity.actor_full_name} </b>;
   };
+
   return (
     <div className={baseClass}>
       <Avatar

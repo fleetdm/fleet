@@ -1,11 +1,9 @@
 name: docker_container_labels
-examples: >-
+examples: |-
   This table exposes all Docker labels on running containers. By joining it to
   the [docker_containers](https://fleetdm.com/tables/docker_containers)table, we
   can list containers and their maintainers.
 
   ```
-
   SELECT dl.value, dc.name, FROM docker_container_labels dl JOIN docker_containers dc ON dl.id = dc.id WHERE key='maintainer';
-
   ```

@@ -434,8 +434,9 @@ type AppConfig struct {
 	// SMTPSettings holds the SMTP integration settings.
 	//
 	// This field is a pointer to avoid returning this information to non-global-admins.
-	SMTPSettings       *SMTPSettings      `json:"smtp_settings,omitempty"`
-	HostExpirySettings HostExpirySettings `json:"host_expiry_settings"`
+	SMTPSettings           *SMTPSettings          `json:"smtp_settings,omitempty"`
+	HostExpirySettings     HostExpirySettings     `json:"host_expiry_settings"`
+	ActivityExpirySettings ActivityExpirySettings `json:"activity_expiry_settings"`
 	// Features allows to globally enable or disable features
 	Features               Features  `json:"features"`
 	DeprecatedHostSettings *Features `json:"host_settings,omitempty"`
@@ -704,6 +705,7 @@ func (d *Duration) UnmarshalJSON(b []byte) error {
 }
 
 type WebhookSettings struct {
+	ActivitiesWebhook      ActivitiesWebhookSettings      `json:"activities_webhook"`
 	HostStatusWebhook      HostStatusWebhookSettings      `json:"host_status_webhook"`
 	FailingPoliciesWebhook FailingPoliciesWebhookSettings `json:"failing_policies_webhook"`
 	VulnerabilitiesWebhook VulnerabilitiesWebhookSettings `json:"vulnerabilities_webhook"`
@@ -711,6 +713,11 @@ type WebhookSettings struct {
 	//
 	// This value currently configures both the host status and failing policies webhooks.
 	Interval Duration `json:"interval"`
+}
+
+type ActivitiesWebhookSettings struct {
+	Enable         bool   `json:"enable_activities_webhook"`
+	DestinationURL string `json:"destination_url"`
 }
 
 type HostStatusWebhookSettings struct {
@@ -880,12 +887,19 @@ type ServerSettings struct {
 	DeferredSaveHost     bool   `json:"deferred_save_host"`
 	QueryReportsDisabled bool   `json:"query_reports_disabled"`
 	ScriptsDisabled      bool   `json:"scripts_disabled"`
+	AIFeaturesDisabled   bool   `json:"ai_features_disabled"`
 }
 
 // HostExpirySettings contains settings pertaining to automatic host expiry.
 type HostExpirySettings struct {
 	HostExpiryEnabled bool `json:"host_expiry_enabled"`
 	HostExpiryWindow  int  `json:"host_expiry_window"`
+}
+
+// ActivityExpirySettings contains settings pertaining to automatic activities cleanup.
+type ActivityExpirySettings struct {
+	ActivityExpiryEnabled bool `json:"activity_expiry_enabled"`
+	ActivityExpiryWindow  int  `json:"activity_expiry_window"`
 }
 
 type Features struct {
@@ -990,6 +1004,11 @@ type ListOptions struct {
 	After string `query:"after,optional"`
 	// Used to request the metadata of a query
 	IncludeMetadata bool
+
+	// The following fields are for tests, to ensure a deterministic sort order
+	// when the single-column order key is not unique.
+	TestSecondaryOrderKey       string         `query:"-,optional"`
+	TestSecondaryOrderDirection OrderDirection `query:"-,optional"`
 }
 
 func (l ListOptions) Empty() bool {
@@ -1008,6 +1027,9 @@ type ListQueryOptions struct {
 	TeamID *uint
 	// IsScheduled filters queries that are meant to run at a set interval.
 	IsScheduled *bool
+	// MergeInherited merges inherited global queries into the team list.  Is only valid when TeamID
+	// is set.
+	MergeInherited bool
 }
 
 type ListActivitiesOptions struct {
@@ -1026,6 +1048,21 @@ type ApplySpecOptions struct {
 	DryRun bool
 	// TeamForPolicies is the name of the team to set in policy specs.
 	TeamForPolicies string
+}
+
+type ApplyTeamSpecOptions struct {
+	ApplySpecOptions
+	DryRunAssumptions *TeamSpecsDryRunAssumptions
+}
+
+// ApplyClientSpecOptions embeds a ApplySpecOptions and adds additional client
+// side configuration.
+type ApplyClientSpecOptions struct {
+	ApplySpecOptions
+
+	// ExpandEnvConfigProfiles enables expansion of environment variables in
+	// configuration profiles.
+	ExpandEnvConfigProfiles bool
 }
 
 // RawQuery returns the ApplySpecOptions url-encoded for use in an URL's
@@ -1224,13 +1261,22 @@ type KafkaRESTConfig struct {
 // DeviceGlobalConfig is a subset of AppConfig with information used by the
 // device endpoints
 type DeviceGlobalConfig struct {
-	MDM DeviceGlobalMDMConfig `json:"mdm"`
+	MDM      DeviceGlobalMDMConfig `json:"mdm"`
+	Features DeviceFeatures        `json:"features"`
 }
 
 // DeviceGlobalMDMConfig is a subset of AppConfig.MDM with information used by
 // the device endpoints
 type DeviceGlobalMDMConfig struct {
 	EnabledAndConfigured bool `json:"enabled_and_configured"`
+}
+
+// DeviceFeatures is a subset of AppConfig.Features with information used by
+// the device endpoints.
+type DeviceFeatures struct {
+	// EnableSoftwareInventory is the setting used by the device's team (or
+	// globally in the AppConfig if the device is not in any team).
+	EnableSoftwareInventory bool `json:"enable_software_inventory"`
 }
 
 // Version is the authz type used to check access control to the version endpoint.

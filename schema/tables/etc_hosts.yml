@@ -1,15 +1,25 @@
 name: etc_hosts
-examples: >-
-  Identify host"name"s pointed to IP addresses using the hosts file. This
-  technique is often abused by malware, but can also indicate services that do
-  not have proper DNS configuration to be reached from workstations.
+description: The `hosts` file comprises a local, plain-text configuration for mapping IP addresses to host names. It does not necessarily rely on an external Domain Name System (DNS) for routing. The `etc_hosts` osquery table expresses the data in the `hosts` file.
+examples: |-
+  This query detects if the macOS `/private/etc/hosts` file has been modified from its default state:
 
   ```
-
-  SELECT * FROM etc_hosts WHERE address!='127.0.0.1' AND address!='::1' AND address!='255.255.255.255';
-
+  SELECT * FROM etc_hosts WHERE address != '127.0.0.1' AND address != '::1' AND address != '255.255.255.255';
   ```
+notes: |-
+  The `hosts` file is customized by many organizations. As part of a defense-in-depth security posture it's important to track `hosts` modifications. Endpoints with a modified `hosts` configuration connected to enterprise networks can potentially bypass network rules, proxies and firewalls or be routed to malicious sites.
+  
+  File paths to `hosts`:
+  - Linux: `/etc/hosts`
+  - macOS: `/private/etc/hosts`
+  - Windows: `C:\Windows\system32\drivers\etc`
+
+  **More info**:
+  - [DNS](https://en.wikipedia.org/wiki/Domain_Name_System)
+  - The `/etc/hosts` [Guide For Linux](https://thelinuxcode.com/etc-hosts-file-complete-guide-for-linux/)
+  - [How to edit the hosts file on Windows](https://www.howtogeek.com/784196/how-to-edit-the-hosts-file-on-windows-10-or-11)
 columns:
   - name: pid_with_namespace
     platforms:
       - linux
+      

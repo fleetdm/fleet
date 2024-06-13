@@ -29,6 +29,8 @@ export default PropTypes.shape({
   uuid: PropTypes.string,
   platform: PropTypes.string,
   osquery_version: PropTypes.string,
+  orbit_version: PropTypes.string,
+  fleet_desktop_version: PropTypes.string,
   os_version: PropTypes.string,
   build: PropTypes.string,
   platform_like: PropTypes.string,
@@ -204,7 +206,7 @@ export interface IPackStats {
   type: string;
 }
 
-export interface IHostPolicyQuery {
+export interface IPolicyHostResponse {
   id: number;
   display_name: string;
   query_results?: unknown[];
@@ -233,6 +235,7 @@ export interface IDeviceUserResponse {
   host: IHostDevice;
   license: ILicense;
   org_logo_url: string;
+  org_contact_url: string;
   disk_encryption_enabled?: boolean;
   platform?: string;
   global_config: IDeviceGlobalConfig;
@@ -254,6 +257,7 @@ export interface IHostIssues {
 export interface IHost {
   created_at: string;
   updated_at: string;
+  software_updated_at?: string;
   id: number;
   detail_updated_at: string;
   last_restarted_at: string;
@@ -267,6 +271,8 @@ export interface IHost {
   uuid: string;
   platform: string;
   osquery_version: string;
+  orbit_version: string | null;
+  fleet_desktop_version: string | null;
   os_version: string;
   build: string;
   platform_like: string; // TODO: replace with more specific union type
@@ -297,12 +303,13 @@ export interface IHost {
   gigs_disk_space_available: number;
   labels: ILabel[];
   packs: IPack[];
-  software: ISoftware[];
+  software?: ISoftware[];
   issues: IHostIssues;
   status: HostStatus;
   display_text: string;
   display_name: string;
   target_type?: string;
+  scripts_enabled: boolean | null;
   users: IHostUser[];
   device_users?: IDeviceUser[];
   munki?: IMunkiData;

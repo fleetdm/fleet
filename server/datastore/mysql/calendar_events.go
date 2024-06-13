@@ -52,7 +52,7 @@ func (ds *Datastore) CreateOrUpdateCalendarEvent(
 		} else {
 			stmt := `SELECT id FROM calendar_events WHERE email = ?`
 			if err := sqlx.GetContext(ctx, tx, &id, stmt, email); err != nil {
-				return ctxerr.Wrap(ctx, err, "query mdm solution id")
+				return ctxerr.Wrap(ctx, err, "calendar event id")
 			}
 		}
 

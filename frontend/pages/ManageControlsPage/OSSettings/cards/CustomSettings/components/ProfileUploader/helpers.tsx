@@ -78,6 +78,9 @@ export const parseFile = async (file: File): Promise<[string, string]> => {
       // }
       return [name, "macOS"];
     }
+    case "json": {
+      return [name, "macOS"];
+    }
     default: {
       throw new Error(`Invalid file type: ${ext}`);
     }

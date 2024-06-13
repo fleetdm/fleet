@@ -12,7 +12,13 @@ parasails.registerPage('pricing', {
   //  ║  ║╠╣ ║╣ ║  ╚╦╝║  ║  ║╣
   //  ╩═╝╩╚  ╚═╝╚═╝ ╩ ╚═╝╩═╝╚═╝
   beforeMount: function() {
-    //…
+    if(this.primaryBuyingSituation){
+      if(['eo-security', 'vm'].includes(this.primaryBuyingSituation)){
+        this.pricingMode = 'Security';
+      } else {
+        this.pricingMode = 'IT';
+      }
+    }
   },
   mounted: async function(){
     // Tooltips for desktop users are opened by a user hovering their cursor over them.

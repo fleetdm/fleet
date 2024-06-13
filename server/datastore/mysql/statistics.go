@@ -28,9 +28,33 @@ func (ds *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Du
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "amount enrolled hosts by os")
 		}
-		amountUsers, err := amountUsersDB(ctx, ds.writer(ctx))
+		amountUsers, err := tableRowsCount(ctx, ds.writer(ctx), "users")
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "amount users")
+		}
+		amountSoftwaresVersions, err := tableRowsCount(ctx, ds.writer(ctx), "software")
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "amount software")
+		}
+		amountHostSoftwares, err := tableRowsCount(ctx, ds.writer(ctx), "host_software")
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "amount host_software")
+		}
+		amountSoftwareTitles, err := tableRowsCount(ctx, ds.writer(ctx), "software_titles")
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "amount software_titles")
+		}
+		amountHostSoftwareInstalledPaths, err := tableRowsCount(ctx, ds.writer(ctx), "host_software_installed_paths")
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "amount host_software_installed_paths")
+		}
+		amountSoftwareCpes, err := tableRowsCount(ctx, ds.writer(ctx), "software_cpe")
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "amount software_cpe")
+		}
+		amountSoftwareCves, err := tableRowsCount(ctx, ds.writer(ctx), "software_cve")
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "amount software_cve")
 		}
 		amountTeams, err := amountTeamsDB(ctx, ds.writer(ctx))
 		if err != nil {
@@ -77,6 +101,12 @@ func (ds *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Du
 
 		stats.NumHostsEnrolled = amountEnrolledHosts
 		stats.NumUsers = amountUsers
+		stats.NumSoftwareVersions = amountSoftwaresVersions
+		stats.NumHostSoftwares = amountHostSoftwares
+		stats.NumSoftwareTitles = amountSoftwareTitles
+		stats.NumHostSoftwareInstalledPaths = amountHostSoftwareInstalledPaths
+		stats.NumSoftwareCPEs = amountSoftwareCpes
+		stats.NumSoftwareCVEs = amountSoftwareCves
 		stats.NumTeams = amountTeams
 		stats.NumPolicies = amountPolicies
 		stats.NumLabels = amountLabels

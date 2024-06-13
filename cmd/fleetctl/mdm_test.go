@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"slices"
 	"testing"
 	"time"
 
@@ -11,6 +12,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
 	"github.com/fleetdm/fleet/v4/server/mock"
+	mdmmock "github.com/fleetdm/fleet/v4/server/mock/mdm"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/google/uuid"
@@ -101,8 +103,10 @@ func TestMDMRunCommand(t *testing.T) {
 		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("Pending")},
 	}
 	hostByUUID := make(map[string]*fleet.Host)
+	hostByID := make(map[uint]*fleet.Host)
 	for _, h := range []*fleet.Host{macEnrolled, winEnrolled, macUnenrolled, winUnenrolled, linuxUnenrolled, macEnrolled2, winEnrolled2, macNonFleetEnrolled, winNonFleetEnrolled, macPending, winPending} {
 		hostByUUID[h.UUID] = h
+		hostByID[h.ID] = h
 	}
 
 	// define some files to use in the tests
@@ -155,7 +159,7 @@ func TestMDMRunCommand(t *testing.T) {
 
 	for _, lic := range []string{fleet.TierFree, fleet.TierPremium} {
 		t.Run(lic, func(t *testing.T) {
-			enqueuer := new(mock.MDMAppleStore)
+			enqueuer := new(mdmmock.MDMAppleStore)
 			license := &fleet.LicenseInfo{Tier: lic, Expiration: time.Now().Add(24 * time.Hour)}
 
 			_, ds := runServerWithMockedDS(t, &service.TestServerOpts{
@@ -221,6 +225,15 @@ func TestMDMRunCommand(t *testing.T) {
 			ds.GetMDMWindowsBitLockerStatusFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostMDMDiskEncryption, error) {
 				return &fleet.HostMDMDiskEncryption{}, nil
 			}
+			ds.GetHostMDMFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
+				h, ok := hostByID[hostID]
+				require.True(t, ok)
+				if h.MDMInfo == nil {
+					return nil, &notFoundError{}
+				}
+				return h.MDMInfo, nil
+			}
+
 			enqueuer.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.Command) (map[string]error, error) {
 				return map[string]error{}, nil
 			}
@@ -467,6 +480,30 @@ func TestMDMLockCommand(t *testing.T) {
 		return nil
 	}
 
+	ds.GetHostMDMFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
+		h, ok := hostsByID[hostID]
+		if !ok || h.MDMInfo == nil {
+			return nil, &notFoundError{}
+		}
+
+		return h.MDMInfo, nil
+	}
+
+	ds.GetHostOrbitInfoFunc = func(ctx context.Context, hostID uint) (*fleet.HostOrbitInfo, error) {
+		hostIDMod := hostID % 3
+		switch hostIDMod {
+		case 0:
+			return nil, &notFoundError{}
+		case 1:
+			return &fleet.HostOrbitInfo{}, nil
+		case 2:
+			return &fleet.HostOrbitInfo{ScriptsEnabled: ptr.Bool(true)}, nil
+		default:
+			t.Errorf("unexpected hostIDMod %v", hostIDMod)
+			return nil, nil
+		}
+	}
+
 	appCfgAllMDM, appCfgWinMDM, appCfgMacMDM, appCfgNoMDM := setupAppConigs()
 
 	successfulOutput := func(ident string) string {
@@ -701,6 +738,30 @@ func TestMDMUnlockCommand(t *testing.T) {
 		return nil
 	}
 
+	ds.GetHostMDMFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
+		h, ok := hostsByID[hostID]
+		if !ok || h.MDMInfo == nil {
+			return nil, &notFoundError{}
+		}
+
+		return h.MDMInfo, nil
+	}
+
+	ds.GetHostOrbitInfoFunc = func(ctx context.Context, hostID uint) (*fleet.HostOrbitInfo, error) {
+		hostIDMod := hostID % 3
+		switch hostIDMod {
+		case 0:
+			return nil, &notFoundError{}
+		case 1:
+			return &fleet.HostOrbitInfo{}, nil
+		case 2:
+			return &fleet.HostOrbitInfo{ScriptsEnabled: ptr.Bool(true)}, nil
+		default:
+			t.Errorf("unexpected hostIDMod %v", hostIDMod)
+			return nil, nil
+		}
+	}
+
 	appCfgAllMDM, appCfgWinMDM, appCfgMacMDM, appCfgNoMDM := setupAppConigs()
 
 	successfulOutput := func(ident string) string {
@@ -763,11 +824,6 @@ func TestMDMWipeCommand(t *testing.T) {
 		Platform: "windows",
 		MDMInfo:  &fleet.HostMDM{Enrolled: true, Name: fleet.WellKnownMDMFleet},
 		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("On (manual)")},
-	}
-	linuxEnrolled := &fleet.Host{
-		ID:       3,
-		UUID:     "linux-enrolled",
-		Platform: "linux",
 	}
 	winNotEnrolled := &fleet.Host{
 		ID:       4,
@@ -863,6 +919,23 @@ func TestMDMWipeCommand(t *testing.T) {
 		MDMInfo:  &fleet.HostMDM{Enrolled: true, Name: fleet.WellKnownMDMFleet},
 		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("On (manual")},
 	}
+	linuxEnrolled := &fleet.Host{
+		ID:       18,
+		UUID:     "linux-enrolled",
+		Platform: "linux",
+	}
+	linuxEnrolled2 := &fleet.Host{
+		ID:       19,
+		UUID:     "linux-enrolled",
+		Platform: "linux",
+	}
+	linuxEnrolled3 := &fleet.Host{
+		ID:       20,
+		UUID:     "linux-enrolled",
+		Platform: "linux",
+	}
+
+	linuxHostIDs := []uint{linuxEnrolled.ID, linuxEnrolled2.ID, linuxEnrolled3.ID}
 
 	hostByUUID := make(map[string]*fleet.Host)
 	hostsByID := make(map[uint]*fleet.Host)
@@ -870,6 +943,8 @@ func TestMDMWipeCommand(t *testing.T) {
 		winEnrolled,
 		macEnrolled,
 		linuxEnrolled,
+		linuxEnrolled2,
+		linuxEnrolled3,
 		macNotEnrolled,
 		winNotEnrolled,
 		macPending,
@@ -1001,6 +1076,35 @@ func TestMDMWipeCommand(t *testing.T) {
 		return nil
 	}
 
+	ds.GetHostMDMFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
+		h, ok := hostsByID[hostID]
+		if !ok || h.MDMInfo == nil {
+			return nil, &notFoundError{}
+		}
+
+		return h.MDMInfo, nil
+	}
+
+	// This function should only run on linux
+	ds.GetHostOrbitInfoFunc = func(ctx context.Context, hostID uint) (*fleet.HostOrbitInfo, error) {
+		if !slices.Contains(linuxHostIDs, hostID) {
+			t.Errorf("GetHostOrbitInfo should not be called for non-linux host %v", hostID)
+			return nil, nil
+		}
+		hostIDMod := hostID % 3
+		switch hostIDMod {
+		case 0:
+			return nil, &notFoundError{}
+		case 1:
+			return &fleet.HostOrbitInfo{}, nil
+		case 2:
+			return &fleet.HostOrbitInfo{ScriptsEnabled: ptr.Bool(true)}, nil
+		default:
+			t.Errorf("unexpected hostIDMod %v", hostIDMod)
+			return nil, nil
+		}
+	}
+
 	appCfgAllMDM, appCfgWinMDM, appCfgMacMDM, appCfgNoMDM := setupAppConigs()
 	appCfgScriptsDisabled := &fleet.AppConfig{ServerSettings: fleet.ServerSettings{ScriptsDisabled: true}}
 
@@ -1017,6 +1121,8 @@ func TestMDMWipeCommand(t *testing.T) {
 		{appCfgAllMDM, "valid windows", []string{"--host", winEnrolled.UUID}, ""},
 		{appCfgAllMDM, "valid macos", []string{"--host", macEnrolled.UUID}, ""},
 		{appCfgNoMDM, "valid linux", []string{"--host", linuxEnrolled.UUID}, ""},
+		{appCfgNoMDM, "valid linux 2", []string{"--host", linuxEnrolled2.UUID}, ""},
+		{appCfgNoMDM, "valid linux 3", []string{"--host", linuxEnrolled3.UUID}, ""},
 		{appCfgNoMDM, "valid windows but no mdm", []string{"--host", winEnrolled.UUID}, `Windows MDM isn't turned on.`},
 		{appCfgMacMDM, "valid macos but not enrolled", []string{"--host", macNotEnrolled.UUID}, `Can't wipe the host because it doesn't have MDM turned on.`},
 		{appCfgWinMDM, "valid windows but not enrolled", []string{"--host", winNotEnrolled.UUID}, `Can't wipe the host because it doesn't have MDM turned on.`},
@@ -1098,7 +1204,7 @@ func writeTmpMobileconfig(t *testing.T, name string) string {
 
 // sets up the test server with the mock datastore and returns the mock datastore
 func setupTestServer(t *testing.T) *mock.Store {
-	enqueuer := new(mock.MDMAppleStore)
+	enqueuer := new(mdmmock.MDMAppleStore)
 	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
 
 	enqueuer.EnqueueDeviceLockCommandFunc = func(ctx context.Context, host *fleet.Host, cmd *mdm.Command, pin string) error {
@@ -1171,7 +1277,9 @@ func setupDSMocks(ds *mock.Store, hostByUUID map[string]*fleet.Host, hostsByID m
 
 		return h.MDMInfo, nil
 	}
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+	ds.NewActivityFunc = func(
+		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
+	) error {
 		return nil
 	}
 }

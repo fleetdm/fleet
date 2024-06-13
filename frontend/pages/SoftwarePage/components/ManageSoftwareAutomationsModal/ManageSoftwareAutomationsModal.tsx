@@ -16,6 +16,7 @@ import {
   CONFIG_DEFAULT_RECENT_VULNERABILITY_MAX_AGE_IN_DAYS,
 } from "interfaces/config";
 import configAPI from "services/entities/config";
+import { SUPPORT_LINK } from "utilities/constants";
 
 import ReactTooltip from "react-tooltip";
 // @ts-ignore
@@ -477,11 +478,7 @@ const ManageAutomationsModal = ({
           <p>
             Vulnerability automations currently run for software
             vulnerabilities. Interested in automations for OS vulnerabilities?{" "}
-            <CustomLink
-              url="https://www.fleetdm.com/support"
-              text="Let us know"
-              newTab
-            />
+            <CustomLink url={SUPPORT_LINK} text="Let us know" newTab />
           </p>
         </div>
         <div className="modal-cta-wrap">

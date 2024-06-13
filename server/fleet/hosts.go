@@ -146,6 +146,9 @@ type HostListOptions struct {
 	// use. This identifies a "software title" independent of the specific
 	// version.
 	SoftwareTitleIDFilter *uint
+	// SoftwareStatusFilter filters the hosts by the status of the software installer, if any,
+	// managed by Fleet. If specified, the SoftwareTitleIDFilter must also be specified.
+	SoftwareStatusFilter *SoftwareInstallerStatus
 
 	OSIDFilter        *uint
 	OSNameFilter      *string
@@ -210,6 +213,7 @@ func (h HostListOptions) Empty() bool {
 		h.SoftwareIDFilter == nil &&
 		h.SoftwareVersionIDFilter == nil &&
 		h.SoftwareTitleIDFilter == nil &&
+		h.SoftwareStatusFilter == nil &&
 		h.OSIDFilter == nil &&
 		h.OSNameFilter == nil &&
 		h.OSVersionFilter == nil &&
@@ -255,6 +259,9 @@ type Host struct {
 	// Platform is the host's platform as defined by osquery's os_version.platform.
 	Platform       string        `json:"platform" csv:"platform"`
 	OsqueryVersion string        `json:"osquery_version" db:"osquery_version" csv:"osquery_version"`
+	OrbitVersion   *string       `json:"orbit_version" db:"orbit_version" csv:"orbit_version"`
+	DesktopVersion *string       `json:"fleet_desktop_version" db:"fleet_desktop_version" csv:"fleet_desktop_version"`
+	ScriptsEnabled *bool         `json:"scripts_enabled" db:"scripts_enabled" csv:"scripts_enabled"`
 	OSVersion      string        `json:"os_version" db:"os_version" csv:"os_version"`
 	Build          string        `json:"build" csv:"build"`
 	PlatformLike   string        `json:"platform_like" db:"platform_like" csv:"platform_like"`
@@ -356,16 +363,38 @@ type Host struct {
 	Policies *[]*HostPolicy `json:"policies,omitempty" csv:"-"`
 }
 
+// HostOrbitInfo maps to the host_orbit_info table in the database, which maps to the orbit_info agent table.
+type HostOrbitInfo struct {
+	Version        string  `json:"version" db:"version"`
+	DesktopVersion *string `json:"desktop_version" db:"desktop_version"`
+	ScriptsEnabled *bool   `json:"scripts_enabled" db:"scripts_enabled"`
+}
+
 // HostHealth contains a subset of Host data that indicates how healthy a Host is. For fields with
 // the same name, see the comments/docs for the Host field above.
 type HostHealth struct {
-	UpdatedAt             time.Time           `json:"updated_at,omitempty" db:"updated_at"`
-	OsVersion             string              `json:"os_version,omitempty" db:"os_version"`
-	DiskEncryptionEnabled *bool               `json:"disk_encryption_enabled,omitempty" db:"disk_encryption_enabled"`
-	VulnerableSoftware    []HostSoftwareEntry `json:"vulnerable_software,omitempty"`
-	FailingPolicies       []*HostPolicy       `json:"failing_policies,omitempty"`
-	Platform              string              `json:"-" db:"platform"`                // Needed to fetch failing policies. Not returned in HTTP responses.
-	TeamID                *uint               `json:"team_id,omitempty" db:"team_id"` // Needed to verify that user can access this host's health data. Not returned in HTTP responses.
+	UpdatedAt                    time.Time                      `json:"updated_at,omitempty" db:"updated_at"`
+	OsVersion                    string                         `json:"os_version,omitempty" db:"os_version"`
+	DiskEncryptionEnabled        *bool                          `json:"disk_encryption_enabled,omitempty" db:"disk_encryption_enabled"`
+	FailingPoliciesCount         int                            `json:"failing_policies_count"`
+	FailingCriticalPoliciesCount *int                           `json:"failing_critical_policies_count,omitempty"` // Fleet Premium Only
+	VulnerableSoftware           []HostHealthVulnerableSoftware `json:"vulnerable_software,omitempty"`
+	FailingPolicies              []*HostHealthFailingPolicy     `json:"failing_policies,omitempty"`
+	Platform                     string                         `json:"-" db:"platform"`                // Needed to fetch failing policies. Not returned in HTTP responses.
+	TeamID                       *uint                          `json:"team_id,omitempty" db:"team_id"` // Needed to verify that user can access this host's health data. Not returned in HTTP responses.
+}
+
+type HostHealthVulnerableSoftware struct {
+	ID      uint   `json:"id"`
+	Name    string `json:"name"`
+	Version string `json:"version"`
+}
+
+type HostHealthFailingPolicy struct {
+	ID         uint    `json:"id"`
+	Name       string  `json:"name"`
+	Critical   *bool   `json:"critical,omitempty"` // Fleet Premium Only
+	Resolution *string `json:"resolution"`
 }
 
 func (hh HostHealth) AuthzType() string {
@@ -382,6 +411,8 @@ type MDMHostData struct {
 	// DEPProfileError is a boolean representing whether Fleet received a "FAILED" response when
 	// attempting to assign a DEP profile for the host.
 	// See https://developer.apple.com/documentation/devicemanagement/assignprofileresponse
+	//
+	// It is not filled in by all host-returning datastore methods.
 	DEPProfileError bool `json:"dep_profile_error" db:"dep_profile_error" csv:"mdm.dep_profile_error"`
 	// ServerURL is the server_url stored in the host_mdm table, loaded by
 	// JOIN in datastore
@@ -650,6 +681,7 @@ func (h *Host) IsDEPAssignedToFleet() bool {
 func (h *Host) IsEligibleForDEPMigration() bool {
 	return h.IsOsqueryEnrolled() &&
 		h.IsDEPAssignedToFleet() &&
+		h.MDMInfo.HasJSONProfileAssigned() &&
 		h.MDMInfo.IsEnrolledInThirdPartyMDM()
 }
 
@@ -808,9 +840,14 @@ func (h *Host) FleetPlatform() string {
 	return PlatformFromHost(h.Platform)
 }
 
+// SupportsOsquery returns whether the device runs osquery.
+func (h *Host) SupportsOsquery() bool {
+	return h.Platform != "ios" && h.Platform != "ipados"
+}
+
 // HostLinuxOSs are the possible linux values for Host.Platform.
 var HostLinuxOSs = []string{
-	"linux", "ubuntu", "debian", "rhel", "centos", "sles", "kali", "gentoo", "amzn", "pop", "arch", "linuxmint", "void", "nixos", "endeavouros", "manjaro", "opensuse-leap", "opensuse-tumbleweed",
+	"linux", "ubuntu", "debian", "rhel", "centos", "sles", "kali", "gentoo", "amzn", "pop", "arch", "linuxmint", "void", "nixos", "endeavouros", "manjaro", "opensuse-leap", "opensuse-tumbleweed", "tuxedo",
 }
 
 func IsLinux(hostPlatform string) bool {
@@ -847,7 +884,9 @@ func PlatformFromHost(hostPlatform string) string {
 		// TODO remove this once that customer migrates to Fleetd for Chrome
 		hostPlatform == "CrOS",
 		// Fleet now supports Chrome via fleetd
-		hostPlatform == "chrome":
+		hostPlatform == "chrome",
+		hostPlatform == "ios",
+		hostPlatform == "ipados":
 		return hostPlatform
 	default:
 		return ""
@@ -899,13 +938,14 @@ type HostMunkiInfo struct {
 // used by a host. Note that it uses a different JSON representation than its
 // struct - it implements a custom JSON marshaler.
 type HostMDM struct {
-	HostID           uint   `db:"host_id" json:"-" csv:"-"`
-	Enrolled         bool   `db:"enrolled" json:"-" csv:"-"`
-	ServerURL        string `db:"server_url" json:"-" csv:"-"`
-	InstalledFromDep bool   `db:"installed_from_dep" json:"-" csv:"-"`
-	IsServer         bool   `db:"is_server" json:"-" csv:"-"`
-	MDMID            *uint  `db:"mdm_id" json:"-" csv:"-"`
-	Name             string `db:"name" json:"-" csv:"-"`
+	HostID                 uint    `db:"host_id" json:"-" csv:"-"`
+	Enrolled               bool    `db:"enrolled" json:"-" csv:"-"`
+	ServerURL              string  `db:"server_url" json:"-" csv:"-"`
+	InstalledFromDep       bool    `db:"installed_from_dep" json:"-" csv:"-"`
+	IsServer               bool    `db:"is_server" json:"-" csv:"-"`
+	MDMID                  *uint   `db:"mdm_id" json:"-" csv:"-"`
+	Name                   string  `db:"name" json:"-" csv:"-"`
+	DEPProfileAssignStatus *string `db:"dep_profile_assign_status" json:"-" csv:"-"`
 }
 
 // IsPendingDEPFleetEnrollment returns true if the host's MDM information
@@ -927,6 +967,17 @@ func (h *HostMDM) IsEnrolledInThirdPartyMDM() bool {
 		return false
 	}
 	return h.Enrolled && h.Name != WellKnownMDMFleet
+}
+
+// HasJSONProfileAssigned returns true if Fleet has assigned an ADE/DEP JSON
+// profile to the host, and it'll be enrolled into Fleet the next time the host
+// performs automatic enrollment.
+func (h *HostMDM) HasJSONProfileAssigned() bool {
+	// TODO: get rid of h != nil with a better solution once we stablish
+	// the pattern for dealing with a nil HostMDM
+	return h != nil &&
+		h.DEPProfileAssignStatus != nil &&
+		*h.DEPProfileAssignStatus == string(DEPAssignProfileResponseSuccess)
 }
 
 // IsDEPCapable returns true if and only if the host's MDM information
@@ -1184,6 +1235,7 @@ type OSVersion struct {
 type HostDetailOptions struct {
 	IncludeCVEScores bool
 	IncludePolicies  bool
+	ExcludeSoftware  bool
 }
 
 // EnrollHostLimiter defines the methods to support enforcement of enrolled
@@ -1194,13 +1246,15 @@ type EnrollHostLimiter interface {
 }
 
 type HostMDMCheckinInfo struct {
-	HardwareSerial        string `json:"hardware_serial" db:"hardware_serial"`
-	InstalledFromDEP      bool   `json:"installed_from_dep" db:"installed_from_dep"`
-	DisplayName           string `json:"display_name" db:"display_name"`
-	TeamID                uint   `json:"team_id" db:"team_id"`
-	DEPAssignedToFleet    bool   `json:"dep_assigned_to_fleet" db:"dep_assigned_to_fleet"`
-	OsqueryEnrolled       bool   `json:"osquery_enrolled" db:"osquery_enrolled"`
+	HardwareSerial     string `json:"hardware_serial" db:"hardware_serial"`
+	InstalledFromDEP   bool   `json:"installed_from_dep" db:"installed_from_dep"`
+	DisplayName        string `json:"display_name" db:"display_name"`
+	TeamID             uint   `json:"team_id" db:"team_id"`
+	DEPAssignedToFleet bool   `json:"dep_assigned_to_fleet" db:"dep_assigned_to_fleet"`
+	OsqueryEnrolled    bool   `json:"osquery_enrolled" db:"osquery_enrolled"`
+
 	SCEPRenewalInProgress bool   `json:"-" db:"scep_renewal_in_progress"`
+	Platform              string `json:"-" db:"platform"`
 }
 
 type HostDiskEncryptionKey struct {

@@ -13,6 +13,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/authz"
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -101,7 +102,7 @@ func (svc *Service) NewTeam(ctx context.Context, p fleet.TeamPayload) (*fleet.Te
 		return nil, err
 	}
 
-	if err := svc.ds.NewActivity(
+	if err := svc.NewActivity(
 		ctx,
 		authz.UserFromContext(ctx),
 		fleet.ActivityTypeCreatedTeam{
@@ -214,7 +215,7 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 		// Only update the calendar integration if it's not nil
 		if payload.Integrations.GoogleCalendar != nil {
 			invalid := &fleet.InvalidArgumentError{}
-			_ = svc.validateTeamCalendarIntegrations(payload.Integrations.GoogleCalendar, appCfg, invalid)
+			_ = svc.validateTeamCalendarIntegrations(payload.Integrations.GoogleCalendar, appCfg, false, invalid)
 			if invalid.HasErrors() {
 				return nil, ctxerr.Wrap(ctx, invalid)
 			}
@@ -249,7 +250,11 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 		return nil, err
 	}
 	if macOSMinVersionUpdated {
-		if err := svc.ds.NewActivity(
+		if err := svc.mdmAppleEditedMacOSUpdates(ctx, &team.ID, team.Config.MDM.MacOSUpdates); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "update DDM profile on macOS updates change")
+		}
+
+		if err := svc.NewActivity(
 			ctx,
 			authz.UserFromContext(ctx),
 			fleet.ActivityTypeEditedMacOSMinVersion{
@@ -279,7 +284,7 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 			return nil, ctxerr.Wrap(ctx, err, "disable team windows OS updates")
 		}
 
-		if err := svc.ds.NewActivity(
+		if err := svc.NewActivity(
 			ctx,
 			authz.UserFromContext(ctx),
 			fleet.ActivityTypeEditedWindowsUpdates{
@@ -305,7 +310,7 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 				return nil, ctxerr.Wrap(ctx, err, "disable team filevault and escrow")
 			}
 		}
-		if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
+		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "create activity for team macos disk encryption")
 		}
 	}
@@ -353,7 +358,7 @@ func (svc *Service) ModifyTeamAgentOptions(ctx context.Context, teamID uint, tea
 		return nil, err
 	}
 
-	if err := svc.ds.NewActivity(
+	if err := svc.NewActivity(
 		ctx,
 		authz.UserFromContext(ctx),
 		fleet.ActivityTypeEditedAgentOptions{
@@ -568,7 +573,7 @@ func (svc *Service) DeleteTeam(ctx context.Context, teamID uint) error {
 
 	logging.WithExtras(ctx, "id", teamID)
 
-	if err := svc.ds.NewActivity(
+	if err := svc.NewActivity(
 		ctx,
 		authz.UserFromContext(ctx),
 		fleet.ActivityTypeDeletedTeam{
@@ -582,15 +587,36 @@ func (svc *Service) DeleteTeam(ctx context.Context, teamID uint) error {
 }
 
 func (svc *Service) GetTeam(ctx context.Context, teamID uint) (*fleet.Team, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.Team{ID: teamID}, fleet.ActionRead); err != nil {
-		return nil, err
+	alreadyAuthd := svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceToken)
+	if alreadyAuthd {
+		// device-authenticated request can only get the device's team
+		host, ok := hostctx.FromContext(ctx)
+		if !ok {
+			err := ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("internal error: missing host from request context"))
+			return nil, err
+		}
+		if host.TeamID == nil || *host.TeamID != teamID {
+			return nil, authz.ForbiddenWithInternal("device-authenticated host does not belong to requested team", nil, "team", "read")
+		}
+	} else {
+		if err := svc.authz.Authorize(ctx, &fleet.Team{ID: teamID}, fleet.ActionRead); err != nil {
+			return nil, err
+		}
 	}
 
 	logging.WithExtras(ctx, "id", teamID)
 
-	vc, ok := viewer.FromContext(ctx)
-	if !ok {
-		return nil, fleet.ErrNoContext
+	var user *fleet.User
+	if alreadyAuthd {
+		// device-authenticated, there is no user in the context, use a global
+		// observer with no special permissions
+		user = &fleet.User{GlobalRole: ptr.String(fleet.RoleObserver)}
+	} else {
+		vc, ok := viewer.FromContext(ctx)
+		if !ok {
+			return nil, fleet.ErrNoContext
+		}
+		user = vc.User
 	}
 
 	team, err := svc.ds.Team(ctx, teamID)
@@ -598,7 +624,7 @@ func (svc *Service) GetTeam(ctx context.Context, teamID uint) (*fleet.Team, erro
 		return nil, err
 	}
 
-	if err = obfuscateSecrets(vc.User, []*fleet.Team{team}); err != nil {
+	if err = obfuscateSecrets(user, []*fleet.Team{team}); err != nil {
 		return nil, err
 	}
 
@@ -724,7 +750,9 @@ func (svc *Service) checkAuthorizationForTeams(ctx context.Context, specs []*fle
 	return nil
 }
 
-func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec, applyOpts fleet.ApplySpecOptions) (map[string]uint, error) {
+func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec, applyOpts fleet.ApplyTeamSpecOptions) (
+	map[string]uint, error,
+) {
 	if len(specs) == 0 {
 		setAuthCheckedOnPreAuthErr(ctx)
 		// Nothing to do.
@@ -745,10 +773,17 @@ func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec,
 
 	for _, spec := range specs {
 		var secrets []*fleet.EnrollSecret
-		for _, secret := range spec.Secrets {
-			secrets = append(secrets, &fleet.EnrollSecret{
-				Secret: secret.Secret,
-			})
+		// When secrets slice is empty, all secrets are removed.
+		// When secrets slice is nil, existing secrets are kept.
+		if spec.Secrets != nil {
+			secrets = make([]*fleet.EnrollSecret, 0, len(*spec.Secrets))
+			for _, secret := range *spec.Secrets {
+				secrets = append(
+					secrets, &fleet.EnrollSecret{
+						Secret: secret.Secret,
+					},
+				)
+			}
 		}
 
 		var create bool
@@ -776,7 +811,7 @@ func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec,
 				}
 			}
 		}
-		if len(spec.Secrets) > fleet.MaxEnrollSecretsCount {
+		if len(secrets) > fleet.MaxEnrollSecretsCount {
 			return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("secrets", "too many secrets"), "validate secrets")
 		}
 		if err := spec.MDM.MacOSUpdates.Validate(); err != nil {
@@ -788,8 +823,9 @@ func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec,
 
 		if create {
 
-			// create a new team enroll secret if none is provided for a new team.
-			if len(secrets) == 0 {
+			// create a new team enroll secret if none is provided for a new team,
+			// unless the user explicitly passed in an empty array
+			if secrets == nil {
 				secret, err := server.GenerateRandomText(fleet.EnrollSecretDefaultLength)
 				if err != nil {
 					return nil, ctxerr.Wrap(ctx, err, "generate enroll secret string")
@@ -810,7 +846,7 @@ func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec,
 			continue
 		}
 
-		if err := svc.editTeamFromSpec(ctx, team, spec, appConfig, secrets, applyOpts.DryRun); err != nil {
+		if err := svc.editTeamFromSpec(ctx, team, spec, appConfig, secrets, applyOpts); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "editing team from spec")
 		}
 
@@ -827,7 +863,7 @@ func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec,
 		}
 
 		if !applyOpts.DryRun {
-			if err := svc.ds.NewActivity(
+			if err := svc.NewActivity(
 				ctx,
 				authz.UserFromContext(ctx),
 				fleet.ActivityTypeAppliedSpecTeam{
@@ -909,6 +945,20 @@ func (svc *Service) createTeamFromSpec(
 		fleet.ValidateEnabledHostStatusIntegrations(*spec.WebhookSettings.HostStatusWebhook, invalid)
 		hostStatusWebhook = spec.WebhookSettings.HostStatusWebhook
 	}
+
+	if dryRun {
+		for _, secret := range secrets {
+			available, err := svc.ds.IsEnrollSecretAvailable(ctx, secret.Secret, true, nil)
+			if err != nil {
+				return nil, err
+			}
+			if !available {
+				invalid.Append("secrets", fmt.Sprintf("a provided enroll secret for team '%s' is already being used", spec.Name))
+				break
+			}
+		}
+	}
+
 	if invalid.HasErrors() {
 		return nil, ctxerr.Wrap(ctx, invalid)
 	}
@@ -946,7 +996,7 @@ func (svc *Service) createTeamFromSpec(
 			return nil, ctxerr.Wrap(ctx, err, "enable team filevault and escrow")
 		}
 
-		if err := svc.ds.NewActivity(
+		if err := svc.NewActivity(
 			ctx,
 			authz.UserFromContext(ctx),
 			fleet.ActivityTypeEnabledMacosDiskEncryption{TeamID: &tm.ID, TeamName: &tm.Name},
@@ -963,7 +1013,7 @@ func (svc *Service) editTeamFromSpec(
 	spec *fleet.TeamSpec,
 	appCfg *fleet.AppConfig,
 	secrets []*fleet.EnrollSecret,
-	dryRun bool,
+	opts fleet.ApplyTeamSpecOptions,
 ) error {
 	team.Name = spec.Name
 
@@ -984,8 +1034,10 @@ func (svc *Service) editTeamFromSpec(
 		return err
 	}
 	team.Config.Features = features
+	var mdmMacOSUpdatesEdited bool
 	if spec.MDM.MacOSUpdates.Deadline.Set || spec.MDM.MacOSUpdates.MinimumVersion.Set {
 		team.Config.MDM.MacOSUpdates = spec.MDM.MacOSUpdates
+		mdmMacOSUpdatesEdited = true
 	}
 	if spec.MDM.WindowsUpdates.DeadlineDays.Set || spec.MDM.WindowsUpdates.GracePeriodDays.Set {
 		team.Config.MDM.WindowsUpdates = spec.MDM.WindowsUpdates
@@ -1058,8 +1110,12 @@ func (svc *Service) editTeamFromSpec(
 	}
 	team.Config.MDM.MacOSSetup.EnableEndUserAuthentication = spec.MDM.MacOSSetup.EnableEndUserAuthentication
 
+	windowsEnabledAndConfigured := appCfg.MDM.WindowsEnabledAndConfigured
+	if opts.DryRunAssumptions != nil && opts.DryRunAssumptions.WindowsEnabledAndConfigured.Valid {
+		windowsEnabledAndConfigured = opts.DryRunAssumptions.WindowsEnabledAndConfigured.Value
+	}
 	if spec.MDM.WindowsSettings.CustomSettings.Set {
-		if !appCfg.MDM.WindowsEnabledAndConfigured &&
+		if !windowsEnabledAndConfigured &&
 			len(spec.MDM.WindowsSettings.CustomSettings.Value) > 0 &&
 			!fleet.MDMProfileSpecsMatch(team.Config.MDM.WindowsSettings.CustomSettings.Value, spec.MDM.WindowsSettings.CustomSettings.Value) {
 			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("windows_settings.custom_settings",
@@ -1073,7 +1129,11 @@ func (svc *Service) editTeamFromSpec(
 		team.Config.Scripts = spec.Scripts
 	}
 
-	if len(secrets) > 0 {
+	if spec.Software.Set {
+		team.Config.Software = spec.Software
+	}
+
+	if secrets != nil {
 		team.Secrets = secrets
 	}
 
@@ -1095,18 +1155,31 @@ func (svc *Service) editTeamFromSpec(
 	}
 
 	if spec.Integrations.GoogleCalendar != nil {
-		err = svc.validateTeamCalendarIntegrations(spec.Integrations.GoogleCalendar, appCfg, invalid)
+		err = svc.validateTeamCalendarIntegrations(spec.Integrations.GoogleCalendar, appCfg, opts.DryRun, invalid)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "validate team calendar integrations")
 		}
 		team.Config.Integrations.GoogleCalendar = spec.Integrations.GoogleCalendar
 	}
 
+	if opts.DryRun {
+		for _, secret := range secrets {
+			available, err := svc.ds.IsEnrollSecretAvailable(ctx, secret.Secret, false, &team.ID)
+			if err != nil {
+				return err
+			}
+			if !available {
+				invalid.Append("secrets", fmt.Sprintf("a provided enroll secret for team '%s' is already being used", spec.Name))
+				break
+			}
+		}
+	}
+
 	if invalid.HasErrors() {
 		return ctxerr.Wrap(ctx, invalid)
 	}
 
-	if dryRun {
+	if opts.DryRun {
 		return nil
 	}
 
@@ -1114,8 +1187,8 @@ func (svc *Service) editTeamFromSpec(
 		return err
 	}
 
-	// only replace enroll secrets if at least one is provided (#6774)
-	if len(secrets) > 0 {
+	// If no secrets are provided and user did not explicitly specify an empty list, do not replace secrets. (#6774)
+	if secrets != nil {
 		if err := svc.ds.ApplyEnrollSecrets(ctx, ptr.Uint(team.ID), secrets); err != nil {
 			return err
 		}
@@ -1134,7 +1207,7 @@ func (svc *Service) editTeamFromSpec(
 				return ctxerr.Wrap(ctx, err, "disable team filevault and escrow")
 			}
 		}
-		if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
+		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
 			return ctxerr.Wrap(ctx, err, "create activity for team macos disk encryption")
 		}
 	}
@@ -1165,18 +1238,24 @@ func (svc *Service) editTeamFromSpec(
 		}
 	}
 
+	if mdmMacOSUpdatesEdited {
+		if err := svc.mdmAppleEditedMacOSUpdates(ctx, &team.ID, team.Config.MDM.MacOSUpdates); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
 func (svc *Service) validateTeamCalendarIntegrations(
 	calendarIntegration *fleet.TeamGoogleCalendarIntegration,
-	appCfg *fleet.AppConfig, invalid *fleet.InvalidArgumentError,
+	appCfg *fleet.AppConfig, dryRun bool, invalid *fleet.InvalidArgumentError,
 ) error {
 	if !calendarIntegration.Enable {
 		return nil
 	}
-	// Check that global configs exist
-	if len(appCfg.Integrations.GoogleCalendar) == 0 {
+	// Check that global configs exist. During dry run, the global config may not be available yet.
+	if len(appCfg.Integrations.GoogleCalendar) == 0 && !dryRun {
 		invalid.Append("integrations.google_calendar.enable_calendar_events", "global Google Calendar integration is not configured")
 	}
 	// Validate URL
@@ -1275,7 +1354,7 @@ func (svc *Service) updateTeamMDMDiskEncryption(ctx context.Context, tm *fleet.T
 					return ctxerr.Wrap(ctx, err, "disable team filevault and escrow")
 				}
 			}
-			if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
+			if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
 				return ctxerr.Wrap(ctx, err, "create activity for team macos disk encryption")
 			}
 		}

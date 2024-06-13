@@ -66,7 +66,6 @@ const useInfoCard = ({
               <span className={`${baseClass}__action-button-text`}>
                 {action.text}
               </span>
-              <Icon name="arrow-internal-link" color="core-fleet-blue" />
             </>
           </Button>
         );

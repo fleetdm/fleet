@@ -2,18 +2,13 @@ import React from "react";
 
 import Card from "components/Card";
 
-import OsSetupPreview from "../../../../../../../../assets/images/os-setup-preview.gif";
+import OsPrefillPreview from "../../../../../../../../assets/images/os-prefill-preview.gif";
 
 const baseClass = "setup-assistant-preview";
 
 const SetupAssistantPreview = () => {
   return (
-    <Card
-      color="gray"
-      borderRadiusSize="medium"
-      paddingSize="xxlarge"
-      className={baseClass}
-    >
+    <Card color="gray" paddingSize="xxlarge" className={baseClass}>
       <h2>End user experience</h2>
       <p>
         After the end user continues past the <b>Remote Management</b> screen,
@@ -25,7 +20,7 @@ const SetupAssistantPreview = () => {
       </p>
       <img
         className={`${baseClass}__preview-img`}
-        src={OsSetupPreview}
+        src={OsPrefillPreview}
         alt="OS setup preview"
       />
     </Card>

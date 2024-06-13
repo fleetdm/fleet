@@ -64,13 +64,7 @@ The Fleet community is full of [kind and helpful people](https://fleetdm.com/han
 - Some of the most valuable contributions might not touch any code at all.
 Small, iterative, simple (boring) changes are the easiest to merge. -->
 
-## What's next?
-
-### Try it out
-
-[Try out Fleet](https://fleetdm.com/try-fleet) to see what it can do, grab time with one of the maintainers to discuss, or explore the rest of the docs and roll it out to your organization.
-
-### Questions?
+## Questions?
 We have answers to the most [common questions](https://fleetdm.com/docs/get-started/faq).
 
 <meta name="pageOrderInSection" value="100">

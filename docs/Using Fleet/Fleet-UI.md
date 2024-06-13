@@ -21,6 +21,7 @@ How to create a query:
 2. Select **Create new query** to navigate to the query console.
 
 3. In the **Query** field, enter your query. Remember, you can find common queries in [Fleet's library](https://fleetdm.com/queries).
+> Avoid using dot notation (".") for column names in your queries as it can cause results to render incorrectly in Fleet UI. Please see [issue #15446](https://github.com/fleetdm/fleet/issues/15446) for more details. 
 
 4. Select **Save**, enter a name and description for your query, select the frequency that the query should run at, and select **Save query**.
 

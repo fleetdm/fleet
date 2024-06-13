@@ -25,7 +25,10 @@ import EmailTokenRedirect from "components/EmailTokenRedirect";
 import ForgotPasswordPage from "pages/ForgotPasswordPage";
 import GatedLayout from "layouts/GatedLayout";
 import HostDetailsPage from "pages/hosts/details/HostDetailsPage";
-import LabelPage from "pages/LabelPage";
+import NewLabelPage from "pages/labels/NewLabelPage";
+import DynamicLabel from "pages/labels/NewLabelPage/DynamicLabel";
+import ManualLabel from "pages/labels/NewLabelPage/ManualLabel";
+import EditLabelPage from "pages/labels/EditLabelPage";
 import LoginPage, { LoginPreviewPage } from "pages/LoginPage";
 import LogoutPage from "pages/LogoutPage";
 import ManageHostsPage from "pages/hosts/ManageHostsPage";
@@ -56,6 +59,7 @@ import SetupExperience from "pages/ManageControlsPage/SetupExperience/SetupExper
 import WindowsMdmPage from "pages/admin/IntegrationsPage/cards/MdmSettings/WindowsMdmPage";
 import MacOSMdmPage from "pages/admin/IntegrationsPage/cards/MdmSettings/MacOSMdmPage";
 import Scripts from "pages/ManageControlsPage/Scripts/Scripts";
+import AppleAutomaticEnrollmentPage from "pages/admin/IntegrationsPage/cards/AutomaticEnrollment/AppleAutomaticEnrollmentPage";
 import WindowsAutomaticEnrollmentPage from "pages/admin/IntegrationsPage/cards/AutomaticEnrollment/WindowsAutomaticEnrollmentPage";
 import HostQueryReport from "pages/hosts/details/HostQueryReport";
 import SoftwarePage from "pages/SoftwarePage";
@@ -155,6 +159,10 @@ const routes = (
             <Route path="integrations/mdm/windows" component={WindowsMdmPage} />
             <Route path="integrations/mdm/apple" component={MacOSMdmPage} />
             <Route
+              path="integrations/automatic-enrollment/apple"
+              component={AppleAutomaticEnrollmentPage}
+            />
+            <Route
               path="integrations/automatic-enrollment/windows"
               component={WindowsAutomaticEnrollmentPage}
             />
@@ -169,9 +177,13 @@ const routes = (
             <Redirect from="teams/:team_id/options" to="teams" />
           </Route>
           <Route path="labels">
-            <IndexRedirect to="new" />
-            <Route path=":label_id" component={LabelPage} />
-            <Route path="new" component={LabelPage} />
+            <IndexRedirect to="new/dynamic" />
+            <Route path="new" component={NewLabelPage}>
+              <IndexRedirect to="dynamic" />
+              <Route path="dynamic" component={DynamicLabel} />
+              <Route path="manual" component={ManualLabel} />
+            </Route>
+            <Route path=":label_id" component={EditLabelPage} />
           </Route>
           <Route path="hosts">
             <IndexRedirect to="manage" />
@@ -281,6 +293,7 @@ const routes = (
 
         <Route component={DeviceUserPage}>
           <Route path=":device_auth_token" component={DeviceUserPage}>
+            <Route path="self-service" component={DeviceUserPage} />
             <Route path="software" component={DeviceUserPage} />
             <Route path="policies" component={DeviceUserPage} />
           </Route>
