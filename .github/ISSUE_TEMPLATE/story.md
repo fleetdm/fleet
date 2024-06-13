@@ -35,6 +35,7 @@ What else should contributors [keep in mind](https://fleetdm.com/handbook/compan
 - [ ] UI changes: TODO <!-- Insert the link to the relevant Figma cover page. Remove this checkbox if there are no changes to the user interface. -->
 - [ ] CLI usage changes: TODO <!-- Insert the link to the relevant Figma cover page. Remove this checkbox if there are no changes to the CLI. -->
 - [ ] REST API changes: TODO <!-- Specify changes as a draft PR to the REST API doc page. Remove this checkbox if there are no changes necessary. Move this item to the engineering list below if engineering will design the API changes. -->
+- [ ] Fleet's agent (fleetd) changes: TODO <!-- Specify changes to fleetd. If the change requires a new Fleet (server) version, consider specifying to only enable this change in new Fleet versions. Remove this checkbox if there are no changes necessary. -->
 - [ ] Permissions changes: TODO <!-- Specify changes as a draft PR to the Manage access doc page. If doc changes aren't necessary, explicitly mention no changes to the doc page. Remove this checkbox if there are no permissions changes. -->
 - [ ] Outdated documentation changes: TODO <!-- Specify required documentation changes (public-facing fleetdm.com/docs or contributors) & redirects to add to /website/config/routes.js. -->
 - [ ] Changes to paid features or tiers: TODO  <!-- Specify "Fleet Free" or "Fleet Premium".  If only certain parts of the user story involve paid features, specify which parts.  Implementation of paid features should live in the `ee/` directory. -->
