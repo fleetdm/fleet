@@ -419,7 +419,9 @@ func (svc *Service) enqueueUnlockHostRequest(ctx context.Context, host *fleet.Ho
 
 	var unlockPIN string
 	if lockStatus.HostFleetPlatform == "darwin" {
-		// record the unlock request if it was not already recorded
+		// Record the unlock request time if it was not already recorded.
+		// It should be always recorded, since the UnlockRequestedAt time is created after the lock command is acknowledged.
+		// This code is left here to catch potential issues.
 		if lockStatus.UnlockRequestedAt.IsZero() {
 			if err := svc.ds.UnlockHostManually(ctx, host.ID, host.FleetPlatform(), time.Now().UTC()); err != nil {
 				return "", err

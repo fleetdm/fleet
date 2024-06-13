@@ -1036,10 +1036,13 @@ func buildHostLockWipeStatusUpdateStmt(refCol string, succeeded bool, joinPart s
 	if succeeded {
 		switch refCol {
 		case "lock_ref":
+			// Currently only used for Apple MDM devices.
 			// Note that this must not clear the unlock_pin, because recording the
 			// lock request does generate the PIN and store it there to be used by an
 			// eventual unlock.
-			stmt += fmt.Sprintf("%sunlock_ref = NULL, %[1]swipe_ref = NULL", alias)
+			// We set the unlock_ref to current time since the device can be unlocked any time after the lock.
+			// Apple MDM does not have a concept of unlock pending.
+			stmt += fmt.Sprintf("%sunlock_ref = '%s', %[1]swipe_ref = NULL", alias, time.Now().Format(time.DateTime))
 		case "unlock_ref":
 			// a successful unlock clears itself as well as the lock ref, because
 			// unlock is the default state so we don't need to keep its unlock_ref
