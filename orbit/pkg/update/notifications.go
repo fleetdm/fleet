@@ -104,14 +104,15 @@ func (h *renewEnrollmentProfileConfigReceiver) Run(config *fleet.OrbitConfig) er
 					fn = runRenewEnrollmentProfile
 				}
 				if err := fn(); err != nil {
-					// TODO: Look into whether we should increment lastRun here or implement a
-					// backoff to avoid unnecessary user notification popups and mitigate rate
-					// limiting by Apple.
 					log.Info().Err(err).Msg("calling /usr/bin/profiles to renew enrollment profile failed")
-				} else {
-					h.lastRun = time.Now()
-					log.Info().Msg("successfully called /usr/bin/profiles to renew enrollment profile")
+					// TODO: Design a better way to backoff `profiles show` so that the device doesn't get rate
+					// limited by Apple. For now, wait at least 2 minutes before retrying.
+					h.lastRun = time.Now().Add(-h.Frequency).Add(2 * time.Minute)
+					return nil
 				}
+				h.lastRun = time.Now()
+				log.Info().Msg("successfully called /usr/bin/profiles to renew enrollment profile")
+
 			} else {
 				log.Debug().Msg("skipped calling /usr/bin/profiles to renew enrollment profile, last run was too recent")
 			}
