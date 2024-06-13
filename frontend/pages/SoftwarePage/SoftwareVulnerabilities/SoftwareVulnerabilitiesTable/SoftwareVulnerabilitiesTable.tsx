@@ -23,7 +23,6 @@ import { buildQueryStringFromParams } from "utilities/url";
 import { getNextLocationPath } from "utilities/helpers";
 
 import generateTableConfig from "./VulnerabilitiesTableConfig";
-import { generateResultsCountText } from "components/TableContainer/utilities/TableContainerUtils";
 
 const baseClass = "software-vulnerabilities-table";
 
