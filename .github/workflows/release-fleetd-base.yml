@@ -29,6 +29,7 @@ jobs:
   check-for-fleetd-component-updates:
     runs-on: ubuntu-latest
     outputs:
+      date_dir: ${{ steps.check-for-fleetd-component-updates.outputs.date_dir }}
       update_needed: ${{ steps.check-for-fleetd-component-updates.outputs.update_needed }}
     steps:
       - name: Harden Runner
@@ -49,25 +50,30 @@ jobs:
       - name: Check for fleetd component updates
         id: check-for-fleetd-component-updates
         run: |
-          go run tools/tuf/status/tuf-status.go channel-version -channel stable --components orbit,desktop,osqueryd --format json > latest-meta.json
-          curl -O $BASE_URL/meta.json
-          if diff latest-meta.json meta.json >/dev/null 2>&1
+          go run tools/tuf/status/tuf-status.go channel-version -channel stable --components orbit,desktop,osqueryd --format json > latest-tuf-meta.json
+          curl -O $BASE_URL/stable/tuf-meta.json
+          if diff latest-tuf-meta.json tuf-meta.json >/dev/null 2>&1
           then
             echo "update_needed=false" >> $GITHUB_OUTPUT
           else
             echo "update_needed=true" >> $GITHUB_OUTPUT
           fi
+          echo "date_dir=$(date -u +%Y-%m-%d_%H-%M-%S)" >> $GITHUB_OUTPUT
 
-      - name: Upload latest meta.json artifact
+      - name: Upload latest TUF meta artifact
         uses: actions/upload-artifact@5d5d22a31266ced268874388b861e4b58bb5c2f3 # v4.3.1
         with:
-          name: latest-meta.json
-          path: latest-meta.json
+          name: latest-tuf-meta.json
+          path: latest-tuf-meta.json
 
   update-fleetd-base-pkg:
     needs: [check-for-fleetd-component-updates]
     if: needs.check-for-fleetd-component-updates.outputs.update_needed == 'true'
     runs-on: macos-latest
+    outputs:
+      fleetd_base_pkg_sha256: ${{ steps.build-sign-notarize.outputs.fleetd_base_pkg_sha256 }}
+    env:
+      FULL_DATE_DIR: archive/stable/${{ needs.check-for-fleetd-component-updates.outputs.date_dir }}
     steps:
       - name: Harden Runner
         uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
@@ -101,6 +107,7 @@ jobs:
           rm certificate.p12
 
       - name: Build PKG, sign, and notarize
+        id: build-sign-notarize
         env:
           AC_USERNAME: ${{ secrets.APPLE_USERNAME }}
           AC_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
@@ -109,8 +116,8 @@ jobs:
         run: |
           fleetctl package --type pkg --fleet-desktop --use-system-configuration --sign-identity $PACKAGE_SIGNING_IDENTITY_SHA1 --notarize
           mv fleet-osquery*.pkg fleetd-base.pkg
-          : # Calculate the SHA256 checksum of the package for the next step
-          echo "FLEETD_BASE_PKG_CHECKSUM=$(shasum -a 256 fleetd-base.pkg | cut -d ' ' -f 1)" >> $GITHUB_ENV
+          : # Calculate the SHA256 checksum of the package
+          echo "fleetd_base_pkg_sha256=$(shasum -a 256 fleetd-base.pkg | cut -d ' ' -f 1)" >> $GITHUB_OUTPUT
 
       - name: Create plist
         run: |
@@ -128,7 +135,7 @@ jobs:
                       <integer>32</integer>
                       <key>sha256s</key>
                       <array>
-                        <string>${{ env.FLEETD_BASE_PKG_CHECKSUM }}</string>
+                        <string>${{ steps.build-sign-notarize.outputs.fleetd_base_pkg_sha256 }}</string>
                       </array>
                       <key>url</key>
                       <string>${{ env.BASE_URL }}/fleetd-base.pkg</string>
@@ -139,15 +146,27 @@ jobs:
             </dict>
           </plist>' > fleetd-base-manifest.plist
 
+      - name: Set up files and directories for upload
+        run: |
+          mkdir -p stable
+          cp fleetd-base.pkg stable/
+          cp fleetd-base-manifest.plist stable/
+          cp fleetd-base.pkg ${{ env.FULL_DATE_DIR }}/
+          cp fleetd-base-manifest.plist ${{ env.FULL_DATE_DIR }}/
+
       - name: Upload package
         uses: ./.github/actions/r2-upload
         with:
-          filenames: fleetd-base.pkg,fleetd-base-manifest.plist
+          filenames: stable/fleetd-base.pkg,stable/fleetd-base-manifest.plist,${{ env.FULL_DATE_DIR }}/fleetd-base.pkg,${{ env.FULL_DATE_DIR }}/fleetd-base-manifest.plist
 
   update-fleetd-base-msi:
     needs: [check-for-fleetd-component-updates]
     if: needs.check-for-fleetd-component-updates.outputs.update_needed == 'true'
     runs-on: ubuntu-latest
+    outputs:
+      fleetd_base_msi_sha256: ${{ steps.build-sign-notarize.outputs.fleetd_base_msi_sha256 }}
+    env:
+      FULL_DATE_DIR: archive/stable/${{ needs.check-for-fleetd-component-updates.outputs.date_dir }}
     steps:
       - name: Harden Runner
         uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
@@ -169,15 +188,25 @@ jobs:
         run: |
           fleetctl package --type msi --fleet-desktop --fleet-url dummy --enroll-secret dummy
           mv fleet-osquery*.msi fleetd-base.msi
+          : # Calculate the SHA256 checksum of the package
+          echo "fleetd_base_msi_sha256=$(shasum -a 256 fleetd-base.msi | cut -d ' ' -f 1)" >> $GITHUB_OUTPUT
+
+      - name: Set up files and directories for upload
+        run: |
+          mkdir -p stable
+          cp fleetd-base.msi stable/
+          cp fleetd-base.msi ${{ env.FULL_DATE_DIR }}/
 
       - name: Upload package
         uses: ./.github/actions/r2-upload
         with:
-          filenames: fleetd-base.msi
+          filenames: stable/fleetd-base.msi,${{ env.FULL_DATE_DIR }}/fleetd-base.msi
 
   update-meta-json:
-    needs: [update-fleetd-base-pkg, update-fleetd-base-msi]
+    needs: [check-for-fleetd-component-updates, update-fleetd-base-pkg, update-fleetd-base-msi]
     runs-on: ubuntu-latest
+    env:
+      FULL_DATE_DIR: archive/stable/${{ needs.check-for-fleetd-component-updates.outputs.date_dir }}
     steps:
       - name: Harden Runner
         uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
@@ -192,15 +221,26 @@ jobs:
             .github/scripts/rclone-install.sh
           sparse-checkout-cone-mode: false
 
-      - name: Download latest-meta.json artifact
+      - name: Download latest-tuf-meta.json artifact
         uses: actions/download-artifact@c850b930e6ba138125429b7e5c93fc707a7f8427 # v4.1.4
         with:
-          name: latest-meta.json
+          name: latest-tuf-meta.json
 
-      - name: Rename latest-meta.json to meta.json
-        run: mv latest-meta.json meta.json
+      - name: Set up files and directories for upload
+        run: |
+          echo "{
+            \"fleetd_base_pkg_url\": \"${{ env.BASE_URL }}/${{ env.FULL_DATE_DIR }}/fleetd-base.pkg\",
+            \"fleetd_base_pkg_sha256\": \"${{ needs.update-fleetd-base-pkg.outputs.fleetd_base_pkg_sha256 }}\",
+            \"fleetd_base_msi_url\": \"${{ env.BASE_URL }}/${{ env.FULL_DATE_DIR }}/fleetd-base.msi\",
+            \"fleetd_base_msi_sha256\": \"${{ needs.update-fleetd-base-msi.outputs.fleetd_base_msi_sha256 }}\",
+            \"timestamp\": \"$(date -u +%Y-%m-%d_%H-%M-%S)\",
+          }" > meta.json
+          cp latest-tuf-meta.json stable/tuf-meta.json
+          cp latest-tuf-meta.json ${{ env.FULL_DATE_DIR }}/tuf-meta.json
+          cp meta.json stable/meta.json
+          cp meta.json ${{ env.FULL_DATE_DIR }}/meta.json
 
-      - name: Upload meta.json
+      - name: Upload meta files
         uses: ./.github/actions/r2-upload
         with:
-          filenames: meta.json
+          filenames: stable/meta.json,stable/tuf-meta.json,${{ env.FULL_DATE_DIR }}/meta.json,${{ env.FULL_DATE_DIR }}/tuf-meta.json
