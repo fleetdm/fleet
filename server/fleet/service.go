@@ -106,7 +106,8 @@ type Service interface {
 	CreateUserFromInvite(ctx context.Context, p UserPayload) (user *User, err error)
 
 	// CreateUser allows an admin to create a new user without first creating  and validating invite tokens.
-	CreateUser(ctx context.Context, p UserPayload) (user *User, err error)
+	// The sessionKey is only returned (not-nil) when creating API-only (non-SSO) users.
+	CreateUser(ctx context.Context, p UserPayload) (user *User, sessionKey *string, err error)
 
 	// CreateInitialUser creates the first user, skipping authorization checks.  If a user already exists this method
 	// should fail.
