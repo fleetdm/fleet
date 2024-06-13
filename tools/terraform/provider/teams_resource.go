@@ -109,7 +109,18 @@ func (r *teamsResource) Create(ctx context.Context, req resource.CreateRequest, 
 				resp.Diagnostics.Append(diag.NewErrorDiagnostic(
 					"failed to create agent options",
 					fmt.Sprintf("failed to save agent options: %s", err)))
-				_ = r.client.DeleteTeam(plan.Id.ValueInt64()) // Problematic. :-/
+				// This is a problem. The interface terraform presents is that
+				// team creation with agent options is atomic, however under the
+				// hood it's two api calls. We need to clean up from the first
+				// call here, but this isn't atomic and it might fail.
+				err = r.client.DeleteTeam(newTeam.Team.ID)
+				if err != nil {
+					resp.Diagnostics.Append(diag.NewErrorDiagnostic(
+						"failed to clean up after failed team creation",
+						fmt.Sprintf("failed to delete team %s while cleaning up "+
+							"failure setting agent options: %s. Team will need to be "+
+							"manually deleted.", plan.Name.ValueString(), err)))
+				}
 				return
 			}
 		}
@@ -257,7 +268,7 @@ func (r *teamsResource) Update(ctx context.Context, req resource.UpdateRequest, 
 // as input, query the FleetDM API to get the ID, and then set the ID.
 // Terraform will turn around and call Read() on that id.
 func (r *teamsResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
-	id, err := r.client.TeamNameToId(req.ID)
+	id, err := r.client.TeamNameToID(req.ID)
 	if err != nil {
 		resp.Diagnostics.AddError("Failed to convert team name to ID",
 			fmt.Sprintf("Failed to convert team name to ID: %s", err))

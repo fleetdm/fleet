@@ -25,7 +25,11 @@ func TestBasic(t *testing.T) {
 	if apiKey == "" {
 		t.Skip("FLEETDM_APIKEY not set")
 	}
-	client := NewFleetDMClient("https://rbx.cloud.fleetdm.com", apiKey)
+	apiURL := os.Getenv("FLEETDM_URL")
+	if apiURL == "" {
+		t.Skip("FLEETDM_URL not set")
+	}
+	client := NewFleetDMClient(apiURL, apiKey)
 	require.NotNil(t, client)
 
 	// Create a nice default team
@@ -72,7 +76,7 @@ func TestBasic(t *testing.T) {
 	require.Equal(t, newDescription, teamUp.Team.Description)
 
 	// Lookup the team based on the new name
-	teamId, err := client.TeamNameToId(newName)
+	teamId, err := client.TeamNameToID(newName)
 	require.NoError(t, err)
 	require.NotEqual(t, 0, teamId)
 	require.Equal(t, teamUp.Team.ID, teamId)

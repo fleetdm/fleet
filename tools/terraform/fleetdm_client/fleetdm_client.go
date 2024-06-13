@@ -15,8 +15,8 @@ import (
 	"time"
 )
 
-var prefix = "/api/v1/fleet"
-var teamPrefix = prefix + "/teams"
+const prefix = "/api/v1/fleet"
+const teamPrefix = prefix + "/teams"
 
 type Team struct {
 	Name         string      `json:"name"`
@@ -37,9 +37,7 @@ type TeamCreate struct {
 }
 
 type TeamGetResponse struct {
-	Team struct {
-		Team
-	} `json:"team"`
+	Team Team `json:"team"`
 }
 
 type TeamQueryResponse struct {
@@ -56,6 +54,10 @@ type FleetDMClient struct {
 // NewFleetDMClient creates a new instance of FleetDMClient with the provided
 // URL and API key.
 func NewFleetDMClient(url, apiKey string) *FleetDMClient {
+	// Ensure the URL ends with a trailing slash for bizarre parsing reasons
+	if !strings.HasSuffix(url, "/") {
+		url += "/"
+	}
 	return &FleetDMClient{
 		Client: http.DefaultClient,
 		URL:    url,
@@ -64,38 +66,47 @@ func NewFleetDMClient(url, apiKey string) *FleetDMClient {
 }
 
 // Do will add necessary headers and call the http.Client.Do method.
-func (c *FleetDMClient) do(req *http.Request, query string) (*http.Response, error) {
+func (c *FleetDMClient) do(req *http.Request, query *url.Values) (*http.Response, error) {
 	// Add the API key to the request header
 	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", c.APIKey))
 	req.Header.Add("Accept", `application/json`)
 	// Set the request URL based on the client URL
-	req.URL, _ = url.Parse(c.URL + req.URL.Path)
-	if query != "" {
-		req.URL.RawQuery = query
+	baseURL, err := url.Parse(c.URL)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse base URL %s: %w", c.URL, err)
+	}
+	req.URL = baseURL.JoinPath(req.URL.Path)
+	if query != nil {
+		req.URL.RawQuery = query.Encode()
 	}
 	// Send the request using the embedded http.Client
 	return c.Client.Do(req)
 }
 
-// TeamNameToId will return the ID of a team given the name.
-func (c *FleetDMClient) TeamNameToId(name string) (int64, error) {
+// TeamNameToID will return the ID of a team given the name.
+func (c *FleetDMClient) TeamNameToID(name string) (int64, error) {
 	req, err := http.NewRequest(http.MethodGet, teamPrefix, nil)
 	if err != nil {
 		return 0, fmt.Errorf("failed to create GET request for %s: %w", teamPrefix, err)
 	}
-	query := fmt.Sprintf("query=%s", name)
-	resp, err := c.do(req, query)
+	vals := make(url.Values)
+	vals.Add("query", name)
+	resp, err := c.do(req, &vals)
 	if err != nil {
-		return 0, fmt.Errorf("failed to GET %s %s: %w", teamPrefix, query, err)
+		return 0, fmt.Errorf("failed to GET %s %s: %w", teamPrefix, name, err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return 0, fmt.Errorf("failed to get team: %s %s", query, resp.Status)
+		return 0, fmt.Errorf("failed to get team: %s %s", name, resp.Status)
 	}
 
 	var teamqry TeamQueryResponse
-	err = json.NewDecoder(resp.Body).Decode(&teamqry)
+	b, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return 0, fmt.Errorf("failed to read team response: %w", err)
+	}
+	err = json.Unmarshal(b, &teamqry)
 	if err != nil {
 		return 0, fmt.Errorf("failed to decode get team response: %w", err)
 	}
@@ -122,12 +133,12 @@ func (c *FleetDMClient) CreateTeam(name string, description string) (*TeamGetRes
 	req, err := http.NewRequest(http.MethodPost, teamPrefix, bytes.NewReader(nameJson))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create POST request for %s name %s: %w",
-			teamPrefix, name, err)
+			req.URL.String(), name, err)
 	}
-	resp, err := c.do(req, "")
+	resp, err := c.do(req, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to POST %s name %s: %w",
-			teamPrefix, name, err)
+			req.URL.String(), name, err)
 	}
 	defer resp.Body.Close()
 
@@ -137,7 +148,11 @@ func (c *FleetDMClient) CreateTeam(name string, description string) (*TeamGetRes
 	}
 
 	var newTeam TeamGetResponse
-	err = json.NewDecoder(resp.Body).Decode(&newTeam)
+	b, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read team response: %w", err)
+	}
+	err = json.Unmarshal(b, &newTeam)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode response: %w", err)
 	}
@@ -153,7 +168,7 @@ func (c *FleetDMClient) GetTeam(id int64) (*TeamGetResponse, error) {
 		return nil, fmt.Errorf("failed to create GET request for %s: %w",
 			url, err)
 	}
-	resp, err := c.do(req, "")
+	resp, err := c.do(req, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to GET %s: %w", url, err)
 	}
@@ -165,7 +180,11 @@ func (c *FleetDMClient) GetTeam(id int64) (*TeamGetResponse, error) {
 	}
 
 	var team TeamGetResponse
-	err = json.NewDecoder(resp.Body).Decode(&team)
+	b, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read team response: %w", err)
+	}
+	err = json.Unmarshal(b, &team)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode response: %w", err)
 	}
@@ -195,7 +214,7 @@ func (c *FleetDMClient) UpdateTeam(id int64, name, description *string) (*TeamGe
 		return nil, fmt.Errorf("failed to create PATCH request for %s body %s: %w",
 			url, updateJson, err)
 	}
-	resp, err := c.do(req, "")
+	resp, err := c.do(req, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to PATCH %s body %s: %w",
 			url, updateJson, err)
@@ -209,7 +228,11 @@ func (c *FleetDMClient) UpdateTeam(id int64, name, description *string) (*TeamGe
 	}
 
 	var newTeam TeamGetResponse
-	err = json.NewDecoder(resp.Body).Decode(&newTeam)
+	b, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read team response: %w", err)
+	}
+	err = json.Unmarshal(b, &newTeam)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode response: %w", err)
 	}
@@ -222,10 +245,9 @@ func (c *FleetDMClient) UpdateTeam(id int64, name, description *string) (*TeamGe
 func (c *FleetDMClient) UpdateAgentOptions(id int64, ao string) (*TeamGetResponse, error) {
 
 	// First verify it's actually json.
-	var aoJson interface{}
-	err := json.Unmarshal([]byte(ao), &aoJson)
-	if err != nil {
-		return nil, fmt.Errorf("agent_options might not be json: %s", err)
+	valid := json.Valid([]byte(ao))
+	if !valid {
+		return nil, fmt.Errorf("agent_options isn't json: %s", ao)
 	}
 
 	aoUrl := teamPrefix + "/" + strconv.FormatInt(id, 10) + "/" + "agent_options"
@@ -234,7 +256,7 @@ func (c *FleetDMClient) UpdateAgentOptions(id int64, ao string) (*TeamGetRespons
 		return nil, fmt.Errorf("failed to create agent_options POST request for %s id %d: %w",
 			teamPrefix, id, err)
 	}
-	resp, err := c.do(req, "")
+	resp, err := c.do(req, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to POST agent_options %s id %d: %w",
 			teamPrefix, id, err)
@@ -247,7 +269,11 @@ func (c *FleetDMClient) UpdateAgentOptions(id int64, ao string) (*TeamGetRespons
 	}
 
 	var team TeamGetResponse
-	err = json.NewDecoder(resp.Body).Decode(&team)
+	b, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read team response: %w", err)
+	}
+	err = json.Unmarshal(b, &team)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode agent_options team response: %w", err)
 	}
@@ -261,16 +287,15 @@ func (c *FleetDMClient) DeleteTeam(id int64) error {
 	if err != nil {
 		return fmt.Errorf("failed to create DELETE request for %s: %w", url, err)
 	}
-	resp, err := c.do(req, "")
+	resp, err := c.do(req, nil)
 	if err != nil {
 		return fmt.Errorf("failed to DELETE %s: %w", url, err)
 	}
+	defer resp.Body.Close()
 
 	if resp.StatusCode >= 300 {
 		return fmt.Errorf("failed to delete team %d: %s", id, resp.Status)
 	}
-
-	defer resp.Body.Close()
 
 	return nil
 }
