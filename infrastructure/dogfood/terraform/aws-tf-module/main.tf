@@ -69,7 +69,7 @@ locals {
 }
 
 module "main" {
-  source = "github.com/fleetdm/fleet//terraform?ref=tf-mod-root-v1.9.0"
+  source = "github.com/fleetdm/fleet//terraform?ref=tf-mod-root-v1.9.1"
   certificate_arn = module.acm.acm_certificate_arn
   vpc = {
     name = local.customer
@@ -362,10 +362,9 @@ module "firehose-logging" {
 }
 
 module "osquery-carve" {
-  source = "github.com/fleetdm/fleet//terraform/addons/osquery-carve?ref=tf-mod-addon-osquery-carve-v1.0.1"
+  source = "github.com/fleetdm/fleet//terraform/addons/osquery-carve?ref=tf-mod-addon-osquery-carve-v1.1.0"
   osquery_carve_s3_bucket = {
     name         = "fleet-${local.customer}-osquery-carve"
-    expires_days = 3650
   }
 }
 

@@ -152,7 +152,7 @@ resource "aws_ecs_task_definition" "backend" {
             value = var.fleet_config.software_installers.create_bucket == true ? aws_s3_bucket.software_installers[0].bucket : var.fleet_config.software_installers.bucket_name
           },
           {
-            name  = "FLEET_S3_SOFTWARE_INSTALLERS_BUCKET_PREFIX"
+            name  = "FLEET_S3_SOFTWARE_INSTALLERS_PREFIX"
             value = var.fleet_config.software_installers.s3_object_prefix
           },
         ], local.environment)

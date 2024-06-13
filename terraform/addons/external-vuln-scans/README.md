@@ -39,6 +39,7 @@ No modules.
 | <a name="input_ecs_cluster"></a> [ecs\_cluster](#input\_ecs\_cluster) | The ecs cluster module that is created by the byo-db module | `any` | n/a | yes |
 | <a name="input_execution_iam_role_arn"></a> [execution\_iam\_role\_arn](#input\_execution\_iam\_role\_arn) | The ARN of the fleet execution role, this is necessary to pass role from ecs events | `any` | n/a | yes |
 | <a name="input_fleet_config"></a> [fleet\_config](#input\_fleet\_config) | The root Fleet config object | `any` | n/a | yes |
+| <a name="input_fleet_s3_software_installers_config"></a> [fleet\_s3\_software\_installers\_config](#input\_fleet\_s3\_software\_installers\_config) | use the output of the byo-vpc module with the same name | `map(string)` | n/a | yes |
 | <a name="input_fleet_server_private_key_secret_arn"></a> [fleet\_server\_private\_key\_secret\_arn](#input\_fleet\_server\_private\_key\_secret\_arn) | The ARN of the secret that stores the Fleet private key | `string` | n/a | yes |
 | <a name="input_security_groups"></a> [security\_groups](#input\_security\_groups) | n/a | `list(string)` | n/a | yes |
 | <a name="input_subnets"></a> [subnets](#input\_subnets) | n/a | `list(string)` | n/a | yes |
