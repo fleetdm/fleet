@@ -80,13 +80,18 @@ parasails.registerPage('contact', {
   methods: {
 
     submittedContactForm: async function() {
-
+      if(typeof gtag !== 'undefined'){
+        gtag('event','website_contact_forms');
+      }
       // Show the success message.
       this.cloudSuccess = true;
 
     },
     submittedTalkToUsForm: async function() {
       this.syncing = true;
+      if(typeof gtag !== 'undefined'){
+        gtag('event','website_contact_forms');
+      }
       if(this.formData.numberOfHosts > 700){
         this.goto(`https://calendly.com/fleetdm/talk-to-us?email=${encodeURIComponent(this.formData.emailAddress)}&name=${encodeURIComponent(this.formData.firstName+' '+this.formData.lastName)}`);
       } else {
