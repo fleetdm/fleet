@@ -541,4 +541,4 @@ org_settings:
 Can only be configure for all teams (`org_settings`).
 
 <meta name="description" value="Documentation for Fleet's GitOps reference. See examples for each confiugration option.">
-<meta name="pageOrderInSection" value="40">
+<meta name="pageOrderInSection" value="1300">
