@@ -256,6 +256,7 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
     ),
     accessor: "issues",
     id: "issues",
+    sortDescFirst: true,
     Cell: (cellProps: IIssuesCellProps) => {
       if (
         cellProps.row.original.platform === "ios" ||
