@@ -6,7 +6,6 @@ import { Row } from "react-table";
 
 import PATHS from "router/paths";
 
-import { AppContext } from "context/app";
 import { GITHUB_NEW_ISSUE_LINK } from "utilities/constants";
 
 import CustomLink from "components/CustomLink";
@@ -54,8 +53,6 @@ const SoftwareOSTable = ({
   isLoading,
   resetPageIndex,
 }: ISoftwareOSTableProps) => {
-  const { isSandboxMode, noSandboxHosts } = useContext(AppContext);
-
   const determineQueryParamChange = useCallback(
     (newTableQuery: ITableQueryData) => {
       const changedEntry = Object.entries(newTableQuery).find(([key, val]) => {
@@ -182,7 +179,10 @@ const SoftwareOSTable = ({
         isLoading={isLoading}
         resultsTitle="items"
         emptyComponent={() => (
-          <EmptySoftwareTable isSoftwareDisabled={!isSoftwareEnabled} />
+          <EmptySoftwareTable
+            tableName="operating systems"
+            isSoftwareDisabled={!isSoftwareEnabled}
+          />
         )}
         defaultSortHeader={orderKey}
         defaultSortDirection={orderDirection}

@@ -10,36 +10,41 @@ import { ISoftwareDropdownFilterVal } from "pages/SoftwarePage/SoftwareTitles/So
 
 export interface IEmptySoftwareTableProps {
   softwareFilter?: ISoftwareDropdownFilterVal;
+  tableName?: string;
   isSoftwareDisabled?: boolean;
   isCollectingSoftware?: boolean;
   isSearching?: boolean;
 }
 
-const generateTypeText = (softwareFilter?: ISoftwareDropdownFilterVal) => {
+const generateTypeText = (
+  tableName: string,
+  softwareFilter?: ISoftwareDropdownFilterVal
+) => {
   if (softwareFilter === "installableSoftware") {
-    return "installable";
+    return "installable software";
   }
-  return softwareFilter === "vulnerableSoftware" ? "vulnerable" : "";
+  if (softwareFilter === "vulnerableSoftware") {
+    return "vulnerable software";
+  }
+  return tableName;
 };
 
 const EmptySoftwareTable = ({
   softwareFilter,
+  tableName = "software",
   isSoftwareDisabled,
   isCollectingSoftware,
   isSearching,
 }: IEmptySoftwareTableProps): JSX.Element => {
-  const softwareTypeText = generateTypeText(softwareFilter);
+  const softwareTypeText = generateTypeText(tableName, softwareFilter);
 
   const emptySoftware: IEmptyTableProps = {
-    header: `No ${softwareTypeText} software match the current search criteria`,
-    info:
-      "This report is updated every hour to protect the performance of your devices.",
+    header: "No items match the current search criteria",
+    info: `Expecting to see ${softwareTypeText}? Check back later.`,
   };
 
   if (isCollectingSoftware) {
     emptySoftware.header = "No software detected";
-    emptySoftware.info =
-      "This report is updated every hour to protect the performance of your devices.";
   }
 
   if (isSoftwareDisabled) {
@@ -57,9 +62,7 @@ const EmptySoftwareTable = ({
     );
   }
   if (softwareFilter === "vulnerableSoftware" && !isSearching) {
-    emptySoftware.header = "No vulnerable software detected";
-    emptySoftware.info =
-      "This report is updated every hour to protect the performance of your devices.";
+    emptySoftware.header = `No software detected`;
   }
 
   return (
