@@ -1,4 +1,4 @@
-name: Upload fleetd base to https://download.fleetdm.com
+name: Release and upload fleetd base to https://download.fleetdm.com
 
 on:
   workflow_dispatch: # Manual
@@ -149,6 +149,7 @@ jobs:
       - name: Set up files and directories for upload
         run: |
           mkdir -p stable
+          mkdir -p ${{ env.FULL_DATE_DIR }}
           cp fleetd-base.pkg stable/
           cp fleetd-base-manifest.plist stable/
           cp fleetd-base.pkg ${{ env.FULL_DATE_DIR }}/
@@ -194,6 +195,7 @@ jobs:
       - name: Set up files and directories for upload
         run: |
           mkdir -p stable
+          mkdir -p ${{ env.FULL_DATE_DIR }}
           cp fleetd-base.msi stable/
           cp fleetd-base.msi ${{ env.FULL_DATE_DIR }}/
 
