@@ -1,0 +1,486 @@
+# GitOps
+
+Use Fleet's best practice GitOps workflow to manage your computers as code.
+
+This page lists the available in configuration options.
+
+To learn how to set up GitOps workflow see [Fleet GitOps repo](https://github.com/fleetdm/fleet-gitops).
+
+The [`fleetctl apply`]((https://github.com/fleetdm/fleet/blob/main/docs/Contributing/Configuration-files.md)) format is maintained for imports and backwards compatibility GitOps.
+
+## File structure
+
+- `default.yml`- file where you define the queries, policies, controls, and agent options for all hosts. If you're using Fleet Premium, this file updates queries and policies that run on all hosts ("All teams"). Controls and agent options are defined for hosts on "No team."
+- `teams/` - folder where you define your teams in Fleet. These `teams/team-name.yml` files define the controls, queries, policies, and agent options for hosts assigned to the specified team. Teams are available in Fleet Premium.
+- `lib/` - folder where you define policies, queries, configuration profiles, scripts, and agent options. These files can be referenced in top level keys in the `default.yml` file and the files in the `teams/` folder.
+
+The following files are responsible for running the GitHub action. Most users don't need to edit these file.
+- `.github/workflows/workflow.yml` - the GitHub workflow file that applies the latest configuration to Fleet.
+- `gitops.sh` - the bash script that applies the latest configuration to Fleet. This script is used in the GitHub action file.
+- `.github/gitops-action/action.yml` - the GitHub action that runs `gitops.sh`. This action is used in the GitHub workflow file. It can also be used in other workflows.
+
+## Configuration options
+
+The following are the required keys in the `default.yml` and any `teams/team-name.yml` files:
+
+```yaml
+policies:
+queries:
+agent_options:
+controls:
+org_settings: # Used in default.yml
+team_settings: # Used in teams/team-name.yml
+```
+
+- [policies](#policies)
+- [queries](#queries)
+- [agent_options](#agent_options)
+- [controls](#controls)
+- [org_settings and team_settings](#org-settings-and-team-settings)
+
+### policies
+
+Polcies can be specified inline in your `default.yml` file or `teams/team-name.yml` files. They can also be specified in separate files in your `lib/` folder.
+
+#### Options
+
+For possible options, see the parameters for the [Add policy API endpoint](../REST%20API/rest-api.md#add-policices).
+
+#### Example
+
+##### Inline
+  
+`default.yml` or `teams/team-name.yml`
+
+```yaml
+policies:
+  - name: macOS - Enable FileVault
+    description: This policy checks if FileVault (disk encryption) is enabled.
+    resolution: As an IT admin, turn on disk encryption in Fleet.
+    query: SELECT 1 FROM filevault_status WHERE status = 'FileVault is On.';
+    platform: darwin
+    critical: false
+    calendar_event_enabled: false
+```
+
+##### Separate file
+ 
+`lib/policies-name.policies.yml`
+
+```yaml
+- name: macOS - Enable FileVault
+  description: This policy checks if FileVault (disk encryption) is enabled.
+  resolution: As an IT admin, turn on disk encryption in Fleet.
+  query: SELECT 1 FROM filevault_status WHERE status = 'FileVault is On.';
+  platform: darwin
+  critical: false
+  calendar_event_enabled: false
+- name: macOS - Disable guest account
+  description: This policy checks if the guest account is disabled.
+  resolution: An an IT admin, deploy a macOS, login window profile with the DisableGuestAccount option set to true.
+  query: SELECT 1 FROM managed_policies WHERE domain='com.apple.loginwindow' AND username = '' AND name='DisableGuestAccount' AND CAST(value AS INT) = 1;
+  platform: darwin
+  critical: false
+  calendar_event_enabled: false
+```
+
+`default.yml` or `teams/team-name.yml`
+
+```yaml
+policies:
+  - path: `path-to/lib/policies-name.policies.yml`
+```
+
+### queries
+
+Queries can be specified inline in your `default.yml` file or `teams/team-name.yml` files. They can also be specified in separate files in your `lib/` folder.
+
+Note that the `team_id` option isn't supported in GitOps.
+
+#### Options
+
+For possible options, see the parameter for the parameters of the [Create query API endpoint](../REST%20API/rest-api.md#create-query).
+
+#### Example
+
+##### Inline
+  
+`default.yml` or `teams/team-name.yml`
+
+```yaml
+queries:
+  - name: Collect failed login attempts
+    description: Lists the users at least one failed login attempt and timestamp of failed login. Number of failed login attempts reset to zero after a user successfully logs in.
+    query: SELECT users.username, account_policy_data.failed_login_count, account_policy_data.failed_login_timestamp FROM users INNER JOIN account_policy_data using (uid) WHERE account_policy_data.failed_login_count > 0;
+    platform: darwin,linux,windows
+    interval: 300
+    observer_can_run: false
+    automations_enabled: false
+```
+
+##### Separate file
+ 
+`lib/queries-name.queries.yml`
+
+```yaml
+- name: Collect failed login attempts
+  description: Lists the users at least one failed login attempt and timestamp of failed login. Number of failed login attempts reset to zero after a user successfully logs in.
+  query: SELECT users.username, account_policy_data.failed_login_count, account_policy_data.failed_login_timestamp FROM users INNER JOIN account_policy_data using (uid) WHERE account_policy_data.failed_login_count > 0;
+  platform: darwin,linux,windows
+  interval: 300
+  observer_can_run: false
+  automations_enabled: false
+- name: Collect USB devices
+  description: Collects the USB devices that are currently connected to macOS and Linux hosts.
+  query: SELECT model, vendor FROM usb_devices;
+  platform: darwin,linux
+  interval: 300
+  observer_can_run: true
+  automations_enabled: false
+```
+
+`default.yml` or `teams/team-name.yml`
+
+```yaml
+queries:
+  - path: `path-to/lib/queries-name.queries.yml`
+```
+
+### agent_options
+
+Agent options can be specified inline in your `default.yml` file or `teams/team-name.yml` files. They can also be specified in separate files in your `lib/` folder.
+
+See "[Agent configuration](https://fleetdm.com/docs/configuration/agent-configuration)" to find all possible options.
+
+#### Example
+
+##### Inline
+  
+`default.yml` or `teams/team-name.yml`
+
+```yaml
+agent_options:
+  config:
+    decorators:
+      load:
+        - SELECT uuid AS host_uuid FROM system_info;
+        - SELECT hostname AS hostname FROM system_info;
+    options:
+      disable_distributed: false
+      distributed_interval: 10
+      distributed_plugin: tls
+      distributed_tls_max_attempts: 3
+      logger_tls_endpoint: /api/osquery/log
+      logger_tls_period: 10
+      pack_delimiter: /
+```
+
+##### Separate file
+ 
+`lib/agent-options.yml`
+
+```yaml
+config:
+  decorators:
+    load:
+      - SELECT uuid AS host_uuid FROM system_info;
+      - SELECT hostname AS hostname FROM system_info;
+  options:
+    disable_distributed: false
+    distributed_interval: 10
+    distributed_plugin: tls
+    distributed_tls_max_attempts: 3
+    logger_tls_endpoint: /api/osquery/log
+    logger_tls_period: 10
+    pack_delimiter: /
+```
+
+`default.yml` or `teams/team-name.yml`
+
+```yaml
+queries:
+  - path: `path-to/lib/agent-options.yml`
+```
+
+### controls
+
+The `controls` section allows you to configure MDM features in Fleet.
+
+- `windows_enabled_and_configured` - specifies whether or not to turn on Windows MDM features (default: `false`). Can only be configure for all teams (`default.yml`).
+- `enable_disk_encryption` - specifies whether or not to enforce disk encryption on macOS and Widnows hosts (default: `false`).
+
+##### Example
+
+```yaml
+controls:
+  windows_enabled_and_configured: true
+  enable_disk_encryption: true # Available in Fleet Premium
+  macos_updates: # Available in Fleet Premium
+    deadline: "2023-06-13"
+    minimum_version: 13.4.1
+  windows_updates: # Available in Fleet Premium
+    deadline_days: 5
+    grace_period_days: 2
+  macos_settings:
+    - path: ../lib/profile1.mobileconfig
+      labels:
+        - Label name 1
+    - path: ../lib/profile2.json
+  windows_settings:
+    - path: ../lib/profile1.xml
+  macos_setup: # Available in Fleet Premium
+    bootstrap_package: https://example.org/bootstrap_package.pkg
+    enable_end_user_authentication: true
+    macos_setup_assistant: ../lib/dep-profile.json
+  macos_migration: # Available in Fleet Premium
+    enable: true
+    mode: voluntary
+    webhook_url: https://example.org/webhook_handler
+```
+
+#### macos_updates
+
+- `deadline` specifies the deadline in the form of `YYYY-MM-DD`. The exact deadline time is at 04:00:00 (UTC-8) (default: empty).
+- `minimum_version` specifies the minimum required macOS version (default: empty).
+
+#### windows_updates
+
+- `deadline_days` (default: empty)
+- `grace_period_days` (default: empty)
+
+#### macos_settings
+
+`custom_settings` is a list of paths to macOS configuration profiles (.mobileconfig) or declaration profiles (.json) to apply to macOS hosts.
+
+Use `labels` to only apply (scope) profiles to hosts that have all those labels.
+
+#### windows_settings
+
+`custom_settings` is a list of paths to Windows configuration profiles (.xml).
+
+Use `labels` to only apply (scope) profiles to hosts that have all those labels.
+
+#### macos_setup
+
+The `macos_setup` section lets you control the [end user migration workflow](../Using%20Fleet/MDM-migration-guide.md#end-user-workflow) for macOS hosts that automatically enrolled to your old MDM solution.
+
+- `bootstrap_package` is the URL to a bootstap package. Fleet will download the bootstrap package (default: empty).
+- `enable_end_user_authentication` specifies whether or not to require end user authentication when the user first sets up their macOS host. 
+- `macos_setup_assistant` is a path to a custom automatic enrollment (DEP) profile (.json).
+
+#### macos_migration
+
+- `enable` specifies whether or not to enable end user migration workflow (default: `false`)
+- `mode` specifies whether the end user initiates migration (`voluntary`) or they're nudged every 15-20 minutes to migrate (`forced`) (default: empty).
+- `webhook_url` is the URL that Fleet sends a webhook to when the end user selects **Start**. Receive this webhook using your automation tool (ex. Tines) to unenroll your end users from your old MDM solution.
+
+Can only be configure for all teams (`default.yml`).
+
+### org_settings and team_settings
+
+#### features
+
+The `features` section of the configuration YAML lets you define what predefined queries are sent to the hosts and later on processed by Fleet for different functionalities.
+- `additional_queries` adds extra host details. This information will be updated at the same time as other host details and is returned by the API when host objects are returned (default: empty).
+- `enable_host_users` specifies whether or not Fleet collects user data from hosts (default: `true`).
+- `enable_software_inventory` specifies whether or not Fleet collects softwre inventory from hosts (default: `true`).
+
+##### Example
+
+```yaml
+org_settings:
+  features:
+    additional_queries:
+      time: SELECT * FROM time
+      macs: SELECT mac FROM interface_details
+    enable_host_users: true
+    enable_software_inventory: true
+```
+
+#### fleet_desktop
+
+Direct end users to a custom URL when they select **Transparency** in the Fleet Desktop dropdown (default: [https://fleetdm.com/transparency](https://fleetdm.com/transparency)).
+
+Can only be configure for all teams (`org_settings`).
+
+##### Example
+
+```yaml
+org_settings:
+  fleet_desktop:
+    transparency_url: "https://example.org/transparency"
+```
+
+#### host_expiry_settings
+
+The `host_expiry_settings` section lets you define if and when hosts should be automatically deleted from Fleet if they have not checked in.
+- `host_expiry_enabled` (default: `false`)
+- `host_expiry_window` if a host has not communicated with Fleet in the specified number of days, it will be removed. Must be > `0` when host expiry is enabled (default: `0`).
+
+##### Example
+
+```yaml
+org_settings:
+  host_expiry_settings:
+  	host_expiry_enabled: true
+    host_expiry_window: 10
+```
+
+#### org_info
+
+- `name` is the name of your organization (default: empty)
+- `logo_url` is a public URL of the logo for your organization (default: Fleet logo).
+- `org_logo_url_light_background` is a public URL of the logo for your organization that can be used with light backgrounds (default: Fleet logo).
+- `contact_url` is a URL that appears in error messages presented to end users (default: https://fleetdm.com/company/contact)
+
+Can only be configure for all teams (`org_settings`).
+
+##### Example
+
+```yaml
+org_settings:
+  org_info:
+    org_name: Fleet
+    org_logo_url: https://example.com/logo.png
+    org_logo_url_light_background: https://example.com/logo-light.png
+    contact_url: https://fleetdm.com/company/contact
+```
+
+#### server_settings
+
+- `enable_analytics` specifies whether or not to enable Fleet's [usage statistics](../Using%20Fleet/Usage-statistics.md) (default: `true`).
+- `live_query_disabled` disables the ability to run live queries (ad hoc queries executed via the UI or fleetctl) (default: `false`).
+- `query_reports_disabled` disables query reports and deletes existing repors (default: `false`).
+- `scripts_disabled` blocks access to run scripts. Scripts may still be added in the UI and CLI (defaul: `false`).
+- `server_url` is the base URL of the Fleet instance (default: provided during Fleet setup)
+
+Can only be configure for all teams (`org_settings`).
+
+##### Example
+
+  ```yaml
+org_settings:
+  server_settings:
+    enable_analytics: true
+    live_query_disabled: false
+    query_reports_disabled: false
+    scripts_disabled: false
+    server_url: https://instance.fleet.com
+  ```
+
+TODO is SMTP down from new fleetctl-apply.md doc. Then gut the fleetctl-apply doc and point to this one.
+
+#### sso_settings
+
+The `sso_settings` section lets you define single sign-on (SSO) settings. Learn more about SSO in Fleet [here](https://fleetdm.com/docs/deploying/configuration#configuring-single-sign-on-sso).
+
+- `enable_sso` (default: `false`)
+- `idp_name` is the human-friendly name for the identity provider that will provide single sign-on authentication (default: empty).
+- `entity_id` is the entity ID is a Uniform Resource Identifier (URI) that you use to identify Fleet when configuring the identity provider. It must exactly match the Entity ID field used in identity provider configuration (default: empty `false`).
+- `metadata` is the metadata (in XML format) provided by the identity provider. (default: empty)
+- `metadata_url` is the URL that references the identity provider metadata. Only one of  `metadata` or `metadata_url` is required (default: empty).
+- `enable_jit_provisioning` specified whether or not to allow single sign-on login initiated by identity provider (default: `false`). 
+- `enable_sso_idp_login` specifies whether or not to enables [just-in-time user provisioning](https://fleetdm.com/docs/deploy/single-sign-on-sso#just-in-time-jit-user-provisioning) (default: `false`).
+
+Can only be configure for all teams (`org_settings`).
+
+##### Example
+
+```yaml
+org_settings:
+  sso_settings:
+    enable_sso: true
+    idp_name: "SimpleSAML"
+    entity_id: "https://example.com"
+    metadata: "<md:EntityDescriptor entityID="https://idp.example.org/SAML2"> ... /md:EntityDescriptor>"
+    enable_jit_provisioning: true # Available in Fleet Premium
+    enable_sso_idp_login: true
+```
+
+#### webhook_settings
+
+The `webhook_settings` section lets you enable and define settings for failing policies, vulnerabilities, and host status automations. Learn more about automations in Fleet [here](../Using%20Fleet/Automations.md).
+
+##### failing_policies_webhook
+
+- `enable_failing_policies_webhook` (default: `false`)
+- `destination_url` is the URL to `POST` to when the condition for the webhook triggers (default: empty).
+- `policy_ids` is the list of policies that will trigger a webhook.
+- `host_batch_size` is the maximum number of hosts to batch in each webhook. A value of `0` means no batching (default: `0`).
+
+##### Example
+
+```yaml
+org_settings:
+  webhook_settings:
+    failing_policies_webhook:
+      enable_failing_policies_webhook: true
+      destination_url: https://example.org/webhook_handler
+      host_batch_size: 0
+      policy_ids:
+        - 1
+        - 2
+        - 3
+```
+
+##### host_status_webhook
+
+- `enable_host_status_webhook` (default: `false`)
+- `destination_url` is the URL to `POST` to when the condition for the webhook triggers (default: empty).
+- `days_count` is the number of days that hosts need to be offline to count as part of the percentage (default: `0`).
+- `host_percentage` is the percentage of hosts that need to be offline to trigger the webhook. (default: `0`).
+
+##### Example
+
+```yaml
+org_settings:
+  webhook_settings:
+    host_status_webhook:
+      enable_host_status_webhook: true
+      destination_url: https://example.org/webhook_handler
+      days_count: 7
+      host_percentage: 25
+```
+
+##### vulnerabilities_webhook
+
+- `enable_vulnerabilities_webhook` (default: `false`)
+- `destination_url` is the URL to `POST` to when the condition for the webhook triggers (default: empty).
+- `days_count` is the number of days that hosts need to be offline to count as part of the percentage (default: `0`).
+- `host_batch_size` is the maximum number of hosts to batch in each webhook. A value of `0` means no batching (default: `0`).
+
+##### Example
+
+```yaml
+org_settings:
+  webhook_settings:
+    vulnerabilities_webhook:
+      enable_vulnerabilities_webhook: true
+      destination_url: https://example.org/webhook_handler
+      host_batch_size: 0
+```
+
+Can only be configure for all teams (`org_settings`).
+
+#### mdm
+
+The `mdm` section lets you enable MDM features in Fleet.
+
+- `apple_bm_default_team` - is name of the team that macOS hosts in Apple Business Manager automatically enroll to when they're first setup. If empty, hosts will enroll to "No team" (default: empty).
+
+##### Example
+
+```yaml
+org_settings:
+  mdm:
+    apple_bm_default_team: "Workstations" # Available in Fleet Premium
+```
+
+Can only be configure for all teams (`org_settings`).
+
+## Environment variables
+
+TODO
+
+<meta name="description" value="Documentation for Fleet's GitOps reference. See examples for each confiugration option.">
+<meta name="pageOrderInSection" value="40">
