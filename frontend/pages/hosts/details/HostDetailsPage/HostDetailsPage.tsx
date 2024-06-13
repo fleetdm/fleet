@@ -773,6 +773,7 @@ const HostDetailsPage = ({
       <>
         <HostDetailsBanners
           hostMdmEnrollmentStatus={host?.mdm.enrollment_status}
+          hostPlatform={host?.platform}
           diskEncryptionStatus={host?.mdm.macos_settings?.disk_encryption}
           connectedToFleet={host?.mdm.connected_to_fleet}
         />

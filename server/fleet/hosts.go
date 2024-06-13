@@ -472,7 +472,7 @@ type MDMHostData struct {
 	// ConnectedToFleet indicates if the host has an active MDM connection
 	// with this Fleet instance. This boolean is not filled by all
 	// host-returning methods.
-	ConnectedToFleet *bool `json:"-" csv:"-"`
+	ConnectedToFleet *bool `json:"connected_to_fleet" csv:"-" db:"connected_to_fleet"`
 }
 
 type HostMDMOSSettings struct {

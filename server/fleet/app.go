@@ -191,7 +191,7 @@ type MacOSUpdates struct {
 	Deadline optjson.String `json:"deadline"`
 }
 
-// EnabledForHost returns a boolean indicating if updates are enabled for the host
+// Configured returns a boolean indicating if updates are configured
 func (m MacOSUpdates) Configured() bool {
 	return m.Deadline.Value != "" &&
 		m.MinimumVersion.Value != ""

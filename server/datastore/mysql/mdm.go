@@ -1233,7 +1233,7 @@ func (ds *Datastore) AreHostsConnectedToFleetMDM(ctx context.Context, hosts []*f
 		res[h.UUID] = false
 	}
 
-	foo := func(stmtFn func(string) string, uuids []any, mp map[string]bool) error {
+	setConnectedUUIDs := func(stmtFn func(string) string, uuids []any, mp map[string]bool) error {
 		var res []string
 
 		if len(uuids) > 0 {
@@ -1251,11 +1251,11 @@ func (ds *Datastore) AreHostsConnectedToFleetMDM(ctx context.Context, hosts []*f
 		return nil
 	}
 
-	if err := foo(appleHostConnectedToFleetCond, appleUUIDs, res); err != nil {
+	if err := setConnectedUUIDs(appleHostConnectedToFleetCond, appleUUIDs, res); err != nil {
 		return nil, err
 	}
 
-	if err := foo(winHostConnectedToFleetCond, winUUIDs, res); err != nil {
+	if err := setConnectedUUIDs(winHostConnectedToFleetCond, winUUIDs, res); err != nil {
 		return nil, err
 	}
 
@@ -1266,7 +1266,7 @@ func (ds *Datastore) AreHostsConnectedToFleetMDM(ctx context.Context, hosts []*f
 func (ds *Datastore) IsHostConnectedToFleetMDM(ctx context.Context, host *fleet.Host) (bool, error) {
 	mp, err := ds.AreHostsConnectedToFleetMDM(ctx, []*fleet.Host{host})
 	if err != nil {
-		return false, err
+		return false, ctxerr.Wrap(ctx, err, "finding if host is connected to Fleet MDM")
 	}
 	return mp[host.UUID], nil
 }
