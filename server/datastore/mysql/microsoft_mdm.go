@@ -965,6 +965,7 @@ FROM
 WHERE
     mwe.device_state = '%s' AND
     h.platform = 'windows' AND
+    hmdm.is_server = 0 AND
     %s
 GROUP BY
     status`,
@@ -1096,6 +1097,7 @@ FROM
 WHERE
     mwe.device_state = '%s' AND
     h.platform = 'windows' AND
+    hmdm.is_server = 0 AND
     %s
 GROUP BY
     status`,
