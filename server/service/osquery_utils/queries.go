@@ -755,7 +755,7 @@ var mdmQueries = map[string]DetailQuery{
 
 // discoveryTable returns a query to determine whether a table exists or not.
 func discoveryTable(tableName string) string {
-	return fmt.Sprintf("SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = '%s';", tableName)
+	return fmt.Sprintf("SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = '%s'", tableName)
 }
 
 func macOSBundleIDExistsQuery(appName string) string {
@@ -774,7 +774,11 @@ func generateSQLForAllExists(subqueries ...string) string {
 	// Generate EXISTS clause for each subquery
 	var conditions []string
 	for _, query := range subqueries {
-		condition := fmt.Sprintf("EXISTS (%s)", query)
+		// Remove trailing semicolons from the query to ensure subqueries
+		// are not terminated early (Issue #19401)
+		sanitized := strings.TrimRight(strings.TrimSpace(query), ";")
+
+		condition := fmt.Sprintf("EXISTS (%s)", sanitized)
 		conditions = append(conditions, condition)
 	}
 
@@ -2015,13 +2019,9 @@ func GetDetailQueries(
 		generatedMap["software_chrome"] = softwareChrome
 		generatedMap["software_vscode_extensions"] = softwareVSCodeExtensions
 
-		//
-		// Commenting out until we find root cause of discovery query hanging osquery:
-		// https://github.com/fleetdm/fleet/issues/19401
-		//
-		// for key, query := range SoftwareOverrideQueries {
-		//     generatedMap["software_"+key] = query
-		// }
+		for key, query := range SoftwareOverrideQueries {
+			generatedMap["software_"+key] = query
+		}
 	}
 
 	if features != nil && features.EnableHostUsers {
