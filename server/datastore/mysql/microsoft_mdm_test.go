@@ -647,6 +647,7 @@ func testMDMWindowsProfilesSummary(t *testing.T, ds *Datastore) {
 
 	// Create some hosts
 	var hosts []*fleet.Host
+	uuidToDeviceID := map[string]string{}
 	for i := 0; i < 10; i++ {
 		p := "windows"
 		if i >= 5 {
@@ -669,7 +670,7 @@ func testMDMWindowsProfilesSummary(t *testing.T, ds *Datastore) {
 
 		require.NoError(t, ds.SetOrUpdateMDMData(ctx, h.ID, false, true, "https://example.com", false, fleet.WellKnownMDMFleet, ""))
 		if p == "windows" {
-			windowsEnroll(t, ds, h)
+			uuidToDeviceID[h.UUID] = windowsEnroll(t, ds, h)
 		}
 	}
 
@@ -1042,8 +1043,17 @@ func testMDMWindowsProfilesSummary(t *testing.T, ds *Datastore) {
 		}
 		checkExpected(t, nil, expected)
 
+		// report hosts[0] as a server
+		require.NoError(t, ds.SetOrUpdateMDMData(ctx, hosts[0].ID, true, true, "https://example.com", false, fleet.WellKnownMDMFleet, ""))
+		// hosts[0] is no longer counted
+		expected = hostIDsByProfileStatus{
+			fleet.MDMDeliveryPending: []uint{hosts[3].ID, otherHosts[1].ID, otherHosts[2].ID, otherHosts[3].ID, otherHosts[4].ID},
+			fleet.MDMDeliveryFailed:  []uint{hosts[4].ID},
+		}
+		checkExpected(t, nil, expected)
+
 		// unenroll hosts[3]
-		require.NoError(t, ds.MDMWindowsDeleteEnrolledDeviceWithDeviceID(ctx, hosts[3].UUID))
+		require.NoError(t, ds.MDMWindowsDeleteEnrolledDeviceWithDeviceID(ctx, uuidToDeviceID[hosts[3].UUID]))
 		// hosts[3] is no longer counted
 		expected = hostIDsByProfileStatus{
 			fleet.MDMDeliveryPending: []uint{otherHosts[1].ID, otherHosts[2].ID, otherHosts[3].ID, otherHosts[4].ID},
@@ -1053,6 +1063,7 @@ func testMDMWindowsProfilesSummary(t *testing.T, ds *Datastore) {
 
 		// report hosts[4] as enrolled to a different MDM
 		require.NoError(t, ds.SetOrUpdateMDMData(ctx, hosts[4].ID, false, true, "https://some-other-mdm.example.com", false, "some-other-mdm", ""))
+		require.NoError(t, ds.MDMWindowsDeleteEnrolledDeviceWithDeviceID(ctx, uuidToDeviceID[hosts[4].UUID]))
 		// hosts[4] is no longer counted
 		expected = hostIDsByProfileStatus{
 			fleet.MDMDeliveryPending: []uint{otherHosts[1].ID, otherHosts[2].ID, otherHosts[3].ID, otherHosts[4].ID},

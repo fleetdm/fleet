@@ -1126,10 +1126,11 @@ func (ds *Datastore) applyHostFilters(
 	if opt.ConnectedToFleetFilter != nil && *opt.ConnectedToFleetFilter ||
 		opt.OSSettingsFilter.IsValid() ||
 		opt.MacOSSettingsFilter.IsValid() ||
-		opt.MacOSSettingsDiskEncryptionFilter.IsValid() {
+		opt.MacOSSettingsDiskEncryptionFilter.IsValid() ||
+		opt.OSSettingsDiskEncryptionFilter.IsValid() {
 		connectedToFleetJoin = `
 				LEFT JOIN nano_enrollments ne ON ne.id = h.uuid AND ne.enabled = 1 AND ne.type = 'Device'
-				LEFT JOIN mdm_windows_enrollments we ON we.host_uuid = h.uuid AND we.device_state = ?`
+				LEFT JOIN mdm_windows_enrollments mwe ON mwe.host_uuid = h.uuid AND mwe.device_state = ?`
 		whereParams = append(whereParams, microsoft_mdm.MDMDeviceStateEnrolled)
 	}
 
@@ -1262,7 +1263,7 @@ func filterHostsByMDM(sql string, opt fleet.HostListOptions, params []interface{
 
 func filterHostsByConnectedToFleet(sql string, opt fleet.HostListOptions, params []any) (string, []any) {
 	if opt.ConnectedToFleetFilter != nil && *opt.ConnectedToFleetFilter {
-		sql += "AND (ne.id IS NOT NULL OR we.host_uuid IS NOT NULL)"
+		sql += "AND (ne.id IS NOT NULL OR mwe.host_uuid IS NOT NULL)"
 	}
 	return sql, params
 }
@@ -1364,7 +1365,15 @@ func (ds *Datastore) filterHostsByOSSettingsStatus(sql string, opt fleet.HostLis
 		return sql, params, nil
 	}
 
-	sqlFmt := ` AND h.platform IN('windows', 'darwin', 'ios', 'ipados')`
+	// TODO: Look into ways we can convert some of the LEFT JOINs in the main list hosts query
+	// to INNER JOINs if the OSSettingsFilter is set. This would allow us to use indices
+	// from the `host_mdm` table, for example, to cut down on the number of rows that need
+	// to be scanned. For now, this method assumes that LEFT JOINs are used in the main query
+	// and adds extra where clauses to filter out Windows hosts that are not enrolled to Fleet MDM
+	// or are servers. Similar logic could be applied to macOS hosts but is not included in this
+	// current implementation.
+
+	sqlFmt := ` AND h.platform IN('windows', 'darwin', 'ios', 'ipados') AND (ne.id IS NOT NULL OR mwe.host_uuid IS NOT NULL) `
 	if opt.TeamFilter == nil {
 		// OS settings filter is not compatible with the "all teams" option so append the "no team"
 		// filter here (note that filterHostsByTeam applies the "no team" filter if TeamFilter == 0)
@@ -1381,12 +1390,10 @@ OR ((h.platform = 'darwin' OR h.platform = 'ios' OR h.platform = 'ipados') AND (
 	}
 	whereMacOS += ` = ?`
 	// ensure the host has MDM turned on
-	whereMacOS += " AND ne.id IS NOT NULL"
 	paramsMacOS = append(paramsMacOS, opt.OSSettingsFilter)
 
 	// construct the WHERE for windows
-	// ensure the host has MDM turned on
-	whereWindows = `we.host_uuid IS NOT NULL`
+	whereWindows = `hmdm.is_server = 0`
 	paramsWindows := []any{}
 	subqueryFailed, paramsFailed, err := subqueryHostsMDMWindowsOSSettingsStatusFailed()
 	if err != nil {

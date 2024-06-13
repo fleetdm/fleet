@@ -511,6 +511,10 @@ func TestMDMLockCommand(t *testing.T) {
 		}
 	}
 
+	ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, host *fleet.Host) (bool, error) {
+		return host.MDMInfo != nil && host.MDMInfo.Enrolled == true && host.MDMInfo.Name == fleet.WellKnownMDMFleet, nil
+	}
+
 	appCfgAllMDM, appCfgWinMDM, appCfgMacMDM, appCfgNoMDM := setupAppConigs()
 
 	successfulOutput := func(ident string) string {
@@ -643,7 +647,7 @@ func TestMDMUnlockCommand(t *testing.T) {
 		UUID:     "mac-enrolled-wp",
 		Platform: "darwin",
 		MDMInfo:  &fleet.HostMDM{Enrolled: true, Name: fleet.WellKnownMDMFleet},
-		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("On (manual)")},
+		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("On (manual)"), ConnectedToFleet: ptr.Bool(true)},
 	}
 
 	hostByUUID := make(map[string]*fleet.Host)
@@ -767,6 +771,9 @@ func TestMDMUnlockCommand(t *testing.T) {
 			t.Errorf("unexpected hostIDMod %v", hostIDMod)
 			return nil, nil
 		}
+	}
+	ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, host *fleet.Host) (bool, error) {
+		return host.MDM.ConnectedToFleet != nil && *host.MDM.ConnectedToFleet, nil
 	}
 
 	appCfgAllMDM, appCfgWinMDM, appCfgMacMDM, appCfgNoMDM := setupAppConigs()
