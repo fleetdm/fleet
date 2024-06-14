@@ -213,7 +213,7 @@ jobs:
     needs: [code-sign-windows]
     runs-on: ubuntu-latest
     outputs:
-      fleetd_base_msi_sha256: ${{ steps.prepare.outputs.fleetd_base_msi_sha256 }}
+      fleetd_base_msi_sha256: ${{ steps.prepare-files.outputs.fleetd_base_msi_sha256 }}
     env:
       FULL_DATE_DIR: archive/stable/${{ needs.check-for-fleetd-component-updates.outputs.date_dir }}
     steps:
@@ -235,8 +235,8 @@ jobs:
         with:
           name: fleetd-base-msi
 
-      - name: Set up files and directories for R2 upload
-        id: prepare
+      - name: Prepare files for R2 upload
+        id: prepare-files
         run: |
           mkdir -p stable
           mkdir -p ${{ env.FULL_DATE_DIR }}
