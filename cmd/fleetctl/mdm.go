@@ -316,7 +316,6 @@ func hostMdmActionSetup(c *cli.Context, hostIdent string, actionType string) (cl
 	if err != nil {
 		var nfe service.NotFoundErr
 		if errors.As(err, &nfe) {
-			fmt.Println(hostIdent)
 			return nil, nil, errors.New("The host doesn't exist. Please provide a valid host identifier.")
 		}
 
