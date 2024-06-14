@@ -687,20 +687,20 @@ func (h *Host) IsDEPAssignedToFleet() bool {
 
 // IsEligibleForDEPMigration returns true if the host fulfills all requirements
 // for DEP migration from a third-party provider into Fleet.
-func (h *Host) IsEligibleForDEPMigration(connectedToFleet bool) bool {
+func (h *Host) IsEligibleForDEPMigration(isConnectedToFleetMDM bool) bool {
 	return h.IsOsqueryEnrolled() &&
 		h.IsDEPAssignedToFleet() &&
 		h.MDMInfo.HasJSONProfileAssigned() &&
 		h.MDMInfo.Enrolled &&
-		!connectedToFleet
+		!isConnectedToFleetMDM
 }
 
 // NeedsDEPEnrollment returns true if the host should be DEP enrolled into
 // fleet but it's currently unenrolled.
-func (h *Host) NeedsDEPEnrollment(connectedToFleet bool) bool {
+func (h *Host) NeedsDEPEnrollment(isConnectedToFleetMDM bool) bool {
 	return h.MDMInfo != nil &&
 		!h.MDMInfo.Enrolled &&
-		!connectedToFleet &&
+		!isConnectedToFleetMDM &&
 		h.IsDEPAssignedToFleet()
 }
 
@@ -718,10 +718,10 @@ func (h *Host) IsEligibleForWindowsMDMEnrollment() bool {
 
 // IsEligibleForWindowsMDMUnenrollment returns true if the host must be
 // unenrolled from Fleet's Windows MDM (if it MDM was disabled).
-func (h *Host) IsEligibleForWindowsMDMUnenrollment(connectedToFleet bool) bool {
+func (h *Host) IsEligibleForWindowsMDMUnenrollment(isConnectedToFleetMDM bool) bool {
 	return h.FleetPlatform() == "windows" &&
 		h.IsOsqueryEnrolled() &&
-		connectedToFleet
+		isConnectedToFleetMDM
 }
 
 // IsEligibleForBitLockerEncryption checks if the host needs to enforce disk
@@ -729,7 +729,7 @@ func (h *Host) IsEligibleForWindowsMDMUnenrollment(connectedToFleet bool) bool {
 //
 // Note: the *Host structs needs disk encryption data and MDM data filled in to
 // perform the check.
-func (h *Host) IsEligibleForBitLockerEncryption(connectedToFleet bool) bool {
+func (h *Host) IsEligibleForBitLockerEncryption(isConnectedToFleetMDM bool) bool {
 	isServer := h.MDMInfo != nil && h.MDMInfo.IsServer
 	isWindows := h.FleetPlatform() == "windows"
 	needsEncryption := h.DiskEncryptionEnabled != nil && !*h.DiskEncryptionEnabled
@@ -737,7 +737,7 @@ func (h *Host) IsEligibleForBitLockerEncryption(connectedToFleet bool) bool {
 
 	return isWindows &&
 		h.IsOsqueryEnrolled() &&
-		connectedToFleet &&
+		isConnectedToFleetMDM &&
 		!isServer &&
 		h.MDMInfo != nil &&
 		(needsEncryption || encryptedWithoutKey)
