@@ -373,6 +373,14 @@ func TestRunMDMCommandAuthz(t *testing.T) {
 	team1And2UnenrolledHosts := []*fleet.Host{{ID: 1, TeamID: ptr.Uint(1), UUID: "a"}, {ID: 2, TeamID: ptr.Uint(2), UUID: "b"}}
 	team2And3UnenrolledHosts := []*fleet.Host{{ID: 2, TeamID: ptr.Uint(2), UUID: "b"}, {ID: 3, TeamID: ptr.Uint(3), UUID: "c"}}
 
+	ds.AreHostsConnectedToFleetMDMFunc = func(ctx context.Context, hosts []*fleet.Host) (map[string]bool, error) {
+		res := make(map[string]bool, len(hosts))
+		for _, h := range hosts {
+			res[h.UUID] = true
+		}
+		return res, nil
+	}
+
 	userTeamMaintainerTeam1And2 := &fleet.User{
 		ID: 100,
 		Teams: []fleet.UserTeam{

@@ -6809,7 +6809,7 @@ func testAreHostsConnectedToFleetMDM(t *testing.T, ds *Datastore) {
 		Platform:      "linux",
 	})
 	require.NoError(t, err)
-	_, err = ds.AreHostsConnectedToFleetMDM(ctx, []*fleet.Host{
+	connectedMap, err = ds.AreHostsConnectedToFleetMDM(ctx, []*fleet.Host{
 		notConnectedMac,
 		connectedMac,
 		connectedWin,
