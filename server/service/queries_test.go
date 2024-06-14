@@ -644,7 +644,7 @@ func TestQueryAuth(t *testing.T) {
 			_, err = svc.GetQuery(ctx, tt.qid)
 			checkAuthErr(t, tt.shouldFailRead, err)
 
-			_, err = svc.QueryReportIsClipped(ctx, tt.qid)
+			_, err = svc.QueryReportIsClipped(ctx, tt.qid, fleet.DefaultMaxQueryReportRows)
 			checkAuthErr(t, tt.shouldFailRead, err)
 
 			_, err = svc.ListQueries(ctx, fleet.ListOptions{}, query.TeamID, nil, false)
@@ -688,15 +688,15 @@ func TestQueryReportIsClipped(t *testing.T) {
 		return 0, nil
 	}
 
-	isClipped, err := svc.QueryReportIsClipped(viewerCtx, 1)
+	isClipped, err := svc.QueryReportIsClipped(viewerCtx, 1, fleet.DefaultMaxQueryReportRows)
 	require.NoError(t, err)
 	require.False(t, isClipped)
 
 	ds.ResultCountForQueryFunc = func(ctx context.Context, queryID uint) (int, error) {
-		return fleet.MaxQueryReportRows, nil
+		return fleet.DefaultMaxQueryReportRows, nil
 	}
 
-	isClipped, err = svc.QueryReportIsClipped(viewerCtx, 1)
+	isClipped, err = svc.QueryReportIsClipped(viewerCtx, 1, fleet.DefaultMaxQueryReportRows)
 	require.NoError(t, err)
 	require.True(t, isClipped)
 }
@@ -725,9 +725,10 @@ func TestQueryReportReturnsNilIfDiscardDataIsTrue(t *testing.T) {
 		}, nil
 	}
 
-	results, err := svc.GetQueryReportResults(viewerCtx, 1)
+	results, reportClipped, err := svc.GetQueryReportResults(viewerCtx, 1)
 	require.NoError(t, err)
 	require.Nil(t, results)
+	require.False(t, reportClipped)
 }
 
 func TestComparePlatforms(t *testing.T) {

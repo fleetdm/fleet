@@ -888,6 +888,16 @@ type ServerSettings struct {
 	QueryReportsDisabled bool   `json:"query_reports_disabled"`
 	ScriptsDisabled      bool   `json:"scripts_disabled"`
 	AIFeaturesDisabled   bool   `json:"ai_features_disabled"`
+	QueryReportCap       int    `json:"query_report_cap"`
+}
+
+const DefaultMaxQueryReportRows int = 1000
+
+func (f *ServerSettings) GetQueryReportCap() int {
+	if f.QueryReportCap <= 0 {
+		return DefaultMaxQueryReportRows
+	}
+	return f.QueryReportCap
 }
 
 // HostExpirySettings contains settings pertaining to automatic host expiry.

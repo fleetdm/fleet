@@ -418,6 +418,7 @@ func TestFullGlobalGitOps(t *testing.T) {
 	assert.Equal(t, orgName, savedAppConfig.OrgInfo.OrgName)
 	assert.Equal(t, fleetServerURL, savedAppConfig.ServerSettings.ServerURL)
 	assert.Contains(t, string(*savedAppConfig.AgentOptions), "distributed_denylist_duration")
+	assert.Equal(t, 2000, savedAppConfig.ServerSettings.QueryReportCap)
 	assert.Len(t, enrolledSecrets, 2)
 	assert.True(t, policyDeleted)
 	assert.Len(t, appliedPolicySpecs, 5)
@@ -923,7 +924,6 @@ team_settings:
 	_ = runAppForTest(t, []string{"gitops", "-f", globalFile.Name(), "-f", teamFile.Name(), "--delete-other-teams"})
 	assert.True(t, ds.ListTeamsFuncInvoked)
 	assert.True(t, ds.DeleteTeamFuncInvoked)
-
 }
 
 func TestFullGlobalAndTeamGitOps(t *testing.T) {
@@ -1059,7 +1059,6 @@ func TestTeamSofwareInstallersGitOps(t *testing.T) {
 			}
 		})
 	}
-
 }
 
 func setupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig, **fleet.Team) {

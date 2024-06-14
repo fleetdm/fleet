@@ -98,6 +98,7 @@ spec:
     deferred_save_host: false
     enable_analytics: false
     live_query_disabled: false
+    query_report_cap: 0
     query_reports_disabled: false
     server_url: ""
     scripts_disabled: false
