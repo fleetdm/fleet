@@ -46,6 +46,8 @@ jobs:
           curl -O ${{ env.BASE_URL }}/stable/meta.json
           curl -O ${{ env.BASE_URL }}/stable/fleetd-base.msi
           fleetd_base_msi_sha256=$(shasum -a 256 fleetd-base.msi | cut -d ' ' -f 1)
+          echo "$(jq '.fleetd_base_msi_sha256' meta.json)"
+          echo "$fleetd_base_msi_sha256"
           if [ "$(jq '.fleetd_base_msi_sha256' meta.json)" != "$fleetd_base_msi_sha256" ]; then
             echo "Checksum mismatch for fleetd-base.msi"
             exit 1
@@ -75,7 +77,7 @@ jobs:
       - name: Download fleetd-base.msi
         shell: powershell
         run: |
-          curl -O ${{ env.BASE_URL }}/stable/fleetd-base.msi
+          Invoke-WebRequest ${{ env.BASE_URL }}/stable/fleetd-base.msi -OutFile fleetd-base.msi
 
       - name: Run fleetd-base.msi
         shell: powershell
@@ -97,6 +99,6 @@ jobs:
         run: |
           curl -O ${{ env.BASE_URL }}/stable/fleetd-base.pkg
 
-      - name: Run fleetd-base.pkg
+      - name: Install fleetd-base.pkg
         run: |
           sudo installer -pkg fleetd-base.pkg -target /
