@@ -151,7 +151,7 @@ jobs:
             </dict>
           </plist>' > fleetd-base-manifest.plist
 
-      - name: Set up files and directories for upload
+      - name: Set up files and directories for R2 upload
         run: |
           mkdir -p stable
           mkdir -p ${{ env.FULL_DATE_DIR }}
@@ -165,12 +165,55 @@ jobs:
         with:
           filenames: stable/fleetd-base.pkg,stable/fleetd-base-manifest.plist,${{ env.FULL_DATE_DIR }}/fleetd-base.pkg,${{ env.FULL_DATE_DIR }}/fleetd-base-manifest.plist
 
-  update-fleetd-base-msi:
+  build-fleetd-base-msi:
     needs: [check-for-fleetd-component-updates]
     if: needs.check-for-fleetd-component-updates.outputs.update_needed == 'true'
     runs-on: ubuntu-latest
     outputs:
       fleetd_base_msi_sha256: ${{ steps.build.outputs.fleetd_base_msi_sha256 }}
+    env:
+      FULL_DATE_DIR: archive/stable/${{ needs.check-for-fleetd-component-updates.outputs.date_dir }}
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        with:
+          egress-policy: audit
+
+      - name: Install fleetctl
+        run: npm install -g fleetctl
+
+      - name: Build MSI
+        id: build
+        run: |
+          fleetctl package --type msi --fleet-desktop --fleet-url dummy --enroll-secret dummy
+          mv fleet-osquery*.msi fleetd-base.msi
+          : # Calculate the SHA256 checksum of the package
+          echo "fleetd_base_msi_sha256=$(shasum -a 256 fleetd-base.msi | cut -d ' ' -f 1)" >> $GITHUB_OUTPUT
+
+      - name: Upload fleetd-base.msi for code signing
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # 4.3.3
+        with:
+          name: unsigned-windows
+          path: fleetd-base.msi
+
+  code-sign-windows:
+    needs: build-fleetd-base-msi
+    uses: ./.github/workflows/code-sign-windows.yml
+    with:
+      filename: fleetd-base.msi
+      upload_name: fleetd-base-msi
+    secrets:
+      DIGICERT_KEYLOCKER_CERTIFICATE: ${{ secrets.DIGICERT_KEYLOCKER_CERTIFICATE }}
+      DIGICERT_KEYLOCKER_PASSWORD: ${{ secrets.DIGICERT_KEYLOCKER_PASSWORD }}
+      DIGICERT_KEYLOCKER_HOST_URL: ${{ secrets.DIGICERT_KEYLOCKER_HOST_URL }}
+      DIGICERT_API_KEY: ${{ secrets.DIGICERT_API_KEY }}
+      DIGICERT_KEYLOCKER_CERTIFICATE_FINGERPRINT: ${{ secrets.DIGICERT_KEYLOCKER_CERTIFICATE_FINGERPRINT }}
+
+  update-fleetd-base-msi:
+    needs: [code-sign-windows]
+    runs-on: ubuntu-latest
+    outputs:
+      fleetd_base_msi_sha256: ${{ steps.prepare.outputs.fleetd_base_msi_sha256 }}
     env:
       FULL_DATE_DIR: archive/stable/${{ needs.check-for-fleetd-component-updates.outputs.date_dir }}
     steps:
@@ -187,23 +230,20 @@ jobs:
             .github/scripts/rclone-install.sh
           sparse-checkout-cone-mode: false
 
-      - name: Install fleetctl
-        run: npm install -g fleetctl
+      - name: Download signed artifact
+        uses: actions/download-artifact@9c19ed7fe5d278cd354c7dfd5d3b88589c7e2395 # v4.1.6
+        with:
+          name: fleetd-base-msi
 
-      - name: Build MSI
-        id: build
-        run: |
-          fleetctl package --type msi --fleet-desktop --fleet-url dummy --enroll-secret dummy
-          mv fleet-osquery*.msi fleetd-base.msi
-          : # Calculate the SHA256 checksum of the package
-          echo "fleetd_base_msi_sha256=$(shasum -a 256 fleetd-base.msi | cut -d ' ' -f 1)" >> $GITHUB_OUTPUT
-
-      - name: Set up files and directories for upload
+      - name: Set up files and directories for R2 upload
+        id: prepare
         run: |
           mkdir -p stable
           mkdir -p ${{ env.FULL_DATE_DIR }}
           cp fleetd-base.msi stable/
           cp fleetd-base.msi ${{ env.FULL_DATE_DIR }}/
+          : # Calculate the SHA256 checksum of the package
+          echo "fleetd_base_msi_sha256=$(shasum -a 256 fleetd-base.msi | cut -d ' ' -f 1)" >> $GITHUB_OUTPUT
 
       - name: Upload package
         uses: ./.github/actions/r2-upload
@@ -234,7 +274,7 @@ jobs:
         with:
           name: latest-tuf-meta.json
 
-      - name: Set up files and directories for upload
+      - name: Set up files and directories for R2 upload
         run: |
           mkdir -p stable
           mkdir -p ${{ env.FULL_DATE_DIR }}
