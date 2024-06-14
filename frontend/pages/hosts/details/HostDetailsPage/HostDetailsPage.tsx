@@ -680,7 +680,7 @@ const HostDetailsPage = ({
         hostMdmDeviceStatus={hostMdmDeviceStatus}
         hostMdmEnrollmentStatus={host.mdm.enrollment_status}
         doesStoreEncryptionKey={host.mdm.encryption_key_available}
-        isConnectedToFleetMdm={mdm?.connected_to_fleet}
+        isConnectedToFleetMdm={host.mdm?.connected_to_fleet}
         hostScriptsEnabled={host.scripts_enabled}
       />
     );
