@@ -83,8 +83,11 @@ jobs:
       - name: Install fleetd-base.msi
         shell: powershell
         run: |
-          Start-Process msiexec "/i fleetd-base.msi /qn FLEET_URL='https://fleet.example.com' FLEET_SECRET='insecure'" -Wait
-          if (! $?) { exit 1 }
+          $log = "install.log"
+          $procMain = Start-Process msiexec "/i fleetd-base.msi /qn /l*! `"$log`" FLEET_URL='https://fleet.example.com' FLEET_SECRET='insecure'" -NoNewWindow -PassThru
+          $procLog = Start-Process "powershell" "Get-Content -Path `"$log`" -Wait" -NoNewWindow -PassThru
+          $procMain.WaitForExit()
+          $procLog.Kill()
           cd "C:\Windows\System32\config\systemprofile\AppData\Local\FleetDM\Orbit\Logs"
           Get-ChildItem
           if (!(Test-Path "C:\Windows\System32\config\systemprofile\AppData\Local\FleetDM\Orbit\Logs\orbit-osquery.log" -PathType Leaf)) { exit 1 }
