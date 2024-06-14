@@ -22,6 +22,7 @@ type mdmProxy struct {
 	migrateUDIDs      map[string]struct{}
 	migratePercentage int
 	existingServerURL string
+	existingHostname  string
 	fleetServerURL    string
 	existingProxy     *httputil.ReverseProxy
 	fleetProxy        *httputil.ReverseProxy
@@ -32,11 +33,25 @@ type mdmProxy struct {
 }
 
 func (m *mdmProxy) handleProxy(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Host != "" {
+		log.Printf("%s %s Forbidden", r.Method, r.URL.String())
+		http.Error(w, "Forbidden", http.StatusForbidden)
+		return
+	}
+
 	// Send all SCEP requests to the existing server
 	if strings.Contains(r.URL.Path, "scep") {
-		log.Printf("%s %s -> Existing", r.Method, r.URL.String())
+		log.Printf("%s %s -> Existing (SCEP)", r.Method, r.URL.String())
 		m.existingProxy.ServeHTTP(w, r)
 		return
+	}
+
+	// Send all micromdm API requests to the existing server
+	if strings.HasPrefix(r.URL.Path, "/v1") || strings.HasPrefix(r.URL.Path, "/push") {
+		log.Printf("%s %s -> Existing (API)", r.Method, r.URL.String())
+		m.existingProxy.ServeHTTP(w, r)
+		return
+
 	}
 
 	// Read the body of the request
@@ -261,6 +276,7 @@ func main() {
 		token:             *authToken,
 		existingServerURL: *existingURL,
 		fleetServerURL:    *fleetURL,
+		existingHostname:  *existingHostname,
 		migratePercentage: *migratePercentage,
 		migrateUDIDs:      udids,
 		existingProxy:     makeExistingProxy(*existingURL, *existingHostname),
