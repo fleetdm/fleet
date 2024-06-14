@@ -693,8 +693,6 @@ module.exports = {
               let columnDescriptionForTable = '';// Set the initial value of the description that will be added to the table for this column.
               if(column.description) {
                 columnDescriptionForTable = column.description;
-                // Convert the markdown description for this table into HTML for tooltips on /try-fleet/explore-data/* pages
-                columnInfoForQueryReports.description = await sails.helpers.strings.toHtml.with({mdString: column.description, addIdsToHeadings: false});
               }
               // Replacing pipe characters and newlines with html entities in column descriptions to keep it from breaking markdown tables.
               columnDescriptionForTable = columnDescriptionForTable.replace(/\|/g, '&#124;').replace(/\n/gm, '&#10;');
