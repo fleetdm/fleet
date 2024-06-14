@@ -365,6 +365,18 @@ type Host struct {
 
 	// Policies is the list of policies and whether it passes for the host
 	Policies *[]*HostPolicy `json:"policies,omitempty" csv:"-"`
+
+	MaintenanceWindow HostMaintenanceWindowData `json:"maintenance_window,omitempty"`
+}
+
+type HostMaintenanceWindowData struct {
+	//  StartsAt is the UTC start time of the future maintenance window, retrieved from
+	//  calendar_events JOIN host_calendar_events
+	StartsAt time.Time `json:"starts_at"`
+	// TimeZone is the IANA timezone of the user's google calendar, retrieved from the google calendar
+	// TODO - better type? see what comes back from the gcal API
+	// possibly time.Location ?
+	TimeZone string `json:"timezone"`
 }
 
 // HostOrbitInfo maps to the host_orbit_info table in the database, which maps to the orbit_info agent table.
