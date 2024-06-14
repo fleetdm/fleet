@@ -17,10 +17,7 @@ on:
         type: string
   pull_request: # BOZO remove
 
-# This allows a subsequently queued workflow run to interrupt previous runs
-concurrency:
-  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id}}
-  cancel-in-progress: true
+# This workflow is intended to be called by release-fleetd-base workflow, so it does not have a concurrency group.
 
 defaults:
   run:
