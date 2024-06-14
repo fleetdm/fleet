@@ -9,6 +9,10 @@ description: Upload a file to R2
 # - R2_BUCKET: The bucket to upload to
 
 inputs:
+  working-directory:
+    description: 'The working directory, relative to which the files will be uploaded.'
+    default: './'
+    required: false
   filenames:
     description: 'Comma-delimited names of the file(s) to upload. For example: file1,manifest.json,file with spaces.txt'
     required: true
@@ -18,6 +22,7 @@ runs:
   steps:
     - name: Upload file to R2
       shell: bash
+      working-directory: ${{ inputs.working-directory }}
       run: |
         sudo ./.github/scripts/rclone-install.sh
         mkdir -p ~/.config/rclone
