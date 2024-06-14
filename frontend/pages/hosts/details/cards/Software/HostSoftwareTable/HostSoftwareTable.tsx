@@ -112,7 +112,7 @@ const HostSoftwareTable = ({
   }, [data?.count, data?.software.length]);
 
   const memoizedEmptyComponent = useCallback(() => {
-    return <EmptySoftwareTable isSearching={searchQuery !== ""} />;
+    return <EmptySoftwareTable isNotDetectingSoftware={searchQuery === ""} />;
   }, [searchQuery]);
 
   return (

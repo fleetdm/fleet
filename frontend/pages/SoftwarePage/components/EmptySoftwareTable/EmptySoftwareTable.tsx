@@ -10,10 +10,13 @@ import { ISoftwareDropdownFilterVal } from "pages/SoftwarePage/SoftwareTitles/So
 
 export interface IEmptySoftwareTableProps {
   softwareFilter?: ISoftwareDropdownFilterVal;
+  /** tableName is displayed in the search empty state */
   tableName?: string;
   isSoftwareDisabled?: boolean;
+  /** isNotDetectingSoftware renders empty states when no search string is present */
+  isNotDetectingSoftware?: boolean;
+  /** isCollectingSoftware is only used on the Dashboard page with a TODO to revisit */
   isCollectingSoftware?: boolean;
-  isSearching?: boolean;
 }
 
 const generateTypeText = (
@@ -33,8 +36,8 @@ const EmptySoftwareTable = ({
   softwareFilter,
   tableName = "software",
   isSoftwareDisabled,
+  isNotDetectingSoftware,
   isCollectingSoftware,
-  isSearching,
 }: IEmptySoftwareTableProps): JSX.Element => {
   const softwareTypeText = generateTypeText(tableName, softwareFilter);
 
@@ -43,8 +46,14 @@ const EmptySoftwareTable = ({
     info: `Expecting to see ${softwareTypeText}? Check back later.`,
   };
 
+  if (isNotDetectingSoftware) {
+    emptySoftware.header = "No software detected";
+  }
+
   if (isCollectingSoftware) {
     emptySoftware.header = "No software detected";
+    emptySoftware.info =
+      "This report is updated every hour to protect the performance of your devices.";
   }
 
   if (isSoftwareDisabled) {
@@ -60,9 +69,6 @@ const EmptySoftwareTable = ({
         .
       </>
     );
-  }
-  if (softwareFilter === "vulnerableSoftware" && !isSearching) {
-    emptySoftware.header = `No software detected`;
   }
 
   return (
