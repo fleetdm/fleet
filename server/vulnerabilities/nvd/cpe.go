@@ -447,13 +447,16 @@ func TranslateSoftwareToCPE(
 		},
 	)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "software iterator")
+		return ctxerr.Wrap(ctx, err, "non-oval software iterator")
 	}
-	defer nonOvalIterator.Close()
 
 	err = translateSoftwareToCPEWithIterator(ctx, ds, vulnPath, logger, nonOvalIterator)
 	if err != nil {
-		return fmt.Errorf("translate software to CPE: %w", err)
+		return ctxerr.Wrap(ctx, err, "translate non-oval software to CPE")
+	}
+
+	if err := nonOvalIterator.Close(); err != nil {
+		return ctxerr.Wrap(ctx, err, "closing non-oval software iterator")
 	}
 
 	ubuntuKernelIterator, err := ds.AllSoftwareIterator(
@@ -467,11 +470,14 @@ func TranslateSoftwareToCPE(
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "ubuntu kernel iterator")
 	}
-	defer ubuntuKernelIterator.Close()
 
 	err = translateSoftwareToCPEWithIterator(ctx, ds, vulnPath, logger, ubuntuKernelIterator)
 	if err != nil {
-		return fmt.Errorf("translate ubuntu kernel to CPE: %w", err)
+		return ctxerr.Wrap(ctx, err, "translate ubuntu kernel to CPE")
+	}
+
+	if err := ubuntuKernelIterator.Close(); err != nil {
+		return ctxerr.Wrap(ctx, err, "closing ubuntu kernel iterator")
 	}
 
 	return nil
