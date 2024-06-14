@@ -1,21 +1,23 @@
 import React, { useContext, useEffect, useState } from "react";
 import { InjectedRouter } from "react-router";
+import { AxiosResponse } from "axios";
 
 import PATHS from "router/paths";
-import team, { APP_CONTEXT_ALL_TEAMS_ID } from "interfaces/team";
-import { getErrorReason } from "interfaces/errors";
+import { APP_CONTEXT_ALL_TEAMS_ID } from "interfaces/team";
 import softwareAPI from "services/entities/software";
 import { NotificationContext } from "context/notification";
 import { QueryParams, buildQueryStringFromParams } from "utilities/url";
+import { IApiError } from "interfaces/errors";
 
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 
 import AddSoftwareForm from "../AddSoftwareForm";
 import { IAddSoftwareFormData } from "../AddSoftwareForm/AddSoftwareForm";
+import { getErrorMessage } from "./helpers";
 
-// 2 minutes
-const UPLOAD_TIMEOUT = 120000;
+// 2 minutes + 15 seconds to account for extra roundtrip time.
+const UPLOAD_TIMEOUT = (2 * 60 + 15) * 1000;
 const MAX_FILE_SIZE_MB = 500;
 const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 
@@ -97,7 +99,7 @@ const AddSoftwareModal = ({
 
     // TODO: confirm we are deleting the second sentence (not modifying it) for non-self-service installers
     try {
-      await softwareAPI.addSoftwarePackage(formData, teamId);
+      await softwareAPI.addSoftwarePackage(formData, teamId, UPLOAD_TIMEOUT);
       renderFlash(
         "success",
         <>
@@ -120,7 +122,7 @@ const AddSoftwareModal = ({
         `${PATHS.SOFTWARE_TITLES}?${buildQueryStringFromParams(newQueryParams)}`
       );
     } catch (e) {
-      renderFlash("error", getErrorReason(e));
+      renderFlash("error", getErrorMessage(e));
       onExit();
     }
 
