@@ -6816,7 +6816,14 @@ func testAreHostsConnectedToFleetMDM(t *testing.T, ds *Datastore) {
 		notConnectedWin,
 		linuxHost,
 	})
-	require.Error(t, err)
+	require.NoError(t, err)
+	require.Equal(t, map[string]bool{
+		notConnectedMac.UUID: false,
+		connectedMac.UUID:    true,
+		connectedWin.UUID:    true,
+		notConnectedWin.UUID: false,
+		linuxHost.UUID:       false,
+	}, connectedMap)
 }
 
 func testIsHostConnectedToFleetMDM(t *testing.T, ds *Datastore) {

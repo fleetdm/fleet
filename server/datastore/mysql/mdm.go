@@ -1227,8 +1227,6 @@ func (ds *Datastore) AreHostsConnectedToFleetMDM(ctx context.Context, hosts []*f
 			appleUUIDs = append(appleUUIDs, h.UUID)
 		case "windows":
 			winUUIDs = append(winUUIDs, h.UUID)
-		default:
-			return nil, ctxerr.Errorf(ctx, "unsupported platform %s", h.Platform)
 		}
 		res[h.UUID] = false
 	}
