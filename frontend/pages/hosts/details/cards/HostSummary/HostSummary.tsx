@@ -111,7 +111,7 @@ interface IHostSummaryProps {
   toggleOSSettingsModal?: () => void;
   toggleBootstrapPackageModal?: () => void;
   hostMdmProfiles?: IHostMdmProfile[];
-  isConnectedToFleet?: boolean;
+  isConnectedToFleetMdm?: boolean;
   showRefetchSpinner: boolean;
   onRefetchHost: (
     evt: React.MouseEvent<HTMLButtonElement, React.MouseEvent>
@@ -172,7 +172,7 @@ const HostSummary = ({
   toggleOSSettingsModal,
   toggleBootstrapPackageModal,
   hostMdmProfiles,
-  isConnectedToFleet,
+  isConnectedToFleetMdm,
   showRefetchSpinner,
   onRefetchHost,
   renderActionDropdown,
@@ -411,7 +411,7 @@ const HostSummary = ({
         {/* Rendering of OS Settings data */}
         {(platform === "darwin" || platform === "windows") &&
           isPremiumTier &&
-          isConnectedToFleet && // show if 1 - host is enrolled in Fleet MDM, and
+          isConnectedToFleetMdm && // show if 1 - host is enrolled in Fleet MDM, and
           hostMdmProfiles &&
           hostMdmProfiles.length > 0 && ( // 2 - host has at least one setting (profile) enforced
             <DataSet

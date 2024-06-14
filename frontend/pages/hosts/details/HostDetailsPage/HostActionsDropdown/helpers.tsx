@@ -71,7 +71,7 @@ interface IHostActionConfigOptions {
   isTeamObserver: boolean;
   isHostOnline: boolean;
   isEnrolledInMdm: boolean;
-  isConnectedToFleet?: boolean;
+  isConnectedToFleetMdm?: boolean;
   isMacMdmEnabledAndConfigured: boolean;
   isWindowsMdmEnabledAndConfigured: boolean;
   doesStoreEncryptionKey: boolean;
@@ -91,14 +91,14 @@ const canEditMdm = (config: IHostActionConfigOptions) => {
     isTeamAdmin,
     isTeamMaintainer,
     isEnrolledInMdm,
-    isConnectedToFleet,
+    isConnectedToFleetMdm,
     isMacMdmEnabledAndConfigured,
   } = config;
   return (
     config.hostPlatform === "darwin" &&
     isMacMdmEnabledAndConfigured &&
     isEnrolledInMdm &&
-    isConnectedToFleet &&
+    isConnectedToFleetMdm &&
     (isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer)
   );
 };
@@ -108,7 +108,7 @@ const canLockHost = ({
   hostPlatform,
   isMacMdmEnabledAndConfigured,
   isEnrolledInMdm,
-  isConnectedToFleet,
+  isConnectedToFleetMdm,
   isGlobalAdmin,
   isGlobalMaintainer,
   isTeamAdmin,
@@ -118,7 +118,7 @@ const canLockHost = ({
   // macOS hosts can be locked if they are enrolled in MDM and the MDM is enabled
   const canLockDarwin =
     hostPlatform === "darwin" &&
-    isConnectedToFleet &&
+    isConnectedToFleetMdm &&
     isMacMdmEnabledAndConfigured &&
     isEnrolledInMdm;
 
@@ -138,7 +138,7 @@ const canWipeHost = ({
   isGlobalMaintainer,
   isTeamAdmin,
   isTeamMaintainer,
-  isConnectedToFleet,
+  isConnectedToFleetMdm,
   isEnrolledInMdm,
   isMacMdmEnabledAndConfigured,
   isWindowsMdmEnabledAndConfigured,
@@ -152,7 +152,7 @@ const canWipeHost = ({
   // macOS and Windows hosts have the same conditions and can be wiped if they
   // are enrolled in MDM and the MDM is enabled.
   const canWipeMacOrWindows =
-    hostMdmEnabled && isConnectedToFleet && isEnrolledInMdm;
+    hostMdmEnabled && isConnectedToFleetMdm && isEnrolledInMdm;
 
   return (
     isPremiumTier &&
@@ -168,7 +168,7 @@ const canUnlock = ({
   isGlobalMaintainer,
   isTeamAdmin,
   isTeamMaintainer,
-  isConnectedToFleet,
+  isConnectedToFleetMdm,
   isEnrolledInMdm,
   isMacMdmEnabledAndConfigured,
   hostPlatform,
@@ -176,7 +176,7 @@ const canUnlock = ({
 }: IHostActionConfigOptions) => {
   const canUnlockDarwin =
     hostPlatform === "darwin" &&
-    isConnectedToFleet &&
+    isConnectedToFleetMdm &&
     isMacMdmEnabledAndConfigured &&
     isEnrolledInMdm;
 

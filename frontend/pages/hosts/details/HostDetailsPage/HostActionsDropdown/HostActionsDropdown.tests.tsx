@@ -230,7 +230,7 @@ describe("Host Actions Dropdown", () => {
           onSelect={noop}
           hostStatus="online"
           hostMdmEnrollmentStatus="On (automatic)"
-          isConnectedToFleet
+          isConnectedToFleetMdm
           hostPlatform="darwin"
           hostMdmDeviceStatus="unlocked"
           hostScriptsEnabled
@@ -259,7 +259,7 @@ describe("Host Actions Dropdown", () => {
           onSelect={noop}
           hostStatus="online"
           hostMdmEnrollmentStatus="On (automatic)"
-          isConnectedToFleet
+          isConnectedToFleetMdm
           hostPlatform="darwin"
           hostMdmDeviceStatus="unlocked"
           hostScriptsEnabled
@@ -289,7 +289,7 @@ describe("Host Actions Dropdown", () => {
           onSelect={noop}
           hostStatus="online"
           hostMdmEnrollmentStatus="On (automatic)"
-          isConnectedToFleet
+          isConnectedToFleetMdm
           hostPlatform="darwin"
           hostMdmDeviceStatus="unlocked"
           hostScriptsEnabled
@@ -319,7 +319,7 @@ describe("Host Actions Dropdown", () => {
           onSelect={noop}
           hostStatus="online"
           hostMdmEnrollmentStatus="On (automatic)"
-          isConnectedToFleet
+          isConnectedToFleetMdm
           hostPlatform="darwin"
           hostMdmDeviceStatus="unlocked"
           hostScriptsEnabled
@@ -347,7 +347,7 @@ describe("Host Actions Dropdown", () => {
           onSelect={noop}
           hostStatus="online"
           hostMdmEnrollmentStatus="On (automatic)"
-          isConnectedToFleet={false}
+          isConnectedToFleetMdm={false}
           hostPlatform="darwin"
           hostMdmDeviceStatus="unlocked"
           hostScriptsEnabled
@@ -376,7 +376,7 @@ describe("Host Actions Dropdown", () => {
           onSelect={noop}
           hostStatus="offline"
           hostMdmEnrollmentStatus="On (automatic)"
-          isConnectedToFleet
+          isConnectedToFleetMdm
           hostPlatform="darwin"
           hostMdmDeviceStatus="unlocked"
           hostScriptsEnabled
@@ -409,7 +409,7 @@ describe("Host Actions Dropdown", () => {
           hostTeamId={1}
           hostStatus="online"
           hostMdmEnrollmentStatus="On (automatic)"
-          isConnectedToFleet
+          isConnectedToFleetMdm
           hostPlatform="windows"
           hostMdmDeviceStatus="unlocked"
           hostScriptsEnabled
@@ -549,7 +549,7 @@ describe("Host Actions Dropdown", () => {
           onSelect={noop}
           hostStatus="online"
           hostMdmEnrollmentStatus="On (automatic)"
-          isConnectedToFleet
+          isConnectedToFleetMdm
           hostPlatform="darwin"
           hostMdmDeviceStatus="unlocked"
           hostScriptsEnabled
@@ -579,7 +579,7 @@ describe("Host Actions Dropdown", () => {
           onSelect={noop}
           hostStatus="online"
           hostMdmEnrollmentStatus="On (automatic)"
-          isConnectedToFleet
+          isConnectedToFleetMdm
           hostPlatform="debian"
           hostMdmDeviceStatus="unlocked"
           hostScriptsEnabled={false}
@@ -621,7 +621,7 @@ describe("Host Actions Dropdown", () => {
           onSelect={noop}
           hostStatus="online"
           hostMdmEnrollmentStatus="Off"
-          isConnectedToFleet
+          isConnectedToFleetMdm
           hostPlatform="darwin"
           hostMdmDeviceStatus="unlocked"
           hostScriptsEnabled
@@ -651,7 +651,7 @@ describe("Host Actions Dropdown", () => {
           onSelect={noop}
           hostStatus="online"
           hostMdmEnrollmentStatus="On (automatic)"
-          isConnectedToFleet={false}
+          isConnectedToFleetMdm={false}
           hostPlatform="darwin"
           hostMdmDeviceStatus="unlocked"
           hostScriptsEnabled
@@ -683,7 +683,7 @@ describe("Host Actions Dropdown", () => {
           onSelect={noop}
           hostStatus="online"
           hostMdmEnrollmentStatus="On (automatic)"
-          isConnectedToFleet
+          isConnectedToFleetMdm
           hostPlatform="darwin"
           hostMdmDeviceStatus="locked"
           hostScriptsEnabled
@@ -713,7 +713,7 @@ describe("Host Actions Dropdown", () => {
           onSelect={noop}
           hostStatus="online"
           hostMdmEnrollmentStatus="On (automatic)"
-          isConnectedToFleet
+          isConnectedToFleetMdm
           hostPlatform="darwin"
           hostMdmDeviceStatus="unlocking"
           hostScriptsEnabled
@@ -743,7 +743,7 @@ describe("Host Actions Dropdown", () => {
           onSelect={noop}
           hostStatus="online"
           hostMdmEnrollmentStatus="Off"
-          isConnectedToFleet
+          isConnectedToFleetMdm
           hostPlatform="darwin"
           hostMdmDeviceStatus="locked"
           hostScriptsEnabled
@@ -773,7 +773,7 @@ describe("Host Actions Dropdown", () => {
           onSelect={noop}
           hostStatus="online"
           hostMdmEnrollmentStatus="On (automatic)"
-          isConnectedToFleet={false}
+          isConnectedToFleetMdm={false}
           hostPlatform="darwin"
           hostMdmDeviceStatus="locked"
           hostScriptsEnabled
@@ -804,7 +804,7 @@ describe("Host Actions Dropdown", () => {
           onSelect={noop}
           hostStatus="online"
           hostMdmEnrollmentStatus="On (automatic)"
-          isConnectedToFleet
+          isConnectedToFleetMdm
           hostPlatform="darwin"
           hostMdmDeviceStatus="locked"
           hostScriptsEnabled
@@ -834,7 +834,7 @@ describe("Host Actions Dropdown", () => {
           onSelect={noop}
           hostStatus="offline"
           hostMdmEnrollmentStatus="On (automatic)"
-          isConnectedToFleet
+          isConnectedToFleetMdm
           hostPlatform="windows"
           hostMdmDeviceStatus="locked"
           hostScriptsEnabled={false}
@@ -878,7 +878,7 @@ describe("Host Actions Dropdown", () => {
           onSelect={noop}
           hostStatus="online"
           hostMdmEnrollmentStatus="On (automatic)"
-          isConnectedToFleet
+          isConnectedToFleetMdm
           hostPlatform="darwin"
           hostMdmDeviceStatus="unlocked"
           hostScriptsEnabled
@@ -909,7 +909,7 @@ describe("Host Actions Dropdown", () => {
           onSelect={noop}
           hostStatus="online"
           hostMdmEnrollmentStatus="On (automatic)"
-          isConnectedToFleet
+          isConnectedToFleetMdm
           hostPlatform="windows"
           hostMdmDeviceStatus="unlocked"
           hostScriptsEnabled
@@ -940,7 +940,7 @@ describe("Host Actions Dropdown", () => {
           onSelect={noop}
           hostStatus="online"
           hostMdmEnrollmentStatus="On (automatic)"
-          isConnectedToFleet
+          isConnectedToFleetMdm
           hostPlatform="darwin"
           hostMdmDeviceStatus="unlocked"
           hostScriptsEnabled
@@ -970,7 +970,7 @@ describe("Host Actions Dropdown", () => {
           onSelect={noop}
           hostStatus="online"
           hostMdmEnrollmentStatus="On (automatic)"
-          isConnectedToFleet
+          isConnectedToFleetMdm
           hostPlatform="debian"
           hostMdmDeviceStatus="unlocked"
           hostScriptsEnabled={false}
@@ -1011,7 +1011,7 @@ describe("Host Actions Dropdown", () => {
           hostTeamId={null}
           onSelect={noop}
           hostStatus="offline"
-          isConnectedToFleet
+          isConnectedToFleetMdm
           hostPlatform="windows"
           hostMdmEnrollmentStatus={null}
           hostMdmDeviceStatus="unlocked"
@@ -1039,7 +1039,7 @@ describe("Host Actions Dropdown", () => {
           hostTeamId={null}
           onSelect={noop}
           hostStatus="offline"
-          isConnectedToFleet
+          isConnectedToFleetMdm
           hostPlatform="windows"
           hostMdmEnrollmentStatus={null}
           hostMdmDeviceStatus="unlocked"
@@ -1085,7 +1085,7 @@ describe("Host Actions Dropdown", () => {
           hostTeamId={null}
           onSelect={noop}
           hostStatus="online"
-          isConnectedToFleet
+          isConnectedToFleetMdm
           hostPlatform="darwin"
           hostMdmEnrollmentStatus={null}
           hostMdmDeviceStatus="unlocked"

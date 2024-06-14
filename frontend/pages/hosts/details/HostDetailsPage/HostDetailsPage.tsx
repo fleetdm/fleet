@@ -680,7 +680,7 @@ const HostDetailsPage = ({
         hostMdmDeviceStatus={hostMdmDeviceStatus}
         hostMdmEnrollmentStatus={host.mdm.enrollment_status}
         doesStoreEncryptionKey={host.mdm.encryption_key_available}
-        isConnectedToFleet={mdm?.connected_to_fleet}
+        isConnectedToFleetMdm={mdm?.connected_to_fleet}
         hostScriptsEnabled={host.scripts_enabled}
       />
     );
@@ -791,7 +791,7 @@ const HostDetailsPage = ({
           toggleOSSettingsModal={toggleOSSettingsModal}
           toggleBootstrapPackageModal={toggleBootstrapPackageModal}
           hostMdmProfiles={host?.mdm.profiles ?? []}
-          isConnectedToFleet={host?.mdm?.connected_to_fleet}
+          isConnectedToFleetMdm={host?.mdm?.connected_to_fleet}
           showRefetchSpinner={showRefetchSpinner}
           onRefetchHost={onRefetchHost}
           renderActionDropdown={renderActionDropdown}
