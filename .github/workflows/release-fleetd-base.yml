@@ -302,4 +302,4 @@ jobs:
     needs: update-meta-files
     uses: ./.github/workflows/verify-fleetd-base.yml
     with:
-      base-url: ${{ env.BASE_URL }}
+      base-url: "https://download-testing.fleetdm.com" # Production: "https://download.fleetdm.com" | Testing: "https://download-testing.fleetdm.com"
