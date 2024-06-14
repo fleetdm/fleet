@@ -3,6 +3,8 @@
 package table
 
 import (
+	"fmt"
+
 	cisaudit "github.com/fleetdm/fleet/v4/orbit/pkg/table/cis_audit"
 	mdmbridge "github.com/fleetdm/fleet/v4/orbit/pkg/table/mdm"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/windowsupdatetable"
@@ -12,7 +14,7 @@ import (
 	"github.com/osquery/osquery-go/plugin/table"
 )
 
-func PlatformTables(_ PluginOpts) []osquery.OsqueryPlugin {
+func PlatformTables(_ PluginOpts) ([]osquery.OsqueryPlugin, error) {
 	plugins := []osquery.OsqueryPlugin{
 		// Fleet tables
 		table.NewPlugin("cis_audit", cisaudit.Columns(), cisaudit.Generate),
@@ -20,30 +22,35 @@ func PlatformTables(_ PluginOpts) []osquery.OsqueryPlugin {
 		windowsupdatetable.TablePlugin(windowsupdatetable.UpdatesTable, osqueryLogger), // table name is "windows_updates"
 	}
 
-	if !IsWindowsServer() {
+	windowsServer, err := IsWindowsServer()
+	if err != nil {
+		return nil, err
+	}
+
+	if !windowsServer {
 		plugins = append(plugins, table.NewPlugin("mdm_bridge", mdmbridge.Columns(), mdmbridge.Generate))
 	}
 
-	return plugins
+	return plugins, nil
 }
 
-func IsWindowsServer() bool {
+func IsWindowsServer() (bool, error) {
 	// If the registry can't be read, it's safer to assume we're a
 	// server and not load the broken table
 	k, err := registry.OpenKey(registry.LOCAL_MACHINE, `SOFTWARE\Microsoft\Windows NT\CurrentVersion`, registry.QUERY_VALUE)
 	if err != nil {
-		return true
+		return false, fmt.Errorf("windows server check: %w", err)
 	}
 	defer k.Close()
 
 	s, _, err := k.GetStringValue("InstallationType")
 	if err != nil {
-		return true
+		return false, fmt.Errorf("windows server check: %w", err)
 	}
 
 	if s == "Server" {
-		return true
+		return true, nil
 	}
 
-	return false
+	return false, nil
 }
