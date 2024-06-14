@@ -8122,7 +8122,7 @@ Content-Type: application/octet-stream
 `Status: 200`
 
 
-### Get or download software
+### Download software
 
 _Available in Fleet Premium._
 
@@ -8136,12 +8136,26 @@ Get info or download a software package.
 | ----            | ------- | ---- | --------------------------------------------     |
 | software_title_id              | integer | path | **Required**. The ID of the software title to download software package.|
 | team_id | integer | form | **Required**. The team ID. Downloads a software package added to the specified team. |
-| alt             | integer | query | If specified and set to `media`, downloads the specified software package. |
-| token | string | query | Download with authentication token. `alt` must be specified as `media` to download with the token. |
+| alt             | integer | query | **Required**. Supported values are `media` and `token`. If set to `media`, downloads the specified software package. If set to `token` returns a one-time use token to download this package unauthenticated. |
+| token | string | query | Token to download unauthenticated. `alt` must be specified as `media` to download with the token. |
 
-#### Example (get package info)
+#### Example (`alt=media`)
 
-`GET /api/v1/fleet/software/titles/123/package`
+`GET /api/v1/fleet/software/titles/123/package?alt=media?team_id=2`
+
+##### Default response
+`Status: 200`
+```http
+Status: 200
+Content-Type: application/octet-stream
+Content-Disposition: attachment
+Content-Length: <length>
+Body: <blob>
+```
+
+#### Example (`alt=token`)
+
+`GET /api/v1/fleet/software/titles/123/package?alt=token?team_id=2`
 
 ##### Default response
 
@@ -8149,25 +8163,8 @@ Get info or download a software package.
 
 ```json
 {
-  "name": "ZoomFullInstaller.pkg"
   "token": "0331f58a-5bf8-4eb6-959d-f1dbd7fa8d64"
 }
-```
-
-#### Example (download package)
-
-`GET /api/v1/fleet/software/titles/123/package?alt=media?team_id=2`
-
-##### Default response
-
-`Status: 200`
-
-```http
-Status: 200
-Content-Type: application/octet-stream
-Content-Disposition: attachment
-Content-Length: <length>
-Body: <blob>
 ```
 
 ### Delete software
