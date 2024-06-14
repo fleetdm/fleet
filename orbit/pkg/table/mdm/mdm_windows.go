@@ -137,7 +137,7 @@ func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[strin
 		deviceEnrollmentStatus = "device_not_enrolled"
 	}
 
-	// Executing the input MDM command
+	// Executing the input MDM command if it was present
 	if len(inputCmd) > 0 {
 
 		// performs the actual MDM cmd execution against the OS MDM stack
