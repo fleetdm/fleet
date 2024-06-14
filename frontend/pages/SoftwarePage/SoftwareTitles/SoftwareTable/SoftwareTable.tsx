@@ -31,6 +31,7 @@ import Slider from "components/forms/fields/Slider";
 import CustomLink from "components/CustomLink";
 import LastUpdatedText from "components/LastUpdatedText";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
+import TableCount from "components/TableContainer/TableCount";
 
 import EmptySoftwareTable from "pages/SoftwarePage/components/EmptySoftwareTable";
 
@@ -189,23 +190,6 @@ const SoftwareTable = ({
     isSoftwareEnabled &&
     (!!tableData || query !== "" || softwareFilter === "vulnerableSoftware");
 
-  const getItemsCountText = () => {
-    const count = data?.count;
-    if (!tableData || !count) return "";
-
-    return count === 1 ? `${count} item` : `${count} items`;
-  };
-
-  const getLastUpdatedText = () => {
-    if (!tableData || !data?.counts_updated_at) return "";
-    return (
-      <LastUpdatedText
-        lastUpdatedAt={data.counts_updated_at}
-        whatToRetrieve="software"
-      />
-    );
-  };
-
   const handleShowVersionsToggle = () => {
     const queryParams: Record<string, string | number | undefined> = {
       query,
@@ -276,16 +260,18 @@ const SoftwareTable = ({
   };
 
   const renderSoftwareCount = () => {
-    const itemText = getItemsCountText();
-    const lastUpdatedText = getLastUpdatedText();
-
-    if (!itemText) return null;
+    if (!tableData || !data?.count) return null;
 
     return (
-      <div className={`${baseClass}__count`}>
-        <span>{itemText}</span>
-        {lastUpdatedText}
-      </div>
+      <>
+        <TableCount name="items" count={data?.count} />
+        {tableData && data?.counts_updated_at && (
+          <LastUpdatedText
+            lastUpdatedAt={data.counts_updated_at}
+            whatToRetrieve="software"
+          />
+        )}
+      </>
     );
   };
 

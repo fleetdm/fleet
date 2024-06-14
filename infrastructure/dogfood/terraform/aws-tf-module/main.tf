@@ -100,8 +100,8 @@ module "main" {
   fleet_config = {
     image    = local.geolite2_image
     family   = local.customer
-    task_cpu = 2048
-    task_mem = 5120
+    task_cpu = 1024
+    task_mem = 4096
     cpu      = 1024
     mem      = 4096
     pid_mode = "task"
@@ -144,68 +144,68 @@ module "main" {
     software_installers = {
       bucket_prefix = "${local.customer}-software-installers-"
     }
-    sidecars = [
-      {
-        name        = "osquery"
-        image       = module.osquery_docker.ecr_images["${local.osquery_version}-ubuntu24.04"]
-        cpu         = 1024
-        memory      = 1024
-        mountPoints = []
-        volumesFrom = []
-        essential   = true
-        ulimits = [
-          {
-            softLimit = 999999,
-            hardLimit = 999999,
-            name      = "nofile"
-          }
-        ]
-        networkMode = "awsvpc"
-        logConfiguration = {
-          logDriver = "awslogs"
-          options = {
-            awslogs-group         = local.customer
-            awslogs-region        = "us-east-2"
-            awslogs-stream-prefix = "osquery"
-          }
-        }
-        secrets = [
-          {
-            name      = "ENROLL_SECRET"
-            valueFrom = aws_secretsmanager_secret.dogfood_sidecar_enroll_secret.arn
-          }
-        ]
-        workingDirectory = "/",
-        command = [
-          "osqueryd",
-          "--tls_hostname=dogfood.fleetdm.com",
-          "--force=true",
-          # Ensure that the host identifier remains the same between invocations
-          # "--host_identifier=specified",
-          # "--specified_identifier=${random_uuid.osquery[each.key].result}",
-          "--verbose=true",
-          "--tls_dump=true",
-          "--enroll_secret_env=ENROLL_SECRET",
-          "--enroll_tls_endpoint=/api/osquery/enroll",
-          "--config_plugin=tls",
-          "--config_tls_endpoint=/api/osquery/config",
-          "--config_refresh=10",
-          "--disable_distributed=false",
-          "--distributed_plugin=tls",
-          "--distributed_interval=10",
-          "--distributed_tls_max_attempts=3",
-          "--distributed_tls_read_endpoint=/api/osquery/distributed/read",
-          "--distributed_tls_write_endpoint=/api/osquery/distributed/write",
-          "--logger_plugin=tls",
-          "--logger_tls_endpoint=/api/osquery/log",
-          "--logger_tls_period=10",
-          "--disable_carver=false",
-          "--carver_start_endpoint=/api/osquery/carve/begin",
-          "--carver_continue_endpoint=/api/osquery/carve/block",
-          "--carver_block_size=8000000",
-        ]
-      }
-    ]
+    # sidecars = [
+    #   {
+    #     name        = "osquery"
+    #     image       = module.osquery_docker.ecr_images["${local.osquery_version}-ubuntu24.04"]
+    #     cpu         = 1024
+    #     memory      = 1024
+    #     mountPoints = []
+    #     volumesFrom = []
+    #     essential   = true
+    #     ulimits = [
+    #       {
+    #         softLimit = 999999,
+    #         hardLimit = 999999,
+    #         name      = "nofile"
+    #       }
+    #     ]
+    #     networkMode = "awsvpc"
+    #     logConfiguration = {
+    #       logDriver = "awslogs"
+    #       options = {
+    #         awslogs-group         = local.customer
+    #         awslogs-region        = "us-east-2"
+    #         awslogs-stream-prefix = "osquery"
+    #       }
+    #     }
+    #     secrets = [
+    #       {
+    #         name      = "ENROLL_SECRET"
+    #         valueFrom = aws_secretsmanager_secret.dogfood_sidecar_enroll_secret.arn
+    #       }
+    #     ]
+    #     workingDirectory = "/",
+    #     command = [
+    #       "osqueryd",
+    #       "--tls_hostname=dogfood.fleetdm.com",
+    #       "--force=true",
+    #       # Ensure that the host identifier remains the same between invocations
+    #       # "--host_identifier=specified",
+    #       # "--specified_identifier=${random_uuid.osquery[each.key].result}",
+    #       "--verbose=true",
+    #       "--tls_dump=true",
+    #       "--enroll_secret_env=ENROLL_SECRET",
+    #       "--enroll_tls_endpoint=/api/osquery/enroll",
+    #       "--config_plugin=tls",
+    #       "--config_tls_endpoint=/api/osquery/config",
+    #       "--config_refresh=10",
+    #       "--disable_distributed=false",
+    #       "--distributed_plugin=tls",
+    #       "--distributed_interval=10",
+    #       "--distributed_tls_max_attempts=3",
+    #       "--distributed_tls_read_endpoint=/api/osquery/distributed/read",
+    #       "--distributed_tls_write_endpoint=/api/osquery/distributed/write",
+    #       "--logger_plugin=tls",
+    #       "--logger_tls_endpoint=/api/osquery/log",
+    #       "--logger_tls_period=10",
+    #       "--disable_carver=false",
+    #       "--carver_start_endpoint=/api/osquery/carve/begin",
+    #       "--carver_continue_endpoint=/api/osquery/carve/block",
+    #       "--carver_block_size=8000000",
+    #     ]
+    #   }
+    # ]
   }
   alb_config = {
     name = local.customer
@@ -531,8 +531,6 @@ module "vuln-processing" {
   fleet_config                        = module.main.byo-vpc.byo-db.byo-ecs.fleet_config
   task_role_arn                       = module.main.byo-vpc.byo-db.byo-ecs.iam_role_arn
   fleet_server_private_key_secret_arn = module.main.byo-vpc.byo-db.byo-ecs.fleet_server_private_key_secret_arn
-  vuln_processing_task_memory         = 5120
-  vuln_processing_task_cpu            = 2048
   awslogs_config = {
     group  = module.main.byo-vpc.byo-db.byo-ecs.fleet_config.awslogs.name
     region = module.main.byo-vpc.byo-db.byo-ecs.fleet_config.awslogs.region

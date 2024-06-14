@@ -1231,7 +1231,12 @@ func getHostQueryReportEndpoint(ctx context.Context, request interface{}, svc fl
 		return getHostQueryReportResponse{Err: err}, nil
 	}
 
-	isClipped, err := svc.QueryReportIsClipped(ctx, req.QueryID)
+	appConfig, err := svc.AppConfigObfuscated(ctx)
+	if err != nil {
+		return getHostQueryReportResponse{Err: err}, nil
+	}
+
+	isClipped, err := svc.QueryReportIsClipped(ctx, req.QueryID, appConfig.ServerSettings.GetQueryReportCap())
 	if err != nil {
 		return getHostQueryReportResponse{Err: err}, nil
 	}

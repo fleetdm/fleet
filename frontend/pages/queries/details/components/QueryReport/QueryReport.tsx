@@ -14,6 +14,8 @@ import { IQueryReport, IQueryReportResultRow } from "interfaces/query_report";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon/Icon";
 import TableContainer from "components/TableContainer";
+import TableCount from "components/TableContainer/TableCount";
+import { generateResultsCountText } from "components/TableContainer/utilities/TableContainerUtils";
 import TooltipWrapper from "components/TooltipWrapper";
 import EmptyTable from "components/EmptyTable";
 
@@ -102,7 +104,7 @@ const QueryReport = ({
 
     if (isClipped) {
       return (
-        <div className={`${baseClass}__count `}>
+        <>
           <TooltipWrapper
             tipContent={
               <>
@@ -115,16 +117,13 @@ const QueryReport = ({
               </>
             }
           >
-            {`${count} result${count === 1 ? "" : "s"}`}
+            {generateResultsCountText("results", count)}
           </TooltipWrapper>
-        </div>
+        </>
       );
     }
-    return (
-      <div className={`${baseClass}__count `}>
-        <span>{`${count} result${count === 1 ? "" : "s"}`}</span>
-      </div>
-    );
+
+    return <TableCount name="results" count={count} />;
   }, [filteredResults.length, isClipped]);
 
   const renderTable = () => {

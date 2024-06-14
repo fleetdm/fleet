@@ -8,21 +8,6 @@
     margin-right: $pad-medium;
   }
 
-  &__export-btn {
-    img {
-      width: 13px;
-      margin-left: 8px;
-      position: relative;
-      bottom: 2px;
-    }
-  }
-  &__show-query-btn {
-    img {
-      width: 13px;
-      margin-left: 8px;
-    }
-  }
-
   .data-table__wrapper {
     overflow-x: scroll;
   }

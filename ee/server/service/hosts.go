@@ -58,6 +58,8 @@ func (svc *Service) LockHost(ctx context.Context, hostID uint) (unlockPIN string
 
 	// locking validations are based on the platform of the host
 	switch host.FleetPlatform() {
+	case "ios", "ipados":
+		return "", ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", "Can't lock iOS or iPadOS hosts. Use wipe instead."))
 	case "darwin":
 		if err := svc.VerifyMDMAppleConfigured(ctx); err != nil {
 			if errors.Is(err, fleet.ErrMDMNotConfigured) {
@@ -176,7 +178,7 @@ func (svc *Service) UnlockHost(ctx context.Context, hostID uint) (string, error)
 
 	// locking validations are based on the platform of the host
 	switch host.FleetPlatform() {
-	case "darwin":
+	case "darwin", "ios", "ipados":
 		// all good, no need to check if MDM enrolled, will validate later that it
 		// is currently locked.
 
@@ -267,7 +269,7 @@ func (svc *Service) WipeHost(ctx context.Context, hostID uint) error {
 	// uses scripts, not MDM.
 	var requireMDM bool
 	switch host.FleetPlatform() {
-	case "darwin":
+	case "darwin", "ios", "ipados":
 		if err := svc.VerifyMDMAppleConfigured(ctx); err != nil {
 			if errors.Is(err, fleet.ErrMDMNotConfigured) {
 				err = fleet.NewInvalidArgumentError("host_id", fleet.AppleMDMNotConfiguredMessage).WithStatus(http.StatusBadRequest)
@@ -471,7 +473,7 @@ func (svc *Service) enqueueWipeHostRequest(ctx context.Context, host *fleet.Host
 	}
 
 	switch wipeStatus.HostFleetPlatform {
-	case "darwin":
+	case "darwin", "ios", "ipados":
 		wipeCommandUUID := uuid.NewString()
 		if err := svc.mdmAppleCommander.EraseDevice(ctx, host, wipeCommandUUID); err != nil {
 			return ctxerr.Wrap(ctx, err, "enqueuing wipe request for darwin")
