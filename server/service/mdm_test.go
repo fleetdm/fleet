@@ -501,7 +501,7 @@ func TestRunMDMCommandValidations(t *testing.T) {
 	ds.AreHostsConnectedToFleetMDMFunc = func(ctx context.Context, hosts []*fleet.Host) (map[string]bool, error) {
 		res := make(map[string]bool, len(hosts))
 		for _, h := range hosts {
-			res[h.UUID] = true
+			res[h.UUID] = h.MDMInfo != nil && h.MDMInfo.Enrolled && h.MDMInfo.Name == fleet.WellKnownMDMFleet
 		}
 		return res, nil
 	}

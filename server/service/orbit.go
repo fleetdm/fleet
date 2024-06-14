@@ -278,6 +278,7 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 		if appConfig.MDM.EnabledAndConfigured &&
 			mdmConfig != nil &&
 			host.IsOsqueryEnrolled() &&
+			hostHasMDMOn &&
 			mdmConfig.MacOSUpdates.Configured() {
 
 			hostOS, err := svc.ds.GetHostOperatingSystem(ctx, host.ID)
@@ -339,6 +340,7 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 	var nudgeConfig *fleet.NudgeConfig
 	if appConfig.MDM.EnabledAndConfigured &&
 		hostHasMDMOn &&
+		host.IsOsqueryEnrolled() &&
 		appConfig.MDM.MacOSUpdates.Configured() {
 		hostOS, err := svc.ds.GetHostOperatingSystem(ctx, host.ID)
 		if errors.Is(err, sql.ErrNoRows) {
