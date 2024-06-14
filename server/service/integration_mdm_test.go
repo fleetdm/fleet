@@ -71,7 +71,7 @@ import (
 
 func TestIntegrationsMDM(t *testing.T) {
 	testingSuite := new(integrationMDMTestSuite)
-	testingSuite.s = &testingSuite.Suite
+	testingSuite.withServer.s = &testingSuite.Suite
 	suite.Run(t, testingSuite)
 }
 
@@ -2316,7 +2316,7 @@ func (s *integrationMDMTestSuite) TestFleetdConfiguration() {
 	// create an enroll secret for the team
 	teamSpecs := applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
 		Name:    tm.Name,
-		Secrets: []fleet.EnrollSecret{{Secret: t.Name() + "team-secret"}},
+		Secrets: &[]fleet.EnrollSecret{{Secret: t.Name() + "team-secret"}},
 	}}}
 	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
 

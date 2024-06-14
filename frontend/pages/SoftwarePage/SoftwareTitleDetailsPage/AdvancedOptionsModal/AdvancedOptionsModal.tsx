@@ -1,7 +1,5 @@
 import React from "react";
 
-// @ts-ignore
-import InputField from "components/forms/fields/InputField";
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import FleetAce from "components/FleetAce";

@@ -77,7 +77,7 @@ const InputFieldHiddenContent = ({
   return (
     <div className={classNames}>
       <InputField
-        disabled
+        readOnly
         inputWrapperClass={`${baseClass}__secret-input`}
         name={name}
         type={showSecret ? "text" : "password"}

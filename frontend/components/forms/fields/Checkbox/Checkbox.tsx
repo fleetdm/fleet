@@ -11,6 +11,9 @@ const baseClass = "fleet-checkbox";
 export interface ICheckboxProps {
   children?: ReactNode;
   className?: string;
+  /** readOnly displays a non-editable field */
+  readOnly?: boolean;
+  /** disabled displays a greyed out non-editable field */
   disabled?: boolean;
   name?: string;
   onChange?: any; // TODO: meant to be an event; figure out type for this
@@ -28,6 +31,7 @@ const Checkbox = (props: ICheckboxProps) => {
   const {
     children,
     className,
+    readOnly = false,
     disabled = false,
     name,
     onChange = noop,
@@ -57,11 +61,13 @@ const Checkbox = (props: ICheckboxProps) => {
   );
 
   const checkBoxTickClass = classnames(`${baseClass}__tick`, {
+    [`${baseClass}__tick--read-only`]: readOnly || disabled,
     [`${baseClass}__tick--disabled`]: disabled,
     [`${baseClass}__tick--indeterminate`]: indeterminate,
   });
 
   const checkBoxLabelClass = classnames(checkBoxClass, {
+    [`${baseClass}__label--read-only`]: readOnly || disabled,
     [`${baseClass}__label--disabled`]: disabled,
   });
 
@@ -78,7 +84,7 @@ const Checkbox = (props: ICheckboxProps) => {
           <input
             checked={value}
             className={`${baseClass}__input`}
-            disabled={disabled}
+            disabled={readOnly || disabled}
             id={name}
             name={name}
             onChange={handleChange}
