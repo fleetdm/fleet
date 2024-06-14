@@ -412,8 +412,8 @@ func (s *HostLockWipeStatus) IsPendingLock() bool {
 
 func (s HostLockWipeStatus) IsPendingUnlock() bool {
 	if s.HostFleetPlatform == "darwin" {
-		// pending unlock if an unlock was requested
-		return !s.UnlockRequestedAt.IsZero()
+		// Apple MDM does not have a concept of pending unlock.
+		return false
 	}
 	// pending unlock if script execution request is queued but no result yet
 	return s.UnlockScript != nil && s.UnlockScript.ExitCode == nil
