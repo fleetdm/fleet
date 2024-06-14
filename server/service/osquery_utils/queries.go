@@ -1125,14 +1125,14 @@ var SoftwareOverrideQueries = map[string]DetailQuery{
 		Description: "A software override query[^1] to differentiate between Firefox and Firefox ESR on macOS.  Requires `fleetd`",
 		Query: `
 			WITH app_paths AS (
-				SELECT path 
-				FROM apps 
+				SELECT path
+				FROM apps
 				WHERE bundle_identifier = 'org.mozilla.firefox'
-			),	
+			),
 			remoting_name AS (
-				SELECT value, path 
-				FROM parse_ini 
-				WHERE key = 'RemotingName' 
+				SELECT value, path
+				FROM parse_ini
+				WHERE key = 'RemotingName'
 				AND path IN (SELECT CONCAT(path, '/Contents/Resources/application.ini') FROM app_paths)
 			)
 			SELECT

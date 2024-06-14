@@ -111,7 +111,12 @@ func (r *Runner) Execute() error {
 	plugins := OrbitDefaultTables()
 
 	opts := PluginOpts{Socket: r.socket}
-	plugins = append(plugins, PlatformTables(opts)...)
+	platformTables, err := PlatformTables(opts)
+	if err != nil {
+		return fmt.Errorf("populating platform tabeles: %w", err)
+	}
+
+	plugins = append(plugins, platformTables...)
 	for _, t := range r.tableExtensions {
 		plugins = append(plugins, table.NewPlugin(
 			t.Name(),

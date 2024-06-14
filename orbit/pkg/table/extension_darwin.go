@@ -38,7 +38,7 @@ import (
 	"github.com/osquery/osquery-go/plugin/table"
 )
 
-func PlatformTables(opts PluginOpts) []osquery.OsqueryPlugin {
+func PlatformTables(opts PluginOpts) ([]osquery.OsqueryPlugin, error) {
 	plugins := []osquery.OsqueryPlugin{
 		// Fleet tables
 		table.NewPlugin("icloud_private_relay", privaterelay.Columns(), privaterelay.Generate),
@@ -96,5 +96,5 @@ func PlatformTables(opts PluginOpts) []osquery.OsqueryPlugin {
 	// append platform specific tables
 	plugins = appendTables(plugins)
 
-	return plugins
+	return plugins, nil
 }
