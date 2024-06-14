@@ -699,7 +699,7 @@ var mdmQueries = map[string]DetailQuery{
 		QueryFunc:        buildConfigProfilesWindowsQuery,
 		Platforms:        []string{"windows"},
 		DirectIngestFunc: directIngestWindowsProfiles,
-		Discovery:        discoveryTableAndServer("mdm_bridge"),
+		Discovery:        discoveryTable("mdm_bridge"),
 	},
 	// There are two mutually-exclusive queries used to read the FileVaultPRK depending on which
 	// extension tables are discovered on the agent. The preferred query uses the newer custom
@@ -752,21 +752,6 @@ var mdmQueries = map[string]DetailQuery{
 		DirectIngestFunc: directIngestMDMDeviceIDWindows,
 	},
 }
-
-func discoveryTableAndServer(tableName string) string {
-	discoveryTableServerQuery := `
-SELECT 1
-FROM osquery_registry o
-INNER JOIN
-   (SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\InstallationType' AND data <> 'Server')
-WHERE o.active = true
-  AND o.registry = 'table'
-  AND o.name = 'mdm_bridge'`
-
-	return fmt.Sprintf(discoveryTableServerQuery, tableName)
-}
-
-const DiscoveryServer = `SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\InstallationType' AND data <> 'Server' LIMIT 1`
 
 // discoveryTable returns a query to determine whether a table exists or not.
 func discoveryTable(tableName string) string {
