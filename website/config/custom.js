@@ -307,27 +307,6 @@ module.exports.custom = {
   // (both in Fleet's query console and on fleetdm.com)
   versionOfOsquerySchemaToUseWhenGeneratingDocumentation: '5.12.1',
 
-  //  ███████╗██╗  ██╗██████╗ ██╗      ██████╗ ██████╗ ███████╗    ██████╗  █████╗ ████████╗ █████╗
-  //  ██╔════╝╚██╗██╔╝██╔══██╗██║     ██╔═══██╗██╔══██╗██╔════╝    ██╔══██╗██╔══██╗╚══██╔══╝██╔══██╗
-  //  █████╗   ╚███╔╝ ██████╔╝██║     ██║   ██║██████╔╝█████╗      ██║  ██║███████║   ██║   ███████║
-  //  ██╔══╝   ██╔██╗ ██╔═══╝ ██║     ██║   ██║██╔══██╗██╔══╝      ██║  ██║██╔══██║   ██║   ██╔══██║
-  //  ███████╗██╔╝ ██╗██║     ███████╗╚██████╔╝██║  ██║███████╗    ██████╔╝██║  ██║   ██║   ██║  ██║
-  //  ╚══════╝╚═╝  ╚═╝╚═╝     ╚══════╝ ╚═════╝ ╚═╝  ╚═╝╚══════╝    ╚═════╝ ╚═╝  ╚═╝   ╚═╝   ╚═╝  ╚═╝
-  //
-  // Config variables in this section are used for the /try-fleet/explore-data page on fleetdm.com
-
-  // For sending requests to a Fleet instance:
-  // fleetBaseUrlForQueryReports: '…',
-  // fleetTokenForQueryReports: '…',
-
-  // The API ID of the team of hosts created for query reports.
-  // teamApidForQueryReports:
-
-  // A dictionary where each key is the name of an osquery table, and the value is the API ID of the query that selects all information from that table. e.g., {'account_policy_data': 2045, 'ad_config': 2047, …}
-  // queryIdsByTableName: {…}
-
-  // A dictionary where each key is the lowercased platform, and the value is the API ID of a host. e.g., {'macos': 92, 'windows': 94, 'linux': 93}
-  // hostIdsByHostPlatform: {…}
 
   //  ███╗   ███╗██╗███████╗ ██████╗
   //  ████╗ ████║██║██╔════╝██╔════╝
