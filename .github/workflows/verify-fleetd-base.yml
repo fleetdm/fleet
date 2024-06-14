@@ -77,16 +77,17 @@ jobs:
         shell: powershell
         run: |
           Invoke-WebRequest "${{ env.BASE_URL }}/stable/fleetd-base.msi" -OutFile "fleetd-base.msi"
-          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          if (! $?) { exit 1 }
           Get-ChildItem
 
       - name: Install fleetd-base.msi
         shell: powershell
         run: |
-          msiexec /i "${{ github.workspace}}/fleetd-base.msi" FLEET_URL="https://fleet.example.com" FLEET_SECRET="insecure" /L*V "${{ github.workspace}}/fleetd-base-install.log"
-          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          Start-Process msiexec "/i fleetd-base.msi /qn FLEET_URL='https://fleet.example.com' FLEET_SECRET='insecure'" -Wait
+          if (! $?) { exit 1 }
+          cd "C:\Windows\System32\config\systemprofile\AppData\Local\FleetDM\Orbit\Logs"
           Get-ChildItem
-          Get-Content "${{ github.workspace}}/fleetd-base-install.log"
+          if (! Test-Path "C:\Windows\System32\config\systemprofile\AppData\Local\FleetDM\Orbit\Logs\orbit-osquery.log" -PathType Leaf) { exit 1 }
 
   verify-fleetd-base-pkg:
     runs-on: macos-latest
