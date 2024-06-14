@@ -1,0 +1,90 @@
+name: Verify fleetd-base files at https://download.fleetdm.com
+
+on:
+  workflow_dispatch: # Manual
+  workflow_call:
+    inputs:
+      base-url:
+        description: 'The base URL to download the files from'
+        required: false
+        default: 'https://download-testing.fleetdm.com'
+        type: string
+  pull_request: # BOZO remove
+
+# This allows a subsequently queued workflow run to interrupt previous runs
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id}}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    # fail-fast using bash -eo pipefail. See https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#exit-codes-and-error-action-preference
+    shell: bash
+
+permissions:
+  contents: read
+
+jobs:
+  verify-checksums:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        with:
+          egress-policy: audit
+
+      - name: Verify checksums
+        run: |
+          curl -O ${{ env.BASE_URL }}/stable/meta.json
+          curl -O ${{ env.BASE_URL }}/stable/fleetd-base.msi
+          fleetd_base_msi_sha256=$(shasum -a 256 fleetd-base.msi | cut -d ' ' -f 1)
+          if [ "$(jq '.fleetd_base_msi_sha256' meta.json)" != "$fleetd_base_msi_sha256" ]; then
+            echo "Checksum mismatch for fleetd-base.msi"
+            exit 1
+          fi
+          curl -O ${{ env.BASE_URL }}/stable/fleetd-base.pkg
+          fleetd_base_pkg_sha256=$(shasum -a 256 fleetd-base.pkg | cut -d ' ' -f 1)
+          if [ "$(jq '.fleetd_base_pkg_sha256' meta.json)" != "$fleetd_base_pkg_sha256" ]; then
+              echo "Checksum mismatch for fleetd-base.pkg"
+              exit 1
+          fi
+          : # Check the files at the permalinks
+          curl -o fleetd-base-permalink.msi "$(jq '.fleetd_base_msi_url' meta.json)"
+          diff fleetd-base.msi fleetd-base-permalink.msi
+          curl -o fleetd-base-permalink.pkg "$(jq '.fleetd_base_pkg_url' meta.json)"
+          diff fleetd-base.pkg fleetd-base-permalink.pkg
+
+  verify-fleetd-base-msi:
+    runs-on: windows-latest
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        with:
+          egress-policy: audit
+
+      - name: Download fleetd-base.msi
+        shell: powershell
+        run: |
+          curl -O ${{ env.BASE_URL }}/stable/fleetd-base.msi
+
+      - name: Run fleetd-base.msi
+        shell: powershell
+        run: |
+          msiexec /i fleetd-base.msi FLEET_URL="https://fleet.example.com" FLEET_SECRET="insecure"
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+
+  verify-fleetd-base-pkg:
+    runs-on: macos-latest
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        with:
+          egress-policy: audit
+
+      - name: Download fleetd-base.pkg
+        run: |
+          curl -O ${{ env.BASE_URL }}/stable/fleetd-base.pkg
+
+      - name: Run fleetd-base.pkg
+        run: |
+          sudo installer -pkg fleetd-base.pkg -target /
