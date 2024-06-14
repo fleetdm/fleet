@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"mime/multipart"
+	"net"
 	"net/http"
 	"strconv"
 
@@ -46,6 +47,13 @@ func (uploadSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http
 				Message:     "The maximum file size is 500 MB.",
 				InternalErr: err,
 			}
+		}
+		var nerr net.Error
+		if errors.As(err, &nerr) && nerr.Timeout() {
+			return nil, fleet.NewUserMessageError(
+				ctxerr.New(ctx, "Couldn't upload. Please ensure your internet connection speed is sufficient and stable."),
+				http.StatusRequestTimeout,
+			)
 		}
 		return nil, &fleet.BadRequestError{
 			Message:     "failed to parse multipart form: " + err.Error(),
