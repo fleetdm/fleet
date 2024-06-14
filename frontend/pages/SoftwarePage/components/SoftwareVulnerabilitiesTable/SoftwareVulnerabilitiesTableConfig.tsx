@@ -10,7 +10,6 @@ import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCel
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import TooltipWrapper from "components/TooltipWrapper";
 import { HumanTimeDiffWithDateTip } from "components/HumanTimeDiffWithDateTip";
-import PremiumFeatureIconWithTooltip from "components/PremiumFeatureIconWithTooltip";
 import ProbabilityOfExploit from "components/ProbabilityOfExploit/ProbabilityOfExploit";
 import ViewAllHostsLink from "components/ViewAllHostsLink";
 import LinkCell from "components/TableContainer/DataTable/LinkCell";
