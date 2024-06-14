@@ -88,7 +88,7 @@ policies:
 
 ```yaml
 policies:
-  - path: `../lib/policies-name.policies.yml`
+  - path: ../lib/policies-name.policies.yml
 # path is relative to teams/team-name.yml 
 ```
 
@@ -144,7 +144,7 @@ queries:
 
 ```yaml
 queries:
-  - path: `../lib/queries-name.queries.yml`
+  - path: ../lib/queries-name.queries.yml
 # path is relative to default.yml or teams/team-name.yml
 ```
 
@@ -201,7 +201,7 @@ config:
 
 ```yaml
 queries:
-  - path: `../lib/agent-options.yml`
+  - path: ../lib/agent-options.yml
 # path is relative to default.yml or teams/team-name.yml
 ```
 
