@@ -57,9 +57,23 @@ jobs:
           /usr/bin/google-chrome --pack-extension=./dist --pack-extension-key=chrome.pem
 
       - name: Prepare files for upload
+        id: prepare-files
         working-directory: ./ee/fleetd-chrome
         run: |
           mv dist.crx fleetd.crx
+          datedir=$(date -u +%Y-%m-%d_%H-%M-%S)
+          mkdir -p archive/$datedir
+          cp fleetd.crx archive/$datedir
+          cp updates.xml archive/$datedir
+          echo "{
+            \"fleetd_crx_url\": \"${{ env.BASE_URL }}/archive/$datedir/fleetd.crx\",
+            \"updates_xml\": \"${{ env.BASE_URL }}/archive/$datedir/updates.xml\",
+            \"version\": \"$datedir\"
+          }" > meta.json
+          : # Check that meta.json is valid
+          jq -e . >/dev/null 2>&1 <<< $(cat meta.json)
+          cp meta.json archive/$datedir
+          echo "datedir=$datedir" >> $GITHUB_OUTPUT
 
       - name: Upload extension
         uses: ./.github/actions/r2-upload
@@ -69,4 +83,5 @@ jobs:
           R2_ACCESS_KEY_SECRET: ${{ secrets.R2_CHROME_ACCESS_KEY_SECRET }}
           R2_BUCKET: chrome
         with:
-          filenames: ./ee/fleetd-chrome/fleetd.crx,./ee/fleetd-chrome/updates.xml
+          working-directory: ./ee/fleetd-chrome
+          filenames: fleetd.crx,updates.xml,meta.json,archive/${{ steps.prepare-files.outputs.datedir }}/fleetd.crx,archive/${{ steps.prepare-files.outputs.datedir }}/updates.xml,archive/${{ steps.prepare-files.outputs.datedir }}/meta.json
