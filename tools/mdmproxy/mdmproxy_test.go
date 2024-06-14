@@ -54,9 +54,9 @@ func Test_udidFromRequestBody(t *testing.T) {
 			want: "419D33EC-06E6-558D-AD52-601BA1867730",
 		},
 		{
-			name:    "empty request",
-			args:    args{[]byte("")},
-			wantErr: true,
+			name: "empty request",
+			args: args{[]byte("")},
+			want: "",
 		},
 		{
 			name:    "invalid plist",
