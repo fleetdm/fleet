@@ -51,6 +51,9 @@ jobs:
         id: check-for-fleetd-component-updates
         run: |
           go run tools/tuf/status/tuf-status.go channel-version -channel stable --components orbit,desktop,osqueryd --format json > latest-tuf-meta.json
+          : # Check that latest-tuf-meta.json is valid
+          jq -e . >/dev/null 2>&1 <<< $(cat latest-tuf-meta.json)
+          : # Download the current TUF meta file in order to compare it with the latest
           curl -O $BASE_URL/stable/tuf-meta.json
           if diff latest-tuf-meta.json tuf-meta.json >/dev/null 2>&1
           then
@@ -59,6 +62,8 @@ jobs:
             echo "update_needed=true" >> $GITHUB_OUTPUT
           fi
           echo "date_dir=$(date -u +%Y-%m-%d_%H-%M-%S)" >> $GITHUB_OUTPUT
+          : # BOZO remove this
+          echo "update_needed=true" >> $GITHUB_OUTPUT
 
       - name: Upload latest TUF meta artifact
         uses: actions/upload-artifact@5d5d22a31266ced268874388b861e4b58bb5c2f3 # v4.3.1
@@ -165,7 +170,7 @@ jobs:
     if: needs.check-for-fleetd-component-updates.outputs.update_needed == 'true'
     runs-on: ubuntu-latest
     outputs:
-      fleetd_base_msi_sha256: ${{ steps.build-sign-notarize.outputs.fleetd_base_msi_sha256 }}
+      fleetd_base_msi_sha256: ${{ steps.build.outputs.fleetd_base_msi_sha256 }}
     env:
       FULL_DATE_DIR: archive/stable/${{ needs.check-for-fleetd-component-updates.outputs.date_dir }}
     steps:
@@ -186,6 +191,7 @@ jobs:
         run: npm install -g fleetctl
 
       - name: Build MSI
+        id: build
         run: |
           fleetctl package --type msi --fleet-desktop --fleet-url dummy --enroll-secret dummy
           mv fleet-osquery*.msi fleetd-base.msi
@@ -234,11 +240,13 @@ jobs:
           mkdir -p ${{ env.FULL_DATE_DIR }}
           echo '{
             "fleetd_base_pkg_url": "${{ env.BASE_URL }}/${{ env.FULL_DATE_DIR }}/fleetd-base.pkg",
-            "fleetd_base_pkg_sha256\": "${{ needs.update-fleetd-base-pkg.outputs.fleetd_base_pkg_sha256 }}",
+            "fleetd_base_pkg_sha256": "${{ needs.update-fleetd-base-pkg.outputs.fleetd_base_pkg_sha256 }}",
             "fleetd_base_msi_url": "${{ env.BASE_URL }}/${{ env.FULL_DATE_DIR }}/fleetd-base.msi",
             "fleetd_base_msi_sha256": "${{ needs.update-fleetd-base-msi.outputs.fleetd_base_msi_sha256 }}",
             "version": "${{ needs.check-for-fleetd-component-updates.outputs.date_dir }}"
           }' > meta.json
+          : # Check that meta.json is valid
+          jq -e . >/dev/null 2>&1 <<< $(cat meta.json)
           cp latest-tuf-meta.json stable/tuf-meta.json
           cp latest-tuf-meta.json ${{ env.FULL_DATE_DIR }}/tuf-meta.json
           cp meta.json stable/meta.json
