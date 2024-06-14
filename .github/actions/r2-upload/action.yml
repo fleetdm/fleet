@@ -24,7 +24,7 @@ runs:
       shell: bash
       working-directory: ${{ inputs.working-directory }}
       run: |
-        sudo ./.github/scripts/rclone-install.sh
+        sudo ${{ github.workspace }}/.github/scripts/rclone-install.sh
         mkdir -p ~/.config/rclone
         echo "[r2]
         type = s3
