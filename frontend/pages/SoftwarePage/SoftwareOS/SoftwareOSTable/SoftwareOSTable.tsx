@@ -13,6 +13,7 @@ import CustomLink from "components/CustomLink";
 import TableContainer from "components/TableContainer";
 import LastUpdatedText from "components/LastUpdatedText";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
+import TableCount from "components/TableContainer/TableCount";
 
 import EmptySoftwareTable from "pages/SoftwarePage/components/EmptySoftwareTable";
 import { IOSVersionsResponse } from "services/entities/operating_systems";
@@ -130,34 +131,19 @@ const SoftwareOSTable = ({
     router.push(path);
   };
 
-  const getItemsCountText = () => {
-    const count = data?.count;
-    if (!data?.os_versions || !count) return "";
-
-    return count === 1 ? `${count} item` : `${count} items`;
-  };
-
-  const getLastUpdatedText = () => {
-    if (!data?.os_versions || !data?.counts_updated_at) return "";
-    return (
-      <LastUpdatedText
-        lastUpdatedAt={data.counts_updated_at}
-        whatToRetrieve="software"
-      />
-    );
-  };
-
   const renderSoftwareCount = () => {
-    const itemText = getItemsCountText();
-    const lastUpdatedText = getLastUpdatedText();
-
-    if (!itemText) return null;
+    if (!data?.os_versions || !data?.count) return null;
 
     return (
-      <div className={`${baseClass}__count`}>
-        <span>{itemText}</span>
-        {lastUpdatedText}
-      </div>
+      <>
+        <TableCount name="items" count={data?.count} />
+        {data?.os_versions && data?.counts_updated_at && (
+          <LastUpdatedText
+            lastUpdatedAt={data.counts_updated_at}
+            whatToRetrieve="vulnerabilities"
+          />
+        )}
+      </>
     );
   };
 
