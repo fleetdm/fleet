@@ -531,9 +531,9 @@ func (s *integrationMDMTestSuite) TestAppleGetAppleMDM() {
 	var mdmResp getAppleMDMResponse
 	s.DoJSON("GET", "/api/latest/fleet/apns", nil, http.StatusOK, &mdmResp)
 	// returned values are dummy, this is a test certificate
-	require.Equal(t, "FleetDM", mdmResp.Issuer)
+	require.Equal(t, "Fleet", mdmResp.Issuer)
 	require.NotZero(t, mdmResp.SerialNumber)
-	require.Equal(t, "FleetDM", mdmResp.CommonName)
+	require.Equal(t, "Fleet", mdmResp.CommonName)
 	require.NotZero(t, mdmResp.RenewDate)
 
 	s.mockDEPResponse(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -8836,7 +8836,7 @@ func (s *integrationMDMTestSuite) appleCoreCertsSetup() {
 		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
 		BasicConstraintsValid: true,
 		Subject: pkix.Name{
-			CommonName: "FleetDM",
+			CommonName: "Fleet",
 			ExtraNames: []pkix.AttributeTypeAndValue{
 				{
 					Type:  asn1.ObjectIdentifier{0, 9, 2342, 19200300, 100, 1, 1},
