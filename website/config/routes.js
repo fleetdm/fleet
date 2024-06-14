@@ -167,22 +167,6 @@ module.exports.routes = {
     }
   },
 
-  'GET /try-fleet/explore-data': {
-    action: 'try-fleet/view-explore-data',
-    locals: {
-      pageTitleForMeta: 'Explore real data | Fleet',
-      pageDescriptionForMeta: 'See live data collected from a real device enrolled in Fleet.',
-    }
-  },
-
-  'GET /try-fleet/explore-data/:hostPlatform/:tableName': {// [?]: https://github.com/fleetdm/fleet/blob/97a0d419e1a25d2155606c09b9c483ae5067544e/website/api/controllers/try-fleet/view-query-report.js#L16
-    action: 'try-fleet/view-query-report',
-    locals: {
-      pageTitleForMeta: 'Explore real data | Fleet',
-      pageDescriptionForMeta: 'See live data collected from a real device enrolled in Fleet.',
-    }
-  },
-
   'GET /admin/email-preview': {
     action: 'admin/view-email-templates',
     locals: {
@@ -452,6 +436,12 @@ module.exports.routes = {
   'GET /docs/deploy/deploy-fleet-on-kubernetes': '/guides/deploy-fleet-on-kubernetes',
   'GET /docs/using-fleet/mdm-macos-setup': '/docs/using-fleet/mdm-setup',
   'GET /transparency': '/better',
+  'GET /try-fleet/explore-data': '/tables/account_policy_data',
+  'GET /try-fleet/explore-data/:hostPlatform/:tableName': {
+    fn: (req, res)=>{
+      return res.redirect('/tables/'+req.param('tableName'));
+    }
+  },
 
   //  ╔╦╗╦╔═╗╔═╗  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗   ┬   ╔╦╗╔═╗╦ ╦╔╗╔╦  ╔═╗╔═╗╔╦╗╔═╗
   //  ║║║║╚═╗║    ╠╦╝║╣  ║║║╠╦╝║╣ ║   ║ ╚═╗  ┌┼─   ║║║ ║║║║║║║║  ║ ║╠═╣ ║║╚═╗
