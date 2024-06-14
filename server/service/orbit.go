@@ -182,19 +182,20 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 		return fleet.OrbitConfig{}, err
 	}
 
+	isConnectedToFleetMDM, err := svc.ds.IsHostConnectedToFleetMDM(ctx, host)
+	if err != nil {
+		return fleet.OrbitConfig{}, ctxerr.Wrap(ctx, err, "checking if host is connected to Fleet")
+	}
+
 	// set the host's orbit notifications for macOS MDM
 	var notifs fleet.OrbitConfigNotifications
-	if appConfig.MDM.EnabledAndConfigured && host.IsOsqueryEnrolled() {
-		// TODO(mna): all those notifications implied a macos hosts, but none of
-		// the checks enforce that (only indirectly in some cases, like
-		// IsDEPAssignedToFleet), should we add such a platform check?
-
-		if host.NeedsDEPEnrollment() {
+	if appConfig.MDM.EnabledAndConfigured && host.IsOsqueryEnrolled() && host.Platform == "darwin" {
+		if host.NeedsDEPEnrollment(isConnectedToFleetMDM) {
 			notifs.RenewEnrollmentProfile = true
 		}
 
 		if appConfig.MDM.MacOSMigration.Enable &&
-			host.IsEligibleForDEPMigration() {
+			host.IsEligibleForDEPMigration(isConnectedToFleetMDM) {
 			notifs.NeedsMDMMigration = true
 		}
 
@@ -221,7 +222,7 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 		}
 	}
 	if !appConfig.MDM.WindowsEnabledAndConfigured {
-		if host.IsEligibleForWindowsMDMUnenrollment() {
+		if host.IsEligibleForWindowsMDMUnenrollment(isConnectedToFleetMDM) {
 			notifs.NeedsProgrammaticWindowsMDMUnenrollment = true
 		}
 	}
@@ -276,7 +277,10 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 		var nudgeConfig *fleet.NudgeConfig
 		if appConfig.MDM.EnabledAndConfigured &&
 			mdmConfig != nil &&
-			mdmConfig.MacOSUpdates.EnabledForHost(host) {
+			host.IsOsqueryEnrolled() &&
+			isConnectedToFleetMDM &&
+			mdmConfig.MacOSUpdates.Configured() {
+
 			hostOS, err := svc.ds.GetHostOperatingSystem(ctx, host.ID)
 			if errors.Is(err, sql.ErrNoRows) {
 				// host os has not been collected yet (no details query)
@@ -298,7 +302,7 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 		}
 
 		if mdmConfig.EnableDiskEncryption &&
-			host.IsEligibleForBitLockerEncryption() {
+			host.IsEligibleForBitLockerEncryption(isConnectedToFleetMDM) {
 			notifs.EnforceBitLockerEncryption = true
 		}
 
@@ -335,7 +339,9 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 
 	var nudgeConfig *fleet.NudgeConfig
 	if appConfig.MDM.EnabledAndConfigured &&
-		appConfig.MDM.MacOSUpdates.EnabledForHost(host) {
+		isConnectedToFleetMDM &&
+		host.IsOsqueryEnrolled() &&
+		appConfig.MDM.MacOSUpdates.Configured() {
 		hostOS, err := svc.ds.GetHostOperatingSystem(ctx, host.ID)
 		if errors.Is(err, sql.ErrNoRows) {
 			// host os has not been collected yet (no details query)
@@ -358,7 +364,7 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 
 	if appConfig.MDM.WindowsEnabledAndConfigured &&
 		appConfig.MDM.EnableDiskEncryption.Value &&
-		host.IsEligibleForBitLockerEncryption() {
+		host.IsEligibleForBitLockerEncryption(isConnectedToFleetMDM) {
 		notifs.EnforceBitLockerEncryption = true
 	}
 
@@ -723,7 +729,13 @@ func (svc *Service) SetOrUpdateDiskEncryptionKey(ctx context.Context, encryption
 	if !ok {
 		return newOsqueryError("internal error: missing host from request context")
 	}
-	if !host.MDMInfo.IsFleetEnrolled() {
+
+	connected, err := svc.ds.IsHostConnectedToFleetMDM(ctx, host)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "checking if host is connected to Fleet")
+	}
+
+	if !connected {
 		return badRequest("host is not enrolled with fleet")
 	}
 

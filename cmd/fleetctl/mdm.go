@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"os"
 	"slices"
-	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/service"
@@ -116,10 +115,7 @@ func mdmRunCommand() *cli.Command {
 				}
 				mdmPlatform = mdmHostPlatform
 
-				// TODO(mna): this "On" check is brittle, but looks like it's the only
-				// enrollment indication we have right now...
-				if host.MDM.EnrollmentStatus == nil || !strings.HasPrefix(*host.MDM.EnrollmentStatus, "On") ||
-					host.MDM.Name != fleet.WellKnownMDMFleet {
+				if host.MDM.ConnectedToFleet == nil || !*host.MDM.ConnectedToFleet {
 					return errors.New(`Can't run the MDM command because one or more hosts have MDM turned off. Run the following command to see a list of hosts with MDM on: fleetctl get hosts --mdm.`)
 				}
 
@@ -330,8 +326,7 @@ func hostMdmActionSetup(c *cli.Context, hostIdent string, actionType string) (cl
 
 	// check mdm is on for the host
 	if fleet.MDMSupported(host.Platform) {
-		if host.MDM.EnrollmentStatus == nil || !strings.HasPrefix(*host.MDM.EnrollmentStatus, "On") ||
-			host.MDM.Name != fleet.WellKnownMDMFleet {
+		if host.MDM.ConnectedToFleet == nil || !*host.MDM.ConnectedToFleet {
 			return nil, nil, fmt.Errorf("Can't %s the host because it doesn't have MDM turned on.", actionType)
 		}
 	}

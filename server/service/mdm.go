@@ -478,9 +478,14 @@ func (svc *Service) RunMDMCommand(ctx context.Context, rawBase64Cmd string, host
 		return nil, ctxerr.Wrap(ctx, err, "no host received")
 	}
 
+	connectedMap, err := svc.ds.AreHostsConnectedToFleetMDM(ctx, hosts)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "checking if hosts are connected to Fleet")
+	}
+
 	platforms := make(map[string]bool)
 	for _, h := range hosts {
-		if !h.MDMInfo.IsFleetEnrolled() {
+		if !connectedMap[h.UUID] {
 			err := fleet.NewInvalidArgumentError("host_uuids", "Can't run the MDM command because one or more hosts have MDM turned off. Run the following command to see a list of hosts with MDM on: fleetctl get hosts --mdm.").WithStatus(http.StatusPreconditionFailed)
 			return nil, ctxerr.Wrap(ctx, err, "check host mdm enrollment")
 		}

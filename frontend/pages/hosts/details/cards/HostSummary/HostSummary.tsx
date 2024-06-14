@@ -111,7 +111,7 @@ interface IHostSummaryProps {
   toggleOSSettingsModal?: () => void;
   toggleBootstrapPackageModal?: () => void;
   hostMdmProfiles?: IHostMdmProfile[];
-  mdmName?: string;
+  isConnectedToFleetMdm?: boolean;
   showRefetchSpinner: boolean;
   onRefetchHost: (
     evt: React.MouseEvent<HTMLButtonElement, React.MouseEvent>
@@ -172,7 +172,7 @@ const HostSummary = ({
   toggleOSSettingsModal,
   toggleBootstrapPackageModal,
   hostMdmProfiles,
-  mdmName,
+  isConnectedToFleetMdm,
   showRefetchSpinner,
   onRefetchHost,
   renderActionDropdown,
@@ -411,9 +411,7 @@ const HostSummary = ({
         {/* Rendering of OS Settings data */}
         {(platform === "darwin" || platform === "windows") &&
           isPremiumTier &&
-          // TODO: API INTEGRATION: change this when we figure out why the API is
-          // returning "Fleet" or "FleetDM" for the MDM name.
-          mdmName?.includes("Fleet") && // show if 1 - host is enrolled in Fleet MDM, and
+          isConnectedToFleetMdm && // show if 1 - host is enrolled in Fleet MDM, and
           hostMdmProfiles &&
           hostMdmProfiles.length > 0 && ( // 2 - host has at least one setting (profile) enforced
             <DataSet

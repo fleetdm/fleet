@@ -214,60 +214,8 @@ func TestMDMEnrollmentStatus(t *testing.T) {
 	}
 }
 
-func TestIsEnrolledInThirdPartyMDM(t *testing.T) {
-	for _, tc := range []struct {
-		hostMDM  HostMDM
-		expected bool
-	}{
-		{
-			hostMDM:  HostMDM{Enrolled: true, Name: WellKnownMDMSimpleMDM},
-			expected: true,
-		},
-		{
-			hostMDM:  HostMDM{Enrolled: false, Name: WellKnownMDMSimpleMDM},
-			expected: false,
-		},
-		{
-			hostMDM:  HostMDM{Enrolled: true, Name: WellKnownMDMFleet},
-			expected: false,
-		},
-		{
-			hostMDM:  HostMDM{Enrolled: false, Name: WellKnownMDMFleet},
-			expected: false,
-		},
-	} {
-		require.Equal(t, tc.expected, tc.hostMDM.IsEnrolledInThirdPartyMDM())
-	}
-}
-
-func TestIsDEPCapable(t *testing.T) {
-	for _, tc := range []struct {
-		hostMDM  HostMDM
-		expected bool
-	}{
-		{
-			hostMDM:  HostMDM{IsServer: false, InstalledFromDep: true},
-			expected: true,
-		},
-		{
-			hostMDM:  HostMDM{IsServer: true, InstalledFromDep: true},
-			expected: false,
-		},
-		{
-			hostMDM:  HostMDM{IsServer: true, InstalledFromDep: false},
-			expected: false,
-		},
-		{
-			hostMDM:  HostMDM{IsServer: false, InstalledFromDep: false},
-			expected: false,
-		},
-	} {
-		require.Equal(t, tc.expected, tc.hostMDM.IsDEPCapable())
-	}
-}
-
 func TestIsEligibleForBitLockerEncryption(t *testing.T) {
-	require.False(t, (&Host{}).IsEligibleForBitLockerEncryption())
+	require.False(t, (&Host{}).IsEligibleForBitLockerEncryption(false))
 
 	hostThatNeedsEnforcement := Host{
 		Platform:      "windows",
@@ -283,37 +231,34 @@ func TestIsEligibleForBitLockerEncryption(t *testing.T) {
 		},
 		DiskEncryptionEnabled: ptr.Bool(false),
 	}
-	require.True(t, hostThatNeedsEnforcement.IsEligibleForBitLockerEncryption())
+	require.True(t, hostThatNeedsEnforcement.IsEligibleForBitLockerEncryption(true))
 
 	// macOS hosts are not elegible
 	hostThatNeedsEnforcement.Platform = "darwin"
-	require.False(t, hostThatNeedsEnforcement.IsEligibleForBitLockerEncryption())
+	require.False(t, hostThatNeedsEnforcement.IsEligibleForBitLockerEncryption(true))
 	hostThatNeedsEnforcement.Platform = "windows"
-	require.True(t, hostThatNeedsEnforcement.IsEligibleForBitLockerEncryption())
+	require.True(t, hostThatNeedsEnforcement.IsEligibleForBitLockerEncryption(true))
 
 	// hosts with disk encryption already enabled are elegible only if we
 	// can't decrypt the key
 	hostThatNeedsEnforcement.DiskEncryptionEnabled = ptr.Bool(true)
-	require.True(t, hostThatNeedsEnforcement.IsEligibleForBitLockerEncryption())
+	require.True(t, hostThatNeedsEnforcement.IsEligibleForBitLockerEncryption(true))
 	hostThatNeedsEnforcement.MDM.EncryptionKeyAvailable = true
-	require.False(t, hostThatNeedsEnforcement.IsEligibleForBitLockerEncryption())
+	require.False(t, hostThatNeedsEnforcement.IsEligibleForBitLockerEncryption(true))
 
 	hostThatNeedsEnforcement.DiskEncryptionEnabled = ptr.Bool(false)
 	hostThatNeedsEnforcement.MDM.EncryptionKeyAvailable = false
-	require.True(t, hostThatNeedsEnforcement.IsEligibleForBitLockerEncryption())
+	require.True(t, hostThatNeedsEnforcement.IsEligibleForBitLockerEncryption(true))
 
 	// hosts without MDMinfo are not elegible
 	oldMDMInfo := hostThatNeedsEnforcement.MDMInfo
 	hostThatNeedsEnforcement.MDMInfo = nil
-	require.False(t, hostThatNeedsEnforcement.IsEligibleForBitLockerEncryption())
+	require.False(t, hostThatNeedsEnforcement.IsEligibleForBitLockerEncryption(true))
 	hostThatNeedsEnforcement.MDMInfo = oldMDMInfo
-	require.True(t, hostThatNeedsEnforcement.IsEligibleForBitLockerEncryption())
+	require.True(t, hostThatNeedsEnforcement.IsEligibleForBitLockerEncryption(true))
 
 	// hosts that are not enrolled in MDM are not elegible
-	hostThatNeedsEnforcement.MDMInfo.Enrolled = false
-	require.False(t, hostThatNeedsEnforcement.IsEligibleForBitLockerEncryption())
-	hostThatNeedsEnforcement.MDMInfo.Enrolled = true
-	require.True(t, hostThatNeedsEnforcement.IsEligibleForBitLockerEncryption())
+	require.False(t, hostThatNeedsEnforcement.IsEligibleForBitLockerEncryption(false))
 }
 
 func TestIsEligibleForDEPMigration(t *testing.T) {
@@ -403,7 +348,7 @@ func TestIsEligibleForDEPMigration(t *testing.T) {
 				},
 			}
 
-			require.Equal(t, tc.expected, host.IsEligibleForDEPMigration())
+			require.Equal(t, tc.expected, host.IsEligibleForDEPMigration(false))
 		})
 	}
 }

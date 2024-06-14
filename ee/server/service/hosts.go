@@ -69,19 +69,16 @@ func (svc *Service) LockHost(ctx context.Context, hostID uint) (unlockPIN string
 		}
 
 		// on macOS, the lock command requires the host to be MDM-enrolled in Fleet
-		hostMDM, err := svc.ds.GetHostMDM(ctx, host.ID)
+		connected, err := svc.ds.IsHostConnectedToFleetMDM(ctx, host)
 		if err != nil {
+			return "", ctxerr.Wrap(ctx, err, "checking if host is connected to Fleet")
+		}
+		if !connected {
 			if fleet.IsNotFound(err) {
 				return "", ctxerr.Wrap(
 					ctx, fleet.NewInvalidArgumentError("host_id", "Can't lock the host because it doesn't have MDM turned on."),
 				)
 			}
-			return "", ctxerr.Wrap(ctx, err, "get host MDM information")
-		}
-		if !hostMDM.IsFleetEnrolled() {
-			return "", ctxerr.Wrap(
-				ctx, fleet.NewInvalidArgumentError("host_id", "Can't lock the host because it doesn't have MDM turned on."),
-			)
 		}
 
 	case "windows", "linux":
@@ -317,14 +314,11 @@ func (svc *Service) WipeHost(ctx context.Context, hostID uint) error {
 
 	if requireMDM {
 		// the wipe command requires the host to be MDM-enrolled in Fleet
-		hostMDM, err := svc.ds.GetHostMDM(ctx, host.ID)
+		connected, err := svc.ds.IsHostConnectedToFleetMDM(ctx, host)
 		if err != nil {
-			if fleet.IsNotFound(err) {
-				return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", "Can't wipe the host because it doesn't have MDM turned on."))
-			}
-			return ctxerr.Wrap(ctx, err, "get host MDM information")
+			return ctxerr.Wrap(ctx, err, "checking if host is connected to Fleet")
 		}
-		if !hostMDM.IsFleetEnrolled() {
+		if !connected {
 			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", "Can't wipe the host because it doesn't have MDM turned on."))
 		}
 	}

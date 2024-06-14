@@ -241,6 +241,10 @@ type GetHostMDMCheckinInfoFunc func(ctx context.Context, hostUUID string) (*flee
 
 type ListIOSAndIPadOSToRefetchFunc func(ctx context.Context, refetchInterval time.Duration) (uuids []string, err error)
 
+type IsHostConnectedToFleetMDMFunc func(ctx context.Context, host *fleet.Host) (bool, error)
+
+type AreHostsConnectedToFleetMDMFunc func(ctx context.Context, hosts []*fleet.Host) (map[string]bool, error)
+
 type AggregatedMunkiVersionFunc func(ctx context.Context, teamID *uint) ([]fleet.AggregatedMunkiVersion, time.Time, error)
 
 type AggregatedMunkiIssuesFunc func(ctx context.Context, teamID *uint) ([]fleet.AggregatedMunkiIssue, time.Time, error)
@@ -1298,6 +1302,12 @@ type DataStore struct {
 
 	ListIOSAndIPadOSToRefetchFunc        ListIOSAndIPadOSToRefetchFunc
 	ListIOSAndIPadOSToRefetchFuncInvoked bool
+
+	IsHostConnectedToFleetMDMFunc        IsHostConnectedToFleetMDMFunc
+	IsHostConnectedToFleetMDMFuncInvoked bool
+
+	AreHostsConnectedToFleetMDMFunc        AreHostsConnectedToFleetMDMFunc
+	AreHostsConnectedToFleetMDMFuncInvoked bool
 
 	AggregatedMunkiVersionFunc        AggregatedMunkiVersionFunc
 	AggregatedMunkiVersionFuncInvoked bool
@@ -3163,6 +3173,20 @@ func (s *DataStore) ListIOSAndIPadOSToRefetch(ctx context.Context, refetchInterv
 	s.ListIOSAndIPadOSToRefetchFuncInvoked = true
 	s.mu.Unlock()
 	return s.ListIOSAndIPadOSToRefetchFunc(ctx, refetchInterval)
+}
+
+func (s *DataStore) IsHostConnectedToFleetMDM(ctx context.Context, host *fleet.Host) (bool, error) {
+	s.mu.Lock()
+	s.IsHostConnectedToFleetMDMFuncInvoked = true
+	s.mu.Unlock()
+	return s.IsHostConnectedToFleetMDMFunc(ctx, host)
+}
+
+func (s *DataStore) AreHostsConnectedToFleetMDM(ctx context.Context, hosts []*fleet.Host) (map[string]bool, error) {
+	s.mu.Lock()
+	s.AreHostsConnectedToFleetMDMFuncInvoked = true
+	s.mu.Unlock()
+	return s.AreHostsConnectedToFleetMDMFunc(ctx, hosts)
 }
 
 func (s *DataStore) AggregatedMunkiVersion(ctx context.Context, teamID *uint) ([]fleet.AggregatedMunkiVersion, time.Time, error) {
