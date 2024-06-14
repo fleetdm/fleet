@@ -11,13 +11,14 @@ import (
 	"os"
 	"strings"
 
+	"github.com/boltdb/bolt"
 	boltdepot "github.com/fleetdm/fleet/v4/server/mdm/scep/depot/bolt"
 	"github.com/groob/plist"
 	apnsbuiltin "github.com/micromdm/micromdm/platform/apns/builtin"
 	"github.com/micromdm/micromdm/platform/device"
 	devicebuiltin "github.com/micromdm/micromdm/platform/device/builtin"
 	"github.com/micromdm/micromdm/platform/pubsub/inmem"
-	bolt "go.etcd.io/bbolt"
+	"go.etcd.io/bbolt"
 )
 
 type Authenticate struct {
@@ -48,12 +49,33 @@ type TokenUpdate struct {
 }
 
 func main() {
-	var (
-		flDB = flag.String("db", "/var/db/micromdm.db", "path to micromdm DB")
-	)
+	flDB := flag.String("db", "/var/db/micromdm.db", "path to micromdm DB")
 	flag.Parse()
 
-	boltDB, err := bolt.Open(*flDB, 0600, nil)
+	bboltDB, err := bbolt.Open(*flDB, 0o600, nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	svcBoltDepot, err := boltdepot.NewBoltDepot(bboltDB)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	key, err := svcBoltDepot.CreateOrLoadKey(2048)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	crt, err := svcBoltDepot.CreateOrLoadCA(key, 5, "MicroMDM", "US")
+	if err != nil {
+		log.Fatal(err)
+	}
+	if err := bboltDB.Close(); err != nil {
+		log.Fatal(err)
+	}
+
+	boltDB, err := bolt.Open(*flDB, 0o600, nil)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -70,21 +92,6 @@ func main() {
 		log.Fatal(err)
 	}
 	devices, err := deviceDB.List(context.Background(), device.ListDevicesOption{})
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	svcBoltDepot, err := boltdepot.NewBoltDepot(boltDB)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	key, err := svcBoltDepot.CreateOrLoadKey(2048)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	crt, err := svcBoltDepot.CreateOrLoadCA(key, 5, "MicroMDM", "US")
 	if err != nil {
 		log.Fatal(err)
 	}
