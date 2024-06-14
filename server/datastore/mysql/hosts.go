@@ -764,7 +764,11 @@ func queryStatsToScheduledQueryStats(queriesStats []fleet.QueryStats, packName s
 	return scheduledQueriesStats
 }
 
-func winHostConnectedToFleetCond(in string) string {
+func winHostConnectedToFleetCond(aliasedCols []string, lenPlaceholders int) string {
+	in := strings.Repeat("?,", lenPlaceholders)
+	in += strings.Join(aliasedCols, ",")
+	in = strings.Trim(in, ",")
+
 	return fmt.Sprintf(`
 	SELECT host_uuid
 	FROM mdm_windows_enrollments
@@ -774,7 +778,11 @@ func winHostConnectedToFleetCond(in string) string {
 		microsoft_mdm.MDMDeviceStateEnrolled)
 }
 
-func appleHostConnectedToFleetCond(in string) string {
+func appleHostConnectedToFleetCond(aliasedCols []string, lenPlaceholders int) string {
+	in := strings.Repeat("?,", lenPlaceholders)
+	in += strings.Join(aliasedCols, ",")
+	in = strings.Trim(in, ",")
+
 	return fmt.Sprintf(`
 	SELECT id
 	FROM nano_enrollments
@@ -786,13 +794,13 @@ func appleHostConnectedToFleetCond(in string) string {
 var caseConnectedToFleet = `
 CASE
 	WHEN h.platform = 'windows' THEN (
-		SELECT CASE  WHEN EXISTS (` + winHostConnectedToFleetCond("h.uuid") + `)
+		SELECT CASE  WHEN EXISTS (` + winHostConnectedToFleetCond([]string{"h.uuid"}, 0) + `)
 		THEN CAST(TRUE AS JSON)
 		ELSE CAST(FALSE AS JSON)
 		END
 	)
 	WHEN h.platform IN ('ios', 'ipados', 'darwin') THEN (
-		SELECT CASE  WHEN EXISTS (` + appleHostConnectedToFleetCond("h.uuid") + `)
+		SELECT CASE  WHEN EXISTS (` + appleHostConnectedToFleetCond([]string{"h.uuid"}, 0) + `)
 		THEN CAST(TRUE AS JSON)
 		ELSE CAST(FALSE AS JSON)
 		END

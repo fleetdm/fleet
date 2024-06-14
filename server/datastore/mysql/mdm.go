@@ -1231,12 +1231,11 @@ func (ds *Datastore) AreHostsConnectedToFleetMDM(ctx context.Context, hosts []*f
 		res[h.UUID] = false
 	}
 
-	setConnectedUUIDs := func(stmtFn func(string) string, uuids []any, mp map[string]bool) error {
+	setConnectedUUIDs := func(stmtFn func(aliasedCols []string, lenPlaceholders int) string, uuids []any, mp map[string]bool) error {
 		var res []string
 
 		if len(uuids) > 0 {
-			in := strings.Trim(strings.Repeat("?,", len(uuids)), ",")
-			err := sqlx.SelectContext(ctx, ds.reader(ctx), &res, stmtFn(in), uuids...)
+			err := sqlx.SelectContext(ctx, ds.reader(ctx), &res, stmtFn(nil, len(uuids)), uuids...)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "retrieving hosts connected to fleet")
 			}
