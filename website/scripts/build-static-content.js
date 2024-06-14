@@ -686,10 +686,6 @@ module.exports = {
 
             // Iterate through the columns of the table, we'll add a row to the markdown table element for each column in this schema table
             for(let column of _.sortBy(table.columns, 'name')) {
-              // Create an object for this column to add to the osqueryTables config.
-              let columnInfoForQueryReports = {
-                name: column.name
-              };
               let columnDescriptionForTable = '';// Set the initial value of the description that will be added to the table for this column.
               if(column.description) {
                 columnDescriptionForTable = column.description;
