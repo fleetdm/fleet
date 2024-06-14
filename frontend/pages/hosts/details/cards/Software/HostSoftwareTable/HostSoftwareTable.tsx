@@ -106,8 +106,14 @@ const HostSoftwareTable = ({
     [determineQueryParamChange, pagePath, generateNewQueryParams, router]
   );
 
+  const count = data?.count || data?.software.length || 0;
+  const isSoftwareNotDetected = count === 0 && searchQuery === "";
+
   const memoizedSoftwareCount = useCallback(() => {
-    const count = data?.count || data?.software.length || 0;
+    if (isSoftwareNotDetected) {
+      return null;
+    }
+
     return <SoftwareCount count={count} />;
   }, [data?.count, data?.software.length]);
 
@@ -134,7 +140,7 @@ const HostSoftwareTable = ({
         emptyComponent={memoizedEmptyComponent}
         showMarkAllPages={false}
         isAllPagesSelected={false}
-        searchable
+        searchable={!isSoftwareNotDetected}
         manualSortBy
       />
     </div>
