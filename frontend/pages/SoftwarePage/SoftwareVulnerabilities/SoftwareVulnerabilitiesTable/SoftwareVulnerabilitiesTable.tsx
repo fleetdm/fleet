@@ -15,6 +15,7 @@ import CustomLink from "components/CustomLink";
 import TableContainer from "components/TableContainer";
 import LastUpdatedText from "components/LastUpdatedText";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
+import TableCount from "components/TableContainer/TableCount";
 
 import EmptySoftwareTable from "pages/SoftwarePage/components/EmptySoftwareTable";
 import { IVulnerabilitiesResponse } from "services/entities/vulnerabilities";
@@ -182,34 +183,19 @@ const SoftwareVulnerabilitiesTable = ({
     router.push(path);
   };
 
-  const getItemsCountText = () => {
-    const count = data?.count;
-    if (!data?.vulnerabilities || !count) return "";
-
-    return count === 1 ? `${count} item` : `${count} items`;
-  };
-
-  const getLastUpdatedText = () => {
-    if (!data?.vulnerabilities || !data?.counts_updated_at) return "";
-    return (
-      <LastUpdatedText
-        lastUpdatedAt={data.counts_updated_at}
-        whatToRetrieve="vulnerabilities"
-      />
-    );
-  };
-
   const renderVulnerabilityCount = () => {
-    const itemText = getItemsCountText();
-    const lastUpdatedText = getLastUpdatedText();
-
-    if (!itemText) return null;
+    if (!data?.vulnerabilities || !data?.count) return null;
 
     return (
-      <div className={`${baseClass}__count`}>
-        <span>{itemText}</span>
-        {lastUpdatedText}
-      </div>
+      <>
+        <TableCount name="items" count={data?.count} />
+        {data?.vulnerabilities && data?.counts_updated_at && (
+          <LastUpdatedText
+            lastUpdatedAt={data.counts_updated_at}
+            whatToRetrieve="vulnerabilities"
+          />
+        )}
+      </>
     );
   };
 

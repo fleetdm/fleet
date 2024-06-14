@@ -77,7 +77,7 @@ import TransferHostModal from "../../components/TransferHostModal";
 import DeleteHostModal from "../../components/DeleteHostModal";
 
 import DiskEncryptionKeyModal from "./modals/DiskEncryptionKeyModal";
-import HostActionDropdown from "./HostActionsDropdown/HostActionsDropdown";
+import HostActionsDropdown from "./HostActionsDropdown/HostActionsDropdown";
 import OSSettingsModal from "../OSSettingsModal";
 import BootstrapPackageModal from "./modals/BootstrapPackageModal";
 import RunScriptModal from "./modals/RunScriptModal";
@@ -672,7 +672,7 @@ const HostDetailsPage = ({
     }
 
     return (
-      <HostActionDropdown
+      <HostActionsDropdown
         hostTeamId={host.team_id}
         onSelect={onSelectHostAction}
         hostPlatform={host.platform}

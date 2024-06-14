@@ -12,7 +12,6 @@ import Icon from "components/Icon/Icon";
 import { COLORS } from "styles/var/colors";
 
 import DataTable from "./DataTable/DataTable";
-import TableContainerUtils from "./utilities/TableContainerUtils";
 import { IActionButtonProps } from "./DataTable/ActionButton/ActionButton";
 
 export interface ITableQueryData {
@@ -44,7 +43,8 @@ interface ITableContainerProps<T = any> {
   inputPlaceHolder?: string;
   disableActionButton?: boolean;
   disableMultiRowSelect?: boolean;
-  resultsTitle: string;
+  /** resultsTitle used in DataTable for matching results text */
+  resultsTitle?: string;
   resultsHtml?: JSX.Element;
   additionalQueries?: string;
   emptyComponent: React.ElementType;
@@ -64,10 +64,6 @@ interface ITableContainerProps<T = any> {
   primarySelectAction?: IActionButtonProps;
   /** Secondary button/s after selecting a row */
   secondarySelectActions?: IActionButtonProps[]; // TODO: Combine with primarySelectAction as these are all rendered in the same spot
-  /**
-   * @deprecated please use renderCount instead
-   * */
-  filteredCount?: number;
   searchToolTipText?: string;
   // TODO - consolidate this functionality within `filters`
   searchQueryColumn?: string;
@@ -103,7 +99,6 @@ interface ITableContainerProps<T = any> {
    * bar and API call so TableContainer will reset its page state to 0  */
   resetPageIndex?: boolean;
   disableTableHeader?: boolean;
-  show0Count?: boolean;
 }
 
 const baseClass = "table-container";
@@ -140,7 +135,6 @@ const TableContainer = <T,>({
   disableCount,
   primarySelectAction,
   secondarySelectActions,
-  filteredCount,
   searchToolTipText,
   isClientSidePagination,
   onClientSidePaginationChange,
@@ -160,7 +154,6 @@ const TableContainer = <T,>({
   setExportRows,
   resetPageIndex,
   disableTableHeader,
-  show0Count,
 }: ITableContainerProps<T>) => {
   const [searchQuery, setSearchQuery] = useState(defaultSearchQuery);
   const [sortHeader, setSortHeader] = useState(defaultSortHeader || "");
@@ -252,16 +245,6 @@ const TableContainer = <T,>({
     additionalQueries,
   ]);
 
-  // TODO: refactor existing components relying on displayCount to use renderCount pattern
-  const displayCount = useCallback((): any => {
-    if (typeof filteredCount === "number") {
-      return filteredCount;
-    } else if (typeof clientFilterCount === "number") {
-      return clientFilterCount;
-    }
-    return data?.length || 0;
-  }, [filteredCount, clientFilterCount, data]);
-
   const renderPagination = useCallback(() => {
     if (disablePagination || isClientSidePagination) {
       return null;
@@ -309,37 +292,16 @@ const TableContainer = <T,>({
               stackControls ? "stack-table-controls" : ""
             }`}
           >
-            <span className="results-count">
-              {renderCount && (
-                <div
-                  className={`${baseClass}__results-count ${
-                    stackControls ? "stack-table-controls" : ""
-                  }`}
-                  style={opacity}
-                >
-                  {renderCount()}
-                </div>
-              )}
-              {!renderCount &&
-              !disableCount &&
-              (isMultiColumnFilter || displayCount() || show0Count) ? (
-                <div
-                  className={`${baseClass}__results-count ${
-                    stackControls ? "stack-table-controls" : ""
-                  }`}
-                  style={opacity}
-                >
-                  {TableContainerUtils.generateResultsCountText(
-                    resultsTitle,
-                    displayCount(),
-                    show0Count
-                  )}
-                  {resultsHtml}
-                </div>
-              ) : (
-                <div />
-              )}
-            </span>
+            {renderCount && !disableCount && (
+              <div
+                className={`${baseClass}__results-count ${
+                  stackControls ? "stack-table-controls" : ""
+                }`}
+                style={opacity}
+              >
+                {renderCount()}
+              </div>
+            )}
             <span className="controls">
               {actionButton && !actionButton.hideButton && (
                 <Button

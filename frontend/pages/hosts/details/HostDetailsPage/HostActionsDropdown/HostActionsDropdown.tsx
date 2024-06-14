@@ -79,10 +79,6 @@ const HostActionsDropdown = ({
   // No options to render. Exit early
   if (options.length === 0) return null;
 
-  if (hostPlatform === "ios" || hostPlatform === "ipados") {
-    return null;
-  }
-
   return (
     <div className={baseClass}>
       <Dropdown
