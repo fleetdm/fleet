@@ -143,7 +143,7 @@ jobs:
                         <string>${{ steps.build-sign-notarize.outputs.fleetd_base_pkg_sha256 }}</string>
                       </array>
                       <key>url</key>
-                      <string>${{ env.BASE_URL }}/fleetd-base.pkg</string>
+                      <string>${{ env.FULL_DATE_DIR }}/fleetd-base.pkg</string>
                     </dict>
                   </array>
                 </dict>
@@ -239,10 +239,11 @@ jobs:
           mkdir -p stable
           mkdir -p ${{ env.FULL_DATE_DIR }}
           echo '{
-            "fleetd_base_pkg_url": "${{ env.BASE_URL }}/${{ env.FULL_DATE_DIR }}/fleetd-base.pkg",
-            "fleetd_base_pkg_sha256": "${{ needs.update-fleetd-base-pkg.outputs.fleetd_base_pkg_sha256 }}",
             "fleetd_base_msi_url": "${{ env.BASE_URL }}/${{ env.FULL_DATE_DIR }}/fleetd-base.msi",
             "fleetd_base_msi_sha256": "${{ needs.update-fleetd-base-msi.outputs.fleetd_base_msi_sha256 }}",
+            "fleetd_base_pkg_url": "${{ env.BASE_URL }}/${{ env.FULL_DATE_DIR }}/fleetd-base.pkg",
+            "fleetd_base_pkg_sha256": "${{ needs.update-fleetd-base-pkg.outputs.fleetd_base_pkg_sha256 }}",
+            "fleetd_base_manifest_plist_url": "${{ env.BASE_URL }}/${{ env.FULL_DATE_DIR }}/fleetd-base-manifest.plist",
             "version": "${{ needs.check-for-fleetd-component-updates.outputs.date_dir }}"
           }' > meta.json
           : # Check that meta.json is valid
