@@ -210,7 +210,7 @@ jobs:
       DIGICERT_KEYLOCKER_CERTIFICATE_FINGERPRINT: ${{ secrets.DIGICERT_KEYLOCKER_CERTIFICATE_FINGERPRINT }}
 
   update-fleetd-base-msi:
-    needs: [code-sign-windows]
+    needs: [code-sign-windows, check-for-fleetd-component-updates]
     runs-on: ubuntu-latest
     outputs:
       fleetd_base_msi_sha256: ${{ steps.prepare-files.outputs.fleetd_base_msi_sha256 }}
@@ -297,3 +297,9 @@ jobs:
         uses: ./.github/actions/r2-upload
         with:
           filenames: stable/meta.json,stable/tuf-meta.json,${{ env.FULL_DATE_DIR }}/meta.json,${{ env.FULL_DATE_DIR }}/tuf-meta.json
+
+  verify-fleetd-base:
+    needs: update-meta-files
+    uses: ./.github/workflows/verify-fleetd-base.yml
+    with:
+      base-url: ${{ env.BASE_URL }}
