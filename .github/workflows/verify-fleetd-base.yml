@@ -87,7 +87,7 @@ jobs:
           if (! $?) { exit 1 }
           cd "C:\Windows\System32\config\systemprofile\AppData\Local\FleetDM\Orbit\Logs"
           Get-ChildItem
-          if (! Test-Path "C:\Windows\System32\config\systemprofile\AppData\Local\FleetDM\Orbit\Logs\orbit-osquery.log" -PathType Leaf) { exit 1 }
+          if (!(Test-Path "C:\Windows\System32\config\systemprofile\AppData\Local\FleetDM\Orbit\Logs\orbit-osquery.log" -PathType Leaf)) { exit 1 }
 
   verify-fleetd-base-pkg:
     runs-on: macos-latest
