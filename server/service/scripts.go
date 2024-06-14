@@ -915,26 +915,37 @@ type lockHostRequest struct {
 }
 
 type lockHostResponse struct {
-	Err error `json:"error,omitempty"`
+	Err        error  `json:"error,omitempty"`
+	UnlockPIN  string `json:"unlock_pin,omitempty"`
+	StatusCode int    `json:"-"`
 }
 
-func (r lockHostResponse) Status() int  { return http.StatusNoContent }
+func (r lockHostResponse) Status() int {
+	if r.StatusCode != 0 {
+		return r.StatusCode
+	}
+	return http.StatusNoContent
+}
 func (r lockHostResponse) error() error { return r.Err }
 
 func lockHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*lockHostRequest)
-	if err := svc.LockHost(ctx, req.HostID); err != nil {
+	unlockPIN, err := svc.LockHost(ctx, req.HostID)
+	if err != nil {
 		return lockHostResponse{Err: err}, nil
+	}
+	if unlockPIN != "" {
+		return lockHostResponse{UnlockPIN: unlockPIN, StatusCode: http.StatusOK}, nil
 	}
 	return lockHostResponse{}, nil
 }
 
-func (svc *Service) LockHost(ctx context.Context, hostID uint) error {
+func (svc *Service) LockHost(ctx context.Context, hostID uint) (string, error) {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)
 
-	return fleet.ErrMissingLicense
+	return "", fleet.ErrMissingLicense
 }
 
 ////////////////////////////////////////////////////////////////////////////////

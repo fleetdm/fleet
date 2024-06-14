@@ -1,0 +1,13 @@
+name: scheduled_tasks
+description: |- # (required) string - The description for this table. Note: this field supports Markdown
+  The Windows Task Scheduler tracks and performs automated tasks on a Windows device. The `scheduled_tasks` table collects the data from the Windows Task Scheduler.
+examples: |- # (optional) string - An example query for this table. Note: This field supports Markdown
+  This query collects all tasks that are enabled but have not run:
+
+  ```
+  SELECT * FROM scheduled_tasks WHERE enabled='1' AND last_run_message='The task has not yet run.';
+  ```
+notes: |- # (optional) string - Notes about this table. Note: This field supports Markdown.
+  Many automated tasks are added to the Task Scheduler by Windows itself, however, administrators can also customize the Task Scheduler. Scheduled tasks are analogous to Launch Daemons and Launch Agents used on Linux or macOS. Because automation is a potential vector for malicious activity, monitoring the Windows Task Scheduler may be critical in an enterprise environment.
+
+  [Windows Task Scheduler](https://learn.microsoft.com/en-us/windows/win32/taskschd/about-the-task-scheduler)

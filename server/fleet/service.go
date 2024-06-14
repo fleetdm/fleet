@@ -106,7 +106,8 @@ type Service interface {
 	CreateUserFromInvite(ctx context.Context, p UserPayload) (user *User, err error)
 
 	// CreateUser allows an admin to create a new user without first creating  and validating invite tokens.
-	CreateUser(ctx context.Context, p UserPayload) (user *User, err error)
+	// The sessionKey is only returned (not-nil) when creating API-only (non-SSO) users.
+	CreateUser(ctx context.Context, p UserPayload) (user *User, sessionKey *string, err error)
 
 	// CreateInitialUser creates the first user, skipping authorization checks.  If a user already exists this method
 	// should fail.
@@ -1040,7 +1041,7 @@ type Service interface {
 	BatchSetScripts(ctx context.Context, maybeTmID *uint, maybeTmName *string, payloads []ScriptPayload, dryRun bool) error
 
 	// Script-based methods (at least for some platforms, MDM-based for others)
-	LockHost(ctx context.Context, hostID uint) error
+	LockHost(ctx context.Context, hostID uint) (unlockPIN string, err error)
 	UnlockHost(ctx context.Context, hostID uint) (unlockPIN string, err error)
 	WipeHost(ctx context.Context, hostID uint) error
 

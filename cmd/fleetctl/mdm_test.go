@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"slices"
@@ -361,13 +362,6 @@ func TestMDMLockCommand(t *testing.T) {
 		MDMInfo:  &fleet.HostMDM{Enrolled: true, Name: fleet.WellKnownMDMFleet},
 		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("On (manual)")},
 	}
-	macEnrolledUP := &fleet.Host{
-		ID:       9,
-		UUID:     "mac-enrolled-up",
-		Platform: "darwin",
-		MDMInfo:  &fleet.HostMDM{Enrolled: true, Name: fleet.WellKnownMDMFleet},
-		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("On (manual)")},
-	}
 
 	winEnrolledLP := &fleet.Host{
 		ID:       10,
@@ -409,7 +403,6 @@ func TestMDMLockCommand(t *testing.T) {
 		macPending,
 		winPending,
 		winEnrolledUP,
-		macEnrolledUP,
 		winEnrolledLP,
 		macEnrolledLP,
 		winEnrolledWP,
@@ -421,7 +414,6 @@ func TestMDMLockCommand(t *testing.T) {
 
 	unlockPending := map[uint]*fleet.Host{
 		winEnrolledUP.ID: winEnrolledUP,
-		macEnrolledUP.ID: macEnrolledUP,
 	}
 
 	lockPending := map[uint]*fleet.Host{
@@ -446,9 +438,7 @@ func TestMDMLockCommand(t *testing.T) {
 
 		if _, ok := unlockPending[host.ID]; ok {
 			if fleetPlatform == "darwin" {
-				status.UnlockPIN = "1234"
-				status.UnlockRequestedAt = time.Now()
-				return &status, nil
+				return nil, errors.New("apple devices do not have an unlock pending state")
 			}
 
 			status.UnlockScript = &fleet.HostScriptResult{}
@@ -542,7 +532,6 @@ fleetctl mdm unlock --host=%s
 		{appCfgWinMDM, "valid windows but pending ", []string{"--host", winPending.UUID}, `Can't lock the host because it doesn't have MDM turned on.`},
 		{appCfgMacMDM, "valid macos but pending", []string{"--host", macPending.UUID}, `Can't lock the host because it doesn't have MDM turned on.`},
 		{appCfgAllMDM, "valid windows but pending unlock", []string{"--host", winEnrolledUP.UUID}, "Host has pending unlock request."},
-		{appCfgAllMDM, "valid macos but pending unlock", []string{"--host", macEnrolledUP.UUID}, "Host has pending unlock request."},
 		{appCfgAllMDM, "valid windows but pending lock", []string{"--host", winEnrolledLP.UUID}, "Host has pending lock request."},
 		{appCfgAllMDM, "valid macos but pending lock", []string{"--host", macEnrolledLP.UUID}, "Host has pending lock request."},
 		{appCfgAllMDM, "valid windows but pending wipe", []string{"--host", winEnrolledWP.UUID}, "Host has pending wipe request."},
@@ -603,13 +592,6 @@ func TestMDMUnlockCommand(t *testing.T) {
 		MDMInfo:  &fleet.HostMDM{Enrolled: true, Name: fleet.WellKnownMDMFleet},
 		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("On (manual)")},
 	}
-	macEnrolledUP := &fleet.Host{
-		ID:       9,
-		UUID:     "mac-enrolled-up",
-		Platform: "darwin",
-		MDMInfo:  &fleet.HostMDM{Enrolled: true, Name: fleet.WellKnownMDMFleet},
-		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("On (manual)")},
-	}
 	winEnrolledLP := &fleet.Host{
 		ID:       10,
 		UUID:     "win-enrolled-lp",
@@ -650,7 +632,6 @@ func TestMDMUnlockCommand(t *testing.T) {
 		macPending,
 		winPending,
 		winEnrolledUP,
-		macEnrolledUP,
 		winEnrolledLP,
 		macEnrolledLP,
 		winEnrolledWP,
@@ -667,7 +648,6 @@ func TestMDMUnlockCommand(t *testing.T) {
 
 	unlockPending := map[uint]*fleet.Host{
 		winEnrolledUP.ID: winEnrolledUP,
-		macEnrolledUP.ID: macEnrolledUP,
 	}
 
 	lockPending := map[uint]*fleet.Host{
@@ -701,9 +681,7 @@ func TestMDMUnlockCommand(t *testing.T) {
 
 		if _, ok := unlockPending[host.ID]; ok {
 			if fleetPlatform == "darwin" {
-				status.UnlockPIN = "1234"
-				status.UnlockRequestedAt = time.Now()
-				return &status, nil
+				return nil, errors.New("apple devices do not have an unlock pending state")
 			}
 
 			status.UnlockScript = &fleet.HostScriptResult{}
@@ -800,7 +778,6 @@ fleetctl get host %s
 		{appCfgWinMDM, "valid windows but pending mdm enroll", []string{"--host", winPending.UUID}, `Can't unlock the host because it doesn't have MDM turned on.`},
 		{appCfgMacMDM, "valid macos but pending mdm enroll", []string{"--host", macPending.UUID}, `Can't unlock the host because it doesn't have MDM turned on.`},
 		{appCfgAllMDM, "valid windows but pending unlock", []string{"--host", winEnrolledUP.UUID}, "Host has pending unlock request."},
-		{appCfgAllMDM, "valid macos but pending unlock", []string{"--host", macEnrolledUP.UUID}, ""},
 		{appCfgAllMDM, "valid windows but pending lock", []string{"--host", winEnrolledLP.UUID}, "Host has pending lock request."},
 		{appCfgAllMDM, "valid macos but pending lock", []string{"--host", macEnrolledLP.UUID}, "Host has pending lock request."},
 		{appCfgAllMDM, "valid windows but pending wipe", []string{"--host", winEnrolledWP.UUID}, "Host has pending wipe request."},
@@ -853,13 +830,6 @@ func TestMDMWipeCommand(t *testing.T) {
 		ID:       8,
 		UUID:     "win-enrolled-up",
 		Platform: "windows",
-		MDMInfo:  &fleet.HostMDM{Enrolled: true, Name: fleet.WellKnownMDMFleet},
-		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("On (manual)")},
-	}
-	macEnrolledUP := &fleet.Host{
-		ID:       9,
-		UUID:     "mac-enrolled-up",
-		Platform: "darwin",
 		MDMInfo:  &fleet.HostMDM{Enrolled: true, Name: fleet.WellKnownMDMFleet},
 		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("On (manual)")},
 	}
@@ -950,7 +920,6 @@ func TestMDMWipeCommand(t *testing.T) {
 		macPending,
 		winPending,
 		winEnrolledUP,
-		macEnrolledUP,
 		winEnrolledLP,
 		macEnrolledLP,
 		winEnrolledWP,
@@ -971,7 +940,6 @@ func TestMDMWipeCommand(t *testing.T) {
 
 	unlockPending := map[uint]*fleet.Host{
 		winEnrolledUP.ID: winEnrolledUP,
-		macEnrolledUP.ID: macEnrolledUP,
 	}
 
 	lockPending := map[uint]*fleet.Host{
@@ -1010,9 +978,7 @@ func TestMDMWipeCommand(t *testing.T) {
 
 		if _, ok := unlockPending[host.ID]; ok {
 			if fleetPlatform == "darwin" {
-				status.UnlockPIN = "1234"
-				status.UnlockRequestedAt = time.Now()
-				return &status, nil
+				return nil, errors.New("apple devices do not have an unlock pending state")
 			}
 
 			status.UnlockScript = &fleet.HostScriptResult{}
@@ -1129,7 +1095,6 @@ func TestMDMWipeCommand(t *testing.T) {
 		{appCfgWinMDM, "valid windows but pending mdm enroll", []string{"--host", winPending.UUID}, `Can't wipe the host because it doesn't have MDM turned on.`},
 		{appCfgMacMDM, "valid macos but pending mdm enroll", []string{"--host", macPending.UUID}, `Can't wipe the host because it doesn't have MDM turned on.`},
 		{appCfgAllMDM, "valid windows but pending unlock", []string{"--host", winEnrolledUP.UUID}, "Host has pending unlock request."},
-		{appCfgAllMDM, "valid macos but pending unlock", []string{"--host", macEnrolledUP.UUID}, "Host has pending unlock request."},
 		{appCfgAllMDM, "valid windows but pending lock", []string{"--host", winEnrolledLP.UUID}, "Host has pending lock request."},
 		{appCfgAllMDM, "valid macos but pending lock", []string{"--host", macEnrolledLP.UUID}, "Host has pending lock request."},
 		{appCfgAllMDM, "valid windows but pending wipe", []string{"--host", winEnrolledWP.UUID}, "Host has pending wipe request."},

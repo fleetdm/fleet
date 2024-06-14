@@ -67,6 +67,9 @@ parasails.registerPage('signup', {
       // redirect to the /start page.
       // > (Note that we re-enable the syncing state here.  This is on purpose--
       // > to make sure the spinner stays there until the page navigation finishes.)
+      if(typeof gtag !== 'undefined'){
+        gtag('event','website_sign_up');
+      }
       this.syncing = true;
       this.goto(this.pageToRedirectToAfterRegistration);// « / start if the user came here from the start now button, or customers/new-license if the user came here from the "Get your license" link.
     }
