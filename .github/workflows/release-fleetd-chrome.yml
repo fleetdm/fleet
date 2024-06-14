@@ -24,6 +24,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    env:
+      BASE_URL: https://chrome-beta.fleetdm.com
     steps:
       - name: Harden Runner
         uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
@@ -36,7 +38,7 @@ jobs:
       - name: Run test
         working-directory: ./ee/fleetd-chrome
         run: |
-          npm install && npm run test
+          npm install --no-save && npm run test
 
       - name: Set the version
         working-directory: ./ee/fleetd-chrome

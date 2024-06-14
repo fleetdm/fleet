@@ -38,5 +38,10 @@ runs:
         : # Loop over each filename in the array of filenames and upload each one.
         IFS=$'\n'
         for filename in $(echo "${{ inputs.filenames }}" | tr "," "\n"); do
-          rclone copy --verbose "$filename" r2:${{ env.R2_BUCKET }}/$(dirname "$filename")
+          upload_dir=${{ env.R2_BUCKET }}
+          dirname=$(dirname "$filename")
+          if [ "$dirname" != "" ] && [ "$dirname" != "." ]; then
+            upload_dir="$upload_dir"/"$dirname"
+          fi
+          rclone copy --verbose "$filename" r2:"$upload_dir"
         done
