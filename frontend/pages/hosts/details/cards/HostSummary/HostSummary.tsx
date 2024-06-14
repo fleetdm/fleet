@@ -185,6 +185,12 @@ const HostSummary = ({
     disk_encryption_enabled: diskEncryptionEnabled,
   } = summaryData;
 
+  // TODO -remove
+  summaryData.maintenance_window = {
+    starts_at: "CHANGEME2024-08-19T02:02:17Z",
+    timezone: "CHANGEMEAmerica/New_York",
+  };
+
   const isChromeHost = platform === "chrome";
   const isIosOrIpadosHost = platform === "ios" || platform === "ipados";
 
@@ -349,6 +355,32 @@ const HostSummary = ({
     return <DataSet title="Osquery" value={summaryData.osquery_version} />;
   };
 
+  const renderMaintenanceWindow = () => {
+    // TODO
+    const prettyDateTime = summaryData.maintenance_window.starts_at;
+    // TODO
+    const iAnaTz = summaryData.maintenance_window.timezone;
+
+    return (
+      <DataSet
+        title="Scheduled maintenance"
+        value={
+          <TooltipWrapper
+            tipContent={
+              <>
+                End user&apos;s time zone:
+                <br />
+                {iAnaTz}
+              </>
+            }
+          >
+            {prettyDateTime}
+          </TooltipWrapper>
+        }
+      />
+    );
+  };
+
   const renderSummary = () => {
     // for windows hosts we have to manually add a profile for disk encryption
     // as this is not currently included in the `profiles` value from the API
@@ -432,6 +464,7 @@ const HostSummary = ({
         )}
         <DataSet title="Operating system" value={summaryData.os_version} />
         {!isIosOrIpadosHost && renderAgentSummary()}
+        {summaryData.maintenance_window && renderMaintenanceWindow()}
       </Card>
     );
   };

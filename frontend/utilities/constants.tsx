@@ -373,6 +373,7 @@ export const HOST_SUMMARY_DATA = [
   "team_name",
   "disk_encryption_enabled",
   "display_name", // Not rendered on my device page
+  "maintenance_window", // Not rendered on my device page
 ];
 
 export const HOST_ABOUT_DATA = [
