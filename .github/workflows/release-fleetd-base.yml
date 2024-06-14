@@ -204,7 +204,7 @@ jobs:
         with:
           filenames: stable/fleetd-base.msi,${{ env.FULL_DATE_DIR }}/fleetd-base.msi
 
-  update-meta-json:
+  update-meta-files:
     needs: [check-for-fleetd-component-updates, update-fleetd-base-pkg, update-fleetd-base-msi]
     runs-on: ubuntu-latest
     env:
@@ -230,6 +230,8 @@ jobs:
 
       - name: Set up files and directories for upload
         run: |
+          mkdir -p stable
+          mkdir -p ${{ env.FULL_DATE_DIR }}
           echo '{
             "fleetd_base_pkg_url": "${{ env.BASE_URL }}/${{ env.FULL_DATE_DIR }}/fleetd-base.pkg",
             "fleetd_base_pkg_sha256\": "${{ needs.update-fleetd-base-pkg.outputs.fleetd_base_pkg_sha256 }}",
