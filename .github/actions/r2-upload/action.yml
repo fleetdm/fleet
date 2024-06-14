@@ -32,6 +32,6 @@ runs:
         " > ~/.config/rclone/rclone.conf
         : # Loop over each filename in the array of filenames and upload each one.
         IFS=$'\n'
-        for row in $(echo "${{ inputs.filenames }}" | tr "," "\n"); do
-          rclone copy --verbose "$row" r2:${{ env.R2_BUCKET }}/
+        for filename in $(echo "${{ inputs.filenames }}" | tr "," "\n"); do
+          rclone copy --verbose "$filename" r2:${{ env.R2_BUCKET }}/$(dirname "$filename")
         done
