@@ -19,7 +19,7 @@ interface IHostActionsDropdownProps {
    * unlocking, locking, ...etc) */
   hostMdmDeviceStatus: HostMdmDeviceStatusUIState;
   doesStoreEncryptionKey?: boolean;
-  mdmName?: string;
+  isConnectedToFleetMdm?: boolean;
   hostPlatform?: string;
   onSelect: (value: string) => void;
   hostScriptsEnabled: boolean | null;
@@ -31,7 +31,7 @@ const HostActionsDropdown = ({
   hostMdmEnrollmentStatus,
   hostMdmDeviceStatus,
   doesStoreEncryptionKey,
-  mdmName,
+  isConnectedToFleetMdm,
   hostPlatform = "",
   hostScriptsEnabled = false,
   onSelect,
@@ -68,7 +68,7 @@ const HostActionsDropdown = ({
     isEnrolledInMdm: ["On (automatic)", "On (manual)"].includes(
       hostMdmEnrollmentStatus ?? ""
     ),
-    isFleetMdm: mdmName === "Fleet",
+    isConnectedToFleetMdm,
     isMacMdmEnabledAndConfigured,
     isWindowsMdmEnabledAndConfigured,
     doesStoreEncryptionKey: doesStoreEncryptionKey ?? false,

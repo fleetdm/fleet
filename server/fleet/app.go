@@ -191,12 +191,10 @@ type MacOSUpdates struct {
 	Deadline optjson.String `json:"deadline"`
 }
 
-// EnabledForHost returns a boolean indicating if updates are enabled for the host
-func (m MacOSUpdates) EnabledForHost(h *Host) bool {
+// Configured returns a boolean indicating if updates are configured
+func (m MacOSUpdates) Configured() bool {
 	return m.Deadline.Value != "" &&
-		m.MinimumVersion.Value != "" &&
-		h.IsOsqueryEnrolled() &&
-		h.MDMInfo.IsFleetEnrolled()
+		m.MinimumVersion.Value != ""
 }
 
 func (m MacOSUpdates) Validate() error {
@@ -235,16 +233,6 @@ func (m MacOSUpdates) Validate() error {
 type WindowsUpdates struct {
 	DeadlineDays    optjson.Int `json:"deadline_days"`
 	GracePeriodDays optjson.Int `json:"grace_period_days"`
-}
-
-// EnabledForHost returns a boolean indicating if enforced Windows OS updates
-// are enabled for the host. Note that the provided Host needs to be loaded
-// with full MDMInfo data for the check to be valid.
-func (w WindowsUpdates) EnabledForHost(h *Host) bool {
-	return w.DeadlineDays.Valid &&
-		w.GracePeriodDays.Valid &&
-		h.IsOsqueryEnrolled() &&
-		h.MDMInfo.IsFleetEnrolled()
 }
 
 // Equal returns true if the values of the fields of w and other are equal. It

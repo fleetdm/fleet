@@ -329,6 +329,17 @@ type Datastore interface {
 	// updated in the given `interval`).
 	ListIOSAndIPadOSToRefetch(ctx context.Context, refetchInterval time.Duration) (uuids []string, err error)
 
+	// IsHostConnectedToFleetMDM verifies if the host has an active Fleet MDM enrollment with this server
+	IsHostConnectedToFleetMDM(ctx context.Context, host *Host) (bool, error)
+
+	// AreHostsConnectedToFleetMDM checks each host MDM enrollment with
+	// this server and returns a map indexed by the host uuid and a boolean
+	// indicating if the enrollment is active.
+	//
+	// This function exists to prevent n+1 queries when we need to check
+	// the MDM status of a list of hosts.
+	AreHostsConnectedToFleetMDM(ctx context.Context, hosts []*Host) (map[string]bool, error)
+
 	AggregatedMunkiVersion(ctx context.Context, teamID *uint) ([]AggregatedMunkiVersion, time.Time, error)
 	AggregatedMunkiIssues(ctx context.Context, teamID *uint) ([]AggregatedMunkiIssue, time.Time, error)
 	AggregatedMDMStatus(ctx context.Context, teamID *uint, platform string) (AggregatedMDMStatus, time.Time, error)

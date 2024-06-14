@@ -537,10 +537,7 @@ func (svc *Service) DeleteTeam(ctx context.Context, teamID uint) error {
 	mdmHostSerials := make([]string, 0, len(hosts))
 	for _, host := range hosts {
 		hostIDs = append(hostIDs, host.ID)
-		// FIXME: These checks don't work here because host.MDMInfo is not being populated by
-		// ds.ListHosts call (it populates host.MDM instead). This may be happening in other
-		// places too.
-		if host.MDMInfo.IsPendingDEPFleetEnrollment() || host.MDMInfo.IsDEPFleetEnrolled() {
+		if host.IsDEPAssignedToFleet() {
 			mdmHostSerials = append(mdmHostSerials, host.HardwareSerial)
 		}
 	}

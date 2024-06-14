@@ -1560,6 +1560,9 @@ func TestLockUnlockWipeHostAuth(t *testing.T) {
 	ds.UnlockHostManuallyFunc = func(ctx context.Context, hostID uint, platform string, ts time.Time) error {
 		return nil
 	}
+	ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, host *fleet.Host) (bool, error) {
+		return true, nil
+	}
 
 	cases := []struct {
 		name                  string

@@ -373,6 +373,14 @@ func TestRunMDMCommandAuthz(t *testing.T) {
 	team1And2UnenrolledHosts := []*fleet.Host{{ID: 1, TeamID: ptr.Uint(1), UUID: "a"}, {ID: 2, TeamID: ptr.Uint(2), UUID: "b"}}
 	team2And3UnenrolledHosts := []*fleet.Host{{ID: 2, TeamID: ptr.Uint(2), UUID: "b"}, {ID: 3, TeamID: ptr.Uint(3), UUID: "c"}}
 
+	ds.AreHostsConnectedToFleetMDMFunc = func(ctx context.Context, hosts []*fleet.Host) (map[string]bool, error) {
+		res := make(map[string]bool, len(hosts))
+		for _, h := range hosts {
+			res[h.UUID] = true
+		}
+		return res, nil
+	}
+
 	userTeamMaintainerTeam1And2 := &fleet.User{
 		ID: 100,
 		Teams: []fleet.UserTeam{
@@ -490,6 +498,14 @@ func TestRunMDMCommandValidations(t *testing.T) {
 	windowsSingleHost := []*fleet.Host{{ID: 1, TeamID: ptr.Uint(1), UUID: "a", MDMInfo: enrolledMDMInfo, Platform: "windows"}}
 	macosSingleHost := []*fleet.Host{{ID: 1, TeamID: ptr.Uint(1), UUID: "a", MDMInfo: enrolledMDMInfo, Platform: "darwin"}}
 
+	ds.AreHostsConnectedToFleetMDMFunc = func(ctx context.Context, hosts []*fleet.Host) (map[string]bool, error) {
+		res := make(map[string]bool, len(hosts))
+		for _, h := range hosts {
+			res[h.UUID] = h.MDMInfo != nil && h.MDMInfo.Enrolled && h.MDMInfo.Name == fleet.WellKnownMDMFleet
+		}
+		return res, nil
+	}
+
 	cases := []struct {
 		desc          string
 		hosts         []*fleet.Host
@@ -543,6 +559,13 @@ func TestMDMCommonAuthorization(t *testing.T) {
 	}
 	ds.GetMDMWindowsProfilesSummaryFunc = func(ctx context.Context, teamID *uint) (*fleet.MDMProfilesSummary, error) {
 		return &fleet.MDMProfilesSummary{}, nil
+	}
+	ds.AreHostsConnectedToFleetMDMFunc = func(ctx context.Context, hosts []*fleet.Host) (map[string]bool, error) {
+		res := make(map[string]bool, len(hosts))
+		for _, h := range hosts {
+			res[h.UUID] = true
+		}
+		return res, nil
 	}
 
 	mockTeamFuncWithUser := func(u *fleet.User) mock.TeamFunc {
@@ -660,6 +683,13 @@ func TestEnqueueWindowsMDMCommand(t *testing.T) {
 	svc, ctx := newTestService(t, ds, nil, nil)
 	ds.MDMWindowsInsertCommandForHostsFunc = func(ctx context.Context, deviceIDs []string, cmd *fleet.MDMWindowsCommand) error {
 		return nil
+	}
+	ds.AreHostsConnectedToFleetMDMFunc = func(ctx context.Context, hosts []*fleet.Host) (map[string]bool, error) {
+		res := make(map[string]bool, len(hosts))
+		for _, h := range hosts {
+			res[h.UUID] = true
+		}
+		return res, nil
 	}
 
 	cases := []struct {
@@ -789,6 +819,13 @@ func TestGetMDMDiskEncryptionSummary(t *testing.T) {
 		require.Nil(t, teamID)
 		// Use default zeros verifying, action_required, or removing_enforcement
 		return &fleet.MDMWindowsBitLockerSummary{Verified: 7, Failed: 8, Enforcing: 9}, nil
+	}
+	ds.AreHostsConnectedToFleetMDMFunc = func(ctx context.Context, hosts []*fleet.Host) (map[string]bool, error) {
+		res := make(map[string]bool, len(hosts))
+		for _, h := range hosts {
+			res[h.UUID] = true
+		}
+		return res, nil
 	}
 
 	// Test that the summary properly combines the results of the two methods
