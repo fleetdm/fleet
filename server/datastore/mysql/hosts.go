@@ -3678,12 +3678,7 @@ func (ds *Datastore) SetOrUpdateHostEmailsFromMdmIdpAccounts(
 	if fleetEnrollmentRef != "" {
 		idp, err := ds.GetMDMIdPAccountByUUID(ctx, fleetEnrollmentRef)
 		if err != nil {
-			if !fleet.IsNotFound(err) {
-				return err
-			}
-
-			level.Debug(ds.logger).Log("msg", "mdm idp account not found", "uuid", fleetEnrollmentRef)
-			return nil
+			return err
 		}
 		email = &idp.Email
 	}
