@@ -65,7 +65,7 @@ jobs:
           cp fleetd.crx archive/$datedir
           cp updates.xml archive/$datedir
           echo "{
-            \"fleetd_crx_url\": "${{ env.BASE_URL }}/archive/$datedir/fleetd.crx\",
+            \"fleetd_crx_url\": \"${{ env.BASE_URL }}/archive/$datedir/fleetd.crx\",
             \"updates_xml\": \"${{ env.BASE_URL }}/archive/$datedir/updates.xml\",
             \"version\": \"$datedir\"
           }" > meta.json
