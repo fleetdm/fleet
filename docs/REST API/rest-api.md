@@ -8122,13 +8122,13 @@ Content-Type: application/octet-stream
 `Status: 200`
 
 
-### Download software
+### Get or download software
 
 _Available in Fleet Premium._
 
-Download a software package.
+Get info or download a software package.
 
-`GET /api/v1/fleet/software/titles/:software_title_id/package/?alt=media`
+`GET /api/v1/fleet/software/titles/:software_title_id/package`
 
 #### Parameters
 
@@ -8136,12 +8136,25 @@ Download a software package.
 | ----            | ------- | ---- | --------------------------------------------     |
 | software_title_id              | integer | path | **Required**. The ID of the software title to download software package.|
 | team_id | integer | form | **Required**. The team ID. Downloads a software package added to the specified team. |
-| alt             | integer | query | **Required**. Supported values are `media` and `token`. If `media` specified downloads the specified software package. If `token` generates a token that can be used to authenticate download in the web browser. |
-| token | string | query | Authentication token generated when `alt` is set to `token`.  Only one of either `alt` or `token` can be included in the request. |
+| alt             | integer | query | If specified and set to `media`, downloads the specified software package. |
+| token | string | query | Download with authentication token. `alt` must be specified as `media` to download with the token. |
 
+#### Example (get package info)
 
+`GET /api/v1/fleet/software/titles/123/package`
 
-#### Example (`alt=media`)
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "name": "ZoomFullInstaller.pkg"
+  "token": "0331f58a-5bf8-4eb6-959d-f1dbd7fa8d64"
+}
+```
+
+#### Example (download package)
 
 `GET /api/v1/fleet/software/titles/123/package?alt=media?team_id=2`
 
@@ -8155,20 +8168,6 @@ Content-Type: application/octet-stream
 Content-Disposition: attachment
 Content-Length: <length>
 Body: <blob>
-```
-
-#### Example (`alt=token`)
-
-`GET /api/v1/fleet/software/titles/123/package?alt=token?team_id=2`
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "token": "0331f58a-5bf8-4eb6-959d-f1dbd7fa8d64"
-}
 ```
 
 ### Delete software
