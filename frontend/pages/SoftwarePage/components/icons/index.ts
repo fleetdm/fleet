@@ -1,5 +1,6 @@
 import { HOST_LINUX_PLATFORMS } from "interfaces/platform";
-import Linux from "components/icons/Linux";
+import { ISoftware } from "interfaces/software";
+
 import AcrobatReader from "./AcrobatReader";
 import ChromeApp from "./ChromeApp";
 import Excel from "./Excel";
@@ -29,9 +30,8 @@ const LINUX_OS_NAME_TO_ICON_MAP = HOST_LINUX_PLATFORMS.reduce(
 // SOFTWARE_NAME_TO_ICON_MAP list "special" applications that have a defined
 // icon for them, keys refer to application names, and are intended to be fuzzy
 // matched in the application logic.
-export const SOFTWARE_NAME_TO_ICON_MAP = {
+const SOFTWARE_NAME_TO_ICON_MAP = {
   "adobe acrobat reader": AcrobatReader,
-  "google chrome": ChromeApp,
   "microsoft excel": Excel,
   falcon: Falcon,
   firefox: Firefox,
@@ -41,7 +41,6 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "microsoft teams": Teams,
   "visual studio code": VisualStudioCode,
   "microsoft word": Word,
-  zoom: Zoom,
   darwin: MacOS,
   windows: WindowsOS,
   chrome: ChromeOS,
@@ -50,7 +49,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
 
 // SOFTWARE_SOURCE_TO_ICON_MAP maps different software sources to a defined
 // icon.
-export const SOFTWARE_SOURCE_TO_ICON_MAP = {
+const SOFTWARE_SOURCE_TO_ICON_MAP = {
   package: Package,
   apt_sources: Package,
   deb_packages: Package,
@@ -71,10 +70,88 @@ export const SOFTWARE_SOURCE_TO_ICON_MAP = {
   vscode_extensions: Extension,
 } as const;
 
-export const SOFTWARE_ICON_SIZES: Record<string, string> = {
-  medium: "24",
-  meduim_large: "64", // TODO: rename this to large and update large to xlarge
-  large: "96",
-} as const;
+/**
+ * This attempts to loosely match the provided string to a key in a provided dictionary, returning the key if the
+ * provided string starts with the key or undefined otherwise.
+ */
+const matchLoosePrefixToKey = <T extends Record<string, unknown>>(
+  dict: T,
+  s: string
+) => {
+  s = s.trim().toLowerCase();
+  if (!s) {
+    return undefined;
+  }
+  const match = Object.keys(dict).find((k) =>
+    s.startsWith(k.trim().toLowerCase())
+  );
 
-export type SoftwareIconSizes = keyof typeof SOFTWARE_ICON_SIZES;
+  return match ? (match as keyof T) : undefined;
+};
+
+/**
+ * This strictly matches the provided name and source to a software icon, returning the icon if a match is found or
+ * null otherwise. It is intended to be used for special cases where a strict match is required
+ * (e.g. Zoom). The caller should handle null cases by falling back to loose matching on name prefixes.
+ */
+const matchStrictNameSourceToIcon = ({
+  name = "",
+  source = "",
+}: Pick<ISoftware, "name" | "source">) => {
+  name = name.trim().toLowerCase();
+  source = source.trim().toLowerCase();
+  switch (true) {
+    case name === "zoom.us.app" && source === "apps":
+      return Zoom;
+    case name === "zoom":
+      return Zoom;
+    case name === "google chrome":
+      return ChromeApp;
+    default:
+      return null;
+  }
+};
+
+/**
+ * This returns the icon component for a given software name and source. If a strict match is found,
+ * it will be returned, otherwise it will fall back to loose matching on name and source prefixes.
+ * If no match is found, the default package icon will be returned.
+ */
+const getMatchedSoftwareIcon = ({
+  name = "",
+  source = "",
+}: Pick<ISoftware, "name" | "source">) => {
+  // first, try strict matching on name and source
+  let Icon = matchStrictNameSourceToIcon({
+    name,
+    source,
+  });
+
+  // if no match, try loose matching on name prefixes
+  if (!Icon) {
+    const matchedName = matchLoosePrefixToKey(SOFTWARE_NAME_TO_ICON_MAP, name);
+    if (matchedName) {
+      Icon = SOFTWARE_NAME_TO_ICON_MAP[matchedName];
+    }
+  }
+
+  // if still no match, try loose matching on source prefixes
+  if (!Icon) {
+    const matchedSource = matchLoosePrefixToKey(
+      SOFTWARE_SOURCE_TO_ICON_MAP,
+      source
+    );
+    if (matchedSource) {
+      Icon = SOFTWARE_SOURCE_TO_ICON_MAP[matchedSource];
+    }
+  }
+
+  // if still no match, default to 'package'
+  if (!Icon) {
+    Icon = SOFTWARE_SOURCE_TO_ICON_MAP.package;
+  }
+
+  return Icon;
+};
+
+export default getMatchedSoftwareIcon;

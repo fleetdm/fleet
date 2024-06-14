@@ -311,7 +311,7 @@ const DeviceUserPage = ({
 
   const renderEnrollMdmModal = () => {
     return host?.dep_assigned_to_fleet ? (
-      <AutoEnrollMdmModal onCancel={toggleEnrollMdmModal} />
+      <AutoEnrollMdmModal host={host} onCancel={toggleEnrollMdmModal} />
     ) : (
       <ManualEnrollMdmModal
         onCancel={toggleEnrollMdmModal}

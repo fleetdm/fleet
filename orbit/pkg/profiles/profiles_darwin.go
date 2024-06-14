@@ -247,6 +247,6 @@ func parseEnrollmentProfileValue(line []byte, key string) (string, bool) {
 
 // showEnrollmentProfileCmd is declared as a variable so it can be overwritten by tests.
 var showEnrollmentProfileCmd = func() ([]byte, error) {
-	cmd := exec.Command("/usr/bin/profiles", "show", "-type", "enrollment")
+	cmd := exec.Command("sh", "-c", `launchctl asuser $(id -u $(stat -f "%u" /dev/console)) profiles show -type enrollment`)
 	return cmd.Output()
 }
