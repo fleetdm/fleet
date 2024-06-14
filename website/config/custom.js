@@ -197,6 +197,7 @@ module.exports.custom = {
 
     // Code for core product and integrations
     'ee/tools/puppet': ['lukeheath', 'roperzh', 'gillespi314', 'mna', 'georgekarrv'],
+    'tools/api': ['lukeheath', 'georgekarrv', 'sharon-fdm'],//« Scripts for interacting with the Fleet API
 
     // Reference, config surface, built-in queries, API, and other documentation
     'docs': ['rachaelshaw'],// (default for docs)
