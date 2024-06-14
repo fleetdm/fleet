@@ -88,7 +88,8 @@ policies:
 
 ```yaml
 policies:
-  - path: `path-to/lib/policies-name.policies.yml`
+  - path: `../lib/policies-name.policies.yml`
+# path is relative to teams/team-name.yml 
 ```
 
 ### queries
@@ -143,7 +144,8 @@ queries:
 
 ```yaml
 queries:
-  - path: `path-to/lib/queries-name.queries.yml`
+  - path: `../lib/queries-name.queries.yml`
+# path is relative to default.yml or teams/team-name.yml
 ```
 
 ### agent_options
@@ -199,7 +201,8 @@ config:
 
 ```yaml
 queries:
-  - path: `path-to/lib/agent-options.yml`
+  - path: `../lib/agent-options.yml`
+# path is relative to default.yml or teams/team-name.yml
 ```
 
 ### controls
@@ -215,8 +218,8 @@ The `controls` section allows you to configure scripts and device management (MD
 
 ```yaml
 controls:
-  scripts:
-    - path: ../lib/macos-script.sh
+  scripts: 
+    - path: ../lib/macos-script.sh 
     - path: ../lib/windows-script.ps1
     - path: ../lib/linux-script.sh
   windows_enabled_and_configured: true
@@ -242,6 +245,7 @@ controls:
     enable: true
     mode: voluntary
     webhook_url: https://example.org/webhook_handler
+# paths are relative to default.yml or teams/team-name.yml 
 ```
 
 #### macos_updates
