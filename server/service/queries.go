@@ -121,16 +121,17 @@ type getQueryReportRequest struct {
 }
 
 type getQueryReportResponse struct {
-	QueryID uint                       `json:"query_id"`
-	Results []fleet.HostQueryResultRow `json:"results"`
-	Err     error                      `json:"error,omitempty"`
+	QueryID       uint                       `json:"query_id"`
+	Results       []fleet.HostQueryResultRow `json:"results"`
+	ReportClipped bool                       `json:"report_clipped"`
+	Err           error                      `json:"error,omitempty"`
 }
 
 func (r getQueryReportResponse) error() error { return r.Err }
 
 func getQueryReportEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*getQueryReportRequest)
-	queryReportResults, err := svc.GetQueryReportResults(ctx, req.ID)
+	queryReportResults, reportClipped, err := svc.GetQueryReportResults(ctx, req.ID)
 	if err != nil {
 		return listQueriesResponse{Err: err}, nil
 	}
@@ -140,44 +141,53 @@ func getQueryReportEndpoint(ctx context.Context, request interface{}, svc fleet.
 		results = queryReportResults
 	}
 	return getQueryReportResponse{
-		QueryID: req.ID,
-		Results: results,
+		QueryID:       req.ID,
+		Results:       results,
+		ReportClipped: reportClipped,
 	}, nil
 }
 
-func (svc *Service) GetQueryReportResults(ctx context.Context, id uint) ([]fleet.HostQueryResultRow, error) {
+func (svc *Service) GetQueryReportResults(ctx context.Context, id uint) ([]fleet.HostQueryResultRow, bool, error) {
 	// Load query first to get its teamID.
 	query, err := svc.ds.Query(ctx, id)
 	if err != nil {
 		setAuthCheckedOnPreAuthErr(ctx)
-		return nil, ctxerr.Wrap(ctx, err, "get query from datastore")
+		return nil, false, ctxerr.Wrap(ctx, err, "get query from datastore")
 	}
 	if err := svc.authz.Authorize(ctx, query, fleet.ActionRead); err != nil {
-		return nil, err
+		return nil, false, err
 	}
 
 	if query.DiscardData {
-		return nil, nil
+		return nil, false, nil
 	}
 
 	vc, ok := viewer.FromContext(ctx)
 	if !ok {
-		return nil, fleet.ErrNoContext
+		return nil, false, fleet.ErrNoContext
 	}
 	filter := fleet.TeamFilter{User: vc.User, IncludeObserver: true}
 
 	queryReportResultRows, err := svc.ds.QueryResultRows(ctx, id, filter)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "get query report results")
+		return nil, false, ctxerr.Wrap(ctx, err, "get query report results")
 	}
 	queryReportResults, err := fleet.MapQueryReportResultsToRows(queryReportResultRows)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "map db rows to results")
+		return nil, false, ctxerr.Wrap(ctx, err, "map db rows to results")
 	}
-	return queryReportResults, nil
+	appConfig, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return nil, false, ctxerr.Wrap(ctx, err, "get app config")
+	}
+	reportClipped, err := svc.QueryReportIsClipped(ctx, id, appConfig.ServerSettings.GetQueryReportCap())
+	if err != nil {
+		return nil, false, ctxerr.Wrap(ctx, err, "check query report is clipped")
+	}
+	return queryReportResults, reportClipped, nil
 }
 
-func (svc *Service) QueryReportIsClipped(ctx context.Context, queryID uint) (bool, error) {
+func (svc *Service) QueryReportIsClipped(ctx context.Context, queryID uint, maxQueryReportRows int) (bool, error) {
 	query, err := svc.ds.Query(ctx, queryID)
 	if err != nil {
 		setAuthCheckedOnPreAuthErr(ctx)
@@ -191,7 +201,7 @@ func (svc *Service) QueryReportIsClipped(ctx context.Context, queryID uint) (boo
 	if err != nil {
 		return false, err
 	}
-	return count >= fleet.MaxQueryReportRows, nil
+	return count >= maxQueryReportRows, nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////

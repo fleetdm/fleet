@@ -89,7 +89,9 @@ module.exports = {
     if(!updatedRecord){
       throw new Error(`When trying to update a VantaConnection record (id: ${recordOfThisAuthorization.id}) with an authorization token from Vanta, the database record associated with this request has gone missing.`);
     }
-
+    if(this.req.signedCookies.redirectAfterSetup){
+      return this.res.redirect(this.req.signedCookies.redirectAfterSetup);
+    }
     return {
       showSuccessMessage: true
     };

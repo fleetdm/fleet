@@ -12,6 +12,7 @@ github.com/fleetdm/fleet/v4/server/fleet/ServerSettings	DeferredSaveHost	bool
 github.com/fleetdm/fleet/v4/server/fleet/ServerSettings	QueryReportsDisabled	bool
 github.com/fleetdm/fleet/v4/server/fleet/ServerSettings	ScriptsDisabled	bool
 github.com/fleetdm/fleet/v4/server/fleet/ServerSettings	AIFeaturesDisabled	bool
+github.com/fleetdm/fleet/v4/server/fleet/ServerSettings	QueryReportCap	int
 github.com/fleetdm/fleet/v4/server/fleet/AppConfig	SMTPSettings	*fleet.SMTPSettings
 github.com/fleetdm/fleet/v4/server/fleet/SMTPSettings	SMTPEnabled	bool
 github.com/fleetdm/fleet/v4/server/fleet/SMTPSettings	SMTPConfigured	bool

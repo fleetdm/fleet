@@ -19,6 +19,10 @@ module.exports = {
     fleetApiKey: {
       type: 'string',
       required: true,
+    },
+    redirectToExternalPageAfterAuthorization: {
+      type: 'string',
+      description: 'If provided, the user will be sent to this URL after they complete the setup of this integration'
     }
   },
 
@@ -59,7 +63,6 @@ module.exports = {
   },
 
   fn: async function (inputs) {
-
     let url = require('url');
 
     // Look for any existing VantaConnection records that use this fleet instance URL.
@@ -139,17 +142,26 @@ module.exports = {
         fleetApiKey: inputs.fleetApiKey,
       });
     }
-
+    let callbackUrl = `/vanta-authorization`;
+    if(inputs.redirectToExternalPageAfterAuthorization){
+      callbackUrl += `?redirectAfterSetup=${inputs.redirectToExternalPageAfterAuthorization}`;
+    }
     // Build the authorization URL for this request.
-    let vantaAuthorizationRequestURL = `https://app.vanta.com/oauth/authorize?client_id=${encodeURIComponent(sails.config.custom.vantaAuthorizationClientId)}&scope=connectors.self:write-resource connectors.self:read-resource&state=${encodeURIComponent(generatedStateForThisRequest)}&source_id=${encodeURIComponent(sourceIDForThisRequest)}&redirect_uri=${encodeURIComponent(url.resolve(sails.config.custom.baseUrl, '/vanta-authorization'))}&response_type=code`;
+    let vantaAuthorizationRequestURL = `https://app.vanta.com/oauth/authorize?client_id=${encodeURIComponent(sails.config.custom.vantaAuthorizationClientId)}&scope=connectors.self:write-resource connectors.self:read-resource&state=${encodeURIComponent(generatedStateForThisRequest)}&source_id=${encodeURIComponent(sourceIDForThisRequest)}&redirect_uri=${encodeURIComponent(url.resolve(sails.config.custom.baseUrl, callbackUrl))}&response_type=code`;
 
-    // Set a `state` cookie on the user's browser. This value will be checked against a query parameter when the user returns to fleetdm.com.
-    this.res.cookie('state', generatedStateForThisRequest, {signed: true});
+    if(inputs.redirectToExternalPageAfterAuthorization){
+      let internalRedirectUrl =  `${sails.config.custom.baseUrl}/redirect-vanta-authorization-request?vantaSourceId=${encodeURIComponent(sourceIDForThisRequest)}&state=${encodeURIComponent(generatedStateForThisRequest)}&vantaAuthorizationRequestURL=${encodeURIComponent(vantaAuthorizationRequestURL)}&redirectAfterSetup=${encodeURIComponent(inputs.redirectToExternalPageAfterAuthorization)}`;
 
-    // Set the sourceId to a cookie, we'll use this value to find the database record we created for this request when the user returns to fleetdm.com.
-    this.res.cookie('vantaSourceId', sourceIDForThisRequest, {signed: true});
-
-    return vantaAuthorizationRequestURL;
+      return internalRedirectUrl;
+      // If the useInternalRedirect input was provided, we'll return the URL of an internal endpoiint that will set the required cookies for this request.
+    } else {
+      // Otherwise, if this request came from a user on the connect-vanta page, we'll set the cookies are redirect them directly to Vanta.
+      // Set a `state` cookie on the user's browser. This value will be checked against a query parameter when the user returns to fleetdm.com.
+      this.res.cookie('state', generatedStateForThisRequest, {signed: true});
+      // Set the sourceId to a cookie, we'll use this value to find the database record we created for this request when the user returns to fleetdm.com.
+      this.res.cookie('vantaSourceId', sourceIDForThisRequest, {signed: true});
+      return vantaAuthorizationRequestURL;
+    }
   }
 
 

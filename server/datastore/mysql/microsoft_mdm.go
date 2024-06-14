@@ -359,7 +359,8 @@ ON DUPLICATE KEY UPDATE
 		// if we received a Wipe command result, update the host's status
 		if wipeCmdUUID != "" {
 			if err := updateHostLockWipeStatusFromResultAndHostUUID(ctx, tx, enrollment.HostUUID,
-				"wipe_ref", wipeCmdUUID, strings.HasPrefix(wipeCmdStatus, "2")); err != nil {
+				"wipe_ref", wipeCmdUUID, strings.HasPrefix(wipeCmdStatus, "2"), false,
+			); err != nil {
 				return ctxerr.Wrap(ctx, err, "updating wipe command result in host_mdm_actions")
 			}
 		}

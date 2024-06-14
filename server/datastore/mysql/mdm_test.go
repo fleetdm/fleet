@@ -6122,7 +6122,7 @@ func testSCEPRenewalHelpers(t *testing.T, ds *Datastore) {
 		cert := &x509.Certificate{
 			SerialNumber: serial,
 			Subject: pkix.Name{
-				CommonName: "FleetDM Identity",
+				CommonName: "Fleet Identity",
 			},
 			NotAfter: notAfter,
 			// use a random value, just to make sure they're
