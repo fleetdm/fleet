@@ -4603,14 +4603,14 @@ func testLockUnlockWipeMacOS(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	checkLockWipeState(t, status, false, true, false, false, false, false)
 
-	// request an unlock, to make it pending unlock
+	// request an unlock. This is a NOOP for Apple MDM.
 	err = ds.UnlockHostManually(ctx, host.ID, host.FleetPlatform(), time.Now().UTC())
 	require.NoError(t, err)
 
-	// it is now locked pending unlock
+	// it is still locked
 	status, err = ds.GetHostLockWipeStatus(ctx, host)
 	require.NoError(t, err)
-	checkLockWipeState(t, status, false, true, false, true, false, false)
+	checkLockWipeState(t, status, false, true, false, false, false, false)
 
 	// execute CleanMacOSMDMLock to simulate successful unlock
 	err = ds.CleanMacOSMDMLock(ctx, host.UUID)

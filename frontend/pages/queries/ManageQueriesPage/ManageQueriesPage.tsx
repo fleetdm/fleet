@@ -43,7 +43,7 @@ interface IManageQueriesPageProps {
   location: {
     pathname: string;
     query: {
-      platform?: string;
+      platform?: SupportedPlatform;
       page?: string;
       query?: string;
       order_key?: string;

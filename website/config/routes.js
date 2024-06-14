@@ -525,6 +525,7 @@ module.exports.routes = {
   'GET /learn-more-about/renew-apns': '/docs/using-fleet/mdm-setup#apple-push-notification-service-apns',
   'GET /learn-more-about/renew-abm': '/docs/using-fleet/mdm-setup#apple-business-manager-abm',
   'GET /learn-more-about/fleet-server-private-key': '/docs/configuration/fleet-server-configuration#server-private-key',
+  'GET /learn-more-about/host-identifiers': '/docs/rest-api/rest-api#get-host-by-identifier',
 
   // Sitemap
   // =============================================================================================================
@@ -589,7 +590,8 @@ module.exports.routes = {
   'POST /api/v1/create-or-update-one-newsletter-subscription': { action: 'create-or-update-one-newsletter-subscription' },
   '/api/v1/unsubscribe-from-all-newsletters': { action: 'unsubscribe-from-all-newsletters' },
   'POST /api/v1/admin/build-license-key': { action: 'admin/build-license-key' },
-  'POST /api/v1/create-vanta-authorization-request': { action: 'create-vanta-authorization-request' },
+  'POST /api/v1/create-vanta-authorization-request': { action: 'create-vanta-authorization-request', csrf: false },
+  'GET /redirect-vanta-authorization-request': { action: 'redirect-vanta-authorization-request' },
   'POST /api/v1/deliver-mdm-beta-signup':                   { action: 'deliver-mdm-beta-signup' },
   'POST /api/v1/get-human-interpretation-from-osquery-sql': { action: 'get-human-interpretation-from-osquery-sql', csrf: false },
   'POST /api/v1/deliver-apple-csr ': { action: 'deliver-apple-csr', csrf: false},

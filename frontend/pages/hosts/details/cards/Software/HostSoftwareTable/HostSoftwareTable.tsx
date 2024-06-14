@@ -7,8 +7,10 @@ import { getNextLocationPath } from "utilities/helpers";
 
 import TableContainer from "components/TableContainer";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
+import { generateResultsCountText } from "components/TableContainer/utilities/TableContainerUtils";
 
 import EmptySoftwareTable from "pages/SoftwarePage/components/EmptySoftwareTable";
+import TableCount from "components/TableContainer/TableCount";
 
 const DEFAULT_PAGE_SIZE = 20;
 
@@ -25,16 +27,6 @@ interface IHostSoftwareTableProps {
   page: number;
   pagePath: string;
 }
-
-const SoftwareCount = ({ count }: { count: number }) => {
-  return (
-    <div className={`${baseClass}__count`}>
-      <span>
-        {count === 1 ? `${count} software item` : `${count} software items`}
-      </span>
-    </div>
-  );
-};
 
 const HostSoftwareTable = ({
   tableConfig,
@@ -114,7 +106,7 @@ const HostSoftwareTable = ({
       return null;
     }
 
-    return <SoftwareCount count={count} />;
+    return <TableCount name="items" count={count} />;
   }, [data?.count, data?.software.length]);
 
   const memoizedEmptyComponent = useCallback(() => {
@@ -125,7 +117,6 @@ const HostSoftwareTable = ({
     <div className={baseClass}>
       <TableContainer
         renderCount={memoizedSoftwareCount}
-        resultsTitle="software items"
         columnConfigs={tableConfig}
         data={data?.software || []}
         isLoading={isLoading}
