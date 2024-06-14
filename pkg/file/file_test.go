@@ -130,12 +130,12 @@ func TestExtractInstallerMetadata(t *testing.T) {
 			require.NoError(t, err)
 			defer f.Close()
 
-			name, version, ext, hash, err := file.ExtractInstallerMetadata(f)
+			meta, err := file.ExtractInstallerMetadata(f)
 			require.NoError(t, err)
-			assert.Equal(t, wantName, name)
-			assert.Equal(t, wantVersion, version)
-			assert.Equal(t, wantHash, hex.EncodeToString(hash))
-			assert.Equal(t, wantExtension, ext)
+			assert.Equal(t, wantName, meta.Name)
+			assert.Equal(t, wantVersion, meta.Version)
+			assert.Equal(t, wantHash, hex.EncodeToString(meta.SHASum))
+			assert.Equal(t, wantExtension, meta.Extension)
 		})
 	}
 }
