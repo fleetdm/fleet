@@ -46,15 +46,13 @@ jobs:
           curl -O ${{ env.BASE_URL }}/stable/meta.json
           curl -O ${{ env.BASE_URL }}/stable/fleetd-base.msi
           fleetd_base_msi_sha256=$(shasum -a 256 fleetd-base.msi | cut -d ' ' -f 1)
-          echo "$(jq '.fleetd_base_msi_sha256' meta.json)"
-          echo "$fleetd_base_msi_sha256"
-          if [ "$(jq '.fleetd_base_msi_sha256' meta.json)" != "$fleetd_base_msi_sha256" ]; then
+          if [ "$(jq --raw-output '.fleetd_base_msi_sha256' meta.json)" != "$fleetd_base_msi_sha256" ]; then
             echo "Checksum mismatch for fleetd-base.msi"
             exit 1
           fi
           curl -O ${{ env.BASE_URL }}/stable/fleetd-base.pkg
           fleetd_base_pkg_sha256=$(shasum -a 256 fleetd-base.pkg | cut -d ' ' -f 1)
-          if [ "$(jq '.fleetd_base_pkg_sha256' meta.json)" != "$fleetd_base_pkg_sha256" ]; then
+          if [ "$(jq --raw-output '.fleetd_base_pkg_sha256' meta.json)" != "$fleetd_base_pkg_sha256" ]; then
               echo "Checksum mismatch for fleetd-base.pkg"
               exit 1
           fi
@@ -79,11 +77,12 @@ jobs:
         run: |
           Invoke-WebRequest ${{ env.BASE_URL }}/stable/fleetd-base.msi -OutFile fleetd-base.msi
 
-      - name: Run fleetd-base.msi
+      - name: Install fleetd-base.msi
         shell: powershell
         run: |
-          msiexec /i fleetd-base.msi FLEET_URL="https://fleet.example.com" FLEET_SECRET="insecure"
+          msiexec /i fleetd-base.msi FLEET_URL="https://fleet.example.com" FLEET_SECRET="insecure" /L*V fleetd-base-install.log
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          get-content fleetd-base-install.log
 
   verify-fleetd-base-pkg:
     runs-on: macos-latest
