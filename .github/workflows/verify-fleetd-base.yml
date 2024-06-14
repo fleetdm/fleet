@@ -76,14 +76,17 @@ jobs:
       - name: Download fleetd-base.msi
         shell: powershell
         run: |
-          Invoke-WebRequest ${{ env.BASE_URL }}/stable/fleetd-base.msi -OutFile fleetd-base.msi
+          Invoke-WebRequest "${{ env.BASE_URL }}/stable/fleetd-base.msi" -OutFile "fleetd-base.msi"
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          Get-ChildItem
 
       - name: Install fleetd-base.msi
         shell: powershell
         run: |
           msiexec /i "${{ github.workspace}}/fleetd-base.msi" FLEET_URL="https://fleet.example.com" FLEET_SECRET="insecure" /L*V "${{ github.workspace}}/fleetd-base-install.log"
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
-          get-content "${{ github.workspace}}/fleetd-base-install.log"
+          Get-ChildItem
+          Get-Content "${{ github.workspace}}/fleetd-base-install.log"
 
   verify-fleetd-base-pkg:
     runs-on: macos-latest
