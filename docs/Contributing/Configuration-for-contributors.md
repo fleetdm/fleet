@@ -3,7 +3,7 @@
 - [Mobile device management (MDM)](#mobile-device-management-mdm)
 - [Environment variables](#environment-variables)
 
-This document includes Fleet server confiurguration that are helpful when developing or contributing to Fleet.
+This document includes Fleet server configuration settings that are helpful when developing or contributing to Fleet.
 
 Unlike the [fleetctl apply format](https://github.com/fleetdm/fleet/tree/main/docs/Contributing/fleetctl-apply.md), the files and settings in this document are not recommended for production use. Each setting includes the best practice for being successful in production.
 
