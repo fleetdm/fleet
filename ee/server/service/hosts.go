@@ -59,7 +59,7 @@ func (svc *Service) LockHost(ctx context.Context, hostID uint) (unlockPIN string
 	// locking validations are based on the platform of the host
 	switch host.FleetPlatform() {
 	case "ios", "ipados":
-		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", "Can't lock iOS or iPadOS hosts. Use wipe instead."))
+		return "", ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", "Can't lock iOS or iPadOS hosts. Use wipe instead."))
 	case "darwin":
 		if err := svc.VerifyMDMAppleConfigured(ctx); err != nil {
 			if errors.Is(err, fleet.ErrMDMNotConfigured) {
