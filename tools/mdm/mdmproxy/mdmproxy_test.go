@@ -134,36 +134,3 @@ func Test_udidIncludedByPercentage(t *testing.T) {
 		})
 	}
 }
-
-func Test_mdmProxy_isUDIDMigrated(t *testing.T) {
-	type fields struct {
-		migrateUDIDs      map[string]struct{}
-		migratePercentage int
-		existingServerURL string
-		fleetServerURL    string
-	}
-	type args struct {
-		udid string
-	}
-	tests := []struct {
-		name   string
-		fields fields
-		args   args
-		want   bool
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			m := &mdmProxy{
-				migrateUDIDs:      tt.fields.migrateUDIDs,
-				migratePercentage: tt.fields.migratePercentage,
-				existingServerURL: tt.fields.existingServerURL,
-				fleetServerURL:    tt.fields.fleetServerURL,
-			}
-			if got := m.isUDIDMigrated(tt.args.udid); got != tt.want {
-				t.Errorf("mdmProxy.isUDIDMigrated() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}

@@ -222,7 +222,6 @@ func makeExistingProxy(existingURL, existingDNSName string) *httputil.ReversePro
 
 	// Allow TLS validation to use the "old" server name
 	transport := http.DefaultTransport.(*http.Transport).Clone()
-	// TODO update
 	transport.TLSClientConfig.ServerName = existingDNSName
 	proxy.Transport = transport
 
@@ -284,12 +283,15 @@ func main() {
 	}
 
 	mux := http.NewServeMux()
+	// Health check endpoint used for load balancers
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		log.Println("GET /healthz")
 		w.Write([]byte("OK"))
 	})
+	// Remote management of migration (enabled if auth token set)
 	mux.HandleFunc("/admin/udids", proxy.handleUpdateMigrateUDIDs)
 	mux.HandleFunc("/admin/percentage", proxy.handleUpdatePercentage)
+	// Handler for the actual proxying
 	mux.HandleFunc("/", proxy.handleProxy)
 
 	log.Println("Starting server on :8080")
