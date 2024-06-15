@@ -15,6 +15,7 @@ import (
 	"testing"
 
 	"github.com/WatchBeam/clock"
+	"github.com/elastic/go-elasticsearch/v7"
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
@@ -146,6 +147,12 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		require.NoError(t, err)
 	}
 
+	esConfig := elasticsearch.Config{
+		Addresses: []string{"http://localhost:9200"},
+	}
+	reportStore, err := elasticsearch.NewClient(esConfig)
+	require.NoError(t, err)
+
 	svc, err := NewService(
 		ctx,
 		ds,
@@ -168,6 +175,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		mdmPusher,
 		cronSchedulesService,
 		wstepManager,
+		reportStore,
 	)
 	if err != nil {
 		panic(err)

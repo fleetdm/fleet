@@ -159,7 +159,7 @@ services:
       - "4566:4566"
       - "4571:4571"
     environment:
-      - SERVICES=firehose,kinesis
+      - SERVICES=firehose,es,s3,iam
 
   # s3 compatible object storage (file carving backend)
   minio:
@@ -179,6 +179,32 @@ services:
     ports:
       - "22220:22220"
       - "8474:8474"
+  
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.10.1
+    container_name: elasticsearch
+    environment:
+      - node.name=elasticsearch
+      - discovery.type=single-node
+      - cluster.name=docker-cluster
+      - bootstrap.memory_lock=true
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:7.10.1
+    container_name: kibana
+    environment:
+      ELASTICSEARCH_URL: http://elasticsearch:9200
+    ports:
+      - "5601:5601"
+
 
 volumes:
   mysql-persistent-volume:

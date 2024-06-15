@@ -20,6 +20,7 @@ import (
 
 	"github.com/WatchBeam/clock"
 	"github.com/e-dard/netbug"
+	"github.com/elastic/go-elasticsearch/v7"
 	"github.com/fleetdm/fleet/v4/ee/server/licensing"
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
 	"github.com/fleetdm/fleet/v4/pkg/certificate"
@@ -30,6 +31,7 @@ import (
 	licensectx "github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/cron"
 	"github.com/fleetdm/fleet/v4/server/datastore/cached_mysql"
+	query_report "github.com/fleetdm/fleet/v4/server/datastore/elasticsearch"
 	"github.com/fleetdm/fleet/v4/server/datastore/filesystem"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysqlredis"
@@ -656,6 +658,17 @@ the way that the Fleet server works.
 			ctx, cancelFunc := context.WithCancel(baseCtx)
 			defer cancelFunc()
 
+			esConfig := elasticsearch.Config{
+				Addresses: []string{
+					"http://localhost:9200", // Dockerized Elasticsearch instance
+				},
+			}
+
+			reportStore, err := elasticsearch.NewClient(esConfig)
+			if err != nil {
+				initFatal(err, "initializing report store")
+			}
+
 			eh := errorstore.NewHandler(ctx, redisPool, logger, config.Logging.ErrorRetentionPeriod)
 			ctx = ctxerr.NewContext(ctx, eh)
 			svc, err := service.NewService(
@@ -683,10 +696,14 @@ the way that the Fleet server works.
 				mdmPushService,
 				cronSchedules,
 				wstepCertManager,
+				reportStore,
 			)
 			if err != nil {
 				initFatal(err, "initializing service")
 			}
+
+			// create the elasticsearch index
+			query_report.CreateIndex(reportStore)
 
 			var softwareInstallStore fleet.SoftwareInstallerStore
 			if license.IsPremium() {

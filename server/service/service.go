@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/WatchBeam/clock"
+	"github.com/elastic/go-elasticsearch/v7"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -20,6 +21,7 @@ import (
 	nanomdm_storage "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/storage"
 	"github.com/fleetdm/fleet/v4/server/service/async"
 	"github.com/fleetdm/fleet/v4/server/sso"
+
 	kitlog "github.com/go-kit/kit/log"
 )
 
@@ -32,6 +34,7 @@ type Service struct {
 	carveStore     fleet.CarveStore
 	installerStore fleet.InstallerStore
 	resultStore    fleet.QueryResultStore
+	reportStore    *elasticsearch.Client
 	liveQueryStore fleet.LiveQueryStore
 	logger         kitlog.Logger
 	config         config.FleetConfig
@@ -107,6 +110,7 @@ func NewService(
 	mdmPushService nanomdm_push.Pusher,
 	cronSchedulesService fleet.CronSchedulesService,
 	wstepCertManager microsoft_mdm.CertManager,
+	reportStore *elasticsearch.Client,
 ) (fleet.Service, error) {
 	authorizer, err := authz.NewAuthorizer()
 	if err != nil {
@@ -119,6 +123,7 @@ func NewService(
 		carveStore:        carveStore,
 		installerStore:    installerStore,
 		resultStore:       resultStore,
+		reportStore:       reportStore,
 		liveQueryStore:    lq,
 		logger:            logger,
 		config:            config,

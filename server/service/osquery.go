@@ -18,6 +18,7 @@ import (
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
+	query_report "github.com/fleetdm/fleet/v4/server/datastore/elasticsearch"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
@@ -1695,11 +1696,7 @@ func submitLogsEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 //   - queriesDBData has the corresponding DB query to each unmarshalled result in `osqueryResults`.
 //
 // If queryReportsDisabled is true then it returns only t he `unmarshaledResults` without querying the DB.
-func (svc *Service) preProcessOsqueryResults(
-	ctx context.Context,
-	osqueryResults []json.RawMessage,
-	queryReportsDisabled bool,
-) (unmarshaledResults []*fleet.ScheduledQueryResult, queriesDBData map[string]*fleet.Query) {
+func (svc *Service) preProcessOsqueryResults(ctx context.Context, osqueryResults []json.RawMessage) (unmarshaledResults []*fleet.ScheduledQueryResult) {
 	// skipauth: Authorization is currently for user endpoints only.
 	svc.authz.SkipAuthorization(ctx)
 
@@ -1731,33 +1728,7 @@ func (svc *Service) preProcessOsqueryResults(
 		unmarshaledResults = append(unmarshaledResults, result)
 	}
 
-	if queryReportsDisabled {
-		return unmarshaledResults, nil
-	}
-
-	queriesDBData = make(map[string]*fleet.Query)
-	for _, queryResult := range unmarshaledResults {
-		if queryResult == nil {
-			// These are results that could not be unmarshaled.
-			continue
-		}
-		teamID, queryName, err := getQueryNameAndTeamIDFromResult(queryResult.QueryName)
-		if err != nil {
-			level.Debug(svc.logger).Log("msg", "querying name and team ID from result", "err", err)
-			continue
-		}
-		if _, ok := queriesDBData[queryResult.QueryName]; ok {
-			// Already loaded.
-			continue
-		}
-		query, err := svc.ds.QueryByName(ctx, teamID, queryName)
-		if err != nil {
-			level.Debug(svc.logger).Log("msg", "loading query by name", "err", err, "team", teamID, "name", queryName)
-			continue
-		}
-		queriesDBData[queryResult.QueryName] = query
-	}
-	return unmarshaledResults, queriesDBData
+	return unmarshaledResults
 }
 
 func (svc *Service) SubmitStatusLogs(ctx context.Context, logs []json.RawMessage) error {
@@ -1786,21 +1757,7 @@ func (svc *Service) SubmitResultLogs(ctx context.Context, logs []json.RawMessage
 	// so that the logs are not lost and osquery retries on its next log interval.
 	//
 
-	var queryReportsDisabled bool
-	appConfig, err := svc.ds.AppConfig(ctx)
-	if err != nil {
-		level.Error(svc.logger).Log("msg", "getting app config", "err", err)
-		// If we fail to load the app config we assume the flag to be disabled
-		// to not perform extra processing in that scenario.
-		queryReportsDisabled = true
-	} else {
-		queryReportsDisabled = appConfig.ServerSettings.QueryReportsDisabled
-	}
-
-	unmarshaledResults, queriesDBData := svc.preProcessOsqueryResults(ctx, logs, queryReportsDisabled)
-	if !queryReportsDisabled {
-		svc.saveResultLogsToQueryReports(ctx, unmarshaledResults, queriesDBData)
-	}
+	unmarshaledResults := svc.preProcessOsqueryResults(ctx, logs)
 
 	var filteredLogs []json.RawMessage
 	for i, unmarshaledResult := range unmarshaledResults {
@@ -1809,32 +1766,8 @@ func (svc *Service) SubmitResultLogs(ctx context.Context, logs []json.RawMessage
 			continue
 		}
 
-		if queryReportsDisabled {
-			// If query_reports_disabled=true we write the logs to the logging destination without any extra processing.
-			//
-			// If a query was recently configured with automations_enabled = 0 we may still write
-			// the results for it here. Eventually the query will be removed from the host schedule
-			// and thus Fleet won't receive any further results anymore.
-			filteredLogs = append(filteredLogs, logs[i])
-			continue
-		}
-
-		dbQuery, ok := queriesDBData[unmarshaledResult.QueryName]
-		if !ok {
-			// If Fleet doesn't know of the query we write the logs to the logging destination
-			// without any extra processing. This is to support osquery nodes that load their
-			// config from elsewhere (e.g. using `--config_plugin=filesystem`).
-			//
-			// If a query was configured from Fleet but was recently removed, we may still write
-			// the results for it here. Eventually the query will be removed from the host schedule
-			// and thus Fleet won't receive any further results anymore.
-			filteredLogs = append(filteredLogs, logs[i])
-			continue
-		}
-
-		if !dbQuery.AutomationsEnabled {
-			// Ignore results for queries that have automations disabled.
-			continue
+		if err := query_report.UpsertHostSnapshot(svc.reportStore, *unmarshaledResult); err != nil {
+			level.Error(svc.logger).Log("msg", "upsert elasticsearchhost snapshot", "err", err, "result", logs[i])
 		}
 
 		filteredLogs = append(filteredLogs, logs[i])
