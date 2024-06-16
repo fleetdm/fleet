@@ -709,7 +709,7 @@ the way that the Fleet server works.
 			if err != nil {
 				initFatal(err, "creating elasticsearch index")
 			}
-			
+
 			var softwareInstallStore fleet.SoftwareInstallerStore
 			if license.IsPremium() {
 				profileMatcher := apple_mdm.NewProfileMatcher(redisPool)
