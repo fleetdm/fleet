@@ -705,8 +705,11 @@ the way that the Fleet server works.
 			}
 
 			// create the elasticsearch index
-			query_report.CreateIndex(reportStore)
-
+			err = query_report.CreateIndex(reportStore)
+			if err != nil {
+				initFatal(err, "creating elasticsearch index")
+			}
+			
 			var softwareInstallStore fleet.SoftwareInstallerStore
 			if license.IsPremium() {
 				profileMatcher := apple_mdm.NewProfileMatcher(redisPool)
