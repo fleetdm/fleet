@@ -17,7 +17,7 @@ import (
 func CreateIndex(es *elasticsearch.Client) error {
 	// Check if the index exists
 	req := esapi.IndicesExistsRequest{
-		Index: []string{"hosts"},
+		Index: []string{"report"},
 	}
 
 	res, err := req.Do(context.Background(), es)
@@ -81,7 +81,7 @@ func UpsertHostSnapshot(es *elasticsearch.Client, result fleet.ScheduledQueryRes
 	documentID := url.QueryEscape(result.OsqueryHostID + "-" + result.QueryName)
 
 	req := esapi.IndexRequest{
-		Index:      "hosts",
+		Index:      "report",
 		DocumentID: documentID,
 		Body:       bytes.NewReader(bodyJSON),
 	}

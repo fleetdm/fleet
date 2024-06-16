@@ -2200,22 +2200,23 @@ func runAppleIDeviceMDMLoop(i int, stats *Stats, model string, serverURL string,
 
 // rows returns a set of rows for use in tests for query results.
 func rows(num int) string {
-	b := strings.Builder{}
-	for i := 0; i < num; i++ {
-		b.WriteString(`    {
+	baseString := `    {
       "build_distro": "centos7",
       "build_platform": "linux",
       "config_hash": "eed0d8296e5f90b790a23814a9db7a127b13498d",
       "config_valid": "1",
       "extensions": "active",
       "instance_id": "e5799132-85ab-4cfa-89f3-03e0dd3c509a",
-      "pid": "3574",
+      "pid": "` + strconv.Itoa(rand.Intn(10000)) + `",
       "platform_mask": "9",
       "start_time": "1696502961",
       "uuid": "EF9595F0-CE81-493A-9B06-D8A9D2CCB95",
       "version": "5.9.2",
       "watcher": "3570"
-    }`)
+    }`
+	b := strings.Builder{}
+	for i := 0; i < num; i++ {
+		b.WriteString(baseString)
 		if i != num-1 {
 			b.WriteString(",")
 		}

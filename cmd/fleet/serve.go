@@ -660,8 +660,10 @@ the way that the Fleet server works.
 
 			esConfig := elasticsearch.Config{
 				Addresses: []string{
-					"http://localhost:9200", // Dockerized Elasticsearch instance
+					os.Getenv("FLEET_OPENSEARCH_ADDRESS"), // Dockerized Elasticsearch instance
 				},
+				Username: os.Getenv("FLEET_OPENSEARCH_USERNAME"),
+				Password: os.Getenv("FLEET_OPENSEARCH_PASSWORD"),
 			}
 
 			reportStore, err := elasticsearch.NewClient(esConfig)
