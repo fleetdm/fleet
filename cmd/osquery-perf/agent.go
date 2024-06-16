@@ -792,8 +792,8 @@ type resultLog struct {
 	numRows   int
 }
 
-func (r resultLog) emit() []byte {
-	return scheduledQueryResults(r.packName, r.queryName, r.numRows)
+func (r resultLog) emit(uuid string) []byte {
+	return scheduledQueryResults(r.packName, r.queryName, uuid, r.numRows)
 }
 
 // sendLogsBatch sends up to loggerTLSMaxLines logs and updates the buffer.
@@ -2077,15 +2077,15 @@ func (a *agent) DistributedWrite(queries map[string]string) error {
 	return nil
 }
 
-func scheduledQueryResults(packName, queryName string, numResults int) []byte {
+func scheduledQueryResults(packName, queryName, uuid string, numResults int) []byte {
 	return []byte(`{
   "snapshot": [` + rows(numResults) + `
   ],
   "action": "snapshot",
   "name": "pack/` + packName + `/` + queryName + `",
-  "hostIdentifier": "EF9595F0-CE81-493A-9B06-D8A9D2CCB952",
+  "hostIdentifier": "` + uuid + `",
   "calendarTime": "Fri Oct  6 18:13:04 2023 UTC",
-  "unixTime": 1696615984,
+  "unixTime": ` + strconv.FormatInt(time.Now().Unix(), 10) + `,
   "epoch": 0,
   "counter": 0,
   "numerics": false,
@@ -2123,7 +2123,7 @@ func (a *agent) submitLogs(results []resultLog) error {
 		if i > 0 {
 			resultLogs = append(resultLogs, ',')
 		}
-		resultLogs = append(resultLogs, result.emit()...)
+		resultLogs = append(resultLogs, result.emit(a.UUID)...)
 	}
 
 	body := []byte(`{"node_key": "` + a.nodeKey + `", "log_type": "result", "data": [` + string(resultLogs) + `]}`)
