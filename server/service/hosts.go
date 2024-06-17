@@ -179,7 +179,8 @@ func (svc *Service) ListHosts(ctx context.Context, opt fleet.HostListOptions) ([
 	filter := fleet.TeamFilter{User: vc.User, IncludeObserver: true}
 
 	// TODO(Sarah): Are we missing any other filters here?
-	if !license.IsPremium(ctx) {
+	premiumLicense := license.IsPremium(ctx)
+	if !premiumLicense {
 		// the low disk space filter is premium-only
 		opt.LowDiskSpaceFilter = nil
 		// the bootstrap package filter is premium-only
@@ -191,9 +192,16 @@ func (svc *Service) ListHosts(ctx context.Context, opt fleet.HostListOptions) ([
 		return nil, err
 	}
 
+	if !opt.DisableFailingPolicies && !premiumLicense {
+		// Remove critical vulnerabilities count if not premium license
+		for _, host := range hosts {
+			host.HostIssues.CriticalVulnerabilitiesCount = nil
+		}
+	}
+
 	if opt.PopulateSoftware {
 		for _, host := range hosts {
-			if err = svc.ds.LoadHostSoftware(ctx, host, license.IsPremium(ctx)); err != nil {
+			if err = svc.ds.LoadHostSoftware(ctx, host, premiumLicense); err != nil {
 				return nil, err
 			}
 		}
