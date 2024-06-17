@@ -1,5 +1,13 @@
 name: Release fleetd-chrome
 
+# Build and upload the following files:
+# - fleetd.crx
+# - updates.xml
+# - meta.json
+# - archive/YYYY-MM-DD_HH-MM-SS/fleetd.crx
+# - archive/YYYY-MM-DD_HH-MM-SS/updates.xml
+# - archive/YYYY-MM-DD_HH-MM-SS/meta.json
+
 on:
   push:
    tags:

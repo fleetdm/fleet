@@ -1,5 +1,19 @@
 name: Release and upload fleetd base to https://download.fleetdm.com
 
+# This workflow checks TUF if there are updates to orbit, desktop, and osqueryd components of fleetd.
+# If there are updates, it builds and uploads the following files:
+# - stable/meta.json
+# - stable/tuf-meta.json
+# - stable/fleetd-base.pkg
+# - stable/fleetd-base-manifest.plist
+# - stable/fleetd-base.msi
+# - archive/stable/YYYY-MM-DD_HH-MM-SS/meta.json
+# - archive/stable/YYYY-MM-DD_HH-MM-SS/tuf-meta.json
+# - archive/stable/YYYY-MM-DD_HH-MM-SS/fleetd-base.pkg
+# - archive/stable/YYYY-MM-DD_HH-MM-SS/fleetd-base-manifest.plist
+# - archive/stable/YYYY-MM-DD_HH-MM-SS/fleetd-base.msi
+# Finally, it verifies the uploaded installers and their checksums.
+
 on:
   workflow_dispatch: # Manual
   schedule:
@@ -62,8 +76,6 @@ jobs:
             echo "update_needed=true" >> $GITHUB_OUTPUT
           fi
           echo "date_dir=$(date -u +%Y-%m-%d_%H-%M-%S)" >> $GITHUB_OUTPUT
-          : # BOZO remove this
-          echo "update_needed=true" >> $GITHUB_OUTPUT
 
       - name: Upload latest TUF meta artifact
         uses: actions/upload-artifact@5d5d22a31266ced268874388b861e4b58bb5c2f3 # v4.3.1

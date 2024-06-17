@@ -1,5 +1,5 @@
 name: R2 upload
-description: Upload a file to R2
+description: Upload files to R2, keeping the directory structure intact
 # Schema: https://json.schemastore.org/github-action.json
 
 # This action expects the following env vars to be set:

@@ -15,7 +15,6 @@ on:
         required: false
         default: 'https://download.fleetdm.com'
         type: string
-  pull_request: # BOZO remove
 
 # This workflow is intended to be called by release-fleetd-base workflow, so it does not have a concurrency group.
 
