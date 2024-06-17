@@ -20,7 +20,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
-	kitlog "github.com/go-kit/kit/log"
+	kitlog "github.com/go-kit/log"
 )
 
 func main() {

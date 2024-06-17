@@ -6,7 +6,7 @@ import (
 	"os"
 	"testing"
 
-	kitlog "github.com/go-kit/kit/log"
+	kitlog "github.com/go-kit/log"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )

@@ -16,7 +16,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/go-kit/kit/log/level"
+	"github.com/go-kit/log/level"
 )
 
 type setOrbitNodeKeyer interface {
