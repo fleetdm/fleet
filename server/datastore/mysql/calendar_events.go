@@ -17,6 +17,7 @@ func (ds *Datastore) CreateOrUpdateCalendarEvent(
 	startTime time.Time,
 	endTime time.Time,
 	data []byte,
+	timeZone string,
 	hostID uint,
 	webhookStatus fleet.CalendarWebhookStatus,
 ) (*fleet.CalendarEvent, error) {
@@ -27,12 +28,14 @@ func (ds *Datastore) CreateOrUpdateCalendarEvent(
 				email,
 				start_time,
 				end_time,
-				event
-			) VALUES (?, ?, ?, ?)
+				event,
+				timezone
+			) VALUES (?, ?, ?, ?, ?)
 			ON DUPLICATE KEY UPDATE
 				start_time = VALUES(start_time),
 				end_time = VALUES(end_time),
 				event = VALUES(event),
+				timezone = VALUES(timezone)
 				updated_at = CURRENT_TIMESTAMP;
 		`
 		result, err := tx.ExecContext(
@@ -42,6 +45,7 @@ func (ds *Datastore) CreateOrUpdateCalendarEvent(
 			startTime,
 			endTime,
 			data,
+			timeZone,
 		)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "insert calendar event")

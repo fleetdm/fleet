@@ -530,11 +530,11 @@ func getTimezone(gCal *GoogleCalendar) (location *time.Location, timezone string
 	return getLocation(tz.Value, config), tz.Value, nil
 }
 
-func getLocation(name string, config *GoogleCalendarConfig) *time.Location {
-	loc, err := time.LoadLocation(name)
+func getLocation(tz string, config *GoogleCalendarConfig) *time.Location {
+	loc, err := time.LoadLocation(tz)
 	if err != nil {
 		// Could not load location, use EST
-		level.Warn(config.Logger).Log("msg", "parsing Google calendar timezone", "timezone", name, "err", err)
+		level.Warn(config.Logger).Log("msg", "parsing Google calendar timezone", "timezone", tz, "err", err)
 		loc, _ = time.LoadLocation("America/New_York")
 	}
 	return loc

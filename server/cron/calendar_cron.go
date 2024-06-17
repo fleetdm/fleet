@@ -20,9 +20,11 @@ import (
 	"github.com/go-kit/log/level"
 )
 
-const calendarConsumers = 18
-const defaultDescription = "needs to make sure your device meets the organization's requirements."
-const defaultResolution = "During this maintenance window, you can expect updates to be applied automatically. Your device may be unavailable during this time."
+const (
+	calendarConsumers  = 18
+	defaultDescription = "needs to make sure your device meets the organization's requirements."
+	defaultResolution  = "During this maintenance window, you can expect updates to be applied automatically. Your device may be unavailable during this time."
+)
 
 type calendarConfig struct {
 	config.CalendarConfig
@@ -226,6 +228,7 @@ func processCalendarFailingHosts(
 
 	for i := 0; i < calendarConsumers; i++ {
 		wg.Add(+1)
+		// start a goroutine
 		go func() {
 			defer wg.Done()
 
@@ -258,6 +261,8 @@ func processCalendarFailingHosts(
 					}
 				}
 
+				// this entity exists only for the duration of this goroutine
+				// very specialized to this implementation
 				userCalendar := createUserCalendarFromConfig(ctx, &calendarConfig.GoogleCalendarIntegration, logger)
 				if err := userCalendar.Configure(host.Email); err != nil {
 					level.Error(logger).Log("msg", "configure user calendar", "err", err)
@@ -288,6 +293,15 @@ func processCalendarFailingHosts(
 	}
 
 	for _, host := range hosts {
+		// "put thing into channel"
+		// TODO: what's a channel?
+		// sync comms btwn goroutines
+		// goroutines....
+		// like processor threads, management handled by the language
+		// think of as true async nonblocking processes
+
+		// if channel were full, this command would be 'blocked', aka, routine will hang
+		// host <- hostsCh // pull host out, assign to host
 		hostsCh <- host
 	}
 	close(hostsCh)
@@ -433,7 +447,7 @@ func processFailingHostCreateCalendarEvent(
 		return fmt.Errorf("create event on user calendar: %w", err)
 	}
 	if _, err := ds.CreateOrUpdateCalendarEvent(
-		ctx, host.Email, calendarEvent.StartTime, calendarEvent.EndTime, calendarEvent.Data, host.HostID, fleet.CalendarWebhookStatusNone,
+		ctx, host.Email, calendarEvent.StartTime, calendarEvent.EndTime, calendarEvent.Data, calendarEvent.TimeZone, host.HostID, fleet.CalendarWebhookStatusNone,
 	); err != nil {
 		return fmt.Errorf("create calendar event on db: %w", err)
 	}
