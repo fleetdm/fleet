@@ -438,8 +438,21 @@ func NewMDMConfigProfilePayloadFromAppleDDM(decl *MDMAppleDeclaration) *MDMConfi
 // MDMProfileSpec represents the spec used to define configuration
 // profiles via yaml files.
 type MDMProfileSpec struct {
-	Path   string   `json:"path,omitempty"`
+	Path string `json:"path,omitempty"`
+
+	// Deprecated: the Labels field is now deprecated, it is superseded by
+	// LabelsIncludeAll, so any value set via this field will be transferred to
+	// LabelsIncludeAll.
 	Labels []string `json:"labels,omitempty"`
+
+	// LabelsIncludeAll is a list of label names that the host must be a member
+	// of in order to receive the profile. It must be a member of all listed
+	// labels.
+	LabelsIncludeAll []string `json:"labels_include_all,omitempty"`
+	// LabelsExcludeAll is a list of label names that the host must not be a
+	// member of in order to receive the profile. It must not be a member of any
+	// of the listed labels.
+	LabelsExcludeAny []string `json:"labels_exclude_any,omitempty"`
 }
 
 // UnmarshalJSON implements the json.Unmarshaler interface to add backwards
@@ -487,6 +500,14 @@ func (p *MDMProfileSpec) Copy() *MDMProfileSpec {
 		clone.Labels = make([]string, len(p.Labels))
 		copy(clone.Labels, p.Labels)
 	}
+	if len(p.LabelsIncludeAll) > 0 {
+		clone.LabelsIncludeAll = make([]string, len(p.LabelsIncludeAll))
+		copy(clone.LabelsIncludeAll, p.LabelsIncludeAll)
+	}
+	if len(p.LabelsExcludeAny) > 0 {
+		clone.LabelsExcludeAny = make([]string, len(p.LabelsExcludeAny))
+		copy(clone.LabelsExcludeAny, p.LabelsExcludeAny)
+	}
 
 	return &clone
 }
@@ -506,35 +527,64 @@ func MDMProfileSpecsMatch(a, b []MDMProfileSpec) bool {
 		return false
 	}
 
-	pathLabelCounts := make(map[string]map[string]int)
+	pathLabelIncludeCounts := make(map[string]map[string]int)
 	for _, v := range a {
-		pathLabelCounts[v.Path] = labelCountMap(v.Labels)
+		// the deprecated Labels field is only relevant if LabelsIncludeAll is
+		// empty.
+		if len(v.LabelsIncludeAll) > 0 {
+			pathLabelIncludeCounts[v.Path] = labelCountMap(v.LabelsIncludeAll)
+		} else {
+			pathLabelIncludeCounts[v.Path] = labelCountMap(v.Labels)
+		}
+	}
+	pathLabelExcludeCounts := make(map[string]map[string]int)
+	for _, v := range a {
+		pathLabelExcludeCounts[v.Path] = labelCountMap(v.LabelsExcludeAny)
 	}
 
 	for _, v := range b {
-		labels, ok := pathLabelCounts[v.Path]
-		if !ok {
+		includeLabels, okIncl := pathLabelIncludeCounts[v.Path]
+		excludeLabels, okExcl := pathLabelExcludeCounts[v.Path]
+		if !okIncl || !okExcl {
 			return false
 		}
 
-		bLabelCounts := labelCountMap(v.Labels)
-		for label, count := range bLabelCounts {
-			if labels[label] != count {
+		var bLabelIncludeCounts map[string]int
+		if len(v.LabelsIncludeAll) > 0 {
+			bLabelIncludeCounts = labelCountMap(v.LabelsIncludeAll)
+		} else {
+			bLabelIncludeCounts = labelCountMap(v.Labels)
+		}
+		for label, count := range bLabelIncludeCounts {
+			if includeLabels[label] != count {
 				return false
 			}
-			labels[label] -= count
+			includeLabels[label] -= count
 		}
-
-		for _, count := range labels {
+		for _, count := range includeLabels {
 			if count != 0 {
 				return false
 			}
 		}
 
-		delete(pathLabelCounts, v.Path)
+		bLabelExcludeCounts := labelCountMap(v.LabelsExcludeAny)
+		for label, count := range bLabelExcludeCounts {
+			if excludeLabels[label] != count {
+				return false
+			}
+			excludeLabels[label] -= count
+		}
+		for _, count := range excludeLabels {
+			if count != 0 {
+				return false
+			}
+		}
+
+		delete(pathLabelIncludeCounts, v.Path)
+		delete(pathLabelExcludeCounts, v.Path)
 	}
 
-	return len(pathLabelCounts) == 0
+	return len(pathLabelIncludeCounts) == 0 && len(pathLabelExcludeCounts) == 0
 }
 
 type MDMAssetName string
