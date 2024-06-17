@@ -221,7 +221,7 @@ With the Elastic components installed, we can move on to Fleet. First up is inst
 sudo apt-get install mysql-server -y
 mysql -uroot
 create database fleet; # This is the database that will be used by Fleet
-create user fleet@'localhost' identified by 'FleetDMPW!'; # Create the mysql user for the Fleet database and set a strong password.
+create user fleet@'localhost' identified by 'FleetPW!'; # Create the mysql user for the Fleet database and set a strong password.
 grant all privileges on fleet.* to fleet@'localhost'; # Grant the new user the necessary privileges to the Fleet database.
 exit
 ```

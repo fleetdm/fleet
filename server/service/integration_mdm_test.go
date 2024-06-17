@@ -8024,7 +8024,7 @@ func (s *integrationMDMTestSuite) TestLockUnlockWipeMacOS() {
 
 	// lock the host
 	var lockResp lockHostResponse
-	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/lock", host.ID), nil, http.StatusOK, &lockResp)
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/lock", host.ID), nil, http.StatusOK, &lockResp, "view_pin", "true")
 	assert.Len(t, lockResp.UnlockPIN, 6)
 
 	// refresh the host's status, it is now pending lock
@@ -8155,6 +8155,10 @@ func (s *integrationMDMTestSuite) TestLockUnlockWipeMacOS() {
 	require.Equal(t, "unlocked", *getHostResp.Host.MDM.DeviceStatus)
 	require.NotNil(t, getHostResp.Host.MDM.PendingAction)
 	require.Equal(t, "", *getHostResp.Host.MDM.PendingAction)
+
+	// lock the host without viewing the PIN
+	s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/lock", host.ID), nil, http.StatusNoContent)
+
 }
 
 func (s *integrationMDMTestSuite) TestZCustomConfigurationWebURL() {
