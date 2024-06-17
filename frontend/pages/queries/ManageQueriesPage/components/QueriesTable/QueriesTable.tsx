@@ -131,7 +131,7 @@ const QueriesTable = ({
       );
     }
     setIsQueriesStateLoading(false);
-  }, [queriesList, queryParams?.query]);
+  }, [queriesList, queryParams]);
 
   // Functions to avoid race conditions
   const initialSearchQuery = (() => queryParams?.query ?? "")();
