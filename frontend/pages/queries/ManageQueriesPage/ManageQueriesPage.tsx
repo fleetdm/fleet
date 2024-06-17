@@ -14,7 +14,7 @@ import { QueryContext } from "context/query";
 import { TableContext } from "context/table";
 import { NotificationContext } from "context/notification";
 import { getPerformanceImpactDescription } from "utilities/helpers";
-import { SupportedPlatform } from "interfaces/platform";
+import { SupportedPlatform, SelectedPlatform } from "interfaces/platform";
 import {
   IEnhancedQuery,
   IQueryKeyQueriesLoadAll,
@@ -43,7 +43,7 @@ interface IManageQueriesPageProps {
   location: {
     pathname: string;
     query: {
-      platform?: SupportedPlatform;
+      platform?: SelectedPlatform;
       page?: string;
       query?: string;
       order_key?: string;
