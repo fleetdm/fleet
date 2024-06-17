@@ -217,8 +217,7 @@ const QueryDetailsPage = ({
 
   const isLoading = isStoredQueryLoading || isQueryReportLoading;
   const isApiError = storedQueryError || queryReportError;
-  const isClipped =
-    (queryReport?.results?.length ?? 0) >= QUERY_REPORT_RESULTS_LIMIT;
+  const isClipped = queryReport?.report_clipped;
   const isLiveQueryDisabled = config?.server_settings.live_query_disabled;
 
   const renderHeader = () => {
