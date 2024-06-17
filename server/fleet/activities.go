@@ -1267,6 +1267,7 @@ func (a ActivityTypeEditedWindowsProfile) Documentation() (activity, details, de
 type ActivityTypeLockedHost struct {
 	HostID          uint   `json:"host_id"`
 	HostDisplayName string `json:"host_display_name"`
+	ViewPIN         bool   `json:"view_pin"`
 }
 
 func (a ActivityTypeLockedHost) ActivityName() string {
