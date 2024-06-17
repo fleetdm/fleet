@@ -10,7 +10,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/go-kit/kit/log/level"
+	"github.com/go-kit/log/level"
 
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/authz"
@@ -34,38 +34,43 @@ type createUserRequest struct {
 
 type createUserResponse struct {
 	User *fleet.User `json:"user,omitempty"`
-	Err  error       `json:"error,omitempty"`
+	// Token is only returned when creating API-only (non-SSO) users.
+	Token *string `json:"token,omitempty"`
+	Err   error   `json:"error,omitempty"`
 }
 
 func (r createUserResponse) error() error { return r.Err }
 
 func createUserEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*createUserRequest)
-	user, err := svc.CreateUser(ctx, req.UserPayload)
+	user, sessionKey, err := svc.CreateUser(ctx, req.UserPayload)
 	if err != nil {
 		return createUserResponse{Err: err}, nil
 	}
-	return createUserResponse{User: user}, nil
+	return createUserResponse{
+		User:  user,
+		Token: sessionKey,
+	}, nil
 }
 
-func (svc *Service) CreateUser(ctx context.Context, p fleet.UserPayload) (*fleet.User, error) {
+func (svc *Service) CreateUser(ctx context.Context, p fleet.UserPayload) (*fleet.User, *string, error) {
 	var teams []fleet.UserTeam
 	if p.Teams != nil {
 		teams = *p.Teams
 	}
 	if err := svc.authz.Authorize(ctx, &fleet.User{Teams: teams}, fleet.ActionWrite); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	if err := p.VerifyAdminCreate(); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "verify user payload")
+		return nil, nil, ctxerr.Wrap(ctx, err, "verify user payload")
 	}
 
 	if teams != nil {
 		// Validate that the teams exist
 		teamsSummary, err := svc.ds.TeamsSummary(ctx)
 		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "fetching teams in attempt to verify team exists")
+			return nil, nil, ctxerr.Wrap(ctx, err, "fetching teams in attempt to verify team exists")
 		}
 		teamIDs := map[uint]struct{}{}
 		for _, team := range teamsSummary {
@@ -74,7 +79,7 @@ func (svc *Service) CreateUser(ctx context.Context, p fleet.UserPayload) (*fleet
 		for _, userTeam := range teams {
 			_, ok := teamIDs[userTeam.Team.ID]
 			if !ok {
-				return nil, ctxerr.Wrap(
+				return nil, nil, ctxerr.Wrap(
 					ctx, fleet.NewInvalidArgumentError("teams.id", fmt.Sprintf("team with id %d does not exist", userTeam.Team.ID)),
 				)
 			}
@@ -82,7 +87,7 @@ func (svc *Service) CreateUser(ctx context.Context, p fleet.UserPayload) (*fleet
 	}
 
 	if invite, err := svc.ds.InviteByEmail(ctx, *p.Email); err == nil && invite != nil {
-		return nil, ctxerr.Errorf(ctx, "%s already invited", *p.Email)
+		return nil, nil, ctxerr.Errorf(ctx, "%s already invited", *p.Email)
 	}
 
 	if p.AdminForcedPasswordReset == nil {
@@ -90,7 +95,28 @@ func (svc *Service) CreateUser(ctx context.Context, p fleet.UserPayload) (*fleet
 		p.AdminForcedPasswordReset = ptr.Bool(true)
 	}
 
-	return svc.NewUser(ctx, p)
+	user, err := svc.NewUser(ctx, p)
+	if err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "create user")
+	}
+
+	// The sessionKey is returned for API-only non-SSO users only.
+	var sessionKey *string
+	if user.APIOnly && !user.SSOEnabled {
+		if p.Password == nil {
+			// Should not happen but let's log just in case.
+			level.Error(svc.logger).Log("err", err, "msg", "password not set during admin user creation")
+		} else {
+			// Create a session for the API-only user by logging in.
+			_, session, err := svc.Login(ctx, user.Email, *p.Password)
+			if err != nil {
+				return nil, nil, ctxerr.Wrap(ctx, err, "create session for api-only user")
+			}
+			sessionKey = &session.Key
+		}
+	}
+
+	return user, sessionKey, nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////

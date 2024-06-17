@@ -775,6 +775,7 @@ func testHostListOptionsTeamFilter(t *testing.T, ds *Datastore) {
 		h := test.NewHost(t, ds, fmt.Sprintf("foo.local.%d", i), "1.1.1.1",
 			fmt.Sprintf("%d", i), fmt.Sprintf("%d", i), time.Now(), opts...)
 		hosts = append(hosts, h)
+		nanoEnroll(t, ds, h, false)
 	}
 	userFilter := fleet.TeamFilter{User: test.UserAdmin}
 
@@ -3285,6 +3286,7 @@ func testHostsListMacOSSettingsDiskEncryptionStatus(t *testing.T, ds *Datastore)
 		})
 		require.NoError(t, err)
 		hosts = append(hosts, h)
+		nanoEnroll(t, ds, h, false)
 	}
 
 	// set up data
@@ -4255,7 +4257,7 @@ func testHostsIncludesScheduledQueriesInPackStats(t *testing.T, ds *Datastore) {
 			Data:    ptr.RawMessage(json.RawMessage(`{"foo": "baz"}`)),
 		},
 	}
-	err = ds.OverwriteQueryResultRows(context.Background(), queryResultRow)
+	err = ds.OverwriteQueryResultRows(context.Background(), queryResultRow, fleet.DefaultMaxQueryReportRows)
 	require.NoError(t, err)
 
 	hostResult, err = ds.Host(context.Background(), host.ID)
@@ -6038,7 +6040,6 @@ func testHostsLoadHostByDeviceAuthToken(t *testing.T, ds *Datastore) {
 	require.NotNil(t, loadSimple.MDMInfo)
 	require.Equal(t, hSimple.ID, loadSimple.MDMInfo.HostID)
 	require.True(t, loadSimple.IsOsqueryEnrolled())
-	require.False(t, loadSimple.MDMInfo.IsPendingDEPFleetEnrollment())
 
 	// create a host that will be pending enrollment in Fleet MDM
 	hFleet := createHostWithDeviceToken("fleet")
@@ -6051,7 +6052,6 @@ func testHostsLoadHostByDeviceAuthToken(t *testing.T, ds *Datastore) {
 	require.NotNil(t, loadFleet.MDMInfo)
 	require.Equal(t, hFleet.ID, loadFleet.MDMInfo.HostID)
 	require.True(t, loadFleet.IsOsqueryEnrolled())
-	require.True(t, loadFleet.MDMInfo.IsPendingDEPFleetEnrollment())
 	require.False(t, loadFleet.MDMInfo.IsServer)
 
 	// force its is_server mdm field to NULL, should be same as false
@@ -6647,6 +6647,12 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 		require.NoError(t, err, tbl)
 		require.True(t, ok, "table: %s", tbl)
 	}
+	for tbl, col := range additionalHostRefsSoftDelete {
+		var ok bool
+		err = ds.writer(context.Background()).Get(&ok, fmt.Sprintf("SELECT 1 FROM %s WHERE host_id = ? AND %s IS NULL", tbl, col), host.ID)
+		require.NoError(t, err, tbl)
+		require.True(t, ok, "table: %s", tbl)
+	}
 
 	err = ds.DeleteHosts(context.Background(), []uint{host.ID})
 	require.NoError(t, err)
@@ -6663,6 +6669,12 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 		err = ds.writer(context.Background()).Get(&ok, fmt.Sprintf("SELECT 1 FROM %s WHERE %s = ?", tbl, col), host.UUID)
 		require.True(t, err == nil || errors.Is(err, sql.ErrNoRows), "table: %s", tbl)
 		require.False(t, ok, "table: %s", tbl)
+	}
+	for tbl, col := range additionalHostRefsSoftDelete {
+		var ok bool
+		err = ds.writer(context.Background()).Get(&ok, fmt.Sprintf("SELECT 1 FROM %s WHERE host_id = ? AND %s IS NULL", tbl, col), host.ID)
+		require.True(t, err == nil || errors.Is(err, sql.ErrNoRows), "table: %s", tbl)
+		require.False(t, ok, "table: %s", tbl) // the soft-delete column is not null anymore, so no row is found
 	}
 }
 
@@ -7500,8 +7512,7 @@ func testHostsLoadHostByOrbitNodeKey(t *testing.T, ds *Datastore) {
 	require.NotNil(t, loadSimple.MDMInfo)
 	require.Equal(t, hSimple.ID, loadSimple.MDMInfo.HostID)
 	require.True(t, loadSimple.IsOsqueryEnrolled())
-	require.False(t, loadSimple.MDMInfo.IsPendingDEPFleetEnrollment())
-	require.False(t, loadSimple.IsEligibleForDEPMigration())
+	require.False(t, loadSimple.IsEligibleForDEPMigration(false))
 
 	// create a host that will be pending enrollment in Fleet MDM
 	hFleet := createOrbitHost("fleet")
@@ -7514,10 +7525,9 @@ func testHostsLoadHostByOrbitNodeKey(t *testing.T, ds *Datastore) {
 	require.NotNil(t, loadFleet.MDMInfo)
 	require.Equal(t, hFleet.ID, loadFleet.MDMInfo.HostID)
 	require.True(t, loadFleet.IsOsqueryEnrolled())
-	require.True(t, loadFleet.MDMInfo.IsPendingDEPFleetEnrollment())
 	require.False(t, loadFleet.MDMInfo.IsServer)
 	require.Empty(t, loadFleet.MDMInfo.DEPProfileAssignStatus)
-	require.False(t, loadFleet.IsEligibleForDEPMigration())
+	require.False(t, loadFleet.IsEligibleForDEPMigration(false))
 
 	// force its is_server mdm field to NULL, should be same as false
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
@@ -7528,7 +7538,7 @@ func testHostsLoadHostByOrbitNodeKey(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, hFleet.ID, loadFleet.ID)
 	require.False(t, loadFleet.MDMInfo.IsServer)
-	require.False(t, loadFleet.IsEligibleForDEPMigration())
+	require.False(t, loadFleet.IsEligibleForDEPMigration(false))
 
 	// fill in disk encryption information
 	require.NoError(t, ds.SetOrUpdateHostDisksEncryption(context.Background(), hFleet.ID, true))
@@ -7542,7 +7552,7 @@ func testHostsLoadHostByOrbitNodeKey(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.NotNil(t, loadFleet.DiskEncryptionEnabled)
 	require.True(t, *loadFleet.DiskEncryptionEnabled)
-	require.False(t, loadFleet.IsEligibleForDEPMigration())
+	require.False(t, loadFleet.IsEligibleForDEPMigration(false))
 	require.Empty(t, loadFleet.MDMInfo.DEPProfileAssignStatus)
 
 	// simulate the device being assigned to Fleet in ABM
@@ -9055,7 +9065,7 @@ func testHostsAddToTeamCleansUpTeamQueryResults(t *testing.T, ds *Datastore) {
 		h4Global0Results,
 		h4Query1Results,
 	} {
-		err = ds.OverwriteQueryResultRows(ctx, results)
+		err = ds.OverwriteQueryResultRows(ctx, results, fleet.DefaultMaxQueryReportRows)
 		require.NoError(t, err)
 	}
 

@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -414,8 +415,17 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 	sw2Meta, err := ds.GetSoftwareInstallerMetadataByID(ctx, sw2)
 	require.NoError(t, err)
 
+	// create a sync script request for h1 that has been pending for > MaxWaitTime, will not show up
+	hsr, err := ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{HostID: h1.ID, ScriptContents: "sync", UserID: &u.ID, SyncRequest: true})
+	require.NoError(t, err)
+	hSyncExpired := hsr.ExecutionID
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, "UPDATE host_script_results SET created_at = ? WHERE execution_id = ?", time.Now().Add(-(scripts.MaxServerWaitTime + time.Minute)), hSyncExpired)
+		return err
+	})
+
 	// create some script requests for h1
-	hsr, err := ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{HostID: h1.ID, ScriptID: &scr1.ID, ScriptContents: scr1.ScriptContents, UserID: &u.ID})
+	hsr, err = ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{HostID: h1.ID, ScriptID: &scr1.ID, ScriptContents: scr1.ScriptContents, UserID: &u.ID})
 	require.NoError(t, err)
 	h1A := hsr.ExecutionID
 	hsr, err = ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{HostID: h1.ID, ScriptID: &scr2.ID, ScriptContents: scr2.ScriptContents, UserID: &u.ID})

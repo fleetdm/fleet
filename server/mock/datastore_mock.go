@@ -241,6 +241,10 @@ type GetHostMDMCheckinInfoFunc func(ctx context.Context, hostUUID string) (*flee
 
 type ListIOSAndIPadOSToRefetchFunc func(ctx context.Context, refetchInterval time.Duration) (uuids []string, err error)
 
+type IsHostConnectedToFleetMDMFunc func(ctx context.Context, host *fleet.Host) (bool, error)
+
+type AreHostsConnectedToFleetMDMFunc func(ctx context.Context, hosts []*fleet.Host) (map[string]bool, error)
+
 type AggregatedMunkiVersionFunc func(ctx context.Context, teamID *uint) ([]fleet.AggregatedMunkiVersion, time.Time, error)
 
 type AggregatedMunkiIssuesFunc func(ctx context.Context, teamID *uint) ([]fleet.AggregatedMunkiIssue, time.Time, error)
@@ -339,7 +343,7 @@ type ResultCountForQueryFunc func(ctx context.Context, queryID uint) (int, error
 
 type ResultCountForQueryAndHostFunc func(ctx context.Context, queryID uint, hostID uint) (int, error)
 
-type OverwriteQueryResultRowsFunc func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow) error
+type OverwriteQueryResultRowsFunc func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows int) error
 
 type CleanupDiscardedQueryResultsFunc func(ctx context.Context) error
 
@@ -1298,6 +1302,12 @@ type DataStore struct {
 
 	ListIOSAndIPadOSToRefetchFunc        ListIOSAndIPadOSToRefetchFunc
 	ListIOSAndIPadOSToRefetchFuncInvoked bool
+
+	IsHostConnectedToFleetMDMFunc        IsHostConnectedToFleetMDMFunc
+	IsHostConnectedToFleetMDMFuncInvoked bool
+
+	AreHostsConnectedToFleetMDMFunc        AreHostsConnectedToFleetMDMFunc
+	AreHostsConnectedToFleetMDMFuncInvoked bool
 
 	AggregatedMunkiVersionFunc        AggregatedMunkiVersionFunc
 	AggregatedMunkiVersionFuncInvoked bool
@@ -3165,6 +3175,20 @@ func (s *DataStore) ListIOSAndIPadOSToRefetch(ctx context.Context, refetchInterv
 	return s.ListIOSAndIPadOSToRefetchFunc(ctx, refetchInterval)
 }
 
+func (s *DataStore) IsHostConnectedToFleetMDM(ctx context.Context, host *fleet.Host) (bool, error) {
+	s.mu.Lock()
+	s.IsHostConnectedToFleetMDMFuncInvoked = true
+	s.mu.Unlock()
+	return s.IsHostConnectedToFleetMDMFunc(ctx, host)
+}
+
+func (s *DataStore) AreHostsConnectedToFleetMDM(ctx context.Context, hosts []*fleet.Host) (map[string]bool, error) {
+	s.mu.Lock()
+	s.AreHostsConnectedToFleetMDMFuncInvoked = true
+	s.mu.Unlock()
+	return s.AreHostsConnectedToFleetMDMFunc(ctx, hosts)
+}
+
 func (s *DataStore) AggregatedMunkiVersion(ctx context.Context, teamID *uint) ([]fleet.AggregatedMunkiVersion, time.Time, error) {
 	s.mu.Lock()
 	s.AggregatedMunkiVersionFuncInvoked = true
@@ -3508,11 +3532,11 @@ func (s *DataStore) ResultCountForQueryAndHost(ctx context.Context, queryID uint
 	return s.ResultCountForQueryAndHostFunc(ctx, queryID, hostID)
 }
 
-func (s *DataStore) OverwriteQueryResultRows(ctx context.Context, rows []*fleet.ScheduledQueryResultRow) error {
+func (s *DataStore) OverwriteQueryResultRows(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows int) error {
 	s.mu.Lock()
 	s.OverwriteQueryResultRowsFuncInvoked = true
 	s.mu.Unlock()
-	return s.OverwriteQueryResultRowsFunc(ctx, rows)
+	return s.OverwriteQueryResultRowsFunc(ctx, rows, maxQueryReportRows)
 }
 
 func (s *DataStore) CleanupDiscardedQueryResults(ctx context.Context) error {

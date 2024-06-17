@@ -15,6 +15,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/rs/zerolog/log"
 )
 
 // Client defines the methods required for the API requests to the server. The
@@ -65,6 +66,7 @@ func (r *Runner) Run(execIDs []string) error {
 			break
 		}
 
+		log.Debug().Msgf("running script %v", execID)
 		if err := r.runOne(script); err != nil {
 			errs = append(errs, err)
 		}
@@ -120,7 +122,9 @@ func (r *Runner) runOne(script *fleet.HostScriptResult) (finalErr error) {
 		execCmdFn = ExecCmd
 	}
 	start := time.Now()
+	log.Debug().Msgf("starting script execution of %v", script.ExecutionID)
 	output, exitCode, execErr := execCmdFn(ctx, scriptFile, nil)
+	log.Debug().Msgf("after script execution of %v", script.ExecutionID)
 	duration := time.Since(start)
 
 	// report the output or the error

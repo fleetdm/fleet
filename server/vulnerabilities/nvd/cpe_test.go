@@ -15,8 +15,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/cpedict"
-	kitlog "github.com/go-kit/kit/log"
 	"github.com/go-kit/log"
+	kitlog "github.com/go-kit/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

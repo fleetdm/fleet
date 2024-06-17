@@ -2,9 +2,11 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"mime/multipart"
+	"net"
 	"net/http"
 	"strconv"
 
@@ -29,14 +31,32 @@ type uploadSoftwareInstallerResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
+// MaxSoftwareInstallerSize is the maximum size allowed for software
+// installers. This is enforced by the endpoint that uploads installers.
+const MaxSoftwareInstallerSize = 500 * units.MiB
+
 // TODO: We parse the whole body before running svc.authz.Authorize.
 // An authenticated but unauthorized user could abuse this.
 func (uploadSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
 	decoded := uploadSoftwareInstallerRequest{}
 	err := r.ParseMultipartForm(512 * units.MiB)
 	if err != nil {
+		var mbe *http.MaxBytesError
+		if errors.As(err, &mbe) {
+			return nil, &fleet.BadRequestError{
+				Message:     "The maximum file size is 500 MB.",
+				InternalErr: err,
+			}
+		}
+		var nerr net.Error
+		if errors.As(err, &nerr) && nerr.Timeout() {
+			return nil, fleet.NewUserMessageError(
+				ctxerr.New(ctx, "Couldn't upload. Please ensure your internet connection speed is sufficient and stable."),
+				http.StatusRequestTimeout,
+			)
+		}
 		return nil, &fleet.BadRequestError{
-			Message:     "failed to parse multipart form",
+			Message:     "failed to parse multipart form: " + err.Error(),
 			InternalErr: err,
 		}
 	}
@@ -49,9 +69,9 @@ func (uploadSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http
 	}
 
 	decoded.File = r.MultipartForm.File["software"][0]
-
-	if decoded.File.Size > 500*units.MiB {
-		// TODO: Should we try to assess the size earlier in the request processing (before parsing the form)?
+	if decoded.File.Size > MaxSoftwareInstallerSize {
+		// Should never happen here since the request's body is limited to the
+		// maximum size.
 		return nil, &fleet.BadRequestError{
 			Message: "The maximum file size is 500 MB.",
 		}

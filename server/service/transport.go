@@ -420,6 +420,11 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 		)
 	}
 
+	connectedToFleet := r.URL.Query().Has("connected_to_fleet")
+	if connectedToFleet {
+		hopt.ConnectedToFleetFilter = ptr.Bool(true)
+	}
+
 	macOSSettingsStatus := r.URL.Query().Get("macos_settings")
 	switch fleet.OSSettingsStatus(macOSSettingsStatus) {
 	case fleet.OSSettingsFailed, fleet.OSSettingsPending, fleet.OSSettingsVerifying, fleet.OSSettingsVerified:

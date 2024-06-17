@@ -1560,6 +1560,9 @@ func TestLockUnlockWipeHostAuth(t *testing.T) {
 	ds.UnlockHostManuallyFunc = func(ctx context.Context, hostID uint, platform string, ts time.Time) error {
 		return nil
 	}
+	ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, host *fleet.Host) (bool, error) {
+		return true, nil
+	}
 
 	cases := []struct {
 		name                  string
@@ -1648,9 +1651,9 @@ func TestLockUnlockWipeHostAuth(t *testing.T) {
 			}
 			ctx := viewer.NewContext(ctx, viewer.Viewer{User: tt.user})
 
-			err := svc.LockHost(ctx, globalHostID)
+			_, err := svc.LockHost(ctx, globalHostID)
 			checkAuthErr(t, tt.shouldFailGlobalWrite, err)
-			err = svc.LockHost(ctx, teamHostID)
+			_, err = svc.LockHost(ctx, teamHostID)
 			checkAuthErr(t, tt.shouldFailTeamWrite, err)
 
 			// Pretend we locked the host

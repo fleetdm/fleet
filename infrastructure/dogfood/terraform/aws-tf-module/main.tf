@@ -40,6 +40,7 @@ variable "fleet_calendar_periodicity" {
   default     = "30s"
   description = "The refresh period for the calendar integration."
 }
+variable "dogfood_sidecar_enroll_secret" {}
 
 data "aws_caller_identity" "current" {}
 
@@ -68,7 +69,7 @@ locals {
 }
 
 module "main" {
-  source          = "github.com/fleetdm/fleet//terraform?ref=tf-mod-root-v1.8.0"
+  source = "github.com/fleetdm/fleet//terraform?ref=tf-mod-root-v1.9.1"
   certificate_arn = module.acm.acm_certificate_arn
   vpc = {
     name = local.customer
@@ -97,10 +98,13 @@ module "main" {
     cluster_name = local.customer
   }
   fleet_config = {
-    image  = local.geolite2_image
-    family = local.customer
-    cpu    = 1024
-    mem    = 4096
+    image    = local.geolite2_image
+    family   = local.customer
+    task_cpu = 1024
+    task_mem = 4096
+    cpu      = 1024
+    mem      = 4096
+    pid_mode = "task"
     autoscaling = {
       min_capacity = 2
       max_capacity = 5
@@ -120,7 +124,7 @@ module "main" {
       }
     }
     extra_iam_policies           = concat(module.firehose-logging.fleet_extra_iam_policies, module.osquery-carve.fleet_extra_iam_policies, module.ses.fleet_extra_iam_policies)
-    extra_execution_iam_policies = concat(module.mdm.extra_execution_iam_policies, [aws_iam_policy.sentry.arn]) #, module.saml_auth_proxy.fleet_extra_execution_policies)
+    extra_execution_iam_policies = concat(module.mdm.extra_execution_iam_policies, [aws_iam_policy.sentry.arn, aws_iam_policy.osquery_sidecar.arn]) #, module.saml_auth_proxy.fleet_extra_execution_policies)
     extra_environment_variables = merge(
       module.mdm.extra_environment_variables,
       module.firehose-logging.fleet_extra_environment_variables,
@@ -137,6 +141,71 @@ module "main" {
     #   container_name   = "fleet"
     #   container_port   = 8080
     # }]
+    software_installers = {
+      bucket_prefix = "${local.customer}-software-installers-"
+    }
+    # sidecars = [
+    #   {
+    #     name        = "osquery"
+    #     image       = module.osquery_docker.ecr_images["${local.osquery_version}-ubuntu24.04"]
+    #     cpu         = 1024
+    #     memory      = 1024
+    #     mountPoints = []
+    #     volumesFrom = []
+    #     essential   = true
+    #     ulimits = [
+    #       {
+    #         softLimit = 999999,
+    #         hardLimit = 999999,
+    #         name      = "nofile"
+    #       }
+    #     ]
+    #     networkMode = "awsvpc"
+    #     logConfiguration = {
+    #       logDriver = "awslogs"
+    #       options = {
+    #         awslogs-group         = local.customer
+    #         awslogs-region        = "us-east-2"
+    #         awslogs-stream-prefix = "osquery"
+    #       }
+    #     }
+    #     secrets = [
+    #       {
+    #         name      = "ENROLL_SECRET"
+    #         valueFrom = aws_secretsmanager_secret.dogfood_sidecar_enroll_secret.arn
+    #       }
+    #     ]
+    #     workingDirectory = "/",
+    #     command = [
+    #       "osqueryd",
+    #       "--tls_hostname=dogfood.fleetdm.com",
+    #       "--force=true",
+    #       # Ensure that the host identifier remains the same between invocations
+    #       # "--host_identifier=specified",
+    #       # "--specified_identifier=${random_uuid.osquery[each.key].result}",
+    #       "--verbose=true",
+    #       "--tls_dump=true",
+    #       "--enroll_secret_env=ENROLL_SECRET",
+    #       "--enroll_tls_endpoint=/api/osquery/enroll",
+    #       "--config_plugin=tls",
+    #       "--config_tls_endpoint=/api/osquery/config",
+    #       "--config_refresh=10",
+    #       "--disable_distributed=false",
+    #       "--distributed_plugin=tls",
+    #       "--distributed_interval=10",
+    #       "--distributed_tls_max_attempts=3",
+    #       "--distributed_tls_read_endpoint=/api/osquery/distributed/read",
+    #       "--distributed_tls_write_endpoint=/api/osquery/distributed/write",
+    #       "--logger_plugin=tls",
+    #       "--logger_tls_endpoint=/api/osquery/log",
+    #       "--logger_tls_period=10",
+    #       "--disable_carver=false",
+    #       "--carver_start_endpoint=/api/osquery/carve/begin",
+    #       "--carver_continue_endpoint=/api/osquery/carve/block",
+    #       "--carver_block_size=8000000",
+    #     ]
+    #   }
+    # ]
   }
   alb_config = {
     name = local.customer
@@ -293,10 +362,9 @@ module "firehose-logging" {
 }
 
 module "osquery-carve" {
-  source = "github.com/fleetdm/fleet//terraform/addons/osquery-carve?ref=tf-mod-addon-osquery-carve-v1.0.1"
+  source = "github.com/fleetdm/fleet//terraform/addons/osquery-carve?ref=tf-mod-addon-osquery-carve-v1.1.0"
   osquery_carve_s3_bucket = {
     name         = "fleet-${local.customer}-osquery-carve"
-    expires_days = 3650
   }
 }
 
@@ -455,7 +523,7 @@ module "geolite2" {
 }
 
 module "vuln-processing" {
-  source                              = "github.com/fleetdm/fleet//terraform/addons/external-vuln-scans?ref=tf-mod-addon-external-vuln-scans-v2.1.0"
+  source                              = "github.com/fleetdm/fleet//terraform/addons/external-vuln-scans?ref=tf-mod-addon-external-vuln-scans-v2.2.0"
   ecs_cluster                         = module.main.byo-vpc.byo-db.byo-ecs.service.cluster
   execution_iam_role_arn              = module.main.byo-vpc.byo-db.byo-ecs.execution_iam_role_arn
   subnets                             = module.main.byo-vpc.byo-db.byo-ecs.service.network_configuration[0].subnets
@@ -468,4 +536,49 @@ module "vuln-processing" {
     region = module.main.byo-vpc.byo-db.byo-ecs.fleet_config.awslogs.region
     prefix = module.main.byo-vpc.byo-db.byo-ecs.fleet_config.awslogs.prefix
   }
+  fleet_s3_software_installers_config = module.main.byo-vpc.byo-db.byo-ecs.fleet_s3_software_installers_config
+}
+
+resource "aws_secretsmanager_secret" "dogfood_sidecar_enroll_secret" {
+  name = "dogfood-sidecar-enroll-secret"
+}
+
+resource "aws_secretsmanager_secret_version" "dogfood_sidecar_enroll_secret" {
+  secret_id     = aws_secretsmanager_secret.dogfood_sidecar_enroll_secret.id
+  secret_string = var.dogfood_sidecar_enroll_secret
+}
+
+data "aws_iam_policy_document" "osquery_sidecar" {
+  statement {
+    actions = [
+      "ecr:BatchCheckLayerAvailability",
+      "ecr:BatchGetImage",
+      "ecr:GetDownloadUrlForLayer",
+      "ecr:GetAuthorizationToken"
+    ]
+    resources = ["*"]
+  }
+  statement {
+    actions = [ #tfsec:ignore:aws-iam-no-policy-wildcards
+      "kms:Encrypt*",
+      "kms:Decrypt*",
+      "kms:ReEncrypt*",
+      "kms:GenerateDataKey*",
+      "kms:Describe*"
+    ]
+    resources = [aws_kms_key.osquery.arn]
+  }
+  statement {
+    actions = [ #tfsec:ignore:aws-iam-no-policy-wildcards
+      "secretsmanager:GetSecretValue"
+    ]
+    resources = [aws_secretsmanager_secret.dogfood_sidecar_enroll_secret.arn]
+
+  }
+}
+
+resource "aws_iam_policy" "osquery_sidecar" {
+  name        = "osquery-sidecar-policy"
+  description = "IAM policy that Osquery sidecar containers use to define access to AWS resources"
+  policy      = data.aws_iam_policy_document.osquery_sidecar.json
 }

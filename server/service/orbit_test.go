@@ -35,6 +35,10 @@ func TestGetOrbitConfigNudge(t *testing.T) {
 		ds.ListPendingSoftwareInstallsFunc = func(ctx context.Context, hostID uint) ([]string, error) {
 			return nil, nil
 		}
+		ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, host *fleet.Host) (bool, error) {
+			return true, nil
+		}
+
 		ctx = test.HostContext(ctx, &fleet.Host{
 			OsqueryHostID: ptr.String("test"),
 			ID:            1,
@@ -97,6 +101,9 @@ func TestGetOrbitConfigNudge(t *testing.T) {
 		}
 		ds.ListPendingHostScriptExecutionsFunc = func(ctx context.Context, hostID uint) ([]*fleet.HostScriptResult, error) {
 			return nil, nil
+		}
+		ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, host *fleet.Host) (bool, error) {
+			return true, nil
 		}
 
 		ctx = test.HostContext(ctx, &fleet.Host{
@@ -172,6 +179,10 @@ func TestGetOrbitConfigNudge(t *testing.T) {
 		ds.ListPendingSoftwareInstallsFunc = func(ctx context.Context, hostID uint) ([]string, error) {
 			return nil, nil
 		}
+		var isHostConnectedToFleet bool
+		ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, h *fleet.Host) (bool, error) {
+			return isHostConnectedToFleet, nil
+		}
 		checkEmptyNudgeConfig := func(h *fleet.Host) {
 			ctx := test.HostContext(ctx, h)
 			cfg, err := svc.GetOrbitConfig(ctx)
@@ -182,45 +193,28 @@ func TestGetOrbitConfigNudge(t *testing.T) {
 		}
 
 		checkHostVariations := func(h *fleet.Host) {
-			// host uses another MDM
-			h.MDMInfo.Name = fleet.WellKnownMDMIntune
-			checkEmptyNudgeConfig(h)
-
-			// host has MDM turned off
-			h.MDMInfo.Name = fleet.WellKnownMDMFleet
-			h.MDMInfo.Enrolled = false
+			// host is not connected to fleet
+			isHostConnectedToFleet = false
 			checkEmptyNudgeConfig(h)
 
 			// host has MDM turned on but is not enrolled
-			h.MDMInfo.Enrolled = true
+			isHostConnectedToFleet = true
 			h.OsqueryHostID = nil
-			checkEmptyNudgeConfig(h)
-
-			// mdminfo is nil
-			h.MDMInfo = nil
 			checkEmptyNudgeConfig(h)
 		}
 
 		// global host
 		checkHostVariations(&fleet.Host{
 			OsqueryHostID: ptr.String("test"),
-			MDMInfo: &fleet.HostMDM{
-				IsServer:         false,
-				InstalledFromDep: true,
-				Enrolled:         true,
-				Name:             fleet.WellKnownMDMFleet,
-			}})
+			Platform:      "darwin",
+		})
 
 		// team host
 		checkHostVariations(&fleet.Host{
 			OsqueryHostID: ptr.String("test"),
 			TeamID:        ptr.Uint(team.ID),
-			MDMInfo: &fleet.HostMDM{
-				IsServer:         false,
-				InstalledFromDep: true,
-				Enrolled:         true,
-				Name:             fleet.WellKnownMDMFleet,
-			}})
+			Platform:      "darwin",
+		})
 
 	})
 
@@ -258,6 +252,9 @@ func TestGetOrbitConfigNudge(t *testing.T) {
 		}
 		ds.ListPendingSoftwareInstallsFunc = func(ctx context.Context, hostID uint) ([]string, error) {
 			return nil, nil
+		}
+		ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, host *fleet.Host) (bool, error) {
+			return true, nil
 		}
 		appCfg := &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true}}
 		appCfg.MDM.MacOSUpdates.Deadline = optjson.SetString("2022-04-01")

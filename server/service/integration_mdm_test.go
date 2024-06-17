@@ -71,7 +71,7 @@ import (
 
 func TestIntegrationsMDM(t *testing.T) {
 	testingSuite := new(integrationMDMTestSuite)
-	testingSuite.s = &testingSuite.Suite
+	testingSuite.withServer.s = &testingSuite.Suite
 	suite.Run(t, testingSuite)
 }
 
@@ -531,9 +531,9 @@ func (s *integrationMDMTestSuite) TestAppleGetAppleMDM() {
 	var mdmResp getAppleMDMResponse
 	s.DoJSON("GET", "/api/latest/fleet/apns", nil, http.StatusOK, &mdmResp)
 	// returned values are dummy, this is a test certificate
-	require.Equal(t, "FleetDM", mdmResp.Issuer)
+	require.Equal(t, "Fleet", mdmResp.Issuer)
 	require.NotZero(t, mdmResp.SerialNumber)
-	require.Equal(t, "FleetDM", mdmResp.CommonName)
+	require.Equal(t, "Fleet", mdmResp.CommonName)
 	require.NotZero(t, mdmResp.RenewDate)
 
 	s.mockDEPResponse(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -2316,7 +2316,7 @@ func (s *integrationMDMTestSuite) TestFleetdConfiguration() {
 	// create an enroll secret for the team
 	teamSpecs := applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
 		Name:    tm.Name,
-		Secrets: []fleet.EnrollSecret{{Secret: t.Name() + "team-secret"}},
+		Secrets: &[]fleet.EnrollSecret{{Secret: t.Name() + "team-secret"}},
 	}}}
 	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
 
@@ -5223,6 +5223,9 @@ func (s *integrationMDMTestSuite) TestAppConfigWindowsMDM() {
 		}
 	}
 
+	// turn on MDM for a host
+	orbitHost, _ := createWindowsHostThenEnrollMDM(s.ds, s.server.URL, t)
+
 	// disable Microsoft MDM
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 		"mdm": { "windows_enabled_and_configured": false }
@@ -5230,16 +5233,11 @@ func (s *integrationMDMTestSuite) TestAppConfigWindowsMDM() {
 	assert.False(t, acResp.MDM.WindowsEnabledAndConfigured)
 	s.lastActivityOfTypeMatches(fleet.ActivityTypeDisabledWindowsMDM{}.ActivityName(), `{}`, 0)
 
-	// set the win-no-team host as enrolled in Windows MDM
-	noTeamHost := hostsBySuffix["win-no-team"]
-	err = s.ds.SetOrUpdateMDMData(ctx, noTeamHost.ID, false, true, "https://example.com", false, fleet.WellKnownMDMFleet, "")
-	require.NoError(t, err)
-
 	// get the orbit config for win-no-team should return true for the
 	// unenrollment notification
 	var resp orbitGetConfigResponse
 	s.DoJSON("POST", "/api/fleet/orbit/config",
-		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *noTeamHost.OrbitNodeKey)),
+		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *orbitHost.OrbitNodeKey)),
 		http.StatusOK, &resp)
 	require.True(t, resp.Notifications.NeedsProgrammaticWindowsMDMUnenrollment)
 	require.False(t, resp.Notifications.NeedsProgrammaticWindowsMDMEnrollment)
@@ -6314,30 +6312,12 @@ func (s *integrationMDMTestSuite) TestValidManagementUnenrollRequest() {
 
 func (s *integrationMDMTestSuite) TestRunMDMCommands() {
 	t := s.T()
-	ctx := context.Background()
 
 	// create a Windows host enrolled in MDM
 	enrolledWindows := createOrbitEnrolledHost(t, "windows", "h1", s.ds)
-	deviceID := "DB257C3A08778F4FB61E2749066C1F27"
-	enrolledDevice := &fleet.MDMWindowsEnrolledDevice{
-		MDMDeviceID:            deviceID,
-		MDMHardwareID:          uuid.New().String() + uuid.New().String(),
-		MDMDeviceState:         uuid.New().String(),
-		MDMDeviceType:          "CIMClient_Windows",
-		MDMDeviceName:          "DESKTOP-1C3ARC1",
-		MDMEnrollType:          "ProgrammaticEnrollment",
-		MDMEnrollUserID:        "",
-		MDMEnrollProtoVersion:  "5.0",
-		MDMEnrollClientVersion: "10.0.19045.2965",
-		MDMNotInOOBE:           false,
-		HostUUID:               enrolledWindows.UUID,
-	}
-	err := s.ds.SetOrUpdateMDMData(ctx, enrolledWindows.ID, false, true, s.server.URL, false, fleet.WellKnownMDMFleet, "")
-	require.NoError(t, err)
-
-	err = s.ds.MDMWindowsInsertEnrolledDevice(context.Background(), enrolledDevice)
-	require.NoError(t, err)
-	err = s.ds.UpdateMDMWindowsEnrollmentsHostUUID(context.Background(), enrolledDevice.HostUUID, enrolledDevice.MDMDeviceID)
+	//deviceID := "DB257C3A08778F4FB61E2749066C1F27"
+	mdmDevice := mdmtest.NewTestMDMClientWindowsProgramatic(s.server.URL, *enrolledWindows.OrbitNodeKey)
+	err := mdmDevice.Enroll()
 	require.NoError(t, err)
 
 	// create an unenrolled Windows host
@@ -6624,8 +6604,9 @@ func (s *integrationMDMTestSuite) TestHostDiskEncryptionKey() {
 	msg := extractServerErrorText(res.Body)
 	require.Contains(t, msg, "host is not enrolled with fleet")
 
-	// mark it as enrolled in Fleet
-	err := s.ds.SetOrUpdateMDMData(ctx, host.ID, false, true, s.server.URL, false, fleet.WellKnownMDMFleet, "")
+	// enroll it in fleet
+	mdmDevice := mdmtest.NewTestMDMClientWindowsProgramatic(s.server.URL, *host.OrbitNodeKey)
+	err := mdmDevice.Enroll()
 	require.NoError(t, err)
 
 	// set its encryption key
@@ -6638,6 +6619,10 @@ func (s *integrationMDMTestSuite) TestHostDiskEncryptionKey() {
 	require.NoError(t, err)
 	require.NotNil(t, hdek.Decryptable)
 	require.True(t, *hdek.Decryptable)
+
+	// mark it as non-server
+	err = s.ds.SetOrUpdateMDMData(ctx, host.ID, false, true, s.server.URL, false, fleet.WellKnownMDMFleet, "")
+	require.NoError(t, err)
 
 	var hostResp getHostResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &hostResp)
@@ -8038,7 +8023,9 @@ func (s *integrationMDMTestSuite) TestLockUnlockWipeMacOS() {
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/unlock", host.ID), nil, http.StatusConflict, &unlockResp)
 
 	// lock the host
-	s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/lock", host.ID), nil, http.StatusNoContent)
+	var lockResp lockHostResponse
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/lock", host.ID), nil, http.StatusOK, &lockResp)
+	assert.Len(t, lockResp.UnlockPIN, 6)
 
 	// refresh the host's status, it is now pending lock
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
@@ -8084,12 +8071,12 @@ func (s *integrationMDMTestSuite) TestLockUnlockWipeMacOS() {
 	unlockActID := s.lastActivityOfTypeMatches(fleet.ActivityTypeUnlockedHost{}.ActivityName(),
 		fmt.Sprintf(`{"host_id": %d, "host_display_name": %q, "host_platform": %q}`, host.ID, host.DisplayName(), host.FleetPlatform()), 0)
 
-	// refresh the host's status, it is locked pending unlock
+	// refresh the host's status, it is still locked
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
 	require.NotNil(t, getHostResp.Host.MDM.DeviceStatus)
 	require.Equal(t, "locked", *getHostResp.Host.MDM.DeviceStatus)
 	require.NotNil(t, getHostResp.Host.MDM.PendingAction)
-	require.Equal(t, "unlock", *getHostResp.Host.MDM.PendingAction)
+	assert.Empty(t, *getHostResp.Host.MDM.PendingAction)
 
 	// try unlocking the host again simply returns the PIN again
 	unlockResp = unlockHostResponse{}
@@ -8834,7 +8821,7 @@ func (s *integrationMDMTestSuite) appleCoreCertsSetup() {
 		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
 		BasicConstraintsValid: true,
 		Subject: pkix.Name{
-			CommonName: "FleetDM",
+			CommonName: "Fleet",
 			ExtraNames: []pkix.AttributeTypeAndValue{
 				{
 					Type:  asn1.ObjectIdentifier{0, 9, 2342, 19200300, 100, 1, 1},
