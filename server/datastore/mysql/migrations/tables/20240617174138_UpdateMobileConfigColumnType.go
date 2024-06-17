@@ -1,0 +1,26 @@
+package tables
+
+import (
+	"database/sql"
+	"fmt"
+)
+
+func init() {
+	MigrationClient.AddMigration(Up_20240617174138, Down_20240617174138)
+}
+
+func Up_20240617174138(tx *sql.Tx) error {
+	stmt := `
+ALTER TABLE mdm_apple_configuration_profiles MODIFY COLUMN mobileconfig MEDIUMBLOB;
+	`
+
+	if _, err := tx.Exec(stmt); err != nil {
+		return fmt.Errorf("changing data type for mdm_apple_configuration_profiles.mobileconfig: %w", err)
+	}
+
+	return nil
+}
+
+func Down_20240617174138(tx *sql.Tx) error {
+	return nil
+}

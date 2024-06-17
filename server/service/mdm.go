@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"mime/multipart"
 	"net/http"
 	"path/filepath"
@@ -1230,6 +1231,10 @@ func (newMDMConfigProfileRequest) DecodeRequest(ctx context.Context, r *http.Req
 	}
 	decoded.Profile = fhs[0]
 
+	if decoded.Profile.Size > 1024*1024 {
+		return nil, &fleet.BadRequestError{Message: "maximum configuration profile file size is 1 MB"}
+	}
+
 	// add labels
 	decoded.Labels = r.MultipartForm.Value["labels"]
 
@@ -1245,6 +1250,8 @@ func (r newMDMConfigProfileResponse) error() error { return r.Err }
 
 func newMDMConfigProfileEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*newMDMConfigProfileRequest)
+
+	slog.With("filename", "server/service/mdm.go", "func", "newMDMConfigProfileEndpoint").Info("JVE_LOG: size at endpoint ", "size", req.Profile.Size)
 
 	ff, err := req.Profile.Open()
 	if err != nil {
