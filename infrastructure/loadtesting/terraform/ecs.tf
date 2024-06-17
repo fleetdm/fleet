@@ -203,6 +203,10 @@ resource "aws_ecs_task_definition" "backend" {
           {
             name  = "FLEET_OSQUERY_ASYNC_HOST_REDIS_SCAN_KEYS_COUNT"
             value = "10000"
+          },
+          {
+            name = "FLEET_OPENSEARCH_ENDPOINT"
+            value = "https://vpc-esreports2-gf3rpllue5l6b3fh6dtgt565q4.us-east-2.es.amazonaws.com"
           }
         ], local.additional_env_vars)
       }

@@ -20,7 +20,6 @@ import (
 
 	"github.com/WatchBeam/clock"
 	"github.com/e-dard/netbug"
-	"github.com/elastic/go-elasticsearch/v7"
 	"github.com/fleetdm/fleet/v4/ee/server/licensing"
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
 	"github.com/fleetdm/fleet/v4/pkg/certificate"
@@ -658,15 +657,7 @@ the way that the Fleet server works.
 			ctx, cancelFunc := context.WithCancel(baseCtx)
 			defer cancelFunc()
 
-			esConfig := elasticsearch.Config{
-				Addresses: []string{
-					os.Getenv("FLEET_OPENSEARCH_ADDRESS"), // Dockerized Elasticsearch instance
-				},
-				Username: os.Getenv("FLEET_OPENSEARCH_USERNAME"),
-				Password: os.Getenv("FLEET_OPENSEARCH_PASSWORD"),
-			}
-
-			reportStore, err := elasticsearch.NewClient(esConfig)
+			reportStore, err := query_report.CreateOpenSearchClient()
 			if err != nil {
 				initFatal(err, "initializing report store")
 			}

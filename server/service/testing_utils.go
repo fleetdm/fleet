@@ -15,11 +15,11 @@ import (
 	"testing"
 
 	"github.com/WatchBeam/clock"
-	"github.com/elastic/go-elasticsearch/v7"
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/datastore/cached_mysql"
+	query_report "github.com/fleetdm/fleet/v4/server/datastore/elasticsearch"
 	"github.com/fleetdm/fleet/v4/server/datastore/filesystem"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/logging"
@@ -147,10 +147,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		require.NoError(t, err)
 	}
 
-	esConfig := elasticsearch.Config{
-		Addresses: []string{"http://localhost:9200"},
-	}
-	reportStore, err := elasticsearch.NewClient(esConfig)
+	reportStore, err := query_report.CreateOpenSearchClient()
 	require.NoError(t, err)
 
 	svc, err := NewService(
