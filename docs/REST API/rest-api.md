@@ -2973,10 +2973,11 @@ This is the API route used by the **My device** page in Fleet desktop to display
       }
     ],
     "mdm": {
-      "encryption_key_available": false,
-      "enrollment_status": null,
-      "name": "",
-      "server_url": null,
+      "encryption_key_available": true,
+      "enrollment_status": "On (manual)",
+      "name": "Fleet",
+      "connected_to_fleet": true,
+      "server_url": "https://acme.com/mdm/apple/mdm",
       "macos_settings": {
         "disk_encryption": null,
         "action_required": null
