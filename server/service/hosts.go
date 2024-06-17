@@ -200,7 +200,7 @@ func (svc *Service) ListHosts(ctx context.Context, opt fleet.HostListOptions) ([
 			host.HostIssues.CriticalVulnerabilitiesCount = nil
 		}
 	} else if opt.DisableIssues && premiumLicense {
-		var zero uint64 = 0
+		var zero uint64
 		for _, host := range hosts {
 			host.HostIssues.CriticalVulnerabilitiesCount = &zero
 		}

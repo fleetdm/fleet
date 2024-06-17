@@ -47,7 +47,6 @@ func TestUp_20240613172616(t *testing.T) {
 	assert.Equal(t, uint(1), result.TotalIssuesCount)
 	assert.NotZero(t, result.CreatedAt)
 	assert.Equal(t, result.CreatedAt, result.UpdatedAt)
-	created := result.CreatedAt
 
 	hostID := uint(12)
 
@@ -65,7 +64,7 @@ func TestUp_20240613172616(t *testing.T) {
 	assert.Equal(t, uint(3), result.TotalIssuesCount)
 	assert.NotZero(t, result.CreatedAt)
 	assert.Equal(t, result.CreatedAt, result.UpdatedAt)
-	created = result.CreatedAt
+	created := result.CreatedAt
 
 	time.Sleep(1 * time.Millisecond)
 	_, err = db.Exec(`UPDATE host_issues SET total_issues_count = 4 WHERE host_id = ?`, hostID)
