@@ -180,28 +180,27 @@ services:
       - "22220:22220"
       - "8474:8474"
   
-  elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:7.10.1
-    container_name: elasticsearch
+  opensearch:
+    image: opensearchproject/opensearch:2.3.0
+    container_name: opensearch
     environment:
-      - node.name=elasticsearch
       - discovery.type=single-node
-      - cluster.name=docker-cluster
+      - plugins.security.disabled=true
       - bootstrap.memory_lock=true
-      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+      - "OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m"
     ulimits:
       memlock:
         soft: -1
         hard: -1
     ports:
       - "9200:9200"
-      - "9300:9300"
+      - "9600:9600"
 
-  kibana:
-    image: docker.elastic.co/kibana/kibana:7.10.1
-    container_name: kibana
+  opensearch_dashboards:
+    image: opensearchproject/opensearch-dashboards:2.3.0
+    container_name: opensearch_dashboards
     environment:
-      ELASTICSEARCH_URL: http://elasticsearch:9200
+      OPENSEARCH_HOSTS: '["http://opensearch:9200"]'
     ports:
       - "5601:5601"
 
