@@ -98,13 +98,19 @@ const HostSoftwareTable = ({
     [determineQueryParamChange, pagePath, generateNewQueryParams, router]
   );
 
+  const count = data?.count || data?.software.length || 0;
+  const isSoftwareNotDetected = count === 0 && searchQuery === "";
+
   const memoizedSoftwareCount = useCallback(() => {
-    const count = data?.count || data?.software.length || 0;
+    if (isSoftwareNotDetected) {
+      return null;
+    }
+
     return <TableCount name="items" count={count} />;
   }, [data?.count, data?.software.length]);
 
   const memoizedEmptyComponent = useCallback(() => {
-    return <EmptySoftwareTable isSearching={searchQuery !== ""} />;
+    return <EmptySoftwareTable isNotDetectingSoftware={searchQuery === ""} />;
   }, [searchQuery]);
 
   return (
@@ -125,7 +131,7 @@ const HostSoftwareTable = ({
         emptyComponent={memoizedEmptyComponent}
         showMarkAllPages={false}
         isAllPagesSelected={false}
-        searchable
+        searchable={!isSoftwareNotDetected}
         manualSortBy
       />
     </div>

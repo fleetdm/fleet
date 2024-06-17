@@ -13,7 +13,6 @@ import { AppContext } from "context/app";
 import { ISoftwareVulnerability } from "interfaces/software";
 import { GITHUB_NEW_ISSUE_LINK } from "utilities/constants";
 import { buildQueryStringFromParams } from "utilities/url";
-
 import TableContainer from "components/TableContainer";
 import EmptyTable from "components/EmptyTable";
 import CustomLink from "components/CustomLink";
@@ -68,7 +67,7 @@ const SoftwareVulnerabilitiesTable = ({
   router,
   teamIdForApi,
 }: ISoftwareVulnerabilitiesTableProps) => {
-  const { isPremiumTier, isSandboxMode } = useContext(AppContext);
+  const { isPremiumTier } = useContext(AppContext);
 
   const classNames = classnames(baseClass, className);
 
@@ -88,14 +87,8 @@ const SoftwareVulnerabilitiesTable = ({
   };
 
   const tableHeaders = useMemo(
-    () =>
-      generateTableConfig(
-        Boolean(isPremiumTier),
-        Boolean(isSandboxMode),
-        router,
-        teamIdForApi
-      ),
-    [isPremiumTier, isSandboxMode]
+    () => generateTableConfig(Boolean(isPremiumTier), router, teamIdForApi),
+    [isPremiumTier]
   );
   return (
     <div className={classNames}>
