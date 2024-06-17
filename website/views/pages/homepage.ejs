@@ -216,8 +216,8 @@
           <div purpose="platform-block" class="d-flex flex-md-row flex-column-reverse justify-content-md-between mx-auto align-items-center">
             <div purpose="category-text-block" class="d-flex flex-column">
               <h4>Endpoint ops</h4>
-              <h3>Understand your computers</h3>
-              <p>A quick-fast way to gather device data across all your endpoints. Pulse check or automate anything on any platform.</p>
+              <h3><%= primaryBuyingSituation==='eo-security'? 'Instrument your endpoints' : 'Understand your computers'%></h3>
+              <p>A <%= primaryBuyingSituation==='eo-security'? 'lightweight' : 'quick-fast' %> way to gather <%= primaryBuyingSituation==='vm'? 'patch level and custom reports across all your computing devices, even in OT and production environments' : primaryBuyingSituation==='eo-security'? 'deep state and custom telemetry across all your endpoints, even servers' : primaryBuyingSituation==='mdm'||primaryBuyingSituation==='eo-it'? 'device and inventory data across all your endpoints' : 'device data across all your computers' %>. Pulse check or automate anything on any platform.</p>
               <div>
                 <a purpose="category-button" class="text-nowrap btn btn-primary" href="/endpoint-ops">Start with endpoint ops</a>
               </div>
