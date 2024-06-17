@@ -20,7 +20,7 @@
     "ace-builds": "1.4.12",
     "axios": "1.6.0",
     "core-js": "3.25.1",
-    "date-fns": "2.28.0",
+    "date-fns": "3.0.0",
     "dompurify": "3.0.3",
     "es6-object-assign": "1.1.0",
     "es6-promise": "4.2.8",
