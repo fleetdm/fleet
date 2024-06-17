@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
-	"github.com/stretchr/testify/assert"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -74,15 +73,12 @@ func (s *integrationMDMTestSuite) TestTurnOnLifecycleEventsApple() {
 		{
 			"locked host turns on MDM",
 			func(t *testing.T, host *fleet.Host, device *mdmtest.TestAppleMDMClient) {
-				var resp lockHostResponse
-				s.DoJSON(
+				s.Do(
 					"POST",
 					fmt.Sprintf("/api/latest/fleet/hosts/%d/lock", host.ID),
 					nil,
-					http.StatusOK,
-					&resp,
+					http.StatusNoContent,
 				)
-				assert.Len(t, resp.UnlockPIN, 6)
 
 				cmd, err := device.Idle()
 				require.NoError(t, err)
