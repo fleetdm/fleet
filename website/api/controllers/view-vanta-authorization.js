@@ -96,11 +96,11 @@ module.exports = {
     if(this.req.signedCookies.redirectAfterSetup){
       let redirectUrl = this.req.signedCookies.redirectAfterSetup;
       throw {redirect: redirectUrl};
-    } else {
-      return {
-        showSuccessMessage: true
-      };
     }
+
+    return {
+      showSuccessMessage: true
+    };
 
   }
 
