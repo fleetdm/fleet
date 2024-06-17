@@ -5107,6 +5107,7 @@ func (s *integrationMDMTestSuite) TestMDMMigration() {
 			fleet.WellKnownMDMFleet,
 			"",
 		)
+		require.NoError(t, err)
 		mdmDevice := mdmtest.NewTestMDMClientAppleDirect(mdmtest.AppleEnrollInfo{
 			SCEPChallenge: s.scepChallenge,
 			SCEPURL:       s.server.URL + apple_mdm.SCEPPath,
@@ -5147,7 +5148,6 @@ func (s *integrationMDMTestSuite) TestMDMMigration() {
 			fleet.WellKnownMDMSimpleMDM,
 			"",
 		)
-		require.NoError(t, err)
 		require.NoError(t, err)
 		getDesktopResp = fleetDesktopResponse{}
 		res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/desktop", nil, http.StatusOK)
