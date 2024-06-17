@@ -449,6 +449,7 @@ func TranslateSoftwareToCPE(
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "non-oval software iterator")
 	}
+	defer nonOvalIterator.Close()
 
 	err = translateSoftwareToCPEWithIterator(ctx, ds, vulnPath, logger, nonOvalIterator)
 	if err != nil {
@@ -470,6 +471,7 @@ func TranslateSoftwareToCPE(
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "ubuntu kernel iterator")
 	}
+	defer ubuntuKernelIterator.Close()
 
 	err = translateSoftwareToCPEWithIterator(ctx, ds, vulnPath, logger, ubuntuKernelIterator)
 	if err != nil {
