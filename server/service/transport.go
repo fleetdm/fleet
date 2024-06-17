@@ -378,7 +378,7 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 			return hopt, ctxerr.Wrap(
 				r.Context(), badRequest(
 					fmt.Sprintf(
-						"Invalid disable_disable_issues: %s",
+						"Invalid disable_issues: %s",
 						disableIssues,
 					),
 				),
@@ -398,6 +398,13 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 			)
 		}
 		hopt.DisableIssues = boolVal
+	}
+	if hopt.DisableIssues && r.URL.Query().Get("order_key") == "issues" {
+		return hopt, ctxerr.Wrap(
+			r.Context(), badRequest(
+				"Invalid order_key (issues cannot be ordered when they are disabled)",
+			),
+		)
 	}
 
 	deviceMapping := r.URL.Query().Get("device_mapping")

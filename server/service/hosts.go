@@ -192,10 +192,17 @@ func (svc *Service) ListHosts(ctx context.Context, opt fleet.HostListOptions) ([
 		return nil, err
 	}
 
+	// If issues are enabled, we need to remove the critical vulnerabilities count for non-premium license.
+	// If issues are disabled, we need to explicitly set the critical vulnerabilities count to 0 for premium license.
 	if !opt.DisableIssues && !premiumLicense {
 		// Remove critical vulnerabilities count if not premium license
 		for _, host := range hosts {
 			host.HostIssues.CriticalVulnerabilitiesCount = nil
+		}
+	} else if opt.DisableIssues && premiumLicense {
+		var zero uint64 = 0
+		for _, host := range hosts {
+			host.HostIssues.CriticalVulnerabilitiesCount = &zero
 		}
 	}
 

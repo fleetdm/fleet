@@ -243,6 +243,14 @@ func TestHostListOptionsFromRequest(t *testing.T) {
 			url:          "/foo?disable_issues=foo",
 			errorMessage: "Invalid disable_issues",
 		},
+		"error in issues order key when disable_issues is set": {
+			url:          "/foo?disable_issues=true&order_key=issues",
+			errorMessage: "Invalid order_key",
+		},
+		"error in issues order key when disable_failing_policies is set": {
+			url:          "/foo?disable_failing_policies=true&order_key=issues",
+			errorMessage: "Invalid order_key",
+		},
 		"error in device_mapping": {
 			url:          "/foo?device_mapping=foo",
 			errorMessage: "Invalid device_mapping",
