@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20240612154849(t *testing.T) {
+func TestUp_20240617154849(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	// create an MDM profile and an MDM declaration
@@ -29,7 +29,7 @@ VALUES (?, ?, ?, ?, ?, ?)`
 	require.NoError(t, err)
 
 	declStmt := `
-INSERT INTO 
+INSERT INTO
 	mdm_apple_declarations (declaration_uuid, team_id, identifier, name, raw_json, checksum)
 VALUES (?, ?, ?, ?, ?, ?)`
 
