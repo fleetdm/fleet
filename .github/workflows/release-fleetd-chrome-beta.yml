@@ -9,7 +9,6 @@ name: Release fleetd-chrome beta
 # - archive/YYYY-MM-DD_HH-MM-SS/meta.json
 
 on:
-  pull_request:
   push:
    tags:
      - 'fleetd-chrome-**-beta'
