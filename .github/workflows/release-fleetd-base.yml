@@ -181,8 +181,6 @@ jobs:
     needs: [check-for-fleetd-component-updates]
     if: needs.check-for-fleetd-component-updates.outputs.update_needed == 'true'
     runs-on: ubuntu-latest
-    outputs:
-      fleetd_base_msi_sha256: ${{ steps.build.outputs.fleetd_base_msi_sha256 }}
     env:
       FULL_DATE_DIR: archive/stable/${{ needs.check-for-fleetd-component-updates.outputs.date_dir }}
     steps:
@@ -199,8 +197,6 @@ jobs:
         run: |
           fleetctl package --type msi --fleet-desktop --fleet-url dummy --enroll-secret dummy
           mv fleet-osquery*.msi fleetd-base.msi
-          : # Calculate the SHA256 checksum of the package
-          echo "fleetd_base_msi_sha256=$(shasum -a 256 fleetd-base.msi | cut -d ' ' -f 1)" >> $GITHUB_OUTPUT
 
       - name: Upload fleetd-base.msi for code signing
         uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # 4.3.3
