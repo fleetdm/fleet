@@ -690,9 +690,17 @@ func (h *Host) IsDEPAssignedToFleet() bool {
 func (h *Host) IsEligibleForDEPMigration(isConnectedToFleetMDM bool) bool {
 	return h.IsOsqueryEnrolled() &&
 		h.IsDEPAssignedToFleet() &&
+		h.MDMInfo != nil &&
 		h.MDMInfo.HasJSONProfileAssigned() &&
 		h.MDMInfo.Enrolled &&
-		!isConnectedToFleetMDM
+		// as a special case for migration with user interaction, we
+		// also check the information stored in host_mdm, and assume
+		// the host needs migration if it's not Fleet
+		//
+		// this is because we can't always rely on nano setting
+		// `nano_enrollment.active = 1` since sometimes Fleet won't get
+		// the checkout message from the host.
+		(!isConnectedToFleetMDM || h.MDMInfo.Name != WellKnownMDMFleet)
 }
 
 // NeedsDEPEnrollment returns true if the host should be DEP enrolled into
