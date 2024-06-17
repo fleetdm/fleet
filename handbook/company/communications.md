@@ -341,9 +341,7 @@ To process intake team members will:
 - Inspect each item in the "📨 New requests" column and understand the next steps needed to complete the task.
 - Indicate to the requestor when they can expect the task to be completed by placing each item in the appropriate column (e.g. Not yet, Planned, In progress) and estimate if necessary.
 - If the goal/user story is unclear, assign the issue to the requestor and at-mention them in an issue comment asking to clarify the intended action. 
-- If the task is to be backlogged (i.e. "Not yet"), place the issue in the "Not yet" column and
-  at-mention the requestor in an issue comment. Explain why the task is unable to be prioritized and
-  provide a tentative ETA on when the task will be completed. 
+- If the task is to be backlogged (i.e. "Not yet"), place the issue in the "Not yet" column and at-mention the requestor in an issue comment. Explain why the task is unable to be prioritized and provide a tentative ETA on when the task will be completed. 
 
 ## High priority user stories and bugs
 All issues are treated as standard priority by default. Some issues are assigned a priority label to indicate the level of urgency.
