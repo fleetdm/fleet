@@ -550,7 +550,7 @@ func (ds *Datastore) ListHostsInLabel(ctx context.Context, filter fleet.TeamFilt
 		GROUP BY host_id
 	) as failing_policies ON (h.id=failing_policies.host_id)`
 
-	if opt.DisableFailingPolicies {
+	if opt.DisableIssues {
 		failingPoliciesSelect = ""
 		failingPoliciesJoin = ""
 	}

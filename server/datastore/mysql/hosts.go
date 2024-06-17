@@ -969,7 +969,7 @@ func (ds *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt
 		`
 	}
 
-	if !opt.DisableFailingPolicies {
+	if !opt.DisableIssues {
 		sql += `,
 		COALESCE(host_issues.failing_policies_count, 0) AS failing_policies_count,
 		COALESCE(host_issues.critical_vulnerabilities_count, 0) AS critical_vulnerabilities_count,
@@ -1073,7 +1073,7 @@ func (ds *Datastore) applyHostFilters(
 	}
 
 	failingPoliciesJoin := ""
-	if !opt.DisableFailingPolicies {
+	if !opt.DisableIssues {
 		failingPoliciesJoin = `LEFT JOIN host_issues ON h.id = host_issues.host_id`
 	}
 
@@ -1610,7 +1610,7 @@ func (ds *Datastore) CountHosts(ctx context.Context, filter fleet.TeamFilter, op
 	opt.Page = 0
 	opt.PerPage = 0
 	// We don't need the issue counts of each host for counting hosts.
-	opt.DisableFailingPolicies = true
+	opt.DisableIssues = true
 
 	var params []interface{}
 
