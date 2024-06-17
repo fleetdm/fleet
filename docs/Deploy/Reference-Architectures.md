@@ -158,6 +158,8 @@ assume On-Demand pricing (savings are available through Reserved Instances). Cal
 
 ### Cloud providers
 
+> The following are numbers based on endpoint operations use-case and data from osquery. These were calculated before MDM MVP was part of Fleet.
+ 
 #### AWS
 
 ##### Example configuration breakpoints
