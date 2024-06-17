@@ -2555,7 +2555,7 @@ Returns the information of the specified host.
     },
     "mdm": {
       "encryption_key_available": true,
-      "enrollment_status": On (manual),
+      "enrollment_status": "On (manual)",
       "name": "Fleet",
       "connected_to_fleet": true,
       "server_url": "https://acme.com/mdm/apple/mdm",
