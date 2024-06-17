@@ -1,5 +1,8 @@
 # Contributing
 
+### [Architecture deep dive 🤿](./Architecture-deep-dive.md)
+Go deep into how Fleet and its various components are architected.
+
 ### [Building Fleet](./Building-Fleet.md) 
 Learn about building the code, development infrastructure, and database migrations.
 
