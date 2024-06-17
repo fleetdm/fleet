@@ -365,18 +365,6 @@ type Host struct {
 
 	// Policies is the list of policies and whether it passes for the host
 	Policies *[]*HostPolicy `json:"policies,omitempty" csv:"-"`
-
-	MaintenanceWindow HostMaintenanceWindowData `json:"maintenance_window,omitempty"`
-}
-
-type HostMaintenanceWindowData struct {
-	//  StartsAt is the UTC start time of the future maintenance window, retrieved from
-	//  calendar_events JOIN host_calendar_events
-	StartsAt time.Time `json:"starts_at"`
-	// TimeZone is the IANA timezone of the user's google calendar, retrieved from the google calendar
-	// TODO - better type? see what comes back from the gcal API
-	// possibly time.Location ?
-	TimeZone string `json:"timezone"`
 }
 
 // HostOrbitInfo maps to the host_orbit_info table in the database, which maps to the orbit_info agent table.
@@ -794,7 +782,7 @@ func (h Host) AuthzType() string {
 }
 
 // HostDetail provides the full host metadata along with associated labels and
-// packs. It also includes policies, batteries, and MDM profiles, as applicable.
+// packs. It also includes policies, batteries, maintenance window, and MDM profiles, as applicable.
 type HostDetail struct {
 	Host
 	// Labels is the list of labels the host is a member of.
@@ -806,6 +794,17 @@ type HostDetail struct {
 	// but when unset, it doesn't get marshaled (e.g. we don't return that
 	// information for the List Hosts endpoint).
 	Batteries *[]*HostBattery `json:"batteries,omitempty"`
+
+	// MaintenanceWindow contains the host user's calendar IANA timezone and the start time of the
+	// next scheduled maintenance window. TODO - how to serialize when no upcoming window?
+	MaintenanceWindow HostMaintenanceWindow `json:"maintenance_window,omitempty"`
+}
+type HostMaintenanceWindow struct {
+	//  StartsAt is the UTC start time of the future maintenance window, retrieved from calendar_events
+	StartsAt time.Time `json:"starts_at"`
+	// TimeZone is the IANA timezone of the user's google calendar, retrieved from TODO - likely from
+	// datastore as well
+	TimeZone string `json:"timezone"`
 }
 
 const (

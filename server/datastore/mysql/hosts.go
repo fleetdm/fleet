@@ -4996,6 +4996,28 @@ func (ds *Datastore) ListHostBatteries(ctx context.Context, hid uint) ([]*fleet.
 	return batteries, nil
 }
 
+func (ds *Datastore) GetHostMaintenanceWindow(ctx context.Context, hid uint) (*fleet.HostMaintenanceWindow, error) {
+	stmt := `
+		SELECT
+			ce.start_time,
+			ce.timezone
+		FROM
+			host_calendar_events hce JOIN calendar_events ce
+			ON
+			hce.calendar_event_id = ce.id
+		WHERE
+			hce.host_id = ?
+			AND
+			ce.start_time > NOW()	
+	`
+
+	var mw *fleet.HostMaintenanceWindow
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), mw, stmt, hid); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get host maintenance window")
+	}
+	return mw, nil
+}
+
 func (ds *Datastore) SetDiskEncryptionResetStatus(ctx context.Context, hostID uint, status bool) error {
 	const stmt = `
           INSERT INTO host_disk_encryption_keys (host_id, reset_requested, base64_encrypted)

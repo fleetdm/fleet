@@ -1050,6 +1050,11 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 		return nil, ctxerr.Wrap(ctx, err, "get batteries for host")
 	}
 
+	mw, err := svc.ds.GetHostMaintenanceWindow(ctx, host.ID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get host maintenance window")
+	}
+
 	// Due to a known osquery issue with M1 Macs, we are ignoring the stored value in the db
 	// and replacing it at the service layer with custom values determined by the cycle count.
 	// See https://github.com/fleetdm/fleet/issues/6763.
@@ -1191,11 +1196,13 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 	}
 
 	host.Policies = policies
+
 	return &fleet.HostDetail{
-		Host:      *host,
-		Labels:    labels,
-		Packs:     packs,
-		Batteries: &bats,
+		Host:              *host,
+		Labels:            labels,
+		Packs:             packs,
+		Batteries:         &bats,
+		MaintenanceWindow: *mw,
 	}, nil
 }
 
