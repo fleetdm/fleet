@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"crypto/x509"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/pem"
 	"flag"
@@ -13,6 +14,7 @@ import (
 
 	"github.com/boltdb/bolt"
 	boltdepot "github.com/fleetdm/fleet/v4/server/mdm/scep/depot/bolt"
+	"github.com/groob/plist"
 	apnsbuiltin "github.com/micromdm/micromdm/platform/apns/builtin"
 	"github.com/micromdm/micromdm/platform/device"
 	devicebuiltin "github.com/micromdm/micromdm/platform/device/builtin"
@@ -87,30 +89,26 @@ func main() {
 				log.Fatal(device.UDID, " FAILED: ", err)
 			}
 
-			// zwass: Possibly this was used for debugging? Leaving here in case it's useful.
-			/*
-				authenticate := &Authenticate{
-					MessageType:  "Authenticate",
-					UDID:         device.UDID,
-					Topic:        pushInfo.MDMTopic,
-					BuildVersion: device.BuildVersion,
-					DeviceName:   device.DeviceName,
-					Model:        device.Model,
-					ModelName:    device.ModelName,
-					OSVersion:    device.OSVersion,
-					ProductName:  device.ProductName,
-					SerialNumber: device.SerialNumber,
-					IMEI:         device.IMEI,
-					MEID:         device.MEID,
-				}
+			authenticate := &Authenticate{
+				MessageType:  "Authenticate",
+				UDID:         device.UDID,
+				Topic:        pushInfo.MDMTopic,
+				BuildVersion: device.BuildVersion,
+				DeviceName:   device.DeviceName,
+				Model:        device.Model,
+				ModelName:    device.ModelName,
+				OSVersion:    device.OSVersion,
+				ProductName:  device.ProductName,
+				SerialNumber: device.SerialNumber,
+				IMEI:         device.IMEI,
+				MEID:         device.MEID,
+			}
 
-				authenticatePlist, err := plist.Marshal(authenticate)
-				if err != nil {
-					log.Println(err)
-					continue
-				}
-				log.Println(string(authenticatePlist))
-			*/
+			authenticatePlist, err := plist.Marshal(authenticate)
+			if err != nil {
+				log.Println(err)
+				continue
+			}
 
 			token, err := hex.DecodeString(pushInfo.Token)
 			if err != nil {
@@ -132,42 +130,79 @@ func main() {
 				UnlockToken: unlockToken,
 			}
 
-			// zwass: Possibly this was used for debugging? Leaving here in case it's useful.
-			/*
-
-				tokenPlist, err := plist.Marshal(tokenUpdate)
-				log.Println(string(tokenPlist))
-				if err != nil {
-					log.Println(err)
-					continue
-				}
-			*/
+			tokenPlist, err := plist.Marshal(tokenUpdate)
+			if err != nil {
+				log.Println(err)
+				continue
+			}
 
 			certHash, err := deviceDB.GetUDIDCertHash([]byte(device.UDID))
 			if err != nil {
 				log.Fatal(device.UDID, " FAILED: ", err)
 			}
 
+			base64BootstrapToken := base64.StdEncoding.EncodeToString(device.BootstrapToken)
+
 			sb.WriteString(fmt.Sprintf(`
 INSERT INTO nano_devices
-    (id, identity_cert, serial_number, authenticate, authenticate_at, token_update, token_update_at)
+    (
+      id,
+      serial_number,
+      authenticate,
+      authenticate_at,
+      token_update,
+      token_update_at,
+      bootstrap_token_b64,
+      bootstrap_token_at
+    )
 VALUES
-    ('%s', HEX('%s'), '%s', '%s', CURRENT_TIMESTAMP, '%s', CURRENT_TIMESTAMP)
+    (
+      '%s',
+      '%s',
+      '%s',
+      CURRENT_TIMESTAMP,
+      '%s',
+      CURRENT_TIMESTAMP,
+      '%s',
+      CURRENT_TIMESTAMP
+    )
 ON DUPLICATE KEY
 UPDATE
-    identity_cert = VALUES(identity_cert),
     serial_number = VALUES(serial_number),
     authenticate = VALUES(authenticate),
     authenticate_at = CURRENT_TIMESTAMP,
     token_update = VALUES(token_update),
-    token_update_at = CURRENT_TIMESTAMP;
-		`, device.UDID, hex.EncodeToString(certHash[:]), device.SerialNumber, "", ""))
+    token_update_at = CURRENT_TIMESTAMP,
+    bootstrap_token_b64 = VALUES(bootstrap_token_b64),
+    bootstrap_token_at = CURRENT_TIMESTAMP;
+		`, device.UDID, device.SerialNumber, authenticatePlist, tokenPlist, base64BootstrapToken))
 
 			sb.WriteString(fmt.Sprintf(`
 INSERT INTO nano_enrollments
-	(id, device_id, user_id, type, topic, push_magic, token_hex, last_seen_at, token_update_tally)
+	(
+	  id,
+	  device_id,
+	  user_id, type,
+	  topic,
+	  push_magic,
+	  token_hex,
+	  enabled,
+	  last_seen_at,
+	  token_update_tally
+	)
 VALUES
-	('%s', '%s', NULL, "Device", '%s', '%s', '%s', CURRENT_TIMESTAMP, 1)
+	(
+	  '%s',
+	  '%s',
+	  NULL,
+	  'Device',
+	  '%s',
+	  '%s',
+	  '%s',
+	  %t,
+	  CURRENT_TIMESTAMP,
+	  1
+	)
 ON DUPLICATE KEY
 UPDATE
     device_id = VALUES(device_id),
@@ -176,7 +211,7 @@ UPDATE
     topic = VALUES(topic),
     push_magic = VALUES(push_magic),
     token_hex = VALUES(token_hex),
-    enabled = 1,
+    enabled = VALUES(enabled),
     last_seen_at = CURRENT_TIMESTAMP,
     token_update_tally = nano_enrollments.token_update_tally + 1;`,
 				device.UDID,
@@ -184,7 +219,15 @@ UPDATE
 				tokenUpdate.Topic,
 				tokenUpdate.PushMagic,
 				hex.EncodeToString(tokenUpdate.Token),
+				device.Enrolled,
 			))
+
+			sb.WriteString(fmt.Sprintf(`
+INSERT INTO nano_cert_auth_associations
+    (id, sha256, cert_not_valid_after)
+VALUES
+    ('%s', '%s', DATE_ADD(NOW(), INTERVAL 1 YEAR));
+	    `, device.UDID, hex.EncodeToString(certHash[:])))
 		}
 
 		sb.WriteString("\n")
