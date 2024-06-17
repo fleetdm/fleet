@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20240612152616, Down_20240612152616)
+	MigrationClient.AddMigration(Up_20240613172616, Down_20240613172616)
 }
 
-func Up_20240612152616(tx *sql.Tx) error {
+func Up_20240613172616(tx *sql.Tx) error {
 	_, err := tx.Exec(
 		`
 		CREATE TABLE host_issues (
@@ -28,6 +28,6 @@ func Up_20240612152616(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20240612152616(_ *sql.Tx) error {
+func Down_20240613172616(_ *sql.Tx) error {
 	return nil
 }

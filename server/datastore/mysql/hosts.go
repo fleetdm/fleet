@@ -5312,6 +5312,7 @@ func updateHostIssuesFailingPolicies(ctx context.Context, tx sqlx.ExecerContext,
 	return nil
 }
 
+// Specified in story https://github.com/fleetdm/fleet/issues/18115
 const criticalCVSSScoreCutoff = 8.9
 
 func (ds *Datastore) UpdateHostIssuesVulnerabilities(ctx context.Context) error {
