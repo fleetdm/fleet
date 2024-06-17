@@ -74,7 +74,9 @@ import (
 
 var allowedURLPrefixRegexp = regexp.MustCompile("^(?:/[a-zA-Z0-9_.~-]+)+$")
 
-const softwareInstallerUploadTimeout = 2 * time.Minute
+const (
+	softwareInstallerUploadTimeout = 2 * time.Minute
+)
 
 type initializer interface {
 	// Initialize is used to populate a datastore with
