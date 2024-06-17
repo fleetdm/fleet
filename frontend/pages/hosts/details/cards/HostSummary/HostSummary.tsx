@@ -1,6 +1,7 @@
 import React from "react";
 import ReactTooltip from "react-tooltip";
 import classnames from "classnames";
+import { format } from "date-fns";
 
 import {
   IHostMdmProfile,
@@ -19,8 +20,11 @@ import StatusIndicator from "components/StatusIndicator";
 import IssuesIndicator from "pages/hosts/components/IssuesIndicator";
 import DiskSpaceIndicator from "pages/hosts/components/DiskSpaceIndicator";
 import { HumanTimeDiffWithFleetLaunchCutoff } from "components/HumanTimeDiffWithDateTip";
-import PremiumFeatureIconWithTooltip from "components/PremiumFeatureIconWithTooltip";
-import { humanHostMemory, wrapFleetHelper } from "utilities/helpers";
+import {
+  // getTimezoneOffset,
+  humanHostMemory,
+  wrapFleetHelper,
+} from "utilities/helpers";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 import { COLORS } from "styles/var/colors";
 
@@ -187,8 +191,8 @@ const HostSummary = ({
 
   // TODO -remove
   summaryData.maintenance_window = {
-    starts_at: "CHANGEME2024-08-19T02:02:17Z",
-    timezone: "CHANGEMEAmerica/New_York",
+    starts_at: "2024-08-19T02:02:17Z",
+    timezone: "America/New_York",
   };
 
   const isChromeHost = platform === "chrome";
@@ -357,9 +361,10 @@ const HostSummary = ({
 
   const renderMaintenanceWindow = () => {
     // TODO
-    const prettyDateTime = summaryData.maintenance_window.starts_at;
-    // TODO
-    const iAnaTz = summaryData.maintenance_window.timezone;
+
+    // const gmtOffset = "T0:D0";
+    const iAnaTzParsed = (summaryData.maintenance_window
+      .timezone as string).replace("_", " ");
 
     return (
       <DataSet
@@ -370,11 +375,15 @@ const HostSummary = ({
               <>
                 End user&apos;s time zone:
                 <br />
-                {iAnaTz}
+                {/* (GMT-{gmtOffset}) {iAnaTzParsed} */}
+                {iAnaTzParsed}
               </>
             }
           >
-            {prettyDateTime}
+            {format(
+              summaryData.maintenance_window.starts_at,
+              "E, MMM d 'at' p"
+            )}
           </TooltipWrapper>
         }
       />
@@ -464,7 +473,9 @@ const HostSummary = ({
         )}
         <DataSet title="Operating system" value={summaryData.os_version} />
         {!isIosOrIpadosHost && renderAgentSummary()}
-        {summaryData.maintenance_window && renderMaintenanceWindow()}
+        {isPremiumTier &&
+          summaryData.maintenance_window &&
+          renderMaintenanceWindow()}
       </Card>
     );
   };
