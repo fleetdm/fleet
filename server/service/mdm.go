@@ -1194,9 +1194,10 @@ func isAppleDeclarationUUID(profileUUID string) bool {
 ////////////////////////////////////////////////////////////////////////////////
 
 type newMDMConfigProfileRequest struct {
-	TeamID  uint
-	Profile *multipart.FileHeader
-	Labels  []string
+	TeamID           uint
+	Profile          *multipart.FileHeader
+	LabelsIncludeAll []string
+	LabelsExcludeAny []string
 }
 
 func (newMDMConfigProfileRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
@@ -1231,7 +1232,25 @@ func (newMDMConfigProfileRequest) DecodeRequest(ctx context.Context, r *http.Req
 	decoded.Profile = fhs[0]
 
 	// add labels
-	decoded.Labels = r.MultipartForm.Value["labels"]
+	var existsIncl, existsExcl, existsDepr bool
+	var deprecatedLabels []string
+	decoded.LabelsIncludeAll, existsIncl = r.MultipartForm.Value["labels_include_all"]
+	decoded.LabelsExcludeAny, existsExcl = r.MultipartForm.Value["labels_exclude_any"]
+	deprecatedLabels, existsDepr = r.MultipartForm.Value["labels"]
+
+	// validate that only one of the labels type is provided
+	var count int
+	for _, b := range []bool{existsIncl, existsExcl, existsDepr} {
+		if b {
+			count++
+		}
+	}
+	if count > 1 {
+		return nil, &fleet.BadRequestError{Message: `Only one of "labels_exclude_any", "labels_include_all" or "labels" can be included.`}
+	}
+	if existsDepr {
+		decoded.LabelsIncludeAll = deprecatedLabels
+	}
 
 	return &decoded, nil
 }
@@ -1517,9 +1536,11 @@ func (svc *Service) BatchSetMDMProfiles(
 		return ctxerr.Wrap(ctx, err, "validating profiles")
 	}
 
+	// TODO(mna): from this point on, any values in Labels has been transferred to LabelsIncludeAll.
 	labels := []string{}
 	for _, prof := range profiles {
-		labels = append(labels, prof.Labels...)
+		labels = append(labels, prof.LabelsIncludeAll...)
+		labels = append(labels, prof.LabelsExcludeAny...)
 	}
 	labelMap, err := svc.batchValidateProfileLabels(ctx, labels)
 	if err != nil {
@@ -1728,7 +1749,7 @@ func getAppleProfiles(
 			}
 
 			mdmDecl := fleet.NewMDMAppleDeclaration(prof.Contents, tmID, prof.Name, rawDecl.Type, rawDecl.Identifier)
-			for _, labelName := range prof.Labels {
+			for _, labelName := range prof.LabelsIncludeAll {
 				if lbl, ok := labelMap[labelName]; ok {
 					declLabel := fleet.ConfigurationProfileLabel{
 						LabelName: lbl.LabelName,
@@ -1872,6 +1893,8 @@ func getWindowsProfiles(
 
 func validateProfiles(profiles []fleet.MDMProfileBatchPayload) error {
 	for _, profile := range profiles {
+		// TODO(mna): validate that only one of labels, labels_include_all and labels_exclude_any is provided.
+		// After this validation, should only need to check labels_include_all, not labels.
 		platform := mdm.GetRawProfilePlatform(profile.Contents)
 		if platform != "darwin" && platform != "windows" {
 			// We can only display a generic error message here because at this point

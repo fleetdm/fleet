@@ -195,8 +195,7 @@ type MDMAppleConfigProfile struct {
 	// representation of the configuration profile. It must be XML or PKCS7 parseable.
 	Mobileconfig mobileconfig.Mobileconfig `db:"mobileconfig" json:"-"`
 	// Checksum is an MD5 hash of the Mobileconfig bytes
-	Checksum []byte `db:"checksum" json:"checksum,omitempty"`
-	// Labels are the associated labels for this profile
+	Checksum   []byte                      `db:"checksum" json:"checksum,omitempty"`
 	Labels     []ConfigurationProfileLabel `db:"labels" json:"labels,omitempty"`
 	CreatedAt  time.Time                   `db:"created_at" json:"created_at"`
 	UploadedAt time.Time                   `db:"uploaded_at" json:"updated_at"` // NOTE: JSON field is still `updated_at` for historical reasons, would be an API breaking change

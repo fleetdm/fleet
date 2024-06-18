@@ -901,6 +901,7 @@ func (svc *Service) createTeamFromSpec(
 	if err := svc.applyTeamMacOSSettings(ctx, spec, &macOSSettings); err != nil {
 		return nil, err
 	}
+	// TODO(mna): validate include all/exclude any/deprecated labels
 	macOSSetup := spec.MDM.MacOSSetup
 	if !macOSSetup.EnableReleaseDeviceManually.Valid {
 		macOSSetup.EnableReleaseDeviceManually = optjson.SetBool(false)
@@ -1044,6 +1045,7 @@ func (svc *Service) editTeamFromSpec(
 	if err := svc.applyTeamMacOSSettings(ctx, spec, &team.Config.MDM.MacOSSettings); err != nil {
 		return err
 	}
+	// TODO(mna): validate include all/exclude any/deprecated labels
 
 	// 1. if the spec has the new setting, use that
 	// 2. else if the spec has the deprecated setting, use that

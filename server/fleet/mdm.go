@@ -378,9 +378,14 @@ type MDMConfigProfilePayload struct {
 // MDMProfileBatchPayload represents the payload to batch-set the profiles for
 // a team or no-team.
 type MDMProfileBatchPayload struct {
-	Name     string   `json:"name,omitempty"`
-	Contents []byte   `json:"contents,omitempty"`
-	Labels   []string `json:"labels,omitempty"`
+	Name     string `json:"name,omitempty"`
+	Contents []byte `json:"contents,omitempty"`
+
+	// Deprecated: Labels is the backwards-compatible way of specifying
+	// LabelsIncludeAll.
+	Labels           []string `json:"labels,omitempty"`
+	LabelsIncludeAll []string `json:"labels_include_all,omitempty"`
+	LabelsExcludeAny []string `json:"labels_exclude_any,omitempty"`
 }
 
 func NewMDMConfigProfilePayloadFromWindows(cp *MDMWindowsConfigProfile) *MDMConfigProfilePayload {
