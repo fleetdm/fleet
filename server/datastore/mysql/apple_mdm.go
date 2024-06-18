@@ -223,9 +223,12 @@ WHERE
 		if err != nil {
 			return nil, err
 		}
-		if len(labels) > 0 {
-			// ensure we leave Labels nil if there are none
-			res.Labels = labels
+		for _, lbl := range labels {
+			if lbl.Exclude {
+				res.LabelsExcludeAny = append(res.LabelsExcludeAny, lbl)
+			} else {
+				res.LabelsIncludeAll = append(res.LabelsIncludeAll, lbl)
+			}
 		}
 	}
 
@@ -262,9 +265,12 @@ WHERE
 	if err != nil {
 		return nil, err
 	}
-	if len(labels) > 0 {
-		// ensure we leave Labels nil if there are none
-		res.Labels = labels
+	for _, lbl := range labels {
+		if lbl.Exclude {
+			res.LabelsExcludeAny = append(res.LabelsExcludeAny, lbl)
+		} else {
+			res.LabelsIncludeAll = append(res.LabelsIncludeAll, lbl)
+		}
 	}
 
 	return &res, nil

@@ -500,7 +500,7 @@ func testListMDMConfigProfiles(t *testing.T, ds *Datastore) {
 			SyncML: winProf,
 		}
 		if i == 0 {
-			wcp.Labels = []fleet.ConfigurationProfileLabel{
+			wcp.LabelsIncludeAll = []fleet.ConfigurationProfileLabel{
 				{LabelName: labels[4].Name, LabelID: labels[4].ID},
 				{LabelName: labels[5].Name, LabelID: labels[5].ID},
 			}
@@ -514,7 +514,7 @@ func testListMDMConfigProfiles(t *testing.T, ds *Datastore) {
 			SyncML: winProf,
 		}
 		if i == 0 {
-			wcp.Labels = []fleet.ConfigurationProfileLabel{
+			wcp.LabelsIncludeAll = []fleet.ConfigurationProfileLabel{
 				{LabelName: labels[6].Name, LabelID: labels[6].ID},
 				{LabelName: labels[7].Name, LabelID: labels[7].ID},
 			}

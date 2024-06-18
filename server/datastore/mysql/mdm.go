@@ -249,7 +249,11 @@ FROM (
 	}
 	for _, label := range labels {
 		if prof, ok := profMap[label.ProfileUUID]; ok {
-			prof.Labels = append(prof.Labels, label)
+			if label.Exclude {
+				prof.LabelsExcludeAny = append(prof.LabelsExcludeAny, label)
+			} else {
+				prof.LabelsIncludeAll = append(prof.LabelsIncludeAll, label)
+			}
 		}
 	}
 
@@ -263,7 +267,8 @@ SELECT
 	COALESCE(apple_profile_uuid, windows_profile_uuid) as profile_uuid,
 	label_name,
 	COALESCE(label_id, 0) as label_id,
-	IF(label_id IS NULL, 1, 0) as broken
+	IF(label_id IS NULL, 1, 0) as broken,
+	exclude
 FROM
 	mdm_configuration_profile_labels mcpl
 WHERE
@@ -274,7 +279,8 @@ SELECT
 	apple_declaration_uuid as profile_uuid,
 	label_name,
 	COALESCE(label_id, 0) as label_id,
-	IF(label_id IS NULL, 1, 0) as broken
+	IF(label_id IS NULL, 1, 0) as broken,
+	exclude
 FROM
 	mdm_declaration_labels mdl
 WHERE
@@ -1044,7 +1050,7 @@ SELECT
     ncaa.sha256 AS sha256,
     COALESCE(MAX(hm.fleet_enroll_ref), '') AS enroll_reference
 FROM (
-    -- grab only the latest certificate associated with this device 
+    -- grab only the latest certificate associated with this device
     SELECT
         n1.id,
 	n1.sha256,
@@ -1158,14 +1164,14 @@ func (ds *Datastore) GetHostMDMProfileInstallStatus(ctx context.Context, hostUUI
 	}
 
 	selectStmt := fmt.Sprintf(`
-SELECT	
+SELECT
 	COALESCE(status, ?) as status
 	FROM
 	%s
 WHERE
 	operation_type = ?
 	AND host_uuid = ?
-	AND %s = ? 
+	AND %s = ?
 `, table, column)
 
 	var status fleet.MDMDeliveryStatus
