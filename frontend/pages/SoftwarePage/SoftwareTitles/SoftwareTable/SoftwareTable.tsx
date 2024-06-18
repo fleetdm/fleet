@@ -192,8 +192,6 @@ const SoftwareTable = ({
       query !== "" ||
       softwareFilter !== "allSoftware");
 
-  console.log("serachable", searchable);
-
   const handleShowVersionsToggle = () => {
     const queryParams: Record<string, string | number | undefined> = {
       query,
