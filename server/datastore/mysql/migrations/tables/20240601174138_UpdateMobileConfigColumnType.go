@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20240617174138, Down_20240617174138)
+	MigrationClient.AddMigration(Up_20240601174138, Down_20240601174138)
 }
 
-func Up_20240617174138(tx *sql.Tx) error {
+func Up_20240601174138(tx *sql.Tx) error {
 	stmt := `
 ALTER TABLE mdm_apple_configuration_profiles MODIFY COLUMN mobileconfig MEDIUMBLOB NOT NULL;
 	`
@@ -21,6 +21,6 @@ ALTER TABLE mdm_apple_configuration_profiles MODIFY COLUMN mobileconfig MEDIUMBL
 	return nil
 }
 
-func Down_20240617174138(tx *sql.Tx) error {
+func Down_20240601174138(tx *sql.Tx) error {
 	return nil
 }

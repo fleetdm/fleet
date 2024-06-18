@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20240617174138(t *testing.T) {
+func TestUp_20240601174138(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	// Create a 1mb long string. This will fail at first, but will work with new column type.
