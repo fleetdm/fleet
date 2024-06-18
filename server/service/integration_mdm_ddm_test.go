@@ -181,11 +181,11 @@ func (s *integrationMDMTestSuite) TestAppleDDMBatchUpload() {
 	require.Equal(t, "darwin", resp.Profiles[0].Platform)
 	require.Equal(t, "N6", resp.Profiles[1].Name)
 	require.Equal(t, "darwin", resp.Profiles[1].Platform)
-	require.Len(t, resp.Profiles[0].Labels, 2)
-	require.Equal(t, lbl1.Name, resp.Profiles[0].Labels[0].LabelName)
-	require.Equal(t, lbl2.Name, resp.Profiles[0].Labels[1].LabelName)
-	require.Len(t, resp.Profiles[1].Labels, 1)
-	require.Equal(t, lbl1.Name, resp.Profiles[1].Labels[0].LabelName)
+	require.Len(t, resp.Profiles[0].LabelsIncludeAll, 2)
+	require.Equal(t, lbl1.Name, resp.Profiles[0].LabelsIncludeAll[0].LabelName)
+	require.Equal(t, lbl2.Name, resp.Profiles[0].LabelsIncludeAll[1].LabelName)
+	require.Len(t, resp.Profiles[1].LabelsIncludeAll, 1)
+	require.Equal(t, lbl1.Name, resp.Profiles[1].LabelsIncludeAll[0].LabelName)
 }
 
 func (s *integrationMDMTestSuite) TestMDMAppleDeviceManagementRequests() {

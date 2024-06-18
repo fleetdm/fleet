@@ -476,7 +476,7 @@ func testListMDMConfigProfiles(t *testing.T, ds *Datastore) {
 		// create label-based profiles for i==0, meaning CDEF will be label-based
 		acp := *generateCP(string(rune('C'+inc)), string(rune('C'+inc)), 0)
 		if i == 0 {
-			acp.Labels = []fleet.ConfigurationProfileLabel{
+			acp.LabelsIncludeAll = []fleet.ConfigurationProfileLabel{
 				{LabelName: labels[0].Name, LabelID: labels[0].ID},
 				{LabelName: labels[1].Name, LabelID: labels[1].ID},
 			}
@@ -486,7 +486,7 @@ func testListMDMConfigProfiles(t *testing.T, ds *Datastore) {
 
 		acp = *generateCP(string(rune('C'+inc+1)), string(rune('C'+inc+1)), team.ID)
 		if i == 0 {
-			acp.Labels = []fleet.ConfigurationProfileLabel{
+			acp.LabelsIncludeAll = []fleet.ConfigurationProfileLabel{
 				{LabelName: labels[2].Name, LabelID: labels[2].ID},
 				{LabelName: labels[3].Name, LabelID: labels[3].ID},
 			}
@@ -723,14 +723,14 @@ func testListMDMConfigProfiles(t *testing.T, ds *Datastore) {
 				got[i] = p.Name
 
 				wantProfs := profLabels[p.Name]
-				require.Equal(t, len(wantProfs), len(p.Labels), "profile name: %s", p.Name)
+				require.Equal(t, len(wantProfs), len(p.LabelsIncludeAll), "profile name: %s", p.Name)
 				if len(wantProfs) > 0 {
 					// clear the profile uuids from the labels list
-					for i, l := range p.Labels {
+					for i, l := range p.LabelsIncludeAll {
 						l.ProfileUUID = ""
-						p.Labels[i] = l
+						p.LabelsIncludeAll[i] = l
 					}
-					require.ElementsMatch(t, wantProfs, p.Labels, "profile name: %s", p.Name)
+					require.ElementsMatch(t, wantProfs, p.LabelsIncludeAll, "profile name: %s", p.Name)
 				}
 			}
 			require.Equal(t, got, c.wantNames)

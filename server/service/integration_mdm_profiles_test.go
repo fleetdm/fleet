@@ -2724,7 +2724,7 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		stmt := `
 		SELECT COALESCE(apple_profile_uuid, windows_profile_uuid) as profile_uuid, label_name, COALESCE(label_id, 0) as label_id
-		FROM mdm_configuration_profile_labels 
+		FROM mdm_configuration_profile_labels
 		UNION SELECT apple_declaration_uuid as profile_uuid, label_name, COALESCE(label_id, 0) as label_id
 		FROM mdm_declaration_labels ORDER BY profile_uuid, label_name;`
 		return sqlx.SelectContext(context.Background(), q, &profileLabels, stmt)
@@ -2769,7 +2769,7 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 		{ProfileUUID: teamAppleProfUUID, Platform: "darwin", Name: "apple-team-profile", Identifier: "test-team-ident", TeamID: &testTeam.ID},
 		{ProfileUUID: noTeamWinProfUUID, Platform: "windows", Name: "win-global-profile", TeamID: nil},
 		{ProfileUUID: teamWinProfUUID, Platform: "windows", Name: "win-team-profile", TeamID: &testTeam.ID},
-		{ProfileUUID: uuidAppleDDMWithLabel, Platform: "darwin", Name: "apple-decl-with-labels", Identifier: "ident-decl-with-labels", TeamID: nil, Labels: []fleet.ConfigurationProfileLabel{{LabelID: labelFoo.ID, LabelName: labelFoo.Name}}},
+		{ProfileUUID: uuidAppleDDMWithLabel, Platform: "darwin", Name: "apple-decl-with-labels", Identifier: "ident-decl-with-labels", TeamID: nil, LabelsIncludeAll: []fleet.ConfigurationProfileLabel{{LabelID: labelFoo.ID, LabelName: labelFoo.Name}}},
 	}
 	for _, prof := range expectedProfiles {
 		var getResp getMDMConfigProfileResponse
@@ -2940,7 +2940,7 @@ func (s *integrationMDMTestSuite) TestListMDMConfigProfiles() {
 		Name:   "tG",
 		TeamID: &tm2.ID,
 		SyncML: []byte(`<Add></Add>`),
-		Labels: []fleet.ConfigurationProfileLabel{
+		LabelsIncludeAll: []fleet.ConfigurationProfileLabel{
 			{LabelID: lblFoo.ID, LabelName: lblFoo.Name},
 			{LabelID: lblBar.ID, LabelName: lblBar.Name},
 		},
@@ -2960,13 +2960,13 @@ func (s *integrationMDMTestSuite) TestListMDMConfigProfiles() {
 	listResp.Profiles[0].CreatedAt, listResp.Profiles[0].UploadedAt = time.Time{}, time.Time{}
 	listResp.Profiles[1].CreatedAt, listResp.Profiles[1].UploadedAt = time.Time{}, time.Time{}
 	require.Equal(t, &fleet.MDMConfigProfilePayload{
-		ProfileUUID: tm2ProfF.ProfileUUID,
-		TeamID:      tm2ProfF.TeamID,
-		Name:        tm2ProfF.Name,
-		Platform:    "darwin",
-		Identifier:  tm2ProfF.Identifier,
-		Checksum:    tm2ProfF.Checksum,
-		Labels:      nil,
+		ProfileUUID:      tm2ProfF.ProfileUUID,
+		TeamID:           tm2ProfF.TeamID,
+		Name:             tm2ProfF.Name,
+		Platform:         "darwin",
+		Identifier:       tm2ProfF.Identifier,
+		Checksum:         tm2ProfF.Checksum,
+		LabelsIncludeAll: nil,
 	}, listResp.Profiles[0])
 	require.Equal(t, &fleet.MDMConfigProfilePayload{
 		ProfileUUID: tm2ProfG.ProfileUUID,
@@ -2974,7 +2974,7 @@ func (s *integrationMDMTestSuite) TestListMDMConfigProfiles() {
 		Name:        tm2ProfG.Name,
 		Platform:    "windows",
 		// labels are ordered by name
-		Labels: []fleet.ConfigurationProfileLabel{
+		LabelsIncludeAll: []fleet.ConfigurationProfileLabel{
 			{LabelID: lblBar.ID, LabelName: lblBar.Name},
 			{LabelID: 0, LabelName: lblFoo.Name, Broken: true},
 		},
@@ -2990,7 +2990,7 @@ func (s *integrationMDMTestSuite) TestListMDMConfigProfiles() {
 		Name:        tm2ProfG.Name,
 		Platform:    "windows",
 		// labels are ordered by name
-		Labels: []fleet.ConfigurationProfileLabel{
+		LabelsIncludeAll: []fleet.ConfigurationProfileLabel{
 			{LabelID: lblBar.ID, LabelName: lblBar.Name},
 			{LabelID: 0, LabelName: lblFoo.Name, Broken: true},
 		},
@@ -3001,13 +3001,13 @@ func (s *integrationMDMTestSuite) TestListMDMConfigProfiles() {
 	s.DoJSON("GET", "/api/latest/fleet/mdm/profiles/"+tm2ProfF.ProfileUUID, nil, http.StatusOK, &getProfResp)
 	getProfResp.CreatedAt, getProfResp.UploadedAt = time.Time{}, time.Time{}
 	require.Equal(t, &fleet.MDMConfigProfilePayload{
-		ProfileUUID: tm2ProfF.ProfileUUID,
-		TeamID:      tm2ProfF.TeamID,
-		Name:        tm2ProfF.Name,
-		Platform:    "darwin",
-		Identifier:  tm2ProfF.Identifier,
-		Checksum:    tm2ProfF.Checksum,
-		Labels:      nil,
+		ProfileUUID:      tm2ProfF.ProfileUUID,
+		TeamID:           tm2ProfF.TeamID,
+		Name:             tm2ProfF.Name,
+		Platform:         "darwin",
+		Identifier:       tm2ProfF.Identifier,
+		Checksum:         tm2ProfF.Checksum,
+		LabelsIncludeAll: nil,
 	}, getProfResp.MDMConfigProfilePayload)
 
 	// list for a non-existing team returns 404
@@ -3087,9 +3087,9 @@ func (s *integrationMDMTestSuite) TestListMDMConfigProfiles() {
 				for i, p := range listResp.Profiles {
 					gotNames[i] = p.Name
 					if p.Name == "tG" {
-						require.Len(t, p.Labels, 2)
+						require.Len(t, p.LabelsIncludeAll, 2)
 					} else {
-						require.Nil(t, p.Labels)
+						require.Nil(t, p.LabelsIncludeAll)
 					}
 					if c.teamID == nil {
 						// we set it to 0 for global
