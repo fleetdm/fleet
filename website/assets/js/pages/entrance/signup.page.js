@@ -24,13 +24,21 @@ parasails.registerPage('signup', {
     cloudError: '',
     // For displaying the full signup form.
     showFullForm: false,
+    // For redirecting users coming from the "Get your license" link to the license dispenser.
+    loginSlug: '/login',
+    pageToRedirectToAfterRegistration: '/start',
   },
 
   //  ╦  ╦╔═╗╔═╗╔═╗╦ ╦╔═╗╦  ╔═╗
   //  ║  ║╠╣ ║╣ ║  ╚╦╝║  ║  ║╣
   //  ╩═╝╩╚  ╚═╝╚═╝ ╩ ╚═╝╩═╝╚═╝
   beforeMount: function() {
-    //…
+    // If we're redirecting this user to the license dispenser after they sign up, modify the link to the login page and the pageToRedirectToAfterRegistration
+    if(window.location.hash && window.location.hash === '#purchaseLicense'){
+      this.loginSlug = '/login#purchaseLicense';
+      this.pageToRedirectToAfterRegistration = '/new-license';
+      window.location.hash = '';
+    }
   },
   mounted: async function() {
     //…
@@ -56,11 +64,14 @@ parasails.registerPage('signup', {
     },
 
     submittedSignUpForm: async function() {
-      // redirect to the new-license page.
+      // redirect to the /start page.
       // > (Note that we re-enable the syncing state here.  This is on purpose--
       // > to make sure the spinner stays there until the page navigation finishes.)
+      if(typeof gtag !== 'undefined'){
+        gtag('event','website_sign_up');
+      }
       this.syncing = true;
-      window.location = '/customers/new-license?signup';
+      this.goto(this.pageToRedirectToAfterRegistration);// « / start if the user came here from the start now button, or customers/new-license if the user came here from the "Get your license" link.
     }
 
 

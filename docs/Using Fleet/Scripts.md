@@ -2,7 +2,8 @@
 
 In Fleet you can execute a custom script to remediate an issue on your macOS, Windows, and Linux hosts.
 
-Shell scripts are supported on macOS and Linux. All scripts will run in the host's (root) default shell (`/bin/sh`). Other interpreters are not supported yet.
+Shell scripts are supported on macOS and Linux. By default, shell scripts will run in the host's (root) shell (`/bin/sh`). We also support `/bin/zsh` interpreter.
+Note: To run in `/bin/zsh`, create `.sh` file (only supported extension) and add an interpreter at the first line.
 
 PowerShell scripts are supported on Windows. Other types of scripts are not supported yet.
 
@@ -30,7 +31,11 @@ Fleet UI:
 
 2. Head to the **Hosts** page and select the host you want to run the script on.
 
-3. On your target host's host details page, select the **Scripts** tab and select **Actions** to run the script.
+3. On your target host's host details page, select the **Actions** dropdown and select **Run Script** to view the **Run Script** menu.
+   
+4. In the **Run Script** menu, select the **Actions** dropdown for the script you'd like to execute and choose the **Run** option.
+
+Scripts run from the Fleet UI will run the next time your host checks in with Fleet. You can view the status of the script execution as well as the output in the target host's activity feed.
 
 Fleet API: API documentation is [here](https://fleetdm.com/docs/rest-api/rest-api#run-script)
 

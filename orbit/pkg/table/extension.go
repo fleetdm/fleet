@@ -9,7 +9,9 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/cryptoinfotable"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/dataflattentable"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/firefox_preferences"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/fleetd_logs"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/sntp_request"
 	"github.com/macadmins/osquery-extension/tables/chromeuserprofiles"
 	"github.com/macadmins/osquery-extension/tables/fileline"
@@ -42,6 +44,11 @@ type Extension interface {
 
 // Opt allows configuring a Runner.
 type Opt func(*Runner)
+
+// PluginOpts provides options required by some tables.
+type PluginOpts struct {
+	Socket string
+}
 
 // Logger for osquery tables
 var osqueryLogger *Logger
@@ -103,7 +110,13 @@ func (r *Runner) Execute() error {
 
 	plugins := OrbitDefaultTables()
 
-	plugins = append(plugins, PlatformTables()...)
+	opts := PluginOpts{Socket: r.socket}
+	platformTables, err := PlatformTables(opts)
+	if err != nil {
+		return fmt.Errorf("populating platform tables: %w", err)
+	}
+
+	plugins = append(plugins, platformTables...)
 	for _, t := range r.tableExtensions {
 		plugins = append(plugins, table.NewPlugin(
 			t.Name(),
@@ -131,9 +144,17 @@ func OrbitDefaultTables() []osquery.OsqueryPlugin {
 
 		// Orbit extensions.
 		table.NewPlugin("sntp_request", sntp_request.Columns(), sntp_request.GenerateFunc),
+		fleetd_logs.TablePlugin(),
 
 		firefox_preferences.TablePlugin(osqueryLogger),
 		cryptoinfotable.TablePlugin(osqueryLogger),
+
+		// Additional data format tables
+		dataflattentable.TablePlugin(osqueryLogger, dataflattentable.JsonType),  // table name is "parse_json"
+		dataflattentable.TablePlugin(osqueryLogger, dataflattentable.JsonlType), // table name is "parse_jsonl"
+		dataflattentable.TablePlugin(osqueryLogger, dataflattentable.XmlType),   // table name is "parse_xml"
+		dataflattentable.TablePlugin(osqueryLogger, dataflattentable.IniType),   // table name is "parse_ini"
+
 	}
 	return plugins
 }

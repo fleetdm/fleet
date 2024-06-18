@@ -52,7 +52,7 @@ The goal of the MDM group is to increase and exceed [Fleet's product maturity go
 | Product Designer                  | [Marko Lisica](https://www.linkedin.com/in/markolisica/) _([@marko-lisica](https://github.com/marko-lisica))_
 | Engineering Manager               | [George Karr](https://www.linkedin.com/in/george-karr-4977b441/) _([@georgekarrv](https://github.com/georgekarrv))_
 | Product Manager                   | [Noah Talerman](https://www.linkedin.com/in/noah-talerman/) _([@noahtalerman](https://github.com/@noahtalerman))_
-| Quality Assurance                 | [Position open](https://www.fleetdm.com/jobs/)
+| Quality Assurance                 | [Gabe Lopez](https://www.linkedin.com/in/gabelopez/) _([@PezHub](https://github.com/PezHub))_
 | Developer                         | [Gabe Hernandez](https://www.linkedin.com/in/gabriel-hernandez-gh) _([@ghernandez345](https://github.com/ghernandez345))_, [Roberto Dip](https://www.linkedin.com/in/roperzh) _([@roperzh](https://github.com/roperzh))_, Sarah Gillespie _([@gillespi314](https://github.com/gillespi314))_, [Martin Angers](https://www.linkedin.com/in/martin-angers-3210305/) _([@mna](https://github.com/mna))_, [Jahziel Villasana-Espinoza](https://www.linkedin.com/in/jahziel-v/) _([@jahzielv](https://github.com/jahzielv))_, [Dante Catalfamo](https://www.linkedin.com/in/dante-catalfamo-a6330412b/) _([@dantecatalfamo](https://github.com/dantecatalfamo))_
 
 > The [Slack channel](https://fleetdm.slack.com/archives/C03C41L5YEL), [kanban release board](https://app.zenhub.com/workspaces/-g-mdm-current-sprint-63bc507f6558550011840298/board), and [GitHub label](https://github.com/fleetdm/fleet/issues?q=is%3Aopen+is%3Aissue+label%3A%23g-mdm) for this product group is `#g-mdm`.
@@ -88,9 +88,7 @@ For product changes that cause breaking API or configuration changes or major im
 That all happens prior to work getting prioritized for the change.
 
 #### API changes
-To maintain consistency, ensure perspective, and provide a single pair of eyes in the design of Fleet's REST API and API documentation, there is a single Directly Responsible Individual (DRI). The API design DRI will review and approve any alterations at the pull request stage, instead of making it a prerequisite during drafting of the story. You may tag the DRI in a GitHub issue with draft API specs in place to receive a review and feedback prior to implementation. Receiving a pre-review from the DRI is encouraged if the API changes introduce new endpoints, or substantially change existing endpoints. 
-
-> DRI: Rachael Shaw
+To maintain consistency, ensure perspective, and provide a single pair of eyes in the design of Fleet's REST API and API documentation, there is a single Directly Responsible Individual (DRI). The API design DRI will review and approve any alterations at the pull request stage, instead of making it a prerequisite during drafting of the story. You may tag the DRI in a GitHub issue with draft API specs in place to receive a review and feedback prior to implementation. Receiving a pre-review from the DRI is encouraged if the API changes introduce new endpoints, or substantially change existing endpoints.
 
 No API changes are merged without accompanying API documentation and approval from the DRI. The DRI is responsible for ensuring that the API design remains consistent and adequately addresses both standard and edge-case scenarios. The DRI is also the code owner of the API documentation Markdown file. The DRI is committed to reviewing PRs within one business day. In instances where the DRI is unavailable, the Head of Product will act as the substitute code owner and reviewer.
 
@@ -153,7 +151,7 @@ Things to consider when writing the "definition of done" for a user story:
   - **Telemetry schema:** If osquery-compatible tables are changing as part of this user story, then the [telemetry data model reference](https://fleetdm.com/tables) will need to be updated.
   - **Other content:** What keywords should we [search for](https://github.com/fleetdm/fleet/search?q=path%3A%2Fdocs%2F+path%3A%2Farticles%2F+path%3A%2Fschema+sso&type=) to locate doc pages and articles that need updates?  List these and any other aspects/gotchas the product group should make sure are covered by the documentation.
 - **Changes to paid features or tiers:** Does this user story add or change any paid features, or modify features' tiers? If so, describe the changes that should be made to the [pricing page](https://fleetdm.com/pricing), and make sure that code for any non-free features lives in the `ee/` directory.
-- **Semantic versioning:** Does this change introduce breaking changes to Fleet's REST API or CLI usage?  If so, then we need to either figure out a crafty way to maintain backwards compatibility, or discuss a major version release with the CTO (`#help-engineering` and mention `@zwass`).
+- **Semantic versioning:** Does this change introduce breaking changes to Fleet's REST API or CLI usage?  If so, then we need to either figure out a crafty way to maintain backwards compatibility, or discuss a major version release with the CTO (`#help-engineering` and mention `@lukeheath`).
 - **Scope transparency:** Does this change the scope of access that Fleet has on end user devices?  If so, describe this user story so that it includes the edits necessary to the [transparency guide](https://fleetdm.com/transparency).
 - **Measurement?:** User stories are small changes that are best served by being released as quickly as possible in order to get real world feedback, whether quantitative or qualitative.  The norm is NOT to prioritize additional analytics or measurement work.  Is it especially important for the change described by this user story to come with extra investment in measuring usage, adoption, and success?  If so, describe what measurements we need to implement, along with the current state of any existing, related measurements.
 - **QA:** Changes are tested by hand prior to submitting pull requests. In addition, quality assurance will do an extra QA check prior to considering this story "done".  Any special QA notes?
@@ -275,7 +273,7 @@ All unreleased bugs are addressed before publishing a release. Released bugs tha
   - Introduces a security vulnerability
 
 ### Notify the community about a critical bug
-We inform customers and the community about critical bugs immediately so they don’t trigger it themselves. When a bug meeting the definition of critical is found, the bug finder is responsible for raising an alarm. Raising an alarm means pinging @here in the #help-product-design channel with the filed bug.
+We inform customers and the community about critical bugs immediately so they don’t trigger it themselves. When a bug meeting the definition of critical is found, the bug finder is responsible for raising an alarm. Raising an alarm means pinging @here in the `#g-mdm` or `#g-endpoint-ops` channel with the filed bug.
 
 If the bug finder is not a Fleetie (e.g., a member of the community), then whoever sees the critical bug should raise the alarm. Note that the bug finder here is NOT necessarily the **first** person who sees the bug. If you come across a bug you think is critical, but it has not been escalated, raise the alarm!
 
@@ -293,7 +291,7 @@ When a critical bug is identified, we will then follow the patch release process
 To stay in-sync with our customers' needs, Fleet accepts feature requests from customers and community members on a sprint-by-sprint basis in the regular 🎁🗣 Feature Fest meeting. Anyone in the company is invited to submit requests or simply listen in on the 🎁🗣 Feature Fest meeting. Folks from the wider community can also [request an invite](https://fleetdm.com/contact). 
 
 ### Making a request
-To make a feature request or advocate for a feature request from a customer or community member, [create an issue](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=~customer+request&projects=&template=feature-request.md&title=) and attend the next scheduled 🎁🗣 Feature Fest meeting. 
+To make a feature request or advocate for a feature request from a customer or community member, [create an issue](https://github.com/fleetdm/fleet/issues/new/choose) using the feature request template and attend the next scheduled 🎁🗣 Feature Fest meeting. 
 
 Requests are weighed from top to bottom while prioritizing attendee requests. This means that if the individual that added a feature request is not in attendance, the feature request will be discussed towards the end of the call if there's time.
 
@@ -431,22 +429,22 @@ Fleet [always prioritizes bugs](https://fleetdm.com/handbook/product#prioritizin
 Bugs will be verified as fixed by QA when they are placed in the "Awaiting QA" column of the relevant product group's sprint board. If the bug is verified as fixed, it is moved to the "Ready for release" column of the sprint board. Otherwise, the remaining issues are noted in a comment, and it is moved back to the "In progress" column of the sprint board.
 
 ## High priority user stories and bugs
-All issues are treated as standard priority by default. Some issues are assigned a priority label to indicate urgency for the business.
+All issues are treated as standard priority by default. Some issues are assigned a priority label to indicate the level of urgency.
 
-1. Emergency: `P0`
-- Examples: Customer outage, confirmed security vulnerability ([critical bug](https://fleetdm.com/handbook/company/product-groups#release-testing)), a new feature is needed to address an immediate business emergency.
-- Response: Immediately stop other work to swarm the issue. Work 24/7 in shifts until resolved.
-- Impact: Significant impact. May void current sprint.
+- Emergency: `P0`
+  - Examples: Customer outage, confirmed security vulnerability ([critical bug](https://fleetdm.com/handbook/company/product-groups#release-testing)), a new feature is needed to address an immediate Fleet emergency.
+  - Response: Immediately stop other work to swarm the issue. Work 24/7 in shifts until resolved.
+  - Impact: Significant impact. May void current sprint.
 
-2. Critical: `P1`
-- Examples: A supported workflow is broken ([critical bug](https://fleetdm.com/handbook/company/product-groups#release-testing)), a potential security vulnerability, a new feature is required to address an immediate critical business need.
-- Response: Issue brought to next standup for estimation and immediately brought into the sprint. Necessary team members are assigned as their top priority.
-- Impact: High impact. Does not void sprint, but reduces overall velocity and requires deprioritizing other work.
+- Critical: `P1`
+  - Examples: A supported workflow is broken ([critical bug](https://fleetdm.com/handbook/company/product-groups#release-testing)), a potential security vulnerability, a new feature is required to address an immediate critical Fleet need.
+  - Response: Issue brought to next standup for estimation and immediately brought into the sprint. Necessary team members are assigned as their top priority.
+  - Impact: High impact. Does not void sprint, but reduces overall velocity and requires deprioritizing other work.
 
-3. Urgent: `P2`
-- Examples: A supported workflow is not functioning as intended, a newly drafted feature has an associated urgent business need.
-- Response: Issue is prioritized at the top of the next sprint. If opporunity cost of waiting for the next sprint is too high, it may be considered for current sprint.
-- Impact: Low to medium impact. If prioritized into current sprint, may reduce overall velocity and require deprioritizing other work.
+- Urgent: `P2`
+  - Examples: A supported workflow is not functioning as intended, a newly drafted feature has an associated urgent Fleet need.
+  - Response: Issue is prioritized at the top of the next sprint. If opporunity cost of waiting for the next sprint is too high, it may be considered for current sprint.
+  - Impact: Low to medium impact. If prioritized into current sprint, may reduce overall velocity and require deprioritizing other work.
 
 Add as much context as possible to the issue description and assign labels to help the team understand the problem and what is driving the urgency. All issues with a `P0`, `P1`, or `P2` label should be assigned to the [DRI for what goes in a release](https://fleetdm.com/handbook/company/communications#directly-responsible-individuals-dris). For immediate action, follow up on Slack or by phone.
 
@@ -502,7 +500,7 @@ How to escalate:
 
 1. Spend 30 minutes digging into the relevant code ([osquery](https://github.com/osquery/osquery), [Fleet](https://github.com/fleetdm/fleet)) and/or documentation ([osquery](https://osquery.readthedocs.io/en/latest/), [Fleet](https://fleetdm.com/docs)). Even if you don't know the codebase (or even the programming language), you can sometimes find good answers this way. At the least, you'll become more familiar with each project. Try searching the code for relevant keywords, or filenames.
 
-2. Create a new thread in the [#help-engineering channel](https://fleetdm.slack.com/archives/C019WG4GH0A), tagging `@zwass` and provide the information turned up in your research. Please include possibly relevant links (even if you didn't find what you were looking for there). Zach will work with you to craft an appropriate answer or find another team member who can help.
+2. Create a new thread in the [#help-engineering channel](https://fleetdm.slack.com/archives/C019WG4GH0A), tagging `@lukeheath` and provide the information turned up in your research. Please include possibly relevant links (even if you didn't find what you were looking for there). Luke will work with you to craft an appropriate answer or find another team member who can help.
 
 ### Changing of the guard
 The on-call developer changes each week on Wednesday.

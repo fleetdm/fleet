@@ -89,7 +89,7 @@ const defaultTableHeaders: IDataColumn[] = [
     Cell: ({ cell: { value: aggregateCount } }: ICellProps) => {
       return (
         <div className="disk-encryption-table__aggregate-table-data">
-          <TextCell value={aggregateCount} formatter={(val) => <>{val}</>} />
+          <TextCell value={aggregateCount} />
         </div>
       );
     },
@@ -106,9 +106,7 @@ const defaultTableHeaders: IDataColumn[] = [
     disableSortBy: true,
     accessor: "windowsHosts",
     Cell: ({ cell: { value: aggregateCount } }: ICellProps) => {
-      return (
-        <TextCell value={aggregateCount} formatter={(val) => <>{val}</>} />
-      );
+      return <TextCell value={aggregateCount} />;
     },
   },
   {

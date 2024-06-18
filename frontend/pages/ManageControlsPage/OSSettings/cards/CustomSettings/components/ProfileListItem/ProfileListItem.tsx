@@ -4,7 +4,7 @@ import FileSaver from "file-saver";
 import classnames from "classnames";
 
 import { IMdmProfile } from "interfaces/mdm";
-import mdmAPI from "services/entities/mdm";
+import mdmAPI, { isDDMProfile } from "services/entities/mdm";
 
 import Button from "components/buttons/Button";
 import Graphic from "components/Graphic";
@@ -29,11 +29,17 @@ const LabelCount = ({
 interface IProfileDetailsProps {
   platform: string;
   createdAt: string;
+  isDDM?: boolean;
 }
 
-const ProfileDetails = ({ platform, createdAt }: IProfileDetailsProps) => {
+const ProfileDetails = ({
+  platform,
+  createdAt,
+  isDDM,
+}: IProfileDetailsProps) => {
   const getPlatformName = () => {
-    return platform === "darwin" ? "macOS" : "Windows";
+    if (platform === "windows") return "Windows";
+    return isDDM ? "macOS (declaration)" : "macOS";
   };
 
   return (
@@ -45,6 +51,21 @@ const ProfileDetails = ({ platform, createdAt }: IProfileDetailsProps) => {
       </span>
     </div>
   );
+};
+
+const createProfileExtension = (profile: IMdmProfile) => {
+  if (isDDMProfile(profile)) {
+    return "json";
+  }
+  return profile.platform === "darwin" ? "mobileconfig" : "xml";
+};
+
+const createFileContent = async (profile: IMdmProfile) => {
+  const content = await mdmAPI.downloadProfile(profile.profile_uuid);
+  if (isDDMProfile(profile)) {
+    return JSON.stringify(content, null, 2);
+  }
+  return content;
 };
 
 interface IProfileListItemProps {
@@ -62,13 +83,13 @@ const ProfileListItem = ({
   onDelete,
   setProfileLabelsModalData,
 }: IProfileListItemProps) => {
-  const { created_at, labels, name, platform, profile_uuid } = profile;
+  const { created_at, labels, name, platform } = profile;
   const subClass = "list-item";
 
   const onClickDownload = async () => {
-    const fileContent = await mdmAPI.downloadProfile(profile_uuid);
+    const fileContent = await createFileContent(profile);
     const formatDate = format(new Date(), "yyyy-MM-dd");
-    const extension = platform === "darwin" ? "mobileconfig" : "xml";
+    const extension = createProfileExtension(profile);
     const filename = `${formatDate}_${name}.${extension}`;
     const file = new File([fileContent], filename);
     FileSaver.saveAs(file);
@@ -81,7 +102,11 @@ const ProfileListItem = ({
         <div className={`${subClass}__info`}>
           <span className={`${subClass}__title`}>{name}</span>
           <div className={`${subClass}__details`}>
-            <ProfileDetails platform={platform} createdAt={created_at} />
+            <ProfileDetails
+              platform={platform}
+              createdAt={created_at}
+              isDDM={isDDMProfile(profile)}
+            />
           </div>
         </div>
       </div>

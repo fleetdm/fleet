@@ -18,13 +18,15 @@ import (
 	nanodep_client "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	kitlog "github.com/go-kit/kit/log"
+	kitlog "github.com/go-kit/log"
 	"github.com/stretchr/testify/require"
 )
 
 func TestMacosSetupAssistant(t *testing.T) {
 	ctx := context.Background()
 	ds := mysql.CreateMySQLDS(t)
+	// call TruncateTables immediately as some DB migrations may create jobs
+	mysql.TruncateTables(t, ds)
 
 	// create a couple hosts for no team, team 1 and team 2 (none for team 3)
 	hosts := make([]*fleet.Host, 6)
@@ -58,16 +60,10 @@ func TestMacosSetupAssistant(t *testing.T) {
 	err = ds.AddHostsToTeam(ctx, &tm2.ID, []uint{hosts[4].ID, hosts[5].ID})
 	require.NoError(t, err)
 
-	testBMToken := nanodep_client.OAuth1Tokens{
-		ConsumerKey:       "test_consumer",
-		ConsumerSecret:    "test_secret",
-		AccessToken:       "test_access_token",
-		AccessSecret:      "test_access_secret",
-		AccessTokenExpiry: time.Date(2999, 1, 1, 0, 0, 0, 0, time.UTC),
-	}
+	mysql.SetTestABMAssets(t, ds)
 
 	logger := kitlog.NewNopLogger()
-	depStorage, err := ds.NewMDMAppleDEPStorage(testBMToken)
+	depStorage, err := ds.NewMDMAppleDEPStorage()
 	require.NoError(t, err)
 	macosJob := &MacosSetupAssistant{
 		Datastore:  ds,
@@ -76,7 +72,7 @@ func TestMacosSetupAssistant(t *testing.T) {
 		DEPClient:  apple_mdm.NewDEPClient(depStorage, ds, logger),
 	}
 
-	const defaultProfileName = "FleetDM default enrollment profile"
+	const defaultProfileName = "Fleet default enrollment profile"
 
 	// track the profile assigned to each device
 	serialsToProfile := map[string]string{
@@ -140,7 +136,7 @@ func TestMacosSetupAssistant(t *testing.T) {
 		err = w.ProcessJobs(ctx)
 		require.NoError(t, err)
 		// no remaining jobs to process
-		pending, err := ds.GetQueuedJobs(ctx, 10)
+		pending, err := ds.GetQueuedJobs(ctx, 10, time.Time{})
 		require.NoError(t, err)
 		require.Empty(t, pending)
 	}

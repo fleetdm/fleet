@@ -23,7 +23,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/go-kit/kit/log"
+	"github.com/go-kit/log"
 	"github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
@@ -43,7 +43,7 @@ func TestDatastoreReplica(t *testing.T) {
 	})
 
 	t.Run("replica", func(t *testing.T) {
-		opts := &DatastoreTestOptions{Replica: true}
+		opts := &DatastoreTestOptions{DummyReplica: true}
 		ds := CreateMySQLDSWithOptions(t, opts)
 		defer ds.Close()
 		require.NotEqual(t, ds.reader(ctx), ds.writer(ctx))
@@ -797,7 +797,7 @@ func TestNewUsesRegisterTLS(t *testing.T) {
 	require.Error(t, err)
 	// TODO: we're using a Regexp because the message is different depending on the version of mysql,
 	// we should refactor and use different error types instead.
-	require.Regexp(t, "^(x509|tls)", err.Error())
+	require.Regexp(t, "(x509|tls|EOF)", err.Error())
 }
 
 func TestWhereFilterTeams(t *testing.T) {
@@ -1228,4 +1228,56 @@ func TestWhereFilterGlobalOrTeamIDByTeams(t *testing.T) {
 			assert.Equal(t, tt.expected, sql)
 		})
 	}
+}
+
+func TestBatchProcessDB(t *testing.T) {
+	type testData struct {
+		id    int
+		value string
+	}
+
+	payload := []interface{}{
+		&testData{id: 1, value: "a"},
+		&testData{id: 2, value: "b"},
+		&testData{id: 3, value: "c"},
+	}
+
+	generateValueArgs := func(item interface{}) (string, []any) {
+		p := item.(*testData)
+		valuePart := "(?, ?),"
+		args := []any{p.id, p.value}
+		return valuePart, args
+	}
+
+	t.Run("TestEmptyPayload", func(t *testing.T) {
+		executeBatch := func(valuePart string, args []any) error {
+			return errors.New("execute shouldn't be called for an empty payload")
+		}
+		err := batchProcessDB([]interface{}{}, 1000, generateValueArgs, executeBatch)
+		require.NoError(t, err)
+	})
+
+	t.Run("TestSingleBatch", func(t *testing.T) {
+		callCount := 0
+		executeBatch := func(valuePart string, args []any) error {
+			callCount++
+			require.Equal(t, 2, len(args)/2) // each item adds 2 args
+			return nil
+		}
+		err := batchProcessDB(payload[:2], 2, generateValueArgs, executeBatch)
+		require.NoError(t, err)
+		require.Equal(t, 1, callCount)
+	})
+
+	t.Run("TestMultipleBatches", func(t *testing.T) {
+		callCount := 0
+		executeBatch := func(valuePart string, args []any) error {
+			callCount++
+			require.Equal(t, 2/callCount, len(args)/2) // each item adds 2 args
+			return nil
+		}
+		err := batchProcessDB(payload, 2, generateValueArgs, executeBatch)
+		require.NoError(t, err)
+		require.Equal(t, 2, callCount)
+	})
 }

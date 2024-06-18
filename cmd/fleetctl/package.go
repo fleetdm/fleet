@@ -30,7 +30,7 @@ func packageCommand() *cli.Command {
 	return &cli.Command{
 		Name:        "package",
 		Aliases:     nil,
-		Usage:       "Create an Orbit installer package",
+		Usage:       "Create a fleetd agent",
 		Description: "An easy way to create fully boot-strapped installer packages for Windows, macOS, or Linux",
 		Flags: []cli.Flag{
 			&cli.StringFlag{
@@ -306,12 +306,16 @@ func packageCommand() *cli.Command {
 				Visit https://wixtoolset.org/ for more information about how to use WiX.`)
 			}
 
-			if opt.EndUserEmail != "" && c.String("type") != "msi" {
-				return errors.New("Can only set --end-user-email when building an MSI package.")
-			}
 			if opt.EndUserEmail != "" {
 				if !fleet.IsLooseEmail(opt.EndUserEmail) {
 					return errors.New("Invalid email address specified for --end-user-email.")
+				}
+
+				switch c.String("type") {
+				case "msi", "deb", "rpm":
+					// ok
+				default:
+					return errors.New("Can only set --end-user-email when building an MSI, DEB, or RPM package.")
 				}
 			}
 

@@ -2,9 +2,9 @@ import React, { useCallback, useContext, useEffect, useState } from "react";
 import { useQuery } from "react-query";
 import { InjectedRouter } from "react-router/lib/Router";
 import PATHS from "router/paths";
-import { noop, isEqual } from "lodash";
+import { isEqual } from "lodash";
 
-import { getNextLocationPath } from "utilities/helpers";
+import { getNextLocationPath, wait } from "utilities/helpers";
 
 import { AppContext } from "context/app";
 import { PolicyContext } from "context/policy";
@@ -12,12 +12,13 @@ import { TableContext } from "context/table";
 import { NotificationContext } from "context/notification";
 import useTeamIdParam from "hooks/useTeamIdParam";
 import { IConfig, IWebhookSettings } from "interfaces/config";
-import { IIntegrations } from "interfaces/integration";
+import { IZendeskJiraIntegrations } from "interfaces/integration";
 import {
   IPolicyStats,
   ILoadAllPoliciesResponse,
   ILoadTeamPoliciesResponse,
   IPoliciesCountResponse,
+  IPolicy,
 } from "interfaces/policy";
 import { ITeamConfig } from "interfaces/team";
 
@@ -33,17 +34,21 @@ import teamPoliciesAPI, {
 import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
 
 import { ITableQueryData } from "components/TableContainer/TableContainer";
+import TableCount from "components/TableContainer/TableCount";
 import Button from "components/buttons/Button";
-import RevealButton from "components/buttons/RevealButton";
+// @ts-ignore
+import Dropdown from "components/forms/fields/Dropdown";
 import Spinner from "components/Spinner";
 import TeamsDropdown from "components/TeamsDropdown";
 import TableDataError from "components/DataError";
 import MainContent from "components/MainContent";
 
 import PoliciesTable from "./components/PoliciesTable";
-import ManagePolicyAutomationsModal from "./components/ManagePolicyAutomationsModal";
+import OtherWorkflowsModal from "./components/OtherWorkflowsModal";
 import AddPolicyModal from "./components/AddPolicyModal";
 import DeletePolicyModal from "./components/DeletePolicyModal";
+import CalendarEventsModal from "./components/CalendarEventsModal";
+import { ICalendarEventsFormData } from "./components/CalendarEventsModal/CalendarEventsModal";
 
 interface IManagePoliciesPageProps {
   router: InjectedRouter;
@@ -58,10 +63,6 @@ interface IManagePoliciesPageProps {
       order_key?: string;
       order_direction?: "asc" | "desc";
       page?: string;
-      inherited_table?: "true";
-      inherited_order_key?: string;
-      inherited_order_direction?: "asc" | "desc";
-      inherited_page?: string;
     };
     search: string;
   };
@@ -123,18 +124,23 @@ const ManagePolicyPage = ({
     },
   });
 
-  const [isUpdatingAutomations, setIsUpdatingAutomations] = useState(false);
   const [isUpdatingPolicies, setIsUpdatingPolicies] = useState(false);
-  const [selectedPolicyIds, setSelectedPolicyIds] = useState<number[]>([]);
-  const [showManageAutomationsModal, setShowManageAutomationsModal] = useState(
+  const [isUpdatingCalendarEvents, setIsUpdatingCalendarEvents] = useState(
     false
   );
-  const [showPreviewPayloadModal, setShowPreviewPayloadModal] = useState(false);
+  const [isUpdatingOtherWorkflows, setIsUpdatingOtherWorkflows] = useState(
+    false
+  );
+  const [selectedPolicyIds, setSelectedPolicyIds] = useState<number[]>([]);
   const [showAddPolicyModal, setShowAddPolicyModal] = useState(false);
   const [showDeletePolicyModal, setShowDeletePolicyModal] = useState(false);
-
-  const [teamPolicies, setTeamPolicies] = useState<IPolicyStats[]>();
-  const [inheritedPolicies, setInheritedPolicies] = useState<IPolicyStats[]>();
+  const [showCalendarEventsModal, setShowCalendarEventsModal] = useState(false);
+  const [showOtherWorkflowsModal, setShowOtherWorkflowsModal] = useState(false);
+  const [
+    policiesAvailableToAutomate,
+    setPoliciesAvailableToAutomate,
+  ] = useState<IPolicyStats[]>([]);
+  const [resetPageIndex, setResetPageIndex] = useState<boolean>(false);
 
   // Functions to avoid race conditions
   const initialSearchQuery = (() => queryParams.query ?? "")();
@@ -144,42 +150,16 @@ const ManagePolicyPage = ({
   const initialSortDirection = (() =>
     (queryParams?.order_direction as "asc" | "desc") ??
     DEFAULT_SORT_DIRECTION)();
-  const initialPage = (() =>
-    queryParams && queryParams.page ? parseInt(queryParams?.page, 10) : 0)();
-  const initialShowInheritedTable = (() =>
-    queryParams && queryParams.inherited_table === "true")();
-  const initialInheritedSortHeader = (() =>
-    (queryParams?.inherited_order_key as "name" | "failing_host_count") ??
-    DEFAULT_SORT_COLUMN)();
-  const initialInheritedSortDirection = (() =>
-    (queryParams?.inherited_order_direction as "asc" | "desc") ??
-    DEFAULT_SORT_DIRECTION)();
-  const initialInheritedPage = (() =>
-    queryParams && queryParams.inherited_page
-      ? parseInt(queryParams?.inherited_page, 10)
-      : 0)();
-
-  const showInheritedTable = initialShowInheritedTable;
+  const page =
+    queryParams && queryParams.page ? parseInt(queryParams?.page, 10) : 0;
 
   // Needs update on location change or table state might not match URL
   const [searchQuery, setSearchQuery] = useState(initialSearchQuery);
-  const [page, setPage] = useState(initialPage);
-  const [inheritedPage, setInheritedPage] = useState(initialInheritedPage);
   const [tableQueryData, setTableQueryData] = useState<ITableQueryData>();
-  const [
-    inheritedTableQueryData,
-    setInheritedTableQueryData,
-  ] = useState<ITableQueryData>();
   const [sortHeader, setSortHeader] = useState(initialSortHeader);
   const [sortDirection, setSortDirection] = useState<
     "asc" | "desc" | undefined
   >(initialSortDirection);
-  const [inheritedSortDirection, setInheritedSortDirection] = useState(
-    initialInheritedSortDirection
-  );
-  const [inheritedSortHeader, setInheritedSortHeader] = useState(
-    initialInheritedSortHeader
-  );
 
   useEffect(() => {
     setLastEditedQueryPlatform(null);
@@ -189,13 +169,9 @@ const ManagePolicyPage = ({
     if (!isRouteOk) {
       return;
     }
-    setPage(initialPage);
     setSearchQuery(initialSearchQuery);
     setSortHeader(initialSortHeader);
     setSortDirection(initialSortDirection);
-    setInheritedPage(initialInheritedPage);
-    setInheritedSortHeader(initialInheritedSortHeader);
-    setInheritedSortDirection(initialInheritedSortDirection);
   }, [location, isRouteOk]);
 
   useEffect(() => {
@@ -240,8 +216,11 @@ const ManagePolicyPage = ({
     },
     {
       enabled: isRouteOk && !isAnyTeamSelected,
-      select: (data) => data.policies,
+      select: (data) => data.policies || [],
       staleTime: 5000,
+      onSuccess: (data) => {
+        setPoliciesAvailableToAutomate(data || []);
+      },
     }
   );
 
@@ -254,7 +233,7 @@ const ManagePolicyPage = ({
     [
       {
         scope: "policiesCount",
-        query: isAnyTeamSelected ? "" : searchQuery, // Search query not used for inherited count
+        query: isAnyTeamSelected ? "" : searchQuery,
       },
     ],
     ({ queryKey }) => globalPoliciesAPI.getCount(queryKey[0]),
@@ -268,13 +247,14 @@ const ManagePolicyPage = ({
   );
 
   const {
+    data: teamPolicies,
     error: teamPoliciesError,
     isFetching: isFetchingTeamPolicies,
     refetch: refetchTeamPolicies,
   } = useQuery<
     ILoadTeamPoliciesResponse,
     Error,
-    ILoadTeamPoliciesResponse,
+    IPolicyStats[],
     ITeamPoliciesQueryKey[]
   >(
     [
@@ -285,11 +265,8 @@ const ManagePolicyPage = ({
         query: searchQuery,
         orderDirection: sortDirection,
         orderKey: sortHeader,
-        inheritedPage: inheritedTableQueryData?.pageIndex,
-        inheritedPerPage: DEFAULT_PAGE_SIZE,
-        inheritedOrderDirection: inheritedSortDirection,
-        inheritedOrderKey: inheritedSortHeader,
         teamId: teamIdForApi || 0,
+        mergeInherited: !!teamIdForApi,
       },
     ],
     ({ queryKey }) => {
@@ -297,17 +274,20 @@ const ManagePolicyPage = ({
     },
     {
       enabled: isRouteOk && isPremiumTier && !!teamIdForApi,
+      select: (data: ILoadTeamPoliciesResponse) => data.policies || [],
       onSuccess: (data) => {
-        setTeamPolicies(data.policies);
-        setInheritedPolicies(data.inherited_policies);
+        const allPoliciesAvailableToAutomate = data.filter(
+          (policy: IPolicy) => policy.team_id === currentTeamId
+        );
+        setPoliciesAvailableToAutomate(allPoliciesAvailableToAutomate || []);
       },
     }
   );
 
   const {
-    data: teamPoliciesCount,
-    isFetching: isFetchingTeamCount,
-    refetch: refetchTeamPoliciesCount,
+    data: teamPoliciesCountMergeInherited,
+    isFetching: isFetchingTeamCountMergeInherited,
+    refetch: refetchTeamPoliciesCountMergeInherited,
   } = useQuery<
     IPoliciesCountResponse,
     Error,
@@ -316,9 +296,10 @@ const ManagePolicyPage = ({
   >(
     [
       {
-        scope: "teamPoliciesCount",
+        scope: "teamPoliciesCountMergeInherited",
         query: searchQuery,
         teamId: teamIdForApi || 0, // TODO: Fix number/undefined type
+        mergeInherited: !!teamIdForApi,
       },
     ],
     ({ queryKey }) => teamPoliciesAPI.getCount(queryKey[0]),
@@ -331,9 +312,9 @@ const ManagePolicyPage = ({
     }
   );
 
-  const canAddOrDeletePolicy: boolean =
+  const canAddOrDeletePolicy =
     isGlobalAdmin || isGlobalMaintainer || isTeamMaintainer || isTeamAdmin;
-  const canManageAutomations: boolean = isGlobalAdmin || isTeamAdmin;
+  const canManageAutomations = isGlobalAdmin || isTeamAdmin;
 
   const {
     data: config,
@@ -369,88 +350,71 @@ const ManagePolicyPage = ({
   const refetchPolicies = (teamId?: number) => {
     if (teamId) {
       refetchTeamPolicies();
-      refetchTeamPoliciesCount();
+      refetchTeamPoliciesCountMergeInherited();
     } else {
       refetchGlobalPolicies(); // Only call on global policies as this is expensive
       refetchGlobalPoliciesCount();
     }
   };
 
+  // NOTE: used to reset page number to 0 when modifying filters
+  // NOTE: Solution reused from ManageHostPage.tsx
+  useEffect(() => {
+    setResetPageIndex(false);
+  }, [page]);
+
+  // NOTE: used to reset page number to 0 when modifying filters
+  const handleResetPageIndex = () => {
+    setTableQueryData(
+      (prevState) =>
+        ({
+          ...prevState,
+          pageIndex: 0,
+        } as ITableQueryData)
+    );
+    setResetPageIndex(true);
+  };
+
   const onTeamChange = useCallback(
     (teamId: number) => {
       setSelectedPolicyIds([]);
       handleTeamChange(teamId);
+      handleResetPageIndex();
     },
     [handleTeamChange]
   );
 
   // TODO: Look into useDebounceCallback with dependencies
-  // Inherited table uses the same onQueryChange function but routes to different URL params
   const onQueryChange = useCallback(
     async (newTableQuery: ITableQueryData) => {
       if (!isRouteOk || isEqual(newTableQuery, tableQueryData)) {
         return;
       }
 
-      newTableQuery.editingInheritedTable
-        ? setInheritedTableQueryData({ ...newTableQuery })
-        : setTableQueryData({ ...newTableQuery });
+      setTableQueryData({ ...newTableQuery });
 
       const {
         pageIndex: newPageIndex,
         searchQuery: newSearchQuery,
         sortDirection: newSortDirection,
         sortHeader: newSortHeader,
-        editingInheritedTable,
       } = newTableQuery;
       // Rebuild queryParams to dispatch new browser location to react-router
       const newQueryParams: { [key: string]: string | number | undefined } = {};
 
       newQueryParams.query = newSearchQuery;
 
-      // Updates main policy table URL params
-      // No change to inherited policy table URL params
-      if (!editingInheritedTable) {
-        newQueryParams.order_key = newSortHeader;
-        newQueryParams.order_direction = newSortDirection;
-        newQueryParams.page = newPageIndex.toString();
-        if (showInheritedTable) {
-          newQueryParams.inherited_order_key = inheritedSortHeader;
-          newQueryParams.inherited_order_direction = inheritedSortDirection;
-          newQueryParams.inherited_page = inheritedPage.toString();
-        }
-        // Reset page number to 0 for new filters
-        if (
-          newSortDirection !== sortDirection ||
-          newSortHeader !== sortHeader ||
-          newSearchQuery !== searchQuery
-        ) {
-          newQueryParams.page = "0";
-        }
-      }
+      newQueryParams.order_key = newSortHeader;
+      newQueryParams.order_direction = newSortDirection;
+      newQueryParams.page = newPageIndex.toString();
 
-      if (showInheritedTable) {
-        newQueryParams.inherited_table =
-          showInheritedTable && showInheritedTable.toString();
-      }
-
-      // Updates inherited policy table URL params
-      // No change to main policy table URL params
-      if (showInheritedTable && editingInheritedTable) {
-        newQueryParams.inherited_order_key = newSortHeader;
-        newQueryParams.inherited_order_direction = newSortDirection;
-        newQueryParams.inherited_page = newPageIndex.toString();
-        newQueryParams.order_key = sortHeader;
-        newQueryParams.order_direction = sortDirection;
-        newQueryParams.page = page.toString();
-        newQueryParams.query = searchQuery;
-        // Reset page number to 0 for new filters
-        if (
-          newSortDirection !== inheritedSortDirection ||
-          newSortHeader !== inheritedSortHeader
-        ) {
-          newQueryParams.inherited_page = "0";
-        }
+      // Reset page number to 0 for new filters
+      if (
+        newSortDirection !== sortDirection ||
+        newSortHeader !== sortHeader ||
+        newSearchQuery !== searchQuery
+      ) {
+        newQueryParams.page = "0";
       }
 
       if (isRouteOk && teamIdForApi !== undefined) {
@@ -464,46 +428,38 @@ const ManagePolicyPage = ({
 
       router?.replace(locationPath);
     },
-    [
-      isRouteOk,
-      teamIdForApi,
-      searchQuery,
-      showInheritedTable,
-      inheritedSortDirection,
-      sortDirection,
-    ] // Other dependencies can cause infinite re-renders as URL is source of truth
+    [isRouteOk, teamIdForApi, searchQuery, sortDirection, page, sortHeader] // Other dependencies can cause infinite re-renders as URL is source of truth
   );
 
-  const toggleManageAutomationsModal = () =>
-    setShowManageAutomationsModal(!showManageAutomationsModal);
-
-  const togglePreviewPayloadModal = useCallback(() => {
-    setShowPreviewPayloadModal(!showPreviewPayloadModal);
-  }, [setShowPreviewPayloadModal, showPreviewPayloadModal]);
+  const toggleOtherWorkflowsModal = () =>
+    setShowOtherWorkflowsModal(!showOtherWorkflowsModal);
 
   const toggleAddPolicyModal = () => setShowAddPolicyModal(!showAddPolicyModal);
 
   const toggleDeletePolicyModal = () =>
     setShowDeletePolicyModal(!showDeletePolicyModal);
 
-  const toggleShowInheritedPolicies = () => {
-    // URL source of truth
-    const locationPath = getNextLocationPath({
-      pathPrefix: PATHS.MANAGE_POLICIES,
-      queryParams: {
-        ...queryParams,
-        inherited_table: showInheritedTable ? undefined : "true",
-        inherited_page: showInheritedTable ? undefined : "0",
-      },
-    });
-    router?.replace(locationPath);
+  const toggleCalendarEventsModal = () => {
+    setShowCalendarEventsModal(!showCalendarEventsModal);
   };
 
-  const handleUpdateAutomations = async (requestBody: {
+  const onSelectAutomationOption = (option: string) => {
+    switch (option) {
+      case "calendar_events":
+        toggleCalendarEventsModal();
+        break;
+      case "other_workflows":
+        toggleOtherWorkflowsModal();
+        break;
+      default:
+    }
+  };
+
+  const onUpdateOtherWorkflows = async (requestBody: {
     webhook_settings: Pick<IWebhookSettings, "failing_policies_webhook">;
-    integrations: IIntegrations;
+    integrations: IZendeskJiraIntegrations;
   }) => {
-    setIsUpdatingAutomations(true);
+    setIsUpdatingOtherWorkflows(true);
     try {
       await (isAnyTeamSelected
         ? teamsAPI.update(requestBody, teamIdForApi)
@@ -515,10 +471,75 @@ const ManagePolicyPage = ({
         "Could not update policy automations. Please try again."
       );
     } finally {
-      toggleManageAutomationsModal();
-      setIsUpdatingAutomations(false);
-      refetchConfig();
-      isAnyTeamSelected && refetchTeamConfig();
+      toggleOtherWorkflowsModal();
+      setIsUpdatingOtherWorkflows(false);
+      isAnyTeamSelected ? refetchTeamConfig() : refetchConfig();
+    }
+  };
+
+  const onUpdateCalendarEvents = async (formData: ICalendarEventsFormData) => {
+    setIsUpdatingCalendarEvents(true);
+
+    try {
+      // update team config if either field has been changed
+      const responses: Promise<any>[] = [];
+      if (
+        formData.enabled !==
+          teamConfig?.integrations.google_calendar?.enable_calendar_events ||
+        formData.url !== teamConfig?.integrations.google_calendar?.webhook_url
+      ) {
+        responses.push(
+          teamsAPI.update(
+            {
+              integrations: {
+                google_calendar: {
+                  enable_calendar_events: formData.enabled,
+                  webhook_url: formData.url,
+                },
+                // These fields will never actually be changed here. See comment above
+                // IGlobalIntegrations definition.
+                zendesk: teamConfig?.integrations.zendesk || [],
+                jira: teamConfig?.integrations.jira || [],
+              },
+            },
+            teamIdForApi
+          )
+        );
+      }
+
+      // update changed policies calendar events enabled
+      const changedPolicies = formData.policies.filter((formPolicy) => {
+        const prevPolicyState = policiesAvailableToAutomate.find(
+          (policy) => policy.id === formPolicy.id
+        );
+        return (
+          formPolicy.isChecked !== prevPolicyState?.calendar_events_enabled
+        );
+      });
+
+      responses.concat(
+        changedPolicies.map((changedPolicy) => {
+          return teamPoliciesAPI.update(changedPolicy.id, {
+            calendar_events_enabled: changedPolicy.isChecked,
+            team_id: teamIdForApi,
+          });
+        })
+      );
+
+      await Promise.all(responses);
+      await wait(100); // Wait 100ms to avoid race conditions with refetch
+      await refetchTeamPolicies();
+      await refetchTeamConfig();
+
+      renderFlash("success", "Successfully updated policy automations.");
+    } catch {
+      renderFlash(
+        "error",
+        "Could not update policy automations. Please try again."
+      );
+    } finally {
+      toggleCalendarEventsModal();
+      setIsUpdatingCalendarEvents(false);
     }
   };
 
@@ -565,35 +586,22 @@ const ManagePolicyPage = ({
     }
   };
 
-  const inheritedPoliciesButtonText = (
-    showPolicies: boolean,
-    count: number
-  ) => {
-    return `${showPolicies ? "Hide" : "Show"} ${count} inherited ${
-      count > 1 ? "policies" : "policy"
-    }`;
-  };
-
-  const showInheritedPoliciesButton =
-    isAnyTeamSelected &&
-    !isFetchingTeamPolicies &&
-    !teamPoliciesError &&
-    !!inheritedPolicies?.length; // Returned with team policies
-
-  const availablePoliciesForAutomation =
-    (isAnyTeamSelected ? teamPolicies : globalPolicies) || [];
-
   const policiesErrors = isAnyTeamSelected
     ? teamPoliciesError
     : globalPoliciesError;
 
-  const policyResults = isAnyTeamSelected ? !!teamPolicies : !!globalPolicies;
+  const policyResults = isAnyTeamSelected
+    ? teamPolicies && teamPolicies.length > 0
+    : globalPolicies && globalPolicies.length > 0;
 
   // Show CTA buttons if there is no errors AND there are policy results or a search filter
   const showCtaButtons =
     !policiesErrors && (policyResults || searchQuery !== "");
 
   const automationsConfig = isAnyTeamSelected ? teamConfig : config;
+  const hasPoliciesToAutomateOrDelete = policiesAvailableToAutomate.length > 0;
+  const showAutomationsDropdown =
+    canManageAutomations && automationsConfig && hasPoliciesToAutomateOrDelete;
 
   // NOTE: backend uses webhook_settings to store automated policy ids for both webhooks and integrations
   let currentAutomatedPolicies: number[] = [];
@@ -617,19 +625,21 @@ const ManagePolicyPage = ({
   }
 
   const renderPoliciesCount = (count?: number) => {
-    // Show count if there is no errors AND there are policy results or a search filter
-    const showCount =
-      count !== undefined &&
-      !policiesErrors &&
-      (policyResults || searchQuery !== "");
+    // Hide count if fetching count || there are errors OR there are no policy results with no a search filter
+    const isFetchingCount = isAnyTeamSelected
+      ? isFetchingTeamCountMergeInherited
+      : isFetchingGlobalCount;
 
-    return (
-      <div className={`${baseClass}__count`}>
-        {showCount && (
-          <span>{`${count} polic${count === 1 ? "y" : "ies"}`}</span>
-        )}
-      </div>
-    );
+    const hideCount =
+      isFetchingCount ||
+      policiesErrors ||
+      (!policyResults && searchQuery === "");
+
+    if (hideCount) {
+      return null;
+    }
+
+    return <TableCount name="policies" count={count} />;
   };
 
   const renderMainTable = () => {
@@ -647,18 +657,19 @@ const ManagePolicyPage = ({
             onAddPolicyClick={onAddPolicyClick}
             onDeletePolicyClick={onDeletePolicyClick}
             canAddOrDeletePolicy={canAddOrDeletePolicy}
+            hasPoliciesToDelete={hasPoliciesToAutomateOrDelete}
             currentTeam={currentTeamSummary}
             currentAutomatedPolicies={currentAutomatedPolicies}
             renderPoliciesCount={() =>
-              !isFetchingTeamCount && renderPoliciesCount(teamPoliciesCount)
+              renderPoliciesCount(teamPoliciesCountMergeInherited)
             }
             isPremiumTier={isPremiumTier}
-            isSandboxMode={isSandboxMode}
             searchQuery={searchQuery}
             sortHeader={sortHeader}
             sortDirection={sortDirection}
             page={page}
             onQueryChange={onQueryChange}
+            resetPageIndex={resetPageIndex}
           />
         )}
         {!isAnyTeamSelected && globalPoliciesError && <TableDataError />}
@@ -669,23 +680,59 @@ const ManagePolicyPage = ({
             onAddPolicyClick={onAddPolicyClick}
             onDeletePolicyClick={onDeletePolicyClick}
             canAddOrDeletePolicy={canAddOrDeletePolicy}
+            hasPoliciesToDelete={hasPoliciesToAutomateOrDelete}
             currentTeam={currentTeamSummary}
             currentAutomatedPolicies={currentAutomatedPolicies}
             isPremiumTier={isPremiumTier}
-            isSandboxMode={isSandboxMode}
-            renderPoliciesCount={() =>
-              !isFetchingGlobalCount && renderPoliciesCount(globalPoliciesCount)
-            }
+            renderPoliciesCount={() => renderPoliciesCount(globalPoliciesCount)}
             searchQuery={searchQuery}
             sortHeader={sortHeader}
             sortDirection={sortDirection}
             page={page}
             onQueryChange={onQueryChange}
+            resetPageIndex={resetPageIndex}
           />
         )}
       </div>
     );
   };
+
+  const getAutomationsDropdownOptions = () => {
+    const isAllTeams = teamIdForApi === undefined || teamIdForApi === -1;
+    let disabledTooltipContent: React.ReactNode;
+    if (!isPremiumTier) {
+      disabledTooltipContent = "Available in Fleet Premium.";
+    } else if (isAllTeams) {
+      disabledTooltipContent = (
+        <>
+          Select a team to manage
+          <br />
+          calendar events.
+        </>
+      );
+    }
+
+    return [
+      {
+        label: "Calendar events",
+        value: "calendar_events",
+        disabled: !isPremiumTier || isAllTeams,
+        helpText: "Automatically reserve time to resolve failing policies.",
+        tooltipContent: disabledTooltipContent,
+      },
+      {
+        label: "Other workflows",
+        value: "other_workflows",
+        disabled: false,
+        helpText: "Create tickets or fire webhooks for failing policies.",
+      },
+    ];
+  };
+
+  const isCalEventsConfigured =
+    (config?.integrations.google_calendar &&
+      config?.integrations.google_calendar.length > 0) ??
+    false;
 
   return (
     <MainContent className={baseClass}>
@@ -713,19 +760,16 @@ const ManagePolicyPage = ({
           </div>
           {showCtaButtons && (
             <div className={`${baseClass} button-wrap`}>
-              {canManageAutomations && automationsConfig && (
-                <Button
-                  onClick={toggleManageAutomationsModal}
-                  className={`${baseClass}__manage-automations button`}
-                  variant="inverse"
-                  disabled={
-                    isAnyTeamSelected
-                      ? isFetchingTeamPolicies
-                      : isFetchingGlobalPolicies
-                  }
-                >
-                  <span>Manage automations</span>
-                </Button>
+              {showAutomationsDropdown && (
+                <div className={`${baseClass}__manage-automations-wrapper`}>
+                  <Dropdown
+                    className={`${baseClass}__manage-automations-dropdown`}
+                    onChange={onSelectAutomationOption}
+                    placeholder="Manage automations"
+                    searchable={false}
+                    options={getAutomationsDropdownOptions()}
+                  />
+                </div>
               )}
               {canAddOrDeletePolicy && (
                 <div className={`${baseClass}__action-button-container`}>
@@ -734,7 +778,7 @@ const ManagePolicyPage = ({
                     className={`${baseClass}__select-policy-button`}
                     onClick={onAddPolicyClick}
                   >
-                    Add a policy
+                    Add policy
                   </Button>
                 </div>
               )}
@@ -749,62 +793,14 @@ const ManagePolicyPage = ({
           </p>
         </div>
         {renderMainTable()}
-        {showInheritedPoliciesButton && globalPoliciesCount && (
-          <RevealButton
-            isShowing={showInheritedTable}
-            className={baseClass}
-            hideText={inheritedPoliciesButtonText(
-              showInheritedTable,
-              globalPoliciesCount
-            )}
-            showText={inheritedPoliciesButtonText(
-              showInheritedTable,
-              globalPoliciesCount
-            )}
-            caretPosition="before"
-            tooltipContent={
-              <>
-                &quot;All teams&quot; policies are checked
-                <br />
-                for this team&apos;s hosts.
-              </>
-            }
-            onClick={toggleShowInheritedPolicies}
-          />
-        )}
-        {showInheritedPoliciesButton && showInheritedTable && (
-          <div className={`${baseClass}__inherited-policies-table`}>
-            {globalPoliciesError && <TableDataError />}
-            {!globalPoliciesError && (
-              <PoliciesTable
-                isLoading={isFetchingTeamPolicies}
-                policiesList={inheritedPolicies || []}
-                onDeletePolicyClick={noop}
-                canAddOrDeletePolicy={canAddOrDeletePolicy}
-                tableType="inheritedPolicies"
-                currentTeam={currentTeamSummary}
-                searchQuery=""
-                renderPoliciesCount={() =>
-                  renderPoliciesCount(teamPoliciesCount)
-                }
-                sortHeader={inheritedSortHeader}
-                sortDirection={inheritedSortDirection}
-                page={inheritedPage}
-                onQueryChange={onQueryChange}
-              />
-            )}
-          </div>
-        )}
-        {config && automationsConfig && showManageAutomationsModal && (
-          <ManagePolicyAutomationsModal
+        {config && automationsConfig && showOtherWorkflowsModal && (
+          <OtherWorkflowsModal
             automationsConfig={automationsConfig}
             availableIntegrations={config.integrations}
-            availablePolicies={availablePoliciesForAutomation}
-            isUpdatingAutomations={isUpdatingAutomations}
-            showPreviewPayloadModal={showPreviewPayloadModal}
-            onExit={toggleManageAutomationsModal}
-            handleSubmit={handleUpdateAutomations}
-            togglePreviewPayloadModal={togglePreviewPayloadModal}
+            availablePolicies={policiesAvailableToAutomate}
+            isUpdating={isUpdatingOtherWorkflows}
+            onExit={toggleOtherWorkflowsModal}
+            onSubmit={onUpdateOtherWorkflows}
           />
         )}
         {showAddPolicyModal && (
@@ -820,6 +816,20 @@ const ManagePolicyPage = ({
             isUpdatingPolicies={isUpdatingPolicies}
             onCancel={toggleDeletePolicyModal}
             onSubmit={onDeletePolicySubmit}
+          />
+        )}
+        {showCalendarEventsModal && (
+          <CalendarEventsModal
+            onExit={toggleCalendarEventsModal}
+            onSubmit={onUpdateCalendarEvents}
+            configured={isCalEventsConfigured}
+            enabled={
+              teamConfig?.integrations.google_calendar
+                ?.enable_calendar_events ?? false
+            }
+            url={teamConfig?.integrations.google_calendar?.webhook_url || ""}
+            policies={policiesAvailableToAutomate}
+            isUpdating={isUpdatingCalendarEvents}
           />
         )}
       </div>

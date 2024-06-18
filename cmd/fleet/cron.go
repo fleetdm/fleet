@@ -20,6 +20,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
+	"github.com/fleetdm/fleet/v4/server/mdm/assets"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	"github.com/fleetdm/fleet/v4/server/policies"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -35,6 +36,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/worker"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
+	"github.com/google/uuid"
 	"github.com/hashicorp/go-multierror"
 )
 
@@ -76,10 +78,6 @@ func cronVulnerabilities(
 ) error {
 	if config == nil {
 		return errors.New("nil configuration")
-	}
-	if config.CurrentInstanceChecks == "no" || config.CurrentInstanceChecks == "0" {
-		level.Info(logger).Log("msg", "host not configured to check for vulnerabilities")
-		return nil
 	}
 
 	level.Info(logger).Log("periodicity", config.Periodicity)
@@ -712,6 +710,7 @@ func newCleanupsAndAggregationSchedule(
 	enrollHostLimiter fleet.EnrollHostLimiter,
 	config *config.FleetConfig,
 	commander *apple_mdm.MDMAppleCommander,
+	softwareInstallStore fleet.SoftwareInstallerStore,
 ) (*schedule.Schedule, error) {
 	const (
 		name            = string(fleet.CronCleanupsThenAggregation)
@@ -755,6 +754,12 @@ func newCleanupsAndAggregationSchedule(
 			"policy_membership",
 			func(ctx context.Context) error {
 				return ds.CleanupPolicyMembership(ctx, time.Now())
+			},
+		),
+		schedule.WithJob(
+			"cleanup_host_issues",
+			func(ctx context.Context) error {
+				return ds.CleanupHostIssues(ctx)
 			},
 		),
 		schedule.WithJob(
@@ -809,7 +814,7 @@ func newCleanupsAndAggregationSchedule(
 		schedule.WithJob(
 			"verify_disk_encryption_keys",
 			func(ctx context.Context) error {
-				return verifyDiskEncryptionKeys(ctx, logger, ds, config)
+				return verifyDiskEncryptionKeys(ctx, logger, ds)
 			},
 		),
 		schedule.WithJob(
@@ -838,6 +843,22 @@ func newCleanupsAndAggregationSchedule(
 		}),
 		schedule.WithJob("cleanup_unused_script_contents", func(ctx context.Context) error {
 			return ds.CleanupUnusedScriptContents(ctx)
+		}),
+		schedule.WithJob("cleanup_activities", func(ctx context.Context) error {
+			appConfig, err := ds.AppConfig(ctx)
+			if err != nil {
+				return err
+			}
+			if !appConfig.ActivityExpirySettings.ActivityExpiryEnabled {
+				return nil
+			}
+			// A maxCount of 5,000 means that the cron job will keep the activities (and associated tables)
+			// sizes in control for deployments that generate (5k x 24 hours) ~120,000 activities per day.
+			const maxCount = 5000
+			return ds.CleanupActivitiesAndAssociatedData(ctx, maxCount, appConfig.ActivityExpirySettings.ActivityExpiryWindow)
+		}),
+		schedule.WithJob("cleanup_unused_software_installers", func(ctx context.Context) error {
+			return ds.CleanupUnusedSoftwareInstallers(ctx, softwareInstallStore)
 		}),
 	)
 
@@ -890,9 +911,15 @@ func verifyDiskEncryptionKeys(
 	ctx context.Context,
 	logger kitlog.Logger,
 	ds fleet.Datastore,
-	config *config.FleetConfig,
 ) error {
-	if !config.MDM.IsAppleSCEPSet() {
+
+	appCfg, err := ds.AppConfig(ctx)
+	if err != nil {
+		logger.Log("err", "unable to get app config", "details", err)
+		return ctxerr.Wrap(ctx, err, "fetching app config")
+	}
+
+	if !appCfg.MDM.EnabledAndConfigured {
 		logger.Log("inf", "skipping verification of macOS encryption keys as MDM is not fully configured")
 		return nil
 	}
@@ -903,10 +930,10 @@ func verifyDiskEncryptionKeys(
 		return err
 	}
 
-	cert, _, _, err := config.MDM.AppleSCEP()
+	cert, err := assets.CAKeyPair(ctx, ds)
 	if err != nil {
-		logger.Log("err", "unable to get SCEP keypair to decrypt keys", "details", err)
-		return err
+		logger.Log("err", "unable to get CA keypair", "details", err)
+		return ctxerr.Wrap(ctx, err, "parsing SCEP keypair")
 	}
 
 	decryptable := []uint{}
@@ -999,11 +1026,24 @@ func newAppleMDMDEPProfileAssigner(
 ) (*schedule.Schedule, error) {
 	const name = string(fleet.CronAppleMDMDEPProfileAssigner)
 	logger = kitlog.With(logger, "cron", name, "component", "nanodep-syncer")
-	fleetSyncer := apple_mdm.NewDEPService(ds, depStorage, logger)
+	var fleetSyncer *apple_mdm.DEPService
 	s := schedule.New(
 		ctx, name, instanceID, periodicity, ds, ds,
 		schedule.WithLogger(logger),
 		schedule.WithJob("dep_syncer", func(ctx context.Context) error {
+			appCfg, err := ds.AppConfig(ctx)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "retrieving app config")
+			}
+
+			if !appCfg.MDM.AppleBMEnabledAndConfigured {
+				return nil
+			}
+
+			if fleetSyncer == nil {
+				fleetSyncer = apple_mdm.NewDEPService(ds, depStorage, logger)
+			}
+
 			return fleetSyncer.RunAssigner(ctx)
 		}),
 	)
@@ -1017,7 +1057,6 @@ func newMDMProfileManager(
 	ds fleet.Datastore,
 	commander *apple_mdm.MDMAppleCommander,
 	logger kitlog.Logger,
-	loggingDebug bool,
 ) (*schedule.Schedule, error) {
 	const (
 		name = string(fleet.CronMDMAppleProfileManager)
@@ -1026,12 +1065,16 @@ func newMDMProfileManager(
 		// cron interval as we scale to more hosts.
 		defaultInterval = 30 * time.Second
 	)
+
 	logger = kitlog.With(logger, "cron", name)
 	s := schedule.New(
 		ctx, name, instanceID, defaultInterval, ds, ds,
 		schedule.WithLogger(logger),
 		schedule.WithJob("manage_apple_profiles", func(ctx context.Context) error {
 			return service.ReconcileAppleProfiles(ctx, ds, commander, logger)
+		}),
+		schedule.WithJob("manage_apple_declarations", func(ctx context.Context) error {
+			return service.ReconcileAppleDeclarations(ctx, ds, commander, logger)
 		}),
 		schedule.WithJob("manage_windows_profiles", func(ctx context.Context) error {
 			return service.ReconcileWindowsProfiles(ctx, ds, logger)
@@ -1154,4 +1197,76 @@ func stringSliceToUintSlice(s []string, logger kitlog.Logger) []uint {
 		result = append(result, uint(i))
 	}
 	return result
+}
+
+// newIPhoneIPadRefetcher will enqueue DeviceInformation commands on iOS/iPadOS devices
+// to refetch their host details.
+//
+// See https://developer.apple.com/documentation/devicemanagement/get_device_information.
+//
+// We will refetch iPhones/iPads every 1 hour (to match the default
+// detail interval of all (osquery-capable) hosts in Fleet).
+func newIPhoneIPadRefetcher(
+	ctx context.Context,
+	instanceID string,
+	periodicity time.Duration,
+	ds fleet.Datastore,
+	commander *apple_mdm.MDMAppleCommander,
+	logger kitlog.Logger,
+) (*schedule.Schedule, error) {
+	const name = string(fleet.CronAppleMDMIPhoneIPadRefetcher)
+	logger = kitlog.With(logger, "cron", name, "component", "iphone-ipad-refetcher")
+	s := schedule.New(
+		ctx, name, instanceID, periodicity, ds, ds,
+		schedule.WithLogger(logger),
+		schedule.WithJob("cron_iphone_ipad_refetcher", func(ctx context.Context) error {
+			appCfg, err := ds.AppConfig(ctx)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "fetching app config")
+			}
+
+			if !appCfg.MDM.EnabledAndConfigured {
+				level.Debug(logger).Log("msg", "apple mdm is not configured, skipping run")
+				return nil
+			}
+
+			start := time.Now()
+			uuids, err := ds.ListIOSAndIPadOSToRefetch(ctx, 1*time.Hour)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "list ios and ipad devices to refetch")
+			}
+			if len(uuids) == 0 {
+				return nil
+			}
+			logger.Log("msg", "sending commands to refetch", "count", len(uuids), "lookup-duration", time.Since(start))
+			commandUUID := fleet.RefetchCommandUUIDPrefix + uuid.NewString()
+			if err := commander.EnqueueCommand(ctx, uuids, fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Command</key>
+    <dict>
+        <key>Queries</key>
+        <array>
+            <string>DeviceName</string>
+            <string>DeviceCapacity</string>
+            <string>AvailableDeviceCapacity</string>
+            <string>OSVersion</string>
+            <string>WiFiMAC</string>
+            <string>ProductName</string>
+        </array>
+        <key>RequestType</key>
+        <string>DeviceInformation</string>
+    </dict>
+    <key>CommandUUID</key>
+    <string>%s</string>
+</dict>
+</plist>`, commandUUID)); err != nil {
+				return ctxerr.Wrap(ctx, err, "send DeviceInformation commands to ios and ipados devices")
+			}
+			return nil
+		}),
+	)
+
+	return s, nil
 }

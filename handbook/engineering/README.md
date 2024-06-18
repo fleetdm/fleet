@@ -1,13 +1,15 @@
 # Engineering
-This handbook page details processes specific to working [with](#team) and [within](#responsibilities) this department
+This handbook page details processes specific to working [with](#contact-us) and [within](#responsibilities) this department.
 
 ## Team
 | Role                            | Contributor(s)           |
 |:--------------------------------|:-----------------------------------------------------------------------------------------------------------|
-| Head of Product Engineering     | [Luke Heath](https://www.linkedin.com/in/lukeheath/) _([@lukeheath](https://github.com/lukeheath))_
-| Engineering Manager             | _See ["Current product groups"](https://fleetdm.com/handbook/company/product-groups#current-product-groups)_
-| Quality Assurance               | [Reed Haynes](https://www.linkedin.com/in/reed-haynes-633a69a3/) _([@xpkoala](https://github.com/xpkoala))_
-| Developer                       | _See ["Current product groups"](https://fleetdm.com/handbook/company/product-groups#current-product-groups)_
+| Chief Technology Officer (CTO)  | [Luke Heath](https://www.linkedin.com/in/lukeheath/) _([@lukeheath](https://github.com/lukeheath))_
+| Client Platform Engineer &amp; Community Advocate     | [JD Strong](https://www.linkedin.com/in/jackdaniyelstrong/) _([@spokanemac](https://github.com/spokanemac/spokanemac))_
+| Engineering Manager (EM)        | <sup><sub> _See [🛩️ Product groups](https://fleetdm.com/handbook/company/product-groups#current-product-groups)_ </sup></sub>
+| Quality Assurance Engineer (QA) | <sup><sub> _See [🛩️ Product groups](https://fleetdm.com/handbook/company/product-groups#current-product-groups)_ </sup></sub>
+| Software Engineer               | <sup><sub> _See [🛩️ Product groups](https://fleetdm.com/handbook/company/product-groups#current-product-groups)_ </sup></sub>
+
 
 ## Contact us
 - To **make a request** of this department, [create an issue](https://fleetdm.com/handbook/company/product-groups#current-product-groups) and a team member will get back to you within one business day (If urgent, mention a [team member](#team) in the [#help-engineering](https://fleetdm.slack.com/archives/C019WG4GH0A) Slack channel.
@@ -27,17 +29,28 @@ The metrics are:
 
 Each week these are tracked and shared in the weekly KPI sheet by Luke Heath.
 
-#### Create an engineering-initiated story
+### Create an engineering-initiated story
 Engineering-initiated stories are types of user stories created by engineers to make technical changes to Fleet. Technical changes should improve the user experience or contributor experience. For example, optimizing SQL that improves the response time of an API endpoint improves user experience by reducing latency. A script that generates common boilerplate, or automated tests to cover important business logic, improves the quality of life for contributors, making them happier and more productive, resulting in faster delivery of features to our customers.
 
 It is important to frame engineering-initiated user stories the same way we frame all user stories. Stay focused on how this technical change will drive value for our users.
 
-To [create an engineering-initiated user story](https://fleetdm.com/handbook/engineering#creating-an-engineering-initiated-story), follow the [user story drafting process](https://fleetdm.com/handbook/company/development-groups#drafting). Once your user story is created using the [new story template](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=story,~engineering-initiated&projects=&template=story.md&title=), add the `~engineering-initiated` label, assign it to yourself, and bring to your EM to be considered for future prioritization into a sprint. The engineering output and architecture DRI is responsible for prioritizing engineering-initiated stories.
+To [create an engineering-initiated user story](https://fleetdm.com/handbook/engineering#creating-an-engineering-initiated-story), follow the [user story drafting process](https://fleetdm.com/handbook/company/development-groups#drafting). Once your user story is created using the [new story template](https://github.com/fleetdm/fleet/issues/new?assignees=lukeheath&labels=story,~engineering-initiated&projects=&template=story.md&title=), make sure the `~engineering-initiated` label is added and the engineering output and architecture DRI (@lukeheath) is assigned. 
+
+What happens next? The engineering output and architecture DRI reviews engineering-initiated stories weekly. 
+
+If there are product changes (i.e. interface, documentation, or dependency changes), the story is added to the "New requests" column on the drafting board.
+
+If there are no product changes, and the DRI decides to prioritize the story, the story is added to the "Specified" column on the drafting board so that it can be estimated.
 
 > We prefer the term engineering-initiated stories over technical debt because the user story format helps keep us focused on our users and contributors.
 
+### Fix a bug
+If the bug is labeled `~unreleased bug`, branch off and put your PR into `main`. These issues can be closed as soon as they complete QA.
+
+If the bug is labeled `~released bug`, branch off the tag for the latest release of Fleet and put your PR into `main`. For example, `git checkout fleet-v4.48.2`, then `git checkout -b my-bug-fix-branch`. These issues are not closed until the next release of Fleet. This approach makes sure the bug fix is not built on top of unreleased feature code, which can cause merge conflicts during patch releases. 
+
 ### Begin a merge freeze
-To ensure release quality, Fleet has a freeze period for testing beginning the Tuesday before the release at 9:00 AM Pacific. Effective at the start of the freeze period, new feature work will not be merged into `main`.
+To ensure release quality, Fleet has a freeze period for testing beginning the Tuesday before the release at 11:00 AM Pacific. Effective at the start of the freeze period, new feature work will not be merged into `main`.
 
 Bugs are exempt from the release freeze period.
 
@@ -99,11 +112,6 @@ If an announcement is found for either data source that may impact data feed ava
 
 If code changes are found for any `fleetd` components, create a new release QA issue to update `fleetd`. Delete the top section for Fleet core, and retain the bottom section for `fleetd`. Populate the necessary version changes for each `fleetd` component.
 
-### Create release QA issue
-Next, create a new GitHub issue using the [Release QA template](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=&projects=&template=release-qa.md). Add the release version to the title, and assign the quality assurance members of the [MDM](https://fleetdm.com/handbook/company/development-groups#mdm-group) and [Endpoint ops](https://fleetdm.com/handbook/company/product-groups#endpoint-ops-group) product groups.
-
-The issue's template will contain validation steps for Fleet and individual `fleetd` components. Remove any instructions that do not apply to this release.
-
 ### Indicate your product group is release-ready
 Once a product group completes its QA process during the freeze period, its QA lead moves the smoke testing ticket to the "Ready for release" column on their ZenHub board. They then notify the release ritual DRI by tagging them in a comment, indicating that their group is prepared for release. The release ritual DRI starts the [release process](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/Releasing-Fleet.md) after all QA leads have made these updates and confirmed their readiness for release.
 
@@ -150,8 +158,126 @@ Immediately after publishing a new release, we close out the associated GitHub i
 
 12. Announce that `main` is unfrozen and the milestone has been closed in #help-engineering.
 
+13. Create a branch for the next patch and push it to GitHub. For example, if you release `fleet-v4.44.0`, create a branch called `patch-fleet-v4.44.1`. 
+
 ### Update the Fleet releases calendar
 The [Fleet releases Google calendar](https://calendar.google.com/calendar/embed?src=c_v7943deqn1uns488a65v2d94bs%40group.calendar.google.com&ctz=America%2FChicago) is kept up-to-date by the [release ritual DRI](https://fleetdm.com/handbook/engineering#rituals). Any change to targeted release dates is reflected on this calendar.
+
+### Secure company-issued equipment for a team member
+As soon as an offer is accepted, Fleet provides laptops and YubiKey security keys for core team members to use while working at Fleet. The IT engineer will work with the new team member to get their equipment requested and shipped to them on time.
+
+- [**Check the Fleet IT warehouse**](https://docs.google.com/spreadsheets/d/1hFlymLlRWIaWeVh14IRz03yE-ytBLfUaqVz0VVmmoGI/edit#gid=0) before purchasing any equipment including laptops, monitors, and Yubikeys to ensure we efficiently [utilize existing assets before spending money](https://fleetdm.com/handbook/company/why-this-way#why-spend-less). If Fleet IT warehouse inventory can meet the needs of the request, file a [warehouse request](https://github.com/fleetdm/confidential/issues/new?assignees=sampfluger88&labels=%23g-digital-experience&projects=&template=warehouse-request.md&title=%F0%9F%92%BB+Warehouse+request).
+
+- Apple computers shipping to the United States and Canada are ordered using the Apple [eCommerce Portal](https://ecommerce2.apple.com/asb2bstorefront/asb2b/en/USD/?accountselected=true), or by contacting the business team at an Apple Store or contacting the online sales team at [800-854-3680](tel:18008543680). The IT engineer can arrange for same-day pickup at a store local to the Fleetie if needed.
+  - **Note:** Most Fleeties use 16-inch MacBook Pros. Team members are free to choose any laptop or operating system that works for them, as long as the price [is within reason](https://www.fleetdm.com/handbook/communications#spending-company-money). 
+
+  - When ordering through the Apple eCommerce Portal, look for a banner with *Apple Store for FLEET DEVICE MANAGEMENT | Welcome [Your Name].* Hovering over *Welcome* should display *Your Profile.* If Fleet's account number is displayed, purchases will be automatically made available in Apple Business Manager (ABM).
+
+- Apple computers for Fleeties in other countries should be purchased through an authorized reseller to ensure the device is enrolled in ADE. In countries that Apple does not operate or that do not allow ADE, work with the authorized reseller to find the best solution, or consider shipping to a US based Fleetie and then shipping on to the teammate. 
+
+ > A 3-year AppleCare+ Protection Plan (APP) should be considered default for Apple computers >$1500. Base MacBook Airs, Mac minis, etc. do not need APP unless configured beyond the $1500 price point. APP provides 24/7 support, and global repair coverage in case of accidental screen damage or liquid spill, and battery service.
+
+ - Order a pack of two [YubiKey 5C NFC security keys](https://www.yubico.com/product/yubikey-5-series/yubikey-5c-nfc/) for new team member, shipped to them directly.
+
+- Include delivery tracking information when closing the support request so the new employee can be notified.
+
+### Register a domain for Fleet
+Domain name registrations are handled through Namecheap. Access is managed via 1Password.
+
+### Fix a laptop that's not checking in
+It is [possible for end users to remove launch agents](https://github.com/fleetdm/confidential/issues/6088) (this is true not just for osquery, but for anything). 
+
+If the host has MDM turned on, use the `fleetctl mdm run-command` CLI command to push the XML file located at https://github.com/fleetdm/fleet/blob/main/it-and-security/lib/macos-send-fleetd.xml to the device, which will reinstall fleetd.
+
+If the host doesn't have MDM turned on or isn't enrolled to dogfood, it is beyond our ability to control remotely.
+
+### Enroll a macOS host in dogfood
+When a device is purchased using the Apple eCommerce store, the device is automatically enrolled in Apple Business Manager (ABM) and assigned to the correct server to ensure the device is in dogfood.
+You can confirm that the device has been ordered correctly by following these steps:
+- Log into ABM
+- Use the device serial number to find the device.
+  - Note: if the device cannot be found, you will need to manually enroll the device.
+- View device settings and ensure the "MDM Server" selected is "Fleet Dogfood".
+
+On occasion there will be a need to manually enroll a macOS host in dogfood. This could be due to a BYOD arrangement, or because the Fleetie getting the device is in a country when DEP (automatic enrollment) isn't supported. To manually enroll a macOS host in dogfood, follow these steps:
+- If you have physical access to the macOS host, use Apple Configurator (docs are [here](https://support.apple.com/guide/apple-business-manager/add-devices-from-apple-configurator-axm200a54d59/web)).
+- If you do not have physical access to the device, the user will need to undertake the following steps:
+  - Install the fleetd package for your device from shared drive folder [here](https://drive.google.com/drive/folders/1-hMwk4P7NRzCU5kDxkEcOo8Sluuaux1h?usp=drive_link).
+  - Once fleetd is installed, click on Fleet desktop icon in top right menu bar, and select "My device".
+  - In Fleet desktop, follow the instructions to turn on MDM.
+  - Once complete, follow instructions to reset disk encryption key.
+- Disk encryption key will now be stored in Fleet dogfood, which signifies that the device is now enrolled in dogfood.
+
+### Enroll a Windows or Ubuntu Linux device in dogfood
+To enroll a windows or Ubuntu Linux device in dogfood, instruct the user to install fleetd for their platform from internal shared drive folder [here](https://drive.google.com/drive/folders/1-hMwk4P7NRzCU5kDxkEcOo8Sluuaux1h?usp=drive_link).
+Once the user has installed fleetd, verify the device is correctly enrolled by confirming the device encryption key is in dogfood.
+
+### Enroll a ChromeOS device in dogfood
+ChromeOS devices are automatically enrolled in dogfood after the IT admin sets up automatic enrollment. This is done in dogfood by following the steps found in the dialog popup when selecting "Add hosts > ChromeOS" from the dogfood Hosts page.
+
+### Lock a macOS host in dogfood using fleetctl CLI tool
+- Download the lock command XML file from Google Drive [here](https://drive.google.com/file/d/1o6vJ1fHilRtBmyKAj0I5URiKn77qe4gS/view?usp=drive_link).
+- Customize any messaging that will appear on the locked device, and modify the pin for unlocking the device by editing the file in text editor.
+  - Note you will need to safely store the recovery pin for the device, suggest using 1Password or other secure storage method
+- Run this command with fleetctl CLI tool: `fleetctl mdm run-command --hosts=hostname --payload=Downloads/command-lock-macos-host.xml`
+  - Note that `hostname` must be replaced with **Hostname** in Fleet (not the display name)
+  - Note that the payload path may change based on where the file is stored once downloaded
+  - Note that if you haven't logged into fleetctl recently, will need to follow authentication steps (see [Logging in with SAML (SSO) authentication](https://fleetdm.com/docs/using-fleet/fleetctl-cli#logging-in-with-saml-sso-authentication) ).
+- Device will be locked
+- When device needs to be unlocked, enter the security pin (from XML file) in the input field of the device
+- The device will then open to the regular login screen, asking for password
+  -  If you do not have the password available, you can choose the option to enter recovery key/disk encryption key (this option might be behind `?` icon).
+  - Get disk encryption key from Fleet dogfood (using the action menu from the individual host page).
+  - Enter disk encryption key on laptop. This should prompt you to create a new password.
+- You will then be logged into the default device profile, and can complete any needed actions (wipe, recover data).
+
+### Book an event
+Fleet's Client Platform Engineer & Community Advocate is responsible for booking events that Fleet has chosen to attend and/or sponsor. To book an event, complete the steps in each event issue. Contact the [🫧 Digital Marketing Manager](https://fleetdm.com/handbook/demand#team) as needed with any questions or blockers to booking an event.
+
+> Note: The Demand department [settles all event strategy](https://fleetdm.com/handbook/demand#settle-event-strategy) prior to booking an event. 
+
+<!-- TODO Create Article issue template and update this section of the handbook to reflect reality and add corresponding rituals to engineering.rituals.yml
+
+### Create an article
+Article creation begins with creation of an issue using the "Article request" template.
+
+1. Create a [new GitHub issue for the #g-demand board](https://github.com/fleetdm/confidential/issues/new?assignees=spokanemac&labels=%23g-demand=&template=custom-request.md&title=Article%20Idea%3A+_______________________) and select the "Event-preparation" template..
+2. Move the issue into the "📃 Planned articles" column.
+
+### Review ongoing articles
+Check the "📃 Planned articles" column in [#g-demand board](https://app.zenhub.com/workspaces/g-demand-64e6c8e2d35c7f001a457b7f/board) and continue to work through steps in each event's issue.
+-->
+
+### Order SWAG
+
+**To order T-shirts:**
+
+  - Check [Postal](https://app.postal.io/items/postals) first and see if the warehouse has enough shirts.
+  - Navigate to the [approved items page](https://app.postal.io/items/postals).
+      - Hover over the shirt design and click on the airplane.
+      - Click bulk send and choose one shirt size and the expected quantity of that particular shirt size.
+      - Make sure the address matches the expected receiving address.
+  - If the Postal warehouse can't fulfill the order or To order swag quickly: 
+      - Login to [https://www.rushordertees.com/my-account/login/) (saved in 1Password).
+      - Choose Fleet logo design t-shirt under [my designs](https://www.rushordertees.com/my-account/designs/).
+      - Order shirts based on the pre-determined number (~5% of total event attendees).
+      - Submit the order. Ensure the address matches the expected receiving address.
+
+**To order stickers:**
+
+  - Login to [StickerMule](https://www.stickermule.com/) (saved in 1Password).
+  - Find the [brand kit](https://www.stickermule.com/studio/brand-kits) after logging in.
+  - Click on the "Fleet Device Management" brand kit and order preapproved stickers from the templates.
+  - Total sticker quantity should be ~10% of total event attendees.
+  - Complete the checkout process. Ensure the address matches the expected receiving address.
+
+**To order pens and sticky note pads**
+
+  - Pens and sticky note pads are ordered through Everything Branded.
+  - Email our sales representative Jake William (saved in 1Password) to order any of the following:
+    - [Javalina™ Metallic Stylus Pen](https://www.everythingbranded.com/product/javalina-metallic-stylus-pen-us-pat-8847930-9092077-350220)
+    - [Sharpie Fine Point Markers](https://www.everythingbranded.com/product/sharpie-fine-point-332908)
+    - [Custom sticky note pads](https://www.everythingbranded.com/product/custom-sticky-notes-585601) (design is in the StickerMule [brand kit](https://www.stickermule.com/studio/brand-kits))
 
 ### Review a community pull request
 If you're assigned a community pull request for review, it is important to keep things moving for the contributor. The goal is to not go more than one business day without following up with the contributor.
@@ -204,6 +330,14 @@ Some ideas:
 - Create a blog post (or other content) for fleetdm.com.
 - Try out an experimental refactor. 
 
+### Edit a DNS record
+We use Cloudflare to manage the DNS records of fleetdm.com and our other domains. To make DNS changes in Cloudflare:
+1. Log into your Cloudflare account and select the "Fleet" account.
+2. Select the domain you want to change and go to the DNS panel on that domain's dashboard.
+3. To add a record, click the "Add record" button, select the record's type, fill in the required values, and click "Save". If you're making changes to an existing record, you only need to click on the record, update the record's values, and save your changes.
+
+> If you need access to Fleet's Cloudflare account, please ask the [DRI](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) [Luke Heath](https://fleetdm.com/handbook/engineering#team) in Slack for an invitation.
+
 ### Assume developer on-call alias
 The on-call developer is responsible for: 
 - Knowing [the on-call rotation](https://fleetdm.com/handbook/company/product-groups#the-developer-on-call-rotation).
@@ -254,7 +388,7 @@ As a hiring manager we want to ensure the interview process follows these steps 
 4. **Schedule manager interview**: Send the candidate a calendly link for 1hr to talk to you and screen them if they are a good fit for this role and our culture.
 5. **Schedule technical interview**: Send the candidate a calendly link for 1hr to talk to a senior engineer on your team where the goal is to understand the thechnical capabilities of the candidate. An additional engineer can optionally join if available.
 6. **Schedule DOPD interview**: Send the candidate a calendly link for 30m talk to the Director of Product Development @lukeheath.
-7. **Schedule CTO interview**: Send the candidate a calendly link for 30m talk with our CTO @zwass.
+7. **Schedule CTO interview**: Send the candidate a calendly link for 30m talk with our CTO @lukeheath.
 
 If the candidate passes all of these steps then continue with [hiring a new team member](https://fleetdm.com/handbook/company/leadership#hiring-a-new-team-member).
 
@@ -275,34 +409,43 @@ Steps to renew the certificate:
 * Update `sails_custom__mdmVendorKeyPassphrase` with the passphrase used in step 4
 * Update `sails_custom__mdmVendorKeyPem` with `VendorPrivateKey.key` from step 4
 9. Store updated values in [Confidential 1Password Vault](https://start.1password.com/open/i?a=N3F7LHAKQ5G3JPFPX234EC4ZDQ&v=lcvkjobeheaqdgnz33ontpuhxq&i=byyfn2knejwh42a2cbc5war5sa&h=fleetdevicemanagement.1password.com)
-10. Verify by logging into a normal apple account (not billing@...) and Generate a new Push Certificate following our [setup MDM](https://fleetdm.com/docs/using-fleet/mdm-macos-setup#step-2-generate-an-apns-certificate) steps and verify the Expiration date is 1 year from today.
+10. Verify by logging into a normal apple account (not billing@...) and Generate a new Push Certificate following our [setup MDM](https://fleetdm.com/docs/using-fleet/mdm-setup) steps and verify the Expiration date is 1 year from today.
 11. Adjust calendar event to be between 2-4 weeks before the next expiration.
 
 ### Perform an incident postmortem
-<!-- TODO: move philosophy to product groups and link to this responsibility from there-->
-At Fleet, we take customer incidents very seriously. After working with customers to resolve issues, we will conduct an internal postmortem to determine any process, documentation, or coding changes to prevent similar incidents from happening in the future. Why? We strive to make Fleet the best osquery management platform globally, and we sincerely believe that starts with sharing lessons learned with the community to become stronger together.
+Conduct a postmortem meetings for every service or feature outage and every critical bug, whether it's a customer's environment or on fleetdm.com.
 
-At Fleet, we do postmortem meetings for every service or feature outage and every critical bug, whether it's a customer's environment or on fleetdm.com.
-
-- **Postmortem documentation**
-Before running the postmortem meeting, copy this [postmortem template](https://docs.google.com/document/d/1Ajp2LfIclWfr4Bm77lnUggkYNQyfjePiWSnBv1b1nwM/edit?usp=sharing) document and populate it with some initial data to enable a productive conversation. 
-
-- **Postmortem meeting**
-Invite all stakeholders, typically the team involved and QA representatives.
-
-Follow the document topic by topic. Keep the goal in mind which is to take action items for addressing the root cause and making sure a similar incident will not happen again.
-
-Distinguish between the root cause of the bug, which by that time was solved and released, and the root cause of why this issue reached our customers. These could be different issues. (e.g. the root cause of the bug was a coding issue, but the root causes (plural) of the event may be that the test plan did not cover a specific scenario, a lack of testing, and a lack of metrics to identify the issue quickly).
+1. Copy this [postmortem template](https://docs.google.com/document/d/1Ajp2LfIclWfr4Bm77lnUggkYNQyfjePiWSnBv1b1nwM/edit?usp=sharing) document and pre-populate where possible.
+2. Invite stakeholders. Typically the EM, PM, QA, and engineers involved. If a customer incident, include the CSM.
+3. Follow and populate document topic by topic. Determine the root cause (why it happened), as well as why our controls did not catch it before release.
+4. Assign each action item an owner that who is responsible for creating a Github issue promptly and working with with the relevant PM/EM to prioritize.
 
 [Example Finished Document](https://docs.google.com/document/d/1YnETKhH9R7STAY-PaFnPy2qxhNht2EAFfkv-kyEwebQ/edit?usp=share_link)
 
-- **Postmortem action items**
-Each action item will have an owner that will be responsible for creating a Github issue promptly after the meeting. This Github issue should be prioritized with the relevant PM/EM.
+### Process incoming equipment
+Upon receiving any device, follow these steps to process incoming equipment.
+1. Search for the SN of the physical device in the ["Company equipment" spreadsheet](https://docs.google.com/spreadsheets/d/1hFlymLlRWIaWeVh14IRz03yE-ytBLfUaqVz0VVmmoGI/edit#gid=0) to confirm the correct equipment was received.
+3. Visibly inspect equipment and all related components (e.g. laptop charger) for damage.
+4. Remove any stickers and clean devices and components.
+5. Using the device's charger plug in the device.
+6. Turn on the device and enter recovery mode using the [appropriate method](https://support.apple.com/en-us/HT204904).
+7. Connect the device to WIFI.
+8. Using the "Recovery assistant" tab (In the top left corner), select "Delete this Mac".
+9. Follow the prompts to activate the device and reinstall the appropriate version of macOS.
+> If you are prevented from completing the steps above, create a ["💻 IT support issue](https://github.com/fleetdm/confidential/issues/new?assignees=%40spokanemac&labels=%3Ahelp-it&projects=&template=request-it-support.md&title=%F0%9F%92%BB+Request+IT+support) for IT, for the device to be scheduled for troubleshooting and remediation. Please note in the issue where you encountered blockers to completing the steps.
 
+### Ship approved equipment
+Once the Business Operations department approves inventory to be shipped from Fleet IT, follow these step to ship the equipment.
+1. Compare the equipment request issue with the ["Company equipment" spreadsheet](https://docs.google.com/spreadsheets/d/1hFlymLlRWIaWeVh14IRz03yE-ytBLfUaqVz0VVmmoGI/edit#gid=0) and verify physical inventory.
+2. Plug in the device and ensure inventory has been correctly processed and all components are present (e.g. charger cord, power converter).
+3. package equipment for shipment and include Yubikeys (if requested).
+4. Change the "Company equipment" spreadsheet to reflect the new user.
+  - If you encounter any issues, repeat the [process incoming equipment steps](https://fleetdm.com/handbook/engineering#process-incoming-equipment). If problems persist, create a ["💻 IT support issue](https://github.com/fleetdm/confidential/issues/new?assignees=%40spokanemac&labels=%3Ahelp-it&projects=&template=request-it-support.md&title=%F0%9F%92%BB+Request+IT+support) for IT to troubleshoot the device.
+6. Ship via FedEx to the address listed in the equipment request.
+7. Add a comment to the equipment request issue, at-mentioning the requestor with the FedEx tracking info and close the issue.
 
 ## Rituals
 <rituals :rituals="rituals['handbook/engineering/engineering.rituals.yml']"></rituals>
-
 
 #### Stubs
 The following stubs are included only to make links backward compatible.
@@ -316,7 +459,6 @@ Please see [docs/contributing/infrastructure](https://fleetdm.com/docs/contribut
 ##### Best practices for containers
 Please see [docs/contributing/infrastructure](https://fleetdm.com/docs/contributing/infrastructure) for **above**
 
-
 ##### Measurement
 Please see [handbook/engineering#record-engineering-kpis](https://fleetdm.com/handbook/engineering#record-engineering-kpis)
 
@@ -327,43 +469,42 @@ Please see [handbook/engineering#notify-community-members-about-a-critical-bug](
 Please see [handbook/engineering#run-fleet-locally-for-qa-purposes](https://fleetdm.com/handbook/engineering#run-fleet-localy-for-qa-purposes)
 
 ##### Scrum at Fleet
-Please see [handbook/company/engineering#create-an-engineering-initiated-story](https://fleetdm.com/handbook/company/product-groups#scrum-at-fleet)
+Please see [handbook/company/product-groups#scrum-at-fleet](https://fleetdm.com/handbook/company/product-groups#scrum-at-fleet)
 
 ##### Scrum items
-Please see [handbook/company/engineering#create-an-engineering-initiated-story](https://fleetdm.com/handbook/company/product-groups#scrum-items)
+Please see [handbook/company/product-groups#scrum-items)](https://fleetdm.com/handbook/company/product-groups#scrum-items)
 
 ##### Sprint ceremonies
-Please see [handbook/company/engineering#create-an-engineering-initiated-story](https://fleetdm.com/handbook/company/product-groups#sprint-ceremonies)
+Please see [handbook/company/product-groups#sprint-ceremonies](https://fleetdm.com/handbook/company/product-groups#sprint-ceremonies)
 
 ##### Meetings
-Please see [handbook/company/engineering#create-an-engineering-initiated-story](https://fleetdm.com/handbook/company/product-groups#meetings)
+Please see [handbook/company/product-groups#meetings](https://fleetdm.com/handbook/company/product-groups#meetings)
 
 ##### Principles
-Please see [handbook/company/engineering#create-an-engineering-initiated-story](https://fleetdm.com/handbook/company/product-groups#principles)
+Please see [handbook/company/product-groups#principles](https://fleetdm.com/handbook/company/product-groups#principles)
 
-Please see [handbook/company/engineering#create-an-engineering-initiated-story](https://fleetdm.com/handbook/company/product-groups#eng-together) for **below**
+Please see [handbook/company/product-groups#eng-together](https://fleetdm.com/handbook/company/product-groups#eng-together) for **below**
 ##### Eng Together
 ##### Participants
 ##### Agenda
-Please see [handbook/company/engineering#create-an-engineering-initiated-story](https://fleetdm.com/handbook/company/product-groups#eng-together) for **above**
+Please see [handbook/company/product-groups#eng-together](https://fleetdm.com/handbook/company/product-groups#eng-together) for **above**
 
-Please see [handbook/company/engineering#create-an-engineering-initiated-story](https://fleetdm.com/handbook/company/product-groups#group-weeklies) for **below**
+Please see [handbook/company/product-groups#group-weeklies](https://fleetdm.com/handbook/company/product-groups#group-weeklies) for **below**
 ##### User story discovery
 ##### Participants
 ##### Agenda
-Please see [handbook/company/engineering#create-an-engineering-initiated-story](https://fleetdm.com/handbook/company/product-groups#group-weeklies) for **above**
+Please see [handbook/company/product-groups#group-weeklies](https://fleetdm.com/handbook/company/product-groups#group-weeklies) for **above**
 
-Please see [handbook/company/engineering#create-an-engineering-initiated-story](https://fleetdm.com/handbook/company/product-groups#group-weeklies) for **below**
+Please see [handbook/company/product-groups#group-weeklies](https://fleetdm.com/handbook/company/product-groups#group-weeklies) for **below**
 ##### Group weeklies
 ##### Participants
 ##### Sample agenda (Frontend weekly)
-Please see [handbook/company/engineering#create-an-engineering-initiated-story](https://fleetdm.com/handbook/company/product-groups#group-weeklies) for **above**
+Please see [handbook/company/product-groups#group-weeklies](https://fleetdm.com/handbook/company/product-groups#group-weeklies) for **above**
 
 ##### Engineering-initiated stories
-Please see [handbook/company/engineering#create-an-engineering-initiated-story](https://fleetdm.com/handbook/company/engineering#create-an-engineering-initiated-story)
-
 ##### Creating an engineering-initiated story
-Please see [handbook/engineering#create-an-engineering-initiated-user-story](https://fleetdm.com/handbook/engineering#create-an-engineering-initiated-user-story)
+
+Please see [handbook/engineering#create-an-engineering-initiated-story](https://fleetdm.com/handbook/engineering#create-an-engineering-initiated-story) for **above**
 
 Please see [handbook/engineering#accept-new-apple-developer-account-terms](https://fleetdm.com/handbook/engineering#accept-new-apple-developer-account-terms) for **below**
 ##### Accounts  

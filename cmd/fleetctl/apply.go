@@ -69,9 +69,11 @@ func applyCommand() *cli.Command {
 				fmt.Fprintf(c.App.Writer, format, a...)
 			}
 
-			opts := fleet.ApplySpecOptions{
-				Force:  flForce,
-				DryRun: flDryRun,
+			opts := fleet.ApplyClientSpecOptions{
+				ApplySpecOptions: fleet.ApplySpecOptions{
+					Force:  flForce,
+					DryRun: flDryRun,
+				},
 			}
 			if policiesTeamName := c.String("policies-team"); policiesTeamName != "" {
 				opts.TeamForPolicies = policiesTeamName

@@ -46,9 +46,22 @@ const About = ({
   munki,
   mdm,
 }: IAboutProps): JSX.Element => {
-  const renderSerialAndIPs = () => {
+  const isIosOrIpadosHost =
+    aboutData.platform === "ios" || aboutData.platform === "ipados";
+
+  const renderHardwareSerialAndIPs = () => {
+    if (isIosOrIpadosHost) {
+      return (
+        <>
+          <DataSet title="Serial number" value={aboutData.hardware_serial} />
+          <DataSet title="Hardware model" value={aboutData.hardware_model} />
+        </>
+      );
+    }
+
     return (
       <>
+        <DataSet title="Hardware model" value={aboutData.hardware_model} />
         <DataSet title="Serial number" value={aboutData.hardware_serial} />
         <DataSet title="Private IP address" value={aboutData.primary_ip} />
         <DataSet
@@ -83,11 +96,15 @@ const About = ({
         <DataSet
           title="MDM status"
           value={
-            <TooltipWrapper
-              tipContent={MDM_STATUS_TOOLTIP[mdm.enrollment_status]}
-            >
-              {mdm.enrollment_status}
-            </TooltipWrapper>
+            !MDM_STATUS_TOOLTIP[mdm.enrollment_status] ? (
+              mdm.enrollment_status
+            ) : (
+              <TooltipWrapper
+                tipContent={MDM_STATUS_TOOLTIP[mdm.enrollment_status]}
+              >
+                {mdm.enrollment_status}
+              </TooltipWrapper>
+            )
           }
         />
         <DataSet
@@ -170,7 +187,7 @@ const About = ({
 
   return (
     <Card
-      borderRadiusSize="large"
+      borderRadiusSize="xxlarge"
       includeShadow
       largePadding
       className={baseClass}
@@ -185,16 +202,17 @@ const About = ({
             />
           }
         />
-        <DataSet
-          title="Last restarted"
-          value={
-            <HumanTimeDiffWithFleetLaunchCutoff
-              timeString={aboutData.last_restarted_at}
-            />
-          }
-        />
-        <DataSet title="Hardware model" value={aboutData.hardware_model} />
-        {renderSerialAndIPs()}
+        {!isIosOrIpadosHost && (
+          <DataSet
+            title="Last restarted"
+            value={
+              <HumanTimeDiffWithFleetLaunchCutoff
+                timeString={aboutData.last_restarted_at}
+              />
+            }
+          />
+        )}
+        {renderHardwareSerialAndIPs()}
         {renderMunkiData()}
         {renderMdmData()}
         {renderDeviceUser()}

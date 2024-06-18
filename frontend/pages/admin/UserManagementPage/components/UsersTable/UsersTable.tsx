@@ -18,6 +18,7 @@ import invitesAPI from "services/entities/invites";
 import { DEFAULT_CREATE_USER_ERRORS } from "utilities/constants";
 import TableContainer from "components/TableContainer";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
+import TableCount from "components/TableContainer/TableCount";
 import TableDataError from "components/DataError";
 import EmptyTable from "components/EmptyTable";
 import { generateTableHeaders, combineDataSets } from "./UsersTableConfig";
@@ -225,9 +226,12 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
       invitesAPI
         .create(requestData)
         .then(() => {
+          const senderAddressMessage = config?.smtp_settings?.sender_address
+            ? ` from ${config?.smtp_settings?.sender_address}`
+            : "";
           renderFlash(
             "success",
-            `An invitation email was sent from ${config?.smtp_settings.sender_address} to ${formData.email}.`
+            `An invitation email was sent${senderAddressMessage} to ${formData.email}.`
           );
           toggleCreateUserModal();
           refetchInvites();
@@ -302,7 +306,10 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
 
     let userUpdatedFlashMessage = `Successfully edited ${formData.name}`;
     if (userData?.email !== formData.email) {
-      userUpdatedFlashMessage += `: A confirmation email was sent from ${config?.smtp_settings.sender_address} to ${formData.email}`;
+      const senderAddressMessage = config?.smtp_settings?.sender_address
+        ? ` from ${config?.smtp_settings?.sender_address}`
+        : "";
+      userUpdatedFlashMessage += `: A confirmation email was sent${senderAddressMessage} to ${formData.email}`;
     }
     const userUpdatedEmailError =
       "A user with this email address already exists";
@@ -463,7 +470,7 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
         onSubmit={onEditUser}
         availableTeams={teams || []}
         isPremiumTier={isPremiumTier || false}
-        smtpConfigured={config?.smtp_settings.configured || false}
+        smtpConfigured={config?.smtp_settings?.configured || false}
         sesConfigured={config?.email?.backend === "ses" || false}
         canUseSso={config?.sso_settings.enable_sso || false}
         isSsoEnabled={userData?.sso_enabled}
@@ -486,7 +493,7 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
         defaultGlobalRole="observer"
         defaultTeams={[]}
         isPremiumTier={isPremiumTier || false}
-        smtpConfigured={config?.smtp_settings.configured || false}
+        smtpConfigured={config?.smtp_settings?.configured || false}
         sesConfigured={config?.email?.backend === "ses" || false}
         canUseSso={config?.sso_settings.enable_sso || false}
         isUpdatingUsers={isUpdatingUsers}
@@ -548,6 +555,10 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
     [loadingTableData, tableDataError, users, invites, currentUser?.id]
   );
 
+  const renderUsersCount = useCallback(() => {
+    return <TableCount name="users" count={users?.length} />;
+  }, [users?.length]);
+
   return (
     <>
       {tableDataError ? (
@@ -572,6 +583,7 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
           showMarkAllPages={false}
           isAllPagesSelected={false}
           isClientSidePagination
+          renderCount={renderUsersCount}
         />
       )}
       {showCreateUserModal && renderCreateUserModal()}

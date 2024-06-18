@@ -8,30 +8,40 @@ variable "fleet_ecs_service_name" {
   default = null
 }
 
-variable "fleet_min_containers" {
-  type    = number
-  default = 1
+variable "albs" {
+  type = list(object({
+    name                    = string
+    arn_suffix              = string
+    target_group_name       = string
+    target_group_arn_suffix = string
+    min_containers          = optional(string, 1)
+    ecs_service_name        = string
+    alert_thresholds = optional(
+      object({
+        HTTPCode_ELB_5XX_Count = object({
+          period    = number
+          threshold = number
+        })
+        HTTPCode_Target_5XX_Count = object({
+          period    = number
+          threshold = number
+        })
+      }),
+      {
+        HTTPCode_ELB_5XX_Count = {
+          period    = 120
+          threshold = 0
+        },
+        HTTPCode_Target_5XX_Count = {
+          period    = 120
+          threshold = 0
+        }
+      }
+    )
+  }))
+  default = []
 }
 
-variable "alb_name" {
-  type    = string
-  default = null
-}
-
-variable "alb_target_group_name" {
-  type    = string
-  default = null
-}
-
-variable "alb_target_group_arn_suffix" {
-  type    = string
-  default = null
-}
-
-variable "alb_arn_suffix" {
-  type    = string
-  default = null
-}
 
 variable "default_sns_topic_arns" {
   type    = list(string)

@@ -1,4 +1,10 @@
-import React, { useCallback, useContext, useMemo, useState } from "react";
+import React, {
+  useCallback,
+  useContext,
+  useMemo,
+  useState,
+  useEffect,
+} from "react";
 import { useQuery } from "react-query";
 import { Link } from "react-router";
 
@@ -18,6 +24,7 @@ import { DEFAULT_CREATE_USER_ERRORS } from "utilities/constants";
 import TableContainer from "components/TableContainer";
 import TableDataError from "components/DataError";
 import Spinner from "components/Spinner";
+import TableCount from "components/TableContainer/TableCount";
 import CreateUserModal from "pages/admin/UserManagementPage/components/CreateUserModal";
 import EditUserModal from "../../../UserManagementPage/components/EditUserModal";
 import {
@@ -217,9 +224,12 @@ const UsersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
       inviteAPI
         .create(requestData)
         .then(() => {
+          const senderAddressMessage = config?.smtp_settings?.sender_address
+            ? ` from ${config?.smtp_settings?.sender_address}`
+            : "";
           renderFlash(
             "success",
-            `An invitation email was sent from ${config?.smtp_settings.sender_address} to ${formData.email}.`
+            `An invitation email was sent${senderAddressMessage} to ${formData.email}.`
           );
           refetchUsers();
           toggleCreateUserModal();
@@ -366,6 +376,14 @@ const UsersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
     [toggleEditUserModal, toggleRemoveUserModal]
   );
 
+  const renderUsersCount = useCallback(() => {
+    if (teamUsers?.length === 0 && searchString === "") {
+      return <></>;
+    }
+
+    return <TableCount name="users" count={teamUsers?.length} />;
+  }, [teamUsers?.length]);
+
   const columnConfigs = useMemo(
     () => generateColumnConfigs(onActionSelection),
     [onActionSelection]
@@ -423,6 +441,7 @@ const UsersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
           showMarkAllPages={false}
           isAllPagesSelected={false}
           searchable={userIds.length > 0 || searchString !== ""}
+          renderCount={renderUsersCount}
         />
       )}
       {showAddUserModal && currentTeamDetails ? (

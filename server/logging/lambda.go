@@ -11,8 +11,8 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/lambda"
 	"github.com/aws/aws-sdk-go/service/lambda/lambdaiface"
-	"github.com/go-kit/kit/log"
-	"github.com/go-kit/kit/log/level"
+	"github.com/go-kit/log"
+	"github.com/go-kit/log/level"
 )
 
 const (
@@ -30,7 +30,7 @@ type lambdaLogWriter struct {
 	logger       log.Logger
 }
 
-func NewLambdaLogWriter(region, id, secret, stsAssumeRoleArn, functionName string, logger log.Logger) (*lambdaLogWriter, error) {
+func NewLambdaLogWriter(region, id, secret, stsAssumeRoleArn, stsExternalID, functionName string, logger log.Logger) (*lambdaLogWriter, error) {
 	conf := &aws.Config{
 		Region: &region,
 	}
@@ -47,7 +47,11 @@ func NewLambdaLogWriter(region, id, secret, stsAssumeRoleArn, functionName strin
 	}
 
 	if stsAssumeRoleArn != "" {
-		creds := stscreds.NewCredentials(sess, stsAssumeRoleArn)
+		creds := stscreds.NewCredentials(sess, stsAssumeRoleArn, func(provider *stscreds.AssumeRoleProvider) {
+			if stsExternalID != "" {
+				provider.ExternalID = &stsExternalID
+			}
+		})
 		conf.Credentials = creds
 
 		sess, err = session.NewSession(conf)

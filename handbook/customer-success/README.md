@@ -5,10 +5,9 @@ This handbook page details processes specific to working [with](#contact-us) and
 | Role                                  | Contributor(s)           |
 |:--------------------------------------|:------------------------------------------------------------------------------------------------------------------------|
 | VP of Customer Success                | [Zay Hanlon](https://www.linkedin.com/in/zayhanlon/) _([@zayhanlon](https://github.com/zayhanlon))_
-| Customer Success Managers (CSM)        | [Jason Lewis](https://www.linkedin.com/in/jlewis0451/) _([@patagonia121](https://github.com/patagonia121))_, [Michael Pinto](https://www.linkedin.com/in/michael-pinto-a06b4515a/) _([@pintomi1989](https://github.com/pintomi1989))_
-| Customer Solutions Architect (CSA)    | [Brock Walters](https://www.linkedin.com/in/brock-walters-247a2990/) _([@nonpunctual](https://github.com/nonpunctual))_
-| Customer Support Engineer (CSE)       | [Kathy Satterlee](https://www.linkedin.com/in/ksatter/) _([@ksatter](https://github.com/ksatter))_, [Grant Bilstad](https://www.linkedin.com/in/grantbilstad/) _([@Pacamaster](https://github.com/Pacamaster))_, Ben Edwards _([@edwardsb](https://github.com/edwardsb))_
 | Infrastructure Engineer               | [Robert Fairburn](https://www.linkedin.com/in/robert-fairburn/) _([@rfairburn](https://github.com/rfairburn))_
+| Customer Support (CSE/CSA)       | [Kathy Satterlee](https://www.linkedin.com/in/ksatter/) _([@ksatter](https://github.com/ksatter))_ <br> [Grant Bilstad](https://www.linkedin.com/in/grantbilstad/) _([@Pacamaster](https://github.com/Pacamaster))_ <br> [Dale Ribeiro](https://www.linkedin.com/in/daleribeiro/) _([@ddribeiro](https://github.com/ddribeiro))_ <br> Ben Edwards _([@edwardsb](https://github.com/edwardsb))_ <br> [Brock Walters](https://www.linkedin.com/in/brock-walters-247a2990/) _([@nonpunctual](https://github.com/nonpunctual))_
+| Customer Success Manager (CSM)        | [Jason Lewis](https://www.linkedin.com/in/jlewis0451/) _([@patagonia121](https://github.com/patagonia121))_ <br> [Michael Pinto](https://www.linkedin.com/in/michael-pinto-a06b4515a/) _([@pintomi1989](https://github.com/pintomi1989))_
 
 ## Contact us
 - To **make a request** of this department, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-customer-success&projects=&template=custom-request.md&title=Request%3A+_______________________) and a team member will get back to you within one business day (If urgent, mention a [team member](#team) in the [#g-customer-success](https://fleetdm.slack.com/archives/C062D0THVV1)).
@@ -18,15 +17,20 @@ This handbook page details processes specific to working [with](#contact-us) and
 ## Responsibilities
 The customer success department is directly responsible for ensuring that customers and community members of Fleet achieve their desired outcomes with Fleet products and services.
 
+
 ### Assign a customer codename
-Occasionally, we will need to track public issues for customers who wish to remain anonymous on our public issue tracker. To do this, we choose an appropriate minor planet name from this [Wikipedia page](https://en.wikipedia.org/wiki/List_of_named_minor_planets_(alphabetical)) and create a label which we attach to the issue and any future issues for this customer.
+Occasionally, we will need to track public issues for customers and prospects who wish to remain anonymous on our public issue tracker. To do this: 
+
+1. The team member creating the issue will choose an appropriate minor planet name from this [Minor planets page](https://minorplanetcenter.net//iau/lists/MPNames.html) (alphabetical).
+2. Create a label in the fleetdm/fleet and fleetdm/confidential repos which can be attached to current and future issues for the customer or prospect. As part of the label description in the fleetdm/confidential repo, add the customer or prospect name. This way, we maintain a confidential mapping of codename to customer or prospect.
+
 
 ### Create customer support issue
 Locate the relevant issue or create it if it doesn't already exist (to avoid duplication, be creative when searching GitHub for issues - it can often take a couple of tries with different keywords to find an existing issue). When creating a new issue, make sure the following:
 - Make sure the issue has a "customer request" label or "customer-codename" label.
   - Occasionally, we will need to track public issues for customers that wish to remain anonymous on our public issue tracker. To do this, we choose an appropriate minor planet name from this [Wikipedia page](https://en.wikipedia.org/wiki/List_of_named_minor_planets_(alphabetical)) and create a label which we attach to the issue and any future issues for this customer.
 - "+" prefixed labels (e.g., "+more info please") indicate we are waiting on an answer from an external community member who does not work at Fleet or that no further action is needed from the Fleet team until an external community member, who doesn't work at Fleet, replies with a comment. At this point, our bot will automatically remove the +-prefixed label.
-- 1. Required details that will help speed up time to resolution:
+1. Required details that will help speed up time to resolution:
     - Fleet server version
     - Agent version 
         - Osquery or fleetd?
@@ -109,4 +113,4 @@ The following stubs are included only to make links backward compatible.
 Please see [Handbook/customer-success#respond-to-messages-and-alerts](https://www.fleetdm.com/handbook/customer-success#respond-to-messages-and-alerts)
 
 <meta name="maintainedBy" value="zayhanlon">
-<meta name="title" value="🏹 Customer Success">
+<meta name="title" value="🌦️ Customer Success">

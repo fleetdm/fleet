@@ -3,19 +3,21 @@ import classnames from "classnames";
 import { isEmpty } from "lodash";
 
 import TooltipWrapper from "components/TooltipWrapper";
+import { PlacesType } from "react-tooltip-5";
 
 // all form-field styles are defined in _global.scss, which apply here and elsewhere
 const baseClass = "form-field";
 
 export interface IFormFieldProps {
   children: JSX.Element;
-  className: string;
-  error: string;
-  helpText: Array<any> | JSX.Element | string;
   label: Array<any> | JSX.Element | string;
   name: string;
-  type: string;
+  helpText?: Array<any> | JSX.Element | string;
+  type?: string;
+  error?: string;
+  className?: string;
   tooltip?: React.ReactNode;
+  labelTooltipPosition?: PlacesType;
 }
 
 const FormField = ({
@@ -27,6 +29,7 @@ const FormField = ({
   name,
   type,
   tooltip,
+  labelTooltipPosition,
 }: IFormFieldProps): JSX.Element => {
   const renderLabel = () => {
     const labelWrapperClasses = classnames(`${baseClass}__label`, {
@@ -45,7 +48,11 @@ const FormField = ({
       >
         {error ||
           (tooltip ? (
-            <TooltipWrapper tipContent={tooltip}>
+            <TooltipWrapper
+              tipContent={tooltip}
+              position={labelTooltipPosition}
+              clickable={false} // Not block form behind tooltip
+            >
               {label as string}
             </TooltipWrapper>
           ) : (

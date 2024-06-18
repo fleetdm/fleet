@@ -61,7 +61,7 @@ the account verification message.)`,
       type: 'string',
       isIn: ['Buy a license', 'Try Fleet'],
       defaultsTo: 'Buy a license',
-    }
+    },
 
   },
 
@@ -84,6 +84,11 @@ the account verification message.)`,
       description: 'The provided email address is already in use.',
     },
 
+    invalidEmailDomain: {
+      description: 'This email address is on a denylist of domains and cannot be used to signup for a fleetdm.com account.',
+      responseType: 'badRequest'
+    },
+
 
   },
 
@@ -91,11 +96,16 @@ the account verification message.)`,
     // Note: in Oct. 2023, the Fleet Sandbox related code was removed from this action. For more details, see https://github.com/fleetdm/fleet/pull/14638/files
 
     var newEmailAddress = emailAddress.toLowerCase();
-
     // Checking if a user with this email address exists in our database before we send a request to the cloud provisioner.
     if(await User.findOne({emailAddress: newEmailAddress})) {
       throw 'emailAlreadyInUse';
     }
+    // Check the user's email address and return an 'invalidEmailDomain' response if the domain is in the sails.config.custom.bannedEmailDomainsForWebsiteSubmissions array.
+    let emailDomain = newEmailAddress.split('@')[1];
+    if(_.includes(sails.config.custom.bannedEmailDomainsForWebsiteSubmissions, emailDomain)){
+      throw 'invalidEmailDomain';
+    }
+
 
     if (!sails.config.custom.enableBillingFeatures) {
       throw new Error('The Stripe configuration variables (sails.config.custom.stripePublishableKey and sails.config.custom.stripeSecret) are missing!');
@@ -128,24 +138,17 @@ the account verification message.)`,
     .intercept({name: 'UsageError'}, 'invalid')
     .fetch();
 
-    // Send a POST request to Zapier
-    await sails.helpers.http.post.with({
-      url: 'https://hooks.zapier.com/hooks/catch/3627242/30bq2ib/',
-      data: {
-        newEmailAddress,
-        firstName,
-        lastName,
-        organization,
-        signupReason,
-        webhookSecret: sails.config.custom.zapierSandboxWebhookSecret,
-      }
-    })
-    .timeout(5000)
-    .tolerate(['non200Response', 'requestFailed'], (err)=>{
-      // Note that Zapier responds with a 2xx status code even if something goes wrong, so just because this message is not logged doesn't mean everything is hunky dory.  More info: https://github.com/fleetdm/fleet/pull/6380#issuecomment-1204395762
-      sails.log.warn(`When a user submitted a contact form message, a lead/contact could not be updated in the CRM for this email address: ${newEmailAddress}. Raw error: ${err}`);
-      return;
-    });
+    // Use timers.setImmediate() to update/create CRM records in the background.
+    require('timers').setImmediate(async ()=>{
+      await sails.helpers.salesforce.updateOrCreateContactAndAccount.with({
+        emailAddress: newEmailAddress,
+        firstName: firstName,
+        lastName: lastName,
+        organization: organization,
+      }).tolerate((err)=>{
+        sails.log.warn(`Background task failed: When a user (email: ${newEmailAddress} signed up for a fleetdm.com account, a Contact and Account record could not be created/updated in the CRM.`, err);
+      });
+    });//_∏_  (Meanwhile...)
 
     // Store the user's new id in their session.
     this.req.session.userId = newUserRecord.id;

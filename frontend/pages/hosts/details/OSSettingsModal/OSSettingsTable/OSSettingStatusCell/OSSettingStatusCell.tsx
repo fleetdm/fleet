@@ -4,10 +4,7 @@ import { uniqueId } from "lodash";
 
 import Icon from "components/Icon";
 import TextCell from "components/TableContainer/DataTable/TextCell";
-import {
-  FLEET_FILEVAULT_PROFILE_DISPLAY_NAME,
-  ProfileOperationType,
-} from "interfaces/mdm";
+import { ProfileOperationType } from "interfaces/mdm";
 import { COLORS } from "styles/var/colors";
 
 import {
@@ -16,12 +13,13 @@ import {
 } from "../OSSettingsTableConfig";
 import TooltipContent from "./components/Tooltip/TooltipContent";
 import {
+  isDiskEncryptionProfile,
   PROFILE_DISPLAY_CONFIG,
   ProfileDisplayOption,
   WINDOWS_DISK_ENCRYPTION_DISPLAY_CONFIG,
 } from "./helpers";
 
-const baseClass = "os-setting-status-cell";
+const baseClass = "os-settings-status-cell";
 
 interface IOSSettingStatusCellProps {
   status: OsSettingsTableStatusValue;
@@ -50,9 +48,6 @@ const OSSettingStatusCell = ({
     .toLowerCase()
     .includes("/device/");
 
-  const isDiskEncryptionProfile =
-    profileName === FLEET_FILEVAULT_PROFILE_DISPLAY_NAME;
-
   if (displayOption) {
     const { statusText, iconName, tooltip } = displayOption;
     const tooltipId = uniqueId();
@@ -62,7 +57,7 @@ const OSSettingStatusCell = ({
         {tooltip ? (
           <>
             <span
-              className="tooltip tooltip__tooltip-icon"
+              className={`${baseClass}__status-text`}
               data-tip
               data-for={tooltipId}
               data-tip-disable={false}
@@ -81,7 +76,9 @@ const OSSettingStatusCell = ({
                   <TooltipContent
                     innerContent={tooltip}
                     innerProps={{
-                      isDiskEncryptionProfile,
+                      isDiskEncryptionProfile: isDiskEncryptionProfile(
+                        profileName
+                      ),
                     }}
                   />
                 ) : (

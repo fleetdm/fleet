@@ -14,9 +14,9 @@ Fleet supports the [latest version of osquery](https://github.com/osquery/osquer
 
 > You must have `fleetctl` installed. [Learn how to install `fleetctl`](https://fleetdm.com/fleetctl-preview).
 
-The `fleetctl package` command is used to generate a fleetd installer.
+The `fleetctl package` command is used to generate Fleet's agent (fleetd).
 
-The `--type` flag is used to specify installer type:
+The `--type` flag is used to specify the fleetd installer type:
 - macOS: .pkg
 - Windows: .msi
 - Linux: .deb or .rpm
@@ -25,7 +25,7 @@ A `--fleet-url` (Fleet instance URL) and `--enroll-secret` (Fleet enrollment sec
 
 #### Example
 
-Generate macOS installer (.pkg)
+Generate fleetd on macOS (.pkg)
 
 ```json
 fleetctl package --type pkg --fleet-url=example.fleetinstance.com --enroll-secret=85O6XRG8'!l~P&zWt_'f&$QK(sM8_D4x
@@ -35,28 +35,28 @@ Tip: To see all options for `fleetctl package` command, run `fleetctl package -h
 
 ## UI
 
-To generate an installer in Fleet UI:
+To generate Fleet's agent (fleetd) in Fleet UI:
 
 1. Go to the **Hosts** page, and select **Add hosts**.
 2. Select the tab for your desired platform (e.g. macOS).
 3. A CLI command with all necessary flags will be generated. Copy and run the command with [fleetctl](https://fleetdm.com/docs/using-fleet/fleetctl-cli) installed.
 
-### Generate installer to enroll host to a specific team
+### Enroll host to a specific team
 
 With hosts segmented into teams, you can apply unique queries and give users access to only the hosts in specific teams. [Learn more about teams](https://fleetdm.com/docs/using-fleet/segment-hosts).
 
-To generate an installer that enrolls to a specific team: from the **Hosts** page, select the desired team from the menu at the top of the screen, then follow the instructions above for generating an installer. The team's enroll secret will be included in the generated command.
+To enroll to a specific team: from the **Hosts** page, select the desired team from the menu at the top of the screen, then follow the instructions above for generating Fleet's agent (fleetd). The team's enroll secret will be included in the generated command.
 
 ### Enroll multiple hosts
 
 If you're managing an enterprise environment with multiple hosts, you likely have an enterprise deployment tool like [Munki](https://www.munki.org/munki/), [Jamf Pro](https://www.jamf.com/products/jamf-pro/), [Chef](https://www.chef.io/), [Ansible](https://www.ansible.com/), or [Puppet](https://puppet.com/) to deliver software to your hosts.
-You can use your software management tool of choice to distribute a fleetd installer generated via the instructions above.
+You can use your software management tool of choice to distribute Fleet's agent (fleetd) generated via the instructions above.
 
 ### Fleet Desktop
 
 [Fleet Desktop](./Fleet-desktop.md) is a menu bar icon available on macOS, Windows, and Linux that gives your end users visibility into the security posture of their machine.
 
-You can include Fleet Desktop in the fleetd installer by including `--fleet-desktop` in the `fleetctl package` command.
+You can include Fleet Desktop in Fleet's agent (fleetd) by including `--fleet-desktop` in the `fleetctl package` command.
 
 ## Enroll Chromebooks
 
@@ -123,22 +123,42 @@ How to unenroll a host from Fleet:
 
 ## Advanced
 
-
-- [Signing fleetd installer](#signing-fleetd-installer)
+- [Fleet agent (fleetd) components](#fleetd-components)
+- [Signing fleetd](#signing-fleetd)
 - [Grant full disk access to osquery on macOS](#grant-full-disk-access-to-osquery-on-macos) 
 - [Using mTLS](#using-mtls)
 - [Specifying update channels](#specifying-update-channels)
 - [Testing osquery queries locally](#testing-osquery-queries-locally)
 - [Finding fleetd logs](#finding-fleetd-logs)
 - [Using system keystore for enroll secret](#using-system-keystore-for-enroll-secret)
-- [Generating Windows installers using local WiX toolset](#generating-windows-installers-using-local-wix-toolset)
+- [Generating fleetd for Windows using local WiX toolset](#generating-fleetd-for-windows-using-local-wix-toolset)
+- [Config-less fleetd agent deployment](#config-less-fleetd-agent-deployment)
 - [Experimental features](#experimental-features)
 
-### Signing fleetd installers
+### fleetd components
 
-  >**Note:** Currently, the `fleetctl package` command does not support signing Windows fleetd installers. Windows installers can be signed after building.
+```mermaid
+graph LR;
+    tuf["<a href=https://theupdateframework.io/>TUF</a> file server<br>(default: <a href=https://tuf.fleetctl.com>tuf.fleetctl.com</a>)"];
+    fleet_server[Fleet<br>Server];
+    subgraph fleetd
+        orbit[orbit];
+        desktop[Fleet Desktop<br>Tray App];
+        osqueryd[osqueryd];
+        desktop_browser[Fleet Desktop<br> from Browser];
+    end
+    orbit -- "Fleet Orbit API (TLS)" --> fleet_server;
+    desktop -- "Fleet Desktop API (TLS)" --> fleet_server;
+    osqueryd -- "osquery<br>remote API (TLS)" --> fleet_server;
+    desktop_browser -- "My Device API (TLS)" --> fleet_server;
+    orbit -- "Auto Update (TLS)" --> tuf;
+```
 
-The `fleetctl package` command supports signing and notarizing macOS osquery installers via the
+### Signing fleetd
+
+  >**Note:** Currently, the `fleetctl package` command does not support signing Windows fleetd. Windows fleetd can be signed after building.
+
+The `fleetctl package` command supports signing and notarizing macOS fleetd via the
 `--sign-identity` and `--notarize` flags.
 
 Check out the example below:
@@ -147,7 +167,7 @@ Check out the example below:
   AC_USERNAME=appleid@example.com AC_PASSWORD=app-specific-password fleetctl package --type pkg --sign-identity=[PATH TO SIGN IDENTITY] --notarize --fleet-url=[YOUR FLEET URL] --enroll-secret=[YOUR ENROLLMENT SECRET]
 ```
 
-The above command must be run on a macOS device, as the notarizing and signing of macOS fleetd installers can only be done on macOS devices.
+The above command must be run on a macOS device, as the notarizing and signing of macOS fleetd can only be done on macOS devices.
 
 Also, remember to replace both `AC_USERNAME` and `AC_PASSWORD` environment variables with your Apple ID and a valid [app-specific](https://support.apple.com/en-ca/HT204397) password, respectively. Some organizations (notably those with Apple Enterprise Developer Accounts) may also need to specify `AC_TEAM_ID`. This value can be found on the [Apple Developer "Membership" page](https://developer.apple.com/account/#!/membership) under "Team ID."
 
@@ -166,7 +186,7 @@ tables that require access to the [EndpointSecurity API](https://developer.apple
 
 If you use plain osquery, instructions are [available here](https://osquery.readthedocs.io/en/stable/deployment/process-auditing/).
 
-On a system with osquery installed via the Fleet osquery installer (fleetd), obtain the
+On a system with osquery installed via Fleet's agent (fleetd), obtain the
 `CodeRequirement` of fleetd by running:
 
 ```sh
@@ -303,11 +323,11 @@ System keystore access can be disabled via `--disable-keystore` flag for the `fl
 
 >**Note:** The keychain is not used on macOS when the enroll secret is provided via MDM profile. Keychain support when passing the enroll secret via MDM profile is coming soon.
 
-### Generating Windows installers using local WiX toolset
+### Generating fleetd for Windows using local WiX toolset
 
 `Applies only to Fleet Premium`
 
-When creating a fleetd installer for Windows hosts (**.msi**) on a Windows or macOS machine, you can tell `fleetctl package` to
+When generating Fleet's agent (fleetd) for Windows hosts (**.msi**) on a Windows or macOS machine, you can tell `fleetctl package` to
 use local installations of the 3 WiX v3 binaries used by this command (`heat.exe`, `candle.exe`, and
 `light.exe`) instead of those in a pre-configured container, which is the default behavior. To do
 so:
@@ -321,7 +341,13 @@ so:
      ```
      If the provided path doesn't contain all 3 binaries, the command will fail.
 
->**Note:** Creating a fleetd agent for Windows (.msi) on macOS also requires Wine. To install Wine see the script [here](https://github.com/fleetdm/fleet/blob/fleet-v4.44.0/scripts/macos-install-wine.sh).
+>**Note:** Creating a fleetd agent for Windows (.msi) on macOS also requires Wine. To install Wine see the script [here](https://fleetdm.com/install-wine).
+
+### Config-less fleetd agent deployment
+
+Config-less deployment allows for Fleet's agent (fleetd) to be installed without embedding configuration settings directly into the package. This approach is ideal for environments requiring flexibility in managing enrollment secrets and server URLs. For detailed instructions, visit the [Config-less fleetd agent deployment guide](https://fleetdm.com/guides/config-less-fleetd-agent-deployment).
+
+>**Warning:** If you remove the configuration profile with the settings from macOS, `fleetd` won't work anymore until a similar profile is installed again. If the profile is delivered via MDM, and MDM is turned off, you might face this scenario.
 
 ### Experimental features
 
@@ -340,5 +366,5 @@ Applying the environmental variable `"FLEETD_SILENCE_ENROLL_ERROR"=1` on a host 
 This variable is read at launch and will require a restart of the Orbit service if it is not set before installing `fleetd` v1.15.1.
 
 <meta name="pageOrderInSection" value="500">
-<meta name="description" value="Learn how to generate installers and enroll hosts to Fleet using fleetd.">
+<meta name="description" value="Learn how to enroll hosts to Fleet.">
 <meta name="navSection" value="The basics">

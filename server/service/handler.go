@@ -2,8 +2,6 @@ package service
 
 import (
 	"context"
-	"crypto/rsa"
-	"crypto/x509"
 	"errors"
 	"fmt"
 	"net/http"
@@ -14,23 +12,22 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/publicip"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
-	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/certverify"
+	mdmcrypto "github.com/fleetdm/fleet/v4/server/mdm/crypto"
 	httpmdm "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/http/mdm"
 	nanomdm_log "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/log"
 	nanomdm_service "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/service"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/service/certauth"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/service/multi"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/service/nanomdm"
-	nanomdm_storage "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/storage"
 	scep_depot "github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
 	scepserver "github.com/fleetdm/fleet/v4/server/mdm/scep/server"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/authzcheck"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/mdmconfigured"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/ratelimit"
 	"github.com/go-kit/kit/endpoint"
-	kitlog "github.com/go-kit/kit/log"
-	"github.com/go-kit/kit/log/level"
 	kithttp "github.com/go-kit/kit/transport/http"
+	kitlog "github.com/go-kit/log"
+	"github.com/go-kit/log/level"
 	"github.com/gorilla/mux"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -370,6 +367,14 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 
 	ue.GET("/api/_version_/fleet/software/titles", listSoftwareTitlesEndpoint, listSoftwareTitlesRequest{})
 	ue.GET("/api/_version_/fleet/software/titles/{id:[0-9]+}", getSoftwareTitleEndpoint, getSoftwareTitleRequest{})
+	ue.POST("/api/_version_/fleet/hosts/{host_id:[0-9]+}/software/install/{software_title_id:[0-9]+}", installSoftwareTitleEndpoint, installSoftwareRequest{})
+
+	// Sofware installers
+	ue.GET("/api/_version_/fleet/software/{title_id:[0-9]+}/package", getSoftwareInstallerEndpoint, getSoftwareInstallerRequest{})
+	ue.POST("/api/_version_/fleet/software/package", uploadSoftwareInstallerEndpoint, uploadSoftwareInstallerRequest{})
+	ue.DELETE("/api/_version_/fleet/software/{title_id:[0-9]+}/package", deleteSoftwareInstallerEndpoint, deleteSoftwareInstallerRequest{})
+	ue.GET("/api/_version_/fleet/software/install/results/{install_uuid}", getSoftwareInstallResultsEndpoint, getSoftwareInstallResultsRequest{})
+	ue.POST("/api/_version_/fleet/software/batch", batchSetSoftwareInstallersEndpoint, batchSetSoftwareInstallersRequest{})
 
 	// Vulnerabilities
 	ue.GET("/api/_version_/fleet/vulnerabilities", listVulnerabilitiesEndpoint, listVulnerabilitiesRequest{})
@@ -396,6 +401,9 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ue.GET("/api/_version_/fleet/os_versions/{id:[0-9]+}", getOSVersionEndpoint, getOSVersionRequest{})
 	ue.GET("/api/_version_/fleet/hosts/{id:[0-9]+}/queries/{query_id:[0-9]+}", getHostQueryReportEndpoint, getHostQueryReportRequest{})
 	ue.GET("/api/_version_/fleet/hosts/{id:[0-9]+}/health", getHostHealthEndpoint, getHostHealthRequest{})
+	ue.POST("/api/_version_/fleet/hosts/{id:[0-9]+}/labels", addLabelsToHostEndpoint, addLabelsToHostRequest{})
+	ue.DELETE("/api/_version_/fleet/hosts/{id:[0-9]+}/labels", removeLabelsFromHostEndpoint, removeLabelsFromHostRequest{})
+	ue.GET("/api/_version_/fleet/hosts/{id:[0-9]+}/software", getHostSoftwareEndpoint, getHostSoftwareRequest{})
 
 	ue.GET("/api/_version_/fleet/hosts/summary/mdm", getHostMDMSummary, getHostMDMSummaryRequest{})
 	ue.GET("/api/_version_/fleet/hosts/{id:[0-9]+}/mdm", getHostMDM, getHostMDMRequest{})
@@ -480,6 +488,9 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ue.POST("/api/_version_/fleet/hosts/{id:[0-9]+}/lock", lockHostEndpoint, lockHostRequest{})
 	ue.POST("/api/_version_/fleet/hosts/{id:[0-9]+}/unlock", unlockHostEndpoint, unlockHostRequest{})
 	ue.POST("/api/_version_/fleet/hosts/{id:[0-9]+}/wipe", wipeHostEndpoint, wipeHostRequest{})
+
+	// Generative AI
+	ue.POST("/api/_version_/fleet/autofill/policy", autofillPoliciesEndpoint, autofillPoliciesRequest{})
 
 	// Only Fleet MDM specific endpoints should be within the root /mdm/ path.
 	// NOTE: remember to update
@@ -587,12 +598,15 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	mdmAppleMW.PATCH("/api/_version_/fleet/mdm/hosts/{id:[0-9]+}/unenroll", mdmAppleCommandRemoveEnrollmentProfileEndpoint, mdmAppleCommandRemoveEnrollmentProfileRequest{})
 	mdmAppleMW.DELETE("/api/_version_/fleet/hosts/{id:[0-9]+}/mdm", mdmAppleCommandRemoveEnrollmentProfileEndpoint, mdmAppleCommandRemoveEnrollmentProfileRequest{})
 
+	// Deprecated: POST /mdm/hosts/:id/lock is now deprecated, replaced by
+	// POST /hosts/:id/lock.
 	mdmAppleMW.POST("/api/_version_/fleet/mdm/hosts/{id:[0-9]+}/lock", deviceLockEndpoint, deviceLockRequest{})
 	mdmAppleMW.POST("/api/_version_/fleet/mdm/hosts/{id:[0-9]+}/wipe", deviceWipeEndpoint, deviceWipeRequest{})
 
 	// Deprecated: GET /mdm/hosts/:id/profiles is now deprecated, replaced by
 	// GET /hosts/:id/configuration_profiles.
 	mdmAppleMW.GET("/api/_version_/fleet/mdm/hosts/{id:[0-9]+}/profiles", getHostProfilesEndpoint, getHostProfilesRequest{})
+	// TODO: Confirm if response should be updated to include Windows profiles and use mdmAnyMW
 	mdmAppleMW.GET("/api/_version_/fleet/hosts/{id:[0-9]+}/configuration_profiles", getHostProfilesEndpoint, getHostProfilesRequest{})
 
 	// Deprecated: PATCH /mdm/apple/setup is now deprecated, replaced by the
@@ -684,6 +698,8 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	mdmAnyMW.POST("/api/_version_/fleet/mdm/profiles", newMDMConfigProfileEndpoint, newMDMConfigProfileRequest{})
 	mdmAnyMW.POST("/api/_version_/fleet/configuration_profiles", newMDMConfigProfileEndpoint, newMDMConfigProfileRequest{})
 
+	mdmAnyMW.POST("/api/_version_/fleet/hosts/{host_id:[0-9]+}/configuration_profiles/resend/{profile_uuid}", resendHostMDMProfileEndpoint, resendHostMDMProfileRequest{})
+
 	// Deprecated: PATCH /mdm/apple/settings is deprecated, replaced by POST /disk_encryption.
 	// It was only used to set disk encryption.
 	mdmAnyMW.PATCH("/api/_version_/fleet/mdm/apple/settings", updateMDMAppleSettingsEndpoint, updateMDMAppleSettingsRequest{})
@@ -692,8 +708,19 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	// the following set of mdm endpoints must always be accessible (even
 	// if MDM is not configured) as it bootstraps the setup of MDM
 	// (generates CSR request for APNs, plus the SCEP and ABM keypairs).
+	// Deprecated: this endpoint shouldn't be used anymore in favor of the
+	// new flow described in https://github.com/fleetdm/fleet/issues/10383
 	ue.POST("/api/_version_/fleet/mdm/apple/request_csr", requestMDMAppleCSREndpoint, requestMDMAppleCSRRequest{})
+	// Deprecated: this endpoint shouldn't be used anymore in favor of the
+	// new flow described in https://github.com/fleetdm/fleet/issues/10383
 	ue.POST("/api/_version_/fleet/mdm/apple/dep/key_pair", newMDMAppleDEPKeyPairEndpoint, nil)
+	ue.GET("/api/_version_/fleet/mdm/apple/abm_public_key", generateABMKeyPairEndpoint, nil)
+	ue.POST("/api/_version_/fleet/mdm/apple/abm_token", uploadABMTokenEndpoint, uploadABMTokenRequest{})
+	ue.DELETE("/api/_version_/fleet/mdm/apple/abm_token", disableABMEndpoint, nil)
+
+	ue.GET("/api/_version_/fleet/mdm/apple/request_csr", getMDMAppleCSREndpoint, getMDMAppleCSRRequest{})
+	ue.POST("/api/_version_/fleet/mdm/apple/apns_certificate", uploadMDMAppleAPNSCertEndpoint, uploadMDMAppleAPNSCertRequest{})
+	ue.DELETE("/api/_version_/fleet/mdm/apple/apns_certificate", deleteMDMAppleAPNSCertEndpoint, deleteMDMAppleAPNSCertRequest{})
 
 	// Deprecated: GET /mdm/apple_bm is now deprecated, replaced by the
 	// GET /abm endpoint.
@@ -748,6 +775,12 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	de.WithCustomMiddleware(
 		errorLimiter.Limit("send_device_error", desktopQuota),
 	).POST("/api/_version_/fleet/device/{token}/debug/errors", fleetdError, fleetdErrorRequest{})
+	de.WithCustomMiddleware(
+		errorLimiter.Limit("get_device_software", desktopQuota),
+	).GET("/api/_version_/fleet/device/{token}/software", getDeviceSoftwareEndpoint, getDeviceSoftwareRequest{})
+	de.WithCustomMiddleware(
+		errorLimiter.Limit("install_self_service", desktopQuota),
+	).POST("/api/_version_/fleet/device/{token}/software/install/{software_title_id}", submitSelfServiceSoftwareInstall, fleetSelfServiceSoftwareInstallRequest{})
 
 	// mdm-related endpoints available via device authentication
 	demdm := de.WithCustomMiddleware(mdmConfiguredMiddleware.VerifyAppleMDM())
@@ -793,6 +826,11 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	oe.POST("/api/fleet/orbit/scripts/request", getOrbitScriptEndpoint, orbitGetScriptRequest{})
 	oe.POST("/api/fleet/orbit/scripts/result", postOrbitScriptResultEndpoint, orbitPostScriptResultRequest{})
 	oe.PUT("/api/fleet/orbit/device_mapping", putOrbitDeviceMappingEndpoint, orbitPutDeviceMappingRequest{})
+	oe.POST("/api/fleet/orbit/software_install/result", postOrbitSoftwareInstallResultEndpoint, orbitPostSoftwareInstallResultRequest{})
+
+	oe.POST("/api/fleet/orbit/software_install/package", orbitDownloadSoftwareInstallerEndpoint, orbitDownloadSoftwareInstallerRequest{})
+
+	oe.POST("/api/fleet/orbit/software_install/details", getOrbitSoftwareInstallDetails, orbitGetSoftwareInstallRequest{})
 
 	oeWindowsMDM := oe.WithCustomMiddleware(mdmConfiguredMiddleware.VerifyWindowsMDM())
 	oeWindowsMDM.POST("/api/fleet/orbit/disk_encryption_key", postOrbitDiskEncryptionKeyEndpoint, orbitPostDiskEncryptionKeyRequest{})
@@ -999,19 +1037,16 @@ func RedirectSetupToLogin(svc fleet.Service, logger kitlog.Logger, next http.Han
 func RegisterAppleMDMProtocolServices(
 	mux *http.ServeMux,
 	scepConfig config.MDMConfig,
-	mdmStorage nanomdm_storage.AllStorage,
+	mdmStorage fleet.MDMAppleStore,
 	scepStorage scep_depot.Depot,
 	logger kitlog.Logger,
 	checkinAndCommandService nanomdm_service.CheckinAndCommandService,
+	ddmService nanomdm_service.DeclarativeManagement,
 ) error {
-	scepCACerts, scepCAKey, err := scepStorage.CA([]byte{})
-	if err != nil {
-		return fmt.Errorf("load SCEP CA certificates and key: %w", err)
-	}
-	if err := registerSCEP(mux, scepConfig, scepCACerts[0], scepCAKey, scepStorage, logger); err != nil {
+	if err := registerSCEP(mux, scepConfig, scepStorage, mdmStorage, logger); err != nil {
 		return fmt.Errorf("scep: %w", err)
 	}
-	if err := registerMDM(mux, scepCACerts[0], mdmStorage, checkinAndCommandService, logger); err != nil {
+	if err := registerMDM(mux, mdmStorage, checkinAndCommandService, ddmService, logger); err != nil {
 		return fmt.Errorf("mdm: %w", err)
 	}
 	return nil
@@ -1022,9 +1057,8 @@ func RegisterAppleMDMProtocolServices(
 func registerSCEP(
 	mux *http.ServeMux,
 	scepConfig config.MDMConfig,
-	scepCert *x509.Certificate,
-	scepKey *rsa.PrivateKey,
 	scepStorage scep_depot.Depot,
+	mdmStorage fleet.MDMAppleStore,
 	logger kitlog.Logger,
 ) error {
 	var signer scepserver.CSRSigner = scep_depot.NewSigner(
@@ -1032,18 +1066,19 @@ func registerSCEP(
 		scep_depot.WithValidityDays(scepConfig.AppleSCEPSignerValidityDays),
 		scep_depot.WithAllowRenewalDays(scepConfig.AppleSCEPSignerAllowRenewalDays),
 	)
-	scepChallenge := scepConfig.AppleSCEPChallenge
-	if scepChallenge == "" {
-		return errors.New("missing SCEP challenge")
+	assets, err := mdmStorage.GetAllMDMConfigAssetsByName(context.Background(), []fleet.MDMAssetName{fleet.MDMAssetSCEPChallenge})
+	if err != nil {
+		return fmt.Errorf("retrieving SCEP challenge: %w", err)
 	}
 
+	scepChallenge := string(assets[fleet.MDMAssetSCEPChallenge].Value)
 	signer = scepserver.ChallengeMiddleware(scepChallenge, signer)
-	scepService, err := scepserver.NewService(scepCert, scepKey, signer,
-		scepserver.WithLogger(kitlog.With(logger, "component", "mdm-apple-scep")),
+	scepService := NewSCEPService(
+		mdmStorage,
+		signer,
+		kitlog.With(logger, "component", "mdm-apple-scep"),
 	)
-	if err != nil {
-		return fmt.Errorf("initialize SCEP service: %w", err)
-	}
+
 	scepLogger := kitlog.With(logger, "component", "http-mdm-apple-scep")
 	e := scepserver.MakeServerEndpoints(scepService)
 	e.GetEndpoint = scepserver.EndpointLoggingMiddleware(scepLogger)(e.GetEndpoint)
@@ -1082,18 +1117,12 @@ func (l *NanoMDMLogger) With(keyvals ...interface{}) nanomdm_log.Logger {
 // registerMDM registers the HTTP handlers that serve core MDM services (like checking in for MDM commands).
 func registerMDM(
 	mux *http.ServeMux,
-	scepCACert *x509.Certificate,
-	mdmStorage nanomdm_storage.AllStorage,
+	mdmStorage fleet.MDMAppleStore,
 	checkinAndCommandService nanomdm_service.CheckinAndCommandService,
+	ddmService nanomdm_service.DeclarativeManagement,
 	logger kitlog.Logger,
 ) error {
-	certVerifier, err := certverify.NewPoolVerifier(
-		apple_mdm.EncodeCertPEM(scepCACert),
-		x509.ExtKeyUsageClientAuth,
-	)
-	if err != nil {
-		return fmt.Errorf("certificate pool verifier: %w", err)
-	}
+	certVerifier := mdmcrypto.NewSCEPVerifier(mdmStorage)
 	mdmLogger := NewNanoMDMLogger(kitlog.With(logger, "component", "http-mdm-apple-mdm"))
 
 	// As usual, handlers are applied from bottom to top:
@@ -1104,7 +1133,7 @@ func registerMDM(
 	// enrollments and updates the Fleet hosts table accordingly with the UDID and serial number of
 	// the device.
 	// 5. Run actual MDM service operation (checkin handler or command and results handler).
-	coreMDMService := nanomdm.New(mdmStorage, nanomdm.WithLogger(mdmLogger))
+	coreMDMService := nanomdm.New(mdmStorage, nanomdm.WithLogger(mdmLogger), nanomdm.WithDeclarativeManagement(ddmService))
 	// NOTE: it is critical that the coreMDMService runs first, as the first
 	// service in the multi-service feature is run to completion _before_ running
 	// the other ones in parallel. This way, subsequent services have access to

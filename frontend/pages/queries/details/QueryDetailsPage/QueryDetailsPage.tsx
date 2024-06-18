@@ -21,7 +21,9 @@ import {
   isGlobalObserver,
   isTeamObserver,
 } from "utilities/permissions/permissions";
-import { DOCUMENT_TITLE_SUFFIX } from "utilities/constants";
+import { DOCUMENT_TITLE_SUFFIX, SUPPORT_LINK } from "utilities/constants";
+import { buildQueryStringFromParams } from "utilities/url";
+import useTeamIdParam from "hooks/useTeamIdParam";
 
 import Spinner from "components/Spinner/Spinner";
 import Button from "components/buttons/Button";
@@ -40,7 +42,6 @@ import NoResults from "../components/NoResults/NoResults";
 import {
   DEFAULT_SORT_HEADER,
   DEFAULT_SORT_DIRECTION,
-  QUERY_REPORT_RESULTS_LIMIT,
 } from "./QueryDetailsPageConfig";
 
 interface IQueryDetailsPageProps {
@@ -65,9 +66,13 @@ const QueryDetailsPage = ({
     router.push(PATHS.MANAGE_QUERIES);
   }
   const queryParams = location.query;
-  const teamId = location.query.team_id
-    ? parseInt(location.query.team_id, 10)
-    : undefined;
+
+  const { currentTeamId } = useTeamIdParam({
+    location,
+    router,
+    includeAllTeams: true,
+    includeNoTeam: false,
+  });
 
   // Functions to avoid race conditions
   const serverSortBy: ISortOption[] = (() => {
@@ -193,8 +198,7 @@ const QueryDetailsPage = ({
 
   const isLoading = isStoredQueryLoading || isQueryReportLoading;
   const isApiError = storedQueryError || queryReportError;
-  const isClipped =
-    (queryReport?.results?.length ?? 0) >= QUERY_REPORT_RESULTS_LIMIT;
+  const isClipped = queryReport?.report_clipped;
   const disabledLiveQuery = config?.server_settings.live_query_disabled;
 
   const renderHeader = () => {
@@ -203,7 +207,12 @@ const QueryDetailsPage = ({
 
     // Function instead of constant eliminates race condition with filteredQueriesPath
     const backToQueriesPath = () => {
-      return filteredQueriesPath || PATHS.MANAGE_QUERIES;
+      return (
+        filteredQueriesPath ||
+        `${PATHS.MANAGE_QUERIES}?${buildQueryStringFromParams({
+          team_id: currentTeamId,
+        })}`
+      );
     };
 
     return (
@@ -233,7 +242,8 @@ const QueryDetailsPage = ({
                 {canEditQuery && (
                   <Button
                     onClick={() => {
-                      queryId && router.push(PATHS.EDIT_QUERY(queryId, teamId));
+                      queryId &&
+                        router.push(PATHS.EDIT_QUERY(queryId, currentTeamId));
                     }}
                     className={`${baseClass}__manage-automations button`}
                     variant="brand"
@@ -258,7 +268,10 @@ const QueryDetailsPage = ({
                         className={`${baseClass}__run`}
                         variant="blue-green"
                         onClick={() => {
-                          queryId && router.push(PATHS.LIVE_QUERY(queryId));
+                          queryId &&
+                            router.push(
+                              PATHS.LIVE_QUERY(queryId, currentTeamId)
+                            );
                         }}
                         disabled={disabledLiveQuery}
                       >
@@ -317,13 +330,7 @@ const QueryDetailsPage = ({
   const renderClippedBanner = () => (
     <InfoBanner
       color="yellow"
-      cta={
-        <CustomLink
-          url="https://www.fleetdm.com/support"
-          text="Get help"
-          newTab
-        />
-      }
+      cta={<CustomLink url={SUPPORT_LINK} text="Get help" newTab />}
     >
       <div>
         <b>Report clipped.</b> A sample of this query&apos;s results is included
@@ -332,7 +339,7 @@ const QueryDetailsPage = ({
           // Exclude below message for global and team observers/observer+s
           !(
             (currentUser && isGlobalObserver(currentUser)) ||
-            isTeamObserver(currentUser, teamId ?? null)
+            isTeamObserver(currentUser, currentTeamId ?? null)
           ) &&
             " You can still use query automations to complete this report in your log destination."
         }

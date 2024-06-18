@@ -1,9 +1,11 @@
 import {
   ISoftware,
   ISoftwareVersion,
-  ISoftwareTitle,
+  ISoftwareTitleWithPackageDetail,
+  ISoftwareTitleWithPackageName,
   ISoftwareVulnerability,
   ISoftwareTitleVersion,
+  ISoftwarePackage,
 } from "interfaces/software";
 import {
   ISoftwareTitlesResponse,
@@ -42,9 +44,14 @@ export const createMockSoftwareTitleVersion = (
   return { ...DEFAULT_SOFTWARE_TITLE_VERSION_MOCK, ...overrides };
 };
 
-const DEFAULT_SOFTWARE_TITLE_MOCK: ISoftwareTitle = {
+type MockSoftwareTitle =
+  | Partial<ISoftwareTitleWithPackageDetail>
+  | Partial<ISoftwareTitleWithPackageName>;
+
+const DEFAULT_SOFTWARE_TITLE_MOCK = {
   id: 1,
   name: "mock software 1.app",
+  software_package: null,
   versions_count: 1,
   source: "apps",
   hosts_count: 1,
@@ -52,16 +59,26 @@ const DEFAULT_SOFTWARE_TITLE_MOCK: ISoftwareTitle = {
   versions: [createMockSoftwareTitleVersion()],
 };
 
-export const createMockSoftwareTitle = (
-  overrides?: Partial<ISoftwareTitle>
-): ISoftwareTitle => {
-  return { ...DEFAULT_SOFTWARE_TITLE_MOCK, ...overrides };
+export const createMockSoftwareTitle = <
+  T extends
+    | Partial<ISoftwareTitleWithPackageDetail>
+    | Partial<ISoftwareTitleWithPackageName>
+>(
+  overrides: T
+) => {
+  const mock = {
+    ...DEFAULT_SOFTWARE_TITLE_MOCK,
+    ...overrides,
+  };
+  return mock;
 };
 
 const DEFAULT_SOFTWARE_TITLES_RESPONSE_MOCK: ISoftwareTitlesResponse = {
   counts_updated_at: "2020-01-01T00:00:00.000Z",
   count: 1,
-  software_titles: [createMockSoftwareTitle()],
+  software_titles: [
+    createMockSoftwareTitle({ software_package: null, self_service: false }),
+  ],
   meta: {
     has_next_results: false,
     has_previous_results: false,
@@ -129,13 +146,16 @@ export const createMockSoftwareVersionsReponse = (
 };
 
 const DEFAULT_SOFTWARE_TITLE_RESPONSE = {
-  software_title: createMockSoftwareTitle(),
+  software_title: createMockSoftwareTitle({
+    software_package: null,
+  } as Partial<ISoftwareTitleWithPackageDetail>),
 };
 
 export const createMockSoftwareTitleResponse = (
-  overrides?: Partial<ISoftwareTitleResponse>
+  overrides: Partial<ISoftwareTitleWithPackageDetail> = {}
 ): ISoftwareTitleResponse => {
-  return { ...DEFAULT_SOFTWARE_TITLE_RESPONSE, ...overrides };
+  const mock = DEFAULT_SOFTWARE_TITLE_RESPONSE.software_title;
+  return { software_title: { ...mock, ...overrides } };
 };
 
 const DEFAULT_SOFTWARE_VERSION_RESPONSE = {
@@ -146,4 +166,26 @@ export const createMockSoftwareVersionResponse = (
   overrides?: Partial<ISoftwareVersionResponse>
 ): ISoftwareVersionResponse => {
   return { ...DEFAULT_SOFTWARE_VERSION_RESPONSE, ...overrides };
+};
+
+const DEFAULT_SOFTWAREPACKAGE_MOCK: ISoftwarePackage = {
+  name: "TestPackage-1.2.3.pkg",
+  version: "1.2.3",
+  uploaded_at: "2020-01-01T00:00:00.000Z",
+  install_script: "sudo installer -pkg /temp/FalconSensor-6.44.pkg -target /",
+  pre_install_query: "SELECT 1 FROM macos_profiles WHERE uuid='abc123';",
+  post_install_script:
+    "sudo /Applications/Falcon.app/Contents/Resources/falconctl license abc123",
+  self_service: false,
+  status: {
+    installed: 1,
+    pending: 2,
+    failed: 3,
+  },
+};
+
+export const createMockSoftwarePackage = (
+  overrides?: Partial<ISoftwarePackage>
+) => {
+  return { ...DEFAULT_SOFTWAREPACKAGE_MOCK, ...overrides };
 };

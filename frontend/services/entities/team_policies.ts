@@ -17,14 +17,11 @@ interface IPoliciesApiQueryParams {
   orderKey?: string;
   orderDirection?: "asc" | "desc";
   query?: string;
-  inheritedPage?: number;
-  inheritedPerPage?: number;
-  inheritedOrderKey?: string;
-  inheritedOrderDirection?: "asc" | "desc";
 }
 
 export interface IPoliciesApiParams extends IPoliciesApiQueryParams {
   teamId: number;
+  mergeInherited?: boolean;
 }
 
 export interface ITeamPoliciesQueryKey extends IPoliciesApiParams {
@@ -32,13 +29,14 @@ export interface ITeamPoliciesQueryKey extends IPoliciesApiParams {
 }
 
 export interface ITeamPoliciesCountQueryKey
-  extends Pick<IPoliciesApiParams, "query" | "teamId"> {
-  scope: "teamPoliciesCount";
+  extends Pick<IPoliciesApiParams, "query" | "teamId" | "mergeInherited"> {
+  scope: "teamPoliciesCountMergeInherited" | "teamPoliciesCount";
 }
 
 interface IPoliciesCountApiParams {
   teamId: number;
   query?: string;
+  mergeInherited?: boolean;
 }
 
 const ORDER_KEY = "name";
@@ -87,6 +85,7 @@ export default {
       resolution,
       platform,
       critical,
+      calendar_events_enabled,
     } = data;
     const { TEAMS } = endpoints;
     const path = `${TEAMS}/${team_id}/policies/${id}`;
@@ -98,6 +97,7 @@ export default {
       resolution,
       platform,
       critical,
+      calendar_events_enabled,
     });
   },
   destroy: (teamId: number | undefined, ids: number[]) => {
@@ -116,7 +116,6 @@ export default {
   load: (team_id: number, id: number) => {
     const { TEAMS } = endpoints;
     const path = `${TEAMS}/${team_id}/policies/${id}`;
-
     return sendRequest("GET", path);
   },
   loadAll: (team_id?: number): Promise<ILoadTeamPoliciesResponse> => {
@@ -135,10 +134,7 @@ export default {
     orderKey = ORDER_KEY,
     orderDirection: orderDir = ORDER_DIRECTION,
     query,
-    inheritedPage,
-    inheritedPerPage,
-    inheritedOrderKey = ORDER_KEY,
-    inheritedOrderDirection: inheritedOrderDir = ORDER_DIRECTION,
+    mergeInherited,
   }: IPoliciesApiParams): Promise<ILoadTeamPoliciesResponse> => {
     const { TEAMS } = endpoints;
 
@@ -148,10 +144,7 @@ export default {
       orderKey,
       orderDirection: orderDir,
       query,
-      inheritedPage,
-      inheritedPerPage,
-      inheritedOrderKey,
-      inheritedOrderDirection: inheritedOrderDir,
+      mergeInherited,
     };
 
     const snakeCaseParams = convertParamsToSnakeCase(queryParams);
@@ -166,14 +159,16 @@ export default {
   getCount: async ({
     query,
     teamId,
+    mergeInherited = true,
   }: Pick<
     IPoliciesCountApiParams,
-    "query" | "teamId"
+    "query" | "teamId" | "mergeInherited"
   >): Promise<IPoliciesCountResponse> => {
     const { TEAM_POLICIES } = endpoints;
     const path = `${TEAM_POLICIES(teamId)}/count`;
     const queryParams = {
       query,
+      mergeInherited,
     };
     const snakeCaseParams = convertParamsToSnakeCase(queryParams);
     const queryString = buildQueryStringFromParams(snakeCaseParams);

@@ -31,6 +31,11 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        with:
+          egress-policy: audit
+
       - name: Checkout Code
         uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
 
@@ -47,7 +52,7 @@ jobs:
       - name: Install JS Dependencies
         if: steps.js-cache.outputs.cache-hit != 'true'
         working-directory: ./ee/fleetd-chrome
-        run: npm install
+        run: npm install --no-save
 
       - name: Build JS
         working-directory: ./ee/fleetd-chrome

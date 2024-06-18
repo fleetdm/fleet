@@ -119,7 +119,7 @@ const EnrollSecretRow = ({
     >
       {/* TODO: replace with InputFieldHiddenContent component */}
       <InputField
-        disabled
+        readOnly
         inputWrapperClass={`${baseClass}__secret-input`}
         name={`osqueryd-secret-${uniqueId()}`}
         type={showSecret ? "text" : "password"}

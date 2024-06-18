@@ -18,7 +18,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/sso"
-	"github.com/go-kit/kit/log/level"
+	"github.com/go-kit/log/level"
 )
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -166,10 +166,11 @@ func (svc *Service) Login(ctx context.Context, email, password string) (*fleet.U
 	var err error
 	defer func(start time.Time) {
 		if err != nil {
-			if err := svc.ds.NewActivity(ctx, nil, fleet.ActivityTypeUserFailedLogin{
-				Email:    email,
-				PublicIP: publicip.FromContext(ctx),
-			}); err != nil {
+			if err := svc.NewActivity(
+				ctx, nil, fleet.ActivityTypeUserFailedLogin{
+					Email:    email,
+					PublicIP: publicip.FromContext(ctx),
+				}); err != nil {
 				logging.WithExtras(logging.WithNoUser(ctx),
 					"msg", "failed to generate failed login activity",
 				)
@@ -200,9 +201,10 @@ func (svc *Service) Login(ctx context.Context, email, password string) (*fleet.U
 		return nil, nil, fleet.NewAuthFailedError(err.Error())
 	}
 
-	if err := svc.ds.NewActivity(ctx, user, fleet.ActivityTypeUserLoggedIn{
-		PublicIP: publicip.FromContext(ctx),
-	}); err != nil {
+	if err := svc.NewActivity(
+		ctx, user, fleet.ActivityTypeUserLoggedIn{
+			PublicIP: publicip.FromContext(ctx),
+		}); err != nil {
 		return nil, nil, err
 	}
 	return user, session, nil
@@ -518,7 +520,7 @@ func (svc *Service) LoginSSOUser(ctx context.Context, user *fleet.User, redirect
 		Token:       session.Key,
 		RedirectURL: redirectURL,
 	}
-	err = svc.ds.NewActivity(
+	err = svc.NewActivity(
 		ctx,
 		user,
 		fleet.ActivityTypeUserLoggedIn{
