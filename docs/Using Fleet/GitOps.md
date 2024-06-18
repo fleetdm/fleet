@@ -24,12 +24,13 @@ The following files are responsible for running the GitHub action. Most users do
 The following are the required keys in the `default.yml` and any `teams/team-name.yml` files:
 
 ```yaml
+name: # Only teams/team-name.yml
 policies:
 queries:
 agent_options:
 controls:
-org_settings: # Used in default.yml
-team_settings: # Used in teams/team-name.yml
+org_settings: # Only default.yml
+team_settings: # Only teams/team-name.yml
 ```
 
 - [policies](#policies)
@@ -89,7 +90,7 @@ policies:
 ```yaml
 policies:
   - path: ../lib/policies-name.policies.yml
-# path is relative to teams/team-name.yml 
+# path is relative to default.yml or teams/team-name.yml 
 ```
 
 ### queries
@@ -364,7 +365,8 @@ The `secrets` section defines the valid secrets that hosts can use to enroll to 
 
 ```yaml
 org_settings:
-  secrets: $ENROLL_SECRET
+  secrets: 
+  - $ENROLL_SECRET
 ```
 
 #### server_settings
