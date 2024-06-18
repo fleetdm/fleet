@@ -434,29 +434,28 @@ type fleetdErrorResponse struct{}
 
 func (r fleetdErrorResponse) error() error { return nil }
 
-// for now, this endpoint must always return a 500 status code, this
-// way errors are picked up and reported by any monitoring tool that
-// looks for 5xx errors.
-//
-// since the handler is returning an error, this is redundant, but I'm adding
-// it as a safeguard.
-//
-// See: https://github.com/fleetdm/fleet/issues/13238#issuecomment-1671769460
-func (r fleetdErrorResponse) Status() int { return http.StatusInternalServerError }
-
 func fleetdError(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*fleetdErrorRequest)
-	err := svc.ReceiveFleetdError(ctx, req.FleetdError)
-	// return the error as the second parameter to get better logs in the server.
-	return fleetdErrorResponse{}, err
+	err := svc.LogFleetdError(ctx, req.FleetdError)
+	if err != nil {
+		return nil, err
+	}
+	return fleetdErrorResponse{}, nil
 }
 
-func (svc *Service) ReceiveFleetdError(ctx context.Context, fleetdError fleet.FleetdError) error {
+func (svc *Service) LogFleetdError(ctx context.Context, fleetdError fleet.FleetdError) error {
 	if !svc.authz.IsAuthenticatedWith(ctx, authz.AuthnDeviceToken) {
 		return ctxerr.Wrap(ctx, fleet.NewPermissionError("forbidden: only device-authenticated hosts can access this endpoint"))
 	}
 
-	return ctxerr.WrapWithData(ctx, fleetdError, "receive fleetd error", fleetdError.ToMap())
+	svc.logger.Log(
+		"msg",
+		"fleetd error",
+		"error",
+		ctxerr.WrapWithData(ctx, fleetdError, "receive fleetd error", fleetdError.ToMap()),
+	)
+
+	return nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////
