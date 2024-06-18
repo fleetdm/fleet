@@ -1116,10 +1116,9 @@ func checkLabelHostIssues(
 		assert.Nil(t, foundHost.HostIssues.CriticalVulnerabilitiesCount)
 		assert.Zero(t, foundHost.HostIssues.TotalIssuesCount)
 		return
-	} else {
-		assert.Equal(t, criticalVulnerabilitiesExpected, *foundHost.HostIssues.CriticalVulnerabilitiesCount)
-		assert.Equal(t, failingPoliciesExpected+criticalVulnerabilitiesExpected, foundHost.HostIssues.TotalIssuesCount)
 	}
+	assert.Equal(t, criticalVulnerabilitiesExpected, *foundHost.HostIssues.CriticalVulnerabilitiesCount)
+	assert.Equal(t, failingPoliciesExpected+criticalVulnerabilitiesExpected, foundHost.HostIssues.TotalIssuesCount)
 
 	hostById, err := ds.Host(context.Background(), hid)
 	require.NoError(t, err)
