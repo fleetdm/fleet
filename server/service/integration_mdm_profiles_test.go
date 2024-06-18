@@ -1820,12 +1820,7 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMAppleProfiles() {
 	t := s.T()
 	ctx := context.Background()
 
-	var b strings.Builder
-	b.Grow(1000000)
-	for i := 0; i < 1000000; i++ {
-		b.WriteByte('a')
-	}
-	bigString := b.String()
+	bigString := strings.Repeat("a", 1024*1024)
 
 	// create a new team
 	tm, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "batch_set_mdm_profiles"})
