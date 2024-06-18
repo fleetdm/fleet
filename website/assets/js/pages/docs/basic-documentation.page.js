@@ -222,6 +222,13 @@ parasails.registerPage('basic-documentation', {
   //  ╩╝╚╝ ╩ ╚═╝╩╚═╩ ╩╚═╝ ╩ ╩╚═╝╝╚╝╚═╝
   methods: {
 
+    clickSwagRequestCTA: function () {
+      if(typeof gtag !== 'undefined') {
+        gtag('event','website_swag_request');
+      }
+      this.goto('https://kqphpqst851.typeform.com/to/ZfA3sOu0');
+    },
+
     clickCTA: function (slug) {
       this.goto(slug);
     },

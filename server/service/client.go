@@ -303,45 +303,84 @@ func (c *Client) runAppConfigChecks(fn func(ac *fleet.EnrichedAppConfig) error) 
 
 // getProfilesContents takes file paths and creates a slice of profile payloads
 // ready to batch-apply.
-func getProfilesContents(baseDir string, profiles []fleet.MDMProfileSpec, expandEnv bool) ([]fleet.MDMProfileBatchPayload, error) {
-	// map to check for duplicate names
-	extByName := make(map[string]string, len(profiles))
-	result := make([]fleet.MDMProfileBatchPayload, 0, len(profiles))
+func getProfilesContents(baseDir string, macProfiles []fleet.MDMProfileSpec, windowsProfiles []fleet.MDMProfileSpec, expandEnv bool) ([]fleet.MDMProfileBatchPayload, error) {
+	// map to check for duplicate names across all profiles
+	extByName := make(map[string]string, len(macProfiles))
+	result := make([]fleet.MDMProfileBatchPayload, 0, len(macProfiles))
 
-	for _, profile := range profiles {
-		filePath := resolveApplyRelativePath(baseDir, profile.Path)
-		fileContents, err := os.ReadFile(filePath)
-		if err != nil {
-			return nil, fmt.Errorf("applying fleet config: %w", err)
-		}
-
-		if expandEnv {
-			fileContents, err = spec.ExpandEnvBytes(fileContents)
+	// iterate over the profiles for each platform
+	for platform, profiles := range map[string][]fleet.MDMProfileSpec{
+		"macos":   macProfiles,
+		"windows": windowsProfiles,
+	} {
+		for _, profile := range profiles {
+			filePath := resolveApplyRelativePath(baseDir, profile.Path)
+			fileContents, err := os.ReadFile(filePath)
 			if err != nil {
-				return nil, fmt.Errorf("expanding environment on file %q: %w", profile.Path, err)
+				return nil, fmt.Errorf("applying custom settings: %w", err)
 			}
-		}
 
-		// by default, use the file name. macOS profiles use their PayloadDisplayName
-		ext := filepath.Ext(filePath)
-		name := strings.TrimSuffix(filepath.Base(filePath), ext)
-		if mdm.GetRawProfilePlatform(fileContents) == "darwin" && ext == ".mobileconfig" {
-			mc, err := fleet.NewMDMAppleConfigProfile(fileContents, nil)
-			if err != nil {
-				return nil, fmt.Errorf("applying fleet config: %w", err)
+			if expandEnv {
+				fileContents, err = spec.ExpandEnvBytes(fileContents)
+				if err != nil {
+					return nil, fmt.Errorf("expanding environment on file %q: %w", profile.Path, err)
+				}
 			}
-			name = strings.TrimSpace(mc.Name)
-		}
-		if e, isDuplicate := extByName[name]; isDuplicate {
-			return nil, errors.New(fmtDuplicateNameErrMsg(name, e, ext))
-		}
-		extByName[name] = ext
-		result = append(result, fleet.MDMProfileBatchPayload{
-			Name:     name,
-			Contents: fileContents,
-			Labels:   profile.Labels,
-		})
 
+			ext := filepath.Ext(filePath)
+			// by default, use the file name (for macOS mobileconfig profiles, we'll switch to
+			// their PayloadDisplayName when we parse the profile below)
+			name := strings.TrimSuffix(filepath.Base(filePath), ext)
+			// for validation errors, we want to include the platform and file name in the error message
+			prefixErrMsg := fmt.Sprintf("Couldn't edit %s_settings.custom_settings (%s%s)", platform, name, ext)
+
+			// validate macOS profiles
+			if platform == "macos" {
+				switch ext {
+				case ".mobileconfig", ".xml": // allowing .xml for backwards compatibility
+					mc, err := fleet.NewMDMAppleConfigProfile(fileContents, nil)
+					if err != nil {
+						errForMsg := errors.Unwrap(err)
+						if errForMsg == nil {
+							errForMsg = err
+						}
+						return nil, fmt.Errorf("%s: %w", prefixErrMsg, errForMsg)
+					}
+					name = strings.TrimSpace(mc.Name)
+				case ".json":
+					if mdm.GetRawProfilePlatform(fileContents) != "darwin" {
+						return nil, fmt.Errorf("%s: %s", prefixErrMsg, "Declaration profiles should include valid JSON.")
+					}
+				default:
+					return nil, fmt.Errorf("%s: %s", prefixErrMsg, "macOS configuration profiles must be .mobileconfig or .json files.")
+				}
+			}
+
+			// validate windows profiles
+			if platform == "windows" {
+				switch ext {
+				case ".xml":
+					if mdm.GetRawProfilePlatform(fileContents) != "windows" {
+						return nil, fmt.Errorf("%s: %s", prefixErrMsg, "Windows configuration profiles can only have <Replace> or <Add> top level elements")
+					}
+				default:
+					return nil, fmt.Errorf("%s: %s", prefixErrMsg, "Windows configuration profiles must be .xml files.")
+				}
+			}
+
+			// check for duplicate names across all profiles
+			if e, isDuplicate := extByName[name]; isDuplicate {
+				return nil, errors.New(fmtDuplicateNameErrMsg(name, e, ext))
+			}
+			extByName[name] = ext
+
+			result = append(result, fleet.MDMProfileBatchPayload{
+				Name:     name,
+				Contents: fileContents,
+				Labels:   profile.Labels,
+			})
+
+		}
 	}
 	return result, nil
 }
@@ -421,7 +460,6 @@ func (c *Client) ApplyGroup(
 	if specs.AppConfig != nil {
 		windowsCustomSettings := extractAppCfgWindowsCustomSettings(specs.AppConfig)
 		macosCustomSettings := extractAppCfgMacOSCustomSettings(specs.AppConfig)
-		allCustomSettings := append(macosCustomSettings, windowsCustomSettings...)
 
 		// if there is no custom setting but the windows and mac settings are
 		// non-nil, this means that we want to clear the existing custom settings,
@@ -430,8 +468,8 @@ func (c *Client) ApplyGroup(
 		// TODO(mna): shouldn't that be an || instead of && ? I.e. if there are no
 		// custom settings but windows is present and empty (but mac is absent),
 		// shouldn't that clear the windows ones?
-		if (windowsCustomSettings != nil && macosCustomSettings != nil) || len(allCustomSettings) > 0 {
-			fileContents, err := getProfilesContents(baseDir, allCustomSettings, opts.ExpandEnvConfigProfiles)
+		if (windowsCustomSettings != nil && macosCustomSettings != nil) || len(windowsCustomSettings)+len(macosCustomSettings) > 0 {
+			fileContents, err := getProfilesContents(baseDir, macosCustomSettings, windowsCustomSettings, opts.ExpandEnvConfigProfiles)
 			if err != nil {
 				return nil, err
 			}
@@ -520,10 +558,10 @@ func (c *Client) ApplyGroup(
 		tmMDMSettings := extractTmSpecsMDMCustomSettings(specs.Teams)
 
 		tmFileContents := make(map[string][]fleet.MDMProfileBatchPayload, len(tmMDMSettings))
-		for k, paths := range tmMDMSettings {
-			fileContents, err := getProfilesContents(baseDir, paths, opts.ExpandEnvConfigProfiles)
+		for k, profileSpecs := range tmMDMSettings {
+			fileContents, err := getProfilesContents(baseDir, profileSpecs.macos, profileSpecs.windows, opts.ExpandEnvConfigProfiles)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("Team %s: %w", k, err) // TODO: consider adding team name to improve error messages generally for other parts of the config because multiple team configs can be processed at once
 			}
 			tmFileContents[k] = fileContents
 		}
@@ -837,9 +875,14 @@ func extractAppCfgScripts(appCfg interface{}) []string {
 	return scriptsStrings
 }
 
+type profileSpecsByPlatform struct {
+	macos   []fleet.MDMProfileSpec
+	windows []fleet.MDMProfileSpec
+}
+
 // returns the custom macOS and Windows settings keyed by team name.
-func extractTmSpecsMDMCustomSettings(tmSpecs []json.RawMessage) map[string][]fleet.MDMProfileSpec {
-	var m map[string][]fleet.MDMProfileSpec
+func extractTmSpecsMDMCustomSettings(tmSpecs []json.RawMessage) map[string]profileSpecsByPlatform {
+	var m map[string]profileSpecsByPlatform
 	for _, tm := range tmSpecs {
 		var spec struct {
 			Name string `json:"name"`
@@ -866,7 +909,7 @@ func extractTmSpecsMDMCustomSettings(tmSpecs []json.RawMessage) map[string][]fle
 			if len(spec.MDM.MacOSSettings.CustomSettings) > 0 ||
 				len(spec.MDM.WindowsSettings.CustomSettings) > 0 {
 				if m == nil {
-					m = make(map[string][]fleet.MDMProfileSpec)
+					m = make(map[string]profileSpecsByPlatform)
 				}
 			}
 
@@ -894,8 +937,16 @@ func extractTmSpecsMDMCustomSettings(tmSpecs []json.RawMessage) map[string][]fle
 			}
 
 			// TODO: validate equal names here and API?
+			var result profileSpecsByPlatform
+			if macOSSettings != nil {
+				result.macos = macOSSettings
+			}
+			if windowsSettings != nil {
+				result.windows = windowsSettings
+			}
+
 			if macOSSettings != nil || windowsSettings != nil {
-				m[spec.Name] = append(macOSSettings, windowsSettings...)
+				m[spec.Name] = result
 			}
 		}
 	}

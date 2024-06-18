@@ -106,7 +106,8 @@ type Service interface {
 	CreateUserFromInvite(ctx context.Context, p UserPayload) (user *User, err error)
 
 	// CreateUser allows an admin to create a new user without first creating  and validating invite tokens.
-	CreateUser(ctx context.Context, p UserPayload) (user *User, err error)
+	// The sessionKey is only returned (not-nil) when creating API-only (non-SSO) users.
+	CreateUser(ctx context.Context, p UserPayload) (user *User, sessionKey *string, err error)
 
 	// CreateInitialUser creates the first user, skipping authorization checks.  If a user already exists this method
 	// should fail.
@@ -274,12 +275,13 @@ type Service interface {
 	// included in the results.
 	ListQueries(ctx context.Context, opt ListOptions, teamID *uint, scheduled *bool, mergeInherited bool) ([]*Query, error)
 	GetQuery(ctx context.Context, id uint) (*Query, error)
-	// GetQueryReportResults returns all the stored results of a query for hosts the requestor has access to
-	GetQueryReportResults(ctx context.Context, id uint) ([]HostQueryResultRow, error)
+	// GetQueryReportResults returns all the stored results of a query for hosts the requestor has access to.
+	// Returns a boolean indicating whether the report is clipped.
+	GetQueryReportResults(ctx context.Context, id uint) ([]HostQueryResultRow, bool, error)
 	// GetHostQueryReportResults returns all stored results of a query for a specific host
 	GetHostQueryReportResults(ctx context.Context, hid uint, queryID uint) (rows []HostQueryReportResult, lastFetched *time.Time, err error)
 	// QueryReportIsClipped returns true if the number of query report rows exceeds the maximum
-	QueryReportIsClipped(ctx context.Context, queryID uint) (bool, error)
+	QueryReportIsClipped(ctx context.Context, queryID uint, maxQueryReportRows int) (bool, error)
 	NewQuery(ctx context.Context, p QueryPayload) (*Query, error)
 	ModifyQuery(ctx context.Context, id uint, p QueryPayload) (*Query, error)
 	DeleteQuery(ctx context.Context, teamID *uint, name string) error
@@ -1040,7 +1042,7 @@ type Service interface {
 	BatchSetScripts(ctx context.Context, maybeTmID *uint, maybeTmName *string, payloads []ScriptPayload, dryRun bool) error
 
 	// Script-based methods (at least for some platforms, MDM-based for others)
-	LockHost(ctx context.Context, hostID uint) error
+	LockHost(ctx context.Context, hostID uint, viewPIN bool) (unlockPIN string, err error)
 	UnlockHost(ctx context.Context, hostID uint) (unlockPIN string, err error)
 	WipeHost(ctx context.Context, hostID uint) error
 

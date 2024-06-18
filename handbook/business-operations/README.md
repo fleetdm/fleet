@@ -68,14 +68,17 @@ Every quarter, payroll and tax filings are due for each state. Gusto can handle 
 
 
 ### Inform managers about hours worked
-Every Friday at 1:00pm CT, we gather hours worked for anyone who gets paid hourly by Fleet. This includes core team members and consultants, regardless of employment classification, and regardless whether inside or outside of the United States.
+
+Every Friday at 2:00 PM CT, we collect hours worked for all hourly employees at Fleet, including core team members and consultants, regardless of their location.
 
 Here's how:
-1. For every hourly core team member in Gusto or Plane.com, find the DRI by looking up ([who they report to](https://fleetdm.com/handbook/company#org-chart)).
-2. If any direct report is hourly in Plane.com and does not submit their hours until the end of the month, still list them, but explain. 
-3. [Consultants](https://fleetdm.com/handbook/business-operations#hiring) don't have a formal reporting structure. They submit their hours through Gusto (US consultants) or Plane.com (international consultants), which require approval from a DRI. You can find the DRI by looking at the Business Operations [KPIs](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0)
 
-Then, send the DRI a direct message in Slack with a screenshot of the HRIS portal, showing hours logged since last Saturday at midnight and tasks undertaken during those hours (if provided). Ensure the screenshot does not contain any compensation information.
+1. For each hourly core team member in Gusto or Plane.com, find the DRI by checking [who they report to](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0).
+   - If any direct report is hourly in Plane.com and submits hours monthly, still list them and provide an explanation.
+2. Consultants submit their hours through Gusto (US consultants) or Plane.com (international consultants) and require DRI approval. Find the DRI using the [Business Operations KPIs](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0).
+3. Send the teammate's DRI a direct message in Slack with a screenshot of the HRIS portal, showing hours logged since last Saturday at midnight, and ask them to confirm the hours are expected. Ensure the screenshot does not include compensation information.
+4. The following Monday, check for updates to logged hours and ensure the KPI sheet aligns with HRIS records.
+   - If there are discrepancies between what was previously reported, reconfirm logged hours with the teammate's DRI and update the KPI sheet to reflect the correct amount.
 
 
 ### Change the DRI of a consultant

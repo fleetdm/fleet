@@ -110,6 +110,10 @@ func TestGetFleetDesktopSummary(t *testing.T) {
 				return &appCfg, nil
 			}
 
+			ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, host *fleet.Host) (bool, error) {
+				return false, nil
+			}
+
 			ctx := test.HostContext(ctx, &fleet.Host{
 				OsqueryHostID:      ptr.String("test"),
 				DEPAssignedToFleet: &c.depAssigned,
@@ -202,6 +206,9 @@ func TestGetFleetDesktopSummary(t *testing.T) {
 				appCfg.MDM = c.mdm
 				return &appCfg, nil
 			}
+			ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, host *fleet.Host) (bool, error) {
+				return false, nil
+			}
 
 			ctx = test.HostContext(ctx, &fleet.Host{
 				OsqueryHostID:      ptr.String("test"),
@@ -241,6 +248,10 @@ func TestGetFleetDesktopSummary(t *testing.T) {
 			appCfg.MDM.EnabledAndConfigured = true
 			appCfg.MDM.MacOSMigration.Enable = true
 			return &appCfg, nil
+		}
+
+		ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, host *fleet.Host) (bool, error) {
+			return host.MDMInfo != nil && host.MDMInfo.Enrolled == true && host.MDMInfo.Name == fleet.WellKnownMDMFleet, nil
 		}
 
 		cases := []struct {

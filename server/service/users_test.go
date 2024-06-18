@@ -367,7 +367,7 @@ func TestUserAuth(t *testing.T) {
 			}
 
 			teams := []fleet.UserTeam{{Team: fleet.Team{ID: teamID}, Role: fleet.RoleMaintainer}}
-			_, err = svc.CreateUser(ctx, fleet.UserPayload{
+			_, _, err = svc.CreateUser(ctx, fleet.UserPayload{
 				Name:     ptr.String("Some Name"),
 				Email:    ptr.String("some@email.com"),
 				Password: ptr.String(test.GoodPassword),
@@ -375,7 +375,7 @@ func TestUserAuth(t *testing.T) {
 			})
 			checkAuthErr(t, tt.shouldFailTeamWrite, err)
 
-			_, err = svc.CreateUser(ctx, fleet.UserPayload{
+			_, _, err = svc.CreateUser(ctx, fleet.UserPayload{
 				Name:       ptr.String("Some Name"),
 				Email:      ptr.String("some@email.com"),
 				Password:   ptr.String(test.GoodPassword),
@@ -641,6 +641,7 @@ func TestUsersWithDS(t *testing.T) {
 		{"CreateUserForcePasswdReset", testUsersCreateUserForcePasswdReset},
 		{"ChangePassword", testUsersChangePassword},
 		{"RequirePasswordReset", testUsersRequirePasswordReset},
+		{"UsersCreateUserWithAPIOnly", testUsersCreateUserWithAPIOnly},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -668,13 +669,14 @@ func testUsersCreateUserForcePasswdReset(t *testing.T, ds *mysql.Datastore) {
 
 	// As the admin, create a new user.
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: admin})
-	user, err := svc.CreateUser(ctx, fleet.UserPayload{
+	user, sessionKey, err := svc.CreateUser(ctx, fleet.UserPayload{
 		Name:       ptr.String("Some Observer"),
 		Email:      ptr.String("some-observer@email.com"),
 		Password:   ptr.String(test.GoodPassword),
 		GlobalRole: ptr.String(fleet.RoleObserver),
 	})
 	require.NoError(t, err)
+	require.Nil(t, sessionKey) // only set when creating API-only users
 
 	user, err = ds.UserByID(context.Background(), user.ID)
 	require.NoError(t, err)
@@ -1318,4 +1320,51 @@ func TestTeamAdminAddRoleOtherTeam(t *testing.T) {
 	})
 	require.Equal(t, (&authz.Forbidden{}).Error(), err.Error())
 	require.False(t, ds.SaveUserFuncInvoked)
+}
+
+func testUsersCreateUserWithAPIOnly(t *testing.T, ds *mysql.Datastore) {
+	svc, ctx := newTestService(t, ds, nil, nil)
+
+	host, err := ds.NewHost(ctx, &fleet.Host{
+		UUID:          "uuid-42",
+		OsqueryHostID: ptr.String("osquery_host_id-42"),
+	})
+	require.NoError(t, err)
+
+	// Create admin user.
+	admin := &fleet.User{
+		Name:       "Fleet Admin",
+		Email:      "admin@foo.com",
+		GlobalRole: ptr.String(fleet.RoleAdmin),
+	}
+	err = admin.SetPassword(test.GoodPassword, 10, 10)
+	require.NoError(t, err)
+	admin, err = ds.NewUser(ctx, admin)
+	require.NoError(t, err)
+
+	// As the admin, create a new API-only user.
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: admin})
+	apiOnlyUser, sessionKey, err := svc.CreateUser(ctx, fleet.UserPayload{
+		Name:       ptr.String("Some Observer"),
+		Email:      ptr.String("some-observer@email.com"),
+		Password:   ptr.String(test.GoodPassword),
+		GlobalRole: ptr.String(fleet.RoleObserver),
+		APIOnly:    ptr.Bool(true),
+	})
+	require.NoError(t, err)
+	require.NotNil(t, sessionKey)
+	require.NotEmpty(t, *sessionKey)
+
+	sessions, err := svc.GetInfoAboutSessionsForUser(ctx, apiOnlyUser.ID)
+	require.NoError(t, err)
+	require.Len(t, sessions, 1)
+	session := sessions[0]
+	require.Equal(t, *sessionKey, session.Key)
+
+	refreshCtx(t, ctx, apiOnlyUser, ds, session)
+
+	hosts, err := svc.ListHosts(ctx, fleet.HostListOptions{})
+	require.NoError(t, err)
+	require.Len(t, hosts, 1)
+	require.Equal(t, host.ID, hosts[0].ID)
 }

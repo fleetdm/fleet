@@ -151,7 +151,7 @@ const SelectTargets = ({
   setTargetedTeams,
   setTargetsTotalCount,
 }: ISelectTargetsProps): JSX.Element => {
-  const { isPremiumTier } = useContext(AppContext);
+  const { isPremiumTier, isOnGlobalTeam } = useContext(AppContext);
 
   const [labels, setLabels] = useState<ILabelsByType | null>(null);
   const [inputTabIndex, setInputTabIndex] = useState<number | null>(null);
@@ -457,10 +457,12 @@ const SelectTargets = ({
         {!!labels?.platforms?.length &&
           renderTargetEntityList("Platforms", labels.platforms)}
         {!!teams?.length &&
-          renderTargetEntityList("Teams", [
-            { id: 0, name: "No team" },
-            ...teams,
-          ])}
+          (isOnGlobalTeam
+            ? renderTargetEntityList("Teams", [
+                { id: 0, name: "No team" },
+                ...teams,
+              ])
+            : renderTargetEntityList("Teams", teams))}
         {!!labels?.other?.length &&
           renderTargetEntityList("Labels", labels.other)}
       </div>

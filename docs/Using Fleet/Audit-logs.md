@@ -1003,13 +1003,15 @@ Generated when a user sends a request to lock a host.
 This activity contains the following fields:
 - "host_id": ID of the host.
 - "host_display_name": Display name of the host.
+- "view_pin": Whether lock PIN was viewed (for Apple devices).
 
 #### Example
 
 ```json
 {
   "host_id": 1,
-  "host_display_name": "Anna's MacBook Pro"
+  "host_display_name": "Anna's MacBook Pro",
+  "view_pin": true
 }
 ```
 

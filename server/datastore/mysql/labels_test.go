@@ -495,6 +495,7 @@ func testLabelsListHostsInLabelAndTeamFilter(deferred bool, t *testing.T, db *Da
 	listHostsInLabelCheckCount(t, db, userFilter, l1.ID, fleet.HostListOptions{TeamFilter: teamIDFilterNil}, 2)  // h1 and h2
 
 	// test team filter in combination with macos settings filter
+	nanoEnroll(t, db, h1, false)
 	require.NoError(t, db.BulkUpsertMDMAppleHostProfiles(context.Background(), []*fleet.MDMAppleBulkUpsertHostProfilePayload{
 		{
 			ProfileUUID:       "a" + uuid.NewString(),
@@ -513,6 +514,7 @@ func testLabelsListHostsInLabelAndTeamFilter(deferred bool, t *testing.T, db *Da
 	listHostsInLabelCheckCount(t, db, userFilter, l1.ID, fleet.HostListOptions{TeamFilter: teamIDFilterNil, MacOSSettingsFilter: fleet.OSSettingsVerifying}, 0)  // no team
 	listHostsInLabelCheckCount(t, db, userFilter, l1.ID, fleet.HostListOptions{MacOSSettingsFilter: fleet.OSSettingsVerifying}, 0)                               // no team
 
+	nanoEnroll(t, db, h2, false)
 	require.NoError(t, db.BulkUpsertMDMAppleHostProfiles(context.Background(), []*fleet.MDMAppleBulkUpsertHostProfilePayload{
 		{
 			ProfileUUID:       "a" + uuid.NewString(),
@@ -1022,7 +1024,10 @@ func testListHostsInLabelFailingPolicies(t *testing.T, ds *Datastore) {
 	checkLabelHostIssues(t, ds, hosts, l1.ID, filter, h1.ID, fleet.HostListOptions{DisableFailingPolicies: true}, 0)
 }
 
-func checkLabelHostIssues(t *testing.T, ds *Datastore, hosts []*fleet.Host, lid uint, filter fleet.TeamFilter, hid uint, opts fleet.HostListOptions, expected int) {
+func checkLabelHostIssues(
+	t *testing.T, ds *Datastore, hosts []*fleet.Host, lid uint, filter fleet.TeamFilter, hid uint, opts fleet.HostListOptions,
+	expected uint64,
+) {
 	hosts = listHostsInLabelCheckCount(t, ds, filter, lid, opts, 10)
 	foundH2 := false
 	var foundHost *fleet.Host
@@ -1065,6 +1070,7 @@ func testListHostsInLabelDiskEncryptionStatus(t *testing.T, ds *Datastore) {
 		})
 		require.NoError(t, err)
 		hosts = append(hosts, h)
+		nanoEnroll(t, ds, h, false)
 	}
 
 	// set up data
@@ -1426,6 +1432,7 @@ func testLabelsListHostsInLabelOSSettings(t *testing.T, db *Datastore) {
 	// add two hosts to MDM to enforce disk encryption, fleet doesn't enforce settings on centos so h3 is not included
 	for _, h := range []*fleet.Host{h1, h2} {
 		require.NoError(t, db.SetOrUpdateMDMData(context.Background(), h.ID, false, true, "https://example.com", false, fleet.WellKnownMDMFleet, ""))
+		nanoEnroll(t, db, h, false)
 	}
 	// add disk encryption key for h1
 	require.NoError(t, db.SetOrUpdateHostDiskEncryptionKey(context.Background(), h1.ID, "test-key", "", ptr.Bool(true)))

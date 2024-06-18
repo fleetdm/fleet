@@ -1,16 +1,25 @@
 /* eslint-disable react/prop-types */
-import React, { useContext, useCallback, useMemo } from "react";
+import React, {
+  useContext,
+  useCallback,
+  useMemo,
+  useState,
+  useEffect,
+} from "react";
 import { InjectedRouter } from "react-router";
 
 import { AppContext } from "context/app";
 import { IEmptyTableProps } from "interfaces/empty_table";
+import { SelectedPlatform } from "interfaces/platform";
 import { IEnhancedQuery } from "interfaces/schedulable_query";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
 import { IActionButtonProps } from "components/TableContainer/DataTable/ActionButton/ActionButton";
 import PATHS from "router/paths";
 import { getNextLocationPath } from "utilities/helpers";
+import { checkPlatformCompatibility } from "utilities/sql_tools";
 import Button from "components/buttons/Button";
 import TableContainer from "components/TableContainer";
+import TableCount from "components/TableContainer/TableCount";
 import CustomLink from "components/CustomLink";
 import EmptyTable from "components/EmptyTable";
 // @ts-ignore
@@ -29,7 +38,7 @@ export interface IQueriesTableProps {
   isAnyTeamObserverPlus: boolean;
   router?: InjectedRouter;
   queryParams?: {
-    platform?: string;
+    platform?: SelectedPlatform;
     page?: string;
     query?: string;
     order_key?: string;
@@ -91,6 +100,38 @@ const QueriesTable = ({
   currentTeamId,
 }: IQueriesTableProps): JSX.Element | null => {
   const { currentUser } = useContext(AppContext);
+
+  // Client side filtering bugs fixed with bypassing TableContainer filters
+  // queriesState tracks search filter and compatible platform filter
+  // to correctly show filtered queries and filtered count
+  // isQueryStateLoading prevents flashing of unfiltered count during clientside filtering
+  const [queriesState, setQueriesState] = useState<IEnhancedQuery[]>([]);
+  const [isQueriesStateLoading, setIsQueriesStateLoading] = useState(true);
+
+  useEffect(() => {
+    setIsQueriesStateLoading(true);
+    if (queriesList) {
+      setQueriesState(
+        queriesList.filter((query) => {
+          const filterSearchQuery = queryParams?.query
+            ? query.name
+                .toLowerCase()
+                .includes(queryParams?.query.toLowerCase())
+            : true;
+          const compatiblePlatforms =
+            checkPlatformCompatibility(query.query).platforms || [];
+
+          const filterCompatiblePlatform =
+            queryParams?.platform && queryParams?.platform !== "all"
+              ? compatiblePlatforms.includes(queryParams?.platform)
+              : true;
+
+          return filterSearchQuery && filterCompatiblePlatform;
+        }) || []
+      );
+    }
+    setIsQueriesStateLoading(false);
+  }, [queriesList, queryParams]);
 
   // Functions to avoid race conditions
   const initialSearchQuery = (() => queryParams?.query ?? "")();
@@ -236,6 +277,15 @@ const QueriesTable = ({
     );
   }, [platform, queryParams, router]);
 
+  const renderQueriesCount = useCallback(() => {
+    // Fixes flashing incorrect count before clientside filtering
+    if (isQueriesStateLoading) {
+      return null;
+    }
+
+    return <TableCount name="queries" count={queriesState?.length} />;
+  }, [queriesState, isQueriesStateLoading]);
+
   const columnConfigs = useMemo(
     () =>
       currentUser &&
@@ -281,14 +331,15 @@ const QueriesTable = ({
       } as IActionButtonProps),
     [onDeleteQueryClick]
   );
+
   return columnConfigs && !isLoading ? (
     <div className={`${baseClass}`}>
       <TableContainer
         resultsTitle="queries"
         columnConfigs={columnConfigs}
-        data={queriesList}
-        filters={{ global: trimmedSearchQuery }}
-        isLoading={isLoading}
+        data={queriesState}
+        filters={{ name: trimmedSearchQuery }}
+        isLoading={isLoading || isQueriesStateLoading}
         defaultSortHeader={sortHeader || DEFAULT_SORT_HEADER}
         defaultSortDirection={sortDirection || DEFAULT_SORT_DIRECTION}
         defaultSearchQuery={trimmedSearchQuery}
@@ -308,7 +359,7 @@ const QueriesTable = ({
         primarySelectAction={deleteQueryTableActionButtonProps}
         // TODO - consolidate this functionality within `filters`
         selectedDropdownFilter={platform}
-        show0Count
+        renderCount={renderQueriesCount}
       />
     </div>
   ) : (
