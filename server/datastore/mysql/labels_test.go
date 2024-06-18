@@ -1024,7 +1024,10 @@ func testListHostsInLabelFailingPolicies(t *testing.T, ds *Datastore) {
 	checkLabelHostIssues(t, ds, hosts, l1.ID, filter, h1.ID, fleet.HostListOptions{DisableFailingPolicies: true}, 0)
 }
 
-func checkLabelHostIssues(t *testing.T, ds *Datastore, hosts []*fleet.Host, lid uint, filter fleet.TeamFilter, hid uint, opts fleet.HostListOptions, expected int) {
+func checkLabelHostIssues(
+	t *testing.T, ds *Datastore, hosts []*fleet.Host, lid uint, filter fleet.TeamFilter, hid uint, opts fleet.HostListOptions,
+	expected uint64,
+) {
 	hosts = listHostsInLabelCheckCount(t, ds, filter, lid, opts, 10)
 	foundH2 := false
 	var foundHost *fleet.Host

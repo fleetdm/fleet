@@ -188,7 +188,9 @@ const SoftwareTable = ({
   // determines if a user be able to search in the table
   const searchable =
     isSoftwareEnabled &&
-    (!!tableData || query !== "" || softwareFilter === "vulnerableSoftware");
+    ((tableData && tableData.length > 0) ||
+      query !== "" ||
+      softwareFilter !== "allSoftware");
 
   const handleShowVersionsToggle = () => {
     const queryParams: Record<string, string | number | undefined> = {
@@ -276,6 +278,10 @@ const SoftwareTable = ({
   };
 
   const renderCustomFilters = () => {
+    // Hide filters if no software is detected with no filters present
+    if (query === "" && !showVersions && softwareFilter === "allSoftware")
+      return <></>;
+
     const options = showVersions
       ? SOFTWARE_VERSIONS_DROPDOWN_OPTIONS
       : SOFTWARE_TITLES_DROPDOWN_OPTIONS;
@@ -327,8 +333,7 @@ const SoftwareTable = ({
           <EmptySoftwareTable
             softwareFilter={softwareFilter}
             isSoftwareDisabled={!isSoftwareEnabled}
-            isCollectingSoftware={false} // TODO: update with new API
-            isSearching={query !== ""}
+            isNotDetectingSoftware={query === ""}
           />
         )}
         defaultSortHeader={orderKey}

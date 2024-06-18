@@ -24,8 +24,8 @@ import (
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/async"
-	"github.com/go-kit/kit/log"
-	"github.com/go-kit/kit/log/level"
+	"github.com/go-kit/log"
+	"github.com/go-kit/log/level"
 	"github.com/spf13/cast"
 )
 
@@ -1711,7 +1711,15 @@ func directIngestMDMMac(ctx context.Context, logger log.Logger, host *fleet.Host
 		}
 		if fleetEnrollRef != "" {
 			if err := ds.SetOrUpdateHostEmailsFromMdmIdpAccounts(ctx, host.ID, fleetEnrollRef); err != nil {
-				return ctxerr.Wrap(ctx, err, "updating host emails from mdm idp accounts")
+				if !fleet.IsNotFound(err) {
+					return ctxerr.Wrap(ctx, err, "updating host emails from mdm idp accounts")
+				}
+
+				level.Warn(logger).Log(
+					"component", "service",
+					"method", "directIngestMDMMac",
+					"msg", err.Error(),
+				)
 			}
 		}
 	}

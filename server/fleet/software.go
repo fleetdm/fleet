@@ -267,6 +267,8 @@ type SoftwareListOptions struct {
 type SoftwareIterQueryOptions struct {
 	ExcludedSources []string // what sources to exclude
 	IncludedSources []string // what sources to include
+	NameMatch       string   // mysql regex to filter software by name
+	NameExclude     string   // mysql regex to filter software by name
 }
 
 // IsValid checks that either ExcludedSources or IncludedSources is specified but not both

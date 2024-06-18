@@ -690,9 +690,17 @@ func (h *Host) IsDEPAssignedToFleet() bool {
 func (h *Host) IsEligibleForDEPMigration(isConnectedToFleetMDM bool) bool {
 	return h.IsOsqueryEnrolled() &&
 		h.IsDEPAssignedToFleet() &&
+		h.MDMInfo != nil &&
 		h.MDMInfo.HasJSONProfileAssigned() &&
 		h.MDMInfo.Enrolled &&
-		!isConnectedToFleetMDM
+		// as a special case for migration with user interaction, we
+		// also check the information stored in host_mdm, and assume
+		// the host needs migration if it's not Fleet
+		//
+		// this is because we can't always rely on nano setting
+		// `nano_enrollment.active = 1` since sometimes Fleet won't get
+		// the checkout message from the host.
+		(!isConnectedToFleetMDM || h.MDMInfo.Name != WellKnownMDMFleet)
 }
 
 // NeedsDEPEnrollment returns true if the host should be DEP enrolled into
@@ -765,8 +773,9 @@ func (h *Host) DisplayName() string {
 }
 
 type HostIssues struct {
-	TotalIssuesCount     int `json:"total_issues_count" db:"total_issues_count" csv:"issues"` // when exporting in CSV, we want that value as the "issues" column
-	FailingPoliciesCount int `json:"failing_policies_count" db:"failing_policies_count" csv:"-"`
+	FailingPoliciesCount         uint64  `json:"failing_policies_count" db:"failing_policies_count" csv:"-"`
+	CriticalVulnerabilitiesCount *uint64 `json:"critical_vulnerabilities_count,omitempty" db:"critical_vulnerabilities_count" csv:"-"` // We set it to nil if the license is not premium
+	TotalIssuesCount             uint64  `json:"total_issues_count" db:"total_issues_count" csv:"issues"`                              // when exporting in CSV, we want that value as the "issues" column
 }
 
 func (h Host) AuthzType() string {
