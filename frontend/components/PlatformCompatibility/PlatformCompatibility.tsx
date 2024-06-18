@@ -52,6 +52,8 @@ const PlatformCompatibility = ({
     return null;
   }
 
+  const displayPlatforms = formatPlatformsForDisplay(compatiblePlatforms);
+
   const renderCompatiblePlatforms = () => {
     if (error || !compatiblePlatforms?.length) {
       return displayIncompatibilityText(error || ERROR_NO_COMPATIBLE_TABLES);
@@ -75,7 +77,6 @@ const PlatformCompatibility = ({
     });
   };
 
-  const displayPlatforms = formatPlatformsForDisplay(compatiblePlatforms);
   return (
     <div className={baseClass}>
       <b>
