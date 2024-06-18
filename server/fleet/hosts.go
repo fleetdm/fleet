@@ -804,7 +804,7 @@ type HostMaintenanceWindow struct {
 	StartsAt time.Time `json:"starts_at" db:"start_time"`
 	// TimeZone is the IANA timezone of the user's google calendar, retrieved from TODO - likely from
 	// datastore as well
-	TimeZone string `json:"timezone"`
+	TimeZone string `json:"timezone,omitempty"`
 }
 
 const (
