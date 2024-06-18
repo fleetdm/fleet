@@ -1,4 +1,10 @@
-import React, { useCallback, useContext, useMemo, useState } from "react";
+import React, {
+  useCallback,
+  useContext,
+  useMemo,
+  useState,
+  useEffect,
+} from "react";
 import { useQuery } from "react-query";
 import { Link } from "react-router";
 
@@ -18,6 +24,7 @@ import { DEFAULT_CREATE_USER_ERRORS } from "utilities/constants";
 import TableContainer from "components/TableContainer";
 import TableDataError from "components/DataError";
 import Spinner from "components/Spinner";
+import TableCount from "components/TableContainer/TableCount";
 import CreateUserModal from "pages/admin/UserManagementPage/components/CreateUserModal";
 import EditUserModal from "../../../UserManagementPage/components/EditUserModal";
 import {
@@ -74,6 +81,10 @@ const UsersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
   const [editUserErrors, setEditUserErrors] = useState<IUserFormErrors>(
     DEFAULT_CREATE_USER_ERRORS
   );
+  const [teamUsersState, setTeamUsersState] = useState<ITeamUsersTableData[]>(
+    []
+  );
+  const [usersSearchString, setUsersSearchString] = useState("");
 
   const toggleAddUserModal = useCallback(() => {
     setShowAddUserModal(!showAddUserModal);
@@ -121,6 +132,18 @@ const UsersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
     () => teams?.find((team) => team.id === teamIdForApi),
     [teams, teamIdForApi]
   );
+
+  useEffect(() => {
+    setTeamUsersState(() => {
+      return (
+        teamUsers?.filter((user) => {
+          return user.name
+            .toLowerCase()
+            .includes(usersSearchString.toLowerCase());
+        }) || []
+      );
+    });
+  }, [usersSearchString, teamUsers]);
 
   // TOGGLE MODALS
 
@@ -380,6 +403,14 @@ const UsersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
 
   const userIds = teamUsers ? teamUsers.map((user) => user.id) : [];
 
+  const renderUsersCount = useCallback(() => {
+    if (teamUsersState.length === 0 && searchString === "") {
+      return <></>;
+    }
+
+    return <TableCount name="users" count={teamUsersState.length} />;
+  }, [teamUsersState.length]);
+
   return (
     <div className={baseClass}>
       <p className={`${baseClass}__page-description`}>
@@ -426,6 +457,7 @@ const UsersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
           showMarkAllPages={false}
           isAllPagesSelected={false}
           searchable={userIds.length > 0 || searchString !== ""}
+          renderCount={renderUsersCount}
         />
       )}
       {showAddUserModal && currentTeamDetails ? (
