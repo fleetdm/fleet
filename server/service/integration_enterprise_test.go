@@ -3393,7 +3393,7 @@ func (s *integrationEnterpriseTestSuite) TestListHosts() {
 	ctx := context.Background()
 	qr, err := s.ds.NewQuery(
 		ctx, &fleet.Query{
-			Name:           "TestQueryEnterpriseGlobalPolicy",
+			Name:           "TestQueryEnterpriseTestListHosts",
 			Description:    "Some description",
 			Query:          "select * from osquery;",
 			ObserverCanRun: true,
