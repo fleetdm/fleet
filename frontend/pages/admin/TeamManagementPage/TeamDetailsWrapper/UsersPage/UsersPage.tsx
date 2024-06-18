@@ -81,10 +81,6 @@ const UsersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
   const [editUserErrors, setEditUserErrors] = useState<IUserFormErrors>(
     DEFAULT_CREATE_USER_ERRORS
   );
-  const [teamUsersState, setTeamUsersState] = useState<ITeamUsersTableData[]>(
-    []
-  );
-  const [usersSearchString, setUsersSearchString] = useState("");
 
   const toggleAddUserModal = useCallback(() => {
     setShowAddUserModal(!showAddUserModal);
@@ -132,18 +128,6 @@ const UsersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
     () => teams?.find((team) => team.id === teamIdForApi),
     [teams, teamIdForApi]
   );
-
-  useEffect(() => {
-    setTeamUsersState(() => {
-      return (
-        teamUsers?.filter((user) => {
-          return user.name
-            .toLowerCase()
-            .includes(usersSearchString.toLowerCase());
-        }) || []
-      );
-    });
-  }, [usersSearchString, teamUsers]);
 
   // TOGGLE MODALS
 
@@ -404,12 +388,12 @@ const UsersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
   const userIds = teamUsers ? teamUsers.map((user) => user.id) : [];
 
   const renderUsersCount = useCallback(() => {
-    if (teamUsersState.length === 0 && searchString === "") {
+    if (teamUsers?.length === 0 && searchString === "") {
       return <></>;
     }
 
-    return <TableCount name="users" count={teamUsersState.length} />;
-  }, [teamUsersState.length]);
+    return <TableCount name="users" count={teamUsers?.length} />;
+  }, [teamUsers?.length]);
 
   return (
     <div className={baseClass}>
