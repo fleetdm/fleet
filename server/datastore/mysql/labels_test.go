@@ -3,12 +3,12 @@ package mysql
 import (
 	"context"
 	"fmt"
-	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"strconv"
 	"testing"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"

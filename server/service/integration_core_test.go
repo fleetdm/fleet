@@ -10304,7 +10304,7 @@ func (s *integrationTestSuite) TestHostsReportWithPolicyResults() {
 			res.Body.Close()
 			require.NoError(t, err)
 			tc.checkRows(t, rows)
-			// Test the same with "disable_failing_policies=true" which should not change the result.
+			// Test the same with "disable_issues=true" which should not change the result.
 			res = s.DoRaw(
 				"GET", "/api/latest/fleet/hosts/report", nil, http.StatusOK, append(tc.args, "format", "csv", "disable_issues", "true")...,
 			)
