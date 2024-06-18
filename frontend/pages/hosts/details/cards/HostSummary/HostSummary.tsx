@@ -189,12 +189,6 @@ const HostSummary = ({
     disk_encryption_enabled: diskEncryptionEnabled,
   } = summaryData;
 
-  // TODO -remove
-  summaryData.maintenance_window = {
-    starts_at: "2024-08-19T02:02:17Z",
-    timezone: "America/New_York",
-  };
-
   const isChromeHost = platform === "chrome";
   const isIosOrIpadosHost = platform === "ios" || platform === "ipados";
 
