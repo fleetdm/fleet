@@ -11,7 +11,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/nettest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
-	"github.com/go-kit/kit/log"
+	"github.com/go-kit/log"
 	"github.com/stretchr/testify/require"
 	"github.com/tj/assert"
 )
@@ -82,7 +82,6 @@ func TestLoadCVEMeta(t *testing.T) {
 }
 
 func TestDownloadCPETranslations(t *testing.T) {
-	t.Skip("REMOVEME: when API keys are restored")
 	nettest.Run(t)
 
 	tempDir := t.TempDir()

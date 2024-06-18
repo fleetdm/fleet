@@ -5063,7 +5063,6 @@ func (s *integrationMDMTestSuite) TestMDMMigration() {
 		s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host.OrbitNodeKey)), http.StatusOK, &orbitConfigResp)
 		require.True(t, orbitConfigResp.Notifications.NeedsMDMMigration)
 		require.False(t, orbitConfigResp.Notifications.RenewEnrollmentProfile)
-		cleanAssignmentStatus()
 
 		// simulate that the device needs to be enrolled in fleet, DEP capable
 		err = s.ds.SetOrUpdateMDMData(
@@ -5109,6 +5108,16 @@ func (s *integrationMDMTestSuite) TestMDMMigration() {
 			"",
 		)
 		require.NoError(t, err)
+		mdmDevice := mdmtest.NewTestMDMClientAppleDirect(mdmtest.AppleEnrollInfo{
+			SCEPChallenge: s.scepChallenge,
+			SCEPURL:       s.server.URL + apple_mdm.SCEPPath,
+			MDMURL:        s.server.URL + apple_mdm.MDMPath,
+		}, "MacBookPro16,1")
+		mdmDevice.SerialNumber = host.HardwareSerial
+		mdmDevice.UUID = host.UUID
+		err = mdmDevice.Enroll()
+		require.NoError(t, err)
+		require.NoError(t, err)
 		getDesktopResp = fleetDesktopResponse{}
 		res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/desktop", nil, http.StatusOK)
 		require.NoError(t, json.NewDecoder(res.Body).Decode(&getDesktopResp))
@@ -5127,6 +5136,51 @@ func (s *integrationMDMTestSuite) TestMDMMigration() {
 		s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host.OrbitNodeKey)), http.StatusOK, &orbitConfigResp)
 		require.False(t, orbitConfigResp.Notifications.NeedsMDMMigration)
 		require.False(t, orbitConfigResp.Notifications.RenewEnrollmentProfile)
+
+		// simulate a host that was reset to factory, but fleet still has an mdm record active
+		err = s.ds.SetOrUpdateMDMData(
+			ctx,
+			host.ID,
+			false,
+			true,
+			s.server.URL,
+			false,
+			fleet.WellKnownMDMSimpleMDM,
+			"",
+		)
+		require.NoError(t, err)
+		getDesktopResp = fleetDesktopResponse{}
+		res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/desktop", nil, http.StatusOK)
+		require.NoError(t, json.NewDecoder(res.Body).Decode(&getDesktopResp))
+		require.NoError(t, res.Body.Close())
+		require.NoError(t, getDesktopResp.Err)
+		require.Zero(t, *getDesktopResp.FailingPolicies)
+		require.True(t, getDesktopResp.Notifications.NeedsMDMMigration)
+		require.False(t, getDesktopResp.Notifications.RenewEnrollmentProfile)
+		require.Equal(t, acResp.OrgInfo.OrgLogoURL, getDesktopResp.Config.OrgInfo.OrgLogoURL)
+		require.Equal(t, acResp.OrgInfo.OrgLogoURLLightBackground, getDesktopResp.Config.OrgInfo.OrgLogoURLLightBackground)
+		require.Equal(t, acResp.OrgInfo.ContactURL, getDesktopResp.Config.OrgInfo.ContactURL)
+		require.Equal(t, acResp.OrgInfo.OrgName, getDesktopResp.Config.OrgInfo.OrgName)
+		require.Equal(t, acResp.MDM.MacOSMigration.Mode, getDesktopResp.Config.MDM.MacOSMigration.Mode)
+
+		orbitConfigResp = orbitGetConfigResponse{}
+		s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host.OrbitNodeKey)), http.StatusOK, &orbitConfigResp)
+		require.True(t, orbitConfigResp.Notifications.NeedsMDMMigration)
+		require.False(t, orbitConfigResp.Notifications.RenewEnrollmentProfile)
+
+		// clean up nano tables
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(context.Background(), `
+			DELETE FROM nano_enrollments WHERE id = ?
+			`, host.UUID)
+			return err
+		})
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(context.Background(), `
+			DELETE FROM nano_devices WHERE id = ?
+			`, host.UUID)
+			return err
+		})
 	}
 
 	token := "token_test_migration"
@@ -5223,6 +5277,9 @@ func (s *integrationMDMTestSuite) TestAppConfigWindowsMDM() {
 		}
 	}
 
+	// turn on MDM for a host
+	orbitHost, _ := createWindowsHostThenEnrollMDM(s.ds, s.server.URL, t)
+
 	// disable Microsoft MDM
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 		"mdm": { "windows_enabled_and_configured": false }
@@ -5230,16 +5287,11 @@ func (s *integrationMDMTestSuite) TestAppConfigWindowsMDM() {
 	assert.False(t, acResp.MDM.WindowsEnabledAndConfigured)
 	s.lastActivityOfTypeMatches(fleet.ActivityTypeDisabledWindowsMDM{}.ActivityName(), `{}`, 0)
 
-	// set the win-no-team host as enrolled in Windows MDM
-	noTeamHost := hostsBySuffix["win-no-team"]
-	err = s.ds.SetOrUpdateMDMData(ctx, noTeamHost.ID, false, true, "https://example.com", false, fleet.WellKnownMDMFleet, "")
-	require.NoError(t, err)
-
 	// get the orbit config for win-no-team should return true for the
 	// unenrollment notification
 	var resp orbitGetConfigResponse
 	s.DoJSON("POST", "/api/fleet/orbit/config",
-		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *noTeamHost.OrbitNodeKey)),
+		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *orbitHost.OrbitNodeKey)),
 		http.StatusOK, &resp)
 	require.True(t, resp.Notifications.NeedsProgrammaticWindowsMDMUnenrollment)
 	require.False(t, resp.Notifications.NeedsProgrammaticWindowsMDMEnrollment)
@@ -6314,30 +6366,12 @@ func (s *integrationMDMTestSuite) TestValidManagementUnenrollRequest() {
 
 func (s *integrationMDMTestSuite) TestRunMDMCommands() {
 	t := s.T()
-	ctx := context.Background()
 
 	// create a Windows host enrolled in MDM
 	enrolledWindows := createOrbitEnrolledHost(t, "windows", "h1", s.ds)
-	deviceID := "DB257C3A08778F4FB61E2749066C1F27"
-	enrolledDevice := &fleet.MDMWindowsEnrolledDevice{
-		MDMDeviceID:            deviceID,
-		MDMHardwareID:          uuid.New().String() + uuid.New().String(),
-		MDMDeviceState:         uuid.New().String(),
-		MDMDeviceType:          "CIMClient_Windows",
-		MDMDeviceName:          "DESKTOP-1C3ARC1",
-		MDMEnrollType:          "ProgrammaticEnrollment",
-		MDMEnrollUserID:        "",
-		MDMEnrollProtoVersion:  "5.0",
-		MDMEnrollClientVersion: "10.0.19045.2965",
-		MDMNotInOOBE:           false,
-		HostUUID:               enrolledWindows.UUID,
-	}
-	err := s.ds.SetOrUpdateMDMData(ctx, enrolledWindows.ID, false, true, s.server.URL, false, fleet.WellKnownMDMFleet, "")
-	require.NoError(t, err)
-
-	err = s.ds.MDMWindowsInsertEnrolledDevice(context.Background(), enrolledDevice)
-	require.NoError(t, err)
-	err = s.ds.UpdateMDMWindowsEnrollmentsHostUUID(context.Background(), enrolledDevice.HostUUID, enrolledDevice.MDMDeviceID)
+	//deviceID := "DB257C3A08778F4FB61E2749066C1F27"
+	mdmDevice := mdmtest.NewTestMDMClientWindowsProgramatic(s.server.URL, *enrolledWindows.OrbitNodeKey)
+	err := mdmDevice.Enroll()
 	require.NoError(t, err)
 
 	// create an unenrolled Windows host
@@ -6624,8 +6658,9 @@ func (s *integrationMDMTestSuite) TestHostDiskEncryptionKey() {
 	msg := extractServerErrorText(res.Body)
 	require.Contains(t, msg, "host is not enrolled with fleet")
 
-	// mark it as enrolled in Fleet
-	err := s.ds.SetOrUpdateMDMData(ctx, host.ID, false, true, s.server.URL, false, fleet.WellKnownMDMFleet, "")
+	// enroll it in fleet
+	mdmDevice := mdmtest.NewTestMDMClientWindowsProgramatic(s.server.URL, *host.OrbitNodeKey)
+	err := mdmDevice.Enroll()
 	require.NoError(t, err)
 
 	// set its encryption key
@@ -6638,6 +6673,10 @@ func (s *integrationMDMTestSuite) TestHostDiskEncryptionKey() {
 	require.NoError(t, err)
 	require.NotNil(t, hdek.Decryptable)
 	require.True(t, *hdek.Decryptable)
+
+	// mark it as non-server
+	err = s.ds.SetOrUpdateMDMData(ctx, host.ID, false, true, s.server.URL, false, fleet.WellKnownMDMFleet, "")
+	require.NoError(t, err)
 
 	var hostResp getHostResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &hostResp)
@@ -8039,7 +8078,7 @@ func (s *integrationMDMTestSuite) TestLockUnlockWipeMacOS() {
 
 	// lock the host
 	var lockResp lockHostResponse
-	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/lock", host.ID), nil, http.StatusOK, &lockResp)
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/lock", host.ID), nil, http.StatusOK, &lockResp, "view_pin", "true")
 	assert.Len(t, lockResp.UnlockPIN, 6)
 
 	// refresh the host's status, it is now pending lock
@@ -8170,6 +8209,10 @@ func (s *integrationMDMTestSuite) TestLockUnlockWipeMacOS() {
 	require.Equal(t, "unlocked", *getHostResp.Host.MDM.DeviceStatus)
 	require.NotNil(t, getHostResp.Host.MDM.PendingAction)
 	require.Equal(t, "", *getHostResp.Host.MDM.PendingAction)
+
+	// lock the host without viewing the PIN
+	s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/lock", host.ID), nil, http.StatusNoContent)
+
 }
 
 func (s *integrationMDMTestSuite) TestZCustomConfigurationWebURL() {

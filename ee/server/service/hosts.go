@@ -38,7 +38,7 @@ func (svc *Service) OSVersion(ctx context.Context, osID uint, teamID *uint, incl
 	return svc.Service.OSVersion(ctx, osID, teamID, true)
 }
 
-func (svc *Service) LockHost(ctx context.Context, hostID uint) (unlockPIN string, err error) {
+func (svc *Service) LockHost(ctx context.Context, hostID uint, viewPIN bool) (unlockPIN string, err error) {
 	// First ensure the user has access to list hosts, then check the specific
 	// host once team_id is loaded.
 	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
@@ -69,19 +69,16 @@ func (svc *Service) LockHost(ctx context.Context, hostID uint) (unlockPIN string
 		}
 
 		// on macOS, the lock command requires the host to be MDM-enrolled in Fleet
-		hostMDM, err := svc.ds.GetHostMDM(ctx, host.ID)
+		connected, err := svc.ds.IsHostConnectedToFleetMDM(ctx, host)
 		if err != nil {
+			return "", ctxerr.Wrap(ctx, err, "checking if host is connected to Fleet")
+		}
+		if !connected {
 			if fleet.IsNotFound(err) {
 				return "", ctxerr.Wrap(
 					ctx, fleet.NewInvalidArgumentError("host_id", "Can't lock the host because it doesn't have MDM turned on."),
 				)
 			}
-			return "", ctxerr.Wrap(ctx, err, "get host MDM information")
-		}
-		if !hostMDM.IsFleetEnrolled() {
-			return "", ctxerr.Wrap(
-				ctx, fleet.NewInvalidArgumentError("host_id", "Can't lock the host because it doesn't have MDM turned on."),
-			)
 		}
 
 	case "windows", "linux":
@@ -155,7 +152,7 @@ func (svc *Service) LockHost(ctx context.Context, hostID uint) (unlockPIN string
 	}
 
 	// all good, go ahead with queuing the lock request.
-	return svc.enqueueLockHostRequest(ctx, host, lockWipe)
+	return svc.enqueueLockHostRequest(ctx, host, lockWipe, viewPIN)
 }
 
 func (svc *Service) UnlockHost(ctx context.Context, hostID uint) (string, error) {
@@ -317,14 +314,11 @@ func (svc *Service) WipeHost(ctx context.Context, hostID uint) error {
 
 	if requireMDM {
 		// the wipe command requires the host to be MDM-enrolled in Fleet
-		hostMDM, err := svc.ds.GetHostMDM(ctx, host.ID)
+		connected, err := svc.ds.IsHostConnectedToFleetMDM(ctx, host)
 		if err != nil {
-			if fleet.IsNotFound(err) {
-				return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", "Can't wipe the host because it doesn't have MDM turned on."))
-			}
-			return ctxerr.Wrap(ctx, err, "get host MDM information")
+			return ctxerr.Wrap(ctx, err, "checking if host is connected to Fleet")
 		}
-		if !hostMDM.IsFleetEnrolled() {
+		if !connected {
 			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", "Can't wipe the host because it doesn't have MDM turned on."))
 		}
 	}
@@ -351,7 +345,7 @@ func (svc *Service) WipeHost(ctx context.Context, hostID uint) error {
 	return svc.enqueueWipeHostRequest(ctx, host, lockWipe)
 }
 
-func (svc *Service) enqueueLockHostRequest(ctx context.Context, host *fleet.Host, lockStatus *fleet.HostLockWipeStatus) (
+func (svc *Service) enqueueLockHostRequest(ctx context.Context, host *fleet.Host, lockStatus *fleet.HostLockWipeStatus, viewPIN bool) (
 	unlockPIN string, err error,
 ) {
 	vc, ok := viewer.FromContext(ctx)
@@ -371,6 +365,7 @@ func (svc *Service) enqueueLockHostRequest(ctx context.Context, host *fleet.Host
 			fleet.ActivityTypeLockedHost{
 				HostID:          host.ID,
 				HostDisplayName: host.DisplayName(),
+				ViewPIN:         viewPIN,
 			},
 		); err != nil {
 			return "", ctxerr.Wrap(ctx, err, "create activity for darwin lock host request")

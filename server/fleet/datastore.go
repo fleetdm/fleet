@@ -290,6 +290,12 @@ type Datastore interface {
 	// HostnamesByIdentifiers returns the hostnames corresponding to the provided identifiers,
 	// as understood by HostByIdentifier.
 	HostnamesByIdentifiers(ctx context.Context, identifiers []string) ([]string, error)
+	// UpdateHostIssuesFailingPolicies updates the failing policies count in host_issues table for the provided hosts.
+	UpdateHostIssuesFailingPolicies(ctx context.Context, hostIDs []uint) error
+	// UpdateHostIssuesVulnerabilities updates the critical vulnerabilities counts in host_issues.
+	UpdateHostIssuesVulnerabilities(ctx context.Context) error
+	// CleanupHostIssues deletes host issues that no longer belong to a host.
+	CleanupHostIssues(ctx context.Context) error
 
 	TotalAndUnseenHostsSince(ctx context.Context, teamID *uint, daysCount int) (total int, unseen []uint, err error)
 
@@ -328,6 +334,17 @@ type Datastore interface {
 	// ListIOSAndIPadOSToRefetch returns the UUIDs of iPhones/iPads that should be refetched (their details haven't been
 	// updated in the given `interval`).
 	ListIOSAndIPadOSToRefetch(ctx context.Context, refetchInterval time.Duration) (uuids []string, err error)
+
+	// IsHostConnectedToFleetMDM verifies if the host has an active Fleet MDM enrollment with this server
+	IsHostConnectedToFleetMDM(ctx context.Context, host *Host) (bool, error)
+
+	// AreHostsConnectedToFleetMDM checks each host MDM enrollment with
+	// this server and returns a map indexed by the host uuid and a boolean
+	// indicating if the enrollment is active.
+	//
+	// This function exists to prevent n+1 queries when we need to check
+	// the MDM status of a list of hosts.
+	AreHostsConnectedToFleetMDM(ctx context.Context, hosts []*Host) (map[string]bool, error)
 
 	AggregatedMunkiVersion(ctx context.Context, teamID *uint) ([]AggregatedMunkiVersion, time.Time, error)
 	AggregatedMunkiIssues(ctx context.Context, teamID *uint) ([]AggregatedMunkiIssue, time.Time, error)

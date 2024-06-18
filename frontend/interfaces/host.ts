@@ -175,6 +175,7 @@ export interface IHostMdmData {
   macos_setup?: IMdmMacOsSetup;
   device_status: HostMdmDeviceStatus;
   pending_action: HostMdmPendingAction;
+  connected_to_fleet?: boolean;
 }
 
 export interface IMunkiIssue {

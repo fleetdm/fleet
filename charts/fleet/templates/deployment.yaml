@@ -267,7 +267,7 @@ spec:
           - name: {{ $key }}
             value: {{ $value | quote }}
           {{- end }}
-          ## APEND ENVIRONMENT VARIABLES FROM SECRETS/CMs
+          ## APPEND ENVIRONMENT VARIABLES FROM SECRETS/CMs
           {{- range .Values.envsFrom }}
           - name: {{ .name }}
             valueFrom:

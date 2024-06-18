@@ -843,9 +843,7 @@ func getHostsCommand() *cli.Command {
 					}
 
 					if c.Bool("mdm") {
-						// hosts enrolled (automatic or manual) in Fleet's MDM server
-						query.Set("mdm_name", fleet.WellKnownMDMFleet)
-						query.Set("mdm_enrollment_status", string(fleet.MDMEnrollStatusEnrolled))
+						query.Set("connected_to_fleet", "true")
 					}
 					if c.Bool("mdm-pending") {
 						// hosts pending enrollment in Fleet's MDM server
