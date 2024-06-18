@@ -441,6 +441,21 @@ agent_options:
           etc:
             - /etc/%%
 ```
+
+## Script execution timeout
+
+The `script_execution_timeout` allows you to change the default script execution timeout of 5 minutes.
+
+```yaml
+agent_options:
+  config:
+    options:
+      distributed_interval: 3
+      distributed_tls_max_attempts: 3
+      logger_tls_period: 10
+  script_execution_timeout: 600
+```
+
 ## Auto table construction
 
 You can use Fleet to query local SQLite databases as tables. For more information on creating ATC configuration from a SQLite database, check out the [Automatic Table Construction section](https://osquery.readthedocs.io/en/stable/deployment/configuration/#automatic-table-construction) of the osquery documentation.
