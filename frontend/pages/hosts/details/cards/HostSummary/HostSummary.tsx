@@ -15,12 +15,13 @@ import Button from "components/buttons/Button";
 import Icon from "components/Icon/Icon";
 import Card from "components/Card";
 import DataSet from "components/DataSet";
-import DiskSpaceGraph from "components/DiskSpaceGraph";
+import StatusIndicator from "components/StatusIndicator";
+import IssuesIndicator from "pages/hosts/components/IssuesIndicator";
+import DiskSpaceIndicator from "pages/hosts/components/DiskSpaceIndicator";
 import { HumanTimeDiffWithFleetLaunchCutoff } from "components/HumanTimeDiffWithDateTip";
 import PremiumFeatureIconWithTooltip from "components/PremiumFeatureIconWithTooltip";
 import { humanHostMemory, wrapFleetHelper } from "utilities/helpers";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
-import StatusIndicator from "components/StatusIndicator";
 import { COLORS } from "styles/var/colors";
 
 import OSSettingsIndicator from "./OSSettingsIndicator";
@@ -107,11 +108,10 @@ interface IHostSummaryProps {
   summaryData: any; // TODO: create interfaces for this and use consistently across host pages and related helpers
   bootstrapPackageData?: IBootstrapPackageData;
   isPremiumTier?: boolean;
-  isSandboxMode?: boolean;
   toggleOSSettingsModal?: () => void;
   toggleBootstrapPackageModal?: () => void;
   hostMdmProfiles?: IHostMdmProfile[];
-  mdmName?: string;
+  isConnectedToFleetMdm?: boolean;
   showRefetchSpinner: boolean;
   onRefetchHost: (
     evt: React.MouseEvent<HTMLButtonElement, React.MouseEvent>
@@ -168,11 +168,10 @@ const HostSummary = ({
   summaryData,
   bootstrapPackageData,
   isPremiumTier,
-  isSandboxMode = false,
   toggleOSSettingsModal,
   toggleBootstrapPackageModal,
   hostMdmProfiles,
-  mdmName,
+  isConnectedToFleetMdm,
   showRefetchSpinner,
   onRefetchHost,
   renderActionDropdown,
@@ -228,30 +227,16 @@ const HostSummary = ({
 
   const renderIssues = () => (
     <DataSet
-      title={<>Issues{isSandboxMode && <PremiumFeatureIconWithTooltip />}</>}
+      title="Issues"
       value={
-        <>
-          <span
-            className="host-issue tooltip tooltip__tooltip-icon"
-            data-tip
-            data-for="host-issue-count"
-            data-tip-disable={false}
-          >
-            <Icon name="error-outline" color="ui-fleet-black-50" />
-          </span>
-          <ReactTooltip
-            place="bottom"
-            effect="solid"
-            backgroundColor={COLORS["tooltip-bg"]}
-            id="host-issue-count"
-            data-html
-          >
-            <span className={`tooltip__tooltip-text`}>
-              Failing policies ({summaryData.issues.failing_policies_count})
-            </span>
-          </ReactTooltip>
-          <span>{summaryData.issues.total_issues_count}</span>
-        </>
+        <IssuesIndicator
+          totalIssuesCount={summaryData.issues.total_issues_count}
+          criticalVulnerabilitiesCount={
+            summaryData.issues.critical_vulnerabilities_count
+          }
+          failingPoliciesCount={summaryData.issues.failing_policies_count}
+          tooltipPosition="bottom"
+        />
       }
     />
   );
@@ -274,7 +259,7 @@ const HostSummary = ({
       <DataSet
         title="Disk space"
         value={
-          <DiskSpaceGraph
+          <DiskSpaceIndicator
             baseClass="info-flex"
             gigsDiskSpaceAvailable={summaryData.gigs_disk_space_available}
             percentDiskSpaceAvailable={summaryData.percent_disk_space_available}
@@ -403,17 +388,14 @@ const HostSummary = ({
             }
           />
         )}
-        {(summaryData.issues?.total_issues_count > 0 || isSandboxMode) &&
-          isPremiumTier &&
+        {summaryData.issues?.total_issues_count > 0 &&
           !isIosOrIpadosHost &&
           renderIssues()}
         {isPremiumTier && renderHostTeam()}
         {/* Rendering of OS Settings data */}
         {(platform === "darwin" || platform === "windows") &&
           isPremiumTier &&
-          // TODO: API INTEGRATION: change this when we figure out why the API is
-          // returning "Fleet" or "FleetDM" for the MDM name.
-          mdmName?.includes("Fleet") && // show if 1 - host is enrolled in Fleet MDM, and
+          isConnectedToFleetMdm && // show if 1 - host is enrolled in Fleet MDM, and
           hostMdmProfiles &&
           hostMdmProfiles.length > 0 && ( // 2 - host has at least one setting (profile) enforced
             <DataSet

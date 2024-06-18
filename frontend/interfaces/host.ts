@@ -175,6 +175,7 @@ export interface IHostMdmData {
   macos_setup?: IMdmMacOsSetup;
   device_status: HostMdmDeviceStatus;
   pending_action: HostMdmPendingAction;
+  connected_to_fleet?: boolean;
 }
 
 export interface IMunkiIssue {
@@ -251,6 +252,7 @@ export interface IHostEncrpytionKeyResponse {
 
 export interface IHostIssues {
   total_issues_count: number;
+  critical_vulnerabilities_count?: number; // Premium
   failing_policies_count: number;
 }
 

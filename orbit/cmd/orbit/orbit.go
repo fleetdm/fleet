@@ -1154,9 +1154,9 @@ func main() {
 			g.Add(desktopRunner.actor())
 		}
 
-		// --end-user-email is only supported on Windows (for macOS it gets the
+		// --end-user-email is only supported on Windows and Linux (for macOS it gets the
 		// email from the enrollment profile)
-		if runtime.GOOS == "windows" && c.String("end-user-email") != "" {
+		if (runtime.GOOS == "windows" || runtime.GOOS == "linux") && c.String("end-user-email") != "" {
 			if orbitClient.GetServerCapabilities().Has(fleet.CapabilityEndUserEmail) {
 				log.Debug().Msg("sending end-user email to Fleet")
 				if err := orbitClient.SetOrUpdateDeviceMappingEmail(c.String("end-user-email")); err != nil {

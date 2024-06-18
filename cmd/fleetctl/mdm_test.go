@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"slices"
@@ -36,14 +37,14 @@ func TestMDMRunCommand(t *testing.T) {
 		UUID:     "mac-enrolled",
 		Platform: "darwin",
 		MDMInfo:  &fleet.HostMDM{Enrolled: true, Name: fleet.WellKnownMDMFleet},
-		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("On (manual)")},
+		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("On (manual)"), ConnectedToFleet: ptr.Bool(true)},
 	}
 	winEnrolled := &fleet.Host{
 		ID:       2,
 		UUID:     "win-enrolled",
 		Platform: "windows",
 		MDMInfo:  &fleet.HostMDM{Enrolled: true, Name: fleet.WellKnownMDMFleet},
-		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("On (manual)")},
+		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("On (manual)"), ConnectedToFleet: ptr.Bool(true)},
 	}
 	macUnenrolled := &fleet.Host{
 		ID:       3,
@@ -65,42 +66,42 @@ func TestMDMRunCommand(t *testing.T) {
 		UUID:     "mac-enrolled-2",
 		Platform: "darwin",
 		MDMInfo:  &fleet.HostMDM{Enrolled: true, Name: fleet.WellKnownMDMFleet},
-		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("On (manual)")},
+		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("On (manual)"), ConnectedToFleet: ptr.Bool(true)},
 	}
 	winEnrolled2 := &fleet.Host{
 		ID:       7,
 		UUID:     "win-enrolled-2",
 		Platform: "windows",
 		MDMInfo:  &fleet.HostMDM{Enrolled: true, Name: fleet.WellKnownMDMFleet},
-		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("On (manual)")},
+		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("On (manual)"), ConnectedToFleet: ptr.Bool(true)},
 	}
 	macNonFleetEnrolled := &fleet.Host{
 		ID:       8,
 		UUID:     "mac-non-fleet-enrolled",
 		Platform: "darwin",
 		MDMInfo:  &fleet.HostMDM{Enrolled: true, Name: fleet.WellKnownMDMJamf},
-		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMJamf, EnrollmentStatus: ptr.String("On (manual)")},
+		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMJamf, EnrollmentStatus: ptr.String("On (manual)"), ConnectedToFleet: ptr.Bool(false)},
 	}
 	winNonFleetEnrolled := &fleet.Host{
 		ID:       9,
 		UUID:     "win-non-fleet-enrolled",
 		Platform: "windows",
 		MDMInfo:  &fleet.HostMDM{Enrolled: true, Name: fleet.WellKnownMDMIntune},
-		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMIntune, EnrollmentStatus: ptr.String("On (manual)")},
+		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMIntune, EnrollmentStatus: ptr.String("On (manual)"), ConnectedToFleet: ptr.Bool(false)},
 	}
 	macPending := &fleet.Host{
 		ID:       10,
 		UUID:     "mac-pending",
 		Platform: "darwin",
 		MDMInfo:  &fleet.HostMDM{Enrolled: false, Name: fleet.WellKnownMDMFleet},
-		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("Pending")},
+		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("Pending"), ConnectedToFleet: ptr.Bool(false)},
 	}
 	winPending := &fleet.Host{
 		ID:       11,
 		UUID:     "win-pending",
 		Platform: "windows",
 		MDMInfo:  &fleet.HostMDM{Enrolled: false, Name: fleet.WellKnownMDMFleet},
-		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("Pending")},
+		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("Pending"), ConnectedToFleet: ptr.Bool(false)},
 	}
 	hostByUUID := make(map[string]*fleet.Host)
 	hostByID := make(map[uint]*fleet.Host)
@@ -233,6 +234,13 @@ func TestMDMRunCommand(t *testing.T) {
 				}
 				return h.MDMInfo, nil
 			}
+			ds.AreHostsConnectedToFleetMDMFunc = func(ctx context.Context, hosts []*fleet.Host) (map[string]bool, error) {
+				res := make(map[string]bool, len(hosts))
+				for _, h := range hosts {
+					res[h.UUID] = h.MDM.ConnectedToFleet != nil && *h.MDM.ConnectedToFleet
+				}
+				return res, nil
+			}
 
 			enqueuer.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.Command) (map[string]error, error) {
 				return map[string]error{}, nil
@@ -315,14 +323,14 @@ func TestMDMLockCommand(t *testing.T) {
 		UUID:     "mac-enrolled",
 		Platform: "darwin",
 		MDMInfo:  &fleet.HostMDM{Enrolled: true, Name: fleet.WellKnownMDMFleet},
-		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("On (manual)")},
+		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("On (manual)"), ConnectedToFleet: ptr.Bool(true)},
 	}
 	winEnrolled := &fleet.Host{
 		ID:       2,
 		UUID:     "win-enrolled",
 		Platform: "windows",
 		MDMInfo:  &fleet.HostMDM{Enrolled: true, Name: fleet.WellKnownMDMFleet},
-		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("On (manual)")},
+		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("On (manual)"), ConnectedToFleet: ptr.Bool(true)},
 	}
 
 	linuxEnrolled := &fleet.Host{
@@ -345,57 +353,49 @@ func TestMDMLockCommand(t *testing.T) {
 		UUID:     "mac-pending",
 		Platform: "darwin",
 		MDMInfo:  &fleet.HostMDM{Enrolled: false, Name: fleet.WellKnownMDMFleet},
-		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("Pending")},
+		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("Pending"), ConnectedToFleet: ptr.Bool(false)},
 	}
 	winPending := &fleet.Host{
 		ID:       7,
 		UUID:     "win-pending",
 		Platform: "windows",
 		MDMInfo:  &fleet.HostMDM{Enrolled: false, Name: fleet.WellKnownMDMFleet},
-		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("Pending")},
+		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("Pending"), ConnectedToFleet: ptr.Bool(false)},
 	}
 	winEnrolledUP := &fleet.Host{
 		ID:       8,
 		UUID:     "win-enrolled-up",
 		Platform: "windows",
 		MDMInfo:  &fleet.HostMDM{Enrolled: true, Name: fleet.WellKnownMDMFleet},
-		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("On (manual)")},
+		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("On (manual)"), ConnectedToFleet: ptr.Bool(true)},
 	}
-	macEnrolledUP := &fleet.Host{
-		ID:       9,
-		UUID:     "mac-enrolled-up",
-		Platform: "darwin",
-		MDMInfo:  &fleet.HostMDM{Enrolled: true, Name: fleet.WellKnownMDMFleet},
-		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("On (manual)")},
-	}
-
 	winEnrolledLP := &fleet.Host{
 		ID:       10,
 		UUID:     "win-enrolled-lp",
 		Platform: "windows",
 		MDMInfo:  &fleet.HostMDM{Enrolled: true, Name: fleet.WellKnownMDMFleet},
-		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("On (manual)")},
+		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("On (manual)"), ConnectedToFleet: ptr.Bool(true)},
 	}
 	macEnrolledLP := &fleet.Host{
 		ID:       11,
 		UUID:     "mac-enrolled-lp",
 		Platform: "darwin",
 		MDMInfo:  &fleet.HostMDM{Enrolled: true, Name: fleet.WellKnownMDMFleet},
-		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("On (manual)")},
+		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("On (manual)"), ConnectedToFleet: ptr.Bool(true)},
 	}
 	winEnrolledWP := &fleet.Host{
 		ID:       12,
 		UUID:     "win-enrolled-wp",
 		Platform: "windows",
 		MDMInfo:  &fleet.HostMDM{Enrolled: true, Name: fleet.WellKnownMDMFleet},
-		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("On (manual)")},
+		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("On (manual)"), ConnectedToFleet: ptr.Bool(true)},
 	}
 	macEnrolledWP := &fleet.Host{
 		ID:       13,
 		UUID:     "mac-enrolled-wp",
 		Platform: "darwin",
 		MDMInfo:  &fleet.HostMDM{Enrolled: true, Name: fleet.WellKnownMDMFleet},
-		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("On (manual)")},
+		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("On (manual)"), ConnectedToFleet: ptr.Bool(true)},
 	}
 
 	hostByUUID := make(map[string]*fleet.Host)
@@ -409,7 +409,6 @@ func TestMDMLockCommand(t *testing.T) {
 		macPending,
 		winPending,
 		winEnrolledUP,
-		macEnrolledUP,
 		winEnrolledLP,
 		macEnrolledLP,
 		winEnrolledWP,
@@ -421,7 +420,6 @@ func TestMDMLockCommand(t *testing.T) {
 
 	unlockPending := map[uint]*fleet.Host{
 		winEnrolledUP.ID: winEnrolledUP,
-		macEnrolledUP.ID: macEnrolledUP,
 	}
 
 	lockPending := map[uint]*fleet.Host{
@@ -446,9 +444,7 @@ func TestMDMLockCommand(t *testing.T) {
 
 		if _, ok := unlockPending[host.ID]; ok {
 			if fleetPlatform == "darwin" {
-				status.UnlockPIN = "1234"
-				status.UnlockRequestedAt = time.Now()
-				return &status, nil
+				return nil, errors.New("apple devices do not have an unlock pending state")
 			}
 
 			status.UnlockScript = &fleet.HostScriptResult{}
@@ -504,6 +500,10 @@ func TestMDMLockCommand(t *testing.T) {
 		}
 	}
 
+	ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, host *fleet.Host) (bool, error) {
+		return host.MDMInfo != nil && host.MDMInfo.Enrolled == true && host.MDMInfo.Name == fleet.WellKnownMDMFleet, nil
+	}
+
 	appCfgAllMDM, appCfgWinMDM, appCfgMacMDM, appCfgNoMDM := setupAppConigs()
 
 	successfulOutput := func(ident string) string {
@@ -542,7 +542,6 @@ fleetctl mdm unlock --host=%s
 		{appCfgWinMDM, "valid windows but pending ", []string{"--host", winPending.UUID}, `Can't lock the host because it doesn't have MDM turned on.`},
 		{appCfgMacMDM, "valid macos but pending", []string{"--host", macPending.UUID}, `Can't lock the host because it doesn't have MDM turned on.`},
 		{appCfgAllMDM, "valid windows but pending unlock", []string{"--host", winEnrolledUP.UUID}, "Host has pending unlock request."},
-		{appCfgAllMDM, "valid macos but pending unlock", []string{"--host", macEnrolledUP.UUID}, "Host has pending unlock request."},
 		{appCfgAllMDM, "valid windows but pending lock", []string{"--host", winEnrolledLP.UUID}, "Host has pending lock request."},
 		{appCfgAllMDM, "valid macos but pending lock", []string{"--host", macEnrolledLP.UUID}, "Host has pending lock request."},
 		{appCfgAllMDM, "valid windows but pending wipe", []string{"--host", winEnrolledWP.UUID}, "Host has pending wipe request."},
@@ -558,14 +557,14 @@ func TestMDMUnlockCommand(t *testing.T) {
 		UUID:     "mac-enrolled",
 		Platform: "darwin",
 		MDMInfo:  &fleet.HostMDM{Enrolled: true, Name: fleet.WellKnownMDMFleet},
-		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("On (manual)")},
+		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("On (manual)"), ConnectedToFleet: ptr.Bool(true)},
 	}
 	winEnrolled := &fleet.Host{
 		ID:       2,
 		UUID:     "win-enrolled",
 		Platform: "windows",
 		MDMInfo:  &fleet.HostMDM{Enrolled: true, Name: fleet.WellKnownMDMFleet},
-		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("On (manual)")},
+		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("On (manual)"), ConnectedToFleet: ptr.Bool(true)},
 	}
 	linuxEnrolled := &fleet.Host{
 		ID:       3,
@@ -587,56 +586,49 @@ func TestMDMUnlockCommand(t *testing.T) {
 		UUID:     "mac-pending",
 		Platform: "darwin",
 		MDMInfo:  &fleet.HostMDM{Enrolled: false, Name: fleet.WellKnownMDMFleet},
-		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("Pending")},
+		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("Pending"), ConnectedToFleet: ptr.Bool(false)},
 	}
 	winPending := &fleet.Host{
 		ID:       7,
 		UUID:     "win-pending",
 		Platform: "windows",
 		MDMInfo:  &fleet.HostMDM{Enrolled: false, Name: fleet.WellKnownMDMFleet},
-		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("Pending")},
+		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("Pending"), ConnectedToFleet: ptr.Bool(false)},
 	}
 	winEnrolledUP := &fleet.Host{
 		ID:       8,
 		UUID:     "win-enrolled-up",
 		Platform: "windows",
 		MDMInfo:  &fleet.HostMDM{Enrolled: true, Name: fleet.WellKnownMDMFleet},
-		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("On (manual)")},
-	}
-	macEnrolledUP := &fleet.Host{
-		ID:       9,
-		UUID:     "mac-enrolled-up",
-		Platform: "darwin",
-		MDMInfo:  &fleet.HostMDM{Enrolled: true, Name: fleet.WellKnownMDMFleet},
-		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("On (manual)")},
+		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("On (manual)"), ConnectedToFleet: ptr.Bool(true)},
 	}
 	winEnrolledLP := &fleet.Host{
 		ID:       10,
 		UUID:     "win-enrolled-lp",
 		Platform: "windows",
 		MDMInfo:  &fleet.HostMDM{Enrolled: true, Name: fleet.WellKnownMDMFleet},
-		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("On (manual)")},
+		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("On (manual)"), ConnectedToFleet: ptr.Bool(true)},
 	}
 	macEnrolledLP := &fleet.Host{
 		ID:       11,
 		UUID:     "mac-enrolled-lp",
 		Platform: "darwin",
 		MDMInfo:  &fleet.HostMDM{Enrolled: true, Name: fleet.WellKnownMDMFleet},
-		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("On (manual)")},
+		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("On (manual)"), ConnectedToFleet: ptr.Bool(true)},
 	}
 	winEnrolledWP := &fleet.Host{
 		ID:       12,
 		UUID:     "win-enrolled-wp",
 		Platform: "windows",
 		MDMInfo:  &fleet.HostMDM{Enrolled: true, Name: fleet.WellKnownMDMFleet},
-		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("On (manual)")},
+		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("On (manual)"), ConnectedToFleet: ptr.Bool(true)},
 	}
 	macEnrolledWP := &fleet.Host{
 		ID:       13,
 		UUID:     "mac-enrolled-wp",
 		Platform: "darwin",
 		MDMInfo:  &fleet.HostMDM{Enrolled: true, Name: fleet.WellKnownMDMFleet},
-		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("On (manual)")},
+		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("On (manual)"), ConnectedToFleet: ptr.Bool(true)},
 	}
 
 	hostByUUID := make(map[string]*fleet.Host)
@@ -650,7 +642,6 @@ func TestMDMUnlockCommand(t *testing.T) {
 		macPending,
 		winPending,
 		winEnrolledUP,
-		macEnrolledUP,
 		winEnrolledLP,
 		macEnrolledLP,
 		winEnrolledWP,
@@ -667,7 +658,6 @@ func TestMDMUnlockCommand(t *testing.T) {
 
 	unlockPending := map[uint]*fleet.Host{
 		winEnrolledUP.ID: winEnrolledUP,
-		macEnrolledUP.ID: macEnrolledUP,
 	}
 
 	lockPending := map[uint]*fleet.Host{
@@ -701,9 +691,7 @@ func TestMDMUnlockCommand(t *testing.T) {
 
 		if _, ok := unlockPending[host.ID]; ok {
 			if fleetPlatform == "darwin" {
-				status.UnlockPIN = "1234"
-				status.UnlockRequestedAt = time.Now()
-				return &status, nil
+				return nil, errors.New("apple devices do not have an unlock pending state")
 			}
 
 			status.UnlockScript = &fleet.HostScriptResult{}
@@ -761,6 +749,9 @@ func TestMDMUnlockCommand(t *testing.T) {
 			return nil, nil
 		}
 	}
+	ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, host *fleet.Host) (bool, error) {
+		return host.MDM.ConnectedToFleet != nil && *host.MDM.ConnectedToFleet, nil
+	}
 
 	appCfgAllMDM, appCfgWinMDM, appCfgMacMDM, appCfgNoMDM := setupAppConigs()
 
@@ -800,7 +791,6 @@ fleetctl get host %s
 		{appCfgWinMDM, "valid windows but pending mdm enroll", []string{"--host", winPending.UUID}, `Can't unlock the host because it doesn't have MDM turned on.`},
 		{appCfgMacMDM, "valid macos but pending mdm enroll", []string{"--host", macPending.UUID}, `Can't unlock the host because it doesn't have MDM turned on.`},
 		{appCfgAllMDM, "valid windows but pending unlock", []string{"--host", winEnrolledUP.UUID}, "Host has pending unlock request."},
-		{appCfgAllMDM, "valid macos but pending unlock", []string{"--host", macEnrolledUP.UUID}, ""},
 		{appCfgAllMDM, "valid windows but pending lock", []string{"--host", winEnrolledLP.UUID}, "Host has pending lock request."},
 		{appCfgAllMDM, "valid macos but pending lock", []string{"--host", macEnrolledLP.UUID}, "Host has pending lock request."},
 		{appCfgAllMDM, "valid windows but pending wipe", []string{"--host", winEnrolledWP.UUID}, "Host has pending wipe request."},
@@ -816,14 +806,14 @@ func TestMDMWipeCommand(t *testing.T) {
 		UUID:     "mac-enrolled",
 		Platform: "darwin",
 		MDMInfo:  &fleet.HostMDM{Enrolled: true, Name: fleet.WellKnownMDMFleet},
-		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("On (manual)")},
+		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("On (manual)"), ConnectedToFleet: ptr.Bool(true)},
 	}
 	winEnrolled := &fleet.Host{
 		ID:       2,
 		UUID:     "win-enrolled",
 		Platform: "windows",
 		MDMInfo:  &fleet.HostMDM{Enrolled: true, Name: fleet.WellKnownMDMFleet},
-		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("On (manual)")},
+		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("On (manual)"), ConnectedToFleet: ptr.Bool(true)},
 	}
 	winNotEnrolled := &fleet.Host{
 		ID:       4,
@@ -840,84 +830,77 @@ func TestMDMWipeCommand(t *testing.T) {
 		UUID:     "mac-pending",
 		Platform: "darwin",
 		MDMInfo:  &fleet.HostMDM{Enrolled: false, Name: fleet.WellKnownMDMFleet},
-		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("Pending")},
+		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("Pending"), ConnectedToFleet: ptr.Bool(false)},
 	}
 	winPending := &fleet.Host{
 		ID:       7,
 		UUID:     "win-pending",
 		Platform: "windows",
 		MDMInfo:  &fleet.HostMDM{Enrolled: false, Name: fleet.WellKnownMDMFleet},
-		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("Pending")},
+		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("Pending"), ConnectedToFleet: ptr.Bool(false)},
 	}
 	winEnrolledUP := &fleet.Host{
 		ID:       8,
 		UUID:     "win-enrolled-up",
 		Platform: "windows",
 		MDMInfo:  &fleet.HostMDM{Enrolled: true, Name: fleet.WellKnownMDMFleet},
-		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("On (manual)")},
-	}
-	macEnrolledUP := &fleet.Host{
-		ID:       9,
-		UUID:     "mac-enrolled-up",
-		Platform: "darwin",
-		MDMInfo:  &fleet.HostMDM{Enrolled: true, Name: fleet.WellKnownMDMFleet},
-		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("On (manual)")},
+		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("On (manual)"), ConnectedToFleet: ptr.Bool(true)},
 	}
 	winEnrolledLP := &fleet.Host{
 		ID:       10,
 		UUID:     "win-enrolled-lp",
 		Platform: "windows",
 		MDMInfo:  &fleet.HostMDM{Enrolled: true, Name: fleet.WellKnownMDMFleet},
-		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("On (manual)")},
+		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("On (manual)"), ConnectedToFleet: ptr.Bool(true)},
 	}
 	macEnrolledLP := &fleet.Host{
 		ID:       11,
 		UUID:     "mac-enrolled-lp",
 		Platform: "darwin",
 		MDMInfo:  &fleet.HostMDM{Enrolled: true, Name: fleet.WellKnownMDMFleet},
-		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("On (manual)")},
+		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("On (manual)"), ConnectedToFleet: ptr.Bool(true)},
 	}
 	winEnrolledWP := &fleet.Host{
 		ID:       12,
 		UUID:     "win-enrolled-wp",
 		Platform: "windows",
 		MDMInfo:  &fleet.HostMDM{Enrolled: true, Name: fleet.WellKnownMDMFleet},
-		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("On (manual)")},
+		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("On (manual)"), ConnectedToFleet: ptr.Bool(true)},
 	}
 	macEnrolledWP := &fleet.Host{
 		ID:       13,
 		UUID:     "mac-enrolled-wp",
 		Platform: "darwin",
 		MDMInfo:  &fleet.HostMDM{Enrolled: true, Name: fleet.WellKnownMDMFleet},
-		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("On (manual)")},
+		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("On (manual)"), ConnectedToFleet: ptr.Bool(true)},
 	}
 	winEnrolledWiped := &fleet.Host{
 		ID:       14,
 		UUID:     "win-enrolled-wiped",
 		Platform: "windows",
 		MDMInfo:  &fleet.HostMDM{Enrolled: true, Name: fleet.WellKnownMDMFleet},
-		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("On (manual)")},
+		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("On (manual)"), ConnectedToFleet: ptr.Bool(true)},
 	}
 	macEnrolledWiped := &fleet.Host{
 		ID:       15,
 		UUID:     "mac-enrolled-wiped",
 		Platform: "darwin",
 		MDMInfo:  &fleet.HostMDM{Enrolled: true, Name: fleet.WellKnownMDMFleet},
-		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("On (manual)")},
+		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("On (manual)"), ConnectedToFleet: ptr.Bool(true)},
 	}
 	winEnrolledLocked := &fleet.Host{
 		ID:       16,
 		UUID:     "win-enrolled-locked",
 		Platform: "windows",
 		MDMInfo:  &fleet.HostMDM{Enrolled: true, Name: fleet.WellKnownMDMFleet},
-		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("On (manual")},
+		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("On (manual"), ConnectedToFleet: ptr.Bool(true)},
 	}
 	macEnrolledLocked := &fleet.Host{
 		ID:       17,
 		UUID:     "mac-enrolled-locked",
 		Platform: "darwin",
 		MDMInfo:  &fleet.HostMDM{Enrolled: true, Name: fleet.WellKnownMDMFleet},
-		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("On (manual")},
+		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("On (manual"), ConnectedToFleet: ptr.Bool(true)},
 	}
 	linuxEnrolled := &fleet.Host{
 		ID:       18,
@@ -950,7 +933,6 @@ func TestMDMWipeCommand(t *testing.T) {
 		macPending,
 		winPending,
 		winEnrolledUP,
-		macEnrolledUP,
 		winEnrolledLP,
 		macEnrolledLP,
 		winEnrolledWP,
@@ -971,7 +953,6 @@ func TestMDMWipeCommand(t *testing.T) {
 
 	unlockPending := map[uint]*fleet.Host{
 		winEnrolledUP.ID: winEnrolledUP,
-		macEnrolledUP.ID: macEnrolledUP,
 	}
 
 	lockPending := map[uint]*fleet.Host{
@@ -1010,9 +991,7 @@ func TestMDMWipeCommand(t *testing.T) {
 
 		if _, ok := unlockPending[host.ID]; ok {
 			if fleetPlatform == "darwin" {
-				status.UnlockPIN = "1234"
-				status.UnlockRequestedAt = time.Now()
-				return &status, nil
+				return nil, errors.New("apple devices do not have an unlock pending state")
 			}
 
 			status.UnlockScript = &fleet.HostScriptResult{}
@@ -1104,6 +1083,9 @@ func TestMDMWipeCommand(t *testing.T) {
 			return nil, nil
 		}
 	}
+	ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, host *fleet.Host) (bool, error) {
+		return host.MDM.ConnectedToFleet != nil && *host.MDM.ConnectedToFleet, nil
+	}
 
 	appCfgAllMDM, appCfgWinMDM, appCfgMacMDM, appCfgNoMDM := setupAppConigs()
 	appCfgScriptsDisabled := &fleet.AppConfig{ServerSettings: fleet.ServerSettings{ScriptsDisabled: true}}
@@ -1129,7 +1111,6 @@ func TestMDMWipeCommand(t *testing.T) {
 		{appCfgWinMDM, "valid windows but pending mdm enroll", []string{"--host", winPending.UUID}, `Can't wipe the host because it doesn't have MDM turned on.`},
 		{appCfgMacMDM, "valid macos but pending mdm enroll", []string{"--host", macPending.UUID}, `Can't wipe the host because it doesn't have MDM turned on.`},
 		{appCfgAllMDM, "valid windows but pending unlock", []string{"--host", winEnrolledUP.UUID}, "Host has pending unlock request."},
-		{appCfgAllMDM, "valid macos but pending unlock", []string{"--host", macEnrolledUP.UUID}, "Host has pending unlock request."},
 		{appCfgAllMDM, "valid windows but pending lock", []string{"--host", winEnrolledLP.UUID}, "Host has pending lock request."},
 		{appCfgAllMDM, "valid macos but pending lock", []string{"--host", macEnrolledLP.UUID}, "Host has pending lock request."},
 		{appCfgAllMDM, "valid windows but pending wipe", []string{"--host", winEnrolledWP.UUID}, "Host has pending wipe request."},

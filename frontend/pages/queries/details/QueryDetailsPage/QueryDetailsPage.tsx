@@ -42,7 +42,6 @@ import NoResults from "../components/NoResults/NoResults";
 import {
   DEFAULT_SORT_HEADER,
   DEFAULT_SORT_DIRECTION,
-  QUERY_REPORT_RESULTS_LIMIT,
 } from "./QueryDetailsPageConfig";
 
 interface IQueryDetailsPageProps {
@@ -199,8 +198,7 @@ const QueryDetailsPage = ({
 
   const isLoading = isStoredQueryLoading || isQueryReportLoading;
   const isApiError = storedQueryError || queryReportError;
-  const isClipped =
-    (queryReport?.results?.length ?? 0) >= QUERY_REPORT_RESULTS_LIMIT;
+  const isClipped = queryReport?.report_clipped;
   const disabledLiveQuery = config?.server_settings.live_query_disabled;
 
   const renderHeader = () => {

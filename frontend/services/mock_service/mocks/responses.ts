@@ -60,6 +60,7 @@ const hosts = {
       percent_disk_space_available: 67,
       issues: {
         total_issues_count: 0,
+        critical_vulnerabilities_count: 0,
         failing_policies_count: 0,
       },
       status: "offline",
@@ -109,6 +110,7 @@ const hosts = {
       percent_disk_space_available: 67,
       issues: {
         total_issues_count: 0,
+        critical_vulnerabilities_count: 0,
         failing_policies_count: 0,
       },
       status: "offline",
@@ -158,6 +160,7 @@ const hosts = {
       percent_disk_space_available: 67,
       issues: {
         total_issues_count: 0,
+        critical_vulnerabilities_count: 0,
         failing_policies_count: 0,
       },
       status: "offline",
@@ -207,6 +210,7 @@ const hosts = {
       percent_disk_space_available: 67,
       issues: {
         total_issues_count: 0,
+        critical_vulnerabilities_count: 0,
         failing_policies_count: 0,
       },
       status: "offline",
@@ -256,6 +260,7 @@ const hosts = {
       percent_disk_space_available: 67,
       issues: {
         total_issues_count: 0,
+        critical_vulnerabilities_count: 0,
         failing_policies_count: 0,
       },
       status: "offline",
@@ -305,6 +310,7 @@ const hosts = {
       percent_disk_space_available: 67,
       issues: {
         total_issues_count: 0,
+        critical_vulnerabilities_count: 0,
         failing_policies_count: 0,
       },
       status: "offline",

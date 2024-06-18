@@ -1,8 +1,9 @@
-import React from "react";
+import React, { useCallback } from "react";
 
 import { IHostUser } from "interfaces/host_users";
 import TableContainer from "components/TableContainer";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
+import TableCount from "components/TableContainer/TableCount";
 import EmptyTable from "components/EmptyTable";
 import CustomLink from "components/CustomLink";
 import Card from "components/Card";
@@ -27,6 +28,10 @@ const Users = ({
   hostUsersEnabled,
 }: IUsersProps): JSX.Element => {
   const tableHeaders = generateUsersTableHeaders();
+
+  const renderUsersCount = useCallback(() => {
+    return <TableCount name="users" count={usersState.length} />;
+  }, [usersState.length]);
 
   if (!hostUsersEnabled) {
     return (
@@ -72,7 +77,6 @@ const Users = ({
             defaultSortDirection="asc"
             inputPlaceHolder="Search users by username"
             onQueryChange={onUsersTableSearchChange}
-            resultsTitle="users"
             emptyComponent={() => (
               <EmptyTable
                 header="No users match your search criteria"
@@ -83,7 +87,7 @@ const Users = ({
             isAllPagesSelected={false}
             searchable
             wideSearch
-            filteredCount={usersState.length}
+            renderCount={renderUsersCount}
             isClientSidePagination
           />
         ) : (

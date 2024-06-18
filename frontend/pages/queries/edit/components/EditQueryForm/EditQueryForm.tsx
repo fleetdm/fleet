@@ -587,9 +587,7 @@ const EditQueryForm = ({
           data-testid="ace-editor"
         />
       )}
-      <span className={`${baseClass}__platform-compatibility`}>
-        {renderPlatformCompatibility()}
-      </span>
+      {renderPlatformCompatibility()}
       {renderLiveQueryWarning()}
       {(lastEditedQueryObserverCanRun ||
         isObserverPlus ||
@@ -711,9 +709,8 @@ const EditQueryForm = ({
             wrapEnabled
             focus={!savedQueryMode}
           />
-          <span className={`${baseClass}__platform-compatibility`}>
-            {renderPlatformCompatibility()}
-          </span>
+          {renderPlatformCompatibility()}
+
           {savedQueryMode && (
             <>
               <Dropdown

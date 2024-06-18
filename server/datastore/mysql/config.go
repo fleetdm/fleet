@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/config"
-	"github.com/go-kit/kit/log"
+	"github.com/go-kit/log"
 	"github.com/ngrok/sqlmw"
 )
 

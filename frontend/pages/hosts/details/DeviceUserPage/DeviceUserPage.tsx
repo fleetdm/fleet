@@ -311,7 +311,7 @@ const DeviceUserPage = ({
 
   const renderEnrollMdmModal = () => {
     return host?.dep_assigned_to_fleet ? (
-      <AutoEnrollMdmModal onCancel={toggleEnrollMdmModal} />
+      <AutoEnrollMdmModal host={host} onCancel={toggleEnrollMdmModal} />
     ) : (
       <ManualEnrollMdmModal
         onCancel={toggleEnrollMdmModal}
@@ -332,7 +332,7 @@ const DeviceUserPage = ({
       host?.mdm.enrollment_status === "Off" || !host?.mdm.enrollment_status;
 
     const diskEncryptionBannersEnabled =
-      globalConfig?.mdm.enabled_and_configured && host?.mdm.name === "Fleet";
+      globalConfig?.mdm.enabled_and_configured && host?.mdm.connected_to_fleet;
 
     const showDiskEncryptionLogoutRestart =
       diskEncryptionBannersEnabled &&
@@ -402,7 +402,7 @@ const DeviceUserPage = ({
               isPremiumTier={isPremiumTier}
               toggleOSSettingsModal={toggleOSSettingsModal}
               hostMdmProfiles={host?.mdm.profiles ?? []}
-              mdmName={deviceMacAdminsData?.mobile_device_management?.name}
+              isConnectedToFleetMdm={host?.mdm.connected_to_fleet}
               showRefetchSpinner={showRefetchSpinner}
               onRefetchHost={onRefetchHost}
               renderActionDropdown={renderActionButtons}

@@ -59,6 +59,7 @@ spec:
     deferred_save_host: false
     enable_analytics: true
     live_query_disabled: false
+    query_report_cap: 0
     query_reports_disabled: false
     server_url: https://example.org
     scripts_disabled: false

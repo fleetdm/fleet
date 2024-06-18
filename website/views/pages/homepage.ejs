@@ -7,7 +7,7 @@
           <%/* Hero text */%>
           <div purpose="hero-text"  class="d-flex flex-column justify-content-center">
             <h1><%- partial('../partials/primary-tagline.partial.ejs') %></h1>
-            <p>Replace the sprawl with secure, open-source <%= primaryBuyingSituation === 'mdm'? 'device management' : primaryBuyingSituation === 'vm'? 'reporting' : 'software' %> that works the way you want.</p>
+            <p>Replace the sprawl with <%= primaryBuyingSituation === 'mdm'? 'secure, open-source device management that works the way you want' : primaryBuyingSituation === 'vm'? 'secure, open-source reporting that works the way you want' : primaryBuyingSituation === 'eo-security'? 'universal, open-source endpoint visibility' : 'simple, open-source software for managing computers' %>.</p>
             <div purpose="button-row" class="d-flex flex-sm-row flex-column justify-content-center align-items-center">
               <a purpose="cta-button" href="/register">Start now</a>
               <a purpose="animated-arrow-button-red" href="/contact">Talk to us</a>
@@ -30,7 +30,7 @@
         <div purpose="calendar-feature-text" class="d-flex flex-column">
         <div purpose="new-badge">NEW</div>
         <% if(!primaryBuyingSituation) {%>
-          <h2>"This is a terrible time to mess with my computer."</h2> <!-- Turn OS updates into coffee breaks --> <!-- Break time for you, update time for your computer -->
+          <h2>Timing is everything <!-- "This is a terrible time to mess with my computer." --></h2> <!-- Turn OS updates into coffee breaks --> <!-- Break time for you, update time for your computer -->
           <p>Install updates and force restarts when your users’ computers are actually free.</p>
         <%} else if(['mdm'].includes(primaryBuyingSituation)) {%>
           <h2>Timing is everything</h2>
@@ -65,7 +65,7 @@
               <img alt="Play video" src="/images/icon-play-48x48@2x.png">
             </div>
             <div purpose="testimonial-text">
-              <p purpose="testimonial-quote">“Fleet lets us to be as lightweight as possible while surfacing data to other teams and partners.”</p>
+              <p purpose="testimonial-quote">“Fleet lets us be as lightweight as possible while surfacing data to other teams and partners.”</p>
               <p class="mb-0"><strong>Nick Fohs</strong></p>
               <p class="mb-0">Systems and IT infrastructure manager</p>
             </div>
@@ -93,8 +93,8 @@
         <div purpose="platform-block" class="d-flex flex-md-row flex-column-reverse justify-content-md-between mx-auto align-items-center">
           <div purpose="category-text-block" class="d-flex flex-column">
             <h4>Endpoint ops</h4>
-            <h3>Understand your computers</h3>
-            <p>A quick-fast way to gather device data across all your endpoints. Pulse check or automate anything on any platform.</p>
+            <h3><%= primaryBuyingSituation==='eo-security'? 'Instrument your endpoints' : 'Understand your computers'%></h3>
+            <p>A <%= primaryBuyingSituation==='eo-security'? 'lightweight' : 'quick-fast' %> way to gather <%= primaryBuyingSituation==='vm'? 'patch level and custom reports across all your computing devices, even in OT and production environments' : primaryBuyingSituation==='eo-security'? 'deep context and custom telemetry across all your endpoints, even servers' : primaryBuyingSituation==='mdm'||primaryBuyingSituation==='eo-it'? 'compliance and inventory data across all your devices' : 'device data across all your computers' %>. Pulse check or automate anything on any platform.</p>
             <div>
               <a purpose="category-button" class="text-nowrap btn btn-primary" href="/endpoint-ops">Start with endpoint ops</a>
             </div>
@@ -137,8 +137,8 @@
           <div purpose="platform-block" class="d-flex flex-md-row flex-column-reverse justify-content-md-between mx-auto align-items-center">
             <div purpose="category-text-block" class="d-flex flex-column">
               <h4>Endpoint ops</h4>
-              <h3>Understand your computers</h3>
-              <p>A quick-fast way to gather device data across all your endpoints. Pulse check or automate anything on any platform.</p>
+              <h3><%= primaryBuyingSituation==='eo-security'? 'Instrument your endpoints' : 'Understand your computers'%></h3>
+              <p>A <%= primaryBuyingSituation==='eo-security'? 'lightweight' : 'quick-fast' %> way to gather <%= primaryBuyingSituation==='vm'? 'patch level and custom reports across all your computing devices, even in OT and production environments' : primaryBuyingSituation==='eo-security'? 'deep context and custom telemetry across all your endpoints, even servers' : primaryBuyingSituation==='mdm'||primaryBuyingSituation==='eo-it'? 'compliance and inventory data across all your devices' : 'device data across all your computers' %>. Pulse check or automate anything on any platform.</p>
               <div>
                 <a purpose="category-button" class="text-nowrap btn btn-primary" href="/endpoint-ops">Start with endpoint ops</a>
               </div>
@@ -216,8 +216,8 @@
           <div purpose="platform-block" class="d-flex flex-md-row flex-column-reverse justify-content-md-between mx-auto align-items-center">
             <div purpose="category-text-block" class="d-flex flex-column">
               <h4>Endpoint ops</h4>
-              <h3>Understand your computers</h3>
-              <p>A quick-fast way to gather device data across all your endpoints. Pulse check or automate anything on any platform.</p>
+              <h3><%= primaryBuyingSituation==='eo-security'? 'Instrument your endpoints' : 'Understand your computers'%></h3>
+              <p>A <%= primaryBuyingSituation==='eo-security'? 'lightweight' : 'quick-fast' %> way to gather <%= primaryBuyingSituation==='vm'? 'patch level and custom reports across all your computing devices, even in OT and production environments' : primaryBuyingSituation==='eo-security'? 'deep context and custom telemetry across all your endpoints, even servers' : primaryBuyingSituation==='mdm'||primaryBuyingSituation==='eo-it'? 'compliance and inventory data across all your devices' : 'device data across all your computers' %>. Pulse check or automate anything on any platform.</p>
               <div>
                 <a purpose="category-button" class="text-nowrap btn btn-primary" href="/endpoint-ops">Start with endpoint ops</a>
               </div>
