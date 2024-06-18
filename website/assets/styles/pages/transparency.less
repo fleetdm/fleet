@@ -1,5 +1,11 @@
-
 #transparency {
+  @heading-lineheight: 120%;
+
+  @page-container-max-width-xl: 960px;
+  @page-container-max-width-lg: 840px;
+  @page-container-max-width-md: 480px;
+
+  @text-lineheight: 150%;
   h2 {
     font-size: 32px;
     font-weight: 800;
@@ -18,6 +24,17 @@
 
   a {
     color: @core-vibrant-blue;
+  }
+
+  [purpose='page-content'] {
+    max-width: @page-container-max-width-xl;
+  }
+
+  [purpose='page-container'] {
+    padding-left: 120px;
+    padding-right: 120px;
+    margin-left: auto;
+    margin-right: auto;
   }
 
   [purpose='logos'] {
@@ -100,6 +117,49 @@
      }
    }
 
+  [purpose='feature-headline'] {
+    max-width: 510px;
+    margin-bottom: 80px;
+  }
+  
+  [purpose='two-column-features'] {
+    max-width: 1080px;
+    margin-bottom: 140px;
+  }
+  
+  [purpose='feature-row'] {
+    margin-bottom: 80px;
+    [purpose='feature-column'] {
+      margin-left: 40px;
+      margin-right: 40px;
+      max-width: 440px;
+      p {
+        font-size: 14px;
+        margin-bottom: 0px;
+      }
+      img {
+        height: 48px;
+        width: auto;
+        margin-bottom: 16px;
+      }
+      h5 {
+        font-weight: 800;
+        font-size: 16px;
+        line-height: @heading-lineheight;
+        margin-bottom: 16px;
+      }
+    }
+  }
+
+  [purpose='three-column-features'] {
+    max-width: 1080px;
+    [purpose='feature-row'] {
+      [purpose='feature-column'] {
+        max-width: 267px;
+      }
+    }
+  }
+
  [parasails-component='parallax-city'] {
   background: none;
  }
@@ -120,7 +180,22 @@
 
   }
 
+  @media (max-width: 1199px) {
+    [purpose='page-container'] {
+      padding-left: 80px;
+      padding-right: 80px;
+    }
+  }
+
   @media (max-width: 991px) {
+
+    [purpose='page-container'] {
+      padding-left: 40px;
+      padding-right: 40px;
+    }
+    [purpose='page-content'] {
+      max-width: @page-container-max-width-lg;
+    }
 
     [purpose='calendar-feature'] {
       margin-bottom: 64px;
@@ -137,6 +212,14 @@
       text-align: center;
       margin-bottom: 64px;
     }
+  }
+
+  @media (min-width: 767px) {
+
+  [purpose='page-content'] {
+      max-width: @page-container-max-width-md;
+    }
+  
   }
 
   @media (min-width: 576px) {
