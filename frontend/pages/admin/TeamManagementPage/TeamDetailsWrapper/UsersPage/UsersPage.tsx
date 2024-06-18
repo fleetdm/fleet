@@ -376,6 +376,14 @@ const UsersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
     [toggleEditUserModal, toggleRemoveUserModal]
   );
 
+  const renderUsersCount = useCallback(() => {
+    if (teamUsers?.length === 0 && searchString === "") {
+      return <></>;
+    }
+
+    return <TableCount name="users" count={teamUsers?.length} />;
+  }, [teamUsers?.length]);
+
   const columnConfigs = useMemo(
     () => generateColumnConfigs(onActionSelection),
     [onActionSelection]
@@ -386,14 +394,6 @@ const UsersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
   }
 
   const userIds = teamUsers ? teamUsers.map((user) => user.id) : [];
-
-  const renderUsersCount = useCallback(() => {
-    if (teamUsers?.length === 0 && searchString === "") {
-      return <></>;
-    }
-
-    return <TableCount name="users" count={teamUsers?.length} />;
-  }, [teamUsers?.length]);
 
   return (
     <div className={baseClass}>
