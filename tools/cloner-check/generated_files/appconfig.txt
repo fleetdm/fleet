@@ -116,6 +116,8 @@ github.com/fleetdm/fleet/v4/server/fleet/MDM	MacOSSettings	fleet.MacOSSettings
 github.com/fleetdm/fleet/v4/server/fleet/MacOSSettings	CustomSettings	[]fleet.MDMProfileSpec
 github.com/fleetdm/fleet/v4/server/fleet/MDMProfileSpec	Path	string
 github.com/fleetdm/fleet/v4/server/fleet/MDMProfileSpec	Labels	[]string
+github.com/fleetdm/fleet/v4/server/fleet/MDMProfileSpec	LabelsIncludeAll	[]string
+github.com/fleetdm/fleet/v4/server/fleet/MDMProfileSpec	LabelsExcludeAny	[]string
 github.com/fleetdm/fleet/v4/server/fleet/MacOSSettings	DeprecatedEnableDiskEncryption	*bool
 github.com/fleetdm/fleet/v4/server/fleet/MDM	MacOSSetup	fleet.MacOSSetup
 github.com/fleetdm/fleet/v4/server/fleet/MacOSSetup	BootstrapPackage	optjson.String
