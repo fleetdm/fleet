@@ -1124,7 +1124,8 @@ func checkLabelHostIssues(
 	hostById, err := ds.Host(context.Background(), hid)
 	require.NoError(t, err)
 	assert.Equal(t, failingPoliciesExpected, hostById.HostIssues.FailingPoliciesCount)
-	assert.Equal(t, failingPoliciesExpected, hostById.HostIssues.TotalIssuesCount)
+	assert.Equal(t, failingPoliciesExpected+criticalVulnerabilitiesExpected, hostById.HostIssues.TotalIssuesCount)
+	assert.Equal(t, foundHost.HostIssues.CriticalVulnerabilitiesCount, hostById.HostIssues.CriticalVulnerabilitiesCount)
 }
 
 func testListHostsInLabelDiskEncryptionStatus(t *testing.T, ds *Datastore) {

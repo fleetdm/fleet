@@ -539,6 +539,9 @@ func (svc *Service) GetHost(ctx context.Context, id uint, opts fleet.HostDetailO
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get host")
 	}
+	if !opts.IncludeCriticalVulnerabilitiesCount {
+		host.HostIssues.CriticalVulnerabilitiesCount = nil
+	}
 
 	if !alreadyAuthd {
 		// Authorize again with team loaded now that we have team_id
