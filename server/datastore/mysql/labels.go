@@ -541,18 +541,16 @@ func (ds *Datastore) ListHostsInLabel(ctx context.Context, filter fleet.TeamFilt
     %s
 		%s
 `
-	failingPoliciesSelect := `,
-		COALESCE(failing_policies.count, 0) AS failing_policies_count,
-		COALESCE(failing_policies.count, 0) AS total_issues_count
+	failingIssuesSelect := `,
+		COALESCE(host_issues.failing_policies_count, 0) AS failing_policies_count,
+		COALESCE(host_issues.critical_vulnerabilities_count, 0) AS critical_vulnerabilities_count,
+		COALESCE(host_issues.total_issues_count, 0) AS total_issues_count
 	`
-	failingPoliciesJoin := `LEFT JOIN (
-		SELECT host_id, count(*) as count FROM policy_membership WHERE passes = 0
-		GROUP BY host_id
-	) as failing_policies ON (h.id=failing_policies.host_id)`
+	failingIssuesJoin := `LEFT JOIN host_issues ON h.id = host_issues.host_id`
 
-	if opt.DisableFailingPolicies {
-		failingPoliciesSelect = ""
-		failingPoliciesJoin = ""
+	if opt.DisableIssues {
+		failingIssuesSelect = ""
+		failingIssuesJoin = ""
 	}
 
 	deviceMappingJoin := fmt.Sprintf(`LEFT JOIN (
@@ -573,7 +571,9 @@ func (ds *Datastore) ListHostsInLabel(ctx context.Context, filter fleet.TeamFilt
 	COALESCE(dm.device_mapping, 'null') as device_mapping`
 	}
 
-	query := fmt.Sprintf(queryFmt, hostMDMSelect, failingPoliciesSelect, deviceMappingSelect, hostMDMJoin, failingPoliciesJoin, deviceMappingJoin)
+	query := fmt.Sprintf(
+		queryFmt, hostMDMSelect, failingIssuesSelect, deviceMappingSelect, hostMDMJoin, failingIssuesJoin, deviceMappingJoin,
+	)
 
 	query, params, err := ds.applyHostLabelFilters(ctx, filter, lid, query, opt)
 	if err != nil {
@@ -661,6 +661,9 @@ func (ds *Datastore) applyHostLabelFilters(ctx context.Context, filter fleet.Tea
 	// TODO: should search columns include display_name (requires join to host_display_names)?
 	query, whereParams, _ = hostSearchLike(query, whereParams, opt.MatchQuery, hostSearchColumns...)
 
+	if opt.ListOptions.OrderKey == "issues" {
+		opt.ListOptions.OrderKey = "host_issues.total_issues_count"
+	}
 	query, whereParams = appendListOptionsWithCursorToSQL(query, whereParams, &opt.ListOptions)
 	return query, append(joinParams, whereParams...), nil
 }

@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
@@ -389,7 +390,26 @@ func (svc *Service) ListHostsInLabel(ctx context.Context, lid uint, opt fleet.Ho
 	}
 	filter := fleet.TeamFilter{User: vc.User, IncludeObserver: true}
 
-	return svc.ds.ListHostsInLabel(ctx, filter, lid, opt)
+	hosts, err := svc.ds.ListHostsInLabel(ctx, filter, lid, opt)
+	if err != nil {
+		return nil, err
+	}
+
+	premiumLicense := license.IsPremium(ctx)
+	// If issues are enabled, we need to remove the critical vulnerabilities count for non-premium license.
+	// If issues are disabled, we need to explicitly set the critical vulnerabilities count to 0 for premium license.
+	if !opt.DisableIssues && !premiumLicense {
+		// Remove critical vulnerabilities count if not premium license
+		for _, host := range hosts {
+			host.HostIssues.CriticalVulnerabilitiesCount = nil
+		}
+	} else if opt.DisableIssues && premiumLicense {
+		var zero uint64
+		for _, host := range hosts {
+			host.HostIssues.CriticalVulnerabilitiesCount = &zero
+		}
+	}
+	return hosts, nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////

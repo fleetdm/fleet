@@ -155,7 +155,7 @@ type HostListOptions struct {
 	OSVersionFilter   *string
 	OSVersionIDFilter *uint
 
-	DisableFailingPolicies bool
+	DisableIssues bool
 
 	// MacOSSettingsFilter filters the hosts by the status of MDM configuration profiles
 	// applied to the hosts.
@@ -221,7 +221,7 @@ func (h HostListOptions) Empty() bool {
 		h.OSIDFilter == nil &&
 		h.OSNameFilter == nil &&
 		h.OSVersionFilter == nil &&
-		h.DisableFailingPolicies == false &&
+		h.DisableIssues == false &&
 		h.MacOSSettingsFilter == "" &&
 		h.MacOSSettingsDiskEncryptionFilter == "" &&
 		h.MDMBootstrapPackageFilter == nil &&
@@ -1191,9 +1191,10 @@ type OSVersion struct {
 }
 
 type HostDetailOptions struct {
-	IncludeCVEScores bool
-	IncludePolicies  bool
-	ExcludeSoftware  bool
+	IncludeCVEScores                    bool
+	IncludeCriticalVulnerabilitiesCount bool
+	IncludePolicies                     bool
+	ExcludeSoftware                     bool
 }
 
 // EnrollHostLimiter defines the methods to support enforcement of enrolled
