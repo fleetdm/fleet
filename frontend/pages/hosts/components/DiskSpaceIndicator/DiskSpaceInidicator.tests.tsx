@@ -2,16 +2,16 @@ import React from "react";
 
 import { screen, render, fireEvent } from "@testing-library/react";
 
-import DiskSpaceGraph from "./DiskSpaceGraph";
+import DiskSpaceIndicator from "./DiskSpaceIndicator";
 
-describe("Disk space graph", () => {
-  it("renders warning tooltip for <32gB when hovering over the yellow disk space graph for darwin or windows", async () => {
+describe("Disk space Indicator", () => {
+  it("renders warning tooltip for <32gB when hovering over the yellow disk space indicator for darwin or windows", async () => {
     render(
-      <DiskSpaceGraph
+      <DiskSpaceIndicator
         baseClass="data-set"
         gigsDiskSpaceAvailable={17}
         percentDiskSpaceAvailable={10}
-        id="disk-space-graph"
+        id="disk-space-indicator"
         platform="darwin"
         tooltipPosition="bottom"
       />
@@ -29,13 +29,13 @@ describe("Disk space graph", () => {
     expect(tooltip).toBeInTheDocument();
   });
 
-  it("renders severe warning tooltip for <16 gBwhen hovering over the red disk space graph for darwin or windows", async () => {
+  it("renders severe warning tooltip for <16 gBwhen hovering over the red disk space indicator for darwin or windows", async () => {
     render(
-      <DiskSpaceGraph
+      <DiskSpaceIndicator
         baseClass="data-set"
         gigsDiskSpaceAvailable={5}
         percentDiskSpaceAvailable={2}
-        id="disk-space-graph"
+        id="disk-space-indicator"
         platform="windows"
         tooltipPosition="bottom"
       />
@@ -53,13 +53,13 @@ describe("Disk space graph", () => {
     expect(tooltip).toBeInTheDocument();
   });
 
-  it("renders tooltip when hovering over the green disk space graph for darwin or windows", async () => {
+  it("renders tooltip when hovering over the green disk space indicator for darwin or windows", async () => {
     render(
-      <DiskSpaceGraph
+      <DiskSpaceIndicator
         baseClass="data-set"
         gigsDiskSpaceAvailable={33}
         percentDiskSpaceAvailable={15}
-        id="disk-space-graph"
+        id="disk-space-indicator"
         platform="windows"
         tooltipPosition="bottom"
       />
