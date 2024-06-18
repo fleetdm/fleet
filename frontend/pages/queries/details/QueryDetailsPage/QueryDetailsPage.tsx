@@ -96,6 +96,7 @@ const QueryDetailsPage = ({
     filteredQueriesPath,
     availableTeams,
     setCurrentTeam,
+    isOnGlobalTeam,
   } = useContext(AppContext);
   const {
     lastEditedQueryName,
@@ -153,6 +154,23 @@ const QueryDetailsPage = ({
       onError: (error) => handlePageError(error),
     }
   );
+
+  /** Pesky bug affecting team level users:
+   - Navigating to queries/:id immediately defaults the user to the first team they're on
+  with the most permissions, in the URL bar because of useTeamIdParam
+  even if the queries/:id entity has a team attached to it
+  Hacky fix:
+   - Push entity's team id to url for team level users
+  */
+  if (
+    !isOnGlobalTeam &&
+    !isStoredQueryLoading &&
+    !(storedQuery?.team_id?.toString() === location.query.team_id)
+  ) {
+    router.push(
+      location.pathname + `?team_id=` + storedQuery?.team_id?.toString()
+    );
+  }
 
   const {
     isLoading: isQueryReportLoading,
