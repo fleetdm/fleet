@@ -30,8 +30,10 @@ func CreateOpenSearchClient() (*opensearch.Client, error) {
 	// OpenSearch configuration
 	cfg := opensearch.Config{
 		Addresses: []string{
-			os.Getenv("FLEET_OPENSEARCH_ENDPOINT"), // Change to your OpenSearch domain endpoint
+			os.Getenv("FLEET_OPENSEARCH_ENDPOINT"),
 		},
+		Username: os.Getenv("FLEET_OPENSEARCH_USERNAME"),
+		Password: os.Getenv("FLEET_OPENSEARCH_PASSWORD"),
 	}
 
 	es, err := opensearch.NewClient(cfg)
