@@ -3,7 +3,6 @@ package file
 import (
 	"bytes"
 	"errors"
-	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -231,7 +230,6 @@ func TestParseRealDistributionFiles(t *testing.T) {
 			require.NoError(t, err)
 			metadata, err := parseDistributionFile(rawXML)
 			require.NoError(t, err)
-			fmt.Printf("name: %s, version: %s, identifier: %s\n", metadata.Name, metadata.Version, metadata.BundleIdentifier)
 			require.Equal(t, tt.expectedName, metadata.Name)
 			require.Equal(t, tt.expectedVersion, metadata.Version)
 			require.Equal(t, tt.expectedBundleID, metadata.BundleIdentifier)
