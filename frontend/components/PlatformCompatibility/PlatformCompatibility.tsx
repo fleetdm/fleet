@@ -1,4 +1,4 @@
-import React, { useCallback } from "react";
+import React from "react";
 
 import { OsqueryPlatform } from "interfaces/platform";
 import { PLATFORM_DISPLAY_NAMES } from "utilities/constants";
