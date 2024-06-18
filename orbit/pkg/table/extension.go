@@ -113,7 +113,7 @@ func (r *Runner) Execute() error {
 	opts := PluginOpts{Socket: r.socket}
 	platformTables, err := PlatformTables(opts)
 	if err != nil {
-		return fmt.Errorf("populating platform tabeles: %w", err)
+		return fmt.Errorf("populating platform tables: %w", err)
 	}
 
 	plugins = append(plugins, platformTables...)
