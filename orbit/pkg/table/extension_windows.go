@@ -35,8 +35,6 @@ func PlatformTables(_ PluginOpts) ([]osquery.OsqueryPlugin, error) {
 }
 
 func IsWindowsServer() (bool, error) {
-	// If the registry can't be read, it's safer to assume we're a
-	// server and not load the broken table
 	k, err := registry.OpenKey(registry.LOCAL_MACHINE, `SOFTWARE\Microsoft\Windows NT\CurrentVersion`, registry.QUERY_VALUE)
 	if err != nil {
 		return false, fmt.Errorf("windows server check: %w", err)
