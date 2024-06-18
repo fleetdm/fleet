@@ -29,6 +29,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"path/filepath"
 	"strings"
 )
 
@@ -104,11 +105,9 @@ type xmlFile struct {
 
 // distributionXML represents the structure of the distributionXML.xml
 type distributionXML struct {
-	Title          string                      `xml:"title"`
-	Product        distributionProduct         `xml:"product"`
-	PkgRefs        []distributionPkgRef        `xml:"pkg-ref"`
-	BundleVersions []distributionBundleVersion `xml:"bundle-version"`
-	MustClose      distributionMustClose       `xml:"must-close"`
+	Title   string               `xml:"title"`
+	Product distributionProduct  `xml:"product"`
+	PkgRefs []distributionPkgRef `xml:"pkg-ref"`
 }
 
 // distributionProduct represents the product element
@@ -119,10 +118,11 @@ type distributionProduct struct {
 
 // distributionPkgRef represents the pkg-ref element
 type distributionPkgRef struct {
-	ID             string                      `xml:"id,attr"`
-	Version        string                      `xml:"version,attr"`
-	BundleVersions []distributionBundleVersion `xml:"bundle-version"`
-	MustClose      distributionMustClose       `xml:"must-close"`
+	ID                string                      `xml:"id,attr"`
+	Version           string                      `xml:"version,attr"`
+	BundleVersions    []distributionBundleVersion `xml:"bundle-version"`
+	MustClose         distributionMustClose       `xml:"must-close"`
+	PackageIdentifier string                      `xml:"packageIdentifier,attr"`
 }
 
 // distributionBundleVersion represents the bundle-version element
@@ -133,6 +133,7 @@ type distributionBundleVersion struct {
 // distributionBundle represents the bundle element
 type distributionBundle struct {
 	Path string `xml:"path,attr"`
+	ID   string `xml:"id,attr"`
 }
 
 // distributionMustClose represents the must-close element
@@ -209,36 +210,6 @@ func ExtractXARMetadata(r io.Reader) (*InstallerMetadata, error) {
 			}
 			meta.SHASum = h.Sum(nil)
 			return meta, err
-
-			//	var distXML distributionXML
-			//	if err := xml.Unmarshal(contents, &distXML); err != nil {
-			//		return nil, fmt.Errorf("unmarshal Distribution XML: %w", err)
-			//	}
-
-			// Most of the following requirements/order of
-			// priorities described below has been [specified by
-			// the product team][1] please be mindful when changing them.
-			// [1]: https://github.com/fleetdm/fleet/issues/19144,
-
-			//			name := strings.TrimSpace(distXML.Title)
-			//			if name == "" {
-			//				name = strings.TrimSpace(distXML.Product.ID)
-			//			}
-			//			version := strings.TrimSpace(distXML.Product.Version)
-			//			if len(distXML.PkgRef) > 0 {
-			//				if name == "" {
-			//					name = strings.TrimSpace(distXML.PkgRef[0].ID)
-			//				}
-			//				if version == "" {
-			//					version = strings.TrimSpace(distXML.PkgRef[0].Version)
-			//				}
-			//				return &InstallerMetadata{
-			//					Name:    name,
-			//					Version: version,
-			//					SHASum:  h.Sum(nil),
-			//				}, nil
-			//			}
-
 		}
 	}
 
@@ -251,71 +222,82 @@ func parseDistributionFile(rawXML []byte) (*InstallerMetadata, error) {
 		return nil, fmt.Errorf("unmarshal Distribution XML: %w", err)
 	}
 
+	name, identifier := getNameAndBundleIdentifier(&distXML)
 	return &InstallerMetadata{
-		Name:             getName(&distXML),
+		Name:             name,
 		Version:          getVersion(&distXML),
-		BundleIdentifier: getBundleIdentifier(&distXML),
+		BundleIdentifier: identifier,
 	}, nil
 
 }
 
-// Get the name from (in order of priority):
-// - bundle-version[0].bundle[0].path (extract from first <bundle-version> -> <bundle> -> path attribute)
-// - title
-// - product.id
-// - pkg-ref[0].id
-func getName(d *distributionXML) string {
-	if len(d.BundleVersions) > 0 {
-		return d.BundleVersions[0].Bundles[0].Path
+// getNameAndBundleIdentifier gets the name and bundle identifier of a PKG distribution file
+func getNameAndBundleIdentifier(d *distributionXML) (name string, identifier string) {
+out:
+	// first, look in all the bundle versions for one that has a `path` attribute
+	// that is not nested, this is generally the case for packages that distribute
+	// `.app` files, which are ultimately picked up as an installed app by osquery
+	for _, pkg := range d.PkgRefs {
+		for _, versions := range pkg.BundleVersions {
+			for _, bundle := range versions.Bundles {
+				if isFilePath(bundle.Path) {
+					identifier = bundle.ID
+					name = bundle.Path
+					break out
+				}
+			}
+		}
 	}
-	//	for _, pkg := range d.PkgRefs {
-	//		if len(pkg.BundleVersions) > 0 && len(pkg.BundleVersions[0].Bundles) > 0 {
-	//			return pkg.BundleVersions[0].Bundles[0].Path
-	//		}
-	//	}
-	if d.Title != "" {
-		return d.Title
+
+	// if we didn't find anything, look for any <pkg-ref> elements and grab
+	// the first `packageIdentifier` or `id` attribute we find as the
+	// bundle identifier
+	if identifier == "" {
+		for _, pkg := range d.PkgRefs {
+			if pkg.PackageIdentifier != "" {
+				identifier = pkg.PackageIdentifier
+				break
+			}
+
+			if pkg.ID != "" {
+				identifier = pkg.ID
+				break
+			}
+		}
 	}
-	if d.Product.ID != "" {
-		return d.Product.ID
+
+	// if the identifier is still empty, try to use the product id
+	if identifier == "" && d.Product.ID != "" {
+		identifier = d.Product.ID
 	}
-	if len(d.PkgRefs) > 0 {
-		return d.PkgRefs[0].ID
+
+	// for the name, try to use the title and fallback to the bundle
+	// identifier
+	if name == "" && d.Title != "" {
+		name = d.Title
 	}
-	return ""
+	if name == "" {
+		name = identifier
+	}
+
+	return name, identifier
 }
 
-// Get the bundle identifier from (in order of priority):
-// - must-close[0].app[0].id extract from first <must-close> -> <app> -> id attribute)
-// - product.id
-// - pkg-ref[0].id
-func getBundleIdentifier(d *distributionXML) string {
-	if len(d.MustClose.Apps) > 0 {
-		return d.MustClose.Apps[0].ID
-	}
-	//	for _, pkg := range d.PkgRefs {
-	//		if len(pkg.MustClose.Apps) > 0 {
-	//			return pkg.MustClose.Apps[0].ID
-	//		}
-	//	}
-	if d.Product.ID != "" {
-		return d.Product.ID
-	}
-	if len(d.PkgRefs) > 0 {
-		return d.PkgRefs[0].ID
-	}
-	return ""
+// isFilePath checks if the given input is a file name without any directory
+// path.
+func isFilePath(input string) bool {
+	dir, file := filepath.Split(input)
+	return dir == "" && file == input
 }
 
-// Get the version from (in order of priority):
-// - product.version
-// - pkg-ref[0].version
 func getVersion(d *distributionXML) string {
 	if d.Product.Version != "" {
 		return d.Product.Version
 	}
-	if len(d.PkgRefs) > 0 {
-		return d.PkgRefs[0].Version
+	for _, pkgRef := range d.PkgRefs {
+		if pkgRef.Version != "" {
+			return pkgRef.Version
+		}
 	}
 	return ""
 }

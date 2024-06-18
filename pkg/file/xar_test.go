@@ -168,25 +168,60 @@ func TestParseRealDistributionFiles(t *testing.T) {
 		expectedBundleID string
 	}{
 		{
-			name:             "Microsoft Edge",
-			file:             "distribution-edge.xml",
-			expectedName:     "Microsoft Edge",
-			expectedVersion:  "",
-			expectedBundleID: "com.microsoft.edgemac",
-		},
-		{
-			name:             "Zoom",
-			file:             "distribution-zoom.xml",
-			expectedName:     "Microsoft Edge",
-			expectedVersion:  "",
-			expectedBundleID: "com.microsoft.edgemac",
+			name:             "1Password",
+			file:             "distribution-1password.xml",
+			expectedName:     "1Password.app",
+			expectedVersion:  "8.10.34",
+			expectedBundleID: "com.1password.1password",
 		},
 		{
 			name:             "Chrome",
 			file:             "distribution-chrome.xml",
-			expectedName:     "Microsoft Edge",
-			expectedVersion:  "",
+			expectedName:     "Google Chrome.app",
+			expectedVersion:  "126.0.6478.62",
+			expectedBundleID: "com.google.Chrome",
+		},
+		{
+			name:             "Microsoft Edge",
+			file:             "distribution-edge.xml",
+			expectedName:     "Microsoft Edge.app",
+			expectedVersion:  "126.0.2592.56",
 			expectedBundleID: "com.microsoft.edgemac",
+		},
+		{
+			name:             "Firefox",
+			file:             "distribution-firefox.xml",
+			expectedName:     "Firefox.app",
+			expectedVersion:  "99.0.0",
+			expectedBundleID: "org.mozilla.firefox",
+		},
+		{
+			name:             "fleetd",
+			file:             "distribution-fleet.xml",
+			expectedName:     "Fleet osquery",
+			expectedVersion:  "42.0.0",
+			expectedBundleID: "com.fleetdm.orbit",
+		},
+		{
+			name:             "Go",
+			file:             "distribution-go.xml",
+			expectedName:     "Go",
+			expectedVersion:  "go1.22.4",
+			expectedBundleID: "org.golang.go",
+		},
+		{
+			name:             "Microsoft Teams",
+			file:             "distribution-microsoft-teams.xml",
+			expectedName:     "Microsoft Teams.app",
+			expectedVersion:  "24124.1412.2911.3341",
+			expectedBundleID: "com.microsoft.teams2",
+		},
+		{
+			name:             "Zoom",
+			file:             "distribution-zoom.xml",
+			expectedName:     "zoom.us.app",
+			expectedVersion:  "6.0.11.35001",
+			expectedBundleID: "us.zoom.xos",
 		},
 	}
 
@@ -197,9 +232,9 @@ func TestParseRealDistributionFiles(t *testing.T) {
 			metadata, err := parseDistributionFile(rawXML)
 			require.NoError(t, err)
 			fmt.Printf("name: %s, version: %s, identifier: %s\n", metadata.Name, metadata.Version, metadata.BundleIdentifier)
-			//	require.Equal(t, tt.expectedName, metadata.Name)
-			//	require.Equal(t, tt.expectedVersion, metadata.Version)
-			//	require.Equal(t, tt.expectedBundleID, metadata.BundleIdentifier)
+			require.Equal(t, tt.expectedName, metadata.Name)
+			require.Equal(t, tt.expectedVersion, metadata.Version)
+			require.Equal(t, tt.expectedBundleID, metadata.BundleIdentifier)
 		})
 	}
 }
