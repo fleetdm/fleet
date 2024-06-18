@@ -122,16 +122,17 @@ func (ds *Datastore) GetCalendarEvent(ctx context.Context, email string) (*fleet
 	return &calendarEvent, nil
 }
 
-func (ds *Datastore) UpdateCalendarEvent(ctx context.Context, calendarEventID uint, startTime time.Time, endTime time.Time, data []byte) error {
+func (ds *Datastore) UpdateCalendarEvent(ctx context.Context, calendarEventID uint, startTime time.Time, endTime time.Time, data []byte, timeZone string) error {
 	const calendarEventsQuery = `
 		UPDATE calendar_events SET
 			start_time = ?,
 			end_time = ?,
 			event = ?,
+			timezone = ?,
 			updated_at = CURRENT_TIMESTAMP
 		WHERE id = ?;
 	`
-	if _, err := ds.writer(ctx).ExecContext(ctx, calendarEventsQuery, startTime, endTime, data, calendarEventID); err != nil {
+	if _, err := ds.writer(ctx).ExecContext(ctx, calendarEventsQuery, startTime, endTime, data, timeZone, calendarEventID); err != nil {
 		return ctxerr.Wrap(ctx, err, "update calendar event")
 	}
 	return nil

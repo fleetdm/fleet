@@ -344,6 +344,8 @@ func processFailingHostExistingCalendarEvent(
 	updated := false
 	now := time.Now()
 
+	// existing type issue here?
+	// "type calendarConfig has no field or method AlwaysReloadEvent"
 	if calendarConfig.AlwaysReloadEvent() || shouldReloadCalendarEvent(now, calendarEvent, hostCalendarEvent) {
 		var err error
 		updatedEvent, _, err = calendar.GetAndUpdateEvent(
@@ -365,6 +367,7 @@ func processFailingHostExistingCalendarEvent(
 			updatedEvent.StartTime,
 			updatedEvent.EndTime,
 			updatedEvent.Data,
+			updatedEvent.TimeZone,
 		); err != nil {
 			return fmt.Errorf("updating event calendar on db: %w", err)
 		}
