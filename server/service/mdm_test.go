@@ -1558,6 +1558,21 @@ func TestValidateProfiles(t *testing.T) {
 			},
 			wantErr: true,
 		},
+		{
+			name: "Too large profile",
+			profiles: []fleet.MDMProfileBatchPayload{
+				{Name: "hugeprofile", Contents: func() []byte {
+					var b strings.Builder
+					b.Grow(1000000)
+					for i := 0; i < 1000000; i++ {
+						b.WriteByte('a')
+					}
+
+					return []byte(b.String())
+				}()},
+			},
+			wantErr: true,
+		},
 	}
 
 	for _, tt := range tests {

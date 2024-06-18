@@ -1820,6 +1820,13 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMAppleProfiles() {
 	t := s.T()
 	ctx := context.Background()
 
+	var b strings.Builder
+	b.Grow(1000000)
+	for i := 0; i < 1000000; i++ {
+		b.WriteByte('a')
+	}
+	bigString := b.String()
+
 	// create a new team
 	tm, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "batch_set_mdm_profiles"})
 	require.NoError(t, err)
@@ -1839,6 +1846,10 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMAppleProfiles() {
 	// invalid team name
 	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: nil},
 		http.StatusNotFound, "team_name", uuid.New().String())
+
+	// Profile is too big
+	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: [][]byte{[]byte(bigString)}},
+		http.StatusUnprocessableEntity)
 
 	// duplicate profile names
 	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: [][]byte{
