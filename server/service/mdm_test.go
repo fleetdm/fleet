@@ -1561,7 +1561,7 @@ func TestValidateProfiles(t *testing.T) {
 		{
 			name: "Too large profile",
 			profiles: []fleet.MDMProfileBatchPayload{
-				{Name: "hugeprofile", Contents: []byte(strings.Repeat("a", 1024*1024))},
+				{Name: "hugeprofile", Contents: []byte(strings.Repeat("a", 1024*1024+1))},
 			},
 			wantErr: true,
 		},
