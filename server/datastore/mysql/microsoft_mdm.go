@@ -1536,14 +1536,17 @@ INSERT INTO
 			}
 		}
 
+		labels := make([]fleet.ConfigurationProfileLabel, 0, len(cp.LabelsIncludeAll)+len(cp.LabelsExcludeAny))
 		for i := range cp.LabelsIncludeAll {
 			cp.LabelsIncludeAll[i].ProfileUUID = profileUUID
+			labels = append(labels, cp.LabelsIncludeAll[i])
 		}
 		for i := range cp.LabelsExcludeAny {
 			cp.LabelsExcludeAny[i].ProfileUUID = profileUUID
 			cp.LabelsExcludeAny[i].Exclude = true
+			labels = append(labels, cp.LabelsExcludeAny[i])
 		}
-		if err := batchSetProfileLabelAssociationsDB(ctx, tx, cp.Labels, "windows"); err != nil {
+		if err := batchSetProfileLabelAssociationsDB(ctx, tx, labels, "windows"); err != nil {
 			return ctxerr.Wrap(ctx, err, "inserting windows profile label associations")
 		}
 
@@ -1774,8 +1777,13 @@ ON DUPLICATE KEY UPDATE
 				return ctxerr.Wrapf(ctx, err, "profile %q is in the database but was not incoming", newlyInsertedProf.Name)
 			}
 
-			for _, label := range incomingProf.Labels {
+			for _, label := range incomingProf.LabelsIncludeAll {
 				label.ProfileUUID = newlyInsertedProf.ProfileUUID
+				incomingLabels = append(incomingLabels, label)
+			}
+			for _, label := range incomingProf.LabelsExcludeAny {
+				label.ProfileUUID = newlyInsertedProf.ProfileUUID
+				label.Exclude = true
 				incomingLabels = append(incomingLabels, label)
 			}
 		}

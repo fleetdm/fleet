@@ -910,6 +910,8 @@ func batchSetProfileLabelAssociationsDB(
 		return fmt.Errorf("unsupported platform %s", platform)
 	}
 
+	// TODO(mna): insert/update with the exclude bool
+
 	// delete any profile+label tuple that is NOT in the list of provided tuples
 	// but are associated with the provided profiles (so we don't delete
 	// unrelated profile+label tuples)

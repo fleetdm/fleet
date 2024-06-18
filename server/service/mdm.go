@@ -1380,7 +1380,11 @@ func (svc *Service) NewMDMWindowsConfigProfile(ctx context.Context, teamID uint,
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "validating labels")
 	}
-	cp.Labels = labelMap
+	if labelsExcludeMode {
+		cp.LabelsExcludeAny = labelMap
+	} else {
+		cp.LabelsIncludeAll = labelMap
+	}
 
 	newCP, err := svc.ds.NewMDMWindowsConfigProfile(ctx, cp)
 	if err != nil {
@@ -1544,7 +1548,9 @@ func (svc *Service) BatchSetMDMProfiles(
 		return ctxerr.Wrap(ctx, err, "validating profiles")
 	}
 
-	// TODO(mna): from this point on, any values in Labels has been transferred to LabelsIncludeAll.
+	// TODO(mna): from this point on (after validateProfiles), any values in
+	// Labels should have been transferred to LabelsIncludeAll. (not done yet,
+	// that's todo).
 	labels := []string{}
 	for _, prof := range profiles {
 		labels = append(labels, prof.LabelsIncludeAll...)
@@ -1763,7 +1769,17 @@ func getAppleProfiles(
 						LabelName: lbl.LabelName,
 						LabelID:   lbl.LabelID,
 					}
-					mdmDecl.Labels = append(mdmDecl.Labels, declLabel)
+					mdmDecl.LabelsIncludeAll = append(mdmDecl.LabelsIncludeAll, declLabel)
+				}
+			}
+			for _, labelName := range prof.LabelsExcludeAny {
+				if lbl, ok := labelMap[labelName]; ok {
+					declLabel := fleet.ConfigurationProfileLabel{
+						LabelName: lbl.LabelName,
+						LabelID:   lbl.LabelID,
+						Exclude:   true,
+					}
+					mdmDecl.LabelsExcludeAny = append(mdmDecl.LabelsExcludeAny, declLabel)
 				}
 			}
 
@@ -1798,9 +1814,14 @@ func getAppleProfiles(
 				"invalid mobileconfig profile")
 		}
 
-		for _, labelName := range prof.Labels {
+		for _, labelName := range prof.LabelsIncludeAll {
 			if lbl, ok := labelMap[labelName]; ok {
-				mdmProf.Labels = append(mdmProf.Labels, lbl)
+				mdmProf.LabelsIncludeAll = append(mdmProf.LabelsIncludeAll, lbl)
+			}
+		}
+		for _, labelName := range prof.LabelsExcludeAny {
+			if lbl, ok := labelMap[labelName]; ok {
+				mdmProf.LabelsExcludeAny = append(mdmProf.LabelsExcludeAny, lbl)
 			}
 		}
 
@@ -1869,9 +1890,14 @@ func getWindowsProfiles(
 			Name:   profile.Name,
 			SyncML: profile.Contents,
 		}
-		for _, labelName := range profile.Labels {
+		for _, labelName := range profile.LabelsIncludeAll {
 			if lbl, ok := labelMap[labelName]; ok {
-				mdmProf.Labels = append(mdmProf.Labels, lbl)
+				mdmProf.LabelsIncludeAll = append(mdmProf.LabelsIncludeAll, lbl)
+			}
+		}
+		for _, labelName := range profile.LabelsExcludeAny {
+			if lbl, ok := labelMap[labelName]; ok {
+				mdmProf.LabelsExcludeAny = append(mdmProf.LabelsExcludeAny, lbl)
 			}
 		}
 

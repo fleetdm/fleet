@@ -395,13 +395,14 @@ func NewMDMConfigProfilePayloadFromWindows(cp *MDMWindowsConfigProfile) *MDMConf
 		tid = cp.TeamID
 	}
 	return &MDMConfigProfilePayload{
-		ProfileUUID: cp.ProfileUUID,
-		TeamID:      tid,
-		Name:        cp.Name,
-		Platform:    "windows",
-		CreatedAt:   cp.CreatedAt,
-		UploadedAt:  cp.UploadedAt,
-		Labels:      cp.Labels,
+		ProfileUUID:      cp.ProfileUUID,
+		TeamID:           tid,
+		Name:             cp.Name,
+		Platform:         "windows",
+		CreatedAt:        cp.CreatedAt,
+		UploadedAt:       cp.UploadedAt,
+		LabelsIncludeAll: cp.LabelsIncludeAll,
+		LabelsExcludeAny: cp.LabelsExcludeAny,
 	}
 }
 
@@ -411,15 +412,16 @@ func NewMDMConfigProfilePayloadFromApple(cp *MDMAppleConfigProfile) *MDMConfigPr
 		tid = cp.TeamID
 	}
 	return &MDMConfigProfilePayload{
-		ProfileUUID: cp.ProfileUUID,
-		TeamID:      tid,
-		Name:        cp.Name,
-		Identifier:  cp.Identifier,
-		Platform:    "darwin",
-		Checksum:    cp.Checksum,
-		CreatedAt:   cp.CreatedAt,
-		UploadedAt:  cp.UploadedAt,
-		Labels:      cp.Labels,
+		ProfileUUID:      cp.ProfileUUID,
+		TeamID:           tid,
+		Name:             cp.Name,
+		Identifier:       cp.Identifier,
+		Platform:         "darwin",
+		Checksum:         cp.Checksum,
+		CreatedAt:        cp.CreatedAt,
+		UploadedAt:       cp.UploadedAt,
+		LabelsIncludeAll: cp.LabelsIncludeAll,
+		LabelsExcludeAny: cp.LabelsExcludeAny,
 	}
 }
 
@@ -429,15 +431,16 @@ func NewMDMConfigProfilePayloadFromAppleDDM(decl *MDMAppleDeclaration) *MDMConfi
 		tid = decl.TeamID
 	}
 	return &MDMConfigProfilePayload{
-		ProfileUUID: decl.DeclarationUUID,
-		TeamID:      tid,
-		Name:        decl.Name,
-		Identifier:  decl.Identifier,
-		Platform:    "darwin",
-		Checksum:    []byte(decl.Checksum),
-		CreatedAt:   decl.CreatedAt,
-		UploadedAt:  decl.UploadedAt,
-		Labels:      decl.Labels,
+		ProfileUUID:      decl.DeclarationUUID,
+		TeamID:           tid,
+		Name:             decl.Name,
+		Identifier:       decl.Identifier,
+		Platform:         "darwin",
+		Checksum:         []byte(decl.Checksum),
+		CreatedAt:        decl.CreatedAt,
+		UploadedAt:       decl.UploadedAt,
+		LabelsIncludeAll: decl.LabelsIncludeAll,
+		LabelsExcludeAny: decl.LabelsExcludeAny,
 	}
 }
 
