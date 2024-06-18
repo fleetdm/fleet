@@ -708,7 +708,7 @@ CREATE TABLE `mdm_apple_configuration_profiles` (
   `team_id` int(10) unsigned NOT NULL DEFAULT '0',
   `identifier` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
   `name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `mobileconfig` mediumblob,
+  `mobileconfig` mediumblob NOT NULL,
   `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `uploaded_at` timestamp NULL DEFAULT NULL,
   `checksum` binary(16) NOT NULL,

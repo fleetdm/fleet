@@ -11,7 +11,7 @@ func init() {
 
 func Up_20240617174138(tx *sql.Tx) error {
 	stmt := `
-ALTER TABLE mdm_apple_configuration_profiles MODIFY COLUMN mobileconfig MEDIUMBLOB;
+ALTER TABLE mdm_apple_configuration_profiles MODIFY COLUMN mobileconfig MEDIUMBLOB NOT NULL;
 	`
 
 	if _, err := tx.Exec(stmt); err != nil {
