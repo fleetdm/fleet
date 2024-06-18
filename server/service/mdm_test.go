@@ -1558,6 +1558,34 @@ func TestValidateProfiles(t *testing.T) {
 			},
 			wantErr: true,
 		},
+		{
+			name: "Windows Profile With Deprecated Labels",
+			profiles: []fleet.MDMProfileBatchPayload{
+				{Name: "windowsProfile", Labels: []string{"a"}, Contents: []byte("<replace><Target><LocURI>Custom/URI</LocURI></Target></replace>")},
+			},
+			wantErr: false,
+		},
+		{
+			name: "Windows Profile With Excluded Labels",
+			profiles: []fleet.MDMProfileBatchPayload{
+				{Name: "windowsProfile", LabelsExcludeAny: []string{"a"}, Contents: []byte("<replace><Target><LocURI>Custom/URI</LocURI></Target></replace>")},
+			},
+			wantErr: false,
+		},
+		{
+			name: "Windows Profile With Included Labels",
+			profiles: []fleet.MDMProfileBatchPayload{
+				{Name: "windowsProfile", LabelsIncludeAll: []string{"a"}, Contents: []byte("<replace><Target><LocURI>Custom/URI</LocURI></Target></replace>")},
+			},
+			wantErr: false,
+		},
+		{
+			name: "Windows Profile With Mixed Labels",
+			profiles: []fleet.MDMProfileBatchPayload{
+				{Name: "windowsProfile", Labels: []string{"z"}, LabelsIncludeAll: []string{"a"}, Contents: []byte("<replace><Target><LocURI>Custom/URI</LocURI></Target></replace>")},
+			},
+			wantErr: true,
+		},
 	}
 
 	for _, tt := range tests {

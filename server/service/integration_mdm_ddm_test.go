@@ -168,10 +168,10 @@ func (s *integrationMDMTestSuite) TestAppleDDMBatchUpload() {
 	require.Equal(t, "label_2", createResp.Label.Name)
 	lbl2 := createResp.Label.Label
 
-	// Add with labels
+	// Add with the deprecated "labels" and the new LabelsIncludeAll field
 	s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
 		{Name: "N5", Contents: decls[5], Labels: []string{lbl1.Name, lbl2.Name}},
-		{Name: "N6", Contents: decls[6], Labels: []string{lbl1.Name}},
+		{Name: "N6", Contents: decls[6], LabelsIncludeAll: []string{lbl1.Name}},
 	}}, http.StatusNoContent)
 
 	s.DoJSON("GET", "/api/latest/fleet/mdm/profiles", &listMDMConfigProfilesRequest{}, http.StatusOK, &resp)

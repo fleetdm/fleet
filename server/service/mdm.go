@@ -1548,13 +1548,18 @@ func (svc *Service) BatchSetMDMProfiles(
 		return ctxerr.Wrap(ctx, err, "validating profiles")
 	}
 
-	// TODO(mna): from this point on (after validateProfiles), any values in
-	// Labels should have been transferred to LabelsIncludeAll. (not done yet,
-	// that's todo).
 	labels := []string{}
-	for _, prof := range profiles {
-		labels = append(labels, prof.LabelsIncludeAll...)
-		labels = append(labels, prof.LabelsExcludeAny...)
+	for i := range profiles {
+		// from this point on (after this condition), only LabelsIncludeAll or
+		// LabelsExcludeAny need to be checked.
+		if len(profiles[i].Labels) > 0 {
+			// must update the struct in the slice directly, because we don't have a
+			// pointer to it (it is a slice of structs, not of pointer to structs)
+			profiles[i].LabelsIncludeAll = profiles[i].Labels
+			profiles[i].Labels = nil
+		}
+		labels = append(labels, profiles[i].LabelsIncludeAll...)
+		labels = append(labels, profiles[i].LabelsExcludeAny...)
 	}
 	labelMap, err := svc.batchValidateProfileLabels(ctx, labels)
 	if err != nil {
@@ -1927,8 +1932,21 @@ func getWindowsProfiles(
 
 func validateProfiles(profiles []fleet.MDMProfileBatchPayload) error {
 	for _, profile := range profiles {
-		// TODO(mna): validate that only one of labels, labels_include_all and labels_exclude_any is provided.
-		// After this validation, should only need to check labels_include_all, not labels.
+		// validate that only one of labels, labels_include_all and labels_exclude_any is provided.
+		var count int
+		for _, b := range []bool{
+			len(profile.LabelsIncludeAll) > 0,
+			len(profile.LabelsExcludeAny) > 0,
+			len(profile.Labels) > 0,
+		} {
+			if b {
+				count++
+			}
+		}
+		if count > 1 {
+			return fleet.NewInvalidArgumentError("mdm", `Couldn't edit custom_settings. For each profile, only one of "labels_exclude_any", "labels_include_all" or "labels" can be included.`)
+		}
+
 		platform := mdm.GetRawProfilePlatform(profile.Contents)
 		if platform != "darwin" && platform != "windows" {
 			// We can only display a generic error message here because at this point

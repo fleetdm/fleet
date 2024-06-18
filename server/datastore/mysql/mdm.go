@@ -125,7 +125,6 @@ func (ds *Datastore) ListMDMConfigProfiles(ctx context.Context, teamID *uint, op
 
 	var profs []*fleet.MDMConfigProfilePayload
 
-	// TODO(roberto): Consider using UNION ALL here, as we know there won't be any duplicates between the tables.
 	const selectStmt = `
 SELECT
 	profile_uuid,
@@ -152,7 +151,7 @@ FROM (
 		team_id = ? AND
 		identifier NOT IN (?)
 
-	UNION
+	UNION ALL
 
 	SELECT
 		profile_uuid,
@@ -169,7 +168,7 @@ FROM (
 		team_id = ? AND
 		name NOT IN (?)
 
-	UNION
+	UNION ALL
 
 	SELECT
 		declaration_uuid AS profile_uuid,
