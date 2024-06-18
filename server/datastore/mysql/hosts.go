@@ -4996,7 +4996,7 @@ func (ds *Datastore) ListHostBatteries(ctx context.Context, hid uint) ([]*fleet.
 	return batteries, nil
 }
 
-func (ds *Datastore) GetHostMaintenanceWindow(ctx context.Context, hid uint) (*fleet.HostMaintenanceWindow, error) {
+func (ds *Datastore) ListUpcomingHostMaintenanceWindows(ctx context.Context, hid uint) ([]*fleet.HostMaintenanceWindow, error) {
 	stmt := `
 		SELECT
 			ce.start_time,
@@ -5009,13 +5009,14 @@ func (ds *Datastore) GetHostMaintenanceWindow(ctx context.Context, hid uint) (*f
 			hce.host_id = ?
 			AND
 			ce.start_time > NOW()	
+		ORDER BY ce.start_time
 	`
 
-	var mw *fleet.HostMaintenanceWindow
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), mw, stmt, hid); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "get host maintenance window")
+	var mws []*fleet.HostMaintenanceWindow
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &mws, stmt, hid); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "list upcoming host maintenance windows from db")
 	}
-	return mw, nil
+	return mws, nil
 }
 
 func (ds *Datastore) SetDiskEncryptionResetStatus(ctx context.Context, hostID uint, status bool) error {

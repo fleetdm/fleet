@@ -797,11 +797,11 @@ type HostDetail struct {
 
 	// MaintenanceWindow contains the host user's calendar IANA timezone and the start time of the
 	// next scheduled maintenance window. TODO - how to serialize when no upcoming window?
-	MaintenanceWindow HostMaintenanceWindow `json:"maintenance_window,omitempty"`
+	MaintenanceWindow *HostMaintenanceWindow `json:"maintenance_window,omitempty"`
 }
 type HostMaintenanceWindow struct {
 	//  StartsAt is the UTC start time of the future maintenance window, retrieved from calendar_events
-	StartsAt time.Time `json:"starts_at"`
+	StartsAt time.Time `json:"starts_at" db:"start_time"`
 	// TimeZone is the IANA timezone of the user's google calendar, retrieved from TODO - likely from
 	// datastore as well
 	TimeZone string `json:"timezone"`

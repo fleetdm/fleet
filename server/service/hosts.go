@@ -1050,9 +1050,14 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 		return nil, ctxerr.Wrap(ctx, err, "get batteries for host")
 	}
 
-	mw, err := svc.ds.GetHostMaintenanceWindow(ctx, host.ID)
+	mws, err := svc.ds.ListUpcomingHostMaintenanceWindows(ctx, host.ID)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "get host maintenance window")
+		return nil, ctxerr.Wrap(ctx, err, "list upcoming host maintenance windows")
+	}
+	// we are only interested in the next maintenance window. There should only be one, anyway.
+	var nextMw *fleet.HostMaintenanceWindow
+	if len(mws) > 0 {
+		nextMw = mws[0]
 	}
 
 	// Due to a known osquery issue with M1 Macs, we are ignoring the stored value in the db
@@ -1202,7 +1207,7 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 		Labels:            labels,
 		Packs:             packs,
 		Batteries:         &bats,
-		MaintenanceWindow: *mw,
+		MaintenanceWindow: nextMw,
 	}, nil
 }
 
