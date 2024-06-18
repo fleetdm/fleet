@@ -223,6 +223,10 @@ const TeamManagementPage = (): JSX.Element => {
   ]);
 
   const renderTeamCount = useCallback(() => {
+    if (teams?.length === 0) {
+      return <></>;
+    }
+
     return <TableCount name="teams" count={teams?.length} />;
   }, [teams]);
 
