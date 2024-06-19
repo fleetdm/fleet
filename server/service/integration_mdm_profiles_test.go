@@ -3042,22 +3042,27 @@ func (s *integrationMDMTestSuite) TestListMDMConfigProfiles() {
 		}
 	}
 
+	lblFoo, err := s.ds.NewLabel(ctx, &fleet.Label{Name: "foo", Query: "select 1"})
+	require.NoError(t, err)
+	lblBar, err := s.ds.NewLabel(ctx, &fleet.Label{Name: "bar", Query: "select 1"})
+	require.NoError(t, err)
+
 	// create a couple profiles (Win and mac) for team 2, and none for team 3
 	tprof, err := fleet.NewMDMAppleConfigProfile(mcBytesForTest("tF", "tF.identifier", "tF.uuid"), nil)
 	require.NoError(t, err)
 	tprof.TeamID = &tm2.ID
+	// make tm2ProfF a "exclude-any" label-based profile
+	tprof.LabelsExcludeAny = []fleet.ConfigurationProfileLabel{
+		{LabelID: lblFoo.ID, LabelName: lblFoo.Name},
+		{LabelID: lblBar.ID, LabelName: lblBar.Name},
+	}
 	tm2ProfF, err := s.ds.NewMDMAppleConfigProfile(ctx, *tprof)
 	require.NoError(t, err)
 	// checksum is not returned by New..., so compute it manually
 	checkSum := md5.Sum(tm2ProfF.Mobileconfig) // nolint:gosec // used only for test
 	tm2ProfF.Checksum = checkSum[:]
 
-	// make tm2ProfG a label-based profile
-	lblFoo, err := s.ds.NewLabel(ctx, &fleet.Label{Name: "foo", Query: "select 1"})
-	require.NoError(t, err)
-	lblBar, err := s.ds.NewLabel(ctx, &fleet.Label{Name: "bar", Query: "select 1"})
-	require.NoError(t, err)
-
+	// make tm2ProfG a "include-all" label-based profile
 	tm2ProfG, err := s.ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
 		Name:   "tG",
 		TeamID: &tm2.ID,
@@ -3082,13 +3087,17 @@ func (s *integrationMDMTestSuite) TestListMDMConfigProfiles() {
 	listResp.Profiles[0].CreatedAt, listResp.Profiles[0].UploadedAt = time.Time{}, time.Time{}
 	listResp.Profiles[1].CreatedAt, listResp.Profiles[1].UploadedAt = time.Time{}, time.Time{}
 	require.Equal(t, &fleet.MDMConfigProfilePayload{
-		ProfileUUID:      tm2ProfF.ProfileUUID,
-		TeamID:           tm2ProfF.TeamID,
-		Name:             tm2ProfF.Name,
-		Platform:         "darwin",
-		Identifier:       tm2ProfF.Identifier,
-		Checksum:         tm2ProfF.Checksum,
-		LabelsIncludeAll: nil,
+		ProfileUUID: tm2ProfF.ProfileUUID,
+		TeamID:      tm2ProfF.TeamID,
+		Name:        tm2ProfF.Name,
+		Platform:    "darwin",
+		Identifier:  tm2ProfF.Identifier,
+		Checksum:    tm2ProfF.Checksum,
+		// labels are ordered by name
+		LabelsExcludeAny: []fleet.ConfigurationProfileLabel{
+			{LabelID: lblBar.ID, LabelName: lblBar.Name},
+			{LabelID: 0, LabelName: lblFoo.Name, Broken: true},
+		},
 	}, listResp.Profiles[0])
 	require.Equal(t, &fleet.MDMConfigProfilePayload{
 		ProfileUUID: tm2ProfG.ProfileUUID,
@@ -3102,7 +3111,7 @@ func (s *integrationMDMTestSuite) TestListMDMConfigProfiles() {
 		},
 	}, listResp.Profiles[1])
 
-	// get the specific label-based profile returns the information
+	// get the specific include-all label-based profile returns the information
 	var getProfResp getMDMConfigProfileResponse
 	s.DoJSON("GET", "/api/latest/fleet/mdm/profiles/"+tm2ProfG.ProfileUUID, nil, http.StatusOK, &getProfResp)
 	getProfResp.CreatedAt, getProfResp.UploadedAt = time.Time{}, time.Time{}
@@ -3118,18 +3127,22 @@ func (s *integrationMDMTestSuite) TestListMDMConfigProfiles() {
 		},
 	}, getProfResp.MDMConfigProfilePayload)
 
-	// get the non label-based profile returns no labels
+	// get the specific exclude-any label-based profile returns the information
 	getProfResp = getMDMConfigProfileResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/mdm/profiles/"+tm2ProfF.ProfileUUID, nil, http.StatusOK, &getProfResp)
 	getProfResp.CreatedAt, getProfResp.UploadedAt = time.Time{}, time.Time{}
 	require.Equal(t, &fleet.MDMConfigProfilePayload{
-		ProfileUUID:      tm2ProfF.ProfileUUID,
-		TeamID:           tm2ProfF.TeamID,
-		Name:             tm2ProfF.Name,
-		Platform:         "darwin",
-		Identifier:       tm2ProfF.Identifier,
-		Checksum:         tm2ProfF.Checksum,
-		LabelsIncludeAll: nil,
+		ProfileUUID: tm2ProfF.ProfileUUID,
+		TeamID:      tm2ProfF.TeamID,
+		Name:        tm2ProfF.Name,
+		Platform:    "darwin",
+		Identifier:  tm2ProfF.Identifier,
+		Checksum:    tm2ProfF.Checksum,
+		// labels are ordered by name
+		LabelsExcludeAny: []fleet.ConfigurationProfileLabel{
+			{LabelID: lblBar.ID, LabelName: lblBar.Name},
+			{LabelID: 0, LabelName: lblFoo.Name, Broken: true},
+		},
 	}, getProfResp.MDMConfigProfilePayload)
 
 	// list for a non-existing team returns 404
@@ -3212,6 +3225,11 @@ func (s *integrationMDMTestSuite) TestListMDMConfigProfiles() {
 						require.Len(t, p.LabelsIncludeAll, 2)
 					} else {
 						require.Nil(t, p.LabelsIncludeAll)
+					}
+					if p.Name == "tF" {
+						require.Len(t, p.LabelsExcludeAny, 2)
+					} else {
+						require.Nil(t, p.LabelsExcludeAny)
 					}
 					if c.teamID == nil {
 						// we set it to 0 for global
