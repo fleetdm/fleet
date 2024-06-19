@@ -211,7 +211,6 @@ queries:
 The `controls` section allows you to configure scripts and device management (MDM) features in Fleet.
 
 - `scripts` is a list of paths to macOS, Windows, or Linux scripts.
-
 - `windows_enabled_and_configured` specifies whether or not to turn on Windows MDM features (default: `false`). Can only be configure for all teams (`default.yml`).
 - `enable_disk_encryption` specifies whether or not to enforce disk encryption on macOS and Widnows hosts (default: `false`).
 
@@ -259,15 +258,12 @@ controls:
 - `deadline_days` (default: empty)
 - `grace_period_days` (default: empty)
 
-#### macos_settings
+#### macos_settings and windows_settings
 
-`custom_settings` is a list of paths to macOS configuration profiles (.mobileconfig) or declaration profiles (.json) to apply to macOS hosts.
+- `macos_settings.custom_settings` is a list of paths to macOS configuration profiles (.mobileconfig) or declaration profiles (.json).
+- `windows_settings.custom_settings` is a list of paths to Windows configuration profiles (.xml).
 
-Use `labels` to only apply (scope) profiles to hosts that have all those labels.
-
-#### windows_settings
-
-`custom_settings` is a list of paths to Windows configuration profiles (.xml).
+Fleet supports adding [GitHub environment variables](https://docs.github.com/en/actions/learn-github-actions/variables#defining-environment-variables-for-a-single-workflow) in your configuration profiles. Use `$ENV_VARIABLE` format.
 
 Use `labels` to only apply (scope) profiles to hosts that have all those labels.
 
