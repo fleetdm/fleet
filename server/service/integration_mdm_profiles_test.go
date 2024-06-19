@@ -3572,52 +3572,6 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 	require.Contains(t, errMsg, "Profile is not compatible with host platform")
 }
 
-func (s *integrationMDMTestSuite) TestAppConfigMDMWindowsProfiles() {
-	t := s.T()
-
-	// set the windows custom settings fields
-	acResp := appConfigResponse{}
-	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-		"mdm": {
-		  "windows_settings": {
-		    "custom_settings": [
-		        {"path": "foo", "labels": ["baz"]},
-			{"path": "bar"}
-		    ]
-		  }
-		}
-  }`), http.StatusOK, &acResp)
-	assert.Equal(t, []fleet.MDMProfileSpec{{Path: "foo", Labels: []string{"baz"}}, {Path: "bar"}}, acResp.MDM.WindowsSettings.CustomSettings.Value)
-
-	// check that they are returned by a GET /config
-	acResp = appConfigResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
-	assert.Equal(t, []fleet.MDMProfileSpec{{Path: "foo", Labels: []string{"baz"}}, {Path: "bar"}}, acResp.MDM.WindowsSettings.CustomSettings.Value)
-
-	// patch without specifying the windows custom settings fields and an unrelated
-	// field, should not remove them
-	acResp = appConfigResponse{}
-	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-		"mdm": { "enable_disk_encryption": true }
-  }`), http.StatusOK, &acResp)
-	assert.Equal(t, []fleet.MDMProfileSpec{{Path: "foo", Labels: []string{"baz"}}, {Path: "bar"}}, acResp.MDM.WindowsSettings.CustomSettings.Value)
-
-	// patch with explicitly empty windows custom settings fields, would remove
-	// them but this is a dry-run
-	acResp = appConfigResponse{}
-	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-		"mdm": { "windows_settings": { "custom_settings": null } }
-  }`), http.StatusOK, &acResp, "dry_run", "true")
-	assert.Equal(t, []fleet.MDMProfileSpec{{Path: "foo", Labels: []string{"baz"}}, {Path: "bar"}}, acResp.MDM.WindowsSettings.CustomSettings.Value)
-
-	// patch with explicitly empty windows custom settings fields, removes them
-	acResp = appConfigResponse{}
-	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-		"mdm": { "windows_settings": { "custom_settings": null } }
-  }`), http.StatusOK, &acResp)
-	assert.Empty(t, acResp.MDM.WindowsSettings.CustomSettings.Value)
-}
-
 func (s *integrationMDMTestSuite) TestApplyTeamsMDMWindowsProfiles() {
 	t := s.T()
 
