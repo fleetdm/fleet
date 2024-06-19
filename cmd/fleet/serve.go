@@ -662,6 +662,13 @@ the way that the Fleet server works.
 				initFatal(err, "initializing report store")
 			}
 
+			bulkIndexer := query_report.NewBulkIndexer(reportStore, 50, 30*time.Second)
+
+			oss := &query_report.OpenSearchService{
+				Client:    reportStore,
+				BulkIndexer: bulkIndexer,
+			}
+
 			eh := errorstore.NewHandler(ctx, redisPool, logger, config.Logging.ErrorRetentionPeriod)
 			ctx = ctxerr.NewContext(ctx, eh)
 			svc, err := service.NewService(
@@ -689,7 +696,7 @@ the way that the Fleet server works.
 				mdmPushService,
 				cronSchedules,
 				wstepCertManager,
-				reportStore,
+				oss,
 			)
 			if err != nil {
 				initFatal(err, "initializing service")

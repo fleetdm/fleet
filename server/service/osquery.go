@@ -1766,7 +1766,7 @@ func (svc *Service) SubmitResultLogs(ctx context.Context, logs []json.RawMessage
 			continue
 		}
 
-		if err := query_report.UpsertHostSnapshot(svc.reportStore, *unmarshaledResult); err != nil {
+		if err := query_report.UpsertHostSnapshot(svc.reportStore.BulkIndexer, *unmarshaledResult); err != nil {
 			level.Error(svc.logger).Log("msg", "upsert elasticsearchhost snapshot", "err", err, "result", logs[i])
 		}
 

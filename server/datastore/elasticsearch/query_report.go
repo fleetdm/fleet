@@ -1,7 +1,6 @@
 package query_report
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -9,6 +8,8 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -16,6 +17,96 @@ import (
 	"github.com/opensearch-project/opensearch-go/v2"
 	"github.com/opensearch-project/opensearch-go/v2/opensearchapi"
 )
+
+type OpenSearchService struct {
+	Client      *opensearch.Client
+	BulkIndexer *BulkIndexer
+}
+
+// BulkIndexer is a structure to handle bulk indexing
+type BulkIndexer struct {
+	client     *opensearch.Client
+	batch      []string
+	batchSize  int
+	mutex      sync.Mutex
+	flushTimer *time.Ticker
+}
+
+// NewBulkIndexer initializes a new BulkIndexer
+func NewBulkIndexer(client *opensearch.Client, batchSize int, flushInterval time.Duration) *BulkIndexer {
+	bi := &BulkIndexer{
+		client:     client,
+		batchSize:  batchSize,
+		flushTimer: time.NewTicker(flushInterval),
+	}
+
+	go func() {
+		for range bi.flushTimer.C {
+			bi.Flush()
+		}
+	}()
+
+	return bi
+}
+
+// Add adds a document to the batch
+func (bi *BulkIndexer) Add(index string, documentID string, doc interface{}) error {
+	bi.mutex.Lock()
+	defer bi.mutex.Unlock()
+
+	meta := map[string]interface{}{
+		"index": map[string]interface{}{
+			"_index": index,
+			"_id":    documentID,
+		},
+	}
+	metaJSON, err := json.Marshal(meta)
+	if err != nil {
+		return err
+	}
+
+	docJSON, err := json.Marshal(doc)
+	if err != nil {
+		return err
+	}
+
+	bi.batch = append(bi.batch, string(metaJSON), string(docJSON))
+
+	if len(bi.batch) >= bi.batchSize*2 {
+		return bi.Flush()
+	}
+
+	return nil
+}
+
+// Flush sends the batched documents to OpenSearch
+func (bi *BulkIndexer) Flush() error {
+	bi.mutex.Lock()
+	defer bi.mutex.Unlock()
+
+	if len(bi.batch) == 0 {
+		return nil
+	}
+
+	body := strings.Join(bi.batch, "\n") + "\n"
+
+	req := opensearchapi.BulkRequest{
+		Body: strings.NewReader(body),
+	}
+
+	res, err := req.Do(context.Background(), bi.client)
+	if err != nil {
+		return fmt.Errorf("error executing bulk request: %w", err)
+	}
+	defer res.Body.Close()
+
+	if res.IsError() {
+		return fmt.Errorf("error response from bulk request: %s", res.String())
+	}
+
+	bi.batch = bi.batch[:0]
+	return nil
+}
 
 // CreateOpenSearchClient initializes an OpenSearch client using the default credential provider chain
 func CreateOpenSearchClient() (*opensearch.Client, error) {
@@ -93,15 +184,12 @@ func CreateIndex(client *opensearch.Client) error {
 		return fmt.Errorf("error response creating index: %s", createRes.String())
 	}
 
-	log.Println("Index created")
+	log.Println("OpenSearch Index created")
 	return nil
 }
 
 // UpsertHostSnapshot inserts or updates a document in the OpenSearch index
-func UpsertHostSnapshot(client *opensearch.Client, result fleet.ScheduledQueryResult) error {
-	ctx := context.Background()
-
-	// Document body for upsert
+func UpsertHostSnapshot(bulkIndexer *BulkIndexer, result fleet.ScheduledQueryResult) error {
 	doc := map[string]interface{}{
 		"hostIdentifier": result.OsqueryHostID,
 		"name":           result.QueryName,
@@ -109,26 +197,7 @@ func UpsertHostSnapshot(client *opensearch.Client, result fleet.ScheduledQueryRe
 		"unixTime":       result.UnixTime,
 	}
 
-	bodyJSON, _ := json.Marshal(doc)
-
 	documentID := url.QueryEscape(result.OsqueryHostID + "-" + result.QueryName)
 
-	req := opensearchapi.IndexRequest{
-		Index:      "report",
-		DocumentID: documentID,
-		Body:       bytes.NewReader(bodyJSON),
-		Refresh:    "true", // Optional: can be "true", "false", or "wait_for"
-	}
-
-	res, err := req.Do(ctx, client)
-	if err != nil {
-		return fmt.Errorf("error executing index request: %w", err)
-	}
-	defer res.Body.Close()
-
-	if res.IsError() {
-		return fmt.Errorf("error response from index request: %s", res.String())
-	}
-
-	return nil
+	return bulkIndexer.Add("report", documentID, doc)
 }

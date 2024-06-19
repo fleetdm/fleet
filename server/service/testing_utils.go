@@ -13,6 +13,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/WatchBeam/clock"
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
@@ -147,8 +148,15 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		require.NoError(t, err)
 	}
 
-	reportStore, err := query_report.CreateOpenSearchClient()
+	osClient, err := query_report.CreateOpenSearchClient()
 	require.NoError(t, err)
+
+	bulkIndexer := query_report.NewBulkIndexer(osClient, 50, 30*time.Second)
+
+	reportStore := &query_report.OpenSearchService{
+		Client:      osClient,
+		BulkIndexer: bulkIndexer,
+	}
 
 	svc, err := NewService(
 		ctx,

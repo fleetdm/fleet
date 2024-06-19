@@ -12,6 +12,7 @@ import (
 	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/config"
+	query_report "github.com/fleetdm/fleet/v4/server/datastore/elasticsearch"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
@@ -20,7 +21,6 @@ import (
 	nanomdm_storage "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/storage"
 	"github.com/fleetdm/fleet/v4/server/service/async"
 	"github.com/fleetdm/fleet/v4/server/sso"
-	"github.com/opensearch-project/opensearch-go/v2"
 
 	kitlog "github.com/go-kit/kit/log"
 )
@@ -34,7 +34,7 @@ type Service struct {
 	carveStore     fleet.CarveStore
 	installerStore fleet.InstallerStore
 	resultStore    fleet.QueryResultStore
-	reportStore    *opensearch.Client
+	reportStore    *query_report.OpenSearchService
 	liveQueryStore fleet.LiveQueryStore
 	logger         kitlog.Logger
 	config         config.FleetConfig
@@ -110,7 +110,7 @@ func NewService(
 	mdmPushService nanomdm_push.Pusher,
 	cronSchedulesService fleet.CronSchedulesService,
 	wstepCertManager microsoft_mdm.CertManager,
-	reportStore *opensearch.Client,
+	reportStore *query_report.OpenSearchService,
 ) (fleet.Service, error) {
 	authorizer, err := authz.NewAuthorizer()
 	if err != nil {
