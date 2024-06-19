@@ -665,7 +665,7 @@ the way that the Fleet server works.
 			bulkIndexer := query_report.NewBulkIndexer(reportStore, 50, 30*time.Second)
 
 			oss := &query_report.OpenSearchService{
-				Client:    reportStore,
+				Client:      reportStore,
 				BulkIndexer: bulkIndexer,
 			}
 
