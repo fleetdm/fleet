@@ -3858,7 +3858,7 @@ func batchSetDeclarationLabelAssociationsDB(ctx context.Context, tx sqlx.ExtCont
               %s
           ON DUPLICATE KEY UPDATE
               label_id = VALUES(label_id),
-							exclude = VALUES(exclude)
+              exclude = VALUES(exclude)
 	`
 
 	var (
