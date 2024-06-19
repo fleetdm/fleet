@@ -66,7 +66,7 @@ const SoftwareSelfService = ({
     ({ queryKey }) => deviceApi.getDeviceSoftware(queryKey[0]),
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
-      enabled: isSoftwareEnabled,
+      enabled: isSoftwareEnabled, // TODO: if software is disabled, do we really want to always show empty state? Or should we be hiding this tab altogether?
       keepPreviousData: true,
       staleTime: 7000,
     }

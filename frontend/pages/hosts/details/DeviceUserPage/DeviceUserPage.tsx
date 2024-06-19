@@ -160,7 +160,11 @@ const DeviceUserPage = ({
     refetch: refetchHostDetails,
   } = useQuery<IDeviceUserResponse, Error>(
     ["host", deviceAuthToken],
-    () => deviceUserAPI.loadHostDetails(deviceAuthToken),
+    () =>
+      deviceUserAPI.loadHostDetails({
+        token: deviceAuthToken,
+        exclude_software: true,
+      }),
     {
       enabled: !!deviceAuthToken,
       refetchOnMount: false,
@@ -361,7 +365,8 @@ const DeviceUserPage = ({
     // Software in the legacy response is only being used as a proxy for `iseSoftwareEnabled`.
     // Ideally we should be checking the config for whether software is enabled to show/hide the tab,
     // but it isn't available via device token authenticated API. And we need better specified empty states.
-    const isSoftwareEnabled = !!host?.software?.length;
+    const isSoftwareEnabled = !!globalConfig?.features
+      ?.enable_software_inventory;
 
     return (
       <div className="core-wrapper">
