@@ -10,7 +10,25 @@ examples: |- # (optional) string - An example query for this table. Note: This f
   This query returns the state of the configurable profiles (i.e., domain, public, standard) in the Windows firewall settings (a value of 1 means the firewall is enabled for the profile):
 
   ```
-  WITH profiles AS (SELECT SPLIT(KEY, '\', 7) AS enabled,name,data,'profile' AS grpkey FROM registry r WHERE r.path IN ('\HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\SharedAccess\Parameters\FirewallPolicy\DomainProfile\EnableFirewall','\HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\SharedAccess\Parameters\FirewallPolicy\PublicProfile\EnableFirewall','\HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\SharedAccess\Parameters\FirewallPolicy\StandardProfile\EnableFirewall')),firewall AS (SELECT MAX(CASE WHEN enabled='DomainProfile' THEN DATA END) AS domain_enabled, MAX(CASE WHEN enabled='PublicProfile' THEN DATA END) AS public_enabled, MAX(CASE WHEN enabled='StandardProfile' THEN DATA END) AS standard_enabled FROM profiles GROUP BY grpkey) SELECT * FROM firewall;
+  WITH profiles AS (
+  SELECT SPLIT(KEY, '\', 7) AS enabled,name,data,'profile' AS grpkey
+  FROM registry r
+  WHERE r.path IN (
+  '\HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\SharedAccess\Parameters\FirewallPolicy\DomainProfile\EnableFirewall', 
+  '\HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\SharedAccess\Parameters\FirewallPolicy\PublicProfile\EnableFirewall',
+  '\HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\SharedAccess\Parameters\FirewallPolicy\StandardProfile\EnableFirewall'
+      )
+  ),
+  firewall AS (
+  SELECT
+      MAX(CASE WHEN enabled='DomainProfile' THEN DATA END) AS domain_enabled,
+      MAX(CASE WHEN enabled='PublicProfile' THEN DATA END) AS public_enabled,
+      MAX(CASE WHEN enabled='StandardProfile' THEN DATA END) AS standard_enabled
+  FROM profiles
+  GROUP BY grpkey
+  )
+  SELECT *
+  FROM firewall;
   ```
 notes: |- # (optional) string - Notes about this table. Note: This field supports Markdown.
   The `registry` table is ideal for use in Fleet policies and queries because of the critical operating system and application data stored in the Windows Registry.
