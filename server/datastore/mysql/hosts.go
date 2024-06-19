@@ -653,8 +653,9 @@ SELECT
     WHERE
       host_id = h.id
   ) AS additional,
-  COALESCE(failing_policies.count, 0) AS failing_policies_count,
-  COALESCE(failing_policies.count, 0) AS total_issues_count,
+  COALESCE(host_issues.failing_policies_count, 0) AS failing_policies_count,
+  COALESCE(host_issues.critical_vulnerabilities_count, 0) AS critical_vulnerabilities_count,
+  COALESCE(host_issues.total_issues_count, 0) AS total_issues_count,
   hoi.version AS orbit_version,
   hoi.desktop_version AS fleet_desktop_version,
   hoi.scripts_enabled AS scripts_enabled
@@ -666,22 +667,14 @@ FROM
   LEFT JOIN host_updates hu ON (h.id = hu.host_id)
   LEFT JOIN host_disks hd ON hd.host_id = h.id
   LEFT JOIN host_orbit_info hoi ON hoi.host_id = h.id
+  LEFT JOIN host_issues ON h.id = host_issues.host_id
   ` + hostMDMJoin + `
-  JOIN (
-    SELECT
-      count(*) as count
-    FROM
-      policy_membership
-    WHERE
-      passes = 0
-      AND host_id = ?
-  ) failing_policies
 WHERE
   h.id = ?
 LIMIT
   1
 `
-	args := []interface{}{id, id}
+	args := []interface{}{id}
 
 	var host fleet.Host
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &host, sqlStatement, args...)
@@ -969,7 +962,7 @@ func (ds *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt
 		`
 	}
 
-	if !opt.DisableFailingPolicies {
+	if !opt.DisableIssues {
 		sql += `,
 		COALESCE(host_issues.failing_policies_count, 0) AS failing_policies_count,
 		COALESCE(host_issues.critical_vulnerabilities_count, 0) AS critical_vulnerabilities_count,
@@ -1073,7 +1066,7 @@ func (ds *Datastore) applyHostFilters(
 	}
 
 	failingPoliciesJoin := ""
-	if !opt.DisableFailingPolicies {
+	if !opt.DisableIssues {
 		failingPoliciesJoin = `LEFT JOIN host_issues ON h.id = host_issues.host_id`
 	}
 
@@ -1610,7 +1603,7 @@ func (ds *Datastore) CountHosts(ctx context.Context, filter fleet.TeamFilter, op
 	opt.Page = 0
 	opt.PerPage = 0
 	// We don't need the issue counts of each host for counting hosts.
-	opt.DisableFailingPolicies = true
+	opt.DisableIssues = true
 
 	var params []interface{}
 
