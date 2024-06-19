@@ -38,6 +38,9 @@ module.exports = {
       per_page: 100,//eslint-disable-line camelcase
     }, baseHeaders).retry(), 'filename');// (don't worry, it's the whole path, not the filename)
 
+    if(changedPaths.length === 0) {
+      return false;
+    }
     // Check the path of each file that this PR makes changes to.
     let isHandbookOnlyPR = _.all(changedPaths, (changedPath)=>{
       return changedPath.match(/^handbook\//);
