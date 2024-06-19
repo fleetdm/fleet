@@ -618,7 +618,7 @@ func NewCertStoreProvisioningData(enrollmentType string, identityFingerprint str
 func IsEligibleForWindowsMDMEnrollment(host *fleet.Host, mdmInfo *fleet.HostMDM) bool {
 	return host.FleetPlatform() == "windows" &&
 		host.IsOsqueryEnrolled() &&
-		(!mdmInfo.IsServer && !mdmInfo.Enrolled)
+		(mdmInfo == nil || (!mdmInfo.IsServer && !mdmInfo.Enrolled))
 }
 
 // NewApplicationProvisioningData returns a new ApplicationProvisioningData Characteristic

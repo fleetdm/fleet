@@ -203,14 +203,14 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 	}
 
 	mdmInfo, err := svc.ds.GetHostMDM(ctx, host.ID)
-	if err != nil {
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return fleet.OrbitConfig{}, ctxerr.Wrap(ctx, err, "retrieving host mdm info")
 	}
 
 	// set the host's orbit notifications for macOS MDM
 	var notifs fleet.OrbitConfigNotifications
 	if appConfig.MDM.EnabledAndConfigured && host.IsOsqueryEnrolled() && host.Platform == "darwin" {
-		needsDEPEnrollment := !mdmInfo.Enrolled && !isConnectedToFleetMDM && host.IsDEPAssignedToFleet()
+		needsDEPEnrollment := mdmInfo != nil && !mdmInfo.Enrolled && !isConnectedToFleetMDM && host.IsDEPAssignedToFleet()
 		if needsDEPEnrollment {
 			notifs.RenewEnrollmentProfile = true
 		}
@@ -410,7 +410,8 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 // isEligibleForDEPMigration returns true if the host fulfills all requirements
 // for DEP migration from a third-party provider into Fleet.
 func isEligibleForDEPMigration(host *fleet.Host, mdmInfo *fleet.HostMDM, isConnectedToFleetMDM bool) bool {
-	return host.IsOsqueryEnrolled() &&
+	return mdmInfo != nil &&
+		host.IsOsqueryEnrolled() &&
 		host.IsDEPAssignedToFleet() &&
 		mdmInfo.HasJSONProfileAssigned() &&
 		mdmInfo.Enrolled &&
