@@ -8597,12 +8597,14 @@ Returns the list of App Store (VPP) apps purchased in Apple Business Manager.
     {
       "name": "Xcode",
       "latest_version": "15.4",
-      "app_store_id": 497799835
+      "app_store_id": 497799835,
+      "added": true
     },
     {
       "name": "Logic Pro",
       "latest_version": "2.04",
-      "app_store_id": 634148309
+      "app_store_id": 634148309,
+      "added": false
     },
 }
 }
