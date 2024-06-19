@@ -27,16 +27,16 @@ type OpenSearchService struct {
 type BulkIndexer struct {
 	client     *opensearch.Client
 	batch      []string
-	batchSize  int
+	// batchSize  int
 	mutex      sync.Mutex
 	flushTimer *time.Ticker
 }
 
 // NewBulkIndexer initializes a new BulkIndexer
-func NewBulkIndexer(client *opensearch.Client, batchSize int, flushInterval time.Duration) *BulkIndexer {
+func NewBulkIndexer(client *opensearch.Client, flushInterval time.Duration) *BulkIndexer {
 	bi := &BulkIndexer{
 		client:     client,
-		batchSize:  batchSize,
+		// batchSize:  batchSize,
 		flushTimer: time.NewTicker(flushInterval),
 	}
 
@@ -66,20 +66,22 @@ func (bi *BulkIndexer) Add(index string, documentID string, doc interface{}) err
 	}
 	metaJSON, err := json.Marshal(meta)
 	if err != nil {
-		return err
+		return fmt.Errorf("error marshalling meta: %w", err)
 	}
 
 	docJSON, err := json.Marshal(doc)
 	if err != nil {
-		return err
+		return fmt.Errorf("error marshalling doc: %w", err)
 	}
 
 	bi.batch = append(bi.batch, string(metaJSON), string(docJSON))
 
-	if len(bi.batch) >= bi.batchSize*2 {
-		log.Default().Printf("Flushing batch due to size")
-		return bi.Flush()
-	}
+	log.Printf("Added document to batch. Batch size: %d", len(bi.batch))
+
+	// if len(bi.batch) >= bi.batchSize*2 {
+	// 	log.Default().Printf("Flushing batch due to size")
+	// 	return bi.Flush()
+	// }
 
 	return nil
 }
@@ -113,11 +115,12 @@ func (bi *BulkIndexer) Flush() error {
 	}
 
 	bi.batch = bi.batch[:0]
+	log.Default().Printf("Batch flushed successfully")
 	return nil
 }
 
 // CreateOpenSearchClient initializes an OpenSearch client using the default credential provider chain
-func CreateOpenSearchClient() (*opensearch.Client, error) {
+func NewOpenSearchService(endpoint string, flushInterval time.Duration) (*OpenSearchService, error) {
 	// Create a new session using default credentials (IAM role, environment variables, etc.)
 	_, err := session.NewSession(&aws.Config{
 		Region: aws.String("us-west-2"), // Change to your region
@@ -139,11 +142,17 @@ func CreateOpenSearchClient() (*opensearch.Client, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error creating OpenSearch client: %w", err)
 	}
-	return es, nil
+
+	bulkIndexer := NewBulkIndexer(es, flushInterval)
+
+	return &OpenSearchService{
+		Client:      es,
+		BulkIndexer: bulkIndexer,
+	}, nil
 }
 
 // CreateIndex creates the index if it doesn't exist
-func CreateIndex(client *opensearch.Client) error {
+func (o *OpenSearchService) CreateIndex() error {
 	indexName := "report"
 
 	// Check if the index exists
@@ -151,7 +160,7 @@ func CreateIndex(client *opensearch.Client) error {
 		Index: []string{indexName},
 	}
 
-	res, err := req.Do(context.Background(), client)
+	res, err := req.Do(context.Background(), o.Client)
 	if err != nil {
 		return fmt.Errorf("error checking if index exists: %w", err)
 	}
@@ -182,7 +191,7 @@ func CreateIndex(client *opensearch.Client) error {
 		Body:  strings.NewReader(mapping),
 	}
 
-	createRes, err := createReq.Do(context.Background(), client)
+	createRes, err := createReq.Do(context.Background(), o.Client)
 	if err != nil {
 		return fmt.Errorf("error creating index: %w", err)
 	}
@@ -197,7 +206,7 @@ func CreateIndex(client *opensearch.Client) error {
 }
 
 // UpsertHostSnapshot inserts or updates a document in the OpenSearch index
-func UpsertHostSnapshot(bulkIndexer *BulkIndexer, result fleet.ScheduledQueryResult) error {
+func (o *OpenSearchService) UpsertHostSnapshot(result fleet.ScheduledQueryResult) error {
 	doc := map[string]interface{}{
 		"hostIdentifier": result.OsqueryHostID,
 		"name":           result.QueryName,
@@ -207,5 +216,5 @@ func UpsertHostSnapshot(bulkIndexer *BulkIndexer, result fleet.ScheduledQueryRes
 
 	documentID := url.QueryEscape(result.OsqueryHostID + "-" + result.QueryName)
 
-	return bulkIndexer.Add("report", documentID, doc)
+	return o.BulkIndexer.Add("report", documentID, doc)
 }

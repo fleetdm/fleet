@@ -18,7 +18,6 @@ import (
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
-	query_report "github.com/fleetdm/fleet/v4/server/datastore/elasticsearch"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
@@ -1766,7 +1765,7 @@ func (svc *Service) SubmitResultLogs(ctx context.Context, logs []json.RawMessage
 			continue
 		}
 
-		if err := query_report.UpsertHostSnapshot(svc.reportStore.BulkIndexer, *unmarshaledResult); err != nil {
+		if err := svc.ReportStore.UpsertHostSnapshot(*unmarshaledResult); err != nil {
 			level.Error(svc.logger).Log("msg", "upsert elasticsearchhost snapshot", "err", err, "result", logs[i])
 		}
 

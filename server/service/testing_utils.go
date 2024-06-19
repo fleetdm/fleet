@@ -148,15 +148,8 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		require.NoError(t, err)
 	}
 
-	osClient, err := query_report.CreateOpenSearchClient()
+	reportStore, err := query_report.NewOpenSearchService("foo", 5*time.Second)
 	require.NoError(t, err)
-
-	bulkIndexer := query_report.NewBulkIndexer(osClient, 50, 30*time.Second)
-
-	reportStore := &query_report.OpenSearchService{
-		Client:      osClient,
-		BulkIndexer: bulkIndexer,
-	}
 
 	svc, err := NewService(
 		ctx,

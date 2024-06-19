@@ -658,27 +658,21 @@ the way that the Fleet server works.
 			ctx, cancelFunc := context.WithCancel(baseCtx)
 			defer cancelFunc()
 
-			reportStore, err := query_report.CreateOpenSearchClient()
-			if err != nil {
-				initFatal(err, "initializing report store")
-			}
-
+			endpoint := os.Getenv("FLEET_OPENSEARCH_ENDPOINT")
 			flushTimeEnv := os.Getenv("FLEET_OPENSEARCH_FLUSH_INTERVAL")
 			flushTimeInt, err := strconv.Atoi(flushTimeEnv)
 			if err != nil {
 				initFatal(err, "parsing FLEET_OPENSEARCH_FLUSH_INTERVAL")
 			}
 			flushTime := time.Duration(flushTimeInt) * time.Second
-			flushCountEnv := os.Getenv("FLEET_OPENSEARCH_FLUSH_COUNT")
-			flushCount, err := strconv.Atoi(flushCountEnv)
+			// flushCountEnv := os.Getenv("FLEET_OPENSEARCH_FLUSH_COUNT")
+			// flushCount, err := strconv.Atoi(flushCountEnv)
+			// if err != nil {
+			// 	initFatal(err, "parsing FLEET_OPENSEARCH_FLUSH_COUNT")
+			// }
+			oss, err := query_report.NewOpenSearchService(endpoint, flushTime)
 			if err != nil {
-				initFatal(err, "parsing FLEET_OPENSEARCH_FLUSH_COUNT")
-			}
-			bulkIndexer := query_report.NewBulkIndexer(reportStore, flushCount, flushTime)
-
-			oss := &query_report.OpenSearchService{
-				Client:      reportStore,
-				BulkIndexer: bulkIndexer,
+				initFatal(err, "initializing OpenSearch service")
 			}
 
 			eh := errorstore.NewHandler(ctx, redisPool, logger, config.Logging.ErrorRetentionPeriod)
@@ -715,9 +709,9 @@ the way that the Fleet server works.
 			}
 
 			// create the elasticsearch index
-			err = query_report.CreateIndex(reportStore)
+			err = oss.CreateIndex()
 			if err != nil {
-				initFatal(err, "creating elasticsearch index")
+				initFatal(err, "creating opensearch index")
 			}
 
 			var softwareInstallStore fleet.SoftwareInstallerStore

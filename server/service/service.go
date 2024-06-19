@@ -34,7 +34,7 @@ type Service struct {
 	carveStore     fleet.CarveStore
 	installerStore fleet.InstallerStore
 	resultStore    fleet.QueryResultStore
-	reportStore    *query_report.OpenSearchService
+	ReportStore    *query_report.OpenSearchService
 	liveQueryStore fleet.LiveQueryStore
 	logger         kitlog.Logger
 	config         config.FleetConfig
@@ -123,7 +123,7 @@ func NewService(
 		carveStore:        carveStore,
 		installerStore:    installerStore,
 		resultStore:       resultStore,
-		reportStore:       reportStore,
+		ReportStore:       reportStore,
 		liveQueryStore:    lq,
 		logger:            logger,
 		config:            config,
