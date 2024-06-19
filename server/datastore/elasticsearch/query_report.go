@@ -25,8 +25,8 @@ type OpenSearchService struct {
 
 // BulkIndexer is a structure to handle bulk indexing
 type BulkIndexer struct {
-	client     *opensearch.Client
-	batch      []string
+	client *opensearch.Client
+	batch  []string
 	// batchSize  int
 	mutex      sync.Mutex
 	flushTimer *time.Ticker
@@ -35,7 +35,7 @@ type BulkIndexer struct {
 // NewBulkIndexer initializes a new BulkIndexer
 func NewBulkIndexer(client *opensearch.Client, flushInterval time.Duration) *BulkIndexer {
 	bi := &BulkIndexer{
-		client:     client,
+		client: client,
 		// batchSize:  batchSize,
 		flushTimer: time.NewTicker(flushInterval),
 	}
