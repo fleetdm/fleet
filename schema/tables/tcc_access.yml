@@ -4,14 +4,13 @@ platforms:
 description: Information about macOS TCC database contents, for determining permissions granted to applications.
 evented: false
 columns:
-
   - name: source
     type: text
     description: Either "user" or "system".
     required: false
   - name: uid
     type: integer
-    description: The local user the permissions are for, if `source` is `user`.
+    description: The local user the permissions are for.  `0` for the system (root) user.
     required: false
   - name: service
     type: text
