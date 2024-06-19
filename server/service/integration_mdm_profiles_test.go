@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 	"testing"
@@ -2593,10 +2594,36 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 	testTeam, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "TestTeam"})
 	require.NoError(t, err)
 
-	assertAppleProfile := func(filename, name, ident string, teamID uint, labelNames []string, wantStatus int, wantErrMsg string) string {
-		fields := map[string][]string{
-			"labels": labelNames,
+	// NOTE: label names starting with "-" are sent as "labels_excluding_any"
+	// (and the leading "-" is removed from the name). Names starting with
+	// "!" are sent as the deprecated "labels" field (and the "!" is removed).
+	addLabelsFields := func(labelNames []string) map[string][]string {
+		var deprLabels, inclLabels, exclLabels []string
+		for _, lbl := range labelNames {
+			if strings.HasPrefix(lbl, "-") {
+				exclLabels = append(exclLabels, strings.TrimPrefix(lbl, "-"))
+			} else if strings.HasPrefix(lbl, "!") {
+				deprLabels = append(deprLabels, strings.TrimPrefix(lbl, "!"))
+			} else {
+				inclLabels = append(inclLabels, lbl)
+			}
 		}
+
+		fields := make(map[string][]string)
+		if len(deprLabels) > 0 {
+			fields["labels"] = deprLabels
+		}
+		if len(inclLabels) > 0 {
+			fields["labels_include_all"] = inclLabels
+		}
+		if len(exclLabels) > 0 {
+			fields["labels_exclude_any"] = exclLabels
+		}
+		return fields
+	}
+
+	assertAppleProfile := func(filename, name, ident string, teamID uint, labelNames []string, wantStatus int, wantErrMsg string) string {
+		fields := addLabelsFields(labelNames)
 		if teamID > 0 {
 			fields["team_id"] = []string{fmt.Sprintf("%d", teamID)}
 		}
@@ -2619,9 +2646,7 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 		return resp.ProfileUUID
 	}
 	assertAppleDeclaration := func(filename, ident string, teamID uint, labelNames []string, wantStatus int, wantErrMsg string) string {
-		fields := map[string][]string{
-			"labels": labelNames,
-		}
+		fields := addLabelsFields(labelNames)
 		if teamID > 0 {
 			fields["team_id"] = []string{fmt.Sprintf("%d", teamID)}
 		}
@@ -2680,9 +2705,7 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 	}
 
 	assertWindowsProfile := func(filename, locURI string, teamID uint, labelNames []string, wantStatus int, wantErrMsg string) string {
-		fields := map[string][]string{
-			"labels": labelNames,
-		}
+		fields := addLabelsFields(labelNames)
 		if teamID > 0 {
 			fields["team_id"] = []string{fmt.Sprintf("%d", teamID)}
 		}
@@ -2797,35 +2820,17 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 	assertAppleDeclaration("apple-declaration-with-labels.json", "ident-with-labels", 0, []string{"does-not-exist", "foo"}, http.StatusBadRequest, "some or all the labels provided don't exist")
 	assertWindowsProfile("win-profile-with-labels.xml", "./Test", 0, []string{"does-not-exist", "bar"}, http.StatusBadRequest, "some or all the labels provided don't exist")
 
+	// profiles with invalid mix of labels
+	assertAppleProfile("apple-invalid-profile-with-labels.mobileconfig", "apple-invalid-profile-with-labels", "ident-with-labels", 0, []string{"foo", "!bar"}, http.StatusBadRequest, `Only one of "labels_exclude_any", "labels_include_all" or "labels" can be included.`)
+	assertAppleDeclaration("apple-invalid-decl-with-labels.json", "ident-decl-with-labels", 0, []string{"foo", "-bar"}, http.StatusBadRequest, `Only one of "labels_exclude_any", "labels_include_all" or "labels" can be included.`)
+	assertWindowsProfile("win-invalid-profile-with-labels.xml", "./Test", 0, []string{"-foo", "!bar"}, http.StatusBadRequest, `Only one of "labels_exclude_any", "labels_include_all" or "labels" can be included.`)
+
 	// profiles with valid labels
-	uuidAppleWithLabel := assertAppleProfile("apple-profile-with-labels.mobileconfig", "apple-profile-with-labels", "ident-with-labels", 0, []string{"foo"}, http.StatusOK, "")
+	uuidAppleWithLabel := assertAppleProfile("apple-profile-with-labels.mobileconfig", "apple-profile-with-labels", "ident-with-labels", 0, []string{"!foo"}, http.StatusOK, "")
 	uuidAppleDDMWithLabel := createAppleDeclaration("apple-decl-with-labels", "ident-decl-with-labels", 0, []string{"foo"})
-	uuidWindowsWithLabel := assertWindowsProfile("win-profile-with-labels.xml", "./Test", 0, []string{"foo", "bar"}, http.StatusOK, "")
-
-	// verify that the label associations have been created
-	// TODO: update when we have datastore methods to get this data
-	var profileLabels []fleet.ConfigurationProfileLabel
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		stmt := `
-		SELECT COALESCE(apple_profile_uuid, windows_profile_uuid) as profile_uuid, label_name, COALESCE(label_id, 0) as label_id
-		FROM mdm_configuration_profile_labels
-		UNION SELECT apple_declaration_uuid as profile_uuid, label_name, COALESCE(label_id, 0) as label_id
-		FROM mdm_declaration_labels ORDER BY profile_uuid, label_name;`
-		return sqlx.SelectContext(context.Background(), q, &profileLabels, stmt)
-	})
-
-	require.NotEmpty(t, profileLabels)
-	require.Len(t, profileLabels, 4)
-	require.ElementsMatch(
-		t,
-		[]fleet.ConfigurationProfileLabel{
-			{ProfileUUID: uuidAppleWithLabel, LabelName: labelFoo.Name, LabelID: labelFoo.ID},
-			{ProfileUUID: uuidAppleDDMWithLabel, LabelName: labelFoo.Name, LabelID: labelFoo.ID},
-			{ProfileUUID: uuidWindowsWithLabel, LabelName: labelFoo.Name, LabelID: labelFoo.ID},
-			{ProfileUUID: uuidWindowsWithLabel, LabelName: labelBar.Name, LabelID: labelBar.ID},
-		},
-		profileLabels,
-	)
+	uuidWindowsWithLabel := assertWindowsProfile("win-profile-with-labels.xml", "./Test", 0, []string{"-foo", "-bar"}, http.StatusOK, "")
+	uuidAppleDDMTeamWithLabel := createAppleDeclaration("apple-team-decl-with-labels", "ident-team-decl-with-labels", testTeam.ID, []string{"-foo"})
+	uuidWindowsTeamWithLabel := assertWindowsProfile("win-team-profile-with-labels.xml", "./Test", testTeam.ID, []string{"foo", "bar"}, http.StatusOK, "")
 
 	// Windows invalid content
 	body, headers := generateNewProfileMultipartRequest(t, "win.xml", []byte("\x00\x01\x02"), s.token, nil)
@@ -2853,7 +2858,33 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 		{ProfileUUID: teamAppleProfUUID, Platform: "darwin", Name: "apple-team-profile", Identifier: "test-team-ident", TeamID: &testTeam.ID},
 		{ProfileUUID: noTeamWinProfUUID, Platform: "windows", Name: "win-global-profile", TeamID: nil},
 		{ProfileUUID: teamWinProfUUID, Platform: "windows", Name: "win-team-profile", TeamID: &testTeam.ID},
-		{ProfileUUID: uuidAppleDDMWithLabel, Platform: "darwin", Name: "apple-decl-with-labels", Identifier: "ident-decl-with-labels", TeamID: nil, LabelsIncludeAll: []fleet.ConfigurationProfileLabel{{LabelID: labelFoo.ID, LabelName: labelFoo.Name}}},
+		{ProfileUUID: uuidAppleDDMWithLabel, Platform: "darwin", Name: "apple-decl-with-labels", Identifier: "ident-decl-with-labels", TeamID: nil,
+			LabelsIncludeAll: []fleet.ConfigurationProfileLabel{
+				{LabelID: labelFoo.ID, LabelName: labelFoo.Name},
+			},
+		},
+		{ProfileUUID: uuidAppleWithLabel, Platform: "darwin", Name: "apple-profile-with-labels", Identifier: "ident-with-labels", TeamID: nil,
+			LabelsIncludeAll: []fleet.ConfigurationProfileLabel{
+				{LabelID: labelFoo.ID, LabelName: labelFoo.Name},
+			},
+		},
+		{ProfileUUID: uuidWindowsWithLabel, Platform: "windows", Name: "win-profile-with-labels", TeamID: nil,
+			LabelsExcludeAny: []fleet.ConfigurationProfileLabel{
+				{LabelID: labelBar.ID, LabelName: labelBar.Name},
+				{LabelID: labelFoo.ID, LabelName: labelFoo.Name},
+			},
+		},
+		{ProfileUUID: uuidAppleDDMTeamWithLabel, Platform: "darwin", Name: "apple-team-decl-with-labels", Identifier: "ident-team-decl-with-labels", TeamID: &testTeam.ID,
+			LabelsExcludeAny: []fleet.ConfigurationProfileLabel{
+				{LabelID: labelFoo.ID, LabelName: labelFoo.Name},
+			},
+		},
+		{ProfileUUID: uuidWindowsTeamWithLabel, Platform: "windows", Name: "win-team-profile-with-labels", TeamID: &testTeam.ID,
+			LabelsIncludeAll: []fleet.ConfigurationProfileLabel{
+				{LabelID: labelBar.ID, LabelName: labelBar.Name},
+				{LabelID: labelFoo.ID, LabelName: labelFoo.Name},
+			},
+		},
 	}
 	for _, prof := range expectedProfiles {
 		var getResp getMDMConfigProfileResponse
@@ -2867,6 +2898,13 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 		}
 		getResp.CreatedAt, getResp.UploadedAt = time.Time{}, time.Time{}
 		getResp.Checksum = nil
+		// sort the labels by name
+		sort.Slice(getResp.LabelsIncludeAll, func(i, j int) bool {
+			return getResp.LabelsIncludeAll[i].LabelName < getResp.LabelsIncludeAll[j].LabelName
+		})
+		sort.Slice(getResp.LabelsExcludeAny, func(i, j int) bool {
+			return getResp.LabelsExcludeAny[i].LabelName < getResp.LabelsExcludeAny[j].LabelName
+		})
 		require.Equal(t, prof, *getResp.MDMConfigProfilePayload)
 
 		resp := s.Do("GET", fmt.Sprintf("/api/latest/fleet/configuration_profiles/%s", prof.ProfileUUID), nil, http.StatusOK, "alt", "media")
