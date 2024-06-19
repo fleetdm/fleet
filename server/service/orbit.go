@@ -79,7 +79,7 @@ func (r EnrollOrbitResponse) hijackRender(ctx context.Context, w http.ResponseWr
 	}
 }
 
-// IsEligibleForBitLockerEncryption checks if the host needs to enforce disk
+// isEligibleForBitLockerEncryption checks if the host needs to enforce disk
 // encryption using Fleet MDM features.
 func isEligibleForBitLockerEncryption(h *fleet.Host, mdmInfo *fleet.HostMDM, isConnectedToFleetMDM bool) bool {
 	isServer := mdmInfo != nil && mdmInfo.IsServer
@@ -91,6 +91,7 @@ func isEligibleForBitLockerEncryption(h *fleet.Host, mdmInfo *fleet.HostMDM, isC
 		h.IsOsqueryEnrolled() &&
 		isConnectedToFleetMDM &&
 		!isServer &&
+		mdmInfo != nil &&
 		(needsEncryption || encryptedWithoutKey)
 }
 

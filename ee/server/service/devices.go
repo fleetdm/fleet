@@ -131,7 +131,7 @@ func (svc *Service) GetFleetDesktopSummary(ctx context.Context) (fleet.DesktopSu
 			return sum, ctxerr.Wrap(ctx, err, "could not retrieve mdm info")
 		}
 
-		needsDEPEnrollment := err != sql.ErrNoRows && !mdmInfo.Enrolled && !connected && host.IsDEPAssignedToFleet()
+		needsDEPEnrollment := mdmInfo != nil && !mdmInfo.Enrolled && !connected && host.IsDEPAssignedToFleet()
 		if needsDEPEnrollment {
 			sum.Notifications.RenewEnrollmentProfile = true
 		}
@@ -156,7 +156,8 @@ func (svc *Service) GetFleetDesktopSummary(ctx context.Context) (fleet.DesktopSu
 // isEligibleForDEPMigration returns true if the host fulfills all requirements
 // for DEP migration from a third-party provider into Fleet.
 func isEligibleForDEPMigration(host *fleet.Host, mdmInfo *fleet.HostMDM, isConnectedToFleetMDM bool) bool {
-	return host.IsOsqueryEnrolled() &&
+	return mdmInfo != nil &&
+		host.IsOsqueryEnrolled() &&
 		host.IsDEPAssignedToFleet() &&
 		mdmInfo.HasJSONProfileAssigned() &&
 		mdmInfo.Enrolled &&
