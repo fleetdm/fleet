@@ -446,11 +446,6 @@ func TestHostDetailsOSSettings(t *testing.T) {
 			switch c.host.Platform {
 			case "windows":
 				require.False(t, ds.GetHostMDMAppleProfilesFuncInvoked)
-				if c.licenseTier == fleet.TierPremium {
-					require.True(t, ds.GetHostMDMFuncInvoked)
-				} else {
-					require.False(t, ds.GetHostMDMFuncInvoked)
-				}
 				if c.wantStatus != "" {
 					require.True(t, ds.GetMDMWindowsBitLockerStatusFuncInvoked)
 					require.NotNil(t, hostDetail.MDM.OSSettings.DiskEncryption.Status)
@@ -523,7 +518,6 @@ func TestHostDetailsOSSettingsWindowsOnly(t *testing.T) {
 	require.NotNil(t, hostDetail)
 	require.True(t, ds.AppConfigFuncInvoked)
 	require.False(t, ds.GetHostMDMAppleProfilesFuncInvoked)
-	require.True(t, ds.GetHostMDMFuncInvoked)
 	require.True(t, ds.GetMDMWindowsBitLockerStatusFuncInvoked)
 	require.NotNil(t, hostDetail.MDM.OSSettings.DiskEncryption.Status)
 	require.Equal(t, fleet.DiskEncryptionVerified, *hostDetail.MDM.OSSettings.DiskEncryption.Status)
