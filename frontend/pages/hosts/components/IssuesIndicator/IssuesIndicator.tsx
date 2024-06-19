@@ -39,10 +39,11 @@ const IssuesIndicator = ({
         data-html
       >
         <span className={`tooltip__tooltip-text`}>
-          {criticalVulnerabilitiesCount &&
+          {!!criticalVulnerabilitiesCount &&
             `Critical vulnerabilities (${criticalVulnerabilitiesCount})`}
-          {criticalVulnerabilitiesCount && failingPoliciesCount && <br />}
-          {failingPoliciesCount && `Failing policies (${failingPoliciesCount})`}
+          {!!criticalVulnerabilitiesCount && !!failingPoliciesCount && <br />}
+          {!!failingPoliciesCount &&
+            `Failing policies (${failingPoliciesCount})`}
         </span>
       </ReactTooltip>
     </>
