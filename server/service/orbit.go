@@ -79,6 +79,21 @@ func (r EnrollOrbitResponse) hijackRender(ctx context.Context, w http.ResponseWr
 	}
 }
 
+// IsEligibleForBitLockerEncryption checks if the host needs to enforce disk
+// encryption using Fleet MDM features.
+func isEligibleForBitLockerEncryption(h *Host, mdmInfo *HostMDM, isConnectedToFleetMDM bool) bool {
+	isServer := mdmInfo != nil && mdmInfo.IsServer
+	isWindows := h.FleetPlatform() == "windows"
+	needsEncryption := h.DiskEncryptionEnabled != nil && !*h.DiskEncryptionEnabled
+	encryptedWithoutKey := h.DiskEncryptionEnabled != nil && *h.DiskEncryptionEnabled && !h.MDM.EncryptionKeyAvailable
+
+	return isWindows &&
+		h.IsOsqueryEnrolled() &&
+		isConnectedToFleetMDM &&
+		!isServer &&
+		(needsEncryption || encryptedWithoutKey)
+}
+
 func enrollOrbitEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*EnrollOrbitRequest)
 	nodeKey, err := svc.EnrollOrbit(ctx, fleet.OrbitHostInfo{
@@ -187,10 +202,16 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 		return fleet.OrbitConfig{}, ctxerr.Wrap(ctx, err, "checking if host is connected to Fleet")
 	}
 
+	mdmInfo, err := svc.ds.GetHostMDM(ctx, host.ID)
+	if err != nil {
+		return fleet.OrbitConfig{}, ctxerr.Wrap(ctx, err, "retrieving host mdm info")
+	}
+
 	// set the host's orbit notifications for macOS MDM
 	var notifs fleet.OrbitConfigNotifications
 	if appConfig.MDM.EnabledAndConfigured && host.IsOsqueryEnrolled() && host.Platform == "darwin" {
-		if host.NeedsDEPEnrollment(isConnectedToFleetMDM) {
+		needsDEPEnrollment := !mdmInfo.Enrolled && !isConnectedToFleetMDM && host.IsDEPAssignedToFleet
+		if needsDEPEnrollment {
 			notifs.RenewEnrollmentProfile = true
 		}
 
@@ -212,7 +233,7 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 
 	// set the host's orbit notifications for Windows MDM
 	if appConfig.MDM.WindowsEnabledAndConfigured {
-		if host.IsEligibleForWindowsMDMEnrollment() {
+		if IsEligibleForWindowsMDMEnrollment(host, mdmInfo) {
 			discoURL, err := microsoft_mdm.ResolveWindowsMDMDiscovery(appConfig.ServerSettings.ServerURL)
 			if err != nil {
 				return fleet.OrbitConfig{}, err
@@ -302,7 +323,7 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 		}
 
 		if mdmConfig.EnableDiskEncryption &&
-			host.IsEligibleForBitLockerEncryption(isConnectedToFleetMDM) {
+			isEligibleForBitLockerEncryption(host, mdmInfo, isConnectedToFleetMDM) {
 			notifs.EnforceBitLockerEncryption = true
 		}
 
@@ -364,7 +385,7 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 
 	if appConfig.MDM.WindowsEnabledAndConfigured &&
 		appConfig.MDM.EnableDiskEncryption.Value &&
-		host.IsEligibleForBitLockerEncryption(isConnectedToFleetMDM) {
+		isEligibleForBitLockerEncryption(host, mdmInfo, isConnectedToFleetMDM) {
 		notifs.EnforceBitLockerEncryption = true
 	}
 

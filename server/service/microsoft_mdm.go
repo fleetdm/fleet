@@ -613,6 +613,14 @@ func NewCertStoreProvisioningData(enrollmentType string, identityFingerprint str
 	return certStore
 }
 
+// IsEligibleForWindowsMDMEnrollment returns true if the host can be enrolled
+// in Fleet's Windows MDM (if it was enabled).
+func IsEligibleForWindowsMDMEnrollment(host *fleet.Host, mdmInfo *fleet.HostMDM) bool {
+	return host.FleetPlatform() == "windows" &&
+		host.IsOsqueryEnrolled() &&
+		(!mdmInfo.IsServer && !mdmInfo.Enrolled)
+}
+
 // NewApplicationProvisioningData returns a new ApplicationProvisioningData Characteristic
 // The Application Provisioning configuration is used for bootstrapping a device with an OMA DM account
 // The paramenters here maps to the W7 application CSP
@@ -960,8 +968,13 @@ func (svc *Service) authBinarySecurityToken(ctx context.Context, authToken *flee
 				return "", "", fmt.Errorf("host data cannot be found %v", err)
 			}
 
+			mdmInfo, err := svc.ds.GetHostMDM(ctx, host.ID)
+			if err != nil {
+				return "", "", errors.New("unable to retrieve host mdm info")
+			}
+
 			// This ensures that only hosts that are eligible for Windows enrollment can be enrolled
-			if !host.IsEligibleForWindowsMDMEnrollment() {
+			if !IsEligibleForWindowsMDMEnrollment(host, mdmInfo) {
 				return "", "", errors.New("host is not elegible for Windows MDM enrollment")
 			}
 
