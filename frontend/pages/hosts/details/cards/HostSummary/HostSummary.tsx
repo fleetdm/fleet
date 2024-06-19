@@ -355,6 +355,10 @@ const HostSummary = ({
 
   const renderMaintenanceWindow = () => {
     // TODO
+    const [timeStamp, offset] = summaryData.maintenance_window.starts_at.split(
+      " "
+    );
+    console.log("stamp: ", timeStamp, "offset: ", offset);
 
     // const gmtOffset = "T0:D0";
     const iAnaTzParsed = (summaryData.maintenance_window
@@ -369,15 +373,12 @@ const HostSummary = ({
               <>
                 End user&apos;s time zone:
                 <br />
-                {/* (GMT-{gmtOffset}) {iAnaTzParsed} */}
-                {iAnaTzParsed}
+                (GMT{offset.replace("UTC", "")}) {iAnaTzParsed}
               </>
             }
           >
-            {format(
-              summaryData.maintenance_window.starts_at,
-              "E, MMM d 'at' p"
-            )}
+            {/* {format(timeStamp.split(/\+|-/)[0], "E, MMM d 'at' p")} */}
+            {format(`${timeStamp.split(/\+|-/)[0]}Z`, "E, MMM d 'at' p")}
           </TooltipWrapper>
         }
       />

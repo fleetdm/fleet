@@ -4997,9 +4997,10 @@ func (ds *Datastore) ListHostBatteries(ctx context.Context, hid uint) ([]*fleet.
 }
 
 func (ds *Datastore) ListUpcomingHostMaintenanceWindows(ctx context.Context, hid uint) ([]*fleet.HostMaintenanceWindow, error) {
+	// TODO - how to fall back to the `start_time` UTC value if timezone is NULL?
 	stmt := `
 		SELECT
-			ce.start_time,
+			ce.user_local_start_time,
 			ce.timezone
 		FROM
 			host_calendar_events hce JOIN calendar_events ce
