@@ -17,11 +17,9 @@ func main() {
 	b.WriteString(`<!-- DO NOT EDIT. This document is automatically generated. -->
 # Audit logs
 
-Fleet logs activities (queries, scripts, logins, etc).
+Fleet logs activities.
 
 To see activities in Fleet, select the Fleet icon in the top navigation and see the **Activity** section.
-
-You can automatically send these logs to a webhook URL or a [log destination](https://fleetdm.com/docs/configuration/fleet-server-configuration#external-activity-audit-logging).
 
 This page includes a list of activities.
 
