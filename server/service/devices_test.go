@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"testing"
 	"time"
@@ -112,6 +113,15 @@ func TestGetFleetDesktopSummary(t *testing.T) {
 
 			ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, host *fleet.Host) (bool, error) {
 				return false, nil
+			}
+			ds.GetHostMDMFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
+				return &fleet.HostMDM{
+					IsServer:               false,
+					InstalledFromDep:       true,
+					Enrolled:               true,
+					Name:                   fleet.WellKnownMDMIntune,
+					DEPProfileAssignStatus: ptr.String(string(fleet.DEPAssignProfileResponseSuccess)),
+				}, nil
 			}
 
 			ctx := test.HostContext(ctx, &fleet.Host{
@@ -425,6 +435,9 @@ func TestGetFleetDesktopSummary(t *testing.T) {
 				ctx = test.HostContext(ctx, c.host)
 
 				ds.GetHostMDMFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
+					if c.hostMDM == nil {
+						return nil, sql.ErrNoRows
+					}
 					return c.hostMDM, nil
 				}
 

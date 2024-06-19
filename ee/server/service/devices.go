@@ -2,6 +2,8 @@ package service
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server"
@@ -125,8 +127,11 @@ func (svc *Service) GetFleetDesktopSummary(ctx context.Context) (fleet.DesktopSu
 		}
 
 		mdmInfo, err := svc.ds.GetHostMDM(ctx, host.ID)
+		if err != nil && !errors.Is(err, sql.ErrNoRows) {
+			return sum, ctxerr.Wrap(ctx, err, "could not retrieve mdm info")
+		}
 
-		needsDEPEnrollment := !mdmInfo.Enrolled && !connected && host.IsDEPAssignedToFleet()
+		needsDEPEnrollment := err != sql.ErrNoRows && !mdmInfo.Enrolled && !connected && host.IsDEPAssignedToFleet()
 		if needsDEPEnrollment {
 			sum.Notifications.RenewEnrollmentProfile = true
 		}
