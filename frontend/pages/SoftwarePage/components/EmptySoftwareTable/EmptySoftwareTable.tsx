@@ -33,7 +33,7 @@ const generateTypeText = (
 };
 
 const EmptySoftwareTable = ({
-  softwareFilter,
+  softwareFilter = "allSoftware",
   tableName = "software",
   isSoftwareDisabled,
   isNotDetectingSoftware,
