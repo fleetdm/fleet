@@ -1800,7 +1800,10 @@ func (s *integrationMDMTestSuite) TestApplyTeamsMDMAppleProfiles() {
 		Name: teamName,
 		MDM: fleet.TeamSpecMDM{
 			MacOSSettings: map[string]interface{}{
-				"custom_settings": []map[string]interface{}{{"path": "foo"}, {"path": "bar"}},
+				"custom_settings": []map[string]interface{}{
+					{"path": "foo", "labels": []string{"a", "b"}},
+					{"path": "bar", "labels_exclude_any": []string{"c"}},
+				},
 			},
 		},
 	}}}
@@ -1809,7 +1812,10 @@ func (s *integrationMDMTestSuite) TestApplyTeamsMDMAppleProfiles() {
 	// retrieving the team returns the custom macos settings
 	var teamResp getTeamResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
-	require.Equal(t, []fleet.MDMProfileSpec{{Path: "foo"}, {Path: "bar"}}, teamResp.Team.Config.MDM.MacOSSettings.CustomSettings)
+	require.Equal(t, []fleet.MDMProfileSpec{
+		{Path: "foo", LabelsIncludeAll: []string{"a", "b"}},
+		{Path: "bar", LabelsExcludeAny: []string{"c"}},
+	}, teamResp.Team.Config.MDM.MacOSSettings.CustomSettings)
 
 	// apply with invalid macos settings subfield should fail
 	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
@@ -1844,7 +1850,10 @@ func (s *integrationMDMTestSuite) TestApplyTeamsMDMAppleProfiles() {
 	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
 	teamResp = getTeamResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
-	require.Equal(t, []fleet.MDMProfileSpec{{Path: "foo"}, {Path: "bar"}}, teamResp.Team.Config.MDM.MacOSSettings.CustomSettings)
+	require.Equal(t, []fleet.MDMProfileSpec{
+		{Path: "foo", LabelsIncludeAll: []string{"a", "b"}},
+		{Path: "bar", LabelsExcludeAny: []string{"c"}},
+	}, teamResp.Team.Config.MDM.MacOSSettings.CustomSettings)
 
 	// apply with explicitly empty custom macos settings would clear the existing
 	// settings, but dry-run
@@ -1857,7 +1866,10 @@ func (s *integrationMDMTestSuite) TestApplyTeamsMDMAppleProfiles() {
 	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK, "dry_run", "true")
 	teamResp = getTeamResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
-	require.Equal(t, []fleet.MDMProfileSpec{{Path: "foo"}, {Path: "bar"}}, teamResp.Team.Config.MDM.MacOSSettings.CustomSettings)
+	require.Equal(t, []fleet.MDMProfileSpec{
+		{Path: "foo", LabelsIncludeAll: []string{"a", "b"}},
+		{Path: "bar", LabelsExcludeAny: []string{"c"}},
+	}, teamResp.Team.Config.MDM.MacOSSettings.CustomSettings)
 
 	// apply with explicitly empty custom macos settings clears the existing settings
 	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
@@ -1870,6 +1882,22 @@ func (s *integrationMDMTestSuite) TestApplyTeamsMDMAppleProfiles() {
 	teamResp = getTeamResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
 	require.Equal(t, []fleet.MDMProfileSpec{}, teamResp.Team.Config.MDM.MacOSSettings.CustomSettings)
+
+	// apply with invalid mix of labels fails
+	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
+		Name: teamName,
+		MDM: fleet.TeamSpecMDM{
+			MacOSSettings: map[string]interface{}{
+				"custom_settings": []map[string]interface{}{
+					{"path": "bar", "labels": []string{"x"}},
+					{"path": "foo", "labels": []string{"a", "b"}, "labels_include_all": []string{"c"}},
+				},
+			},
+		},
+	}}}
+	res = s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
+	assert.Contains(t, errMsg, `For each profile, only one of "labels_exclude_any", "labels_include_all" or "labels" can be included.`)
 }
 
 func (s *integrationMDMTestSuite) TestBatchSetMDMAppleProfiles() {
@@ -3594,12 +3622,12 @@ func (s *integrationMDMTestSuite) TestApplyTeamsMDMWindowsProfiles() {
 	var applyResp applyTeamSpecsResponse
 	s.DoJSON("POST", "/api/latest/fleet/spec/teams", rawTeamSpec(`
 		{
-		  "windows_settings": {
-		    "custom_settings": [
-		       {"path": "foo", "labels": ["baz"]},
-		       {"path": "bar"}
-		    ]
-		  }
+			"windows_settings": {
+				"custom_settings": [
+					{"path": "foo", "labels": ["baz"]},
+					{"path": "bar", "labels_exclude_any": ["x", "y"]}
+				]
+			}
 		}
 	`), http.StatusOK, &applyResp)
 	require.Len(t, applyResp.TeamIDsByName, 1)
@@ -3607,7 +3635,10 @@ func (s *integrationMDMTestSuite) TestApplyTeamsMDMWindowsProfiles() {
 	// check that they are returned by a GET /config
 	var teamResp getTeamResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
-	require.ElementsMatch(t, []fleet.MDMProfileSpec{{Path: "foo", Labels: []string{"baz"}}, {Path: "bar"}}, teamResp.Team.Config.MDM.WindowsSettings.CustomSettings.Value)
+	require.ElementsMatch(t, []fleet.MDMProfileSpec{
+		{Path: "foo", LabelsIncludeAll: []string{"baz"}},
+		{Path: "bar", LabelsExcludeAny: []string{"x", "y"}},
+	}, teamResp.Team.Config.MDM.WindowsSettings.CustomSettings.Value)
 
 	// patch without specifying the windows custom settings fields and an unrelated
 	// field, should not remove them
@@ -3618,7 +3649,10 @@ func (s *integrationMDMTestSuite) TestApplyTeamsMDMWindowsProfiles() {
 	// check that they are returned by a GET /config
 	teamResp = getTeamResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
-	require.ElementsMatch(t, []fleet.MDMProfileSpec{{Path: "foo", Labels: []string{"baz"}}, {Path: "bar"}}, teamResp.Team.Config.MDM.WindowsSettings.CustomSettings.Value)
+	require.ElementsMatch(t, []fleet.MDMProfileSpec{
+		{Path: "foo", LabelsIncludeAll: []string{"baz"}},
+		{Path: "bar", LabelsExcludeAny: []string{"x", "y"}},
+	}, teamResp.Team.Config.MDM.WindowsSettings.CustomSettings.Value)
 
 	// patch with explicitly empty windows custom settings fields, would remove
 	// them but this is a dry-run
@@ -3630,7 +3664,10 @@ func (s *integrationMDMTestSuite) TestApplyTeamsMDMWindowsProfiles() {
 
 	teamResp = getTeamResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
-	require.ElementsMatch(t, []fleet.MDMProfileSpec{{Path: "foo", Labels: []string{"baz"}}, {Path: "bar"}}, teamResp.Team.Config.MDM.WindowsSettings.CustomSettings.Value)
+	require.ElementsMatch(t, []fleet.MDMProfileSpec{
+		{Path: "foo", LabelsIncludeAll: []string{"baz"}},
+		{Path: "bar", LabelsExcludeAny: []string{"x", "y"}},
+	}, teamResp.Team.Config.MDM.WindowsSettings.CustomSettings.Value)
 
 	// patch with explicitly empty windows custom settings fields, removes them
 	applyResp = applyTeamSpecsResponse{}
@@ -3642,6 +3679,19 @@ func (s *integrationMDMTestSuite) TestApplyTeamsMDMWindowsProfiles() {
 	teamResp = getTeamResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
 	require.Empty(t, teamResp.Team.Config.MDM.WindowsSettings.CustomSettings.Value)
+
+	// apply with invalid mix of labels fails
+	res := s.Do("POST", "/api/latest/fleet/spec/teams", rawTeamSpec(`
+		{
+			"windows_settings": {
+				"custom_settings": [
+					{"path": "foo", "labels": ["a"], "labels_include_all": ["b"]}
+				]
+			}
+		}
+	`), http.StatusUnprocessableEntity)
+	errMsg := extractServerErrorText(res.Body)
+	assert.Contains(t, errMsg, `For each profile, only one of "labels_exclude_any", "labels_include_all" or "labels" can be included.`)
 }
 
 func (s *integrationMDMTestSuite) TestBatchSetMDMProfiles() {
