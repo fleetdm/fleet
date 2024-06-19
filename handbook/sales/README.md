@@ -156,6 +156,13 @@ Temp Transfer to: Temp technical DRI
   - phone, try finding their number to text and/or call (as appropriate to the device type: landline vs. cell phone).
   - an alternative date and time. Suggest two to three options from which the prospect can choose.
     - Confirm that contact information is accurate and that the prospect can receive and access meeting invites.
+   
+### Send an NDA to a customer
+- We want to use Fleet's NDA whenever possible and should always offer to send ours.
+- If a customer has no objections to using Fleet's NDA, we can route this NDA to them for signature using the NDA template in DocuSign.
+- If a customer would like to review the NDA first, download a .docx of [Fleet's NDA](https://docs.google.com/document/d/1gQCrF3silBFG9dJgyCvpmLa6hPhX_T4V7pL3XAwgqEU/edit?usp=sharing) and send it to the customer.
+- If, after review, the customer has no objections we route the NDA to them using the template in DocuSign (do not upload and use the copy you emailed to the customer).
+- If the customer redlines the NDA then we follow our [contract review process](https://fleetdm.com/handbook/company/communications#getting-a-contract-reviewed) so that BizOps can look over any proposed changes and provide guidance on how to proceed and whether we can accept their changes.
 
 ### Create a customer agreement
 - **Contract terms:** Fleet's subscription agreement is available at [fleetdm.com/terms](https://fleetdm.com/terms). 
