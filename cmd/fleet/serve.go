@@ -14,6 +14,7 @@ import (
 	"os"
 	"os/signal"
 	"regexp"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -662,7 +663,18 @@ the way that the Fleet server works.
 				initFatal(err, "initializing report store")
 			}
 
-			bulkIndexer := query_report.NewBulkIndexer(reportStore, 50, 30*time.Second)
+			flushTimeEnv := os.Getenv("FLEET_OPENSEARCH_FLUSH_INTERVAL")
+			flushTimeInt, err := strconv.Atoi(flushTimeEnv)
+			if err != nil {
+				initFatal(err, "parsing FLEET_OPENSEARCH_FLUSH_INTERVAL")
+			}
+			flushTime := time.Duration(flushTimeInt) * time.Second
+			flushCountEnv := os.Getenv("FLEET_OPENSEARCH_FLUSH_COUNT")
+			flushCount, err := strconv.Atoi(flushCountEnv)
+			if err != nil {
+				initFatal(err, "parsing FLEET_OPENSEARCH_FLUSH_COUNT")
+			}
+			bulkIndexer := query_report.NewBulkIndexer(reportStore, flushCount, flushTime)
 
 			oss := &query_report.OpenSearchService{
 				Client:      reportStore,

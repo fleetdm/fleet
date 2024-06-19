@@ -42,7 +42,11 @@ func NewBulkIndexer(client *opensearch.Client, batchSize int, flushInterval time
 
 	go func() {
 		for range bi.flushTimer.C {
-			bi.Flush()
+			log.Default().Printf("Flushing batch due to timer")
+			err := bi.Flush()
+			if err != nil {
+				log.Default().Printf("Error flushing batch: %v", err)
+			}
 		}
 	}()
 
@@ -73,6 +77,7 @@ func (bi *BulkIndexer) Add(index string, documentID string, doc interface{}) err
 	bi.batch = append(bi.batch, string(metaJSON), string(docJSON))
 
 	if len(bi.batch) >= bi.batchSize*2 {
+		log.Default().Printf("Flushing batch due to size")
 		return bi.Flush()
 	}
 
