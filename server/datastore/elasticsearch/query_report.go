@@ -90,6 +90,7 @@ func (bi *BulkIndexer) Flush() error {
 	defer bi.mutex.Unlock()
 
 	if len(bi.batch) == 0 {
+		log.Default().Printf("No documents to flush")
 		return nil
 	}
 
@@ -98,6 +99,8 @@ func (bi *BulkIndexer) Flush() error {
 	req := opensearchapi.BulkRequest{
 		Body: strings.NewReader(body),
 	}
+
+	log.Default().Printf("Flushing %d documents", len(bi.batch))
 
 	res, err := req.Do(context.Background(), bi.client)
 	if err != nil {
