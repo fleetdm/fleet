@@ -3914,12 +3914,82 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMProfiles() {
 		fmt.Sprintf(`{"team_id": %d, "team_name": %q}`, tm.ID, tm.Name),
 		0,
 	)
-
 	s.lastActivityOfTypeMatches(
 		fleet.ActivityTypeEditedDeclarationProfile{}.ActivityName(),
 		fmt.Sprintf(`{"team_id": %d, "team_name": %q}`, tm.ID, tm.Name),
 		0,
 	)
+
+	// batch-apply profiles with labels
+	lbl1, err := s.ds.NewLabel(ctx, &fleet.Label{Name: "L1", Query: "select 1;"})
+	require.NoError(t, err)
+	lbl2, err := s.ds.NewLabel(ctx, &fleet.Label{Name: "L2", Query: "select 1;"})
+	require.NoError(t, err)
+	lbl3, err := s.ds.NewLabel(ctx, &fleet.Label{Name: "L3", Query: "select 1;"})
+	require.NoError(t, err)
+
+	// attempt with an invalid label name
+	res = s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+		{Name: "N1", Contents: mobileconfigForTest("N1", "I1"), Labels: []string{lbl1.Name, "no-such-label"}},
+	}}, http.StatusBadRequest)
+	msg := extractServerErrorText(res.Body)
+	require.Contains(t, msg, "some or all the labels provided don't exist")
+
+	// mix of labels fields
+	res = s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+		{Name: "N1", Contents: mobileconfigForTest("N1", "I1"), Labels: []string{lbl1.Name}, LabelsExcludeAny: []string{lbl2.Name}},
+	}}, http.StatusUnprocessableEntity)
+	msg = extractServerErrorText(res.Body)
+	require.Contains(t, msg, `For each profile, only one of "labels_exclude_any", "labels_include_all" or "labels" can be included.`)
+
+	// successful batch-set
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+		{Name: "N1", Contents: mobileconfigForTest("N1", "I1"), Labels: []string{lbl1.Name, lbl2.Name}},
+		{Name: "N2", Contents: syncMLForTest("./Foo/Bar"), LabelsIncludeAll: []string{lbl1.Name}},
+		{Name: "N4", Contents: declarationForTest("D1"), LabelsExcludeAny: []string{lbl2.Name}},
+	}}, http.StatusNoContent)
+
+	// confirm expected results
+	var listResp listMDMConfigProfilesResponse
+	s.DoJSON("GET", "/api/latest/fleet/configuration_profiles", nil, http.StatusOK, &listResp)
+	require.Len(t, listResp.Profiles, 3)
+	require.Equal(t, "N1", listResp.Profiles[0].Name)
+	require.Equal(t, "N2", listResp.Profiles[1].Name)
+	require.Equal(t, "N4", listResp.Profiles[2].Name)
+	require.Equal(t, listResp.Profiles[0].LabelsIncludeAll, []fleet.ConfigurationProfileLabel{
+		{LabelID: lbl1.ID, LabelName: lbl1.Name},
+		{LabelID: lbl2.ID, LabelName: lbl2.Name},
+	})
+	require.Nil(t, listResp.Profiles[0].LabelsExcludeAny)
+	require.Equal(t, listResp.Profiles[1].LabelsIncludeAll, []fleet.ConfigurationProfileLabel{
+		{LabelID: lbl1.ID, LabelName: lbl1.Name},
+	})
+	require.Nil(t, listResp.Profiles[1].LabelsExcludeAny)
+	require.Equal(t, listResp.Profiles[2].LabelsExcludeAny, []fleet.ConfigurationProfileLabel{
+		{LabelID: lbl2.ID, LabelName: lbl2.Name},
+	})
+	require.Nil(t, listResp.Profiles[2].LabelsIncludeAll)
+
+	// successful batch-set that updates some labels
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+		{Name: "N1", Contents: mobileconfigForTest("N1", "I1"), LabelsExcludeAny: []string{lbl1.Name, lbl3.Name}},
+		{Name: "N2", Contents: syncMLForTest("./Foo/Bar"), LabelsIncludeAll: []string{lbl2.Name}},
+	}}, http.StatusNoContent)
+
+	listResp = listMDMConfigProfilesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/configuration_profiles", nil, http.StatusOK, &listResp)
+	require.Len(t, listResp.Profiles, 2)
+	require.Equal(t, "N1", listResp.Profiles[0].Name)
+	require.Equal(t, "N2", listResp.Profiles[1].Name)
+	require.Equal(t, listResp.Profiles[0].LabelsExcludeAny, []fleet.ConfigurationProfileLabel{
+		{LabelID: lbl1.ID, LabelName: lbl1.Name},
+		{LabelID: lbl3.ID, LabelName: lbl3.Name},
+	})
+	require.Nil(t, listResp.Profiles[0].LabelsIncludeAll)
+	require.Equal(t, listResp.Profiles[1].LabelsIncludeAll, []fleet.ConfigurationProfileLabel{
+		{LabelID: lbl2.ID, LabelName: lbl2.Name},
+	})
+	require.Nil(t, listResp.Profiles[1].LabelsExcludeAny)
 
 	// names cannot be duplicated across platforms
 	declBytes := json.RawMessage(`{
