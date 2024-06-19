@@ -444,17 +444,21 @@ agent_options:
 
 ## Script execution timeout
 
-The `script_execution_timeout` allows you to change the default script execution timeout of 5 minutes.
+The `script_execution_timeout` allows you to change the default script execution timeout.
 
-```yaml
-agent_options:
-  config:
-    options:
-      distributed_interval: 3
-      distributed_tls_max_attempts: 3
-      logger_tls_period: 10
-  script_execution_timeout: 600
-```
+- Optional setting (integer)
+- Default value: 300
+- Maximum value: 3600
+- Config file format:
+  ```yaml
+  agent_options:
+    config:
+      options:
+        distributed_interval: 3
+        distributed_tls_max_attempts: 3
+        logger_tls_period: 10
+    script_execution_timeout: 600
+  ```
 
 ## Auto table construction
 
