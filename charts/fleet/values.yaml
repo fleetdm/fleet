@@ -36,7 +36,7 @@ affinity:
         weight: 100
 
 ingress:
-  enabled: false
+  enabled: true
   className: ""
   annotations: {}
     # kubernetes.io/tls-acme: "true"
@@ -56,7 +56,10 @@ ingress:
 ## Section: Fleet
 # All of the settings relating to configuring the Fleet server
 fleet:
+  # will also be the targetPort for the service
   listenPort: 8080
+  # servicePort is optional.  Use if the service port needs to differ from the listenPort above.
+  # servicePort: 9080
   # Name of the Secret resource storing S3 bucket and optionally TLS secrets
   secretName: fleet
   # Whether or not to run `fleet db prepare` to run SQL migrations before starting Fleet
