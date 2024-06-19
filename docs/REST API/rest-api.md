@@ -4019,14 +4019,19 @@ To lock a macOS host, the host must have MDM turned on. To lock a Windows or Lin
 | Name       | Type              | In   | Description                                                                   |
 | ---------- | ----------------- | ---- | ----------------------------------------------------------------------------- |
 | id | integer | path | **Required**. ID of the host to be locked. |
+| view_pin | boolean | query | For macOS hosts, whether to return the unlock PIN. |
 
 #### Example
 
 `POST /api/v1/fleet/hosts/123/lock`
 
-##### Default response (Windows or Linux hosts)
+##### Default response
 
 `Status: 204`
+
+#### Example
+
+`POST /api/v1/fleet/hosts/123/lock?view_pin=true`
 
 ##### Default response (macOS hosts)
 
