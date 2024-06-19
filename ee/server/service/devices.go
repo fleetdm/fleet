@@ -94,23 +94,6 @@ func (svc *Service) TriggerMigrateMDMDevice(ctx context.Context, host *fleet.Hos
 	return nil
 }
 
-// isEligibleForDEPMigration returns true if the host fulfills all requirements
-// for DEP migration from a third-party provider into Fleet.
-func isEligibleForDEPMigration(host *fleet.Host, mdmInfo *fleet.HostMDM, isConnectedToFleetMDM bool) bool {
-	return host.IsOsqueryEnrolled() &&
-		host.IsDEPAssignedToFleet() &&
-		mdmInfo.HasJSONProfileAssigned() &&
-		mdmInfo.Enrolled &&
-		// as a special case for migration with user interaction, we
-		// also check the information stored in host_mdm, and assume
-		// the host needs migration if it's not Fleet
-		//
-		// this is because we can't always rely on nano setting
-		// `nano_enrollment.active = 1` since sometimes Fleet won't get
-		// the checkout message from the host.
-		(!isConnectedToFleetMDM || mdmInfo.Name != fleet.WellKnownMDMFleet)
-}
-
 func (svc *Service) GetFleetDesktopSummary(ctx context.Context) (fleet.DesktopSummary, error) {
 	// this is not a user-authenticated endpoint
 	svc.authz.SkipAuthorization(ctx)
@@ -141,11 +124,14 @@ func (svc *Service) GetFleetDesktopSummary(ctx context.Context) (fleet.DesktopSu
 			return sum, ctxerr.Wrap(ctx, err, "checking if host is connected to Fleet")
 		}
 
-		if host.NeedsDEPEnrollment(connected) {
+		mdmInfo, err := svc.ds.GetHostMDM(ctx, host.ID)
+
+		needsDEPEnrollment := !mdmInfo.Enrolled && !connected && host.IsDEPAssignedToFleet()
+		if needsDEPEnrollment {
 			sum.Notifications.RenewEnrollmentProfile = true
 		}
 
-		if host.IsEligibleForDEPMigration(connected) {
+		if isEligibleForDEPMigration(host, mdmInfo, connected) {
 			sum.Notifications.NeedsMDMMigration = true
 		}
 	}
@@ -160,4 +146,21 @@ func (svc *Service) GetFleetDesktopSummary(ctx context.Context) (fleet.DesktopSu
 	sum.Config.MDM.MacOSMigration.Mode = appCfg.MDM.MacOSMigration.Mode
 
 	return sum, nil
+}
+
+// isEligibleForDEPMigration returns true if the host fulfills all requirements
+// for DEP migration from a third-party provider into Fleet.
+func isEligibleForDEPMigration(host *fleet.Host, mdmInfo *fleet.HostMDM, isConnectedToFleetMDM bool) bool {
+	return host.IsOsqueryEnrolled() &&
+		host.IsDEPAssignedToFleet() &&
+		mdmInfo.HasJSONProfileAssigned() &&
+		mdmInfo.Enrolled &&
+		// as a special case for migration with user interaction, we
+		// also check the information stored in host_mdm, and assume
+		// the host needs migration if it's not Fleet
+		//
+		// this is because we can't always rely on nano setting
+		// `nano_enrollment.active = 1` since sometimes Fleet won't get
+		// the checkout message from the host.
+		(!isConnectedToFleetMDM || mdmInfo.Name != fleet.WellKnownMDMFleet)
 }

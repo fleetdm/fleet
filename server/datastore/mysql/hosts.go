@@ -2334,17 +2334,6 @@ func (ds *Datastore) LoadHostByOrbitNodeKey(ctx context.Context, nodeKey string)
 		host := hostWithMDM.Host
 		// leave MDMInfo nil unless it has mdm information
 		if hostWithMDM.HostID != nil {
-			host.MDMInfo = &fleet.HostMDM{
-				HostID:                 *hostWithMDM.HostID,
-				Enrolled:               *hostWithMDM.Enrolled,
-				ServerURL:              *hostWithMDM.ServerURL,
-				InstalledFromDep:       *hostWithMDM.InstalledFromDep,
-				IsServer:               *hostWithMDM.IsServer,
-				MDMID:                  hostWithMDM.MDMID,
-				Name:                   *hostWithMDM.Name,
-				DEPProfileAssignStatus: hostWithMDM.DEPProfileAssignStatus,
-			}
-
 			host.MDM = fleet.MDMHostData{
 				EncryptionKeyAvailable: *hostWithMDM.EncryptionKeyAvailable,
 			}
@@ -2427,21 +2416,7 @@ func (ds *Datastore) LoadHostByDeviceAuthToken(ctx context.Context, authToken st
 	var hostWithMDM hostWithMDMInfo
 	switch err := ds.getContextTryStmt(ctx, &hostWithMDM, query, fleet.UnknownMDMName, authToken, tokenTTL.Seconds()); {
 	case err == nil:
-		host := hostWithMDM.Host
-		// leave MDMInfo nil unless it has mdm information
-		if hostWithMDM.HostID != nil {
-			host.MDMInfo = &fleet.HostMDM{
-				HostID:                 *hostWithMDM.HostID,
-				Enrolled:               *hostWithMDM.Enrolled,
-				ServerURL:              *hostWithMDM.ServerURL,
-				InstalledFromDep:       *hostWithMDM.InstalledFromDep,
-				IsServer:               *hostWithMDM.IsServer,
-				MDMID:                  hostWithMDM.MDMID,
-				Name:                   *hostWithMDM.Name,
-				DEPProfileAssignStatus: hostWithMDM.DEPProfileAssignStatus,
-			}
-		}
-		return &host, nil
+		return &hostWithMDM.Host, nil
 	case errors.Is(err, sql.ErrNoRows):
 		return nil, ctxerr.Wrap(ctx, notFound("Host"))
 	default:
@@ -2704,20 +2679,7 @@ WHERE h.uuid IN (?) AND %s
 
 	hosts := make([]*fleet.Host, 0, len(hostsWithMDM))
 	for _, h := range hostsWithMDM {
-		host := h.Host
-		// leave MDMInfo nil unless it has mdm information
-		if h.HostID != nil {
-			host.MDMInfo = &fleet.HostMDM{
-				HostID:           *h.HostID,
-				Enrolled:         *h.Enrolled,
-				ServerURL:        *h.ServerURL,
-				InstalledFromDep: *h.InstalledFromDep,
-				IsServer:         *h.IsServer,
-				MDMID:            h.MDMID,
-				Name:             *h.Name,
-			}
-		}
-		hosts = append(hosts, &host)
+		hosts = append(hosts, &h.Host)
 	}
 
 	return hosts, nil
