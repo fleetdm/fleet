@@ -11,8 +11,8 @@ services:
     image: mysql:5.7
     platform: linux/x86_64
     volumes:
-      - .:/data
-    command: mysqld --datadir=/tmp/data --event-scheduler=ON
+      - ./data:/var/lib/mysql
+    command: mysqld --datadir=/var/lib/mysql --event-scheduler=ON
     environment:
       MYSQL_ROOT_PASSWORD: toor
       MYSQL_DATABASE: fleet
