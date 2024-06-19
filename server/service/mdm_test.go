@@ -7,6 +7,7 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"database/sql"
 	"errors"
 	"math/big"
 	"net/http"
@@ -500,7 +501,7 @@ func TestRunMDMCommandValidations(t *testing.T) {
 
 	ds.GetHostMDMFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
 		if hostID == 0xf1337 {
-			return nil, errors.New("no host info")
+			return nil, sql.ErrNoRows
 		}
 		return enrolledMDMInfo, nil
 	}
