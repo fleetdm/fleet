@@ -11,6 +11,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/cryptoinfotable"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/dataflattentable"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/firefox_preferences"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/fleetd_logs"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/sntp_request"
 	"github.com/macadmins/osquery-extension/tables/chromeuserprofiles"
 	"github.com/macadmins/osquery-extension/tables/fileline"
@@ -110,7 +111,12 @@ func (r *Runner) Execute() error {
 	plugins := OrbitDefaultTables()
 
 	opts := PluginOpts{Socket: r.socket}
-	plugins = append(plugins, PlatformTables(opts)...)
+	platformTables, err := PlatformTables(opts)
+	if err != nil {
+		return fmt.Errorf("populating platform tables: %w", err)
+	}
+
+	plugins = append(plugins, platformTables...)
 	for _, t := range r.tableExtensions {
 		plugins = append(plugins, table.NewPlugin(
 			t.Name(),
@@ -138,6 +144,7 @@ func OrbitDefaultTables() []osquery.OsqueryPlugin {
 
 		// Orbit extensions.
 		table.NewPlugin("sntp_request", sntp_request.Columns(), sntp_request.GenerateFunc),
+		fleetd_logs.TablePlugin(),
 
 		firefox_preferences.TablePlugin(osqueryLogger),
 		cryptoinfotable.TablePlugin(osqueryLogger),

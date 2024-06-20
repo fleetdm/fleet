@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"crypto/tls"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"math/rand"
 	"net/http"
 	"net/http/httptest"
@@ -21,7 +22,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
 	ws "github.com/fleetdm/fleet/v4/server/websocket"
-	kitlog "github.com/go-kit/kit/log"
+	kitlog "github.com/go-kit/log"
 	"github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -256,7 +257,21 @@ func testUpdateStats(t *testing.T, ds *mysql.Datastore, usingReplica bool) {
 	}()
 	select {
 	case <-time.After(2 * time.Second):
-		t.Fatal("Timeout waiting for aggregated stats")
+		// We fail the test. Gather information for debug.
+		// Grab stats from primary DB (master)
+		lastErr := ""
+		if err != nil {
+			lastErr = err.Error()
+		}
+		aggStats, err = mysql.GetAggregatedStats(
+			ctxdb.RequirePrimary(ctx, true), svc.ds.(*mysql.Datastore), fleet.AggregatedStatsTypeScheduledQuery, queryID,
+		)
+		if err != nil {
+			t.Logf("Error getting aggregated stats from primary DB: %s", err.Error())
+		} else {
+			t.Logf("Aggregated stats from primary DB: totalExecutions=%f %#v", *aggStats.TotalExecutions, aggStats)
+		}
+		t.Fatalf("Timeout waiting for aggregated stats. Last error: %s", lastErr)
 	case <-done:
 		// Continue
 	}

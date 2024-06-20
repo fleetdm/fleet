@@ -134,12 +134,10 @@ func (s *integrationMDMTestSuite) TestTurnOnLifecycleEventsApple() {
 
 				dupeClient := mdmtest.NewTestMDMClientAppleDirect(
 					mdmtest.AppleEnrollInfo{
-
 						SCEPChallenge: s.scepChallenge,
 						SCEPURL:       s.server.URL + apple_mdm.SCEPPath,
 						MDMURL:        s.server.URL + apple_mdm.MDMPath,
-					},
-				)
+					}, "MacBookPro16,1")
 				dupeClient.UUID = device.UUID
 				dupeClient.SerialNumber = device.SerialNumber
 				dupeClient.Model = device.Model
@@ -159,12 +157,10 @@ func (s *integrationMDMTestSuite) TestTurnOnLifecycleEventsApple() {
 
 				dupeClient := mdmtest.NewTestMDMClientAppleDirect(
 					mdmtest.AppleEnrollInfo{
-
 						SCEPChallenge: s.scepChallenge,
 						SCEPURL:       s.server.URL + apple_mdm.SCEPPath,
 						MDMURL:        s.server.URL + apple_mdm.MDMPath,
-					},
-				)
+					}, "MacBookPro16,1")
 				dupeClient.UUID = device.UUID
 				dupeClient.SerialNumber = device.SerialNumber
 				dupeClient.Model = device.Model

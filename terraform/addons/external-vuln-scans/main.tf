@@ -50,17 +50,20 @@ resource "aws_ecs_service" "fleet" {
 
 resource "aws_ecs_task_definition" "vuln-processing" {
   family                   = "${var.fleet_config.family}-vuln-processing"
-  cpu                      = var.vuln_processing_cpu
-  memory                   = var.vuln_processing_memory
+  cpu                      = var.vuln_processing_task_cpu
+  memory                   = var.vuln_processing_task_memory
   execution_role_arn       = var.execution_iam_role_arn
   task_role_arn            = var.task_role_arn
   network_mode             = "awsvpc"
+  pid_mode                 = var.fleet_config.pid_mode
   requires_compatibilities = ["FARGATE"]
 
   container_definitions = jsonencode(concat([
     {
       name                  = "fleet-vuln-processing"
       image                 = var.fleet_config.image
+      cpu                   = var.vuln_processing_cpu
+      memory                = var.vuln_processing_memory
       essential             = true
       networkMode           = "awsvpc"
       secrets               = local.secrets
@@ -108,6 +111,14 @@ resource "aws_ecs_task_definition" "vuln-processing" {
         {
           name  = "FLEET_SERVER_TLS"
           value = "false"
+        },
+        {
+          name  = "FLEET_S3_SOFTWARE_INSTALLERS_BUCKET"
+          value = var.fleet_s3_software_installers_config.bucket_name
+        },
+        {
+          name  = "FLEET_S3_SOFTWARE_INSTALLERS_PREFIX"
+          value = var.fleet_s3_software_installers_config.s3_object_prefix
         },
       ], local.environment),
       logConfiguration = {

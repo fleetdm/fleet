@@ -20,7 +20,7 @@ import (
 const (
 	defaultFleetDMAPIURL     = "https://fleetdm.com"
 	getSignedAPNSCSRPath     = "/api/v1/deliver-apple-csr"
-	depCertificateCommonName = "FleetDM"
+	depCertificateCommonName = "Fleet"
 	depCertificateExpiryDays = 30
 )
 
@@ -208,7 +208,7 @@ func NewSCEPCACertKey() (*x509.Certificate, *rsa.PrivateKey, error) {
 
 	caCert := depot.NewCACert(
 		depot.WithYears(10),
-		depot.WithCommonName("FleetDM"),
+		depot.WithCommonName("Fleet"),
 	)
 
 	crtBytes, err := caCert.SelfSign(rand.Reader, key.Public(), key)

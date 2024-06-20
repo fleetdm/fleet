@@ -19,7 +19,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/worker"
-	"github.com/go-kit/kit/log/level"
+	"github.com/go-kit/log/level"
 )
 
 func obfuscateSecrets(user *fleet.User, teams []*fleet.Team) error {
@@ -525,8 +525,8 @@ func (svc *Service) DeleteTeam(ctx context.Context, teamID uint) error {
 	filter := fleet.TeamFilter{User: vc.User, IncludeObserver: true}
 
 	opts := fleet.HostListOptions{
-		TeamFilter:             &teamID,
-		DisableFailingPolicies: true, // don't need to check policies for hosts that are being deleted
+		TeamFilter:    &teamID,
+		DisableIssues: true, // don't need to check policies for hosts that are being deleted
 	}
 
 	hosts, err := svc.ds.ListHosts(ctx, filter, opts)
@@ -537,10 +537,7 @@ func (svc *Service) DeleteTeam(ctx context.Context, teamID uint) error {
 	mdmHostSerials := make([]string, 0, len(hosts))
 	for _, host := range hosts {
 		hostIDs = append(hostIDs, host.ID)
-		// FIXME: These checks don't work here because host.MDMInfo is not being populated by
-		// ds.ListHosts call (it populates host.MDM instead). This may be happening in other
-		// places too.
-		if host.MDMInfo.IsPendingDEPFleetEnrollment() || host.MDMInfo.IsDEPFleetEnrolled() {
+		if host.IsDEPAssignedToFleet() {
 			mdmHostSerials = append(mdmHostSerials, host.HardwareSerial)
 		}
 	}
@@ -773,10 +770,17 @@ func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec,
 
 	for _, spec := range specs {
 		var secrets []*fleet.EnrollSecret
-		for _, secret := range spec.Secrets {
-			secrets = append(secrets, &fleet.EnrollSecret{
-				Secret: secret.Secret,
-			})
+		// When secrets slice is empty, all secrets are removed.
+		// When secrets slice is nil, existing secrets are kept.
+		if spec.Secrets != nil {
+			secrets = make([]*fleet.EnrollSecret, 0, len(*spec.Secrets))
+			for _, secret := range *spec.Secrets {
+				secrets = append(
+					secrets, &fleet.EnrollSecret{
+						Secret: secret.Secret,
+					},
+				)
+			}
 		}
 
 		var create bool
@@ -804,7 +808,7 @@ func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec,
 				}
 			}
 		}
-		if len(spec.Secrets) > fleet.MaxEnrollSecretsCount {
+		if len(secrets) > fleet.MaxEnrollSecretsCount {
 			return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("secrets", "too many secrets"), "validate secrets")
 		}
 		if err := spec.MDM.MacOSUpdates.Validate(); err != nil {
@@ -816,8 +820,9 @@ func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec,
 
 		if create {
 
-			// create a new team enroll secret if none is provided for a new team.
-			if len(secrets) == 0 {
+			// create a new team enroll secret if none is provided for a new team,
+			// unless the user explicitly passed in an empty array
+			if secrets == nil {
 				secret, err := server.GenerateRandomText(fleet.EnrollSecretDefaultLength)
 				if err != nil {
 					return nil, ctxerr.Wrap(ctx, err, "generate enroll secret string")
@@ -1125,7 +1130,7 @@ func (svc *Service) editTeamFromSpec(
 		team.Config.Software = spec.Software
 	}
 
-	if len(secrets) > 0 {
+	if secrets != nil {
 		team.Secrets = secrets
 	}
 
@@ -1179,8 +1184,8 @@ func (svc *Service) editTeamFromSpec(
 		return err
 	}
 
-	// only replace enroll secrets if at least one is provided (#6774)
-	if len(secrets) > 0 {
+	// If no secrets are provided and user did not explicitly specify an empty list, do not replace secrets. (#6774)
+	if secrets != nil {
 		if err := svc.ds.ApplyEnrollSecrets(ctx, ptr.Uint(team.ID), secrets); err != nil {
 			return err
 		}

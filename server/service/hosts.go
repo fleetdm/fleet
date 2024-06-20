@@ -179,7 +179,8 @@ func (svc *Service) ListHosts(ctx context.Context, opt fleet.HostListOptions) ([
 	filter := fleet.TeamFilter{User: vc.User, IncludeObserver: true}
 
 	// TODO(Sarah): Are we missing any other filters here?
-	if !license.IsPremium(ctx) {
+	premiumLicense := license.IsPremium(ctx)
+	if !premiumLicense {
 		// the low disk space filter is premium-only
 		opt.LowDiskSpaceFilter = nil
 		// the bootstrap package filter is premium-only
@@ -191,9 +192,23 @@ func (svc *Service) ListHosts(ctx context.Context, opt fleet.HostListOptions) ([
 		return nil, err
 	}
 
+	// If issues are enabled, we need to remove the critical vulnerabilities count for non-premium license.
+	// If issues are disabled, we need to explicitly set the critical vulnerabilities count to 0 for premium license.
+	if !opt.DisableIssues && !premiumLicense {
+		// Remove critical vulnerabilities count if not premium license
+		for _, host := range hosts {
+			host.HostIssues.CriticalVulnerabilitiesCount = nil
+		}
+	} else if opt.DisableIssues && premiumLicense {
+		var zero uint64
+		for _, host := range hosts {
+			host.HostIssues.CriticalVulnerabilitiesCount = &zero
+		}
+	}
+
 	if opt.PopulateSoftware {
 		for _, host := range hosts {
-			if err = svc.ds.LoadHostSoftware(ctx, host, license.IsPremium(ctx)); err != nil {
+			if err = svc.ds.LoadHostSoftware(ctx, host, premiumLicense); err != nil {
 				return nil, err
 			}
 		}
@@ -323,7 +338,7 @@ func (svc *Service) DeleteHosts(ctx context.Context, ids []uint, filter *map[str
 	if opts == nil {
 		opts = &fleet.HostListOptions{}
 	}
-	opts.DisableFailingPolicies = true // don't check policies for hosts that are about to be deleted
+	opts.DisableIssues = true // don't check policies for hosts that are about to be deleted
 	hostIDs, _, hosts, err := svc.hostIDsAndNamesFromFilters(ctx, *opts, lid)
 	if err != nil {
 		return err
@@ -479,7 +494,8 @@ func (svc *Service) SearchHosts(ctx context.Context, matchQuery string, queryID 
 /////////////////////////////////////////////////////////////////////////////////
 
 type getHostRequest struct {
-	ID uint `url:"id"`
+	ID              uint `url:"id"`
+	ExcludeSoftware bool `query:"exclude_software,optional"`
 }
 
 type getHostResponse struct {
@@ -493,7 +509,8 @@ func getHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service
 	req := request.(*getHostRequest)
 	opts := fleet.HostDetailOptions{
 		IncludeCVEScores: false,
-		IncludePolicies:  true, // intentionally true to preserve existing behavior
+		IncludePolicies:  true, // intentionally true to preserve existing behavior,
+		ExcludeSoftware:  req.ExcludeSoftware,
 	}
 	host, err := svc.GetHost(ctx, req.ID, opts)
 	if err != nil {
@@ -521,6 +538,9 @@ func (svc *Service) GetHost(ctx context.Context, id uint, opts fleet.HostDetailO
 	host, err := svc.ds.Host(ctx, id)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get host")
+	}
+	if !opts.IncludeCriticalVulnerabilitiesCount {
+		host.HostIssues.CriticalVulnerabilitiesCount = nil
 	}
 
 	if !alreadyAuthd {
@@ -1009,8 +1029,10 @@ func (svc *Service) RefetchHost(ctx context.Context, id uint) error {
 }
 
 func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts fleet.HostDetailOptions) (*fleet.HostDetail, error) {
-	if err := svc.ds.LoadHostSoftware(ctx, host, opts.IncludeCVEScores); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "load host software")
+	if !opts.ExcludeSoftware {
+		if err := svc.ds.LoadHostSoftware(ctx, host, opts.IncludeCVEScores); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "load host software")
+		}
 	}
 
 	labels, err := svc.ds.ListLabelsForHost(ctx, host.ID)
@@ -1227,7 +1249,12 @@ func getHostQueryReportEndpoint(ctx context.Context, request interface{}, svc fl
 		return getHostQueryReportResponse{Err: err}, nil
 	}
 
-	isClipped, err := svc.QueryReportIsClipped(ctx, req.QueryID)
+	appConfig, err := svc.AppConfigObfuscated(ctx)
+	if err != nil {
+		return getHostQueryReportResponse{Err: err}, nil
+	}
+
+	isClipped, err := svc.QueryReportIsClipped(ctx, req.QueryID, appConfig.ServerSettings.GetQueryReportCap())
 	if err != nil {
 		return getHostQueryReportResponse{Err: err}, nil
 	}
@@ -1292,7 +1319,7 @@ func (svc *Service) hostIDsAndNamesFromFilters(ctx context.Context, opt fleet.Ho
 	if lid != nil {
 		hosts, err = svc.ds.ListHostsInLabel(ctx, filter, *lid, opt)
 	} else {
-		opt.DisableFailingPolicies = true // intentionally ignore failing policies
+		opt.DisableIssues = true // intentionally ignore failing policies
 		hosts, err = svc.ds.ListHosts(ctx, filter, opt)
 	}
 	if err != nil {

@@ -14,7 +14,7 @@ This page details processes specific to working [with](#contact-us) and [within]
 ## Contact us
 
 - To **make a request** of this department, [create an issue](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=%23g-digital-experience&projects=&template=digital-experience-request.md&title=TODO%3A+) and a team member will get back to you within one business day (If urgent, mention a [team member](#team) in the [#g-digital-experience](https://fleetdm.slack.com/archives/C058S8PFSK0) Slack channel.
-  - Any Fleet team member can [view the kanban board](https://app.zenhub.com/workspaces/g-sales-64fbb46c65f9ff003a1530a8/board?sprints=none) for this department, including pending tasks and the status of new requests.
+  - Any Fleet team member can [view the kanban board](https://app.zenhub.com/workspaces/g-digital-experience-6451748b4eb15200131d4bab/board) for this department, including pending tasks and the status of new requests.
   - Please **use issue comments and GitHub mentions** to communicate follow-ups or answer questions related to your request.
 
 
@@ -165,28 +165,23 @@ If the action fails, please complete the following steps:
 
 
 ### Communicate Fleet's potential energy to stakeholders
-On the first business day of every month, the Apprentice will send an update to the stakeholders of Fleet using the following steps:
+On the first business day of every month, the Head of Digital Experience will send an update to the stakeholders of Fleet using the following steps:
 1. Copy the following template into an outgoing email with the subject line: "[Investor update] Fleet, YYYY-MM".
 
 ```
 Hi investors and friends,
 
-Here’s a quick update on the numbers from last month:
 
-• Gross new ∆ARR (QTD): + TODO
-• Social media mentions (LinkedIn): 3.8 per day (Goal: 5) (Want to help?)
-• Current version: 4.48.0 (See what's new)
-• Next in-person event: Kansas City, (April 20) BSides KC
-• Next press release: 2024-04-30: "Stop nudging"
-"Stop installing updates and forcing restarts when your users are busy using their computers.  Fleet finds time in the calendar for a reboot and uses AI to explain why." 
+FYI we just updated the self-service investor update portal with the numbers from last month:  https://docs.google.com/spreadsheets/d/10T7Q9iuHA4vpfV7qZCm6oMd5U1bLftBSobYD0RR8RkM/edit#gid=0
 
 
 Thanks for your support,
 Mike and the Fleet team
+
 ```
 
 2. Address the email to the executive team's Gmail.
-3. Using the [🌧️🦉 Investors + advisors](https://docs.google.com/spreadsheets/d/15knBE2-PrQ1Ad-QcIk0mxCN-xFsATKK9hcifqrm0qFQ/edit#gid=1068113636) spreadsheet, collect all of the investor emails from previous funding rounds and add them to bcc of the email and send.
+3. Using the [🌧️🦉 Investors + advisors](https://docs.google.com/spreadsheets/d/15knBE2-PrQ1Ad-QcIk0mxCN-xFsATKK9hcifqrm0qFQ/edit#gid=1068113636) spreadsheet, bcc the correct individuals and send the email.
 
 
 ### Refresh event calendar

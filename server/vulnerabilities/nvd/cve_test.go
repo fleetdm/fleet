@@ -131,7 +131,6 @@ func (d *threadSafeDSMock) InsertSoftwareVulnerability(ctx context.Context, vuln
 }
 
 func TestTranslateCPEToCVE(t *testing.T) {
-	t.Skip("REMOVEME: when API keys are restored")
 	t.Parallel()
 	ctx := context.Background()
 
@@ -306,6 +305,12 @@ func TestTranslateCPEToCVE(t *testing.T) {
 				{ID: "CVE-2020-17163", resolvedInVersion: "2020.9.2"},
 			},
 			continuesToUpdate: false,
+		},
+		"cpe:2.3:a:adobe:animate:*:*:*:*:*:macos:*:*": {
+			includedCVEs: []cve{
+				{ID: "CVE-2023-44325"},
+			},
+			continuesToUpdate: true,
 		},
 	}
 

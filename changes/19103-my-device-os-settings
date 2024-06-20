@@ -1,0 +1,2 @@
+- Fixed UI bug where error detail was overflowing the table in "OS settings" modal in "My device"
+  page UI.

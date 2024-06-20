@@ -1,1 +1,0 @@
-* Fixed a bug that might prevent enqueing commands to renew SCEP certificates if the host was enrolled more than once.

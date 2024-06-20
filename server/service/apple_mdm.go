@@ -1423,6 +1423,12 @@ func (svc *Service) EnqueueMDMAppleCommandRemoveEnrollmentProfile(ctx context.Co
 		return ctxerr.Wrap(ctx, err, "getting host info for mdm apple remove profile command")
 	}
 
+	if h.Platform == "ios" || h.Platform == "ipados" {
+		return &fleet.BadRequestError{
+			Message: "Can't turn off MDM for iOS or iPadOS hosts. Use wipe instead.",
+		}
+	}
+
 	info, err := svc.ds.GetHostMDMCheckinInfo(ctx, h.UUID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "getting mdm checkin info for mdm apple remove profile command")
@@ -1792,6 +1798,11 @@ func (svc *Service) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, tm
 	profs := make([]*fleet.MDMAppleConfigProfile, 0, len(profiles))
 	byName, byIdent := make(map[string]bool, len(profiles)), make(map[string]bool, len(profiles))
 	for i, prof := range profiles {
+		if len(prof) > 1024*1024 {
+			return ctxerr.Wrap(ctx,
+				fleet.NewInvalidArgumentError(fmt.Sprintf("profiles[%d]", i), "maximum configuration profile file size is 1 MB"),
+			)
+		}
 		mdmProf, err := fleet.NewMDMAppleConfigProfile(prof, tmID)
 		if err != nil {
 			return ctxerr.Wrap(ctx,

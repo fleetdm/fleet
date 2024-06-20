@@ -21,12 +21,17 @@ interface ITooltipWrapper {
   // tipCustomClass?: string;
   clickable?: boolean;
   tipContent: React.ReactNode;
+  tipOffset?: number;
   /** If set to `true`, will not show the tooltip. This can be used to dynamically
    * disable the tooltip from the parent component.
-   *
    * @default false
    */
   disableTooltip?: boolean;
+  /** If set to `true`, will show the arrow on the tooltip.
+   * This can be used to dynamically hide the arrow from the parent component.
+   * @default false
+   */
+  showArrow?: boolean;
 }
 
 const baseClass = "component__tooltip-wrapper";
@@ -37,6 +42,7 @@ const TooltipWrapper = ({
   // tipCustomClass,
   children,
   tipContent,
+  tipOffset = 5,
   position = "bottom-start",
   isDelayed,
   underline = true,
@@ -44,8 +50,10 @@ const TooltipWrapper = ({
   tooltipClass,
   clickable = true,
   disableTooltip = false,
+  showArrow = false,
 }: ITooltipWrapper) => {
   const wrapperClassNames = classnames(baseClass, className, {
+    "show-arrow": showArrow,
     // [`${baseClass}__${wrapperCustomClass}`]: !!wrapperCustomClass,
   });
 
@@ -71,12 +79,12 @@ const TooltipWrapper = ({
           id={tipId}
           delayShow={isDelayed ? 500 : undefined}
           delayHide={isDelayed ? 500 : undefined}
-          noArrow
+          noArrow={!showArrow}
           place={position}
           opacity={1}
           disableStyleInjection
           clickable={clickable}
-          offset={5}
+          offset={tipOffset}
         >
           {tipContent}
         </ReactTooltip5>

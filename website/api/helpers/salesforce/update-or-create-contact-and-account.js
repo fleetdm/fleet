@@ -88,11 +88,20 @@ module.exports = {
       salesforceAccountId = '0014x000025JC8DAAW';
       salesforceAccountOwnerId = '0054x00000735wDAAQ';// « "Integrations admin" user.
     } else {
+      // Search for an existing Account record by the organization returned from the getEnriched helper.
       let existingAccountRecord = await salesforceConnection.sobject('Account')
       .findOne({
-        'Website':  enrichmentData.employer.emailDomain,
+        'Name':  enrichmentData.employer.organization,
         // 'LinkedIn_company_URL__c': enrichmentData.employer.linkedinCompanyPageUrl // TODO: if this information is not present on an existing account, nothing will be returned.
       });
+      // If we didn't find an account that's name exaclty matches, we'll do another search using the provided email domain.
+      if(!existingAccountRecord){
+        existingAccountRecord = await salesforceConnection.sobject('Account')
+        .findOne({
+          'Website':  enrichmentData.employer.emailDomain,
+          // 'LinkedIn_company_URL__c': enrichmentData.employer.linkedinCompanyPageUrl // TODO: if this information is not present on an existing account, nothing will be returned.
+        });
+      }
       // console.log(existingAccountRecord);
       // If we found an exisitng account, we'll use assign the new contact to the account owner.
       if(existingAccountRecord) {
@@ -103,6 +112,7 @@ module.exports = {
       } else {
         // If no existing account record was found, create a new one.
         // Create a timestamp to use for the new account's assigned date.
+        salesforceAccountOwnerId = '0054x00000735wDAAQ';// « "Integrations admin" user.
         let today = new Date();
         let nowOn = today.toISOString().replace('Z', '+0000');
 
@@ -117,6 +127,7 @@ module.exports = {
           Website: enrichmentData.employer.emailDomain,
           LinkedIn_company_URL__c: enrichmentData.employer.linkedinCompanyPageUrl,// eslint-disable-line camelcase
           NumberOfEmployees: enrichmentData.employer.numberOfEmployees,
+          OwnerId: salesforceAccountOwnerId
         });
         salesforceAccountId = newAccountRecord.id;
       }//ﬁ
