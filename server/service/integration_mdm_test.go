@@ -9018,12 +9018,29 @@ func (s *integrationMDMTestSuite) TestSilentMigrationGotchas() {
 	require.False(t, resp.Notifications.RenewEnrollmentProfile)
 	require.True(t, resp.Notifications.NeedsMDMMigration)
 
+	// set an enroll secret so the fleetd profile is delivered
+	var applyResp applyEnrollSecretSpecResponse
+	s.DoJSON("POST", "/api/latest/fleet/spec/enroll_secret", applyEnrollSecretSpecRequest{
+		Spec: &fleet.EnrollSecretSpec{
+			Secrets: []*fleet.EnrollSecret{{Secret: t.Name()}},
+		},
+	}, http.StatusOK, &applyResp)
+
 	// trigger the profile cron
 	s.awaitTriggerProfileSchedule(t)
 
+	installs := [][]byte{}
 	cmd, err := mdmDevice.Idle()
 	require.NoError(t, err)
-	require.Nil(t, cmd)
+
+	for cmd != nil {
+		require.Equal(t, "InstallProfile", cmd.Command.RequestType)
+		installs = append(installs, cmd.Raw)
+		cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+		require.NoError(t, err)
+	}
+
+	require.Len(t, installs, 2)
 
 	// trigger the scep renewals cron
 	cert, key, err := generateCertWithAPNsTopic()
