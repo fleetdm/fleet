@@ -8927,3 +8927,55 @@ func (s *integrationMDMTestSuite) uploadABMToken(encryptedToken []byte, expected
 		assert.Contains(t, errMsg, wantErr)
 	}
 }
+
+func (s *integrationMDMTestSuite) TestSilentMigration() {
+	t := s.T()
+	ctx := context.Background()
+
+	host := createOrbitEnrolledHost(t, "windows", "h1", s.ds)
+	// set the host as enrolled in a third-party MDM
+	err := s.ds.SetOrUpdateMDMData(ctx, host.ID, false, true, "https://foo.com", false, fleet.WellKnownMDMSimpleMDM, "")
+	require.NoError(t, err)
+
+	var hostResp getHostResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &hostResp)
+	require.NotNil(t, hostResp.Host)
+	require.NotNil(t, hostResp.Host.MDM.ConnectedToFleet)
+	require.False(t, *hostResp.Host.MDM.ConnectedToFleet)
+
+	// but simulate that's actually enrolled to Fleet
+	mdmDevice := mdmtest.NewTestMDMClientAppleDirect(mdmtest.AppleEnrollInfo{
+		SCEPChallenge: s.scepChallenge,
+		SCEPURL:       s.server.URL + apple_mdm.SCEPPath,
+		MDMURL:        s.server.URL + apple_mdm.MDMPath,
+	}, "MacBookPro16,1")
+	err = mdmDevice.Enroll()
+	require.NoError(t, err)
+
+	// host response says that's connected to Fleet
+	hostResp = getHostResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &hostResp)
+	require.NotNil(t, hostResp.Host)
+	require.NotNil(t, hostResp.Host.MDM.ConnectedToFleet)
+	require.False(t, *hostResp.Host.MDM.ConnectedToFleet)
+
+	// trigger the profile cron
+	s.awaitTriggerProfileSchedule(t)
+
+	cmd, err := mdmDevice.Idle()
+	require.Nil(t, cmd)
+
+	// trigger the scep renewals cron
+	cert, key, err := generateCertWithAPNsTopic()
+	require.NoError(t, err)
+	fleetCfg := config.TestConfig()
+	config.SetTestMDMConfig(s.T(), &fleetCfg, cert, key, "")
+	logger := kitlog.NewJSONLogger(os.Stdout)
+	err = RenewSCEPCertificates(ctx, logger, s.ds, &fleetCfg, s.mdmCommander)
+	require.NoError(t, err)
+
+	// no new commands were enqueued
+	cmd, err = mdmDevice.Idle()
+	require.NoError(t, err)
+	require.Nil(t, cmd)
+}
