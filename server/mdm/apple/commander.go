@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"log/slog"
 	"net/http"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -43,7 +44,7 @@ func NewMDMAppleCommander(mdmStorage fleet.MDMAppleStore, mdmPushService nanomdm
 
 // InstallProfile sends the homonymous MDM command to the given hosts, it also
 // takes care of the base64 encoding of the provided profile bytes.
-func (svc *MDMAppleCommander) InstallProfile(ctx context.Context, hostUUIDs []string, profile mobileconfig.Mobileconfig, uuid string) error {
+func (svc *MDMAppleCommander) InstallProfile(ctx context.Context, hostUUIDs []string, profile mobileconfig.Mobileconfig, uuid string, fleetOwned bool) error {
 	signedProfile, err := mdmcrypto.Sign(ctx, profile, svc.storage)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "signing profile")
@@ -65,7 +66,7 @@ func (svc *MDMAppleCommander) InstallProfile(ctx context.Context, hostUUIDs []st
 	</dict>
 </dict>
 </plist>`, uuid, base64Profile)
-	err = svc.EnqueueCommand(ctx, hostUUIDs, raw)
+	err = svc.EnqueueCommand(ctx, hostUUIDs, raw, fleetOwned)
 	return ctxerr.Wrap(ctx, err, "commander install profile")
 }
 
@@ -86,7 +87,7 @@ func (svc *MDMAppleCommander) RemoveProfile(ctx context.Context, hostUUIDs []str
 	</dict>
 </dict>
 </plist>`, uuid, profileIdentifier)
-	err := svc.EnqueueCommand(ctx, hostUUIDs, raw)
+	err := svc.EnqueueCommand(ctx, hostUUIDs, raw, false) // TODO(JVE): fixme
 	return ctxerr.Wrap(ctx, err, "commander remove profile")
 }
 
@@ -161,7 +162,7 @@ func (svc *MDMAppleCommander) EraseDevice(ctx context.Context, host *fleet.Host,
 	return nil
 }
 
-func (svc *MDMAppleCommander) InstallEnterpriseApplication(ctx context.Context, hostUUIDs []string, uuid string, manifestURL string) error {
+func (svc *MDMAppleCommander) InstallEnterpriseApplication(ctx context.Context, hostUUIDs []string, uuid string, manifestURL string, fleetOwned bool) error {
 	raw := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -178,7 +179,7 @@ func (svc *MDMAppleCommander) InstallEnterpriseApplication(ctx context.Context, 
     <string>%s</string>
   </dict>
 </plist>`, manifestURL, uuid)
-	return svc.EnqueueCommand(ctx, hostUUIDs, raw)
+	return svc.EnqueueCommand(ctx, hostUUIDs, raw, fleetOwned) // TODO(JVE): fixme
 }
 
 type installEnterpriseApplicationPayload struct {
@@ -205,7 +206,7 @@ func (svc *MDMAppleCommander) InstallEnterpriseApplicationWithEmbeddedManifest(
 		return fmt.Errorf("marshal command payload plist: %w", err)
 	}
 
-	return svc.EnqueueCommand(ctx, hostUUIDs, string(raw))
+	return svc.EnqueueCommand(ctx, hostUUIDs, string(raw), false) // TODO(JVE): fixme
 }
 
 func (svc *MDMAppleCommander) AccountConfiguration(ctx context.Context, hostUUIDs []string, uuid, fullName, userName string) error {
@@ -230,7 +231,7 @@ func (svc *MDMAppleCommander) AccountConfiguration(ctx context.Context, hostUUID
   </dict>
 </plist>`, fullName, userName, uuid)
 
-	return svc.EnqueueCommand(ctx, hostUUIDs, raw)
+	return svc.EnqueueCommand(ctx, hostUUIDs, raw, false) // TODO(JVE): fixme
 }
 
 // DeclarativeManagement sends the homonym [command][1] to the device to enable DDM or start a new DDM session.
@@ -252,7 +253,7 @@ func (svc *MDMAppleCommander) DeclarativeManagement(ctx context.Context, hostUUI
    </dict>
  </plist>`, uuid)
 
-	return svc.EnqueueCommand(ctx, hostUUIDs, raw)
+	return svc.EnqueueCommand(ctx, hostUUIDs, raw, false) // TODO(JVE): fixme
 }
 
 func (svc *MDMAppleCommander) DeviceConfigured(ctx context.Context, hostUUID, cmdUUID string) error {
@@ -270,7 +271,7 @@ func (svc *MDMAppleCommander) DeviceConfigured(ctx context.Context, hostUUID, cm
 </dict>
 </plist>`, cmdUUID)
 
-	return svc.EnqueueCommand(ctx, []string{hostUUID}, raw)
+	return svc.EnqueueCommand(ctx, []string{hostUUID}, raw, false) // TODO(JVE): fixme
 }
 
 // EnqueueCommand takes care of enqueuing the commands and sending push
@@ -279,13 +280,14 @@ func (svc *MDMAppleCommander) DeviceConfigured(ctx context.Context, hostUUID, cm
 // Always sending the push notification when a command is enqueued was decided
 // internally, leaving making pushes optional as an optimization to be tackled
 // later.
-func (svc *MDMAppleCommander) EnqueueCommand(ctx context.Context, hostUUIDs []string, rawCommand string) error {
+func (svc *MDMAppleCommander) EnqueueCommand(ctx context.Context, hostUUIDs []string, rawCommand string, fleetOwned bool) error {
+	slog.With("filename", "server/mdm/apple/commander.go", "func", "EnqueueCommand").Info("JVE_LOG: enqueuing command ", "fleetOwned", fleetOwned)
 	cmd, err := mdm.DecodeCommand([]byte(rawCommand))
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "decoding command")
 	}
 
-	if _, err := svc.storage.EnqueueCommand(ctx, hostUUIDs, cmd); err != nil {
+	if _, err := svc.storage.EnqueueCommand(ctx, hostUUIDs, cmd, fleetOwned); err != nil {
 		return ctxerr.Wrap(ctx, err, "enqueuing command")
 	}
 

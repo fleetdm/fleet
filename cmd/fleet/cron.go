@@ -912,7 +912,6 @@ func verifyDiskEncryptionKeys(
 	logger kitlog.Logger,
 	ds fleet.Datastore,
 ) error {
-
 	appCfg, err := ds.AppConfig(ctx)
 	if err != nil {
 		logger.Log("err", "unable to get app config", "details", err)
@@ -1261,7 +1260,7 @@ func newIPhoneIPadRefetcher(
     <key>CommandUUID</key>
     <string>%s</string>
 </dict>
-</plist>`, commandUUID)); err != nil {
+</plist>`, commandUUID), false); err != nil { // TODO(JVE): fixme
 				return ctxerr.Wrap(ctx, err, "send DeviceInformation commands to ios and ipados devices")
 			}
 			return nil

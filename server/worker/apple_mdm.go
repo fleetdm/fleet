@@ -280,7 +280,7 @@ func (a *AppleMDM) runPostDEPReleaseDevice(ctx context.Context, args appleMDMArg
 
 func (a *AppleMDM) installFleetd(ctx context.Context, hostUUID string) (string, error) {
 	cmdUUID := uuid.New().String()
-	if err := a.Commander.InstallEnterpriseApplication(ctx, []string{hostUUID}, cmdUUID, apple_mdm.FleetdPublicManifestURL); err != nil {
+	if err := a.Commander.InstallEnterpriseApplication(ctx, []string{hostUUID}, cmdUUID, apple_mdm.FleetdPublicManifestURL, true); err != nil {
 		return "", err
 	}
 	a.Log.Log("info", "sent command to install fleetd", "host_uuid", hostUUID)

@@ -246,6 +246,19 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 			WHERE host_id = :host_id AND
 						pre_install_query_output IS NULL AND
 						install_script_exit_code IS NULL`,
+		`
+		SELECT
+	COUNT(*) c
+FROM
+	nano_commands nc
+	LEFT JOIN nano_command_results ncr ON ncr.command_uuid = nc.command_uuid
+	LEFT JOIN hosts h ON h.uuid = ncr.id
+WHERE
+	h.id = :host_id
+	AND nc.fleet_owned = 1
+	AND nc.request_type = 'InstallEnterpriseApplication'
+			AND ncr.status != 'Acknowledged'
+		`,
 	}
 
 	var count uint
@@ -334,6 +347,27 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 			hsi.pre_install_query_output IS NULL AND
 			hsi.install_script_exit_code IS NULL
 		`, softwareInstallerHostStatusNamedQuery("hsi", "")),
+
+		// List pending fleetd installs
+		`SELECT
+			'' AS uuid,
+			'Fleet' AS name,
+			NULL AS user_id,
+			'' AS gravatar_url,
+			'' AS user_email,
+			'installed_fleetd' AS activity_type,
+			nc.created_at AS created_at,
+			JSON_OBJECT('host_id', h.id, 'host_display_name', COALESCE(hdn.display_name, ''), 'type', 'mdm_command', 'command_uuid', nc.command_uuid) AS details
+		FROM
+			nano_commands nc
+			LEFT JOIN nano_command_results ncr ON ncr.command_uuid = nc.command_uuid
+			LEFT JOIN hosts h ON h.uuid = ncr.id
+			LEFT JOIN host_display_names hdn ON hdn.host_id = h.id
+		WHERE
+			nc.fleet_owned = 1
+			AND nc.request_type = 'InstallEnterpriseApplication'
+			AND ncr.status != 'Acknowledged'
+			`,
 	}
 
 	listStmt := `
@@ -402,7 +436,7 @@ func (ds *Datastore) ListHostPastActivities(ctx context.Context, hostID uint, op
 
 	var activities []*fleet.Activity
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &activities, stmt, args...); err != nil {
-		return nil, nil, ctxerr.Wrap(ctx, err, "select upcoming activities")
+		return nil, nil, ctxerr.Wrap(ctx, err, "select past activities")
 	}
 
 	var metaData *fleet.PaginationMetadata

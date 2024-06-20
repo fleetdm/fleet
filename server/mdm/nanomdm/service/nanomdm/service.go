@@ -4,6 +4,7 @@ package nanomdm
 import (
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/log"
@@ -234,6 +235,7 @@ func (s *Service) CommandAndReportResults(r *mdm.Request, results *mdm.CommandRe
 	if err != nil {
 		return nil, fmt.Errorf("storing command report: %w", err)
 	}
+	slog.With("filename", "server/mdm/nanomdm/service/nanomdm/service.go", "func", "CommandAndReportResults").Info("JVE_LOG: just stored status for command ", "commandUUID", results.CommandUUID, "status", results.Status)
 	cmd, err := s.store.RetrieveNextCommand(r, results.Status == "NotNow")
 	if err != nil {
 		return nil, fmt.Errorf("retrieving next command: %w", err)

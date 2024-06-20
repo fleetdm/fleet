@@ -3143,7 +3143,7 @@ func ReconcileAppleProfiles(
 		var err error
 		switch op {
 		case fleet.MDMOperationTypeInstall:
-			err = commander.InstallProfile(ctx, target.hostUUIDs, profileContents[profUUID], target.cmdUUID)
+			err = commander.InstallProfile(ctx, target.hostUUIDs, profileContents[profUUID], target.cmdUUID, false) // TODO(JVE): fixme: should use the value we pull up in GetMDMAppleProfilesContents
 		case fleet.MDMOperationTypeRemove:
 			err = commander.RemoveProfile(ctx, target.hostUUIDs, target.profIdent, target.cmdUUID)
 		}
@@ -3313,7 +3313,7 @@ func RenewSCEPCertificates(
 			assoc.RenewCommandUUID = cmdUUID
 		}
 
-		if err := commander.InstallProfile(ctx, uuids, profile, cmdUUID); err != nil {
+		if err := commander.InstallProfile(ctx, uuids, profile, cmdUUID, false); err != nil { // TODO(JVE): fixme
 			return ctxerr.Wrapf(ctx, err, "sending InstallProfile command for hosts %s", assocsWithoutRefs)
 		}
 
@@ -3339,7 +3339,7 @@ func RenewSCEPCertificates(
 			return ctxerr.Wrap(ctx, err, "generating enrollment profile for hosts with enroll reference")
 		}
 		cmdUUID := uuid.NewString()
-		if err := commander.InstallProfile(ctx, []string{assoc.HostUUID}, profile, cmdUUID); err != nil {
+		if err := commander.InstallProfile(ctx, []string{assoc.HostUUID}, profile, cmdUUID, false); err != nil { // TODO(JVE): fixme
 			return ctxerr.Wrapf(ctx, err, "sending InstallProfile command for hosts %s", assocsWithRefs)
 		}
 

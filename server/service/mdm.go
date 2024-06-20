@@ -560,7 +560,7 @@ func (svc *Service) enqueueAppleMDMCommand(ctx context.Context, rawXMLCmd []byte
 		}
 	}
 
-	if err := svc.mdmAppleCommander.EnqueueCommand(ctx, deviceIDs, string(rawXMLCmd)); err != nil {
+	if err := svc.mdmAppleCommander.EnqueueCommand(ctx, deviceIDs, string(rawXMLCmd), false); err != nil { // TODO(JVE): fixme
 		// if at least one UUID enqueued properly, return success, otherwise return
 		// error
 		var apnsErr *apple_mdm.APNSDeliveryError
