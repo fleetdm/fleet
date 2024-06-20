@@ -31,6 +31,7 @@ import Spinner from "components/Spinner";
 import TooltipWrapper from "components/TooltipWrapper";
 import Icon from "components/Icon";
 import { generateTableHeaders } from "./TargetsInput/TargetsInputHostsTableConfig";
+import permissions from "utilities/permissions";
 
 interface ITargetPillSelectorProps {
   entity: ISelectLabel | ISelectTeam;
@@ -151,7 +152,7 @@ const SelectTargets = ({
   setTargetedTeams,
   setTargetsTotalCount,
 }: ISelectTargetsProps): JSX.Element => {
-  const { isPremiumTier, isOnGlobalTeam } = useContext(AppContext);
+  const { isPremiumTier, isOnGlobalTeam, currentUser } = useContext(AppContext);
 
   const [labels, setLabels] = useState<ILabelsByType | null>(null);
   const [inputTabIndex, setInputTabIndex] = useState<number | null>(null);
@@ -448,6 +449,12 @@ const SelectTargets = ({
   const resultsTableConfig = generateTableHeaders();
   const selectedHostsTableConfig = generateTableHeaders(handleRowRemove);
 
+  // API blocks live policy if a team level user is able to select the team they are an observer on
+  const filterTeamObserverTeams =
+    teams?.filter(
+      (team) => !permissions.isTeamObserver(currentUser, team.id)
+    ) || [];
+
   return (
     <div className={`${baseClass}__wrapper`}>
       <h1>Select targets</h1>
@@ -462,7 +469,7 @@ const SelectTargets = ({
                 { id: 0, name: "No team" },
                 ...teams,
               ])
-            : renderTargetEntityList("Teams", teams))}
+            : renderTargetEntityList("Teams", filterTeamObserverTeams))}
         {!!labels?.other?.length &&
           renderTargetEntityList("Labels", labels.other)}
       </div>
