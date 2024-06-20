@@ -76,27 +76,32 @@ func (cm *cpeMatch) Match(attrs []*wfn.Attributes, requireVersion bool) (matches
 	return matches
 }
 
+// matchTargetSW returns an OS CPE for the given application CPE
+// if the application CPE has a target software attribute and
+// matches the given cpeMatch
 func (cm *cpeMatch) matchTargetSW(attr *wfn.Attributes) *wfn.Attributes {
 	if cm == nil || attr == nil {
 		return nil
 	}
 
-	var osMatch bool
-	var osAttr *wfn.Attributes
-	if attr.Part == "a" && attr.TargetSW != "" {
-		osAttr = &wfn.Attributes{
-			Part:    "o",
-			Product: attr.TargetSW,
-		}
-
-		osMatch = cm.Part == osAttr.Part && cm.Product == osAttr.Product && cm.Version == wfn.NA && !cm.hasVersionRanges
-	}
-
-	if !osMatch {
+	// Return nil if attr.Part is not "a" or attr.TargetSW is empty
+	if attr.Part != "a" || attr.TargetSW == "" {
 		return nil
 	}
 
-	return osAttr
+	// Create osAttr with Part "o" and Product as attr.TargetSW
+	osAttr := &wfn.Attributes{
+		Part:    "o",
+		Product: attr.TargetSW,
+	}
+
+	// Check if cm matches the new osAttr
+	if cm.Part == osAttr.Part && cm.Product == osAttr.Product && cm.Version == wfn.NA && !cm.hasVersionRanges {
+		return osAttr
+	}
+
+	// Return nil if no match
+	return nil
 }
 
 // Match implements wfn.Matcher interface
