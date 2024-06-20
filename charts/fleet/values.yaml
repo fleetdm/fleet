@@ -1,4 +1,4 @@
- Section: Kubernetes
+## Section: Kubernetes
 # All settings related to how Fleet is deployed in Kubernetes
 hostName: fleet.localhost
 replicas: 3 # The number of Fleet instances to deploy
