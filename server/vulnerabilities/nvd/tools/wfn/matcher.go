@@ -14,6 +14,8 @@
 
 package wfn
 
+import "sync"
+
 // Matcher knows whether it matches some attributes
 type Matcher interface {
 	// Match returns attributes which match it
@@ -90,23 +92,28 @@ func DontMatch(m Matcher) Matcher {
 type multiMatcher struct {
 	matchers []Matcher
 	// if true, match will only return something if all matchers matched at least something
-	allMatch bool
-	depth    int
+	allMatch   bool
+	depth      int
+	depthMutex sync.Mutex
 }
 
 // Match is part of the Matcher interface
 func (mm *multiMatcher) Match(attrs []*Attributes, requireVersion bool) []*Attributes {
 	defer func() {
+		mm.depthMutex.Lock()
 		if mm.depth > 0 {
 			mm.depth--
 		}
+		mm.depthMutex.Unlock()
 	}()
 
 	matched := make(map[*Attributes]bool)
 	for _, matcher := range mm.matchers {
 		// type check matcher against multiMatcher
 		if _, ok := matcher.(*multiMatcher); !ok {
+			mm.depthMutex.Lock()
 			mm.depth++
+			mm.depthMutex.Unlock()
 		}
 		matches := matcher.Match(attrs, requireVersion)
 		if mm.allMatch && len(matches) == 0 {
@@ -123,9 +130,11 @@ func (mm *multiMatcher) Match(attrs []*Attributes, requireVersion bool) []*Attri
 		matches = append(matches, m)
 	}
 
-	if mm.depth == 0 && len(matches) > 1 && !attributesIncludeApp(matches) {
+	if mm.depthMutex.Lock(); mm.depth == 0 && len(matches) > 1 && !attributesIncludeApp(matches) {
+		mm.depthMutex.Unlock()
 		return nil
 	}
+	mm.depthMutex.Unlock()
 
 	return matches
 }

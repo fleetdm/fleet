@@ -29,16 +29,17 @@ module.exports.http = {
     *                                                                          *
     ***************************************************************************/
 
-    // order: [
-    //   'cookieParser',
-    //   'session',
-    //   'bodyParser',
-    //   'compress',
-    //   'poweredBy',
-    //   'router',
-    //   'www',
-    //   'favicon',
-    // ],
+    order: [
+      'cookieParser',
+      'session',
+      'bodyParser',
+      'compress',
+      'poweredBy',
+      'router',
+      'www',
+      'favicon',
+      'middlewareErrorHandler'
+    ],
 
 
     /***************************************************************************
@@ -66,6 +67,16 @@ module.exports.http = {
       });
       return middlewareFn;
     })(),
+
+    // Note: this middleware function will run for every HTTP request, but will only handle errors thrown by the serve-static middleware if a user requests an invalid byte range of a static asset.
+    middlewareErrorHandler: function(err, req, res, next) {
+      // If this is a 'RangeNotSatisfiableError' error, respond with a 416 status code.
+      if (err.message === 'Range Not Satisfiable') {
+        return res.status(416).send();
+      } else {
+        return next(err);
+      }
+    },
 
   },
 

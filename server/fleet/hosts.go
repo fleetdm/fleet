@@ -155,7 +155,7 @@ type HostListOptions struct {
 	OSVersionFilter   *string
 	OSVersionIDFilter *uint
 
-	DisableFailingPolicies bool
+	DisableIssues bool
 
 	// MacOSSettingsFilter filters the hosts by the status of MDM configuration profiles
 	// applied to the hosts.
@@ -199,6 +199,10 @@ type HostListOptions struct {
 
 	// VulnerabilityFilter filters the hosts by the presence of a vulnerability (CVE)
 	VulnerabilityFilter *string
+
+	// ConnectedToFleetFilter filters hosts that have an active MDM
+	// connection with this Fleet instance.
+	ConnectedToFleetFilter *bool
 }
 
 // TODO(Sarah): Are we missing any filters here? Should all MDM filters be included?
@@ -217,7 +221,7 @@ func (h HostListOptions) Empty() bool {
 		h.OSIDFilter == nil &&
 		h.OSNameFilter == nil &&
 		h.OSVersionFilter == nil &&
-		h.DisableFailingPolicies == false &&
+		h.DisableIssues == false &&
 		h.MacOSSettingsFilter == "" &&
 		h.MacOSSettingsDiskEncryptionFilter == "" &&
 		h.MDMBootstrapPackageFilter == nil &&
@@ -464,6 +468,11 @@ type MDMHostData struct {
 	// host-returning methods.
 	DeviceStatus  *string `json:"device_status,omitempty" db:"-" csv:"-"`
 	PendingAction *string `json:"pending_action,omitempty" db:"-" csv:"-"`
+
+	// ConnectedToFleet indicates if the host has an active MDM connection
+	// with this Fleet instance. This boolean is not filled by all
+	// host-returning methods.
+	ConnectedToFleet *bool `json:"connected_to_fleet" csv:"-" db:"connected_to_fleet"`
 }
 
 type HostMDMOSSettings struct {
@@ -678,19 +687,27 @@ func (h *Host) IsDEPAssignedToFleet() bool {
 
 // IsEligibleForDEPMigration returns true if the host fulfills all requirements
 // for DEP migration from a third-party provider into Fleet.
-func (h *Host) IsEligibleForDEPMigration() bool {
+func (h *Host) IsEligibleForDEPMigration(isConnectedToFleetMDM bool) bool {
 	return h.IsOsqueryEnrolled() &&
 		h.IsDEPAssignedToFleet() &&
+		h.MDMInfo != nil &&
 		h.MDMInfo.HasJSONProfileAssigned() &&
-		h.MDMInfo.IsEnrolledInThirdPartyMDM()
+		h.MDMInfo.Enrolled &&
+		// as a special case for migration with user interaction, we
+		// also check the information stored in host_mdm, and assume
+		// the host needs migration if it's not Fleet
+		//
+		// this is because we can't always rely on nano setting
+		// `nano_enrollment.active = 1` since sometimes Fleet won't get
+		// the checkout message from the host.
+		(!isConnectedToFleetMDM || h.MDMInfo.Name != WellKnownMDMFleet)
 }
 
 // NeedsDEPEnrollment returns true if the host should be DEP enrolled into
 // fleet but it's currently unenrolled.
-func (h *Host) NeedsDEPEnrollment() bool {
-	return h.MDMInfo != nil && !h.MDMInfo.IsDEPFleetEnrolled() &&
-		!h.MDMInfo.IsManualFleetEnrolled() &&
-		!h.MDMInfo.IsEnrolledInThirdPartyMDM() &&
+func (h *Host) NeedsDEPEnrollment(isConnectedToFleetMDM bool) bool {
+	return h.MDMInfo != nil &&
+		!h.MDMInfo.Enrolled &&
 		h.IsDEPAssignedToFleet()
 }
 
@@ -699,18 +716,19 @@ func (h *Host) NeedsDEPEnrollment() bool {
 func (h *Host) IsEligibleForWindowsMDMEnrollment() bool {
 	return h.FleetPlatform() == "windows" &&
 		h.IsOsqueryEnrolled() &&
-		!h.MDMInfo.IsEnrolledInThirdPartyMDM() &&
-		!h.MDMInfo.IsFleetEnrolled() &&
-		(h.MDMInfo == nil || !h.MDMInfo.IsServer)
+		// NOTE(roberto): during a refactor I found this `h.MDMInfo ==
+		// nil` check, but seems wrong to me, we're assuming that if
+		// there's no data in `host_mdm` it's fine to enroll a host.
+		// I'm leaving it as-is just in case I'm missing something.
+		(h.MDMInfo == nil || (!h.MDMInfo.IsServer && !h.MDMInfo.Enrolled))
 }
 
 // IsEligibleForWindowsMDMUnenrollment returns true if the host must be
 // unenrolled from Fleet's Windows MDM (if it MDM was disabled).
-func (h *Host) IsEligibleForWindowsMDMUnenrollment() bool {
+func (h *Host) IsEligibleForWindowsMDMUnenrollment(isConnectedToFleetMDM bool) bool {
 	return h.FleetPlatform() == "windows" &&
 		h.IsOsqueryEnrolled() &&
-		h.MDMInfo.IsFleetEnrolled() &&
-		(h.MDMInfo == nil || !h.MDMInfo.IsServer)
+		isConnectedToFleetMDM
 }
 
 // IsEligibleForBitLockerEncryption checks if the host needs to enforce disk
@@ -718,7 +736,7 @@ func (h *Host) IsEligibleForWindowsMDMUnenrollment() bool {
 //
 // Note: the *Host structs needs disk encryption data and MDM data filled in to
 // perform the check.
-func (h *Host) IsEligibleForBitLockerEncryption() bool {
+func (h *Host) IsEligibleForBitLockerEncryption(isConnectedToFleetMDM bool) bool {
 	isServer := h.MDMInfo != nil && h.MDMInfo.IsServer
 	isWindows := h.FleetPlatform() == "windows"
 	needsEncryption := h.DiskEncryptionEnabled != nil && !*h.DiskEncryptionEnabled
@@ -726,8 +744,9 @@ func (h *Host) IsEligibleForBitLockerEncryption() bool {
 
 	return isWindows &&
 		h.IsOsqueryEnrolled() &&
-		h.MDMInfo.IsFleetEnrolled() &&
+		isConnectedToFleetMDM &&
 		!isServer &&
+		h.MDMInfo != nil &&
 		(needsEncryption || encryptedWithoutKey)
 }
 
@@ -753,8 +772,9 @@ func (h *Host) DisplayName() string {
 }
 
 type HostIssues struct {
-	TotalIssuesCount     int `json:"total_issues_count" db:"total_issues_count" csv:"issues"` // when exporting in CSV, we want that value as the "issues" column
-	FailingPoliciesCount int `json:"failing_policies_count" db:"failing_policies_count" csv:"-"`
+	FailingPoliciesCount         uint64  `json:"failing_policies_count" db:"failing_policies_count" csv:"-"`
+	CriticalVulnerabilitiesCount *uint64 `json:"critical_vulnerabilities_count,omitempty" db:"critical_vulnerabilities_count" csv:"-"` // We set it to nil if the license is not premium
+	TotalIssuesCount             uint64  `json:"total_issues_count" db:"total_issues_count" csv:"issues"`                              // when exporting in CSV, we want that value as the "issues" column
 }
 
 func (h Host) AuthzType() string {
@@ -948,27 +968,6 @@ type HostMDM struct {
 	DEPProfileAssignStatus *string `db:"dep_profile_assign_status" json:"-" csv:"-"`
 }
 
-// IsPendingDEPFleetEnrollment returns true if the host's MDM information
-// indicates that it is in pending state for Fleet MDM DEP (automatic)
-// enrollment.
-func (h *HostMDM) IsPendingDEPFleetEnrollment() bool {
-	if h == nil {
-		return false
-	}
-	return (!h.IsServer) && (!h.Enrolled) && h.InstalledFromDep &&
-		h.Name == WellKnownMDMFleet
-}
-
-// IsEnrolledInThirdPartyMDM returns true if and only if the host's MDM
-// information indicates that the device is currently enrolled into a
-// third-party MDM (an MDM that's not Fleet)
-func (h *HostMDM) IsEnrolledInThirdPartyMDM() bool {
-	if h == nil {
-		return false
-	}
-	return h.Enrolled && h.Name != WellKnownMDMFleet
-}
-
 // HasJSONProfileAssigned returns true if Fleet has assigned an ADE/DEP JSON
 // profile to the host, and it'll be enrolled into Fleet the next time the host
 // performs automatic enrollment.
@@ -978,48 +977,6 @@ func (h *HostMDM) HasJSONProfileAssigned() bool {
 	return h != nil &&
 		h.DEPProfileAssignStatus != nil &&
 		*h.DEPProfileAssignStatus == string(DEPAssignProfileResponseSuccess)
-}
-
-// IsDEPCapable returns true if and only if the host's MDM information
-// indicates that the device is capable of doing DEP/AEP enrollments.
-func (h *HostMDM) IsDEPCapable() bool {
-	if h == nil {
-		return false
-	}
-	// TODO: InstalledFromDep doesn't necessarily mean DEP capable, we need
-	// to improve our internal state. See the differences at
-	// https://fleetdm.com/tables/mdm
-	return !h.IsServer && h.InstalledFromDep
-}
-
-// IsDEPFleetEnrolled returns true if the host's MDM information indicates that
-// it is in enrolled state for Fleet MDM DEP (automatic) enrollment.
-func (h *HostMDM) IsDEPFleetEnrolled() bool {
-	if h == nil {
-		return false
-	}
-	return (!h.IsServer) && (h.Enrolled) && h.InstalledFromDep &&
-		h.Name == WellKnownMDMFleet
-}
-
-// IsManualFleetEnrolled returns true if the host's MDM information indicates that
-// it is in enrolled state for Fleet MDM manual enrollment.
-func (h *HostMDM) IsManualFleetEnrolled() bool {
-	if h == nil {
-		return false
-	}
-	return (!h.IsServer) && (h.Enrolled) && !h.InstalledFromDep &&
-		h.Name == WellKnownMDMFleet
-}
-
-// IsFleetEnrolled returns true if the host's MDM information indicates that
-// it is in enrolled state for Fleet MDM, regardless of automatic or manual
-// enrollment method.
-func (h *HostMDM) IsFleetEnrolled() bool {
-	if h == nil {
-		return false
-	}
-	return h.IsDEPFleetEnrolled() || h.IsManualFleetEnrolled()
 }
 
 // HostMunkiIssue represents a single munki issue for a host.
@@ -1233,9 +1190,10 @@ type OSVersion struct {
 }
 
 type HostDetailOptions struct {
-	IncludeCVEScores bool
-	IncludePolicies  bool
-	ExcludeSoftware  bool
+	IncludeCVEScores                    bool
+	IncludeCriticalVulnerabilitiesCount bool
+	IncludePolicies                     bool
+	ExcludeSoftware                     bool
 }
 
 // EnrollHostLimiter defines the methods to support enforcement of enrolled

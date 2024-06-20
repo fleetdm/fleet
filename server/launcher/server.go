@@ -5,8 +5,8 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/go-kit/kit/log"
 	kithttp "github.com/go-kit/kit/transport/http"
+	"github.com/go-kit/log"
 	launcher "github.com/kolide/launcher/pkg/service"
 	grpc "google.golang.org/grpc"
 

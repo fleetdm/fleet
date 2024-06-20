@@ -50,7 +50,8 @@
         "encryption_key_available": false,
         "enrollment_status": null,
         "name": "",
-        "server_url": null
+        "server_url": null,
+        "connected_to_fleet": null
       },
       "team_id": null,
       "pack_stats": null,
@@ -125,7 +126,8 @@
         "encryption_key_available": false,
         "enrollment_status": null,
         "name": "",
-        "server_url": null
+        "server_url": null,
+        "connected_to_fleet": null
       },
       "team_id": null,
       "pack_stats": null,

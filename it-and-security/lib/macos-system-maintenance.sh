@@ -81,4 +81,16 @@ sleep 30
 change_wallpaper "$current_wallpaper"
 check_result
 
-echo "Wallpaper changed to $new_wallpaper_path for 30 seconds, then reverted back to $current_wallpaper"
+# Fallback to Sonoma Horizon wallpaper if reverting fails
+if [[ $? -ne 0 ]]; then
+    fallback_wallpaper="/System/Library/Desktop Pictures/.wallpapers/Sonoma Horizon/Sonoma Horizon.heic"
+    echo "Reverting to original wallpaper failed. Attempting to change to Sonoma Horizon wallpaper."
+    change_wallpaper "$fallback_wallpaper"
+    if [[ $? -ne 0 ]]; then
+        echo "Failed to change to Sonoma Horizon wallpaper. Exiting with error."
+        exit 1
+    fi
+    echo "Changed to Sonoma Horizon wallpaper: $fallback_wallpaper"
+fi
+
+echo "Wallpaper changed to $new_wallpaper_path for 30 seconds, then reverted back to $current_wallpaper or $fallback_wallpaper"

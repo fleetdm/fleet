@@ -589,9 +589,7 @@ const PolicyForm = ({
             wrapEnabled
             focus={!isEditMode}
           />
-          <span className={`${baseClass}__platform-compatibility`}>
-            {renderPlatformCompatibility()}
-          </span>
+          {renderPlatformCompatibility()}
           {(isEditMode || defaultPolicy) && platformSelector.render()}
           {isEditMode && isPremiumTier && renderCriticalPolicy()}
           {renderLiveQueryWarning()}

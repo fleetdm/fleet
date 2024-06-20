@@ -11,7 +11,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
-	"github.com/go-kit/kit/log/level"
+	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
+	"github.com/go-kit/log/level"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 )
@@ -359,7 +360,8 @@ ON DUPLICATE KEY UPDATE
 		// if we received a Wipe command result, update the host's status
 		if wipeCmdUUID != "" {
 			if err := updateHostLockWipeStatusFromResultAndHostUUID(ctx, tx, enrollment.HostUUID,
-				"wipe_ref", wipeCmdUUID, strings.HasPrefix(wipeCmdStatus, "2")); err != nil {
+				"wipe_ref", wipeCmdUUID, strings.HasPrefix(wipeCmdStatus, "2"), false,
+			); err != nil {
 				return ctxerr.Wrap(ctx, err, "updating wipe command result in host_mdm_actions")
 			}
 		}
@@ -960,12 +962,11 @@ SELECT
 FROM
     hosts h
     JOIN host_mdm hmdm ON h.id = hmdm.host_id
-    JOIN mobile_device_management_solutions mdms ON hmdm.mdm_id = mdms.id
+    JOIN mdm_windows_enrollments mwe ON h.uuid = mwe.host_uuid
 WHERE
-    mdms.name = '%s' AND
-    hmdm.is_server = 0 AND
-    hmdm.enrolled = 1 AND
+    mwe.device_state = '%s' AND
     h.platform = 'windows' AND
+    hmdm.is_server = 0 AND
     %s
 GROUP BY
     status`,
@@ -973,7 +974,7 @@ GROUP BY
 		subqueryPending,
 		subqueryVerifying,
 		subqueryVerified,
-		fleet.WellKnownMDMFleet,
+		microsoft_mdm.MDMDeviceStateEnrolled,
 		teamFilter,
 	)
 
@@ -1092,13 +1093,12 @@ SELECT
 FROM
     hosts h
     JOIN host_mdm hmdm ON h.id = hmdm.host_id
-    JOIN mobile_device_management_solutions mdms ON hmdm.mdm_id = mdms.id
+    JOIN mdm_windows_enrollments mwe ON h.uuid = mwe.host_uuid
     %s
 WHERE
-    mdms.name = '%s' AND
-    hmdm.is_server = 0 AND
-    hmdm.enrolled = 1 AND
+    mwe.device_state = '%s' AND
     h.platform = 'windows' AND
+    hmdm.is_server = 0 AND
     %s
 GROUP BY
     status`,
@@ -1108,7 +1108,7 @@ GROUP BY
 		bitlockerStatus,
 		bitlockerStatus,
 		bitlockerJoin,
-		fleet.WellKnownMDMFleet,
+		microsoft_mdm.MDMDeviceStateEnrolled,
 		teamFilter,
 	)
 

@@ -7,8 +7,10 @@ import { getNextLocationPath } from "utilities/helpers";
 
 import TableContainer from "components/TableContainer";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
+import { generateResultsCountText } from "components/TableContainer/utilities/TableContainerUtils";
 
 import EmptySoftwareTable from "pages/SoftwarePage/components/EmptySoftwareTable";
+import TableCount from "components/TableContainer/TableCount";
 
 const DEFAULT_PAGE_SIZE = 20;
 
@@ -25,16 +27,6 @@ interface IHostSoftwareTableProps {
   page: number;
   pagePath: string;
 }
-
-const SoftwareCount = ({ count }: { count: number }) => {
-  return (
-    <div className={`${baseClass}__count`}>
-      <span>
-        {count === 1 ? `${count} software item` : `${count} software items`}
-      </span>
-    </div>
-  );
-};
 
 const HostSoftwareTable = ({
   tableConfig,
@@ -106,20 +98,25 @@ const HostSoftwareTable = ({
     [determineQueryParamChange, pagePath, generateNewQueryParams, router]
   );
 
+  const count = data?.count || data?.software.length || 0;
+  const isSoftwareNotDetected = count === 0 && searchQuery === "";
+
   const memoizedSoftwareCount = useCallback(() => {
-    const count = data?.count || data?.software.length || 0;
-    return <SoftwareCount count={count} />;
+    if (isSoftwareNotDetected) {
+      return null;
+    }
+
+    return <TableCount name="items" count={count} />;
   }, [data?.count, data?.software.length]);
 
   const memoizedEmptyComponent = useCallback(() => {
-    return <EmptySoftwareTable isSearching={searchQuery !== ""} />;
+    return <EmptySoftwareTable isNotDetectingSoftware={searchQuery === ""} />;
   }, [searchQuery]);
 
   return (
     <div className={baseClass}>
       <TableContainer
         renderCount={memoizedSoftwareCount}
-        resultsTitle="software items"
         columnConfigs={tableConfig}
         data={data?.software || []}
         isLoading={isLoading}
@@ -134,7 +131,7 @@ const HostSoftwareTable = ({
         emptyComponent={memoizedEmptyComponent}
         showMarkAllPages={false}
         isAllPagesSelected={false}
-        searchable
+        searchable={!isSoftwareNotDetected}
         manualSortBy
       />
     </div>

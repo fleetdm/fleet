@@ -17,8 +17,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/scep/cryptoutil"
 	"github.com/fleetdm/fleet/v4/server/mdm/scep/cryptoutil/x509util"
 
-	"github.com/go-kit/kit/log"
-	"github.com/go-kit/kit/log/level"
+	"github.com/go-kit/log"
+	"github.com/go-kit/log/level"
 	"go.mozilla.org/pkcs7"
 )
 
