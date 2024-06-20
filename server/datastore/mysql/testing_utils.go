@@ -433,7 +433,7 @@ func CreateMySQLDSWithReplica(t *testing.T, opts *DatastoreTestOptions) *Datasto
 		require.NoError(t, err)
 		if status["Replica_SQL_Running"] != "Yes" && status["Slave_SQL_Running"] != "Yes" {
 			t.Logf("create replica attempt: %d replica status: %+v", attempt, status)
-			if lastErr, ok := status["Last_Error"]; ok {
+			if lastErr, ok := status["Last_Error"]; ok && lastErr != "" {
 				t.Logf("replica not running after attempt %d; Last_Error: %s", attempt, lastErr)
 			}
 			continue
