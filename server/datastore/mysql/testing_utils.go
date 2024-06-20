@@ -792,3 +792,42 @@ func (ds *Datastore) MasterStatus(ctx context.Context) (MasterStatus, error) {
 	}
 	return ms, nil
 }
+
+func (ds *Datastore) ReplicaStatus(ctx context.Context) (map[string]interface{}, error) {
+
+	rows, err := ds.reader(ctx).QueryContext(ctx, "SHOW SLAVE STATUS")
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "show replica status")
+	}
+	defer rows.Close()
+
+	// Get the column names from the query
+	columns, err := rows.Columns()
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get columns")
+	}
+	numberOfColumns := len(columns)
+	result := make(map[string]interface{}, numberOfColumns)
+	for rows.Next() {
+		cols := make([]interface{}, numberOfColumns)
+		for i := range cols {
+			cols[i] = &sql.NullString{}
+		}
+		err = rows.Scan(cols...)
+		if err != nil {
+			return result, ctxerr.Wrap(ctx, err, "scan row")
+		}
+		for i, col := range cols {
+			colValue := col.(*sql.NullString)
+			if colValue.Valid {
+				result[columns[i]] = colValue.String
+			} else {
+				result[columns[i]] = nil
+			}
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return result, ctxerr.Wrap(ctx, err, "rows error")
+	}
+	return result, nil
+}
