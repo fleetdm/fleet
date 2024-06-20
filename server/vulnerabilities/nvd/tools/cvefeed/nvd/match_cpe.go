@@ -69,11 +69,34 @@ func (cm *cpeMatch) Match(attrs []*wfn.Attributes, requireVersion bool) (matches
 		if cm.match(attr, requireVersion) {
 			matches = append(matches, attr)
 		}
-		if osMatch := cm.MatchTargetSW(attr); osMatch != nil {
+		if osMatch := cm.matchTargetSW(attr); osMatch != nil {
 			matches = append(matches, osMatch)
 		}
 	}
 	return matches
+}
+
+func (cm *cpeMatch) matchTargetSW(attr *wfn.Attributes) *wfn.Attributes {
+	if cm == nil || attr == nil {
+		return nil
+	}
+
+	var osMatch bool
+	var osAttr *wfn.Attributes
+	if attr.Part == "a" && attr.TargetSW != "" {
+		osAttr = &wfn.Attributes{
+			Part:    "o",
+			Product: attr.TargetSW,
+		}
+
+		osMatch = cm.Part == osAttr.Part && cm.Product == osAttr.Product && cm.Version == wfn.NA && !cm.hasVersionRanges
+	}
+
+	if !osMatch {
+		return nil
+	}
+
+	return osAttr
 }
 
 // Match implements wfn.Matcher interface
