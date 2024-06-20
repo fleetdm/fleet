@@ -6880,8 +6880,6 @@ func testIsHostConnectedToFleetMDM(t *testing.T, ds *Datastore) {
 	require.True(t, connected)
 }
 
-// func (ds *Datastore) GetHostsWithMDMOffStillConnected(ctx context.Context) ([]*fleet.Host, error) {
-
 func testGetHostsWithMDMOffStillConnected(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
