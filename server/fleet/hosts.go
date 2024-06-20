@@ -800,12 +800,11 @@ type HostDetail struct {
 	MaintenanceWindow *HostMaintenanceWindow `json:"maintenance_window,omitempty"`
 }
 type HostMaintenanceWindow struct {
-	//  StartsAt is the start time of the future maintenance window in the timezone of the user's
-	//  google calendar, if known, otherwise in UTC (handles the edge case where cron has not yet run
-	//  after migration to add relevant columns)
-	StartsAt string `json:"starts_at" db:"user_local_start_time"`
-	// TimeZone is the IANA timezone of the user's google calendar
-	TimeZone string `json:"timezone,omitempty"`
+	//  StartsAt is the UTC start time of the future maintenance window, retrieved from calendar_events
+	StartsAt time.Time `json:"starts_at" db:"start_time"`
+	// TimeZone is the IANA timezone of the user's google calendar, retrieved from TODO - likely from
+	// datastore as well
+	TimeZone string `json:"timezone"`
 }
 
 const (
