@@ -11187,6 +11187,13 @@ func (s *integrationTestSuite) TestHostDeviceToken() {
 	}
 	s.DoJSON("POST", "/api/fleet/orbit/device_token", body, http.StatusBadRequest, &response{})
 
+	// Use illegal characters
+	body = setOrUpdateDeviceTokenRequest{
+		OrbitNodeKey:    *orbitHost.OrbitNodeKey,
+		DeviceAuthToken: "../.",
+	}
+	s.DoJSON("POST", "/api/fleet/orbit/device_token", body, http.StatusBadRequest, &response{})
+
 	// Write bad node key
 	body = setOrUpdateDeviceTokenRequest{
 		OrbitNodeKey:    "",
