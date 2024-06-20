@@ -1,15 +1,19 @@
-import React, { useCallback, useContext } from "react";
+import React, { useCallback, useContext, useState } from "react";
 import PATHS from "router/paths";
 import { InjectedRouter } from "react-router/lib/Router";
 
 import { DEFAULT_POLICY, DEFAULT_POLICIES } from "pages/policies/constants";
 
 import { IPolicyNew } from "interfaces/policy";
+import { SelectedPlatform } from "interfaces/platform";
 
 import { PolicyContext } from "context/policy";
 
 import Button from "components/buttons/Button";
 import Modal from "components/Modal";
+// @ts-ignore
+import Dropdown from "components/forms/fields/Dropdown";
+import CustomLink from "components/CustomLink";
 
 export interface IAddPolicyModalProps {
   onCancel: () => void;
@@ -17,6 +21,32 @@ export interface IAddPolicyModalProps {
   teamId: number;
   teamName?: string;
 }
+
+const CONTRIBUTE_TO_POLICIES_DOCS_URL =
+  "https://www.fleetdm.com/contribute-to/policies";
+
+const PLATFORM_FILTER_OPTIONS = [
+  {
+    label: "All platforms",
+    value: "all",
+  },
+  {
+    label: "macOS",
+    value: "darwin",
+  },
+  {
+    label: "Windows",
+    value: "windows",
+  },
+  {
+    label: "Linux",
+    value: "linux",
+  },
+  {
+    label: "ChromeOS",
+    value: "chrome",
+  },
+];
 
 const baseClass = "add-policy-modal";
 
@@ -37,6 +67,9 @@ const AddPolicyModal = ({
     setPolicyTeamId,
     setDefaultPolicy,
   } = useContext(PolicyContext);
+
+  const [filteredPolicies, setFilteredPolicies] = useState(DEFAULT_POLICIES);
+  const [platform, setPlatform] = useState<SelectedPlatform>("all");
 
   const onAddPolicy = (selectedPolicy: IPolicyNew) => {
     setDefaultPolicy(true);
@@ -70,7 +103,22 @@ const AddPolicyModal = ({
     teamId,
   ]);
 
-  const policiesAvailable = DEFAULT_POLICIES.map((policy: IPolicyNew) => {
+  const onPlatformFilterChange = (platformSelected: SelectedPlatform) => {
+    if (platformSelected === "all") {
+      setFilteredPolicies(DEFAULT_POLICIES);
+    } else {
+      // Note: Default policies currently map to a single platform
+      const policiesFilteredByPlatform = DEFAULT_POLICIES.filter((policy) => {
+        return policy.platform === platformSelected;
+      });
+      setFilteredPolicies(policiesFilteredByPlatform);
+    }
+    setPlatform(platformSelected);
+  };
+
+  const filteredPoliciesCount = filteredPolicies.length;
+
+  const filteredPoliciesList = filteredPolicies.map((policy: IPolicyNew) => {
     return (
       <Button
         key={policy.key}
@@ -91,23 +139,44 @@ const AddPolicyModal = ({
     );
   });
 
+  const renderNoResults = () => {
+    return (
+      <>
+        There are no results that match your filters.{" "}
+        <CustomLink
+          text="Everyone can contribute"
+          url={CONTRIBUTE_TO_POLICIES_DOCS_URL}
+          newTab
+        />
+      </>
+    );
+  };
+
   return (
     <Modal
       title="Add a policy"
       onExit={onCancel}
       className={baseClass}
-      width="xlarge"
+      width="large"
     >
       <>
-        <div className={`${baseClass}__create-policy`}>
+        <div className={`${baseClass}__description`}>
           Choose a policy template to get started or{" "}
           <Button variant="text-link" onClick={onCreateYourOwnPolicyClick}>
             create your own policy
           </Button>
           .
         </div>
+        <Dropdown
+          value={platform}
+          className={`${baseClass}__platform-dropdown`}
+          options={PLATFORM_FILTER_OPTIONS}
+          searchable={false}
+          onChange={onPlatformFilterChange}
+          tableFilterDropdown
+        />
         <div className={`${baseClass}__policy-selection`}>
-          {policiesAvailable}
+          {filteredPoliciesCount > 0 ? filteredPoliciesList : renderNoResults()}
         </div>
       </>
     </Modal>

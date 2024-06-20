@@ -13,9 +13,8 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	mdm_types "github.com/fleetdm/fleet/v4/server/mdm"
-	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
-	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/tokenpki"
+	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/service/certauth"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -38,13 +37,18 @@ func TestMDMShared(t *testing.T) {
 		{"TestBulkSetPendingMDMHostProfiles", testBulkSetPendingMDMHostProfiles},
 		{"TestBulkSetPendingMDMHostProfilesBatch2", testBulkSetPendingMDMHostProfilesBatch2},
 		{"TestBulkSetPendingMDMHostProfilesBatch3", testBulkSetPendingMDMHostProfilesBatch3},
-		{"TestGetHostMDMProfilesExpectedForVerification", testGetHostMDMProfilesExpectedForVerification},
+		{
+			"TestGetHostMDMProfilesExpectedForVerification",
+			testGetHostMDMProfilesExpectedForVerification,
+		},
 		{"TestBatchSetProfileLabelAssociations", testBatchSetProfileLabelAssociations},
 		{"TestBatchSetProfilesTransactionError", testBatchSetMDMProfilesTransactionError},
 		{"TestMDMEULA", testMDMEULA},
 		{"TestGetHostCertAssociationsToExpire", testSCEPRenewalHelpers},
 		{"TestSCEPRenewalHelpers", testSCEPRenewalHelpers},
 		{"TestMDMProfilesSummaryAndHostFilters", testMDMProfilesSummaryAndHostFilters},
+		{"TestIsHostConnectedToFleetMDM", testIsHostConnectedToFleetMDM},
+		{"TestAreHostsConnectedToFleetMDM", testAreHostsConnectedToFleetMDM},
 	}
 
 	for _, c := range cases {
@@ -87,9 +91,16 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 	}
 	err = ds.MDMWindowsInsertEnrolledDevice(ctx, windowsEnrollment)
 	require.NoError(t, err)
-	err = ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, windowsEnrollment.HostUUID, windowsEnrollment.MDMDeviceID)
+	err = ds.UpdateMDMWindowsEnrollmentsHostUUID(
+		ctx,
+		windowsEnrollment.HostUUID,
+		windowsEnrollment.MDMDeviceID,
+	)
 	require.NoError(t, err)
-	windowsEnrollment, err = ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, windowsEnrollment.MDMDeviceID)
+	windowsEnrollment, err = ds.MDMWindowsGetEnrolledDeviceWithDeviceID(
+		ctx,
+		windowsEnrollment.MDMDeviceID,
+	)
 	require.NoError(t, err)
 
 	// enroll a macOS device
@@ -104,7 +115,11 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 	nanoEnroll(t, ds, macH, false)
 
 	// no commands => no results
-	cmds, err = ds.ListMDMCommands(ctx, fleet.TeamFilter{User: test.UserAdmin}, &fleet.MDMCommandListOptions{})
+	cmds, err = ds.ListMDMCommands(
+		ctx,
+		fleet.TeamFilter{User: test.UserAdmin},
+		&fleet.MDMCommandListOptions{},
+	)
 	require.NoError(t, err)
 	require.Empty(t, cmds)
 
@@ -118,7 +133,11 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// we get one result
-	cmds, err = ds.ListMDMCommands(ctx, fleet.TeamFilter{User: test.UserAdmin}, &fleet.MDMCommandListOptions{})
+	cmds, err = ds.ListMDMCommands(
+		ctx,
+		fleet.TeamFilter{User: test.UserAdmin},
+		&fleet.MDMCommandListOptions{},
+	)
 	require.NoError(t, err)
 	require.Len(t, cmds, 1)
 	require.Equal(t, winCmd.CommandUUID, cmds[0].CommandUUID)
@@ -160,12 +179,25 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
-		res, err := tx.ExecContext(ctx, `INSERT INTO windows_mdm_responses (enrollment_id, raw_response) VALUES (?, ?)`, windowsEnrollment.ID, "")
+		res, err := tx.ExecContext(
+			ctx,
+			`INSERT INTO windows_mdm_responses (enrollment_id, raw_response) VALUES (?, ?)`,
+			windowsEnrollment.ID,
+			"",
+		)
 		if err != nil {
 			return err
 		}
 		resID, _ := res.LastInsertId()
-		_, err = tx.ExecContext(ctx, `INSERT INTO windows_mdm_command_results (enrollment_id, command_uuid, raw_result, status_code, response_id) VALUES (?, ?, ?, ?, ?)`, windowsEnrollment.ID, winCmd.CommandUUID, "", "200", resID)
+		_, err = tx.ExecContext(
+			ctx,
+			`INSERT INTO windows_mdm_command_results (enrollment_id, command_uuid, raw_result, status_code, response_id) VALUES (?, ?, ?, ?, ?)`,
+			windowsEnrollment.ID,
+			winCmd.CommandUUID,
+			"",
+			"200",
+			resID,
+		)
 		return err
 	})
 
@@ -228,8 +260,12 @@ func testBatchSetMDMProfiles(t *testing.T, ds *Datastore) {
 		[]*fleet.MDMWindowsConfigProfile{windowsConfigProfileForTest(t, "W1", "l1")},
 		[]*fleet.MDMAppleDeclaration{declForTest("D1", "D1", "foo")},
 		ptr.Uint(1),
-		[]*fleet.MDMAppleConfigProfile{withTeamIDApple(configProfileForTest(t, "N1", "I1", "a"), 1)},
-		[]*fleet.MDMWindowsConfigProfile{withTeamIDWindows(windowsConfigProfileForTest(t, "W1", "l1"), 1)},
+		[]*fleet.MDMAppleConfigProfile{
+			withTeamIDApple(configProfileForTest(t, "N1", "I1", "a"), 1),
+		},
+		[]*fleet.MDMWindowsConfigProfile{
+			withTeamIDWindows(windowsConfigProfileForTest(t, "W1", "l1"), 1),
+		},
 		[]*fleet.MDMAppleDeclaration{withTeamIDDecl(declForTest("D1", "D1", "foo"), 1)},
 	)
 
@@ -378,9 +414,15 @@ func testListMDMConfigProfiles(t *testing.T, ds *Datastore) {
 
 	// add fleet-managed Windows profiles for the team and globally
 	for name := range mdm_types.FleetReservedProfileNames() {
-		_, err = ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{Name: name, TeamID: &team.ID, SyncML: winProf})
+		_, err = ds.NewMDMWindowsConfigProfile(
+			ctx,
+			fleet.MDMWindowsConfigProfile{Name: name, TeamID: &team.ID, SyncML: winProf},
+		)
 		require.NoError(t, err)
-		_, err = ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{Name: name, TeamID: nil, SyncML: winProf})
+		_, err = ds.NewMDMWindowsConfigProfile(
+			ctx,
+			fleet.MDMWindowsConfigProfile{Name: name, TeamID: nil, SyncML: winProf},
+		)
 		require.NoError(t, err)
 	}
 
@@ -398,7 +440,10 @@ func testListMDMConfigProfiles(t *testing.T, ds *Datastore) {
 	// create a mac profile for global and a Windows profile for team
 	profA, err := ds.NewMDMAppleConfigProfile(ctx, *generateCP("A", "A", 0))
 	require.NoError(t, err)
-	profB, err := ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{Name: "B", TeamID: &team.ID, SyncML: winProf})
+	profB, err := ds.NewMDMWindowsConfigProfile(
+		ctx,
+		fleet.MDMWindowsConfigProfile{Name: "B", TeamID: &team.ID, SyncML: winProf},
+	)
 	require.NoError(t, err)
 
 	// get global profiles returns the mac one
@@ -449,7 +494,11 @@ func testListMDMConfigProfiles(t *testing.T, ds *Datastore) {
 		_, err = ds.NewMDMAppleConfigProfile(ctx, acp)
 		require.NoError(t, err)
 
-		wcp := fleet.MDMWindowsConfigProfile{Name: string(rune('C' + inc + 2)), TeamID: nil, SyncML: winProf}
+		wcp := fleet.MDMWindowsConfigProfile{
+			Name:   string(rune('C' + inc + 2)),
+			TeamID: nil,
+			SyncML: winProf,
+		}
 		if i == 0 {
 			wcp.Labels = []fleet.ConfigurationProfileLabel{
 				{LabelName: labels[4].Name, LabelID: labels[4].ID},
@@ -459,7 +508,11 @@ func testListMDMConfigProfiles(t *testing.T, ds *Datastore) {
 		_, err = ds.NewMDMWindowsConfigProfile(ctx, wcp)
 		require.NoError(t, err)
 
-		wcp = fleet.MDMWindowsConfigProfile{Name: string(rune('C' + inc + 3)), TeamID: &team.ID, SyncML: winProf}
+		wcp = fleet.MDMWindowsConfigProfile{
+			Name:   string(rune('C' + inc + 3)),
+			TeamID: &team.ID,
+			SyncML: winProf,
+		}
 		if i == 0 {
 			wcp.Labels = []fleet.ConfigurationProfileLabel{
 				{LabelName: labels[6].Name, LabelID: labels[6].ID},
@@ -499,33 +552,165 @@ func testListMDMConfigProfiles(t *testing.T, ds *Datastore) {
 		wantNames []string
 		wantMeta  fleet.PaginationMetadata
 	}{
-		{"all global", nil, fleet.ListOptions{OrderKey: "name", IncludeMetadata: true}, []string{"A", "C", "E", "G", "I", "K", "M"}, fleet.PaginationMetadata{}},
-		{"all team", &team.ID, fleet.ListOptions{OrderKey: "name", IncludeMetadata: true}, []string{"B", "D", "F", "H", "J", "L", "N"}, fleet.PaginationMetadata{}},
+		{
+			"all global",
+			nil,
+			fleet.ListOptions{OrderKey: "name", IncludeMetadata: true},
+			[]string{"A", "C", "E", "G", "I", "K", "M"},
+			fleet.PaginationMetadata{},
+		},
+		{
+			"all team",
+			&team.ID,
+			fleet.ListOptions{OrderKey: "name", IncludeMetadata: true},
+			[]string{"B", "D", "F", "H", "J", "L", "N"},
+			fleet.PaginationMetadata{},
+		},
 
-		{"page 0 per page 2, global", nil, fleet.ListOptions{OrderKey: "name", IncludeMetadata: true, PerPage: 2}, []string{"A", "C"}, fleet.PaginationMetadata{HasNextResults: true}},
-		{"page 1 per page 2, global", nil, fleet.ListOptions{OrderKey: "name", IncludeMetadata: true, PerPage: 2, Page: 1}, []string{"E", "G"}, fleet.PaginationMetadata{HasPreviousResults: true, HasNextResults: true}},
-		{"page 2 per page 2, global", nil, fleet.ListOptions{OrderKey: "name", IncludeMetadata: true, PerPage: 2, Page: 2}, []string{"I", "K"}, fleet.PaginationMetadata{HasPreviousResults: true, HasNextResults: true}},
-		{"page 3 per page 2, global", nil, fleet.ListOptions{OrderKey: "name", IncludeMetadata: true, PerPage: 2, Page: 3}, []string{"M"}, fleet.PaginationMetadata{HasPreviousResults: true}},
-		{"page 4 per page 2, global", nil, fleet.ListOptions{OrderKey: "name", IncludeMetadata: true, PerPage: 2, Page: 4}, []string{}, fleet.PaginationMetadata{HasPreviousResults: true}},
+		{
+			"page 0 per page 2, global",
+			nil,
+			fleet.ListOptions{OrderKey: "name", IncludeMetadata: true, PerPage: 2},
+			[]string{"A", "C"},
+			fleet.PaginationMetadata{HasNextResults: true},
+		},
+		{
+			"page 1 per page 2, global",
+			nil,
+			fleet.ListOptions{OrderKey: "name", IncludeMetadata: true, PerPage: 2, Page: 1},
+			[]string{"E", "G"},
+			fleet.PaginationMetadata{HasPreviousResults: true, HasNextResults: true},
+		},
+		{
+			"page 2 per page 2, global",
+			nil,
+			fleet.ListOptions{OrderKey: "name", IncludeMetadata: true, PerPage: 2, Page: 2},
+			[]string{"I", "K"},
+			fleet.PaginationMetadata{HasPreviousResults: true, HasNextResults: true},
+		},
+		{
+			"page 3 per page 2, global",
+			nil,
+			fleet.ListOptions{OrderKey: "name", IncludeMetadata: true, PerPage: 2, Page: 3},
+			[]string{"M"},
+			fleet.PaginationMetadata{HasPreviousResults: true},
+		},
+		{
+			"page 4 per page 2, global",
+			nil,
+			fleet.ListOptions{OrderKey: "name", IncludeMetadata: true, PerPage: 2, Page: 4},
+			[]string{},
+			fleet.PaginationMetadata{HasPreviousResults: true},
+		},
 
-		{"page 0 per page 2, team", &team.ID, fleet.ListOptions{OrderKey: "name", IncludeMetadata: true, PerPage: 2}, []string{"B", "D"}, fleet.PaginationMetadata{HasNextResults: true}},
-		{"page 1 per page 2, team", &team.ID, fleet.ListOptions{OrderKey: "name", IncludeMetadata: true, PerPage: 2, Page: 1}, []string{"F", "H"}, fleet.PaginationMetadata{HasPreviousResults: true, HasNextResults: true}},
-		{"page 2 per page 2, team", &team.ID, fleet.ListOptions{OrderKey: "name", IncludeMetadata: true, PerPage: 2, Page: 2}, []string{"J", "L"}, fleet.PaginationMetadata{HasPreviousResults: true, HasNextResults: true}},
-		{"page 3 per page 2, team", &team.ID, fleet.ListOptions{OrderKey: "name", IncludeMetadata: true, PerPage: 2, Page: 3}, []string{"N"}, fleet.PaginationMetadata{HasPreviousResults: true}},
-		{"page 4 per page 2, team", &team.ID, fleet.ListOptions{OrderKey: "name", IncludeMetadata: true, PerPage: 2, Page: 4}, []string{}, fleet.PaginationMetadata{HasPreviousResults: true}},
+		{
+			"page 0 per page 2, team",
+			&team.ID,
+			fleet.ListOptions{OrderKey: "name", IncludeMetadata: true, PerPage: 2},
+			[]string{"B", "D"},
+			fleet.PaginationMetadata{HasNextResults: true},
+		},
+		{
+			"page 1 per page 2, team",
+			&team.ID,
+			fleet.ListOptions{OrderKey: "name", IncludeMetadata: true, PerPage: 2, Page: 1},
+			[]string{"F", "H"},
+			fleet.PaginationMetadata{HasPreviousResults: true, HasNextResults: true},
+		},
+		{
+			"page 2 per page 2, team",
+			&team.ID,
+			fleet.ListOptions{OrderKey: "name", IncludeMetadata: true, PerPage: 2, Page: 2},
+			[]string{"J", "L"},
+			fleet.PaginationMetadata{HasPreviousResults: true, HasNextResults: true},
+		},
+		{
+			"page 3 per page 2, team",
+			&team.ID,
+			fleet.ListOptions{OrderKey: "name", IncludeMetadata: true, PerPage: 2, Page: 3},
+			[]string{"N"},
+			fleet.PaginationMetadata{HasPreviousResults: true},
+		},
+		{
+			"page 4 per page 2, team",
+			&team.ID,
+			fleet.ListOptions{OrderKey: "name", IncludeMetadata: true, PerPage: 2, Page: 4},
+			[]string{},
+			fleet.PaginationMetadata{HasPreviousResults: true},
+		},
 
-		{"page 0 per page 3, global", nil, fleet.ListOptions{OrderKey: "name", IncludeMetadata: true, PerPage: 3}, []string{"A", "C", "E"}, fleet.PaginationMetadata{HasNextResults: true}},
-		{"page 1 per page 3, global", nil, fleet.ListOptions{OrderKey: "name", IncludeMetadata: true, PerPage: 3, Page: 1}, []string{"G", "I", "K"}, fleet.PaginationMetadata{HasPreviousResults: true, HasNextResults: true}},
-		{"page 2 per page 3, global", nil, fleet.ListOptions{OrderKey: "name", IncludeMetadata: true, PerPage: 3, Page: 2}, []string{"M"}, fleet.PaginationMetadata{HasPreviousResults: true}},
-		{"page 3 per page 3, global", nil, fleet.ListOptions{OrderKey: "name", IncludeMetadata: true, PerPage: 3, Page: 3}, []string{}, fleet.PaginationMetadata{HasPreviousResults: true}},
+		{
+			"page 0 per page 3, global",
+			nil,
+			fleet.ListOptions{OrderKey: "name", IncludeMetadata: true, PerPage: 3},
+			[]string{"A", "C", "E"},
+			fleet.PaginationMetadata{HasNextResults: true},
+		},
+		{
+			"page 1 per page 3, global",
+			nil,
+			fleet.ListOptions{OrderKey: "name", IncludeMetadata: true, PerPage: 3, Page: 1},
+			[]string{"G", "I", "K"},
+			fleet.PaginationMetadata{HasPreviousResults: true, HasNextResults: true},
+		},
+		{
+			"page 2 per page 3, global",
+			nil,
+			fleet.ListOptions{OrderKey: "name", IncludeMetadata: true, PerPage: 3, Page: 2},
+			[]string{"M"},
+			fleet.PaginationMetadata{HasPreviousResults: true},
+		},
+		{
+			"page 3 per page 3, global",
+			nil,
+			fleet.ListOptions{OrderKey: "name", IncludeMetadata: true, PerPage: 3, Page: 3},
+			[]string{},
+			fleet.PaginationMetadata{HasPreviousResults: true},
+		},
 
-		{"page 0 per page 3, team", &team.ID, fleet.ListOptions{OrderKey: "name", IncludeMetadata: true, PerPage: 3}, []string{"B", "D", "F"}, fleet.PaginationMetadata{HasNextResults: true}},
-		{"page 1 per page 3, team", &team.ID, fleet.ListOptions{OrderKey: "name", IncludeMetadata: true, PerPage: 3, Page: 1}, []string{"H", "J", "L"}, fleet.PaginationMetadata{HasPreviousResults: true, HasNextResults: true}},
-		{"page 2 per page 3, team", &team.ID, fleet.ListOptions{OrderKey: "name", IncludeMetadata: true, PerPage: 3, Page: 2}, []string{"N"}, fleet.PaginationMetadata{HasPreviousResults: true}},
-		{"page 3 per page 3, team", &team.ID, fleet.ListOptions{OrderKey: "name", IncludeMetadata: true, PerPage: 3, Page: 3}, []string{}, fleet.PaginationMetadata{HasPreviousResults: true}},
+		{
+			"page 0 per page 3, team",
+			&team.ID,
+			fleet.ListOptions{OrderKey: "name", IncludeMetadata: true, PerPage: 3},
+			[]string{"B", "D", "F"},
+			fleet.PaginationMetadata{HasNextResults: true},
+		},
+		{
+			"page 1 per page 3, team",
+			&team.ID,
+			fleet.ListOptions{OrderKey: "name", IncludeMetadata: true, PerPage: 3, Page: 1},
+			[]string{"H", "J", "L"},
+			fleet.PaginationMetadata{HasPreviousResults: true, HasNextResults: true},
+		},
+		{
+			"page 2 per page 3, team",
+			&team.ID,
+			fleet.ListOptions{OrderKey: "name", IncludeMetadata: true, PerPage: 3, Page: 2},
+			[]string{"N"},
+			fleet.PaginationMetadata{HasPreviousResults: true},
+		},
+		{
+			"page 3 per page 3, team",
+			&team.ID,
+			fleet.ListOptions{OrderKey: "name", IncludeMetadata: true, PerPage: 3, Page: 3},
+			[]string{},
+			fleet.PaginationMetadata{HasPreviousResults: true},
+		},
 
-		{"no metadata, global", nil, fleet.ListOptions{OrderKey: "name", IncludeMetadata: false, PerPage: 2, Page: 1}, []string{"E", "G"}, fleet.PaginationMetadata{}},
-		{"no metadata, team", &team.ID, fleet.ListOptions{OrderKey: "name", IncludeMetadata: false, PerPage: 2, Page: 1}, []string{"F", "H"}, fleet.PaginationMetadata{}},
+		{
+			"no metadata, global",
+			nil,
+			fleet.ListOptions{OrderKey: "name", IncludeMetadata: false, PerPage: 2, Page: 1},
+			[]string{"E", "G"},
+			fleet.PaginationMetadata{},
+		},
+		{
+			"no metadata, team",
+			&team.ID,
+			fleet.ListOptions{OrderKey: "name", IncludeMetadata: false, PerPage: 2, Page: 1},
+			[]string{"F", "H"},
+			fleet.PaginationMetadata{},
+		},
 	}
 	for _, c := range cases {
 		t.Run(c.desc, func(t *testing.T) {
@@ -788,7 +973,13 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 		windowsConfigProfileForTest(t, "G2w", "L2"),
 		windowsConfigProfileForTest(t, "G3w", "L3"),
 	}
-	err = ds.BatchSetMDMProfiles(ctx, nil, macGlobalProfiles, winGlobalProfiles, macGlobalDeclarations)
+	err = ds.BatchSetMDMProfiles(
+		ctx,
+		nil,
+		macGlobalProfiles,
+		winGlobalProfiles,
+		macGlobalDeclarations,
+	)
 	require.NoError(t, err)
 	macGlobalProfiles, err = ds.ListMDMAppleConfigProfiles(ctx, nil)
 	require.NoError(t, err)
@@ -4962,7 +5153,13 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 
 		var uid string
 		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-			return sqlx.GetContext(ctx, q, &uid, `SELECT profile_uuid FROM mdm_apple_configuration_profiles WHERE identifier = ?`, "labeled_prof")
+			return sqlx.GetContext(
+				ctx,
+				q,
+				&uid,
+				`SELECT profile_uuid FROM mdm_apple_configuration_profiles WHERE identifier = ?`,
+				"labeled_prof",
+			)
 		})
 
 		// Update label with host membership
@@ -5035,7 +5232,13 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 
 		var uid string
 		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-			return sqlx.GetContext(ctx, q, &uid, `SELECT profile_uuid FROM mdm_apple_configuration_profiles WHERE identifier = ?`, "labeled_prof_2")
+			return sqlx.GetContext(
+				ctx,
+				q,
+				&uid,
+				`SELECT profile_uuid FROM mdm_apple_configuration_profiles WHERE identifier = ?`,
+				"labeled_prof_2",
+			)
 		})
 
 		// Update label with host membership
@@ -5119,7 +5322,13 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 
 		var uid string
 		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-			return sqlx.GetContext(ctx, q, &uid, `SELECT profile_uuid FROM mdm_apple_configuration_profiles WHERE identifier = ?`, "broken_label_prof")
+			return sqlx.GetContext(
+				ctx,
+				q,
+				&uid,
+				`SELECT profile_uuid FROM mdm_apple_configuration_profiles WHERE identifier = ?`,
+				"broken_label_prof",
+			)
 		})
 
 		// Update label with host membership
@@ -5231,7 +5440,13 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 
 		var uid string
 		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-			return sqlx.GetContext(ctx, q, &uid, `SELECT profile_uuid FROM mdm_windows_configuration_profiles WHERE name = ?`, "labeled_prof")
+			return sqlx.GetContext(
+				ctx,
+				q,
+				&uid,
+				`SELECT profile_uuid FROM mdm_windows_configuration_profiles WHERE name = ?`,
+				"labeled_prof",
+			)
 		})
 
 		// Update label with host membership
@@ -5304,7 +5519,13 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 
 		var uid string
 		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-			return sqlx.GetContext(ctx, q, &uid, `SELECT profile_uuid FROM mdm_windows_configuration_profiles WHERE name = ?`, "labeled_prof_2")
+			return sqlx.GetContext(
+				ctx,
+				q,
+				&uid,
+				`SELECT profile_uuid FROM mdm_windows_configuration_profiles WHERE name = ?`,
+				"labeled_prof_2",
+			)
 		})
 
 		// Update label with host membership
@@ -5388,7 +5609,13 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 
 		var uid string
 		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-			return sqlx.GetContext(ctx, q, &uid, `SELECT profile_uuid FROM mdm_windows_configuration_profiles WHERE name = ?`, "broken_label_prof")
+			return sqlx.GetContext(
+				ctx,
+				q,
+				&uid,
+				`SELECT profile_uuid FROM mdm_windows_configuration_profiles WHERE name = ?`,
+				"broken_label_prof",
+			)
 		})
 
 		// Update label with host membership
@@ -5593,11 +5820,17 @@ func testBatchSetProfileLabelAssociations(t *testing.T, ds *Datastore) {
 	wantOtherWin := []fleet.ConfigurationProfileLabel{
 		{ProfileUUID: otherWinProfile.ProfileUUID, LabelName: label.Name, LabelID: label.ID},
 	}
-	require.NoError(t, batchSetProfileLabelAssociationsDB(ctx, ds.writer(ctx), wantOtherWin, "windows"))
+	require.NoError(
+		t,
+		batchSetProfileLabelAssociationsDB(ctx, ds.writer(ctx), wantOtherWin, "windows"),
+	)
 	wantOtherMac := []fleet.ConfigurationProfileLabel{
 		{ProfileUUID: otherMacProfile.ProfileUUID, LabelName: label.Name, LabelID: label.ID},
 	}
-	require.NoError(t, batchSetProfileLabelAssociationsDB(ctx, ds.writer(ctx), wantOtherMac, "darwin"))
+	require.NoError(
+		t,
+		batchSetProfileLabelAssociationsDB(ctx, ds.writer(ctx), wantOtherMac, "darwin"),
+	)
 
 	platforms := map[string]string{
 		"darwin":  macOSProfile.ProfileUUID,
@@ -5615,7 +5848,11 @@ func testBatchSetProfileLabelAssociations(t *testing.T, ds *Datastore) {
 				p = "apple"
 			}
 
-			query := fmt.Sprintf("SELECT %s_profile_uuid as profile_uuid, label_id, label_name FROM mdm_configuration_profile_labels WHERE %s_profile_uuid = ?", p, p)
+			query := fmt.Sprintf(
+				"SELECT %s_profile_uuid as profile_uuid, label_id, label_name FROM mdm_configuration_profile_labels WHERE %s_profile_uuid = ?",
+				p,
+				p,
+			)
 
 			var got []fleet.ConfigurationProfileLabel
 			ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
@@ -5724,7 +5961,12 @@ func testBatchSetProfileLabelAssociations(t *testing.T, ds *Datastore) {
 
 	t.Run("unsupported platform", func(t *testing.T) {
 		err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
-			return batchSetProfileLabelAssociationsDB(ctx, tx, []fleet.ConfigurationProfileLabel{{}}, "unsupported")
+			return batchSetProfileLabelAssociationsDB(
+				ctx,
+				tx,
+				[]fleet.ConfigurationProfileLabel{{}},
+				"unsupported",
+			)
 		})
 		require.Error(t, err)
 	})
@@ -5745,18 +5987,50 @@ func testBatchSetMDMProfilesTransactionError(t *testing.T, ds *Datastore) {
 		{"insert:b", "", ": insert:b"},
 		{"delete:c", "", "batch set windows profiles: delete obsolete profiles: delete:c"},
 		{"reselect:d", "", "batch set windows profiles: load newly inserted profiles: reselect:d"},
-		{"labels:e", "", "batch set windows profiles: inserting windows profile label associations: labels:e"},
-		{"inselect:k", "", "batch set windows profiles: build query to load existing profiles: inselect:k"},
-		{"indelete:l", "", "batch set windows profiles: build statement to delete obsolete profiles: indelete:l"},
-		{"inreselect:m", "", "batch set windows profiles: build query to load newly inserted profiles: inreselect:m"},
+		{
+			"labels:e",
+			"",
+			"batch set windows profiles: inserting windows profile label associations: labels:e",
+		},
+		{
+			"inselect:k",
+			"",
+			"batch set windows profiles: build query to load existing profiles: inselect:k",
+		},
+		{
+			"indelete:l",
+			"",
+			"batch set windows profiles: build statement to delete obsolete profiles: indelete:l",
+		},
+		{
+			"inreselect:m",
+			"",
+			"batch set windows profiles: build query to load newly inserted profiles: inreselect:m",
+		},
 		{"", "select:f", "batch set apple profiles: load existing profiles: select:f"},
 		{"", "insert:g", ": insert:g"},
 		{"", "delete:h", "batch set apple profiles: delete obsolete profiles: delete:h"},
 		{"", "reselect:i", "batch set apple profiles: load newly inserted profiles: reselect:i"},
-		{"", "labels:j", "batch set apple profiles: inserting apple profile label associations: labels:j"},
-		{"", "inselect:n", "batch set apple profiles: build query to load existing profiles: inselect:n"},
-		{"", "indelete:o", "batch set apple profiles: build statement to delete obsolete profiles: indelete:o"},
-		{"", "inreselect:p", "batch set apple profiles: build query to load newly inserted profiles: inreselect:p"},
+		{
+			"",
+			"labels:j",
+			"batch set apple profiles: inserting apple profile label associations: labels:j",
+		},
+		{
+			"",
+			"inselect:n",
+			"batch set apple profiles: build query to load existing profiles: inselect:n",
+		},
+		{
+			"",
+			"indelete:o",
+			"batch set apple profiles: build statement to delete obsolete profiles: indelete:o",
+		},
+		{
+			"",
+			"inreselect:p",
+			"batch set apple profiles: build query to load newly inserted profiles: inreselect:p",
+		},
 	}
 	for _, c := range cases {
 		t.Run(c.windowsErr+" "+c.appleErr, func(t *testing.T) {
@@ -5839,15 +6113,36 @@ func testMDMEULA(t *testing.T, ds *Datastore) {
 
 func testSCEPRenewalHelpers(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
-	testCert, testKey, err := apple_mdm.NewSCEPCACertKey()
-	require.NoError(t, err)
-	testCertPEM := tokenpki.PEMCertificate(testCert.Raw)
-	testKeyPEM := tokenpki.PEMRSAPrivateKey(testKey)
-	scepDepot, err := ds.NewSCEPDepot(testCertPEM, testKeyPEM)
+	scepDepot, err := ds.NewSCEPDepot()
 	require.NoError(t, err)
 
-	nanoStorage, err := ds.NewMDMAppleMDMStorage(testCertPEM, testKeyPEM)
+	nanoStorage, err := ds.NewMDMAppleMDMStorage()
 	require.NoError(t, err)
+
+	addCert := func(notAfter time.Time, h *fleet.Host) {
+		serial, err := scepDepot.Serial()
+		require.NoError(t, err)
+		cert := &x509.Certificate{
+			SerialNumber: serial,
+			Subject: pkix.Name{
+				CommonName: "Fleet Identity",
+			},
+			NotAfter: notAfter,
+			// use a random value, just to make sure they're
+			// different from each other, we don't care about the
+			// DER contents here
+			Raw: []byte(uuid.NewString()),
+		}
+		err = scepDepot.Put(cert.Subject.CommonName, cert)
+		require.NoError(t, err)
+		req := mdm.Request{
+			EnrollID: &mdm.EnrollID{ID: h.UUID},
+			Context:  ctx,
+		}
+		certHash := certauth.HashCert(cert)
+		err = nanoStorage.AssociateCertHash(&req, certHash, notAfter)
+		require.NoError(t, err)
+	}
 
 	var i int
 	setHost := func(notAfter time.Time) *fleet.Host {
@@ -5862,28 +6157,7 @@ func testSCEPRenewalHelpers(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 
 		// create a cert + association
-		serial, err := scepDepot.Serial()
-		require.NoError(t, err)
-		cert := &x509.Certificate{
-			SerialNumber: serial,
-			Subject: pkix.Name{
-				CommonName: "FleetDM Identity",
-			},
-			NotAfter: notAfter,
-			// use the host UUID, just to make sure they're
-			// different from each other, we don't care about the
-			// DER contents here
-			Raw: []byte(h.UUID),
-		}
-		err = scepDepot.Put(cert.Subject.CommonName, cert)
-		require.NoError(t, err)
-		req := mdm.Request{
-			EnrollID: &mdm.EnrollID{ID: h.UUID},
-			Context:  ctx,
-		}
-		certHash := certauth.HashCert(cert)
-		err = nanoStorage.AssociateCertHash(&req, certHash, notAfter)
-		require.NoError(t, err)
+		addCert(notAfter, h)
 		nanoEnroll(t, ds, h, false)
 		return h
 	}
@@ -5926,10 +6200,49 @@ func testSCEPRenewalHelpers(t *testing.T, ds *Datastore) {
 	require.Equal(t, h3.UUID, assocs[2].HostUUID)
 	require.Equal(t, h4.UUID, assocs[3].HostUUID)
 
+	// add a new host with a very old expiriy so it shows first, verify
+	// that it's present before deleting it.
+	h5 := setHost(time.Now().AddDate(-2, -1, 0))
+	assocs, err = ds.GetHostCertAssociationsToExpire(ctx, 1000, 100)
+	require.NoError(t, err)
+	require.Len(t, assocs, 5)
+	require.Equal(t, h5.UUID, assocs[0].HostUUID)
+	require.Equal(t, h1.UUID, assocs[1].HostUUID)
+	require.Equal(t, h2.UUID, assocs[2].HostUUID)
+	require.Equal(t, h3.UUID, assocs[3].HostUUID)
+	require.Equal(t, h4.UUID, assocs[4].HostUUID)
+
+	// delete the host and verify that things work as expected
+	// see https://github.com/fleetdm/fleet/issues/19149
+	require.NoError(t, ds.DeleteHost(ctx, h5.ID))
+	assocs, err = ds.GetHostCertAssociationsToExpire(ctx, 1000, 100)
+	require.NoError(t, err)
+	require.Len(t, assocs, 4)
+	require.Equal(t, h1.UUID, assocs[0].HostUUID)
+	require.Equal(t, h2.UUID, assocs[1].HostUUID)
+	require.Equal(t, h3.UUID, assocs[2].HostUUID)
+	require.Equal(t, h4.UUID, assocs[3].HostUUID)
+
+	// add a second expired cert to one of the hosts
+	addCert(time.Now().AddDate(-1, -1, 0), h1)
+	assocs, err = ds.GetHostCertAssociationsToExpire(ctx, 1000, 100)
+	require.Len(t, assocs, 4)
+	require.Equal(t, h1.UUID, assocs[0].HostUUID)
+	require.Equal(t, h2.UUID, assocs[1].HostUUID)
+	require.Equal(t, h3.UUID, assocs[2].HostUUID)
+	require.Equal(t, h4.UUID, assocs[3].HostUUID)
+
 	checkSCEPRenew := func(assoc fleet.SCEPIdentityAssociation, want *string) {
 		var got *string
 		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-			return sqlx.GetContext(ctx, q, &got, `SELECT renew_command_uuid FROM nano_cert_auth_associations WHERE id = ?`, assoc.HostUUID)
+			return sqlx.GetContext(
+				ctx,
+				q,
+				&got,
+				`SELECT renew_command_uuid FROM nano_cert_auth_associations WHERE id = ? AND sha256 = ?`,
+				assoc.HostUUID,
+				assoc.SHA256,
+			)
 		})
 		require.EqualValues(t, want, got)
 	}
@@ -5964,7 +6277,11 @@ func testSCEPRenewalHelpers(t *testing.T, ds *Datastore) {
 	checkSCEPRenew(assocs[2], ptr.String("bar"))
 	checkSCEPRenew(assocs[3], ptr.String("bar"))
 
-	err = ds.SetCommandForPendingSCEPRenewal(ctx, []fleet.SCEPIdentityAssociation{{HostUUID: "foo", SHA256: "bar"}}, "bar")
+	err = ds.SetCommandForPendingSCEPRenewal(
+		ctx,
+		[]fleet.SCEPIdentityAssociation{{HostUUID: "foo", SHA256: "bar"}},
+		"bar",
+	)
 	require.ErrorContains(t, err, "this function can only be used to update existing associations")
 
 	err = ds.CleanSCEPRenewRefs(ctx, "does-not-exist")
@@ -5998,21 +6315,34 @@ func testMDMProfilesSummaryAndHostFilters(t *testing.T, ds *Datastore) {
 	}
 
 	checkListHostsFilterOSSettings := func(t *testing.T, teamID *uint, status fleet.OSSettingsStatus, expectedIDs []uint) {
-		gotHosts, err := ds.ListHosts(ctx, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{TeamFilter: teamID, OSSettingsFilter: status})
+		gotHosts, err := ds.ListHosts(
+			ctx,
+			fleet.TeamFilter{User: test.UserAdmin},
+			fleet.HostListOptions{TeamFilter: teamID, OSSettingsFilter: status},
+		)
 		require.NoError(t, err)
 		if len(expectedIDs) != len(gotHosts) {
 			gotIDs := make([]uint, len(gotHosts))
 			for _, h := range gotHosts {
 				gotIDs = append(gotIDs, h.ID)
 			}
-			require.Len(t, gotHosts, len(expectedIDs), fmt.Sprintf("status: %s expected: %v got: %v", status, expectedIDs, gotIDs))
+			require.Len(
+				t,
+				gotHosts,
+				len(expectedIDs),
+				fmt.Sprintf("status: %s expected: %v got: %v", status, expectedIDs, gotIDs),
+			)
 
 		}
 		for _, h := range gotHosts {
 			require.Contains(t, expectedIDs, h.ID)
 		}
 
-		count, err := ds.CountHosts(ctx, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{TeamFilter: teamID, OSSettingsFilter: status})
+		count, err := ds.CountHosts(
+			ctx,
+			fleet.TeamFilter{User: test.UserAdmin},
+			fleet.HostListOptions{TeamFilter: teamID, OSSettingsFilter: status},
+		)
 		require.NoError(t, err)
 		require.Equal(t, len(expectedIDs), count, "status: %s", status)
 	}
@@ -6047,10 +6377,30 @@ func testMDMProfilesSummaryAndHostFilters(t *testing.T, ds *Datastore) {
 			Verified:  expectSummaryWindows[fleet.MDMDeliveryVerified],
 		})
 
-		checkListHostsFilterOSSettings(t, teamID, fleet.OSSettingsVerified, ep[fleet.MDMDeliveryVerified])
-		checkListHostsFilterOSSettings(t, teamID, fleet.OSSettingsVerifying, ep[fleet.MDMDeliveryVerifying])
-		checkListHostsFilterOSSettings(t, teamID, fleet.OSSettingsFailed, ep[fleet.MDMDeliveryFailed])
-		checkListHostsFilterOSSettings(t, teamID, fleet.OSSettingsPending, ep[fleet.MDMDeliveryPending])
+		checkListHostsFilterOSSettings(
+			t,
+			teamID,
+			fleet.OSSettingsVerified,
+			ep[fleet.MDMDeliveryVerified],
+		)
+		checkListHostsFilterOSSettings(
+			t,
+			teamID,
+			fleet.OSSettingsVerifying,
+			ep[fleet.MDMDeliveryVerifying],
+		)
+		checkListHostsFilterOSSettings(
+			t,
+			teamID,
+			fleet.OSSettingsFailed,
+			ep[fleet.MDMDeliveryFailed],
+		)
+		checkListHostsFilterOSSettings(
+			t,
+			teamID,
+			fleet.OSSettingsPending,
+			ep[fleet.MDMDeliveryPending],
+		)
 	}
 
 	// checkWinHostProfiles := func(t *testing.T, hostUUID string, statusByProfUUID map[string]string) {
@@ -6093,13 +6443,21 @@ func testMDMProfilesSummaryAndHostFilters(t *testing.T, ds *Datastore) {
 			default:
 				require.FailNow(t, "unknown profile type")
 			}
-			stmt := fmt.Sprintf(`INSERT INTO %s (host_uuid, %s_uuid, status) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE status = ?`, table, profType)
+			stmt := fmt.Sprintf(
+				`INSERT INTO %s (host_uuid, %s_uuid, status) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE status = ?`,
+				table,
+				profType,
+			)
 			_, err := q.ExecContext(ctx, stmt, hostUUID, profUUID, status, status)
 			if err != nil {
 				require.NoError(t, err)
 				return err
 			}
-			stmt = fmt.Sprintf(`UPDATE %s SET operation_type = ? WHERE host_uuid = ? AND %s_uuid = ?`, table, profType)
+			stmt = fmt.Sprintf(
+				`UPDATE %s SET operation_type = ? WHERE host_uuid = ? AND %s_uuid = ?`,
+				table,
+				profType,
+			)
 			_, err = q.ExecContext(ctx, stmt, fleet.MDMOperationTypeInstall, hostUUID, profUUID)
 			require.NoError(t, err)
 			return err
@@ -6161,12 +6519,40 @@ func testMDMProfilesSummaryAndHostFilters(t *testing.T, ds *Datastore) {
 		require.NotNil(t, h)
 		hosts = append(hosts, h)
 		if p == "darwin" {
+			nanoEnroll(t, ds, h, false)
 			macHostsByID[h.ID] = h
 		} else {
 			winHostsByID[h.ID] = h
+			windowsEnrollment := &fleet.MDMWindowsEnrolledDevice{
+				MDMDeviceID:            uuid.New().String(),
+				MDMHardwareID:          uuid.New().String() + uuid.New().String(),
+				MDMDeviceState:         microsoft_mdm.MDMDeviceStateEnrolled,
+				MDMDeviceType:          "CIMClient_Windows",
+				MDMDeviceName:          "DESKTOP-1C3ARC1",
+				MDMEnrollType:          "ProgrammaticEnrollment",
+				MDMEnrollUserID:        "",
+				MDMEnrollProtoVersion:  "5.0",
+				MDMEnrollClientVersion: "10.0.19045.2965",
+				MDMNotInOOBE:           false,
+				HostUUID:               h.UUID,
+			}
+			err = ds.MDMWindowsInsertEnrolledDevice(ctx, windowsEnrollment)
+			require.NoError(t, err)
 		}
 
-		require.NoError(t, ds.SetOrUpdateMDMData(ctx, h.ID, false, true, "https://example.com", false, fleet.WellKnownMDMFleet, ""))
+		require.NoError(
+			t,
+			ds.SetOrUpdateMDMData(
+				ctx,
+				h.ID,
+				false,
+				true,
+				"https://example.com",
+				false,
+				fleet.WellKnownMDMFleet,
+				"",
+			),
+		)
 	}
 
 	checkExpected(t, nil, nil)
@@ -6342,4 +6728,153 @@ func testMDMProfilesSummaryAndHostFilters(t *testing.T, ds *Datastore) {
 	checkMacHostProfiles(t, hosts[9].UUID, expectedHostProfiles)
 
 	cleanupTables(t)
+}
+
+func testAreHostsConnectedToFleetMDM(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	notConnectedMac, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:      "macos-test",
+		OsqueryHostID: ptr.String("osquery-macos-not-connected"),
+		NodeKey:       ptr.String("node-key-macos-not-connected"),
+		UUID:          uuid.NewString(),
+		Platform:      "darwin",
+	})
+	require.NoError(t, err)
+
+	connectedMac, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:      "macos-test",
+		OsqueryHostID: ptr.String("osquery-macos"),
+		NodeKey:       ptr.String("node-key-macos"),
+		UUID:          uuid.NewString(),
+		Platform:      "darwin",
+	})
+	require.NoError(t, err)
+
+	nanoEnroll(t, ds, connectedMac, false)
+
+	notConnectedWin, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:      "windows-test",
+		OsqueryHostID: ptr.String("osquery-windows-not-connected"),
+		NodeKey:       ptr.String("node-key-windows-not-connected"),
+		UUID:          uuid.NewString(),
+		Platform:      "windows",
+	})
+	require.NoError(t, err)
+
+	connectedWin, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:      "windows-test",
+		OsqueryHostID: ptr.String("osquery-windows"),
+		NodeKey:       ptr.String("node-key-windows"),
+		UUID:          uuid.NewString(),
+		Platform:      "windows",
+	})
+	require.NoError(t, err)
+
+	windowsEnrollment := &fleet.MDMWindowsEnrolledDevice{
+		MDMDeviceID:            uuid.New().String(),
+		MDMHardwareID:          uuid.New().String() + uuid.New().String(),
+		MDMDeviceState:         microsoft_mdm.MDMDeviceStateEnrolled,
+		MDMDeviceType:          "CIMClient_Windows",
+		MDMDeviceName:          "DESKTOP-1C3ARC1",
+		MDMEnrollType:          "ProgrammaticEnrollment",
+		MDMEnrollUserID:        "",
+		MDMEnrollProtoVersion:  "5.0",
+		MDMEnrollClientVersion: "10.0.19045.2965",
+		MDMNotInOOBE:           false,
+		HostUUID:               connectedWin.UUID,
+	}
+	err = ds.MDMWindowsInsertEnrolledDevice(ctx, windowsEnrollment)
+	require.NoError(t, err)
+
+	connectedMap, err := ds.AreHostsConnectedToFleetMDM(ctx, []*fleet.Host{
+		notConnectedMac,
+		connectedMac,
+		connectedWin,
+		notConnectedWin,
+	})
+	require.NoError(t, err)
+	require.Equal(t, map[string]bool{
+		notConnectedMac.UUID: false,
+		connectedMac.UUID:    true,
+		connectedWin.UUID:    true,
+		notConnectedWin.UUID: false,
+	}, connectedMap)
+
+	linuxHost, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:      "linux-test",
+		OsqueryHostID: ptr.String("osquery-linux"),
+		NodeKey:       ptr.String("node-key-linux"),
+		UUID:          uuid.NewString(),
+		Platform:      "linux",
+	})
+	require.NoError(t, err)
+	connectedMap, err = ds.AreHostsConnectedToFleetMDM(ctx, []*fleet.Host{
+		notConnectedMac,
+		connectedMac,
+		connectedWin,
+		notConnectedWin,
+		linuxHost,
+	})
+	require.NoError(t, err)
+	require.Equal(t, map[string]bool{
+		notConnectedMac.UUID: false,
+		connectedMac.UUID:    true,
+		connectedWin.UUID:    true,
+		notConnectedWin.UUID: false,
+		linuxHost.UUID:       false,
+	}, connectedMap)
+}
+
+func testIsHostConnectedToFleetMDM(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	macH, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:      "macos-test",
+		OsqueryHostID: ptr.String("osquery-macos"),
+		NodeKey:       ptr.String("node-key-macos"),
+		UUID:          uuid.NewString(),
+		Platform:      "darwin",
+	})
+	require.NoError(t, err)
+
+	connected, err := ds.IsHostConnectedToFleetMDM(ctx, macH)
+	require.NoError(t, err)
+	require.False(t, connected)
+
+	nanoEnroll(t, ds, macH, false)
+	connected, err = ds.IsHostConnectedToFleetMDM(ctx, macH)
+	require.NoError(t, err)
+	require.True(t, connected)
+
+	windowsH, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:      "windows-test",
+		OsqueryHostID: ptr.String("osquery-windows"),
+		NodeKey:       ptr.String("node-key-windows"),
+		UUID:          uuid.NewString(),
+		Platform:      "windows",
+	})
+	require.NoError(t, err)
+	connected, err = ds.IsHostConnectedToFleetMDM(ctx, windowsH)
+	require.NoError(t, err)
+	require.False(t, connected)
+
+	windowsEnrollment := &fleet.MDMWindowsEnrolledDevice{
+		MDMDeviceID:            uuid.New().String(),
+		MDMHardwareID:          uuid.New().String() + uuid.New().String(),
+		MDMDeviceState:         microsoft_mdm.MDMDeviceStateEnrolled,
+		MDMDeviceType:          "CIMClient_Windows",
+		MDMDeviceName:          "DESKTOP-1C3ARC1",
+		MDMEnrollType:          "ProgrammaticEnrollment",
+		MDMEnrollUserID:        "",
+		MDMEnrollProtoVersion:  "5.0",
+		MDMEnrollClientVersion: "10.0.19045.2965",
+		MDMNotInOOBE:           false,
+		HostUUID:               windowsH.UUID,
+	}
+	err = ds.MDMWindowsInsertEnrolledDevice(ctx, windowsEnrollment)
+	require.NoError(t, err)
+
+	connected, err = ds.IsHostConnectedToFleetMDM(ctx, windowsH)
+	require.NoError(t, err)
+	require.True(t, connected)
 }

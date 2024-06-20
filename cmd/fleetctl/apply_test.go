@@ -25,6 +25,7 @@ import (
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/tokenpki"
 	"github.com/fleetdm/fleet/v4/server/mock"
+	mdmmock "github.com/fleetdm/fleet/v4/server/mock/mdm"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/google/uuid"
@@ -173,7 +174,23 @@ func TestApplyTeamSpecs(t *testing.T) {
 		return nil
 	}
 
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+	ds.NewActivityFunc = func(
+		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
+	) error {
+		return nil
+	}
+
+	ds.LabelIDsByNameFunc = func(ctx context.Context, labels []string) (map[string]uint, error) {
+		require.ElementsMatch(t, labels, []string{fleet.BuiltinLabelMacOS14Plus})
+		return map[string]uint{fleet.BuiltinLabelMacOS14Plus: 1}, nil
+	}
+
+	ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error) {
+		declaration.DeclarationUUID = uuid.NewString()
+		return declaration, nil
+	}
+
+	ds.DeleteMDMAppleDeclarationByNameFunc = func(ctx context.Context, teamID *uint, name string) error {
 		return nil
 	}
 
@@ -531,7 +548,9 @@ func TestApplyAppConfig(t *testing.T) {
 		return userRoleSpecList, nil
 	}
 
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+	ds.NewActivityFunc = func(
+		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
+	) error {
 		return nil
 	}
 
@@ -563,6 +582,24 @@ func TestApplyAppConfig(t *testing.T) {
 
 	ds.SaveAppConfigFunc = func(ctx context.Context, config *fleet.AppConfig) error {
 		savedAppConfig = config
+		return nil
+	}
+
+	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs []uint, profileUUIDs, hostUUIDs []string) error {
+		return nil
+	}
+
+	ds.LabelIDsByNameFunc = func(ctx context.Context, labels []string) (map[string]uint, error) {
+		require.ElementsMatch(t, labels, []string{fleet.BuiltinLabelMacOS14Plus})
+		return map[string]uint{fleet.BuiltinLabelMacOS14Plus: 1}, nil
+	}
+
+	ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error) {
+		declaration.DeclarationUUID = uuid.NewString()
+		return declaration, nil
+	}
+
+	ds.DeleteMDMAppleDeclarationByNameFunc = func(ctx context.Context, teamID *uint, name string) error {
 		return nil
 	}
 
@@ -673,7 +710,9 @@ func TestApplyAppConfigDryRunIssue(t *testing.T) {
 		return userRoleSpecList[1], nil
 	}
 
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+	ds.NewActivityFunc = func(
+		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
+	) error {
 		return nil
 	}
 
@@ -938,6 +977,49 @@ spec:
   platforms:
     - darwin
 `
+	manualLabelSpec = `---
+apiVersion: v1
+kind: label
+spec:
+  name: manual_label
+  label_membership_type: manual
+  hosts:
+    - host1
+  platforms:
+    - darwin
+`
+	emptyManualLabelSpec = `---
+apiVersion: v1
+kind: label
+spec:
+  name: empty_manual_label
+  label_membership_type: manual
+  hosts: []
+  platforms:
+    - darwin
+`
+	nohostsManualLabelSpec = `---
+apiVersion: v1
+kind: label
+spec:
+  name: invalid_nohost_manual_label
+  label_membership_type: manual
+  hosts:
+  platforms:
+    - darwin
+`
+	builtinLabelSpec = `---
+apiVersion: v1
+kind: label
+spec:
+  description: All Ubuntu hosts
+  hosts: null
+  id: 8
+  label_membership_type: dynamic
+  label_type: builtin
+  name: Ubuntu Linux
+  query: select 1 from os_version where platform = 'ubuntu';
+`
 	packsSpec = `---
 apiVersion: v1
 kind: pack
@@ -976,7 +1058,9 @@ func TestApplyPolicies(t *testing.T) {
 		}
 		return nil, errors.New("unexpected team name!")
 	}
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+	ds.NewActivityFunc = func(
+		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
+	) error {
 		return nil
 	}
 
@@ -1026,7 +1110,7 @@ func mobileconfigForTest(name, identifier string) []byte {
 }
 
 func TestApplyAsGitOps(t *testing.T) {
-	enqueuer := new(mock.MDMAppleStore)
+	enqueuer := new(mdmmock.MDMAppleStore)
 	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
 
 	// mdm test configuration must be set so that activating windows MDM works.
@@ -1035,7 +1119,7 @@ func TestApplyAsGitOps(t *testing.T) {
 	testCertPEM := tokenpki.PEMCertificate(testCert.Raw)
 	testKeyPEM := tokenpki.PEMRSAPrivateKey(testKey)
 	fleetCfg := config.TestConfig()
-	config.SetTestMDMConfig(t, &fleetCfg, testCertPEM, testKeyPEM, nil, "../../server/service/testdata")
+	config.SetTestMDMConfig(t, &fleetCfg, testCertPEM, testKeyPEM, "../../server/service/testdata")
 
 	_, ds := runServerWithMockedDS(t, &service.TestServerOpts{
 		License:     license,
@@ -1064,7 +1148,9 @@ func TestApplyAsGitOps(t *testing.T) {
 	ds.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
 		return gitOps, nil
 	}
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+	ds.NewActivityFunc = func(
+		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
+	) error {
 		return nil
 	}
 
@@ -1102,6 +1188,12 @@ func TestApplyAsGitOps(t *testing.T) {
 	ds.TeamFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
 		return savedTeam, nil
 	}
+
+	ds.IsEnrollSecretAvailableFunc = func(ctx context.Context, secret string, new bool, teamID *uint) (bool, error) {
+		assert.False(t, new)
+		assert.Equal(t, uint(123), *teamID)
+		return true, nil
+	}
 	var teamEnrollSecrets []*fleet.EnrollSecret
 	ds.ApplyEnrollSecretsFunc = func(ctx context.Context, teamID *uint, secrets []*fleet.EnrollSecret) error {
 		if teamID == nil || *teamID != 123 {
@@ -1135,6 +1227,17 @@ func TestApplyAsGitOps(t *testing.T) {
 		return nil
 	}
 	ds.DeleteMDMWindowsConfigProfileByTeamAndNameFunc = func(ctx context.Context, teamID *uint, profileName string) error {
+		return nil
+	}
+	ds.LabelIDsByNameFunc = func(ctx context.Context, labels []string) (map[string]uint, error) {
+		require.ElementsMatch(t, labels, []string{fleet.BuiltinLabelMacOS14Plus})
+		return map[string]uint{fleet.BuiltinLabelMacOS14Plus: 1}, nil
+	}
+	ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error) {
+		declaration.DeclarationUUID = uuid.NewString()
+		return declaration, nil
+	}
+	ds.DeleteMDMAppleDeclarationByNameFunc = func(ctx context.Context, teamID *uint, name string) error {
 		return nil
 	}
 
@@ -1509,6 +1612,67 @@ func TestApplyLabels(t *testing.T) {
 	require.Len(t, appliedLabels, 1)
 	assert.Equal(t, "pending_updates", appliedLabels[0].Name)
 	assert.Equal(t, "select 1;", appliedLabels[0].Query)
+
+	appliedLabels = nil
+	ds.ApplyLabelSpecsFuncInvoked = false
+
+	name = writeTmpYml(t, manualLabelSpec)
+
+	assert.Equal(t, "[+] applied 1 labels\n", runAppForTest(t, []string{"apply", "-f", name}))
+	assert.True(t, ds.ApplyLabelSpecsFuncInvoked)
+	require.Len(t, appliedLabels, 1)
+	assert.Equal(t, "manual_label", appliedLabels[0].Name)
+	assert.Empty(t, appliedLabels[0].Query)
+
+	appliedLabels = nil
+	ds.ApplyLabelSpecsFuncInvoked = false
+
+	name = writeTmpYml(t, emptyManualLabelSpec)
+
+	assert.Equal(t, "[+] applied 1 labels\n", runAppForTest(t, []string{"apply", "-f", name}))
+	assert.True(t, ds.ApplyLabelSpecsFuncInvoked)
+	require.Len(t, appliedLabels, 1)
+	assert.Equal(t, "empty_manual_label", appliedLabels[0].Name)
+	assert.Empty(t, appliedLabels[0].Query)
+
+	appliedLabels = nil
+	ds.ApplyLabelSpecsFuncInvoked = false
+
+	name = writeTmpYml(t, nohostsManualLabelSpec)
+
+	_, err := runAppNoChecks([]string{"apply", "-f", name})
+	require.Error(t, err)
+	require.ErrorContains(t, err, "declared as manual but contains no `hosts key`")
+
+	// Apply built-in label (no changes)
+	// The label values below should match the spec.
+	ubuntuLabel := &fleet.Label{
+		ID:                  8,
+		Name:                fleet.BuiltinLabelNameUbuntuLinux,
+		Query:               "select 1 from os_version where platform = 'ubuntu';",
+		Description:         "All Ubuntu hosts",
+		LabelType:           fleet.LabelTypeBuiltIn,
+		LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+	}
+	ds.LabelsByNameFunc = func(ctx context.Context, names []string) (map[string]*fleet.Label, error) {
+		assert.ElementsMatch(t, []string{fleet.BuiltinLabelNameUbuntuLinux}, names)
+		return map[string]*fleet.Label{
+			fleet.BuiltinLabelNameUbuntuLinux: ubuntuLabel,
+		}, nil
+	}
+
+	name = writeTmpYml(t, builtinLabelSpec)
+	assert.Equal(t, "[+] applied 1 labels\n", runAppForTest(t, []string{"apply", "-f", name}))
+	assert.False(t, ds.ApplyLabelSpecsFuncInvoked)
+	assert.True(t, ds.LabelsByNameFuncInvoked)
+
+	// Apply built-in label (with changes)
+	ubuntuLabel.Description = "CHANGED"
+	name = writeTmpYml(t, builtinLabelSpec)
+	_, err = runAppNoChecks([]string{"apply", "-f", name})
+	require.Error(t, err)
+	require.ErrorContains(t, err, "cannot modify or add built-in label")
+
 }
 
 func TestApplyPacks(t *testing.T) {
@@ -1517,7 +1681,9 @@ func TestApplyPacks(t *testing.T) {
 	ds.ListPacksFunc = func(ctx context.Context, opt fleet.PackListOptions) ([]*fleet.Pack, error) {
 		return nil, nil
 	}
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+	ds.NewActivityFunc = func(
+		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
+	) error {
 		return nil
 	}
 
@@ -1567,7 +1733,9 @@ func TestApplyQueries(t *testing.T) {
 		appliedQueries = queries
 		return nil
 	}
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+	ds.NewActivityFunc = func(
+		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
+	) error {
 		return nil
 	}
 
@@ -1672,7 +1840,9 @@ func TestApplyMacosSetup(t *testing.T) {
 		teamsByID := map[uint]*fleet.Team{
 			tm1.ID: tm1,
 		}
-		ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+		ds.NewActivityFunc = func(
+			ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
+		) error {
 			return nil
 		}
 		ds.NewJobFunc = func(ctx context.Context, job *fleet.Job) (*fleet.Job, error) {
@@ -1750,6 +1920,9 @@ func TestApplyMacosSetup(t *testing.T) {
 			return nil
 		}
 
+		ds.IsEnrollSecretAvailableFunc = func(ctx context.Context, secret string, new bool, teamID *uint) (bool, error) {
+			return true, nil
+		}
 		ds.SaveTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
 			teamsByName[team.Name] = team
 			teamsByID[team.ID] = team
@@ -2433,12 +2606,17 @@ func TestApplySpecs(t *testing.T) {
 			return team, nil
 		}
 
+		ds.IsEnrollSecretAvailableFunc = func(ctx context.Context, secret string, new bool, teamID *uint) (bool, error) {
+			return true, nil
+		}
 		ds.ApplyEnrollSecretsFunc = func(ctx context.Context, teamID *uint, secrets []*fleet.EnrollSecret) error {
 			return nil
 		}
 
 		// activities
-		ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+		ds.NewActivityFunc = func(
+			ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
+		) error {
 			return nil
 		}
 
@@ -3499,6 +3677,58 @@ spec:
     windows_enabled_and_configured: true
 `,
 			wantErr: `422 Validation Failed: Couldn't turn on Windows MDM. Please configure Fleet with a certificate and key pair first.`,
+		},
+		{
+			desc: "activities_webhook empty destination_url",
+			spec: `
+apiVersion: v1
+kind: config
+spec:
+  webhook_settings:
+    activities_webhook:
+      enable_activities_webhook: true
+      destination_url: ""
+`,
+			wantErr: `422 Validation Failed: destination_url is required`,
+		},
+		{
+			desc: "activities_webhook bad destination_url 1",
+			spec: `
+apiVersion: v1
+kind: config
+spec:
+  webhook_settings:
+    activities_webhook:
+      enable_activities_webhook: true
+      destination_url: ftp://host
+`,
+			wantErr: `422 Validation Failed: destination_url must be http`,
+		},
+		{
+			desc: "activities_webhook bad destination_url 2",
+			spec: `
+apiVersion: v1
+kind: config
+spec:
+  webhook_settings:
+    activities_webhook:
+      enable_activities_webhook: true
+      destination_url: /foo
+`,
+			wantErr: `422 Validation Failed: destination_url must be http`,
+		},
+		{
+			desc: "activities_webhook bad destination_url 3",
+			spec: `
+apiVersion: v1
+kind: config
+spec:
+  webhook_settings:
+    activities_webhook:
+      enable_activities_webhook: true
+      destination_url: foo
+`,
+			wantErr: `422 Validation Failed: parse "foo": invalid URI`,
 		},
 	}
 	// NOTE: Integrations required fields are not tested (Jira/Zendesk) because

@@ -3,7 +3,7 @@ package nvd
 import (
 	"fmt"
 
-	"github.com/facebookincubator/nvdtools/wfn"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/wfn"
 )
 
 type CPEMatchingRules []CPEMatchingRule
@@ -195,6 +195,18 @@ func GetKnownNVDBugRules() (CPEMatchingRules, error) {
 			},
 			IgnoreIf: func(cpeMeta *wfn.Attributes) bool {
 				return cpeMeta.TargetSW == "visual_studio_code"
+			},
+		},
+		// Issue #18733 incorrect CPEs that should be matching
+		// visual studio code extensions
+		CPEMatchingRule{
+			CVEs: map[string]struct{}{
+				"CVE-2021-28967": {},
+				"CVE-2020-1192":  {},
+				"CVE-2020-1171":  {},
+			},
+			IgnoreIf: func(cpeMeta *wfn.Attributes) bool {
+				return cpeMeta.Product == "visual_studio_code" && cpeMeta.TargetSW == wfn.Any
 			},
 		},
 	}

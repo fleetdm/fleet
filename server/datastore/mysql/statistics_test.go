@@ -12,6 +12,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -50,6 +51,11 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 	premiumLicense := &fleet.LicenseInfo{Tier: fleet.TierPremium, Organization: "Fleet"}
 	freeLicense := &fleet.LicenseInfo{Tier: fleet.TierFree}
 
+	var builtinLabels int
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &builtinLabels, `SELECT COUNT(*) FROM labels`)
+	})
+
 	// First time running with no hosts
 	stats, shouldSend, err := ds.ShouldSendStatistics(license.NewContext(ctx, premiumLicense), time.Millisecond, fleetConfig)
 	require.NoError(t, err)
@@ -58,9 +64,15 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 	assert.Equal(t, "Fleet", stats.Organization)
 	assert.Equal(t, 0, stats.NumHostsEnrolled)
 	assert.Equal(t, 0, stats.NumUsers)
+	assert.Equal(t, 0, stats.NumSoftwareVersions)
+	assert.Equal(t, 0, stats.NumHostSoftwares)
+	assert.Equal(t, 0, stats.NumSoftwareTitles)
+	assert.Equal(t, 0, stats.NumHostSoftwareInstalledPaths)
+	assert.Equal(t, 0, stats.NumSoftwareCPEs)
+	assert.Equal(t, 0, stats.NumSoftwareCVEs)
 	assert.Equal(t, 0, stats.NumTeams)
 	assert.Equal(t, 0, stats.NumPolicies)
-	assert.Equal(t, 0, stats.NumLabels)
+	assert.Equal(t, builtinLabels, stats.NumLabels)
 	assert.Equal(t, false, stats.SoftwareInventoryEnabled)
 	assert.Equal(t, true, stats.SystemUsersEnabled)
 	assert.Equal(t, false, stats.VulnDetectionEnabled)
@@ -196,9 +208,15 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 	assert.Equal(t, "Fleet", stats.Organization)
 	assert.Equal(t, 1, stats.NumHostsEnrolled)
 	assert.Equal(t, 2, stats.NumUsers)
+	assert.Equal(t, 0, stats.NumSoftwareVersions)
+	assert.Equal(t, 0, stats.NumHostSoftwares)
+	assert.Equal(t, 0, stats.NumSoftwareTitles)
+	assert.Equal(t, 0, stats.NumHostSoftwareInstalledPaths)
+	assert.Equal(t, 0, stats.NumSoftwareCPEs)
+	assert.Equal(t, 0, stats.NumSoftwareCVEs)
 	assert.Equal(t, 1, stats.NumTeams)
 	assert.Equal(t, 1, stats.NumPolicies)
-	assert.Equal(t, 1, stats.NumLabels)
+	assert.Equal(t, builtinLabels+1, stats.NumLabels)
 	assert.Equal(t, false, stats.SoftwareInventoryEnabled)
 	assert.Equal(t, false, stats.SystemUsersEnabled)
 	assert.Equal(t, false, stats.VulnDetectionEnabled)
@@ -294,6 +312,12 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 	assert.Equal(t, "Fleet", stats.Organization)
 	assert.Equal(t, 5, stats.NumHostsEnrolled)
 	assert.Equal(t, 2, stats.NumUsers)
+	assert.Equal(t, 0, stats.NumSoftwareVersions)
+	assert.Equal(t, 0, stats.NumHostSoftwares)
+	assert.Equal(t, 0, stats.NumSoftwareTitles)
+	assert.Equal(t, 0, stats.NumHostSoftwareInstalledPaths)
+	assert.Equal(t, 0, stats.NumSoftwareCPEs)
+	assert.Equal(t, 0, stats.NumSoftwareCVEs)
 	assert.Equal(t, 0, stats.NumWeeklyActiveUsers)          // no active user since last stats were sent
 	require.Len(t, stats.HostsEnrolledByOperatingSystem, 3) // empty platform, rhel and macos
 	assert.Equal(t, 5, stats.NumWeeklyPolicyViolationDaysActual)
@@ -332,6 +356,12 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 	assert.Equal(t, "Fleet", stats.Organization)
 	assert.Equal(t, 5, stats.NumHostsEnrolled)
 	assert.Equal(t, 2, stats.NumUsers)
+	assert.Equal(t, 0, stats.NumSoftwareVersions)
+	assert.Equal(t, 0, stats.NumHostSoftwares)
+	assert.Equal(t, 0, stats.NumSoftwareTitles)
+	assert.Equal(t, 0, stats.NumHostSoftwareInstalledPaths)
+	assert.Equal(t, 0, stats.NumSoftwareCPEs)
+	assert.Equal(t, 0, stats.NumSoftwareCVEs)
 	assert.Equal(t, 1, stats.NumWeeklyActiveUsers)
 	assert.Equal(t, 0, stats.NumWeeklyPolicyViolationDaysActual)
 	assert.Equal(t, 0, stats.NumWeeklyPolicyViolationDaysPossible)

@@ -18,8 +18,7 @@ type Stats struct {
 
 const (
 	// StatusOK is the success code returned by osquery
-	StatusOK           OsqueryStatus = 0
-	MaxQueryReportRows int           = 1000
+	StatusOK OsqueryStatus = 0
 )
 
 // QueryContent is the format of a query stanza in an osquery configuration.

@@ -32,6 +32,11 @@ func CheckinHandler(svc service.Checkin, logger log.Logger) http.HandlerFunc {
 		bodyBytes, err := mdmhttp.ReadAllAndReplaceBody(r)
 		if err != nil {
 			logger.Info("msg", "reading body", "err", err)
+			var toErr interface{ Timeout() bool }
+			if errors.As(err, &toErr) && toErr.Timeout() {
+				http.Error(w, http.StatusText(http.StatusRequestTimeout), http.StatusRequestTimeout)
+				return
+			}
 			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 			return
 		}
@@ -56,6 +61,11 @@ func CommandAndReportResultsHandler(svc service.CommandAndReportResults, logger 
 		bodyBytes, err := mdmhttp.ReadAllAndReplaceBody(r)
 		if err != nil {
 			logger.Info("msg", "reading body", "err", err)
+			var toErr interface{ Timeout() bool }
+			if errors.As(err, &toErr) && toErr.Timeout() {
+				http.Error(w, http.StatusText(http.StatusRequestTimeout), http.StatusRequestTimeout)
+				return
+			}
 			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 			return
 		}

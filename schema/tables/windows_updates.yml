@@ -1,7 +1,9 @@
 name: windows_updates
 description: Returns information about Windows updates that are available for installation.
 evented: false
-notes: This table is not a core osquery table. It is included as part of fleetd, the osquery manager from Fleet. Code based on work by [Kolide](https://github.com/kolide/launcher).
+notes: |-
+  - This table may not return any results while updates are being downloaded and installed.
+  - This table is not a core osquery table. It is included as part of fleetd, the osquery manager from Fleet. Code based on work by [Kolide](https://github.com/kolide/launcher).
 platforms:
   - windows
 columns:

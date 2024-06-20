@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/config"
-	"github.com/go-kit/kit/log"
+	"github.com/go-kit/log"
 	"github.com/ngrok/sqlmw"
 )
 
@@ -25,6 +25,7 @@ type dbOptions struct {
 	tracingConfig       *config.LoggingConfig
 	minLastOpenedAtDiff time.Duration
 	sqlMode             string
+	privateKey          string
 }
 
 // Logger adds a logger to the datastore.
@@ -73,6 +74,7 @@ func TracingEnabled(lconfig *config.LoggingConfig) DBOption {
 func WithFleetConfig(conf *config.FleetConfig) DBOption {
 	return func(o *dbOptions) error {
 		o.minLastOpenedAtDiff = conf.Osquery.MinSoftwareLastOpenedAtDiff
+		o.privateKey = conf.Server.PrivateKey
 		return nil
 	}
 }

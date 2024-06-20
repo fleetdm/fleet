@@ -1,0 +1,13 @@
+- name: Collect fleetd information
+  description: "Collects fleetd information from agents"
+  query: |
+    SELECT
+      os_version.platform as platform,
+      system_info.cpu_type as cpu_type,
+      osquery_info.version as osquery_version,
+      orbit_info.*
+    FROM os_version, system_info, osquery_info, orbit_info;
+  interval: 300 # 5 minutes
+  observer_can_run: true
+  automations_enabled: false
+  platform: darwin,linux,windows

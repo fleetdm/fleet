@@ -445,7 +445,7 @@ spec:
     cpe_database_url: ""
     cpe_translations_url: ""
     cve_feed_prefix_url: ""
-    current_instance_checks: "auto"
+    disable_schedule: false
     disable_data_sync: false
     recent_vulnerability_max_age: 30d
     disable_win_os_vulnerabilities: false

@@ -1,6 +1,7 @@
 import React, { useCallback, useMemo } from "react";
 
 import { IQueryStats } from "interfaces/query_stats";
+import { SUPPORT_LINK } from "utilities/constants";
 import TableContainer from "components/TableContainer";
 import EmptyTable from "components/EmptyTable";
 import CustomLink from "components/CustomLink";
@@ -19,7 +20,7 @@ const baseClass = "host-queries-card";
 interface IHostQueriesProps {
   hostId: number;
   schedule?: IQueryStats[];
-  isChromeOSHost: boolean;
+  hostPlatform: string;
   queryReportsDisabled?: boolean;
   router: InjectedRouter;
 }
@@ -30,15 +31,16 @@ interface IHostQueriesRowProps extends Row {
     should_link_to_hqr?: boolean;
   };
 }
+
 const HostQueries = ({
   hostId,
   schedule,
-  isChromeOSHost,
+  hostPlatform,
   queryReportsDisabled,
   router,
 }: IHostQueriesProps): JSX.Element => {
   const renderEmptyQueriesTab = () => {
-    if (isChromeOSHost) {
+    if (hostPlatform === "chrome") {
       return (
         <EmptyTable
           header="Scheduled queries are not supported for this host"
@@ -55,6 +57,22 @@ const HostQueries = ({
         />
       );
     }
+
+    if (hostPlatform === "ios" || hostPlatform === "ipados") {
+      return (
+        <EmptyTable
+          header="Queries are not supported for this host"
+          info={
+            <>
+              Interested in querying{" "}
+              {hostPlatform === "ios" ? "iPhones" : "iPads"}?{" "}
+              <CustomLink url={SUPPORT_LINK} text="Let us know" newTab />
+            </>
+          }
+        />
+      );
+    }
+
     return (
       <EmptyTable
         header="No queries are scheduled to run on this host"
@@ -87,36 +105,48 @@ const HostQueries = ({
     [queryReportsDisabled]
   );
 
+  const renderHostQueries = () => {
+    if (
+      !schedule ||
+      !schedule.length ||
+      hostPlatform === "chrome" ||
+      hostPlatform === "ios" ||
+      hostPlatform === "ipados"
+    ) {
+      return renderEmptyQueriesTab();
+    }
+
+    return (
+      <div>
+        <TableContainer
+          columnConfigs={columnConfigs}
+          data={tableData}
+          onQueryChange={() => null}
+          resultsTitle="queries"
+          defaultSortHeader="query_name"
+          defaultSortDirection="asc"
+          showMarkAllPages={false}
+          isAllPagesSelected={false}
+          emptyComponent={() => <></>}
+          disablePagination
+          disableCount
+          disableMultiRowSelect={!queryReportsDisabled} // Removes hover/click state if reports are disabled
+          isLoading={false} // loading state handled at parent level
+          onSelectSingleRow={onSelectSingleRow}
+        />
+      </div>
+    );
+  };
+
   return (
     <Card
-      borderRadiusSize="large"
+      borderRadiusSize="xxlarge"
       includeShadow
       largePadding
       className={baseClass}
     >
       <p className="card__header">Queries</p>
-      {!schedule || !schedule.length || isChromeOSHost ? (
-        renderEmptyQueriesTab()
-      ) : (
-        <div>
-          <TableContainer
-            columnConfigs={columnConfigs}
-            data={tableData}
-            onQueryChange={() => null}
-            resultsTitle="queries"
-            defaultSortHeader="query_name"
-            defaultSortDirection="asc"
-            showMarkAllPages={false}
-            isAllPagesSelected={false}
-            emptyComponent={() => <></>}
-            disablePagination
-            disableCount
-            disableMultiRowSelect
-            isLoading={false} // loading state handled at parent level
-            onSelectSingleRow={onSelectSingleRow}
-          />
-        </div>
-      )}
+      {renderHostQueries()}
     </Card>
   );
 };

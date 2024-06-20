@@ -1,10 +1,8 @@
 name: kernel_panics
-examples: >-
+examples: |-
   Look for kernel panics and see which module was last loaded before they
   happened.
 
   ```
-
   SELECT os_version, name, time, system_model, last_loaded FROM kernel_panics;
-
   ```

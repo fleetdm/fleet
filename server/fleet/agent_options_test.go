@@ -184,6 +184,16 @@ func TestValidateAgentOptions(t *testing.T) {
 				"orbit": "foobar"
 			}
 		}`, true, ``},
+		{"setting osquery 5.12.X flag in config.options and command_line_flags", `{
+			"config": {
+				"options": {
+					"logger_tls_backoff_max": 100
+				}
+			},
+			"command_line_flags": {
+				"logger_tls_backoff_max": 200
+			} 
+		}`, true, ``},
 	}
 
 	for _, c := range cases {

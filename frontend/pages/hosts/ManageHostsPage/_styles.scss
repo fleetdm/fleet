@@ -273,14 +273,6 @@
   }
 
   &__export-btn {
-    margin-left: $pad-medium;
-
-    img {
-      width: 13px;
-      height: 13px;
-      margin-left: 8px;
-      position: relative;
-      top: -2px;
-    }
+    margin-left: $pad-xsmall;
   }
 }
