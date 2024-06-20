@@ -48,6 +48,6 @@ columns:
     type: integer
     description: Indicates whether indirect_object_identifier is a bundle identifier (0) or absolute path (1), if applicable.
     required: false
-notes:
+notes: |-
  - This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).
  - This table requires that Fleet's agent (fleetd) has Full Disk Access.
