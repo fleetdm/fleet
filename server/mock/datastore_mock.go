@@ -599,6 +599,8 @@ type SetOrUpdateHostDisksEncryptionFunc func(ctx context.Context, hostID uint, e
 
 type SetOrUpdateHostDiskEncryptionKeyFunc func(ctx context.Context, hostID uint, encryptedBase64Key string, clientError string, decryptable *bool) error
 
+type GetHostsWithMDMOffStillConnectedFunc func(ctx context.Context) ([]*fleet.Host, error)
+
 type GetUnverifiedDiskEncryptionKeysFunc func(ctx context.Context) ([]fleet.HostDiskEncryptionKey, error)
 
 type SetHostsDiskEncryptionKeyStatusFunc func(ctx context.Context, hostIDs []uint, encryptable bool, threshold time.Time) error
@@ -1845,6 +1847,9 @@ type DataStore struct {
 
 	SetOrUpdateHostDiskEncryptionKeyFunc        SetOrUpdateHostDiskEncryptionKeyFunc
 	SetOrUpdateHostDiskEncryptionKeyFuncInvoked bool
+
+	GetHostsWithMDMOffStillConnectedFunc        GetHostsWithMDMOffStillConnectedFunc
+	GetHostsWithMDMOffStillConnectedFuncInvoked bool
 
 	GetUnverifiedDiskEncryptionKeysFunc        GetUnverifiedDiskEncryptionKeysFunc
 	GetUnverifiedDiskEncryptionKeysFuncInvoked bool
@@ -4441,6 +4446,13 @@ func (s *DataStore) SetOrUpdateHostDiskEncryptionKey(ctx context.Context, hostID
 	s.SetOrUpdateHostDiskEncryptionKeyFuncInvoked = true
 	s.mu.Unlock()
 	return s.SetOrUpdateHostDiskEncryptionKeyFunc(ctx, hostID, encryptedBase64Key, clientError, decryptable)
+}
+
+func (s *DataStore) GetHostsWithMDMOffStillConnected(ctx context.Context) ([]*fleet.Host, error) {
+	s.mu.Lock()
+	s.GetHostsWithMDMOffStillConnectedFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetHostsWithMDMOffStillConnectedFunc(ctx)
 }
 
 func (s *DataStore) GetUnverifiedDiskEncryptionKeys(ctx context.Context) ([]fleet.HostDiskEncryptionKey, error) {

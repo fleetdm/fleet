@@ -31,8 +31,10 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/assets"
+	mdmlifecycle "github.com/fleetdm/fleet/v4/server/mdm/lifecycle"
 	nanomdm "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"github.com/go-sql-driver/mysql"
 )
@@ -2443,4 +2445,26 @@ func (svc *Service) DeleteMDMAppleAPNSCert(ctx context.Context) error {
 	appCfg.MDM.EnabledAndConfigured = false
 
 	return svc.ds.SaveAppConfig(ctx, appCfg)
+}
+
+func ReconcileHostMDMStatus(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger) error {
+	hostsLite, err := ds.GetHostsWithMDMOffStillConnected(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting hosts with mdm off but still connected")
+	}
+
+	var errs []error
+	mdmLifecycle := mdmlifecycle.New(ds, logger)
+	for _, host := range hostsLite {
+		if fleet.MDMSupported(host.Platform) {
+			err := mdmLifecycle.Do(ctx, mdmlifecycle.HostOptions{
+				Action:   mdmlifecycle.HostActionTurnOff,
+				UUID:     host.UUID,
+				Platform: host.Platform,
+			})
+			errs = append(errs, err)
+		}
+	}
+
+	return errors.Join(errs...)
 }

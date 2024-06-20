@@ -195,6 +195,43 @@ func (s *integrationMDMTestSuite) TestTurnOnLifecycleEventsApple() {
 				require.NoError(t, device.Enroll())
 			},
 		},
+		{
+			"host tuns off without reporting a CheckOut message, osquery reports the status",
+			func(t *testing.T, host *fleet.Host, device *mdmtest.TestAppleMDMClient) {
+				ctx := context.Background()
+				connected, err := s.ds.IsHostConnectedToFleetMDM(ctx, host)
+				require.NoError(t, err)
+				if !connected {
+					fmt.Println("foo")
+				}
+				require.True(t, connected)
+
+				err = s.ds.SetOrUpdateMDMData(
+					ctx,
+					host.ID,
+					false,
+					false,
+					"",
+					false,
+					"",
+					"",
+				)
+				require.NoError(t, err)
+
+				logger := kitlog.NewNopLogger()
+				err = ReconcileHostMDMStatus(ctx, s.ds, logger)
+				require.NoError(t, err)
+
+				connected, err = s.ds.IsHostConnectedToFleetMDM(ctx, host)
+				require.NoError(t, err)
+				require.False(t, connected)
+
+				require.NoError(t, device.Enroll())
+				connected, err = s.ds.IsHostConnectedToFleetMDM(ctx, host)
+				require.NoError(t, err)
+				require.True(t, connected)
+			},
+		},
 	}
 
 	assertAction := func(t *testing.T, host *fleet.Host, device *mdmtest.TestAppleMDMClient, action mdmLifecycleAssertion[*mdmtest.TestAppleMDMClient]) {
@@ -262,6 +299,7 @@ func (s *integrationMDMTestSuite) TestTurnOnLifecycleEventsApple() {
 				host, err := s.ds.HostByIdentifier(context.Background(), device.SerialNumber)
 				require.NoError(t, err)
 				require.NoError(t, device.Enroll())
+				host.UUID = device.UUID
 
 				assertAction(t, host, device, tt.Action)
 			})

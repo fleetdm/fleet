@@ -11,6 +11,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
+	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/go-kit/log/level"
 	"github.com/jmoiron/sqlx"
 )
@@ -1266,4 +1267,44 @@ func (ds *Datastore) IsHostConnectedToFleetMDM(ctx context.Context, host *fleet.
 		return false, ctxerr.Wrap(ctx, err, "finding if host is connected to Fleet MDM")
 	}
 	return mp[host.UUID], nil
+}
+
+func (ds *Datastore) GetHostsWithMDMOffStillConnected(ctx context.Context) ([]*fleet.Host, error) {
+	var (
+		appleIDs []uint
+		winIDs   []uint
+	)
+
+	appCfg, err := ds.AppConfig(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "retrieving app config")
+	}
+
+	if appCfg.MDM.EnabledAndConfigured {
+		stmt := `
+		  SELECT h.id FROM hosts h
+		  JOIN host_mdm hm ON host_id = h.id
+		  JOIN nano_enrollments ne ON ne.id = h.uuid
+		  WHERE ne.enabled AND !hm.enrolled
+		`
+		err := sqlx.SelectContext(ctx, ds.reader(ctx), &appleIDs, stmt)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "retrieving apple ids")
+		}
+	}
+
+	if appCfg.MDM.WindowsEnabledAndConfigured {
+		stmt := `
+		  SELECT h.id FROM hosts h
+		  JOIN host_mdm hm ON host_id = h.id
+		  JOIN mdm_windows_enrollments mwe ON mwe.host_uuid = h.uuid
+		  WHERE mwe.device_state = ? AND !hm.enrolled
+		`
+		err := sqlx.SelectContext(ctx, ds.reader(ctx), &winIDs, stmt, microsoft_mdm.MDMDeviceStateEnrolled)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "retrieving windows ids")
+		}
+	}
+
+	return ds.ListHostsLiteByIDs(ctx, append(appleIDs, winIDs...))
 }

@@ -858,6 +858,17 @@ type Datastore interface {
 	// SetOrUpdateHostDiskEncryptionKey sets the base64, encrypted key for
 	// a host
 	SetOrUpdateHostDiskEncryptionKey(ctx context.Context, hostID uint, encryptedBase64Key, clientError string, decryptable *bool) error
+
+	// GetHostsWithMDMOffStillConnected finds hosts that have been reported
+	// to have mdm off by osquery but Fleet thinks they still have an
+	// active MDM enrollment.
+	//
+	// This can happen when the host unenrolls but we don't receive a
+	// `Checkout` message, for example: if the host is reset to factory
+	// settings, or the enrollment profile is removed without an internet
+	// connection.
+	GetHostsWithMDMOffStillConnected(ctx context.Context) ([]*Host, error)
+
 	// GetUnverifiedDiskEncryptionKeys returns all the encryption keys that
 	// are collected but their decryptable status is not known yet (ie:
 	// we're able to decrypt the key using a private key in the server)

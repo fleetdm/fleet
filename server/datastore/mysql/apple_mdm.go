@@ -1232,6 +1232,20 @@ func (ds *Datastore) MDMTurnOff(ctx context.Context, uuid string) error {
 			return ctxerr.Wrap(ctx, err, "deleting profiles for host")
 		}
 
+		// Ensure the nano tables are updated, when we receive a
+		// checkout message nano does this for us, but this lifecycle
+		// action can be called in other contexts.
+		_, err = tx.ExecContext(ctx, `
+			UPDATE nano_enrollments
+			SET
+			  enabled = 0,
+			  token_update_tally = 0
+			WHERE
+			  id = ? AND enabled = 1`, uuid)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "deactivating nano enrollment")
+		}
+
 		// NOTE: intentionally keeping disk encryption keys and bootstrap
 		// package information.
 

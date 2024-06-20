@@ -49,6 +49,7 @@ func TestMDMShared(t *testing.T) {
 		{"TestMDMProfilesSummaryAndHostFilters", testMDMProfilesSummaryAndHostFilters},
 		{"TestIsHostConnectedToFleetMDM", testIsHostConnectedToFleetMDM},
 		{"TestAreHostsConnectedToFleetMDM", testAreHostsConnectedToFleetMDM},
+		{"TestGetHostsWithMDMOffStillConnected", testGetHostsWithMDMOffStillConnected},
 	}
 
 	for _, c := range cases {
@@ -6877,4 +6878,167 @@ func testIsHostConnectedToFleetMDM(t *testing.T, ds *Datastore) {
 	connected, err = ds.IsHostConnectedToFleetMDM(ctx, windowsH)
 	require.NoError(t, err)
 	require.True(t, connected)
+}
+
+// func (ds *Datastore) GetHostsWithMDMOffStillConnected(ctx context.Context) ([]*fleet.Host, error) {
+
+func testGetHostsWithMDMOffStillConnected(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	// create some darwin hosts, all enrolled
+	var darwinHosts []*fleet.Host
+	for i := 0; i < 3; i++ {
+		h, err := ds.NewHost(ctx, &fleet.Host{
+			Hostname:      fmt.Sprintf("test-host%d-name", i),
+			OsqueryHostID: ptr.String(fmt.Sprintf("osquery-%d", i)),
+			NodeKey:       ptr.String(fmt.Sprintf("nodekey-%d", i)),
+			UUID:          fmt.Sprintf("test-uuid-%d", i),
+			Platform:      "darwin",
+		})
+		require.NoError(t, err)
+		nanoEnroll(t, ds, h, false)
+		darwinHosts = append(darwinHosts, h)
+		t.Logf("enrolled darwin host [%d]: %s", i, h.UUID)
+	}
+
+	// create a non-enrolled host
+	i := 3
+	notEnrolledDarwin, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:      fmt.Sprintf("test-host%d-name", i),
+		OsqueryHostID: ptr.String(fmt.Sprintf("osquery-%d", i)),
+		NodeKey:       ptr.String(fmt.Sprintf("nodekey-%d", i)),
+		UUID:          fmt.Sprintf("test-uuid-%d", i),
+		Platform:      "darwin",
+	})
+	require.NoError(t, err)
+
+	// create a non-darwin host
+	i = 4
+	_, err = ds.NewHost(ctx, &fleet.Host{
+		Hostname:      fmt.Sprintf("test-host%d-name", i),
+		OsqueryHostID: ptr.String(fmt.Sprintf("osquery-%d", i)),
+		NodeKey:       ptr.String(fmt.Sprintf("nodekey-%d", i)),
+		UUID:          fmt.Sprintf("test-uuid-%d", i),
+		Platform:      "linux",
+	})
+	require.NoError(t, err)
+
+	// create some windows hosts, all enrolled
+	i = 5
+	var windowsHosts []*fleet.Host // not preallocating, causes gosec false positive
+	for j := 0; j < 3; j++ {
+		h, err := ds.NewHost(ctx, &fleet.Host{
+			Hostname:      fmt.Sprintf("test-host%d-name", i+j),
+			OsqueryHostID: ptr.String(fmt.Sprintf("osquery-%d", i+j)),
+			NodeKey:       ptr.String(fmt.Sprintf("nodekey-%d", i+j)),
+			UUID:          fmt.Sprintf("test-uuid-%d", i+j),
+			Platform:      "windows",
+		})
+		require.NoError(t, err)
+		windowsEnroll(t, ds, h)
+		windowsHosts = append(windowsHosts, h)
+		t.Logf("enrolled windows host [%d]: %s", j, h.UUID)
+	}
+
+	staleHosts, err := ds.GetHostsWithMDMOffStillConnected(ctx)
+	require.NoError(t, err)
+	require.Empty(t, staleHosts)
+
+	// osquery reports that MDM is off for some of the hosts
+	hostsToReport := []*fleet.Host{darwinHosts[0], notEnrolledDarwin, windowsHosts[0]}
+	for _, h := range hostsToReport {
+		require.NoError(
+			t,
+			ds.SetOrUpdateMDMData(
+				ctx,
+				h.ID,
+				false,
+				false,
+				"",
+				false,
+				"",
+				"",
+			),
+		)
+	}
+
+	// result is still empty because MDM is off
+	// TODO: what should we do instead of noop? requires product input
+	staleHosts, err = ds.GetHostsWithMDMOffStillConnected(ctx)
+	require.NoError(t, err)
+	require.Empty(t, staleHosts)
+
+	// enable MDM for mac only
+	ac, err := ds.AppConfig(ctx)
+	require.NoError(t, err)
+	ac.MDM.EnabledAndConfigured = true
+	ac.MDM.WindowsEnabledAndConfigured = false
+	err = ds.SaveAppConfig(ctx, ac)
+	require.NoError(t, err)
+
+	// only mac hosts with active MDM enrollments are reported
+	staleHosts, err = ds.GetHostsWithMDMOffStillConnected(ctx)
+	require.NoError(t, err)
+	require.Len(t, staleHosts, 1)
+	require.ElementsMatch(
+		t,
+		[]uint{darwinHosts[0].ID},
+		[]uint{staleHosts[0].ID},
+	)
+
+	// enable MDM for windows only
+	ac.MDM.EnabledAndConfigured = false
+	ac.MDM.WindowsEnabledAndConfigured = true
+	err = ds.SaveAppConfig(ctx, ac)
+	require.NoError(t, err)
+
+	// only windows hosts are reported
+	staleHosts, err = ds.GetHostsWithMDMOffStillConnected(ctx)
+	require.NoError(t, err)
+	require.Len(t, staleHosts, 1)
+	require.ElementsMatch(
+		t,
+		[]uint{windowsHosts[0].ID},
+		[]uint{staleHosts[0].ID},
+	)
+
+	// enable MDM for both
+	ac.MDM.EnabledAndConfigured = true
+	ac.MDM.WindowsEnabledAndConfigured = true
+	err = ds.SaveAppConfig(ctx, ac)
+	require.NoError(t, err)
+
+	// hosts with active enrollments are reported
+	staleHosts, err = ds.GetHostsWithMDMOffStillConnected(ctx)
+	require.NoError(t, err)
+	require.Len(t, staleHosts, 2)
+	require.ElementsMatch(
+		t,
+		[]uint{darwinHosts[0].ID, windowsHosts[0].ID},
+		[]uint{staleHosts[0].ID, staleHosts[1].ID},
+	)
+
+	// change the status for both hosts
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(
+			ctx,
+			`UPDATE nano_enrollments SET enabled = 0 WHERE id = ?`,
+			darwinHosts[0].UUID,
+		)
+		return err
+	})
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(
+			ctx,
+			`UPDATE mdm_windows_enrollments SET device_state = ? WHERE host_uuid = ?`,
+			microsoft_mdm.MDMDeviceStateNotEnrolled,
+			windowsHosts[0].UUID,
+		)
+		return err
+	})
+
+	// hosts are not reported anymore
+	staleHosts, err = ds.GetHostsWithMDMOffStillConnected(ctx)
+	require.NoError(t, err)
+	require.Empty(t, staleHosts)
 }

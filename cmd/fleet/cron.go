@@ -860,6 +860,9 @@ func newCleanupsAndAggregationSchedule(
 		schedule.WithJob("cleanup_unused_software_installers", func(ctx context.Context) error {
 			return ds.CleanupUnusedSoftwareInstallers(ctx, softwareInstallStore)
 		}),
+		schedule.WithJob("reconcile_host_mdm_status", func(ctx context.Context) error {
+			return service.ReconcileHostMDMStatus(ctx, ds, logger)
+		}),
 	)
 
 	return s, nil
