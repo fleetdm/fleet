@@ -131,7 +131,18 @@ func (svc *Service) GetFleetDesktopSummary(ctx context.Context) (fleet.DesktopSu
 			return sum, ctxerr.Wrap(ctx, err, "could not retrieve mdm info")
 		}
 
-		needsDEPEnrollment := mdmInfo != nil && !mdmInfo.Enrolled && !connected && host.IsDEPAssignedToFleet()
+		needsDEPEnrollment := mdmInfo != nil &&
+			!mdmInfo.Enrolled &&
+			// as a special case for migration with user interaction, we
+			// also check the information stored in host_mdm, and assume
+			// the host needs migration if it's not Fleet
+			//
+			// this is because we can't always rely on nano setting
+			// `nano_enrollment.active = 1` since sometimes Fleet won't get
+			// the checkout message from the host.
+			(!connected || mdmInfo.Name != fleet.WellKnownMDMFleet) &&
+			host.IsDEPAssignedToFleet()
+
 		if needsDEPEnrollment {
 			sum.Notifications.RenewEnrollmentProfile = true
 		}
