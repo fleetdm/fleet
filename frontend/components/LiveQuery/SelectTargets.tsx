@@ -57,6 +57,7 @@ interface ISelectTargetsProps {
   setTargetedLabels: React.Dispatch<React.SetStateAction<ILabel[]>>;
   setTargetedTeams: React.Dispatch<React.SetStateAction<ITeam[]>>;
   setTargetsTotalCount: React.Dispatch<React.SetStateAction<number>>;
+  isLivePolicy?: boolean;
 }
 
 interface ILabelsByType {
@@ -151,6 +152,7 @@ const SelectTargets = ({
   setTargetedLabels,
   setTargetedTeams,
   setTargetsTotalCount,
+  isLivePolicy,
 }: ISelectTargetsProps): JSX.Element => {
   const { isPremiumTier, isOnGlobalTeam, currentUser } = useContext(AppContext);
 
@@ -450,10 +452,13 @@ const SelectTargets = ({
   const selectedHostsTableConfig = generateTableHeaders(handleRowRemove);
 
   // API blocks live policy if a team level user is able to select the team they are an observer on
-  const filterTeamObserverTeams =
-    teams?.filter(
-      (team) => !permissions.isTeamObserver(currentUser, team.id)
-    ) || [];
+  // Filter out teams that break live policy API
+  // TODO: Fix for live query to hide observer teams but still show observer+ teams
+  const filterTeamObserverTeams = isLivePolicy
+    ? teams?.filter(
+        (team) => !permissions.isTeamObserver(currentUser, team.id)
+      ) || []
+    : teams || [];
 
   return (
     <div className={`${baseClass}__wrapper`}>

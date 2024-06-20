@@ -305,6 +305,7 @@ const PolicyPage = ({
       setTargetedLabels,
       setTargetedTeams,
       setTargetsTotalCount,
+      isLivePolicy,
     };
 
     const step3Opts = {
