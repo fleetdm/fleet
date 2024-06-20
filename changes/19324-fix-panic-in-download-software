@@ -1,1 +1,0 @@
-* Fixed a panic (API returning code 500) when the software installer exists in the database but the installer does not exist in the storage.
