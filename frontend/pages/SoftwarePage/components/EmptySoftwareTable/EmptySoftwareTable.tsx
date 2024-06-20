@@ -33,7 +33,7 @@ const generateTypeText = (
 };
 
 const EmptySoftwareTable = ({
-  softwareFilter,
+  softwareFilter = "allSoftware",
   tableName = "software",
   isSoftwareDisabled,
   isNotDetectingSoftware,
@@ -46,7 +46,7 @@ const EmptySoftwareTable = ({
     info: `Expecting to see ${softwareTypeText}? Check back later.`,
   };
 
-  if (isNotDetectingSoftware) {
+  if (isNotDetectingSoftware && softwareFilter === "allSoftware") {
     emptySoftware.header = "No software detected";
   }
 
