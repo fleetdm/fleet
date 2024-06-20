@@ -70,6 +70,9 @@ parasails.registerPage('signup', {
       if(typeof gtag !== 'undefined'){
         gtag('event','website_sign_up');
       }
+      if(typeof window.lintrk !== 'undefined') {
+        window.lintrk('track', { conversion_id: 18587097 });// eslint-disable-line camelcase
+      }
       this.syncing = true;
       this.goto(this.pageToRedirectToAfterRegistration);// « / start if the user came here from the start now button, or customers/new-license if the user came here from the "Get your license" link.
     }
