@@ -313,7 +313,7 @@ func TestTranslateCPEToCVE(t *testing.T) {
 			continuesToUpdate: true,
 		},
 		"cpe:2.3:a:apple:safari:17.0:*:*:*:*:macos:*:*": {
-			excludedCVEs: []string{"CVE-2023-28205"},
+			excludedCVEs:      []string{"CVE-2023-28205"},
 			continuesToUpdate: true,
 		},
 	}

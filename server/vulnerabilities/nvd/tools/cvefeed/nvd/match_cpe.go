@@ -84,23 +84,24 @@ func (cm *cpeMatch) matchTargetSW(attr *wfn.Attributes) *wfn.Attributes {
 		return nil
 	}
 
-	// Return nil if attr.Part is not "a" or attr.TargetSW is empty
 	if attr.Part != "a" || attr.TargetSW == "" {
 		return nil
 	}
 
-	// Create osAttr with Part "o" and Product as attr.TargetSW
 	osAttr := &wfn.Attributes{
 		Part:    "o",
 		Product: attr.TargetSW,
 	}
 
-	// Check if cm matches the new osAttr
-	if cm.Part == osAttr.Part && cm.Product == osAttr.Product && cm.Version == wfn.NA && !cm.hasVersionRanges {
+	partMatches := cm.Part == osAttr.Part
+	productMatches := cm.Product == osAttr.Product
+	versionMatches := cm.Version == wfn.NA || cm.Version == wfn.Any
+	noVersionRanges := !cm.hasVersionRanges
+
+	if partMatches && productMatches && versionMatches && noVersionRanges {
 		return osAttr
 	}
 
-	// Return nil if no match
 	return nil
 }
 
