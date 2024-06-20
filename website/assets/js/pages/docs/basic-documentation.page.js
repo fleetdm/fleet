@@ -227,7 +227,7 @@ parasails.registerPage('basic-documentation', {
         gtag('event','website_swag_request');
       }
       if(typeof window.lintrk !== 'undefined') {
-        window.lintrk('track', { conversion_id: 18587105 });
+        window.lintrk('track', { conversion_id: 18587105 });// eslint-disable-line camelcase
       }
       this.goto('https://kqphpqst851.typeform.com/to/ZfA3sOu0');
     },
