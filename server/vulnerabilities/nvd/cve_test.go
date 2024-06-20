@@ -313,7 +313,20 @@ func TestTranslateCPEToCVE(t *testing.T) {
 			continuesToUpdate: true,
 		},
 		"cpe:2.3:a:apple:safari:17.0:*:*:*:*:macos:*:*": {
-			excludedCVEs:      []string{"CVE-2023-28205"},
+			includedCVEs: []cve{
+				{ID: "CVE-2023-42852", resolvedInVersion: "17.1"},
+				{ID: "CVE-2023-42950", resolvedInVersion: "17.2"},
+				{ID: "CVE-2024-23273", resolvedInVersion: "17.4"},
+			},
+			excludedCVEs:      []string{"CVE-2023-28205"}, // ensures macos targetsw does not match OS vulnerabilities
+			continuesToUpdate: true,
+		},
+		"cpe:2.3:a:apple:safari:16.6:*:*:*:*:macos:*:*": {
+			includedCVEs: []cve{
+				{ID: "CVE-2023-40414", resolvedInVersion: "17.0"},
+				{ID: "CVE-2023-41976", resolvedInVersion: "17.1"},
+			},
+			excludedCVEs:      []string{"CVE-2023-28205"}, // ensures macos targetsw does not match OS vulnerabilities
 			continuesToUpdate: true,
 		},
 	}
@@ -481,7 +494,6 @@ func TestTranslateCPEToCVE(t *testing.T) {
 				for _, cveFound := range cvesFound[cpe] {
 					require.NotEqual(t, cve, cveFound.ID, fmt.Sprintf("%s should not contain %s", cpe, cve))
 				}
-				require.NotContains(t, cvesFound[cpe], cve, tc.cpe)
 			}
 		}
 
