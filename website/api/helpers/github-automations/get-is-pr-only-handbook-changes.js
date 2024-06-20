@@ -37,7 +37,7 @@ module.exports = {
     let changedPaths = _.pluck(await sails.helpers.http.get(`https://api.github.com/repos/${owner}/${repo}/pulls/${prNumber}/files`, {
       per_page: 100,//eslint-disable-line camelcase
     }, baseHeaders).retry(), 'filename');// (don't worry, it's the whole path, not the filename)
-
+    // Return false if there are no changed files
     if(changedPaths.length === 0) {
       return false;
     }
