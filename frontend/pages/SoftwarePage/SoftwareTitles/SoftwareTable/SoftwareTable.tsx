@@ -279,7 +279,12 @@ const SoftwareTable = ({
 
   const renderCustomFilters = () => {
     // Hide filters if no software is detected with no filters present
-    if (query === "" && !showVersions && softwareFilter === "allSoftware")
+    if (
+      query === "" &&
+      !showVersions &&
+      softwareFilter === "allSoftware" &&
+      data?.count === 0
+    )
       return <></>;
 
     const options = showVersions

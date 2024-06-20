@@ -14,6 +14,7 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/orbit/pkg/profiles"
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/retry"
 	"github.com/rs/zerolog/log"
@@ -190,10 +191,13 @@ type swiftDialogMDMMigrator struct {
 	lastShownMu sync.RWMutex
 	showCh      chan struct{}
 
-	// testEnrollmentCheckFn is used in tests to mock the call to verify
+	// testEnrollmentCheckFileFn is used in tests to mock the call to verify
 	// the enrollment status of the host
-	testEnrollmentCheckFn     func() (bool, error)
-	unenrollmentRetryInterval time.Duration
+	testEnrollmentCheckFileFn func() (bool, error)
+	// testEnrollmentCheckStatusFn is used in tests to mock the call to verify
+	// the enrollment status of the host
+	testEnrollmentCheckStatusFn func() (bool, string, error)
+	unenrollmentRetryInterval   time.Duration
 }
 
 /**
@@ -273,21 +277,42 @@ func (m *swiftDialogMDMMigrator) renderError() (chan swiftDialogExitCode, chan e
 // unenroll, an error is returned.
 func (m *swiftDialogMDMMigrator) waitForUnenrollment() error {
 	maxRetries := int(mdmUnenrollmentTotalWaitTime.Seconds() / m.unenrollmentRetryInterval.Seconds())
-	fn := m.testEnrollmentCheckFn
-	if fn == nil {
-		fn = func() (bool, error) {
+	checkFileFn := m.testEnrollmentCheckFileFn
+	if checkFileFn == nil {
+		checkFileFn = func() (bool, error) {
 			return file.Exists(mdmEnrollmentFile)
 		}
 	}
+	checkStatusFn := m.testEnrollmentCheckStatusFn
+	if checkStatusFn == nil {
+		checkStatusFn = func() (bool, string, error) {
+			return profiles.IsEnrolledInMDM()
+		}
+	}
 	return retry.Do(func() error {
-		enrolled, err := fn()
-		if err != nil {
-			log.Error().Err(err).Msgf("checking enrollment status in migration modal, will retry in %s", m.unenrollmentRetryInterval)
-			return err
+		var unenrolled bool
 
+		fileExists, fileErr := checkFileFn()
+		if fileErr != nil {
+			log.Error().Err(fileErr).Msg("checking for existence of cloudConfigProfileInstalled in migration modal")
+		} else if fileExists {
+			log.Info().Msg("checking for existence of cloudConfigProfileInstalled in migration modal: found")
+		} else {
+			log.Info().Msg("checking for existence of cloudConfigProfileInstalled in migration modal: not found")
+			unenrolled = true
 		}
 
-		if enrolled {
+		statusEnrolled, serverURL, statusErr := checkStatusFn()
+		if statusErr != nil {
+			log.Error().Err(statusErr).Msgf("checking profiles status in migration modal")
+		} else if statusEnrolled {
+			log.Info().Msgf("checking profiles status in migration modal: enrolled to %s", serverURL)
+		} else {
+			log.Info().Msg("checking profiles status in migration modal: not enrolled")
+			unenrolled = true
+		}
+
+		if !unenrolled {
 			log.Info().Msgf("device is still enrolled, waiting %s", m.unenrollmentRetryInterval)
 			return errors.New("host didn't unenroll from MDM")
 		}
