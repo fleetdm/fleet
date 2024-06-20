@@ -8,7 +8,7 @@ import {
   BootstrapPackageStatus,
   isWindowsDiskEncryptionStatus,
 } from "interfaces/mdm";
-import { IOSSettings } from "interfaces/host";
+import { IOSSettings, IHostMaintenanceWindow } from "interfaces/host";
 import getHostStatusTooltipText from "pages/hosts/helpers";
 
 import TooltipWrapper from "components/TooltipWrapper";
@@ -353,16 +353,19 @@ const HostSummary = ({
     return <DataSet title="Osquery" value={summaryData.osquery_version} />;
   };
 
-  const renderMaintenanceWindow = () => {
+  const renderMaintenanceWindow = (window: IHostMaintenanceWindow) => {
     // TODO
-    const [timeStamp, offset] = summaryData.maintenance_window.starts_at.split(
-      " "
-    );
-    console.log("stamp: ", timeStamp, "offset: ", offset);
+    // const [timeStamp, offset] = summaryData.maintenance_window.starts_at.split(
+    // " "
+    // );
+    // console.log("stamp: ", timeStamp, "offset: ", offset);
 
     // const gmtOffset = "T0:D0";
-    const iAnaTzParsed = (summaryData.maintenance_window
-      .timezone as string).replace("_", " ");
+
+    // TODO - default to user agent time zone if no tz present
+    const iAnaTzParsed = window.timezone
+      ? (window.timezone as string).replace("_", " ")
+      : "TODO - handle no timezone";
 
     return (
       <DataSet
@@ -373,12 +376,13 @@ const HostSummary = ({
               <>
                 End user&apos;s time zone:
                 <br />
-                (GMT{offset.replace("UTC", "")}) {iAnaTzParsed}
+                {/* (GMT{offset.replace("UTC", "")}) {iAnaTzParsed} */}
+                {iAnaTzParsed}
               </>
             }
           >
-            {/* {format(timeStamp.split(/\+|-/)[0], "E, MMM d 'at' p")} */}
-            {format(`${timeStamp.split(/\+|-/)[0]}Z`, "E, MMM d 'at' p")}
+            {format(window.starts_at, "E, MMM d 'at' p")}
+            {/* {format(`${timeStamp.split(/\+|-/)[0]}Z`, "E, MMM d 'at' p")} */}
           </TooltipWrapper>
         }
       />
@@ -470,7 +474,7 @@ const HostSummary = ({
         {!isIosOrIpadosHost && renderAgentSummary()}
         {isPremiumTier &&
           summaryData.maintenance_window &&
-          renderMaintenanceWindow()}
+          renderMaintenanceWindow(summaryData.maintenance_window)}
       </Card>
     );
   };

@@ -180,7 +180,7 @@ export interface IHostMdmData {
 
 export interface IHostMaintenanceWindow {
   starts_at: string;
-  timezone: string;
+  timezone: string | null;
 }
 
 export interface IMunkiIssue {
@@ -320,7 +320,7 @@ export interface IHost {
   users: IHostUser[];
   device_users?: IDeviceUser[];
   munki?: IMunkiData;
-  maintenance_window?: IHostMaintenanceWindow;
+  maintenance_window: IHostMaintenanceWindow | null;
   mdm: IHostMdmData;
   policies: IHostPolicy[];
   query_results?: unknown[];
