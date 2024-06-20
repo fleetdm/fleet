@@ -165,7 +165,7 @@ const QueryDetailsPage = ({
   if (
     !isOnGlobalTeam &&
     !isStoredQueryLoading &&
-    storedQuery?.team_id && // team query
+    storedQuery?.team_id &&
     !(storedQuery?.team_id?.toString() === location.query.team_id)
   ) {
     router.push(
