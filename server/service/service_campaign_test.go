@@ -399,10 +399,7 @@ func TestUpdateStats(t *testing.T) {
 }
 
 func TestUpdateStatsOnReplica(t *testing.T) {
-	opts := &mysql.DatastoreTestOptions{
-		RealReplica: true,
-	}
-	ds := mysql.CreateMySQLDSWithOptions(t, opts)
+	ds := mysql.CreateMySQLDSWithReplica(t, nil)
 	defer mysql.TruncateTables(t, ds)
 	testUpdateStats(t, ds, true)
 }

@@ -419,6 +419,31 @@ func createMySQLDSWithOptions(t testing.TB, opts *DatastoreTestOptions) *Datasto
 	return ds
 }
 
+func CreateMySQLDSWithReplica(t *testing.T, opts *DatastoreTestOptions) *Datastore {
+	if opts == nil {
+		opts = new(DatastoreTestOptions)
+	}
+	opts.RealReplica = true
+	const numberOfAttempts = 10
+	var ds *Datastore
+	for attempt := 0; attempt < numberOfAttempts; {
+		attempt++
+		ds = createMySQLDSWithOptions(t, opts)
+		status, err := ds.ReplicaStatus(context.Background())
+		require.NoError(t, err)
+		if status["Replica_SQL_Running"] != "Yes" && status["Slave_SQL_Running"] != "Yes" {
+			t.Logf("create replica attempt: %d replica status: %+v", attempt, status)
+			if lastErr, ok := status["Last_Error"]; ok {
+				t.Logf("replica not running after attempt %d; Last_Error: %s", attempt, lastErr)
+			}
+			continue
+		}
+		break
+	}
+	require.NotNil(t, ds)
+	return ds
+}
+
 func CreateMySQLDSWithOptions(t *testing.T, opts *DatastoreTestOptions) *Datastore {
 	return createMySQLDSWithOptions(t, opts)
 }
