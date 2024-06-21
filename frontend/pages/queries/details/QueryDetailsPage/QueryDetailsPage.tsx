@@ -168,7 +168,7 @@ const QueryDetailsPage = ({
     !(storedQuery?.team_id?.toString() === location.query.team_id)
   ) {
     router.push(
-      location.pathname + `?team_id=` + storedQuery?.team_id?.toString()
+      `${location.pathname}?team_id=${storedQuery?.team_id?.toString()}`
     );
   }
 
