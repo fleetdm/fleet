@@ -242,9 +242,9 @@ func makeFleetProxy(fleetURL string) *httputil.ReverseProxy {
 
 func main() {
 	authToken := flag.String("auth-token", "", "Auth token for remote flag updates (remote updates disabled if not provided)")
-	existingURL := flag.String("existing-url", "", "Existing MDM server URL (full path)")
-	existingHostname := flag.String("existing-hostname", "", "Hostname for existing MDM server (eg. 'mdm.example.com')")
-	fleetURL := flag.String("fleet-url", "", "Fleet MDM server URL (full path)")
+	existingURL := flag.String("existing-url", "", "Existing MDM server URL (full path) (required)")
+	existingHostname := flag.String("existing-hostname", "", "Hostname for existing MDM server (eg. 'mdm.example.com') (required)")
+	fleetURL := flag.String("fleet-url", "", "Fleet MDM server URL (full path) (required)")
 	migratePercentage := flag.Int("migrate-percentage", 0, "Percentage of clients to migrate from existing MDM to Fleet")
 	migrateUDIDs := flag.String("migrate-udids", "", "Comma-delimited list of UDIDs to migrate always")
 	serverAddr := flag.String("server-address", ":8080", "Address for server to listen on")
