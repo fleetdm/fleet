@@ -40,7 +40,12 @@ func buildNFPM(opt Options, pkger nfpm.Packager) (string, error) {
 	updateOpt := update.DefaultOptions
 
 	updateOpt.RootDirectory = orbitRoot
-	updateOpt.Targets = update.LinuxTargets
+	envGoArch := os.Getenv("GOARCH")
+	if envGoArch == "arm64" {
+		updateOpt.Targets = update.LinuxArm64Targets
+	} else {
+		updateOpt.Targets = update.LinuxTargets
+	}
 	updateOpt.ServerCertificatePath = opt.UpdateTLSServerCertificate
 
 	if opt.UpdateTLSClientCertificate != "" {
@@ -52,7 +57,11 @@ func buildNFPM(opt Options, pkger nfpm.Packager) (string, error) {
 	}
 
 	if opt.Desktop {
-		updateOpt.Targets["desktop"] = update.DesktopLinuxTarget
+		if envGoArch == "arm64" {
+			updateOpt.Targets["desktop"] = update.DesktopLinuxArm64Target
+		} else {
+			updateOpt.Targets["desktop"] = update.DesktopLinuxTarget
+		}
 		// Override default channel with the provided value.
 		updateOpt.Targets.SetTargetChannel("desktop", opt.DesktopChannel)
 	}
@@ -209,12 +218,17 @@ func buildNFPM(opt Options, pkger nfpm.Packager) (string, error) {
 		rpmInfo.Scripts.PostTrans = postTransPath
 	}
 
+	pkgArch := "amd64"
+	if envGoArch == "arm64" {
+		pkgArch = "arm64"
+	}
+
 	// Build package
 	info := &nfpm.Info{
 		Name:        "fleet-osquery",
 		Version:     opt.Version,
 		Description: "Fleet osquery -- runtime and autoupdater",
-		Arch:        "amd64",
+		Arch:        pkgArch,
 		Maintainer:  "Fleet Device Management",
 		Vendor:      "Fleet Device Management",
 		License:     "https://github.com/fleetdm/fleet/blob/main/LICENSE",
