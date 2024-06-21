@@ -166,7 +166,7 @@ func buildNFPM(opt Options, pkger nfpm.Packager) (string, error) {
 		},
 		// Symlink current into /opt/orbit/bin/orbit/orbit
 		&files.Content{
-			Source:      "/opt/orbit/bin/orbit/linux/" + opt.OrbitChannel + "/orbit",
+			Source:      "/opt/orbit/bin/orbit/" + updateOpt.Targets["orbit"].Platform + "/" + opt.OrbitChannel + "/orbit",
 			Destination: "/opt/orbit/bin/orbit/orbit",
 			Type:        "symlink",
 			FileInfo: &files.ContentFileInfo{
