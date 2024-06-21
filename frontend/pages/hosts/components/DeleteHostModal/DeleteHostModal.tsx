@@ -76,7 +76,7 @@ const DeleteHostModal = ({
         <p>
           <CustomLink
             url={
-              "https://fleetdm.com/docs/using-fleet/faq#how-can-i-uninstall-the-osquery-agent"
+              "https://fleetdm.com/docs/using-fleet/faq#how-can-i-uninstall-fleetd"
             }
             text="Uninstall Fleet's agent"
             newTab
