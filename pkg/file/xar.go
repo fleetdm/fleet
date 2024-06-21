@@ -132,8 +132,9 @@ type distributionBundleVersion struct {
 
 // distributionBundle represents the bundle element
 type distributionBundle struct {
-	Path string `xml:"path,attr"`
-	ID   string `xml:"id,attr"`
+	Path                       string `xml:"path,attr"`
+	ID                         string `xml:"id,attr"`
+	CFBundleShortVersionString string `xml:"CFBundleShortVersionString,attr"`
 }
 
 // distributionMustClose represents the must-close element
@@ -222,17 +223,19 @@ func parseDistributionFile(rawXML []byte) (*InstallerMetadata, error) {
 		return nil, fmt.Errorf("unmarshal Distribution XML: %w", err)
 	}
 
-	name, identifier := getNameAndBundleIdentifier(&distXML)
+	name, identifier, version := getDistributionInfo(&distXML)
 	return &InstallerMetadata{
 		Name:             name,
-		Version:          getVersion(&distXML),
+		Version:          version,
 		BundleIdentifier: identifier,
 	}, nil
 
 }
 
-// getNameAndBundleIdentifier gets the name and bundle identifier of a PKG distribution file
-func getNameAndBundleIdentifier(d *distributionXML) (name string, identifier string) {
+// getDistributionInfo gets the name, bundle identifier and version of a PKG distribution file
+func getDistributionInfo(d *distributionXML) (name string, identifier string, version string) {
+	var appVersion string
+
 out:
 	// first, look in all the bundle versions for one that has a `path` attribute
 	// that is not nested, this is generally the case for packages that distribute
@@ -240,9 +243,10 @@ out:
 	for _, pkg := range d.PkgRefs {
 		for _, versions := range pkg.BundleVersions {
 			for _, bundle := range versions.Bundles {
-				if isFilePath(bundle.Path) {
+				if base, isValid := isValidAppFilePath(bundle.Path); isValid {
 					identifier = bundle.ID
-					name = bundle.Path
+					name = base
+					appVersion = bundle.CFBundleShortVersionString
 					break out
 				}
 			}
@@ -250,10 +254,15 @@ out:
 	}
 
 	// if we didn't find anything, look for any <pkg-ref> elements and grab
-	// the first `packageIdentifier` or `id` attribute we find as the
-	// bundle identifier
+	// the first `<must-close>`, `packageIdentifier` or `id` attribute we
+	// find as the bundle identifier, in that order
 	if identifier == "" {
 		for _, pkg := range d.PkgRefs {
+			if len(pkg.MustClose.Apps) > 0 {
+				identifier = pkg.MustClose.Apps[0].ID
+				break
+			}
+
 			if pkg.PackageIdentifier != "" {
 				identifier = pkg.PackageIdentifier
 				break
@@ -280,14 +289,42 @@ out:
 		name = identifier
 	}
 
-	return name, identifier
+	// for the version, try to use the top-level product version, if not,
+	// fallback to any version definition alongside the name or the first
+	// version in a pkg-ref we find.
+	if version == "" && d.Product.Version != "" {
+		version = d.Product.Version
+	}
+	if version == "" && appVersion != "" {
+		version = appVersion
+	}
+	if version == "" {
+		for _, pkgRef := range d.PkgRefs {
+			if pkgRef.Version != "" {
+				version = pkgRef.Version
+			}
+		}
+	}
+
+	return name, identifier, version
 }
 
-// isFilePath checks if the given input is a file name without any directory
-// path.
-func isFilePath(input string) bool {
+// isValidAppFilePath checks if the given input is a file name ending with .app
+// or if it's in the "Applications" directory with a .app extension.
+func isValidAppFilePath(input string) (string, bool) {
 	dir, file := filepath.Split(input)
-	return dir == "" && file == input
+
+	if dir == "" && file == input {
+		return file, true
+	}
+
+	if strings.HasSuffix(file, ".app") {
+		if dir == "Applications/" {
+			return file, true
+		}
+	}
+
+	return "", false
 }
 
 func getVersion(d *distributionXML) string {
