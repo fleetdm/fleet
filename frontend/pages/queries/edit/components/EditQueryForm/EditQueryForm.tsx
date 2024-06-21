@@ -147,6 +147,7 @@ const EditQueryForm = ({
     currentUser,
     isOnlyObserver,
     isGlobalObserver,
+    isTeamMaintainerOrTeamAdmin,
     isAnyTeamMaintainerOrTeamAdmin,
     isGlobalAdmin,
     isGlobalMaintainer,
@@ -628,7 +629,8 @@ const EditQueryForm = ({
     </form>
   );
 
-  const hasSavePermissions = isGlobalAdmin || isGlobalMaintainer;
+  const hasSavePermissions =
+    isGlobalAdmin || isGlobalMaintainer || isTeamMaintainerOrTeamAdmin;
 
   const currentlySavingQueryResults =
     storedQuery &&
@@ -776,7 +778,7 @@ const EditQueryForm = ({
           )}
           {renderLiveQueryWarning()}
           <div className={`button-wrap ${baseClass}__button-wrap--new-query`}>
-            {(hasSavePermissions || isAnyTeamMaintainerOrTeamAdmin) && (
+            {hasSavePermissions && (
               <>
                 {savedQueryMode && (
                   <Button
