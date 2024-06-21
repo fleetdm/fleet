@@ -90,6 +90,9 @@ fleet:
       accessKeyID: ""
       secretKey: s3-bucket
       stsAssumeRoleARN: ""
+  license:
+    secretName: ""
+    licenseKey: license-key
   extraVolumes: []
   extraVolumeMounts: []
 
