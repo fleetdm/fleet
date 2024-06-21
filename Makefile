@@ -465,6 +465,21 @@ desktop-linux:
 		tar czf desktop.tar.gz fleet-desktop && \
 		rm -r fleet-desktop"
 
+# Build desktop executable for Linux.
+#
+# Usage:
+# FLEET_DESKTOP_VERSION=0.0.1 make desktop-linux
+#
+# Output: desktop.tar.gz
+desktop-linux-arm64:
+	docker build -f Dockerfile-desktop-linux-arm64 -t desktop-linux-builder-arm64 .
+	docker run --rm -v $(shell pwd):/output desktop-linux-builder-arm64 /bin/bash -c "\
+		mkdir /output/fleet-desktop && \
+		go build -o /output/fleet-desktop/fleet-desktop -ldflags "-X=main.version=$(FLEET_DESKTOP_VERSION)" /usr/src/fleet/orbit/cmd/desktop && \
+		cd /output && \
+		tar czf desktop.tar.gz fleet-desktop && \
+		rm -r fleet-desktop"
+
 # Build orbit executable for Windows.
 # This generates orbit executable for Windows that includes versioninfo binary properties
 # These properties can be displayed when right-click on the binary in Windows Explorer.
