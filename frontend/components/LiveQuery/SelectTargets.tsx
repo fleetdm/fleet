@@ -23,6 +23,7 @@ import targetsAPI, {
 } from "services/entities/targets";
 import teamsAPI, { ILoadTeamsResponse } from "services/entities/teams";
 import { formatSelectedTargetsForApi } from "utilities/helpers";
+import permissions from "utilities/permissions";
 
 import PageError from "components/DataError";
 import TargetsInput from "components/LiveQuery/TargetsInput";
@@ -31,7 +32,6 @@ import Spinner from "components/Spinner";
 import TooltipWrapper from "components/TooltipWrapper";
 import Icon from "components/Icon";
 import { generateTableHeaders } from "./TargetsInput/TargetsInputHostsTableConfig";
-import permissions from "utilities/permissions";
 
 interface ITargetPillSelectorProps {
   entity: ISelectLabel | ISelectTeam;
