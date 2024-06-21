@@ -71,11 +71,6 @@ variable "fleet_config" {
         ipv6_cidr_blocks = optional(string, null)
         security_groups  = optional(string, null)
         prefix_list_ids  = optional(string, null)
-        }, {
-        cidr_blocks      = null
-        ipv6_cidr_blocks = null
-        security_groups  = null
-        prefix_list_ids  = null
       })
     })
     autoscaling = optional(object({
