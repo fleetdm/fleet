@@ -9075,3 +9075,9 @@ func (s *integrationMDMTestSuite) TestSilentMigrationGotchas() {
 	require.True(t, resp.Notifications.RenewEnrollmentProfile)
 	require.False(t, resp.Notifications.NeedsMDMMigration)
 }
+
+func (s *integrationMDMTestSuite) TestMDMRequestWithoutCerts() {
+	t := s.T()
+	res := s.DoRawNoAuth("PUT", "/mdm/apple/mdm", nil, http.StatusBadRequest)
+	require.NoError(t, res.Body.Close())
+}
