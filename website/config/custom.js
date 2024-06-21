@@ -368,6 +368,7 @@ module.exports.custom = {
     'live.com',
     'yandex.ru',
     'ymail.com',
+    'qq.com',
   ],
 
   // Contact form:
