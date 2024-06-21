@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"errors"
 	"flag"
 	"fmt"
 	"hash/fnv"
@@ -14,6 +15,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"howett.net/plist"
 )
@@ -75,10 +77,10 @@ func (m *mdmProxy) handleProxy(w http.ResponseWriter, r *http.Request) {
 
 	// Migrated UDIDs go to the Fleet server, otherwise requests go to the existing server.
 	if udid != "" && m.isUDIDMigrated(udid) {
-		log.Printf("%s %s -> Fleet", r.Method, r.URL.String())
+		log.Printf("%s %s (%s) -> Fleet", r.Method, r.URL.String(), udid)
 		m.fleetProxy.ServeHTTP(w, r)
 	} else {
-		log.Printf("%s %s -> Existing", r.Method, r.URL.String())
+		log.Printf("%s %s (%s) -> Existing", r.Method, r.URL.String(), udid)
 		m.existingProxy.ServeHTTP(w, r)
 	}
 }
@@ -196,7 +198,7 @@ func udidFromRequestBody(body []byte) (string, error) {
 		return "", fmt.Errorf("unmarshal request: %w body: %s", err, string(body))
 	}
 	if req.UDID == "" {
-		return "", fmt.Errorf("request body does not contain UDID")
+		return "", errors.New("request body does not contain UDID")
 	}
 
 	return req.UDID, nil
@@ -245,6 +247,7 @@ func main() {
 	fleetURL := flag.String("fleet-url", "", "Fleet MDM server URL (full path)")
 	migratePercentage := flag.Int("migrate-percentage", 0, "Percentage of clients to migrate from existing MDM to Fleet")
 	migrateUDIDs := flag.String("migrate-udids", "", "Comma-delimited list of UDIDs to migrate always")
+	serverAddr := flag.String("server-address", ":8080", "Address for server to listen on")
 	flag.Parse()
 
 	// Check required flags
@@ -285,8 +288,10 @@ func main() {
 	mux := http.NewServeMux()
 	// Health check endpoint used for load balancers
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
-		log.Println("GET /healthz")
-		w.Write([]byte("OK"))
+		_, err := w.Write([]byte("OK"))
+		if err != nil {
+			log.Printf("/healthz error: %v", err)
+		}
 	})
 	// Remote management of migration (enabled if auth token set)
 	mux.HandleFunc("/admin/udids", proxy.handleUpdateMigrateUDIDs)
@@ -294,8 +299,13 @@ func main() {
 	// Handler for the actual proxying
 	mux.HandleFunc("/", proxy.handleProxy)
 
-	log.Println("Starting server on :8080")
-	err = http.ListenAndServe(":8080", mux)
+	log.Printf("Starting server on %s", *serverAddr)
+	server := &http.Server{
+		Addr:              *serverAddr,
+		ReadHeaderTimeout: 10 * time.Second,
+		Handler:           mux,
+	}
+	err = server.ListenAndServe()
 	if err != nil {
 		fmt.Printf("Error starting server: %s\n", err)
 	}
