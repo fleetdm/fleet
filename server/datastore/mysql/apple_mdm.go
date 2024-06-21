@@ -4376,3 +4376,19 @@ AND TIMESTAMPDIFF(SECOND, h.detail_updated_at, NOW()) > ?;`)
 
 	return deviceUUIDs, nil
 }
+
+func (ds *Datastore) GetHostUUIDsWithPendingMDMAppleCommands(ctx context.Context) (uuids []string, err error) {
+	const stmt = `
+SELECT DISTINCT id
+FROM nano_enrollment_queue neq
+LEFT JOIN nano_command_results ncr ON ncr.command_uuid = neq.command_uuid
+WHERE neq.active = 1 AND ncr.status IS NULL
+`
+
+	var deviceUUIDs []string
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &deviceUUIDs, stmt); err != nil {
+		return nil, err
+	}
+
+	return deviceUUIDs, nil
+}
