@@ -1092,7 +1092,7 @@ func newMDMAPNsPusher(
 	logger kitlog.Logger,
 ) (*schedule.Schedule, error) {
 	const (
-		name            = string(fleet.CronMDMAppleProfileManager)
+		name            = string(fleet.CronAppleMDMAPNsPusher)
 		defaultInterval = 1 * time.Minute
 	)
 
