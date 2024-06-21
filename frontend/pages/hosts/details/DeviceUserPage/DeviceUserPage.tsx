@@ -359,12 +359,8 @@ const DeviceUserPage = ({
       router.push(tabPaths[0]);
     }
 
-    // TODO: This is a temporary fix that conditionally shows the new software tab depending on
-    // whether software items returned in the device details response (legacy endpoint).
-    // If the tab is selected, we call the new host software endpoint and display those results.
-    // Software in the legacy response is only being used as a proxy for `iseSoftwareEnabled`.
-    // Ideally we should be checking the config for whether software is enabled to show/hide the tab,
-    // but it isn't available via device token authenticated API. And we need better specified empty states.
+    // Note: API response global_config is misnamed because the backend actually returns the global
+    // or team config (as applicable)
     const isSoftwareEnabled = !!globalConfig?.features
       ?.enable_software_inventory;
 
@@ -421,7 +417,9 @@ const DeviceUserPage = ({
               >
                 <TabList>
                   <Tab>Details</Tab>
-                  {isPremiumTier && <Tab>Self-service</Tab>}
+                  {isPremiumTier && isSoftwareEnabled && (
+                    <Tab>Self-service</Tab>
+                  )}
                   {isSoftwareEnabled && <Tab>Software</Tab>}
                   {isPremiumTier && (
                     <Tab>
@@ -441,7 +439,7 @@ const DeviceUserPage = ({
                     munki={deviceMacAdminsData?.munki}
                   />
                 </TabPanel>
-                {isPremiumTier && (
+                {isPremiumTier && isSoftwareEnabled && (
                   <TabPanel>
                     <SelfService
                       contactUrl={orgContactURL}

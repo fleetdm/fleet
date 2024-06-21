@@ -174,7 +174,7 @@ func getDeviceHostEndpoint(ctx context.Context, request interface{}, svc fleet.S
 			return getDeviceHostResponse{Err: err}, nil
 		}
 		if tm != nil {
-			softwareInventoryEnabled = tm.Config.Features.EnableSoftwareInventory // TODO: confirm this tracks the order of precedence for cases where the team and org have different values
+			softwareInventoryEnabled = tm.Config.Features.EnableSoftwareInventory // TODO: We should look for opportunities to fix the confusing name of the `global_config` object in the API response. Also, how can we better clarify/document the expected order of precedence for team and global feature flags?
 		}
 	}
 
