@@ -66,6 +66,17 @@ variable "fleet_config" {
     networking = object({
       subnets         = list(string)
       security_groups = optional(list(string), null)
+      ingress_sources = object({
+        cidr_blocks      = optional(string, null)
+        ipv6_cidr_blocks = optional(string, null)
+        security_groups  = optional(string, null)
+        prefix_list_ids  = optional(string, null)
+        }, {
+        cidr_blocks      = null
+        ipv6_cidr_blocks = null
+        security_groups  = null
+        prefix_list_ids  = null
+      })
     })
     autoscaling = optional(object({
       max_capacity                 = optional(number, 5)
@@ -157,6 +168,12 @@ variable "fleet_config" {
     networking = {
       subnets         = null
       security_groups = null
+      ingress_sources = {
+        cidr_blocks      = null
+        ipv6_cidr_blocks = null
+        security_groups  = null
+        prefix_list_ids  = null
+      }
     }
     autoscaling = {
       max_capacity                 = 5
