@@ -139,6 +139,9 @@ func (svc *Service) GetSoftwareInstallerMetadata(ctx context.Context, titleID ui
 }
 
 func (svc *Service) DownloadSoftwareInstaller(ctx context.Context, titleID uint, teamID *uint) (*fleet.DownloadSoftwareInstallerPayload, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.SoftwareInstaller{TeamID: teamID}, fleet.ActionRead); err != nil {
+		return nil, err
+	}
 	if teamID == nil || *teamID == 0 {
 		return nil, fleet.NewInvalidArgumentError("team_id", "is required and can't be zero")
 	}
