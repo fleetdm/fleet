@@ -10,7 +10,6 @@
 
 * Fixed bug where MDM migration fails when attempting to renew enrollment profiles on macOS Sonoma devices.
 
-* Scripts are now enabled by default when fleet is automatically installed
 
 ## Orbit 1.26.0 (Jun 11, 2024)
 
