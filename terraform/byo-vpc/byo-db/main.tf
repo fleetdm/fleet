@@ -1,11 +1,26 @@
-module "ecs" {
-  source      = "./byo-ecs"
-  ecs_cluster = module.cluster.cluster_name
-  fleet_config = merge(var.fleet_config, {
-    loadbalancer = {
-      arn = module.alb.target_group_arns[0]
+module "fleet_config" {
+  source              = "cloudposse/config/yaml//modules/deepmerge"
+  version             = "1.0.2"
+  append_list_enabled = true
+  maps = [
+    var.fleet_config,
+    {
+      load_balancer = {
+        arn = module.alb.target_group_arns[0]
+      }
+      networking = {
+        ingress_sources = {
+          security_groups = [module.alb.security_group_id]
+        }
+      }
     }
-  })
+  ]
+}
+
+module "ecs" {
+  source           = "./byo-ecs"
+  ecs_cluster      = module.cluster.cluster_name
+  fleet_config     = module.fleet_config.merged
   migration_config = var.migration_config
   vpc_id           = var.vpc_id
 }
