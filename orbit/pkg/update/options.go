@@ -41,6 +41,19 @@ var (
 		},
 	}
 
+	LinuxArm64Targets = Targets{
+		"orbit": TargetInfo{
+			Platform:   "linux-arm64",
+			Channel:    "stable",
+			TargetFile: "orbit",
+		},
+		"osqueryd": TargetInfo{
+			Platform:   "linux-arm64",
+			Channel:    "stable",
+			TargetFile: "osqueryd",
+		},
+	}
+
 	WindowsTargets = Targets{
 		"orbit": TargetInfo{
 			Platform:   "windows",
@@ -69,6 +82,21 @@ var (
 
 	DesktopLinuxTarget = TargetInfo{
 		Platform:             "linux",
+		Channel:              "stable",
+		TargetFile:           "desktop.tar.gz",
+		ExtractedExecSubPath: []string{"fleet-desktop", constant.DesktopAppExecName},
+		CustomCheckExec: func(execPath string) error {
+			cmd := exec.Command(execPath, "--help")
+			cmd.Env = append(cmd.Env, fmt.Sprintf("LD_LIBRARY_PATH=%s:%s", filepath.Dir(execPath), os.ExpandEnv("$LD_LIBRARY_PATH")))
+			if out, err := cmd.CombinedOutput(); err != nil {
+				return fmt.Errorf("exec new version: %s: %w", string(out), err)
+			}
+			return nil
+		},
+	}
+
+	DesktopLinuxArm64Target = TargetInfo{
+		Platform:             "linux-arm64",
 		Channel:              "stable",
 		TargetFile:           "desktop.tar.gz",
 		ExtractedExecSubPath: []string{"fleet-desktop", constant.DesktopAppExecName},
