@@ -51,29 +51,6 @@ func (a *Attributes) MatchWithoutVersion(attr *Attributes) bool {
 		matchAttr(a.Other, attr.Other)
 }
 
-func (a *Attributes) MatchTargetSW(attr *Attributes) *Attributes {
-	if a == nil || attr == nil {
-		return nil
-	}
-
-	var osMatch bool
-	var osAttr *Attributes
-	if attr.Part == "a" && attr.TargetSW != "" {
-		osAttr = &Attributes{
-			Part:    "o",
-			Product: attr.TargetSW,
-		}
-
-		osMatch = matchAttr(a.Part, osAttr.Part) && matchAttr(a.Product, osAttr.Product)
-	}
-
-	if !osMatch {
-		return nil
-	}
-
-	return osAttr
-}
-
 // MatchAll returns a Matcher which matches only if all matchers match
 func MatchAll(ms ...Matcher) Matcher {
 	return &multiMatcher{matchers: ms, allMatch: true}

@@ -1521,6 +1521,7 @@ func TestValidateProfiles(t *testing.T) {
 		name     string
 		profiles []fleet.MDMProfileBatchPayload
 		wantErr  bool
+		errMsg   string
 	}{
 		{
 			name: "Valid Darwin Profile",
@@ -1558,6 +1559,14 @@ func TestValidateProfiles(t *testing.T) {
 			},
 			wantErr: true,
 		},
+		{
+			name: "Too large profile",
+			profiles: []fleet.MDMProfileBatchPayload{
+				{Name: "hugeprofile", Contents: []byte(strings.Repeat("a", 1024*1024+1))},
+			},
+			wantErr: true,
+			errMsg:  "validation failed: mdm maximum configuration profile file size is 1 MB",
+		},
 	}
 
 	for _, tt := range tests {
@@ -1565,6 +1574,9 @@ func TestValidateProfiles(t *testing.T) {
 			err := validateProfiles(tt.profiles)
 			if tt.wantErr {
 				require.Error(t, err)
+				if tt.errMsg != "" {
+					require.Equal(t, tt.errMsg, err.Error())
+				}
 			} else {
 				require.NoError(t, err)
 			}

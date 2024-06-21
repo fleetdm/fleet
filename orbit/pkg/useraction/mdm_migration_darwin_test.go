@@ -39,12 +39,16 @@ func TestWaitForUnenrollment(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			tries := 0
-			m.testEnrollmentCheckFn = func() (bool, error) {
+			m.testEnrollmentCheckFileFn = func() (bool, error) {
 				if tries >= c.unenrollAfterNTries {
 					return false, c.enrollErr
 				}
 				tries++
 				return true, c.enrollErr
+			}
+
+			m.testEnrollmentCheckStatusFn = func() (bool, string, error) {
+				return true, "example.com", nil
 			}
 
 			outErr := m.waitForUnenrollment()
@@ -56,4 +60,17 @@ func TestWaitForUnenrollment(t *testing.T) {
 			}
 		})
 	}
+
+	t.Run("fallback to enrollment check file", func(t *testing.T) {
+		m.testEnrollmentCheckFileFn = func() (bool, error) {
+			return true, nil
+		}
+
+		m.testEnrollmentCheckStatusFn = func() (bool, string, error) {
+			return false, "", nil
+		}
+
+		outErr := m.waitForUnenrollment()
+		require.NoError(t, outErr)
+	})
 }

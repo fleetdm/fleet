@@ -88,11 +88,20 @@ module.exports = {
       salesforceAccountId = '0014x000025JC8DAAW';
       salesforceAccountOwnerId = '0054x00000735wDAAQ';// « "Integrations admin" user.
     } else {
+      // Search for an existing Account record by the organization returned from the getEnriched helper.
       let existingAccountRecord = await salesforceConnection.sobject('Account')
       .findOne({
-        'Website':  enrichmentData.employer.emailDomain,
+        'Name':  enrichmentData.employer.organization,
         // 'LinkedIn_company_URL__c': enrichmentData.employer.linkedinCompanyPageUrl // TODO: if this information is not present on an existing account, nothing will be returned.
       });
+      // If we didn't find an account that's name exaclty matches, we'll do another search using the provided email domain.
+      if(!existingAccountRecord){
+        existingAccountRecord = await salesforceConnection.sobject('Account')
+        .findOne({
+          'Website':  enrichmentData.employer.emailDomain,
+          // 'LinkedIn_company_URL__c': enrichmentData.employer.linkedinCompanyPageUrl // TODO: if this information is not present on an existing account, nothing will be returned.
+        });
+      }
       // console.log(existingAccountRecord);
       // If we found an exisitng account, we'll use assign the new contact to the account owner.
       if(existingAccountRecord) {

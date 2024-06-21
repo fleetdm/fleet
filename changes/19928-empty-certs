@@ -1,0 +1,1 @@
+* Fixed a server panic when sending a request to `/mdm/apple/mdm` without certificate headers.
