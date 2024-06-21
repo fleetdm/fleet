@@ -2,7 +2,7 @@ import React from "react";
 import ReactTooltip from "react-tooltip";
 import classnames from "classnames";
 import { format } from "date-fns";
-
+import { toZonedTime, getTimezoneOffset } from "date-fns-tz";
 import {
   IHostMdmProfile,
   BootstrapPackageStatus,
@@ -353,19 +353,24 @@ const HostSummary = ({
     return <DataSet title="Osquery" value={summaryData.osquery_version} />;
   };
 
-  const renderMaintenanceWindow = (window: IHostMaintenanceWindow) => {
-    // TODO
-    // const [timeStamp, offset] = summaryData.maintenance_window.starts_at.split(
-    // " "
-    // );
-    // console.log("stamp: ", timeStamp, "offset: ", offset);
-
-    // const gmtOffset = "T0:D0";
-
+  const renderMaintenanceWindow = () => {
     // TODO - default to user agent time zone if no tz present
-    const iAnaTzParsed = window.timezone
-      ? (window.timezone as string).replace("_", " ")
-      : "TODO - handle no timezone";
+
+    // const utcDate = new Date(summaryData.maintenance_window.starts_at);
+
+    // const zonedDate = utcToZonedTime(
+    //   utcDate,
+    //   summaryData.maintenance_window.timezone
+    // );
+    const {
+      starts_at: timeStamp,
+      timezone: tZ,
+    } = summaryData.maintenance_window as IHostMaintenanceWindow;
+
+    const tzPretty = tZ ? tZ.replace("_", " ") : "";
+    const zonedTime = tZ ? toZonedTime(timeStamp, tZ) : timeStamp;
+    // TODO - format this as HH:MM
+    const mOffset = tZ ? getTimezoneOffset(tZ) : 0;
 
     return (
       <DataSet
@@ -376,13 +381,14 @@ const HostSummary = ({
               <>
                 End user&apos;s time zone:
                 <br />
-                {/* (GMT{offset.replace("UTC", "")}) {iAnaTzParsed} */}
-                {iAnaTzParsed}
+                (GMT{mOffset}) {tzPretty}
+                {/* {tzPretty} */}
               </>
             }
           >
-            {format(window.starts_at, "E, MMM d 'at' p")}
-            {/* {format(`${timeStamp.split(/\+|-/)[0]}Z`, "E, MMM d 'at' p")} */}
+            {/* TODO - this renders in */}
+            {/* {format(timeStamp, "E, MMM d 'at' p")} */}
+            {format(zonedTime, "E, MMM d 'at' p")}
           </TooltipWrapper>
         }
       />
@@ -473,8 +479,9 @@ const HostSummary = ({
         <DataSet title="Operating system" value={summaryData.os_version} />
         {!isIosOrIpadosHost && renderAgentSummary()}
         {isPremiumTier &&
-          summaryData.maintenance_window &&
-          renderMaintenanceWindow(summaryData.maintenance_window)}
+          // TODO - this normalize empty values is annoying, fix it
+          summaryData.maintenance_window !== "---" &&
+          renderMaintenanceWindow()}
       </Card>
     );
   };
