@@ -327,18 +327,6 @@ func isValidAppFilePath(input string) (string, bool) {
 	return "", false
 }
 
-func getVersion(d *distributionXML) string {
-	if d.Product.Version != "" {
-		return d.Product.Version
-	}
-	for _, pkgRef := range d.PkgRefs {
-		if pkgRef.Version != "" {
-			return pkgRef.Version
-		}
-	}
-	return ""
-}
-
 // CheckPKGSignature checks if the provided bytes correspond to a signed pkg
 // (xar) file.
 //
