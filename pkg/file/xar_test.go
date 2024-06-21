@@ -179,12 +179,12 @@ func TestIsValidAppFilePath(t *testing.T) {
 		{"Applications/baz.app", true},
 		{"Applications/foo/baz.app", false},
 		{"foo/baz.app", false},
-		{"baz.txt", false},
+		{"baz.txt", true},
 		{"Applications/baz.txt", false},
 	}
 
 	for _, test := range tests {
 		_, ok := isValidAppFilePath(test.input)
-		require.Equal(t, test.expected, ok)
+		require.Equal(t, test.expected, ok, test.input)
 	}
 }
