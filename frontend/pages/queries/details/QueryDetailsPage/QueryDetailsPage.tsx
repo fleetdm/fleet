@@ -91,7 +91,6 @@ const QueryDetailsPage = ({
     isGlobalMaintainer,
     isTeamMaintainerOrTeamAdmin,
     isObserverPlus,
-    isAnyTeamObserverPlus,
     config,
     filteredQueriesPath,
     availableTeams,
@@ -230,7 +229,6 @@ const QueryDetailsPage = ({
     const canLiveQuery =
       lastEditedQueryObserverCanRun ||
       isObserverPlus ||
-      isAnyTeamObserverPlus ||
       isGlobalAdmin ||
       isGlobalMaintainer ||
       isTeamMaintainerOrTeamAdmin;

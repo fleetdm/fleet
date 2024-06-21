@@ -58,6 +58,7 @@ interface ISelectTargetsProps {
   setTargetedTeams: React.Dispatch<React.SetStateAction<ITeam[]>>;
   setTargetsTotalCount: React.Dispatch<React.SetStateAction<number>>;
   isLivePolicy?: boolean;
+  isObserverCanRunQuery?: boolean;
 }
 
 interface ILabelsByType {
@@ -153,6 +154,7 @@ const SelectTargets = ({
   setTargetedTeams,
   setTargetsTotalCount,
   isLivePolicy,
+  isObserverCanRunQuery,
 }: ISelectTargetsProps): JSX.Element => {
   const { isPremiumTier, isOnGlobalTeam, currentUser } = useContext(AppContext);
 
@@ -451,14 +453,30 @@ const SelectTargets = ({
   const resultsTableConfig = generateTableHeaders();
   const selectedHostsTableConfig = generateTableHeaders(handleRowRemove);
 
-  // API blocks live policy if a team level user is able to select the team they are an observer on
-  // Filter out teams that break live policy API
-  // TODO: Fix for live query to hide observer teams but still show observer+ teams
-  const filterTeamObserverTeams = isLivePolicy
-    ? teams?.filter(
-        (team) => !permissions.isTeamObserver(currentUser, team.id)
+  // Filter out observer teams that break live query/policy API
+  const filterTeamObserverTeams = () => {
+    // API blocks live policy if a team level user is able to select the team they are an observer on
+    if (isLivePolicy) {
+      return (
+        teams?.filter(
+          (team) =>
+            !permissions.isTeamObserver(currentUser, team.id) ||
+            permissions.isTeamObserverPlus(currentUser, team.id)
+        ) || []
+      );
+    }
+
+    // API blocks live query if a team level user is able to select the team they are an observer on
+    // AND the query does not have observer can run enabled
+    return (
+      teams?.filter(
+        (team) =>
+          !permissions.isTeamObserver(currentUser, team.id) ||
+          permissions.isTeamObserverPlus(currentUser, team.id) ||
+          isObserverCanRunQuery
       ) || []
-    : teams || [];
+    );
+  };
 
   return (
     <div className={`${baseClass}__wrapper`}>
@@ -474,7 +492,7 @@ const SelectTargets = ({
                 { id: 0, name: "No team" },
                 ...teams,
               ])
-            : renderTargetEntityList("Teams", filterTeamObserverTeams))}
+            : renderTargetEntityList("Teams", filterTeamObserverTeams()))}
         {!!labels?.other?.length &&
           renderTargetEntityList("Labels", labels.other)}
       </div>

@@ -153,6 +153,7 @@ export default {
   isGlobalObserver,
   isOnGlobalTeam,
   isTeamObserver,
+  isTeamObserverPlus,
   isTeamMaintainer,
   isTeamMaintainerOrTeamAdmin,
   isAnyTeamObserverPlus,
