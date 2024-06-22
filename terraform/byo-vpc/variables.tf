@@ -245,6 +245,12 @@ variable "fleet_config" {
       }), {
       subnets         = null
       security_groups = null
+      ingress_sources = {
+        cidr_blocks      = []
+        ipv6_cidr_blocks = []
+        security_groups  = []
+        prefix_list_ids  = []
+      }
     })
     autoscaling = optional(object({
       max_capacity                 = optional(number, 5)
