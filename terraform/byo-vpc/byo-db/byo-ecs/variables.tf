@@ -64,7 +64,7 @@ variable "fleet_config" {
     })
     extra_load_balancers = optional(list(any), [])
     networking = object({
-      subnets         = list(string)
+      subnets         = optional(list(string), null)
       security_groups = optional(list(string), null)
       ingress_sources = object({
         cidr_blocks      = optional(list(string), [])
