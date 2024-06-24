@@ -202,7 +202,7 @@ for system in $SYSTEMS; do
         do
             extensionName=$(basename $extension)
             extensionName=$(echo "$extensionName" | cut -d'.' -f1)
-            ./build/fleetctl updates add \
+            GOARCH="amd64" ./build/fleetctl updates add \
                 --path $TUF_PATH \
                 --target $extension \
                 --platform linux \
