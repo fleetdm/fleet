@@ -56,7 +56,10 @@ ingress:
 ## Section: Fleet
 # All of the settings relating to configuring the Fleet server
 fleet:
+  # Will also be the targetPort for the service
   listenPort: 8080
+  # servicePort is optional.  Use if the service port needs to differ from the listenPort above.
+  # servicePort: 9080
   # Name of the Secret resource storing S3 bucket and optionally TLS secrets
   secretName: fleet
   # Whether or not to run `fleet db prepare` to run SQL migrations before starting Fleet
@@ -205,7 +208,8 @@ gke:
 environments:
   # MDM Settings
   # The following environment variable is required if you are using
-  # Fleet's macOS MDM features.
+  # Fleet's macOS MDM features.  In a production environment, it is recommended that
+  # you store this private key in a secret and use envsFrom to reference the secret below.
   # To more information: https://fleetdm.com/docs/using-fleet/fleet-server-configuration#server-private-key
   FLEET_SERVER_PRIVATE_KEY: ""
 
