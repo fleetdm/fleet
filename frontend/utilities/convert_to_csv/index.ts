@@ -26,7 +26,28 @@ const convertToCSV = ({
   const jsonFields = fields.map((field) => JSON.stringify(field));
   const rows = objArray.map((row: any) => {
     // TODO: typing
-    return fields.map((field) => JSON.stringify(row[field])).join(",");
+    return fields
+      .map((field) => {
+        // Check if the value of the field is a string and needs to be quoted
+        let value = row[field];
+
+        // If the value is an object, stringify it first
+        if (typeof value === "object") {
+          value = JSON.stringify(value);
+        }
+
+        // Escape double quotes in the value by doubling them
+        if (typeof value === "string") {
+          value = value.replace(/"/g, '""');
+        }
+
+        // Wrap the value in double quotes to enclose any value tha
+        // might have a, or a " in it to distinguish them from a comma separated delimiter
+        value = `"${value}"`;
+
+        return value;
+      })
+      .join(",");
   });
 
   rows.unshift(jsonFields.join(","));
