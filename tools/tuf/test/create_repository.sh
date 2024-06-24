@@ -57,7 +57,10 @@ for system in $SYSTEMS; do
     elif [[ $system == "macos" ]]; then
         osqueryd="$osqueryd.app.tar.gz"
         osqueryd_system="macos-app"
+    elif [ $system = "linux-amd64" ]; then
+        osqueryd_system="linux"
     fi
+
     osqueryd_path="$TUF_PATH/tmp/$osqueryd"
     curl https://tuf.fleetctl.com/targets/osqueryd/$osqueryd_system/$OSQUERY_VERSION/$osqueryd --output $osqueryd_path
 
