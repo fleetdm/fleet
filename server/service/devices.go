@@ -100,7 +100,8 @@ func (svc *Service) GetFleetDesktopSummary(ctx context.Context) (fleet.DesktopSu
 /////////////////////////////////////////////////////////////////////////////////
 
 type getDeviceHostRequest struct {
-	Token string `url:"token"`
+	Token           string `url:"token"`
+	ExcludeSoftware bool   `query:"exclude_software,optional"`
 }
 
 func (r *getDeviceHostRequest) deviceAuthToken() string {
@@ -120,6 +121,7 @@ type getDeviceHostResponse struct {
 func (r getDeviceHostResponse) error() error { return r.Err }
 
 func getDeviceHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*getDeviceHostRequest)
 	host, ok := hostctx.FromContext(ctx)
 	if !ok {
 		err := ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("internal error: missing host from request context"))
@@ -130,6 +132,7 @@ func getDeviceHostEndpoint(ctx context.Context, request interface{}, svc fleet.S
 	opts := fleet.HostDetailOptions{
 		IncludeCVEScores: false,
 		IncludePolicies:  false,
+		ExcludeSoftware:  req.ExcludeSoftware,
 	}
 	hostDetails, err := svc.GetHost(ctx, host.ID, opts)
 	if err != nil {
@@ -171,7 +174,7 @@ func getDeviceHostEndpoint(ctx context.Context, request interface{}, svc fleet.S
 			return getDeviceHostResponse{Err: err}, nil
 		}
 		if tm != nil {
-			softwareInventoryEnabled = tm.Config.Features.EnableSoftwareInventory
+			softwareInventoryEnabled = tm.Config.Features.EnableSoftwareInventory // TODO: We should look for opportunities to fix the confusing name of the `global_config` object in the API response. Also, how can we better clarify/document the expected order of precedence for team and global feature flags?
 		}
 	}
 
