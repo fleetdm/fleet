@@ -100,7 +100,7 @@ func TestExists(t *testing.T) {
 //
 // The filename should have the following format:
 //
-//	<software_name>$<version>$<sha256hash>[$<anything>].<extension>
+//	<software_name>$<version>$<sha256hash>$<bundle_identifier>[$<anything>].<extension>
 //
 // That is, it breaks the file name at the dollar sign and the first part is
 // the expected name, the second is the expected version, the third is the
@@ -123,8 +123,8 @@ func TestExtractInstallerMetadata(t *testing.T) {
 			if len(parts) < 3 {
 				t.Fatalf("invalid filename, expected at least 3 sections, got %d: %s", len(parts), dent.Name())
 			}
-			wantName, wantVersion, wantHash := parts[0], parts[1], parts[2]
-			wantExtension := filepath.Ext(wantName)
+			wantName, wantVersion, wantHash, wantBundleIdentifier := parts[0], parts[1], parts[2], parts[3]
+			wantExtension := strings.TrimPrefix(filepath.Ext(dent.Name()), ".")
 
 			f, err := os.Open(filepath.Join("testdata", "installers", dent.Name()))
 			require.NoError(t, err)
@@ -136,6 +136,7 @@ func TestExtractInstallerMetadata(t *testing.T) {
 			assert.Equal(t, wantVersion, meta.Version)
 			assert.Equal(t, wantHash, hex.EncodeToString(meta.SHASum))
 			assert.Equal(t, wantExtension, meta.Extension)
+			assert.Equal(t, wantBundleIdentifier, meta.BundleIdentifier)
 		})
 	}
 }
