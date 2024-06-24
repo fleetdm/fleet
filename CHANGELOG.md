@@ -1,7 +1,5 @@
 ## Fleet 4.52.0 (Jun 20, 2024)
 
-### Bug fixes
-
 ### Changelog
 
 * Fixed an issue where profiles larger than 65KB were being truncated when stored on MySQL 8.
