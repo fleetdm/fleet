@@ -10,18 +10,18 @@ if [ -z "${MDMPROXY_SERVER_ADDRESS}" ]; then
 fi
 
 if [ -n "${MDMPROXY_AUTH_TOKEN}" ]; then
-	AUTH_TOKEN_ARG="-auth-token ${MDMPROXY_AUTH_TOKEN:?}"
+	AUTH_TOKEN_ARG="-auth-token \"${MDMPROXY_AUTH_TOKEN:?}\""
 fi
 
 if [ -n "${MDMPROXY_MIGRATE_PERCENTAGE}" ]; then
-	MIGRATE_PERCENTAGE_ARG="-migrate-percentage ${MDMPROXY_MIGRATE_PERCENTAGE:?}"
+	MIGRATE_PERCENTAGE_ARG="-migrate-percentage \"${MDMPROXY_MIGRATE_PERCENTAGE:?}\""
 fi
 
 if [ -n "${MDMPROXY_MIGRATE_UDIDS}" ]; then
-	MIGRATE_UDIDS_ARG="-migrate-udids ${MDMPROXY_MIGRATE_UDIDS:?}"
+	MIGRATE_UDIDS_ARG="-migrate-udids \"${MDMPROXY_MIGRATE_UDIDS:?}\""
 fi
 
-exec /usr/bin/mdmproxy \
+eval exec /usr/bin/mdmproxy \
 	${AUTH_TOKEN_ARG} \
 	-existing-hostname "${MDMPROXY_EXISTING_HOSTNAME:?}" \
 	-existing-url "${MDMPROXY_EXISTING_URL:?}" \
