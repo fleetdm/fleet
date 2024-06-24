@@ -26,12 +26,13 @@ I recommend filtering by both the milestone you expect and also double check `no
 
 For example no tickets still in Ready / In Progress should be in the milestone we are about to release.
 
-## Main Release (end of sprint)
+## Minor Release (typically end of sprint)
 
 example
 ```
 # Build release candidate and changelogs and QA ticket
-./tools/release/publish_release.sh -a
+./tools/release/publish_release.sh -m
+
 # Do QA until ready to release
 
 # - QA is passed on all teams and ready for release
