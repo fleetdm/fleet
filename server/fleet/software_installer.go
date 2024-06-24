@@ -260,6 +260,7 @@ type UploadSoftwareInstallerPayload struct {
 	Version           string
 	Source            string
 	Platform          string
+	BundleIdentifier  string
 	SelfService       bool
 }
 

@@ -70,7 +70,7 @@ func (ds *Datastore) GetSoftwareInstallDetails(ctx context.Context, executionId 
 }
 
 func (ds *Datastore) MatchOrCreateSoftwareInstaller(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) (uint, error) {
-	titleID, err := ds.getOrGenerateSoftwareInstallerTitleID(ctx, payload.Title, payload.Source)
+	titleID, err := ds.getOrGenerateSoftwareInstallerTitleID(ctx, payload)
 	if err != nil {
 		return 0, err
 	}
@@ -137,15 +137,27 @@ INSERT INTO software_installers (
 	return uint(id), nil
 }
 
-func (ds *Datastore) getOrGenerateSoftwareInstallerTitleID(ctx context.Context, name, source string) (uint, error) {
+func (ds *Datastore) getOrGenerateSoftwareInstallerTitleID(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) (uint, error) {
+	selectStmt := `SELECT id FROM software_titles WHERE name = ? AND source = ? AND browser = ''`
+	selectArgs := []any{payload.Title, payload.Source}
+	insertStmt := `INSERT INTO software_titles (name, source, browser) VALUES (?, ?, "")`
+	insertArgs := []any{payload.Title, payload.Source}
+
+	if payload.BundleIdentifier != "" {
+		selectStmt = `SELECT title_id FROM software_titles WHERE bundle_identifier = ?`
+		selectArgs = []any{payload.BundleIdentifier}
+		insertStmt = `INSERT INTO software_titles (name, source, bundle_identifier, browser) VALUES (?, ?, ?, "")`
+		insertArgs = append(insertArgs, payload.BundleIdentifier)
+	}
+
 	titleID, err := ds.optimisticGetOrInsert(ctx,
 		&parameterizedStmt{
-			Statement: `SELECT id FROM software_titles WHERE name = ? AND source = ? AND browser = ''`,
-			Args:      []interface{}{name, source},
+			Statement: selectStmt,
+			Args:      selectArgs,
 		},
 		&parameterizedStmt{
-			Statement: `INSERT INTO software_titles (name, source, browser) VALUES (?, ?, ?)`,
-			Args:      []interface{}{name, source, ""},
+			Statement: insertStmt,
+			Args:      insertArgs,
 		},
 	)
 	if err != nil {
