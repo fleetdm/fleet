@@ -162,7 +162,7 @@ Temp Transfer to: Temp technical DRI
 1. If a customer has no objections to using Fleet's NDA, route the NDA to them for signature using the "🙊 NDA (Non-disclosure agreement)" template in [DocuSign](https://apps.docusign.com/send/home).
 > If a customer would like to review the NDA first, download a .docx of [Fleet's NDA](https://docs.google.com/document/d/1gQCrF3silBFG9dJgyCvpmLa6hPhX_T4V7pL3XAwgqEU/edit?usp=sharing) and send it to the customer.
 2. If the customer has no objections, route the NDA using the template in DocuSign (do not upload and use the copy you emailed to the customer).
-- If the customer redlines the NDA then we follow our [contract review process](https://fleetdm.com/handbook/company/communications#getting-a-contract-reviewed) so that BizOps can look over any proposed changes and provide guidance on how to proceed and whether we can accept their changes.
+3. If the customer "redlines" (i.e. wants to change) the NDA, follow the [contract review process](https://fleetdm.com/handbook/company/communications#getting-a-contract-reviewed) so that BizOps can look over any proposed changes and provide guidance on how to proceed.
 
 ### Create a customer agreement
 - **Contract terms:** Fleet's subscription agreement is available at [fleetdm.com/terms](https://fleetdm.com/terms). 
