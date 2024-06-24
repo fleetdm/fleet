@@ -472,10 +472,10 @@ desktop-linux:
 #
 # Output: desktop.tar.gz
 desktop-linux-arm64:
-	docker build -f Dockerfile-desktop-linux-arm64 -t desktop-linux-builder-arm64 .
-	docker run --rm -v $(shell pwd):/output desktop-linux-builder-arm64 /bin/bash -c "\
+	docker build -f Dockerfile-desktop-linux -t desktop-linux-builder .
+	docker run --rm -v $(shell pwd):/output desktop-linux-builder /bin/bash -c "\
 		mkdir /output/fleet-desktop && \
-		go build -o /output/fleet-desktop/fleet-desktop -ldflags "-X=main.version=$(FLEET_DESKTOP_VERSION)" /usr/src/fleet/orbit/cmd/desktop && \
+		GOARCH=arm64 go build -o /output/fleet-desktop/fleet-desktop -ldflags "-X=main.version=$(FLEET_DESKTOP_VERSION)" /usr/src/fleet/orbit/cmd/desktop && \
 		cd /output && \
 		tar czf desktop.tar.gz fleet-desktop && \
 		rm -r fleet-desktop"
