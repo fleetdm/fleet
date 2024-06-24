@@ -88,7 +88,11 @@ jobs:
         uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
 
       - name: Install qemu-user-static
-        run: sudo apt-get install -y qemu-user-static
+        run: |
+          sudo apt-get install -y qemu-user-static
+          sudo dpkg --add-architecture armhf
+          sudo apt update
+          sudo apt install libc6:armhf
 
       - name: Download and extract osqueryd for linux-arm64
         run: |
