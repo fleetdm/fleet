@@ -166,7 +166,7 @@ for system in $SYSTEMS; do
     fi
 
     # Add Fleet Desktop application on linux-arm64 (if enabled).
-    if [[ $system == "linux" && -n "$FLEET_DESKTOP" ]]; then
+    if [[ $system == "linux-arm64" && -n "$FLEET_DESKTOP" ]]; then
         FLEET_DESKTOP_VERSION=42.0.0 \
             make desktop-linux-arm64
         ./build/fleetctl updates add \
