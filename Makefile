@@ -465,10 +465,10 @@ desktop-linux:
 		tar czf desktop.tar.gz fleet-desktop && \
 		rm -r fleet-desktop"
 
-# Build desktop executable for Linux.
+# Build desktop executable for Linux ARM.
 #
 # Usage:
-# FLEET_DESKTOP_VERSION=0.0.1 make desktop-linux
+# FLEET_DESKTOP_VERSION=0.0.1 make desktop-linux-arm64
 #
 # Output: desktop.tar.gz
 desktop-linux-arm64:
