@@ -231,8 +231,7 @@ func packageCommand() *cli.Command {
 			},
 			&cli.StringFlag{
 				Name:        "end-user-email",
-				Hidden:      true, // experimental feature, we don't want to show it for now
-				Usage:       "Sets the email address of the user associated with the host when enrolling to Fleet. (requires Fleet >= v4.43.0)",
+				Usage:       "End user's email that populates human to host mapping in Fleet (only available on Windows and Linux)",
 				EnvVars:     []string{"FLEETCTL_END_USER_EMAIL"},
 				Destination: &opt.EndUserEmail,
 			},
