@@ -65,6 +65,9 @@ for system in $SYSTEMS; do
     if [[ $system == "macos" ]]; then
         goose_value="darwin"
     fi
+    if [ $system = "linux" ]; then
+        goarch_value="amd64"
+    fi
     if [ $system = "linux-arm64" ]; then
         goarch_value="arm64"
     fi
