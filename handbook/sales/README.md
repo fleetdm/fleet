@@ -159,7 +159,7 @@ Temp Transfer to: Temp technical DRI
    
 ### Send an NDA to a customer
 - Fleet uses "Non-Disclosure Agreements" (NDAs) to protect the company and the companies we collaborate with. Always offer to send Fleet's NDA and, whenever possible, default to using the company's version. To send an NDA to a customer, follow these steps: 
-- If a customer has no objections to using Fleet's NDA, we can route this NDA to them for signature using the NDA template in DocuSign.
+1. If a customer has no objections to using Fleet's NDA, route the NDA to them for signature using the "🙊 NDA (Non-disclosure agreement)" template in [DocuSign](https://apps.docusign.com/send/home).
 - If a customer would like to review the NDA first, download a .docx of [Fleet's NDA](https://docs.google.com/document/d/1gQCrF3silBFG9dJgyCvpmLa6hPhX_T4V7pL3XAwgqEU/edit?usp=sharing) and send it to the customer.
 - If, after review, the customer has no objections we route the NDA to them using the template in DocuSign (do not upload and use the copy you emailed to the customer).
 - If the customer redlines the NDA then we follow our [contract review process](https://fleetdm.com/handbook/company/communications#getting-a-contract-reviewed) so that BizOps can look over any proposed changes and provide guidance on how to proceed and whether we can accept their changes.
