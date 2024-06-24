@@ -27,7 +27,7 @@ import (
 // Since many hosts may have issues, we need to batch the inserts of host issues.
 // This is a variable, so it can be adjusted during unit testing.
 var hostIssuesInsertBatchSize = 10000
-var hostIssuesUpdateFailingPoliciesBatchSize = 5000
+var hostIssuesUpdateFailingPoliciesBatchSize = 2000
 
 // A large number of hosts could be changing teams at once, so we need to batch this operation to prevent excessive locks
 var addHostsToTeamBatchSize = 10000
