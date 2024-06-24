@@ -90,9 +90,9 @@ jobs:
       - name: Install qemu-user-static
         run: |
           sudo apt-get install -y qemu-user-static
-          sudo dpkg --add-architecture armhf
-          sudo apt update
-          sudo apt install libc6:armhf
+          sudo dpkg --add-architecture arm64
+          sudo apt-get update
+          sudo apt-get install libc6:arm64
 
       - name: Download and extract osqueryd for linux-arm64
         run: |
