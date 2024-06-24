@@ -183,5 +183,5 @@ jobs:
       - name: Upload desktop.tar.gz
         uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # 4.3.3
         with:
-          name: desktop.tar.gz
+          name: desktop-arm64.tar.gz
           path: desktop.tar.gz
