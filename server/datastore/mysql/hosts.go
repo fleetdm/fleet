@@ -27,6 +27,7 @@ import (
 // Since many hosts may have issues, we need to batch the inserts of host issues.
 // This is a variable, so it can be adjusted during unit testing.
 var hostIssuesInsertBatchSize = 10000
+var hostIssuesUpdateFailingPoliciesBatchSize = 5000
 
 // A large number of hosts could be changing teams at once, so we need to batch this operation to prevent excessive locks
 var addHostsToTeamBatchSize = 10000
@@ -5281,9 +5282,11 @@ func updateHostIssuesFailingPolicies(ctx context.Context, tx sqlx.ExecerContext,
 		total_issues_count = VALUES(failing_policies_count) + critical_vulnerabilities_count`
 
 	// Large number of hosts could be impacted, so we update their host issues entries in batches to reduce lock time.
-	for i := 0; i < len(hostIDs); i += hostIssuesInsertBatchSize {
+	// In load testing, we saw an error when running with batch size of 10,000: Thread stack overrun: 242191 bytes used of a 262144 byte stack
+	// Because of that, we are limiting the batch size of this operation.
+	for i := 0; i < len(hostIDs); i += hostIssuesUpdateFailingPoliciesBatchSize {
 		start := i
-		end := i + hostIssuesInsertBatchSize
+		end := i + hostIssuesUpdateFailingPoliciesBatchSize
 		if end > len(hostIDs) {
 			end = len(hostIDs)
 		}
