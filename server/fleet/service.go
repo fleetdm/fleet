@@ -84,8 +84,8 @@ type Service interface {
 	// to fleetd (formerly orbit).
 	GetOrbitConfig(ctx context.Context) (OrbitConfig, error)
 
-	// ReceiveFleetdError handles an erorr report from a `fleetd` component
-	ReceiveFleetdError(ctx context.Context, errData FleetdError) error
+	// LogFleetdError logs an error report from a `fleetd` component
+	LogFleetdError(ctx context.Context, errData FleetdError) error
 
 	// SetOrUpdateDeviceAuthToken creates or updates a device auth token for the given host.
 	SetOrUpdateDeviceAuthToken(ctx context.Context, authToken string) error

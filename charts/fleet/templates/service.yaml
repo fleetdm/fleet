@@ -19,7 +19,8 @@ spec:
     release: {{ .Release.Name }}
   ports:
   - name: fleet
-    port: {{ .Values.fleet.listenPort }}
+    port: {{ ternary .Values.fleet.listenPort .Values.fleet.servicePort (eq .Values.fleet.servicePort nil) }}
+    targetPort: {{ .Values.fleet.listenPort }}
     {{- if .Values.gke.ingress.useGKEIngress }}
     {{- if .Values.gke.ingress.nodePort }}
     nodePort: {{ .Values.gke.ingress.nodePort }}
