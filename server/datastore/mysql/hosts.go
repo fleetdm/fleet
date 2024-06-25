@@ -5357,28 +5357,50 @@ func (ds *Datastore) UpdateHostIssuesVulnerabilities(ctx context.Context) error 
 		return clearAllFn()
 	}
 
+	var allHostIDs []uint
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &allHostIDs, `SELECT id FROM hosts ORDER BY id`); err != nil {
+		return ctxerr.Wrap(ctx, err, "get all host IDs")
+	}
+
 	type issuesCount struct {
 		HostID uint64 `db:"host_id"`
 		Count  uint64 `db:"count"`
 	}
-
 	var criticalCounts []issuesCount
-	criticalVulnerabilitiesCountStmt := `
+	// We must batch the query extracting the critical vulnerabilities count because the query is too complex for MySQL to handle in one go.
+	// We saw MySQL error 1114 (HY000), where the temporary table reached its max capacity.
+	for i := 0; i < len(allHostIDs); i += hostIssuesInsertBatchSize {
+		start := i
+		end := i + hostIssuesInsertBatchSize
+		if end > len(allHostIDs) {
+			end = len(allHostIDs)
+		}
+		criticalVulnerabilitiesCountStmt := `
 		SELECT combined.host_id, COUNT(*) as count
 		FROM (SELECT host_id, cve
 			FROM host_software hs
 			INNER JOIN software_cve sc ON sc.software_id = hs.software_id
+			WHERE host_id IN (?)
 			UNION
 			SELECT host_id, cve
 			FROM host_operating_system hos
-			INNER JOIN operating_system_vulnerabilities osv ON osv.operating_system_id = hos.os_id) combined
+			INNER JOIN operating_system_vulnerabilities osv ON osv.operating_system_id = hos.os_id
+			WHERE host_id IN (?)
+		) combined
 		INNER JOIN cve_meta cm ON cm.cve = combined.cve
 		WHERE cm.cvss_score > ?
 		GROUP BY combined.host_id
 		ORDER BY combined.host_id`
-	err := sqlx.SelectContext(ctx, ds.reader(ctx), &criticalCounts, criticalVulnerabilitiesCountStmt, criticalCVSSScoreCutoff)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "get critical vulnerabilities count")
+		stmt, args, err := sqlx.In(criticalVulnerabilitiesCountStmt, allHostIDs[start:end], allHostIDs[start:end], criticalCVSSScoreCutoff)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "building IN statement for getting critical vulnerabilities count")
+		}
+		var batchCriticalCounts []issuesCount
+		err = sqlx.SelectContext(ctx, ds.reader(ctx), &batchCriticalCounts, stmt, args...)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "get critical vulnerabilities count")
+		}
+		criticalCounts = append(criticalCounts, batchCriticalCounts...)
 	}
 
 	// Update the host_issues table, including deleting items with no issues
@@ -5417,7 +5439,7 @@ func (ds *Datastore) UpdateHostIssuesVulnerabilities(ctx context.Context) error 
 		for j := start; j < end; j++ {
 			hostIDs = append(hostIDs, criticalCounts[j].HostID)
 		}
-		stmt, args, err = sqlx.In(
+		stmt, args, err := sqlx.In(
 			"UPDATE host_issues SET critical_vulnerabilities_count = 0, total_issues_count = failing_policies_count WHERE host_id NOT IN (?)",
 			hostIDs,
 		)
