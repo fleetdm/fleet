@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<installer-gui-script minSpecVersion="2">
+  <welcome file="welcome.rtfd"/>
+  <title>Microsoft Edge</title>
+  <options hostArchitectures="arm64,x86_64"/>
+  <allowed-os-versions>
+    <os-version min="10.15"/>
+  </allowed-os-versions>
+  <pkg-ref id="com.microsoft.edgemac">
+    <bundle-version>
+      <bundle CFBundleShortVersionString="126.0.2592.56" CFBundleVersion="2592.56" id="com.microsoft.edgemac.helper" path="Microsoft Edge.app/Contents/Frameworks/Microsoft Edge Framework.framework/Versions/126.0.2592.56/Helpers/Microsoft Edge Helper (GPU).app"/>
+      <bundle CFBundleShortVersionString="126.0.2592.56" CFBundleVersion="2592.56" id="com.microsoft.edgemac.helper.renderer" path="Microsoft Edge.app/Contents/Frameworks/Microsoft Edge Framework.framework/Versions/126.0.2592.56/Helpers/Microsoft Edge Helper (Renderer).app"/>
+      <bundle CFBundleShortVersionString="1.0" CFBundleVersion="1" id="Microsoft.OneAuth" path="Microsoft Edge.app/Contents/Frameworks/Microsoft Edge Framework.framework/Versions/126.0.2592.56/Frameworks/OneAuth.framework"/>
+      <bundle CFBundleShortVersionString="126.0.2592.56" CFBundleVersion="2592.56" id="com.microsoft.edgespotlight" path="Microsoft Edge.app/Contents/Frameworks/Microsoft Edge Framework.framework/Versions/126.0.2592.56/Helpers/EdgeSpotlightIndexer.app"/>
+      <bundle CFBundleShortVersionString="126.0.2592.56" CFBundleVersion="2592.56" id="com.microsoft.edgemac.framework" path="Microsoft Edge.app/Contents/Frameworks/Microsoft Edge Framework.framework"/>
+      <bundle CFBundleShortVersionString="126.0.2592.56" CFBundleVersion="2592.56" id="com.microsoft.edgemac.framework.AlertNotificationService" path="Microsoft Edge.app/Contents/Frameworks/Microsoft Edge Framework.framework/Versions/126.0.2592.56/Helpers/Microsoft Edge Helper (Alerts).app"/>
+      <bundle CFBundleShortVersionString="126.0.2592.56" CFBundleVersion="126.2592.24061256" id="com.microsoft.edgemac" path="Microsoft Edge.app"/>
+      <bundle CFBundleShortVersionString="99.0.1139.0" CFBundleVersion="99.1139.2201170" id="com.microsoft.edgemac.wdgExtension" path="Microsoft Edge.app/Contents/PlugIns/MicrosoftEdgeWidgets.appex"/>
+      <bundle CFBundleShortVersionString="126.0.2592.56" CFBundleVersion="2592.56" id="com.microsoft.edgemac.helper.plugin" path="Microsoft Edge.app/Contents/Frameworks/Microsoft Edge Framework.framework/Versions/126.0.2592.56/Helpers/Microsoft Edge Helper (Plugin).app"/>
+      <bundle CFBundleShortVersionString="118.0.2088.86" CFBundleVersion="2088.86" id="com.microsoft.EdgeUpdater" path="Microsoft Edge.app/Contents/Frameworks/Microsoft Edge Framework.framework/Versions/126.0.2592.56/Helpers/EdgeUpdater.app"/>
+    </bundle-version>
+  </pkg-ref>
+  <options customize="never" hostArchitectures="x86_64,arm64" require-scripts="false"/>
+  <choices-outline>
+    <line choice="default">
+      <line choice="com.microsoft.edgemac"/>
+    </line>
+  </choices-outline>
+  <choice id="default"/>
+  <choice id="com.microsoft.edgemac" visible="false">
+    <pkg-ref id="com.microsoft.edgemac"/>
+  </choice>
+  <pkg-ref id="com.microsoft.edgemac" installKBytes="861230" onConclusion="none" version="126.0.2592.56">#MicrosoftEdge-126.0.2592.56.pkg</pkg-ref>
+</installer-gui-script>
