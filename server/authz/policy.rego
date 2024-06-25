@@ -643,10 +643,10 @@ allow {
   action == read
 }
 
-# Global admins, maintainers, observers, and observer_plus can read any software installer.
+# Global admins and maintainers can read any software installer.
 allow {
   object.type == "software_installer"
-  subject.global_role == [admin, maintainer, observer, observer_plus][_]
+  subject.global_role == [admin, maintainer][_]
   action == read
 }
 
@@ -657,11 +657,11 @@ allow {
   action == write
 }
 
-# Team admins, maintainers, observers, and observer_plus can read any software installer in their teams.
+# Team admins and maintainers can read any software installer in their teams.
 allow {
   not is_null(object.team_id)
   object.type == "software_installer"
-  team_role(subject, object.team_id) == [admin, maintainer, observer, observer_plus][_]
+  team_role(subject, object.team_id) == [admin, maintainer][_]
   action == read
 }
 
