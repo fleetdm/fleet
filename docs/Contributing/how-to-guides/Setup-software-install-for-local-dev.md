@@ -1,9 +1,9 @@
 # Setup software install for local dev
 
-If you are working on feature for adding, removing, or installing software installers
-in fleet you likely will want to be able to upload software installers. This guide
-walks you through the steps that you need to take to be able to upload software
-installers while working in you local dev environment.
+If you are working on a feature for adding, removing, or installing software installers
+in you'll want to upload software installers. This guide walks you through the
+steps needed to be able to upload software installers while working in you
+local dev environment.
 
 ## Steps to set up
 
