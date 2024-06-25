@@ -101,7 +101,7 @@ func (t *Table) generate(ctx context.Context, queryContext table.QueryContext) (
 							for _, dataQuery := range tablehelpers.GetConstraints(queryContext, "query", tablehelpers.WithDefaults("*")) {
 								// Finally, an inner loop
 
-								ioregOutput, err := tablehelpers.Exec(ctx, t.logger, 30, []string{ioregPath}, ioregArgs, false)
+								ioregOutput, err := tablehelpers.Exec(ctx, 30, []string{ioregPath}, ioregArgs, false)
 								if err != nil {
 									level.Info(t.logger).Log("msg", "ioreg failed", "err", err)
 									continue
