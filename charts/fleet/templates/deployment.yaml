@@ -96,6 +96,13 @@ spec:
             value: "{{ .Values.fleet.carving.s3.stsAssumeRoleARN }}"
           {{- end }}
           {{- end }}
+          {{- if .Values.fleet.license.secretName }}
+          - name: FLEET_LICENSE_KEY
+            valueFrom:
+              secretKeyRef:
+                key: {{ .Values.fleet.license.licenseKey }}
+                name: {{ .Values.fleet.license.secretName }}
+          {{- end }}
           ## END FLEET SECTION
           ## BEGIN MYSQL SECTION
           - name: FLEET_MYSQL_ADDRESS

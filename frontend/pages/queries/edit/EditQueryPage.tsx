@@ -80,6 +80,7 @@ const EditQueryPage = ({
     isAnyTeamObserverPlus,
     config,
     filteredQueriesPath,
+    isOnGlobalTeam,
   } = useContext(AppContext);
   const {
     editingExistingQuery,
@@ -158,6 +159,24 @@ const EditQueryPage = ({
     }
   );
 
+  /** Pesky bug affecting team level users:
+   - Navigating to queries/:id immediately defaults the user to the first team they're on
+  with the most permissions, in the URL bar because of useTeamIdParam
+  even if the queries/:id entity has a team attached to it
+  Hacky fix:
+   - Push entity's team id to url for team level users
+  */
+  if (
+    !isOnGlobalTeam &&
+    !isStoredQueryLoading &&
+    storedQuery?.team_id &&
+    !(storedQuery?.team_id?.toString() === location.query.team_id)
+  ) {
+    router.push(
+      `${location.pathname}?team_id=${storedQuery?.team_id?.toString()}`
+    );
+  }
+
   // Used to set host's team in AppContext for RBAC actions
   useEffect(() => {
     if (storedQuery?.team_id) {
@@ -175,10 +194,13 @@ const EditQueryPage = ({
   };
 
   /* Observer/Observer+ cannot edit existing query (O+ has access to edit new query to run live),
+  Team admin/team maintainer cannot edit existing query,
  reroute edit existing query page (/:queryId/edit) to query report page (/:queryId) */
   useEffect(() => {
     const canEditExistingQuery =
-      isGlobalAdmin || isGlobalMaintainer || isTeamMaintainerOrTeamAdmin;
+      isGlobalAdmin ||
+      isGlobalMaintainer ||
+      (isTeamMaintainerOrTeamAdmin && storedQuery?.team_id);
 
     if (
       !isStoredQueryLoading && // Confirms teamId for storedQuery before RBAC reroute
