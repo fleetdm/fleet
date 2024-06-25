@@ -633,6 +633,8 @@ func TestFullTeamGitOps(t *testing.T) {
 		return nil
 	}
 
+	startSoftwareInstallerServer(t)
+
 	t.Setenv("TEST_TEAM_NAME", teamName)
 
 	// Dry run
@@ -1054,33 +1056,7 @@ func TestFullGlobalAndTeamGitOps(t *testing.T) {
 }
 
 func TestTeamSofwareInstallersGitOps(t *testing.T) {
-	// start the web server that will serve the installer
-	b, err := os.ReadFile(filepath.Join("..", "..", "server", "service", "testdata", "software-installers", "ruby.deb"))
-	require.NoError(t, err)
-
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch {
-		case strings.Contains(r.URL.Path, "notfound"):
-			w.WriteHeader(http.StatusNotFound)
-			return
-		case strings.HasSuffix(r.URL.Path, ".txt"):
-			w.Header().Set("Content-Type", "text/plain")
-			_, _ = w.Write([]byte(`a simple text file`))
-			return
-		case strings.Contains(r.URL.Path, "toolarge"):
-			w.Header().Set("Content-Type", "application/vnd.debian.binary-package")
-			var sz int
-			for sz < 500*1024*1024 {
-				n, _ := w.Write(b)
-				sz += n
-			}
-		default:
-			w.Header().Set("Content-Type", "application/vnd.debian.binary-package")
-			_, _ = w.Write(b)
-		}
-	}))
-	t.Cleanup(srv.Close)
-	t.Setenv("SOFTWARE_INSTALLER_URL", srv.URL)
+	startSoftwareInstallerServer(t)
 
 	cases := []struct {
 		file    string
@@ -1095,20 +1071,59 @@ func TestTeamSofwareInstallersGitOps(t *testing.T) {
 		{"testdata/gitops/team_software_installer_install_not_found.yml", "no such file or directory"},
 		{"testdata/gitops/team_software_installer_post_install_not_found.yml", "no such file or directory"},
 		{"testdata/gitops/team_software_installer_no_url.yml", "software URL is required"},
-		{"testdata/gitops/team_software_installer_invalid_self_service_value.yml", "cannot unmarshal string into Go struct field TeamSpecSoftware.self_service of type bool"},
+		{
+			"testdata/gitops/team_software_installer_invalid_self_service_value.yml",
+			"cannot unmarshal string into Go struct field TeamSpecSoftware.self_service of type bool",
+		},
 	}
 	for _, c := range cases {
-		t.Run(filepath.Base(c.file), func(t *testing.T) {
-			setupFullGitOpsPremiumServer(t)
+		t.Run(
+			filepath.Base(c.file), func(t *testing.T) {
+				setupFullGitOpsPremiumServer(t)
 
-			_, err := runAppNoChecks([]string{"gitops", "-f", c.file})
-			if c.wantErr == "" {
-				require.NoError(t, err)
-			} else {
-				require.ErrorContains(t, err, c.wantErr)
-			}
-		})
+				_, err := runAppNoChecks([]string{"gitops", "-f", c.file})
+				if c.wantErr == "" {
+					require.NoError(t, err)
+				} else {
+					require.ErrorContains(t, err, c.wantErr)
+				}
+			},
+		)
 	}
+}
+
+func startSoftwareInstallerServer(t *testing.T) {
+	// start the web server that will serve the installer
+	b, err := os.ReadFile(filepath.Join("..", "..", "server", "service", "testdata", "software-installers", "ruby.deb"))
+	require.NoError(t, err)
+
+	srv := httptest.NewServer(
+		http.HandlerFunc(
+			func(w http.ResponseWriter, r *http.Request) {
+				switch {
+				case strings.Contains(r.URL.Path, "notfound"):
+					w.WriteHeader(http.StatusNotFound)
+					return
+				case strings.HasSuffix(r.URL.Path, ".txt"):
+					w.Header().Set("Content-Type", "text/plain")
+					_, _ = w.Write([]byte(`a simple text file`))
+					return
+				case strings.Contains(r.URL.Path, "toolarge"):
+					w.Header().Set("Content-Type", "application/vnd.debian.binary-package")
+					var sz int
+					for sz < 500*1024*1024 {
+						n, _ := w.Write(b)
+						sz += n
+					}
+				default:
+					w.Header().Set("Content-Type", "application/vnd.debian.binary-package")
+					_, _ = w.Write(b)
+				}
+			},
+		),
+	)
+	t.Cleanup(srv.Close)
+	t.Setenv("SOFTWARE_INSTALLER_URL", srv.URL)
 }
 
 func setupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig, **fleet.Team) {
