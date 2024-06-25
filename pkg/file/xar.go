@@ -29,6 +29,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"path/filepath"
 	"strings"
 )
 
@@ -102,42 +103,70 @@ type xmlFile struct {
 	Data    *xmlFileData
 }
 
+// distributionXML represents the structure of the distributionXML.xml
 type distributionXML struct {
-	Title   string   `xml:"title"`
-	PkgRef  []pkgRef `xml:"pkg-ref"`
-	Product struct {
-		ID      string `xml:"id,attr"`
-		Version string `xml:"version,attr"`
-	} `xml:"product"`
+	Title   string               `xml:"title"`
+	Product distributionProduct  `xml:"product"`
+	PkgRefs []distributionPkgRef `xml:"pkg-ref"`
 }
 
-type pkgRef struct {
+// distributionProduct represents the product element
+type distributionProduct struct {
 	ID      string `xml:"id,attr"`
-	Version string `xml:"version,attr,omitempty"`
-	Auth    string `xml:"auth,attr,omitempty"`
-	Content string `xml:",chardata"`
+	Version string `xml:"version,attr"`
+}
+
+// distributionPkgRef represents the pkg-ref element
+type distributionPkgRef struct {
+	ID                string                      `xml:"id,attr"`
+	Version           string                      `xml:"version,attr"`
+	BundleVersions    []distributionBundleVersion `xml:"bundle-version"`
+	MustClose         distributionMustClose       `xml:"must-close"`
+	PackageIdentifier string                      `xml:"packageIdentifier,attr"`
+}
+
+// distributionBundleVersion represents the bundle-version element
+type distributionBundleVersion struct {
+	Bundles []distributionBundle `xml:"bundle"`
+}
+
+// distributionBundle represents the bundle element
+type distributionBundle struct {
+	Path                       string `xml:"path,attr"`
+	ID                         string `xml:"id,attr"`
+	CFBundleShortVersionString string `xml:"CFBundleShortVersionString,attr"`
+}
+
+// distributionMustClose represents the must-close element
+type distributionMustClose struct {
+	Apps []distributionApp `xml:"app"`
+}
+
+// distributionApp represents the app element
+type distributionApp struct {
+	ID string `xml:"id,attr"`
 }
 
 // ExtractXARMetadata extracts the name and version metadata from a .pkg file
 // in the XAR format.
-func ExtractXARMetadata(r io.Reader) (name, version string, shaSum []byte, err error) {
+func ExtractXARMetadata(r io.Reader) (*InstallerMetadata, error) {
 	var hdr xarHeader
 
 	h := sha256.New()
 	r = io.TeeReader(r, h)
 	b, err := io.ReadAll(r)
 	if err != nil {
-		return "", "", nil, fmt.Errorf("failed to read all content: %w", err)
+		return nil, fmt.Errorf("failed to read all content: %w", err)
 	}
 
 	rr := bytes.NewReader(b)
 	if err := binary.Read(rr, binary.BigEndian, &hdr); err != nil {
-		return "", "", nil, fmt.Errorf("decode xar header: %w", err)
+		return nil, fmt.Errorf("decode xar header: %w", err)
 	}
 
 	zr, err := zlib.NewReader(io.LimitReader(rr, hdr.CompressedSize))
 	if err != nil {
-		return "", "", nil, fmt.Errorf("create zlib reader: %w", err)
+		return nil, fmt.Errorf("create zlib reader: %w", err)
 	}
 	defer zr.Close()
 
@@ -145,7 +174,7 @@ func ExtractXARMetadata(r io.Reader) (name, version string, shaSum []byte, err e
 	decoder := xml.NewDecoder(zr)
 	decoder.Strict = false
 	if err := decoder.Decode(&root); err != nil {
-		return "", "", nil, fmt.Errorf("decode xar xml: %w", err)
+		return nil, fmt.Errorf("decode xar xml: %w", err)
 	}
 
 	heapOffset := xarHeaderSize + hdr.CompressedSize
@@ -162,7 +191,7 @@ func ExtractXARMetadata(r io.Reader) (name, version string, shaSum []byte, err e
 				// (invalid header), but it works with zlib.
 				zr, err := zlib.NewReader(fileReader)
 				if err != nil {
-					return "", "", nil, fmt.Errorf("create zlib reader: %w", err)
+					return nil, fmt.Errorf("create zlib reader: %w", err)
 				}
 				defer zr.Close()
 				fileReader = zr
@@ -173,41 +202,129 @@ func ExtractXARMetadata(r io.Reader) (name, version string, shaSum []byte, err e
 
 			contents, err := io.ReadAll(fileReader)
 			if err != nil {
-				return "", "", nil, fmt.Errorf("reading Distribution file: %w", err)
+				return nil, fmt.Errorf("reading Distribution file: %w", err)
 			}
 
-			var distXML distributionXML
-			if err := xml.Unmarshal(contents, &distXML); err != nil {
-				return "", "", nil, fmt.Errorf("unmarshal Distribution XML: %w", err)
+			meta, err := parseDistributionFile(contents)
+			if err != nil {
+				return nil, fmt.Errorf("parsing Distribution file: %w", err)
 			}
-
-			// Get the name from (in order of priority):
-			// - Title
-			// - product.id
-			// - pkg-ref[0].id
-			//
-			// Get the version from (in order of priority):
-			// - product.version
-			// - pkg-ref[0].version
-			name := strings.TrimSpace(distXML.Title)
-			if name == "" {
-				name = strings.TrimSpace(distXML.Product.ID)
-			}
-			version := strings.TrimSpace(distXML.Product.Version)
-			if len(distXML.PkgRef) > 0 {
-				if name == "" {
-					name = strings.TrimSpace(distXML.PkgRef[0].ID)
-				}
-				if version == "" {
-					version = strings.TrimSpace(distXML.PkgRef[0].Version)
-				}
-				return name, version, h.Sum(nil), nil
-			}
-			break
+			meta.SHASum = h.Sum(nil)
+			return meta, err
 		}
 	}
 
-	return "", "", h.Sum(nil), nil
+	return &InstallerMetadata{SHASum: h.Sum(nil)}, nil
+}
+
+func parseDistributionFile(rawXML []byte) (*InstallerMetadata, error) {
+	var distXML distributionXML
+	if err := xml.Unmarshal(rawXML, &distXML); err != nil {
+		return nil, fmt.Errorf("unmarshal Distribution XML: %w", err)
+	}
+
+	name, identifier, version := getDistributionInfo(&distXML)
+	return &InstallerMetadata{
+		Name:             name,
+		Version:          version,
+		BundleIdentifier: identifier,
+	}, nil
+
+}
+
+// getDistributionInfo gets the name, bundle identifier and version of a PKG distribution file
+func getDistributionInfo(d *distributionXML) (name string, identifier string, version string) {
+	var appVersion string
+
+out:
+	// first, look in all the bundle versions for one that has a `path` attribute
+	// that is not nested, this is generally the case for packages that distribute
+	// `.app` files, which are ultimately picked up as an installed app by osquery
+	for _, pkg := range d.PkgRefs {
+		for _, versions := range pkg.BundleVersions {
+			for _, bundle := range versions.Bundles {
+				if base, isValid := isValidAppFilePath(bundle.Path); isValid {
+					identifier = bundle.ID
+					name = base
+					appVersion = bundle.CFBundleShortVersionString
+					break out
+				}
+			}
+		}
+	}
+
+	// if we didn't find anything, look for any <pkg-ref> elements and grab
+	// the first `<must-close>`, `packageIdentifier` or `id` attribute we
+	// find as the bundle identifier, in that order
+	if identifier == "" {
+		for _, pkg := range d.PkgRefs {
+			if len(pkg.MustClose.Apps) > 0 {
+				identifier = pkg.MustClose.Apps[0].ID
+				break
+			}
+
+			if pkg.PackageIdentifier != "" {
+				identifier = pkg.PackageIdentifier
+				break
+			}
+
+			if pkg.ID != "" {
+				identifier = pkg.ID
+				break
+			}
+		}
+	}
+
+	// if the identifier is still empty, try to use the product id
+	if identifier == "" && d.Product.ID != "" {
+		identifier = d.Product.ID
+	}
+
+	// for the name, try to use the title and fallback to the bundle
+	// identifier
+	if name == "" && d.Title != "" {
+		name = d.Title
+	}
+	if name == "" {
+		name = identifier
+	}
+
+	// for the version, try to use the top-level product version, if not,
+	// fallback to any version definition alongside the name or the first
+	// version in a pkg-ref we find.
+	if version == "" && d.Product.Version != "" {
+		version = d.Product.Version
+	}
+	if version == "" && appVersion != "" {
+		version = appVersion
+	}
+	if version == "" {
+		for _, pkgRef := range d.PkgRefs {
+			if pkgRef.Version != "" {
+				version = pkgRef.Version
+			}
+		}
+	}
+
+	return name, identifier, version
+}
+
+// isValidAppFilePath checks if the given input is a file name ending with .app
+// or if it's in the "Applications" directory with a .app extension.
+func isValidAppFilePath(input string) (string, bool) {
+	dir, file := filepath.Split(input)
+
+	if dir == "" && file == input {
+		return file, true
+	}
+
+	if strings.HasSuffix(file, ".app") {
+		if dir == "Applications/" {
+			return file, true
+		}
+	}
+
+	return "", false
 }
 
 // CheckPKGSignature checks if the provided bytes correspond to a signed pkg

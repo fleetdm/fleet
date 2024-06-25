@@ -12,24 +12,24 @@ import (
 	"github.com/sassoftware/relic/v7/lib/comdoc"
 )
 
-func ExtractMSIMetadata(r io.Reader) (name, version string, shaSum []byte, err error) {
+func ExtractMSIMetadata(r io.Reader) (*InstallerMetadata, error) {
 	h := sha256.New()
 	r = io.TeeReader(r, h)
 	b, err := io.ReadAll(r)
 	if err != nil {
-		return "", "", nil, fmt.Errorf("failed to read all content: %w", err)
+		return nil, fmt.Errorf("failed to read all content: %w", err)
 	}
 
 	rr := bytes.NewReader(b)
 	c, err := comdoc.ReadFile(rr)
 	if err != nil {
-		return "", "", nil, fmt.Errorf("reading msi file: %w", err)
+		return nil, fmt.Errorf("reading msi file: %w", err)
 	}
 	defer c.Close()
 
 	e, err := c.ListDir(nil)
 	if err != nil {
-		return "", "", nil, fmt.Errorf("listing files in msi: %w", err)
+		return nil, fmt.Errorf("listing files in msi: %w", err)
 	}
 
 	// the product name and version are stored in the Property table, but the
@@ -51,7 +51,7 @@ func ExtractMSIMetadata(r io.Reader) (name, version string, shaSum []byte, err e
 		if _, ok := targetedTables[name]; ok {
 			rr, err := c.ReadStream(ee)
 			if err != nil {
-				return "", "", nil, fmt.Errorf("opening file stream %s: %w", name, err)
+				return nil, fmt.Errorf("opening file stream %s: %w", name, err)
 			}
 			targetedTables[name] = rr
 		}
@@ -60,24 +60,28 @@ func ExtractMSIMetadata(r io.Reader) (name, version string, shaSum []byte, err e
 	// all tables must've been found
 	for k, v := range targetedTables {
 		if v == nil {
-			return "", "", nil, fmt.Errorf("table %s not found in the .msi", k)
+			return nil, fmt.Errorf("table %s not found in the .msi", k)
 		}
 	}
 
 	allStrings, err := decodeStrings(targetedTables["Table._StringData"], targetedTables["Table._StringPool"])
 	if err != nil {
-		return "", "", nil, err
+		return nil, err
 	}
 	propTbl, err := decodePropertyTableColumns(targetedTables["Table._Columns"], allStrings)
 	if err != nil {
-		return "", "", nil, err
+		return nil, err
 	}
 	props, err := decodePropertyTable(targetedTables["Table.Property"], propTbl, allStrings)
 	if err != nil {
-		return "", "", nil, err
+		return nil, err
 	}
 
-	return strings.TrimSpace(props["ProductName"]), strings.TrimSpace(props["ProductVersion"]), h.Sum(nil), nil
+	return &InstallerMetadata{
+		Name:    strings.TrimSpace(props["ProductName"]),
+		Version: strings.TrimSpace(props["ProductVersion"]),
+		SHASum:  h.Sum(nil),
+	}, nil
 }
 
 type msiTable struct {

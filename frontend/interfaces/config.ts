@@ -58,8 +58,12 @@ export interface IMdmConfig {
   };
 }
 
+// Note: IDeviceGlobalConfig is misnamed on the backend because in some cases it returns team config
+// values if the device is assigned to a team, e.g., features.enable_software_inventory reflects the
+// team config, if applicable, rather than the global config.
 export interface IDeviceGlobalConfig {
   mdm: Pick<IMdmConfig, "enabled_and_configured">;
+  features: Pick<IConfigFeatures, "enable_software_inventory">;
 }
 
 export interface IFleetDesktopSettings {
