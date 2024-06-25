@@ -91,11 +91,11 @@ const QueryDetailsPage = ({
     isGlobalMaintainer,
     isTeamMaintainerOrTeamAdmin,
     isObserverPlus,
-    isAnyTeamObserverPlus,
     config,
     filteredQueriesPath,
     availableTeams,
     setCurrentTeam,
+    isOnGlobalTeam,
   } = useContext(AppContext);
   const {
     lastEditedQueryName,
@@ -154,6 +154,24 @@ const QueryDetailsPage = ({
     }
   );
 
+  /** Pesky bug affecting team level users:
+   - Navigating to queries/:id immediately defaults the user to the first team they're on
+  with the most permissions, in the URL bar because of useTeamIdParam
+  even if the queries/:id entity has a team attached to it
+  Hacky fix:
+   - Push entity's team id to url for team level users
+  */
+  if (
+    !isOnGlobalTeam &&
+    !isStoredQueryLoading &&
+    storedQuery?.team_id &&
+    !(storedQuery?.team_id?.toString() === location.query.team_id)
+  ) {
+    router.push(
+      `${location.pathname}?team_id=${storedQuery?.team_id?.toString()}`
+    );
+  }
+
   const {
     isLoading: isQueryReportLoading,
     data: queryReport,
@@ -199,11 +217,21 @@ const QueryDetailsPage = ({
   const isLoading = isStoredQueryLoading || isQueryReportLoading;
   const isApiError = storedQueryError || queryReportError;
   const isClipped = queryReport?.report_clipped;
-  const disabledLiveQuery = config?.server_settings.live_query_disabled;
+  const isLiveQueryDisabled = config?.server_settings.live_query_disabled;
 
   const renderHeader = () => {
+    // Team admins/maintainers can only edit queries assigned to a team
     const canEditQuery =
-      isGlobalAdmin || isGlobalMaintainer || isTeamMaintainerOrTeamAdmin;
+      isGlobalAdmin ||
+      isGlobalMaintainer ||
+      (isTeamMaintainerOrTeamAdmin && storedQuery?.team_id);
+
+    const canLiveQuery =
+      lastEditedQueryObserverCanRun ||
+      isObserverPlus ||
+      isGlobalAdmin ||
+      isGlobalMaintainer ||
+      isTeamMaintainerOrTeamAdmin;
 
     // Function instead of constant eliminates race condition with filteredQueriesPath
     const backToQueriesPath = () => {
@@ -251,10 +279,7 @@ const QueryDetailsPage = ({
                     Edit query
                   </Button>
                 )}
-                {(lastEditedQueryObserverCanRun ||
-                  isObserverPlus ||
-                  isAnyTeamObserverPlus ||
-                  canEditQuery) && (
+                {canLiveQuery && (
                   <div
                     className={`button-wrap ${baseClass}__button-wrap--new-query`}
                   >
@@ -262,7 +287,7 @@ const QueryDetailsPage = ({
                       data-tip
                       data-for="live-query-button"
                       // Tooltip shows when live queries are globally disabled
-                      data-tip-disable={!disabledLiveQuery}
+                      data-tip-disable={!isLiveQueryDisabled}
                     >
                       <Button
                         className={`${baseClass}__run`}
@@ -273,7 +298,7 @@ const QueryDetailsPage = ({
                               PATHS.LIVE_QUERY(queryId, currentTeamId)
                             );
                         }}
-                        disabled={disabledLiveQuery}
+                        disabled={isLiveQueryDisabled}
                       >
                         Live query
                       </Button>

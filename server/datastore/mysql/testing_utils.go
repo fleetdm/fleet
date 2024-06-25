@@ -419,6 +419,31 @@ func createMySQLDSWithOptions(t testing.TB, opts *DatastoreTestOptions) *Datasto
 	return ds
 }
 
+func CreateMySQLDSWithReplica(t *testing.T, opts *DatastoreTestOptions) *Datastore {
+	if opts == nil {
+		opts = new(DatastoreTestOptions)
+	}
+	opts.RealReplica = true
+	const numberOfAttempts = 10
+	var ds *Datastore
+	for attempt := 0; attempt < numberOfAttempts; {
+		attempt++
+		ds = createMySQLDSWithOptions(t, opts)
+		status, err := ds.ReplicaStatus(context.Background())
+		require.NoError(t, err)
+		if status["Replica_SQL_Running"] != "Yes" && status["Slave_SQL_Running"] != "Yes" {
+			t.Logf("create replica attempt: %d replica status: %+v", attempt, status)
+			if lastErr, ok := status["Last_Error"]; ok && lastErr != "" {
+				t.Logf("replica not running after attempt %d; Last_Error: %s", attempt, lastErr)
+			}
+			continue
+		}
+		break
+	}
+	require.NotNil(t, ds)
+	return ds
+}
+
 func CreateMySQLDSWithOptions(t *testing.T, opts *DatastoreTestOptions) *Datastore {
 	return createMySQLDSWithOptions(t, opts)
 }
@@ -791,4 +816,43 @@ func (ds *Datastore) MasterStatus(ctx context.Context) (MasterStatus, error) {
 		return ms, ctxerr.New(ctx, "missing required fields in master status")
 	}
 	return ms, nil
+}
+
+func (ds *Datastore) ReplicaStatus(ctx context.Context) (map[string]interface{}, error) {
+
+	rows, err := ds.reader(ctx).QueryContext(ctx, "SHOW SLAVE STATUS")
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "show replica status")
+	}
+	defer rows.Close()
+
+	// Get the column names from the query
+	columns, err := rows.Columns()
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get columns")
+	}
+	numberOfColumns := len(columns)
+	result := make(map[string]interface{}, numberOfColumns)
+	for rows.Next() {
+		cols := make([]interface{}, numberOfColumns)
+		for i := range cols {
+			cols[i] = &sql.NullString{}
+		}
+		err = rows.Scan(cols...)
+		if err != nil {
+			return result, ctxerr.Wrap(ctx, err, "scan row")
+		}
+		for i, col := range cols {
+			colValue := col.(*sql.NullString)
+			if colValue.Valid {
+				result[columns[i]] = colValue.String
+			} else {
+				result[columns[i]] = nil
+			}
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return result, ctxerr.Wrap(ctx, err, "rows error")
+	}
+	return result, nil
 }

@@ -9140,3 +9140,9 @@ func (s *integrationMDMTestSuite) TestAPNsPushCron() {
 	require.Len(t, recordedPushes, 0)
 
 }
+
+func (s *integrationMDMTestSuite) TestMDMRequestWithoutCerts() {
+	t := s.T()
+	res := s.DoRawNoAuth("PUT", "/mdm/apple/mdm", nil, http.StatusBadRequest)
+	require.NoError(t, res.Body.Close())
+}

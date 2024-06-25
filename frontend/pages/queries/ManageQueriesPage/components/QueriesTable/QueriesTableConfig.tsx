@@ -115,7 +115,9 @@ const generateTableHeaders = ({
   currentTeamId,
   omitSelectionColumn = false,
 }: IGenerateTableHeaders): IDataColumn[] => {
-  const isOnlyObserver = permissionsUtils.isOnlyObserver(currentUser);
+  const isCurrentTeamObserverOrGlobalObserver = currentTeamId
+    ? permissionsUtils.isTeamObserver(currentUser, currentTeamId)
+    : permissionsUtils.isOnlyObserver(currentUser);
   const viewingTeamScope = currentTeamId !== API_ALL_TEAMS_ID;
 
   const tableHeaders: IDataColumn[] = [
@@ -135,32 +137,33 @@ const generateTableHeaders = ({
             value={
               <>
                 <div className="query-name-text">{cellProps.cell.value}</div>
-                {!isOnlyObserver && cellProps.row.original.observer_can_run && (
-                  <div className="observer-can-run-badge">
-                    <span
-                      className="observer-can-run-icon"
-                      data-tooltip-id={`observer-can-run-tooltip-${cellProps.row.original.id}`}
-                    >
-                      <Icon
-                        className="observer-can-run-query-icon"
-                        name="query"
-                        size="small"
-                        color="core-fleet-blue"
-                      />
-                    </span>
-                    <ReactTooltip5
-                      className="observer-can-run-tooltip"
-                      disableStyleInjection
-                      place="top"
-                      opacity={1}
-                      id={`observer-can-run-tooltip-${cellProps.row.original.id}`}
-                      offset={8}
-                      positionStrategy="fixed"
-                    >
-                      Observers can run this query.
-                    </ReactTooltip5>
-                  </div>
-                )}
+                {!isCurrentTeamObserverOrGlobalObserver &&
+                  cellProps.row.original.observer_can_run && (
+                    <div className="observer-can-run-badge">
+                      <span
+                        className="observer-can-run-icon"
+                        data-tooltip-id={`observer-can-run-tooltip-${cellProps.row.original.id}`}
+                      >
+                        <Icon
+                          className="observer-can-run-query-icon"
+                          name="query"
+                          size="small"
+                          color="core-fleet-blue"
+                        />
+                      </span>
+                      <ReactTooltip5
+                        className="observer-can-run-tooltip"
+                        disableStyleInjection
+                        place="top"
+                        opacity={1}
+                        id={`observer-can-run-tooltip-${cellProps.row.original.id}`}
+                        offset={8}
+                        positionStrategy="fixed"
+                      >
+                        Observers can run this query.
+                      </ReactTooltip5>
+                    </div>
+                  )}
                 {viewingTeamScope &&
                   // inherited
                   cellProps.row.original.team_id !== currentTeamId && (
@@ -260,7 +263,7 @@ const generateTableHeaders = ({
       ),
     },
   ];
-  if (!isOnlyObserver && !omitSelectionColumn) {
+  if (!isCurrentTeamObserverOrGlobalObserver && !omitSelectionColumn) {
     tableHeaders.unshift({
       id: "selection",
       // TODO - improve typing of IHeaderProps instead of using any
