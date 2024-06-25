@@ -77,6 +77,7 @@ const ManageQueriesPage = ({
   const queryParams = location.query;
   const {
     isGlobalAdmin,
+    isGlobalMaintainer,
     isTeamAdmin,
     isTeamMaintainer,
     isOnlyObserver,
@@ -361,9 +362,12 @@ const ManageQueriesPage = ({
   };
 
   // CTA button shows for all roles but global observers and current team's observers
-  const canCustomQuery = isOnGlobalTeam
-    ? !isOnlyObserver
-    : isTeamAdmin || isTeamMaintainer || isObserverPlus; // isObserverPlus checks specific team as well
+  const canCustomQuery =
+    isGlobalAdmin ||
+    isGlobalMaintainer ||
+    isTeamAdmin ||
+    isTeamMaintainer ||
+    isObserverPlus; // isObserverPlus checks global and selected team
 
   return (
     <MainContent className={baseClass}>
