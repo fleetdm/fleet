@@ -3866,12 +3866,22 @@ func (ds *Datastore) GetHostMDM(ctx context.Context, hostID uint) (*fleet.HostMD
 	var hmdm fleet.HostMDM
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &hmdm, `
 		SELECT
-			hm.host_id, hm.enrolled, hm.server_url, hm.installed_from_dep, hm.mdm_id, COALESCE(hm.is_server, false) AS is_server, COALESCE(mdms.name, ?) AS name
+			hm.host_id,
+			hm.enrolled,
+			hm.server_url,
+			hm.installed_from_dep,
+			hm.mdm_id,
+			COALESCE(hm.is_server, false) AS is_server,
+			COALESCE(mdms.name, ?) AS name,
+			hdep.assign_profile_response AS dep_profile_assign_status
 		FROM
 			host_mdm hm
 		LEFT OUTER JOIN
 			mobile_device_management_solutions mdms
-		ON hm.mdm_id = mdms.id
+			ON hm.mdm_id = mdms.id
+		LEFT OUTER JOIN
+			host_dep_assignments hdep
+			ON hdep.host_id = hm.host_id
 		WHERE hm.host_id = ?`, fleet.UnknownMDMName, hostID)
 	if err != nil {
 		if err == sql.ErrNoRows {
