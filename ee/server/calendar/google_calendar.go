@@ -522,6 +522,7 @@ func adjustEventTimes(endTime time.Time, dayEnd time.Time) (eventStart time.Time
 
 func getTimezone(gCal *GoogleCalendar) (location *time.Location, timezone string, err error) {
 	config := gCal.config
+	// "The ID of the user’s timezone." https://developers.google.com/calendar/api/v3/reference/settings
 	tz, err := config.API.GetSetting("timezone")
 	if err != nil {
 		return nil, "", ctxerr.Wrap(config.Context, err, "retrieving Google calendar timezone")

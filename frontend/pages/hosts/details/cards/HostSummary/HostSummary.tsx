@@ -1,7 +1,7 @@
 import React from "react";
 import ReactTooltip from "react-tooltip";
 import classnames from "classnames";
-import { format } from "date-fns";
+import { format, addMilliseconds, startOfDay } from "date-fns";
 import { toZonedTime, getTimezoneOffset } from "date-fns-tz";
 import {
   IHostMdmProfile,
@@ -20,12 +20,11 @@ import StatusIndicator from "components/StatusIndicator";
 import IssuesIndicator from "pages/hosts/components/IssuesIndicator";
 import DiskSpaceIndicator from "pages/hosts/components/DiskSpaceIndicator";
 import { HumanTimeDiffWithFleetLaunchCutoff } from "components/HumanTimeDiffWithDateTip";
+import { humanHostMemory, wrapFleetHelper } from "utilities/helpers";
 import {
-  // getTimezoneOffset,
-  humanHostMemory,
-  wrapFleetHelper,
-} from "utilities/helpers";
-import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
+  DATE_FNS_FORMAT_STRINGS,
+  DEFAULT_EMPTY_CELL_VALUE,
+} from "utilities/constants";
 import { COLORS } from "styles/var/colors";
 
 import OSSettingsIndicator from "./OSSettingsIndicator";
@@ -354,23 +353,42 @@ const HostSummary = ({
   };
 
   const renderMaintenanceWindow = () => {
-    // TODO - default to user agent time zone if no tz present
-
-    // const utcDate = new Date(summaryData.maintenance_window.starts_at);
-
-    // const zonedDate = utcToZonedTime(
-    //   utcDate,
-    //   summaryData.maintenance_window.timezone
-    // );
     const {
-      starts_at: timeStamp,
-      timezone: tZ,
+      // UTC
+      starts_at: startsAt,
+      // IANA timezone name, e.g. "America/New_York"
+      timezone,
     } = summaryData.maintenance_window as IHostMaintenanceWindow;
 
-    const tzPretty = tZ ? tZ.replace("_", " ") : "";
-    const zonedTime = tZ ? toZonedTime(timeStamp, tZ) : timeStamp;
-    // TODO - format this as HH:MM
-    const mOffset = tZ ? getTimezoneOffset(tZ) : 0;
+    // coallesce null timezone to "" allows cleaner check for invalid/nonexistent timezone
+    const zonedTime = toZonedTime(startsAt, timezone ?? "");
+    // if invalid timezone, isNaN(zonedTime) will be true
+    // @ts-ignore
+    if (!timezone || isNaN(zonedTime)) {
+      console.log(
+        "Invalid end user timezone for scheduled maintenance window - displaying in UTC"
+      );
+      return (
+        <DataSet
+          title="Scheduled maintenance"
+          value={
+            <TooltipWrapper tipContent="End user's timezone unavailable. Displaying in UTC.">
+              {format(startsAt, DATE_FNS_FORMAT_STRINGS.dateAtTime)}
+            </TooltipWrapper>
+          }
+        />
+      );
+    }
+    // including startsAt as 2nd param ensures conversion accounts for DST, if applicable to this timezone
+    const msOffset = getTimezoneOffset(timezone, new Date(startsAt));
+
+    const [isNegativeOffset, absMsOffset] = [msOffset < 0, Math.abs(msOffset)];
+
+    // get GMT offset as HH:MM
+    const absOffsetAsTimeDiff = addMilliseconds(
+      startOfDay(new Date()),
+      absMsOffset
+    );
 
     return (
       <DataSet
@@ -381,14 +399,16 @@ const HostSummary = ({
               <>
                 End user&apos;s time zone:
                 <br />
-                (GMT{mOffset}) {tzPretty}
-                {/* {tzPretty} */}
+                (GMT{isNegativeOffset ? "-" : "+"}
+                {format(
+                  absOffsetAsTimeDiff,
+                  DATE_FNS_FORMAT_STRINGS.hoursAndMinutes
+                )}
+                ) {timezone.replace("_", " ")}
               </>
             }
           >
-            {/* TODO - this renders in */}
-            {/* {format(timeStamp, "E, MMM d 'at' p")} */}
-            {format(zonedTime, "E, MMM d 'at' p")}
+            {format(zonedTime, DATE_FNS_FORMAT_STRINGS.dateAtTime)}
           </TooltipWrapper>
         }
       />
