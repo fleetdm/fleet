@@ -47,7 +47,7 @@ If there are no product changes, and the DRI decides to prioritize the story, th
 ### Fix a bug
 If the bug is labeled `~unreleased bug`, branch off and put your PR into `main`. These issues can be closed as soon as they complete QA.
 
-If the bug is labeled `~released bug`, branch off the tag for the latest release of Fleet and put your PR into `main`. For example, `git checkout fleet-v4.48.2`, then `git checkout -b my-bug-fix-branch`. These issues are not closed until the next release of Fleet. This approach makes sure the bug fix is not built on top of unreleased feature code, which can cause merge conflicts during patch releases. 
+If the bug is labeled `~released bug`, branch off and put your PR into `main`. After merging checkout the latest tag For example, `git checkout fleet-v4.48.2`, then `git fetch; git cherry-pick <commit>`. If the cherry-pick fails with a conflict call out in the ticket how to resolve or if it is sufficiently complicated call out this fix is not suited for the patch release process and should only be included in the end of sprint release. This approach makes sure the bug fix is not built on top of unreleased feature code, which can cause merge conflicts during patch releases. 
 
 ### Begin a merge freeze
 To ensure release quality, Fleet has a freeze period for testing beginning the Tuesday before the release at 11:00 AM Pacific. Effective at the start of the freeze period, new feature work will not be merged into `main`.
