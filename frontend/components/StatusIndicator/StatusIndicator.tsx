@@ -5,6 +5,7 @@ import TooltipWrapper from "components/TooltipWrapper";
 import { capitalize } from "lodash";
 
 interface IStatusIndicatorProps {
+  /** Only the first letter of value will be capitalized by the component */
   value: string;
   tooltip?: {
     tooltipText: string | JSX.Element;
