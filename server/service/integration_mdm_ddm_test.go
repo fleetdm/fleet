@@ -168,10 +168,10 @@ func (s *integrationMDMTestSuite) TestAppleDDMBatchUpload() {
 	require.Equal(t, "label_2", createResp.Label.Name)
 	lbl2 := createResp.Label.Label
 
-	// Add with labels
+	// Add with the deprecated "labels" and the new LabelsIncludeAll field
 	s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
 		{Name: "N5", Contents: decls[5], Labels: []string{lbl1.Name, lbl2.Name}},
-		{Name: "N6", Contents: decls[6], Labels: []string{lbl1.Name}},
+		{Name: "N6", Contents: decls[6], LabelsIncludeAll: []string{lbl1.Name}},
 	}}, http.StatusNoContent)
 
 	s.DoJSON("GET", "/api/latest/fleet/mdm/profiles", &listMDMConfigProfilesRequest{}, http.StatusOK, &resp)
@@ -181,11 +181,11 @@ func (s *integrationMDMTestSuite) TestAppleDDMBatchUpload() {
 	require.Equal(t, "darwin", resp.Profiles[0].Platform)
 	require.Equal(t, "N6", resp.Profiles[1].Name)
 	require.Equal(t, "darwin", resp.Profiles[1].Platform)
-	require.Len(t, resp.Profiles[0].Labels, 2)
-	require.Equal(t, lbl1.Name, resp.Profiles[0].Labels[0].LabelName)
-	require.Equal(t, lbl2.Name, resp.Profiles[0].Labels[1].LabelName)
-	require.Len(t, resp.Profiles[1].Labels, 1)
-	require.Equal(t, lbl1.Name, resp.Profiles[1].Labels[0].LabelName)
+	require.Len(t, resp.Profiles[0].LabelsIncludeAll, 2)
+	require.Equal(t, lbl1.Name, resp.Profiles[0].LabelsIncludeAll[0].LabelName)
+	require.Equal(t, lbl2.Name, resp.Profiles[0].LabelsIncludeAll[1].LabelName)
+	require.Len(t, resp.Profiles[1].LabelsIncludeAll, 1)
+	require.Equal(t, lbl1.Name, resp.Profiles[1].LabelsIncludeAll[0].LabelName)
 }
 
 func (s *integrationMDMTestSuite) TestMDMAppleDeviceManagementRequests() {

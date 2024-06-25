@@ -305,7 +305,7 @@ func newMDMAppleConfigProfileEndpoint(ctx context.Context, request interface{}, 
 	}
 	defer ff.Close()
 	// providing an empty set of labels since this endpoint is only maintained for backwards compat
-	cp, err := svc.NewMDMAppleConfigProfile(ctx, req.TeamID, ff, nil)
+	cp, err := svc.NewMDMAppleConfigProfile(ctx, req.TeamID, ff, nil, false)
 	if err != nil {
 		return &newMDMAppleConfigProfileResponse{Err: err}, nil
 	}
@@ -314,7 +314,7 @@ func newMDMAppleConfigProfileEndpoint(ctx context.Context, request interface{}, 
 	}, nil
 }
 
-func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r io.Reader, labels []string) (*fleet.MDMAppleConfigProfile, error) {
+func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r io.Reader, labels []string, labelsExcludeMode bool) (*fleet.MDMAppleConfigProfile, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.MDMConfigProfileAuthz{TeamID: &teamID}, fleet.ActionWrite); err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
 	}
@@ -358,7 +358,11 @@ func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "validating labels")
 	}
-	cp.Labels = labelMap
+	if labelsExcludeMode {
+		cp.LabelsExcludeAny = labelMap
+	} else {
+		cp.LabelsIncludeAll = labelMap
+	}
 
 	newCP, err := svc.ds.NewMDMAppleConfigProfile(ctx, *cp)
 	if err != nil {
@@ -400,7 +404,7 @@ func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r
 	return newCP, nil
 }
 
-func (svc *Service) NewMDMAppleDeclaration(ctx context.Context, teamID uint, r io.Reader, labels []string, name string) (*fleet.MDMAppleDeclaration, error) {
+func (svc *Service) NewMDMAppleDeclaration(ctx context.Context, teamID uint, r io.Reader, labels []string, name string, labelsExcludeMode bool) (*fleet.MDMAppleDeclaration, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.MDMConfigProfileAuthz{TeamID: &teamID}, fleet.ActionWrite); err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
 	}
@@ -454,8 +458,11 @@ func (svc *Service) NewMDMAppleDeclaration(ctx context.Context, teamID uint, r i
 
 	d := fleet.NewMDMAppleDeclaration(data, tmID, name, rawDecl.Type, rawDecl.Identifier)
 
-	// TODO(roberto): this should be part of fleet.NewMDMAppleDeclaration
-	d.Labels = validatedLabels
+	if labelsExcludeMode {
+		d.LabelsExcludeAny = validatedLabels
+	} else {
+		d.LabelsIncludeAll = validatedLabels
+	}
 
 	decl, err := svc.ds.NewMDMAppleDeclaration(ctx, d)
 	if err != nil {

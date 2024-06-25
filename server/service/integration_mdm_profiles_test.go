@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 	"testing"
@@ -1679,50 +1680,106 @@ func (s *integrationMDMTestSuite) TestMDMAppleListConfigProfiles() {
 	})
 }
 
-func (s *integrationMDMTestSuite) TestAppConfigMDMAppleProfiles() {
+func (s *integrationMDMTestSuite) TestAppConfigMDMCustomSettings() {
 	t := s.T()
 
-	// set the macos custom settings fields
+	// set the macos custom settings fields with the deprecated Labels field
 	acResp := appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 		"mdm": {
 		  "macos_settings": {
-		    "custom_settings": [
-		        {"path": "foo", "labels": ["baz"]},
-			{"path": "bar"}
-		    ]
-		  }
+				"custom_settings": [
+					{"path": "foo", "labels": ["baz"]},
+					{"path": "bar"}
+				]
+			}
 		}
   }`), http.StatusOK, &acResp)
-	assert.Equal(t, []fleet.MDMProfileSpec{{Path: "foo", Labels: []string{"baz"}}, {Path: "bar"}}, acResp.MDM.MacOSSettings.CustomSettings)
+	assert.Equal(t, []fleet.MDMProfileSpec{{Path: "foo", LabelsIncludeAll: []string{"baz"}}, {Path: "bar"}}, acResp.MDM.MacOSSettings.CustomSettings)
 
 	// check that they are returned by a GET /config
 	acResp = appConfigResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
-	assert.Equal(t, []fleet.MDMProfileSpec{{Path: "foo", Labels: []string{"baz"}}, {Path: "bar"}}, acResp.MDM.MacOSSettings.CustomSettings)
+	assert.Equal(t, []fleet.MDMProfileSpec{{Path: "foo", LabelsIncludeAll: []string{"baz"}}, {Path: "bar"}}, acResp.MDM.MacOSSettings.CustomSettings)
 
-	// patch without specifying the macos custom settings fields and an unrelated
+	// set the windows custom settings fields with included/excluded labels
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"mdm": {
+			"windows_settings": {
+				"custom_settings": [
+					{"path": "foo", "labels_exclude_any": ["x", "y"]},
+					{"path": "bar", "labels_include_all": ["a", "b"]},
+					{"path": "baz", "labels": ["c"]}
+				]
+			}
+		}
+  }`), http.StatusOK, &acResp)
+	assert.Equal(t, []fleet.MDMProfileSpec{{Path: "foo", LabelsIncludeAll: []string{"baz"}}, {Path: "bar"}}, acResp.MDM.MacOSSettings.CustomSettings)
+	assert.Equal(t, optjson.SetSlice([]fleet.MDMProfileSpec{{Path: "foo", LabelsExcludeAny: []string{"x", "y"}}, {Path: "bar", LabelsIncludeAll: []string{"a", "b"}}, {Path: "baz", LabelsIncludeAll: []string{"c"}}}), acResp.MDM.WindowsSettings.CustomSettings)
+
+	// check that they are returned by a GET /config
+	acResp = appConfigResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	assert.Equal(t, []fleet.MDMProfileSpec{{Path: "foo", LabelsIncludeAll: []string{"baz"}}, {Path: "bar"}}, acResp.MDM.MacOSSettings.CustomSettings)
+	assert.Equal(t, optjson.SetSlice([]fleet.MDMProfileSpec{{Path: "foo", LabelsExcludeAny: []string{"x", "y"}}, {Path: "bar", LabelsIncludeAll: []string{"a", "b"}}, {Path: "baz", LabelsIncludeAll: []string{"c"}}}), acResp.MDM.WindowsSettings.CustomSettings)
+
+	// patch without specifying the windows/macos custom settings fields and an unrelated
 	// field, should not remove them
 	acResp = appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 		"mdm": { "enable_disk_encryption": true }
   }`), http.StatusOK, &acResp)
-	assert.Equal(t, []fleet.MDMProfileSpec{{Path: "foo", Labels: []string{"baz"}}, {Path: "bar"}}, acResp.MDM.MacOSSettings.CustomSettings)
+	assert.Equal(t, []fleet.MDMProfileSpec{{Path: "foo", LabelsIncludeAll: []string{"baz"}}, {Path: "bar"}}, acResp.MDM.MacOSSettings.CustomSettings)
+	assert.Equal(t, optjson.SetSlice([]fleet.MDMProfileSpec{{Path: "foo", LabelsExcludeAny: []string{"x", "y"}}, {Path: "bar", LabelsIncludeAll: []string{"a", "b"}}, {Path: "baz", LabelsIncludeAll: []string{"c"}}}), acResp.MDM.WindowsSettings.CustomSettings)
 
-	// patch with explicitly empty macos custom settings fields, would remove
+	// patch with explicitly empty macos/windows custom settings fields, would remove
 	// them but this is a dry-run
 	acResp = appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-		"mdm": { "macos_settings": { "custom_settings": null } }
+		"mdm": {
+			"macos_settings": { "custom_settings": null },
+			"windows_settings": { "custom_settings": null }
+		}
   }`), http.StatusOK, &acResp, "dry_run", "true")
-	assert.Equal(t, []fleet.MDMProfileSpec{{Path: "foo", Labels: []string{"baz"}}, {Path: "bar"}}, acResp.MDM.MacOSSettings.CustomSettings)
+	assert.Equal(t, []fleet.MDMProfileSpec{{Path: "foo", LabelsIncludeAll: []string{"baz"}}, {Path: "bar"}}, acResp.MDM.MacOSSettings.CustomSettings)
+	assert.Equal(t, optjson.SetSlice([]fleet.MDMProfileSpec{{Path: "foo", LabelsExcludeAny: []string{"x", "y"}}, {Path: "bar", LabelsIncludeAll: []string{"a", "b"}}, {Path: "baz", LabelsIncludeAll: []string{"c"}}}), acResp.MDM.WindowsSettings.CustomSettings)
 
 	// patch with explicitly empty macos custom settings fields, removes them
 	acResp = appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-		"mdm": { "macos_settings": { "custom_settings": null } }
+		"mdm": {
+			"macos_settings": { "custom_settings": null },
+			"windows_settings": { "custom_settings": null }
+		}
   }`), http.StatusOK, &acResp)
 	assert.Empty(t, acResp.MDM.MacOSSettings.CustomSettings)
+	assert.Equal(t, optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}}, acResp.MDM.WindowsSettings.CustomSettings)
+
+	// mix of labels fields returns an error
+	res := s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"mdm": {
+		  "macos_settings": {
+				"custom_settings": [
+					{"path": "foo", "labels": ["a"], "labels_exclude_any": ["b"]}
+				]
+			}
+		}
+  }`), http.StatusUnprocessableEntity)
+	msg := extractServerErrorText(res.Body)
+	require.Contains(t, msg, `For each profile, only one of "labels_exclude_any", "labels_include_all" or "labels" can be included.`)
+
+	res = s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"mdm": {
+		  "windows_settings": {
+				"custom_settings": [
+					{"path": "foo", "labels_include_all": ["a"], "labels_exclude_any": ["b"]}
+				]
+			}
+		}
+  }`), http.StatusUnprocessableEntity)
+	msg = extractServerErrorText(res.Body)
+	require.Contains(t, msg, `For each profile, only one of "labels_exclude_any", "labels_include_all" or "labels" can be included.`)
 }
 
 func (s *integrationMDMTestSuite) TestApplyTeamsMDMAppleProfiles() {
@@ -1744,7 +1801,10 @@ func (s *integrationMDMTestSuite) TestApplyTeamsMDMAppleProfiles() {
 		Name: teamName,
 		MDM: fleet.TeamSpecMDM{
 			MacOSSettings: map[string]interface{}{
-				"custom_settings": []map[string]interface{}{{"path": "foo"}, {"path": "bar"}},
+				"custom_settings": []map[string]interface{}{
+					{"path": "foo", "labels": []string{"a", "b"}},
+					{"path": "bar", "labels_exclude_any": []string{"c"}},
+				},
 			},
 		},
 	}}}
@@ -1753,7 +1813,10 @@ func (s *integrationMDMTestSuite) TestApplyTeamsMDMAppleProfiles() {
 	// retrieving the team returns the custom macos settings
 	var teamResp getTeamResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
-	require.Equal(t, []fleet.MDMProfileSpec{{Path: "foo"}, {Path: "bar"}}, teamResp.Team.Config.MDM.MacOSSettings.CustomSettings)
+	require.Equal(t, []fleet.MDMProfileSpec{
+		{Path: "foo", LabelsIncludeAll: []string{"a", "b"}},
+		{Path: "bar", LabelsExcludeAny: []string{"c"}},
+	}, teamResp.Team.Config.MDM.MacOSSettings.CustomSettings)
 
 	// apply with invalid macos settings subfield should fail
 	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
@@ -1788,7 +1851,10 @@ func (s *integrationMDMTestSuite) TestApplyTeamsMDMAppleProfiles() {
 	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
 	teamResp = getTeamResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
-	require.Equal(t, []fleet.MDMProfileSpec{{Path: "foo"}, {Path: "bar"}}, teamResp.Team.Config.MDM.MacOSSettings.CustomSettings)
+	require.Equal(t, []fleet.MDMProfileSpec{
+		{Path: "foo", LabelsIncludeAll: []string{"a", "b"}},
+		{Path: "bar", LabelsExcludeAny: []string{"c"}},
+	}, teamResp.Team.Config.MDM.MacOSSettings.CustomSettings)
 
 	// apply with explicitly empty custom macos settings would clear the existing
 	// settings, but dry-run
@@ -1801,7 +1867,10 @@ func (s *integrationMDMTestSuite) TestApplyTeamsMDMAppleProfiles() {
 	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK, "dry_run", "true")
 	teamResp = getTeamResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
-	require.Equal(t, []fleet.MDMProfileSpec{{Path: "foo"}, {Path: "bar"}}, teamResp.Team.Config.MDM.MacOSSettings.CustomSettings)
+	require.Equal(t, []fleet.MDMProfileSpec{
+		{Path: "foo", LabelsIncludeAll: []string{"a", "b"}},
+		{Path: "bar", LabelsExcludeAny: []string{"c"}},
+	}, teamResp.Team.Config.MDM.MacOSSettings.CustomSettings)
 
 	// apply with explicitly empty custom macos settings clears the existing settings
 	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
@@ -1814,6 +1883,22 @@ func (s *integrationMDMTestSuite) TestApplyTeamsMDMAppleProfiles() {
 	teamResp = getTeamResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
 	require.Equal(t, []fleet.MDMProfileSpec{}, teamResp.Team.Config.MDM.MacOSSettings.CustomSettings)
+
+	// apply with invalid mix of labels fails
+	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
+		Name: teamName,
+		MDM: fleet.TeamSpecMDM{
+			MacOSSettings: map[string]interface{}{
+				"custom_settings": []map[string]interface{}{
+					{"path": "bar", "labels": []string{"x"}},
+					{"path": "foo", "labels": []string{"a", "b"}, "labels_include_all": []string{"c"}},
+				},
+			},
+		},
+	}}}
+	res = s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
+	assert.Contains(t, errMsg, `For each profile, only one of "labels_exclude_any", "labels_include_all" or "labels" can be included.`)
 }
 
 func (s *integrationMDMTestSuite) TestBatchSetMDMAppleProfiles() {
@@ -2509,10 +2594,36 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 	testTeam, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "TestTeam"})
 	require.NoError(t, err)
 
-	assertAppleProfile := func(filename, name, ident string, teamID uint, labelNames []string, wantStatus int, wantErrMsg string) string {
-		fields := map[string][]string{
-			"labels": labelNames,
+	// NOTE: label names starting with "-" are sent as "labels_excluding_any"
+	// (and the leading "-" is removed from the name). Names starting with
+	// "!" are sent as the deprecated "labels" field (and the "!" is removed).
+	addLabelsFields := func(labelNames []string) map[string][]string {
+		var deprLabels, inclLabels, exclLabels []string
+		for _, lbl := range labelNames {
+			if strings.HasPrefix(lbl, "-") {
+				exclLabels = append(exclLabels, strings.TrimPrefix(lbl, "-"))
+			} else if strings.HasPrefix(lbl, "!") {
+				deprLabels = append(deprLabels, strings.TrimPrefix(lbl, "!"))
+			} else {
+				inclLabels = append(inclLabels, lbl)
+			}
 		}
+
+		fields := make(map[string][]string)
+		if len(deprLabels) > 0 {
+			fields["labels"] = deprLabels
+		}
+		if len(inclLabels) > 0 {
+			fields["labels_include_all"] = inclLabels
+		}
+		if len(exclLabels) > 0 {
+			fields["labels_exclude_any"] = exclLabels
+		}
+		return fields
+	}
+
+	assertAppleProfile := func(filename, name, ident string, teamID uint, labelNames []string, wantStatus int, wantErrMsg string) string {
+		fields := addLabelsFields(labelNames)
 		if teamID > 0 {
 			fields["team_id"] = []string{fmt.Sprintf("%d", teamID)}
 		}
@@ -2535,9 +2646,7 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 		return resp.ProfileUUID
 	}
 	assertAppleDeclaration := func(filename, ident string, teamID uint, labelNames []string, wantStatus int, wantErrMsg string) string {
-		fields := map[string][]string{
-			"labels": labelNames,
-		}
+		fields := addLabelsFields(labelNames)
 		if teamID > 0 {
 			fields["team_id"] = []string{fmt.Sprintf("%d", teamID)}
 		}
@@ -2596,9 +2705,7 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 	}
 
 	assertWindowsProfile := func(filename, locURI string, teamID uint, labelNames []string, wantStatus int, wantErrMsg string) string {
-		fields := map[string][]string{
-			"labels": labelNames,
-		}
+		fields := addLabelsFields(labelNames)
 		if teamID > 0 {
 			fields["team_id"] = []string{fmt.Sprintf("%d", teamID)}
 		}
@@ -2713,35 +2820,17 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 	assertAppleDeclaration("apple-declaration-with-labels.json", "ident-with-labels", 0, []string{"does-not-exist", "foo"}, http.StatusBadRequest, "some or all the labels provided don't exist")
 	assertWindowsProfile("win-profile-with-labels.xml", "./Test", 0, []string{"does-not-exist", "bar"}, http.StatusBadRequest, "some or all the labels provided don't exist")
 
+	// profiles with invalid mix of labels
+	assertAppleProfile("apple-invalid-profile-with-labels.mobileconfig", "apple-invalid-profile-with-labels", "ident-with-labels", 0, []string{"foo", "!bar"}, http.StatusBadRequest, `Only one of "labels_exclude_any", "labels_include_all" or "labels" can be included.`)
+	assertAppleDeclaration("apple-invalid-decl-with-labels.json", "ident-decl-with-labels", 0, []string{"foo", "-bar"}, http.StatusBadRequest, `Only one of "labels_exclude_any", "labels_include_all" or "labels" can be included.`)
+	assertWindowsProfile("win-invalid-profile-with-labels.xml", "./Test", 0, []string{"-foo", "!bar"}, http.StatusBadRequest, `Only one of "labels_exclude_any", "labels_include_all" or "labels" can be included.`)
+
 	// profiles with valid labels
-	uuidAppleWithLabel := assertAppleProfile("apple-profile-with-labels.mobileconfig", "apple-profile-with-labels", "ident-with-labels", 0, []string{"foo"}, http.StatusOK, "")
+	uuidAppleWithLabel := assertAppleProfile("apple-profile-with-labels.mobileconfig", "apple-profile-with-labels", "ident-with-labels", 0, []string{"!foo"}, http.StatusOK, "")
 	uuidAppleDDMWithLabel := createAppleDeclaration("apple-decl-with-labels", "ident-decl-with-labels", 0, []string{"foo"})
-	uuidWindowsWithLabel := assertWindowsProfile("win-profile-with-labels.xml", "./Test", 0, []string{"foo", "bar"}, http.StatusOK, "")
-
-	// verify that the label associations have been created
-	// TODO: update when we have datastore methods to get this data
-	var profileLabels []fleet.ConfigurationProfileLabel
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		stmt := `
-		SELECT COALESCE(apple_profile_uuid, windows_profile_uuid) as profile_uuid, label_name, COALESCE(label_id, 0) as label_id
-		FROM mdm_configuration_profile_labels 
-		UNION SELECT apple_declaration_uuid as profile_uuid, label_name, COALESCE(label_id, 0) as label_id
-		FROM mdm_declaration_labels ORDER BY profile_uuid, label_name;`
-		return sqlx.SelectContext(context.Background(), q, &profileLabels, stmt)
-	})
-
-	require.NotEmpty(t, profileLabels)
-	require.Len(t, profileLabels, 4)
-	require.ElementsMatch(
-		t,
-		[]fleet.ConfigurationProfileLabel{
-			{ProfileUUID: uuidAppleWithLabel, LabelName: labelFoo.Name, LabelID: labelFoo.ID},
-			{ProfileUUID: uuidAppleDDMWithLabel, LabelName: labelFoo.Name, LabelID: labelFoo.ID},
-			{ProfileUUID: uuidWindowsWithLabel, LabelName: labelFoo.Name, LabelID: labelFoo.ID},
-			{ProfileUUID: uuidWindowsWithLabel, LabelName: labelBar.Name, LabelID: labelBar.ID},
-		},
-		profileLabels,
-	)
+	uuidWindowsWithLabel := assertWindowsProfile("win-profile-with-labels.xml", "./Test", 0, []string{"-foo", "-bar"}, http.StatusOK, "")
+	uuidAppleDDMTeamWithLabel := createAppleDeclaration("apple-team-decl-with-labels", "ident-team-decl-with-labels", testTeam.ID, []string{"-foo"})
+	uuidWindowsTeamWithLabel := assertWindowsProfile("win-team-profile-with-labels.xml", "./Test", testTeam.ID, []string{"foo", "bar"}, http.StatusOK, "")
 
 	// Windows invalid content
 	body, headers := generateNewProfileMultipartRequest(t, "win.xml", []byte("\x00\x01\x02"), s.token, nil)
@@ -2769,7 +2858,33 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 		{ProfileUUID: teamAppleProfUUID, Platform: "darwin", Name: "apple-team-profile", Identifier: "test-team-ident", TeamID: &testTeam.ID},
 		{ProfileUUID: noTeamWinProfUUID, Platform: "windows", Name: "win-global-profile", TeamID: nil},
 		{ProfileUUID: teamWinProfUUID, Platform: "windows", Name: "win-team-profile", TeamID: &testTeam.ID},
-		{ProfileUUID: uuidAppleDDMWithLabel, Platform: "darwin", Name: "apple-decl-with-labels", Identifier: "ident-decl-with-labels", TeamID: nil, Labels: []fleet.ConfigurationProfileLabel{{LabelID: labelFoo.ID, LabelName: labelFoo.Name}}},
+		{ProfileUUID: uuidAppleDDMWithLabel, Platform: "darwin", Name: "apple-decl-with-labels", Identifier: "ident-decl-with-labels", TeamID: nil,
+			LabelsIncludeAll: []fleet.ConfigurationProfileLabel{
+				{LabelID: labelFoo.ID, LabelName: labelFoo.Name},
+			},
+		},
+		{ProfileUUID: uuidAppleWithLabel, Platform: "darwin", Name: "apple-profile-with-labels", Identifier: "ident-with-labels", TeamID: nil,
+			LabelsIncludeAll: []fleet.ConfigurationProfileLabel{
+				{LabelID: labelFoo.ID, LabelName: labelFoo.Name},
+			},
+		},
+		{ProfileUUID: uuidWindowsWithLabel, Platform: "windows", Name: "win-profile-with-labels", TeamID: nil,
+			LabelsExcludeAny: []fleet.ConfigurationProfileLabel{
+				{LabelID: labelBar.ID, LabelName: labelBar.Name},
+				{LabelID: labelFoo.ID, LabelName: labelFoo.Name},
+			},
+		},
+		{ProfileUUID: uuidAppleDDMTeamWithLabel, Platform: "darwin", Name: "apple-team-decl-with-labels", Identifier: "ident-team-decl-with-labels", TeamID: &testTeam.ID,
+			LabelsExcludeAny: []fleet.ConfigurationProfileLabel{
+				{LabelID: labelFoo.ID, LabelName: labelFoo.Name},
+			},
+		},
+		{ProfileUUID: uuidWindowsTeamWithLabel, Platform: "windows", Name: "win-team-profile-with-labels", TeamID: &testTeam.ID,
+			LabelsIncludeAll: []fleet.ConfigurationProfileLabel{
+				{LabelID: labelBar.ID, LabelName: labelBar.Name},
+				{LabelID: labelFoo.ID, LabelName: labelFoo.Name},
+			},
+		},
 	}
 	for _, prof := range expectedProfiles {
 		var getResp getMDMConfigProfileResponse
@@ -2783,6 +2898,13 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 		}
 		getResp.CreatedAt, getResp.UploadedAt = time.Time{}, time.Time{}
 		getResp.Checksum = nil
+		// sort the labels by name
+		sort.Slice(getResp.LabelsIncludeAll, func(i, j int) bool {
+			return getResp.LabelsIncludeAll[i].LabelName < getResp.LabelsIncludeAll[j].LabelName
+		})
+		sort.Slice(getResp.LabelsExcludeAny, func(i, j int) bool {
+			return getResp.LabelsExcludeAny[i].LabelName < getResp.LabelsExcludeAny[j].LabelName
+		})
 		require.Equal(t, prof, *getResp.MDMConfigProfilePayload)
 
 		resp := s.Do("GET", fmt.Sprintf("/api/latest/fleet/configuration_profiles/%s", prof.ProfileUUID), nil, http.StatusOK, "alt", "media")
@@ -2920,27 +3042,32 @@ func (s *integrationMDMTestSuite) TestListMDMConfigProfiles() {
 		}
 	}
 
+	lblFoo, err := s.ds.NewLabel(ctx, &fleet.Label{Name: "foo", Query: "select 1"})
+	require.NoError(t, err)
+	lblBar, err := s.ds.NewLabel(ctx, &fleet.Label{Name: "bar", Query: "select 1"})
+	require.NoError(t, err)
+
 	// create a couple profiles (Win and mac) for team 2, and none for team 3
 	tprof, err := fleet.NewMDMAppleConfigProfile(mcBytesForTest("tF", "tF.identifier", "tF.uuid"), nil)
 	require.NoError(t, err)
 	tprof.TeamID = &tm2.ID
+	// make tm2ProfF a "exclude-any" label-based profile
+	tprof.LabelsExcludeAny = []fleet.ConfigurationProfileLabel{
+		{LabelID: lblFoo.ID, LabelName: lblFoo.Name},
+		{LabelID: lblBar.ID, LabelName: lblBar.Name},
+	}
 	tm2ProfF, err := s.ds.NewMDMAppleConfigProfile(ctx, *tprof)
 	require.NoError(t, err)
 	// checksum is not returned by New..., so compute it manually
 	checkSum := md5.Sum(tm2ProfF.Mobileconfig) // nolint:gosec // used only for test
 	tm2ProfF.Checksum = checkSum[:]
 
-	// make tm2ProfG a label-based profile
-	lblFoo, err := s.ds.NewLabel(ctx, &fleet.Label{Name: "foo", Query: "select 1"})
-	require.NoError(t, err)
-	lblBar, err := s.ds.NewLabel(ctx, &fleet.Label{Name: "bar", Query: "select 1"})
-	require.NoError(t, err)
-
+	// make tm2ProfG a "include-all" label-based profile
 	tm2ProfG, err := s.ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
 		Name:   "tG",
 		TeamID: &tm2.ID,
 		SyncML: []byte(`<Add></Add>`),
-		Labels: []fleet.ConfigurationProfileLabel{
+		LabelsIncludeAll: []fleet.ConfigurationProfileLabel{
 			{LabelID: lblFoo.ID, LabelName: lblFoo.Name},
 			{LabelID: lblBar.ID, LabelName: lblBar.Name},
 		},
@@ -2966,7 +3093,11 @@ func (s *integrationMDMTestSuite) TestListMDMConfigProfiles() {
 		Platform:    "darwin",
 		Identifier:  tm2ProfF.Identifier,
 		Checksum:    tm2ProfF.Checksum,
-		Labels:      nil,
+		// labels are ordered by name
+		LabelsExcludeAny: []fleet.ConfigurationProfileLabel{
+			{LabelID: lblBar.ID, LabelName: lblBar.Name},
+			{LabelID: 0, LabelName: lblFoo.Name, Broken: true},
+		},
 	}, listResp.Profiles[0])
 	require.Equal(t, &fleet.MDMConfigProfilePayload{
 		ProfileUUID: tm2ProfG.ProfileUUID,
@@ -2974,13 +3105,13 @@ func (s *integrationMDMTestSuite) TestListMDMConfigProfiles() {
 		Name:        tm2ProfG.Name,
 		Platform:    "windows",
 		// labels are ordered by name
-		Labels: []fleet.ConfigurationProfileLabel{
+		LabelsIncludeAll: []fleet.ConfigurationProfileLabel{
 			{LabelID: lblBar.ID, LabelName: lblBar.Name},
 			{LabelID: 0, LabelName: lblFoo.Name, Broken: true},
 		},
 	}, listResp.Profiles[1])
 
-	// get the specific label-based profile returns the information
+	// get the specific include-all label-based profile returns the information
 	var getProfResp getMDMConfigProfileResponse
 	s.DoJSON("GET", "/api/latest/fleet/mdm/profiles/"+tm2ProfG.ProfileUUID, nil, http.StatusOK, &getProfResp)
 	getProfResp.CreatedAt, getProfResp.UploadedAt = time.Time{}, time.Time{}
@@ -2990,13 +3121,13 @@ func (s *integrationMDMTestSuite) TestListMDMConfigProfiles() {
 		Name:        tm2ProfG.Name,
 		Platform:    "windows",
 		// labels are ordered by name
-		Labels: []fleet.ConfigurationProfileLabel{
+		LabelsIncludeAll: []fleet.ConfigurationProfileLabel{
 			{LabelID: lblBar.ID, LabelName: lblBar.Name},
 			{LabelID: 0, LabelName: lblFoo.Name, Broken: true},
 		},
 	}, getProfResp.MDMConfigProfilePayload)
 
-	// get the non label-based profile returns no labels
+	// get the specific exclude-any label-based profile returns the information
 	getProfResp = getMDMConfigProfileResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/mdm/profiles/"+tm2ProfF.ProfileUUID, nil, http.StatusOK, &getProfResp)
 	getProfResp.CreatedAt, getProfResp.UploadedAt = time.Time{}, time.Time{}
@@ -3007,7 +3138,11 @@ func (s *integrationMDMTestSuite) TestListMDMConfigProfiles() {
 		Platform:    "darwin",
 		Identifier:  tm2ProfF.Identifier,
 		Checksum:    tm2ProfF.Checksum,
-		Labels:      nil,
+		// labels are ordered by name
+		LabelsExcludeAny: []fleet.ConfigurationProfileLabel{
+			{LabelID: lblBar.ID, LabelName: lblBar.Name},
+			{LabelID: 0, LabelName: lblFoo.Name, Broken: true},
+		},
 	}, getProfResp.MDMConfigProfilePayload)
 
 	// list for a non-existing team returns 404
@@ -3087,9 +3222,14 @@ func (s *integrationMDMTestSuite) TestListMDMConfigProfiles() {
 				for i, p := range listResp.Profiles {
 					gotNames[i] = p.Name
 					if p.Name == "tG" {
-						require.Len(t, p.Labels, 2)
+						require.Len(t, p.LabelsIncludeAll, 2)
 					} else {
-						require.Nil(t, p.Labels)
+						require.Nil(t, p.LabelsIncludeAll)
+					}
+					if p.Name == "tF" {
+						require.Len(t, p.LabelsExcludeAny, 2)
+					} else {
+						require.Nil(t, p.LabelsExcludeAny)
 					}
 					if c.teamID == nil {
 						// we set it to 0 for global
@@ -3516,52 +3656,6 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 	require.Contains(t, errMsg, "Profile is not compatible with host platform")
 }
 
-func (s *integrationMDMTestSuite) TestAppConfigMDMWindowsProfiles() {
-	t := s.T()
-
-	// set the windows custom settings fields
-	acResp := appConfigResponse{}
-	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-		"mdm": {
-		  "windows_settings": {
-		    "custom_settings": [
-		        {"path": "foo", "labels": ["baz"]},
-			{"path": "bar"}
-		    ]
-		  }
-		}
-  }`), http.StatusOK, &acResp)
-	assert.Equal(t, []fleet.MDMProfileSpec{{Path: "foo", Labels: []string{"baz"}}, {Path: "bar"}}, acResp.MDM.WindowsSettings.CustomSettings.Value)
-
-	// check that they are returned by a GET /config
-	acResp = appConfigResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
-	assert.Equal(t, []fleet.MDMProfileSpec{{Path: "foo", Labels: []string{"baz"}}, {Path: "bar"}}, acResp.MDM.WindowsSettings.CustomSettings.Value)
-
-	// patch without specifying the windows custom settings fields and an unrelated
-	// field, should not remove them
-	acResp = appConfigResponse{}
-	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-		"mdm": { "enable_disk_encryption": true }
-  }`), http.StatusOK, &acResp)
-	assert.Equal(t, []fleet.MDMProfileSpec{{Path: "foo", Labels: []string{"baz"}}, {Path: "bar"}}, acResp.MDM.WindowsSettings.CustomSettings.Value)
-
-	// patch with explicitly empty windows custom settings fields, would remove
-	// them but this is a dry-run
-	acResp = appConfigResponse{}
-	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-		"mdm": { "windows_settings": { "custom_settings": null } }
-  }`), http.StatusOK, &acResp, "dry_run", "true")
-	assert.Equal(t, []fleet.MDMProfileSpec{{Path: "foo", Labels: []string{"baz"}}, {Path: "bar"}}, acResp.MDM.WindowsSettings.CustomSettings.Value)
-
-	// patch with explicitly empty windows custom settings fields, removes them
-	acResp = appConfigResponse{}
-	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-		"mdm": { "windows_settings": { "custom_settings": null } }
-  }`), http.StatusOK, &acResp)
-	assert.Empty(t, acResp.MDM.WindowsSettings.CustomSettings.Value)
-}
-
 func (s *integrationMDMTestSuite) TestApplyTeamsMDMWindowsProfiles() {
 	t := s.T()
 
@@ -3584,12 +3678,12 @@ func (s *integrationMDMTestSuite) TestApplyTeamsMDMWindowsProfiles() {
 	var applyResp applyTeamSpecsResponse
 	s.DoJSON("POST", "/api/latest/fleet/spec/teams", rawTeamSpec(`
 		{
-		  "windows_settings": {
-		    "custom_settings": [
-		       {"path": "foo", "labels": ["baz"]},
-		       {"path": "bar"}
-		    ]
-		  }
+			"windows_settings": {
+				"custom_settings": [
+					{"path": "foo", "labels": ["baz"]},
+					{"path": "bar", "labels_exclude_any": ["x", "y"]}
+				]
+			}
 		}
 	`), http.StatusOK, &applyResp)
 	require.Len(t, applyResp.TeamIDsByName, 1)
@@ -3597,7 +3691,10 @@ func (s *integrationMDMTestSuite) TestApplyTeamsMDMWindowsProfiles() {
 	// check that they are returned by a GET /config
 	var teamResp getTeamResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
-	require.ElementsMatch(t, []fleet.MDMProfileSpec{{Path: "foo", Labels: []string{"baz"}}, {Path: "bar"}}, teamResp.Team.Config.MDM.WindowsSettings.CustomSettings.Value)
+	require.ElementsMatch(t, []fleet.MDMProfileSpec{
+		{Path: "foo", LabelsIncludeAll: []string{"baz"}},
+		{Path: "bar", LabelsExcludeAny: []string{"x", "y"}},
+	}, teamResp.Team.Config.MDM.WindowsSettings.CustomSettings.Value)
 
 	// patch without specifying the windows custom settings fields and an unrelated
 	// field, should not remove them
@@ -3608,7 +3705,10 @@ func (s *integrationMDMTestSuite) TestApplyTeamsMDMWindowsProfiles() {
 	// check that they are returned by a GET /config
 	teamResp = getTeamResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
-	require.ElementsMatch(t, []fleet.MDMProfileSpec{{Path: "foo", Labels: []string{"baz"}}, {Path: "bar"}}, teamResp.Team.Config.MDM.WindowsSettings.CustomSettings.Value)
+	require.ElementsMatch(t, []fleet.MDMProfileSpec{
+		{Path: "foo", LabelsIncludeAll: []string{"baz"}},
+		{Path: "bar", LabelsExcludeAny: []string{"x", "y"}},
+	}, teamResp.Team.Config.MDM.WindowsSettings.CustomSettings.Value)
 
 	// patch with explicitly empty windows custom settings fields, would remove
 	// them but this is a dry-run
@@ -3620,7 +3720,10 @@ func (s *integrationMDMTestSuite) TestApplyTeamsMDMWindowsProfiles() {
 
 	teamResp = getTeamResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
-	require.ElementsMatch(t, []fleet.MDMProfileSpec{{Path: "foo", Labels: []string{"baz"}}, {Path: "bar"}}, teamResp.Team.Config.MDM.WindowsSettings.CustomSettings.Value)
+	require.ElementsMatch(t, []fleet.MDMProfileSpec{
+		{Path: "foo", LabelsIncludeAll: []string{"baz"}},
+		{Path: "bar", LabelsExcludeAny: []string{"x", "y"}},
+	}, teamResp.Team.Config.MDM.WindowsSettings.CustomSettings.Value)
 
 	// patch with explicitly empty windows custom settings fields, removes them
 	applyResp = applyTeamSpecsResponse{}
@@ -3632,6 +3735,19 @@ func (s *integrationMDMTestSuite) TestApplyTeamsMDMWindowsProfiles() {
 	teamResp = getTeamResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
 	require.Empty(t, teamResp.Team.Config.MDM.WindowsSettings.CustomSettings.Value)
+
+	// apply with invalid mix of labels fails
+	res := s.Do("POST", "/api/latest/fleet/spec/teams", rawTeamSpec(`
+		{
+			"windows_settings": {
+				"custom_settings": [
+					{"path": "foo", "labels": ["a"], "labels_include_all": ["b"]}
+				]
+			}
+		}
+	`), http.StatusUnprocessableEntity)
+	errMsg := extractServerErrorText(res.Body)
+	assert.Contains(t, errMsg, `For each profile, only one of "labels_exclude_any", "labels_include_all" or "labels" can be included.`)
 }
 
 func (s *integrationMDMTestSuite) TestBatchSetMDMProfiles() {
@@ -3798,12 +3914,82 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMProfiles() {
 		fmt.Sprintf(`{"team_id": %d, "team_name": %q}`, tm.ID, tm.Name),
 		0,
 	)
-
 	s.lastActivityOfTypeMatches(
 		fleet.ActivityTypeEditedDeclarationProfile{}.ActivityName(),
 		fmt.Sprintf(`{"team_id": %d, "team_name": %q}`, tm.ID, tm.Name),
 		0,
 	)
+
+	// batch-apply profiles with labels
+	lbl1, err := s.ds.NewLabel(ctx, &fleet.Label{Name: "L1", Query: "select 1;"})
+	require.NoError(t, err)
+	lbl2, err := s.ds.NewLabel(ctx, &fleet.Label{Name: "L2", Query: "select 1;"})
+	require.NoError(t, err)
+	lbl3, err := s.ds.NewLabel(ctx, &fleet.Label{Name: "L3", Query: "select 1;"})
+	require.NoError(t, err)
+
+	// attempt with an invalid label name
+	res = s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+		{Name: "N1", Contents: mobileconfigForTest("N1", "I1"), Labels: []string{lbl1.Name, "no-such-label"}},
+	}}, http.StatusBadRequest)
+	msg := extractServerErrorText(res.Body)
+	require.Contains(t, msg, "some or all the labels provided don't exist")
+
+	// mix of labels fields
+	res = s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+		{Name: "N1", Contents: mobileconfigForTest("N1", "I1"), Labels: []string{lbl1.Name}, LabelsExcludeAny: []string{lbl2.Name}},
+	}}, http.StatusUnprocessableEntity)
+	msg = extractServerErrorText(res.Body)
+	require.Contains(t, msg, `For each profile, only one of "labels_exclude_any", "labels_include_all" or "labels" can be included.`)
+
+	// successful batch-set
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+		{Name: "N1", Contents: mobileconfigForTest("N1", "I1"), Labels: []string{lbl1.Name, lbl2.Name}},
+		{Name: "N2", Contents: syncMLForTest("./Foo/Bar"), LabelsIncludeAll: []string{lbl1.Name}},
+		{Name: "N4", Contents: declarationForTest("D1"), LabelsExcludeAny: []string{lbl2.Name}},
+	}}, http.StatusNoContent)
+
+	// confirm expected results
+	var listResp listMDMConfigProfilesResponse
+	s.DoJSON("GET", "/api/latest/fleet/configuration_profiles", nil, http.StatusOK, &listResp)
+	require.Len(t, listResp.Profiles, 3)
+	require.Equal(t, "N1", listResp.Profiles[0].Name)
+	require.Equal(t, "N2", listResp.Profiles[1].Name)
+	require.Equal(t, "N4", listResp.Profiles[2].Name)
+	require.Equal(t, listResp.Profiles[0].LabelsIncludeAll, []fleet.ConfigurationProfileLabel{
+		{LabelID: lbl1.ID, LabelName: lbl1.Name},
+		{LabelID: lbl2.ID, LabelName: lbl2.Name},
+	})
+	require.Nil(t, listResp.Profiles[0].LabelsExcludeAny)
+	require.Equal(t, listResp.Profiles[1].LabelsIncludeAll, []fleet.ConfigurationProfileLabel{
+		{LabelID: lbl1.ID, LabelName: lbl1.Name},
+	})
+	require.Nil(t, listResp.Profiles[1].LabelsExcludeAny)
+	require.Equal(t, listResp.Profiles[2].LabelsExcludeAny, []fleet.ConfigurationProfileLabel{
+		{LabelID: lbl2.ID, LabelName: lbl2.Name},
+	})
+	require.Nil(t, listResp.Profiles[2].LabelsIncludeAll)
+
+	// successful batch-set that updates some labels
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+		{Name: "N1", Contents: mobileconfigForTest("N1", "I1"), LabelsExcludeAny: []string{lbl1.Name, lbl3.Name}},
+		{Name: "N2", Contents: syncMLForTest("./Foo/Bar"), LabelsIncludeAll: []string{lbl2.Name}},
+	}}, http.StatusNoContent)
+
+	listResp = listMDMConfigProfilesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/configuration_profiles", nil, http.StatusOK, &listResp)
+	require.Len(t, listResp.Profiles, 2)
+	require.Equal(t, "N1", listResp.Profiles[0].Name)
+	require.Equal(t, "N2", listResp.Profiles[1].Name)
+	require.Equal(t, listResp.Profiles[0].LabelsExcludeAny, []fleet.ConfigurationProfileLabel{
+		{LabelID: lbl1.ID, LabelName: lbl1.Name},
+		{LabelID: lbl3.ID, LabelName: lbl3.Name},
+	})
+	require.Nil(t, listResp.Profiles[0].LabelsIncludeAll)
+	require.Equal(t, listResp.Profiles[1].LabelsIncludeAll, []fleet.ConfigurationProfileLabel{
+		{LabelID: lbl2.ID, LabelName: lbl2.Name},
+	})
+	require.Nil(t, listResp.Profiles[1].LabelsExcludeAny)
 
 	// names cannot be duplicated across platforms
 	declBytes := json.RawMessage(`{

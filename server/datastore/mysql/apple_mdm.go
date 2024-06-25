@@ -72,10 +72,17 @@ INSERT INTO
 		// filled in.
 		profileID, _ = res.LastInsertId()
 
-		for i := range cp.Labels {
-			cp.Labels[i].ProfileUUID = profUUID
+		labels := make([]fleet.ConfigurationProfileLabel, 0, len(cp.LabelsIncludeAll)+len(cp.LabelsExcludeAny))
+		for i := range cp.LabelsIncludeAll {
+			cp.LabelsIncludeAll[i].ProfileUUID = profUUID
+			labels = append(labels, cp.LabelsIncludeAll[i])
 		}
-		if err := batchSetProfileLabelAssociationsDB(ctx, tx, cp.Labels, "darwin"); err != nil {
+		for i := range cp.LabelsExcludeAny {
+			cp.LabelsExcludeAny[i].ProfileUUID = profUUID
+			cp.LabelsExcludeAny[i].Exclude = true
+			labels = append(labels, cp.LabelsExcludeAny[i])
+		}
+		if err := batchSetProfileLabelAssociationsDB(ctx, tx, labels, "darwin"); err != nil {
 			return ctxerr.Wrap(ctx, err, "inserting darwin profile label associations")
 		}
 
@@ -223,9 +230,12 @@ WHERE
 		if err != nil {
 			return nil, err
 		}
-		if len(labels) > 0 {
-			// ensure we leave Labels nil if there are none
-			res.Labels = labels
+		for _, lbl := range labels {
+			if lbl.Exclude {
+				res.LabelsExcludeAny = append(res.LabelsExcludeAny, lbl)
+			} else {
+				res.LabelsIncludeAll = append(res.LabelsIncludeAll, lbl)
+			}
 		}
 	}
 
@@ -262,9 +272,12 @@ WHERE
 	if err != nil {
 		return nil, err
 	}
-	if len(labels) > 0 {
-		// ensure we leave Labels nil if there are none
-		res.Labels = labels
+	for _, lbl := range labels {
+		if lbl.Exclude {
+			res.LabelsExcludeAny = append(res.LabelsExcludeAny, lbl)
+		} else {
+			res.LabelsIncludeAll = append(res.LabelsIncludeAll, lbl)
+		}
 	}
 
 	return &res, nil
@@ -1535,8 +1548,13 @@ ON DUPLICATE KEY UPDATE
 				return ctxerr.Wrapf(ctx, err, "profile %q is in the database but was not incoming", newlyInsertedProf.Identifier)
 			}
 
-			for _, label := range incomingProf.Labels {
+			for _, label := range incomingProf.LabelsIncludeAll {
 				label.ProfileUUID = newlyInsertedProf.ProfileUUID
+				incomingLabels = append(incomingLabels, label)
+			}
+			for _, label := range incomingProf.LabelsExcludeAny {
+				label.ProfileUUID = newlyInsertedProf.ProfileUUID
+				label.Exclude = true
 				incomingLabels = append(incomingLabels, label)
 			}
 		}
@@ -3689,8 +3707,13 @@ WHERE
 				return nil, ctxerr.Wrapf(ctx, err, "declaration %q is in the database but was not incoming", newlyInsertedDecl.Name)
 			}
 
-			for _, label := range incomingDecl.Labels {
+			for _, label := range incomingDecl.LabelsIncludeAll {
 				label.ProfileUUID = newlyInsertedDecl.DeclarationUUID
+				incomingLabels = append(incomingLabels, label)
+			}
+			for _, label := range incomingDecl.LabelsExcludeAny {
+				label.ProfileUUID = newlyInsertedDecl.DeclarationUUID
+				label.Exclude = true
 				incomingLabels = append(incomingLabels, label)
 			}
 		}
@@ -3789,10 +3812,18 @@ func (ds *Datastore) insertOrUpsertMDMAppleDeclaration(ctx context.Context, insO
 			return ctxerr.Wrap(ctx, err, "reload apple mdm declaration")
 		}
 
-		for i := range declaration.Labels {
-			declaration.Labels[i].ProfileUUID = declUUID
+		labels := make([]fleet.ConfigurationProfileLabel, 0,
+			len(declaration.LabelsIncludeAll)+len(declaration.LabelsExcludeAny))
+		for i := range declaration.LabelsIncludeAll {
+			declaration.LabelsIncludeAll[i].ProfileUUID = declUUID
+			labels = append(labels, declaration.LabelsIncludeAll[i])
 		}
-		if err := batchSetDeclarationLabelAssociationsDB(ctx, tx, declaration.Labels); err != nil {
+		for i := range declaration.LabelsExcludeAny {
+			declaration.LabelsExcludeAny[i].ProfileUUID = declUUID
+			declaration.LabelsExcludeAny[i].Exclude = true
+			labels = append(labels, declaration.LabelsExcludeAny[i])
+		}
+		if err := batchSetDeclarationLabelAssociationsDB(ctx, tx, labels); err != nil {
 			return ctxerr.Wrap(ctx, err, "inserting mdm declaration label associations")
 		}
 
@@ -3822,11 +3853,12 @@ func batchSetDeclarationLabelAssociationsDB(ctx context.Context, tx sqlx.ExtCont
 
 	upsertStmt := `
 	  INSERT INTO mdm_declaration_labels
-              (apple_declaration_uuid, label_id, label_name)
+              (apple_declaration_uuid, label_id, label_name, exclude)
           VALUES
               %s
           ON DUPLICATE KEY UPDATE
-              label_id = VALUES(label_id)
+              label_id = VALUES(label_id),
+              exclude = VALUES(exclude)
 	`
 
 	var (
@@ -3842,9 +3874,9 @@ func batchSetDeclarationLabelAssociationsDB(ctx context.Context, tx sqlx.ExtCont
 			insertBuilder.WriteString(",")
 			deleteBuilder.WriteString(",")
 		}
-		insertBuilder.WriteString("(?, ?, ?)")
+		insertBuilder.WriteString("(?, ?, ?, ?)")
 		deleteBuilder.WriteString("(?, ?)")
-		insertParams = append(insertParams, pl.ProfileUUID, pl.LabelID, pl.LabelName)
+		insertParams = append(insertParams, pl.ProfileUUID, pl.LabelID, pl.LabelName, pl.Exclude)
 		deleteParams = append(deleteParams, pl.ProfileUUID, pl.LabelID)
 
 		setProfileUUIDs[pl.ProfileUUID] = struct{}{}

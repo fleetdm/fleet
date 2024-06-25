@@ -316,6 +316,66 @@ func TestMDMProfileSpecsMatch(t *testing.T) {
 			},
 			expected: false,
 		},
+		{
+			name: "Include Labels Match",
+			a: []fleet.MDMProfileSpec{
+				{Path: "path1", LabelsIncludeAll: []string{"label1", "label2"}},
+				{Path: "path2", LabelsIncludeAll: []string{"label3"}},
+			},
+			b: []fleet.MDMProfileSpec{
+				{Path: "path1", LabelsIncludeAll: []string{"label2", "label1"}},
+				{Path: "path2", LabelsIncludeAll: []string{"label3"}},
+			},
+			expected: true,
+		},
+		{
+			name: "Exclude Labels Match",
+			a: []fleet.MDMProfileSpec{
+				{Path: "path1", LabelsExcludeAny: []string{"label1", "label2"}},
+				{Path: "path2", LabelsExcludeAny: []string{"label3"}},
+			},
+			b: []fleet.MDMProfileSpec{
+				{Path: "path1", LabelsExcludeAny: []string{"label2", "label1"}},
+				{Path: "path2", LabelsExcludeAny: []string{"label3"}},
+			},
+			expected: true,
+		},
+		{
+			name: "Include Labels Mismatch",
+			a: []fleet.MDMProfileSpec{
+				{Path: "path1", LabelsIncludeAll: []string{"label1", "label2"}},
+				{Path: "path2", LabelsIncludeAll: []string{"label3"}},
+			},
+			b: []fleet.MDMProfileSpec{
+				{Path: "path1", LabelsIncludeAll: []string{"label2", "label1"}},
+				{Path: "path2", LabelsIncludeAll: []string{"label4"}},
+			},
+			expected: false,
+		},
+		{
+			name: "Exclude Labels Mismatch",
+			a: []fleet.MDMProfileSpec{
+				{Path: "path1", LabelsExcludeAny: []string{"label1", "label2"}},
+				{Path: "path2", LabelsExcludeAny: []string{"label3"}},
+			},
+			b: []fleet.MDMProfileSpec{
+				{Path: "path1", LabelsExcludeAny: []string{"label2", "label1"}},
+				{Path: "path3", LabelsExcludeAny: []string{"label3"}},
+			},
+			expected: false,
+		},
+		{
+			name: "Deprecated Labels Match IncludeAll",
+			a: []fleet.MDMProfileSpec{
+				{Path: "path1", Labels: []string{"label1", "label2"}},
+				{Path: "path2", LabelsExcludeAny: []string{"label3"}},
+			},
+			b: []fleet.MDMProfileSpec{
+				{Path: "path1", LabelsIncludeAll: []string{"label2", "label1"}},
+				{Path: "path2", LabelsExcludeAny: []string{"label3"}},
+			},
+			expected: true,
+		},
 	}
 
 	for _, tc := range tests {
