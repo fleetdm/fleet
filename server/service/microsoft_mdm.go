@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/x509"
+	"database/sql"
 	"encoding/base64"
 	"encoding/json"
 	"encoding/xml"
@@ -969,7 +970,7 @@ func (svc *Service) authBinarySecurityToken(ctx context.Context, authToken *flee
 			}
 
 			mdmInfo, err := svc.ds.GetHostMDM(ctx, host.ID)
-			if err != nil {
+			if err != nil && !errors.Is(err, sql.ErrNoRows) {
 				return "", "", errors.New("unable to retrieve host mdm info")
 			}
 
