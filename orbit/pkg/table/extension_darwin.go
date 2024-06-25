@@ -84,7 +84,7 @@ func PlatformTables(opts PluginOpts) ([]osquery.OsqueryPlugin, error) {
 		),
 
 		filevault_status.TablePlugin(osqueryLogger), // table name is "filevault_status"
-		ioreg.TablePlugin(osqueryLogger),            // table name is "ioreg"
+		ioreg.TablePlugin(),                         // table name is "ioreg"
 
 		// firmwarepasswd table. Only returns valid data on a Mac with an Intel processor. Background: https://support.apple.com/en-us/HT204455
 		firmwarepasswd.TablePlugin(osqueryLogger), // table name is "firmwarepasswd"
