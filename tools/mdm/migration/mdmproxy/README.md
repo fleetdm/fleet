@@ -17,7 +17,7 @@ Usage of ./mdmproxy:
   -migrate-percentage int
         Percentage of clients to migrate from existing MDM to Fleet
   -migrate-udids string
-        Comma-delimited list of UDIDs to migrate always
+        Space/newline-delimited list of UDIDs to migrate always
   -server-address string
         Address for server to listen on (default ":8080")
 ```

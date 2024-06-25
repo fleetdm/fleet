@@ -90,13 +90,17 @@ func (m *mdmProxy) handleUpdatePercentage(w http.ResponseWriter, r *http.Request
 		http.Error(w, "Set auth token to enable remote updates", http.StatusUnauthorized)
 		return
 	}
-	token := r.Header.Get("Authorization")
-	if token == "" {
+	authHeader := r.Header.Get("Authorization")
+	if authHeader == "" {
 		http.Error(w, "Authorization header must be provided", http.StatusUnauthorized)
 		return
 
 	}
-	if token != m.token {
+	if !strings.HasPrefix(authHeader, "Bearer ") {
+		http.Error(w, "Authorization header must start with \"Bearer \"", http.StatusUnauthorized)
+		return
+	}
+	if authHeader != "Bearer "+m.token {
 		http.Error(w, "Authorization header does not match", http.StatusUnauthorized)
 		return
 	}
@@ -131,13 +135,17 @@ func (m *mdmProxy) handleUpdateMigrateUDIDs(w http.ResponseWriter, r *http.Reque
 		http.Error(w, "Set auth token to enable remote updates", http.StatusUnauthorized)
 		return
 	}
-	token := r.Header.Get("Authorization")
-	if token == "" {
+	authHeader := r.Header.Get("Authorization")
+	if authHeader == "" {
 		http.Error(w, "Authorization header must be provided", http.StatusUnauthorized)
 		return
 
 	}
-	if token != m.token {
+	if !strings.HasPrefix(authHeader, "Bearer ") {
+		http.Error(w, "Authorization header must start with \"Bearer \"", http.StatusUnauthorized)
+		return
+	}
+	if authHeader != "Bearer "+m.token {
 		http.Error(w, "Authorization header does not match", http.StatusUnauthorized)
 		return
 	}
@@ -246,7 +254,7 @@ func main() {
 	existingHostname := flag.String("existing-hostname", "", "Hostname for existing MDM server (eg. 'mdm.example.com') (required)")
 	fleetURL := flag.String("fleet-url", "", "Fleet MDM server URL (full path) (required)")
 	migratePercentage := flag.Int("migrate-percentage", 0, "Percentage of clients to migrate from existing MDM to Fleet")
-	migrateUDIDs := flag.String("migrate-udids", "", "Comma-delimited list of UDIDs to migrate always")
+	migrateUDIDs := flag.String("migrate-udids", "", "Space/newline-delimited list of UDIDs to migrate always")
 	serverAddr := flag.String("server-address", ":8080", "Address for server to listen on")
 	flag.Parse()
 
@@ -271,7 +279,9 @@ func main() {
 	log.Printf("--existing-hostname set: %s", *existingHostname)
 	log.Printf("--fleet-url set: %s", *fleetURL)
 	if *authToken != "" {
-		log.Printf("Auth token set. Remote configuration enabled.")
+		log.Printf("--auth-token set. Remote configuration enabled.")
+	} else {
+		log.Printf("--auth-token is empty. Remote configuration disabled.")
 	}
 
 	proxy := mdmProxy{
