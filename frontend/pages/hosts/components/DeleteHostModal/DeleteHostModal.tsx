@@ -75,9 +75,7 @@ const DeleteHostModal = ({
         </p>
         <p>
           <CustomLink
-            url={
-              "https://fleetdm.com/learn-more-about/uninstall-fleetd"
-            }
+            url={"https://fleetdm.com/learn-more-about/uninstall-fleetd"}
             text="Uninstall Fleet's agent"
             newTab
           />
