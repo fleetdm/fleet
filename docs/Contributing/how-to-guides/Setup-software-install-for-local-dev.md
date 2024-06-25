@@ -1,7 +1,7 @@
 # Setup software install for local dev
 
 If you are working on a feature for adding, removing, or installing software installers
-in you'll want to upload software installers. This guide walks you through the
+you'll likely want to upload software installers. This guide walks you through the
 steps needed to be able to upload software installers while working in you
 local dev environment.
 
