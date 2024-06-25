@@ -1,8 +1,7 @@
 import React from "react";
 import ReactTooltip from "react-tooltip";
 import classnames from "classnames";
-import { format, addMilliseconds, startOfDay } from "date-fns";
-import { toZonedTime, getTimezoneOffset } from "date-fns-tz";
+import { format } from "date-fns";
 import {
   IHostMdmProfile,
   BootstrapPackageStatus,
@@ -354,62 +353,33 @@ const HostSummary = ({
 
   const renderMaintenanceWindow = () => {
     const {
-      // UTC
+      // a Date string
       starts_at: startsAt,
-      // IANA timezone name, e.g. "America/New_York"
+      // IANA timezone string, e.g. "America/Argentina/Buenos_Aires"
       timezone,
     } = summaryData.maintenance_window as IHostMaintenanceWindow;
 
-    // coallesce null timezone to "" allows cleaner check for invalid/nonexistent timezone
-    const zonedTime = toZonedTime(startsAt, timezone ?? "");
-    // if invalid timezone, isNaN(zonedTime) will be true
-    // @ts-ignore
-    if (!timezone || isNaN(zonedTime)) {
-      console.log(
-        "Invalid end user timezone for scheduled maintenance window - displaying in UTC"
-      );
-      return (
-        <DataSet
-          title="Scheduled maintenance"
-          value={
-            <TooltipWrapper tipContent="End user's timezone unavailable. Displaying in UTC.">
-              {format(startsAt, DATE_FNS_FORMAT_STRINGS.dateAtTime)}
-            </TooltipWrapper>
-          }
-        />
-      );
-    }
-    // including startsAt as 2nd param ensures conversion accounts for DST, if applicable to this timezone
-    const msOffset = getTimezoneOffset(timezone, new Date(startsAt));
+    const prettyStartsAt = format(startsAt, DATE_FNS_FORMAT_STRINGS.dateAtTime);
 
-    const [isNegativeOffset, absMsOffset] = [msOffset < 0, Math.abs(msOffset)];
-
-    // get GMT offset as HH:MM
-    const absOffsetAsTimeDiff = addMilliseconds(
-      startOfDay(new Date()),
-      absMsOffset
+    const tip = timezone ? (
+      <>
+        End user&apos;s time zone:
+        <br />
+        (GMT{startsAt.slice(-6)}) {timezone.replace("_", " ")}
+      </>
+    ) : (
+      <>
+        End user&apos;s timezone unavailable.
+        <br />
+        Displaying in UTC.
+      </>
     );
 
     return (
       <DataSet
         title="Scheduled maintenance"
         value={
-          <TooltipWrapper
-            tipContent={
-              <>
-                End user&apos;s time zone:
-                <br />
-                (GMT{isNegativeOffset ? "-" : "+"}
-                {format(
-                  absOffsetAsTimeDiff,
-                  DATE_FNS_FORMAT_STRINGS.hoursAndMinutes
-                )}
-                ) {timezone.replace("_", " ")}
-              </>
-            }
-          >
-            {format(zonedTime, DATE_FNS_FORMAT_STRINGS.dateAtTime)}
-          </TooltipWrapper>
+          <TooltipWrapper tipContent={tip}>{prettyStartsAt}</TooltipWrapper>
         }
       />
     );

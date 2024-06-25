@@ -7729,11 +7729,6 @@ data-urls@^3.0.2:
     whatwg-mimetype "^3.0.0"
     whatwg-url "^11.0.0"
 
-date-fns-tz@3.1.3:
-  version "3.1.3"
-  resolved "https://registry.yarnpkg.com/date-fns-tz/-/date-fns-tz-3.1.3.tgz#643dfc7157008a3873cd717973e4074bb802f962"
-  integrity sha512-ZfbMu+nbzW0mEzC8VZrLiSWvUIaI3aRHeq33mTe7Y38UctKukgqPR4nTDwcwS4d64Gf8GghnVsroBuMY3eiTeA==
-
 date-fns@3.0.0:
   version "3.0.0"
   resolved "https://registry.yarnpkg.com/date-fns/-/date-fns-3.0.0.tgz#dc46aa8c403966a588fbc3794c6b006c17ab8691"

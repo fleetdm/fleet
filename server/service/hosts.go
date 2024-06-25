@@ -1054,10 +1054,20 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "list upcoming host maintenance windows")
 	}
-	// we are only interested in the next maintenance window. There should only be one, anyway.
+	// we are only interested in the next maintenance window. There should only be one for now, anyway.
 	var nextMw *fleet.HostMaintenanceWindow
 	if len(mws) > 0 {
 		nextMw = mws[0]
+	}
+
+	// nil TimeZone is okay
+	if nextMw != nil && nextMw.TimeZone != nil {
+		// return the start time in the local timezone of the host's associated google calendar user
+		gCalLoc, err := time.LoadLocation(*nextMw.TimeZone)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "list upcoming host maintenance windows - invalid google calendar timezone")
+		}
+		nextMw.StartsAt = nextMw.StartsAt.In(gCalLoc)
 	}
 
 	// Due to a known osquery issue with M1 Macs, we are ignoring the stored value in the db
