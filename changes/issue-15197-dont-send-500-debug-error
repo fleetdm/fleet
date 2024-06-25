@@ -1,0 +1,1 @@
+- dont always send a 500 from the /debug/errors endpoint
