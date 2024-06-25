@@ -636,7 +636,8 @@ func TestFullTeamGitOps(t *testing.T) {
 	t.Setenv("TEST_TEAM_NAME", teamName)
 
 	// Dry run
-	file := "./testdata/gitops/team_config_no_paths.yml"
+	const baseFilename = "team_config_no_paths.yml"
+	file := "./testdata/gitops/" + baseFilename
 	_ = runAppForTest(t, []string{"gitops", "-f", file, "--dry-run"})
 	assert.Nil(t, savedTeam)
 	assert.Len(t, enrolledSecrets, 0)
@@ -670,6 +671,7 @@ func TestFullTeamGitOps(t *testing.T) {
 	assert.Equal(t, "https://example.com/host_status_webhook", savedTeam.Config.WebhookSettings.HostStatusWebhook.DestinationURL)
 	require.NotNil(t, savedTeam.Config.Integrations.GoogleCalendar)
 	assert.True(t, savedTeam.Config.Integrations.GoogleCalendar.Enable)
+	assert.Equal(t, baseFilename, *savedTeam.Filename)
 
 	// Change team name
 	newTeamName := "New Team Name"
@@ -678,6 +680,7 @@ func TestFullTeamGitOps(t *testing.T) {
 	_ = runAppForTest(t, []string{"gitops", "-f", file})
 	require.NotNil(t, savedTeam)
 	assert.Equal(t, newTeamName, savedTeam.Name)
+	assert.Equal(t, baseFilename, *savedTeam.Filename)
 
 	// Now clear the settings
 	tmpFile, err := os.CreateTemp(t.TempDir(), "*.yml")
@@ -720,6 +723,8 @@ team_settings:
 	assert.Empty(t, savedTeam.Config.MDM.MacOSUpdates.MinimumVersion.Value)
 	assert.Empty(t, savedTeam.Config.MDM.MacOSSetup.BootstrapPackage.Value)
 	assert.False(t, savedTeam.Config.MDM.EnableDiskEncryption)
+	assert.Equal(t, filepath.Base(tmpFile.Name()), *savedTeam.Filename)
+
 }
 
 func TestBasicGlobalAndTeamGitOps(t *testing.T) {

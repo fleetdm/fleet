@@ -682,7 +682,12 @@ func (c *Client) ApplyGroup(
 				if opts.DryRun && (teamID == 0 || !ok) {
 					logfn("[+] would've applied MDM profiles for new team %s\n", tmName)
 				} else {
-					logfn("[+] applying MDM profiles for team %s\n", tmName)
+					if opts.DryRun {
+						// If we are in dry run mode, the team name could be changing, so we don't print it.
+						logfn("[+] applying MDM profiles for team\n")
+					} else {
+						logfn("[+] applying MDM profiles for team %s\n", tmName)
+					}
 					if err := c.ApplyTeamProfiles(tmName, profs, teamOpts); err != nil {
 						return nil, fmt.Errorf("applying custom settings for team %q: %w", tmName, err)
 					}
