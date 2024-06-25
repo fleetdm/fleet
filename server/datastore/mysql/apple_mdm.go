@@ -1726,6 +1726,9 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 			mcpl.label_id IS NULL
 		)
 `, fmt.Sprintf(appleMDMProfilesDesiredStateQuery, "h.uuid IN (?)", "h.uuid IN (?)"))
+	// TODO(mna): I think the "except would be removed" clause above is good for
+	// both include all / exclude any scenarios? I.e. we don't want to remove a
+	// previously installed profile if it is based on a label that is broken?
 
 	// TODO: if a very large number (~65K) of host uuids was matched (via
 	// uuids, teams or profile IDs), could result in too many placeholders (not

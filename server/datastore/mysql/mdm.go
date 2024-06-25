@@ -287,6 +287,8 @@ WHERE
 ORDER BY
 	profile_uuid, label_name
 `
+	// TODO(mna): where does the Apple declarations get selected to be sent to
+	// hosts based on labels? I can't find the exact spot nor the query it uses.
 
 	// ensure there's at least one (non-matching) value in the slice so the IN
 	// clause is valid
@@ -720,8 +722,9 @@ GROUP BY  name, syncml
 	HAVING
 		count_profile_labels > 0
 		AND count_host_labels = count_profile_labels
-
   `
+	// TODO(mna): update the labels case to be the "include all" and add a UNION
+	// for the "exclude any"
 
 	var profiles []*fleet.ExpectedMDMProfile
 	// Note: teamID provided twice
@@ -792,6 +795,8 @@ WHERE
 		count_profile_labels > 0
 		AND count_host_labels = count_profile_labels
 	`
+	// TODO(mna): update the labels case to be the "include all" and add a UNION
+	// for the "exclude any"
 
 	var rows []*fleet.ExpectedMDMProfile
 	// Note: teamID provided twice

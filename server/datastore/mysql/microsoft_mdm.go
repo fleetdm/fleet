@@ -1174,6 +1174,9 @@ const windowsMDMProfilesDesiredStateQuery = `
 		count_profile_labels > 0 AND count_host_labels = count_profile_labels
 `
 
+// TODO(mna): update the labels case to become the "include all" and add a case
+// for the "exclude any".
+
 func (ds *Datastore) ListMDMWindowsProfilesToInstall(ctx context.Context) ([]*fleet.MDMWindowsProfilePayload, error) {
 	var result []*fleet.MDMWindowsProfilePayload
 	// TODO(mna): why is this in a transaction/reading from the primary, but not
@@ -1318,6 +1321,9 @@ func listMDMWindowsProfilesToRemoveDB(
 		) AND
 		(%s)
 `, fmt.Sprintf(windowsMDMProfilesDesiredStateQuery, "TRUE", "TRUE"), hostFilter)
+	// TODO(mna): I think the "except would be removed" clause above is good for
+	// both include all / exclude any scenarios? I.e. we don't want to remove a
+	// previously installed profile if it is based on a label that is broken?
 
 	var err error
 	var args []any
