@@ -982,6 +982,7 @@ func TestFullGlobalAndTeamGitOps(t *testing.T) {
 	// Cannot run t.Parallel() because it sets environment variables
 	// mdm test configuration must be set so that activating windows MDM works.
 	ds, savedAppConfigPtr, savedTeamPtr := setupFullGitOpsPremiumServer(t)
+	startSoftwareInstallerServer(t)
 
 	var enrolledSecrets []*fleet.EnrollSecret
 	var enrolledTeamSecrets []*fleet.EnrollSecret
