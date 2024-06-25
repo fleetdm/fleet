@@ -13,7 +13,7 @@ func Up_20240625093543(tx *sql.Tx) error {
 	_, err := tx.Exec(
 		`
 		ALTER TABLE teams
-		ADD COLUMN filename VARCHAR(255) DEFAULT NULL,
+		ADD COLUMN filename VARCHAR(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
 		ADD CONSTRAINT idx_teams_filename UNIQUE INDEX (filename)`,
 	)
 	if err != nil {
