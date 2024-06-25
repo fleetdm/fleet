@@ -19,7 +19,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/worker"
-	"github.com/go-kit/kit/log/level"
+	"github.com/go-kit/log/level"
 )
 
 func obfuscateSecrets(user *fleet.User, teams []*fleet.Team) error {
@@ -525,8 +525,8 @@ func (svc *Service) DeleteTeam(ctx context.Context, teamID uint) error {
 	filter := fleet.TeamFilter{User: vc.User, IncludeObserver: true}
 
 	opts := fleet.HostListOptions{
-		TeamFilter:             &teamID,
-		DisableFailingPolicies: true, // don't need to check policies for hosts that are being deleted
+		TeamFilter:    &teamID,
+		DisableIssues: true, // don't need to check policies for hosts that are being deleted
 	}
 
 	hosts, err := svc.ds.ListHosts(ctx, filter, opts)

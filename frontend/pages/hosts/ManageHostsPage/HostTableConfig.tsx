@@ -7,7 +7,7 @@ import ReactTooltip from "react-tooltip";
 
 import { IDeviceUser, IHost } from "interfaces/host";
 import Checkbox from "components/forms/fields/Checkbox";
-import DiskSpaceGraph from "components/DiskSpaceGraph";
+import DiskSpaceIndicator from "pages/hosts/components/DiskSpaceIndicator";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
 import HostMdmStatusCell from "components/TableContainer/DataTable/HostMdmStatusCell/HostMdmStatusCell";
 import IssueCell from "components/TableContainer/DataTable/IssueCell/IssueCell";
@@ -251,10 +251,12 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
   },
   {
     title: "Issues",
-    Header: "Issues",
-    disableSortBy: true,
+    Header: (cellProps: IHostTableHeaderProps) => (
+      <HeaderCell value="Issues" isSortedDesc={cellProps.column.isSortedDesc} />
+    ),
     accessor: "issues",
     id: "issues",
+    sortDescFirst: true,
     Cell: (cellProps: IIssuesCellProps) => {
       if (
         cellProps.row.original.platform === "ios" ||
@@ -290,7 +292,7 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
         return NotSupported;
       }
       return (
-        <DiskSpaceGraph
+        <DiskSpaceIndicator
           baseClass="gigs_disk_space_available__cell"
           gigsDiskSpaceAvailable={cellProps.cell.value}
           percentDiskSpaceAvailable={percent_disk_space_available}

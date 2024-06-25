@@ -209,6 +209,12 @@ type AddHostsToTeamFunc func(ctx context.Context, teamID *uint, hostIDs []uint) 
 
 type HostnamesByIdentifiersFunc func(ctx context.Context, identifiers []string) ([]string, error)
 
+type UpdateHostIssuesFailingPoliciesFunc func(ctx context.Context, hostIDs []uint) error
+
+type UpdateHostIssuesVulnerabilitiesFunc func(ctx context.Context) error
+
+type CleanupHostIssuesFunc func(ctx context.Context) error
+
 type TotalAndUnseenHostsSinceFunc func(ctx context.Context, teamID *uint, daysCount int) (total int, unseen []uint, err error)
 
 type DeleteHostsFunc func(ctx context.Context, ids []uint) error
@@ -1254,6 +1260,15 @@ type DataStore struct {
 
 	HostnamesByIdentifiersFunc        HostnamesByIdentifiersFunc
 	HostnamesByIdentifiersFuncInvoked bool
+
+	UpdateHostIssuesFailingPoliciesFunc        UpdateHostIssuesFailingPoliciesFunc
+	UpdateHostIssuesFailingPoliciesFuncInvoked bool
+
+	UpdateHostIssuesVulnerabilitiesFunc        UpdateHostIssuesVulnerabilitiesFunc
+	UpdateHostIssuesVulnerabilitiesFuncInvoked bool
+
+	CleanupHostIssuesFunc        CleanupHostIssuesFunc
+	CleanupHostIssuesFuncInvoked bool
 
 	TotalAndUnseenHostsSinceFunc        TotalAndUnseenHostsSinceFunc
 	TotalAndUnseenHostsSinceFuncInvoked bool
@@ -3061,6 +3076,27 @@ func (s *DataStore) HostnamesByIdentifiers(ctx context.Context, identifiers []st
 	s.HostnamesByIdentifiersFuncInvoked = true
 	s.mu.Unlock()
 	return s.HostnamesByIdentifiersFunc(ctx, identifiers)
+}
+
+func (s *DataStore) UpdateHostIssuesFailingPolicies(ctx context.Context, hostIDs []uint) error {
+	s.mu.Lock()
+	s.UpdateHostIssuesFailingPoliciesFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpdateHostIssuesFailingPoliciesFunc(ctx, hostIDs)
+}
+
+func (s *DataStore) UpdateHostIssuesVulnerabilities(ctx context.Context) error {
+	s.mu.Lock()
+	s.UpdateHostIssuesVulnerabilitiesFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpdateHostIssuesVulnerabilitiesFunc(ctx)
+}
+
+func (s *DataStore) CleanupHostIssues(ctx context.Context) error {
+	s.mu.Lock()
+	s.CleanupHostIssuesFuncInvoked = true
+	s.mu.Unlock()
+	return s.CleanupHostIssuesFunc(ctx)
 }
 
 func (s *DataStore) TotalAndUnseenHostsSince(ctx context.Context, teamID *uint, daysCount int) (total int, unseen []uint, err error) {

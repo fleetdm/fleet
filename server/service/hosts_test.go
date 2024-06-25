@@ -1651,9 +1651,9 @@ func TestLockUnlockWipeHostAuth(t *testing.T) {
 			}
 			ctx := viewer.NewContext(ctx, viewer.Viewer{User: tt.user})
 
-			_, err := svc.LockHost(ctx, globalHostID)
+			_, err := svc.LockHost(ctx, globalHostID, false)
 			checkAuthErr(t, tt.shouldFailGlobalWrite, err)
-			_, err = svc.LockHost(ctx, teamHostID)
+			_, err = svc.LockHost(ctx, teamHostID, false)
 			checkAuthErr(t, tt.shouldFailTeamWrite, err)
 
 			// Pretend we locked the host

@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -16,7 +17,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/go-kit/kit/log/level"
+	"github.com/go-kit/log/level"
 )
 
 type setOrbitNodeKeyer interface {
@@ -488,6 +489,10 @@ func (svc *Service) SetOrUpdateDeviceAuthToken(ctx context.Context, deviceAuthTo
 
 	if len(deviceAuthToken) == 0 {
 		return badRequest("device auth token cannot be empty")
+	}
+
+	if url.QueryEscape(deviceAuthToken) != deviceAuthToken {
+		return badRequest("device auth token contains invalid characters")
 	}
 
 	host, ok := hostctx.FromContext(ctx)

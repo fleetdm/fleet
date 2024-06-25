@@ -757,6 +757,12 @@ func newCleanupsAndAggregationSchedule(
 			},
 		),
 		schedule.WithJob(
+			"cleanup_host_issues",
+			func(ctx context.Context) error {
+				return ds.CleanupHostIssues(ctx)
+			},
+		),
+		schedule.WithJob(
 			"sync_enrolled_host_ids",
 			func(ctx context.Context) error {
 				return enrollHostLimiter.SyncEnrolledHostIDs(ctx)

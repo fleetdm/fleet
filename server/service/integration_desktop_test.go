@@ -304,7 +304,7 @@ func (s *integrationTestSuite) TestErrorReporting() {
 	res = s.DoRawNoAuth("POST", "/api/latest/fleet/device/"+token+"/debug/errors", jsonData, http.StatusBadRequest)
 	res.Body.Close()
 
-	res = s.DoRawNoAuth("POST", "/api/latest/fleet/device/"+token+"/debug/errors", []byte("{}"), http.StatusInternalServerError)
+	res = s.DoRawNoAuth("POST", "/api/latest/fleet/device/"+token+"/debug/errors", []byte("{}"), http.StatusOK)
 	res.Body.Close()
 
 	testTime, err := time.Parse(time.RFC3339, "1969-06-19T21:44:05Z")
@@ -318,6 +318,6 @@ func (s *integrationTestSuite) TestErrorReporting() {
 	}
 	errBytes, err := json.Marshal(ferr)
 	require.NoError(t, err)
-	res = s.DoRawNoAuth("POST", "/api/latest/fleet/device/"+token+"/debug/errors", errBytes, http.StatusInternalServerError)
+	res = s.DoRawNoAuth("POST", "/api/latest/fleet/device/"+token+"/debug/errors", errBytes, http.StatusOK)
 	res.Body.Close()
 }

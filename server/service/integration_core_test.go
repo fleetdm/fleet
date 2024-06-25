@@ -33,7 +33,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service/osquery_utils"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/ghodss/yaml"
-	"github.com/go-kit/kit/log"
+	"github.com/go-kit/log"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
@@ -1638,14 +1638,26 @@ func (s *integrationTestSuite) TestListHosts() {
 	resp = listHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "software_id", fmt.Sprint(fooV1ID))
 	require.Len(t, resp.Hosts, 1)
-	assert.Equal(t, 1, resp.Hosts[0].HostIssues.FailingPoliciesCount)
-	assert.Equal(t, 1, resp.Hosts[0].HostIssues.TotalIssuesCount)
+	assert.Equal(t, uint64(1), resp.Hosts[0].HostIssues.FailingPoliciesCount)
+	assert.Equal(t, uint64(1), resp.Hosts[0].HostIssues.TotalIssuesCount)
+	assert.Nil(t, resp.Hosts[0].HostIssues.CriticalVulnerabilitiesCount)
 
 	resp = listHostsResponse{}
+	// disable_failing_policies has been deprecated and is no longer documented; it is an alias for disable_issues
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "software_version_id", fmt.Sprint(fooV1ID), "disable_failing_policies", "true")
 	require.Len(t, resp.Hosts, 1)
-	assert.Equal(t, 0, resp.Hosts[0].HostIssues.FailingPoliciesCount)
-	assert.Equal(t, 0, resp.Hosts[0].HostIssues.TotalIssuesCount)
+	assert.Zero(t, resp.Hosts[0].HostIssues.FailingPoliciesCount)
+	assert.Zero(t, resp.Hosts[0].HostIssues.TotalIssuesCount)
+	assert.Nil(t, resp.Hosts[0].HostIssues.CriticalVulnerabilitiesCount)
+
+	resp = listHostsResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "software_version_id", fmt.Sprint(fooV1ID), "disable_issues", "true",
+	)
+	require.Len(t, resp.Hosts, 1)
+	assert.Zero(t, resp.Hosts[0].HostIssues.FailingPoliciesCount)
+	assert.Zero(t, resp.Hosts[0].HostIssues.TotalIssuesCount)
+	assert.Nil(t, resp.Hosts[0].HostIssues.CriticalVulnerabilitiesCount)
 
 	// filter by MDM criteria without any host having such information
 	resp = listHostsResponse{}
@@ -10218,9 +10230,12 @@ func (s *integrationTestSuite) TestHostsReportWithPolicyResults() {
 		require.Equal(t, row[issuesIdx], "1")
 	}
 
-	// Running with disable_failing_policies=true disable the counting of failed policies for a host.
+	// Running with disable_issues=true (which overrides disable_failing_policies=false) disable the counting of failed policies for a host.
 	// Thus, all "issues" values should be 0.
-	res = s.DoRaw("GET", "/api/latest/fleet/hosts/report", nil, http.StatusOK, "format", "csv", "disable_failing_policies", "true")
+	res = s.DoRaw(
+		"GET", "/api/latest/fleet/hosts/report", nil, http.StatusOK, "format", "csv", "disable_failing_policies", "false", "disable_issues",
+		"true",
+	)
 	rows2, err := csv.NewReader(res.Body).ReadAll()
 	res.Body.Close()
 	require.NoError(t, err)
@@ -10289,8 +10304,10 @@ func (s *integrationTestSuite) TestHostsReportWithPolicyResults() {
 			res.Body.Close()
 			require.NoError(t, err)
 			tc.checkRows(t, rows)
-			// Test the same with "disable_failing_policies=true" which should not change the result.
-			res = s.DoRaw("GET", "/api/latest/fleet/hosts/report", nil, http.StatusOK, append(tc.args, "format", "csv", "disable_failing_policies", "true")...)
+			// Test the same with "disable_issues=true" which should not change the result.
+			res = s.DoRaw(
+				"GET", "/api/latest/fleet/hosts/report", nil, http.StatusOK, append(tc.args, "format", "csv", "disable_issues", "true")...,
+			)
 			rows, err = csv.NewReader(res.Body).ReadAll()
 			res.Body.Close()
 			require.NoError(t, err)
@@ -11167,6 +11184,13 @@ func (s *integrationTestSuite) TestHostDeviceToken() {
 	body := setOrUpdateDeviceTokenRequest{
 		OrbitNodeKey:    *orbitHost.OrbitNodeKey,
 		DeviceAuthToken: "",
+	}
+	s.DoJSON("POST", "/api/fleet/orbit/device_token", body, http.StatusBadRequest, &response{})
+
+	// Use illegal characters
+	body = setOrUpdateDeviceTokenRequest{
+		OrbitNodeKey:    *orbitHost.OrbitNodeKey,
+		DeviceAuthToken: "../.",
 	}
 	s.DoJSON("POST", "/api/fleet/orbit/device_token", body, http.StatusBadRequest, &response{})
 

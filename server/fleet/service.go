@@ -84,8 +84,8 @@ type Service interface {
 	// to fleetd (formerly orbit).
 	GetOrbitConfig(ctx context.Context) (OrbitConfig, error)
 
-	// ReceiveFleetdError handles an erorr report from a `fleetd` component
-	ReceiveFleetdError(ctx context.Context, errData FleetdError) error
+	// LogFleetdError logs an error report from a `fleetd` component
+	LogFleetdError(ctx context.Context, errData FleetdError) error
 
 	// SetOrUpdateDeviceAuthToken creates or updates a device auth token for the given host.
 	SetOrUpdateDeviceAuthToken(ctx context.Context, authToken string) error
@@ -1042,7 +1042,7 @@ type Service interface {
 	BatchSetScripts(ctx context.Context, maybeTmID *uint, maybeTmName *string, payloads []ScriptPayload, dryRun bool) error
 
 	// Script-based methods (at least for some platforms, MDM-based for others)
-	LockHost(ctx context.Context, hostID uint) (unlockPIN string, err error)
+	LockHost(ctx context.Context, hostID uint, viewPIN bool) (unlockPIN string, err error)
 	UnlockHost(ctx context.Context, hostID uint) (unlockPIN string, err error)
 	WipeHost(ctx context.Context, hostID uint) error
 
