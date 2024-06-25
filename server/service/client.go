@@ -1046,12 +1046,14 @@ func extractTmSpecsMacOSSetup(tmSpecs []json.RawMessage) map[string]*fleet.MacOS
 func (c *Client) DoGitOps(
 	ctx context.Context,
 	config *spec.GitOps,
-	baseDir string,
+	fullFilename string,
 	logf func(format string, args ...interface{}),
 	dryRun bool,
 	teamDryRunAssumptions *fleet.TeamSpecsDryRunAssumptions,
 	appConfig *fleet.EnrichedAppConfig,
 ) (*fleet.TeamSpecsDryRunAssumptions, error) {
+	baseDir := filepath.Dir(fullFilename)
+	filename := filepath.Base(fullFilename)
 	var teamAssumptions *fleet.TeamSpecsDryRunAssumptions
 	var err error
 	logFn := func(format string, args ...interface{}) {
@@ -1243,6 +1245,7 @@ func (c *Client) DoGitOps(
 		mdmAppConfig["enable_disk_encryption"] = false
 	}
 	if config.TeamName != nil {
+		team["gitops_filename"] = filename
 		rawTeam, err := json.Marshal(team)
 		if err != nil {
 			return nil, fmt.Errorf("error marshalling team spec: %w", err)

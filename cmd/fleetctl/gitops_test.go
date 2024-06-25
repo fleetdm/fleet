@@ -31,6 +31,12 @@ const (
 	orgName        = "GitOps Test"
 )
 
+func TestFilenameValidation(t *testing.T) {
+	filename := strings.Repeat("a", filenameMaxLength+1)
+	_, err := runAppNoChecks([]string{"gitops", "-f", filename})
+	assert.ErrorContains(t, err, "file name must be less than")
+}
+
 func TestBasicGlobalGitOps(t *testing.T) {
 	// Cannot run t.Parallel() because it sets environment variables
 

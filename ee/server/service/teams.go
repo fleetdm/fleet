@@ -783,18 +783,29 @@ func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec,
 			}
 		}
 
-		var create bool
-		team, err := svc.ds.TeamByName(ctx, spec.Name)
-		switch {
-		case err == nil:
-			// OK
-		case fleet.IsNotFound(err):
-			if spec.Name == "" {
-				return nil, fleet.NewInvalidArgumentError("name", "name may not be empty")
+		var team *fleet.Team
+		// If filename is provided, try to find the team by filename first.
+		// This is needed in case user is trying to modify the team name.
+		if spec.Filename != nil && *spec.Filename != "" {
+			team, err = svc.ds.TeamByFilename(ctx, *spec.Filename)
+			if err != nil && !fleet.IsNotFound(err) {
+				return nil, err
 			}
-			create = true
-		default:
-			return nil, err
+		}
+		var create bool
+		if team == nil {
+			team, err = svc.ds.TeamByName(ctx, spec.Name)
+			switch {
+			case err == nil:
+				// OK
+			case fleet.IsNotFound(err):
+				if spec.Name == "" {
+					return nil, fleet.NewInvalidArgumentError("name", "name may not be empty")
+				}
+				create = true
+			default:
+				return nil, err
+			}
 		}
 
 		if len(spec.AgentOptions) > 0 && !bytes.Equal(spec.AgentOptions, jsonNull) {
@@ -965,7 +976,8 @@ func (svc *Service) createTeamFromSpec(
 	}
 
 	tm, err := svc.ds.NewTeam(ctx, &fleet.Team{
-		Name: spec.Name,
+		Name:     spec.Name,
+		Filename: spec.Filename,
 		Config: fleet.TeamConfig{
 			AgentOptions: agentOptions,
 			Features:     features,
