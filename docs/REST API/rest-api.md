@@ -8211,7 +8211,7 @@ _Available in Fleet Premium._
 
 Deletes software that's available for install (package or App Store app).
 
-`DELETE /api/v1/fleet/software/titles/:software_title_id`
+`DELETE /api/v1/fleet/software/titles/:software_title_id/available_for_install`
 
 #### Parameters
 
