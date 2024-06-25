@@ -671,24 +671,36 @@ func (c *Client) ApplyGroup(
 			ApplySpecOptions:  opts.ApplySpecOptions,
 			DryRunAssumptions: specs.TeamsDryRunAssumptions,
 		}
+		// In dry-run, the team names returned are the old team names (when team name is modified via gitops)
 		teamIDsByName, err = c.ApplyTeams(specs.Teams, teamOpts)
 		if err != nil {
 			return nil, fmt.Errorf("applying teams: %w", err)
 		}
 
+		// When using GitOps, the team name could change, so we need to check for that
+		getTeamName := func(teamName string) string {
+			return teamName
+		}
+		if len(specs.Teams) == 1 && len(teamIDsByName) == 1 {
+			for key := range teamIDsByName {
+				if key != extractTmName(specs.Teams[0]) {
+					getTeamName = func(teamName string) string {
+						return key
+					}
+				}
+			}
+		}
+
 		if len(tmFileContents) > 0 {
 			for tmName, profs := range tmFileContents {
-				teamID, ok := teamIDsByName[tmName]
+				// For non-dry run, currentTeamName and tmName are the same
+				currentTeamName := getTeamName(tmName)
+				teamID, ok := teamIDsByName[currentTeamName]
 				if opts.DryRun && (teamID == 0 || !ok) {
 					logfn("[+] would've applied MDM profiles for new team %s\n", tmName)
 				} else {
-					if opts.DryRun {
-						// If we are in dry run mode, the team name could be changing, so we don't print it.
-						logfn("[+] applying MDM profiles for team\n")
-					} else {
-						logfn("[+] applying MDM profiles for team %s\n", tmName)
-					}
-					if err := c.ApplyTeamProfiles(tmName, profs, teamOpts); err != nil {
+					logfn("[+] applying MDM profiles for team %s\n", tmName)
+					if err := c.ApplyTeamProfiles(currentTeamName, profs, teamOpts); err != nil {
 						return nil, fmt.Errorf("applying custom settings for team %q: %w", tmName, err)
 					}
 				}
@@ -710,14 +722,18 @@ func (c *Client) ApplyGroup(
 		}
 		if len(tmScriptsPayloads) > 0 {
 			for tmName, scripts := range tmScriptsPayloads {
-				if err := c.ApplyTeamScripts(tmName, scripts, opts.ApplySpecOptions); err != nil {
+				// For non-dry run, currentTeamName and tmName are the same
+				currentTeamName := getTeamName(tmName)
+				if err := c.ApplyTeamScripts(currentTeamName, scripts, opts.ApplySpecOptions); err != nil {
 					return nil, fmt.Errorf("applying scripts for team %q: %w", tmName, err)
 				}
 			}
 		}
 		if len(tmSoftwarePayloads) > 0 {
 			for tmName, software := range tmSoftwarePayloads {
-				if err := c.ApplyTeamSoftwareInstallers(tmName, software, opts.ApplySpecOptions); err != nil {
+				// For non-dry run, currentTeamName and tmName are the same
+				currentTeamName := getTeamName(tmName)
+				if err := c.ApplyTeamSoftwareInstallers(currentTeamName, software, opts.ApplySpecOptions); err != nil {
 					return nil, fmt.Errorf("applying software installers for team %q: %w", tmName, err)
 				}
 			}
@@ -883,6 +899,16 @@ func extractAppCfgScripts(appCfg interface{}) []string {
 type profileSpecsByPlatform struct {
 	macos   []fleet.MDMProfileSpec
 	windows []fleet.MDMProfileSpec
+}
+
+func extractTmName(tmSpec json.RawMessage) string {
+	var s struct {
+		Name string `json:"name"`
+	}
+	if err := json.Unmarshal(tmSpec, &s); err != nil {
+		return ""
+	}
+	return norm.NFC.String(s.Name)
 }
 
 // returns the custom macOS and Windows settings keyed by team name.
@@ -1270,15 +1296,20 @@ func (c *Client) DoGitOps(
 		return nil, err
 	}
 	if config.TeamName != nil {
+		if len(teamIDsByName) != 1 {
+			return nil, fmt.Errorf("expected 1 team spec to be applied, got %d", len(teamIDsByName))
+		}
 		teamID, ok := teamIDsByName[*config.TeamName]
-		if !ok || teamID == 0 {
+		if ok && teamID == 0 {
 			if dryRun {
 				logFn("[+] would've added any policies/queries to new team %s\n", *config.TeamName)
 				return nil, nil
 			}
 			return nil, fmt.Errorf("team %s not created", *config.TeamName)
 		}
-		config.TeamID = &teamID
+		for _, teamID = range teamIDsByName {
+			config.TeamID = &teamID
+		}
 	}
 
 	err = c.doGitOpsPolicies(config, logFn, dryRun)
