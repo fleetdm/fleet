@@ -192,10 +192,17 @@ func (svc *Service) ListHosts(ctx context.Context, opt fleet.HostListOptions) ([
 		return nil, err
 	}
 
-	if !opt.DisableFailingPolicies && !premiumLicense {
+	// If issues are enabled, we need to remove the critical vulnerabilities count for non-premium license.
+	// If issues are disabled, we need to explicitly set the critical vulnerabilities count to 0 for premium license.
+	if !opt.DisableIssues && !premiumLicense {
 		// Remove critical vulnerabilities count if not premium license
 		for _, host := range hosts {
 			host.HostIssues.CriticalVulnerabilitiesCount = nil
+		}
+	} else if opt.DisableIssues && premiumLicense {
+		var zero uint64
+		for _, host := range hosts {
+			host.HostIssues.CriticalVulnerabilitiesCount = &zero
 		}
 	}
 
@@ -331,7 +338,7 @@ func (svc *Service) DeleteHosts(ctx context.Context, ids []uint, filter *map[str
 	if opts == nil {
 		opts = &fleet.HostListOptions{}
 	}
-	opts.DisableFailingPolicies = true // don't check policies for hosts that are about to be deleted
+	opts.DisableIssues = true // don't check policies for hosts that are about to be deleted
 	hostIDs, _, hosts, err := svc.hostIDsAndNamesFromFilters(ctx, *opts, lid)
 	if err != nil {
 		return err
@@ -531,6 +538,9 @@ func (svc *Service) GetHost(ctx context.Context, id uint, opts fleet.HostDetailO
 	host, err := svc.ds.Host(ctx, id)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get host")
+	}
+	if !opts.IncludeCriticalVulnerabilitiesCount {
+		host.HostIssues.CriticalVulnerabilitiesCount = nil
 	}
 
 	if !alreadyAuthd {
@@ -1309,7 +1319,7 @@ func (svc *Service) hostIDsAndNamesFromFilters(ctx context.Context, opt fleet.Ho
 	if lid != nil {
 		hosts, err = svc.ds.ListHostsInLabel(ctx, filter, *lid, opt)
 	} else {
-		opt.DisableFailingPolicies = true // intentionally ignore failing policies
+		opt.DisableIssues = true // intentionally ignore failing policies
 		hosts, err = svc.ds.ListHosts(ctx, filter, opt)
 	}
 	if err != nil {

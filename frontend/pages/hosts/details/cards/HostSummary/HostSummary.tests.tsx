@@ -9,6 +9,31 @@ import { createMockHostSummary } from "__mocks__/hostMock";
 import HostSummary from "./HostSummary";
 
 describe("Host Summary section", () => {
+  describe("Issues data", () => {
+    it("omit issues header if no issues", async () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isPremiumTier: true,
+            isGlobalAdmin: true,
+            currentUser: createMockUser(),
+          },
+        },
+      });
+      const summaryData = createMockHostSummary({});
+
+      render(
+        <HostSummary
+          summaryData={summaryData}
+          showRefetchSpinner={false}
+          onRefetchHost={noop}
+          renderActionDropdown={() => null}
+        />
+      );
+
+      expect(screen.queryByText("Issues")).not.toBeInTheDocument();
+    });
+  });
   describe("Agent data", () => {
     it("with all info present, render Agent header with orbit_version and tooltip with all 3 data points", async () => {
       const render = createCustomRenderer({
