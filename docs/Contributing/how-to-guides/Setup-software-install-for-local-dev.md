@@ -27,4 +27,4 @@ running the fleet server with `--dev`.
 `Buckets` page.
 
 You should now be able to upload software installers. They will be added into
-this bucket.
+this bucket you just created.
