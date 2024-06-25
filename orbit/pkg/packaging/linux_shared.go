@@ -36,12 +36,15 @@ func buildNFPM(opt Options, pkger nfpm.Packager) (string, error) {
 		return "", fmt.Errorf("create orbit dir: %w", err)
 	}
 
+	if opt.Architecture != "amd64" && opt.Architecture != "arm64" {
+		return "", fmt.Errorf("Invalid architecture: %s", opt.Architecture)
+	}
+
 	// Initialize autoupdate metadata
 	updateOpt := update.DefaultOptions
 
 	updateOpt.RootDirectory = orbitRoot
-	envGoArch := os.Getenv("GOARCH")
-	if envGoArch == "arm64" {
+	if opt.Architecture == "arm64" {
 		updateOpt.Targets = update.LinuxArm64Targets
 	} else {
 		updateOpt.Targets = update.LinuxTargets
@@ -57,7 +60,7 @@ func buildNFPM(opt Options, pkger nfpm.Packager) (string, error) {
 	}
 
 	if opt.Desktop {
-		if envGoArch == "arm64" {
+		if opt.Architecture == "arm64" {
 			updateOpt.Targets["desktop"] = update.DesktopLinuxArm64Target
 		} else {
 			updateOpt.Targets["desktop"] = update.DesktopLinuxTarget
@@ -218,17 +221,12 @@ func buildNFPM(opt Options, pkger nfpm.Packager) (string, error) {
 		rpmInfo.Scripts.PostTrans = postTransPath
 	}
 
-	pkgArch := "amd64"
-	if envGoArch == "arm64" {
-		pkgArch = "arm64"
-	}
-
 	// Build package
 	info := &nfpm.Info{
 		Name:        "fleet-osquery",
 		Version:     opt.Version,
 		Description: "Fleet osquery -- runtime and autoupdater",
-		Arch:        pkgArch,
+		Arch:        opt.Architecture,
 		Maintainer:  "Fleet Device Management",
 		Vendor:      "Fleet Device Management",
 		License:     "https://github.com/fleetdm/fleet/blob/main/LICENSE",

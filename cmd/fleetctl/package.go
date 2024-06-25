@@ -39,6 +39,12 @@ func packageCommand() *cli.Command {
 				Required: true,
 			},
 			&cli.StringFlag{
+				Name:        "arch",
+				Usage:       "Target CPU Architecture for the installer package. Only supported for Linux. [amd64, arm64]",
+				Destination: &opt.Architecture,
+				Value:       "amd64",
+			},
+			&cli.StringFlag{
 				Name:        "enroll-secret",
 				Usage:       "Enroll secret for authenticating to Fleet server",
 				Destination: &opt.EnrollSecret,

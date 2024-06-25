@@ -125,6 +125,8 @@ type Options struct {
 	// OsqueryDB is the directory to use for the osquery database.
 	// If not set, then the default is `$ORBIT_ROOT_DIR/osquery.db`.
 	OsqueryDB string
+	// Architecture that the packge is being built for. (amd64, arm64)
+	Architecture string
 }
 
 func initializeTempDir() (string, error) {
