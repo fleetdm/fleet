@@ -19,6 +19,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/tokenpki"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	mdmmock "github.com/fleetdm/fleet/v4/server/mock/mdm"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -190,6 +191,12 @@ func TestBasicTeamGitOps(t *testing.T) {
 	var savedTeam *fleet.Team
 	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
 		if name == teamName && savedTeam != nil {
+			return savedTeam, nil
+		}
+		return nil, &notFoundError{}
+	}
+	ds.TeamByFilenameFunc = func(ctx context.Context, filename string) (*fleet.Team, error) {
+		if savedTeam != nil && *savedTeam.Filename == filename {
 			return savedTeam, nil
 		}
 		return nil, &notFoundError{}
@@ -501,6 +508,12 @@ func TestFullTeamGitOps(t *testing.T) {
 	ds.NewJobFunc = func(ctx context.Context, job *fleet.Job) (*fleet.Job, error) {
 		return job, nil
 	}
+	ds.NewMDMAppleConfigProfileFunc = func(ctx context.Context, profile fleet.MDMAppleConfigProfile) (*fleet.MDMAppleConfigProfile, error) {
+		return &profile, nil
+	}
+	ds.NewMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error) {
+		return declaration, nil
+	}
 	ds.LabelIDsByNameFunc = func(ctx context.Context, labels []string) (map[string]uint, error) {
 		require.ElementsMatch(t, labels, []string{fleet.BuiltinLabelMacOS14Plus})
 		return map[string]uint{fleet.BuiltinLabelMacOS14Plus: 1}, nil
@@ -514,29 +527,42 @@ func TestFullTeamGitOps(t *testing.T) {
 	}
 
 	// Team
-	team := &fleet.Team{
-		ID:        1,
-		CreatedAt: time.Now(),
-		Name:      teamName,
-	}
+	var savedTeam *fleet.Team
 	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
-		if name == teamName {
-			return team, nil
+		if savedTeam != nil && savedTeam.Name == name {
+			return savedTeam, nil
 		}
-		return nil, nil
+		return nil, &notFoundError{}
+	}
+	ds.TeamByFilenameFunc = func(ctx context.Context, filename string) (*fleet.Team, error) {
+		if savedTeam != nil && *savedTeam.Filename == filename {
+			return savedTeam, nil
+		}
+		return nil, &notFoundError{}
 	}
 	ds.TeamFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
-		if tid == team.ID {
-			return team, nil
+		if tid == savedTeam.ID {
+			return savedTeam, nil
 		}
 		return nil, nil
 	}
 	ds.IsEnrollSecretAvailableFunc = func(ctx context.Context, secret string, new bool, teamID *uint) (bool, error) {
 		return true, nil
 	}
-	var savedTeam *fleet.Team
+	const teamID = uint(123)
+	var enrolledSecrets []*fleet.EnrollSecret
+	ds.NewTeamFunc = func(ctx context.Context, newTeam *fleet.Team) (*fleet.Team, error) {
+		newTeam.ID = teamID
+		savedTeam = newTeam
+		enrolledSecrets = newTeam.Secrets
+		return newTeam, nil
+	}
 	ds.SaveTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
-		savedTeam = team
+		if team.ID == teamID {
+			savedTeam = team
+		} else {
+			assert.Fail(t, "unexpected team ID when saving team")
+		}
 		return team, nil
 	}
 
@@ -544,7 +570,7 @@ func TestFullTeamGitOps(t *testing.T) {
 	policy := fleet.Policy{}
 	policy.ID = 1
 	policy.Name = "Policy to delete"
-	policy.TeamID = &team.ID
+	policy.TeamID = ptr.Uint(teamID)
 	policyDeleted := false
 	ds.ListTeamPoliciesFunc = func(
 		ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions,
@@ -571,7 +597,7 @@ func TestFullTeamGitOps(t *testing.T) {
 	// Queries
 	query := fleet.Query{}
 	query.ID = 1
-	query.TeamID = &team.ID
+	query.TeamID = ptr.Uint(teamID)
 	query.Name = "Query to delete"
 	queryDeleted := false
 	ds.ListQueriesFunc = func(ctx context.Context, opts fleet.ListQueryOptions) ([]*fleet.Query, error) {
@@ -602,7 +628,6 @@ func TestFullTeamGitOps(t *testing.T) {
 		return nil
 	}
 
-	var enrolledSecrets []*fleet.EnrollSecret
 	ds.ApplyEnrollSecretsFunc = func(ctx context.Context, teamID *uint, secrets []*fleet.EnrollSecret) error {
 		enrolledSecrets = secrets
 		return nil
@@ -646,6 +671,14 @@ func TestFullTeamGitOps(t *testing.T) {
 	require.NotNil(t, savedTeam.Config.Integrations.GoogleCalendar)
 	assert.True(t, savedTeam.Config.Integrations.GoogleCalendar.Enable)
 
+	// Change team name
+	newTeamName := "New Team Name"
+	t.Setenv("TEST_TEAM_NAME", newTeamName)
+	_ = runAppForTest(t, []string{"gitops", "-f", file, "--dry-run"})
+	_ = runAppForTest(t, []string{"gitops", "-f", file})
+	require.NotNil(t, savedTeam)
+	assert.Equal(t, newTeamName, savedTeam.Name)
+
 	// Now clear the settings
 	tmpFile, err := os.CreateTemp(t.TempDir(), "*.yml")
 	require.NoError(t, err)
@@ -673,7 +706,7 @@ team_settings:
 	// Real run
 	_ = runAppForTest(t, []string{"gitops", "-f", tmpFile.Name()})
 	require.NotNil(t, savedTeam)
-	assert.Equal(t, teamName, savedTeam.Name)
+	assert.Equal(t, newTeamName, savedTeam.Name)
 	require.Len(t, enrolledSecrets, 1)
 	assert.Equal(t, secret, enrolledSecrets[0].Secret)
 	assert.False(t, savedTeam.Config.WebhookSettings.HostStatusWebhook.Enable)
@@ -785,6 +818,12 @@ func TestBasicGlobalAndTeamGitOps(t *testing.T) {
 	}
 	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
 		if name == teamName && savedTeam != nil {
+			return savedTeam, nil
+		}
+		return nil, &notFoundError{}
+	}
+	ds.TeamByFilenameFunc = func(ctx context.Context, filename string) (*fleet.Team, error) {
+		if savedTeam != nil && *savedTeam.Filename == filename {
 			return savedTeam, nil
 		}
 		return nil, &notFoundError{}
@@ -1178,6 +1217,12 @@ func setupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig,
 	}
 	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
 		if savedTeam != nil && name == teamName {
+			return savedTeam, nil
+		}
+		return nil, &notFoundError{}
+	}
+	ds.TeamByFilenameFunc = func(ctx context.Context, filename string) (*fleet.Team, error) {
+		if savedTeam != nil && *savedTeam.Filename == filename {
 			return savedTeam, nil
 		}
 		return nil, &notFoundError{}

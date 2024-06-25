@@ -954,6 +954,13 @@ func (svc *Service) createTeamFromSpec(
 		hostStatusWebhook = spec.WebhookSettings.HostStatusWebhook
 	}
 
+	if spec.Integrations.GoogleCalendar != nil {
+		err = svc.validateTeamCalendarIntegrations(spec.Integrations.GoogleCalendar, appCfg, dryRun, invalid)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "validate team calendar integrations")
+		}
+	}
+
 	if dryRun {
 		for _, secret := range secrets {
 			available, err := svc.ds.IsEnrollSecretAvailable(ctx, secret.Secret, true, nil)
@@ -992,6 +999,9 @@ func (svc *Service) createTeamFromSpec(
 			WebhookSettings: fleet.TeamWebhookSettings{
 				HostStatusWebhook: hostStatusWebhook,
 			},
+			Integrations: fleet.TeamIntegrations{
+				GoogleCalendar: spec.Integrations.GoogleCalendar,
+			},
 		},
 		Secrets: secrets,
 	})
@@ -1024,7 +1034,10 @@ func (svc *Service) editTeamFromSpec(
 	secrets []*fleet.EnrollSecret,
 	opts fleet.ApplyTeamSpecOptions,
 ) error {
-	team.Name = spec.Name
+	if !opts.DryRun {
+		// We keep the original name for dry run because subsequent dry run calls may need the original name to fetch the team
+		team.Name = spec.Name
+	}
 
 	// if agent options are not provided, do not change them
 	if len(spec.AgentOptions) > 0 {
