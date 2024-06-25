@@ -1,7 +1,7 @@
 const defaultFieldSortFunc = (fields: string[]) => fields;
 
 interface ConvertToCSV {
-  objArray: Object[];
+  objArray: any[]; // TODO: typing
   fieldSortFunc?: (fields: string[]) => string[];
   tableHeaders?: any[]; // TODO: typing
 }
