@@ -1049,7 +1049,6 @@ func (svc *Service) editTeamFromSpec(
 	if !opts.DryRun {
 		// We keep the original name for dry run because subsequent dry run calls may need the original name to fetch the team
 		team.Name = spec.Name
-		fmt.Printf("VICTOR team name: %s\n", team.Name)
 	}
 	team.Filename = spec.Filename
 

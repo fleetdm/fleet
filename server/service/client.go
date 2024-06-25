@@ -683,7 +683,7 @@ func (c *Client) ApplyGroup(
 		}
 		if len(specs.Teams) == 1 && len(teamIDsByName) == 1 {
 			for key := range teamIDsByName {
-				if key != extractTmName(specs.Teams[0]) {
+				if key != extractTeamName(specs.Teams[0]) {
 					getTeamName = func(teamName string) string {
 						return key
 					}
@@ -901,7 +901,7 @@ type profileSpecsByPlatform struct {
 	windows []fleet.MDMProfileSpec
 }
 
-func extractTmName(tmSpec json.RawMessage) string {
+func extractTeamName(tmSpec json.RawMessage) string {
 	var s struct {
 		Name string `json:"name"`
 	}
