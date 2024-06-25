@@ -933,7 +933,6 @@ allow {
 # gitops as this is not something that relates to fleetctl apply).
 allow {
   object.type == "host_script_result"
-  is_null(object.script_id)
   subject.global_role == [admin, maintainer][_]
   action == write
 }
