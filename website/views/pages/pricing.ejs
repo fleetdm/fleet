@@ -143,7 +143,7 @@
       </div>
     </div>
     <%// Jamf features comparison table %>
-    <div purpose="features-table" class="d-flex flex-column justify-content-center mx-auto px-0" :class="[[pricingMode === 'jamf-comparison' ? 'show' : 'hide']]">
+    <div purpose="features-table" class="d-flex flex-column justify-content-center mx-auto px-0" :class="[[pricingMode === 'jamf-comparison' ? 'visible' : 'hidden']]">
       <div class="d-flex flex-column justify-content-center p-0">
         <p purpose="comparison-table-note">Considering a move to Fleet as a cross-platform, open-source alternative to Jamf? See how we compare:</p>
         <%// Desktop feature comparison table %>
@@ -234,7 +234,7 @@
                 <img class="d-block"  alt="Apple logo" purpose="checkmark" src="/images/os-macos-black-50-16x16@2x.png" v-else-if="feature.jamfProHasFeature === 'macOnly'">
                 <span class="d-block" purpose="table-comparison-note" v-else-if="feature.jamfProHasFeature === 'cloudOnly'">Cloud only</span>
               </div>
-              <div class="d-flex flex-row justify-content-between align-items-center">
+              <div class="d-flex flex-row justify-content-between align-items-center" purpose="comparison-">
                 Jamf Protect
                 <img class="d-block" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png" v-if="feature.jamfProtectHasFeature === 'yes'">
                 <img class="d-block"  alt="Apple logo" purpose="checkmark" src="/images/os-macos-black-50-16x16@2x.png" v-else-if="feature.jamfProtectHasFeature === 'macOnly'">

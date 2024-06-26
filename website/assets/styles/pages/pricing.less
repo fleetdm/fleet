@@ -41,6 +41,7 @@
     position: relative;
     box-shadow: 0px 2px 4px 0px rgba(0, 0, 0, 0.10) inset;
     margin-top: 40px;
+    margin-bottom: 40px;
     [purpose='pricing-tier-switch'] {
       position: absolute;
       top: -1px;
@@ -51,7 +52,7 @@
       height: 58px;
       min-width: 50%;
       z-index: 1;
-      transition: transform 0.5s ease-in-out;
+      transition: transform 0.25s ease-in-out;
     }
     [purpose='pricing-switch-option'] {
       padding: 16px 32px;
@@ -254,8 +255,23 @@
     width: 110%;
   }
 
+  [purpose='features-table'] {
+    transition: transform .25s ease-in-out;
+  }
   [purpose='features-table'].hide {
     display: none !important; //lesshint-disable-line importantRule
+    // height: 0px;
+    // opacity: 0;
+  }
+  [purpose='features-table'].hidden {
+    // display: none !important; //lesshint-disable-line importantRule
+    transform: translateY(-40px);
+    height: 0px;
+    opacity: 0;
+  }
+  [purpose='features-table'].visible {
+    padding-top: 0px;
+    transform: translateY(0px);
   }
   [purpose='mobile-feature-table-section'] {
     margin-bottom: 16px;
@@ -354,7 +370,6 @@
   }
 
   [purpose='comparison-table-note'] {
-    margin-top: 40px;
     margin-bottom: 40px;
     text-align: center;
   }
