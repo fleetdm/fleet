@@ -144,7 +144,7 @@
     </div>
     <%// Jamf features comparison table %>
     <p purpose="comparison-table-note" v-if="pricingMode === 'jamf-comparison'">Considering a move to Fleet as a cross-platform, open-source alternative to Jamf? See how we compare:</p>
-    <div purpose="features-table" class="d-flex flex-column justify-content-center mx-auto px-0" :class="[[pricingMode === 'jamf-comparison' ? 'visible' : 'hidden']]">
+    <div purpose="features-table" class="d-flex flex-column justify-content-center mx-auto px-0" :class="[[pricingMode === 'jamf-comparison' ? 'show' : 'hidden']]">
       <div class="d-flex flex-column justify-content-center p-0">
         <%// Desktop feature comparison table %>
         <div class="d-none d-md-block">
