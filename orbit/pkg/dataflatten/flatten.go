@@ -178,8 +178,7 @@ func (fl *Flattener) descend(path []string, data interface{}, depth int) error {
 				keyQuery := strings.SplitN(strings.TrimPrefix(queryTerm, fl.queryKeyDenoter), "=>", 2)
 				keyName := keyQuery[0]
 
-				innerlogger := logger.With().Str("arraykeyname", keyName).Logger() // log.With(logger, "arraykeyname", keyName)
-				// level.Debug(logger).Log("msg", "attempting to coerce array into map")
+				innerlogger := logger.With().Str("arraykeyname", keyName).Logger()
 				logger.Debug().Msg("attempting to coerce array into map")
 
 				e, ok := e.(map[string]interface{})

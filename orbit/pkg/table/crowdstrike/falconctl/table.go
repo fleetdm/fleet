@@ -114,7 +114,7 @@ OUTER:
 
 		for _, dataQuery := range tablehelpers.GetConstraints(queryContext, "query", tablehelpers.WithDefaults("*")) {
 			flattenOpts := []dataflatten.FlattenOpts{
-				// dataflatten.WithLogger(t.logger),
+				dataflatten.WithLogger(t.logger),
 				dataflatten.WithQuery(strings.Split(dataQuery, "/")),
 			}
 

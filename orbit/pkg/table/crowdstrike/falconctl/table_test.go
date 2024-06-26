@@ -62,7 +62,7 @@ func TestOptionRestrictions(t *testing.T) {
 			var logBytes bytes.Buffer
 
 			testTable := &falconctlOptionsTable{
-				logger:   zerolog.New(zerolog.ConsoleWriter{Out: &logBytes}), // log.NewLogfmtLogger(&logBytes),
+				logger:   zerolog.New(zerolog.ConsoleWriter{Out: &logBytes}),
 				execFunc: noopExec,
 			}
 
@@ -83,7 +83,6 @@ func TestOptionRestrictions(t *testing.T) {
 }
 
 func noopExec(_ context.Context, log zerolog.Logger, _ int, _ []string, args []string, _ bool) ([]byte, error) {
-	// log.Log("exec", "exec-in-test", "args", strings.Join(args, " "))
 	log.Info().Str("args", strings.Join(args, " ")).Msg("exec-in-test")
 	return []byte{}, nil
 }

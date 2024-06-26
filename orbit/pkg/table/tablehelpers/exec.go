@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/rs/zerolog"
-	// "github.com/rs/zerolog/log"
 )
 
 // Exec is a wrapper over exec.CommandContext. It does a couple of
