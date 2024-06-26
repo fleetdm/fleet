@@ -558,7 +558,7 @@
     - description: (Torq) Build custom workflows that trigger in various situations.
     - description: (Custom IdP) Manage access to Fleet single sign-on (SSO) through any IdP (using SAML).
   buzzwords: [Vanta,Puppet,Custom IdP]
-- industryName: Public issue tracker (GitHub)
+- industryName: Open-source issue tracker (GitHub)
   documentationUrl: https://fleetdm.com/support
   productCategories: [Endpoint operations,Device management,Vulnerability management]
   pricingTableCategories: [Support]
