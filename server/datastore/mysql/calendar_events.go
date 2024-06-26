@@ -35,7 +35,7 @@ func (ds *Datastore) CreateOrUpdateCalendarEvent(
 				start_time = VALUES(start_time),
 				end_time = VALUES(end_time),
 				event = VALUES(event),
-				timezone = VALUES(timezone)
+				timezone = VALUES(timezone),
 				updated_at = CURRENT_TIMESTAMP;
 		`
 		result, err := tx.ExecContext(
