@@ -342,7 +342,7 @@ func testVulnerabilitiesPagination(t *testing.T, ds *Datastore) {
 	require.False(t, meta.HasPreviousResults)
 	require.True(t, meta.HasNextResults)
 
-	opts.Page = 1
+	opts.ListOptions.Page = 1
 	list, meta, err = ds.ListVulnerabilities(context.Background(), opts)
 	require.NoError(t, err)
 	require.Len(t, list, 2)
@@ -399,8 +399,8 @@ func testListVulnerabilitiesSort(t *testing.T, ds *Datastore) {
 	require.Equal(t, "CVE-2020-1237", list[3].CVE.CVE)
 	require.Equal(t, "CVE-2020-1236", list[4].CVE.CVE)
 
-	opts.OrderKey = "published"
-	opts.OrderDirection = fleet.OrderAscending
+	opts.ListOptions.OrderKey = "published"
+	opts.ListOptions.OrderDirection = fleet.OrderAscending
 	list, _, err = ds.ListVulnerabilities(context.Background(), opts)
 	require.NoError(t, err)
 	require.Len(t, list, 5)
@@ -892,10 +892,14 @@ func seedVulnerabilities(t *testing.T, ds *Datastore) {
 
 	// update 15 hosts to windows
 	for i := 0; i < 10; i++ {
+		arch := "arm64"
+		if i%2 == 0 {
+			arch = "x86_64"
+		}
 		err := ds.UpdateHostOperatingSystem(context.Background(), hostids[i], fleet.OperatingSystem{
 			Name:     "Microsoft Windows 11 Enterprise 22H2",
 			Version:  "10.0.22621.2715",
-			Arch:     "x86_64",
+			Arch:     arch,
 			Platform: "windows",
 		})
 		require.NoError(t, err)
@@ -903,10 +907,14 @@ func seedVulnerabilities(t *testing.T, ds *Datastore) {
 
 	// update 5 hosts to macOS
 	for i := 10; i < 15; i++ {
+		arch := "arm64"
+		if i%2 == 0 {
+			arch = "x86_64"
+		}
 		err := ds.UpdateHostOperatingSystem(context.Background(), hostids[i], fleet.OperatingSystem{
 			Name:     "macOS",
 			Version:  "14.1.2",
-			Arch:     "arm64",
+			Arch:     arch,
 			Platform: "darwin",
 		})
 		require.NoError(t, err)
@@ -988,7 +996,7 @@ func seedVulnerabilities(t *testing.T, ds *Datastore) {
 
 	osVulns := []fleet.OSVulnerability{
 		{
-			OSID:              1,
+			OSID:              1, // windows x86_64
 			CVE:               "CVE-2020-1238",
 			ResolvedInVersion: ptr.String("1.0.0"),
 		},
@@ -998,11 +1006,29 @@ func seedVulnerabilities(t *testing.T, ds *Datastore) {
 			ResolvedInVersion: ptr.String("1.0.1"),
 		},
 		{
-			OSID: 2,
+			OSID:              2, // windows arm64
+			CVE:               "CVE-2020-1238",
+			ResolvedInVersion: ptr.String("1.0.0"),
+		},
+		{
+			OSID:              2,
+			CVE:               "CVE-2020-1239",
+			ResolvedInVersion: ptr.String("1.0.1"),
+		},
+		{
+			OSID: 2, // macos x86_64
 			CVE:  "CVE-2020-1240",
 		},
 		{
 			OSID: 2,
+			CVE:  "CVE-2020-1241",
+		},
+		{
+			OSID: 3, // macos arm64
+			CVE:  "CVE-2020-1240",
+		},
+		{
+			OSID: 3,
 			CVE:  "CVE-2020-1241",
 		},
 	}

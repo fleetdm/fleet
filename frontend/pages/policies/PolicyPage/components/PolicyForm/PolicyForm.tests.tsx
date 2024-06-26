@@ -1,5 +1,5 @@
 import React from "react";
-import { screen } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import { createCustomRenderer } from "test/test-utils";
 
 import createMockPolicy from "__mocks__/policyMock";
@@ -50,8 +50,6 @@ describe("PolicyForm - component", () => {
         showOpenSchemaActionText={false}
         storedPolicy={createMockPolicy({ name: "" })}
         isStoredPolicyLoading={false}
-        isTeamAdmin={false}
-        isTeamMaintainer={false}
         isTeamObserver={false}
         isUpdatingPolicy={false}
         onCreatePolicy={jest.fn()}
@@ -61,6 +59,11 @@ describe("PolicyForm - component", () => {
         onOpenSchemaSidebar={jest.fn()}
         renderLiveQueryWarning={jest.fn()}
         backendValidators={{}}
+        onClickAutofillDescription={jest.fn()}
+        onClickAutofillResolution={jest.fn()}
+        isFetchingAutofillDescription={false}
+        isFetchingAutofillResolution={false}
+        resetAiAutofillData={jest.fn()}
       />
     );
 
@@ -106,8 +109,6 @@ describe("PolicyForm - component", () => {
         showOpenSchemaActionText={false}
         storedPolicy={createMockPolicy({ platform: undefined })}
         isStoredPolicyLoading={false}
-        isTeamAdmin={false}
-        isTeamMaintainer={false}
         isTeamObserver={false}
         isUpdatingPolicy={false}
         onCreatePolicy={jest.fn()}
@@ -117,17 +118,26 @@ describe("PolicyForm - component", () => {
         onOpenSchemaSidebar={jest.fn()}
         renderLiveQueryWarning={jest.fn()}
         backendValidators={{}}
+        onClickAutofillDescription={jest.fn()}
+        onClickAutofillResolution={jest.fn()}
+        isFetchingAutofillDescription={false}
+        isFetchingAutofillResolution={false}
+        resetAiAutofillData={jest.fn()}
       />
     );
 
     expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Run" })).toBeDisabled();
 
-    await user.hover(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => {
+      waitFor(() => {
+        user.hover(screen.getByRole("button", { name: "Save" }));
+      });
 
-    expect(container.querySelector("#save-policy-button")).toHaveTextContent(
-      /to save or run the policy/i
-    );
+      expect(container.querySelector("#save-policy-button")).toHaveTextContent(
+        /to save or run the policy/i
+      );
+    });
   });
 
   it("disables run button with tooltip when live queries are globally disabled", async () => {
@@ -168,14 +178,12 @@ describe("PolicyForm - component", () => {
       },
     });
 
-    const { container, user } = render(
+    const { user } = render(
       <PolicyForm
         policyIdForEdit={mockPolicy.id}
         showOpenSchemaActionText={false}
         storedPolicy={createMockPolicy()}
         isStoredPolicyLoading={false}
-        isTeamAdmin={false}
-        isTeamMaintainer={false}
         isTeamObserver={false}
         isUpdatingPolicy={false}
         onCreatePolicy={jest.fn()}
@@ -185,16 +193,25 @@ describe("PolicyForm - component", () => {
         onOpenSchemaSidebar={jest.fn()}
         renderLiveQueryWarning={jest.fn()}
         backendValidators={{}}
+        onClickAutofillDescription={jest.fn()}
+        onClickAutofillResolution={jest.fn()}
+        isFetchingAutofillDescription={false}
+        isFetchingAutofillResolution={false}
+        resetAiAutofillData={jest.fn()}
       />
     );
 
     expect(screen.getByRole("button", { name: "Run" })).toBeDisabled();
 
-    await user.hover(screen.getByRole("button", { name: "Run" }));
+    await waitFor(() => {
+      waitFor(() => {
+        user.hover(screen.getByRole("button", { name: "Run" }));
+      });
 
-    expect(container.querySelector("#run-policy-button")).toHaveTextContent(
-      /live queries are disabled/i
-    );
+      expect(
+        screen.getByText(/live queries are disabled/i)
+      ).toBeInTheDocument();
+    });
   });
 
   // TODO: Consider testing save button is disabled for a sql error

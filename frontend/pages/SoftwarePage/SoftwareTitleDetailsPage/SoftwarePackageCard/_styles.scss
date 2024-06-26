@@ -1,0 +1,100 @@
+.software-package-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: $pad-medium;
+
+  &__main-content {
+    display: flex;
+    align-items: flex-start;
+    gap: $pad-xxlarge;
+  }
+
+  &__main-info {
+    display: flex;
+    gap: $pad-medium;
+  }
+
+  &__info {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-xsmall;
+  }
+
+  &__title {
+    font-size: $x-small;
+    font-weight: $bold;
+    @include ellipse-text;
+    max-width: 290px;
+  }
+
+  &__details {
+    font-size: $xx-small;
+  }
+
+  &__package-statuses {
+    display: flex;
+    gap: $pad-xxlarge;
+  }
+
+  &__status-title {
+    display: flex;
+    align-items: center;
+    gap: $pad-xsmall;
+  }
+
+  &__status-count {
+    font-weight: normal;
+  }
+
+  &__actions-wrapper {
+    display: flex;
+    justify-content: flex-end;
+    gap: $pad-medium;
+  }
+
+  &__self-service-badge {
+    display: flex;
+    height: 18px;
+    padding: 3px 6px;
+    align-items: center;
+    gap: 4px;
+    border-radius: 4px;
+    border: 1px solid $ui-fleet-black-10;
+    background: $ui-off-white;
+    color: $ui-fleet-black-75;
+    font-size: $xx-small;
+    font-weight: $bold;
+  }
+
+  &__actions {
+    @include button-dropdown;
+    color: $core-fleet-black;
+    .Select-multi-value-wrapper {
+      width: 55px;
+    }
+    .Select > .Select-menu-outer {
+      left: -120px;
+    }
+    .Select-placeholder {
+      color: $core-fleet-black;
+    }
+  }
+
+  &__download-icon {
+    display: flex;
+    justify-content: center;
+    width: 44px;
+  }
+
+  @media (max-width: $break-md) {
+    align-items: flex-start;
+
+    &__main-content {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: $pad-large;
+    }
+  }
+}

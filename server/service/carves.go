@@ -297,7 +297,7 @@ func (svc *Service) CarveBlock(ctx context.Context, payload fleet.CarveBlockPayl
 			logging.WithExtras(ctx, "validate_carve_error", errRecord, "carve_id", carve.ID)
 		}
 
-		return ctxerr.Wrap(ctx, err, "validate carve block")
+		return ctxerr.Wrap(ctx, badRequest("validate carve block"), err.Error())
 	}
 
 	if err := svc.carveStore.NewBlock(ctx, carve, payload.BlockId, payload.Data); err != nil {

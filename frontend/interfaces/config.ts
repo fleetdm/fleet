@@ -3,6 +3,7 @@ import {
   IWebhookHostStatus,
   IWebhookFailingPolicies,
   IWebhookSoftwareVulnerabilities,
+  IWebhookActivities,
 } from "interfaces/webhook";
 import { IGlobalIntegrations } from "./integration";
 
@@ -57,47 +58,16 @@ export interface IMdmConfig {
   };
 }
 
+// Note: IDeviceGlobalConfig is misnamed on the backend because in some cases it returns team config
+// values if the device is assigned to a team, e.g., features.enable_software_inventory reflects the
+// team config, if applicable, rather than the global config.
 export interface IDeviceGlobalConfig {
   mdm: Pick<IMdmConfig, "enabled_and_configured">;
+  features: Pick<IConfigFeatures, "enable_software_inventory">;
 }
 
 export interface IFleetDesktopSettings {
   transparency_url: string;
-}
-
-export interface IConfigFormData {
-  smtpAuthenticationMethod: string;
-  smtpAuthenticationType: string;
-  domain: string;
-  smtpEnableSslTls: boolean;
-  enableStartTls: boolean;
-  serverUrl: string;
-  orgLogoUrl: string;
-  orgName: string;
-  smtpPassword: string;
-  smtpPort?: number;
-  smtpSenderAddress: string;
-  smtpServer: string;
-  smtpUsername: string;
-  verifySslCerts: boolean;
-  entityId: string;
-  idpImageUrl: string;
-  metadata: string;
-  metadataUrl: string;
-  idpName: string;
-  enableSso: boolean;
-  enableSsoIdpLogin: boolean;
-  enableSmtp: boolean;
-  enableHostExpiry: boolean;
-  hostExpiryWindow: number;
-  disableLiveQuery: boolean;
-  agentOptions: any;
-  enableHostStatusWebhook: boolean;
-  hostStatusWebhookDestinationUrl?: string;
-  hostStatusWebhookHostPercentage?: number;
-  hostStatusWebhookDaysCount?: number;
-  enableUsageStatistics: boolean;
-  transparencyUrl: string;
 }
 
 export interface IConfigFeatures {
@@ -112,6 +82,7 @@ export interface IConfigServerSettings {
   deferred_save_host: boolean;
   query_reports_disabled: boolean;
   scripts_disabled: boolean;
+  ai_features_disabled: boolean;
 }
 
 export interface IConfig {
@@ -125,7 +96,7 @@ export interface IConfig {
   server_settings: IConfigServerSettings;
   smtp_settings?: {
     enable_smtp: boolean;
-    configured: boolean;
+    configured?: boolean;
     sender_address: string;
     server: string;
     port?: number;
@@ -152,10 +123,14 @@ export interface IConfig {
   };
   host_expiry_settings: {
     host_expiry_enabled: boolean;
-    host_expiry_window: number;
+    host_expiry_window?: number;
+  };
+  activity_expiry_settings: {
+    activity_expiry_enabled: boolean;
+    activity_expiry_window?: number;
   };
   features: IConfigFeatures;
-  agent_options: string;
+  agent_options: unknown; // Can pass empty object
   update_interval: {
     osquery_detail: number;
     osquery_policy: number;
@@ -217,6 +192,7 @@ export interface IWebhookSettings {
   failing_policies_webhook: IWebhookFailingPolicies;
   host_status_webhook: IWebhookHostStatus | null;
   vulnerabilities_webhook: IWebhookSoftwareVulnerabilities;
+  activities_webhook: IWebhookActivities;
 }
 
 export type IAutomationsConfig = Pick<

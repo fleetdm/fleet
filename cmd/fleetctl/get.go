@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"sort"
 	"strconv"
 	"time"
 
@@ -370,7 +371,7 @@ func getQueriesCommand() *cli.Command {
 	return &cli.Command{
 		Name:    "queries",
 		Aliases: []string{"query", "q"},
-		Usage:   "List information about one or more queries",
+		Usage:   "List information about queries",
 		Flags: []cli.Flag{
 			&cli.UintFlag{
 				Name:  teamFlagName,
@@ -650,7 +651,7 @@ func getLabelsCommand() *cli.Command {
 	return &cli.Command{
 		Name:    "labels",
 		Aliases: []string{"label", "l"},
-		Usage:   "List information about one or more labels",
+		Usage:   "List information about labels",
 		Flags: []cli.Flag{
 			jsonFlag(),
 			yamlFlag(),
@@ -792,7 +793,7 @@ func getHostsCommand() *cli.Command {
 	return &cli.Command{
 		Name:    "hosts",
 		Aliases: []string{"host", "h"},
-		Usage:   "List information about one or more hosts",
+		Usage:   "List information about hosts",
 		Flags: []cli.Flag{
 			&cli.UintFlag{
 				Name:     "team",
@@ -842,9 +843,7 @@ func getHostsCommand() *cli.Command {
 					}
 
 					if c.Bool("mdm") {
-						// hosts enrolled (automatic or manual) in Fleet's MDM server
-						query.Set("mdm_name", fleet.WellKnownMDMFleet)
-						query.Set("mdm_enrollment_status", string(fleet.MDMEnrollStatusEnrolled))
+						query.Set("connected_to_fleet", "true")
 					}
 					if c.Bool("mdm-pending") {
 						// hosts pending enrollment in Fleet's MDM server
@@ -1194,14 +1193,19 @@ func getTeamsCommand() *cli.Command {
 			// Default to printing as table
 			data := [][]string{}
 
+			sort.Slice(teams, func(i, j int) bool {
+				return teams[i].Name < teams[j].Name
+			})
+
 			for _, team := range teams {
 				data = append(data, []string{
 					team.Name,
+					strconv.Itoa(int(team.ID)),
 					fmt.Sprintf("%d", team.HostCount),
 					fmt.Sprintf("%d", team.UserCount),
 				})
 			}
-			columns := []string{"Team name", "Host count", "User count"}
+			columns := []string{"Team name", "Team ID", "Host count", "User count"}
 			printTable(c, columns, data)
 
 			return nil
@@ -1382,10 +1386,10 @@ func getMDMAppleCommand() *cli.Command {
 			warnDate := time.Now().Add(expirationWarning)
 			if mdm.RenewDate.Before(time.Now()) {
 				// certificate is expired, print an error
-				color.New(color.FgRed).Fprintln(c.App.Writer, "\nERROR: Your Apple Push Notification service (APNs) certificate is expired. MDM features are turned off. To renew your APNs certificate, follow these instructions: https://fleetdm.com/docs/using-fleet/mdm-macos-setup#apple-push-notification-service-apns")
+				color.New(color.FgRed).Fprintln(c.App.Writer, "\nERROR: Your Apple Push Notification service (APNs) certificate is expired. MDM features are turned off. To renew your APNs certificate, follow these instructions: https://fleetdm.com/learn-more-about/renew-apns")
 			} else if mdm.RenewDate.Before(warnDate) {
 				// certificate will soon expire, print a warning
-				color.New(color.FgYellow).Fprintln(c.App.Writer, "\nWARNING: Your Apple Push Notification service (APNs) certificate is less than 30 days from expiration. If it expires, MDM features will be turned off. To renew your APNs certificate, follow these instructions: https://fleetdm.com/docs/using-fleet/mdm-macos-setup#renewing-apns")
+				color.New(color.FgYellow).Fprintln(c.App.Writer, "\nWARNING: Your Apple Push Notification service (APNs) certificate is less than 30 days from expiration. If it expires, MDM features will be turned off. To renew your APNs certificate, follow these instructions: https://fleetdm.com/learn-more-about/renew-apns")
 			}
 
 			return nil

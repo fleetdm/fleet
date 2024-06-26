@@ -11,8 +11,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/live_query/live_query_mock"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
 	"github.com/fleetdm/fleet/v4/server/service"
-	kitlog "github.com/go-kit/kit/log"
-	"github.com/go-kit/kit/log/level"
+	kitlog "github.com/go-kit/log"
+	"github.com/go-kit/log/level"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -105,10 +105,15 @@ func TestSavedLiveQuery(t *testing.T) {
 		return true, nil
 	}
 	var GetLiveQueryStatsFuncWg sync.WaitGroup
-	GetLiveQueryStatsFuncWg.Add(1)
+	GetLiveQueryStatsFuncWg.Add(2)
 	ds.GetLiveQueryStatsFunc = func(ctx context.Context, queryID uint, hostIDs []uint) ([]*fleet.LiveQueryStats, error) {
+		stats := []*fleet.LiveQueryStats{
+			{
+				LastExecuted: time.Now(),
+			},
+		}
 		GetLiveQueryStatsFuncWg.Done()
-		return nil, nil
+		return stats, nil
 	}
 	var UpdateLiveQueryStatsFuncWg sync.WaitGroup
 	UpdateLiveQueryStatsFuncWg.Add(1)

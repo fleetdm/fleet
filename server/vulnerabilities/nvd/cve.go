@@ -15,18 +15,24 @@ import (
 	"time"
 
 	"github.com/Masterminds/semver"
-	"github.com/facebookincubator/nvdtools/cvefeed"
-	feednvd "github.com/facebookincubator/nvdtools/cvefeed/nvd"
-	"github.com/facebookincubator/nvdtools/cvefeed/nvd/schema"
-	"github.com/facebookincubator/nvdtools/providers/nvd"
-	"github.com/facebookincubator/nvdtools/wfn"
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	nvdsync "github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/sync"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/cvefeed"
+	feednvd "github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/cvefeed/nvd"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/cvefeed/nvd/schema"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/providers/nvd"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/wfn"
 	"github.com/go-kit/log"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
+	"github.com/google/go-github/v37/github"
+)
+
+const (
+	vulnRepo = "vulnerabilities"
 )
 
 // Define a regex pattern for semver (simplified)
@@ -35,14 +41,10 @@ var semverPattern = regexp.MustCompile(`^v?(\d+\.\d+\.\d+)`)
 // Define a regex pattern for splitting version strings into subparts
 var nonNumericPartRegex = regexp.MustCompile(`(\d+)(\D.*)`)
 
-// DownloadNVDCVEFeed downloads CVEs information from a CVE source.
-// If cveFeedPrefixURL is not set, the NVD API 2.0 is used to download CVE information to vulnPath.
-// If cveFeedPrefixURL is set, the CVE information will be downloaded assuming NVD's legacy feed format.
-func DownloadNVDCVEFeed(vulnPath string, cveFeedPrefixURL string, debug bool, logger log.Logger) error {
-	if cveFeedPrefixURL != "" {
-		return downloadNVDCVELegacy(vulnPath, cveFeedPrefixURL)
-	}
-
+// DownloadNVDCVEFeed downloads CVEs information from the NVD 2.0 API
+// and supplements the data with CPE information from the Vulncheck API.
+// This is used to download CVE information to vulnPath.
+func GenerateCVEFeeds(vulnPath string, debug bool, logger log.Logger) error {
 	cveSyncer, err := nvdsync.NewCVE(
 		vulnPath,
 		nvdsync.WithLogger(logger),
@@ -56,7 +58,69 @@ func DownloadNVDCVEFeed(vulnPath string, cveFeedPrefixURL string, debug bool, lo
 		return fmt.Errorf("download nvd cve feed: %w", err)
 	}
 
+	if err := cveSyncer.DoVulnCheck(context.Background()); err != nil {
+		return fmt.Errorf("download nvd cve feed: %w", err)
+	}
+
 	return nil
+}
+
+func DownloadCVEFeed(vulnPath, cveFeedPrefixURL string, debug bool, logger log.Logger) error {
+	var err error
+
+	if cveFeedPrefixURL == "" {
+		cveFeedPrefixURL, err = GetGitHubCVEAssetPath()
+		if err != nil {
+			return fmt.Errorf("get cve asset path: %w", err)
+		}
+	}
+
+	err = downloadNVDCVELegacy(vulnPath, cveFeedPrefixURL)
+	if err != nil {
+		return fmt.Errorf("download nvd cve feed: %w", err)
+	}
+
+	return nil
+}
+
+func GetGitHubCVEAssetPath() (string, error) {
+	vulnOwner := os.Getenv("TEST_VULN_GITHUB_OWNER")
+	if vulnOwner == "" {
+		vulnOwner = owner
+	}
+
+	ghClient := github.NewClient(fleethttp.NewGithubClient())
+
+	releases, _, err := ghClient.Repositories.ListReleases(
+		context.Background(),
+		vulnOwner,
+		vulnRepo,
+		&github.ListOptions{Page: 0, PerPage: 10},
+	)
+	if err != nil {
+		return "", err
+	}
+
+	nvdregex := regexp.MustCompile(`cve-\d+`)
+	var found string
+
+	for _, release := range releases {
+		// Skip draft releases
+		if release.GetDraft() {
+			continue
+		}
+
+		if nvdregex.MatchString(release.GetTagName()) {
+			found = release.GetTagName()
+			break
+		}
+	}
+
+	if found == "" {
+		return "", errors.New("no CVE feed found")
+	}
+
+	return fmt.Sprintf("https://github.com/%s/%s/releases/download/%s/", vulnOwner, vulnRepo, found), nil
 }
 
 func downloadNVDCVELegacy(vulnPath string, cveFeedPrefixURL string) error {
@@ -654,13 +718,20 @@ func buildConstraintString(startIncluding, startExcluding, endExcluding string) 
 }
 
 // Products using 4 part versioning scheme (ie. docker desktop)
-// need to be converted to 3 part versioning scheme (2.3.0.2 -> 2.3.0+3) for use with
+// need to be converted to 3 part versioning scheme (2.3.0.2 -> 2.3.0-3) for use with
 // the semver library.
 func preprocessVersion(version string) string {
-	// If "+" is already present, validate the part before "+" as a semver
-	if strings.Contains(version, "+") {
-		parts := strings.Split(version, "+")
+	// If "-" is already present, validate the part before "-" as a semver
+	if strings.Contains(version, "-") {
+		parts := strings.Split(version, "-")
 		if semverPattern.MatchString(parts[0]) {
+			return version
+		}
+	}
+
+	if strings.Contains(version, "+") {
+		part := strings.Split(version, "+")[0]
+		if semverPattern.MatchString(part) {
 			return version
 		}
 	}
@@ -668,15 +739,15 @@ func preprocessVersion(version string) string {
 	// If the version string contains more than 3 parts, convert it to 3 parts
 	parts := strings.Split(version, ".")
 	if len(parts) > 3 {
-		return parts[0] + "." + parts[1] + "." + parts[2] + "+" + strings.Join(parts[3:], ".")
+		return parts[0] + "." + parts[1] + "." + parts[2] + "-" + strings.Join(parts[3:], ".")
 	}
 
 	// If the version string ends with a non-numeric character (like '1.0.0b'), replace
-	// it with '+<char>' (like '1.0.0+b')
+	// it with '-<char>' (like '1.0.0-b')
 	if len(parts) == 3 {
 		matches := nonNumericPartRegex.FindStringSubmatch(parts[2])
 		if len(matches) > 2 {
-			parts[2] = matches[1] + "+" + matches[2]
+			parts[2] = matches[1] + "-" + matches[2]
 		}
 	}
 

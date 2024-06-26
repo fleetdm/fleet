@@ -280,7 +280,7 @@ This activity contains the following fields:
 ```json
 {
 	"team_id": 123,
-	"team_name": "foo"
+	"team_name": "Workstations"
 }
 ```
 
@@ -297,7 +297,7 @@ This activity contains the following fields:
 ```json
 {
 	"team_id": 123,
-	"team_name": "foo"
+	"team_name": "Workstations"
 }
 ```
 
@@ -357,7 +357,7 @@ This activity contains the following fields:
 ```json
 {
 	"team_id": 123,
-	"team_name": "foo",
+	"team_name": "Workstations",
 	"global": false
 }
 ```
@@ -1003,13 +1003,15 @@ Generated when a user sends a request to lock a host.
 This activity contains the following fields:
 - "host_id": ID of the host.
 - "host_display_name": Display name of the host.
+- "view_pin": Whether lock PIN was viewed (for Apple devices).
 
 #### Example
 
 ```json
 {
   "host_id": 1,
-  "host_display_name": "Anna's MacBook Pro"
+  "host_display_name": "Anna's MacBook Pro",
+  "view_pin": true
 }
 ```
 
@@ -1046,6 +1048,157 @@ This activity contains the following fields:
 {
   "host_id": 1,
   "host_display_name": "Anna's MacBook Pro"
+}
+```
+
+## created_declaration_profile
+
+Generated when a user adds a new macOS declaration to a team (or no team).
+
+This activity contains the following fields:
+- "profile_name": Name of the declaration.
+- "identifier": Identifier of the declaration.
+- "team_id": The ID of the team that the declaration applies to, `null` if it applies to devices that are not in a team.
+- "team_name": The name of the team that the declaration applies to, `null` if it applies to devices that are not in a team.
+
+#### Example
+
+```json
+{
+  "profile_name": "Passcode requirements",
+  "profile_identifier": "com.my.declaration",
+  "team_id": 123,
+  "team_name": "Workstations"
+}
+```
+
+## deleted_declaration_profile
+
+Generated when a user removes a macOS declaration from a team (or no team).
+
+This activity contains the following fields:
+- "profile_name": Name of the declaration.
+- "identifier": Identifier of the declaration.
+- "team_id": The ID of the team that the declaration applies to, `null` if it applies to devices that are not in a team.
+- "team_name": The name of the team that the declaration applies to, `null` if it applies to devices that are not in a team.
+
+#### Example
+
+```json
+{
+  "profile_name": "Passcode requirements",
+  "profile_identifier": "com.my.declaration",
+  "team_id": 123,
+  "team_name": "Workstations"
+}
+```
+
+## edited_declaration_profile
+
+Generated when a user edits the macOS declarations of a team (or no team) via the fleetctl CLI.
+
+This activity contains the following fields:
+- "team_id": The ID of the team that the declarations apply to, `null` if they apply to devices that are not in a team.
+- "team_name": The name of the team that the declarations apply to, `null` if they apply to devices that are not in a team.
+
+#### Example
+
+```json
+{
+  "team_id": 123,
+  "team_name": "Workstations"
+}
+```
+
+## resent_configuration_profile
+
+Generated when a user resends an MDM configuration profile to a host.
+
+This activity contains the following fields:
+- "host_id": The ID of the host.
+- "host_display_name": The display name of the host.
+- "profile_name": The name of the configuration profile.
+
+#### Example
+
+```json
+{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro",
+  "profile_name": "Passcode requirements"
+}
+```
+
+## installed_software
+
+Generated when a software is installed on a host.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+- "install_uuid": ID of the software installation.
+- "self_service": Whether the installation was initiated by the end user.
+- "software_title": Name of the software.
+- "software_package": Filename of the installer.
+- "status": Status of the software installation.
+
+#### Example
+
+```json
+{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro",
+  "software_title": "Falcon.app",
+  "software_package": "FalconSensor-6.44.pkg",
+  "self_service": true,
+  "install_uuid": "d6cffa75-b5b5-41ef-9230-15073c8a88cf",
+  "status": "pending"
+}
+```
+
+## added_software
+
+Generated when a software installer is uploaded to Fleet.
+
+This activity contains the following fields:
+- "software_title": Name of the software.
+- "software_package": Filename of the installer.
+- "team_name": Name of the team to which this software was added. `null` if it was added to no team." +
+- "team_id": The ID of the team to which this software was added. `null` if it was added to no team.
+- "self_service": Whether the software is available for installation by the end user.
+
+#### Example
+
+```json
+{
+  "software_title": "Falcon.app",
+  "software_package": "FalconSensor-6.44.pkg",
+  "team_name": "Workstations",
+  "team_id": 123,
+  "self_service": true
+}
+```
+
+## deleted_software
+
+Generated when a software installer is deleted from Fleet.
+
+This activity contains the following fields:
+- "software_title": Name of the software.
+- "software_package": Filename of the installer.
+- "team_name": Name of the team to which this software was added. `null if it was added to no team.
+- "team_id": The ID of the team to which this software was added. `null` if it was added to no team.
+- "self_service": Whether the software was available for installation by the end user.
+
+#### Example
+
+```json
+{
+  "software_title": "Falcon.app",
+  "software_package": "FalconSensor-6.44.pkg",
+  "team_name": "Workstations",
+  "team_id": 123,
+  "self_service": true
 }
 ```
 

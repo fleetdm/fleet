@@ -52,7 +52,7 @@ jobs:
       - name: Install JS Dependencies
         if: steps.js-cache.outputs.cache-hit != 'true'
         working-directory: ./ee/fleetd-chrome
-        run: npm install
+        run: npm install --no-save
 
       - name: Build JS
         working-directory: ./ee/fleetd-chrome

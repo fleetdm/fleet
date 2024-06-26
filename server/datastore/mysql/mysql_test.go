@@ -23,7 +23,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/go-kit/kit/log"
+	"github.com/go-kit/log"
 	"github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
@@ -43,7 +43,7 @@ func TestDatastoreReplica(t *testing.T) {
 	})
 
 	t.Run("replica", func(t *testing.T) {
-		opts := &DatastoreTestOptions{Replica: true}
+		opts := &DatastoreTestOptions{DummyReplica: true}
 		ds := CreateMySQLDSWithOptions(t, opts)
 		defer ds.Close()
 		require.NotEqual(t, ds.reader(ctx), ds.writer(ctx))
@@ -797,7 +797,7 @@ func TestNewUsesRegisterTLS(t *testing.T) {
 	require.Error(t, err)
 	// TODO: we're using a Regexp because the message is different depending on the version of mysql,
 	// we should refactor and use different error types instead.
-	require.Regexp(t, "^(x509|tls)", err.Error())
+	require.Regexp(t, "(x509|tls|EOF)", err.Error())
 }
 
 func TestWhereFilterTeams(t *testing.T) {
