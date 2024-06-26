@@ -95,11 +95,6 @@ func WithNestedPlist() FlattenOpts {
 
 // WithLogger sets the logger to use
 func WithLogger(logger zerolog.Logger) FlattenOpts {
-	// TODO(JVE): should this take a pointer then?
-	// if logger == nil {
-	// 	return func(_ *Flattener) {}
-	// }
-
 	return func(fl *Flattener) {
 		fl.logger = logger
 	}
@@ -142,8 +137,7 @@ func Flatten(data interface{}, opts ...FlattenOpts) ([]Row, error) {
 	}
 
 	if !fl.debugLogging {
-		// TODO(JVE): find how to do this in zerolog
-		// fl.logger = level.NewFilter(fl.logger, level.AllowInfo())
+		fl.logger = fl.logger.Level(zerolog.InfoLevel)
 	}
 
 	if err := fl.descend([]string{}, data, 0); err != nil {
@@ -156,15 +150,6 @@ func Flatten(data interface{}, opts ...FlattenOpts) ([]Row, error) {
 // descend recurses through a given data structure flattening along the way.
 func (fl *Flattener) descend(path []string, data interface{}, depth int) error {
 	queryTerm, isQueryMatched := fl.queryAtDepth(depth)
-
-	// logger := log.With(fl.logger,
-	// 	"caller", "descend",
-	// 	"depth", depth,
-	// 	"rows-so-far", len(fl.rows),
-	// 	"query", queryTerm,
-	// 	"path", strings.Join(path, "/"),
-	// )
-
 	logger := fl.logger.With().
 		Str("caller", "descend").
 		Int("depth", depth).

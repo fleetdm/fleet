@@ -10,7 +10,6 @@ import (
 
 	"github.com/osquery/osquery-go/plugin/table"
 	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
 )
 
 const kernelCheckUtilPath = "/opt/CrowdStrike/falcon-kernel-check"
@@ -20,7 +19,7 @@ type Table struct {
 	name   string
 }
 
-func TablePlugin() *table.Plugin {
+func TablePlugin(logger zerolog.Logger) *table.Plugin {
 	columns := []table.ColumnDefinition{
 		table.TextColumn("kernel"),
 		table.IntegerColumn("supported"),
@@ -30,7 +29,7 @@ func TablePlugin() *table.Plugin {
 	tableName := "falcon_kernel_check"
 	t := &Table{
 		name:   tableName,
-		logger: log.Logger.With().Str("table", tableName).Logger(),
+		logger: logger.With().Str("table", tableName).Logger(),
 	}
 
 	return table.NewPlugin(tableName, columns, t.generate)

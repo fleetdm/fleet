@@ -145,8 +145,6 @@ func OrbitDefaultTables() []osquery.OsqueryPlugin {
 		cryptoinfotable.TablePlugin(log.Logger),
 
 		// Additional data format tables
-		// TODO(JVE): stay consistent: either pass the global logger or pull it in the method, but
-		// not both
 		dataflattentable.TablePlugin(log.Logger, dataflattentable.JsonType),  // table name is "parse_json"
 		dataflattentable.TablePlugin(log.Logger, dataflattentable.JsonlType), // table name is "parse_jsonl"
 		dataflattentable.TablePlugin(log.Logger, dataflattentable.XmlType),   // table name is "parse_xml"

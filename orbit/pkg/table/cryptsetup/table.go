@@ -11,7 +11,6 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/tablehelpers"
 	"github.com/osquery/osquery-go/plugin/table"
 	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
 )
 
 var cryptsetupPaths = []string{
@@ -26,13 +25,13 @@ type Table struct {
 	name   string
 }
 
-func TablePlugin() *table.Plugin {
+func TablePlugin(logger zerolog.Logger) *table.Plugin {
 	columns := dataflattentable.Columns(
 		table.TextColumn("name"),
 	)
 
 	t := &Table{
-		logger: log.Logger.With().Str("table", "cryptsetup_status").Logger(),
+		logger: logger.With().Str("table", "cryptsetup_status").Logger(),
 		name:   "cryptsetup_status",
 	}
 
