@@ -8259,6 +8259,75 @@ func (s *integrationTestSuite) TestGetHostBatteries() {
 	}, *getHostResp.Host.Batteries)
 }
 
+func (s *integrationTestSuite) TestGetHostMaintenanceWindow() {
+	t := s.T()
+	ctx := context.Background()
+
+	host, err := s.ds.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         ptr.String("1"),
+		UUID:            "1",
+		Hostname:        "foo.local",
+		PrimaryIP:       "192.168.1.1",
+		PrimaryMac:      "30-65-EC-6F-C4-58",
+	})
+	require.NoError(t, err)
+	err = s.ds.ReplaceHostDeviceMapping(ctx, host.ID, []*fleet.HostDeviceMapping{
+		{
+			HostID: host.ID,
+			Email:  "foo@example.com",
+			Source: "google_chrome_profiles",
+		},
+	}, "google_chrome_profiles")
+	require.NoError(t, err)
+
+	startTime := time.Now().Add(time.Minute)
+	endTime := startTime.Add(time.Minute * 30)
+	var timeZone string
+
+	testEvent := fleet.CalendarEvent{
+		Email:     "foo@example.com",
+		StartTime: startTime,
+		EndTime:   endTime,
+		Data:      []byte(`{}`),
+		TimeZone:  &timeZone,
+	}
+
+	_, err = s.ds.CreateOrUpdateCalendarEvent(ctx, testEvent.Email, testEvent.StartTime, testEvent.EndTime, testEvent.Data, *testEvent.TimeZone, host.ID, fleet.CalendarWebhookStatusNone)
+	require.NoError(t, err)
+
+	time.Sleep(1 * time.Second)
+
+	// GET host, check maintenance window
+	var getHostResp getHostResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
+	require.Equal(t, host.ID, getHostResp.Host.ID)
+	require.ElementsMatch(t, []*fleet.HostMaintenanceWindow{
+		{StartsAt: testEvent.StartTime, TimeZone: testEvent.TimeZone},
+	}, *getHostResp.Host.MaintenanceWindow)
+
+	timeZone = "America/Argentina/Buenos_Aires"
+	// get a time.Location from the timezone string
+	tZLoc, err := time.LoadLocation(timeZone)
+	require.NoError(t, err)
+	// use the time.Location to update the start time for the timezone
+	newStartsAt := startTime.In(tZLoc)
+
+	// update the calendar event with zoned time and timezone
+	_, err = s.ds.CreateOrUpdateCalendarEvent(ctx, testEvent.Email, newStartsAt, testEvent.EndTime, testEvent.Data, "America/Argentina/Buenos_Aires", host.ID, fleet.CalendarWebhookStatusNone)
+	require.NoError(t, err)
+
+	// GET it again
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
+	require.Equal(t, host.ID, getHostResp.Host.ID)
+	require.ElementsMatch(t, []*fleet.HostMaintenanceWindow{
+		{StartsAt: newStartsAt, TimeZone: &timeZone},
+	}, *getHostResp.Host.MaintenanceWindow)
+}
+
 func (s *integrationTestSuite) TestHostByIdentifierSoftwareUpdatedAt() {
 	t := s.T()
 
