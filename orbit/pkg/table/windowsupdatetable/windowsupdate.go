@@ -39,9 +39,7 @@ func TablePlugin(mode tableMode, logger zerolog.Logger) *table.Plugin {
 		table.IntegerColumn("is_default"),
 	)
 
-	t := &Table{
-		logger: logger,
-	}
+	t := &Table{}
 
 	switch mode {
 	case UpdatesTable:
@@ -51,6 +49,8 @@ func TablePlugin(mode tableMode, logger zerolog.Logger) *table.Plugin {
 		t.queryFunc = queryHistory
 		t.name = "windows_update_history"
 	}
+
+	t.logger = logger.With().Str("table", t.name).Logger()
 
 	return table.NewPlugin(t.name, columns, t.generate)
 }
