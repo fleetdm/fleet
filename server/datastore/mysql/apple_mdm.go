@@ -1978,8 +1978,8 @@ func generateDesiredStateQuery(entityType string) string {
 		mae.${entityUUIDColumn}, h.uuid, h.platform, mae.identifier, mae.name, mae.checksum
 	HAVING
 		${countEntityLabelsColumn} > 0 AND count_host_labels = ${countEntityLabelsColumn}
-
 	`, func(s string) string { return dynamicNames[s] })
+	// TODO(mna): split label case to include all and exclude any
 }
 
 // generateEntitiesToInstallQuery is a set difference between:
@@ -2090,6 +2090,7 @@ func generateEntitiesToRemoveQuery(entityType string) string {
 				mcpl.label_id IS NULL
 		)
 `, func(s string) string { return dynamicNames[s] }), fmt.Sprintf(generateDesiredStateQuery(entityType), "TRUE", "TRUE"))
+	// TODO(mna): I think the "would be removed" exception still applies for exclude-any labels
 }
 
 func (ds *Datastore) ListMDMAppleProfilesToInstall(ctx context.Context) ([]*fleet.MDMAppleProfilePayload, error) {
