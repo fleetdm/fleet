@@ -54,9 +54,9 @@ const ScriptPackageUploader = ({
     <FileUploader
       className={baseClass}
       graphicName={["file-sh", "file-ps1"]}
-      message="Shell (.sh) for macOS or PowerShell (.ps1) for Windows"
-      additionalInfo="Script will run with “#!/bin/sh”on macOS."
-      accept=".sh,.ps1,.yml"
+      message="Shell (.sh) for macOS and Linux or PowerShell (.ps1) for Windows"
+      additionalInfo="Script will run with “#!/bin/sh” or “#!/bin/zsh” on macOS and Linux."
+      accept=".sh,.ps1"
       onFileUpload={onUploadFile}
       isLoading={showLoading}
     />

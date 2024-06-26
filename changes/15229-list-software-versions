@@ -1,4 +1,0 @@
-- Added `GET software/versions` endpoint to list and filter software versions.
-- Added `GET software/versions/{id}` endpoint to get a specific software version.
-- Deprecated `GET software` endpoint.
-- Deprecated `GET software/{id}` endpoint.

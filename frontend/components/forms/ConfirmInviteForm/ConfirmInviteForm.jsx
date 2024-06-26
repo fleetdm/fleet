@@ -28,38 +28,37 @@ class ConfirmInviteForm extends Component {
     return (
       <form className={className} autoComplete="off">
         {baseError && <div className="form__base-error">{baseError}</div>}
-        <div className="fields">
-          <InputFieldWithIcon
-            {...fields.name}
-            autofocus
-            role="textbox"
-            label="Full name"
-            placeholder="Full name"
-            inputOptions={{
-              maxLength: "80",
-            }}
-          />
-          <InputFieldWithIcon
-            {...fields.password}
-            label="Password"
-            placeholder="Password"
-            type="password"
-            hint={[
-              "Must include 12 characters, at least 1 number (e.g. 0 - 9), and at least 1 symbol (e.g. &*#)",
-            ]}
-          />
-          <InputFieldWithIcon
-            {...fields.password_confirmation}
-            label="Confirm password"
-            placeholder="Confirm password"
-            type="password"
-          />
-        </div>
-        <div className="confirm-invite-button-wrap">
-          <Button onClick={handleSubmit} type="Submit" variant="brand">
-            Submit
-          </Button>
-        </div>
+        <InputFieldWithIcon
+          {...fields.name}
+          autofocus
+          role="textbox"
+          label="Full name"
+          placeholder="Full name"
+          inputOptions={{
+            maxLength: "80",
+          }}
+        />
+        <InputFieldWithIcon
+          {...fields.password}
+          label="Password"
+          placeholder="Password"
+          type="password"
+          helpText="Must include 12 characters, at least 1 number (e.g. 0 - 9), and at least 1 symbol (e.g. &*#)"
+        />
+        <InputFieldWithIcon
+          {...fields.password_confirmation}
+          label="Confirm password"
+          placeholder="Confirm password"
+          type="password"
+        />
+        <Button
+          onClick={handleSubmit}
+          className="confirm-invite-button"
+          type="Submit"
+          variant="brand"
+        >
+          Submit
+        </Button>
       </form>
     );
   }

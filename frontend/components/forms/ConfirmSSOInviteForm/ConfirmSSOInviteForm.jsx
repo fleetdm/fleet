@@ -28,21 +28,17 @@ class ConfirmSSOInviteForm extends Component {
     return (
       <form className={className} autoComplete="off">
         {baseError && <div className="form__base-error">{baseError}</div>}
-        <div className="fields">
-          <InputFieldWithIcon
-            {...fields.name}
-            autofocus
-            placeholder="Full name"
-            inputOptions={{
-              maxLength: "80",
-            }}
-          />
-        </div>
-        <div className="confirm-invite-button-wrap">
-          <Button onClick={handleSubmit} type="Submit" variant="brand">
-            Submit
-          </Button>
-        </div>
+        <InputFieldWithIcon
+          {...fields.name}
+          autofocus
+          placeholder="Full name"
+          inputOptions={{
+            maxLength: "80",
+          }}
+        />
+        <Button onClick={handleSubmit} type="Submit" variant="brand">
+          Submit
+        </Button>
       </form>
     );
   }

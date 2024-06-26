@@ -27,11 +27,10 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
 
-    - name: Start tunnel
-      run: |
-        npm install -g localtunnel
-        lt --port 1337 &
-        sleep 5
+    - name: Harden Runner
+      uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+      with:
+        egress-policy: audit
 
     - name: Test fleetctl preview
       run: |
@@ -47,7 +46,10 @@ jobs:
       run: |
         FLEET_LICENSE_KEY=foo docker compose -f ~/.fleet/preview/docker-compose.yml logs fleet01 fleet02 > fleet-logs.txt
         # Copying logs, otherwise the upload-artifact action uploads the logs in a hidden folder (.fleet)
-        cp ~/.fleet/preview/orbit.log orbit.log
+        # Old location of orbit logs before v4.43.0
+        cp ~/.fleet/preview/orbit.log orbit.log || true
+        # New location of orbit logs since v4.43.0
+        cp ~/.fleet/preview/orbit/orbit.log orbit.log || true
         cp -r ~/.fleet/preview/logs osquery_result_status_logs
       shell: bash
 

@@ -41,6 +41,11 @@ jobs:
         go-version: ['${{ vars.GO_VERSION }}']
     runs-on: ${{ matrix.os }}
     steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        with:
+          egress-policy: audit
+
       - name: Checkout code
         uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
 
@@ -60,5 +65,9 @@ jobs:
           # Don't forget to update
           # docs/Contributing/Testing-and-local-development.md when this
           # version changes
-          go install github.com/golangci/golangci-lint/cmd/golangci-lint@411e0bbbd3096aa0ee2b924160629bdf2bc81d40 # v1.54.2
+          go install github.com/golangci/golangci-lint/cmd/golangci-lint@e3c2265f4939976874989e159386b3bb7dcf8e1f # v1.55.2
           make lint-go
+
+      - name: Run cloner-check tool
+        run: |
+          go run ./tools/cloner-check/main.go -check

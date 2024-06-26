@@ -6,19 +6,13 @@ import (
 	"math/big"
 	"testing"
 
-	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
-	"github.com/micromdm/nanodep/tokenpki"
-	scep_depot "github.com/micromdm/scep/v2/depot"
+	scep_depot "github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
 	"github.com/stretchr/testify/require"
 )
 
 func setup(t *testing.T) scep_depot.Depot {
 	ds := CreateNamedMySQLDS(t, t.Name())
-	cert, key, err := apple_mdm.NewSCEPCACertKey()
-	require.NoError(t, err)
-	publicKeyPEM := tokenpki.PEMCertificate(cert.Raw)
-	privateKeyPEM := tokenpki.PEMRSAPrivateKey(key)
-	depot, err := ds.NewSCEPDepot(publicKeyPEM, privateKeyPEM)
+	depot, err := ds.NewSCEPDepot()
 	require.NoError(t, err)
 	return depot
 }
@@ -45,7 +39,7 @@ func TestAppleMDMSCEPSerial(t *testing.T) {
 func TestAppleMDMPutAndHasCN(t *testing.T) {
 	depot := setup(t)
 
-	name := "FleetDM Identity"
+	name := "Fleet Identity"
 	serial, err := depot.Serial()
 	require.NoError(t, err)
 	cert := x509.Certificate{

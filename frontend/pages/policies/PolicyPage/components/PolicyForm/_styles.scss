@@ -1,4 +1,8 @@
 .policy-form {
+  &__platform-selector {
+    // override component style
+    padding-bottom: 0;
+  }
   &__wrapper {
     position: relative;
     font-size: $x-small;
@@ -13,9 +17,21 @@
     }
   }
 
+  &__wrapper,
+  &__save-modal-form {
+    .critical-checkbox-wrapper {
+      // override form child width: 100%
+      width: auto;
+      .form-field--checkbox {
+        margin-bottom: 0;
+      }
+    }
+  }
+
   &__title-bar {
     display: flex;
     justify-content: space-between;
+    gap: $pad-large;
 
     .form-field {
       margin-bottom: 0px;
@@ -41,29 +57,38 @@
 
     .edit-link {
       cursor: pointer;
-      padding-left: $pad-small;
       height: 18px;
     }
 
     .name-description-resolve {
-      flex-grow: 1;
-      margin: $pad-medium 24px 0 0;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      .button--text-icon {
+        // override global form button margin adjustment
+        margin: 0;
+      }
+      flex-direction: column;
       .policy-name-wrapper,
       .policy-description-wrapper,
       .policy-resolution-wrapper {
         display: flex;
+        align-items: baseline;
+        gap: 0.5rem;
+        width: fit-content;
         &:not(.policy-form--editing) {
-          textarea:hover {
+          &:hover {
             cursor: pointer;
-            color: $core-vibrant-blue;
+            * {
+              color: $core-vibrant-blue;
+              cursor: pointer;
+            }
           }
         }
       }
       .policy-name-wrapper {
-        .edit-icon {
-          position: relative;
-          top: 13px;
-          margin-left: 0;
+        .no-value {
+          min-width: 112px;
         }
         .policy-form__policy-name,
         .input-sizer::after {
@@ -72,36 +97,40 @@
         .component__auto-size-input-field {
           letter-spacing: -0.5px;
           line-height: 2.3rem;
-          margin-top: 2px;
         }
       }
       .policy-description-wrapper {
-        padding-top: $pad-small;
+        .no-value {
+          min-width: 106px;
+        }
         .edit-icon {
           position: relative;
           top: 0;
+        }
+      }
+      .policy-resolution-wrapper {
+        .no-value {
+          min-width: 106px;
         }
       }
       .edit-icon {
         opacity: 1;
         transition: opacity 0.2s;
         margin-left: 0;
+        align-self: initial;
         &.hide {
           opacity: 0;
         }
       }
-      .policy-form__policy-resolve,
-      .resolve-text-wrapper {
-        margin-top: $pad-large;
-      }
-      .resolve-title {
-        margin-bottom: 0;
+      .policy-form__policy-resolve {
+        // add margin to match spacing caused by sibling line-height
+        margin-top: 0.7rem;
+        gap: $pad-xxsmall;
       }
     }
 
     .author {
       flex-shrink: 1;
-      margin-top: 24px;
       text-align: right;
       justify-content: right;
       white-space: nowrap;
@@ -137,14 +166,6 @@
     white-space: normal;
     background-color: transparent;
     overflow: hidden;
-    &:hover:not(.focus-visible):not(.no-hover) {
-      color: $core-vibrant-blue;
-      cursor: pointer;
-    }
-    &.focus-visible {
-      outline: 0;
-      cursor: text;
-    }
   }
 
   &__policy-resolution {
@@ -152,12 +173,6 @@
   }
 
   &__policy-name {
-    font-size: $large;
-
-    &--new {
-      padding-bottom: $pad-large;
-    }
-
     &.input-field--error {
       border: 1px solid $core-vibrant-red;
     }
@@ -169,16 +184,20 @@
     font-size: $x-small;
   }
 
-  &__text-editor-wrapper {
-    padding-top: $pad-small;
+  &__autofill-label {
+    display: flex;
+    justify-content: space-between;
+
+    .autofill-tooltip-wrapper {
+      display: flex; // Required for vertical centering
+    }
+
+    .autofill-button-tooltip {
+      font-weight: $regular;
+    }
   }
 
   &__button-wrap {
-    margin: 0;
-    margin-top: $pad-large;
-    display: flex;
-    column-gap: $pad-medium;
-
     &--tooltip {
       display: flex;
     }
@@ -213,10 +232,6 @@
   }
 
   &__platform-compatibility {
-    display: flex;
-    align-items: center;
-    padding-bottom: $pad-large;
-
     b,
     img,
     span {

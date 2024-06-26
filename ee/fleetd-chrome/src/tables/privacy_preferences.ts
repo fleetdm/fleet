@@ -1,4 +1,5 @@
 import Table from "./Table";
+import ChromeSettingGetResultDetails = chrome.types.ChromeSettingGetResultDetails;
 
 export default class TablePrivacyPreferences extends Table {
   // expose properties available from the chrome.privacy API as a virtual osquery "table"
@@ -60,24 +61,29 @@ export default class TablePrivacyPreferences extends Table {
   async generate() {
     const results = []; // Promise<{string: number | string}>[]
     const errors = [];
+    let warningsArray = [];
     for (const [property, propertyAPI] of Object.entries(this.propertyAPIs)) {
       results.push(
         new Promise((resolve) => {
           try {
-            propertyAPI.get({}, (details) => {
-              if (property === "web_rtc_ip_handling_policy") {
-                resolve({ [property]: details.value });
-              } else {
-                // convert bool response to string binary flag
-                if (details.value === true) {
-                  resolve({ [property]: "1" });
+            if (propertyAPI === undefined) {
+              resolve({ [property]: "" });
+            } else {
+              propertyAPI.get({}, (details: ChromeSettingGetResultDetails) => {
+                if (property === "web_rtc_ip_handling_policy") {
+                  resolve({ [property]: details.value });
                 } else {
-                  resolve({ [property]: "0" });
+                  // bool responses converted to binary flag in upper layer
+                  resolve({ [property]: details.value });
                 }
-              }
-            });
+              });
+            }
           } catch (error) {
             errors.push({ [property]: error });
+            warningsArray.push({
+              column: property,
+              error_message: error.stack.toString(),
+            });
             resolve({ [property]: "data unavailable" });
           }
         })
@@ -94,6 +100,7 @@ export default class TablePrivacyPreferences extends Table {
           return { ...resultRow, ...column };
         }, {}),
       ],
+      warnings: warningsArray,
     };
   }
 }

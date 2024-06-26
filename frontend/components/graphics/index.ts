@@ -1,6 +1,6 @@
 import EmptyQueries from "./EmptyQueries";
 import EmptyIntegrations from "./EmptyIntegrations";
-import EmptyMembers from "./EmptyMembers";
+import EmptyUsers from "./EmptyUsers";
 import EmptyPolicies from "./EmptyPolicies";
 import EmptySoftware from "./EmptySoftware";
 import FileConfigurationProfile from "./FileConfigurationProfile";
@@ -22,7 +22,7 @@ export const GRAPHIC_MAP = {
   // Empty state graphics
   "empty-queries": EmptyQueries,
   "empty-integrations": EmptyIntegrations,
-  "empty-members": EmptyMembers,
+  "empty-users": EmptyUsers,
   "empty-policies": EmptyPolicies,
   "empty-software": EmptySoftware,
   "empty-hosts": EmptyHosts,

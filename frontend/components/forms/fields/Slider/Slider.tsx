@@ -33,7 +33,7 @@ const Slider = (props: ISliderProps): JSX.Element => {
   };
 
   const formFieldProps = pick(props, [
-    "hint",
+    "helpText",
     "label",
     "error",
     "name",

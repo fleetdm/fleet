@@ -112,7 +112,7 @@ func main() {
 
 	for _, team := range teams {
 		printf("Applying profiles to team %s...\n", team.Name)
-		if err := apiClient.ApplyTeamProfiles(team.Name, profiles, fleet.ApplySpecOptions{}); err != nil {
+		if err := apiClient.ApplyTeamProfiles(team.Name, profiles, fleet.ApplyTeamSpecOptions{}); err != nil {
 			log.Fatalf("apply profiles to team %s: %s", team.Name, err)
 		}
 	}
@@ -217,7 +217,7 @@ func main() {
 		start = time.Now()
 
 		for _, team := range extraTeams {
-			if err := apiClient.ApplyTeamProfiles(team.Name, profiles, fleet.ApplySpecOptions{}); err != nil {
+			if err := apiClient.ApplyTeamProfiles(team.Name, profiles, fleet.ApplyTeamSpecOptions{}); err != nil {
 				log.Fatalf("apply profiles to extra team %s: %s", team.Name, err)
 			}
 		}
@@ -240,8 +240,296 @@ func main() {
 	}
 }
 
-var profiles = map[string][]byte{
-	"Disable Bluetooth sharing": []byte(`<?xml version="1.0" encoding="UTF-8"?>
+var profiles = []fleet.MDMProfileBatchPayload{
+	{
+		Name: "Ensure Install Security Responses and System Files Is Enabled",
+		Contents: []byte(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+        <key>PayloadContent</key>
+        <array>
+                <dict>
+                        <key>PayloadDisplayName</key>
+                        <string>test</string>
+                        <key>PayloadType</key>
+                        <string>com.apple.SoftwareUpdate</string>
+                        <key>PayloadIdentifier</key>
+                        <string>com.fleetdm.cis-1.6.check</string>
+                        <key>PayloadUUID</key>
+                        <string>0D8F676A-A705-4F57-8FF8-3118360EFDEB</string>
+                        <key>ConfigDataInstall</key>
+                        <true/>
+                        <key>CriticalUpdateInstall</key>
+                        <true/>
+                </dict>
+        </array>
+        <key>PayloadDescription</key>
+        <string>test</string>
+        <key>PayloadDisplayName</key>
+        <string>Ensure Install Security Responses and System Files Is Enabled</string>
+        <key>PayloadIdentifier</key>
+        <string>com.fleetdm.cis-1.6</string>
+        <key>PayloadRemovalDisallowed</key>
+        <false/>
+        <key>PayloadScope</key>
+        <string>System</string>
+        <key>PayloadType</key>
+        <string>Configuration</string>
+        <key>PayloadUUID</key>
+        <string>EBEE9B81-9D33-477F-AFBE-9691360B7A74</string>
+        <key>PayloadVersion</key>
+        <integer>1</integer>
+</dict>
+</plist>`),
+	},
+	{
+		Name: "Ensure Software Update Deferment Is Less Than or Equal to 30 Days",
+		Contents: []byte(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+        <key>PayloadContent</key>
+        <array>
+                <dict>
+                        <key>PayloadDisplayName</key>
+                        <string>test</string>
+                        <key>PayloadType</key>
+                        <string>com.apple.applicationaccess</string>
+                        <key>PayloadIdentifier</key>
+                        <string>com.fleetdm.cis-1.7.check</string>
+                        <key>PayloadUUID</key>
+                        <string>123FD592-D1C3-41FD-BC41-F91F3E1E2CF4</string>
+                        <key>enforcedSoftwareUpdateDelay</key>
+                        <integer>29</integer>
+                </dict>
+        </array>
+        <key>PayloadDescription</key>
+        <string>test</string>
+        <key>PayloadDisplayName</key>
+        <string>Ensure Software Update Deferment Is Less Than or Equal to 30 Days</string>
+        <key>PayloadIdentifier</key>
+        <string>com.zwass.cis-1.7</string>
+        <key>PayloadRemovalDisallowed</key>
+        <false/>
+        <key>PayloadScope</key>
+        <string>System</string>
+        <key>PayloadType</key>
+        <string>Configuration</string>
+        <key>PayloadUUID</key>
+        <string>385A0C13-2472-41B3-851C-1311FA12EB49</string>
+        <key>PayloadVersion</key>
+        <integer>1</integer>
+</dict>
+</plist>`),
+	},
+	{
+		Name: "Ensure Auto Update Is Enabled",
+		Contents: []byte(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+        <key>PayloadContent</key>
+        <array>
+                <dict>
+                        <key>PayloadDisplayName</key>
+                        <string>test</string>
+                        <key>PayloadType</key>
+                        <string>com.apple.SoftwareUpdate</string>
+                        <key>PayloadIdentifier</key>
+                        <string>com.fleetdm.cis-1.2.check</string>
+                        <key>PayloadUUID</key>
+                        <string>4DC539B5-837E-4DC3-B60B-43A8C556A8F0</string>
+                        <key>AutomaticCheckEnabled</key>
+                        <true/>
+                </dict>
+        </array>
+        <key>PayloadDescription</key>
+        <string>test</string>
+        <key>PayloadDisplayName</key>
+        <string>Ensure Auto Update Is Enabled</string>
+        <key>PayloadIdentifier</key>
+        <string>com.fleetdm.cis-1.2</string>
+        <key>PayloadRemovalDisallowed</key>
+        <false/>
+        <key>PayloadScope</key>
+        <string>System</string>
+        <key>PayloadType</key>
+        <string>Configuration</string>
+        <key>PayloadUUID</key>
+        <string>03E69A02-02CE-4CA0-8F17-3BAAD5D3852F</string>
+        <key>PayloadVersion</key>
+        <integer>1</integer>
+</dict>
+</plist>`),
+	},
+	{
+		Name: "Ensure Download New Updates When Available Is Enabled",
+		Contents: []byte(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+        <key>PayloadContent</key>
+        <array>
+                <dict>
+                        <key>PayloadDisplayName</key>
+                        <string>test</string>
+                        <key>PayloadType</key>
+                        <string>com.apple.SoftwareUpdate</string>
+                        <key>PayloadIdentifier</key>
+                        <string>com.fleetdm.cis-1.3.check</string>
+                        <key>PayloadUUID</key>
+                        <string>5FDE6D58-79CD-447A-AFB0-BA32D889C396</string>
+                        <key>AutomaticDownload</key>
+                        <true/>
+                </dict>
+        </array>
+        <key>PayloadDescription</key>
+        <string>test</string>
+        <key>PayloadDisplayName</key>
+        <string>Ensure Download New Updates When Available Is Enabled</string>
+        <key>PayloadIdentifier</key>
+        <string>com.fleetdm.cis-1.3</string>
+        <key>PayloadRemovalDisallowed</key>
+        <false/>
+        <key>PayloadScope</key>
+        <string>System</string>
+        <key>PayloadType</key>
+        <string>Configuration</string>
+        <key>PayloadUUID</key>
+        <string>0A1C2F97-D6FA-4CDB-ABB6-47DF2B151F4F</string>
+        <key>PayloadVersion</key>
+        <integer>1</integer>
+</dict>
+</plist>`),
+	},
+	{
+		Name: "Ensure Install of macOS Updates Is Enabled",
+		Contents: []byte(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+        <key>PayloadContent</key>
+        <array>
+                <dict>
+                        <key>PayloadDisplayName</key>
+                        <string>test</string>
+                        <key>PayloadType</key>
+                        <string>com.apple.SoftwareUpdate</string>
+                        <key>PayloadIdentifier</key>
+                        <string>com.fleetdm.cis-1.4.check</string>
+                        <key>PayloadUUID</key>
+                        <string>15BF7634-276A-411B-8C4E-52D89B4ED82C</string>
+                        <key>AutomaticallyInstallMacOSUpdates</key>
+                        <true/>
+                </dict>
+        </array>
+        <key>PayloadDescription</key>
+        <string>test</string>
+        <key>PayloadDisplayName</key>
+        <string>Ensure Install of macOS Updates Is Enabled</string>
+        <key>PayloadIdentifier</key>
+        <string>com.fleetdm.cis-1.4</string>
+        <key>PayloadRemovalDisallowed</key>
+        <false/>
+        <key>PayloadScope</key>
+        <string>System</string>
+        <key>PayloadType</key>
+        <string>Configuration</string>
+        <key>PayloadUUID</key>
+        <string>7DB8733E-BD11-4E88-9AE0-273EF2D0974B</string>
+        <key>PayloadVersion</key>
+        <integer>1</integer>
+</dict>
+</plist>`),
+	},
+	{
+		Name: "Ensure Firewall Logging Is Enabled and Configured",
+		Contents: []byte(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+        <key>PayloadContent</key>
+        <array>
+                <dict>
+                        <key>PayloadDisplayName</key>
+                        <string>test</string>
+                        <key>PayloadType</key>
+                        <string>com.apple.security.firewall</string>
+                        <key>PayloadIdentifier</key>
+                        <string>com.fleetdm.cis-3.6.check</string>
+                        <key>PayloadUUID</key>
+                        <string>604D8218-D7B6-43B1-95E6-DFCA4C25D73D</string>
+                        <key>EnableFirewall</key>
+                        <true/>
+                        <key>EnableLogging</key>
+                        <true/>
+                        <key>LoggingOption</key>
+                        <string>detail</string>
+                </dict>
+        </array>
+        <key>PayloadDescription</key>
+        <string>test</string>
+        <key>PayloadDisplayName</key>
+        <string>Ensure Firewall Logging Is Enabled and Configured</string>
+        <key>PayloadIdentifier</key>
+        <string>com.fleetdm.cis-3.6</string>
+        <key>PayloadRemovalDisallowed</key>
+        <false/>
+        <key>PayloadScope</key>
+        <string>System</string>
+        <key>PayloadType</key>
+        <string>Configuration</string>
+        <key>PayloadUUID</key>
+        <string>5E27501E-50DF-4804-9DEC-0E63C34E8831</string>
+        <key>PayloadVersion</key>
+        <integer>1</integer>
+</dict>
+</plist>`),
+	},
+	{
+		Name: "Ensure Bonjour Advertising Services Is Disabled",
+		Contents: []byte(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+        <key>PayloadContent</key>
+        <array>
+                <dict>
+                        <key>PayloadDisplayName</key>
+                        <string>test</string>
+                        <key>PayloadType</key>
+                        <string>com.apple.mDNSResponder</string>
+                        <key>PayloadIdentifier</key>
+                        <string>com.fleetdm.cis-4.1.check</string>
+                        <key>PayloadUUID</key>
+                        <string>08FEA43B-CE9B-4098-804C-11459D109992</string>
+                        <key>NoMulticastAdvertisements</key>
+                        <true/>
+                </dict>
+        </array>
+        <key>PayloadDescription</key>
+        <string>test</string>
+        <key>PayloadDisplayName</key>
+        <string>Ensure Bonjour Advertising Services Is Disabled</string>
+        <key>PayloadIdentifier</key>
+        <string>com.fleetdm.cis-4.1</string>
+        <key>PayloadRemovalDisallowed</key>
+        <false/>
+        <key>PayloadScope</key>
+        <string>System</string>
+        <key>PayloadType</key>
+        <string>Configuration</string>
+        <key>PayloadUUID</key>
+        <string>25BD1312-2B79-40C7-99FA-E60B49A1883E</string>
+        <key>PayloadVersion</key>
+        <integer>1</integer>
+</dict>
+</plist>`),
+	},
+	{
+		Name: "Disable Bluetooth sharing",
+		Contents: []byte(`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
@@ -301,118 +589,10 @@ var profiles = map[string][]byte{
         </array>
 </dict>
 </plist>`),
-	"Ensure Auto Update Is Enabled": []byte(`<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-        <key>PayloadContent</key>
-        <array>
-                <dict>
-                        <key>PayloadDisplayName</key>
-                        <string>test</string>
-                        <key>PayloadType</key>
-                        <string>com.apple.SoftwareUpdate</string>
-                        <key>PayloadIdentifier</key>
-                        <string>com.fleetdm.cis-1.2.check</string>
-                        <key>PayloadUUID</key>
-                        <string>4DC539B5-837E-4DC3-B60B-43A8C556A8F0</string>
-                        <key>AutomaticCheckEnabled</key>
-                        <true/>
-                </dict>
-        </array>
-        <key>PayloadDescription</key>
-        <string>test</string>
-        <key>PayloadDisplayName</key>
-        <string>Ensure Auto Update Is Enabled</string>
-        <key>PayloadIdentifier</key>
-        <string>com.fleetdm.cis-1.2</string>
-        <key>PayloadRemovalDisallowed</key>
-        <false/>
-        <key>PayloadScope</key>
-        <string>System</string>
-        <key>PayloadType</key>
-        <string>Configuration</string>
-        <key>PayloadUUID</key>
-        <string>03E69A02-02CE-4CA0-8F17-3BAAD5D3852F</string>
-        <key>PayloadVersion</key>
-        <integer>1</integer>
-</dict>
-</plist>`),
-	"Ensure Download New Updates When Available Is Enabled": []byte(`<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-        <key>PayloadContent</key>
-        <array>
-                <dict>
-                        <key>PayloadDisplayName</key>
-                        <string>test</string>
-                        <key>PayloadType</key>
-                        <string>com.apple.SoftwareUpdate</string>
-                        <key>PayloadIdentifier</key>
-                        <string>com.fleetdm.cis-1.3.check</string>
-                        <key>PayloadUUID</key>
-                        <string>5FDE6D58-79CD-447A-AFB0-BA32D889C396</string>
-                        <key>AutomaticDownload</key>
-                        <true/>
-                </dict>
-        </array>
-        <key>PayloadDescription</key>
-        <string>test</string>
-        <key>PayloadDisplayName</key>
-        <string>Ensure Download New Updates When Available Is Enabled</string>
-        <key>PayloadIdentifier</key>
-        <string>com.fleetdm.cis-1.3</string>
-        <key>PayloadRemovalDisallowed</key>
-        <false/>
-        <key>PayloadScope</key>
-        <string>System</string>
-        <key>PayloadType</key>
-        <string>Configuration</string>
-        <key>PayloadUUID</key>
-        <string>0A1C2F97-D6FA-4CDB-ABB6-47DF2B151F4F</string>
-        <key>PayloadVersion</key>
-        <integer>1</integer>
-</dict>
-</plist>`),
-	"Ensure Install of macOS Updates Is Enabled": []byte(`<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-        <key>PayloadContent</key>
-        <array>
-                <dict>
-                        <key>PayloadDisplayName</key>
-                        <string>test</string>
-                        <key>PayloadType</key>
-                        <string>com.apple.SoftwareUpdate</string>
-                        <key>PayloadIdentifier</key>
-                        <string>com.fleetdm.cis-1.4.check</string>
-                        <key>PayloadUUID</key>
-                        <string>15BF7634-276A-411B-8C4E-52D89B4ED82C</string>
-                        <key>AutomaticallyInstallMacOSUpdates</key>
-                        <true/>
-                </dict>
-        </array>
-        <key>PayloadDescription</key>
-        <string>test</string>
-        <key>PayloadDisplayName</key>
-        <string>Ensure Install of macOS Updates Is Enabled</string>
-        <key>PayloadIdentifier</key>
-        <string>com.fleetdm.cis-1.4</string>
-        <key>PayloadRemovalDisallowed</key>
-        <false/>
-        <key>PayloadScope</key>
-        <string>System</string>
-        <key>PayloadType</key>
-        <string>Configuration</string>
-        <key>PayloadUUID</key>
-        <string>7DB8733E-BD11-4E88-9AE0-273EF2D0974B</string>
-        <key>PayloadVersion</key>
-        <integer>1</integer>
-</dict>
-</plist>`),
-	"Ensure Install Application Updates from the App Store Is Enabled": []byte(`<?xml version="1.0" encoding="UTF-8"?>
+	},
+	{
+		Name: "Ensure Install Application Updates from the App Store Is Enabled",
+		Contents: []byte(`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
@@ -449,83 +629,10 @@ var profiles = map[string][]byte{
         <integer>1</integer>
 </dict>
 </plist>`),
-	"Ensure Install Security Responses and System Files Is Enabled": []byte(`<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-        <key>PayloadContent</key>
-        <array>
-                <dict>
-                        <key>PayloadDisplayName</key>
-                        <string>test</string>
-                        <key>PayloadType</key>
-                        <string>com.apple.SoftwareUpdate</string>
-                        <key>PayloadIdentifier</key>
-                        <string>com.fleetdm.cis-1.6.check</string>
-                        <key>PayloadUUID</key>
-                        <string>0D8F676A-A705-4F57-8FF8-3118360EFDEB</string>
-                        <key>ConfigDataInstall</key>
-                        <true/>
-                        <key>CriticalUpdateInstall</key>
-                        <true/>
-                </dict>
-        </array>
-        <key>PayloadDescription</key>
-        <string>test</string>
-        <key>PayloadDisplayName</key>
-        <string>Ensure Install Security Responses and System Files Is Enabled</string>
-        <key>PayloadIdentifier</key>
-        <string>com.fleetdm.cis-1.6</string>
-        <key>PayloadRemovalDisallowed</key>
-        <false/>
-        <key>PayloadScope</key>
-        <string>System</string>
-        <key>PayloadType</key>
-        <string>Configuration</string>
-        <key>PayloadUUID</key>
-        <string>EBEE9B81-9D33-477F-AFBE-9691360B7A74</string>
-        <key>PayloadVersion</key>
-        <integer>1</integer>
-</dict>
-</plist>`),
-	"Ensure Software Update Deferment Is Less Than or Equal to 30 Days": []byte(`<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-        <key>PayloadContent</key>
-        <array>
-                <dict>
-                        <key>PayloadDisplayName</key>
-                        <string>test</string>
-                        <key>PayloadType</key>
-                        <string>com.apple.applicationaccess</string>
-                        <key>PayloadIdentifier</key>
-                        <string>com.fleetdm.cis-1.7.check</string>
-                        <key>PayloadUUID</key>
-                        <string>123FD592-D1C3-41FD-BC41-F91F3E1E2CF4</string>
-                        <key>enforcedSoftwareUpdateDelay</key>
-                        <integer>29</integer>
-                </dict>
-        </array>
-        <key>PayloadDescription</key>
-        <string>test</string>
-        <key>PayloadDisplayName</key>
-        <string>Ensure Software Update Deferment Is Less Than or Equal to 30 Days</string>
-        <key>PayloadIdentifier</key>
-        <string>com.zwass.cis-1.7</string>
-        <key>PayloadRemovalDisallowed</key>
-        <false/>
-        <key>PayloadScope</key>
-        <string>System</string>
-        <key>PayloadType</key>
-        <string>Configuration</string>
-        <key>PayloadUUID</key>
-        <string>385A0C13-2472-41B3-851C-1311FA12EB49</string>
-        <key>PayloadVersion</key>
-        <integer>1</integer>
-</dict>
-</plist>`),
-	"Disable iCloud Drive storage solution usage": []byte(`<?xml version="1.0" encoding="UTF-8"?>
+	},
+	{
+		Name: "Disable iCloud Drive storage solution usage",
+		Contents: []byte(`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
@@ -562,84 +669,7 @@ var profiles = map[string][]byte{
         <integer>1</integer>
 </dict>
 </plist>`),
-	"Ensure Firewall Logging Is Enabled and Configured": []byte(`<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-        <key>PayloadContent</key>
-        <array>
-                <dict>
-                        <key>PayloadDisplayName</key>
-                        <string>test</string>
-                        <key>PayloadType</key>
-                        <string>com.apple.security.firewall</string>
-                        <key>PayloadIdentifier</key>
-                        <string>com.fleetdm.cis-3.6.check</string>
-                        <key>PayloadUUID</key>
-                        <string>604D8218-D7B6-43B1-95E6-DFCA4C25D73D</string>
-                        <key>EnableFirewall</key>
-                        <true/>
-                        <key>EnableLogging</key>
-                        <true/>
-                        <key>LoggingOption</key>
-                        <string>detail</string>
-                </dict>
-        </array>
-        <key>PayloadDescription</key>
-        <string>test</string>
-        <key>PayloadDisplayName</key>
-        <string>Ensure Firewall Logging Is Enabled and Configured</string>
-        <key>PayloadIdentifier</key>
-        <string>com.fleetdm.cis-3.6</string>
-        <key>PayloadRemovalDisallowed</key>
-        <false/>
-        <key>PayloadScope</key>
-        <string>System</string>
-        <key>PayloadType</key>
-        <string>Configuration</string>
-        <key>PayloadUUID</key>
-        <string>5E27501E-50DF-4804-9DEC-0E63C34E8831</string>
-        <key>PayloadVersion</key>
-        <integer>1</integer>
-</dict>
-</plist>`),
-	"Ensure Bonjour Advertising Services Is Disabled": []byte(`<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-        <key>PayloadContent</key>
-        <array>
-                <dict>
-                        <key>PayloadDisplayName</key>
-                        <string>test</string>
-                        <key>PayloadType</key>
-                        <string>com.apple.mDNSResponder</string>
-                        <key>PayloadIdentifier</key>
-                        <string>com.fleetdm.cis-4.1.check</string>
-                        <key>PayloadUUID</key>
-                        <string>08FEA43B-CE9B-4098-804C-11459D109992</string>
-                        <key>NoMulticastAdvertisements</key>
-                        <true/>
-                </dict>
-        </array>
-        <key>PayloadDescription</key>
-        <string>test</string>
-        <key>PayloadDisplayName</key>
-        <string>Ensure Bonjour Advertising Services Is Disabled</string>
-        <key>PayloadIdentifier</key>
-        <string>com.fleetdm.cis-4.1</string>
-        <key>PayloadRemovalDisallowed</key>
-        <false/>
-        <key>PayloadScope</key>
-        <string>System</string>
-        <key>PayloadType</key>
-        <string>Configuration</string>
-        <key>PayloadUUID</key>
-        <string>25BD1312-2B79-40C7-99FA-E60B49A1883E</string>
-        <key>PayloadVersion</key>
-        <integer>1</integer>
-</dict>
-</plist>`),
+	},
 }
 
 var newProfile = []byte(`<?xml version="1.0" encoding="UTF-8"?>

@@ -10,10 +10,12 @@ export const MANAGE_HOSTS_PAGE_FILTER_KEYS = [
   "policy_response",
   "macos_settings",
   "software_id",
+  "software_version_id",
+  "software_title_id",
+  HOSTS_QUERY_PARAMS.SOFTWARE_STATUS,
   "status",
   "mdm_id",
   "mdm_enrollment_status",
-  "os_id",
   "os_name",
   "os_version",
   "munki_issue_id",
@@ -21,6 +23,23 @@ export const MANAGE_HOSTS_PAGE_FILTER_KEYS = [
   HOSTS_QUERY_PARAMS.OS_SETTINGS,
   HOSTS_QUERY_PARAMS.DISK_ENCRYPTION,
   "bootstrap_package",
+] as const;
+
+/*
+ * These are the URL query params that are incompatible with non-status labels on the manage hosts page.
+ * They should be stripped from the URL when a non-status label is selected.
+ */
+export const MANAGE_HOSTS_PAGE_LABEL_INCOMPATIBLE_QUERY_PARAMS = [
+  "policy_id",
+  "policy_response",
+  "software_id",
+  "software_version_id",
+  "software_title_id",
+  HOSTS_QUERY_PARAMS.SOFTWARE_STATUS,
+  "bootstrap_package",
+  "macos_settings",
+  HOSTS_QUERY_PARAMS.OS_SETTINGS,
+  HOSTS_QUERY_PARAMS.DISK_ENCRYPTION,
 ] as const;
 
 // TODO: refactor to use this type as the location.query prop of the page

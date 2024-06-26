@@ -1,0 +1,1 @@
+* Added warning server log when hosts are enrolling with duplicate hardware identifiers.

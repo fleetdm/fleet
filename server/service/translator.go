@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
@@ -41,7 +42,7 @@ func translateLabelToID(ctx context.Context, ds fleet.Datastore, identifier stri
 	if err != nil {
 		return 0, err
 	}
-	return labelIDs[0], nil
+	return labelIDs[identifier], nil
 }
 
 func translateTeamToID(ctx context.Context, ds fleet.Datastore, identifier string) (uint, error) {
@@ -61,6 +62,12 @@ func translateHostToID(ctx context.Context, ds fleet.Datastore, identifier strin
 }
 
 func (svc *Service) Translate(ctx context.Context, payloads []fleet.TranslatePayload) ([]fleet.TranslatePayload, error) {
+	if len(payloads) == 0 {
+		// skip auth since there is no case in which this request will make sense with no payloads
+		svc.authz.SkipAuthorization(ctx)
+		return nil, badRequest("payloads must not be empty")
+	}
+
 	var finalPayload []fleet.TranslatePayload
 
 	for _, payload := range payloads {
@@ -88,7 +95,15 @@ func (svc *Service) Translate(ctx context.Context, payloads []fleet.TranslatePay
 			}
 			translateFunc = translateHostToID
 		default:
-			return nil, fleet.NewErrorf(fleet.ErrNoUnknownTranslate, "Type %s is unknown.", payload.Type)
+			// if no supported payload type, this is bad regardless of authorization
+			svc.authz.SkipAuthorization(ctx)
+			return nil, badRequestErr(
+				fmt.Sprintf("Type %s is unknown. ", payload.Type),
+				fleet.NewErrorf(
+					fleet.ErrNoUnknownTranslate,
+					"Type %s is unknown.",
+					payload.Type),
+			)
 		}
 
 		id, err := translateFunc(ctx, svc.ds, payload.Payload.Identifier)

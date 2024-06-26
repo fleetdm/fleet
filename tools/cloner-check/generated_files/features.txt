@@ -1,0 +1,4 @@
+github.com/fleetdm/fleet/v4/server/fleet/Features	EnableHostUsers	bool
+github.com/fleetdm/fleet/v4/server/fleet/Features	EnableSoftwareInventory	bool
+github.com/fleetdm/fleet/v4/server/fleet/Features	AdditionalQueries	*json.RawMessage
+github.com/fleetdm/fleet/v4/server/fleet/Features	DetailQueryOverrides	map[string]*string

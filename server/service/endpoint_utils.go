@@ -20,8 +20,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/go-kit/kit/endpoint"
-	"github.com/go-kit/kit/log"
 	kithttp "github.com/go-kit/kit/transport/http"
+	"github.com/go-kit/log"
 	"github.com/gorilla/mux"
 )
 
@@ -94,7 +94,7 @@ type bodyDecoder interface {
 // struct has at least 1 json tag it'll unmarshall the body. If the struct has
 // a `url` tag with value list_options it'll gather fleet.ListOptions from the
 // URL (similarly for host_options, carve_options, user_options that derive
-// from the common list_options).
+// from the common list_options). Note that these behaviors do not work for embedded structs.
 //
 // Finally, any other `url` tag will be treated as a path variable (of the form
 // /path/{name} in the route's path) from the URL path pattern, and it'll be
@@ -172,7 +172,6 @@ func makeDecoder(iface interface{}) kithttp.DecodeRequestFunc {
 				if err != nil {
 					return nil, err
 				}
-
 				switch urlTagValue {
 				case "list_options":
 					opts, err := listOptionsFromRequest(r)
@@ -495,6 +494,10 @@ func (e *authEndpointer) GET(path string, f handlerFunc, v interface{}) {
 	e.handleEndpoint(path, f, v, "GET")
 }
 
+func (e *authEndpointer) PUT(path string, f handlerFunc, v interface{}) {
+	e.handleEndpoint(path, f, v, "PUT")
+}
+
 func (e *authEndpointer) PATCH(path string, f handlerFunc, v interface{}) {
 	e.handleEndpoint(path, f, v, "PATCH")
 }
@@ -590,6 +593,7 @@ func (e *authEndpointer) makeEndpoint(f handlerFunc, v interface{}) http.Handler
 		mw := e.customMiddleware[i]
 		endp = mw(endp)
 	}
+
 	return newServer(endp, makeDecoder(v), e.opts)
 }
 

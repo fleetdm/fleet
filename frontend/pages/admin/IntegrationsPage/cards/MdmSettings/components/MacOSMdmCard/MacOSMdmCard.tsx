@@ -18,12 +18,11 @@ const TurnOnMacOSMdm = ({ onClickTurnOn }: ITurnOnMacOSMdmProps) => {
     <div className={`${baseClass}__turn-on-mac-os`}>
       <div>
         <h3>Turn on macOS MDM</h3>
-        <p>
-          Connect Fleet to Apple Push Certificates Portal to change settings and
-          install software on your macOS hosts.
-        </p>
+        <p>Enforce settings, OS updates, disk encryption, and more.</p>
       </div>
-      <Button onClick={onClickTurnOn}>Connect APNS</Button>
+      <Button variant="brand" onClick={onClickTurnOn}>
+        Turn on
+      </Button>
     </div>
   );
 };
@@ -40,8 +39,8 @@ const SeeDetailsMacOSMdm = ({ onClickDetails }: ITurnOffMacOSMdmProps) => {
         <p>macOS MDM turned on</p>
       </div>
       <Button onClick={onClickDetails} variant="text-icon">
-        Details
-        <Icon name="chevron-right" color="core-fleet-blue" />
+        <Icon name="pencil" />
+        Edit
       </Button>
     </div>
   );
@@ -66,9 +65,10 @@ const MacOSMdmCard = ({
   turnOnMacOSMdm,
   viewDetails,
 }: IMacOSMdmCardProps) => {
-  // The API returns a 404 error if APNS is not configured yet. If there is any
-  // other error we will show the DataError component.
-  const showError = errorData !== null && errorData.status !== 404;
+  // The API returns an error if MDM is turned off or APNS is not configured yet.
+  // If there is any other error we will show the DataError component.
+  const showError =
+    errorData !== null && errorData.status !== 404 && errorData.status !== 400;
 
   if (showError) {
     return <DataError />;

@@ -2,6 +2,7 @@ package tables
 
 import (
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
@@ -11,11 +12,13 @@ import (
 func TestUp_20231204155427(t *testing.T) {
 	db := applyUpToPrev(t)
 
+	threeDayAgo := time.Now().UTC().Add(-72 * time.Hour).Truncate(time.Second)
+
 	// create some Windows profiles
 	idwA, idwB, idwC := uuid.New().String(), uuid.New().String(), uuid.New().String()
-	execNoErr(t, db, `INSERT INTO mdm_windows_configuration_profiles (profile_uuid, team_id, name, syncml) VALUES (?, 0, 'A', '<Replace>A</Replace>')`, idwA)
-	execNoErr(t, db, `INSERT INTO mdm_windows_configuration_profiles (profile_uuid, team_id, name, syncml) VALUES (?, 1, 'B', '<Replace>B</Replace>')`, idwB)
-	execNoErr(t, db, `INSERT INTO mdm_windows_configuration_profiles (profile_uuid, team_id, name, syncml) VALUES (?, 0, 'C', '<Replace>C</Replace>')`, idwC)
+	execNoErr(t, db, `INSERT INTO mdm_windows_configuration_profiles (profile_uuid, team_id, name, syncml, created_at, updated_at) VALUES (?, 0, 'A', '<Replace>A</Replace>', ?, ?)`, idwA, threeDayAgo, threeDayAgo)
+	execNoErr(t, db, `INSERT INTO mdm_windows_configuration_profiles (profile_uuid, team_id, name, syncml, created_at, updated_at) VALUES (?, 1, 'B', '<Replace>B</Replace>', ?, ?)`, idwB, threeDayAgo, threeDayAgo)
+	execNoErr(t, db, `INSERT INTO mdm_windows_configuration_profiles (profile_uuid, team_id, name, syncml, created_at, updated_at) VALUES (?, 0, 'C', '<Replace>C</Replace>', ?, ?)`, idwC, threeDayAgo, threeDayAgo)
 	nonExistingWID := uuid.New().String()
 
 	// create some Windows hosts profiles with one not related to an existing profile
@@ -25,9 +28,9 @@ func TestUp_20231204155427(t *testing.T) {
 	execNoErr(t, db, `INSERT INTO host_mdm_windows_profiles (host_uuid, profile_uuid, command_uuid) VALUES ('h2', ?, 'c4')`, idwA)
 
 	// create some Apple profiles
-	idaA := execNoErrLastID(t, db, `INSERT INTO mdm_apple_configuration_profiles (team_id, identifier, name, mobileconfig, checksum) VALUES (0, 'IA', 'NA', '<plist></plist>', '')`)
-	idaB := execNoErrLastID(t, db, `INSERT INTO mdm_apple_configuration_profiles (team_id, identifier, name, mobileconfig, checksum) VALUES (1, 'IB', 'NB', '<plist></plist>', '')`)
-	idaC := execNoErrLastID(t, db, `INSERT INTO mdm_apple_configuration_profiles (team_id, identifier, name, mobileconfig, checksum) VALUES (0, 'IC', 'NC', '<plist></plist>', '')`)
+	idaA := execNoErrLastID(t, db, `INSERT INTO mdm_apple_configuration_profiles (team_id, identifier, name, mobileconfig, checksum, created_at, updated_at) VALUES (0, 'IA', 'NA', '<plist></plist>', '', ?, ?)`, threeDayAgo, threeDayAgo)
+	idaB := execNoErrLastID(t, db, `INSERT INTO mdm_apple_configuration_profiles (team_id, identifier, name, mobileconfig, checksum, created_at, updated_at) VALUES (1, 'IB', 'NB', '<plist></plist>', '', ?, ?)`, threeDayAgo, threeDayAgo)
+	idaC := execNoErrLastID(t, db, `INSERT INTO mdm_apple_configuration_profiles (team_id, identifier, name, mobileconfig, checksum, created_at, updated_at) VALUES (0, 'IC', 'NC', '<plist></plist>', '', ?, ?)`, threeDayAgo, threeDayAgo)
 	nonExistingAID := idaC + 1000
 
 	// create some Apple hosts profiles with one not related to an existing profile
@@ -40,41 +43,55 @@ func TestUp_20231204155427(t *testing.T) {
 	applyNext(t, db)
 
 	// Windows profile uuids were updated with the prefix
-	var wprofUUIDs []string
-	err := sqlx.Select(db, &wprofUUIDs, `SELECT profile_uuid FROM mdm_windows_configuration_profiles ORDER BY name`)
+	var wprofs []struct {
+		ProfileUUID string    `db:"profile_uuid"`
+		UpdatedAt   time.Time `db:"updated_at"`
+	}
+	err := sqlx.Select(db, &wprofs, `SELECT profile_uuid, updated_at FROM mdm_windows_configuration_profiles ORDER BY name`)
 	require.NoError(t, err)
-	require.Len(t, wprofUUIDs, 3)
-	require.Equal(t, "w"+idwA, wprofUUIDs[0])
-	require.Equal(t, "w"+idwB, wprofUUIDs[1])
-	require.Equal(t, "w"+idwC, wprofUUIDs[2])
+	require.Len(t, wprofs, 3)
+	require.Equal(t, "w"+idwA, wprofs[0].ProfileUUID)
+	require.Equal(t, "w"+idwB, wprofs[1].ProfileUUID)
+	require.Equal(t, "w"+idwC, wprofs[2].ProfileUUID)
+	for _, wprof := range wprofs {
+		// updated_at did not change
+		require.Equal(t, threeDayAgo, wprof.UpdatedAt)
+	}
 
 	// Apple profiles were assigned uuids in addition to identifier
-	var aprofUUIDs []string
-	err = sqlx.Select(db, &aprofUUIDs, `SELECT profile_uuid FROM mdm_apple_configuration_profiles ORDER BY name`)
+	var aprofs []struct {
+		ProfileUUID string    `db:"profile_uuid"`
+		UpdatedAt   time.Time `db:"updated_at"`
+	}
+	err = sqlx.Select(db, &aprofs, `SELECT profile_uuid, updated_at FROM mdm_apple_configuration_profiles ORDER BY name`)
 	require.NoError(t, err)
-	require.Len(t, aprofUUIDs, 3)
-	require.Len(t, aprofUUIDs[0], 37)
-	require.Len(t, aprofUUIDs[1], 37)
-	require.Len(t, aprofUUIDs[2], 37)
-	require.Equal(t, "a", string(aprofUUIDs[0][0]))
-	require.Equal(t, "a", string(aprofUUIDs[1][0]))
-	require.Equal(t, "a", string(aprofUUIDs[2][0]))
+	require.Len(t, aprofs, 3)
+	require.Len(t, aprofs[0].ProfileUUID, 37)
+	require.Len(t, aprofs[1].ProfileUUID, 37)
+	require.Len(t, aprofs[2].ProfileUUID, 37)
+	require.Equal(t, "a", string(aprofs[0].ProfileUUID[0]))
+	require.Equal(t, "a", string(aprofs[1].ProfileUUID[0]))
+	require.Equal(t, "a", string(aprofs[2].ProfileUUID[0]))
+	for _, aprof := range aprofs {
+		// updated_at did not change
+		require.Equal(t, threeDayAgo, aprof.UpdatedAt)
+	}
 
 	var hostUUIDs []string
 	// get Windows hosts with profile A
-	err = sqlx.Select(db, &hostUUIDs, `SELECT host_uuid FROM host_mdm_windows_profiles WHERE profile_uuid = ? ORDER BY host_uuid`, wprofUUIDs[0])
+	err = sqlx.Select(db, &hostUUIDs, `SELECT host_uuid FROM host_mdm_windows_profiles WHERE profile_uuid = ? ORDER BY host_uuid`, wprofs[0].ProfileUUID)
 	require.NoError(t, err)
 	require.Equal(t, []string{"h1", "h2"}, hostUUIDs)
 
 	// get Windows hosts with profile B
 	hostUUIDs = hostUUIDs[:0]
-	err = sqlx.Select(db, &hostUUIDs, `SELECT host_uuid FROM host_mdm_windows_profiles WHERE profile_uuid = ? ORDER BY host_uuid`, wprofUUIDs[1])
+	err = sqlx.Select(db, &hostUUIDs, `SELECT host_uuid FROM host_mdm_windows_profiles WHERE profile_uuid = ? ORDER BY host_uuid`, wprofs[1].ProfileUUID)
 	require.NoError(t, err)
 	require.Equal(t, []string{"h2"}, hostUUIDs)
 
 	// get Windows hosts with profile C
 	hostUUIDs = hostUUIDs[:0]
-	err = sqlx.Select(db, &hostUUIDs, `SELECT host_uuid FROM host_mdm_windows_profiles WHERE profile_uuid = ? ORDER BY host_uuid`, wprofUUIDs[2])
+	err = sqlx.Select(db, &hostUUIDs, `SELECT host_uuid FROM host_mdm_windows_profiles WHERE profile_uuid = ? ORDER BY host_uuid`, wprofs[2].ProfileUUID)
 	require.NoError(t, err)
 	require.Empty(t, hostUUIDs)
 
@@ -94,19 +111,19 @@ func TestUp_20231204155427(t *testing.T) {
 
 	// get Apple hosts with profile NA
 	hostUUIDs = hostUUIDs[:0]
-	err = sqlx.Select(db, &hostUUIDs, `SELECT host_uuid FROM host_mdm_apple_profiles WHERE profile_uuid = ? ORDER BY host_uuid`, aprofUUIDs[0])
+	err = sqlx.Select(db, &hostUUIDs, `SELECT host_uuid FROM host_mdm_apple_profiles WHERE profile_uuid = ? ORDER BY host_uuid`, aprofs[0].ProfileUUID)
 	require.NoError(t, err)
 	require.Equal(t, []string{"h1", "h2"}, hostUUIDs)
 
 	// get Apple hosts with profile NB
 	hostUUIDs = hostUUIDs[:0]
-	err = sqlx.Select(db, &hostUUIDs, `SELECT host_uuid FROM host_mdm_apple_profiles WHERE profile_uuid = ? ORDER BY host_uuid`, aprofUUIDs[1])
+	err = sqlx.Select(db, &hostUUIDs, `SELECT host_uuid FROM host_mdm_apple_profiles WHERE profile_uuid = ? ORDER BY host_uuid`, aprofs[1].ProfileUUID)
 	require.NoError(t, err)
 	require.Equal(t, []string{"h2"}, hostUUIDs)
 
 	// get Apple hosts with profile C
 	hostUUIDs = hostUUIDs[:0]
-	err = sqlx.Select(db, &hostUUIDs, `SELECT host_uuid FROM host_mdm_apple_profiles WHERE profile_uuid = ? ORDER BY host_uuid`, aprofUUIDs[2])
+	err = sqlx.Select(db, &hostUUIDs, `SELECT host_uuid FROM host_mdm_apple_profiles WHERE profile_uuid = ? ORDER BY host_uuid`, aprofs[2].ProfileUUID)
 	require.NoError(t, err)
 	require.Empty(t, hostUUIDs)
 

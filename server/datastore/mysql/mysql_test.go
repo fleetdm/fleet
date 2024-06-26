@@ -23,7 +23,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/go-kit/kit/log"
+	"github.com/go-kit/log"
 	"github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
@@ -43,7 +43,7 @@ func TestDatastoreReplica(t *testing.T) {
 	})
 
 	t.Run("replica", func(t *testing.T) {
-		opts := &DatastoreTestOptions{Replica: true}
+		opts := &DatastoreTestOptions{DummyReplica: true}
 		ds := CreateMySQLDSWithOptions(t, opts)
 		defer ds.Close()
 		require.NotEqual(t, ds.reader(ctx), ds.writer(ctx))
@@ -66,7 +66,7 @@ func TestDatastoreReplica(t *testing.T) {
 		// trying to read it fails, not replicated yet
 		_, err = ds.Host(ctx, host.ID)
 		require.Error(t, err)
-		require.True(t, errors.Is(err, sql.ErrNoRows))
+		require.True(t, errors.Is(err, sql.ErrNoRows), err)
 
 		// force read from primary works
 		ctx = ctxdb.RequirePrimary(ctx, true)
@@ -797,7 +797,7 @@ func TestNewUsesRegisterTLS(t *testing.T) {
 	require.Error(t, err)
 	// TODO: we're using a Regexp because the message is different depending on the version of mysql,
 	// we should refactor and use different error types instead.
-	require.Regexp(t, "^(x509|tls)", err.Error())
+	require.Regexp(t, "(x509|tls|EOF)", err.Error())
 }
 
 func TestWhereFilterTeams(t *testing.T) {
@@ -959,27 +959,6 @@ func TestCompareVersions(t *testing.T) {
 	}
 }
 
-func TestRxLooseEmail(t *testing.T) {
-	testCases := []struct {
-		str   string
-		match bool
-	}{
-		{"foo", false},
-		{"", false},
-		{"foo@example", false},
-		{"foo@example.com", true},
-		{"foo+bar@example.com", true},
-		{"foo.bar@example.com", true},
-		{"foo.bar@baz.example.com", true},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.str, func(t *testing.T) {
-			assert.Equal(t, tc.match, rxLooseEmail.MatchString(tc.str))
-		})
-	}
-}
-
 func TestDebugs(t *testing.T) {
 	ds := CreateMySQLDS(t)
 
@@ -992,14 +971,14 @@ func TestDebugs(t *testing.T) {
 	require.Greater(t, len(processList), 0)
 }
 
-func TestANSIQuotesEnabled(t *testing.T) {
-	// Ensure sql_mode=ANSI_QUOTES is enabled for tests
+func TestWantedModesEnabled(t *testing.T) {
 	ds := CreateMySQLDS(t)
 
 	var sqlMode string
 	err := ds.writer(context.Background()).GetContext(context.Background(), &sqlMode, `SELECT @@SQL_MODE`)
 	require.NoError(t, err)
 	require.Contains(t, sqlMode, "ANSI_QUOTES")
+	require.Contains(t, sqlMode, "ONLY_FULL_GROUP_BY")
 }
 
 func Test_buildWildcardMatchPhrase(t *testing.T) {
@@ -1052,4 +1031,253 @@ func Test_buildWildcardMatchPhrase(t *testing.T) {
 			assert.Equalf(t, tt.want, buildWildcardMatchPhrase(tt.args.matchQuery), "buildWildcardMatchPhrase(%v)", tt.args.matchQuery)
 		})
 	}
+}
+
+func TestWhereFilterGlobalOrTeamIDByTeams(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		filter   fleet.TeamFilter
+		expected string
+	}{
+		// No teams or global role
+		{
+			filter: fleet.TeamFilter{
+				User: &fleet.User{},
+			},
+			expected: "FALSE",
+		},
+		{
+			filter: fleet.TeamFilter{
+				User: &fleet.User{Teams: []fleet.UserTeam{}},
+			},
+			expected: "FALSE",
+		},
+
+		// Global role
+		{
+			filter: fleet.TeamFilter{
+				User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+			},
+			expected: "hosts.team_id = 0",
+		},
+		{
+			filter: fleet.TeamFilter{
+				User: &fleet.User{GlobalRole: ptr.String(fleet.RoleMaintainer)},
+			},
+			expected: "hosts.team_id = 0",
+		},
+		{
+			filter: fleet.TeamFilter{
+				User: &fleet.User{GlobalRole: ptr.String(fleet.RoleObserver)},
+			},
+			expected: "FALSE",
+		},
+		{
+			filter: fleet.TeamFilter{
+				User:            &fleet.User{GlobalRole: ptr.String(fleet.RoleObserver)},
+				IncludeObserver: true,
+			},
+			expected: "hosts.team_id = 0",
+		},
+
+		// Team roles
+		{
+			filter: fleet.TeamFilter{
+				User: &fleet.User{
+					Teams: []fleet.UserTeam{
+						{Role: fleet.RoleObserver, Team: fleet.Team{ID: 1}},
+					},
+				},
+			},
+			expected: "FALSE",
+		},
+		{
+			filter: fleet.TeamFilter{
+				User: &fleet.User{
+					Teams: []fleet.UserTeam{
+						{Role: fleet.RoleObserver, Team: fleet.Team{ID: 1}},
+					},
+				},
+				IncludeObserver: true,
+			},
+			expected: "hosts.team_id IN (1)",
+		},
+		{
+			filter: fleet.TeamFilter{
+				User: &fleet.User{
+					Teams: []fleet.UserTeam{
+						{Role: fleet.RoleObserver, Team: fleet.Team{ID: 1}},
+						{Role: fleet.RoleObserver, Team: fleet.Team{ID: 2}},
+					},
+				},
+			},
+			expected: "FALSE",
+		},
+		{
+			filter: fleet.TeamFilter{
+				User: &fleet.User{
+					Teams: []fleet.UserTeam{
+						{Role: fleet.RoleObserver, Team: fleet.Team{ID: 1}},
+						{Role: fleet.RoleMaintainer, Team: fleet.Team{ID: 2}},
+					},
+				},
+			},
+			expected: "hosts.team_id IN (2)",
+		},
+		{
+			filter: fleet.TeamFilter{
+				User: &fleet.User{
+					Teams: []fleet.UserTeam{
+						{Role: fleet.RoleObserver, Team: fleet.Team{ID: 1}},
+						{Role: fleet.RoleMaintainer, Team: fleet.Team{ID: 2}},
+					},
+				},
+				IncludeObserver: true,
+			},
+			expected: "hosts.team_id IN (1,2)",
+		},
+		{
+			filter: fleet.TeamFilter{
+				User: &fleet.User{
+					Teams: []fleet.UserTeam{
+						{Role: fleet.RoleObserver, Team: fleet.Team{ID: 1}},
+						{Role: fleet.RoleMaintainer, Team: fleet.Team{ID: 2}},
+						// Invalid role should be ignored
+						{Role: "bad", Team: fleet.Team{ID: 37}},
+					},
+				},
+			},
+			expected: "hosts.team_id IN (2)",
+		},
+		{
+			filter: fleet.TeamFilter{
+				User: &fleet.User{
+					Teams: []fleet.UserTeam{
+						{Role: fleet.RoleObserver, Team: fleet.Team{ID: 1}},
+						{Role: fleet.RoleMaintainer, Team: fleet.Team{ID: 2}},
+						{Role: fleet.RoleAdmin, Team: fleet.Team{ID: 3}},
+						// Invalid role should be ignored
+					},
+				},
+			},
+			expected: "hosts.team_id IN (2,3)",
+		},
+		{
+			filter: fleet.TeamFilter{
+				TeamID: ptr.Uint(1),
+			},
+			expected: "FALSE",
+		},
+		{
+			filter: fleet.TeamFilter{
+				User:            &fleet.User{GlobalRole: ptr.String(fleet.RoleObserver)},
+				IncludeObserver: true,
+				TeamID:          ptr.Uint(1),
+			},
+			expected: "hosts.team_id = 1",
+		},
+		{
+			filter: fleet.TeamFilter{
+				User:            &fleet.User{GlobalRole: ptr.String(fleet.RoleObserver)},
+				IncludeObserver: false,
+				TeamID:          ptr.Uint(1),
+			},
+			expected: "FALSE",
+		},
+		{
+			filter: fleet.TeamFilter{
+				User:            &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+				IncludeObserver: false,
+				TeamID:          ptr.Uint(1),
+			},
+			expected: "hosts.team_id = 1",
+		},
+		{
+			filter: fleet.TeamFilter{
+				User: &fleet.User{
+					Teams: []fleet.UserTeam{
+						{Role: fleet.RoleObserver, Team: fleet.Team{ID: 1}},
+						{Role: fleet.RoleMaintainer, Team: fleet.Team{ID: 2}},
+					},
+				},
+				TeamID: ptr.Uint(3),
+			},
+			expected: "FALSE",
+		},
+		{
+			filter: fleet.TeamFilter{
+				User: &fleet.User{
+					Teams: []fleet.UserTeam{
+						{Role: fleet.RoleObserver, Team: fleet.Team{ID: 1}},
+						{Role: fleet.RoleMaintainer, Team: fleet.Team{ID: 2}},
+					},
+				},
+				TeamID: ptr.Uint(2),
+			},
+			expected: "hosts.team_id = 2",
+		},
+	}
+
+	for _, tt := range testCases {
+		tt := tt
+		t.Run("", func(t *testing.T) {
+			t.Parallel()
+			ds := &Datastore{logger: log.NewNopLogger()}
+			sql := ds.whereFilterGlobalOrTeamIDByTeams(tt.filter, "hosts")
+			assert.Equal(t, tt.expected, sql)
+		})
+	}
+}
+
+func TestBatchProcessDB(t *testing.T) {
+	type testData struct {
+		id    int
+		value string
+	}
+
+	payload := []interface{}{
+		&testData{id: 1, value: "a"},
+		&testData{id: 2, value: "b"},
+		&testData{id: 3, value: "c"},
+	}
+
+	generateValueArgs := func(item interface{}) (string, []any) {
+		p := item.(*testData)
+		valuePart := "(?, ?),"
+		args := []any{p.id, p.value}
+		return valuePart, args
+	}
+
+	t.Run("TestEmptyPayload", func(t *testing.T) {
+		executeBatch := func(valuePart string, args []any) error {
+			return errors.New("execute shouldn't be called for an empty payload")
+		}
+		err := batchProcessDB([]interface{}{}, 1000, generateValueArgs, executeBatch)
+		require.NoError(t, err)
+	})
+
+	t.Run("TestSingleBatch", func(t *testing.T) {
+		callCount := 0
+		executeBatch := func(valuePart string, args []any) error {
+			callCount++
+			require.Equal(t, 2, len(args)/2) // each item adds 2 args
+			return nil
+		}
+		err := batchProcessDB(payload[:2], 2, generateValueArgs, executeBatch)
+		require.NoError(t, err)
+		require.Equal(t, 1, callCount)
+	})
+
+	t.Run("TestMultipleBatches", func(t *testing.T) {
+		callCount := 0
+		executeBatch := func(valuePart string, args []any) error {
+			callCount++
+			require.Equal(t, 2/callCount, len(args)/2) // each item adds 2 args
+			return nil
+		}
+		err := batchProcessDB(payload, 2, generateValueArgs, executeBatch)
+		require.NoError(t, err)
+		require.Equal(t, 2, callCount)
+	})
 }

@@ -19,8 +19,8 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/cryptoutil"
 	"github.com/golang-jwt/jwt/v4"
-	"github.com/micromdm/nanomdm/cryptoutil"
 	"go.mozilla.org/pkcs7"
 )
 

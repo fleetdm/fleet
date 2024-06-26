@@ -28,7 +28,7 @@ const OSVersionTable = ({
   return (
     <div className={baseClass}>
       <TableContainer
-        columns={columns}
+        columnConfigs={columns}
         data={osVersionData}
         isLoading={isLoading}
         resultsTitle=""

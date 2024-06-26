@@ -25,6 +25,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/sso"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/ghodss/yaml"
+	kitlog "github.com/go-kit/log"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -39,7 +40,12 @@ type withDS struct {
 func (ts *withDS) SetupSuite(dbName string) {
 	t := ts.s.T()
 	ts.ds = mysql.CreateNamedMySQLDS(t, dbName)
-	test.AddAllHostsLabel(t, ts.ds)
+	// remove any migration-created labels
+	mysql.ExecAdhocSQL(t, ts.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(context.Background(), `DELETE FROM labels`)
+		return err
+	})
+	test.AddBuiltinLabels(t, ts.ds)
 
 	// setup the required fields on AppConfig
 	appConf, err := ts.ds.AppConfig(context.Background())
@@ -74,11 +80,15 @@ func (ts *withServer) SetupSuite(dbName string) {
 	rs := pubsub.NewInmemQueryResults()
 	cfg := config.TestConfig()
 	cfg.Osquery.EnrollCooldown = 0
-	users, server := RunServerForTestsWithDS(ts.s.T(), ts.ds, &TestServerOpts{
+	opts := &TestServerOpts{
 		Rs:          rs,
 		Lq:          ts.lq,
 		FleetConfig: &cfg,
-	})
+	}
+	if os.Getenv("FLEET_INTEGRATION_TESTS_DISABLE_LOG") != "" {
+		opts.Logger = kitlog.NewNopLogger()
+	}
+	users, server := RunServerForTestsWithDS(ts.s.T(), ts.ds, opts)
 	ts.server = server
 	ts.users = users
 	ts.token = ts.getTestAdminToken()
@@ -90,6 +100,12 @@ func (ts *withServer) TearDownSuite() {
 }
 
 func (ts *withServer) commonTearDownTest(t *testing.T) {
+	// By setting DISABLE_TABLES_CLEANUP a developer can troubleshoot tests
+	// by inspecting mysql tables.
+	if os.Getenv("DISABLE_CLEANUP_TABLES") != "" {
+		return
+	}
+
 	ctx := context.Background()
 
 	u := ts.users["admin1@example.com"]
@@ -102,8 +118,11 @@ func (ts *withServer) commonTearDownTest(t *testing.T) {
 		require.NoError(t, ts.ds.DeleteHost(ctx, host.ID))
 	}
 
-	// recalculate software counts will remove the software entries
-	require.NoError(t, ts.ds.SyncHostsSoftware(context.Background(), time.Now()))
+	// clean up any software installers
+	mysql.ExecAdhocSQL(t, ts.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `DELETE FROM software_installers`)
+		return err
+	})
 
 	lbls, err := ts.ds.ListLabels(ctx, fleet.TeamFilter{}, fleet.ListOptions{})
 	require.NoError(t, err)
@@ -160,8 +179,12 @@ func (ts *withServer) commonTearDownTest(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	// SyncHostsSoftware performs a cleanup.
+	// Do the software/titles cleanup.
 	err = ts.ds.SyncHostsSoftware(ctx, time.Now())
+	require.NoError(t, err)
+	err = ts.ds.ReconcileSoftwareTitles(ctx)
+	require.NoError(t, err)
+	err = ts.ds.SyncHostsSoftwareTitles(ctx, time.Now())
 	require.NoError(t, err)
 
 	// delete orphaned scripts
@@ -202,7 +225,12 @@ func (ts *withServer) DoRawWithHeaders(
 	for key, val := range headers {
 		req.Header.Add(key, val)
 	}
-	client := fleethttp.NewClient()
+
+	opts := []fleethttp.ClientOpt{}
+	if expectedStatusCode >= 300 && expectedStatusCode <= 399 {
+		opts = append(opts, fleethttp.WithFollowRedir(false))
+	}
+	client := fleethttp.NewClient(opts...)
 
 	if len(queryParams)%2 != 0 {
 		require.Fail(t, "need even number of params: key value")
@@ -342,7 +370,7 @@ func (ts *withServer) LoginSSOUser(username, password string) (fleet.Auth, strin
 }
 
 func (ts *withServer) LoginMDMSSOUser(username, password string) *http.Response {
-	_, res := ts.loginSSOUser(username, password, "/api/v1/fleet/mdm/sso", http.StatusTemporaryRedirect)
+	_, res := ts.loginSSOUser(username, password, "/api/v1/fleet/mdm/sso", http.StatusSeeOther)
 	return res
 }
 

@@ -3,7 +3,9 @@ package mysql
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"sort"
+	"strings"
 	"testing"
 	"time"
 
@@ -32,6 +34,7 @@ func TestAppConfig(t *testing.T) {
 		{"Defaults", testAppConfigDefaults},
 		{"Backwards Compatibility", testAppConfigBackwardsCompatibility},
 		{"GetConfigEnableDiskEncryption", testGetConfigEnableDiskEncryption},
+		{"IsEnrollSecretAvailable", testIsEnrollSecretAvailable},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -114,7 +117,7 @@ func testAppConfigOrgInfo(t *testing.T, ds *Datastore) {
 
 	verify, err = ds.UserByEmail(context.Background(), email)
 	assert.Nil(t, err)
-	assert.False(t, verify.SSOEnabled)
+	assert.True(t, verify.SSOEnabled) // SSO stays enabled for user even when globally disabled
 }
 
 func testAppConfigAdditionalQueries(t *testing.T, ds *Datastore) {
@@ -319,8 +322,9 @@ func testAppConfigEnrollSecretUniqueness(t *testing.T, ds *Datastore) {
 	team1, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team1"})
 	require.NoError(t, err)
 
+	const secret = "one_secret"
 	expectedSecrets := []*fleet.EnrollSecret{
-		{Secret: "one_secret"},
+		{Secret: secret},
 	}
 	err = ds.ApplyEnrollSecrets(context.Background(), &team1.ID, expectedSecrets)
 	require.NoError(t, err)
@@ -328,6 +332,7 @@ func testAppConfigEnrollSecretUniqueness(t *testing.T, ds *Datastore) {
 	// Same secret at global level should not be allowed
 	err = ds.ApplyEnrollSecrets(context.Background(), nil, expectedSecrets)
 	require.Error(t, err)
+	assert.False(t, strings.Contains(err.Error(), secret), fmt.Sprintf("error should not contain secret in plaintext: %s", err.Error()))
 }
 
 func testAppConfigDefaults(t *testing.T, ds *Datastore) {
@@ -476,4 +481,55 @@ func testGetConfigEnableDiskEncryption(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.NotNil(t, tm)
 	require.True(t, tm.Config.MDM.EnableDiskEncryption)
+}
+
+func testIsEnrollSecretAvailable(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	defer TruncateTables(t, ds)
+
+	// Create teams
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "team2"})
+	require.NoError(t, err)
+
+	// Populate enroll secrets
+	require.NoError(t, ds.ApplyEnrollSecrets(ctx, nil, []*fleet.EnrollSecret{{Secret: "globalSecret"}}))
+	require.NoError(t, ds.ApplyEnrollSecrets(ctx, &team1.ID, []*fleet.EnrollSecret{{Secret: "teamSecret"}}))
+
+	tests := []struct {
+		secret          string
+		newResult       bool
+		globalResult    bool
+		teamResult      bool
+		otherTeamResult bool
+	}{
+		{"mySecret", true, true, true, true},
+		{"globalSecret", false, true, false, false},
+		{"teamSecret", false, false, true, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(
+			tt.secret, func(t *testing.T) {
+				// Check if enroll secret is available
+				available, err := ds.IsEnrollSecretAvailable(ctx, tt.secret, true, nil)
+				require.NoError(t, err)
+				require.Equal(t, tt.newResult, available)
+				available, err = ds.IsEnrollSecretAvailable(ctx, tt.secret, true, &team2.ID)
+				require.NoError(t, err)
+				require.Equal(t, tt.newResult, available)
+				available, err = ds.IsEnrollSecretAvailable(ctx, tt.secret, false, nil)
+				require.NoError(t, err)
+				require.Equal(t, tt.globalResult, available)
+				available, err = ds.IsEnrollSecretAvailable(ctx, tt.secret, false, &team1.ID)
+				require.NoError(t, err)
+				require.Equal(t, tt.teamResult, available)
+				available, err = ds.IsEnrollSecretAvailable(ctx, tt.secret, false, &team2.ID)
+				require.NoError(t, err)
+				require.Equal(t, tt.otherTeamResult, available)
+			},
+		)
+	}
+
 }

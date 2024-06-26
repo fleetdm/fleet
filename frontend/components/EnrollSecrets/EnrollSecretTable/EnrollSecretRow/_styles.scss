@@ -2,7 +2,14 @@
   &__secret {
     display: flex;
     align-items: center;
-    margin-bottom: $pad-medium;
+    // this is doubled to make an 8px space due to presence of width:0 relatively-positioned 2nd flex child
+    gap: 4px;
+
+    .buttons {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
   }
 
   .form-field {
@@ -23,6 +30,7 @@
     .input-field {
       &--disabled {
         letter-spacing: 0;
+        padding-right: 66px; // Text box does not overlap with icons
       }
 
       &--password {
@@ -32,38 +40,24 @@
   }
 
   &__copy-message {
-    position: absolute;
-    right: 65px;
-    background-color: $ui-light-grey;
-    border: solid 1px #e2e4ea;
-    border-radius: 10px;
-    padding: 2px 6px;
+    @include copy-message;
   }
 
-  .buttons {
+  &__action-overlay {
     display: flex;
+    justify-content: flex-end;
     align-items: center;
-    position: absolute;
-    right: 4px;
-    top: 12px;
-    height: 16px;
+    position: relative;
+    width: 0;
+    left: -16px;
+
+    .buttons {
+      padding-left: 10px;
+      background-color: $ui-light-grey;
+    }
 
     span {
       font-weight: $regular;
     }
-  }
-
-  &--multiple-secrets {
-    .form-field__label {
-      margin-top: 0;
-    }
-  }
-
-  &__show-secret-icon,
-  &__copy-secret-icon,
-  &__edit-secret-icon,
-  &__delete-secret-icon {
-    padding: 0 $pad-small;
-    margin-left: $pad-xsmall;
   }
 }

@@ -1,21 +1,24 @@
 package main
 
 import (
-	"archive/zip"
-	"bytes"
+	"context"
+	"crypto/rand"
 	"crypto/tls"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/packaging"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
@@ -24,6 +27,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/service"
+	"github.com/google/go-github/v37/github"
 	"github.com/mitchellh/go-ps"
 	"github.com/urfave/cli/v2"
 )
@@ -31,18 +35,18 @@ import (
 type dockerComposeVersion int
 
 const (
-	downloadUrl             = "https://github.com/fleetdm/osquery-in-a-box/archive/%s.zip"
-	standardQueryLibraryUrl = "https://raw.githubusercontent.com/fleetdm/fleet/main/docs/01-Using-Fleet/standard-query-library/standard-query-library.yml"
-	licenseKeyFlagName      = "license-key"
-	tagFlagName             = "tag"
-	previewConfigFlagName   = "preview-config"
-	noHostsFlagName         = "no-hosts"
-	orbitChannel            = "orbit-channel"
-	osquerydChannel         = "osqueryd-channel"
-	updateURL               = "update-url"
-	updateRootKeys          = "update-roots"
-	stdQueryLibFilePath     = "std-query-lib-file-path"
-	disableOpenBrowser      = "disable-open-browser"
+	standardQueryLibraryUrl   = "https://raw.githubusercontent.com/fleetdm/fleet/main/docs/01-Using-Fleet/standard-query-library/standard-query-library.yml"
+	licenseKeyFlagName        = "license-key"
+	tagFlagName               = "tag"
+	previewConfigFlagName     = "preview-config"
+	noHostsFlagName           = "no-hosts"
+	orbitChannel              = "orbit-channel"
+	osquerydChannel           = "osqueryd-channel"
+	updateURL                 = "update-url"
+	updateRootKeys            = "update-roots"
+	stdQueryLibFilePath       = "std-query-lib-file-path"
+	previewConfigPathFlagName = "preview-config-path"
+	disableOpenBrowser        = "disable-open-browser"
 
 	dockerComposeV1 dockerComposeVersion = 1
 	dockerComposeV2 dockerComposeVersion = 2
@@ -110,7 +114,7 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 			&cli.StringFlag{
 				Name:  previewConfigFlagName,
 				Usage: "Run a specific branch of the preview repository",
-				Value: "production",
+				Value: "main",
 			},
 			&cli.BoolFlag{
 				Name:  noHostsFlagName,
@@ -139,8 +143,14 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 			},
 			&cli.StringFlag{
 				Name:  stdQueryLibFilePath,
-				Usage: "Use custom standard query library yml file",
+				Usage: "Use custom standard query library yml file (used for development/testing)",
 				Value: "",
+			},
+			&cli.StringFlag{
+				Name:   previewConfigPathFlagName,
+				Usage:  "Use custom local directory for the pulling configuration from fleetdm/fleet (used for development/testing)",
+				Value:  "",
+				Hidden: true,
 			},
 			&cli.BoolFlag{
 				Name:  disableOpenBrowser,
@@ -157,12 +167,32 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 				return err
 			}
 
-			// Download files every time to ensure the user gets the most up to date versions
 			previewDir := previewDirectory()
-			osqueryBranch := c.String(previewConfigFlagName)
-			fmt.Printf("Downloading dependencies from %s into %s...\n", osqueryBranch, previewDir)
-			if err := downloadFiles(osqueryBranch); err != nil {
-				return fmt.Errorf("downloading dependencies: %w", err)
+
+			if previewConfigDir := c.String(previewConfigPathFlagName); previewConfigDir != "" {
+				fmt.Printf("Copying dependencies from %s...\n", previewConfigDir)
+				if err := os.MkdirAll(previewDir, 0o777); err != nil {
+					return fmt.Errorf("create directory %q: %w", previewDir, err)
+				}
+				if err := copyDirectory(previewDir, previewConfigDir); err != nil {
+					return fmt.Errorf("copying directories: %w", err)
+				}
+			} else {
+				// Download files every time to ensure the user gets the most up to date versions
+				fleetBranch := c.String(previewConfigFlagName)
+				fmt.Printf("Downloading dependencies from fleetdm/fleet:%s into %s...\n", fleetBranch, previewDir)
+				githubHTTPClient := fleethttp.NewGithubClient()
+				githubClient := github.NewClient(githubHTTPClient)
+				if err := downloadFromFleetRepo(
+					context.Background(),
+					githubHTTPClient,
+					githubClient,
+					"tools/osquery/in-a-box",
+					fleetBranch,
+					previewDirectory(),
+				); err != nil {
+					return fmt.Errorf("downloading dependencies: %w", err)
+				}
 			}
 
 			if err := os.Chdir(previewDir); err != nil {
@@ -172,14 +202,62 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 				return fmt.Errorf("docker-compose file not found in preview directory: %w", err)
 			}
 
-			// Make sure the logs directory is writable, otherwise the Fleet
+			// Make sure directories are writable, otherwise the Fleet
 			// server errors on startup. This can be a problem when running on
 			// Linux with a non-root user inside the container.
-			if err := os.Chmod(filepath.Join(previewDir, "logs"), 0o777); err != nil {
-				return fmt.Errorf("make logs writable: %w", err)
+			for _, item := range []string{
+				filepath.Join(previewDir, "logs"),
+				filepath.Join(previewDir, "vulndb"),
+				filepath.Join(previewDir, "config"),
+			} {
+				if err := os.MkdirAll(item, 0o777); err != nil {
+					return fmt.Errorf("create directory %q: %w", item, err)
+				}
+				if err := os.Chmod(item, 0o777); err != nil {
+					return fmt.Errorf("make %s writable: %w", item, err)
+				}
 			}
-			if err := os.Chmod(filepath.Join(previewDir, "vulndb"), 0o777); err != nil {
-				return fmt.Errorf("make vulndb writable: %w", err)
+
+			generatePrivateKey := func(n int) (string, error) {
+				bytes := make([]byte, n/2)
+				if _, err := rand.Read(bytes); err != nil {
+					return "", err
+				}
+				return hex.EncodeToString(bytes)[:n], nil
+			}
+
+			// Create a random private key for MDM asset encryption and save it to the filesystem
+			// for use in subsequent runs. If one already exists, use that one.
+			getPrivateKey := func() (string, error) {
+				pkFilename := filepath.Join(previewDir, "config", ".private_key")
+				filePK, err := os.ReadFile(pkFilename)
+				if err != nil {
+					if errors.Is(err, os.ErrNotExist) {
+						genPK, err := generatePrivateKey(32) // use AES-256
+						if err != nil {
+							return "", fmt.Errorf("generating private key: %w", err)
+						}
+
+						if err := os.WriteFile(pkFilename, []byte(genPK), 0o777); err != nil {
+							return "", fmt.Errorf("writing private key file: %w", err)
+						}
+
+						return genPK, nil
+					}
+
+					return "", fmt.Errorf("reading private key file: %w", err)
+				}
+
+				return string(filePK), nil
+			}
+
+			pk, err := getPrivateKey()
+			if err != nil {
+				return fmt.Errorf("getting private key: %w", err)
+			}
+
+			if err := os.Setenv("FLEET_SERVER_PRIVATE_KEY", pk); err != nil {
+				return fmt.Errorf("failed to set private key: %w", err)
 			}
 
 			if err := os.Setenv("FLEET_VERSION", c.String(tagFlagName)); err != nil {
@@ -309,7 +387,7 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 			}
 			// this only applies standard queries, the base directory is not used,
 			// so pass in the current working directory.
-			err = client.ApplyGroup(c.Context, specs, ".", logf, fleet.ApplySpecOptions{})
+			_, err = client.ApplyGroup(c.Context, specs, ".", logf, fleet.ApplyClientSpecOptions{})
 			if err != nil {
 				return err
 			}
@@ -329,8 +407,8 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 				return fmt.Errorf("Error retrieving enroll secret: %w", err)
 			}
 
-			if len(secrets.Secrets) != 1 {
-				return errors.New("Expected 1 active enroll secret")
+			if len(secrets.Secrets) == 0 {
+				return errors.New("Expected at least one enroll secret")
 			}
 
 			// disable analytics collection for preview
@@ -348,7 +426,8 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 			if !c.Bool(noHostsFlagName) {
 				fmt.Println("Enrolling local host...")
 
-				if err := downloadOrbitAndStart(previewDir, secrets.Secrets[0].Secret, address, c.String(orbitChannel), c.String(osquerydChannel), c.String(updateURL), c.String(updateRootKeys)); err != nil {
+				orbitDir := filepath.Join(previewDir, "orbit")
+				if err := downloadOrbitAndStart(orbitDir, secrets.Secrets[0].Secret, address, c.String(orbitChannel), c.String(osquerydChannel), c.String(updateURL), c.String(updateRootKeys)); err != nil {
 					return fmt.Errorf("downloading orbit and osqueryd: %w", err)
 				}
 
@@ -391,6 +470,27 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 	}
 }
 
+func copyDirectory(destDir, sourceDir string) error {
+	sourceDir, err := filepath.Abs(sourceDir)
+	if err != nil {
+		return fmt.Errorf("absolute path could not be determined for %q: %w", sourceDir, err)
+	}
+	return filepath.Walk(sourceDir, func(path string, info os.FileInfo, err error) error {
+		relPath := strings.Replace(path, sourceDir, "", 1)
+		if relPath == "" {
+			return nil
+		}
+		if info.IsDir() {
+			return os.MkdirAll(filepath.Join(destDir, relPath), 0o777)
+		}
+		data, err1 := os.ReadFile(filepath.Join(sourceDir, relPath))
+		if err1 != nil {
+			return err1
+		}
+		return os.WriteFile(filepath.Join(destDir, relPath), data, 0o777)
+	})
+}
+
 var testOverridePreviewDirectory string
 
 func previewDirectory() string {
@@ -405,32 +505,63 @@ func previewDirectory() string {
 	return filepath.Join(homeDir, ".fleet", "preview")
 }
 
-func downloadFiles(branch string) error {
-	resp, err := http.Get(fmt.Sprintf(downloadUrl, branch))
+// downloadFromFleetRepo downloads a specific directory from the fleetdm/fleet repository.
+// It creates files and folders as world writable as this is mainly used for testing.
+func downloadFromFleetRepo(
+	ctx context.Context,
+	client *http.Client,
+	githubClient *github.Client,
+	repoDirectory string,
+	branch string,
+	outputDirectory string,
+) error {
+	if err := os.MkdirAll(outputDirectory, 0o777); err != nil {
+		return fmt.Errorf("create directory %q: %w", outputDirectory, err)
+	}
+
+	_, contents, response, err := githubClient.Repositories.GetContents(ctx,
+		"fleetdm",
+		"fleet",
+		repoDirectory,
+		&github.RepositoryContentGetOptions{
+			Ref: branch,
+		},
+	)
 	if err != nil {
-		return err
+		return fmt.Errorf("get contents request: %w", err)
 	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("download got status %d", resp.StatusCode)
+	if response.StatusCode != http.StatusOK {
+		return fmt.Errorf("request failed: %s", response.Status)
 	}
-
-	zipContents, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return fmt.Errorf("read download contents: %w", err)
+	for _, content := range contents {
+		if content.GetType() == "file" {
+			if downloadURL := content.GetDownloadURL(); downloadURL != "" {
+				response, err := client.Get(downloadURL)
+				if err != nil {
+					return fmt.Errorf("download file: %q: %w", downloadURL, err)
+				}
+				defer response.Body.Close()
+				if response.StatusCode != http.StatusOK {
+					return fmt.Errorf("download file response: %q: %s", downloadURL, response.Status)
+				}
+				b, err := io.ReadAll(response.Body)
+				if err != nil {
+					return fmt.Errorf("read file body: %w", err)
+				}
+				if err := os.WriteFile(filepath.Join(outputDirectory, content.GetName()), b, 0o777); err != nil {
+					return fmt.Errorf("write file: %w", err)
+				}
+			}
+		} else if content.GetType() == "dir" {
+			return downloadFromFleetRepo(ctx,
+				client,
+				githubClient,
+				path.Join(repoDirectory, content.GetName()),
+				branch,
+				filepath.Join(outputDirectory, content.GetName()),
+			)
+		}
 	}
-
-	zipReader, err := zip.NewReader(bytes.NewReader(zipContents), int64(len(zipContents)))
-	if err != nil {
-		return fmt.Errorf("open download contents for unzip: %w", err)
-	}
-	// zip.NewReader does not need to be closed (and cannot be)
-
-	if err := unzip(zipReader, branch); err != nil {
-		return fmt.Errorf("unzip download contents: %w", err)
-	}
-
 	return nil
 }
 
@@ -447,59 +578,6 @@ func downloadStandardQueryLibrary() ([]byte, error) {
 		return nil, fmt.Errorf("read response body: %w", err)
 	}
 	return buf, nil
-}
-
-// Adapted from https://stackoverflow.com/a/24792688/491710
-func unzip(r *zip.Reader, branch string) error {
-	previewDir := previewDirectory()
-
-	// Closure to address file descriptors issue with all the deferred .Close()
-	// methods
-	replacePath := fmt.Sprintf("osquery-in-a-box-%s", branch)
-	extractAndWriteFile := func(f *zip.File) error {
-		rc, err := f.Open()
-		if err != nil {
-			return err
-		}
-		defer rc.Close()
-
-		path := f.Name
-		path = strings.Replace(path, replacePath, previewDir, 1)
-
-		if f.FileInfo().IsDir() {
-			if err := os.MkdirAll(path, f.Mode()); err != nil {
-				return err
-			}
-		} else {
-			if err := os.MkdirAll(filepath.Dir(path), f.Mode()); err != nil {
-				return err
-			}
-			f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, f.Mode())
-			if err != nil {
-				return err
-			}
-			defer f.Close()
-
-			_, err = io.Copy(f, rc)
-			if err != nil {
-				return err
-			}
-		}
-		return nil
-	}
-
-	for _, f := range r.File {
-		// Prevent zip-slip attack.
-		if strings.Contains(f.Name, "..") {
-			return fmt.Errorf("invalid path in zip: %q", f.Name)
-		}
-		err := extractAndWriteFile(f)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
 }
 
 func waitStartup() error {
@@ -612,7 +690,8 @@ func previewStopCommand() *cli.Command {
 				return fmt.Errorf("Failed to run %d stop for simulated hosts", compose)
 			}
 
-			if err := stopOrbit(previewDir); err != nil {
+			orbitDir := filepath.Join(previewDir, "orbit")
+			if err := stopOrbit(orbitDir); err != nil {
 				return fmt.Errorf("Failed to stop orbit: %w", err)
 			}
 
@@ -670,14 +749,15 @@ func previewResetCommand() *cli.Command {
 				return fmt.Errorf("Failed to run %s rm -sf for simulated hosts.", compose)
 			}
 
-			if err := stopOrbit(previewDir); err != nil {
+			orbitDir := filepath.Join(previewDir, "orbit")
+			if err := stopOrbit(orbitDir); err != nil {
 				return fmt.Errorf("Failed to stop orbit: %w", err)
 			}
 
-			if err := os.RemoveAll(filepath.Join(previewDir, "tuf-metadata.json")); err != nil {
+			if err := os.RemoveAll(filepath.Join(orbitDir, "tuf-metadata.json")); err != nil {
 				return fmt.Errorf("failed to remove preview update metadata file: %w", err)
 			}
-			if err := os.RemoveAll(filepath.Join(previewDir, "bin")); err != nil {
+			if err := os.RemoveAll(filepath.Join(orbitDir, "bin")); err != nil {
 				return fmt.Errorf("failed to remove preview bin directory: %w", err)
 			}
 
@@ -722,6 +802,10 @@ func processNameMatches(pid int, expectedPrefix string) (bool, error) {
 }
 
 func downloadOrbitAndStart(destDir, enrollSecret, address, orbitChannel, osquerydChannel, updateURL, updateRoots string) error {
+	if err := os.MkdirAll(destDir, constant.DefaultDirMode); err != nil {
+		return fmt.Errorf("create orbit directory %q: %w", destDir, err)
+	}
+
 	// Stop any current intance of orbit running, otherwise the configured enroll secret
 	// won't match the generated in the preview run.
 	if err := stopOrbit(destDir); err != nil {
@@ -733,7 +817,7 @@ func downloadOrbitAndStart(destDir, enrollSecret, address, orbitChannel, osquery
 	if err := os.RemoveAll(filepath.Join(destDir, "osquery.db")); err != nil {
 		fmt.Println("Warning: clearing osquery db dir:", err)
 	}
-	if err := os.RemoveAll(filepath.Join(destDir, "orbit.db")); err != nil {
+	if err := os.RemoveAll(filepath.Join(destDir, "secret-orbit-node-key.txt")); err != nil {
 		fmt.Println("Warning: clearing orbit db dir:", err)
 	}
 	if err := cleanUpSocketFiles(destDir); err != nil {

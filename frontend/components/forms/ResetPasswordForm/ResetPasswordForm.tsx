@@ -9,9 +9,14 @@ import InputFieldWithIcon from "components/forms/fields/InputFieldWithIcon";
 import validatePresence from "components/forms/validators/validate_presence";
 import validatePassword from "components/forms/validators/valid_password";
 import validateEquality from "components/forms/validators/validate_equality";
-import { IOldApiError } from "interfaces/errors";
 
 const baseClass = "reset-password-form";
+
+// Response created by utilities/format_error_response
+export interface IOldApiError {
+  http_status: number;
+  base: string;
+}
 
 export interface IFormData {
   new_password: string;
@@ -100,9 +105,7 @@ const ResetPasswordForm = ({
         value={formData.new_password || ""}
         className={`${baseClass}__input`}
         type="password"
-        hint={[
-          "Must include 12 characters, at least 1 number (e.g. 0 - 9), and at least 1 symbol (e.g. &*#)",
-        ]}
+        helpText="12-48 characters, with at least 1 number (e.g. 0 - 9) and 1 symbol (e.g. &*#)."
       />
       <InputFieldWithIcon
         error={errors.new_password_confirmation}
@@ -113,7 +116,7 @@ const ResetPasswordForm = ({
         className={`${baseClass}__input`}
         type="password"
       />
-      <div className={`${baseClass}__button-wrap`}>
+      <div className="button-wrap">
         <Button
           type="submit"
           variant="brand"

@@ -1,3 +1,5 @@
+import { IConfigServerSettings } from "./config";
+
 export interface IMdmApple {
   common_name: string;
   serial_number: string;
@@ -12,6 +14,10 @@ export interface IMdmAppleBm {
   mdm_server_url: string;
   renew_date: string;
 }
+
+export const getMdmServerUrl = ({ server_url }: IConfigServerSettings) => {
+  return server_url.concat("/mdm/apple/mdm");
+};
 
 export const MDM_ENROLLMENT_STATUS = {
   "On (manual)": "manual",
@@ -41,6 +47,12 @@ export interface IMdmSolution {
   hosts_count: number;
 }
 
+/** This is the mdm solution that comes back from the host/summary/mdm
+request. We will always get a string for the solution name in this case  */
+export interface IMdmSummaryMdmSolution extends IMdmSolution {
+  name: string;
+}
+
 interface IMdmStatus {
   enrolled_manual_hosts_count: number;
   enrolled_automated_hosts_count: number;
@@ -52,10 +64,15 @@ interface IMdmStatus {
 export interface IMdmSummaryResponse {
   counts_updated_at: string;
   mobile_device_management_enrollment_status: IMdmStatus;
-  mobile_device_management_solution: IMdmSolution[] | null;
+  mobile_device_management_solution: IMdmSummaryMdmSolution[] | null;
 }
 
-type ProfilePlatform = "darwin" | "windows";
+export type ProfilePlatform = "darwin" | "windows";
+
+export interface IProfileLabel {
+  name: string;
+  broken: boolean;
+}
 
 export interface IMdmProfile {
   profile_uuid: string;
@@ -66,9 +83,15 @@ export interface IMdmProfile {
   created_at: string;
   updated_at: string;
   checksum: string | null; // null for windows profiles
+  labels?: IProfileLabel[];
 }
 
 export type MdmProfileStatus = "verified" | "verifying" | "pending" | "failed";
+export type MdmDDMProfileStatus =
+  | "success"
+  | "pending"
+  | "failed"
+  | "acknowledged";
 
 export type ProfileOperationType = "remove" | "install";
 
@@ -77,7 +100,7 @@ export interface IHostMdmProfile {
   name: string;
   operation_type: ProfileOperationType | null;
   platform: ProfilePlatform;
-  status: MdmProfileStatus;
+  status: MdmProfileStatus | MdmDDMProfileStatus;
   detail: string;
 }
 

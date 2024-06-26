@@ -1,0 +1,146 @@
+name: process_file_events
+description: A File Integrity Monitor implementation using the audit service.
+notes: This table will only include events for changes and files in directories that existed before the fleetd agent starts.
+columns:
+  - name: operation
+    description: Operation type
+    type: text
+    notes: ''
+    hidden: false
+    required: false
+    index: false
+  - name: pid
+    description: Process ID
+    type: bigint
+    notes: ''
+    hidden: false
+    required: false
+    index: false
+  - name: ppid
+    description: Parent process ID
+    type: bigint
+    notes: ''
+    hidden: false
+    required: false
+    index: false
+  - name: time
+    description: Time of execution in UNIX time
+    type: bigint
+    notes: ''
+    hidden: false
+    required: false
+    index: false
+  - name: executable
+    description: The executable path
+    type: text
+    notes: ''
+    hidden: false
+    required: false
+    index: false
+  - name: partial
+    description: |-
+      True if this is a partial event (i.e.: this process existed before we
+      started osquery)
+    type: text
+    notes: ''
+    hidden: false
+    required: false
+    index: false
+  - name: cwd
+    description: The current working directory of the process
+    type: text
+    notes: ''
+    hidden: false
+    required: false
+    index: false
+  - name: path
+    description: The path associated with the event
+    type: text
+    notes: ''
+    hidden: false
+    required: false
+    index: false
+  - name: dest_path
+    description: The canonical path associated with the event
+    type: text
+    notes: ''
+    hidden: false
+    required: false
+    index: false
+  - name: uid
+    description: The uid of the process performing the action
+    type: text
+    notes: ''
+    hidden: false
+    required: false
+    index: false
+  - name: gid
+    description: The gid of the process performing the action
+    type: text
+    notes: ''
+    hidden: false
+    required: false
+    index: false
+  - name: auid
+    description: Audit user ID of the process using the file
+    type: text
+    notes: ''
+    hidden: false
+    required: false
+    index: false
+  - name: euid
+    description: Effective user ID of the process using the file
+    type: text
+    notes: ''
+    hidden: false
+    required: false
+    index: false
+  - name: egid
+    description: Effective group ID of the process using the file
+    type: text
+    notes: ''
+    hidden: false
+    required: false
+    index: false
+  - name: fsuid
+    description: Filesystem user ID of the process using the file
+    type: text
+    notes: ''
+    hidden: false
+    required: false
+    index: false
+  - name: fsgid
+    description: Filesystem group ID of the process using the file
+    type: text
+    notes: ''
+    hidden: false
+    required: false
+    index: false
+  - name: suid
+    description: Saved user ID of the process using the file
+    type: text
+    notes: ''
+    hidden: false
+    required: false
+    index: false
+  - name: sgid
+    description: Saved group ID of the process using the file
+    type: text
+    notes: ''
+    hidden: false
+    required: false
+    index: false
+  - name: uptime
+    description: Time of execution in system uptime
+    type: bigint
+    notes: ''
+    hidden: false
+    required: false
+    index: false
+  - name: eid
+    description: Event ID
+    type: text
+    notes: ''
+    hidden: true
+    required: false
+    index: false

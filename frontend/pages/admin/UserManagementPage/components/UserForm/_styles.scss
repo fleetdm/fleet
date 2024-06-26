@@ -1,13 +1,5 @@
 .create-user-form {
-  &__new-user-container {
-    margin-top: $pad-large;
-    margin-bottom: $pad-large;
-  }
-
   &__sso-input {
-    margin-top: $pad-large;
-    margin-bottom: $pad-large;
-
     .fleet-checkbox {
       margin-top: 5px;
 
@@ -31,35 +23,16 @@
     width: 310px;
   }
 
-  .current-team {
-    margin-top: 4px;
-    margin-bottom: 24px;
-  }
-
-  &__label {
-    color: $core-fleet-black;
-    font-size: $x-small;
-    font-weight: $bold;
-    margin-bottom: $pad-small;
-  }
-
   &__user-permissions-info {
     display: flex;
     flex-direction: column;
-    margin-bottom: $pad-xlarge;
 
     p {
       margin: 0 0 $pad-medium 0;
     }
   }
 
-  &__selected-teams-container {
-    margin-bottom: $pad-xxlarge;
-  }
-
   &__radio-input {
-    margin-bottom: $pad-medium;
-
     &.disabled {
       .radio__control {
         background-color: $ui-fleet-black-25;
@@ -69,10 +42,6 @@
         font-style: italic;
       }
     }
-  }
-
-  &__invite-admin {
-    margin-bottom: 8px;
   }
 
   &__password {
@@ -91,7 +60,7 @@
       margin-top: 12px;
     }
 
-    .hint {
+    .help-text {
       color: $core-fleet-black;
 
       &--brand {
@@ -100,8 +69,17 @@
     }
   }
 
-  .sublabel {
+  .sublabel,
+  .sublabel-nosso {
     margin: 0px;
+  }
+
+  .sublabel-nosso {
+    font-size: 0.75rem;
+    button.button--text-link {
+      display: inline-flex;
+      font-size: 0.75rem;
+    }
   }
 
   &__tooltip-text {

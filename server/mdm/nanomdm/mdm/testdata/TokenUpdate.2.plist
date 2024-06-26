@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>AwaitingConfiguration</key>
+	<false/>
+	<key>MessageType</key>
+	<string>TokenUpdate</string>
+	<key>PushMagic</key>
+	<string>888CEB39-BFFA-40F6-89FA-B60752EB63C2</string>
+	<key>Token</key>
+	<data>
+	G6fJAGbFD3domiTzpCXK9oowD3KeiORgqUFgItXWQsw=
+	</data>
+	<key>Topic</key>
+	<string>com.apple.mgmt.External.e0bd1eac-1f17-4c8e-8a63-dd17d3dd35d9</string>
+	<key>UDID</key>
+	<string>66ADE930-5FDF-5EC4-8429-15640684C489</string>
+</dict>
+</plist>

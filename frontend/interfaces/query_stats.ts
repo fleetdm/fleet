@@ -1,8 +1,8 @@
 import PropTypes, { number } from "prop-types";
 
-import scheduledQueryStatsInterface, {
-  IScheduledQueryStats,
-} from "./scheduled_query_stats";
+import ILegacySchedulableQueryStats, {
+  ISchedulableQueryStats,
+} from "./schedulable_query";
 
 export default PropTypes.shape({
   scheduled_query_name: PropTypes.string,
@@ -20,13 +20,16 @@ export default PropTypes.shape({
   system_time: PropTypes.number,
   user_time: PropTypes.number,
   wall_time: PropTypes.number,
-  stats: scheduledQueryStatsInterface,
+  stats: ILegacySchedulableQueryStats,
 });
 
 export interface IQueryStats {
   scheduled_query_name: string;
   scheduled_query_id: number;
   query_name: string;
+  discard_data: boolean;
+  last_fetched: string | null; // timestamp
+  automations_enabled: boolean;
   description: string;
   pack_name: string;
   pack_id: number;
@@ -39,5 +42,5 @@ export interface IQueryStats {
   system_time: number;
   user_time: number;
   wall_time?: number;
-  stats?: IScheduledQueryStats;
+  stats?: ISchedulableQueryStats;
 }

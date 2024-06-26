@@ -16,7 +16,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/packaging"
 	"github.com/fleetdm/fleet/v4/pkg/buildpkg"
 	"github.com/fleetdm/fleet/v4/pkg/secure"
-	"github.com/kolide/kit/version"
+	"github.com/fleetdm/fleet/v4/server/version"
 	"github.com/mitchellh/gon/package/zip"
 	"github.com/rs/zerolog"
 	zlog "github.com/rs/zerolog/log"

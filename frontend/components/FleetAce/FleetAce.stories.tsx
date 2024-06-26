@@ -20,7 +20,7 @@ export default {
     name: "",
     error: "",
     wrapperClassName: "",
-    hint: "",
+    helpText: "",
     labelActionComponent: <></>,
     onLoad: noop,
     onChange: noop,

@@ -186,7 +186,7 @@ func listOptionsFromRequest(r *http.Request) (fleet.ListOptions, error) {
 		PerPage:        uint(perPage),
 		OrderKey:       orderKey,
 		OrderDirection: orderDirection,
-		MatchQuery:     query,
+		MatchQuery:     strings.TrimSpace(query),
 		After:          afterString,
 	}, nil
 }
@@ -217,7 +217,7 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 
 	teamID := r.URL.Query().Get("team_id")
 	if teamID != "" {
-		id, err := strconv.Atoi(teamID)
+		id, err := strconv.ParseUint(teamID, 10, 32)
 		if err != nil {
 			return hopt, ctxerr.Wrap(r.Context(), badRequest(fmt.Sprintf("Invalid team_id: %s", teamID)))
 		}
@@ -227,7 +227,7 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 
 	policyID := r.URL.Query().Get("policy_id")
 	if policyID != "" {
-		id, err := strconv.Atoi(policyID)
+		id, err := strconv.ParseUint(policyID, 10, 32)
 		if err != nil {
 			return hopt, ctxerr.Wrap(r.Context(), badRequest(fmt.Sprintf("Invalid policy_id: %s", policyID)))
 		}
@@ -266,7 +266,7 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 
 	softwareID := r.URL.Query().Get("software_id")
 	if softwareID != "" {
-		id, err := strconv.Atoi(softwareID)
+		id, err := strconv.ParseUint(softwareID, 10, 64)
 		if err != nil {
 			return hopt, ctxerr.Wrap(r.Context(), badRequest(fmt.Sprintf("Invalid software_id: %s", softwareID)))
 		}
@@ -274,14 +274,68 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 		hopt.SoftwareIDFilter = &sid
 	}
 
+	softwareVersionID := r.URL.Query().Get("software_version_id")
+	if softwareVersionID != "" {
+		id, err := strconv.ParseUint(softwareVersionID, 10, 64)
+		if err != nil {
+			return hopt, ctxerr.Wrap(r.Context(), badRequest(fmt.Sprintf("Invalid software_version_id: %s", softwareVersionID)))
+		}
+		sid := uint(id)
+		hopt.SoftwareVersionIDFilter = &sid
+	}
+
+	softwareTitleID := r.URL.Query().Get("software_title_id")
+	if softwareTitleID != "" {
+		id, err := strconv.ParseUint(softwareTitleID, 10, 32)
+		if err != nil {
+			return hopt, ctxerr.Wrap(r.Context(), badRequest(fmt.Sprintf("Invalid software_title_id: %s", softwareTitleID)))
+		}
+		sid := uint(id)
+		hopt.SoftwareTitleIDFilter = &sid
+	}
+
+	softwareStatus := fleet.SoftwareInstallerStatus(strings.ToLower(r.URL.Query().Get("software_status")))
+	if softwareStatus != "" {
+		if !softwareStatus.IsValid() {
+			return hopt, ctxerr.Wrap(
+				r.Context(), badRequest(fmt.Sprintf("Invalid software_status: %s", softwareStatus)),
+			)
+		}
+		if hopt.SoftwareTitleIDFilter == nil {
+			return hopt, ctxerr.Wrap(
+				r.Context(), badRequest(
+					"Missing software_title_id (it must be present when software_status is specified)",
+				),
+			)
+		}
+		if hopt.TeamFilter == nil {
+			return hopt, ctxerr.Wrap(
+				r.Context(), badRequest(
+					"Missing team_id (it must be present when software_status is specified)",
+				),
+			)
+		}
+		hopt.SoftwareStatusFilter = &softwareStatus
+	}
+
 	osID := r.URL.Query().Get("os_id")
 	if osID != "" {
-		id, err := strconv.Atoi(osID)
+		id, err := strconv.ParseUint(osID, 10, 32)
 		if err != nil {
 			return hopt, ctxerr.Wrap(r.Context(), badRequest(fmt.Sprintf("Invalid os_id: %s", osID)))
 		}
 		sid := uint(id)
 		hopt.OSIDFilter = &sid
+	}
+
+	osVersionID := r.URL.Query().Get("os_version_id")
+	if osVersionID != "" {
+		id, err := strconv.ParseUint(osVersionID, 10, 32)
+		if err != nil {
+			return hopt, ctxerr.Wrap(r.Context(), badRequest(fmt.Sprintf("Invalid os_version_id: %s", osVersionID)))
+		}
+		sid := uint(id)
+		hopt.OSVersionIDFilter = &sid
 	}
 
 	osName := r.URL.Query().Get("os_name")
@@ -292,6 +346,11 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 	osVersion := r.URL.Query().Get("os_version")
 	if osVersion != "" {
 		hopt.OSVersionFilter = &osVersion
+	}
+
+	cve := r.URL.Query().Get("vulnerability")
+	if cve != "" {
+		hopt.VulnerabilityFilter = &cve
 	}
 
 	if hopt.OSNameFilter != nil && hopt.OSVersionFilter == nil {
@@ -309,8 +368,24 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 		)
 	}
 
+	// disable_failing_policies is a deprecated parameter and an alias for disable_issues
+	// disable_issues is the new parameter name, which takes precedence over disable_failing_policies
 	disableFailingPolicies := r.URL.Query().Get("disable_failing_policies")
-	if disableFailingPolicies != "" {
+	disableIssues := r.URL.Query().Get("disable_issues")
+	if disableIssues != "" {
+		boolVal, err := strconv.ParseBool(disableIssues)
+		if err != nil {
+			return hopt, ctxerr.Wrap(
+				r.Context(), badRequest(
+					fmt.Sprintf(
+						"Invalid disable_issues: %s",
+						disableIssues,
+					),
+				),
+			)
+		}
+		hopt.DisableIssues = boolVal
+	} else if disableFailingPolicies != "" {
 		boolVal, err := strconv.ParseBool(disableFailingPolicies)
 		if err != nil {
 			return hopt, ctxerr.Wrap(
@@ -322,7 +397,14 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 				),
 			)
 		}
-		hopt.DisableFailingPolicies = boolVal
+		hopt.DisableIssues = boolVal
+	}
+	if hopt.DisableIssues && r.URL.Query().Get("order_key") == "issues" {
+		return hopt, ctxerr.Wrap(
+			r.Context(), badRequest(
+				"Invalid order_key (issues cannot be ordered when they are disabled)",
+			),
+		)
 	}
 
 	deviceMapping := r.URL.Query().Get("device_mapping")
@@ -336,7 +418,7 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 
 	mdmID := r.URL.Query().Get("mdm_id")
 	if mdmID != "" {
-		id, err := strconv.Atoi(mdmID)
+		id, err := strconv.ParseUint(mdmID, 10, 32)
 		if err != nil {
 			return hopt, ctxerr.Wrap(r.Context(), badRequest(fmt.Sprintf("Invalid mdm_id: %s", mdmID)))
 		}
@@ -359,6 +441,11 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 		return hopt, ctxerr.Wrap(
 			r.Context(), badRequest(fmt.Sprintf("Invalid mdm_enrollment_status: %s", enrollmentStatus)),
 		)
+	}
+
+	connectedToFleet := r.URL.Query().Has("connected_to_fleet")
+	if connectedToFleet {
+		hopt.ConnectedToFleetFilter = ptr.Bool(true)
 	}
 
 	macOSSettingsStatus := r.URL.Query().Get("macos_settings")
@@ -438,7 +525,7 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 
 	munkiIssueID := r.URL.Query().Get("munki_issue_id")
 	if munkiIssueID != "" {
-		id, err := strconv.Atoi(munkiIssueID)
+		id, err := strconv.ParseUint(munkiIssueID, 10, 32)
 		if err != nil {
 			return hopt, ctxerr.Wrap(r.Context(), badRequest(fmt.Sprintf("Invalid munki_issue_id: %s", munkiIssueID)))
 		}
@@ -462,6 +549,39 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 			)
 		}
 		hopt.LowDiskSpaceFilter = &v
+	}
+	populateSoftware := r.URL.Query().Get("populate_software")
+	if populateSoftware != "" {
+		ps, err := strconv.ParseBool(populateSoftware)
+		if err != nil {
+			return hopt, ctxerr.Wrap(r.Context(), badRequest(fmt.Sprintf("Invalid populate_software: %s", populateSoftware)))
+		}
+		hopt.PopulateSoftware = ps
+	}
+	populatePolicies := r.URL.Query().Get("populate_policies")
+	if populatePolicies != "" {
+		pp, err := strconv.ParseBool(populatePolicies)
+		if err != nil {
+			return hopt, ctxerr.Wrap(
+				r.Context(), badRequest(fmt.Sprintf("Invalid boolean parameter populate_policies: %s", populateSoftware)),
+			)
+		}
+		hopt.PopulatePolicies = pp
+	}
+
+	// cannot combine software_id, software_version_id, and software_title_id
+	var softwareErrorLabel []string
+	if hopt.SoftwareIDFilter != nil {
+		softwareErrorLabel = append(softwareErrorLabel, "software_id")
+	}
+	if hopt.SoftwareVersionIDFilter != nil {
+		softwareErrorLabel = append(softwareErrorLabel, "software_version_id")
+	}
+	if hopt.SoftwareTitleIDFilter != nil {
+		softwareErrorLabel = append(softwareErrorLabel, "software_title_id")
+	}
+	if len(softwareErrorLabel) > 1 {
+		return hopt, ctxerr.Wrap(r.Context(), badRequest(fmt.Sprintf("Invalid parameters. The combination of %s is not allowed.", strings.Join(softwareErrorLabel, " and "))))
 	}
 
 	return hopt, nil

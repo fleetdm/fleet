@@ -6,15 +6,15 @@ Fleet offers managed cloud hosting for [Fleet Premium](https://fleetdm.com/prici
 
 > While organizations of all kinds use Fleet, from Fortune 500 companies to school districts to hobbyists, we are only currently able to provide cost-effective hosting for deployments larger than 1000 hosts.  (Instead, you can [buy a license](https://fleetdm.com/customers/register) and self-host Fleet Premium with support.)
 
-Fleet is simple enough to [spin up for yourself](https://fleetdm.com/docs/using-fleet/learn-how-to-use-fleet).  Premium features are [available](https://fleetdm.com/pricing) either way.
+Fleet is simple enough to [spin up for yourself](https://fleetdm.com/docs/deploy/introduction).  Premium features are [available](https://fleetdm.com/pricing) either way.
 
 ## What is the easiest way to deploy Fleet?
 
 Fleet provides a standard [Terraform module](https://fleetdm.com/docs/deploy/deploy-on-aws-with-terraform) that deploys Fleet with best practices, along with [cloud cost calculators and reference architectures](https://fleetdm.com/docs/deploy/reference-architectures#cloud-providers) used by some of Fleet’s largest customers with tens and hundreds of thousands of hosts.  Fleet Premium customers can also opt for managed hosting provided by Fleet.  You can also deploy Fleet anywhere you want.
 
-You can enroll servers and laptops using a simple installer or automatically deliver the agent using your existing tools, such as Chef, Terraform, Munki/autopkg, Ansible, Puppet, Jamf, Intune, etc.
+You can enroll servers and laptops using a simple installer or automatically deliver Fleet's agent (fleetd) using your existing tools, such as Chef, Terraform, Munki/autopkg, Ansible, Puppet, Jamf, Intune, etc.
 
-By default, Fleet keeps agents up to date automatically.  For self-managed instances, Fleet provides a [migration runner](https://fleetdm.com/docs/deploy/upgrading-fleet#upgrading-fleet).
+By default, Fleet keeps fleetd up to date automatically.  For self-managed instances, Fleet provides a [migration runner](https://fleetdm.com/docs/deploy/upgrading-fleet#upgrading-fleet).
 
 ## What options do I have for access control?  What about auditing admin activity?
 
@@ -29,7 +29,7 @@ Fleet comes with a [built-in query library](https://fleetdm.com/queries) for rep
 
 You can easily write queries yourself with query auto-complete, as well as import query packs for HID to detect IOCs using Yara or other intrusion detection mechanisms from the community or other vendors. Or, you can import policies to monitor for high-impact vulnerabilities such as a particular TPM chip; for example, a large vehicle manufacturer uses Fleet to do this.
 
-Customers can build on these built-in policies to monitor ongoing compliance with regulator standards like NIST, PCI, ISO, SOC, and HIPAA.
+Customers can build on these built-in policies to monitor ongoing compliance with regulatory standards like NIST, PCI, ISO, SOC, and HIPAA.
 
 ## Has anyone stress-tested Fleet? How many hosts can the Fleet server handle?
 
@@ -47,7 +47,7 @@ You can test changes on a small subset of hosts first, then roll them out to the
 
 ## Is Fleet MIT licensed?
 
-We have different licenses for portions of our software which are noted in the [LICENSE](https://github.com/fleetdm/fleet/blob/main/LICENSE) file in our docs. The majority of Fleet is MIT licensed. Paid features require a license key.
+Different portions of the Fleet software are licensed differently, as noted in the [LICENSE](https://github.com/fleetdm/fleet/blob/main/LICENSE) file. The majority of Fleet is MIT licensed. Paid features require a license key.
 
 ## What is your commitment to open source stewardship?
 
@@ -67,11 +67,13 @@ We have different licenses for portions of our software which are noted in the [
 
 - The product will be available for download without leaving an email address or logging in.
 
-- We will always allow you to benchmark the performance of Fleet. (Fleet also [load tests the platform before every release](https://fleetdm.com/handbook/engineering#rituals), with increasingly ambitious targets. The scale of realtime reporting supported by Fleet has increased 5,000% since 2019. Today, Fleet deployments supports 500,000 devices, and counting. The company is committed to driving this number to 1M+, and beyond.)
+- We will always allow you to benchmark the performance of Fleet. (Fleet also [load tests the platform before every release](https://fleetdm.com/handbook/engineering#rituals), with increasingly ambitious targets. The scale of real time reporting supported by Fleet has increased 5,000% since 2019. Today, Fleet deployments support 500,000 devices, and counting. The company is committed to driving this number to 1M+, and beyond.)
 
 ## How do I contact Fleet for support?
 
-For community support, visit https://fleetdm.com/support.
+A lot of questions can be answered [in the documentation](https://fleetdm.com/docs).
+
+To get help from the community, visit https://fleetdm.com/support.
 
 If your organization has Fleet Premium, you can [access professional support](https://fleetdm.com/customers/login) with a guaranteed response time.
 
@@ -79,7 +81,7 @@ If your organization has Fleet Premium, you can [access professional support](ht
 
 If you opt not to renew Fleet Premium, you can continue using only the free capabilities of Fleet (same code base, just unconfigure the license key.)
 
-## Can we buy a licence to access premium features with reduced support for a reduced cost?
+## Can we buy a license to access premium features with reduced support for a reduced cost?
 
 We aren’t able to sell licenses and support separately.
 
@@ -106,6 +108,20 @@ Anyone is free to contribute to the free or paid features of the project. We are
 
 The only way we are able to partner as a business to provide support and build new open source and paid features is through customers purchasing Fleet Premium.
 
+## How can I uninstall fleetd?
+To uninstall Fleet's agent (fleetd), follow the below instructions for your operating system.
+
+#### MacOS
+Run the Orbit [cleanup script](https://github.com/fleetdm/fleet/blob/main/orbit/tools/cleanup/cleanup_macos.sh)
+
+#### Windows
+Use the "Add or remove programs" dialog to remove Fleet osquery.
+
+#### Ubuntu
+Run `sudo apt remove fleet-osquery -y`
+
+#### CentOS
+Run `sudo rpm -e fleet-osquery-X.Y.Z.x86_64`
 
 <!--
 ## Using Fleet
@@ -383,22 +399,7 @@ $ fleetctl get hosts --json | jq '.spec .os_version' | sort | uniq -c
 
 No. The agent options set using your software orchestration tool will override the default agent options that appear in the **Settings > Organization settings > Agent options** page. On this page, if you hit the **Save** button, the options that appear in the Fleet UI will override the agent options set using your software orchestration.
 
-### How can I uninstall the osquery agent?
-To uninstall the osquery agent, follow the below instructions for your operating system.
-
-#### MacOS
-Run the Orbit [cleanup script](https://github.com/fleetdm/fleet/blob/main/orbit/tools/cleanup/cleanup_macos.sh)
-
-#### Windows
-Use the "Add or remove programs" dialog to remove Orbit.
-
-#### Ubuntu
-Run `sudo apt remove fleet-osquery -y`
-
-#### CentOS
-Run `sudo rpm -e fleet-osquery-X.Y.Z.x86_64`
-
-### How does Fleet determines online and offline status?
+### How does Fleet determine online and offline status?
 
 #### Online hosts
 
@@ -459,7 +460,7 @@ Read more about osquery packs and Fleet's commitment to supporting them [here](h
 
 In the Fleet UI, you can turn off MDM for a host by selecting **Actions > Turn off MDM** on the **Host details** page.
 
-When you turn off MDM for a host, Fleet removes the enforcement of all macOS settings for that host. Also, the host will stop receiving macOS update reminders via Nudge. Turning MDM off doesn't remove the fleetd agent from the host. To remove the fleetd agent, share [these guided instructions](#how-can-i-uninstall-the-osquery-agent) with the end user.
+When you turn off MDM for a host, Fleet removes the enforcement of all macOS settings for that host. Also, the host will stop receiving macOS update reminders via Nudge. Turning MDM off doesn't remove the fleetd agent from the host. To remove the fleetd agent, share [these guided instructions](#how-can-i-uninstall-fleetd) with the end user.
 
 To enforce macOS settings and send macOS update reminders, the host has to turn MDM back on. Turning MDM back on for a host requires end user action.
 

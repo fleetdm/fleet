@@ -184,6 +184,14 @@ func main() {
 		return nil
 	}
 
+	ds.ListOperatingSystemsForPlatformFunc = func(ctx context.Context, platform string) ([]fleet.OperatingSystem, error) {
+		return nil, nil
+	}
+
+	ds.DeleteOutOfDateOSVulnerabilitiesFunc = func(ctx context.Context, source fleet.VulnerabilitySource, duration time.Duration) error {
+		return nil
+	}
+
 	printf("Translating software to CPE...\n")
 	err := nvd.TranslateSoftwareToCPE(ctx, ds, *dbDir, logger)
 	if err != nil {
@@ -310,7 +318,7 @@ func getSoftwareFromURL(url, apiToken string, debug bool) []fleet.Software {
 	}
 	apiClient.SetToken(apiToken)
 
-	software, err := apiClient.ListSoftware("")
+	software, err := apiClient.ListSoftwareVersions("")
 	if err != nil {
 		panic(err)
 	}

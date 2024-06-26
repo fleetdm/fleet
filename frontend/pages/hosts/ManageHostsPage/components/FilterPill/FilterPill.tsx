@@ -7,6 +7,7 @@ import PremiumFeatureIconWithTooltip from "components/PremiumFeatureIconWithTool
 
 import Icon from "components/Icon";
 import { IconNames } from "components/icons";
+import { COLORS } from "styles/var/colors";
 
 interface IFilterPillProps {
   label: string;
@@ -61,7 +62,7 @@ const FilterPill = ({
             <Button
               className={`${baseClass}__clear-filter`}
               onClick={onClear}
-              variant={"small-text-icon"}
+              variant="small-text-icon"
               title={label}
             >
               <Icon name="close" color="core-fleet-blue" size="small" />
@@ -73,7 +74,7 @@ const FilterPill = ({
             role="tooltip"
             place="bottom"
             effect="solid"
-            backgroundColor="#3e4771"
+            backgroundColor={COLORS["tooltip-bg"]}
             id={`filter-pill-tooltip-${label}`}
             data-html
           >

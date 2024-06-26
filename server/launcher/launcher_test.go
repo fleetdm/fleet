@@ -8,7 +8,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/health"
 	"github.com/fleetdm/fleet/v4/server/service/mock"
-	"github.com/go-kit/kit/log"
+	"github.com/go-kit/log"
 	"github.com/kolide/launcher/pkg/service"
 	"github.com/osquery/osquery-go/plugin/distributed"
 	"github.com/stretchr/testify/assert"
@@ -68,6 +68,7 @@ func TestLauncherPublishResults(t *testing.T) {
 		results fleet.OsqueryDistributedQueryResults,
 		statuses map[string]fleet.OsqueryStatus,
 		messages map[string]string,
+		stats map[string]*fleet.Stats,
 	) (err error) {
 		assert.Equal(t, results["query"][0], result)
 		return nil
@@ -151,6 +152,7 @@ func newTLSService(t *testing.T) *mock.TLSService {
 			results fleet.OsqueryDistributedQueryResults,
 			statuses map[string]fleet.OsqueryStatus,
 			messages map[string]string,
+			stats map[string]*fleet.Stats,
 		) (err error) {
 			return
 		},

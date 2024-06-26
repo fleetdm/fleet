@@ -1,16 +1,14 @@
 name: macos_profiles
-notes: This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).
+notes: This table is from the [Mac Admins osquery extension](https://github.com/macadmins/osquery-extension).
 description: High level information on installed profiles enrollment.
 platforms: 
   - darwin
 evented: false
-examples: >-
+examples: |-
   Identify all profiles that are not *verified*.
   
   ```
-  
   SELECT display_name, install_date FROM macos_profiles WHERE verification_state!='verified';  
-  
   ```
 columns:
   - name: description

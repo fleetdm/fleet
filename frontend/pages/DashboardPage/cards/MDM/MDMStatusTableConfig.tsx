@@ -52,14 +52,14 @@ export const generateStatusTableHeaders = (teamId?: number): IDataColumn[] => [
     Header: "Status",
     disableSortBy: true,
     accessor: "status",
-    Cell: (cellProps: IStringCellProps) => (
-      <TooltipWrapper
-        position="top-start"
-        tipContent={MDM_STATUS_TOOLTIP[cellProps.cell.value]}
-      >
-        {cellProps.cell.value}
-      </TooltipWrapper>
-    ),
+    Cell: ({ cell: { value: status } }: IStringCellProps) =>
+      !MDM_STATUS_TOOLTIP[status] ? (
+        <TextCell value={status} />
+      ) : (
+        <TooltipWrapper tipContent={MDM_STATUS_TOOLTIP[status]}>
+          {status}
+        </TooltipWrapper>
+      ),
     sortType: "hasLength",
   },
   {

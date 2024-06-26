@@ -1928,14 +1928,14 @@ spec:
         SELECT 1 FROM managed_policies WHERE 
             domain='com.apple.screensaver' AND 
             name='idleTime' AND 
-            value <= 1200 AND 
+            CAST(value AS INT) <= 1200 AND 
             username = ''
         )
       AND NOT EXISTS (
         SELECT 1 FROM managed_policies WHERE 
             domain='com.apple.screensaver' AND 
             name='idleTime' AND 
-            value > 1200
+            CAST(value AS INT) > 1200
         );  
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS-macos-13-2.10.1
@@ -2110,10 +2110,7 @@ spec:
         3. Select the i next to the Guest User
         4. Verify that Allow guests to log in to this computer is disable
   query: |
-    SELECT 1 WHERE
-    EXISTS(SELECT 1 FROM plist WHERE path='/Library/Preferences/com.apple.loginwindow.plist' AND key='GuestEnabled' AND value = 0)
-    OR
-    EXISTS(select 1 FROM plist WHERE path='/Library/Preferences/com.apple.MCX.plist' AND key='DisableGuestAccount' AND value = 1);
+    SELECT 1 FROM plist WHERE path='/Library/Preferences/com.apple.loginwindow.plist' AND key='GuestEnabled' AND value = 0;
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS-macos-13-2.12.1
   contributors: sharon-fdm

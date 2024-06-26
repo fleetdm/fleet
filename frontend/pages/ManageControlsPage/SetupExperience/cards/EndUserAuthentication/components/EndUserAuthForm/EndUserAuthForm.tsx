@@ -49,7 +49,7 @@ const EndUserAuthForm = ({
     <div className={baseClass}>
       <form>
         <Checkbox value={isEndUserAuthEnabled} onChange={onToggleEndUserAuth}>
-          On
+          Turn on
         </Checkbox>
         <p>
           Require end users to authenticate with your identity provider (IdP)

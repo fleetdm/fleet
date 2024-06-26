@@ -62,12 +62,15 @@ func (h *LiveQueryResultsHandler) Status() *campaignStatus {
 }
 
 // LiveQuery creates a new live query and begins streaming results.
-func (c *Client) LiveQuery(query string, labels []string, hosts []string) (*LiveQueryResultsHandler, error) {
-	return c.LiveQueryWithContext(context.Background(), query, labels, hosts)
+func (c *Client) LiveQuery(query string, queryID *uint, labels []string, hosts []string) (*LiveQueryResultsHandler, error) {
+	return c.LiveQueryWithContext(context.Background(), query, queryID, labels, hosts)
 }
 
-func (c *Client) LiveQueryWithContext(ctx context.Context, query string, labels []string, hosts []string) (*LiveQueryResultsHandler, error) {
+func (c *Client) LiveQueryWithContext(
+	ctx context.Context, query string, queryID *uint, labels []string, hosts []string,
+) (*LiveQueryResultsHandler, error) {
 	req := createDistributedQueryCampaignByNamesRequest{
+		QueryID:  queryID,
 		QuerySQL: query,
 		Selected: distributedQueryCampaignTargetsByNames{Labels: labels, Hosts: hosts},
 	}

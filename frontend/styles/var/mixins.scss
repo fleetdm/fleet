@@ -117,7 +117,248 @@ $max-width: 2560px;
   cursor: default;
 }
 
+@mixin disabled-checkbox {
+  background-color: $ui-fleet-black-25;
+  border-color: $ui-fleet-black-25;
+  pointer-events: none;
+  cursor: default;
+}
+
+@mixin grey-text {
+  color: $ui-fleet-black-75;
+}
+
 @mixin help-text {
   font-size: $xx-small;
-  color: $ui-fleet-black-75;
+  font-weight: $regular;
+  @include grey-text;
+}
+
+@mixin link {
+  color: $core-vibrant-blue;
+  font-weight: $bold;
+  font-size: $x-small;
+  text-decoration: none;
+  &:focus-visible {
+    outline-color: #d9d9fe;
+    outline-offset: 3px;
+    outline-style: solid;
+    outline-width: 2px;
+  }
+}
+
+@mixin table-link {
+  display: inline-flex;
+  align-items: center;
+  padding: $pad-small $pad-xxsmall; // larger clickable area
+  gap: $pad-small;
+  white-space: nowrap;
+  @include link;
+}
+
+@mixin cell-with-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+@mixin direction-link {
+  display: inline-flex;
+  align-items: center;
+  padding: $pad-small $pad-xxsmall; // larger clickable area
+  border-radius: 3px; // Visible while tabbing;
+  gap: $pad-xsmall;
+
+  &:hover {
+    color: $core-vibrant-blue-over;
+    text-decoration: underline;
+
+    svg {
+      path {
+        stroke: $core-vibrant-blue-over;
+      }
+    }
+  }
+}
+
+@mixin ellipse-text($width: auto) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  width: $width;
+}
+
+@mixin copy-message {
+  font-weight: $regular;
+  vertical-align: top;
+  background-color: $ui-light-grey;
+  border: solid 1px #e2e4ea;
+  border-radius: 10px;
+  padding: 2px 6px;
+}
+
+@mixin color-contrasted-sections {
+  background-color: $ui-off-white;
+  .section {
+    display: flex;
+    flex-direction: column;
+    background-color: $core-white;
+    border-radius: 16px;
+    border: 1px solid $ui-fleet-black-10;
+    padding: $pad-xxlarge;
+    box-shadow: 0px 3px 0px rgba(226, 228, 234, 0.4);
+  }
+}
+
+@mixin tooltip-text {
+  width: max-content;
+  max-width: 360px;
+  padding: 6px;
+  color: $core-white;
+  background-color: $tooltip-bg;
+  font-weight: $regular;
+  font-size: $xx-small;
+  border-radius: 4px;
+  box-sizing: border-box;
+  z-index: 99; // not more than the site nav
+  line-height: 1.375;
+  white-space: initial;
+  p {
+    margin: 0;
+  }
+}
+
+@mixin flex-column-1rem-gap {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+@mixin page {
+  @include flex-column-1rem-gap;
+}
+
+@mixin form-button-extra-clickable-area-compensation {
+  // compensate in layout for extra clickable area button height
+  margin: -8px 0;
+}
+
+@mixin button-dropdown {
+  .form-field {
+    margin: 0;
+  }
+
+  .Select {
+    position: relative;
+    border: 0;
+    height: auto;
+
+    &.is-focused,
+    &:hover {
+      border: 0;
+    }
+
+    &.is-focused:not(.is-open) {
+      .Select-control {
+        background-color: initial;
+      }
+    }
+
+    .Select-control {
+      display: flex;
+      background-color: initial;
+      height: auto;
+      justify-content: space-between;
+      border: 0;
+      cursor: pointer;
+
+      &:hover {
+        box-shadow: none;
+      }
+
+      &:hover .Select-placeholder {
+        color: $core-vibrant-blue;
+      }
+
+      .Select-placeholder {
+        font-size: 14px;
+        line-height: normal;
+        padding-left: 0;
+        margin-top: 1px;
+      }
+
+      .Select-input {
+        height: auto;
+      }
+
+      .Select-arrow-zone {
+        display: flex;
+      }
+    }
+
+    .Select-placeholder {
+      display: flex;
+      align-items: center;
+    }
+
+    .Select-menu-outer {
+      margin-top: $pad-xsmall;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+      border-radius: $border-radius;
+      z-index: 6;
+      overflow: hidden;
+      border: 0;
+      width: 188px;
+      left: unset;
+      top: unset;
+      max-height: none;
+      padding: $pad-small;
+      position: absolute;
+
+      .Select-menu {
+        max-height: none;
+      }
+    }
+
+    .Select-arrow {
+      transition: transform 0.25s ease;
+    }
+
+    &:not(.is-open) {
+      .Select-control:hover .Select-arrow {
+        content: url("../assets/images/icon-chevron-blue-16x16@2x.png");
+      }
+    }
+
+    &.is-open {
+      .Select-control .Select-placeholder {
+        color: $core-vibrant-blue;
+      }
+
+      .Select-arrow {
+        transform: rotate(180deg);
+      }
+    }
+  }
+}
+
+@mixin tooltip5-arrow-styles {
+  // arrow styles directly from react-tooltip-5 css
+  .react-tooltip-arrow {
+    width: 8px;
+    height: 8px;
+  }
+  [class*="react-tooltip__place-top"] > .styles-module_arrow__K0L3T {
+    transform: rotate(45deg);
+  }
+  [class*="react-tooltip__place-right"] > .styles-module_arrow__K0L3T {
+    transform: rotate(135deg);
+  }
+  [class*="react-tooltip__place-bottom"] > .styles-module_arrow__K0L3T {
+    transform: rotate(225deg);
+  }
+  [class*="react-tooltip__place-left"] > .styles-module_arrow__K0L3T {
+    transform: rotate(315deg);
+  }
 }

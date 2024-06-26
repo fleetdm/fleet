@@ -27,12 +27,12 @@ builds:
       - -trimpath
     ldflags:
       - -extldflags "-static"
-      - -X github.com/kolide/kit/version.appName={{ .ArtifactName }}
-      - -X github.com/kolide/kit/version.version={{ .Version }}
-      - -X github.com/kolide/kit/version.branch={{ .Branch }}
-      - -X github.com/kolide/kit/version.revision={{ .FullCommit }}
-      - -X github.com/kolide/kit/version.buildDate={{ time "2006-01-02" }}
-      - -X github.com/kolide/kit/version.buildUser={{ .Env.USER }}
+      - -X github.com/fleetdm/fleet/v4/server/version.appName={{ .ArtifactName }}
+      - -X github.com/fleetdm/fleet/v4/server/version.version={{ .Version }}
+      - -X github.com/fleetdm/fleet/v4/server/version.branch={{ .Branch }}
+      - -X github.com/fleetdm/fleet/v4/server/version.revision={{ .FullCommit }}
+      - -X github.com/fleetdm/fleet/v4/server/version.buildDate={{ time "2006-01-02" }}
+      - -X github.com/fleetdm/fleet/v4/server/version.buildUser={{ .Env.USER }}
 
   - id: fleetctl
     dir: ./cmd/fleetctl/
@@ -46,12 +46,12 @@ builds:
     flags:
       - -trimpath
     ldflags:
-      - -X github.com/kolide/kit/version.appName={{ .ArtifactName }}
-      - -X github.com/kolide/kit/version.version={{ .Version }}
-      - -X github.com/kolide/kit/version.branch={{ .Branch }}
-      - -X github.com/kolide/kit/version.revision={{ .FullCommit }}
-      - -X github.com/kolide/kit/version.buildDate={{ time "2006-01-02" }}
-      - -X github.com/kolide/kit/version.buildUser={{ .Env.USER }}
+      - -X github.com/fleetdm/fleet/v4/server/version.appName={{ .ArtifactName }}
+      - -X github.com/fleetdm/fleet/v4/server/version.version={{ .Version }}
+      - -X github.com/fleetdm/fleet/v4/server/version.branch={{ .Branch }}
+      - -X github.com/fleetdm/fleet/v4/server/version.revision={{ .FullCommit }}
+      - -X github.com/fleetdm/fleet/v4/server/version.buildDate={{ time "2006-01-02" }}
+      - -X github.com/fleetdm/fleet/v4/server/version.buildUser={{ .Env.USER }}
 
 
 dockers:

@@ -15,24 +15,24 @@ import (
 	"github.com/groob/plist"
 )
 
-type profileItem struct {
-	PayloadContent    fleet.MDMAppleFleetdConfig
+type profileItem[T any] struct {
+	PayloadContent    T
 	PayloadType       string
 	PayloadIdentifier string
 }
 
-type profilePayload struct {
-	ProfileItems []profileItem
+type profilePayload[T any] struct {
+	ProfileItems []profileItem[T]
 }
 
-type profilesOutput struct {
-	ComputerLevel []profilePayload `plist:"_computerlevel"`
+type profilesOutput[T any] struct {
+	ComputerLevel []profilePayload[T] `plist:"_computerlevel"`
 }
 
 // GetFleetdConfig searches and parses a device level configuration profile
 // with Fleet's payload identifier.
 func GetFleetdConfig() (*fleet.MDMAppleFleetdConfig, error) {
-	p, err := getProfile(mobileconfig.FleetdConfigPayloadIdentifier)
+	pc, err := getProfilePayloadContent[fleet.MDMAppleFleetdConfig](mobileconfig.FleetdConfigPayloadIdentifier)
 	if err != nil {
 		if err == ErrNotFound {
 			return &fleet.MDMAppleFleetdConfig{}, nil
@@ -41,16 +41,27 @@ func GetFleetdConfig() (*fleet.MDMAppleFleetdConfig, error) {
 		return nil, err
 	}
 
-	return &p.ProfileItems[0].PayloadContent, nil
+	return pc, nil
 }
 
-func getProfile(identifier string) (*profilePayload, error) {
+func GetCustomEnrollmentProfileEndUserEmail() (string, error) {
+	pc, err := getProfilePayloadContent[fleet.MDMCustomEnrollmentProfileItem](mobileconfig.FleetEnrollmentPayloadIdentifier)
+	if err != nil {
+		return "", err
+	}
+	if pc == nil || pc.EndUserEmail == "" {
+		return "", ErrNotFound
+	}
+	return pc.EndUserEmail, nil
+}
+
+func getProfilePayloadContent[T any](identifier string) (*T, error) {
 	outBuf, err := execProfileCmd()
 	if err != nil {
 		return nil, fmt.Errorf("get profile: %w", err)
 	}
 
-	var profiles profilesOutput
+	var profiles profilesOutput[T]
 	if err := plist.Unmarshal(outBuf.Bytes(), &profiles); err != nil {
 		return nil, fmt.Errorf("get profile: %w", err)
 	}
@@ -58,7 +69,7 @@ func getProfile(identifier string) (*profilePayload, error) {
 	for _, profile := range profiles.ComputerLevel {
 		for _, item := range profile.ProfileItems {
 			if item.PayloadIdentifier == identifier {
-				return &profile, nil
+				return &item.PayloadContent, nil
 			}
 		}
 	}
@@ -69,7 +80,8 @@ func getProfile(identifier string) (*profilePayload, error) {
 // execProfileCmd is declared as a variable so it can be overwritten by tests.
 var execProfileCmd = func() (*bytes.Buffer, error) {
 	var outBuf bytes.Buffer
-	cmd := exec.Command("/usr/bin/profiles", "list", "-o", "stdout-xml")
+	// TODO: check if there is a reason to prefer -L over -C in some cases
+	cmd := exec.Command("/usr/bin/profiles", "-C", "-o", "stdout-xml")
 	cmd.Stdout = &outBuf
 	cmd.Stderr = &outBuf
 	if err := cmd.Run(); err != nil {
@@ -235,6 +247,6 @@ func parseEnrollmentProfileValue(line []byte, key string) (string, bool) {
 
 // showEnrollmentProfileCmd is declared as a variable so it can be overwritten by tests.
 var showEnrollmentProfileCmd = func() ([]byte, error) {
-	cmd := exec.Command("/usr/bin/profiles", "show", "-type", "enrollment")
+	cmd := exec.Command("sh", "-c", `launchctl asuser $(id -u $(stat -f "%u" /dev/console)) profiles show -type enrollment`)
 	return cmd.Output()
 }

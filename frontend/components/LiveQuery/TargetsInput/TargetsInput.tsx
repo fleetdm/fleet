@@ -7,23 +7,32 @@ import { HOSTS_SEARCH_BOX_PLACEHOLDER } from "utilities/constants";
 
 import DataError from "components/DataError";
 // @ts-ignore
-import Input from "components/forms/fields/InputFieldWithIcon";
+import InputFieldWithIcon from "components/forms/fields/InputFieldWithIcon/InputFieldWithIcon";
 import TableContainer from "components/TableContainer";
-import { generateTableHeaders } from "./TargetsInputHostsTableConfig";
+import { ITargestInputHostTableConfig } from "./TargetsInputHostsTableConfig";
 
 interface ITargetsInputProps {
-  tabIndex: number;
+  tabIndex?: number;
   searchText: string;
   searchResults: IHost[];
   isTargetsLoading: boolean;
   hasFetchError: boolean;
   targetedHosts: IHost[];
+  searchResultsTableConfig: ITargestInputHostTableConfig[];
+  selectedHostsTableConifg: ITargestInputHostTableConfig[];
+  /** disabled pagination for the results table. The pagination is currently
+   * client side pagination. Defaults to `false` */
+  disablePagination?: boolean;
+  label?: string;
+  placeholder?: string;
+  autofocus?: boolean;
   setSearchText: (value: string) => void;
-  handleRowSelect: (value: Row) => void;
-  handleRowRemove: (value: Row) => void;
+  handleRowSelect: (value: Row<IHost>) => void;
 }
 
 const baseClass = "targets-input";
+
+const DEFAULT_LABEL = "Target specific hosts";
 
 const TargetsInput = ({
   tabIndex,
@@ -32,16 +41,17 @@ const TargetsInput = ({
   isTargetsLoading,
   hasFetchError,
   targetedHosts,
+  searchResultsTableConfig,
+  selectedHostsTableConifg,
+  disablePagination = false,
+  label = DEFAULT_LABEL,
+  placeholder = HOSTS_SEARCH_BOX_PLACEHOLDER,
+  autofocus = false,
   handleRowSelect,
-  handleRowRemove,
   setSearchText,
 }: ITargetsInputProps): JSX.Element => {
-  const resultsDropdownTableHeaders = generateTableHeaders();
-  const selectedTableHeaders = generateTableHeaders(handleRowRemove);
   const dropdownHosts =
     searchResults && pullAllBy(searchResults, targetedHosts, "display_name");
-  // const finalSelectedHostTargets =
-  //   targetedHosts && filter(targetedHosts, "display_name");
   const isActiveSearch =
     !isEmpty(searchText) && (!hasFetchError || isTargetsLoading);
   const isSearchError = !isEmpty(searchText) && hasFetchError;
@@ -49,24 +59,23 @@ const TargetsInput = ({
   return (
     <div>
       <div className={baseClass}>
-        <Input
-          autofocus
+        <InputFieldWithIcon
+          autofocus={autofocus}
           type="search"
           iconSvg="search"
           value={searchText}
           tabIndex={tabIndex}
           iconPosition="start"
-          label="Target specific hosts"
-          placeholder={HOSTS_SEARCH_BOX_PLACEHOLDER}
+          label={label}
+          placeholder={placeholder}
           onChange={setSearchText}
         />
         {isActiveSearch && (
           <div className={`${baseClass}__hosts-search-dropdown`}>
-            <TableContainer
-              columns={resultsDropdownTableHeaders}
+            <TableContainer<Row<IHost>>
+              columnConfigs={searchResultsTableConfig}
               data={dropdownHosts}
               isLoading={isTargetsLoading}
-              resultsTitle=""
               emptyComponent={() => (
                 <div className="empty-search">
                   <div className="empty-search__inner">
@@ -83,7 +92,7 @@ const TargetsInput = ({
               disableCount
               disablePagination
               disableMultiRowSelect
-              onSelectSingleRow={handleRowSelect}
+              onClickRow={handleRowSelect}
             />
           </div>
         )}
@@ -94,14 +103,14 @@ const TargetsInput = ({
         )}
         <div className={`${baseClass}__hosts-selected-table`}>
           <TableContainer
-            columns={selectedTableHeaders}
+            columnConfigs={selectedHostsTableConifg}
             data={targetedHosts}
             isLoading={false}
-            resultsTitle=""
             showMarkAllPages={false}
             isAllPagesSelected={false}
             disableCount
-            disablePagination
+            disablePagination={disablePagination}
+            isClientSidePagination={!disablePagination}
             emptyComponent={() => <></>}
           />
         </div>

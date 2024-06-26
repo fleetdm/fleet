@@ -8,20 +8,6 @@ import { ActivityType } from "interfaces/activity";
 
 import ActivityItem from ".";
 
-const getByTextContent = (text: string) => {
-  return screen.getByText((content, element) => {
-    if (!element) {
-      return false;
-    }
-    const hasText = (thisElement: Element) => thisElement.textContent === text;
-    const elementHasText = hasText(element);
-    const childrenDontHaveText = Array.from(element?.children || []).every(
-      (child) => !hasText(child)
-    );
-    return elementHasText && childrenDontHaveText;
-  });
-};
-
 describe("Activity Feed", () => {
   it("renders avatar, actor name, timestamp", async () => {
     const currentDate = new Date();
@@ -92,10 +78,55 @@ describe("Activity Feed", () => {
     });
     render(<ActivityItem activity={activity} isPremiumTier />);
 
-    expect(
-      screen.getByText("ran the query as a live query .")
-    ).toBeInTheDocument();
+    expect(screen.getByText(/ran the/)).toBeInTheDocument();
     expect(screen.getByText("Test Query")).toBeInTheDocument();
+    expect(screen.getByText("Show query")).toBeInTheDocument();
+  });
+  it("renders a live_query type activity for a saved live query with targets and performance impact", () => {
+    const activity = createMockActivity({
+      type: ActivityType.LiveQuery,
+      details: {
+        query_name: "Test Query",
+        query_sql: "SELECT * FROM users",
+        targets_count: 10,
+        stats: {
+          system_time_p50: 0,
+          system_time_p95: 50.4923,
+          total_executions: 345,
+        },
+      },
+    });
+
+    render(<ActivityItem activity={activity} isPremiumTier />);
+
+    expect(screen.getByText(/ran the/)).toBeInTheDocument();
+    expect(screen.getByText("Test Query")).toBeInTheDocument();
+    expect(
+      screen.getByText(/with excessive performance impact on 10 hosts\./)
+    ).toBeInTheDocument();
+    expect(screen.getByText("Show query")).toBeInTheDocument();
+  });
+
+  it("renders a live_query type activity for a saved live query with targets and no performance impact", () => {
+    const activity = createMockActivity({
+      type: ActivityType.LiveQuery,
+      details: {
+        query_name: "Test Query",
+        query_sql: "SELECT * FROM users",
+        targets_count: 10,
+        stats: {
+          system_time_p50: 0,
+          system_time_p95: 0,
+          total_executions: 0,
+        },
+      },
+    });
+
+    render(<ActivityItem activity={activity} isPremiumTier />);
+
+    expect(screen.getByText(/ran the/)).toBeInTheDocument();
+    expect(screen.getByText("Test Query")).toBeInTheDocument();
+    expect(screen.queryByText(/Undetermined/)).toBeNull();
     expect(screen.getByText("Show query")).toBeInTheDocument();
   });
 
@@ -213,6 +244,15 @@ describe("Activity Feed", () => {
     expect(
       screen.getByText("successfully logged in from public IP 192.168.0.1.")
     ).toBeInTheDocument();
+  });
+  it("renders a user_logged_in type activity without public IP", () => {
+    const activity = createMockActivity({
+      type: ActivityType.UserLoggedIn,
+      details: {},
+    });
+    render(<ActivityItem activity={activity} isPremiumTier />);
+
+    expect(screen.getByText("successfully logged in.")).toBeInTheDocument();
   });
 
   it("renders a user_failed_login type activity globally", () => {
@@ -502,7 +542,26 @@ describe("Activity Feed", () => {
     expect(forAllTeams).toBeNull();
   });
 
+  it("renders an 'enabled_disk_encryption' type activity for a team", () => {
+    const activity = createMockActivity({
+      type: ActivityType.EnabledDiskEncryption,
+      details: { team_name: "Alphas" },
+    });
+    render(<ActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText("enforced disk encryption for hosts assigned to the", {
+        exact: false,
+      })
+    ).toBeInTheDocument();
+    expect(screen.getByText("Alphas")).toBeInTheDocument();
+    expect(screen.getByText(" team.", { exact: false })).toBeInTheDocument();
+    const withNoTeams = screen.queryByText("with no team");
+    expect(withNoTeams).toBeNull();
+  });
+
   it("renders an 'enabled_macos_disk_encryption' type activity for a team", () => {
+    // Test deprecated activity type
     const activity = createMockActivity({
       type: ActivityType.EnabledMacDiskEncryption,
       details: { team_name: "Alphas" },
@@ -510,8 +569,26 @@ describe("Activity Feed", () => {
     render(<ActivityItem activity={activity} isPremiumTier />);
 
     expect(
+      screen.getByText("enforced disk encryption for hosts assigned to the", {
+        exact: false,
+      })
+    ).toBeInTheDocument();
+    expect(screen.getByText("Alphas")).toBeInTheDocument();
+    expect(screen.getByText(" team.", { exact: false })).toBeInTheDocument();
+    const withNoTeams = screen.queryByText("with no team");
+    expect(withNoTeams).toBeNull();
+  });
+
+  it("renders a 'disabled_disk_encryption' type activity for a team", () => {
+    const activity = createMockActivity({
+      type: ActivityType.DisabledMacDiskEncryption,
+      details: { team_name: "Alphas" },
+    });
+    render(<ActivityItem activity={activity} isPremiumTier />);
+
+    expect(
       screen.getByText(
-        "enforced disk encryption for macOS hosts assigned to the",
+        "removed disk encryption enforcement for hosts assigned to the",
         {
           exact: false,
         }
@@ -524,15 +601,16 @@ describe("Activity Feed", () => {
   });
 
   it("renders a 'disabled_macos_disk_encryption' type activity for a team", () => {
+    // Test deprecated activity type
     const activity = createMockActivity({
-      type: ActivityType.DisabledMacDiskEncryption,
+      type: ActivityType.DisabledDiskEncryption,
       details: { team_name: "Alphas" },
     });
     render(<ActivityItem activity={activity} isPremiumTier />);
 
     expect(
       screen.getByText(
-        "removed disk encryption enforcement for macOS hosts assigned to the",
+        "removed disk encryption enforcement for hosts assigned to the",
         {
           exact: false,
         }
@@ -544,7 +622,21 @@ describe("Activity Feed", () => {
     expect(withNoTeams).toBeNull();
   });
 
+  it("renders an 'enabled_disk_encryption' type activity for hosts with no team.", () => {
+    const activity = createMockActivity({
+      type: ActivityType.EnabledDiskEncryption,
+      details: {},
+    });
+    render(<ActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText("enforced disk encryption for hosts with no team.")
+    ).toBeInTheDocument();
+    expect(screen.queryByText("assigned to the")).toBeNull();
+  });
+
   it("renders an 'enabled_macos_disk_encryption' type activity for hosts with no team.", () => {
+    // Test deprecated activity type
     const activity = createMockActivity({
       type: ActivityType.EnabledMacDiskEncryption,
       details: {},
@@ -552,12 +644,31 @@ describe("Activity Feed", () => {
     render(<ActivityItem activity={activity} isPremiumTier />);
 
     expect(
-      screen.getByText("enforced disk encryption for macOS hosts with no team.")
+      screen.getByText("enforced disk encryption for hosts with no team.")
+    ).toBeInTheDocument();
+    expect(screen.queryByText("assigned to the")).toBeNull();
+  });
+
+  it("renders a 'disabled_disk_encryption' type activity for hosts with no team.", () => {
+    const activity = createMockActivity({
+      type: ActivityType.DisabledDiskEncryption,
+      details: {},
+    });
+    render(<ActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText(
+        "removed disk encryption enforcement for hosts with no team.",
+        {
+          exact: false,
+        }
+      )
     ).toBeInTheDocument();
     expect(screen.queryByText("assigned to the")).toBeNull();
   });
 
   it("renders a 'disabled_macos_disk_encryption' type activity for hosts with no team.", () => {
+    // Test deprecated activity type
     const activity = createMockActivity({
       type: ActivityType.DisabledMacDiskEncryption,
       details: {},
@@ -566,7 +677,7 @@ describe("Activity Feed", () => {
 
     expect(
       screen.getByText(
-        "removed disk encryption enforcement for macOS hosts with no team.",
+        "removed disk encryption enforcement for hosts with no team.",
         {
           exact: false,
         }
@@ -1048,5 +1159,48 @@ describe("Activity Feed", () => {
     expect(
       screen.getByText("deleted multiple queries", { exact: false })
     ).toBeInTheDocument();
+  });
+  // test for wipe activity
+  it("renders a 'wiped_host' type activity for a team", () => {
+    const activity = createMockActivity({
+      type: ActivityType.WipedHost,
+      details: {
+        host_display_name: "Foo Host",
+      },
+    });
+    render(<ActivityItem activity={activity} isPremiumTier />);
+
+    expect(screen.getByText("wiped", { exact: false })).toBeInTheDocument();
+    expect(screen.getByText("Foo Host", { exact: false })).toBeInTheDocument();
+  });
+
+  it("renders the correct actor for a installed_software activity without self_service", () => {
+    const activity = createMockActivity({
+      type: ActivityType.InstalledSoftware,
+      actor_id: 1,
+      actor_full_name: "Test Admin",
+      details: {
+        software_title: "Foo Software",
+        host_display_name: "Foo Host",
+      },
+    });
+
+    render(<ActivityItem activity={activity} isPremiumTier />);
+    expect(screen.getByText("Test Admin")).toBeInTheDocument();
+  });
+
+  it("renders the correct actor for a installed_software activity that was self_service", () => {
+    const activity = createMockActivity({
+      type: ActivityType.InstalledSoftware,
+      actor_id: 1,
+      details: {
+        software_title: "Foo Software",
+        self_service: true,
+        host_display_name: "Foo Host",
+      },
+    });
+
+    render(<ActivityItem activity={activity} isPremiumTier />);
+    expect(screen.getByText("An end user")).toBeInTheDocument();
   });
 });

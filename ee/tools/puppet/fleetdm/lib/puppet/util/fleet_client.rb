@@ -36,6 +36,9 @@ module Puppet::Util
     # @param uuid [String] The host uuid.
     # @param profile_xml [String] Raw XML with the configuration profile.
     # @param group [String] Used to construct a team name.
+    # @param ensure_profile [String] The name of the ensure check to perform, which can be 'absent'
+    # or 'present'.
+    # @param environment [String] The environment (from server_facts).
     # @return [Hash] The response status code, headers, and body.
     def preassign_profile(run_identifier, uuid, profile_xml, group, ensure_profile, environment)
       req(
@@ -60,6 +63,7 @@ module Puppet::Util
     #
     # @param run_identifier [String] Used to identify this run to match
     # pre-assigned profiles.
+    # @param environment [String] The environment (from server_facts).
     # @return [Hash] The response status code, headers, and body.
     def match_profiles(run_identifier, environment)
       req(
@@ -74,6 +78,7 @@ module Puppet::Util
     #
     # @param uuid [String] The host uuid.
     # @param command_xml [String] Raw XML with the MDM command.
+    # @param environment [String] The environment (from system_facts).
     # @return [Hash] The response status code, headers, and body.
     def send_mdm_command(uuid, command_xml, environment)
       req(method: :post, path: '/api/latest/fleet/mdm/apple/enqueue',
@@ -93,6 +98,7 @@ module Puppet::Util
     # Get profiles assigned to the host.
     #
     # @param host_id [Number] Fleet's internal host id.
+    # @param environment [String] The environment (from 'system_facts').
     # @return [Hash] The response status code, headers, and body.
     def get_host_profiles(host_id, environment)
       req(
@@ -107,6 +113,7 @@ module Puppet::Util
     #
     # @param identifier [String] The host identifier, can be
     # osquery_host_identifier, node_key, UUID, or hostname.
+    # @param environment [String] The environment (from server_facts).
     # @return [Hash] The response status code, headers, and body.
     def get_host_by_identifier(identifier, environment)
       req(

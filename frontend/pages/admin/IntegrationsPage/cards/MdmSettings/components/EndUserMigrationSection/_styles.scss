@@ -12,33 +12,7 @@
     margin-bottom: $pad-xxlarge;
   }
 
-  &__enabled-slider {
-    margin-bottom: $pad-large;
-  }
-
-  &__mode-field {
-    margin-bottom: $pad-large;
-
-    > span {
-      margin-bottom: 12px;
-      display: block;
-    }
-  }
-
-  &__voluntary-radio {
-    margin-bottom: 12px;
-  }
-
-    &__forced-radio {
-      margin-bottom: $pad-large;
-    }
-
   &__end-user-migration-form.disabled {
-    opacity: 0.4;
-  }
-
-  &__preview-button {
-    display: block;
-    margin-bottom: $pad-large;
+    @include disabled;
   }
 }

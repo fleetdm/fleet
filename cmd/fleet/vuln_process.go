@@ -13,8 +13,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	kitlog "github.com/go-kit/kit/log"
-	"github.com/go-kit/kit/log/level"
+	kitlog "github.com/go-kit/log"
+	"github.com/go-kit/log/level"
 	"github.com/spf13/cobra"
 )
 
@@ -110,16 +110,11 @@ by an exit code of zero.`,
 			}
 			level.Info(logger).Log("msg", "scanning vulnerabilities")
 			start := time.Now()
-			err = scanVulnerabilities(ctx, ds, logger, &vulnConfig, appConfig, vulnPath)
-			if err != nil {
-				// errors during vuln processing should bubble up, so you know the job is failing without having to scour logs, e.g. non-zero exit code
-				return fmt.Errorf("scanning vulnerabilities err: %w", err)
-			}
-
-			err = ds.SyncHostsSoftware(ctx, time.Now())
-			if err != nil {
-				// though vulnerability processing succeeded, we'll still fatally error here to indicate there was a problem
-				return fmt.Errorf("sync hosts software err: %w", err)
+			vulnFuncs := getVulnFuncs(ctx, ds, logger, &vulnConfig)
+			for _, vulnFunc := range vulnFuncs {
+				if err := vulnFunc.VulnFunc(ctx); err != nil {
+					return err
+				}
 			}
 			level.Info(logger).Log("msg", "vulnerability processing finished", "took", time.Now().Sub(start))
 
@@ -155,4 +150,46 @@ func configureVulnPath(vulnConfig config.VulnerabilitiesConfig, appConfig *fleet
 		level.Info(logger).Log("msg", "vulnerability scanning not configured, vulnerabilities databases path is empty")
 	}
 	return vulnPath
+}
+
+type NamedVulnFunc struct {
+	Name     string
+	VulnFunc func(ctx context.Context) error
+}
+
+func getVulnFuncs(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, config *config.VulnerabilitiesConfig) []NamedVulnFunc {
+	vulnFuncs := []NamedVulnFunc{
+		{
+			Name: "cron_vulnerabilities",
+			VulnFunc: func(ctx context.Context) error {
+				return cronVulnerabilities(ctx, ds, logger, config)
+			},
+		},
+		{
+			Name: "cron_sync_host_software",
+			VulnFunc: func(ctx context.Context) error {
+				return ds.SyncHostsSoftware(ctx, time.Now())
+			},
+		},
+		{
+			Name: "cron_reconcile_software_titles",
+			VulnFunc: func(ctx context.Context) error {
+				return ds.ReconcileSoftwareTitles(ctx)
+			},
+		},
+		{
+			Name: "cron_sync_hosts_software_titles",
+			VulnFunc: func(ctx context.Context) error {
+				return ds.SyncHostsSoftwareTitles(ctx, time.Now())
+			},
+		},
+		{
+			Name: "update_host_issues_vulnerabilities_counts",
+			VulnFunc: func(ctx context.Context) error {
+				return ds.UpdateHostIssuesVulnerabilities(ctx)
+			},
+		},
+	}
+
+	return vulnFuncs
 }

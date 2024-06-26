@@ -9,8 +9,6 @@ import (
 func FleetFlags(fleetURL *url.URL) []string {
 	hostname, prefix := fleetURL.Host, fleetURL.Path
 	return []string{
-		// Use uuid as the default identifier -- users can override this in their flagfile
-		"--host_identifier=uuid",
 		"--tls_hostname=" + hostname,
 		"--enroll_tls_endpoint=" + path.Join(prefix, "/api/v1/osquery/enroll"),
 		"--config_plugin=tls",

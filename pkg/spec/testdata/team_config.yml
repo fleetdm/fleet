@@ -1,0 +1,27 @@
+name: Team1
+team_settings:
+  path: ./team-settings.yml
+agent_options:
+  path: ./agent-options.yml
+controls:
+  path: ./controls.yml
+queries:
+  - path: ./top.queries.yml
+  - path: ./empty.yml
+  - name: osquery_info
+    query: SELECT * from osquery_info;
+    interval: 604800 # 1 week
+    platform: darwin,linux,windows,chrome
+    min_osquery_version: all
+    observer_can_run: false
+    automations_enabled: true
+    logging: snapshot
+policies:
+  - path: ./top.policies.yml
+  - path: ./top.policies2.yml
+  - path: ./empty.yml
+  - name: 😊😊 Failing $POLICY
+    platform: linux
+    description: This policy should always fail.
+    resolution: There is no resolution for this policy.
+    query: SELECT 1 FROM osquery_info WHERE start_time < 0;

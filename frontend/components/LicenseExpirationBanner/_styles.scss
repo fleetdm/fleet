@@ -1,0 +1,5 @@
+.license-expiry-banner {
+  margin-bottom: $pad-large;
+  position: sticky; // Needed for settings page scroll
+  z-index: 4; // Needed for settings page scroll
+}

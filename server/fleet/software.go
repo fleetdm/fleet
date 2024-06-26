@@ -1,6 +1,7 @@
 package fleet
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strconv"
@@ -102,12 +103,114 @@ func (s Software) ToUniqueStr() string {
 	return strings.Join(ss, SoftwareFieldSeparator)
 }
 
+type VulnerableSoftware struct {
+	ID                uint    `json:"id" db:"id"`
+	Name              string  `json:"name" db:"name"`
+	Version           string  `json:"version" db:"version"`
+	Source            string  `json:"source" db:"source"`
+	Browser           string  `json:"browser" db:"browser"`
+	GenerateCPE       string  `json:"generated_cpe" db:"generated_cpe"`
+	HostsCount        int     `json:"hosts_count,omitempty" db:"hosts_count"`
+	ResolvedInVersion *string `json:"resolved_in_version" db:"resolved_in_version"`
+}
+
+type SliceString []string
+
+func (c *SliceString) Scan(v interface{}) error {
+	switch tv := v.(type) {
+	case []byte:
+		return json.Unmarshal(tv, &c)
+	}
+	return errors.New("unsupported type")
+}
+
+// SoftwareVersion is an abstraction over the `software` table to support the
+// software titles APIs
+type SoftwareVersion struct {
+	ID uint `db:"id" json:"id"`
+	// Version is the version string we grab for this specific software.
+	Version string `db:"version" json:"version"`
+	// Vulnerabilities is the list of CVE names for vulnerabilities found for this version.
+	Vulnerabilities *SliceString `db:"vulnerabilities" json:"vulnerabilities"`
+	// HostsCount is the number of hosts that use this software version.
+	HostsCount *uint `db:"hosts_count" json:"hosts_count,omitempty"`
+
+	// TitleID is used only as an auxiliary field and it's not part of the
+	// JSON response.
+	TitleID uint `db:"title_id" json:"-"`
+}
+
+// SoftwareTitle represents a title backed by the `software_titles` table.
 type SoftwareTitle struct {
 	ID uint `json:"id" db:"id"`
 	// Name is the name reported by osquery.
 	Name string `json:"name" db:"name"`
 	// Source is the source reported by osquery.
 	Source string `json:"source" db:"source"`
+	// Browser is the browser type (e.g., "chrome", "firefox", "safari")
+	Browser string `json:"browser,omitempty" db:"browser"`
+	// HostsCount is the number of hosts that use this software title.
+	HostsCount uint `json:"hosts_count" db:"hosts_count"`
+	// VesionsCount is the number of versions that have the same title.
+	VersionsCount uint `json:"versions_count" db:"versions_count"`
+	// Versions countains information about the versions that use this title.
+	Versions []SoftwareVersion `json:"versions" db:"-"`
+	// CountsUpdatedAt is the timestamp when the hosts count
+	// was last updated for that software title
+	CountsUpdatedAt *time.Time `json:"-" db:"counts_updated_at"`
+	// SoftwarePackage is the software installer information for this title.
+	SoftwarePackage *SoftwareInstaller `json:"software_package" db:"-"`
+}
+
+// This type is essentially the same as the above SoftwareTitle type. The only difference is that
+// SoftwarePackage is a string pointer here. This type is for use when listing out SoftwareTitles;
+// the above type is used when fetching them individually.
+type SoftwareTitleListResult struct {
+	ID uint `json:"id" db:"id"`
+	// Name is the name reported by osquery.
+	Name string `json:"name" db:"name"`
+	// Source is the source reported by osquery.
+	Source string `json:"source" db:"source"`
+	// Browser is the browser type (e.g., "chrome", "firefox", "safari")
+	Browser string `json:"browser,omitempty" db:"browser"`
+	// HostsCount is the number of hosts that use this software title.
+	HostsCount uint `json:"hosts_count" db:"hosts_count"`
+	// VesionsCount is the number of versions that have the same title.
+	VersionsCount uint `json:"versions_count" db:"versions_count"`
+	// Versions countains information about the versions that use this title.
+	Versions []SoftwareVersion `json:"versions" db:"-"`
+	// CountsUpdatedAt is the timestamp when the hosts count
+	// was last updated for that software title
+	CountsUpdatedAt *time.Time `json:"-" db:"counts_updated_at"`
+	// SoftwarePackage is the filename of the installer for this software title.
+	SoftwarePackage *string `json:"software_package" db:"software_package"`
+	// SelfService indicates if the end user can initiate the installation
+	SelfService bool `json:"self_service" db:"self_service"`
+}
+
+type SoftwareTitleListOptions struct {
+	// ListOptions cannot be embedded in order to unmarshall with validation.
+	ListOptions ListOptions `url:"list_options"`
+
+	TeamID              *uint `query:"team_id,optional"`
+	VulnerableOnly      bool  `query:"vulnerable,optional"`
+	AvailableForInstall bool  `query:"available_for_install,optional"`
+	SelfServiceOnly     bool  `query:"self_service,optional"`
+}
+
+type HostSoftwareTitleListOptions struct {
+	// ListOptions cannot be embedded in order to unmarshal with validation.
+	ListOptions ListOptions `url:"list_options"`
+
+	// SelfServiceOnly limits the returned software titles to those that are
+	// available to install by the end user via the self-service. Implies
+	// AvailableForInstall.
+	SelfServiceOnly bool `query:"self_service,optional"`
+
+	// IncludeAvailableForInstall is not a query argument, it is set in the
+	// service layer to indicate to the datastore if software available for
+	// install (but not currently installed on the host) should be returned.
+	IncludeAvailableForInstall bool
 }
 
 // AuthzSoftwareInventory is used for access controls on software inventory.
@@ -164,6 +267,8 @@ type SoftwareListOptions struct {
 type SoftwareIterQueryOptions struct {
 	ExcludedSources []string // what sources to exclude
 	IncludedSources []string // what sources to include
+	NameMatch       string   // mysql regex to filter software by name
+	NameExclude     string   // mysql regex to filter software by name
 }
 
 // IsValid checks that either ExcludedSources or IncludedSources is specified but not both

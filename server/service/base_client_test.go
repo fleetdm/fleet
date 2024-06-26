@@ -70,6 +70,20 @@ func TestParseResponseOK(t *testing.T) {
 	require.Equal(t, "ok", resDest.Test)
 }
 
+func TestParseResponseOKNoContent(t *testing.T) {
+	bc, err := newBaseClient("https://test.com", true, "", "", nil, fleet.CapabilityMap{})
+	require.NoError(t, err)
+	response := &http.Response{
+		StatusCode: http.StatusNoContent,
+		Body:       io.NopCloser(bytes.NewBufferString("")),
+	}
+
+	var resDest struct{ Err error }
+	err = bc.parseResponse("", "", response, &resDest)
+	require.NoError(t, err)
+	require.Nil(t, resDest.Err)
+}
+
 func TestParseResponseGeneralErrors(t *testing.T) {
 	t.Run("general HTTP errors", func(t *testing.T) {
 		bc, err := newBaseClient("https://test.com", true, "", "", nil, fleet.CapabilityMap{})

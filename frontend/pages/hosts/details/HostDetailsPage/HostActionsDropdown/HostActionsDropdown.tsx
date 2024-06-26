@@ -7,34 +7,41 @@ import { AppContext } from "context/app";
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
 import { generateHostActionOptions } from "./helpers";
+import { HostMdmDeviceStatusUIState } from "../../helpers";
 
 const baseClass = "host-actions-dropdown";
 
 interface IHostActionsDropdownProps {
   hostTeamId: number | null;
   hostStatus: string;
-  hostMdmEnrollemntStatus: MdmEnrollmentStatus | null;
+  hostMdmEnrollmentStatus: MdmEnrollmentStatus | null;
+  /** This represents the mdm managed host device status (e.g. unlocked, locked,
+   * unlocking, locking, ...etc) */
+  hostMdmDeviceStatus: HostMdmDeviceStatusUIState;
   doesStoreEncryptionKey?: boolean;
-  mdmName?: string;
+  isConnectedToFleetMdm?: boolean;
   hostPlatform?: string;
   onSelect: (value: string) => void;
+  hostScriptsEnabled: boolean | null;
 }
 
 const HostActionsDropdown = ({
   hostTeamId,
   hostStatus,
-  hostMdmEnrollemntStatus,
+  hostMdmEnrollmentStatus,
+  hostMdmDeviceStatus,
   doesStoreEncryptionKey,
-  mdmName,
+  isConnectedToFleetMdm,
   hostPlatform = "",
+  hostScriptsEnabled = false,
   onSelect,
 }: IHostActionsDropdownProps) => {
   const {
     isPremiumTier = false,
     isGlobalAdmin = false,
     isGlobalMaintainer = false,
-    isMdmEnabledAndConfigured = false,
-    isSandboxMode = false,
+    isMacMdmEnabledAndConfigured = false,
+    isWindowsMdmEnabledAndConfigured = false,
     currentUser,
   } = useContext(AppContext);
 
@@ -45,22 +52,28 @@ const HostActionsDropdown = ({
     currentUser,
     hostTeamId
   );
+  const isTeamObserver = permissions.isTeamObserver(currentUser, hostTeamId);
+  const isGlobalObserver = permissions.isGlobalObserver(currentUser);
 
   const options = generateHostActionOptions({
     hostPlatform,
     isPremiumTier,
     isGlobalAdmin,
     isGlobalMaintainer,
+    isGlobalObserver,
     isTeamAdmin,
     isTeamMaintainer,
+    isTeamObserver,
     isHostOnline: hostStatus === "online",
     isEnrolledInMdm: ["On (automatic)", "On (manual)"].includes(
-      hostMdmEnrollemntStatus ?? ""
+      hostMdmEnrollmentStatus ?? ""
     ),
-    isFleetMdm: mdmName === "Fleet",
-    isMdmEnabledAndConfigured,
+    isConnectedToFleetMdm,
+    isMacMdmEnabledAndConfigured,
+    isWindowsMdmEnabledAndConfigured,
     doesStoreEncryptionKey: doesStoreEncryptionKey ?? false,
-    isSandboxMode,
+    hostMdmDeviceStatus,
+    hostScriptsEnabled,
   });
 
   // No options to render. Exit early
@@ -71,7 +84,7 @@ const HostActionsDropdown = ({
       <Dropdown
         className={`${baseClass}__host-actions-dropdown`}
         onChange={onSelect}
-        placeholder={"Actions"}
+        placeholder="Actions"
         searchable={false}
         options={options}
       />

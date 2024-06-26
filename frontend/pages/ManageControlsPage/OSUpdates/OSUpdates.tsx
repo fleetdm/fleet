@@ -1,10 +1,17 @@
-import React, { useContext, useEffect, useState } from "react";
+import React, { useContext, useState } from "react";
 import { InjectedRouter } from "react-router";
+import { useQuery } from "react-query";
 
-import { IConfig } from "interfaces/config";
 import { AppContext } from "context/app";
 
+import { IConfig } from "interfaces/config";
+import { ITeamConfig } from "interfaces/team";
+
+import configAPI from "services/entities/config";
+import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
+
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
+import Spinner from "components/Spinner";
 
 import NudgePreview from "./components/NudgePreview";
 import TurnOnMdmMessage from "../components/TurnOnMdmMessage/TurnOnMdmMessage";
@@ -30,35 +37,43 @@ const getSelectedPlatform = (
 
 interface IOSUpdates {
   router: InjectedRouter;
-  teamIdForApi?: number;
+  teamIdForApi: number;
 }
 
 const OSUpdates = ({ router, teamIdForApi }: IOSUpdates) => {
-  const { config, isPremiumTier } = useContext(AppContext);
+  const { isPremiumTier, config, setConfig } = useContext(AppContext);
 
-  // the default platform is mac and we later update this value when we have
-  // done more checks.
   const [
-    selectedPlatform,
-    setSelectedPlatform,
-  ] = useState<OSUpdatesSupportedPlatform>("darwin");
+    selectedPlatformTab,
+    setSelectedPlatformTab,
+  ] = useState<OSUpdatesSupportedPlatform | null>(null);
 
-  // we have to use useEffect here as we need to update our selected platform
-  // state when the app config is updated. This is usually when we get the app
-  // config response from the server and it is no longer `null`.
-  useEffect(() => {
-    setSelectedPlatform(getSelectedPlatform(config));
-  }, [config]);
+  const {
+    isError: isErrorConfig,
+    isFetching: isFetchingConfig,
+    isLoading: isLoadingConfig,
+    refetch: refetchAppConfig,
+  } = useQuery<IConfig, Error>(["config"], () => configAPI.loadAll(), {
+    refetchOnWindowFocus: false,
+    onSuccess: (data) => setConfig(data), // update the app context with the refetched config
+    enabled: false, // this is disabled as the config is already fetched in App.tsx
+  });
 
-  if (config === null || teamIdForApi === undefined) return null;
-
-  // mdm is not enabled for mac or windows.
-  if (
-    !config.mdm.enabled_and_configured &&
-    !config.mdm.windows_enabled_and_configured
-  ) {
-    return <TurnOnMdmMessage router={router} />;
-  }
+  const {
+    data: teamConfig,
+    isError: isErrorTeamConfig,
+    isFetching: isFetchingTeamConfig,
+    isLoading: isLoadingTeam,
+    refetch: refetchTeamConfig,
+  } = useQuery<ILoadTeamResponse, Error, ITeamConfig>(
+    ["team-config", teamIdForApi],
+    () => teamsAPI.load(teamIdForApi),
+    {
+      refetchOnWindowFocus: false,
+      enabled: !!teamIdForApi,
+      select: (data) => data.team,
+    }
+  );
 
   // Not premium shows premium message
   if (!isPremiumTier) {
@@ -69,9 +84,21 @@ const OSUpdates = ({ router, teamIdForApi }: IOSUpdates) => {
     );
   }
 
-  const handleSelectPlatform = (platform: OSUpdatesSupportedPlatform) => {
-    setSelectedPlatform(platform);
-  };
+  if (isLoadingConfig || isLoadingTeam) return <Spinner />;
+
+  // FIXME: Handle error states for app config and team config (need specifications for this).
+
+  // mdm is not enabled for mac or windows.
+  if (
+    !config?.mdm.enabled_and_configured &&
+    !config?.mdm.windows_enabled_and_configured
+  ) {
+    return <TurnOnMdmMessage router={router} />;
+  }
+
+  // If the user has not selected a platform yet, we default to the platform that
+  // is enabled and configured.
+  const selectedPlatform = selectedPlatformTab || getSelectedPlatform(config);
 
   return (
     <div className={baseClass}>
@@ -80,11 +107,20 @@ const OSUpdates = ({ router, teamIdForApi }: IOSUpdates) => {
         assigned to this team.
       </p>
       <div className={`${baseClass}__content`}>
-        <div className={`${baseClass}__form-table-content`}>
+        <div className={`${baseClass}__current-version-container`}>
           <CurrentVersionSection currentTeamId={teamIdForApi} />
+        </div>
+        <div className={`${baseClass}__taget-container`}>
           <TargetSection
+            key={teamIdForApi} // if the team changes, remount the target section
+            appConfig={config}
             currentTeamId={teamIdForApi}
-            onSelectAccordionItem={handleSelectPlatform}
+            isFetching={isFetchingConfig || isFetchingTeamConfig}
+            selectedPlatform={selectedPlatform}
+            teamConfig={teamConfig}
+            onSelectPlatform={setSelectedPlatformTab}
+            refetchAppConfig={refetchAppConfig}
+            refetchTeamConfig={refetchTeamConfig}
           />
         </div>
         <div className={`${baseClass}__nudge-preview`}>

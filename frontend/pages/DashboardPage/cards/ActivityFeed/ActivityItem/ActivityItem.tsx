@@ -5,6 +5,8 @@ import { formatDistanceToNowStrict } from "date-fns";
 import { ActivityType, IActivity, IActivityDetails } from "interfaces/activity";
 import {
   addGravatarUrlToResource,
+  formatScriptNameForActivityItem,
+  getPerformanceImpactDescription,
   internationalTimeFormat,
 } from "utilities/helpers";
 import { DEFAULT_GRAVATAR_LINK } from "utilities/constants";
@@ -13,6 +15,8 @@ import Button from "components/buttons/Button";
 import Icon from "components/Icon";
 import ReactTooltip from "react-tooltip";
 import PremiumFeatureIconWithTooltip from "components/PremiumFeatureIconWithTooltip";
+import { COLORS } from "styles/var/colors";
+import { getSoftwareInstallStatusPredicate } from "pages/hosts/details/cards/Activity/ActivityItems/InstalledSoftwareActivityItem/InstalledSoftwareActivityItem";
 
 const baseClass = "activity-item";
 
@@ -88,27 +92,40 @@ const TAGGED_TEMPLATES = {
     activity: IActivity,
     onDetailsClick?: (type: ActivityType, details: IActivityDetails) => void
   ) => {
-    const count = activity.details?.targets_count;
-    const queryName = activity.details?.query_name;
-    const querySql = activity.details?.query_sql;
+    const {
+      targets_count: count,
+      query_name: queryName,
+      query_sql: querySql,
+      stats,
+    } = activity.details || {};
 
-    const savedQueryName = queryName ? (
+    const impactDescription = stats
+      ? getPerformanceImpactDescription(stats)
+      : undefined;
+
+    const queryNameCopy = queryName ? (
       <>
-        the <b>{queryName}</b> query as
+        the <b>{queryName}</b> query
       </>
     ) : (
-      <></>
+      <>a live query</>
     );
 
-    const hostCount =
+    const impactCopy =
+      impactDescription && impactDescription !== "Undetermined" ? (
+        <>with {impactDescription.toLowerCase()} performance impact</>
+      ) : (
+        <></>
+      );
+    const hostCountCopy =
       count !== undefined
         ? ` on ${count} ${count === 1 ? "host" : "hosts"}`
         : "";
 
     return (
       <>
-        <span>
-          ran {savedQueryName} a live query {hostCount}.
+        <span className={`${baseClass}__details-content`}>
+          ran {queryNameCopy} {impactCopy} {hostCountCopy}.
         </span>
         {querySql && (
           <>
@@ -118,6 +135,7 @@ const TAGGED_TEMPLATES = {
               onClick={() =>
                 onDetailsClick?.(ActivityType.LiveQuery, {
                   query_sql: querySql,
+                  stats,
                 })
               }
             >
@@ -164,7 +182,14 @@ const TAGGED_TEMPLATES = {
     return "was added to Fleet by SSO.";
   },
   userLoggedIn: (activity: IActivity) => {
-    return `successfully logged in from public IP ${activity.details?.public_ip}.`;
+    return (
+      <>
+        successfully logged in
+        {activity.details?.public_ip &&
+          ` from public IP ${activity.details?.public_ip}`}
+        .
+      </>
+    );
   },
   userFailedLogin: (activity: IActivity) => {
     return (
@@ -327,7 +352,9 @@ const TAGGED_TEMPLATES = {
         {" "}
         added{" "}
         {profileName ? (
-          <>configuration profile {profileName}</>
+          <>
+            configuration profile <b>{profileName}</b>
+          </>
         ) : (
           <>a configuration profile</>
         )}{" "}
@@ -348,7 +375,9 @@ const TAGGED_TEMPLATES = {
         {" "}
         deleted{" "}
         {profileName ? (
-          <>configuration profile {profileName}</>
+          <>
+            configuration profile <b>{profileName}</b>
+          </>
         ) : (
           <>a configuration profile</>
         )}{" "}
@@ -383,7 +412,9 @@ const TAGGED_TEMPLATES = {
         {" "}
         added{" "}
         {profileName ? (
-          <>configuration profile {profileName}</>
+          <>
+            configuration profile <b>{profileName}</b>
+          </>
         ) : (
           <>a configuration profile</>
         )}{" "}
@@ -404,7 +435,9 @@ const TAGGED_TEMPLATES = {
         {" "}
         deleted{" "}
         {profileName ? (
-          <>configuration profile {profileName}</>
+          <>
+            configuration profile <b>{profileName}</b>
+          </>
         ) : (
           <>a configuration profile</>
         )}{" "}
@@ -432,13 +465,13 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
-  enableMacDiskEncryption: (activity: IActivity) => {
+  enabledDiskEncryption: (activity: IActivity) => {
     const suffix = getDiskEncryptionMessageSuffix(activity.details?.team_name);
-    return <> enforced disk encryption for macOS hosts {suffix}.</>;
+    return <> enforced disk encryption for hosts {suffix}.</>;
   },
-  disableMacDiskEncryption: (activity: IActivity) => {
+  disabledEncryption: (activity: IActivity) => {
     const suffix = getDiskEncryptionMessageSuffix(activity.details?.team_name);
-    return <>removed disk encryption enforcement for macOS hosts {suffix}.</>;
+    return <>removed disk encryption enforcement for hosts {suffix}.</>;
   },
   changedMacOSSetupAssistant: (activity: IActivity) => {
     return getMacOSSetupAssistantMessage(
@@ -461,7 +494,7 @@ const TAGGED_TEMPLATES = {
 
     const activityType = lowerCase(activity.type).replace(" saved", "");
 
-    return !entityName ? (
+    return !entityName || typeof entityName !== "string" ? (
       `${activityType}.`
     ) : (
       <>
@@ -574,7 +607,7 @@ const TAGGED_TEMPLATES = {
     );
   },
 
-  enabledWindowsMdm: (activity: IActivity) => {
+  enabledWindowsMdm: () => {
     return (
       <>
         {" "}
@@ -583,23 +616,29 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
-  disabledWindowsMdm: (activity: IActivity) => {
+  disabledWindowsMdm: () => {
     return <> told Fleet to turn off Windows MDM features.</>;
   },
+  // TODO: Combine ranScript template with host details page templates
+  // frontend/pages/hosts/details/cards/Activity/PastActivity/PastActivity.tsx and
+  // frontend/pages/hosts/details/cards/Activity/UpcomingActivity/UpcomingActivity.tsx
   ranScript: (
     activity: IActivity,
     onDetailsClick?: (type: ActivityType, details: IActivityDetails) => void
   ) => {
+    const { script_name, host_display_name, script_execution_id } =
+      activity.details || {};
     return (
       <>
         {" "}
-        ran a script on {activity.details?.host_display_name}.{" "}
+        ran {formatScriptNameForActivityItem(script_name)} on{" "}
+        <b>{host_display_name}</b>.{" "}
         <Button
           className={`${baseClass}__show-query-link`}
           variant="text-link"
           onClick={() =>
             onDetailsClick?.(ActivityType.RanScript, {
-              script_execution_id: activity.details?.script_execution_id,
+              script_execution_id,
             })
           }
         >
@@ -696,8 +735,166 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
-  deletedMultipleSavedQuery: (activity: IActivity) => {
+  deletedMultipleSavedQuery: () => {
     return <> deleted multiple queries.</>;
+  },
+  lockedHost: (activity: IActivity) => {
+    return (
+      <>
+        {" "}
+        locked <b>{activity.details?.host_display_name}</b>.
+      </>
+    );
+  },
+  unlockedHost: (activity: IActivity) => {
+    if (activity.details?.host_platform === "darwin") {
+      return (
+        <>
+          {" "}
+          viewed the six-digit unlock PIN for{" "}
+          <b>{activity.details?.host_display_name}</b>.
+        </>
+      );
+    }
+    return (
+      <>
+        {" "}
+        unlocked <b>{activity.details?.host_display_name}</b>.
+      </>
+    );
+  },
+  wipedHost: (activity: IActivity) => {
+    return (
+      <>
+        {" "}
+        wiped <b>{activity.details?.host_display_name}</b>.
+      </>
+    );
+  },
+  createdDeclarationProfile: (activity: IActivity, isPremiumTier: boolean) => {
+    return (
+      <>
+        {" "}
+        added declaration (DDM) profile <b>
+          {activity.details?.profile_name}
+        </b>{" "}
+        to{" "}
+        {getProfileMessageSuffix(
+          isPremiumTier,
+          "darwin",
+          activity.details?.team_name
+        )}
+        .
+      </>
+    );
+  },
+  deletedDeclarationProfile: (activity: IActivity, isPremiumTier: boolean) => {
+    return (
+      <>
+        {" "}
+        removed declaration (DDM) profile{" "}
+        <b>{activity.details?.profile_name}</b> from{" "}
+        {getProfileMessageSuffix(
+          isPremiumTier,
+          "darwin",
+          activity.details?.team_name
+        )}
+        .
+      </>
+    );
+  },
+  editedDeclarationProfile: (activity: IActivity, isPremiumTier: boolean) => {
+    return (
+      <>
+        {" "}
+        edited declaration (DDM) profiles{" "}
+        <b>{activity.details?.profile_name}</b> for{" "}
+        {getProfileMessageSuffix(
+          isPremiumTier,
+          "darwin",
+          activity.details?.team_name
+        )}{" "}
+        via fleetctl.
+      </>
+    );
+  },
+
+  resentConfigProfile: (activity: IActivity) => {
+    return (
+      <>
+        {" "}
+        resent {activity.details?.profile_name} configuration profile to{" "}
+        {activity.details?.host_display_name}.
+      </>
+    );
+  },
+  addedSoftware: (activity: IActivity) => {
+    return (
+      <>
+        {" "}
+        added <b>{activity.details?.software_title}</b> (
+        {activity.details?.software_package}) software to{" "}
+        {activity.details?.team_name ? (
+          <>
+            {" "}
+            the <b>{activity.details?.team_name}</b> team.
+          </>
+        ) : (
+          "no team."
+        )}
+      </>
+    );
+  },
+  deletedSoftware: (activity: IActivity) => {
+    return (
+      <>
+        {" "}
+        deleted <b>{activity.details?.software_title}</b> (
+        {activity.details?.software_package}) software from{" "}
+        {activity.details?.team_name ? (
+          <>
+            {" "}
+            the <b>{activity.details?.team_name}</b> team.
+          </>
+        ) : (
+          "no team."
+        )}
+      </>
+    );
+  },
+  installedSoftware: (
+    activity: IActivity,
+    onDetailsClick?: (type: ActivityType, details: IActivityDetails) => void
+  ) => {
+    const { details } = activity;
+    if (!details) {
+      return TAGGED_TEMPLATES.defaultActivityTemplate(activity);
+    }
+
+    const {
+      host_display_name: hostName,
+      software_title: title,
+      status,
+      install_uuid,
+    } = details;
+
+    return (
+      <>
+        {" "}
+        {getSoftwareInstallStatusPredicate(status)} <b>{title}</b> software on{" "}
+        <b>{hostName}</b>.{" "}
+        <Button
+          className={`${baseClass}__show-query-link`}
+          variant="text-link"
+          onClick={() =>
+            onDetailsClick?.(ActivityType.InstalledSoftware, { install_uuid })
+          }
+        >
+          Show details{" "}
+          <Icon className={`${baseClass}__show-query-icon`} name="eye" />
+        </Button>
+      </>
+    );
   },
 };
 
@@ -788,11 +985,17 @@ const getDetail = (
     case ActivityType.EditedWindowsProfile: {
       return TAGGED_TEMPLATES.editWindowsProfile(activity, isPremiumTier);
     }
+    // Note: Both "enabled_disk_encryption" and "enabled_macos_disk_encryption" display the same
+    // message. The latter is deprecated in the API but it is retained here for backwards compatibility.
+    case ActivityType.EnabledDiskEncryption:
     case ActivityType.EnabledMacDiskEncryption: {
-      return TAGGED_TEMPLATES.enableMacDiskEncryption(activity);
+      return TAGGED_TEMPLATES.enabledDiskEncryption(activity);
     }
+    // Note: Both "disabled_disk_encryption" and "disabled_macos_disk_encryption" display the same
+    // message. The latter is deprecated in the API but it is retained here for backwards compatibility.
+    case ActivityType.DisabledDiskEncryption:
     case ActivityType.DisabledMacDiskEncryption: {
-      return TAGGED_TEMPLATES.disableMacDiskEncryption(activity);
+      return TAGGED_TEMPLATES.disabledEncryption(activity);
     }
     case ActivityType.AddedBootstrapPackage: {
       return TAGGED_TEMPLATES.addedMDMBootstrapPackage(activity);
@@ -816,10 +1019,10 @@ const getDetail = (
       return TAGGED_TEMPLATES.transferredHosts(activity);
     }
     case ActivityType.EnabledWindowsMdm: {
-      return TAGGED_TEMPLATES.enabledWindowsMdm(activity);
+      return TAGGED_TEMPLATES.enabledWindowsMdm();
     }
     case ActivityType.DisabledWindowsMdm: {
-      return TAGGED_TEMPLATES.disabledWindowsMdm(activity);
+      return TAGGED_TEMPLATES.disabledWindowsMdm();
     }
     case ActivityType.RanScript: {
       return TAGGED_TEMPLATES.ranScript(activity, onDetailsClick);
@@ -837,8 +1040,45 @@ const getDetail = (
       return TAGGED_TEMPLATES.editedWindowsUpdates(activity);
     }
     case ActivityType.DeletedMultipleSavedQuery: {
-      return TAGGED_TEMPLATES.deletedMultipleSavedQuery(activity);
+      return TAGGED_TEMPLATES.deletedMultipleSavedQuery();
     }
+    case ActivityType.LockedHost: {
+      return TAGGED_TEMPLATES.lockedHost(activity);
+    }
+    case ActivityType.UnlockedHost: {
+      return TAGGED_TEMPLATES.unlockedHost(activity);
+    }
+    case ActivityType.WipedHost: {
+      return TAGGED_TEMPLATES.wipedHost(activity);
+    }
+    case ActivityType.CreatedDeclarationProfile: {
+      return TAGGED_TEMPLATES.createdDeclarationProfile(
+        activity,
+        isPremiumTier
+      );
+    }
+    case ActivityType.DeletedDeclarationProfile: {
+      return TAGGED_TEMPLATES.deletedDeclarationProfile(
+        activity,
+        isPremiumTier
+      );
+    }
+    case ActivityType.EditedDeclarationProfile: {
+      return TAGGED_TEMPLATES.editedDeclarationProfile(activity, isPremiumTier);
+    }
+    case ActivityType.ResentConfigurationProfile: {
+      return TAGGED_TEMPLATES.resentConfigProfile(activity);
+    }
+    case ActivityType.AddedSoftware: {
+      return TAGGED_TEMPLATES.addedSoftware(activity);
+    }
+    case ActivityType.DeletedSoftware: {
+      return TAGGED_TEMPLATES.deletedSoftware(activity);
+    }
+    case ActivityType.InstalledSoftware: {
+      return TAGGED_TEMPLATES.installedSoftware(activity, onDetailsClick);
+    }
+
     default: {
       return TAGGED_TEMPLATES.defaultActivityTemplate(activity);
     }
@@ -876,18 +1116,30 @@ const ActivityItem = ({
     isSandboxMode && PREMIUM_ACTIVITIES.has(activity.type);
 
   const renderActivityPrefix = () => {
-    if (activity.type === ActivityType.UserLoggedIn) {
-      return <b>{activity.actor_email} </b>;
+    const DEFAULT_ACTOR_DISPLAY = <b>{activity.actor_full_name} </b>;
+
+    switch (activity.type) {
+      case ActivityType.UserLoggedIn:
+        return <b>{activity.actor_email} </b>;
+      case ActivityType.UserChangedGlobalRole:
+      case ActivityType.UserChangedTeamRole:
+        return activity.actor_id === activity.details?.user_id ? (
+          <b>{activity.details?.user_email} </b>
+        ) : (
+          DEFAULT_ACTOR_DISPLAY
+        );
+      case ActivityType.InstalledSoftware:
+        return activity.details?.self_service ? (
+          <span>An end user</span>
+        ) : (
+          DEFAULT_ACTOR_DISPLAY
+        );
+
+      default:
+        return DEFAULT_ACTOR_DISPLAY;
     }
-    if (
-      (activity.type === ActivityType.UserChangedGlobalRole ||
-        activity.type === ActivityType.UserChangedTeamRole) &&
-      activity.actor_id === activity.details?.user_id
-    ) {
-      return <b>{activity.details?.user_email} </b>;
-    }
-    return <b>{activity.actor_full_name} </b>;
   };
+
   return (
     <div className={baseClass}>
       <Avatar
@@ -897,7 +1149,7 @@ const ActivityItem = ({
         hasWhiteBackground
       />
       <div className={`${baseClass}__details-wrapper`}>
-        <div className={"activity-details"}>
+        <div className="activity-details">
           {indicatePremiumFeature && <PremiumFeatureIconWithTooltip />}
           <span className={`${baseClass}__details-topline`}>
             {renderActivityPrefix()}
@@ -919,7 +1171,7 @@ const ActivityItem = ({
             type="dark"
             effect="solid"
             id={`activity-${activity.id}`}
-            backgroundColor="#3e4771"
+            backgroundColor={COLORS["tooltip-bg"]}
           >
             {internationalTimeFormat(activityCreatedAt)}
           </ReactTooltip>

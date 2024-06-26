@@ -19,6 +19,8 @@
     display: flex;
     gap: $pad-xsmall;
     span {
+      display: flex;
+      align-items: center;
       background-color: $core-vibrant-blue;
       color: $core-white;
       font-size: $xx-small;
@@ -55,6 +57,7 @@
     color: $core-vibrant-blue;
     font-weight: $bold;
     text-decoration: none !important;
+    gap: $pad-small;
 
     &:focus-visible {
       outline: 1px solid $core-vibrant-blue;
@@ -62,10 +65,5 @@
   }
   &__action-button-text {
     text-align: right;
-  }
-
-  .icon {
-    margin-left: $pad-small;
-    vertical-align: sub;
   }
 }

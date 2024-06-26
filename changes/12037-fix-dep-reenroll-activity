@@ -1,1 +1,0 @@
-* Fix `installed_from_dep` in `mdm_enrolled` activity when a DEP device unenrolls and re-enrolls.

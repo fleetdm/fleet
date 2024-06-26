@@ -1,6 +1,7 @@
 package live_query_mock
 
 import (
+	"context"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -43,5 +44,11 @@ func (m *MockLiveQuery) QueriesForHost(hostID uint) (map[string]string, error) {
 // QueryCompletedByHost mocks the live query store QueryCompletedByHost method.
 func (m *MockLiveQuery) QueryCompletedByHost(name string, hostID uint) error {
 	args := m.Called(name, hostID)
+	return args.Error(0)
+}
+
+// CleanupInactiveQueries mocks the live query store CleanupInactiveQueries method.
+func (m *MockLiveQuery) CleanupInactiveQueries(ctx context.Context, inactiveCampaignIDs []uint) error {
+	args := m.Called(ctx, inactiveCampaignIDs)
 	return args.Error(0)
 }

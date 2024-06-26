@@ -33,6 +33,11 @@ func main() {
 	commit := os.Getenv("ORBIT_COMMIT")
 	date := time.Now().UTC().Format("2006-01-02T15:04:05Z")
 
+	binaryPath := os.Getenv("ORBIT_BINARY_PATH")
+	if binaryPath == "" {
+		binaryPath = "orbit-darwin"
+	}
+
 	codesign := false
 	if codesignIdentity != "" {
 		codesign = true
@@ -50,7 +55,6 @@ func main() {
 	const (
 		amdBinaryPath    = "orbit-darwin-amd64"
 		armBinaryPath    = "orbit-darwin-arm64"
-		binaryPath       = "orbit-darwin"
 		bundleIdentifier = "com.fleetdm.orbit"
 	)
 	if err := buildOrbit(amdBinaryPath, "amd64", version, commit, date); err != nil {

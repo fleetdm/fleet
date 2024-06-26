@@ -12,7 +12,7 @@ export interface IRevealButtonProps {
   caretPosition?: "before" | "after";
   autofocus?: boolean;
   disabled?: boolean;
-  tooltipHtml?: string;
+  tooltipContent?: React.ReactNode;
   onClick?:
     | ((value?: any) => void)
     | ((evt: React.MouseEvent<HTMLButtonElement>) => void);
@@ -28,7 +28,7 @@ const RevealButton = ({
   caretPosition,
   autofocus,
   disabled,
-  tooltipHtml,
+  tooltipContent,
   onClick,
 }: IRevealButtonProps): JSX.Element => {
   const classNames = classnames(baseClass, className);
@@ -36,8 +36,8 @@ const RevealButton = ({
   const buttonContent = () => {
     const text = isShowing ? hideText : showText;
 
-    const buttonText = tooltipHtml ? (
-      <TooltipWrapper tipContent={tooltipHtml}>{text}</TooltipWrapper>
+    const buttonText = tooltipContent ? (
+      <TooltipWrapper tipContent={tooltipContent}>{text}</TooltipWrapper>
     ) : (
       text
     );

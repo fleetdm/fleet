@@ -1,5 +1,6 @@
 import Arrow from "./Arrow";
 import ArrowInternalLink from "./ArrowInternalLink";
+import Calendar from "./Calendar";
 import CalendarCheck from "./CalendarCheck";
 import Check from "./Check";
 import ChevronLeft from "./ChevronLeft";
@@ -47,16 +48,23 @@ import Clock from "./Clock";
 import Copy from "./Copy";
 import Eye from "./Eye";
 import Pencil from "./Pencil";
+import Sparkles from "./Sparkles";
+import Text from "./Text";
 import Transfer from "./Transfer";
 import TrashCan from "./TrashCan";
 import Profile from "./Profile";
 import Download from "./Download";
+import Upload from "./Upload";
 import Refresh from "./Refresh";
+import Install from "./Install";
+import InstallSelfService from "./InstallSelfService";
+import Settings from "./Settings";
 
 // a mapping of the usable names of icons to the icon source.
 export const ICON_MAP = {
   arrow: Arrow,
   "arrow-internal-link": ArrowInternalLink,
+  calendar: Calendar,
   "calendar-check": CalendarCheck,
   "chevron-left": ChevronLeft,
   "chevron-right": ChevronRight,
@@ -83,6 +91,8 @@ export const ICON_MAP = {
   eye: Eye,
   pencil: Pencil,
   search: Search,
+  sparkles: Sparkles,
+  text: Text,
   transfer: Transfer,
   trash: TrashCan,
   success: Success,
@@ -107,7 +117,11 @@ export const ICON_MAP = {
   "premium-feature": PremiumFeature,
   profile: Profile,
   download: Download,
+  upload: Upload,
   refresh: Refresh,
+  install: Install,
+  "install-self-service": InstallSelfService,
+  settings: Settings,
 };
 
 export type IconNames = keyof typeof ICON_MAP;

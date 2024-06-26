@@ -3,8 +3,10 @@ package service
 import (
 	"encoding/json"
 	"net/http"
+	"os"
 	"testing"
 
+	kitlog "github.com/go-kit/log"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
@@ -17,12 +19,16 @@ type integrationSMTPTestSuite struct {
 func (s *integrationSMTPTestSuite) SetupSuite() {
 	s.withDS.SetupSuite("integrationSMTPTestSuite")
 
+	opts := &TestServerOpts{
+		UseMailService: true,
+	}
+	if os.Getenv("FLEET_INTEGRATION_TESTS_DISABLE_LOG") != "" {
+		opts.Logger = kitlog.NewNopLogger()
+	}
 	users, server := RunServerForTestsWithDS(
 		s.T(),
 		s.ds,
-		&TestServerOpts{
-			UseMailService: true,
-		})
+		opts)
 	s.server = server
 	s.users = users
 	s.token = s.getTestAdminToken()

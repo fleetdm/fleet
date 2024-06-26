@@ -11,6 +11,13 @@ export interface INavItem {
     pathname: string;
   };
   exclude?: boolean;
+  /** If `true`, this nav item will always navigate to the given `location.pathname`. This
+   * is useful when you want to always naviate to a specific path no matter
+   * which child page you are on (e.g. always navigate to /sofware/titles/ when
+   * clicking on the software nav item even if on /software/versions,
+   * software/titles/:id, or /software/versions/:id). Defaults to `undefined`.
+   */
+  alwaysToPathname?: boolean;
   withParams?: { type: "query"; names: string[] };
 }
 
@@ -67,8 +74,9 @@ export default (
       name: "Software",
       location: {
         regex: new RegExp(`^${URL_PREFIX}/software/`),
-        pathname: PATHS.MANAGE_SOFTWARE,
+        pathname: PATHS.SOFTWARE_TITLES,
       },
+      alwaysToPathname: true,
       withParams: { type: "query", names: ["team_id"] },
     },
     {

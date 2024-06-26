@@ -25,7 +25,7 @@ If you are not using the latest version of osquery, you can create a config YAML
 fleetctl apply --force -f config.yaml
 ```
 
-You can verify that your agent options are valid by using [the fleetctl apply command](https://fleetdm.com/docs/using-fleet/fleetctl-cli#fleetctl-apply) with the `--dry-run` flag. This will report any error and do nothing if the configuration was valid. If you don't use the latest version of osquery, you can override validation using the `--force` flag. This will update agent options even if they are invalid.
+You can verify that your agent options are valid by using [the `fleetctl apply` command](https://fleetdm.com/docs/using-fleet/fleetctl-cli) with the `--dry-run` flag. This will report any error and do nothing if the configuration was valid. If you don't use the latest version of osquery, you can override validation using the `--force` flag. This will update agent options even if they are invalid.
 
 Existing options will be overwritten by the application of this file.
 
@@ -132,7 +132,7 @@ apiVersion: v1
 kind: config
 spec:
   agent_options:
-    command_line_flags: # requires Fleet's osquery installer
+    command_line_flags: # requires Fleet's agent (fleetd)
       verbose: true
       disable_watchdog: false
       logger_path: /path/to/logger
@@ -144,7 +144,7 @@ You can verify that these flags have taken effect on the hosts by running a quer
 
 > If you revoked an old enroll secret, this feature won't update for hosts that were added to Fleet using this old enroll secret. This is because Fleetd uses the enroll secret to receive new flags from Fleet. For these hosts, all existing features will work as expected.
 
-For further documentation on how to rotate enroll secrets, please see [this guide](#rotating-enroll-secrets).
+For further documentation on how to rotate enroll secrets, please see [this guide](https://fleetdm.com/docs/configuration/configuration-files#rotating-enroll-secrets).
 
 If you prefer to deploy a new package with the updated enroll secret:
 
@@ -176,7 +176,7 @@ spec:
 
 ## Extensions
 
-> This feature requires [Fleetd, the Fleet agent manager](https://fleetdm.com/announcements/introducing-orbit-your-fleet-agent-manager), along with a custom TUF auto-update server.
+> This feature requires [Fleetd, the Fleet agent manager](https://fleetdm.com/announcements/introducing-orbit-your-fleet-agent-manager), along with a custom TUF auto-update server (a Fleet Premium feature).
 
 The `extensions` key inside of `agent_options` allows you to remotely manage and deploy osquery extensions. Just like other `agent_options` the `extensions` key can be applied either to a team specific one or the global one.
 
@@ -186,7 +186,7 @@ apiVersion: v1
 kind: config
 spec:
   agent_options:
-    extensions: # requires Fleet's osquery installer
+    extensions: # requires Fleet's agent (fleetd)
       hello_world_macos:
         channel: 'stable'
         platform: 'macos'
@@ -252,7 +252,7 @@ apiVersion: v1
 kind: config
 spec:
   agent_options:
-    extensions: # requires Fleet's osquery installer
+    extensions: # requires Fleet's agent (fleetd)
       hello_world_macos:
         channel: 'stable'
         platform: 'macos'
@@ -271,6 +271,53 @@ spec:
 In the above example:
 - the `hello_world_macos` extension is deployed to macOS hosts that are members of the 'Zoom installed' label.
 - the `hello_world_linux` extension is deployed to Linux hosts that are members of the 'Ubuntu Linux' **and** 'Zoom installed' labels.
+
+### Configure fleetd update channels
+
+_Available in Fleet Premium v4.43.0 and fleetd v1.20.0_
+
+Users can configure fleetd component TUF auto-update channels from Fleet's agent options. The components that can be configured are `orbit`, `osqueryd` and `desktop` (Fleet Desktop). When one of these components is omitted in `update_channels` then `stable` is assumed as the value for such component.
+
+Examples:
+```yaml
+apiVersion: v1
+kind: config
+spec:
+  agent_options:
+    update_channels: # requires Fleet's agent (fleetd)
+      orbit: stable
+      osqueryd: '5.10.2'
+      desktop: edge
+```
+```yaml
+apiVersion: v1
+kind: config
+spec:
+  agent_options:
+    update_channels: # requires Fleet's agent (fleetd)
+      orbit: edge
+      osqueryd: '5.10.2'
+      # in this configuration `desktop` is assumed to be "stable"
+```
+
+- If a configured channel doesn't exist in the TUF repository, then fleetd will log errors on the hosts and will not auto-update the component/s until the channel is changed to a valid value in Fleet's `update_channels` configuration or until the user pushes the component to the channel (which effectively creates the channel).
+- If the `update_channels` setting is removed from the agent settings, the devices will continue to use the last configured channels.
+- If Fleet Desktop is disabled in fleetd, then the `desktop` channel setting is ignored by the host.
+
+#### Auto update startup loop
+
+Following we document an edge case scenario that could happen when using this feature.
+
+After upgrading `orbit` on your devices to `1.20.0` using this feature, beware of downgrading `orbit` by changing it to a channel that's older than `1.20.0`. The auto-update system in orbit could end up in an update startup loop (where orbit starts, changes its channel and restarts over and over).
+
+Following are the conditions (to avoid) that lead to the auto-update loop:
+1. fleetd with `orbit` < `1.20.0` was packaged/configured to run with orbit channel `A`.
+2. `orbit`'s channel `A` is updated to >= `1.20.0`.
+3. `orbit`'s channel in the Fleet agent settings is configured to `B`, where channel `B` has orbit version < `1.20.0`.
+
+This update startup loop can be fixed by any one of these actions:
+A. Downgrading channel `A` to < `1.20.0`.
+B. Upgrading channel `B` to >= `1.20.0`.
 
 ## Config
 
@@ -443,20 +490,6 @@ overrides:
             - "service"
             - "client"
             - "last_modified"
-```
-
-## Command line flags
-
-> Requires Fleet v4.22.0 or later and Orbit v1.3.0 or later**
-
-In the `command_line_flags` key, you can update the osquery flags of your Orbit enrolled agents.
-
-```yaml
-agent_options:
-  config:
-  overrides:
-  command_line_flags:
-    enable_file_events: true
 ```
 
 ## Update agent options in Fleet UI

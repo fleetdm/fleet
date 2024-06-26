@@ -1,11 +1,13 @@
 package service
 
 import (
-	"github.com/fleetdm/fleet/v4/server/ptr"
+	"fmt"
 	"net/http"
 	"net/url"
 	"strings"
 	"testing"
+
+	"github.com/fleetdm/fleet/v4/server/ptr"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/stretchr/testify/assert"
@@ -13,7 +15,7 @@ import (
 )
 
 func TestListOptionsFromRequest(t *testing.T) {
-	var listOptionsTests = []struct {
+	listOptionsTests := []struct {
 		// url string to parse
 		url string
 		// expected list options
@@ -121,14 +123,13 @@ func TestListOptionsFromRequest(t *testing.T) {
 
 				assert.Nil(t, err)
 				assert.Equal(t, tt.listOptions, opt)
-
 			},
 		)
 	}
 }
 
 func TestHostListOptionsFromRequest(t *testing.T) {
-	var hostListOptionsTests = map[string]struct {
+	hostListOptionsTests := map[string]struct {
 		// url string to parse
 		url string
 		// expected options
@@ -154,10 +155,10 @@ func TestHostListOptionsFromRequest(t *testing.T) {
 		"all params defined": {
 			url: "/foo?order_key=foo&order_direction=asc&page=10&per_page=1&device_mapping=T&additional_info_filters" +
 				"=filter1,filter2&status=new&team_id=2&policy_id=3&policy_response=passing&software_id=4&os_id=5" +
-				"&os_name=osName&os_version=osVersion&disable_failing_policies=1&macos_settings=verified" +
+				"&os_name=osName&os_version=osVersion&os_version_id=5&disable_failing_policies=0&disable_issues=1&macos_settings=verified" +
 				"&macos_settings_disk_encryption=enforcing&os_settings=pending&os_settings_disk_encryption=failed" +
 				"&bootstrap_package=installed&mdm_id=6&mdm_name=mdmName&mdm_enrollment_status=automatic" +
-				"&munki_issue_id=7&low_disk_space=99",
+				"&munki_issue_id=7&low_disk_space=99&vulnerability=CVE-2023-42887&populate_policies=true",
 			hostListOptions: fleet.HostListOptions{
 				ListOptions: fleet.ListOptions{
 					OrderKey:       "foo",
@@ -173,9 +174,10 @@ func TestHostListOptionsFromRequest(t *testing.T) {
 				PolicyResponseFilter:              ptr.Bool(true),
 				SoftwareIDFilter:                  ptr.Uint(4),
 				OSIDFilter:                        ptr.Uint(5),
+				OSVersionIDFilter:                 ptr.Uint(5),
 				OSNameFilter:                      ptr.String("osName"),
 				OSVersionFilter:                   ptr.String("osVersion"),
-				DisableFailingPolicies:            true,
+				DisableIssues:                     true,
 				MacOSSettingsFilter:               fleet.OSSettingsVerified,
 				MacOSSettingsDiskEncryptionFilter: fleet.DiskEncryptionEnforcing,
 				OSSettingsFilter:                  fleet.OSSettingsPending,
@@ -186,6 +188,8 @@ func TestHostListOptionsFromRequest(t *testing.T) {
 				MDMEnrollmentStatusFilter:         fleet.MDMEnrollStatusAutomatic,
 				MunkiIssueIDFilter:                ptr.Uint(7),
 				LowDiskSpaceFilter:                ptr.Int(99),
+				VulnerabilityFilter:               ptr.String("CVE-2023-42887"),
+				PopulatePolicies:                  true,
 			},
 		},
 		"policy_id and policy_response params (for coverage)": {
@@ -234,6 +238,18 @@ func TestHostListOptionsFromRequest(t *testing.T) {
 		"error in disable_failing_policies": {
 			url:          "/foo?disable_failing_policies=foo",
 			errorMessage: "Invalid disable_failing_policies",
+		},
+		"error in disable_issues": {
+			url:          "/foo?disable_issues=foo",
+			errorMessage: "Invalid disable_issues",
+		},
+		"error in issues order key when disable_issues is set": {
+			url:          "/foo?disable_issues=true&order_key=issues",
+			errorMessage: "Invalid order_key",
+		},
+		"error in issues order key when disable_failing_policies is set": {
+			url:          "/foo?disable_failing_policies=true&order_key=issues",
+			errorMessage: "Invalid order_key",
 		},
 		"error in device_mapping": {
 			url:          "/foo?device_mapping=foo",
@@ -291,6 +307,52 @@ func TestHostListOptionsFromRequest(t *testing.T) {
 			url:          "/foo?os_name=foo",
 			errorMessage: "Invalid os_version",
 		},
+		"negative software_id": {
+			url:          "/foo?software_id=-10",
+			errorMessage: "Invalid software_id",
+		},
+		"negative software_version_id": {
+			url:          "/foo?software_version_id=-10",
+			errorMessage: "Invalid software_version_id",
+		},
+		"negative software_title_id": {
+			url:          "/foo?software_title_id=-10",
+			errorMessage: "Invalid software_title_id",
+		},
+		"software_title_id too big": {
+			url:          "/foo?software_title_id=" + fmt.Sprint(1<<33),
+			errorMessage: "Invalid software_title_id",
+		},
+		"software_version_id can be > 32bits": {
+			url: "/foo?software_version_id=" + fmt.Sprint(1<<33),
+			hostListOptions: fleet.HostListOptions{
+				SoftwareVersionIDFilter: ptr.Uint(1 << 33),
+			},
+		},
+		"good software_version_id": {
+			url: "/foo?software_version_id=1",
+			hostListOptions: fleet.HostListOptions{
+				SoftwareVersionIDFilter: ptr.Uint(1),
+			},
+		},
+		"good software_title_id": {
+			url: "/foo?software_title_id=1",
+			hostListOptions: fleet.HostListOptions{
+				SoftwareTitleIDFilter: ptr.Uint(1),
+			},
+		},
+		"invalid combination software_title_id and software_version_id": {
+			url:          "/foo?software_title_id=1&software_version_id=2",
+			errorMessage: "The combination of software_version_id and software_title_id is not allowed",
+		},
+		"invalid combination software_id and software_version_id": {
+			url:          "/foo?software_id=1&software_version_id=2",
+			errorMessage: "The combination of software_id and software_version_id is not allowed",
+		},
+		"invalid populate_policies": {
+			url:          "/foo?populate_policies=foo",
+			errorMessage: "populate_policies",
+		},
 	}
 
 	for name, tt := range hostListOptionsTests {
@@ -304,10 +366,7 @@ func TestHostListOptionsFromRequest(t *testing.T) {
 					assert.NotNil(t, err)
 					var be *fleet.BadRequestError
 					require.ErrorAs(t, err, &be)
-					assert.True(
-						t, strings.Contains(err.Error(), tt.errorMessage),
-						"error message '%v' should contain '%v'", err.Error(), tt.errorMessage,
-					)
+					require.Contains(t, err.Error(), tt.errorMessage)
 					return
 				}
 				assert.Nil(t, err)
@@ -318,7 +377,7 @@ func TestHostListOptionsFromRequest(t *testing.T) {
 }
 
 func TestCarveListOptionsFromRequest(t *testing.T) {
-	var carveListOptionsTests = map[string]struct {
+	carveListOptionsTests := map[string]struct {
 		// url string to parse
 		url string
 		// expected options
@@ -388,7 +447,7 @@ func TestCarveListOptionsFromRequest(t *testing.T) {
 }
 
 func TestUserListOptionsFromRequest(t *testing.T) {
-	var userListOptionsTests = map[string]struct {
+	userListOptionsTests := map[string]struct {
 		// url string to parse
 		url string
 		// expected options

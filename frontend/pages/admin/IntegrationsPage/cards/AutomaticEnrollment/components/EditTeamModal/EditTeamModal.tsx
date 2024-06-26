@@ -1,7 +1,11 @@
-import React, { useState, useContext, FormEvent } from "react";
+import React, { useState, useContext, FormEvent, useCallback } from "react";
 
 import { AppContext } from "context/app";
-import { APP_CONTEXT_NO_TEAM_ID } from "interfaces/team";
+import { NotificationContext } from "context/notification";
+import {
+  APP_CONTEXT_NO_TEAM_ID,
+  APP_CONTEX_NO_TEAM_SUMMARY,
+} from "interfaces/team";
 import configAPI from "services/entities/config";
 
 // @ts-ignore
@@ -12,7 +16,6 @@ import Button from "components/buttons/Button";
 interface IEditTeamModal {
   onCancel: () => void;
   defaultTeamName: string;
-  onUpdateSuccess: (newName: string) => void;
 }
 
 const baseClass = "edit-team-modal";
@@ -20,34 +23,54 @@ const baseClass = "edit-team-modal";
 const EditTeamModal = ({
   onCancel,
   defaultTeamName,
-  onUpdateSuccess,
 }: IEditTeamModal): JSX.Element => {
-  const { availableTeams } = useContext(AppContext);
+  const { availableTeams, setConfig } = useContext(AppContext);
+  const { renderFlash } = useContext(NotificationContext);
 
   const [selectedTeam, setSelectedTeam] = useState(defaultTeamName);
 
-  // TODO: Should this include "No team" as an option?
   const teamNameOptions = availableTeams
-    ?.filter((t) => t.id > APP_CONTEXT_NO_TEAM_ID)
+    ?.filter((t) => t.id >= APP_CONTEXT_NO_TEAM_ID)
     .map((teamSummary) => {
-      return { value: teamSummary.name, label: teamSummary.name };
+      return {
+        value:
+          teamSummary.name === APP_CONTEX_NO_TEAM_SUMMARY.name
+            ? ""
+            : teamSummary.name,
+        label: teamSummary.name,
+      };
     });
 
   const [isLoading, setIsLoading] = useState(false);
 
-  const onFormSubmit = async (event: FormEvent) => {
-    event.preventDefault();
-    try {
+  const handleUpdateTeam = useCallback(
+    async (newName: string) => {
+      try {
+        const configData = await configAPI.update({
+          mdm: { apple_bm_default_team: newName },
+        });
+        renderFlash("success", "Default team updated successfully.");
+        setConfig(configData);
+      } catch (e) {
+        renderFlash(
+          "error",
+          "Unable to update default team. Please try again."
+        );
+      } finally {
+        onCancel();
+      }
+    },
+    [renderFlash, setConfig, onCancel]
+  );
+
+  const onFormSubmit = useCallback(
+    (evt: FormEvent<HTMLFormElement>) => {
+      evt.preventDefault();
       setIsLoading(true);
-      const configData = await configAPI.update({
-        mdm: { apple_bm_default_team: selectedTeam },
-      });
-      setIsLoading(false);
-      onUpdateSuccess(configData.mdm.apple_bm_default_team);
-    } finally {
-      onCancel();
-    }
-  };
+      handleUpdateTeam(selectedTeam);
+    },
+    [selectedTeam, setIsLoading, handleUpdateTeam]
+  );
 
   return (
     <Modal title="Edit team" onExit={onCancel} className={baseClass}>
@@ -59,11 +82,8 @@ const EditTeamModal = ({
             onChange={setSelectedTeam}
             value={selectedTeam}
             label="Team"
+            helpText="macOS hosts will be added to this team when they're first unboxed."
           />
-          <p>
-            macOS hosts will be added to this team when they&apos;re first
-            unboxed.
-          </p>
         </div>
         <div className="modal-cta-wrap">
           <Button type="submit" variant="brand" isLoading={isLoading}>

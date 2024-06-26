@@ -1,10 +1,8 @@
 name: curl
-examples: >-
+examples: |-
   Connect over HTTP and retrieve statistics about the process. This is useful to
   detect machines on slow networks, or that have no Internet access.
 
   ```
-
   SELECT round_trip_time FROM curl WHERE URL='https://fleetdm.com';
-
   ```

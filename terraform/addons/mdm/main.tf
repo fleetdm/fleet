@@ -19,9 +19,9 @@ resource "aws_secretsmanager_secret" "scep" {
   }
 }
 
-resource "aws_secretsmanager_secret" "dep" {
-  count = var.dep_secret_name == null ? 0 : 1
-  name  = var.dep_secret_name
+resource "aws_secretsmanager_secret" "abm" {
+  count = var.abm_secret_name == null ? 0 : 1
+  name  = var.abm_secret_name
 
   recovery_window_in_days = "0"
   lifecycle {
@@ -34,7 +34,7 @@ data "aws_iam_policy_document" "main" {
     actions = ["secretsmanager:GetSecretValue"]
     resources = concat(var.enable_apple_mdm == false ? [] : [aws_secretsmanager_secret.apn[0].arn],
       [aws_secretsmanager_secret.scep.arn],
-    var.dep_secret_name == null ? [] : [aws_secretsmanager_secret.dep[0].arn])
+    var.abm_secret_name == null ? [] : [aws_secretsmanager_secret.abm[0].arn])
   }
 }
 

@@ -2,11 +2,16 @@ import React, { useState } from "react";
 
 import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
+import SectionHeader from "components/SectionHeader";
 
 import CustomLink from "components/CustomLink";
 import { IAppConfigFormProps, IFormField } from "../constants";
 
 const baseClass = "app-config-form";
+
+interface IStatisticsFormData {
+  enableUsageStatistics: boolean;
+}
 
 const Statistics = ({
   appConfig,
@@ -14,13 +19,13 @@ const Statistics = ({
   isPremiumTier,
   isUpdatingSettings,
 }: IAppConfigFormProps): JSX.Element => {
-  const [formData, setFormData] = useState<any>({
+  const [formData, setFormData] = useState<IStatisticsFormData>({
     enableUsageStatistics: appConfig.server_settings.enable_analytics,
   });
 
   const { enableUsageStatistics } = formData;
 
-  const handleInputChange = ({ name, value }: IFormField) => {
+  const onInputChange = ({ name, value }: IFormField) => {
     setFormData({ ...formData, [name]: value });
   };
 
@@ -30,10 +35,11 @@ const Statistics = ({
     // Formatting of API not UI
     const formDataToSubmit = {
       server_settings: {
-        server_url: appConfig.server_settings.server_url || "",
-        live_query_disabled:
-          appConfig.server_settings.live_query_disabled || false,
         enable_analytics: enableUsageStatistics,
+        deferred_save_host: appConfig.server_settings.deferred_save_host,
+        query_reports_disabled:
+          appConfig.server_settings.query_reports_disabled,
+        scripts_disabled: appConfig.server_settings.scripts_disabled,
       },
     };
 
@@ -41,10 +47,10 @@ const Statistics = ({
   };
 
   return (
-    <>
-      <form className={baseClass} onSubmit={onFormSubmit} autoComplete="off">
-        <div className={`${baseClass}__section`}>
-          <h2>Usage statistics</h2>
+    <div className={baseClass}>
+      <div className={`${baseClass}__section`}>
+        <SectionHeader title="Usage statistics" />
+        <form onSubmit={onFormSubmit} autoComplete="off">
           <p className={`${baseClass}__section-description`}>
             Help us improve Fleet by sending us anonymous usage statistics.
             <br />
@@ -61,32 +67,30 @@ const Statistics = ({
               newTab
             />
           </p>
-          <div className={`${baseClass}__inputs ${baseClass}__inputs--usage`}>
-            <Checkbox
-              onChange={handleInputChange}
-              name="enableUsageStatistics"
-              value={isPremiumTier ? true : enableUsageStatistics} // Set to true for all premium customers
-              parseTarget
-              wrapperClassName={
-                isPremiumTier
-                  ? `${baseClass}__disabled-usage-statistics-checkbox`
-                  : ""
-              }
-            >
-              Enable usage statistics
-            </Checkbox>
-          </div>
-        </div>
-        <Button
-          type="submit"
-          variant="brand"
-          className="save-loading"
-          isLoading={isUpdatingSettings}
-        >
-          Save
-        </Button>
-      </form>
-    </>
+          <Checkbox
+            onChange={onInputChange}
+            name="enableUsageStatistics"
+            value={isPremiumTier ? true : enableUsageStatistics} // Set to true for all premium customers
+            parseTarget
+            wrapperClassName={
+              isPremiumTier
+                ? `${baseClass}__disabled-usage-statistics-checkbox`
+                : ""
+            }
+          >
+            Enable usage statistics
+          </Checkbox>
+          <Button
+            type="submit"
+            variant="brand"
+            className="button-wrap"
+            isLoading={isUpdatingSettings}
+          >
+            Save
+          </Button>
+        </form>
+      </div>
+    </div>
   );
 };
 

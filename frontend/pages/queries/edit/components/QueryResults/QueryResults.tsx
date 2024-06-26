@@ -10,22 +10,28 @@ import {
   generateCSVFilename,
   generateCSVQueryResults,
 } from "utilities/generate_csv";
-import { ICampaign } from "interfaces/campaign";
+import { getTableColumnsFromSql } from "utilities/helpers";
+import { SUPPORT_LINK } from "utilities/constants";
+import { ICampaign, ICampaignError } from "interfaces/campaign";
 import { ITarget } from "interfaces/target";
 
 import Button from "components/buttons/Button";
 import Icon from "components/Icon/Icon";
 import TableContainer from "components/TableContainer";
+import TableCount from "components/TableContainer/TableCount";
 import TabsWrapper from "components/TabsWrapper";
 import ShowQueryModal from "components/modals/ShowQueryModal";
 import QueryResultsHeading from "components/queries/queryResults/QueryResultsHeading";
 import AwaitingResults from "components/queries/queryResults/AwaitingResults";
+import InfoBanner from "components/InfoBanner";
+import CustomLink from "components/CustomLink";
 
 import generateColumnConfigsFromRows from "./QueryResultsTableConfig";
 
 interface IQueryResultsProps {
   campaign: ICampaign;
   isQueryFinished: boolean;
+  isQueryClipped: boolean;
   queryName?: string;
   onRunQuery: () => void;
   onStopQuery: (evt: React.MouseEvent<HTMLButtonElement>) => void;
@@ -44,6 +50,7 @@ const NAV_TITLES = {
 const QueryResults = ({
   campaign,
   isQueryFinished,
+  isQueryClipped,
   queryName,
   onRunQuery,
   onStopQuery,
@@ -63,7 +70,9 @@ const QueryResults = ({
   const [resultsColumnConfigs, setResultsColumnConfigs] = useState<Column[]>(
     []
   );
-  const [errorColumnConfigs, setErrorColumnConfigs] = useState<Column[]>([]);
+  const [errorColumnConfigs, setErrorColumnConfigs] = useState<
+    Column<ICampaignError>[]
+  >([]);
   const [queryResultsForTableRender, setQueryResultsForTableRender] = useState(
     queryResults
   );
@@ -87,15 +96,18 @@ const QueryResults = ({
 
   useEffect(() => {
     if (queryResults && queryResults.length > 0) {
+      const tableColumns = getTableColumnsFromSql(lastEditedQueryBody);
+
       const newResultsColumnConfigs = generateColumnConfigsFromRows(
-        queryResults
+        queryResults,
+        tableColumns
       );
       // Update tableHeaders if new headers are found
       if (newResultsColumnConfigs !== resultsColumnConfigs) {
         setResultsColumnConfigs(newResultsColumnConfigs);
       }
     }
-  }, [queryResults]); // Cannot use tableHeaders as it will cause infinite loop with setTableHeaders
+  }, [queryResults, lastEditedQueryBody]); // Cannot use tableHeaders as it will cause infinite loop with setTableHeaders
 
   useEffect(() => {
     if (errorColumnConfigs?.length === 0 && !!errors?.length) {
@@ -157,6 +169,18 @@ const QueryResults = ({
     );
   };
 
+  const renderCount = useCallback(
+    (tableType: "errors" | "results") => {
+      const count =
+        tableType === "results"
+          ? filteredResults.length
+          : filteredErrors.length;
+
+      return <TableCount name={tableType} count={count} />;
+    },
+    [filteredResults.length, filteredErrors.length]
+  );
+
   const renderTableButtons = (tableType: "results" | "errors") => {
     return (
       <div className={`${baseClass}__results-cta`}>
@@ -194,7 +218,8 @@ const QueryResults = ({
     return (
       <div className={`${baseClass}__results-table-container`}>
         <TableContainer
-          columns={
+          defaultSortHeader="host_display_name"
+          columnConfigs={
             tableType === "results" ? resultsColumnConfigs : errorColumnConfigs
           }
           data={tableData || []}
@@ -208,8 +233,9 @@ const QueryResults = ({
           resultsTitle={tableType}
           customControl={() => renderTableButtons(tableType)}
           setExportRows={
-            tableType === "errors" ? setFilteredErrors : setFilteredResults
+            tableType === "results" ? setFilteredResults : setFilteredErrors
           }
+          renderCount={() => renderCount(tableType)}
         />
       </div>
     );
@@ -249,6 +275,18 @@ const QueryResults = ({
         onClickRunAgain={onRunAgain}
         onClickStop={onStopQuery}
       />
+      {isQueryClipped && (
+        <InfoBanner
+          color="yellow"
+          cta={<CustomLink url={SUPPORT_LINK} text="Get help" newTab />}
+        >
+          <div>
+            <b>Results clipped.</b> A sample of this query&apos;s results and
+            errors is included below. Please target fewer hosts at once to build
+            a full set of results.
+          </div>
+        </InfoBanner>
+      )}
       <TabsWrapper>
         <Tabs selectedIndex={navTabIndex} onSelect={(i) => setNavTabIndex(i)}>
           <TabList>
@@ -256,7 +294,9 @@ const QueryResults = ({
             <Tab disabled={!errors?.length}>
               <span>
                 {errors?.length > 0 && (
-                  <span className="count">{errors.length}</span>
+                  <span className="count">
+                    {errors.length.toLocaleString()}
+                  </span>
                 )}
                 {NAV_TITLES.ERRORS}
               </span>

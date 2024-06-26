@@ -184,6 +184,12 @@ parasails.registerPage('basic-documentation', {
       });
     })();
 
+    // Set counters for items in ordered lists to be the value of their "start" attribute.
+    document.querySelectorAll('ol[start]').forEach((ol)=> {
+      let startValue = parseInt(ol.getAttribute('start'), 10) - 1;
+      ol.style.counterReset = 'custom-counter ' + startValue;
+    });
+
     // Adding event handlers to the links nested in headings on the page, allowing users to copy links by clicking on the link icon next to the heading.
     let headingsOnThisPage = $('#body-content').find(':header');
     for(let key in Object.values(headingsOnThisPage)){
@@ -216,13 +222,18 @@ parasails.registerPage('basic-documentation', {
   //  ╩╝╚╝ ╩ ╚═╝╩╚═╩ ╩╚═╝ ╩ ╩╚═╝╝╚╝╚═╝
   methods: {
 
-    clickOpenChatWidget: function() {
-      if(window.HubSpotConversations && window.HubSpotConversations.widget){
-        window.HubSpotConversations.widget.open();
+    clickSwagRequestCTA: function () {
+      if(typeof gtag !== 'undefined') {
+        gtag('event','website_swag_request');
       }
+      if(typeof window.lintrk !== 'undefined') {
+        window.lintrk('track', { conversion_id: 18587105 });// eslint-disable-line camelcase
+      }
+      this.goto('https://kqphpqst851.typeform.com/to/ZfA3sOu0');
     },
+
     clickCTA: function (slug) {
-      window.location = slug;
+      this.goto(slug);
     },
 
     isCurrentSection: function (section) {
@@ -247,7 +258,6 @@ parasails.registerPage('basic-documentation', {
     findAndSortNavSectionsByUrl: function (url='') {
       let NAV_SECTION_ORDER_BY_DOCS_SLUG = {
         'using-fleet':['The basics', 'Device management', 'Vuln management', 'Security compliance', 'Osquery management', 'Dig deeper'],
-        'deploy':['Uncategorized','TBD','Deployment guides'],
       };
       let slug = _.last(url.split(/\//));
       //

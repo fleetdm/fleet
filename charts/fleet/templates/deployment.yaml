@@ -96,6 +96,13 @@ spec:
             value: "{{ .Values.fleet.carving.s3.stsAssumeRoleARN }}"
           {{- end }}
           {{- end }}
+          {{- if .Values.fleet.license.secretName }}
+          - name: FLEET_LICENSE_KEY
+            valueFrom:
+              secretKeyRef:
+                key: {{ .Values.fleet.license.licenseKey }}
+                name: {{ .Values.fleet.license.secretName }}
+          {{- end }}
           ## END FLEET SECTION
           ## BEGIN MYSQL SECTION
           - name: FLEET_MYSQL_ADDRESS
@@ -266,6 +273,20 @@ spec:
           {{- range $key, $value := .Values.environments }}
           - name: {{ $key }}
             value: {{ $value | quote }}
+          {{- end }}
+          ## APPEND ENVIRONMENT VARIABLES FROM SECRETS/CMs
+          {{- range .Values.envsFrom }}
+          - name: {{ .name }}
+            valueFrom:
+          {{- if .valueFrom.configMapKeyRef }}
+              configMapKeyRef:
+                name: {{ .valueFrom.configMapKeyRef.name }}
+                key: {{ .valueFrom.configMapKeyRef.key }}
+          {{- else if .valueFrom.secretKeyRef }}
+              secretKeyRef:
+                name: {{ .valueFrom.secretKeyRef.name }}
+                key: {{ .valueFrom.secretKeyRef.key }}
+          {{- end }}
           {{- end }}
         securityContext:
           allowPrivilegeEscalation: false

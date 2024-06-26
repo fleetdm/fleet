@@ -22,15 +22,19 @@ func (s *integrationTestSuite) TestDeviceAuthenticatedEndpoints() {
 	ac, err := s.ds.AppConfig(context.Background())
 	require.NoError(t, err)
 	ac.OrgInfo.OrgLogoURL = "http://example.com/logo"
+	ac.OrgInfo.ContactURL = "http://example.com/contact"
+	ac.Features.EnableSoftwareInventory = true
 	err = s.ds.SaveAppConfig(context.Background(), ac)
 	require.NoError(t, err)
 
 	// create some mappings and MDM/Munki data
 	require.NoError(t, s.ds.ReplaceHostDeviceMapping(context.Background(), hosts[0].ID, []*fleet.HostDeviceMapping{
-		{HostID: hosts[0].ID, Email: "a@b.c", Source: "google_chrome_profiles"},
-		{HostID: hosts[0].ID, Email: "b@b.c", Source: "google_chrome_profiles"},
-	}))
-	require.NoError(t, s.ds.SetOrUpdateMDMData(context.Background(), hosts[0].ID, false, true, "url", false, ""))
+		{HostID: hosts[0].ID, Email: "a@b.c", Source: fleet.DeviceMappingGoogleChromeProfiles},
+		{HostID: hosts[0].ID, Email: "b@b.c", Source: fleet.DeviceMappingGoogleChromeProfiles},
+	}, fleet.DeviceMappingGoogleChromeProfiles))
+	_, err = s.ds.SetOrUpdateCustomHostDeviceMapping(context.Background(), hosts[0].ID, "c@b.c", fleet.DeviceMappingCustomInstaller)
+	require.NoError(t, err)
+	require.NoError(t, s.ds.SetOrUpdateMDMData(context.Background(), hosts[0].ID, false, true, "url", false, "", ""))
 	require.NoError(t, s.ds.SetOrUpdateMunkiInfo(context.Background(), hosts[0].ID, "1.3.0", nil, nil))
 	// create a battery for hosts[0]
 	require.NoError(t, s.ds.ReplaceHostBatteries(context.Background(), hosts[0].ID, []*fleet.HostBattery{
@@ -72,10 +76,12 @@ func (s *integrationTestSuite) TestDeviceAuthenticatedEndpoints() {
 	require.Equal(t, hosts[0].ID, getHostResp.Host.ID)
 	require.False(t, getHostResp.Host.RefetchRequested)
 	require.Equal(t, "http://example.com/logo", getHostResp.OrgLogoURL)
+	require.Equal(t, "http://example.com/contact", getHostResp.OrgContactURL)
 	require.Nil(t, getHostResp.Host.Policies)
 	require.NotNil(t, getHostResp.Host.Batteries)
 	require.Equal(t, &fleet.HostBattery{CycleCount: 1, Health: "Normal"}, (*getHostResp.Host.Batteries)[0])
 	require.True(t, getHostResp.GlobalConfig.MDM.EnabledAndConfigured)
+	require.True(t, getHostResp.GlobalConfig.Features.EnableSoftwareInventory)
 	hostDevResp := getHostResp.Host
 
 	// make request for same host on the host details API endpoint,
@@ -107,7 +113,12 @@ func (s *integrationTestSuite) TestDeviceAuthenticatedEndpoints() {
 	require.NoError(t, json.NewDecoder(res.Body).Decode(&listDMResp))
 	require.NoError(t, res.Body.Close())
 	require.Equal(t, hosts[0].ID, listDMResp.HostID)
-	require.Len(t, listDMResp.DeviceMapping, 2)
+	require.Len(t, listDMResp.DeviceMapping, 3)
+	require.ElementsMatch(t, listDMResp.DeviceMapping, []*fleet.HostDeviceMapping{
+		{Email: "a@b.c", Source: fleet.DeviceMappingGoogleChromeProfiles},
+		{Email: "b@b.c", Source: fleet.DeviceMappingGoogleChromeProfiles},
+		{Email: "c@b.c", Source: fleet.DeviceMappingCustomReplacement},
+	})
 	devDMs := listDMResp.DeviceMapping
 
 	// compare response with standard list device mapping API for that same host
@@ -293,7 +304,7 @@ func (s *integrationTestSuite) TestErrorReporting() {
 	res = s.DoRawNoAuth("POST", "/api/latest/fleet/device/"+token+"/debug/errors", jsonData, http.StatusBadRequest)
 	res.Body.Close()
 
-	res = s.DoRawNoAuth("POST", "/api/latest/fleet/device/"+token+"/debug/errors", []byte("{}"), http.StatusInternalServerError)
+	res = s.DoRawNoAuth("POST", "/api/latest/fleet/device/"+token+"/debug/errors", []byte("{}"), http.StatusOK)
 	res.Body.Close()
 
 	testTime, err := time.Parse(time.RFC3339, "1969-06-19T21:44:05Z")
@@ -307,6 +318,6 @@ func (s *integrationTestSuite) TestErrorReporting() {
 	}
 	errBytes, err := json.Marshal(ferr)
 	require.NoError(t, err)
-	res = s.DoRawNoAuth("POST", "/api/latest/fleet/device/"+token+"/debug/errors", errBytes, http.StatusInternalServerError)
+	res = s.DoRawNoAuth("POST", "/api/latest/fleet/device/"+token+"/debug/errors", errBytes, http.StatusOK)
 	res.Body.Close()
 }

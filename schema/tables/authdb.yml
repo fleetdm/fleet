@@ -1,17 +1,42 @@
 name: authdb
 platforms:
   - darwin
-description: Returns JSON output for the `authorizationdb read <right_name>` command.
+description: The macOS authorizationdb is used by Mac admins to give their users or themselves granular permissions on the Macs they manage. The `authdb` osquery table returns JSON output for the `authorizationdb read <right_name>` command.
+evented: false
 columns:
   - name: right_name
     type: text
     required: true
-    description: |
+    description: |-
       The right_name to query in the `authorizationdb read <right_name>` command.
   - name: json_result
     type: text
     required: false
-    description: |
-      The JSON output parsed from the plist output of the `authorizationdb read <right_name>` command. 
-notes: This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).
-evented: false
+    description: |-
+      The JSON output parsed from `authorizationdb` plist. 
+examples: |-
+  The “right_name” string `system.login.console` is used in the mandatory WHERE clause for this table:
+
+  ```
+  SELECT * FROM authdb WHERE right_name='system.login.console';
+  ```
+  
+notes: |-
+  This table is from the [Mac Admins osquery extension](https://github.com/macadmins/osquery-extension).
+
+  The authorizationdb is a SQLite database that can be dumped out with the following Terminal command:
+
+  ```
+  sudo /usr/bin/sqlite3 /var/db/auth.db .dump
+  ```
+
+  The following command generates a .plist showing the attributes of the authorizationdb configuration:
+
+  ```
+  security authorizationdb read system.login.console
+  ```
+
+  - [Apple documentation](https://developer.apple.com/library/archive/documentation/Security/Conceptual/authorization_concepts/02authconcepts/authconcepts.html)
+  - A general purpose [authorizationdb article](https://theevilbit.github.io/posts/macos_authorization/)
+  - Armin Briegel (Scripting OS X) on the [macOS root user and the authorizationdb](https://scriptingosx.com/2018/05/demystifying-root-on-macos-part-4-the-authorization-database/)
+  - Elliot Jordan on using the authorizationdb in his tool [Escrow Buddy](https://www.elliotjordan.com/posts/macos-authdb-mechs/)

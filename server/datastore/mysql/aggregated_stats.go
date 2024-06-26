@@ -7,13 +7,11 @@ import (
 	"fmt"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/jmoiron/sqlx"
 )
 
-type aggregatedStatsType string
-
 const (
-	aggregatedStatsTypeScheduledQuery       = "scheduled_query"
 	aggregatedStatsTypeMunkiVersions        = "munki_versions"
 	aggregatedStatsTypeMunkiIssues          = "munki_issues"
 	aggregatedStatsTypeOSVersions           = "os_versions"
@@ -29,37 +27,38 @@ const (
 // a slightly simpler version but that adds the rownum before sorting.
 
 const scheduledQueryPercentileQuery = `
-SELECT
-	coalesce((t1.%s / t1.executions), 0)
-FROM (
-	SELECT (@rownum := @rownum + 1) AS row_number_value, mm.* FROM (
-		SELECT d.scheduled_query_id, d.%s, d.executions
-		FROM scheduled_query_stats d
-		WHERE d.scheduled_query_id=?
-		ORDER BY (d.%s / d.executions) ASC
-	) AS mm
-) AS t1,
-(SELECT @rownum := 0) AS r,
-(
-	SELECT count(*) AS total_rows
-	FROM scheduled_query_stats d
-	WHERE d.scheduled_query_id=?
-) AS t2
-WHERE t1.row_number_value = floor(total_rows * %s) + 1;`
+SELECT COALESCE((t1.%[1]s_total / t1.executions_total), 0)
+FROM (SELECT (@rownum := @rownum + 1) AS row_number_value, sum1.*
+      FROM (SELECT SUM(d.%[1]s) as %[1]s_total, SUM(d.executions) as executions_total
+            FROM scheduled_query_stats d
+            WHERE d.scheduled_query_id = ?
+              AND d.executions > 0
+            GROUP BY d.host_id) as sum1
+      ORDER BY (%[1]s_total / executions_total)) AS t1,
+     (SELECT @rownum := 0) AS r,
+     (SELECT COUNT(*) AS total_rows
+      FROM (SELECT COUNT(*)
+            FROM scheduled_query_stats d
+            WHERE d.scheduled_query_id = ?
+              AND d.executions > 0
+            GROUP BY d.host_id) as sum2) AS t2
+WHERE t1.row_number_value = FLOOR(total_rows * %[2]s) + 1`
 
 const (
 	scheduledQueryTotalExecutions = `SELECT coalesce(sum(executions), 0) FROM scheduled_query_stats WHERE scheduled_query_id=?`
 )
 
-func getPercentileQuery(aggregate aggregatedStatsType, time string, percentile string) string {
+func getPercentileQuery(aggregate fleet.AggregatedStatsType, time string, percentile string) string {
 	switch aggregate {
-	case aggregatedStatsTypeScheduledQuery:
-		return fmt.Sprintf(scheduledQueryPercentileQuery, time, time, time, percentile)
+	case fleet.AggregatedStatsTypeScheduledQuery:
+		return fmt.Sprintf(scheduledQueryPercentileQuery, time, percentile)
 	}
 	return ""
 }
 
-func setP50AndP95Map(ctx context.Context, tx sqlx.QueryerContext, aggregate aggregatedStatsType, time string, id uint, statsMap map[string]interface{}) error {
+func setP50AndP95Map(
+	ctx context.Context, tx sqlx.QueryerContext, aggregate fleet.AggregatedStatsType, time string, id uint, statsMap map[string]interface{},
+) error {
 	var p50, p95 float64
 
 	err := sqlx.GetContext(ctx, tx, &p50, getPercentileQuery(aggregate, time, "0.5"), id, id)
@@ -83,9 +82,10 @@ func setP50AndP95Map(ctx context.Context, tx sqlx.QueryerContext, aggregate aggr
 }
 
 func (ds *Datastore) UpdateQueryAggregatedStats(ctx context.Context) error {
-	err := walkIdsInTable(ctx, ds.reader(ctx), "queries", func(id uint) error {
-		return calculatePercentiles(ctx, ds.writer(ctx), aggregatedStatsTypeScheduledQuery, id)
-	})
+	err := walkIdsInTable(
+		ctx, ds.reader(ctx), "queries", func(queryID uint) error {
+			return ds.CalculateAggregatedPerfStatsPercentiles(ctx, fleet.AggregatedStatsTypeScheduledQuery, queryID)
+		})
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "looping through query ids")
 	}
@@ -93,22 +93,26 @@ func (ds *Datastore) UpdateQueryAggregatedStats(ctx context.Context) error {
 	return nil
 }
 
-func calculatePercentiles(ctx context.Context, tx sqlx.ExtContext, aggregate aggregatedStatsType, id uint) error {
+// CalculateAggregatedPerfStatsPercentiles calculates the aggregated user/system time performance statistics for the given query.
+func (ds *Datastore) CalculateAggregatedPerfStatsPercentiles(ctx context.Context, aggregate fleet.AggregatedStatsType, queryID uint) error {
+	// Before calling this method to update stats after a live query, we make sure the reader (replica) is up-to-date with the latest stats.
+	// We are using the reader because the below SELECT queries are expensive, and we don't want to impact the performance of the writer.
+	reader := ds.reader(ctx)
 	var totalExecutions int
 	statsMap := make(map[string]interface{})
 
 	// many queries is not ideal, but getting both values and totals in the same query was a bit more complicated
 	// so I went for the simpler approach first, we can optimize later
-	if err := setP50AndP95Map(ctx, tx, aggregate, "user_time", id, statsMap); err != nil {
+	if err := setP50AndP95Map(ctx, reader, aggregate, "user_time", queryID, statsMap); err != nil {
 		return err
 	}
-	if err := setP50AndP95Map(ctx, tx, aggregate, "system_time", id, statsMap); err != nil {
+	if err := setP50AndP95Map(ctx, reader, aggregate, "system_time", queryID, statsMap); err != nil {
 		return err
 	}
 
-	err := sqlx.GetContext(ctx, tx, &totalExecutions, getTotalExecutionsQuery(aggregate), id)
+	err := sqlx.GetContext(ctx, reader, &totalExecutions, getTotalExecutionsQuery(aggregate), queryID)
 	if err != nil {
-		return ctxerr.Wrapf(ctx, err, "getting total executions for %s %d", aggregate, id)
+		return ctxerr.Wrapf(ctx, err, "getting total executions for %s %d", aggregate, queryID)
 	}
 	statsMap["total_executions"] = totalExecutions
 
@@ -120,23 +124,24 @@ func calculatePercentiles(ctx context.Context, tx sqlx.ExtContext, aggregate agg
 	// NOTE: this function gets called for query and scheduled_query, so the id
 	// refers to a query/scheduled_query id, and it never computes "global"
 	// stats. For that reason, we always set global_stats=0.
-	_, err = tx.ExecContext(ctx,
+	_, err = ds.writer(ctx).ExecContext(
+		ctx,
 		`
 		INSERT INTO aggregated_stats(id, type, global_stats, json_value)
 		VALUES (?, ?, 0, ?)
 		ON DUPLICATE KEY UPDATE json_value=VALUES(json_value)
 		`,
-		id, aggregate, statsJson,
+		queryID, aggregate, statsJson,
 	)
 	if err != nil {
-		return ctxerr.Wrapf(ctx, err, "inserting stats for %s id %d", aggregate, id)
+		return ctxerr.Wrapf(ctx, err, "inserting stats for %s id %d", aggregate, queryID)
 	}
 	return nil
 }
 
-func getTotalExecutionsQuery(aggregate aggregatedStatsType) string {
+func getTotalExecutionsQuery(aggregate fleet.AggregatedStatsType) string {
 	switch aggregate {
-	case aggregatedStatsTypeScheduledQuery:
+	case fleet.AggregatedStatsTypeScheduledQuery:
 		return scheduledQueryTotalExecutions
 	}
 	return ""

@@ -1,7 +1,5 @@
 .input-icon-field {
-  margin-top: $pad-medium;
   position: relative;
-  width: 100%;
 
   &__icon {
     position: absolute;
@@ -20,6 +18,14 @@
     }
   }
 
+  // Relative input wrapper with absolute icon corrects icon alignment on all browsers
+  &__input-wrapper {
+    position: relative;
+    height: 40px;
+    display: flex;
+    align-items: center;
+  }
+
   // Refactor to include svg icons
   &--icon-start {
     margin-top: 0;
@@ -27,10 +33,11 @@
     .input-icon-field__icon {
       position: absolute;
       left: 12px;
-      top: 13px;
+      top: 0;
+      height: 40px;
       width: 16px;
-      font-size: $x-small;
-      color: $core-fleet-blue;
+      flex-wrap: wrap;
+      align-content: center;
       z-index: 1;
     }
   }
@@ -53,20 +60,6 @@
       color: $core-fleet-blue;
     }
 
-    &:hover,
-    &:focus {
-      border: 1px solid $core-vibrant-blue;
-
-      // Icon color matches border color on focus and on hover
-      + .input-icon-field__icon {
-        svg {
-          path {
-            fill: $core-vibrant-blue;
-          }
-        }
-      }
-    }
-
     &:focus {
       outline: none;
     }
@@ -84,11 +77,37 @@
     }
   }
 
+  &__input-wrapper:hover {
+    .input-icon-field__input {
+      border: 1px solid $core-vibrant-blue;
+    }
+
+    // Icon color matches border color on focus and on hover
+    .input-icon-field__icon {
+      svg {
+        path {
+          fill: $core-vibrant-blue;
+        }
+      }
+    }
+  }
+
+  .input-icon-field__input:focus {
+    border: 1px solid $core-vibrant-blue;
+
+    // Icon color matches border color on focus and on hover
+    + .input-icon-field__icon {
+      svg {
+        path {
+          fill: $core-vibrant-blue;
+        }
+      }
+    }
+  }
   &__label {
     display: block;
     font-size: $x-small;
     font-weight: $bold;
-    margin-bottom: $pad-xsmall;
 
     &[data-has-tooltip="true"] {
       margin-bottom: $pad-small;
@@ -97,22 +116,6 @@
 
   &__errors {
     color: $core-vibrant-red;
-  }
-
-  &__hint {
-    font-size: $x-small;
-    font-style: italic;
-    font-weight: $regular;
-    line-height: 20px;
-    display: inline-block;
-    margin-top: $pad-small;
-
-    code {
-      color: $core-vibrant-blue;
-      background-color: $ui-light-grey;
-      padding: $pad-xxsmall;
-      font-family: "SourceCodePro", $monospace;
-    }
   }
 
   // overwrite icon position and input padding

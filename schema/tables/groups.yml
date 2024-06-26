@@ -1,11 +1,9 @@
 name: groups
-examples: >-
+examples: |-
   See all groups with the IsHidden OpenDirectory attribute
   
   ```
-  
   SELECT * FROM groups WHERE is_hidden='1';
-  
   ```
 columns:
   - name: group_sid

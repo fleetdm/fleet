@@ -1,82 +1,137 @@
 data "aws_region" "current" {}
 
-resource "aws_cloudwatch_event_rule" "main" {
-  schedule_expression = "rate(1 hour)"
-}
-
-data "aws_iam_policy_document" "assume_role" {
-  statement {
-    effect = "Allow"
-
-    principals {
-      type        = "Service"
-      identifiers = ["events.amazonaws.com", "ecs-tasks.amazonaws.com"]
+locals {
+  environment = [
+    // specifically overriding disable schedule here because the output of this module sets this to true
+    // and then we pull in the output of fleet ecs module
+    for k, v in merge(
+      var.fleet_config.extra_environment_variables,
+      { FLEET_VULNERABILITIES_DISABLE_SCHEDULE = "false" }
+      ) : {
+      name  = k
+      value = v
     }
-
-    actions = ["sts:AssumeRole"]
-  }
-}
-
-resource "aws_iam_role" "ecs_events" {
-  assume_role_policy = data.aws_iam_policy_document.assume_role.json
-}
-
-data "aws_iam_policy_document" "ecs_events_run_task_with_any_role" {
-  statement {
-    effect    = "Allow"
-    actions   = ["iam:PassRole"]
-    resources = ["*"]
-  }
-
-  statement {
-    effect    = "Allow"
-    actions   = ["ecs:RunTask"]
-    resources = [replace(var.task_definition.arn, "/:\\d+$/", ":*")]
-    condition {
-      test     = "ArnEquals"
-      values   = [var.ecs_cluster.cluster_arn]
-      variable = "ecs:cluster"
+  ]
+  secrets = [
+    for k, v in merge(var.fleet_config.extra_secrets, {
+      FLEET_MYSQL_PASSWORD              = var.fleet_config.database.password_secret_arn
+      FLEET_MYSQL_READ_REPLICA_PASSWORD = var.fleet_config.database.password_secret_arn
+      FLEET_SERVER_PRIVATE_KEY          = var.fleet_server_private_key_secret_arn
+      }) : {
+      name      = k
+      valueFrom = v
     }
-  }
-}
-resource "aws_iam_role_policy" "ecs_events_run_task_with_any_role" {
-  role   = aws_iam_role.ecs_events.id
-  policy = data.aws_iam_policy_document.ecs_events_run_task_with_any_role.json
-}
-
-resource "aws_cloudwatch_event_target" "ecs_scheduled_task" {
-  arn      = var.ecs_cluster.cluster_arn
-  rule     = aws_cloudwatch_event_rule.main.name
-  role_arn = aws_iam_role.ecs_events.arn
-
-  ecs_target {
-    task_count          = 1
-    task_definition_arn = var.task_definition.arn
-    launch_type         = "FARGATE"
-    network_configuration {
-      subnets         = var.ecs_service.network_configuration[0].subnets
-      security_groups = var.ecs_service.network_configuration[0].security_groups
+  ]
+  repository_credentials = var.fleet_config.repository_credentials != "" ? {
+    repositoryCredentials = {
+      credentialsParameter = var.fleet_config.repository_credentials
     }
+  } : null
+}
+
+resource "aws_ecs_service" "fleet" {
+  name                               = "${var.fleet_config.service.name}-vuln-processing"
+  launch_type                        = "FARGATE"
+  cluster                            = var.ecs_cluster
+  task_definition                    = aws_ecs_task_definition.vuln-processing.arn
+  desired_count                      = 1
+  deployment_minimum_healthy_percent = 100
+  deployment_maximum_percent         = 200
+
+  lifecycle {
+    ignore_changes = [desired_count]
   }
 
-  input = jsonencode({
-    containerOverrides = [
-      {
-        name    = "fleet",
-        command = ["fleet", "vuln_processing"]
-      },
-      {
-        resourceRequirements = [
-          {
-            type  = "VCPU",
-            value = "1"
-          },
-          {
-            type  = "MEMORY",
-            value = "4096"
-          }
-        ]
+  network_configuration {
+    subnets         = var.subnets
+    security_groups = var.security_groups
+  }
+}
+
+resource "aws_ecs_task_definition" "vuln-processing" {
+  family                   = "${var.fleet_config.family}-vuln-processing"
+  cpu                      = var.vuln_processing_task_cpu
+  memory                   = var.vuln_processing_task_memory
+  execution_role_arn       = var.execution_iam_role_arn
+  task_role_arn            = var.task_role_arn
+  network_mode             = "awsvpc"
+  pid_mode                 = var.fleet_config.pid_mode
+  requires_compatibilities = ["FARGATE"]
+
+  container_definitions = jsonencode(concat([
+    {
+      name                  = "fleet-vuln-processing"
+      image                 = var.fleet_config.image
+      cpu                   = var.vuln_processing_cpu
+      memory                = var.vuln_processing_memory
+      essential             = true
+      networkMode           = "awsvpc"
+      secrets               = local.secrets
+      repositoryCredentials = local.repository_credentials
+      ulimits = [
+        {
+          name      = "nofile"
+          softLimit = 999999
+          hardLimit = 999999
+        }
+      ],
+      environment = concat([
+        {
+          name  = "FLEET_MYSQL_USERNAME"
+          value = var.fleet_config.database.user
+        },
+        {
+          name  = "FLEET_MYSQL_DATABASE"
+          value = var.fleet_config.database.database
+        },
+        {
+          name  = "FLEET_MYSQL_ADDRESS"
+          value = var.fleet_config.database.address
+        },
+        {
+          name  = "FLEET_MYSQL_READ_REPLICA_USERNAME"
+          value = var.fleet_config.database.user
+        },
+        {
+          name  = "FLEET_MYSQL_READ_REPLICA_DATABASE"
+          value = var.fleet_config.database.database
+        },
+        {
+          name  = "FLEET_MYSQL_READ_REPLICA_ADDRESS"
+          value = var.fleet_config.database.rr_address == null ? var.fleet_config.database.address : var.fleet_config.database.rr_address
+        },
+        {
+          name  = "FLEET_REDIS_ADDRESS"
+          value = var.fleet_config.redis.address
+        },
+        {
+          name  = "FLEET_REDIS_USE_TLS"
+          value = tostring(var.fleet_config.redis.use_tls)
+        },
+        {
+          name  = "FLEET_SERVER_TLS"
+          value = "false"
+        },
+        {
+          name  = "FLEET_S3_SOFTWARE_INSTALLERS_BUCKET"
+          value = var.fleet_s3_software_installers_config.bucket_name
+        },
+        {
+          name  = "FLEET_S3_SOFTWARE_INSTALLERS_PREFIX"
+          value = var.fleet_s3_software_installers_config.s3_object_prefix
+        },
+      ], local.environment),
+      logConfiguration = {
+        logDriver = "awslogs"
+        options = {
+          awslogs-group         = var.awslogs_config.group
+          awslogs-region        = var.awslogs_config.region == null ? data.aws_region.current.name : var.awslogs_config.region
+          awslogs-stream-prefix = "${var.awslogs_config.prefix}-vuln-processing"
+        }
       }
-    ]
-  })
+    }]
+  , var.fleet_config.sidecars))
 }
+
+
+

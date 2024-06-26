@@ -8,6 +8,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/go-kit/log/level"
 )
 
 func (svc *Service) ListDevicePolicies(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error) {
@@ -25,6 +26,9 @@ const refetchMDMUnenrollCriticalQueryDuration = 3 * time.Minute
 // the server/webhooks one because it is a Fleet Premium only feature and for
 // licensing reasons this needs to live under this package.
 func (svc *Service) TriggerMigrateMDMDevice(ctx context.Context, host *fleet.Host) error {
+	level.Debug(svc.logger).Log("msg", "trigger migration webhook", "host_id", host.ID,
+		"refetch_critical_queries_until", host.RefetchCriticalQueriesUntil)
+
 	ac, err := svc.ds.AppConfig(ctx)
 	if err != nil {
 		return err
@@ -33,19 +37,28 @@ func (svc *Service) TriggerMigrateMDMDevice(ctx context.Context, host *fleet.Hos
 		return fleet.ErrMDMNotConfigured
 	}
 
+	if host.RefetchCriticalQueriesUntil != nil && host.RefetchCriticalQueriesUntil.After(svc.clock.Now()) {
+		// the webhook has already been triggered successfully recently (within the
+		// refetch critical queries delay), so return as if it did send it successfully
+		// but do not re-send.
+		level.Debug(svc.logger).Log("msg", "waiting for critical queries refetch, skip sending webhook",
+			"host_id", host.ID)
+		return nil
+	}
+
+	connected, err := svc.ds.IsHostConnectedToFleetMDM(ctx, host)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "checking if host is connected to Fleet")
+	}
+
 	var bre fleet.BadRequestError
 	switch {
 	case !ac.MDM.MacOSMigration.Enable:
 		bre.InternalErr = ctxerr.New(ctx, "macOS migration not enabled")
 	case ac.MDM.MacOSMigration.WebhookURL == "":
 		bre.InternalErr = ctxerr.New(ctx, "macOS migration webhook URL not configured")
-	case !host.IsEligibleForDEPMigration():
+	case !host.IsEligibleForDEPMigration(connected):
 		bre.InternalErr = ctxerr.New(ctx, "host not eligible for macOS migration")
-	case host.RefetchCriticalQueriesUntil != nil && host.RefetchCriticalQueriesUntil.After(svc.clock.Now()):
-		// the webhook has already been triggered successfully recently (within the
-		// refetch critical queries delay), so do as if it did send it successfully
-		// but do not re-send.
-		return nil
 	}
 	if bre.InternalErr != nil {
 		return &bre
@@ -66,7 +79,7 @@ func (svc *Service) TriggerMigrateMDMDevice(ctx context.Context, host *fleet.Hos
 	// existing third-party MDM.
 	refetchUntil := svc.clock.Now().Add(refetchMDMUnenrollCriticalQueryDuration)
 	host.RefetchCriticalQueriesUntil = &refetchUntil
-	if err := svc.ds.UpdateHost(ctx, host); err != nil {
+	if err := svc.ds.UpdateHostRefetchCriticalQueriesUntil(ctx, host.ID, &refetchUntil); err != nil {
 		return ctxerr.Wrap(ctx, err, "save host with refetch critical queries timestamp")
 	}
 
@@ -98,11 +111,16 @@ func (svc *Service) GetFleetDesktopSummary(ctx context.Context) (fleet.DesktopSu
 	}
 
 	if appCfg.MDM.EnabledAndConfigured && appCfg.MDM.MacOSMigration.Enable {
-		if host.NeedsDEPEnrollment() {
+		connected, err := svc.ds.IsHostConnectedToFleetMDM(ctx, host)
+		if err != nil {
+			return sum, ctxerr.Wrap(ctx, err, "checking if host is connected to Fleet")
+		}
+
+		if host.NeedsDEPEnrollment(connected) {
 			sum.Notifications.RenewEnrollmentProfile = true
 		}
 
-		if host.IsEligibleForDEPMigration() {
+		if host.IsEligibleForDEPMigration(connected) {
 			sum.Notifications.NeedsMDMMigration = true
 		}
 	}

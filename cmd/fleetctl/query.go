@@ -97,20 +97,31 @@ func queryCommand() *cli.Command {
 				return errors.New("--query and --query-name must not be provided together")
 			}
 
+			var queryID *uint
 			if flQueryName != "" {
 				var teamID *uint
 				if tid := c.Uint(teamFlagName); tid != 0 {
 					teamID = &tid
 				}
-				q, err := fleet.GetQuerySpec(teamID, flQueryName)
-				if err != nil {
+				queries, err := fleet.GetQueries(teamID, &flQueryName)
+				if err != nil || len(queries) == 0 {
 					return fmt.Errorf("Query '%s' not found", flQueryName)
 				}
-				flQuery = q.Query
-			}
-
-			if flQuery == "" {
-				return errors.New("Query must be specified with --query or --query-name")
+				// For backwards compatibility with older fleet server, we explicitly find the query in the result array
+				for _, query := range queries {
+					if query.Name == flQueryName {
+						id := query.ID // making an explicit copy of ID
+						queryID = &id
+						break
+					}
+				}
+				if queryID == nil {
+					return fmt.Errorf("Query '%s' not found", flQueryName)
+				}
+			} else {
+				if flQuery == "" {
+					return errors.New("Query must be specified with --query or --query-name")
+				}
 			}
 
 			var output outputWriter
@@ -123,7 +134,7 @@ func queryCommand() *cli.Command {
 			hosts := strings.Split(flHosts, ",")
 			labels := strings.Split(flLabels, ",")
 
-			res, err := fleet.LiveQuery(flQuery, labels, hosts)
+			res, err := fleet.LiveQuery(flQuery, queryID, labels, hosts)
 			if err != nil {
 				return err
 			}

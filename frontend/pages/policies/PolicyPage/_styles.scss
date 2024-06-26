@@ -1,4 +1,8 @@
 .policy-page {
+  &__form {
+    @include flex-column-1rem-gap;
+  }
+
   &__results {
     display: flex;
     flex-grow: 1;
@@ -59,7 +63,7 @@
         background-color: $core-white;
         border: none;
         box-shadow: inset 0 0 0 1px $ui-fleet-black-25;
-        border-radius: $border-radius-large;
+        border-radius: $border-radius-medium;
         cursor: pointer;
         display: flex;
         align-items: center;
@@ -137,17 +141,5 @@
       margin-top: $pad-medium;
       font-size: $x-small;
     }
-  }
-  .critical-checkbox-wrapper {
-    display: flex;
-    align-items: center;
-    gap: $pad-xsmall;
-    .form-field--checkbox {
-      margin-bottom: 0;
-    }
-
-    // .inverse {
-    //   flex-direction: row-reverse; // Switches the text to the left side of checkbox as all checkboxes are now display flex
-    // }
   }
 }

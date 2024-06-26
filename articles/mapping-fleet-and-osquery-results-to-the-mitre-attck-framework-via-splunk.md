@@ -64,7 +64,7 @@ Next, create a new input:
 If everything with the account config works, you should be able to immediately see the results of a
 global index search:
 ![splunk-index](../website/assets/images/articles/mapping-fleet-and-osquery-results-to-the-mitre-attck-framework-via-splunk-global-index-results-1775x915@2x.png)
-Now comes the tough part, or at least it was a bit challenging for me, since I'm no Splunk expert. We’re going tobuild some SPL (Search Processing Language) to translate the observations we've uncovered via osquery into search results in Splunk. After that, we can drop the search results into a dashboard or even build an alert. That being said though, if this was an alerting use case, I would recommend using the built-in Policies from Fleet to trigger alerts via webhooks. Here's what the first query looks like to get the Process Connections from our Fleet scheduled query and push it to a table in Splunk:
+Now comes the tough part, or at least it was a bit challenging for me, since I'm no Splunk expert. We’re going to build some SPL (Search Processing Language) to translate the observations we've uncovered via osquery into search results in Splunk. After that, we can drop the search results into a dashboard or even build an alert. That being said though, if this was an alerting use case, I would recommend using the built-in Policies from Fleet to trigger alerts via webhooks. Here's what the first query looks like to get the Process Connections from our Fleet scheduled query and push it to a table in Splunk:
 ```
 index="osquery_results" name="pack/Global/ATT&CK® - Process_Network_Conn" | 
 dedup _time, hostname | 

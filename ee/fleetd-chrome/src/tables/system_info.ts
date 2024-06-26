@@ -32,13 +32,22 @@ export default class TableSystemInfo extends Table {
     let warningsArray = [];
 
     // @ts-expect-error @types/chrome doesn't yet have instanceID.
-    const uuid = (await chrome.instanceID.getID()) as string;
+    const uuid = await chrome.instanceID.getID();
+    let devMode = false;
+    if (!chrome.enterprise) {
+      const { installType } = await chrome.management.getSelf();
+      devMode = installType === "development";
+    }
 
     // TODO should it default to UUID or should Fleet handle it somehow?
     let hostname = "";
     try {
-      // @ts-expect-error @types/chrome doesn't yet have the deviceAttributes Promise API.
-      hostname = (await chrome.enterprise.deviceAttributes.getDeviceHostname()) as string;
+      if (!devMode) {
+        // @ts-expect-error @types/chrome doesn't yet have the deviceAttributes Promise API.
+        hostname = (await chrome.enterprise.deviceAttributes.getDeviceHostname()) as string;
+      } else {
+        hostname = uuid;
+      }
     } catch (err) {
       console.warn("get hostname:", err);
       warningsArray.push({
@@ -49,8 +58,13 @@ export default class TableSystemInfo extends Table {
 
     let hwSerial = "";
     try {
-      // @ts-expect-error @types/chrome doesn't yet have the deviceAttributes Promise API.
-      hwSerial = (await chrome.enterprise.deviceAttributes.getDeviceSerialNumber()) as string;
+      if (!devMode) {
+        // @ts-expect-error @types/chrome doesn't yet have the deviceAttributes Promise API.
+        hwSerial = (await chrome.enterprise.deviceAttributes.getDeviceSerialNumber()) as string;
+      } else {
+        // We leave it blank. The host will be identified by UUID instead.
+        hwSerial = "";
+      }
     } catch (err) {
       console.warn("get serial number:", err);
       warningsArray.push({
@@ -62,13 +76,18 @@ export default class TableSystemInfo extends Table {
     let hwVendor = "",
       hwModel = "";
     try {
-      // This throws "Not allowed" error if
-      // https://chromeenterprise.google/policies/?policy=EnterpriseHardwarePlatformAPIEnabled is
-      // not configured to enabled for the device.
-      // @ts-expect-error @types/chrome doesn't yet have the deviceAttributes Promise API.
-      const platformInfo = await chrome.enterprise.hardwarePlatform.getHardwarePlatformInfo();
-      hwVendor = platformInfo.manufacturer;
-      hwModel = platformInfo.model;
+      if (!devMode) {
+        // This throws "Not allowed" error if
+        // https://chromeenterprise.google/policies/?policy=EnterpriseHardwarePlatformAPIEnabled is
+        // not configured to enabled for the device.
+        // @ts-expect-error @types/chrome doesn't yet have the deviceAttributes Promise API.
+        const platformInfo = await chrome.enterprise.hardwarePlatform.getHardwarePlatformInfo();
+        hwVendor = platformInfo.manufacturer;
+        hwModel = platformInfo.model;
+      } else {
+        hwVendor = "dev-hardware_vendor";
+        hwModel = "dev-hardware_model";
+      }
     } catch (err) {
       console.warn("get platform info:", err);
       warningsArray.push({

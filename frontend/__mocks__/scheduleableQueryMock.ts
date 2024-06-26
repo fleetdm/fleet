@@ -29,6 +29,7 @@ const DEFAULT_SCHEDULABLE_QUERY_MOCK: ISchedulableQuery = {
     user_time_p95: 251.4615,
     total_executions: 5746,
   },
+  editingExistingQuery: false,
 };
 
 const createMockSchedulableQuery = (

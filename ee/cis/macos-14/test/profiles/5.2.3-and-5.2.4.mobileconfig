@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadContent</key>
+	<array>
+		<dict>
+			<key>PayloadDisplayName</key>
+			<string>test</string>
+			<key>PayloadType</key>
+			<string>com.apple.mobiledevice.passwordpolicy</string>
+			<key>PayloadIdentifier</key>
+			<string>com.fleetdm.cis-5.2.3-and-5.2.4.check</string>
+			<key>PayloadUUID</key>
+			<string>207388F7-0144-4518-9CCD-9E488EF9C5D7</string>
+			<key>requireAlphanumeric</key>
+			<true/>
+		</dict>
+	</array>
+	<key>PayloadDescription</key>
+	<string>test</string>
+	<key>PayloadDisplayName</key>
+	<string>Require AlphaNumeric characters in password</string>
+	<key>PayloadIdentifier</key>
+	<string>com.fleetdm.cis-5.2.3-and-5.2.4</string>
+	<key>PayloadRemovalDisallowed</key>
+	<false/>
+	<key>PayloadScope</key>
+	<string>System</string>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadUUID</key>
+	<string>19BDCDC8-7E9E-48A6-9468-F87EE865F677</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+</dict>
+</plist>

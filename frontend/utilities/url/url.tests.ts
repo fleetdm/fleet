@@ -52,6 +52,28 @@ describe("url utilities > reconcileMutuallyInclusiveHostParams", () => {
       reconcileMutuallyInclusiveHostParams({ macSettingsStatus, teamId })
     ).toEqual({});
   });
+
+  it("leaves teamId unchanged and excludes others if label is present", () => {
+    expect(
+      reconcileMutuallyInclusiveHostParams({
+        teamId: 1,
+        label: "labels/7",
+        macSettingsStatus: "pending",
+        osSettings: "pending",
+      })
+    ).toEqual({
+      team_id: 1,
+    });
+    expect(
+      reconcileMutuallyInclusiveHostParams({
+        label: "labels/7",
+        macSettingsStatus: "pending",
+        osSettings: "pending",
+      })
+    ).toEqual({
+      team_id: undefined,
+    });
+  });
 });
 
 describe("url utilites > buildQueryStringFromParams", () => {

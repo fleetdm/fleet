@@ -11,7 +11,7 @@ func TestValidateUserProvided(t *testing.T) {
 	tests := []struct {
 		name    string
 		profile MDMWindowsConfigProfile
-		wantErr bool
+		wantErr string
 	}{
 		{
 			name: "Valid XML with Replace",
@@ -24,7 +24,7 @@ func TestValidateUserProvided(t *testing.T) {
 </Replace>
 `),
 			},
-			wantErr: false,
+			wantErr: "",
 		},
 		{
 			name: "Invalid Platform",
@@ -39,10 +39,10 @@ func TestValidateUserProvided(t *testing.T) {
 </SyncML>
 `),
 			},
-			wantErr: true,
+			wantErr: "Windows configuration profiles can only have <Replace> or <Add> top level elements.",
 		},
 		{
-			name: "Invalid XML Structure",
+			name: "Add top level element",
 			profile: MDMWindowsConfigProfile{
 				SyncML: []byte(`
 <Add>
@@ -52,7 +52,7 @@ func TestValidateUserProvided(t *testing.T) {
 </Add>
 `),
 			},
-			wantErr: true,
+			wantErr: "",
 		},
 		{
 			name: "Reserved LocURI",
@@ -65,7 +65,7 @@ func TestValidateUserProvided(t *testing.T) {
 </Replace>
 `),
 			},
-			wantErr: true,
+			wantErr: "Custom configuration profiles can't include BitLocker settings.",
 		},
 		{
 			name: "Reserved LocURI with implicit ./Device prefix",
@@ -78,7 +78,7 @@ func TestValidateUserProvided(t *testing.T) {
 </Replace>
 `),
 			},
-			wantErr: true,
+			wantErr: "Custom configuration profiles can't include BitLocker settings.",
 		},
 		{
 			name: "XML with Multiple Replace Elements",
@@ -96,14 +96,14 @@ func TestValidateUserProvided(t *testing.T) {
 </Replace>
 `),
 			},
-			wantErr: false,
+			wantErr: "",
 		},
 		{
 			name: "Empty XML",
 			profile: MDMWindowsConfigProfile{
 				SyncML: []byte(``),
 			},
-			wantErr: true,
+			wantErr: "The file should include valid XML",
 		},
 		{
 			name: "XML with Multiple Replace Elements, One with Reserved LocURI",
@@ -121,7 +121,7 @@ func TestValidateUserProvided(t *testing.T) {
 </Replace>
 `),
 			},
-			wantErr: true,
+			wantErr: "Custom configuration profiles can't include BitLocker settings",
 		},
 		{
 			name: "XML with Mixed Replace and Add",
@@ -139,7 +139,7 @@ func TestValidateUserProvided(t *testing.T) {
 </Add>
 `),
 			},
-			wantErr: true,
+			wantErr: "",
 		},
 		{
 			name: "XML with Replace and Alert",
@@ -157,7 +157,7 @@ func TestValidateUserProvided(t *testing.T) {
 </Alert>
 `),
 			},
-			wantErr: true,
+			wantErr: "Windows configuration profiles can only have <Replace> or <Add> top level elements.",
 		},
 		{
 			name: "XML with Replace and Atomic",
@@ -175,7 +175,7 @@ func TestValidateUserProvided(t *testing.T) {
 </Atomic>
 `),
 			},
-			wantErr: true,
+			wantErr: "Windows configuration profiles can only have <Replace> or <Add> top level elements.",
 		},
 		{
 			name: "XML with Replace and Delete",
@@ -193,7 +193,7 @@ func TestValidateUserProvided(t *testing.T) {
 </Delete>
 `),
 			},
-			wantErr: true,
+			wantErr: "Windows configuration profiles can only have <Replace> or <Add> top level elements.",
 		},
 		{
 			name: "XML with Replace and Exec",
@@ -211,7 +211,7 @@ func TestValidateUserProvided(t *testing.T) {
 </Exec>
 `),
 			},
-			wantErr: true,
+			wantErr: "Windows configuration profiles can only have <Replace> or <Add> top level elements.",
 		},
 		{
 			name: "XML with Replace and Get",
@@ -229,7 +229,7 @@ func TestValidateUserProvided(t *testing.T) {
 </Get>
 `),
 			},
-			wantErr: true,
+			wantErr: "Windows configuration profiles can only have <Replace> or <Add> top level elements.",
 		},
 		{
 			name: "XML with Replace and Results",
@@ -247,7 +247,7 @@ func TestValidateUserProvided(t *testing.T) {
 </Results>
 `),
 			},
-			wantErr: true,
+			wantErr: "Windows configuration profiles can only have <Replace> or <Add> top level elements.",
 		},
 		{
 			name: "XML with Replace and Status",
@@ -265,7 +265,7 @@ func TestValidateUserProvided(t *testing.T) {
 </Status>
 `),
 			},
-			wantErr: true,
+			wantErr: "Windows configuration profiles can only have <Replace> or <Add> top level elements.",
 		},
 		{
 			name: "XML with elements not defined in the protocol",
@@ -283,10 +283,10 @@ func TestValidateUserProvided(t *testing.T) {
 </Foo>
 `),
 			},
-			wantErr: true,
+			wantErr: "Windows configuration profiles can only have <Replace> or <Add> top level elements.",
 		},
 		{
-			name: "invalid XML",
+			name: "invalid XML with mismatched tags",
 			profile: MDMWindowsConfigProfile{
 				SyncML: []byte(`
 <Replace>
@@ -296,7 +296,72 @@ func TestValidateUserProvided(t *testing.T) {
 </Add>
 `),
 			},
-			wantErr: true,
+			wantErr: "The file should include valid XML",
+		},
+		{
+			name: "invalid XML with unclosed root tag",
+			profile: MDMWindowsConfigProfile{
+				SyncML: []byte(`
+<Replace>
+  <Item>
+    <Target><LocURI>Custom/URI</LocURI></Target>
+  </Item>
+`),
+			},
+			wantErr: "The file should include valid XML",
+		},
+		{
+			name: "invalid XML with unclosed nested tag",
+			profile: MDMWindowsConfigProfile{
+				SyncML: []byte(`
+<Replace>
+  <Item>
+    <Target><LocURI>Custom/URI</LocURI></Target>
+</Replace>
+`),
+			},
+			wantErr: "The file should include valid XML",
+		},
+		{
+			name: "invalid XML with overlapping elements",
+			profile: MDMWindowsConfigProfile{
+				SyncML: []byte(`
+<Replace>
+  <Item>
+    <Target><LocURI>Custom/URI</Target></LocURI>
+  </Item>
+</Replace>
+`),
+			},
+			wantErr: "The file should include valid XML",
+		},
+		{
+			name: "invalid XML with duplicate attributes",
+			profile: MDMWindowsConfigProfile{
+				SyncML: []byte(`
+<Replace>
+  <Item>
+    <Target><LocURI>Custom/URI</Target></LocURI>
+    <Data attr="1" attr="2"></Data>
+  </Item>
+</Replace>
+`),
+			},
+			wantErr: "The file should include valid XML",
+		},
+		{
+			name: "invalid XML with special chars",
+			profile: MDMWindowsConfigProfile{
+				SyncML: []byte(`
+<Replace>
+  <Item>
+    <Target><LocURI>Custom/URI</Target></LocURI>
+    <Data>Invalid & Data</Data>
+  </Item>
+</Replace>
+`),
+			},
+			wantErr: "The file should include valid XML",
 		},
 		{
 			name: "empty LocURI",
@@ -309,7 +374,7 @@ func TestValidateUserProvided(t *testing.T) {
 </Replace>
 `),
 			},
-			wantErr: false,
+			wantErr: "",
 		},
 		{
 			name: "item without target",
@@ -321,7 +386,7 @@ func TestValidateUserProvided(t *testing.T) {
 </Replace>
 `),
 			},
-			wantErr: false,
+			wantErr: "",
 		},
 		{
 			name: "no items in Replace",
@@ -331,7 +396,7 @@ func TestValidateUserProvided(t *testing.T) {
 </Replace>
 `),
 			},
-			wantErr: false,
+			wantErr: "",
 		},
 		{
 			name: "Valid XML with reserved name",
@@ -339,15 +404,139 @@ func TestValidateUserProvided(t *testing.T) {
 				Name:   mdm.FleetWindowsOSUpdatesProfileName,
 				SyncML: []byte(`<Replace><Target><LocURI>Custom/URI</LocURI></Target></Replace>`),
 			},
-			wantErr: true,
+			wantErr: `Profile name "Windows OS Updates" is not allowed`,
+		},
+		{
+			name: "XML with top level comment",
+			profile: MDMWindowsConfigProfile{
+				SyncML: []byte(`
+				  <!-- this is a comment -->
+				  <Replace>
+				    <Target>
+				      <LocURI>Custom/URI</LocURI>
+				    </Target>
+				  </Replace>
+				`),
+			},
+			wantErr: "",
+		},
+		{
+			name: "XML with nested root element in data",
+			profile: MDMWindowsConfigProfile{
+				SyncML: []byte(`
+				  <Replace>
+				    <Item>
+				    <Target>
+				      <LocURI>Custom/URI</LocURI>
+				      <Data>
+				        <?xml version="1.0"?>
+					<Foo></Foo>
+				      </Data>
+				    </Target>
+				    </Item>
+				  </Replace>
+				`),
+			},
+			wantErr: "The file should include valid XML",
+		},
+		{
+			name: "XML with nested root element under Replace",
+			profile: MDMWindowsConfigProfile{
+				SyncML: []byte(`
+				  <Replace>
+				    <?xml version="1.0"?>
+				    <Item>
+				    <Target>
+				      <LocURI>Custom/URI</LocURI>
+				      <Data>
+					<Foo></Foo>
+				      </Data>
+				    </Target>
+				    </Item>
+				  </Replace>
+				`),
+			},
+			wantErr: "The file should include valid XML",
+		},
+		{
+			name: "XML with root element above Replace",
+			profile: MDMWindowsConfigProfile{
+				SyncML: []byte(`
+				  <?xml version="1.0"?>
+				  <Replace>
+				  <Item>
+				    <Target>
+				      <LocURI>Custom/URI</LocURI>
+				      <Data>
+					<Foo></Foo>
+				      </Data>
+				    </Target>
+				    </Item>
+				  </Replace>
+				`),
+			},
+			wantErr: "The file should include valid XML",
+		},
+		{
+			name: "XML with root element inside Target",
+			profile: MDMWindowsConfigProfile{
+				SyncML: []byte(`
+				  <Replace>
+				    <Target>
+				      <?xml version="1.0"?>
+				      <LocURI>Custom/URI</LocURI>
+				      <Data>
+					<Foo></Foo>
+				      </Data>
+				    </Target>
+				  </Replace>
+				`),
+			},
+			wantErr: "The file should include valid XML",
+		},
+		{
+			name: "XML with CDATA used to embed xml",
+			profile: MDMWindowsConfigProfile{
+				SyncML: []byte(`
+				  <Replace>
+				    <Target>
+				      <LocURI>Custom/URI</LocURI>
+				      <Data>
+				      <![CDATA[
+				        <?xml version="1.0"?>
+					<Foo></Foo>
+				      ]]>
+				      </Data>
+				    </Target>
+				  </Replace>
+				`),
+			},
+			wantErr: "",
+		},
+		{
+			name: "XML escaped with nested root element",
+			profile: MDMWindowsConfigProfile{
+				SyncML: []byte(`
+				  <Replace>
+				    <Target>
+				      <LocURI>Custom/URI</LocURI>
+				      <Data>
+				        &lt;?xml version=&quot;1.0&quot;?&gt;
+                                        &lt;name&gt;Wireless Network&lt;/name&gt;
+				      </Data>
+				    </Target>
+				  </Replace>
+				`),
+			},
+			wantErr: "",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := tt.profile.ValidateUserProvided()
-			if tt.wantErr {
-				require.Error(t, err)
+			if tt.wantErr != "" {
+				require.ErrorContains(t, err, tt.wantErr)
 			} else {
 				require.NoError(t, err)
 			}

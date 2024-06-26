@@ -15,3 +15,7 @@ func IsEnrolledInMDM() (bool, string, error) {
 func CheckAssignedEnrollmentProfile(expectedURL string) error {
 	return ErrNotImplemented
 }
+
+func GetCustomEnrollmentProfileEndUserEmail() (string, error) {
+	return "", ErrNotImplemented
+}

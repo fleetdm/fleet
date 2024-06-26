@@ -35,8 +35,12 @@ const EmptyTable = ({
       )}
       <div className={`${baseClass}__inner`}>
         {header && <h3>{header}</h3>}
-        {info && <p>{info}</p>}
-        {additionalInfo && <p>{additionalInfo}</p>}
+        {info && <div className={`${baseClass}__info`}>{info}</div>}
+        {additionalInfo && (
+          <div className={`${baseClass}__additional-info`}>
+            {additionalInfo}
+          </div>
+        )}
       </div>
       {primaryButton && (
         <div className={`${baseClass}__cta-buttons`}>

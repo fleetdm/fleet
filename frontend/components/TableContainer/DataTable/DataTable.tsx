@@ -43,7 +43,7 @@ interface IDataTableProps {
   showMarkAllPages: boolean;
   isAllPagesSelected: boolean; // TODO: make dependent on showMarkAllPages
   toggleAllPagesSelected?: any; // TODO: an event type and make it dependent on showMarkAllPages
-  resultsTitle: string;
+  resultsTitle?: string;
   defaultPageSize: number;
   defaultPageIndex?: number;
   primarySelectAction?: IActionButtonProps;
@@ -56,6 +56,7 @@ interface IDataTableProps {
   searchQueryColumn?: string;
   selectedDropdownFilter?: string;
   onSelectSingleRow?: (value: Row) => void;
+  onClickRow?: (value: any) => void;
   onResultsCountChange?: (value: number) => void;
   renderFooter?: () => JSX.Element | null;
   renderPagination?: () => JSX.Element | null;
@@ -68,8 +69,9 @@ interface IHeaderGroup extends HeaderGroup {
 
 const CLIENT_SIDE_DEFAULT_PAGE_SIZE = 20;
 
-// This data table uses react-table for implementation. The relevant documentation of the library
-// can be found here https://react-table.tanstack.com/docs/api/useTable
+// This data table uses react-table for implementation. The relevant v7 documentation of the library
+// can be found here https://react-table-v7-docs.netlify.app/docs/api/usetable
+
 const DataTable = ({
   columns: tableColumns,
   data: tableData,
@@ -83,7 +85,7 @@ const DataTable = ({
   showMarkAllPages,
   isAllPagesSelected,
   toggleAllPagesSelected,
-  resultsTitle,
+  resultsTitle = "results",
   defaultPageSize,
   defaultPageIndex,
   primarySelectAction,
@@ -96,6 +98,7 @@ const DataTable = ({
   searchQueryColumn,
   selectedDropdownFilter,
   onSelectSingleRow,
+  onClickRow,
   onResultsCountChange,
   renderFooter,
   renderPagination,
@@ -155,7 +158,7 @@ const DataTable = ({
       // Expands the enumerated `filterTypes` for react-table
       // (see https://github.com/TanStack/react-table/blob/alpha/packages/react-table/src/filterTypes.ts)
       // with custom `filterTypes` defined for this `useTable` instance
-      filterTypes: React.useMemo(
+      filterTypes: useMemo(
         () => ({
           hasLength: (
             // eslint-disable-next-line @typescript-eslint/no-shadow
@@ -176,7 +179,7 @@ const DataTable = ({
       // Expands the enumerated `sortTypes` for react-table
       // (see https://github.com/tannerlinsley/react-table/blob/master/src/sortTypes.js)
       // with custom `sortTypes` defined for this `useTable` instance
-      sortTypes: React.useMemo(
+      sortTypes: useMemo(
         () => ({
           boolean: (
             a: { values: Record<string, unknown> },
@@ -313,8 +316,8 @@ const DataTable = ({
     toggleAllPagesSelected(false);
   }, [toggleAllPagesSelected, toggleAllRowsSelected]);
 
-  const onSingleRowClick = useCallback(
-    (row) => {
+  const onSelectRowClick = useCallback(
+    (row: any) => {
       if (disableMultiRowSelect) {
         row.toggleRowSelected();
         onSelectSingleRow && onSelectSingleRow(row);
@@ -446,46 +449,45 @@ const DataTable = ({
   return (
     <div className={baseClass}>
       {isLoading && (
-        <div className={"loading-overlay"}>
+        <div className="loading-overlay">
           <Spinner />
         </div>
       )}
-      <div className={"data-table data-table__wrapper"}>
+      <div className="data-table data-table__wrapper">
         <table className={tableStyles}>
           {Object.keys(selectedRowIds).length !== 0 && (
-            <thead className={"active-selection"}>
+            <thead className="active-selection">
               <tr {...headerGroups[0].getHeaderGroupProps()}>
                 <th
-                  className={"active-selection__checkbox"}
+                  className="active-selection__checkbox"
                   {...headerGroups[0].headers[0].getHeaderProps(
-                    headerGroups[0].headers[0].getSortByToggleProps()
+                    headerGroups[0].headers[0].getSortByToggleProps({
+                      title: null,
+                    })
                   )}
                 >
                   {headerGroups[0].headers[0].render("Header")}
                 </th>
-                <th className={"active-selection__container"}>
-                  <div className={"active-selection__inner"}>
+                <th className="active-selection__container">
+                  <div className="active-selection__inner">
                     {renderSelectedCount()}
-                    <div className={"active-selection__inner-left"}>
+                    <div className="active-selection__inner-left">
                       {secondarySelectActions && renderSecondarySelectActions()}
                     </div>
-                    <div className={"active-selection__inner-right"}>
+                    <div className="active-selection__inner-right">
                       {primarySelectAction && renderPrimarySelectAction()}
                     </div>
                     {toggleAllPagesSelected && renderAreAllSelected()}
                     {shouldRenderToggleAllPages && (
                       <Button
                         onClick={onToggleAllPagesClick}
-                        variant={"text-link"}
-                        className={"light-text"}
+                        variant="text-link"
+                        className="light-text"
                       >
                         <>Select all matching {resultsTitle}</>
                       </Button>
                     )}
-                    <Button
-                      onClick={onClearSelectionClick}
-                      variant={"text-link"}
-                    >
+                    <Button onClick={onClearSelectionClick} variant="text-link">
                       Clear selection
                     </Button>
                   </div>
@@ -500,7 +502,9 @@ const DataTable = ({
                   return (
                     <th
                       className={column.id ? `${column.id}__header` : ""}
-                      {...column.getHeaderProps(column.getSortByToggleProps())}
+                      {...column.getHeaderProps(
+                        column.getSortByToggleProps({ title: null })
+                      )}
                     >
                       {renderColumnHeader(column)}
                     </th>
@@ -523,9 +527,10 @@ const DataTable = ({
                   {...row.getRowProps({
                     // @ts-ignore // TS complains about prop not existing
                     onClick: () => {
-                      onSingleRowClick &&
+                      (onSelectRowClick &&
                         disableMultiRowSelect &&
-                        onSingleRowClick(row);
+                        onSelectRowClick(row)) ||
+                        (onClickRow && onClickRow(row));
                     },
                   })}
                 >

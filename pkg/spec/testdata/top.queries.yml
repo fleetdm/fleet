@@ -1,0 +1,19 @@
+- name: Scheduled query stats
+  description: Collect osquery performance stats directly from osquery
+  query: SELECT *,
+    (SELECT value from osquery_flags where name = 'pack_delimiter') AS delimiter
+    FROM osquery_schedule;
+  interval: 0
+  platform: darwin,linux,windows
+  min_osquery_version: all
+  observer_can_run: false
+  automations_enabled: false
+  logging: snapshot
+- name: orbit_info
+  query: SELECT * from orbit_info;
+  interval: 0
+  platform: darwin,$LINUX_OS,windows
+  min_osquery_version: all
+  observer_can_run: false
+  automations_enabled: true
+  logging: snapshot

@@ -132,13 +132,22 @@ func TestRunner(t *testing.T) {
 			errContains: "", // no errors reported, script is just skipped
 		},
 		{
-			desc:        "multiple errors reported, one get fails, one non-existing",
+			desc:        "first script get error",
 			client:      &mockClient{getErr: errFailOnce, scripts: map[string]*fleet.HostScriptResult{"a": {ExitCode: ptr.Int64(0)}}},
 			execer:      &mockExecCmd{},
 			enabled:     true,
 			execIDs:     []string{"a", "b"},
 			execCalls:   0,
-			errContains: "get host script: fail once\nget host script: no such script: b",
+			errContains: "get host script: fail once",
+		},
+		{
+			desc:        "middle script get error",
+			client:      &mockClient{scripts: map[string]*fleet.HostScriptResult{"a": {ExitCode: ptr.Int64(0)}, "b": {}, "c": {}}, erroredScripts: map[string]error{"b": errFailOnce}},
+			execer:      &mockExecCmd{},
+			enabled:     true,
+			execIDs:     []string{"a", "b", "c"},
+			execCalls:   0,
+			errContains: "get host script: fail once",
 		},
 	}
 	for _, c := range cases {
@@ -164,7 +173,7 @@ func TestRunnerTempDir(t *testing.T) {
 	t.Run("deletes temp dir", func(t *testing.T) {
 		tempDir := t.TempDir()
 
-		client := &mockClient{scripts: map[string]*fleet.HostScriptResult{"a": {ScriptContents: "echo 'Hi'"}}}
+		client := &mockClient{scripts: map[string]*fleet.HostScriptResult{"a": {ScriptContents: "echo 'Hi'", ExecutionID: "a"}}}
 		execer := &mockExecCmd{output: []byte("output"), exitCode: 0, err: nil}
 		runner := &Runner{
 			Client:                 client,
@@ -228,7 +237,7 @@ func TestRunnerTempDir(t *testing.T) {
 		tempDir := t.TempDir()
 		t.Setenv("FLEET_PREVENT_SCRIPT_TEMPDIR_DELETION", "1")
 
-		client := &mockClient{scripts: map[string]*fleet.HostScriptResult{"a": {ScriptContents: "echo 'Hi'"}}}
+		client := &mockClient{scripts: map[string]*fleet.HostScriptResult{"a": {ScriptContents: "echo 'Hi'", ExecutionID: "a"}}}
 		execer := &mockExecCmd{output: []byte("output"), exitCode: 0, err: nil}
 		runner := &Runner{
 			Client:                 client,
@@ -315,7 +324,7 @@ func TestRunnerResults(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.desc, func(t *testing.T) {
-			client := &mockClient{scripts: map[string]*fleet.HostScriptResult{"a": {ScriptContents: "echo 'Hi'"}}}
+			client := &mockClient{scripts: map[string]*fleet.HostScriptResult{"a": {ScriptContents: "echo 'Hi'", ExecutionID: "a"}}}
 			execer := &mockExecCmd{output: []byte(c.output), exitCode: c.exitCode, err: c.runErr}
 			runner := &Runner{
 				Client:                 client,
@@ -340,7 +349,7 @@ type mockExecCmd struct {
 	execFn   func() ([]byte, int, error)
 }
 
-func (m *mockExecCmd) run(ctx context.Context, scriptPath string) ([]byte, int, error) {
+func (m *mockExecCmd) run(ctx context.Context, scriptPath string, env []string) ([]byte, int, error) {
 	m.count++
 	if m.execFn != nil {
 		return m.execFn()
@@ -351,10 +360,11 @@ func (m *mockExecCmd) run(ctx context.Context, scriptPath string) ([]byte, int, 
 var errFailOnce = errors.New("fail once")
 
 type mockClient struct {
-	scripts map[string]*fleet.HostScriptResult
-	results map[string]*fleet.HostScriptResultPayload
-	getErr  error
-	saveErr error
+	scripts        map[string]*fleet.HostScriptResult
+	results        map[string]*fleet.HostScriptResultPayload
+	getErr         error
+	saveErr        error
+	erroredScripts map[string]error
 }
 
 func (m *mockClient) GetHostScript(execID string) (*fleet.HostScriptResult, error) {
@@ -366,10 +376,19 @@ func (m *mockClient) GetHostScript(execID string) (*fleet.HostScriptResult, erro
 		return nil, err
 	}
 
+	if m.erroredScripts == nil {
+		m.erroredScripts = make(map[string]error)
+	}
+
 	script := m.scripts[execID]
 	if script == nil {
 		return nil, fmt.Errorf("no such script: %s", execID)
 	}
+
+	if err, ok := m.erroredScripts[execID]; ok {
+		return nil, err
+	}
+
 	return script, nil
 }
 

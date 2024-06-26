@@ -7,7 +7,7 @@ This project uses the protocols:
 
 - [MS-MDE](https://docs.microsoft.com/en-us/openspecs/windows_protocols/ms-mde/d9e18701-cd4c-4fdb-8a3e-c1ddd33b1307)
 - [MS-MDM](https://docs.microsoft.com/en-us/openspecs/windows_protocols/ms-mdm/33769a92-ac31-47ef-ae7b-dc8501f7104f)
-- [MS-WSTEP](https://docs.microsoft.com/en-us/openspecs/windows_protocols/ms-wstep/4766a85d-0d18-4fa1-a51f-e5cb98b752ea) 
+- [MS-WSTEP](https://docs.microsoft.com/en-us/openspecs/windows_protocols/ms-wstep/4766a85d-0d18-4fa1-a51f-e5cb98b752ea)
 - [MS-XCEP](https://docs.microsoft.com/en-us/openspecs/windows_protocols/ms-xcep/08ec4475-32c2-457d-8c27-5a176660a210)
 - [OMA Device Management Protocol](https://www.openmobilealliance.org/release/DM/V1_2_1-20080617-A/OMA-TS-DM_Protocol-V1_2_1-20080617-A.pdf)
 
@@ -22,7 +22,9 @@ This code is MIT licensed and it was forked from [here](https://github.com/oscar
 
 ## Usage
 
-On the server side, you just need to run the project using the already provided cert and keys. So go to the project folder and run.
+On the server side, you just need to run the project using the already provided cert and keys. The certificate is in `.pfx` file format, so you need to extract the certificate and key first, see https://stackoverflow.com/a/59120388/1094941.
+
+Next go to the project folder and run.
 
 ```bash
 go run .
@@ -31,11 +33,11 @@ go run .
 On the Windows client side, you need to import a custom CA certificate to the certificate store, and populate the `hosts` file before running the Windows Enrollment. The certificate to import is on the certs directory and it is called `dev_cert_mdmwindows_com.pfx`. You need to copy this certificate to the client machine and run the powershell command below. This is required because the project uses a local dev https endpoint.
 
     1) Import certificate to Trusted CAs repository (be sure to update the path to the pfx certificate)
-    
+
     powershell -ep bypass "$mypwd = ConvertTo-SecureString -String 'testpassword' -Force -AsPlainText ; Import-PfxCertificate -FilePath c:\path\to\dev_cert_mdmwindows_com.pfx -CertStoreLocation Cert:\LocalMachine\Root -Password $mypwd"
-  
+
     2) Add mdmwindows.com to the list of static DNS
-    
+
     echo <server_ip> mdmwindows.com >> %SystemRoot%\System32\drivers\etc\hosts
     echo <server_ip> autodiscovery.mdmwindows.com >> %SystemRoot%\System32\drivers\etc\hosts
     echo <server_ip> enterpriseenrollment.mdmwindows.com >> %SystemRoot%\System32\drivers\etc\hosts
@@ -55,19 +57,19 @@ Below is the raw https exchange of the MS-MDE and MS-MDM protocols when run usin
     Cache-Control: no-cache
     Pragma: no-cache
     User-Agent: ENROLLClient
-    
-    
+
+
     ----------- Empty Input Body -----------
     =========================================================================
-    
-       
-    
+
+
+
     ============================= Output Response =============================
     ----------- Response Header -----------
      HTTP/1.1 200 OK
     Connection: close
-    
-    
+
+
     ----------- Empty Response Body -----------
     =========================================================================
 
@@ -78,10 +80,10 @@ Below is the raw https exchange of the MS-MDE and MS-MDM protocols when run usin
     Content-Length: 1042
     Content-Type: application/soap+xml; charset=utf-8
     User-Agent: ENROLLClient
-    
-    
+
+
     ----------- Input Body -----------
-    
+
             <s:Envelope xmlns:a="http://www.w3.org/2005/08/addressing" xmlns:s="http://www.w3.org/2003/05/soap-envelope">
               <s:Header>
                 <a:Action s:mustUnderstand="1">http://schemas.microsoft.com/windows/management/2012/01/enrollment/IDiscoveryService/Discover</a:Action>
@@ -108,20 +110,20 @@ Below is the raw https exchange of the MS-MDE and MS-MDM protocols when run usin
               </s:Body>
             </s:Envelope>
     =========================================================================
-    
-    
-    
-    
+
+
+
+
     ============================= Output Response =============================
     ----------- Response Header -----------
      HTTP/1.1 200 OK
     Content-Length: 1107
     Content-Type: application/soap+xml; charset=utf-8
-    
-    
+
+
     ----------- Response Body -----------
-    
-    
+
+
             <s:Envelope
                             xmlns:s="http://www.w3.org/2003/05/soap-envelope"
                             xmlns:a="http://www.w3.org/2005/08/addressing">
@@ -239,7 +241,7 @@ Content-Type: application/soap+xml; charset=utf-8
 
 
 
-### MDM Certificate Enrollment Extensions Flow (MS-WSTEP) 
+### MDM Certificate Enrollment Extensions Flow (MS-WSTEP)
 
 
     ============================= Input Request =============================
@@ -249,10 +251,10 @@ Content-Type: application/soap+xml; charset=utf-8
     Content-Length: 4295
     Content-Type: application/soap+xml; charset=utf-8
     User-Agent: ENROLLClient
-    
-    
+
+
     ----------- Input Body -----------
-    
+
             <s:Envelope xmlns:s="http://www.w3.org/2003/05/soap-envelope" xmlns:a="http://www.w3.org/2005/08/addressing" xmlns:u="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd" xmlns:wsse="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd" xmlns:wst="http://docs.oasis-open.org/ws-sx/ws-trust/200512" xmlns:ac="http://schemas.xmlsoap.org/ws/2006/12/authorization">
               <s:Header>
                 <a:Action s:mustUnderstand="1">http://schemas.microsoft.com/windows/pki/2009/01/enrollment/RST/wstep</a:Action>
@@ -333,20 +335,20 @@ Content-Type: application/soap+xml; charset=utf-8
               </s:Body>
             </s:Envelope>
     =========================================================================
-    
-    
-    
-    
+
+
+
+
     ============================= Output Response =============================
     ----------- Response Header -----------
      HTTP/1.1 200 OK
     Content-Length: 8598
     Content-Type: application/soap+xml; charset=utf-8
-    
-    
+
+
     ----------- Response Body -----------
-    
-    
+
+
             <s:Envelope
                             xmlns:s="http://www.w3.org/2003/05/soap-envelope"
                             xmlns:a="http://www.w3.org/2005/08/addressing"
@@ -399,10 +401,10 @@ Content-Type: application/soap+xml; charset=utf-8
     Content-Type: application/vnd.syncml.dm+xml
     Ms-Cv: a/tCeBgffEqA5408.0.0.0
     User-Agent: MSFT OMA DM Client/1.2.0.1
-    
-    
+
+
     ----------- Input Body -----------
-    
+
             <SyncML xmlns="SYNCML:SYNCML1.2">
               <SyncHdr>
                 <VerDTD>1.2</VerDTD>
@@ -468,19 +470,19 @@ Content-Type: application/soap+xml; charset=utf-8
               </SyncBody>
             </SyncML>
     =========================================================================
-    
-    
-    
-    
+
+
+
+
     ============================= Output Response =============================
     ----------- Response Header -----------
      HTTP/1.1 200 OK
     Content-Length: 1736
     Content-Type: application/vnd.syncml.dm+xml
-    
-    
+
+
     ----------- Response Body -----------
-    
+
             <?xml version="1.0" encoding="UTF-8"?>
             <SyncML xmlns="SYNCML:SYNCML1.2">
               <SyncHdr>
@@ -554,11 +556,11 @@ Content-Type: application/soap+xml; charset=utf-8
               </SyncBody>
             </SyncML>
     =========================================================================
-    
-    
+
+
     192.168.8.10 - - [30/Dec/2022:16:59:44 -0300] "POST /ManagementServer/MDM.svc?mode=Maintenance&Platform=WoA HTTP/2.0" 200 1400
-    
-    
+
+
     ============================= Input Request =============================
     ----------- Input Header -----------
      POST /ManagementServer/MDM.svc?mode=Maintenance&Platform=WoA HTTP/2.0
@@ -570,10 +572,10 @@ Content-Type: application/soap+xml; charset=utf-8
     Content-Type: application/vnd.syncml.dm+xml
     Ms-Cv: a/tCeBgffEqA5408.0.0.0
     User-Agent: MSFT OMA DM Client/1.2.0.1
-    
-    
+
+
     ----------- Input Body -----------
-    
+
             <SyncML xmlns="SYNCML:SYNCML1.2">
               <SyncHdr>
                 <VerDTD>1.2</VerDTD>
@@ -613,19 +615,19 @@ Content-Type: application/soap+xml; charset=utf-8
               </SyncBody>
             </SyncML>
     =========================================================================
-    
-    
-    
-    
+
+
+
+
     ============================= Output Response =============================
     ----------- Response Header -----------
      HTTP/1.1 200 OK
     Content-Type: application/vnd.syncml.dm+xml
     Content-Length: 0
-    
-    
+
+
     ----------- Response Body -----------
-    
+
     =========================================================================
 
 

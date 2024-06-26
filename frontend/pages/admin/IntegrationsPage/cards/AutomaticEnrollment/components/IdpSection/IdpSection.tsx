@@ -7,6 +7,7 @@ import configAPI from "services/entities/config";
 import InputField from "components/forms/fields/InputField";
 import CustomLink from "components/CustomLink/CustomLink";
 import Button from "components/buttons/Button/Button";
+import SectionHeader from "components/SectionHeader";
 import validateUrl from "components/forms/validators/valid_url";
 import ReactTooltip from "react-tooltip";
 import { NotificationContext } from "context/notification";
@@ -74,17 +75,17 @@ const IdpSection = () => {
 
   return (
     <div className={baseClass}>
-      <h2>End user authentication</h2>
-      <p>
-        Connect Fleet to your identity provider to require end users to
-        authenticate when they first setup their new macOS hosts.{" "}
-        <CustomLink
-          url="https://fleetdm.com/docs/using-fleet/mdm-macos-setup-experience##end-user-authentication-and-eula"
-          text="Learn more"
-          newTab
-        />
-      </p>
+      <SectionHeader title="End user authentication" />
       <form>
+        <p>
+          Connect Fleet to your identity provider to require end users to
+          authenticate when they first setup their new macOS hosts.{" "}
+          <CustomLink
+            url="https://fleetdm.com/docs/using-fleet/mdm-macos-setup-experience##end-user-authentication-and-eula"
+            text="Learn more"
+            newTab
+          />
+        </p>
         <InputField
           label="Identity provider name"
           onChange={onInputChange}
@@ -110,7 +111,11 @@ const IdpSection = () => {
           error={!isValidMetadataUrl && "Must be a valid URL."}
           tooltip="The metadata URL supplied by the identity provider."
         />
-        <Button disabled={!completedForm} onClick={onSubmit}>
+        <Button
+          disabled={!completedForm}
+          onClick={onSubmit}
+          className="button-wrap"
+        >
           <span data-tip data-for="save-button">
             Save
           </span>

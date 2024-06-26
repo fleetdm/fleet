@@ -40,13 +40,13 @@
     overflow-wrap: anywhere;
   }
 
+  &__details-content {
+    margin-right: $pad-xsmall;
+  }
+
   &__details-bottomline {
     font-size: $xx-small;
     color: $ui-fleet-black-25;
-  }
-
-  &__show-query-link {
-    margin-left: $pad-xsmall;
   }
 
   &__show-query-icon {
@@ -57,7 +57,7 @@
     .activity-item__dash {
       border-right: none;
     }
-    .activity-item__details {
+    .activity-details {
       padding-bottom: $pad-xxlarge;
     }
   }

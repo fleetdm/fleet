@@ -99,7 +99,7 @@ func TestLiveQueryWithContext(t *testing.T) {
 	ctx, cancelFunc := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancelFunc()
 
-	res, err := client.LiveQueryWithContext(ctx, "select 1;", nil, []string{"host1"})
+	res, err := client.LiveQueryWithContext(ctx, "select 1;", nil, nil, []string{"host1"})
 	require.NoError(t, err)
 
 	gotResults := false

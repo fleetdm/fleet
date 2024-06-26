@@ -5,10 +5,21 @@
     margin: 0;
   }
 
-  &__turn-on-windows, &__turn-off-windows {
+  &__turn-on-windows,
+  &__turn-off-windows {
     display: flex;
     justify-content: space-between;
     align-items: center;
+
+    p {
+      margin-right: $pad-small;
+    }
+
+    button {
+      .children-wrapper {
+        text-wrap: nowrap;
+      }
+    }
   }
 
   &__turn-on-windows {

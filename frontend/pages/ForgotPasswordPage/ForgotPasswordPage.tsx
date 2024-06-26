@@ -69,17 +69,11 @@ const ForgotPasswordPage = ({ router }: IForgotPasswordPage) => {
     }
 
     return (
-      <>
-        <p>
-          Enter your email below to receive an email with instructions to reset
-          your password.
-        </p>
-        <ForgotPasswordForm
-          handleSubmit={handleSubmit}
-          onChangeFunc={() => setErrors({})}
-          serverErrors={errors}
-        />
-      </>
+      <ForgotPasswordForm
+        handleSubmit={handleSubmit}
+        onChangeFunc={() => setErrors({})}
+        serverErrors={errors}
+      />
     );
   };
 

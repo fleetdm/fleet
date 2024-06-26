@@ -94,6 +94,7 @@ If you also have Fleetd running on hosts, it will need access to these API endpo
 * `/api/fleet/orbit/scripts/request`
 * `/api/fleet/orbit/scripts/result`
 * `/api/fleet/orbit/disk_encryption_key`
+* `/api/fleet/orbit/device_mapping`
 * `/api/osquery/log`
 
 <meta name="description" value="Find commonly asked questions and answers about contributing to Fleet as part of our community.">

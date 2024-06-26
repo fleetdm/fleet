@@ -1,11 +1,6 @@
 .status-indicator {
   display: flex;
   align-items: center;
-  color: $core-fleet-blue;
-
-  ::first-letter {
-    text-transform: capitalize;
-  }
 
   &:before {
     border-radius: 100%;
@@ -13,7 +8,7 @@
     display: inline-block;
     margin-right: $pad-small;
     height: 8px;
-    width: 8px;
+    min-width: 8px;
   }
 
   // host status
@@ -26,16 +21,6 @@
   &--disabled:before,
   &--off:before {
     background-color: $ui-offline;
-  }
-
-  &--online,
-  &--offline {
-    .status-tooltip {
-      display: block;
-      white-space: normal;
-      max-width: 308px;
-      text-transform: none;
-    }
   }
 
   // user status
@@ -53,5 +38,9 @@
     &:before {
       background-color: $ui-warning;
     }
+  }
+
+  .component__tooltip-wrapper__tip-text {
+    text-align: center;
   }
 }

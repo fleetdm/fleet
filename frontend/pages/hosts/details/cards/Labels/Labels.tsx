@@ -3,6 +3,11 @@ import React from "react";
 import Button from "components/buttons/Button";
 import { ILabel } from "interfaces/label";
 import { enforceFleetSentenceCasing } from "utilities/strings/stringUtils";
+import classnames from "classnames";
+
+import Card from "components/Card";
+
+const baseClass = "labels-card";
 
 interface ILabelsProps {
   onLabelClick: (label: ILabel) => void;
@@ -10,6 +15,8 @@ interface ILabelsProps {
 }
 
 const Labels = ({ onLabelClick, labels }: ILabelsProps): JSX.Element => {
+  const classNames = classnames(baseClass, "card", "labels");
+
   const labelItems = labels.map((label: ILabel) => {
     return (
       <li className="list__item" key={label.id}>
@@ -25,8 +32,13 @@ const Labels = ({ onLabelClick, labels }: ILabelsProps): JSX.Element => {
   });
 
   return (
-    <div className="section labels col-50">
-      <p className="section__header">Labels</p>
+    <Card
+      borderRadiusSize="xxlarge"
+      includeShadow
+      largePadding
+      className={classNames}
+    >
+      <p className="card__header">Labels</p>
       {labels.length === 0 ? (
         <p className="info-flex__item">
           No labels are associated with this host.
@@ -34,7 +46,7 @@ const Labels = ({ onLabelClick, labels }: ILabelsProps): JSX.Element => {
       ) : (
         <ul className="list">{labelItems}</ul>
       )}
-    </div>
+    </Card>
   );
 };
 

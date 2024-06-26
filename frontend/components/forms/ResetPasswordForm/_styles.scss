@@ -1,17 +1,11 @@
 .reset-password-form {
   width: 100%;
 
-  &__button-wrap {
-    display: flex;
+  .button-wrap {
     justify-content: center;
   }
 
   &__input {
     width: 100%;
-  }
-
-  &__btn {
-    margin-top: $pad-xxlarge;
-    width: 160px;
   }
 }

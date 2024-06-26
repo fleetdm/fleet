@@ -20,7 +20,14 @@ import (
 func NewService(config config.FleetConfig) (fleet.MailService, error) {
 	switch strings.ToLower(config.Email.EmailBackend) {
 	case "ses":
-		return NewSESSender(config.SES.Region, config.SES.EndpointURL, config.SES.AccessKeyID, config.SES.SecretAccessKey, config.SES.StsAssumeRoleArn, config.SES.SourceArn)
+		return NewSESSender(config.SES.Region,
+			config.SES.EndpointURL,
+			config.SES.AccessKeyID,
+			config.SES.SecretAccessKey,
+			config.SES.StsAssumeRoleArn,
+			config.SES.StsExternalID,
+			config.SES.SourceArn,
+		)
 	default:
 		return &mailService{}, nil
 	}
@@ -275,11 +282,13 @@ func dialTimeout(addr string, tlsConfig *tls.Config) (client *smtp.Client, err e
 // SMTPTestMailer is used to build an email message that will be used as
 // a test message when testing SMTP configuration
 type SMTPTestMailer struct {
-	BaseURL  template.URL
-	AssetURL template.URL
+	BaseURL     template.URL
+	AssetURL    template.URL
+	CurrentYear int
 }
 
 func (m *SMTPTestMailer) Message() ([]byte, error) {
+	m.CurrentYear = time.Now().Year()
 	t, err := server.GetTemplate("server/mail/templates/smtp_setup.html", "email_template")
 	if err != nil {
 		return nil, err

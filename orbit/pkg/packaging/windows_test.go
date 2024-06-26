@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -73,6 +75,14 @@ func TestSanitizeVersion(t *testing.T) {
 	}{
 		{Version: "4.13.0", Parts: []string{"4", "13", "0", "0"}},
 		{Version: "4.13.0.1", Parts: []string{"4", "13", "0", "1"}},
+
+		// We need to support this form of semantic versioning (with pre-releases)
+		// to comply with semantic versioning required by goreleaser to allow building
+		// orbit pre-releases.
+		{Version: "4.13.0-1", Parts: []string{"4", "13", "0", "1"}},
+		{Version: "4.13.0-alpha", Parts: []string{"4", "13", "0", "alpha"}},
+		{Version: "4.13.0-", ErrorsOut: true},
+
 		{Version: "4.13.0.1.2", Parts: []string{"4", "13", "0", "1"}},
 		{Version: "4", ErrorsOut: true},
 		{Version: "4.13", ErrorsOut: true},
@@ -88,4 +98,15 @@ func TestSanitizeVersion(t *testing.T) {
 
 		require.Equal(t, tC.Parts, result)
 	}
+}
+
+func TestDownloadAndExtractZip(t *testing.T) {
+	t.Parallel()
+	path := t.TempDir()
+	client := fleethttp.NewClient()
+	err := downloadAndExtractZip(client, wixDownload, path)
+	require.NoError(t, err)
+	assert.FileExists(t, filepath.Join(path, "heat.exe"))
+	assert.FileExists(t, filepath.Join(path, "candle.exe"))
+	assert.FileExists(t, filepath.Join(path, "light.exe"))
 }

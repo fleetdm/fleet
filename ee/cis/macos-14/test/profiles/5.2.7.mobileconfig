@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadContent</key>
+	<array>
+		<dict>
+			<key>PayloadDisplayName</key>
+			<string>test</string>
+			<key>PayloadType</key>
+			<string>com.apple.mobiledevice.passwordpolicy</string>
+			<key>PayloadIdentifier</key>
+			<string>com.fleetdm.cis-5.2.7.check</string>
+			<key>PayloadUUID</key>
+			<string>F5515451-97EC-4CCB-B442-CDF0C546BC27</string>
+			<key>maxPINAgeInDays</key>
+			<integer>365</integer>
+		</dict>
+	</array>
+	<key>PayloadDescription</key>
+	<string>test</string>
+	<key>PayloadDisplayName</key>
+	<string>Ensure Password Age Is Configured</string>
+	<key>PayloadIdentifier</key>
+	<string>com.fleetdm.cis-5.2.7</string>
+	<key>PayloadRemovalDisallowed</key>
+	<false/>
+	<key>PayloadScope</key>
+	<string>System</string>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadUUID</key>
+	<string>AEF56396-50CC-4E5A-9C6D-CBAE6A5E13B5</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+</dict>
+</plist>

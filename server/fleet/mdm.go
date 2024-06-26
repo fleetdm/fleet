@@ -1,15 +1,23 @@
 package fleet
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/url"
 	"time"
+
+	mdm_types "github.com/fleetdm/fleet/v4/server/mdm"
 )
 
 const (
 	MDMPlatformApple     = "apple"
 	MDMPlatformMicrosoft = "microsoft"
+
+	MDMAppleDeclarationUUIDPrefix = "d"
+	MDMAppleProfileUUIDPrefix     = "a"
+	MDMWindowsProfileUUIDPrefix   = "w"
 )
 
 type AppleMDM struct {
@@ -83,20 +91,20 @@ func (bp *MDMAppleBootstrapPackage) URL(host string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	pkgURL.Path = "/api/latest/fleet/mdm/apple/bootstrap"
+	pkgURL.Path = "/api/latest/fleet/mdm/bootstrap"
 	pkgURL.RawQuery = fmt.Sprintf("token=%s", bp.Token)
 	return pkgURL.String(), nil
 }
 
-// MDMAppleEULA represents an EULA (End User License Agreement) file.
-type MDMAppleEULA struct {
+// MDMEULA represents an EULA (End User License Agreement) file.
+type MDMEULA struct {
 	Name      string    `json:"name"`
 	Bytes     []byte    `json:"bytes"`
 	Token     string    `json:"token"`
 	CreatedAt time.Time `json:"created_at" db:"created_at"`
 }
 
-func (e MDMAppleEULA) AuthzType() string {
+func (e MDMEULA) AuthzType() string {
 	return "mdm_apple"
 }
 
@@ -117,6 +125,10 @@ type ExpectedMDMProfile struct {
 	EarliestInstallDate time.Time `db:"earliest_install_date"`
 	// RawProfile contains the raw profile contents
 	RawProfile []byte `db:"raw_profile"`
+	// CountProfileLabels is used to enable queries that filter based on profile <-> label mappings.
+	CountProfileLabels uint `db:"count_profile_labels"`
+	// CountHostLabels is used to enable queries that filter based on profile <-> label mappings.
+	CountHostLabels uint `db:"count_host_labels"`
 }
 
 // IsWithinGracePeriod returns true if the host is within the grace period for the profile.
@@ -159,6 +171,8 @@ type CommandEnqueueResult struct {
 	// FailedUUIDs is the list of host UUIDs that failed to receive the command.
 	FailedUUIDs []string `json:"failed_uuids,omitempty"`
 	// Platform is the platform of the hosts targeted by the command.
+	// Current possible values are "darwin" or "windows".
+	// Here "darwin" means "Apple" devices (iOS/iPadOS/macOS).
 	Platform string `json:"platform"`
 }
 
@@ -186,7 +200,8 @@ type MDMCommandResult struct {
 	HostUUID string `json:"host_uuid" db:"host_uuid"`
 	// CommandUUID is the unique identifier of the command.
 	CommandUUID string `json:"command_uuid" db:"command_uuid"`
-	// Status is the command status. One of Acknowledged, Error, or NotNow.
+	// Status is the command status. One of Acknowledged, Error, or NotNow for
+	// Apple, or 200, 400, etc for Windows.
 	Status string `json:"status" db:"status"`
 	// UpdatedAt is the last update timestamp of the command result.
 	UpdatedAt time.Time `json:"updated_at" db:"updated_at"`
@@ -199,6 +214,8 @@ type MDMCommandResult struct {
 	// Hostname is not filled by the query, it is filled in the service layer
 	// afterwards. To make that explicit, the db field tag is explicitly ignored.
 	Hostname string `json:"hostname" db:"-"`
+	// Payload is the contents of the command
+	Payload []byte `json:"payload" db:"payload"`
 }
 
 // MDMCommand represents an MDM command that has been enqueued for
@@ -293,12 +310,8 @@ type MDMDeliveryStatus string
 //     command failed to enqueue in ReconcileProfile (it resets the status to
 //     NULL). A failure in the asynchronous actual response of the MDM command
 //     (via MDMAppleCheckinAndCommandService.CommandAndReportResults) results in
-//     the failed state being applied and no retry. We should probably support
-//     some retries for such failures, and determine a maximum number of retries
-//     before giving up (either as a count of attempts - which would require
-//     storing somewhere - or as a time period, which we could determine based on
-//     the timestamps, e.g. time since created_at, if we added them to
-//     host_mdm_apple_profiles).
+//     a retry of mdm.MaxProfileRetries times and if it still reports as failed
+//     it will be set to failed permanently.
 //
 //   - verified: the MDM command was successfully applied, and Fleet has
 //     independently verified the status. This is a terminal state.
@@ -351,14 +364,23 @@ func (m MDMConfigProfileAuthz) AuthzType() string {
 // MDMConfigProfilePayload is the platform-agnostic struct returned by
 // endpoints that return MDM configuration profiles (get/list profiles).
 type MDMConfigProfilePayload struct {
-	ProfileUUID string    `json:"profile_uuid" db:"profile_uuid"`
-	TeamID      *uint     `json:"team_id" db:"team_id"` // null for no-team
-	Name        string    `json:"name" db:"name"`
-	Platform    string    `json:"platform" db:"platform"`               // "windows" or "darwin"
-	Identifier  string    `json:"identifier,omitempty" db:"identifier"` // only set for macOS
-	Checksum    []byte    `json:"checksum,omitempty" db:"checksum"`     // only set for macOS
-	CreatedAt   time.Time `json:"created_at" db:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at" db:"updated_at"`
+	ProfileUUID string                      `json:"profile_uuid" db:"profile_uuid"`
+	TeamID      *uint                       `json:"team_id" db:"team_id"` // null for no-team
+	Name        string                      `json:"name" db:"name"`
+	Platform    string                      `json:"platform" db:"platform"`               // "windows" or "darwin"
+	Identifier  string                      `json:"identifier,omitempty" db:"identifier"` // only set for macOS
+	Checksum    []byte                      `json:"checksum,omitempty" db:"checksum"`     // only set for macOS
+	CreatedAt   time.Time                   `json:"created_at" db:"created_at"`
+	UploadedAt  time.Time                   `json:"updated_at" db:"uploaded_at"` // NOTE: JSON field is still `updated_at` for historical reasons, would be an API breaking change
+	Labels      []ConfigurationProfileLabel `json:"labels,omitempty" db:"-"`
+}
+
+// MDMProfileBatchPayload represents the payload to batch-set the profiles for
+// a team or no-team.
+type MDMProfileBatchPayload struct {
+	Name     string   `json:"name,omitempty"`
+	Contents []byte   `json:"contents,omitempty"`
+	Labels   []string `json:"labels,omitempty"`
 }
 
 func NewMDMConfigProfilePayloadFromWindows(cp *MDMWindowsConfigProfile) *MDMConfigProfilePayload {
@@ -372,7 +394,8 @@ func NewMDMConfigProfilePayloadFromWindows(cp *MDMWindowsConfigProfile) *MDMConf
 		Name:        cp.Name,
 		Platform:    "windows",
 		CreatedAt:   cp.CreatedAt,
-		UpdatedAt:   cp.UpdatedAt,
+		UploadedAt:  cp.UploadedAt,
+		Labels:      cp.Labels,
 	}
 }
 
@@ -389,6 +412,219 @@ func NewMDMConfigProfilePayloadFromApple(cp *MDMAppleConfigProfile) *MDMConfigPr
 		Platform:    "darwin",
 		Checksum:    cp.Checksum,
 		CreatedAt:   cp.CreatedAt,
-		UpdatedAt:   cp.UpdatedAt,
+		UploadedAt:  cp.UploadedAt,
+		Labels:      cp.Labels,
 	}
 }
+
+func NewMDMConfigProfilePayloadFromAppleDDM(decl *MDMAppleDeclaration) *MDMConfigProfilePayload {
+	var tid *uint
+	if decl.TeamID != nil && *decl.TeamID > 0 {
+		tid = decl.TeamID
+	}
+	return &MDMConfigProfilePayload{
+		ProfileUUID: decl.DeclarationUUID,
+		TeamID:      tid,
+		Name:        decl.Name,
+		Identifier:  decl.Identifier,
+		Platform:    "darwin",
+		Checksum:    []byte(decl.Checksum),
+		CreatedAt:   decl.CreatedAt,
+		UploadedAt:  decl.UploadedAt,
+		Labels:      decl.Labels,
+	}
+}
+
+// MDMProfileSpec represents the spec used to define configuration
+// profiles via yaml files.
+type MDMProfileSpec struct {
+	Path   string   `json:"path,omitempty"`
+	Labels []string `json:"labels,omitempty"`
+}
+
+// UnmarshalJSON implements the json.Unmarshaler interface to add backwards
+// compatibility to previous ways to define profile specs.
+func (p *MDMProfileSpec) UnmarshalJSON(data []byte) error {
+	if len(data) == 0 {
+		return nil
+	}
+
+	if lookAhead := bytes.TrimSpace(data); len(lookAhead) > 0 && lookAhead[0] == '"' {
+		var backwardsCompat string
+		if err := json.Unmarshal(data, &backwardsCompat); err != nil {
+			return fmt.Errorf("unmarshal profile spec. Error using old format: %w", err)
+		}
+		p.Path = backwardsCompat
+		return nil
+	}
+
+	// use an alias type to avoid recursively calling this function forever.
+	type Alias MDMProfileSpec
+	aliasData := struct {
+		*Alias
+	}{
+		Alias: (*Alias)(p),
+	}
+	if err := json.Unmarshal(data, &aliasData); err != nil {
+		return fmt.Errorf("unmarshal profile spec. Error using new format: %w", err)
+	}
+	return nil
+}
+
+func (p *MDMProfileSpec) Clone() (Cloner, error) {
+	return p.Copy(), nil
+}
+
+func (p *MDMProfileSpec) Copy() *MDMProfileSpec {
+	if p == nil {
+		return nil
+	}
+
+	var clone MDMProfileSpec
+	clone = *p
+
+	if len(p.Labels) > 0 {
+		clone.Labels = make([]string, len(p.Labels))
+		copy(clone.Labels, p.Labels)
+	}
+
+	return &clone
+}
+
+func labelCountMap(labels []string) map[string]int {
+	counts := make(map[string]int)
+	for _, label := range labels {
+		counts[label]++
+	}
+	return counts
+}
+
+// MDMProfileSpecsMatch match checks if two slices contain the same spec
+// elements, regardless of order.
+func MDMProfileSpecsMatch(a, b []MDMProfileSpec) bool {
+	if len(a) != len(b) {
+		return false
+	}
+
+	pathLabelCounts := make(map[string]map[string]int)
+	for _, v := range a {
+		pathLabelCounts[v.Path] = labelCountMap(v.Labels)
+	}
+
+	for _, v := range b {
+		labels, ok := pathLabelCounts[v.Path]
+		if !ok {
+			return false
+		}
+
+		bLabelCounts := labelCountMap(v.Labels)
+		for label, count := range bLabelCounts {
+			if labels[label] != count {
+				return false
+			}
+			labels[label] -= count
+		}
+
+		for _, count := range labels {
+			if count != 0 {
+				return false
+			}
+		}
+
+		delete(pathLabelCounts, v.Path)
+	}
+
+	return len(pathLabelCounts) == 0
+}
+
+type MDMAssetName string
+
+const (
+	// MDMAssetCACert is the name of the root CA certificate used by MDM, for
+	// Apple this is the SCEP certificate, for Windows the WSTEP certificate
+	MDMAssetCACert MDMAssetName = "ca_cert"
+	// MDMAssetCAKey is the name of the root CA private key used by MDM, for
+	// Apple this is the SCEP key, for Windows the WSTEP key
+	MDMAssetCAKey MDMAssetName = "ca_key"
+	// MDMAssetAPNSKey is the name of the APNs (Apple Push Notifications
+	// service) private key used by MDM
+	MDMAssetAPNSKey MDMAssetName = "apns_key"
+	// MDMAssetAPNSCert is the name of the APNs (Apple Push Notifications
+	// service) private key used by MDM
+	MDMAssetAPNSCert MDMAssetName = "apns_cert"
+	// MDMAssetABMKey is the name of the ABM (Apple Business Manager)
+	// private key used to decrypt MDMAssetABMToken
+	MDMAssetABMKey MDMAssetName = "abm_key"
+	// MDMAssetABMCert is the name of the ABM (Apple Business Manager)
+	// private key used to encrypt MDMAssetABMToken
+	MDMAssetABMCert MDMAssetName = "abm_cert"
+	// MDMAssetABMToken is an encrypted JSON file that contains a token
+	// that can be used for the authentication process with the ABM API
+	MDMAssetABMToken MDMAssetName = "abm_token"
+	// MDMAssetSCEPChallenge defines the shared secret used to issue SCEP
+	// certificatges to Apple devices.
+	MDMAssetSCEPChallenge MDMAssetName = "scep_challenge"
+)
+
+type MDMConfigAsset struct {
+	Name        MDMAssetName `db:"name"`
+	Value       []byte       `db:"value"`
+	MD5Checksum string       `db:"md5_checksum"`
+}
+
+func (m MDMConfigAsset) Clone() (Cloner, error) {
+	return m.Copy(), nil
+}
+
+func (m MDMConfigAsset) Copy() MDMConfigAsset {
+	var clone MDMConfigAsset
+
+	clone.Name = m.Name
+	clone.MD5Checksum = m.MD5Checksum
+
+	if len(m.Value) > 0 {
+		clone.Value = make([]byte, len(m.Value))
+		copy(clone.Value, m.Value)
+	}
+
+	return clone
+}
+
+// MDMPlatform returns "darwin" or "windows" as MDM platforms
+// derived from a host's platform (hosts.platform field).
+//
+// Note that "darwin" as MDM platform means Apple (we keep it as "darwin"
+// to keep backwards compatibility throughout the app).
+func MDMPlatform(hostPlatform string) string {
+	switch hostPlatform {
+	case "darwin", "ios", "ipados":
+		return "darwin"
+	case "windows":
+		return "windows"
+	}
+	return ""
+}
+
+// MDMSupported returns whether MDM is supported for a given host platform.
+func MDMSupported(hostPlatform string) bool {
+	return MDMPlatform(hostPlatform) != ""
+}
+
+// FilterMacOSOnlyProfilesFromIOSIPadOS will filter out profiles that are only for macOS devices
+// if the profile target's platform is ios/ipados.
+func FilterMacOSOnlyProfilesFromIOSIPadOS(profiles []*MDMAppleProfilePayload) []*MDMAppleProfilePayload {
+	i := 0
+	for _, profilePayload := range profiles {
+		if (profilePayload.HostPlatform == "ios" || profilePayload.HostPlatform == "ipados") &&
+			(profilePayload.ProfileName == mdm_types.FleetdConfigProfileName ||
+				profilePayload.ProfileName == mdm_types.FleetFileVaultProfileName) {
+			continue
+		}
+		profiles[i] = profilePayload
+		i++
+	}
+	return profiles[:i]
+}
+
+// RefetchCommandUUIDPrefix is the prefix used for MDM commands used to refetch information from iOS/iPadOS devices.
+const RefetchCommandUUIDPrefix = "REFETCH-"

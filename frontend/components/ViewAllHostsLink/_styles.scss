@@ -1,7 +1,10 @@
 .view-all-hosts-link {
-  display: inline-flex;
-  align-items: center;
-  padding: $pad-small $pad-xxsmall; // larger clickable area
-  gap: $pad-xsmall;
-  white-space: nowrap;
+  @include table-link;
+  &__text {
+    &--responsive {
+      @media (max-width: $break-md) {
+        display: none;
+      }
+    }
+  }
 }

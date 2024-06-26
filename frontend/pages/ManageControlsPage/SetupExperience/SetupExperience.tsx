@@ -52,12 +52,21 @@ const SetupExperience = ({
   const { section } = params;
   const { isPremiumTier, config } = useContext(AppContext);
 
+  // Not premium shows premium message
+  if (!isPremiumTier) {
+    return (
+      <PremiumFeatureMessage
+        className={`${baseClass}__premium-feature-message`}
+      />
+    );
+  }
+
   // MDM is not on so show messaging for user to enable it.
   if (!config?.mdm.enabled_and_configured) {
     return <TurnOnMdmMessage router={router} />;
   }
   // User has not set up Apple Business Manager.
-  if (isPremiumTier && !config?.mdm.apple_bm_enabled_and_configured) {
+  if (!config?.mdm.apple_bm_enabled_and_configured) {
     return <SetupEmptyState router={router} />;
   }
 
@@ -75,25 +84,21 @@ const SetupExperience = ({
         Customize the setup experience for hosts that automatically enroll to
         this team.
       </p>
-      {!isPremiumTier ? (
-        <PremiumFeatureMessage />
-      ) : (
-        <SideNav
-          className={`${baseClass}__side-nav`}
-          navItems={SETUP_EXPERIENCE_NAV_ITEMS.map((navItem) => ({
-            ...navItem,
-            path: navItem.path.concat(queryString),
-          }))}
-          activeItem={currentFormSection.urlSection}
-          CurrentCard={
-            <CurrentCard
-              key={teamIdForApi}
-              currentTeamId={teamIdForApi}
-              router={router}
-            />
-          }
-        />
-      )}
+      <SideNav
+        className={`${baseClass}__side-nav`}
+        navItems={SETUP_EXPERIENCE_NAV_ITEMS.map((navItem) => ({
+          ...navItem,
+          path: navItem.path.concat(queryString),
+        }))}
+        activeItem={currentFormSection.urlSection}
+        CurrentCard={
+          <CurrentCard
+            key={teamIdForApi}
+            currentTeamId={teamIdForApi}
+            router={router}
+          />
+        }
+      />
     </div>
   );
 };

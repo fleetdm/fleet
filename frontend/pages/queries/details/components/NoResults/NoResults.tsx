@@ -57,7 +57,7 @@ const NoResults = ({
     return (
       <EmptyTable
         graphicName="collecting-results"
-        header={"Collecting results..."}
+        header="Collecting results..."
         info={collectingResultsInfo()}
       />
     );
@@ -70,12 +70,10 @@ const NoResults = ({
         if (disabledCachingGlobally) {
           return (
             <>
-              {" "}
               <div>
                 The following setting prevents saving this query&apos;s results
                 in Fleet:
               </div>
-              \
               <div>
                 &nbsp; • Query reports are globally disabled in organization
                 settings.
@@ -90,7 +88,6 @@ const NoResults = ({
                 The following setting prevents saving this query&apos;s results
                 in Fleet:
               </div>
-              \
               <div>
                 &nbsp; • This query has <b>Discard data</b> enabled.
               </div>
@@ -104,7 +101,6 @@ const NoResults = ({
                 The following setting prevents saving this query&apos;s results
                 in Fleet:
               </div>
-              \
               <div>
                 &nbsp; • The logging setting for this query is not{" "}
                 <b>Snapshot</b>.

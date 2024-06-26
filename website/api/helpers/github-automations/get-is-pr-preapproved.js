@@ -39,7 +39,7 @@ module.exports = {
       MAINTAINERS_BY_PATH = sails.config.custom.confidentialGithubRepoMaintainersByPath;
     }
 
-    if (repo === 'fleet-mdm-gitops') {
+    if (repo === 'fleet-gitops') {
       MAINTAINERS_BY_PATH = sails.config.custom.fleetMdmGitopsGithubRepoMaintainersByPath;
     }
 

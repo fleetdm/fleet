@@ -4,30 +4,91 @@
   <div purpose="page-container" class="container-xl mx-auto">
     <div purpose="page-heading">
       <h1>Extend Fleet</h1>
-      <p>Explore and learn how Fleet can integrate with your favorite tools.</p>
+      <p>Integrate ticketing systems, data lakes (/SIEMs), no-code (/SOAR) platforms, configuration management tools, network appliances for asset discovery, and more.</p>
+      <p>You can also build custom workflows with the REST API, webhook events, and fleetctl command line tool.</p>
     </div>
+
     <div purpose="integration-cards" class="card-deck d-flex justify-content-center">
+      <div purpose="integration-card" class="card">
+        <div purpose="integration-logo">
+          <img src="/images/logo-okta-85x28@2x.png" alt="Okta logo">
+        </div>
+        <div purpose="integration-card-body" class="card-body">
+          <p>
+            Know who opened your computer before you let them log into anything.
+          </p>
+          <div purpose="integration-card-buttons" class="d-flex flex-row justify-content-between">
+            <a target="_blank" href="https://www.okta.com/">Learn more</a>
+            <a purpose="animated-arrow-button-red" href="/docs/deploy/single-sign-on-sso#okta">Docs</a>
+          </div>
+        </div>
+      </div>
+      <div purpose="integration-card" class="card">
+        <div purpose="integration-logo">
+          <img src="/images/logo-snowflake-color-117x28@2x.png" alt="Snowflake logo">
+        </div>
+        <div purpose="integration-card-body" class="card-body">
+          <p>
+            Ingest osquery data and monitor for important changes or events.
+          </p>
+          <div purpose="integration-card-buttons" class="d-flex flex-row justify-content-between">
+            <a target="_blank"  href="https://www.snowflake.com/">Learn more</a>
+            <a purpose="animated-arrow-button-red" href="/guides/delivering-data-to-snowflake-from-fleet-and-osquery">Guide</a>
+          </div>
+        </div>
+      </div>
+
+      <div purpose="integration-card" class="card">
+        <div purpose="integration-logo">
+          <img src="/images/logo-tines-90x28@2x.png" alt="Tines logo">
+        </div>
+        <div purpose="integration-card-body" class="card-body">
+          <p>
+            Build custom workflows that trigger when things happen on your computers.
+          </p>
+          <div purpose="integration-card-buttons" class="d-flex flex-row justify-content-between">
+            <a target="_blank"  href="https://www.tines.com/">Learn more</a>
+            <a purpose="animated-arrow-button-red" href="/guides/using-fleet-and-tines-together#basic-article">Guide</a>
+          </div>
+        </div>
+      </div>
+
+      <div purpose="integration-card" class="card">
+        <div purpose="integration-logo">
+          <img src="/images/logo-runzero-130x28@2x.png" alt="runZero Directory logo">
+        </div>
+        <div purpose="integration-card-body" class="card-body">
+          <p>
+            Install osquery everywhere, scan networks, and discover assets.
+          </p>
+          <div purpose="integration-card-buttons" class="d-flex flex-row justify-content-between">
+            <a target="_blank" href="https://www.runzero.com/">Learn more</a>
+          </div>
+        </div>
+      </div>
+
       <div purpose="integration-card" class="card">
         <div purpose="integration-logo">
           <img src="/images/logo-active-directory-169x28@2x.png" alt="Active Directory logo">
         </div>
         <div purpose="integration-card-body" class="card-body">
           <p>
-            Know who opened your computer and check their device posture before you let them log into anything.
+            Know who opened your computer before you let them log into anything.
           </p>
           <div purpose="integration-card-buttons" class="d-flex flex-row justify-content-between">
             <a target="_blank" href="https://learn.microsoft.com/en-us/azure/active-directory/fundamentals/whatis">Learn more</a>
-            <a purpose="animated-arrow-button-red" href="/docs/configuration/fleet-server-configuration#identity-provider-idp-configuration">Docs</a>
+            <a purpose="animated-arrow-button-red" href="/docs/deploy/single-sign-on-sso#other-idps">Docs</a>
           </div>
         </div>
       </div>
+
       <div purpose="integration-card" class="card">
         <div purpose="integration-logo">
           <img src="/images/logo-ansible-147x28@2x.png" alt="Ansible logo">
         </div>
         <div purpose="integration-card-body" class="card-body">
           <p>
-            Easily issue MDM commands and standardize data across operating systems.
+            Deploy Fleet in Ansible.
           </p>
           <div purpose="integration-card-buttons" class="d-flex flex-row justify-content-between">
             <a target="_blank" href="https://ansible.com">Learn more</a>
@@ -35,6 +96,7 @@
           </div>
         </div>
       </div>
+
       <div purpose="integration-card" class="card">
         <div purpose="integration-logo">
           <img src="/images/logo-aws-46x28@2x.png" alt="AWS logo">
@@ -55,7 +117,7 @@
         </div>
         <div purpose="integration-card-body" class="card-body">
           <p>
-            Deploy your own self-managed Fleet in the Microsoft Cloud in minutes.
+            Deploy your own self-managed Fleet in the Microsoft Cloud.
           </p>
           <div purpose="integration-card-buttons" class="d-flex flex-row justify-content-between">
             <a target="_blank" href="https://azure.microsoft.com/en-us">Learn more</a>
@@ -63,6 +125,7 @@
           </div>
         </div>
       </div>
+
       <div purpose="integration-card" class="card">
         <div purpose="integration-logo">
           <img src="/images/logo-chef-169x28@2x.png" alt="Chef logo">
@@ -72,11 +135,12 @@
             Easily issue MDM commands and standardize data across operating systems.
           </p>
           <div purpose="integration-card-buttons" class="d-flex flex-row justify-content-between">
-            <a target="_blank" href="https://www.chef.io/">Learn more</a>
-            <a purpose="animated-arrow-button-red" target="_blank"  href="https://docs.chef.io/">Docs</a>
+            <a target="_blank" href="https://www.chef.io/products/chef-infra">Learn more</a>
+            <a purpose="animated-arrow-button-red" target="_blank"  href="https://docs.chef.io/chef_overview/">Docs</a>
           </div>
         </div>
       </div>
+
       <div purpose="integration-card" class="card">
         <div purpose="integration-logo">
           <img src="/images/logo-elastic-82x28@2x.png" alt="Elastic logo">
@@ -139,11 +203,11 @@
         </div>
         <div purpose="integration-card-body" class="card-body">
           <p>
-            Deploy your own self-managed Fleet in any GCP environment in minutes.
+            Deploy your own self-managed Fleet in any GCP environment.
           </p>
           <div purpose="integration-card-buttons" class="d-flex flex-row justify-content-between">
             <a target="_blank" href="https://console.cloud.google.com/getting-started">Learn more</a>
-            <a purpose="animated-arrow-button-red" href="/docs/deploy/introduction">Get started</a>
+            <a purpose="animated-arrow-button-red" href="/docs/deploy/reference-architectures#gcp">Get started</a>
           </div>
         </div>
       </div>
@@ -171,21 +235,7 @@
           </p>
           <div purpose="integration-card-buttons" class="d-flex flex-row justify-content-between">
             <a target="_blank" href="https://github.com/munki/munki">Learn more</a>
-            <a purpose="animated-arrow-button-red" href="/docs/using-fleet/mdm-macos-setup#bootstrap-package">Docs</a>
-          </div>
-        </div>
-      </div>
-      <div purpose="integration-card" class="card">
-        <div purpose="integration-logo">
-          <img src="/images/logo-okta-85x28@2x.png" alt="Okta logo">
-        </div>
-        <div purpose="integration-card-body" class="card-body">
-          <p>
-            Know who opened your computer and check their device posture before you let them log into anything.
-          </p>
-          <div purpose="integration-card-buttons" class="d-flex flex-row justify-content-between">
-            <a target="_blank" href="https://www.okta.com/">Learn more</a>
-            <a purpose="animated-arrow-button-red" href="/docs/configuration/fleet-server-configuration#okta-idp-configuration">Docs</a>
+            <a purpose="animated-arrow-button-red" href="/docs/using-fleet/mdm-macos-setup-experience#bootstrap-package">Docs</a>
           </div>
         </div>
       </div>
@@ -203,20 +253,7 @@
           </div>
         </div>
       </div>
-      <div purpose="integration-card" class="card">
-        <div purpose="integration-logo">
-          <img src="/images/logo-snowflake-color-117x28@2x.png" alt="Snowflake logo">
-        </div>
-        <div purpose="integration-card-body" class="card-body">
-          <p>
-            Ingest osquery data and monitor for important changes or events.
-          </p>
-          <div purpose="integration-card-buttons" class="d-flex flex-row justify-content-between">
-            <a target="_blank"  href="https://www.snowflake.com/">Learn more</a>
-            <a purpose="animated-arrow-button-red" href="/guides/delivering-data-to-snowflake-from-fleet-and-osquery">Guide</a>
-          </div>
-        </div>
-      </div>
+
       <div purpose="integration-card" class="card">
         <div purpose="integration-logo">
           <img src="/images/logo-splunk-95x28@2x.png" alt="Splunk logo">
@@ -233,15 +270,27 @@
       </div>
       <div purpose="integration-card" class="card">
         <div purpose="integration-logo">
-          <img src="/images/logo-tines-90x28@2x.png" alt="Tines logo">
+          <img src="/images/logo-oomnitza-109x28@2x.png" alt="Oomnitza">
         </div>
         <div purpose="integration-card-body" class="card-body">
           <p>
-            Build custom workflows that trigger when things happen on your computers.
+            Enterprise IT asset management platform.
           </p>
           <div purpose="integration-card-buttons" class="d-flex flex-row justify-content-between">
-            <a target="_blank"  href="https://www.tines.com/">Learn more</a>
-            <a purpose="animated-arrow-button-red" href="/guides/using-fleet-and-tines-together#basic-article">Guide</a>
+            <a target="_blank" href="https://oomnitza.zendesk.com/hc/en-us/sections/15236197815191-Fleet-Device-Management">Learn more</a>
+          </div>
+        </div>
+      </div>
+      <div purpose="integration-card" class="card">
+        <div purpose="integration-logo">
+          <img src="/images/logo-adaptive-shield-73x28@2x.png" alt="Adaptive Shield">
+        </div>
+        <div purpose="integration-card-body" class="card-body">
+          <p>
+            SaaS security posture management platform.
+          </p>
+          <div purpose="integration-card-buttons" class="d-flex flex-row justify-content-between">
+            <a target="_blank" href="https://www.adaptive-shield.com/integrations/it-and-security/">Learn more</a>
           </div>
         </div>
       </div>
@@ -263,7 +312,7 @@
             Make smart authorization decisions by Integrating your device fleet’s ground truth with any IDP.
           </p>
           <div purpose="integration-card-buttons" class="d-flex flex-row justify-content-end">
-            <a purpose="animated-arrow-button-red" href="/docs/configuration/fleet-server-configuration#configuring-single-sign-on-sso">Docs</a>
+            <a purpose="animated-arrow-button-red" href="/docs/deploy/single-sign-on-sso#other-idps">Docs</a>
           </div>
         </div>
       </div>

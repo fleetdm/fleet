@@ -1,29 +1,48 @@
 import { uniqueId } from "lodash";
 import React from "react";
 import ReactTooltip from "react-tooltip";
+import { COLORS } from "styles/var/colors";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 
 interface ITextCellProps {
   value?: string | number | boolean | { timeString: string } | null;
-  formatter?: (val: any) => JSX.Element | string; // string, number, or null
+  formatter?: (val: any) => React.ReactNode; // string, number, or null
+  /** adds a greyed styling to the cell. This will italicise and add a grey
+   * color to the cell text.
+   * @default false
+   */
   greyed?: boolean;
   classes?: string;
-  emptyCellTooltipText?: JSX.Element | string;
+  emptyCellTooltipText?: React.ReactNode;
 }
 
 const TextCell = ({
   value,
   formatter = (val) => val, // identity function if no formatter is provided
-  greyed,
+  greyed = false,
   classes = "w250",
   emptyCellTooltipText,
-}: ITextCellProps): JSX.Element => {
+}: ITextCellProps) => {
   let val = value;
 
+  // we want to render booleans as strings.
   if (typeof value === "boolean") {
     val = value.toString();
   }
-  if (!val) {
+
+  const formattedValue = formatter(val);
+
+  // Check if the given value is empty or if the formatted value is empty.
+  // 'empty' is defined as null, undefined, or an empty string.
+  const isEmptyValue =
+    value === null ||
+    value === undefined ||
+    value === "" ||
+    formattedValue === null ||
+    formattedValue === undefined ||
+    formattedValue === "";
+
+  if (isEmptyValue) {
     greyed = true;
   }
 
@@ -38,7 +57,7 @@ const TextCell = ({
           <ReactTooltip
             place="top"
             effect="solid"
-            backgroundColor="#3e4771"
+            backgroundColor={COLORS["tooltip-bg"]}
             id={tooltipId}
           >
             {emptyCellTooltipText}
@@ -49,9 +68,11 @@ const TextCell = ({
     return DEFAULT_EMPTY_CELL_VALUE;
   };
 
+  const cellText = isEmptyValue ? renderEmptyCell() : formattedValue;
+
   return (
-    <span className={`text-cell ${classes} ${greyed && "grey-cell"}`}>
-      {formatter(val) || renderEmptyCell()}
+    <span className={`text-cell ${classes} ${greyed ? "grey-cell" : ""}`}>
+      {cellText}
     </span>
   );
 };

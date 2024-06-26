@@ -1,1 +1,0 @@
-* Fix possible deadlocks when upserting to `host_batteries` (found during load test).

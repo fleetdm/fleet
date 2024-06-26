@@ -16,6 +16,7 @@ parasails.registerPage('new-license', {
 
     billingFormRules: {
       paymentSource: {required: true},
+      selfHostedAcknowledgment: {required: true, is: true},
     },
 
     // Syncing / loading state
@@ -66,24 +67,30 @@ parasails.registerPage('new-license', {
 
     clickGoToDashboard: async function() {
       this.syncing = true;
-      window.location = '/customers/dashboard?order-complete';
+      this.goto('/customers/dashboard?order-complete');
     },
 
     submittedQuoteForm: async function(quote) {
       this.showQuotedPrice = true;
       this.quotedPrice = quote.quotedPrice;
       this.numberOfHostsQuoted = quote.numberOfHosts;
-      if(quote.numberOfHosts <= 999) {
+      if(quote.numberOfHosts < 700) {
         this.formData.quoteId = quote.id;
         this.showBillingForm = true;
       }
       await this.forceRender();
     },
 
+    clickClearOneFormError: async function(field) {
+      if(this.formErrors[field]){
+        this.formErrors = _.omit(this.formErrors, field);
+      }
+    },
+
     clickScheduleDemo: async function() {
       this.syncing = true;
       // Note: we keep loading spinner present indefinitely so that it is apparent that a new page is loading
-      window.location = 'https://calendly.com/fleetdm/demo?utm_source=self+service+100';
+      this.goto(`https://calendly.com/fleetdm/talk-to-us?email=${encodeURIComponent(this.me.emailAddress)}&name=${encodeURIComponent(this.me.firstName+' '+this.me.lastName)}`);
     },
 
     clickResetForm: async function() {

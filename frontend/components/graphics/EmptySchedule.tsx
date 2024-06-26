@@ -8,12 +8,12 @@ const EmptySchedule = () => {
       height="176"
       fill="none"
     >
-      <g clipPath="url(#a)">
+      <g clipPath="url(#emptyschedule_svg)">
         <path
           fill="#F1F0FF"
           d="M162.5 176c41.421 0 75-33.579 75-75s-33.579-75-75-75-75 33.579-75 75 33.579 75 75 75Z"
         />
-        <g filter="url(#b)">
+        <g filter="url(#emptyschedule_filter)">
           <path
             fill="#fff"
             d="M313 61H9a8 8 0 0 0-8 8v64a8 8 0 0 0 8 8h304a8 8 0 0 0 8-8V69a8 8 0 0 0-8-8Z"
@@ -57,7 +57,7 @@ const EmptySchedule = () => {
           d="M162.5 48c13.255 0 24-10.745 24-24s-10.745-24-24-24-24 10.745-24 24 10.745 24 24 24Z"
         />
         <mask
-          id="c"
+          id="emptyschedule_mask"
           width={24}
           height={24}
           x={151}
@@ -69,17 +69,17 @@ const EmptySchedule = () => {
         >
           <path fill="#fff" d="M151 12h24v24h-24V12Z" />
         </mask>
-        <g fill="#fff" mask="url(#c)">
+        <g fill="#fff" mask="url(#emptyschedule_mask)">
           <path d="M173.658 24.15v-9L162.329 12 151 15.3v16.35l11.329 3.3.596-.3c1.193.75 2.684 1.35 4.323 1.35 4.174 0 7.752-3.45 7.752-7.65-.149-1.65-.596-3-1.342-4.2Zm-10.434-4.5 8.646-2.55v5.1a7.674 7.674 0 0 0-4.771-1.65c-1.341 0-2.683.45-3.875 1.2v-2.1Zm6.26-3.75-7.155 2.1-7.155-2.1 7.155-2.1 7.155 2.1Zm-16.695 1.2 8.646 2.55v3.6a7.712 7.712 0 0 0-1.938 5.1c0 1.65.447 3 1.342 4.35l-8.05-2.25V17.1Zm14.31 17.1c-3.279 0-5.962-2.7-5.962-5.85 0-3.3 2.683-5.85 5.962-5.85 3.28 0 5.963 2.7 5.963 5.85 0 3.15-2.683 5.85-5.963 5.85Z" />
           <path d="M169.45 28.35h-1.35V25.5c0-.45-.45-.9-.9-.9s-.9.3-.9.9V30h3.15c.45 0 .9-.45.9-.9s-.3-.75-.9-.75Z" />
         </g>
       </g>
       <defs>
-        <clipPath id="a">
+        <clipPath id="emptyschedule_clippath">
           <path fill="#fff" d="M0 0h322v176H0z" />
         </clipPath>
         <filter
-          id="b"
+          id="emptyschedule_filter"
           width={328}
           height={92}
           x={-3}

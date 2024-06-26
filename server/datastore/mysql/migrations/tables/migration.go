@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/goose"
+	"github.com/fleetdm/fleet/v4/server/goose"
 	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
 )
@@ -59,7 +59,6 @@ WHERE table_schema = DATABASE()
 AND table_name = ?
 AND index_name = ?
 `, table, index).Scan(&count)
-
 	if err != nil {
 		return false
 	}

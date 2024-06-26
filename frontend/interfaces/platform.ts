@@ -40,3 +40,49 @@ export const MACADMINS_EXTENSION_TABLES: Record<string, OsqueryPlatform[]> = {
   puppet_state: ["darwin", "linux", "windows"],
   macadmins_unified_log: ["darwin"],
 };
+
+/**
+ * Host Linux OSs as defined by the Fleet server.
+ *
+ * @see https://github.com/fleetdm/fleet/blob/5a21e2cfb029053ddad0508869eb9f1f23997bf2/server/fleet/hosts.go#L780
+ */
+export const HOST_LINUX_PLATFORMS = [
+  "linux",
+  "ubuntu",
+  "debian",
+  "rhel",
+  "centos",
+  "sles",
+  "kali",
+  "gentoo",
+  "amzn",
+  "pop",
+  "arch",
+  "linuxmint",
+  "void",
+  "nixos",
+  "endeavouros",
+  "manjaro",
+  "opensuse-leap",
+  "opensuse-tumbleweed",
+  "tuxedo",
+] as const;
+
+export const HOST_APPLE_PLATFORMS = ["darwin", "ios", "ipados"] as const;
+
+/**
+ * Checks if the provided platform is a Linux-like OS. We can recieve many
+ * different types of host platforms so we need a check that will cover all
+ * the possible Linux-like platform values.
+ */
+export const isLinuxLike = (platform: string) => {
+  return HOST_LINUX_PLATFORMS.includes(
+    platform as typeof HOST_LINUX_PLATFORMS[number]
+  );
+};
+
+export const isAppleDevice = (platform: string) => {
+  return HOST_APPLE_PLATFORMS.includes(
+    platform as typeof HOST_APPLE_PLATFORMS[number]
+  );
+};

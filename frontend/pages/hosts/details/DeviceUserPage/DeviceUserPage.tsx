@@ -15,6 +15,7 @@ import {
 } from "interfaces/host";
 import { IHostPolicy } from "interfaces/policy";
 import { IDeviceGlobalConfig } from "interfaces/config";
+
 import DeviceUserError from "components/DeviceUserError";
 // @ts-ignore
 import OrgLogoIcon from "components/icons/OrgLogoIcon";
@@ -23,8 +24,13 @@ import Button from "components/buttons/Button";
 import TabsWrapper from "components/TabsWrapper";
 import InfoBanner from "components/InfoBanner";
 import Icon from "components/Icon/Icon";
-import { normalizeEmptyValues, wrapFleetHelper } from "utilities/helpers";
+import { normalizeEmptyValues } from "utilities/helpers";
 import PATHS from "router/paths";
+import {
+  DOCUMENT_TITLE_SUFFIX,
+  HOST_ABOUT_DATA,
+  HOST_SUMMARY_DATA,
+} from "utilities/constants";
 
 import HostSummaryCard from "../cards/HostSummary";
 import AboutCard from "../cards/About";
@@ -39,8 +45,22 @@ import ManualEnrollMdmModal from "./ManualEnrollMdmModal";
 import OSSettingsModal from "../OSSettingsModal";
 import ResetKeyModal from "./ResetKeyModal";
 import BootstrapPackageModal from "../HostDetailsPage/modals/BootstrapPackageModal";
+import { parseHostSoftwareQueryParams } from "../cards/Software/HostSoftware";
+import SelfService from "../cards/Software/SelfService";
 
 const baseClass = "device-user";
+
+const PREMIUM_TABS = [
+  PATHS.DEVICE_USER_DETAILS,
+  PATHS.DEVICE_USER_DETAILS_SELF_SERVICE,
+  PATHS.DEVICE_USER_DETAILS_SOFTWARE,
+  PATHS.DEVICE_USER_DETAILS_POLICIES,
+] as const;
+
+const FREE_TABS = [
+  PATHS.DEVICE_USER_DETAILS,
+  PATHS.DEVICE_USER_DETAILS_SOFTWARE,
+] as const;
 
 interface IDeviceUserPageProps {
   location: {
@@ -64,7 +84,7 @@ const DeviceUserPage = ({
   params: { device_auth_token },
 }: IDeviceUserPageProps): JSX.Element => {
   const deviceAuthToken = device_auth_token;
-  const queryParams = location.query;
+
   const { renderFlash } = useContext(NotificationContext);
 
   const [isPremiumTier, setIsPremiumTier] = useState(false);
@@ -74,6 +94,7 @@ const DeviceUserPage = ({
   const [refetchStartTime, setRefetchStartTime] = useState<number | null>(null);
   const [showRefetchSpinner, setShowRefetchSpinner] = useState(false);
   const [orgLogoURL, setOrgLogoURL] = useState("");
+  const [orgContactURL, setOrgContactURL] = useState("");
   const [selectedPolicy, setSelectedPolicy] = useState<IHostPolicy | null>(
     null
   );
@@ -139,22 +160,30 @@ const DeviceUserPage = ({
     refetch: refetchHostDetails,
   } = useQuery<IDeviceUserResponse, Error>(
     ["host", deviceAuthToken],
-    () => deviceUserAPI.loadHostDetails(deviceAuthToken),
+    () =>
+      deviceUserAPI.loadHostDetails({
+        token: deviceAuthToken,
+        exclude_software: true,
+      }),
     {
       enabled: !!deviceAuthToken,
       refetchOnMount: false,
       refetchOnReconnect: false,
       refetchOnWindowFocus: false,
       retry: false,
+      // TODO: refactor to use non-refetch data directly in the component and remove
+      // unnecesary derived states for values that aren't related to the refetch status
       onSuccess: ({
         license,
         org_logo_url,
+        org_contact_url,
         global_config,
         host: responseHost,
       }) => {
         setShowRefetchSpinner(isRefetching(responseHost));
         setIsPremiumTier(license.tier === "premium");
         setOrgLogoURL(org_logo_url);
+        setOrgContactURL(org_contact_url);
         setGlobalConfig(global_config);
         if (isRefetching(responseHost)) {
           // If the API reports that a Fleet refetch request is pending, we want to check back for fresh
@@ -204,39 +233,9 @@ const DeviceUserPage = ({
     }
   );
 
-  const titleData = normalizeEmptyValues(
-    pick(host, [
-      "id",
-      "status",
-      "issues",
-      "memory",
-      "cpu_type",
-      "os_version",
-      "osquery_version",
-      "enroll_secret_name",
-      "detail_updated_at",
-      "percent_disk_space_available",
-      "gigs_disk_space_available",
-      "team_name",
-      "platform",
-      "mdm",
-    ])
-  );
+  const summaryData = normalizeEmptyValues(pick(host, HOST_SUMMARY_DATA));
 
-  const aboutData = normalizeEmptyValues(
-    pick(host, [
-      "seen_time",
-      "uptime",
-      "last_enrolled_at",
-      "hardware_model",
-      "hardware_serial",
-      "primary_ip",
-      "public_ip",
-      "geolocation",
-      "batteries",
-      "detail_updated_at",
-    ])
-  );
+  const aboutData = normalizeEmptyValues(pick(host, HOST_ABOUT_DATA));
 
   const toggleInfoModal = useCallback(() => {
     setShowInfoModal(!showInfoModal);
@@ -293,23 +292,7 @@ const DeviceUserPage = ({
 
   // Updates title that shows up on browser tabs
   useEffect(() => {
-    const hostTab = () => {
-      if (location.pathname.includes("software")) {
-        return "software";
-      }
-      if (location.pathname.includes("schedule")) {
-        return "schedule";
-      }
-      if (location.pathname.includes("policies")) {
-        return "policies";
-      }
-      return "";
-    };
-
-    // e.g., Rachel's Macbook Pro schedule details | Fleet for osquery
-    document.title = `My device ${hostTab()} details | ${
-      host?.display_name || "Unknown host"
-    } | Fleet for osquery`;
+    document.title = `My device | ${DOCUMENT_TITLE_SUFFIX}`;
   }, [location.pathname, host]);
 
   const renderActionButtons = () => {
@@ -332,7 +315,7 @@ const DeviceUserPage = ({
 
   const renderEnrollMdmModal = () => {
     return host?.dep_assigned_to_fleet ? (
-      <AutoEnrollMdmModal onCancel={toggleEnrollMdmModal} />
+      <AutoEnrollMdmModal host={host} onCancel={toggleEnrollMdmModal} />
     ) : (
       <ManualEnrollMdmModal
         onCancel={toggleEnrollMdmModal}
@@ -353,7 +336,7 @@ const DeviceUserPage = ({
       host?.mdm.enrollment_status === "Off" || !host?.mdm.enrollment_status;
 
     const diskEncryptionBannersEnabled =
-      globalConfig?.mdm.enabled_and_configured && host?.mdm.name === "Fleet";
+      globalConfig?.mdm.enabled_and_configured && host?.mdm.connected_to_fleet;
 
     const showDiskEncryptionLogoutRestart =
       diskEncryptionBannersEnabled &&
@@ -364,21 +347,29 @@ const DeviceUserPage = ({
       host?.mdm.macos_settings?.disk_encryption === "action_required" &&
       host?.mdm.macos_settings?.action_required === "rotate_key";
 
-    const tabPaths = [
-      PATHS.DEVICE_USER_DETAILS(deviceAuthToken),
-      PATHS.DEVICE_USER_DETAILS_SOFTWARE(deviceAuthToken),
-      PATHS.DEVICE_USER_DETAILS_POLICIES(deviceAuthToken),
-    ];
-
+    // TODO: We should probably have a standard way to handle this on all pages. Do we want to show
+    // a premium-only message in the case that a user tries direct navigation to a premium-only page
+    // or silently redirect as below?
+    const tabPaths = isPremiumTier
+      ? PREMIUM_TABS.map((t) => t(deviceAuthToken))
+      : FREE_TABS.map((t) => t(deviceAuthToken));
     const findSelectedTab = (pathname: string) =>
       findIndex(tabPaths, (x) => x.startsWith(pathname.split("?")[0]));
+    if (!isLoadingHost && host && findSelectedTab(location.pathname) === -1) {
+      router.push(tabPaths[0]);
+    }
+
+    // Note: API response global_config is misnamed because the backend actually returns the global
+    // or team config (as applicable)
+    const isSoftwareEnabled = !!globalConfig?.features
+      ?.enable_software_inventory;
 
     return (
-      <div className="fleet-desktop-wrapper">
-        {isLoadingHost ? (
+      <div className="core-wrapper">
+        {!host || isLoadingHost ? (
           <Spinner />
         ) : (
-          <div className={`${baseClass} body-wrap`}>
+          <div className={`${baseClass} main-content`}>
             {host?.platform === "darwin" &&
               isMdmUnenrolled &&
               globalConfig?.mdm.enabled_and_configured && (
@@ -407,27 +398,29 @@ const DeviceUserPage = ({
               </InfoBanner>
             )}
             <HostSummaryCard
-              titleData={titleData}
-              diskEncryptionEnabled={host?.disk_encryption_enabled}
+              summaryData={summaryData}
               bootstrapPackageData={bootstrapPackageData}
               isPremiumTier={isPremiumTier}
               toggleOSSettingsModal={toggleOSSettingsModal}
               hostMdmProfiles={host?.mdm.profiles ?? []}
-              mdmName={deviceMacAdminsData?.mobile_device_management?.name}
+              isConnectedToFleetMdm={host?.mdm.connected_to_fleet}
               showRefetchSpinner={showRefetchSpinner}
               onRefetchHost={onRefetchHost}
-              renderActionButtons={renderActionButtons}
+              renderActionDropdown={renderActionButtons}
               osSettings={host?.mdm.os_settings}
               deviceUser
             />
-            <TabsWrapper>
+            <TabsWrapper className={`${baseClass}__tabs-wrapper`}>
               <Tabs
                 selectedIndex={findSelectedTab(location.pathname)}
                 onSelect={(i) => router.push(tabPaths[i])}
               >
                 <TabList>
                   <Tab>Details</Tab>
-                  <Tab>Software</Tab>
+                  {isPremiumTier && isSoftwareEnabled && (
+                    <Tab>Self-service</Tab>
+                  )}
+                  {isSoftwareEnabled && <Tab>Software</Tab>}
                   {isPremiumTier && (
                     <Tab>
                       <div>
@@ -446,19 +439,34 @@ const DeviceUserPage = ({
                     munki={deviceMacAdminsData?.munki}
                   />
                 </TabPanel>
-                <TabPanel>
-                  <SoftwareCard
-                    router={router}
-                    isLoading={isLoadingHost}
-                    software={host?.software ?? []}
-                    deviceUser
-                    pathname={location.pathname}
-                    pathPrefix={PATHS.DEVICE_USER_DETAILS_SOFTWARE(
-                      deviceAuthToken
-                    )}
-                    queryParams={queryParams}
-                  />
-                </TabPanel>
+                {isPremiumTier && isSoftwareEnabled && (
+                  <TabPanel>
+                    <SelfService
+                      contactUrl={orgContactURL}
+                      deviceToken={deviceAuthToken}
+                      isSoftwareEnabled
+                      pathname={location.pathname}
+                      queryParams={parseHostSoftwareQueryParams(location.query)}
+                      router={router}
+                    />
+                  </TabPanel>
+                )}
+                {isSoftwareEnabled && (
+                  <TabPanel>
+                    <SoftwareCard
+                      id={deviceAuthToken}
+                      softwareUpdatedAt={host.software_updated_at}
+                      isFleetdHost={!!host.orbit_version}
+                      router={router}
+                      pathname={location.pathname}
+                      queryParams={parseHostSoftwareQueryParams(location.query)}
+                      isMyDevicePage
+                      hostTeamId={host.team_id || 0}
+                      hostPlatform={host?.platform || ""}
+                      isSoftwareEnabled={isSoftwareEnabled}
+                    />
+                  </TabPanel>
+                )}
                 {isPremiumTier && (
                   <TabPanel>
                     <PoliciesCard
@@ -466,6 +474,8 @@ const DeviceUserPage = ({
                       isLoading={isLoadingHost}
                       deviceUser
                       togglePolicyDetailsModal={togglePolicyDetailsModal}
+                      hostPlatform={host?.platform || ""}
+                      router={router}
                     />
                   </TabPanel>
                 )}
@@ -487,10 +497,12 @@ const DeviceUserPage = ({
             policy={selectedPolicy}
           />
         )}
-        {showOSSettingsModal && (
+        {!!host && showOSSettingsModal && (
           <OSSettingsModal
-            platform={host?.platform}
-            hostMDMData={host?.mdm}
+            canResendProfiles={false}
+            hostId={host.id}
+            platform={host.platform}
+            hostMDMData={host.mdm}
             onClose={toggleOSSettingsModal}
           />
         )}

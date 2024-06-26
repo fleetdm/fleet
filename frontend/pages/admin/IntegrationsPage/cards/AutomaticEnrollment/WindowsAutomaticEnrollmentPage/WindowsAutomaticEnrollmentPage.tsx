@@ -38,7 +38,7 @@ const WindowsAutomaticEnrollmentPage = () => {
           <CustomLink
             newTab
             text="Learn more"
-            url="https://fleetdm.com/docs/using-fleet/windows-mdm-setup"
+            url="https://fleetdm.com/learn-more-about/setup-windows-mdm"
           />
         </p>
         {/* Ideally we'd use the native browser list styles and css to display
@@ -50,7 +50,7 @@ const WindowsAutomaticEnrollmentPage = () => {
             <CustomLink
               newTab
               text="Sign in to Azure portal"
-              url="portal.azure.com"
+              url="https://fleetdm.com/sign-in-to/microsoft-automatic-enrollment-tool"
             />
           </li>
           <li>

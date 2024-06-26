@@ -13,8 +13,6 @@ interface IBackLinkProps {
 const baseClass = "back-link";
 
 const BackLink = ({ text, path, className }: IBackLinkProps): JSX.Element => {
-  const backLinkClass = classnames(baseClass, className);
-
   const onClick = (): void => {
     if (path) {
       browserHistory.push(path);
@@ -22,13 +20,13 @@ const BackLink = ({ text, path, className }: IBackLinkProps): JSX.Element => {
   };
 
   return (
-    <Link className={backLinkClass} to={path || ""} onClick={onClick}>
+    <Link
+      className={classnames(baseClass, className)}
+      to={path || ""}
+      onClick={onClick}
+    >
       <>
-        <Icon
-          name="chevron-left"
-          className={`${baseClass}__back-icon`}
-          color="core-fleet-blue"
-        />
+        <Icon name="chevron-left" color="core-fleet-blue" />
         <span>{text}</span>
       </>
     </Link>

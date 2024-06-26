@@ -7,7 +7,7 @@ import (
 
 	assetfs "github.com/elazarl/go-bindata-assetfs"
 	"github.com/fleetdm/fleet/v4/server/bindata"
-	"github.com/go-kit/kit/log"
+	"github.com/go-kit/log"
 )
 
 func newBinaryFileSystem(root string) *assetfs.AssetFS {
@@ -26,6 +26,14 @@ func ServeFrontend(urlPrefix string, sandbox bool, logger log.Logger) http.Handl
 	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		writeBrowserSecurityHeaders(w)
+
+		// The following check is to prevent a misconfigured osquery from submitting
+		// data to the root endpoint (the osquery remote API uses POST for all its endpoints).
+		// See https://github.com/fleetdm/fleet/issues/16182.
+		if r.Method == "POST" {
+			http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
+			return
+		}
 
 		fs := newBinaryFileSystem("/frontend")
 		file, err := fs.Open("templates/react.tmpl")

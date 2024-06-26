@@ -7,6 +7,11 @@ import (
 
 //go:generate go run gen_activity_doc.go "../../docs/Using Fleet/Audit-logs.md"
 
+type ContextKey string
+
+// ActivityWebhookContextKey is the context key to indicate that the activity webhook has been processed before saving the activity.
+const ActivityWebhookContextKey = ContextKey("ActivityWebhook")
+
 // ActivityDetailsList is used to generate documentation.
 var ActivityDetailsList = []ActivityDetails{
 	ActivityTypeCreatedPack{},
@@ -80,6 +85,20 @@ var ActivityDetailsList = []ActivityDetails{
 	ActivityTypeCreatedWindowsProfile{},
 	ActivityTypeDeletedWindowsProfile{},
 	ActivityTypeEditedWindowsProfile{},
+
+	ActivityTypeLockedHost{},
+	ActivityTypeUnlockedHost{},
+	ActivityTypeWipedHost{},
+
+	ActivityTypeCreatedDeclarationProfile{},
+	ActivityTypeDeletedDeclarationProfile{},
+	ActivityTypeEditedDeclarationProfile{},
+
+	ActivityTypeResentConfigurationProfile{},
+
+	ActivityTypeInstalledSoftware{},
+	ActivityTypeAddedSoftware{},
+	ActivityTypeDeletedSoftware{},
 }
 
 type ActivityDetails interface {
@@ -87,6 +106,13 @@ type ActivityDetails interface {
 	ActivityName() string
 	// Documentation is used by "go generate" to generate markdown docs.
 	Documentation() (activity string, details string, detailsExample string)
+}
+
+// ActivityHosts is the optional additional interface that can be implemented
+// by activities that are related to hosts.
+type ActivityHosts interface {
+	ActivityDetails
+	HostIDs() []uint
 }
 
 type ActivityTypeCreatedPack struct {
@@ -360,7 +386,7 @@ func (a ActivityTypeCreatedTeam) Documentation() (activity string, details strin
 - "team_id": unique ID of the created team.
 - "team_name": the name of the created team.`, `{
 	"team_id": 123,
-	"team_name": "foo"
+	"team_name": "Workstations"
 }`
 }
 
@@ -379,7 +405,7 @@ func (a ActivityTypeDeletedTeam) Documentation() (activity string, details strin
 - "team_id": unique ID of the deleted team.
 - "team_name": the name of the deleted team.`, `{
 	"team_id": 123,
-	"team_name": "foo"
+	"team_name": "Workstations"
 }`
 }
 
@@ -452,15 +478,16 @@ func (a ActivityTypeEditedAgentOptions) Documentation() (activity string, detail
 - "team_id": unique ID of the team for which the agent options were updated (` + "`null`" + ` if global is true).
 - "team_name": the name of the team for which the agent options were updated (` + "`null`" + ` if global is true).`, `{
 	"team_id": 123,
-	"team_name": "foo",
+	"team_name": "Workstations",
 	"global": false
 }`
 }
 
 type ActivityTypeLiveQuery struct {
-	TargetsCount uint    `json:"targets_count"`
-	QuerySQL     string  `json:"query_sql"`
-	QueryName    *string `json:"query_name,omitempty"`
+	TargetsCount uint             `json:"targets_count"`
+	QuerySQL     string           `json:"query_sql"`
+	QueryName    *string          `json:"query_name,omitempty"`
+	Stats        *AggregatedStats `json:"stats,omitempty"`
 }
 
 func (a ActivityTypeLiveQuery) ActivityName() string {
@@ -492,7 +519,17 @@ func (a ActivityTypeUserAddedBySSO) Documentation() (activity string, details st
 
 type Activity struct {
 	CreateTimestamp
-	ID            uint             `json:"id" db:"id"`
+
+	// ID is the activity id in the activities table, it is omitted for upcoming
+	// activities as those are "virtual activities" generated from entries in
+	// queues (e.g. pending host_script_results).
+	ID uint `json:"id,omitempty" db:"id"`
+
+	// UUID is the activity UUID for the upcoming activities, as identified in
+	// the relevant queue (e.g. pending host_script_results). It is omitted for
+	// past activities as those are "real activities" with an activity id.
+	UUID string `json:"uuid,omitempty" db:"uuid"`
+
 	ActorFullName *string          `json:"actor_full_name,omitempty" db:"name"`
 	ActorID       *uint            `json:"actor_id,omitempty" db:"user_id"`
 	ActorGravatar *string          `json:"actor_gravatar,omitempty" db:"gravatar_url"`
@@ -1054,7 +1091,7 @@ func (a ActivityTypeEnabledWindowsMDM) ActivityName() string {
 }
 
 func (a ActivityTypeEnabledWindowsMDM) Documentation() (activity, details, detailsExample string) {
-	return `Windows MDM features are not ready for production and are currently in development. These features are disabled by default. Generated when a user turns on MDM features for all Windows hosts (servers excluded).`,
+	return `Generated when a user turns on MDM features for all Windows hosts (servers excluded).`,
 		`This activity does not contain any detail fields.`, ``
 }
 
@@ -1065,7 +1102,7 @@ func (a ActivityTypeDisabledWindowsMDM) ActivityName() string {
 }
 
 func (a ActivityTypeDisabledWindowsMDM) Documentation() (activity, details, detailsExample string) {
-	return `Windows MDM features are not ready for production and are currently in development. These features are disabled by default. Generated when a user turns off MDM features for all Windows hosts.`,
+	return `Generated when a user turns off MDM features for all Windows hosts.`,
 		`This activity does not contain any detail fields.`, ``
 }
 
@@ -1073,11 +1110,16 @@ type ActivityTypeRanScript struct {
 	HostID            uint   `json:"host_id"`
 	HostDisplayName   string `json:"host_display_name"`
 	ScriptExecutionID string `json:"script_execution_id"`
+	ScriptName        string `json:"script_name"`
 	Async             bool   `json:"async"`
 }
 
 func (a ActivityTypeRanScript) ActivityName() string {
 	return "ran_script"
+}
+
+func (a ActivityTypeRanScript) HostIDs() []uint {
+	return []uint{a.HostID}
 }
 
 func (a ActivityTypeRanScript) Documentation() (activity, details, detailsExample string) {
@@ -1086,9 +1128,11 @@ func (a ActivityTypeRanScript) Documentation() (activity, details, detailsExampl
 - "host_id": ID of the host.
 - "host_display_name": Display name of the host.
 - "script_execution_id": Execution ID of the script run.
+- "script_name": Name of the script (empty if it was an anonymous script).
 - "async": Whether the script was executed asynchronously.`, `{
   "host_id": 1,
   "host_display_name": "Anna's MacBook Pro",
+  "script_name": "set-timezones.sh",
   "script_execution_id": "d6cffa75-b5b5-41ef-9230-15073c8a88cf",
   "async": false
 }`
@@ -1220,10 +1264,266 @@ func (a ActivityTypeEditedWindowsProfile) Documentation() (activity, details, de
 }`
 }
 
+type ActivityTypeLockedHost struct {
+	HostID          uint   `json:"host_id"`
+	HostDisplayName string `json:"host_display_name"`
+	ViewPIN         bool   `json:"view_pin"`
+}
+
+func (a ActivityTypeLockedHost) ActivityName() string {
+	return "locked_host"
+}
+
+func (a ActivityTypeLockedHost) HostIDs() []uint {
+	return []uint{a.HostID}
+}
+
+func (a ActivityTypeLockedHost) Documentation() (activity, details, detailsExample string) {
+	return `Generated when a user sends a request to lock a host.`,
+		`This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+- "view_pin": Whether lock PIN was viewed (for Apple devices).`, `{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro",
+  "view_pin": true
+}`
+}
+
+type ActivityTypeUnlockedHost struct {
+	HostID          uint   `json:"host_id"`
+	HostDisplayName string `json:"host_display_name"`
+	HostPlatform    string `json:"host_platform"`
+}
+
+func (a ActivityTypeUnlockedHost) ActivityName() string {
+	return "unlocked_host"
+}
+
+func (a ActivityTypeUnlockedHost) HostIDs() []uint {
+	return []uint{a.HostID}
+}
+
+func (a ActivityTypeUnlockedHost) Documentation() (activity, details, detailsExample string) {
+	return `Generated when a user sends a request to unlock a host.`,
+		`This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+- "host_platform": Platform of the host.`, `{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro",
+  "host_platform": "darwin"
+}`
+}
+
+type ActivityTypeWipedHost struct {
+	HostID          uint   `json:"host_id"`
+	HostDisplayName string `json:"host_display_name"`
+}
+
+func (a ActivityTypeWipedHost) ActivityName() string {
+	return "wiped_host"
+}
+
+func (a ActivityTypeWipedHost) Documentation() (activity, details, detailsExample string) {
+	return `Generated when a user sends a request to wipe a host.`,
+		`This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.`, `{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro"
+}`
+}
+
+type ActivityTypeCreatedDeclarationProfile struct {
+	ProfileName string  `json:"profile_name"`
+	Identifier  string  `json:"identifier"`
+	TeamID      *uint   `json:"team_id"`
+	TeamName    *string `json:"team_name"`
+}
+
+func (a ActivityTypeCreatedDeclarationProfile) ActivityName() string {
+	return "created_declaration_profile"
+}
+
+func (a ActivityTypeCreatedDeclarationProfile) Documentation() (activity string, details string, detailsExample string) {
+	return `Generated when a user adds a new macOS declaration to a team (or no team).`,
+		`This activity contains the following fields:
+- "profile_name": Name of the declaration.
+- "identifier": Identifier of the declaration.
+- "team_id": The ID of the team that the declaration applies to, ` + "`null`" + ` if it applies to devices that are not in a team.
+- "team_name": The name of the team that the declaration applies to, ` + "`null`" + ` if it applies to devices that are not in a team.`, `{
+  "profile_name": "Passcode requirements",
+  "profile_identifier": "com.my.declaration",
+  "team_id": 123,
+  "team_name": "Workstations"
+}`
+}
+
+type ActivityTypeDeletedDeclarationProfile struct {
+	ProfileName string  `json:"profile_name"`
+	Identifier  string  `json:"identifier"`
+	TeamID      *uint   `json:"team_id"`
+	TeamName    *string `json:"team_name"`
+}
+
+func (a ActivityTypeDeletedDeclarationProfile) ActivityName() string {
+	return "deleted_declaration_profile"
+}
+
+func (a ActivityTypeDeletedDeclarationProfile) Documentation() (activity string, details string, detailsExample string) {
+	return `Generated when a user removes a macOS declaration from a team (or no team).`,
+		`This activity contains the following fields:
+- "profile_name": Name of the declaration.
+- "identifier": Identifier of the declaration.
+- "team_id": The ID of the team that the declaration applies to, ` + "`null`" + ` if it applies to devices that are not in a team.
+- "team_name": The name of the team that the declaration applies to, ` + "`null`" + ` if it applies to devices that are not in a team.`, `{
+  "profile_name": "Passcode requirements",
+  "profile_identifier": "com.my.declaration",
+  "team_id": 123,
+  "team_name": "Workstations"
+}`
+}
+
+type ActivityTypeEditedDeclarationProfile struct {
+	TeamID   *uint   `json:"team_id"`
+	TeamName *string `json:"team_name"`
+}
+
+func (a ActivityTypeEditedDeclarationProfile) ActivityName() string {
+	return "edited_declaration_profile"
+}
+
+func (a ActivityTypeEditedDeclarationProfile) Documentation() (activity string, details string, detailsExample string) {
+	return `Generated when a user edits the macOS declarations of a team (or no team) via the fleetctl CLI.`,
+		`This activity contains the following fields:
+- "team_id": The ID of the team that the declarations apply to, ` + "`null`" + ` if they apply to devices that are not in a team.
+- "team_name": The name of the team that the declarations apply to, ` + "`null`" + ` if they apply to devices that are not in a team.`, `{
+  "team_id": 123,
+  "team_name": "Workstations"
+}`
+}
+
+type ActivityTypeResentConfigurationProfile struct {
+	HostID          *uint   `json:"host_id"`
+	HostDisplayName *string `json:"host_display_name"`
+	ProfileName     string  `json:"profile_name"`
+}
+
+func (a ActivityTypeResentConfigurationProfile) ActivityName() string {
+	return "resent_configuration_profile"
+}
+
+func (a ActivityTypeResentConfigurationProfile) Documentation() (activity string, details string, detailsExample string) {
+	return `Generated when a user resends an MDM configuration profile to a host.`,
+		`This activity contains the following fields:
+- "host_id": The ID of the host.
+- "host_display_name": The display name of the host.
+- "profile_name": The name of the configuration profile.`, `{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro",
+  "profile_name": "Passcode requirements"
+}`
+}
+
+type ActivityTypeInstalledSoftware struct {
+	HostID          uint   `json:"host_id"`
+	HostDisplayName string `json:"host_display_name"`
+	SoftwareTitle   string `json:"software_title"`
+	SoftwarePackage string `json:"software_package"`
+	SelfService     bool   `json:"self_service"`
+	InstallUUID     string `json:"install_uuid"`
+	Status          string `json:"status"`
+}
+
+func (a ActivityTypeInstalledSoftware) ActivityName() string {
+	return "installed_software"
+}
+
+func (a ActivityTypeInstalledSoftware) HostIDs() []uint {
+	return []uint{a.HostID}
+}
+
+func (a ActivityTypeInstalledSoftware) Documentation() (activity, details, detailsExample string) {
+	return `Generated when a software is installed on a host.`,
+		`This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+- "install_uuid": ID of the software installation.
+- "self_service": Whether the installation was initiated by the end user.
+- "software_title": Name of the software.
+- "software_package": Filename of the installer.
+- "status": Status of the software installation.`, `{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro",
+  "software_title": "Falcon.app",
+  "software_package": "FalconSensor-6.44.pkg",
+  "self_service": true,
+  "install_uuid": "d6cffa75-b5b5-41ef-9230-15073c8a88cf",
+  "status": "pending"
+}`
+}
+
+type ActivityTypeAddedSoftware struct {
+	SoftwareTitle   string  `json:"software_title"`
+	SoftwarePackage string  `json:"software_package"`
+	TeamName        *string `json:"team_name"`
+	TeamID          *uint   `json:"team_id"`
+	SelfService     bool    `json:"self_service"`
+}
+
+func (a ActivityTypeAddedSoftware) ActivityName() string {
+	return "added_software"
+}
+
+func (a ActivityTypeAddedSoftware) Documentation() (string, string, string) {
+	return `Generated when a software installer is uploaded to Fleet.`, `This activity contains the following fields:
+- "software_title": Name of the software.
+- "software_package": Filename of the installer.
+- "team_name": Name of the team to which this software was added.` + " `null` " + `if it was added to no team." +
+- "team_id": The ID of the team to which this software was added.` + " `null` " + `if it was added to no team.
+- "self_service": Whether the software is available for installation by the end user.`, `{
+  "software_title": "Falcon.app",
+  "software_package": "FalconSensor-6.44.pkg",
+  "team_name": "Workstations",
+  "team_id": 123,
+  "self_service": true
+}`
+}
+
+type ActivityTypeDeletedSoftware struct {
+	SoftwareTitle   string  `json:"software_title"`
+	SoftwarePackage string  `json:"software_package"`
+	TeamName        *string `json:"team_name"`
+	TeamID          *uint   `json:"team_id"`
+	SelfService     bool    `json:"self_service"`
+}
+
+func (a ActivityTypeDeletedSoftware) ActivityName() string {
+	return "deleted_software"
+}
+
+func (a ActivityTypeDeletedSoftware) Documentation() (string, string, string) {
+	return `Generated when a software installer is deleted from Fleet.`, `This activity contains the following fields:
+- "software_title": Name of the software.
+- "software_package": Filename of the installer.
+- "team_name": Name of the team to which this software was added.` + " `null " + `if it was added to no team.
+- "team_id": The ID of the team to which this software was added.` + " `null` " + `if it was added to no team.
+- "self_service": Whether the software was available for installation by the end user.`, `{
+  "software_title": "Falcon.app",
+  "software_package": "FalconSensor-6.44.pkg",
+  "team_name": "Workstations",
+  "team_id": 123,
+  "self_service": true
+}`
+}
+
 // LogRoleChangeActivities logs activities for each role change, globally and one for each change in teams.
-func LogRoleChangeActivities(ctx context.Context, ds Datastore, adminUser *User, oldGlobalRole *string, oldTeamRoles []UserTeam, user *User) error {
+func LogRoleChangeActivities(
+	ctx context.Context, svc Service, adminUser *User, oldGlobalRole *string, oldTeamRoles []UserTeam, user *User,
+) error {
 	if user.GlobalRole != nil && (oldGlobalRole == nil || *oldGlobalRole != *user.GlobalRole) {
-		if err := ds.NewActivity(
+		if err := svc.NewActivity(
 			ctx,
 			adminUser,
 			ActivityTypeChangedUserGlobalRole{
@@ -1237,7 +1537,7 @@ func LogRoleChangeActivities(ctx context.Context, ds Datastore, adminUser *User,
 		}
 	}
 	if user.GlobalRole == nil && oldGlobalRole != nil {
-		if err := ds.NewActivity(
+		if err := svc.NewActivity(
 			ctx,
 			adminUser,
 			ActivityTypeDeletedUserGlobalRole{
@@ -1262,7 +1562,7 @@ func LogRoleChangeActivities(ctx context.Context, ds Datastore, adminUser *User,
 		if ok && o.Role == t.Role {
 			continue
 		}
-		if err := ds.NewActivity(
+		if err := svc.NewActivity(
 			ctx,
 			adminUser,
 			ActivityTypeChangedUserTeamRole{
@@ -1281,7 +1581,7 @@ func LogRoleChangeActivities(ctx context.Context, ds Datastore, adminUser *User,
 		if _, ok := newTeamsLookup[o.ID]; ok {
 			continue
 		}
-		if err := ds.NewActivity(
+		if err := svc.NewActivity(
 			ctx,
 			adminUser,
 			ActivityTypeDeletedUserTeamRole{

@@ -4,7 +4,7 @@ import Modal from "components/Modal";
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
 import CustomLink from "components/CustomLink";
-import { IIntegration, IIntegrations } from "interfaces/integration";
+import { IIntegration, IZendeskJiraIntegrations } from "interfaces/integration";
 import IntegrationForm from "../IntegrationForm";
 
 const baseClass = "add-integration-modal";
@@ -17,7 +17,7 @@ interface IAddIntegrationModalProps {
   ) => void;
   serverErrors?: { base: string; email: string };
   backendValidators: { [key: string]: string };
-  integrations: IIntegrations;
+  integrations: IZendeskJiraIntegrations;
   testingConnection: boolean;
 }
 
@@ -47,10 +47,10 @@ const AddIntegrationModal = ({
   }, [backendValidators]);
 
   return (
-    <Modal title={"Add integration"} onExit={onCancel} className={baseClass}>
-      <>
+    <Modal title="Add integration" onExit={onCancel} className={baseClass}>
+      <div className="form">
         {!testingConnection && (
-          <div className={`${baseClass}__info-header`}>
+          <>
             <Dropdown
               label="Ticket destination"
               name="destination"
@@ -65,7 +65,7 @@ const AddIntegrationModal = ({
               text="Suggest a new destination"
               newTab
             />
-          </div>
+          </>
         )}
         <IntegrationForm
           onCancel={onCancel}
@@ -74,7 +74,7 @@ const AddIntegrationModal = ({
           destination={destination}
           testingConnection={testingConnection}
         />
-      </>
+      </div>
     </Modal>
   );
 };

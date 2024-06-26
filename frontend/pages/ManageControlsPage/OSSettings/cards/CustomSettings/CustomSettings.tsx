@@ -1,11 +1,14 @@
 import React, { useCallback, useContext, useRef, useState } from "react";
 import { InjectedRouter } from "react-router";
 import { useQuery } from "react-query";
+import PATHS from "router/paths";
+
+import { AppContext } from "context/app";
+import { NotificationContext } from "context/notification";
 
 import { IMdmProfile } from "interfaces/mdm";
+
 import mdmAPI, { IMdmProfilesResponse } from "services/entities/mdm";
-import { NotificationContext } from "context/notification";
-import PATHS from "router/paths";
 
 import CustomLink from "components/CustomLink";
 import SectionHeader from "components/SectionHeader";
@@ -16,10 +19,12 @@ import Pagination from "pages/ManageControlsPage/components/Pagination";
 
 import UploadList from "../../../components/UploadList";
 
+import AddProfileCard from "./components/ProfileUploader/components/AddProfileCard";
+import AddProfileModal from "./components/ProfileUploader/components/AddProfileModal";
 import DeleteProfileModal from "./components/DeleteProfileModal/DeleteProfileModal";
+import ProfileLabelsModal from "./components/ProfileLabelsModal/ProfileLabelsModal";
 import ProfileListItem from "./components/ProfileListItem";
 import ProfileListHeading from "./components/ProfileListHeading";
-import ProfileUploader from "./components/ProfileUploader";
 
 const PROFILES_PER_PAGE = 10;
 
@@ -41,7 +46,13 @@ const CustomSettings = ({
   onMutation,
 }: ICustomSettingsProps) => {
   const { renderFlash } = useContext(NotificationContext);
+  const { isPremiumTier } = useContext(AppContext);
 
+  const [showAddProfileModal, setShowAddProfileModal] = useState(false);
+  const [
+    profileLabelsModalData,
+    setProfileLabelsModalData,
+  ] = useState<IMdmProfile | null>(null);
   const [showDeleteProfileModal, setShowDeleteProfileModal] = useState(false);
 
   const selectedProfile = useRef<IMdmProfile | null>(null);
@@ -70,6 +81,8 @@ const CustomSettings = ({
       refetchOnWindowFocus: false,
     }
   );
+  const profiles = profilesData?.profiles;
+  const meta = profilesData?.meta;
 
   const onUploadProfile = () => {
     refetchProfiles();
@@ -122,29 +135,33 @@ const CustomSettings = ({
       return <DataError />;
     }
 
-    if (
-      !profilesData ||
-      !profilesData.profiles ||
-      profilesData.profiles.length === 0
-    ) {
+    if (!profiles?.length) {
       return null;
     }
 
-    const { profiles, meta } = profilesData;
     return (
       <>
         <UploadList
           keyAttribute="profile_uuid"
           listItems={profiles}
-          HeadingComponent={ProfileListHeading}
+          HeadingComponent={() =>
+            ProfileListHeading({
+              onClickAddProfile: () => setShowAddProfileModal(true),
+            })
+          }
           ListItemComponent={({ listItem }) => (
-            <ProfileListItem profile={listItem} onDelete={onClickDelete} />
+            <ProfileListItem
+              isPremium={!!isPremiumTier}
+              profile={listItem}
+              setProfileLabelsModalData={setProfileLabelsModalData}
+              onDelete={onClickDelete}
+            />
           )}
         />
         <Pagination
           className={`${baseClass}__pagination-controls`}
-          disableNext={!meta.has_next_results}
-          disablePrev={!meta.has_previous_results}
+          disableNext={!meta?.has_next_results}
+          disablePrev={!meta?.has_previous_results}
           onNextPage={onNextPage}
           onPrevPage={onPrevPage}
         />
@@ -160,20 +177,38 @@ const CustomSettings = ({
         <CustomLink
           newTab
           text="Learn how"
-          url="https://fleetdm.com/docs/using-fleet/mdm-custom-macos-settings"
+          url="https://fleetdm.com/learn-more-about/custom-os-settings"
         />
       </p>
       {renderProfileList()}
-      <ProfileUploader
-        currentTeamId={currentTeamId}
-        onUpload={onUploadProfile}
-      />
+      {!isLoadingProfiles && !isErrorProfiles && !profiles?.length && (
+        <AddProfileCard
+          baseClass="add-profile"
+          setShowModal={setShowAddProfileModal}
+        />
+      )}
+      {showAddProfileModal && (
+        <AddProfileModal
+          baseClass="add-profile"
+          currentTeamId={currentTeamId}
+          isPremiumTier={!!isPremiumTier}
+          onUpload={onUploadProfile}
+          setShowModal={setShowAddProfileModal}
+        />
+      )}
       {showDeleteProfileModal && selectedProfile.current && (
         <DeleteProfileModal
           profileName={selectedProfile.current?.name}
           profileId={selectedProfile.current?.profile_uuid}
           onCancel={onCancelDelete}
           onDelete={onDeleteProfile}
+        />
+      )}
+      {!!isPremiumTier && !!profileLabelsModalData?.labels?.length && (
+        <ProfileLabelsModal
+          baseClass={baseClass}
+          profile={profileLabelsModalData}
+          setModalData={setProfileLabelsModalData}
         />
       )}
     </div>
