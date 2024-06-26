@@ -2206,25 +2206,23 @@ for the email address specified in the Source parameter of SendRawEmail.
 Name of the S3 bucket for storing software.
 
 - Default value: none
-- Environment variable: `FLEET_S3_BUCKET`
+- Environment variable: `FLEET_S3_SOFTWARE_INSTALLERS_BUCKET`
 - Config file format:
   ```yaml
   s3:
-    bucket: some-bucket
+    software_intallers_bucket: some-bucket
   ```
 
 ##### s3_software_installers_prefix
 
 Prefix to prepend to software.
 
-All carve objects will also be prefixed by date and hour (UTC), making the resulting keys look like: `<prefix><year>/<month>/<day>/<hour>/<carve-name>`.
-
 - Default value: none
-- Environment variable: `FLEET_S3_PREFIX`
+- Environment variable: `FLEET_S3_SOFTWARE_INSTALLERS_PREFIX`
 - Config file format:
   ```yaml
   s3:
-    prefix: prefix-here/
+    software_intallers_prefix: prefix-here/
   ```
 
 ##### s3_software_installers_access_key_id
@@ -2237,11 +2235,11 @@ If `s3_access_key_id` and `s3_secret_access_key` are omitted, Fleet will try to 
 The IAM identity used in this context must be allowed to perform the following actions on the bucket: `s3:PutObject`, `s3:GetObject`, `s3:ListMultipartUploadParts`, `s3:ListBucket`, `s3:GetBucketLocation`.
 
 - Default value: none
-- Environment variable: `FLEET_S3_ACCESS_KEY_ID`
+- Environment variable: `FLEET_S3_SOFTWARE_INSTALLERS_ACCESS_KEY_ID`
 - Config file format:
   ```yaml
   s3:
-    access_key_id: AKIAIOSFODNN7EXAMPLE
+    software_intallers_access_key_id: AKIAIOSFODNN7EXAMPLE
   ```
 
 ##### s3_software_installers_secret_access_key
@@ -2253,7 +2251,7 @@ AWS secret access key to use for S3 authentication.
 - Config file format:
   ```yaml
   s3:
-    secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+    software_intallers_secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
   ```
 
 ##### s3_software_installers_sts_assume_role_arn
@@ -2261,11 +2259,11 @@ AWS secret access key to use for S3 authentication.
 AWS STS role ARN to use for S3 authentication.
 
 - Default value: none
-- Environment variable: `FLEET_S3_STS_ASSUME_ROLE_ARN`
+- Environment variable: `FLEET_S3_SOFTWARE_INSTALLERS_STS_ASSUME_ROLE_ARN`
 - Config file format:
   ```yaml
   s3:
-    sts_assume_role_arn: arn:aws:iam::1234567890:role/some-s3-role
+    software_intallers_sts_assume_role_arn: arn:aws:iam::1234567890:role/some-s3-role
   ```
 
 ##### s3_software_installers_sts_external_id
@@ -2274,11 +2272,11 @@ AWS STS External ID to use for S3 authentication. This is typically used in
 conjunction with an STS role ARN to ensure that only the intended AWS account can assume the role.
 
 - Default value: none
-- Environment variable: `FLEET_S3_STS_EXTERNAL_ID`
+- Environment variable: `FLEET_S3_SOFTWARE_INSTALLERS_STS_EXTERNAL_ID`
 - Config file format:
   ```yaml
   s3:
-    sts_external_id: your_unique_id
+   software_intallers_sts_external_id: your_unique_id
   ```
 
 ##### s3_software_installers_endpoint_url
@@ -2287,11 +2285,11 @@ AWS S3 Endpoint URL. Override when using a different S3 compatible object storag
 or running s3 locally with localstack. Leave this blank to use the default S3 service endpoint.
 
 - Default value: none
-- Environment variable: `FLEET_S3_ENDPOINT_URL`
+- Environment variable: `FLEET_S3_SOFTWARE_INSTALLERS_ENDPOINT_URL`
 - Config file format:
   ```yaml
   s3:
-    endpoint_url: http://localhost:9000
+    software_intallers_endpoint_url: http://localhost:9000
   ```
 
 ##### s3_software_installers_force_s3_path_style
@@ -2304,11 +2302,11 @@ will use virtual hosted bucket addressing when possible
 See [here](http://docs.aws.amazon.com/AmazonS3/latest/dev/VirtualHosting.html) for details.
 
 - Default value: false
-- Environment variable: `FLEET_S3_FORCE_S3_PATH_STYLE`
+- Environment variable: `FLEET_S3_SOFTWARE_INSTALLERS_FORCE_S3_PATH_STYLE`
 - Config file format:
   ```yaml
   s3:
-    force_s3_path_style: false
+    software_intallers_force_s3_path_style: false
   ```
 
 ##### s3_software_installers_region
@@ -2318,11 +2316,11 @@ AWS S3 Region. Leave blank to enable region discovery.
 Minio users must set this to any nonempty value (eg. `minio`), as Minio does not support region discovery.
 
 - Default value:
-- Environment variable: `FLEET_S3_REGION`
+- Environment variable: `FLEET_S3_SOFTWARE_INSTALLERS_REGION`
 - Config file format:
   ```yaml
   s3:
-    region: us-east-1
+    software_intallers_region: us-east-1
   ```
 
 ##### s3_carves_bucket
@@ -2330,91 +2328,93 @@ Minio users must set this to any nonempty value (eg. `minio`), as Minio does not
 Name of the S3 bucket for file carves.
 
 - Default value: none
-- Environment variable: `FLEET_S3_BUCKET`
+- Environment variable: `FLEET_S3_CARVES_BUCKET`
 - Config file format:
   ```yaml
   s3:
-    bucket: some-bucket
+     carves_bucket: some-bucket
   ```
 
 ##### s3_carves_prefix
 
+All carve objects will also be prefixed by date and hour (UTC), making the resulting keys look like: `<prefix><year>/<month>/<day>/<hour>/<carve-name>`.
+
 - Default value: none
-- Environment variable: `FLEET_S3_PREFIX`
+- Environment variable: `FLEET_S3_CARVES_PREFIX`
 - Config file format:
   ```yaml
   s3:
-    prefix: prefix-here/
+     carves_prefix: prefix-here/
   ```
 
 ##### s3_carves_access_key_id
 
 - Default value: none
-- Environment variable: `FLEET_S3_ACCESS_KEY_ID`
+- Environment variable: `FLEET_S3_CARVES_ACCESS_KEY_ID`
 - Config file format:
   ```yaml
   s3:
-    access_key_id: AKIAIOSFODNN7EXAMPLE
+    carves_access_key_id: AKIAIOSFODNN7EXAMPLE
   ```
 
 ##### s3_carves_secret_access_key
 
 - Default value: none
-- Environment variable: `FLEET_S3_SECRET_ACCESS_KEY`
+- Environment variable: `FLEET_S3_CARVES_SECRET_ACCESS_KEY`
 - Config file format:
   ```yaml
   s3:
-    secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+     carves_secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
   ```
 
 ##### s3_carves_sts_assume_role_arn
 
 - Default value: none
-- Environment variable: `FLEET_S3_STS_ASSUME_ROLE_ARN`
+- Environment variable: `FLEET_S3_CARVES_STS_ASSUME_ROLE_ARN`
 - Config file format:
   ```yaml
   s3:
-    sts_assume_role_arn: arn:aws:iam::1234567890:role/some-s3-role
+     carves_sts_assume_role_arn: arn:aws:iam::1234567890:role/some-s3-role
   ```
 
 ##### s3_carves_sts_external_id
 
 - Default value: none
-- Environment variable: `FLEET_S3_STS_EXTERNAL_ID`
+- Environment variable: `FLEET_S3_CARVES_STS_EXTERNAL_ID`
 - Config file format:
   ```yaml
   s3:
-    sts_external_id: your_unique_id
+     carves_sts_external_id: your_unique_id
   ```
 
 ##### s3_carves_endpoint_url
 
 - Default value: none
-- Environment variable: `FLEET_S3_ENDPOINT_URL`
+- Environment variable: `FLEET_S3_CARVES_ENDPOINT_URL`
 - Config file format:
   ```yaml
   s3:
-    endpoint_url: http://localhost:9000
+     carves_endpoint_url: http://localhost:9000
   ```
 
 ##### s3_carves_force_s3_path_style
 
 - Default value: false
-- Environment variable: `FLEET_S3_FORCE_S3_PATH_STYLE`
+- Environment variable: `FLEET_S3_CARVES_FORCE_S3_PATH_STYLE`
 - Config file format:
   ```yaml
   s3:
-    force_s3_path_style: false
+     carves_force_s3_path_style: false
   ```
 
 ##### s3_carves_region
 
 - Default value:
-- Environment variable: `FLEET_S3_REGION`
+- Environment variable: `FLEET_S3_CARVES_REGION`
 - Config file format:
   ```yaml
   s3:
-    region: us-east-1
+    carves_region: us-east-1
   ```
 
 ##### Example YAML

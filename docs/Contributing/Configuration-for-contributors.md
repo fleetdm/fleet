@@ -370,17 +370,17 @@ Whether the SMTP server's SSL certificates should be verified. This can be turne
 AWS S3 Disable SSL. Useful for local testing.
 
 - Default value: false
-- Environment variable: `FLEET_S3_DISABLE_SSL`
+- Environment variable: `FLEET_S3_SOFTWARE_INSTALLERS_DISABLE_SSL`
 - Config file format:
   ```yaml
   s3:
-    disable_ssl: false
+    software_installers_disable_ssl: false
   ```
 
 ##### s3_carves_disable_ssl
 
 - Default value: false
-- Environment variable: `FLEET_S3_DISABLE_SSL`
+- Environment variable: `FLEET_S3_CARVES_DISABLE_SSL`
 - Config file format:
   ```yaml
   s3:
