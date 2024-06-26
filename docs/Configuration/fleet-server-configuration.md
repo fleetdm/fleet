@@ -2294,18 +2294,6 @@ or running s3 locally with localstack. Leave this blank to use the default S3 se
     endpoint_url: http://localhost:9000
   ```
 
-##### s3_software_installers_disable_ssl
-
-AWS S3 Disable SSL. Useful for local testing.
-
-- Default value: false
-- Environment variable: `FLEET_S3_DISABLE_SSL`
-- Config file format:
-  ```yaml
-  s3:
-    disable_ssl: false
-  ```
-
 ##### s3_software_installers_force_s3_path_style
 
 AWS S3 Force S3 Path Style. Set this to `true` to force the request to use path-style addressing,
@@ -2407,18 +2395,6 @@ Name of the S3 bucket for file carves.
   ```yaml
   s3:
     endpoint_url: http://localhost:9000
-  ```
-
-##### s3_carves_disable_ssl
-
-AWS S3 Disable SSL. Useful for local testing.
-
-- Default value: false
-- Environment variable: `FLEET_S3_DISABLE_SSL`
-- Config file format:
-  ```yaml
-  s3:
-    disable_ssl: false
   ```
 
 ##### s3_carves_force_s3_path_style
