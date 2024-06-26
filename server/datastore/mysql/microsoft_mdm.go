@@ -1312,6 +1312,7 @@ func listMDMWindowsProfilesToRemoveDB(
 		-- TODO(mna): why don't we have the same exception for "remove" operations as for Apple
 
 		-- except "would be removed" profiles if they are a broken label-based profile
+		-- (regardless of if it is an include-all or exclude-any label)
 		NOT EXISTS (
 			SELECT 1
 			FROM mdm_configuration_profile_labels mcpl
@@ -1321,9 +1322,6 @@ func listMDMWindowsProfilesToRemoveDB(
 		) AND
 		(%s)
 `, fmt.Sprintf(windowsMDMProfilesDesiredStateQuery, "TRUE", "TRUE"), hostFilter)
-	// TODO(mna): I think the "except would be removed" clause above is good for
-	// both include all / exclude any scenarios? I.e. we don't want to remove a
-	// previously installed profile if it is based on a label that is broken?
 
 	var err error
 	var args []any

@@ -1718,7 +1718,8 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 		ds.profile_uuid IS NULL AND ds.host_uuid IS NULL AND
 		-- except "remove" operations in any state
 		( hmap.operation_type IS NULL OR hmap.operation_type != ? ) AND
-		-- except "would be removed" profiles if they are a broken label-based profile
+		-- except "would be removed" profiles if they are a broken label-based profile 
+		-- (regardless of if it is an include-all or exclude-any label)
 		NOT EXISTS (
 			SELECT 1
 			FROM mdm_configuration_profile_labels mcpl
@@ -1727,9 +1728,6 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 			mcpl.label_id IS NULL
 		)
 `, fmt.Sprintf(appleMDMProfilesDesiredStateQuery, "h.uuid IN (?)", "h.uuid IN (?)"))
-	// TODO(mna): I think the "except would be removed" clause above is good for
-	// both include all / exclude any scenarios? I.e. we don't want to remove a
-	// previously installed profile if it is based on a label that is broken?
 
 	// TODO: if a very large number (~65K) of host uuids was matched (via
 	// uuids, teams or profile IDs), could result in too many placeholders (not
@@ -2082,6 +2080,7 @@ func generateEntitiesToRemoveQuery(entityType string) string {
 		-- except "remove" operations in a terminal state or already pending
 		( hmae.operation_type IS NULL OR hmae.operation_type != ? OR hmae.status IS NULL ) AND
 		-- except "would be removed" entities if they are a broken label-based entities
+		-- (regardless of if it is an include-all or exclude-any label)
 		NOT EXISTS (
 			SELECT 1
 			FROM ${mdmEntityLabelsTable} mcpl
@@ -2090,7 +2089,6 @@ func generateEntitiesToRemoveQuery(entityType string) string {
 				mcpl.label_id IS NULL
 		)
 `, func(s string) string { return dynamicNames[s] }), fmt.Sprintf(generateDesiredStateQuery(entityType), "TRUE", "TRUE"))
-	// TODO(mna): I think the "would be removed" exception still applies for exclude-any labels
 }
 
 func (ds *Datastore) ListMDMAppleProfilesToInstall(ctx context.Context) ([]*fleet.MDMAppleProfilePayload, error) {
