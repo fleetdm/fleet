@@ -19,7 +19,6 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/tablehelpers"
 	"github.com/osquery/osquery-go/plugin/table"
 	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
 )
 
 const ioregPath = "/usr/sbin/ioreg"
@@ -31,7 +30,7 @@ type Table struct {
 	logger    zerolog.Logger
 }
 
-func TablePlugin() *table.Plugin {
+func TablePlugin(logger zerolog.Logger) *table.Plugin {
 	columns := dataflattentable.Columns(
 		// ioreg input options. These match the ioreg
 		// command line. See the ioreg man page.
@@ -45,7 +44,7 @@ func TablePlugin() *table.Plugin {
 
 	t := &Table{
 		tableName: "ioreg",
-		logger:    log.Logger.With().Str("table", "ioreg").Logger(),
+		logger:    logger.With().Str("table", "ioreg").Logger(),
 	}
 
 	return table.NewPlugin(t.tableName, columns, t.generate)
@@ -100,7 +99,7 @@ func (t *Table) generate(ctx context.Context, queryContext table.QueryContext) (
 							for _, dataQuery := range tablehelpers.GetConstraints(queryContext, "query", tablehelpers.WithDefaults("*")) {
 								// Finally, an inner loop
 
-								ioregOutput, err := tablehelpers.Exec(ctx, 30, []string{ioregPath}, ioregArgs, false)
+								ioregOutput, err := tablehelpers.Exec(ctx, t.logger, 30, []string{ioregPath}, ioregArgs, false)
 								if err != nil {
 									t.logger.Info().Err(err).Msg("ioreg failed ctx logger")
 									continue

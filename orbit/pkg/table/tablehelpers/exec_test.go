@@ -8,14 +8,14 @@ import (
 	"context"
 	"testing"
 
-	"github.com/go-kit/log"
+	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestExec(t *testing.T) {
 	t.Parallel()
 
-	var tests = []struct {
+	tests := []struct {
 		name    string
 		timeout int
 		bins    []string
@@ -53,7 +53,7 @@ func TestExec(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	logger := log.NewNopLogger()
+	logger := zerolog.Nop()
 
 	for _, tt := range tests {
 		tt := tt
@@ -71,7 +71,6 @@ func TestExec(t *testing.T) {
 				assert.NoError(t, err)
 				assert.Equal(t, []byte(tt.output), output)
 			}
-
 		})
 	}
 }

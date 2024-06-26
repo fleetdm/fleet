@@ -88,7 +88,6 @@ OUTER:
 		// then the list of options to fetch. Set the command line thusly.
 		args := append([]string{"-g"}, options...)
 
-		// TODO(JVE): needs a logger from this context
 		output, err := t.execFunc(ctx, t.logger, 30, falconctlPaths, args, false)
 		if err != nil {
 			t.logger.Info().Err(err).Msg("exec failed")
