@@ -187,7 +187,7 @@
                       <td purpose="feature-name"><%- feature.name %><%- feature.comingSoon ? '*' : '' %></td>
                     <% } %>
                     <td purpose="table-checkmark"><img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png"></td>
-                    <% if(feature.jamfProHasFeature === true) {%>
+                    <% if(feature.jamfProHasFeature === 'yes') {%>
                       <td purpose="table-checkmark"><img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png"></td>
                     <% } else if(feature.jamfProHasFeature === 'macOnly') { %>
                       <td purpose="table-checkmark"><img class="mx-auto" alt="Apple logo" purpose="checkmark" src="/images/os-macos-black-50-16x16@2x.png"></td>
@@ -197,7 +197,7 @@
                       <td purpose="table-checkmark"></td>
                     <% } %>
 
-                    <% if(feature.jamfProtectHasFeature === true) {%>
+                    <% if(feature.jamfProtectHasFeature === 'yes') {%>
                       <td purpose="table-checkmark"><img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png"></td>
                     <% } else if(feature.jamfProtectHasFeature === 'macOnly') { %>
                       <td purpose="table-checkmark"><img class="mx-auto" alt="Apple logo" purpose="checkmark" src="/images/os-macos-black-50-16x16@2x.png"></td>
@@ -229,13 +229,13 @@
               </div>
               <div purpose="striped-row" class="d-flex flex-row justify-content-between align-items-center">
                 Jamf Pro
-                <img class="d-block" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png" v-if="feature.jamfProHasFeature === true">
+                <img class="d-block" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png" v-if="feature.jamfProHasFeature === 'yes'">
                 <img class="d-block"  alt="Apple logo" purpose="checkmark" src="/images/os-macos-black-50-16x16@2x.png" v-else-if="feature.jamfProHasFeature === 'macOnly'">
                 <span class="d-block" purpose="table-comparison-note" v-else-if="feature.jamfProHasFeature === 'cloudOnly'">Cloud only</span>
               </div>
               <div class="d-flex flex-row justify-content-between align-items-center">
                 Jamf Protect
-                <img class="d-block" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png" v-if="feature.jamfProtectHasFeature === true">
+                <img class="d-block" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png" v-if="feature.jamfProtectHasFeature === 'yes'">
                 <img class="d-block"  alt="Apple logo" purpose="checkmark" src="/images/os-macos-black-50-16x16@2x.png" v-else-if="feature.jamfProtectHasFeature === 'macOnly'">
                 <span class="d-block" purpose="table-comparison-note" v-else-if="feature.jamfProtectHasFeature === 'cloudOnly'">Cloud only</span>
               </div>
