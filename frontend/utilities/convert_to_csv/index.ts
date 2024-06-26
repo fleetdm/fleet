@@ -25,7 +25,7 @@ const convertToCSV = ({
   objArray,
   fieldSortFunc = defaultFieldSortFunc,
   tableHeaders,
-}: ConvertToCSV): string => {
+}: ConvertToCSV) => {
   const tableHeadersStrings: string[] = tableHeaders
     ? tableHeaders.map((header: { id: string }) => header.id)
     : Object.keys(objArray[0]);
@@ -41,7 +41,6 @@ const convertToCSV = ({
     fields.map((field) => formatFieldForCSV(row[field])).join(",")
   );
 
-  console.log("return statement", [headerRow, ...dataRows].join("\n"));
   return [headerRow, ...dataRows].join("\n");
 };
 
