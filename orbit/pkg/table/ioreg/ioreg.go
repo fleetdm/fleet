@@ -18,6 +18,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/dataflattentable"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/tablehelpers"
 	"github.com/osquery/osquery-go/plugin/table"
+	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )
 
@@ -27,6 +28,7 @@ const allowedCharacters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0
 
 type Table struct {
 	tableName string
+	logger    zerolog.Logger
 }
 
 func TablePlugin() *table.Plugin {
@@ -43,6 +45,7 @@ func TablePlugin() *table.Plugin {
 
 	t := &Table{
 		tableName: "ioreg",
+		logger:    log.Logger.With().Str("table", "ioreg").Logger(),
 	}
 
 	return table.NewPlugin(t.tableName, columns, t.generate)
@@ -90,7 +93,7 @@ func (t *Table) generate(ctx context.Context, queryContext table.QueryContext) (
 							case "1":
 								ioregArgs = append(ioregArgs, "-r")
 							default:
-								log.Info().Msg("r should be blank, 0, or 1")
+								t.logger.Info().Msg("r should be blank, 0, or 1")
 								continue
 							}
 
@@ -99,13 +102,13 @@ func (t *Table) generate(ctx context.Context, queryContext table.QueryContext) (
 
 								ioregOutput, err := tablehelpers.Exec(ctx, 30, []string{ioregPath}, ioregArgs, false)
 								if err != nil {
-									log.Info().Err(err).Msg("ioreg failed")
+									t.logger.Info().Err(err).Msg("ioreg failed ctx logger")
 									continue
 								}
 
 								flatData, err := t.flattenOutput(dataQuery, ioregOutput)
 								if err != nil {
-									log.Info().Err(err).Msg("flatten failed")
+									t.logger.Info().Err(err).Msg("flatten failed")
 									continue
 								}
 

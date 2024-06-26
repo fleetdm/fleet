@@ -10,9 +10,9 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/dataflatten"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/dataflattentable"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/tablehelpers"
-	"github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 	"github.com/osquery/osquery-go/plugin/table"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 )
 
 var (
@@ -37,21 +37,21 @@ var (
 	defaultOption = strings.Join(allowedOptions, " ")
 )
 
-type execFunc func(context.Context, log.Logger, int, []string, []string, bool) ([]byte, error)
+type execFunc func(context.Context, zerolog.Logger, int, []string, []string, bool) ([]byte, error)
 
 type falconctlOptionsTable struct {
-	logger    log.Logger
+	logger    zerolog.Logger
 	tableName string
 	execFunc  execFunc
 }
 
-func NewFalconctlOptionTable(logger log.Logger) *table.Plugin {
+func NewFalconctlOptionTable() *table.Plugin {
 	columns := dataflattentable.Columns(
 		table.TextColumn("options"),
 	)
 
 	t := &falconctlOptionsTable{
-		logger:    log.With(logger, "table", "falconctl_options"),
+		logger:    log.Logger.With().Str("table", "falconctl_options").Logger(),
 		tableName: "falconctl_options",
 		execFunc:  tablehelpers.Exec,
 	}
@@ -77,7 +77,7 @@ OUTER:
 		for _, option := range options {
 			option = strings.Trim(option, " ")
 			if !optionAllowed(option) {
-				level.Info(t.logger).Log("msg", "requested option not allowed", "option", option)
+				t.logger.Info().Msgf("requested option not allowed: %s", option)
 				continue OUTER
 			}
 		}
@@ -88,16 +88,17 @@ OUTER:
 		// then the list of options to fetch. Set the command line thusly.
 		args := append([]string{"-g"}, options...)
 
+		// TODO(JVE): needs a logger from this context
 		output, err := t.execFunc(ctx, t.logger, 30, falconctlPaths, args, false)
 		if err != nil {
-			level.Info(t.logger).Log("msg", "exec failed", "err", err)
+			t.logger.Info().Err(err).Msg("exec failed")
 			synthesizedData := map[string]string{
 				"_error": fmt.Sprintf("falconctl parse failure: %s", err),
 			}
 
 			flattened, err := dataflatten.Flatten(synthesizedData)
 			if err != nil {
-				level.Info(t.logger).Log("msg", "failure flattening output", "err", err)
+				t.logger.Info().Err(err).Msg("failure flattening output")
 				continue
 			}
 
@@ -107,7 +108,7 @@ OUTER:
 
 		parsed, err := parseOptions(bytes.NewReader(output))
 		if err != nil {
-			level.Info(t.logger).Log("msg", "parse failed", "err", err)
+			t.logger.Info().Err(err).Msg("parse failed")
 			parsed = map[string]string{
 				"_error": fmt.Sprintf("falconctl parse failure: %s", err),
 			}
@@ -115,13 +116,13 @@ OUTER:
 
 		for _, dataQuery := range tablehelpers.GetConstraints(queryContext, "query", tablehelpers.WithDefaults("*")) {
 			flattenOpts := []dataflatten.FlattenOpts{
-				dataflatten.WithLogger(t.logger),
+				// dataflatten.WithLogger(t.logger),
 				dataflatten.WithQuery(strings.Split(dataQuery, "/")),
 			}
 
 			flattened, err := dataflatten.Flatten(parsed, flattenOpts...)
 			if err != nil {
-				level.Info(t.logger).Log("msg", "failure flattening output", "err", err)
+				t.logger.Info().Err(err).Msg("failure flattening output")
 				continue
 			}
 

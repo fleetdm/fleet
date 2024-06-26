@@ -11,7 +11,8 @@ import (
 	"os/exec"
 	"time"
 
-	"github.com/rs/zerolog/log"
+	"github.com/rs/zerolog"
+	// "github.com/rs/zerolog/log"
 )
 
 // Exec is a wrapper over exec.CommandContext. It does a couple of
@@ -22,7 +23,7 @@ import (
 //  3. It moves the stderr into the return error, if needed.
 //
 // This is not suitable for high performance work -- it allocates new buffers each time.
-func Exec(ctx context.Context, timeoutSeconds int, possibleBins []string, args []string, includeStderr bool) ([]byte, error) {
+func Exec(ctx context.Context, log zerolog.Logger, timeoutSeconds int, possibleBins []string, args []string, includeStderr bool) ([]byte, error) {
 	ctx, cancel := context.WithTimeout(ctx, time.Duration(timeoutSeconds)*time.Second)
 	defer cancel()
 

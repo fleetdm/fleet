@@ -95,6 +95,7 @@ func WithNestedPlist() FlattenOpts {
 }
 
 // WithLogger sets the logger to use
+// TODO(JVE): update this to use zerolog
 func WithLogger(logger log.Logger) FlattenOpts {
 	if logger == nil {
 		return func(_ *Flattener) {}
@@ -407,7 +408,6 @@ func (fl *Flattener) queryMatchStringify(data interface{}, queryTerm string) boo
 	}
 
 	return fl.queryMatchString(stringValue, queryTerm)
-
 }
 
 func (fl *Flattener) queryMatchString(v, queryTerm string) bool {
