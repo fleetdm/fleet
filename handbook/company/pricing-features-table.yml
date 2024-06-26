@@ -586,7 +586,7 @@
   tier: Premium
   jamfProHasFeature: no
   jamfProtectHasFeature: no
-- industryName: Self-managed
+- industryName: Self-hosted
   friendlyName: Host it yourself
   description: Deploy Fleet anywhere and host it yourself, even in air-gapped environments except where technologically impossible.
   pricingTableCategories: [Deployment]
