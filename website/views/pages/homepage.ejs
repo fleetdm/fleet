@@ -7,7 +7,7 @@
           <%/* Hero text */%>
           <div purpose="hero-text"  class="d-flex flex-column justify-content-center">
             <h1><%- partial('../partials/primary-tagline.partial.ejs') %></h1>
-            <p>Replace the sprawl with <%= primaryBuyingSituation === 'mdm'? 'secure, open-source device management that works the way you want' : primaryBuyingSituation === 'vm'? 'secure, open-source reporting that works the way you want' : primaryBuyingSituation === 'eo-security'? 'universal, open-source endpoint visibility' : 'simple, open-source software for managing computers' %>.</p>
+            <p>Replace the sprawl with <%= primaryBuyingSituation === 'vm'? 'secure, open-source reporting that works the way you want' : primaryBuyingSituation === 'eo-security'? 'universal, open-source endpoint visibility' : 'secure, open-source device management that works the way you want' %>.</p>
             <div purpose="button-row" class="d-flex flex-sm-row flex-column justify-content-center align-items-center">
               <a purpose="cta-button" href="/register">Start now</a>
               <a purpose="animated-arrow-button-red" href="/contact">Talk to us</a>
@@ -42,7 +42,7 @@
           <h2>Tell employees why</h2>
           <p>Automatically explain why your security policies matter, and install required updates en masse without locking people out of meetings.</p>
         <%} %>
-          <% if (primaryBuyingSituation && !['eo-security'].includes(primaryBuyingSituation)) { %><div purpose="calendar-checklist" class="flex-column d-flex">
+          <% if (!['eo-security'].includes(primaryBuyingSituation)) { %><div purpose="calendar-checklist" class="flex-column d-flex">
             <p>Say goodbye to annoying IT notifications and restarts.</p>
             <p>Automatically explain why your security policies matter.</p>
             <p>Stop making exceptions for executives when OS updates lock them out of important meetings.</p>
@@ -54,35 +54,6 @@
         <div purpose="feature-video">
           <video autoplay loop muted playsinline purpose="calendar-video"><source src="/videos/calendar-feature-video.mp4" type="video/mp4"></video>
         </div>
-      </div>
-
-
-
-      <div purpose="testimonials" class="d-none <!-- temporarily disabled videos --> flex-lg-row flex-column justify-content-center card-deck">
-        <% if(['mdm', 'eo-it'].includes(primaryBuyingSituation)) {%>
-          <div purpose="testimonial" class="nick-fohs d-flex align-items-center card" @click="clickOpenVideoModal('nick-fohs')">
-            <div purpose="testimonial-video" class="card-title">
-              <img alt="Play video" src="/images/icon-play-48x48@2x.png">
-            </div>
-            <div purpose="testimonial-text">
-              <p purpose="testimonial-quote">“Fleet lets us be as lightweight as possible while surfacing data to other teams and partners.”</p>
-              <p class="mb-0"><strong>Nick Fohs</strong></p>
-              <p class="mb-0">Systems and IT infrastructure manager</p>
-            </div>
-          </div>
-        <%} else if(['vm', 'eo-security'].includes(primaryBuyingSituation)) {%>
-          <div purpose="testimonial" class="austin-anderson d-flex align-items-center card" @click="clickOpenVideoModal('austin-anderson')">
-            <div purpose="testimonial-video" class="card-title">
-              <img alt="Play video" src="/images/icon-play-48x48@2x.png">
-            </div>
-            <div purpose="testimonial-text">
-              <p purpose="testimonial-quote">“We can build it exactly the way we want it. Which is just not possible on other platforms.”</p>
-              <p class="mb-0"><strong>Austin Anderson</strong></p>
-              <p class="mb-0">Cybersecurity team senior manager</p>
-            </div>
-          </div>
-        <%}%>
-        <% %>
       </div>
     </div>
   </div>
