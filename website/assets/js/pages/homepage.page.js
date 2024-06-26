@@ -4,6 +4,7 @@ parasails.registerPage('homepage', {
   //  ╩╝╚╝╩ ╩ ╩╩ ╩╩═╝  ╚═╝ ╩ ╩ ╩ ╩ ╚═╝
   data: {
     modal: undefined,
+    selectedCategory: 'mdm'
   },
 
   //  ╦  ╦╔═╗╔═╗╔═╗╦ ╦╔═╗╦  ╔═╗
@@ -13,7 +14,9 @@ parasails.registerPage('homepage', {
     //…
   },
   mounted: async function(){
-    //…
+    if(this.primaryBuyingSituation){
+      this.selectedCategory = this.primaryBuyingSituation;
+    }
   },
 
   //  ╦╔╗╔╔╦╗╔═╗╦═╗╔═╗╔═╗╔╦╗╦╔═╗╔╗╔╔═╗

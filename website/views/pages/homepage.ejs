@@ -88,146 +88,57 @@
   </div>
   <div purpose="homepage-content" class="container">
     <div purpose="page-section">
-      <% if(!primaryBuyingSituation){ %>
-        <%/* Device management block */%>
-        <div purpose="platform-block" class="d-flex flex-md-row flex-column-reverse justify-content-md-between mx-auto align-items-center">
-          <div purpose="category-text-block" class="d-flex flex-column">
-            <h4>Device management</h4>
-            <h3>Manage everything in one place</h3>
-            <p>Modernize your device management practice with a single, open platform for Apple, Windows, and Linux.</p>
-            <div>
-              <a purpose="category-button" class="text-nowrap btn btn-primary" href="/device-management">Start with device management</a>
-            </div>
-          </div>
-          <div purpose="device-management-image" class="right">
-            <img alt="Operating systems entering a glass device management dome" src="/images/device-management-hero-380x293@2x.png">
-          </div>
-        </div>
-
-        <%/* Endpoint ops block */%>
-        <div purpose="platform-block" class="d-flex flex-md-row flex-column justify-content-md-between mx-auto align-items-center">
-          <div purpose="endpoint-ops-image" class="left">
-            <img alt="Endpoint ops" src="/images/endpoint-operations-hero-image-380x380@2x.png">
-          </div>
-          <div purpose="category-text-block" class="d-flex flex-column">
-            <h4>Endpoint ops</h4>
-            <h3><%= primaryBuyingSituation==='eo-security'? 'Instrument your endpoints' : 'Understand your computers'%></h3>
-            <p>A <%= primaryBuyingSituation==='eo-security'? 'lightweight' : 'quick-fast' %> way to gather <%= primaryBuyingSituation==='vm'? 'patch level and custom reports across all your computing devices, even in OT and production environments' : primaryBuyingSituation==='eo-security'? 'deep context and custom telemetry across all your endpoints, even servers' : primaryBuyingSituation==='mdm'||primaryBuyingSituation==='eo-it'? 'compliance and inventory data across all your devices' : 'device data across all your computers' %>. Pulse check or automate anything on any platform.</p>
-            <div>
-              <a purpose="category-button" class="text-nowrap btn btn-primary" href="/endpoint-ops">Start with endpoint ops</a>
-            </div>
+      <div purpose="category-switch" class="d-flex flex-md-row flex-column justify-content-center mx-auto">
+        <div purpose="category-switch-option" class="security" :class="[selectedCategory === 'mdm' ? 'selected' : '']" @click="selectedCategory = 'mdm'">Device management</div>
+        <div purpose="category-switch-option" class="all" :class="[['eo-it', 'eo-security'].includes(selectedCategory) ? 'selected' : '']" @click="selectedCategory = 'endpoint-operations'">Endpoint ops</div>
+        <div purpose="category-switch-option" class="it" :class="[selectedCategory === 'vulnerability-management' ? 'selected' : '']" @click="selectedCategory = 'vm'">Vuln<span class="d-inline d-md-none d-lg-inline">erability</span> management</div>
+        <div purpose="category-tier-switch" :class="[['eo-it', 'eo-security', 'endpoint-operations'].includes(selectedCategory) ? 'eo-selected' : selectedCategory === 'vm' ? 'vm-selected' : selectedCategory === 'mdm' ? 'mdm-selected' : 'mdm-selected']"></div>
+      </div>
+      <%/* Device management block */%>
+      <div purpose="platform-block" class="d-flex flex-md-row flex-column-reverse justify-content-md-between mx-auto align-items-center" :class="[selectedCategory === 'mdm' ? 'visible' : '']" v-if="selectedCategory === 'mdm'">
+        <div purpose="category-text-block" class="d-flex flex-column">
+          <h4>Device management</h4>
+          <h3>Manage everything in one place</h3>
+          <p>Modernize your device management practice with a single, open platform for Apple, Windows, and Linux.</p>
+          <div>
+            <a purpose="category-button" class="text-nowrap btn btn-primary" href="/device-management">Start with device management</a>
           </div>
         </div>
+        <div purpose="device-management-image" class="right">
+          <img alt="Operating systems entering a glass device management dome" src="/images/device-management-hero-380x293@2x.png">
+        </div>
+      </div>
 
-        <%/* Vulnerability management block */%>
-        <div purpose="platform-block" class="d-flex flex-md-row flex-column-reverse justify-content-md-between mx-auto align-items-center">
-          <div purpose="category-text-block" class="d-flex flex-column">
-            <h4>Vulnerability management</h4>
-            <h3>Build the vulnerability program you actually want</h3>
-            <p>Show how quickly zero days and "celebrity CVEs" are resolved and which teams need extra help. Use scoring, known exploit feeds, and live, down-to-the-chip data about your own environment to prioritize, export, automate, and monitor mitigations of everyday vulnerabilities in operating systems, software packages, browsers, and plugins, anywhere.</p>
-            <div>
-              <a purpose="category-button" class="text-nowrap btn btn-primary"  href="/vulnerability-management">Start with vuln management</a>
-            </div>
-          </div>
-          <div purpose="vuln-management-image" class="right">
-            <img  alt="An orb being scanned for vulnerabilities" src="/images/vulnerability-management-hero-image-345x380@2x.png">
+      <%/* Endpoint ops block */%>
+      <div purpose="platform-block" :class="['eo-it', 'eo-security', 'endpoint-operations'].includes(selectedCategory)" class="d-flex flex-md-row flex-column justify-content-md-between mx-auto align-items-center" v-if="['eo-it', 'eo-security', 'endpoint-operations'].includes(selectedCategory)">
+        <div purpose="endpoint-ops-image" class="left">
+          <img alt="Endpoint ops" src="/images/endpoint-operations-hero-image-380x380@2x.png">
+        </div>
+        <div purpose="category-text-block" class="d-flex flex-column">
+          <h4>Endpoint ops</h4>
+          <h3><%= primaryBuyingSituation==='eo-security'? 'Instrument your endpoints' : 'Understand your computers'%></h3>
+          <p>A <%= primaryBuyingSituation==='eo-security'? 'lightweight' : 'quick-fast' %> way to gather <%= primaryBuyingSituation==='vm'? 'patch level and custom reports across all your computing devices, even in OT and production environments' : primaryBuyingSituation==='eo-security'? 'deep context and custom telemetry across all your endpoints, even servers' : primaryBuyingSituation==='mdm'||primaryBuyingSituation==='eo-it'? 'compliance and inventory data across all your devices' : 'device data across all your computers' %>. Pulse check or automate anything on any platform.</p>
+          <div>
+            <a purpose="category-button" class="text-nowrap btn btn-primary" href="/endpoint-ops">Start with endpoint ops</a>
           </div>
         </div>
-        <% } else if(['eo-it', 'eo-security'].includes(primaryBuyingSituation)) {%>
-          <%/* Endpoint ops block */%>
-          <div purpose="platform-block" class="d-flex flex-md-row flex-column-reverse justify-content-md-between mx-auto align-items-center">
-            <div purpose="category-text-block" class="d-flex flex-column">
-              <h4>Endpoint ops</h4>
-              <h3><%= primaryBuyingSituation==='eo-security'? 'Instrument your endpoints' : 'Understand your computers'%></h3>
-              <p>A <%= primaryBuyingSituation==='eo-security'? 'lightweight' : 'quick-fast' %> way to gather <%= primaryBuyingSituation==='vm'? 'patch level and custom reports across all your computing devices, even in OT and production environments' : primaryBuyingSituation==='eo-security'? 'deep context and custom telemetry across all your endpoints, even servers' : primaryBuyingSituation==='mdm'||primaryBuyingSituation==='eo-it'? 'compliance and inventory data across all your devices' : 'device data across all your computers' %>. Pulse check or automate anything on any platform.</p>
-              <div>
-                <a purpose="category-button" class="text-nowrap btn btn-primary" href="/endpoint-ops">Start with endpoint ops</a>
-              </div>
-            </div>
-            <div purpose="endpoint-ops-image" class="right">
-              <img alt="Endpoint ops" src="/images/endpoint-operations-hero-image-380x380@2x.png">
-            </div>
+      </div>
+
+      <%/* Vulnerability management block */%>
+      <div purpose="platform-block" :class="[selectedCategory === 'vm' ? 'visible' : '']" class="d-flex flex-md-row flex-column-reverse justify-content-md-between mx-auto align-items-center" v-if="selectedCategory === 'vm'">
+        <div purpose="category-text-block" class="d-flex flex-column">
+          <h4>Vulnerability management</h4>
+          <h3>Build the vulnerability program you actually want</h3>
+          <p>Show how quickly zero days and "celebrity CVEs" are resolved and which teams need extra help. Use scoring, known exploit feeds, and live, down-to-the-chip data about your own environment to prioritize, export, automate, and monitor mitigations of everyday vulnerabilities in operating systems, software packages, browsers, and plugins, anywhere.</p>
+          <div>
+            <a purpose="category-button" class="text-nowrap btn btn-primary"  href="/vulnerability-management">Start with vuln management</a>
           </div>
-          <%if(primaryBuyingSituation === 'eo-it'){ %>
-            <%/* Device management block */%>
-            <div purpose="platform-block" class="d-flex flex-md-row flex-column justify-content-md-between mx-auto align-items-center">
-              <div purpose="device-management-image" class="left">
-                <img alt="Operating systems entering a glass device management dome" src="/images/device-management-hero-380x293@2x.png">
-              </div>
-              <div purpose="category-text-block" class="d-flex flex-column">
-                <h4>Device management</h4>
-                <h3>Manage everything in one place</h3>
-                <p>Modernize your device management practice with a single, open platform for Apple, Windows, and Linux.</p>
-                <div>
-                  <a purpose="category-button" class="text-nowrap btn btn-primary" href="/device-management">Start with device management</a>
-                </div>
-              </div>
-            </div>
-          <% } else {%>
-            <%/* Vulnerability management block */%>
-            <div purpose="platform-block" class="d-flex flex-md-row flex-column justify-content-md-between mx-auto align-items-center">
-              <div purpose="vuln-management-image" class="left">
-                <img  alt="An orb being scanned for vulnerabilities" src="/images/vulnerability-management-hero-image-345x380@2x.png">
-              </div>
-              <div purpose="category-text-block" class="d-flex flex-column">
-                <h4>Vulnerability management</h4>
-                <h3>Build the vulnerability program you actually want</h3>
-                <p>Show how quickly zero days and "celebrity CVEs" are resolved and which teams need extra help. Use scoring, known exploit feeds, and live, down-to-the-chip data about your own environment to prioritize, export, automate, and monitor mitigations of everyday vulnerabilities in operating systems, software packages, browsers, and plugins, anywhere.</p>
-                <div>
-                  <a purpose="category-button" class="text-nowrap btn btn-primary"  href="/vulnerability-management">Start with vuln management</a>
-                </div>
-              </div>
-            </div>
-          <% } %>
+        </div>
+        <div purpose="vuln-management-image" class="right">
+          <img  alt="An orb being scanned for vulnerabilities" src="/images/vulnerability-management-hero-image-345x380@2x.png">
+        </div>
+      </div>
 
-        <% } else if(['vm', 'mdm'].includes(primaryBuyingSituation)) {%>
-
-          <%if(primaryBuyingSituation === 'mdm'){ %>
-            <%/* Device management block */%>
-            <div purpose="platform-block" class="d-flex flex-md-row flex-column justify-content-md-between mx-auto align-items-center">
-              <div purpose="device-management-image" class="left">
-                <img alt="Operating systems entering a glass device management dome" src="/images/device-management-hero-380x293@2x.png">
-              </div>
-              <div purpose="category-text-block" class="d-flex flex-column">
-                <h4>Device management</h4>
-                <h3>Manage everything in one place</h3>
-                <p>Modernize your device management practice with a single, open platform for Apple, Windows, and Linux.</p>
-                <div>
-                  <a purpose="category-button" class="text-nowrap btn btn-primary" href="/device-management">Start with device management</a>
-                </div>
-              </div>
-            </div>
-          <% } else {%>
-            <%/* Vulnerability management block */%>
-            <div purpose="platform-block" class="d-flex flex-md-row flex-column justify-content-md-between mx-auto align-items-center">
-              <div purpose="vuln-management-image" class="left">
-                <img  alt="An orb being scanned for vulnerabilities" src="/images/vulnerability-management-hero-image-345x380@2x.png">
-              </div>
-              <div purpose="category-text-block" class="d-flex flex-column">
-                <h4>Vulnerability management</h4>
-                <h3>Build the vulnerability program you actually want</h3>
-                <p>Show how quickly zero days and "celebrity CVEs" are resolved and which teams need extra help. Use scoring, known exploit feeds, and live, down-to-the-chip data about your own environment to prioritize, export, automate, and monitor mitigations of everyday vulnerabilities in operating systems, software packages, browsers, and plugins, anywhere.</p>
-                <div>
-                  <a purpose="category-button" class="text-nowrap btn btn-primary"  href="/vulnerability-management">Start with vuln management</a>
-                </div>
-              </div>
-            </div>
-          <% } %>
-
-          <div purpose="platform-block" class="d-flex flex-md-row flex-column-reverse justify-content-md-between mx-auto align-items-center">
-            <div purpose="category-text-block" class="d-flex flex-column">
-              <h4>Endpoint ops</h4>
-              <h3><%= primaryBuyingSituation==='eo-security'? 'Instrument your endpoints' : 'Understand your computers'%></h3>
-              <p>A <%= primaryBuyingSituation==='eo-security'? 'lightweight' : 'quick-fast' %> way to gather <%= primaryBuyingSituation==='vm'? 'patch level and custom reports across all your computing devices, even in OT and production environments' : primaryBuyingSituation==='eo-security'? 'deep context and custom telemetry across all your endpoints, even servers' : primaryBuyingSituation==='mdm'||primaryBuyingSituation==='eo-it'? 'compliance and inventory data across all your devices' : 'device data across all your computers' %>. Pulse check or automate anything on any platform.</p>
-              <div>
-                <a purpose="category-button" class="text-nowrap btn btn-primary" href="/endpoint-ops">Start with endpoint ops</a>
-              </div>
-            </div>
-            <div purpose="endpoint-ops-image" class="right">
-              <img alt="Endpoint ops" src="/images/endpoint-operations-hero-image-380x380@2x.png">
-            </div>
-          </div>
-        <% } %>
       <%/* Integration cards */%>
       <div purpose="integrations-section">
         <h2 class="text-center">Connect your favorite tools</h2>
