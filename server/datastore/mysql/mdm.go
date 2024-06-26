@@ -682,47 +682,81 @@ func (ds *Datastore) GetHostMDMProfilesExpectedForVerification(ctx context.Conte
 
 func (ds *Datastore) getHostMDMWindowsProfilesExpectedForVerification(ctx context.Context, teamID, hostID uint) (map[string]*fleet.ExpectedMDMProfile, error) {
 	stmt := `
+-- profiles without labels
 SELECT
 	name,
 	syncml AS raw_profile,
 	min(mwcp.uploaded_at) AS earliest_install_date,
 	0 AS count_profile_labels,
+	0 as count_non_broken_labels,
 	0 AS count_host_labels
 FROM
 	mdm_windows_configuration_profiles mwcp
 WHERE
-	mwcp.team_id = ?
-	AND NOT EXISTS (
+	mwcp.team_id = ? AND 
+	NOT EXISTS (
 		SELECT
 			1
 		FROM
 			mdm_configuration_profile_labels mcpl
 		WHERE
-			mcpl.apple_profile_uuid = mwcp.profile_uuid)
+			mcpl.windows_profile_uuid = mwcp.profile_uuid
+	)
 GROUP BY  name, syncml
-	UNION
-	SELECT
-		name,
-		syncml AS raw_profile,
-		min(mwcp.uploaded_at) AS earliest_install_date,
-		COUNT(*) AS count_profile_labels,
-		COUNT(lm.label_id) AS count_host_labels
-	FROM
-		mdm_windows_configuration_profiles mwcp
-		JOIN mdm_configuration_profile_labels mcpl ON mcpl.windows_profile_uuid = mwcp.profile_uuid
-		LEFT OUTER JOIN label_membership lm ON lm.label_id = mcpl.label_id
-			AND lm.host_id = ?
-	WHERE
-		mwcp.team_id = ?
-	GROUP BY
-		name, syncml
-	HAVING
-		count_profile_labels > 0
-		AND count_host_labels = count_profile_labels
-  `
-	// TODO(mna): update the labels case to be the "include all" and add a UNION
-	// for the "exclude any"
 
+UNION
+
+-- label-based profiles where the host is a member of all the labels (include-all).
+-- by design, "include" labels cannot match if they are broken (the host cannot be
+-- a member of a deleted label).
+SELECT
+	name,
+	syncml AS raw_profile,
+	min(mwcp.uploaded_at) AS earliest_install_date,
+	COUNT(*) AS count_profile_labels,
+	COUNT(mcpl.label_id) as count_non_broken_labels,
+	COUNT(lm.label_id) AS count_host_labels
+FROM
+	mdm_windows_configuration_profiles mwcp
+	JOIN mdm_configuration_profile_labels mcpl 
+		ON mcpl.windows_profile_uuid = mwcp.profile_uuid AND mcpl.exclude = 0
+	LEFT OUTER JOIN label_membership lm 
+		ON lm.label_id = mcpl.label_id AND lm.host_id = ?
+WHERE
+	mwcp.team_id = ?
+GROUP BY
+	name, syncml
+HAVING
+	count_profile_labels > 0 AND 
+	count_host_labels = count_profile_labels
+
+UNION
+
+-- label-based entities where the host is NOT a member of any of the labels (exclude-any).
+-- explicitly ignore profiles with broken excluded labels so that they are never applied.
+SELECT
+	name,
+	syncml AS raw_profile,
+	min(mwcp.uploaded_at) AS earliest_install_date,
+	COUNT(*) AS count_profile_labels,
+	COUNT(mcpl.label_id) as count_non_broken_labels,
+	COUNT(lm.label_id) AS count_host_labels
+FROM
+	mdm_windows_configuration_profiles mwcp
+	JOIN mdm_configuration_profile_labels mcpl 
+		ON mcpl.windows_profile_uuid = mwcp.profile_uuid AND mcpl.exclude = 1
+	LEFT OUTER JOIN label_membership lm 
+		ON lm.label_id = mcpl.label_id AND lm.host_id = ?
+WHERE
+	mwcp.team_id = ?
+GROUP BY
+	name, syncml
+HAVING
+	-- considers only the profiles with labels, without any broken label, and with the host not in any label
+	count_profile_labels > 0 AND 
+	count_profile_labels = count_non_broken_labels AND
+	count_host_labels = 0
+`
 	var profiles []*fleet.ExpectedMDMProfile
 	// Note: teamID provided twice
 	err := sqlx.SelectContext(ctx, ds.reader(ctx), &profiles, stmt, teamID, hostID, teamID)

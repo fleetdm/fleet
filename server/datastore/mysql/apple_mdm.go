@@ -1679,12 +1679,12 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 		( hmap.profile_uuid IS NULL AND hmap.host_uuid IS NULL ) OR
 		-- profiles in A and B but with operation type "remove"
 		( hmap.host_uuid IS NOT NULL AND ( hmap.operation_type = ? OR hmap.operation_type IS NULL ) )
-`, fmt.Sprintf(appleMDMProfilesDesiredStateQuery, "h.uuid IN (?)", "h.uuid IN (?)"))
+`, fmt.Sprintf(appleMDMProfilesDesiredStateQuery, "h.uuid IN (?)", "h.uuid IN (?)", "h.uuid IN (?)"))
 
 	// TODO: if a very large number (~65K) of host uuids was matched (via
 	// uuids, teams or profile IDs), could result in too many placeholders (not
 	// an immediate concern).
-	stmt, args, err := sqlx.In(toInstallStmt, uuids, uuids, fleet.MDMOperationTypeRemove)
+	stmt, args, err := sqlx.In(toInstallStmt, uuids, uuids, uuids, fleet.MDMOperationTypeRemove)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "building profiles to install statement")
 	}
@@ -1727,12 +1727,12 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 			mcpl.apple_profile_uuid = hmap.profile_uuid AND
 			mcpl.label_id IS NULL
 		)
-`, fmt.Sprintf(appleMDMProfilesDesiredStateQuery, "h.uuid IN (?)", "h.uuid IN (?)"))
+`, fmt.Sprintf(appleMDMProfilesDesiredStateQuery, "h.uuid IN (?)", "h.uuid IN (?)", "h.uuid IN (?)"))
 
 	// TODO: if a very large number (~65K) of host uuids was matched (via
 	// uuids, teams or profile IDs), could result in too many placeholders (not
 	// an immediate concern). Note that uuids are provided twice.
-	stmt, args, err = sqlx.In(toRemoveStmt, uuids, uuids, uuids, fleet.MDMOperationTypeRemove)
+	stmt, args, err = sqlx.In(toRemoveStmt, uuids, uuids, uuids, uuids, fleet.MDMOperationTypeRemove)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "building profiles to remove statement")
 	}
@@ -1949,7 +1949,7 @@ func generateDesiredStateQuery(entityType string) string {
 	UNION
 
 	-- label-based entities where the host is a member of all the labels (include-all).
-	-- by design, "include" labels cannot match if they are broken (the host cannot be 
+	-- by design, "include" labels cannot match if they are broken (the host cannot be
 	-- a member of a deleted label).
 	SELECT
 		mae.${entityUUIDColumn},
@@ -2014,7 +2014,7 @@ func generateDesiredStateQuery(entityType string) string {
 		mae.${entityUUIDColumn}, h.uuid, h.platform, mae.identifier, mae.name, mae.checksum
 	HAVING
 		-- considers only the profiles with labels, without any broken label, and with the host not in any label
-		${countEntityLabelsColumn} > 0 AND ${countEntityLabelsColumn} == count_non_broken_labels AND count_host_labels = 0
+		${countEntityLabelsColumn} > 0 AND ${countEntityLabelsColumn} = count_non_broken_labels AND count_host_labels = 0
 	`, func(s string) string { return dynamicNames[s] })
 }
 
@@ -2073,7 +2073,7 @@ func generateEntitiesToInstallQuery(entityType string) string {
 		( hmae.host_uuid IS NOT NULL AND ( hmae.operation_type = ? OR hmae.operation_type IS NULL ) ) OR
 		-- entities in A and B with operation type "install" and NULL status
 		( hmae.host_uuid IS NOT NULL AND hmae.operation_type = ? AND hmae.status IS NULL )
-`, func(s string) string { return dynamicNames[s] }), fmt.Sprintf(generateDesiredStateQuery(entityType), "TRUE", "TRUE"))
+`, func(s string) string { return dynamicNames[s] }), fmt.Sprintf(generateDesiredStateQuery(entityType), "TRUE", "TRUE", "TRUE"))
 }
 
 // generateEntitiesToRemoveQuery is a set difference between:
@@ -2126,7 +2126,7 @@ func generateEntitiesToRemoveQuery(entityType string) string {
 				mcpl.${appleEntityUUIDColumn} = hmae.${entityUUIDColumn} AND
 				mcpl.label_id IS NULL
 		)
-`, func(s string) string { return dynamicNames[s] }), fmt.Sprintf(generateDesiredStateQuery(entityType), "TRUE", "TRUE"))
+`, func(s string) string { return dynamicNames[s] }), fmt.Sprintf(generateDesiredStateQuery(entityType), "TRUE", "TRUE", "TRUE"))
 }
 
 func (ds *Datastore) ListMDMAppleProfilesToInstall(ctx context.Context) ([]*fleet.MDMAppleProfilePayload, error) {
