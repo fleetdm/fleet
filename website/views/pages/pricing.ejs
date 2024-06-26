@@ -145,6 +145,7 @@
     <%// Jamf features comparison table %>
     <div purpose="features-table" class="d-flex flex-column justify-content-center mx-auto px-0" :class="[[pricingMode === 'jamf-comparison' ? 'show' : 'hide']]">
       <div class="d-flex flex-column justify-content-center p-0">
+        <p purpose="comparison-table-note">Considering a move to Fleet as a cross-platform, open-source alternative to Jamf? See how we compare:</p>
         <%// Desktop feature comparison table %>
         <div class="d-none d-md-block">
           <% for(let category of pricingTable) {%>

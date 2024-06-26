@@ -354,8 +354,13 @@
     margin-bottom: 2px;
   }
 
+  [purpose='comparison-table-note'] {
+    margin-top: 40px;
+    margin-bottom: 40px;
+    text-align: center;
+  }
   [purpose='table-checkmark'] {
-    width: 175px;
+    width: 150px;
     text-align: center;
     color: #515774;
     font-size: 14px;
@@ -470,6 +475,24 @@
       padding-left: 24px;
       padding-right: 24px;
     }
+    [purpose='pricing-categories-table'] {
+      margin-bottom: 40px;
+      thead {
+        strong {
+          font-size: 14px;
+        }
+      }
+      tbody {
+        td {
+          padding: 12px 16px;
+          font-size: 14px;
+          vertical-align: middle;
+        }
+      }
+    }
+    [purpose='table-checkmark'] {
+      width: 124px;
+    }
     [purpose='free-tier-card'] {
       margin-bottom: 12px;
       padding: 40px;
@@ -499,6 +522,7 @@
         height: 56px;
         width: 100%;
       }
+
       .jamf-comparison-selected {
         width: 100%;
         top: 1px;
