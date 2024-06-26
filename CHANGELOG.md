@@ -35,7 +35,7 @@
 - Fixed issue with backwards compatibility with the deprecated `FLEET_S3_*` environment variables.
 - Fixed a code linter issue where a slice was created non-empty and appended-to, instead of empty with the required capacity.
 
-## Vulnerability Management
+### Vulnerability Management
 
 - Added vulnerabilities matching for applications that include an OS scope.
 - Added vulnerability detection in NVD for custom ubuntu kernels.
