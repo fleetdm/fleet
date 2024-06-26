@@ -1,2 +1,0 @@
-* Scripts are now enabled by default when fleet is automatically installed
-* The fleet msi installer now has a parameter `ENABLE_SCRIPTS` to enable or disable scripts when installed through cmd
