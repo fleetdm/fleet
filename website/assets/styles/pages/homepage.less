@@ -88,7 +88,7 @@
   }
 
   [purpose='calendar-feature'] {
-    margin-bottom: 120px; /*increased while testimonial videos are temporarily hidden.*/
+    margin-bottom: 64px; /*increased while testimonial videos are temporarily hidden.*/
     h3 {
       margin-bottom: 24px;
     }
@@ -303,8 +303,8 @@
     background: @ui-off-white;
     position: relative;
     box-shadow: 0px 2px 4px 0px rgba(0, 0, 0, 0.10) inset;
-    margin-bottom: 80px;
-    margin-top: 100px;
+    margin-bottom: 64px;
+    margin-top: 64px;
     color: @core-fleet-black;
     [purpose='category-tier-switch'] {
       position: absolute;
@@ -345,12 +345,17 @@
 
   [purpose='category-text-block'] {
     max-width: 468px;
-    h3 {
-      font-size: 32px;
-      margin-bottom: 32px;
+    strong {
+      font-family: Inter;
+      font-size: 16px;
+      font-weight: 800;
+      line-height: 1.2;
+      margin-bottom: 8px;
     }
     p {
-      margin-bottom: 32px;
+      margin-bottom: 40px;
+      font-size: 14px;
+      line-height: 1.5;
     }
     [purpose='category-button'] {
       width: min-content;
@@ -1021,15 +1026,15 @@
         height: 56px;
         width: 100%;
       }
-      .endpoint-ops-selected {
+      .eo-selected {
         width: 100%;
         transform: translateY(56px);
       }
-      .vulnerability-management-selected {
+      .vm-selected {
         width: 100%;
         transform: translateY(113px);
       }
-      .device-management-selected {
+      .mdm-selected {
         width: 100%;
       }
     }
