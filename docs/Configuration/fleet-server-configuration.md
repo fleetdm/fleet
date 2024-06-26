@@ -2201,9 +2201,9 @@ for the email address specified in the Source parameter of SendRawEmail.
 
 #### S3
 
-##### s3_bucket
+##### s3_software_installers_bucket
 
-Name of the S3 bucket for storing software and file carves.
+Name of the S3 bucket for storing software.
 
 - Default value: none
 - Environment variable: `FLEET_S3_BUCKET`
@@ -2213,9 +2213,9 @@ Name of the S3 bucket for storing software and file carves.
     bucket: some-bucket
   ```
 
-##### s3_prefix
+##### s3_software_installers_prefix
 
-Prefix to prepend to software and file carves.
+Prefix to prepend to software.
 
 All carve objects will also be prefixed by date and hour (UTC), making the resulting keys look like: `<prefix><year>/<month>/<day>/<hour>/<carve-name>`.
 
@@ -2227,7 +2227,7 @@ All carve objects will also be prefixed by date and hour (UTC), making the resul
     prefix: prefix-here/
   ```
 
-##### s3_access_key_id
+##### s3_software_installers_access_key_id
 
 AWS access key ID to use for S3 authentication.
 
@@ -2244,7 +2244,7 @@ The IAM identity used in this context must be allowed to perform the following a
     access_key_id: AKIAIOSFODNN7EXAMPLE
   ```
 
-##### s3_secret_access_key
+##### s3_software_installers_secret_access_key
 
 AWS secret access key to use for S3 authentication.
 
@@ -2256,7 +2256,7 @@ AWS secret access key to use for S3 authentication.
     secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
   ```
 
-##### s3_sts_assume_role_arn
+##### s3_software_installers_sts_assume_role_arn
 
 AWS STS role ARN to use for S3 authentication.
 
@@ -2268,7 +2268,7 @@ AWS STS role ARN to use for S3 authentication.
     sts_assume_role_arn: arn:aws:iam::1234567890:role/some-s3-role
   ```
 
-##### s3_sts_external_id
+##### s3_software_installers_sts_external_id
 
 AWS STS External ID to use for S3 authentication. This is typically used in
 conjunction with an STS role ARN to ensure that only the intended AWS account can assume the role.
@@ -2281,7 +2281,7 @@ conjunction with an STS role ARN to ensure that only the intended AWS account ca
     sts_external_id: your_unique_id
   ```
 
-##### s3_endpoint_url
+##### s3_software_installers_endpoint_url
 
 AWS S3 Endpoint URL. Override when using a different S3 compatible object storage backend (such as Minio),
 or running s3 locally with localstack. Leave this blank to use the default S3 service endpoint.
@@ -2294,7 +2294,7 @@ or running s3 locally with localstack. Leave this blank to use the default S3 se
     endpoint_url: http://localhost:9000
   ```
 
-##### s3_disable_ssl
+##### s3_software_installers_disable_ssl
 
 AWS S3 Disable SSL. Useful for local testing.
 
@@ -2306,7 +2306,7 @@ AWS S3 Disable SSL. Useful for local testing.
     disable_ssl: false
   ```
 
-##### s3_force_s3_path_style
+##### s3_software_installers_force_s3_path_style
 
 AWS S3 Force S3 Path Style. Set this to `true` to force the request to use path-style addressing,
 i.e., `http://s3.amazonaws.com/BUCKET/KEY`. By default, the S3 client
@@ -2323,7 +2323,7 @@ See [here](http://docs.aws.amazon.com/AmazonS3/latest/dev/VirtualHosting.html) f
     force_s3_path_style: false
   ```
 
-##### s3_region
+##### s3_software_installers_region
 
 AWS S3 Region. Leave blank to enable region discovery.
 
@@ -2337,16 +2337,126 @@ Minio users must set this to any nonempty value (eg. `minio`), as Minio does not
     region: us-east-1
   ```
 
+##### s3_carves_bucket
+
+Name of the S3 bucket for file carves.
+
+- Default value: none
+- Environment variable: `FLEET_S3_BUCKET`
+- Config file format:
+  ```yaml
+  s3:
+    bucket: some-bucket
+  ```
+
+##### s3_carves_prefix
+
+- Default value: none
+- Environment variable: `FLEET_S3_PREFIX`
+- Config file format:
+  ```yaml
+  s3:
+    prefix: prefix-here/
+  ```
+
+##### s3_carves_access_key_id
+
+- Default value: none
+- Environment variable: `FLEET_S3_ACCESS_KEY_ID`
+- Config file format:
+  ```yaml
+  s3:
+    access_key_id: AKIAIOSFODNN7EXAMPLE
+  ```
+
+##### s3_carves_secret_access_key
+
+- Default value: none
+- Environment variable: `FLEET_S3_SECRET_ACCESS_KEY`
+- Config file format:
+  ```yaml
+  s3:
+    secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+  ```
+
+##### s3_carves_sts_assume_role_arn
+
+- Default value: none
+- Environment variable: `FLEET_S3_STS_ASSUME_ROLE_ARN`
+- Config file format:
+  ```yaml
+  s3:
+    sts_assume_role_arn: arn:aws:iam::1234567890:role/some-s3-role
+  ```
+
+##### s3_carves_sts_external_id
+
+- Default value: none
+- Environment variable: `FLEET_S3_STS_EXTERNAL_ID`
+- Config file format:
+  ```yaml
+  s3:
+    sts_external_id: your_unique_id
+  ```
+
+##### s3_carves_endpoint_url
+
+- Default value: none
+- Environment variable: `FLEET_S3_ENDPOINT_URL`
+- Config file format:
+  ```yaml
+  s3:
+    endpoint_url: http://localhost:9000
+  ```
+
+##### s3_carves_disable_ssl
+
+AWS S3 Disable SSL. Useful for local testing.
+
+- Default value: false
+- Environment variable: `FLEET_S3_DISABLE_SSL`
+- Config file format:
+  ```yaml
+  s3:
+    disable_ssl: false
+  ```
+
+##### s3_carves_force_s3_path_style
+
+- Default value: false
+- Environment variable: `FLEET_S3_FORCE_S3_PATH_STYLE`
+- Config file format:
+  ```yaml
+  s3:
+    force_s3_path_style: false
+  ```
+
+##### s3_carves_region
+
+- Default value:
+- Environment variable: `FLEET_S3_REGION`
+- Config file format:
+  ```yaml
+  s3:
+    region: us-east-1
+  ```
+
 ##### Example YAML
 
 ```yaml
 s3:
-  bucket: some-bucket
-  prefix: prefix-here/
-  access_key_id: AKIAIOSFODNN7EXAMPLE
-  secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
-  sts_assume_role_arn: arn:aws:iam::1234567890:role/some-s3-role
-  region: us-east-1
+  software_installers_bucket: software-installers-bucket
+  software_installers_prefix: prefix-here/
+  software_installers_access_key_id: AKIAIOSFODNN7EXAMPLE
+  software_installers_secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+  software_installers_sts_assume_role_arn: arn:aws:iam::1234567890:role/some-s3-role
+  software_installers_region: us-east-1
+  carves_bucket: carves-bucket
+  carves_prefix: prefix-here/
+  carves_access_key_id: AKIAIOSFODNN7EXAMPLE
+  carves_secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+  carves_sts_assume_role_arn: arn:aws:iam::1234567890:role/some-s3-role
+  carves_region: us-east-1
 ```
 
 #### Upgrades
