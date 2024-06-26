@@ -645,7 +645,7 @@ func (ds *Datastore) GetMDMWindowsBitLockerStatus(ctx context.Context, host *fle
 
 	mdmInfo, err := ds.GetHostMDM(ctx, host.ID)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
-		return nil, ctxerr.Errorf(ctx, "cannot get bitlocker status because mdm info lookup failed: %w", err)
+		return nil, ctxerr.Wrap(ctx, err, "cannot get bitlocker status because mdm info lookup failed")
 	}
 
 	if mdmInfo.IsServer {
