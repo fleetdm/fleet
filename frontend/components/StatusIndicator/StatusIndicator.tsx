@@ -2,8 +2,10 @@ import React from "react";
 import classnames from "classnames";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 import TooltipWrapper from "components/TooltipWrapper";
+import { capitalize } from "lodash";
 
 interface IStatusIndicatorProps {
+  /** Only the first letter of value will be capitalized by the component */
   value: string;
   tooltip?: {
     tooltipText: string | JSX.Element;
@@ -37,6 +39,9 @@ const StatusIndicator = ({
     `status-indicator--${indicatorStateClassTag}`,
     `status--${indicatorStateClassTag}`
   );
+
+  const capitalizedValue = capitalize(value);
+
   const indicatorContent = tooltip ? (
     <TooltipWrapper
       position={tooltip?.position ? tooltip.position : "top"}
@@ -45,11 +50,12 @@ const StatusIndicator = ({
       tipContent={tooltip.tooltipText}
       tipOffset={14}
     >
-      <span>{value}</span>
+      {capitalizedValue}
     </TooltipWrapper>
   ) : (
-    <span>{value}</span>
+    capitalizedValue
   );
+
   return <span className={indicatorClassNames}>{indicatorContent}</span>;
 };
 
