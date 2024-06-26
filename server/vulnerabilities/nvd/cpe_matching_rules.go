@@ -218,6 +218,28 @@ func GetKnownNVDBugRules() (CPEMatchingRules, error) {
 			},
 			IgnoreAll: true,
 		},
+		// Windows OS vulnerabilities without version constraints that should be ignored
+		// TODO(tim): This rule is too specific and should be generalized to ignore all
+		// Windows OS vulnerabilities in NVD
+		CPEMatchingRule{
+			CVEs: map[string]struct{}{
+				"CVE-2010-3143":  {},
+				"CVE-2011-5049":  {},
+				"CVE-2012-2972":  {},
+				"CVE-2018-0598":  {},
+				"CVE-2010-3888":  {},
+				"CVE-2010-3139":  {},
+				"CVE-2021-36958": {},
+				"CVE-2008-6194":  {},
+				"CVE-2010-2157":  {},
+				"CVE-2011-3389":  {},
+				"CVE-2012-2971":  {},
+				"CVE-2018-0599":  {},
+				"CVE-2010-3889":  {},
+				"CVE-2011-0638":  {},
+			},
+			IgnoreAll: true,
+		},
 	}
 
 	for i, rule := range rules {
