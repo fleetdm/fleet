@@ -785,8 +785,8 @@ func TestGetSoftwareVersions(t *testing.T) {
 	foo001 := fleet.Software{
 		Name: "foo", Version: "0.0.1", Source: "chrome_extensions", GenerateCPE: "somecpe",
 		Vulnerabilities: fleet.Vulnerabilities{
-			{CVE: "cve-321-432-543", DetailsLink: "https://nvd.nist.gov/vuln/detail/cve-321-432-543"},
-			{CVE: "cve-333-444-555", DetailsLink: "https://nvd.nist.gov/vuln/detail/cve-333-444-555"},
+			{CVE: "cve-321-432-543", DetailsLink: "https://nvd.nist.gov/vuln/detail/cve-321-432-543", CreatedAt: time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC)},
+			{CVE: "cve-333-444-555", DetailsLink: "https://nvd.nist.gov/vuln/detail/cve-333-444-555", CreatedAt: time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC)},
 		},
 	}
 	foo002 := fleet.Software{Name: "foo", Version: "0.0.2", Source: "chrome_extensions", ExtensionID: "xyz", Browser: "edge"}
@@ -830,8 +830,10 @@ spec:
   vulnerabilities:
   - cve: cve-321-432-543
     details_link: https://nvd.nist.gov/vuln/detail/cve-321-432-543
+    created_at: "2021-01-01T00:00:00Z"
   - cve: cve-333-444-555
     details_link: https://nvd.nist.gov/vuln/detail/cve-333-444-555
+    created_at: "2021-01-01T00:00:00Z"
 - generated_cpe: ""
   id: 0
   name: foo
@@ -872,11 +874,13 @@ spec:
       "vulnerabilities": [
         {
           "cve": "cve-321-432-543",
-          "details_link": "https://nvd.nist.gov/vuln/detail/cve-321-432-543"
+          "details_link": "https://nvd.nist.gov/vuln/detail/cve-321-432-543",
+		  "created_at": "2021-01-01T00:00:00Z"
         },
         {
           "cve": "cve-333-444-555",
-          "details_link": "https://nvd.nist.gov/vuln/detail/cve-333-444-555"
+          "details_link": "https://nvd.nist.gov/vuln/detail/cve-333-444-555",
+		  "created_at": "2021-01-01T00:00:00Z"
         }
       ]
     },
