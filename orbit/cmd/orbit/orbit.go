@@ -51,6 +51,7 @@ import (
 	"gopkg.in/natefinch/lumberjack.v2"
 )
 
+// unusedFlagKeyword is used by the MSI installer to populate parameters, which cannot be empty
 const unusedFlagKeyword = "dummy"
 
 func main() {
