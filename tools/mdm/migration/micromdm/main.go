@@ -106,6 +106,9 @@ func main() {
 				return nil
 			})
 		})
+		if err != nil {
+			log.Fatal(err)
+		}
 
 		var sb strings.Builder
 		for _, device := range devices {
@@ -173,6 +176,9 @@ func main() {
 				certDer = bucket.Get(certKey)
 				return nil
 			})
+			if err != nil {
+				log.Fatal(device.UDID, " FAILED: ", err)
+			}
 
 			var certExpiration string
 			var certPEM []byte
@@ -297,7 +303,7 @@ ON DUPLICATE KEY UPDATE
 		}
 
 		sb.WriteString("\n")
-		if err := os.WriteFile("dump.sql", []byte(sb.String()), 0o777); err != nil {
+		if err := os.WriteFile("dump.sql", []byte(sb.String()), 0o600); err != nil {
 			log.Fatal(err)
 		}
 		log.Println("Wrote device/enrollment records to dump.sql")
@@ -333,7 +339,7 @@ ON DUPLICATE KEY UPDATE
 			Bytes: privateKeyBytes,
 		})
 
-		if err := os.WriteFile("scep.key", privateKeyPEM, 0o777); err != nil {
+		if err := os.WriteFile("scep.key", privateKeyPEM, 0o600); err != nil {
 			log.Fatal(err)
 		}
 
@@ -342,7 +348,7 @@ ON DUPLICATE KEY UPDATE
 			Bytes: crt.Raw,
 		})
 
-		if err := os.WriteFile("scep.cert", certPEM, 0o777); err != nil {
+		if err := os.WriteFile("scep.cert", certPEM, 0o600); err != nil {
 			log.Fatal(err)
 		}
 
