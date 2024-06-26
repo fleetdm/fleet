@@ -64,10 +64,9 @@
           </div>
         </div>
       </div>
-      <div purpose="pricing-switch" class="d-flex flex-md-row flex-column justify-content-center mx-auto">
+      <div purpose="pricing-switch" class="d-flex flex-md-row flex-column justify-content-between mx-auto">
         <div purpose="pricing-switch-option" class="all" :class="[pricingMode === 'all' ? 'selected' : '']" @click="clickChangePricingMode('all')">All features</div>
-        <div purpose="pricing-switch-option" class="security" :class="[pricingMode === 'Security' ? 'selected' : '']" @click="clickChangePricingMode('Security')">For security engineers</div>
-        <div purpose="pricing-switch-option" class="it" :class="[pricingMode === 'IT' ? 'selected' : '']" @click="clickChangePricingMode('IT')">For IT admins</div>
+        <div purpose="pricing-switch-option" class="jamf" :class="[pricingMode === 'jamf-comparison' ? 'selected' : '']" @click="clickChangePricingMode('jamf-comparison')">Jamf comparison</div>
         <div purpose="pricing-tier-switch" :class="pricingMode+'-selected'"></div>
       </div>
     </div>
@@ -143,26 +142,33 @@
           <p style="color: #515774;" class="d-block d-md-none mb-0 w-100">* Coming soon</p>
       </div>
     </div>
-    <%// Filtered features %>
-    <div purpose="features-table" class="d-flex flex-column justify-content-center mx-auto px-0" :class="[[pricingMode === 'IT' ? 'show' : 'hide']]">
+    <%// Jamf features comparison table %>
+    <div purpose="features-table" class="d-flex flex-column justify-content-center mx-auto px-0" :class="[[pricingMode === 'jamf-comparison' ? 'show' : 'hide']]">
       <div class="d-flex flex-column justify-content-center p-0">
-        <%// Desktop features tables %>
+        <%// Desktop feature comparison table %>
         <div class="d-none d-md-block">
-          <% for(let category of pricingTableForIt) {%>
+          <% for(let category of pricingTable) {%>
             <table purpose="pricing-categories-table" class="table">
              <thead>
                 <tr>
                   <td><h4><%- category.categoryName %></h4></td>
-                  <%if(pricingTableForIt.indexOf(category) === 0) {%>
+                  <%if(pricingTable.indexOf(category) === 0) {%>
                   <td class="text-center">
-                    <strong>Free</strong>
+                    <strong>Fleet</strong>
                   </td>
                   <%}else {%>
                   <td ></td>
                   <%}%>
-                  <%if(pricingTableForIt.indexOf(category) === 0) {%>
+                  <%if(pricingTable.indexOf(category) === 0) {%>
                   <td class="text-center">
-                    <strong>Premium</strong>
+                    <strong>Jamf Pro</strong>
+                  </td>
+                  <%}else {%>
+                  <td ></td>
+                  <%}%>
+                  <%if(pricingTable.indexOf(category) === 0) {%>
+                  <td class="text-center">
+                    <strong>Jamf Protect</strong>
                   </td>
                   <%}else {%>
                   <td ></td>
@@ -171,6 +177,7 @@
               </thead>
               <tbody>
                 <% for( let feature of category.features){ %>
+                  <% if(typeof feature.jamfProHasFeature === 'undefined'){ continue;} %>
                   <tr>
                     <%if(feature.description && feature.documentationUrl) {%>
                     <td purpose="feature-name"><%- feature.name %><%- feature.comingSoon ? '*' : '' %><a href="<%- feature.documentationUrl %>" target="_blank"><img class="d-inline has-link" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info" data-toggle="tooltip" tabindex="0" data-placement="top" data-html="true" title="<p><%= feature.description +'</p>'+ [feature.documentationUrl ? '<u>Click to learn more</u>' : ''] %> "></a></td>
@@ -179,12 +186,26 @@
                     <% } else {%>
                       <td purpose="feature-name"><%- feature.name %><%- feature.comingSoon ? '*' : '' %></td>
                     <% } %>
-                    <%if(feature.tier === 'Free') {%>
-                      <td purpose="table-checkmark"><img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png"></td>
-                    <%} else {%>
-                      <td purpose="table-checkmark"></td>
-                    <%}%>
                     <td purpose="table-checkmark"><img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png"></td>
+                    <% if(feature.jamfProHasFeature === true) {%>
+                      <td purpose="table-checkmark"><img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png"></td>
+                    <% } else if(feature.jamfProHasFeature === 'macOnly') { %>
+                      <td purpose="table-checkmark"><img class="mx-auto" alt="Apple logo" purpose="checkmark" src="/images/os-macos-black-50-16x16@2x.png"></td>
+                    <% } else if(feature.jamfProHasFeature === 'cloudOnly') {%>
+                      <td purpose="table-checkmark">Cloud only</td>
+                    <% } else {%>
+                      <td purpose="table-checkmark"></td>
+                    <% } %>
+
+                    <% if(feature.jamfProtectHasFeature === true) {%>
+                      <td purpose="table-checkmark"><img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png"></td>
+                    <% } else if(feature.jamfProtectHasFeature === 'macOnly') { %>
+                      <td purpose="table-checkmark"><img class="mx-auto" alt="Apple logo" purpose="checkmark" src="/images/os-macos-black-50-16x16@2x.png"></td>
+                    <% } else if(feature.jamfProtectHasFeature === 'cloudOnly') {%>
+                      <td purpose="table-checkmark">Cloud only</td>
+                    <% } else {%>
+                      <td purpose="table-checkmark"></td>
+                    <% } %>
                   </tr>
                 <% }%>
               </tbody>
@@ -192,100 +213,38 @@
           <% }%>
           <p style="color: #515774;" class="mb-0 w-100">* Coming soon</p>
         </div>
-        <%// Mobile features tables %>
-        <div purpose="mobile-feature-table-section" class="d-block d-md-none" v-for="category in pricingTableForIt">
+        <%// Mobile feature comparison tables %>
+        <div purpose="mobile-feature-table-section" class="d-block d-md-none" v-for="category in pricingTable">
           <h4>{{category.categoryName}}</h4>
-            <div purpose="mobile-features-table" class="d-flex flex-column" v-for="feature in category.features">
-              <div purpose="striped-row" class="d-flex flex-row justify-content-between align-items-center" @click="">
+            <div purpose="mobile-features-table" class="d-flex flex-column" v-for="feature in category.features" v-if="typeof feature.jamfProHasFeature !== 'undefined'">
+              <div purpose="striped-row" class="d-flex flex-row justify-content-between align-items-center" >
                 <strong>
                   {{feature.name}}{{feature.comingSoon ? '*' : ''}}
                   <img class="d-inline" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info" @click="clickOpenMobileTooltip(feature)" v-if="feature.description">
                 </strong>
               </div>
               <div class="d-flex flex-row justify-content-between align-items-center">
-                Free
-                <img class="d-block" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png" v-if="feature.tier === 'Free'">
-              </div>
-              <div purpose="striped-row" class="d-flex flex-row justify-content-between align-items-center">
-                Premium
+                Fleet
                 <img class="d-block" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
               </div>
-            </div>
-          </div>
-          <p style="color: #515774;" class="d-block d-md-none mb-0 w-100">* Coming soon</p>
-      </div>
-    </div>
-    <div purpose="features-table" class="d-flex flex-column justify-content-center mx-auto px-0" :class="[[pricingMode === 'Security' ? 'show' : 'hide']]">
-      <div class="d-flex flex-column justify-content-center p-0">
-        <%// Desktop features tables %>
-        <div class="d-none d-md-block">
-          <% for(let category of pricingTableForSecurity) {%>
-            <table purpose="pricing-categories-table" class="table">
-             <thead>
-                <tr>
-                  <td><h4><%- category.categoryName %></h4></td>
-                  <%if(pricingTableForSecurity.indexOf(category) === 0) {%>
-                  <td class="text-center">
-                    <strong>Free</strong>
-                  </td>
-                  <%}else {%>
-                  <td ></td>
-                  <%}%>
-                  <%if(pricingTableForSecurity.indexOf(category) === 0) {%>
-                  <td class="text-center">
-                    <strong>Premium</strong>
-                  </td>
-                  <%}else {%>
-                  <td ></td>
-                  <%}%>
-                </tr>
-              </thead>
-              <tbody>
-                <% for( let feature of category.features){ %>
-                  <tr>
-                    <%if(feature.description && feature.documentationUrl) {%>
-                    <td purpose="feature-name"><%- feature.name %><%- feature.comingSoon ? '*' : '' %><a href="<%- feature.documentationUrl %>" target="_blank"><img class="d-inline has-link" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info" data-toggle="tooltip" tabindex="0" data-placement="top" data-html="true" title="<p><%= feature.description +'</p>'+ [feature.documentationUrl ? '<u>Click to learn more</u>' : ''] %> "></a></td>
-                    <% } else if(feature.description) {%>
-                      <td purpose="feature-name"><%- feature.name %><%- feature.comingSoon ? '*' : '' %><img class="d-inline" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info" data-toggle="tooltip" tabindex="0" data-placement="top" data-html="true" title="<%= feature.description %> "></td>
-                    <% } else {%>
-                      <td purpose="feature-name"><%- feature.name %><%- feature.comingSoon ? '*' : '' %></td>
-                    <% } %>
-                    <%if(feature.tier === 'Free') {%>
-                      <td purpose="table-checkmark"><img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png"></td>
-                    <%} else {%>
-                      <td purpose="table-checkmark"></td>
-                    <%}%>
-                    <td purpose="table-checkmark"><img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png"></td>
-                  </tr>
-                <% }%>
-              </tbody>
-            </table>
-          <% }%>
-          <p style="color: #515774;" class="mb-0 w-100">* Coming soon</p>
-        </div>
-        <%// Mobile features tables %>
-        <div purpose="mobile-feature-table-section" class="d-block d-md-none" v-for="category in pricingTableForSecurity">
-          <h4>{{category.categoryName}}</h4>
-            <div purpose="mobile-features-table" class="d-flex flex-column" v-for="feature in category.features">
               <div purpose="striped-row" class="d-flex flex-row justify-content-between align-items-center">
-                <strong class="d-block">
-                  {{feature.name}}{{feature.comingSoon ? '*' : ''}}
-                </strong>
-                <img class="d-block" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info" @click="clickOpenMobileTooltip(feature)" v-if="feature.description">
+                Jamf Pro
+                <img class="d-block" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png" v-if="feature.jamfProHasFeature === true">
+                <img class="d-block"  alt="Apple logo" purpose="checkmark" src="/images/os-macos-black-50-16x16@2x.png" v-else-if="feature.jamfProHasFeature === 'macOnly'">
+                <span class="d-block" purpose="table-comparison-note" v-else-if="feature.jamfProHasFeature === 'cloudOnly'">Cloud only</span>
               </div>
               <div class="d-flex flex-row justify-content-between align-items-center">
-                Free
-                <img class="d-block" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png" v-if="feature.tier === 'Free'">
-              </div>
-              <div purpose="striped-row" class="d-flex flex-row justify-content-between align-items-center">
-                Premium
-                <img class="d-block" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
+                Jamf Protect
+                <img class="d-block" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png" v-if="feature.jamfProtectHasFeature === true">
+                <img class="d-block"  alt="Apple logo" purpose="checkmark" src="/images/os-macos-black-50-16x16@2x.png" v-else-if="feature.jamfProtectHasFeature === 'macOnly'">
+                <span class="d-block" purpose="table-comparison-note" v-else-if="feature.jamfProtectHasFeature === 'cloudOnly'">Cloud only</span>
               </div>
             </div>
           </div>
           <p style="color: #515774;" class="d-block d-md-none mb-0 w-100">* Coming soon</p>
       </div>
     </div>
+
     <%// Bottom call to action %>
     <div purpose="bottom-cta" class="d-block mx-auto">
       <h2 class="text-center">Questions?</h2>
