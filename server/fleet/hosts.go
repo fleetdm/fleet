@@ -1215,3 +1215,19 @@ func IsEligibleForDEPMigration(host *Host, mdmInfo *HostMDM, isConnectedToFleetM
 		// the checkout message from the host.
 		(!isConnectedToFleetMDM || mdmInfo.Name != WellKnownMDMFleet)
 }
+
+// IsEligibleForBitLockerEncryption checks if the host needs to enforce disk
+// encryption using Fleet MDM features.
+func IsEligibleForBitLockerEncryption(h *Host, mdmInfo *HostMDM, isConnectedToFleetMDM bool) bool {
+	isServer := mdmInfo != nil && mdmInfo.IsServer
+	isWindows := h.FleetPlatform() == "windows"
+	needsEncryption := h.DiskEncryptionEnabled != nil && !*h.DiskEncryptionEnabled
+	encryptedWithoutKey := h.DiskEncryptionEnabled != nil && *h.DiskEncryptionEnabled && !h.MDM.EncryptionKeyAvailable
+
+	return isWindows &&
+		h.IsOsqueryEnrolled() &&
+		isConnectedToFleetMDM &&
+		!isServer &&
+		mdmInfo != nil &&
+		(needsEncryption || encryptedWithoutKey)
+}
