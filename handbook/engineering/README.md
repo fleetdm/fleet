@@ -317,8 +317,8 @@ When merging a pull request from a community contributor:
 - Thank and congratulate the contributor.
 - Share the merged PR with the team in the #help-promote channel of Fleet Slack to be publicized on social media. Those who contribute to Fleet and are recognized for their contributions often become great champions for the project.
 
-### Closing stale community issues
-If a community member opens an issue that we can't reproduce without more info give them one week to respond before closing the ticket with a comment letting them know they are welcome to re-open once they have added the requested info.
+### Close a stale community issue
+If a community member opens an issue that we can't reproduce leave a comment asking the author for more context. After one week with no reply, close the issue with a comment letting them know they are welcome to re-open it with any updates.
 
 ### Schedule developer on-call workload
 Engineering managers are asked to be aware of the [on-call rotation](https://docs.google.com/document/d/1FNQdu23wc1S9Yo6x5k04uxT2RwT77CIMzLLeEI2U7JA/edit#) and schedule a light workload for engineers while they are on-call. While it varies week to week considerably, the on-call responsibilities can sometimes take up a substantial portion of the engineer's time.
