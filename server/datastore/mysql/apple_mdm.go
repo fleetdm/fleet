@@ -1718,7 +1718,7 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 		ds.profile_uuid IS NULL AND ds.host_uuid IS NULL AND
 		-- except "remove" operations in any state
 		( hmap.operation_type IS NULL OR hmap.operation_type != ? ) AND
-		-- except "would be removed" profiles if they are a broken label-based profile 
+		-- except "would be removed" profiles if they are a broken label-based profile
 		-- (regardless of if it is an include-all or exclude-any label)
 		NOT EXISTS (
 			SELECT 1
@@ -1927,6 +1927,7 @@ func generateDesiredStateQuery(entityType string) string {
 		mae.name as ${entityNameColumn},
 		mae.checksum as checksum,
 		0 as ${countEntityLabelsColumn},
+		0 as count_non_broken_labels,
 		0 as count_host_labels
 	FROM
 		${mdmAppleEntityTable} mae
@@ -1947,7 +1948,9 @@ func generateDesiredStateQuery(entityType string) string {
 
 	UNION
 
-	-- label-based entities where the host is a member of all the labels
+	-- label-based entities where the host is a member of all the labels (include-all).
+	-- by design, "include" labels cannot match if they are broken (the host cannot be 
+	-- a member of a deleted label).
 	SELECT
 		mae.${entityUUIDColumn},
 		h.uuid as host_uuid,
@@ -1956,6 +1959,7 @@ func generateDesiredStateQuery(entityType string) string {
 		mae.name as ${entityNameColumn},
 		mae.checksum as checksum,
 		COUNT(*) as ${countEntityLabelsColumn},
+		COUNT(mel.label_id) as count_non_broken_labels,
 		COUNT(lm.label_id) as count_host_labels
 	FROM
 		${mdmAppleEntityTable} mae
@@ -1964,7 +1968,7 @@ func generateDesiredStateQuery(entityType string) string {
 			JOIN nano_enrollments ne
 				ON ne.device_id = h.uuid
 			JOIN ${mdmEntityLabelsTable} mel
-				ON mel.${appleEntityUUIDColumn} = mae.${entityUUIDColumn}
+				ON mel.${appleEntityUUIDColumn} = mae.${entityUUIDColumn} AND mel.exclude = 0
 			LEFT OUTER JOIN label_membership lm
 				ON lm.label_id = mel.label_id AND lm.host_id = h.id
 	WHERE
@@ -1976,8 +1980,42 @@ func generateDesiredStateQuery(entityType string) string {
 		mae.${entityUUIDColumn}, h.uuid, h.platform, mae.identifier, mae.name, mae.checksum
 	HAVING
 		${countEntityLabelsColumn} > 0 AND count_host_labels = ${countEntityLabelsColumn}
+
+	UNION
+
+	-- label-based entities where the host is NOT a member of any of the labels (exclude-any).
+	-- explicitly ignore profiles with broken excluded labels so that they are never applied.
+	SELECT
+		mae.${entityUUIDColumn},
+		h.uuid as host_uuid,
+		h.platform as host_platform,
+		mae.identifier as ${entityIdentifierColumn},
+		mae.name as ${entityNameColumn},
+		mae.checksum as checksum,
+		COUNT(*) as ${countEntityLabelsColumn},
+		COUNT(mel.label_id) as count_non_broken_labels,
+		COUNT(lm.label_id) as count_host_labels
+	FROM
+		${mdmAppleEntityTable} mae
+			JOIN hosts h
+				ON h.team_id = mae.team_id OR (h.team_id IS NULL AND mae.team_id = 0)
+			JOIN nano_enrollments ne
+				ON ne.device_id = h.uuid
+			JOIN ${mdmEntityLabelsTable} mel
+				ON mel.${appleEntityUUIDColumn} = mae.${entityUUIDColumn} AND mel.exclude = 1
+			LEFT OUTER JOIN label_membership lm
+				ON lm.label_id = mel.label_id AND lm.host_id = h.id
+	WHERE
+		(h.platform = 'darwin' OR h.platform = 'ios' OR h.platform = 'ipados') AND
+		ne.enabled = 1 AND
+		ne.type = 'Device' AND
+		( %s )
+	GROUP BY
+		mae.${entityUUIDColumn}, h.uuid, h.platform, mae.identifier, mae.name, mae.checksum
+	HAVING
+		-- considers only the profiles with labels, without any broken label, and with the host not in any label
+		${countEntityLabelsColumn} > 0 AND ${countEntityLabelsColumn} == count_non_broken_labels AND count_host_labels = 0
 	`, func(s string) string { return dynamicNames[s] })
-	// TODO(mna): split label case to include all and exclude any
 }
 
 // generateEntitiesToInstallQuery is a set difference between:
