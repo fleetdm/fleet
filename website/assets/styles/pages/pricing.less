@@ -258,13 +258,15 @@
   [purpose='features-table'] {
     transition: transform .25s ease-in-out;
   }
+  [purpose='features-table'].show {
+    transform: translateY(0px);
+  }
   [purpose='features-table'].hide {
-    display: none !important; //lesshint-disable-line importantRule
-    // height: 0px;
-    // opacity: 0;
+    height: 0px;
+    transform: translateY(40px);
+    opacity: 0;
   }
   [purpose='features-table'].hidden {
-    // display: none !important; //lesshint-disable-line importantRule
     transform: translateY(-40px);
     height: 0px;
     opacity: 0;
