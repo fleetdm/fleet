@@ -6,6 +6,7 @@ module.exports = {
 
   description: 'Display "Signup" page.',
 
+  inputs: {},
 
   exits: {
 
@@ -27,7 +28,7 @@ module.exports = {
       throw {redirect: '/start'};
     }
 
-    return {};
+    return;
 
   }
 

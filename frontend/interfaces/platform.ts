@@ -65,7 +65,10 @@ export const HOST_LINUX_PLATFORMS = [
   "manjaro",
   "opensuse-leap",
   "opensuse-tumbleweed",
+  "tuxedo",
 ] as const;
+
+export const HOST_APPLE_PLATFORMS = ["darwin", "ios", "ipados"] as const;
 
 /**
  * Checks if the provided platform is a Linux-like OS. We can recieve many
@@ -73,5 +76,13 @@ export const HOST_LINUX_PLATFORMS = [
  * the possible Linux-like platform values.
  */
 export const isLinuxLike = (platform: string) => {
-  return HOST_LINUX_PLATFORMS.includes(platform as any);
+  return HOST_LINUX_PLATFORMS.includes(
+    platform as typeof HOST_LINUX_PLATFORMS[number]
+  );
+};
+
+export const isAppleDevice = (platform: string) => {
+  return HOST_APPLE_PLATFORMS.includes(
+    platform as typeof HOST_APPLE_PLATFORMS[number]
+  );
 };

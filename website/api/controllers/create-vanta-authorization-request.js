@@ -19,6 +19,15 @@ module.exports = {
     fleetApiKey: {
       type: 'string',
       required: true,
+    },
+    redirectToExternalPageAfterAuthorization: {
+      type: 'string',
+      description: 'If provided, the user will be sent to this URL after they complete the setup of this integration'
+    },
+    sharedSecret: {
+      type: 'string',
+      description: 'A shared secret used to verify external requests to this endpoint.',
+      extendedDescription: 'This input is used only when this action runs at the "/api/v1/create-external-vanta-authorization-request" endpoint'
     }
   },
 
@@ -43,6 +52,10 @@ module.exports = {
       description: 'The Fleet instance provided is using a Free license.',
       statusCode: 400,
     },
+    invalidResponseFromFleetInstance: {
+      description: 'The response body from the Fleet API was invalid.',
+      statusCode: 400,
+    },
     nonApiOnlyUser: {
       description: 'The provided API token for this Fleet instance is not associated with an api-only user.',
       statusCode: 400,
@@ -51,10 +64,17 @@ module.exports = {
       description: 'The api-only user associated with the provided token does not have the propper permissions to query the users endpoint.',
       statusCode: 403,
     },
-
+    missingOrInvalidSharedSecret: {
+      description: 'The request to set up a Vanta integration has an invalid shared secret',
+      statusCode: 401
+    }
   },
 
   fn: async function (inputs) {
+    require('assert')(sails.config.custom.sharedSecretForExternalVantaRequests);
+    if(this.req.url === '/api/v1/create-external-vanta-authorization-request' && inputs.sharedSecret !== sails.config.custom.sharedSecretForExternalVantaRequests) {
+      throw 'missingOrInvalidSharedSecret';
+    }
 
     let url = require('url');
 
@@ -90,6 +110,11 @@ module.exports = {
       return new Error(`When sending a request to a Fleet instance's /me endpoint to verify that a token meets the requirements for a Vanta connection, an error occurred: ${error}`);
     });
 
+    // Throw an error if the response from the Fleet instance's /me API endpoint does not contain a user.
+    if(!responseFromFleetInstance.user){
+      throw 'invalidResponseFromFleetInstance';
+    }
+
     // Throw an error if the provided API token is not an API-only user.
     if(!responseFromFleetInstance.user.api_only) {
       throw 'nonApiOnlyUser';
@@ -109,6 +134,12 @@ module.exports = {
       return new Error(`When sending a request to a Fleet instance's /config API endpoint for a Vanta connection, an error occurred: ${error}`);
     });
 
+
+    // Throw an error if the response from the Fleet instance's /config API endpoint does not contain a license.
+    if(!configResponse.license){
+      throw 'invalidResponseFromFleetInstance';
+    }
+
     // If the user's Fleet instance has a free license, we'll throw the 'invalidLicense' exit and let the user know that this is only available for Fleet Premium subscribers.
     if(configResponse.license.tier === 'free') {
       throw 'invalidLicense';
@@ -124,17 +155,22 @@ module.exports = {
         fleetApiKey: inputs.fleetApiKey,
       });
     }
-
     // Build the authorization URL for this request.
     let vantaAuthorizationRequestURL = `https://app.vanta.com/oauth/authorize?client_id=${encodeURIComponent(sails.config.custom.vantaAuthorizationClientId)}&scope=connectors.self:write-resource connectors.self:read-resource&state=${encodeURIComponent(generatedStateForThisRequest)}&source_id=${encodeURIComponent(sourceIDForThisRequest)}&redirect_uri=${encodeURIComponent(url.resolve(sails.config.custom.baseUrl, '/vanta-authorization'))}&response_type=code`;
 
-    // Set a `state` cookie on the user's browser. This value will be checked against a query parameter when the user returns to fleetdm.com.
-    this.res.cookie('state', generatedStateForThisRequest, {signed: true});
+    if(inputs.redirectToExternalPageAfterAuthorization){
+      let internalRedirectUrl =  `${sails.config.custom.baseUrl}/redirect-vanta-authorization-request?vantaSourceId=${encodeURIComponent(sourceIDForThisRequest)}&state=${encodeURIComponent(generatedStateForThisRequest)}&vantaAuthorizationRequestURL=${encodeURIComponent(vantaAuthorizationRequestURL)}&redirectAfterSetup=${encodeURIComponent(inputs.redirectToExternalPageAfterAuthorization)}`;
 
-    // Set the sourceId to a cookie, we'll use this value to find the database record we created for this request when the user returns to fleetdm.com.
-    this.res.cookie('vantaSourceId', sourceIDForThisRequest, {signed: true});
-
-    return vantaAuthorizationRequestURL;
+      return internalRedirectUrl;
+      // If the useInternalRedirect input was provided, we'll return the URL of an internal endpoiint that will set the required cookies for this request.
+    } else {
+      // Otherwise, if this request came from a user on the connect-vanta page, we'll set the cookies are redirect them directly to Vanta.
+      // Set a `state` cookie on the user's browser. This value will be checked against a query parameter when the user returns to fleetdm.com.
+      this.res.cookie('state', generatedStateForThisRequest, {signed: true});
+      // Set the sourceId to a cookie, we'll use this value to find the database record we created for this request when the user returns to fleetdm.com.
+      this.res.cookie('vantaSourceId', sourceIDForThisRequest, {signed: true});
+      return vantaAuthorizationRequestURL;
+    }
   }
 
 

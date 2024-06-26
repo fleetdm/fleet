@@ -119,10 +119,11 @@ func (ds *Datastore) OSVersionsByCVE(ctx context.Context, cve string, teamID *ui
 
 	updatedAt = osvs.CountsUpdatedAt
 
-	var osVersionWithResolved []struct {
+	type osVersionWithResolvedType struct {
 		OSVersionID     uint    `db:"os_version_id"`
 		ResolvedVersion *string `db:"resolved_in_version"`
 	}
+	var osVersionWithResolved []osVersionWithResolvedType
 
 	selectStmt := `
 		SELECT os.os_version_id, osv.resolved_in_version
@@ -138,8 +139,27 @@ func (ds *Datastore) OSVersionsByCVE(ctx context.Context, cve string, teamID *ui
 		return vos, updatedAt, ctxerr.Wrap(ctx, err, "fetching OS version and resolved version by CVE")
 	}
 
+	// Remove duplicates, which may occur since the same OS can be installed on multiple architectures (amd64, arm64, etc.)
+	type osVersionKey struct {
+		OSVersionID     uint
+		ResolvedVersion string
+	}
+	seen := make(map[osVersionKey]struct{}, len(osVersionWithResolved))
+	verResolvedDedup := make([]osVersionWithResolvedType, 0, len(osVersionWithResolved))
+	for _, id := range osVersionWithResolved {
+		var resolved string
+		if id.ResolvedVersion != nil {
+			resolved = *id.ResolvedVersion
+		}
+		key := osVersionKey{OSVersionID: id.OSVersionID, ResolvedVersion: resolved}
+		if _, ok := seen[key]; !ok {
+			verResolvedDedup = append(verResolvedDedup, id)
+			seen[key] = struct{}{}
+		}
+	}
+
 	for _, osv := range osvs.OSVersions {
-		for _, id := range osVersionWithResolved {
+		for _, id := range verResolvedDedup {
 			if osv.OSVersionID == id.OSVersionID {
 				vos = append(vos, &fleet.VulnerableOS{
 					OSVersion:         osv,
@@ -250,7 +270,7 @@ func (ds *Datastore) ListVulnerabilities(ctx context.Context, opt fleet.VulnList
 		selectStmt += " AND cm.cisa_known_exploit = 1"
 	}
 
-	if match := opt.MatchQuery; match != "" {
+	if match := opt.ListOptions.MatchQuery; match != "" {
 		selectStmt, args = searchLike(selectStmt, args, match, "vhc.cve")
 	}
 
@@ -269,8 +289,8 @@ func (ds *Datastore) ListVulnerabilities(ctx context.Context, opt fleet.VulnList
 	// Prepare metadata
 	var metaData *fleet.PaginationMetadata
 	if opt.ListOptions.IncludeMetadata {
-		metaData = &fleet.PaginationMetadata{HasPreviousResults: opt.Page > 0}
-		if len(vulns) > int(opt.PerPage) {
+		metaData = &fleet.PaginationMetadata{HasPreviousResults: opt.ListOptions.Page > 0}
+		if len(vulns) > int(opt.ListOptions.PerPage) {
 			metaData.HasNextResults = true
 			vulns = vulns[:len(vulns)-1]
 		}
@@ -304,7 +324,7 @@ func (ds *Datastore) CountVulnerabilities(ctx context.Context, opt fleet.VulnLis
 		selectStmt = selectStmt + " AND cm.cisa_known_exploit = 1"
 	}
 
-	if match := opt.MatchQuery; match != "" {
+	if match := opt.ListOptions.MatchQuery; match != "" {
 		selectStmt, args = searchLike(selectStmt, args, match, "vhc.cve")
 	}
 

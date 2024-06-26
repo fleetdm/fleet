@@ -1,0 +1,36 @@
+name: sofa_unpatched_cves
+notes: |-
+  This table is from the [Mac Admins osquery extension](https://github.com/macadmins/osquery-extension).
+
+  - By default this table will return all unpatched vulnerability data for the running operating system.
+
+  - Use the `url` constraint (in the WHERE clause) to specify a data source other than the [SOFA feed](https://sofa.macadmins.io/v1/macos_data_feed.json).
+
+description: The CVEs that are unpatched on the device from [SOFA](https://sofa.macadmins.io/).
+examples: |-
+  For historical data, use the `os_version` predicate
+  
+  ```
+  SELECT * FROM sofa_unpatched_cves WHERE os_version="14.4.0"
+  ```
+platforms:
+  - darwin
+evented: false
+columns:
+  - name: cve
+    description: The CVE identifier, like "CVE-2024-1580"
+    required: false
+    type: text
+  - name: patched_version
+    description: The security release that patched this CVE, like "14.4.1"
+    required: false
+    type: text
+  - name: actively_exploited
+    description: |-
+      "true" if this CVE is being actively exploited, "false" otherwise
+    required: false
+    type: text
+  - name: os_version
+    description: If not specified, this is the version of the operating system that the device is running
+    required: false
+    type: text

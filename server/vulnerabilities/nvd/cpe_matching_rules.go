@@ -3,7 +3,7 @@ package nvd
 import (
 	"fmt"
 
-	"github.com/facebookincubator/nvdtools/wfn"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/wfn"
 )
 
 type CPEMatchingRules []CPEMatchingRule
@@ -196,6 +196,49 @@ func GetKnownNVDBugRules() (CPEMatchingRules, error) {
 			IgnoreIf: func(cpeMeta *wfn.Attributes) bool {
 				return cpeMeta.TargetSW == "visual_studio_code"
 			},
+		},
+		// Issue #18733 incorrect CPEs that should be matching
+		// visual studio code extensions
+		CPEMatchingRule{
+			CVEs: map[string]struct{}{
+				"CVE-2021-28967": {},
+				"CVE-2020-1192":  {},
+				"CVE-2020-1171":  {},
+			},
+			IgnoreIf: func(cpeMeta *wfn.Attributes) bool {
+				return cpeMeta.Product == "visual_studio_code" && cpeMeta.TargetSW == wfn.Any
+			},
+		},
+		// Old macos CPEs without version constraints that should be ignored
+		CPEMatchingRule{
+			CVEs: map[string]struct{}{
+				"CVE-2001-0102": {},
+				"CVE-1999-0590": {},
+				"CVE-1999-0524": {},
+			},
+			IgnoreAll: true,
+		},
+		// Windows OS vulnerabilities without version constraints that should be ignored
+		// TODO(tim): This rule is too specific and should be generalized to ignore all
+		// Windows OS vulnerabilities in NVD
+		CPEMatchingRule{
+			CVEs: map[string]struct{}{
+				"CVE-2010-3143":  {},
+				"CVE-2011-5049":  {},
+				"CVE-2012-2972":  {},
+				"CVE-2018-0598":  {},
+				"CVE-2010-3888":  {},
+				"CVE-2010-3139":  {},
+				"CVE-2021-36958": {},
+				"CVE-2008-6194":  {},
+				"CVE-2010-2157":  {},
+				"CVE-2011-3389":  {},
+				"CVE-2012-2971":  {},
+				"CVE-2018-0599":  {},
+				"CVE-2010-3889":  {},
+				"CVE-2011-0638":  {},
+			},
+			IgnoreAll: true,
 		},
 	}
 

@@ -3,6 +3,7 @@ import { useQuery } from "react-query";
 import { useErrorHandler } from "react-error-boundary";
 import { InjectedRouter, Params } from "react-router/lib/Router";
 import PATHS from "router/paths";
+import useTeamIdParam from "hooks/useTeamIdParam";
 
 import { AppContext } from "context/app";
 import { QueryContext } from "context/query";
@@ -27,7 +28,7 @@ interface IRunQueryPageProps {
   params: Params;
   location: {
     pathname: string;
-    query: { host_ids: string; team_id?: string };
+    query: { host_id: string; team_id?: string };
     search: string;
   };
 }
@@ -40,6 +41,13 @@ const RunQueryPage = ({
   location,
 }: IRunQueryPageProps): JSX.Element => {
   const queryId = paramsQueryId ? parseInt(paramsQueryId, 10) : null;
+
+  const { currentTeamId } = useTeamIdParam({
+    location,
+    router,
+    includeAllTeams: true,
+    includeNoTeam: false,
+  });
 
   const handlePageError = useErrorHandler();
   const { config } = useContext(AppContext);
@@ -78,8 +86,8 @@ const RunQueryPage = ({
   // Reroute users out of live flow when live queries are globally disabled
   if (disabledLiveQuery) {
     queryId
-      ? router.push(PATHS.QUERY_DETAILS(queryId))
-      : router.push(PATHS.NEW_QUERY());
+      ? router.push(PATHS.QUERY_DETAILS(queryId, currentTeamId))
+      : router.push(PATHS.NEW_QUERY(currentTeamId));
   }
 
   // disabled on page load so we can control the number of renders
@@ -109,9 +117,9 @@ const RunQueryPage = ({
   useQuery<IHostResponse, Error, IHost>(
     "hostFromURL",
     () =>
-      hostAPI.loadHostDetails(parseInt(location.query.host_ids as string, 10)),
+      hostAPI.loadHostDetails(parseInt(location.query.host_id as string, 10)),
     {
-      enabled: !!location.query.host_ids && !queryParamHostsAdded,
+      enabled: !!location.query.host_id && !queryParamHostsAdded,
       select: (data: IHostResponse) => data.host,
       onSuccess: (host) => {
         setTargetedHosts((prevHosts) =>
@@ -150,8 +158,8 @@ const RunQueryPage = ({
   const goToQueryEditor = useCallback(
     () =>
       queryId
-        ? router.push(PATHS.EDIT_QUERY(queryId))
-        : router.push(PATHS.NEW_QUERY()),
+        ? router.push(PATHS.EDIT_QUERY(queryId, currentTeamId))
+        : router.push(PATHS.NEW_QUERY(currentTeamId)),
     []
   );
 
@@ -171,6 +179,7 @@ const RunQueryPage = ({
       setTargetedLabels,
       setTargetedTeams,
       setTargetsTotalCount,
+      isObserverCanRunQuery: storedQuery?.observer_can_run,
     };
 
     const step2Props = {

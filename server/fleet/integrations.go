@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/url"
 	"strconv"
 	"strings"
 
@@ -356,6 +357,24 @@ type Integrations struct {
 	Jira           []*JiraIntegration           `json:"jira"`
 	Zendesk        []*ZendeskIntegration        `json:"zendesk"`
 	GoogleCalendar []*GoogleCalendarIntegration `json:"google_calendar"`
+}
+
+func ValidateEnabledActivitiesWebhook(webhook ActivitiesWebhookSettings, invalid *InvalidArgumentError) {
+	if webhook.Enable {
+		if webhook.DestinationURL == "" {
+			invalid.Append(
+				"webhook_settings.activities_webhook.destination_url", "destination_url is required to enable the activities webhook",
+			)
+		} else {
+			if u, err := url.ParseRequestURI(webhook.DestinationURL); err != nil {
+				invalid.Append("webhook_settings.activities_webhook.destination_url", err.Error())
+			} else if (u.Scheme != "https" && u.Scheme != "http") || u.Host == "" {
+				invalid.Append(
+					"webhook_settings.activities_webhook.destination_url", "destination_url must be https or http, and have a host",
+				)
+			}
+		}
+	}
 }
 
 // ValidateEnabledHostStatusIntegrations checks that the host status integrations

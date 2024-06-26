@@ -59,6 +59,13 @@ func setupRunners() {
 }
 
 func main() {
+	// Orbits uses --version to get the fleet-desktop version. Logs do not need to be set up when running this.
+	if len(os.Args) > 1 && os.Args[1] == "--version" {
+		// Must work with update.GetVersion
+		fmt.Println("fleet-desktop", version)
+		return
+	}
+
 	setupLogs()
 	setupStderr()
 
@@ -123,6 +130,10 @@ func main() {
 
 		transparencyItem := systray.AddMenuItem("Transparency", "")
 		transparencyItem.Disable()
+		systray.AddSeparator()
+
+		selfServiceItem := systray.AddMenuItem("Self-service", "")
+		selfServiceItem.Disable()
 
 		tokenReader := token.Reader{Path: identifierPath}
 		if _, err := tokenReader.Read(); err != nil {
@@ -168,6 +179,7 @@ func main() {
 			myDeviceItem.SetTitle("Connecting...")
 			myDeviceItem.Disable()
 			transparencyItem.Disable()
+			selfServiceItem.Disable()
 			migrateMDMItem.Disable()
 			migrateMDMItem.Hide()
 		}
@@ -191,6 +203,7 @@ func main() {
 						myDeviceItem.SetTitle("My device")
 						myDeviceItem.Enable()
 						transparencyItem.Enable()
+						selfServiceItem.Enable()
 						return
 					}
 
@@ -382,6 +395,11 @@ func main() {
 					openURL := client.BrowserTransparencyURL(tokenReader.GetCached())
 					if err := open.Browser(openURL); err != nil {
 						log.Error().Err(err).Str("url", openURL).Msg("open browser transparency")
+					}
+				case <-selfServiceItem.ClickedCh:
+					openURL := client.BrowserSelfServiceURL(tokenReader.GetCached())
+					if err := open.Browser(openURL); err != nil {
+						log.Error().Err(err).Str("url", openURL).Msg("open browser self-service")
 					}
 				case <-migrateMDMItem.ClickedCh:
 					if err := mdmMigrator.Show(); err != nil {

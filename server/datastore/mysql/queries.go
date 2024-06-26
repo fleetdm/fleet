@@ -4,11 +4,12 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strings"
+
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/go-kit/log/level"
 	"github.com/jmoiron/sqlx"
-	"strings"
 )
 
 const (
@@ -233,7 +234,7 @@ func (ds *Datastore) NewQuery(
 		query.DiscardData,
 	)
 
-	if err != nil && isDuplicate(err) {
+	if err != nil && IsDuplicate(err) {
 		return nil, ctxerr.Wrap(ctx, alreadyExists("Query", query.Name))
 	} else if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "creating new Query")
@@ -414,7 +415,6 @@ func (ds *Datastore) deleteQueryStats(ctx context.Context, queryIDs []uint) {
 			level.Error(ds.logger).Log("msg", "error deleting aggregated stats", "err", err)
 		}
 	}
-
 }
 
 // Query returns a single Query identified by id, if such exists.
@@ -504,10 +504,14 @@ func (ds *Datastore) ListQueries(ctx context.Context, opt fleet.ListQueryOptions
 	args := []interface{}{false, fleet.AggregatedStatsTypeScheduledQuery}
 	whereClauses := "WHERE saved = true"
 
-	if opt.TeamID != nil {
+	switch {
+	case opt.TeamID != nil && opt.MergeInherited:
+		args = append(args, *opt.TeamID)
+		whereClauses += " AND (team_id = ? OR team_id IS NULL)"
+	case opt.TeamID != nil:
 		args = append(args, *opt.TeamID)
 		whereClauses += " AND team_id = ?"
-	} else {
+	default:
 		whereClauses += " AND team_id IS NULL"
 	}
 
@@ -669,7 +673,7 @@ func (ds *Datastore) IsSavedQuery(ctx context.Context, queryID uint) (bool, erro
 // GetLiveQueryStats returns the live query stats for the given query and hosts.
 func (ds *Datastore) GetLiveQueryStats(ctx context.Context, queryID uint, hostIDs []uint) ([]*fleet.LiveQueryStats, error) {
 	stmt, args, err := sqlx.In(
-		`SELECT host_id, average_memory, executions, system_time, user_time, wall_time, output_size
+		`SELECT host_id, average_memory, executions, system_time, user_time, wall_time, output_size, last_executed
 		FROM scheduled_query_stats
 		WHERE host_id IN (?) AND scheduled_query_id = ? AND query_type = ?
 	`, hostIDs, queryID, statsLiveQueryType,
@@ -692,8 +696,8 @@ func (ds *Datastore) UpdateLiveQueryStats(ctx context.Context, queryID uint, sta
 	}
 
 	// Bulk insert/update
-	const valueStr = "(?,?,?,?,?,?,?,?,?,?,?),"
-	stmt := "REPLACE INTO scheduled_query_stats (scheduled_query_id, host_id, query_type, executions, average_memory, system_time, user_time, wall_time, output_size, denylisted, schedule_interval) VALUES " +
+	const valueStr = "(?,?,?,?,?,?,?,?,?,?,?,?),"
+	stmt := "REPLACE INTO scheduled_query_stats (scheduled_query_id, host_id, query_type, executions, average_memory, system_time, user_time, wall_time, output_size, denylisted, schedule_interval, last_executed) VALUES " +
 		strings.Repeat(valueStr, len(stats))
 	stmt = strings.TrimSuffix(stmt, ",")
 
@@ -701,7 +705,7 @@ func (ds *Datastore) UpdateLiveQueryStats(ctx context.Context, queryID uint, sta
 	for _, s := range stats {
 		args = append(
 			args, queryID, s.HostID, statsLiveQueryType, s.Executions, s.AverageMemory, s.SystemTime, s.UserTime, s.WallTime, s.OutputSize,
-			0, 0,
+			0, 0, s.LastExecuted,
 		)
 	}
 	_, err := ds.writer(ctx).ExecContext(ctx, stmt, args...)

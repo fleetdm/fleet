@@ -1,9 +1,25 @@
 name: package_install_history
-examples: >-
-  See a list of packages installed in the last week.
+description: The `package_install_history` table provides a detailed log of all packages installled on macOS.
+examples: |-
+  Basic query:
 
   ```
-
-  SELECT name, version, source,  datetime(time,'unixepoch') AS install_time from package_install_history WHERE install_time >= datetime('now','-7 days');
-
+  SELECT name,package_id,version,source,datetime(time,'unixepoch') AS install_time FROM package_install_history WHERE install_time >= datetime('now','-7 days');
   ```
+  
+  This query fetches the following data for a macOS package:
+  - Name
+  - Package ID
+  - Version
+  - Source
+  - Install time
+
+  The `WHERE` clause filters the results to show only packages installed in the past 7 days.
+notes: |-
+
+  Monitoring the macOS package install history is useful for:
+  - Regularly checking for newly installed packages and identifying suspicious software
+  - Verifying that only approved packages are installed
+  - Creating a Fleet policy to receive alerts for any unauthorized or vulnerable installations
+  
+  Apple’s [installer package documentation](https://developer.apple.com/documentation/xcode/packaging-mac-software-for-distribution)

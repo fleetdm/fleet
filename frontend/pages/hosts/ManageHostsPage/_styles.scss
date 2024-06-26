@@ -214,7 +214,8 @@
               .device_mapping__cell,
               .mdm_enrollment_status__cell,
               .mdm_server_url__cell,
-              .public_ip__cell {
+              .public_ip__cell,
+              .issues__cell {
                 .text-cell {
                   display: inline;
                 }
@@ -273,14 +274,6 @@
   }
 
   &__export-btn {
-    margin-left: $pad-medium;
-
-    img {
-      width: 13px;
-      height: 13px;
-      margin-left: 8px;
-      position: relative;
-      top: -2px;
-    }
+    margin-left: $pad-xsmall;
   }
 }

@@ -44,6 +44,7 @@ No modules.
 | <a name="input_s3_bucket_name"></a> [s3\_bucket\_name](#input\_s3\_bucket\_name) | The S3 bucket for carve results to be written to | `string` | n/a | yes |
 | <a name="input_s3_bucket_region"></a> [s3\_bucket\_region](#input\_s3\_bucket\_region) | The S3 bucket region | `string` | n/a | yes |
 | <a name="input_s3_carve_prefix"></a> [s3\_carve\_prefix](#input\_s3\_carve\_prefix) | The S3 object prefix to use when storing carve results | `string` | `""` | no |
+| <a name="input_sts_external_id"></a> [sts\_external\_id](#input\_sts\_external\_id) | Optional unique identifier that can be used by the principal assuming the role to assert its identity. | `string` | `""` | no |
 
 ## Outputs
 

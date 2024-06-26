@@ -12,7 +12,7 @@ import { ISchedulableQuery } from "interfaces/schedulable_query";
 
 interface IManageQueryAutomationsModalProps {
   isUpdatingAutomations: boolean;
-  handleSubmit: (formData: any) => void; // TODO
+  onSubmit: (formData: any) => void; // TODO
   onCancel: () => void;
   isShowingPreviewDataModal: boolean;
   togglePreviewDataModal: () => void;
@@ -57,7 +57,7 @@ const baseClass = "manage-query-automations-modal";
 const ManageQueryAutomationsModal = ({
   isUpdatingAutomations,
   automatedQueryIds,
-  handleSubmit,
+  onSubmit,
   onCancel,
   isShowingPreviewDataModal,
   togglePreviewDataModal,
@@ -78,13 +78,15 @@ const ManageQueryAutomationsModal = ({
     automatedQueryIds || []
   );
 
-  const onSubmit = (evt: React.MouseEvent<HTMLFormElement> | KeyboardEvent) => {
+  const onSubmitQueryAutomations = (
+    evt: React.MouseEvent<HTMLFormElement> | KeyboardEvent
+  ) => {
     evt.preventDefault();
 
     const newQueryIds: number[] = [];
     queryItems?.forEach((p) => p.isChecked && newQueryIds.push(p.id));
 
-    handleSubmit(newQueryIds);
+    onSubmit(newQueryIds);
   };
 
   useEffect(() => {
@@ -187,7 +189,7 @@ const ManageQueryAutomationsModal = ({
           <Button
             type="submit"
             variant="brand"
-            onClick={onSubmit}
+            onClick={onSubmitQueryAutomations}
             className="save-loading"
             isLoading={isUpdatingAutomations}
           >

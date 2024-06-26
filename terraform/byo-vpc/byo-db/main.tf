@@ -1,11 +1,26 @@
-module "ecs" {
-  source      = "./byo-ecs"
-  ecs_cluster = module.cluster.cluster_name
+locals {
   fleet_config = merge(var.fleet_config, {
     loadbalancer = {
       arn = module.alb.target_group_arns[0]
-    }
+    },
+    networking = merge(var.fleet_config.networking, {
+      subnets         = var.fleet_config.networking.subnets
+      security_groups = var.fleet_config.networking.security_groups
+      ingress_sources = {
+        cidr_blocks      = var.fleet_config.networking.ingress_sources.cidr_blocks
+        ipv6_cidr_blocks = var.fleet_config.networking.ingress_sources.ipv6_cidr_blocks
+        security_groups  = concat(var.fleet_config.networking.ingress_sources.security_groups, [module.alb.security_group_id])
+        prefix_list_ids  = var.fleet_config.networking.ingress_sources.prefix_list_ids
+      }
+    })
   })
+
+}
+
+module "ecs" {
+  source           = "./byo-ecs"
+  ecs_cluster      = module.cluster.cluster_name
+  fleet_config     = local.fleet_config
   migration_config = var.migration_config
   vpc_id           = var.vpc_id
 }
@@ -26,7 +41,7 @@ module "cluster" {
 
 module "alb" {
   source  = "terraform-aws-modules/alb/aws"
-  version = "8.2.1"
+  version = "8.3.0"
 
   name = var.alb_config.name
 

@@ -33,9 +33,9 @@ interface IOtherWorkflowsModalProps {
   automationsConfig: IAutomationsConfig | ITeamAutomationsConfig;
   availableIntegrations: IGlobalIntegrations | ITeamIntegrations;
   availablePolicies: IPolicy[];
-  isUpdatingAutomations: boolean;
+  isUpdating: boolean;
   onExit: () => void;
-  handleSubmit: (formData: {
+  onSubmit: (formData: {
     webhook_settings: Pick<IWebhookSettings, "failing_policies_webhook">;
     integrations: IGlobalIntegrations | ITeamIntegrations;
   }) => void;
@@ -96,9 +96,9 @@ const OtherWorkflowsModal = ({
   automationsConfig,
   availableIntegrations,
   availablePolicies,
-  isUpdatingAutomations,
+  isUpdating,
   onExit,
-  handleSubmit,
+  onSubmit,
 }: IOtherWorkflowsModalProps): JSX.Element => {
   const {
     webhook_settings: { failing_policies_webhook: webhook },
@@ -174,7 +174,9 @@ const OtherWorkflowsModal = ({
     );
   };
 
-  const onSubmit = (evt: React.MouseEvent<HTMLFormElement> | KeyboardEvent) => {
+  const onUpdateOtherWorkflows = (
+    evt: React.MouseEvent<HTMLFormElement> | KeyboardEvent
+  ) => {
     evt.preventDefault();
 
     const newPolicyIds: number[] = [];
@@ -259,7 +261,7 @@ const OtherWorkflowsModal = ({
       },
     };
 
-    handleSubmit({
+    onSubmit({
       webhook_settings: newWebhook,
       integrations: {
         jira: newJira,
@@ -275,7 +277,7 @@ const OtherWorkflowsModal = ({
     const listener = (event: KeyboardEvent) => {
       if (event.code === "Enter" || event.code === "NumpadEnter") {
         event.preventDefault();
-        onSubmit(event);
+        onUpdateOtherWorkflows(event);
       }
     };
     document.addEventListener("keydown", listener);
@@ -372,8 +374,8 @@ const OtherWorkflowsModal = ({
             setIsPolicyAutomationsEnabled(!isPolicyAutomationsEnabled);
             setErrors({});
           }}
-          inactiveText="Policy automations disabled"
-          activeText="Policy automations enabled"
+          inactiveText="Disabled"
+          activeText="Enabled"
         />
         <div
           className={`form ${baseClass}__policy-automations__${
@@ -406,25 +408,31 @@ const OtherWorkflowsModal = ({
             {availablePolicies?.length ? (
               <>
                 <div className="form-field__label">Policies:</div>
-                {policyItems &&
-                  policyItems.map((policyItem) => {
-                    const { isChecked, name, id } = policyItem;
-                    return (
-                      <div key={id}>
-                        <Checkbox
-                          value={isChecked}
-                          name={name}
-                          onChange={() => {
-                            updatePolicyItems(policyItem.id);
-                            !isChecked &&
-                              setErrors((errs) => omit(errs, "policyItems"));
-                          }}
+                <div className="automated-policies-section">
+                  {policyItems &&
+                    policyItems.map((policyItem) => {
+                      const { isChecked, name, id } = policyItem;
+                      return (
+                        <div
+                          className="checkbox-row"
+                          id={`checkbox-row--${id}`}
+                          key={id}
                         >
-                          {name}
-                        </Checkbox>
-                      </div>
-                    );
-                  })}
+                          <Checkbox
+                            value={isChecked}
+                            name={name}
+                            onChange={() => {
+                              updatePolicyItems(policyItem.id);
+                              !isChecked &&
+                                setErrors((errs) => omit(errs, "policyItems"));
+                            }}
+                          >
+                            {name}
+                          </Checkbox>
+                        </div>
+                      );
+                    })}
+                </div>
               </>
             ) : (
               <>
@@ -446,9 +454,9 @@ const OtherWorkflowsModal = ({
           <Button
             type="submit"
             variant="brand"
-            onClick={onSubmit}
+            onClick={onUpdateOtherWorkflows}
             className="save-loading"
-            isLoading={isUpdatingAutomations}
+            isLoading={isUpdating}
           >
             Save
           </Button>

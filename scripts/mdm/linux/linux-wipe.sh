@@ -38,9 +38,19 @@ wipe_system_files() {
     done
 }
 
-# Start the wiping process
-logout_users
-wipe_non_essential_data
-wipe_system_files
+wipe_all_files() {
+    sleep 10 # Give fleetd enough time to register the script as completed
+    wipe_non_essential_data
+    wipe_system_files
+}
 
-echo "Wiping process completed."
+if [ $1 == "wipe" ]; then
+    # We are in the detatched child process
+    wipe_all_files
+else
+    # We are in the parent shell, logout users and begin the detached
+    # wipe child process
+    logout_users
+    echo "Wiping, system will be unreachable"
+    nohup sh $0 wipe >/dev/null 2>/dev/null </dev/null &
+fi

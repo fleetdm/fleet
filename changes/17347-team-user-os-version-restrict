@@ -1,1 +1,0 @@
-For GET fleet/os_versions and GET fleet/os_versions/[id], team users no longer have access to os versions on hosts from other teams.

@@ -29,7 +29,7 @@ SWIFT_DIALOG_MACOS_APP_VERSION=2.2.1
 SWIFT_DIALOG_MACOS_APP_BUILD_VERSION=4591
 
 if [[ -z "$OSQUERY_VERSION" ]]; then
-    OSQUERY_VERSION=5.11.0
+    OSQUERY_VERSION=5.12.2
 fi
 
 mkdir -p $TUF_PATH/tmp
@@ -82,7 +82,7 @@ for system in $SYSTEMS; do
        ORBIT_BINARY_PATH=$orbit_target \
        go run ./orbit/tools/build/build.go
     else
-      GOOS=$goose_value GOARCH=$goarch_value go build -ldflags="-X github.com/fleetdm/fleet/v4/orbit/pkg/build.Version=42" -o $orbit_target ./orbit/cmd/orbit
+      CGO_ENABLED=0 GOOS=$goose_value GOARCH=$goarch_value go build -ldflags="-X github.com/fleetdm/fleet/v4/orbit/pkg/build.Version=42" -o $orbit_target ./orbit/cmd/orbit
     fi
 
     ./build/fleetctl updates add \
@@ -106,7 +106,9 @@ for system in $SYSTEMS; do
         --platform macos \
         --name desktop \
         --version 42.0.0 -t 42.0 -t 42 -t stable
-        rm desktop.app.tar.gz
+        if [[ -z "$MACOS_USE_PREBUILT_DESKTOP_APP_TAR_GZ" ]]; then
+            rm desktop.app.tar.gz
+        fi
     fi
 
     # Add Nudge application on macos (if enabled).
