@@ -2101,20 +2101,20 @@ func TestAuthorizeHostScriptResult(t *testing.T) {
 
 		{user: test.UserObserver, object: globalScript, action: write, allow: false},
 		{user: test.UserObserver, object: globalScript, action: read, allow: true},
-		{user: test.UserObserver, object: globalSavedScript, action: write, allow: true},
+		{user: test.UserObserver, object: globalSavedScript, action: write, allow: false},
 		{user: test.UserObserver, object: globalSavedScript, action: read, allow: true},
 		{user: test.UserObserver, object: team1Script, action: write, allow: false},
 		{user: test.UserObserver, object: team1Script, action: read, allow: true},
-		{user: test.UserObserver, object: team1SavedScript, action: write, allow: true},
+		{user: test.UserObserver, object: team1SavedScript, action: write, allow: false},
 		{user: test.UserObserver, object: team1SavedScript, action: read, allow: true},
 
 		{user: test.UserObserverPlus, object: globalScript, action: write, allow: false},
 		{user: test.UserObserverPlus, object: globalScript, action: read, allow: true},
-		{user: test.UserObserverPlus, object: globalSavedScript, action: write, allow: true},
+		{user: test.UserObserverPlus, object: globalSavedScript, action: write, allow: false},
 		{user: test.UserObserverPlus, object: globalSavedScript, action: read, allow: true},
 		{user: test.UserObserverPlus, object: team1Script, action: write, allow: false},
 		{user: test.UserObserverPlus, object: team1Script, action: read, allow: true},
-		{user: test.UserObserverPlus, object: team1SavedScript, action: write, allow: true},
+		{user: test.UserObserverPlus, object: team1SavedScript, action: write, allow: false},
 		{user: test.UserObserverPlus, object: team1SavedScript, action: read, allow: true},
 
 		{user: test.UserGitOps, object: globalScript, action: write, allow: false},
@@ -2168,7 +2168,7 @@ func TestAuthorizeHostScriptResult(t *testing.T) {
 		{user: test.UserTeamObserverTeam1, object: globalSavedScript, action: read, allow: false},
 		{user: test.UserTeamObserverTeam1, object: team1Script, action: write, allow: false},
 		{user: test.UserTeamObserverTeam1, object: team1Script, action: read, allow: true},
-		{user: test.UserTeamObserverTeam1, object: team1SavedScript, action: write, allow: true},
+		{user: test.UserTeamObserverTeam1, object: team1SavedScript, action: write, allow: false},
 		{user: test.UserTeamObserverTeam1, object: team1SavedScript, action: read, allow: true},
 
 		{user: test.UserTeamObserverTeam2, object: globalScript, action: write, allow: false},
@@ -2186,7 +2186,7 @@ func TestAuthorizeHostScriptResult(t *testing.T) {
 		{user: test.UserTeamObserverPlusTeam1, object: globalSavedScript, action: read, allow: false},
 		{user: test.UserTeamObserverPlusTeam1, object: team1Script, action: write, allow: false},
 		{user: test.UserTeamObserverPlusTeam1, object: team1Script, action: read, allow: true},
-		{user: test.UserTeamObserverPlusTeam1, object: team1SavedScript, action: write, allow: true},
+		{user: test.UserTeamObserverPlusTeam1, object: team1SavedScript, action: write, allow: false},
 		{user: test.UserTeamObserverPlusTeam1, object: team1SavedScript, action: read, allow: true},
 
 		{user: test.UserTeamObserverPlusTeam2, object: globalScript, action: write, allow: false},
