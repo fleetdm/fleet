@@ -643,10 +643,10 @@ allow {
   action == read
 }
 
-# Global admins, maintainers, observers, and observer_plus can read any software installer.
+# Global admins and maintainers can read any software installer.
 allow {
   object.type == "software_installer"
-  subject.global_role == [admin, maintainer, observer, observer_plus][_]
+  subject.global_role == [admin, maintainer][_]
   action == read
 }
 
@@ -657,11 +657,11 @@ allow {
   action == write
 }
 
-# Team admins, maintainers, observers, and observer_plus can read any software installer in their teams.
+# Team admins and maintainers can read any software installer in their teams.
 allow {
   not is_null(object.team_id)
   object.type == "software_installer"
-  team_role(subject, object.team_id) == [admin, maintainer, observer, observer_plus][_]
+  team_role(subject, object.team_id) == [admin, maintainer][_]
   action == read
 }
 
@@ -929,22 +929,11 @@ allow {
 # Host Script Result (script execution and output)
 ##
 
-# Global admins and maintainers can write (execute) anonymous scripts (not
+# Global admins and maintainers can write (execute) scripts (not
 # gitops as this is not something that relates to fleetctl apply).
 allow {
   object.type == "host_script_result"
-  is_null(object.script_id)
   subject.global_role == [admin, maintainer][_]
-  action == write
-}
-
-# Global admins, maintainers, observer_plus and observers can write (execute)
-# saved scripts (not gitops as this is not something that relates to fleetctl
-# apply).
-allow {
-  object.type == "host_script_result"
-  not is_null(object.script_id)
-  subject.global_role == [admin, maintainer, observer, observer_plus][_]
   action == write
 }
 
@@ -955,24 +944,12 @@ allow {
   action == read
 }
 
-# Team admin and maintainers can write (execute) anonymous scripts for their
+# Team admin and maintainers can write (execute) scripts for their
 # teams (not gitops as this is not something that relates to fleetctl apply).
 allow {
   object.type == "host_script_result"
-  is_null(object.script_id)
   not is_null(object.team_id)
   team_role(subject, object.team_id) == [admin, maintainer][_]
-  action == write
-}
-
-# Team admins, maintainers, observer_plus and observers can write (execute)
-# saved scripts for their teams (not gitops as this is not something that
-# relates to fleetctl apply).
-allow {
-  object.type == "host_script_result"
-  not is_null(object.script_id)
-  not is_null(object.team_id)
-  team_role(subject, object.team_id) == [admin, maintainer, observer_plus, observer][_]
   action == write
 }
 
