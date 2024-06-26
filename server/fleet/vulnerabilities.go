@@ -6,8 +6,9 @@ import (
 )
 
 type CVE struct {
-	CVE         string `json:"cve" db:"cve"`
-	DetailsLink string `json:"details_link" db:"-"`
+	CVE         string    `json:"cve" db:"cve"`
+	DetailsLink string    `json:"details_link" db:"-"`
+	CreatedAt   time.Time `json:"created_at" db:"created_at"`
 	// These are double pointers so that we can omit them AND return nulls when needed.
 	// 1. omitted when using the free tier
 	// 2. null when using the premium tier, but there is no value available. This may be due to an issue with syncing cve scores.

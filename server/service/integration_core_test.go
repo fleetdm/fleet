@@ -6824,6 +6824,10 @@ func (s *integrationTestSuite) TestListSoftwareAndSoftwareDetails() {
 			assert.Equal(t, sw.Version, detailsResp.Software.Version)
 			assert.Equal(t, sw.Source, detailsResp.Software.Source)
 			assert.Equal(t, sw.Browser, detailsResp.Software.Browser)
+			if len(sw.Vulnerabilities) > 0 {
+				assert.Len(t, detailsResp.Software.Vulnerabilities, len(sw.Vulnerabilities))
+				assert.Greater(t, detailsResp.Software.Vulnerabilities[0].CreatedAt, time.Now().Add(-time.Hour)) // asserting a non-zero time
+			}
 		}
 	}
 
@@ -8786,6 +8790,21 @@ func (s *integrationTestSuite) TestOSVersions() {
 	}, fleet.MSRCSource)
 	require.NoError(t, err)
 
+	assertOSVersion := func(t *testing.T, expected fleet.OSVersion, actual fleet.OSVersion) {
+		require.Equal(t, expected.HostsCount, actual.HostsCount)
+		require.Equal(t, expected.Name, actual.Name)
+		require.Equal(t, expected.NameOnly, actual.NameOnly)
+		require.Equal(t, expected.Version, actual.Version)
+		require.Equal(t, expected.Platform, actual.Platform)
+		require.Equal(t, expected.OSVersionID, actual.OSVersionID)
+		require.Len(t, actual.Vulnerabilities, len(expected.Vulnerabilities))
+		for i, vuln := range expected.Vulnerabilities {
+			require.Equal(t, vuln.CVE, actual.Vulnerabilities[i].CVE)
+			require.Equal(t, vuln.DetailsLink, actual.Vulnerabilities[i].DetailsLink)
+			require.Greater(t, actual.Vulnerabilities[i].CreatedAt, time.Now().Add(-time.Hour)) // assert non-zero value
+		}
+	}
+
 	var osVersionsResp osVersionsResponse
 	s.DoJSON("GET", "/api/latest/fleet/os_versions", nil, http.StatusOK, &osVersionsResp)
 	require.Len(t, osVersionsResp.OSVersions, 4) // different archs are grouped together
@@ -8811,12 +8830,12 @@ func (s *integrationTestSuite) TestOSVersions() {
 	}
 
 	// Default sort is by hosts count, descending
-	require.Equal(t, expectedVersion, osVersionsResp.OSVersions[0])
+	assertOSVersion(t, expectedVersion, osVersionsResp.OSVersions[0])
 
 	// get OS version by id
 	var osVersionResp getOSVersionResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/os_versions/%d", osvMap["Windows 11 Pro 21H2 10.0.22000.2 ARM64"].OSVersionID), nil, http.StatusOK, &osVersionResp)
-	require.Equal(t, &expectedVersion, osVersionResp.OSVersion)
+	assertOSVersion(t, expectedVersion, *osVersionResp.OSVersion)
 
 	// invalid id
 	s.DoJSON("GET", "/api/latest/fleet/os_versions/999", nil, http.StatusOK, &osVersionResp)

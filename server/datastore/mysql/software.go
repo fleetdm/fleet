@@ -845,6 +845,9 @@ type softwareCVE struct {
 	// ResolvedInVersion is the version of software where the CVE is no longer applicable.
 	// This is pulled from the versionEndExcluding field in the NVD json
 	ResolvedInVersion *string `db:"resolved_in_version"`
+
+	// CreatedAt is the time the software vulnerability was created
+	CreatedAt *time.Time `db:"created_at"`
 }
 
 func selectSoftwareSQL(opts fleet.SoftwareListOptions) (string, []interface{}, error) {
@@ -1316,6 +1319,7 @@ func (ds *Datastore) SoftwareByID(ctx context.Context, id uint, teamID *uint, in
 			"s.arch",
 			"s.extension_id",
 			"scv.cve",
+			"scv.created_at",
 			goqu.COALESCE(goqu.I("scp.cpe"), "").As("generated_cpe"),
 		).
 		LeftJoin(
@@ -1399,6 +1403,7 @@ func (ds *Datastore) SoftwareByID(ctx context.Context, id uint, teamID *uint, in
 			cve := fleet.CVE{
 				CVE:         cveID,
 				DetailsLink: fmt.Sprintf("https://nvd.nist.gov/vuln/detail/%s", cveID),
+				CreatedAt:   *result.CreatedAt,
 			}
 			if includeCVEScores {
 				cve.CVSSScore = &result.CVSSScore
