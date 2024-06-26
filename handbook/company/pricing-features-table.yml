@@ -682,7 +682,7 @@
 - industryName: Zero-touch setup for macOS, iOS/iPadOS*, and Windows
   documentationUrl: https://fleetdm.com/docs/using-fleet/mdm-macos-setup-experience
   tier: Premium
-  jamfProHasFeature: yes
+  jamfProHasFeature: macOnly
   jamfProtectHasFeature: no
   usualDepartment: IT
   productCategories: [Device management]
