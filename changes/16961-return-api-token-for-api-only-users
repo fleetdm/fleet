@@ -1,2 +1,0 @@
-- Endpoint `/api/latest/fleet/users/admin` to return API token when creating API-only (non-SSO) users.
-- Added API-token of the created API-only (non-SSO) user to the output of `fleetctl user create --api-only`.
