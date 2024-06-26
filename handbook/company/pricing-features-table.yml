@@ -500,6 +500,8 @@
   pricingTableCategories: [Deployment]
   usualDepartment: IT
   tier: Free
+  jamfProHasFeature: true
+  jamfProtectHasFeature: true
   demos:
     description: A top savings and investment company wanted workflows and automation so that one bad actor can't brick their fleet.  This way, they have to make a pull request first.
     quote: I don't want one bad actor to brick my fleet.  I want them to make a pull request first.
@@ -742,7 +744,6 @@
   tier: Premium
   jamfProHasFeature: true
   jamfProtectHasFeature: false
-  comingSoonOn: 2024-06-30
   usualDepartment: IT
   productCategories: [Device management]
   pricingTableCategories: [Device management]
@@ -909,7 +910,7 @@
 - industryName: Audit log of activity (queries, scripts, logins, etc)
   documentationUrl: https://fleetdm.com/docs/rest-api/rest-api#list-activities
   productCategories: [Endpoint operations, Device management]
-  pricingTableCategories: [Endpoint operations, Device management]
+  pricingTableCategories: [Endpoint operations]
   tier: Premium
   jamfProHasFeature: true
   jamfProtectHasFeature: true
@@ -1104,41 +1105,41 @@
   tier: Premium
   jamfProHasFeature: macOnly
   jamfProtectHasFeature: false
-  usualDepartment: TODO
+  usualDepartment: IT
   productCategories: [Device management]
   pricingTableCategories: [Device management]
 - industryName: Apple Declarative Device Management (DDM) support for Configuration Profiles
   tier: Premium
   jamfProHasFeature: cloudOnly
   jamfProtectHasFeature: cloudOnly
-  usualDepartment: TODO
+  usualDepartment: IT
   productCategories: [Device management]
   pricingTableCategories: [Device management]
 - industryName: API first by design
-  tier: Premium
+  tier: Free
   jamfProHasFeature: false
   jamfProtectHasFeature: false
-  usualDepartment: TODO
+  usualDepartment: IT
   productCategories: [Device management]
   pricingTableCategories: [Device management]
 - industryName: Targeted device scoping
   tier: Premium
   jamfProHasFeature: true
   jamfProtectHasFeature: true
-  usualDepartment: TODO
+  usualDepartment: IT
   productCategories: [Device management]
   pricingTableCategories: [Device management]
 - industryName: Application deployment
   tier: Premium
   jamfProHasFeature: true
   jamfProtectHasFeature: false
-  usualDepartment: TODO
+  usualDepartment: IT
   productCategories: [Device management]
   pricingTableCategories: [Device management]
 - industryName: Munki compatibility / integration
   tier: Premium
   jamfProHasFeature: true
   jamfProtectHasFeature: true
-  usualDepartment: TODO
+  usualDepartment: IT
   productCategories: [Device management]
   pricingTableCategories: [Device management]
