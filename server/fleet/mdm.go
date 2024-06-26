@@ -129,6 +129,8 @@ type ExpectedMDMProfile struct {
 	CountProfileLabels uint `db:"count_profile_labels"`
 	// CountHostLabels is used to enable queries that filter based on profile <-> label mappings.
 	CountHostLabels uint `db:"count_host_labels"`
+	// CountNonBrokenLabels is used to enable queries that filter based on profile <-> label mappings.
+	CountNonBrokenLabels uint `db:"count_non_broken_labels"`
 }
 
 // IsWithinGracePeriod returns true if the host is within the grace period for the profile.

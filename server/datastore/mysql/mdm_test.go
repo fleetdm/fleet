@@ -2535,7 +2535,7 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 		},
 	})
 
-	// TODO(mna): add exclude-any labels here, test the broken label behavior
+	// TODO(mna): add exclude-any labels here, test the broken label behavior (Win+Mac)
 
 	// create some labels for label-based profiles
 	var labels []*fleet.Label

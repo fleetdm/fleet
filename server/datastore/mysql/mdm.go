@@ -693,7 +693,7 @@ SELECT
 FROM
 	mdm_windows_configuration_profiles mwcp
 WHERE
-	mwcp.team_id = ? AND 
+	mwcp.team_id = ? AND
 	NOT EXISTS (
 		SELECT
 			1
@@ -718,16 +718,16 @@ SELECT
 	COUNT(lm.label_id) AS count_host_labels
 FROM
 	mdm_windows_configuration_profiles mwcp
-	JOIN mdm_configuration_profile_labels mcpl 
+	JOIN mdm_configuration_profile_labels mcpl
 		ON mcpl.windows_profile_uuid = mwcp.profile_uuid AND mcpl.exclude = 0
-	LEFT OUTER JOIN label_membership lm 
+	LEFT OUTER JOIN label_membership lm
 		ON lm.label_id = mcpl.label_id AND lm.host_id = ?
 WHERE
 	mwcp.team_id = ?
 GROUP BY
 	name, syncml
 HAVING
-	count_profile_labels > 0 AND 
+	count_profile_labels > 0 AND
 	count_host_labels = count_profile_labels
 
 UNION
@@ -743,9 +743,9 @@ SELECT
 	COUNT(lm.label_id) AS count_host_labels
 FROM
 	mdm_windows_configuration_profiles mwcp
-	JOIN mdm_configuration_profile_labels mcpl 
+	JOIN mdm_configuration_profile_labels mcpl
 		ON mcpl.windows_profile_uuid = mwcp.profile_uuid AND mcpl.exclude = 1
-	LEFT OUTER JOIN label_membership lm 
+	LEFT OUTER JOIN label_membership lm
 		ON lm.label_id = mcpl.label_id AND lm.host_id = ?
 WHERE
 	mwcp.team_id = ?
@@ -753,13 +753,12 @@ GROUP BY
 	name, syncml
 HAVING
 	-- considers only the profiles with labels, without any broken label, and with the host not in any label
-	count_profile_labels > 0 AND 
+	count_profile_labels > 0 AND
 	count_profile_labels = count_non_broken_labels AND
 	count_host_labels = 0
 `
 	var profiles []*fleet.ExpectedMDMProfile
-	// Note: teamID provided twice
-	err := sqlx.SelectContext(ctx, ds.reader(ctx), &profiles, stmt, teamID, hostID, teamID)
+	err := sqlx.SelectContext(ctx, ds.reader(ctx), &profiles, stmt, teamID, hostID, teamID, hostID, teamID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "running query for windows profiles")
 	}

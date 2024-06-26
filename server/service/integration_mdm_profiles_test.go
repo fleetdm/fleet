@@ -2592,6 +2592,8 @@ func (s *integrationMDMTestSuite) TestHostMDMAppleProfilesStatus() {
 			{Identifier: mobileconfig.FleetCARootConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
 		},
 	})
+
+	// TODO(mna): integration test for exclude-any profiles (including VerifyHostMDMProfiles test) Win+Mac
 }
 
 func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
