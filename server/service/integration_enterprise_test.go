@@ -3334,11 +3334,24 @@ func (s *integrationEnterpriseTestSuite) TestListHosts() {
 
 	// set disk space information for some hosts (none provided for host3)
 	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(context.Background(), host1.ID, 10.0, 2.0, 500.0))
-	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(context.Background(), host2.ID, 40.0, 4.0, 1000.0))
+	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(context.Background(), host2.ID, 32.0, 4.0, 1000.0))
 
 	var resp listHostsResponse
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp)
 	require.Len(t, resp.Hosts, 3)
+
+	allHostsLabel, err := s.ds.GetLabelSpec(context.Background(), "All hosts")
+	require.NoError(t, err)
+	for _, h := range resp.Hosts {
+		err = s.ds.RecordLabelQueryExecutions(
+			context.Background(), h.Host, map[uint]*bool{allHostsLabel.ID: ptr.Bool(true)}, time.Now(), false,
+		)
+		require.NoError(t, err)
+	}
+
+	resp = listHostsResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d/hosts", allHostsLabel.ID), nil, http.StatusOK, &resp, "low_disk_space", "32")
+	require.Len(t, resp.Hosts, 1)
 
 	resp = listHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "low_disk_space", "32")
@@ -3478,17 +3491,6 @@ func (s *integrationEnterpriseTestSuite) TestListHosts() {
 	require.Len(t, resp.Hosts, 3)
 	for _, h := range resp.Hosts {
 		require.Empty(t, h.Software)
-	}
-
-	// Test host list from labels endpoint
-	// First assign label to hosts
-	allHostsLabel, err := s.ds.GetLabelSpec(ctx, "All hosts")
-	require.NoError(t, err)
-	for _, h := range resp.Hosts {
-		err = s.ds.RecordLabelQueryExecutions(
-			context.Background(), h.Host, map[uint]*bool{allHostsLabel.ID: ptr.Bool(true)}, time.Now(), false,
-		)
-		require.NoError(t, err)
 	}
 
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d/hosts", allHostsLabel.ID), nil, http.StatusOK, &resp)
