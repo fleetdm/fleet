@@ -1140,33 +1140,39 @@ func (ds *Datastore) AllSoftwareIterator(
 	LEFT JOIN software_cpe sc ON (s.id=sc.software_id)`
 
 	var conditionals []string
-	arg := map[string]interface{}{}
 
 	if len(query.ExcludedSources) != 0 {
-		conditionals = append(conditionals, "s.source NOT IN (:excluded_sources)")
-		arg["excluded_sources"] = query.ExcludedSources
+		conditionals = append(conditionals, "s.source NOT IN (?)")
+		args = append(args, query.ExcludedSources)
 	}
 
 	if len(query.IncludedSources) != 0 {
-		conditionals = append(conditionals, "s.source IN (:included_sources)")
-		arg["included_sources"] = query.IncludedSources
+		conditionals = append(conditionals, "s.source IN (?)")
+		args = append(args, query.IncludedSources)
+	}
+
+	if query.NameMatch != "" {
+		conditionals = append(conditionals, "s.name REGEXP ?")
+		args = append(args, query.NameMatch)
+	}
+
+	if query.NameExclude != "" {
+		conditionals = append(conditionals, "s.name NOT REGEXP ?")
+		args = append(args, query.NameExclude)
 	}
 
 	if len(conditionals) != 0 {
-		cond := strings.Join(conditionals, " AND ")
-		stmt, args, err = sqlx.Named(stmt+" WHERE "+cond, arg)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "error binding named arguments on software iterator")
-		}
-		stmt, args, err = sqlx.In(stmt, args...)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "error building 'In' query part on software iterator")
-		}
+		stmt += " WHERE " + strings.Join(conditionals, " AND ")
+	}
+
+	stmt, args, err = sqlx.In(stmt, args...)
+	if err != nil {
+		return nil, fmt.Errorf("error building 'In' query part on software iterator: %w", err)
 	}
 
 	rows, err := ds.reader(ctx).QueryxContext(ctx, stmt, args...) //nolint:sqlclosecheck
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "load host software")
+		return nil, fmt.Errorf("executing all software iterator %w", err)
 	}
 	return &softwareIterator{rows: rows}, nil
 }

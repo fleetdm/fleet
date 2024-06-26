@@ -209,6 +209,15 @@ func GetKnownNVDBugRules() (CPEMatchingRules, error) {
 				return cpeMeta.Product == "visual_studio_code" && cpeMeta.TargetSW == wfn.Any
 			},
 		},
+		// Old macos CPEs without version constraints that should be ignored
+		CPEMatchingRule{
+			CVEs: map[string]struct{}{
+				"CVE-2001-0102": {},
+				"CVE-1999-0590": {},
+				"CVE-1999-0524": {},
+			},
+			IgnoreAll: true,
+		},
 	}
 
 	for i, rule := range rules {

@@ -78,6 +78,7 @@ const ManageQueriesPage = ({
   const {
     isGlobalAdmin,
     isTeamAdmin,
+    isTeamMaintainer,
     isOnlyObserver,
     isObserverPlus,
     isAnyTeamObserverPlus,
@@ -359,6 +360,11 @@ const ManageQueriesPage = ({
     );
   };
 
+  // CTA button shows for all roles but global observers and current team's observers
+  const canCustomQuery = isOnGlobalTeam
+    ? !isOnlyObserver
+    : isTeamAdmin || isTeamMaintainer || isObserverPlus; // isObserverPlus checks specific team as well
+
   return (
     <MainContent className={baseClass}>
       <div className={`${baseClass}__wrapper`}>
@@ -379,7 +385,7 @@ const ManageQueriesPage = ({
                   Manage automations
                 </Button>
               )}
-              {(!isOnlyObserver || isObserverPlus || isAnyTeamObserverPlus) && (
+              {canCustomQuery && (
                 <Button
                   variant="brand"
                   className={`${baseClass}__create-button`}

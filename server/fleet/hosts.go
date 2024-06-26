@@ -155,7 +155,7 @@ type HostListOptions struct {
 	OSVersionFilter   *string
 	OSVersionIDFilter *uint
 
-	DisableFailingPolicies bool
+	DisableIssues bool
 
 	// MacOSSettingsFilter filters the hosts by the status of MDM configuration profiles
 	// applied to the hosts.
@@ -221,7 +221,7 @@ func (h HostListOptions) Empty() bool {
 		h.OSIDFilter == nil &&
 		h.OSNameFilter == nil &&
 		h.OSVersionFilter == nil &&
-		h.DisableFailingPolicies == false &&
+		h.DisableIssues == false &&
 		h.MacOSSettingsFilter == "" &&
 		h.MacOSSettingsDiskEncryptionFilter == "" &&
 		h.MDMBootstrapPackageFilter == nil &&
@@ -690,9 +690,17 @@ func (h *Host) IsDEPAssignedToFleet() bool {
 func (h *Host) IsEligibleForDEPMigration(isConnectedToFleetMDM bool) bool {
 	return h.IsOsqueryEnrolled() &&
 		h.IsDEPAssignedToFleet() &&
+		h.MDMInfo != nil &&
 		h.MDMInfo.HasJSONProfileAssigned() &&
 		h.MDMInfo.Enrolled &&
-		!isConnectedToFleetMDM
+		// as a special case for migration with user interaction, we
+		// also check the information stored in host_mdm, and assume
+		// the host needs migration if it's not Fleet
+		//
+		// this is because we can't always rely on nano setting
+		// `nano_enrollment.active = 1` since sometimes Fleet won't get
+		// the checkout message from the host.
+		(!isConnectedToFleetMDM || h.MDMInfo.Name != WellKnownMDMFleet)
 }
 
 // NeedsDEPEnrollment returns true if the host should be DEP enrolled into
@@ -700,7 +708,6 @@ func (h *Host) IsEligibleForDEPMigration(isConnectedToFleetMDM bool) bool {
 func (h *Host) NeedsDEPEnrollment(isConnectedToFleetMDM bool) bool {
 	return h.MDMInfo != nil &&
 		!h.MDMInfo.Enrolled &&
-		!isConnectedToFleetMDM &&
 		h.IsDEPAssignedToFleet()
 }
 
@@ -1183,9 +1190,10 @@ type OSVersion struct {
 }
 
 type HostDetailOptions struct {
-	IncludeCVEScores bool
-	IncludePolicies  bool
-	ExcludeSoftware  bool
+	IncludeCVEScores                    bool
+	IncludeCriticalVulnerabilitiesCount bool
+	IncludePolicies                     bool
+	ExcludeSoftware                     bool
 }
 
 // EnrollHostLimiter defines the methods to support enforcement of enrolled

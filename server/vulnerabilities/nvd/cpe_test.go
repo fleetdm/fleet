@@ -135,6 +135,28 @@ func TestCPETranslations(t *testing.T) {
 			},
 			Expected: "cpe:2.3:a:vendor:product-1:1.2.3:*:*:*:*:macos:*:*",
 		},
+		{
+			Name: "translate part",
+			Translations: CPETranslations{
+				{
+					Software: CPETranslationSoftware{
+						Name:   []string{"X"},
+						Source: []string{"apps"},
+					},
+					Filter: CPETranslation{
+						Product: []string{"product-1"},
+						Vendor:  []string{"vendor"},
+						Part:    "o",
+					},
+				},
+			},
+			Software: &fleet.Software{
+				Name:    "X",
+				Version: "1.2.3",
+				Source:  "apps",
+			},
+			Expected: "cpe:2.3:o:vendor:product-1:1.2.3:*:*:*:*:macos:*:*",
+		},
 	}
 
 	reCache := newRegexpCache()
@@ -149,7 +171,6 @@ func TestCPETranslations(t *testing.T) {
 }
 
 func TestSyncCPEDatabase(t *testing.T) {
-	t.Skip("REMOVEME: when API keys are restored")
 	nettest.Run(t)
 
 	tempDir := t.TempDir()
@@ -467,7 +488,6 @@ func TestLegacyCPEDB(t *testing.T) {
 }
 
 func TestCPEFromSoftwareIntegration(t *testing.T) {
-	t.Skip("REMOVEME: when API keys are restored")
 	testCases := []struct {
 		software fleet.Software
 		cpe      string
@@ -1614,6 +1634,15 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 				Vendor:  "",
 			},
 			cpe: `cpe:2.3:a:python:python:3.9.18_2:*:*:*:*:*:*:*`,
+		},
+		{
+			software: fleet.Software{
+				Name:    "linux-image-5.4.0-105-custom",
+				Source:  "deb_packages",
+				Version: "5.4.0-105.118",
+				Vendor:  "",
+			},
+			cpe: "cpe:2.3:o:linux:linux_kernel:5.4.0-105.118:*:*:*:*:*:*:*",
 		},
 	}
 

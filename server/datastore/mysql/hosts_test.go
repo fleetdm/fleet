@@ -3451,8 +3451,10 @@ func testHostsListFailingPolicies(t *testing.T, ds *Datastore) {
 	h2 := hosts[1]
 
 	assert.Zero(t, h1.HostIssues.FailingPoliciesCount)
+	assert.Zero(t, *h1.HostIssues.CriticalVulnerabilitiesCount)
 	assert.Zero(t, h1.HostIssues.TotalIssuesCount)
 	assert.Zero(t, h2.HostIssues.FailingPoliciesCount)
+	assert.Zero(t, *h2.HostIssues.CriticalVulnerabilitiesCount)
 	assert.Zero(t, h2.HostIssues.TotalIssuesCount)
 
 	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h1, map[uint]*bool{p.ID: ptr.Bool(true)}, time.Now(), false))
@@ -3469,7 +3471,7 @@ func testHostsListFailingPolicies(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h1, map[uint]*bool{p.ID: ptr.Bool(false)}, time.Now(), false))
 	checkHostIssues(t, ds, hosts, filter, h1.ID, 1)
 
-	checkHostIssuesWithOpts(t, ds, hosts, filter, h1.ID, fleet.HostListOptions{DisableFailingPolicies: true}, 0)
+	checkHostIssuesWithOpts(t, ds, hosts, filter, h1.ID, fleet.HostListOptions{DisableIssues: true}, 0)
 }
 
 // This doesn't work when running the whole test suite, but helps inspect individual tests
@@ -3580,7 +3582,7 @@ func checkHostIssuesWithOpts(
 	assert.Equal(t, expected, foundHost.HostIssues.FailingPoliciesCount)
 	assert.Equal(t, expected, foundHost.HostIssues.TotalIssuesCount)
 
-	if opts.DisableFailingPolicies {
+	if opts.DisableIssues {
 		return
 	}
 
@@ -9379,12 +9381,15 @@ func testUpdateHostIssues(t *testing.T, ds *Datastore) {
 	// Test with small batch size and premium license
 	ctx = license.NewContext(ctx, &fleet.LicenseInfo{Tier: fleet.TierPremium})
 	insertBatchSizeOrig := hostIssuesInsertBatchSize
+	updateBatchSizeOrig := hostIssuesUpdateFailingPoliciesBatchSize
 	t.Cleanup(
 		func() {
 			hostIssuesInsertBatchSize = insertBatchSizeOrig
+			hostIssuesUpdateFailingPoliciesBatchSize = updateBatchSizeOrig
 		},
 	)
 	hostIssuesInsertBatchSize = 2
+	hostIssuesUpdateFailingPoliciesBatchSize = 2
 
 	assert.NoError(t, ds.UpdateHostIssuesFailingPolicies(ctx, hostIDs))
 	assert.NoError(t, ds.UpdateHostIssuesVulnerabilities(ctx))

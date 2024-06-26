@@ -368,8 +368,24 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 		)
 	}
 
+	// disable_failing_policies is a deprecated parameter and an alias for disable_issues
+	// disable_issues is the new parameter name, which takes precedence over disable_failing_policies
 	disableFailingPolicies := r.URL.Query().Get("disable_failing_policies")
-	if disableFailingPolicies != "" {
+	disableIssues := r.URL.Query().Get("disable_issues")
+	if disableIssues != "" {
+		boolVal, err := strconv.ParseBool(disableIssues)
+		if err != nil {
+			return hopt, ctxerr.Wrap(
+				r.Context(), badRequest(
+					fmt.Sprintf(
+						"Invalid disable_issues: %s",
+						disableIssues,
+					),
+				),
+			)
+		}
+		hopt.DisableIssues = boolVal
+	} else if disableFailingPolicies != "" {
 		boolVal, err := strconv.ParseBool(disableFailingPolicies)
 		if err != nil {
 			return hopt, ctxerr.Wrap(
@@ -381,7 +397,14 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 				),
 			)
 		}
-		hopt.DisableFailingPolicies = boolVal
+		hopt.DisableIssues = boolVal
+	}
+	if hopt.DisableIssues && r.URL.Query().Get("order_key") == "issues" {
+		return hopt, ctxerr.Wrap(
+			r.Context(), badRequest(
+				"Invalid order_key (issues cannot be ordered when they are disabled)",
+			),
+		)
 	}
 
 	deviceMapping := r.URL.Query().Get("device_mapping")

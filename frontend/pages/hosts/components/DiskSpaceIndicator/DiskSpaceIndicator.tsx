@@ -3,7 +3,7 @@ import React from "react";
 import ReactTooltip from "react-tooltip";
 import { COLORS } from "styles/var/colors";
 
-interface IDiskSpaceGraphProps {
+interface IDiskSpaceIndicatorProps {
   baseClass: string;
   gigsDiskSpaceAvailable: number | "---";
   percentDiskSpaceAvailable: number;
@@ -12,20 +12,20 @@ interface IDiskSpaceGraphProps {
   tooltipPosition?: "top" | "bottom";
 }
 
-const DiskSpaceGraph = ({
+const DiskSpaceIndicator = ({
   baseClass,
   gigsDiskSpaceAvailable,
   percentDiskSpaceAvailable,
   id,
   platform,
   tooltipPosition = "top",
-}: IDiskSpaceGraphProps): JSX.Element => {
+}: IDiskSpaceIndicatorProps): JSX.Element => {
   if (gigsDiskSpaceAvailable === 0 || gigsDiskSpaceAvailable === "---") {
     return <span className={`${baseClass}__data`}>No data available</span>;
   }
 
   const getDiskSpaceIndicatorColor = (): string => {
-    // return space-dependent graph colors for mac and windows hosts, green for linux
+    // return space-dependent indicator colors for mac and windows hosts, green for linux
     if (platform === "darwin" || platform === "windows") {
       if (gigsDiskSpaceAvailable < 16) {
         return "red";
@@ -87,4 +87,4 @@ const DiskSpaceGraph = ({
   );
 };
 
-export default DiskSpaceGraph;
+export default DiskSpaceIndicator;

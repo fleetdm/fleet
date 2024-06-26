@@ -1231,6 +1231,10 @@ func (newMDMConfigProfileRequest) DecodeRequest(ctx context.Context, r *http.Req
 	}
 	decoded.Profile = fhs[0]
 
+	if decoded.Profile.Size > 1024*1024 {
+		return nil, fleet.NewInvalidArgumentError("mdm", "maximum configuration profile file size is 1 MB")
+	}
+
 	// add labels
 	var existsIncl, existsExcl, existsDepr bool
 	var deprecatedLabels []string
@@ -1945,6 +1949,10 @@ func validateProfiles(profiles []fleet.MDMProfileBatchPayload) error {
 		}
 		if count > 1 {
 			return fleet.NewInvalidArgumentError("mdm", `Couldn't edit custom_settings. For each profile, only one of "labels_exclude_any", "labels_include_all" or "labels" can be included.`)
+		}
+
+		if len(profile.Contents) > 1024*1024 {
+			return fleet.NewInvalidArgumentError("mdm", "maximum configuration profile file size is 1 MB")
 		}
 
 		platform := mdm.GetRawProfilePlatform(profile.Contents)
