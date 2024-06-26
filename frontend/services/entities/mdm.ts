@@ -96,28 +96,6 @@ const mdmService = {
       ...params,
     })}`;
 
-    // TODO: disable when API is ready;
-    return new Promise((resolve) => {
-      resolve({
-        profiles: [
-          createMockMdmProfile({
-            labels_exclude_any: [
-              {
-                // id: 1,
-                broken: true,
-                name: "Test Label",
-              },
-              {
-                id: 1,
-                name: "Test Label 2",
-              },
-            ],
-          }),
-        ],
-        meta: { has_next_results: false, has_previous_results: false },
-      });
-    });
-
     return sendRequest("GET", path);
   },
 
