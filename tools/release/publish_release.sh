@@ -70,6 +70,7 @@ usage() {
     echo "Usage: $0 [options] (optional|start_version)"
     echo ""
     echo "Options:"
+    echo "  -a, --and_cherry_pick  This is a minor release and cherry pick. Used for unscheduled minor releases that are patches + a specific feature"
     echo "  -c, --cherry_pick_resolved The script has been run, had merge conflicts, and those have been resolved and all cherry picks completed manually."
     echo "  -d, --dry_run          Perform a trial run with no changes made"
     echo "  -f, --force            Skip all confirmations"
@@ -476,6 +477,7 @@ publish() {
 check_required_binaries
 
 # Initialize variables for the options
+minor_cherry_pick=false
 cherry_pick_resolved=false
 dry_run=false
 force=false
@@ -495,6 +497,7 @@ quiet=false
 for arg in "$@"; do
   shift
   case "$arg" in
+    "--and_cherry_pick") set -- "$@" "-a" ;;
     "--cherry_pick_resolved") set -- "$@" "-c" ;;
     "--dry-run") set -- "$@" "-d" ;;
     "--force") set -- "$@" "-f" ;;
@@ -517,6 +520,7 @@ done
 # Extract options and their arguments using getopts
 while getopts "acdfhgmno:pqrs:t:uv:" opt; do
     case "$opt" in
+        a) minor_cherry_pick=true ;;
         c) cherry_pick_resolved=true ;;
         d) dry_run=true ;;
         f) force=true ;;
@@ -654,12 +658,11 @@ fi
 # fleet-v4.48.0
 next_tag="fleet-$next_ver"
 
-if [[ "$target_milestone_number" == "" ]]; then
-    if [ "$announce_only" = "false" ]; then
-        echo "Missing milestone $target_milestone, Please create one and tie tickets to the milestone to continue"
-        exit 1
-    fi
+if [[ "$target_milestone_number" == "" && "$announce_only" == "false" && $dry_run == false ]]; then
+    echo "Missing milestone $target_milestone, Please create one and tie tickets to the milestone to continue"
+    exit 1
 fi
+
 echo "Found milestone $target_milestone with number $target_milestone_number"
 
 if [ "$print_info" = "true" ]; then
@@ -715,7 +718,7 @@ if [ "$cherry_pick_resolved" = "false" ]; then
 
     issue_list=$(gh issue list --search 'milestone:"'"$target_milestone"'"' --json number | jq -r '.[] | .number')
 
-    if [[ "$issue_list" == "" ]]; then
+    if [[ "$issue_list" == "" && "$dry_run" == "false" ]]; then
         echo "Milestone $target_milestone has no target issues, please tie tickets to the milestone to continue"
         exit 1
     fi
@@ -750,7 +753,7 @@ if [ "$cherry_pick_resolved" = "false" ]; then
 
     commits=""
 
-    if [[ "$minor" == "false" ]]; then
+    if [[ "$minor" == "false" || "$minor_cherry_pick" == "true" ]]; then
         echo "Continuing to cherry-pick"
         for pr in ${total_prs[*]};
         do
