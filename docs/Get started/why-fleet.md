@@ -11,6 +11,16 @@ By simplifying how they do device health, FIM, HIDS, posture assessment, malware
 ### Explore data
 To see what kind of data you can use Fleet to gather, you can check out the [table reference documentation](https://fleetdm.com/tables).
 
+#### Scope transparency
+
+In our commitment to a transparent, user-first model, Fleet upholds the principles of clarity and openness. As with macOS, Linux, and Chromebooks, Windows users within Fleet's framework can be assured of our steadfast commitment to transparency.
+
+Fleet is open source, so users are fully informed about how their employers monitor their work devices, and end users can see what the Fleet agent can do on their machines, eliminating ambiguity between end users and their IT and security teams.
+
+Fleet software does not intrude on private data such as keystrokes, emails, or webcams but focuses on essential information like user accounts, device health, installed software, and security configurations.
+
+Our approach to scope transparency ensures that users understand and can trust how their devices are managed and secured within Fleet's ecosystem, regardless of the operating system.
+
 ### Out-of-the-box policies
 Fleet includes out-of-the-box support for all [CIS benchmarks for macOS and Windows](https://fleetdm.com/pricing), as well as many [simpler queries](https://fleetdm.com/queries).
 
