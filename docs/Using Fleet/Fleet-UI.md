@@ -1,4 +1,5 @@
 # Fleet UI
+- [For New Users](#for-new-users)
 - [Creating a query](#create-a-query)
 - [Running a query](#run-a-query)
 - [Scheduling a query](#schedule-a-query)
@@ -7,6 +8,14 @@
 <div purpose="embedded-content">
    <iframe src="https://www.youtube.com/embed/1VNvg3_drow" allowfullscreen></iframe>
 </div>
+
+## For New Users
+
+Given that logging infrastructure is not ready out-of-the-box, some new users report that it can be simpler to start by using policies as you become more familiar with using querying and osquery. Some helpful guides on policies are the [What are Fleet policies?](https://fleetdm.com/securing/what-are-fleet-policies) and the [Understanding the intricacies of Fleet policies](https://fleetdm.com/guides/understanding-the-intricacies-of-fleet-policies) documents.
+
+Ready to use queries and osquery? The steps below will walk you through creating, scheduling, and running a query. More information can be found in our guides [Standard query library](https://fleetdm.com/docs/using-fleet/standard-query-library) and [Osquery process](https://fleetdm.com/docs/using-fleet/osquery-process).
+
+Tip: It's helpful to review some common queries available in the Fleet's query library referenced above to understand how they work and what kind of data they can retrieve.
 
 ## Create a query
 
