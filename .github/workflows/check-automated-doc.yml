@@ -9,7 +9,7 @@ on:
   pull_request:
     paths:
       - "**.go"
-      - ".github/workflows/check-doc-generation.yml"
+      - ".github/workflows/check-automated-doc.yml"
       - "schema/tables/**"
       - "schema/osquery_fleet_schema.json"
   workflow_dispatch: # Manual
