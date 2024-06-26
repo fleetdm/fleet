@@ -12,7 +12,6 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/tablehelpers"
 	"github.com/osquery/osquery-go/plugin/table"
 	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
 )
 
 var (
@@ -45,13 +44,13 @@ type falconctlOptionsTable struct {
 	execFunc  execFunc
 }
 
-func NewFalconctlOptionTable() *table.Plugin {
+func NewFalconctlOptionTable(logger zerolog.Logger) *table.Plugin {
 	columns := dataflattentable.Columns(
 		table.TextColumn("options"),
 	)
 
 	t := &falconctlOptionsTable{
-		logger:    log.Logger.With().Str("table", "falconctl_options").Logger(),
+		logger:    logger.With().Str("table", "falconctl_options").Logger(),
 		tableName: "falconctl_options",
 		execFunc:  tablehelpers.Exec,
 	}
