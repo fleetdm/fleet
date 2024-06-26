@@ -371,7 +371,7 @@ func getQueriesCommand() *cli.Command {
 	return &cli.Command{
 		Name:    "queries",
 		Aliases: []string{"query", "q"},
-		Usage:   "List information about one or more queries",
+		Usage:   "List information about queries",
 		Flags: []cli.Flag{
 			&cli.UintFlag{
 				Name:  teamFlagName,
@@ -651,7 +651,7 @@ func getLabelsCommand() *cli.Command {
 	return &cli.Command{
 		Name:    "labels",
 		Aliases: []string{"label", "l"},
-		Usage:   "List information about one or more labels",
+		Usage:   "List information about labels",
 		Flags: []cli.Flag{
 			jsonFlag(),
 			yamlFlag(),
@@ -793,7 +793,7 @@ func getHostsCommand() *cli.Command {
 	return &cli.Command{
 		Name:    "hosts",
 		Aliases: []string{"host", "h"},
-		Usage:   "List information about one or more hosts",
+		Usage:   "List information about hosts",
 		Flags: []cli.Flag{
 			&cli.UintFlag{
 				Name:     "team",

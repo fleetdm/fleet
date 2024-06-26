@@ -9381,12 +9381,15 @@ func testUpdateHostIssues(t *testing.T, ds *Datastore) {
 	// Test with small batch size and premium license
 	ctx = license.NewContext(ctx, &fleet.LicenseInfo{Tier: fleet.TierPremium})
 	insertBatchSizeOrig := hostIssuesInsertBatchSize
+	updateBatchSizeOrig := hostIssuesUpdateFailingPoliciesBatchSize
 	t.Cleanup(
 		func() {
 			hostIssuesInsertBatchSize = insertBatchSizeOrig
+			hostIssuesUpdateFailingPoliciesBatchSize = updateBatchSizeOrig
 		},
 	)
 	hostIssuesInsertBatchSize = 2
+	hostIssuesUpdateFailingPoliciesBatchSize = 2
 
 	assert.NoError(t, ds.UpdateHostIssuesFailingPolicies(ctx, hostIDs))
 	assert.NoError(t, ds.UpdateHostIssuesVulnerabilities(ctx))

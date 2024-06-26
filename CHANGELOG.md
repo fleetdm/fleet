@@ -1,4 +1,4 @@
-## Fleet 4.53.0 (Jun 26, 2024)
+## Fleet 4.53.0 (Jun 25, 2024)
 
 ### Endpoint Operations
 

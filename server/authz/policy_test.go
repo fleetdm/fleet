@@ -535,18 +535,18 @@ func TestAuthorizeSoftwareInstaller(t *testing.T) {
 		{user: test.UserMaintainer, object: team2Installer, action: read, allow: true},
 		{user: test.UserMaintainer, object: team2Installer, action: write, allow: true},
 
-		{user: test.UserObserver, object: noTeamInstaller, action: read, allow: true},
+		{user: test.UserObserver, object: noTeamInstaller, action: read, allow: false},
 		{user: test.UserObserver, object: noTeamInstaller, action: write, allow: false},
-		{user: test.UserObserver, object: team1Installer, action: read, allow: true},
+		{user: test.UserObserver, object: team1Installer, action: read, allow: false},
 		{user: test.UserObserver, object: team1Installer, action: write, allow: false},
-		{user: test.UserObserver, object: team2Installer, action: read, allow: true},
+		{user: test.UserObserver, object: team2Installer, action: read, allow: false},
 		{user: test.UserObserver, object: team2Installer, action: write, allow: false},
 
-		{user: test.UserObserverPlus, object: noTeamInstaller, action: read, allow: true},
+		{user: test.UserObserverPlus, object: noTeamInstaller, action: read, allow: false},
 		{user: test.UserObserverPlus, object: noTeamInstaller, action: write, allow: false},
-		{user: test.UserObserverPlus, object: team1Installer, action: read, allow: true},
+		{user: test.UserObserverPlus, object: team1Installer, action: read, allow: false},
 		{user: test.UserObserverPlus, object: team1Installer, action: write, allow: false},
-		{user: test.UserObserverPlus, object: team2Installer, action: read, allow: true},
+		{user: test.UserObserverPlus, object: team2Installer, action: read, allow: false},
 		{user: test.UserObserverPlus, object: team2Installer, action: write, allow: false},
 
 		// TODO: confirm gitops permissions
@@ -581,14 +581,14 @@ func TestAuthorizeSoftwareInstaller(t *testing.T) {
 
 		{user: test.UserTeamObserverTeam1, object: noTeamInstaller, action: read, allow: false},
 		{user: test.UserTeamObserverTeam1, object: noTeamInstaller, action: write, allow: false},
-		{user: test.UserTeamObserverTeam1, object: team1Installer, action: read, allow: true},
+		{user: test.UserTeamObserverTeam1, object: team1Installer, action: read, allow: false},
 		{user: test.UserTeamObserverTeam1, object: team1Installer, action: write, allow: false},
 		{user: test.UserTeamObserverTeam1, object: team2Installer, action: read, allow: false},
 		{user: test.UserTeamObserverTeam1, object: team2Installer, action: write, allow: false},
 
 		{user: test.UserTeamObserverPlusTeam1, object: noTeamInstaller, action: read, allow: false},
 		{user: test.UserTeamObserverPlusTeam1, object: noTeamInstaller, action: write, allow: false},
-		{user: test.UserTeamObserverPlusTeam1, object: team1Installer, action: read, allow: true},
+		{user: test.UserTeamObserverPlusTeam1, object: team1Installer, action: read, allow: false},
 		{user: test.UserTeamObserverPlusTeam1, object: team1Installer, action: write, allow: false},
 		{user: test.UserTeamObserverPlusTeam1, object: team2Installer, action: read, allow: false},
 		{user: test.UserTeamObserverPlusTeam1, object: team2Installer, action: write, allow: false},
