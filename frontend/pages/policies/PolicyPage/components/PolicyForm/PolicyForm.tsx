@@ -188,7 +188,8 @@ const PolicyForm = ({
   const hasSavePermissions =
     !isEditMode || // save a new policy
     isGlobalAdmin ||
-    isGlobalMaintainer;
+    isGlobalMaintainer ||
+    isTeamMaintainerOrTeamAdmin;
 
   const onLoad = (editor: IAceEditor) => {
     editor.setOptions({

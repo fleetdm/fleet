@@ -245,11 +245,14 @@ resource "aws_security_group" "main" {
     ipv6_cidr_blocks = ["::/0"]
   }
   ingress {
-    description = "Ingress only on container port"
-    from_port   = 8080
-    to_port     = 8080
-    protocol    = "TCP"
-    cidr_blocks = ["10.0.0.0/8"]
+    description      = "Ingress only on container port"
+    from_port        = 8080
+    to_port          = 8080
+    protocol         = "TCP"
+    cidr_blocks      = var.fleet_config.networking.ingress_sources.cidr_blocks
+    ipv6_cidr_blocks = var.fleet_config.networking.ingress_sources.ipv6_cidr_blocks
+    security_groups  = var.fleet_config.networking.ingress_sources.security_groups
+    prefix_list_ids  = var.fleet_config.networking.ingress_sources.prefix_list_ids
   }
 }
 
