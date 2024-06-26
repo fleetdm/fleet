@@ -2444,3 +2444,15 @@ func (svc *Service) DeleteMDMAppleAPNSCert(ctx context.Context) error {
 
 	return svc.ds.SaveAppConfig(ctx, appCfg)
 }
+
+////////////////////////////////////////////////////////////////////////////////
+// POST /mdm/apple/vpp_token
+////////////////////////////////////////////////////////////////////////////////
+
+type uploadMDMAppleVPPTokenRequest struct{}
+
+type uploadMDMAppleVPPTokenResponse struct{}
+
+func uploadMDMAppleVPPTokenEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	return nil, nil
+}
