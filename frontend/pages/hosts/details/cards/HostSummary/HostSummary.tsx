@@ -1,7 +1,7 @@
 import React from "react";
 import ReactTooltip from "react-tooltip";
 import classnames from "classnames";
-import { format } from "date-fns";
+import { formatInTimeZone } from "date-fns-tz";
 import {
   IHostMdmProfile,
   BootstrapPackageStatus,
@@ -359,7 +359,14 @@ const HostSummary = ({
       timezone,
     } = summaryData.maintenance_window as IHostMaintenanceWindow;
 
-    const prettyStartsAt = format(startsAt, DATE_FNS_FORMAT_STRINGS.dateAtTime);
+    const prettyStartsAt = formatInTimeZone(
+      startsAt,
+      // since startsAt is already localized and contains offset information, this 2nd parameter is
+      // logically redundant. It's included here to allow use of date-fns-tz.formatInTimeZone instead of date-fns.format, which
+      // allows us to format a UTC datetime without converting to the user-agent local time.
+      timezone || "UTC",
+      DATE_FNS_FORMAT_STRINGS.dateAtTime
+    );
 
     const tip = timezone ? (
       <>
