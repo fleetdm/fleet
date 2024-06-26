@@ -1197,3 +1197,21 @@ type HostLite struct {
 	DistributedInterval uint      `db:"distributed_interval"`
 	ConfigTLSRefresh    uint      `db:"config_tls_refresh"`
 }
+
+// IsEligibleForDEPMigration returns true if the host fulfills all requirements
+// for DEP migration from a third-party provider into Fleet.
+func IsEligibleForDEPMigration(host *Host, mdmInfo *HostMDM, isConnectedToFleetMDM bool) bool {
+	return mdmInfo != nil &&
+		host.IsOsqueryEnrolled() &&
+		host.IsDEPAssignedToFleet() &&
+		mdmInfo.HasJSONProfileAssigned() &&
+		mdmInfo.Enrolled &&
+		// as a special case for migration with user interaction, we
+		// also check the information stored in host_mdm, and assume
+		// the host needs migration if it's not Fleet
+		//
+		// this is because we can't always rely on nano setting
+		// `nano_enrollment.active = 1` since sometimes Fleet won't get
+		// the checkout message from the host.
+		(!isConnectedToFleetMDM || mdmInfo.Name != WellKnownMDMFleet)
+}

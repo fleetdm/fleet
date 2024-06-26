@@ -66,7 +66,7 @@ func (svc *Service) TriggerMigrateMDMDevice(ctx context.Context, host *fleet.Hos
 		return ctxerr.Wrap(ctx, err, "fetching host mdm info")
 	}
 
-	if !isEligibleForDEPMigration(host, mdmInfo, connected) {
+	if !fleet.IsEligibleForDEPMigration(host, mdmInfo, connected) {
 		bre.InternalErr = ctxerr.New(ctx, "host not eligible for macOS migration")
 	}
 
@@ -137,7 +137,7 @@ func (svc *Service) GetFleetDesktopSummary(ctx context.Context) (fleet.DesktopSu
 			sum.Notifications.RenewEnrollmentProfile = true
 		}
 
-		if isEligibleForDEPMigration(host, mdmInfo, connected) {
+		if fleet.IsEligibleForDEPMigration(host, mdmInfo, connected) {
 			sum.Notifications.NeedsMDMMigration = true
 		}
 	}
@@ -152,22 +152,4 @@ func (svc *Service) GetFleetDesktopSummary(ctx context.Context) (fleet.DesktopSu
 	sum.Config.MDM.MacOSMigration.Mode = appCfg.MDM.MacOSMigration.Mode
 
 	return sum, nil
-}
-
-// isEligibleForDEPMigration returns true if the host fulfills all requirements
-// for DEP migration from a third-party provider into Fleet.
-func isEligibleForDEPMigration(host *fleet.Host, mdmInfo *fleet.HostMDM, isConnectedToFleetMDM bool) bool {
-	return mdmInfo != nil &&
-		host.IsOsqueryEnrolled() &&
-		host.IsDEPAssignedToFleet() &&
-		mdmInfo.HasJSONProfileAssigned() &&
-		mdmInfo.Enrolled &&
-		// as a special case for migration with user interaction, we
-		// also check the information stored in host_mdm, and assume
-		// the host needs migration if it's not Fleet
-		//
-		// this is because we can't always rely on nano setting
-		// `nano_enrollment.active = 1` since sometimes Fleet won't get
-		// the checkout message from the host.
-		(!isConnectedToFleetMDM || mdmInfo.Name != fleet.WellKnownMDMFleet)
 }

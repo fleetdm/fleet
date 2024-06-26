@@ -341,14 +341,15 @@ func TestIsEligibleForDEPMigration(t *testing.T) {
 			host := &Host{
 				OsqueryHostID:      tc.osqueryHostID,
 				DEPAssignedToFleet: tc.depAssignedToFleet,
-				MDMInfo: &HostMDM{
-					Enrolled:               tc.enrolledInThirdPartyMDM,
-					Name:                   "Some MDM",
-					DEPProfileAssignStatus: ptr.String(string(tc.depProfileResponse)),
-				},
 			}
 
-			require.Equal(t, tc.expected, host.IsEligibleForDEPMigration(false))
+			mdmInfo := &HostMDM{
+				Enrolled:               tc.enrolledInThirdPartyMDM,
+				Name:                   "Some MDM",
+				DEPProfileAssignStatus: ptr.String(string(tc.depProfileResponse)),
+			}
+
+			require.Equal(t, tc.expected, IsEligibleForDEPMigration(host, mdmInfo, false))
 		})
 	}
 }
