@@ -4,6 +4,12 @@ You can configure Fleet to trigger automations that reserve time in your end use
 
 To learn how to use Fleet's maintenance windows, head to this [article](https://fleetdm.com/announcements/fleet-in-your-calendar-introducing-maintenance-windows). 
 
+## Activity automations
+
+Activity automations are triggered when an activity happens in Fleet (queries, scripts, logins, etc). See a list of all activities [here](https://fleetdm.com/docs/using-fleet/audit-logs).
+
+You can automatically send activites to a webhook URL or a [log destination](https://fleetdm.com/docs/configuration/fleet-server-configuration#external-activity-audit-logging).
+
 ## Policy automations
 
 Policy automations are triggered if a policy is newly failing on at least one host.
