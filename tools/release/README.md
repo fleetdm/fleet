@@ -39,13 +39,13 @@ example
 # - Merge changelog and versions update PR into main
 # - git pull main locally with the changelog as the latest commit
 
-# Tag main
-./tools/release/publish_release.sh -ag
+# Tag minor
+./tools/release/publish_release.sh -mg
 
 # - Wait for build to run
 
-# Publish main
-./tools/release/publish_release.sh -auq
+# Publish minor
+./tools/release/publish_release.sh -muq
 
 # - Wait for publish process to complete.
 # - Merge release article and wait for website to build.
@@ -54,9 +54,9 @@ example
 # - Go update osquery-slack version
 
 # Announce release
-# Change $current_version to the current version that was just released
-# For example, ./tools/release/publish_release.sh -anu -v 4.50.0
-./tools/release/publish_release.sh -anu -v {current_version}
+# Change {current_version} to the current version that was just released
+# For example, ./tools/release/publish_release.sh -mnu -v 4.50.0
+./tools/release/publish_release.sh -mnu -v {current_version}
 ```
 
 ...
