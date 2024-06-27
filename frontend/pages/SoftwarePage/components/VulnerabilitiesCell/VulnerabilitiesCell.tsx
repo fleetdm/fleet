@@ -17,11 +17,11 @@ const generateCell = (
   }
 
   let text = "";
-  let isGrayed = true;
+  let italicize = true;
   if (vulnerabilities.length === 0) {
     text = "---";
   } else if (vulnerabilities.length === 1) {
-    isGrayed = false;
+    italicize = false;
     text =
       typeof vulnerabilities[0] === "string"
         ? vulnerabilities[0]
@@ -30,7 +30,7 @@ const generateCell = (
     text = `${vulnerabilities.length} vulnerabilities`;
   }
 
-  return <TextCell value={text} greyAndItalic={isGrayed} />;
+  return <TextCell value={text} italic={italicize} />;
 };
 
 const getName = (vulnerabiltiy: ISoftwareVulnerability | string) => {
