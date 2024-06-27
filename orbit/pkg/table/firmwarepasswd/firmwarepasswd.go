@@ -56,7 +56,7 @@ func New(logger zerolog.Logger) *Table {
 		})
 
 	return &Table{
-		logger: logger,
+		logger: logger.With().Str("table", "firmwarepasswd").Logger(),
 		parser: parser,
 	}
 }

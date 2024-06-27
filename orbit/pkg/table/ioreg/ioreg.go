@@ -134,6 +134,7 @@ func (t *Table) generate(ctx context.Context, queryContext table.QueryContext) (
 
 func (t *Table) flattenOutput(dataQuery string, systemOutput []byte) ([]dataflatten.Row, error) {
 	flattenOpts := []dataflatten.FlattenOpts{
+		dataflatten.WithLogger(t.logger),
 		dataflatten.WithQuery(strings.Split(dataQuery, "/")),
 	}
 
