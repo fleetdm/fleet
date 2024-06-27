@@ -13,10 +13,8 @@ parasails.registerPage('homepage', {
   beforeMount: function() {
     //…
   },
-  mounted: async function(){
-    if(this.primaryBuyingSituation){
-      this.selectedCategory = this.primaryBuyingSituation;
-    }
+  mounted: async function() {
+    //…
   },
 
   //  ╦╔╗╔╔╦╗╔═╗╦═╗╔═╗╔═╗╔╦╗╦╔═╗╔╗╔╔═╗
