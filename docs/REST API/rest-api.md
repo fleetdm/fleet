@@ -9779,6 +9779,7 @@ By default, the user will be forced to reset its password upon first login.
   "name": "Jane Doe",
   "email": "janedoe@example.com",
   "password": "test-123",
+  "api_only": true,
   "teams": [
     {
       "id": 2,
@@ -9808,7 +9809,7 @@ By default, the user will be forced to reset its password upon first login.
     "force_password_reset": false,
     "gravatar_url": "",
     "sso_enabled": false,
-    "api_only": false,
+    "api_only": true,
     "global_role": null,
     "teams": [
       {
@@ -9820,9 +9821,12 @@ By default, the user will be forced to reset its password upon first login.
         "role": "maintainer"
       }
     ]
-  }
+  },
+  "token": "{API key}"
 }
 ```
+
+> Note: The new user's `token` (API key) is only included in the response after creating an api-only user (`api_only: true`).
 
 ##### User doesn't exist
 

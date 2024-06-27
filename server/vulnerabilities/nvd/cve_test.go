@@ -327,6 +327,13 @@ func TestTranslateCPEToCVE(t *testing.T) {
 			},
 			continuesToUpdate: true,
 		},
+		"cpe:2.3:a:microsoft:365_apps:16.0.17628.20144:*:*:*:*:windows:*:*": {
+			includedCVEs: []cve{
+				{ID: "CVE-2024-21402"},
+			},
+			excludedCVEs:      []string{"CVE-2011-5049"}, // OS vulnerability
+			continuesToUpdate: true,
+		},
 	}
 
 	cveOSTests := []struct {
