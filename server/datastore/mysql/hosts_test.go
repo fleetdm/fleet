@@ -9527,6 +9527,7 @@ func testListUpcomingHostMaintenanceWindows(t *testing.T, ds *Datastore) {
 
 	// call before any calendare events exist
 	mWs, err := ds.ListUpcomingHostMaintenanceWindows(ctx, host.ID)
+	require.NoError(t, err)
 	require.Empty(t, mWs)
 
 	// create an event
