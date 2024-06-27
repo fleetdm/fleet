@@ -2449,10 +2449,83 @@ func (svc *Service) DeleteMDMAppleAPNSCert(ctx context.Context) error {
 // POST /mdm/apple/vpp_token
 ////////////////////////////////////////////////////////////////////////////////
 
-type uploadMDMAppleVPPTokenRequest struct{}
+type uploadMDMAppleVPPTokenRequest struct {
+	File *multipart.FileHeader
+}
 
-type uploadMDMAppleVPPTokenResponse struct{}
+func (uploadMDMAppleVPPTokenRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+	decoded := uploadMDMAppleVPPTokenRequest{}
+
+	err := r.ParseMultipartForm(512 * units.MiB)
+	if err != nil {
+		return nil, &fleet.BadRequestError{
+			Message:     "failed to parse multipart form",
+			InternalErr: err,
+		}
+	}
+
+	if r.MultipartForm.File["token"] == nil || len(r.MultipartForm.File["token"]) == 0 {
+		return nil, &fleet.BadRequestError{
+			Message:     "token multipart field is required",
+			InternalErr: err,
+		}
+	}
+
+	decoded.File = r.MultipartForm.File["token"][0]
+
+	return &decoded, nil
+}
+
+type uploadMDMAppleVPPTokenResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r uploadMDMAppleVPPTokenResponse) Status() int { return http.StatusAccepted }
+
+func (r uploadMDMAppleVPPTokenResponse) error() error {
+	return r.Err
+}
 
 func uploadMDMAppleVPPTokenEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
-	return nil, nil
+	req := request.(*uploadMDMAppleVPPTokenRequest)
+	file, err := req.File.Open()
+	if err != nil {
+		return uploadMDMAppleAPNSCertResponse{Err: err}, nil
+	}
+	defer file.Close()
+
+	if err := svc.UploadMDMAppleVPPToken(ctx, file); err != nil {
+		return &uploadMDMAppleVPPTokenResponse{Err: err}, nil
+	}
+
+	return &uploadMDMAppleVPPTokenResponse{}, nil
+}
+
+func (svc *Service) UploadMDMAppleVPPToken(ctx context.Context, token io.ReadSeeker) error {
+	if err := svc.authz.Authorize(ctx, &fleet.AppleCSR{}, fleet.ActionWrite); err != nil {
+		return err
+	}
+
+	privateKey := svc.config.Server.PrivateKey
+	if testSetEmptyPrivateKey {
+		privateKey = ""
+	}
+
+	if len(privateKey) == 0 {
+		return ctxerr.New(ctx, "Couldn't upload VPP token. Missing required private key. Learn how to configure the private key here: https://fleetdm.com/learn-more-about/fleet-server-private-key")
+	}
+
+	tokenBytes, err := io.ReadAll(token)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "reading vpp token")
+	}
+
+	err = svc.ds.InsertMDMConfigAssets(ctx, []fleet.MDMConfigAsset{
+		{Name: fleet.MDMAssetVPPToken, Value: tokenBytes},
+	})
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "writing vpp token to db")
+	}
+
+	return nil
 }
