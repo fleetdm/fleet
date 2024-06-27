@@ -2296,7 +2296,7 @@ func (ds *Datastore) LoadHostByOrbitNodeKey(ctx context.Context, nodeKey string)
       h.orbit_node_key = ?`
 
 	var hostWithEnc hostWithEncryptionKeys
-	switch err := ds.getContextTryStmt(ctx, &hostWithEnc, query, fleet.UnknownMDMName, nodeKey); {
+	switch err := ds.getContextTryStmt(ctx, &hostWithEnc, query, nodeKey); {
 	case err == nil:
 		host := hostWithEnc.Host
 		if hostWithEnc.EncryptionKeyAvailable != nil {
@@ -2377,7 +2377,7 @@ func (ds *Datastore) LoadHostByDeviceAuthToken(ctx context.Context, authToken st
       hda.updated_at >= DATE_SUB(NOW(), INTERVAL ? SECOND)`
 
 	var host fleet.Host
-	switch err := ds.getContextTryStmt(ctx, &host, query, fleet.UnknownMDMName, authToken, tokenTTL.Seconds()); {
+	switch err := ds.getContextTryStmt(ctx, &host, query, authToken, tokenTTL.Seconds()); {
 	case err == nil:
 		return &host, nil
 	case errors.Is(err, sql.ErrNoRows):
