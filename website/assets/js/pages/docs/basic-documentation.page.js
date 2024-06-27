@@ -224,7 +224,7 @@ parasails.registerPage('basic-documentation', {
 
     clickSwagRequestCTA: function () {
       if(typeof gtag !== 'undefined') {
-        gtag('event','website_swag_request');
+        gtag('event','fleet_website__swag_request');
       }
       if(typeof window.lintrk !== 'undefined') {
         window.lintrk('track', { conversion_id: 18587105 });// eslint-disable-line camelcase
