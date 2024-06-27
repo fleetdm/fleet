@@ -1293,7 +1293,7 @@ type DataStore struct {
 	ListHostBatteriesFunc        ListHostBatteriesFunc
 	ListHostBatteriesFuncInvoked bool
 
-	ListUpcomingHostMaintenanceWindowsFunc	ListUpcomingHostMaintenanceWindowsFunc
+	ListUpcomingHostMaintenanceWindowsFunc        ListUpcomingHostMaintenanceWindowsFunc
 	ListUpcomingHostMaintenanceWindowsFuncInvoked bool
 
 	LoadHostByDeviceAuthTokenFunc        LoadHostByDeviceAuthTokenFunc
