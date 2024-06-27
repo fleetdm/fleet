@@ -2621,7 +2621,7 @@ WHERE h.uuid IN (?) AND %s
 		`, ds.whereFilterHostsByTeams(filter, "h"),
 	)
 
-	stmt, args, err := sqlx.In(stmt, fleet.UnknownMDMName, uuids)
+	stmt, args, err := sqlx.In(stmt, uuids)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "building query to select hosts by uuid")
 	}
