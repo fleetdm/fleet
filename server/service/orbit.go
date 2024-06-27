@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -488,6 +489,10 @@ func (svc *Service) SetOrUpdateDeviceAuthToken(ctx context.Context, deviceAuthTo
 
 	if len(deviceAuthToken) == 0 {
 		return badRequest("device auth token cannot be empty")
+	}
+
+	if url.QueryEscape(deviceAuthToken) != deviceAuthToken {
+		return badRequest("device auth token contains invalid characters")
 	}
 
 	host, ok := hostctx.FromContext(ctx)

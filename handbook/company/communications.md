@@ -163,7 +163,7 @@ It is important to [set your working hours](https://support.google.com/calendar/
 - Many team members use the free tier of [reclaim.ai](https://reclaim.ai/) to synchronize personal event times (without event details) into their work calendars. 
 It is also common practice to block out time for focused work.
 
-In an all-remote company, "face time" matters. Remember: even if someone's calendar is open, they have other work to do. Help each other by batching up internal meetings can enable longer, uninterrupted stretches of deep work.
+In an all-remote company, "face time" matters. Remember: even if someone's calendar is open, they have other work to do. Help each other by batching up internal meetings which enables longer, uninterrupted stretches of deep work.
 
 <img width="384" alt="image" src="https://github.com/fleetdm/fleet/assets/618009/0f453745-9ddc-4ae7-853a-2a73e3d2aa1a">
 
@@ -331,7 +331,7 @@ Labels with a `#g-` prefix refer to a kanban board. Since it is best practice to
 > - `bug-` Defect category. For example, `bug-enrollment`, `bug-profiles-sync`, `bug-policies`. This allows us to track the areas of the product producing the most bugs.
 > - `story` A user story.
 > -  `prospect-` A customer prospect.
-> - `P-` A [priority level](https://fleetdm.com/handbook/company/product-groups#high-priority-user-stories-and-bugs).
+> - `P-` A [priority level](https://fleetdm.com/handbook/company/communications#high-priority-user-stories-and-bugs).
 > - `Epic` Do not use. _(TODO: ZenHub automatically recreates this label when we group sub-tasks inside of a user story. Find a way to remove this. It is an artifact from Zenhub and not something we actually want to exist or use, as it is confusing.)_
 
 ### Process new requests
@@ -341,7 +341,38 @@ To process intake team members will:
 - Inspect each item in the "📨 New requests" column and understand the next steps needed to complete the task.
 - Indicate to the requestor when they can expect the task to be completed by placing each item in the appropriate column (e.g. Not yet, Planned, In progress) and estimate if necessary.
 - If the goal/user story is unclear, assign the issue to the requestor and at-mention them in an issue comment asking to clarify the intended action. 
-- If the task is to be backlogged (i.e. "Not yet"), place the issue in the "Not yet" column and at-mention the requestor in an issue comment. Explain why the task is unable to be prioritized and provide a tentative ETA on when the task will be completed.  
+- If the task is to be backlogged (i.e. "Not yet"), place the issue in the "Not yet" column and at-mention the requestor in an issue comment. Explain why the task is unable to be prioritized and provide a tentative ETA on when the task will be completed. 
+
+## High priority user stories and bugs
+All issues are treated as standard priority by default. Some issues are assigned a priority label to indicate the level of urgency.
+
+- Emergency: `P0`
+  - Examples: Customer outage, confirmed security vulnerability ([critical bug](https://fleetdm.com/handbook/company/product-groups#release-testing)), a new feature is needed to address an immediate Fleet emergency.
+  - Response: Immediately stop other work to swarm the issue. Work 24/7 in shifts until resolved.
+  - Impact: Significant impact. May void current sprint.
+
+- Critical: `P1`
+  - Examples: A supported workflow is broken ([critical bug](https://fleetdm.com/handbook/company/product-groups#release-testing)), a potential security vulnerability, a new feature is required to address an immediate critical Fleet need.
+  - Response: Issue brought to next standup for estimation and immediately brought into the sprint. Necessary team members are assigned as their top priority.
+  - Impact: High impact. Does not void sprint, but reduces overall velocity and requires deprioritizing other work.
+
+- Urgent: `P2`
+  - Examples: A supported workflow is not functioning as intended, a newly drafted feature has an associated urgent Fleet need.
+  - Response: Issue is prioritized at the top of the next sprint. If opporunity cost of waiting for the next sprint is too high, it may be considered for current sprint.
+  - Impact: Low to medium impact. If prioritized into current sprint, may reduce overall velocity and require deprioritizing other work.
+
+Any Fleetie can follow the process below to add a priority label to an issue.
+
+1. Add as much context as possible to the issue description and assign labels to help the team
+   understand the problem and what is driving the urgency. 
+2. Add the `P0`, `P1`, or `P2` label based on the urgency of the issue. 
+3. Comment on the GitHub issue explaining why the issue is a priority, and assign the issue to the
+   [DRI for what goes in a
+   release](https://fleetdm.com/handbook/company/communications#directly-responsible-individuals-dris).
+   For immediate action, follow up via Slack DM or by phone.
+4. The DRI for what goes in a release will review the issue to determine if it meets the criteria
+   for the assigned priority label. If so, they will assign the issue to the appropriate EM and PM. If not,
+   they will comment on the issue explaining why. 
 
 ### Estimation points
 Estimation points represent the effort required to complete a task. After accessing wireframes, we typically play planning poker, a gamified estimation technique, to determine the necessary story point value.
@@ -353,7 +384,7 @@ We use the following story points to estimate website tasks:
 | 1  | 1 to 2 hours  |
 | 2  | 2 to 4 hours  |
 | 3  | 1 day         |
-| 5  | 1 to 2 days   |
+| 5  | 2 to 3 days   |
 | 8  | Up to a week  |
 | 13 | 1 to 2 weeks  |
 

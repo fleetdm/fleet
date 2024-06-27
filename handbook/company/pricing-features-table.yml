@@ -659,10 +659,15 @@
   productCategories: [Device management]
   pricingTableCategories: [Device management]
   moreInfoUrl: https://github.com/fleetdm/fleet/issues/17587
-- industryName: License apps on macOS and iOS/iPadOS through Volume Purchasing Program (VPP).
+- industryName: Install Apple App Store apps through Volume Purchasing Program (VPP).
   description: Offer licenses for Photoshop and other App Sore apps for your end users.
   tier: Premium
-  comingSoonOn: 2024-07-15 #customer-rosner
+  comingSoonOn: 2024-08-11
+  waysToUse:
+    - description: macOS coming soon (2024-07-15). #customer-rosner
+      moreInfoUrl: https://github.com/fleetdm/fleet/issues/18867
+    - description: iOS/iPadOS coming soon (2024-08-11).
+      moreInfoUrl: https://github.com/fleetdm/fleet/issues/14899
   usualDepartment: IT
   productCategories: [Device management]
   pricingTableCategories: [Device management]

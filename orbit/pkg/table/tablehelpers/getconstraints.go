@@ -4,22 +4,21 @@ package tablehelpers
 import (
 	"strings"
 
-	"github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 	"github.com/osquery/osquery-go/plugin/table"
+	"github.com/rs/zerolog"
 )
 
 type constraintOptions struct {
 	allowedCharacters string
 	allowedValues     []string
 	defaults          []string
-	logger            log.Logger
+	logger            zerolog.Logger
 }
 
 type GetConstraintOpts func(*constraintOptions)
 
 // WithLogger sets the logger to use
-func WithLogger(logger log.Logger) GetConstraintOpts {
+func WithLogger(logger zerolog.Logger) GetConstraintOpts {
 	return func(co *constraintOptions) {
 		co.logger = logger
 	}
@@ -50,7 +49,7 @@ func WithAllowedValues(allowed []string) GetConstraintOpts {
 // a column. It's meant for the common, simple, usecase of iterating over them.
 func GetConstraints(queryContext table.QueryContext, columnName string, opts ...GetConstraintOpts) []string {
 	co := &constraintOptions{
-		logger: log.NewNopLogger(),
+		logger: zerolog.Nop(),
 	}
 
 	for _, opt := range opts {
@@ -67,11 +66,10 @@ func GetConstraints(queryContext table.QueryContext, columnName string, opts ...
 	for _, c := range q.Constraints {
 		// No point in checking allowed characters, if we have an allowedValues. Just use it.
 		if len(co.allowedValues) == 0 && !co.OnlyAllowedCharacters(c.Expression) {
-			level.Info(co.logger).Log(
-				"msg", "Disallowed character in expression",
-				"column", columnName,
-				"expression", c.Expression,
-			)
+			co.logger.Info().
+				Str("column", columnName).
+				Str("expression", c.Expression).
+				Msg("Disallowed character in expression")
 			continue
 		}
 
@@ -85,11 +83,10 @@ func GetConstraints(queryContext table.QueryContext, columnName string, opts ...
 			}
 
 			if skip {
-				level.Info(co.logger).Log(
-					"msg", "Disallowed value in expression",
-					"column", columnName,
-					"expression", c.Expression,
-				)
+				co.logger.Info().
+					Str("column", columnName).
+					Str("expression", c.Expression).
+					Msg("Disallowed value in expression")
 				continue
 			}
 		}

@@ -88,6 +88,7 @@ describe("Device User Page", () => {
         host,
         global_config: {
           mdm: { enabled_and_configured: true },
+          features: { enable_software_inventory: true },
         },
       });
 
@@ -104,6 +105,7 @@ describe("Device User Page", () => {
         host,
         global_config: {
           mdm: { enabled_and_configured: true },
+          features: { enable_software_inventory: true },
         },
       });
 
@@ -120,6 +122,7 @@ describe("Device User Page", () => {
         host,
         global_config: {
           mdm: { enabled_and_configured: false },
+          features: { enable_software_inventory: true },
         },
       });
 
@@ -137,6 +140,7 @@ describe("Device User Page", () => {
         host,
         global_config: {
           mdm: { enabled_and_configured: true },
+          features: { enable_software_inventory: true },
         },
       });
 

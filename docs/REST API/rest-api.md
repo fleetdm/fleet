@@ -2351,9 +2351,10 @@ Returns the information of the specified host.
 
 #### Parameters
 
-| Name | Type    | In   | Description                  |
-| ---- | ------- | ---- | ---------------------------- |
-| id   | integer | path | **Required**. The host's id. |
+| Name             | Type    | In    | Description                                                                         |
+|------------------|---------|-------|-------------------------------------------------------------------------------------|
+| id               | integer | path  | **Required**. The host's id.                                                        |
+| exclude_software | boolean | query | If `true`, the response will not include a list of installed software for the host. |
 
 #### Example
 
@@ -2448,7 +2449,6 @@ Returns the information of the specified host.
     "percent_disk_space_available": 74,
     "gigs_total_disk_space": 160,
     "disk_encryption_enabled": true,
-    "scripts_enabled": true,
     "users": [
       {
         "uid": 0,
@@ -9779,6 +9779,7 @@ By default, the user will be forced to reset its password upon first login.
   "name": "Jane Doe",
   "email": "janedoe@example.com",
   "password": "test-123",
+  "api_only": true,
   "teams": [
     {
       "id": 2,
@@ -9808,7 +9809,7 @@ By default, the user will be forced to reset its password upon first login.
     "force_password_reset": false,
     "gravatar_url": "",
     "sso_enabled": false,
-    "api_only": false,
+    "api_only": true,
     "global_role": null,
     "teams": [
       {
@@ -9820,9 +9821,12 @@ By default, the user will be forced to reset its password upon first login.
         "role": "maintainer"
       }
     ]
-  }
+  },
+  "token": "{API key}"
 }
 ```
+
+> Note: The new user's `token` (API key) is only included in the response after creating an api-only user (`api_only: true`).
 
 ##### User doesn't exist
 

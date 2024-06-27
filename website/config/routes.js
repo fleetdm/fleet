@@ -519,6 +519,7 @@ module.exports.routes = {
   'GET /learn-more-about/agent-options': '/docs/configuration/agent-configuration',
   'GET /learn-more-about/enable-user-collection': '/docs/using-fleet/gitops#features',
   'GET /learn-more-about/host-identifiers': '/docs/rest-api/rest-api#get-host-by-identifier',
+  'GET /learn-more-about/uninstall-fleetd': '/docs/using-fleet/faq#how-can-i-uninstall-fleetd',
 
   // Sitemap
   // =============================================================================================================
