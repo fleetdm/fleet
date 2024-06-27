@@ -801,6 +801,7 @@ func listSoftwareDB(
 			cve := fleet.CVE{
 				CVE:         cveID,
 				DetailsLink: fmt.Sprintf("https://nvd.nist.gov/vuln/detail/%s", cveID),
+				CreatedAt:   *result.CreatedAt,
 			}
 			if opts.IncludeCVEScores {
 				cve.CVSSScore = &result.CVSSScore
@@ -1000,6 +1001,7 @@ func selectSoftwareSQL(opts fleet.SoftwareListOptions) (string, []interface{}, e
 			"s.arch",
 			goqu.COALESCE(goqu.I("s.generated_cpe"), "").As("generated_cpe"),
 			"scv.cve",
+			"scv.created_at",
 		).
 		LeftJoin(
 			goqu.I("software_cve").As("scv"),

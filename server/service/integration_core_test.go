@@ -793,38 +793,65 @@ func (s *integrationTestSuite) TestVulnerableSoftware() {
 	require.NoError(t, err)
 	require.True(t, inserted)
 
-	resp := s.Do("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK)
-	bodyBytes, err := io.ReadAll(resp.Body)
-	require.NoError(t, err)
+	var hostResponse getHostResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &hostResponse)
 
-	expectedJSONSoft2 := `"name": "bar",
-        "version": "0.0.3",
-        "source": "apps",
-        "extension_id": "xyz",
-        "browser": "chrome",
-        "generated_cpe": "somecpe",
-        "vulnerabilities": [
-          {
-            "cve": "cve-123-123-132",
-            "details_link": "https://nvd.nist.gov/vuln/detail/cve-123-123-132"
-          }
-        ]`
-	expectedJSONSoft1 := `"name": "foo",
-        "version": "0.0.1",
-        "source": "chrome_extensions",
-        "extension_id": "abc",
-        "browser": "edge",
-        "generated_cpe": "",
-        "vulnerabilities": null`
-	// We are doing Contains instead of equals to test the output for software in particular
-	// ignoring other things like timestamps and things that are outside the cope of this ticket
-	assert.Contains(t, string(bodyBytes), expectedJSONSoft2)
-	assert.Contains(t, string(bodyBytes), expectedJSONSoft1)
+	assertSoftware := func(t *testing.T, software []fleet.HostSoftwareEntry, contains *fleet.Software) {
+		t.Helper()
+		var found bool
+		for _, s := range software {
+			if s.Name == contains.Name {
+				found = true
+				assert.Equal(t, s.Name, contains.Name)
+				assert.Equal(t, s.Version, contains.Version)
+				assert.Equal(t, s.Source, contains.Source)
+				assert.Equal(t, s.ExtensionID, contains.ExtensionID)
+				assert.Equal(t, s.Browser, contains.Browser)
+				assert.Equal(t, s.GenerateCPE, contains.GenerateCPE)
+				assert.Len(t, contains.Vulnerabilities, len(s.Vulnerabilities))
+				for i, vuln := range s.Vulnerabilities {
+					assert.Equal(t, vuln.CVE, contains.Vulnerabilities[i].CVE)
+					assert.Equal(t, vuln.DetailsLink, contains.Vulnerabilities[i].DetailsLink)
+				}
+			}
+		}
+		if !found {
+			t.Fatalf("software not found")
+		}
+	}
+
+	expectedSoft2 := &fleet.Software{
+		Name:        "bar",
+		Version:     "0.0.3",
+		Source:      "apps",
+		ExtensionID: "xyz",
+		Browser:     "chrome",
+		GenerateCPE: "somecpe",
+		Vulnerabilities: fleet.Vulnerabilities{
+			{
+				CVE:         "cve-123-123-132",
+				DetailsLink: "https://nvd.nist.gov/vuln/detail/cve-123-123-132",
+			},
+		},
+	}
+
+	expectedSoft1 := &fleet.Software{
+		Name:            "foo",
+		Version:         "0.0.1",
+		Source:          "chrome_extensions",
+		ExtensionID:     "abc",
+		Browser:         "edge",
+		GenerateCPE:     "",
+		Vulnerabilities: nil,
+	}
+
+	assertSoftware(t, hostResponse.Host.Software, expectedSoft1)
+	assertSoftware(t, hostResponse.Host.Software, expectedSoft2)
 
 	// no software host counts have been calculated yet, so this returns nothing
 	var lsResp listSoftwareResponse
-	resp = s.Do("GET", "/api/latest/fleet/software", nil, http.StatusOK, "vulnerable", "true", "order_key", "generated_cpe", "order_direction", "desc")
-	bodyBytes, err = io.ReadAll(resp.Body)
+	resp := s.Do("GET", "/api/latest/fleet/software", nil, http.StatusOK, "vulnerable", "true", "order_key", "generated_cpe", "order_direction", "desc")
+	bodyBytes, err := io.ReadAll(resp.Body)
 	require.NoError(t, err)
 	assert.Contains(t, string(bodyBytes), `"counts_updated_at": null`)
 	require.NoError(t, json.Unmarshal(bodyBytes, &lsResp))
