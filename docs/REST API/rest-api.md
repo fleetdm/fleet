@@ -60,7 +60,7 @@ Authenticates the user with the specified credentials. Use the token returned fr
 
 #### Parameters
 
-| Name     | Type   | In   | Description                                   |
+| Name     | Type   | In   | Deion                                   |
 | -------- | ------ | ---- | --------------------------------------------- |
 | email    | string | body | **Required**. The user's email.               |
 | password | string | body | **Required**. The user's plain text password. |
@@ -7721,7 +7721,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 - [Delete script](#delete-script)
 - [List scripts](#list-scripts)
 - [Get or download script](#get-or-download-script)
-- [Get script details by host](#get-script-details-by-host)
+- [Get script details by host](#get-hosts-scripts)
 
 ### Run script
 
