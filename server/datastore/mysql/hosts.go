@@ -2219,7 +2219,7 @@ func (ds *Datastore) LoadHostByNodeKey(ctx context.Context, nodeKey string) (*fl
 	}
 }
 
-type HostWithEncryptionKeys struct {
+type hostWithEncryptionKeys struct {
 	fleet.Host
 	EncryptionKeyAvailable *bool `db:"encryption_key_available"`
 }
@@ -2295,7 +2295,7 @@ func (ds *Datastore) LoadHostByOrbitNodeKey(ctx context.Context, nodeKey string)
     WHERE
       h.orbit_node_key = ?`
 
-	var hostWithEnc HostWithEncryptionKeys
+	var hostWithEnc hostWithEncryptionKeys
 	switch err := ds.getContextTryStmt(ctx, &hostWithEnc, query, fleet.UnknownMDMName, nodeKey); {
 	case err == nil:
 		host := hostWithEnc.Host
@@ -2611,18 +2611,9 @@ SELECT
 	h.policy_updated_at,
 	h.refetch_requested,
 	h.refetch_critical_queries_until,
-	IF(hdep.host_id AND ISNULL(hdep.deleted_at), true, false) AS dep_assigned_to_fleet,
-	`+hostWithMDMInfoSelect+`
+	IF(hdep.host_id AND ISNULL(hdep.deleted_at), true, false) AS dep_assigned_to_fleet
 FROM
 	hosts h
-LEFT OUTER JOIN
-	host_mdm hm
-ON
-	hm.host_id = h.id
-LEFT OUTER JOIN
-	mobile_device_management_solutions mdms
-ON
-	hm.mdm_id = mdms.id
 LEFT OUTER JOIN
 	host_dep_assignments hdep
 ON
@@ -2636,14 +2627,9 @@ WHERE h.uuid IN (?) AND %s
 		return nil, ctxerr.Wrap(ctx, err, "building query to select hosts by uuid")
 	}
 
-	var hostsWithMDM []*hostWithMDMInfo
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &hostsWithMDM, stmt, args...); err != nil {
+	var hosts []*fleet.Host
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &hosts, stmt, args...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "select hosts by uuid")
-	}
-
-	hosts := make([]*fleet.Host, 0, len(hostsWithMDM))
-	for _, h := range hostsWithMDM {
-		hosts = append(hosts, &h.Host)
 	}
 
 	return hosts, nil
