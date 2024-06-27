@@ -2219,28 +2219,10 @@ func (ds *Datastore) LoadHostByNodeKey(ctx context.Context, nodeKey string) (*fl
 	}
 }
 
-type hostWithMDMInfo struct {
+type HostWithEncryptionKeys struct {
 	fleet.Host
-	HostID                 *uint   `db:"host_id"`
-	Enrolled               *bool   `db:"enrolled"`
-	ServerURL              *string `db:"server_url"`
-	InstalledFromDep       *bool   `db:"installed_from_dep"`
-	IsServer               *bool   `db:"is_server"`
-	MDMID                  *uint   `db:"mdm_id"`
-	Name                   *string `db:"name"`
-	EncryptionKeyAvailable *bool   `db:"encryption_key_available"`
-	DEPProfileAssignStatus *string `db:"dep_profile_assign_status"`
+	EncryptionKeyAvailable *bool `db:"encryption_key_available"`
 }
-
-const hostWithMDMInfoSelect = `
-      hm.host_id,
-      hm.enrolled,
-      hm.server_url,
-      hm.installed_from_dep,
-      COALESCE(hm.is_server, false) AS is_server,
-      hm.mdm_id,
-      COALESCE(mdms.name, ?) AS name,
-      hdep.assign_profile_response AS dep_profile_assign_status`
 
 // LoadHostByOrbitNodeKey loads the whole host identified by the node key.
 // If the node key is invalid it returns a NotFoundError.
@@ -2291,22 +2273,13 @@ func (ds *Datastore) LoadHostByOrbitNodeKey(ctx context.Context, nodeKey string)
       IF(hdep.host_id AND ISNULL(hdep.deleted_at), true, false) AS dep_assigned_to_fleet,
       hd.encrypted as disk_encryption_enabled,
       COALESCE(hdek.decryptable, false) as encryption_key_available,
-      t.name as team_name,` +
-		hostWithMDMInfoSelect + `
+      t.name as team_name
     FROM
       hosts h
-    LEFT OUTER JOIN
-      host_mdm hm
-    ON
-      hm.host_id = h.id
     LEFT OUTER JOIN
       host_dep_assignments hdep
     ON
       hdep.host_id = h.id AND hdep.deleted_at IS NULL
-    LEFT OUTER JOIN
-      mobile_device_management_solutions mdms
-    ON
-      hm.mdm_id = mdms.id
     LEFT OUTER JOIN
       host_disk_encryption_keys hdek
     ON
@@ -2322,14 +2295,14 @@ func (ds *Datastore) LoadHostByOrbitNodeKey(ctx context.Context, nodeKey string)
     WHERE
       h.orbit_node_key = ?`
 
-	var hostWithMDM hostWithMDMInfo
-	switch err := ds.getContextTryStmt(ctx, &hostWithMDM, query, fleet.UnknownMDMName, nodeKey); {
+	var hostWithEnc HostWithEncryptionKeys
+	switch err := ds.getContextTryStmt(ctx, &hostWithEnc, query, fleet.UnknownMDMName, nodeKey); {
 	case err == nil:
-		host := hostWithMDM.Host
+		host := hostWithEnc.Host
 		// leave MDMInfo nil unless it has mdm information
-		if hostWithMDM.HostID != nil {
+		if hostWithEnc.EncryptionKeyAvailable != nil {
 			host.MDM = fleet.MDMHostData{
-				EncryptionKeyAvailable: *hostWithMDM.EncryptionKeyAvailable,
+				EncryptionKeyAvailable: *hostWithEnc.EncryptionKeyAvailable,
 			}
 		}
 		return &host, nil
@@ -2387,8 +2360,7 @@ func (ds *Datastore) LoadHostByDeviceAuthToken(ctx context.Context, authToken st
       COALESCE(hd.gigs_disk_space_available, 0) as gigs_disk_space_available,
       COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available,
       COALESCE(hd.gigs_total_disk_space, 0) as gigs_total_disk_space,
-      IF(hdep.host_id AND ISNULL(hdep.deleted_at), true, false) AS dep_assigned_to_fleet,` +
-		hostWithMDMInfoSelect + `
+      IF(hdep.host_id AND ISNULL(hdep.deleted_at), true, false) AS dep_assigned_to_fleet
     FROM
       host_device_auth hda
     INNER JOIN
@@ -2401,16 +2373,14 @@ func (ds *Datastore) LoadHostByDeviceAuthToken(ctx context.Context, authToken st
       host_mdm hm  ON hm.host_id = h.id
     LEFT OUTER JOIN
       host_dep_assignments hdep ON hdep.host_id = h.id AND hdep.deleted_at IS NULL
-    LEFT OUTER JOIN
-      mobile_device_management_solutions mdms ON hm.mdm_id = mdms.id
     WHERE
       hda.token = ? AND
       hda.updated_at >= DATE_SUB(NOW(), INTERVAL ? SECOND)`
 
-	var hostWithMDM hostWithMDMInfo
-	switch err := ds.getContextTryStmt(ctx, &hostWithMDM, query, fleet.UnknownMDMName, authToken, tokenTTL.Seconds()); {
+	var host fleet.Host
+	switch err := ds.getContextTryStmt(ctx, &host, query, fleet.UnknownMDMName, authToken, tokenTTL.Seconds()); {
 	case err == nil:
-		return &hostWithMDM.Host, nil
+		return &host, nil
 	case errors.Is(err, sql.ErrNoRows):
 		return nil, ctxerr.Wrap(ctx, notFound("Host"))
 	default:
