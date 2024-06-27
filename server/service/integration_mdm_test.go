@@ -1029,7 +1029,7 @@ func (s *integrationMDMTestSuite) uploadDataViaForm(endpoint string, fieldName, 
 }
 
 func (s *integrationMDMTestSuite) TestMDMVPPToken() {
-	// Invalid JSON
+	// Invalid base64
 	s.uploadDataViaForm("/api/latest/fleet/mdm/apple/vpp_token", "token", "token.vpptoken", []byte("foobar"), http.StatusUnprocessableEntity, "Invalid token. Please provide a valid content token from Apple Business Manager.")
 	// Invalid token
 	s.uploadDataViaForm("/api/latest/fleet/mdm/apple/vpp_token", "token", "token.vpptoken", []byte(`{"foo": "bar"}`), http.StatusUnprocessableEntity, "Invalid token. Please provide a valid content token from Apple Business Manager.")

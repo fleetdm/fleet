@@ -1291,7 +1291,7 @@ type Datastore interface {
 	// DeleteMDMConfigAssetsByName soft deletes the given MDM config assets.
 	DeleteMDMConfigAssetsByName(ctx context.Context, assetNames []MDMAssetName) error
 
-	UpsertMDMConfigAssets(ctx context.Context, assets []MDMConfigAsset) error
+	ReplaceMDMConfigAssets(ctx context.Context, assets []MDMConfigAsset) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Microsoft MDM

@@ -4226,34 +4226,13 @@ func decrypt(encrypted []byte, privateKey string) ([]byte, error) {
 }
 
 func (ds *Datastore) InsertMDMConfigAssets(ctx context.Context, assets []fleet.MDMConfigAsset) error {
-	stmt := `
-INSERT INTO mdm_config_assets
-  (name, value, md5_checksum)
-VALUES
-  %s`
-
-	var args []any
-	var insertVals strings.Builder
-
-	for _, a := range assets {
-		encryptedVal, err := encrypt(a.Value, ds.serverPrivateKey)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, fmt.Sprintf("encrypting mdm config asset %s", a.Name))
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		if err := insertMDMConfigAssets(ctx, tx, assets, ds.serverPrivateKey); err != nil {
+			return ctxerr.Wrap(ctx, err, "insert mdm config assets")
 		}
 
-		hexChecksum := md5ChecksumBytes(encryptedVal)
-		insertVals.WriteString(`(?, ?, UNHEX(?)),`)
-		args = append(args, a.Name, encryptedVal, hexChecksum)
-	}
-
-	stmt = fmt.Sprintf(stmt, strings.TrimSuffix(insertVals.String(), ","))
-
-	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		_, err := tx.ExecContext(ctx, stmt, args...)
-		return err
+		return nil
 	})
-
-	return ctxerr.Wrap(ctx, err, "writing mdm config assets to db")
 }
 
 func (ds *Datastore) GetAllMDMConfigAssetsByName(ctx context.Context, assetNames []fleet.MDMAssetName) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
@@ -4339,25 +4318,13 @@ WHERE name IN (?) AND deletion_uuid = ''`
 }
 
 func (ds *Datastore) DeleteMDMConfigAssetsByName(ctx context.Context, assetNames []fleet.MDMAssetName) error {
-	stmt := `
-UPDATE
-    mdm_config_assets
-SET
-    deleted_at = CURRENT_TIMESTAMP(),
-	deletion_uuid = ?
-WHERE
-    name IN (?) AND deletion_uuid = ''
-	`
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		if err := softDeleteMDMConfigAssetsByName(ctx, tx, assetNames); err != nil {
+			return ctxerr.Wrap(ctx, err, "delete mdm config assets by name")
+		}
 
-	deletionUUID := uuid.New().String()
-
-	stmt, args, err := sqlx.In(stmt, deletionUUID, assetNames)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "sqlx.In DeleteMDMConfigAssetsByName")
-	}
-
-	_, err = ds.writer(ctx).ExecContext(ctx, stmt, args...)
-	return ctxerr.Wrap(ctx, err, "deleting mdm config assets")
+		return nil
+	})
 }
 
 func softDeleteMDMConfigAssetsByName(ctx context.Context, tx sqlx.ExtContext, assetNames []fleet.MDMAssetName) error {
@@ -4375,7 +4342,7 @@ WHERE
 
 	stmt, args, err := sqlx.In(stmt, deletionUUID, assetNames)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "sqlx.In DeleteMDMConfigAssetsByName")
+		return ctxerr.Wrap(ctx, err, "sqlx.In softDeleteMDMConfigAssetsByName")
 	}
 
 	_, err = tx.ExecContext(ctx, stmt, args...)
@@ -4410,7 +4377,7 @@ VALUES
 	return ctxerr.Wrap(ctx, err, "writing mdm config assets to db")
 }
 
-func (ds *Datastore) UpsertMDMConfigAssets(ctx context.Context, assets []fleet.MDMConfigAsset) error {
+func (ds *Datastore) ReplaceMDMConfigAssets(ctx context.Context, assets []fleet.MDMConfigAsset) error {
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		var names []fleet.MDMAssetName
 		for _, a := range assets {

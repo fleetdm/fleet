@@ -2543,7 +2543,7 @@ func (svc *Service) UploadMDMAppleVPPToken(ctx context.Context, token io.ReadSee
 
 	// TODO(JVE): check against https://vpp.itunes.apple.com/mdm/v2/assets?
 
-	err = svc.ds.UpsertMDMConfigAssets(ctx, []fleet.MDMConfigAsset{
+	err = svc.ds.ReplaceMDMConfigAssets(ctx, []fleet.MDMConfigAsset{
 		{Name: fleet.MDMAssetVPPToken, Value: tokenBytes},
 	})
 	if err != nil {
