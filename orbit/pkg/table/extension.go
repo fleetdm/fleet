@@ -141,6 +141,9 @@ func OrbitDefaultTables() []osquery.OsqueryPlugin {
 		table.NewPlugin("sntp_request", sntp_request.Columns(), sntp_request.GenerateFunc),
 		fleetd_logs.TablePlugin(),
 
+		// Note: the logger passed here and to all other tables is the global logger from zerolog.
+		// This logger has already been configured with some required settings in
+		// orbit/cmd/orbit/orbit.go.
 		firefox_preferences.TablePlugin(log.Logger),
 		cryptoinfotable.TablePlugin(log.Logger),
 
