@@ -3,6 +3,7 @@ package mysql
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -565,4 +566,20 @@ ON DUPLICATE KEY UPDATE
 		}
 		return nil
 	})
+}
+
+func (ds *Datastore) HasSelfServiceSoftwareInstallers(ctx context.Context, teamID *uint) (bool, error) {
+	stmt := `SELECT 1 FROM software_installers WHERE self_service = 1 AND (global_or_team_id = 0`
+	var args []interface{}
+	if teamID != nil {
+		stmt += ` OR team_id = ?`
+		args = append(args, *teamID)
+	}
+	stmt += `)`
+	var hasInstallers bool
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &hasInstallers, stmt, args...)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return false, ctxerr.Wrap(ctx, err, "check for self-service software installers")
+	}
+	return hasInstallers, nil
 }

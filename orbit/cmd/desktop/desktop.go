@@ -302,6 +302,15 @@ func main() {
 					continue
 				}
 
+				// Check for null for backward compatibility with an old Fleet server
+				if sum.SelfService != nil {
+					if *sum.SelfService {
+						selfServiceItem.Enable()
+					} else {
+						selfServiceItem.Disable()
+					}
+				}
+
 				failingPolicies := 0
 				if sum.FailingPolicies != nil {
 					failingPolicies = int(*sum.FailingPolicies)
