@@ -13,7 +13,7 @@ const generateCell = (
   vulnerabilities: ISoftwareVulnerability[] | string[] | null
 ) => {
   if (vulnerabilities === null) {
-    return <TextCell value="---" greyed />;
+    return <TextCell value="---" greyAndItalic />;
   }
 
   let text = "";
@@ -30,7 +30,7 @@ const generateCell = (
     text = `${vulnerabilities.length} vulnerabilities`;
   }
 
-  return <TextCell value={text} greyed={isGrayed} />;
+  return <TextCell value={text} greyAndItalic={isGrayed} />;
 };
 
 const getName = (vulnerabiltiy: ISoftwareVulnerability | string) => {

@@ -34,7 +34,7 @@ const ReportUpdatedCell = ({
         // query runs, sends results to a logging dest, doesn't cache
         return (
           <TextCell
-            classes={`${baseClass}__value no-report`}
+            customClasses={`${baseClass}__value no-report`}
             formatter={(val) => {
               const tooltipId = uniqueId();
               return (
@@ -87,8 +87,8 @@ const ReportUpdatedCell = ({
                 </ReactTooltip>
               </>
             )}
-            greyed
-            classes={`${baseClass}__value`}
+            greyAndItalic
+            customClasses={`${baseClass}__value`}
           />
         );
       }
@@ -101,7 +101,7 @@ const ReportUpdatedCell = ({
           // last_fetched will be truthy at this point
           value={{ timeString: last_fetched ?? "" }}
           formatter={HumanTimeDiffWithFleetLaunchCutoff}
-          classes={`${baseClass}__value`}
+          customClasses={`${baseClass}__value`}
         />
       </>
     );
