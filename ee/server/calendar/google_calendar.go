@@ -548,6 +548,7 @@ func (c *GoogleCalendar) googleEventToFleetEvent(startTime time.Time, endTime ti
 	fleetEvent.StartTime = startTime
 	fleetEvent.EndTime = endTime
 	fleetEvent.Email = c.currentUserEmail
+	fleetEvent.TimeZone = c.timezone
 	details := &eventDetails{
 		ID:   event.Id,
 		ETag: event.Etag,
