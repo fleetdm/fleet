@@ -139,7 +139,7 @@ export interface IMunkiData {
   version: string;
 }
 
-type MacDiskEncryptionActionRequired = "log_out" | "rotate_key" | null;
+export type MacDiskEncryptionActionRequired = "log_out" | "rotate_key";
 
 export interface IOSSettings {
   disk_encryption: {
