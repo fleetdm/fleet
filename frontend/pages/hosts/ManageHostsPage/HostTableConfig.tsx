@@ -345,34 +345,23 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
     Cell: (cellProps: IDeviceUserCellProps) => {
       const numUsers = cellProps.cell.value?.length || 0;
       const users = condenseDeviceUsers(cellProps.cell.value || []);
-      if (users.length) {
-        const tooltipText = tooltipTextWithLineBreaks(users);
+      if (users.length > 1) {
         return (
-          <>
-            <span
-              className={`text-cell ${
-                users.length > 1 ? "text-muted tooltip" : ""
-              }`}
-              data-tip
-              data-for={`device_mapping__${cellProps.row.original.id}`}
-              data-tip-disable={users.length <= 1}
-            >
-              {numUsers === 1 ? users[0] : `${numUsers} users`}
-            </span>
-            <ReactTooltip
-              effect="solid"
-              backgroundColor={COLORS["tooltip-bg"]}
-              id={`device_mapping__${cellProps.row.original.id}`}
-              data-html
-              clickable
-              delayHide={300}
-            >
-              <span className={`tooltip__tooltip-text`}>{tooltipText}</span>
-            </ReactTooltip>
-          </>
+          <TooltipWrapper
+            tipContent={tooltipTextWithLineBreaks(users)}
+            underline={false}
+            showArrow
+            position="top"
+            tipOffset={10}
+          >
+            <TextCell italic value={`${numUsers} users`} />
+          </TooltipWrapper>
         );
       }
-      return <span className="text-muted">{DEFAULT_EMPTY_CELL_VALUE}</span>;
+      if (users.length === 1) {
+        return <TextCell value={users[0]} />;
+      }
+      return <TextCell />;
     },
   },
   {
