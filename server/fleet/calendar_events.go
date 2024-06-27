@@ -8,7 +8,7 @@ type CalendarEvent struct {
 	StartTime time.Time `db:"start_time"`
 	EndTime   time.Time `db:"end_time"`
 	Data      []byte    `db:"event"`
-	TimeZone  *string   `db:"timezone"`
+	TimeZone  string    `db:"timezone"`
 
 	UpdateCreateTimestamps
 }

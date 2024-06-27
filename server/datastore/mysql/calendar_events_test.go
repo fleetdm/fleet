@@ -55,12 +55,13 @@ func testUpdateCalendarEvent(t *testing.T, ds *Datastore) {
 
 	startTime1 := time.Now()
 	endTime1 := startTime1.Add(30 * time.Minute)
-	calendarEvent, err := ds.CreateOrUpdateCalendarEvent(ctx, "foo@example.com", startTime1, endTime1, []byte(`{}`), host.ID, fleet.CalendarWebhookStatusNone)
+	timeZone := "America/Argentina/Buenos_Aires"
+	calendarEvent, err := ds.CreateOrUpdateCalendarEvent(ctx, "foo@example.com", startTime1, endTime1, []byte(`{}`), timeZone, host.ID, fleet.CalendarWebhookStatusNone)
 	require.NoError(t, err)
 
 	time.Sleep(1 * time.Second)
 
-	err = ds.UpdateCalendarEvent(ctx, calendarEvent.ID, startTime1, endTime1, []byte(`{}`))
+	err = ds.UpdateCalendarEvent(ctx, calendarEvent.ID, startTime1, endTime1, []byte(`{}`), timeZone)
 	require.NoError(t, err)
 
 	calendarEvent2, err := ds.GetCalendarEvent(ctx, "foo@example.com")

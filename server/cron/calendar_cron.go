@@ -367,7 +367,7 @@ func processFailingHostExistingCalendarEvent(
 			updatedEvent.StartTime,
 			updatedEvent.EndTime,
 			updatedEvent.Data,
-			*updatedEvent.TimeZone,
+			updatedEvent.TimeZone,
 		); err != nil {
 			return fmt.Errorf("updating event calendar on db: %w", err)
 		}
@@ -450,7 +450,7 @@ func processFailingHostCreateCalendarEvent(
 		return fmt.Errorf("create event on user calendar: %w", err)
 	}
 	if _, err := ds.CreateOrUpdateCalendarEvent(
-		ctx, host.Email, calendarEvent.StartTime, calendarEvent.EndTime, calendarEvent.Data, *calendarEvent.TimeZone, host.HostID, fleet.CalendarWebhookStatusNone,
+		ctx, host.Email, calendarEvent.StartTime, calendarEvent.EndTime, calendarEvent.Data, calendarEvent.TimeZone, host.HostID, fleet.CalendarWebhookStatusNone,
 	); err != nil {
 		return fmt.Errorf("create calendar event on db: %w", err)
 	}
