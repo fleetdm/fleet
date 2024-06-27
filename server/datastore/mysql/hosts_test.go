@@ -9525,6 +9525,11 @@ func testListUpcomingHostMaintenanceWindows(t *testing.T, ds *Datastore) {
 	}, "google_chrome_profiles")
 	require.NoError(t, err)
 
+	// call before any calendare events exist
+	mWs, err := ds.ListUpcomingHostMaintenanceWindows(ctx, host.ID)
+	require.Empty(t, mWs)
+
+	// create an event
 	timeZone := "America/Argentina/Buenos_Aires"
 
 	startTime := time.Now().UTC().Add(30 * time.Minute)
@@ -9533,7 +9538,7 @@ func testListUpcomingHostMaintenanceWindows(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, calendarEvent.TimeZone, timeZone)
 
-	mWs, err := ds.ListUpcomingHostMaintenanceWindows(ctx, host.ID)
+	mWs, err = ds.ListUpcomingHostMaintenanceWindows(ctx, host.ID)
 	require.NoError(t, err)
 	require.Equal(t, 1, len(mWs))
 	mW := mWs[0]
