@@ -693,7 +693,7 @@ const PolicyForm = ({
   const noEditPermissions =
     isTeamObserver ||
     isGlobalObserver ||
-    (!isOnGlobalTeam && policyTeamId !== storedPolicy?.team_id); // Team user viewing inherited policy
+    (!isOnGlobalTeam && policyTeamId === null); // Team user viewing inherited policy
 
   // Render non-editable form only
   if (noEditPermissions) {
