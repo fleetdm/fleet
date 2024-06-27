@@ -355,7 +355,7 @@ const HostSummary = ({
     starts_at,
     timezone,
   }: IHostMaintenanceWindow) => {
-    const prettyStartsAt = formatInTimeZone(
+    const formattedStartsAt = formatInTimeZone(
       starts_at,
       // since startsAt is already localized and contains offset information, this 2nd parameter is
       // logically redundant. It's included here to allow use of date-fns-tz.formatInTimeZone instead of date-fns.format, which
@@ -382,7 +382,7 @@ const HostSummary = ({
       <DataSet
         title="Scheduled maintenance"
         value={
-          <TooltipWrapper tipContent={tip}>{prettyStartsAt}</TooltipWrapper>
+          <TooltipWrapper tipContent={tip}>{formattedStartsAt}</TooltipWrapper>
         }
       />
     );
