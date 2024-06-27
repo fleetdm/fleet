@@ -205,6 +205,7 @@ func main() {
 						myDeviceItem.SetTitle("My device")
 						myDeviceItem.Enable()
 						transparencyItem.Enable()
+						// Hide Self-Service for Free tier
 						selfServiceItem.Disable()
 						selfServiceItem.Hide()
 						return
