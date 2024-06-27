@@ -129,13 +129,13 @@ jobs:
         flags: backend
 
     - name: Generate summary of errors
-      if: github.event.schedule == '0 4 * * *' && failure()
+      if: failure()
       run: |
         c1grep() { grep "$@" || test $? = 1; }
         c1grep -oP 'FAIL: .*$' /tmp/gotest.log > /tmp/summary.txt
         c1grep 'test timed out after' /tmp/gotest.log >> /tmp/summary.txt
         c1grep 'fatal error:' /tmp/gotest.log >> /tmp/summary.txt
-        c1grep 'panic: runtime error: ' /tmp/gotest.log >> /tmp/summary.txt
+        c1grep -A 10 'panic: runtime error: ' /tmp/gotest.log >> /tmp/summary.txt
         c1grep ' FAIL\t' /tmp/gotest.log >> /tmp/summary.txt
         GO_FAIL_SUMMARY=$(head -n 5 /tmp/summary.txt | sed ':a;N;$!ba;s/\n/\\n/g')
         echo "GO_FAIL_SUMMARY=$GO_FAIL_SUMMARY"
