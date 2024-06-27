@@ -2299,7 +2299,6 @@ func (ds *Datastore) LoadHostByOrbitNodeKey(ctx context.Context, nodeKey string)
 	switch err := ds.getContextTryStmt(ctx, &hostWithEnc, query, fleet.UnknownMDMName, nodeKey); {
 	case err == nil:
 		host := hostWithEnc.Host
-		// leave MDMInfo nil unless it has mdm information
 		if hostWithEnc.EncryptionKeyAvailable != nil {
 			host.MDM = fleet.MDMHostData{
 				EncryptionKeyAvailable: *hostWithEnc.EncryptionKeyAvailable,
