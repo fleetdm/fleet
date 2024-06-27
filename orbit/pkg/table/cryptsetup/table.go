@@ -9,9 +9,8 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/dataflatten"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/dataflattentable"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/tablehelpers"
-	"github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 	"github.com/osquery/osquery-go/plugin/table"
+	"github.com/rs/zerolog"
 )
 
 var cryptsetupPaths = []string{
@@ -22,17 +21,17 @@ var cryptsetupPaths = []string{
 const allowedNameCharacters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-/_"
 
 type Table struct {
-	logger log.Logger
+	logger zerolog.Logger
 	name   string
 }
 
-func TablePlugin(logger log.Logger) *table.Plugin {
+func TablePlugin(logger zerolog.Logger) *table.Plugin {
 	columns := dataflattentable.Columns(
 		table.TextColumn("name"),
 	)
 
 	t := &Table{
-		logger: logger,
+		logger: logger.With().Str("table", "cryptsetup_status").Logger(),
 		name:   "cryptsetup_status",
 	}
 
@@ -54,20 +53,20 @@ func (t *Table) generate(ctx context.Context, queryContext table.QueryContext) (
 	for _, name := range requestedNames {
 		output, err := tablehelpers.Exec(ctx, t.logger, 15, cryptsetupPaths, []string{"--readonly", "status", name}, false)
 		if err != nil {
-			level.Debug(t.logger).Log("msg", "Error execing for status", "name", name, "err", err)
+			t.logger.Debug().Err(err).Str("name", name).Msg("Error execing for status")
 			continue
 		}
 
 		status, err := parseStatus(output)
 		if err != nil {
-			level.Info(t.logger).Log("msg", "Error parsing status", "name", name, "err", err)
+			t.logger.Info().Err(err).Str("name", name).Msg("Error parsing status")
 			continue
 		}
 
 		for _, dataQuery := range tablehelpers.GetConstraints(queryContext, "query", tablehelpers.WithDefaults("*")) {
 			flatData, err := t.flattenOutput(dataQuery, status)
 			if err != nil {
-				level.Info(t.logger).Log("msg", "flatten failed", "err", err)
+				t.logger.Info().Err(err).Msg("flatten failed")
 				continue
 			}
 

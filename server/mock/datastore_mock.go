@@ -363,6 +363,8 @@ type DeleteTeamFunc func(ctx context.Context, tid uint) error
 
 type TeamByNameFunc func(ctx context.Context, name string) (*fleet.Team, error)
 
+type TeamByFilenameFunc func(ctx context.Context, filename string) (*fleet.Team, error)
+
 type ListTeamsFunc func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, error)
 
 type TeamsSummaryFunc func(ctx context.Context) ([]*fleet.TeamSummary, error)
@@ -1491,6 +1493,9 @@ type DataStore struct {
 
 	TeamByNameFunc        TeamByNameFunc
 	TeamByNameFuncInvoked bool
+
+	TeamByFilenameFunc        TeamByFilenameFunc
+	TeamByFilenameFuncInvoked bool
 
 	ListTeamsFunc        ListTeamsFunc
 	ListTeamsFuncInvoked bool
@@ -3615,6 +3620,13 @@ func (s *DataStore) TeamByName(ctx context.Context, name string) (*fleet.Team, e
 	s.TeamByNameFuncInvoked = true
 	s.mu.Unlock()
 	return s.TeamByNameFunc(ctx, name)
+}
+
+func (s *DataStore) TeamByFilename(ctx context.Context, filename string) (*fleet.Team, error) {
+	s.mu.Lock()
+	s.TeamByFilenameFuncInvoked = true
+	s.mu.Unlock()
+	return s.TeamByFilenameFunc(ctx, filename)
 }
 
 func (s *DataStore) ListTeams(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, error) {

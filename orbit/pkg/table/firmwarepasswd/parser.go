@@ -5,8 +5,7 @@ import (
 	"bufio"
 	"bytes"
 
-	"github.com/go-kit/log"
-	"github.com/go-kit/log/level"
+	"github.com/rs/zerolog"
 )
 
 type Matcher struct {
@@ -17,10 +16,10 @@ type Matcher struct {
 
 type OutputParser struct {
 	matchers []Matcher
-	logger   log.Logger
+	logger   zerolog.Logger
 }
 
-func NewParser(logger log.Logger, matchers []Matcher) *OutputParser {
+func NewParser(logger zerolog.Logger, matchers []Matcher) *OutputParser {
 	p := &OutputParser{
 		matchers: matchers,
 		logger:   logger,
@@ -46,21 +45,13 @@ func (p *OutputParser) Parse(input *bytes.Buffer) []map[string]string {
 			if m.Match(line) {
 				key, err := m.KeyFunc(line)
 				if err != nil {
-					level.Debug(p.logger).Log(
-						"msg", "key match failed",
-						"line", line,
-						"err", err,
-					)
+					p.logger.Debug().Err(err).Str("line", line).Msg("key match failed")
 					continue
 				}
 
 				val, err := m.ValFunc(line)
 				if err != nil {
-					level.Debug(p.logger).Log(
-						"msg", "value match failed",
-						"line", line,
-						"err", err,
-					)
+					p.logger.Debug().Err(err).Str("line", line).Msg("value match failed")
 					continue
 				}
 
@@ -70,14 +61,14 @@ func (p *OutputParser) Parse(input *bytes.Buffer) []map[string]string {
 		}
 
 		if len(row) == 0 {
-			level.Debug(p.logger).Log("msg", "No matched keys", "line", line)
+			p.logger.Debug().Str("line", line).Msg("No matched keys")
 			continue
 		}
 		results = append(results, row)
 
 	}
 	if err := scanner.Err(); err != nil {
-		level.Debug(p.logger).Log("msg", "scanner error", "err", err)
+		p.logger.Debug().Err(err).Msg("scanner error")
 	}
 	return results
 }
