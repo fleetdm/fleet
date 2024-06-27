@@ -1124,38 +1124,53 @@ func upsertMDMAppleHostLabelMembershipDB(ctx context.Context, tx sqlx.ExtContext
 		ID   uint   `db:"id"`
 		Name string `db:"name"`
 	}{}
-	err := sqlx.SelectContext(ctx, tx, &labels, `SELECT id, name FROM labels WHERE label_type = 1 AND (name = 'All Hosts' OR name = 'macOS')`)
+	err := sqlx.SelectContext(ctx, tx, &labels, `SELECT id, name FROM labels WHERE label_type = 1 AND (name = 'All Hosts' OR name = 'macOS' OR name = 'iOS' OR name = 'iPadOS')`)
 	switch {
 	case err != nil:
 		return ctxerr.Wrap(ctx, err, "get builtin labels")
-	case len(labels) != 2:
+	case len(labels) != 4:
 		// Builtin labels can get deleted so it is important that we check that
 		// they still exist before we continue.
-		level.Error(logger).Log("err", fmt.Sprintf("expected 2 builtin labels but got %d", len(labels)))
+		level.Error(logger).Log("err", fmt.Sprintf("expected 4 builtin labels but got %d", len(labels)))
 		return nil
 	default:
 		// continue
 	}
 
-	// Put "All Hosts" label first (we don't want to make assumptions around ids of builtin labels).
-	labelIDs := make([]uint, 0, 2)
-	if labels[0].Name == "All Hosts" {
-		labelIDs = append(labelIDs, labels[0].ID, labels[1].ID)
-	} else {
-		labelIDs = append(labelIDs, labels[1].ID, labels[0].ID)
+	// We cannot assume IDs on labels, thus we look by name.
+	var (
+		allHostsLabelID uint
+		macOSLabelID    uint
+		iOSLabelID      uint
+		iPadOSLabelID   uint
+	)
+	for _, label := range labels {
+		switch label.Name {
+		case "All Hosts":
+			allHostsLabelID = label.ID
+		case "macOS":
+			macOSLabelID = label.ID
+		case "iOS":
+			iOSLabelID = label.ID
+		case "iPadOS":
+			iPadOSLabelID = label.ID
+		}
 	}
 
 	parts := []string{}
 	args := []interface{}{}
 	for _, h := range hosts {
-		// iOS/iPadOS devices only get the "All Hosts" label.
-		if h.Platform == "ios" || h.Platform == "ipados" {
-			parts = append(parts, "(?,?)")
-			args = append(args, h.ID, labelIDs[0])
-		} else { // macOS devices get both labels, "All Hosts" and "macOS".
-			parts = append(parts, "(?,?),(?,?)")
-			args = append(args, h.ID, labelIDs[0], h.ID, labelIDs[1])
+		var osLabel uint
+		switch h.Platform {
+		case "ios":
+			osLabel = iOSLabelID
+		case "ipados":
+			osLabel = iPadOSLabelID
+		default: // at this point, assume "darwin"
+			osLabel = macOSLabelID
 		}
+		parts = append(parts, "(?,?),(?,?)")
+		args = append(args, h.ID, allHostsLabelID, h.ID, osLabel)
 	}
 	_, err = tx.ExecContext(ctx, fmt.Sprintf(`
 			INSERT INTO label_membership (host_id, label_id) VALUES %s
@@ -2171,10 +2186,13 @@ func (ds *Datastore) UpdateOrDeleteHostMDMAppleProfile(ctx context.Context, prof
 	}
 
 	_, err := ds.writer(ctx).ExecContext(ctx, `
-          UPDATE host_mdm_apple_profiles
-          SET status = ?, operation_type = ?, detail = ?
-          WHERE host_uuid = ? AND command_uuid = ?
-        `, profile.Status, profile.OperationType, detail, profile.HostUUID, profile.CommandUUID)
+          UPDATE host_mdm_apple_profiles hmap
+		  JOIN hosts h ON hmap.host_uuid = h.uuid
+		  -- given we don't have osquery in iOS/iPadOS, we skip 'verifying' and go straight to 'verified'.
+		  SET hmap.status = IF((h.platform = 'ios' OR h.platform = 'ipados') AND ? = 'verifying', 'verified', ?), hmap.operation_type = ?, hmap.detail = ?
+	      WHERE hmap.host_uuid = ? AND hmap.command_uuid = ?;`,
+		profile.Status, profile.OperationType, detail, profile.HostUUID, profile.CommandUUID,
+	)
 	return err
 }
 
