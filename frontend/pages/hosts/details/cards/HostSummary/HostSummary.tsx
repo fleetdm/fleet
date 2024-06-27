@@ -351,16 +351,12 @@ const HostSummary = ({
     return <DataSet title="Osquery" value={summaryData.osquery_version} />;
   };
 
-  const renderMaintenanceWindow = () => {
-    const {
-      // a Date string
-      starts_at: startsAt,
-      // IANA timezone string, e.g. "America/Argentina/Buenos_Aires"
-      timezone,
-    } = summaryData.maintenance_window as IHostMaintenanceWindow;
-
+  const renderMaintenanceWindow = ({
+    starts_at,
+    timezone,
+  }: IHostMaintenanceWindow) => {
     const prettyStartsAt = formatInTimeZone(
-      startsAt,
+      starts_at,
       // since startsAt is already localized and contains offset information, this 2nd parameter is
       // logically redundant. It's included here to allow use of date-fns-tz.formatInTimeZone instead of date-fns.format, which
       // allows us to format a UTC datetime without converting to the user-agent local time.
@@ -372,7 +368,7 @@ const HostSummary = ({
       <>
         End user&apos;s time zone:
         <br />
-        (GMT{startsAt.slice(-6)}) {timezone.replace("_", " ")}
+        (GMT{starts_at.slice(-6)}) {timezone.replace("_", " ")}
       </>
     ) : (
       <>
@@ -477,8 +473,9 @@ const HostSummary = ({
         {!isIosOrIpadosHost && renderAgentSummary()}
         {isPremiumTier &&
           // TODO - this normalize empty values is annoying, fix it
+          !!summaryData.maintenance_window &&
           summaryData.maintenance_window !== "---" &&
-          renderMaintenanceWindow()}
+          renderMaintenanceWindow(summaryData.maintenance_window)}
       </Card>
     );
   };

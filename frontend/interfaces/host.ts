@@ -320,7 +320,7 @@ export interface IHost {
   users: IHostUser[];
   device_users?: IDeviceUser[];
   munki?: IMunkiData;
-  maintenance_window: IHostMaintenanceWindow | null;
+  maintenance_window?: IHostMaintenanceWindow;
   mdm: IHostMdmData;
   policies: IHostPolicy[];
   query_results?: unknown[];

@@ -102,7 +102,6 @@
     ],
     "status": "offline",
     "display_text": "test_host",
-    "display_name": "test_host",
-    "maintenance_window": null
+    "display_name": "test_host"
   }
 }
