@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20240617120944(t *testing.T) {
+func TestUp_20240626195531(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	// insert data to prev schema
