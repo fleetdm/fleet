@@ -1029,10 +1029,13 @@ func (s *integrationMDMTestSuite) uploadDataViaForm(endpoint string, fieldName, 
 }
 
 func (s *integrationMDMTestSuite) TestMDMVPPToken() {
-	// Invalid base64
+	// Invalid base64 string
 	s.uploadDataViaForm("/api/latest/fleet/mdm/apple/vpp_token", "token", "token.vpptoken", []byte("foobar"), http.StatusUnprocessableEntity, "Invalid token. Please provide a valid content token from Apple Business Manager.")
-	// Invalid token
-	s.uploadDataViaForm("/api/latest/fleet/mdm/apple/vpp_token", "token", "token.vpptoken", []byte(`{"foo": "bar"}`), http.StatusUnprocessableEntity, "Invalid token. Please provide a valid content token from Apple Business Manager.")
+
+	// Valid token
+	s.uploadDataViaForm("/api/latest/fleet/mdm/apple/vpp_token", "token", "token.vpptoken", []byte(base64.StdEncoding.EncodeToString([]byte(`{"expDate":"2025-06-24T15:50:50+0000","token":"mycooltoken","orgName":"Fleet Device Management Inc."}`))), http.StatusAccepted, "")
+
+	s.Do("DELETE", "/api/latest/fleet/mdm/apple/vpp_token", &deleteMDMAppleVPPTokenRequest{}, http.StatusOK)
 }
 
 func (s *integrationMDMTestSuite) TestMDMAppleUnenroll() {

@@ -2529,12 +2529,12 @@ func (svc *Service) UploadMDMAppleVPPToken(ctx context.Context, token io.ReadSee
 	// Check that it's base64 encoded
 	decodedBytes, err := base64.StdEncoding.DecodeString(string(tokenBytes))
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "Invalid token. Please provide a valid content token from Apple Business Manager.")
+		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("token", "Invalid token. Please provide a valid content token from Apple Business Manager."))
 	}
 
 	slog.With("filename", "server/service/mdm.go", "func", "UploadMDMAppleVPPToken").Info("JVE_LOG: parsed JWT ", "token", string(decodedBytes))
 
-	// Check that it has the right fields
+	// TODO(JVE): should we check that it has the right fields?
 	var t fleet.VPPTokenRaw
 	err = json.Unmarshal(decodedBytes, &t)
 	if err != nil {
@@ -2552,6 +2552,10 @@ func (svc *Service) UploadMDMAppleVPPToken(ctx context.Context, token io.ReadSee
 
 	return nil
 }
+
+////////////////////////////////////////////////////////////////////////////////
+// GET /vpp
+////////////////////////////////////////////////////////////////////////////////
 
 type getMDMAppleVPPTokenRequest struct{}
 
@@ -2574,4 +2578,32 @@ func (svc *Service) GetMDMAppleVPPToken(ctx context.Context) (*fleet.VPPTokenInf
 	}
 
 	return nil, nil
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// DELETE /mdm/apple/vpp_token
+////////////////////////////////////////////////////////////////////////////////
+
+type deleteMDMAppleVPPTokenRequest struct{}
+
+type deleteMDMAppleVPPTokenResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r deleteMDMAppleVPPTokenResponse) error() error { return r.Err }
+
+func deleteMDMAppleVPPTokenEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	if err := svc.DeleteMDMAppleVPPToken(ctx); err != nil {
+		return &deleteMDMAppleVPPTokenResponse{Err: err}, nil
+	}
+
+	return &deleteMDMAppleVPPTokenResponse{}, nil
+}
+
+func (svc *Service) DeleteMDMAppleVPPToken(ctx context.Context) error {
+	if err := svc.authz.Authorize(ctx, &fleet.AppleCSR{}, fleet.ActionWrite); err != nil {
+		return err
+	}
+
+	return svc.ds.DeleteMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetVPPToken})
 }
