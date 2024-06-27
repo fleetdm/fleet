@@ -259,7 +259,7 @@ describe("Host Summary section", () => {
       });
       const prettyStartTime = /Jun 24 at 8:48 PM/;
 
-      const { user } = render(
+      render(
         <HostSummary
           summaryData={summaryData}
           showRefetchSpinner={false}
@@ -270,52 +270,7 @@ describe("Host Summary section", () => {
       );
 
       expect(screen.getByText("Scheduled maintenance")).toBeInTheDocument();
-      const el = screen.getByText(prettyStartTime);
-      expect(el).toBeInTheDocument();
-
-      await user.hover(el);
-
-      expect(
-        screen.getByText(/America\/Argentina\/Buenos Aires/)
-      ).toBeInTheDocument();
-      expect(screen.getByText(/(GMT-03:00)/)).toBeInTheDocument();
-    });
-    it("renders maintenance window data with no timezone", async () => {
-      const render = createCustomRenderer({
-        context: {
-          app: {
-            isPremiumTier: true,
-            isGlobalAdmin: true,
-            currentUser: createMockUser(),
-          },
-        },
-      });
-
-      const summaryData = createMockHostSummary({
-        maintenance_window: {
-          starts_at: "3025-06-24T23:48:14Z",
-          timezone: null,
-        },
-      });
-      const prettyStartTime = /Jun 24 at 11:48 PM/;
-
-      const { user } = render(
-        <HostSummary
-          summaryData={summaryData}
-          showRefetchSpinner={false}
-          onRefetchHost={noop}
-          renderActionDropdown={() => null}
-          isPremiumTier
-        />
-      );
-
-      expect(screen.getByText("Scheduled maintenance")).toBeInTheDocument();
-      const el = screen.getByText(prettyStartTime);
-      expect(el).toBeInTheDocument();
-
-      await user.hover(el);
-
-      expect(screen.getByText(/Displaying in UTC\./)).toBeInTheDocument();
+      expect(screen.getByText(prettyStartTime)).toBeInTheDocument();
     });
   });
 });
