@@ -56,6 +56,7 @@ func (t *Table) generate(ctx context.Context, queryContext table.QueryContext) (
 	gcOpts := []tablehelpers.GetConstraintOpts{
 		tablehelpers.WithDefaults(""),
 		tablehelpers.WithAllowedCharacters(allowedCharacters),
+		tablehelpers.WithLogger(t.logger),
 	}
 
 	for _, ioC := range tablehelpers.GetConstraints(queryContext, "c", gcOpts...) {
