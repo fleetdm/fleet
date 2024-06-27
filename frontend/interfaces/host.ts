@@ -240,6 +240,7 @@ export interface IDeviceUserResponse {
   disk_encryption_enabled?: boolean;
   platform?: string;
   global_config: IDeviceGlobalConfig;
+  self_service: boolean;
 }
 
 export interface IHostEncrpytionKeyResponse {
