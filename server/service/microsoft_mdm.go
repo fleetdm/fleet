@@ -19,6 +19,7 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/fleetdbase"
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
@@ -1312,6 +1313,11 @@ func (svc *Service) enqueueInstallFleetdCommand(ctx context.Context, deviceID st
 		return nil
 	}
 
+	fleetdMetadata, err := fleetdbase.GetMetadata()
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting fleetd-base metadata")
+	}
+
 	appCfg, err := svc.ds.AppConfig(ctx)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "getting app config")
@@ -1346,11 +1352,11 @@ func (svc *Service) enqueueInstallFleetdCommand(ctx context.Context, deviceID st
 			<Product Version="1.0.0.0">
 				<Download>
 					<ContentURLList>
-						<ContentURL>https://download.fleetdm.com/fleetd-base.msi</ContentURL>
+						<ContentURL>` + fleetdMetadata.MSIURL + `</ContentURL>
 					</ContentURLList>
 				</Download>
 				<Validation>
-					<FileHash>9F89C57D1B34800480B38BD96186106EB6418A82B137A0D56694BF6FFA4DDF1A</FileHash>
+					<FileHash>` + fleetdMetadata.MSISha256 + `</FileHash>
 				</Validation>
 				<Enforcement>
 					<CommandLine>/quiet FLEET_URL="` + fleetURL + `" FLEET_SECRET="` + globalEnrollSecret + `" ENABLE_SCRIPTS="True"</CommandLine>

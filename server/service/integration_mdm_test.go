@@ -32,6 +32,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/file"
+	"github.com/fleetdm/fleet/v4/pkg/fleetdbase"
 	"github.com/fleetdm/fleet/v4/pkg/mdm/mdmtest"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/bindata"
@@ -301,6 +302,28 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 		_, _ = w.Write(resp)
 	}))
 	s.T().Setenv("TEST_FLEETDM_API_URL", fleetdmSrv.URL)
+	s.T().Cleanup(fleetdmSrv.Close)
+
+	downloadFleetdmSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		metadata := &fleetdbase.Metadata{
+			MSIURL:           "https://download-testing.fleetdm.com/archive/stable/2024-06-25_03-01-17/fleetd-base.msi",
+			MSISha256:        "456e4f16c437c54d4cfacb54717450f4be582e572b8a7252a0384ac3118fbd11",
+			PKGURL:           "https://download-testing.fleetdm.com/archive/stable/2024-06-25_03-01-17/fleetd-base.pkg",
+			PKGSha256:        "4c914def2af5f4e0f5507e397d1d8af5b5991ea23cf606450787b8377e7bcecd",
+			ManifestPlistURL: "https://download-testing.fleetdm.com/archive/stable/2024-06-25_03-01-17/fleetd-base-manifest.plist",
+			Version:          "2024-06-25_03-01-17",
+		}
+
+		switch r.URL.Path {
+		case "/stable/meta.json":
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			require.NoError(s.T(), json.NewEncoder(w).Encode(metadata))
+
+		}
+	}))
+	s.T().Setenv("FLEET_DEV_DOWNLOAD_FLEETDM_URL", downloadFleetdmSrv.URL)
+	s.T().Cleanup(downloadFleetdmSrv.Close)
 
 	appConf, err = s.ds.AppConfig(context.Background())
 	require.NoError(s.T(), err)
@@ -311,8 +334,6 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	// enable MDM flows
 	s.appleCoreCertsSetup()
 	s.enableABM()
-
-	s.T().Cleanup(fleetdmSrv.Close)
 }
 
 func (s *integrationMDMTestSuite) TearDownSuite() {
@@ -7822,7 +7843,7 @@ func (s *integrationMDMTestSuite) TestManualEnrollmentCommands() {
 			if manifest := fullCmd.Command.InstallEnterpriseApplication.ManifestURL; manifest != nil {
 				foundInstallFleetdCommand = true
 				require.Equal(t, "InstallEnterpriseApplication", cmd.Command.RequestType)
-				require.Contains(t, *fullCmd.Command.InstallEnterpriseApplication.ManifestURL, apple_mdm.FleetdPublicManifestURL)
+				require.Contains(t, *fullCmd.Command.InstallEnterpriseApplication.ManifestURL, fleetdbase.GetPKGManifestURL())
 			}
 			cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
 			require.NoError(t, err)
