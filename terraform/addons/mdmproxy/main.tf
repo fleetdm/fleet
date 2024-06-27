@@ -1,8 +1,33 @@
 data "aws_region" "current" {}
 
+resource "aws_security_group" "mdmproxy" {
+  count       = var.config.security_groups == null ? 1 : 0
+  name        = var.config.security_group_name
+  description = "Fleet ECS Service Security Group"
+  vpc_id      = var.vpc_id
+  egress {
+    description      = "Egress to all"
+    from_port        = 0
+    to_port          = 0
+    protocol         = "-1"
+    cidr_blocks      = ["0.0.0.0/0"]
+    ipv6_cidr_blocks = ["::/0"]
+  }
+  ingress {
+    description      = "Ingress only on container port"
+    from_port        = 8080
+    to_port          = 8080
+    protocol         = "TCP"
+    cidr_blocks      = var.config.networking.ingress_sources.cidr_blocks
+    ipv6_cidr_blocks = var.config.networking.ingress_sources.ipv6_cidr_blocks
+    security_groups  = concat(var.config.networking.ingress_sources.security_groups, [aws_security_group.alb.id])
+    prefix_list_ids  = var.config.networking.ingress_sources.prefix_list_ids
+  }
+}
+
 module "alb" {
   source  = "terraform-aws-modules/alb/aws"
-  version = "8.2.1"
+  version = "8.3.0"
 
   name = var.alb_config.name
 
