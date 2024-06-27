@@ -2525,6 +2525,16 @@ Returns the information of the specified host.
         "critical": false
       },
       {
+        "id": 3,
+        "name": "SomeQuery4",
+        "query": "SELECT * FROM baz;",
+        "description": "",
+        "resolution": "",
+        "platform": "",
+        "response": "error",
+        "critical": false
+      },
+      {
         "id": 1,
         "name": "SomeQuery",
         "query": "SELECT * FROM foo;",
