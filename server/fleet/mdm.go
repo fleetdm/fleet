@@ -631,3 +631,15 @@ func FilterMacOSOnlyProfilesFromIOSIPadOS(profiles []*MDMAppleProfilePayload) []
 
 // RefetchCommandUUIDPrefix is the prefix used for MDM commands used to refetch information from iOS/iPadOS devices.
 const RefetchCommandUUIDPrefix = "REFETCH-"
+
+type VPPTokenInfo struct {
+	OrgName   string    `json:"org_name"`
+	RenewDate time.Time `json:"renew_date"` // TODO(JVE): where does this come from? it doesn't appear to be on the actual token.
+	Location  string    `json:"location"`   // TODO(JVE): where does this come from? it doesn't appear to be on the actual token.
+}
+
+type VPPTokenRaw struct {
+	OrgName string `json:"orgName"`
+	Token   string `json:"token"`
+	ExpDate string `json:"expDate"` // TODO(JVE): this might require a custom unmarshaler. see https://stackoverflow.com/questions/25087960/json-unmarshal-time-that-isnt-in-rfc-3339-format
+}

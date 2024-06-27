@@ -704,6 +704,7 @@ type Service interface {
 	DeleteMDMAppleAPNSCert(ctx context.Context) error
 
 	UploadMDMAppleVPPToken(ctx context.Context, token io.ReadSeeker) error
+	GetMDMAppleVPPToken(ctx context.Context) (*VPPTokenInfo, error)
 
 	// GetHostDEPAssignment retrieves the host DEP assignment for the specified host.
 	GetHostDEPAssignment(ctx context.Context, host *Host) (*HostDEPAssignment, error)

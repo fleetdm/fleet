@@ -973,6 +973,7 @@ func (s *integrationMDMTestSuite) TestGetMDMCSR() {
 	s.appleCoreCertsSetup()
 }
 
+// TODO(JVE): replace this with the more generic version below
 func (s *integrationMDMTestSuite) uploadAPNSCert(pemBytes []byte, expectedStatus int, wantErr string) {
 	t := s.T()
 
@@ -998,6 +999,40 @@ func (s *integrationMDMTestSuite) uploadAPNSCert(pemBytes []byte, expectedStatus
 		errMsg := extractServerErrorText(res.Body)
 		assert.Contains(t, errMsg, wantErr)
 	}
+}
+
+func (s *integrationMDMTestSuite) uploadDataViaForm(endpoint string, fieldName, fileName string, data []byte, expectedStatus int, wantErr string) {
+	t := s.T()
+
+	var b bytes.Buffer
+	w := multipart.NewWriter(&b)
+
+	// add the package field
+	fw, err := w.CreateFormFile(fieldName, fileName)
+	require.NoError(t, err)
+	_, err = io.Copy(fw, bytes.NewBuffer(data))
+	require.NoError(t, err)
+
+	w.Close()
+
+	headers := map[string]string{
+		"Content-Type":  w.FormDataContentType(),
+		"Accept":        "application/json",
+		"Authorization": fmt.Sprintf("Bearer %s", s.token),
+	}
+
+	res := s.DoRawWithHeaders("POST", endpoint, b.Bytes(), expectedStatus, headers)
+	if wantErr != "" {
+		errMsg := extractServerErrorText(res.Body)
+		assert.Contains(t, errMsg, wantErr)
+	}
+}
+
+func (s *integrationMDMTestSuite) TestMDMVPPToken() {
+	// Invalid JSON
+	s.uploadDataViaForm("/api/latest/fleet/mdm/apple/vpp_token", "token", "token.vpptoken", []byte("foobar"), http.StatusUnprocessableEntity, "Invalid token. Please provide a valid content token from Apple Business Manager.")
+	// Invalid token
+	s.uploadDataViaForm("/api/latest/fleet/mdm/apple/vpp_token", "token", "token.vpptoken", []byte(`{"foo": "bar"}`), http.StatusUnprocessableEntity, "Invalid token. Please provide a valid content token from Apple Business Manager.")
 }
 
 func (s *integrationMDMTestSuite) TestMDMAppleUnenroll() {
@@ -6369,7 +6404,7 @@ func (s *integrationMDMTestSuite) TestRunMDMCommands() {
 
 	// create a Windows host enrolled in MDM
 	enrolledWindows := createOrbitEnrolledHost(t, "windows", "h1", s.ds)
-	//deviceID := "DB257C3A08778F4FB61E2749066C1F27"
+	// deviceID := "DB257C3A08778F4FB61E2749066C1F27"
 	mdmDevice := mdmtest.NewTestMDMClientWindowsProgramatic(s.server.URL, *enrolledWindows.OrbitNodeKey)
 	err := mdmDevice.Enroll()
 	require.NoError(t, err)
@@ -8212,7 +8247,6 @@ func (s *integrationMDMTestSuite) TestLockUnlockWipeMacOS() {
 
 	// lock the host without viewing the PIN
 	s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/lock", host.ID), nil, http.StatusNoContent)
-
 }
 
 func (s *integrationMDMTestSuite) TestZCustomConfigurationWebURL() {

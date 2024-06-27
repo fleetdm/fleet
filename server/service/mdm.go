@@ -6,11 +6,13 @@ import (
 	"crypto/rsa"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/base64"
 	"encoding/json"
 	"encoding/pem"
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"mime/multipart"
 	"net/http"
 	"path/filepath"
@@ -2512,7 +2514,11 @@ func (svc *Service) UploadMDMAppleVPPToken(ctx context.Context, token io.ReadSee
 	}
 
 	if len(privateKey) == 0 {
-		return ctxerr.New(ctx, "Couldn't upload VPP token. Missing required private key. Learn how to configure the private key here: https://fleetdm.com/learn-more-about/fleet-server-private-key")
+		return ctxerr.New(ctx, "Couldn't upload content token. Missing required private key. Learn how to configure the private key here: https://fleetdm.com/learn-more-about/fleet-server-private-key")
+	}
+
+	if token == nil {
+		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("token", "Invalid token. Please provide a valid content token from Apple Business Manager."))
 	}
 
 	tokenBytes, err := io.ReadAll(token)
@@ -2520,7 +2526,24 @@ func (svc *Service) UploadMDMAppleVPPToken(ctx context.Context, token io.ReadSee
 		return ctxerr.Wrap(ctx, err, "reading vpp token")
 	}
 
-	err = svc.ds.InsertMDMConfigAssets(ctx, []fleet.MDMConfigAsset{
+	// Check that it's base64 encoded
+	decodedBytes, err := base64.StdEncoding.DecodeString(string(tokenBytes))
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "Invalid token. Please provide a valid content token from Apple Business Manager.")
+	}
+
+	slog.With("filename", "server/service/mdm.go", "func", "UploadMDMAppleVPPToken").Info("JVE_LOG: parsed JWT ", "token", string(decodedBytes))
+
+	// Check that it has the right fields
+	var t fleet.VPPTokenRaw
+	err = json.Unmarshal(decodedBytes, &t)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "Invalid token. Please provide a valid content token from Apple Business Manager.")
+	}
+
+	// TODO(JVE): check against https://vpp.itunes.apple.com/mdm/v2/assets?
+
+	err = svc.ds.UpsertMDMConfigAssets(ctx, []fleet.MDMConfigAsset{
 		{Name: fleet.MDMAssetVPPToken, Value: tokenBytes},
 	})
 	if err != nil {
@@ -2528,4 +2551,27 @@ func (svc *Service) UploadMDMAppleVPPToken(ctx context.Context, token io.ReadSee
 	}
 
 	return nil
+}
+
+type getMDMAppleVPPTokenRequest struct{}
+
+type getMDMAppleVPPTokenResponse struct {
+	*fleet.VPPTokenInfo
+	Err error `json:"error,omitempty"`
+}
+
+func (r getMDMAppleVPPTokenResponse) error() error {
+	return r.Err
+}
+
+func getMDMAppleVPPTokenEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	return nil, nil
+}
+
+func (svc *Service) GetMDMAppleVPPToken(ctx context.Context) (*fleet.VPPTokenInfo, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.AppleCSR{}, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+
+	return nil, nil
 }
