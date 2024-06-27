@@ -50,7 +50,7 @@
           <strong>“Zero” trust, fewer tickets</strong>
           <p>You can use Fleet’s API to customize every aspect of conditional access – even the stuff your CISO hasn’t thought of yet.</p>
           <div>
-            <a purpose="category-button" class="text-nowrap btn btn-primary" href="/device-management">Start with device management</a>
+            <a purpose="animated-arrow-button-red" class="text-nowrap" href="/device-management">Start with device management</a>
           </div>
         </div>
       </div>
@@ -68,7 +68,7 @@
           <strong>Osquery on easy mode</strong>
           <p>Use "read-only" mode or enable remote scripting to automate anything on every operating system, including Linux.</p>
           <div>
-            <a purpose="category-button" class="text-nowrap btn btn-primary" href="/endpoint-ops">Start with endpoint ops</a>
+            <a purpose="animated-arrow-button-red" class="text-nowrap" href="/endpoint-ops">Start with endpoint ops</a>
           </div>
         </div>
       </div>
@@ -86,7 +86,7 @@
           <strong>Untangle your security stack</strong>
           <p>Use open data and APIs to connect your vulnerability solution with osquery, the agent you might already have deployed.</p>
           <div>
-            <a purpose="category-button" class="text-nowrap btn btn-primary"  href="/vulnerability-management">Start with vuln management</a>
+            <a purpose="animated-arrow-button-red" class="text-nowrap"  href="/vulnerability-management">Start with vuln management</a>
           </div>
         </div>
       </div>
@@ -103,7 +103,7 @@
                <h3>Manage everything in one place</h3>
                <p>Modernize your device management practice with a single, open platform for Apple, Windows, and Linux.</p>
                <div>
-                 <a purpose="category-button" class="text-nowrap btn btn-primary" href="/device-management">Start with device management</a>
+                 <a purpose="animated-arrow-button-red" class="text-nowrap" href="/device-management">Start with device management</a>
                </div>
              </div>
            </div>
@@ -114,7 +114,7 @@
              <h3><%= primaryBuyingSituation==='eo-security'? 'Instrument your endpoints' : 'Understand your computers'%></h3>
              <p>A <%= primaryBuyingSituation==='eo-security'? 'lightweight' : 'quick-fast' %> way to gather <%= primaryBuyingSituation==='vm'? 'patch level and custom reports across all your computing devices, even in OT and production environments' : primaryBuyingSituation==='eo-security'? 'deep context and custom telemetry across all your endpoints, even servers' : primaryBuyingSituation==='mdm'||primaryBuyingSituation==='eo-it'? 'compliance and inventory data across all your devices' : 'device data across all your computers' %>. Pulse check or automate anything on any platform.</p>
              <div>
-               <a :purpose="[primaryBuyingSituation === 'eo-security' ? 'category-button' : 'animated-arrow-button-red']" :class="[primaryBuyingSituation === 'eo-security' ? 'btn btn-primary' : '']" class="text-nowrap" href="/endpoint-ops">Start with endpoint ops</a>
+               <a purpose="animated-arrow-button-red" class="text-nowrap" href="/endpoint-ops">Start with endpoint ops</a>
              </div>
            </div>
            <div purpose="endpoint-ops-image" class="right">
@@ -148,7 +148,7 @@
                <h3>Manage everything in one place</h3>
                <p>Modernize your device management practice with a single, open platform for Apple, Windows, and Linux.</p>
                <div>
-                 <a purpose="category-button" class="text-nowrap btn btn-primary" href="/device-management">Start with device management</a>
+                 <a purpose="animated-arrow-button-red" class="text-nowrap" href="/device-management">Start with device management</a>
                </div>
              </div>
              <div purpose="device-management-image" class="right">
@@ -163,7 +163,7 @@
                <h3>Build the vulnerability program you actually want</h3>
                <p>Show how quickly zero days and "celebrity CVEs" are resolved and which teams need extra help. Use scoring, known exploit feeds, and live, down-to-the-chip data about your own environment to prioritize, export, automate, and monitor mitigations of everyday vulnerabilities in operating systems, software packages, browsers, and plugins, anywhere.</p>
                <div>
-                 <a purpose="category-button" class="text-nowrap btn btn-primary"  href="/vulnerability-management">Start with vuln management</a>
+                 <a purpose="animated-arrow-button-red" class="text-nowrap"  href="/vulnerability-management">Start with vuln management</a>
                </div>
              </div>
              <div purpose="vuln-management-image" class="right">
