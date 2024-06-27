@@ -15,7 +15,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/dataflatten"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/tablehelpers"
 	"github.com/osquery/osquery-go/plugin/table"
-	"github.com/rs/zerolog/log"
+	"github.com/rs/zerolog"
 )
 
 type ExecTableOpt func(*Table)
@@ -34,11 +34,11 @@ func WithBinDirs(binDirs ...string) ExecTableOpt {
 	}
 }
 
-func TablePluginExec(tableName string, dataSourceType DataSourceType, execArgs []string, opts ...ExecTableOpt) *table.Plugin {
+func TablePluginExec(logger zerolog.Logger, tableName string, dataSourceType DataSourceType, execArgs []string, opts ...ExecTableOpt) *table.Plugin {
 	columns := Columns()
 
 	t := &Table{
-		logger:            log.Logger.With().Str("table", tableName).Logger(),
+		logger:            logger.With().Str("table", tableName).Logger(),
 		tableName:         tableName,
 		execArgs:          execArgs,
 		keyValueSeparator: ":",
