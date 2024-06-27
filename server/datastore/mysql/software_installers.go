@@ -568,9 +568,12 @@ ON DUPLICATE KEY UPDATE
 	})
 }
 
-func (ds *Datastore) HasSelfServiceSoftwareInstallers(ctx context.Context, teamID *uint) (bool, error) {
-	stmt := `SELECT 1 FROM software_installers WHERE self_service = 1 AND (global_or_team_id = 0`
-	var args []interface{}
+func (ds *Datastore) HasSelfServiceSoftwareInstallers(ctx context.Context, platform string, teamID *uint) (bool, error) {
+	if fleet.IsLinux(platform) {
+		platform = "linux"
+	}
+	stmt := `SELECT 1 FROM software_installers WHERE self_service = 1 AND platform = ? AND (global_or_team_id = 0`
+	args := []interface{}{platform}
 	if teamID != nil {
 		stmt += ` OR team_id = ?`
 		args = append(args, *teamID)

@@ -1555,7 +1555,7 @@ type Datastore interface {
 	BatchSetSoftwareInstallers(ctx context.Context, tmID *uint, installers []*UploadSoftwareInstallerPayload) error
 
 	// HasSelfServiceSoftwareInstallers returns true if self-service software installers are available for the team or globally.
-	HasSelfServiceSoftwareInstallers(ctx context.Context, teamID *uint) (bool, error)
+	HasSelfServiceSoftwareInstallers(ctx context.Context, platform string, teamID *uint) (bool, error)
 }
 
 // MDMAppleStore wraps nanomdm's storage and adds methods to deal with

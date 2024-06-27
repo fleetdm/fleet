@@ -551,11 +551,12 @@ func testHasSelfServiceSoftwareInstallers(t *testing.T, ds *Datastore) {
 	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "team 2"})
 	require.NoError(t, err)
 
+	const platform = "linux"
 	// No installers
-	hasSelfService, err := ds.HasSelfServiceSoftwareInstallers(ctx, nil)
+	hasSelfService, err := ds.HasSelfServiceSoftwareInstallers(ctx, platform, nil)
 	require.NoError(t, err)
 	assert.False(t, hasSelfService)
-	hasSelfService, err = ds.HasSelfServiceSoftwareInstallers(ctx, &team.ID)
+	hasSelfService, err = ds.HasSelfServiceSoftwareInstallers(ctx, platform, &team.ID)
 	require.NoError(t, err)
 	assert.False(t, hasSelfService)
 
@@ -566,13 +567,14 @@ func testHasSelfServiceSoftwareInstallers(t *testing.T, ds *Datastore) {
 		InstallScript: "echo install",
 		TeamID:        &team.ID,
 		Filename:      "foo.pkg",
+		Platform:      platform,
 		SelfService:   false,
 	})
 	require.NoError(t, err)
-	hasSelfService, err = ds.HasSelfServiceSoftwareInstallers(ctx, nil)
+	hasSelfService, err = ds.HasSelfServiceSoftwareInstallers(ctx, platform, nil)
 	require.NoError(t, err)
 	assert.False(t, hasSelfService)
-	hasSelfService, err = ds.HasSelfServiceSoftwareInstallers(ctx, &team.ID)
+	hasSelfService, err = ds.HasSelfServiceSoftwareInstallers(ctx, platform, &team.ID)
 	require.NoError(t, err)
 	assert.False(t, hasSelfService)
 
@@ -583,13 +585,14 @@ func testHasSelfServiceSoftwareInstallers(t *testing.T, ds *Datastore) {
 		InstallScript: "echo install",
 		TeamID:        &team.ID,
 		Filename:      "foo2.pkg",
+		Platform:      platform,
 		SelfService:   true,
 	})
 	require.NoError(t, err)
-	hasSelfService, err = ds.HasSelfServiceSoftwareInstallers(ctx, nil)
+	hasSelfService, err = ds.HasSelfServiceSoftwareInstallers(ctx, platform, nil)
 	require.NoError(t, err)
 	assert.False(t, hasSelfService)
-	hasSelfService, err = ds.HasSelfServiceSoftwareInstallers(ctx, &team.ID)
+	hasSelfService, err = ds.HasSelfServiceSoftwareInstallers(ctx, platform, &team.ID)
 	require.NoError(t, err)
 	assert.True(t, hasSelfService)
 
@@ -600,13 +603,22 @@ func testHasSelfServiceSoftwareInstallers(t *testing.T, ds *Datastore) {
 		InstallScript: "echo install",
 		TeamID:        nil,
 		Filename:      "foo global.pkg",
+		Platform:      platform,
 		SelfService:   true,
 	})
 	require.NoError(t, err)
-	hasSelfService, err = ds.HasSelfServiceSoftwareInstallers(ctx, nil)
+	hasSelfService, err = ds.HasSelfServiceSoftwareInstallers(ctx, "ubuntu", nil)
 	require.NoError(t, err)
 	assert.True(t, hasSelfService)
-	hasSelfService, err = ds.HasSelfServiceSoftwareInstallers(ctx, &team.ID)
+	hasSelfService, err = ds.HasSelfServiceSoftwareInstallers(ctx, "ubuntu", &team.ID)
 	require.NoError(t, err)
 	assert.True(t, hasSelfService)
+
+	// Check another platform
+	hasSelfService, err = ds.HasSelfServiceSoftwareInstallers(ctx, "darwin", nil)
+	require.NoError(t, err)
+	assert.False(t, hasSelfService)
+	hasSelfService, err = ds.HasSelfServiceSoftwareInstallers(ctx, "darwin", &team.ID)
+	require.NoError(t, err)
+	assert.False(t, hasSelfService)
 }
