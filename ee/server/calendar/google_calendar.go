@@ -63,8 +63,6 @@ type GoogleCalendar struct {
 	currentUserEmail  string
 	adjustedUserEmail string
 	location          *time.Location
-	// timezone is a location name corresponding to a file in the IANA Time Zone Database, such as "America/New_York"
-	timezone string
 }
 
 func NewGoogleCalendar(config *GoogleCalendarConfig) *GoogleCalendar {
@@ -393,8 +391,8 @@ func (c *GoogleCalendar) createEvent(
 	dayOfEvent time.Time, genBodyFn func(conflict bool) string, timeNow func() time.Time,
 ) (*fleet.CalendarEvent, error) {
 	var err error
-	if c.location == nil || c.timezone == "" {
-		c.location, c.timezone, err = getTimezone(c)
+	if c.location == nil {
+		c.location, err = getTimezone(c)
 		if err != nil {
 			return nil, err
 		}
@@ -520,15 +518,15 @@ func adjustEventTimes(endTime time.Time, dayEnd time.Time) (eventStart time.Time
 	return eventStart, eventEnd, isLastSlot, conflict
 }
 
-func getTimezone(gCal *GoogleCalendar) (location *time.Location, timezone string, err error) {
+func getTimezone(gCal *GoogleCalendar) (location *time.Location, err error) {
 	config := gCal.config
 	// "The ID of the user’s timezone." https://developers.google.com/calendar/api/v3/reference/settings
 	tz, err := config.API.GetSetting("timezone")
 	if err != nil {
-		return nil, "", ctxerr.Wrap(config.Context, err, "retrieving Google calendar timezone")
+		return nil, ctxerr.Wrap(config.Context, err, "retrieving Google calendar timezone")
 	}
 
-	return getLocation(tz.Value, config), tz.Value, nil
+	return getLocation(tz.Value, config), nil
 }
 
 func getLocation(tz string, config *GoogleCalendarConfig) *time.Location {
@@ -548,7 +546,7 @@ func (c *GoogleCalendar) googleEventToFleetEvent(startTime time.Time, endTime ti
 	fleetEvent.StartTime = startTime
 	fleetEvent.EndTime = endTime
 	fleetEvent.Email = c.currentUserEmail
-	fleetEvent.TimeZone = c.timezone
+	fleetEvent.TimeZone = c.location.String()
 	details := &eventDetails{
 		ID:   event.Id,
 		ETag: event.Etag,
