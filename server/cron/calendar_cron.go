@@ -228,7 +228,6 @@ func processCalendarFailingHosts(
 
 	for i := 0; i < calendarConsumers; i++ {
 		wg.Add(+1)
-		// start a goroutine
 		go func() {
 			defer wg.Done()
 
@@ -261,8 +260,6 @@ func processCalendarFailingHosts(
 					}
 				}
 
-				// this entity exists only for the duration of this goroutine
-				// very specialized to this implementation
 				userCalendar := createUserCalendarFromConfig(ctx, &calendarConfig.GoogleCalendarIntegration, logger)
 				if err := userCalendar.Configure(host.Email); err != nil {
 					level.Error(logger).Log("msg", "configure user calendar", "err", err)
@@ -293,15 +290,6 @@ func processCalendarFailingHosts(
 	}
 
 	for _, host := range hosts {
-		// "put thing into channel"
-		// TODO: what's a channel?
-		// sync comms btwn goroutines
-		// goroutines....
-		// like processor threads, management handled by the language
-		// think of as true async nonblocking processes
-
-		// if channel were full, this command would be 'blocked', aka, routine will hang
-		// host <- hostsCh // pull host out, assign to host
 		hostsCh <- host
 	}
 	close(hostsCh)
@@ -344,8 +332,6 @@ func processFailingHostExistingCalendarEvent(
 	updated := false
 	now := time.Now()
 
-	// existing type issue here?
-	// "type calendarConfig has no field or method AlwaysReloadEvent"
 	if calendarConfig.AlwaysReloadEvent() || shouldReloadCalendarEvent(now, calendarEvent, hostCalendarEvent) {
 		var err error
 		updatedEvent, _, err = calendar.GetAndUpdateEvent(

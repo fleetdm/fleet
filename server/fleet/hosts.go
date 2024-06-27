@@ -795,8 +795,7 @@ type HostDetail struct {
 	// information for the List Hosts endpoint).
 	Batteries *[]*HostBattery `json:"batteries,omitempty"`
 
-	// MaintenanceWindow contains the host user's calendar IANA timezone and the start time of the
-	// next scheduled maintenance window. TODO - how to serialize when no upcoming window?
+	// MaintenanceWindow contains the host user's calendar IANA timezone and the start time of the next scheduled maintenance window.
 	MaintenanceWindow *HostMaintenanceWindow `json:"maintenance_window,omitempty"`
 }
 

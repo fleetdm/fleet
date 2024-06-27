@@ -472,7 +472,7 @@ const HostSummary = ({
         <DataSet title="Operating system" value={summaryData.os_version} />
         {!isIosOrIpadosHost && renderAgentSummary()}
         {isPremiumTier &&
-          // TODO - this normalize empty values is annoying, fix it
+          // TODO - refactor normalizeEmptyValues pattern
           !!summaryData.maintenance_window &&
           summaryData.maintenance_window !== "---" &&
           renderMaintenanceWindow(summaryData.maintenance_window)}

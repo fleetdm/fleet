@@ -975,17 +975,6 @@ export function getCustomDropdownOptions(
         ...defaultOptions,
       ];
 }
-// TODO - fix this. May not be necessary depending what we get back from gcal API.
-// export function getTimezoneOffset(timeZone: string) {
-//   const str = new Date().toLocaleString("en", {
-//     timeZone,
-//     timeZoneName: "long",
-//   });
-//   // const [, hS, mS] = str.match(/([+-]\d+):(\d+)$/) || ["", "+00", "00"];
-//   // const [h, m] = [Number(hS), Number(mS)];
-//   const [, h, m] = str.match(/([+-]\d+):(\d+)$/) || ["", "+00", "00"];
-//   return h * 60 + (h > 0 ? +m : -m);
-// }
 
 export default {
   addGravatarUrlToResource,
