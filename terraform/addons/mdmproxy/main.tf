@@ -1,8 +1,8 @@
 data "aws_region" "current" {}
 
 resource "aws_security_group" "mdmproxy" {
-  count       = var.config.security_groups == null ? 1 : 0
-  name        = var.config.security_group_name
+  count       = var.config.networking.security_groups == null ? 1 : 0
+  name        = var.config.networking.security_group_name
   description = "Fleet ECS Service Security Group"
   vpc_id      = var.vpc_id
   egress {
@@ -134,15 +134,15 @@ resource "aws_ecs_service" "mdmproxy" {
   }
 
   network_configuration {
-    subnets         = var.subnets
-    security_groups = var.security_groups
+    subnets         = var.config.networking.subnets
+    security_groups = var.config.networking.security_groups == null ? aws_security_group.mdmproxy.*.id : var.config.networking.security_groups
   }
 }
 
 resource "aws_ecs_task_definition" "mdmproxy" {
   family                   = "${var.customer_prefix}-mdmproxy"
   cpu                      = var.config.cpu
-  memory                   = var.config.memory
+  memory                   = var.config.mem
   execution_role_arn       = aws_iam_role.execution
   network_mode             = "awsvpc"
   requires_compatibilities = ["FARGATE"]
@@ -150,9 +150,9 @@ resource "aws_ecs_task_definition" "mdmproxy" {
   container_definitions = jsonencode([
     {
       name        = "mdmproxy"
-      image       = var.config.mdmproxy_image
+      image       = var.config.image
       cpu         = var.config.cpu
-      memory      = var.config.memory
+      memory      = var.config.mem
       essential   = true
       networkMode = "awsvpc"
       secrets = [
@@ -200,7 +200,7 @@ resource "aws_ecs_task_definition" "mdmproxy" {
         options = {
           awslogs-group         = var.awslogs_config.group
           awslogs-region        = var.awslogs_config.region == null ? data.aws_region.current.name : var.awslogs_config.region
-          awslogs-stream-prefix = "${var.awslogs_config.prefix}-mdmproxy"
+          awslogs-stream-prefix = var.awslogs_config.prefix
         }
       }
     }

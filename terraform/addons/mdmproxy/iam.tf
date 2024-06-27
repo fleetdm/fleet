@@ -34,7 +34,7 @@ resource "aws_iam_role_policy_attachment" "execution_extras" {
 }
 
 resource "aws_iam_policy" "execution" {
-  name        = var.config.iam_execution_policy_name
+  name        = var.config.iam.execution.policy_name
   description = "IAM policy that Fleet mdmproxy uses to define access to AWS resources"
   policy      = data.aws_iam_policy_document.mdm_execution.json
 }
@@ -45,7 +45,7 @@ resource "aws_iam_role_policy_attachment" "execution" {
 }
 
 resource "aws_iam_role" "execution" {
-  name               = var.config.iam_execution_name
+  name               = var.config.iam.execution.name
   description        = "The execution role for the mdmproxy in ECS"
   assume_role_policy = data.aws_iam_policy_document.assume_role.json
 }

@@ -2,7 +2,7 @@ variable "awslogs_config" {
   type = object({
     group  = string
     region = string
-    prefix = string
+    prefix = optional(string, "mdmproxy")
   })
 }
 
@@ -15,23 +15,46 @@ variable "vpc_id" {
   nullable = false
 }
 
-variable "subnets" {
-  type     = list(string)
-  nullable = false
-}
-
-variable "security_groups" {
-  type     = list(string)
-  nullable = false
-}
-
 variable "customer_prefix" {
   type    = string
   default = "fleet"
 }
 
 variable "config" {
-  type = any
+  type = object({
+    extra_execution_iam_policies = optional(list(string), [])
+    mem                          = optional(number, 2048)
+    cpu                          = optional(number, 1024)
+    image                        = string
+    desired_count                = optional(number, 1)
+    repository_credentials       = optional(string, "")
+    migrate_percentage           = number
+    existing_hostname            = string
+    existing_url                 = string
+    iam = optional(object({
+      execution = optional(object({
+        name        = optional(string, "mdmproxy-execution-role")
+        policy_name = optional(string, "mdmproxy-iam-policy-execution")
+        }), {
+        name        = "mdmproxy-execution-role"
+        policy_name = "mdmproxy-iam-policy-execution"
+      })
+      }), {
+      name        = "mdmproxy-execution-role"
+      policy_name = "mdmproxy-iam-policy-execution"
+    })
+    networking = object({
+      subnets             = list(string)
+      security_groups     = optional(list(string), null)
+      security_group_name = optional(string, "fleet-mdmproxy")
+      ingress_sources = object({
+        cidr_blocks      = optional(list(string), [])
+        ipv6_cidr_blocks = optional(list(string), [])
+        security_groups  = optional(list(string), [])
+        prefix_list_ids  = optional(list(string), [])
+      })
+    })
+  })
 }
 
 variable "alb_config" {
