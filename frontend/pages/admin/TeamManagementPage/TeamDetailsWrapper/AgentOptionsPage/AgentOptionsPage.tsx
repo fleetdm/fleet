@@ -118,13 +118,13 @@ const AgentOptionsPage = ({
         return renderFlash(
           "error",
           <>
-            Could not update {teamName} team agent options.{" "}
+            Couldn&apos;t update {teamName} team agent options:
             {response.data.errors[0].reason}
             {agentOptionsInvalid && (
               <>
                 <br />
-                If you’re not using the latest osquery, use the fleetctl apply
-                --force command to override validation.
+                If you&apos;re not using the latest osquery, use the fleetctl
+                apply --force command to override validation.
               </>
             )}
           </>
