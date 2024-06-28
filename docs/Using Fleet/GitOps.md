@@ -339,7 +339,7 @@ org_settings:
 - `org_logo_url_light_background` is a public URL of the logo for your organization that can be used with light backgrounds (default: Fleet logo).
 - `contact_url` is a URL that appears in error messages presented to end users (default: `"https://fleetdm.com/company/contact"`)
 
-Can only be configure for all teams (`org_settings`).
+Can only be configured for all teams (`org_settings`).
 
 ##### Example
 
