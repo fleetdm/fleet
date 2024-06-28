@@ -1049,7 +1049,7 @@ func (s *integrationMDMTestSuite) TestMDMVPPToken() {
 	require.Equal(t, expDate, resp.RenewDate)
 
 	// Delete and check that it's not appearing anymore
-	s.Do("DELETE", "/api/latest/fleet/mdm/apple/vpp_token", &deleteMDMAppleVPPTokenRequest{}, http.StatusOK)
+	s.Do("DELETE", "/api/latest/fleet/mdm/apple/vpp_token", &deleteMDMAppleVPPTokenRequest{}, http.StatusNoContent)
 	s.DoJSON("GET", "/api/latest/fleet/vpp", &getMDMAppleVPPTokenRequest{}, http.StatusNotFound, &resp)
 }
 

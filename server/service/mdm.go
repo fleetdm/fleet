@@ -2681,6 +2681,8 @@ type deleteMDMAppleVPPTokenResponse struct {
 
 func (r deleteMDMAppleVPPTokenResponse) error() error { return r.Err }
 
+func (r deleteMDMAppleVPPTokenResponse) Status() int { return http.StatusNoContent }
+
 func deleteMDMAppleVPPTokenEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	if err := svc.DeleteMDMAppleVPPToken(ctx); err != nil {
 		return &deleteMDMAppleVPPTokenResponse{Err: err}, nil
