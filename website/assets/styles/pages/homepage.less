@@ -476,45 +476,6 @@
       width: 110%;
     }
   }
-  [purpose='animated-arrow-button-red'], [purpose='animated-arrow-button-red-no-transform'] {
-    display: flex;
-    padding-right: 34px;
-    cursor: pointer;
-    position: relative;
-    width: fit-content;
-    min-width: auto;
-    font-weight: bold;
-    user-select: none;
-    transition: 0.2s ease-in-out;
-    -o-transition: 0.2s ease-in-out;
-    -ms-transition: 0.2s ease-in-out;
-    -moz-transition: 0.2s ease-in-out;
-    -webkit-transition: 0.2s ease-in-out;
-    color: @core-fleet-black;
-    text-decoration: none;
-    &:after {
-      content: url('/images/arrow-right-red-16x16@2x.png');
-      transform: scale(0.5);
-      position: absolute;
-      top: -5px;
-      right: -5px; // <--- here
-      transition: 0.2s ease-in-out;
-      -o-transition: 0.2s ease-in-out;
-      -ms-transition: 0.2s ease-in-out;
-      -moz-transition: 0.2s ease-in-out;
-      -webkit-transition: 0.2s ease-in-out;
-      /*   opacity: 0; */
-    }
-    &:hover:after {
-      right: -10px; // <--- here
-      transition: 0.2s ease-in-out;
-      -o-transition: 0.2s ease-in-out;
-      -ms-transition: 0.2s ease-in-out;
-      -moz-transition: 0.2s ease-in-out;
-      -webkit-transition: 0.2s ease-in-out;
-      /*   opacity:1; */
-    }
-  }
   [purpose='three-column-features'] {
     margin-bottom: 160px;
     max-width: 1080px;
@@ -1325,33 +1286,6 @@
       padding-left: 24px;
     }
 
-    // To make the secondary CTA buttons into white outline buttons, uncomment this section.
-    // [purpose='animated-arrow-button-red'] {
-    //   display: flex;
-    //   width: 100%;
-    //   background-color: #FFF;
-    //   border-radius: 8px;
-    //   border: 1px solid  #8B8FA2;
-    //   font-size: 16px;
-    //   font-weight: 700;
-    //   line-height: 21px;
-    //   display: flex;
-    //   height: 48px;
-    //   padding: 16px 32px;
-    //   justify-content: center;
-    //   align-items: center;
-    //   border-radius: 8px;
-    //   cursor: pointer;
-    //   position: relative;
-    //   &:after {
-    //     content: ' ';
-    //     top: 0px;
-    //     right: 0px; // <--- here
-    //   }
-    //   &:hover:after {
-    //     right: 0px; // <--- here
-    //   }
-    // }
     [purpose='button-row'] {
        [purpose='cta-button'] {
          cursor: pointer;
