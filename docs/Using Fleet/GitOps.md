@@ -399,7 +399,7 @@ The `sso_settings` section lets you define single sign-on (SSO) settings. Learn 
 - `enable_jit_provisioning` specified whether or not to allow single sign-on login initiated by identity provider (default: `false`). 
 - `enable_sso_idp_login` specifies whether or not to enables [just-in-time user provisioning](https://fleetdm.com/docs/deploy/single-sign-on-sso#just-in-time-jit-user-provisioning) (default: `false`).
 
-Can only be configure for all teams (`org_settings`).
+Can only be configured for all teams (`org_settings`).
 
 ##### Example
 
