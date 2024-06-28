@@ -268,7 +268,7 @@ Use `labels` to only apply (scope) profiles to hosts that have all those labels.
 
 #### macos_setup
 
-The `macos_setup` section lets you control the [end user migration workflow](../Using%20Fleet/MDM-migration-guide.md#end-user-workflow) for macOS hosts that automatically enrolled to your old MDM solution.
+The `macos_setup` section lets you control the [end user migration workflow](https://fleetdm.com/docs/using-fleet/mdm-migration-guide#end-user-workflow) for macOS hosts that automatically enrolled to your old MDM solution.
 
 - `bootstrap_package` is the URL to a bootstap package. Fleet will download the bootstrap package (default: empty).
 - `enable_end_user_authentication` specifies whether or not to require end user authentication when the user first sets up their macOS host. 
