@@ -270,9 +270,6 @@ func TestGetFleetDesktopSummary(t *testing.T) {
 			return &appCfg, nil
 		}
 
-		ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, host *fleet.Host) (bool, error) {
-			return host.MDMInfo != nil && host.MDMInfo.Enrolled == true && host.MDMInfo.Name == fleet.WellKnownMDMFleet, nil
-		}
 		ds.HasSelfServiceSoftwareInstallersFunc = func(ctx context.Context, platform string, teamID *uint) (bool, error) {
 			return false, nil
 		}
