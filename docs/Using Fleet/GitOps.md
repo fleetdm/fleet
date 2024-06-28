@@ -454,9 +454,9 @@ For secrets, you can add [GitHub environment variables](https://docs.github.com/
 
 ##### zendesk
 
-- `url` is the URL of your Zendesk (default: empty)
-- `username` is the username of your Zendesk account (default: empty).
-- `api_token` is the Zendesk API token (default: empty).
+  - `url` is the URL of your Zendesk (default: `""`)
+- `username` is the username of your Zendesk account (default: `""`).
+- `api_token` is the Zendesk API token (default: `""`).
 - `group_id`is found by selecting **Admin > People > Groups** in Zendesk. Find your group and select it. The group ID will appear in the search field.
 
 #### webhook_settings
