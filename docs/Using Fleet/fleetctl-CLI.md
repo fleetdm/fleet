@@ -66,6 +66,11 @@ OPTIONS:
    --help, -h        show help (default: false)
 ```
 
+
+### Notice: No Centralized Logging
+
+   Please note that the logs are currently stored locally on each device. There is no centralized logging until separate logging infrastructure, such as [Elasticsearch with Kibana](https://fleetdm.com/guides/using-elasticsearch-and-kibana-to-visualize-osquery-performance), are set up. Configure your logging infrastructure to centralize logs for better management and analysis.
+
 ## Authentication
 
 This section walks you through authentication, assuming you already have a running Fleet instance. To learn how to set up new Fleet instance, check out the [Deploy](https://fleetdm.com/docs/deploy/introduction) section or [Building Fleet locally](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/Building-Fleet.md) docs. 

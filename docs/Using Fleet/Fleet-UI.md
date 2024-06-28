@@ -69,7 +69,7 @@ By default, queries that run on a schedule will only target platforms compatible
 
 ### Notice: No Centralized Logging
 
-Please note that there is no centralized logging until you activate separate logging infrastructure. Logs are currently stored on the device. Configure your logging infrastructure to centralize logs for better management and analysis.
+Please note that the logs are currently stored locally on each device. There is no centralized logging until separate logging infrastructure, such as [Elasticsearch with Kibana](https://fleetdm.com/guides/using-elasticsearch-and-kibana-to-visualize-osquery-performance), are set up. Configure your logging infrastructure to centralize logs for better management and analysis.
 
 <span id="configuring-agent-options" name="configuring-agent-options"></span>
 
