@@ -44,7 +44,7 @@ Polcies can be specified inline in your `default.yml` file or `teams/team-name.y
 
 #### Options
 
-For possible options, see the parameters for the [Add policy API endpoint](../REST%20API/rest-api.md#add-policices).
+For possible options, see the parameters for the [Add policy API endpoint](https://fleetdm.com/docs/rest-api/rest-api#add-policy).
 
 #### Example
 
