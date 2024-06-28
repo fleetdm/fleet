@@ -386,7 +386,6 @@ org_settings:
     server_url: https://instance.fleet.com
   ```
 
-TODO is SMTP down from new fleetctl-apply.md doc. Then gut the fleetctl-apply doc and point to this one.
 
 #### sso_settings
 
