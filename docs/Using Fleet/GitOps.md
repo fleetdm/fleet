@@ -250,7 +250,7 @@ controls:
 #### macos_updates
 
 - `deadline` specifies the deadline in the form of `YYYY-MM-DD`. The exact deadline time is at 04:00:00 (UTC-8) (default: `""`).
-- `minimum_version` specifies the minimum required macOS version (default: empty).
+- `minimum_version` specifies the minimum required macOS version (default: `""`).
 
 #### windows_updates
 
