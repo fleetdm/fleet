@@ -354,7 +354,7 @@ func packageCommand() *cli.Command {
 			}
 
 			if opt.Architecture != packaging.ArchAmd64 && opt.Architecture != packaging.ArchArm64 {
-				return errors.New("erch must be one of ('amd64', 'arm64')")
+				return errors.New("arch must be one of ('amd64', 'arm64')")
 			}
 
 			var buildFunc func(packaging.Options) (string, error)
