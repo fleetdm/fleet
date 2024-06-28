@@ -14,23 +14,22 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/dataflatten"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/dataflattentable"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/tablehelpers"
-	"github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 	"github.com/osquery/osquery-go/plugin/table"
+	"github.com/rs/zerolog"
 )
 
 type Table struct {
-	logger log.Logger
+	logger zerolog.Logger
 }
 
-func TablePlugin(logger log.Logger) *table.Plugin {
+func TablePlugin(logger zerolog.Logger) *table.Plugin {
 	columns := dataflattentable.Columns(
 		table.TextColumn("passphrase"),
 		table.TextColumn("path"),
 	)
 
 	t := &Table{
-		logger: logger,
+		logger: logger.With().Str("table", "cryptoinfo").Logger(),
 	}
 
 	return table.NewPlugin("cryptoinfo", columns, t.generate)
@@ -49,7 +48,7 @@ func (t *Table) generate(ctx context.Context, queryContext table.QueryContext) (
 		// We take globs in via the sql %, but glob needs *. So convert.
 		filePaths, err := filepath.Glob(strings.ReplaceAll(requestedPath, `%`, `*`))
 		if err != nil {
-			level.Info(t.logger).Log("msg", "bad file glob", "err", err)
+			t.logger.Info().Err(err).Msg("bad file glob")
 			continue
 		}
 
@@ -65,11 +64,7 @@ func (t *Table) generate(ctx context.Context, queryContext table.QueryContext) (
 
 					flatData, err := flattenCryptoInfo(filePath, passphrase, flattenOpts...)
 					if err != nil {
-						level.Info(t.logger).Log(
-							"msg", "failed to get data for path",
-							"path", filePath,
-							"err", err,
-						)
+						t.logger.Info().Err(err).Str("path", filePath).Msg("failed to get data for path")
 						continue
 					}
 
