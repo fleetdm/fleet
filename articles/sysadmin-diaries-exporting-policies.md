@@ -54,10 +54,8 @@ Looking ahead, Fleet is committed to enhancing its GitOps integration capabiliti
 
 
 
-* **Direct <code>fleetctl</code> commands for policy management:</strong> Anticipated updates will introduce new `fleetctl` commands for easier policy export.
-* <strong>Enhanced API endpoints:</strong> Future API enhancements will provide more granular control over policy attributes directly from the command line.
-
-For more details, follow the progress on these features at [Fleet GitHub issues](https://github.com/fleetdm/fleet/issues/18121) and [pull requests](https://github.com/fleetdm/fleet/pull/17971).
+* **Direct `fleetctl` commands for policy management:** Anticipated updates will introduce new `fleetctl` commands for easier policy export.
+* **Enhanced API endpoints:** Future API enhancements will provide more granular control over policy attributes directly from the command line.
 
 
 ### Conclusion
