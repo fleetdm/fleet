@@ -40,7 +40,7 @@ func packageCommand() *cli.Command {
 			},
 			&cli.StringFlag{
 				Name:        "arch",
-				Usage:       "Target CPU Architecture for the installer package. Only supported for Linux. [amd64, arm64]",
+				Usage:       "Target CPU Architecture for the installer package (Only supported with '--type' deb or rpm) (default: amd64)",
 				Destination: &opt.Architecture,
 				Value:       "amd64",
 			},
@@ -341,6 +341,20 @@ func packageCommand() *cli.Command {
 
 			if opt.UseSystemConfiguration && c.String("type") != "pkg" {
 				return errors.New("--use-system-configuration is only available for pkg installers")
+			}
+
+			linuxPackage := false
+			switch c.String("type") {
+			case "msi", "deb", "rpm":
+				linuxPackage = true
+			}
+
+			if opt.Architecture != packaging.ArchAmd64 && !linuxPackage {
+				return fmt.Errorf("can't use '--arch' with '--type %s'", c.String("type"))
+			}
+
+			if opt.Architecture != packaging.ArchAmd64 && opt.Architecture != packaging.ArchArm64 {
+				return errors.New("erch must be one of ('amd64', 'arm64')")
 			}
 
 			var buildFunc func(packaging.Options) (string, error)

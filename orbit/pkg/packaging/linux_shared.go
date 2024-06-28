@@ -36,7 +36,7 @@ func buildNFPM(opt Options, pkger nfpm.Packager) (string, error) {
 		return "", fmt.Errorf("create orbit dir: %w", err)
 	}
 
-	if opt.Architecture != "amd64" && opt.Architecture != "arm64" {
+	if opt.Architecture != ArchAmd64 && opt.Architecture != ArchArm64 {
 		return "", fmt.Errorf("Invalid architecture: %s", opt.Architecture)
 	}
 
