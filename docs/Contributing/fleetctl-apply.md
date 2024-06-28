@@ -60,7 +60,7 @@ spec:
 
 Continued edits and applications to this file will update the queries.
 
-If you want to change the name of a query, you must first create a new query with the new name and then delete the query with the old name.
+If you want to change the name of a query, you must first create a new query with the new name and then delete the query with the old name via the UI or API.
 
 ## Labels
 
