@@ -442,8 +442,8 @@ For secrets, you can add [GitHub environment variables](https://docs.github.com/
 
 ##### google_calendar
 
-- `api_key_json` is the contents of the JSON file downloaded when you create your Google Workspace service account API key (default: empty).
-- `domain` is the primary domain used to identify your end user's work calendar (default: emtpy).
+- `api_key_json` is the contents of the JSON file downloaded when you create your Google Workspace service account API key (default: `""`).
+- `domain` is the primary domain used to identify your end user's work calendar (default: `""`).
 
 ##### jira
 
