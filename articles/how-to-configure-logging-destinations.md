@@ -1,5 +1,7 @@
 # How to configure logging destinations
 
+![How to configure logging destinations](../website/assets/images/articles/how-to-configure-logging-destinations-1600x900@2x.jpg)
+
 Efficiently streaming and managing data is crucial for cloud customers. Amazon Web Services (AWS) provides robust tools for this purpose, with AWS Kinesis Date Firehose and Kinesis Data Streams being popular choices. This guide will help you set up the necessary infrastructure and configure your AWS environment to stream data to destinations like Sumo Logic and Splunk with Fleet.
 
 With Fleet, you’re able to send with Automation to your logging destination:
@@ -20,16 +22,20 @@ AWS offers two primary options for streaming data: Kinesis Data Streams and Kine
 * **Kinesis Data Streams:** Ideal for real-time data processing with low latency, Kinesis Data Streams is an AWS service for real-time data streaming. It enables you to continuously capture gigabytes of data per second from hundreds of thousands of sources, such as website clickstreams, database event streams, financial transactions, and social media feeds. This data can then be processed and analyzed in real-time.
 * **Kinesis Data Firehose:** Kinesis Data Firehose is a fully managed service that simplifies loading streaming data into data lakes, data stores, and analytics services. It can capture, transform, and load streaming data into AWS services like Amazon S3, Amazon Redshift, and Amazon Elasticsearch Service, as well as third-party services like Splunk and Sumo Logic.
 
+```mermaid
+flowchart LR
+    A["Fleet instance"] --> B["Kinesis Firehose"] --> C["Data {lake,store,analytics}"]
+    B --"Undelivered logs"--> D("AWS S2")
+```
 
-![alt_text](images/image1.png "image_tooltip")
 
 
 
-### Step 1: Set Up the Required Infrastructure
+### Step 1: Set Up the required infrastructure
 
 Before streaming data, ensure that you have the necessary infrastructure. The resources might be owned by another team or group in your organization:
 
-1. **IAM Role ARN of the Fleet service**: This role allows the Fleet service to interact with AWS resources. An IAM Role ARN (Amazon Resource Name) is a unique identifier for a role within AWS that grants specific permissions. For example, this role might permit Fleet to read data from your Kinesis stream.
+1. **IAM Role ARN of the Fleet service**: The ARN (Amazon Resource Name) of the IAM (Identity and Access Management) role will be assuming the IAM role defined in this module to gain the permissions required to write to the Kinesis Data Stream(s). For example, this role might permit Fleet to write data from your Kinesis stream.
 
 2. **IAM Role ARN for assumption**: The role that the Fleet service will assume, granting it the necessary permissions. This is typically used to delegate access control, enabling the Fleet service to perform actions on your behalf.
 
@@ -89,6 +95,6 @@ By carefully setting up your IAM roles and configuring your data streams, you ca
 <meta name="category" value="guides">
 <meta name="authorFullName" value="Grant Bilstad">
 <meta name="authorGitHubUsername" value="pacamaster">
-<meta name="publishedOn" value="2024-06027">
+<meta name="publishedOn" value="2024-06-28">
 <meta name="articleTitle" value="How to configure logging destinations">
-<meta name="articleImageUrl" value="../website/assets/images/articles/how-to-uninstall-osquery-cover-1600x900@2x.jpg">
+<meta name="articleImageUrl" value="../website/assets/images/articles/how-to-configure-logging-destinations-1600x900@2x.jpg">
