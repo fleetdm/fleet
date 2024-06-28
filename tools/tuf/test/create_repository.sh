@@ -216,7 +216,7 @@ for system in $SYSTEMS; do
         do
             extensionName=$(basename $extension)
             extensionName=$(echo "$extensionName" | cut -d'.' -f1)
-            GOARCH="amd64" ./build/fleetctl updates add \
+            ./build/fleetctl updates add \
                 --path $TUF_PATH \
                 --target $extension \
                 --platform linux \
@@ -231,7 +231,7 @@ for system in $SYSTEMS; do
         do
             extensionName=$(basename $extension)
             extensionName=$(echo "$extensionName" | cut -d'.' -f1)
-            GOARCH="arm64" ./build/fleetctl updates add \
+            ./build/fleetctl updates add \
                              --path $TUF_PATH \
                              --target $extension \
                              --platform linux-arm64 \
