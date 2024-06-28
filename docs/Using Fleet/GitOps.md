@@ -277,7 +277,7 @@ The `macos_setup` section lets you control the [end user migration workflow](htt
 #### macos_migration
 
 - `enable` specifies whether or not to enable end user migration workflow (default: `false`)
-- `mode` specifies whether the end user initiates migration (`voluntary`) or they're nudged every 15-20 minutes to migrate (`forced`) (default: empty).
+- `mode` specifies whether the end user initiates migration (`voluntary`) or they're nudged every 15-20 minutes to migrate (`forced`) (default: `""`).
 - `webhook_url` is the URL that Fleet sends a webhook to when the end user selects **Start**. Receive this webhook using your automation tool (ex. Tines) to unenroll your end users from your old MDM solution.
 
 Can only be configure for all teams (`default.yml`).
