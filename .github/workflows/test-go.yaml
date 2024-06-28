@@ -45,6 +45,7 @@ jobs:
         os: [ubuntu-latest]
         go-version: ['${{ vars.GO_VERSION }}']
         mysql: ["mysql:5.7.21", "mysql:8.0.28"]
+        suite: ["integration", "core"]
     runs-on: ${{ matrix.os }}
 
     env:
@@ -110,7 +111,15 @@ jobs:
 
     - name: Run Go Tests
       run: |
-        GO_TEST_EXTRA_FLAGS="-v -race=$RACE_ENABLED -timeout=$GO_TEST_TIMEOUT" \
+        if [[ "${{ matrix.suite }}" == "core" ]]; then
+          RUN_TESTS='^TestIntegrations'
+        elif [[ "${{ matrix.suite }}" == "integration" ]]; then
+          RUN_TESTS='TestIntegrations'
+        else
+          RUN_TESTS=''
+        fi
+
+        GO_TEST_EXTRA_FLAGS="-v -race=$RACE_ENABLED -timeout=$GO_TEST_TIMEOUT -run=$RUN_TESTS -coverprofile=${{ matrix.suite }}-coverage.txt" \
           TEST_LOCK_FILE_PATH=$(pwd)/lock \
           NETWORK_TEST=1 \
           REDIS_TEST=1 \
@@ -125,7 +134,7 @@ jobs:
     - name: Upload to Codecov
       uses: codecov/codecov-action@d9f34f8cd5cb3b3eb79b3e4b5dae3a16df499a70
       with:
-        files: coverage.txt
+        files: ${{ matrix.suite }}-coverage.txt
         flags: backend
 
     - name: Generate summary of errors
