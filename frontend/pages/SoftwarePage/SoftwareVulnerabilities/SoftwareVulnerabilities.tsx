@@ -10,6 +10,7 @@ import {
 } from "services/entities/vulnerabilities";
 
 import TableDataError from "components/DataError";
+import Spinner from "components/Spinner";
 
 import SoftwareVulnerabilitiesTable from "./SoftwareVulnerabilitiesTable";
 
@@ -50,7 +51,7 @@ const SoftwareVulnerabilities = ({
     exploit: showExploitedVulnerabilitiesOnly,
   };
 
-  const { data, isFetching, isError } = useQuery<
+  const { data, isFetching, isLoading, isError } = useQuery<
     IVulnerabilitiesResponse,
     Error,
     IVulnerabilitiesResponse,
@@ -68,6 +69,10 @@ const SoftwareVulnerabilities = ({
       staleTime: 30000,
     }
   );
+
+  if (isLoading) {
+    return <Spinner />;
+  }
 
   if (isError) {
     return <TableDataError className={`${baseClass}__table-error`} />;
