@@ -354,7 +354,7 @@ org_settings:
 
 #### secrets
 
-The `secrets` section defines the valid secrets that hosts can use to enroll to Fleet. Supply one of these secrets when generating the fleetd agent you'll use to enroll hosts. Learn more [here](../Using%20Fleet/enroll-hosts.md).
+The `secrets` section defines the valid secrets that hosts can use to enroll to Fleet. Supply one of these secrets when generating the fleetd agent you'll use to enroll hosts. Learn more [here](https://fleetdm.com/docs/using-fleet/enroll-hosts).
 
 ##### Example
 
