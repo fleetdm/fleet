@@ -12,7 +12,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log/slog"
 	"mime/multipart"
 	"net/http"
 	"path/filepath"
@@ -2545,8 +2544,6 @@ func (svc *Service) UploadMDMAppleVPPToken(ctx context.Context, token io.ReadSee
 		return ctxerr.Wrap(ctx, err, "creating vpp data object for storage")
 	}
 
-	slog.With("filename", "server/service/mdm.go", "func", "UploadMDMAppleVPPToken").Info("JVE_LOG: final data form ", "data", string(dataBytes))
-
 	err = svc.ds.ReplaceMDMConfigAssets(ctx, []fleet.MDMConfigAsset{
 		{Name: fleet.MDMAssetVPPToken, Value: []byte(base64.StdEncoding.EncodeToString(dataBytes))},
 	})
@@ -2566,8 +2563,6 @@ func getVPPConfig(token string) (string, bool, error) {
 	if testOverrideAppleVPPConfigURL != "" {
 		url = testOverrideAppleVPPConfigURL
 	}
-
-	slog.With("filename", "server/service/mdm.go", "func", "validateVPPToken").Info("JVE_LOG: call apple endpoint", "token", token)
 
 	bearer := fmt.Sprintf("Bearer %s", token)
 
@@ -2608,7 +2603,6 @@ func getVPPConfig(token string) (string, bool, error) {
 
 	// TODO(JVE): handle other error cases
 
-	slog.With("filename", "server/service/mdm.go", "func", "validateVPPToken").Info("JVE_LOG: body from Apple VPP endpoint ", "body", body, "status", resp.StatusCode, "auth", bearer)
 	return respJSON.LocationName, true, nil
 }
 
