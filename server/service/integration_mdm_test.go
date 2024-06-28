@@ -6243,7 +6243,7 @@ func (s *integrationMDMTestSuite) TestWindowsMDM() {
 	}, getMDMCmdResp.Results[0])
 }
 
-func (s *integrationMDMTestSuite) TestWindowsAutomaticEnrollmentCommandsTestWindowsAutomaticEnrollmentCommands() {
+func (s *integrationMDMTestSuite) TestWindowsAutomaticEnrollmentCommands() {
 	t := s.T()
 	ctx := context.Background()
 
