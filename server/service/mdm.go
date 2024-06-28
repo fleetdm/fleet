@@ -2522,12 +2522,12 @@ func (svc *Service) UploadMDMAppleVPPToken(ctx context.Context, token io.ReadSee
 
 	tokenBytes, err := io.ReadAll(token)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "reading vpp token")
+		return ctxerr.Wrap(ctx, err, "reading VPP token")
 	}
 
 	locName, tokenValid, err := getVPPConfig(string(tokenBytes))
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "validating vpp token with Apple")
+		return ctxerr.Wrap(ctx, err, "validating VPP token with Apple")
 	}
 
 	if !tokenValid {
@@ -2541,14 +2541,14 @@ func (svc *Service) UploadMDMAppleVPPToken(ctx context.Context, token io.ReadSee
 
 	dataBytes, err := json.Marshal(data)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "creating vpp data object for storage")
+		return ctxerr.Wrap(ctx, err, "creating VPP data object for storage")
 	}
 
 	err = svc.ds.ReplaceMDMConfigAssets(ctx, []fleet.MDMConfigAsset{
 		{Name: fleet.MDMAssetVPPToken, Value: []byte(base64.StdEncoding.EncodeToString(dataBytes))},
 	})
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "writing vpp token to db")
+		return ctxerr.Wrap(ctx, err, "writing VPP token to db")
 	}
 
 	return nil
@@ -2573,13 +2573,13 @@ func getVPPConfig(token string) (string, bool, error) {
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		return "", false, fmt.Errorf("making request to Apple vpp endpoint: %w", err)
+		return "", false, fmt.Errorf("making request to Apple VPP endpoint: %w", err)
 	}
 	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return "", false, fmt.Errorf("reading response body from Apple vpp endpoint: %w", err)
+		return "", false, fmt.Errorf("reading response body from Apple VPP endpoint: %w", err)
 	}
 
 	// For some reason, Apple returns 200 OK even if you pass an invalid token in the Auth header.
@@ -2591,7 +2591,7 @@ func getVPPConfig(token string) (string, bool, error) {
 	}
 
 	if err := json.Unmarshal(body, &respJSON); err != nil {
-		return "", false, fmt.Errorf("parsing response body from Apple vpp endpoint: %w", err)
+		return "", false, fmt.Errorf("parsing response body from Apple VPP endpoint: %w", err)
 	}
 
 	// Per https://developer.apple.com/documentation/devicemanagement/app_and_book_management/app_and_book_management_legacy/interpreting_error_codes
@@ -2637,27 +2637,27 @@ func (svc *Service) GetMDMAppleVPPToken(ctx context.Context) (*fleet.VPPTokenInf
 
 	r, err := svc.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetVPPToken})
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "get mdm config assets by name vpp token")
+		return nil, ctxerr.Wrap(ctx, err, "get mdm config assets by name VPP token")
 	}
 
 	decodedBytes, err := base64.StdEncoding.DecodeString(string(r[fleet.MDMAssetVPPToken].Value))
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "decoding vpp token data")
+		return nil, ctxerr.Wrap(ctx, err, "decoding VPP token data")
 	}
 
 	var tokenData fleet.VPPTokenData
 	if err := json.Unmarshal(decodedBytes, &tokenData); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "unmarshaling vpp token data")
+		return nil, ctxerr.Wrap(ctx, err, "unmarshaling VPP token data")
 	}
 
 	decodedTokenBytes, err := base64.StdEncoding.DecodeString(tokenData.Token)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "decoding vpp token")
+		return nil, ctxerr.Wrap(ctx, err, "decoding VPP token")
 	}
 
 	var rawToken fleet.VPPTokenRaw
 	if err := json.Unmarshal(decodedTokenBytes, &rawToken); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "unmarshaling vpp token")
+		return nil, ctxerr.Wrap(ctx, err, "unmarshaling VPP token")
 	}
 
 	info := fleet.VPPTokenInfo{
