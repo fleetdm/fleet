@@ -416,7 +416,7 @@ org_settings:
 
 #### integrations
 
-The `integrations` section lets you define calendar events and ticket settings for failing policy and vulnerablity automations. Learn more about automations in Fleet [here](../Using%20Fleet/Automations.md).
+The `integrations` section lets you define calendar events and ticket settings for failing policy and vulnerablity automations. Learn more about automations in Fleet [here](https://fleetdm.com/docs/using-fleet/automations).
 
 ##### Example
 
