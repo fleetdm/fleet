@@ -31,6 +31,8 @@ variable "config" {
     migrate_percentage           = number
     existing_hostname            = string
     existing_url                 = string
+    migrate_udids                = optional(list(string), [])
+    auth_token                   = optional(string, "")
     iam = optional(object({
       execution = optional(object({
         name        = optional(string, "mdmproxy-execution-role")

@@ -1,5 +1,12 @@
 data "aws_region" "current" {}
 
+locals {
+  mdmproxy_secrets = {
+    auth_token    = var.config.auth_token
+    migrate_udids = join(" ", var.config.migrate_udids)
+  }
+}
+
 resource "aws_security_group" "mdmproxy" {
   count       = var.config.networking.security_groups == null ? 1 : 0
   name        = var.config.networking.security_group_name
@@ -118,6 +125,11 @@ resource "aws_security_group" "alb" {
 
 resource "aws_secretsmanager_secret" "mdmproxy" {
   name = "${var.customer_prefix}-mdmproxy"
+}
+
+resource "aws_secretsmanager_secret_version" "mdmproxy" {
+  secret_id     = aws_secretsmanager_secret.mdmproxy.id
+  secret_string = jsonencode(local.mdmproxy_secrets)
 }
 
 resource "aws_ecs_service" "mdmproxy" {
