@@ -80,7 +80,7 @@ spec:
     );
 ```
 
-Labels can also be "manually managed". When defining the label, reference hosts
+Labels can also be manually managed. When defining a manual label, reference hosts
 by hostname:
 
 ```yaml
