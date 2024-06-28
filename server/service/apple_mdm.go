@@ -7,7 +7,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"encoding/pem"
-	"encoding/xml"
 	"errors"
 	"fmt"
 	"io"
@@ -3334,15 +3333,13 @@ func RenewSCEPCertificates(
 	}
 
 	migrationEnrollmentProfile := os.Getenv("FLEET_SILENT_MIGRATION_ENROLLMENT_PROFILE")
-	if migrationEnrollmentProfile != "" {
+	hasAssocsFromMigration := len(assocsFromMigration) > 0
+
+	if migrationEnrollmentProfile == "" && hasAssocsFromMigration {
+		level.Debug(logger).Log("msg", "found devices from migration that need SCEP renewals but FLEET_SILENT_MIGRATION_ENROLLMENT_PROFILE is empty")
+	}
+	if migrationEnrollmentProfile != "" && hasAssocsFromMigration {
 		profileBytes := []byte(migrationEnrollmentProfile)
-		var xmlChecker map[string]any
-		if err := xml.Unmarshal(profileBytes, &xmlChecker); err != nil {
-			logger.Log("inf", "FLEET_SILENT_MIGRATION_ENROLLMENT_PROFILE has invalid XML, fleet won't sent it to the host to prevent unexpected behavior")
-			return nil
-
-		}
-
 		if err := renewSCEPWithProfile(ctx, ds, commander, logger, assocsFromMigration, profileBytes); err != nil {
 			return ctxerr.Wrap(ctx, err, "sending profile to hosts from migration")
 		}
