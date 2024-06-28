@@ -20,6 +20,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"text/tabwriter"
 	"time"
@@ -215,18 +216,13 @@ func setupDummyReplica(t testing.TB, testName string, ds *Datastore, opts *Datas
 	}
 }
 
-//var replicatedDatabases []string
-//var mu sync.Mutex
+var replicatedDatabases []string
+var mu sync.Mutex
 
 func setupRealReplica(t testing.TB, testName string, ds *Datastore, options *dbOptions) {
 	t.Helper()
 	const replicaUser = "replicator"
 	const replicaPassword = "rotacilper"
-
-	//	var databasesToReplicate string
-	//	mu.Lock()
-	//	replicatedDatabases = append(replicatedDatabases, testName)
-	//	mu.Unlock()
 
 	t.Cleanup(
 		func() {
@@ -271,6 +267,11 @@ func setupRealReplica(t testing.TB, testName string, ds *Datastore, options *dbO
 		extraMasterOptions = "GET_MASTER_PUBLIC_KEY=1," // needed for MySQL 8.0 caching_sha2_password authentication
 	}
 
+	mu.Lock()
+	replicatedDatabases = append(replicatedDatabases, testName)
+	databasesToReplicate := strings.Join(replicatedDatabases, ",")
+	mu.Unlock()
+
 	// Configure slave and start replication
 	if out, err := exec.Command(
 		"docker-compose", "exec", "-T", "mysql_replica_test",
@@ -282,6 +283,7 @@ func setupRealReplica(t testing.TB, testName string, ds *Datastore, options *dbO
 			`
 			STOP SLAVE;
 			RESET SLAVE ALL;
+			CHANGE REPLICATION FILTER REPLICATE_DO_DB = ( %s )
 			CHANGE MASTER TO
 				%s
 				MASTER_HOST='mysql_test',
@@ -290,7 +292,7 @@ func setupRealReplica(t testing.TB, testName string, ds *Datastore, options *dbO
 				MASTER_LOG_FILE='%s',
 				MASTER_LOG_POS=%d;
 			START SLAVE;
-			`, extraMasterOptions, replicaUser, replicaPassword, ms.File, ms.Position,
+			`, databasesToReplicate, extraMasterOptions, replicaUser, replicaPassword, ms.File, ms.Position,
 		),
 	).CombinedOutput(); err != nil {
 		t.Error(err)
@@ -531,8 +533,7 @@ func TruncateTables(t testing.TB, ds *Datastore, tables ...string) {
 				}
 				return fmt.Errorf("cannot truncate table %s, it contains seed data from schema.sql", tbl)
 			}
-			truncateStmt := fmt.Sprintf("CREATE TABLE IF NOT EXISTS `%s`; TRUNCATE TABLE `%s`", tbl, tbl)
-			if _, err := tx.ExecContext(ctx, truncateStmt); err != nil {
+			if _, err := tx.ExecContext(ctx, "TRUNCATE TABLE"+tbl); err != nil {
 				return err
 			}
 		}
