@@ -1315,7 +1315,7 @@ func (svc *Service) enqueueInstallFleetdCommand(ctx context.Context, deviceID st
 
 	// it's okay to skip the installation if we're not able to retrieve the
 	// metadata, we don't want to completely error the SyncML transaction
-	// and we'll try again the next time the host checks in>
+	// and we'll try again the next time the host checks in
 	fleetdMetadata, err := fleetdbase.GetMetadata()
 	if err != nil {
 		level.Warn(svc.logger).Log("msg", "unable to get fleetd-base metadata")

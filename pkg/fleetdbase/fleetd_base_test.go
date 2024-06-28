@@ -68,7 +68,8 @@ func TestGetMetadataErrorScenarios(t *testing.T) {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte("{invalid-json}"))
+			_, err := w.Write([]byte("{invalid-json}"))
+			require.NoError(t, err)
 		}))
 		t.Cleanup(server.Close)
 		t.Setenv("FLEET_DEV_DOWNLOAD_FLEETDM_URL", server.URL)
