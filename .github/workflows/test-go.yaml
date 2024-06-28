@@ -112,9 +112,9 @@ jobs:
     - name: Run Go Tests
       run: |
         if [[ "${{ matrix.suite }}" == "core" ]]; then
-          RUN_TESTS_ARG='-run=^TestIntegrations'
-        elif [[ "${{ matrix.suite }}" == "integration" ]]; then
           RUN_TESTS_ARG='-skip=^TestIntegrations'
+        elif [[ "${{ matrix.suite }}" == "integration" ]]; then
+          RUN_TESTS_ARG='-run=^TestIntegrations'
         else
           RUN_TESTS_ARG=''
         fi
@@ -155,6 +155,10 @@ jobs:
         fi
         GO_FAIL_SUMMARY=$GO_FAIL_SUMMARY envsubst < .github/workflows/config/slack_payload_template.json > ./payload.json
 
+    # TODO: figure out a sane way to combine outputs from different matrix jobs
+    # into a single slack notification, instead of sending one per job. This
+    # problem already existed but now it's accentuated because we're running 4
+    # jobs.
     - name: Slack Notification
       if: github.event.schedule == '0 4 * * *' && failure()
       uses: slackapi/slack-github-action@e28cf165c92ffef168d23c5c9000cffc8a25e117 # v1.24.0
