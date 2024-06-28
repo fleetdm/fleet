@@ -42,10 +42,10 @@ jobs:
   test-go:
     strategy:
       matrix:
+        suite: ["integration", "core"]
         os: [ubuntu-latest]
         go-version: ['${{ vars.GO_VERSION }}']
         mysql: ["mysql:5.7.21", "mysql:8.0.28"]
-        suite: ["integration", "core"]
     runs-on: ${{ matrix.os }}
 
     env:
