@@ -446,6 +446,11 @@ func TestHostDetailsOSSettings(t *testing.T) {
 			switch c.host.Platform {
 			case "windows":
 				require.False(t, ds.GetHostMDMAppleProfilesFuncInvoked)
+				if c.licenseTier == fleet.TierPremium {
+					require.True(t, ds.GetHostMDMFuncInvoked)
+				} else {
+					require.False(t, ds.GetHostMDMFuncInvoked)
+				}
 				if c.wantStatus != "" {
 					require.True(t, ds.GetMDMWindowsBitLockerStatusFuncInvoked)
 					require.NotNil(t, hostDetail.MDM.OSSettings.DiskEncryption.Status)
