@@ -489,7 +489,7 @@ org_settings:
 ##### host_status_webhook
 
 - `enable_host_status_webhook` (default: `false`)
-- `destination_url` is the URL to `POST` to when the condition for the webhook triggers (default: empty).
+- `destination_url` is the URL to `POST` to when the condition for the webhook triggers (default: `""`).
 - `days_count` is the number of days that hosts need to be offline to count as part of the percentage (default: `0`).
 - `host_percentage` is the percentage of hosts that need to be offline to trigger the webhook. (default: `0`).
 
