@@ -539,7 +539,7 @@ org_settings:
     apple_bm_default_team: "Workstations" # Available in Fleet Premium
 ```
 
-Can only be configure for all teams (`org_settings`).
+Can only be configured for all teams (`org_settings`).
 
 <meta name="title" value="GitOps">
 <meta name="description" value="Reference documentation for Fleet's GitOps workflow. See examples and configuration options.">
