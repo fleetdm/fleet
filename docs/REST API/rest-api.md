@@ -861,7 +861,8 @@ None.
     "metadata_url": "",
     "idp_name": "",
     "enable_sso": false,
-    "enable_sso_idp_login": false
+    "enable_sso_idp_login": false,
+    "enable_jit_provisioning": false
   },
   "host_expiry_settings": {
     "host_expiry_enabled": false,
@@ -1094,7 +1095,8 @@ Modifies the Fleet's configuration with the supplied information.
 | idp_image_url                     | string  | body  | _SSO settings_. An optional link to an image such as a logo for the identity provider.                                                                                                 |
 | metadata                          | string  | body  | _SSO settings_. Metadata provided by the identity provider. Either metadata or a metadata URL must be provided.                                                                        |
 | metadata_url                      | string  | body  | _SSO settings_. A URL that references the identity provider metadata. If available from the identity provider, this is the preferred means of providing metadata.                      |
-| enabled_sso_idp_login             | boolean | body  | _SSO settings_. Determines whether Identity Provider (IdP) initiated login for Single Sign-On (SSO) is enabled for the Fleet application.                                              |
+| enable_sso_idp_login              | boolean | body  | _SSO settings_. Determines whether Identity Provider (IdP) initiated login for Single Sign-On (SSO) is enabled for the Fleet application.                                              |
+| enable_jit_provisioning           | boolean | body  | _SSO settings_. When enabled, allows [just-in-time user provisioning](https://fleetdm.com/docs/deploy/single-sign-on-sso#just-in-time-jit-user-provisioning). **Requires Fleet Premium license** |
 | host_expiry_enabled               | boolean | body  | _Host expiry settings_. When enabled, allows automatic cleanup of hosts that have not communicated with Fleet in some number of days.                                                  |
 | host_expiry_window                | integer | body  | _Host expiry settings_. If a host has not communicated with Fleet in the specified number of days, it will be removed.                                                                 |
 | activity_expiry_enabled           | boolean | body  | _Activity expiry settings_. When enabled, allows automatic cleanup of activities (and associated live query data) older than the specified number of days.                                                          |
@@ -1210,7 +1212,8 @@ Note that when making changes to the `integrations` object, all integrations mus
     "metadata_url": "",
     "idp_name": "",
     "enable_sso": false,
-    "enable_sso_idp_login": false
+    "enable_sso_idp_login": false,
+    "enable_jit_provisioning": false
   },
   "host_expiry_settings": {
     "host_expiry_enabled": false,
