@@ -100,7 +100,7 @@ Note that the `team_id` option isn't supported in GitOps.
 
 #### Options
 
-For possible options, see the parameters for the [Create query API endpoint](../REST%20API/rest-api.md#create-query).
+For possible options, see the parameters for the [Create query API endpoint](https://fleetdm.com/docs/rest-api/rest-api#create-query).
 
 #### Example
 
