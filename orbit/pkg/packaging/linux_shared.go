@@ -44,7 +44,7 @@ func buildNFPM(opt Options, pkger nfpm.Packager) (string, error) {
 	updateOpt := update.DefaultOptions
 
 	updateOpt.RootDirectory = orbitRoot
-	if opt.Architecture == "arm64" {
+	if opt.Architecture == ArchArm64 {
 		updateOpt.Targets = update.LinuxArm64Targets
 	} else {
 		updateOpt.Targets = update.LinuxTargets
@@ -60,7 +60,7 @@ func buildNFPM(opt Options, pkger nfpm.Packager) (string, error) {
 	}
 
 	if opt.Desktop {
-		if opt.Architecture == "arm64" {
+		if opt.Architecture == ArchArm64 {
 			updateOpt.Targets["desktop"] = update.DesktopLinuxArm64Target
 		} else {
 			updateOpt.Targets["desktop"] = update.DesktopLinuxTarget

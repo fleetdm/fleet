@@ -129,6 +129,11 @@ type Options struct {
 	Architecture string
 }
 
+const (
+	ArchAmd64 string = "amd64"
+	ArchArm64 string = "arm64"
+)
+
 func initializeTempDir() (string, error) {
 	// Initialize directories
 	tmpDir, err := os.MkdirTemp("", "orbit-package")
