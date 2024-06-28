@@ -81,12 +81,14 @@ const OrgSettingsPage = ({ params, router }: IOrgSettingsPageProps) => {
             const agentOptionsInvalid =
               reason.includes("unsupported key provided") ||
               reason.includes("invalid value type");
-
+            const isAgentOptionsError =
+              agentOptionsInvalid ||
+              reason.includes("script_execution_timeout' value exceeds limit.");
             renderFlash(
               "error",
               <>
                 Couldn&apos;t update{" "}
-                {agentOptionsInvalid ? "agent options" : "settings"}: {reason}
+                {isAgentOptionsError ? "agent options" : "settings"}: {reason}
                 {agentOptionsInvalid && (
                   <>
                     <br />

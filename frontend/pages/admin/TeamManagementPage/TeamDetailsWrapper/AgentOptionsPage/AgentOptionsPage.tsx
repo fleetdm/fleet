@@ -110,16 +110,16 @@ const AgentOptionsPage = ({
       })
       .catch((response: { data: IApiError }) => {
         console.error(response);
-
+        const reason = response.data.errors[0].reason;
         const agentOptionsInvalid =
-          response.data.errors[0].reason.includes("unsupported key provided") ||
-          response.data.errors[0].reason.includes("invalid value type");
+          reason.includes("unsupported key provided") ||
+          reason.includes("invalid value type");
 
         return renderFlash(
           "error",
           <>
             Couldn&apos;t update {teamName} team agent options:
-            {response.data.errors[0].reason}
+            {reason}
             {agentOptionsInvalid && (
               <>
                 <br />
