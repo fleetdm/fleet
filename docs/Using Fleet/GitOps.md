@@ -366,7 +366,7 @@ org_settings:
 
 #### server_settings
 
-- `enable_analytics` specifies whether or not to enable Fleet's [usage statistics](../Using%20Fleet/Usage-statistics.md) (default: `true`).
+- `enable_analytics` specifies whether or not to enable Fleet's [usage statistics](https://fleetdm.com/docs/using-fleet/usage-statistics) (default: `true`).
 - `live_query_disabled` disables the ability to run live queries (ad hoc queries executed via the UI or fleetctl) (default: `false`).
 - `query_reports_disabled` disables query reports and deletes existing repors (default: `false`).
 - `scripts_disabled` blocks access to run scripts. Scripts may still be added in the UI and CLI (defaul: `false`).
