@@ -572,13 +572,12 @@ func (ds *Datastore) HasSelfServiceSoftwareInstallers(ctx context.Context, platf
 	if fleet.IsLinux(platform) {
 		platform = "linux"
 	}
-	stmt := `SELECT 1 FROM software_installers WHERE self_service = 1 AND platform = ? AND (global_or_team_id = 0`
-	args := []interface{}{platform}
+	stmt := `SELECT 1 FROM software_installers WHERE self_service = 1 AND platform = ? AND global_or_team_id = ?`
+	var globalOrTeamID uint
 	if teamID != nil {
-		stmt += ` OR team_id = ?`
-		args = append(args, *teamID)
+		globalOrTeamID = *teamID
 	}
-	stmt += `)`
+	args := []interface{}{platform, globalOrTeamID}
 	var hasInstallers bool
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &hasInstallers, stmt, args...)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
