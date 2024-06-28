@@ -508,7 +508,7 @@ org_settings:
 ##### vulnerabilities_webhook
 
 - `enable_vulnerabilities_webhook` (default: `false`)
-- `destination_url` is the URL to `POST` to when the condition for the webhook triggers (default: empty).
+- `destination_url` is the URL to `POST` to when the condition for the webhook triggers (default: `""`).
 - `days_count` is the number of days that hosts need to be offline to count as part of the percentage (default: `0`).
 - `host_batch_size` is the maximum number of hosts to batch in each webhook. A value of `0` means no batching (default: `0`).
 
