@@ -372,7 +372,7 @@ org_settings:
 - `scripts_disabled` blocks access to run scripts. Scripts may still be added in the UI and CLI (defaul: `false`).
 - `server_url` is the base URL of the Fleet instance (default: provided during Fleet setup)
 
-Can only be configure for all teams (`org_settings`).
+Can only be configured for all teams (`org_settings`).
 
 ##### Example
 
