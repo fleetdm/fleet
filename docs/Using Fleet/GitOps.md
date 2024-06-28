@@ -14,9 +14,9 @@ To learn how to set up a GitOps workflow see the [Fleet GitOps repo](https://git
 - `lib/` - Folder where you define policies, queries, configuration profiles, scripts, and agent options. These files can be referenced in top level keys in the `default.yml` file and the files in the `teams/` folder.
 - `.github/workflows/workflow.yml` - The GitHub workflow file where you can add [environment variables](https://docs.github.com/en/actions/learn-github-actions/variables#defining-environment-variables-for-a-single-workflow).
 
-The following files are responsible for running the GitHub action. Most users don't need to edit these file.
-- `gitops.sh` - the bash script that applies the latest configuration to Fleet. This script is used in the GitHub action file.
-- `.github/gitops-action/action.yml` - the GitHub action that runs `gitops.sh`. This action is used in the GitHub workflow file. It can also be used in other workflows.
+The following files are responsible for running the GitHub action. Most users don't need to edit these files.
+- `gitops.sh` - The bash script that applies the latest configuration to Fleet. This script is used in the GitHub action file.
+- `.github/gitops-action/action.yml` - The GitHub action that runs `gitops.sh`. This action is used in the GitHub workflow file. It can also be used in other workflows.
 
 ## Configuration options
 
