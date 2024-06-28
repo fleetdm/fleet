@@ -291,7 +291,7 @@ The `secrets` section provides the list of enroll secrets that will be valid for
 
 ### Modify an existing team
 
-You can modify an existing team by applying a new team configuration file with the same `name` as an existing team. The new team configuration will completely replace the previous configuration. In order to avoid overiding existing settings, we reccomend retreiving the existing configuration and modifying it.
+You can modify an existing team by applying a new team configuration file with the same `name` as an existing team. The new team configuration will completely replace the previous configuration. In order to avoid overriding existing settings, we recommend retrieving the existing configuration and modifying it.
 
 Retrieve the team configuration and output to a YAML file:
 
