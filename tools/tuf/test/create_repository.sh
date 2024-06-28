@@ -35,6 +35,8 @@ if echo $SYSTEMS | grep 'linux[^-]'; then
     fi
 fi
 
+echo "Generating packages for $SYSTEMS"
+
 NUDGE_VERSION=stable
 SWIFT_DIALOG_MACOS_APP_VERSION=2.2.1
 SWIFT_DIALOG_MACOS_APP_BUILD_VERSION=4591
@@ -79,10 +81,10 @@ for system in $SYSTEMS; do
     if [[ $system == "macos" ]]; then
         goose_value="darwin"
     fi
-    if [ $system = "linux-amd64" ]; then
+    if [[ $system == "linux-amd64" ]]; then
         goarch_value="amd64"
     fi
-    if [ $system = "linux-arm64" ]; then
+    if [[ $system == "linux-arm64" ]]; then
         goarch_value="arm64"
     fi
     orbit_target=orbit-$system
@@ -185,7 +187,7 @@ for system in $SYSTEMS; do
     # Add Fleet Desktop application on linux-arm64 (if enabled).
     if [[ $system == "linux-arm64" && -n "$FLEET_DESKTOP" ]]; then
         FLEET_DESKTOP_VERSION=42.0.0 \
-            make desktop-linux-arm64
+        make desktop-linux-arm64
         ./build/fleetctl updates add \
                          --path $TUF_PATH \
                          --target desktop.tar.gz \
