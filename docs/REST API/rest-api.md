@@ -2581,7 +2581,7 @@ Returns the information of the host specified using the `id`, `uuid`, `hardware_
 
 If `hostname` is specified when there is more than one host with the same hostname, the endpoint returns the first matching host. In Fleet, hostnames are fully qualified domain names (FQDNs).
 
-> `hostname` is not the same as the host's display name. Hostname usually looks like this `john-macbook.local`.
+> `hostname` is not the same as the host's display name. For example, a host displayed as "John's MacBook Pro" would usually have a hostname like `Johns-MacBook-Pro.local`.
 
 `GET /api/v1/fleet/hosts/identifier/:identifier`
 
