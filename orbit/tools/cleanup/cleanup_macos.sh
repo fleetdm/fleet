@@ -16,7 +16,7 @@ function remove_fleet {
     pkgutil --forget com.fleetdm.orbit.base.pkg || true
 }
 
-if [ $1 == "remove" ]; then
+if [ "$1" = "remove" ]; then
     # We are in the detached child process
     # Give the parent process time to report the success before removing
     sleep 15
