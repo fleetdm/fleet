@@ -215,10 +215,18 @@ func setupDummyReplica(t testing.TB, testName string, ds *Datastore, opts *Datas
 	}
 }
 
+//var replicatedDatabases []string
+//var mu sync.Mutex
+
 func setupRealReplica(t testing.TB, testName string, ds *Datastore, options *dbOptions) {
 	t.Helper()
 	const replicaUser = "replicator"
 	const replicaPassword = "rotacilper"
+
+	//	var databasesToReplicate string
+	//	mu.Lock()
+	//	replicatedDatabases = append(replicatedDatabases, testName)
+	//	mu.Unlock()
 
 	t.Cleanup(
 		func() {
@@ -302,7 +310,6 @@ func setupRealReplica(t testing.TB, testName string, ds *Datastore, options *dbO
 	require.NoError(t, err)
 	ds.replica = replica
 	ds.readReplicaConfig = &replicaConfig
-
 }
 
 // initializeDatabase loads the dumped schema into a newly created database in
@@ -524,7 +531,8 @@ func TruncateTables(t testing.TB, ds *Datastore, tables ...string) {
 				}
 				return fmt.Errorf("cannot truncate table %s, it contains seed data from schema.sql", tbl)
 			}
-			if _, err := tx.ExecContext(ctx, "TRUNCATE TABLE "+tbl); err != nil {
+			truncateStmt := fmt.Sprintf("CREATE TABLE IF NOT EXISTS `%s`; TRUNCATE TABLE `%s`", tbl, tbl)
+			if _, err := tx.ExecContext(ctx, truncateStmt); err != nil {
 				return err
 			}
 		}
