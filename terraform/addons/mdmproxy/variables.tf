@@ -27,10 +27,11 @@ variable "config" {
     cpu                          = optional(number, 1024)
     image                        = string
     desired_count                = optional(number, 1)
-    repository_credentials       = optional(string, "")
+    repository_credentials       = optional(string, null)
     migrate_percentage           = number
     existing_hostname            = string
     existing_url                 = string
+    fleet_url                    = string
     migrate_udids                = optional(list(string), [])
     auth_token                   = optional(string, "")
     iam = optional(object({
@@ -49,11 +50,16 @@ variable "config" {
       subnets             = list(string)
       security_groups     = optional(list(string), null)
       security_group_name = optional(string, "fleet-mdmproxy")
-      ingress_sources = object({
+      ingress_sources = optional(object({
         cidr_blocks      = optional(list(string), [])
         ipv6_cidr_blocks = optional(list(string), [])
         security_groups  = optional(list(string), [])
         prefix_list_ids  = optional(list(string), [])
+      }), {
+        cidr_blocks      = []
+        ipv6_cidr_blocks = []
+        security_groups  = []
+        prefix_list_ids  = []
       })
     })
   })

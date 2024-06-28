@@ -2,8 +2,8 @@ data "aws_region" "current" {}
 
 locals {
   mdmproxy_secrets = {
-    auth_token    = var.config.auth_token
-    migrate_udids = join(" ", var.config.migrate_udids)
+    MDMPROXY_AUTH_TOKEN    = var.config.auth_token
+    MDMPROXY_MIGRATE_UDIDS = join(" ", var.config.migrate_udids)
   }
 }
 
@@ -141,6 +141,12 @@ resource "aws_ecs_service" "mdmproxy" {
   deployment_minimum_healthy_percent = 100
   deployment_maximum_percent         = 200
 
+  load_balancer {
+    target_group_arn = module.alb.target_group_arns[0]
+    container_name   = "mdmproxy"
+    container_port   = 8080
+  }
+
   lifecycle {
     ignore_changes = [desired_count]
   }
@@ -155,7 +161,7 @@ resource "aws_ecs_task_definition" "mdmproxy" {
   family                   = "${var.customer_prefix}-mdmproxy"
   cpu                      = var.config.cpu
   memory                   = var.config.mem
-  execution_role_arn       = aws_iam_role.execution
+  execution_role_arn       = aws_iam_role.execution.arn
   network_mode             = "awsvpc"
   requires_compatibilities = ["FARGATE"]
 
@@ -166,6 +172,13 @@ resource "aws_ecs_task_definition" "mdmproxy" {
       cpu         = var.config.cpu
       memory      = var.config.mem
       essential   = true
+      portMappings = [
+        {
+          # This port is the same that the contained application also uses
+          containerPort = 8080
+          protocol      = "tcp"
+        }
+      ]
       networkMode = "awsvpc"
       secrets = [
         {
@@ -192,7 +205,7 @@ resource "aws_ecs_task_definition" "mdmproxy" {
         },
         {
           name  = "MDMPROXY_MIGRATE_PERCENTAGE"
-          value = var.config.migrate_percentage
+          value = tostring(var.config.migrate_percentage)
         },
         {
           name  = "MDMPROXY_EXISTING_HOSTNAME"
@@ -204,7 +217,7 @@ resource "aws_ecs_task_definition" "mdmproxy" {
         },
         {
           name  = "MDMPROXY_FLEET_URL"
-          value = "var.config.fleet_url"
+          value = var.config.fleet_url
         },
       ]
       logConfiguration = {
@@ -212,7 +225,7 @@ resource "aws_ecs_task_definition" "mdmproxy" {
         options = {
           awslogs-group         = var.awslogs_config.group
           awslogs-region        = var.awslogs_config.region == null ? data.aws_region.current.name : var.awslogs_config.region
-          awslogs-stream-prefix = var.awslogs_config.prefix
+          awslogs-stream-prefix = "${var.awslogs_config.prefix}-mdmproxy"
         }
       }
     }
