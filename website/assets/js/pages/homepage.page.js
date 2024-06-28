@@ -4,6 +4,7 @@ parasails.registerPage('homepage', {
   //  ╩╝╚╝╩ ╩ ╩╩ ╩╩═╝  ╚═╝ ╩ ╩ ╩ ╩ ╚═╝
   data: {
     modal: undefined,
+    selectedCategory: 'mdm'
   },
 
   //  ╦  ╦╔═╗╔═╗╔═╗╦ ╦╔═╗╦  ╔═╗
@@ -12,7 +13,7 @@ parasails.registerPage('homepage', {
   beforeMount: function() {
     //…
   },
-  mounted: async function(){
+  mounted: async function() {
     //…
   },
 

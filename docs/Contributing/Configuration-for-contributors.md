@@ -1,17 +1,37 @@
 # Configuration for contributors
 
-- [Mobile device management (MDM)](#mobile-device-management-mdm)
+- [Integrations](#integrations)
+- [SMTP-settings](#smtp-settings)
+- [Server configuration](#server-configuration)
 - [Environment variables](#environment-variables)
 
 This document includes Fleet server configuration settings that are helpful when developing or contributing to Fleet.
 
 Unlike the [fleetctl apply format](https://github.com/fleetdm/fleet/tree/main/docs/Contributing/fleetctl-apply.md), the files and settings in this document are not recommended for production use. Each setting includes the best practice for being successful in production.
 
-## Mobile device management (MDM)
+## Server configuration
 
-This section is a reference for the configuration required to turn on MDM features in production.
+##### s3_software_installers_disable_ssl
 
-If you're a Fleet contributor and you'd like to turn on MDM features in a local environment, see the guided instructions [here](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/Testing-and-local-development.md#mdm-setup-and-testing).
+AWS S3 Disable SSL. Useful for local testing.
+
+- Default value: false
+- Environment variable: `FLEET_S3_SOFTWARE_INSTALLERS_DISABLE_SSL`
+- Config file format:
+  ```yaml
+  s3:
+    software_installers_disable_ssl: false
+  ```
+
+##### s3_carves_disable_ssl
+
+- Default value: false
+- Environment variable: `FLEET_S3_CARVES_DISABLE_SSL`
+- Config file format:
+  ```yaml
+  s3:
+    carves_disable_ssl: false
+  ```
 
 ##### mdm.apple_apns_cert_bytes
 

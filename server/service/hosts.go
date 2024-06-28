@@ -1096,7 +1096,7 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 				// we include disk encryption status only for premium so initialize it to default struct
 				host.MDM.OSSettings.DiskEncryption = fleet.HostMDMDiskEncryption{}
 				// ensure host mdm info is loaded (we don't know if our caller populated it)
-				err := svc.ensureHostMDMInfo(ctx, host)
+				_, err := svc.ds.GetHostMDM(ctx, host.ID)
 				switch {
 				case err != nil && fleet.IsNotFound(err):
 					// assume host is unmanaged, log for debugging, and move on
@@ -1197,21 +1197,6 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 		Packs:     packs,
 		Batteries: &bats,
 	}, nil
-}
-
-func (svc *Service) ensureHostMDMInfo(ctx context.Context, host *fleet.Host) error {
-	if host.MDMInfo == nil {
-		mdmInfo, err := svc.ds.GetHostMDM(ctx, host.ID)
-		if err != nil {
-			return err
-		}
-		host.MDMInfo = mdmInfo
-	}
-	if host.MDMInfo == nil {
-		// this should not happen, but just in case
-		return ctxerr.New(ctx, fmt.Sprintf("nil mdm info for host %d", host.ID))
-	}
-	return nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////
