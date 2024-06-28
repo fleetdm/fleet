@@ -529,7 +529,7 @@ Can only be configure for all teams (`org_settings`).
 
 The `mdm` section lets you enable MDM features in Fleet.
 
-- `apple_bm_default_team` - is name of the team that macOS hosts in Apple Business Manager automatically enroll to when they're first setup. If empty, hosts will enroll to "No team" (default: empty).
+- `apple_bm_default_team` - is name of the team that macOS hosts in Apple Business Manager automatically enroll to when they're first set up. If empty, hosts will enroll to "No team" (default: `""`).
 
 ##### Example
 
