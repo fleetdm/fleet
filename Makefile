@@ -249,6 +249,8 @@ fleetd-tables-windows:
 	GOOS=windows GOARCH=amd64 go build -o fleetd_tables_windows.exe ./orbit/cmd/fleetd_tables
 fleetd-tables-linux:
 	GOOS=linux GOARCH=amd64 go build -o fleetd_tables_linux.ext ./orbit/cmd/fleetd_tables
+fleetd-tables-linux-arm64:
+	GOOS=linux GOARCH=arm64 go build -o fleetd_tables_linux.ext ./orbit/cmd/fleetd_tables
 fleetd-tables-darwin:
 	GOOS=darwin GOARCH=amd64 go build -o fleetd_tables_darwin.ext ./orbit/cmd/fleetd_tables
 fleetd-tables-darwin_arm:
