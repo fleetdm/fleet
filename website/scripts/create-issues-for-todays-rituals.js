@@ -36,6 +36,7 @@ module.exports = {
         let isItTimeToCreateANewIssue = false;// Default this value to false.
         let nextIssueShouldBeCreatedAt;
         let ritualsFrequencyInMs = 0;
+        let now = new Date();
 
         if(_.startsWith(ritual.frequency, 'Daily')){// Using _.startsWith() to handle frequencies with emoji ("Daily ⏰") and with out ("Daily")
           ritualsFrequencyInMs = 1000 * 60 * 60 * 24;
@@ -48,20 +49,19 @@ module.exports = {
         } else if (ritual.frequency === 'Monthly') {
           // For monthly rituals, we will create issues on the day of the month that the ritual was started on, or the last day of the month if the ritual was started on a day that doesn't exist in the current month
           // (e.g, the next issue for a monthly ritual started on 2024-01-31 would be created for on 2024-02-29)
-          let todaysDate = new Date();
           let ritualStartedOn = new Date(ritual.startedOn);
           // Get the day in the month that we'll create the issue for this ritual on.
           let dayToCreateIssueOn = ritualStartedOn.getUTCDate();
           // Get the number of days in the current month.
-          let numberOfDaysInThisMonth = new Date(todaysDate.getFullYear(), todaysDate.getMonth() + 1, 0).getUTCDate();
-          if(dayToCreateIssueOn === todaysDate.getUTCDate()){
+          let numberOfDaysInThisMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getUTCDate();
+          if(dayToCreateIssueOn === now.getUTCDate()){
             // If this is the day of the month this ritual was started on, create an issue.
             isItTimeToCreateANewIssue = true;
-          } else if(numberOfDaysInThisMonth < dayToCreateIssueOn && numberOfDaysInThisMonth === todaysDate.getUTCDate()){
+          } else if(numberOfDaysInThisMonth < dayToCreateIssueOn && numberOfDaysInThisMonth === now.getUTCDate()){
             // If this ritual was started on a date that does not exist in the current month, and this is the last day of the month, create an issue.
             isItTimeToCreateANewIssue = true;
           }
-          nextIssueShouldBeCreatedAt = new Date(todaysDate.getFullYear(), todaysDate.getMonth() + 1, dayToCreateIssueOn);
+          nextIssueShouldBeCreatedAt = new Date(now.getFullYear(), now.getMonth() + 1, dayToCreateIssueOn);
           ritualsFrequencyInMs = 1000 * 60 * 60 * 24 * numberOfDaysInThisMonth;
         }//ﬁ
 
@@ -69,8 +69,7 @@ module.exports = {
         if(ritual.frequency !== 'Monthly') {
           // Get a JS timestamp representing 12 PM UTC of the day this script is running.
           let twelveHoursInMs = 1000 * 60 * 60 * 12;
-          let today = new Date();
-          let lastUTCNoonAt = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate(), 12, 0, 0, 0)).getTime();
+          let lastUTCNoonAt = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 12, 0, 0, 0)).getTime();
 
           // Get a JS timestamp representing 12:00 PM UTC of the day this ritual started.
           let ritualStartedAt = new Date(ritual.startedOn).getTime() + twelveHoursInMs;
