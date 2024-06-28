@@ -94,6 +94,7 @@ type integrationMDMTestSuite struct {
 	mdmCommander               *apple_mdm.MDMAppleCommander
 	logger                     kitlog.Logger
 	scepChallenge              string
+	mockedDownloadFleetdmMeta  fleetdbase.Metadata
 }
 
 func (s *integrationMDMTestSuite) SetupSuite() {
@@ -304,21 +305,20 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	s.T().Setenv("TEST_FLEETDM_API_URL", fleetdmSrv.URL)
 	s.T().Cleanup(fleetdmSrv.Close)
 
+	s.mockedDownloadFleetdmMeta = fleetdbase.Metadata{
+		MSIURL:           fmt.Sprintf("https://download-testing.fleetdm.com/archive/stable/%s/fleetd-base.msi", uuid.NewString()),
+		MSISha256:        uuid.NewString(),
+		PKGURL:           fmt.Sprintf("https://download-testing.fleetdm.com/archive/stable/%s/fleetd-base.pkg", uuid.NewString()),
+		PKGSha256:        uuid.NewString(),
+		ManifestPlistURL: fmt.Sprintf("https://download-testing.fleetdm.com/archive/stable/%s/fleetd-base-manifest.plist", uuid.NewString()),
+		Version:          "2024-06-25_03-01-17",
+	}
 	downloadFleetdmSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		metadata := &fleetdbase.Metadata{
-			MSIURL:           "https://download-testing.fleetdm.com/archive/stable/2024-06-25_03-01-17/fleetd-base.msi",
-			MSISha256:        "456e4f16c437c54d4cfacb54717450f4be582e572b8a7252a0384ac3118fbd11",
-			PKGURL:           "https://download-testing.fleetdm.com/archive/stable/2024-06-25_03-01-17/fleetd-base.pkg",
-			PKGSha256:        "4c914def2af5f4e0f5507e397d1d8af5b5991ea23cf606450787b8377e7bcecd",
-			ManifestPlistURL: "https://download-testing.fleetdm.com/archive/stable/2024-06-25_03-01-17/fleetd-base-manifest.plist",
-			Version:          "2024-06-25_03-01-17",
-		}
-
 		switch r.URL.Path {
 		case "/stable/meta.json":
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
-			require.NoError(s.T(), json.NewEncoder(w).Encode(metadata))
+			require.NoError(s.T(), json.NewEncoder(w).Encode(s.mockedDownloadFleetdmMeta))
 
 		}
 	}))
@@ -6243,7 +6243,7 @@ func (s *integrationMDMTestSuite) TestWindowsMDM() {
 	}, getMDMCmdResp.Results[0])
 }
 
-func (s *integrationMDMTestSuite) TestWindowsAutomaticEnrollmentCommands() {
+func (s *integrationMDMTestSuite) TestWindowsAutomaticEnrollmentCommandsTestWindowsAutomaticEnrollmentCommands() {
 	t := s.T()
 	ctx := context.Background()
 
@@ -6281,6 +6281,18 @@ func (s *integrationMDMTestSuite) TestWindowsAutomaticEnrollmentCommands() {
 		}
 		require.Equal(t, syncml.FleetdWindowsInstallerGUID, fleetdAddCmd.Cmd.GetTargetURI())
 		require.Equal(t, syncml.FleetdWindowsInstallerGUID, fleetdExecCmd.Cmd.GetTargetURI())
+		require.Len(t, fleetdExecCmd.Cmd.Items, 1)
+
+		var installJob struct {
+			Product struct {
+				ContentURL string `xml:"Download>ContentURLList>ContentURL"`
+				FileHash   string `xml:"Validation>FileHash"`
+			} `xml:"Product"`
+		}
+		err = xml.Unmarshal([]byte(fleetdExecCmd.Cmd.Items[0].Data.Content), &installJob)
+		require.NoError(t, err)
+		require.Equal(t, s.mockedDownloadFleetdmMeta.MSIURL, installJob.Product.ContentURL)
+		require.Equal(t, s.mockedDownloadFleetdmMeta.MSISha256, installJob.Product.FileHash)
 
 		// reply with success for both commands
 		msgID, err := d.GetCurrentMsgID()
