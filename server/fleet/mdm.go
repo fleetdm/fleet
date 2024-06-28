@@ -632,14 +632,27 @@ func FilterMacOSOnlyProfilesFromIOSIPadOS(profiles []*MDMAppleProfilePayload) []
 // RefetchCommandUUIDPrefix is the prefix used for MDM commands used to refetch information from iOS/iPadOS devices.
 const RefetchCommandUUIDPrefix = "REFETCH-"
 
+// VPPTokenInfo is the representation of the VPP token that we send out via API.
 type VPPTokenInfo struct {
-	OrgName   string    `json:"org_name"`
-	RenewDate time.Time `json:"renew_date"` // TODO(JVE): where does this come from? it doesn't appear to be on the actual token.
-	Location  string    `json:"location"`   // TODO(JVE): where does this come from? it doesn't appear to be on the actual token.
+	OrgName   string `json:"org_name"`
+	RenewDate string `json:"renew_date"`
+	Location  string `json:"location"`
 }
 
+// VPPTokenRaw is the representation of the decoded JSON object that is downloaded from ABM.
 type VPPTokenRaw struct {
 	OrgName string `json:"orgName"`
 	Token   string `json:"token"`
-	ExpDate string `json:"expDate"` // TODO(JVE): this might require a custom unmarshaler. see https://stackoverflow.com/questions/25087960/json-unmarshal-time-that-isnt-in-rfc-3339-format
+	ExpDate string `json:"expDate"`
+}
+
+// VPPTokenData is the VPP data we store in the DB.
+type VPPTokenData struct {
+	// Location comes from an Apple API:
+	// https://developer.apple.com/documentation/devicemanagement/client_config. It is the name of
+	// the "library" of apps in ABM that is associated with this VPP token.
+	Location string `json:"location"`
+
+	// Token is the string that is downloaded from ABM.
+	Token string `json:"token"`
 }
