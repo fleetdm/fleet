@@ -2557,10 +2557,16 @@ func (svc *Service) UploadMDMAppleVPPToken(ctx context.Context, token io.ReadSee
 	return nil
 }
 
+var testOverrideAppleVPPConfigURL string
+
 // getVPPConfig fetches the VPP config from Apple's VPP API. This doubles as a verification that the
 // user-provided VPP token is valid.
 func getVPPConfig(token string) (string, bool, error) {
-	url := "https://vpp.itunes.apple.com/mdm/v2/client/config" // TODO(JVE): make this mockable for testing purposes
+	url := "https://vpp.itunes.apple.com/mdm/v2/client/config"
+	if testOverrideAppleVPPConfigURL != "" {
+		url = testOverrideAppleVPPConfigURL
+	}
+
 	slog.With("filename", "server/service/mdm.go", "func", "validateVPPToken").Info("JVE_LOG: call apple endpoint", "token", token)
 
 	bearer := fmt.Sprintf("Bearer %s", token)

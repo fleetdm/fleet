@@ -93,6 +93,7 @@ type integrationMDMTestSuite struct {
 	mdmCommander               *apple_mdm.MDMAppleCommander
 	logger                     kitlog.Logger
 	scepChallenge              string
+	appleVPPConfigSrv          *httptest.Server
 }
 
 func (s *integrationMDMTestSuite) SetupSuite() {
@@ -300,6 +301,16 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 		}
 		_, _ = w.Write(resp)
 	}))
+
+	s.appleVPPConfigSrv = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		resp := []byte(`{"locationName": "Fleet Location One"}`)
+		if strings.Contains(r.URL.RawQuery, "invalidToken") {
+			resp = []byte(`{"errorNumber": 9622,"errorMessage": "Invalid authentication token"}`)
+		}
+
+		_, _ = w.Write(resp)
+	}))
 	s.T().Setenv("TEST_FLEETDM_API_URL", fleetdmSrv.URL)
 
 	appConf, err = s.ds.AppConfig(context.Background())
@@ -313,6 +324,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	s.enableABM()
 
 	s.T().Cleanup(fleetdmSrv.Close)
+	s.T().Cleanup(s.appleVPPConfigSrv.Close)
 }
 
 func (s *integrationMDMTestSuite) TearDownSuite() {
@@ -1029,13 +1041,31 @@ func (s *integrationMDMTestSuite) uploadDataViaForm(endpoint string, fieldName, 
 }
 
 func (s *integrationMDMTestSuite) TestMDMVPPToken() {
-	// Invalid base64 string
+	t := s.T()
+	// Invalid token
+	testOverrideAppleVPPConfigURL = s.appleVPPConfigSrv.URL + "?invalidToken"
 	s.uploadDataViaForm("/api/latest/fleet/mdm/apple/vpp_token", "token", "token.vpptoken", []byte("foobar"), http.StatusUnprocessableEntity, "Invalid token. Please provide a valid content token from Apple Business Manager.")
 
 	// Valid token
-	s.uploadDataViaForm("/api/latest/fleet/mdm/apple/vpp_token", "token", "token.vpptoken", []byte(base64.StdEncoding.EncodeToString([]byte(`{"expDate":"2025-06-24T15:50:50+0000","token":"mycooltoken","orgName":"Fleet Device Management Inc."}`))), http.StatusAccepted, "")
+	orgName := "Fleet Device Management Inc."
+	location := "Fleet Location One"
+	token := "mycooltoken"
+	expDate := "2025-06-24T15:50:50+0000"
+	tokenJSON := fmt.Sprintf(`{"expDate":"%s","token":"%s","orgName":"%s"}`, expDate, token, orgName)
+	testOverrideAppleVPPConfigURL = s.appleVPPConfigSrv.URL
+	s.uploadDataViaForm("/api/latest/fleet/mdm/apple/vpp_token", "token", "token.vpptoken", []byte(base64.StdEncoding.EncodeToString([]byte(tokenJSON))), http.StatusAccepted, "")
 
+	// Get the token
+	var resp getMDMAppleVPPTokenResponse
+	s.DoJSON("GET", "/api/latest/fleet/vpp", &getMDMAppleVPPTokenRequest{}, http.StatusOK, &resp)
+	require.NoError(t, resp.Err)
+	require.Equal(t, orgName, resp.OrgName)
+	require.Equal(t, location, resp.Location)
+	require.Equal(t, expDate, resp.RenewDate)
+
+	// Delete and check that it's not appearing anymore
 	s.Do("DELETE", "/api/latest/fleet/mdm/apple/vpp_token", &deleteMDMAppleVPPTokenRequest{}, http.StatusOK)
+	s.DoJSON("GET", "/api/latest/fleet/vpp", &getMDMAppleVPPTokenRequest{}, http.StatusNotFound, &resp)
 }
 
 func (s *integrationMDMTestSuite) TestMDMAppleUnenroll() {

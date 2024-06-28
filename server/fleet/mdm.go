@@ -565,7 +565,6 @@ const (
 	// certificatges to Apple devices.
 	MDMAssetSCEPChallenge MDMAssetName = "scep_challenge"
 	// MDMAssetVPPToken is the name of the token used by MDM to authenticate to Apple's VPP service.
-	// TODO(JVE): improve this comment!
 	MDMAssetVPPToken MDMAssetName = "vpp_token"
 )
 
