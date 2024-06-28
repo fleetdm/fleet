@@ -461,7 +461,7 @@ For secrets, you can add [GitHub environment variables](https://docs.github.com/
 
 #### webhook_settings
 
-The `webhook_settings` section lets you define webhook settings for failing policy, vulnerability, and host status automations. Learn more about automations in Fleet [here](../Using%20Fleet/Automations.md).
+The `webhook_settings` section lets you define webhook settings for failing policy, vulnerability, and host status automations. Learn more about automations in Fleet [here](https://fleetdm.com/docs/using-fleet/automations).
 
 ##### failing_policies_webhook
 
