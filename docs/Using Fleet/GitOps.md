@@ -9,10 +9,10 @@ To learn how to set up a GitOps workflow see the [Fleet GitOps repo](https://git
 
 ## File structure
 
-- `default.yml`- file where you define the queries, policies, controls, and agent options for all hosts. If you're using Fleet Premium, this file updates queries and policies that run on all hosts ("All teams"). Controls and agent options are defined for hosts on "No team."
-- `teams/` - folder where you define your teams in Fleet. These `teams/team-name.yml` files define the controls, queries, policies, and agent options for hosts assigned to the specified team. Teams are available in Fleet Premium.
-- `lib/` - folder where you define policies, queries, configuration profiles, scripts, and agent options. These files can be referenced in top level keys in the `default.yml` file and the files in the `teams/` folder.
-- `.github/workflows/workflow.yml` - the GitHub workflow file where you can add [environment variables](https://docs.github.com/en/actions/learn-github-actions/variables#defining-environment-variables-for-a-single-workflow).
+- `default.yml`- File where you define the queries, policies, controls, and agent options for all hosts. If you're using Fleet Premium, this file updates queries and policies that run on all hosts ("All teams"). Controls and agent options are defined for hosts on "No team."
+- `teams/` - Folder where you define your teams in Fleet. These `teams/team-name.yml` files define the controls, queries, policies, and agent options for hosts assigned to the specified team. Teams are available in Fleet Premium.
+- `lib/` - Folder where you define policies, queries, configuration profiles, scripts, and agent options. These files can be referenced in top level keys in the `default.yml` file and the files in the `teams/` folder.
+- `.github/workflows/workflow.yml` - The GitHub workflow file where you can add [environment variables](https://docs.github.com/en/actions/learn-github-actions/variables#defining-environment-variables-for-a-single-workflow).
 
 The following files are responsible for running the GitHub action. Most users don't need to edit these file.
 - `gitops.sh` - the bash script that applies the latest configuration to Fleet. This script is used in the GitHub action file.
