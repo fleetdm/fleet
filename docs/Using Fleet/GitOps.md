@@ -3,7 +3,7 @@
 Use Fleet's best practice GitOps workflow to manage your computers as code.
 
 
-To learn how to set up GitOps workflow see [Fleet GitOps repo](https://github.com/fleetdm/fleet-gitops).
+To learn how to set up a GitOps workflow see the [Fleet GitOps repo](https://github.com/fleetdm/fleet-gitops).
 
 The [`fleetctl apply`]((https://github.com/fleetdm/fleet/blob/main/docs/Contributing/Configuration-files.md)) format is maintained for imports and backwards compatibility GitOps.
 
