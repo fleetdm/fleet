@@ -44,6 +44,41 @@ func TestGetMetadata(t *testing.T) {
 	require.Equal(t, expectedMetadata, meta)
 }
 
+func TestGetMetadataErrorScenarios(t *testing.T) {
+	t.Run("invalid URL", func(t *testing.T) {
+		t.Setenv("FLEET_DEV_DOWNLOAD_FLEETDM_URL", "://invalid-url")
+		_, err := GetMetadata()
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "invalid URL")
+	})
+
+	t.Run("non-200 status code", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusInternalServerError)
+		}))
+		t.Cleanup(server.Close)
+		t.Setenv("FLEET_DEV_DOWNLOAD_FLEETDM_URL", server.URL)
+
+		_, err := GetMetadata()
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "unexpected status code")
+	})
+
+	t.Run("JSON decoding failure", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte("{invalid-json}"))
+		}))
+		t.Cleanup(server.Close)
+		t.Setenv("FLEET_DEV_DOWNLOAD_FLEETDM_URL", server.URL)
+
+		_, err := GetMetadata()
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "failed to decode response")
+	})
+}
+
 func TestGetPKGManifestURL(t *testing.T) {
 	t.Run("with env variable", func(t *testing.T) {
 		t.Setenv("FLEET_DEV_DOWNLOAD_FLEETDM_URL", "https://download-test.fleetdm.com")
