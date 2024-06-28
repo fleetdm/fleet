@@ -20,9 +20,11 @@ import (
 	"github.com/go-kit/log/level"
 )
 
-const calendarConsumers = 18
-const defaultDescription = "needs to make sure your device meets the organization's requirements."
-const defaultResolution = "During this maintenance window, you can expect updates to be applied automatically. Your device may be unavailable during this time."
+const (
+	calendarConsumers  = 18
+	defaultDescription = "needs to make sure your device meets the organization's requirements."
+	defaultResolution  = "During this maintenance window, you can expect updates to be applied automatically. Your device may be unavailable during this time."
+)
 
 type calendarConfig struct {
 	config.CalendarConfig
@@ -351,6 +353,7 @@ func processFailingHostExistingCalendarEvent(
 			updatedEvent.StartTime,
 			updatedEvent.EndTime,
 			updatedEvent.Data,
+			updatedEvent.TimeZone,
 		); err != nil {
 			return fmt.Errorf("updating event calendar on db: %w", err)
 		}
@@ -433,7 +436,7 @@ func processFailingHostCreateCalendarEvent(
 		return fmt.Errorf("create event on user calendar: %w", err)
 	}
 	if _, err := ds.CreateOrUpdateCalendarEvent(
-		ctx, host.Email, calendarEvent.StartTime, calendarEvent.EndTime, calendarEvent.Data, host.HostID, fleet.CalendarWebhookStatusNone,
+		ctx, host.Email, calendarEvent.StartTime, calendarEvent.EndTime, calendarEvent.Data, calendarEvent.TimeZone, host.HostID, fleet.CalendarWebhookStatusNone,
 	); err != nil {
 		return fmt.Errorf("create calendar event on db: %w", err)
 	}

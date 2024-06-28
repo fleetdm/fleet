@@ -229,6 +229,8 @@ type SetOrUpdateCustomHostDeviceMappingFunc func(ctx context.Context, hostID uin
 
 type ListHostBatteriesFunc func(ctx context.Context, id uint) ([]*fleet.HostBattery, error)
 
+type ListUpcomingHostMaintenanceWindowsFunc func(ctx context.Context, hid uint) ([]*fleet.HostMaintenanceWindow, error)
+
 type LoadHostByDeviceAuthTokenFunc func(ctx context.Context, authToken string, tokenTTL time.Duration) (*fleet.Host, error)
 
 type SetOrUpdateDeviceAuthTokenFunc func(ctx context.Context, hostID uint, authToken string) error
@@ -363,6 +365,8 @@ type DeleteTeamFunc func(ctx context.Context, tid uint) error
 
 type TeamByNameFunc func(ctx context.Context, name string) (*fleet.Team, error)
 
+type TeamByFilenameFunc func(ctx context.Context, filename string) (*fleet.Team, error)
+
 type ListTeamsFunc func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, error)
 
 type TeamsSummaryFunc func(ctx context.Context) ([]*fleet.TeamSummary, error)
@@ -495,13 +499,13 @@ type DeleteSoftwareVulnerabilitiesFunc func(ctx context.Context, vulnerabilities
 
 type DeleteOutOfDateVulnerabilitiesFunc func(ctx context.Context, source fleet.VulnerabilitySource, duration time.Duration) error
 
-type CreateOrUpdateCalendarEventFunc func(ctx context.Context, email string, startTime time.Time, endTime time.Time, data []byte, hostID uint, webhookStatus fleet.CalendarWebhookStatus) (*fleet.CalendarEvent, error)
+type CreateOrUpdateCalendarEventFunc func(ctx context.Context, email string, startTime time.Time, endTime time.Time, data []byte, timeZone string, hostID uint, webhookStatus fleet.CalendarWebhookStatus) (*fleet.CalendarEvent, error)
 
 type GetCalendarEventFunc func(ctx context.Context, email string) (*fleet.CalendarEvent, error)
 
 type DeleteCalendarEventFunc func(ctx context.Context, calendarEventID uint) error
 
-type UpdateCalendarEventFunc func(ctx context.Context, calendarEventID uint, startTime time.Time, endTime time.Time, data []byte) error
+type UpdateCalendarEventFunc func(ctx context.Context, calendarEventID uint, startTime time.Time, endTime time.Time, data []byte, timeZone string) error
 
 type GetHostCalendarEventFunc func(ctx context.Context, hostID uint) (*fleet.HostCalendarEvent, *fleet.CalendarEvent, error)
 
@@ -1291,6 +1295,9 @@ type DataStore struct {
 	ListHostBatteriesFunc        ListHostBatteriesFunc
 	ListHostBatteriesFuncInvoked bool
 
+	ListUpcomingHostMaintenanceWindowsFunc        ListUpcomingHostMaintenanceWindowsFunc
+	ListUpcomingHostMaintenanceWindowsFuncInvoked bool
+
 	LoadHostByDeviceAuthTokenFunc        LoadHostByDeviceAuthTokenFunc
 	LoadHostByDeviceAuthTokenFuncInvoked bool
 
@@ -1491,6 +1498,9 @@ type DataStore struct {
 
 	TeamByNameFunc        TeamByNameFunc
 	TeamByNameFuncInvoked bool
+
+	TeamByFilenameFunc        TeamByFilenameFunc
+	TeamByFilenameFuncInvoked bool
 
 	ListTeamsFunc        ListTeamsFunc
 	ListTeamsFuncInvoked bool
@@ -3148,6 +3158,13 @@ func (s *DataStore) ListHostBatteries(ctx context.Context, id uint) ([]*fleet.Ho
 	return s.ListHostBatteriesFunc(ctx, id)
 }
 
+func (s *DataStore) ListUpcomingHostMaintenanceWindows(ctx context.Context, hid uint) ([]*fleet.HostMaintenanceWindow, error) {
+	s.mu.Lock()
+	s.ListUpcomingHostMaintenanceWindowsFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListUpcomingHostMaintenanceWindowsFunc(ctx, hid)
+}
+
 func (s *DataStore) LoadHostByDeviceAuthToken(ctx context.Context, authToken string, tokenTTL time.Duration) (*fleet.Host, error) {
 	s.mu.Lock()
 	s.LoadHostByDeviceAuthTokenFuncInvoked = true
@@ -3617,6 +3634,13 @@ func (s *DataStore) TeamByName(ctx context.Context, name string) (*fleet.Team, e
 	return s.TeamByNameFunc(ctx, name)
 }
 
+func (s *DataStore) TeamByFilename(ctx context.Context, filename string) (*fleet.Team, error) {
+	s.mu.Lock()
+	s.TeamByFilenameFuncInvoked = true
+	s.mu.Unlock()
+	return s.TeamByFilenameFunc(ctx, filename)
+}
+
 func (s *DataStore) ListTeams(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, error) {
 	s.mu.Lock()
 	s.ListTeamsFuncInvoked = true
@@ -4079,11 +4103,11 @@ func (s *DataStore) DeleteOutOfDateVulnerabilities(ctx context.Context, source f
 	return s.DeleteOutOfDateVulnerabilitiesFunc(ctx, source, duration)
 }
 
-func (s *DataStore) CreateOrUpdateCalendarEvent(ctx context.Context, email string, startTime time.Time, endTime time.Time, data []byte, hostID uint, webhookStatus fleet.CalendarWebhookStatus) (*fleet.CalendarEvent, error) {
+func (s *DataStore) CreateOrUpdateCalendarEvent(ctx context.Context, email string, startTime time.Time, endTime time.Time, data []byte, timeZone string, hostID uint, webhookStatus fleet.CalendarWebhookStatus) (*fleet.CalendarEvent, error) {
 	s.mu.Lock()
 	s.CreateOrUpdateCalendarEventFuncInvoked = true
 	s.mu.Unlock()
-	return s.CreateOrUpdateCalendarEventFunc(ctx, email, startTime, endTime, data, hostID, webhookStatus)
+	return s.CreateOrUpdateCalendarEventFunc(ctx, email, startTime, endTime, data, timeZone, hostID, webhookStatus)
 }
 
 func (s *DataStore) GetCalendarEvent(ctx context.Context, email string) (*fleet.CalendarEvent, error) {
@@ -4100,11 +4124,11 @@ func (s *DataStore) DeleteCalendarEvent(ctx context.Context, calendarEventID uin
 	return s.DeleteCalendarEventFunc(ctx, calendarEventID)
 }
 
-func (s *DataStore) UpdateCalendarEvent(ctx context.Context, calendarEventID uint, startTime time.Time, endTime time.Time, data []byte) error {
+func (s *DataStore) UpdateCalendarEvent(ctx context.Context, calendarEventID uint, startTime time.Time, endTime time.Time, data []byte, timeZone string) error {
 	s.mu.Lock()
 	s.UpdateCalendarEventFuncInvoked = true
 	s.mu.Unlock()
-	return s.UpdateCalendarEventFunc(ctx, calendarEventID, startTime, endTime, data)
+	return s.UpdateCalendarEventFunc(ctx, calendarEventID, startTime, endTime, data, timeZone)
 }
 
 func (s *DataStore) GetHostCalendarEvent(ctx context.Context, hostID uint) (*fleet.HostCalendarEvent, *fleet.CalendarEvent, error) {

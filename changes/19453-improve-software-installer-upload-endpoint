@@ -1,1 +1,0 @@
-* Extended the timeout for the endpoint to upload a software installer (`POST /fleet/software/package`), and improved handling of the maximum size.
