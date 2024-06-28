@@ -466,7 +466,7 @@ The `webhook_settings` section lets you define webhook settings for failing poli
 ##### failing_policies_webhook
 
 - `enable_failing_policies_webhook` (default: `false`)
-- `destination_url` is the URL to `POST` to when the condition for the webhook triggers (default: empty).
+- `destination_url` is the URL to `POST` to when the condition for the webhook triggers (default: `""`).
 - `policy_ids` is the list of policies that will trigger a webhook.
 - `host_batch_size` is the maximum number of hosts to batch in each webhook. A value of `0` means no batching (default: `0`).
 
