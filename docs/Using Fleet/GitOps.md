@@ -2,7 +2,6 @@
 
 Use Fleet's best practice GitOps workflow to manage your computers as code.
 
-This page lists the available in configuration options.
 
 To learn how to set up GitOps workflow see [Fleet GitOps repo](https://github.com/fleetdm/fleet-gitops).
 
