@@ -2568,10 +2568,8 @@ func getVPPConfig(token string) (string, bool, error) {
 
 	req, err := http.NewRequest("GET", url, nil)
 
-	// add authorization header to the req
 	req.Header.Add("Authorization", bearer)
 
-	// Send req using http Client
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
@@ -2601,7 +2599,9 @@ func getVPPConfig(token string) (string, bool, error) {
 		return "", false, nil
 	}
 
-	// TODO(JVE): handle other error cases
+	if resp.StatusCode != http.StatusOK {
+		return "", false, fmt.Errorf("calling Apple VPP config endpoint failed with status %d", resp.StatusCode)
+	}
 
 	return respJSON.LocationName, true, nil
 }

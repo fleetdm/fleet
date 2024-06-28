@@ -303,10 +303,20 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	}))
 
 	s.appleVPPConfigSrv = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
 		resp := []byte(`{"locationName": "Fleet Location One"}`)
 		if strings.Contains(r.URL.RawQuery, "invalidToken") {
+			// This replicates the response sent back from Apple's VPP endpoints when an invalid
+			// token is passed. For more details see:
+			// https://developer.apple.com/documentation/devicemanagement/app_and_book_management/app_and_book_management_legacy/interpreting_error_codes
+			// https://developer.apple.com/documentation/devicemanagement/client_config
+			// https://developer.apple.com/documentation/devicemanagement/errorresponse
+			// Note that the Apple server returns 200 in this case.
 			resp = []byte(`{"errorNumber": 9622,"errorMessage": "Invalid authentication token"}`)
+		}
+
+		if strings.Contains(r.URL.RawQuery, "serverError") {
+			resp = []byte(`{"errorNumber": 9603,"errorMessage": "Internal server error"}`)
+			w.WriteHeader(http.StatusInternalServerError)
 		}
 
 		_, _ = w.Write(resp)
@@ -1017,6 +1027,9 @@ func (s *integrationMDMTestSuite) TestMDMVPPToken() {
 	// Invalid token
 	testOverrideAppleVPPConfigURL = s.appleVPPConfigSrv.URL + "?invalidToken"
 	s.uploadDataViaForm("/api/latest/fleet/mdm/apple/vpp_token", "token", "token.vpptoken", []byte("foobar"), http.StatusUnprocessableEntity, "Invalid token. Please provide a valid content token from Apple Business Manager.")
+
+	testOverrideAppleVPPConfigURL = s.appleVPPConfigSrv.URL + "?serverError"
+	s.uploadDataViaForm("/api/latest/fleet/mdm/apple/vpp_token", "token", "token.vpptoken", []byte("foobar"), http.StatusInternalServerError, "calling Apple VPP config endpoint failed with status 500")
 
 	// Valid token
 	orgName := "Fleet Device Management Inc."
