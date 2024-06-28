@@ -63,7 +63,8 @@ module.exports = {
           }
           nextIssueShouldBeCreatedAt = new Date(todaysDate.getFullYear(), todaysDate.getMonth() + 1, dayToCreateIssueOn);
           ritualsFrequencyInMs = 1000 * 60 * 60 * 24 * numberOfDaysInThisMonth;
-        }
+        }//ﬁ
+
         // Determine if we should create an issue for non-monthly rituals.
         if(ritual.frequency !== 'Monthly') {
           // Get a JS timestamp representing 12 PM UTC of the day this script is running.
@@ -89,7 +90,8 @@ module.exports = {
             // For weekly, biweekly, and triweekly frequencies, we'll check to see if the calculated timeToNextRitualInMs is the same as the rituals frequency.
             isItTimeToCreateANewIssue = true;
           }
-        }
+        }//ﬁ
+
         // Skip to the next ritual if it isn't time yet.
         if(!isItTimeToCreateANewIssue) {
           sails.log.verbose(`Next issue for ${ritual.task} (${ritual.autoIssue.labels.join(',')}) will be created on ${new Date(nextIssueShouldBeCreatedAt)} (Started on: ${ritual.startedOn}, frequency: ${ritual.frequency})`);
