@@ -447,10 +447,10 @@ For secrets, you can add [GitHub environment variables](https://docs.github.com/
 
 ##### jira
 
-- `url` is the URL of your Jira (default: empty)
-- `username` is the username of your Jira account (default: empty).
-- `api_token` is the Jira API token (default: empty).
-- `project_key` is the project key location in your Jira project's URL. For example, in "jira.example.com/projects/EXMPL," "EXMPL" is the project key (default: empty).
+- `url` is the URL of your Jira (default: `""`)
+- `username` is the username of your Jira account (default: `""`).
+- `api_token` is the Jira API token (default: `""`).
+- `project_key` is the project key location in your Jira project's URL. For example, in "jira.example.com/projects/EXMPL," "EXMPL" is the project key (default: `""`).
 
 ##### zendesk
 
