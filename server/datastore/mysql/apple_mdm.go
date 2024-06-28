@@ -4383,6 +4383,7 @@ func (ds *Datastore) ReplaceMDMConfigAssets(ctx context.Context, assets []fleet.
 		for _, a := range assets {
 			names = append(names, a.Name)
 		}
+
 		if err := softDeleteMDMConfigAssetsByName(ctx, tx, names); err != nil {
 			return ctxerr.Wrap(ctx, err, "upsert mdm config assets soft delete")
 		}
