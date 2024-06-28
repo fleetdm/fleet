@@ -2566,11 +2566,14 @@ func getVPPConfig(token string) (string, bool, error) {
 
 	bearer := fmt.Sprintf("Bearer %s", token)
 
-	req, err := http.NewRequest("GET", url, nil)
+	req, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		return "", false, fmt.Errorf("creating request to Apple VPP endpoint: %w", err)
+	}
 
 	req.Header.Add("Authorization", bearer)
 
-	client := &http.Client{}
+	client := fleethttp.NewClient(fleethttp.WithTimeout(10 * time.Second))
 	resp, err := client.Do(req)
 	if err != nil {
 		return "", false, fmt.Errorf("making request to Apple VPP endpoint: %w", err)
