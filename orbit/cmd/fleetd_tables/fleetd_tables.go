@@ -54,7 +54,11 @@ func main() {
 	opts := orbittable.PluginOpts{
 		Socket: *socket,
 	}
-	plugins = append(plugins, orbittable.PlatformTables(opts)...)
+	platformTables, err := orbittable.PlatformTables(opts)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	plugins = append(plugins, platformTables...)
 	server.RegisterPlugin(plugins...)
 	if err := server.Run(); err != nil {
 		log.Fatalln(err)

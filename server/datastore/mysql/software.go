@@ -15,7 +15,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/go-kit/kit/log/level"
+	"github.com/go-kit/log/level"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 )
@@ -347,6 +347,11 @@ func (ds *Datastore) applyChangesForNewSoftwareDB(
 		return r, nil
 	}
 
+	existingSoftware, incomingByChecksum, existingTitlesForNewSoftware, err := ds.getExistingSoftware(ctx, current, incoming)
+	if err != nil {
+		return r, err
+	}
+
 	err = ds.withRetryTxx(
 		ctx, func(tx sqlx.ExtContext) error {
 			deleted, err := deleteUninstalledHostSoftwareDB(ctx, tx, hostID, current, incoming)
@@ -355,7 +360,9 @@ func (ds *Datastore) applyChangesForNewSoftwareDB(
 			}
 			r.Deleted = deleted
 
-			inserted, err := ds.insertNewInstalledHostSoftwareDB(ctx, tx, hostID, current, incoming)
+			inserted, err := ds.insertNewInstalledHostSoftwareDB(
+				ctx, tx, hostID, existingSoftware, incomingByChecksum, existingTitlesForNewSoftware,
+			)
 			if err != nil {
 				return err
 			}
@@ -375,6 +382,91 @@ func (ds *Datastore) applyChangesForNewSoftwareDB(
 		return nil, err
 	}
 	return r, err
+}
+
+func (ds *Datastore) getExistingSoftware(
+	ctx context.Context, current map[string]fleet.Software, incoming map[string]fleet.Software,
+) (
+	currentSoftware []softwareIDChecksum, incomingChecksumToSoftware map[string]fleet.Software,
+	incomingChecksumToTitle map[string]fleet.SoftwareTitle, err error,
+) {
+	// Compute checksums for all incoming software, which we will use for faster retrieval, since checksum is a unique index
+	incomingChecksumToSoftware = make(map[string]fleet.Software, len(current))
+	newSoftware := make(map[string]struct{})
+	for uniqueName, s := range incoming {
+		if _, ok := current[uniqueName]; !ok {
+			checksum, err := computeRawChecksum(s)
+			if err != nil {
+				return nil, nil, nil, err
+			}
+			incomingChecksumToSoftware[string(checksum)] = s
+			newSoftware[string(checksum)] = struct{}{}
+		}
+	}
+
+	if len(incomingChecksumToSoftware) > 0 {
+		keys := make([]string, 0, len(incomingChecksumToSoftware))
+		for checksum := range incomingChecksumToSoftware {
+			keys = append(keys, checksum)
+		}
+		// We use the replica DB for retrieval to minimize the traffic to the master DB.
+		// It is OK if the software is not found in the replica DB, because we will then attempt to insert it in the master DB.
+		currentSoftware, err = getSoftwareIDsByChecksums(ctx, ds.reader(ctx), keys)
+		if err != nil {
+			return nil, nil, nil, err
+		}
+		for _, s := range currentSoftware {
+			_, ok := incomingChecksumToSoftware[s.Checksum]
+			if !ok {
+				// This should never happen. If it does, we have a bug.
+				return nil, nil, nil, ctxerr.New(
+					ctx, fmt.Sprintf("software not found for checksum %s", hex.EncodeToString([]byte(s.Checksum))),
+				)
+			}
+			delete(newSoftware, s.Checksum)
+		}
+	}
+
+	// Get software titles for new software, if any
+	incomingChecksumToTitle = make(map[string]fleet.SoftwareTitle, len(newSoftware))
+	if len(newSoftware) > 0 {
+		totalToProcess := len(newSoftware)
+		const numberOfArgsPerSoftwareTitle = 3 // number of ? in each WHERE clause
+		whereClause := strings.TrimSuffix(
+			strings.Repeat("(name = ? AND source = ? AND browser = ?) OR", totalToProcess), " OR",
+		)
+		stmt := fmt.Sprintf(
+			"SELECT id, name, source, browser FROM software_titles WHERE %s",
+			whereClause,
+		)
+		args := make([]interface{}, 0, totalToProcess*numberOfArgsPerSoftwareTitle)
+		uniqueTitleStrToChecksum := make(map[string]string, totalToProcess)
+		for checksum := range newSoftware {
+			sw := incomingChecksumToSoftware[checksum]
+			args = append(args, sw.Name, sw.Source, sw.Browser)
+			// Map software title identifier to software checksums so that we can map checksums to actual titles later.
+			uniqueTitleStrToChecksum[UniqueSoftwareTitleStr(sw.Name, sw.Source, sw.Browser)] = checksum
+		}
+		var existingSoftwareTitlesForNewSoftware []fleet.SoftwareTitle
+		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &existingSoftwareTitlesForNewSoftware, stmt, args...); err != nil {
+			return nil, nil, nil, ctxerr.Wrap(ctx, err, "get existing titles")
+		}
+
+		// Map software titles to software checksums.
+		for _, title := range existingSoftwareTitlesForNewSoftware {
+			checksum, ok := uniqueTitleStrToChecksum[UniqueSoftwareTitleStr(title.Name, title.Source, title.Browser)]
+			if ok {
+				incomingChecksumToTitle[checksum] = title
+			}
+		}
+	}
+
+	return currentSoftware, incomingChecksumToSoftware, incomingChecksumToTitle, nil
+}
+
+// UniqueSoftwareTitleStr creates a unique string representation of the software title
+func UniqueSoftwareTitleStr(values ...string) string {
+	return strings.Join(values, fleet.SoftwareFieldSeparator)
 }
 
 // delete host_software that is in current map, but not in incoming map.
@@ -423,59 +515,22 @@ func computeRawChecksum(sw fleet.Software) ([]byte, error) {
 	return h.Sum(nil), nil
 }
 
-// insert host_software that is in incoming map, but not in current map.
+// Insert host_software that is in softwareChecksums map, but not in existingSoftware.
+// Also insert any new software titles that are needed.
 // returns the inserted software on the host
-//
-//nolint:gocritic // This function uses a read from DB replica inside a transaction. This is an intentional optimization to reduce master DB load.
 func (ds *Datastore) insertNewInstalledHostSoftwareDB(
 	ctx context.Context,
 	tx sqlx.ExtContext,
 	hostID uint,
-	currentMap map[string]fleet.Software,
-	incomingMap map[string]fleet.Software,
+	existingSoftware []softwareIDChecksum,
+	softwareChecksums map[string]fleet.Software,
+	existingTitlesForNewSoftware map[string]fleet.SoftwareTitle,
 ) ([]fleet.Software, error) {
 	var insertsHostSoftware []interface{}
 	var insertedSoftware []fleet.Software
 
-	type softwareWithUniqueName struct {
-		uniqueName string
-		software   fleet.Software
-	}
-	incomingOrdered := make([]softwareWithUniqueName, 0, len(incomingMap))
-	for uniqueName, software := range incomingMap {
-		incomingOrdered = append(incomingOrdered, softwareWithUniqueName{
-			uniqueName: uniqueName,
-			software:   software,
-		})
-	}
-	sort.Slice(incomingOrdered, func(i, j int) bool {
-		return incomingOrdered[i].uniqueName < incomingOrdered[j].uniqueName
-	})
-
-	// Compute checksums for all incoming software, which we will use for faster retrieval, since checksum is a unique index
-	softwareChecksums := make(map[string]*fleet.Software, 0)
-	for i, s := range incomingOrdered {
-		if _, ok := currentMap[s.uniqueName]; !ok {
-			checksum, err := computeRawChecksum(s.software)
-			if err != nil {
-				return nil, err
-			}
-			softwareChecksums[string(checksum)] = &incomingOrdered[i].software // we can't use `s` here because it is a pointer to a loop variable
-		}
-	}
-
-	// First, we check if host's new software already exists in the software table.
+	// First, we remove incoming software that already exists in the software table.
 	if len(softwareChecksums) > 0 {
-		keys := make([]string, 0, len(softwareChecksums))
-		for checksum := range softwareChecksums {
-			keys = append(keys, checksum)
-		}
-		// We use the replica DB for retrieval to minimize the traffic to the master DB.
-		// It is OK if the software is not found in the replica DB, because we will then attempt to insert it in the master DB.
-		existingSoftware, err := getSoftwareIDsByChecksums(ctx, ds.reader(ctx), keys)
-		if err != nil {
-			return nil, err
-		}
 		for _, s := range existingSoftware {
 			software, ok := softwareChecksums[s.Checksum]
 			if !ok {
@@ -483,7 +538,7 @@ func (ds *Datastore) insertNewInstalledHostSoftwareDB(
 			}
 			software.ID = s.ID
 			insertsHostSoftware = append(insertsHostSoftware, hostID, software.ID, software.LastOpenedAt)
-			insertedSoftware = append(insertedSoftware, *software)
+			insertedSoftware = append(insertedSoftware, software)
 			delete(softwareChecksums, s.Checksum)
 		}
 	}
@@ -501,42 +556,92 @@ func (ds *Datastore) insertNewInstalledHostSoftwareDB(
 				end = len(keys)
 			}
 			totalToProcess := end - start
-			const numberOfArgsPerSoftware = 10 // number of ? in each VALUES clause
+
+			// Insert into software
+			const numberOfArgsPerSoftware = 11 // number of ? in each VALUES clause
 			values := strings.TrimSuffix(
-				strings.Repeat("(?,?,?,?,?,?,?,?,?,?),", totalToProcess), ",",
+				strings.Repeat("(?,?,?,?,?,?,?,?,?,?,?),", totalToProcess), ",",
 			)
 			// INSERT IGNORE is used to avoid duplicate key errors, which may occur since our previous read came from the replica.
 			stmt := fmt.Sprintf(
-				"INSERT IGNORE INTO software (name, version, source, `release`, vendor, arch, bundle_identifier, extension_id, browser, checksum) VALUES %s",
+				"INSERT IGNORE INTO software (name, version, source, `release`, vendor, arch, bundle_identifier, extension_id, browser, title_id, checksum) VALUES %s",
 				values,
 			)
 			args := make([]interface{}, 0, totalToProcess*numberOfArgsPerSoftware)
+			newTitlesNeeded := make(map[string]fleet.SoftwareTitle)
 			for j := start; j < end; j++ {
 				checksum := keys[j]
 				sw := softwareChecksums[checksum]
+				var titleID *uint
+				title, ok := existingTitlesForNewSoftware[checksum]
+				if ok {
+					titleID = &title.ID
+				} else if _, ok := newTitlesNeeded[checksum]; !ok {
+					newTitlesNeeded[checksum] = fleet.SoftwareTitle{
+						Name:    sw.Name,
+						Source:  sw.Source,
+						Browser: sw.Browser,
+					}
+				}
 				args = append(
 					args, sw.Name, sw.Version, sw.Source, sw.Release, sw.Vendor, sw.Arch, sw.BundleIdentifier, sw.ExtensionID, sw.Browser,
-					checksum,
+					titleID, checksum,
 				)
 			}
 			if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "insert software")
 			}
+
+			// Insert into software_titles
+			totalTitlesToProcess := len(newTitlesNeeded)
+			if totalTitlesToProcess > 0 {
+				const numberOfArgsPerSoftwareTitles = 3 // number of ? in each VALUES clause
+				titlesValues := strings.TrimSuffix(strings.Repeat("(?,?,?),", totalTitlesToProcess), ",")
+				// INSERT IGNORE is used to avoid duplicate key errors, which may occur since our previous read came from the replica.
+				titlesStmt := fmt.Sprintf("INSERT IGNORE INTO software_titles (name, source, browser) VALUES %s", titlesValues)
+				titlesArgs := make([]interface{}, 0, totalTitlesToProcess*numberOfArgsPerSoftwareTitles)
+				titleChecksums := make([]string, totalTitlesToProcess)
+				for checksum, title := range newTitlesNeeded {
+					titlesArgs = append(titlesArgs, title.Name, title.Source, title.Browser)
+					titleChecksums = append(titleChecksums, checksum)
+				}
+				if _, err := tx.ExecContext(ctx, titlesStmt, titlesArgs...); err != nil {
+					return nil, ctxerr.Wrap(ctx, err, "insert software_titles")
+				}
+
+				// update new title ids for new software table entries
+				updateSoftwareStmt := `
+				UPDATE
+					software s,
+					software_titles st
+				SET
+					s.title_id = st.id
+				WHERE
+					(s.name, s.source, s.browser) = (st.name, st.source, st.browser)
+					AND s.checksum IN (?)`
+				updateSoftwareStmt, updateArgs, err := sqlx.In(updateSoftwareStmt, titleChecksums)
+				if err != nil {
+					return nil, ctxerr.Wrap(ctx, err, "build update software title_id")
+				}
+				if _, err = tx.ExecContext(ctx, updateSoftwareStmt, updateArgs...); err != nil {
+					return nil, ctxerr.Wrap(ctx, err, "update software title_id")
+				}
+			}
 		}
 
 		// Here, we use the transaction (tx) for retrieval because we must retrieve the software IDs that we just inserted.
-		existingSoftware, err := getSoftwareIDsByChecksums(ctx, tx, keys)
+		updatedExistingSoftware, err := getSoftwareIDsByChecksums(ctx, tx, keys)
 		if err != nil {
 			return nil, err
 		}
-		for _, s := range existingSoftware {
+		for _, s := range updatedExistingSoftware {
 			software, ok := softwareChecksums[s.Checksum]
 			if !ok {
 				return nil, ctxerr.New(ctx, fmt.Sprintf("software not found for checksum %s", hex.EncodeToString([]byte(s.Checksum))))
 			}
 			software.ID = s.ID
 			insertsHostSoftware = append(insertsHostSoftware, hostID, software.ID, software.LastOpenedAt)
-			insertedSoftware = append(insertedSoftware, *software)
+			insertedSoftware = append(insertedSoftware, software)
 			delete(softwareChecksums, s.Checksum)
 		}
 	}
@@ -1035,33 +1140,39 @@ func (ds *Datastore) AllSoftwareIterator(
 	LEFT JOIN software_cpe sc ON (s.id=sc.software_id)`
 
 	var conditionals []string
-	arg := map[string]interface{}{}
 
 	if len(query.ExcludedSources) != 0 {
-		conditionals = append(conditionals, "s.source NOT IN (:excluded_sources)")
-		arg["excluded_sources"] = query.ExcludedSources
+		conditionals = append(conditionals, "s.source NOT IN (?)")
+		args = append(args, query.ExcludedSources)
 	}
 
 	if len(query.IncludedSources) != 0 {
-		conditionals = append(conditionals, "s.source IN (:included_sources)")
-		arg["included_sources"] = query.IncludedSources
+		conditionals = append(conditionals, "s.source IN (?)")
+		args = append(args, query.IncludedSources)
+	}
+
+	if query.NameMatch != "" {
+		conditionals = append(conditionals, "s.name REGEXP ?")
+		args = append(args, query.NameMatch)
+	}
+
+	if query.NameExclude != "" {
+		conditionals = append(conditionals, "s.name NOT REGEXP ?")
+		args = append(args, query.NameExclude)
 	}
 
 	if len(conditionals) != 0 {
-		cond := strings.Join(conditionals, " AND ")
-		stmt, args, err = sqlx.Named(stmt+" WHERE "+cond, arg)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "error binding named arguments on software iterator")
-		}
-		stmt, args, err = sqlx.In(stmt, args...)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "error building 'In' query part on software iterator")
-		}
+		stmt += " WHERE " + strings.Join(conditionals, " AND ")
+	}
+
+	stmt, args, err = sqlx.In(stmt, args...)
+	if err != nil {
+		return nil, fmt.Errorf("error building 'In' query part on software iterator: %w", err)
 	}
 
 	rows, err := ds.reader(ctx).QueryxContext(ctx, stmt, args...) //nolint:sqlclosecheck
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "load host software")
+		return nil, fmt.Errorf("executing all software iterator %w", err)
 	}
 	return &softwareIterator{rows: rows}, nil
 }
@@ -1825,6 +1936,9 @@ func softwareInstallerHostStatusNamedQuery(tblAlias, colAlias string) string {
 	if colAlias != "" {
 		colAlias = " AS " + colAlias
 	}
+	// the computed column assumes that all results (pre, install and post) are
+	// stored at once, so that if there is an exit code for the install script
+	// and none for the post-install, it is because there is no post-install.
 	return fmt.Sprintf(`
 			CASE
 				WHEN %[1]spost_install_script_exit_code IS NOT NULL AND
@@ -1848,17 +1962,19 @@ func softwareInstallerHostStatusNamedQuery(tblAlias, colAlias string) string {
 			END %[2]s `, tblAlias, colAlias)
 }
 
-func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, includeAvailableForInstall bool, opts fleet.ListOptions) ([]*fleet.HostSoftwareWithInstaller, *fleet.PaginationMetadata, error) {
-	// `status` computed column assumes that all results (pre, install and post)
-	// are stored at once, so that if there is an exit code for the install
-	// script and none for the post-install, it is because there is no
-	// post-install.
+func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opts fleet.HostSoftwareTitleListOptions) ([]*fleet.HostSoftwareWithInstaller, *fleet.PaginationMetadata, error) {
+	var onlySelfServiceClause string
+	if opts.SelfServiceOnly {
+		onlySelfServiceClause = ` AND si.self_service = 1 `
+	}
 	stmtInstalled := fmt.Sprintf(`
 		SELECT
 			st.id,
 			st.name,
 			st.source,
+			si.self_service as self_service,
 			si.filename as package_available_for_install,
+			si.version as package_version,
 			hsi.created_at as last_install_installed_at,
 			hsi.execution_id as last_install_install_uuid,
 			%s,
@@ -1890,14 +2006,17 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, inc
 			) OR
 			-- or software install has been attempted on host
 			hsi.host_id IS NOT NULL )
-`, softwareInstallerHostStatusNamedQuery("hsi", "status"))
+			%s
+`, softwareInstallerHostStatusNamedQuery("hsi", "status"), onlySelfServiceClause)
 
 	const stmtAvailable = `
 		SELECT
 			st.id,
 			st.name,
 			st.source,
+			si.self_service as self_service,
 			si.filename as package_available_for_install,
+			si.version as package_version,
 			NULL as last_install_installed_at,
 			NULL as last_install_install_uuid,
 			NULL as status,
@@ -1929,6 +2048,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, inc
 					hsi.software_installer_id = si.id
 			) AND
 			si.global_or_team_id = (SELECT COALESCE(h.team_id, 0) FROM hosts h WHERE h.id = ?)
+			%s
 `
 
 	const selectColNames = `
@@ -1936,7 +2056,9 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, inc
 		id,
 		name,
 		source,
+		self_service,
 		package_available_for_install,
+		package_version,
 		last_install_installed_at,
 		last_install_install_uuid,
 		status
@@ -1954,7 +2076,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, inc
 		return nil, nil, ctxerr.Wrap(ctx, err, "build named query for list host software")
 	}
 
-	if includeAvailableForInstall {
+	if opts.IncludeAvailableForInstall {
 		platformArgs := []string{host.Platform}
 		if fleet.IsLinux(host.Platform) {
 			platformArgs = fleet.HostLinuxOSs
@@ -1964,20 +2086,20 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, inc
 			placeholders += "?,"
 			args = append(args, p)
 		}
-		stmt += ` UNION ` + fmt.Sprintf(stmtAvailable, strings.TrimSuffix(placeholders, ","))
+		stmt += ` UNION ` + fmt.Sprintf(stmtAvailable, strings.TrimSuffix(placeholders, ","), onlySelfServiceClause)
 		args = append(args, host.ID, host.ID, host.ID)
 	}
 
 	stmt = selectColNames + ` FROM ( ` + stmt + ` ) AS tbl `
 
-	if opts.MatchQuery != "" {
+	if opts.ListOptions.MatchQuery != "" {
 		stmt += " WHERE TRUE " // searchLike adds a "AND <condition>"
-		stmt, args = searchLike(stmt, args, opts.MatchQuery, "name")
+		stmt, args = searchLike(stmt, args, opts.ListOptions.MatchQuery, "name")
 	}
 
 	// build the count statement before adding pagination constraints
 	countStmt := fmt.Sprintf(`SELECT COUNT(DISTINCT s.id) FROM (%s) AS s`, stmt)
-	stmt, _ = appendListOptionsToSQL(stmt, &opts)
+	stmt, _ = appendListOptionsToSQL(stmt, &opts.ListOptions)
 
 	// perform a second query to grab the titleCount
 	var titleCount uint
@@ -1990,6 +2112,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, inc
 		LastInstallInstalledAt *time.Time    `db:"last_install_installed_at"`
 		LastInstallInstallUUID *string       `db:"last_install_install_uuid"`
 		StatusSort             sql.NullInt32 `db:"status_sort"`
+		PackageVersion         *string       `db:"package_version"`
 	}
 	var hostSoftwareList []*hostSoftware
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &hostSoftwareList, stmt, args...); err != nil {
@@ -2010,6 +2133,21 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, inc
 				hs.LastInstall.InstalledAt = *hs.LastInstallInstalledAt
 			}
 		}
+
+		// promote the package name and version to the proper destination fields
+		// (the service layer will arbitrate whether package_available_for_install
+		// or package fields are returned).
+		if hs.PackageAvailableForInstall != nil {
+			var version string
+			if hs.PackageVersion != nil {
+				version = *hs.PackageVersion
+			}
+			hs.Package = &fleet.DeviceSoftwarePackage{
+				Name:    *hs.PackageAvailableForInstall,
+				Version: version,
+			}
+		}
+
 		titleIDs = append(titleIDs, hs.ID)
 		byTitleID[hs.ID] = hs
 	}
@@ -2115,14 +2253,14 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, inc
 		}
 	}
 
-	perPage := opts.PerPage
+	perPage := opts.ListOptions.PerPage
 	var metaData *fleet.PaginationMetadata
-	if opts.IncludeMetadata {
+	if opts.ListOptions.IncludeMetadata {
 		if perPage <= 0 {
 			perPage = defaultSelectLimit
 		}
 		metaData = &fleet.PaginationMetadata{
-			HasPreviousResults: opts.Page > 0,
+			HasPreviousResults: opts.ListOptions.Page > 0,
 			TotalResults:       titleCount,
 		}
 		if len(hostSoftwareList) > int(perPage) {

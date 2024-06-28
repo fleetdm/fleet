@@ -47,7 +47,8 @@ type Team struct {
 	// Directly in DB
 
 	// ID is the database ID.
-	ID uint `json:"id" db:"id"`
+	ID       uint    `json:"id" db:"id"`
+	Filename *string `json:"gitops_filename,omitempty" db:"filename"`
 	// CreatedAt is the timestamp of the label creation.
 	CreatedAt time.Time `json:"created_at" db:"created_at"`
 	// Name is the human friendly name of the team.
@@ -163,6 +164,7 @@ type TeamSpecSoftwareAsset struct {
 
 type TeamSpecSoftware struct {
 	URL               string                `json:"url"`
+	SelfService       bool                  `json:"self_service"`
 	PreInstallQuery   TeamSpecSoftwareAsset `json:"pre_install_query"`
 	InstallScript     TeamSpecSoftwareAsset `json:"install_script"`
 	PostInstallScript TeamSpecSoftwareAsset `json:"post_install_script"`
@@ -406,7 +408,8 @@ const (
 )
 
 type TeamSpec struct {
-	Name string `json:"name"`
+	Name     string  `json:"name"`
+	Filename *string `json:"gitops_filename,omitempty"`
 
 	// We need to distinguish between the agent_options key being present but
 	// "empty" or being absent, as we leave the existing agent options unmodified
@@ -418,7 +421,7 @@ type TeamSpec struct {
 	// set to the agent options JSON object.
 	AgentOptions       json.RawMessage                 `json:"agent_options,omitempty"` // marshals as "null" if omitempty is not set
 	HostExpirySettings *HostExpirySettings             `json:"host_expiry_settings,omitempty"`
-	Secrets            []EnrollSecret                  `json:"secrets,omitempty"`
+	Secrets            *[]EnrollSecret                 `json:"secrets,omitempty"`
 	Features           *json.RawMessage                `json:"features"`
 	MDM                TeamSpecMDM                     `json:"mdm"`
 	Scripts            optjson.Slice[string]           `json:"scripts"`
@@ -485,7 +488,7 @@ func TeamSpecFromTeam(t *Team) (*TeamSpec, error) {
 		Name:               t.Name,
 		AgentOptions:       agentOptions,
 		Features:           &featuresJSON,
-		Secrets:            secrets,
+		Secrets:            &secrets,
 		MDM:                mdmSpec,
 		HostExpirySettings: &t.Config.HostExpirySettings,
 		WebhookSettings:    webhookSettings,

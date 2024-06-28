@@ -36,7 +36,13 @@ import (
 func (s *integrationMDMTestSuite) signedProfilesMatch(want, got [][]byte) {
 	t := s.T()
 	rootCA := x509.NewCertPool()
-	require.True(t, rootCA.AppendCertsFromPEM([]byte(s.fleetCfg.MDM.AppleSCEPCertBytes)))
+
+	assets, err := s.ds.GetAllMDMConfigAssetsByName(context.Background(), []fleet.MDMAssetName{
+		fleet.MDMAssetCACert,
+	})
+	require.NoError(t, err)
+
+	require.True(t, rootCA.AppendCertsFromPEM(assets[fleet.MDMAssetCACert].Value))
 
 	// verify that all the profiles were signed usign the SCEP certificate,
 	// and grab their contents
@@ -123,7 +129,7 @@ func (s *integrationMDMTestSuite) TestAppleProfileManagement() {
 	installs, removes := checkNextPayloads(t, mdmDevice, false)
 	// verify that we received all profiles
 	s.signedProfilesMatch(
-		append(wantGlobalProfiles, setupExpectedCAProfile(t, s.fleetCfg.MDM)),
+		append(wantGlobalProfiles, setupExpectedCAProfile(t, s.ds)),
 		installs,
 	)
 	require.Empty(t, removes)
@@ -389,7 +395,7 @@ func (s *integrationMDMTestSuite) TestAppleProfileRetries() {
 	initialExpectedProfiles := append(
 		testProfiles,
 		setupExpectedFleetdProfile(t, s.server.URL, enrollSecret, nil),
-		setupExpectedCAProfile(t, s.fleetCfg.MDM),
+		setupExpectedCAProfile(t, s.ds),
 	)
 
 	h, mdmDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
@@ -1814,6 +1820,8 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMAppleProfiles() {
 	t := s.T()
 	ctx := context.Background()
 
+	bigString := strings.Repeat("a", 1024*1024+1)
+
 	// create a new team
 	tm, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "batch_set_mdm_profiles"})
 	require.NoError(t, err)
@@ -1833,6 +1841,11 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMAppleProfiles() {
 	// invalid team name
 	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: nil},
 		http.StatusNotFound, "team_name", uuid.New().String())
+
+	// Profile is too big
+	resp := s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: [][]byte{[]byte(bigString)}},
+		http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(resp.Body), "maximum configuration profile file size is 1 MB")
 
 	// duplicate profile names
 	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: [][]byte{
@@ -1889,10 +1902,10 @@ func (s *integrationMDMTestSuite) TestHostMDMAppleProfilesStatus() {
 		// not be part of any team yet (team assignment is done when it enrolls
 		// with orbit).
 		mdmDevice := mdmtest.NewTestMDMClientAppleDirect(mdmtest.AppleEnrollInfo{
-			SCEPChallenge: s.fleetCfg.MDM.AppleSCEPChallenge,
+			SCEPChallenge: s.scepChallenge,
 			SCEPURL:       s.server.URL + apple_mdm.SCEPPath,
 			MDMURL:        s.server.URL + apple_mdm.MDMPath,
-		})
+		}, "MacBookPro16,1")
 
 		// enroll the device with orbit
 		var resp EnrollOrbitResponse
@@ -3636,6 +3649,13 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMProfiles() {
 	tm, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "batch_set_mdm_profiles"})
 	require.NoError(t, err)
 
+	bigString := strings.Repeat("a", 1024*1024+1)
+
+	// Profile is too big
+	resp := s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{{Contents: []byte(bigString)}}},
+		http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(resp.Body), "Validation Failed: maximum configuration profile file size is 1 MB")
+
 	// apply an empty set to no-team
 	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: nil}, http.StatusNoContent)
 	s.lastActivityOfTypeMatches(
@@ -4013,7 +4033,7 @@ func (s *integrationMDMTestSuite) TestMDMBatchSetProfilesKeepsReservedNames() {
 	if len(secrets) == 0 {
 		require.NoError(t, s.ds.ApplyEnrollSecrets(ctx, nil, []*fleet.EnrollSecret{{Secret: t.Name()}}))
 	}
-	require.NoError(t, ReconcileAppleProfiles(ctx, s.ds, s.mdmCommander, s.logger, s.fleetCfg.MDM))
+	require.NoError(t, ReconcileAppleProfiles(ctx, s.ds, s.mdmCommander, s.logger))
 
 	// turn on disk encryption and os updates
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
@@ -4091,7 +4111,7 @@ func (s *integrationMDMTestSuite) TestMDMBatchSetProfilesKeepsReservedNames() {
 	require.Equal(t, "2023-12-31", tmResp.Team.Config.MDM.MacOSUpdates.Deadline.Value)
 	require.Equal(t, "13.3.8", tmResp.Team.Config.MDM.MacOSUpdates.MinimumVersion.Value)
 
-	require.NoError(t, ReconcileAppleProfiles(ctx, s.ds, s.mdmCommander, s.logger, s.fleetCfg.MDM))
+	require.NoError(t, ReconcileAppleProfiles(ctx, s.ds, s.mdmCommander, s.logger))
 
 	checkMacProfs(&tmResp.Team.ID, servermdm.ListFleetReservedMacOSProfileNames()...)
 	checkWinProfs(&tmResp.Team.ID, servermdm.ListFleetReservedWindowsProfileNames()...)

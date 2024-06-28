@@ -1,39 +1,11 @@
 <!-- DO NOT EDIT. This document is automatically generated. -->
 # Audit logs
 
-Fleet logs the following information for administrative activities (in JSON):
+Fleet logs activities.
 
-- `created_at`: Timestamp of the event.
-- `id`: Unique ID of the generated event in Fleet.
-- `actor_full_name`: Author user name (missing if the user was deleted).
-- `actor_id`: Unique ID of the author in Fleet (missing if the user was deleted).
-- `actor_gravatar`: Gravatar URL of the author (missing if the user was deleted).
-- `actor_email`: E-mail of the author (missing if the user was deleted).
-- `type`: Type of the activity (see all types below).
-- `details`: Specific details depending on the type of activity (see details for each activity type below).
+To see activities in Fleet, select the Fleet icon in the top navigation and see the **Activity** section.
 
-Example:
-```json
-{
-	"created_at": "2022-12-20T14:54:17Z",
-	"id": 6,
-	"actor_full_name": "Gandalf",
-	"actor_id": 2,
-	"actor_gravatar": "foo@example.com",
-	"actor_email": "foo@example.com",
-	"type": "edited_saved_query",
-	"details":{
-		"query_id": 42,
-		"query_name": "Some query name"
-	}
-}
-```
-
-You can automatically send these logs to your log destination. Learn how to configure this [here](https://fleetdm.com/docs/configuration/fleet-server-configuration#external-activity-audit-logging).
-
-To view activities in the UI, click the Fleet icon in the top navigation bar and locate the **Activity** section.
-
-Following is a summary of the types of administrative activities logged by Fleet:
+This page includes a list of activities.
 
 ## created_pack
 
@@ -1003,13 +975,15 @@ Generated when a user sends a request to lock a host.
 This activity contains the following fields:
 - "host_id": ID of the host.
 - "host_display_name": Display name of the host.
+- "view_pin": Whether lock PIN was viewed (for Apple devices).
 
 #### Example
 
 ```json
 {
   "host_id": 1,
-  "host_display_name": "Anna's MacBook Pro"
+  "host_display_name": "Anna's MacBook Pro",
+  "view_pin": true
 }
 ```
 
@@ -1135,7 +1109,9 @@ This activity contains the following fields:
 - "host_id": ID of the host.
 - "host_display_name": Display name of the host.
 - "install_uuid": ID of the software installation.
+- "self_service": Whether the installation was initiated by the end user.
 - "software_title": Name of the software.
+- "software_package": Filename of the installer.
 - "status": Status of the software installation.
 
 #### Example
@@ -1145,6 +1121,8 @@ This activity contains the following fields:
   "host_id": 1,
   "host_display_name": "Anna's MacBook Pro",
   "software_title": "Falcon.app",
+  "software_package": "FalconSensor-6.44.pkg",
+  "self_service": true,
   "install_uuid": "d6cffa75-b5b5-41ef-9230-15073c8a88cf",
   "status": "pending"
 }
@@ -1159,6 +1137,7 @@ This activity contains the following fields:
 - "software_package": Filename of the installer.
 - "team_name": Name of the team to which this software was added. `null` if it was added to no team." +
 - "team_id": The ID of the team to which this software was added. `null` if it was added to no team.
+- "self_service": Whether the software is available for installation by the end user.
 
 #### Example
 
@@ -1167,9 +1146,9 @@ This activity contains the following fields:
   "software_title": "Falcon.app",
   "software_package": "FalconSensor-6.44.pkg",
   "team_name": "Workstations",
-  "team_id": 123
+  "team_id": 123,
+  "self_service": true
 }
-
 ```
 
 ## deleted_software
@@ -1181,6 +1160,7 @@ This activity contains the following fields:
 - "software_package": Filename of the installer.
 - "team_name": Name of the team to which this software was added. `null if it was added to no team.
 - "team_id": The ID of the team to which this software was added. `null` if it was added to no team.
+- "self_service": Whether the software was available for installation by the end user.
 
 #### Example
 
@@ -1189,9 +1169,9 @@ This activity contains the following fields:
   "software_title": "Falcon.app",
   "software_package": "FalconSensor-6.44.pkg",
   "team_name": "Workstations",
-  "team_id": 123
+  "team_id": 123,
+  "self_service": true
 }
-
 ```
 
 

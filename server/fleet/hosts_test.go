@@ -214,106 +214,48 @@ func TestMDMEnrollmentStatus(t *testing.T) {
 	}
 }
 
-func TestIsEnrolledInThirdPartyMDM(t *testing.T) {
-	for _, tc := range []struct {
-		hostMDM  HostMDM
-		expected bool
-	}{
-		{
-			hostMDM:  HostMDM{Enrolled: true, Name: WellKnownMDMSimpleMDM},
-			expected: true,
-		},
-		{
-			hostMDM:  HostMDM{Enrolled: false, Name: WellKnownMDMSimpleMDM},
-			expected: false,
-		},
-		{
-			hostMDM:  HostMDM{Enrolled: true, Name: WellKnownMDMFleet},
-			expected: false,
-		},
-		{
-			hostMDM:  HostMDM{Enrolled: false, Name: WellKnownMDMFleet},
-			expected: false,
-		},
-	} {
-		require.Equal(t, tc.expected, tc.hostMDM.IsEnrolledInThirdPartyMDM())
-	}
-}
-
-func TestIsDEPCapable(t *testing.T) {
-	for _, tc := range []struct {
-		hostMDM  HostMDM
-		expected bool
-	}{
-		{
-			hostMDM:  HostMDM{IsServer: false, InstalledFromDep: true},
-			expected: true,
-		},
-		{
-			hostMDM:  HostMDM{IsServer: true, InstalledFromDep: true},
-			expected: false,
-		},
-		{
-			hostMDM:  HostMDM{IsServer: true, InstalledFromDep: false},
-			expected: false,
-		},
-		{
-			hostMDM:  HostMDM{IsServer: false, InstalledFromDep: false},
-			expected: false,
-		},
-	} {
-		require.Equal(t, tc.expected, tc.hostMDM.IsDEPCapable())
-	}
-}
-
 func TestIsEligibleForBitLockerEncryption(t *testing.T) {
-	require.False(t, (&Host{}).IsEligibleForBitLockerEncryption())
+	require.False(t, IsEligibleForBitLockerEncryption(&Host{}, &HostMDM{}, false))
 
-	hostThatNeedsEnforcement := Host{
+	hostThatNeedsEnforcement := &Host{
 		Platform:      "windows",
 		OsqueryHostID: ptr.String("test"),
-		MDMInfo: &HostMDM{
-			Name:             WellKnownMDMFleet,
-			Enrolled:         true,
-			IsServer:         false,
-			InstalledFromDep: true,
-		},
 		MDM: MDMHostData{
 			EncryptionKeyAvailable: false,
 		},
 		DiskEncryptionEnabled: ptr.Bool(false),
 	}
-	require.True(t, hostThatNeedsEnforcement.IsEligibleForBitLockerEncryption())
+	hostThatNeedsEnforcementMdmInfo := &HostMDM{
+		Name:             WellKnownMDMFleet,
+		Enrolled:         true,
+		IsServer:         false,
+		InstalledFromDep: true,
+	}
+	require.True(t, IsEligibleForBitLockerEncryption(hostThatNeedsEnforcement, hostThatNeedsEnforcementMdmInfo, true))
 
 	// macOS hosts are not elegible
 	hostThatNeedsEnforcement.Platform = "darwin"
-	require.False(t, hostThatNeedsEnforcement.IsEligibleForBitLockerEncryption())
+	require.False(t, IsEligibleForBitLockerEncryption(hostThatNeedsEnforcement, hostThatNeedsEnforcementMdmInfo, true))
 	hostThatNeedsEnforcement.Platform = "windows"
-	require.True(t, hostThatNeedsEnforcement.IsEligibleForBitLockerEncryption())
+	require.True(t, IsEligibleForBitLockerEncryption(hostThatNeedsEnforcement, hostThatNeedsEnforcementMdmInfo, true))
 
 	// hosts with disk encryption already enabled are elegible only if we
 	// can't decrypt the key
 	hostThatNeedsEnforcement.DiskEncryptionEnabled = ptr.Bool(true)
-	require.True(t, hostThatNeedsEnforcement.IsEligibleForBitLockerEncryption())
+	require.True(t, IsEligibleForBitLockerEncryption(hostThatNeedsEnforcement, hostThatNeedsEnforcementMdmInfo, true))
 	hostThatNeedsEnforcement.MDM.EncryptionKeyAvailable = true
-	require.False(t, hostThatNeedsEnforcement.IsEligibleForBitLockerEncryption())
+	require.False(t, IsEligibleForBitLockerEncryption(hostThatNeedsEnforcement, hostThatNeedsEnforcementMdmInfo, true))
 
 	hostThatNeedsEnforcement.DiskEncryptionEnabled = ptr.Bool(false)
 	hostThatNeedsEnforcement.MDM.EncryptionKeyAvailable = false
-	require.True(t, hostThatNeedsEnforcement.IsEligibleForBitLockerEncryption())
+	require.True(t, IsEligibleForBitLockerEncryption(hostThatNeedsEnforcement, hostThatNeedsEnforcementMdmInfo, true))
 
 	// hosts without MDMinfo are not elegible
-	oldMDMInfo := hostThatNeedsEnforcement.MDMInfo
-	hostThatNeedsEnforcement.MDMInfo = nil
-	require.False(t, hostThatNeedsEnforcement.IsEligibleForBitLockerEncryption())
-	hostThatNeedsEnforcement.MDMInfo = oldMDMInfo
-	require.True(t, hostThatNeedsEnforcement.IsEligibleForBitLockerEncryption())
+	require.False(t, IsEligibleForBitLockerEncryption(hostThatNeedsEnforcement, nil, true))
+	require.True(t, IsEligibleForBitLockerEncryption(hostThatNeedsEnforcement, hostThatNeedsEnforcementMdmInfo, true))
 
 	// hosts that are not enrolled in MDM are not elegible
-	hostThatNeedsEnforcement.MDMInfo.Enrolled = false
-	require.False(t, hostThatNeedsEnforcement.IsEligibleForBitLockerEncryption())
-	hostThatNeedsEnforcement.MDMInfo.Enrolled = true
-	require.True(t, hostThatNeedsEnforcement.IsEligibleForBitLockerEncryption())
+	require.False(t, IsEligibleForBitLockerEncryption(hostThatNeedsEnforcement, hostThatNeedsEnforcementMdmInfo, false))
 }
 
 func TestIsEligibleForDEPMigration(t *testing.T) {
@@ -396,14 +338,15 @@ func TestIsEligibleForDEPMigration(t *testing.T) {
 			host := &Host{
 				OsqueryHostID:      tc.osqueryHostID,
 				DEPAssignedToFleet: tc.depAssignedToFleet,
-				MDMInfo: &HostMDM{
-					Enrolled:               tc.enrolledInThirdPartyMDM,
-					Name:                   "Some MDM",
-					DEPProfileAssignStatus: ptr.String(string(tc.depProfileResponse)),
-				},
 			}
 
-			require.Equal(t, tc.expected, host.IsEligibleForDEPMigration())
+			mdmInfo := &HostMDM{
+				Enrolled:               tc.enrolledInThirdPartyMDM,
+				Name:                   "Some MDM",
+				DEPProfileAssignStatus: ptr.String(string(tc.depProfileResponse)),
+			}
+
+			require.Equal(t, tc.expected, IsEligibleForDEPMigration(host, mdmInfo, false))
 		})
 	}
 }

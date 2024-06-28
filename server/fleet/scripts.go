@@ -249,6 +249,12 @@ type HostScriptResult struct {
 	// execution. It is otherwise not part of the host_script_results table and
 	// not returned as part of the resulting JSON.
 	Hostname string `json:"-" db:"-"`
+
+	// HostDeletedAt indicates if the results are associated with a deleted host.
+	// This supports the soft-delete feature for script results so that the
+	// results can still be returned to see activity details after the host got
+	// deleted.
+	HostDeletedAt *time.Time `json:"-" db:"host_deleted_at"`
 }
 
 func (hsr HostScriptResult) AuthzType() string {
@@ -297,8 +303,10 @@ const (
 )
 
 // anchored, so that it matches to the end of the line
-var scriptHashbangValidation = regexp.MustCompile(`^#!\s*(:?/usr)?/bin/z?sh(?:\s*|\s+.*)$`)
-var ErrUnsupportedInterpreter = errors.New(`Interpreter not supported. Shell scripts must run in "#!/bin/sh" or "#!/bin/zsh."`)
+var (
+	scriptHashbangValidation  = regexp.MustCompile(`^#!\s*(:?/usr)?/bin/z?sh(?:\s*|\s+.*)$`)
+	ErrUnsupportedInterpreter = errors.New(`Interpreter not supported. Shell scripts must run in "#!/bin/sh" or "#!/bin/zsh."`)
+)
 
 // ValidateShebang validates if we support a script, and whether we
 // can execute it directly, or need to pass it to a shell interpreter.
@@ -363,6 +371,7 @@ type SoftwareInstallerPayload struct {
 	PreInstallQuery   string `json:"pre_install_query"`
 	InstallScript     string `json:"install_script"`
 	PostInstallScript string `json:"post_install_script"`
+	SelfService       bool   `json:"self_service"`
 }
 
 type HostLockWipeStatus struct {
@@ -395,7 +404,7 @@ type HostLockWipeStatus struct {
 }
 
 func (s *HostLockWipeStatus) IsPendingLock() bool {
-	if s.HostFleetPlatform == "darwin" {
+	if s.HostFleetPlatform == "darwin" || s.HostFleetPlatform == "ios" || s.HostFleetPlatform == "ipados" {
 		// pending lock if an MDM command is queued but no result received yet
 		return s.LockMDMCommand != nil && s.LockMDMCommandResult == nil
 	}
@@ -404,9 +413,9 @@ func (s *HostLockWipeStatus) IsPendingLock() bool {
 }
 
 func (s HostLockWipeStatus) IsPendingUnlock() bool {
-	if s.HostFleetPlatform == "darwin" {
-		// pending unlock if an unlock was requested
-		return !s.UnlockRequestedAt.IsZero()
+	if s.HostFleetPlatform == "darwin" || s.HostFleetPlatform == "ios" || s.HostFleetPlatform == "ipados" {
+		// Apple MDM does not have a concept of pending unlock.
+		return false
 	}
 	// pending unlock if script execution request is queued but no result yet
 	return s.UnlockScript != nil && s.UnlockScript.ExitCode == nil
@@ -425,7 +434,7 @@ func (s HostLockWipeStatus) IsLocked() bool {
 	// this state is regardless of pending unlock/wipe (it reports whether the
 	// host is locked *now*).
 
-	if s.HostFleetPlatform == "darwin" {
+	if s.HostFleetPlatform == "darwin" || s.HostFleetPlatform == "ios" || s.HostFleetPlatform == "ipados" {
 		// locked if an MDM command was sent and succeeded
 		return s.LockMDMCommand != nil && s.LockMDMCommandResult != nil &&
 			s.LockMDMCommandResult.Status == MDMAppleStatusAcknowledged
@@ -451,7 +460,7 @@ func (s HostLockWipeStatus) IsWiped() bool {
 		// wiped if an MDM command was sent and succeeded
 		return s.WipeMDMCommand != nil && s.WipeMDMCommandResult != nil &&
 			strings.HasPrefix(s.WipeMDMCommandResult.Status, "2")
-	case "darwin":
+	case "darwin", "ios", "ipados":
 		// wiped if an MDM command was sent and succeeded
 		return s.WipeMDMCommand != nil && s.WipeMDMCommandResult != nil &&
 			s.WipeMDMCommandResult.Status == MDMAppleStatusAcknowledged

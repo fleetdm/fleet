@@ -76,7 +76,6 @@ const TargetsInput = ({
               columnConfigs={searchResultsTableConfig}
               data={dropdownHosts}
               isLoading={isTargetsLoading}
-              resultsTitle=""
               emptyComponent={() => (
                 <div className="empty-search">
                   <div className="empty-search__inner">
@@ -107,7 +106,6 @@ const TargetsInput = ({
             columnConfigs={selectedHostsTableConifg}
             data={targetedHosts}
             isLoading={false}
-            resultsTitle=""
             showMarkAllPages={false}
             isAllPagesSelected={false}
             disableCount

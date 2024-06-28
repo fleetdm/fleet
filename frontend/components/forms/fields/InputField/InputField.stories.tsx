@@ -9,6 +9,7 @@ import "../../../../index.scss";
 
 interface IInputFieldProps {
   autofocus?: boolean;
+  readOnly?: boolean;
   disabled?: boolean;
   error?: string;
   inputClassName?: string;
@@ -27,6 +28,7 @@ export default {
   title: "Components/FormFields/Input",
   args: {
     autofocus: false,
+    readOnly: false,
     disabled: false,
     error: "",
     inputClassName: "",

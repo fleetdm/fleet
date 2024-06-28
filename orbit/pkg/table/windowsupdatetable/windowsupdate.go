@@ -15,9 +15,8 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/dataflattentable"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/tablehelpers"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/windows/windowsupdate"
-	"github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 	"github.com/osquery/osquery-go/plugin/table"
+	"github.com/rs/zerolog"
 	"github.com/scjalliance/comshim"
 )
 
@@ -29,20 +28,18 @@ const (
 )
 
 type Table struct {
-	logger    log.Logger
+	logger    zerolog.Logger
 	queryFunc queryFuncType
 	name      string
 }
 
-func TablePlugin(mode tableMode, logger log.Logger) *table.Plugin {
+func TablePlugin(mode tableMode, logger zerolog.Logger) *table.Plugin {
 	columns := dataflattentable.Columns(
 		table.TextColumn("locale"),
 		table.IntegerColumn("is_default"),
 	)
 
-	t := &Table{
-		logger: logger,
-	}
+	t := &Table{}
 
 	switch mode {
 	case UpdatesTable:
@@ -52,6 +49,8 @@ func TablePlugin(mode tableMode, logger log.Logger) *table.Plugin {
 		t.queryFunc = queryHistory
 		t.name = "windows_update_history"
 	}
+
+	t.logger = logger.With().Str("table", t.name).Logger()
 
 	return table.NewPlugin(t.name, columns, t.generate)
 }
@@ -72,7 +71,7 @@ func (t *Table) generate(ctx context.Context, queryContext table.QueryContext) (
 	for _, locale := range tablehelpers.GetConstraints(queryContext, "locale", tablehelpers.WithDefaults("_default")) {
 		result, err := t.searchLocale(locale, queryContext)
 		if err != nil {
-			level.Info(t.logger).Log("msg", "got error searching", "locale", locale, "err", err)
+			t.logger.Info().Err(err).Str("locale", locale).Msg("got error searching")
 			continue
 		}
 		results = append(results, result...)
@@ -101,7 +100,7 @@ func (t *Table) searchLocale(locale string, queryContext table.QueryContext) ([]
 	for _, dataQuery := range tablehelpers.GetConstraints(queryContext, "query", tablehelpers.WithDefaults("*")) {
 		flatData, err := t.flattenOutput(dataQuery, searchResults)
 		if err != nil {
-			level.Info(t.logger).Log("msg", "flatten failed", "err", err)
+			t.logger.Err(err).Msg("flatten failed")
 			continue
 		}
 

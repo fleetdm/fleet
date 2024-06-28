@@ -16,13 +16,11 @@ import (
 
 	"github.com/VividCortex/mysqlerr"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
-	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	fleetmdm "github.com/fleetdm/fleet/v4/server/mdm"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
-	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/tokenpki"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -76,6 +74,7 @@ func TestMDMApple(t *testing.T) {
 		{"MDMAppleSetPendingDeclarationsAs", testMDMAppleSetPendingDeclarationsAs},
 		{"SetOrUpdateMDMAppleDeclaration", testSetOrUpdateMDMAppleDDMDeclaration},
 		{"DEPAssignmentUpdates", testMDMAppleDEPAssignmentUpdates},
+		{"TestMDMConfigAsset", testMDMConfigAsset},
 		{"ListIOSAndIPadOSToRefetch", testListIOSAndIPadOSToRefetch},
 		{"MDMAppleUpsertHostIOSiPadOS", testMDMAppleUpsertHostIOSIPadOS},
 		{"IngestMDMAppleDevicesFromDEPSyncIOSIPadOS", testIngestMDMAppleDevicesFromDEPSyncIOSIPadOS},
@@ -1841,6 +1840,7 @@ func testAggregateMacOSSettingsStatusWithFileVault(t *testing.T, ds *Datastore) 
 		h := test.NewHost(t, ds, fmt.Sprintf("foo.local.%d", i), "1.1.1.1",
 			fmt.Sprintf("%d", i), fmt.Sprintf("%d", i), time.Now())
 		hosts = append(hosts, h)
+		nanoEnroll(t, ds, h, false)
 	}
 
 	// create somes config profiles for no team
@@ -2117,6 +2117,7 @@ func testMDMAppleHostsProfilesStatus(t *testing.T, ds *Datastore) {
 		h := test.NewHost(t, ds, fmt.Sprintf("foo.local.%d", i), "1.1.1.1",
 			fmt.Sprintf("%d", i), fmt.Sprintf("%d", i), time.Now())
 		hosts = append(hosts, h)
+		nanoEnroll(t, ds, h, false)
 	}
 
 	// create somes config profiles for no team
@@ -3001,14 +3002,10 @@ func testGetMDMAppleCommandResults(t *testing.T, ds *Datastore) {
 }
 
 func createMDMAppleCommanderAndStorage(t *testing.T, ds *Datastore) (*apple_mdm.MDMAppleCommander, *NanoMDMStorage) {
-	testCert, testKey, err := apple_mdm.NewSCEPCACertKey()
-	require.NoError(t, err)
-	testCertPEM := tokenpki.PEMCertificate(testCert.Raw)
-	testKeyPEM := tokenpki.PEMRSAPrivateKey(testKey)
-	mdmStorage, err := ds.NewMDMAppleMDMStorage(testCertPEM, testKeyPEM)
+	mdmStorage, err := ds.NewMDMAppleMDMStorage()
 	require.NoError(t, err)
 
-	return apple_mdm.NewMDMAppleCommander(mdmStorage, pusherFunc(okPusherFunc), config.MDMConfig{}), mdmStorage
+	return apple_mdm.NewMDMAppleCommander(mdmStorage, pusherFunc(okPusherFunc)), mdmStorage
 }
 
 func okPusherFunc(ctx context.Context, ids []string) (map[string]*push.Response, error) {
@@ -4571,7 +4568,7 @@ func testLockUnlockWipeMacOS(t *testing.T, ds *Datastore) {
 	// default state
 	checkLockWipeState(t, status, true, false, false, false, false, false)
 
-	appleStore, err := ds.NewMDMAppleMDMStorage(nil, nil)
+	appleStore, err := ds.NewMDMAppleMDMStorage()
 	require.NoError(t, err)
 
 	// record a request to lock the host
@@ -4608,14 +4605,14 @@ func testLockUnlockWipeMacOS(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	checkLockWipeState(t, status, false, true, false, false, false, false)
 
-	// request an unlock, to make it pending unlock
+	// request an unlock. This is a NOOP for Apple MDM.
 	err = ds.UnlockHostManually(ctx, host.ID, host.FleetPlatform(), time.Now().UTC())
 	require.NoError(t, err)
 
-	// it is now locked pending unlock
+	// it is still locked
 	status, err = ds.GetHostLockWipeStatus(ctx, host)
 	require.NoError(t, err)
-	checkLockWipeState(t, status, false, true, false, true, false, false)
+	checkLockWipeState(t, status, false, true, false, false, false, false)
 
 	// execute CleanMacOSMDMLock to simulate successful unlock
 	err = ds.CleanMacOSMDMLock(ctx, host.UUID)
@@ -5504,6 +5501,95 @@ func createRawAppleCmd(reqType, cmdUUID string) string {
     <string>%s</string>
 </dict>
 </plist>`, reqType, cmdUUID)
+}
+
+func testMDMConfigAsset(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	assets := []fleet.MDMConfigAsset{
+		{
+			Name:  fleet.MDMAssetCACert,
+			Value: []byte("some bytes"),
+		},
+		{
+			Name:  fleet.MDMAssetCAKey,
+			Value: []byte("some other bytes"),
+		},
+	}
+	wantAssets := map[fleet.MDMAssetName]fleet.MDMConfigAsset{}
+	for _, a := range assets {
+		wantAssets[a.Name] = a
+	}
+	err := ds.InsertMDMConfigAssets(ctx, assets)
+	require.NoError(t, err)
+
+	a, err := ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetCAKey})
+	require.NoError(t, err)
+	require.Equal(t, wantAssets, a)
+
+	h, err := ds.GetAllMDMConfigAssetsHashes(ctx, []fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetCAKey})
+	require.NoError(t, err)
+	require.Len(t, h, 2)
+	require.NotEmpty(t, h[fleet.MDMAssetCACert])
+	require.NotEmpty(t, h[fleet.MDMAssetCAKey])
+
+	// try to fetch an asset that doesn't exist
+	var nfe fleet.NotFoundError
+	a, err = ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetABMCert})
+	require.ErrorAs(t, err, &nfe)
+	require.Nil(t, a)
+
+	h, err = ds.GetAllMDMConfigAssetsHashes(ctx, []fleet.MDMAssetName{fleet.MDMAssetABMCert})
+	require.ErrorAs(t, err, &nfe)
+	require.Nil(t, h)
+
+	// try to fetch a mix of assets that exist and doesn't exist
+	a, err = ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetABMCert})
+	require.ErrorIs(t, err, ErrPartialResult)
+	require.Len(t, a, 1)
+
+	h, err = ds.GetAllMDMConfigAssetsHashes(ctx, []fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetABMCert})
+	require.ErrorIs(t, err, ErrPartialResult)
+	require.Len(t, h, 1)
+	require.NotEmpty(t, h[fleet.MDMAssetCACert])
+
+	// Soft delete the assets
+
+	err = ds.DeleteMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetCAKey})
+	require.NoError(t, err)
+
+	a, err = ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetCAKey})
+	require.ErrorAs(t, err, &nfe)
+	require.Nil(t, a)
+
+	h, err = ds.GetAllMDMConfigAssetsHashes(ctx, []fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetCAKey})
+	require.ErrorAs(t, err, &nfe)
+	require.Nil(t, h)
+
+	// Verify that they're still in the DB. Values should be encrypted.
+
+	type assetRow struct {
+		Name         string    `db:"name"`
+		Value        []byte    `db:"value"`
+		DeletionUUID string    `db:"deletion_uuid"`
+		DeletedAt    time.Time `db:"deleted_at"`
+	}
+
+	var ar []assetRow
+
+	err = sqlx.SelectContext(ctx, ds.reader(ctx), &ar, "SELECT name, value, deletion_uuid, deleted_at FROM mdm_config_assets WHERE name IN (?, ?) ORDER BY name", fleet.MDMAssetCACert, fleet.MDMAssetCAKey)
+	require.NoError(t, err)
+
+	require.Len(t, ar, 2)
+
+	for i, a := range ar {
+		require.Equal(t, assets[i].Name, fleet.MDMAssetName(a.Name))
+		require.NotEmpty(t, a.Value)
+		d, err := decrypt(a.Value, ds.serverPrivateKey)
+		require.NoError(t, err)
+		require.Equal(t, assets[i].Value, d)
+		require.NotEmpty(t, a.DeletionUUID)
+		require.NotEmpty(t, a.DeletedAt)
+	}
 }
 
 func testListIOSAndIPadOSToRefetch(t *testing.T, ds *Datastore) {

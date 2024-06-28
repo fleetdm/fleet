@@ -1,0 +1,33 @@
+name: programs
+description: |- # (required) string - The description for this table. Note: this field supports Markdown
+  The `programs` table lists applications installed via Windows Installer from a package.
+examples: |- # (optional) string - An example query for this table. Note: This field supports Markdown
+  Basic query:
+
+  ```
+  SELECT * FROM programs;
+  ```
+
+  This query determines if a specific version of Google Chrome.exe is installed:
+
+  ```
+  SELECT name,version FROM programs WHERE name='Google Chrome' AND version='125.0.6422.142';
+  ```
+notes: |- # (optional) string - Notes about this table. Note: This field supports Markdown.
+  This table includes references for applications:
+  
+  - downloaded directly from websites and installed by an end user like Google Chrome or Notepad++
+  - installed via automation frameworks like winget or Chocolatey
+  - installed via command line in cmd or PowerShell
+
+  Links:
+  
+  - [Windows Installer](https://learn.microsoft.com/en-us/windows/win32/msi/windows-installer-portal)
+  - [Chocolatey](https://chocolatey.org/)
+  - The Fleet `chocolatey_packages`[table](https://fleetdm.com/tables/chocolatey_packages)
+  - [winget](https://learn.microsoft.com/en-us/windows/package-manager/winget/)
+  - [winget.run](https://winget.run/)
+  - Windows [cmd](https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/cmd)
+  - Windows [PowerShell](https://learn.microsoft.com/en-us/powershell/scripting/overview?view=powershell-7.4)
+  - [PowerShell primer](https://www.howtogeek.com/devops/how-to-get-started-with-learning-powershell/)
+  - [Notepad++](https://notepad-plus-plus.org/)

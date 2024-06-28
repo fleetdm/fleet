@@ -20,7 +20,6 @@ import (
 
 	nanodep_client "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/tokenpki"
-	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/cryptoutil"
 	"github.com/spf13/cast"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -95,6 +94,7 @@ type ServerConfig struct {
 	SandboxEnabled              bool   `yaml:"sandbox_enabled"`
 	WebsocketsAllowUnsafeOrigin bool   `yaml:"websockets_allow_unsafe_origin"`
 	FrequentCleanupsEnabled     bool   `yaml:"frequent_cleanups_enabled"`
+	PrivateKey                  string `yaml:"private_key"`
 }
 
 func (s *ServerConfig) DefaultHTTPServer(ctx context.Context, handler http.Handler) *http.Server {
@@ -301,6 +301,120 @@ type S3Config struct {
 	StsExternalID    string `yaml:"sts_external_id"`
 	DisableSSL       bool   `yaml:"disable_ssl"`
 	ForceS3PathStyle bool   `yaml:"force_s3_path_style"`
+
+	CarvesBucket           string `yaml:"carves_bucket"`
+	CarvesPrefix           string `yaml:"carves_prefix"`
+	CarvesRegion           string `yaml:"carves_region"`
+	CarvesEndpointURL      string `yaml:"carves_endpoint_url"`
+	CarvesAccessKeyID      string `yaml:"carves_access_key_id"`
+	CarvesSecretAccessKey  string `yaml:"carves_secret_access_key"`
+	CarvesStsAssumeRoleArn string `yaml:"carves_sts_assume_role_arn"`
+	CarvesStsExternalID    string `yaml:"carves_sts_external_id"`
+	CarvesDisableSSL       bool   `yaml:"carves_disable_ssl"`
+	CarvesForceS3PathStyle bool   `yaml:"carves_force_s3_path_style"`
+
+	SoftwareInstallersBucket           string `yaml:"software_installers_bucket"`
+	SoftwareInstallersPrefix           string `yaml:"software_installers_prefix"`
+	SoftwareInstallersRegion           string `yaml:"software_installers_region"`
+	SoftwareInstallersEndpointURL      string `yaml:"software_installers_endpoint_url"`
+	SoftwareInstallersAccessKeyID      string `yaml:"software_installers_access_key_id"`
+	SoftwareInstallersSecretAccessKey  string `yaml:"software_installers_secret_access_key"`
+	SoftwareInstallersStsAssumeRoleArn string `yaml:"software_installers_sts_assume_role_arn"`
+	SoftwareInstallersStsExternalID    string `yaml:"software_installers_sts_external_id"`
+	SoftwareInstallersDisableSSL       bool   `yaml:"software_installers_disable_ssl"`
+	SoftwareInstallersForceS3PathStyle bool   `yaml:"software_installers_force_s3_path_style"`
+}
+
+func (s S3Config) BucketsAndPrefixesMatch() bool {
+	cb := s.CarvesBucket
+	if cb == "" {
+		cb = s.Bucket
+	}
+
+	cp := s.CarvesPrefix
+	if cp == "" {
+		cp = s.Prefix
+	}
+
+	return s.SoftwareInstallersBucket == cb && s.SoftwareInstallersPrefix == cp
+}
+
+func (s S3Config) SoftwareInstallersToInternalCfg() S3ConfigInternal {
+	return S3ConfigInternal{
+		Bucket:           s.SoftwareInstallersBucket,
+		Prefix:           s.SoftwareInstallersPrefix,
+		Region:           s.SoftwareInstallersRegion,
+		EndpointURL:      s.SoftwareInstallersEndpointURL,
+		AccessKeyID:      s.SoftwareInstallersAccessKeyID,
+		SecretAccessKey:  s.SoftwareInstallersSecretAccessKey,
+		StsAssumeRoleArn: s.SoftwareInstallersStsAssumeRoleArn,
+		StsExternalID:    s.SoftwareInstallersStsExternalID,
+		DisableSSL:       s.SoftwareInstallersDisableSSL,
+		ForceS3PathStyle: s.SoftwareInstallersForceS3PathStyle,
+	}
+}
+
+// CarvesToInternalCfg creates an internal S3 config struct from the ingested S3 config. Note: we
+// fall back to the deprecated fields without the `carves_` prefix for backwards compatibility.
+func (s S3Config) CarvesToInternalCfg() S3ConfigInternal {
+	var internal S3ConfigInternal
+
+	internal.Bucket = s.CarvesBucket
+	if s.CarvesBucket == "" {
+		internal.Bucket = s.Bucket
+	}
+	internal.Prefix = s.CarvesPrefix
+	if s.CarvesPrefix == "" {
+		internal.Prefix = s.Prefix
+	}
+	internal.Region = s.CarvesRegion
+	if s.CarvesRegion == "" {
+		internal.Region = s.Region
+	}
+	internal.EndpointURL = s.CarvesEndpointURL
+	if s.CarvesEndpointURL == "" {
+		internal.EndpointURL = s.EndpointURL
+	}
+	internal.AccessKeyID = s.CarvesAccessKeyID
+	if s.CarvesAccessKeyID == "" {
+		internal.AccessKeyID = s.AccessKeyID
+	}
+	internal.SecretAccessKey = s.CarvesSecretAccessKey
+	if s.CarvesSecretAccessKey == "" {
+		internal.SecretAccessKey = s.SecretAccessKey
+	}
+	internal.StsAssumeRoleArn = s.CarvesStsAssumeRoleArn
+	if s.CarvesStsAssumeRoleArn == "" {
+		internal.StsAssumeRoleArn = s.StsAssumeRoleArn
+	}
+	internal.StsExternalID = s.CarvesStsExternalID
+	if s.CarvesStsExternalID == "" {
+		internal.StsExternalID = s.StsExternalID
+	}
+	internal.DisableSSL = s.CarvesDisableSSL
+	if s.CarvesDisableSSL == false {
+		internal.DisableSSL = s.DisableSSL
+	}
+	internal.ForceS3PathStyle = s.CarvesForceS3PathStyle
+	if s.CarvesForceS3PathStyle == false {
+		internal.ForceS3PathStyle = s.ForceS3PathStyle
+	}
+
+	return internal
+}
+
+// S3ConfigInternal is used internally
+type S3ConfigInternal struct {
+	Bucket           string
+	Prefix           string
+	Region           string
+	EndpointURL      string
+	AccessKeyID      string
+	SecretAccessKey  string
+	StsAssumeRoleArn string
+	StsExternalID    string
+	DisableSSL       bool
+	ForceS3PathStyle bool
 }
 
 // PubSubConfig defines configs the for Google PubSub logging plugin
@@ -424,6 +538,7 @@ type FleetConfig struct {
 	Prometheus       PrometheusConfig
 	Packaging        PackagingConfig
 	MDM              MDMConfig
+	Calendar         CalendarConfig
 }
 
 type MDMConfig struct {
@@ -452,6 +567,12 @@ type MDMConfig struct {
 	AppleBMCertBytes        string `yaml:"apple_bm_cert_bytes"`
 	AppleBMKey              string `yaml:"apple_bm_key"`
 	AppleBMKeyBytes         string `yaml:"apple_bm_key_bytes"`
+
+	// the following fields hold the PEM-encoded bytes for the certificate
+	// and private key set the first time AppleBM is called
+	appleBMPEMCert  []byte
+	appleBMPEMKey   []byte
+	appleBMRawToken []byte
 
 	// the following fields hold the decrypted, validated Apple BM token set the
 	// first time AppleBM is called.
@@ -490,6 +611,19 @@ type MDMConfig struct {
 	microsoftWSTEP        *tls.Certificate
 	microsoftWSTEPCertPEM []byte
 	microsoftWSTEPKeyPEM  []byte
+}
+
+type CalendarConfig struct {
+	Periodicity time.Duration
+	// Hide alwaysReloadEvent from YAML config
+	alwaysReloadEvent bool
+}
+
+func (c *CalendarConfig) AlwaysReloadEvent() bool {
+	return c.alwaysReloadEvent
+}
+func (c *CalendarConfig) SetAlwaysReloadEvent(value bool) {
+	c.alwaysReloadEvent = value
 }
 
 type x509KeyPairConfig struct {
@@ -601,20 +735,6 @@ func (m *MDMConfig) AppleAPNs() (cert *tls.Certificate, pemCert, pemKey []byte, 
 	return m.appleAPNs, m.appleAPNsPEMCert, m.appleAPNsPEMKey, nil
 }
 
-func (m *MDMConfig) AppleAPNsTopic() (string, error) {
-	apnsCert, _, _, err := m.AppleAPNs()
-	if err != nil {
-		return "", fmt.Errorf("parsing APNs certificates: %w", err)
-	}
-
-	mdmPushCertTopic, err := cryptoutil.TopicFromCert(apnsCert.Leaf)
-	if err != nil {
-		return "", fmt.Errorf("extracting topic from APNs certificate: %w", err)
-	}
-
-	return mdmPushCertTopic, nil
-}
-
 // AppleSCEP returns the parsed and validated TLS certificate for Apple SCEP.
 // It parses and validates it if it hasn't been done yet.
 func (m *MDMConfig) AppleSCEP() (cert *tls.Certificate, pemCert, pemKey []byte, err error) {
@@ -636,10 +756,36 @@ func (m *MDMConfig) AppleSCEP() (cert *tls.Certificate, pemCert, pemKey []byte, 
 	return m.appleSCEP, m.appleSCEPPEMCert, m.appleSCEPPEMKey, nil
 }
 
+type ParsedAppleBM struct {
+	CertPEM        []byte
+	KeyPEM         []byte
+	EncryptedToken []byte
+	Token          *nanodep_client.OAuth1Tokens
+}
+
+func decryptAndValidateABMToken(tokenBytes []byte, cert *x509.Certificate, keyPEM []byte) (*nanodep_client.OAuth1Tokens, error) {
+	bmKey, err := tokenpki.RSAKeyFromPEM(keyPEM)
+	if err != nil {
+		return nil, fmt.Errorf("Apple BM configuration: parse private key: %w", err)
+	}
+	token, err := tokenpki.DecryptTokenJSON(tokenBytes, cert, bmKey)
+	if err != nil {
+		return nil, fmt.Errorf("Apple BM configuration: decrypt token: %w", err)
+	}
+	var jsonTok nanodep_client.OAuth1Tokens
+	if err := json.Unmarshal(token, &jsonTok); err != nil {
+		return nil, fmt.Errorf("Apple BM configuration: unmarshal JSON token: %w", err)
+	}
+	if jsonTok.AccessTokenExpiry.Before(time.Now()) {
+		return nil, errors.New("Apple BM configuration: token is expired")
+	}
+	return &jsonTok, nil
+}
+
 // AppleBM returns the parsed, validated and decrypted server token for Apple
 // Business Manager. It also parses and validates the Apple BM certificate and
 // private key in the process, in order to decrypt the token.
-func (m *MDMConfig) AppleBM() (tok *nanodep_client.OAuth1Tokens, err error) {
+func (m *MDMConfig) AppleBM() (*ParsedAppleBM, error) {
 	if m.appleBMToken == nil {
 		pair := x509KeyPairConfig{
 			m.AppleBMCert,
@@ -655,24 +801,22 @@ func (m *MDMConfig) AppleBM() (tok *nanodep_client.OAuth1Tokens, err error) {
 		if err != nil {
 			return nil, fmt.Errorf("Apple BM configuration: %w", err)
 		}
-		bmKey, err := tokenpki.RSAKeyFromPEM(pair.keyBytes)
+		jsonTok, err := decryptAndValidateABMToken(encToken, cert.Leaf, pair.keyBytes)
 		if err != nil {
-			return nil, fmt.Errorf("Apple BM configuration: parse private key: %w", err)
+			return nil, err
 		}
-		token, err := tokenpki.DecryptTokenJSON(encToken, cert.Leaf, bmKey)
-		if err != nil {
-			return nil, fmt.Errorf("Apple BM configuration: decrypt token: %w", err)
-		}
-		var jsonTok nanodep_client.OAuth1Tokens
-		if err := json.Unmarshal(token, &jsonTok); err != nil {
-			return nil, fmt.Errorf("Apple BM configuration: unmarshal JSON token: %w", err)
-		}
-		if jsonTok.AccessTokenExpiry.Before(time.Now()) {
-			return nil, errors.New("Apple BM configuration: token is expired")
-		}
-		m.appleBMToken = &jsonTok
+		m.appleBMToken = jsonTok
+		m.appleBMPEMCert = pair.certBytes
+		m.appleBMPEMKey = pair.keyBytes
+		m.appleBMRawToken = encToken
 	}
-	return m.appleBMToken, nil
+
+	return &ParsedAppleBM{
+		CertPEM:        m.appleBMPEMCert,
+		KeyPEM:         m.appleBMPEMKey,
+		EncryptedToken: m.appleBMRawToken,
+		Token:          m.appleBMToken,
+	}, nil
 }
 
 func (m *MDMConfig) loadAppleBMEncryptedToken() ([]byte, error) {
@@ -848,12 +992,10 @@ func (man Manager) addConfigs() {
 		"When enabled, Fleet limits some features for the Sandbox")
 	man.addConfigBool("server.websockets_allow_unsafe_origin", false, "Disable checking the origin header on websocket connections, this is sometimes necessary when proxies rewrite origin headers between the client and the Fleet webserver")
 	man.addConfigBool("server.frequent_cleanups_enabled", false, "Enable frequent cleanups of expired data (15 minute interval)")
+	man.addConfigString("server.private_key", "", "Used for encrypting sensitive data, such as MDM certificates.")
 
 	// Hide the sandbox flag as we don't want it to be discoverable for users for now
-	sandboxFlag := man.command.PersistentFlags().Lookup(flagNameFromConfigKey("server.sandbox_enabled"))
-	if sandboxFlag != nil {
-		sandboxFlag.Hidden = true
-	}
+	man.hideConfig("server.sandbox_enabled")
 
 	// Auth
 	man.addConfigInt("auth.bcrypt_cost", 12,
@@ -1005,17 +1147,57 @@ func (man Manager) addConfigs() {
 	man.addConfigString("lambda.audit_function", "",
 		"Lambda function name for audit logs")
 
+	// S3 for file carving: Deprecated
+	man.addConfigString("s3.bucket", "", "Deprecated: Bucket where to store file carves")
+	man.addConfigString("s3.prefix", "", "Deprecated: Prefix under which carves are stored")
+	man.addConfigString("s3.region", "", "Deprecated: AWS Region (if blank region is derived)")
+	man.addConfigString("s3.endpoint_url", "", "Deprecated: AWS Service Endpoint to use (leave blank for default service endpoints)")
+	man.addConfigString("s3.access_key_id", "", "Deprecated: Access Key ID for AWS authentication")
+	man.addConfigString("s3.secret_access_key", "", "Deprecated: Secret Access Key for AWS authentication")
+	man.addConfigString("s3.sts_assume_role_arn", "", "Deprecated: ARN of role to assume for AWS")
+	man.addConfigString("s3.sts_external_id", "", "Deprecated: Optional unique identifier that can be used by the principal assuming the role to assert its identity.")
+	man.addConfigBool("s3.disable_ssl", false, "Deprecated: Disable SSL (typically for local testing)")
+	man.addConfigBool("s3.force_s3_path_style", false, "Deprecated: Set this to true to force path-style addressing, i.e., `http://s3.amazonaws.com/BUCKET/KEY`")
+
+	// Hide deprecated S3 config options
+	for _, c := range []string{
+		"s3.bucket",
+		"s3.prefix",
+		"s3.region",
+		"s3.endpoint_url",
+		"s3.access_key_id",
+		"s3.secret_access_key",
+		"s3.sts_assume_role_arn",
+		"s3.sts_external_id",
+		"s3.disable_ssl",
+		"s3.force_s3_path_style",
+	} {
+		man.hideConfig(c)
+	}
+
 	// S3 for file carving
-	man.addConfigString("s3.bucket", "", "Bucket where to store file carves")
-	man.addConfigString("s3.prefix", "", "Prefix under which carves are stored")
-	man.addConfigString("s3.region", "", "AWS Region (if blank region is derived)")
-	man.addConfigString("s3.endpoint_url", "", "AWS Service Endpoint to use (leave blank for default service endpoints)")
-	man.addConfigString("s3.access_key_id", "", "Access Key ID for AWS authentication")
-	man.addConfigString("s3.secret_access_key", "", "Secret Access Key for AWS authentication")
-	man.addConfigString("s3.sts_assume_role_arn", "", "ARN of role to assume for AWS")
-	man.addConfigString("s3.sts_external_id", "", "Optional unique identifier that can be used by the principal assuming the role to assert its identity.")
-	man.addConfigBool("s3.disable_ssl", false, "Disable SSL (typically for local testing)")
-	man.addConfigBool("s3.force_s3_path_style", false, "Set this to true to force path-style addressing, i.e., `http://s3.amazonaws.com/BUCKET/KEY`")
+	man.addConfigString("s3.carves_bucket", "", "Bucket where to store file carves")
+	man.addConfigString("s3.carves_prefix", "", "Prefix under which carves are stored")
+	man.addConfigString("s3.carves_region", "", "AWS Region (if blank region is derived)")
+	man.addConfigString("s3.carves_endpoint_url", "", "AWS Service Endpoint to use (leave blank for default service endpoints)")
+	man.addConfigString("s3.carves_access_key_id", "", "Access Key ID for AWS authentication")
+	man.addConfigString("s3.carves_secret_access_key", "", "Secret Access Key for AWS authentication")
+	man.addConfigString("s3.carves_sts_assume_role_arn", "", "ARN of role to assume for AWS")
+	man.addConfigString("s3.carves_sts_external_id", "", "Optional unique identifier that can be used by the principal assuming the role to assert its identity.")
+	man.addConfigBool("s3.carves_disable_ssl", false, "Disable SSL (typically for local testing)")
+	man.addConfigBool("s3.carves_force_s3_path_style", false, "Set this to true to force path-style addressing, i.e., `http://s3.amazonaws.com/BUCKET/KEY`")
+
+	// S3 for software installers
+	man.addConfigString("s3.software_installers_bucket", "", "Bucket where to store uploaded software installers")
+	man.addConfigString("s3.software_installers_prefix", "", "Prefix under which software installers are stored")
+	man.addConfigString("s3.software_installers_region", "", "AWS Region (if blank region is derived)")
+	man.addConfigString("s3.software_installers_endpoint_url", "", "AWS Service Endpoint to use (leave blank for default service endpoints)")
+	man.addConfigString("s3.software_installers_access_key_id", "", "Access Key ID for AWS authentication")
+	man.addConfigString("s3.software_installers_secret_access_key", "", "Secret Access Key for AWS authentication")
+	man.addConfigString("s3.software_installers_sts_assume_role_arn", "", "ARN of role to assume for AWS")
+	man.addConfigString("s3.software_installers_sts_external_id", "", "Optional unique identifier that can be used by the principal assuming the role to assert its identity.")
+	man.addConfigBool("s3.software_installers_disable_ssl", false, "Disable SSL (typically for local testing)")
+	man.addConfigBool("s3.software_installers_force_s3_path_style", false, "Set this to true to force path-style addressing, i.e., `http://s3.amazonaws.com/BUCKET/KEY`")
 
 	// PubSub
 	man.addConfigString("pubsub.project", "", "Google Cloud Project to use")
@@ -1130,6 +1312,12 @@ func (man Manager) addConfigs() {
 	man.addConfigString("mdm.windows_wstep_identity_cert_bytes", "", "Microsoft WSTEP PEM-encoded certificate bytes")
 	man.addConfigString("mdm.windows_wstep_identity_key_bytes", "", "Microsoft WSTEP PEM-encoded private key bytes")
 
+	// Calendar integration
+	man.addConfigDuration(
+		"calendar.periodicity", 0,
+		"How much time to wait between processing calendar integration.",
+	)
+
 	// Hide Microsoft/Windows MDM flags as we don't want it to be discoverable for users for now
 	betaMDMFlags := []string{
 		"mdm.windows_wstep_identity_cert",
@@ -1141,6 +1329,13 @@ func (man Manager) addConfigs() {
 		if flag := man.command.PersistentFlags().Lookup(flagNameFromConfigKey(mdmFlag)); flag != nil {
 			flag.Hidden = true
 		}
+	}
+}
+
+func (man Manager) hideConfig(name string) {
+	flag := man.command.PersistentFlags().Lookup(flagNameFromConfigKey(name))
+	if flag != nil {
+		flag.Hidden = true
 	}
 }
 
@@ -1208,6 +1403,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			SandboxEnabled:              man.getConfigBool("server.sandbox_enabled"),
 			WebsocketsAllowUnsafeOrigin: man.getConfigBool("server.websockets_allow_unsafe_origin"),
 			FrequentCleanupsEnabled:     man.getConfigBool("server.frequent_cleanups_enabled"),
+			PrivateKey:                  man.getConfigString("server.private_key"),
 		},
 		Auth: AuthConfig{
 			BcryptCost:  man.getConfigInt("auth.bcrypt_cost"),
@@ -1293,18 +1489,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			StsAssumeRoleArn: man.getConfigString("lambda.sts_assume_role_arn"),
 			StsExternalID:    man.getConfigString("lambda.sts_external_id"),
 		},
-		S3: S3Config{
-			Bucket:           man.getConfigString("s3.bucket"),
-			Prefix:           man.getConfigString("s3.prefix"),
-			Region:           man.getConfigString("s3.region"),
-			EndpointURL:      man.getConfigString("s3.endpoint_url"),
-			AccessKeyID:      man.getConfigString("s3.access_key_id"),
-			SecretAccessKey:  man.getConfigString("s3.secret_access_key"),
-			StsAssumeRoleArn: man.getConfigString("s3.sts_assume_role_arn"),
-			StsExternalID:    man.getConfigString("s3.sts_external_id"),
-			DisableSSL:       man.getConfigBool("s3.disable_ssl"),
-			ForceS3PathStyle: man.getConfigBool("s3.force_s3_path_style"),
-		},
+		S3: man.loadS3Config(),
 		Email: EmailConfig{
 			EmailBackend: man.getConfigString("email.backend"),
 		},
@@ -1414,6 +1599,9 @@ func (man Manager) LoadConfig() FleetConfig {
 			WindowsWSTEPIdentityCertBytes:   man.getConfigString("mdm.windows_wstep_identity_cert_bytes"),
 			WindowsWSTEPIdentityKeyBytes:    man.getConfigString("mdm.windows_wstep_identity_key_bytes"),
 		},
+		Calendar: CalendarConfig{
+			Periodicity: man.getConfigDuration("calendar.periodicity"),
+		},
 	}
 
 	// ensure immediately that the async config is valid for all known tasks
@@ -1422,6 +1610,43 @@ func (man Manager) LoadConfig() FleetConfig {
 	}
 
 	return cfg
+}
+
+func (man Manager) loadS3Config() S3Config {
+	return S3Config{
+		CarvesBucket:           man.getConfigString("s3.carves_bucket"),
+		CarvesPrefix:           man.getConfigString("s3.carves_prefix"),
+		CarvesRegion:           man.getConfigString("s3.carves_region"),
+		CarvesEndpointURL:      man.getConfigString("s3.carves_endpoint_url"),
+		CarvesAccessKeyID:      man.getConfigString("s3.carves_access_key_id"),
+		CarvesSecretAccessKey:  man.getConfigString("s3.carves_secret_access_key"),
+		CarvesStsAssumeRoleArn: man.getConfigString("s3.carves_sts_assume_role_arn"),
+		CarvesStsExternalID:    man.getConfigString("s3.carves_sts_external_id"),
+		CarvesDisableSSL:       man.getConfigBool("s3.carves_disable_ssl"),
+		CarvesForceS3PathStyle: man.getConfigBool("s3.carves_force_s3_path_style"),
+
+		Bucket:           man.getConfigString("s3.bucket"),
+		Prefix:           man.getConfigString("s3.prefix"),
+		Region:           man.getConfigString("s3.region"),
+		EndpointURL:      man.getConfigString("s3.endpoint_url"),
+		AccessKeyID:      man.getConfigString("s3.access_key_id"),
+		SecretAccessKey:  man.getConfigString("s3.secret_access_key"),
+		StsAssumeRoleArn: man.getConfigString("s3.sts_assume_role_arn"),
+		StsExternalID:    man.getConfigString("s3.sts_external_id"),
+		DisableSSL:       man.getConfigBool("s3.disable_ssl"),
+		ForceS3PathStyle: man.getConfigBool("s3.force_s3_path_style"),
+
+		SoftwareInstallersBucket:           man.getConfigString("s3.software_installers_bucket"),
+		SoftwareInstallersPrefix:           man.getConfigString("s3.software_installers_prefix"),
+		SoftwareInstallersRegion:           man.getConfigString("s3.software_installers_region"),
+		SoftwareInstallersEndpointURL:      man.getConfigString("s3.software_installers_endpoint_url"),
+		SoftwareInstallersAccessKeyID:      man.getConfigString("s3.software_installers_access_key_id"),
+		SoftwareInstallersSecretAccessKey:  man.getConfigString("s3.software_installers_secret_access_key"),
+		SoftwareInstallersStsAssumeRoleArn: man.getConfigString("s3.software_installers_sts_assume_role_arn"),
+		SoftwareInstallersStsExternalID:    man.getConfigString("s3.software_installers_sts_external_id"),
+		SoftwareInstallersDisableSSL:       man.getConfigBool("s3.software_installers_disable_ssl"),
+		SoftwareInstallersForceS3PathStyle: man.getConfigBool("s3.software_installers_force_s3_path_style"),
+	}
 }
 
 // IsSet determines whether a given config key has been explicitly set by any
@@ -1729,6 +1954,7 @@ func TestConfig() FleetConfig {
 			AuditLogFile:  testLogFile,
 			MaxSize:       500,
 		},
+		Server: ServerConfig{PrivateKey: "72414F4A688151F75D032F5CDA095FC4"},
 	}
 }
 
@@ -1737,35 +1963,8 @@ func TestConfig() FleetConfig {
 // all required pairs and the Apple BM token is used as-is, instead of
 // decrypting the encrypted value that is usually provided via the fleet
 // server's flags.
-func SetTestMDMConfig(t testing.TB, cfg *FleetConfig, cert, key []byte, appleBMToken *nanodep_client.OAuth1Tokens, wstepCertAndKeyDir string) {
-	tlsCert, err := tls.X509KeyPair(cert, key)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	parsed, err := x509.ParseCertificate(tlsCert.Certificate[0])
-	if err != nil {
-		t.Fatal(err)
-	}
-	tlsCert.Leaf = parsed
-
-	cfg.MDM.AppleAPNsCertBytes = string(cert)
-	cfg.MDM.AppleAPNsKeyBytes = string(key)
-	cfg.MDM.AppleSCEPCertBytes = string(cert)
-	cfg.MDM.AppleSCEPKeyBytes = string(key)
-	cfg.MDM.AppleBMCertBytes = string(cert)
-	cfg.MDM.AppleBMKeyBytes = string(key)
-	cfg.MDM.AppleBMServerTokenBytes = "whatever-will-not-be-accessed"
-
-	cfg.MDM.appleAPNs = &tlsCert
-	cfg.MDM.appleAPNsPEMCert = cert
-	cfg.MDM.appleAPNsPEMKey = key
-	cfg.MDM.appleSCEP = &tlsCert
-	cfg.MDM.appleSCEPPEMCert = cert
-	cfg.MDM.appleSCEPPEMKey = key
-	cfg.MDM.appleBMToken = appleBMToken
+func SetTestMDMConfig(t testing.TB, cfg *FleetConfig, cert, key []byte, wstepCertAndKeyDir string) {
 	cfg.MDM.AppleSCEPSignerValidityDays = 365
-	cfg.MDM.AppleSCEPChallenge = "testchallenge"
 
 	if wstepCertAndKeyDir == "" {
 		wstepCertAndKeyDir = "testdata"

@@ -28,6 +28,7 @@ module.exports = {
         'self-hosted-deploy',
         'whats-left-to-get-you-set-up',
         'how-was-your-deployment',
+        'thanks-for-checking-out-fleet',
       ]
     },
     formData: {
@@ -211,6 +212,8 @@ module.exports = {
         } else if(['yes-recently-deployed'].includes(hasUsedFleetAnswer)){
           psychologicalStage = '5 - Personally confident';
         } else { require('assert')(false, 'This should never happen.'); }
+      } else if(currentStep === 'thanks-for-checking-out-fleet') {
+        psychologicalStage = '2 - Aware';
       }//ﬁ
     }//ﬁ
 

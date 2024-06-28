@@ -27,7 +27,7 @@ const MunkiIssuesTable = ({
   return (
     <Card
       className={`${baseClass} card`}
-      borderRadiusSize="large"
+      borderRadiusSize="xxlarge"
       includeShadow
       largePadding
     >

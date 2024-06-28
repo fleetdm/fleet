@@ -20,7 +20,7 @@ import (
 	nanomdm_storage "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/storage"
 	"github.com/fleetdm/fleet/v4/server/service/async"
 	"github.com/fleetdm/fleet/v4/server/sso"
-	kitlog "github.com/go-kit/kit/log"
+	kitlog "github.com/go-kit/log"
 )
 
 var _ fleet.Service = (*Service)(nil)
@@ -57,7 +57,6 @@ type Service struct {
 	depStorage        nanodep_storage.AllDEPStorage
 	mdmStorage        nanomdm_storage.AllStorage
 	mdmPushService    nanomdm_push.Pusher
-	mdmPushCertTopic  string
 	mdmAppleCommander *apple_mdm.MDMAppleCommander
 
 	cronSchedulesService fleet.CronSchedulesService
@@ -106,7 +105,6 @@ func NewService(
 	depStorage nanodep_storage.AllDEPStorage,
 	mdmStorage fleet.MDMAppleStore,
 	mdmPushService nanomdm_push.Pusher,
-	mdmPushCertTopic string,
 	cronSchedulesService fleet.CronSchedulesService,
 	wstepCertManager microsoft_mdm.CertManager,
 ) (fleet.Service, error) {
@@ -140,8 +138,7 @@ func NewService(
 		// from the prototype.
 		mdmStorage:           mdmStorage,
 		mdmPushService:       mdmPushService,
-		mdmPushCertTopic:     mdmPushCertTopic,
-		mdmAppleCommander:    apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService, config.MDM),
+		mdmAppleCommander:    apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService),
 		cronSchedulesService: cronSchedulesService,
 		wstepCertManager:     wstepCertManager,
 	}

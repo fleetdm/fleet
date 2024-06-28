@@ -198,6 +198,7 @@ type bodyHandler interface {
 
 type FileResponse struct {
 	DestPath     string
+	DestFile     string
 	destFilePath string
 }
 

@@ -1,16 +1,4 @@
-import PropTypes from "prop-types";
 import { AxiosError, isAxiosError } from "axios";
-
-export default PropTypes.shape({
-  http_status: PropTypes.number,
-  base: PropTypes.string,
-});
-
-// Response created by utilities/format_error_response
-export interface IOldApiError {
-  http_status: number;
-  base: string;
-}
 
 /**
  * IFleetApiError is the shape of a Fleet API error. It represents an element of the `errors`
@@ -134,6 +122,22 @@ const filterFleetErrorReasonIncludes = (errs: unknown[], value: string) => {
     | undefined;
 };
 
+const DEFAULT_ERROR_MSG_FOR_SQL_ERROR =
+  "An error occurred with the Fleet server.";
+
+/**
+ * This function checks if the error reason is a SQL error. The API sends a
+ * specific error message for sql errors that begin with this format:
+ * `Error 123 (123):`
+
+ * This will look to match strings in this format, for example:
+ *
+ * Error 1234 (23000): Duplicate entry 'foo' for key 'bar'
+ */
+const isSqlError = (reason: string) => {
+  return new RegExp(/^Error \d+ \(\d+\):/g).test(reason);
+};
+
 const getReasonFromErrors = (errors: unknown[], filter?: IFilterFleetError) => {
   if (!errors.length) {
     return "";
@@ -147,7 +151,21 @@ const getReasonFromErrors = (errors: unknown[], filter?: IFilterFleetError) => {
   } else {
     fleetError = isFleetApiError(errors[0]) ? errors[0] : undefined;
   }
-  return fleetError?.reason || "";
+
+  // We do not want to display the specific SQL error message to the user in the UI.
+  // Instead, we want to display a generic error message. This at least offers
+  // some level of security by not leaking the specific SQL error message
+  // to the user, even though you can still find the SQL error message in the
+  // API response.
+  //
+  // TODO: This should really be handled on the server and in the future
+  // we can remove this.
+  let reason = fleetError?.reason ?? "";
+  if (isSqlError(reason)) {
+    reason = DEFAULT_ERROR_MSG_FOR_SQL_ERROR;
+  }
+
+  return reason;
 };
 
 const getReasonFromRecordWithDataErrors = (

@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"testing"
 
@@ -35,15 +36,23 @@ func TestGetOrbitConfigNudge(t *testing.T) {
 		ds.ListPendingSoftwareInstallsFunc = func(ctx context.Context, hostID uint) ([]string, error) {
 			return nil, nil
 		}
-		ctx = test.HostContext(ctx, &fleet.Host{
-			OsqueryHostID: ptr.String("test"),
-			ID:            1,
-			MDMInfo: &fleet.HostMDM{
+		ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, host *fleet.Host) (bool, error) {
+			return true, nil
+		}
+
+		ds.GetHostMDMFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
+			return &fleet.HostMDM{
 				IsServer:         false,
 				InstalledFromDep: true,
 				Enrolled:         true,
 				Name:             fleet.WellKnownMDMFleet,
-			}})
+			}, nil
+		}
+
+		ctx = test.HostContext(ctx, &fleet.Host{
+			OsqueryHostID: ptr.String("test"),
+			ID:            1,
+		})
 
 		cfg, err := svc.GetOrbitConfig(ctx)
 		require.NoError(t, err)
@@ -98,17 +107,24 @@ func TestGetOrbitConfigNudge(t *testing.T) {
 		ds.ListPendingHostScriptExecutionsFunc = func(ctx context.Context, hostID uint) ([]*fleet.HostScriptResult, error) {
 			return nil, nil
 		}
+		ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, host *fleet.Host) (bool, error) {
+			return true, nil
+		}
+
+		ds.GetHostMDMFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
+			return &fleet.HostMDM{
+				IsServer:         false,
+				InstalledFromDep: true,
+				Enrolled:         true,
+				Name:             fleet.WellKnownMDMFleet,
+			}, nil
+		}
 
 		ctx = test.HostContext(ctx, &fleet.Host{
 			OsqueryHostID: ptr.String("test"),
 			ID:            1,
 			TeamID:        ptr.Uint(team.ID),
-			MDMInfo: &fleet.HostMDM{
-				IsServer:         false,
-				InstalledFromDep: true,
-				Enrolled:         true,
-				Name:             fleet.WellKnownMDMFleet,
-			}})
+		})
 
 		cfg, err := svc.GetOrbitConfig(ctx)
 		require.NoError(t, err)
@@ -172,6 +188,13 @@ func TestGetOrbitConfigNudge(t *testing.T) {
 		ds.ListPendingSoftwareInstallsFunc = func(ctx context.Context, hostID uint) ([]string, error) {
 			return nil, nil
 		}
+		ds.GetHostMDMFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
+			return nil, sql.ErrNoRows
+		}
+		var isHostConnectedToFleet bool
+		ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, h *fleet.Host) (bool, error) {
+			return isHostConnectedToFleet, nil
+		}
 		checkEmptyNudgeConfig := func(h *fleet.Host) {
 			ctx := test.HostContext(ctx, h)
 			cfg, err := svc.GetOrbitConfig(ctx)
@@ -182,45 +205,28 @@ func TestGetOrbitConfigNudge(t *testing.T) {
 		}
 
 		checkHostVariations := func(h *fleet.Host) {
-			// host uses another MDM
-			h.MDMInfo.Name = fleet.WellKnownMDMIntune
-			checkEmptyNudgeConfig(h)
-
-			// host has MDM turned off
-			h.MDMInfo.Name = fleet.WellKnownMDMFleet
-			h.MDMInfo.Enrolled = false
+			// host is not connected to fleet
+			isHostConnectedToFleet = false
 			checkEmptyNudgeConfig(h)
 
 			// host has MDM turned on but is not enrolled
-			h.MDMInfo.Enrolled = true
+			isHostConnectedToFleet = true
 			h.OsqueryHostID = nil
-			checkEmptyNudgeConfig(h)
-
-			// mdminfo is nil
-			h.MDMInfo = nil
 			checkEmptyNudgeConfig(h)
 		}
 
 		// global host
 		checkHostVariations(&fleet.Host{
 			OsqueryHostID: ptr.String("test"),
-			MDMInfo: &fleet.HostMDM{
-				IsServer:         false,
-				InstalledFromDep: true,
-				Enrolled:         true,
-				Name:             fleet.WellKnownMDMFleet,
-			}})
+			Platform:      "darwin",
+		})
 
 		// team host
 		checkHostVariations(&fleet.Host{
 			OsqueryHostID: ptr.String("test"),
 			TeamID:        ptr.Uint(team.ID),
-			MDMInfo: &fleet.HostMDM{
-				IsServer:         false,
-				InstalledFromDep: true,
-				Enrolled:         true,
-				Name:             fleet.WellKnownMDMFleet,
-			}})
+			Platform:      "darwin",
+		})
 
 	})
 
@@ -235,12 +241,7 @@ func TestGetOrbitConfigNudge(t *testing.T) {
 		host := &fleet.Host{
 			OsqueryHostID: ptr.String("test"),
 			ID:            1,
-			MDMInfo: &fleet.HostMDM{
-				IsServer:         false,
-				InstalledFromDep: true,
-				Enrolled:         true,
-				Name:             fleet.WellKnownMDMFleet,
-			}}
+		}
 
 		team := fleet.Team{ID: 1}
 		teamMDM := fleet.TeamMDM{}
@@ -259,6 +260,18 @@ func TestGetOrbitConfigNudge(t *testing.T) {
 		ds.ListPendingSoftwareInstallsFunc = func(ctx context.Context, hostID uint) ([]string, error) {
 			return nil, nil
 		}
+		ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, host *fleet.Host) (bool, error) {
+			return true, nil
+		}
+		ds.GetHostMDMFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
+			return &fleet.HostMDM{
+				IsServer:         false,
+				InstalledFromDep: true,
+				Enrolled:         true,
+				Name:             fleet.WellKnownMDMFleet,
+			}, nil
+		}
+
 		appCfg := &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true}}
 		appCfg.MDM.MacOSUpdates.Deadline = optjson.SetString("2022-04-01")
 		appCfg.MDM.MacOSUpdates.MinimumVersion = optjson.SetString("12.3")
@@ -338,25 +351,24 @@ func TestGetSoftwareInstallDetails(t *testing.T) {
 			}, nil
 		}
 
-		goodCtx := test.HostContext(ctx, &fleet.Host{
-			OsqueryHostID: ptr.String("test"),
-			ID:            1,
-			MDMInfo: &fleet.HostMDM{
+		ds.GetHostMDMFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
+			return &fleet.HostMDM{
 				IsServer:         false,
 				InstalledFromDep: true,
 				Enrolled:         true,
 				Name:             fleet.WellKnownMDMFleet,
-			}})
+			}, nil
+		}
+
+		goodCtx := test.HostContext(ctx, &fleet.Host{
+			OsqueryHostID: ptr.String("test"),
+			ID:            1,
+		})
 
 		badCtx := test.HostContext(ctx, &fleet.Host{
 			OsqueryHostID: ptr.String("test"),
 			ID:            2,
-			MDMInfo: &fleet.HostMDM{
-				IsServer:         false,
-				InstalledFromDep: true,
-				Enrolled:         true,
-				Name:             fleet.WellKnownMDMFleet,
-			}})
+		})
 
 		d1, err := svc.GetSoftwareInstallDetails(goodCtx, "")
 		require.NoError(t, err)

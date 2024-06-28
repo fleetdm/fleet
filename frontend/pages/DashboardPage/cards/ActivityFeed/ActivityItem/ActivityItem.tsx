@@ -182,7 +182,14 @@ const TAGGED_TEMPLATES = {
     return "was added to Fleet by SSO.";
   },
   userLoggedIn: (activity: IActivity) => {
-    return `successfully logged in from public IP ${activity.details?.public_ip}.`;
+    return (
+      <>
+        successfully logged in
+        {activity.details?.public_ip &&
+          ` from public IP ${activity.details?.public_ip}`}
+        .
+      </>
+    );
   },
   userFailedLogin: (activity: IActivity) => {
     return (
@@ -600,7 +607,7 @@ const TAGGED_TEMPLATES = {
     );
   },
 
-  enabledWindowsMdm: (activity: IActivity) => {
+  enabledWindowsMdm: () => {
     return (
       <>
         {" "}
@@ -609,7 +616,7 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
-  disabledWindowsMdm: (activity: IActivity) => {
+  disabledWindowsMdm: () => {
     return <> told Fleet to turn off Windows MDM features.</>;
   },
   // TODO: Combine ranScript template with host details page templates
@@ -728,7 +735,7 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
-  deletedMultipleSavedQuery: (activity: IActivity) => {
+  deletedMultipleSavedQuery: () => {
     return <> deleted multiple queries.</>;
   },
   lockedHost: (activity: IActivity) => {
@@ -863,8 +870,6 @@ const TAGGED_TEMPLATES = {
     if (!details) {
       return TAGGED_TEMPLATES.defaultActivityTemplate(activity);
     }
-
-    console.log("onDetailsClick", onDetailsClick);
 
     const {
       host_display_name: hostName,
@@ -1014,10 +1019,10 @@ const getDetail = (
       return TAGGED_TEMPLATES.transferredHosts(activity);
     }
     case ActivityType.EnabledWindowsMdm: {
-      return TAGGED_TEMPLATES.enabledWindowsMdm(activity);
+      return TAGGED_TEMPLATES.enabledWindowsMdm();
     }
     case ActivityType.DisabledWindowsMdm: {
-      return TAGGED_TEMPLATES.disabledWindowsMdm(activity);
+      return TAGGED_TEMPLATES.disabledWindowsMdm();
     }
     case ActivityType.RanScript: {
       return TAGGED_TEMPLATES.ranScript(activity, onDetailsClick);
@@ -1035,7 +1040,7 @@ const getDetail = (
       return TAGGED_TEMPLATES.editedWindowsUpdates(activity);
     }
     case ActivityType.DeletedMultipleSavedQuery: {
-      return TAGGED_TEMPLATES.deletedMultipleSavedQuery(activity);
+      return TAGGED_TEMPLATES.deletedMultipleSavedQuery();
     }
     case ActivityType.LockedHost: {
       return TAGGED_TEMPLATES.lockedHost(activity);
@@ -1111,18 +1116,30 @@ const ActivityItem = ({
     isSandboxMode && PREMIUM_ACTIVITIES.has(activity.type);
 
   const renderActivityPrefix = () => {
-    if (activity.type === ActivityType.UserLoggedIn) {
-      return <b>{activity.actor_email} </b>;
+    const DEFAULT_ACTOR_DISPLAY = <b>{activity.actor_full_name} </b>;
+
+    switch (activity.type) {
+      case ActivityType.UserLoggedIn:
+        return <b>{activity.actor_email} </b>;
+      case ActivityType.UserChangedGlobalRole:
+      case ActivityType.UserChangedTeamRole:
+        return activity.actor_id === activity.details?.user_id ? (
+          <b>{activity.details?.user_email} </b>
+        ) : (
+          DEFAULT_ACTOR_DISPLAY
+        );
+      case ActivityType.InstalledSoftware:
+        return activity.details?.self_service ? (
+          <span>An end user</span>
+        ) : (
+          DEFAULT_ACTOR_DISPLAY
+        );
+
+      default:
+        return DEFAULT_ACTOR_DISPLAY;
     }
-    if (
-      (activity.type === ActivityType.UserChangedGlobalRole ||
-        activity.type === ActivityType.UserChangedTeamRole) &&
-      activity.actor_id === activity.details?.user_id
-    ) {
-      return <b>{activity.details?.user_email} </b>;
-    }
-    return <b>{activity.actor_full_name} </b>;
   };
+
   return (
     <div className={baseClass}>
       <Avatar

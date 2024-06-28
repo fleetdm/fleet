@@ -377,5 +377,15 @@
     "filter": {
       "skip": true
     }
+  },
+  {
+    "software": {
+      "name": ["/^linux-image\\.*/"]
+    },
+    "filter": {
+      "product": ["linux_kernel"],
+      "vendor": ["linux"],
+      "part": "o"
+    }
   }
 ]

@@ -191,12 +191,10 @@ type MacOSUpdates struct {
 	Deadline optjson.String `json:"deadline"`
 }
 
-// EnabledForHost returns a boolean indicating if updates are enabled for the host
-func (m MacOSUpdates) EnabledForHost(h *Host) bool {
+// Configured returns a boolean indicating if updates are configured
+func (m MacOSUpdates) Configured() bool {
 	return m.Deadline.Value != "" &&
-		m.MinimumVersion.Value != "" &&
-		h.IsOsqueryEnrolled() &&
-		h.MDMInfo.IsFleetEnrolled()
+		m.MinimumVersion.Value != ""
 }
 
 func (m MacOSUpdates) Validate() error {
@@ -235,16 +233,6 @@ func (m MacOSUpdates) Validate() error {
 type WindowsUpdates struct {
 	DeadlineDays    optjson.Int `json:"deadline_days"`
 	GracePeriodDays optjson.Int `json:"grace_period_days"`
-}
-
-// EnabledForHost returns a boolean indicating if enforced Windows OS updates
-// are enabled for the host. Note that the provided Host needs to be loaded
-// with full MDMInfo data for the check to be valid.
-func (w WindowsUpdates) EnabledForHost(h *Host) bool {
-	return w.DeadlineDays.Valid &&
-		w.GracePeriodDays.Valid &&
-		h.IsOsqueryEnrolled() &&
-		h.MDMInfo.IsFleetEnrolled()
 }
 
 // Equal returns true if the values of the fields of w and other are equal. It
@@ -888,6 +876,16 @@ type ServerSettings struct {
 	QueryReportsDisabled bool   `json:"query_reports_disabled"`
 	ScriptsDisabled      bool   `json:"scripts_disabled"`
 	AIFeaturesDisabled   bool   `json:"ai_features_disabled"`
+	QueryReportCap       int    `json:"query_report_cap"`
+}
+
+const DefaultMaxQueryReportRows int = 1000
+
+func (f *ServerSettings) GetQueryReportCap() int {
+	if f.QueryReportCap <= 0 {
+		return DefaultMaxQueryReportRows
+	}
+	return f.QueryReportCap
 }
 
 // HostExpirySettings contains settings pertaining to automatic host expiry.
@@ -1261,13 +1259,22 @@ type KafkaRESTConfig struct {
 // DeviceGlobalConfig is a subset of AppConfig with information used by the
 // device endpoints
 type DeviceGlobalConfig struct {
-	MDM DeviceGlobalMDMConfig `json:"mdm"`
+	MDM      DeviceGlobalMDMConfig `json:"mdm"`
+	Features DeviceFeatures        `json:"features"`
 }
 
 // DeviceGlobalMDMConfig is a subset of AppConfig.MDM with information used by
 // the device endpoints
 type DeviceGlobalMDMConfig struct {
 	EnabledAndConfigured bool `json:"enabled_and_configured"`
+}
+
+// DeviceFeatures is a subset of AppConfig.Features with information used by
+// the device endpoints.
+type DeviceFeatures struct {
+	// EnableSoftwareInventory is the setting used by the device's team (or
+	// globally in the AppConfig if the device is not in any team).
+	EnableSoftwareInventory bool `json:"enable_software_inventory"`
 }
 
 // Version is the authz type used to check access control to the version endpoint.

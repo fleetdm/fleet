@@ -182,7 +182,7 @@ To customize the macOS Setup Assistant, we will do the following steps:
 
 ### Step 1: create an automatic enrollment profile
 
-1. Download Fleet's example automatic enrollment profile by navigating to the example [here](fleetdm.com/example-dep-profile) and clicking the download icon.
+1. Download Fleet's example automatic enrollment profile by navigating to the example [here](https://fleetdm.com/example-dep-profile) and clicking the download icon.
 
 2. Open the automatic enrollment profile and replace the `profile_name` key with your organization's name.
 

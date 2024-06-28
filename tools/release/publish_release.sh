@@ -294,7 +294,7 @@ create_qa_issue() {
         if [[ "$found" == "0" ]]; then
             cat .github/ISSUE_TEMPLATE/release-qa.md | awk 'BEGIN {count=0} /^---$/ {count++} count==2 && /^---$/ {getline; count++} count > 2 {print}' > temp_qa_issue_file
             gh issue create --title "Release QA: $target_milestone" -F temp_qa_issue_file \
-                --assignee "georgekarrv" --assignee "xpkoala" --label ":release" --label "#g-mdm" --label "#g-endpoint-ops"
+                --assignee "pezhub" --assignee "xpkoala" --label ":release" --label "#g-mdm" --label "#g-endpoint-ops"
             rm -f temp_qa_issue_file
         fi
     else
@@ -674,24 +674,32 @@ fi
 next_tag="fleet-$next_ver"
 
 if [[ "$target_milestone_number" == "" ]]; then
-    echo "Missing milestone $target_milestone, Please create one and tie tickets to the milestone to continue"
-    exit 1
+    if [ "$announce_only" = "false" ]; then
+        echo "Missing milestone $target_milestone, Please create one and tie tickets to the milestone to continue"
+        exit 1
+    fi
 fi
 echo "Found milestone $target_milestone with number $target_milestone_number"
 
 if [ "$print_info" = "true" ]; then
-    print_announce_info
-    exit 0
+    if [ "$announce_only" = "false" ]; then
+        print_announce_info
+        exit 0
+    fi
 fi
 
 if [ "$do_tag" = "true" ]; then
-    tag
-    exit 0
+    if [ "$announce_only" = "false" ]; then
+        tag
+        exit 0
+    fi
 fi
 
 if [ "$release_notes" = "true" ]; then
-    update_release_notes
-    exit 0
+    if [ "$announce_only" = "false" ]; then
+        update_release_notes
+        exit 0
+    fi
 fi
 
 if [ "$publish_release" = "true" ]; then
@@ -735,7 +743,7 @@ if [ "$cherry_pick_resolved" = "false" ]; then
         prs_for_issue=`gh api repos/fleetdm/fleet/issues/$issue/timeline --paginate | jq -r '.[]' | $GREP_CMD "fleetdm/fleet/" | $GREP_CMD -oP "pulls\/\K(?:\d+)"`
         echo -n "https://github.com/fleetdm/fleet/issues/$issue"
         if [[ "$prs_for_issue" == "" ]]; then
-            echo -n "NO PR's found, please verify they are not missing in the issue, if no PR's were required for this ticket please reconsider adding it to this release."
+            echo -n " NO PR's found, please verify they are not missing in the issue, if no PR's were required for this ticket please reconsider adding it to this release."
         fi
         for val in $prs_for_issue; do
             echo -n " $val"

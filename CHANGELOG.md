@@ -1,3 +1,90 @@
+## Fleet 4.52.0 (Jun 20, 2024)
+
+### Bug fixes
+
+### Changelog
+
+* Fixed an issue where profiles larger than 65KB were being truncated when stored on MySQL 8.
+* Fixed activity without public IP to be human readable.
+* Made the rendering of empty text cell values consistent. Also rendered the '0' value as a number instead of the default value `---`.
+* Fixed bug in `fleetctl preview` caused by creating enroll secrets.
+* Disabled AI features on non-new installations upgrading from < 4.50.X to >= 4.51.X.
+* Fixed various icon misalignments on the dashboard page.
+* Used a "soft-delete" approach when deleting a host so that its script execution details are still available for the activities feed.
+* Fixed UI bug where error detail was overflowing the table in "OS settings" modal in "My device" page UI.
+* Fixed bug where MDM migration failed when attempting to renew enrollment profiles on macOS Sonoma devices.
+* Fixed queries with dot notation in the column name to show results.
+* `/api/latest/fleet/hosts/:id/lock` returns `unlock_pin` for Apple hosts when query parameter `view_pin=true` is set. UI no longer uses unlock pending state for Apple hosts.
+* Improved the logic used by Fleet to detect if a host is currently MDM-managed.
+* Fixed issue where the MDM ingestion flow would fail if an invalid enrollment reference was passed.
+* Removed vscode false positive vulnerabilities.
+* Fixed a code linter issue where a slice was created non-empty and appended-to, instead of empty with the required capacity.
+* Fixed UI bug where Zoom icon was displayed for ZoomInfo.
+* Error with 404 when the user attempts to delete team policies for a non-existent team.
+* Fixed the Linux unlock script to support passwordless users.
+* Fixed an issue with the Windows-specific `windows-remove-fleetd.ps1` script provided in the Fleet repository where running the script did remove `fleetd` but made it impossible to reinstall the agent.
+* Fixed host details page and device details page not showing the latest software. Added `exclude_software` query parameter to the `/api/latest/fleet/hosts/:id` endpoint to exclude software from the response.
+* Fixed the `/mdm/apple/mdm` endpoint so that it returns status code 408 (request timeout) instead of 500 (internal server error) when encountering a timeout reading the request body.
+* Extended the timeout for the endpoint to upload a software installer (`POST /fleet/software/package`), and improved handling of the maximum size.
+* Fixed issue where Windows-specific error message was displayed when failing to parse macOS configuration profiles.
+* Fixed a panic (API returning code 500) when the software installer exists in the database but the installer does not exist in the storage.
+
+## Fleet 4.51.1 (Jun 11, 2024)
+
+### Bug fixes
+
+* Added S3 config variables with a `carves_` and `software_installers` prefix, which were used to configure buckets for those features. The existing non-prefixed variables were kept for backwards compatibility.
+* Fixed a bug that prevented unused script contents to be periodically cleaned up from the database.
+
+## Fleet 4.51.0 (Jun 10, 2024)
+
+### Endpoint Operations
+- Added support for environment variables in configuration profiles for GitOps.
+- `fleetctl gitops --dry-run` now errors on duplicate (or conflicting) global/team enroll secrets.
+- Added `activities_webhook` configuration option to allow for a webhook to be called when an activity is recorded. This can be used to send activity data to external services. If the webhook response is a 429 error code, the webhook retries for up to 30 minutes.
+- Added Tuxedo OS to the Linux distribution platform list.
+
+### Device Management (MDM)
+- **NOTE:** Added new required Fleet server config environment variable when MDM is enabled,
+  `FLEET_SERVER_PRIVATE_KEY`. This variable contains the private key used to encrypt the MDM
+  certificates and keys stored in Fleet. Learm more at
+  https://fleetdm.com/learn-more-about/fleet-server-private-key.
+- Added MDM support for iPhone/iPad.
+- Added software self-service support. 
+- Added query parameter `self_service` to filter the list of software titles and the list of a host's software so that only those available to install via self-service are returned.
+- Added the device-authenticated endpoint `POST /device/{token}/software/install/{software_title_id}` to self-install software.
+- Added new endpoints to configure ABM keypairs and tokens.
+- Added `GET /fleet/mdm/apple/request_csr` endpoint, which returns the signed APNS CSR needed to activate Apple MDM.
+- Added the ability to automatically log off and lock out `Administrator` users on Windows hosts.
+- Added clearer error messages when attempting to set up Apple MDM without a server private key configured.
+- Added UI for the global and host activities for self-service software installation.
+- Updated UI to support new workflows for macOS MDM setup and credentials.
+- Updated UI to support software self-service features.
+- Updated UI controls page language and hid CTA button for users without access to turn on MDM.
+
+### Vulnerability Management
+- Updated the CIS policies for Windows 11 Enterprise from v2.0.0 (03-07-2023) to v3.0.0 (02-22-2024).
+- Fleet now detects Ubuntu kernel vulnerabilities from the Canonical OVAL feed.
+- Fleet now detects and reports vulnerabilities on Firefox ESR editions on macOS.
+
+### Bug fixes and improvements
+- Fixed a bug that might prevent enqueuing commands to renew SCEP certificates if the host was enrolled more than once.
+- Prevented the `host_id`s field from being returned from the list labels endpoint.
+- Improved software ingestion performance by deduplicating incoming software.
+- Placed all form field label tooltips on top.
+- Fixed a number of related issues with the filtering and sorting of the queries table.
+- Added various optimizations to the rendering of the queries table.
+- Fixed host query page styling bugs.
+- Fixed a UI bug where "Wipe" action was not being hidden from observers.
+- Fixed UI bug for builtin label names for selecting targets.
+- Removed references to Administrator accounts in the comments of the Windows lock script.
+
+## Fleet 4.50.2 (May 31, 2024)
+
+### Bug fixes
+
+* Fixed a critical bug where S3 operation were not possible on a different AWS account.
+
 ## Fleet 4.50.1 (May 29, 2024)
 
 ### Bug fixes

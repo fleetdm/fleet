@@ -51,6 +51,7 @@ describe("Software Vulnerabilities table", () => {
         showExploitedVulnerabilitiesOnly={false}
         currentPage={0}
         isLoading={false}
+        resetPageIndex={false}
       />
     );
 
@@ -88,12 +89,11 @@ describe("Software Vulnerabilities table", () => {
         showExploitedVulnerabilitiesOnly={false}
         currentPage={0}
         isLoading={false}
+        resetPageIndex={false}
       />
     );
 
-    expect(
-      screen.getByText("No software match the current search criteria")
-    ).toBeInTheDocument();
+    expect(screen.getByText("No software detected")).toBeInTheDocument();
     expect(screen.queryByText("Vulnerability")).toBeNull();
   });
 
@@ -126,11 +126,12 @@ describe("Software Vulnerabilities table", () => {
         showExploitedVulnerabilitiesOnly={false}
         currentPage={0}
         isLoading={false}
+        resetPageIndex={false}
       />
     );
 
     expect(
-      screen.getByText("No software match the current search criteria")
+      screen.getByText("No items match the current search criteria")
     ).toBeInTheDocument();
     expect(screen.queryByText("Vulnerability")).toBeNull();
   });
@@ -158,6 +159,7 @@ describe("Software Vulnerabilities table", () => {
         showExploitedVulnerabilitiesOnly={false}
         currentPage={0}
         isLoading={false}
+        resetPageIndex={false}
       />
     );
 
@@ -192,6 +194,7 @@ describe("Software Vulnerabilities table", () => {
         showExploitedVulnerabilitiesOnly={false}
         currentPage={0}
         isLoading={false}
+        resetPageIndex={false}
       />
     );
 

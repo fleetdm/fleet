@@ -184,6 +184,8 @@ type SoftwareTitleListResult struct {
 	CountsUpdatedAt *time.Time `json:"-" db:"counts_updated_at"`
 	// SoftwarePackage is the filename of the installer for this software title.
 	SoftwarePackage *string `json:"software_package" db:"software_package"`
+	// SelfService indicates if the end user can initiate the installation
+	SelfService bool `json:"self_service" db:"self_service"`
 }
 
 type SoftwareTitleListOptions struct {
@@ -193,6 +195,22 @@ type SoftwareTitleListOptions struct {
 	TeamID              *uint `query:"team_id,optional"`
 	VulnerableOnly      bool  `query:"vulnerable,optional"`
 	AvailableForInstall bool  `query:"available_for_install,optional"`
+	SelfServiceOnly     bool  `query:"self_service,optional"`
+}
+
+type HostSoftwareTitleListOptions struct {
+	// ListOptions cannot be embedded in order to unmarshal with validation.
+	ListOptions ListOptions `url:"list_options"`
+
+	// SelfServiceOnly limits the returned software titles to those that are
+	// available to install by the end user via the self-service. Implies
+	// AvailableForInstall.
+	SelfServiceOnly bool `query:"self_service,optional"`
+
+	// IncludeAvailableForInstall is not a query argument, it is set in the
+	// service layer to indicate to the datastore if software available for
+	// install (but not currently installed on the host) should be returned.
+	IncludeAvailableForInstall bool
 }
 
 // AuthzSoftwareInventory is used for access controls on software inventory.
@@ -249,6 +267,8 @@ type SoftwareListOptions struct {
 type SoftwareIterQueryOptions struct {
 	ExcludedSources []string // what sources to exclude
 	IncludedSources []string // what sources to include
+	NameMatch       string   // mysql regex to filter software by name
+	NameExclude     string   // mysql regex to filter software by name
 }
 
 // IsValid checks that either ExcludedSources or IncludedSources is specified but not both

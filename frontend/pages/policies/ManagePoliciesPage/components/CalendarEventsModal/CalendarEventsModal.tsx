@@ -197,7 +197,6 @@ const CalendarEventsModal = ({
                   onChange={() => {
                     onPolicyEnabledChange({ name, value: !isChecked });
                   }}
-                  smallTick
                 >
                   {name}
                 </Checkbox>

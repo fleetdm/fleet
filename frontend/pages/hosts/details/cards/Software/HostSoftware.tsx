@@ -37,6 +37,7 @@ export interface ITableSoftware extends Omit<ISoftware, "vulnerabilities"> {
 interface IHostSoftwareProps {
   /** This is the host id or the device token */
   id: number | string;
+  softwareUpdatedAt?: string;
   isFleetdHost: boolean;
   router: InjectedRouter;
   queryParams: ReturnType<typeof parseHostSoftwareQueryParams>;
@@ -79,6 +80,7 @@ export const parseHostSoftwareQueryParams = (queryParams: {
 
 const HostSoftware = ({
   id,
+  softwareUpdatedAt,
   isFleetdHost,
   router,
   queryParams,
@@ -119,6 +121,7 @@ const HostSoftware = ({
       {
         scope: "host_software",
         id: id as number,
+        softwareUpdatedAt,
         ...queryParams,
       },
     ],
@@ -149,13 +152,14 @@ const HostSoftware = ({
       {
         scope: "device_software",
         id: id as string,
+        softwareUpdatedAt,
         ...queryParams,
       },
     ],
     ({ queryKey }) => deviceAPI.getDeviceSoftware(queryKey[0]),
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
-      enabled: isSoftwareEnabled && isMyDevicePage,
+      enabled: isSoftwareEnabled && isMyDevicePage, // if disabled, we'll always show a generic "No software detected" message
       keepPreviousData: true,
       staleTime: 7000,
     }
@@ -287,9 +291,9 @@ const HostSoftware = ({
 
   return (
     <Card
-      borderRadiusSize="large"
+      borderRadiusSize="xxlarge"
+      paddingSize="xxlarge"
       includeShadow
-      largePadding
       className={baseClass}
     >
       <p className="card__header">Software</p>

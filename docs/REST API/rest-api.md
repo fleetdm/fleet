@@ -1,4 +1,4 @@
- # REST API
+# REST API
 
 - [Authentication](#authentication)
 - [Activities](#activities)
@@ -873,6 +873,8 @@ None.
     "activity_expiry_window": 0
   },
   "features": {
+    "enable_host_users": true,
+    "enable_software_inventory": true,
     "additional_queries": null
   },
   "mdm": {
@@ -880,6 +882,7 @@ None.
     "apple_bm_terms_expired": false,
     "enabled_and_configured": true,
     "windows_enabled_and_configured": true,
+    "enable_disk_encryption": true,
     "macos_updates": {
       "minimum_version": "12.3.1",
       "deadline": "2022-01-01"
@@ -889,11 +892,20 @@ None.
       "grace_period_days": 1
     },
     "macos_settings": {
-      "custom_settings": ["path/to/profile1.mobileconfig"],
-      "enable_disk_encryption": true
+      "custom_settings": [
+        {
+          "path": "path/to/profile1.mobileconfig",
+          "labels": ["Label 1", "Label 2"]
+        }
+      ]
     },
     "windows_settings": {
-      "custom_settings": ["path/to/profile2.xml"],
+      "custom_settings": [
+        {
+         "path": "path/to/profile2.xml",
+         "labels": ["Label 3", "Label 4"]
+        }
+      ],
     },
     "scripts": ["path/to/script.sh"],
     "end_user_authentication": {
@@ -983,6 +995,10 @@ None.
       "enable_vulnerabilities_webhook":true,
       "destination_url": "https://server.com",
       "host_batch_size": 1000
+    },
+    "activities_webhook":{
+      "enable_activities_webhook":true,
+      "destination_url": "https://server.com"
     }
   },
   "integrations": {
@@ -1065,6 +1081,7 @@ Modifies the Fleet's configuration with the supplied information.
 | webhook_settings      | object  | body    | See [webhook_settings](#webhook-settings). |
 | integrations                      | object  | body  | Includes `jira`, `zendesk`, and `google_calendar` arrays. See [integrations](#integrations) for details. |
 | mdm_settings      | object  | body    | See [mdm_settings](#mdm-settings). |
+| features          | object  | body    | See [features](#features). |
 | scripts                           | list    | body  | A list of script files to add so they can be executed at a later time.                                                                                                                                                 |
 | additional_queries                | boolean | body  | Whether additional queries are enabled on hosts.                                                                                                                                |
 | force                             | boolean | query | Whether to force-apply the agent options even if there are validation errors.                                                                                                 |
@@ -1115,6 +1132,8 @@ Modifies the Fleet's configuration with the supplied information.
 | issuer_uri                        | string  | The URI you provide here must exactly match the Entity ID field used in the identity provider configuration.                                                           |
 | idp_image_url                     | string  | An optional link to an image such as a logo for the identity provider.                                                                                                 |
 | metadata_url                      | string  | A URL that references the identity provider metadata. If available from the identity provider, this is the preferred means of providing metadata.                      |
+| enable_sso_idp_login              | boolean | Determines whether Identity Provider (IdP) initiated login for Single sign-on (SSO) is enabled for the Fleet application.                                              |
+| enable_jit_provisioning           | boolean | When enabled, allows [just-in-time user provisioning](https://fleetdm.com/docs/deploy/single-sign-on-sso#just-in-time-jit-user-provisioning). **Requires Fleet Premium license**. |
 
 #### host_expiry_settings
 
@@ -1319,6 +1338,15 @@ _Available in Fleet Premium._
 | custom_settings                   | list    | Windows hosts that belong to no team, and are members of specified labels will have custom profiles applied. |
 
 
+#### Features
+
+| Name                              | Type    | Description   |
+| ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| enable_host_users                 | boolean | body  | Enables the users feature in Fleet. (Default: `true`)                                                                          |
+| enable_software_inventory         | boolean | body  | Enables the software inventory feature in Fleet. (Default: `true`)                                                             |
+| additional_queries                | boolean | body  | Enables additional queries on hosts. (Default: `null`)                                                                         |
+
+
 #### Example
 
 `PATCH /api/v1/fleet/config`
@@ -1380,7 +1408,9 @@ _Available in Fleet Premium._
     "metadata": "",
     "metadata_url": "",
     "idp_name": "",
-    "enable_sso": false
+    "enable_sso": false,
+    "enable_sso_idp_login": false,
+    "enable_jit_provisioning": false
   },
   "host_expiry_settings": {
     "host_expiry_enabled": false,
@@ -1391,6 +1421,8 @@ _Available in Fleet Premium._
     "activity_expiry_window": 0
   },
   "features": {
+    "enable_host_users": true,
+    "enable_software_inventory": true,
     "additional_queries": null
   },
   "license": {
@@ -1403,6 +1435,7 @@ _Available in Fleet Premium._
     "apple_bm_enabled_and_configured": false,
     "enabled_and_configured": false,
     "windows_enabled_and_configured": false,
+    "enable_disk_encryption": true,
     "macos_updates": {
       "minimum_version": "12.3.1",
       "deadline": "2022-01-01"
@@ -1412,21 +1445,24 @@ _Available in Fleet Premium._
       "grace_period_days": 1
     },
     "macos_settings": {
-      "custom_settings": {
-        "path": "path/to/profile1.mobileconfig",
-        "labels": ["Label 1", "Label 2"]
-      },
-      {
-        "path": "path/to/profile2.json",
-        "labels": ["Label 3", "Label 4"]
-      },
-      "enable_disk_encryption": true
+      "custom_settings": [
+        {
+          "path": "path/to/profile1.mobileconfig",
+          "labels": ["Label 1", "Label 2"]
+        },
+        {
+          "path": "path/to/profile2.json",
+          "labels": ["Label 3", "Label 4"]
+        },
+      ]
     },
     "windows_settings": {
-      "custom_settings": {
-        "path": "path/to/profile3.xml",
-        "labels": ["Label 1", "Label 2"]
-      }      
+      "custom_settings": [
+        {
+          "path": "path/to/profile3.xml",
+          "labels": ["Label 1", "Label 2"]
+        }
+      ]     
     },
     "end_user_authentication": {
       "entity_id": "",
@@ -1487,6 +1523,10 @@ _Available in Fleet Premium._
       "enable_vulnerabilities_webhook":true,
       "destination_url": "https://server.com",
       "host_batch_size": 1000
+    },
+    "activities_webhook":{
+      "enable_activities_webhook":true,
+      "destination_url": "https://server.com"
     }
   },
   "integrations": {
@@ -2514,9 +2554,10 @@ Returns the information of the specified host.
 
 #### Parameters
 
-| Name | Type    | In   | Description                  |
-| ---- | ------- | ---- | ---------------------------- |
-| id   | integer | path | **Required**. The host's id. |
+| Name             | Type    | In    | Description                                                                         |
+|------------------|---------|-------|-------------------------------------------------------------------------------------|
+| id               | integer | path  | **Required**. The host's id.                                                        |
+| exclude_software | boolean | query | If `true`, the response will not include a list of installed software for the host. |
 
 #### Example
 
@@ -2611,7 +2652,6 @@ Returns the information of the specified host.
     "percent_disk_space_available": 74,
     "gigs_total_disk_space": 160,
     "disk_encryption_enabled": true,
-    "scripts_enabled": true,
     "users": [
       {
         "uid": 0,
@@ -5505,7 +5545,7 @@ Deletes the custom MDM setup enrollment profile assigned to a team or no team.
 
 ### Get manual enrollment profile
 
-Retrieves the manual enrollment profile for macOS hosts. Install this profile on macOS hosts to turn on MDM features manually.
+Retrieves an unsigned manual enrollment profile for macOS hosts. Install this profile on macOS hosts to turn on MDM features manually.
 
 `GET /api/v1/fleet/enrollment_profiles/manual`
 
@@ -6199,28 +6239,18 @@ For example, a policy might ask “Is Gatekeeper enabled on macOS devices?“ Th
 
 ### Add policy
 
-There are two ways of adding a policy:
-1. Preferred: By setting `name`, `query`, and `description`.
-2. Legacy: By setting `query_id` to reuse the data of an existing query. If `query_id` is set,
-then `query` must not be set, and `name` and `description` are ignored.
-
-An error is returned if both `query` and `query_id` are set on the request.
-
 `POST /api/v1/fleet/global/policies`
 
 #### Parameters
 
 | Name        | Type    | In   | Description                          |
 | ----------  | ------- | ---- | ------------------------------------ |
-| name        | string  | body | The query's name.                    |
-| query       | string  | body | The query in SQL.                    |
-| description | string  | body | The query's description.             |
+| name        | string  | body | The policy's name.                    |
+| query       | string  | body | The policy's query in SQL.                    |
+| description | string  | body | The policy's description.             |
 | resolution  | string  | body | The resolution steps for the policy. |
-| query_id    | integer | body | An existing query's ID (legacy).     |
 | platform    | string  | body | Comma-separated target platforms, currently supported values are "windows", "linux", "darwin". The default, an empty string means target all platforms. |
 | critical    | boolean | body | _Available in Fleet Premium_. Mark policy as critical/high impact. |
-
-Either `query` or `query_id` must be provided.
 
 #### Example (preferred)
 
@@ -6238,47 +6268,6 @@ Either `query` or `query_id` must be provided.
   "critical": true
 }
 ```
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "policy": {
-    "id": 43,
-    "name": "Gatekeeper enabled",
-    "query": "SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;",
-    "description": "Checks if gatekeeper is enabled on macOS devices",
-    "critical": true,
-    "author_id": 42,
-    "author_name": "John",
-    "author_email": "john@example.com",
-    "team_id": null,
-    "resolution": "Resolution steps",
-    "platform": "darwin",
-    "created_at": "2022-03-17T20:15:55Z",
-    "updated_at": "2022-03-17T20:15:55Z",
-    "passing_host_count": 0,
-    "failing_host_count": 0,
-    "host_count_updated_at": null
-  }
-}
-```
-
-#### Example (legacy)
-
-`POST /api/v1/fleet/global/policies`
-
-#### Request body
-
-```json
-{
-  "query_id": 12
-}
-```
-
-Where `query_id` references an existing `query`.
 
 ##### Default response
 
@@ -6687,11 +6676,10 @@ The semantics for creating a team policy are the same as for global policies, se
 | Name        | Type    | In   | Description                          |
 | ----------  | ------- | ---- | ------------------------------------ |
 | id         | integer | path | Defines what team ID to operate on.  |
-| name        | string  | body | The query's name.                    |
-| query       | string  | body | The query in SQL.                    |
-| description | string  | body | The query's description.             |
+| name        | string  | body | The policy's name.                    |
+| query       | string  | body | The policy's query in SQL.                    |
+| description | string  | body | The policy's description.             |
 | resolution  | string  | body | The resolution steps for the policy. |
-| query_id    | integer | body | An existing query's ID (legacy).     |
 | platform    | string  | body | Comma-separated target platforms, currently supported values are "windows", "linux", "darwin". The default, an empty string means target all platforms. |
 | critical    | boolean | body | _Available in Fleet Premium_. Mark policy as critical/high impact. |
 
@@ -7936,7 +7924,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 - [Delete script](#delete-script)
 - [List scripts](#list-scripts)
 - [Get or download script](#get-or-download-script)
-- [Get script details by host](#get-script-details-by-host)
+- [Get script details by host](#get-hosts-scripts)
 
 ### Run script
 
@@ -8351,7 +8339,7 @@ Download a software package.
 | ----            | ------- | ---- | --------------------------------------------     |
 | software_title_id              | integer | path | **Required**. The ID of the software title to download software package.|
 | team_id | integer | form | **Required**. The team ID. Downloads a software package added to the specified team. |
-| alt             | integer | path | **Required**. If specified and set to "media", downloads the specified software package. |
+| alt             | integer | query | **Required**. If specified and set to "media", downloads the specified software package. |
 
 #### Example
 
@@ -9196,6 +9184,7 @@ _Available in Fleet Premium_
       }
     },
     "mdm": {
+      "enable_disk_encryption": true,
       "macos_updates": {
         "minimum_version": "12.3.1",
         "deadline": "2022-01-01"
@@ -9205,11 +9194,20 @@ _Available in Fleet Premium_
         "grace_period_days": 1
       },
       "macos_settings": {
-        "custom_settings": ["path/to/profile1.mobileconfig"],
-        "enable_disk_encryption": false
+        "custom_settings": [
+          {
+            "path": "path/to/profile1.mobileconfig",
+            "labels": ["Label 1", "Label 2"]
+          }
+        ]
       },
       "windows_settings": {
-        "custom_settings": ["path/to/profile2.xml"],
+        "custom_settings": [
+          {
+            "path": "path/to/profile2.xml",
+            "labels": ["Label 3", "Label 4"]
+          }
+        ],
       },
       "macos_setup": {
         "bootstrap_package": "",
@@ -9480,6 +9478,7 @@ _Available in Fleet Premium_
       }
     },
     "mdm": {
+      "enable_disk_encryption": true,
       "macos_updates": {
         "minimum_version": "12.3.1",
         "deadline": "2022-01-01"
@@ -9489,11 +9488,20 @@ _Available in Fleet Premium_
         "grace_period_days": 1
       },
       "macos_settings": {
-        "custom_settings": ["path/to/profile1.mobileconfig"],
-        "enable_disk_encryption": false
+        "custom_settings": [
+          {
+           "path": "path/to/profile1.mobileconfig",
+           "labels": ["Label 1", "Label 2"]
+          }
+        ]
       },
       "windows_settings": {
-        "custom_settings": ["path/to/profile2.xml"],
+        "custom_settings": [
+          {
+           "path": "path/to/profile2.xml",
+           "labels": ["Label 3", "Label 4"]
+          }
+        ],
       },
       "macos_setup": {
         "bootstrap_package": "",
@@ -9974,6 +9982,7 @@ By default, the user will be forced to reset its password upon first login.
   "name": "Jane Doe",
   "email": "janedoe@example.com",
   "password": "test-123",
+  "api_only": true,
   "teams": [
     {
       "id": 2,
@@ -10003,7 +10012,7 @@ By default, the user will be forced to reset its password upon first login.
     "force_password_reset": false,
     "gravatar_url": "",
     "sso_enabled": false,
-    "api_only": false,
+    "api_only": true,
     "global_role": null,
     "teams": [
       {
@@ -10015,9 +10024,12 @@ By default, the user will be forced to reset its password upon first login.
         "role": "maintainer"
       }
     ]
-  }
+  },
+  "token": "{API key}"
 }
 ```
+
+> Note: The new user's `token` (API key) is only included in the response after creating an api-only user (`api_only: true`).
 
 ##### User doesn't exist
 

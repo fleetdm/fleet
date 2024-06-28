@@ -10,12 +10,19 @@ import { Row } from "react-table";
 import PATHS from "router/paths";
 import { getNextLocationPath } from "utilities/helpers";
 import { GITHUB_NEW_ISSUE_LINK } from "utilities/constants";
-import { buildQueryStringFromParams } from "utilities/url";
 import {
+  buildQueryStringFromParams,
+  convertParamsToSnakeCase,
+} from "utilities/url";
+import {
+  ISoftwareApiParams,
   ISoftwareTitlesResponse,
   ISoftwareVersionsResponse,
 } from "services/entities/software";
-import { ISoftwareTitle, ISoftwareVersion } from "interfaces/software";
+import {
+  ISoftwareTitleWithPackageName,
+  ISoftwareVersion,
+} from "interfaces/software";
 
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
@@ -24,6 +31,7 @@ import Slider from "components/forms/fields/Slider";
 import CustomLink from "components/CustomLink";
 import LastUpdatedText from "components/LastUpdatedText";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
+import TableCount from "components/TableContainer/TableCount";
 
 import EmptySoftwareTable from "pages/SoftwarePage/components/EmptySoftwareTable";
 
@@ -33,6 +41,7 @@ import {
   ISoftwareDropdownFilterVal,
   SOFTWARE_TITLES_DROPDOWN_OPTIONS,
   SOFTWARE_VERSIONS_DROPDOWN_OPTIONS,
+  getSoftwareFilterForQueryKey,
 } from "./helpers";
 
 interface IRowProps extends Row {
@@ -63,6 +72,7 @@ interface ISoftwareTableProps {
   currentPage: number;
   teamId?: number;
   isLoading: boolean;
+  resetPageIndex: boolean;
 }
 
 const baseClass = "software-table";
@@ -80,6 +90,7 @@ const SoftwareTable = ({
   currentPage,
   teamId,
   isLoading,
+  resetPageIndex,
 }: ISoftwareTableProps) => {
   const currentPath = showVersions
     ? PATHS.SOFTWARE_VERSIONS
@@ -152,7 +163,10 @@ const SoftwareTable = ({
     [determineQueryParamChange, generateNewQueryParams, router, currentPath]
   );
 
-  let tableData: ISoftwareTitle[] | ISoftwareVersion[] | undefined;
+  let tableData:
+    | ISoftwareTitleWithPackageName[]
+    | ISoftwareVersion[]
+    | undefined;
   let generateTableConfig: ITableConfigGenerator;
 
   if (data === undefined) {
@@ -174,24 +188,9 @@ const SoftwareTable = ({
   // determines if a user be able to search in the table
   const searchable =
     isSoftwareEnabled &&
-    (!!tableData || query !== "" || softwareFilter === "vulnerableSoftware");
-
-  const getItemsCountText = () => {
-    const count = data?.count;
-    if (!tableData || !count) return "";
-
-    return count === 1 ? `${count} item` : `${count} items`;
-  };
-
-  const getLastUpdatedText = () => {
-    if (!tableData || !data?.counts_updated_at) return "";
-    return (
-      <LastUpdatedText
-        lastUpdatedAt={data.counts_updated_at}
-        whatToRetrieve="software"
-      />
-    );
-  };
+    ((tableData && tableData.length > 0) ||
+      query !== "" ||
+      softwareFilter !== "allSoftware");
 
   const handleShowVersionsToggle = () => {
     const queryParams: Record<string, string | number | undefined> = {
@@ -223,28 +222,23 @@ const SoftwareTable = ({
     );
   };
 
-  const handleVulnFilterDropdownChange = (
+  const handleCustomFilterDropdownChange = (
     value: ISoftwareDropdownFilterVal
   ) => {
-    const queryParams: Record<string, any> = {
+    const queryParams: ISoftwareApiParams = {
       query,
-      team_id: teamId,
-      order_direction: orderDirection,
-      order_key: orderKey,
+      teamId,
+      orderDirection,
+      orderKey,
       page: 0, // resets page index
+      ...getSoftwareFilterForQueryKey(value),
     };
-
-    if (value === "installableSoftware") {
-      queryParams.available_for_install = true;
-    } else {
-      queryParams.vulnerable = value === "vulnerableSoftware";
-    }
 
     router.replace(
       getNextLocationPath({
         pathPrefix: currentPath,
         routeTemplate: "",
-        queryParams,
+        queryParams: convertParamsToSnakeCase(queryParams),
       })
     );
   };
@@ -268,20 +262,37 @@ const SoftwareTable = ({
   };
 
   const renderSoftwareCount = () => {
-    const itemText = getItemsCountText();
-    const lastUpdatedText = getLastUpdatedText();
-
-    if (!itemText) return null;
+    if (!tableData || !data?.count) return null;
 
     return (
-      <div className={`${baseClass}__count`}>
-        <span>{itemText}</span>
-        {lastUpdatedText}
-      </div>
+      <>
+        <TableCount name="items" count={data?.count} />
+        {tableData && data?.counts_updated_at && (
+          <LastUpdatedText
+            lastUpdatedAt={data.counts_updated_at}
+            customTooltipText={
+              <>
+                The last time software data was <br />
+                updated, including vulnerabilities <br />
+                and host counts.
+              </>
+            }
+          />
+        )}
+      </>
     );
   };
 
   const renderCustomFilters = () => {
+    // Hide filters if no software is detected with no filters present
+    if (
+      query === "" &&
+      !showVersions &&
+      softwareFilter === "allSoftware" &&
+      data?.count === 0
+    )
+      return <></>;
+
     const options = showVersions
       ? SOFTWARE_VERSIONS_DROPDOWN_OPTIONS
       : SOFTWARE_TITLES_DROPDOWN_OPTIONS;
@@ -302,7 +313,7 @@ const SoftwareTable = ({
           className={`${baseClass}__vuln_dropdown`}
           options={options}
           searchable={false}
-          onChange={handleVulnFilterDropdownChange}
+          onChange={handleCustomFilterDropdownChange}
           tableFilterDropdown
         />
       </div>
@@ -333,8 +344,7 @@ const SoftwareTable = ({
           <EmptySoftwareTable
             softwareFilter={softwareFilter}
             isSoftwareDisabled={!isSoftwareEnabled}
-            isCollectingSoftware={false} // TODO: update with new API
-            isSearching={query !== ""}
+            isNotDetectingSoftware={query === ""}
           />
         )}
         defaultSortHeader={orderKey}
@@ -359,6 +369,7 @@ const SoftwareTable = ({
         renderFooter={renderTableFooter}
         disableMultiRowSelect
         onSelectSingleRow={handleRowSelect}
+        resetPageIndex={resetPageIndex}
       />
     </div>
   );
