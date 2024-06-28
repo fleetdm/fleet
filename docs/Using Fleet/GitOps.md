@@ -523,7 +523,7 @@ org_settings:
       host_batch_size: 0
 ```
 
-Can only be configure for all teams (`org_settings`).
+Can only be configured for all teams (`org_settings`).
 
 #### mdm
 
