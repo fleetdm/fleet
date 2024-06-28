@@ -120,6 +120,11 @@ func (lowLevelAPI *GoogleCalendarLoadAPI) CreateEvent(event *calendar.Event) (*c
 	return &rspEvent, nil
 }
 
+func (lowLevelAPI *GoogleCalendarLoadAPI) UpdateEvent(event *calendar.Event) (*calendar.Event, error) {
+	// TODO: implementation
+	return event, nil
+}
+
 func (lowLevelAPI *GoogleCalendarLoadAPI) GetEvent(id, _ string) (*calendar.Event, error) {
 	reqUrl, err := url.Parse(lowLevelAPI.baseUrl + "/events")
 	if err != nil {
