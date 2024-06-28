@@ -3526,7 +3526,7 @@ func (ds *Datastore) MDMResetEnrollment(ctx context.Context, hostUUID string) er
 		// short-circuited before this.
 		_, err = tx.ExecContext(
 			ctx,
-			"UPDATE nano_enrollments SET enrolled_from_migration = 0 WHERE id = ? AND active = 1",
+			"UPDATE nano_enrollments SET enrolled_from_migration = 0 WHERE id = ? AND enabled = 1",
 			hostUUID,
 		)
 		if err != nil {

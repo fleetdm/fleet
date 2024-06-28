@@ -1076,7 +1076,7 @@ LEFT JOIN
 WHERE
     ncaa.cert_not_valid_after BETWEEN '0000-00-00' AND DATE_ADD(CURDATE(), INTERVAL ? DAY)
     AND ncaa.renew_command_uuid IS NULL
-    AND ne.active = 1
+    AND ne.enabled = 1
 GROUP BY
     host_uuid, ncaa.sha256, ncaa.cert_not_valid_after
 ORDER BY
