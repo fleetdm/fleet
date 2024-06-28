@@ -23,7 +23,7 @@ if [ $1 == "remove" ]; then
     remove_fleet
 else
     # We are in the parent shell, start the detached child and return success
-    echo "Removing fleet, system will be unenrolled"
+    echo "Removing fleet, system will be unenrolled in 15 seconds..."
     echo "Executing detached child process"
     nohup sh $0 remove >/dev/null 2>/dev/null </dev/null &
 fi
