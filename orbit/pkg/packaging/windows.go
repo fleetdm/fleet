@@ -92,6 +92,7 @@ func BuildMSI(opt Options) (string, error) {
 	if !strings.HasPrefix(orbitVersion, "v") {
 		orbitVersion = "v" + orbitVersion
 	}
+	// v1.28.0 introduced configurable END_USER_EMAIL property for MSI package: https://github.com/fleetdm/fleet/issues/19219
 	if semver.Compare(orbitVersion, "v1.28.0") >= 0 {
 		opt.EnableEndUserEmailProperty = true
 	}
