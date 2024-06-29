@@ -268,8 +268,8 @@ func setupRealReplica(t testing.TB, testName string, ds *Datastore, options *dbO
 	}
 
 	mu.Lock()
-	replicatedDatabases = append(replicatedDatabases, testName)
-	databasesToReplicate := strings.Join(replicatedDatabases, ",")
+	replicatedDatabases = append(replicatedDatabases, fmt.Sprintf("`%s`", testName))
+	databasesToReplicate := strings.TrimSuffix(strings.Join(replicatedDatabases, ","), ",")
 	mu.Unlock()
 
 	// Configure slave and start replication
@@ -283,7 +283,7 @@ func setupRealReplica(t testing.TB, testName string, ds *Datastore, options *dbO
 			`
 			STOP SLAVE;
 			RESET SLAVE ALL;
-			CHANGE REPLICATION FILTER REPLICATE_DO_DB = ( %s )
+			CHANGE REPLICATION FILTER REPLICATE_DO_DB = ( %s );
 			CHANGE MASTER TO
 				%s
 				MASTER_HOST='mysql_test',
