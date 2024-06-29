@@ -533,7 +533,7 @@ func TruncateTables(t testing.TB, ds *Datastore, tables ...string) {
 				}
 				return fmt.Errorf("cannot truncate table %s, it contains seed data from schema.sql", tbl)
 			}
-			if _, err := tx.ExecContext(ctx, "TRUNCATE TABLE"+tbl); err != nil {
+			if _, err := tx.ExecContext(ctx, "TRUNCATE TABLE "+tbl); err != nil {
 				return err
 			}
 		}
