@@ -2094,7 +2094,8 @@ func testListSoftwareForVulnDetection(t *testing.T, ds *Datastore) {
 		// Load software again so that CPE data is included.
 		require.NoError(t, ds.LoadHostSoftware(ctx, host, false))
 
-		result, err := ds.ListSoftwareForVulnDetection(ctx, host.ID)
+		filter := fleet.VulnSoftwareFilter{HostID: &host.ID}
+		result, err := ds.ListSoftwareForVulnDetection(ctx, filter)
 		require.NoError(t, err)
 
 		sort.Slice(host.Software, func(i, j int) bool { return host.Software[i].ID < host.Software[j].ID })

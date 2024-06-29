@@ -1857,11 +1857,13 @@ func (ds *Datastore) ListSoftwareVulnerabilitiesByHostIDsSource(
 
 func (ds *Datastore) ListSoftwareForVulnDetection(
 	ctx context.Context,
-	hostID uint,
+	filters fleet.VulnSoftwareFilter,
 ) ([]fleet.Software, error) {
 	var result []fleet.Software
+	var sqlstmt string
+	var args []interface{}
 
-	sql := `
+	baseSQL := `
 		SELECT 
 			s.id,
 			s.name,
@@ -1873,15 +1875,26 @@ func (ds *Datastore) ListSoftwareForVulnDetection(
 			software s
 		LEFT JOIN 
 			software_cpe cpe ON s.id = cpe.software_id
-		JOIN 
-			host_software hs ON s.id = hs.software_id
-		WHERE 
-			hs.host_id = ?
 	`
 
-	args := []interface{}{hostID}
+	if filters.HostID != nil {
+		baseSQL += "JOIN host_software hs ON s.id = hs.software_id "
+	}
 
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &result, sql, args...); err != nil {
+	conditions := []string{}
+
+	if filters.HostID != nil {
+		conditions = append(conditions, "hs.host_id = ?")
+		args = append(args, *filters.HostID)
+	}
+
+	if len(conditions) > 0 {
+		sqlstmt = baseSQL + "WHERE " + strings.Join(conditions, " AND ")
+	} else {
+		sqlstmt = baseSQL
+	}
+
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &result, sqlstmt, args...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "error executing SQL statement")
 	}
 
