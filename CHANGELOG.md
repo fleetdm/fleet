@@ -1,3 +1,11 @@
+## Fleet 4.53.1 (Jun 28, 2024)
+
+### Bug fixes
+
+```markdown
+* Fixed issue where the Fleet UI could not be used to renew the ABM token after the ABM user who created the token was deleted.
+``` 
+
 ## Fleet 4.53.0 (Jun 25, 2024)
 
 ### Endpoint Operations
