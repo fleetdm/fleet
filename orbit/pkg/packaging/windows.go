@@ -24,6 +24,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/secure"
 	"github.com/josephspurrier/goversioninfo"
 	"github.com/rs/zerolog/log"
+	"golang.org/x/mod/semver"
 )
 
 const wixDownload = "https://github.com/wixtoolset/wix3/releases/download/wix3112rtm/wix311-binaries.zip"
@@ -85,6 +86,14 @@ func BuildMSI(opt Options) (string, error) {
 	if opt.Version == "" {
 		// We set the package version to orbit's latest version.
 		opt.Version = updatesData.OrbitVersion
+	}
+
+	orbitVersion := updatesData.OrbitVersion
+	if !strings.HasPrefix(orbitVersion, "v") {
+		orbitVersion = "v" + orbitVersion
+	}
+	if semver.Compare(orbitVersion, "v1.28.0") >= 0 {
+		opt.EnableEndUserEmailProperty = true
 	}
 
 	// Write files
