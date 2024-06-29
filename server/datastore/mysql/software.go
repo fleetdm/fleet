@@ -1861,34 +1861,25 @@ func (ds *Datastore) ListSoftwareForVulnDetection(
 ) ([]fleet.Software, error) {
 	var result []fleet.Software
 
-	stmt := dialect.
-		From(goqu.T("software").As("s")).
-		LeftJoin(
-			goqu.T("software_cpe").As("cpe"),
-			goqu.On(goqu.Ex{
-				"s.id": goqu.I("cpe.software_id"),
-			}),
-		).
-		Join(
-			goqu.T("host_software").As("hs"),
-			goqu.On(goqu.Ex{
-				"s.id": goqu.I("hs.software_id"),
-			}),
-		).
-		Select(
-			goqu.I("s.id"),
-			goqu.I("s.name"),
-			goqu.I("s.version"),
-			goqu.I("s.release"),
-			goqu.I("s.arch"),
-			goqu.COALESCE(goqu.I("cpe.cpe"), "").As("generated_cpe"),
-		).
-		Where(goqu.C("host_id").Eq(hostID))
+	sql := `
+		SELECT 
+			s.id,
+			s.name,
+			s.version,
+			s.release,
+			s.arch,
+			COALESCE(cpe.cpe, '') AS generated_cpe
+		FROM 
+			software s
+		LEFT JOIN 
+			software_cpe cpe ON s.id = cpe.software_id
+		JOIN 
+			host_software hs ON s.id = hs.software_id
+		WHERE 
+			hs.host_id = ?
+	`
 
-	sql, args, err := stmt.ToSQL()
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "error generating SQL statement")
-	}
+	args := []interface{}{hostID}
 
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &result, sql, args...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "error executing SQL statement")
