@@ -1888,6 +1888,16 @@ func (ds *Datastore) ListSoftwareForVulnDetection(
 		args = append(args, *filters.HostID)
 	}
 
+	if filters.Name != nil {
+		conditions = append(conditions, "s.name LIKE ?")
+		args = append(args, "%"+*filters.Name+"%")
+	}
+
+	if filters.Source != nil {
+		conditions = append(conditions, "s.source = ?")
+		args = append(args, *filters.Source)
+	}
+
 	if len(conditions) > 0 {
 		sqlstmt = baseSQL + "WHERE " + strings.Join(conditions, " AND ")
 	} else {

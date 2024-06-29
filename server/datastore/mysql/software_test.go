@@ -50,7 +50,7 @@ func TestSoftware(t *testing.T) {
 		{"ListSoftwareVulnerabilitiesByHostIDsSource", testListSoftwareVulnerabilitiesByHostIDsSource},
 		{"InsertSoftwareVulnerability", testInsertSoftwareVulnerability},
 		{"ListCVEs", testListCVEs},
-		{"ListSoftwareForVulnDetection", testListSoftwareForVulnDetection},
+		// {"ListSoftwareForVulnDetection", testListSoftwareForVulnDetection},
 		{"AllSoftwareIterator", testAllSoftwareIterator},
 		{"AllSoftwareIteratorForCustomLinuxImages", testSoftwareIteratorForLinuxKernelCustomImages},
 		{"UpsertSoftwareCPEs", testUpsertSoftwareCPEs},
@@ -2072,7 +2072,9 @@ func testListCVEs(t *testing.T, ds *Datastore) {
 	require.ElementsMatch(t, expected, actual)
 }
 
-func testListSoftwareForVulnDetection(t *testing.T, ds *Datastore) {
+func TestListSoftwareForVulnDetection(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	defer TruncateTables(t, ds)
 	t.Run("returns software without CPE entries", func(t *testing.T) {
 		ctx := context.Background()
 
@@ -2111,6 +2113,22 @@ func testListSoftwareForVulnDetection(t *testing.T, ds *Datastore) {
 			require.Equal(t, host.Software[i].Arch, result[i].Arch)
 			require.Equal(t, host.Software[i].GenerateCPE, result[i].GenerateCPE)
 		}
+
+		// test name filter
+		filter = fleet.VulnSoftwareFilter{Name: ptr.String("fo")} // LIKE match
+		result, err = ds.ListSoftwareForVulnDetection(ctx, filter)
+		require.NoError(t, err)
+		require.Len(t, result, 1)
+		require.Equal(t, "foo", result[0].Name)
+
+		// test source filter
+		filter = fleet.VulnSoftwareFilter{Source: ptr.String("deb_packages")}
+		result, err = ds.ListSoftwareForVulnDetection(ctx, filter)
+		sort.Slice(result, func(i, j int) bool { return result[i].Name < result[j].Name })
+		require.NoError(t, err)
+		require.Len(t, result, 2)
+		require.Equal(t, "baz", result[0].Name)
+		require.Equal(t, "biz", result[1].Name)
 	})
 }
 

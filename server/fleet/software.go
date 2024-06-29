@@ -116,6 +116,8 @@ type VulnerableSoftware struct {
 
 type VulnSoftwareFilter struct {
 	HostID *uint
+	Name   *string // LIKE filter
+	Source *string // exact match
 }
 
 type SliceString []string
