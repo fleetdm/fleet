@@ -24,7 +24,7 @@ import (
 // It will return meaningful result for "95SE" vs "98SP1" or for "16.3.2" vs. "3.7.0",
 // but not for "2000" vs "11.7".
 // Returns -1 if v1 < v2, 1 if v1 > v2 and 0 if v1 == v2.
-func smartVerCmp(v1, v2 string) int {
+func SmartVerCmp(v1, v2 string) int {
 	s1, s2 := v1, v2
 	for len(s1) > 0 && len(s2) > 0 {
 		num1, cmpTo1, skip1 := parseVerParts(s1)

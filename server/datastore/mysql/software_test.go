@@ -2115,14 +2115,14 @@ func TestListSoftwareForVulnDetection(t *testing.T) {
 		}
 
 		// test name filter
-		filter = fleet.VulnSoftwareFilter{Name: ptr.String("fo")} // LIKE match
+		filter = fleet.VulnSoftwareFilter{Name: "fo"} // LIKE match
 		result, err = ds.ListSoftwareForVulnDetection(ctx, filter)
 		require.NoError(t, err)
 		require.Len(t, result, 1)
 		require.Equal(t, "foo", result[0].Name)
 
 		// test source filter
-		filter = fleet.VulnSoftwareFilter{Source: ptr.String("deb_packages")}
+		filter = fleet.VulnSoftwareFilter{Source: "deb_packages"}
 		result, err = ds.ListSoftwareForVulnDetection(ctx, filter)
 		sort.Slice(result, func(i, j int) bool { return result[i].Name < result[j].Name })
 		require.NoError(t, err)

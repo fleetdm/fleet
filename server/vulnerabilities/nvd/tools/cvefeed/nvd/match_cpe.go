@@ -157,16 +157,16 @@ func (cm *cpeMatch) match(attr *wfn.Attributes, requireVersion bool) bool {
 	matches := true
 
 	if cm.versionStartIncluding != "" {
-		matches = matches && smartVerCmp(ver, cm.versionStartIncluding) >= 0
+		matches = matches && SmartVerCmp(ver, cm.versionStartIncluding) >= 0
 	}
 	if cm.versionStartExcluding != "" {
-		matches = matches && smartVerCmp(ver, cm.versionStartExcluding) > 0
+		matches = matches && SmartVerCmp(ver, cm.versionStartExcluding) > 0
 	}
 	if cm.versionEndIncluding != "" {
-		matches = matches && smartVerCmp(ver, cm.versionEndIncluding) <= 0
+		matches = matches && SmartVerCmp(ver, cm.versionEndIncluding) <= 0
 	}
 	if cm.versionEndExcluding != "" {
-		matches = matches && smartVerCmp(ver, cm.versionEndExcluding) < 0
+		matches = matches && SmartVerCmp(ver, cm.versionEndExcluding) < 0
 	}
 
 	return matches
