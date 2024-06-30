@@ -30,7 +30,7 @@ type CVEMatchingRule struct {
 
 type CVEMatchingRules []CVEMatchingRule
 
-func (r CVEMatchingRule) Match(ctx context.Context, ds fleet.Datastore) ([]fleet.SoftwareVulnerability, error) {
+func (r CVEMatchingRule) match(ctx context.Context, ds fleet.Datastore) ([]fleet.SoftwareVulnerability, error) {
 	var vulns []fleet.SoftwareVulnerability
 	filter := fleet.VulnSoftwareFilter{
 		Name:   r.NameLikeMatch,
@@ -56,7 +56,7 @@ func (r CVEMatchingRule) Match(ctx context.Context, ds fleet.Datastore) ([]fleet
 	return vulns, nil
 }
 
-func GetCVEMatchingRules() CVEMatchingRules {
+func getCVEMatchingRules() CVEMatchingRules {
 	return []CVEMatchingRule{
 		// June 11 2024 Office 365 Vulnerabilities
 		// https://learn.microsoft.com/en-us/officeupdates/microsoft365-apps-security-updates
@@ -69,7 +69,7 @@ func GetCVEMatchingRules() CVEMatchingRules {
 	}
 }
 
-func (r CVEMatchingRule) Validate() error {
+func (r CVEMatchingRule) validate() error {
 	if len(r.CVEs) == 0 {
 		return MissingCVEsErr
 	}
@@ -85,26 +85,29 @@ func (r CVEMatchingRule) Validate() error {
 	return nil
 }
 
+// ValidateAll returns an error if any rule in the list fails to validate
 func (r CVEMatchingRules) ValidateAll() error {
 	for i, rule := range r {
-		if err := rule.Validate(); err != nil {
+		if err := rule.validate(); err != nil {
 			return fmt.Errorf("invalid rule %d: %v", i, err)
 		}
 	}
 	return nil
 }
 
+// CheckCustomVulnerabilities matches software against custom rules and inserts vulnerabilities
 func CheckCustomVulnerabilities(ctx context.Context, ds fleet.Datastore, logger log.Logger, periodicity time.Duration) ([]fleet.SoftwareVulnerability, error) {
-	rules := GetCVEMatchingRules()
+	rules := getCVEMatchingRules()
 	if err := rules.ValidateAll(); err != nil {
 		return nil, fmt.Errorf("invalid rules: %w", err)
 	}
 
 	var vulns []fleet.SoftwareVulnerability
 	for i, rule := range rules {
-		v, err := rule.Match(ctx, ds)
+		v, err := rule.match(ctx, ds)
 		if err != nil {
-			return nil, fmt.Errorf("matching rule %d: %w", i, err)
+			level.Error(logger).Log("msg", "Error matching rule", "ruleIndex", i, "err", err)
+			continue
 		}
 		vulns = append(vulns, v...)
 	}
@@ -121,8 +124,7 @@ func CheckCustomVulnerabilities(ctx context.Context, ds fleet.Datastore, logger 
 		}
 	}
 
-	err := ds.DeleteOutOfDateVulnerabilities(ctx, fleet.CustomSource, 2*periodicity)
-	if err != nil {
+	if err := ds.DeleteOutOfDateVulnerabilities(ctx, fleet.CustomSource, 2*periodicity); err != nil {
 		level.Error(logger).Log("msg", "Error deleting out of date vulnerabilities", "err", err)
 	}
 

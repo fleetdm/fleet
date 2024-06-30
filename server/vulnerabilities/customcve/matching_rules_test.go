@@ -68,7 +68,7 @@ func TestMatchVersion(t *testing.T) {
 		return sw, nil
 	}
 
-	actual, err := rule.Match(context.Background(), ds)
+	actual, err := rule.match(context.Background(), ds)
 	require.NoError(t, err)
 	require.Equal(t, expected, actual)
 }
@@ -114,7 +114,7 @@ func TestMatchFilters(t *testing.T) {
 				return nil, nil
 			}
 
-			_, err := tt.rule.Match(context.Background(), ds)
+			_, err := tt.rule.match(context.Background(), ds)
 			require.NoError(t, err)
 		})
 	}
@@ -174,7 +174,7 @@ func TestCVEMatchingRuleValidation(t *testing.T) {
 
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
-			err := tt.rule.Validate()
+			err := tt.rule.validate()
 			if tt.err == nil {
 				require.NoError(t, err)
 			} else {
@@ -185,7 +185,7 @@ func TestCVEMatchingRuleValidation(t *testing.T) {
 }
 
 func TestValidateAll(t *testing.T) {
-	rules := GetCVEMatchingRules()
+	rules := getCVEMatchingRules()
 	err := rules.ValidateAll()
 	require.NoError(t, err)
 }
