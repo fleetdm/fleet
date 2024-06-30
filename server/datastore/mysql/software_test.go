@@ -50,7 +50,7 @@ func TestSoftware(t *testing.T) {
 		{"ListSoftwareVulnerabilitiesByHostIDsSource", testListSoftwareVulnerabilitiesByHostIDsSource},
 		{"InsertSoftwareVulnerability", testInsertSoftwareVulnerability},
 		{"ListCVEs", testListCVEs},
-		// {"ListSoftwareForVulnDetection", testListSoftwareForVulnDetection},
+		{"ListSoftwareForVulnDetection", testListSoftwareForVulnDetection},
 		{"AllSoftwareIterator", testAllSoftwareIterator},
 		{"AllSoftwareIteratorForCustomLinuxImages", testSoftwareIteratorForLinuxKernelCustomImages},
 		{"UpsertSoftwareCPEs", testUpsertSoftwareCPEs},
@@ -2072,9 +2072,7 @@ func testListCVEs(t *testing.T, ds *Datastore) {
 	require.ElementsMatch(t, expected, actual)
 }
 
-func TestListSoftwareForVulnDetection(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	defer TruncateTables(t, ds)
+func testListSoftwareForVulnDetection(t *testing.T, ds *Datastore) {
 	t.Run("returns software without CPE entries", func(t *testing.T) {
 		ctx := context.Background()
 
