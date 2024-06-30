@@ -22,13 +22,29 @@ var (
 // with a list of CVEs.  These rules address false negatives in the NVD data.
 // Add an interface if you want to add more rule types.
 type CVEMatchingRule struct {
-	NameLikeMatch     string
-	SourceMatch       string
-	CVEs              []string
-	ResolvedInVersion string
+	NameLikeMatch     string   // Name of software to match (like match)
+	SourceMatch       string   // Source of software to match (exact match)
+	CVEs              []string // List of CVEs to assign to software
+	ResolvedInVersion string   // Version of software that resolves the CVEs
 }
 
 type CVEMatchingRules []CVEMatchingRule
+
+// getCVEMatchingRules returns a list of custom rules for matching software with CVEs
+// Currently only supporting CVEMatchingRules, but can be extended to support other types.
+// Append new rules here.
+func getCVEMatchingRules() CVEMatchingRules {
+	return []CVEMatchingRule{
+		// June 11 2024 Office 365 Vulnerabilities
+		// https://learn.microsoft.com/en-us/officeupdates/microsoft365-apps-security-updates
+		{
+			NameLikeMatch:     "Microsoft 365",
+			SourceMatch:       "programs",
+			CVEs:              []string{"CVE-2024-30101", "CVE-2024-30102", "CVE-2024-30103", "CVE-2024-30104"},
+			ResolvedInVersion: "16.0.17628.20144",
+		},
+	}
+}
 
 func (r CVEMatchingRule) match(ctx context.Context, ds fleet.Datastore) ([]fleet.SoftwareVulnerability, error) {
 	var vulns []fleet.SoftwareVulnerability
@@ -54,19 +70,6 @@ func (r CVEMatchingRule) match(ctx context.Context, ds fleet.Datastore) ([]fleet
 	}
 
 	return vulns, nil
-}
-
-func getCVEMatchingRules() CVEMatchingRules {
-	return []CVEMatchingRule{
-		// June 11 2024 Office 365 Vulnerabilities
-		// https://learn.microsoft.com/en-us/officeupdates/microsoft365-apps-security-updates
-		{
-			NameLikeMatch:     "Microsoft 365",
-			SourceMatch:       "programs",
-			CVEs:              []string{"CVE-2024-30101", "CVE-2024-30102", "CVE-2024-30103", "CVE-2024-30104"},
-			ResolvedInVersion: "16.0.17628.20144",
-		},
-	}
 }
 
 func (r CVEMatchingRule) validate() error {
