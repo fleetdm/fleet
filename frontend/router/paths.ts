@@ -37,6 +37,7 @@ export default {
   ADMIN_INTEGRATIONS_AUTOMATIC_ENROLLMENT_WINDOWS: `${URL_PREFIX}/settings/integrations/automatic-enrollment/windows`,
   ADMIN_INTEGRATIONS_CALENDARS: `${URL_PREFIX}/settings/integrations/calendars`,
   ADMIN_INTEGRATIONS_VPP: `${URL_PREFIX}/settings/integrations/vpp`,
+  ADMIN_INTEGRATIONS_VPP_SETUP: `${URL_PREFIX}/settings/integrations/vpp/setup`,
   ADMIN_TEAMS: `${URL_PREFIX}/settings/teams`,
   ADMIN_ORGANIZATION: `${URL_PREFIX}/settings/organization`,
   ADMIN_ORGANIZATION_INFO: `${URL_PREFIX}/settings/organization/info`,

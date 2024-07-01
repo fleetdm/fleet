@@ -1,4 +1,7 @@
 import React from "react";
+import { InjectedRouter } from "react-router";
+
+import PATHS from "router/paths";
 
 import Card from "components/Card";
 import SectionHeader from "components/SectionHeader";
@@ -14,8 +17,6 @@ interface IVppCardProps {
 }
 
 const VppCard = ({ isOn, onTurnOnVpp, onEditVpp }: IVppCardProps) => {
-  const icon = isOn ? "success" : "";
-
   const isOnContent = (
     <>
       <p>
@@ -53,13 +54,24 @@ const VppCard = ({ isOn, onTurnOnVpp, onEditVpp }: IVppCardProps) => {
   );
 };
 
-interface IVppProps {}
+interface IVppProps {
+  router: InjectedRouter;
+}
 
-const Vpp = ({}: IVppProps) => {
+const Vpp = ({ router }: IVppProps) => {
+  console.log(router);
+  const navigateToVppSetup = () => {
+    router.push(PATHS.ADMIN_INTEGRATIONS_VPP_SETUP);
+  };
+
   return (
     <div className={baseClass}>
       <SectionHeader title="Volume Purchasing Program (VPP)" />
-      <VppCard isOn />
+      <VppCard
+        isOn={false}
+        onTurnOnVpp={navigateToVppSetup}
+        onEditVpp={navigateToVppSetup}
+      />
     </div>
   );
 };
