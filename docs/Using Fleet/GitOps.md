@@ -254,8 +254,8 @@ controls:
 
 #### windows_updates
 
-- `deadline_days` (default: empty)
-- `grace_period_days` (default: empty)
+- `deadline_days` (default: null)
+- `grace_period_days` (default: null)
 
 #### macos_settings and windows_settings
 
