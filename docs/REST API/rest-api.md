@@ -1408,7 +1408,7 @@ Modifies the Fleet's configuration with the supplied information.
 | metadata_url                      | string  | A URL that references the identity provider metadata. If available from the identity provider, this is the preferred means of providing metadata.                      |
 | metadata                            | string  |  Metadata provided by the identity provider. Either `metadata` or a `metadata_url` must be provided. |
 | enable_sso_idp_login              | boolean | Determines whether Identity Provider (IdP) initiated login for Single sign-on (SSO) is enabled for the Fleet application.                                              |
-| enable_jit_provisioning           | boolean | When enabled, allows [just-in-time user provisioning](https://fleetdm.com/docs/deploy/single-sign-on-sso#just-in-time-jit-user-provisioning). **Requires Fleet Premium license**. |
+| enable_jit_provisioning           | boolean | _Available in Fleet Premium._ When enabled, allows [just-in-time user provisioning](https://fleetdm.com/docs/deploy/single-sign-on-sso#just-in-time-jit-user-provisioning). |
 
 <br/>
 
@@ -1501,10 +1501,10 @@ _Available in Fleet Premium._
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| host_status_webhook             | list  | See [`webhook_settings.host_status_webhook`](#integrations-host_status_webhook). |
-| failing_policies_webhook             | list  | See [`webhook_settings.failing_policies_webhook`](#integrations-failing_policies_webhook). |
-| vulnerabilities_webhook             | list  | See [`webhook_settings.vulnerabilities_webhook`](#integrations-vulnerabilities_webhook). |
-| activities_webhook             | list  | See [`webhook_settings.activities_webhook`](#integrations-activities_webhook). |
+| host_status_webhook             | list  | See [`webhook_settings.host_status_webhook`](#webhook-settings-host-status-webhook). |
+| failing_policies_webhook             | list  | See [`webhook_settings.failing_policies_webhook`](#webhook-settings-failing-policies-webhook). |
+| vulnerabilities_webhook             | list  | See [`webhook_settings.vulnerabilities_webhook`](#webhook-settings-vulnerabilities-webhook). |
+| activities_webhook             | list  | See [`webhook_settings.activities_webhook`](#webhook-settings-activities-webhook). |
 
 <br/>
 
@@ -1599,7 +1599,7 @@ _Available in Fleet Premium._
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | jira             | list  | See [`integrations.jira`](#integrations-jira). |
 | zendesk             | list  | See [`integrations.zendesk`](#integrations-zendesk). |
-| google_calendar             | list  | See [`integrations.google_calendar`](#integrations-google_calendar). |
+| google_calendar             | list  | See [`integrations.google_calendar`](#integrations-google-calendar). |
 
 
 > Note that when making changes to the `integrations` object, all integrations must be provided (not just the one being modified). This is because the endpoint will consider missing integrations as deleted.
@@ -1677,7 +1677,7 @@ _Available in Fleet Premium._
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| apple_bm_default_team             | string  | The default team to use with Apple Business Manager. **Requires Fleet Premium license** |
+| apple_bm_default_team             | string  | _Available in Fleet Premium._ The default team to use with Apple Business Manager. |
 | windows_enabled_and_configured    | boolean | Enables Windows MDM support. |
 | enable_disk_encryption            | boolean | _Available in Fleet Premium._ Hosts that belong to no team and are enrolled into Fleet's MDM will have disk encryption enabled if set to true. |
 | macos_updates         | object  | See [`mdm.macos_updates`](#mdm-macos-updates). |
