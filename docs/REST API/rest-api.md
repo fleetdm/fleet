@@ -1414,6 +1414,7 @@ Modifies the Fleet's configuration with the supplied information.
     "issuer_uri": "",
     "idp_image_url": "",
     "metadata_url": "",
+    "metadata": "",
     "idp_name": "",
     "enable_sso_idp_login": false,
     "enable_jit_provisioning": false
