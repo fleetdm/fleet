@@ -720,7 +720,7 @@ func (h Host) AuthzType() string {
 }
 
 // HostDetail provides the full host metadata along with associated labels and
-// packs. It also includes policies, batteries, and MDM profiles, as applicable.
+// packs. It also includes policies, batteries, maintenance window, and MDM profiles, as applicable.
 type HostDetail struct {
 	Host
 	// Labels is the list of labels the host is a member of.
@@ -732,6 +732,17 @@ type HostDetail struct {
 	// but when unset, it doesn't get marshaled (e.g. we don't return that
 	// information for the List Hosts endpoint).
 	Batteries *[]*HostBattery `json:"batteries,omitempty"`
+
+	// MaintenanceWindow contains the host user's calendar IANA timezone and the start time of the next scheduled maintenance window.
+	MaintenanceWindow *HostMaintenanceWindow `json:"maintenance_window,omitempty"`
+}
+
+type HostMaintenanceWindow struct {
+	//  StartsAt is the start time of the future maintenance window, retrieved from calendar_events,
+	//  represented as a time.Time in the host's associated google calendar user's timezone, which is represented as a time.Location
+	StartsAt time.Time `json:"starts_at" db:"start_time"`
+	// TimeZone is the IANA timezone of the user's google calendar, retrieved from calendar_evants
+	TimeZone *string `json:"timezone" db:"timezone"`
 }
 
 const (

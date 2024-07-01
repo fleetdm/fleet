@@ -1050,6 +1050,26 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 		return nil, ctxerr.Wrap(ctx, err, "get batteries for host")
 	}
 
+	mws, err := svc.ds.ListUpcomingHostMaintenanceWindows(ctx, host.ID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "list upcoming host maintenance windows")
+	}
+	// we are only interested in the next maintenance window. There should only be one for now, anyway.
+	var nextMw *fleet.HostMaintenanceWindow
+	if len(mws) > 0 {
+		nextMw = mws[0]
+	}
+
+	// nil TimeZone is okay
+	if nextMw != nil && nextMw.TimeZone != nil {
+		// return the start time in the local timezone of the host's associated google calendar user
+		gCalLoc, err := time.LoadLocation(*nextMw.TimeZone)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "list upcoming host maintenance windows - invalid google calendar timezone")
+		}
+		nextMw.StartsAt = nextMw.StartsAt.In(gCalLoc)
+	}
+
 	// Due to a known osquery issue with M1 Macs, we are ignoring the stored value in the db
 	// and replacing it at the service layer with custom values determined by the cycle count.
 	// See https://github.com/fleetdm/fleet/issues/6763.
@@ -1191,11 +1211,13 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 	}
 
 	host.Policies = policies
+
 	return &fleet.HostDetail{
-		Host:      *host,
-		Labels:    labels,
-		Packs:     packs,
-		Batteries: &bats,
+		Host:              *host,
+		Labels:            labels,
+		Packs:             packs,
+		Batteries:         &bats,
+		MaintenanceWindow: nextMw,
 	}, nil
 }
 
