@@ -1,0 +1,1 @@
+- add exclude_software query paramter to "Get host by identifier" API
