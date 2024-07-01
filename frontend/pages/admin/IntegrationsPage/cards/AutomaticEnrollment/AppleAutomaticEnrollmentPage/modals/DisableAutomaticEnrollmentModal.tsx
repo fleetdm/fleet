@@ -17,7 +17,7 @@ const DisableAutomaticEnrollmentModal = ({
 }: IDisableAutomaticEnrollmentModalProps): JSX.Element => {
   const [isDeleting, setIsDeleting] = useState(false);
 
-  const onClickConfirm = useCallback(() => {
+  const onClickConfirm: React.MouseEventHandler<HTMLButtonElement> = useCallback(() => {
     setIsDeleting(true);
     onConfirm();
   }, [onConfirm]);
@@ -29,8 +29,12 @@ const DisableAutomaticEnrollmentModal = ({
       className={baseClass}
     >
       <div className={baseClass}>
-        New macOS hosts won’t automatically enroll to Fleet. If you want to
-        enable automatic enrollment, you’ll have to upload a new token.{" "}
+        New macOS hosts won’t automatically enroll to Fleet.
+        <br />
+        <br />
+        If you want to enable automatic enrollment, you’ll have to create a new
+        MDM server in Apple Business Manager, reassign all devices, and upload
+        your new server token in Fleet.{" "}
         <div className="modal-cta-wrap">
           <Button
             type="button"

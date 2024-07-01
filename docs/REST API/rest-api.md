@@ -873,6 +873,8 @@ None.
     "activity_expiry_window": 0
   },
   "features": {
+    "enable_host_users": true,
+    "enable_software_inventory": true,
     "additional_queries": null
   },
   "mdm": {
@@ -1095,6 +1097,8 @@ Modifies the Fleet's configuration with the supplied information.
 | idp_image_url                     | string  | body  | _SSO settings_. An optional link to an image such as a logo for the identity provider.                                                                                                 |
 | metadata                          | string  | body  | _SSO settings_. Metadata provided by the identity provider. Either metadata or a metadata URL must be provided.                                                                        |
 | metadata_url                      | string  | body  | _SSO settings_. A URL that references the identity provider metadata. If available from the identity provider, this is the preferred means of providing metadata.                      |
+| enable_sso_idp_login              | boolean | body  | _SSO settings_. Determines whether Identity Provider (IdP) initiated login for Single Sign-On (SSO) is enabled for the Fleet application.                                              |
+| enable_jit_provisioning           | boolean | body  | _SSO settings_. When enabled, allows [just-in-time user provisioning](https://fleetdm.com/docs/deploy/single-sign-on-sso#just-in-time-jit-user-provisioning). **Requires Fleet Premium license** |
 | host_expiry_enabled               | boolean | body  | _Host expiry settings_. When enabled, allows automatic cleanup of hosts that have not communicated with Fleet in some number of days.                                                  |
 | host_expiry_window                | integer | body  | _Host expiry settings_. If a host has not communicated with Fleet in the specified number of days, it will be removed.                                                                 |
 | activity_expiry_enabled           | boolean | body  | _Activity expiry settings_. When enabled, allows automatic cleanup of activities (and associated live query data) older than the specified number of days.                                                          |
@@ -1142,7 +1146,9 @@ Modifies the Fleet's configuration with the supplied information.
 | custom_settings                   | list    | body  | _mdm.windows_settings settings_. Windows hosts that belong to no team, and are members of specified labels will have custom profiles applied. |
 | scripts                           | list    | body  | A list of script files to add so they can be executed at a later time.                                                                                                                                                 |
 | enable_end_user_authentication            | boolean | body  | _mdm.macos_setup settings_. If set to true, end user authentication will be required during automatic MDM enrollment of new macOS devices. Settings for your IdP provider must also be [configured](https://fleetdm.com/docs/using-fleet/mdm-macos-setup-experience#end-user-authentication-and-eula). **Requires Fleet Premium license** |
-| additional_queries                | boolean | body  | Whether or not additional queries are enabled on hosts.                                                                                                                                |
+| enable_host_users                 | boolean | body  | _Features_ Determines enabling the users feature in Fleet. Default: true                                                                               |
+| enable_software_inventory         | boolean | body  | _Features_ Determines enabling the software inventory feature in Fleet. Default: true                                                                               |
+| additional_queries                | boolean | body  | _Features_ Determines whether additional queries are enabled on hosts. Default: null                                                                               |
 | force                             | bool    | query | Force apply the agent options even if there are validation errors.                                                                                                 |
 | dry_run                           | bool    | query | Validate the configuration and return any validation errors, but do not apply the changes.                                                                         |
 
@@ -1209,7 +1215,9 @@ Note that when making changes to the `integrations` object, all integrations mus
     "metadata": "",
     "metadata_url": "",
     "idp_name": "",
-    "enable_sso": false
+    "enable_sso": false,
+    "enable_sso_idp_login": false,
+    "enable_jit_provisioning": false
   },
   "host_expiry_settings": {
     "host_expiry_enabled": false,
@@ -1220,6 +1228,8 @@ Note that when making changes to the `integrations` object, all integrations mus
     "activity_expiry_window": 0
   },
   "features": {
+    "enable_host_users": true,
+    "enable_software_inventory": true,
     "additional_queries": null
   },
   "license": {

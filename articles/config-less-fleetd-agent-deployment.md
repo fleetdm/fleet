@@ -64,7 +64,7 @@ fleetctl package --type=pkg --use-system-configuration --fleet-desktop
 
 ## For Windows:
 
-1. Download the Base MSI installer from [https://download.fleetdm.com/fleetd-base.msi](https://download.fleetdm.com/fleetd-base.msi) (once installed, `fleetd` and `fleet-desktop` will be upgraded to the latest)
+1. Download the Base MSI installer from [https://download.fleetdm.com/stable/fleetd-base.msi](https://download.fleetdm.com/stable/fleetd-base.msi) (once installed, `fleetd` and `fleet-desktop` will be upgraded to the latest)
 
 2. Install fleet on Windows boxes by passing the `FLEET_URL` and `FLEET_SECRET` properties to the MSI installer:
 
