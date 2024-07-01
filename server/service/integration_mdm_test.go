@@ -1050,7 +1050,6 @@ func (s *integrationMDMTestSuite) TestMDMVPPToken() {
 	require.Equal(t, expDate, resp.RenewDate)
 
 	// Simulate renewal flow
-
 	orgName = "Fleet Device Management Inc. New Org Name"
 	token = "myothercooltoken"
 	expDate = "2026-06-24T15:50:50+0000"

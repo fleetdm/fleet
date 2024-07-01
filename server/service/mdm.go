@@ -2534,8 +2534,13 @@ func (svc *Service) UploadMDMAppleVPPToken(ctx context.Context, token io.ReadSee
 		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("token", "Invalid token. Please provide a valid content token from Apple Business Manager."))
 	}
 
+	decodedTokenBytes, err := base64.StdEncoding.DecodeString(string(tokenBytes))
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "decoding VPP token")
+	}
+
 	data := fleet.VPPTokenData{
-		Token:    string(tokenBytes),
+		Token:    string(decodedTokenBytes),
 		Location: locName,
 	}
 
@@ -2545,7 +2550,7 @@ func (svc *Service) UploadMDMAppleVPPToken(ctx context.Context, token io.ReadSee
 	}
 
 	err = svc.ds.ReplaceMDMConfigAssets(ctx, []fleet.MDMConfigAsset{
-		{Name: fleet.MDMAssetVPPToken, Value: []byte(base64.StdEncoding.EncodeToString(dataBytes))},
+		{Name: fleet.MDMAssetVPPToken, Value: []byte(dataBytes)},
 	})
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "writing VPP token to db")
@@ -2638,28 +2643,18 @@ func (svc *Service) GetMDMAppleVPPToken(ctx context.Context) (*fleet.VPPTokenInf
 		return nil, err
 	}
 
-	r, err := svc.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetVPPToken})
+	assetMap, err := svc.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetVPPToken})
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get mdm config assets by name VPP token")
 	}
 
-	decodedBytes, err := base64.StdEncoding.DecodeString(string(r[fleet.MDMAssetVPPToken].Value))
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "decoding VPP token data")
-	}
-
 	var tokenData fleet.VPPTokenData
-	if err := json.Unmarshal(decodedBytes, &tokenData); err != nil {
+	if err := json.Unmarshal(assetMap[fleet.MDMAssetVPPToken].Value, &tokenData); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "unmarshaling VPP token data")
 	}
 
-	decodedTokenBytes, err := base64.StdEncoding.DecodeString(tokenData.Token)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "decoding VPP token")
-	}
-
 	var rawToken fleet.VPPTokenRaw
-	if err := json.Unmarshal(decodedTokenBytes, &rawToken); err != nil {
+	if err := json.Unmarshal([]byte(tokenData.Token), &rawToken); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "unmarshaling VPP token")
 	}
 
