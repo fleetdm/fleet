@@ -681,8 +681,8 @@ func (svc *Service) GetHostSummary(ctx context.Context, teamID *uint, platform *
 ////////////////////////////////////////////////////////////////////////////////
 
 type hostByIdentifierRequest struct {
-	Identifier string `url:"identifier"`
-	ExcludeSoftware bool `query:"exclude_software,optional"`
+	Identifier      string `url:"identifier"`
+	ExcludeSoftware bool   `query:"exclude_software,optional"`
 }
 
 func hostByIdentifierEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
