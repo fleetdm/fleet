@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -16,7 +17,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/go-kit/kit/log/level"
+	"github.com/go-kit/log/level"
 )
 
 type setOrbitNodeKeyer interface {
@@ -182,19 +183,27 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 		return fleet.OrbitConfig{}, err
 	}
 
+	isConnectedToFleetMDM, err := svc.ds.IsHostConnectedToFleetMDM(ctx, host)
+	if err != nil {
+		return fleet.OrbitConfig{}, ctxerr.Wrap(ctx, err, "checking if host is connected to Fleet")
+	}
+
+	mdmInfo, err := svc.ds.GetHostMDM(ctx, host.ID)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return fleet.OrbitConfig{}, ctxerr.Wrap(ctx, err, "retrieving host mdm info")
+	}
+
 	// set the host's orbit notifications for macOS MDM
 	var notifs fleet.OrbitConfigNotifications
-	if appConfig.MDM.EnabledAndConfigured && host.IsOsqueryEnrolled() {
-		// TODO(mna): all those notifications implied a macos hosts, but none of
-		// the checks enforce that (only indirectly in some cases, like
-		// IsDEPAssignedToFleet), should we add such a platform check?
+	if appConfig.MDM.EnabledAndConfigured && host.IsOsqueryEnrolled() && host.Platform == "darwin" {
+		needsDEPEnrollment := mdmInfo != nil && !mdmInfo.Enrolled && host.IsDEPAssignedToFleet()
 
-		if host.NeedsDEPEnrollment() {
+		if needsDEPEnrollment {
 			notifs.RenewEnrollmentProfile = true
 		}
 
 		if appConfig.MDM.MacOSMigration.Enable &&
-			host.IsEligibleForDEPMigration() {
+			fleet.IsEligibleForDEPMigration(host, mdmInfo, isConnectedToFleetMDM) {
 			notifs.NeedsMDMMigration = true
 		}
 
@@ -211,7 +220,7 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 
 	// set the host's orbit notifications for Windows MDM
 	if appConfig.MDM.WindowsEnabledAndConfigured {
-		if host.IsEligibleForWindowsMDMEnrollment() {
+		if IsEligibleForWindowsMDMEnrollment(host, mdmInfo) {
 			discoURL, err := microsoft_mdm.ResolveWindowsMDMDiscovery(appConfig.ServerSettings.ServerURL)
 			if err != nil {
 				return fleet.OrbitConfig{}, err
@@ -221,7 +230,7 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 		}
 	}
 	if !appConfig.MDM.WindowsEnabledAndConfigured {
-		if host.IsEligibleForWindowsMDMUnenrollment() {
+		if host.IsEligibleForWindowsMDMUnenrollment(isConnectedToFleetMDM) {
 			notifs.NeedsProgrammaticWindowsMDMUnenrollment = true
 		}
 	}
@@ -276,7 +285,10 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 		var nudgeConfig *fleet.NudgeConfig
 		if appConfig.MDM.EnabledAndConfigured &&
 			mdmConfig != nil &&
-			mdmConfig.MacOSUpdates.EnabledForHost(host) {
+			host.IsOsqueryEnrolled() &&
+			isConnectedToFleetMDM &&
+			mdmConfig.MacOSUpdates.Configured() {
+
 			hostOS, err := svc.ds.GetHostOperatingSystem(ctx, host.ID)
 			if errors.Is(err, sql.ErrNoRows) {
 				// host os has not been collected yet (no details query)
@@ -298,7 +310,7 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 		}
 
 		if mdmConfig.EnableDiskEncryption &&
-			host.IsEligibleForBitLockerEncryption() {
+			fleet.IsEligibleForBitLockerEncryption(host, mdmInfo, isConnectedToFleetMDM) {
 			notifs.EnforceBitLockerEncryption = true
 		}
 
@@ -335,7 +347,9 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 
 	var nudgeConfig *fleet.NudgeConfig
 	if appConfig.MDM.EnabledAndConfigured &&
-		appConfig.MDM.MacOSUpdates.EnabledForHost(host) {
+		isConnectedToFleetMDM &&
+		host.IsOsqueryEnrolled() &&
+		appConfig.MDM.MacOSUpdates.Configured() {
 		hostOS, err := svc.ds.GetHostOperatingSystem(ctx, host.ID)
 		if errors.Is(err, sql.ErrNoRows) {
 			// host os has not been collected yet (no details query)
@@ -358,7 +372,7 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 
 	if appConfig.MDM.WindowsEnabledAndConfigured &&
 		appConfig.MDM.EnableDiskEncryption.Value &&
-		host.IsEligibleForBitLockerEncryption() {
+		fleet.IsEligibleForBitLockerEncryption(host, mdmInfo, isConnectedToFleetMDM) {
 		notifs.EnforceBitLockerEncryption = true
 	}
 
@@ -482,6 +496,10 @@ func (svc *Service) SetOrUpdateDeviceAuthToken(ctx context.Context, deviceAuthTo
 
 	if len(deviceAuthToken) == 0 {
 		return badRequest("device auth token cannot be empty")
+	}
+
+	if url.QueryEscape(deviceAuthToken) != deviceAuthToken {
+		return badRequest("device auth token contains invalid characters")
 	}
 
 	host, ok := hostctx.FromContext(ctx)
@@ -723,7 +741,13 @@ func (svc *Service) SetOrUpdateDiskEncryptionKey(ctx context.Context, encryption
 	if !ok {
 		return newOsqueryError("internal error: missing host from request context")
 	}
-	if !host.MDMInfo.IsFleetEnrolled() {
+
+	connected, err := svc.ds.IsHostConnectedToFleetMDM(ctx, host)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "checking if host is connected to Fleet")
+	}
+
+	if !connected {
 		return badRequest("host is not enrolled with fleet")
 	}
 

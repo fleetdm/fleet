@@ -1267,6 +1267,7 @@ func (a ActivityTypeEditedWindowsProfile) Documentation() (activity, details, de
 type ActivityTypeLockedHost struct {
 	HostID          uint   `json:"host_id"`
 	HostDisplayName string `json:"host_display_name"`
+	ViewPIN         bool   `json:"view_pin"`
 }
 
 func (a ActivityTypeLockedHost) ActivityName() string {
@@ -1281,9 +1282,11 @@ func (a ActivityTypeLockedHost) Documentation() (activity, details, detailsExamp
 	return `Generated when a user sends a request to lock a host.`,
 		`This activity contains the following fields:
 - "host_id": ID of the host.
-- "host_display_name": Display name of the host.`, `{
+- "host_display_name": Display name of the host.
+- "view_pin": Whether lock PIN was viewed (for Apple devices).`, `{
   "host_id": 1,
-  "host_display_name": "Anna's MacBook Pro"
+  "host_display_name": "Anna's MacBook Pro",
+  "view_pin": true
 }`
 }
 

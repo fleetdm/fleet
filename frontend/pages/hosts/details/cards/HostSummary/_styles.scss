@@ -93,12 +93,17 @@
     padding: $pad-xxlarge;
     flex-wrap: wrap;
 
+    // Properly vertically aligns host issue icon
     .host-issue {
       display: flex;
-      align-items: center;
+      gap: $pad-xsmall;
     }
+
     .no-team {
       color: $ui-fleet-black-50;
     }
+  }
+  .data-set dd {
+    overflow: initial;
   }
 }

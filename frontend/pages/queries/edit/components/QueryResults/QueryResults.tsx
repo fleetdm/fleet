@@ -18,6 +18,7 @@ import { ITarget } from "interfaces/target";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon/Icon";
 import TableContainer from "components/TableContainer";
+import TableCount from "components/TableContainer/TableCount";
 import TabsWrapper from "components/TabsWrapper";
 import ShowQueryModal from "components/modals/ShowQueryModal";
 import QueryResultsHeading from "components/queries/queryResults/QueryResultsHeading";
@@ -168,6 +169,18 @@ const QueryResults = ({
     );
   };
 
+  const renderCount = useCallback(
+    (tableType: "errors" | "results") => {
+      const count =
+        tableType === "results"
+          ? filteredResults.length
+          : filteredErrors.length;
+
+      return <TableCount name={tableType} count={count} />;
+    },
+    [filteredResults.length, filteredErrors.length]
+  );
+
   const renderTableButtons = (tableType: "results" | "errors") => {
     return (
       <div className={`${baseClass}__results-cta`}>
@@ -220,8 +233,9 @@ const QueryResults = ({
           resultsTitle={tableType}
           customControl={() => renderTableButtons(tableType)}
           setExportRows={
-            tableType === "errors" ? setFilteredErrors : setFilteredResults
+            tableType === "results" ? setFilteredResults : setFilteredErrors
           }
+          renderCount={() => renderCount(tableType)}
         />
       </div>
     );

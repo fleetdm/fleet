@@ -1,39 +1,11 @@
 <!-- DO NOT EDIT. This document is automatically generated. -->
 # Audit logs
 
-Fleet logs the following information for administrative activities (in JSON):
+Fleet logs activities.
 
-- `created_at`: Timestamp of the event.
-- `id`: Unique ID of the generated event in Fleet.
-- `actor_full_name`: Author user name (missing if the user was deleted).
-- `actor_id`: Unique ID of the author in Fleet (missing if the user was deleted).
-- `actor_gravatar`: Gravatar URL of the author (missing if the user was deleted).
-- `actor_email`: E-mail of the author (missing if the user was deleted).
-- `type`: Type of the activity (see all types below).
-- `details`: Specific details depending on the type of activity (see details for each activity type below).
+To see activities in Fleet, select the Fleet icon in the top navigation and see the **Activity** section.
 
-Example:
-```json
-{
-	"created_at": "2022-12-20T14:54:17Z",
-	"id": 6,
-	"actor_full_name": "Gandalf",
-	"actor_id": 2,
-	"actor_gravatar": "foo@example.com",
-	"actor_email": "foo@example.com",
-	"type": "edited_saved_query",
-	"details":{
-		"query_id": 42,
-		"query_name": "Some query name"
-	}
-}
-```
-
-You can automatically send these logs to your log destination. Learn how to configure this [here](https://fleetdm.com/docs/configuration/fleet-server-configuration#external-activity-audit-logging).
-
-To view activities in the UI, click the Fleet icon in the top navigation bar and locate the **Activity** section.
-
-Following is a summary of the types of administrative activities logged by Fleet:
+This page includes a list of activities.
 
 ## created_pack
 
@@ -1003,13 +975,15 @@ Generated when a user sends a request to lock a host.
 This activity contains the following fields:
 - "host_id": ID of the host.
 - "host_display_name": Display name of the host.
+- "view_pin": Whether lock PIN was viewed (for Apple devices).
 
 #### Example
 
 ```json
 {
   "host_id": 1,
-  "host_display_name": "Anna's MacBook Pro"
+  "host_display_name": "Anna's MacBook Pro",
+  "view_pin": true
 }
 ```
 

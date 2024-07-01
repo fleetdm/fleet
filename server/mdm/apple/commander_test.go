@@ -132,8 +132,9 @@ func TestMDMAppleCommander(t *testing.T) {
 		require.Len(t, pin, 6)
 		return nil
 	}
-	err = cmdr.DeviceLock(ctx, host, cmdUUID)
+	pin, err := cmdr.DeviceLock(ctx, host, cmdUUID)
 	require.NoError(t, err)
+	require.Len(t, pin, 6)
 	require.True(t, mdmStorage.EnqueueDeviceLockCommandFuncInvoked)
 	mdmStorage.EnqueueDeviceLockCommandFuncInvoked = false
 	require.True(t, mdmStorage.RetrievePushInfoFuncInvoked)

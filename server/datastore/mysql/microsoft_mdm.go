@@ -11,7 +11,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
-	"github.com/go-kit/kit/log/level"
+	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
+	"github.com/go-kit/log/level"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 )
@@ -359,7 +360,8 @@ ON DUPLICATE KEY UPDATE
 		// if we received a Wipe command result, update the host's status
 		if wipeCmdUUID != "" {
 			if err := updateHostLockWipeStatusFromResultAndHostUUID(ctx, tx, enrollment.HostUUID,
-				"wipe_ref", wipeCmdUUID, strings.HasPrefix(wipeCmdStatus, "2")); err != nil {
+				"wipe_ref", wipeCmdUUID, strings.HasPrefix(wipeCmdStatus, "2"), false,
+			); err != nil {
 				return ctxerr.Wrap(ctx, err, "updating wipe command result in host_mdm_actions")
 			}
 		}
@@ -641,12 +643,12 @@ func (ds *Datastore) GetMDMWindowsBitLockerStatus(ctx context.Context, host *fle
 		return nil, ctxerr.Errorf(ctx, "cannot get bitlocker status for non-windows host %d", host.ID)
 	}
 
-	if host.MDMInfo == nil {
-		// the caller should have already checked
-		return nil, ctxerr.Errorf(ctx, "cannot get bitlocker status because no mdm info for host %d", host.ID)
+	mdmInfo, err := ds.GetHostMDM(ctx, host.ID)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return nil, ctxerr.Wrap(ctx, err, "cannot get bitlocker status because mdm info lookup failed")
 	}
 
-	if host.MDMInfo.IsServer {
+	if mdmInfo.IsServer {
 		// It is currently expected that server hosts do not have a bitlocker status so we can skip
 		// the query and return nil. We log for potential debugging in case this changes in the future.
 		level.Debug(ds.logger).Log("msg", "no bitlocker status for server host", "host_id", host.ID)
@@ -705,7 +707,7 @@ WHERE
 	if dest.Status == "" {
 		// This is unexpected. We know that disk encryption is enabled so we treat it failed to draw
 		// attention to the issue and log potential debugging
-		level.Debug(ds.logger).Log("msg", "no bitlocker status found for host", "host_id", host.ID, "mdm_info", fmt.Sprintf("%+v", host.MDMInfo))
+		level.Debug(ds.logger).Log("msg", "no bitlocker status found for host", "host_id", host.ID, "mdm_info")
 		dest.Status = fleet.DiskEncryptionFailed
 	}
 
@@ -960,12 +962,11 @@ SELECT
 FROM
     hosts h
     JOIN host_mdm hmdm ON h.id = hmdm.host_id
-    JOIN mobile_device_management_solutions mdms ON hmdm.mdm_id = mdms.id
+    JOIN mdm_windows_enrollments mwe ON h.uuid = mwe.host_uuid
 WHERE
-    mdms.name = '%s' AND
-    hmdm.is_server = 0 AND
-    hmdm.enrolled = 1 AND
+    mwe.device_state = '%s' AND
     h.platform = 'windows' AND
+    hmdm.is_server = 0 AND
     %s
 GROUP BY
     status`,
@@ -973,7 +974,7 @@ GROUP BY
 		subqueryPending,
 		subqueryVerifying,
 		subqueryVerified,
-		fleet.WellKnownMDMFleet,
+		microsoft_mdm.MDMDeviceStateEnrolled,
 		teamFilter,
 	)
 
@@ -1092,13 +1093,12 @@ SELECT
 FROM
     hosts h
     JOIN host_mdm hmdm ON h.id = hmdm.host_id
-    JOIN mobile_device_management_solutions mdms ON hmdm.mdm_id = mdms.id
+    JOIN mdm_windows_enrollments mwe ON h.uuid = mwe.host_uuid
     %s
 WHERE
-    mdms.name = '%s' AND
-    hmdm.is_server = 0 AND
-    hmdm.enrolled = 1 AND
+    mwe.device_state = '%s' AND
     h.platform = 'windows' AND
+    hmdm.is_server = 0 AND
     %s
 GROUP BY
     status`,
@@ -1108,7 +1108,7 @@ GROUP BY
 		bitlockerStatus,
 		bitlockerStatus,
 		bitlockerJoin,
-		fleet.WellKnownMDMFleet,
+		microsoft_mdm.MDMDeviceStateEnrolled,
 		teamFilter,
 	)
 

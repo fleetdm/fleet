@@ -26,6 +26,7 @@ import (
 	"github.com/fleetdm/fleet/v4/ee/server/calendar"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/cron"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
@@ -3333,11 +3334,24 @@ func (s *integrationEnterpriseTestSuite) TestListHosts() {
 
 	// set disk space information for some hosts (none provided for host3)
 	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(context.Background(), host1.ID, 10.0, 2.0, 500.0))
-	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(context.Background(), host2.ID, 40.0, 4.0, 1000.0))
+	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(context.Background(), host2.ID, 32.0, 4.0, 1000.0))
 
 	var resp listHostsResponse
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp)
 	require.Len(t, resp.Hosts, 3)
+
+	allHostsLabel, err := s.ds.GetLabelSpec(context.Background(), "All hosts")
+	require.NoError(t, err)
+	for _, h := range resp.Hosts {
+		err = s.ds.RecordLabelQueryExecutions(
+			context.Background(), h.Host, map[uint]*bool{allHostsLabel.ID: ptr.Bool(true)}, time.Now(), false,
+		)
+		require.NoError(t, err)
+	}
+
+	resp = listHostsResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d/hosts", allHostsLabel.ID), nil, http.StatusOK, &resp, "low_disk_space", "32")
+	require.Len(t, resp.Hosts, 1)
 
 	resp = listHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "low_disk_space", "32")
@@ -3388,9 +3402,38 @@ func (s *integrationEnterpriseTestSuite) TestListHosts() {
 	require.Equal(t, uint(0), summaryResp.TotalsHostsCount)
 	require.Nil(t, summaryResp.LowDiskSpaceCount)
 
+	// Add a failing policy
+	ctx := context.Background()
+	qr, err := s.ds.NewQuery(
+		ctx, &fleet.Query{
+			Name:           "TestQueryEnterpriseTestListHosts",
+			Description:    "Some description",
+			Query:          "select * from osquery;",
+			ObserverCanRun: true,
+			Logging:        fleet.LoggingSnapshot,
+		},
+	)
+	require.NoError(t, err)
+
+	// add a global policy
+	gpParams := globalPolicyRequest{
+		QueryID:    &qr.ID,
+		Resolution: "some global resolution",
+	}
+	gpResp := globalPolicyResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/policies", gpParams, http.StatusOK, &gpResp)
+	require.NotNil(t, gpResp.Policy)
+
+	// add a failing policy execution
+	require.NoError(
+		t, s.ds.RecordPolicyQueryExecutions(
+			ctx, host1,
+			map[uint]*bool{gpResp.Policy.ID: ptr.Bool(false)}, time.Now(), false,
+		),
+	)
+
 	// populate software for hosts
 	now := time.Now()
-
 	software := []fleet.Software{
 		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
 	}
@@ -3408,7 +3451,7 @@ func (s *integrationEnterpriseTestSuite) TestListHosts() {
 
 	vulnMeta := []fleet.CVEMeta{{
 		CVE:              "cve-123-123-123",
-		CVSSScore:        ptr.Float64(5.4),
+		CVSSScore:        ptr.Float64(9.8),
 		EPSSProbability:  ptr.Float64(0.5),
 		CISAKnownExploit: ptr.Bool(true),
 		Published:        &now,
@@ -3416,6 +3459,8 @@ func (s *integrationEnterpriseTestSuite) TestListHosts() {
 	}}
 
 	require.NoError(t, s.ds.InsertCVEMeta(context.Background(), vulnMeta))
+	ctx = license.NewContext(ctx, &fleet.LicenseInfo{Tier: fleet.TierPremium})
+	require.NoError(t, s.ds.UpdateHostIssuesVulnerabilities(ctx))
 
 	resp = listHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "populate_software", "true")
@@ -3431,6 +3476,13 @@ func (s *integrationEnterpriseTestSuite) TestListHosts() {
 			require.Equal(t, &vulnMeta[0].EPSSProbability, h.Software[0].Vulnerabilities[0].EPSSProbability)
 			require.Equal(t, &vulnMeta[0].CISAKnownExploit, h.Software[0].Vulnerabilities[0].CISAKnownExploit)
 			require.Equal(t, &s, h.Software[0].Vulnerabilities[0].Description)
+			assert.Equal(t, uint64(1), h.HostIssues.FailingPoliciesCount)
+			assert.Equal(t, uint64(1), *h.HostIssues.CriticalVulnerabilitiesCount)
+			assert.Equal(t, uint64(2), h.HostIssues.TotalIssuesCount)
+		} else {
+			assert.Zero(t, h.HostIssues.FailingPoliciesCount)
+			assert.Zero(t, *h.HostIssues.CriticalVulnerabilitiesCount)
+			assert.Zero(t, h.HostIssues.TotalIssuesCount)
 		}
 	}
 
@@ -3440,6 +3492,33 @@ func (s *integrationEnterpriseTestSuite) TestListHosts() {
 	for _, h := range resp.Hosts {
 		require.Empty(t, h.Software)
 	}
+
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d/hosts", allHostsLabel.ID), nil, http.StatusOK, &resp)
+	assert.Len(t, resp.Hosts, 3)
+	for _, h := range resp.Hosts {
+		if h.ID == host1.ID {
+			assert.Equal(t, uint64(1), h.HostIssues.FailingPoliciesCount)
+			assert.Equal(t, uint64(1), *h.HostIssues.CriticalVulnerabilitiesCount)
+			assert.Equal(t, uint64(2), h.HostIssues.TotalIssuesCount)
+		} else {
+			assert.Zero(t, h.HostIssues.FailingPoliciesCount)
+			assert.Zero(t, *h.HostIssues.CriticalVulnerabilitiesCount)
+			assert.Zero(t, h.HostIssues.TotalIssuesCount)
+		}
+	}
+
+	// Test ordering by issues
+	s.DoJSON(
+		"GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "order_key", "issues",
+	) // defaults to ascending order (lowest issues to most issues)
+	require.Len(t, resp.Hosts, 3)
+	assert.Equal(t, host1.ID, resp.Hosts[2].ID)
+	s.DoJSON(
+		"GET", fmt.Sprintf("/api/latest/fleet/labels/%d/hosts", allHostsLabel.ID), nil, http.StatusOK, &resp, "order_key", "issues",
+		"order_direction", "desc",
+	)
+	require.Len(t, resp.Hosts, 3)
+	assert.Equal(t, host1.ID, resp.Hosts[0].ID)
 }
 
 func (s *integrationEnterpriseTestSuite) TestHostHealth() {
@@ -10143,6 +10222,109 @@ func (s *integrationEnterpriseTestSuite) TestHostSoftwareInstallResult() {
 		http.StatusNotFound)
 	// no new activity created
 	s.lastActivityOfTypeMatches(wantAct.ActivityName(), string(jsonMustMarshal(t, wantAct)), lastActID)
+}
+
+func (s *integrationEnterpriseTestSuite) TestHostScriptSoftDelete() {
+	t := s.T()
+	ctx := context.Background()
+
+	// create a host and request a script execution
+	tm, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "host_soft_delete_team"})
+	require.NoError(t, err)
+	host := createOrbitEnrolledHost(t, "linux", "", s.ds)
+	err = s.ds.AddHostsToTeam(ctx, &tm.ID, []uint{host.ID})
+	require.NoError(t, err)
+
+	// create an anonymous script execution request
+	var runResp runScriptResponse
+	s.DoJSON("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo"}, http.StatusAccepted, &runResp)
+	scriptExecID := runResp.ExecutionID
+
+	// post a script result so that the (past) activity is created
+	s.Do("POST", "/api/fleet/orbit/scripts/result",
+		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "execution_id": %q, "exit_code": 0, "output": "ok"}`, *host.OrbitNodeKey, scriptExecID)),
+		http.StatusOK)
+	s.lastActivityOfTypeMatches(
+		fleet.ActivityTypeRanScript{}.ActivityName(),
+		fmt.Sprintf(
+			`{"host_id": %d, "host_display_name": %q, "script_name": "", "script_execution_id": %q, "async": true}`,
+			host.ID, host.DisplayName(), scriptExecID), 0)
+
+	// create a saved script execution request
+	var newScriptResp createScriptResponse
+	body, headers := generateNewScriptMultipartRequest(t,
+		"script1.sh", []byte(`echo "hello"`), s.token, map[string][]string{"team_id": {strconv.Itoa(int(tm.ID))}})
+	res := s.DoRawWithHeaders("POST", "/api/latest/fleet/scripts", body.Bytes(), http.StatusOK, headers)
+	err = json.NewDecoder(res.Body).Decode(&newScriptResp)
+	require.NoError(t, err)
+	require.NotZero(t, newScriptResp.ScriptID)
+	savedScriptID := newScriptResp.ScriptID
+
+	s.DoJSON("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptID: &savedScriptID}, http.StatusAccepted, &runResp)
+	savedScriptExecID := runResp.ExecutionID
+
+	// post a script result so that the (past) activity is created
+	s.Do("POST", "/api/fleet/orbit/scripts/result",
+		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "execution_id": %q, "exit_code": 0, "output": "saved"}`, *host.OrbitNodeKey, savedScriptExecID)),
+		http.StatusOK)
+	s.lastActivityOfTypeMatches(
+		fleet.ActivityTypeRanScript{}.ActivityName(),
+		fmt.Sprintf(`{"host_id": %d, "host_display_name": %q, "script_name": "script1.sh", "script_execution_id": %q, "async": true}`,
+			host.ID, host.DisplayName(), savedScriptExecID), 0)
+
+	// get the anoymous script result details
+	var scriptRes getScriptResultResponse
+	s.DoJSON("GET", "/api/latest/fleet/scripts/results/"+scriptExecID, nil, http.StatusOK, &scriptRes)
+	require.Equal(t, scriptExecID, scriptRes.ExecutionID)
+	require.Equal(t, host.ID, scriptRes.HostID)
+	require.Equal(t, "ok", scriptRes.Output)
+	require.NotNil(t, scriptRes.ExitCode)
+	require.EqualValues(t, 0, *scriptRes.ExitCode)
+
+	// get the saved script result details
+	scriptRes = getScriptResultResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/scripts/results/"+savedScriptExecID, nil, http.StatusOK, &scriptRes)
+	require.Equal(t, savedScriptExecID, scriptRes.ExecutionID)
+	require.Equal(t, host.ID, scriptRes.HostID)
+	require.Equal(t, "saved", scriptRes.Output)
+	require.NotNil(t, scriptRes.ExitCode)
+	require.EqualValues(t, 0, *scriptRes.ExitCode)
+
+	// delete the host
+	var deleteResp deleteHostResponse
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &deleteResp)
+
+	// get the anonymous script result details, still works
+	scriptRes = getScriptResultResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/scripts/results/"+scriptExecID, nil, http.StatusOK, &scriptRes)
+	require.Equal(t, scriptExecID, scriptRes.ExecutionID)
+	require.Equal(t, host.ID, scriptRes.HostID)
+	require.Equal(t, "ok", scriptRes.Output)
+	require.NotNil(t, scriptRes.ExitCode)
+	require.EqualValues(t, 0, *scriptRes.ExitCode)
+
+	// get the saved script result details, still works
+	scriptRes = getScriptResultResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/scripts/results/"+savedScriptExecID, nil, http.StatusOK, &scriptRes)
+	require.Equal(t, savedScriptExecID, scriptRes.ExecutionID)
+	require.Equal(t, host.ID, scriptRes.HostID)
+	require.Equal(t, "saved", scriptRes.Output)
+	require.NotNil(t, scriptRes.ExitCode)
+	require.EqualValues(t, 0, *scriptRes.ExitCode)
+
+	// delete the named script
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/scripts/%d", savedScriptID), nil, http.StatusNoContent)
+
+	// get the saved script result details, still works because the saved script
+	// is a "soft-reference", when deleted the results become essentially results
+	// for an anonymous script (i.e. the script_id FK is "ON DELETE SET NULL").
+	scriptRes = getScriptResultResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/scripts/results/"+savedScriptExecID, nil, http.StatusOK, &scriptRes)
+	require.Equal(t, savedScriptExecID, scriptRes.ExecutionID)
+	require.Equal(t, host.ID, scriptRes.HostID)
+	require.Equal(t, "saved", scriptRes.Output)
+	require.NotNil(t, scriptRes.ExitCode)
+	require.EqualValues(t, 0, *scriptRes.ExitCode)
 }
 
 func (s *integrationEnterpriseTestSuite) uploadSoftwareInstaller(payload *fleet.UploadSoftwareInstallerPayload, expectedStatus int, expectedError string) {

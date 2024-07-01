@@ -14,24 +14,23 @@ import (
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/tablehelpers"
-	"github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 	"github.com/osquery/osquery-go/plugin/table"
+	"github.com/rs/zerolog"
 )
 
 const fdesetupPath = "/usr/bin/fdesetup"
 
 type Table struct {
-	logger log.Logger
+	logger zerolog.Logger
 }
 
-func TablePlugin(logger log.Logger) *table.Plugin {
+func TablePlugin(logger zerolog.Logger) *table.Plugin {
 	columns := []table.ColumnDefinition{
 		table.TextColumn("status"),
 	}
 
 	t := &Table{
-		logger: logger,
+		logger: logger.With().Str("table", "filevault_status").Logger(),
 	}
 
 	return table.NewPlugin("filevault_status", columns, t.generate)
@@ -40,7 +39,7 @@ func TablePlugin(logger log.Logger) *table.Plugin {
 func (t *Table) generate(ctx context.Context, queryContext table.QueryContext) ([]map[string]string, error) {
 	output, err := tablehelpers.Exec(ctx, t.logger, 10, []string{fdesetupPath}, []string{"status"}, false)
 	if err != nil {
-		level.Info(t.logger).Log("msg", "fdesetup failed", "err", err)
+		t.logger.Info().Err(err).Msg("fdesetup failed")
 
 		// Don't error out if the binary isn't found
 		if errors.Is(err, os.ErrNotExist) {

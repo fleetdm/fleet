@@ -27,8 +27,8 @@ const AppleBMRenewalMessage = ({ expired }: IAppleBMRenewalMessageProps) => {
     >
       {expired ? (
         <>
-          Your Apple Business Manager (ABM) server token has expired. New macOS
-          hosts will not automatically enroll to Fleet.
+          Your Apple Business Manager (ABM) server token has expired or is
+          invalid. New macOS hosts will not automatically enroll to Fleet.
         </>
       ) : (
         <>

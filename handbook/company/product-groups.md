@@ -552,6 +552,8 @@ For text links that navigates the user to a different page within the Fleet UI, 
 
 For a link that navigates the user to an external site (e.g., fleetdm.com/docs), use the `$core-blue` color and `xs-bold` styling for the link's text. Also, place the link-out icon to the right of the link's text.
 
+When including an external link, specify a [redirect on fleetdm.com](https://github.com/fleetdm/fleet/blob/7b751fa50a9a7f81112c5e65334ab05fa2e9e216/website/config/routes.js#L491-L518) rather than the original link. That way, if the URL changes, we can fix it immediately via a PR to the website and users will not need to upgrade to benefit from the fix. Once the design is settled, make a PR for the redirect as part of preparing the story for development.
+
 **Tooltips**
 
 All tooltips change the cursor to a question mark on hover. All tooltips have a solid background color. 

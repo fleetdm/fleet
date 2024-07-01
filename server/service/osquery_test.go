@@ -35,8 +35,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service/async"
 	"github.com/fleetdm/fleet/v4/server/service/osquery_utils"
 	"github.com/fleetdm/fleet/v4/server/service/redis_policy_set"
-	"github.com/go-kit/kit/log"
-	"github.com/go-kit/kit/log/level"
+	"github.com/go-kit/log"
+	"github.com/go-kit/log/level"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -614,7 +614,7 @@ func TestSubmitResultLogsToLogDestination(t *testing.T) {
 		return 0, nil
 	}
 	teamQueryResultsStored := false
-	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow) error {
+	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows int) error {
 		if len(rows) == 0 {
 			return nil
 		}
@@ -766,7 +766,7 @@ func TestSaveResultLogsToQueryReports(t *testing.T) {
 			Logging:     fleet.LoggingSnapshot,
 		},
 	}
-	serv.saveResultLogsToQueryReports(ctx, results, discardDataFalse)
+	serv.saveResultLogsToQueryReports(ctx, results, discardDataFalse, fleet.DefaultMaxQueryReportRows)
 	assert.False(t, ds.OverwriteQueryResultRowsFuncInvoked)
 
 	// Happy Path: Results saved
@@ -777,13 +777,13 @@ func TestSaveResultLogsToQueryReports(t *testing.T) {
 			Logging:     fleet.LoggingSnapshot,
 		},
 	}
-	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow) error {
+	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows int) error {
 		return nil
 	}
 	ds.ResultCountForQueryFunc = func(ctx context.Context, queryID uint) (int, error) {
 		return 0, nil
 	}
-	serv.saveResultLogsToQueryReports(ctx, results, discardDataTrue)
+	serv.saveResultLogsToQueryReports(ctx, results, discardDataTrue, fleet.DefaultMaxQueryReportRows)
 	require.True(t, ds.OverwriteQueryResultRowsFuncInvoked)
 }
 
@@ -825,7 +825,7 @@ func TestSubmitResultLogsToQueryResultsWithEmptySnapShot(t *testing.T) {
 		return 0, nil
 	}
 
-	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow) error {
+	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows int) error {
 		require.Len(t, rows, 1)
 		require.Equal(t, uint(999), rows[0].HostID)
 		require.NotZero(t, rows[0].LastFetched)
@@ -876,7 +876,7 @@ func TestSubmitResultLogsToQueryResultsDoesNotCountNullDataRows(t *testing.T) {
 		return 0, nil
 	}
 
-	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow) error {
+	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows int) error {
 		require.Len(t, rows, 1)
 		require.Equal(t, uint(999), rows[0].HostID)
 		require.NotZero(t, rows[0].LastFetched)
@@ -933,7 +933,7 @@ func TestSubmitResultLogsFail(t *testing.T) {
 	ds.ResultCountForQueryFunc = func(ctx context.Context, queryID uint) (int, error) {
 		return 0, nil
 	}
-	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow) error {
+	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows int) error {
 		return nil
 	}
 
@@ -1061,6 +1061,7 @@ func verifyDiscovery(t *testing.T, queries, discovery map[string]string) {
 		hostDetailQueryPrefix + "kubequery_info":             {},
 		hostDetailQueryPrefix + "orbit_info":                 {},
 		hostDetailQueryPrefix + "software_vscode_extensions": {},
+		hostDetailQueryPrefix + "software_macos_firefox":     {},
 	}
 	for name := range queries {
 		require.NotEmpty(t, discovery[name])

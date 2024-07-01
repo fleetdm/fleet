@@ -90,8 +90,8 @@ func (svc *MDMAppleCommander) RemoveProfile(ctx context.Context, hostUUIDs []str
 	return ctxerr.Wrap(ctx, err, "commander remove profile")
 }
 
-func (svc *MDMAppleCommander) DeviceLock(ctx context.Context, host *fleet.Host, uuid string) error {
-	pin := GenerateRandomPin(6)
+func (svc *MDMAppleCommander) DeviceLock(ctx context.Context, host *fleet.Host, uuid string) (unlockPIN string, err error) {
+	unlockPIN = GenerateRandomPin(6)
 	raw := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -106,22 +106,23 @@ func (svc *MDMAppleCommander) DeviceLock(ctx context.Context, host *fleet.Host, 
       <string>%s</string>
     </dict>
   </dict>
-</plist>`, uuid, pin)
+</plist>`, uuid, unlockPIN,
+	)
 
 	cmd, err := mdm.DecodeCommand([]byte(raw))
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "decoding command")
+		return "", ctxerr.Wrap(ctx, err, "decoding command")
 	}
 
-	if err := svc.storage.EnqueueDeviceLockCommand(ctx, host, cmd, pin); err != nil {
-		return ctxerr.Wrap(ctx, err, "enqueuing for DeviceLock")
+	if err := svc.storage.EnqueueDeviceLockCommand(ctx, host, cmd, unlockPIN); err != nil {
+		return "", ctxerr.Wrap(ctx, err, "enqueuing for DeviceLock")
 	}
 
 	if err := svc.sendNotifications(ctx, []string{host.UUID}); err != nil {
-		return ctxerr.Wrap(ctx, err, "sending notifications for DeviceLock")
+		return "", ctxerr.Wrap(ctx, err, "sending notifications for DeviceLock")
 	}
 
-	return nil
+	return unlockPIN, nil
 }
 
 func (svc *MDMAppleCommander) EraseDevice(ctx context.Context, host *fleet.Host, uuid string) error {

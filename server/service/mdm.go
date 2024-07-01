@@ -33,7 +33,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/assets"
 	nanomdm "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/go-kit/kit/log/level"
+	"github.com/go-kit/log/level"
 	"github.com/go-sql-driver/mysql"
 )
 
@@ -478,9 +478,14 @@ func (svc *Service) RunMDMCommand(ctx context.Context, rawBase64Cmd string, host
 		return nil, ctxerr.Wrap(ctx, err, "no host received")
 	}
 
+	connectedMap, err := svc.ds.AreHostsConnectedToFleetMDM(ctx, hosts)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "checking if hosts are connected to Fleet")
+	}
+
 	platforms := make(map[string]bool)
 	for _, h := range hosts {
-		if !h.MDMInfo.IsFleetEnrolled() {
+		if !connectedMap[h.UUID] {
 			err := fleet.NewInvalidArgumentError("host_uuids", "Can't run the MDM command because one or more hosts have MDM turned off. Run the following command to see a list of hosts with MDM on: fleetctl get hosts --mdm.").WithStatus(http.StatusPreconditionFailed)
 			return nil, ctxerr.Wrap(ctx, err, "check host mdm enrollment")
 		}
@@ -1225,6 +1230,10 @@ func (newMDMConfigProfileRequest) DecodeRequest(ctx context.Context, r *http.Req
 	}
 	decoded.Profile = fhs[0]
 
+	if decoded.Profile.Size > 1024*1024 {
+		return nil, fleet.NewInvalidArgumentError("mdm", "maximum configuration profile file size is 1 MB")
+	}
+
 	// add labels
 	decoded.Labels = r.MultipartForm.Value["labels"]
 
@@ -1867,10 +1876,23 @@ func getWindowsProfiles(
 
 func validateProfiles(profiles []fleet.MDMProfileBatchPayload) error {
 	for _, profile := range profiles {
+		if len(profile.Contents) > 1024*1024 {
+			return fleet.NewInvalidArgumentError("mdm", "maximum configuration profile file size is 1 MB")
+		}
+
 		platform := mdm.GetRawProfilePlatform(profile.Contents)
 		if platform != "darwin" && platform != "windows" {
-			// TODO(roberto): there's ongoing feedback with Marko about improving this message, as it's too windows specific
-			return fleet.NewInvalidArgumentError("mdm", "Windows configuration profiles can only have <Replace> or <Add> top level elements.")
+			// We can only display a generic error message here because at this point
+			// we don't know the file extension or whether the profile is intended
+			// for macos_settings or windows_settings. We should expecte never see this
+			// in practice because the client should be validating the profiles
+			// before sending them to the server so the client can surface  more helpful
+			// error messages to the user. However, we're validating again here just
+			// in case the client is not working as expected.
+			return fleet.NewInvalidArgumentError("mdm", fmt.Sprintf(
+				"%s is not a valid macOS or Windows configuration profile. ", profile.Name)+
+				"macOS profiles must be valid .mobileconfig or .json files. "+
+				"Windows configuration profiles can only have <Replace> or <Add> top level elements.")
 		}
 	}
 
@@ -2255,7 +2277,7 @@ type uploadMDMAppleAPNSCertRequest struct {
 }
 
 func (uploadMDMAppleAPNSCertRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
-	decoded := uploadSoftwareInstallerRequest{}
+	decoded := uploadMDMAppleAPNSCertRequest{}
 	err := r.ParseMultipartForm(512 * units.MiB)
 	if err != nil {
 		return nil, &fleet.BadRequestError{
@@ -2287,7 +2309,7 @@ func (r uploadMDMAppleAPNSCertResponse) error() error {
 func (r uploadMDMAppleAPNSCertResponse) Status() int { return http.StatusAccepted }
 
 func uploadMDMAppleAPNSCertEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
-	req := request.(*uploadSoftwareInstallerRequest)
+	req := request.(*uploadMDMAppleAPNSCertRequest)
 	file, err := req.File.Open()
 	if err != nil {
 		return uploadMDMAppleAPNSCertResponse{Err: err}, nil

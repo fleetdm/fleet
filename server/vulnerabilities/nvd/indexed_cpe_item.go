@@ -6,7 +6,8 @@ import (
 )
 
 type IndexedCPEItem struct {
-	ID         int    `json:"id" db:"rowid"`
+	ID         int `json:"id" db:"rowid"`
+	Part       string
 	Product    string `json:"product" db:"product"`
 	Vendor     string `json:"vendor" db:"vendor"`
 	Deprecated bool   `json:"deprecated" db:"deprecated"`
@@ -20,6 +21,10 @@ func (i *IndexedCPEItem) FmtStr(s *fleet.Software) string {
 	cpe.Product = i.Product
 	cpe.Version = sanitizeVersion(s.Version)
 	cpe.TargetSW = targetSW(s)
+
+	if i.Part != "" {
+		cpe.Part = i.Part
+	}
 
 	// Make sure we don't return a 'match all' CPE
 	if cpe.Vendor == wfn.Any || cpe.Product == wfn.Any {
