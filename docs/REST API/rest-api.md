@@ -1316,6 +1316,8 @@ Modifies the Fleet's configuration with the supplied information.
 | org_logo_url_light_background     | string  | The URL for the organization logo displayed in Fleet on top of light backgrounds.                                                                          |
 | contact_url                       | string  | A URL that can be used by end users to contact the organization.                                                                                          |
 
+<br/>
+
 ##### Example request body
 
 ```json
@@ -1338,6 +1340,8 @@ Modifies the Fleet's configuration with the supplied information.
 | live_query_disabled               | boolean | Whether the live query capabilities are disabled.                                                                                                                   |
 | query_reports_disabled            | boolean | Whether query report capabilities are disabled.                                                                                                                   |
 | ai_features_disabled              | boolean | body  | _Server settings_. Whether AI features are disabled. |
+
+<br/>
 
 ##### Example request body
 
@@ -1369,6 +1373,8 @@ Modifies the Fleet's configuration with the supplied information.
 | domain                            | string  | The domain for the SMTP server.                                                                                                                                       |
 | verify_ssl_certs                  | boolean | Whether or not SSL certificates are verified by the SMTP server. Turn this off (not recommended) if you use a self-signed certificate.                                |
 | enabled_start_tls                 | boolean | Detects if STARTTLS is enabled in your SMTP server and starts to use it.                                                                                              |
+
+<br/>
 
 ##### Example request body
 
@@ -1404,6 +1410,8 @@ Modifies the Fleet's configuration with the supplied information.
 | enable_sso_idp_login              | boolean | Determines whether Identity Provider (IdP) initiated login for Single sign-on (SSO) is enabled for the Fleet application.                                              |
 | enable_jit_provisioning           | boolean | When enabled, allows [just-in-time user provisioning](https://fleetdm.com/docs/deploy/single-sign-on-sso#just-in-time-jit-user-provisioning). **Requires Fleet Premium license**. |
 
+<br/>
+
 ##### Example request body
 
 ```json
@@ -1429,6 +1437,8 @@ Modifies the Fleet's configuration with the supplied information.
 | host_expiry_enabled               | boolean | When enabled, allows automatic cleanup of hosts that have not communicated with Fleet in some number of days.                                                  |
 | host_expiry_window                | integer | If a host has not communicated with Fleet in the specified number of days, it will be removed.                                                                 |
 
+<br/>
+
 ##### Example request body
 
 ```json
@@ -1446,6 +1456,8 @@ Modifies the Fleet's configuration with the supplied information.
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | activity_expiry_enabled           | boolean | When enabled, allows automatic cleanup of activities (and associated live query data) older than the specified number of days.                                                          |
 | activity_expiry_window            | integer | The number of days to retain activity records, if activity expiry is enabled.   |
+
+<br/>
 
 ##### Example request body
 
@@ -1465,6 +1477,8 @@ _Available in Fleet Premium._
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | transparency_url                  | string  | The URL used to display transparency information to users of Fleet Desktop.                                                      |
+
+<br/>
 
 ##### Example request body
 
@@ -1540,6 +1554,8 @@ _Available in Fleet Premium._
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | enable_activities_webhook         | boolean | Whether or not the activity feed webhook is enabled. |
 | destination_url                   | string  | The URL to deliver the webhook requests to.                                                     |
+
+<br/>
 
 ##### Example request body
 
@@ -1628,6 +1644,8 @@ _Available in Fleet Premium._
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | domain                            | string  | The domain for the Google Workspace service account to be used for this calendar integration. |
 | api_key_json                      | object  | The private key JSON downloaded when generating the service account API key to be used for this calendar integration. |
+
+<br/>
 
 ##### Example request body
 
@@ -1740,6 +1758,7 @@ _Available in Fleet Premium._
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | custom_settings                   | list    | Windows hosts that belong to no team, and are members of specified labels will have custom profiles applied. |
 
+<br/>
 
 ##### Example request body
 
@@ -1806,6 +1825,7 @@ _Available in Fleet Premium._
 | enable_software_inventory         | boolean | body  | Enables the software inventory feature in Fleet. (Default: `true`)                                                             |
 | additional_queries                | boolean | body  | Enables additional queries on hosts. (Default: `null`)                                                                         |
 
+<br/>
 
 ##### Example request body
 
