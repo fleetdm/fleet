@@ -7,18 +7,19 @@ import (
 	"regexp"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/tablehelpers"
-	"github.com/go-kit/log"
-	"github.com/go-kit/log/level"
+
 	"github.com/osquery/osquery-go/plugin/table"
+	"github.com/rs/zerolog"
 )
 
 const kernelCheckUtilPath = "/opt/CrowdStrike/falcon-kernel-check"
 
 type Table struct {
-	logger log.Logger
+	logger zerolog.Logger
+	name   string
 }
 
-func TablePlugin(logger log.Logger) *table.Plugin {
+func TablePlugin(logger zerolog.Logger) *table.Plugin {
 	columns := []table.ColumnDefinition{
 		table.TextColumn("kernel"),
 		table.IntegerColumn("supported"),
@@ -26,9 +27,9 @@ func TablePlugin(logger log.Logger) *table.Plugin {
 	}
 
 	tableName := "falcon_kernel_check"
-
 	t := &Table{
-		logger: log.With(logger, "table", tableName),
+		name:   tableName,
+		logger: logger.With().Str("table", tableName).Logger(),
 	}
 
 	return table.NewPlugin(tableName, columns, t.generate)
@@ -37,13 +38,13 @@ func TablePlugin(logger log.Logger) *table.Plugin {
 func (t *Table) generate(ctx context.Context, queryContext table.QueryContext) ([]map[string]string, error) {
 	output, err := tablehelpers.Exec(ctx, t.logger, 5, []string{kernelCheckUtilPath}, []string{}, false)
 	if err != nil {
-		level.Info(t.logger).Log("msg", "exec failed", "err", err)
+		t.logger.Info().Str("table", t.name).Err(err).Msg("exec failed")
 		return nil, err
 	}
 
 	status, err := parseStatus(string(output))
 	if err != nil {
-		level.Info(t.logger).Log("msg", "Error parsing exec status", "err", err)
+		t.logger.Info().Str("table", t.name).Err(err).Msg("Error parsing exec status")
 		return nil, err
 	}
 
