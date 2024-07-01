@@ -1,20 +1,19 @@
 import React, { useContext, useState } from "react";
+import { InjectedRouter } from "react-router";
 
 import PATHS from "router/paths";
 import { NotificationContext } from "context/notification";
+import { getErrorReason } from "interfaces/errors";
 
 import MainContent from "components/MainContent";
 import BackLink from "components/BackLink";
 import FileUploader from "components/FileUploader";
-import { InjectedRouter } from "react-router";
-import { getErrorReason } from "interfaces/errors";
 import DataSet from "components/DataSet";
 import Button from "components/buttons/Button";
-import { noop } from "lodash";
+
 import DisableVppModal from "./components/DisableVppModal";
 import VppSetupSteps from "./components/VppSetupSteps";
 import RenewVppTokenModal from "./components/RenewVppTokenModal";
-import { FileDetails } from "components/FileUploader/FileUploader";
 
 const baseClass = "vpp-setup-page";
 
@@ -58,7 +57,7 @@ const VPPSetupContent = ({ router }: IVppSetupContentProps) => {
 
   return (
     <div className={`${baseClass}__setup-content`}>
-      <p>
+      <p className={`${baseClass}__description`}>
         Connect Fleet to your Apple Business Manager account to enable access to
         purchased apps.
       </p>

@@ -2,10 +2,10 @@ import React, { useState } from "react";
 
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
-
-import VppSetupSteps from "../VppSetupSteps";
 import FileUploader from "components/FileUploader";
 import { FileDetails } from "components/FileUploader/FileUploader";
+
+import VppSetupSteps from "../VppSetupSteps";
 
 const baseClass = "renew-vpp-token-modal";
 

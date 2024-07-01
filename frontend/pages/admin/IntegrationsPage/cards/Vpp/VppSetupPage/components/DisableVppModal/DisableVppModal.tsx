@@ -1,5 +1,4 @@
 import React, { useState } from "react";
-import { noop } from "lodash";
 
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
@@ -20,7 +19,7 @@ const DisableVppModal = ({ onExit }: IDisableVppModalProps) => {
   return (
     <Modal
       title="Disable Volume Purchasing Program (VPP)"
-      onExit={noop}
+      onExit={onExit}
       className={baseClass}
     >
       <>
