@@ -123,7 +123,7 @@ const VppSetupPage = ({ router }: IVppSetupPageProps) => {
           className={`${baseClass}__back-to-vpp`}
         />
         <h1>Volume Purchasing Program (VPP)</h1>
-        {false ? (
+        {true ? (
           <VPPSetupContent router={router} />
         ) : (
           <VPPDisableOrRenewContent
