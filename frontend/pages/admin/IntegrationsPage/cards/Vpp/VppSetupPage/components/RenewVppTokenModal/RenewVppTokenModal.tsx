@@ -4,6 +4,8 @@ import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 
 import VppSetupSteps from "../VppSetupSteps";
+import FileUploader from "components/FileUploader";
+import { FileDetails } from "components/FileUploader/FileUploader";
 
 const baseClass = "renew-vpp-token-modal";
 
@@ -14,6 +16,15 @@ interface IRenewVppTokenModalProps {
 const RenewVppTokenModal = ({ onExit }: IRenewVppTokenModalProps) => {
   const [isRenewing, setIsRenewing] = useState(false);
 
+  const [tokenFile, setTokenFile] = useState<File | null>(null);
+
+  const onSelectFile = (files: FileList | null) => {
+    const file = files?.[0];
+    if (file) {
+      setTokenFile(file);
+    }
+  };
+
   const onRenewToken = () => {
     // TODO: API integration
   };
@@ -22,8 +33,29 @@ const RenewVppTokenModal = ({ onExit }: IRenewVppTokenModalProps) => {
     <Modal title="Renew token" className={baseClass} onExit={onExit}>
       <>
         <VppSetupSteps />
+        <FileUploader
+          className={`${baseClass}__file-uploader`}
+          accept=".vpptoken"
+          message="Content token (.vpptoken)"
+          graphicName="file-vpp"
+          buttonType="link"
+          filePreview={
+            tokenFile && (
+              <FileDetails
+                details={{ name: tokenFile.name }}
+                graphicName="file-vpp"
+              />
+            )
+          }
+          onFileUpload={onSelectFile}
+        />
         <div className="modal-cta-wrap">
-          <Button variant="brand" onClick={onRenewToken} isLoading={isRenewing}>
+          <Button
+            variant="brand"
+            onClick={onRenewToken}
+            isLoading={isRenewing}
+            disabled={!tokenFile}
+          >
             Renew token
           </Button>
         </div>

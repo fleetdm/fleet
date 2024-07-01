@@ -14,6 +14,7 @@ import { noop } from "lodash";
 import DisableVppModal from "./components/DisableVppModal";
 import VppSetupSteps from "./components/VppSetupSteps";
 import RenewVppTokenModal from "./components/RenewVppTokenModal";
+import { FileDetails } from "components/FileUploader/FileUploader";
 
 const baseClass = "vpp-setup-page";
 
