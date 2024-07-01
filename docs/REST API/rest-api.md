@@ -2103,8 +2103,9 @@ If `after` is being used with `created_at` or `updated_at`, the table must be sp
         }
       ],
       "issues": {
-        "failing_policies_count": 2,
-        "total_issues_count": 2
+        "failing_policies_count": 1,
+        "critical_vulnerabilities_count": 2, // Fleet Premium only
+        "total_issues_count": 3
       },
       "geolocation": {
         "country_iso": "US",
@@ -2546,8 +2547,9 @@ Returns the information of the specified host.
       }
     ],
     "issues": {
-      "failing_policies_count": 2,
-      "total_issues_count": 2
+        "failing_policies_count": 1,
+        "critical_vulnerabilities_count": 2, // Fleet Premium only
+        "total_issues_count": 3
     },
     "batteries": [
       {
@@ -2714,8 +2716,9 @@ If `hostname` is specified when there is more than one host with the same hostna
     "percent_disk_space_available": 74,
     "gigs_total_disk_space": 192,
     "issues": {
-        "total_issues_count": 0,
-        "failing_policies_count": 0
+        "failing_policies_count": 1,
+        "critical_vulnerabilities_count": 2, // Fleet Premium only
+        "total_issues_count": 3
     },
     "labels": [
       {
