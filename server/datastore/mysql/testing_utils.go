@@ -275,7 +275,7 @@ func setupRealReplica(t testing.TB, testName string, ds *Datastore, options *dbO
 	}
 
 	mu.Lock()
-	databasesToReplicate = strings.TrimSuffix(databasesToReplicate+fmt.Sprintf("`%s`,", testName), ",")
+	databasesToReplicate = strings.TrimPrefix(databasesToReplicate+fmt.Sprintf(", `%s`", testName), ",")
 	mu.Unlock()
 
 	// Configure slave and start replication
