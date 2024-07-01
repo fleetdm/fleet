@@ -1821,9 +1821,9 @@ _Available in Fleet Premium._
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| enable_host_users                 | boolean | Enables the users feature in Fleet. (Default: `true`)                                                                          |
-| enable_software_inventory         | boolean | Enables the software inventory feature in Fleet. (Default: `true`)                                                             |
-| additional_queries                | boolean |  Enables additional queries on hosts. (Default: `null`)                                                                         |
+| enable_host_users                 | boolean | Whether to enable the users feature in Fleet. (Default: `true`)                                                                          |
+| enable_software_inventory         | boolean | Whether to enable the software inventory feature in Fleet. (Default: `true`)                                                             |
+| additional_queries                | boolean |  Whether to enable additional queries on hosts. (Default: `null`)                                                                         |
 
 <br/>
 
