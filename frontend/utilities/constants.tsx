@@ -1,5 +1,9 @@
 import URL_PREFIX from "router/url_prefix";
-import { OsqueryPlatform } from "interfaces/platform";
+import {
+  DashboardOsqueryPlatform,
+  DashboardPlatform,
+  OsqueryPlatform,
+} from "interfaces/platform";
 import paths from "router/paths";
 import { ISchedulableQuery } from "interfaces/schedulable_query";
 import React from "react";
@@ -200,6 +204,8 @@ const PLATFORM_LABEL_NAMES_FROM_API = [
   "Red Hat Linux",
   "Ubuntu Linux",
   "chrome",
+  "ios",
+  "ipados",
 ] as const;
 
 type PlatformLabelNameFromAPI = typeof PLATFORM_LABEL_NAMES_FROM_API[number];
@@ -210,7 +216,10 @@ export const isPlatformLabelNameFromAPI = (
   return PLATFORM_LABEL_NAMES_FROM_API.includes(s as PlatformLabelNameFromAPI);
 };
 
-export const PLATFORM_DISPLAY_NAMES: Record<string, OsqueryPlatform> = {
+export const PLATFORM_DISPLAY_NAMES: Record<
+  string,
+  DashboardOsqueryPlatform
+> = {
   darwin: "macOS",
   macOS: "macOS",
   windows: "Windows",
@@ -219,6 +228,8 @@ export const PLATFORM_DISPLAY_NAMES: Record<string, OsqueryPlatform> = {
   Linux: "Linux",
   chrome: "ChromeOS",
   ChromeOS: "ChromeOS",
+  ios: "iOS",
+  ipados: "iPadOS",
 } as const;
 
 // as returned by the TARGETS API; based on display_text
@@ -234,16 +245,9 @@ export const PLATFORM_LABEL_DISPLAY_NAMES: Record<
   "Red Hat Linux": "Red Hat Linux",
   "Ubuntu Linux": "Ubuntu Linux",
   chrome: "ChromeOS",
+  ios: "iOS",
+  ipados: "iPadOS",
 } as const;
-
-export const PLATFORM_LABEL_DISPLAY_ORDER = [
-  "macOS",
-  "All Linux",
-  "CentOS Linux",
-  "Red Hat Linux",
-  "Ubuntu Linux",
-  "MS Windows",
-] as const;
 
 export const PLATFORM_LABEL_DISPLAY_TYPES: Record<
   PlatformLabelNameFromAPI,
@@ -257,12 +261,14 @@ export const PLATFORM_LABEL_DISPLAY_TYPES: Record<
   "Red Hat Linux": "platform",
   "Ubuntu Linux": "platform",
   chrome: "platform",
+  ios: "platform",
+  ipados: "platform",
 } as const;
 
 export const PLATFORM_TYPE_ICONS: Record<
   Extract<
     PlatformLabelNameFromAPI,
-    "All Linux" | "macOS" | "MS Windows" | "chrome"
+    "All Linux" | "macOS" | "MS Windows" | "chrome" | "ios" | "ipados"
   >,
   IconNames
 > = {
@@ -270,20 +276,30 @@ export const PLATFORM_TYPE_ICONS: Record<
   macOS: "darwin",
   "MS Windows": "windows",
   chrome: "chrome",
+  ios: "iphone",
+  ipados: "ipad",
 } as const;
 
 export const hasPlatformTypeIcon = (
   s: string
 ): s is Extract<
   PlatformLabelNameFromAPI,
-  "All Linux" | "macOS" | "MS Windows" | "chrome"
+  "All Linux" | "macOS" | "MS Windows" | "chrome" | "ios" | "ipados"
 > => {
   return !!PLATFORM_TYPE_ICONS[s as keyof typeof PLATFORM_TYPE_ICONS];
 };
 
 interface IPlatformDropdownOptions {
-  label: "All" | "Windows" | "Linux" | "macOS" | "ChromeOS";
-  value: "all" | "windows" | "linux" | "darwin" | "chrome" | "";
+  label: "All" | "Windows" | "Linux" | "macOS" | "ChromeOS" | "iOS" | "iPadOS";
+  value:
+    | "all"
+    | "windows"
+    | "linux"
+    | "darwin"
+    | "chrome"
+    | "ios"
+    | "ipados"
+    | "";
   path?: string;
 }
 export const PLATFORM_DROPDOWN_OPTIONS: IPlatformDropdownOptions[] = [
@@ -292,9 +308,11 @@ export const PLATFORM_DROPDOWN_OPTIONS: IPlatformDropdownOptions[] = [
   { label: "Windows", value: "windows", path: paths.DASHBOARD_WINDOWS },
   { label: "Linux", value: "linux", path: paths.DASHBOARD_LINUX },
   { label: "ChromeOS", value: "chrome", path: paths.DASHBOARD_CHROME },
+  { label: "iOS", value: "ios", path: paths.DASHBOARD_IOS },
+  { label: "iPadOS", value: "ipados", path: paths.DASHBOARD_IPADOS },
 ];
 
-// Schedules does not support ChromeOS
+// Scheduling queries do not support ChromeOS, iOS, or iPadOS
 export const SCHEDULE_PLATFORM_DROPDOWN_OPTIONS: IPlatformDropdownOptions[] = [
   { label: "All", value: "" }, // API empty string runs on all platforms
   { label: "macOS", value: "darwin" },
@@ -309,6 +327,8 @@ export const PLATFORM_NAME_TO_LABEL_NAME = {
   windows: "MS Windows",
   linux: "All Linux",
   chrome: "chrome",
+  ios: "iPhones",
+  ipados: "iPads",
 };
 
 export const HOSTS_SEARCH_BOX_PLACEHOLDER =

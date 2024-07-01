@@ -1,6 +1,6 @@
 import React from "react";
 
-import { OsqueryPlatform } from "interfaces/platform";
+import { DashboardOsqueryPlatform, OsqueryPlatform } from "interfaces/platform";
 import { PLATFORM_DISPLAY_NAMES } from "utilities/constants";
 
 import TooltipWrapper from "components/TooltipWrapper";
@@ -24,7 +24,7 @@ const ERROR_NO_COMPATIBLE_TABLES = Error("no tables in query");
 
 const formatPlatformsForDisplay = (
   compatiblePlatforms: OsqueryPlatform[]
-): OsqueryPlatform[] => {
+): DashboardOsqueryPlatform[] => {
   return compatiblePlatforms.map((str) => PLATFORM_DISPLAY_NAMES[str] || str);
 };
 
@@ -83,8 +83,9 @@ const PlatformCompatibility = ({
         <TooltipWrapper
           tipContent={
             <>
-              Estimated compatiblity based on <br /> the tables used in the
-              query.
+              Estimated compatibility based on the <br />
+              tables used in the query. Querying <br />
+              iPhones & iPads is not supported.
             </>
           }
         >

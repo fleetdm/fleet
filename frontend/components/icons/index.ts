@@ -34,6 +34,8 @@ import M1 from "./M1";
 import Centos from "./Centos";
 import Ubuntu from "./Ubuntu";
 import Chrome from "./Chrome";
+import Iphone from "./Iphone";
+import Ipad from "./Ipad";
 
 // Status Icons
 import Success from "./Success";
@@ -114,6 +116,8 @@ export const ICON_MAP = {
   ubuntu: Ubuntu,
   chrome: Chrome,
   ChromeOS: Chrome,
+  ipad: Ipad,
+  iphone: Iphone,
   "premium-feature": PremiumFeature,
   profile: Profile,
   download: Download,

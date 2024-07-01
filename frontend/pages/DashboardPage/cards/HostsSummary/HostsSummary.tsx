@@ -3,7 +3,7 @@ import PATHS from "router/paths";
 
 import { PLATFORM_NAME_TO_LABEL_NAME } from "utilities/constants";
 import DataError from "components/DataError";
-import { SelectedPlatform } from "interfaces/platform";
+import { DashboardPlatform } from "interfaces/platform";
 import { IHostSummary } from "interfaces/host_summary";
 
 import SummaryTile from "./SummaryTile";
@@ -16,11 +16,13 @@ interface IHostSummaryProps {
   windowsCount: number;
   linuxCount: number;
   chromeCount: number;
+  iosCount: number;
+  ipadosCount: number;
   isLoadingHostsSummary: boolean;
   builtInLabels?: IHostSummary["builtin_labels"];
   showHostsUI: boolean;
   errorHosts: boolean;
-  selectedPlatform?: SelectedPlatform;
+  selectedPlatform?: DashboardPlatform;
 }
 
 const HostsSummary = ({
@@ -29,6 +31,8 @@ const HostsSummary = ({
   windowsCount,
   linuxCount,
   chromeCount,
+  iosCount,
+  ipadosCount,
   isLoadingHostsSummary,
   builtInLabels,
   showHostsUI,
@@ -53,7 +57,6 @@ const HostsSummary = ({
     return (
       <SummaryTile
         iconName="darwin"
-        circledIcon
         count={macCount}
         isLoading={isLoadingHostsSummary}
         showUI={showHostsUI}
@@ -76,7 +79,6 @@ const HostsSummary = ({
     return (
       <SummaryTile
         iconName="windows"
-        circledIcon
         count={windowsCount}
         isLoading={isLoadingHostsSummary}
         showUI={showHostsUI}
@@ -99,7 +101,6 @@ const HostsSummary = ({
     return (
       <SummaryTile
         iconName="linux"
-        circledIcon
         count={linuxCount}
         isLoading={isLoadingHostsSummary}
         showUI={showHostsUI}
@@ -123,12 +124,57 @@ const HostsSummary = ({
     return (
       <SummaryTile
         iconName="chrome"
-        circledIcon
         count={chromeCount}
         isLoading={isLoadingHostsSummary}
         showUI={showHostsUI}
         title={`Chromebook${chromeCount === 1 ? "" : "s"}`}
         path={PATHS.MANAGE_HOSTS_LABEL(chromeLabelId).concat(
+          teamId !== undefined ? `?team_id=${teamId}` : ""
+        )}
+      />
+    );
+  };
+
+  const renderIosCount = (teamId?: number) => {
+    const iosLabelId = builtInLabels?.find(
+      (builtin) => builtin.name === PLATFORM_NAME_TO_LABEL_NAME.chrome // TODO: change to ios
+    )?.id;
+
+    if (isLoadingHostsSummary || iosLabelId === undefined) {
+      return <></>;
+    }
+
+    return (
+      <SummaryTile
+        iconName="iphone"
+        count={iosCount}
+        isLoading={isLoadingHostsSummary}
+        showUI={showHostsUI}
+        title={`iPhone${iosCount === 1 ? "" : "s"}`}
+        path={PATHS.MANAGE_HOSTS_LABEL(iosLabelId).concat(
+          teamId !== undefined ? `?team_id=${teamId}` : ""
+        )}
+      />
+    );
+  };
+
+  const renderIpadosCount = (teamId?: number) => {
+    const ipadosLabelId = builtInLabels?.find(
+      (builtin) => builtin.name === PLATFORM_NAME_TO_LABEL_NAME.chrome // TODO: change to ipados
+    )?.id;
+
+    if (isLoadingHostsSummary || ipadosLabelId === undefined) {
+      return <></>;
+    }
+
+    return (
+      <SummaryTile
+        iconName="ipad"
+        count={ipadosCount}
+        isLoading={isLoadingHostsSummary}
+        showUI={showHostsUI}
+        title={`iPad${ipadosCount === 1 ? "" : "s"}`}
+        path={PATHS.MANAGE_HOSTS_LABEL(ipadosLabelId).concat(
           teamId !== undefined ? `?team_id=${teamId}` : ""
         )}
       />
@@ -145,13 +191,23 @@ const HostsSummary = ({
         return renderLinuxCount(teamId);
       case "chrome":
         return renderChromeCount(teamId);
+      case "ios":
+        return renderIosCount(teamId);
+      case "ipados":
+        return renderIpadosCount(teamId);
       default:
         return (
           <>
-            {renderMacCount(teamId)}
-            {renderWindowsCount(teamId)}
-            {renderLinuxCount(teamId)}
-            {renderChromeCount(teamId)}
+            <div className={`${baseClass}__row`}>
+              {renderMacCount(teamId)}
+              {renderWindowsCount(teamId)}
+              {renderLinuxCount(teamId)}
+            </div>
+            <div className={`${baseClass}__row`}>
+              {renderChromeCount(teamId)}
+              {renderIosCount(teamId)}
+              {renderIpadosCount(teamId)}
+            </div>
           </>
         );
     }
