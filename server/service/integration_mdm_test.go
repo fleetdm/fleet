@@ -1028,6 +1028,7 @@ func (s *integrationMDMTestSuite) TestMDMVPPToken() {
 	testOverrideAppleVPPConfigURL = s.appleVPPConfigSrv.URL + "?invalidToken"
 	s.uploadDataViaForm("/api/latest/fleet/mdm/apple/vpp_token", "token", "token.vpptoken", []byte("foobar"), http.StatusUnprocessableEntity, "Invalid token. Please provide a valid content token from Apple Business Manager.")
 
+	// Simulate a server error from the Apple API
 	testOverrideAppleVPPConfigURL = s.appleVPPConfigSrv.URL + "?serverError"
 	s.uploadDataViaForm("/api/latest/fleet/mdm/apple/vpp_token", "token", "token.vpptoken", []byte("foobar"), http.StatusInternalServerError, "calling Apple VPP config endpoint failed with status 500")
 
@@ -1042,6 +1043,21 @@ func (s *integrationMDMTestSuite) TestMDMVPPToken() {
 
 	// Get the token
 	var resp getMDMAppleVPPTokenResponse
+	s.DoJSON("GET", "/api/latest/fleet/vpp", &getMDMAppleVPPTokenRequest{}, http.StatusOK, &resp)
+	require.NoError(t, resp.Err)
+	require.Equal(t, orgName, resp.OrgName)
+	require.Equal(t, location, resp.Location)
+	require.Equal(t, expDate, resp.RenewDate)
+
+	// Simulate renewal flow
+
+	orgName = "Fleet Device Management Inc. New Org Name"
+	token = "myothercooltoken"
+	expDate = "2026-06-24T15:50:50+0000"
+	tokenJSON = fmt.Sprintf(`{"expDate":"%s","token":"%s","orgName":"%s"}`, expDate, token, orgName)
+	s.uploadDataViaForm("/api/latest/fleet/mdm/apple/vpp_token", "token", "token.vpptoken", []byte(base64.StdEncoding.EncodeToString([]byte(tokenJSON))), http.StatusAccepted, "")
+
+	resp = getMDMAppleVPPTokenResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/vpp", &getMDMAppleVPPTokenRequest{}, http.StatusOK, &resp)
 	require.NoError(t, resp.Err)
 	require.Equal(t, orgName, resp.OrgName)
