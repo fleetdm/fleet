@@ -1336,10 +1336,10 @@ Modifies the Fleet's configuration with the supplied information.
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | server_url                        | string  | The Fleet server URL.                                                       |
-| enable_analytics                  | boolean | body  | _Server settings_. Whether to send anonymous usage statistics. Always enabled for Fleet Premium customers.                                                                             |
+| enable_analytics                  | boolean | Whether to send anonymous usage statistics. Always enabled for Fleet Premium customers.                                                                             |
 | live_query_disabled               | boolean | Whether the live query capabilities are disabled.                                                                                                                   |
 | query_reports_disabled            | boolean | Whether query report capabilities are disabled.                                                                                                                   |
-| ai_features_disabled              | boolean | body  | _Server settings_. Whether AI features are disabled. |
+| ai_features_disabled              | boolean | Whether AI features are disabled. |
 
 <br/>
 
@@ -1821,9 +1821,9 @@ _Available in Fleet Premium._
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| enable_host_users                 | boolean | body  | Enables the users feature in Fleet. (Default: `true`)                                                                          |
-| enable_software_inventory         | boolean | body  | Enables the software inventory feature in Fleet. (Default: `true`)                                                             |
-| additional_queries                | boolean | body  | Enables additional queries on hosts. (Default: `null`)                                                                         |
+| enable_host_users                 | boolean | Whether to enable the users feature in Fleet. (Default: `true`)                                                                          |
+| enable_software_inventory         | boolean | Whether to enable the software inventory feature in Fleet. (Default: `true`)                                                             |
+| additional_queries                | boolean | Whether to enable additional queries on hosts. (Default: `null`)                                                                         |
 
 <br/>
 
