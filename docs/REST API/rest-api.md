@@ -4053,6 +4053,7 @@ To lock a macOS host, the host must have MDM turned on. To lock a Windows or Lin
 | Name       | Type              | In   | Description                                                                   |
 | ---------- | ----------------- | ---- | ----------------------------------------------------------------------------- |
 | id | integer | path | **Required**. ID of the host to be locked. |
+| view_pin | boolean | query | For macOS hosts, whether to return the unlock PIN. |
 
 #### Example
 
@@ -4061,6 +4062,20 @@ To lock a macOS host, the host must have MDM turned on. To lock a Windows or Lin
 ##### Default response
 
 `Status: 204`
+
+#### Example
+
+`POST /api/v1/fleet/hosts/123/lock?view_pin=true`
+
+##### Default response (macOS hosts)
+
+`Status: 200`
+
+```json
+{
+  "unlock_pin": "123456"
+}
+```
 
 ### Unlock host
 
@@ -4096,7 +4111,6 @@ To unlock a Windows or Linux host, the host must have [scripts enabled](https://
   "unlock_pin": "123456"
 }
 ```
-
 
 ### Wipe host
 
