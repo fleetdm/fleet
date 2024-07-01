@@ -2550,7 +2550,7 @@ func (svc *Service) UploadMDMAppleVPPToken(ctx context.Context, token io.ReadSee
 	}
 
 	err = svc.ds.ReplaceMDMConfigAssets(ctx, []fleet.MDMConfigAsset{
-		{Name: fleet.MDMAssetVPPToken, Value: []byte(dataBytes)},
+		{Name: fleet.MDMAssetVPPToken, Value: dataBytes},
 	})
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "writing VPP token to db")
