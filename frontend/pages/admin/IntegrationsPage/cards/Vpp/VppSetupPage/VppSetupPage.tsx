@@ -43,7 +43,7 @@ const VPPSetupContent = ({ router }: IVppSetupContentProps) => {
       if (msg.toLowerCase().includes("valid token")) {
         renderFlash("error", msg);
       } else {
-        renderFlash("error", "Couldn't enable. Please try again.");
+        renderFlash("error", "Couldn't Upload. Please try again.");
       }
     } finally {
       setIsUploading(false);

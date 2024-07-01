@@ -3,9 +3,6 @@
   // TODO: this is very similar to the Apple Mdm card, consider pulling out
   // into a shared component if we do this pattern one more time.
   &__card {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
 
     h3 {
       font-size: $x-small;
@@ -35,4 +32,16 @@
     }
   }
 
+  &__mdm-disabled-content {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: $pad-medium;
+  }
+
+  &__vpp-on-content, &__vpp-off-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
 }
