@@ -41,7 +41,7 @@ const VPPSetupContent = ({ router }: IVppSetupContentProps) => {
         "success",
         "Volume Purchasing Program (VPP) integration enabled successfully."
       );
-      router.push(PATHS.ADMIN_INTEGRATIONS_AUTOMATIC_ENROLLMENT);
+      router.push(PATHS.ADMIN_INTEGRATIONS_VPP);
     } catch (e) {
       // TODO: error messages
       const msg = getErrorReason(e);
