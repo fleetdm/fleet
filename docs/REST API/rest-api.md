@@ -1409,7 +1409,7 @@ Modifies the Fleet's configuration with the supplied information.
 ```json
 {
   "sso_settings": {
-    "enable_sso": true,
+    "enable_sso": false,
     "entity_id": "",
     "issuer_uri": "",
     "idp_image_url": "",
