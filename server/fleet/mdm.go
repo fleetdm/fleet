@@ -652,6 +652,7 @@ type VPPTokenData struct {
 	// the "library" of apps in ABM that is associated with this VPP token.
 	Location string `json:"location"`
 
-	// Token is the string that is downloaded from ABM.
+	// Token is the token that is downloaded from ABM. It is a base64 encoded JSON object with the
+	// structure of `VPPTokenRaw`.
 	Token string `json:"token"`
 }
