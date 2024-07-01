@@ -5,10 +5,15 @@ import { NotificationContext } from "context/notification";
 
 import MainContent from "components/MainContent";
 import BackLink from "components/BackLink";
-import CustomLink from "components/CustomLink";
 import FileUploader from "components/FileUploader";
 import { InjectedRouter } from "react-router";
 import { getErrorReason } from "interfaces/errors";
+import DataSet from "components/DataSet";
+import Button from "components/buttons/Button";
+import { noop } from "lodash";
+import DisableVppModal from "./components/DisableVppModal";
+import VppSetupSteps from "./components/VppSetupSteps";
+import RenewVppTokenModal from "./components/RenewVppTokenModal";
 
 const baseClass = "vpp-setup-page";
 
@@ -56,45 +61,7 @@ const VPPSetupContent = ({ router }: IVppSetupContentProps) => {
         Connect Fleet to your Apple Business Manager account to enable access to
         purchased apps.
       </p>
-      <ol className={`${baseClass}__setup-list`}>
-        <li>
-          <span>1.</span>
-          <p>
-            Sign in to{" "}
-            <CustomLink
-              newTab
-              url="https://business.apple.com"
-              text="Apple Business Manager"
-            />
-            <br />
-            If your organization doesn&apos;t have an account, select{" "}
-            <b>Sign up now</b>.
-          </p>
-        </li>
-        <li>
-          <span>2.</span>
-          <p>
-            Select your <b>account name</b> at the bottom left of the screen,
-            then select <b>Preferences</b>.
-          </p>
-        </li>
-        <li>
-          <span>3.</span>
-          <p>Select Payments and Billings in the menu.</p>
-        </li>
-        <li>
-          <span>4.</span>
-          <p>
-            Under the <b>Content Tokens</b>, download the token for the location
-            you want to use. Each token is based on a location in Apple Business
-            Manager.
-          </p>
-        </li>
-        <li>
-          <span>5.</span>
-          <p>Upload content token (.vpptoken file) below.</p>
-        </li>
-      </ol>
+      <VppSetupSteps extendendSteps />
       <FileUploader
         className={`${baseClass}__file-uploader ${
           isUploading ? `${baseClass}__file-uploader--loading` : ""
@@ -110,8 +77,33 @@ const VPPSetupContent = ({ router }: IVppSetupContentProps) => {
   );
 };
 
-const VPPDisableOrRenewContent = () => {
-  return <>disable</>;
+interface IVppDisableOrRenewContentProps {
+  onDisable: () => void;
+  onRenew: () => void;
+}
+
+const VPPDisableOrRenewContent = ({
+  onDisable,
+  onRenew,
+}: IVppDisableOrRenewContentProps) => {
+  return (
+    <div className={`${baseClass}__disable-renew-content`}>
+      <div className={`${baseClass}__info`}>
+        <DataSet title="Organization name" value={"test org"} />
+        <DataSet title="Location" value={"test location"} />
+        <DataSet title="Renew date" value={"September 19, 2024"} />
+        {/* <p>{readableDate(mdmAppleBm.renew_date)}</p> */}
+      </div>
+      <div className={`${baseClass}__button-wrap`}>
+        <Button variant="inverse" onClick={onDisable}>
+          Disable
+        </Button>
+        <Button variant="brand" onClick={onRenew}>
+          Renew token
+        </Button>
+      </div>
+    </div>
+  );
 };
 
 interface IVppSetupPageProps {
@@ -119,6 +111,9 @@ interface IVppSetupPageProps {
 }
 
 const VppSetupPage = ({ router }: IVppSetupPageProps) => {
+  const [showDisableModal, setShowDisableModal] = useState(false);
+  const [showRenewModal, setShowRenewModal] = useState(false);
+
   return (
     <MainContent className={baseClass}>
       <>
@@ -128,12 +123,21 @@ const VppSetupPage = ({ router }: IVppSetupPageProps) => {
           className={`${baseClass}__back-to-vpp`}
         />
         <h1>Volume Purchasing Program (VPP)</h1>
-        {true ? (
+        {false ? (
           <VPPSetupContent router={router} />
         ) : (
-          <VPPDisableOrRenewContent />
+          <VPPDisableOrRenewContent
+            onDisable={() => setShowDisableModal(true)}
+            onRenew={() => setShowRenewModal(true)}
+          />
         )}
       </>
+      {showDisableModal && (
+        <DisableVppModal onExit={() => setShowDisableModal(false)} />
+      )}
+      {showRenewModal && (
+        <RenewVppTokenModal onExit={() => setShowRenewModal(false)} />
+      )}
     </MainContent>
   );
 };

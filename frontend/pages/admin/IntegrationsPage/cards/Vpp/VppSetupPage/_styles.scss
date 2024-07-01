@@ -12,27 +12,6 @@
     font-size: $x-small;
     margin: 0 0 $pad-large;
   }
-
-  &__setup-list {
-    font-size: $x-small;
-    display: flex;
-    flex-direction: column;
-    gap: $pad-large;
-    padding: 0;
-    margin: 0;
-    max-width: 660px;
-    list-style: none;
-
-    li {
-      display: flex;
-      flex-direction: row;
-      gap: $pad-small;
-
-      p {
-        margin: 0;
-      }
-    }
-  }
   &__file-uploader {
     margin-top: $pad-medium;
     margin-left: $pad-medium;
@@ -56,6 +35,18 @@
 
   &__button-wrap {
     display: flex;
+    gap: $pad-medium;
+  }
+
+  &__disable-renew-content {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-large;
+  }
+
+  &__info {
+    display: flex;
+    flex-direction: column;
     gap: $pad-medium;
   }
 }
