@@ -1823,7 +1823,7 @@ _Available in Fleet Premium._
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | enable_host_users                 | boolean | Whether to enable the users feature in Fleet. (Default: `true`)                                                                          |
 | enable_software_inventory         | boolean | Whether to enable the software inventory feature in Fleet. (Default: `true`)                                                             |
-| additional_queries                | boolean |  Whether to enable additional queries on hosts. (Default: `null`)                                                                         |
+| additional_queries                | boolean | Whether to enable additional queries on hosts. (Default: `null`)                                                                         |
 
 <br/>
 
