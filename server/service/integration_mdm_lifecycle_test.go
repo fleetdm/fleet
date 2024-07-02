@@ -768,7 +768,7 @@ func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 
 	// migrated device doesn't receive any commands because
 	// `FLEET_SILENT_MIGRATION_ENROLLMENT_PROFILE` is not set
-	cmd, err = migratedDevice.Idle()
+	_, err = migratedDevice.Idle()
 	require.NoError(t, err)
 
 	// set the env var, and run the cron
