@@ -9,8 +9,8 @@ import DataError from "components/DataError";
 // @ts-ignore
 import InputFieldWithIcon from "components/forms/fields/InputFieldWithIcon/InputFieldWithIcon";
 import TableContainer from "components/TableContainer";
-import { ITargestInputHostTableConfig } from "./TargetsInputHostsTableConfig";
 import Spinner from "components/Spinner";
+import { ITargestInputHostTableConfig } from "./TargetsInputHostsTableConfig";
 
 interface ITargetsInputProps {
   tabIndex?: number;
