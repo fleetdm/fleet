@@ -3077,10 +3077,11 @@ Returns the information of the specified host.
 
 ### Get host by identifier
 
-Returns the information of the host specified using the `uuid`, `hardware_serial`, `osquery_host_id`, `hostname`, or
-`node_key` as an identifier.
+Returns the information of the host specified using the `id`, `uuid`, `hardware_serial`, `osquery_host_id`, or `hostname` as an identifier.
 
 If `hostname` is specified when there is more than one host with the same hostname, the endpoint returns the first matching host. In Fleet, hostnames are fully qualified domain names (FQDNs).
+
+> `hostname` is not the same as the host's display name. For example, a host displayed as "John's MacBook Pro" would usually have a hostname like `Johns-MacBook-Pro.local`.
 
 `GET /api/v1/fleet/hosts/identifier/:identifier`
 
@@ -3088,7 +3089,7 @@ If `hostname` is specified when there is more than one host with the same hostna
 
 | Name       | Type              | In   | Description                                                                   |
 | ---------- | ----------------- | ---- | ----------------------------------------------------------------------------- |
-| identifier | integer or string | path | **Required**. The host's `hardware_serial`, `uuid`, `osquery_host_id`, `hostname`, or `node_key` |
+| identifier | integer or string | path | **Required**. The host's `id`, `uuid`, `hardware_serial`, `osquery_host_id`, or `hostname` |
 
 #### Example
 
