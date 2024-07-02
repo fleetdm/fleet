@@ -66,7 +66,7 @@ The audience for the “Communications” page is every Fleetie.
 
 The audience for the “Leadership” page is every manager.
 
-The audience for individual department pages are the people working with and within that department (in that order, with “Contact us” and other generally useful information and intake channels listed first).
+The audience for individual department pages are the people working with and  that department (in that order, with “Contact us” and other generally useful information and intake channels listed first).
 This pass through the handbook has also eliminated several pages in favor of getting more onto single pages.  This is because there is still a lot of duplication, and it’s easier to deal with when everything is on a single page.
 
 
@@ -76,7 +76,7 @@ If you have any questions or feedback, please make a pull request.
 
 Departmental page structure:
 - `# Name of department`
-  - "This handbook page details processes specific to working `[with](#contact-us)` and `[within](#responsibilities)` this department." 
+  - "This handbook page details processes specific to working [with](#contact-us) and [within](#responsibilities) this department." 
 
   - `## Team`
     - Table that displays each position and the team member(s) that fill that position, linking each Fleetie's LinkedIn to their name and GitHub to GitHub user name. See [handbook/digital-experience#team](https://fleetdm.com/handbook/digital-experience#team) for example.
