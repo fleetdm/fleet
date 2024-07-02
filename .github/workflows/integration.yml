@@ -238,7 +238,7 @@ jobs:
 
     - name: Uninstall Orbit
       run: |
-        ./orbit/tools/cleanup/cleanup_macos.sh
+        sudo ./orbit/tools/cleanup/cleanup_macos.sh
 
   orbit-ubuntu:
     timeout-minutes: 10
