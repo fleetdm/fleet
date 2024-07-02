@@ -24,6 +24,8 @@ Below is the JSON payload that is sent to Fleet Device Management Inc:
   "mdmMacOsEnabled": true,
   "hostExpiryEnabled": true,
   "mdmWindowsEnabled": false,
+  "abmTokenExpiresAt": "2024-03-20T11:45:37Z",
+  "apnsCertificateExpiresAt": "2024-03-20T11:58:01Z",
   "liveQueryDisabled": false,
   "numWeeklyActiveUsers": 999,
   "numWeeklyPolicyViolationDaysActual": 999,
