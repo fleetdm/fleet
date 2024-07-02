@@ -27,6 +27,25 @@ import RenewTokenModal from "./modals/RenewTokenModal";
 
 const baseClass = "apple-automatic-enrollment-page";
 
+const ButtonWrap = ({
+  onClickDisable,
+  onClickRenew,
+}: {
+  onClickDisable: () => void;
+  onClickRenew: () => void;
+}) => {
+  return (
+    <div className={`${baseClass}__button-wrap`}>
+      <Button variant="inverse" onClick={onClickDisable}>
+        Disable automatic enrollment
+      </Button>
+      <Button variant="brand" onClick={onClickRenew}>
+        Renew token
+      </Button>
+    </div>
+  );
+};
+
 const AppleAutomaticEnrollmentPage = ({
   router,
 }: {
@@ -49,7 +68,8 @@ const AppleAutomaticEnrollmentPage = ({
     () => mdmAppleBmAPI.getAppleBMInfo(),
     {
       refetchOnWindowFocus: false,
-      retry: (tries, error) => error.status !== 404 && tries <= 3,
+      retry: (tries, error) =>
+        error.status !== 404 && error.status !== 400 && tries <= 3,
     }
   );
 
@@ -123,13 +143,8 @@ const AppleAutomaticEnrollmentPage = ({
     return <Spinner />;
   }
 
-  if (errorMdmAppleBm && errorMdmAppleBm?.status !== 404) {
-    return (
-      <MainContent className={baseClass}>
-        <DataError />
-      </MainContent>
-    );
-  }
+  const showDataError = errorMdmAppleBm && errorMdmAppleBm.status !== 404;
+  const showConnectAbm = !mdmAppleBm;
 
   return (
     <MainContent className={baseClass}>
@@ -140,7 +155,16 @@ const AppleAutomaticEnrollmentPage = ({
           className={`${baseClass}__back-to-automatic-enrollment`}
         />
         <h1>Apple Business Manager (ABM)</h1>
-        {mdmAppleBm ? (
+        {showDataError && (
+          <div>
+            <DataError />
+            <ButtonWrap
+              onClickDisable={onClickDisable}
+              onClickRenew={onClickRenew}
+            />
+          </div>
+        )}
+        {!showDataError && !showConnectAbm && (
           <div>
             <h4>Apple ID</h4>
             <p>{mdmAppleBm.apple_id}</p>
@@ -150,16 +174,13 @@ const AppleAutomaticEnrollmentPage = ({
             <p>{mdmAppleBm.mdm_server_url}</p>
             <h4>Renew date</h4>
             <p>{readableDate(mdmAppleBm.renew_date)}</p>
-            <div className={`${baseClass}__button-wrap`}>
-              <Button variant="inverse" onClick={onClickDisable}>
-                Disable automatic enrollment
-              </Button>
-              <Button variant="brand" onClick={onClickRenew}>
-                Renew token
-              </Button>
-            </div>
+            <ButtonWrap
+              onClickDisable={onClickDisable}
+              onClickRenew={onClickRenew}
+            />
           </div>
-        ) : (
+        )}
+        {!showDataError && showConnectAbm && (
           <>
             <p>
               Connect Fleet to your Apple Business Manager account to

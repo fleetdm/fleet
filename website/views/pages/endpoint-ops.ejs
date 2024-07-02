@@ -35,7 +35,7 @@
           <% }%>
           <div purpose="button-row" class="d-flex flex-md-row flex-column justify-content-start align-items-center">
             <a purpose="cta-button" href="/register">Start now</a>
-            <a purpose="animated-arrow-button-red" href="/contact">Talk to us</a>
+            <animated-arrow-button href="/contact">Talk to us</animated-arrow-button>
           </div>
         </div>
       </div>
@@ -114,7 +114,7 @@
       </div>
     </div>
     <logo-carousel></logo-carousel>
-  <%-  partial('../partials/calendar-banner.partial.ejs') %>
+
 
     <% if(!primaryBuyingSituation || ['mdm', 'eo-it'].includes(primaryBuyingSituation)){%>
     <div purpose="feature" class="d-flex flex-md-row flex-column-reverse justify-content-between mx-auto align-items-center">
@@ -171,9 +171,9 @@
         </div>
 
         <div purpose="feature-item">
-          <img alt="Get in front of the IdP" src="/images/icon-automatic-posture-assessment-48x48@2x.png" class="mx-auto mx-sm-0">
-          <h5>Get in front of the IdP</h5>
-          <p>Gate access with <a href="/queries">common device trust policies</a> from industry peers, or roll out your own device health checks using system data and events.</p>
+          <img alt="Verify updates and settings" src="/images/icon-edr-health-check-48x48@2x.png" class="mx-auto mx-sm-0">
+          <h5>EDR health checks</h5>
+          <p>Verify that your EDR tools are installed and working so you can identify and address configuration issues quickly.</p>
         </div>
 
         <div purpose="feature-item" class="mr-sm-0 mb-0">
@@ -181,15 +181,6 @@
           <h5>Verify updates and settings</h5>
           <p>Track progress towards deadlines for security posture remediation projects, and enforce due dates through automations.</p>
         </div>
-      </div>
-      <div purpose="feature-row" class="d-flex flex-sm-row flex-column align-items-sm-start align-items-center">
-        <div purpose="feature-item" class="ml-sm-0 mb-0">
-          <img alt="Verify updates and settings" src="/images/icon-edr-health-check-48x48@2x.png" class="mx-auto mx-sm-0">
-          <h5>EDR health checks</h5>
-          <p>Verify that your EDR tools are installed and working so you can identify and address configuration issues quickly.</p>
-        </div>
-        <div purpose="feature-item" class="ml-sm-0 mb-0"></div>
-        <div purpose="feature-item" class="ml-sm-0 mb-0"></div>
       </div>
       <p purpose="feature-footnote">*Currently limited to: macOS, Linux, Windows, Chromebooks, OT, data centers, Amazon Web Services (AWS), Google Cloud (GCP), and the Microsoft Cloud (Azure).</p>
     </div>
@@ -207,7 +198,37 @@
         <img alt="Ship data to any platform" src="/images/endpoint-ops-feature-image-1-381x282@2x.png">
       </div>
     </div>
+    <%/* Implement “zero trust” faster section */%>
+    <div purpose="page-section">
+      <div purpose="feature-headline" style="max-width: 580px;">
+        <h3>“Zero” trust, fewer tickets</h3>
+        <p>You can use Fleet’s API to customize every aspect of conditional access – even the stuff your CISO hasn’t thought of yet.</p>
+      </div>
 
+      <div purpose="three-column-features" class="mx-auto">
+        <div purpose="feature-row" class="d-flex flex-sm-row flex-column align-items-sm-start align-items-center justify-content-center">
+
+          <div purpose="feature-item" class="ml-sm-0">
+            <img alt="Get in front of the IdP" src="/images/device-management-icon-control-login-experience-48x48@2x.png" class="mx-auto mx-sm-0">
+            <h5>Get in front of the IdP</h5>
+            <p>Gate access with <a href="https://fleetdm.com/queries">common device trust policies</a> from industry peers, or roll out your own device health checks using system data and events.</p>
+          </div>
+
+          <div purpose="feature-item">
+            <img alt="Step-by-step instructions" src="/images/device-management-icon-step-by-step-48x48@2x.png" class="mx-auto mx-sm-0">
+            <h5>Step-by-step instructions</h5>
+            <p>Show resolution steps or use <a href="https://medium.com/pinterest-engineering/enforcing-device-authn-compliance-at-pinterest-a74938cb089b" target="_blank">custom HTML</a> to show employees what they need to do to restore their access without waiting on a ticket. Then give it back automatically, as soon as the problems are fixed.</p>
+          </div>
+
+          <div purpose="feature-item" class="mr-sm-0 mb-0">
+            <img alt="Manage device posture" src="/images/device-management-icon-manage-device-posture-48x48@2x.png" class="mx-auto mx-sm-0">
+            <h5>Live retry</h5>
+            <p>Give people a way to get back to work quickly and minimize downtime. Fleet’s live query API instantly re-checks the OS version and other device state so users don’t get locked out.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    <%-  partial('../partials/calendar-banner.partial.ejs') %>
     <div purpose="feature" class="d-flex flex-md-row flex-column justify-content-between mx-auto align-items-center">
       <div purpose="feature-image" class="right">
         <img alt="Ship data to any platform" src="/images/endpoint-ops-feature-image-2-380x380@2x.png">
@@ -280,7 +301,7 @@
     <div purpose="tweets-container" class="container-fluid px-md-0 pb-0 d-flex flex-column justify-content-center">
       <div purpose="section-heading" class="mx-auto text-center">
         <h4>Who else uses Fleet?</h4>
-        <h3>Empowering <%= ['mdm'].includes(primaryBuyingSituation) ? 'IT and corporate engineering' : ['eo-it'].includes(primaryBuyingSituation) ? 'IT and platform' : ['eo-security'].includes(primaryBuyingSituation) ? 'security and platform' : ['vm'].includes(primaryBuyingSituation) ? 'security and IT' : 'IT and security' %> teams, globally</h3>
+        <h3>Empowering <%= ['mdm'].includes(primaryBuyingSituation) ? 'IT and corporate engineering' : ['eo-it'].includes(primaryBuyingSituation) ? 'IT and client platform' : ['eo-security'].includes(primaryBuyingSituation) ? 'security and platform' : ['vm'].includes(primaryBuyingSituation) ? 'security and IT' : 'IT and security' %> teams, globally</h3>
       </div>
     </div>
 
@@ -292,7 +313,7 @@
         <h3><%= primaryBuyingSituation==='eo-security'? 'Instrument your endpoints' : 'Understand your computers'%></h3>
         <div purpose="button-row" style="margin-top: 32px;" class="d-flex flex-md-row flex-column justify-content-center align-items-center mx-auto">
           <a purpose="cta-button" href="/register">Start now</a>
-          <a purpose="animated-arrow-button-red" href="/contact">Talk to us</a>
+          <animated-arrow-button href="/contact">Talk to us</animated-arrow-button>
         </div>
       </div>
     </div>
