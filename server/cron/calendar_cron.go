@@ -475,27 +475,14 @@ func attemptCreatingEventOnUserCalendar(
 
 func getPreferredCalendarEventDate(year int, month time.Month, today int) time.Time {
 	const (
-		// 3rd Tuesday of Month
+		// Any Tuesday of Month
 		preferredWeekDay = time.Tuesday
-		preferredOrdinal = 3
 	)
-
-	firstDayOfMonth := time.Date(year, month, 1, 0, 0, 0, 0, time.UTC)
-	offset := int(preferredWeekDay - firstDayOfMonth.Weekday())
-	if offset < 0 {
-		offset += 7
+	currentDate := time.Date(year, month, today, 0, 0, 0, 0, time.UTC)
+	for currentDate.Weekday() != preferredWeekDay {
+		currentDate = currentDate.AddDate(0, 0, 1)
 	}
-	preferredDate := firstDayOfMonth.AddDate(0, 0, offset+(7*(preferredOrdinal-1)))
-	if today > preferredDate.Day() {
-		// We are past the preferred date, so we move to next month and calculate again.
-		month := month + 1
-		if month == 13 {
-			month = 1
-			year += 1
-		}
-		return getPreferredCalendarEventDate(year, month, 1)
-	}
-	return preferredDate
+	return currentDate
 }
 
 func addBusinessDay(date time.Time) time.Time {
