@@ -167,13 +167,17 @@ const generateTableHeaders = (
     },
     {
       title: "Yes",
-      Header: () => (
-        <PassingColumnHeader
-          isPassing
-          timeSinceHostCountUpdate={timeSinceHostCountUpdate}
+      Header: (cellProps) => (
+        <HeaderCell
+          value={
+            <PassingColumnHeader
+              isPassing
+              timeSinceHostCountUpdate={timeSinceHostCountUpdate}
+            />
+          }
+          isSortedDesc={cellProps.column.isSortedDesc}
         />
       ),
-      disableSortBy: true,
       accessor: "passing_host_count",
       Cell: (cellProps: ICellProps): JSX.Element => {
         if (cellProps.row.original.has_run) {
