@@ -28,7 +28,6 @@ Below is the JSON payload that is sent to Fleet Device Management Inc:
   "aiFeaturesDisabled": false,
   "maintenanceWindowsConfigured": true,
   "maintenanceWindowsEnabled": true,
-  "maintenanceWindowsConfigured": true,
   "numHostsFleetDesktopEnabled": true,
   "numWeeklyActiveUsers": 999,
   "numWeeklyPolicyViolationDaysActual": 999,
