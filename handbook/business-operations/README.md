@@ -384,7 +384,7 @@ Within 60 days of the end of the year, follow these steps:
 
 
 ### Process a new vendor invoice
-- All invoices should be submitted to [billing@fleetdm.com](mailto:billing@fleetdm.com)
+Fleet pays its vendors in less than 15 business days in most cases. All invoices and tax documents should be submitted to the Business Operations department using the [appropriate Fleet email address (confidential Google Doc)](https://docs.google.com/document/d/1tE-NpNfw1icmU2MjYuBRib0VWBPVAdmq4NiCrpuI0F0/edit#heading=h.wqalwz1je6rq).
 - After making sure the invoice received from a new vendor is valid, add the new vendor to the recurring expenses section of ["The numbers"](https://docs.google.com/spreadsheets/d/1X-brkmUK7_Rgp7aq42drNcUg8ZipzEiS153uKZSabWc/edit#gid=2112277278) before paying the invoice.
 - If we have not paid this vendor before, make sure we have received the required W-9 or W-8 form from the vendor.
   - For US-based vendors, vendors are required to provide a completed [W-9 Form ](https://www.irs.gov/pub/irs-pdf/fw9.pdf) to [accounting@fleetdm.com](mailto:accounting@fleetdm.com)
