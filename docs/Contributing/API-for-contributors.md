@@ -2476,6 +2476,7 @@ Gets all information required by Fleet Desktop, this includes things like the nu
 ```json
 {
   "failing_policies_count": 3,
+  "self_service": true,
   "notifications": {
     "needs_mdm_migration": true,
     "renew_enrollment_profile": false,
