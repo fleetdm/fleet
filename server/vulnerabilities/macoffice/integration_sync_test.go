@@ -12,8 +12,6 @@ import (
 )
 
 func TestIntegrationSync(t *testing.T) {
-	t.Skip("failing consistently at the moment, bring it back before merging feature branch")
-
 	nettest.Run(t)
 
 	vulnPath := t.TempDir()
