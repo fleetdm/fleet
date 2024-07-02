@@ -56,7 +56,7 @@ const TooltipWrapper = ({
   clickable = true,
   disableTooltip = false,
   showArrow = false,
-  fixedPositionStrategy,
+  fixedPositionStrategy = false,
 }: ITooltipWrapper) => {
   const wrapperClassNames = classnames(baseClass, className, {
     "show-arrow": showArrow,
@@ -91,7 +91,7 @@ const TooltipWrapper = ({
           disableStyleInjection
           clickable={clickable}
           offset={tipOffset}
-          positionStrategy={fixedPositionStrategy ? "fixed" : undefined}
+          positionStrategy={fixedPositionStrategy ? "fixed" : "absolute"}
         >
           {tipContent}
         </ReactTooltip5>
