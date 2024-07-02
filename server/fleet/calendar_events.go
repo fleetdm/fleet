@@ -16,8 +16,8 @@ type CalendarEvent struct {
 
 type CalendarEventDetails struct {
 	CalendarEvent
-	TeamID uint `db:"team_id"`
-	HostID uint `db:"host_id"`
+	TeamID *uint `db:"team_id"` // Should not be nil, but is nullable in the database
+	HostID uint  `db:"host_id"`
 }
 
 type CalendarWebhookStatus int

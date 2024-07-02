@@ -77,6 +77,13 @@ func testUpdateCalendarEvent(t *testing.T, ds *Datastore) {
 	calendarEvent.UUID = calendarEvent2.UUID
 	require.Equal(t, *calendarEvent, *calendarEvent2)
 
+	eventDetails, err := ds.GetCalendarEventDetailsByUUID(ctx, eventUUIDNew)
+	require.NoError(t, err)
+	assert.Equal(t, eventUUIDNew, eventDetails.UUID)
+	assert.Equal(t, *calendarEvent, eventDetails.CalendarEvent)
+	assert.Equal(t, host.ID, eventDetails.HostID)
+	assert.Nil(t, eventDetails.TeamID)
+
 	// TODO(lucas): Add more tests here.
 }
 

@@ -42,6 +42,10 @@ func (svc *Service) CalendarWebhook(ctx context.Context, eventUUID string, chann
 		}
 		return err
 	}
+	if eventDetails.TeamID == nil {
+		// Should not happen
+		return fmt.Errorf("calendar event %s has no team ID", eventUUID)
+	}
 
 	localConfig := &calendar.CalendarConfig{
 		GoogleCalendarIntegration: *googleCalendarIntegrationConfig,
@@ -63,7 +67,7 @@ func (svc *Service) CalendarWebhook(ctx context.Context, eventUUID string, chann
 
 		// This function is called when a new event is being created.
 		var team *fleet.Team
-		team, err = svc.ds.TeamWithoutExtras(ctx, eventDetails.TeamID)
+		team, err = svc.ds.TeamWithoutExtras(ctx, *eventDetails.TeamID)
 		if err != nil {
 			return "", false, err
 		}
