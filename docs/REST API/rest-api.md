@@ -2444,6 +2444,7 @@ the `software` table.
 | mdm_id                  | integer | query | The ID of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider and URL).                                                                                                                                                                                                |
 | mdm_name                | string  | query | The name of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider).                                                                                                                                                                                                |
 | mdm_enrollment_status   | string  | query | The _mobile device management_ (MDM) enrollment status to filter hosts by. Valid options are 'manual', 'automatic', 'enrolled', 'pending', or 'unenrolled'.                                                                                                                                                                                                             |
+| connected_to_fleet   | string  | query | Filter hosts that are connected and controlled by your Fleet server. Some hosts can be enrolled in MDM solution "Fleet" but pointing to other Fleet servers and not yours.                                                                                                                            |
 | macos_settings          | string  | query | Filters the hosts by the status of the _mobile device management_ (MDM) profiles applied to hosts. Valid options are 'verified', 'verifying', 'pending', or 'failed'. **Note: If this filter is used in Fleet Premium without a team ID filter, the results include only hosts that are not assigned to any team.**                                                                                                                                                                                                             |
 | munki_issue_id          | integer | query | The ID of the _munki issue_ (a Munki-reported error or warning message) to filter hosts by (that is, filter hosts that are affected by that corresponding error or warning message).                                                                                                                                                        |
 | low_disk_space          | integer | query | _Available in Fleet Premium_. Filters the hosts to only include hosts with less GB of disk space available than this value. Must be a number between 1-100.                                                                                                                                                                                  |
@@ -3030,10 +3031,11 @@ Returns the information of the specified host.
       }
     },
     "mdm": {
-      "encryption_key_available": false,
-      "enrollment_status": null,
-      "name": "",
-      "server_url": null,
+      "encryption_key_available": true,
+      "enrollment_status": "On (manual)",
+      "name": "Fleet",
+      "connected_to_fleet": true,
+      "server_url": "https://acme.com/mdm/apple/mdm",
       "device_status": "unlocked",
       "pending_action": "",
       "macos_settings": {
@@ -3449,10 +3451,11 @@ This is the API route used by the **My device** page in Fleet desktop to display
       }
     ],
     "mdm": {
-      "encryption_key_available": false,
-      "enrollment_status": null,
-      "name": "",
-      "server_url": null,
+      "encryption_key_available": true,
+      "enrollment_status": "On (manual)",
+      "name": "Fleet",
+      "connected_to_fleet": true,
+      "server_url": "https://acme.com/mdm/apple/mdm",
       "macos_settings": {
         "disk_encryption": null,
         "action_required": null
