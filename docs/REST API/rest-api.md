@@ -6318,6 +6318,7 @@ This endpoint returns the list of custom MDM commands that have been executed.
 
 - [Get Apple Push Notification service (APNs)](#get-apple-push-notification-service-apns)
 - [Get Apple Business Manager (ABM)](#get-apple-business-manager-abm)
+- [Get Volume Purchasing Program (VPP)](#get-volume-purchasing-program-vpp)
 
 ### Get Apple Push Notification service (APNs)
 
@@ -6369,6 +6370,28 @@ None.
   "mdm_server_url": "https://example.com/mdm/apple/mdm",
   "renew_date": "2023-11-29T00:00:00Z",
   "default_team": ""
+}
+```
+
+Get Volume Purchasing Program (VPP)
+
+_Available in Fleet Premium_
+
+`GET /api/v1/fleet/vpp`
+
+#### Example
+
+`GET /api/v1/fleet/vpp`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "org_name": "Acme Inc.",
+  "renew_date": "2023-11-29T00:00:00Z",
+  "location": "Acme Inc. Main Address"
 }
 ```
 
@@ -8547,16 +8570,18 @@ Deletes the session specified by ID. When the user associated with the session n
 
 ## Software
 
-- [Add software](#add-software)
-- [Download software](#download-software)
-- [Delete software](#delete-software)
+- [Add software package](#add-software)
+- [Download software package](#download-software)
+- [Delete software available for install](#delete-software)
 - [Get installation result](#get-installation-result)
 - [List software](#list-software)
 - [List software versions](#list-software-versions)
 - [Get software](#get-software)
 - [Get software version](#get-software-version)
+- [Get available App Store apps](#get-available-app-store-apps)
+- [Add App Store app](#add-app-store-app)
 
-### Add software
+### Add software package
 
 _Available in Fleet Premium._
 
@@ -8613,13 +8638,11 @@ Content-Type: application/octet-stream
 `Status: 200`
 
 
-### Download software
+### Download software available for install
 
 _Available in Fleet Premium._
 
-Download a software package.
-
-`GET /api/v1/fleet/software/titles/:software_title_id/package/?alt=media`
+`GET /api/v1/fleet/software/titles/:software_title_id/package?alt=media`
 
 #### Parameters
 
@@ -8645,24 +8668,24 @@ Content-Length: <length>
 Body: <blob>
 ```
 
-### Delete software
+### Delete software available for install
 
 _Available in Fleet Premium._
 
-Delete a software package.
+Deletes software that's available for install (package or App Store app).
 
-`DELETE /api/v1/fleet/software/titles/:software_title_id/package`
+`DELETE /api/v1/fleet/software/titles/:software_title_id/available_for_install`
 
 #### Parameters
 
 | Name            | Type    | In   | Description                                      |
 | ----            | ------- | ---- | --------------------------------------------     |
-| software_title_id              | integer | path | **Required**. The ID of the software title for the software package to delete. |
+| software_title_id              | integer | path | **Required**. The ID of the software title to delete software available for install. |
 | team_id | integer | query | **Required**. The team ID. Deletes a software package added to the specified team. |
 
 #### Example
 
-`DELETE /api/v1/fleet/software/titles/24/package?team_id=2`
+`DELETE /api/v1/fleet/software/titles/24?team_id=2`
 
 ##### Default response
 
@@ -8720,8 +8743,7 @@ Get a list of all software.
 | query                   | string  | query | Search query keywords. Searchable fields include `title` and `cve`.                                                                                             |
 | team_id                 | integer | query | _Available in Fleet Premium_. Filters the software to only include the software installed on the hosts that are assigned to the specified team.                             |
 | vulnerable              | bool    | query | If true or 1, only list software that has detected vulnerabilities. Default is `false`.                                                                                    |
-| available_for_insall    | bool    | query | If `true` or `1`, only list software that is available for install (added by the user). Default is `false`.                                                                                    |
-
+| available_for_install   | bool    | query | If `true` or `1`, only list software that is available for install (added by the user). Default is `false`.                                                               |
 #### Example
 
 `GET /api/v1/fleet/software/titles`
@@ -8916,6 +8938,7 @@ Returns information about the specified software. By default, `versions` are sor
   "software_title": {
     "id": 12,
     "name": "Firefox.app",
+    "bundle_identifier": "org.mozilla.firefox",
     "software_package": {
       "name": "FalconSensor-6.44.pkg",
       "version": "6.44",
@@ -9011,8 +9034,69 @@ Returns information about the specified software version.
 }
 ```
 
-## Vulnerabilities
+### Get available App Store apps
 
+Returns the list of App Store (VPP) apps purchased in Apple Business Manager.
+
+`GET /api/v1/fleet/software/app_store/:team_id`
+
+#### Parameters
+
+| Name    | Type | In | Description |
+| ------- | ---- | -- | ----------- |
+| team_id | integer | query | **Required**. The team ID. Lists available VPP software for specified team. |
+
+#### Example
+
+`GET /api/v1/fleet/software/app_store/3`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "app_store_apps": {
+    {
+      "name": "Xcode",
+      "latest_version": "15.4",
+      "app_store_id": 497799835,
+      "added": true
+    },
+    {
+      "name": "Logic Pro",
+      "latest_version": "2.04",
+      "app_store_id": 634148309,
+      "added": false
+    },
+}
+}
+```
+
+### Add App Store app
+
+_Available in Fleet Premium._
+
+Add App Store (VPP) app purchased in Apple Business Manager.
+
+`POST /api/v1/fleet/software/app_store/:app_store_id`
+
+#### Parameters
+
+| Name | Type | In | Description |
+| ---- | ---- | -- | ----------- |
+| app_store_id   | integer | path | **Required.** The ID of App Store app. |
+| team_id       | integer | query | **Required**. The team ID. Adds VPP software to the specified team.  |
+
+#### Example
+
+`POST /api/v1/fleet/software/app_store/2?team_id=3`
+
+##### Default response
+
+`Status: 200`
+
+## Vulnerabilities
 
 - [List vulnerabilities](#list-vulnerabilities)
 - [Get vulnerability](#get-vulnerability)
