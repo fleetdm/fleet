@@ -502,7 +502,7 @@ func goosFromPlatform(platform string) (string, error) {
 
 func goarchFromPlatform(platform string) ([]string, error) {
 	switch platform {
-	case "macos":
+	case "macos", "macos-app":
 		return []string{"amd64", "arm64"}, nil
 	case "windows":
 		return []string{"amd64"}, nil
