@@ -2,9 +2,10 @@ import PATHS from "router/paths";
 
 import { ISideNavItem } from "../components/SideNav/SideNav";
 import Integrations from "./cards/Integrations";
-import Mdm from "./cards/MdmSettings/MdmSettings";
-import AutomaticEnrollment from "./cards/AutomaticEnrollment/AutomaticEnrollment";
-import Calendars from "./cards/Calendars/Calendars";
+import MdmSettings from "./cards/MdmSettings";
+import AutomaticEnrollment from "./cards/AutomaticEnrollment";
+import Calendars from "./cards/Calendars";
+import Vpp from "./cards/Vpp";
 
 const integrationSettingsNavItems: ISideNavItem<any>[] = [
   // TODO: types
@@ -18,7 +19,7 @@ const integrationSettingsNavItems: ISideNavItem<any>[] = [
     title: "Mobile device management (MDM)",
     urlSection: "mdm",
     path: PATHS.ADMIN_INTEGRATIONS_MDM,
-    Card: Mdm,
+    Card: MdmSettings,
   },
   {
     title: "Automatic enrollment",
@@ -31,6 +32,12 @@ const integrationSettingsNavItems: ISideNavItem<any>[] = [
     urlSection: "calendars",
     path: PATHS.ADMIN_INTEGRATIONS_CALENDARS,
     Card: Calendars,
+  },
+  {
+    title: "Volume Purchasing Program (VPP)",
+    urlSection: "vpp",
+    path: PATHS.ADMIN_INTEGRATIONS_VPP,
+    Card: Vpp,
   },
 ];
 

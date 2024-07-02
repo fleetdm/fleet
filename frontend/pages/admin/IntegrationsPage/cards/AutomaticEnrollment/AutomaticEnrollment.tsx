@@ -1,11 +1,10 @@
-import React, { useCallback, useContext, useState } from "react";
+import React, { useContext } from "react";
 import { useQuery } from "react-query";
 import { AxiosError } from "axios";
 import { InjectedRouter } from "react-router";
 
 import PATHS from "router/paths";
 import { AppContext } from "context/app";
-import { IConfig } from "interfaces/config";
 import { IMdmApple } from "interfaces/mdm";
 import mdmAppleAPI from "services/entities/mdm_apple";
 

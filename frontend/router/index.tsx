@@ -61,6 +61,7 @@ import MacOSMdmPage from "pages/admin/IntegrationsPage/cards/MdmSettings/MacOSMd
 import Scripts from "pages/ManageControlsPage/Scripts/Scripts";
 import AppleAutomaticEnrollmentPage from "pages/admin/IntegrationsPage/cards/AutomaticEnrollment/AppleAutomaticEnrollmentPage";
 import WindowsAutomaticEnrollmentPage from "pages/admin/IntegrationsPage/cards/AutomaticEnrollment/WindowsAutomaticEnrollmentPage";
+import VppSetupPage from "pages/admin/IntegrationsPage/cards/Vpp/VppSetupPage";
 import HostQueryReport from "pages/hosts/details/HostQueryReport";
 import SoftwarePage from "pages/SoftwarePage";
 import SoftwareTitles from "pages/SoftwarePage/SoftwareTitles";
@@ -166,6 +167,7 @@ const routes = (
               path="integrations/automatic-enrollment/windows"
               component={WindowsAutomaticEnrollmentPage}
             />
+            <Route path="integrations/vpp/setup" component={VppSetupPage} />
             <Route path="teams" component={TeamDetailsWrapper}>
               <Redirect from="members" to="users" />
               <Route path="users" component={UsersPage} />
