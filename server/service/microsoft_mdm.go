@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/x509"
+	"database/sql"
 	"encoding/base64"
 	"encoding/json"
 	"encoding/xml"
@@ -19,6 +20,7 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/fleetdbase"
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
@@ -613,6 +615,14 @@ func NewCertStoreProvisioningData(enrollmentType string, identityFingerprint str
 	return certStore
 }
 
+// IsEligibleForWindowsMDMEnrollment returns true if the host can be enrolled
+// in Fleet's Windows MDM (if it was enabled).
+func IsEligibleForWindowsMDMEnrollment(host *fleet.Host, mdmInfo *fleet.HostMDM) bool {
+	return host.FleetPlatform() == "windows" &&
+		host.IsOsqueryEnrolled() &&
+		(mdmInfo == nil || (!mdmInfo.IsServer && !mdmInfo.Enrolled))
+}
+
 // NewApplicationProvisioningData returns a new ApplicationProvisioningData Characteristic
 // The Application Provisioning configuration is used for bootstrapping a device with an OMA DM account
 // The paramenters here maps to the W7 application CSP
@@ -960,8 +970,13 @@ func (svc *Service) authBinarySecurityToken(ctx context.Context, authToken *flee
 				return "", "", fmt.Errorf("host data cannot be found %v", err)
 			}
 
+			mdmInfo, err := svc.ds.GetHostMDM(ctx, host.ID)
+			if err != nil && !errors.Is(err, sql.ErrNoRows) {
+				return "", "", errors.New("unable to retrieve host mdm info")
+			}
+
 			// This ensures that only hosts that are eligible for Windows enrollment can be enrolled
-			if !host.IsEligibleForWindowsMDMEnrollment() {
+			if !IsEligibleForWindowsMDMEnrollment(host, mdmInfo) {
 				return "", "", errors.New("host is not elegible for Windows MDM enrollment")
 			}
 
@@ -1312,6 +1327,15 @@ func (svc *Service) enqueueInstallFleetdCommand(ctx context.Context, deviceID st
 		return nil
 	}
 
+	// it's okay to skip the installation if we're not able to retrieve the
+	// metadata, we don't want to completely error the SyncML transaction
+	// and we'll try again the next time the host checks in
+	fleetdMetadata, err := fleetdbase.GetMetadata()
+	if err != nil {
+		level.Warn(svc.logger).Log("msg", "unable to get fleetd-base metadata")
+		return nil
+	}
+
 	appCfg, err := svc.ds.AppConfig(ctx)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "getting app config")
@@ -1346,11 +1370,11 @@ func (svc *Service) enqueueInstallFleetdCommand(ctx context.Context, deviceID st
 			<Product Version="1.0.0.0">
 				<Download>
 					<ContentURLList>
-						<ContentURL>https://download.fleetdm.com/fleetd-base.msi</ContentURL>
+						<ContentURL>` + fleetdMetadata.MSIURL + `</ContentURL>
 					</ContentURLList>
 				</Download>
 				<Validation>
-					<FileHash>9F89C57D1B34800480B38BD96186106EB6418A82B137A0D56694BF6FFA4DDF1A</FileHash>
+					<FileHash>` + fleetdMetadata.MSISha256 + `</FileHash>
 				</Validation>
 				<Enforcement>
 					<CommandLine>/quiet FLEET_URL="` + fleetURL + `" FLEET_SECRET="` + globalEnrollSecret + `" ENABLE_SCRIPTS="True"</CommandLine>

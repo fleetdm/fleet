@@ -42,6 +42,7 @@ jobs:
   test-go:
     strategy:
       matrix:
+        suite: ["integration", "core"]
         os: [ubuntu-latest]
         go-version: ['${{ vars.GO_VERSION }}']
         mysql: ["mysql:5.7.21", "mysql:8.0.28"]
@@ -110,7 +111,15 @@ jobs:
 
     - name: Run Go Tests
       run: |
-        GO_TEST_EXTRA_FLAGS="-v -race=$RACE_ENABLED -timeout=$GO_TEST_TIMEOUT" \
+        if [[ "${{ matrix.suite }}" == "core" ]]; then
+          RUN_TESTS_ARG='-skip=^TestIntegrations'
+        elif [[ "${{ matrix.suite }}" == "integration" ]]; then
+          RUN_TESTS_ARG='-run=^TestIntegrations'
+        else
+          RUN_TESTS_ARG=''
+        fi
+
+        GO_TEST_EXTRA_FLAGS="-v -race=$RACE_ENABLED -timeout=$GO_TEST_TIMEOUT $RUN_TESTS_ARG" \
           TEST_LOCK_FILE_PATH=$(pwd)/lock \
           NETWORK_TEST=1 \
           REDIS_TEST=1 \
@@ -122,6 +131,8 @@ jobs:
           NETWORK_TEST_GITHUB_TOKEN=${{ secrets.FLEET_RELEASE_GITHUB_PAT }} \
           make test-go 2>&1 | tee /tmp/gotest.log
 
+    # note: it's fine to upload multiple reports (one per matrix combination)
+    # for the same run, see https://docs.codecov.com/docs/merging-reports
     - name: Upload to Codecov
       uses: codecov/codecov-action@d9f34f8cd5cb3b3eb79b3e4b5dae3a16df499a70
       with:
@@ -144,6 +155,10 @@ jobs:
         fi
         GO_FAIL_SUMMARY=$GO_FAIL_SUMMARY envsubst < .github/workflows/config/slack_payload_template.json > ./payload.json
 
+    # TODO: figure out a sane way to combine outputs from different matrix jobs
+    # into a single slack notification, instead of sending one per job. This
+    # problem already existed but now it's accentuated because we're running 4
+    # jobs.
     - name: Slack Notification
       if: github.event.schedule == '0 4 * * *' && failure()
       uses: slackapi/slack-github-action@e28cf165c92ffef168d23c5c9000cffc8a25e117 # v1.24.0

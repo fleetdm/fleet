@@ -8259,6 +8259,90 @@ func (s *integrationTestSuite) TestGetHostBatteries() {
 	}, *getHostResp.Host.Batteries)
 }
 
+func (s *integrationTestSuite) TestGetHostMaintenanceWindow() {
+	t := s.T()
+	ctx := context.Background()
+
+	host, err := s.ds.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         ptr.String("1"),
+		UUID:            "1",
+		Hostname:        "foo.local",
+		PrimaryIP:       "192.168.1.1",
+		PrimaryMac:      "30-65-EC-6F-C4-58",
+	})
+	require.NoError(t, err)
+	err = s.ds.ReplaceHostDeviceMapping(ctx, host.ID, []*fleet.HostDeviceMapping{
+		{
+			HostID: host.ID,
+			Email:  "foo@example.com",
+			Source: "google_chrome_profiles",
+		},
+	}, "google_chrome_profiles")
+	require.NoError(t, err)
+
+	startTime := time.Now().Add(time.Minute).In(time.UTC)
+	endTime := startTime.Add(time.Minute * 30)
+	testEvent := fleet.CalendarEvent{
+		Email:     "foo@example.com",
+		StartTime: startTime,
+		EndTime:   endTime,
+		Data:      []byte(`{}`),
+		// will replace with NULL - db method doesn't allow nil
+		TimeZone: "",
+	}
+
+	dsEvent, err := s.ds.CreateOrUpdateCalendarEvent(ctx, testEvent.Email, testEvent.StartTime, testEvent.EndTime, testEvent.Data, testEvent.TimeZone, host.ID, fleet.CalendarWebhookStatusNone)
+	require.NoError(t, err)
+
+	time.Sleep(1 * time.Second)
+
+	// DB methods don't allow nil timezone, since we only allow it for the edge case that the db has
+	// just undergone a migration and the calendar_cron has not run to populate the new `time_zone`
+	// column yet. This means we need to manually set the timezone to nil.
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, "UPDATE calendar_events SET timezone = NULL WHERE id = ?", dsEvent.ID)
+		return err
+	})
+
+	// GET host, check maintenance window
+	var getHostResp getHostResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
+	require.Equal(t, host.ID, getHostResp.Host.ID)
+	// Round to account for sub-second precision differences between DB and Go
+	require.Equal(t, testEvent.StartTime.Round(time.Second), getHostResp.Host.MaintenanceWindow.StartsAt)
+	require.Nil(t, getHostResp.Host.MaintenanceWindow.TimeZone)
+
+	timeZone := "America/Argentina/Buenos_Aires"
+	// get a time.Location from the timezone string
+	tZLoc, err := time.LoadLocation(timeZone)
+	require.NoError(t, err)
+
+	// use the time.Location to update the start time for the timezone
+	zonedStartsAt := startTime.In(tZLoc).Round(time.Second)
+
+	// update the timezone
+	_, err = s.ds.CreateOrUpdateCalendarEvent(ctx, testEvent.Email, testEvent.StartTime, testEvent.EndTime, testEvent.Data, timeZone, host.ID, fleet.CalendarWebhookStatusNone)
+	require.NoError(t, err)
+
+	time.Sleep(1 * time.Second)
+
+	// GET it again
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
+	require.Equal(t, host.ID, getHostResp.Host.ID)
+	require.Equal(t, timeZone, *getHostResp.Host.MaintenanceWindow.TimeZone)
+
+	// for equality comparison with original Go-derived start time, add a Location to the DB-derived start time, which only has an offset
+	respStartsAt := getHostResp.Host.MaintenanceWindow.StartsAt
+	respSAWithLoc, err := time.ParseInLocation("2006-01-02T15:04:05", respStartsAt.Format("2006-01-02T15:04:05"), tZLoc)
+	require.NoError(t, err)
+
+	require.Equal(t, zonedStartsAt, respSAWithLoc)
+}
+
 func (s *integrationTestSuite) TestHostByIdentifierSoftwareUpdatedAt() {
 	t := s.T()
 

@@ -1,4 +1,0 @@
-* /api/latest/fleet/hosts and /api/latest/fleet/labels/:id/hosts now return `critical_vulnerabilities_count` for premium users. This data is held in the new `host_issues` table. The failing policies total is updated in real-time, while the critical vulnerabilities total is updated every hour after vulnerabilities job.
-* /api/latest/fleet/hosts and /api/latest/fleet/labels/:id/hosts can be sorted by total_issues_count by specifying `order_key=issues` query parameter.
-* /api/latest/hosts/:id and /api/latest/hosts/identifier/:identifier now return `critical_vulnerabilities_count` for premium users.
-* For /api/latest/fleet/hosts, /api/latest/fleet/hosts/report, and /api/latest/fleet/labels/:id/hosts endpoints, the `disable_failing_policies` query parameter has been deprecated. Instead, use `disable_issues` to disable the failing policies and critical vulnerabilities counts.

@@ -340,7 +340,7 @@ Time management for the CEO is essential.  The Apprentice processes the CEO's ca
  -  Marking spam emails as read (same for emails Mike doesn't actually need to read).
  -  Escalate actionable sales communication and update Mike directly.
  -  Ensure all calendar invites have the necessary documents included.
-
+ -  Forward any emails from customers about paying Fleet to the Buisness Operations department using [Fleet's billing email](https://docs.google.com/document/d/1tE-NpNfw1icmU2MjYuBRib0VWBPVAdmq4NiCrpuI0F0/edit#heading=h.wqalwz1je6rq).
 
 ### Document performance feedback
 Every Friday at 5PM a [Business Operations team member](https://fleetdm.com/handbook/business-operations#team) will look for missing data in the [KPIs spreadsheet](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0). 

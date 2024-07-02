@@ -869,6 +869,11 @@ func insertMDMAppleHostDB(
 	return nil
 }
 
+type hostWithEnrolled struct {
+	fleet.Host
+	Enrolled *bool `db:"enrolled"`
+}
+
 func (ds *Datastore) IngestMDMAppleDevicesFromDEPSync(ctx context.Context, devices []godep.Device) (createdCount int64, teamID *uint, err error) {
 	if len(devices) < 1 {
 		level.Debug(ds.logger).Log("msg", "ingesting devices from DEP received < 1 device, skipping", "len(devices)", len(devices))
@@ -952,8 +957,8 @@ func (ds *Datastore) IngestMDMAppleDevicesFromDEPSync(ctx context.Context, devic
 			args = append(args, d.SerialNumber)
 			parts = append(parts, "?")
 		}
-		var hostsWithMDMInfo []hostWithMDMInfo
-		err = sqlx.SelectContext(ctx, tx, &hostsWithMDMInfo, fmt.Sprintf(`
+		var hostsWithEnrolled []hostWithEnrolled
+		err = sqlx.SelectContext(ctx, tx, &hostsWithEnrolled, fmt.Sprintf(`
 			SELECT
 				h.id,
 				h.platform,
@@ -971,7 +976,7 @@ func (ds *Datastore) IngestMDMAppleDevicesFromDEPSync(ctx context.Context, devic
 
 		var hosts []fleet.Host
 		var unmanagedHostIDs []uint
-		for _, h := range hostsWithMDMInfo {
+		for _, h := range hostsWithEnrolled {
 			hosts = append(hosts, h.Host)
 			if h.Enrolled == nil || !*h.Enrolled {
 				unmanagedHostIDs = append(unmanagedHostIDs, h.ID)
