@@ -46,43 +46,43 @@ module.exports = {
       pricingTable.push(allFeaturesInThisCategory);
     }
 
-    let pricingTableForSecurity = _.filter(pricingTable, (category)=>{
-      return category.categoryName !== 'Device management' && (category.usualDepartment === 'Security' || category.usualDepartment === undefined);
-    });
-    let categoryOrderForSecurityPricingTable = ['Support', 'Deployment', 'Integrations', 'Endpoint operations', 'Vulnerability management'];
-    // Sort the security-focused pricing table from the order of the elements in the categoryOrderForSecurityPricingTable array.
-    pricingTableForSecurity.sort((a, b)=>{
-      // If there is a category that is not in the list above, sort it to the end of the list.
-      if(categoryOrderForSecurityPricingTable.indexOf(a.categoryName) === -1){
-        return 1;
-      } else if(categoryOrderForSecurityPricingTable.indexOf(b.categoryName) === -1) {
-        return -1;
-      }
-      return categoryOrderForSecurityPricingTable.indexOf(a.categoryName) - categoryOrderForSecurityPricingTable.indexOf(b.categoryName);
-    });
+    // let pricingTableForSecurity = _.filter(pricingTable, (category)=>{
+    //   return category.categoryName !== 'Device management' && (category.usualDepartment === 'Security' || category.usualDepartment === undefined);
+    // });
+    // let categoryOrderForSecurityPricingTable = ['Support', 'Deployment', 'Integrations', 'Endpoint operations', 'Vulnerability management'];
+    // // Sort the security-focused pricing table from the order of the elements in the categoryOrderForSecurityPricingTable array.
+    // pricingTableForSecurity.sort((a, b)=>{
+    //   // If there is a category that is not in the list above, sort it to the end of the list.
+    //   if(categoryOrderForSecurityPricingTable.indexOf(a.categoryName) === -1){
+    //     return 1;
+    //   } else if(categoryOrderForSecurityPricingTable.indexOf(b.categoryName) === -1) {
+    //     return -1;
+    //   }
+    //   return categoryOrderForSecurityPricingTable.indexOf(a.categoryName) - categoryOrderForSecurityPricingTable.indexOf(b.categoryName);
+    // });
 
 
-    let pricingTableForIt = _.filter(pricingTable, (category)=>{
-      return category.categoryName !== 'Vulnerability management' && (category.usualDepartment === 'Security' || category.usualDepartment === undefined);
-    });
-    let categoryOrderForITPricingTable = ['Device management', 'Support', 'Deployment', 'Integrations', 'Endpoint operations'];
-    // Sort the IT-focused pricing table from the order of the elements in the categoryOrderForITPricingTable array.
-    pricingTableForIt.sort((a, b)=>{
-      // If there is a category that is not in the list above, sort it to the end of the list.
-      if(categoryOrderForITPricingTable.indexOf(a.categoryName) === -1){
-        return 1;
-      } else if(categoryOrderForITPricingTable.indexOf(b.categoryName) === -1) {
-        return -1;
-      }
-      return categoryOrderForITPricingTable.indexOf(a.categoryName) - categoryOrderForITPricingTable.indexOf(b.categoryName);
-    });
+    // let pricingTableForIt = _.filter(pricingTable, (category)=>{
+    //   return category.categoryName !== 'Vulnerability management' && (category.usualDepartment === 'Security' || category.usualDepartment === undefined);
+    // });
+    // let categoryOrderForITPricingTable = ['Device management', 'Support', 'Deployment', 'Integrations', 'Endpoint operations'];
+    // // Sort the IT-focused pricing table from the order of the elements in the categoryOrderForITPricingTable array.
+    // pricingTableForIt.sort((a, b)=>{
+    //   // If there is a category that is not in the list above, sort it to the end of the list.
+    //   if(categoryOrderForITPricingTable.indexOf(a.categoryName) === -1){
+    //     return 1;
+    //   } else if(categoryOrderForITPricingTable.indexOf(b.categoryName) === -1) {
+    //     return -1;
+    //   }
+    //   return categoryOrderForITPricingTable.indexOf(a.categoryName) - categoryOrderForITPricingTable.indexOf(b.categoryName);
+    // });
 
 
     // Respond with view.
     return {
       pricingTable,
-      pricingTableForSecurity,
-      pricingTableForIt
+      // pricingTableForSecurity,
+      // pricingTableForIt,
     };
 
   }

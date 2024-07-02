@@ -846,6 +846,16 @@ module.exports = {
             }
             feature.comingSoon = true;//« This is just an alias. FUTURE: update code elsewhere to use the new property instead, and delete this aliasing.
           }//ﬁ
+          if(feature.jamfProHasFeature !== undefined){
+            if(!['yes', 'no', 'macOnly', 'cloudOnly'].includes(feature.jamfProHasFeature)){
+              throw new Error(`Could not build pricing table config from pricing-features-table.yml. The ${feature.industryName} feature has an invalid "jamfProHasFeature" value (${feature.jamfProHasFeature}). To resolve, set the "jamfProHasFeature" value of this feature to be one of: yes, no, macOnly, or cloudOnly.`);
+            }
+          }
+          if(feature.jamfProtectHasFeature !== undefined){
+            if(!['yes', 'no', 'macOnly', 'cloudOnly'].includes(feature.jamfProtectHasFeature)){
+              throw new Error(`Could not build pricing table config from pricing-features-table.yml. The ${feature.industryName} feature has an invalid "jamfProtectHasFeature" value (${feature.jamfProtectHasFeature}). To resolve, set the "jamfProtectHasFeature" value of this feature to be one of: yes, no, macOnly, or cloudOnly.`);
+            }
+          }
         }
         builtStaticContent.pricingTable = pricingTableFeatures;
       },

@@ -33,15 +33,15 @@
     max-width: 1120px;
   }
   [purpose='pricing-switch'] {
-    width: 600px;
+    width: 392px;
     cursor: pointer;
     border: 1px solid #E2E4EA;
     border-radius: 28px;
     background: @ui-off-white;
     position: relative;
     box-shadow: 0px 2px 4px 0px rgba(0, 0, 0, 0.10) inset;
-    margin-bottom: 40px;
     margin-top: 40px;
+    margin-bottom: 40px;
     [purpose='pricing-tier-switch'] {
       position: absolute;
       top: -1px;
@@ -50,13 +50,14 @@
       border: 1px solid #E2E4EA;
       border-radius: 28px;
       height: 58px;
-      min-width: 140px;
+      min-width: 50%;
       z-index: 1;
-      transition: 0.25s all;
+      transition: transform 0.25s ease-in-out;
     }
     [purpose='pricing-switch-option'] {
-      padding: 16px 40px;
+      padding: 16px 32px;
       text-align: center;
+      width: 50%;
       cursor: pointer;
       z-index: 3;
       user-select: none;
@@ -66,13 +67,13 @@
       width: 251px;
       transform: translateX(167px);
     }
-    .IT-selected {
+    .jamf-comparison-selected {
       left: 1px;
-      width: 183px;
-      transform: translateX(416px);
+      // width: 183px;
+      transform: translateX(100%);
     }
     .all-selected {
-      width: 167px;
+      width: 50%;
     }
   }
 
@@ -216,8 +217,21 @@
     width: 110%;
   }
 
-  [purpose='features-table'].hide {
-    display: none !important; //lesshint-disable-line importantRule
+  [purpose='features-table'] {
+    transition: transform 0.15s ease-in-out;
+  }
+  [purpose='features-table'].show {
+    transform: translateY(0px);
+  }
+  [purpose='features-table'].hide {// Moves up 64px when class changes to 'show'
+    height: 0px;
+    transform: translateY(64px);
+    opacity: 0;
+  }
+  [purpose='features-table'].hidden {// Moves down 64px when class changes to 'show'
+    transform: translateY(-64px);
+    height: 0px;
+    opacity: 0;
   }
   [purpose='mobile-feature-table-section'] {
     margin-bottom: 16px;
@@ -256,6 +270,12 @@
     }
     strong {
       color: @core-fleet-black-75;
+    }
+    [purpose='table-comparison-note'] {
+      text-align: center;
+      color: #515774;
+      font-size: 14px;
+      line-height: 1.5;
     }
   }
   [purpose='premium-price-linebreak'] {
@@ -309,8 +329,16 @@
     margin-bottom: 2px;
   }
 
+  [purpose='comparison-table-note'] {
+    margin-bottom: 40px;
+    text-align: center;
+  }
   [purpose='table-checkmark'] {
-    width: 175px;
+    width: 150px;
+    text-align: center;
+    color: #515774;
+    font-size: 14px;
+    line-height: 1.5;
   }
   [purpose='pricing-categories-table'] {
     margin-bottom: 40px;
@@ -421,6 +449,24 @@
       padding-left: 24px;
       padding-right: 24px;
     }
+    [purpose='pricing-categories-table'] {
+      margin-bottom: 40px;
+      thead {
+        strong {
+          font-size: 14px;
+        }
+      }
+      tbody {
+        td {
+          padding: 12px 16px;
+          font-size: 14px;
+          vertical-align: middle;
+        }
+      }
+    }
+    [purpose='table-checkmark'] {
+      width: 124px;
+    }
     [purpose='free-tier-card'] {
       margin-bottom: 12px;
       padding: 40px;
@@ -448,14 +494,16 @@
       }
       [purpose='pricing-switch-option'] {
         height: 56px;
-      }
-      .Security-selected {
         width: 100%;
+      }
+
+      .jamf-comparison-selected {
+        width: 100%;
+        top: 1px;
         transform: translateY(56px);
       }
       .IT-selected {
         width: 100%;
-        top: 1px;
         transform: translateY(113px);
       }
       .all-selected {
