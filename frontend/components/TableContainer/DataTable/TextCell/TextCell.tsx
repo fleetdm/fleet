@@ -1,9 +1,11 @@
+import classnames from "classnames";
 import { uniqueId } from "lodash";
 import React from "react";
 import ReactTooltip from "react-tooltip";
 import { COLORS } from "styles/var/colors";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 
+const baseClass = "text-cell";
 interface ITextCellProps {
   value?: string | number | boolean | { timeString: string } | null;
   formatter?: (val: any) => React.ReactNode; // string, number, or null
@@ -11,16 +13,18 @@ interface ITextCellProps {
    * color to the cell text.
    * @default false
    */
-  greyed?: boolean;
-  classes?: string;
+  greyAndItalic?: boolean;
+  italic?: boolean;
+  customClasses?: string;
   emptyCellTooltipText?: React.ReactNode;
 }
 
 const TextCell = ({
   value,
   formatter = (val) => val, // identity function if no formatter is provided
-  greyed = false,
-  classes = "w250",
+  greyAndItalic = false,
+  italic = false,
+  customClasses = "w250",
   emptyCellTooltipText,
 }: ITextCellProps) => {
   let val = value;
@@ -43,7 +47,7 @@ const TextCell = ({
     formattedValue === "";
 
   if (isEmptyValue) {
-    greyed = true;
+    greyAndItalic = true;
   }
 
   const renderEmptyCell = () => {
@@ -70,11 +74,11 @@ const TextCell = ({
 
   const cellText = isEmptyValue ? renderEmptyCell() : formattedValue;
 
-  return (
-    <span className={`text-cell ${classes} ${greyed ? "grey-cell" : ""}`}>
-      {cellText}
-    </span>
-  );
+  const cellClasses = classnames(baseClass, customClasses, {
+    "grey-and-italic-cell": greyAndItalic,
+    "italic-cell": italic,
+  });
+  return <span className={cellClasses}>{cellText}</span>;
 };
 
 export default TextCell;
