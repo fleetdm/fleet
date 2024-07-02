@@ -16,6 +16,7 @@ type calendarWebhookRequest struct {
 	googleResourceState string
 }
 
+// DecodeRequest implement requestDecoder interface to take full control of decoding the request
 func (calendarWebhookRequest) DecodeRequest(_ context.Context, r *http.Request) (interface{}, error) {
 	var req calendarWebhookRequest
 	eventUUID, ok := mux.Vars(r)["event_uuid"]
