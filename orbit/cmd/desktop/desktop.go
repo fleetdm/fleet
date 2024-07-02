@@ -134,6 +134,7 @@ func main() {
 
 		selfServiceItem := systray.AddMenuItem("Self-service", "")
 		selfServiceItem.Disable()
+		selfServiceItem.Hide()
 
 		tokenReader := token.Reader{Path: identifierPath}
 		if _, err := tokenReader.Read(); err != nil {
@@ -180,6 +181,7 @@ func main() {
 			myDeviceItem.Disable()
 			transparencyItem.Disable()
 			selfServiceItem.Disable()
+			selfServiceItem.Hide()
 			migrateMDMItem.Disable()
 			migrateMDMItem.Hide()
 		}
@@ -203,7 +205,9 @@ func main() {
 						myDeviceItem.SetTitle("My device")
 						myDeviceItem.Enable()
 						transparencyItem.Enable()
-						selfServiceItem.Enable()
+						// Hide Self-Service for Free tier
+						selfServiceItem.Disable()
+						selfServiceItem.Hide()
 						return
 					}
 
@@ -300,6 +304,15 @@ func main() {
 				default:
 					log.Error().Err(err).Msg("get failing policies")
 					continue
+				}
+
+				// Check for null for backward compatibility with an old Fleet server
+				if sum.SelfService != nil && !*sum.SelfService {
+					selfServiceItem.Disable()
+					selfServiceItem.Hide()
+				} else {
+					selfServiceItem.Enable()
+					selfServiceItem.Show()
 				}
 
 				failingPolicies := 0
