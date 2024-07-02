@@ -578,9 +578,10 @@ func (ds *Datastore) insertNewInstalledHostSoftwareDB(
 					titleID = &title.ID
 				} else if _, ok := newTitlesNeeded[checksum]; !ok {
 					newTitlesNeeded[checksum] = fleet.SoftwareTitle{
-						Name:    sw.Name,
-						Source:  sw.Source,
-						Browser: sw.Browser,
+						Name:             sw.Name,
+						Source:           sw.Source,
+						Browser:          sw.Browser,
+						BundleIdentifier: sw.BundleIdentifier,
 					}
 				}
 				args = append(
@@ -596,13 +597,13 @@ func (ds *Datastore) insertNewInstalledHostSoftwareDB(
 			totalTitlesToProcess := len(newTitlesNeeded)
 			if totalTitlesToProcess > 0 {
 				const numberOfArgsPerSoftwareTitles = 3 // number of ? in each VALUES clause
-				titlesValues := strings.TrimSuffix(strings.Repeat("(?,?,?),", totalTitlesToProcess), ",")
+				titlesValues := strings.TrimSuffix(strings.Repeat("(?,?,?,?),", totalTitlesToProcess), ",")
 				// INSERT IGNORE is used to avoid duplicate key errors, which may occur since our previous read came from the replica.
-				titlesStmt := fmt.Sprintf("INSERT IGNORE INTO software_titles (name, source, browser) VALUES %s", titlesValues)
+				titlesStmt := fmt.Sprintf("INSERT IGNORE INTO software_titles (name, source, browser, bundle_identifier) VALUES %s", titlesValues)
 				titlesArgs := make([]interface{}, 0, totalTitlesToProcess*numberOfArgsPerSoftwareTitles)
 				titleChecksums := make([]string, totalTitlesToProcess)
 				for checksum, title := range newTitlesNeeded {
-					titlesArgs = append(titlesArgs, title.Name, title.Source, title.Browser)
+					titlesArgs = append(titlesArgs, title.Name, title.Source, title.Browser, title.BundleIdentifier)
 					titleChecksums = append(titleChecksums, checksum)
 				}
 				if _, err := tx.ExecContext(ctx, titlesStmt, titlesArgs...); err != nil {
@@ -617,7 +618,10 @@ func (ds *Datastore) insertNewInstalledHostSoftwareDB(
 				SET
 					s.title_id = st.id
 				WHERE
-					(s.name, s.source, s.browser) = (st.name, st.source, st.browser)
+				         s.bundle_identifier = st.bundle_identifier OR (
+					   s.bundle_identifier = '' AND
+					   (s.name, s.source, s.browser) = (st.name, st.source, st.browser)
+					 )
 					AND s.checksum IN (?)`
 				updateSoftwareStmt, updateArgs, err := sqlx.In(updateSoftwareStmt, titleChecksums)
 				if err != nil {
@@ -1581,61 +1585,91 @@ func (ds *Datastore) SyncHostsSoftware(ctx context.Context, updatedAt time.Time)
 func (ds *Datastore) ReconcileSoftwareTitles(ctx context.Context) error {
 	// TODO: consider if we should batch writes to software or software_titles table
 
-	// ensure all software titles are in the software_titles table
-	upsertTitlesStmt := `
-INSERT INTO software_titles (name, source, browser)
-SELECT DISTINCT
-	name,
-	source,
-	browser
-FROM
-	software s
-WHERE
-	NOT EXISTS (SELECT 1 FROM software_titles st WHERE (s.name, s.source, s.browser) = (st.name, st.source, st.browser))
-ON DUPLICATE KEY UPDATE software_titles.id = software_titles.id`
-	// TODO: consider the impact of on duplicate key update vs. risk of insert ignore
-	// or performing a select first to see if the title exists and only inserting
-	// new titles
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		// ensure all software titles are in the software_titles table
+		upsertTitlesStmt := `
+INSERT INTO software_titles (name, source, browser, bundle_identifier)
+SELECT
+    name,
+    source,
+    browser,
+    bundle_identifier
+FROM (
+    SELECT
+        name,
+        source,
+        browser,
+        bundle_identifier
+    FROM
+        software s
+    WHERE
+        NOT EXISTS (
+            SELECT 1 FROM software_titles st
+            WHERE s.bundle_identifier = st.bundle_identifier
+        )
+        AND bundle_identifier != ''
 
-	res, err := ds.writer(ctx).ExecContext(ctx, upsertTitlesStmt)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "upsert software titles")
-	}
-	n, _ := res.RowsAffected()
-	level.Debug(ds.logger).Log("msg", "upsert software titles", "rows_affected", n)
+    UNION ALL
 
-	// update title ids for software table entries
-	updateSoftwareStmt := `
-UPDATE
-	software s,
-	software_titles st
-SET
-	s.title_id = st.id
-WHERE
-	(s.name, s.source, s.browser) = (st.name, st.source, st.browser)
-	AND (s.title_id IS NULL OR s.title_id != st.id)`
+    SELECT DISTINCT
+        name,
+        source,
+        browser,
+        NULL as bundle_identifier
+    FROM
+        software s
+    WHERE
+        NOT EXISTS (
+            SELECT 1 FROM software_titles st
+            WHERE (s.name, s.source, s.browser) = (st.name, st.source, st.browser)
+        )
+        AND s.bundle_identifier = ''
+) as combined_results
+ON DUPLICATE KEY UPDATE
+    software_titles.id = software_titles.id
+`
+		res, err := tx.ExecContext(ctx, upsertTitlesStmt)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "upsert software titles")
+		}
+		n, _ := res.RowsAffected()
+		level.Debug(ds.logger).Log("msg", "upsert software titles", "rows_affected", n)
 
-	res, err = ds.writer(ctx).ExecContext(ctx, updateSoftwareStmt)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "update software title_id")
-	}
-	n, _ = res.RowsAffected()
-	level.Debug(ds.logger).Log("msg", "update software title_id", "rows_affected", n)
+		// update title ids for software table entries
+		updateSoftwareStmt := `
+UPDATE software s
+JOIN software_titles st
+ON (
+    s.bundle_identifier = st.bundle_identifier
+    OR (s.bundle_identifier = '' AND (s.name, s.source, s.browser) = (st.name, st.source, st.browser))
+)
+SET s.title_id = st.id
+WHERE s.title_id IS NULL
+OR s.title_id != st.id;
+`
 
-	// clean up orphaned software titles
-	cleanupStmt := `
+		res, err = tx.ExecContext(ctx, updateSoftwareStmt)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "update software title_id")
+		}
+		n, _ = res.RowsAffected()
+		level.Debug(ds.logger).Log("msg", "update software title_id", "rows_affected", n)
+
+		// clean up orphaned software titles
+		cleanupStmt := `
 DELETE st FROM software_titles st
 	LEFT JOIN software s ON s.title_id = st.id
 	WHERE s.title_id IS NULL AND NOT EXISTS (SELECT 1 FROM software_installers si WHERE si.title_id = st.id)`
 
-	res, err = ds.writer(ctx).ExecContext(ctx, cleanupStmt)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "cleanup orphaned software titles")
-	}
-	n, _ = res.RowsAffected()
-	level.Debug(ds.logger).Log("msg", "cleanup orphaned software titles", "rows_affected", n)
+		res, err = tx.ExecContext(ctx, cleanupStmt)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "cleanup orphaned software titles")
+		}
+		n, _ = res.RowsAffected()
+		level.Debug(ds.logger).Log("msg", "cleanup orphaned software titles", "rows_affected", n)
 
-	return nil
+		return nil
+	})
 }
 
 func (ds *Datastore) HostVulnSummariesBySoftwareIDs(ctx context.Context, softwareIDs []uint) ([]fleet.HostVulnerabilitySummary, error) {

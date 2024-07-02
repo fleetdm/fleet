@@ -333,9 +333,9 @@ func (svc *Service) addMetadataToSoftwarePayload(ctx context.Context, payload *f
 		payload.InstallScript = file.GetInstallScript(meta.Extension)
 	}
 
-	source, err := fleet.SofwareInstallerSourceFromExtension(meta.Extension)
+	source, err := fleet.SofwareInstallerSourceFromExtensionAndName(meta.Extension, meta.Name)
 	if err != nil {
-		return "", ctxerr.Wrap(ctx, err, "determining source from extension")
+		return "", ctxerr.Wrap(ctx, err, "determining source from extension and name")
 	}
 	payload.Source = source
 
