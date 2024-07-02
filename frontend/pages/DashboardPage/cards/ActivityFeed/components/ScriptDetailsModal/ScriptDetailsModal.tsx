@@ -66,12 +66,15 @@ const StatusMessageError = ({ message }: { message: React.ReactNode }) => (
 
 interface IStatusMessageProps {
   hostTimeout: boolean;
+  // TODO -_confirm null/undefined behavior
+  timeoutSeconds: number | null;
   exitCode: number | null;
   message: string;
 }
 
 const StatusMessage = ({
   hostTimeout,
+  timeoutSeconds,
   exitCode,
   message,
 }: IStatusMessageProps) => {
@@ -88,14 +91,20 @@ const StatusMessage = ({
       // Expected API message: "Scripts are disabled for this host. To run scripts, deploy the fleetd agent with scripts enabled."
       return <StatusMessageError message={message} />;
     case -1: {
-      // message should look like: "Timeout. Fleet stopped the script after 5 minutes to protect host performance.";
-      const timeOutValue = message.match(/(\d+\s(?:seconds|minutes|hours))/);
-
       let varText = "";
-      if (timeOutValue) {
+      // should always be present
+      if (timeoutSeconds) {
+        let limitCopy = "";
+        if (timeoutSeconds > 60) {
+          limitCopy = `${Math.round(timeoutSeconds / 60)} minutes`;
+        } else if (timeoutSeconds === 60) {
+          limitCopy = "1 minute";
+        } else {
+          limitCopy = `${timeoutSeconds} seconds`;
+        }
         varText = `after ${(
           <TooltipWrapper tipContent="Timeout can be configured by updating agent options.">
-            {timeOutValue[0]}
+            {limitCopy}
           </TooltipWrapper>
         )} `;
       }
@@ -144,6 +153,8 @@ const ScriptOutput = ({ output, hostname }: IScriptOutputProps) => {
 interface IScriptResultProps {
   hostname: string;
   hostTimeout: boolean;
+  // TODO -_confirm null/undefined behavior
+  timeoutSeconds: number | null;
   exitCode: number | null;
   message: string;
   output: string;
@@ -152,6 +163,7 @@ interface IScriptResultProps {
 const ScriptResult = ({
   hostname,
   hostTimeout,
+  timeoutSeconds,
   exitCode,
   message,
   output,
@@ -166,6 +178,7 @@ const ScriptResult = ({
     <div className={`${baseClass}__script-result`}>
       <StatusMessage
         hostTimeout={hostTimeout}
+        timeoutSeconds={timeoutSeconds}
         exitCode={exitCode}
         message={message}
       />
@@ -205,6 +218,7 @@ const ScriptDetailsModal = ({
           <ScriptResult
             hostname={data.hostname}
             hostTimeout={data.host_timeout}
+            timeoutSeconds={data.script_execution_timeout}
             exitCode={data.exit_code}
             message={data.message}
             output={data.output}
