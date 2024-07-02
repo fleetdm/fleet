@@ -3,6 +3,8 @@ package calendar
 import (
 	"context"
 	"errors"
+	"fmt"
+	"github.com/google/uuid"
 	"net/http"
 	"os"
 	"strconv"
@@ -18,13 +20,19 @@ type GoogleCalendarMockAPI struct {
 	logger kitlog.Logger
 }
 
+type channel struct {
+	channelID  string
+	resourceID string
+}
+
 var (
-	mockEvents = make(map[string]*calendar.Event)
-	mu         sync.Mutex
-	id         uint64
+	mockEvents   = make(map[string]*calendar.Event)
+	mockChannels = make([]channel, 0)
+	mu           sync.Mutex
+	id           uint64
 )
 
-const latency = 500 * time.Millisecond
+const latency = 200 * time.Millisecond
 
 // Configure creates a new Google Calendar service using the provided credentials.
 func (lowLevelAPI *GoogleCalendarMockAPI) Configure(_ context.Context, _ string, _ string, userToImpersonate string, _ string) error {
@@ -85,11 +93,28 @@ func (lowLevelAPI *GoogleCalendarMockAPI) DeleteEvent(id string) error {
 }
 
 func (lowLevelAPI *GoogleCalendarMockAPI) Watch(eventUUID string, channelID string, ttl uint64) (resourceID string, err error) {
-	return "resourceID", nil
+	time.Sleep(latency)
+	mu.Lock()
+	defer mu.Unlock()
+	resourceID = uuid.New().String()
+	mockChannels = append(mockChannels, channel{
+		channelID:  channelID,
+		resourceID: resourceID,
+	})
+	return resourceID, nil
 }
 
 func (lowLevelAPI *GoogleCalendarMockAPI) Stop(channelID string, resourceID string) error {
-	return nil
+	time.Sleep(latency)
+	mu.Lock()
+	defer mu.Unlock()
+	for i, ch := range mockChannels {
+		if ch.channelID == channelID && ch.resourceID == resourceID {
+			mockChannels = append(mockChannels[:i], mockChannels[i+1:]...)
+			return nil
+		}
+	}
+	return fmt.Errorf("channel not found")
 }
 
 func ListGoogleMockEvents() map[string]*calendar.Event {
@@ -100,6 +125,16 @@ func ClearMockEvents() {
 	mu.Lock()
 	defer mu.Unlock()
 	mockEvents = make(map[string]*calendar.Event)
+}
+
+func MockChannelsCount() int {
+	return len(mockChannels)
+}
+
+func ClearMockChannels() {
+	mu.Lock()
+	defer mu.Unlock()
+	mockChannels = make([]channel, 0)
 }
 
 func SetMockEventsToNow() {

@@ -209,6 +209,7 @@ func TestCalendarEventsMultipleHosts(t *testing.T) {
 	logger := kitlog.With(kitlog.NewLogfmtLogger(os.Stdout))
 	t.Cleanup(func() {
 		calendar.ClearMockEvents()
+		calendar.ClearMockChannels()
 	})
 
 	//
@@ -407,6 +408,7 @@ func TestCalendarEvents1KHosts(t *testing.T) {
 	}
 	t.Cleanup(func() {
 		calendar.ClearMockEvents()
+		calendar.ClearMockChannels()
 	})
 
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
@@ -712,6 +714,7 @@ func TestEventDescription(t *testing.T) {
 	t.Cleanup(
 		func() {
 			calendar.ClearMockEvents()
+			calendar.ClearMockChannels()
 		},
 	)
 

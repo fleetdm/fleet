@@ -37,7 +37,7 @@ const (
 	endHour     = 17
 	eventLength = 30 * time.Minute
 	calendarID  = "primary"
-	mockEmail   = "calendar-mock@example.com"
+	MockEmail   = "calendar-mock@example.com"
 	loadEmail   = "calendar-load@example.com"
 )
 
@@ -74,7 +74,7 @@ func NewGoogleCalendar(config *GoogleCalendarConfig) *GoogleCalendar {
 		// Use the provided API.
 	case config.IntegrationConfig.ApiKey[fleet.GoogleCalendarEmail] == loadEmail:
 		config.API = &GoogleCalendarLoadAPI{Logger: config.Logger}
-	case config.IntegrationConfig.ApiKey[fleet.GoogleCalendarEmail] == mockEmail:
+	case config.IntegrationConfig.ApiKey[fleet.GoogleCalendarEmail] == MockEmail:
 		config.API = &GoogleCalendarMockAPI{config.Logger}
 	default:
 		config.API = &GoogleCalendarLowLevelAPI{logger: config.Logger}

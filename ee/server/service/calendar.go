@@ -50,15 +50,14 @@ func (svc *Service) CalendarWebhook(ctx context.Context, eventUUID string, chann
 	userCalendar := calendar.CreateUserCalendarFromConfig(ctx, localConfig, svc.logger)
 
 	// Authenticate request. We will use the channel ID for authentication.
+	svc.authz.SkipAuthorization(ctx)
 	savedChannelID, err := userCalendar.Get(&eventDetails.CalendarEvent, "channelID")
 	if err != nil {
-		svc.authz.SkipAuthorization(ctx)
 		return ctxerr.Wrap(ctx, err, "get channel ID")
 	}
 	if savedChannelID != channelID {
 		return authz.ForbiddenWithInternal(fmt.Sprintf("calendar channel ID mismatch: %s != %s", savedChannelID, channelID), nil, nil, nil)
 	}
-	svc.authz.SkipAuthorization(ctx)
 
 	genBodyFn := func(conflict bool) (body string, ok bool, err error) {
 
