@@ -302,7 +302,7 @@ func main() {
 					<-checkToken()
 					continue
 				default:
-					log.Error().Err(err).Msg("get failing policies")
+					log.Error().Err(err).Msg("get desktop summary")
 					continue
 				}
 
