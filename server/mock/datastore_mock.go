@@ -979,6 +979,8 @@ type CleanupUnusedSoftwareInstallersFunc func(ctx context.Context, softwareInsta
 
 type BatchSetSoftwareInstallersFunc func(ctx context.Context, tmID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error
 
+type HasSelfServiceSoftwareInstallersFunc func(ctx context.Context, platform string, teamID *uint) (bool, error)
+
 type DataStore struct {
 	HealthCheckFunc        HealthCheckFunc
 	HealthCheckFuncInvoked bool
@@ -2419,6 +2421,9 @@ type DataStore struct {
 
 	BatchSetSoftwareInstallersFunc        BatchSetSoftwareInstallersFunc
 	BatchSetSoftwareInstallersFuncInvoked bool
+
+	HasSelfServiceSoftwareInstallersFunc        HasSelfServiceSoftwareInstallersFunc
+	HasSelfServiceSoftwareInstallersFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -5781,4 +5786,11 @@ func (s *DataStore) BatchSetSoftwareInstallers(ctx context.Context, tmID *uint, 
 	s.BatchSetSoftwareInstallersFuncInvoked = true
 	s.mu.Unlock()
 	return s.BatchSetSoftwareInstallersFunc(ctx, tmID, installers)
+}
+
+func (s *DataStore) HasSelfServiceSoftwareInstallers(ctx context.Context, platform string, teamID *uint) (bool, error) {
+	s.mu.Lock()
+	s.HasSelfServiceSoftwareInstallersFuncInvoked = true
+	s.mu.Unlock()
+	return s.HasSelfServiceSoftwareInstallersFunc(ctx, platform, teamID)
 }

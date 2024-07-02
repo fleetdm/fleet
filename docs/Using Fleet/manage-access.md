@@ -74,9 +74,9 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 | Read Single Sign-On settings\**                                                                                                            |          |            |            | ✅    |         |
 | Read SMTP settings\**                                                                                                                      |          |            |            | ✅    |         |
 | Read osquery agent options\**                                                                                                              |          |            |            | ✅    |         |
-| Edit [organization settings](https://fleetdm.com/docs/using-fleet/configuration-files#organization-settings)                               |          |            |            | ✅    | ✅      |
-| Edit [agent options](https://fleetdm.com/docs/using-fleet/configuration-files#agent-options)                                               |          |            |            | ✅    | ✅      |
-| Edit [agent options for hosts assigned to teams](https://fleetdm.com/docs/using-fleet/configuration-files#team-agent-options)\*            |          |            |            | ✅    | ✅      |
+| Edit organization settings                            |          |            |            | ✅    | ✅      |
+| Edit agent options                                              |          |            |            | ✅    | ✅      |
+| Edit agent options for hosts assigned to teams\*            |          |            |            | ✅    | ✅      |
 | Initiate [file carving](https://fleetdm.com/docs/using-fleet/rest-api#file-carving)                                                        |          |            | ✅         | ✅    |         |
 | Retrieve contents from file carving                                                                                                        |          |            |            | ✅    |         |
 | View Apple mobile device management (MDM) certificate information                                                                          |          |            |            | ✅    |         |
@@ -152,7 +152,7 @@ Users with access to multiple teams can be assigned different roles for each tea
 | Create, edit, and delete [team enroll secrets](https://fleetdm.com/docs/using-fleet/rest-api#get-enroll-secrets-for-a-team)      |               |                | ✅              | ✅         |             |
 | Read organization settings\*                                                                                                     | ✅            | ✅             | ✅              | ✅         |             |
 | Read agent options\*                                                                                                             | ✅            | ✅             | ✅              | ✅         |             |
-| Edit [agent options](https://fleetdm.com/docs/using-fleet/configuration-files#agent-options)                                     |               |                |                 | ✅         | ✅          |
+| Edit agent options                                    |               |                |                 | ✅         | ✅          |
 | Initiate [file carving](https://fleetdm.com/docs/using-fleet/rest-api#file-carving)                                              |               |                | ✅              | ✅         |             |
 | View disk encryption key for macOS hosts                                                                                         | ✅            | ✅             | ✅              | ✅         |             |
 | Edit OS updates for macOS and Windows hosts                                                                                                |          |            | ✅         | ✅    | ✅      |

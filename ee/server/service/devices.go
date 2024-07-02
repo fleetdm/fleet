@@ -109,6 +109,12 @@ func (svc *Service) GetFleetDesktopSummary(ctx context.Context) (fleet.DesktopSu
 		return sum, err
 	}
 
+	hasSelfService, err := svc.ds.HasSelfServiceSoftwareInstallers(ctx, host.Platform, host.TeamID)
+	if err != nil {
+		return sum, ctxerr.Wrap(ctx, err, "retrieving self service software installers")
+	}
+	sum.SelfService = &hasSelfService
+
 	r, err := svc.ds.FailingPoliciesCount(ctx, host)
 	if err != nil {
 		return sum, ctxerr.Wrap(ctx, err, "retrieving failing policies")
