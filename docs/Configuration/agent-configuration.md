@@ -400,6 +400,12 @@ spec:
           - /Users/wxs/sigs/bar.sig
           sig_group_2:
           - /Users/wxs/sigs/baz.sig
+      file_paths:
+        system_binaries:
+          - /bin/%%
+          - /sbin/%%
+        tmp:
+          - /tmp/%%
     overrides: {}
 ```
 
