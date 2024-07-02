@@ -8,13 +8,14 @@ fi
 function remove_fleet {
     set -x
 
+    rm -rf /Library/LaunchDaemons/com.fleetdm.orbit.plist /var/lib/orbit /usr/local/bin/orbit /var/log/orbit /opt/orbit/
+
+    pkgutil --forget com.fleetdm.orbit.base.pkg || true
+
     launchctl stop com.fleetdm.orbit
     launchctl unload /Library/LaunchDaemons/com.fleetdm.orbit.plist
 
     pkill fleet-desktop || true
-    rm -rf /Library/LaunchDaemons/com.fleetdm.orbit.plist /var/lib/orbit /usr/local/bin/orbit /var/log/orbit /opt/orbit/
-
-    pkgutil --forget com.fleetdm.orbit.base.pkg || true
 }
 
 if [ "$1" = "remove" ]; then
