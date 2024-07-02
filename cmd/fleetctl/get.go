@@ -1570,7 +1570,7 @@ func getMDMCommandsCommand() *cli.Command {
 			if err != nil {
 				return err
 			}
-			if len(results) == 0 {
+			if len(results) == 0 && opts.Page == 0 {
 				log(c, "You haven't run any MDM commands. Run MDM commands with the `fleetctl mdm run-command` command.\n")
 				return nil
 			}

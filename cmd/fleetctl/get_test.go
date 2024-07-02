@@ -2766,13 +2766,18 @@ func TestGetMDMCommands(t *testing.T) {
 	_, err = runAppNoChecks([]string{"get", "mdm-commands", "--host-identifier", "foo"})
 	require.NoError(t, err)
 
-	// Test pagination flag does not error
+	// Test pagination flag
 	listErr = nil
-	empty = false
+	empty = true
 	expectIdentifier = false
 	expectPage = true
-	_, err = runAppNoChecks([]string{"get", "mdm-commands", "--page", "1"})
+	res, err := runAppNoChecks([]string{"get", "mdm-commands", "--page", "1"})
 	require.NoError(t, err)
+	require.Contains(t, res.String(), strings.TrimSpace(`
++----+------+------+--------+----------+
+| ID | TIME | TYPE | STATUS | HOSTNAME |
++----+------+------+--------+----------+
+`))
 }
 
 func TestUserIsObserver(t *testing.T) {
