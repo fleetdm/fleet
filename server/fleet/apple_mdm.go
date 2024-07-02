@@ -526,11 +526,13 @@ type SCEPIdentityCertificate struct {
 // SCEPIdentityAssociation represents an association between an identity
 // certificate an a specific host.
 type SCEPIdentityAssociation struct {
-	HostUUID              string `db:"host_uuid"`
-	SHA256                string `db:"sha256"`
-	EnrollReference       string `db:"enroll_reference"`
-	RenewCommandUUID      string `db:"renew_command_uuid"`
-	EnrolledFromMigration bool   `db:"enrolled_from_migration"`
+	HostUUID         string `db:"host_uuid"`
+	SHA256           string `db:"sha256"`
+	EnrollReference  string `db:"enroll_reference"`
+	RenewCommandUUID string `db:"renew_command_uuid"`
+	// EnrolledFromMigration is used for devices migrated via datababse
+	// dumps (ie: "touchless")
+	EnrolledFromMigration bool `db:"enrolled_from_migration"`
 }
 
 // MDMAppleDeclaration represents a DDM JSON declaration.
