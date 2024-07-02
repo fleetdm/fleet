@@ -158,12 +158,12 @@ func testListVulnsByOsNameAndVersion(t *testing.T, ds *Datastore) {
 	cves, err = ds.ListVulnsByOsNameAndVersion(ctx, "Microsoft Windows 11 Pro 21H2", "10.0.22000.795", false)
 	require.NoError(t, err)
 
-	expected := fleet.Vulnerabilities{
-		{CVE: "CVE-2021-1234"},
-		{CVE: "CVE-2021-1235"},
-	}
+	expected := []string{"CVE-2021-1234", "CVE-2021-1235"}
 	require.Len(t, cves, 2)
-	require.ElementsMatch(t, expected, cves)
+	for _, cve := range cves {
+		require.Contains(t, expected, cve.CVE)
+		require.Greater(t, cve.CreatedAt, time.Now().Add(-time.Hour)) // assert non-zero time
+	}
 
 	// test with CVS meta
 	cves, err = ds.ListVulnsByOsNameAndVersion(ctx, "Microsoft Windows 11 Pro 21H2", "10.0.22000.795", true)
