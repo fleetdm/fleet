@@ -578,9 +578,10 @@ func (ds *Datastore) insertNewInstalledHostSoftwareDB(
 					titleID = &title.ID
 				} else if _, ok := newTitlesNeeded[checksum]; !ok {
 					newTitlesNeeded[checksum] = fleet.SoftwareTitle{
-						Name:    sw.Name,
-						Source:  sw.Source,
-						Browser: sw.Browser,
+						Name:             sw.Name,
+						Source:           sw.Source,
+						Browser:          sw.Browser,
+						BundleIdentifier: sw.BundleIdentifier,
 					}
 				}
 				args = append(
@@ -596,13 +597,13 @@ func (ds *Datastore) insertNewInstalledHostSoftwareDB(
 			totalTitlesToProcess := len(newTitlesNeeded)
 			if totalTitlesToProcess > 0 {
 				const numberOfArgsPerSoftwareTitles = 3 // number of ? in each VALUES clause
-				titlesValues := strings.TrimSuffix(strings.Repeat("(?,?,?),", totalTitlesToProcess), ",")
+				titlesValues := strings.TrimSuffix(strings.Repeat("(?,?,?,?),", totalTitlesToProcess), ",")
 				// INSERT IGNORE is used to avoid duplicate key errors, which may occur since our previous read came from the replica.
-				titlesStmt := fmt.Sprintf("INSERT IGNORE INTO software_titles (name, source, browser) VALUES %s", titlesValues)
+				titlesStmt := fmt.Sprintf("INSERT IGNORE INTO software_titles (name, source, browser, bundle_identifier) VALUES %s", titlesValues)
 				titlesArgs := make([]interface{}, 0, totalTitlesToProcess*numberOfArgsPerSoftwareTitles)
 				titleChecksums := make([]string, totalTitlesToProcess)
 				for checksum, title := range newTitlesNeeded {
-					titlesArgs = append(titlesArgs, title.Name, title.Source, title.Browser)
+					titlesArgs = append(titlesArgs, title.Name, title.Source, title.Browser, title.BundleIdentifier)
 					titleChecksums = append(titleChecksums, checksum)
 				}
 				if _, err := tx.ExecContext(ctx, titlesStmt, titlesArgs...); err != nil {
@@ -1585,24 +1586,45 @@ func (ds *Datastore) ReconcileSoftwareTitles(ctx context.Context) error {
 		// ensure all software titles are in the software_titles table
 		upsertTitlesStmt := `
 INSERT INTO software_titles (name, source, browser, bundle_identifier)
-SELECT DISTINCT
-	name,
-	source,
-	browser,
-	bundle_identifier
-FROM
-	software s
-WHERE
-	NOT EXISTS (
-	  SELECT 1 FROM software_titles st
-	  WHERE (s.name, s.source, s.browser) = (st.name, st.source, st.browser)
-		OR s.bundle_identifier = st.bundle_identifier
-	)
-ON DUPLICATE KEY UPDATE software_titles.id = software_titles.id`
-		// TODO: consider the impact of on duplicate key update vs. risk of insert ignore
-		// or performing a select first to see if the title exists and only inserting
-		// new titles
+SELECT
+    name,
+    source,
+    browser,
+    bundle_identifier
+FROM (
+    SELECT
+        name,
+        source,
+        browser,
+        bundle_identifier
+    FROM
+        software s
+    WHERE
+        NOT EXISTS (
+            SELECT 1 FROM software_titles st
+            WHERE s.bundle_identifier = st.bundle_identifier
+        )
+        AND bundle_identifier != ''
 
+    UNION ALL
+
+    SELECT DISTINCT
+        name,
+        source,
+        browser,
+        NULL as bundle_identifier
+    FROM
+        software s
+    WHERE
+        NOT EXISTS (
+            SELECT 1 FROM software_titles st
+            WHERE (s.name, s.source, s.browser) = (st.name, st.source, st.browser)
+        )
+        AND s.bundle_identifier = ''
+) as combined_results
+ON DUPLICATE KEY UPDATE
+    software_titles.id = software_titles.id
+`
 		res, err := tx.ExecContext(ctx, upsertTitlesStmt)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "upsert software titles")
@@ -1612,17 +1634,16 @@ ON DUPLICATE KEY UPDATE software_titles.id = software_titles.id`
 
 		// update title ids for software table entries
 		updateSoftwareStmt := `
-UPDATE
-	software s,
-	software_titles st
-SET
-	s.title_id = st.id
-WHERE
-	(
-	  (s.name, s.source, s.browser) = (st.name, st.source, st.browser)
-	  OR s.bundle_identifier = st.bundle_identifier
-	)
-	AND (s.title_id IS NULL OR s.title_id != st.id)`
+UPDATE software s
+JOIN software_titles st
+ON (
+    s.bundle_identifier = st.bundle_identifier
+    OR (s.bundle_identifier = '' AND (s.name, s.source, s.browser) = (st.name, st.source, st.browser))
+)
+SET s.title_id = st.id
+WHERE s.title_id IS NULL
+OR s.title_id != st.id;
+`
 
 		res, err = tx.ExecContext(ctx, updateSoftwareStmt)
 		if err != nil {

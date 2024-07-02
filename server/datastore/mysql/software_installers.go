@@ -75,6 +75,10 @@ func (ds *Datastore) MatchOrCreateSoftwareInstaller(ctx context.Context, payload
 		return 0, err
 	}
 
+	if err := ds.addSoftwareTitleToMatchingSoftware(ctx, titleID, payload); err != nil {
+		return 0, err
+	}
+
 	installScriptID, err := ds.getOrGenerateScriptContentsID(ctx, payload.InstallScript)
 	if err != nil {
 		return 0, err
@@ -140,13 +144,13 @@ INSERT INTO software_installers (
 func (ds *Datastore) getOrGenerateSoftwareInstallerTitleID(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) (uint, error) {
 	selectStmt := `SELECT id FROM software_titles WHERE name = ? AND source = ? AND browser = ''`
 	selectArgs := []any{payload.Title, payload.Source}
-	insertStmt := `INSERT INTO software_titles (name, source, browser) VALUES (?, ?, "")`
+	insertStmt := `INSERT INTO software_titles (name, source, browser) VALUES (?, ?, '')`
 	insertArgs := []any{payload.Title, payload.Source}
 
 	if payload.BundleIdentifier != "" {
 		selectStmt = `SELECT title_id FROM software_titles WHERE bundle_identifier = ?`
 		selectArgs = []any{payload.BundleIdentifier}
-		insertStmt = `INSERT INTO software_titles (name, source, bundle_identifier, browser) VALUES (?, ?, ?, "")`
+		insertStmt = `INSERT INTO software_titles (name, source, bundle_identifier, browser) VALUES (?, ?, ?, '')`
 		insertArgs = append(insertArgs, payload.BundleIdentifier)
 	}
 
@@ -165,6 +169,22 @@ func (ds *Datastore) getOrGenerateSoftwareInstallerTitleID(ctx context.Context, 
 	}
 
 	return titleID, nil
+}
+
+func (ds *Datastore) addSoftwareTitleToMatchingSoftware(ctx context.Context, titleID uint, payload *fleet.UploadSoftwareInstallerPayload) error {
+	whereClause := "WHERE (s.name, s.platform, s.browser) = (?, ?, '')"
+	args := []any{titleID, payload.Title, payload.Platform}
+	if payload.BundleIdentifier != "" {
+		whereClause = "WHERE s.bundle_identifier = ?"
+		args = []any{titleID, payload.BundleIdentifier}
+	}
+
+	updateSoftwareStmt := fmt.Sprintf(`
+		    UPDATE software s
+		    SET s.title_id = ?
+		    WHERE %s`, whereClause)
+	_, err := ds.writer(ctx).ExecContext(ctx, updateSoftwareStmt, args...)
+	return ctxerr.Wrap(ctx, err, "adding fk reference in software to software_titles")
 }
 
 func (ds *Datastore) GetSoftwareInstallerMetadataByID(ctx context.Context, id uint) (*fleet.SoftwareInstaller, error) {
