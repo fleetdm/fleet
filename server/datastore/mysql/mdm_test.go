@@ -106,11 +106,12 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 
 	// enroll a macOS device
 	macH, err := ds.NewHost(ctx, &fleet.Host{
-		Hostname:      "macos-test",
-		OsqueryHostID: ptr.String("osquery-macos"),
-		NodeKey:       ptr.String("node-key-macos"),
-		UUID:          uuid.NewString(),
-		Platform:      "darwin",
+		Hostname:       "macos-test",
+		OsqueryHostID:  ptr.String("osquery-macos"),
+		NodeKey:        ptr.String("node-key-macos"),
+		UUID:           uuid.NewString(),
+		Platform:       "darwin",
+		HardwareSerial: "654321",
 	})
 	require.NoError(t, err)
 	nanoEnroll(t, ds, macH, false)
@@ -169,25 +170,30 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 
 	// filter by host Identifier
 	identifiers := map[string]string{
-		"hostname":        windowsH.Hostname,
-		"osquery_host_id": *windowsH.OsqueryHostID,
-		"node_key":        *windowsH.NodeKey,
-		"uuid":            windowsH.UUID,
-		"hardware_serial": windowsH.HardwareSerial,
+		windowsH.Hostname:       winCmd.CommandUUID,
+		*windowsH.OsqueryHostID: winCmd.CommandUUID,
+		*windowsH.NodeKey:       winCmd.CommandUUID,
+		windowsH.UUID:           winCmd.CommandUUID,
+		windowsH.HardwareSerial: winCmd.CommandUUID,
+		macH.Hostname:           appleCmdUUID,
+		*macH.OsqueryHostID:     appleCmdUUID,
+		*macH.NodeKey:           appleCmdUUID,
+		macH.UUID:               appleCmdUUID,
+		macH.HardwareSerial:     appleCmdUUID,
 	}
 
-	for idType, value := range identifiers {
-		t.Run(idType, func(t *testing.T) {
+	for identifier, expected := range identifiers {
+		t.Run(identifier, func(t *testing.T) {
 			cmds, err = ds.ListMDMCommands(
 				ctx,
 				fleet.TeamFilter{User: test.UserAdmin},
 				&fleet.MDMCommandListOptions{
-					HostIdentifier: value,
+					HostIdentifier: identifier,
 				},
 			)
 			require.NoError(t, err)
 			require.Len(t, cmds, 1)
-			require.Equal(t, winCmd.CommandUUID, cmds[0].CommandUUID)
+			require.Equal(t, expected, cmds[0].CommandUUID)
 		})
 	}
 
