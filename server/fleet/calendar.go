@@ -9,6 +9,11 @@ import (
 	"github.com/fleetdm/fleet/v4/server"
 )
 
+const (
+	CalendarDefaultDescription = "needs to make sure your device meets the organization's requirements."
+	CalendarDefaultResolution  = "During this maintenance window, you can expect updates to be applied automatically. Your device may be unavailable during this time."
+)
+
 type DayEndedError struct {
 	Msg string
 }
@@ -22,13 +27,16 @@ type UserCalendar interface {
 	// CreateEvent, GetAndUpdateEvent and DeleteEvent reference the user's calendar.
 	Configure(userEmail string) error
 	// CreateEvent creates a new event on the calendar on the given date. DayEndedError is returned if there is no time left on the given date to schedule event.
-	CreateEvent(dateOfEvent time.Time, genBodyFn func(conflict bool) string) (event *CalendarEvent, err error)
+	CreateEvent(dateOfEvent time.Time, genBodyFn func(conflict bool) (body string, ok bool, err error)) (event *CalendarEvent, err error)
 	// GetAndUpdateEvent retrieves the event from the calendar.
 	// If the event has been modified, it returns the updated event.
 	// If the event has been deleted, it schedules a new event with given body callback and returns the new event.
-	GetAndUpdateEvent(event *CalendarEvent, genBodyFn func(conflict bool) string) (updatedEvent *CalendarEvent, updated bool, err error)
+	GetAndUpdateEvent(event *CalendarEvent, genBodyFn func(conflict bool) (body string, ok bool, err error)) (updatedEvent *CalendarEvent,
+		updated bool, err error)
 	// DeleteEvent deletes the event with the given ID.
 	DeleteEvent(event *CalendarEvent) error
+	// Get retrieves the value of the given key from the event.
+	Get(event *CalendarEvent, key string) (interface{}, error)
 }
 
 type CalendarWebhookPayload struct {
