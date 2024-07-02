@@ -1,0 +1,2 @@
+* Update the script details modal's error message on script timeout to reflect the newly dynamic
+script timeout limit, if hit.

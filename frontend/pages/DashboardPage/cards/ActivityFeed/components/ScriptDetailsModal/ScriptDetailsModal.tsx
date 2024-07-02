@@ -55,7 +55,7 @@ const StatusMessageFailed = ({ exitCode }: { exitCode: number }) => (
   </div>
 );
 
-const StatusMessageError = ({ message }: { message: string }) => (
+const StatusMessageError = ({ message }: { message: React.ReactNode }) => (
   <div className={`${baseClass}__status-message`}>
     <p>
       <Icon name="error-outline" />
@@ -87,9 +87,27 @@ const StatusMessage = ({
     case -2:
       // Expected API message: "Scripts are disabled for this host. To run scripts, deploy the fleetd agent with scripts enabled."
       return <StatusMessageError message={message} />;
-    case -1:
-      // Expected API message: "Timeout. Fleet stopped the script after 5 minutes to protect host performance."
-      return <StatusMessageError message={message} />;
+    case -1: {
+      // message should look like: "Timeout. Fleet stopped the script after 5 minutes to protect host performance.";
+      const timeOutValue = message.match(/(\d+\s(?:seconds|minutes|hours))/);
+
+      let varText = "";
+      if (timeOutValue) {
+        varText = `after ${(
+          <TooltipWrapper tipContent="Timeout can be configured by updating agent options.">
+            {timeOutValue[0]}
+          </TooltipWrapper>
+        )} `;
+      }
+
+      const modMessage = (
+        <>
+          Timeout. Fleet stopped the script {varText}to protect host
+          performance.
+        </>
+      );
+      return <StatusMessageError message={modMessage} />;
+    }
     case 0:
       // Expected API message: ""
       return <StatusMessageSuccess />;
