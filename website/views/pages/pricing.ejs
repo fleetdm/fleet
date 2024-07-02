@@ -66,8 +66,8 @@
       </div>
       <div purpose="pricing-switch" class="d-flex flex-md-row flex-column justify-content-center mx-auto">
         <div purpose="pricing-switch-option" class="all" :class="[pricingMode === 'all' ? 'selected' : '']" @click="clickChangePricingMode('all')">All features</div>
-        <div purpose="pricing-switch-option" class="security" :class="[pricingMode === 'Security' ? 'selected' : '']" @click="clickChangePricingMode('Security')">For security engineers</div>
         <div purpose="pricing-switch-option" class="it" :class="[pricingMode === 'IT' ? 'selected' : '']" @click="clickChangePricingMode('IT')">For IT admins</div>
+        <div purpose="pricing-switch-option" class="security" :class="[pricingMode === 'Security' ? 'selected' : '']" @click="clickChangePricingMode('Security')">For security engineers</div>
         <div purpose="pricing-tier-switch" :class="pricingMode+'-selected'"></div>
       </div>
     </div>
