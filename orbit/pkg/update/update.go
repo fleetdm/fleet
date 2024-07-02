@@ -500,6 +500,21 @@ func goosFromPlatform(platform string) (string, error) {
 	}
 }
 
+func goarchFromPlatform(platform string) ([]string, error) {
+	switch platform {
+	case "macos":
+		return []string{"amd64", "arm64"}, nil
+	case "windows":
+		return []string{"amd64"}, nil
+	case "linux":
+		return []string{"amd64"}, nil
+	case "linux-arm64":
+		return []string{"arm64"}, nil
+	default:
+		return nil, fmt.Errorf("unknown platform: %s", platform)
+	}
+}
+
 // checkExec checks/verifies a downloaded executable target by executing it.
 func (u *Updater) checkExec(target, tmpPath string, customCheckExec func(execPath string) error) error {
 	localTarget, err := u.localTarget(target)
@@ -514,6 +529,23 @@ func (u *Updater) checkExec(target, tmpPath string, customCheckExec func(execPat
 		// Nothing to do, we can't check the executable if running cross-platform.
 		// This generally happens when generating a package from a different platform
 		// than the target package (e.g. generating an MSI package from macOS).
+		return nil
+	}
+
+	platformGOARCH, err := goarchFromPlatform(localTarget.Info.Platform)
+	if err != nil {
+		return err
+	}
+	var containsArch bool
+	for _, arch := range platformGOARCH {
+		if arch == runtime.GOARCH {
+			containsArch = true
+		}
+	}
+	if !containsArch {
+		// Nothing to do, we can't reliably execute a
+		// cross-architecture binary. This happens when cross-building
+		// packages
 		return nil
 	}
 
