@@ -27,7 +27,7 @@ Below is the JSON payload that is sent to Fleet Device Management Inc:
   "liveQueryDisabled": false,
   "aiFeaturesDisabled": false,
   "maintenanceWindowsEnabled": true,
-  "fleetDesktopEnabled": true,
+  "numHostsFleetDesktopEnabled": true,
   "numWeeklyActiveUsers": 999,
   "numWeeklyPolicyViolationDaysActual": 999,
   "numWeeklyPolicyViolationDaysPossible": 999,
