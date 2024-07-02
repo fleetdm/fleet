@@ -138,7 +138,7 @@ func queryCommand() *cli.Command {
 			res, err := client.LiveQuery(flQuery, queryID, labels, hosts)
 			if err != nil {
 				if strings.Contains(err.Error(), "no hosts targeted") {
-					return errors.New(fleet.QueryNoHostsTargetedErrMsg)
+					return errors.New(fleet.NoHostsTargetedErrMsg)
 				}
 				return err
 			}

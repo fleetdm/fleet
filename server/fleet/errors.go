@@ -537,7 +537,8 @@ func (e OrbitError) Error() string {
 // Message that may surfaced by the server or the fleetctl client.
 const (
 	// Hosts, general
-	HostNotFoundErrMsg = "Host doesn't exist. Make sure you provide a valid hostname, UUID, or serial number. Learn more about host identifiers: https://fleetdm.com/learn-more-about/host-identifiers"
+	HostNotFoundErrMsg    = "Host doesn't exist. Make sure you provide a valid hostname, UUID, or serial number. Learn more about host identifiers: https://fleetdm.com/learn-more-about/host-identifiers"
+	NoHostsTargetedErrMsg = "No hosts targeted. Make sure you provide a valid hostname, UUID, or serial number. Learn more about host identifiers: https://fleetdm.com/learn-more-about/host-identifiers"
 
 	// Scripts
 	RunScriptInvalidTypeErrMsg             = "File type not supported. Only .sh (Bash) and .ps1 (PowerShell) file types are allowed."
@@ -557,8 +558,6 @@ const (
 	// End user authentication
 	EndUserAuthDEPWebURLConfiguredErrMsg = `End user authentication can't be configured when the configured automatic enrollment (DEP) profile specifies a configuration_web_url.` // #nosec G101
 
-	// Query
-	QueryNoHostsTargetedErrMsg = "No hosts targeted. Make sure you provide a valid hostname, UUID, or serial number. Learn more about host identifiers: https://fleetdm.com/learn-more-about/host-identifiers"
 )
 
 // ConflictError is used to indicate a conflict, such as a UUID conflict in the DB.
