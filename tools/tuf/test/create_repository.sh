@@ -59,8 +59,10 @@ for system in $SYSTEMS; do
     elif [[ $system == "macos" ]]; then
         osqueryd="$osqueryd.app.tar.gz"
         osqueryd_system="macos-app"
-    elif [[ $system =~ "linux" ]]; then
+    elif [[ $system == "linux-amd64" ]]; then
         osqueryd_system="linux"
+    elif [[ $system == "linux-arm64" ]]; then
+        osqueryd_system="linux-arm64"
     fi
 
     osqueryd_path="$TUF_PATH/tmp/$osqueryd"
