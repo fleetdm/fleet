@@ -26,6 +26,15 @@ Rituals (out-dated 2023-10-19)
 ## Responsibilities
 The Sales department is directly responsible for attaining the revenue goals of Fleet and helping to deliver upon our customers' objectives.
 
+
+### Sales process
+Fleet's sales process is designed to align and support the evaluation and buying processes of our prospects. There are several stages of awareness and learning a person may go through before contacting Fleet. After they have enough interest and reach out to Fleet to further evaluate if Fleet can meet their organization's needs, Fleet tracks the progress of this learning, evaluation and commercial agreement through 8 stages in Salesforce.
+
+In each stage, Fleeties supply and collect information to the prospect and document the information in meeting notes and Salesforce Opportunities. If prospects request access to meeting notes, we will review for confidential information and then share in alignment with Fleet's transparency value.
+
+To know what information to collect and share and what stage an opportunity should be in Salesforce, Fleeties may review the ["Sales process overview"](https://docs.google.com/document/d/1xVmpCYoxWbOvzQdwGhf9xMQ6ZYoLVjsDA_cEeJb0mEE/edit?usp=sharing).
+
+
 ### Onboard a new sales team member
 Once the standard Fleetie onboarding issue is complete, create a new ["Sales team onboarding"](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-sales&projects=&template=sales-team-onboarding.md&title=Sales%20onboarding%3A_____________) issue and complete it.
 
