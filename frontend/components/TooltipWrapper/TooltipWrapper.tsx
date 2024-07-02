@@ -32,6 +32,11 @@ interface ITooltipWrapper {
    * @default false
    */
   showArrow?: boolean;
+  /** Corresponds to the react tooltip 5 `positionStrategy` option - see https://react-tooltip.com/docs/options.
+   * Setting as `true` will set the tooltip's `positionStrategy` to `"fixed"`. The default strategy is "absolute".
+   * Do this if you run into issues with `overflow: hidden` on the tooltip parent container
+   * */
+  fixedPositionStrategy?: boolean;
 }
 
 const baseClass = "component__tooltip-wrapper";
@@ -51,6 +56,7 @@ const TooltipWrapper = ({
   clickable = true,
   disableTooltip = false,
   showArrow = false,
+  fixedPositionStrategy = false,
 }: ITooltipWrapper) => {
   const wrapperClassNames = classnames(baseClass, className, {
     "show-arrow": showArrow,
@@ -85,6 +91,7 @@ const TooltipWrapper = ({
           disableStyleInjection
           clickable={clickable}
           offset={tipOffset}
+          positionStrategy={fixedPositionStrategy ? "fixed" : "absolute"}
         >
           {tipContent}
         </ReactTooltip5>
