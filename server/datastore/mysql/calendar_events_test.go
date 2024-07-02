@@ -2,6 +2,8 @@ package mysql
 
 import (
 	"context"
+	"github.com/google/uuid"
+	"github.com/stretchr/testify/assert"
 	"testing"
 	"time"
 
@@ -56,18 +58,23 @@ func testUpdateCalendarEvent(t *testing.T, ds *Datastore) {
 	startTime1 := time.Now()
 	endTime1 := startTime1.Add(30 * time.Minute)
 	timeZone := "America/Argentina/Buenos_Aires"
-	calendarEvent, err := ds.CreateOrUpdateCalendarEvent(ctx, "foo@example.com", startTime1, endTime1, []byte(`{}`), timeZone, host.ID, fleet.CalendarWebhookStatusNone)
+	eventUUID := uuid.New().String()
+	calendarEvent, err := ds.CreateOrUpdateCalendarEvent(ctx, eventUUID, "foo@example.com", startTime1, endTime1, []byte(`{}`), timeZone,
+		host.ID, fleet.CalendarWebhookStatusNone)
 	require.NoError(t, err)
 
 	time.Sleep(1 * time.Second)
 
-	err = ds.UpdateCalendarEvent(ctx, calendarEvent.ID, startTime1, endTime1, []byte(`{}`), timeZone)
+	eventUUIDNew := uuid.New().String()
+	err = ds.UpdateCalendarEvent(ctx, calendarEvent.ID, eventUUIDNew, startTime1, endTime1, []byte(`{}`), timeZone)
 	require.NoError(t, err)
 
 	calendarEvent2, err := ds.GetCalendarEvent(ctx, "foo@example.com")
 	require.NoError(t, err)
 	require.NotEqual(t, *calendarEvent, *calendarEvent2)
 	calendarEvent.UpdatedAt = calendarEvent2.UpdatedAt
+	assert.NotEqual(t, calendarEvent.UUID, calendarEvent2.UUID)
+	calendarEvent.UUID = calendarEvent2.UUID
 	require.Equal(t, *calendarEvent, *calendarEvent2)
 
 	// TODO(lucas): Add more tests here.
@@ -101,23 +108,30 @@ func testCreateOrUpdateCalendarEvent(t *testing.T, ds *Datastore) {
 
 	startTime1 := time.Now()
 	endTime1 := startTime1.Add(30 * time.Minute)
-	calendarEvent, err := ds.CreateOrUpdateCalendarEvent(ctx, "foo@example.com", startTime1, endTime1, []byte(`{}`), timeZone, host.ID, fleet.CalendarWebhookStatusNone)
+	eventUUID := uuid.New().String()
+	calendarEvent, err := ds.CreateOrUpdateCalendarEvent(ctx, eventUUID, "foo@example.com", startTime1, endTime1, []byte(`{}`), timeZone,
+		host.ID, fleet.CalendarWebhookStatusNone)
 	require.NoError(t, err)
 	require.Equal(t, calendarEvent.TimeZone, timeZone)
 
 	time.Sleep(1 * time.Second)
 
-	calendarEvent2, err := ds.CreateOrUpdateCalendarEvent(ctx, "foo@example.com", startTime1, endTime1, []byte(`{}`), timeZone, host.ID, fleet.CalendarWebhookStatusNone)
+	eventUUID2 := uuid.New().String()
+	calendarEvent2, err := ds.CreateOrUpdateCalendarEvent(ctx, eventUUID2, "foo@example.com", startTime1, endTime1, []byte(`{}`), timeZone,
+		host.ID, fleet.CalendarWebhookStatusNone)
 	require.NoError(t, err)
 	require.Greater(t, calendarEvent2.UpdatedAt, calendarEvent.UpdatedAt)
 	calendarEvent.UpdatedAt = calendarEvent2.UpdatedAt
+	assert.NotEqual(t, calendarEvent.UUID, calendarEvent2.UUID)
+	calendarEvent.UUID = calendarEvent2.UUID
 	require.Equal(t, *calendarEvent, *calendarEvent2)
 
 	time.Sleep(1 * time.Second)
 
 	startTime2 := startTime1.Add(1 * time.Hour)
 	endTime2 := startTime1.Add(30 * time.Minute)
-	calendarEvent3, err := ds.CreateOrUpdateCalendarEvent(ctx, "foo@example.com", startTime2, endTime2, []byte(`{"foo": "bar"}`), timeZone, host.ID, fleet.CalendarWebhookStatusPending)
+	calendarEvent3, err := ds.CreateOrUpdateCalendarEvent(ctx, eventUUID2, "foo@example.com", startTime2, endTime2,
+		[]byte(`{"foo": "bar"}`), timeZone, host.ID, fleet.CalendarWebhookStatusPending)
 	require.NoError(t, err)
 	require.Greater(t, calendarEvent3.UpdatedAt, calendarEvent2.UpdatedAt)
 	require.WithinDuration(t, startTime2, calendarEvent3.StartTime, 1*time.Second)
