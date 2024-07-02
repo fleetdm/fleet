@@ -125,7 +125,6 @@ func (ds *Datastore) ListMDMConfigProfiles(ctx context.Context, teamID *uint, op
 
 	var profs []*fleet.MDMConfigProfilePayload
 
-	// TODO(roberto): Consider using UNION ALL here, as we know there won't be any duplicates between the tables.
 	const selectStmt = `
 SELECT
 	profile_uuid,
@@ -152,7 +151,7 @@ FROM (
 		team_id = ? AND
 		identifier NOT IN (?)
 
-	UNION
+	UNION ALL
 
 	SELECT
 		profile_uuid,
@@ -169,7 +168,7 @@ FROM (
 		team_id = ? AND
 		name NOT IN (?)
 
-	UNION
+	UNION ALL
 
 	SELECT
 		declaration_uuid AS profile_uuid,
@@ -249,7 +248,11 @@ FROM (
 	}
 	for _, label := range labels {
 		if prof, ok := profMap[label.ProfileUUID]; ok {
-			prof.Labels = append(prof.Labels, label)
+			if label.Exclude {
+				prof.LabelsExcludeAny = append(prof.LabelsExcludeAny, label)
+			} else {
+				prof.LabelsIncludeAll = append(prof.LabelsIncludeAll, label)
+			}
 		}
 	}
 
@@ -263,7 +266,8 @@ SELECT
 	COALESCE(apple_profile_uuid, windows_profile_uuid) as profile_uuid,
 	label_name,
 	COALESCE(label_id, 0) as label_id,
-	IF(label_id IS NULL, 1, 0) as broken
+	IF(label_id IS NULL, 1, 0) as broken,
+	exclude
 FROM
 	mdm_configuration_profile_labels mcpl
 WHERE
@@ -274,7 +278,8 @@ SELECT
 	apple_declaration_uuid as profile_uuid,
 	label_name,
 	COALESCE(label_id, 0) as label_id,
-	IF(label_id IS NULL, 1, 0) as broken
+	IF(label_id IS NULL, 1, 0) as broken,
+	exclude
 FROM
 	mdm_declaration_labels mdl
 WHERE
@@ -915,11 +920,12 @@ func batchSetProfileLabelAssociationsDB(
 
 	upsertStmt := `
 	  INSERT INTO mdm_configuration_profile_labels
-              (%s_profile_uuid, label_id, label_name)
+              (%s_profile_uuid, label_id, label_name, exclude)
           VALUES
               %s
           ON DUPLICATE KEY UPDATE
-              label_id = VALUES(label_id)
+              label_id = VALUES(label_id),
+              exclude = VALUES(exclude)
 	`
 
 	var (
@@ -935,9 +941,9 @@ func batchSetProfileLabelAssociationsDB(
 			insertBuilder.WriteString(",")
 			deleteBuilder.WriteString(",")
 		}
-		insertBuilder.WriteString("(?, ?, ?)")
+		insertBuilder.WriteString("(?, ?, ?, ?)")
 		deleteBuilder.WriteString("(?, ?)")
-		insertParams = append(insertParams, pl.ProfileUUID, pl.LabelID, pl.LabelName)
+		insertParams = append(insertParams, pl.ProfileUUID, pl.LabelID, pl.LabelName, pl.Exclude)
 		deleteParams = append(deleteParams, pl.ProfileUUID, pl.LabelID)
 
 		setProfileUUIDs[pl.ProfileUUID] = struct{}{}
@@ -1044,7 +1050,7 @@ SELECT
     ncaa.sha256 AS sha256,
     COALESCE(MAX(hm.fleet_enroll_ref), '') AS enroll_reference
 FROM (
-    -- grab only the latest certificate associated with this device 
+    -- grab only the latest certificate associated with this device
     SELECT
         n1.id,
 	n1.sha256,
@@ -1158,14 +1164,14 @@ func (ds *Datastore) GetHostMDMProfileInstallStatus(ctx context.Context, hostUUI
 	}
 
 	selectStmt := fmt.Sprintf(`
-SELECT	
+SELECT
 	COALESCE(status, ?) as status
 	FROM
 	%s
 WHERE
 	operation_type = ?
 	AND host_uuid = ?
-	AND %s = ? 
+	AND %s = ?
 `, table, column)
 
 	var status fleet.MDMDeliveryStatus

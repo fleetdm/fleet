@@ -1119,7 +1119,7 @@ func (svc *Service) mdmAppleEditedMacOSUpdates(ctx context.Context, teamID *uint
 	if err != nil {
 		return err
 	}
-	d.Labels = []fleet.ConfigurationProfileLabel{
+	d.LabelsIncludeAll = []fleet.ConfigurationProfileLabel{
 		{LabelName: fleet.BuiltinLabelMacOS14Plus, LabelID: lblIDs[fleet.BuiltinLabelMacOS14Plus]},
 	}
 

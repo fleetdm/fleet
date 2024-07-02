@@ -476,7 +476,7 @@ func testListMDMConfigProfiles(t *testing.T, ds *Datastore) {
 		// create label-based profiles for i==0, meaning CDEF will be label-based
 		acp := *generateCP(string(rune('C'+inc)), string(rune('C'+inc)), 0)
 		if i == 0 {
-			acp.Labels = []fleet.ConfigurationProfileLabel{
+			acp.LabelsIncludeAll = []fleet.ConfigurationProfileLabel{
 				{LabelName: labels[0].Name, LabelID: labels[0].ID},
 				{LabelName: labels[1].Name, LabelID: labels[1].ID},
 			}
@@ -486,7 +486,7 @@ func testListMDMConfigProfiles(t *testing.T, ds *Datastore) {
 
 		acp = *generateCP(string(rune('C'+inc+1)), string(rune('C'+inc+1)), team.ID)
 		if i == 0 {
-			acp.Labels = []fleet.ConfigurationProfileLabel{
+			acp.LabelsIncludeAll = []fleet.ConfigurationProfileLabel{
 				{LabelName: labels[2].Name, LabelID: labels[2].ID},
 				{LabelName: labels[3].Name, LabelID: labels[3].ID},
 			}
@@ -500,7 +500,7 @@ func testListMDMConfigProfiles(t *testing.T, ds *Datastore) {
 			SyncML: winProf,
 		}
 		if i == 0 {
-			wcp.Labels = []fleet.ConfigurationProfileLabel{
+			wcp.LabelsIncludeAll = []fleet.ConfigurationProfileLabel{
 				{LabelName: labels[4].Name, LabelID: labels[4].ID},
 				{LabelName: labels[5].Name, LabelID: labels[5].ID},
 			}
@@ -514,7 +514,7 @@ func testListMDMConfigProfiles(t *testing.T, ds *Datastore) {
 			SyncML: winProf,
 		}
 		if i == 0 {
-			wcp.Labels = []fleet.ConfigurationProfileLabel{
+			wcp.LabelsIncludeAll = []fleet.ConfigurationProfileLabel{
 				{LabelName: labels[6].Name, LabelID: labels[6].ID},
 				{LabelName: labels[7].Name, LabelID: labels[7].ID},
 			}
@@ -723,14 +723,14 @@ func testListMDMConfigProfiles(t *testing.T, ds *Datastore) {
 				got[i] = p.Name
 
 				wantProfs := profLabels[p.Name]
-				require.Equal(t, len(wantProfs), len(p.Labels), "profile name: %s", p.Name)
+				require.Equal(t, len(wantProfs), len(p.LabelsIncludeAll), "profile name: %s", p.Name)
 				if len(wantProfs) > 0 {
 					// clear the profile uuids from the labels list
-					for i, l := range p.Labels {
+					for i, l := range p.LabelsIncludeAll {
 						l.ProfileUUID = ""
-						p.Labels[i] = l
+						p.LabelsIncludeAll[i] = l
 					}
-					require.ElementsMatch(t, wantProfs, p.Labels, "profile name: %s", p.Name)
+					require.ElementsMatch(t, wantProfs, p.LabelsIncludeAll, "profile name: %s", p.Name)
 				}
 			}
 			require.Equal(t, got, c.wantNames)
@@ -5824,8 +5824,9 @@ func testBatchSetProfileLabelAssociations(t *testing.T, ds *Datastore) {
 		t,
 		batchSetProfileLabelAssociationsDB(ctx, ds.writer(ctx), wantOtherWin, "windows"),
 	)
+	// make it an "exclude" label on the other macos profile
 	wantOtherMac := []fleet.ConfigurationProfileLabel{
-		{ProfileUUID: otherMacProfile.ProfileUUID, LabelName: label.Name, LabelID: label.ID},
+		{ProfileUUID: otherMacProfile.ProfileUUID, LabelName: label.Name, LabelID: label.ID, Exclude: true},
 	}
 	require.NoError(
 		t,
@@ -5839,17 +5840,13 @@ func testBatchSetProfileLabelAssociations(t *testing.T, ds *Datastore) {
 
 	for platform, uuid := range platforms {
 		expectLabels := func(t *testing.T, profUUID, platform string, want []fleet.ConfigurationProfileLabel) {
-			if len(want) == 0 {
-				return
-			}
-
 			p := platform
 			if p == "darwin" {
 				p = "apple"
 			}
 
 			query := fmt.Sprintf(
-				"SELECT %s_profile_uuid as profile_uuid, label_id, label_name FROM mdm_configuration_profile_labels WHERE %s_profile_uuid = ?",
+				"SELECT %s_profile_uuid as profile_uuid, label_id, label_name, exclude FROM mdm_configuration_profile_labels WHERE %s_profile_uuid = ?",
 				p,
 				p,
 			)
@@ -5881,6 +5878,19 @@ func testBatchSetProfileLabelAssociations(t *testing.T, ds *Datastore) {
 				{ProfileUUID: uuid, LabelName: label.Name, LabelID: label.ID},
 			}
 			err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+				return batchSetProfileLabelAssociationsDB(ctx, tx, profileLabels, platform)
+			})
+			require.NoError(t, err)
+			expectLabels(t, uuid, platform, profileLabels)
+			// does not change other profiles
+			expectLabels(t, otherWinProfile.ProfileUUID, "windows", wantOtherWin)
+			expectLabels(t, otherMacProfile.ProfileUUID, "darwin", wantOtherMac)
+
+			// now set it with Exclude mode
+			profileLabels = []fleet.ConfigurationProfileLabel{
+				{ProfileUUID: uuid, LabelName: label.Name, LabelID: label.ID, Exclude: true},
+			}
+			err = ds.withTx(ctx, func(tx sqlx.ExtContext) error {
 				return batchSetProfileLabelAssociationsDB(ctx, tx, profileLabels, platform)
 			})
 			require.NoError(t, err)
@@ -5933,8 +5943,8 @@ func testBatchSetProfileLabelAssociations(t *testing.T, ds *Datastore) {
 
 			// apply a batch set with the new label
 			profileLabels := []fleet.ConfigurationProfileLabel{
-				{ProfileUUID: uuid, LabelName: label.Name, LabelID: label.ID},
-				{ProfileUUID: uuid, LabelName: newLabel.Name, LabelID: newLabel.ID},
+				{ProfileUUID: uuid, LabelName: label.Name, LabelID: label.ID, Exclude: true},
+				{ProfileUUID: uuid, LabelName: newLabel.Name, LabelID: newLabel.ID, Exclude: true},
 			}
 			err = ds.withTx(ctx, func(tx sqlx.ExtContext) error {
 				return batchSetProfileLabelAssociationsDB(ctx, tx, profileLabels, platform)
@@ -5943,7 +5953,7 @@ func testBatchSetProfileLabelAssociations(t *testing.T, ds *Datastore) {
 			// both are stored in the DB
 			expectLabels(t, uuid, platform, profileLabels)
 
-			// batch apply again without the newLabel
+			// batch apply again without the newLabel, and without Exclude flag
 			profileLabels = []fleet.ConfigurationProfileLabel{
 				{ProfileUUID: uuid, LabelName: label.Name, LabelID: label.ID},
 			}

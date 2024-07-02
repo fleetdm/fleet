@@ -32,13 +32,14 @@ type MDMWindowsBitLockerSummary struct {
 type MDMWindowsConfigProfile struct {
 	// ProfileUUID is the unique identifier of the configuration profile in
 	// Fleet. For Windows profiles, it is the letter "w" followed by a uuid.
-	ProfileUUID string                      `db:"profile_uuid" json:"profile_uuid"`
-	TeamID      *uint                       `db:"team_id" json:"team_id"`
-	Name        string                      `db:"name" json:"name"`
-	SyncML      []byte                      `db:"syncml" json:"-"`
-	Labels      []ConfigurationProfileLabel `db:"labels" json:"labels,omitempty"`
-	CreatedAt   time.Time                   `db:"created_at" json:"created_at"`
-	UploadedAt  time.Time                   `db:"uploaded_at" json:"updated_at"` // NOTE: JSON field is still `updated_at` for historical reasons, would be an API breaking change
+	ProfileUUID      string                      `db:"profile_uuid" json:"profile_uuid"`
+	TeamID           *uint                       `db:"team_id" json:"team_id"`
+	Name             string                      `db:"name" json:"name"`
+	SyncML           []byte                      `db:"syncml" json:"-"`
+	LabelsIncludeAll []ConfigurationProfileLabel `db:"-" json:"labels_include_all,omitempty"`
+	LabelsExcludeAny []ConfigurationProfileLabel `db:"-" json:"labels_exclude_any,omitempty"`
+	CreatedAt        time.Time                   `db:"created_at" json:"created_at"`
+	UploadedAt       time.Time                   `db:"uploaded_at" json:"updated_at"` // NOTE: JSON field is still `updated_at` for historical reasons, would be an API breaking change
 }
 
 // ValidateUserProvided ensures that the SyncML content in the profile is valid
@@ -124,9 +125,7 @@ func (m *MDMWindowsConfigProfile) ValidateUserProvided() error {
 					return err
 				}
 			}
-
 		}
-
 	}
 
 	return nil

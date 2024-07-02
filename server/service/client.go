@@ -375,9 +375,11 @@ func getProfilesContents(baseDir string, macProfiles []fleet.MDMProfileSpec, win
 			extByName[name] = ext
 
 			result = append(result, fleet.MDMProfileBatchPayload{
-				Name:     name,
-				Contents: fileContents,
-				Labels:   profile.Labels,
+				Name:             name,
+				Contents:         fileContents,
+				Labels:           profile.Labels,
+				LabelsIncludeAll: profile.LabelsIncludeAll,
+				LabelsExcludeAny: profile.LabelsExcludeAny,
 			})
 
 		}
@@ -828,6 +830,18 @@ func extractAppCfgCustomSettings(appCfg interface{}, platformKey string) []fleet
 		return []fleet.MDMProfileSpec{}
 	}
 
+	extractLabelField := func(parentMap map[string]interface{}, fieldName string) []string {
+		var ret []string
+		if labels, ok := parentMap[fieldName].([]interface{}); ok {
+			for _, label := range labels {
+				if strLabel, ok := label.(string); ok {
+					ret = append(ret, strLabel)
+				}
+			}
+		}
+		return ret
+	}
+
 	csSpecs := make([]fleet.MDMProfileSpec, 0, len(csAny))
 	for _, v := range csAny {
 		if m, ok := v.(map[string]interface{}); ok {
@@ -838,14 +852,11 @@ func extractAppCfgCustomSettings(appCfg interface{}, platformKey string) []fleet
 				profSpec.Path = path
 			}
 
-			// extract the Labels field, labels are cleared if not provided
-			if labels, ok := m["labels"].([]interface{}); ok {
-				for _, label := range labels {
-					if strLabel, ok := label.(string); ok {
-						profSpec.Labels = append(profSpec.Labels, strLabel)
-					}
-				}
-			}
+			// at this stage we extract and return all supported label fields, the
+			// validations are done later on in the Fleet API endpoint.
+			profSpec.Labels = extractLabelField(m, "labels")
+			profSpec.LabelsIncludeAll = extractLabelField(m, "labels_include_all")
+			profSpec.LabelsExcludeAny = extractLabelField(m, "labels_exclude_any")
 
 			if profSpec.Path != "" {
 				csSpecs = append(csSpecs, profSpec)
