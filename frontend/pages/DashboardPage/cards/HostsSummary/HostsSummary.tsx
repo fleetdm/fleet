@@ -137,7 +137,7 @@ const HostsSummary = ({
 
   const renderIosCount = (teamId?: number) => {
     const iosLabelId = builtInLabels?.find(
-      (builtin) => builtin.name === PLATFORM_NAME_TO_LABEL_NAME.chrome // TODO: change to ios
+      (builtin) => builtin.name === PLATFORM_NAME_TO_LABEL_NAME.ios // TODO: change to ios
     )?.id;
 
     if (isLoadingHostsSummary || iosLabelId === undefined) {
@@ -160,7 +160,7 @@ const HostsSummary = ({
 
   const renderIpadosCount = (teamId?: number) => {
     const ipadosLabelId = builtInLabels?.find(
-      (builtin) => builtin.name === PLATFORM_NAME_TO_LABEL_NAME.chrome // TODO: change to ipados
+      (builtin) => builtin.name === PLATFORM_NAME_TO_LABEL_NAME.ipados // TODO: change to ipados
     )?.id;
 
     if (isLoadingHostsSummary || ipadosLabelId === undefined) {

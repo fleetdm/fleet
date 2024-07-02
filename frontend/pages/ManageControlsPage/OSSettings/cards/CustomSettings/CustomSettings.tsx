@@ -57,28 +57,8 @@ const CustomSettings = ({
 
   const selectedProfile = useRef<IMdmProfile | null>(null);
 
-  const profilesData: IMdmProfilesResponse = {
-    profiles: [
-      {
-        profile_uuid: "12345",
-        team_id: 1,
-        name: "Profile name",
-        platform: "ios",
-        identifier: "1234", // null for windows profiles
-        created_at: "2024-03-07T14:40:00Z",
-        updated_at: "2024-03-07T14:40:00Z",
-        checksum: "1234", // null for windows profiles
-        labels: [{ name: "string", broken: false }],
-      },
-    ],
-    meta: {
-      has_next_results: true,
-      has_previous_results: false,
-    },
-  };
-
   const {
-    data: profilesData2,
+    data: profilesData,
     isLoading: isLoadingProfiles,
     isError: isErrorProfiles,
     refetch: refetchProfiles,

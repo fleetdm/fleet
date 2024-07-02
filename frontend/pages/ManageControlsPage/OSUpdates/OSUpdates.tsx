@@ -40,10 +40,11 @@ const getSelectedPlatform = (
 };
 
 interface IOSUpdates {
+  router: InjectedRouter;
   teamIdForApi: number;
 }
 
-const OSUpdates = ({ teamIdForApi }: IOSUpdates) => {
+const OSUpdates = ({ router, teamIdForApi }: IOSUpdates) => {
   const { isPremiumTier, config, setConfig } = useContext(AppContext);
 
   const [
@@ -92,26 +93,18 @@ const OSUpdates = ({ teamIdForApi }: IOSUpdates) => {
   // FIXME: Handle error states for app config and team config (need specifications for this).
 
   // mdm is not enabled for mac or windows.
-  // TODO: Reinstate when ready
-  // if (
-  //   !config?.mdm.enabled_and_configured &&
-  //   !config?.mdm.windows_enabled_and_configured
-  // ) {
-  //   return <TurnOnMdmMessage router={router} />;
-  // }
-  // END TODO
+
+  if (
+    !config?.mdm.enabled_and_configured &&
+    !config?.mdm.windows_enabled_and_configured
+  ) {
+    return <TurnOnMdmMessage router={router} />;
+  }
 
   // If the user has not selected a platform yet, we default to the platform that
   // is enabled and configured.
   const selectedPlatform = selectedPlatformTab || getSelectedPlatform(config);
 
-  // TODO: Remove when ready
-  if (!config) {
-    return null;
-  }
-  // END TODO
-
-  console.log("selectedPlatform", selectedPlatform);
   return (
     <div className={baseClass}>
       <p className={`${baseClass}__description`}>

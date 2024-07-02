@@ -1,9 +1,5 @@
 import URL_PREFIX from "router/url_prefix";
-import {
-  DashboardOsqueryPlatform,
-  DashboardPlatform,
-  OsqueryPlatform,
-} from "interfaces/platform";
+import { DashboardOsqueryPlatform } from "interfaces/platform";
 import paths from "router/paths";
 import { ISchedulableQuery } from "interfaces/schedulable_query";
 import React from "react";

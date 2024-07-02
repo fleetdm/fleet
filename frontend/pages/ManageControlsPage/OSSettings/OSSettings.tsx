@@ -51,14 +51,12 @@ const OSSettings = ({
   );
 
   // MDM is not on so show messaging for user to enable it.
-  // TODO: Reinstate when ready
-  // if (
-  //   !config?.mdm.enabled_and_configured &&
-  //   !config?.mdm.windows_enabled_and_configured
-  // ) {
-  //   return <TurnOnMdmMessage router={router} />;
-  // }
-  // END TODO
+  if (
+    !config?.mdm.enabled_and_configured &&
+    !config?.mdm.windows_enabled_and_configured
+  ) {
+    return <TurnOnMdmMessage router={router} />;
+  }
 
   const DEFAULT_SETTINGS_SECTION = OS_SETTINGS_NAV_ITEMS[0];
 
