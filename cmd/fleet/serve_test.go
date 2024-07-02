@@ -494,7 +494,7 @@ func TestScanVulnerabilities(t *testing.T) {
 		}
 		return []uint{}, nil
 	}
-	ds.ListSoftwareForVulnDetectionFunc = func(ctx context.Context, hostID uint) ([]fleet.Software, error) {
+	ds.ListSoftwareForVulnDetectionFunc = func(ctx context.Context, filter fleet.VulnSoftwareFilter) ([]fleet.Software, error) {
 		return []fleet.Software{
 			{
 				ID:               1,
