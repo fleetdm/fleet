@@ -23,7 +23,20 @@ if [[ -d "$TUF_PATH" ]]; then
     exit 0
 fi
 
-SYSTEMS=${SYSTEMS:-macos linux windows}
+SYSTEMS=${SYSTEMS:-macos linux-amd64 linux-arm64 windows}
+
+# If we have 'linux' without arch, compile both
+if echo $SYSTEMS | grep 'linux[^-]'; then
+    if echo $SYSTEMS | grep -v 'linux-arm64'; then
+        SYSTEMS="$SYSTEMS linux-arm64"
+    fi
+    if echo $SYSTEMS | grep -v 'linux-amd64'; then
+        SYSTEMS="$SYSTEMS linux-amd64"
+    fi
+fi
+
+echo "Generating packages for $SYSTEMS"
+
 NUDGE_VERSION=stable
 SWIFT_DIALOG_MACOS_APP_VERSION=2.2.1
 SWIFT_DIALOG_MACOS_APP_BUILD_VERSION=4591
@@ -46,8 +59,17 @@ for system in $SYSTEMS; do
     elif [[ $system == "macos" ]]; then
         osqueryd="$osqueryd.app.tar.gz"
         osqueryd_system="macos-app"
+    elif [[ $system == "linux-amd64" ]]; then
+        osqueryd_system="linux"
+    elif [[ $system == "linux-arm64" ]]; then
+        osqueryd_system="linux-arm64"
     fi
-    osqueryd_path="$TUF_PATH/tmp/$osqueryd"
+
+    if [[ $system == "linux-arm64" ]]; then
+        osqueryd_path="$TUF_PATH/tmp/${osqueryd}-arm64"
+    else
+        osqueryd_path="$TUF_PATH/tmp/$osqueryd"
+    fi
     curl https://tuf.fleetctl.com/targets/osqueryd/$osqueryd_system/$OSQUERY_VERSION/$osqueryd --output $osqueryd_path
 
     major=$(echo "$OSQUERY_VERSION" | cut -d "." -f 1)
@@ -64,6 +86,14 @@ for system in $SYSTEMS; do
     goarch_value=${GOARCH:-}
     if [[ $system == "macos" ]]; then
         goose_value="darwin"
+    fi
+    if [[ $system == "linux-amd64" ]]; then
+        goose_value="linux"
+        goarch_value="amd64"
+    fi
+    if [[ $system == "linux-arm64" ]]; then
+        goose_value="linux"
+        goarch_value="arm64"
     fi
     orbit_target=orbit-$system
     if [[ $system == "windows" ]]; then
@@ -150,7 +180,7 @@ for system in $SYSTEMS; do
     fi
 
     # Add Fleet Desktop application on linux (if enabled).
-    if [[ $system == "linux" && -n "$FLEET_DESKTOP" ]]; then
+    if [[ $system == "linux-amd64" && -n "$FLEET_DESKTOP" ]]; then
         FLEET_DESKTOP_VERSION=42.0.0 \
         make desktop-linux
         ./build/fleetctl updates add \
@@ -159,6 +189,19 @@ for system in $SYSTEMS; do
         --platform linux \
         --name desktop \
         --version 42.0.0 -t 42.0 -t 42 -t stable
+        rm desktop.tar.gz
+    fi
+
+    # Add Fleet Desktop application on linux-arm64 (if enabled).
+    if [[ $system == "linux-arm64" && -n "$FLEET_DESKTOP" ]]; then
+        FLEET_DESKTOP_VERSION=42.0.0 \
+        make desktop-linux-arm64
+        ./build/fleetctl updates add \
+                         --path $TUF_PATH \
+                         --target desktop.tar.gz \
+                         --platform linux-arm64 \
+                         --name desktop \
+                         --version 42.0.0 -t 42.0 -t 42 -t stable
         rm desktop.tar.gz
     fi
 
@@ -178,7 +221,7 @@ for system in $SYSTEMS; do
     fi
 
     # Add extensions on linux (if set).
-    if [[ $system == "linux" && -n "$LINUX_TEST_EXTENSIONS" ]]; then
+    if [[ $system == "linux-amd64" && -n "$LINUX_TEST_EXTENSIONS" ]]; then
         for extension in ${LINUX_TEST_EXTENSIONS//,/ }
         do
             extensionName=$(basename $extension)
@@ -189,6 +232,21 @@ for system in $SYSTEMS; do
                 --platform linux \
                 --name "extensions/$extensionName" \
                 --version 42.0.0 -t 42.0 -t 42 -t stable
+        done
+    fi
+
+    # Add extensions on linux (if set).
+    if [[ $system == "linux-arm64" && -n "$LINUX_TEST_EXTENSIONS" ]]; then
+        for extension in ${LINUX_TEST_EXTENSIONS//,/ }
+        do
+            extensionName=$(basename $extension)
+            extensionName=$(echo "$extensionName" | cut -d'.' -f1)
+            ./build/fleetctl updates add \
+                             --path $TUF_PATH \
+                             --target $extension \
+                             --platform linux-arm64 \
+                             --name "extensions/$extensionName" \
+                             --version 42.0.0 -t 42.0 -t 42 -t stable
         done
     fi
 

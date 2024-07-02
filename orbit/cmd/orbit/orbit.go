@@ -431,7 +431,11 @@ func main() {
 			case "windows":
 				opt.Targets["desktop"] = update.DesktopWindowsTarget
 			case "linux":
-				opt.Targets["desktop"] = update.DesktopLinuxTarget
+				if runtime.GOARCH == "arm64" {
+					opt.Targets["desktop"] = update.DesktopLinuxArm64Target
+				} else {
+					opt.Targets["desktop"] = update.DesktopLinuxTarget
+				}
 			default:
 				log.Fatal().Str("GOOS", runtime.GOOS).Msg("unsupported GOOS for desktop target")
 			}

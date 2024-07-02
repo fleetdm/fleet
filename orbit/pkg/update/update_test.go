@@ -39,6 +39,7 @@ func TestMakeRepoPath(t *testing.T) {
 	}{
 		{platform: "linux", name: "osqueryd", version: "4.6.0", expected: "osqueryd/linux/4.6.0/osqueryd"},
 		{platform: "linux", name: "osqueryd", version: "3.3.2", expected: "osqueryd/linux/3.3.2/osqueryd"},
+		{platform: "linux-arm64", name: "osqueryd", version: "3.3.2", expected: "osqueryd/linux-arm64/3.3.2/osqueryd"},
 		{platform: "macos", name: "osqueryd", version: "4.6.0", expected: "osqueryd/macos/4.6.0/osqueryd"},
 		{platform: "macos", name: "osqueryd", version: "3.3.2", expected: "osqueryd/macos/3.3.2/osqueryd"},
 		{platform: "macos-app", name: "osqueryd", version: "3.3.2", expected: "osqueryd/macos-app/3.3.2/osqueryd.app.tar.gz"},
@@ -88,6 +89,12 @@ func TestLocalTargetPaths(t *testing.T) {
 			"root/bin/target/linux/stable/desktop.tar.gz",
 			"root/bin/target/linux/stable/fleet-desktop/fleet-desktop",
 			"root/bin/target/linux/stable/fleet-desktop",
+		},
+		{
+			DesktopLinuxArm64Target,
+			"root/bin/target/linux-arm64/stable/desktop.tar.gz",
+			"root/bin/target/linux-arm64/stable/fleet-desktop/fleet-desktop",
+			"root/bin/target/linux-arm64/stable/fleet-desktop",
 		},
 		{
 			SwiftDialogMacOSTarget,

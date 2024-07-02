@@ -493,6 +493,8 @@ func goosFromPlatform(platform string) (string, error) {
 		return "darwin", nil
 	case "windows", "linux":
 		return platform, nil
+	case "linux-arm64":
+		return "linux", nil
 	default:
 		return "", fmt.Errorf("unknown platform: %s", platform)
 	}
