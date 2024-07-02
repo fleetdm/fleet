@@ -2,7 +2,7 @@
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
 import { IOperatingSystemVersion } from "interfaces/operating_system";
-import { OsqueryPlatform } from "interfaces/platform";
+import { DashboardPlatform } from "interfaces/platform";
 import { buildQueryStringFromParams } from "utilities/url";
 import { API_NO_TEAM_ID } from "interfaces/team";
 
@@ -14,7 +14,7 @@ export const OS_VERSIONS_API_SUPPORTED_PLATFORMS = [
 ];
 
 export interface IGetOSVersionsQueryParams {
-  platform?: OsqueryPlatform;
+  platform?: DashboardPlatform;
   teamId?: number;
   os_name?: string;
   os_version?: string;

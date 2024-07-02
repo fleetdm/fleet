@@ -31,9 +31,7 @@ type StatusDisplayOptions = Record<
 const STATUS_DISPLAY_OPTIONS: StatusDisplayOptions = {
   Verified: {
     iconName: "success",
-    tooltipText:
-      "The host applied all OS settings. Fleet verified with osquery. " +
-      "Declaration profiles are verified with DDM.",
+    tooltipText: "These hosts applied all OS settings. Fleet verified.",
   },
   Verifying: {
     iconName: "success-outline",

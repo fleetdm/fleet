@@ -109,7 +109,8 @@ const TargetSection = ({
   });
 
   const renderTargetForms = () => {
-    if (isMacMdmEnabled && isWindowsMdmEnabled) {
+    if (!isMacMdmEnabled && !isWindowsMdmEnabled) {
+      // if (isMacMdmEnabled && isWindowsMdmEnabled) {
       return (
         <PlatformTabs
           currentTeamId={currentTeamId}

@@ -23,6 +23,8 @@ export default {
   DASHBOARD_MAC: `${URL_PREFIX}/dashboard/mac`,
   DASHBOARD_WINDOWS: `${URL_PREFIX}/dashboard/windows`,
   DASHBOARD_CHROME: `${URL_PREFIX}/dashboard/chrome`,
+  DASHBOARD_IOS: `${URL_PREFIX}/dashboard/ios`,
+  DASHBOARD_IPADOS: `${URL_PREFIX}/dashboard/ipados`,
 
   // Admin pages
   ADMIN_SETTINGS: `${URL_PREFIX}/settings`,

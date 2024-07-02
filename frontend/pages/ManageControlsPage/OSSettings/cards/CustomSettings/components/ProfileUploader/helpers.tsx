@@ -71,15 +71,15 @@ export const parseFile = async (file: File): Promise<[string, string]> => {
       // // TODO: enable this once mobileconfig parser is vetted
       // try {
       //   const parsedName = await parseMobileConfig(file);
-      //   return [parsedName, "macOS"];
+      //   return [parsedName, "macOS, iOS, iPadOS"];
       // } catch (e) {
       //   console.log("error", e);
-      //   return [name, "macOS"];
+      //   return [name, "macOS, iOS, iPadOS"];
       // }
-      return [name, "macOS"];
+      return [name, "macOS, iOS, iPadOS"];
     }
     case "json": {
-      return [name, "macOS"];
+      return [name, "macOS, iOS, iPadOS"];
     }
     default: {
       throw new Error(`Invalid file type: ${ext}`);

@@ -13,7 +13,7 @@ export type ButtonVariant =
   | "warning"
   | "link"
   | "label"
-  | "text-link"
+  | "text-link" // Underlines on hover
   | "text-icon"
   | "icon" // Buttons without text
   | "small-icon" // Buttons without text

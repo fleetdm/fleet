@@ -29,7 +29,7 @@ import {
   IMdmSummaryResponse,
   IMdmSummaryMdmSolution,
 } from "interfaces/mdm";
-import { SelectedPlatform } from "interfaces/platform";
+import { DashboardPlatform, SelectedPlatform } from "interfaces/platform";
 import { ISoftwareResponse, ISoftwareCountResponse } from "interfaces/software";
 import { API_ALL_TEAMS_ID, ITeam } from "interfaces/team";
 import { IConfig } from "interfaces/config";
@@ -124,7 +124,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     includeNoTeam: false,
   });
 
-  const [selectedPlatform, setSelectedPlatform] = useState<SelectedPlatform>(
+  const [selectedPlatform, setSelectedPlatform] = useState<DashboardPlatform>(
     "all"
   );
   const [
@@ -136,6 +136,8 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
   const [windowsCount, setWindowsCount] = useState(0);
   const [linuxCount, setLinuxCount] = useState(0);
   const [chromeCount, setChromeCount] = useState(0);
+  const [iosCount, setIosCount] = useState(0);
+  const [ipadosCount, setIpadosCount] = useState(0);
   const [missingCount, setMissingCount] = useState(0);
   const [lowDiskSpaceCount, setLowDiskSpaceCount] = useState(0);
   const [showActivityFeedTitle, setShowActivityFeedTitle] = useState(false);
@@ -243,10 +245,20 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
           (platform: IHostSummaryPlatforms) => platform.platform === "chrome"
         ) || { platform: "chrome", hosts_count: 0 };
 
+        const iphones = data.platforms?.find(
+          (platform: IHostSummaryPlatforms) => platform.platform === "ios"
+        ) || { platform: "ios", hosts_count: 0 };
+
+        const ipads = data.platforms?.find(
+          (platform: IHostSummaryPlatforms) => platform.platform === "ipados"
+        ) || { platform: "ipados", hosts_count: 0 };
+
         setMacCount(macHosts.hosts_count);
         setWindowsCount(windowsHosts.hosts_count);
         setLinuxCount(data.all_linux_count);
         setChromeCount(chromebooks.hosts_count);
+        setIosCount(iphones.hosts_count);
+        setIpadosCount(ipads.hosts_count);
         setShowHostsUI(true);
       },
     }
@@ -551,6 +563,8 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
         windowsCount={windowsCount}
         linuxCount={linuxCount}
         chromeCount={chromeCount}
+        iosCount={iosCount}
+        ipadosCount={ipadosCount}
         isLoadingHostsSummary={isHostSummaryFetching}
         builtInLabels={labels}
         showHostsUI={showHostsUI}
@@ -756,6 +770,20 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     </>
   );
 
+  const iosLayout = () => (
+    <>
+      <div className={`${baseClass}__section`}>{OperatingSystemsCard}</div>
+      {showMdmCard && <div className={`${baseClass}__section`}>{MDMCard}</div>}
+    </>
+  );
+
+  const ipadosLayout = () => (
+    <>
+      <div className={`${baseClass}__section`}>{OperatingSystemsCard}</div>
+      {showMdmCard && <div className={`${baseClass}__section`}>{MDMCard}</div>}
+    </>
+  );
+
   const renderCards = () => {
     switch (selectedPlatform) {
       case "darwin":
@@ -766,6 +794,10 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
         return linuxLayout();
       case "chrome":
         return chromeLayout();
+      case "ios":
+        return iosLayout();
+      case "ipados":
+        return ipadosLayout();
       default:
         return allLayout();
     }
@@ -870,12 +902,14 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
               </div>
             )}
             <div className={`${baseClass}__section`}>{HostsSummaryCard}</div>
-            {isPremiumTier && (
-              <div className={`${baseClass}__section`}>
-                {MissingHostsCard}
-                {LowDiskSpaceHostsCard}
-              </div>
-            )}
+            {isPremiumTier &&
+              selectedPlatform !== "ios" &&
+              selectedPlatform !== "ipados" && (
+                <div className={`${baseClass}__section`}>
+                  {MissingHostsCard}
+                  {LowDiskSpaceHostsCard}
+                </div>
+              )}
           </>
         </div>
         {renderCards()}

@@ -8,6 +8,8 @@ export type OsqueryPlatform =
   | "chrome"
   | "ChromeOS";
 
+export type DashboardOsqueryPlatform = OsqueryPlatform | "iOS" | "iPadOS";
+
 export type SupportedPlatform = "darwin" | "windows" | "linux" | "chrome";
 
 export const SUPPORTED_PLATFORMS: SupportedPlatform[] = [
@@ -16,6 +18,7 @@ export const SUPPORTED_PLATFORMS: SupportedPlatform[] = [
   "linux",
   "chrome",
 ];
+
 export type SelectedPlatform = SupportedPlatform | "all";
 
 export type SelectedPlatformString =
@@ -24,6 +27,8 @@ export type SelectedPlatformString =
   | `${SupportedPlatform},${SupportedPlatform}`
   | `${SupportedPlatform},${SupportedPlatform},${SupportedPlatform}`
   | `${SupportedPlatform},${SupportedPlatform},${SupportedPlatform},${SupportedPlatform}`;
+
+export type DashboardPlatform = SelectedPlatform | "ios" | "ipados";
 
 // TODO: revisit this approach pending resolution of https://github.com/fleetdm/fleet/issues/3555.
 export const MACADMINS_EXTENSION_TABLES: Record<string, OsqueryPlatform[]> = {

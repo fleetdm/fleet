@@ -9,7 +9,7 @@ import {
   reconcileMutuallyExclusiveHostParams,
   reconcileMutuallyInclusiveHostParams,
 } from "utilities/url";
-import { SelectedPlatform } from "interfaces/platform";
+import { DashboardPlatform, SelectedPlatform } from "interfaces/platform";
 import {
   IHostSoftware,
   ISoftware,
@@ -206,7 +206,7 @@ const getSortParams = (sortOptions?: ISortOption[]) => {
   };
 };
 
-const createMdmParams = (platform?: SelectedPlatform, teamId?: number) => {
+const createMdmParams = (platform?: DashboardPlatform, teamId?: number) => {
   if (platform === "all") {
     return buildQueryStringFromParams({ team_id: teamId });
   }
@@ -535,7 +535,7 @@ export default {
     return sendRequest("GET", HOST_MDM(id));
   },
 
-  getMdmSummary: (platform?: SelectedPlatform, teamId?: number) => {
+  getMdmSummary: (platform?: DashboardPlatform, teamId?: number) => {
     const { MDM_SUMMARY } = endpoints;
 
     if (!platform || platform === "linux") {

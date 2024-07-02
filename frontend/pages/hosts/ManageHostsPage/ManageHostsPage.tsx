@@ -54,7 +54,7 @@ import {
   isValidSoftwareInstallStatus,
   SoftwareInstallStatus,
 } from "interfaces/software";
-import { API_NO_TEAM_ID, ITeam } from "interfaces/team";
+import { ITeam } from "interfaces/team";
 import { IEmptyTableProps } from "interfaces/empty_table";
 import {
   DiskEncryptionStatus,
@@ -1734,7 +1734,6 @@ const ManageHostsPage = ({
             }
             onClickEditLabel={onEditLabelClick}
             onClickDeleteLabel={toggleDeleteLabelModal}
-            isSandboxMode={isSandboxMode}
           />
           {renderNoEnrollSecretBanner()}
           {renderTable()}
