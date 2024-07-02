@@ -390,7 +390,6 @@ Fleet pays its vendors in less than 15 business days in most cases. All invoices
   - For US-based vendors, vendors are required to provide a completed [W-9 Form ](https://www.irs.gov/pub/irs-pdf/fw9.pdf) to [accounting@fleetdm.com](mailto:accounting@fleetdm.com)
   - **Non-US based vendors** are required to follow these [instructions](https://www.irs.gov/instructions/iw8bene) and provide a completed [W-8BEN-E](https://www.irs.gov/pub/irs-pdf/fw8bene.pdf) form.
   - For non-US individuals, a completed W-8BEN should be provided. Here is the [instruction.](https://www.irs.gov/instructions/iw8ben)
-- Bill.com e-payment is recommended to pay all vendors. The vendor needs to provide a correct email for sending out Bill.com e-payment invite.
 
 
 
