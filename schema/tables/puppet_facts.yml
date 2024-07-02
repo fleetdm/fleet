@@ -1,0 +1,30 @@
+name: puppet_facts
+notes: This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).
+description: Outputs [Puppet factgs](https://www.puppet.com/docs/puppet/8/lang_facts_and_builtin_vars.html).
+platforms: 
+  - darwin
+  - windows
+  - linux
+evented: false
+examples: >-
+  List resources that failed or took over a minute to evaluate.
+
+  ```
+  
+  SELECT * FROM puppet_facts WHERE name='serial_number';
+  
+  ```
+columns:
+  - name: node
+    description: The name of the resource.
+    required: false
+    type: text
+  - name: fact
+    description: The name of the fact.
+    required: false
+    type: text
+  - name: value
+    description: The value of the fact.
+    required: false
+    type: text
+
