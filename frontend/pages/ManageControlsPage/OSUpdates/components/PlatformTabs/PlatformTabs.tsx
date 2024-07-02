@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { Tab, TabList, TabPanel, Tabs } from "react-tabs";
 import TabsWrapper from "components/TabsWrapper";
 
@@ -34,14 +34,24 @@ const PlatformTabs = ({
 }: IPlatformTabsProps) => {
   // FIXME: This behaves unexpectedly when a user switches tabs or changes the teams dropdown while a form is
   // submitting.
+
+  const PLATFORM_BY_INDEX: OSUpdatesSupportedPlatform[] = [
+    "darwin",
+    "windows",
+    "iOS",
+    "iPadOS",
+  ];
+
+  const onTabChange = (index: number) => {
+    onSelectPlatform(PLATFORM_BY_INDEX[index]);
+  };
+
   return (
     <div className={baseClass}>
       <TabsWrapper>
         <Tabs
-          defaultIndex={selectedPlatform === "darwin" ? 0 : 1}
-          onSelect={(currentIndex) =>
-            onSelectPlatform(currentIndex === 0 ? "darwin" : "windows")
-          }
+          defaultIndex={PLATFORM_BY_INDEX.indexOf(selectedPlatform)}
+          onSelect={onTabChange}
         >
           <TabList>
             {/* Bolding text when the tab is active causes a layout shift so

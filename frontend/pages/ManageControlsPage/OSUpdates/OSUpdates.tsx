@@ -111,6 +111,7 @@ const OSUpdates = ({ teamIdForApi }: IOSUpdates) => {
   }
   // END TODO
 
+  console.log("selectedPlatform", selectedPlatform);
   return (
     <div className={baseClass}>
       <p className={`${baseClass}__description`}>
