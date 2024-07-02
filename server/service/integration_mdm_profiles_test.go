@@ -1081,7 +1081,7 @@ func (s *integrationMDMTestSuite) TestPuppetMatchPreassignProfiles() {
 	s.runWorker()
 
 	// the mdm host has the same profiles (i1, i2, plus fleetd config and disk encryption)
-	s.assertHostConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
+	s.assertHostAppleConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
 		mdmHost: {
 			{Identifier: "i1", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
 			{Identifier: "i2", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
@@ -1158,7 +1158,7 @@ func (s *integrationMDMTestSuite) TestPuppetMatchPreassignProfiles() {
 	//	mysql.DumpTable(t, q, "host_mdm_apple_profiles")
 	//	return nil
 	//})
-	s.assertHostConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
+	s.assertHostAppleConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
 		mdmHost: {
 			{Identifier: "i1", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
 			{Identifier: "i2", OperationType: fleet.MDMOperationTypeRemove, Status: &fleet.MDMDeliveryPending},
@@ -1199,7 +1199,7 @@ func (s *integrationMDMTestSuite) TestPuppetMatchPreassignProfiles() {
 	// and its profiles have been left untouched
 	s.awaitTriggerProfileSchedule(t)
 
-	s.assertHostConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
+	s.assertHostAppleConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
 		mdmHost2: {
 			{Identifier: "i1", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
 			{Identifier: "i4", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
@@ -2083,7 +2083,7 @@ func (s *integrationMDMTestSuite) TestHostMDMAppleProfilesStatus() {
 	require.Nil(t, h2.TeamID)
 	// run the cron
 	s.awaitTriggerProfileSchedule(t)
-	s.assertHostConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
+	s.assertHostAppleConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
 		h1: {
 			{Identifier: "G1", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
 			{Identifier: "G2", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
@@ -2107,7 +2107,7 @@ func (s *integrationMDMTestSuite) TestHostMDMAppleProfilesStatus() {
 	require.Equal(t, tm1.ID, *h4.TeamID)
 	// run the cron
 	s.awaitTriggerProfileSchedule(t)
-	s.assertHostConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
+	s.assertHostAppleConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
 		h3: {
 			{Identifier: "T1.1", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
 			{Identifier: "T1.2", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
@@ -2129,7 +2129,7 @@ func (s *integrationMDMTestSuite) TestHostMDMAppleProfilesStatus() {
 	var moveHostResp addHostsToTeamResponse
 	s.DoJSON("POST", "/api/v1/fleet/hosts/transfer",
 		addHostsToTeamRequest{TeamID: &tm2.ID, HostIDs: []uint{h1.ID}}, http.StatusOK, &moveHostResp)
-	s.assertHostConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
+	s.assertHostAppleConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
 		h1: {
 			{Identifier: "G1", OperationType: fleet.MDMOperationTypeRemove, Status: &fleet.MDMDeliveryPending},
 			{Identifier: "G2", OperationType: fleet.MDMOperationTypeRemove, Status: &fleet.MDMDeliveryPending},
@@ -2148,7 +2148,7 @@ func (s *integrationMDMTestSuite) TestHostMDMAppleProfilesStatus() {
 	// switch a team host (h3) to another team (tm2)
 	s.DoJSON("POST", "/api/v1/fleet/hosts/transfer",
 		addHostsToTeamRequest{TeamID: &tm2.ID, HostIDs: []uint{h3.ID}}, http.StatusOK, &moveHostResp)
-	s.assertHostConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
+	s.assertHostAppleConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
 		h3: {
 			{Identifier: "T1.1", OperationType: fleet.MDMOperationTypeRemove, Status: &fleet.MDMDeliveryPending},
 			{Identifier: "T1.2", OperationType: fleet.MDMOperationTypeRemove, Status: &fleet.MDMDeliveryPending},
@@ -2167,7 +2167,7 @@ func (s *integrationMDMTestSuite) TestHostMDMAppleProfilesStatus() {
 	// switch a team host (h4) to no team
 	s.DoJSON("POST", "/api/v1/fleet/hosts/transfer",
 		addHostsToTeamRequest{TeamID: nil, HostIDs: []uint{h4.ID}}, http.StatusOK, &moveHostResp)
-	s.assertHostConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
+	s.assertHostAppleConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
 		h3: {
 			{Identifier: "T1.1", OperationType: fleet.MDMOperationTypeRemove, Status: &fleet.MDMDeliveryPending},
 			{Identifier: "T1.2", OperationType: fleet.MDMOperationTypeRemove, Status: &fleet.MDMDeliveryPending},
@@ -2192,7 +2192,7 @@ func (s *integrationMDMTestSuite) TestHostMDMAppleProfilesStatus() {
 	body, headers := generateNewProfileMultipartRequest(t,
 		"some_name", mobileconfigForTest("G3", "G3"), s.token, nil)
 	s.DoRawWithHeaders("POST", "/api/latest/fleet/mdm/apple/profiles", body.Bytes(), http.StatusOK, headers)
-	s.assertHostConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
+	s.assertHostAppleConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
 		h2: {
 			{Identifier: "G1", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
 			{Identifier: "G2", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
@@ -2213,7 +2213,7 @@ func (s *integrationMDMTestSuite) TestHostMDMAppleProfilesStatus() {
 	body, headers = generateNewProfileMultipartRequest(t,
 		"some_name", mobileconfigForTest("T2.2", "T2.2"), s.token, map[string][]string{"team_id": {fmt.Sprintf("%d", tm2.ID)}})
 	s.DoRawWithHeaders("POST", "/api/latest/fleet/mdm/apple/profiles", body.Bytes(), http.StatusOK, headers)
-	s.assertHostConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
+	s.assertHostAppleConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
 		h1: {
 			{Identifier: "T2.1", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
 			{Identifier: "T2.2", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
@@ -2245,7 +2245,7 @@ func (s *integrationMDMTestSuite) TestHostMDMAppleProfilesStatus() {
 	var delProfResp deleteMDMAppleConfigProfileResponse
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/mdm/apple/profiles/%d", g1ProfID),
 		deleteMDMAppleConfigProfileRequest{}, http.StatusOK, &delProfResp)
-	s.assertHostConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
+	s.assertHostAppleConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
 		h2: {
 			{Identifier: "G1", OperationType: fleet.MDMOperationTypeRemove, Status: &fleet.MDMDeliveryPending},
 			{Identifier: "G2", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
@@ -2275,7 +2275,7 @@ func (s *integrationMDMTestSuite) TestHostMDMAppleProfilesStatus() {
 	require.NotZero(t, tm21ProfID)
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/mdm/apple/profiles/%d", tm21ProfID),
 		deleteMDMAppleConfigProfileRequest{}, http.StatusOK, &delProfResp)
-	s.assertHostConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
+	s.assertHostAppleConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
 		h1: {
 			{Identifier: "T2.1", OperationType: fleet.MDMOperationTypeRemove, Status: &fleet.MDMDeliveryPending},
 			{Identifier: "T2.2", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
@@ -2305,7 +2305,7 @@ func (s *integrationMDMTestSuite) TestHostMDMAppleProfilesStatus() {
 			},
 		}, http.StatusNoContent)
 
-	s.assertHostConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
+	s.assertHostAppleConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
 		h2: {
 			{Identifier: "G2", OperationType: fleet.MDMOperationTypeRemove, Status: &fleet.MDMDeliveryPending},
 			{Identifier: "G2b", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
@@ -2334,7 +2334,7 @@ func (s *integrationMDMTestSuite) TestHostMDMAppleProfilesStatus() {
 				t23Content,
 			},
 		}, http.StatusNoContent, "team_id", fmt.Sprint(tm2.ID))
-	s.assertHostConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
+	s.assertHostAppleConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
 		h1: {
 			{Identifier: "T2.2", OperationType: fleet.MDMOperationTypeRemove, Status: &fleet.MDMDeliveryPending},
 			{Identifier: "T2.2b", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
@@ -2375,7 +2375,7 @@ func (s *integrationMDMTestSuite) TestHostMDMAppleProfilesStatus() {
 				mobileconfigForTest("T1.3", "T1.3"),
 			},
 		}, http.StatusNoContent, "team_id", fmt.Sprint(tm1.ID))
-	s.assertHostConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
+	s.assertHostAppleConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
 		h1: {
 			{Identifier: "T2.2b", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
 			{Identifier: "T2.3", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
@@ -2404,7 +2404,7 @@ func (s *integrationMDMTestSuite) TestHostMDMAppleProfilesStatus() {
 
 	// delete team 2 (h1 and h3 are part of that team)
 	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/teams/%d", tm2.ID), nil, http.StatusOK)
-	s.assertHostConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
+	s.assertHostAppleConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
 		h1: {
 			{Identifier: "T2.2b", OperationType: fleet.MDMOperationTypeRemove, Status: &fleet.MDMDeliveryPending},
 			{Identifier: "T2.3", OperationType: fleet.MDMOperationTypeRemove, Status: &fleet.MDMDeliveryPending},
@@ -2427,7 +2427,7 @@ func (s *integrationMDMTestSuite) TestHostMDMAppleProfilesStatus() {
 	triggerReconcileProfiles()
 
 	// all profiles now verifying
-	s.assertHostConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
+	s.assertHostAppleConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
 		h1: {
 			{Identifier: "G2b", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
 			{Identifier: "G4", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
@@ -2458,7 +2458,7 @@ func (s *integrationMDMTestSuite) TestHostMDMAppleProfilesStatus() {
 	require.NoError(t, apple_mdm.VerifyHostMDMProfiles(context.Background(), s.ds, h1, map[string]*fleet.HostMacOSProfile{
 		"G2b": {Identifier: "G2b", DisplayName: "G2b", InstallDate: time.Now()},
 	}))
-	s.assertHostConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
+	s.assertHostAppleConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
 		h1: {
 			{Identifier: "G2b", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerified},
 			{Identifier: "G4", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
@@ -2535,7 +2535,7 @@ func (s *integrationMDMTestSuite) TestHostMDMAppleProfilesStatus() {
 
 	triggerReconcileProfiles()
 
-	s.assertHostConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
+	s.assertHostAppleConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
 		h1: {
 			{Identifier: mobileconfig.FleetdConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
 			{Identifier: mobileconfig.FleetCARootConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
@@ -2566,7 +2566,7 @@ func (s *integrationMDMTestSuite) TestHostMDMAppleProfilesStatus() {
 		"label_prof": {Identifier: "label_prof", DisplayName: "label_prof", InstallDate: time.Now()},
 	}))
 
-	s.assertHostConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
+	s.assertHostAppleConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
 		h1: {
 			{Identifier: mobileconfig.FleetdConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
 			{Identifier: mobileconfig.FleetCARootConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
@@ -4538,4 +4538,237 @@ func (s *integrationMDMTestSuite) TestMDMAppleConfigProfileCRUD() {
 	deletePath = fmt.Sprintf("/api/latest/fleet/mdm/apple/profiles/%d", profile.ProfileID)
 	deleteResp = deleteMDMAppleConfigProfileResponse{}
 	s.DoJSON("DELETE", deletePath, nil, http.StatusBadRequest, &deleteResp)
+}
+
+func (s *integrationMDMTestSuite) TestHostMDMProfilesExcludeLabels() {
+	t := s.T()
+	ctx := context.Background()
+
+	triggerReconcileProfiles := func() {
+		s.awaitTriggerProfileSchedule(t)
+		// this will only mark them as "pending", as the response to confirm
+		// profile deployment is asynchronous, so we simulate it here by
+		// updating any "pending" (not NULL) profiles to "verifying"
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			if _, err := q.ExecContext(ctx, `UPDATE host_mdm_apple_profiles SET status = ? WHERE status = ?`, fleet.OSSettingsVerifying, fleet.OSSettingsPending); err != nil {
+				return err
+			}
+			if _, err := q.ExecContext(ctx, `UPDATE host_mdm_apple_declarations SET status = ? WHERE status = ?`, fleet.OSSettingsVerifying, fleet.OSSettingsPending); err != nil {
+				return err
+			}
+			if _, err := q.ExecContext(ctx, `UPDATE host_mdm_windows_profiles SET status = ? WHERE status = ?`, fleet.OSSettingsVerifying, fleet.OSSettingsPending); err != nil {
+				return err
+			}
+			return nil
+		})
+	}
+
+	// create an Apple and a Windows host
+	appleHost, _ := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	windowsHost, _ := createWindowsHostThenEnrollMDM(s.ds, s.server.URL, t)
+
+	// create a few labels
+	labels := make([]*fleet.Label, 5)
+	for i := 0; i < len(labels); i++ {
+		label, err := s.ds.NewLabel(ctx, &fleet.Label{Name: fmt.Sprintf("label-%d", i), Query: "select 1;"})
+		require.NoError(t, err)
+		labels[i] = label
+	}
+
+	// set an Apple profile and declaration and a Windows profile
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+		{Name: "A1", Contents: mobileconfigForTest("A1", "A1"), LabelsExcludeAny: []string{labels[0].Name, labels[1].Name}},
+		{Name: "W2", Contents: syncMLForTest("./Foo/W2"), LabelsExcludeAny: []string{labels[2].Name, labels[3].Name}},
+		{Name: "D3", Contents: declarationForTest("D3"), LabelsExcludeAny: []string{labels[4].Name}},
+	}}, http.StatusNoContent)
+
+	// hosts are not members of any label yet, so running the cron applies the labels
+	s.awaitTriggerProfileSchedule(t)
+	s.assertHostAppleConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
+		appleHost: {
+			{Identifier: "A1", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
+			{Identifier: "D3", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
+		},
+	})
+	s.assertHostWindowsConfigProfiles(map[*fleet.Host][]fleet.HostMDMWindowsProfile{
+		windowsHost: {
+			{Name: "W2", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
+		},
+	})
+
+	// simulate the reconcile profiles deployment
+	triggerReconcileProfiles()
+	s.assertHostAppleConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
+		appleHost: {
+			{Identifier: "A1", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
+			{Identifier: "D3", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
+		},
+	})
+	s.assertHostWindowsConfigProfiles(map[*fleet.Host][]fleet.HostMDMWindowsProfile{
+		windowsHost: {
+			{Name: "W2", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
+		},
+	})
+
+	// mark some profiles as verified (despite accepting a HostMacOSProfile struct, it supports Windows too)
+	err := apple_mdm.VerifyHostMDMProfiles(ctx, s.ds, appleHost, map[string]*fleet.HostMacOSProfile{
+		"A1": {Identifier: "A1", DisplayName: "A1", InstallDate: time.Now()},
+	})
+	require.NoError(t, err)
+	err = apple_mdm.VerifyHostMDMProfiles(ctx, s.ds, windowsHost, map[string]*fleet.HostMacOSProfile{
+		"W2": {Identifier: "W2", DisplayName: "W2", InstallDate: time.Now()},
+	})
+	require.NoError(t, err)
+
+	s.assertHostAppleConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
+		appleHost: {
+			{Identifier: "A1", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerified},
+			{Identifier: "D3", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
+		},
+	})
+	s.assertHostWindowsConfigProfiles(map[*fleet.Host][]fleet.HostMDMWindowsProfile{
+		windowsHost: {
+			{Name: "W2", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerified},
+		},
+	})
+
+	// make hosts members of labels [1], [2], [3] and [4], meaning that none of the profiles apply anymore
+	err = s.ds.AsyncBatchInsertLabelMembership(ctx, [][2]uint{
+		{labels[1].ID, appleHost.ID},
+		{labels[2].ID, appleHost.ID},
+		{labels[3].ID, appleHost.ID},
+		{labels[4].ID, appleHost.ID},
+		{labels[1].ID, windowsHost.ID},
+		{labels[2].ID, windowsHost.ID},
+		{labels[3].ID, windowsHost.ID},
+		{labels[4].ID, windowsHost.ID},
+	})
+	require.NoError(t, err)
+
+	s.awaitTriggerProfileSchedule(t)
+	s.assertHostAppleConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
+		appleHost: {
+			{Identifier: "A1", OperationType: fleet.MDMOperationTypeRemove, Status: &fleet.MDMDeliveryPending},
+			{Identifier: "D3", OperationType: fleet.MDMOperationTypeRemove, Status: &fleet.MDMDeliveryPending},
+		},
+	})
+	// windows profiles go straight to removed without getting deleted on the host
+	s.assertHostWindowsConfigProfiles(map[*fleet.Host][]fleet.HostMDMWindowsProfile{
+		windowsHost: {},
+	})
+
+	// remove membership of labels [2] for Windows, and [4] for Apple, meaning
+	// that only D3 will be installed on Apple (as the Windows host is still
+	// member of an excluded label)
+	err = s.ds.AsyncBatchDeleteLabelMembership(ctx, [][2]uint{
+		{labels[4].ID, appleHost.ID},
+		{labels[2].ID, windowsHost.ID},
+	})
+	require.NoError(t, err)
+
+	s.awaitTriggerProfileSchedule(t)
+	s.assertHostAppleConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
+		appleHost: {
+			{Identifier: "A1", OperationType: fleet.MDMOperationTypeRemove, Status: &fleet.MDMDeliveryPending},
+			{Identifier: "D3", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
+		},
+	})
+	s.assertHostWindowsConfigProfiles(map[*fleet.Host][]fleet.HostMDMWindowsProfile{
+		windowsHost: {},
+	})
+
+	// remove label [3] as an excluded label for the Windows profile, meaning
+	// that the host now meets the requirement to install.
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+		{Name: "A1", Contents: mobileconfigForTest("A1", "A1"), LabelsExcludeAny: []string{labels[0].Name, labels[1].Name}},
+		{Name: "W2", Contents: syncMLForTest("./Foo/W2"), LabelsExcludeAny: []string{labels[2].Name}},
+		{Name: "D3", Contents: declarationForTest("D3"), LabelsExcludeAny: []string{labels[4].Name}},
+	}}, http.StatusNoContent)
+
+	s.awaitTriggerProfileSchedule(t)
+	s.assertHostAppleConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
+		appleHost: {
+			{Identifier: "A1", OperationType: fleet.MDMOperationTypeRemove, Status: &fleet.MDMDeliveryPending},
+			{Identifier: "D3", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
+		},
+	})
+	s.assertHostWindowsConfigProfiles(map[*fleet.Host][]fleet.HostMDMWindowsProfile{
+		windowsHost: {
+			{Name: "W2", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
+		},
+	})
+
+	// simulate the reconcile profiles deployment and mark as verified
+	triggerReconcileProfiles()
+	err = apple_mdm.VerifyHostMDMProfiles(ctx, s.ds, windowsHost, map[string]*fleet.HostMacOSProfile{
+		"W2": {Identifier: "W2", DisplayName: "W2", InstallDate: time.Now()},
+	})
+	require.NoError(t, err)
+
+	s.assertHostAppleConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
+		appleHost: {
+			{Identifier: "D3", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
+		},
+	})
+	s.assertHostWindowsConfigProfiles(map[*fleet.Host][]fleet.HostMDMWindowsProfile{
+		windowsHost: {
+			{Name: "W2", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerified},
+		},
+	})
+
+	// break the A1 profile by deleting labels [1]
+	err = s.ds.DeleteLabel(ctx, labels[1].Name)
+	require.NoError(t, err)
+
+	// it doesn't get installed to the Apple host, as it is broken
+	triggerReconcileProfiles()
+	s.assertHostAppleConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
+		appleHost: {
+			{Identifier: "D3", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
+		},
+	})
+	s.assertHostWindowsConfigProfiles(map[*fleet.Host][]fleet.HostMDMWindowsProfile{
+		windowsHost: {
+			{Name: "W2", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerified},
+		},
+	})
+
+	// it also doesn't get installed to a new host not a member of any labels
+	appleHost2, _ := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	triggerReconcileProfiles()
+	s.assertHostAppleConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
+		appleHost: {
+			{Identifier: "D3", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
+		},
+		appleHost2: {
+			{Identifier: "D3", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
+		},
+	})
+	s.assertHostWindowsConfigProfiles(map[*fleet.Host][]fleet.HostMDMWindowsProfile{
+		windowsHost: {
+			{Name: "W2", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerified},
+		},
+	})
+
+	// delete labels [2] and [4], breaking D3 and W2, they don't get removed
+	// since they are broken
+	err = s.ds.DeleteLabel(ctx, labels[2].Name)
+	require.NoError(t, err)
+	err = s.ds.DeleteLabel(ctx, labels[4].Name)
+	require.NoError(t, err)
+
+	triggerReconcileProfiles()
+	s.assertHostAppleConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
+		appleHost: {
+			{Identifier: "D3", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
+		},
+		appleHost2: {
+			{Identifier: "D3", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
+		},
+	})
+	s.assertHostWindowsConfigProfiles(map[*fleet.Host][]fleet.HostMDMWindowsProfile{
+		windowsHost: {
+			{Name: "W2", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerified},
+		},
+	})
 }
