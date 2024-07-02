@@ -122,18 +122,24 @@ func (a *AppleMDM) runPostDEPEnrollment(ctx context.Context, args appleMDMArgs) 
 		}
 	}
 
+	idpAcct, err := a.Datastore.GetMDMIdPAccountByDeviceUUID(ctx, args.HostUUID)
+	if err != nil && !fleet.IsNotFound(err) {
+		return ctxerr.Wrap(ctx, err, "getting idp account details")
+	}
+
 	if ref := args.EnrollReference; ref != "" {
 		a.Log.Log("info", "got an enroll_reference", "host_uuid", args.HostUUID, "ref", ref)
+		idpAcct, err = a.Datastore.GetMDMIdPAccountByLegacyEnrollRef(ctx, ref)
+		if err != nil {
+			return ctxerr.Wrapf(ctx, err, "getting idp account details for enroll reference %s", ref)
+		}
+	}
+
+	if idpAcct != nil {
 		appCfg, err := a.Datastore.AppConfig(ctx)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "getting app config")
 		}
-
-		acct, err := a.Datastore.GetMDMIdPAccountByUUID(ctx, ref)
-		if err != nil {
-			return ctxerr.Wrapf(ctx, err, "getting idp account details for enroll reference %s", ref)
-		}
-
 		ssoEnabled := appCfg.MDM.MacOSSetup.EnableEndUserAuthentication
 		if args.TeamID != nil {
 			team, err := a.Datastore.Team(ctx, *args.TeamID)
@@ -150,13 +156,24 @@ func (a *AppleMDM) runPostDEPEnrollment(ctx context.Context, args appleMDMArgs) 
 				ctx,
 				[]string{args.HostUUID},
 				cmdUUID,
-				acct.Fullname,
-				acct.Username,
+				idpAcct.Fullname,
+				idpAcct.Username,
 			); err != nil {
 				return ctxerr.Wrap(ctx, err, "sending AccountConfiguration command")
 			}
 			awaitCmdUUIDs = append(awaitCmdUUIDs, cmdUUID)
 		}
+	}
+
+	// TODO: Questions:
+	// - Can we be sure we have a hosts table record and an mdm_idp_accounts record at this
+	//   point?
+	// - Where are all the lifecycle events that we need set or reset host emails? DEP device enrolls
+	//   manually?
+	// - DEP device re-enrolls with SSO off? Should we delete pre-existing emails?
+	// - What should happen if post release job or any awaited commands fail?
+	if err := a.Datastore.SetOrUpdateHostEmailsFromMdmIdpAccountsByHostUUID(ctx, args.HostUUID); err != nil {
+		return ctxerr.Wrap(ctx, err, "upserting host emails from mdm idp accounts")
 	}
 
 	var manualRelease bool

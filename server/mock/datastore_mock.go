@@ -597,6 +597,8 @@ type SetOrUpdateMDMDataFunc func(ctx context.Context, hostID uint, isServer bool
 
 type SetOrUpdateHostEmailsFromMdmIdpAccountsFunc func(ctx context.Context, hostID uint, fleetEnrollmentRef string) error
 
+type SetOrUpdateHostEmailsFromMdmIdpAccountsByHostUUIDFunc func(ctx context.Context, hostUUID string) error
+
 type SetOrUpdateHostDisksSpaceFunc func(ctx context.Context, hostID uint, gigsAvailable float64, percentAvailable float64, gigsTotal float64) error
 
 type SetOrUpdateHostDisksEncryptionFunc func(ctx context.Context, hostID uint, encrypted bool) error
@@ -771,7 +773,13 @@ type GetMDMAppleProfilesSummaryFunc func(ctx context.Context, teamID *uint) (*fl
 
 type InsertMDMIdPAccountFunc func(ctx context.Context, account *fleet.MDMIdPAccount) error
 
-type GetMDMIdPAccountByUUIDFunc func(ctx context.Context, uuid string) (*fleet.MDMIdPAccount, error)
+type AssociateMDMIdPAccountFunc func(ctx context.Context, accountUUID string, deviceUUID string) error
+
+type GetMDMIdPAccountByAccountUUIDFunc func(ctx context.Context, accountUUID string) (*fleet.MDMIdPAccount, error)
+
+type GetMDMIdPAccountByDeviceUUIDFunc func(ctx context.Context, deviceUUID string) (*fleet.MDMIdPAccount, error)
+
+type GetMDMIdPAccountByLegacyEnrollRefFunc func(ctx context.Context, ref string) (*fleet.MDMIdPAccount, error)
 
 type GetMDMIdPAccountByEmailFunc func(ctx context.Context, email string) (*fleet.MDMIdPAccount, error)
 
@@ -1849,6 +1857,9 @@ type DataStore struct {
 	SetOrUpdateHostEmailsFromMdmIdpAccountsFunc        SetOrUpdateHostEmailsFromMdmIdpAccountsFunc
 	SetOrUpdateHostEmailsFromMdmIdpAccountsFuncInvoked bool
 
+	SetOrUpdateHostEmailsFromMdmIdpAccountsByHostUUIDFunc        SetOrUpdateHostEmailsFromMdmIdpAccountsByHostUUIDFunc
+	SetOrUpdateHostEmailsFromMdmIdpAccountsByHostUUIDFuncInvoked bool
+
 	SetOrUpdateHostDisksSpaceFunc        SetOrUpdateHostDisksSpaceFunc
 	SetOrUpdateHostDisksSpaceFuncInvoked bool
 
@@ -2110,8 +2121,17 @@ type DataStore struct {
 	InsertMDMIdPAccountFunc        InsertMDMIdPAccountFunc
 	InsertMDMIdPAccountFuncInvoked bool
 
-	GetMDMIdPAccountByUUIDFunc        GetMDMIdPAccountByUUIDFunc
-	GetMDMIdPAccountByUUIDFuncInvoked bool
+	AssociateMDMIdPAccountFunc        AssociateMDMIdPAccountFunc
+	AssociateMDMIdPAccountFuncInvoked bool
+
+	GetMDMIdPAccountByAccountUUIDFunc        GetMDMIdPAccountByAccountUUIDFunc
+	GetMDMIdPAccountByAccountUUIDFuncInvoked bool
+
+	GetMDMIdPAccountByDeviceUUIDFunc        GetMDMIdPAccountByDeviceUUIDFunc
+	GetMDMIdPAccountByDeviceUUIDFuncInvoked bool
+
+	GetMDMIdPAccountByLegacyEnrollRefFunc        GetMDMIdPAccountByLegacyEnrollRefFunc
+	GetMDMIdPAccountByLegacyEnrollRefFuncInvoked bool
 
 	GetMDMIdPAccountByEmailFunc        GetMDMIdPAccountByEmailFunc
 	GetMDMIdPAccountByEmailFuncInvoked bool
@@ -4451,6 +4471,13 @@ func (s *DataStore) SetOrUpdateHostEmailsFromMdmIdpAccounts(ctx context.Context,
 	return s.SetOrUpdateHostEmailsFromMdmIdpAccountsFunc(ctx, hostID, fleetEnrollmentRef)
 }
 
+func (s *DataStore) SetOrUpdateHostEmailsFromMdmIdpAccountsByHostUUID(ctx context.Context, hostUUID string) error {
+	s.mu.Lock()
+	s.SetOrUpdateHostEmailsFromMdmIdpAccountsByHostUUIDFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetOrUpdateHostEmailsFromMdmIdpAccountsByHostUUIDFunc(ctx, hostUUID)
+}
+
 func (s *DataStore) SetOrUpdateHostDisksSpace(ctx context.Context, hostID uint, gigsAvailable float64, percentAvailable float64, gigsTotal float64) error {
 	s.mu.Lock()
 	s.SetOrUpdateHostDisksSpaceFuncInvoked = true
@@ -5060,11 +5087,32 @@ func (s *DataStore) InsertMDMIdPAccount(ctx context.Context, account *fleet.MDMI
 	return s.InsertMDMIdPAccountFunc(ctx, account)
 }
 
-func (s *DataStore) GetMDMIdPAccountByUUID(ctx context.Context, uuid string) (*fleet.MDMIdPAccount, error) {
+func (s *DataStore) AssociateMDMIdPAccount(ctx context.Context, accountUUID string, deviceUUID string) error {
 	s.mu.Lock()
-	s.GetMDMIdPAccountByUUIDFuncInvoked = true
+	s.AssociateMDMIdPAccountFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetMDMIdPAccountByUUIDFunc(ctx, uuid)
+	return s.AssociateMDMIdPAccountFunc(ctx, accountUUID, deviceUUID)
+}
+
+func (s *DataStore) GetMDMIdPAccountByAccountUUID(ctx context.Context, accountUUID string) (*fleet.MDMIdPAccount, error) {
+	s.mu.Lock()
+	s.GetMDMIdPAccountByAccountUUIDFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetMDMIdPAccountByAccountUUIDFunc(ctx, accountUUID)
+}
+
+func (s *DataStore) GetMDMIdPAccountByDeviceUUID(ctx context.Context, deviceUUID string) (*fleet.MDMIdPAccount, error) {
+	s.mu.Lock()
+	s.GetMDMIdPAccountByDeviceUUIDFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetMDMIdPAccountByDeviceUUIDFunc(ctx, deviceUUID)
+}
+
+func (s *DataStore) GetMDMIdPAccountByLegacyEnrollRef(ctx context.Context, ref string) (*fleet.MDMIdPAccount, error) {
+	s.mu.Lock()
+	s.GetMDMIdPAccountByLegacyEnrollRefFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetMDMIdPAccountByLegacyEnrollRefFunc(ctx, ref)
 }
 
 func (s *DataStore) GetMDMIdPAccountByEmail(ctx context.Context, email string) (*fleet.MDMIdPAccount, error) {

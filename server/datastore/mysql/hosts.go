@@ -26,8 +26,10 @@ import (
 
 // Since many hosts may have issues, we need to batch the inserts of host issues.
 // This is a variable, so it can be adjusted during unit testing.
-var hostIssuesInsertBatchSize = 10000
-var hostIssuesUpdateFailingPoliciesBatchSize = 10000
+var (
+	hostIssuesInsertBatchSize                = 10000
+	hostIssuesUpdateFailingPoliciesBatchSize = 10000
+)
 
 // A large number of hosts could be changing teams at once, so we need to batch this operation to prevent excessive locks
 var addHostsToTeamBatchSize = 10000
@@ -3642,7 +3644,7 @@ func (ds *Datastore) SetOrUpdateHostEmailsFromMdmIdpAccounts(
 ) error {
 	var email *string
 	if fleetEnrollmentRef != "" {
-		idp, err := ds.GetMDMIdPAccountByUUID(ctx, fleetEnrollmentRef)
+		idp, err := ds.GetMDMIdPAccountByLegacyEnrollRef(ctx, fleetEnrollmentRef)
 		if err != nil {
 			return err
 		}
@@ -3654,6 +3656,39 @@ func (ds *Datastore) SetOrUpdateHostEmailsFromMdmIdpAccounts(
 		`UPDATE host_emails SET email = ? WHERE host_id = ? AND source = ?`,
 		`INSERT INTO host_emails (email, host_id, source) VALUES (?, ?, ?)`,
 		email, hostID, fleet.DeviceMappingMDMIdpAccounts,
+	)
+}
+
+func (ds *Datastore) SetOrUpdateHostEmailsFromMdmIdpAccountsByHostUUID(
+	ctx context.Context,
+	hostUUID string,
+) error {
+	var hid uint
+	var email string
+	if hostUUID != "" {
+		host, err := ds.HostLiteByIdentifier(ctx, hostUUID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "getting host by identifier to upsert host emails with mdm idp account")
+		}
+		hid = host.ID
+
+		idp, err := ds.GetMDMIdPAccountByDeviceUUID(ctx, hostUUID)
+		if err != nil {
+			if fleet.IsNotFound(err) {
+				level.Debug(ds.logger).Log("msg", "getting idp account by device uuid to upsert host emails with mdm idp account", "device_uuid", hostUUID, "err", err)
+			} else {
+				return ctxerr.Wrap(ctx, err, "getting idp account by device uuid to upsert host emails with mdm idp account")
+			}
+		}
+		email = idp.Email
+	}
+	// TODO: Do we want to update with empty email if no idp account is found?
+	// TODO: Do we want to insert a new row if the email is empty?
+	return ds.updateOrInsert(
+		ctx,
+		`UPDATE host_emails SET email = ? WHERE host_id = ? AND source = ?`,
+		`INSERT INTO host_emails (email, host_id, source) VALUES (?, ?, ?)`,
+		email, hid, fleet.DeviceMappingMDMIdpAccounts,
 	)
 }
 
