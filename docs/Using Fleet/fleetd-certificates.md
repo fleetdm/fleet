@@ -26,3 +26,8 @@ fleetctl debug connection \
 ```
 
 [0] We have a Github CI action that runs daily that updates the [certs.pem on the repository](https://github.com/fleetdm/fleet/blob/main/orbit/pkg/packaging/certs.pem) whenever there's a new version of `cacert.pem` in https://curl.se/docs/caextract.html. Such file is embedded into the `fleetctl` executable and used when generating fleetd packages.
+
+<meta name="pageOrderInSection" value="1511">
+<meta name="title" value="TLS certificates in fleetd">
+<meta name="description" value="Learn about TLS server certificates in fleetd.">
+<meta name="navSection" value="Dig deeper">
