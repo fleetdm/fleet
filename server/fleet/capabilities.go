@@ -15,7 +15,7 @@ type CapabilityMap map[Capability]struct{}
 // mu is used to allow for safe access to the capability map.
 var mu sync.Mutex
 
-// PopulateFromString populates the CapabilityMap from a comma separated string.
+// PopulateFromString populates the CapabilityMap from a comma-separated string.
 // Example: "foo,bar,baz" => {"foo": struct{}, "bar": struct{}, "baz": struct{}}
 func (c *CapabilityMap) PopulateFromString(s string) {
 	mu.Lock()
@@ -31,7 +31,7 @@ func (c *CapabilityMap) PopulateFromString(s string) {
 	}
 }
 
-// String returns a comma separated string with the capabilities in the map.
+// String returns a comma-separated string with the capabilities in the map.
 // Example: {"foo": struct{}, "bar": struct{}, "baz": struct{}} => "foo,bar,baz"
 func (c *CapabilityMap) String() string {
 	mu.Lock()

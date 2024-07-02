@@ -3,9 +3,7 @@
     "name": "account_policy_data",
     "description": "Additional macOS user account data from the AccountPolicy section of [OpenDirectory](https://en.wikipedia.org/wiki/Apple_Open_Directory), the identity provider used by Apple.",
     "url": "https://fleetdm.com/tables/account_policy_data",
-    "platforms": [
-      "darwin"
-    ],
+    "platforms": ["darwin"],
     "evented": false,
     "cacheable": false,
     "notes": "- The values in this OpenDirectory table are related to account creation.  In the past, it was fairly common to use OpenDirectory to have a home folder (`~`) on a server, and then log in and get that folder wherever they are.  (These days, this use case is more uncommon.)\n- To determine who is logged in to the Mac, or for example, to check the record name versus the computer's \"short name\", consider using the data in [the DSCL table](https://fleetdm.com/tables/dscl).",
@@ -63,10 +61,7 @@
     "name": "acpi_tables",
     "description": "Firmware ACPI functional table common metadata and content.",
     "url": "https://fleetdm.com/tables/acpi_tables",
-    "platforms": [
-      "darwin",
-      "linux"
-    ],
+    "platforms": ["darwin", "linux"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -106,9 +101,7 @@
     "name": "ad_config",
     "description": "macOS Active Directory configuration.",
     "url": "https://fleetdm.com/tables/ad_config",
-    "platforms": [
-      "darwin"
-    ],
+    "platforms": ["darwin"],
     "evented": false,
     "cacheable": false,
     "notes": "\n- Active Directory is a directory service used to manage users and computers. A domain is the high level grouping of these objects, which a workstation must join in order to provide the user with features such as Single Sign-On to internal applications using Kerberos. \n- If a host is not bound to an Active Directory domain, then the table returns no results.",
@@ -157,9 +150,7 @@
     "name": "alf",
     "description": "Details about the status of the built-in firewall protection on this Mac.",
     "url": "https://fleetdm.com/tables/alf",
-    "platforms": [
-      "darwin"
-    ],
+    "platforms": ["darwin"],
     "evented": false,
     "cacheable": false,
     "notes": "- This table provides information about the built-in firewall in macOS, also known as [Application Layer Firewall (ALF)](https://support.apple.com/guide/mac-help/block-connections-to-your-mac-with-a-firewall-mh34041/mac)",
@@ -235,9 +226,7 @@
     "name": "alf_exceptions",
     "description": "The exceptions configured for the [built-in firewall protection](https://fleetdm.com/tables/alf) on this Mac.",
     "url": "https://fleetdm.com/tables/alf_exceptions",
-    "platforms": [
-      "darwin"
-    ],
+    "platforms": ["darwin"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -268,9 +257,7 @@
     "name": "alf_explicit_auths",
     "description": "ALF services explicitly allowed to perform networking.",
     "url": "https://fleetdm.com/tables/alf_explicit_auths",
-    "platforms": [
-      "darwin"
-    ],
+    "platforms": ["darwin"],
     "evented": false,
     "cacheable": false,
     "notes": "This table is currently affected by a [bug](https://github.com/osquery/osquery/issues/2322) and not returning applications visible in the preferences interface.",
@@ -290,9 +277,7 @@
   },
   {
     "name": "apfs_physical_stores",
-    "platforms": [
-      "darwin"
-    ],
+    "platforms": ["darwin"],
     "description": "Information about APFS physical stores from the `diskutil apfs list -plist` command.",
     "columns": [
       {
@@ -357,9 +342,7 @@
   },
   {
     "name": "apfs_volumes",
-    "platforms": [
-      "darwin"
-    ],
+    "platforms": ["darwin"],
     "description": "Information about APFS volumes from the `diskutil apfs list -plist` command.",
     "columns": [
       {
@@ -475,9 +458,7 @@
     "description": "Icons and their locations for macOS applications.",
     "evented": false,
     "notes": "This table is not a core osquery table. It is included as part of fleetd, the osquery manager from Fleet. Code based on work by [Kolide](https://github.com/kolide/launcher).",
-    "platforms": [
-      "darwin"
-    ],
+    "platforms": ["darwin"],
     "columns": [
       {
         "name": "path",
@@ -505,9 +486,7 @@
     "name": "app_schemes",
     "description": "macOS application schemes and handlers (e.g., http, file, mailto).",
     "url": "https://fleetdm.com/tables/app_schemes",
-    "platforms": [
-      "darwin"
-    ],
+    "platforms": ["darwin"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -565,9 +544,7 @@
     "name": "apparmor_events",
     "description": "Track AppArmor events.",
     "url": "https://fleetdm.com/tables/apparmor_events",
-    "platforms": [
-      "linux"
-    ],
+    "platforms": ["linux"],
     "evented": true,
     "cacheable": false,
     "notes": "",
@@ -778,9 +755,7 @@
     "name": "apparmor_profiles",
     "description": "Track active AppArmor profiles.",
     "url": "https://fleetdm.com/tables/apparmor_profiles",
-    "platforms": [
-      "linux"
-    ],
+    "platforms": ["linux"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -839,9 +814,7 @@
     "name": "appcompat_shims",
     "description": "Application Compatibility shims are a way to persist malware. This table presents the AppCompat Shim information from the registry in a nice format. See http://files.brucon.org/2015/Tomczak_and_Ballenthin_Shims_for_the_Win.pdf for more details.",
     "url": "https://fleetdm.com/tables/appcompat_shims",
-    "platforms": [
-      "windows"
-    ],
+    "platforms": ["windows"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -909,9 +882,7 @@
     "name": "apps",
     "description": "macOS applications installed in known search paths (e.g., /Applications).",
     "url": "https://fleetdm.com/tables/apps",
-    "platforms": [
-      "darwin"
-    ],
+    "platforms": ["darwin"],
     "evented": false,
     "cacheable": true,
     "notes": "",
@@ -1095,9 +1066,7 @@
     "name": "apt_sources",
     "description": "Current list of APT repositories or software channels.",
     "url": "https://fleetdm.com/tables/apt_sources",
-    "platforms": [
-      "linux"
-    ],
+    "platforms": ["linux"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -1183,9 +1152,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "Linux"
-        ]
+        "platforms": ["Linux"]
       }
     ],
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/apt_sources.yml"
@@ -1194,11 +1161,7 @@
     "name": "arp_cache",
     "description": "The Address Resolution Protocol (ARP) cache maps IP addresses to MAC addresses in the network stack on Linux, macOS & Windows.",
     "url": "https://fleetdm.com/tables/arp_cache",
-    "platforms": [
-      "darwin",
-      "linux",
-      "windows"
-    ],
+    "platforms": ["darwin", "linux", "windows"],
     "evented": false,
     "cacheable": false,
     "notes": "The first six digits of a MAC address are the known as the [Organizationally Unique Identifier](https://en.wikipedia.org/wiki/Organizationally_unique_identifier)\n\nManufacturer and model information can be looked up by MAC address using [Wireshark OUI Lookup](https://www.wireshark.org/tools/oui-lookup.html)\n\nOUI is used to populate manufacturer information in applications like [Wi-Fi Explorer](https://www.intuitibits.com/products/wifiexplorer/)\n\nMonitoring the [ARP Cache](https://en.wikipedia.org/wiki/ARP_cache) is useful for maintaining network integrity & security. Querying data from this table can help to:\n\n  - Find network anomalies\n  - Troubleshoot network connectivity\n  - Uncover [ARP Spoofing](https://en.wikipedia.org/wiki/ARP_spoofing)",
@@ -1247,9 +1210,7 @@
     "name": "asl",
     "description": "Queries the Apple System Log data structure for system events.",
     "url": "https://fleetdm.com/tables/asl",
-    "platforms": [
-      "darwin"
-    ],
+    "platforms": ["darwin"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -1379,10 +1340,7 @@
     "name": "augeas",
     "description": "Configuration files parsed by [augeas](https://augeas.net/).",
     "url": "https://fleetdm.com/tables/augeas",
-    "platforms": [
-      "darwin",
-      "linux"
-    ],
+    "platforms": ["darwin", "linux"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -1429,9 +1387,7 @@
   },
   {
     "name": "authdb",
-    "platforms": [
-      "darwin"
-    ],
+    "platforms": ["darwin"],
     "description": "The macOS authorizationdb is used by Mac admins to give their users or themselves granular permissions on the Macs they manage. The `authdb` osquery table returns JSON output for the `authorizationdb read <right_name>` command.",
     "evented": false,
     "columns": [
@@ -1457,9 +1413,7 @@
     "name": "authenticode",
     "description": "File (executable, bundle, installer, disk) code signing status.",
     "url": "https://fleetdm.com/tables/authenticode",
-    "platforms": [
-      "windows"
-    ],
+    "platforms": ["windows"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -1527,9 +1481,7 @@
     "name": "authorization_mechanisms",
     "description": "macOS Authorization mechanisms database.",
     "url": "https://fleetdm.com/tables/authorization_mechanisms",
-    "platforms": [
-      "darwin"
-    ],
+    "platforms": ["darwin"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -1587,9 +1539,7 @@
     "name": "authorizations",
     "description": "macOS Authorization rights database.",
     "url": "https://fleetdm.com/tables/authorizations",
-    "platforms": [
-      "darwin"
-    ],
+    "platforms": ["darwin"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -1710,10 +1660,7 @@
     "name": "authorized_keys",
     "description": "A line-delimited authorized_keys table.",
     "url": "https://fleetdm.com/tables/authorized_keys",
-    "platforms": [
-      "darwin",
-      "linux"
-    ],
+    "platforms": ["darwin", "linux"],
     "evented": false,
     "cacheable": false,
     "notes": "Querying this table requires joining against the `users` table. [Learn more](https://fleetdm.com/guides/osquery-consider-joining-against-the-users-table)",
@@ -1781,9 +1728,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "Linux"
-        ]
+        "platforms": ["Linux"]
       }
     ],
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/authorized_keys.yml"
@@ -1792,9 +1737,7 @@
     "name": "autoexec",
     "description": "Aggregate of executables that will automatically execute on the target machine. This is an amalgamation of other tables like services, scheduled_tasks, startup_items and more.",
     "url": "https://fleetdm.com/tables/autoexec",
-    "platforms": [
-      "windows"
-    ],
+    "platforms": ["windows"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -1834,11 +1777,7 @@
     "name": "azure_instance_metadata",
     "description": "Azure instance metadata.",
     "url": "https://fleetdm.com/tables/azure_instance_metadata",
-    "platforms": [
-      "darwin",
-      "linux",
-      "windows"
-    ],
+    "platforms": ["darwin", "linux", "windows"],
     "evented": false,
     "cacheable": true,
     "notes": "",
@@ -1995,11 +1934,7 @@
     "name": "azure_instance_tags",
     "description": "Azure instance tags.",
     "url": "https://fleetdm.com/tables/azure_instance_tags",
-    "platforms": [
-      "darwin",
-      "linux",
-      "windows"
-    ],
+    "platforms": ["darwin", "linux", "windows"],
     "evented": false,
     "cacheable": true,
     "notes": "",
@@ -2039,9 +1974,7 @@
     "name": "background_activities_moderator",
     "description": "Background Activities Moderator (BAM) tracks application execution.",
     "url": "https://fleetdm.com/tables/background_activities_moderator",
-    "platforms": [
-      "windows"
-    ],
+    "platforms": ["windows"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -2082,10 +2015,7 @@
     "name": "battery",
     "description": "Provides information about the internal battery of a laptop. Note: On Windows, columns with Ah or mAh units assume that the battery is 12V.",
     "url": "https://fleetdm.com/tables/battery",
-    "platforms": [
-      "darwin",
-      "windows"
-    ],
+    "platforms": ["darwin", "windows"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -2234,9 +2164,7 @@
         "hidden": true,
         "required": false,
         "index": false,
-        "platforms": [
-          "Windows"
-        ]
+        "platforms": ["Windows"]
       },
       {
         "name": "health",
@@ -2246,9 +2174,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "macOS"
-        ]
+        "platforms": ["macOS"]
       },
       {
         "name": "condition",
@@ -2258,9 +2184,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "macOS"
-        ]
+        "platforms": ["macOS"]
       },
       {
         "name": "manufacture_date",
@@ -2270,9 +2194,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "macOS"
-        ]
+        "platforms": ["macOS"]
       }
     ],
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/battery.yml"
@@ -2281,9 +2203,7 @@
     "name": "bitlocker_info",
     "description": "Retrieve bitlocker status of the machine.",
     "url": "https://fleetdm.com/tables/bitlocker_info",
-    "platforms": [
-      "windows"
-    ],
+    "platforms": ["windows"],
     "evented": false,
     "cacheable": false,
     "notes": "* `protection_status` is quite nuanced - from the [Microsoft documentation](https://learn.microsoft.com/en-us/windows/win32/secprov/getprotectionstatus-win32-encryptablevolume#parameters):\n\n `protection_status = 0`\n\n  For an Internal HD:\n  The volume is unencrypted, partially encrypted, or the volume's encryption key is available in the clear on the hard disk.\n\n  For an External HD:\n  The band for the volume is perpetually unlocked, has no key manager, or is managed by a third party key manager.\n  This can also mean that the band is managed by BitLocker but the DisableKeyProtectors method has been called and the drive is suspended.\n\n `protection_status = 1`\n\n  For an Internal HD:\n  The volume is fully encrypted and the encryption key for the volume is not available in the clear on the hard disk.\n\n  For an External HD:\n  BitLocker is the key manager for the band. The drive can be locked or unlocked but cannot be perpetually unlocked.\n\n `protection_status = 2`\n\n  The volume protection status cannot be determined. This can be caused by the volume being in a locked state.",
@@ -2377,10 +2297,7 @@
     "name": "block_devices",
     "description": "Block (buffered access) device file nodes: disks, ramdisks, and DMG containers.",
     "url": "https://fleetdm.com/tables/block_devices",
-    "platforms": [
-      "darwin",
-      "linux"
-    ],
+    "platforms": ["darwin", "linux"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -2474,9 +2391,7 @@
     "name": "bpf_process_events",
     "description": "Track time/action process executions.",
     "url": "https://fleetdm.com/tables/bpf_process_events",
-    "platforms": [
-      "linux"
-    ],
+    "platforms": ["linux"],
     "evented": true,
     "cacheable": false,
     "notes": "",
@@ -2642,9 +2557,7 @@
     "name": "bpf_socket_events",
     "description": "Track network socket opens and closes.",
     "url": "https://fleetdm.com/tables/bpf_socket_events",
-    "platforms": [
-      "linux"
-    ],
+    "platforms": ["linux"],
     "evented": true,
     "cacheable": false,
     "notes": "",
@@ -2855,9 +2768,7 @@
     "name": "browser_plugins",
     "description": "All C/NPAPI browser plugin details for all users. C/NPAPI has been deprecated on all major browsers. To query for plugins on modern browsers, try: `chrome_extensions` `firefox_addons` `safari_extensions`.",
     "url": "https://fleetdm.com/tables/browser_plugins",
-    "platforms": [
-      "darwin"
-    ],
+    "platforms": ["darwin"],
     "evented": false,
     "cacheable": false,
     "notes": "Querying this table requires joining against the `users` table. [Learn more](https://fleetdm.com/guides/osquery-consider-joining-against-the-users-table)",
@@ -2961,11 +2872,7 @@
     "name": "carbon_black_info",
     "description": "Returns info about a Carbon Black sensor install.",
     "url": "https://fleetdm.com/tables/carbon_black_info",
-    "platforms": [
-      "darwin",
-      "linux",
-      "windows"
-    ],
+    "platforms": ["darwin", "linux", "windows"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -3167,11 +3074,7 @@
     "name": "carves",
     "description": "List the set of completed and in-progress carves. If carve=1 then the query is treated as a new carve request.",
     "url": "https://fleetdm.com/tables/carves",
-    "platforms": [
-      "darwin",
-      "linux",
-      "windows"
-    ],
+    "platforms": ["darwin", "linux", "windows"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -3257,11 +3160,7 @@
     "name": "certificates",
     "description": "[Certificate authorities](https://en.wikipedia.org/wiki/Certificate_authority) installed in Keychains/ca-bundles.",
     "url": "https://fleetdm.com/tables/certificates",
-    "platforms": [
-      "darwin",
-      "linux",
-      "windows"
-    ],
+    "platforms": ["darwin", "linux", "windows"],
     "evented": false,
     "cacheable": true,
     "notes": "- This table should be used sparingly as it uses an Apple API which occasionally corrupts the underlying certificate. Learn more [here](https://github.com/fleetdm/fleet/issues/13065#issuecomment-1658849614).",
@@ -3419,9 +3318,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "Windows"
-        ]
+        "platforms": ["Windows"]
       },
       {
         "name": "store_location",
@@ -3431,9 +3328,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "Windows"
-        ]
+        "platforms": ["Windows"]
       },
       {
         "name": "store",
@@ -3443,9 +3338,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "Windows"
-        ]
+        "platforms": ["Windows"]
       },
       {
         "name": "username",
@@ -3455,9 +3348,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "Windows"
-        ]
+        "platforms": ["Windows"]
       },
       {
         "name": "store_id",
@@ -3467,9 +3358,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "Windows"
-        ]
+        "platforms": ["Windows"]
       },
       {
         "name": "issuer2",
@@ -3479,10 +3368,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "Linux",
-          "macOS"
-        ]
+        "platforms": ["Linux", "macOS"]
       },
       {
         "name": "subject2",
@@ -3492,10 +3378,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "Linux",
-          "macOS"
-        ]
+        "platforms": ["Linux", "macOS"]
       }
     ],
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/certificates.yml"
@@ -3504,9 +3387,7 @@
     "name": "chassis_info",
     "description": "Display information pertaining to the chassis and its security status.",
     "url": "https://fleetdm.com/tables/chassis_info",
-    "platforms": [
-      "windows"
-    ],
+    "platforms": ["windows"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -3637,9 +3518,7 @@
     "name": "chocolatey_packages",
     "description": "Chocolatey packages installed in a system.",
     "url": "https://fleetdm.com/tables/chocolatey_packages",
-    "platforms": [
-      "windows"
-    ],
+    "platforms": ["windows"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -3706,11 +3585,7 @@
     "name": "chrome_extension_content_scripts",
     "description": "Chrome browser extension content scripts.",
     "url": "https://fleetdm.com/tables/chrome_extension_content_scripts",
-    "platforms": [
-      "darwin",
-      "linux",
-      "windows"
-    ],
+    "platforms": ["darwin", "linux", "windows"],
     "evented": false,
     "cacheable": false,
     "notes": "Querying this table requires joining against the `users` table. [Learn more](https://fleetdm.com/guides/osquery-consider-joining-against-the-users-table)",
@@ -3804,12 +3679,7 @@
     "name": "chrome_extensions",
     "description": "The `chrome_extensions` table maps browser extensions installed in [Chromium](https://en.wikipedia.org/wiki/Chromium_(web_browser)) browsers like [Google Chrome](https://en.wikipedia.org/wiki/Google_Chrome), [Edge](https://en.wikipedia.org/wiki/Microsoft_Edge), [Brave](https://en.wikipedia.org/wiki/Brave_(web_browser)), [Opera](https://en.wikipedia.org/wiki/Opera_(web_browser)), and [Yandex](https://en.wikipedia.org/wiki/Yandex_Browser).",
     "url": "https://fleetdm.com/tables/chrome_extensions",
-    "platforms": [
-      "darwin",
-      "windows",
-      "linux",
-      "chrome"
-    ],
+    "platforms": ["darwin", "windows", "linux", "chrome"],
     "evented": false,
     "cacheable": false,
     "notes": "Querying this table requires joining against the `users` table. [Learn more](https://fleetdm.com/guides/osquery-consider-joining-against-the-users-table)\n\nOn ChromeOS, this table requires the [fleetd Chrome extension](https://fleetdm.com/docs/using-fleet/chromeos).\n\nExamples of [malicious Chrome extensions](https://palant.info/2023/06/08/another-cluster-of-potentially-malicious-chrome-extensions/)\n\nLoosely restricted extension permissions can be an [indicator of malicious intent](https://developer.chrome.com/docs/extensions/reference/api/permissions)\n\nTracking browser extensions in an organization can help with:\n\n  - Compliance audits: Ensure extensions comply with company policies\n  - Security training: Educate users about Chrome extension risks\n  - Incident response: Identify suspicious or vulnerable extensions",
@@ -3832,11 +3702,7 @@
         "hidden": false,
         "required": false,
         "index": true,
-        "platforms": [
-          "macOS",
-          "Windows",
-          "Linux"
-        ]
+        "platforms": ["macOS", "Windows", "Linux"]
       },
       {
         "name": "name",
@@ -3855,11 +3721,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "macOS",
-          "Windows",
-          "Linux"
-        ]
+        "platforms": ["macOS", "Windows", "Linux"]
       },
       {
         "name": "profile_path",
@@ -3869,11 +3731,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "macOS",
-          "Windows",
-          "Linux"
-        ]
+        "platforms": ["macOS", "Windows", "Linux"]
       },
       {
         "name": "referenced_identifier",
@@ -3883,11 +3741,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "macOS",
-          "Windows",
-          "Linux"
-        ]
+        "platforms": ["macOS", "Windows", "Linux"]
       },
       {
         "name": "identifier",
@@ -3924,11 +3778,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "macOS",
-          "Windows",
-          "Linux"
-        ]
+        "platforms": ["macOS", "Windows", "Linux"]
       },
       {
         "name": "current_locale",
@@ -3938,11 +3788,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "macOS",
-          "Windows",
-          "Linux"
-        ]
+        "platforms": ["macOS", "Windows", "Linux"]
       },
       {
         "name": "update_url",
@@ -3961,11 +3807,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "macOS",
-          "Windows",
-          "Linux"
-        ]
+        "platforms": ["macOS", "Windows", "Linux"]
       },
       {
         "name": "persistent",
@@ -3975,11 +3817,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "macOS",
-          "Windows",
-          "Linux"
-        ]
+        "platforms": ["macOS", "Windows", "Linux"]
       },
       {
         "name": "path",
@@ -4016,11 +3854,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "macOS",
-          "Windows",
-          "Linux"
-        ]
+        "platforms": ["macOS", "Windows", "Linux"]
       },
       {
         "name": "optional_permissions_json",
@@ -4030,11 +3864,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "macOS",
-          "Windows",
-          "Linux"
-        ]
+        "platforms": ["macOS", "Windows", "Linux"]
       },
       {
         "name": "manifest_hash",
@@ -4044,11 +3874,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "macOS",
-          "Windows",
-          "Linux"
-        ]
+        "platforms": ["macOS", "Windows", "Linux"]
       },
       {
         "name": "referenced",
@@ -4058,11 +3884,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "macOS",
-          "Windows",
-          "Linux"
-        ]
+        "platforms": ["macOS", "Windows", "Linux"]
       },
       {
         "name": "from_webstore",
@@ -4072,11 +3894,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "macOS",
-          "Windows",
-          "Linux"
-        ]
+        "platforms": ["macOS", "Windows", "Linux"]
       },
       {
         "name": "state",
@@ -4095,11 +3913,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "macOS",
-          "Windows",
-          "Linux"
-        ]
+        "platforms": ["macOS", "Windows", "Linux"]
       },
       {
         "name": "install_timestamp",
@@ -4109,11 +3923,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "macOS",
-          "Windows",
-          "Linux"
-        ]
+        "platforms": ["macOS", "Windows", "Linux"]
       },
       {
         "name": "manifest_json",
@@ -4123,11 +3933,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "macOS",
-          "Windows",
-          "Linux"
-        ]
+        "platforms": ["macOS", "Windows", "Linux"]
       },
       {
         "name": "key",
@@ -4137,20 +3943,14 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "macOS",
-          "Windows",
-          "Linux"
-        ]
+        "platforms": ["macOS", "Windows", "Linux"]
       }
     ],
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/chrome_extensions.yml"
   },
   {
     "name": "cis_audit",
-    "platforms": [
-      "windows"
-    ],
+    "platforms": ["windows"],
     "description": "Enables querying CIS items values.",
     "columns": [
       {
@@ -4175,9 +3975,7 @@
     "name": "connected_displays",
     "description": "Provides information about the connected displays of the machine.",
     "url": "https://fleetdm.com/tables/connected_displays",
-    "platforms": [
-      "darwin"
-    ],
+    "platforms": ["darwin"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -4334,9 +4132,7 @@
     "name": "connectivity",
     "description": "Provides the overall system's network state.",
     "url": "https://fleetdm.com/tables/connectivity",
-    "platforms": [
-      "windows"
-    ],
+    "platforms": ["windows"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -4429,9 +4225,7 @@
   },
   {
     "name": "corestorage_logical_volume_families",
-    "platforms": [
-      "darwin"
-    ],
+    "platforms": ["darwin"],
     "description": "Information about CoreStorage Logical Volume Families from the `diskutil coreStorage list -plist` command.",
     "columns": [
       {
@@ -4550,9 +4344,7 @@
   },
   {
     "name": "corestorage_logical_volumes",
-    "platforms": [
-      "darwin"
-    ],
+    "platforms": ["darwin"],
     "description": "Information about CoreStorage Logical Volumes from the `diskutil coreStorage list -plist` command.",
     "columns": [
       {
@@ -4751,11 +4543,7 @@
     "name": "cpu_info",
     "description": "The `cpu_info` table expresses the data made available from a computer or mobile device by its Central Processing Unit (CPU).",
     "url": "https://fleetdm.com/tables/cpu_info",
-    "platforms": [
-      "darwin",
-      "linux",
-      "windows"
-    ],
+    "platforms": ["darwin", "linux", "windows"],
     "evented": false,
     "cacheable": false,
     "notes": "The `cpu_info` table is a good example of the cross-platform capabilities of osquery. It can be used on Linux, Mac and Windows hardware.\n\nAs seen in the schema table above, there are differences in CPU metadata made available across different platforms. These differences arise from various hardware manufacturers and operating systems not necessarily being held to an industry-wide, agreed-upon standard or protocol for CPU data.",
@@ -4868,9 +4656,7 @@
         "hidden": true,
         "required": false,
         "index": false,
-        "platforms": [
-          "Windows"
-        ]
+        "platforms": ["Windows"]
       },
       {
         "name": "load_percentage",
@@ -4880,9 +4666,7 @@
         "hidden": true,
         "required": false,
         "index": false,
-        "platforms": [
-          "Windows"
-        ]
+        "platforms": ["Windows"]
       },
       {
         "name": "number_of_efficiency_cores",
@@ -4892,9 +4676,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "macOS"
-        ]
+        "platforms": ["macOS"]
       },
       {
         "name": "number_of_performance_cores",
@@ -4904,9 +4686,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "macOS"
-        ]
+        "platforms": ["macOS"]
       }
     ],
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/cpu_info.yml"
@@ -4915,10 +4695,7 @@
     "name": "cpu_time",
     "description": "The `cpu_time` table displays data from the `/proc/stat` file which records how the Central Processing Unit (CPU) in a computer or mobile device allocates time to processing workloads.",
     "url": "https://fleetdm.com/tables/cpu_time",
-    "platforms": [
-      "darwin",
-      "linux"
-    ],
+    "platforms": ["darwin", "linux"],
     "evented": false,
     "cacheable": false,
     "notes": "[CPU time](https://en.wikipedia.org/wiki/CPU_time)\n\n[Benchmarking code by referencing CPU time](https://dev.to/satrobit/cpu-time-how-to-accurately-benchmark-your-code-572p)",
@@ -5030,11 +4807,7 @@
     "name": "cpuid",
     "description": "Useful CPU features from the cpuid ASM call.",
     "url": "https://fleetdm.com/tables/cpuid",
-    "platforms": [
-      "darwin",
-      "linux",
-      "windows"
-    ],
+    "platforms": ["darwin", "linux", "windows"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -5092,9 +4865,7 @@
     "name": "crashes",
     "description": "Application, System, and Mobile App crash logs.",
     "url": "https://fleetdm.com/tables/crashes",
-    "platforms": [
-      "darwin"
-    ],
+    "platforms": ["darwin"],
     "evented": false,
     "cacheable": false,
     "notes": "Querying this table requires joining against the `users` table. [Learn more](https://fleetdm.com/guides/osquery-consider-joining-against-the-users-table)",
@@ -5251,10 +5022,7 @@
     "name": "crontab",
     "description": "Line parsed values from system and user cron/tab.",
     "url": "https://fleetdm.com/tables/crontab",
-    "platforms": [
-      "darwin",
-      "linux"
-    ],
+    "platforms": ["darwin", "linux"],
     "evented": false,
     "cacheable": true,
     "notes": "",
@@ -5340,9 +5108,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "Windows"
-        ]
+        "platforms": ["Windows"]
       }
     ],
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/crontab.yml"
@@ -5352,11 +5118,7 @@
     "description": "Get info about the a certificate on the host.",
     "evented": false,
     "notes": "This table is not a core osquery table. It is included as part of fleetd, the osquery manager from Fleet. Code based on work by [Kolide](https://github.com/kolide/launcher).",
-    "platforms": [
-      "darwin",
-      "windows",
-      "linux"
-    ],
+    "platforms": ["darwin", "windows", "linux"],
     "columns": [
       {
         "name": "path",
@@ -5409,9 +5171,7 @@
     "description": "Get info about the encrypted drive on the host.",
     "evented": false,
     "notes": "This table is not a core osquery table. It is included as part of fleetd, the osquery manager from Fleet. Code based on work by [Kolide](https://github.com/kolide/launcher).",
-    "platforms": [
-      "linux"
-    ],
+    "platforms": ["linux"],
     "columns": [
       {
         "name": "name",
@@ -5455,9 +5215,7 @@
   },
   {
     "name": "csrutil_info",
-    "platforms": [
-      "darwin"
-    ],
+    "platforms": ["darwin"],
     "description": "Information from csrutil system call.",
     "columns": [
       {
@@ -5476,9 +5234,7 @@
     "name": "cups_destinations",
     "description": "Returns all configured printers.",
     "url": "https://fleetdm.com/tables/cups_destinations",
-    "platforms": [
-      "darwin"
-    ],
+    "platforms": ["darwin"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -5518,9 +5274,7 @@
     "name": "cups_jobs",
     "description": "Returns all completed print jobs from cups.",
     "url": "https://fleetdm.com/tables/cups_jobs",
-    "platforms": [
-      "darwin"
-    ],
+    "platforms": ["darwin"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -5605,11 +5359,7 @@
     "name": "curl",
     "description": "Perform an http request and return stats about it.",
     "url": "https://fleetdm.com/tables/curl",
-    "platforms": [
-      "darwin",
-      "linux",
-      "windows"
-    ],
+    "platforms": ["darwin", "linux", "windows"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -5685,11 +5435,7 @@
     "name": "curl_certificate",
     "description": "Inspect TLS certificates by connecting to input hostnames.",
     "url": "https://fleetdm.com/tables/curl_certificate",
-    "platforms": [
-      "darwin",
-      "linux",
-      "windows"
-    ],
+    "platforms": ["darwin", "linux", "windows"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -5990,9 +5736,7 @@
     "name": "deb_packages",
     "description": "The installed DEB package database.",
     "url": "https://fleetdm.com/tables/deb_packages",
-    "platforms": [
-      "linux"
-    ],
+    "platforms": ["linux"],
     "evented": false,
     "cacheable": true,
     "notes": "",
@@ -6104,9 +5848,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "Linux"
-        ]
+        "platforms": ["Linux"]
       },
       {
         "name": "mount_namespace_id",
@@ -6116,9 +5858,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "Linux"
-        ]
+        "platforms": ["Linux"]
       }
     ],
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/deb_packages.yml"
@@ -6127,9 +5867,7 @@
     "name": "default_environment",
     "description": "Default environment variables and values.",
     "url": "https://fleetdm.com/tables/default_environment",
-    "platforms": [
-      "windows"
-    ],
+    "platforms": ["windows"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -6169,10 +5907,7 @@
     "name": "device_file",
     "description": "Similar to the file table, but use TSK and allow block address access.",
     "url": "https://fleetdm.com/tables/device_file",
-    "platforms": [
-      "darwin",
-      "linux"
-    ],
+    "platforms": ["darwin", "linux"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -6320,9 +6055,7 @@
     "name": "device_firmware",
     "description": "A best-effort list of discovered firmware versions.",
     "url": "https://fleetdm.com/tables/device_firmware",
-    "platforms": [
-      "darwin"
-    ],
+    "platforms": ["darwin"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -6362,10 +6095,7 @@
     "name": "device_hash",
     "description": "Similar to the hash table, but use TSK and allow block address access.",
     "url": "https://fleetdm.com/tables/device_hash",
-    "platforms": [
-      "darwin",
-      "linux"
-    ],
+    "platforms": ["darwin", "linux"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -6432,10 +6162,7 @@
     "name": "device_partitions",
     "description": "Use TSK to enumerate details about partitions on a disk device.",
     "url": "https://fleetdm.com/tables/device_partitions",
-    "platforms": [
-      "darwin",
-      "linux"
-    ],
+    "platforms": ["darwin", "linux"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -6529,10 +6256,7 @@
     "name": "disk_encryption",
     "description": "Disk encryption status and information.",
     "url": "https://fleetdm.com/tables/disk_encryption",
-    "platforms": [
-      "darwin",
-      "linux"
-    ],
+    "platforms": ["darwin", "linux"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -6591,9 +6315,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "macOS"
-        ]
+        "platforms": ["macOS"]
       },
       {
         "name": "user_uuid",
@@ -6603,9 +6325,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "macOS"
-        ]
+        "platforms": ["macOS"]
       },
       {
         "name": "filevault_status",
@@ -6615,9 +6335,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "macOS"
-        ]
+        "platforms": ["macOS"]
       }
     ],
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/disk_encryption.yml"
@@ -6626,9 +6344,7 @@
     "name": "disk_events",
     "description": "Track DMG disk image events (appearance/disappearance) when opened.",
     "url": "https://fleetdm.com/tables/disk_events",
-    "platforms": [
-      "darwin"
-    ],
+    "platforms": ["darwin"],
     "evented": true,
     "cacheable": false,
     "notes": "",
@@ -6785,10 +6501,7 @@
     "name": "disk_info",
     "description": "Retrieve basic information about the physical disks of a system.",
     "url": "https://fleetdm.com/tables/disk_info",
-    "platforms": [
-      "windows",
-      "chrome"
-    ],
+    "platforms": ["windows", "chrome"],
     "evented": false,
     "cacheable": false,
     "notes": "- On ChromeOS, this table requires the [fleetd Chrome extension](https://fleetdm.com/docs/using-fleet/chromeos).\n\n- Available for ChromeOS 91+.",
@@ -6802,9 +6515,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "Windows"
-        ]
+        "platforms": ["Windows"]
       },
       {
         "name": "disk_index",
@@ -6814,9 +6525,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "Windows"
-        ]
+        "platforms": ["Windows"]
       },
       {
         "name": "type",
@@ -6844,9 +6553,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "Windows"
-        ]
+        "platforms": ["Windows"]
       },
       {
         "name": "disk_size",
@@ -6865,9 +6572,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "Windows"
-        ]
+        "platforms": ["Windows"]
       },
       {
         "name": "hardware_model",
@@ -6877,9 +6582,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "Windows"
-        ]
+        "platforms": ["Windows"]
       },
       {
         "name": "name",
@@ -6898,9 +6601,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "Windows"
-        ]
+        "platforms": ["Windows"]
       },
       {
         "name": "description",
@@ -6910,9 +6611,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "Windows"
-        ]
+        "platforms": ["Windows"]
       }
     ],
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/disk_info.yml"
@@ -6921,9 +6620,7 @@
     "name": "dns_cache",
     "description": "Enumerate the DNS cache using the undocumented DnsGetCacheDataTable function in dnsapi.dll.",
     "url": "https://fleetdm.com/tables/dns_cache",
-    "platforms": [
-      "windows"
-    ],
+    "platforms": ["windows"],
     "evented": false,
     "cacheable": false,
     "notes": "\nThis table pulls from the local system's DNS cache. By default, the local DNS cache entry for a domain will be removed once the TTL for the domain has expired. For instance, osquery.io has a TTL of 60 seconds. When this domain has been resolved on a local Windows system, the DNS mapping will expire in 60 seconds from the resolution time - so `SELECT * FROM dns_cache WHERE name = 'osquery.io'` will only return results during that 60 second window.\n\nWindows has a maximum time that it allows a cache entry to exist- by default, it is 1 day. If the domain has a TTL of greater than 1 day, Windows will still remove the DNS entry from its cache after 1 day.",
@@ -6963,10 +6660,7 @@
     "name": "dns_resolvers",
     "description": "Resolvers used by this host.",
     "url": "https://fleetdm.com/tables/dns_resolvers",
-    "platforms": [
-      "darwin",
-      "linux"
-    ],
+    "platforms": ["darwin", "linux"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -7025,9 +6719,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "Linux"
-        ]
+        "platforms": ["Linux"]
       }
     ],
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/dns_resolvers.yml"
@@ -7036,10 +6728,7 @@
     "name": "docker_container_envs",
     "description": "Docker container environment variables.",
     "url": "https://fleetdm.com/tables/docker_container_envs",
-    "platforms": [
-      "darwin",
-      "linux"
-    ],
+    "platforms": ["darwin", "linux"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -7079,10 +6768,7 @@
     "name": "docker_container_fs_changes",
     "description": "Changes to files or directories on container's filesystem.",
     "url": "https://fleetdm.com/tables/docker_container_fs_changes",
-    "platforms": [
-      "darwin",
-      "linux"
-    ],
+    "platforms": ["darwin", "linux"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -7123,10 +6809,7 @@
     "name": "docker_container_labels",
     "description": "Docker container labels.",
     "url": "https://fleetdm.com/tables/docker_container_labels",
-    "platforms": [
-      "darwin",
-      "linux"
-    ],
+    "platforms": ["darwin", "linux"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -7166,10 +6849,7 @@
     "name": "docker_container_mounts",
     "description": "Docker container mounts.",
     "url": "https://fleetdm.com/tables/docker_container_mounts",
-    "platforms": [
-      "darwin",
-      "linux"
-    ],
+    "platforms": ["darwin", "linux"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -7263,10 +6943,7 @@
     "name": "docker_container_networks",
     "description": "Docker container networks.",
     "url": "https://fleetdm.com/tables/docker_container_networks",
-    "platforms": [
-      "darwin",
-      "linux"
-    ],
+    "platforms": ["darwin", "linux"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -7378,10 +7055,7 @@
     "name": "docker_container_ports",
     "description": "Docker container ports.",
     "url": "https://fleetdm.com/tables/docker_container_ports",
-    "platforms": [
-      "darwin",
-      "linux"
-    ],
+    "platforms": ["darwin", "linux"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -7439,10 +7113,7 @@
     "name": "docker_container_processes",
     "description": "Docker container processes.",
     "url": "https://fleetdm.com/tables/docker_container_processes",
-    "platforms": [
-      "darwin",
-      "linux"
-    ],
+    "platforms": ["darwin", "linux"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -7663,10 +7334,7 @@
     "name": "docker_container_stats",
     "description": "Docker container statistics. Queries on this table take at least one second.",
     "url": "https://fleetdm.com/tables/docker_container_stats",
-    "platforms": [
-      "darwin",
-      "linux"
-    ],
+    "platforms": ["darwin", "linux"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -7905,10 +7573,7 @@
     "name": "docker_containers",
     "description": "Docker containers information.",
     "url": "https://fleetdm.com/tables/docker_containers",
-    "platforms": [
-      "darwin",
-      "linux"
-    ],
+    "platforms": ["darwin", "linux"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -8075,9 +7740,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "Linux"
-        ]
+        "platforms": ["Linux"]
       },
       {
         "name": "ipc_namespace",
@@ -8087,9 +7750,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "Linux"
-        ]
+        "platforms": ["Linux"]
       },
       {
         "name": "mnt_namespace",
@@ -8099,9 +7760,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "Linux"
-        ]
+        "platforms": ["Linux"]
       },
       {
         "name": "net_namespace",
@@ -8111,9 +7770,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "Linux"
-        ]
+        "platforms": ["Linux"]
       },
       {
         "name": "pid_namespace",
@@ -8123,9 +7780,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "Linux"
-        ]
+        "platforms": ["Linux"]
       },
       {
         "name": "user_namespace",
@@ -8135,9 +7790,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "Linux"
-        ]
+        "platforms": ["Linux"]
       },
       {
         "name": "uts_namespace",
@@ -8147,9 +7800,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "Linux"
-        ]
+        "platforms": ["Linux"]
       }
     ],
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/docker_containers.yml"
@@ -8158,10 +7809,7 @@
     "name": "docker_image_history",
     "description": "Docker image history information.",
     "url": "https://fleetdm.com/tables/docker_image_history",
-    "platforms": [
-      "darwin",
-      "linux"
-    ],
+    "platforms": ["darwin", "linux"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -8229,10 +7877,7 @@
     "name": "docker_image_labels",
     "description": "Docker image labels.",
     "url": "https://fleetdm.com/tables/docker_image_labels",
-    "platforms": [
-      "darwin",
-      "linux"
-    ],
+    "platforms": ["darwin", "linux"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -8273,10 +7918,7 @@
     "name": "docker_image_layers",
     "description": "Docker image layers information.",
     "url": "https://fleetdm.com/tables/docker_image_layers",
-    "platforms": [
-      "darwin",
-      "linux"
-    ],
+    "platforms": ["darwin", "linux"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -8317,10 +7959,7 @@
     "name": "docker_images",
     "description": "Docker images information.",
     "url": "https://fleetdm.com/tables/docker_images",
-    "platforms": [
-      "darwin",
-      "linux"
-    ],
+    "platforms": ["darwin", "linux"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -8369,10 +8008,7 @@
     "name": "docker_info",
     "description": "Docker system information.",
     "url": "https://fleetdm.com/tables/docker_info",
-    "platforms": [
-      "darwin",
-      "linux"
-    ],
+    "platforms": ["darwin", "linux"],
     "evented": false,
     "cacheable": true,
     "notes": "",
@@ -8674,10 +8310,7 @@
     "name": "docker_network_labels",
     "description": "Docker network labels.",
     "url": "https://fleetdm.com/tables/docker_network_labels",
-    "platforms": [
-      "darwin",
-      "linux"
-    ],
+    "platforms": ["darwin", "linux"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -8718,10 +8351,7 @@
     "name": "docker_networks",
     "description": "Docker networks information.",
     "url": "https://fleetdm.com/tables/docker_networks",
-    "platforms": [
-      "darwin",
-      "linux"
-    ],
+    "platforms": ["darwin", "linux"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -8798,10 +8428,7 @@
     "name": "docker_version",
     "description": "Docker version information.",
     "url": "https://fleetdm.com/tables/docker_version",
-    "platforms": [
-      "darwin",
-      "linux"
-    ],
+    "platforms": ["darwin", "linux"],
     "evented": false,
     "cacheable": true,
     "notes": "",
@@ -8896,10 +8523,7 @@
     "name": "docker_volume_labels",
     "description": "Docker volume labels.",
     "url": "https://fleetdm.com/tables/docker_volume_labels",
-    "platforms": [
-      "darwin",
-      "linux"
-    ],
+    "platforms": ["darwin", "linux"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -8940,10 +8564,7 @@
     "name": "docker_volumes",
     "description": "Docker volumes information.",
     "url": "https://fleetdm.com/tables/docker_volumes",
-    "platforms": [
-      "darwin",
-      "linux"
-    ],
+    "platforms": ["darwin", "linux"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -8992,9 +8613,7 @@
     "name": "drivers",
     "description": "Details for in-use Windows device drivers. This does not display installed but unused drivers.",
     "url": "https://fleetdm.com/tables/drivers",
-    "platforms": [
-      "windows"
-    ],
+    "platforms": ["windows"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -9132,9 +8751,7 @@
   },
   {
     "name": "dscl",
-    "platforms": [
-      "darwin"
-    ],
+    "platforms": ["darwin"],
     "description": "Returns the output of the `dscl . -read` command (local domain).",
     "columns": [
       {
@@ -9171,11 +8788,7 @@
     "name": "ec2_instance_metadata",
     "description": "EC2 instance metadata.",
     "url": "https://fleetdm.com/tables/ec2_instance_metadata",
-    "platforms": [
-      "darwin",
-      "linux",
-      "windows"
-    ],
+    "platforms": ["darwin", "linux", "windows"],
     "evented": false,
     "cacheable": true,
     "notes": "",
@@ -9255,7 +8868,7 @@
       },
       {
         "name": "security_groups",
-        "description": "Comma separated list of security group names",
+        "description": "Comma-separated list of security group names",
         "type": "text",
         "notes": "",
         "hidden": false,
@@ -9315,11 +8928,7 @@
     "name": "ec2_instance_tags",
     "description": "EC2 instance tag key value pairs.",
     "url": "https://fleetdm.com/tables/ec2_instance_tags",
-    "platforms": [
-      "darwin",
-      "linux",
-      "windows"
-    ],
+    "platforms": ["darwin", "linux", "windows"],
     "evented": false,
     "cacheable": true,
     "notes": "",
@@ -9360,9 +8969,7 @@
     "name": "es_process_events",
     "description": "Process execution events from EndpointSecurity.",
     "url": "https://fleetdm.com/tables/es_process_events",
-    "platforms": [
-      "darwin"
-    ],
+    "platforms": ["darwin"],
     "evented": true,
     "cacheable": false,
     "notes": "",
@@ -9603,7 +9210,7 @@
       },
       {
         "name": "codesigning_flags",
-        "description": "Codesigning flags matching one of these options, in a comma separated list: NOT_VALID, ADHOC, NOT_RUNTIME, INSTALLER. See kern/cs_blobs.h in XNU for descriptions.",
+        "description": "Codesigning flags matching one of these options, in a comma-separated list: NOT_VALID, ADHOC, NOT_RUNTIME, INSTALLER. See kern/cs_blobs.h in XNU for descriptions.",
         "type": "text",
         "notes": "",
         "hidden": false,
@@ -9618,9 +9225,7 @@
     "name": "es_process_file_events",
     "description": "File integrity monitoring events from EndpointSecurity including process context.",
     "url": "https://fleetdm.com/tables/es_process_file_events",
-    "platforms": [
-      "darwin"
-    ],
+    "platforms": ["darwin"],
     "evented": true,
     "cacheable": false,
     "notes": "",
@@ -9732,11 +9337,7 @@
     "name": "etc_hosts",
     "description": "The `hosts` file comprises a local, plain-text configuration for mapping IP addresses to host names. It does not necessarily rely on an external Domain Name System (DNS) for routing. The `etc_hosts` osquery table expresses the data in the `hosts` file.",
     "url": "https://fleetdm.com/tables/etc_hosts",
-    "platforms": [
-      "darwin",
-      "linux",
-      "windows"
-    ],
+    "platforms": ["darwin", "linux", "windows"],
     "evented": false,
     "cacheable": true,
     "notes": "The `hosts` file is customized by many organizations. As part of a defense-in-depth security posture it's important to track `hosts` modifications. Endpoints with a modified `hosts` configuration connected to enterprise networks can potentially bypass network rules, proxies and firewalls or be routed to malicious sites.\n\nFile paths to `hosts`:\n- Linux: `/etc/hosts`\n- macOS: `/private/etc/hosts`\n- Windows: `C:\\Windows\\system32\\drivers\\etc`\n\n**More info**:\n- [DNS](https://en.wikipedia.org/wiki/Domain_Name_System)\n- The `/etc/hosts` [Guide For Linux](https://thelinuxcode.com/etc-hosts-file-complete-guide-for-linux/)\n- [How to edit the hosts file on Windows](https://www.howtogeek.com/784196/how-to-edit-the-hosts-file-on-windows-10-or-11)",
@@ -9768,9 +9369,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "Linux"
-        ]
+        "platforms": ["Linux"]
       }
     ],
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/etc_hosts.yml"
@@ -9779,11 +9378,7 @@
     "name": "etc_protocols",
     "description": "Line-parsed /etc/protocols.",
     "url": "https://fleetdm.com/tables/etc_protocols",
-    "platforms": [
-      "darwin",
-      "linux",
-      "windows"
-    ],
+    "platforms": ["darwin", "linux", "windows"],
     "evented": false,
     "cacheable": true,
     "notes": "",
@@ -9832,11 +9427,7 @@
     "name": "etc_services",
     "description": "Line-parsed /etc/services.",
     "url": "https://fleetdm.com/tables/etc_services",
-    "platforms": [
-      "darwin",
-      "linux",
-      "windows"
-    ],
+    "platforms": ["darwin", "linux", "windows"],
     "evented": false,
     "cacheable": true,
     "notes": "",
@@ -9894,9 +9485,7 @@
     "name": "event_taps",
     "description": "Returns information about installed event taps.",
     "url": "https://fleetdm.com/tables/event_taps",
-    "platforms": [
-      "darwin"
-    ],
+    "platforms": ["darwin"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -9954,10 +9543,7 @@
     "name": "extended_attributes",
     "description": "Returns the extended attributes for files (similar to Windows ADS).",
     "url": "https://fleetdm.com/tables/extended_attributes",
-    "platforms": [
-      "darwin",
-      "linux"
-    ],
+    "platforms": ["darwin", "linux"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -10016,9 +9602,7 @@
     "description": "Get information about Crowdstrike Falcon agent installed on the host.",
     "evented": false,
     "notes": "This table is not a core osquery table. It is included as part of fleetd, the osquery manager from Fleet. Code based on work by [Kolide](https://github.com/kolide/launcher).",
-    "platforms": [
-      "linux"
-    ],
+    "platforms": ["linux"],
     "columns": [
       {
         "name": "kernel",
@@ -10047,9 +9631,7 @@
     "description": "Get information about Crowdstrike Falcon agent installed on the host.",
     "evented": false,
     "notes": "This table is not a core osquery table. It is included as part of fleetd, the osquery manager from Fleet. Code based on work by [Kolide](https://github.com/kolide/launcher).",
-    "platforms": [
-      "linux"
-    ],
+    "platforms": ["linux"],
     "columns": [
       {
         "name": "options",
@@ -10065,9 +9647,7 @@
     "name": "fan_speed_sensors",
     "description": "Fan speeds.",
     "url": "https://fleetdm.com/tables/fan_speed_sensors",
-    "platforms": [
-      "darwin"
-    ],
+    "platforms": ["darwin"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -10134,11 +9714,7 @@
     "name": "file",
     "description": "Interactive filesystem attributes and metadata.",
     "url": "https://fleetdm.com/tables/file",
-    "platforms": [
-      "darwin",
-      "linux",
-      "windows"
-    ],
+    "platforms": ["darwin", "linux", "windows"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -10305,9 +9881,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "Windows"
-        ]
+        "platforms": ["Windows"]
       },
       {
         "name": "volume_serial",
@@ -10317,9 +9891,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "Windows"
-        ]
+        "platforms": ["Windows"]
       },
       {
         "name": "file_id",
@@ -10329,9 +9901,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "Windows"
-        ]
+        "platforms": ["Windows"]
       },
       {
         "name": "file_version",
@@ -10341,9 +9911,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "Windows"
-        ]
+        "platforms": ["Windows"]
       },
       {
         "name": "product_version",
@@ -10353,9 +9921,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "Windows"
-        ]
+        "platforms": ["Windows"]
       },
       {
         "name": "original_filename",
@@ -10365,9 +9931,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "Windows"
-        ]
+        "platforms": ["Windows"]
       },
       {
         "name": "shortcut_target_path",
@@ -10377,11 +9941,7 @@
         "hidden": true,
         "required": false,
         "index": false,
-        "platforms": [
-          "windows",
-          "win32",
-          "cygwin"
-        ]
+        "platforms": ["windows", "win32", "cygwin"]
       },
       {
         "name": "shortcut_target_type",
@@ -10391,11 +9951,7 @@
         "hidden": true,
         "required": false,
         "index": false,
-        "platforms": [
-          "windows",
-          "win32",
-          "cygwin"
-        ]
+        "platforms": ["windows", "win32", "cygwin"]
       },
       {
         "name": "shortcut_target_location",
@@ -10405,11 +9961,7 @@
         "hidden": true,
         "required": false,
         "index": false,
-        "platforms": [
-          "windows",
-          "win32",
-          "cygwin"
-        ]
+        "platforms": ["windows", "win32", "cygwin"]
       },
       {
         "name": "shortcut_start_in",
@@ -10419,11 +9971,7 @@
         "hidden": true,
         "required": false,
         "index": false,
-        "platforms": [
-          "windows",
-          "win32",
-          "cygwin"
-        ]
+        "platforms": ["windows", "win32", "cygwin"]
       },
       {
         "name": "shortcut_run",
@@ -10433,11 +9981,7 @@
         "hidden": true,
         "required": false,
         "index": false,
-        "platforms": [
-          "windows",
-          "win32",
-          "cygwin"
-        ]
+        "platforms": ["windows", "win32", "cygwin"]
       },
       {
         "name": "shortcut_comment",
@@ -10447,11 +9991,7 @@
         "hidden": true,
         "required": false,
         "index": false,
-        "platforms": [
-          "windows",
-          "win32",
-          "cygwin"
-        ]
+        "platforms": ["windows", "win32", "cygwin"]
       },
       {
         "name": "bsd_flags",
@@ -10461,9 +10001,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "macOS"
-        ]
+        "platforms": ["macOS"]
       },
       {
         "name": "pid_with_namespace",
@@ -10473,9 +10011,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "Linux"
-        ]
+        "platforms": ["Linux"]
       },
       {
         "name": "mount_namespace_id",
@@ -10485,9 +10021,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "Linux"
-        ]
+        "platforms": ["Linux"]
       }
     ],
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/file.yml"
@@ -10496,10 +10030,7 @@
     "name": "file_events",
     "description": "Track time/action changes to files specified in configuration data.",
     "url": "https://fleetdm.com/tables/file_events",
-    "platforms": [
-      "darwin",
-      "linux"
-    ],
+    "platforms": ["darwin", "linux"],
     "evented": true,
     "cacheable": false,
     "notes": "",
@@ -10674,11 +10205,7 @@
     "name": "file_lines",
     "notes": "This table is from the [Mac Admins osquery extension](https://github.com/macadmins/osquery-extension).",
     "description": "Allows reading an arbitrary file.",
-    "platforms": [
-      "darwin",
-      "windows",
-      "linux"
-    ],
+    "platforms": ["darwin", "windows", "linux"],
     "evented": false,
     "examples": "Output the content of `/etc/hosts` line by line. \n\n```\nSELECT * FROM file_lines WHERE path='/etc/hosts';\n```",
     "columns": [
@@ -10700,9 +10227,7 @@
   },
   {
     "name": "filevault_prk",
-    "platforms": [
-      "darwin"
-    ],
+    "platforms": ["darwin"],
     "description": "Returns contents of `/var/db/FileVaultPRK.dat`.",
     "columns": [
       {
@@ -10722,9 +10247,7 @@
     "description": "Get current FileVault status.",
     "evented": false,
     "notes": "This table is not a core osquery table. It is included as part of fleetd, the osquery manager from Fleet. Code based on work by [Kolide](https://github.com/kolide/launcher).",
-    "platforms": [
-      "darwin"
-    ],
+    "platforms": ["darwin"],
     "columns": [
       {
         "name": "status",
@@ -10740,9 +10263,7 @@
     "name": "filevault_users",
     "notes": "This table is from the [Mac Admins osquery extension](https://github.com/macadmins/osquery-extension).",
     "description": "Information on the users able to unlock the current boot volume if protected with FileVault.",
-    "platforms": [
-      "darwin"
-    ],
+    "platforms": ["darwin"],
     "evented": false,
     "examples": "List the usernames able to unlock and boot a computer protected by FileVault, joined to\n[users.username](http://fleetdm.com/tables/users) to obtain the description of the operating\nsystem account that owns it.\n\n```\nSELECT fu.username, u.description FROM filevault_users fu JOIN users u ON fu.uuid=u.uuid;\n```",
     "columns": [
@@ -10764,9 +10285,7 @@
   },
   {
     "name": "find_cmd",
-    "platforms": [
-      "darwin"
-    ],
+    "platforms": ["darwin"],
     "description": "Uses the /usr/bin/find command to list files and directories.",
     "columns": [
       {
@@ -10803,11 +10322,7 @@
     "name": "firefox_addons",
     "description": "Firefox browser [add-ons](https://addons.mozilla.org/en-US/firefox/) (plugins).",
     "url": "https://fleetdm.com/tables/firefox_addons",
-    "platforms": [
-      "darwin",
-      "linux",
-      "windows"
-    ],
+    "platforms": ["darwin", "linux", "windows"],
     "evented": false,
     "cacheable": false,
     "notes": "Querying this table requires joining against the `users` table. [Learn more](https://fleetdm.com/guides/osquery-consider-joining-against-the-users-table)",
@@ -10947,9 +10462,7 @@
     "description": "Get the filepath where the host's Firefox preferences live.",
     "evented": false,
     "notes": "This table is not a core osquery table. It is included as part of fleetd, the osquery manager from Fleet. Code based on work by [Kolide](https://github.com/kolide/launcher).",
-    "platforms": [
-      "darwin"
-    ],
+    "platforms": ["darwin"],
     "columns": [
       {
         "name": "path",
@@ -10993,9 +10506,7 @@
   },
   {
     "name": "firmware_eficheck_integrity_check",
-    "platforms": [
-      "darwin"
-    ],
+    "platforms": ["darwin"],
     "description": "Performs eficheck's integrity check on macOS Intel T1 chips (CIS 5.9).",
     "columns": [
       {
@@ -11021,9 +10532,7 @@
     "description": "Information on the device's firmware password. Supported on Intel macOS hosts only. Reference: https://support.apple.com/en-us/HT204455",
     "evented": false,
     "notes": "This table is not a core osquery table. It is included as part of fleetd, the osquery manager from Fleet. Code based on work by [Kolide](https://github.com/kolide/launcher).",
-    "platforms": [
-      "darwin"
-    ],
+    "platforms": ["darwin"],
     "columns": [
       {
         "name": "option_roms_allowed",
@@ -11050,11 +10559,7 @@
   {
     "name": "fleetd_logs",
     "evented": false,
-    "platforms": [
-      "darwin",
-      "windows",
-      "linux"
-    ],
+    "platforms": ["darwin", "windows", "linux"],
     "description": "Returns the logs from fleetd's current session. Logs are stored in memory, so they are erased when it restarts.",
     "examples": "```\nSELECT * FROM fleetd_logs\n```\n\nReturn only log entries with errors attached\n\n```\nSELECT * FROM fleetd_logs WHERE error != \"\"\n```",
     "columns": [
@@ -11096,9 +10601,7 @@
     "name": "gatekeeper",
     "description": "macOS Gatekeeper Details.",
     "url": "https://fleetdm.com/tables/gatekeeper",
-    "platforms": [
-      "darwin"
-    ],
+    "platforms": ["darwin"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -11147,9 +10650,7 @@
     "name": "gatekeeper_approved_apps",
     "description": "Gatekeeper apps a user has allowed to run.",
     "url": "https://fleetdm.com/tables/gatekeeper_approved_apps",
-    "platforms": [
-      "darwin"
-    ],
+    "platforms": ["darwin"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -11197,9 +10698,7 @@
   {
     "name": "geolocation",
     "evented": false,
-    "platforms": [
-      "chrome"
-    ],
+    "platforms": ["chrome"],
     "description": "Last reported geolocation",
     "columns": [
       {
@@ -11235,11 +10734,7 @@
     "name": "google_chrome_profiles",
     "notes": "This table is from the [Mac Admins osquery extension](https://github.com/macadmins/osquery-extension).",
     "description": "Profiles configured in Google Chrome.",
-    "platforms": [
-      "darwin",
-      "windows",
-      "linux"
-    ],
+    "platforms": ["darwin", "windows", "linux"],
     "evented": false,
     "examples": "List the Google Chrome accounts logged in to with `fleetdm.com` email addresses, joined to the\n[users](https://fleetdm.com/tables/users) table, to see the description of the operating system\naccount that owns it.\n\n```\nSELECT gp.email, gp.username, u.description FROM google_chrome_profiles gp JOIN users u ON gp.username=u.username WHERE gp.email LIKE '%fleetdm.com';\n```",
     "columns": [
@@ -11275,11 +10770,7 @@
     "name": "groups",
     "description": "Local system groups.",
     "url": "https://fleetdm.com/tables/groups",
-    "platforms": [
-      "darwin",
-      "linux",
-      "windows"
-    ],
+    "platforms": ["darwin", "linux", "windows"],
     "evented": false,
     "cacheable": false,
     "notes": "* On Windows, `gid` and `gid_signed` are always the same",
@@ -11320,9 +10811,7 @@
         "hidden": false,
         "required": false,
         "index": true,
-        "platforms": [
-          "Windows"
-        ]
+        "platforms": ["Windows"]
       },
       {
         "name": "comment",
@@ -11332,9 +10821,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "Windows"
-        ]
+        "platforms": ["Windows"]
       },
       {
         "name": "is_hidden",
@@ -11344,9 +10831,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "macOS"
-        ]
+        "platforms": ["macOS"]
       },
       {
         "name": "pid_with_namespace",
@@ -11356,9 +10841,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "Linux"
-        ]
+        "platforms": ["Linux"]
       }
     ],
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/groups.yml"
@@ -11367,10 +10850,7 @@
     "name": "hardware_events",
     "description": "Hardware (PCI/USB/HID) events from UDEV or IOKit.",
     "url": "https://fleetdm.com/tables/hardware_events",
-    "platforms": [
-      "darwin",
-      "linux"
-    ],
+    "platforms": ["darwin", "linux"],
     "evented": true,
     "cacheable": false,
     "notes": "",
@@ -11491,11 +10971,7 @@
     "name": "hash",
     "description": "Filesystem hash data.",
     "url": "https://fleetdm.com/tables/hash",
-    "platforms": [
-      "darwin",
-      "linux",
-      "windows"
-    ],
+    "platforms": ["darwin", "linux", "windows"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -11554,9 +11030,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "Linux"
-        ]
+        "platforms": ["Linux"]
       },
       {
         "name": "mount_namespace_id",
@@ -11566,9 +11040,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "Linux"
-        ]
+        "platforms": ["Linux"]
       }
     ],
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/hash.yml"
@@ -11577,9 +11049,7 @@
     "name": "homebrew_packages",
     "description": "The installed homebrew package database.",
     "url": "https://fleetdm.com/tables/homebrew_packages",
-    "platforms": [
-      "darwin"
-    ],
+    "platforms": ["darwin"],
     "evented": false,
     "cacheable": true,
     "notes": "",
@@ -11637,9 +11107,7 @@
     "name": "hvci_status",
     "description": "Retrieve HVCI info of the machine.",
     "url": "https://fleetdm.com/tables/hvci_status",
-    "platforms": [
-      "windows"
-    ],
+    "platforms": ["windows"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -11697,9 +11165,7 @@
     "name": "ibridge_info",
     "description": "Information about the Apple iBridge hardware controller.",
     "url": "https://fleetdm.com/tables/ibridge_info",
-    "platforms": [
-      "darwin"
-    ],
+    "platforms": ["darwin"],
     "evented": false,
     "cacheable": true,
     "notes": "",
@@ -11746,9 +11212,7 @@
   },
   {
     "name": "icloud_private_relay",
-    "platforms": [
-      "darwin"
-    ],
+    "platforms": ["darwin"],
     "description": "Whether [iCloud Private Relay](https://support.apple.com/en-us/HT212614) is enabled.",
     "columns": [
       {
@@ -11767,9 +11231,7 @@
     "name": "ie_extensions",
     "description": "Installed Internet Explorer (IE) browser extensions (plugins).",
     "url": "https://fleetdm.com/tables/ie_extensions",
-    "platforms": [
-      "windows"
-    ],
+    "platforms": ["windows"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -11817,10 +11279,7 @@
     "name": "intel_me_info",
     "description": "Intel ME/CSE Info.",
     "url": "https://fleetdm.com/tables/intel_me_info",
-    "platforms": [
-      "linux",
-      "windows"
-    ],
+    "platforms": ["linux", "windows"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -11842,11 +11301,7 @@
     "name": "interface_addresses",
     "description": "Network interfaces and relevant metadata.",
     "url": "https://fleetdm.com/tables/interface_addresses",
-    "platforms": [
-      "darwin",
-      "linux",
-      "windows"
-    ],
+    "platforms": ["darwin", "linux", "windows"],
     "evented": false,
     "cacheable": true,
     "notes": "",
@@ -11914,9 +11369,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "Windows"
-        ]
+        "platforms": ["Windows"]
       }
     ],
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/interface_addresses.yml"
@@ -11925,11 +11378,7 @@
     "name": "interface_details",
     "description": "Detailed information and stats of network interfaces.",
     "url": "https://fleetdm.com/tables/interface_details",
-    "platforms": [
-      "darwin",
-      "linux",
-      "windows"
-    ],
+    "platforms": ["darwin", "linux", "windows"],
     "evented": false,
     "cacheable": true,
     "notes": "",
@@ -12087,10 +11536,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "Linux",
-          "macOS"
-        ]
+        "platforms": ["Linux", "macOS"]
       },
       {
         "name": "pci_slot",
@@ -12100,9 +11546,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "Linux"
-        ]
+        "platforms": ["Linux"]
       },
       {
         "name": "friendly_name",
@@ -12112,9 +11556,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "Windows"
-        ]
+        "platforms": ["Windows"]
       },
       {
         "name": "description",
@@ -12124,9 +11566,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "Windows"
-        ]
+        "platforms": ["Windows"]
       },
       {
         "name": "manufacturer",
@@ -12136,9 +11576,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "Windows"
-        ]
+        "platforms": ["Windows"]
       },
       {
         "name": "connection_id",
@@ -12148,9 +11586,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "Windows"
-        ]
+        "platforms": ["Windows"]
       },
       {
         "name": "connection_status",
@@ -12160,9 +11596,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "Windows"
-        ]
+        "platforms": ["Windows"]
       },
       {
         "name": "enabled",
@@ -12172,9 +11606,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "Windows"
-        ]
+        "platforms": ["Windows"]
       },
       {
         "name": "physical_adapter",
@@ -12184,9 +11616,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "Windows"
-        ]
+        "platforms": ["Windows"]
       },
       {
         "name": "speed",
@@ -12196,9 +11626,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "Windows"
-        ]
+        "platforms": ["Windows"]
       },
       {
         "name": "service",
@@ -12208,9 +11636,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "Windows"
-        ]
+        "platforms": ["Windows"]
       },
       {
         "name": "dhcp_enabled",
@@ -12220,9 +11646,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "Windows"
-        ]
+        "platforms": ["Windows"]
       },
       {
         "name": "dhcp_lease_expires",
@@ -12232,9 +11656,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "Windows"
-        ]
+        "platforms": ["Windows"]
       },
       {
         "name": "dhcp_lease_obtained",
@@ -12244,9 +11666,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "Windows"
-        ]
+        "platforms": ["Windows"]
       },
       {
         "name": "dhcp_server",
@@ -12256,9 +11676,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "Windows"
-        ]
+        "platforms": ["Windows"]
       },
       {
         "name": "dns_domain",
@@ -12268,9 +11686,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "Windows"
-        ]
+        "platforms": ["Windows"]
       },
       {
         "name": "dns_domain_suffix_search_order",
@@ -12280,9 +11696,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "Windows"
-        ]
+        "platforms": ["Windows"]
       },
       {
         "name": "dns_host_name",
@@ -12292,9 +11706,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "Windows"
-        ]
+        "platforms": ["Windows"]
       },
       {
         "name": "dns_server_search_order",
@@ -12304,9 +11716,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "Windows"
-        ]
+        "platforms": ["Windows"]
       }
     ],
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/interface_details.yml"
@@ -12315,10 +11725,7 @@
     "name": "interface_ipv6",
     "description": "IPv6 configuration and stats of network interfaces.",
     "url": "https://fleetdm.com/tables/interface_ipv6",
-    "platforms": [
-      "darwin",
-      "linux"
-    ],
+    "platforms": ["darwin", "linux"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -12376,9 +11783,7 @@
     "name": "iokit_devicetree",
     "description": "The IOKit registry matching the DeviceTree plane.",
     "url": "https://fleetdm.com/tables/iokit_devicetree",
-    "platforms": [
-      "darwin"
-    ],
+    "platforms": ["darwin"],
     "evented": false,
     "cacheable": true,
     "notes": "",
@@ -12472,9 +11877,7 @@
     "name": "iokit_registry",
     "description": "The full IOKit registry without selecting a plane.",
     "url": "https://fleetdm.com/tables/iokit_registry",
-    "platforms": [
-      "darwin"
-    ],
+    "platforms": ["darwin"],
     "evented": false,
     "cacheable": true,
     "notes": "",
@@ -12551,9 +11954,7 @@
     "description": "Get values from macOS ioreg command. Columns are input options for the command. They match the ioreg command line tool.",
     "evented": false,
     "notes": "This table is not a core osquery table. It is included as part of fleetd, the osquery manager from Fleet. Code based on work by [Kolide](https://github.com/kolide/launcher).",
-    "platforms": [
-      "darwin"
-    ],
+    "platforms": ["darwin"],
     "columns": [
       {
         "name": "c",
@@ -12629,9 +12030,7 @@
     "name": "iptables",
     "description": "Linux IP packet filtering and NAT tool.",
     "url": "https://fleetdm.com/tables/iptables",
-    "platforms": [
-      "linux"
-    ],
+    "platforms": ["linux"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -12806,9 +12205,7 @@
     "name": "kernel_extensions",
     "description": "macOS's kernel extensions, both loaded and within the load search path.",
     "url": "https://fleetdm.com/tables/kernel_extensions",
-    "platforms": [
-      "darwin"
-    ],
+    "platforms": ["darwin"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -12884,11 +12281,7 @@
     "name": "kernel_info",
     "description": "Basic active kernel information.",
     "url": "https://fleetdm.com/tables/kernel_info",
-    "platforms": [
-      "darwin",
-      "linux",
-      "windows"
-    ],
+    "platforms": ["darwin", "linux", "windows"],
     "evented": false,
     "cacheable": true,
     "notes": "",
@@ -12937,9 +12330,7 @@
     "name": "kernel_keys",
     "description": "List of security data, authentication keys and encryption keys.",
     "url": "https://fleetdm.com/tables/kernel_keys",
-    "platforms": [
-      "linux"
-    ],
+    "platforms": ["linux"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -13034,9 +12425,7 @@
     "name": "kernel_modules",
     "description": "Linux kernel modules both loaded and within the load search path.",
     "url": "https://fleetdm.com/tables/kernel_modules",
-    "platforms": [
-      "linux"
-    ],
+    "platforms": ["linux"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -13094,9 +12483,7 @@
     "name": "kernel_panics",
     "description": "System kernel panic logs.",
     "url": "https://fleetdm.com/tables/kernel_panics",
-    "platforms": [
-      "darwin"
-    ],
+    "platforms": ["darwin"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -13226,9 +12613,7 @@
     "name": "keychain_acls",
     "description": "Applications that have ACL entries in the keychain. NOTE: osquery limits frequent access to keychain files. This limit is controlled by keychain_access_interval flag.",
     "url": "https://fleetdm.com/tables/keychain_acls",
-    "platforms": [
-      "darwin"
-    ],
+    "platforms": ["darwin"],
     "evented": false,
     "cacheable": true,
     "notes": "",
@@ -13286,9 +12671,7 @@
     "name": "keychain_items",
     "description": "Generic details about keychain items. NOTE: osquery limits frequent access to keychain files. This limit is controlled by keychain_access_interval flag.",
     "url": "https://fleetdm.com/tables/keychain_items",
-    "platforms": [
-      "darwin"
-    ],
+    "platforms": ["darwin"],
     "evented": false,
     "cacheable": false,
     "notes": "- This table should be used sparingly as it uses an Apple API which occasionally corrupts the underlying certificate. Learn more [here](https://github.com/fleetdm/fleet/issues/13065#issuecomment-1658849614).",
@@ -13382,10 +12765,7 @@
     "name": "known_hosts",
     "description": "A line-delimited known_hosts table.",
     "url": "https://fleetdm.com/tables/known_hosts",
-    "platforms": [
-      "darwin",
-      "linux"
-    ],
+    "platforms": ["darwin", "linux"],
     "evented": false,
     "cacheable": false,
     "notes": "- Querying this table requires joining against the `users` table. [Learn more](https://fleetdm.com/guides/osquery-consider-joining-against-the-users-table)",
@@ -13425,9 +12805,7 @@
     "name": "kva_speculative_info",
     "description": "Display kernel virtual address and speculative execution information for the system.",
     "url": "https://fleetdm.com/tables/kva_speculative_info",
-    "platforms": [
-      "windows"
-    ],
+    "platforms": ["windows"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -13540,10 +12918,7 @@
     "name": "last",
     "description": "System logins and logouts.",
     "url": "https://fleetdm.com/tables/last",
-    "platforms": [
-      "darwin",
-      "linux"
-    ],
+    "platforms": ["darwin", "linux"],
     "evented": false,
     "cacheable": true,
     "notes": "",
@@ -13619,9 +12994,7 @@
     "name": "launchd",
     "description": "LaunchAgents and LaunchDaemons from default search paths.",
     "url": "https://fleetdm.com/tables/launchd",
-    "platforms": [
-      "darwin"
-    ],
+    "platforms": ["darwin"],
     "evented": false,
     "cacheable": true,
     "notes": "",
@@ -13823,9 +13196,7 @@
     "name": "launchd_overrides",
     "description": "Override keys, per user, for LaunchDaemons and Agents.",
     "url": "https://fleetdm.com/tables/launchd_overrides",
-    "platforms": [
-      "darwin"
-    ],
+    "platforms": ["darwin"],
     "evented": false,
     "cacheable": true,
     "notes": "",
@@ -13883,11 +13254,7 @@
     "name": "listening_ports",
     "description": "Processes with listening (bound) network sockets/ports.",
     "url": "https://fleetdm.com/tables/listening_ports",
-    "platforms": [
-      "darwin",
-      "linux",
-      "windows"
-    ],
+    "platforms": ["darwin", "linux", "windows"],
     "evented": false,
     "cacheable": true,
     "notes": "",
@@ -13973,9 +13340,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "Linux"
-        ]
+        "platforms": ["Linux"]
       }
     ],
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/listening_ports.yml"
@@ -13984,10 +13349,7 @@
     "name": "load_average",
     "description": "Displays information about the system wide load averages.",
     "url": "https://fleetdm.com/tables/load_average",
-    "platforms": [
-      "darwin",
-      "linux"
-    ],
+    "platforms": ["darwin", "linux"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -14018,9 +13380,7 @@
     "name": "location_services",
     "description": "Reports the status of the Location Services feature of the OS.",
     "url": "https://fleetdm.com/tables/location_services",
-    "platforms": [
-      "darwin"
-    ],
+    "platforms": ["darwin"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -14042,11 +13402,7 @@
     "name": "logged_in_users",
     "description": "Users with an active shell on the system.",
     "url": "https://fleetdm.com/tables/logged_in_users",
-    "platforms": [
-      "darwin",
-      "linux",
-      "windows"
-    ],
+    "platforms": ["darwin", "linux", "windows"],
     "evented": false,
     "cacheable": true,
     "notes": "",
@@ -14114,9 +13470,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "Windows"
-        ]
+        "platforms": ["Windows"]
       },
       {
         "name": "registry_hive",
@@ -14126,9 +13480,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "Windows"
-        ]
+        "platforms": ["Windows"]
       }
     ],
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/logged_in_users.yml"
@@ -14137,9 +13489,7 @@
     "name": "logical_drives",
     "description": "Details for logical drives on the system. A logical drive generally represents a single partition.",
     "url": "https://fleetdm.com/tables/logical_drives",
-    "platforms": [
-      "windows"
-    ],
+    "platforms": ["windows"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -14216,9 +13566,7 @@
     "name": "logon_sessions",
     "description": "Windows Logon Session.",
     "url": "https://fleetdm.com/tables/logon_sessions",
-    "platforms": [
-      "windows"
-    ],
+    "platforms": ["windows"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -14367,9 +13715,7 @@
     "name": "lxd_certificates",
     "description": "LXD certificates information.",
     "url": "https://fleetdm.com/tables/lxd_certificates",
-    "platforms": [
-      "linux"
-    ],
+    "platforms": ["linux"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -14419,9 +13765,7 @@
     "name": "lxd_cluster",
     "description": "LXD cluster information.",
     "url": "https://fleetdm.com/tables/lxd_cluster",
-    "platforms": [
-      "linux"
-    ],
+    "platforms": ["linux"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -14498,9 +13842,7 @@
     "name": "lxd_cluster_members",
     "description": "LXD cluster members information.",
     "url": "https://fleetdm.com/tables/lxd_cluster_members",
-    "platforms": [
-      "linux"
-    ],
+    "platforms": ["linux"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -14559,9 +13901,7 @@
     "name": "lxd_images",
     "description": "LXD images information.",
     "url": "https://fleetdm.com/tables/lxd_images",
-    "platforms": [
-      "linux"
-    ],
+    "platforms": ["linux"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -14746,9 +14086,7 @@
     "name": "lxd_instance_config",
     "description": "LXD instance configuration information.",
     "url": "https://fleetdm.com/tables/lxd_instance_config",
-    "platforms": [
-      "linux"
-    ],
+    "platforms": ["linux"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -14789,9 +14127,7 @@
     "name": "lxd_instance_devices",
     "description": "LXD instance devices information.",
     "url": "https://fleetdm.com/tables/lxd_instance_devices",
-    "platforms": [
-      "linux"
-    ],
+    "platforms": ["linux"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -14850,9 +14186,7 @@
     "name": "lxd_instances",
     "description": "LXD instances information.",
     "url": "https://fleetdm.com/tables/lxd_instances",
-    "platforms": [
-      "linux"
-    ],
+    "platforms": ["linux"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -14965,9 +14299,7 @@
     "name": "lxd_networks",
     "description": "LXD network information.",
     "url": "https://fleetdm.com/tables/lxd_networks",
-    "platforms": [
-      "linux"
-    ],
+    "platforms": ["linux"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -15098,9 +14430,7 @@
     "name": "lxd_storage_pools",
     "description": "LXD storage pool information.",
     "url": "https://fleetdm.com/tables/lxd_storage_pools",
-    "platforms": [
-      "linux"
-    ],
+    "platforms": ["linux"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -15186,9 +14516,7 @@
     "name": "macadmins_unified_log",
     "notes": "This table is from the [Mac Admins osquery extension](https://github.com/macadmins/osquery-extension).",
     "description": "Allows querying macOS [unified logs](https://developer.apple.com/documentation/os/logging).",
-    "platforms": [
-      "darwin"
-    ],
+    "platforms": ["darwin"],
     "evented": false,
     "examples": "Select the log entries that happened during the last minute and are related to `LaunchServices`. Convert the UNIX time to a human readable format,  and the signature table to verify its cryptographic signature.\n\n```\nSELECT u.category, u.event_message, u.process_id, datetime(u.timestamp, 'unixepoch') AS human_time, p.path, s.signed, s.identifier, s.authority FROM macadmins_unified_log u JOIN processes p ON u.process_id = p.pid JOIN signature s ON p.path = s.path WHERE u.sender_image_path LIKE '%LaunchServices%' AND last = \"1m\";\n```",
     "columns": [
@@ -15302,9 +14630,7 @@
     "name": "macos_profiles",
     "notes": "This table is from the [Mac Admins osquery extension](https://github.com/macadmins/osquery-extension).",
     "description": "High level information on installed profiles enrollment.",
-    "platforms": [
-      "darwin"
-    ],
+    "platforms": ["darwin"],
     "evented": false,
     "examples": "Identify all profiles that are not *verified*.\n\n```\nSELECT display_name, install_date FROM macos_profiles WHERE verification_state!='verified';  \n```",
     "columns": [
@@ -15364,9 +14690,7 @@
     "name": "macos_rsr",
     "notes": "This table is from the [Mac Admins osquery extension](https://github.com/macadmins/osquery-extension).",
     "description": "Returns information about installed Rapid Security Responses (RSRs).",
-    "platforms": [
-      "darwin"
-    ],
+    "platforms": ["darwin"],
     "evented": false,
     "columns": [
       {
@@ -15401,10 +14725,7 @@
     "name": "magic",
     "description": "Magic number recognition library table.",
     "url": "https://fleetdm.com/tables/magic",
-    "platforms": [
-      "darwin",
-      "linux"
-    ],
+    "platforms": ["darwin", "linux"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -15462,9 +14783,7 @@
     "name": "managed_policies",
     "description": "The managed configuration policies from AD, MDM, MCX, etc.",
     "url": "https://fleetdm.com/tables/managed_policies",
-    "platforms": [
-      "darwin"
-    ],
+    "platforms": ["darwin"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -15531,9 +14850,7 @@
     "name": "md_devices",
     "description": "Software RAID array settings.",
     "url": "https://fleetdm.com/tables/md_devices",
-    "platforms": [
-      "linux"
-    ],
+    "platforms": ["linux"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -15825,9 +15142,7 @@
     "name": "md_drives",
     "description": "Drive devices used for Software RAID.",
     "url": "https://fleetdm.com/tables/md_drives",
-    "platforms": [
-      "linux"
-    ],
+    "platforms": ["linux"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -15876,9 +15191,7 @@
     "name": "md_personalities",
     "description": "Software RAID setting supported by the kernel.",
     "url": "https://fleetdm.com/tables/md_personalities",
-    "platforms": [
-      "linux"
-    ],
+    "platforms": ["linux"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -15900,9 +15213,7 @@
     "name": "mdfind",
     "description": "Run searches against the spotlight database.",
     "url": "https://fleetdm.com/tables/mdfind",
-    "platforms": [
-      "darwin"
-    ],
+    "platforms": ["darwin"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -15934,9 +15245,7 @@
     "name": "mdls",
     "description": "Query file metadata in the Spotlight database.",
     "url": "https://fleetdm.com/tables/mdls",
-    "platforms": [
-      "darwin"
-    ],
+    "platforms": ["darwin"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -15985,9 +15294,7 @@
     "name": "mdm",
     "notes": "This table is from the [Mac Admins osquery extension](https://github.com/macadmins/osquery-extension).\n\n- Due to changes in macOS 12.3, the output of `profiles show -type enrollment` can only be generated once a day. If you are running this command with another tool, you should set the `PROFILES_SHOW_ENROLLMENT_CACHE_PATH` environment variable to the path you are caching this. The cache file should be `json` with the keys `dep_capable` and `rate_limited present`, both booleans representing whether the device is capable of DEP enrollment and whether the response from `profiles show -type enrollment` is being rate limited or not.",
     "description": "Information on the device's MDM enrollment.",
-    "platforms": [
-      "darwin"
-    ],
+    "platforms": ["darwin"],
     "evented": false,
     "examples": "Identify Macs that are DEP capable but have not been enrolled to MDM.\n\n```\nSELECT * FROM mdm WHERE dep_capable='true' AND enrolled='false';\n```",
     "columns": [
@@ -16075,9 +15382,7 @@
   },
   {
     "name": "mdm_bridge",
-    "platforms": [
-      "windows"
-    ],
+    "platforms": ["windows"],
     "description": "Allows querying MDM enrolled devices using \"get\" commands.",
     "columns": [
       {
@@ -16120,10 +15425,7 @@
     "name": "memory_array_mapped_addresses",
     "description": "Data associated for address mapping of physical memory arrays.",
     "url": "https://fleetdm.com/tables/memory_array_mapped_addresses",
-    "platforms": [
-      "darwin",
-      "linux"
-    ],
+    "platforms": ["darwin", "linux"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -16181,10 +15483,7 @@
     "name": "memory_arrays",
     "description": "Data associated with collection of memory devices that operate to form a memory address.",
     "url": "https://fleetdm.com/tables/memory_arrays",
-    "platforms": [
-      "darwin",
-      "linux"
-    ],
+    "platforms": ["darwin", "linux"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -16260,10 +15559,7 @@
     "name": "memory_device_mapped_addresses",
     "description": "Data associated for address mapping of physical memory devices.",
     "url": "https://fleetdm.com/tables/memory_device_mapped_addresses",
-    "platforms": [
-      "darwin",
-      "linux"
-    ],
+    "platforms": ["darwin", "linux"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -16348,11 +15644,7 @@
     "name": "memory_devices",
     "description": "Physical memory device (type 17) information retrieved from SMBIOS.",
     "url": "https://fleetdm.com/tables/memory_devices",
-    "platforms": [
-      "darwin",
-      "linux",
-      "windows"
-    ],
+    "platforms": ["darwin", "linux", "windows"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -16545,10 +15837,7 @@
     "name": "memory_error_info",
     "description": "Data associated with errors of a physical memory array.",
     "url": "https://fleetdm.com/tables/memory_error_info",
-    "platforms": [
-      "darwin",
-      "linux"
-    ],
+    "platforms": ["darwin", "linux"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -16633,9 +15922,7 @@
     "name": "memory_info",
     "description": "Main memory information in bytes.",
     "url": "https://fleetdm.com/tables/memory_info",
-    "platforms": [
-      "linux"
-    ],
+    "platforms": ["linux"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -16738,9 +16025,7 @@
     "name": "memory_map",
     "description": "OS memory region map.",
     "url": "https://fleetdm.com/tables/memory_map",
-    "platforms": [
-      "linux"
-    ],
+    "platforms": ["linux"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -16780,10 +16065,7 @@
     "name": "mounts",
     "description": "System mounted devices and filesystems (not process specific).",
     "url": "https://fleetdm.com/tables/mounts",
-    "platforms": [
-      "darwin",
-      "linux"
-    ],
+    "platforms": ["darwin", "linux"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -16895,9 +16177,7 @@
     "name": "msr",
     "description": "Various pieces of data stored in the model specific register per processor. NOTE: the msr kernel module must be enabled, and osquery must be run as root.",
     "url": "https://fleetdm.com/tables/msr",
-    "platforms": [
-      "linux"
-    ],
+    "platforms": ["linux"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -17000,9 +16280,7 @@
     "name": "munki_info",
     "notes": "This table is from the [Mac Admins osquery extension](https://github.com/macadmins/osquery-extension).",
     "description": "Information from the last [Munki](https://github.com/munki/munki) run.",
-    "platforms": [
-      "darwin"
-    ],
+    "platforms": ["darwin"],
     "evented": false,
     "examples": "Output errors, warnings and problematic installations from Munki.\n\n```\nSELECT errors, warnings, problem_installs FROM munki_info ;\n```",
     "columns": [
@@ -17068,9 +16346,7 @@
     "name": "munki_installs",
     "notes": "This table is from the [Mac Admins osquery extension](https://github.com/macadmins/osquery-extension).",
     "description": "Software packages and other items [Munki](https://github.com/munki/munki) is managing.",
-    "platforms": [
-      "darwin"
-    ],
+    "platforms": ["darwin"],
     "evented": false,
     "examples": "See the version of software that has been deployed by Munki.\n\n```\nSELECT name, installed_version FROM munki_installs WHERE installed='true';\n```",
     "columns": [
@@ -17105,9 +16381,7 @@
   {
     "name": "network_interfaces",
     "evented": false,
-    "platforms": [
-      "chrome"
-    ],
+    "platforms": ["chrome"],
     "description": "Uses the `chrome.enterprise.networkingAttributes` API to read information about the host's current network.",
     "columns": [
       {
@@ -17137,9 +16411,7 @@
     "name": "nfs_shares",
     "description": "NFS shares exported by the host.",
     "url": "https://fleetdm.com/tables/nfs_shares",
-    "platforms": [
-      "darwin"
-    ],
+    "platforms": ["darwin"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -17179,11 +16451,7 @@
     "name": "npm_packages",
     "description": "Node.js packages globally installed on a system.",
     "url": "https://fleetdm.com/tables/npm_packages",
-    "platforms": [
-      "darwin",
-      "linux",
-      "windows"
-    ],
+    "platforms": ["darwin", "linux", "windows"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -17269,9 +16537,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "Linux"
-        ]
+        "platforms": ["Linux"]
       },
       {
         "name": "mount_namespace_id",
@@ -17281,9 +16547,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "Linux"
-        ]
+        "platforms": ["Linux"]
       }
     ],
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/npm_packages.yml"
@@ -17292,9 +16556,7 @@
     "name": "ntdomains",
     "description": "Display basic NT domain information of a Windows machine.",
     "url": "https://fleetdm.com/tables/ntdomains",
-    "platforms": [
-      "windows"
-    ],
+    "platforms": ["windows"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -17379,9 +16641,7 @@
     "name": "ntfs_acl_permissions",
     "description": "Retrieve NTFS ACL permission information for files and directories.",
     "url": "https://fleetdm.com/tables/ntfs_acl_permissions",
-    "platforms": [
-      "windows"
-    ],
+    "platforms": ["windows"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -17439,9 +16699,7 @@
     "name": "ntfs_journal_events",
     "description": "Track time/action changes to files specified in configuration data.",
     "url": "https://fleetdm.com/tables/ntfs_journal_events",
-    "platforms": [
-      "windows"
-    ],
+    "platforms": ["windows"],
     "evented": true,
     "cacheable": false,
     "notes": "",
@@ -17571,9 +16829,7 @@
     "name": "nvram",
     "description": "Apple NVRAM variable listing.",
     "url": "https://fleetdm.com/tables/nvram",
-    "platforms": [
-      "darwin"
-    ],
+    "platforms": ["darwin"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -17611,9 +16867,7 @@
   },
   {
     "name": "nvram_info",
-    "platforms": [
-      "darwin"
-    ],
+    "platforms": ["darwin"],
     "description": "Information from nvram system call.",
     "columns": [
       {
@@ -17632,10 +16886,7 @@
     "name": "oem_strings",
     "description": "OEM defined strings retrieved from SMBIOS.",
     "url": "https://fleetdm.com/tables/oem_strings",
-    "platforms": [
-      "darwin",
-      "linux"
-    ],
+    "platforms": ["darwin", "linux"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -17675,9 +16926,7 @@
     "name": "office_mru",
     "description": "View recently opened Office documents.",
     "url": "https://fleetdm.com/tables/office_mru",
-    "platforms": [
-      "windows"
-    ],
+    "platforms": ["windows"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -17734,11 +16983,7 @@
   },
   {
     "name": "orbit_info",
-    "platforms": [
-      "darwin",
-      "linux",
-      "windows"
-    ],
+    "platforms": ["darwin", "linux", "windows"],
     "description": "Returns information about the orbit instance.",
     "columns": [
       {
@@ -17811,12 +17056,7 @@
     "name": "os_version",
     "description": "A single row containing the operating system name and version.",
     "url": "https://fleetdm.com/tables/os_version",
-    "platforms": [
-      "darwin",
-      "linux",
-      "windows",
-      "chrome"
-    ],
+    "platforms": ["darwin", "linux", "windows", "chrome"],
     "evented": false,
     "cacheable": false,
     "notes": "- On ChromeOS, this table requires the [fleetd Chrome extension](https://fleetdm.com/docs/using-fleet/chromeos).",
@@ -17920,9 +17160,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "darwin"
-        ]
+        "platforms": ["darwin"]
       },
       {
         "name": "install_date",
@@ -17932,9 +17170,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "Windows"
-        ]
+        "platforms": ["Windows"]
       },
       {
         "name": "revision",
@@ -17944,11 +17180,7 @@
         "hidden": true,
         "required": false,
         "index": false,
-        "platforms": [
-          "windows",
-          "win32",
-          "cygwin"
-        ]
+        "platforms": ["windows", "win32", "cygwin"]
       },
       {
         "name": "pid_with_namespace",
@@ -17958,9 +17190,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "Linux"
-        ]
+        "platforms": ["Linux"]
       },
       {
         "name": "mount_namespace_id",
@@ -17970,9 +17200,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "Linux"
-        ]
+        "platforms": ["Linux"]
       }
     ],
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/os_version.yml"
@@ -17981,11 +17209,7 @@
     "name": "osquery_events",
     "description": "Information about the event publishers and subscribers.",
     "url": "https://fleetdm.com/tables/osquery_events",
-    "platforms": [
-      "darwin",
-      "linux",
-      "windows"
-    ],
+    "platforms": ["darwin", "linux", "windows"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -18061,11 +17285,7 @@
     "name": "osquery_extensions",
     "description": "List of active osquery extensions.",
     "url": "https://fleetdm.com/tables/osquery_extensions",
-    "platforms": [
-      "darwin",
-      "linux",
-      "windows"
-    ],
+    "platforms": ["darwin", "linux", "windows"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -18132,11 +17352,7 @@
     "name": "osquery_flags",
     "description": "Configurable flags that modify osquery's behavior.",
     "url": "https://fleetdm.com/tables/osquery_flags",
-    "platforms": [
-      "darwin",
-      "linux",
-      "windows"
-    ],
+    "platforms": ["darwin", "linux", "windows"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -18203,12 +17419,7 @@
     "name": "osquery_info",
     "description": "Top level information about the running version of osquery.",
     "url": "https://fleetdm.com/tables/osquery_info",
-    "platforms": [
-      "darwin",
-      "windows",
-      "linux",
-      "chrome"
-    ],
+    "platforms": ["darwin", "windows", "linux", "chrome"],
     "evented": false,
     "cacheable": false,
     "notes": "- On ChromeOS, this table requires the [fleetd Chrome extension](https://fleetdm.com/docs/using-fleet/chromeos).",
@@ -18222,11 +17433,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "macOS",
-          "Windows",
-          "Linux"
-        ]
+        "platforms": ["macOS", "Windows", "Linux"]
       },
       {
         "name": "uuid",
@@ -18236,11 +17443,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "macOS",
-          "Windows",
-          "Linux"
-        ]
+        "platforms": ["macOS", "Windows", "Linux"]
       },
       {
         "name": "instance_id",
@@ -18250,11 +17453,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "macOS",
-          "Windows",
-          "Linux"
-        ]
+        "platforms": ["macOS", "Windows", "Linux"]
       },
       {
         "name": "version",
@@ -18273,11 +17472,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "macOS",
-          "Windows",
-          "Linux"
-        ]
+        "platforms": ["macOS", "Windows", "Linux"]
       },
       {
         "name": "config_valid",
@@ -18287,11 +17482,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "macOS",
-          "Windows",
-          "Linux"
-        ]
+        "platforms": ["macOS", "Windows", "Linux"]
       },
       {
         "name": "extensions",
@@ -18328,11 +17519,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "macOS",
-          "Windows",
-          "Linux"
-        ]
+        "platforms": ["macOS", "Windows", "Linux"]
       },
       {
         "name": "watcher",
@@ -18342,11 +17529,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "macOS",
-          "Windows",
-          "Linux"
-        ]
+        "platforms": ["macOS", "Windows", "Linux"]
       },
       {
         "name": "platform_mask",
@@ -18356,11 +17539,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "macOS",
-          "Windows",
-          "Linux"
-        ]
+        "platforms": ["macOS", "Windows", "Linux"]
       }
     ],
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/osquery_info.yml"
@@ -18369,11 +17548,7 @@
     "name": "osquery_packs",
     "description": "Information about the current query packs that are loaded in osquery.",
     "url": "https://fleetdm.com/tables/osquery_packs",
-    "platforms": [
-      "darwin",
-      "linux",
-      "windows"
-    ],
+    "platforms": ["darwin", "linux", "windows"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -18449,11 +17624,7 @@
     "name": "osquery_registry",
     "description": "List the osquery registry plugins.",
     "url": "https://fleetdm.com/tables/osquery_registry",
-    "platforms": [
-      "darwin",
-      "linux",
-      "windows"
-    ],
+    "platforms": ["darwin", "linux", "windows"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -18511,11 +17682,7 @@
     "name": "osquery_schedule",
     "description": "Information about the current queries that are scheduled in osquery.",
     "url": "https://fleetdm.com/tables/osquery_schedule",
-    "platforms": [
-      "darwin",
-      "linux",
-      "windows"
-    ],
+    "platforms": ["darwin", "linux", "windows"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -18672,9 +17839,7 @@
     "name": "package_bom",
     "description": "The \"bill of materials\" (`.bom`) file in a macOS installer package (`.pkg`) lists all files installed by the package. The `package_bom` osquery table collects the data from the `.bom` files created in `/private/var/db/receipts` by macOS when a `.pkg` file is executed.",
     "url": "https://fleetdm.com/tables/package_bom",
-    "platforms": [
-      "darwin"
-    ],
+    "platforms": ["darwin"],
     "evented": false,
     "cacheable": false,
     "notes": "Keeping track of files installed by applications is critical for upholding software management best security practices.\n\nApple’s [installer package documentation](https://developer.apple.com/documentation/xcode/packaging-mac-software-for-distribution)",
@@ -18750,9 +17915,7 @@
     "name": "package_install_history",
     "description": "The `package_install_history` table provides a detailed log of all packages installled on macOS.",
     "url": "https://fleetdm.com/tables/package_install_history",
-    "platforms": [
-      "darwin"
-    ],
+    "platforms": ["darwin"],
     "evented": false,
     "cacheable": false,
     "notes": "\nMonitoring the macOS package install history is useful for:\n- Regularly checking for newly installed packages and identifying suspicious software\n- Verifying that only approved packages are installed\n- Creating a Fleet policy to receive alerts for any unauthorized or vulnerable installations\n\nApple’s [installer package documentation](https://developer.apple.com/documentation/xcode/packaging-mac-software-for-distribution)",
@@ -18819,9 +17982,7 @@
     "name": "package_receipts",
     "description": "macOS package receipt details.",
     "url": "https://fleetdm.com/tables/package_receipts",
-    "platforms": [
-      "darwin"
-    ],
+    "platforms": ["darwin"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -18897,11 +18058,7 @@
     "name": "parse_ini",
     "notes": "This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).",
     "description": "Parse a file as INI configuration.",
-    "platforms": [
-      "darwin",
-      "windows",
-      "linux"
-    ],
+    "platforms": ["darwin", "windows", "linux"],
     "evented": false,
     "columns": [
       {
@@ -18942,11 +18099,7 @@
     "name": "parse_json",
     "notes": "This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).",
     "description": "Parses an entire file as JSON. See `parse_jsonl` where multiple JSON documents are supported.",
-    "platforms": [
-      "darwin",
-      "windows",
-      "linux"
-    ],
+    "platforms": ["darwin", "windows", "linux"],
     "evented": false,
     "columns": [
       {
@@ -18987,11 +18140,7 @@
     "name": "parse_jsonl",
     "notes": "This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).",
     "description": "Parses each line of a file as a separate JSON document. See `parse_json` to treat an entire file as a single JSON document.",
-    "platforms": [
-      "darwin",
-      "windows",
-      "linux"
-    ],
+    "platforms": ["darwin", "windows", "linux"],
     "evented": false,
     "columns": [
       {
@@ -19032,11 +18181,7 @@
     "name": "parse_xml",
     "notes": "This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).",
     "description": "Parses a file as an XML document.",
-    "platforms": [
-      "darwin",
-      "windows",
-      "linux"
-    ],
+    "platforms": ["darwin", "windows", "linux"],
     "evented": false,
     "columns": [
       {
@@ -19077,9 +18222,7 @@
     "name": "password_policy",
     "description": "Password Policies for macOS.",
     "url": "https://fleetdm.com/tables/password_policy",
-    "platforms": [
-      "darwin"
-    ],
+    "platforms": ["darwin"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -19128,9 +18271,7 @@
     "name": "patches",
     "description": "The `patches` osquery table lists Windows security patch updates.",
     "url": "https://fleetdm.com/tables/patches",
-    "platforms": [
-      "windows"
-    ],
+    "platforms": ["windows"],
     "evented": false,
     "cacheable": false,
     "notes": "Microsoft creates a support page per hotfix patch. Support pages can be discovered by doing a web browser search for the hotfix ID string (e.g., KB5037663).\n\nMicrosoft documentation for [KB5037663](https://support.microsoft.com/en-us/topic/may-29-2024-kb5037853-os-builds-22621-3672-and-22631-3672-preview-dcf14fd8-84d6-4234-9d5b-784c319cd7cf)\n\nThe `patches` table does not include updates that are applied via Windows Installer / Microsoft Standard Installer packages (.msi) or updates downloaded directly from Windows Update (e.g., Service Packs).\n\n[Windows Installer](https://learn.microsoft.com/en-us/windows/win32/msi/windows-installer-portal)",
@@ -19215,10 +18356,7 @@
     "name": "pci_devices",
     "description": "PCI devices active on the host system.",
     "url": "https://fleetdm.com/tables/pci_devices",
-    "platforms": [
-      "darwin",
-      "linux"
-    ],
+    "platforms": ["darwin", "linux"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -19295,9 +18433,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "Linux"
-        ]
+        "platforms": ["Linux"]
       },
       {
         "name": "pci_subclass_id",
@@ -19307,9 +18443,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "Linux"
-        ]
+        "platforms": ["Linux"]
       },
       {
         "name": "pci_subclass",
@@ -19319,9 +18453,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "Linux"
-        ]
+        "platforms": ["Linux"]
       },
       {
         "name": "subsystem_vendor_id",
@@ -19331,9 +18463,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "Linux"
-        ]
+        "platforms": ["Linux"]
       },
       {
         "name": "subsystem_vendor",
@@ -19343,9 +18473,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "Linux"
-        ]
+        "platforms": ["Linux"]
       },
       {
         "name": "subsystem_model_id",
@@ -19355,9 +18483,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "Linux"
-        ]
+        "platforms": ["Linux"]
       },
       {
         "name": "subsystem_model",
@@ -19367,9 +18493,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "Linux"
-        ]
+        "platforms": ["Linux"]
       }
     ],
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/pci_devices.yml"
@@ -19378,9 +18502,7 @@
     "name": "physical_disk_performance",
     "description": "Provides provides raw data from performance counters that monitor hard or fixed disk drives on the system.",
     "url": "https://fleetdm.com/tables/physical_disk_performance",
-    "platforms": [
-      "windows"
-    ],
+    "platforms": ["windows"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -19501,9 +18623,7 @@
     "name": "pipes",
     "description": "Named pipes in Windows can be used to provide communication between processes on a computer or between processes on different computers across a network. The `pipes` osquery table lists the named pipes currently running on a Windows computer.",
     "url": "https://fleetdm.com/tables/pipes",
-    "platforms": [
-      "windows"
-    ],
+    "platforms": ["windows"],
     "evented": false,
     "cacheable": false,
     "notes": "Running the following command at a prompt in PowerShell lists the named pipes currently open on a Windows computer:\n\n```\nPS C:\\Windows\\System32> get-childitem \\\\.\\pipe\\\n```\n\nLinks:\n- Microsoft documentation on [named pipes](https://learn.microsoft.com/en-us/windows/win32/ipc/named-pipes)\n- Discover files linked to processes with Windows [Process Explorer](https://learn.microsoft.com/en-us/sysinternals/downloads/process-explorer)\n- Windows [PowerShell](https://learn.microsoft.com/en-us/powershell/scripting/overview?view=powershell-7.4)",
@@ -19561,11 +18681,7 @@
     "name": "platform_info",
     "description": "The `platform_info` osquery table collects boot platform information from a computer. The `platform_info` table works on Linux, macOS and Windows.",
     "url": "https://fleetdm.com/tables/platform_info",
-    "platforms": [
-      "darwin",
-      "linux",
-      "windows"
-    ],
+    "platforms": ["darwin", "linux", "windows"],
     "evented": false,
     "cacheable": false,
     "notes": "Links:\n- EFI: https://en.wikipedia.org/wiki/EFI_system_partition \n- iboot: https://en.wikipedia.org/wiki/IBoot \n- UEFI: https://en.wikipedia.org/wiki/UEFI#Classes \n- System booting: https://en.wikipedia.org/wiki/Booting ",
@@ -19633,10 +18749,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "Linux",
-          "macOS"
-        ]
+        "platforms": ["Linux", "macOS"]
       },
       {
         "name": "size",
@@ -19646,10 +18759,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "Linux",
-          "macOS"
-        ]
+        "platforms": ["Linux", "macOS"]
       },
       {
         "name": "volume_size",
@@ -19659,10 +18769,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "Linux",
-          "macOS"
-        ]
+        "platforms": ["Linux", "macOS"]
       }
     ],
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/platform_info.yml"
@@ -19671,9 +18778,7 @@
     "name": "plist",
     "description": "Read and parse a plist file.",
     "url": "https://fleetdm.com/tables/plist",
-    "platforms": [
-      "darwin"
-    ],
+    "platforms": ["darwin"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -19720,9 +18825,7 @@
   },
   {
     "name": "pmset",
-    "platforms": [
-      "darwin"
-    ],
+    "platforms": ["darwin"],
     "description": "Retrieves macOS power settings with the `pmset -g` command.",
     "columns": [
       {
@@ -19747,9 +18850,7 @@
     "name": "portage_keywords",
     "description": "A summary about portage configurations like keywords, mask and unmask.",
     "url": "https://fleetdm.com/tables/portage_keywords",
-    "platforms": [
-      "linux"
-    ],
+    "platforms": ["linux"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -19807,9 +18908,7 @@
     "name": "portage_packages",
     "description": "List of currently installed packages.",
     "url": "https://fleetdm.com/tables/portage_packages",
-    "platforms": [
-      "linux"
-    ],
+    "platforms": ["linux"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -19894,9 +18993,7 @@
     "name": "portage_use",
     "description": "List of enabled portage USE values for specific package.",
     "url": "https://fleetdm.com/tables/portage_use",
-    "platforms": [
-      "linux"
-    ],
+    "platforms": ["linux"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -19936,9 +19033,7 @@
     "name": "power_sensors",
     "description": "Machine power (currents, voltages, wattages, etc) sensors.",
     "url": "https://fleetdm.com/tables/power_sensors",
-    "platforms": [
-      "darwin"
-    ],
+    "platforms": ["darwin"],
     "evented": false,
     "cacheable": false,
     "notes": "Returns useful results on Intel Macs only.",
@@ -19987,9 +19082,7 @@
     "name": "powershell_events",
     "description": "Powershell script blocks reconstructed to their full script content, this table requires script block logging to be enabled.",
     "url": "https://fleetdm.com/tables/powershell_events",
-    "platforms": [
-      "windows"
-    ],
+    "platforms": ["windows"],
     "evented": true,
     "cacheable": false,
     "notes": "",
@@ -20075,9 +19168,7 @@
     "name": "preferences",
     "description": "macOS defaults and managed preferences.",
     "url": "https://fleetdm.com/tables/preferences",
-    "platforms": [
-      "darwin"
-    ],
+    "platforms": ["darwin"],
     "evented": false,
     "cacheable": false,
     "notes": "- Querying this table requires joining against the `users` table. [Learn more](https://fleetdm.com/guides/osquery-consider-joining-against-the-users-table)\n\n- The `value` column will be empty for keys that contain binary data.",
@@ -20153,9 +19244,7 @@
     "name": "prefetch",
     "description": "Prefetch files show metadata related to file execution.",
     "url": "https://fleetdm.com/tables/prefetch",
-    "platforms": [
-      "windows"
-    ],
+    "platforms": ["windows"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -20285,9 +19374,7 @@
   {
     "name": "privacy_preferences",
     "description": "Information on Chrome features that can affect a user's privacy, available from the [chrome.privacy APIs](https://developer.chrome.com/docs/extensions/reference/privacy/)",
-    "platforms": [
-      "chrome"
-    ],
+    "platforms": ["chrome"],
     "evented": false,
     "columns": [
       {
@@ -20419,10 +19506,7 @@
     "name": "process_envs",
     "description": "A key/value table of environment variables for each process.",
     "url": "https://fleetdm.com/tables/process_envs",
-    "platforms": [
-      "darwin",
-      "linux"
-    ],
+    "platforms": ["darwin", "linux"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -20462,9 +19546,7 @@
     "name": "process_etw_events",
     "description": "Windows process execution events.",
     "url": "https://fleetdm.com/tables/process_etw_events",
-    "platforms": [
-      "windows"
-    ],
+    "platforms": ["windows"],
     "evented": true,
     "cacheable": false,
     "notes": "",
@@ -20649,10 +19731,7 @@
     "name": "process_events",
     "description": "Track time/action process executions.",
     "url": "https://fleetdm.com/tables/process_events",
-    "platforms": [
-      "darwin",
-      "linux"
-    ],
+    "platforms": ["darwin", "linux"],
     "evented": true,
     "cacheable": false,
     "notes": "",
@@ -20890,9 +19969,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "macOS"
-        ]
+        "platforms": ["macOS"]
       },
       {
         "name": "fsuid",
@@ -20902,9 +19979,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "Linux"
-        ]
+        "platforms": ["Linux"]
       },
       {
         "name": "suid",
@@ -20914,9 +19989,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "Linux"
-        ]
+        "platforms": ["Linux"]
       },
       {
         "name": "fsgid",
@@ -20926,9 +19999,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "Linux"
-        ]
+        "platforms": ["Linux"]
       },
       {
         "name": "sgid",
@@ -20938,9 +20009,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "Linux"
-        ]
+        "platforms": ["Linux"]
       },
       {
         "name": "syscall",
@@ -20950,9 +20019,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "Linux"
-        ]
+        "platforms": ["Linux"]
       }
     ],
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/process_events.yml"
@@ -20961,9 +20028,7 @@
     "name": "process_file_events",
     "description": "A File Integrity Monitor implementation using the audit service.",
     "url": "https://fleetdm.com/tables/process_file_events",
-    "platforms": [
-      "linux"
-    ],
+    "platforms": ["linux"],
     "evented": true,
     "cacheable": false,
     "notes": "This table will only include events for changes and files in directories that existed before the fleetd agent starts.",
@@ -21155,11 +20220,7 @@
     "name": "process_memory_map",
     "description": "Process memory mapped files and pseudo device/regions.",
     "url": "https://fleetdm.com/tables/process_memory_map",
-    "platforms": [
-      "darwin",
-      "linux",
-      "windows"
-    ],
+    "platforms": ["darwin", "linux", "windows"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -21253,9 +20314,7 @@
     "name": "process_namespaces",
     "description": "Linux namespaces for processes running on the host system.",
     "url": "https://fleetdm.com/tables/process_namespaces",
-    "platforms": [
-      "linux"
-    ],
+    "platforms": ["linux"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -21341,10 +20400,7 @@
     "name": "process_open_files",
     "description": "File descriptors for each process.",
     "url": "https://fleetdm.com/tables/process_open_files",
-    "platforms": [
-      "darwin",
-      "linux"
-    ],
+    "platforms": ["darwin", "linux"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -21384,9 +20440,7 @@
     "name": "process_open_pipes",
     "description": "Pipes and partner processes for each process.",
     "url": "https://fleetdm.com/tables/process_open_pipes",
-    "platforms": [
-      "linux"
-    ],
+    "platforms": ["linux"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -21472,11 +20526,7 @@
     "name": "process_open_sockets",
     "description": "Processes which have open network sockets on the system.",
     "url": "https://fleetdm.com/tables/process_open_sockets",
-    "platforms": [
-      "darwin",
-      "linux",
-      "windows"
-    ],
+    "platforms": ["darwin", "linux", "windows"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -21580,11 +20630,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "Windows",
-          "Linux",
-          "macOS"
-        ]
+        "platforms": ["Windows", "Linux", "macOS"]
       },
       {
         "name": "net_namespace",
@@ -21594,9 +20640,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "Linux"
-        ]
+        "platforms": ["Linux"]
       }
     ],
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/process_open_sockets.yml"
@@ -21605,11 +20649,7 @@
     "name": "processes",
     "description": "All running processes on the host system.",
     "url": "https://fleetdm.com/tables/processes",
-    "platforms": [
-      "darwin",
-      "linux",
-      "windows"
-    ],
+    "platforms": ["darwin", "linux", "windows"],
     "evented": false,
     "cacheable": true,
     "notes": "",
@@ -21857,9 +20897,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "Windows"
-        ]
+        "platforms": ["Windows"]
       },
       {
         "name": "secure_process",
@@ -21869,9 +20907,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "Windows"
-        ]
+        "platforms": ["Windows"]
       },
       {
         "name": "protection_type",
@@ -21881,9 +20917,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "Windows"
-        ]
+        "platforms": ["Windows"]
       },
       {
         "name": "virtual_process",
@@ -21893,9 +20927,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "Windows"
-        ]
+        "platforms": ["Windows"]
       },
       {
         "name": "elapsed_time",
@@ -21905,9 +20937,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "Windows"
-        ]
+        "platforms": ["Windows"]
       },
       {
         "name": "handle_count",
@@ -21917,9 +20947,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "Windows"
-        ]
+        "platforms": ["Windows"]
       },
       {
         "name": "percent_processor_time",
@@ -21929,9 +20957,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "Windows"
-        ]
+        "platforms": ["Windows"]
       },
       {
         "name": "upid",
@@ -21941,9 +20967,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "macOS"
-        ]
+        "platforms": ["macOS"]
       },
       {
         "name": "uppid",
@@ -21953,9 +20977,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "macOS"
-        ]
+        "platforms": ["macOS"]
       },
       {
         "name": "cpu_type",
@@ -21965,9 +20987,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "macOS"
-        ]
+        "platforms": ["macOS"]
       },
       {
         "name": "cpu_subtype",
@@ -21977,9 +20997,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "macOS"
-        ]
+        "platforms": ["macOS"]
       },
       {
         "name": "translated",
@@ -21989,9 +21007,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "macOS"
-        ]
+        "platforms": ["macOS"]
       },
       {
         "name": "cgroup_path",
@@ -22001,9 +21017,7 @@
         "hidden": true,
         "required": false,
         "index": false,
-        "platforms": [
-          "linux"
-        ]
+        "platforms": ["linux"]
       }
     ],
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/processes.yml"
@@ -22012,9 +21026,7 @@
     "name": "programs",
     "description": "The `programs` table lists applications installed via Windows Installer from a package.",
     "url": "https://fleetdm.com/tables/programs",
-    "platforms": [
-      "windows"
-    ],
+    "platforms": ["windows"],
     "evented": false,
     "cacheable": false,
     "notes": "This table includes references for applications:\n\n- downloaded directly from websites and installed by an end user like Google Chrome or Notepad++\n- installed via automation frameworks like winget or Chocolatey\n- installed via command line in cmd or PowerShell\n\nLinks:\n\n- [Windows Installer](https://learn.microsoft.com/en-us/windows/win32/msi/windows-installer-portal)\n- [Chocolatey](https://chocolatey.org/)\n- The Fleet `chocolatey_packages`[table](https://fleetdm.com/tables/chocolatey_packages)\n- [winget](https://learn.microsoft.com/en-us/windows/package-manager/winget/)\n- [winget.run](https://winget.run/)\n- Windows [cmd](https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/cmd)\n- Windows [PowerShell](https://learn.microsoft.com/en-us/powershell/scripting/overview?view=powershell-7.4)\n- [PowerShell primer](https://www.howtogeek.com/devops/how-to-get-started-with-learning-powershell/)\n- [Notepad++](https://notepad-plus-plus.org/)",
@@ -22108,10 +21120,7 @@
     "name": "prometheus_metrics",
     "description": "Retrieve metrics from a Prometheus server.",
     "url": "https://fleetdm.com/tables/prometheus_metrics",
-    "platforms": [
-      "darwin",
-      "linux"
-    ],
+    "platforms": ["darwin", "linux"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -22160,11 +21169,7 @@
     "name": "puppet_info",
     "notes": "This table is from the [Mac Admins osquery extension](https://github.com/macadmins/osquery-extension).",
     "description": "Information on the last [Puppet](https://puppet.com/) run. This table uses data from the `last_run_report` that Puppet creates.",
-    "platforms": [
-      "darwin",
-      "windows",
-      "linux"
-    ],
+    "platforms": ["darwin", "windows", "linux"],
     "evented": false,
     "examples": "List all the information available about the last Puppet run.\n\n```\nSELECT * FROM puppet_info;\n```",
     "columns": [
@@ -22278,11 +21283,7 @@
     "name": "puppet_logs",
     "notes": "This table is from the [Mac Admins osquery extension](https://github.com/macadmins/osquery-extension).",
     "description": "Outputs [Puppet](https://puppet.com/) logs from the last run.",
-    "platforms": [
-      "darwin",
-      "windows",
-      "linux"
-    ],
+    "platforms": ["darwin", "windows", "linux"],
     "evented": false,
     "examples": "List Puppet logs that are of a level of anything but informational.\n\n```\nSELECT * FROM puppet_logs WHERE level!='info';\n```",
     "columns": [
@@ -22330,11 +21331,7 @@
     "name": "puppet_state",
     "notes": "This table is from the [Mac Admins osquery extension](https://github.com/macadmins/osquery-extension).",
     "description": "State of every resource [Puppet](https://puppet.com/) is managing. This table uses data from the `last_run_report` that Puppet creates.",
-    "platforms": [
-      "darwin",
-      "windows",
-      "linux"
-    ],
+    "platforms": ["darwin", "windows", "linux"],
     "evented": false,
     "examples": "List resources that failed or took over a minute to evaluate.\n\n```\nSELECT * FROM puppet_state WHERE failed='true' OR evaluation_time|-'60';\n```",
     "columns": [
@@ -22422,9 +21419,7 @@
   },
   {
     "name": "pwd_policy",
-    "platforms": [
-      "darwin"
-    ],
+    "platforms": ["darwin"],
     "description": "Password Policy (e.g., max failed password attempts).",
     "columns": [
       {
@@ -22467,11 +21462,7 @@
     "name": "python_packages",
     "description": "Python packages installed in a system.",
     "url": "https://fleetdm.com/tables/python_packages",
-    "platforms": [
-      "darwin",
-      "linux",
-      "windows"
-    ],
+    "platforms": ["darwin", "linux", "windows"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -22548,9 +21539,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "Linux"
-        ]
+        "platforms": ["Linux"]
       }
     ],
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/python_packages.yml"
@@ -22559,9 +21548,7 @@
     "name": "quicklook_cache",
     "description": "Files and thumbnails within macOS's Quicklook Cache.",
     "url": "https://fleetdm.com/tables/quicklook_cache",
-    "platforms": [
-      "darwin"
-    ],
+    "platforms": ["darwin"],
     "evented": false,
     "cacheable": true,
     "notes": "",
@@ -22682,9 +21669,7 @@
     "name": "registry",
     "description": "The Windows Registry is a database that stores Windows application data and low-level Windows settings like driver, security, service, system and user information. The `registry` osquery table expresses the data in the Windows Registry.",
     "url": "https://fleetdm.com/tables/registry",
-    "platforms": [
-      "windows"
-    ],
+    "platforms": ["windows"],
     "evented": false,
     "cacheable": false,
     "notes": "The `registry` table is ideal for use in Fleet policies and queries because of the critical operating system and application data stored in the Windows Registry.\n\nLinks:\n\n- [Windows Registry](https://learn.microsoft.com/en-us/windows/win32/sysinfo/registry)\n- [Fleet Windows MDM Setup](https://fleetdm.com/guides/windows-mdm-setup)\n- [Windows Firewall](https://learn.microsoft.com/en-us/windows/security/operating-system-security/network-security/windows-firewall/)",
@@ -22751,11 +21736,7 @@
     "name": "routes",
     "description": "The active route table for the host system.",
     "url": "https://fleetdm.com/tables/routes",
-    "platforms": [
-      "darwin",
-      "linux",
-      "windows"
-    ],
+    "platforms": ["darwin", "linux", "windows"],
     "evented": false,
     "cacheable": true,
     "notes": "",
@@ -22850,10 +21831,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "Linux",
-          "macOS"
-        ]
+        "platforms": ["Linux", "macOS"]
       }
     ],
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/routes.yml"
@@ -22862,9 +21840,7 @@
     "name": "rpm_package_files",
     "description": "RPM packages that are currently installed on the host system.",
     "url": "https://fleetdm.com/tables/rpm_package_files",
-    "platforms": [
-      "linux"
-    ],
+    "platforms": ["linux"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -22940,9 +21916,7 @@
     "name": "rpm_packages",
     "description": "RPM packages that are currently installed on the host system.",
     "url": "https://fleetdm.com/tables/rpm_packages",
-    "platforms": [
-      "linux"
-    ],
+    "platforms": ["linux"],
     "evented": false,
     "cacheable": true,
     "notes": "",
@@ -23054,9 +22028,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "Linux"
-        ]
+        "platforms": ["Linux"]
       },
       {
         "name": "mount_namespace_id",
@@ -23066,9 +22038,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "Linux"
-        ]
+        "platforms": ["Linux"]
       }
     ],
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/rpm_packages.yml"
@@ -23077,9 +22047,7 @@
     "name": "running_apps",
     "description": "macOS applications currently running on the host system.",
     "url": "https://fleetdm.com/tables/running_apps",
-    "platforms": [
-      "darwin"
-    ],
+    "platforms": ["darwin"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -23119,9 +22087,7 @@
     "name": "safari_extensions",
     "description": "Safari extensions add functionality to Safari.app, the native web browser in macOS. The `safari_extensions` table collects all Safari extensions installed on a Mac.",
     "url": "https://fleetdm.com/tables/safari_extensions",
-    "platforms": [
-      "darwin"
-    ],
+    "platforms": ["darwin"],
     "evented": false,
     "cacheable": false,
     "notes": "Because Safari data is intentionally isolated for each macOS user to maintain privacy, this query requires a `JOIN` operation.\n\nQuery explanation:\n\n- The `safari_extensions` table has a row for each installed extension\n- Each row has a column with the `uid` of the user who installed the extension\n- Each `uid` from the `safari_extensions` table is matched in the `users` table to collect Safari extensions in the output data for all user accounts on the Mac by the `JOIN`\n\nLinks:\n\n- Apple dcoumentaion on Safari Extensions: https://support.apple.com/en-us/102343\n- CROSS JOIN SQLite tutorial: https://www.sqlitetutorial.net/sqlite-cross-join/\n- [Fleet documentation on joining against the `users` table](https://fleetdm.com/guides/osquery-consider-joining-against-the-users-table)\n- Fleet users table: https://fleetdm.com/tables/users",
@@ -23251,9 +22217,7 @@
     "name": "sandboxes",
     "description": "macOS application sandboxes container details.",
     "url": "https://fleetdm.com/tables/sandboxes",
-    "platforms": [
-      "darwin"
-    ],
+    "platforms": ["darwin"],
     "evented": false,
     "cacheable": true,
     "notes": "",
@@ -23320,9 +22284,7 @@
     "name": "scheduled_tasks",
     "description": "The Windows Task Scheduler tracks and performs automated tasks on a Windows device. The `scheduled_tasks` table collects the data from the Windows Task Scheduler.",
     "url": "https://fleetdm.com/tables/scheduled_tasks",
-    "platforms": [
-      "windows"
-    ],
+    "platforms": ["windows"],
     "evented": false,
     "cacheable": false,
     "notes": "Many automated tasks are added to the Task Scheduler by Windows itself, however, administrators can also customize the Task Scheduler. Scheduled tasks are analogous to Launch Daemons and Launch Agents used on Linux or macOS. Because automation is a potential vector for malicious activity, monitoring the Windows Task Scheduler may be critical in an enterprise environment.\n\n[Windows Task Scheduler](https://learn.microsoft.com/en-us/windows/win32/taskschd/about-the-task-scheduler)",
@@ -23425,10 +22387,7 @@
     "name": "screenlock",
     "description": "Returns if the screen locks automatically and the time, in seconds, it takes until the screen is locked automatically while idle.  For macOS, this table will return no results if osquery is running as root.",
     "url": "https://fleetdm.com/tables/screenlock",
-    "platforms": [
-      "darwin",
-      "chrome"
-    ],
+    "platforms": ["darwin", "chrome"],
     "evented": false,
     "cacheable": false,
     "notes": "- For macOS, this only fetches results for osquery's current logged-in user context. The user must also have recently logged in.\n\n- For ChromeOS, this table requires the [fleetd Chrome extension](https://fleetdm.com/docs/using-fleet/chromeos).\n\n- For ChromeOS, this table is only available for Chrome 73+.",
@@ -23458,9 +22417,7 @@
     "name": "seccomp_events",
     "description": "A virtual table that tracks seccomp events.",
     "url": "https://fleetdm.com/tables/seccomp_events",
-    "platforms": [
-      "linux"
-    ],
+    "platforms": ["linux"],
     "evented": true,
     "cacheable": false,
     "notes": "",
@@ -23608,11 +22565,7 @@
     "name": "secureboot",
     "description": "Secure Boot UEFI Settings.",
     "url": "https://fleetdm.com/tables/secureboot",
-    "platforms": [
-      "darwin",
-      "linux",
-      "windows"
-    ],
+    "platforms": ["darwin", "linux", "windows"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -23635,9 +22588,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "macOS"
-        ]
+        "platforms": ["macOS"]
       },
       {
         "name": "description",
@@ -23647,9 +22598,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "macOS"
-        ]
+        "platforms": ["macOS"]
       },
       {
         "name": "kernel_extensions",
@@ -23659,9 +22608,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "macOS"
-        ]
+        "platforms": ["macOS"]
       },
       {
         "name": "mdm_operations",
@@ -23671,9 +22618,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "macOS"
-        ]
+        "platforms": ["macOS"]
       },
       {
         "name": "setup_mode",
@@ -23683,10 +22628,7 @@
         "hidden": true,
         "required": false,
         "index": false,
-        "platforms": [
-          "Linux",
-          "Windows"
-        ]
+        "platforms": ["Linux", "Windows"]
       }
     ],
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/secureboot.yml"
@@ -23695,9 +22637,7 @@
     "name": "security_profile_info",
     "description": "Information on the security profile of a given system by listing the system Account and Audit Policies. This table mimics the exported securitypolicy output from the secedit tool.",
     "url": "https://fleetdm.com/tables/security_profile_info",
-    "platforms": [
-      "windows"
-    ],
+    "platforms": ["windows"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -23917,9 +22857,7 @@
     "name": "selinux_events",
     "description": "Track SELinux events.",
     "url": "https://fleetdm.com/tables/selinux_events",
-    "platforms": [
-      "linux"
-    ],
+    "platforms": ["linux"],
     "evented": true,
     "cacheable": false,
     "notes": "",
@@ -23977,9 +22915,7 @@
     "name": "selinux_settings",
     "description": "Track active SELinux settings.",
     "url": "https://fleetdm.com/tables/selinux_settings",
-    "platforms": [
-      "linux"
-    ],
+    "platforms": ["linux"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -24020,9 +22956,7 @@
     "name": "services",
     "description": "Lists all installed Windows services and their relevant data.",
     "url": "https://fleetdm.com/tables/services",
-    "platforms": [
-      "windows"
-    ],
+    "platforms": ["windows"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -24144,9 +23078,7 @@
     "name": "shadow",
     "description": "Local system users encrypted passwords and related information. Please note, that you usually need superuser rights to access `/etc/shadow`.",
     "url": "https://fleetdm.com/tables/shadow",
-    "platforms": [
-      "linux"
-    ],
+    "platforms": ["linux"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -24250,9 +23182,7 @@
     "name": "shared_folders",
     "description": "Folders available to others via SMB or AFP.",
     "url": "https://fleetdm.com/tables/shared_folders",
-    "platforms": [
-      "darwin"
-    ],
+    "platforms": ["darwin"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -24283,9 +23213,7 @@
     "name": "shared_memory",
     "description": "OS shared memory regions.",
     "url": "https://fleetdm.com/tables/shared_memory",
-    "platforms": [
-      "linux"
-    ],
+    "platforms": ["linux"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -24415,9 +23343,7 @@
     "name": "shared_resources",
     "description": "Displays shared resources on a computer system running Windows. This may be a disk drive, printer, interprocess communication, or other sharable device.",
     "url": "https://fleetdm.com/tables/shared_resources",
-    "platforms": [
-      "windows"
-    ],
+    "platforms": ["windows"],
     "evented": false,
     "cacheable": false,
     "notes": "* `type_name` is a human readable value of the type column. These values can include: \"Disk Drive Admin\", \"IPC Admin\", \"Disk Drive\"",
@@ -24511,9 +23437,7 @@
     "name": "sharing_preferences",
     "description": "macOS Sharing preferences.",
     "url": "https://fleetdm.com/tables/sharing_preferences",
-    "platforms": [
-      "darwin"
-    ],
+    "platforms": ["darwin"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -24616,10 +23540,7 @@
     "name": "shell_history",
     "description": "A line-delimited (command) table of per-user .*_history data.",
     "url": "https://fleetdm.com/tables/shell_history",
-    "platforms": [
-      "darwin",
-      "linux"
-    ],
+    "platforms": ["darwin", "linux"],
     "evented": false,
     "cacheable": false,
     "notes": "- Querying this table requires joining against the `users` table. [Learn more](https://fleetdm.com/guides/osquery-consider-joining-against-the-users-table)",
@@ -24668,9 +23589,7 @@
     "name": "shellbags",
     "description": "Shows directories accessed via Windows Explorer.",
     "url": "https://fleetdm.com/tables/shellbags",
-    "platforms": [
-      "windows"
-    ],
+    "platforms": ["windows"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -24756,9 +23675,7 @@
     "name": "shimcache",
     "description": "Application Compatibility Cache, contains artifacts of execution.",
     "url": "https://fleetdm.com/tables/shimcache",
-    "platforms": [
-      "windows"
-    ],
+    "platforms": ["windows"],
     "evented": false,
     "cacheable": false,
     "notes": "\nSome key caveats to know about this data source:\n\n* Process execution logs are only written during a reboot, otherwise they are stored in memory. This means you may not be seeing the data you would expect if the system hasn't been rebooted recently.\n\n* The entry column shows the order of execution - Starting from 1, which is the most-recent process execution, and then on from there.\n\n* The modified_time column displays the last modified time for the file.\n\nSource: https://bromiley.medium.com/windows-wednesday-shim-cache-1997ba8b13e7",
@@ -24807,9 +23724,7 @@
     "name": "signature",
     "description": "File (executable, bundle, installer, disk) code signing status.",
     "url": "https://fleetdm.com/tables/signature",
-    "platforms": [
-      "darwin"
-    ],
+    "platforms": ["darwin"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -24894,9 +23809,7 @@
     "name": "sip_config",
     "description": "macOS System Integrity Protection (SIP) protects the Mac by preventing the execution of unauthorized code. The `sip_config` osquery table collects the current SIP status of a Mac.",
     "url": "https://fleetdm.com/tables/sip_config",
-    "platforms": [
-      "darwin"
-    ],
+    "platforms": ["darwin"],
     "evented": false,
     "cacheable": false,
     "notes": "SIP:\n- automatically authorizes apps users download from the App Store\n- authorizes apps developers notarize and distribute directly to users\n- prevents launching of other apps unless users or administrators modify \"Gatekeeper\" settings\n\nOrganizations that develop software for Apple operating systems on the Mac may allow users to disable SIP. Because SIP is a basic and critical macOS security protection it is important to monitor SIP status on Hosts.\n\nLinks:\n\n- [About System Integrity Protection](https://support.apple.com/en-us/102149)\n- [Disabling and Enabling System Integrity Protection](https://developer.apple.com/documentation/security/disabling_and_enabling_system_integrity_protection/)\n- [Gatekeeper and runtime protection in macOS](https://support.apple.com/guide/security/gatekeeper-and-runtime-protection-sec5599b66df/web)",
@@ -24936,10 +23849,7 @@
     "name": "smbios_tables",
     "description": "BIOS (DMI) structure common details and content.",
     "url": "https://fleetdm.com/tables/smbios_tables",
-    "platforms": [
-      "darwin",
-      "linux"
-    ],
+    "platforms": ["darwin", "linux"],
     "evented": false,
     "cacheable": false,
     "notes": "This table requires an Intel compatible system.",
@@ -25015,9 +23925,7 @@
     "name": "smc_keys",
     "description": "Apple's system management controller keys.",
     "url": "https://fleetdm.com/tables/smc_keys",
-    "platforms": [
-      "darwin"
-    ],
+    "platforms": ["darwin"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -25073,11 +23981,7 @@
   },
   {
     "name": "sntp_request",
-    "platforms": [
-      "darwin",
-      "windows",
-      "linux"
-    ],
+    "platforms": ["darwin", "windows", "linux"],
     "description": "Allows querying the timestamp and clock offset from a SNTP server (in millisecond precision).",
     "columns": [
       {
@@ -25108,10 +24012,7 @@
     "name": "socket_events",
     "description": "Track network socket opens and closes.",
     "url": "https://fleetdm.com/tables/socket_events",
-    "platforms": [
-      "darwin",
-      "linux"
-    ],
+    "platforms": ["darwin", "linux"],
     "evented": true,
     "cacheable": false,
     "notes": "",
@@ -25278,9 +24179,7 @@
     "notes": "This table is from the [Mac Admins osquery extension](https://github.com/macadmins/osquery-extension).\n\n- By default this table will return vulnerability data for the running operating system.\n\n- Use the `url` constraint (in the WHERE clause) to specify a data source other than the [SOFA feed](https://sofa.macadmins.io/v1/macos_data_feed.json).",
     "description": "The information on the security release the device is running from [SOFA](https://sofa.macadmins.io/).",
     "examples": "For historical data, use the `os_version` predicate\n\n```\nSELECT * FROM sofa_security_release_info WHERE os_version=\"14.4.0\"\n```",
-    "platforms": [
-      "darwin"
-    ],
+    "platforms": ["darwin"],
     "evented": false,
     "columns": [
       {
@@ -25334,9 +24233,7 @@
     "notes": "This table is from the [Mac Admins osquery extension](https://github.com/macadmins/osquery-extension).\n\n- By default this table will return all unpatched vulnerability data for the running operating system.\n\n- Use the `url` constraint (in the WHERE clause) to specify a data source other than the [SOFA feed](https://sofa.macadmins.io/v1/macos_data_feed.json).",
     "description": "The CVEs that are unpatched on the device from [SOFA](https://sofa.macadmins.io/).",
     "examples": "For historical data, use the `os_version` predicate\n\n```\nSELECT * FROM sofa_unpatched_cves WHERE os_version=\"14.4.0\"\n```",
-    "platforms": [
-      "darwin"
-    ],
+    "platforms": ["darwin"],
     "evented": false,
     "columns": [
       {
@@ -25370,9 +24267,7 @@
   {
     "name": "software_update",
     "description": "The `software_update` table displays the number of updates available from Apple's Software Update service on a Mac.",
-    "platforms": [
-      "darwin"
-    ],
+    "platforms": ["darwin"],
     "examples": "Basic query:\n\n```\nSELECT * FROM software_update;\n```",
     "columns": [
       {
@@ -25391,11 +24286,7 @@
     "name": "ssh_configs",
     "description": "A table of parsed ssh_configs.",
     "url": "https://fleetdm.com/tables/ssh_configs",
-    "platforms": [
-      "darwin",
-      "linux",
-      "windows"
-    ],
+    "platforms": ["darwin", "linux", "windows"],
     "evented": false,
     "cacheable": false,
     "notes": "Querying this table requires joining against the `users` table. [Learn more](https://fleetdm.com/guides/osquery-consider-joining-against-the-users-table)",
@@ -25444,11 +24335,7 @@
     "name": "startup_items",
     "description": "Applications and binaries set as user/login startup items.",
     "url": "https://fleetdm.com/tables/startup_items",
-    "platforms": [
-      "darwin",
-      "linux",
-      "windows"
-    ],
+    "platforms": ["darwin", "linux", "windows"],
     "evented": false,
     "cacheable": true,
     "notes": "",
@@ -25522,9 +24409,7 @@
   },
   {
     "name": "sudo_info",
-    "platforms": [
-      "darwin"
-    ],
+    "platforms": ["darwin"],
     "description": "Returns the output of `sudo -V` in JSON format.",
     "columns": [
       {
@@ -25543,10 +24428,7 @@
     "name": "sudoers",
     "description": "Rules for running commands as other users via sudo.",
     "url": "https://fleetdm.com/tables/sudoers",
-    "platforms": [
-      "darwin",
-      "linux"
-    ],
+    "platforms": ["darwin", "linux"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -25586,10 +24468,7 @@
     "name": "suid_bin",
     "description": "suid binaries in common locations.",
     "url": "https://fleetdm.com/tables/suid_bin",
-    "platforms": [
-      "darwin",
-      "linux"
-    ],
+    "platforms": ["darwin", "linux"],
     "evented": false,
     "cacheable": true,
     "notes": "",
@@ -25639,9 +24518,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "Linux"
-        ]
+        "platforms": ["Linux"]
       }
     ],
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/suid_bin.yml"
@@ -25650,9 +24527,7 @@
     "name": "syslog_events",
     "description": "",
     "url": "https://fleetdm.com/tables/syslog_events",
-    "platforms": [
-      "linux"
-    ],
+    "platforms": ["linux"],
     "evented": true,
     "cacheable": false,
     "notes": "",
@@ -25737,10 +24612,7 @@
     "name": "system_controls",
     "description": "The `sysctl` binary found in many UNIX-like operating systems reads and modifies system kernel attributes. The `system_controls` osquery table expresses the data made available by the `sysctl` binary on Linux and macOS.",
     "url": "https://fleetdm.com/tables/system_controls",
-    "platforms": [
-      "darwin",
-      "linux"
-    ],
+    "platforms": ["darwin", "linux"],
     "evented": false,
     "cacheable": false,
     "notes": "Because the `system_control` table provides access to a large quantity of low-level, unique settings available via `sysctl` it is ideal for use in Fleet policies.\n\nE.g., the number of CPU cores can be obtained with the following `sysctl` command:\n\n```\n% sysctl hw.ncpu\nhw.ncpu: 12\n```\n\n[sysctl](https://en.wikipedia.org/wiki/Sysctl)\n\n[Apple sysctl documentation](https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man3/sysctl.3.html)\n\n[Disable IP Forwarding](https://linuxconfig.org/how-to-turn-on-off-ip-forwarding-in-linux)\n\n[Use sysctl to collect boot, sleep and wake timestamps](https://osxdaily.com/2011/07/14/get-exact-boot-sleep-and-wake-times-from-the-command-line/)",
@@ -25808,10 +24680,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "macOS",
-          "Linux"
-        ]
+        "platforms": ["macOS", "Linux"]
       }
     ],
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/system_controls.yml"
@@ -25820,9 +24689,7 @@
     "name": "system_extensions",
     "description": "macOS (>= 10.15) system extension table.",
     "url": "https://fleetdm.com/tables/system_extensions",
-    "platforms": [
-      "darwin"
-    ],
+    "platforms": ["darwin"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -25916,12 +24783,7 @@
     "name": "system_info",
     "description": "System information for identification.",
     "url": "https://fleetdm.com/tables/system_info",
-    "platforms": [
-      "windows",
-      "darwin",
-      "linux",
-      "chrome"
-    ],
+    "platforms": ["windows", "darwin", "linux", "chrome"],
     "evented": false,
     "cacheable": false,
     "notes": "- This table is not a core osquery table. This table requires the [fleetd Chrome extension](https://fleetdm.com/docs/using-fleet/chromeos).",
@@ -25962,11 +24824,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "macOS",
-          "Windows",
-          "Linux"
-        ]
+        "platforms": ["macOS", "Windows", "Linux"]
       },
       {
         "name": "cpu_brand",
@@ -25985,11 +24843,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "macOS",
-          "Windows",
-          "Linux"
-        ]
+        "platforms": ["macOS", "Windows", "Linux"]
       },
       {
         "name": "cpu_logical_cores",
@@ -25999,11 +24853,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "macOS",
-          "Windows",
-          "Linux"
-        ]
+        "platforms": ["macOS", "Windows", "Linux"]
       },
       {
         "name": "cpu_sockets",
@@ -26022,11 +24872,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "macOS",
-          "Windows",
-          "Linux"
-        ]
+        "platforms": ["macOS", "Windows", "Linux"]
       },
       {
         "name": "physical_memory",
@@ -26063,11 +24909,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "macOS",
-          "Windows",
-          "Linux"
-        ]
+        "platforms": ["macOS", "Windows", "Linux"]
       },
       {
         "name": "hardware_serial",
@@ -26086,11 +24928,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "macOS",
-          "Windows",
-          "Linux"
-        ]
+        "platforms": ["macOS", "Windows", "Linux"]
       },
       {
         "name": "board_model",
@@ -26100,11 +24938,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "macOS",
-          "Windows",
-          "Linux"
-        ]
+        "platforms": ["macOS", "Windows", "Linux"]
       },
       {
         "name": "board_version",
@@ -26114,11 +24948,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "macOS",
-          "Windows",
-          "Linux"
-        ]
+        "platforms": ["macOS", "Windows", "Linux"]
       },
       {
         "name": "board_serial",
@@ -26128,11 +24958,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "macOS",
-          "Windows",
-          "Linux"
-        ]
+        "platforms": ["macOS", "Windows", "Linux"]
       },
       {
         "name": "computer_name",
@@ -26151,20 +24977,14 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "macOS",
-          "Windows",
-          "Linux"
-        ]
+        "platforms": ["macOS", "Windows", "Linux"]
       }
     ],
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/system_info.yml"
   },
   {
     "name": "system_state",
-    "platforms": [
-      "chrome"
-    ],
+    "platforms": ["chrome"],
     "description": "Returns \"locked\" if the system is locked, \"idle\" if the user has not generated any input for a specified number of seconds, or \"active\" otherwise. Idle time is set to 20% of the user's autolock time or defaults to 30 seconds if autolock is not set.",
     "examples": "Returns \"locked\", \"idle\", or \"active\".\n\n```\nSELECT idle_state FROM system_state;\n```",
     "columns": [
@@ -26184,9 +25004,7 @@
     "name": "systemd_units",
     "description": "Track systemd units.",
     "url": "https://fleetdm.com/tables/systemd_units",
-    "platforms": [
-      "linux"
-    ],
+    "platforms": ["linux"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -26323,9 +25141,7 @@
   },
   {
     "name": "tcc_access",
-    "platforms": [
-      "darwin"
-    ],
+    "platforms": ["darwin"],
     "description": "Information about macOS TCC database contents, for determining permissions granted to applications.",
     "evented": false,
     "columns": [
@@ -26404,9 +25220,7 @@
     "name": "temperature_sensors",
     "description": "Machine's temperature sensors.",
     "url": "https://fleetdm.com/tables/temperature_sensors",
-    "platforms": [
-      "darwin"
-    ],
+    "platforms": ["darwin"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -26455,11 +25269,7 @@
     "name": "time",
     "description": "Track current date and time in UTC.",
     "url": "https://fleetdm.com/tables/time",
-    "platforms": [
-      "darwin",
-      "linux",
-      "windows"
-    ],
+    "platforms": ["darwin", "linux", "windows"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -26590,9 +25400,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "Windows"
-        ]
+        "platforms": ["Windows"]
       }
     ],
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/time.yml"
@@ -26601,9 +25409,7 @@
     "name": "time_machine_backups",
     "description": "Backups to drives using TimeMachine.",
     "url": "https://fleetdm.com/tables/time_machine_backups",
-    "platforms": [
-      "darwin"
-    ],
+    "platforms": ["darwin"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -26634,9 +25440,7 @@
     "name": "time_machine_destinations",
     "description": "Locations backed up to using Time Machine.",
     "url": "https://fleetdm.com/tables/time_machine_destinations",
-    "platforms": [
-      "darwin"
-    ],
+    "platforms": ["darwin"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -26712,9 +25516,7 @@
     "name": "tpm_info",
     "description": "A table that lists the TPM related information.",
     "url": "https://fleetdm.com/tables/tpm_info",
-    "platforms": [
-      "windows"
-    ],
+    "platforms": ["windows"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -26809,10 +25611,7 @@
     "name": "ulimit_info",
     "description": "System resource usage limits.",
     "url": "https://fleetdm.com/tables/ulimit_info",
-    "platforms": [
-      "darwin",
-      "linux"
-    ],
+    "platforms": ["darwin", "linux"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -26852,9 +25651,7 @@
     "name": "unified_log",
     "description": "Queries the OSLog framework for entries in the system log. The maximum number of rows returned is limited for performance issues. Use timestamp > or >= constraints to optimize query performance. This table introduces a new idiom for extracting sequential data in batches using multiple queries, ordered by timestamp. To trigger it, the user should include the condition \"timestamp > -1\", and the table will handle pagination. Note that the saved pagination counter is incremented globally across all queries and table invocations within a query. To avoid multiple table invocations within a query, use only AND and = constraints in WHERE clause.",
     "url": "https://fleetdm.com/tables/unified_log",
-    "platforms": [
-      "darwin"
-    ],
+    "platforms": ["darwin"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -26985,11 +25782,7 @@
     "name": "uptime",
     "description": "Track time passed since last boot. Some systems track this as calendar time, some as runtime.",
     "url": "https://fleetdm.com/tables/uptime",
-    "platforms": [
-      "darwin",
-      "linux",
-      "windows"
-    ],
+    "platforms": ["darwin", "linux", "windows"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -27047,10 +25840,7 @@
     "name": "usb_devices",
     "description": "USB devices that are actively plugged into the host system.",
     "url": "https://fleetdm.com/tables/usb_devices",
-    "platforms": [
-      "darwin",
-      "linux"
-    ],
+    "platforms": ["darwin", "linux"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -27171,10 +25961,7 @@
     "name": "user_events",
     "description": "Track user events from the audit framework.",
     "url": "https://fleetdm.com/tables/user_events",
-    "platforms": [
-      "darwin",
-      "linux"
-    ],
+    "platforms": ["darwin", "linux"],
     "evented": true,
     "cacheable": false,
     "notes": "",
@@ -27286,11 +26073,7 @@
     "name": "user_groups",
     "description": "Local system user group relationships.",
     "url": "https://fleetdm.com/tables/user_groups",
-    "platforms": [
-      "darwin",
-      "linux",
-      "windows"
-    ],
+    "platforms": ["darwin", "linux", "windows"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -27321,9 +26104,7 @@
     "name": "user_interaction_events",
     "description": "Track user interaction events from macOS' event tapping framework.",
     "url": "https://fleetdm.com/tables/user_interaction_events",
-    "platforms": [
-      "darwin"
-    ],
+    "platforms": ["darwin"],
     "evented": true,
     "cacheable": false,
     "notes": "",
@@ -27343,9 +26124,7 @@
   },
   {
     "name": "user_login_settings",
-    "platforms": [
-      "darwin"
-    ],
+    "platforms": ["darwin"],
     "description": "Options of login and password (e.g password hints enabled) for all users.",
     "columns": [
       {
@@ -27364,11 +26143,7 @@
     "name": "user_ssh_keys",
     "description": "Returns the private keys in the users ~/.ssh directory and whether or not they are encrypted.",
     "url": "https://fleetdm.com/tables/user_ssh_keys",
-    "platforms": [
-      "darwin",
-      "linux",
-      "windows"
-    ],
+    "platforms": ["darwin", "linux", "windows"],
     "evented": false,
     "cacheable": false,
     "notes": "Querying this table requires joining against the `users` table. [Learn more](https://fleetdm.com/guides/osquery-consider-joining-against-the-users-table)",
@@ -27418,9 +26193,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "Linux"
-        ]
+        "platforms": ["Linux"]
       }
     ],
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/user_ssh_keys.yml"
@@ -27429,9 +26202,7 @@
     "name": "userassist",
     "description": "UserAssist Registry Key tracks when a user executes an application from Windows Explorer.",
     "url": "https://fleetdm.com/tables/userassist",
-    "platforms": [
-      "windows"
-    ],
+    "platforms": ["windows"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -27480,12 +26251,7 @@
     "name": "users",
     "description": "Local user accounts (including domain accounts that have logged on locally (Windows)).",
     "url": "https://fleetdm.com/tables/users",
-    "platforms": [
-      "darwin",
-      "windows",
-      "linux",
-      "chrome"
-    ],
+    "platforms": ["darwin", "windows", "linux", "chrome"],
     "evented": false,
     "cacheable": false,
     "notes": "- On ChromeOS, this table requires the [fleetd Chrome extension](https://fleetdm.com/docs/using-fleet/chromeos).",
@@ -27508,11 +26274,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "macOS",
-          "Windows",
-          "Linux"
-        ]
+        "platforms": ["macOS", "Windows", "Linux"]
       },
       {
         "name": "uid_signed",
@@ -27522,11 +26284,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "macOS",
-          "Windows",
-          "Linux"
-        ]
+        "platforms": ["macOS", "Windows", "Linux"]
       },
       {
         "name": "gid_signed",
@@ -27536,11 +26294,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "macOS",
-          "Windows",
-          "Linux"
-        ]
+        "platforms": ["macOS", "Windows", "Linux"]
       },
       {
         "name": "username",
@@ -27559,11 +26313,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "macOS",
-          "Windows",
-          "Linux"
-        ]
+        "platforms": ["macOS", "Windows", "Linux"]
       },
       {
         "name": "directory",
@@ -27573,11 +26323,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "macOS",
-          "Windows",
-          "Linux"
-        ]
+        "platforms": ["macOS", "Windows", "Linux"]
       },
       {
         "name": "shell",
@@ -27587,11 +26333,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "macOS",
-          "Windows",
-          "Linux"
-        ]
+        "platforms": ["macOS", "Windows", "Linux"]
       },
       {
         "name": "uuid",
@@ -27610,9 +26352,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "Windows"
-        ]
+        "platforms": ["Windows"]
       },
       {
         "name": "is_hidden",
@@ -27622,9 +26362,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "macOS"
-        ]
+        "platforms": ["macOS"]
       },
       {
         "name": "pid_with_namespace",
@@ -27634,18 +26372,14 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "Linux"
-        ]
+        "platforms": ["Linux"]
       },
       {
         "name": "email",
         "required": false,
         "type": "text",
         "description": "Email",
-        "platforms": [
-          "chrome"
-        ]
+        "platforms": ["chrome"]
       }
     ],
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/users.yml"
@@ -27654,9 +26388,7 @@
     "name": "video_info",
     "description": "Retrieve video card information of the machine.",
     "url": "https://fleetdm.com/tables/video_info",
-    "platforms": [
-      "windows"
-    ],
+    "platforms": ["windows"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -27741,9 +26473,7 @@
     "name": "virtual_memory_info",
     "description": "Darwin Virtual Memory statistics.",
     "url": "https://fleetdm.com/tables/virtual_memory_info",
-    "platforms": [
-      "darwin"
-    ],
+    "platforms": ["darwin"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -27954,11 +26684,7 @@
     "name": "vscode_extensions",
     "description": "Installed extensions for [Visual Studio (VS) Code](https://code.visualstudio.com/).",
     "url": "https://fleetdm.com/tables/vscode_extensions",
-    "platforms": [
-      "darwin",
-      "linux",
-      "windows"
-    ],
+    "platforms": ["darwin", "linux", "windows"],
     "evented": false,
     "cacheable": false,
     "notes": "Querying this table requires joining against the `users` table. [Learn more](https://fleetdm.com/guides/osquery-consider-joining-against-the-users-table)",
@@ -28052,9 +26778,7 @@
     "name": "wifi_networks",
     "description": "Wi-Fi networks previously connected to by this Mac, or that are otherwise in this computer's known/remembered Wi-Fi networks list.",
     "url": "https://fleetdm.com/tables/wifi_networks",
-    "platforms": [
-      "darwin"
-    ],
+    "platforms": ["darwin"],
     "evented": false,
     "cacheable": true,
     "notes": "",
@@ -28229,9 +26953,7 @@
     "name": "wifi_status",
     "description": "macOS current WiFi status.",
     "url": "https://fleetdm.com/tables/wifi_status",
-    "platforms": [
-      "darwin"
-    ],
+    "platforms": ["darwin"],
     "evented": false,
     "cacheable": true,
     "notes": "- `bssid` and `country code` are only available for macOS 11 and earlier because they would enable geolocation. ",
@@ -28361,9 +27083,7 @@
     "name": "wifi_survey",
     "description": "Scan for nearby WiFi networks.",
     "url": "https://fleetdm.com/tables/wifi_survey",
-    "platforms": [
-      "darwin"
-    ],
+    "platforms": ["darwin"],
     "evented": false,
     "cacheable": true,
     "notes": "- `bssid` and `country code` are only available for macOS 11 and earlier because they would enable geolocation. ",
@@ -28466,9 +27186,7 @@
     "name": "winbaseobj",
     "description": "Lists named Windows objects in the default object directories, across all terminal services sessions.  Example Windows ojbect types include Mutexes, Events, Jobs and Semaphors.",
     "url": "https://fleetdm.com/tables/winbaseobj",
-    "platforms": [
-      "windows"
-    ],
+    "platforms": ["windows"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -28509,9 +27227,7 @@
     "name": "windows_crashes",
     "description": "Extracted information from Windows crash logs (Minidumps).",
     "url": "https://fleetdm.com/tables/windows_crashes",
-    "platforms": [
-      "windows"
-    ],
+    "platforms": ["windows"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -28714,9 +27430,7 @@
     "name": "windows_eventlog",
     "description": "Table for querying all recorded Windows event logs.",
     "url": "https://fleetdm.com/tables/windows_eventlog",
-    "platforms": [
-      "windows"
-    ],
+    "platforms": ["windows"],
     "evented": false,
     "cacheable": false,
     "notes": "* This is not an evented table - instead, it pulls directly from the local system's existing eventlogs. \n\n* The information returned in the `data` column will be JSON formatted, which will require additional parsing.  ",
@@ -28864,9 +27578,7 @@
     "name": "windows_events",
     "description": "Windows Event logs.",
     "url": "https://fleetdm.com/tables/windows_events",
-    "platforms": [
-      "windows"
-    ],
+    "platforms": ["windows"],
     "evented": true,
     "cacheable": false,
     "notes": "",
@@ -28988,9 +27700,7 @@
     "name": "windows_firewall_rules",
     "description": "Provides the list of Windows firewall rules.",
     "url": "https://fleetdm.com/tables/windows_firewall_rules",
-    "platforms": [
-      "windows"
-    ],
+    "platforms": ["windows"],
     "evented": false,
     "cacheable": false,
     "notes": "* A rule can exist, but it has to be part of the currently enabled firewall profile to be enforced.",
@@ -29147,9 +27857,7 @@
     "name": "windows_optional_features",
     "description": "Lists names and installation states of windows features. Maps to Win32_OptionalFeature WMI class.",
     "url": "https://fleetdm.com/tables/windows_optional_features",
-    "platforms": [
-      "windows"
-    ],
+    "platforms": ["windows"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -29198,9 +27906,7 @@
     "name": "windows_search",
     "description": "Run searches against the Windows system index database using Advanced Query Syntax. See https://learn.microsoft.com/en-us/windows/win32/search/-search-3x-advancedquerysyntax for details.",
     "url": "https://fleetdm.com/tables/windows_search",
-    "platforms": [
-      "windows"
-    ],
+    "platforms": ["windows"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -29307,7 +28013,7 @@
       },
       {
         "name": "additional_properties",
-        "description": "Comma separated list of columns to include in properties JSON",
+        "description": "Comma-separated list of columns to include in properties JSON",
         "type": "text",
         "notes": "",
         "hidden": true,
@@ -29322,9 +28028,7 @@
     "name": "windows_security_center",
     "description": "The health status of Window Security features. Health values can be \"Good\", \"Poor\". \"Snoozed\", \"Not Monitored\", and \"Error\".",
     "url": "https://fleetdm.com/tables/windows_security_center",
-    "platforms": [
-      "windows"
-    ],
+    "platforms": ["windows"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -29401,9 +28105,7 @@
     "name": "windows_security_products",
     "description": "Enumeration of registered Windows security products. Note: Not compatible with Windows Server.",
     "url": "https://fleetdm.com/tables/windows_security_products",
-    "platforms": [
-      "windows"
-    ],
+    "platforms": ["windows"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -29471,9 +28173,7 @@
     "name": "windows_update_history",
     "description": "Provides the history of the windows update events.",
     "url": "https://fleetdm.com/tables/windows_update_history",
-    "platforms": [
-      "windows"
-    ],
+    "platforms": ["windows"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -29596,9 +28296,7 @@
     "description": "Returns information about Windows updates that are available for installation.",
     "evented": false,
     "notes": "- This table may not return any results while updates are being downloaded and installed.\n- This table is not a core osquery table. It is included as part of fleetd, the osquery manager from Fleet. Code based on work by [Kolide](https://github.com/kolide/launcher).",
-    "platforms": [
-      "windows"
-    ],
+    "platforms": ["windows"],
     "columns": [
       {
         "name": "locale",
@@ -29650,9 +28348,7 @@
     "name": "wmi_bios_info",
     "description": "Lists important information from the system bios.",
     "url": "https://fleetdm.com/tables/wmi_bios_info",
-    "platforms": [
-      "windows"
-    ],
+    "platforms": ["windows"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -29684,9 +28380,7 @@
     "name": "wmi_cli_event_consumers",
     "description": "WMI CommandLineEventConsumer, which can be used for persistence on Windows. See https://www.blackhat.com/docs/us-15/materials/us-15-Graeber-Abusing-Windows-Management-Instrumentation-WMI-To-Build-A-Persistent%20Asynchronous-And-Fileless-Backdoor-wp.pdf for more details.",
     "url": "https://fleetdm.com/tables/wmi_cli_event_consumers",
-    "platforms": [
-      "windows"
-    ],
+    "platforms": ["windows"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -29745,9 +28439,7 @@
     "name": "wmi_event_filters",
     "description": "Lists WMI event filters.",
     "url": "https://fleetdm.com/tables/wmi_event_filters",
-    "platforms": [
-      "windows"
-    ],
+    "platforms": ["windows"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -29806,9 +28498,7 @@
     "name": "wmi_filter_consumer_binding",
     "description": "Lists the relationship between event consumers and filters.",
     "url": "https://fleetdm.com/tables/wmi_filter_consumer_binding",
-    "platforms": [
-      "windows"
-    ],
+    "platforms": ["windows"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -29858,9 +28548,7 @@
     "name": "wmi_script_event_consumers",
     "description": "WMI ActiveScriptEventConsumer, which can be used for persistence on Windows. See https://www.blackhat.com/docs/us-15/materials/us-15-Graeber-Abusing-Windows-Management-Instrumentation-WMI-To-Build-A-Persistent%20Asynchronous-And-Fileless-Backdoor-wp.pdf for more details.",
     "url": "https://fleetdm.com/tables/wmi_script_event_consumers",
-    "platforms": [
-      "windows"
-    ],
+    "platforms": ["windows"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -29928,9 +28616,7 @@
     "name": "xprotect_entries",
     "description": "Database of the machine's XProtect signatures.",
     "url": "https://fleetdm.com/tables/xprotect_entries",
-    "platforms": [
-      "darwin"
-    ],
+    "platforms": ["darwin"],
     "evented": false,
     "cacheable": true,
     "notes": "",
@@ -30006,9 +28692,7 @@
     "name": "xprotect_meta",
     "description": "This Mac's browser-related [XProtect](https://support.apple.com/en-ca/guide/security/sec469d47bd8/web) signatures.",
     "url": "https://fleetdm.com/tables/xprotect_meta",
-    "platforms": [
-      "darwin"
-    ],
+    "platforms": ["darwin"],
     "evented": false,
     "cacheable": true,
     "notes": "",
@@ -30057,9 +28741,7 @@
     "name": "xprotect_reports",
     "description": "Database of XProtect matches (if user generated/sent an XProtect report).",
     "url": "https://fleetdm.com/tables/xprotect_reports",
-    "platforms": [
-      "darwin"
-    ],
+    "platforms": ["darwin"],
     "evented": false,
     "cacheable": false,
     "notes": "- In [very specific circumstances](https://github.com/osquery/osquery/issues/6588#issuecomment-1410934706) this table will return empty because xprotect will detect and remediate without generating an eicar file. ",
@@ -30099,11 +28781,7 @@
     "name": "yara",
     "description": "Triggers one-off YARA query for files at the specified path. Requires one of `sig_group`, `sigfile`, or `sigrule`.",
     "url": "https://fleetdm.com/tables/yara",
-    "platforms": [
-      "darwin",
-      "linux",
-      "windows"
-    ],
+    "platforms": ["darwin", "linux", "windows"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -30198,9 +28876,7 @@
         "hidden": true,
         "required": false,
         "index": false,
-        "platforms": [
-          "Linux"
-        ]
+        "platforms": ["Linux"]
       }
     ],
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/yara.yml"
@@ -30209,11 +28885,7 @@
     "name": "yara_events",
     "description": "Track YARA matches for files specified in configuration data.",
     "url": "https://fleetdm.com/tables/yara_events",
-    "platforms": [
-      "darwin",
-      "linux",
-      "windows"
-    ],
+    "platforms": ["darwin", "linux", "windows"],
     "evented": true,
     "cacheable": false,
     "notes": "",
@@ -30316,11 +28988,7 @@
     "name": "ycloud_instance_metadata",
     "description": "Yandex.Cloud instance metadata.",
     "url": "https://fleetdm.com/tables/ycloud_instance_metadata",
-    "platforms": [
-      "darwin",
-      "linux",
-      "windows"
-    ],
+    "platforms": ["darwin", "linux", "windows"],
     "evented": false,
     "cacheable": true,
     "notes": "",
@@ -30424,9 +29092,7 @@
     "name": "yum_sources",
     "description": "Current list of Yum repositories or software channels.",
     "url": "https://fleetdm.com/tables/yum_sources",
-    "platforms": [
-      "linux"
-    ],
+    "platforms": ["linux"],
     "evented": false,
     "cacheable": false,
     "notes": "",
@@ -30494,9 +29160,7 @@
         "hidden": false,
         "required": false,
         "index": false,
-        "platforms": [
-          "Linux"
-        ]
+        "platforms": ["Linux"]
       }
     ],
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/yum_sources.yml"

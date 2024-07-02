@@ -182,13 +182,13 @@ sub HELP_MESSAGE() {
   print "\t-l\tprint license info about certdata.txt\n";
   print "\t-m\tinclude meta data in output\n";
   print "\t-n\tno download of certdata.txt (to use existing)\n";
-  print wrap("\t","\t\t", "-p\tlist of Mozilla trust purposes and levels for certificates to include in output. Takes the form of a comma separated list of purposes, a colon, and a comma separated list of levels. (default: $default_mozilla_trust_purposes:$default_mozilla_trust_levels)"), "\n";
+  print wrap("\t","\t\t", "-p\tlist of Mozilla trust purposes and levels for certificates to include in output. Takes the form of a comma-separated list of purposes, a colon, and a comma-separated list of levels. (default: $default_mozilla_trust_purposes:$default_mozilla_trust_levels)"), "\n";
   print "\t\t  Valid purposes are:\n";
   print wrap("\t\t    ","\t\t    ", join( ", ", "ALL", @valid_mozilla_trust_purposes ) ), "\n";
   print "\t\t  Valid levels are:\n";
   print wrap("\t\t    ","\t\t    ", join( ", ", "ALL", @valid_mozilla_trust_levels ) ), "\n";
   print "\t-q\tbe really quiet (no progress output at all)\n";
-  print wrap("\t","\t\t", "-s\tcomma separated list of certificate signatures/hashes to output in plain text mode. (default: $default_signature_algorithms)\n");
+  print wrap("\t","\t\t", "-s\tcomma-separated list of certificate signatures/hashes to output in plain text mode. (default: $default_signature_algorithms)\n");
   print "\t\t  Valid signature algorithms are:\n";
   print wrap("\t\t    ","\t\t    ", join( ", ", "ALL", @valid_signature_algorithms ) ), "\n";
   print "\t-t\tinclude plain text listing of certificates\n";
@@ -217,7 +217,7 @@ sub is_in_list($@) {
   return defined(List::Util::first { $target eq $_ } @_);
 }
 
-# Parses $param_string as a case insensitive comma separated list with optional
+# Parses $param_string as a case insensitive comma-separated list with optional
 # whitespace validates that only allowed parameters are supplied
 sub parse_csv_param($$@) {
   my $description = shift;

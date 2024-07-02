@@ -36,7 +36,7 @@ func queryCommand() *cli.Command {
 				EnvVars:     []string{"LABELS"},
 				Value:       "",
 				Destination: &flLabels,
-				Usage:       "Comma separated label names to target",
+				Usage:       "Comma-separated label names to target",
 			},
 			&cli.BoolFlag{
 				Name:        "quiet",
