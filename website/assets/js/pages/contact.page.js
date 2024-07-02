@@ -81,7 +81,10 @@ parasails.registerPage('contact', {
 
     submittedContactForm: async function() {
       if(typeof gtag !== 'undefined'){
-        gtag('event','website_contact_forms');
+        gtag('event','fleet_website__contact_forms');
+      }
+      if(typeof window.lintrk !== 'undefined') {
+        window.lintrk('track', { conversion_id: 18587089 });// eslint-disable-line camelcase
       }
       // Show the success message.
       this.cloudSuccess = true;
@@ -90,7 +93,10 @@ parasails.registerPage('contact', {
     submittedTalkToUsForm: async function() {
       this.syncing = true;
       if(typeof gtag !== 'undefined'){
-        gtag('event','website_contact_forms');
+        gtag('event','fleet_website__contact_forms');
+      }
+      if(typeof window.lintrk !== 'undefined') {
+        window.lintrk('track', { conversion_id: 18587089 });// eslint-disable-line camelcase
       }
       if(this.formData.numberOfHosts > 700){
         this.goto(`https://calendly.com/fleetdm/talk-to-us?email=${encodeURIComponent(this.formData.emailAddress)}&name=${encodeURIComponent(this.formData.firstName+' '+this.formData.lastName)}`);

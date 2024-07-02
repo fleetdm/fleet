@@ -117,6 +117,8 @@ type Options struct {
 	LocalWixDir string
 	// HostIdentifier is the host identifier to use in osquery.
 	HostIdentifier string
+	// EnableHostIdentifierProperty is a boolean indicating whether to enable END_USER_EMAIL property in Windows MSI package.
+	EnableEndUserEmailProperty bool
 	// EndUserEmail is the email address of the end user that uses the host on
 	// which the agent is going to be installed.
 	EndUserEmail string

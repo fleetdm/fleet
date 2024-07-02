@@ -1,1 +1,0 @@
-* Added a server setting to configure the query repory cap size, `server_settings.query_report_cap` (default is 1000).

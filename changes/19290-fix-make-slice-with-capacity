@@ -1,1 +1,0 @@
-* Fixed a code linter issue where a slice was created non-empty and appended-to, instead of empty with the required capacity.

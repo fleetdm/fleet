@@ -85,7 +85,7 @@
 
       <div class="col-12 col-lg-6">
         <h3 class="pt-2 pt-sm-3">Billing and payment</h3>
-        <div purpose="billing-card" class="card card-body justify-content-center">
+        <div purpose="billing-card" class="card card-body justify-content-center" v-if="me.hasBillingCard">
           <div class="row pb-3 mx-0">
             <div style="max-width: 16px;" class="col-1 px-0"><img style="margin-top: 5px; height: 12px; width: 16px;" src="/images/icon-card-32x24@2x.png" alt="A credit card Icon"></div>
             <div class="col pl-3">
@@ -111,6 +111,16 @@
             </div>
           </div>
         </div>
+        <div purpose="billing-card" class="card card-body justify-content-start" v-else>
+          <div class="row">
+            <div style="max-width: 32px;" class="col-1 pr-0">
+              <img style="display: inline-block; height: 16px; width: 16px; " src="/images/icon-info-grey-16x16@2x.png" alt="An icon indicating that this section has important information">
+            </div>
+            <div class="col ml-1 pl-1 small">
+              <p class="small">Your subscription will expire on <js-timestamp :at="thisSubscription.nextBillingAt" always-show-year format="billing"></js-timestamp></p>
+            </div>
+          </div>
+        </div>
       </div>
 
     </div>
@@ -118,8 +128,8 @@
         <a class="btn btn-primary btn-sm btn-md-block mb-3 mb-md-0" purpose="deploy-button" href="/docs/deploying/introduction">
           How to deploy Fleet
         </a>
-        <a purpose="animated-arrow-button-red" href="/support" target="_blank">Support
-        </a>
+        <animated-arrow-button href="/support" target="_blank">Support
+        </animated-arrow-button>
     </div>
 
   </div>

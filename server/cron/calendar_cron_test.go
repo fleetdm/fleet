@@ -4,15 +4,16 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/fleetdm/fleet/v4/server/config"
-	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/stretchr/testify/assert"
 	"os"
 	"strconv"
 	"strings"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/fleetdm/fleet/v4/ee/server/calendar"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -38,28 +39,28 @@ func TestGetPreferredCalendarEventDate(t *testing.T) {
 		expected time.Time
 	}{
 		{
-			name:      "March 2024 (before 3rd Tuesday)",
+			name:      "March 2024 (before 1st Tuesday)",
 			year:      2024,
 			month:     3,
 			daysStart: 1,
-			daysEnd:   19,
+			daysEnd:   5,
 
-			expected: date(2024, 3, 19),
+			expected: date(2024, 3, 5),
 		},
 		{
-			name:      "March 2024 (past 3rd Tuesday)",
+			name:      "March 2024 (past 1st Tuesday)",
 			year:      2024,
 			month:     3,
-			daysStart: 20,
-			daysEnd:   31,
+			daysStart: 6,
+			daysEnd:   12,
 
-			expected: date(2024, 4, 16),
+			expected: date(2024, 3, 12),
 		},
 		{
 			name:      "April 2024 (before 3rd Tuesday)",
 			year:      2024,
 			month:     4,
-			daysStart: 1,
+			daysStart: 10,
 			daysEnd:   16,
 
 			expected: date(2024, 4, 16),
@@ -69,45 +70,45 @@ func TestGetPreferredCalendarEventDate(t *testing.T) {
 			year:      2024,
 			month:     4,
 			daysStart: 17,
-			daysEnd:   30,
+			daysEnd:   23,
 
-			expected: date(2024, 5, 21),
+			expected: date(2024, 4, 23),
 		},
 		{
-			name:      "May 2024 (before 3rd Tuesday)",
-			year:      2024,
-			month:     5,
-			daysStart: 1,
-			daysEnd:   21,
-
-			expected: date(2024, 5, 21),
-		},
-		{
-			name:      "May 2024 (after 3rd Tuesday)",
+			name:      "May 2024 (before last Tuesday)",
 			year:      2024,
 			month:     5,
 			daysStart: 22,
-			daysEnd:   31,
+			daysEnd:   28,
 
-			expected: date(2024, 6, 18),
+			expected: date(2024, 5, 28),
 		},
 		{
-			name:      "Dec 2024 (before 3rd Tuesday)",
+			name:      "May 2024 (after last Tuesday)",
 			year:      2024,
-			month:     12,
-			daysStart: 1,
-			daysEnd:   17,
-
-			expected: date(2024, 12, 17),
-		},
-		{
-			name:      "Dec 2024 (after 3rd Tuesday)",
-			year:      2024,
-			month:     12,
-			daysStart: 18,
+			month:     5,
+			daysStart: 29,
 			daysEnd:   31,
 
-			expected: date(2025, 1, 21),
+			expected: date(2024, 6, 4),
+		},
+		{
+			name:      "Dec 2025 (before last Tuesday)",
+			year:      2025,
+			month:     12,
+			daysStart: 24,
+			daysEnd:   30,
+
+			expected: date(2025, 12, 30),
+		},
+		{
+			name:      "Dec 2025 (after last Tuesday)",
+			year:      2025,
+			month:     12,
+			daysStart: 31,
+			daysEnd:   31,
+
+			expected: date(2026, 1, 6),
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -338,6 +339,7 @@ func TestCalendarEventsMultipleHosts(t *testing.T) {
 		email string,
 		startTime, endTime time.Time,
 		data []byte,
+		timeZone string,
 		hostID uint,
 		webhookStatus fleet.CalendarWebhookStatus,
 	) (*fleet.CalendarEvent, error) {
@@ -623,6 +625,7 @@ func TestCalendarEvents1KHosts(t *testing.T) {
 		email string,
 		startTime, endTime time.Time,
 		data []byte,
+		timeZone string,
 		hostID uint,
 		webhookStatus fleet.CalendarWebhookStatus,
 	) (*fleet.CalendarEvent, error) {
@@ -900,6 +903,7 @@ func TestEventDescription(t *testing.T) {
 		email string,
 		startTime, endTime time.Time,
 		data []byte,
+		timeZone string,
 		hostID uint,
 		webhookStatus fleet.CalendarWebhookStatus,
 	) (*fleet.CalendarEvent, error) {

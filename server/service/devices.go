@@ -100,7 +100,8 @@ func (svc *Service) GetFleetDesktopSummary(ctx context.Context) (fleet.DesktopSu
 /////////////////////////////////////////////////////////////////////////////////
 
 type getDeviceHostRequest struct {
-	Token string `url:"token"`
+	Token           string `url:"token"`
+	ExcludeSoftware bool   `query:"exclude_software,optional"`
 }
 
 func (r *getDeviceHostRequest) deviceAuthToken() string {
@@ -109,6 +110,7 @@ func (r *getDeviceHostRequest) deviceAuthToken() string {
 
 type getDeviceHostResponse struct {
 	Host                      *HostDetailResponse      `json:"host"`
+	SelfService               bool                     `json:"self_service"`
 	OrgLogoURL                string                   `json:"org_logo_url"`
 	OrgLogoURLLightBackground string                   `json:"org_logo_url_light_background"`
 	OrgContactURL             string                   `json:"org_contact_url"`
@@ -120,6 +122,7 @@ type getDeviceHostResponse struct {
 func (r getDeviceHostResponse) error() error { return r.Err }
 
 func getDeviceHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*getDeviceHostRequest)
 	host, ok := hostctx.FromContext(ctx)
 	if !ok {
 		err := ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("internal error: missing host from request context"))
@@ -130,6 +133,7 @@ func getDeviceHostEndpoint(ctx context.Context, request interface{}, svc fleet.S
 	opts := fleet.HostDetailOptions{
 		IncludeCVEScores: false,
 		IncludePolicies:  false,
+		ExcludeSoftware:  req.ExcludeSoftware,
 	}
 	hostDetails, err := svc.GetHost(ctx, host.ID, opts)
 	if err != nil {
@@ -171,7 +175,15 @@ func getDeviceHostEndpoint(ctx context.Context, request interface{}, svc fleet.S
 			return getDeviceHostResponse{Err: err}, nil
 		}
 		if tm != nil {
-			softwareInventoryEnabled = tm.Config.Features.EnableSoftwareInventory
+			softwareInventoryEnabled = tm.Config.Features.EnableSoftwareInventory // TODO: We should look for opportunities to fix the confusing name of the `global_config` object in the API response. Also, how can we better clarify/document the expected order of precedence for team and global feature flags?
+		}
+	}
+
+	hasSelfService := false
+	if softwareInventoryEnabled {
+		hasSelfService, err = svc.HasSelfServiceSoftwareInstallers(ctx, host)
+		if err != nil {
+			return getDeviceHostResponse{Err: err}, nil
 		}
 	}
 
@@ -193,6 +205,7 @@ func getDeviceHostEndpoint(ctx context.Context, request interface{}, svc fleet.S
 		OrgContactURL: ac.OrgInfo.ContactURL,
 		License:       *license,
 		GlobalConfig:  deviceGlobalConfig,
+		SelfService:   hasSelfService,
 	}, nil
 }
 
@@ -434,29 +447,28 @@ type fleetdErrorResponse struct{}
 
 func (r fleetdErrorResponse) error() error { return nil }
 
-// for now, this endpoint must always return a 500 status code, this
-// way errors are picked up and reported by any monitoring tool that
-// looks for 5xx errors.
-//
-// since the handler is returning an error, this is redundant, but I'm adding
-// it as a safeguard.
-//
-// See: https://github.com/fleetdm/fleet/issues/13238#issuecomment-1671769460
-func (r fleetdErrorResponse) Status() int { return http.StatusInternalServerError }
-
 func fleetdError(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*fleetdErrorRequest)
-	err := svc.ReceiveFleetdError(ctx, req.FleetdError)
-	// return the error as the second parameter to get better logs in the server.
-	return fleetdErrorResponse{}, err
+	err := svc.LogFleetdError(ctx, req.FleetdError)
+	if err != nil {
+		return nil, err
+	}
+	return fleetdErrorResponse{}, nil
 }
 
-func (svc *Service) ReceiveFleetdError(ctx context.Context, fleetdError fleet.FleetdError) error {
+func (svc *Service) LogFleetdError(ctx context.Context, fleetdError fleet.FleetdError) error {
 	if !svc.authz.IsAuthenticatedWith(ctx, authz.AuthnDeviceToken) {
 		return ctxerr.Wrap(ctx, fleet.NewPermissionError("forbidden: only device-authenticated hosts can access this endpoint"))
 	}
 
-	return ctxerr.WrapWithData(ctx, fleetdError, "receive fleetd error", fleetdError.ToMap())
+	svc.logger.Log(
+		"msg",
+		"fleetd error",
+		"error",
+		ctxerr.WrapWithData(ctx, fleetdError, "receive fleetd error", fleetdError.ToMap()),
+	)
+
+	return nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////

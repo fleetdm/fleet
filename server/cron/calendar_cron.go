@@ -20,9 +20,11 @@ import (
 	"github.com/go-kit/log/level"
 )
 
-const calendarConsumers = 18
-const defaultDescription = "needs to make sure your device meets the organization's requirements."
-const defaultResolution = "During this maintenance window, you can expect updates to be applied automatically. Your device may be unavailable during this time."
+const (
+	calendarConsumers  = 18
+	defaultDescription = "needs to make sure your device meets the organization's requirements."
+	defaultResolution  = "During this maintenance window, you can expect updates to be applied automatically. Your device may be unavailable during this time."
+)
 
 type calendarConfig struct {
 	config.CalendarConfig
@@ -351,6 +353,7 @@ func processFailingHostExistingCalendarEvent(
 			updatedEvent.StartTime,
 			updatedEvent.EndTime,
 			updatedEvent.Data,
+			updatedEvent.TimeZone,
 		); err != nil {
 			return fmt.Errorf("updating event calendar on db: %w", err)
 		}
@@ -433,7 +436,7 @@ func processFailingHostCreateCalendarEvent(
 		return fmt.Errorf("create event on user calendar: %w", err)
 	}
 	if _, err := ds.CreateOrUpdateCalendarEvent(
-		ctx, host.Email, calendarEvent.StartTime, calendarEvent.EndTime, calendarEvent.Data, host.HostID, fleet.CalendarWebhookStatusNone,
+		ctx, host.Email, calendarEvent.StartTime, calendarEvent.EndTime, calendarEvent.Data, calendarEvent.TimeZone, host.HostID, fleet.CalendarWebhookStatusNone,
 	); err != nil {
 		return fmt.Errorf("create calendar event on db: %w", err)
 	}
@@ -472,27 +475,14 @@ func attemptCreatingEventOnUserCalendar(
 
 func getPreferredCalendarEventDate(year int, month time.Month, today int) time.Time {
 	const (
-		// 3rd Tuesday of Month
+		// Any Tuesday of Month
 		preferredWeekDay = time.Tuesday
-		preferredOrdinal = 3
 	)
-
-	firstDayOfMonth := time.Date(year, month, 1, 0, 0, 0, 0, time.UTC)
-	offset := int(preferredWeekDay - firstDayOfMonth.Weekday())
-	if offset < 0 {
-		offset += 7
+	currentDate := time.Date(year, month, today, 0, 0, 0, 0, time.UTC)
+	for currentDate.Weekday() != preferredWeekDay {
+		currentDate = currentDate.AddDate(0, 0, 1)
 	}
-	preferredDate := firstDayOfMonth.AddDate(0, 0, offset+(7*(preferredOrdinal-1)))
-	if today > preferredDate.Day() {
-		// We are past the preferred date, so we move to next month and calculate again.
-		month := month + 1
-		if month == 13 {
-			month = 1
-			year += 1
-		}
-		return getPreferredCalendarEventDate(year, month, 1)
-	}
-	return preferredDate
+	return currentDate
 }
 
 func addBusinessDay(date time.Time) time.Time {
