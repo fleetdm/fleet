@@ -281,7 +281,8 @@ module.exports = {
                   throw new Error(`Could not build HTML partials from Markdown. A page (${pageRelSourcePath}) contains an invalid relative Markdown link (${hrefString.replace(/^href=/, '')}). To resolve, make sure all relative links on this page that link to a specific section include the Markdown page extension (.md) and try running this script again.`);
                 }
                 let referencedPageNewUrl = 'https://fleetdm.com/' + (
-                  (path.relative(topLvlRepoPath, referencedPageSourcePath).replace(/(^|\/)([^/]+)\.[^/]*$/, '$1$2').split(/\//).map((fileOrFolderName) => fileOrFolderName.toLowerCase().replace(/%20|\s+/g, '-')).join('/'))
+                  (path.relative(topLvlRepoPath, referencedPageSourcePath).replace(/(^|\/)([^/]+)\.[^/]*$/, '$1$2').split(/\//)
+                  .map((fileOrFolderName) => fileOrFolderName.toLowerCase().replace(/%20/g, '-')).join('/'))// « Replaces url-encoded spaces with dashes to support relative links to folders with spaces on Github.com and the Fleet website.
                   .split(/\//).map((fileOrFolderName) => encodeURIComponent(fileOrFolderName.replace(/^[0-9]+[\-]+/,''))).join('/')
                 ).replace(RX_README_FILENAME, '');
                 if(possibleReferencedUrlHash) {
