@@ -318,7 +318,9 @@ func TestTranslateCPEToCVE(t *testing.T) {
 				{ID: "CVE-2023-42950", resolvedInVersion: "17.2"},
 				{ID: "CVE-2024-23273", resolvedInVersion: "17.4"},
 			},
-			excludedCVEs:      []string{"CVE-2023-28205"},
+			excludedCVEs: []string{
+				"CVE-2023-28205", // This vulnerability is for Safari 16.4.0
+			},
 			continuesToUpdate: true,
 		},
 		"cpe:2.3:a:apple:safari:16.4.0:*:*:*:*:macos:*:*": {
