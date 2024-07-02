@@ -3973,7 +3973,11 @@ func (s *integrationMDMTestSuite) assertHostAppleConfigProfiles(want map[*fleet.
 	for h, wantProfs := range want {
 		gotProfs, err := ds.GetHostMDMAppleProfiles(ctx, h.UUID)
 		require.NoError(t, err)
-		require.Equal(t, len(wantProfs), len(gotProfs), "host uuid: %s", h.UUID)
+		idents := make([]string, 0, len(gotProfs))
+		for _, gp := range gotProfs {
+			idents = append(idents, gp.Identifier)
+		}
+		require.Equal(t, len(wantProfs), len(gotProfs), "apple host uuid: %s, profiles: %v", h.UUID, idents)
 
 		sort.Slice(gotProfs, func(i, j int) bool {
 			l, r := gotProfs[i], gotProfs[j]
