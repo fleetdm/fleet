@@ -132,10 +132,10 @@ func queryCommand() *cli.Command {
 				output = newJsonWriter(c.App.Writer)
 			}
 
-			hosts := strings.Split(flHosts, ",")
+			hostIdentifiers := strings.Split(flHosts, ",")
 			labels := strings.Split(flLabels, ",")
 
-			res, err := client.LiveQuery(flQuery, queryID, labels, hosts)
+			res, err := client.LiveQuery(flQuery, queryID, labels, hostIdentifiers)
 			if err != nil {
 				if strings.Contains(err.Error(), "no hosts targeted") {
 					return errors.New(fleet.NoHostsTargetedErrMsg)
