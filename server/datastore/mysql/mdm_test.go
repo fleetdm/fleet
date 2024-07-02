@@ -6163,19 +6163,31 @@ func testSCEPRenewalHelpers(t *testing.T, ds *Datastore) {
 	}
 
 	// certs expired at lest 1 year ago
-	h1 := setHost(time.Now().AddDate(-1, -1, 0))
-	h2 := setHost(time.Now().AddDate(-1, 0, 0))
+	h1 := setHost(time.Now().AddDate(-1, -3, 0))
+	h2 := setHost(time.Now().AddDate(-1, -2, 0))
 	// cert that expires in 1 month
 	h3 := setHost(time.Now().AddDate(0, 1, 0))
 	// cert that expires in 1 year
 	h4 := setHost(time.Now().AddDate(1, 0, 0))
+	// expired cert for a host migrated using touchless migration
+	hMigrated := setHost(time.Now().AddDate(-1, 0, 0))
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `
+                  UPDATE nano_enrollments
+                  SET enrolled_from_migration = 1
+                  WHERE id = ?
+		`, hMigrated.UUID)
+		return err
+	})
 
 	// list assocs that expire in the next 10 days
 	assocs, err := ds.GetHostCertAssociationsToExpire(ctx, 10, 100)
 	require.NoError(t, err)
-	require.Len(t, assocs, 2)
+	require.Len(t, assocs, 3)
 	require.Equal(t, h1.UUID, assocs[0].HostUUID)
 	require.Equal(t, h2.UUID, assocs[1].HostUUID)
+	require.Equal(t, hMigrated.UUID, assocs[2].HostUUID)
+	require.True(t, assocs[2].EnrolledFromMigration)
 
 	// list certs that expire in the next 1000 days with limit = 1
 	assocs, err = ds.GetHostCertAssociationsToExpire(ctx, 1000, 1)
@@ -6186,51 +6198,56 @@ func testSCEPRenewalHelpers(t *testing.T, ds *Datastore) {
 	// list certs that expire in the next 50 days
 	assocs, err = ds.GetHostCertAssociationsToExpire(ctx, 50, 100)
 	require.NoError(t, err)
-	require.Len(t, assocs, 3)
+	require.Len(t, assocs, 4)
 	require.Equal(t, h1.UUID, assocs[0].HostUUID)
 	require.Equal(t, h2.UUID, assocs[1].HostUUID)
-	require.Equal(t, h3.UUID, assocs[2].HostUUID)
+	require.Equal(t, hMigrated.UUID, assocs[2].HostUUID)
+	require.Equal(t, h3.UUID, assocs[3].HostUUID)
 
 	// list certs that expire in the next 1000 days
 	assocs, err = ds.GetHostCertAssociationsToExpire(ctx, 1000, 100)
 	require.NoError(t, err)
-	require.Len(t, assocs, 4)
+	require.Len(t, assocs, 5)
 	require.Equal(t, h1.UUID, assocs[0].HostUUID)
 	require.Equal(t, h2.UUID, assocs[1].HostUUID)
-	require.Equal(t, h3.UUID, assocs[2].HostUUID)
-	require.Equal(t, h4.UUID, assocs[3].HostUUID)
+	require.Equal(t, hMigrated.UUID, assocs[2].HostUUID)
+	require.Equal(t, h3.UUID, assocs[3].HostUUID)
+	require.Equal(t, h4.UUID, assocs[4].HostUUID)
 
 	// add a new host with a very old expiriy so it shows first, verify
 	// that it's present before deleting it.
 	h5 := setHost(time.Now().AddDate(-2, -1, 0))
 	assocs, err = ds.GetHostCertAssociationsToExpire(ctx, 1000, 100)
 	require.NoError(t, err)
-	require.Len(t, assocs, 5)
+	require.Len(t, assocs, 6)
 	require.Equal(t, h5.UUID, assocs[0].HostUUID)
 	require.Equal(t, h1.UUID, assocs[1].HostUUID)
 	require.Equal(t, h2.UUID, assocs[2].HostUUID)
-	require.Equal(t, h3.UUID, assocs[3].HostUUID)
-	require.Equal(t, h4.UUID, assocs[4].HostUUID)
+	require.Equal(t, hMigrated.UUID, assocs[3].HostUUID)
+	require.Equal(t, h3.UUID, assocs[4].HostUUID)
+	require.Equal(t, h4.UUID, assocs[5].HostUUID)
 
 	// delete the host and verify that things work as expected
 	// see https://github.com/fleetdm/fleet/issues/19149
 	require.NoError(t, ds.DeleteHost(ctx, h5.ID))
 	assocs, err = ds.GetHostCertAssociationsToExpire(ctx, 1000, 100)
 	require.NoError(t, err)
-	require.Len(t, assocs, 4)
+	require.Len(t, assocs, 5)
 	require.Equal(t, h1.UUID, assocs[0].HostUUID)
 	require.Equal(t, h2.UUID, assocs[1].HostUUID)
-	require.Equal(t, h3.UUID, assocs[2].HostUUID)
-	require.Equal(t, h4.UUID, assocs[3].HostUUID)
+	require.Equal(t, hMigrated.UUID, assocs[2].HostUUID)
+	require.Equal(t, h3.UUID, assocs[3].HostUUID)
+	require.Equal(t, h4.UUID, assocs[4].HostUUID)
 
 	// add a second expired cert to one of the hosts
-	addCert(time.Now().AddDate(-1, -1, 0), h1)
+	addCert(time.Now().AddDate(-1, 0, 0), h1)
 	assocs, err = ds.GetHostCertAssociationsToExpire(ctx, 1000, 100)
-	require.Len(t, assocs, 4)
+	require.Len(t, assocs, 5)
 	require.Equal(t, h1.UUID, assocs[0].HostUUID)
 	require.Equal(t, h2.UUID, assocs[1].HostUUID)
-	require.Equal(t, h3.UUID, assocs[2].HostUUID)
-	require.Equal(t, h4.UUID, assocs[3].HostUUID)
+	require.Equal(t, hMigrated.UUID, assocs[2].HostUUID)
+	require.Equal(t, h3.UUID, assocs[3].HostUUID)
+	require.Equal(t, h4.UUID, assocs[4].HostUUID)
 
 	checkSCEPRenew := func(assoc fleet.SCEPIdentityAssociation, want *string) {
 		var got *string
@@ -6261,6 +6278,7 @@ func testSCEPRenewalHelpers(t *testing.T, ds *Datastore) {
 	checkSCEPRenew(assocs[1], nil)
 	checkSCEPRenew(assocs[2], nil)
 	checkSCEPRenew(assocs[3], nil)
+	checkSCEPRenew(assocs[4], nil)
 	require.NoError(t, err)
 
 	err = ds.SetCommandForPendingSCEPRenewal(ctx, []fleet.SCEPIdentityAssociation{assocs[0]}, "foo")
@@ -6269,6 +6287,7 @@ func testSCEPRenewalHelpers(t *testing.T, ds *Datastore) {
 	checkSCEPRenew(assocs[1], nil)
 	checkSCEPRenew(assocs[2], nil)
 	checkSCEPRenew(assocs[3], nil)
+	checkSCEPRenew(assocs[4], nil)
 
 	err = ds.SetCommandForPendingSCEPRenewal(ctx, assocs, "bar")
 	require.NoError(t, err)
