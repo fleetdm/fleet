@@ -65,7 +65,11 @@ for system in $SYSTEMS; do
         osqueryd_system="linux-arm64"
     fi
 
-    osqueryd_path="$TUF_PATH/tmp/$osqueryd"
+    if [[ $system == "linux-arm64" ]]; then
+        osqueryd_path="$TUF_PATH/tmp/${osqueryd}-arm64"
+    else
+        osqueryd_path="$TUF_PATH/tmp/$osqueryd"
+    fi
     curl https://tuf.fleetctl.com/targets/osqueryd/$osqueryd_system/$OSQUERY_VERSION/$osqueryd --output $osqueryd_path
 
     major=$(echo "$OSQUERY_VERSION" | cut -d "." -f 1)
