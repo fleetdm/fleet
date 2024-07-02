@@ -69,11 +69,12 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 
 	// enroll a windows device
 	windowsH, err := ds.NewHost(ctx, &fleet.Host{
-		Hostname:      "windows-test",
-		OsqueryHostID: ptr.String("osquery-windows"),
-		NodeKey:       ptr.String("node-key-windows"),
-		UUID:          uuid.NewString(),
-		Platform:      "windows",
+		Hostname:       "windows-test",
+		OsqueryHostID:  ptr.String("osquery-windows"),
+		NodeKey:        ptr.String("node-key-windows"),
+		UUID:           uuid.NewString(),
+		Platform:       "windows",
+		HardwareSerial: "123456",
 	})
 	require.NoError(t, err)
 	windowsEnrollment := &fleet.MDMWindowsEnrolledDevice{
@@ -165,6 +166,41 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 	require.Equal(t, winCmd.CommandUUID, cmds[1].CommandUUID)
 	require.Equal(t, winCmd.TargetLocURI, cmds[1].RequestType)
 	require.Equal(t, "Pending", cmds[1].Status)
+
+	// filter by host Identifier
+	identifiers := map[string]string{
+		"hostname":        windowsH.Hostname,
+		"osquery_host_id": *windowsH.OsqueryHostID,
+		"node_key":        *windowsH.NodeKey,
+		"uuid":            windowsH.UUID,
+		"hardware_serial": windowsH.HardwareSerial,
+	}
+
+	for idType, value := range identifiers {
+		t.Run(idType, func(t *testing.T) {
+			cmds, err = ds.ListMDMCommands(
+				ctx,
+				fleet.TeamFilter{User: test.UserAdmin},
+				&fleet.MDMCommandListOptions{
+					HostIdentifier: value,
+				},
+			)
+			require.NoError(t, err)
+			require.Len(t, cmds, 1)
+			require.Equal(t, winCmd.CommandUUID, cmds[0].CommandUUID)
+		})
+	}
+
+	// non-existent host identifier
+	cmds, err = ds.ListMDMCommands(
+		ctx,
+		fleet.TeamFilter{User: test.UserAdmin},
+		&fleet.MDMCommandListOptions{
+			HostIdentifier: "non-existent",
+		},
+	)
+	require.NoError(t, err)
+	require.Len(t, cmds, 0)
 
 	// store results for both commands
 	err = appleCommanderStorage.StoreCommandReport(&mdm.Request{

@@ -35,7 +35,7 @@ END AS platform
 	return p, nil
 }
 
-func getCombinedMDMCommandsQuery() string {
+func getCombinedMDMCommandsQuery(identifier string) string {
 	appleStmt := `
 SELECT
     nvq.id as host_uuid,
@@ -70,10 +70,17 @@ LEFT JOIN windows_mdm_command_results wmcr ON wmc.command_uuid = wmcr.command_uu
 INNER JOIN mdm_windows_enrollments mwe ON wmcq.enrollment_id = mwe.id OR wmcr.enrollment_id = mwe.id
 INNER JOIN hosts h ON h.uuid = mwe.host_uuid
 `
+	filterCondition := ""
+	if identifier != "" {
+		filterCondition = fmt.Sprintf(" AND '%s' IN (h.hostname, h.osquery_host_id, h.node_key, h.uuid, h.hardware_serial)", identifier)
+	}
+
+	appleStmtWithFilter := fmt.Sprintf("%s %s", appleStmt, filterCondition)
+	windowsStmtWithFilter := fmt.Sprintf("%s WHERE 1=1 %s", windowsStmt, filterCondition)
 
 	return fmt.Sprintf(
 		`SELECT * FROM ((%s) UNION ALL (%s)) as combined_commands WHERE `,
-		appleStmt, windowsStmt,
+		appleStmtWithFilter, windowsStmtWithFilter,
 	)
 }
 
@@ -82,7 +89,7 @@ func (ds *Datastore) ListMDMCommands(
 	tmFilter fleet.TeamFilter,
 	listOpts *fleet.MDMCommandListOptions,
 ) ([]*fleet.MDMCommand, error) {
-	jointStmt := getCombinedMDMCommandsQuery() + ds.whereFilterHostsByTeams(tmFilter, "h")
+	jointStmt := getCombinedMDMCommandsQuery(listOpts.HostIdentifier) + ds.whereFilterHostsByTeams(tmFilter, "h")
 	jointStmt, params := appendListOptionsWithCursorToSQL(jointStmt, nil, &listOpts.ListOptions)
 	var results []*fleet.MDMCommand
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, jointStmt, params...); err != nil {
@@ -92,7 +99,7 @@ func (ds *Datastore) ListMDMCommands(
 }
 
 func (ds *Datastore) getMDMCommand(ctx context.Context, q sqlx.QueryerContext, cmdUUID string) (*fleet.MDMCommand, error) {
-	stmt := getCombinedMDMCommandsQuery() + "command_uuid = ?"
+	stmt := getCombinedMDMCommandsQuery("") + "command_uuid = ?"
 
 	var cmd fleet.MDMCommand
 	if err := sqlx.GetContext(ctx, q, &cmd, stmt, cmdUUID); err != nil {
@@ -1261,7 +1268,6 @@ func (ds *Datastore) AreHostsConnectedToFleetMDM(ctx context.Context, hosts []*f
 	}
 
 	return res, nil
-
 }
 
 func (ds *Datastore) IsHostConnectedToFleetMDM(ctx context.Context, host *fleet.Host) (bool, error) {

@@ -57,3 +57,17 @@ func stdoutFlag() cli.Flag {
 func getStdout(c *cli.Context) bool {
 	return c.Bool(stdoutFlagName)
 }
+
+func byHostIdentifier() cli.Flag {
+	return &cli.StringFlag{
+		Name:  "host-identifier",
+		Usage: "The host identifier to operate on",
+	}
+}
+
+func page() cli.Flag {
+	return &cli.IntFlag{
+		Name:  "page",
+		Usage: "The page number to display",
+	}
+}
