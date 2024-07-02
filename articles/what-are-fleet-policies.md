@@ -56,7 +56,7 @@ These principles helped us create policies for our own devices to track:
 Policies and automation help your security and IT teams feel confident that devices are passing your organization’s standards. Fleet is building an open, transparent, and simple future for device management and is the [most widely deployed osquery fleet manager.](https://fleetdm.com/) 
 
 <meta name="category" value="security">
-<meta name="authorGitHubUsername" value="DrewBakerfdm">
+<meta name="authorGitHubUsername" value="Drew-P-drawers">
 <meta name="authorFullName" value="Andrew Baker">
 <meta name="publishedOn" value="2022-05-20">
 <meta name="articleTitle" value="What are Fleet policies?">
