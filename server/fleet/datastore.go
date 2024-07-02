@@ -856,6 +856,10 @@ type Datastore interface {
 	// SetOrUpdateHostEmailsFromMdmIdpAccounts sets or updates the host emails associated with the provided
 	// host based on the MDM IdP account information associated with the provided fleet enrollment reference.
 	SetOrUpdateHostEmailsFromMdmIdpAccounts(ctx context.Context, hostID uint, fleetEnrollmentRef string) error
+	// SetOrUpdateHostEmailsFromMdmIdpAccountsByHostUUID sets or updates the host emails associated
+	// with the provided host uuid based on the MDM IdP account information (if any) associated with the
+	// provided host uuid.
+	SetOrUpdateHostEmailsFromMdmIdpAccountsByHostUUID(ctx context.Context, hostUUID string) error
 	SetOrUpdateHostDisksSpace(ctx context.Context, hostID uint, gigsAvailable, percentAvailable, gigsTotal float64) error
 	SetOrUpdateHostDisksEncryption(ctx context.Context, hostID uint, encrypted bool) error
 	// SetOrUpdateHostDiskEncryptionKey sets the base64, encrypted key for
@@ -1162,8 +1166,21 @@ type Datastore interface {
 	// InsertMDMIdPAccount inserts a new MDM IdP account
 	InsertMDMIdPAccount(ctx context.Context, account *MDMIdPAccount) error
 
-	// GetMDMIdPAccountByUUID returns MDM IdP account that matches the given token.
-	GetMDMIdPAccountByUUID(ctx context.Context, uuid string) (*MDMIdPAccount, error)
+	// AssociateMDMIdPAccount adds device info to an existing MDM IdP account
+	AssociateMDMIdPAccount(ctx context.Context, accountUUID string, deviceUUID string) error
+
+	// GetMDMIdPAccountByAccountUUID returns MDM IdP account that matches the given account uuid.
+	GetMDMIdPAccountByAccountUUID(ctx context.Context, accountUUID string) (*MDMIdPAccount, error)
+
+	// GetMDMIdPAccountByDeviceUUID returns MDM IdP account that matches the given device uuid.
+	GetMDMIdPAccountByDeviceUUID(ctx context.Context, deviceUUID string) (*MDMIdPAccount, error)
+
+	// GetMDMIdPAccountByLegacyEnrollRef returns MDM IdP account that matches the given Fleet
+	// enrollment ref.
+	//
+	// NOTE: This method is deprecated and only used for backwards compatibility.
+	// GetMDMIdPAccountByAccountUUID and GetMDMIdPAccountByDeviceUUID are the preferred methods.
+	GetMDMIdPAccountByLegacyEnrollRef(ctx context.Context, ref string) (*MDMIdPAccount, error)
 
 	// GetMDMIdPAccountByEmail returns MDM IdP account that matches the given email.
 	GetMDMIdPAccountByEmail(ctx context.Context, email string) (*MDMIdPAccount, error)
