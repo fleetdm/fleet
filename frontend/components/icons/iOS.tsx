@@ -2,15 +2,12 @@ import React from "react";
 import { COLORS, Colors } from "styles/var/colors";
 import { ICON_SIZES, IconSizes } from "styles/var/icon_sizes";
 
-interface IIphoneProps {
+interface IiOSProps {
   size: IconSizes;
   color?: Colors;
 }
 
-const Iphone = ({
-  size = "medium",
-  color = "ui-fleet-black-75",
-}: IIphoneProps) => {
+const iOS = ({ size = "medium", color = "ui-fleet-black-75" }: IiOSProps) => {
   return (
     <svg
       width={ICON_SIZES[size]}
@@ -42,4 +39,4 @@ const Iphone = ({
   );
 };
 
-export default Iphone;
+export default iOS;

@@ -14,10 +14,7 @@ interface IFilterPillProps {
   onClear: () => void;
   icon?: IconNames;
   tooltipDescription?: string | ReactNode;
-  premiumFeatureTooltipDelayHide?: number;
   className?: string;
-  isSandboxMode?: boolean;
-  sandboxPremiumOnlyIcon?: boolean;
 }
 
 const baseClass = "filter-pill";
@@ -26,11 +23,8 @@ const FilterPill = ({
   label,
   icon,
   tooltipDescription,
-  premiumFeatureTooltipDelayHide,
   className,
   onClear,
-  isSandboxMode = false,
-  sandboxPremiumOnlyIcon = false,
 }: IFilterPillProps) => {
   const baseClasses = classnames(baseClass, className);
   const labelClasses = classnames(`${baseClass}__label`, {
@@ -47,12 +41,6 @@ const FilterPill = ({
         <span>
           <div className={labelClasses}>
             {icon && <Icon name={icon} />}
-            {isSandboxMode && sandboxPremiumOnlyIcon && (
-              <PremiumFeatureIconWithTooltip
-                tooltipPositionOverrides={{ leftAdj: 120, topAdj: -3 }}
-                tooltipDelayHide={premiumFeatureTooltipDelayHide}
-              />
-            )}
             <span
               data-tip={tooltipDescription}
               data-for={`filter-pill-tooltip-${label}`}

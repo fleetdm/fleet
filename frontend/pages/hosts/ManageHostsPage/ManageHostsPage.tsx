@@ -1734,7 +1734,6 @@ const ManageHostsPage = ({
             }
             onClickEditLabel={onEditLabelClick}
             onClickDeleteLabel={toggleDeleteLabelModal}
-            isSandboxMode={isSandboxMode}
           />
           {renderNoEnrollSecretBanner()}
           {renderTable()}

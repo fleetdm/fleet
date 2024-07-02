@@ -18,7 +18,11 @@ import TurnOnMdmMessage from "../components/TurnOnMdmMessage/TurnOnMdmMessage";
 import CurrentVersionSection from "./components/CurrentVersionSection";
 import TargetSection from "./components/TargetSection";
 
-export type OSUpdatesSupportedPlatform = "darwin" | "windows";
+export type OSUpdatesSupportedPlatform =
+  | "darwin"
+  | "windows"
+  | "iOS"
+  | "iPadOS";
 
 const baseClass = "os-updates";
 
@@ -89,16 +93,24 @@ const OSUpdates = ({ router, teamIdForApi }: IOSUpdates) => {
   // FIXME: Handle error states for app config and team config (need specifications for this).
 
   // mdm is not enabled for mac or windows.
-  if (
-    !config?.mdm.enabled_and_configured &&
-    !config?.mdm.windows_enabled_and_configured
-  ) {
-    return <TurnOnMdmMessage router={router} />;
-  }
+  // TODO: Reinstate when ready
+  // if (
+  //   !config?.mdm.enabled_and_configured &&
+  //   !config?.mdm.windows_enabled_and_configured
+  // ) {
+  //   return <TurnOnMdmMessage router={router} />;
+  // }
+  // END TODO
 
   // If the user has not selected a platform yet, we default to the platform that
   // is enabled and configured.
   const selectedPlatform = selectedPlatformTab || getSelectedPlatform(config);
+
+  // TODO: Remove when ready
+  if (!config) {
+    return null;
+  }
+  // END TODO
 
   return (
     <div className={baseClass}>

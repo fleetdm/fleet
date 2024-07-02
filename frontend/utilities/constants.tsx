@@ -204,8 +204,8 @@ const PLATFORM_LABEL_NAMES_FROM_API = [
   "Red Hat Linux",
   "Ubuntu Linux",
   "chrome",
-  "ios",
-  "ipados",
+  "iOS",
+  "iPadOS",
 ] as const;
 
 type PlatformLabelNameFromAPI = typeof PLATFORM_LABEL_NAMES_FROM_API[number];
@@ -245,8 +245,8 @@ export const PLATFORM_LABEL_DISPLAY_NAMES: Record<
   "Red Hat Linux": "Red Hat Linux",
   "Ubuntu Linux": "Ubuntu Linux",
   chrome: "ChromeOS",
-  ios: "iOS",
-  ipados: "iPadOS",
+  iOS: "iOS",
+  iPadOS: "iPadOS",
 } as const;
 
 export const PLATFORM_LABEL_DISPLAY_TYPES: Record<
@@ -261,14 +261,14 @@ export const PLATFORM_LABEL_DISPLAY_TYPES: Record<
   "Red Hat Linux": "platform",
   "Ubuntu Linux": "platform",
   chrome: "platform",
-  ios: "platform",
-  ipados: "platform",
+  iOS: "platform",
+  iPadOS: "platform",
 } as const;
 
 export const PLATFORM_TYPE_ICONS: Record<
   Extract<
     PlatformLabelNameFromAPI,
-    "All Linux" | "macOS" | "MS Windows" | "chrome" | "ios" | "ipados"
+    "All Linux" | "macOS" | "MS Windows" | "chrome" | "iOS" | "iPadOS"
   >,
   IconNames
 > = {
@@ -276,15 +276,15 @@ export const PLATFORM_TYPE_ICONS: Record<
   macOS: "darwin",
   "MS Windows": "windows",
   chrome: "chrome",
-  ios: "iphone",
-  ipados: "ipad",
+  iOS: "iOS",
+  iPadOS: "iPadOS",
 } as const;
 
 export const hasPlatformTypeIcon = (
   s: string
 ): s is Extract<
   PlatformLabelNameFromAPI,
-  "All Linux" | "macOS" | "MS Windows" | "chrome" | "ios" | "ipados"
+  "All Linux" | "macOS" | "MS Windows" | "chrome" | "iOS" | "iPadOS"
 > => {
   return !!PLATFORM_TYPE_ICONS[s as keyof typeof PLATFORM_TYPE_ICONS];
 };
@@ -327,8 +327,8 @@ export const PLATFORM_NAME_TO_LABEL_NAME = {
   windows: "MS Windows",
   linux: "All Linux",
   chrome: "chrome",
-  ios: "iPhones",
-  ipados: "iPads",
+  ios: "iOS",
+  ipados: "iPadOS",
 };
 
 export const HOSTS_SEARCH_BOX_PLACEHOLDER =

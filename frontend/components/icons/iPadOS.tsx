@@ -2,12 +2,15 @@ import React from "react";
 import { COLORS, Colors } from "styles/var/colors";
 import { ICON_SIZES, IconSizes } from "styles/var/icon_sizes";
 
-interface IIpadProps {
+interface IiPadOSProps {
   size: IconSizes;
   color?: Colors;
 }
 
-const Ipad = ({ size = "medium", color = "ui-fleet-black-75" }: IIpadProps) => {
+const iPadOS = ({
+  size = "medium",
+  color = "ui-fleet-black-75",
+}: IiPadOSProps) => {
   return (
     <svg
       width={ICON_SIZES[size]}
@@ -35,4 +38,4 @@ const Ipad = ({ size = "medium", color = "ui-fleet-black-75" }: IIpadProps) => {
   );
 };
 
-export default Ipad;
+export default iPadOS;

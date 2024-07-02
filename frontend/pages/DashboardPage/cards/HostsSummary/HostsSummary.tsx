@@ -146,7 +146,7 @@ const HostsSummary = ({
 
     return (
       <SummaryTile
-        iconName="iphone"
+        iconName="iOS"
         count={iosCount}
         isLoading={isLoadingHostsSummary}
         showUI={showHostsUI}
@@ -169,7 +169,7 @@ const HostsSummary = ({
 
     return (
       <SummaryTile
-        iconName="ipad"
+        iconName="iPadOS"
         count={ipadosCount}
         isLoading={isLoadingHostsSummary}
         showUI={showHostsUI}
