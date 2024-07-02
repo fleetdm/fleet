@@ -27,7 +27,7 @@ var (
 const latency = 500 * time.Millisecond
 
 // Configure creates a new Google Calendar service using the provided credentials.
-func (lowLevelAPI *GoogleCalendarMockAPI) Configure(_ context.Context, _ string, _ string, userToImpersonate string) error {
+func (lowLevelAPI *GoogleCalendarMockAPI) Configure(_ context.Context, _ string, _ string, userToImpersonate string, _ string) error {
 	if lowLevelAPI.logger == nil {
 		lowLevelAPI.logger = kitlog.With(kitlog.NewLogfmtLogger(os.Stderr), "mock", "GoogleCalendarMockAPI", "user", userToImpersonate)
 	}
@@ -81,6 +81,14 @@ func (lowLevelAPI *GoogleCalendarMockAPI) DeleteEvent(id string) error {
 	defer mu.Unlock()
 	lowLevelAPI.logger.Log("msg", "DeleteEvent", "id", id)
 	delete(mockEvents, id)
+	return nil
+}
+
+func (lowLevelAPI *GoogleCalendarMockAPI) Watch(eventUUID string, channelID string, ttl uint64) (resourceID string, err error) {
+	return "resourceID", nil
+}
+
+func (lowLevelAPI *GoogleCalendarMockAPI) Stop(channelID string, resourceID string) error {
 	return nil
 }
 

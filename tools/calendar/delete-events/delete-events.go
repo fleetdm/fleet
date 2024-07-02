@@ -34,6 +34,8 @@ func main() {
 	if serviceEmail == "" || privateKey == "" {
 		log.Fatal("FLEET_TEST_GOOGLE_CALENDAR_SERVICE_EMAIL and FLEET_TEST_GOOGLE_CALENDAR_PRIVATE_KEY must be set")
 	}
+	// Strip newlines from private key
+	privateKey = strings.Replace(privateKey, "\\n", "\n", -1)
 	userEmails := flag.String("users", "", "Comma-separated list of user emails to impersonate")
 	flag.Parse()
 	if *userEmails == "" {
