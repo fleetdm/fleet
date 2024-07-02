@@ -270,7 +270,13 @@ const SoftwareTable = ({
         {tableData && data?.counts_updated_at && (
           <LastUpdatedText
             lastUpdatedAt={data.counts_updated_at}
-            whatToRetrieve="software"
+            customTooltipText={
+              <>
+                The last time software data was <br />
+                updated, including vulnerabilities <br />
+                and host counts.
+              </>
+            }
           />
         )}
       </>

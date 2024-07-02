@@ -442,22 +442,7 @@
           <div class="invalid-feedback" v-if="formErrors.whatDidYouThink">Please select an option</div>
         </div>
         <cloud-error v-if="cloudError"></cloud-error>
-        <div purpose="quote" v-if="!formData['what-are-you-using-fleet-for'].primaryBuyingSituation">
-          <div purpose="logo" class="mb-4"><img height="32" alt="Deloitte logo" src="/images/social-proof-logo-deloitte-130x32@2x.png"></div>
-          <p purpose="quote-text">
-            Something I really appreciate about working with you guys is that it doesn't feel like I'm talking to a vendor. It actually feels like I'm talking to my team, and I really appreciate it.
-          </p>
-          <div purpose="quote-author-info" class="d-flex flex-row align-items-center">
-            <div purpose="profile-picture">
-              <img alt="Chandra Majumdar" src="/images/testimonial-author-chandra-majumdar-48x48@2x.png">
-            </div>
-            <div class="d-flex flex-column align-self-top">
-              <p purpose="name" class="font-weight-bold m-0">Chandra Majumdar</p>
-              <p purpose="job-title" class="m-0">Partner - Cyber and Strategic Risk</p>
-            </div>
-          </div>
-        </div>
-        <div purpose="quote" v-else-if="formData['what-are-you-using-fleet-for'].primaryBuyingSituation === 'mdm'">
+        <div purpose="quote" v-else-if="!formData['what-are-you-using-fleet-for'].primaryBuyingSituation || formData['what-are-you-using-fleet-for'].primaryBuyingSituation === 'mdm'">
           <div purpose="logo" class="mb-4"><img height="32" alt="Uber logo" src="/images/social-proof-logo-uber-71x32@2x.png"></div>
           <p purpose="quote-text">
             Exciting. This is a team that listens to feedback.
@@ -503,17 +488,17 @@
           </div>
         </div>
         <div purpose="quote" v-else-if="formData['what-are-you-using-fleet-for'].primaryBuyingSituation === 'eo-security'">
-          <div purpose="logo" class="mb-4"><img height="32" alt="Atlassian logo" src="/images/social-proof-logo-atlassian-192x32@2x.png"></div>
+          <div purpose="logo" class="mb-4"><img height="32" alt="Deloitte logo" src="/images/social-proof-logo-deloitte-130x32@2x.png"></div>
           <p purpose="quote-text">
-            I love the steady and consistent delivery of features that help teams work how they want to work, not how your product dictates they work.
+            Something I really appreciate about working with you guys is that it doesn't feel like I'm talking to a vendor. It actually feels like I'm talking to my team, and I really appreciate it.
           </p>
           <div purpose="quote-author-info" class="d-flex flex-row align-items-center">
             <div purpose="profile-picture">
-              <img alt="Dan Grzelak" src="/images/testimonial-author-daniel-grzelak-48x48@2x.png">
+              <img alt="Chandra Majumdar" src="/images/testimonial-author-chandra-majumdar-48x48@2x.png">
             </div>
             <div class="d-flex flex-column align-self-top">
-              <p purpose="name" class="font-weight-bold m-0">Dan Grzelak</p>
-              <p purpose="job-title" class="m-0">Security Chief of Staff</p>
+              <p purpose="name" class="font-weight-bold m-0">Chandra Majumdar</p>
+              <p purpose="job-title" class="m-0">Partner - Cyber and Strategic Risk</p>
             </div>
           </div>
         </div>

@@ -99,7 +99,12 @@
     gap: $pad-medium;
   }
 
+  // TODO: remove these styles when the updated error component is used
   .data-error {
-    margin-top: $pad-xxlarge;
+    margin: $pad-xxlarge 0;
+    padding: $pad-xlarge 0;
+  }
+  .data-error__inner {
+    padding: $pad-xlarge 0;
   }
 }

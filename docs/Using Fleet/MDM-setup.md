@@ -28,7 +28,7 @@ After connecting Fleet to ABM, set Fleet to be the MDM for all Macs:
 2. Click your profile icon in the bottom left
 3. Click **Preferences**
 4. Click **MDM Server Assignment** and click **Edit** next to **Default Server Assignment**.
-5. Switch **Mac** to Fleet.
+5. Switch **Mac**, **iPhone**, and **iPad** to Fleet.
 
 New or wiped macOS, iOS, and iPadOS hosts that are in ABM, before they've been set up, appear in Fleet with **MDM status** set to "Pending".
 
