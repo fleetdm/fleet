@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -e
+set -xe
 
 # This script initializes a test Fleet TUF repository.
 # All targets are created with version 42.

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -e
+set -ex
 
 export FLEET_ROOT_PASSPHRASE=p4ssphr4s3
 export FLEET_TARGETS_PASSPHRASE=p4ssphr4s3
