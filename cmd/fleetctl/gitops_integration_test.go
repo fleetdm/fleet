@@ -131,7 +131,7 @@ contexts:
 	require.NoError(t, err)
 
 	// Set the required environment variables
-	t.Setenv("FLEET_SSO_METADATA", "sso_metadata")
+	t.Setenv("FLEET_URL", s.server.URL)
 	t.Setenv("FLEET_GLOBAL_ENROLL_SECRET", "global_enroll_secret")
 	globalFile := path.Join(repoDir, "default.yml")
 	require.NoError(t, err)
