@@ -39,7 +39,7 @@ const ProfileDetails = ({
 }: IProfileDetailsProps) => {
   const getPlatformName = () => {
     if (platform === "windows") return "Windows";
-    return isDDM ? "macOS (declaration)" : "macOS";
+    return isDDM ? "macOS (declaration)" : "macOS, iOS, iPadOS"; // TODO: Confirm this is correct logic and copy text
   };
 
   return (
@@ -95,7 +95,7 @@ const ProfileListItem = ({
   const onClickDownload = async () => {
     const fileContent = await createFileContent(profile);
     const formatDate = format(new Date(), "yyyy-MM-dd");
-    const extension = createProfileExtension(profile);
+    const extension = createProfileExtension(profile); // TODO: How does createProfileExtension work with iOS/iPadOS profiles
     const filename = `${formatDate}_${name}.${extension}`;
     const file = new File([fileContent], filename);
     FileSaver.saveAs(file);
