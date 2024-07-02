@@ -2687,10 +2687,20 @@ func TestGetMDMCommands(t *testing.T) {
 	}
 	var empty bool
 	var listErr error
+	var expectIdentifier bool
+	var expectPage bool
 	ds.ListMDMCommandsFunc = func(ctx context.Context, tmFilter fleet.TeamFilter, listOpts *fleet.MDMCommandListOptions) ([]*fleet.MDMCommand, error) {
 		if empty || listErr != nil {
 			return nil, listErr
 		}
+		if expectIdentifier {
+			require.NotEmpty(t, listOpts.HostIdentifier)
+		}
+
+		if expectPage {
+			require.NotEmpty(t, listOpts.Page)
+		}
+
 		return []*fleet.MDMCommand{
 			{
 				HostUUID:    "h1",
@@ -2743,6 +2753,30 @@ func TestGetMDMCommands(t *testing.T) {
 +----+----------------------+---------------------------------------+--------------+----------+
 | u3 | 2023-04-11T09:05:00Z | InstallProfile                        |          200 | host2    |
 +----+----------------------+---------------------------------------+--------------+----------+
+`))
+
+	// Test with invalid option
+	_, err = runAppNoChecks([]string{"get", "mdm-commands", "--invalid", "foo"})
+	require.Error(t, err)
+
+	// Test with host identifier filter
+	listErr = nil
+	empty = false
+	expectIdentifier = true
+	_, err = runAppNoChecks([]string{"get", "mdm-commands", "--host-identifier", "foo"})
+	require.NoError(t, err)
+
+	// Test pagination flag
+	listErr = nil
+	empty = true
+	expectIdentifier = false
+	expectPage = true
+	res, err := runAppNoChecks([]string{"get", "mdm-commands", "--page", "1"})
+	require.NoError(t, err)
+	require.Contains(t, res.String(), strings.TrimSpace(`
++----+------+------+--------+----------+
+| ID | TIME | TYPE | STATUS | HOSTNAME |
++----+------+------+--------+----------+
 `))
 }
 

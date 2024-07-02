@@ -1030,6 +1030,14 @@ func (ds *Datastore) whereOmitIDs(colName string, omit []uint) string {
 	return fmt.Sprintf("%s NOT IN (%s)", colName, strings.Join(idStrs, ","))
 }
 
+func (ds *Datastore) whereFilterHostsByIdentifier(identifier string) string {
+	if identifier == "" {
+		return "AND TRUE"
+	}
+
+	return fmt.Sprintf(" AND '%s' IN (h.hostname, h.osquery_host_id, h.node_key, h.uuid, h.hardware_serial)", identifier)
+}
+
 // registerTLS adds client certificate configuration to the mysql connection.
 func registerTLS(conf config.MysqlConfig) error {
 	tlsCfg := config.TLS{

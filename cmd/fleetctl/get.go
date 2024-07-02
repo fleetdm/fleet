@@ -1545,6 +1545,8 @@ func getMDMCommandsCommand() *cli.Command {
 			configFlag(),
 			contextFlag(),
 			debugFlag(),
+			byHostIdentifier(),
+			page(),
 		},
 		Action: func(c *cli.Context) error {
 			client, err := clientFromCLI(c)
@@ -1557,11 +1559,18 @@ func getMDMCommandsCommand() *cli.Command {
 				return err
 			}
 
-			results, err := client.MDMListCommands()
+			opts := fleet.MDMCommandListOptions{
+				HostIdentifier: c.String("host-identifier"),
+				ListOptions: fleet.ListOptions{
+					Page: c.Uint("page"),
+				},
+			}
+
+			results, err := client.MDMListCommands(opts)
 			if err != nil {
 				return err
 			}
-			if len(results) == 0 {
+			if len(results) == 0 && opts.Page == 0 {
 				log(c, "You haven't run any MDM commands. Run MDM commands with the `fleetctl mdm run-command` command.\n")
 				return nil
 			}
