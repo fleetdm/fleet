@@ -308,7 +308,7 @@ func hostMdmActionSetup(c *cli.Context, hostIdent string, actionType string) (cl
 	if err != nil {
 		var nfe service.NotFoundErr
 		if errors.As(err, &nfe) {
-			return nil, nil, errors.New("Host doesn't exist. Make sure you provide a valid hostname, UUID, or serial number. Learn more about host identifiers: https://fleetdm.com/learn-more-about/host-identifiers")
+			return nil, nil, errors.New(fleet.HostNotFoundErrMsg)
 		}
 
 		var sce kithttp.StatusCoder

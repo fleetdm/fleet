@@ -350,7 +350,6 @@ func TestMDMRunCommand(t *testing.T) {
 }
 
 func TestMDMLockCommand(t *testing.T) {
-
 	macEnrolled := testhost{
 		host: &fleet.Host{
 			ID:       1,
@@ -590,7 +589,7 @@ fleetctl mdm unlock --host=%s
 	}{
 		{appCfgAllMDM, "no flags", nil, `Required flag "host" not set`},
 		{appCfgAllMDM, "host flag empty", []string{"--host", ""}, `No host targeted. Please provide --host.`},
-		{appCfgAllMDM, "lock non-existent host", []string{"--host", "notfound"}, `The host doesn't exist. Please provide a valid host identifier.`},
+		{appCfgAllMDM, "lock non-existent host", []string{"--host", "notfound"}, fleet.HostNotFoundErrMsg},
 		{appCfgMacMDM, "valid windows but only macos mdm", []string{"--host", winEnrolled.host.UUID}, `Windows MDM isn't turned on.`},
 		{appCfgWinMDM, "valid macos but only windows mdm", []string{"--host", macEnrolled.host.UUID}, `macOS MDM isn't turned on.`},
 		{appCfgAllMDM, "valid windows", []string{"--host", winEnrolled.host.UUID}, ""},

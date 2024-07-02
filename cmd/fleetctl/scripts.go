@@ -108,7 +108,7 @@ func runScriptCommand() *cli.Command {
 			if err != nil {
 				var nfe service.NotFoundErr
 				if errors.As(err, &nfe) {
-					return errors.New(fleet.RunScriptHostNotFoundErrMsg)
+					return errors.New(fleet.HostNotFoundErrMsg)
 				}
 				var sce fleet.ErrWithStatusCode
 				if errors.As(err, &sce) {
