@@ -82,9 +82,11 @@ for system in $SYSTEMS; do
         goose_value="darwin"
     fi
     if [[ $system == "linux-amd64" ]]; then
+        goose_value="linux"
         goarch_value="amd64"
     fi
     if [[ $system == "linux-arm64" ]]; then
+        goose_value="linux"
         goarch_value="arm64"
     fi
     orbit_target=orbit-$system

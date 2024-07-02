@@ -30,5 +30,5 @@ if [ -z "$SKIP_SERVER" ]; then
 fi
 
 if [ -n "$GENERATE_PKG" ] || [ -n "$GENERATE_DEB" ] || [ -n "$GENERATE_RPM" ] || [ -n "$GENERATE_MSI" ]; then
-  ./tools/tuf/test/gen_pkgs.sh
+    bash ./tools/tuf/test/gen_pkgs.sh
 fi

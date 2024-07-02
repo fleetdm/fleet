@@ -62,8 +62,9 @@ fi
 
 if [ -n "$GENERATE_DEB" ]; then
     echo "Generating deb (amd64)..."
-    GOARCH=amd64 ./build/fleetctl package \
+    ./build/fleetctl package \
         --type=deb \
+        --arch=amd64 \
         ${FLEET_DESKTOP:+--fleet-desktop} \
         --fleet-url=$DEB_FLEET_URL \
         --enroll-secret=$ENROLL_SECRET \
@@ -83,8 +84,9 @@ if [ -n "$GENERATE_DEB" ]; then
         --update-url=$DEB_TUF_URL
 
     echo "Generating deb (arm64)..."
-    GOARCH=arm64 ./build/fleetctl package \
+    ./build/fleetctl package \
         --type=deb \
+        --arch=arm64 \
         ${FLEET_DESKTOP:+--fleet-desktop} \
         --fleet-url=$DEB_FLEET_URL \
         --enroll-secret=$ENROLL_SECRET \
@@ -106,8 +108,9 @@ fi
 
 if [ -n "$GENERATE_RPM" ]; then
     echo "Generating rpm (amd64)..."
-    GOARCH=amd64 ./build/fleetctl package \
+    ./build/fleetctl package \
         --type=rpm \
+        --arch=amd64 \
         ${FLEET_DESKTOP:+--fleet-desktop} \
         --fleet-url=$RPM_FLEET_URL \
         --enroll-secret=$ENROLL_SECRET \
@@ -127,8 +130,9 @@ if [ -n "$GENERATE_RPM" ]; then
         --update-url=$RPM_TUF_URL
 
     echo "Generating rpm (arm64)..."
-    GOARCH=arm64 ./build/fleetctl package \
+    ./build/fleetctl package \
         --type=rpm \
+        --arch=arm64 \
         ${FLEET_DESKTOP:+--fleet-desktop} \
         --fleet-url=$RPM_FLEET_URL \
         --enroll-secret=$ENROLL_SECRET \
