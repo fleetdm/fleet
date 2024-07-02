@@ -163,10 +163,12 @@ const generateTableHeaders = (
             </TooltipWrapper>
           );
         }
+        const greyAndItalic = greyCell(cellProps.cell.value);
         return (
           <TextCell
             value={cellProps.cell.value}
-            greyAndItalic={greyCell(cellProps.cell.value)}
+            grey={greyAndItalic}
+            italic={greyAndItalic}
           />
         );
       },

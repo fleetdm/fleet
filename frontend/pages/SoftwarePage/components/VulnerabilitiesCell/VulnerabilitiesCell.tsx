@@ -13,7 +13,7 @@ const generateCell = (
   vulnerabilities: ISoftwareVulnerability[] | string[] | null
 ) => {
   if (vulnerabilities === null) {
-    return <TextCell value="---" greyAndItalic />;
+    return <TextCell value="---" grey italic />;
   }
 
   let text = "";

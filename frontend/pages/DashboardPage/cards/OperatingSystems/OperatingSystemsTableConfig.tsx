@@ -108,7 +108,7 @@ const generateDefaultTableHeaders = (
     Cell: (cellProps: IVulnCellProps) => {
       const platform = cellProps.row.original.platform;
       if (platform !== "darwin" && platform !== "windows") {
-        return <TextCell value="Not supported" greyAndItalic />;
+        return <TextCell value="Not supported" grey italic />;
       }
       return <VulnerabilitiesCell vulnerabilities={cellProps.cell.value} />;
     },

@@ -9,22 +9,18 @@ const baseClass = "text-cell";
 interface ITextCellProps {
   value?: string | number | boolean | { timeString: string } | null;
   formatter?: (val: any) => React.ReactNode; // string, number, or null
-  /** adds a greyed styling to the cell. This will italicise and add a grey
-   * color to the cell text.
-   * @default false
-   */
-  greyAndItalic?: boolean;
+  grey?: boolean;
   italic?: boolean;
-  customClasses?: string;
+  className?: string;
   emptyCellTooltipText?: React.ReactNode;
 }
 
 const TextCell = ({
   value,
   formatter = (val) => val, // identity function if no formatter is provided
-  greyAndItalic = false,
+  grey = false,
   italic = false,
-  customClasses = "w250",
+  className = "w250",
   emptyCellTooltipText,
 }: ITextCellProps) => {
   let val = value;
@@ -47,7 +43,7 @@ const TextCell = ({
     formattedValue === "";
 
   if (isEmptyValue) {
-    greyAndItalic = true;
+    [grey, italic] = [true, true];
   }
 
   const renderEmptyCell = () => {
@@ -74,8 +70,8 @@ const TextCell = ({
 
   const cellText = isEmptyValue ? renderEmptyCell() : formattedValue;
 
-  const cellClasses = classnames(baseClass, customClasses, {
-    "grey-and-italic-cell": greyAndItalic,
+  const cellClasses = classnames(baseClass, className, {
+    "grey-cell": grey,
     "italic-cell": italic,
   });
   return <span className={cellClasses}>{cellText}</span>;
