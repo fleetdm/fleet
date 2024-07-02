@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"strings"
 	"time"
 
@@ -1683,12 +1684,12 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 		( hmap.profile_uuid IS NULL AND hmap.host_uuid IS NULL ) OR
 		-- profiles in A and B but with operation type "remove"
 		( hmap.host_uuid IS NOT NULL AND ( hmap.operation_type = ? OR hmap.operation_type IS NULL ) )
-`, fmt.Sprintf(appleMDMProfilesDesiredStateQuery, "h.uuid IN (?)", "h.uuid IN (?)"))
+`, fmt.Sprintf(appleMDMProfilesDesiredStateQuery, "h.uuid IN (?)", "h.uuid IN (?)", "h.uuid IN (?)"))
 
 	// TODO: if a very large number (~65K) of host uuids was matched (via
 	// uuids, teams or profile IDs), could result in too many placeholders (not
 	// an immediate concern).
-	stmt, args, err := sqlx.In(toInstallStmt, uuids, uuids, fleet.MDMOperationTypeRemove)
+	stmt, args, err := sqlx.In(toInstallStmt, uuids, uuids, uuids, fleet.MDMOperationTypeRemove)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "building profiles to install statement")
 	}
@@ -1723,6 +1724,7 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 		-- except "remove" operations in any state
 		( hmap.operation_type IS NULL OR hmap.operation_type != ? ) AND
 		-- except "would be removed" profiles if they are a broken label-based profile
+		-- (regardless of if it is an include-all or exclude-any label)
 		NOT EXISTS (
 			SELECT 1
 			FROM mdm_configuration_profile_labels mcpl
@@ -1730,12 +1732,12 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 			mcpl.apple_profile_uuid = hmap.profile_uuid AND
 			mcpl.label_id IS NULL
 		)
-`, fmt.Sprintf(appleMDMProfilesDesiredStateQuery, "h.uuid IN (?)", "h.uuid IN (?)"))
+`, fmt.Sprintf(appleMDMProfilesDesiredStateQuery, "h.uuid IN (?)", "h.uuid IN (?)", "h.uuid IN (?)"))
 
 	// TODO: if a very large number (~65K) of host uuids was matched (via
 	// uuids, teams or profile IDs), could result in too many placeholders (not
 	// an immediate concern). Note that uuids are provided twice.
-	stmt, args, err = sqlx.In(toRemoveStmt, uuids, uuids, uuids, fleet.MDMOperationTypeRemove)
+	stmt, args, err = sqlx.In(toRemoveStmt, uuids, uuids, uuids, uuids, fleet.MDMOperationTypeRemove)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "building profiles to remove statement")
 	}
@@ -1885,29 +1887,55 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 	return nil
 }
 
-// mdmEntityTypeToTable tracks what table should be used in the templates for
-// SQL statements based on the given entity type.
-var mdmEntityTypeToTable = map[string]string{
-	"declaration": "declaration",
-	"profile":     "configuration_profile",
+// mdmEntityTypeToDynamicNames tracks what names should be used in the
+// templates for SQL statements based on the given entity type. The dynamic
+// names are deliberately spelled out in full (instead of using an fmt.Sprintf
+// approach) so that they are greppable in the codebase.
+var mdmEntityTypeToDynamicNames = map[string]map[string]string{
+	"declaration": {
+		"entityUUIDColumn":        "declaration_uuid",
+		"entityIdentifierColumn":  "declaration_identifier",
+		"entityNameColumn":        "declaration_name",
+		"countEntityLabelsColumn": "count_declaration_labels",
+		"mdmAppleEntityTable":     "mdm_apple_declarations",
+		"mdmEntityLabelsTable":    "mdm_declaration_labels",
+		"appleEntityUUIDColumn":   "apple_declaration_uuid",
+		"hostMDMAppleEntityTable": "host_mdm_apple_declarations",
+	},
+	"profile": {
+		"entityUUIDColumn":        "profile_uuid",
+		"entityIdentifierColumn":  "profile_identifier",
+		"entityNameColumn":        "profile_name",
+		"countEntityLabelsColumn": "count_profile_labels",
+		"mdmAppleEntityTable":     "mdm_apple_configuration_profiles",
+		"mdmEntityLabelsTable":    "mdm_configuration_profile_labels",
+		"appleEntityUUIDColumn":   "apple_profile_uuid",
+		"hostMDMAppleEntityTable": "host_mdm_apple_profiles",
+	},
 }
 
 // generateDesiredStateQuery generates a query string that represents the
 // desired state of an Apple entity based on its type (profile or declaration)
 func generateDesiredStateQuery(entityType string) string {
-	return fmt.Sprintf(`
+	dynamicNames := mdmEntityTypeToDynamicNames[entityType]
+	if dynamicNames == nil {
+		panic(fmt.Sprintf("unknown entity type %q", entityType))
+	}
+
+	return os.Expand(`
 	-- non label-based entities
 	SELECT
-		mae.%[1]s_uuid,
+		mae.${entityUUIDColumn},
 		h.uuid as host_uuid,
 		h.platform as host_platform,
-		mae.identifier as %[1]s_identifier,
-		mae.name as %[1]s_name,
+		mae.identifier as ${entityIdentifierColumn},
+		mae.name as ${entityNameColumn},
 		mae.checksum as checksum,
-		0 as count_%[1]s_labels,
+		0 as ${countEntityLabelsColumn},
+		0 as count_non_broken_labels,
 		0 as count_host_labels
 	FROM
-		mdm_apple_%[2]ss mae
+		${mdmAppleEntityTable} mae
 			JOIN hosts h
 				ON h.team_id = mae.team_id OR (h.team_id IS NULL AND mae.team_id = 0)
 			JOIN nano_enrollments ne
@@ -1918,44 +1946,81 @@ func generateDesiredStateQuery(entityType string) string {
 		ne.type = 'Device' AND
 		NOT EXISTS (
 			SELECT 1
-			FROM mdm_%[2]s_labels mel
-			WHERE mel.apple_%[1]s_uuid = mae.%[1]s_uuid
+			FROM ${mdmEntityLabelsTable} mel
+			WHERE mel.${appleEntityUUIDColumn} = mae.${entityUUIDColumn}
 		) AND
-		( %[3]s )
+		( %s )
 
 	UNION
 
-	-- label-based entities where the host is a member of all the labels
+	-- label-based entities where the host is a member of all the labels (include-all).
+	-- by design, "include" labels cannot match if they are broken (the host cannot be
+	-- a member of a deleted label).
 	SELECT
-		mae.%[1]s_uuid,
+		mae.${entityUUIDColumn},
 		h.uuid as host_uuid,
 		h.platform as host_platform,
-		mae.identifier as %[1]s_identifier,
-		mae.name as %[1]s_name,
+		mae.identifier as ${entityIdentifierColumn},
+		mae.name as ${entityNameColumn},
 		mae.checksum as checksum,
-		COUNT(*) as count_%[1]s_labels,
+		COUNT(*) as ${countEntityLabelsColumn},
+		COUNT(mel.label_id) as count_non_broken_labels,
 		COUNT(lm.label_id) as count_host_labels
 	FROM
-		mdm_apple_%[2]ss mae
+		${mdmAppleEntityTable} mae
 			JOIN hosts h
 				ON h.team_id = mae.team_id OR (h.team_id IS NULL AND mae.team_id = 0)
 			JOIN nano_enrollments ne
 				ON ne.device_id = h.uuid
-			JOIN mdm_%[2]s_labels mel
-				ON mel.apple_%[1]s_uuid = mae.%[1]s_uuid
+			JOIN ${mdmEntityLabelsTable} mel
+				ON mel.${appleEntityUUIDColumn} = mae.${entityUUIDColumn} AND mel.exclude = 0
 			LEFT OUTER JOIN label_membership lm
 				ON lm.label_id = mel.label_id AND lm.host_id = h.id
 	WHERE
 		(h.platform = 'darwin' OR h.platform = 'ios' OR h.platform = 'ipados') AND
 		ne.enabled = 1 AND
 		ne.type = 'Device' AND
-		( %[3]s )
+		( %s )
 	GROUP BY
-		mae.%[1]s_uuid, h.uuid, h.platform, mae.identifier, mae.name, mae.checksum
+		mae.${entityUUIDColumn}, h.uuid, h.platform, mae.identifier, mae.name, mae.checksum
 	HAVING
-		count_%[1]s_labels > 0 AND count_host_labels = count_%[1]s_labels
+		${countEntityLabelsColumn} > 0 AND count_host_labels = ${countEntityLabelsColumn}
 
-	`, entityType, mdmEntityTypeToTable[entityType], "%s")
+	UNION
+
+	-- label-based entities where the host is NOT a member of any of the labels (exclude-any).
+	-- explicitly ignore profiles with broken excluded labels so that they are never applied.
+	SELECT
+		mae.${entityUUIDColumn},
+		h.uuid as host_uuid,
+		h.platform as host_platform,
+		mae.identifier as ${entityIdentifierColumn},
+		mae.name as ${entityNameColumn},
+		mae.checksum as checksum,
+		COUNT(*) as ${countEntityLabelsColumn},
+		COUNT(mel.label_id) as count_non_broken_labels,
+		COUNT(lm.label_id) as count_host_labels
+	FROM
+		${mdmAppleEntityTable} mae
+			JOIN hosts h
+				ON h.team_id = mae.team_id OR (h.team_id IS NULL AND mae.team_id = 0)
+			JOIN nano_enrollments ne
+				ON ne.device_id = h.uuid
+			JOIN ${mdmEntityLabelsTable} mel
+				ON mel.${appleEntityUUIDColumn} = mae.${entityUUIDColumn} AND mel.exclude = 1
+			LEFT OUTER JOIN label_membership lm
+				ON lm.label_id = mel.label_id AND lm.host_id = h.id
+	WHERE
+		(h.platform = 'darwin' OR h.platform = 'ios' OR h.platform = 'ipados') AND
+		ne.enabled = 1 AND
+		ne.type = 'Device' AND
+		( %s )
+	GROUP BY
+		mae.${entityUUIDColumn}, h.uuid, h.platform, mae.identifier, mae.name, mae.checksum
+	HAVING
+		-- considers only the profiles with labels, without any broken label, and with the host not in any label
+		${countEntityLabelsColumn} > 0 AND ${countEntityLabelsColumn} = count_non_broken_labels AND count_host_labels = 0
+	`, func(s string) string { return dynamicNames[s] })
 }
 
 // generateEntitiesToInstallQuery is a set difference between:
@@ -1995,20 +2060,25 @@ func generateDesiredStateQuery(entityType string) string {
 // where one of the labels does not exist anymore, will not be considered for
 // installation.
 func generateEntitiesToInstallQuery(entityType string) string {
-	return fmt.Sprintf(`
-	( %[3]s ) as ds
-		LEFT JOIN host_mdm_apple_%[1]ss hmae
-			ON hmae.%[1]s_uuid = ds.%[1]s_uuid AND hmae.host_uuid = ds.host_uuid
+	dynamicNames := mdmEntityTypeToDynamicNames[entityType]
+	if dynamicNames == nil {
+		panic(fmt.Sprintf("unknown entity type %q", entityType))
+	}
+
+	return fmt.Sprintf(os.Expand(`
+	( %s ) as ds
+		LEFT JOIN ${hostMDMAppleEntityTable} hmae
+			ON hmae.${entityUUIDColumn} = ds.${entityUUIDColumn} AND hmae.host_uuid = ds.host_uuid
 	WHERE
 		-- entity has been updated
 		( hmae.checksum != ds.checksum ) OR
 		-- entity in A but not in B
-		( hmae.%[1]s_uuid IS NULL AND hmae.host_uuid IS NULL ) OR
+		( hmae.${entityUUIDColumn} IS NULL AND hmae.host_uuid IS NULL ) OR
 		-- entities in A and B but with operation type "remove"
 		( hmae.host_uuid IS NOT NULL AND ( hmae.operation_type = ? OR hmae.operation_type IS NULL ) ) OR
 		-- entities in A and B with operation type "install" and NULL status
 		( hmae.host_uuid IS NOT NULL AND hmae.operation_type = ? AND hmae.status IS NULL )
-`, entityType, mdmEntityTypeToTable[entityType], fmt.Sprintf(generateDesiredStateQuery(entityType), "TRUE", "TRUE"))
+`, func(s string) string { return dynamicNames[s] }), fmt.Sprintf(generateDesiredStateQuery(entityType), "TRUE", "TRUE", "TRUE"))
 }
 
 // generateEntitiesToRemoveQuery is a set difference between:
@@ -2038,24 +2108,30 @@ func generateEntitiesToInstallQuery(entityType string) string {
 // entity but no longer does (and that label-based entity is not "broken"),
 // the entity will be removed from the host.
 func generateEntitiesToRemoveQuery(entityType string) string {
-	return fmt.Sprintf(`
-	( %[3]s ) as ds
-		RIGHT JOIN host_mdm_apple_%[1]ss hmae
-			ON hmae.%[1]s_uuid = ds.%[1]s_uuid AND hmae.host_uuid = ds.host_uuid
+	dynamicNames := mdmEntityTypeToDynamicNames[entityType]
+	if dynamicNames == nil {
+		panic(fmt.Sprintf("unknown entity type %q", entityType))
+	}
+
+	return fmt.Sprintf(os.Expand(`
+	( %s ) as ds
+		RIGHT JOIN ${hostMDMAppleEntityTable} hmae
+			ON hmae.${entityUUIDColumn} = ds.${entityUUIDColumn} AND hmae.host_uuid = ds.host_uuid
 	WHERE
 		-- entities that are in B but not in A
-		ds.%[1]s_uuid IS NULL AND ds.host_uuid IS NULL AND
+		ds.${entityUUIDColumn} IS NULL AND ds.host_uuid IS NULL AND
 		-- except "remove" operations in a terminal state or already pending
 		( hmae.operation_type IS NULL OR hmae.operation_type != ? OR hmae.status IS NULL ) AND
 		-- except "would be removed" entities if they are a broken label-based entities
+		-- (regardless of if it is an include-all or exclude-any label)
 		NOT EXISTS (
 			SELECT 1
-			FROM mdm_%[2]s_labels mcpl
+			FROM ${mdmEntityLabelsTable} mcpl
 			WHERE
-				mcpl.apple_%[1]s_uuid = hmae.%[1]s_uuid AND
+				mcpl.${appleEntityUUIDColumn} = hmae.${entityUUIDColumn} AND
 				mcpl.label_id IS NULL
 		)
-`, entityType, mdmEntityTypeToTable[entityType], fmt.Sprintf(generateDesiredStateQuery(entityType), "TRUE", "TRUE"))
+`, func(s string) string { return dynamicNames[s] }), fmt.Sprintf(generateDesiredStateQuery(entityType), "TRUE", "TRUE", "TRUE"))
 }
 
 func (ds *Datastore) ListMDMAppleProfilesToInstall(ctx context.Context) ([]*fleet.MDMAppleProfilePayload, error) {

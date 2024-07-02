@@ -1263,6 +1263,8 @@ func configProfileBytesForTest(name, identifier, uuid string) []byte {
 `, name, identifier, uuid))
 }
 
+// if the label name starts with "exclude-", the label is considered an "exclude-any", otherwise
+// it is an "include-all".
 func configProfileForTest(t *testing.T, name, identifier, uuid string, labels ...*fleet.Label) *fleet.MDMAppleConfigProfile {
 	prof := configProfileBytesForTest(name, identifier, uuid)
 	cp, err := fleet.NewMDMAppleConfigProfile(prof, nil)
@@ -1271,12 +1273,18 @@ func configProfileForTest(t *testing.T, name, identifier, uuid string, labels ..
 	cp.Checksum = sum[:]
 
 	for _, lbl := range labels {
-		cp.LabelsIncludeAll = append(cp.LabelsIncludeAll, fleet.ConfigurationProfileLabel{LabelName: lbl.Name, LabelID: lbl.ID})
+		if strings.HasPrefix(lbl.Name, "exclude-") {
+			cp.LabelsExcludeAny = append(cp.LabelsExcludeAny, fleet.ConfigurationProfileLabel{LabelName: lbl.Name, LabelID: lbl.ID})
+		} else {
+			cp.LabelsIncludeAll = append(cp.LabelsIncludeAll, fleet.ConfigurationProfileLabel{LabelName: lbl.Name, LabelID: lbl.ID})
+		}
 	}
 
 	return cp
 }
 
+// if the label name starts with "exclude-", the label is considered an "exclude-any", otherwise
+// it is an "include-all".
 func declForTest(name, identifier, payloadContent string, labels ...*fleet.Label) *fleet.MDMAppleDeclaration {
 	tmpl := `{
 		"Type": "com.apple.configuration.decl%s",
@@ -1295,7 +1303,11 @@ func declForTest(name, identifier, payloadContent string, labels ...*fleet.Label
 	}
 
 	for _, l := range labels {
-		decl.LabelsIncludeAll = append(decl.LabelsIncludeAll, fleet.ConfigurationProfileLabel{LabelName: l.Name, LabelID: l.ID})
+		if strings.HasPrefix(l.Name, "exclude-") {
+			decl.LabelsExcludeAny = append(decl.LabelsExcludeAny, fleet.ConfigurationProfileLabel{LabelName: l.Name, LabelID: l.ID})
+		} else {
+			decl.LabelsIncludeAll = append(decl.LabelsIncludeAll, fleet.ConfigurationProfileLabel{LabelName: l.Name, LabelID: l.ID})
+		}
 	}
 
 	return decl
