@@ -618,7 +618,10 @@ func (ds *Datastore) insertNewInstalledHostSoftwareDB(
 				SET
 					s.title_id = st.id
 				WHERE
-					(s.name, s.source, s.browser) = (st.name, st.source, st.browser)
+				         s.bundle_identifier = st.bundle_identifier OR (
+					   s.bundle_identifier = '' AND
+					   (s.name, s.source, s.browser) = (st.name, st.source, st.browser)
+					 )
 					AND s.checksum IN (?)`
 				updateSoftwareStmt, updateArgs, err := sqlx.In(updateSoftwareStmt, titleChecksums)
 				if err != nil {

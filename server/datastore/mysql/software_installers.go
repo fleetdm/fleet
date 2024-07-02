@@ -172,17 +172,20 @@ func (ds *Datastore) getOrGenerateSoftwareInstallerTitleID(ctx context.Context, 
 }
 
 func (ds *Datastore) addSoftwareTitleToMatchingSoftware(ctx context.Context, titleID uint, payload *fleet.UploadSoftwareInstallerPayload) error {
-	whereClause := "WHERE (s.name, s.platform, s.browser) = (?, ?, '')"
-	args := []any{titleID, payload.Title, payload.Platform}
+	whereClause := "WHERE (s.name, s.source, s.browser) = (?, ?, '')"
+	whereArgs := []any{payload.Title, payload.Source}
 	if payload.BundleIdentifier != "" {
 		whereClause = "WHERE s.bundle_identifier = ?"
-		args = []any{titleID, payload.BundleIdentifier}
+		whereArgs = []any{payload.BundleIdentifier}
 	}
 
+	args := make([]any, 0, len(whereArgs))
+	args = append(args, titleID)
+	args = append(args, whereArgs...)
 	updateSoftwareStmt := fmt.Sprintf(`
 		    UPDATE software s
 		    SET s.title_id = ?
-		    WHERE %s`, whereClause)
+		    %s`, whereClause)
 	_, err := ds.writer(ctx).ExecContext(ctx, updateSoftwareStmt, args...)
 	return ctxerr.Wrap(ctx, err, "adding fk reference in software to software_titles")
 }
