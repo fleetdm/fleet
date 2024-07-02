@@ -666,13 +666,13 @@ func checkNextPayloads(t *testing.T, mdmDevice *mdmtest.TestAppleMDMClient, forc
 	require.NoError(t, err)
 	for cmd != nil {
 		var fullCmd micromdm.CommandPayload
-		require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
 		switch cmd.Command.RequestType {
 		case "InstallProfile":
+			require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
 			installs = append(installs, fullCmd.Command.InstallProfile.Payload)
 		case "RemoveProfile":
+			require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
 			removes = append(removes, fullCmd.Command.RemoveProfile.Identifier)
-
 		}
 
 		if forceDeviceErr {
