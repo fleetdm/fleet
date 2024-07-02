@@ -8699,9 +8699,9 @@ func (s *integrationEnterpriseTestSuite) TestCalendarEvents() {
 	calendar.SetMockEventsToNow()
 
 	mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
-		// Update updated_at so the event gets updated (the event is updated every 30 minutes)
+		// Update updated_at so the event gets updated (the event is updated regularly)
 		_, err := db.ExecContext(ctx,
-			`UPDATE calendar_events SET updated_at = DATE_SUB(CURRENT_TIMESTAMP, INTERVAL 1 HOUR) WHERE id = ?`, team1CalendarEvents[0].ID)
+			`UPDATE calendar_events SET updated_at = DATE_SUB(CURRENT_TIMESTAMP, INTERVAL 25 HOUR) WHERE id = ?`, team1CalendarEvents[0].ID)
 		if err != nil {
 			return err
 		}
@@ -10721,7 +10721,7 @@ func (s *integrationEnterpriseTestSuite) TestCalendarCallback() {
 		},
 	}, "google_chrome_profiles")
 	require.NoError(t, err)
-	assert.Equal(t, calendar.MockChannelsCount(), 0)
+	assert.Equal(t, 0, calendar.MockChannelsCount())
 
 	// Trigger the calendar cron, global feature enabled, team1 enabled
 	// and host1Team1 has a domain email associated.
@@ -10737,7 +10737,7 @@ func (s *integrationEnterpriseTestSuite) TestCalendarCallback() {
 	require.NotZero(t, event.StartTime)
 	require.NotZero(t, event.EndTime)
 	require.NotEmpty(t, event.UUID)
-	assert.Equal(t, calendar.MockChannelsCount(), 1)
+	assert.Equal(t, 1, calendar.MockChannelsCount())
 
 	// Get channel ID
 	type eventDetails struct {
@@ -10786,7 +10786,7 @@ func (s *integrationEnterpriseTestSuite) TestCalendarCallback() {
 	assert.NotEqual(t, event.UUID, eventRecreated.UUID)
 	assert.NotEqual(t, event.StartTime, eventRecreated.StartTime)
 	assert.NotEqual(t, event.EndTime, eventRecreated.EndTime)
-	assert.Equal(t, calendar.MockChannelsCount(), 1)
+	assert.Equal(t, 1, calendar.MockChannelsCount())
 
 	// The previous event UUID should not work anymore
 	_ = s.DoRawWithHeaders("POST", "/api/v1/fleet/calendar/webhook/"+event.UUID, []byte(""), http.StatusNotFound, map[string]string{
@@ -10831,7 +10831,7 @@ func (s *integrationEnterpriseTestSuite) TestCalendarCallback() {
 	assert.Equal(t, eventRecreated.UUID, eventUpdated.UUID)
 	assert.Greater(t, eventUpdated.StartTime, eventRecreated.StartTime)
 	assert.Equal(t, eventRecreated.EndTime, eventUpdated.EndTime)
-	assert.Equal(t, calendar.MockChannelsCount(), 1)
+	assert.Equal(t, 1, calendar.MockChannelsCount())
 
 	// Delete the event on the calendar
 	calendar.ClearMockEvents()
@@ -10852,7 +10852,7 @@ func (s *integrationEnterpriseTestSuite) TestCalendarCallback() {
 			"X-Goog-Channel-Id":     details.ChannelID,
 			"X-Goog-Resource-State": "exists",
 		})
-	assert.Equal(t, 1, calendar.MockChannelsCount(), 0)
+	assert.Equal(t, 0, calendar.MockChannelsCount())
 
 	team1CalendarEvents, err = s.ds.ListCalendarEvents(ctx, &team1.ID)
 	require.NoError(t, err)
@@ -10861,7 +10861,7 @@ func (s *integrationEnterpriseTestSuite) TestCalendarCallback() {
 
 	// Trigger calendar should cleanup the events
 	triggerAndWait(ctx, t, s.ds, s.calendarSchedule, 5*time.Second)
-	assert.Equal(t, calendar.MockChannelsCount(), 0)
+	assert.Equal(t, 0, calendar.MockChannelsCount())
 
 	// Event should be cleaned up from our database.
 	team1CalendarEvents, err = s.ds.ListCalendarEvents(ctx, &team1.ID)

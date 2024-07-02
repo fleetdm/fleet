@@ -3,7 +3,6 @@ package calendar
 import (
 	"context"
 	"errors"
-	"fmt"
 	"github.com/google/uuid"
 	"net/http"
 	"os"
@@ -114,7 +113,7 @@ func (lowLevelAPI *GoogleCalendarMockAPI) Stop(channelID string, resourceID stri
 			return nil
 		}
 	}
-	return fmt.Errorf("channel not found")
+	return errors.New("channel not found")
 }
 
 func ListGoogleMockEvents() map[string]*calendar.Event {

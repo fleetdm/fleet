@@ -12,12 +12,12 @@ func init() {
 func Up_20240701134035(tx *sql.Tx) error {
 	// UUID is a 36-character string with the most common 8-4-4-4-12 format, xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
 	// Reference: https://en.wikipedia.org/wiki/Universally_unique_identifier#Textual_representation
-	if _, err := tx.Exec(`ALTER TABLE calendar_events ADD COLUMN uuid VARCHAR(36) NOT NULL`); err != nil {
+	if _, err := tx.Exec(`ALTER TABLE calendar_events ADD COLUMN uuid VARCHAR(36) COLLATE utf8mb4_unicode_ci NOT NULL`); err != nil {
 		return fmt.Errorf("failed to add `uuid` column to `calendar_events` table: %w", err)
 	}
 
-	// Generate UUIDs for existing calendar events
-	if _, err := tx.Exec(`UPDATE calendar_events SET uuid = UUID()`); err != nil {
+	// Generate UUIDs for existing calendar events, without changing the updated_at timestamp
+	if _, err := tx.Exec(`UPDATE calendar_events SET uuid = UUID(), updated_at = updated_at`); err != nil {
 		return fmt.Errorf("failed to generate UUIDs for existing calendar events: %w", err)
 	}
 
