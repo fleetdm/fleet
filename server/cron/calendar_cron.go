@@ -2,6 +2,7 @@ package cron
 
 import (
 	"context"
+	"crypto/sha256"
 	"errors"
 	"fmt"
 	"slices"
@@ -21,14 +22,21 @@ import (
 )
 
 const (
-	calendarConsumers  = 18
-	defaultDescription = "needs to make sure your device meets the organization's requirements."
-	defaultResolution  = "During this maintenance window, you can expect updates to be applied automatically. Your device may be unavailable during this time."
+	CalendarEventConflictText = " because there was no remaining availability"
+	calendarConsumers         = 18
+	defaultDescription        = "needs to make sure your device meets the organization's requirements."
+	defaultResolution         = "During this maintenance window, you can expect updates to be applied automatically. Your device may be unavailable during this time."
+	defaultEventBodyTag       = "default"
 )
 
 type calendarConfig struct {
 	config.CalendarConfig
 	fleet.GoogleCalendarIntegration
+}
+
+type policyLiteWithMeta struct {
+	fleet.PolicyLite
+	eventBodyTag string
 }
 
 func NewCalendarSchedule(
@@ -332,13 +340,25 @@ func processFailingHostExistingCalendarEvent(
 	updated := false
 	now := time.Now()
 
+	// Function to generate calendar description.
+	genBodyFn := func(conflict bool) (string, string) {
+		return generateCalendarEventBody(ctx, ds, orgName, host, policyIDtoPolicy, conflict, logger)
+	}
+
+	// Check if event body needs to be updated.
+	updatedBodyTag := getBodyTag(ctx, ds, host, policyIDtoPolicy, logger)
+
+	if calendarEvent.BodyTag != updatedBodyTag && updatedBodyTag != "" {
+		err := calendar.UpdateEventBody(calendarEvent, genBodyFn)
+		if err != nil {
+			return fmt.Errorf("update event body: %w", err)
+		}
+		updated = true
+	}
+
 	if calendarConfig.AlwaysReloadEvent() || shouldReloadCalendarEvent(now, calendarEvent, hostCalendarEvent) {
 		var err error
-		updatedEvent, _, err = calendar.GetAndUpdateEvent(
-			calendarEvent, func(conflict bool) string {
-				return generateCalendarEventBody(ctx, ds, orgName, host, policyIDtoPolicy, conflict, logger)
-			},
-		)
+		updatedEvent, _, err = calendar.GetAndUpdateEvent(calendarEvent, genBodyFn)
 		if err != nil {
 			return fmt.Errorf("get event calendar on db: %w", err)
 		}
@@ -396,6 +416,50 @@ func processFailingHostExistingCalendarEvent(
 		return fmt.Errorf("refetch host: %w", err)
 	}
 	return nil
+}
+
+func getBodyTag(ctx context.Context, ds fleet.Datastore, host fleet.HostPolicyMembershipData, policyIDtoPolicy *sync.Map,
+	logger kitlog.Logger) string {
+	var updatedBodyTag string
+	policyIDs := strings.Split(host.FailingPolicyIDs, ",")
+	if len(policyIDs) == 1 && policyIDs[0] != "" {
+		var policy *policyLiteWithMeta
+		policyAny, ok := policyIDtoPolicy.Load(policyIDs[0])
+		if !ok {
+			id, err := strconv.ParseUint(policyIDs[0], 10, 64)
+			if err != nil {
+				level.Error(logger).Log("msg", "parse policy id", "err", err)
+				// Do nothing
+				return ""
+			}
+			policyLite, err := ds.PolicyLite(ctx, uint(id))
+			if err != nil {
+				level.Error(logger).Log("msg", "get policy", "err", err)
+				// Do nothing
+				return ""
+			}
+			policy = new(policyLiteWithMeta)
+			policy.PolicyLite = *policyLite
+			policyIDtoPolicy.Store(policyIDs[0], policy)
+		} else {
+			policy = policyAny.(*policyLiteWithMeta)
+		}
+		if policy.eventBodyTag != "" {
+			updatedBodyTag = policy.eventBodyTag
+			return updatedBodyTag
+		}
+		// If body tag wasn't cached, we calculate it.
+		policyDescription := strings.TrimSpace(policy.Description)
+		if policyDescription == "" || policy.Resolution == nil || strings.TrimSpace(*policy.Resolution) == "" {
+			updatedBodyTag = defaultEventBodyTag
+		} else {
+			// Calculate a unique signature for the event body, which we will use to check if the event body has changed.
+			updatedBodyTag = fmt.Sprintf("%x", sha256.Sum256([]byte(policy.Description+*policy.Resolution)))
+		}
+	} else {
+		updatedBodyTag = defaultEventBodyTag
+	}
+	return updatedBodyTag
 }
 
 func shouldReloadCalendarEvent(now time.Time, calendarEvent *fleet.CalendarEvent, hostCalendarEvent *fleet.HostCalendarEvent) bool {
@@ -456,7 +520,7 @@ func attemptCreatingEventOnUserCalendar(
 	preferredDate := getPreferredCalendarEventDate(year, month, today)
 	for {
 		calendarEvent, err := userCalendar.CreateEvent(
-			preferredDate, func(conflict bool) string {
+			preferredDate, func(conflict bool) (string, string) {
 				return generateCalendarEventBody(ctx, ds, orgName, host, policyIDtoPolicy, conflict, logger)
 			},
 		)
@@ -585,12 +649,12 @@ func logHostsWithoutAssociatedEmail(
 func generateCalendarEventBody(
 	ctx context.Context, ds fleet.Datastore, orgName string, host fleet.HostPolicyMembershipData, policyIDtoPolicy *sync.Map, conflict bool,
 	logger kitlog.Logger,
-) string {
-	description, resolution := getCalendarEventDescriptionAndResolution(ctx, ds, orgName, host, policyIDtoPolicy, logger)
+) (body string, bodyTag string) {
+	description, resolution, eventBodyTag := getCalendarEventDescriptionAndResolution(ctx, ds, orgName, host, policyIDtoPolicy, logger)
 
 	conflictStr := ""
 	if conflict {
-		conflictStr = " because there was no remaining availability"
+		conflictStr = CalendarEventConflictText
 	}
 	return fmt.Sprintf(
 		`%s reserved this time to make some changes to your work computer%s.
@@ -604,50 +668,59 @@ Please leave your device on and connected to power.
 %s
 `,
 		orgName, conflictStr, description, resolution,
-	)
+	), eventBodyTag
 }
 
 func getCalendarEventDescriptionAndResolution(
 	ctx context.Context, ds fleet.Datastore, orgName string, host fleet.HostPolicyMembershipData, policyIDtoPolicy *sync.Map,
 	logger kitlog.Logger,
-) (string, string) {
+) (description string, resolution string, eventBodyTag string) {
 	getDefaultDescription := func() string {
 		return fmt.Sprintf(`%s %s`, orgName, defaultDescription)
 	}
 
-	var description, resolution string
 	policyIDs := strings.Split(host.FailingPolicyIDs, ",")
 	if len(policyIDs) == 1 && policyIDs[0] != "" {
-		var policy *fleet.PolicyLite
+		var policy *policyLiteWithMeta
 		policyAny, ok := policyIDtoPolicy.Load(policyIDs[0])
 		if !ok {
 			id, err := strconv.ParseUint(policyIDs[0], 10, 64)
 			if err != nil {
 				level.Error(logger).Log("msg", "parse policy id", "err", err)
-				return getDefaultDescription(), defaultResolution
+				return getDefaultDescription(), defaultResolution, defaultEventBodyTag
 			}
-			policy, err = ds.PolicyLite(ctx, uint(id))
+			policyLite, err := ds.PolicyLite(ctx, uint(id))
 			if err != nil {
 				level.Error(logger).Log("msg", "get policy", "err", err)
-				return getDefaultDescription(), defaultResolution
+				return getDefaultDescription(), defaultResolution, defaultEventBodyTag
 			}
+			policy = new(policyLiteWithMeta)
+			policy.PolicyLite = *policyLite
 			policyIDtoPolicy.Store(policyIDs[0], policy)
 		} else {
-			policy = policyAny.(*fleet.PolicyLite)
+			policy = policyAny.(*policyLiteWithMeta)
 		}
 		policyDescription := strings.TrimSpace(policy.Description)
 		if policyDescription == "" || policy.Resolution == nil || strings.TrimSpace(*policy.Resolution) == "" {
 			description = getDefaultDescription()
 			resolution = defaultResolution
+			eventBodyTag = defaultEventBodyTag
+			policy.Description = eventBodyTag
 		} else {
 			description = policyDescription
 			resolution = strings.TrimSpace(*policy.Resolution)
+			if policy.eventBodyTag == "" {
+				// Calculate a unique signature for the event body, which we will use to check if the event body has changed.
+				policy.eventBodyTag = fmt.Sprintf("%x", sha256.Sum256([]byte(policy.Description+*policy.Resolution)))
+			}
+			eventBodyTag = policy.eventBodyTag
 		}
 	} else {
 		description = getDefaultDescription()
 		resolution = defaultResolution
+		eventBodyTag = defaultEventBodyTag
 	}
-	return description, resolution
+	return description, resolution, eventBodyTag
 }
 
 func isHostOnline(ctx context.Context, ds fleet.Datastore, hostID uint) (bool, error) {

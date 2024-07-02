@@ -13,6 +13,7 @@ import (
 
 	"github.com/cenkalti/backoff/v4"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/cron"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
@@ -86,6 +87,7 @@ type GoogleCalendarAPI interface {
 	GetSetting(name string) (*calendar.Setting, error)
 	ListEvents(timeMin, timeMax string) (*calendar.Events, error)
 	CreateEvent(event *calendar.Event) (*calendar.Event, error)
+	UpdateEvent(event *calendar.Event) (*calendar.Event, error)
 	GetEvent(id, eTag string) (*calendar.Event, error)
 	DeleteEvent(id string) error
 }
@@ -141,6 +143,15 @@ func (lowLevelAPI *GoogleCalendarLowLevelAPI) CreateEvent(event *calendar.Event)
 	result, err := lowLevelAPI.withRetry(
 		func() (any, error) {
 			return lowLevelAPI.service.Events.Insert(calendarID, event).Do()
+		},
+	)
+	return result.(*calendar.Event), err
+}
+
+func (lowLevelAPI *GoogleCalendarLowLevelAPI) UpdateEvent(event *calendar.Event) (*calendar.Event, error) {
+	result, err := lowLevelAPI.withRetry(
+		func() (any, error) {
+			return lowLevelAPI.service.Events.Update(calendarID, event.Id, event).Do()
 		},
 	)
 	return result.(*calendar.Event), err
@@ -218,7 +229,27 @@ func (c *GoogleCalendar) Configure(userEmail string) error {
 	return nil
 }
 
-func (c *GoogleCalendar) GetAndUpdateEvent(event *fleet.CalendarEvent, genBodyFn func(conflict bool) string) (
+func (c *GoogleCalendar) UpdateEventBody(event *fleet.CalendarEvent, genBodyFn func(conflict bool) (string, string)) error {
+	details, err := c.unmarshalDetails(event)
+	if err != nil {
+		return err
+	}
+	gEvent, err := c.config.API.GetEvent(details.ID, "")
+	if err != nil {
+		return ctxerr.Wrap(c.config.Context, err, "retrieving Google calendar event")
+	}
+
+	// Check if the current description contains the conflict text
+	conflict := strings.Contains(gEvent.Description, cron.CalendarEventConflictText)
+	gEvent.Description, event.BodyTag = genBodyFn(conflict)
+	_, err = c.config.API.UpdateEvent(gEvent)
+	if err != nil {
+		return ctxerr.Wrap(c.config.Context, err, "updating Google calendar event")
+	}
+	return nil
+}
+
+func (c *GoogleCalendar) GetAndUpdateEvent(event *fleet.CalendarEvent, genBodyFn func(conflict bool) (string, string)) (
 	*fleet.CalendarEvent, bool, error,
 ) {
 	// We assume that the Fleet event has not already ended. We will simply return it if it has not been modified.
@@ -294,7 +325,7 @@ func (c *GoogleCalendar) GetAndUpdateEvent(event *fleet.CalendarEvent, genBodyFn
 			if err != nil {
 				return nil, false, err
 			}
-			fleetEvent, err := c.googleEventToFleetEvent(*startTime, *endTime, gEvent)
+			fleetEvent, err := c.googleEventToFleetEvent(*startTime, *endTime, gEvent, event.BodyTag)
 			if err != nil {
 				return nil, false, err
 			}
@@ -381,14 +412,14 @@ func (c *GoogleCalendar) unmarshalDetails(event *fleet.CalendarEvent) (*eventDet
 	return &details, nil
 }
 
-func (c *GoogleCalendar) CreateEvent(dayOfEvent time.Time, genBodyFn func(conflict bool) string) (*fleet.CalendarEvent, error) {
+func (c *GoogleCalendar) CreateEvent(dayOfEvent time.Time, genBodyFn func(conflict bool) (string, string)) (*fleet.CalendarEvent, error) {
 	return c.createEvent(dayOfEvent, genBodyFn, time.Now)
 }
 
 // createEvent creates a new event on the calendar on the given date. timeNow is a function that returns the current time.
 // timeNow can be overwritten for testing
 func (c *GoogleCalendar) createEvent(
-	dayOfEvent time.Time, genBodyFn func(conflict bool) string, timeNow func() time.Time,
+	dayOfEvent time.Time, genBodyFn func(conflict bool) (string, string), timeNow func() time.Time,
 ) (*fleet.CalendarEvent, error) {
 	var err error
 	if c.location == nil {
@@ -482,14 +513,15 @@ func (c *GoogleCalendar) createEvent(
 	event.Start = &calendar.EventDateTime{DateTime: eventStart.Format(time.RFC3339)}
 	event.End = &calendar.EventDateTime{DateTime: eventEnd.Format(time.RFC3339)}
 	event.Summary = eventTitle
-	event.Description = genBodyFn(conflict)
+	body, bodyTag := genBodyFn(conflict)
+	event.Description = body
 	event, err = c.config.API.CreateEvent(event)
 	if err != nil {
 		return nil, ctxerr.Wrap(c.config.Context, err, "creating Google calendar event")
 	}
 
 	// Convert Google event to Fleet event
-	fleetEvent, err := c.googleEventToFleetEvent(eventStart, eventEnd, event)
+	fleetEvent, err := c.googleEventToFleetEvent(eventStart, eventEnd, event, bodyTag)
 	if err != nil {
 		return nil, err
 	}
@@ -539,7 +571,7 @@ func getLocation(tz string, config *GoogleCalendarConfig) *time.Location {
 	return loc
 }
 
-func (c *GoogleCalendar) googleEventToFleetEvent(startTime time.Time, endTime time.Time, event *calendar.Event) (
+func (c *GoogleCalendar) googleEventToFleetEvent(startTime time.Time, endTime time.Time, event *calendar.Event, bodyTag string) (
 	*fleet.CalendarEvent, error,
 ) {
 	fleetEvent := &fleet.CalendarEvent{}
@@ -547,6 +579,7 @@ func (c *GoogleCalendar) googleEventToFleetEvent(startTime time.Time, endTime ti
 	fleetEvent.EndTime = endTime
 	fleetEvent.Email = c.currentUserEmail
 	fleetEvent.TimeZone = c.location.String()
+	fleetEvent.BodyTag = bodyTag
 	details := &eventDetails{
 		ID:   event.Id,
 		ETag: event.Etag,

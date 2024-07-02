@@ -9,6 +9,8 @@ type CalendarEvent struct {
 	EndTime   time.Time `db:"end_time"`
 	Data      []byte    `db:"event"`
 	TimeZone  string    `db:"timezone"`
+	// An identifier for the content of the event body. This is used to determine if the body needs to be updated.
+	BodyTag string `db:"body_tag"`
 
 	UpdateCreateTimestamps
 }
