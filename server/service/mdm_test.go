@@ -153,6 +153,15 @@ func TestMDMAppleAuthorization(t *testing.T) {
 
 		err = svc.DeleteMDMAppleAPNSCert(ctx) // Don't expect anything other than an authz error here, since this is pretty much just a DB wrapper.
 		checkAuthErr(t, shouldFailWithAuth, err)
+
+		err = svc.UploadMDMAppleVPPToken(ctx, nil)
+		checkAuthErr(t, shouldFailWithAuth, err)
+
+		_, err = svc.GetMDMAppleVPPToken(ctx)
+		checkAuthErr(t, shouldFailWithAuth, err)
+
+		err = svc.DeleteMDMAppleVPPToken(ctx)
+		checkAuthErr(t, shouldFailWithAuth, err)
 	}
 
 	// Only global admins can access the endpoints.
