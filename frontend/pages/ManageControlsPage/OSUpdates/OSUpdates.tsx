@@ -40,11 +40,10 @@ const getSelectedPlatform = (
 };
 
 interface IOSUpdates {
-  router: InjectedRouter;
   teamIdForApi: number;
 }
 
-const OSUpdates = ({ router, teamIdForApi }: IOSUpdates) => {
+const OSUpdates = ({ teamIdForApi }: IOSUpdates) => {
   const { isPremiumTier, config, setConfig } = useContext(AppContext);
 
   const [
