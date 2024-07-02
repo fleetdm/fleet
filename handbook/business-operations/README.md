@@ -389,7 +389,7 @@ Fleet pays its vendors in less than 15 business days in most cases. All invoices
 - If we have not paid this vendor before, make sure we have received the required W-9 or W-8 form from the vendor. **Accounting cannot process a payment without these tax forms for compliance reasons.**
   - For US-based vendors, vendors are required to provide a completed [W-9 Form ](https://www.irs.gov/pub/irs-pdf/fw9.pdf) to [accounting@fleetdm.com](mailto:accounting@fleetdm.com)
   - **Non-US based vendors** are required to follow these [instructions](https://www.irs.gov/instructions/iw8bene) and provide a completed [W-8BEN-E](https://www.irs.gov/pub/irs-pdf/fw8bene.pdf) form.
-  - For non-US individuals, a completed W-8BEN should be provided. Here is the [instruction.](https://www.irs.gov/instructions/iw8ben)
+  - Non-US individuals are required to follow these [instructions](https://www.irs.gov/instructions/iw8bene) and provide a completed [W-8BEN-E](https://www.irs.gov/pub/irs-pdf/fw8bene.pdf) form.
 
 
 
