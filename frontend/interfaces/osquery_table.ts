@@ -1,5 +1,5 @@
 import PropTypes from "prop-types";
-import { OsqueryPlatform } from "./platform";
+import { SupportedPlatform, OsqueryPlatform } from "./platform";
 
 export default PropTypes.shape({
   columns: PropTypes.arrayOf(
@@ -23,6 +23,8 @@ export type ColumnType =
   | "STRING"
   | "string"; // TODO: Why do we have type string, STRING, and text in schema.json?
 
+// TODO: Replace with one or the other once osquery_fleet_schema.json follows one type or other
+export type TableSchemaPlatforms = OsqueryPlatform | SupportedPlatform;
 export interface IQueryTableColumn {
   name: string;
   description: string;
@@ -30,7 +32,7 @@ export interface IQueryTableColumn {
   hidden: boolean;
   required: boolean;
   index: boolean;
-  platforms?: OsqueryPlatform[];
+  platforms?: TableSchemaPlatforms[];
   requires_user_context?: boolean;
 }
 
@@ -38,7 +40,7 @@ export interface IOsQueryTable {
   name: string;
   description: string;
   url: string;
-  platforms: OsqueryPlatform[];
+  platforms: TableSchemaPlatforms[];
   evented: boolean;
   cacheable: boolean;
   columns: IQueryTableColumn[];

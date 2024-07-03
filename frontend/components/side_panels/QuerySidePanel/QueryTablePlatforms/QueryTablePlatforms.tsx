@@ -3,6 +3,7 @@ import React from "react";
 import { OsqueryPlatform } from "interfaces/platform";
 import { PLATFORM_DISPLAY_NAMES } from "utilities/constants";
 import Icon from "components/Icon";
+import { TableSchemaPlatforms } from "interfaces/osquery_table";
 
 interface IPLatformListItemProps {
   platform: OsqueryPlatform;
@@ -20,7 +21,7 @@ const PlatformListItem = ({ platform }: IPLatformListItemProps) => {
 };
 
 // TODO: remove when freebsd is removed
-type IPlatformsWithFreebsd = OsqueryPlatform | "freebsd";
+type IPlatformsWithFreebsd = TableSchemaPlatforms | "freebsd";
 
 interface IQueryTablePlatformsProps {
   platforms: IPlatformsWithFreebsd[];

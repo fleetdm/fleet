@@ -1,10 +1,13 @@
 import React from "react";
 import classnames from "classnames";
 
-import { ColumnType, IQueryTableColumn } from "interfaces/osquery_table";
+import {
+  ColumnType,
+  IQueryTableColumn,
+  TableSchemaPlatforms,
+} from "interfaces/osquery_table";
 import TooltipWrapper from "components/TooltipWrapper";
 import { buildQueryStringFromParams } from "utilities/url";
-import { OsqueryPlatform } from "interfaces/platform";
 
 interface IColumnListItemProps {
   column: IQueryTableColumn;
@@ -55,7 +58,7 @@ const renderTooltip = (
     );
   };
 
-  const renderPlatformFootnotes = (columnPlatforms: OsqueryPlatform[]) => {
+  const renderPlatformFootnotes = (columnPlatforms: TableSchemaPlatforms[]) => {
     let platformsCopy;
     switch (columnPlatforms.length) {
       case 1:

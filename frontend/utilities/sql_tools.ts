@@ -3,11 +3,11 @@ import sqliteParser from "sqlite-parser";
 import { intersection, isPlainObject } from "lodash";
 import { osqueryTablesAvailable } from "utilities/osquery_tables";
 import {
-  OsqueryPlatform,
   MACADMINS_EXTENSION_TABLES,
   SUPPORTED_PLATFORMS,
   SupportedPlatform,
 } from "interfaces/platform";
+import { TableSchemaPlatforms } from "interfaces/osquery_table";
 
 type IAstNode = Record<string | number | symbol, unknown>;
 
@@ -15,10 +15,10 @@ type IAstNode = Record<string | number | symbol, unknown>;
 // TODO: Is it ever possible that osquery_tables.json would be missing name or platforms?
 interface IOsqueryTable {
   name: string;
-  platforms: OsqueryPlatform[];
+  platforms: TableSchemaPlatforms[];
 }
 
-type IPlatformDictionary = Record<string, OsqueryPlatform[]>;
+type IPlatformDictionary = Record<string, TableSchemaPlatforms[]>;
 
 const platformsByTableDictionary: IPlatformDictionary = (osqueryTablesAvailable as IOsqueryTable[]).reduce(
   (dictionary: IPlatformDictionary, osqueryTable) => {

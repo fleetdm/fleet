@@ -1,6 +1,5 @@
 import URL_PREFIX from "router/url_prefix";
 import { DisplayPlatform } from "interfaces/platform";
-import paths from "router/paths";
 import { ISchedulableQuery } from "interfaces/schedulable_query";
 import React from "react";
 import { IDropdownOption } from "interfaces/dropdownOption";
@@ -282,7 +281,7 @@ export const hasPlatformTypeIcon = (
   return !!PLATFORM_TYPE_ICONS[s as keyof typeof PLATFORM_TYPE_ICONS];
 };
 
-type PlatformLabelOptions =
+export type PlatformLabelOptions =
   | "All"
   | "Windows"
   | "Linux"
@@ -290,7 +289,8 @@ type PlatformLabelOptions =
   | "ChromeOS"
   | "iOS"
   | "iPadOS";
-type PlatformValueOptions =
+
+export type PlatformValueOptions =
   | "all"
   | "windows"
   | "linux"
@@ -299,22 +299,6 @@ type PlatformValueOptions =
   | "ios"
   | "ipados"
   | "";
-interface IPlatformDropdownOptions {
-  label: PlatformLabelOptions;
-  value: PlatformValueOptions;
-  path: string;
-}
-
-/** Select platform on dashboard */
-export const PLATFORM_DROPDOWN_OPTIONS: IPlatformDropdownOptions[] = [
-  { label: "All", value: "all", path: paths.DASHBOARD },
-  { label: "macOS", value: "darwin", path: paths.DASHBOARD_MAC },
-  { label: "Windows", value: "windows", path: paths.DASHBOARD_WINDOWS },
-  { label: "Linux", value: "linux", path: paths.DASHBOARD_LINUX },
-  { label: "ChromeOS", value: "chrome", path: paths.DASHBOARD_CHROME },
-  { label: "iOS", value: "ios", path: paths.DASHBOARD_IOS },
-  { label: "iPadOS", value: "ipados", path: paths.DASHBOARD_IPADOS },
-];
 
 /** Scheduled queries do not support ChromeOS, iOS, or iPadOS */
 interface ISchedulePlatformDropdownOptions {
@@ -328,16 +312,6 @@ export const SCHEDULE_PLATFORM_DROPDOWN_OPTIONS: ISchedulePlatformDropdownOption
   { label: "Windows", value: "windows" },
   { label: "Linux", value: "linux" },
 ];
-
-/** Selected platform on dashboard mapped to built in label name */
-export const PLATFORM_NAME_TO_LABEL_NAME = {
-  darwin: "macOS",
-  windows: "MS Windows",
-  linux: "All Linux",
-  chrome: "chrome",
-  ios: "iOS",
-  ipados: "iPadOS",
-};
 
 export const HOSTS_SEARCH_BOX_PLACEHOLDER =
   "Search name, hostname, UUID, serial number, or private IP address";

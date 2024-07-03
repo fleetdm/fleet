@@ -48,11 +48,7 @@ import configAPI from "services/entities/config";
 import hosts from "services/entities/hosts";
 
 import sortUtils from "utilities/sort";
-import {
-  DEFAULT_USE_QUERY_OPTIONS,
-  PLATFORM_DROPDOWN_OPTIONS,
-  PLATFORM_NAME_TO_LABEL_NAME,
-} from "utilities/constants";
+import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 
 import { ITableQueryData } from "components/TableContainer/TableContainer";
 
@@ -64,6 +60,10 @@ import Dropdown from "components/forms/fields/Dropdown";
 import MainContent from "components/MainContent";
 import LastUpdatedText from "components/LastUpdatedText";
 
+import {
+  PLATFORM_DROPDOWN_OPTIONS,
+  PLATFORM_NAME_TO_LABEL_NAME,
+} from "./helpers";
 import useInfoCard from "./components/InfoCard";
 import MissingHosts from "./cards/MissingHosts";
 import LowDiskSpaceHosts from "./cards/LowDiskSpaceHosts";

@@ -1,7 +1,7 @@
 import React from "react";
 import PATHS from "router/paths";
 
-import { PLATFORM_NAME_TO_LABEL_NAME } from "utilities/constants";
+import { PLATFORM_NAME_TO_LABEL_NAME } from "pages/DashboardPage/helpers";
 import DataError from "components/DataError";
 import { DashboardPlatform } from "interfaces/platform";
 import { IHostSummary } from "interfaces/host_summary";
