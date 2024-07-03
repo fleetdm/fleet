@@ -33,7 +33,7 @@ CREATE TABLE host_vpp_software_installs (
 	associated_event_id VARCHAR(36),
 
 	created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-	updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+	updated_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 )`)
 	if err != nil {
 		return fmt.Errorf("failed to create table host_vpp_software_installs: %w", err)
@@ -65,7 +65,7 @@ CREATE TABLE cached_vpp_assets (
 	icon_url VARCHAR(255),
 	name VARCHAR(255),
 	created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-	updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+	updated_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 	FOREIGN KEY (adam_id) REFERENCES vpp_apps_teams (adam_id) ON DELETE CASCADE
 )`)
 	if err != nil {
