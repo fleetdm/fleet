@@ -1,5 +1,5 @@
 import URL_PREFIX from "router/url_prefix";
-import { DashboardOsqueryPlatform } from "interfaces/platform";
+import { DisplayPlatform } from "interfaces/platform";
 import paths from "router/paths";
 import { ISchedulableQuery } from "interfaces/schedulable_query";
 import React from "react";
@@ -212,10 +212,7 @@ export const isPlatformLabelNameFromAPI = (
   return PLATFORM_LABEL_NAMES_FROM_API.includes(s as PlatformLabelNameFromAPI);
 };
 
-export const PLATFORM_DISPLAY_NAMES: Record<
-  string,
-  DashboardOsqueryPlatform
-> = {
+export const PLATFORM_DISPLAY_NAMES: Record<string, DisplayPlatform> = {
   darwin: "macOS",
   macOS: "macOS",
   windows: "Windows",
@@ -285,19 +282,30 @@ export const hasPlatformTypeIcon = (
   return !!PLATFORM_TYPE_ICONS[s as keyof typeof PLATFORM_TYPE_ICONS];
 };
 
+type PlatformLabelOptions =
+  | "All"
+  | "Windows"
+  | "Linux"
+  | "macOS"
+  | "ChromeOS"
+  | "iOS"
+  | "iPadOS";
+type PlatformValueOptions =
+  | "all"
+  | "windows"
+  | "linux"
+  | "darwin"
+  | "chrome"
+  | "ios"
+  | "ipados"
+  | "";
 interface IPlatformDropdownOptions {
-  label: "All" | "Windows" | "Linux" | "macOS" | "ChromeOS" | "iOS" | "iPadOS";
-  value:
-    | "all"
-    | "windows"
-    | "linux"
-    | "darwin"
-    | "chrome"
-    | "ios"
-    | "ipados"
-    | "";
-  path?: string;
+  label: PlatformLabelOptions;
+  value: PlatformValueOptions;
+  path: string;
 }
+
+/** Select platform on dashboard */
 export const PLATFORM_DROPDOWN_OPTIONS: IPlatformDropdownOptions[] = [
   { label: "All", value: "all", path: paths.DASHBOARD },
   { label: "macOS", value: "darwin", path: paths.DASHBOARD_MAC },
@@ -308,17 +316,21 @@ export const PLATFORM_DROPDOWN_OPTIONS: IPlatformDropdownOptions[] = [
   { label: "iPadOS", value: "ipados", path: paths.DASHBOARD_IPADOS },
 ];
 
-// Scheduling queries do not support ChromeOS, iOS, or iPadOS
-export const SCHEDULE_PLATFORM_DROPDOWN_OPTIONS: IPlatformDropdownOptions[] = [
+/** Scheduled queries do not support ChromeOS, iOS, or iPadOS */
+interface ISchedulePlatformDropdownOptions {
+  label: Exclude<PlatformLabelOptions, "ChromeOS" | "iOS" | "iPadOS">;
+  value: Exclude<PlatformValueOptions, "chrome" | "ios" | "ipados">;
+}
+
+export const SCHEDULE_PLATFORM_DROPDOWN_OPTIONS: ISchedulePlatformDropdownOptions[] = [
   { label: "All", value: "" }, // API empty string runs on all platforms
   { label: "macOS", value: "darwin" },
   { label: "Windows", value: "windows" },
   { label: "Linux", value: "linux" },
 ];
 
-// Builtin label names returned from API
+/** Selected platform on dashboard mapped to built in label name */
 export const PLATFORM_NAME_TO_LABEL_NAME = {
-  all: "",
   darwin: "macOS",
   windows: "MS Windows",
   linux: "All Linux",

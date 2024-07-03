@@ -1,14 +1,12 @@
-export type OsqueryPlatform =
-  | "darwin"
+export type DisplayPlatform =
   | "macOS"
-  | "windows"
   | "Windows"
-  | "linux"
   | "Linux"
-  | "chrome"
-  | "ChromeOS";
+  | "ChromeOS"
+  | "iOS"
+  | "iPadOS";
 
-export type DashboardOsqueryPlatform = OsqueryPlatform | "iOS" | "iPadOS";
+export type OsqueryPlatform = Exclude<DisplayPlatform, "iOS" | "iPadOS">;
 
 export type SupportedPlatform = "darwin" | "windows" | "linux" | "chrome";
 
@@ -31,7 +29,7 @@ export type SelectedPlatformString =
 export type DashboardPlatform = SelectedPlatform | "ios" | "ipados";
 
 // TODO: revisit this approach pending resolution of https://github.com/fleetdm/fleet/issues/3555.
-export const MACADMINS_EXTENSION_TABLES: Record<string, OsqueryPlatform[]> = {
+export const MACADMINS_EXTENSION_TABLES: Record<string, SupportedPlatform[]> = {
   file_lines: ["darwin", "linux", "windows"],
   filevault_users: ["darwin"],
   google_chrome_profiles: ["darwin", "linux", "windows"],

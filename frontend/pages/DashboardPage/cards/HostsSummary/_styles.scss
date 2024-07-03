@@ -2,37 +2,19 @@
   margin-top: $pad-large;
   width: 100%;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   justify-content: space-around;
+  flex-wrap: wrap;
   font-size: $x-small;
   gap: $pad-medium;
 
-  &__row {
-    display: flex;
-    justify-content: space-around;
+  .summary-tile {
+    flex: 1 1 30%;
   }
 
-  // Create a single row
   @media (min-width: $break-md) {
-    flex-direction: row;
-    gap: initial;
-
-    &__row {
-      flex: 1 100%;
-    }
-  }
-
-  &__tile {
-    flex-grow: 1;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-
-    &:first-of-type {
-      justify-content: flex-end;
-    }
-    &:last-of-type {
-      justify-content: flex-start;
+    .summary-tile {
+      flex: initial;
     }
   }
 
