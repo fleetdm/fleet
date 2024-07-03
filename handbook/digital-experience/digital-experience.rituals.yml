@@ -182,8 +182,16 @@
   autoIssue:  
     labels: [ "#g-digital-experience" ] 
     repo: "confidential"
-
-
+-
+  task: "Brainstorm, draft, and finalize OKRs" 
+  startedOn: "2024-07-02" 
+  frequency: "Quarterly"
+  description: "Brainstorm, draft, and finalize OKRs every three months" 
+  moreInfoUrl: ""
+  dri: "mikermcneil"
+  autoIssue:  
+    labels: [ "#g-digital-experience" ] 
+    repo: "confidential"
 
 
 
