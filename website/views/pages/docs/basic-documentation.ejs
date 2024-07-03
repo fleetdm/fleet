@@ -210,11 +210,11 @@
               <h2>Try it out</h2>
               <p>See what Fleet can do</p>
               <a purpose="continue-button" class="btn btn-primary" href="/register">Start now</a>
-              <% } else if (['2 - Aware', '3 - Intrigued'].includes(me.psychologicalStage)) {%>
+              <% } else if (['2 - Aware', '3 - Intrigued', '4 - Has use case'].includes(me.psychologicalStage)) {%>
               <h2>Tried Fleet yet?</h2>
               <p>Continue getting started with Fleet</p>
               <a purpose="continue-button" class="btn btn-primary" href="/start">Continue</a>
-              <% } else if (['4 - Has use case', '5 - Personally confident'].includes(me.psychologicalStage)) {%>
+              <% } else if (me.psychologicalStage === '5 - Personally confident') {%>
               <h2>Feeling confident?</h2>
               <p>Get set up with Fleet</p>
               <a purpose="continue-button" class="btn btn-primary" href="/start">Continue</a>

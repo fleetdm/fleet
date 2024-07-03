@@ -8,10 +8,10 @@
         </div>
       </div>
       <div purpose="banner-text" class="d-flex flex-column justify-content-center">
-        <% if(['2 - Aware', '3 - Intrigued'].includes(me.psychologicalStage)) { %>
+        <% if(['2 - Aware', '3 - Intrigued', '4 - Has use case'].includes(me.psychologicalStage)) { %>
           <strong>Tried Fleet yet?</strong>
           <p>Get started with Fleet</p>
-        <% } else if(['4 - Has use case', '5 - Personally confident'].includes(me.psychologicalStage)) { %>
+        <% } else if(me.psychologicalStage === '5 - Personally confident') { %>
           <strong>Feeling confident?</strong>
           <p>Get set up with Fleet</p>
         <% } else if (me.psychologicalStage === '6 - Has team buy-in') {%>
