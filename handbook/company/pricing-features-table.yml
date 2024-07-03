@@ -355,7 +355,7 @@
 #   ╚╝ ╩ ╩╩╚═╩╩ ╩╚═╝╩═╝╚═╝  ╚═╝╝╚╝╩╚═╚═╝╩═╝╩═╝╩ ╩╚═╝╝╚╝ ╩
 - industryName: Variable enrollment
   description: Enroll hosts in different groups using different enrollment secrets and/or installers per-baseline.
-  documentationUrl: https://fleetdm.com/docs/configuration/configuration-files#teams 
+  documentationUrl: https://fleetdm.com/docs/using-fleet/segment-hosts
   tier: Premium
   productCategories: [Endpoint operations, Device management]
   pricingTableCategories: [Endpoint operations]
@@ -715,7 +715,7 @@
   pricingTableCategories: [Endpoint operations]
   tier: Free
 - industryName: Labels (SQL-driven)
-  documentationUrl: https://fleetdm.com/docs/configuration/configuration-files#labels
+  documentationUrl: https://fleetdm.com/docs/rest-api/rest-api#add-label
   friendlyName: Filter hosts using SQL
   productCategories: [Endpoint operations,Device management,Vulnerability management]
   pricingTableCategories: [Endpoint operations]
@@ -739,7 +739,7 @@
   waysToUse:
     - description: Automate remediation for different applications with different security postures (cloud security engineering)
 - industryName: Generate reports for groups of devices
-  documentationUrl: https://fleetdm.com/docs/configuration/configuration-files#server-settings-query-reports-disabled
+  documentationUrl: https://fleetdm.com/docs/rest-api/rest-api#get-query-report
   productCategories: [Endpoint operations,Device management,Vulnerability management]
   pricingTableCategories: [Endpoint operations]
   usualDepartment: IT

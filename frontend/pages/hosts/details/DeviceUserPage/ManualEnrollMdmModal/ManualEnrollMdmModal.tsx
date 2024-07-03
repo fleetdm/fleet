@@ -43,18 +43,19 @@ const ManualEnrollMdmModal = ({
           <li>Open the profile you just downloaded.</li>
           <li>
             From the Apple menu in the top left corner of your screen, select{" "}
-            <b>System Settings</b> or <b>System Preferences</b>.
+            <b>System Settings</b>.
           </li>
           <li>
-            In the search bar, type “Profiles”. Select <b>Profiles</b>, double
-            click <b>Enrollment Profile</b>, and select <b>Install</b>.
+            In the search bar, type “Profiles”. Select <b>Profiles</b>, find and
+            double click the <br /> <b>[Organization name] enrollment</b>{" "}
+            profile.
           </li>
           <li>
             Select <b>Enroll</b> then enter your password.
           </li>
           <li>
-            Close this window and select <b>Refetch</b> on your My device page
-            to tell your organization that MDM is on.
+            Select <b>Done</b> to close this window and select <b>Refetch</b> on
+            your My device page to tell <br /> your organization that MDM is on.
           </li>
         </ol>
         <div className="modal-cta-wrap">

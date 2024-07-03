@@ -1,13 +1,13 @@
 import React from "react";
 import ReactTooltip from "react-tooltip";
 import classnames from "classnames";
-
+import { formatInTimeZone } from "date-fns-tz";
 import {
   IHostMdmProfile,
   BootstrapPackageStatus,
   isWindowsDiskEncryptionStatus,
 } from "interfaces/mdm";
-import { IOSSettings } from "interfaces/host";
+import { IOSSettings, IHostMaintenanceWindow } from "interfaces/host";
 import getHostStatusTooltipText from "pages/hosts/helpers";
 
 import TooltipWrapper from "components/TooltipWrapper";
@@ -19,9 +19,11 @@ import StatusIndicator from "components/StatusIndicator";
 import IssuesIndicator from "pages/hosts/components/IssuesIndicator";
 import DiskSpaceIndicator from "pages/hosts/components/DiskSpaceIndicator";
 import { HumanTimeDiffWithFleetLaunchCutoff } from "components/HumanTimeDiffWithDateTip";
-import PremiumFeatureIconWithTooltip from "components/PremiumFeatureIconWithTooltip";
 import { humanHostMemory, wrapFleetHelper } from "utilities/helpers";
-import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
+import {
+  DATE_FNS_FORMAT_STRINGS,
+  DEFAULT_EMPTY_CELL_VALUE,
+} from "utilities/constants";
 import { COLORS } from "styles/var/colors";
 
 import OSSettingsIndicator from "./OSSettingsIndicator";
@@ -349,6 +351,43 @@ const HostSummary = ({
     return <DataSet title="Osquery" value={summaryData.osquery_version} />;
   };
 
+  const renderMaintenanceWindow = ({
+    starts_at,
+    timezone,
+  }: IHostMaintenanceWindow) => {
+    const formattedStartsAt = formatInTimeZone(
+      starts_at,
+      // since startsAt is already localized and contains offset information, this 2nd parameter is
+      // logically redundant. It's included here to allow use of date-fns-tz.formatInTimeZone instead of date-fns.format, which
+      // allows us to format a UTC datetime without converting to the user-agent local time.
+      timezone || "UTC",
+      DATE_FNS_FORMAT_STRINGS.dateAtTime
+    );
+
+    const tip = timezone ? (
+      <>
+        End user&apos;s time zone:
+        <br />
+        (GMT{starts_at.slice(-6)}) {timezone.replace("_", " ")}
+      </>
+    ) : (
+      <>
+        End user&apos;s timezone unavailable.
+        <br />
+        Displaying in UTC.
+      </>
+    );
+
+    return (
+      <DataSet
+        title="Scheduled maintenance"
+        value={
+          <TooltipWrapper tipContent={tip}>{formattedStartsAt}</TooltipWrapper>
+        }
+      />
+    );
+  };
+
   const renderSummary = () => {
     // for windows hosts we have to manually add a profile for disk encryption
     // as this is not currently included in the `profiles` value from the API
@@ -432,6 +471,11 @@ const HostSummary = ({
         )}
         <DataSet title="Operating system" value={summaryData.os_version} />
         {!isIosOrIpadosHost && renderAgentSummary()}
+        {isPremiumTier &&
+          // TODO - refactor normalizeEmptyValues pattern
+          !!summaryData.maintenance_window &&
+          summaryData.maintenance_window !== "---" &&
+          renderMaintenanceWindow(summaryData.maintenance_window)}
       </Card>
     );
   };

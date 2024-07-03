@@ -189,7 +189,13 @@ const SoftwareVulnerabilitiesTable = ({
         {data?.vulnerabilities && data?.counts_updated_at && (
           <LastUpdatedText
             lastUpdatedAt={data.counts_updated_at}
-            whatToRetrieve="vulnerabilities"
+            customTooltipText={
+              <>
+                The last time software data was <br />
+                updated, including vulnerabilities <br />
+                and host counts.
+              </>
+            }
           />
         )}
       </>

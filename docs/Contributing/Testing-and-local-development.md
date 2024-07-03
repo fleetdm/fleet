@@ -31,6 +31,7 @@
   - [Testing pre-built installers](#testing-pre-built-installers)
   - [Telemetry](#telemetry)
   - [Fleetd Chrome extension](#fleetd-chrome-extension)
+  - [fleetd-base installers](#fleetd-base-installers)
   - [MDM setup and testing](#mdm-setup-and-testing)
     - [ABM setup](#abm-setup)
       - [Private key, certificate, and encrypted token](#private-key-certificate-and-encrypted-token)
@@ -493,6 +494,44 @@ Please refer to [tools/telemetry](https://github.com/fleetdm/fleet/tree/main/too
 ### Debugging the service Worker
 
 View service worker logs in chrome://serviceworker-internals/?devtools (in production), or in chrome://extensions (only during development).
+
+## fleetd-base installers
+
+"fleetd-base" installers are pre-built `pkg` and `msi` installers that do not contain hardcoded `--fleet-url` and `--enroll-secret` values.
+
+Anyone can build a base installer, but Fleet provides a public repository of signed base installers at:
+
+- [Production Usage](https://download.fleetdm.com)
+- [Development Usage](https://download-testing.fleetdm.com)
+
+The workflow that builds and releases the installers is defined in `.github/workflows/release-fleetd-base.yml`.
+
+The base installers are used:
+
+- By Fleet MDM to automatically install `fleetd` when a host enables MDM features.
+- By customers deploying `fleetd` using third-party tools (e.g., Puppet or Chef).
+
+The Fleet server uses the production server by default, but you can change this during development using the development flag `FLEET_DEV_DOWNLOAD_FLEETDM_URL`.
+
+### Building your own fleetd-base installer
+
+Due to historical reasons, each type of installer has its own peculiarities:
+
+- `pkg` installers require an extra `--use-system-configuration` flag.
+- `pkg` installers read configuration values from a configuration profile.
+- `msi` installers need dummy configuration values.
+- `msi` installers read configuration values at installation time.
+
+```sh
+# Build a fleetd-base.pkg installer
+$ fleetctl package --type=pkg --use-system-configuration
+
+# Build a fleetd-base.msi installer, using dummy values to avoid errors
+$ fleetctl package --type=msi --fleet-url=dummy --enroll-secret=dummy
+
+# Install a fleetd-base.msi installer
+$ msiexec /i fleetd-base.msi FLEET_URL="<target_url>" FLEET_SECRET="<secret_to_use>"
+```
 
 ## MDM setup and testing
 

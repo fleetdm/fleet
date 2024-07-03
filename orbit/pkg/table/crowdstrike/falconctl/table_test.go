@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/tablehelpers"
-	"github.com/go-kit/log"
+	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/require"
 )
 
@@ -62,7 +62,7 @@ func TestOptionRestrictions(t *testing.T) {
 			var logBytes bytes.Buffer
 
 			testTable := &falconctlOptionsTable{
-				logger:   log.NewLogfmtLogger(&logBytes),
+				logger:   zerolog.New(zerolog.ConsoleWriter{Out: &logBytes}),
 				execFunc: noopExec,
 			}
 
@@ -82,7 +82,7 @@ func TestOptionRestrictions(t *testing.T) {
 	}
 }
 
-func noopExec(_ context.Context, log log.Logger, _ int, _ []string, args []string, _ bool) ([]byte, error) {
-	log.Log("exec", "exec-in-test", "args", strings.Join(args, " "))
+func noopExec(_ context.Context, log zerolog.Logger, _ int, _ []string, args []string, _ bool) ([]byte, error) {
+	log.Info().Str("args", strings.Join(args, " ")).Msg("exec-in-test")
 	return []byte{}, nil
 }

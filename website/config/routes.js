@@ -436,6 +436,7 @@ module.exports.routes = {
   'GET /docs/deploy/deploy-fleet-on-kubernetes': '/guides/deploy-fleet-on-kubernetes',
   'GET /docs/using-fleet/mdm-macos-setup': '/docs/using-fleet/mdm-setup',
   'GET /transparency': '/better',
+  'GET /docs/configuration/configuration-files': '/docs/using-fleet/gitops',
   'GET /try-fleet/explore-data': '/tables/account_policy_data',
   'GET /try-fleet/explore-data/:hostPlatform/:tableName': {
     fn: (req, res)=>{
@@ -515,8 +516,11 @@ module.exports.routes = {
   'GET /learn-more-about/renew-apns': '/docs/using-fleet/mdm-setup#apple-push-notification-service-apns',
   'GET /learn-more-about/renew-abm': '/docs/using-fleet/mdm-setup#apple-business-manager-abm',
   'GET /learn-more-about/fleet-server-private-key': '/docs/configuration/fleet-server-configuration#server-private-key',
+  'GET /learn-more-about/agent-options': '/docs/configuration/agent-configuration',
+  'GET /learn-more-about/enable-user-collection': '/docs/using-fleet/gitops#features',
   'GET /learn-more-about/host-identifiers': '/docs/rest-api/rest-api#get-host-by-identifier',
   'GET /learn-more-about/uninstall-fleetd': '/docs/using-fleet/faq#how-can-i-uninstall-fleetd',
+  'GET /learn-more-about/vulnerability-processing': '/docs/using-fleet/vulnerability-processing',
 
   // Sitemap
   // =============================================================================================================

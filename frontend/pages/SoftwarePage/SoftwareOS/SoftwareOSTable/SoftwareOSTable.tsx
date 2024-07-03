@@ -1,6 +1,6 @@
 /** software/os OS tab > Table */
 
-import React, { useCallback, useContext, useMemo } from "react";
+import React, { useCallback, useMemo } from "react";
 import { InjectedRouter } from "react-router";
 import { Row } from "react-table";
 
@@ -137,7 +137,13 @@ const SoftwareOSTable = ({
         {data?.os_versions && data?.counts_updated_at && (
           <LastUpdatedText
             lastUpdatedAt={data.counts_updated_at}
-            whatToRetrieve="vulnerabilities"
+            customTooltipText={
+              <>
+                The last time software data was <br />
+                updated, including vulnerabilities <br />
+                and host counts.
+              </>
+            }
           />
         )}
       </>

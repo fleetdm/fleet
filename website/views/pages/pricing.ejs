@@ -22,9 +22,9 @@
             </div>
           </div>
           <div purpose="button-container" class="d-flex flex-row align-items-center">
-            <a purpose="animated-arrow-button-red" href="/docs">
+            <animated-arrow-button href="/docs">
               Read the docs
-            </a>
+            </animated-arrow-button>
           </div>
         </div>
         </div>
@@ -66,8 +66,8 @@
       </div>
       <div purpose="pricing-switch" class="d-flex flex-md-row flex-column justify-content-center mx-auto">
         <div purpose="pricing-switch-option" class="all" :class="[pricingMode === 'all' ? 'selected' : '']" @click="clickChangePricingMode('all')">All features</div>
-        <div purpose="pricing-switch-option" class="security" :class="[pricingMode === 'Security' ? 'selected' : '']" @click="clickChangePricingMode('Security')">For security engineers</div>
         <div purpose="pricing-switch-option" class="it" :class="[pricingMode === 'IT' ? 'selected' : '']" @click="clickChangePricingMode('IT')">For IT admins</div>
+        <div purpose="pricing-switch-option" class="security" :class="[pricingMode === 'Security' ? 'selected' : '']" @click="clickChangePricingMode('Security')">For security engineers</div>
         <div purpose="pricing-tier-switch" :class="pricingMode+'-selected'"></div>
       </div>
     </div>
@@ -294,9 +294,9 @@
         <a purpose="chat-button" style="max-width: 160px" class="mx-auto justify-self-center btn btn-block btn-md btn-primary mx-sm-2" href="/contact">
           Talk to us
         </a>
-        <a class="btn btn-block btn-lg btn-white" purpose="cta-button" href="/docs">
+        <animated-arrow-button class="btn btn-sm" href="/docs">
           Read the docs
-        </a>
+        </animated-arrow-button>
       </div>
     </div>
   </div>

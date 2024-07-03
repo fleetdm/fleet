@@ -47,7 +47,8 @@ type Team struct {
 	// Directly in DB
 
 	// ID is the database ID.
-	ID uint `json:"id" db:"id"`
+	ID       uint    `json:"id" db:"id"`
+	Filename *string `json:"gitops_filename,omitempty" db:"filename"`
 	// CreatedAt is the timestamp of the label creation.
 	CreatedAt time.Time `json:"created_at" db:"created_at"`
 	// Name is the human friendly name of the team.
@@ -407,7 +408,8 @@ const (
 )
 
 type TeamSpec struct {
-	Name string `json:"name"`
+	Name     string  `json:"name"`
+	Filename *string `json:"gitops_filename,omitempty"`
 
 	// We need to distinguish between the agent_options key being present but
 	// "empty" or being absent, as we leave the existing agent options unmodified
