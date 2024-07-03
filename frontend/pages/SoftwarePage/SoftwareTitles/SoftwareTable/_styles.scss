@@ -153,4 +153,10 @@
       overflow-x: auto;
     }
   }
+  .view-all-hosts {
+    &__cell {
+      display: flex;
+      justify-content: flex-end;
+    }
+  }
 }
