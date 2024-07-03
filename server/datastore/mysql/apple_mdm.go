@@ -3615,6 +3615,18 @@ func (ds *Datastore) MDMResetEnrollment(ctx context.Context, hostUUID string) er
 			}
 		}
 
+		// reset the enrolled_from_migration value. We only get to this
+		// stage if the host is enrolling with Fleet, SCEP renewals are
+		// short-circuited before this.
+		_, err = tx.ExecContext(
+			ctx,
+			"UPDATE nano_enrollments SET enrolled_from_migration = 0 WHERE id = ? AND enabled = 1",
+			hostUUID,
+		)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "setting enrolled_from_migration value")
+		}
+
 		return nil
 	})
 }

@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20240630154849(t *testing.T) {
+func TestUp_20240703154849(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	// create an MDM profile and an MDM declaration

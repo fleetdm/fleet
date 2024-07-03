@@ -1123,7 +1123,8 @@ func (ds *Datastore) GetHostCertAssociationsToExpire(ctx context.Context, expiry
 SELECT
     h.uuid AS host_uuid,
     ncaa.sha256 AS sha256,
-    COALESCE(MAX(hm.fleet_enroll_ref), '') AS enroll_reference
+    COALESCE(MAX(hm.fleet_enroll_ref), '') AS enroll_reference,
+    ne.enrolled_from_migration
 FROM (
     -- grab only the latest certificate associated with this device
     SELECT
@@ -1151,9 +1152,12 @@ JOIN
     hosts h ON h.uuid = ncaa.id
 LEFT JOIN
     host_mdm hm ON hm.host_id = h.id
+LEFT JOIN
+    nano_enrollments ne ON ne.id = ncaa.id
 WHERE
     ncaa.cert_not_valid_after BETWEEN '0000-00-00' AND DATE_ADD(CURDATE(), INTERVAL ? DAY)
     AND ncaa.renew_command_uuid IS NULL
+    AND ne.enabled = 1
 GROUP BY
     host_uuid, ncaa.sha256, ncaa.cert_not_valid_after
 ORDER BY

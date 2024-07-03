@@ -531,6 +531,9 @@ type SCEPIdentityAssociation struct {
 	SHA256           string `db:"sha256"`
 	EnrollReference  string `db:"enroll_reference"`
 	RenewCommandUUID string `db:"renew_command_uuid"`
+	// EnrolledFromMigration is used for devices migrated via datababse
+	// dumps (ie: "touchless")
+	EnrolledFromMigration bool `db:"enrolled_from_migration"`
 }
 
 // MDMAppleDeclaration represents a DDM JSON declaration.
