@@ -6142,6 +6142,20 @@ func testSCEPRenewalHelpers(t *testing.T, ds *Datastore) {
 		certHash := certauth.HashCert(cert)
 		err = nanoStorage.AssociateCertHash(&req, certHash, notAfter)
 		require.NoError(t, err)
+		createdat := time.Now().AddDate(0, int(serial.Int64()), 0)
+
+		// due to mysql timestamp resolution, this test is flaky unless
+		// we do this because we insert multiple certificates for the
+		// same device in quick succession, and later on we assert on a
+		// specific order which is based on created_at
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `
+                  UPDATE nano_cert_auth_associations
+                  SET created_at = ?
+                  WHERE sha256 = ?
+		`, createdat, certHash)
+			return err
+		})
 	}
 
 	var i int
@@ -6170,7 +6184,7 @@ func testSCEPRenewalHelpers(t *testing.T, ds *Datastore) {
 	// cert that expires in 1 year
 	h4 := setHost(time.Now().AddDate(1, 0, 0))
 	// expired cert for a host migrated using touchless migration
-	hMigrated := setHost(time.Now().AddDate(-1, 0, 0))
+	hMigrated := setHost(time.Now().AddDate(-1, -1, 0))
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, `
                   UPDATE nano_enrollments
@@ -6243,9 +6257,9 @@ func testSCEPRenewalHelpers(t *testing.T, ds *Datastore) {
 	addCert(time.Now().AddDate(-1, 0, 0), h1)
 	assocs, err = ds.GetHostCertAssociationsToExpire(ctx, 1000, 100)
 	require.Len(t, assocs, 5)
-	require.Equal(t, h1.UUID, assocs[0].HostUUID)
-	require.Equal(t, h2.UUID, assocs[1].HostUUID)
-	require.Equal(t, hMigrated.UUID, assocs[2].HostUUID)
+	require.Equal(t, h2.UUID, assocs[0].HostUUID)
+	require.Equal(t, hMigrated.UUID, assocs[1].HostUUID)
+	require.Equal(t, h1.UUID, assocs[2].HostUUID)
 	require.Equal(t, h3.UUID, assocs[3].HostUUID)
 	require.Equal(t, h4.UUID, assocs[4].HostUUID)
 
@@ -6308,7 +6322,7 @@ func testSCEPRenewalHelpers(t *testing.T, ds *Datastore) {
 
 	err = ds.CleanSCEPRenewRefs(ctx, h1.UUID)
 	require.NoError(t, err)
-	checkSCEPRenew(assocs[0], nil)
+	checkSCEPRenew(assocs[2], nil)
 }
 
 func testMDMProfilesSummaryAndHostFilters(t *testing.T, ds *Datastore) {
