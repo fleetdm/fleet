@@ -3,6 +3,7 @@ import { InjectedRouter } from "react-router";
 
 import Spinner from "components/Spinner";
 import Button from "components/buttons/Button";
+import DataError from "components/DataError";
 
 const baseClass = "app-store-vpp";
 
@@ -58,8 +59,13 @@ const AppStoreVpp = ({ teamId, router, onExit }: IAppStoreVppProps) => {
 
   const renderContent = () => {
     const isLoading = false;
+    const isError = true;
     if (isLoading) {
       return <Spinner />;
+    }
+
+    if (isError) {
+      return <DataError className={`${baseClass}__error`} />;
     }
 
     return <VppSoftwareList software={[]} />;

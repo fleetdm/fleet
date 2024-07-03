@@ -25,4 +25,8 @@
     margin-top: $pad-small;
     color: $ui-fleet-black-75;
   }
+
+  &__error {
+    margin: $pad-xxlarge 0;
+  }
 }
