@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20240701134035(t *testing.T) {
+func TestUp_20240703134035(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	startTime := time.Now().UTC()
