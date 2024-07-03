@@ -1088,11 +1088,11 @@ func TestMDMWindowsConfigProfileAuthz(t *testing.T) {
 			checkShouldFail(t, err, tt.shouldFailTeamRead)
 
 			// test authz create new profile (no team)
-			_, err = svc.NewMDMWindowsConfigProfile(ctx, 0, "prof", strings.NewReader(winProfContent), nil)
+			_, err = svc.NewMDMWindowsConfigProfile(ctx, 0, "prof", strings.NewReader(winProfContent), nil, false)
 			checkShouldFail(t, err, tt.shouldFailGlobalWrite)
 
 			// test authz create new profile (team 1)
-			_, err = svc.NewMDMWindowsConfigProfile(ctx, 1, "prof", strings.NewReader(winProfContent), nil)
+			_, err = svc.NewMDMWindowsConfigProfile(ctx, 1, "prof", strings.NewReader(winProfContent), nil, false)
 			checkShouldFail(t, err, tt.shouldFailTeamWrite)
 
 			// test authz delete config profile (no team)
@@ -1174,7 +1174,7 @@ func TestUploadWindowsMDMConfigProfileValidations(t *testing.T) {
 				}, nil
 			}
 			ctx = test.UserContext(ctx, test.UserAdmin)
-			_, err := svc.NewMDMWindowsConfigProfile(ctx, c.tmID, "foo", strings.NewReader(c.profile), nil)
+			_, err := svc.NewMDMWindowsConfigProfile(ctx, c.tmID, "foo", strings.NewReader(c.profile), nil, false)
 			if c.wantErr != "" {
 				require.Error(t, err)
 				require.ErrorContains(t, err, c.wantErr)
@@ -1564,6 +1564,34 @@ func TestValidateProfiles(t *testing.T) {
 			name: "Empty Profile",
 			profiles: []fleet.MDMProfileBatchPayload{
 				{Name: "emptyProfile", Contents: []byte("")},
+			},
+			wantErr: true,
+		},
+		{
+			name: "Windows Profile With Deprecated Labels",
+			profiles: []fleet.MDMProfileBatchPayload{
+				{Name: "windowsProfile", Labels: []string{"a"}, Contents: []byte("<replace><Target><LocURI>Custom/URI</LocURI></Target></replace>")},
+			},
+			wantErr: false,
+		},
+		{
+			name: "Windows Profile With Excluded Labels",
+			profiles: []fleet.MDMProfileBatchPayload{
+				{Name: "windowsProfile", LabelsExcludeAny: []string{"a"}, Contents: []byte("<replace><Target><LocURI>Custom/URI</LocURI></Target></replace>")},
+			},
+			wantErr: false,
+		},
+		{
+			name: "Windows Profile With Included Labels",
+			profiles: []fleet.MDMProfileBatchPayload{
+				{Name: "windowsProfile", LabelsIncludeAll: []string{"a"}, Contents: []byte("<replace><Target><LocURI>Custom/URI</LocURI></Target></replace>")},
+			},
+			wantErr: false,
+		},
+		{
+			name: "Windows Profile With Mixed Labels",
+			profiles: []fleet.MDMProfileBatchPayload{
+				{Name: "windowsProfile", Labels: []string{"z"}, LabelsIncludeAll: []string{"a"}, Contents: []byte("<replace><Target><LocURI>Custom/URI</LocURI></Target></replace>")},
 			},
 			wantErr: true,
 		},

@@ -10,6 +10,8 @@ import { ILabelSummary } from "interfaces/label";
 import labelsAPI from "services/entities/labels";
 import mdmAPI from "services/entities/mdm";
 
+// @ts-ignore
+import Dropdown from "components/forms/fields/Dropdown";
 import Button from "components/buttons/Button";
 import Card from "components/Card";
 import Checkbox from "components/forms/fields/Checkbox";
@@ -19,24 +21,28 @@ import Modal from "components/Modal";
 import Radio from "components/forms/fields/Radio";
 import Spinner from "components/Spinner";
 
-import ProfileGraphic from "./AddProfileGraphic";
+import ProfileGraphic from "../AddProfileGraphic";
 
 import {
   DEFAULT_ERROR_MESSAGE,
   getErrorMessage,
   parseFile,
+} from "../../helpers";
+import {
+  CUSTOM_TARGET_OPTIONS,
+  CustomTargetOption,
+  generateLabelKey,
   listNamesFromSelectedLabels,
-} from "../helpers";
+} from "./helpers";
 
-const FileChooser = ({
-  baseClass,
-  isLoading,
-  onFileOpen,
-}: {
-  baseClass: string;
+const baseClass = "add-profile-modal";
+
+interface IFileChooserProps {
   isLoading: boolean;
   onFileOpen: (files: FileList | null) => void;
-}) => (
+}
+
+const FileChooser = ({ isLoading, onFileOpen }: IFileChooserProps) => (
   <div className={`${baseClass}__file-chooser`}>
     <ProfileGraphic baseClass={baseClass} showMessage />
     <Button
@@ -62,19 +68,17 @@ const FileChooser = ({
   </div>
 );
 
-// TODO: if we reuse this one more time, we should consider moving this
-// into FileUploader as a default preview. Currently we have this in
-// AddSoftwareForm.tsx and here.
-const FileDetails = ({
-  baseClass,
-  details: { name, platform },
-}: {
-  baseClass: string;
+interface IFileDetailsProps {
   details: {
     name: string;
     platform: string;
   };
-}) => (
+}
+
+// TODO: if we reuse this one more time, we should consider moving this
+// into FileUploader as a default preview. Currently we have this in
+// AddSoftwareForm.tsx and here.
+const FileDetails = ({ details: { name, platform } }: IFileDetailsProps) => (
   <div className={`${baseClass}__selected-file`}>
     <ProfileGraphic baseClass={baseClass} />
     <div className={`${baseClass}__selected-file--details`}>
@@ -86,15 +90,15 @@ const FileDetails = ({
   </div>
 );
 
-const TargetChooser = ({
-  baseClass,
-  selectedTarget,
-  setSelectedTarget,
-}: {
-  baseClass: string;
+interface ITargetChooserProps {
   selectedTarget: string;
   setSelectedTarget: React.Dispatch<React.SetStateAction<string>>;
-}) => {
+}
+
+const TargetChooser = ({
+  selectedTarget,
+  setSelectedTarget,
+}: ITargetChooserProps) => {
   return (
     <div className={`form-field`}>
       <div className="form-field__label">Target</div>
@@ -120,67 +124,95 @@ const TargetChooser = ({
   );
 };
 
-const LabelChooser = ({
-  baseClass,
-  isError,
-  isLoading,
-  labels,
-  selectedLabels,
-  setSelectedLabels,
-}: {
-  baseClass: string;
+interface ILabelChooserProps {
   isError: boolean;
   isLoading: boolean;
   labels: ILabelSummary[];
   selectedLabels: Record<string, boolean>;
+  customTargetOption: CustomTargetOption;
   setSelectedLabels: React.Dispatch<
     React.SetStateAction<Record<string, boolean>>
   >;
-}) => {
+  onSelectCustomTargetOption: (val: CustomTargetOption) => void;
+}
+
+const LabelChooser = ({
+  isError,
+  isLoading,
+  labels,
+  selectedLabels,
+  customTargetOption,
+  setSelectedLabels,
+  onSelectCustomTargetOption,
+}: ILabelChooserProps) => {
   const updateSelectedLabels = useCallback(
     ({ name, value }: { name: string; value: boolean }) => {
       setSelectedLabels((prevItems) => ({ ...prevItems, [name]: value }));
     },
     [setSelectedLabels]
   );
+
+  const descriptionText =
+    customTargetOption === "labelsIncludeAll" ? (
+      <>
+        Profile will only be applied to hosts that have <b>all</b> these labels:
+      </>
+    ) : (
+      <>
+        Profile will be applied to hosts that don&apos;t have <b>any</b> of
+        these labels:{" "}
+      </>
+    );
+
+  const renderLabels = () => {
+    if (isLoading) {
+      return <Spinner centered={false} />;
+    }
+
+    if (isError) {
+      return <DataError />;
+    }
+
+    if (!labels.length) {
+      return (
+        <div className={`${baseClass}__no-labels`}>
+          <b>No labels exist in Fleet</b>
+          <span>Add labels to target specific hosts.</span>
+        </div>
+      );
+    }
+
+    return labels.map((label) => {
+      return (
+        <div className={`${baseClass}__label`} key={label.name}>
+          <Checkbox
+            className={`${baseClass}__checkbox`}
+            name={label.name}
+            value={!!selectedLabels[label.name]}
+            onChange={updateSelectedLabels}
+            parseTarget
+          />
+          <div className={`${baseClass}__label-name`}>{label.name}</div>
+        </div>
+      );
+    });
+  };
+
   return (
-    <>
-      <div className={`${baseClass}__description`}>
-        Profile will only be applied to hosts that have all these labels:
-      </div>
-      <div className={`${baseClass}__checkboxes`}>
-        {isLoading && <Spinner centered={false} />}
-        {!isLoading && isError && <DataError />}
-        {!isLoading && !isError && !labels.length && (
-          <div className={`${baseClass}__no-labels`}>
-            <b>No labels exist in Fleet</b>
-            <span>Add labels to target specific hosts.</span>
-          </div>
-        )}
-        {!isLoading &&
-          !isError &&
-          !!labels.length &&
-          labels.map((label) => {
-            return (
-              <div className={`${baseClass}__label`} key={label.name}>
-                <Checkbox
-                  className={`${baseClass}__checkbox`}
-                  name={label.name}
-                  value={!!selectedLabels[label.name]}
-                  onChange={updateSelectedLabels}
-                  parseTarget
-                />
-                <div className={`${baseClass}__label-name`}>{label.name}</div>
-              </div>
-            );
-          })}
-      </div>
-    </>
+    <div className={`${baseClass}__custom-label-chooser`}>
+      <Dropdown
+        value={customTargetOption}
+        options={CUSTOM_TARGET_OPTIONS}
+        searchable={false}
+        onChange={onSelectCustomTargetOption}
+      />
+      <div className={`${baseClass}__description`}>{descriptionText}</div>
+      <div className={`${baseClass}__checkboxes`}>{renderLabels()}</div>
+    </div>
   );
 };
 
 interface IAddProfileModalProps {
-  baseClass: string;
   currentTeamId: number;
   isPremiumTier: boolean;
   onUpload: () => void;
@@ -188,7 +220,6 @@ interface IAddProfileModalProps {
 }
 
 const AddProfileModal = ({
-  baseClass,
   currentTeamId,
   isPremiumTier,
   onUpload,
@@ -205,18 +236,20 @@ const AddProfileModal = ({
   const [selectedLabels, setSelectedLabels] = useState<Record<string, boolean>>(
     {}
   );
+  const [
+    customTargetOption,
+    setCustomTargetOption,
+  ] = useState<CustomTargetOption>("labelsIncludeAll");
 
   const fileRef = useRef<File | null>(null);
 
-  // NOTE: labels are not automatically refetched in the current implementation
   const {
     data: labels,
     isLoading: isLoadingLabels,
     isFetching: isFetchingLabels,
     isError: isErrorLabels,
-    // refetch: refetchLabels,
   } = useQuery<ILabelSummary[], Error>(
-    ["custom_labels"], // NOTE: consider adding selectedTarget to the queryKey to refetch labels when target changes
+    ["custom_labels"],
     () =>
       labelsAPI
         .summary()
@@ -246,10 +279,15 @@ const AddProfileModal = ({
 
     setIsLoading(true);
     try {
+      const labelKey = generateLabelKey(
+        selectedTarget,
+        customTargetOption,
+        selectedLabels
+      );
       await mdmAPI.uploadProfile({
         file,
         teamId: currentTeamId,
-        labels: listNamesFromSelectedLabels(selectedLabels),
+        ...labelKey,
       });
       renderFlash("success", "Successfully uploaded!");
       onUpload();
@@ -282,6 +320,10 @@ const AddProfileModal = ({
     }
   };
 
+  const onSelectCustomTargetOption = (val: CustomTargetOption) => {
+    setCustomTargetOption(val);
+  };
+
   return (
     <Modal title="Add profile" onExit={onDone}>
       <>
@@ -291,30 +333,26 @@ const AddProfileModal = ({
           <div className={`${baseClass}__modal-content-wrap`}>
             <Card color="gray" className={`${baseClass}__file`}>
               {!fileDetails ? (
-                <FileChooser
-                  baseClass={baseClass}
-                  isLoading={isLoading}
-                  onFileOpen={onFileOpen}
-                />
+                <FileChooser isLoading={isLoading} onFileOpen={onFileOpen} />
               ) : (
-                <FileDetails baseClass={baseClass} details={fileDetails} />
+                <FileDetails details={fileDetails} />
               )}
             </Card>
             {isPremiumTier && (
               <div className={`${baseClass}__target`}>
                 <TargetChooser
-                  baseClass={baseClass}
                   selectedTarget={selectedTarget}
                   setSelectedTarget={setSelectedTarget}
                 />
                 {selectedTarget === "Custom" && (
                   <LabelChooser
-                    baseClass={baseClass}
+                    customTargetOption={customTargetOption}
                     isError={isErrorLabels}
                     isLoading={isFetchingLabels}
                     labels={labels || []}
                     selectedLabels={selectedLabels}
                     setSelectedLabels={setSelectedLabels}
+                    onSelectCustomTargetOption={onSelectCustomTargetOption}
                   />
                 )}
               </div>
@@ -326,7 +364,6 @@ const AddProfileModal = ({
                 onClick={onFileUpload}
                 isLoading={isLoading}
                 disabled={
-                  // TODO: consider adding tooltip to explain why button is disabled
                   (selectedTarget === "Custom" &&
                     !listNamesFromSelectedLabels(selectedLabels).length) ||
                   !fileDetails
