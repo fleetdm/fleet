@@ -221,35 +221,35 @@ module.exports = {
     if(psychologicalStage !== userRecord.psychologicalStage) {
       // If the createLeadRecord flag was set to true, create a lead record.
       if(createLeadRecord){
-      // Use setImmediate to queue CRM updates.
-      // [?]: https://nodejs.org/api/timers.html#setimmediatecallback-args
-        require('timers').setImmediate(async ()=>{
-          await sails.helpers.salesforce.updateOrCreateContactAndAccountAndCreateLead.with({
-            emailAddress: this.req.me.emailAddress,
-            firstName: this.req.me.firstName,
-            lastName: this.req.me.lastName,
-            primaryBuyingSituation: primaryBuyingSituation === 'eo-security' ? 'Endpoint operations - Security' : primaryBuyingSituation === 'eo-it' ? 'Endpoint operations - IT' : primaryBuyingSituation === 'mdm' ? 'Device management (MDM)' : primaryBuyingSituation === 'vm' ? 'Vulnerability management' : undefined,
-            organization: this.req.me.organization,
-            psychologicalStage,
-            leadSource: 'Website - Sign up',
-          }).tolerate((err)=>{
-            sails.log.warn(`Background task failed: When a user (email: ${this.req.me.emailAddress} submitted a step of the get started questionnaire, a Contact and Account record could not be created/updated in the CRM.`, err);
-          });
-        });//_∏_  (Meanwhile...)
+        sails.helpers.salesforce.updateOrCreateContactAndAccountAndCreateLead.with({
+          emailAddress: this.req.me.emailAddress,
+          firstName: this.req.me.firstName,
+          lastName: this.req.me.lastName,
+          primaryBuyingSituation: primaryBuyingSituation === 'eo-security' ? 'Endpoint operations - Security' : primaryBuyingSituation === 'eo-it' ? 'Endpoint operations - IT' : primaryBuyingSituation === 'mdm' ? 'Device management (MDM)' : primaryBuyingSituation === 'vm' ? 'Vulnerability management' : undefined,
+          organization: this.req.me.organization,
+          psychologicalStage,
+          leadSource: 'Website - Sign up',
+        }).exec((err)=>{
+          if(err){
+            sails.log.warn(`Background task failed: When a user (email: ${this.req.me.emailAddress} submitted a step of the get started questionnaire, a new lead record could not be created in the CRM.`, err);
+          }
+          return;
+        });
       } else {
         // Otherwise, update or create a contact and account record.
-        require('timers').setImmediate(async ()=>{
-          await sails.helpers.salesforce.updateOrCreateContactAndAccount.with({
-            emailAddress: this.req.me.emailAddress,
-            firstName: this.req.me.firstName,
-            lastName: this.req.me.lastName,
-            primaryBuyingSituation: primaryBuyingSituation === 'eo-security' ? 'Endpoint operations - Security' : primaryBuyingSituation === 'eo-it' ? 'Endpoint operations - IT' : primaryBuyingSituation === 'mdm' ? 'Device management (MDM)' : primaryBuyingSituation === 'vm' ? 'Vulnerability management' : undefined,
-            organization: this.req.me.organization,
-            psychologicalStage,
-          }).tolerate((err)=>{
+        sails.helpers.salesforce.updateOrCreateContactAndAccount.with({
+          emailAddress: this.req.me.emailAddress,
+          firstName: this.req.me.firstName,
+          lastName: this.req.me.lastName,
+          primaryBuyingSituation: primaryBuyingSituation === 'eo-security' ? 'Endpoint operations - Security' : primaryBuyingSituation === 'eo-it' ? 'Endpoint operations - IT' : primaryBuyingSituation === 'mdm' ? 'Device management (MDM)' : primaryBuyingSituation === 'vm' ? 'Vulnerability management' : undefined,
+          organization: this.req.me.organization,
+          psychologicalStage,
+        }).exec((err)=>{
+          if(err){
             sails.log.warn(`Background task failed: When a user (email: ${this.req.me.emailAddress} submitted a step of the get started questionnaire, a Contact and Account record could not be created/updated in the CRM.`, err);
-          });
-        });//_∏_  (Meanwhile...)
+          }
+          return;
+        });
       }
     }//ﬁ
     // TODO: send all other answers to Salesforce (when there are fields for them)

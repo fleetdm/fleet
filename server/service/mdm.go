@@ -2277,7 +2277,7 @@ type uploadMDMAppleAPNSCertRequest struct {
 }
 
 func (uploadMDMAppleAPNSCertRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
-	decoded := uploadSoftwareInstallerRequest{}
+	decoded := uploadMDMAppleAPNSCertRequest{}
 	err := r.ParseMultipartForm(512 * units.MiB)
 	if err != nil {
 		return nil, &fleet.BadRequestError{
@@ -2309,7 +2309,7 @@ func (r uploadMDMAppleAPNSCertResponse) error() error {
 func (r uploadMDMAppleAPNSCertResponse) Status() int { return http.StatusAccepted }
 
 func uploadMDMAppleAPNSCertEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
-	req := request.(*uploadSoftwareInstallerRequest)
+	req := request.(*uploadMDMAppleAPNSCertRequest)
 	file, err := req.File.Open()
 	if err != nil {
 		return uploadMDMAppleAPNSCertResponse{Err: err}, nil

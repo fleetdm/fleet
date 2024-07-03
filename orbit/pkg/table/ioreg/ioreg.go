@@ -17,9 +17,8 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/dataflatten"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/dataflattentable"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/tablehelpers"
-	"github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 	"github.com/osquery/osquery-go/plugin/table"
+	"github.com/rs/zerolog"
 )
 
 const ioregPath = "/usr/sbin/ioreg"
@@ -27,11 +26,11 @@ const ioregPath = "/usr/sbin/ioreg"
 const allowedCharacters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 
 type Table struct {
-	logger    log.Logger
 	tableName string
+	logger    zerolog.Logger
 }
 
-func TablePlugin(logger log.Logger) *table.Plugin {
+func TablePlugin(logger zerolog.Logger) *table.Plugin {
 	columns := dataflattentable.Columns(
 		// ioreg input options. These match the ioreg
 		// command line. See the ioreg man page.
@@ -44,8 +43,8 @@ func TablePlugin(logger log.Logger) *table.Plugin {
 	)
 
 	t := &Table{
-		logger:    logger,
 		tableName: "ioreg",
+		logger:    logger.With().Str("table", "ioreg").Logger(),
 	}
 
 	return table.NewPlugin(t.tableName, columns, t.generate)
@@ -94,7 +93,7 @@ func (t *Table) generate(ctx context.Context, queryContext table.QueryContext) (
 							case "1":
 								ioregArgs = append(ioregArgs, "-r")
 							default:
-								level.Info(t.logger).Log("msg", "r should be blank, 0, or 1")
+								t.logger.Info().Msg("r should be blank, 0, or 1")
 								continue
 							}
 
@@ -103,13 +102,13 @@ func (t *Table) generate(ctx context.Context, queryContext table.QueryContext) (
 
 								ioregOutput, err := tablehelpers.Exec(ctx, t.logger, 30, []string{ioregPath}, ioregArgs, false)
 								if err != nil {
-									level.Info(t.logger).Log("msg", "ioreg failed", "err", err)
+									t.logger.Info().Err(err).Msg("ioreg failed ctx logger")
 									continue
 								}
 
 								flatData, err := t.flattenOutput(dataQuery, ioregOutput)
 								if err != nil {
-									level.Info(t.logger).Log("msg", "flatten failed", "err", err)
+									t.logger.Info().Err(err).Msg("flatten failed")
 									continue
 								}
 

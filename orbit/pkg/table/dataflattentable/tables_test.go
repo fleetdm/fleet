@@ -11,7 +11,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/dataflatten"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/tablehelpers"
-	"github.com/go-kit/log"
+	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/require"
 )
 
@@ -21,7 +21,7 @@ import (
 func TestDataFlattenTablePlist_Animals(t *testing.T) {
 	t.Parallel()
 
-	logger := log.NewNopLogger()
+	logger := zerolog.Nop()
 
 	// Test plist parsing both the json and xml forms
 	testTables := map[string]Table{
@@ -85,7 +85,7 @@ func TestDataFlattenTablePlist_Animals(t *testing.T) {
 func TestDataFlattenTables(t *testing.T) {
 	t.Parallel()
 
-	logger := log.NewNopLogger()
+	logger := zerolog.Nop()
 
 	tests := []struct {
 		testTables   map[string]Table

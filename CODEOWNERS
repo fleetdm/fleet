@@ -38,8 +38,20 @@
 *.go @fleetdm/go
 go.sum @fleetdm/go
 go.mod @fleetdm/go
-/server/ @fleetdm/go
 /cmd/ @fleetdm/go
+/orbit/ @lucasmrod @getvictor @roperzh @gillespi314
+/server/ @fleetdm/go
+/server/service/handler.go @lucasmrod @getvictor @roperzh @gillespi314
+/server/mdm/ @roperzh @gillespi314
+/server/worker/ @lucasmrod @getvictor @roperzh @gillespi314
+/server/vulnerabilities/ @lucasmrod @mostlikelee
+/server/cron/ @getvictor @lucasmrod
+/ee/fleetd-chrome @lucasmrod @getvictor
+/ee/vulnerability-dashboard @eashaw
+/ee/cis @sharon-fdm @lucasmrod
+/ee/server/calender @lucasmrod @getvictor
+/ee/server/service @roperzh @gillespi314 @lucasmrod @getvictor
+/scripts/mdm @roperzh @gillespi314
 
 ##############################################################################################
 # 🚀 React files and other files related to the core product frontend.

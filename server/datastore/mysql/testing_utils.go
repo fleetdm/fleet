@@ -20,6 +20,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"text/tabwriter"
 	"time"
@@ -215,6 +216,16 @@ func setupDummyReplica(t testing.TB, testName string, ds *Datastore, opts *Datas
 	}
 }
 
+// we need to keep track of the databases that need replication in order to
+// configure the replica to only track those, otherwise the replica worker
+// might fail/stop trying to execute statements on databases that don't exist.
+//
+// this happens because we create a database and import our test dump on the
+// leader each time `connectMySQL` is called, but we only do the same on the
+// replica when it's enabled via options.
+var mu sync.Mutex
+var databasesToReplicate string
+
 func setupRealReplica(t testing.TB, testName string, ds *Datastore, options *dbOptions) {
 	t.Helper()
 	const replicaUser = "replicator"
@@ -263,6 +274,10 @@ func setupRealReplica(t testing.TB, testName string, ds *Datastore, options *dbO
 		extraMasterOptions = "GET_MASTER_PUBLIC_KEY=1," // needed for MySQL 8.0 caching_sha2_password authentication
 	}
 
+	mu.Lock()
+	databasesToReplicate = strings.TrimPrefix(databasesToReplicate+fmt.Sprintf(", `%s`", testName), ",")
+	mu.Unlock()
+
 	// Configure slave and start replication
 	if out, err := exec.Command(
 		"docker-compose", "exec", "-T", "mysql_replica_test",
@@ -274,6 +289,7 @@ func setupRealReplica(t testing.TB, testName string, ds *Datastore, options *dbO
 			`
 			STOP SLAVE;
 			RESET SLAVE ALL;
+			CHANGE REPLICATION FILTER REPLICATE_DO_DB = ( %s );
 			CHANGE MASTER TO
 				%s
 				MASTER_HOST='mysql_test',
@@ -282,7 +298,7 @@ func setupRealReplica(t testing.TB, testName string, ds *Datastore, options *dbO
 				MASTER_LOG_FILE='%s',
 				MASTER_LOG_POS=%d;
 			START SLAVE;
-			`, extraMasterOptions, replicaUser, replicaPassword, ms.File, ms.Position,
+			`, databasesToReplicate, extraMasterOptions, replicaUser, replicaPassword, ms.File, ms.Position,
 		),
 	).CombinedOutput(); err != nil {
 		t.Error(err)
