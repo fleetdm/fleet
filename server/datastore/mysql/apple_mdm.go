@@ -2196,7 +2196,7 @@ func (ds *Datastore) UpdateOrDeleteHostMDMAppleProfile(ctx context.Context, prof
 		  -- given we don't have osquery in iOS/iPadOS, we skip 'verifying' and go straight to 'verified'.
 		  SET hmap.status = IF((h.platform = 'ios' OR h.platform = 'ipados') AND ? = 'verifying', 'verified', ?), hmap.operation_type = ?, hmap.detail = ?
 	      WHERE hmap.host_uuid = ? AND hmap.command_uuid = ?;`,
-		profile.Status, profile.OperationType, detail, profile.HostUUID, profile.CommandUUID,
+		profile.Status, profile.Status, profile.OperationType, detail, profile.HostUUID, profile.CommandUUID,
 	)
 	return err
 }

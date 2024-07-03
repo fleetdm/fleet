@@ -38,6 +38,13 @@ func main() {
 		log.Fatal("only one of -profile-uuid or -serial-number must be provided")
 	}
 
+	if len(*serverPrivateKey) > 32 {
+		// We truncate to 32 bytes because AES-256 requires a 32 byte (256 bit) PK, but some
+		// infra setups generate keys that are longer than 32 bytes.
+		truncatedServerPrivateKey := (*serverPrivateKey)[:32]
+		serverPrivateKey = &truncatedServerPrivateKey
+	}
+
 	cfg := config.MysqlConfig{
 		Protocol:        "tcp",
 		Address:         *mysqlAddr,
