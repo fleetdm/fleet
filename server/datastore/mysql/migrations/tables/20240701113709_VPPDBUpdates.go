@@ -22,7 +22,7 @@ CREATE TABLE host_vpp_software_installs (
 
 	-- This is the UUID of the MDM command issued to install the software
 	command_uuid VARCHAR(127),
-	user_id UNSIGNED,
+	user_id INT(10) UNSIGNED NULL,
 
 	-- This indicates whether or not this was a self-service install
 	self_service TINYINT(1) NOT NULL DEFAULT FALSE,
@@ -33,7 +33,9 @@ CREATE TABLE host_vpp_software_installs (
 	associated_event_id VARCHAR(36),
 
 	created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-	updated_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+	updated_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+	PRIMARY KEY(id),
+	FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE SET NULL
 )`)
 	if err != nil {
 		return fmt.Errorf("failed to create table host_vpp_software_installs: %w", err)
@@ -42,7 +44,9 @@ CREATE TABLE host_vpp_software_installs (
 	_, err = tx.Exec(`
 CREATE TABLE vpp_apps_teams (
 	adam_id VARCHAR(16) NOT NULL,
-	team_id INT(10) UNSIGNED NOT NULL
+	team_id INT(10) UNSIGNED NOT NULL,
+	FOREIGN KEY (adam_id) REFERENCES vpp_apps (adam_id) ON DELETE CASCADE,
+	FOREIGN KEY (team_id) REFERENCES teams (id) ON DELETE CASCADE
 )`)
 	if err != nil {
 		return fmt.Errorf("failed to create table vpp_apps_teams: %w", err)
@@ -55,7 +59,7 @@ CREATE TABLE vpp_apps_teams (
 -- the app metadata.
 -- If an asset has an entry here and an entry in vpp_apps_teams, then it has 
 -- been added to Fleet.
-CREATE TABLE cached_vpp_assets (
+CREATE TABLE vpp_apps (
 	adam_id VARCHAR(16) NOT NULL,
 
 	-- This is a count of how many licenses are still available for this asset
@@ -66,10 +70,9 @@ CREATE TABLE cached_vpp_assets (
 	name VARCHAR(255),
 	created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 	updated_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-	FOREIGN KEY (adam_id) REFERENCES vpp_apps_teams (adam_id) ON DELETE CASCADE
 )`)
 	if err != nil {
-		return fmt.Errorf("failed to create table cached_vpp_assets: %w", err)
+		return fmt.Errorf("failed to create table vpp_apps: %w", err)
 	}
 
 	return nil
