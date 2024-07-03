@@ -1,3 +1,28 @@
 .app-store-vpp {
   margin-top: $pad-large;
+
+  &__description {
+    margin: $pad-medium;
+  }
+
+  &__software-list {
+    border: 1px solid $ui-fleet-black-10;
+    border-radius: $border-radius-medium;
+  }
+
+  &__no-software {
+    padding: $pad-xxlarge 48px;
+    text-align: center;
+    font-size: $x-small;
+  }
+
+  &__no-software-title {
+    font-weight: $bold;
+    margin: 0;
+  }
+
+  &__no-software-description {
+    margin-top: $pad-small;
+    color: $ui-fleet-black-75;
+  }
 }
