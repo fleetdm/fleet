@@ -42,17 +42,6 @@ CREATE TABLE host_vpp_software_installs (
 	}
 
 	_, err = tx.Exec(`
-CREATE TABLE vpp_apps_teams (
-	adam_id VARCHAR(16) NOT NULL,
-	team_id INT(10) UNSIGNED NOT NULL,
-	FOREIGN KEY (adam_id) REFERENCES vpp_apps (adam_id) ON DELETE CASCADE,
-	FOREIGN KEY (team_id) REFERENCES teams (id) ON DELETE CASCADE
-)`)
-	if err != nil {
-		return fmt.Errorf("failed to create table vpp_apps_teams: %w", err)
-	}
-
-	_, err = tx.Exec(`
 -- This table is the VPP equivalent of the "software_installers" table.
 -- This table is also used as a cache of the response from the "Get Assets"
 -- Apple endpoint as well as the FleetDM website endpoint which will return
@@ -70,9 +59,22 @@ CREATE TABLE vpp_apps (
 	name VARCHAR(255),
 	created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 	updated_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+	PRIMARY KEY (adam_id)
 )`)
 	if err != nil {
 		return fmt.Errorf("failed to create table vpp_apps: %w", err)
+	}
+
+	_, err = tx.Exec(`
+CREATE TABLE vpp_apps_teams (
+	adam_id VARCHAR(16) NOT NULL,
+	team_id INT(10) UNSIGNED NOT NULL,
+	global_or_team_id INT(10) NOT NULL DEFAULT 0,
+	FOREIGN KEY (adam_id) REFERENCES vpp_apps (adam_id) ON DELETE CASCADE,
+	FOREIGN KEY (team_id) REFERENCES teams (id) ON DELETE CASCADE
+)`)
+	if err != nil {
+		return fmt.Errorf("failed to create table vpp_apps_teams: %w", err)
 	}
 
 	return nil
