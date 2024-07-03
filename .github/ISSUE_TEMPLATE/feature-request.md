@@ -15,13 +15,13 @@ Thanks for filing an issue!  Please use the prompts below to provide as much con
 -->
 
 ## Problem
-TODO
+
 <!-- Describe the problem you're trying to solve. What are you trying to accomplish? 
 
 Example: I want to order a pair of shoes from my food delivery app, which does not show options for stores that don't carry food. -->
 
 ## What have you tried?
-TODO
+
 <!-- Described what actions you have taken in the product today to try and solve this problem. Why didn't that workflow or result work for you? What is missing? 
 
 Example: I searched for shoe stores in my food delivery app, but there were no results available. -->
@@ -33,5 +33,4 @@ Example: My food delivery app should have a new search mapping for other categor
 2. 
 
 ## What is the expected output as a result of your proposal?
-TODO
 <!-- Example: I search for the shoe store > I click on the pair of shoes in the size and color I want > I am given an estimated delivery time and price > I pay for my order  > A driver picks up the order and delivers it to me > I am able to track the delivery in the same way I would track a food order. --> 
