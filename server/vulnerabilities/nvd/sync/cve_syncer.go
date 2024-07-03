@@ -199,6 +199,9 @@ func (s *CVE) updateYearFile(year int, cves []nvdapi.CVEItem) error {
 	// Convert new API 2.0 format to legacy feed format and create map of new CVE information.
 	newLegacyCVEs := make(map[string]*schema.NVDCVEFeedJSON10DefCVEItem)
 	for _, cve := range cves {
+		if cve.CVE.VulnStatus != nil && *cve.CVE.VulnStatus == "Rejected" {
+			continue
+		}
 		legacyCVE := convertAPI20CVEToLegacy(cve.CVE, s.logger)
 		newLegacyCVEs[legacyCVE.CVE.CVEDataMeta.ID] = legacyCVE
 	}
@@ -249,6 +252,9 @@ func (s *CVE) updateVulnCheckYearFile(year int, cves []VulnCheckCVE, modCount, a
 	// Convert new API 2.0 format to legacy feed format and create map of new CVE information.
 	newLegacyCVEs := make(map[string]*schema.NVDCVEFeedJSON10DefCVEItem)
 	for _, cve := range cves {
+		if cve.CVE.VulnStatus != nil && *cve.CVE.VulnStatus == "Rejected" {
+			continue
+		}
 		legacyCVE := convertAPI20CVEToLegacy(cve.CVE, s.logger)
 		updateWithVulnCheckConfigurations(legacyCVE, cve.VcConfigurations)
 		newLegacyCVEs[legacyCVE.CVE.CVEDataMeta.ID] = legacyCVE
