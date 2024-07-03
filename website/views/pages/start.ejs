@@ -27,6 +27,11 @@
       <h2>What will you use Fleet for?</h2>
       <ajax-form :handle-submitting="handleSubmittingForm" :form-errors.sync="formErrors" :form-data="formData['what-are-you-using-fleet-for']" :form-rules="primaryBuyingSituationFormRules" :syncing.sync="syncing" :cloud-error.sync="cloudError">
         <div class="form-group" :class="[formErrors.primaryBuyingSituation ? 'is-invalid' : '']" >
+          <label purpose="form-option" class="form-control" :class="[formData['what-are-you-using-fleet-for'].primaryBuyingSituation === 'mdm' ? 'selected' : '']">
+            <input type="radio" :class="[formErrors.primaryBuyingSituation ? 'is-invalid' : '']" v-model.trim="formData['what-are-you-using-fleet-for'].primaryBuyingSituation" value="mdm" @input="clickClearOneFormError('primaryBuyingSituation')">
+            <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
+            Device management (MDM)
+          </label>
           <label purpose="form-option" class="form-control" :class="[formData['what-are-you-using-fleet-for'].primaryBuyingSituation === 'eo-security' ? 'selected' : '']">
             <input type="radio" v-model.trim="formData['what-are-you-using-fleet-for'].primaryBuyingSituation" value="eo-security" @input="clickClearOneFormError('primaryBuyingSituation')">
             <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
@@ -36,11 +41,6 @@
             <input type="radio" :class="[formErrors.primaryBuyingSituation ? 'is-invalid' : '']" v-model.trim="formData['what-are-you-using-fleet-for'].primaryBuyingSituation" value="eo-it" @input="clickClearOneFormError('primaryBuyingSituation')">
             <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
             Endpoint ops for identity engineers and IT admins
-          </label>
-          <label purpose="form-option" class="form-control" :class="[formData['what-are-you-using-fleet-for'].primaryBuyingSituation === 'mdm' ? 'selected' : '']">
-            <input type="radio" :class="[formErrors.primaryBuyingSituation ? 'is-invalid' : '']" v-model.trim="formData['what-are-you-using-fleet-for'].primaryBuyingSituation" value="mdm" @input="clickClearOneFormError('primaryBuyingSituation')">
-            <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
-            Device management (MDM)
           </label>
           <label purpose="form-option" class="form-control" :class="[formData['what-are-you-using-fleet-for'].primaryBuyingSituation === 'vm' ? 'selected' : '']">
             <input type="radio" :class="[formErrors.primaryBuyingSituation ? 'is-invalid' : '']" v-model.trim="formData['what-are-you-using-fleet-for'].primaryBuyingSituation" value="vm" @input="clickClearOneFormError('primaryBuyingSituation')">
@@ -390,8 +390,7 @@
         </div>
         <h2>Is it any good?</h2>
         <div purpose="form-header" class="mx-auto">
-          <p class="mb-3 pb-3">We don’t have a public sample environment, but you can try Fleet out locally on your computer.</p>
-          <p>Got questions? <a purpose="contact-link" href="/contact">Ask us anything</a>.</p>
+          <p class="">We don’t have a public sample environment, but you can try Fleet out locally on your computer.</p>
         </div>
         <div purpose="start-cards">
           <a purpose="card" href="/try-fleet?start">
@@ -399,12 +398,13 @@
             <h2>Try Fleet yourself</h2>
             <p>Try Fleet locally on your device</p>
           </a>
-          <a purpose="card" href="/docs/get-started">
-            <img alt="Purchase a Fleet Premium license" src="/images/homepage-icon-documentation-64x64@2x.png">
-            <h2>Read the docs</h2>
+          <a purpose="card" href="https://youtu.be/QpdRADHWP_o?feature=shared&t=1333" target="_blank">
+            <img alt="Watch a demo" src="/images/play-button-64x64@2x.png">
+            <h2>Watch a demo</h2>
             <p>See what Fleet can do</p>
           </a>
         </div>
+        <p>Got questions? <a purpose="contact-link" href="/contact">Ask us anything</a>.</p>
         <p>You can come back here any time to continue with your deployment.</p>
         <div purpose="form-buttons">
           <a purpose="back-button" @click="clickGoToPreviousStep()">Back</a>

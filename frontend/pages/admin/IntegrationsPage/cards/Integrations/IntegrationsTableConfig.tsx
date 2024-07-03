@@ -90,7 +90,7 @@ const generateTableHeaders = (
       sortType: "caseInsensitive",
       accessor: "name",
       Cell: (cellProps: ICellProps) => (
-        <TextCell value={cellProps.cell.value} classes="w400" />
+        <TextCell value={cellProps.cell.value} className="w400" />
       ),
     },
     {

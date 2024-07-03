@@ -744,9 +744,12 @@ WHERE
 	if err != nil {
 		return nil, err
 	}
-	if len(labels) > 0 {
-		// ensure we leave Labels nil if there are none
-		res.Labels = labels
+	for _, lbl := range labels {
+		if lbl.Exclude {
+			res.LabelsExcludeAny = append(res.LabelsExcludeAny, lbl)
+		} else {
+			res.LabelsIncludeAll = append(res.LabelsIncludeAll, lbl)
+		}
 	}
 
 	return &res, nil
@@ -1127,6 +1130,7 @@ const windowsMDMProfilesDesiredStateQuery = `
 		mwcp.name,
 		h.uuid as host_uuid,
 		0 as count_profile_labels,
+		0 as count_non_broken_labels,
 		0 as count_host_labels
 	FROM
 		mdm_windows_configuration_profiles mwcp
@@ -1145,12 +1149,15 @@ const windowsMDMProfilesDesiredStateQuery = `
 
 	UNION
 
-	-- label-based profiles
+	-- label-based profiles where the host is a member of all the labels (include-all).
+	-- by design, "include" labels cannot match if they are broken (the host cannot be
+	-- a member of a deleted label).
 	SELECT
 		mwcp.profile_uuid,
 		mwcp.name,
 		h.uuid as host_uuid,
 		COUNT(*) as count_profile_labels,
+		COUNT(mcpl.label_id) as count_non_broken_labels,
 		COUNT(lm.label_id) as count_host_labels
 	FROM
 		mdm_windows_configuration_profiles mwcp
@@ -1159,7 +1166,7 @@ const windowsMDMProfilesDesiredStateQuery = `
 			JOIN mdm_windows_enrollments mwe
 				ON mwe.host_uuid = h.uuid
 			JOIN mdm_configuration_profile_labels mcpl
-				ON mcpl.windows_profile_uuid = mwcp.profile_uuid
+				ON mcpl.windows_profile_uuid = mwcp.profile_uuid AND mcpl.exclude = 0
 			LEFT OUTER JOIN label_membership lm
 				ON lm.label_id = mcpl.label_id AND lm.host_id = h.id
 	WHERE
@@ -1169,6 +1176,36 @@ const windowsMDMProfilesDesiredStateQuery = `
 		mwcp.profile_uuid, mwcp.name, h.uuid
 	HAVING
 		count_profile_labels > 0 AND count_host_labels = count_profile_labels
+
+	UNION
+
+	-- label-based entities where the host is NOT a member of any of the labels (exclude-any).
+	-- explicitly ignore profiles with broken excluded labels so that they are never applied.
+	SELECT
+		mwcp.profile_uuid,
+		mwcp.name,
+		h.uuid as host_uuid,
+		COUNT(*) as count_profile_labels,
+		COUNT(mcpl.label_id) as count_non_broken_labels,
+		COUNT(lm.label_id) as count_host_labels
+	FROM
+		mdm_windows_configuration_profiles mwcp
+			JOIN hosts h
+				ON h.team_id = mwcp.team_id OR (h.team_id IS NULL AND mwcp.team_id = 0)
+			JOIN mdm_windows_enrollments mwe
+				ON mwe.host_uuid = h.uuid
+			JOIN mdm_configuration_profile_labels mcpl
+				ON mcpl.windows_profile_uuid = mwcp.profile_uuid AND mcpl.exclude = 1
+			LEFT OUTER JOIN label_membership lm
+				ON lm.label_id = mcpl.label_id AND lm.host_id = h.id
+	WHERE
+		h.platform = 'windows' AND
+		( %s )
+	GROUP BY
+		mwcp.profile_uuid, mwcp.name, h.uuid
+	HAVING
+		-- considers only the profiles with labels, without any broken label, and with the host not in any label
+		count_profile_labels > 0 AND count_profile_labels = count_non_broken_labels AND count_host_labels = 0
 `
 
 func (ds *Datastore) ListMDMWindowsProfilesToInstall(ctx context.Context) ([]*fleet.MDMWindowsProfilePayload, error) {
@@ -1235,9 +1272,9 @@ func listMDMWindowsProfilesToInstallDB(
 
 	var err error
 	args := []any{fleet.MDMOperationTypeInstall}
-	query = fmt.Sprintf(query, hostFilter, hostFilter)
+	query = fmt.Sprintf(query, hostFilter, hostFilter, hostFilter)
 	if len(hostUUIDs) > 0 {
-		query, args, err = sqlx.In(query, hostUUIDs, hostUUIDs, fleet.MDMOperationTypeInstall)
+		query, args, err = sqlx.In(query, hostUUIDs, hostUUIDs, hostUUIDs, fleet.MDMOperationTypeInstall)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "building sqlx.In")
 		}
@@ -1306,6 +1343,7 @@ func listMDMWindowsProfilesToRemoveDB(
 		-- TODO(mna): why don't we have the same exception for "remove" operations as for Apple
 
 		-- except "would be removed" profiles if they are a broken label-based profile
+		-- (regardless of if it is an include-all or exclude-any label)
 		NOT EXISTS (
 			SELECT 1
 			FROM mdm_configuration_profile_labels mcpl
@@ -1314,7 +1352,7 @@ func listMDMWindowsProfilesToRemoveDB(
 				mcpl.label_id IS NULL
 		) AND
 		(%s)
-`, fmt.Sprintf(windowsMDMProfilesDesiredStateQuery, "TRUE", "TRUE"), hostFilter)
+`, fmt.Sprintf(windowsMDMProfilesDesiredStateQuery, "TRUE", "TRUE", "TRUE"), hostFilter)
 
 	var err error
 	var args []any
@@ -1533,10 +1571,17 @@ INSERT INTO
 			}
 		}
 
-		for i := range cp.Labels {
-			cp.Labels[i].ProfileUUID = profileUUID
+		labels := make([]fleet.ConfigurationProfileLabel, 0, len(cp.LabelsIncludeAll)+len(cp.LabelsExcludeAny))
+		for i := range cp.LabelsIncludeAll {
+			cp.LabelsIncludeAll[i].ProfileUUID = profileUUID
+			labels = append(labels, cp.LabelsIncludeAll[i])
 		}
-		if err := batchSetProfileLabelAssociationsDB(ctx, tx, cp.Labels, "windows"); err != nil {
+		for i := range cp.LabelsExcludeAny {
+			cp.LabelsExcludeAny[i].ProfileUUID = profileUUID
+			cp.LabelsExcludeAny[i].Exclude = true
+			labels = append(labels, cp.LabelsExcludeAny[i])
+		}
+		if err := batchSetProfileLabelAssociationsDB(ctx, tx, labels, "windows"); err != nil {
 			return ctxerr.Wrap(ctx, err, "inserting windows profile label associations")
 		}
 
@@ -1767,8 +1812,13 @@ ON DUPLICATE KEY UPDATE
 				return ctxerr.Wrapf(ctx, err, "profile %q is in the database but was not incoming", newlyInsertedProf.Name)
 			}
 
-			for _, label := range incomingProf.Labels {
+			for _, label := range incomingProf.LabelsIncludeAll {
 				label.ProfileUUID = newlyInsertedProf.ProfileUUID
+				incomingLabels = append(incomingLabels, label)
+			}
+			for _, label := range incomingProf.LabelsExcludeAny {
+				label.ProfileUUID = newlyInsertedProf.ProfileUUID
+				label.Exclude = true
 				incomingLabels = append(incomingLabels, label)
 			}
 		}

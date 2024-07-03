@@ -158,7 +158,7 @@ func testNewMDMAppleConfigProfileLabels(t *testing.T, ds *Datastore) {
 		Identifier:   "DummyTestIdentifier",
 		Mobileconfig: dummyMC,
 		TeamID:       nil,
-		Labels: []fleet.ConfigurationProfileLabel{
+		LabelsIncludeAll: []fleet.ConfigurationProfileLabel{
 			{LabelName: "foo", LabelID: 1},
 		},
 	}
@@ -174,7 +174,7 @@ func testNewMDMAppleConfigProfileLabels(t *testing.T, ds *Datastore) {
 	}
 	label, err = ds.NewLabel(ctx, label)
 	require.NoError(t, err)
-	cp.Labels = []fleet.ConfigurationProfileLabel{
+	cp.LabelsIncludeAll = []fleet.ConfigurationProfileLabel{
 		{LabelName: label.Name, LabelID: label.ID},
 	}
 	prof, err := ds.NewMDMAppleConfigProfile(ctx, cp)
@@ -207,11 +207,11 @@ func testNewMDMAppleConfigProfileDuplicateIdentifier(t *testing.T, ds *Datastore
 	storedCP, err := ds.GetMDMAppleConfigProfileByDeprecatedID(ctx, newCP.ProfileID)
 	require.NoError(t, err)
 	checkConfigProfile(t, *newCP, *storedCP)
-	require.Nil(t, storedCP.Labels)
+	require.Nil(t, storedCP.LabelsIncludeAll)
 	storedCP, err = ds.GetMDMAppleConfigProfile(ctx, newCP.ProfileUUID)
 	require.NoError(t, err)
 	checkConfigProfile(t, *newCP, *storedCP)
-	require.Nil(t, storedCP.Labels)
+	require.Nil(t, storedCP.LabelsIncludeAll)
 
 	// create a label-based profile
 	lbl, err := ds.NewLabel(ctx, &fleet.Label{Name: "lbl", Query: "select 1"})
@@ -221,7 +221,7 @@ func testNewMDMAppleConfigProfileDuplicateIdentifier(t *testing.T, ds *Datastore
 		Name:         "label-based",
 		Identifier:   "label-based",
 		Mobileconfig: mobileconfig.Mobileconfig([]byte("LabelTestMobileconfigBytes")),
-		Labels: []fleet.ConfigurationProfileLabel{
+		LabelsIncludeAll: []fleet.ConfigurationProfileLabel{
 			{LabelName: lbl.Name, LabelID: lbl.ID},
 		},
 	}
@@ -232,21 +232,21 @@ func testNewMDMAppleConfigProfileDuplicateIdentifier(t *testing.T, ds *Datastore
 	// only included in the uuid one
 	prof, err := ds.GetMDMAppleConfigProfileByDeprecatedID(ctx, labelProf.ProfileID)
 	require.NoError(t, err)
-	require.Nil(t, prof.Labels)
+	require.Nil(t, prof.LabelsIncludeAll)
 	prof, err = ds.GetMDMAppleConfigProfile(ctx, labelProf.ProfileUUID)
 	require.NoError(t, err)
-	require.Len(t, prof.Labels, 1)
-	require.Equal(t, lbl.Name, prof.Labels[0].LabelName)
-	require.False(t, prof.Labels[0].Broken)
+	require.Len(t, prof.LabelsIncludeAll, 1)
+	require.Equal(t, lbl.Name, prof.LabelsIncludeAll[0].LabelName)
+	require.False(t, prof.LabelsIncludeAll[0].Broken)
 
 	// break the profile by deleting the label
 	require.NoError(t, ds.DeleteLabel(ctx, lbl.Name))
 
 	prof, err = ds.GetMDMAppleConfigProfile(ctx, labelProf.ProfileUUID)
 	require.NoError(t, err)
-	require.Len(t, prof.Labels, 1)
-	require.Equal(t, lbl.Name, prof.Labels[0].LabelName)
-	require.True(t, prof.Labels[0].Broken)
+	require.Len(t, prof.LabelsIncludeAll, 1)
+	require.Equal(t, lbl.Name, prof.LabelsIncludeAll[0].LabelName)
+	require.True(t, prof.LabelsIncludeAll[0].Broken)
 }
 
 func generateCP(name string, identifier string, teamID uint) *fleet.MDMAppleConfigProfile {
@@ -1094,7 +1094,7 @@ func expectAppleDeclarations(
 
 		require.Equal(t, wantD.Name, gotD.Name)
 		require.Equal(t, wantD.Identifier, gotD.Identifier)
-		require.Equal(t, wantD.Labels, gotD.Labels)
+		require.Equal(t, wantD.LabelsIncludeAll, gotD.LabelsIncludeAll)
 	}
 	return m
 }
@@ -1263,6 +1263,8 @@ func configProfileBytesForTest(name, identifier, uuid string) []byte {
 `, name, identifier, uuid))
 }
 
+// if the label name starts with "exclude-", the label is considered an "exclude-any", otherwise
+// it is an "include-all".
 func configProfileForTest(t *testing.T, name, identifier, uuid string, labels ...*fleet.Label) *fleet.MDMAppleConfigProfile {
 	prof := configProfileBytesForTest(name, identifier, uuid)
 	cp, err := fleet.NewMDMAppleConfigProfile(prof, nil)
@@ -1271,12 +1273,18 @@ func configProfileForTest(t *testing.T, name, identifier, uuid string, labels ..
 	cp.Checksum = sum[:]
 
 	for _, lbl := range labels {
-		cp.Labels = append(cp.Labels, fleet.ConfigurationProfileLabel{LabelName: lbl.Name, LabelID: lbl.ID})
+		if strings.HasPrefix(lbl.Name, "exclude-") {
+			cp.LabelsExcludeAny = append(cp.LabelsExcludeAny, fleet.ConfigurationProfileLabel{LabelName: lbl.Name, LabelID: lbl.ID})
+		} else {
+			cp.LabelsIncludeAll = append(cp.LabelsIncludeAll, fleet.ConfigurationProfileLabel{LabelName: lbl.Name, LabelID: lbl.ID})
+		}
 	}
 
 	return cp
 }
 
+// if the label name starts with "exclude-", the label is considered an "exclude-any", otherwise
+// it is an "include-all".
 func declForTest(name, identifier, payloadContent string, labels ...*fleet.Label) *fleet.MDMAppleDeclaration {
 	tmpl := `{
 		"Type": "com.apple.configuration.decl%s",
@@ -1295,7 +1303,11 @@ func declForTest(name, identifier, payloadContent string, labels ...*fleet.Label
 	}
 
 	for _, l := range labels {
-		decl.Labels = append(decl.Labels, fleet.ConfigurationProfileLabel{LabelName: l.Name, LabelID: l.ID})
+		if strings.HasPrefix(l.Name, "exclude-") {
+			decl.LabelsExcludeAny = append(decl.LabelsExcludeAny, fleet.ConfigurationProfileLabel{LabelName: l.Name, LabelID: l.ID})
+		} else {
+			decl.LabelsIncludeAll = append(decl.LabelsIncludeAll, fleet.ConfigurationProfileLabel{LabelName: l.Name, LabelID: l.ID})
+		}
 	}
 
 	return decl
@@ -4858,14 +4870,14 @@ func testSetOrUpdateMDMAppleDDMDeclaration(t *testing.T, ds *Datastore) {
 
 	d1Ori, err := ds.GetMDMAppleDeclaration(ctx, d1.DeclarationUUID)
 	require.NoError(t, err)
-	require.Empty(t, d1Ori.Labels)
+	require.Empty(t, d1Ori.LabelsIncludeAll)
 
 	// update d1 with different identifier and labels
 	d1, err = ds.SetOrUpdateMDMAppleDeclaration(ctx, &fleet.MDMAppleDeclaration{
-		Identifier: "i1b",
-		Name:       "d1",
-		RawJSON:    json.RawMessage(`{"Identifier": "i1b"}`),
-		Labels:     []fleet.ConfigurationProfileLabel{{LabelName: l1.Name, LabelID: l1.ID}},
+		Identifier:       "i1b",
+		Name:             "d1",
+		RawJSON:          json.RawMessage(`{"Identifier": "i1b"}`),
+		LabelsIncludeAll: []fleet.ConfigurationProfileLabel{{LabelName: l1.Name, LabelID: l1.ID}},
 	})
 	require.NoError(t, err)
 	require.Equal(t, d1.DeclarationUUID, d1Ori.DeclarationUUID)
@@ -4873,39 +4885,39 @@ func testSetOrUpdateMDMAppleDDMDeclaration(t *testing.T, ds *Datastore) {
 
 	d1B, err := ds.GetMDMAppleDeclaration(ctx, d1.DeclarationUUID)
 	require.NoError(t, err)
-	require.Len(t, d1B.Labels, 1)
-	require.Equal(t, l1.ID, d1B.Labels[0].LabelID)
+	require.Len(t, d1B.LabelsIncludeAll, 1)
+	require.Equal(t, l1.ID, d1B.LabelsIncludeAll[0].LabelID)
 
 	// update d1 with different label
 	d1, err = ds.SetOrUpdateMDMAppleDeclaration(ctx, &fleet.MDMAppleDeclaration{
-		Identifier: "i1b",
-		Name:       "d1",
-		RawJSON:    json.RawMessage(`{"Identifier": "i1b"}`),
-		Labels:     []fleet.ConfigurationProfileLabel{{LabelName: l2.Name, LabelID: l2.ID}},
+		Identifier:       "i1b",
+		Name:             "d1",
+		RawJSON:          json.RawMessage(`{"Identifier": "i1b"}`),
+		LabelsIncludeAll: []fleet.ConfigurationProfileLabel{{LabelName: l2.Name, LabelID: l2.ID}},
 	})
 	require.NoError(t, err)
 	require.Equal(t, d1.DeclarationUUID, d1Ori.DeclarationUUID)
 
 	d1C, err := ds.GetMDMAppleDeclaration(ctx, d1.DeclarationUUID)
 	require.NoError(t, err)
-	require.Len(t, d1C.Labels, 1)
-	require.Equal(t, l2.ID, d1C.Labels[0].LabelID)
+	require.Len(t, d1C.LabelsIncludeAll, 1)
+	require.Equal(t, l2.ID, d1C.LabelsIncludeAll[0].LabelID)
 
 	// update d1tm1 with different identifier and label
 	d1tm1B, err := ds.SetOrUpdateMDMAppleDeclaration(ctx, &fleet.MDMAppleDeclaration{
-		Identifier: "i1b",
-		Name:       "d1",
-		TeamID:     &tm1.ID,
-		RawJSON:    json.RawMessage(`{"Identifier": "i1b"}`),
-		Labels:     []fleet.ConfigurationProfileLabel{{LabelName: l1.Name, LabelID: l1.ID}},
+		Identifier:       "i1b",
+		Name:             "d1",
+		TeamID:           &tm1.ID,
+		RawJSON:          json.RawMessage(`{"Identifier": "i1b"}`),
+		LabelsIncludeAll: []fleet.ConfigurationProfileLabel{{LabelName: l1.Name, LabelID: l1.ID}},
 	})
 	require.NoError(t, err)
 	require.Equal(t, d1tm1B.DeclarationUUID, d1tm1.DeclarationUUID)
 
 	d1tm1B, err = ds.GetMDMAppleDeclaration(ctx, d1tm1B.DeclarationUUID)
 	require.NoError(t, err)
-	require.Len(t, d1tm1B.Labels, 1)
-	require.Equal(t, l1.ID, d1tm1B.Labels[0].LabelID)
+	require.Len(t, d1tm1B.LabelsIncludeAll, 1)
+	require.Equal(t, l1.ID, d1tm1B.LabelsIncludeAll[0].LabelID)
 
 	// delete no-team d1
 	err = ds.DeleteMDMAppleDeclarationByName(ctx, nil, "d1")

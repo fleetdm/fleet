@@ -11,6 +11,7 @@ import {
 import LastUpdatedText from "components/LastUpdatedText";
 import SectionHeader from "components/SectionHeader";
 import DataError from "components/DataError";
+import Spinner from "components/Spinner";
 
 import OSVersionTable from "../OSVersionTable";
 import { OSUpdatesSupportedPlatform } from "../../OSUpdates";
@@ -56,6 +57,10 @@ const CurrentVersionSection = ({
   };
 
   const renderTable = () => {
+    if (isLoadingOsVersions) {
+      return <Spinner />;
+    }
+
     if (isError) {
       return (
         <DataError
