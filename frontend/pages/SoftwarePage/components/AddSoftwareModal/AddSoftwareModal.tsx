@@ -55,7 +55,7 @@ const AddSoftwareModal = ({
         {teamId === APP_CONTEXT_ALL_TEAMS_ID ? (
           <AllTeamsMessage onExit={onExit} />
         ) : (
-          <TabsWrapper>
+          <TabsWrapper className={`${baseClass}__tabs`}>
             <Tabs>
               <TabList>
                 <Tab>Package</Tab>
