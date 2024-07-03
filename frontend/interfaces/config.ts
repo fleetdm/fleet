@@ -29,6 +29,12 @@ export interface IMacOsMigrationSettings {
   webhook_url: string;
 }
 
+interface ICustomSetting {
+  path: string;
+  labels_include_all?: string[];
+  labels_exclude_any?: string[];
+}
+
 export interface IMdmConfig {
   enable_disk_encryption: boolean;
   enabled_and_configured: boolean;
@@ -42,7 +48,7 @@ export interface IMdmConfig {
     deadline: string | null;
   };
   macos_settings: {
-    custom_settings: null;
+    custom_settings: null | ICustomSetting[];
     enable_disk_encryption: boolean;
   };
   macos_setup: {

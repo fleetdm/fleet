@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20240702085441, Down_20240702085441)
+	MigrationClient.AddMigration(Up_20240703193943, Down_20240703193943)
 }
 
-func Up_20240702085441(tx *sql.Tx) error {
+func Up_20240703193943(tx *sql.Tx) error {
 	if columnExists(tx, "software_titles", "bundle_identifier") {
 		return nil
 	}
@@ -87,6 +87,6 @@ func Up_20240702085441(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20240702085441(tx *sql.Tx) error {
+func Down_20240703193943(tx *sql.Tx) error {
 	return nil
 }

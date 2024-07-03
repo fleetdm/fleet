@@ -1070,7 +1070,7 @@ Modifies the Fleet's configuration with the supplied information.
 
 | Name                              | Type    | In    | Description   |
 | ---------------------             | ------- | ----  | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| org_info          | object  | body  | See [org_info](#org_info). |
+| org_info          | object  | body  | See [org_info](#org-info). |
 | server_settings         | object  | body    | See [server_settings](#server-settings). |
 | smtp_settings         | object  | body    | See [smtp_settings](#smtp-settings). |
 | sso_settings         | object  | body    | See [sso_settings](#sso-settings). |
@@ -2429,7 +2429,7 @@ the `software` table.
 | order_direction         | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include 'asc' and 'desc'. Default is 'asc'.                                                                                                                                                                                                               |
 | status                  | string  | query | Indicates the status of the hosts to return. Can either be 'new', 'online', 'offline', 'mia' or 'missing'.                                                                                                                                                                                                                                  |
 | query                   | string  | query | Search query keywords. Searchable fields include `hostname`, `hardware_serial`, `uuid`, `ipv4` and the hosts' email addresses (only searched if the query looks like an email address, i.e. contains an '@', no space, etc.).                                                                                                                |
-| additional_info_filters | string  | query | A comma-delimited list of fields to include in each host's `additional` object. See [Configuration files](https://fleetdm.com/docs/configuration/configuration-files#features-additional-queries) for how to configure Fleet to collect additional information for each host. Use '*' to get all fields.                                                  |
+| additional_info_filters | string  | query | A comma-delimited list of fields to include in each host's `additional` object.                                              |
 | team_id                 | integer | query | _Available in Fleet Premium_. Filters to only include hosts in the specified team. Use `0` to filter by hosts assigned to "No team".                                                                                                                                                                                                                                                |
 | policy_id               | integer | query | The ID of the policy to filter hosts by.                                                                                                                                                                                                                                                                                                    |
 | policy_response         | string  | query | **Requires `policy_id`**. Valid options are 'passing' or 'failing'.                                                                                                                                                                                                                                       |
@@ -8715,12 +8715,12 @@ Get a list of all software.
 | ----------------------- | ------- | ----- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | page                    | integer | query | Page number of the results to fetch.                                                                                                                                       |
 | per_page                | integer | query | Results per page.                                                                                                                                                          |
-| order_key               | string  | query | What to order results by. Allowed fields are `name` and `hosts_count`. Default is `hosts_count` (descending).      |
+| order_key               | string  | query | What to order results by. Allowed fields are `name` and `hosts_count`. Default is `hosts_count` (descending).                                                              |
 | order_direction         | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`.                                              |
-| query                   | string  | query | Search query keywords. Searchable fields include `title` and `cve`.                                                                                             |
-| team_id                 | integer | query | _Available in Fleet Premium_. Filters the software to only include the software installed on the hosts that are assigned to the specified team.                             |
+| query                   | string  | query | Search query keywords. Searchable fields include `title` and `cve`.                                                                                                        |
+| team_id                 | integer | query | _Available in Fleet Premium_. Filters the software to only include the software installed on the hosts that are assigned to the specified team.                            |
 | vulnerable              | bool    | query | If true or 1, only list software that has detected vulnerabilities. Default is `false`.                                                                                    |
-| available_for_insall    | bool    | query | If `true` or `1`, only list software that is available for install (added by the user). Default is `false`.                                                                                    |
+| available_for_install   | bool    | query | If `true` or `1`, only list software that is available for install (added by the user). Default is `false`.                                                                |
 
 #### Example
 

@@ -3,6 +3,7 @@ package mysql
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -600,4 +601,22 @@ ON DUPLICATE KEY UPDATE
 		}
 		return nil
 	})
+}
+
+func (ds *Datastore) HasSelfServiceSoftwareInstallers(ctx context.Context, hostPlatform string, hostTeamID *uint) (bool, error) {
+	if fleet.IsLinux(hostPlatform) {
+		hostPlatform = "linux"
+	}
+	stmt := `SELECT 1 FROM software_installers WHERE self_service = 1 AND platform = ? AND global_or_team_id = ?`
+	var globalOrTeamID uint
+	if hostTeamID != nil {
+		globalOrTeamID = *hostTeamID
+	}
+	args := []interface{}{hostPlatform, globalOrTeamID}
+	var hasInstallers bool
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &hasInstallers, stmt, args...)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return false, ctxerr.Wrap(ctx, err, "check for self-service software installers")
+	}
+	return hasInstallers, nil
 }
