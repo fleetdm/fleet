@@ -777,7 +777,7 @@ type AssociateMDMIdPAccountFunc func(ctx context.Context, accountUUID string, de
 
 type GetMDMIdPAccountByAccountUUIDFunc func(ctx context.Context, accountUUID string) (*fleet.MDMIdPAccount, error)
 
-type GetMDMIdPAccountByDeviceUUIDFunc func(ctx context.Context, deviceUUID string) (*fleet.MDMIdPAccount, error)
+type GetMDMIdPAccountByHostUUIDFunc func(ctx context.Context, hostUUID string) (*fleet.MDMIdPAccount, error)
 
 type GetMDMIdPAccountByLegacyEnrollRefFunc func(ctx context.Context, ref string) (*fleet.MDMIdPAccount, error)
 
@@ -2125,8 +2125,8 @@ type DataStore struct {
 	GetMDMIdPAccountByAccountUUIDFunc        GetMDMIdPAccountByAccountUUIDFunc
 	GetMDMIdPAccountByAccountUUIDFuncInvoked bool
 
-	GetMDMIdPAccountByDeviceUUIDFunc        GetMDMIdPAccountByDeviceUUIDFunc
-	GetMDMIdPAccountByDeviceUUIDFuncInvoked bool
+	GetMDMIdPAccountByHostUUIDFunc        GetMDMIdPAccountByHostUUIDFunc
+	GetMDMIdPAccountByHostUUIDFuncInvoked bool
 
 	GetMDMIdPAccountByLegacyEnrollRefFunc        GetMDMIdPAccountByLegacyEnrollRefFunc
 	GetMDMIdPAccountByLegacyEnrollRefFuncInvoked bool
@@ -5096,11 +5096,11 @@ func (s *DataStore) GetMDMIdPAccountByAccountUUID(ctx context.Context, accountUU
 	return s.GetMDMIdPAccountByAccountUUIDFunc(ctx, accountUUID)
 }
 
-func (s *DataStore) GetMDMIdPAccountByDeviceUUID(ctx context.Context, deviceUUID string) (*fleet.MDMIdPAccount, error) {
+func (s *DataStore) GetMDMIdPAccountByHostUUID(ctx context.Context, hostUUID string) (*fleet.MDMIdPAccount, error) {
 	s.mu.Lock()
-	s.GetMDMIdPAccountByDeviceUUIDFuncInvoked = true
+	s.GetMDMIdPAccountByHostUUIDFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetMDMIdPAccountByDeviceUUIDFunc(ctx, deviceUUID)
+	return s.GetMDMIdPAccountByHostUUIDFunc(ctx, hostUUID)
 }
 
 func (s *DataStore) GetMDMIdPAccountByLegacyEnrollRef(ctx context.Context, ref string) (*fleet.MDMIdPAccount, error) {

@@ -15,7 +15,7 @@ const DEPSSOLoginPage = ({
   location: { query },
 }: WithRouterProps<object, IMDMSSOParams>) => {
   const { dep_device_info } = query;
-  localStorage.setItem("dep_device_info", dep_device_info || "who_knows");
+  localStorage.setItem("dep_device_info", dep_device_info || "");
 
   const { error } = useQuery<IMdmSSOReponse, AxiosError>(
     ["dep_sso"],

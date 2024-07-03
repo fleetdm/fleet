@@ -3672,12 +3672,12 @@ func (ds *Datastore) SetOrUpdateHostEmailsFromMdmIdpAccountsByHostUUID(
 		}
 		hid = host.ID
 
-		idp, err := ds.GetMDMIdPAccountByDeviceUUID(ctx, hostUUID)
+		idp, err := ds.GetMDMIdPAccountByHostUUID(ctx, hostUUID)
 		if err != nil {
 			if fleet.IsNotFound(err) {
-				level.Debug(ds.logger).Log("msg", "getting idp account by device uuid to upsert host emails with mdm idp account", "device_uuid", hostUUID, "err", err)
+				level.Debug(ds.logger).Log("msg", "getting idp account by host uuid to upsert host emails with mdm idp account", "host_uuid", hostUUID, "err", err)
 			} else {
-				return ctxerr.Wrap(ctx, err, "getting idp account by device uuid to upsert host emails with mdm idp account")
+				return ctxerr.Wrap(ctx, err, "getting idp account by host uuid to upsert host emails with mdm idp account")
 			}
 		}
 		email = idp.Email

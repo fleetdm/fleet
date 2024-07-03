@@ -29,8 +29,7 @@ const EnrollmentGate = ({
 }: IEnrollmentGateProps) => {
   const [showEULA, setShowEULA] = useState(Boolean(eulaToken));
 
-  const dep_device_info =
-    localStorage.getItem("dep_device_info") || "not_found";
+  const dep_device_info = localStorage.getItem("dep_device_info") || "";
 
   if (!profileToken || error) {
     return <SSOError />;

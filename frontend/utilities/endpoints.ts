@@ -1,3 +1,5 @@
+import { IMDMAppleEnrollmentProfileParams } from "services/entities/mdm";
+
 const API_VERSION = "latest";
 
 export default {
@@ -97,11 +99,7 @@ export default {
     token,
     ref,
     dep_device_info,
-  }: {
-    token: string;
-    ref?: string;
-    dep_device_info?: string;
-  }) => {
+  }: IMDMAppleEnrollmentProfileParams) => {
     const query = new URLSearchParams({ token });
     ref && query.append("enrollment_reference", ref);
     dep_device_info && query.append("dep_device_info", dep_device_info);

@@ -73,10 +73,10 @@ type MDMIdPAccount struct {
 	Username string
 	Fullname string
 	Email    string
-	// DeviceUUID is the unique device identifier associated with the MDM enrollment. For Apple
+	// HostUUID is the unique device identifier associated with the MDM enrollment. For Apple
 	// devices, it corresponds to the UDID extracted from the `x-apple-aspen-deviceinfo` header of
 	// the DEP webview client request.
-	DeviceUUID string `db:"device_uuid"`
+	HostUUID string `db:"host_uuid"`
 	// FleetEnrollRef is a legacy reference that is preserved for devices that enrolled
 	// via a mobileconfig that included an enrollment reference query param in the service URL. It
 	// is preserved for backwards compatibility with existing enrollments because Apple requires

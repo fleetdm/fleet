@@ -1053,10 +1053,10 @@ func WithDEPWebviewRedirect(svc fleet.Service, logger kitlog.Logger, next http.H
 				_, err := dep_webview.DefaultParser.Parse(r)
 				if err != nil {
 					level.Error(logger).Log("msg", "parsing X-apple-aspen-deviceinfo", "err", err)
-					http.Error(w, "parsing X-apple-aspen-deviceinfo", http.StatusBadRequest)
+					http.Redirect(w, r, r.URL.String()+"?error=true", http.StatusSeeOther)
 					return
 				}
-				// redirect to the same URL with added udid and serial query params
+				// redirect to the same URL with added deviceinfo query params
 				newURL := r.URL
 				q := url.Values{
 					"dep_device_info": []string{di},

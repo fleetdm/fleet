@@ -1172,8 +1172,8 @@ type Datastore interface {
 	// GetMDMIdPAccountByAccountUUID returns MDM IdP account that matches the given account uuid.
 	GetMDMIdPAccountByAccountUUID(ctx context.Context, accountUUID string) (*MDMIdPAccount, error)
 
-	// GetMDMIdPAccountByDeviceUUID returns MDM IdP account that matches the given device uuid.
-	GetMDMIdPAccountByDeviceUUID(ctx context.Context, deviceUUID string) (*MDMIdPAccount, error)
+	// GetMDMIdPAccountByHostUUID returns MDM IdP account that matches the given host uuid.
+	GetMDMIdPAccountByHostUUID(ctx context.Context, hostUUID string) (*MDMIdPAccount, error)
 
 	// GetMDMIdPAccountByLegacyEnrollRef returns MDM IdP account that matches the given Fleet
 	// enrollment ref.

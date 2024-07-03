@@ -122,7 +122,7 @@ func (a *AppleMDM) runPostDEPEnrollment(ctx context.Context, args appleMDMArgs) 
 		}
 	}
 
-	idpAcct, err := a.Datastore.GetMDMIdPAccountByDeviceUUID(ctx, args.HostUUID)
+	idpAcct, err := a.Datastore.GetMDMIdPAccountByHostUUID(ctx, args.HostUUID)
 	if err != nil && !fleet.IsNotFound(err) {
 		return ctxerr.Wrap(ctx, err, "getting idp account details")
 	}

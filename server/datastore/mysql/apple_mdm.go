@@ -2598,16 +2598,16 @@ func (ds *Datastore) InsertMDMIdPAccount(ctx context.Context, account *fleet.MDM
 	return ctxerr.Wrap(ctx, err, "creating new MDM IdP account")
 }
 
-func (ds *Datastore) AssociateMDMIdPAccount(ctx context.Context, accountUUID, deviceUUID string) error {
+func (ds *Datastore) AssociateMDMIdPAccount(ctx context.Context, accountUUID, hostUUID string) error {
 	stmt := `
-      UPDATE mdm_idp_accounts SET device_uuid = ? WHERE uuid = ?`
+      UPDATE mdm_idp_accounts SET host_uuid = ? WHERE uuid = ?`
 
-	_, err := ds.writer(ctx).ExecContext(ctx, stmt, deviceUUID, accountUUID)
+	_, err := ds.writer(ctx).ExecContext(ctx, stmt, hostUUID, accountUUID)
 	return ctxerr.Wrap(ctx, err, "associating MDM IdP account with device")
 }
 
 func (ds *Datastore) GetMDMIdPAccountByEmail(ctx context.Context, email string) (*fleet.MDMIdPAccount, error) {
-	stmt := `SELECT uuid, username, fullname, email, device_uuid, fleet_enroll_ref FROM mdm_idp_accounts WHERE email = ?`
+	stmt := `SELECT uuid, username, fullname, email, host_uuid, fleet_enroll_ref FROM mdm_idp_accounts WHERE email = ?`
 	var acct fleet.MDMIdPAccount
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &acct, stmt, email)
 	if err != nil {
@@ -2620,7 +2620,7 @@ func (ds *Datastore) GetMDMIdPAccountByEmail(ctx context.Context, email string) 
 }
 
 func (ds *Datastore) GetMDMIdPAccountByAccountUUID(ctx context.Context, accountUUID string) (*fleet.MDMIdPAccount, error) {
-	stmt := `SELECT uuid, username, fullname, email, device_uuid, fleet_enroll_ref FROM mdm_idp_accounts WHERE uuid = ?`
+	stmt := `SELECT uuid, username, fullname, email, host_uuid, fleet_enroll_ref FROM mdm_idp_accounts WHERE uuid = ?`
 	var acct fleet.MDMIdPAccount
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &acct, stmt, accountUUID)
 	if err != nil {
@@ -2632,13 +2632,13 @@ func (ds *Datastore) GetMDMIdPAccountByAccountUUID(ctx context.Context, accountU
 	return &acct, nil
 }
 
-func (ds *Datastore) GetMDMIdPAccountByDeviceUUID(ctx context.Context, deviceUUID string) (*fleet.MDMIdPAccount, error) {
-	stmt := `SELECT uuid, username, fullname, email, device_uuid, fleet_enroll_ref FROM mdm_idp_accounts WHERE device_uuid = ?`
+func (ds *Datastore) GetMDMIdPAccountByHostUUID(ctx context.Context, hostUUID string) (*fleet.MDMIdPAccount, error) {
+	stmt := `SELECT uuid, username, fullname, email, host_uuid, fleet_enroll_ref FROM mdm_idp_accounts WHERE host_uuid = ?`
 	var acct fleet.MDMIdPAccount
-	err := sqlx.GetContext(ctx, ds.reader(ctx), &acct, stmt, deviceUUID)
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &acct, stmt, hostUUID)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return nil, ctxerr.Wrap(ctx, notFound("MDMIdPAccount").WithMessage(fmt.Sprintf("with uuid %s", deviceUUID)))
+			return nil, ctxerr.Wrap(ctx, notFound("MDMIdPAccount").WithMessage(fmt.Sprintf("with uuid %s", hostUUID)))
 		}
 		return nil, ctxerr.Wrap(ctx, err, "select mdm_idp_accounts")
 	}
@@ -2646,7 +2646,7 @@ func (ds *Datastore) GetMDMIdPAccountByDeviceUUID(ctx context.Context, deviceUUI
 }
 
 func (ds *Datastore) GetMDMIdPAccountByLegacyEnrollRef(ctx context.Context, ref string) (*fleet.MDMIdPAccount, error) {
-	stmt := `SELECT uuid, username, fullname, email, device_uuid, fleet_enroll_ref FROM mdm_idp_accounts WHERE fleet_enroll_ref = ?`
+	stmt := `SELECT uuid, username, fullname, email, host_uuid, fleet_enroll_ref FROM mdm_idp_accounts WHERE fleet_enroll_ref = ?`
 	var acct fleet.MDMIdPAccount
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &acct, stmt, ref)
 	if err != nil {

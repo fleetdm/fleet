@@ -70,6 +70,12 @@ export interface IMDMSSOParams {
   dep_device_info: string;
 }
 
+export interface IMDMAppleEnrollmentProfileParams {
+  token: string;
+  ref?: string;
+  dep_device_info?: string;
+}
+
 const mdmService = {
   resetEncryptionKey: (token: string) => {
     const { DEVICE_USER_RESET_ENCRYPTION_KEY } = endpoints;
