@@ -24,7 +24,7 @@ export type ColumnType =
   | "string"; // TODO: Why do we have type string, STRING, and text in schema.json?
 
 // TODO: Replace with one or the other once osquery_fleet_schema.json follows one type or other
-export type TableSchemaPlatforms = SupportedDisplayPlatform | SupportedPlatform;
+export type TableSchemaPlatform = SupportedDisplayPlatform | SupportedPlatform;
 export interface IQueryTableColumn {
   name: string;
   description: string;
@@ -32,7 +32,7 @@ export interface IQueryTableColumn {
   hidden: boolean;
   required: boolean;
   index: boolean;
-  platforms?: TableSchemaPlatforms[];
+  platforms?: TableSchemaPlatform[];
   requires_user_context?: boolean;
 }
 
@@ -40,7 +40,7 @@ export interface IOsQueryTable {
   name: string;
   description: string;
   url: string;
-  platforms: TableSchemaPlatforms[];
+  platforms: TableSchemaPlatform[];
   evented: boolean;
   cacheable: boolean;
   columns: IQueryTableColumn[];

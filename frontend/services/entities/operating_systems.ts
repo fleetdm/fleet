@@ -11,6 +11,8 @@ export const OS_VERSIONS_API_SUPPORTED_PLATFORMS = [
   "darwin",
   "windows",
   "chrome",
+  "ios",
+  "ipados",
 ];
 
 export interface IGetOSVersionsQueryParams {

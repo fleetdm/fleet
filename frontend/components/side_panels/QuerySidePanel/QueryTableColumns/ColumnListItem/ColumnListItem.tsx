@@ -4,7 +4,7 @@ import classnames from "classnames";
 import {
   ColumnType,
   IQueryTableColumn,
-  TableSchemaPlatforms,
+  TableSchemaPlatform,
 } from "interfaces/osquery_table";
 import TooltipWrapper from "components/TooltipWrapper";
 import { buildQueryStringFromParams } from "utilities/url";
@@ -58,7 +58,7 @@ const renderTooltip = (
     );
   };
 
-  const renderPlatformFootnotes = (columnPlatforms: TableSchemaPlatforms[]) => {
+  const renderPlatformFootnotes = (columnPlatforms: TableSchemaPlatform[]) => {
     let platformsCopy;
     switch (columnPlatforms.length) {
       case 1:

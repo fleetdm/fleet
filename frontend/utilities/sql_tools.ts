@@ -7,7 +7,7 @@ import {
   SUPPORTED_PLATFORMS,
   SupportedPlatform,
 } from "interfaces/platform";
-import { TableSchemaPlatforms } from "interfaces/osquery_table";
+import { TableSchemaPlatform } from "interfaces/osquery_table";
 
 type IAstNode = Record<string | number | symbol, unknown>;
 
@@ -15,10 +15,10 @@ type IAstNode = Record<string | number | symbol, unknown>;
 // TODO: Is it ever possible that osquery_tables.json would be missing name or platforms?
 interface IOsqueryTable {
   name: string;
-  platforms: TableSchemaPlatforms[];
+  platforms: TableSchemaPlatform[];
 }
 
-type IPlatformDictionary = Record<string, TableSchemaPlatforms[]>;
+type IPlatformDictionary = Record<string, TableSchemaPlatform[]>;
 
 const platformsByTableDictionary: IPlatformDictionary = (osqueryTablesAvailable as IOsqueryTable[]).reduce(
   (dictionary: IPlatformDictionary, osqueryTable) => {
