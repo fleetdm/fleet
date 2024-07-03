@@ -380,6 +380,11 @@ func processFailingHostExistingCalendarEvent(
 	if err := ds.UpdateHostRefetchRequested(ctx, host.HostID, true); err != nil {
 		return fmt.Errorf("refetch host: %w", err)
 	}
+
+	// We no longer need to watch the event for changes
+	if err = userCalendar.StopEventChannel(calendarEvent); err != nil {
+		return fmt.Errorf("delete event channel: %w", err)
+	}
 	return nil
 }
 

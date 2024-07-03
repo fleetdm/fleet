@@ -653,6 +653,20 @@ func (c *GoogleCalendar) DeleteEvent(event *fleet.CalendarEvent) error {
 	return nil
 }
 
+func (c *GoogleCalendar) StopEventChannel(event *fleet.CalendarEvent) error {
+	details, err := c.unmarshalDetails(event)
+	if err != nil {
+		return err
+	}
+	if details.ChannelID != "" && details.ResourceID != "" {
+		stopErr := c.config.API.Stop(details.ChannelID, details.ResourceID)
+		if stopErr != nil {
+			level.Warn(c.config.Logger).Log("msg", "stopping Google calendar event watch", "err", stopErr)
+		}
+	}
+	return nil
+}
+
 func (c *GoogleCalendar) Get(event *fleet.CalendarEvent, key string) (interface{}, error) {
 	if key == "channelID" {
 		details, err := c.unmarshalDetails(event)

@@ -35,6 +35,8 @@ type UserCalendar interface {
 		updated bool, err error)
 	// DeleteEvent deletes the event with the given ID.
 	DeleteEvent(event *CalendarEvent) error
+	// StopEventChannel stops the event's callback channel.
+	StopEventChannel(event *CalendarEvent) error
 	// Get retrieves the value of the given key from the event.
 	Get(event *CalendarEvent, key string) (interface{}, error)
 }
