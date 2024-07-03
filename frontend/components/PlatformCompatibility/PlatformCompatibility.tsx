@@ -2,8 +2,8 @@ import React from "react";
 
 import {
   DisplayPlatform,
-  SupportedDisplayPlatform,
-  SupportedPlatform,
+  QueryableDisplayPlatform,
+  QueryablePlatform,
 } from "interfaces/platform";
 import { PLATFORM_DISPLAY_NAMES } from "utilities/constants";
 
@@ -22,12 +22,12 @@ const DISPLAY_ORDER = [
   "Windows",
   "Linux",
   "ChromeOS",
-] as SupportedDisplayPlatform[];
+] as QueryableDisplayPlatform[];
 
 const ERROR_NO_COMPATIBLE_TABLES = Error("no tables in query");
 
 const formatPlatformsForDisplay = (
-  compatiblePlatforms: SupportedPlatform[]
+  compatiblePlatforms: QueryablePlatform[]
 ): DisplayPlatform[] => {
   return compatiblePlatforms.map((str) => PLATFORM_DISPLAY_NAMES[str] || str);
 };
@@ -55,8 +55,6 @@ const PlatformCompatibility = ({
   if (!compatiblePlatforms) {
     return null;
   }
-
-  console.log("compatiblePlat", compatiblePlatforms);
 
   const displayPlatforms = formatPlatformsForDisplay(compatiblePlatforms);
 

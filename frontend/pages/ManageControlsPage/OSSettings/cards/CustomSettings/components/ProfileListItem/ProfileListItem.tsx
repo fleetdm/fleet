@@ -39,7 +39,7 @@ const ProfileDetails = ({
 }: IProfileDetailsProps) => {
   const getPlatformName = () => {
     if (platform === "windows") return "Windows";
-    return isDDM ? "macOS (declaration)" : "macOS, iOS, iPadOS"; // TODO: Confirm this is correct logic and copy text
+    return isDDM ? "macOS (declaration)" : "macOS, iOS, iPadOS";
   };
 
   return (

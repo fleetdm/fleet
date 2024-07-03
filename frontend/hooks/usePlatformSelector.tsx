@@ -4,14 +4,14 @@ import { forEach } from "lodash";
 import {
   SelectedPlatformString,
   SUPPORTED_PLATFORMS,
-  SupportedPlatform,
+  QueryablePlatform,
 } from "interfaces/platform";
 
 import PlatformSelector from "components/PlatformSelector";
 
 export interface IPlatformSelector {
   setSelectedPlatforms: (platforms: string[]) => void;
-  getSelectedPlatforms: () => SupportedPlatform[];
+  getSelectedPlatforms: () => QueryablePlatform[];
   isAnyPlatformSelected: boolean;
   render: () => JSX.Element;
   disabled?: boolean;

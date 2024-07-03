@@ -5,7 +5,7 @@ import { osqueryTablesAvailable } from "utilities/osquery_tables";
 import {
   MACADMINS_EXTENSION_TABLES,
   SUPPORTED_PLATFORMS,
-  SupportedPlatform,
+  QueryablePlatform,
 } from "interfaces/platform";
 import { TableSchemaPlatform } from "interfaces/osquery_table";
 
@@ -57,7 +57,7 @@ const _visit = (
 
 const filterCompatiblePlatforms = (
   sqlTables: string[]
-): SupportedPlatform[] => {
+): QueryablePlatform[] => {
   if (!sqlTables.length) {
     return [...SUPPORTED_PLATFORMS]; // if a query has no tables but is still syntatically valid sql, it is treated as compatible with all platforms
   }
@@ -147,7 +147,7 @@ export const checkTable = (
 export const checkPlatformCompatibility = (
   sqlString: string,
   includeCteTables = false
-): { platforms: SupportedPlatform[] | null; error: Error | null } => {
+): { platforms: QueryablePlatform[] | null; error: Error | null } => {
   let sqlTables: string[] | undefined;
   try {
     // get tables from str

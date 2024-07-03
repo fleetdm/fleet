@@ -131,9 +131,9 @@ const CustomSettings = ({
       return <Spinner />;
     }
 
-    // if (isErrorProfiles) {
-    //   return <DataError />;
-    // }
+    if (isErrorProfiles) {
+      return <DataError />;
+    }
 
     if (!profiles?.length) {
       return null;

@@ -1,15 +1,5 @@
-import React, { useContext, useState } from "react";
-import { isEmpty } from "lodash";
+import React from "react";
 
-import { APP_CONTEXT_NO_TEAM_ID } from "interfaces/team";
-import { NotificationContext } from "context/notification";
-import configAPI from "services/entities/config";
-import teamsAPI from "services/entities/teams";
-
-// @ts-ignore
-import InputField from "components/forms/fields/InputField";
-import Button from "components/buttons/Button";
-import validatePresence from "components/forms/validators/validate_presence";
 import CustomLink from "components/CustomLink";
 
 const baseClass = "empty-target-form";
@@ -20,7 +10,7 @@ interface IEmptyTargetFormProps {
 
 const EmptyTargetForm = ({ targetPlatform }: IEmptyTargetFormProps) => {
   return (
-    <>
+    <div className={baseClass}>
       <p>
         <b>{targetPlatform} updates are coming soon.</b>
       </p>
@@ -32,7 +22,7 @@ const EmptyTargetForm = ({ targetPlatform }: IEmptyTargetFormProps) => {
           newTab
         />
       </p>
-    </>
+    </div>
   );
 };
 

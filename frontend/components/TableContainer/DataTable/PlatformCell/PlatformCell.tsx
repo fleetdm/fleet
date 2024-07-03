@@ -1,22 +1,22 @@
 import React from "react";
 import Icon from "components/Icon";
-import { SupportedPlatform } from "interfaces/platform";
+import { QueryablePlatform } from "interfaces/platform";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 
 interface IPlatformCellProps {
-  platforms: SupportedPlatform[];
+  platforms: QueryablePlatform[];
 }
 
 const baseClass = "platform-cell";
 
-const ICONS: Record<string, SupportedPlatform> = {
+const ICONS: Record<string, QueryablePlatform> = {
   darwin: "darwin",
   windows: "windows",
   linux: "linux",
   chrome: "chrome",
 };
 
-const DISPLAY_ORDER: SupportedPlatform[] = [
+const DISPLAY_ORDER: QueryablePlatform[] = [
   "darwin",
   "windows",
   "linux",

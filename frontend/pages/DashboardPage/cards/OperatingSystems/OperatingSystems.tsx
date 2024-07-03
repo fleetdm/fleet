@@ -5,7 +5,6 @@ import {
   OS_END_OF_LIFE_LINK_BY_PLATFORM,
   OS_VENDOR_BY_PLATFORM,
 } from "interfaces/operating_system";
-import { Platform } from "interfaces/platform";
 import {
   getOSVersions,
   IGetOSVersionsQueryKey,

@@ -3,7 +3,6 @@ import ReactTooltip from "react-tooltip";
 import classnames from "classnames";
 
 import Button from "components/buttons/Button";
-import PremiumFeatureIconWithTooltip from "components/PremiumFeatureIconWithTooltip";
 
 import Icon from "components/Icon";
 import { IconNames } from "components/icons";

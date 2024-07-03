@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React from "react";
 import { Tab, TabList, TabPanel, Tabs } from "react-tabs";
 import TabsWrapper from "components/TabsWrapper";
 
@@ -56,16 +56,16 @@ const PlatformTabs = ({
           <TabList>
             {/* Bolding text when the tab is active causes a layout shift so
             we add a hidden pseudo element with the same text string */}
-            <Tab key={"macOS"} data-text={"macOS"}>
+            <Tab key="macOS" data-text="macOS">
               macOS
             </Tab>
-            <Tab key={"Windows"} data-text={"Windows"}>
+            <Tab key="Windows" data-text="Windows">
               Windows
             </Tab>
-            <Tab key={"iOS"} data-text={"iOS"}>
+            <Tab key="iOS" data-text="iOS">
               iOS
             </Tab>
-            <Tab key={"iPadOS"} data-text={"iPadOS"}>
+            <Tab key="iPadOS" data-text="iPadOS">
               iPadOS
             </Tab>
           </TabList>

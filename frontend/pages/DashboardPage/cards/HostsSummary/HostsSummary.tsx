@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useCallback } from "react";
 import PATHS from "router/paths";
 
 import { PLATFORM_NAME_TO_LABEL_NAME } from "pages/DashboardPage/helpers";
@@ -45,10 +45,16 @@ const HostsSummary = ({
     opacity = isLoadingHostsSummary ? { opacity: 0.4 } : { opacity: 1 };
   }
 
+  const getBuiltinLabelId = useCallback(
+    (platformName: keyof typeof PLATFORM_NAME_TO_LABEL_NAME) =>
+      builtInLabels?.find(
+        (builtin) => builtin.name === PLATFORM_NAME_TO_LABEL_NAME[platformName]
+      )?.id,
+    [builtInLabels]
+  );
+
   const renderMacCount = (teamId?: number) => {
-    const macLabelId = builtInLabels?.find((builtin) => {
-      return builtin.name === PLATFORM_NAME_TO_LABEL_NAME.darwin;
-    })?.id;
+    const macLabelId = getBuiltinLabelId("darwin");
 
     if (isLoadingHostsSummary || macLabelId === undefined) {
       return <></>;
@@ -69,9 +75,7 @@ const HostsSummary = ({
   };
 
   const renderWindowsCount = (teamId?: number) => {
-    const windowsLabelId = builtInLabels?.find(
-      (builtin) => builtin.name === PLATFORM_NAME_TO_LABEL_NAME.windows
-    )?.id;
+    const windowsLabelId = getBuiltinLabelId("windows");
 
     if (isLoadingHostsSummary || windowsLabelId === undefined) {
       return <></>;
@@ -91,9 +95,7 @@ const HostsSummary = ({
   };
 
   const renderLinuxCount = (teamId?: number) => {
-    const linuxLabelId = builtInLabels?.find(
-      (builtin) => builtin.name === PLATFORM_NAME_TO_LABEL_NAME.linux
-    )?.id;
+    const linuxLabelId = getBuiltinLabelId("linux");
 
     if (isLoadingHostsSummary || linuxLabelId === undefined) {
       return <></>;
@@ -113,9 +115,7 @@ const HostsSummary = ({
   };
 
   const renderChromeCount = (teamId?: number) => {
-    const chromeLabelId = builtInLabels?.find(
-      (builtin) => builtin.name === PLATFORM_NAME_TO_LABEL_NAME.chrome
-    )?.id;
+    const chromeLabelId = getBuiltinLabelId("chrome");
 
     if (isLoadingHostsSummary || chromeLabelId === undefined) {
       return <></>;
@@ -136,9 +136,7 @@ const HostsSummary = ({
   };
 
   const renderIosCount = (teamId?: number) => {
-    const iosLabelId = builtInLabels?.find(
-      (builtin) => builtin.name === PLATFORM_NAME_TO_LABEL_NAME.ios
-    )?.id;
+    const iosLabelId = getBuiltinLabelId("ios");
 
     if (isLoadingHostsSummary || iosLabelId === undefined) {
       return <></>;
@@ -159,9 +157,7 @@ const HostsSummary = ({
   };
 
   const renderIpadosCount = (teamId?: number) => {
-    const ipadosLabelId = builtInLabels?.find(
-      (builtin) => builtin.name === PLATFORM_NAME_TO_LABEL_NAME.ipados
-    )?.id;
+    const ipadosLabelId = getBuiltinLabelId("ipados");
 
     if (isLoadingHostsSummary || ipadosLabelId === undefined) {
       return <></>;
