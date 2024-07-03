@@ -276,12 +276,14 @@ $shadow-transition-width: 10px;
           min-width: 100%;
           text-align: left;
         }
-        .grey-cell {
-          color: $ui-fleet-black-50;
+        .italic-cell {
           font-style: italic;
           .__react_component_tooltip {
             font-style: normal;
           }
+        }
+        .grey-cell {
+          color: $ui-fleet-black-50;
         }
       }
 

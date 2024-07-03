@@ -55,7 +55,7 @@ const generateTableConfig = (
         return (
           <TextCell
             value={cellProps.cell.value}
-            classes="os-settings-name-cell"
+            className="os-settings-name-cell"
           />
         );
       },

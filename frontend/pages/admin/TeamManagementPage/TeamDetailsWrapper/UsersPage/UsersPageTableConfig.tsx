@@ -166,7 +166,7 @@ const generateColumnConfigs = (
       disableSortBy: true,
       accessor: "email",
       Cell: (cellProps: ICellProps) => (
-        <TextCell classes="w400" value={cellProps.cell.value} />
+        <TextCell className="w400" value={cellProps.cell.value} />
       ),
     },
     {

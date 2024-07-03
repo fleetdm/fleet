@@ -96,7 +96,7 @@ const InstallStatusCell = ({
   } else if (softwareName) {
     displayStatus = "avaiableForInstall";
   } else {
-    return <TextCell value="---" greyed />;
+    return <TextCell value="---" grey italic />;
   }
 
   const displayConfig = INSTALL_STATUS_DISPLAY_OPTIONS[displayStatus];
