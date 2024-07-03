@@ -13,8 +13,7 @@ import {
   buildQueryStringFromParams,
   convertParamsToSnakeCase,
 } from "utilities/url";
-
-import { IAddSoftwareFormData } from "pages/SoftwarePage/components/AddSoftwareForm/AddSoftwareForm";
+import { IAddSoftwareFormData } from "pages/SoftwarePage/components/AddPackageForm/AddSoftwareForm";
 
 export interface ISoftwareApiParams {
   page?: number;
