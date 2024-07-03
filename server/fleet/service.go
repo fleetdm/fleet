@@ -648,6 +648,9 @@ type Service interface {
 	// initiated by the user
 	SelfServiceInstallSoftwareTitle(ctx context.Context, host *Host, softwareTitleID uint) error
 
+	// HasSelfServiceSoftwareInstallers returns whether the host has self-service software installers
+	HasSelfServiceSoftwareInstallers(ctx context.Context, host *Host) (bool, error)
+
 	// /////////////////////////////////////////////////////////////////////////////
 	// Vulnerabilities
 

@@ -33,7 +33,7 @@ spec:
       - name: fleet
         command: [/usr/bin/fleet]
         args: ["serve"]
-        image: fleetdm/fleet:{{ .Values.imageTag }}
+        image: "{{ .Values.imageRepository }}:{{ .Values.imageTag }}"
         ports:
         - name: fleet
           containerPort: {{ .Values.fleet.listenPort }}
@@ -335,7 +335,7 @@ spec:
         {{- end }}
       {{- if .Values.gke.cloudSQL.enableProxy }}
       - name: cloudsql-proxy
-        image: "gcr.io/cloudsql-docker/gce-proxy:{{ .Values.gke.cloudSQL.imageTag }}"
+        image: "{{ .Values.gke.cloudSQL.imageRepository }}:{{ .Values.gke.cloudSQL.imageTag }}"
         command:
         - "/cloud_sql_proxy"
         - "-verbose={{ .Values.gke.cloudSQL.verbose}}"
