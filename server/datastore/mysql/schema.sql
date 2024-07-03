@@ -561,7 +561,9 @@ CREATE TABLE `host_vpp_software_installs` (
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   KEY `user_id` (`user_id`),
-  CONSTRAINT `host_vpp_software_installs_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE SET NULL
+  KEY `adam_id` (`adam_id`),
+  CONSTRAINT `host_vpp_software_installs_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `host_vpp_software_installs_ibfk_2` FOREIGN KEY (`adam_id`) REFERENCES `vpp_apps` (`adam_id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
@@ -1661,9 +1663,9 @@ CREATE TABLE `users` (
 CREATE TABLE `vpp_apps` (
   `adam_id` varchar(16) COLLATE utf8mb4_unicode_ci NOT NULL,
   `available_count` int(10) unsigned DEFAULT NULL,
-  `bundle_identifier` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `icon_url` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `name` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `bundle_identifier` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `icon_url` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
   `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`adam_id`)
@@ -1675,6 +1677,7 @@ CREATE TABLE `vpp_apps_teams` (
   `adam_id` varchar(16) COLLATE utf8mb4_unicode_ci NOT NULL,
   `team_id` int(10) unsigned NOT NULL,
   `global_or_team_id` int(10) NOT NULL DEFAULT '0',
+  UNIQUE KEY `idx_global_or_team_id_adam_id` (`global_or_team_id`,`adam_id`),
   KEY `adam_id` (`adam_id`),
   KEY `team_id` (`team_id`),
   CONSTRAINT `vpp_apps_teams_ibfk_1` FOREIGN KEY (`adam_id`) REFERENCES `vpp_apps` (`adam_id`) ON DELETE CASCADE,
