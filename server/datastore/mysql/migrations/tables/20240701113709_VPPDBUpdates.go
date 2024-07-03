@@ -54,9 +54,9 @@ CREATE TABLE vpp_apps (
 	-- This is a count of how many licenses are still available for this asset
 	available_count INT UNSIGNED,
 
-	bundle_identifier VARCHAR(255),
-	icon_url VARCHAR(255),
-	name VARCHAR(255),
+	bundle_identifier VARCHAR(255) NOT NULL DEFAULT '',
+	icon_url VARCHAR(255) NOT NULL DEFAULT '',
+	name VARCHAR(255) NOT NULL '',
 	created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 	updated_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 	PRIMARY KEY (adam_id)
@@ -71,7 +71,8 @@ CREATE TABLE vpp_apps_teams (
 	team_id INT(10) UNSIGNED NOT NULL,
 	global_or_team_id INT(10) NOT NULL DEFAULT 0,
 	FOREIGN KEY (adam_id) REFERENCES vpp_apps (adam_id) ON DELETE CASCADE,
-	FOREIGN KEY (team_id) REFERENCES teams (id) ON DELETE CASCADE
+	FOREIGN KEY (team_id) REFERENCES teams (id) ON DELETE CASCADE,
+	UNIQUE KEY idx_adam_id_team_id (adam_id, team_id)
 )`)
 	if err != nil {
 		return fmt.Errorf("failed to create table vpp_apps_teams: %w", err)
