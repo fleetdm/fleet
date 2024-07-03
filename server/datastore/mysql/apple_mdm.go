@@ -4015,10 +4015,18 @@ FROM
 	host_mdm_apple_declarations hmad
 	JOIN mdm_apple_declarations mad ON hmad.declaration_uuid = mad.declaration_uuid
 WHERE
-	hmad.host_uuid = ?`
+	hmad.host_uuid = ? AND hmad.operation_type = ?`
+
+	// NOTE: the token generated as part of this query decides if the DDM session
+	// proceeds with sending the declarations - if the token differs from what
+	// the host last applied, it will proceed. That's why we use only the "to be
+	// installed" declarations for the token generation. If some declarations get
+	// removed, then they will be ignored in the token generation, which will
+	// change the token and make the DDM session proceed (and declarations not
+	// sent get removed).
 
 	var res fleet.MDMAppleDDMDeclarationsToken
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &res, stmt, hostUUID); err != nil {
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &res, stmt, hostUUID, fleet.MDMOperationTypeInstall); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get DDM declarations token")
 	}
 
