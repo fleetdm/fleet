@@ -1,5 +1,5 @@
 import URL_PREFIX from "router/url_prefix";
-import { DisplayPlatform } from "interfaces/platform";
+import { DisplayPlatform, Platform } from "interfaces/platform";
 import { ISchedulableQuery } from "interfaces/schedulable_query";
 import React from "react";
 import { IDropdownOption } from "interfaces/dropdownOption";
@@ -281,29 +281,14 @@ export const hasPlatformTypeIcon = (
   return !!PLATFORM_TYPE_ICONS[s as keyof typeof PLATFORM_TYPE_ICONS];
 };
 
-export type PlatformLabelOptions =
-  | "All"
-  | "Windows"
-  | "Linux"
-  | "macOS"
-  | "ChromeOS"
-  | "iOS"
-  | "iPadOS";
+export type PlatformLabelOptions = DisplayPlatform | "All";
 
-export type PlatformValueOptions =
-  | "all"
-  | "windows"
-  | "linux"
-  | "darwin"
-  | "chrome"
-  | "ios"
-  | "ipados"
-  | "";
+export type PlatformValueOptions = Platform | "all";
 
 /** Scheduled queries do not support ChromeOS, iOS, or iPadOS */
 interface ISchedulePlatformDropdownOptions {
   label: Exclude<PlatformLabelOptions, "ChromeOS" | "iOS" | "iPadOS">;
-  value: Exclude<PlatformValueOptions, "chrome" | "ios" | "ipados">;
+  value: Exclude<PlatformValueOptions, "chrome" | "ios" | "ipados"> | "";
 }
 
 export const SCHEDULE_PLATFORM_DROPDOWN_OPTIONS: ISchedulePlatformDropdownOptions[] = [

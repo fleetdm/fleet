@@ -29,7 +29,7 @@ import {
   IMdmSummaryResponse,
   IMdmSummaryMdmSolution,
 } from "interfaces/mdm";
-import { DashboardPlatform, SelectedPlatform } from "interfaces/platform";
+import { Platform, SelectedPlatform } from "interfaces/platform";
 import { ISoftwareResponse, ISoftwareCountResponse } from "interfaces/software";
 import { API_ALL_TEAMS_ID, ITeam } from "interfaces/team";
 import { IConfig } from "interfaces/config";
@@ -48,7 +48,10 @@ import configAPI from "services/entities/config";
 import hosts from "services/entities/hosts";
 
 import sortUtils from "utilities/sort";
-import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
+import {
+  DEFAULT_USE_QUERY_OPTIONS,
+  PlatformValueOptions,
+} from "utilities/constants";
 
 import { ITableQueryData } from "components/TableContainer/TableContainer";
 
@@ -124,9 +127,10 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     includeNoTeam: false,
   });
 
-  const [selectedPlatform, setSelectedPlatform] = useState<DashboardPlatform>(
-    "all"
-  );
+  const [
+    selectedPlatform,
+    setSelectedPlatform,
+  ] = useState<PlatformValueOptions>("all");
   const [
     selectedPlatformLabelId,
     setSelectedPlatformLabelId,

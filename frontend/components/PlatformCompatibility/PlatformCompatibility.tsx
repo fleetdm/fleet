@@ -2,7 +2,7 @@ import React from "react";
 
 import {
   DisplayPlatform,
-  OsqueryPlatform,
+  SupportedDisplayPlatform,
   SupportedPlatform,
 } from "interfaces/platform";
 import { PLATFORM_DISPLAY_NAMES } from "utilities/constants";
@@ -22,7 +22,7 @@ const DISPLAY_ORDER = [
   "Windows",
   "Linux",
   "ChromeOS",
-] as OsqueryPlatform[];
+] as SupportedDisplayPlatform[];
 
 const ERROR_NO_COMPATIBLE_TABLES = Error("no tables in query");
 

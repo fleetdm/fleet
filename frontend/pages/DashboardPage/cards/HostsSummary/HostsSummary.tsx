@@ -3,8 +3,8 @@ import PATHS from "router/paths";
 
 import { PLATFORM_NAME_TO_LABEL_NAME } from "pages/DashboardPage/helpers";
 import DataError from "components/DataError";
-import { DashboardPlatform } from "interfaces/platform";
 import { IHostSummary } from "interfaces/host_summary";
+import { PlatformValueOptions } from "utilities/constants";
 
 import SummaryTile from "./SummaryTile";
 
@@ -22,7 +22,7 @@ interface IHostSummaryProps {
   builtInLabels?: IHostSummary["builtin_labels"];
   showHostsUI: boolean;
   errorHosts: boolean;
-  selectedPlatform?: DashboardPlatform;
+  selectedPlatform?: PlatformValueOptions;
 }
 
 const HostsSummary = ({

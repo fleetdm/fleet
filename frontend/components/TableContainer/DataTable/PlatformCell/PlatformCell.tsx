@@ -9,7 +9,7 @@ interface IPlatformCellProps {
 
 const baseClass = "platform-cell";
 
-const ICONS: Record<string, "darwin" | "windows" | "linux" | "chrome"> = {
+const ICONS: Record<string, SupportedPlatform> = {
   darwin: "darwin",
   windows: "windows",
   linux: "linux",

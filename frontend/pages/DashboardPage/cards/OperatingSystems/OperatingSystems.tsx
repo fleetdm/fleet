@@ -5,14 +5,17 @@ import {
   OS_END_OF_LIFE_LINK_BY_PLATFORM,
   OS_VENDOR_BY_PLATFORM,
 } from "interfaces/operating_system";
-import { DashboardPlatform } from "interfaces/platform";
+import { Platform } from "interfaces/platform";
 import {
   getOSVersions,
   IGetOSVersionsQueryKey,
   IOSVersionsResponse,
   OS_VERSIONS_API_SUPPORTED_PLATFORMS,
 } from "services/entities/operating_systems";
-import { PLATFORM_DISPLAY_NAMES } from "utilities/constants";
+import {
+  PLATFORM_DISPLAY_NAMES,
+  PlatformValueOptions,
+} from "utilities/constants";
 
 import TableContainer from "components/TableContainer";
 import Spinner from "components/Spinner";
@@ -26,7 +29,7 @@ import generateTableHeaders from "./OperatingSystemsTableConfig";
 
 interface IOperatingSystemsCardProps {
   currentTeamId: number | undefined;
-  selectedPlatform: DashboardPlatform;
+  selectedPlatform: PlatformValueOptions;
   showTitle: boolean;
   /** controls the displaying of description text under the title. Defaults to `true` */
   showDescription?: boolean;
@@ -42,7 +45,7 @@ const DEFAULT_SORT_HEADER = "hosts_count";
 const PAGE_SIZE = 8;
 const baseClass = "operating-systems";
 
-const EmptyOperatingSystems = (platform: DashboardPlatform): JSX.Element => (
+const EmptyOperatingSystems = (platform: PlatformValueOptions): JSX.Element => (
   <EmptyTable
     className={`${baseClass}__os-empty-table`}
     header={`No${

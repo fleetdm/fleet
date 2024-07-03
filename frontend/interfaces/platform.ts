@@ -6,9 +6,20 @@ export type DisplayPlatform =
   | "iOS"
   | "iPadOS";
 
-export type OsqueryPlatform = Exclude<DisplayPlatform, "iOS" | "iPadOS">;
+export type Platform =
+  | "darwin"
+  | "windows"
+  | "linux"
+  | "chrome"
+  | "ios"
+  | "ipados";
 
-export type SupportedPlatform = "darwin" | "windows" | "linux" | "chrome";
+export type SupportedDisplayPlatform = Exclude<
+  DisplayPlatform,
+  "iOS" | "iPadOS"
+>;
+
+export type SupportedPlatform = Exclude<Platform, "ios" | "ipados">;
 
 export const SUPPORTED_PLATFORMS: SupportedPlatform[] = [
   "darwin",
@@ -25,8 +36,6 @@ export type SelectedPlatformString =
   | `${SupportedPlatform},${SupportedPlatform}`
   | `${SupportedPlatform},${SupportedPlatform},${SupportedPlatform}`
   | `${SupportedPlatform},${SupportedPlatform},${SupportedPlatform},${SupportedPlatform}`;
-
-export type DashboardPlatform = SelectedPlatform | "ios" | "ipados";
 
 // TODO: revisit this approach pending resolution of https://github.com/fleetdm/fleet/issues/3555.
 export const MACADMINS_EXTENSION_TABLES: Record<string, SupportedPlatform[]> = {

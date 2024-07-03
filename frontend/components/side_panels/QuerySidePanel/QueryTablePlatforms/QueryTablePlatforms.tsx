@@ -1,12 +1,12 @@
 import React from "react";
 
-import { OsqueryPlatform } from "interfaces/platform";
+import { SupportedDisplayPlatform } from "interfaces/platform";
 import { PLATFORM_DISPLAY_NAMES } from "utilities/constants";
 import Icon from "components/Icon";
 import { TableSchemaPlatforms } from "interfaces/osquery_table";
 
 interface IPLatformListItemProps {
-  platform: OsqueryPlatform;
+  platform: SupportedDisplayPlatform;
 }
 
 const baseClassListItem = "platform-list-item";
@@ -39,7 +39,7 @@ const QueryTablePlatforms = ({ platforms }: IQueryTablePlatformsProps) => {
       return (
         <PlatformListItem
           key={platform}
-          platform={platform as OsqueryPlatform} // TODO: remove when freebsd is removed
+          platform={platform as SupportedDisplayPlatform} // TODO: remove when freebsd is removed
         />
       );
     });
