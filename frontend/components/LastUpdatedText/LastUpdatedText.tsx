@@ -1,5 +1,5 @@
 import React from "react";
-import formatDistanceToNowStrict from "date-fns/formatDistanceToNowStrict";
+import { formatDistanceToNowStrict } from "date-fns";
 import { abbreviateTimeUnits } from "utilities/helpers";
 
 import TooltipWrapper from "components/TooltipWrapper";

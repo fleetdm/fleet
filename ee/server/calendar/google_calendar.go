@@ -518,21 +518,22 @@ func adjustEventTimes(endTime time.Time, dayEnd time.Time) (eventStart time.Time
 	return eventStart, eventEnd, isLastSlot, conflict
 }
 
-func getTimezone(gCal *GoogleCalendar) (*time.Location, error) {
+func getTimezone(gCal *GoogleCalendar) (location *time.Location, err error) {
 	config := gCal.config
-	setting, err := config.API.GetSetting("timezone")
+	// "The ID of the user’s timezone." https://developers.google.com/calendar/api/v3/reference/settings
+	tz, err := config.API.GetSetting("timezone")
 	if err != nil {
 		return nil, ctxerr.Wrap(config.Context, err, "retrieving Google calendar timezone")
 	}
 
-	return getLocation(setting.Value, config), nil
+	return getLocation(tz.Value, config), nil
 }
 
-func getLocation(name string, config *GoogleCalendarConfig) *time.Location {
-	loc, err := time.LoadLocation(name)
+func getLocation(tz string, config *GoogleCalendarConfig) *time.Location {
+	loc, err := time.LoadLocation(tz)
 	if err != nil {
 		// Could not load location, use EST
-		level.Warn(config.Logger).Log("msg", "parsing Google calendar timezone", "timezone", name, "err", err)
+		level.Warn(config.Logger).Log("msg", "parsing Google calendar timezone", "timezone", tz, "err", err)
 		loc, _ = time.LoadLocation("America/New_York")
 	}
 	return loc
@@ -545,6 +546,7 @@ func (c *GoogleCalendar) googleEventToFleetEvent(startTime time.Time, endTime ti
 	fleetEvent.StartTime = startTime
 	fleetEvent.EndTime = endTime
 	fleetEvent.Email = c.currentUserEmail
+	fleetEvent.TimeZone = c.location.String()
 	details := &eventDetails{
 		ID:   event.Id,
 		ETag: event.Etag,

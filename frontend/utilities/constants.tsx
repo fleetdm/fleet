@@ -373,6 +373,7 @@ export const HOST_SUMMARY_DATA = [
   "team_name",
   "disk_encryption_enabled",
   "display_name", // Not rendered on my device page
+  "maintenance_window", // Not rendered on my device page
 ];
 
 export const HOST_ABOUT_DATA = [
@@ -406,3 +407,8 @@ export const INVALID_PLATFORMS_REASON =
 
 export const INVALID_PLATFORMS_FLASH_MESSAGE =
   "Couldn't save query. Please update platforms and try again.";
+
+export const DATE_FNS_FORMAT_STRINGS = {
+  dateAtTime: "E, MMM d 'at' p",
+  hoursAndMinutes: "HH:mm",
+};

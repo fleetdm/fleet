@@ -2219,28 +2219,10 @@ func (ds *Datastore) LoadHostByNodeKey(ctx context.Context, nodeKey string) (*fl
 	}
 }
 
-type hostWithMDMInfo struct {
+type hostWithEncryptionKeys struct {
 	fleet.Host
-	HostID                 *uint   `db:"host_id"`
-	Enrolled               *bool   `db:"enrolled"`
-	ServerURL              *string `db:"server_url"`
-	InstalledFromDep       *bool   `db:"installed_from_dep"`
-	IsServer               *bool   `db:"is_server"`
-	MDMID                  *uint   `db:"mdm_id"`
-	Name                   *string `db:"name"`
-	EncryptionKeyAvailable *bool   `db:"encryption_key_available"`
-	DEPProfileAssignStatus *string `db:"dep_profile_assign_status"`
+	EncryptionKeyAvailable *bool `db:"encryption_key_available"`
 }
-
-const hostWithMDMInfoSelect = `
-      hm.host_id,
-      hm.enrolled,
-      hm.server_url,
-      hm.installed_from_dep,
-      COALESCE(hm.is_server, false) AS is_server,
-      hm.mdm_id,
-      COALESCE(mdms.name, ?) AS name,
-      hdep.assign_profile_response AS dep_profile_assign_status`
 
 // LoadHostByOrbitNodeKey loads the whole host identified by the node key.
 // If the node key is invalid it returns a NotFoundError.
@@ -2291,22 +2273,13 @@ func (ds *Datastore) LoadHostByOrbitNodeKey(ctx context.Context, nodeKey string)
       IF(hdep.host_id AND ISNULL(hdep.deleted_at), true, false) AS dep_assigned_to_fleet,
       hd.encrypted as disk_encryption_enabled,
       COALESCE(hdek.decryptable, false) as encryption_key_available,
-      t.name as team_name,` +
-		hostWithMDMInfoSelect + `
+      t.name as team_name
     FROM
       hosts h
-    LEFT OUTER JOIN
-      host_mdm hm
-    ON
-      hm.host_id = h.id
     LEFT OUTER JOIN
       host_dep_assignments hdep
     ON
       hdep.host_id = h.id AND hdep.deleted_at IS NULL
-    LEFT OUTER JOIN
-      mobile_device_management_solutions mdms
-    ON
-      hm.mdm_id = mdms.id
     LEFT OUTER JOIN
       host_disk_encryption_keys hdek
     ON
@@ -2322,25 +2295,13 @@ func (ds *Datastore) LoadHostByOrbitNodeKey(ctx context.Context, nodeKey string)
     WHERE
       h.orbit_node_key = ?`
 
-	var hostWithMDM hostWithMDMInfo
-	switch err := ds.getContextTryStmt(ctx, &hostWithMDM, query, fleet.UnknownMDMName, nodeKey); {
+	var hostWithEnc hostWithEncryptionKeys
+	switch err := ds.getContextTryStmt(ctx, &hostWithEnc, query, nodeKey); {
 	case err == nil:
-		host := hostWithMDM.Host
-		// leave MDMInfo nil unless it has mdm information
-		if hostWithMDM.HostID != nil {
-			host.MDMInfo = &fleet.HostMDM{
-				HostID:                 *hostWithMDM.HostID,
-				Enrolled:               *hostWithMDM.Enrolled,
-				ServerURL:              *hostWithMDM.ServerURL,
-				InstalledFromDep:       *hostWithMDM.InstalledFromDep,
-				IsServer:               *hostWithMDM.IsServer,
-				MDMID:                  hostWithMDM.MDMID,
-				Name:                   *hostWithMDM.Name,
-				DEPProfileAssignStatus: hostWithMDM.DEPProfileAssignStatus,
-			}
-
+		host := hostWithEnc.Host
+		if hostWithEnc.EncryptionKeyAvailable != nil {
 			host.MDM = fleet.MDMHostData{
-				EncryptionKeyAvailable: *hostWithMDM.EncryptionKeyAvailable,
+				EncryptionKeyAvailable: *hostWithEnc.EncryptionKeyAvailable,
 			}
 		}
 		return &host, nil
@@ -2398,8 +2359,7 @@ func (ds *Datastore) LoadHostByDeviceAuthToken(ctx context.Context, authToken st
       COALESCE(hd.gigs_disk_space_available, 0) as gigs_disk_space_available,
       COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available,
       COALESCE(hd.gigs_total_disk_space, 0) as gigs_total_disk_space,
-      IF(hdep.host_id AND ISNULL(hdep.deleted_at), true, false) AS dep_assigned_to_fleet,` +
-		hostWithMDMInfoSelect + `
+      IF(hdep.host_id AND ISNULL(hdep.deleted_at), true, false) AS dep_assigned_to_fleet
     FROM
       host_device_auth hda
     INNER JOIN
@@ -2412,29 +2372,13 @@ func (ds *Datastore) LoadHostByDeviceAuthToken(ctx context.Context, authToken st
       host_mdm hm  ON hm.host_id = h.id
     LEFT OUTER JOIN
       host_dep_assignments hdep ON hdep.host_id = h.id AND hdep.deleted_at IS NULL
-    LEFT OUTER JOIN
-      mobile_device_management_solutions mdms ON hm.mdm_id = mdms.id
     WHERE
       hda.token = ? AND
       hda.updated_at >= DATE_SUB(NOW(), INTERVAL ? SECOND)`
 
-	var hostWithMDM hostWithMDMInfo
-	switch err := ds.getContextTryStmt(ctx, &hostWithMDM, query, fleet.UnknownMDMName, authToken, tokenTTL.Seconds()); {
+	var host fleet.Host
+	switch err := ds.getContextTryStmt(ctx, &host, query, authToken, tokenTTL.Seconds()); {
 	case err == nil:
-		host := hostWithMDM.Host
-		// leave MDMInfo nil unless it has mdm information
-		if hostWithMDM.HostID != nil {
-			host.MDMInfo = &fleet.HostMDM{
-				HostID:                 *hostWithMDM.HostID,
-				Enrolled:               *hostWithMDM.Enrolled,
-				ServerURL:              *hostWithMDM.ServerURL,
-				InstalledFromDep:       *hostWithMDM.InstalledFromDep,
-				IsServer:               *hostWithMDM.IsServer,
-				MDMID:                  hostWithMDM.MDMID,
-				Name:                   *hostWithMDM.Name,
-				DEPProfileAssignStatus: hostWithMDM.DEPProfileAssignStatus,
-			}
-		}
 		return &host, nil
 	case errors.Is(err, sql.ErrNoRows):
 		return nil, ctxerr.Wrap(ctx, notFound("Host"))
@@ -2666,18 +2610,9 @@ SELECT
 	h.policy_updated_at,
 	h.refetch_requested,
 	h.refetch_critical_queries_until,
-	IF(hdep.host_id AND ISNULL(hdep.deleted_at), true, false) AS dep_assigned_to_fleet,
-	`+hostWithMDMInfoSelect+`
+	IF(hdep.host_id AND ISNULL(hdep.deleted_at), true, false) AS dep_assigned_to_fleet
 FROM
 	hosts h
-LEFT OUTER JOIN
-	host_mdm hm
-ON
-	hm.host_id = h.id
-LEFT OUTER JOIN
-	mobile_device_management_solutions mdms
-ON
-	hm.mdm_id = mdms.id
 LEFT OUTER JOIN
 	host_dep_assignments hdep
 ON
@@ -2686,32 +2621,14 @@ WHERE h.uuid IN (?) AND %s
 		`, ds.whereFilterHostsByTeams(filter, "h"),
 	)
 
-	stmt, args, err := sqlx.In(stmt, fleet.UnknownMDMName, uuids)
+	stmt, args, err := sqlx.In(stmt, uuids)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "building query to select hosts by uuid")
 	}
 
-	var hostsWithMDM []*hostWithMDMInfo
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &hostsWithMDM, stmt, args...); err != nil {
+	var hosts []*fleet.Host
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &hosts, stmt, args...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "select hosts by uuid")
-	}
-
-	hosts := make([]*fleet.Host, 0, len(hostsWithMDM))
-	for _, h := range hostsWithMDM {
-		host := h.Host
-		// leave MDMInfo nil unless it has mdm information
-		if h.HostID != nil {
-			host.MDMInfo = &fleet.HostMDM{
-				HostID:           *h.HostID,
-				Enrolled:         *h.Enrolled,
-				ServerURL:        *h.ServerURL,
-				InstalledFromDep: *h.InstalledFromDep,
-				IsServer:         *h.IsServer,
-				MDMID:            h.MDMID,
-				Name:             *h.Name,
-			}
-		}
-		hosts = append(hosts, &host)
 	}
 
 	return hosts, nil
@@ -3905,12 +3822,22 @@ func (ds *Datastore) GetHostMDM(ctx context.Context, hostID uint) (*fleet.HostMD
 	var hmdm fleet.HostMDM
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &hmdm, `
 		SELECT
-			hm.host_id, hm.enrolled, hm.server_url, hm.installed_from_dep, hm.mdm_id, COALESCE(hm.is_server, false) AS is_server, COALESCE(mdms.name, ?) AS name
+			hm.host_id,
+			hm.enrolled,
+			hm.server_url,
+			hm.installed_from_dep,
+			hm.mdm_id,
+			COALESCE(hm.is_server, false) AS is_server,
+			COALESCE(mdms.name, ?) AS name,
+			hdep.assign_profile_response AS dep_profile_assign_status
 		FROM
 			host_mdm hm
 		LEFT OUTER JOIN
 			mobile_device_management_solutions mdms
-		ON hm.mdm_id = mdms.id
+			ON hm.mdm_id = mdms.id
+		LEFT OUTER JOIN
+			host_dep_assignments hdep
+			ON hdep.host_id = hm.host_id
 		WHERE hm.host_id = ?`, fleet.UnknownMDMName, hostID)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -4994,6 +4921,29 @@ func (ds *Datastore) ListHostBatteries(ctx context.Context, hid uint) ([]*fleet.
 		return nil, ctxerr.Wrap(ctx, err, "select host batteries")
 	}
 	return batteries, nil
+}
+
+func (ds *Datastore) ListUpcomingHostMaintenanceWindows(ctx context.Context, hid uint) ([]*fleet.HostMaintenanceWindow, error) {
+	stmt := `
+		SELECT
+			ce.start_time,
+			ce.timezone
+		FROM
+			host_calendar_events hce JOIN calendar_events ce
+			ON
+			hce.calendar_event_id = ce.id
+		WHERE
+			hce.host_id = ?
+			AND
+			ce.start_time > NOW()	
+		ORDER BY ce.start_time
+	`
+
+	var mws []*fleet.HostMaintenanceWindow
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &mws, stmt, hid); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "list upcoming host maintenance windows from db")
+	}
+	return mws, nil
 }
 
 func (ds *Datastore) SetDiskEncryptionResetStatus(ctx context.Context, hostID uint, status bool) error {

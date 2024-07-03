@@ -4,15 +4,16 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/fleetdm/fleet/v4/server/config"
-	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/stretchr/testify/assert"
 	"os"
 	"strconv"
 	"strings"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/fleetdm/fleet/v4/ee/server/calendar"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -338,6 +339,7 @@ func TestCalendarEventsMultipleHosts(t *testing.T) {
 		email string,
 		startTime, endTime time.Time,
 		data []byte,
+		timeZone string,
 		hostID uint,
 		webhookStatus fleet.CalendarWebhookStatus,
 	) (*fleet.CalendarEvent, error) {
@@ -623,6 +625,7 @@ func TestCalendarEvents1KHosts(t *testing.T) {
 		email string,
 		startTime, endTime time.Time,
 		data []byte,
+		timeZone string,
 		hostID uint,
 		webhookStatus fleet.CalendarWebhookStatus,
 	) (*fleet.CalendarEvent, error) {
@@ -900,6 +903,7 @@ func TestEventDescription(t *testing.T) {
 		email string,
 		startTime, endTime time.Time,
 		data []byte,
+		timeZone string,
 		hostID uint,
 		webhookStatus fleet.CalendarWebhookStatus,
 	) (*fleet.CalendarEvent, error) {

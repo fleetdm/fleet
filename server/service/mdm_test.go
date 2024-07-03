@@ -7,6 +7,7 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"database/sql"
 	"errors"
 	"math/big"
 	"net/http"
@@ -151,6 +152,15 @@ func TestMDMAppleAuthorization(t *testing.T) {
 		checkAuthErr(t, shouldFailWithAuth, err)
 
 		err = svc.DeleteMDMAppleAPNSCert(ctx) // Don't expect anything other than an authz error here, since this is pretty much just a DB wrapper.
+		checkAuthErr(t, shouldFailWithAuth, err)
+
+		err = svc.UploadMDMAppleVPPToken(ctx, nil)
+		checkAuthErr(t, shouldFailWithAuth, err)
+
+		_, err = svc.GetMDMAppleVPPToken(ctx)
+		checkAuthErr(t, shouldFailWithAuth, err)
+
+		err = svc.DeleteMDMAppleVPPToken(ctx)
 		checkAuthErr(t, shouldFailWithAuth, err)
 	}
 
@@ -489,19 +499,26 @@ func TestRunMDMCommandValidations(t *testing.T) {
 	svc, ctx := newTestService(t, ds, nil, nil)
 
 	enrolledMDMInfo := &fleet.HostMDM{Enrolled: true, InstalledFromDep: false, Name: fleet.WellKnownMDMFleet, IsServer: false}
-	singleUnenrolledHost := []*fleet.Host{{ID: 1, TeamID: ptr.Uint(1), UUID: "a"}}
+	singleUnenrolledHost := []*fleet.Host{{ID: 0xf1337, TeamID: ptr.Uint(1), UUID: "unenrolled"}}
 	differentPlatformsHosts := []*fleet.Host{
-		{ID: 1, UUID: "a", MDMInfo: enrolledMDMInfo, Platform: "darwin"},
-		{ID: 2, UUID: "b", MDMInfo: enrolledMDMInfo, Platform: "windows"},
+		{ID: 1, UUID: "a", Platform: "darwin"},
+		{ID: 2, UUID: "b", Platform: "windows"},
 	}
-	linuxSingleHost := []*fleet.Host{{ID: 1, TeamID: ptr.Uint(1), UUID: "a", MDMInfo: enrolledMDMInfo, Platform: "linux"}}
-	windowsSingleHost := []*fleet.Host{{ID: 1, TeamID: ptr.Uint(1), UUID: "a", MDMInfo: enrolledMDMInfo, Platform: "windows"}}
-	macosSingleHost := []*fleet.Host{{ID: 1, TeamID: ptr.Uint(1), UUID: "a", MDMInfo: enrolledMDMInfo, Platform: "darwin"}}
+	linuxSingleHost := []*fleet.Host{{ID: 1, TeamID: ptr.Uint(1), UUID: "a", Platform: "linux"}}
+	windowsSingleHost := []*fleet.Host{{ID: 1, TeamID: ptr.Uint(1), UUID: "a", Platform: "windows"}}
+	macosSingleHost := []*fleet.Host{{ID: 1, TeamID: ptr.Uint(1), UUID: "a", Platform: "darwin"}}
+
+	ds.GetHostMDMFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
+		if hostID == 0xf1337 {
+			return nil, sql.ErrNoRows
+		}
+		return enrolledMDMInfo, nil
+	}
 
 	ds.AreHostsConnectedToFleetMDMFunc = func(ctx context.Context, hosts []*fleet.Host) (map[string]bool, error) {
 		res := make(map[string]bool, len(hosts))
 		for _, h := range hosts {
-			res[h.UUID] = h.MDMInfo != nil && h.MDMInfo.Enrolled && h.MDMInfo.Name == fleet.WellKnownMDMFleet
+			res[h.UUID] = h.ID != 0xf1337
 		}
 		return res, nil
 	}
