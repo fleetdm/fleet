@@ -858,6 +858,14 @@ func (svc *Service) ListMDMCommands(ctx context.Context, opts *fleet.MDMCommandL
 		results = allowedResults
 	}
 
+	if len(results) == 0 && opts.Filters.HostIdentifier != "" {
+		_, err := svc.ds.HostLiteByIdentifier(ctx, opts.Filters.HostIdentifier)
+		var nve fleet.NotFoundError
+		if errors.As(err, &nve) {
+			return nil, fleet.NewInvalidArgumentError("Invalid Host", fleet.HostIdentiferNotFound).WithStatus(http.StatusNotFound)
+		}
+	}
+
 	return results, nil
 }
 

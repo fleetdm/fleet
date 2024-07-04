@@ -266,7 +266,7 @@ func (c *Client) MDMListCommands(opts fleet.MDMCommandListOptions) ([]*fleet.MDM
 	var responseBody listMDMCommandsResponse
 	err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, query.Encode())
 	if err != nil {
-		return nil, fmt.Errorf("send request: %w", err)
+		return nil, err
 	}
 
 	return responseBody.Results, nil

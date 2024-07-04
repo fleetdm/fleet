@@ -10,6 +10,7 @@ import (
 	"os"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/beevik/etree"
@@ -1572,9 +1573,11 @@ func getMDMCommandsCommand() *cli.Command {
 
 			results, err := client.MDMListCommands(opts)
 			if err != nil {
-				return err
+				if strings.Contains(err.Error(), fleet.HostIdentiferNotFound) {
+					return errors.New(fleet.HostIdentiferNotFound)
+				}
 			}
-			if len(results) == 0 && opts.Page == 0 {
+			if len(results) == 0 && opts.Page == 0 && opts.Filters.HostIdentifier == "" && opts.Filters.RequestType == "" {
 				log(c, "You haven't run any MDM commands. Run MDM commands with the `fleetctl mdm run-command` command.\n")
 				return nil
 			}
