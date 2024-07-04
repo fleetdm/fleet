@@ -173,5 +173,7 @@ func ReservedLabelNames() map[string]struct{} {
 		BuiltinLabelNameAllLinux:    {},
 		BuiltinLabelNameChrome:      {},
 		BuiltinLabelMacOS14Plus:     {},
+		BuiltinLabelIOS:             {},
+		BuiltinLabelIPadOS:          {},
 	}
 }
