@@ -242,8 +242,8 @@ const CalendarEventsModal = ({
           you must first connect Fleet to your Google Workspace service account.
         </div>
         <div>
-          This can be configured in{" "}
-          <b>Settings &gt; Integrations &gt; Calendars.</b>
+          This can be configured in <b>Settings</b> &gt; <b>Integrations</b>{" "}
+          &gt; <b>Calendars.</b>
         </div>
         <CustomLink
           url="https://www.fleetdm.com/learn-more-about/calendar-events"
