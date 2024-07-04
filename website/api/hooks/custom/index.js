@@ -290,7 +290,7 @@ will be disabled and/or hidden in the UI.
               // > The code below is so we don't bother users who have completed the questionnaire
 
               // Determine if this user should see the CTA to bring them to the /start questionnaire using the user's last submitted questionnaire answer.
-              res.locals.showStartCta = !['how-many-hosts','will-you-be-self-hosting','managed-cloud-for-growing-deployments','self-hosted-deploy', 'whats-left-to-get-you-set-up', 'thanks-for-checking-out-fleet'].includes(req.me.lastSubmittedGetStartedQuestionnaireStep);
+              res.locals.showStartCta = !['how-many-hosts','will-you-be-self-hosting','managed-cloud-for-growing-deployments','self-hosted-deploy', 'whats-left-to-get-you-set-up'].includes(req.me.lastSubmittedGetStartedQuestionnaireStep);
               //  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
               // If an expandCtaAt timestamp is set in the user's sesssion, check the value to see if we should expand the CTA.

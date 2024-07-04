@@ -217,9 +217,17 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 						schedule.WithLogger(logger),
 						schedule.WithJob("manage_apple_profiles", func(ctx context.Context) error {
 							if s.onProfileJobDone != nil {
-								s.onProfileJobDone()
+								defer s.onProfileJobDone()
 							}
 							err = ReconcileAppleProfiles(ctx, ds, mdmCommander, logger)
+							require.NoError(s.T(), err)
+							return err
+						}),
+						schedule.WithJob("manage_apple_declarations", func(ctx context.Context) error {
+							if s.onProfileJobDone != nil {
+								defer s.onProfileJobDone()
+							}
+							err = ReconcileAppleDeclarations(ctx, ds, mdmCommander, logger)
 							require.NoError(s.T(), err)
 							return err
 						}),
@@ -430,9 +438,9 @@ func (s *integrationMDMTestSuite) mockDEPResponse(handler http.Handler) {
 }
 
 func (s *integrationMDMTestSuite) awaitTriggerProfileSchedule(t *testing.T) {
-	// two jobs running sequentially (macOS then Windows) on the same schedule
+	// three jobs running sequentially (macOS profiles and declarations, then Windows) on the same schedule
 	var wg sync.WaitGroup
-	wg.Add(2)
+	wg.Add(3)
 	s.onProfileJobDone = wg.Done
 	_, err := s.profileSchedule.Trigger()
 	require.NoError(t, err)
@@ -658,13 +666,13 @@ func checkNextPayloads(t *testing.T, mdmDevice *mdmtest.TestAppleMDMClient, forc
 	require.NoError(t, err)
 	for cmd != nil {
 		var fullCmd micromdm.CommandPayload
-		require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
 		switch cmd.Command.RequestType {
 		case "InstallProfile":
+			require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
 			installs = append(installs, fullCmd.Command.InstallProfile.Payload)
 		case "RemoveProfile":
+			require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
 			removes = append(removes, fullCmd.Command.RemoveProfile.Identifier)
-
 		}
 
 		if forceDeviceErr {
@@ -2114,7 +2122,6 @@ func (s *integrationMDMTestSuite) TestTeamsMDMAppleDiskEncryption() {
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
 		MDM: &fleet.TeamPayloadMDM{
 			EnableDiskEncryption: optjson.SetBool(true),
-			MacOSSettings:        &fleet.MacOSSettings{},
 		},
 	}, http.StatusOK, &modResp)
 	require.True(t, modResp.Team.Config.MDM.EnableDiskEncryption)
@@ -3958,7 +3965,7 @@ func (s *integrationMDMTestSuite) TestMacosSetupAssistant() {
 }
 
 // only asserts the profile identifier, status and operation (per host)
-func (s *integrationMDMTestSuite) assertHostConfigProfiles(want map[*fleet.Host][]fleet.HostMDMAppleProfile) {
+func (s *integrationMDMTestSuite) assertHostAppleConfigProfiles(want map[*fleet.Host][]fleet.HostMDMAppleProfile) {
 	t := s.T()
 	ds := s.ds
 	ctx := context.Background()
@@ -3966,7 +3973,11 @@ func (s *integrationMDMTestSuite) assertHostConfigProfiles(want map[*fleet.Host]
 	for h, wantProfs := range want {
 		gotProfs, err := ds.GetHostMDMAppleProfiles(ctx, h.UUID)
 		require.NoError(t, err)
-		require.Equal(t, len(wantProfs), len(gotProfs), "host uuid: %s", h.UUID)
+		idents := make([]string, 0, len(gotProfs))
+		for _, gp := range gotProfs {
+			idents = append(idents, gp.Identifier)
+		}
+		require.Equal(t, len(wantProfs), len(gotProfs), "apple host uuid: %s, profiles: %v", h.UUID, idents)
 
 		sort.Slice(gotProfs, func(i, j int) bool {
 			l, r := gotProfs[i], gotProfs[j]
@@ -3981,6 +3992,34 @@ func (s *integrationMDMTestSuite) assertHostConfigProfiles(want map[*fleet.Host]
 			require.Equal(t, wp.Identifier, gp.Identifier, "host uuid: %s, prof id: %s", h.UUID, gp.Identifier)
 			require.Equal(t, wp.OperationType, gp.OperationType, "host uuid: %s, prof id: %s", h.UUID, gp.Identifier)
 			require.Equal(t, wp.Status, gp.Status, "host uuid: %s, prof id: %s", h.UUID, gp.Identifier)
+		}
+	}
+}
+
+// only asserts the profile name, status and operation (per host)
+func (s *integrationMDMTestSuite) assertHostWindowsConfigProfiles(want map[*fleet.Host][]fleet.HostMDMWindowsProfile) {
+	t := s.T()
+	ds := s.ds
+	ctx := context.Background()
+
+	for h, wantProfs := range want {
+		gotProfs, err := ds.GetHostMDMWindowsProfiles(ctx, h.UUID)
+		require.NoError(t, err)
+		require.Equal(t, len(wantProfs), len(gotProfs), "host uuid: %s", h.UUID)
+
+		sort.Slice(gotProfs, func(i, j int) bool {
+			l, r := gotProfs[i], gotProfs[j]
+			return l.Name < r.Name
+		})
+		sort.Slice(wantProfs, func(i, j int) bool {
+			l, r := wantProfs[i], wantProfs[j]
+			return l.Name < r.Name
+		})
+		for i, wp := range wantProfs {
+			gp := gotProfs[i]
+			require.Equal(t, wp.Name, gp.Name, "host uuid: %s, prof id: %s", h.UUID, gp.Name)
+			require.Equal(t, wp.OperationType, gp.OperationType, "host uuid: %s, prof id: %s", h.UUID, gp.Name)
+			require.Equal(t, wp.Status, gp.Status, "host uuid: %s, prof id: %s", h.UUID, gp.Name)
 		}
 	}
 }

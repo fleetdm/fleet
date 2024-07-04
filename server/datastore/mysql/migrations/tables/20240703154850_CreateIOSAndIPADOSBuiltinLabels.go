@@ -11,10 +11,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20240702123922, Down_20240702123922)
+	MigrationClient.AddMigration(Up_20240703154850, Down_20240703154850)
 }
 
-func Up_20240702123922(tx *sql.Tx) error {
+func Up_20240703154850(tx *sql.Tx) error {
 	// hard-coded timestamps are used so that schema.sql is stable
 	stableTS := time.Date(2024, 6, 28, 0, 0, 0, 0, time.UTC)
 
@@ -105,6 +105,6 @@ func Up_20240702123922(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20240702123922(tx *sql.Tx) error {
+func Down_20240703154850(tx *sql.Tx) error {
 	return nil
 }
