@@ -26,8 +26,10 @@ import (
 
 // Since many hosts may have issues, we need to batch the inserts of host issues.
 // This is a variable, so it can be adjusted during unit testing.
-var hostIssuesInsertBatchSize = 10000
-var hostIssuesUpdateFailingPoliciesBatchSize = 10000
+var (
+	hostIssuesInsertBatchSize                = 10000
+	hostIssuesUpdateFailingPoliciesBatchSize = 10000
+)
 
 // A large number of hosts could be changing teams at once, so we need to batch this operation to prevent excessive locks
 var addHostsToTeamBatchSize = 10000
@@ -2558,25 +2560,29 @@ func (ds *Datastore) SearchHosts(ctx context.Context, filter fleet.TeamFilter, m
 	return hosts, nil
 }
 
-func (ds *Datastore) HostIDsByName(ctx context.Context, filter fleet.TeamFilter, hostnames []string) ([]uint, error) {
-	if len(hostnames) == 0 {
+func (ds *Datastore) HostIDsByIdentifier(ctx context.Context, filter fleet.TeamFilter, hostIdentifiers []string) ([]uint, error) {
+	if len(hostIdentifiers) == 0 {
 		return []uint{}, nil
 	}
 
 	sqlStatement := fmt.Sprintf(`
 			SELECT id FROM hosts
-			WHERE hostname IN (?) AND %s
+			WHERE
+				hostname IN (?)
+				OR uuid IN (?)
+				OR hardware_serial IN (?)
+			AND %s
 		`, ds.whereFilterHostsByTeams(filter, "hosts"),
 	)
 
-	sql, args, err := sqlx.In(sqlStatement, hostnames)
+	sql, args, err := sqlx.In(sqlStatement, hostIdentifiers)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "building query to get host IDs")
+		return nil, ctxerr.Wrap(ctx, err, "building query to get host IDs by identifier")
 	}
 
 	var hostIDs []uint
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &hostIDs, sql, args...); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "get host IDs")
+		return nil, ctxerr.Wrap(ctx, err, "get host IDs by identifier")
 	}
 
 	return hostIDs, nil

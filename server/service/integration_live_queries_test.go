@@ -1000,9 +1000,9 @@ func (s *liveQueriesTestSuite) TestCreateDistributedQueryCampaign() {
 	time.Sleep(200 * time.Millisecond)
 
 	// create by host name
-	req2 := createDistributedQueryCampaignByNamesRequest{
+	req2 := createDistributedQueryCampaignByIdentifierRequest{
 		QuerySQL: "SELECT 3",
-		Selected: distributedQueryCampaignTargetsByNames{
+		Selected: distributedQueryCampaignTargetsByIdentifiers{
 			Hosts: []string{h1.Hostname},
 		},
 	}
@@ -1014,9 +1014,9 @@ func (s *liveQueriesTestSuite) TestCreateDistributedQueryCampaign() {
 	time.Sleep(200 * time.Millisecond)
 
 	// create by unknown host name - it ignores the unknown names. Must have at least 1 valid host
-	req2 = createDistributedQueryCampaignByNamesRequest{
+	req2 = createDistributedQueryCampaignByIdentifierRequest{
 		QuerySQL: "SELECT 3",
-		Selected: distributedQueryCampaignTargetsByNames{
+		Selected: distributedQueryCampaignTargetsByIdentifiers{
 			Hosts: []string{h1.Hostname, h2.Hostname + "ZZZZZ"},
 		},
 	}

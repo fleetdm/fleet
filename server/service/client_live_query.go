@@ -71,10 +71,10 @@ func (c *Client) LiveQueryWithContext(
 ) (*LiveQueryResultsHandler, error) {
 	// TODO - determine the type of host identifier(s), and get a campaign going appropriately
 	// Should this accept different types of host identifiers at once or just one?
-	req := createDistributedQueryCampaignByNamesRequest{
+	req := createDistributedQueryCampaignByIdentifierRequest{
 		QueryID:  queryID,
 		QuerySQL: query,
-		Selected: distributedQueryCampaignTargetsByNames{Labels: labels, Hosts: hostIdentifiers},
+		Selected: distributedQueryCampaignTargetsByIdentifiers{Labels: labels, Hosts: hostIdentifiers},
 	}
 	verb, path := "POST", "/api/latest/fleet/queries/run_by_names"
 	var responseBody createDistributedQueryCampaignResponse

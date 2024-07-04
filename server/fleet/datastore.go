@@ -261,8 +261,8 @@ type Datastore interface {
 	CleanupIncomingHosts(ctx context.Context, now time.Time) ([]uint, error)
 	// GenerateHostStatusStatistics retrieves the count of online, offline, MIA and new hosts.
 	GenerateHostStatusStatistics(ctx context.Context, filter TeamFilter, now time.Time, platform *string, lowDiskSpace *int) (*HostSummary, error)
-	// HostIDsByName Retrieve the IDs associated with the given hostnames
-	HostIDsByName(ctx context.Context, filter TeamFilter, hostnames []string) ([]uint, error)
+	// HostIDsByIdentifier retrieves the IDs associated with the given hostnames, UUIDs, or hardware serials.
+	HostIDsByIdentifier(ctx context.Context, filter TeamFilter, hostnames []string) ([]uint, error)
 
 	// HostIDsByOSID retrieves the IDs of all host for the given OS ID
 	HostIDsByOSID(ctx context.Context, osID uint, offset int, limit int) ([]uint, error)

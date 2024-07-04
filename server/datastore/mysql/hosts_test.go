@@ -2295,7 +2295,7 @@ func testHostsIDsByName(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.AddHostsToTeam(context.Background(), &team1.ID, []uint{hosts[0].ID}))
 
 	filter := fleet.TeamFilter{User: test.UserAdmin}
-	hostsByName, err := ds.HostIDsByName(context.Background(), filter, []string{"foo.2.local", "foo.1.local", "foo.5.local"})
+	hostsByName, err := ds.HostIDsByIdentifier(context.Background(), filter, []string{"foo.2.local", "foo.1.local", "foo.5.local"})
 	require.NoError(t, err)
 	sort.Slice(hostsByName, func(i, j int) bool { return hostsByName[i] < hostsByName[j] })
 	assert.Equal(t, hostsByName, []uint{2, 3, 6})
@@ -2303,23 +2303,23 @@ func testHostsIDsByName(t *testing.T, ds *Datastore) {
 	userObs := &fleet.User{GlobalRole: ptr.String(fleet.RoleObserver)}
 	filter = fleet.TeamFilter{User: userObs}
 
-	hostsByName, err = ds.HostIDsByName(context.Background(), filter, []string{"foo.2.local", "foo.1.local", "foo.5.local"})
+	hostsByName, err = ds.HostIDsByIdentifier(context.Background(), filter, []string{"foo.2.local", "foo.1.local", "foo.5.local"})
 	require.NoError(t, err)
 	assert.Len(t, hostsByName, 0)
 
 	filter.IncludeObserver = true
-	hostsByName, err = ds.HostIDsByName(context.Background(), filter, []string{"foo.2.local", "foo.1.local", "foo.5.local"})
+	hostsByName, err = ds.HostIDsByIdentifier(context.Background(), filter, []string{"foo.2.local", "foo.1.local", "foo.5.local"})
 	require.NoError(t, err)
 	assert.Len(t, hostsByName, 3)
 
 	userTeam1 := &fleet.User{Teams: []fleet.UserTeam{{Team: *team1, Role: fleet.RoleAdmin}}}
 	filter = fleet.TeamFilter{User: userTeam1}
 
-	hostsByName, err = ds.HostIDsByName(context.Background(), filter, []string{"foo.2.local", "foo.1.local", "foo.5.local"})
+	hostsByName, err = ds.HostIDsByIdentifier(context.Background(), filter, []string{"foo.2.local", "foo.1.local", "foo.5.local"})
 	require.NoError(t, err)
 	assert.Len(t, hostsByName, 0)
 
-	hostsByName, err = ds.HostIDsByName(context.Background(), filter, []string{"foo.0.local", "foo.1.local", "foo.5.local"})
+	hostsByName, err = ds.HostIDsByIdentifier(context.Background(), filter, []string{"foo.0.local", "foo.1.local", "foo.5.local"})
 	require.NoError(t, err)
 	require.Len(t, hostsByName, 1)
 	assert.Equal(t, hostsByName[0], hosts[0].ID)
