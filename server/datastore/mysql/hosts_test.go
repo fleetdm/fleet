@@ -97,7 +97,7 @@ func TestHosts(t *testing.T) {
 		{"MarkSeen", testHostsMarkSeen},
 		{"MarkSeenMany", testHostsMarkSeenMany},
 		{"CleanupIncoming", testHostsCleanupIncoming},
-		{"IDsByName", testHostsIDsByName},
+		{"IDsByIdentifier", testHostsIDsByIdentifier},
 		{"Additional", testHostsAdditional},
 		{"ByIdentifier", testHostsByIdentifier},
 		{"HostLiteByIdentifierAndID", testHostLiteByIdentifierAndID},
@@ -2273,7 +2273,7 @@ func testHostsCleanupIncoming(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 }
 
-func testHostsIDsByName(t *testing.T, ds *Datastore) {
+func testHostsIDsByIdentifier(t *testing.T, ds *Datastore) {
 	hosts := make([]*fleet.Host, 10)
 	for i := range hosts {
 		h, err := ds.NewHost(context.Background(), &fleet.Host{
