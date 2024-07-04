@@ -1594,7 +1594,7 @@ func getMDMCommandsCommand() *cli.Command {
 					r.Hostname,
 				})
 			}
-			columns := []string{"ID", "TIME", "TYPE", "STATUS", "HOSTNAME"}
+			columns := []string{"UUID", "TIME", "TYPE", "STATUS", "HOSTNAME"}
 			printTable(c, columns, data)
 
 			return nil
