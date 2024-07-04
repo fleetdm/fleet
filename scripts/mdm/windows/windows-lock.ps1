@@ -40,7 +40,7 @@ New-ItemProperty -Path "HKLM:\Software\Microsoft\Windows NT\CurrentVersion\Winlo
 
 Write-Host "All local non-administrative users have been logged out and their accounts disabled."
 Write-Host "Logging in with other Microsoft accounts has been disabled"
-Write-Host "Cached Logins have been disabled, disable the Active Directory account to prevent further logins"
+Write-Host "Cached Logins have been disabled, disable the MDM-Enroled account to prevent further logins"
 
 # Shutdown computer in 10 seconds, after command has returned to fleet
 Write-Host "Shutting down in 15 seconds"
