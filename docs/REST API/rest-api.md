@@ -1070,7 +1070,7 @@ Modifies the Fleet's configuration with the supplied information.
 
 | Name                              | Type    | In    | Description   |
 | ---------------------             | ------- | ----  | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| org_info          | object  | body  | See [org_info](#org_info). |
+| org_info          | object  | body  | See [org_info](#org-info). |
 | server_settings         | object  | body    | See [server_settings](#server-settings). |
 | smtp_settings         | object  | body    | See [smtp_settings](#smtp-settings). |
 | sso_settings         | object  | body    | See [sso_settings](#sso-settings). |
