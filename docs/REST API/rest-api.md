@@ -8730,7 +8730,7 @@ Get a list of all software.
 
 #### Example
 
-`GET /api/v1/fleet/software/titles`
+`GET /api/v1/fleet/software/titles?team_id=3`
 
 ##### Default response
 
@@ -8772,6 +8772,7 @@ Get a list of all software.
       "id": 22,
       "name": "Google Chrome.app",
       "software_package": null,
+      "self_service": false,
       "versions_count": 5,
       "source": "apps",
       "browser": "",
@@ -8803,6 +8804,7 @@ Get a list of all software.
       "id": 32,
       "name": "1Password – Password Manager",
       "software_package": null,
+      "self_service": false,
       "versions_count": 1,
       "source": "chrome_extensions",
       "browser": "chrome",
