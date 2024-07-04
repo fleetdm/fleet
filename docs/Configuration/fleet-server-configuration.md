@@ -236,7 +236,7 @@ The maximum amount of time, in seconds, a connection may be reused.
 
 ##### mysql_sql_mode
 
-Sets the connection `sql_mode`. See [MySQL Reference](https://dev.mysql.com/doc/refman/5.7/en/sql-mode.html) for more details.
+Sets the connection `sql_mode`. See [MySQL Reference](https://dev.mysql.com/doc/refman/8.0/en/sql-mode.html) for more details.
 This setting should not usually be used.
 
 - Default value: `""`
