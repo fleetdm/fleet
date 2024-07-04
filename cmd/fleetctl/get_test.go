@@ -2687,6 +2687,7 @@ func TestGetMDMCommands(t *testing.T) {
 	}
 	var empty bool
 	var listErr error
+	var noHostErr error
 	var expectIdentifier bool
 	var expectRequestType bool
 	var expectPage bool
@@ -2694,6 +2695,11 @@ func TestGetMDMCommands(t *testing.T) {
 		if empty || listErr != nil {
 			return nil, listErr
 		}
+
+		if noHostErr != nil {
+			return nil, errors.New(fleet.HostIdentiferNotFound)
+		}
+
 		if expectIdentifier {
 			require.NotEmpty(t, listOpts.Filters.HostIdentifier)
 		}
@@ -2790,18 +2796,15 @@ The list of 3 most recent commands:
 	_, err = runAppNoChecks([]string{"get", "mdm-commands", "--type", "foo", "--host", "bar"})
 	require.NoError(t, err)
 
-	// Test pagination flag
+	// No Host Identifier found
 	listErr = nil
-	empty = true
-	expectIdentifier = false
-	expectPage = true
-	res, err := runAppNoChecks([]string{"get", "mdm-commands", "--page", "1"})
-	require.NoError(t, err)
-	require.Contains(t, res.String(), strings.TrimSpace(`
-+------+------+------+--------+----------+
-| UUID | TIME | TYPE | STATUS | HOSTNAME |
-+------+------+------+--------+----------+
-`))
+	empty = false
+	expectRequestType = false
+	expectIdentifier = true
+	noHostErr = errors.New(fleet.HostIdentiferNotFound)
+	_, err = runAppNoChecks([]string{"get", "mdm-commands", "--host", "foo"})
+	require.Error(t, err)
+	require.ErrorContains(t, err, fleet.HostIdentiferNotFound)
 }
 
 func TestUserIsObserver(t *testing.T) {

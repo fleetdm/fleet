@@ -261,7 +261,6 @@ func (c *Client) MDMListCommands(opts fleet.MDMCommandListOptions) ([]*fleet.MDM
 	query.Set("order_direction", "desc")
 	query.Set("host_identifier", opts.Filters.HostIdentifier)
 	query.Set("request_type", opts.Filters.RequestType)
-	query.Set("page", fmt.Sprint(opts.Page))
 
 	var responseBody listMDMCommandsResponse
 	err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, query.Encode())

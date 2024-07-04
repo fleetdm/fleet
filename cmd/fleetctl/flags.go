@@ -65,13 +65,6 @@ func byHostIdentifier() cli.Flag {
 	}
 }
 
-func page() cli.Flag {
-	return &cli.IntFlag{
-		Name:  "page",
-		Usage: "The page number to display",
-	}
-}
-
 func byMDMCommandRequestType() cli.Flag {
 	return &cli.StringFlag{
 		Name:  "type",
