@@ -2284,14 +2284,29 @@ func (ds *Datastore) UpdateOrDeleteHostMDMAppleProfile(ctx context.Context, prof
 		detail = fmt.Sprintf("Failed to remove: %s", detail)
 	}
 
+	// Check whether we want to set a install operation as 'verifying' for an iOS/iPadOS device.
+	var isIOSIPadOSInstallVerifiying bool
+	if profile.OperationType == fleet.MDMOperationTypeInstall && profile.Status != nil && *profile.Status == fleet.MDMDeliveryVerifying {
+		if err := ds.writer(ctx).GetContext(ctx, &isIOSIPadOSInstallVerifiying, `
+          SELECT platform = 'ios' OR platform = 'ipados' FROM hosts WHERE uuid = ?`,
+			profile.HostUUID,
+		); err != nil {
+			return err
+		}
+	}
+
+	status := profile.Status
+	if isIOSIPadOSInstallVerifiying {
+		// iOS/iPadOS devices do not have osquery,
+		// thus they go from 'pending' straight to 'verified'
+		status = &fleet.MDMDeliveryVerified
+	}
+
 	_, err := ds.writer(ctx).ExecContext(ctx, `
-          UPDATE host_mdm_apple_profiles hmap
-		  JOIN hosts h ON hmap.host_uuid = h.uuid
-		  -- given we don't have osquery in iOS/iPadOS, we skip 'verifying' and go straight to 'verified'.
-		  SET hmap.status = IF((h.platform = 'ios' OR h.platform = 'ipados') AND ? = 'verifying', 'verified', ?), hmap.operation_type = ?, hmap.detail = ?
-	      WHERE hmap.host_uuid = ? AND hmap.command_uuid = ?;`,
-		profile.Status, profile.Status, profile.OperationType, detail, profile.HostUUID, profile.CommandUUID,
-	)
+          UPDATE host_mdm_apple_profiles
+          SET status = ?, operation_type = ?, detail = ?
+          WHERE host_uuid = ? AND command_uuid = ?
+        `, status, profile.OperationType, detail, profile.HostUUID, profile.CommandUUID)
 	return err
 }
 

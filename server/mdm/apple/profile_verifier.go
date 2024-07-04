@@ -99,8 +99,12 @@ func VerifyHostMDMProfiles(ctx context.Context, ds fleet.ProfileVerificationStor
 // the MDM protocol and updates the verification status in the datastore. It is intended to be
 // called by the Fleet MDM checkin and command service install profile request handler.
 func HandleHostMDMProfileInstallResult(ctx context.Context, ds fleet.ProfileVerificationStore, hostUUID string, cmdUUID string, status *fleet.MDMDeliveryStatus, detail string) error {
-	host := &fleet.Host{UUID: hostUUID, Platform: "darwin"}
 	if status != nil && *status == fleet.MDMDeliveryFailed {
+		// TODO(lucas): Do I need to check this here for iOS/iPadOS?
+		host := &fleet.Host{
+			UUID:     hostUUID,
+			Platform: "darwin",
+		}
 		m, err := ds.GetHostMDMProfileRetryCountByCommandUUID(ctx, host, cmdUUID)
 		if err != nil {
 			return err
