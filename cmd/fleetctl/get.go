@@ -1595,6 +1595,7 @@ func getMDMCommandsCommand() *cli.Command {
 				})
 			}
 			columns := []string{"UUID", "TIME", "TYPE", "STATUS", "HOSTNAME"}
+			fmt.Fprintf(c.App.Writer, "\nThe list of %d most recent commands:\n\n", len(results))
 			printTable(c, columns, data)
 
 			return nil

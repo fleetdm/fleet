@@ -2749,6 +2749,9 @@ func TestGetMDMCommands(t *testing.T) {
 	buf, err = runAppNoChecks([]string{"get", "mdm-commands"})
 	require.NoError(t, err)
 	require.Contains(t, buf.String(), strings.TrimSpace(`
+
+The list of 3 most recent commands:
+
 +------+----------------------+---------------------------------------+--------------+----------+
 | UUID |         TIME         |                 TYPE                  |    STATUS    | HOSTNAME |
 +------+----------------------+---------------------------------------+--------------+----------+
