@@ -8620,7 +8620,6 @@ Content-Type: application/octet-stream
 
 ### Download software
 
-
 _Available in Fleet Premium._
 
 Download a software package.
