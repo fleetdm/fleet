@@ -188,7 +188,9 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 				ctx,
 				fleet.TeamFilter{User: test.UserAdmin},
 				&fleet.MDMCommandListOptions{
-					HostIdentifier: identifier,
+					Filters: fleet.MDMCommandFilters{
+						HostIdentifier: identifier,
+					},
 				},
 			)
 			require.NoError(t, err)
@@ -202,7 +204,9 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 		ctx,
 		fleet.TeamFilter{User: test.UserAdmin},
 		&fleet.MDMCommandListOptions{
-			HostIdentifier: "non-existent",
+			Filters: fleet.MDMCommandFilters{
+				HostIdentifier: "non-existent",
+			},
 		},
 	)
 	require.NoError(t, err)
@@ -258,6 +262,20 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 	require.Equal(t, winCmd.CommandUUID, cmds[1].CommandUUID)
 	require.Equal(t, winCmd.TargetLocURI, cmds[1].RequestType)
 	require.Equal(t, "200", cmds[1].Status)
+
+	// filter by request_type
+	cmds, err = ds.ListMDMCommands(
+		ctx,
+		fleet.TeamFilter{User: test.UserAdmin},
+		&fleet.MDMCommandListOptions{
+			Filters: fleet.MDMCommandFilters{
+				RequestType: "ProfileList",
+			},
+		},
+	)
+	require.NoError(t, err)
+	require.Len(t, cmds, 1)
+	require.Equal(t, appleCmdUUID, cmds[0].CommandUUID)
 }
 
 func testBatchSetMDMProfiles(t *testing.T, ds *Datastore) {

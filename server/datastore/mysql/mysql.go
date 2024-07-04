@@ -1030,12 +1030,15 @@ func (ds *Datastore) whereOmitIDs(colName string, omit []uint) string {
 	return fmt.Sprintf("%s NOT IN (%s)", colName, strings.Join(idStrs, ","))
 }
 
-func (ds *Datastore) whereFilterHostsByIdentifier(identifier string) string {
+func (ds *Datastore) whereFilterHostsByIdentifier(identifier, stmt string, params []interface{}) (string, []interface{}) {
 	if identifier == "" {
-		return "AND TRUE"
+		return stmt, params
 	}
 
-	return fmt.Sprintf(" AND '%s' IN (h.hostname, h.osquery_host_id, h.node_key, h.uuid, h.hardware_serial)", identifier)
+	stmt += " AND ? IN (h.hostname, h.osquery_host_id, h.node_key, h.uuid, h.hardware_serial)"
+	params = append(params, identifier)
+
+	return stmt, params
 }
 
 // registerTLS adds client certificate configuration to the mysql connection.

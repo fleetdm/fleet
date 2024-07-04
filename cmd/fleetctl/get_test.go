@@ -2688,13 +2688,18 @@ func TestGetMDMCommands(t *testing.T) {
 	var empty bool
 	var listErr error
 	var expectIdentifier bool
+	var expectRequestType bool
 	var expectPage bool
 	ds.ListMDMCommandsFunc = func(ctx context.Context, tmFilter fleet.TeamFilter, listOpts *fleet.MDMCommandListOptions) ([]*fleet.MDMCommand, error) {
 		if empty || listErr != nil {
 			return nil, listErr
 		}
 		if expectIdentifier {
-			require.NotEmpty(t, listOpts.HostIdentifier)
+			require.NotEmpty(t, listOpts.Filters.HostIdentifier)
+		}
+
+		if expectRequestType {
+			require.NotEmpty(t, listOpts.Filters.RequestType)
 		}
 
 		if expectPage {
@@ -2763,7 +2768,23 @@ func TestGetMDMCommands(t *testing.T) {
 	listErr = nil
 	empty = false
 	expectIdentifier = true
-	_, err = runAppNoChecks([]string{"get", "mdm-commands", "--host-identifier", "foo"})
+	_, err = runAppNoChecks([]string{"get", "mdm-commands", "--host", "foo"})
+	require.NoError(t, err)
+
+	// Test with request type filter
+	listErr = nil
+	empty = false
+	expectRequestType = true
+	expectIdentifier = false
+	_, err = runAppNoChecks([]string{"get", "mdm-commands", "--type", "foo"})
+	require.NoError(t, err)
+
+	// Test with request type and host identifier filter
+	listErr = nil
+	empty = false
+	expectRequestType = true
+	expectIdentifier = true
+	_, err = runAppNoChecks([]string{"get", "mdm-commands", "--type", "foo", "--host", "bar"})
 	require.NoError(t, err)
 
 	// Test pagination flag

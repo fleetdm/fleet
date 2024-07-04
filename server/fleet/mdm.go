@@ -247,7 +247,12 @@ type MDMCommand struct {
 // https://github.com/fleetdm/fleet/issues/11008#issuecomment-1503466119
 type MDMCommandListOptions struct {
 	ListOptions
-	HostIdentifier string `query:"identifier"`
+	Filters MDMCommandFilters
+}
+
+type MDMCommandFilters struct {
+	HostIdentifier string
+	RequestType    string
 }
 
 type MDMPlatformsCounts struct {

@@ -1546,6 +1546,7 @@ func getMDMCommandsCommand() *cli.Command {
 			contextFlag(),
 			debugFlag(),
 			byHostIdentifier(),
+			byMDMCommandRequestType(),
 			page(),
 		},
 		Action: func(c *cli.Context) error {
@@ -1560,7 +1561,10 @@ func getMDMCommandsCommand() *cli.Command {
 			}
 
 			opts := fleet.MDMCommandListOptions{
-				HostIdentifier: c.String("host-identifier"),
+				Filters: fleet.MDMCommandFilters{
+					HostIdentifier: c.String("host"),
+					RequestType:    c.String("type"),
+				},
 				ListOptions: fleet.ListOptions{
 					Page: c.Uint("page"),
 				},

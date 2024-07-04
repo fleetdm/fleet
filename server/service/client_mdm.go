@@ -259,7 +259,8 @@ func (c *Client) MDMListCommands(opts fleet.MDMCommandListOptions) ([]*fleet.MDM
 	query.Set("per_page", fmt.Sprint(defaultCommandsPerPage))
 	query.Set("order_key", "updated_at")
 	query.Set("order_direction", "desc")
-	query.Set("identifier", opts.HostIdentifier)
+	query.Set("host_identifier", opts.Filters.HostIdentifier)
+	query.Set("request_type", opts.Filters.RequestType)
 	query.Set("page", fmt.Sprint(opts.Page))
 
 	var responseBody listMDMCommandsResponse

@@ -757,7 +757,8 @@ func (svc *Service) GetMDMCommandResults(ctx context.Context, commandUUID string
 
 type listMDMCommandsRequest struct {
 	ListOptions    fleet.ListOptions `url:"list_options"`
-	HostIdentifier string            `query:"identifier,optional"`
+	HostIdentifier string            `query:"host_identifier,optional"`
+	RequestType    string            `query:"request_type,optional"`
 }
 
 type listMDMCommandsResponse struct {
@@ -770,8 +771,8 @@ func (r listMDMCommandsResponse) error() error { return r.Err }
 func listMDMCommandsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*listMDMCommandsRequest)
 	results, err := svc.ListMDMCommands(ctx, &fleet.MDMCommandListOptions{
-		ListOptions:    req.ListOptions,
-		HostIdentifier: req.HostIdentifier,
+		ListOptions: req.ListOptions,
+		Filters:     fleet.MDMCommandFilters{HostIdentifier: req.HostIdentifier, RequestType: req.RequestType},
 	})
 	if err != nil {
 		return listMDMCommandsResponse{
