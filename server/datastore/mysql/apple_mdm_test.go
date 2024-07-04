@@ -46,6 +46,7 @@ func TestMDMApple(t *testing.T) {
 		{"TestDeleteMDMAppleConfigProfileByTeamAndIdentifier", testDeleteMDMAppleConfigProfileByTeamAndIdentifier},
 		{"TestListMDMAppleConfigProfiles", testListMDMAppleConfigProfiles},
 		{"TestHostDetailsMDMProfiles", testHostDetailsMDMProfiles},
+		{"TestHostDetailsMDMProfilesIOSIPadOS", testHostDetailsMDMProfilesIOSIPadOS},
 		{"TestBatchSetMDMAppleProfiles", testBatchSetMDMAppleProfiles},
 		{"TestMDMAppleProfileManagement", testMDMAppleProfileManagement},
 		{"TestMDMAppleProfileManagementBatch2", testMDMAppleProfileManagementBatch2},
@@ -5903,4 +5904,147 @@ func testMDMAppleProfilesOnIOSIPadOS(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, profiles, 1)
 	require.Equal(t, someProfile.Name, profiles[0].Name)
+}
+
+func testHostDetailsMDMProfilesIOSIPadOS(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	p0, err := ds.NewMDMAppleConfigProfile(ctx, fleet.MDMAppleConfigProfile{
+		Name:         "Name0",
+		Identifier:   "Identifier0",
+		Mobileconfig: []byte("profile0-bytes"),
+	})
+	require.NoError(t, err)
+
+	profiles, err := ds.ListMDMAppleConfigProfiles(ctx, ptr.Uint(0))
+	require.NoError(t, err)
+	require.Len(t, profiles, 1)
+
+	iOS, err := ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		OsqueryHostID:   ptr.String("host0-osquery-id"),
+		NodeKey:         ptr.String("host0-node-key"),
+		UUID:            "host0-test-mdm-profiles",
+		Hostname:        "hostname0",
+		Platform:        "ios",
+	})
+	require.NoError(t, err)
+	iPadOS, err := ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		OsqueryHostID:   ptr.String("host0-osquery-id-2"),
+		NodeKey:         ptr.String("host0-node-key-2"),
+		UUID:            "host0-test-mdm-profiles-2",
+		Hostname:        "hostname0-2",
+		Platform:        "ipados",
+	})
+	require.NoError(t, err)
+
+	gotHost, err := ds.Host(ctx, iOS.ID)
+	require.NoError(t, err)
+	require.Nil(t, gotHost.MDM.Profiles)
+	gotProfs, err := ds.GetHostMDMAppleProfiles(ctx, iOS.UUID)
+	require.NoError(t, err)
+	require.Nil(t, gotProfs)
+	gotHost, err = ds.Host(ctx, iPadOS.ID)
+	require.NoError(t, err)
+	require.Nil(t, gotHost.MDM.Profiles)
+	gotProfs, err = ds.GetHostMDMAppleProfiles(ctx, iPadOS.UUID)
+	require.NoError(t, err)
+	require.Nil(t, gotProfs)
+
+	expectedProfilesIOS := map[string]fleet.HostMDMAppleProfile{
+		p0.ProfileUUID: {
+			HostUUID:      iOS.UUID,
+			Name:          p0.Name,
+			ProfileUUID:   p0.ProfileUUID,
+			CommandUUID:   "cmd0-uuid",
+			Status:        &fleet.MDMDeliveryPending,
+			OperationType: fleet.MDMOperationTypeInstall,
+			Detail:        "",
+		},
+	}
+	expectedProfilesIPadOS := map[string]fleet.HostMDMAppleProfile{
+		p0.ProfileUUID: {
+			HostUUID:      iPadOS.UUID,
+			Name:          p0.Name,
+			ProfileUUID:   p0.ProfileUUID,
+			CommandUUID:   "cmd0-uuid",
+			Status:        &fleet.MDMDeliveryPending,
+			OperationType: fleet.MDMOperationTypeInstall,
+			Detail:        "",
+		},
+	}
+
+	var args []interface{}
+	for _, p := range expectedProfilesIOS {
+		args = append(args, p.HostUUID, p.ProfileUUID, p.CommandUUID, *p.Status, p.OperationType, p.Detail, p.Name)
+	}
+	for _, p := range expectedProfilesIPadOS {
+		args = append(args, p.HostUUID, p.ProfileUUID, p.CommandUUID, *p.Status, p.OperationType, p.Detail, p.Name)
+	}
+
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `
+	INSERT INTO host_mdm_apple_profiles (
+		host_uuid, profile_uuid, command_uuid, status, operation_type, detail, profile_name)
+	VALUES (?,?,?,?,?,?,?),(?,?,?,?,?,?,?)
+		`, args...,
+		)
+		if err != nil {
+			return err
+		}
+		return nil
+	})
+
+	for _, tc := range []struct {
+		host             *fleet.Host
+		expectedProfiles map[string]fleet.HostMDMAppleProfile
+	}{
+		{
+			host:             iOS,
+			expectedProfiles: expectedProfilesIOS,
+		},
+		{
+			host:             iPadOS,
+			expectedProfiles: expectedProfilesIPadOS,
+		},
+	} {
+		gotProfs, err = ds.GetHostMDMAppleProfiles(ctx, tc.host.UUID)
+		require.NoError(t, err)
+		require.Len(t, gotProfs, 1)
+		for _, gp := range gotProfs {
+			ep, ok := expectedProfilesIOS[gp.ProfileUUID]
+			require.True(t, ok)
+			require.Equal(t, ep.Name, gp.Name)
+			require.Equal(t, *ep.Status, *gp.Status)
+			require.Equal(t, ep.OperationType, gp.OperationType)
+			require.Equal(t, ep.Detail, gp.Detail)
+		}
+
+		// mark pending profile to 'verifying', which should instead set it as 'verified'.
+		installPendingProfile := expectedProfilesIOS[p0.ProfileUUID]
+		err = ds.UpdateOrDeleteHostMDMAppleProfile(ctx, &fleet.HostMDMAppleProfile{
+			HostUUID:      installPendingProfile.HostUUID,
+			CommandUUID:   installPendingProfile.CommandUUID,
+			ProfileUUID:   installPendingProfile.ProfileUUID,
+			Name:          installPendingProfile.Name,
+			Status:        &fleet.MDMDeliveryVerifying,
+			OperationType: fleet.MDMOperationTypeInstall,
+			Detail:        "",
+		})
+		require.NoError(t, err)
+
+		// Check that the profile is the 'verified' state.
+		gotProfs, err = ds.GetHostMDMAppleProfiles(ctx, iOS.UUID)
+		require.NoError(t, err)
+		require.Len(t, gotProfs, 1)
+		require.NotNil(t, gotProfs[0].Status)
+		require.Equal(t, fleet.MDMDeliveryVerified, *gotProfs[0].Status)
+	}
 }

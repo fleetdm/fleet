@@ -100,11 +100,10 @@ func VerifyHostMDMProfiles(ctx context.Context, ds fleet.ProfileVerificationStor
 // called by the Fleet MDM checkin and command service install profile request handler.
 func HandleHostMDMProfileInstallResult(ctx context.Context, ds fleet.ProfileVerificationStore, hostUUID string, cmdUUID string, status *fleet.MDMDeliveryStatus, detail string) error {
 	if status != nil && *status == fleet.MDMDeliveryFailed {
-		// TODO(lucas): Do I need to check this here for iOS/iPadOS?
-		host := &fleet.Host{
-			UUID:     hostUUID,
-			Platform: "darwin",
-		}
+		// Here we set the host.Platform to "darwin" but it applies to iOS/iPadOS too.
+		// The logic in GetHostMDMProfileRetryCountByCommandUUID and UpdateHostMDMProfilesVerification
+		// is the exact same when platform is "darwin", "ios" or "ipados".
+		host := &fleet.Host{UUID: hostUUID, Platform: "darwin"}
 		m, err := ds.GetHostMDMProfileRetryCountByCommandUUID(ctx, host, cmdUUID)
 		if err != nil {
 			return err
