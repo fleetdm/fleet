@@ -76,7 +76,7 @@ func (c *Client) LiveQueryWithContext(
 		QuerySQL: query,
 		Selected: distributedQueryCampaignTargetsByIdentifiers{Labels: labels, Hosts: hostIdentifiers},
 	}
-	verb, path := "POST", "/api/latest/fleet/queries/run_by_names"
+	verb, path := "POST", "/api/latest/fleet/queries/run_by_identifiers"
 	var responseBody createDistributedQueryCampaignResponse
 	err := c.authenticatedRequest(req, verb, path, &responseBody)
 	if err != nil {
