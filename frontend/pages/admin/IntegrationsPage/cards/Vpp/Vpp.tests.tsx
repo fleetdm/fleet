@@ -12,7 +12,7 @@ import createMockConfig, { createMockMdmConfig } from "__mocks__/configMock";
 import Vpp from "./Vpp";
 
 describe("Vpp Section", () => {
-  it("render turn on apple mdm message when apple mdm is not turned on ", async () => {
+  it("renders turn on apple mdm message when apple mdm is not turned on ", async () => {
     mockServer.use(defaultVppInfoHandler);
 
     const render = createCustomRenderer({
@@ -33,7 +33,7 @@ describe("Vpp Section", () => {
     ).toBeInTheDocument();
   });
 
-  it("render enable vpp when vpp is disabled", async () => {
+  it("renders enable vpp when vpp is disabled", async () => {
     mockServer.use(errorNoVppInfoHandler);
 
     const render = createCustomRenderer({
@@ -54,7 +54,7 @@ describe("Vpp Section", () => {
     ).toBeInTheDocument();
   });
 
-  it("render edit vpp when vpp is enabled", async () => {
+  it("renders edit vpp when vpp is enabled", async () => {
     mockServer.use(defaultVppInfoHandler);
 
     const render = createCustomRenderer({

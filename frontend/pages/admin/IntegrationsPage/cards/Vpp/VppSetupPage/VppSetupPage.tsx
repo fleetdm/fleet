@@ -121,7 +121,7 @@ const VppSetupPage = ({ router }: IVppSetupPageProps) => {
   const [showDisableModal, setShowDisableModal] = useState(false);
   const [showRenewModal, setShowRenewModal] = useState(false);
 
-  const { data: vppData, error: vppError, isLoading } = useQuery<
+  const { data: vppData, error: vppError, isLoading, isError } = useQuery<
     IGetVppInfoResponse,
     AxiosError
   >("vppInfo", () => mdmAppleAPI.getVppInfo(), {
@@ -134,12 +134,12 @@ const VppSetupPage = ({ router }: IVppSetupPageProps) => {
       return <Spinner />;
     }
 
-    if (vppError?.status !== 404) {
+    if (isError && vppError?.status !== 404) {
       return <DataError />;
     }
 
     // 404 means there is no token, se we want to show the setup steps content
-    if (vppError.status === 404) {
+    if (vppError?.status === 404) {
       return <VPPSetupContent router={router} />;
     }
 
@@ -160,7 +160,7 @@ const VppSetupPage = ({ router }: IVppSetupPageProps) => {
           className={`${baseClass}__back-to-vpp`}
         />
         <h1>Volume Purchasing Program (VPP)</h1>
-        {renderContent()}
+        <>{renderContent()}</>
       </>
       {showDisableModal && (
         <DisableVppModal onExit={() => setShowDisableModal(false)} />
