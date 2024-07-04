@@ -63,7 +63,7 @@ jobs:
     strategy:
       matrix:
         go-version: ["${{ vars.GO_VERSION }}"]
-        mysql: ["mysql:5.7"]
+        mysql: ["mysql:8.0"]
     runs-on: ubuntu-latest
     needs: gen
     steps:
