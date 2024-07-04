@@ -8928,6 +8928,8 @@ Returns information about the specified software. By default, `versions` are sor
     "software_package": {
       "name": "FalconSensor-6.44.pkg",
       "version": "6.44",
+      "instaler_id": 23,
+      "team_id": 3,
       "uploaded_at": "2024-04-01T14:22:58Z",
       "install_script": "sudo installer -pkg /temp/FalconSensor-6.44.pkg -target /",
       "pre_install_query": "SELECT 1 FROM macos_profiles WHERE uuid='c9f4f0d5-8426-4eb8-b61b-27c543c9d3db';",
