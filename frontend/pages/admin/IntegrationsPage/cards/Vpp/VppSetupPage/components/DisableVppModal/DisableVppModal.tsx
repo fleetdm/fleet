@@ -1,4 +1,7 @@
-import React, { useState } from "react";
+import React, { useContext, useState } from "react";
+
+import mdmAppleAPI from "services/entities/mdm_apple";
+import { NotificationContext } from "context/notification";
 
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
@@ -10,10 +13,25 @@ interface IDisableVppModalProps {
 }
 
 const DisableVppModal = ({ onExit }: IDisableVppModalProps) => {
+  const { renderFlash } = useContext(NotificationContext);
   const [isDisabling, setIsDisabling] = useState(false);
 
-  const onDisableVpp = () => {
+  const onDisableVpp = async () => {
     // TODO: API integration
+    try {
+      await mdmAppleAPI.disableVpp();
+      renderFlash(
+        "success",
+        "Volume Purchasing Program (VPP) disabled successfully."
+      );
+    } catch {
+      renderFlash(
+        "error",
+        "Couldn't disable Volume Purchasing Program (VPP). Please try again."
+      );
+    }
+
+    onExit();
   };
 
   return (

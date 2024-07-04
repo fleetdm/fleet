@@ -1,15 +1,22 @@
 import React, { useContext, useState } from "react";
 import { InjectedRouter } from "react-router";
+import { useQuery } from "react-query";
+import { AxiosError } from "axios";
 
 import PATHS from "router/paths";
 import { NotificationContext } from "context/notification";
 import { getErrorReason } from "interfaces/errors";
+import mdmAppleAPI, { IGetVppInfoResponse } from "services/entities/mdm_apple";
+import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 
 import MainContent from "components/MainContent";
 import BackLink from "components/BackLink";
 import FileUploader from "components/FileUploader";
 import DataSet from "components/DataSet";
 import Button from "components/buttons/Button";
+
+import Spinner from "components/Spinner";
+import DataError from "components/DataError";
 
 import DisableVppModal from "./components/DisableVppModal";
 import VppSetupSteps from "./components/VppSetupSteps";
@@ -27,6 +34,7 @@ const VPPSetupContent = ({ router }: IVppSetupContentProps) => {
 
   const uploadToken = async (data: FileList | null) => {
     setIsUploading(true);
+
     const token = data?.[0];
     if (!token) {
       setIsUploading(false);
@@ -35,8 +43,7 @@ const VPPSetupContent = ({ router }: IVppSetupContentProps) => {
     }
 
     try {
-      // TODO: API integration
-      // await mdmAppleBmAPI.uploadToken(token);
+      await mdmAppleAPI.uploadVppToken(token);
       renderFlash(
         "success",
         "Volume Purchasing Program (VPP) integration enabled successfully."
@@ -44,8 +51,8 @@ const VPPSetupContent = ({ router }: IVppSetupContentProps) => {
       router.push(PATHS.ADMIN_INTEGRATIONS_VPP);
     } catch (e) {
       // TODO: error messages
-      const msg = getErrorReason(e);
-      if (msg.toLowerCase().includes("valid token")) {
+      const msg = getErrorReason(e, { reasonIncludes: "valid token" });
+      if (msg) {
         renderFlash("error", msg);
       } else {
         renderFlash("error", "Couldn't Upload. Please try again.");
@@ -114,6 +121,36 @@ const VppSetupPage = ({ router }: IVppSetupPageProps) => {
   const [showDisableModal, setShowDisableModal] = useState(false);
   const [showRenewModal, setShowRenewModal] = useState(false);
 
+  const { data: vppData, error: vppError, isLoading } = useQuery<
+    IGetVppInfoResponse,
+    AxiosError
+  >("vppInfo", () => mdmAppleAPI.getVppInfo(), {
+    ...DEFAULT_USE_QUERY_OPTIONS,
+    retry: false,
+  });
+
+  const renderContent = () => {
+    if (isLoading) {
+      return <Spinner />;
+    }
+
+    if (vppError?.status !== 404) {
+      return <DataError />;
+    }
+
+    // 404 means there is no token, se we want to show the setup steps content
+    if (vppError.status === 404) {
+      return <VPPSetupContent router={router} />;
+    }
+
+    return vppData ? (
+      <VPPDisableOrRenewContent
+        onDisable={() => setShowDisableModal(true)}
+        onRenew={() => setShowRenewModal(true)}
+      />
+    ) : null;
+  };
+
   return (
     <MainContent className={baseClass}>
       <>
@@ -123,14 +160,7 @@ const VppSetupPage = ({ router }: IVppSetupPageProps) => {
           className={`${baseClass}__back-to-vpp`}
         />
         <h1>Volume Purchasing Program (VPP)</h1>
-        {true ? (
-          <VPPSetupContent router={router} />
-        ) : (
-          <VPPDisableOrRenewContent
-            onDisable={() => setShowDisableModal(true)}
-            onRenew={() => setShowRenewModal(true)}
-          />
-        )}
+        {renderContent()}
       </>
       {showDisableModal && (
         <DisableVppModal onExit={() => setShowDisableModal(false)} />

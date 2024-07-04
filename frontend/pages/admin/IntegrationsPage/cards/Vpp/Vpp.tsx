@@ -1,13 +1,19 @@
 import React, { useContext } from "react";
 import { InjectedRouter } from "react-router";
+import { useQuery } from "react-query";
+import { AxiosError } from "axios";
 
 import PATHS from "router/paths";
+import { AppContext } from "context/app";
+import mdmAppleAPI, { IGetVppInfoResponse } from "services/entities/mdm_apple";
+import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 
 import Card from "components/Card";
 import SectionHeader from "components/SectionHeader";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
-import { AppContext } from "context/app";
+import Spinner from "components/Spinner";
+import DataError from "components/DataError";
 
 const baseClass = "vpp";
 
@@ -92,14 +98,36 @@ interface IVppProps {
 const Vpp = ({ router }: IVppProps) => {
   const { config } = useContext(AppContext);
 
+  const { data: vppData, error: vppError, isLoading, isError } = useQuery<
+    IGetVppInfoResponse,
+    AxiosError
+  >("vppInfo", () => mdmAppleAPI.getVppInfo(), {
+    ...DEFAULT_USE_QUERY_OPTIONS,
+    retry: false,
+  });
+
+  const renderContent = () => {
+    if (isLoading) {
+      return <Spinner />;
+    }
+
+    if (isError && vppError?.status !== 404) {
+      return <DataError />;
+    }
+
+    return (
+      <VppCard
+        isAppleMdmOn={!!config?.mdm.enabled_and_configured}
+        isVppOn={!!vppData && vppError?.status !== 404}
+        router={router}
+      />
+    );
+  };
+
   return (
     <div className={baseClass}>
       <SectionHeader title="Volume Purchasing Program (VPP)" />
-      <VppCard
-        isAppleMdmOn={!!config?.mdm.enabled_and_configured}
-        isVppOn={false}
-        router={router}
-      />
+      <>{renderContent()}</>
     </div>
   );
 };

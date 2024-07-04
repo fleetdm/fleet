@@ -1,4 +1,5 @@
 import { IMdmApple } from "interfaces/mdm";
+import { IGetVppInfoResponse } from "services/entities/mdm_apple";
 
 const DEFAULT_MDM_APPLE_MOCK: IMdmApple = {
   common_name: "APSP:12345",
@@ -11,6 +12,18 @@ export const createMockMdmApple = (
   overrides?: Partial<IMdmApple>
 ): IMdmApple => {
   return { ...DEFAULT_MDM_APPLE_MOCK, ...overrides };
+};
+
+const DEFAULT_MDM_APPLE_VPP_INFO_MOCK: IGetVppInfoResponse = {
+  org_name: "test org",
+  renew_date: "2024-09-19T00:00:00Z",
+  location: "test location",
+};
+
+export const createMockVppInfo = (
+  overrides?: Partial<IGetVppInfoResponse>
+): IGetVppInfoResponse => {
+  return { ...DEFAULT_MDM_APPLE_VPP_INFO_MOCK, ...overrides };
 };
 
 export default createMockMdmApple;
