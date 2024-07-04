@@ -431,19 +431,23 @@ func (ds *Datastore) getExistingSoftware(
 	incomingChecksumToTitle = make(map[string]fleet.SoftwareTitle, len(newSoftware))
 	if len(newSoftware) > 0 {
 		totalToProcess := len(newSoftware)
-		const numberOfArgsPerSoftwareTitle = 3 // number of ? in each WHERE clause
+		const numberOfArgsPerSoftwareTitle = 4 // number of ? in each WHERE clause
 		whereClause := strings.TrimSuffix(
-			strings.Repeat("(name = ? AND source = ? AND browser = ?) OR", totalToProcess), " OR",
+			strings.Repeat(`
+			  (
+			    (bundle_identifier = ?) OR
+			    (name = ? AND source = ? AND browser = ? AND bundle_identifier IS NULL)
+			  ) OR`, totalToProcess), " OR",
 		)
 		stmt := fmt.Sprintf(
-			"SELECT id, name, source, browser FROM software_titles WHERE %s",
+			"SELECT id, name, source, browser, COALESCE(bundle_identifier, '') as bundle_identifier FROM software_titles WHERE %s",
 			whereClause,
 		)
 		args := make([]interface{}, 0, totalToProcess*numberOfArgsPerSoftwareTitle)
 		uniqueTitleStrToChecksum := make(map[string]string, totalToProcess)
 		for checksum := range newSoftware {
 			sw := incomingChecksumToSoftware[checksum]
-			args = append(args, sw.Name, sw.Source, sw.Browser)
+			args = append(args, sw.BundleIdentifier, sw.Name, sw.Source, sw.Browser)
 			// Map software title identifier to software checksums so that we can map checksums to actual titles later.
 			uniqueTitleStrToChecksum[UniqueSoftwareTitleStr(sw.Name, sw.Source, sw.Browser)] = checksum
 		}

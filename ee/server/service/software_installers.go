@@ -323,6 +323,7 @@ func (svc *Service) addMetadataToSoftwarePayload(ctx context.Context, payload *f
 	}
 	payload.Version = meta.Version
 	payload.StorageID = hex.EncodeToString(meta.SHASum)
+	payload.BundleIdentifier = meta.BundleIdentifier
 
 	// reset the reader (it was consumed to extract metadata)
 	if _, err := payload.InstallerFile.Seek(0, 0); err != nil {

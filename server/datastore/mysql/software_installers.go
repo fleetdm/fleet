@@ -149,7 +149,7 @@ func (ds *Datastore) getOrGenerateSoftwareInstallerTitleID(ctx context.Context, 
 	insertArgs := []any{payload.Title, payload.Source}
 
 	if payload.BundleIdentifier != "" {
-		selectStmt = `SELECT title_id FROM software_titles WHERE bundle_identifier = ?`
+		selectStmt = `SELECT id FROM software_titles WHERE bundle_identifier = ?`
 		selectArgs = []any{payload.BundleIdentifier}
 		insertStmt = `INSERT INTO software_titles (name, source, bundle_identifier, browser) VALUES (?, ?, ?, '')`
 		insertArgs = append(insertArgs, payload.BundleIdentifier)

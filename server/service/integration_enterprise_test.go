@@ -10571,11 +10571,14 @@ func (s *integrationEnterpriseTestSuite) TestAutofillPoliciesAuthTeamUser() {
 	}
 }
 
-func (s *integrationEnterpriseTestSuite) TestAPKSoftwareInstallerReconciliation() {
+// 1. software title uploaded doesn't match existing title
+// 2. host reports software with the same bundle identifier
+// 3. reconciler runs, doesn't create a new title
+func (s *integrationEnterpriseTestSuite) TestAPKNewSoftwareTitleFlow() {
 	t := s.T()
 	ctx := context.Background()
 
-	team1, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "team1"})
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "team1"})
 	require.NoError(t, err)
 
 	host, err := s.ds.NewHost(ctx, &fleet.Host{
@@ -10591,56 +10594,272 @@ func (s *integrationEnterpriseTestSuite) TestAPKSoftwareInstallerReconciliation(
 	})
 	require.NoError(t, err)
 
-	// 1. software title uploaded doesn't match existing title
-	// 2. host reports software with the same bundle identifier
-	// 3. reconciler runs, doesn't create a new title
-	t.Run("foo", func(t *testing.T) {
-		payload := &fleet.UploadSoftwareInstallerPayload{
-			InstallScript: "some install script",
-			Filename:      "dummy_installer.pkg",
-			TeamID:        &team1.ID,
-		}
-		s.uploadSoftwareInstaller(payload, http.StatusOK, "")
+	err = s.ds.AddHostsToTeam(ctx, &team.ID, []uint{host.ID})
+	require.NoError(t, err)
 
-		resp := listSoftwareTitlesResponse{}
-		s.DoJSON(
-			"GET", "/api/latest/fleet/software/titles",
-			listSoftwareTitlesRequest{},
-			http.StatusOK, &resp,
-			"query", "dummy",
-			"team_id", fmt.Sprintf("%d", team1.ID),
-		)
-		require.Len(t, resp.SoftwareTitles, 1)
-		require.NotNil(t, resp.SoftwareTitles[0].SoftwarePackage)
-		require.Equal(t, "dummy_installer.pkg", *resp.SoftwareTitles[0].SoftwarePackage)
+	payload := &fleet.UploadSoftwareInstallerPayload{
+		InstallScript: "some install script",
+		Filename:      "dummy_installer.pkg",
+		TeamID:        &team.ID,
+	}
+	s.uploadSoftwareInstaller(payload, http.StatusOK, "")
 
-		software := []fleet.Software{
-			{Name: "foo", Version: "0.0.1", Source: "homebrew"},
-			{Name: "foo", Version: "0.0.3", Source: "homebrew"},
-			{Name: "bar", Version: "0.0.4", Source: "apps"},
-			{Name: "DummyApp.app", Version: "1.0.0", Source: "apps"},
-		}
-		_, err = s.ds.UpdateHostSoftware(ctx, host.ID, software)
-		require.NoError(t, err)
-		require.NoError(t, s.ds.LoadHostSoftware(ctx, host, false))
-		require.Len(t, host.Software, 4)
+	resp := listSoftwareTitlesResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/titles",
+		listSoftwareTitlesRequest{},
+		http.StatusOK, &resp,
+		"team_id", fmt.Sprintf("%d", team.ID),
+	)
+	require.Len(t, resp.SoftwareTitles, 1)
+	require.NotNil(t, resp.SoftwareTitles[0].SoftwarePackage)
+	require.Equal(t, "dummy_installer.pkg", *resp.SoftwareTitles[0].SoftwarePackage)
+
+	software := []fleet.Software{
+		{Name: "foo", Version: "0.0.1", Source: "homebrew"},
+		{Name: "foo", Version: "0.0.3", Source: "homebrew"},
+		{Name: "bar", Version: "0.0.4", Source: "apps"},
+		{Name: "DummyApp.app", Version: "1.0.0", Source: "apps", BundleIdentifier: "com.example.dummy"},
+	}
+	_, err = s.ds.UpdateHostSoftware(ctx, host.ID, software)
+	require.NoError(t, err)
+	require.NoError(t, s.ds.LoadHostSoftware(ctx, host, false))
+	require.Len(t, host.Software, 4)
+
+	resp = listSoftwareTitlesResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/titles",
+		listSoftwareTitlesRequest{},
+		http.StatusOK, &resp,
+		"team_id", fmt.Sprintf("%d", team.ID),
+	)
+	// still one because the counts didn't update yet
+	require.Len(t, resp.SoftwareTitles, 1)
+
+	hostsCountTs := time.Now().UTC()
+	require.NoError(t, s.ds.SyncHostsSoftware(ctx, hostsCountTs))
+	require.NoError(t, s.ds.ReconcileSoftwareTitles(ctx))
+	require.NoError(t, s.ds.SyncHostsSoftwareTitles(ctx, hostsCountTs))
+	resp = listSoftwareTitlesResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/titles",
+		listSoftwareTitlesRequest{},
+		http.StatusOK, &resp,
+		"team_id", fmt.Sprintf("%d", team.ID),
+	)
+	require.Len(t, resp.SoftwareTitles, 3)
+	require.ElementsMatch(
+		t,
+		[]string{"foo", "bar", "DummyApp.app"},
+		[]string{
+			resp.SoftwareTitles[0].Name,
+			resp.SoftwareTitles[1].Name,
+			resp.SoftwareTitles[2].Name,
+		},
+	)
+
+	// host reports another version of dummy, but this one has a
+	// different name, but same identifier
+	software = []fleet.Software{
+		{Name: "foo", Version: "0.0.1", Source: "homebrew"},
+		{Name: "foo", Version: "0.0.3", Source: "homebrew"},
+		{Name: "bar", Version: "0.0.4", Source: "apps"},
+		{Name: "DummyApp.app", Version: "1.0.0", Source: "apps", BundleIdentifier: "com.example.dummy"},
+		{Name: "AppDummy.app", Version: "2.0.0", Source: "apps", BundleIdentifier: "com.example.dummy"},
+	}
+	_, err = s.ds.UpdateHostSoftware(ctx, host.ID, software)
+	require.NoError(t, err)
+	require.NoError(t, s.ds.LoadHostSoftware(ctx, host, false))
+	require.Len(t, host.Software, 5)
+	require.NoError(t, s.ds.SyncHostsSoftware(ctx, hostsCountTs))
+	require.NoError(t, s.ds.ReconcileSoftwareTitles(ctx))
+	require.NoError(t, s.ds.SyncHostsSoftwareTitles(ctx, hostsCountTs))
+
+	// titles are the same
+	resp = listSoftwareTitlesResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/titles",
+		listSoftwareTitlesRequest{},
+		http.StatusOK, &resp,
+		"team_id", fmt.Sprintf("%d", team.ID),
+	)
+	require.Len(t, resp.SoftwareTitles, 3)
+	require.ElementsMatch(
+		t,
+		[]string{"foo", "bar", "DummyApp.app"},
+		[]string{
+			resp.SoftwareTitles[0].Name,
+			resp.SoftwareTitles[1].Name,
+			resp.SoftwareTitles[2].Name,
+		},
+	)
+}
+
+// 1. host reports software
+// 2. reconciler runs, creates title
+// 3. installer is uploaded, matches existing software title
+func (s *integrationEnterpriseTestSuite) TestAPKSoftwareAlreadyReported() {
+	t := s.T()
+	ctx := context.Background()
+
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "team1"})
+	require.NoError(t, err)
+
+	host, err := s.ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now().Add(-1 * time.Minute),
+		OsqueryHostID:   ptr.String(t.Name()),
+		NodeKey:         ptr.String(t.Name()),
+		UUID:            uuid.New().String(),
+		Hostname:        fmt.Sprintf("%sfoo.local", t.Name()),
+		Platform:        "darwin",
 	})
+	require.NoError(t, err)
 
-	// 1. host reports software
-	// 2. reconciler runs, creates title
-	// 3. installer is uploaded, matches existing software title
-	t.Run("", func(t *testing.T) {
-	})
+	err = s.ds.AddHostsToTeam(ctx, &team.ID, []uint{host.ID})
+	require.NoError(t, err)
 
-	// 1. host reports software
-	// 2. installer is uploaded, matches existing software
-	// 2. reconciler runs, matches existing software title
-	t.Run("", func(t *testing.T) {
-	})
+	software := []fleet.Software{
+		{Name: "foo", Version: "0.0.1", Source: "homebrew"},
+		{Name: "foo", Version: "0.0.3", Source: "homebrew"},
+		{Name: "bar", Version: "0.0.4", Source: "apps"},
+		// note: the source is not "apps"
+		{Name: "DummyApp.app", Version: "1.0.0", Source: "homebrew", BundleIdentifier: "com.example.dummy"},
+	}
+	_, err = s.ds.UpdateHostSoftware(ctx, host.ID, software)
+	require.NoError(t, err)
+	require.NoError(t, s.ds.LoadHostSoftware(ctx, host, false))
+	require.Len(t, host.Software, 4)
 
-	// 1. installer is uploaded, matches existing software
-	// 2. reconciler runs, matches existing software title
-	// 3. host reports software
-	t.Run("", func(t *testing.T) {
+	hostsCountTs := time.Now().UTC()
+	require.NoError(t, s.ds.SyncHostsSoftware(ctx, hostsCountTs))
+	require.NoError(t, s.ds.ReconcileSoftwareTitles(ctx))
+	require.NoError(t, s.ds.SyncHostsSoftwareTitles(ctx, hostsCountTs))
+	resp := listSoftwareTitlesResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/titles",
+		listSoftwareTitlesRequest{},
+		http.StatusOK, &resp,
+		"team_id", fmt.Sprintf("%d", team.ID),
+	)
+	require.Len(t, resp.SoftwareTitles, 3)
+	require.ElementsMatch(
+		t,
+		[]string{"foo", "bar", "DummyApp.app"},
+		[]string{
+			resp.SoftwareTitles[0].Name,
+			resp.SoftwareTitles[1].Name,
+			resp.SoftwareTitles[2].Name,
+		},
+	)
+
+	payload := &fleet.UploadSoftwareInstallerPayload{
+		InstallScript: "some install script",
+		Filename:      "dummy_installer.pkg",
+		TeamID:        &team.ID,
+	}
+	s.uploadSoftwareInstaller(payload, http.StatusOK, "")
+
+	resp = listSoftwareTitlesResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/titles",
+		listSoftwareTitlesRequest{},
+		http.StatusOK, &resp,
+		"team_id", fmt.Sprintf("%d", team.ID),
+	)
+	require.Len(t, resp.SoftwareTitles, 3)
+	require.ElementsMatch(
+		t,
+		[]string{"foo", "bar", "DummyApp.app"},
+		[]string{
+			resp.SoftwareTitles[0].Name,
+			resp.SoftwareTitles[1].Name,
+			resp.SoftwareTitles[2].Name,
+		},
+	)
+}
+
+// 1. host reports software
+// 2. installer is uploaded, matches existing software
+// 2. reconciler runs, matches existing software title
+func (s *integrationEnterpriseTestSuite) TestAPKSoftwareReconciliation() {
+	t := s.T()
+	ctx := context.Background()
+
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "team1"})
+	require.NoError(t, err)
+
+	host, err := s.ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now().Add(-1 * time.Minute),
+		OsqueryHostID:   ptr.String(t.Name()),
+		NodeKey:         ptr.String(t.Name()),
+		UUID:            uuid.New().String(),
+		Hostname:        fmt.Sprintf("%sfoo.local", t.Name()),
+		Platform:        "darwin",
 	})
+	require.NoError(t, err)
+
+	err = s.ds.AddHostsToTeam(ctx, &team.ID, []uint{host.ID})
+	require.NoError(t, err)
+
+	software := []fleet.Software{
+		{Name: "foo", Version: "0.0.1", Source: "homebrew"},
+		{Name: "foo", Version: "0.0.3", Source: "homebrew"},
+		{Name: "bar", Version: "0.0.4", Source: "apps"},
+		// note: the source is not "apps"
+		{Name: "DummyApp.app", Version: "1.0.0", Source: "homebrew", BundleIdentifier: "com.example.dummy"},
+	}
+	_, err = s.ds.UpdateHostSoftware(ctx, host.ID, software)
+	require.NoError(t, err)
+	require.NoError(t, s.ds.LoadHostSoftware(ctx, host, false))
+	require.Len(t, host.Software, 4)
+
+	payload := &fleet.UploadSoftwareInstallerPayload{
+		InstallScript: "some install script",
+		Filename:      "dummy_installer.pkg",
+		TeamID:        &team.ID,
+	}
+	s.uploadSoftwareInstaller(payload, http.StatusOK, "")
+
+	resp := listSoftwareTitlesResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/titles",
+		listSoftwareTitlesRequest{},
+		http.StatusOK, &resp,
+		"team_id", fmt.Sprintf("%d", team.ID),
+	)
+	// only one title (the uploaded software) because the cron didn't run yet
+	require.Len(t, resp.SoftwareTitles, 1)
+	require.ElementsMatch(
+		t,
+		[]string{"DummyApp.app"},
+		[]string{resp.SoftwareTitles[0].Name},
+	)
+
+	hostsCountTs := time.Now().UTC()
+	require.NoError(t, s.ds.SyncHostsSoftware(ctx, hostsCountTs))
+	require.NoError(t, s.ds.ReconcileSoftwareTitles(ctx))
+	require.NoError(t, s.ds.SyncHostsSoftwareTitles(ctx, hostsCountTs))
+	resp = listSoftwareTitlesResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/titles",
+		listSoftwareTitlesRequest{},
+		http.StatusOK, &resp,
+		"team_id", fmt.Sprintf("%d", team.ID),
+	)
+	require.Len(t, resp.SoftwareTitles, 3)
+	require.ElementsMatch(
+		t,
+		[]string{"foo", "bar", "DummyApp.app"},
+		[]string{
+			resp.SoftwareTitles[0].Name,
+			resp.SoftwareTitles[1].Name,
+			resp.SoftwareTitles[2].Name,
+		},
+	)
 }
