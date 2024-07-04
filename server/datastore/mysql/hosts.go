@@ -772,10 +772,13 @@ func winHostConnectedToFleetCond(aliasedCols []string, lenPlaceholders int) stri
 	in = strings.Trim(in, ",")
 
 	return fmt.Sprintf(`
-	SELECT host_uuid
-	FROM mdm_windows_enrollments
-	WHERE host_uuid IN (%s)
-	AND device_state = '%s'`,
+	SELECT mwe.host_uuid
+	FROM mdm_windows_enrollments mwe
+	JOIN hosts h ON h.uuid = mwe.host_uuid
+	JOIN host_mdm hm ON hm.host_id = h.id
+	WHERE mwe.host_uuid IN (%s)
+	AND mwe.device_state = '%s'
+	AND hm.enrolled = 1`,
 		in,
 		microsoft_mdm.MDMDeviceStateEnrolled)
 }
@@ -786,11 +789,14 @@ func appleHostConnectedToFleetCond(aliasedCols []string, lenPlaceholders int) st
 	in = strings.Trim(in, ",")
 
 	return fmt.Sprintf(`
-	SELECT id
-	FROM nano_enrollments
-	WHERE id IN (%s)
-	AND enabled = 1
-	AND type = 'Device'`, in)
+	SELECT ne.id
+	FROM nano_enrollments ne
+	JOIN hosts h ON h.uuid = ne.id
+	JOIN host_mdm hm ON hm.host_id = h.id
+	WHERE ne.id IN (%s)
+	AND ne.enabled = 1
+	AND ne.type = 'Device'
+	AND hm.enrolled = 1`, in)
 }
 
 var caseConnectedToFleet = `
@@ -1293,7 +1299,7 @@ func filterHostsByMacOSSettingsStatus(sql string, opt fleet.HostListOptions, par
 	}
 
 	// ensure the host has MDM turned on
-	whereStatus := " AND ne.id IS NOT NULL"
+	whereStatus := " AND ne.id IS NOT NULL AND hmdm.enrolled = 1"
 	// macOS settings filter is not compatible with the "all teams" option so append the "no
 	// team" filter here (note that filterHostsByTeam applies the "no team" filter if TeamFilter == 0)
 	if opt.TeamFilter == nil {
@@ -1333,7 +1339,7 @@ func filterHostsByMacOSDiskEncryptionStatus(sql string, opt fleet.HostListOption
 		subquery, subqueryParams = subqueryFileVaultRemovingEnforcement()
 	}
 
-	return sql + fmt.Sprintf(` AND EXISTS (%s) AND ne.id IS NOT NULL`, subquery), append(params, subqueryParams...)
+	return sql + fmt.Sprintf(` AND EXISTS (%s) AND ne.id IS NOT NULL AND hmdm.enrolled = 1`, subquery), append(params, subqueryParams...)
 }
 
 func (ds *Datastore) filterHostsByOSSettingsStatus(sql string, opt fleet.HostListOptions, params []interface{}, isDiskEncryptionEnabled bool) (string, []interface{}, error) {
@@ -1349,7 +1355,7 @@ func (ds *Datastore) filterHostsByOSSettingsStatus(sql string, opt fleet.HostLis
 	// or are servers. Similar logic could be applied to macOS hosts but is not included in this
 	// current implementation.
 
-	sqlFmt := ` AND h.platform IN('windows', 'darwin', 'ios', 'ipados') AND (ne.id IS NOT NULL OR mwe.host_uuid IS NOT NULL) `
+	sqlFmt := ` AND h.platform IN('windows', 'darwin', 'ios', 'ipados') AND (ne.id IS NOT NULL OR mwe.host_uuid IS NOT NULL) AND hmdm.enrolled = 1`
 	if opt.TeamFilter == nil {
 		// OS settings filter is not compatible with the "all teams" option so append the "no team"
 		// filter here (note that filterHostsByTeam applies the "no team" filter if TeamFilter == 0)
