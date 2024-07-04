@@ -122,13 +122,9 @@ func mdmRunCommand() *cli.Command {
 				hostUUIDs = append(hostUUIDs, host.UUID)
 			}
 
-			if len(hostUUIDs) == 0 {
-				// all hosts were not found
-				return errors.New(fleet.NoHostsTargetedErrMsg)
-			}
-			if notFoundCount > 0 {
-				// at least one was not found
-				return errors.New("One or more targeted hosts don't exist. Make sure you provide a valid hostname, UUID, osquery host ID, or node key.")
+			if len(hostUUIDs) == 0 || notFoundCount > 0 {
+				// Either no hosts were targeted, or at least one targeted host was not found
+				return errors.New(fleet.TargetedHostsDontExistErrMsg)
 			}
 
 			result, err := client.RunMDMCommand(hostUUIDs, payload, mdmPlatform)
