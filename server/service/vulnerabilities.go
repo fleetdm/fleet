@@ -83,11 +83,7 @@ func (svc *Service) ListVulnerabilities(ctx context.Context, opt fleet.VulnListO
 	}
 
 	for i, vuln := range vulns {
-		if vuln.Source == fleet.MSRCSource {
-			vulns[i].DetailsLink = fmt.Sprintf("https://msrc.microsoft.com/update-guide/en-US/vulnerability/%s", vuln.CVE.CVE)
-		} else {
-			vulns[i].DetailsLink = fmt.Sprintf("https://nvd.nist.gov/vuln/detail/%s", vuln.CVE.CVE)
-		}
+		vulns[i].DetailsLink = fmt.Sprintf("https://nvd.nist.gov/vuln/detail/%s", vuln.CVE.CVE)
 	}
 
 	return vulns, meta, nil
@@ -125,11 +121,7 @@ func getVulnerabilityEndpoint(ctx context.Context, req interface{}, svc fleet.Se
 		return getVulnerabilityResponse{Err: err}, nil
 	}
 
-	if vuln.Source == fleet.MSRCSource {
-		vuln.DetailsLink = fmt.Sprintf("https://msrc.microsoft.com/update-guide/en-US/vulnerability/%s", vuln.CVE.CVE)
-	} else {
-		vuln.DetailsLink = fmt.Sprintf("https://nvd.nist.gov/vuln/detail/%s", vuln.CVE.CVE)
-	}
+	vuln.DetailsLink = fmt.Sprintf("https://nvd.nist.gov/vuln/detail/%s", vuln.CVE.CVE)
 
 	osVersions, _, err := svc.ListOSVersionsByCVE(ctx, vuln.CVE.CVE, request.TeamID)
 	if err != nil {

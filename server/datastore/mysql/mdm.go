@@ -11,7 +11,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
-	"github.com/go-kit/kit/log/level"
+	"github.com/go-kit/log/level"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -82,7 +82,6 @@ func (ds *Datastore) ListMDMCommands(
 	tmFilter fleet.TeamFilter,
 	listOpts *fleet.MDMCommandListOptions,
 ) ([]*fleet.MDMCommand, error) {
-
 	jointStmt := getCombinedMDMCommandsQuery() + ds.whereFilterHostsByTeams(tmFilter, "h")
 	jointStmt, params := appendListOptionsWithCursorToSQL(jointStmt, nil, &listOpts.ListOptions)
 	var results []*fleet.MDMCommand
@@ -102,7 +101,7 @@ func (ds *Datastore) getMDMCommand(ctx context.Context, q sqlx.QueryerContext, c
 	return &cmd, nil
 }
 
-func (ds *Datastore) BatchSetMDMProfiles(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile) error {
+func (ds *Datastore) BatchSetMDMProfiles(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile, macDeclarations []*fleet.MDMAppleDeclaration) error {
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		if err := ds.batchSetMDMWindowsProfilesDB(ctx, tx, tmID, winProfiles); err != nil {
 			return ctxerr.Wrap(ctx, err, "batch set windows profiles")
@@ -110,6 +109,10 @@ func (ds *Datastore) BatchSetMDMProfiles(ctx context.Context, tmID *uint, macPro
 
 		if err := ds.batchSetMDMAppleProfilesDB(ctx, tx, tmID, macProfiles); err != nil {
 			return ctxerr.Wrap(ctx, err, "batch set apple profiles")
+		}
+
+		if _, err := ds.batchSetMDMAppleDeclarations(ctx, tx, tmID, macDeclarations); err != nil {
+			return ctxerr.Wrap(ctx, err, "batch set apple declarations")
 		}
 
 		return nil
@@ -148,7 +151,7 @@ FROM (
 		team_id = ? AND
 		identifier NOT IN (?)
 
-	UNION
+	UNION ALL
 
 	SELECT
 		profile_uuid,
@@ -163,6 +166,21 @@ FROM (
 		mdm_windows_configuration_profiles
 	WHERE
 		team_id = ? AND
+		name NOT IN (?)
+
+	UNION ALL
+
+	SELECT
+		declaration_uuid AS profile_uuid,
+		team_id,
+		name,
+		'darwin' AS platform,
+		identifier,
+		checksum AS checksum,
+		created_at,
+		uploaded_at
+	FROM mdm_apple_declarations
+	WHERE team_id = ? AND
 		name NOT IN (?)
 ) as combined_profiles
 `
@@ -183,7 +201,7 @@ FROM (
 		fleetNames = append(fleetNames, k)
 	}
 
-	args := []any{globalOrTeamID, fleetIdentifiers, globalOrTeamID, fleetNames}
+	args := []any{globalOrTeamID, fleetIdentifiers, globalOrTeamID, fleetNames, globalOrTeamID, fleetNames}
 	stmt, args := appendListOptionsWithCursorToSQL(selectStmt, args, &opt)
 
 	stmt, args, err := sqlx.In(stmt, args...)
@@ -205,15 +223,20 @@ FROM (
 	}
 
 	// load the labels associated with those profiles
-	var winProfUUIDs, macProfUUIDs []string
+	var winProfUUIDs, macProfUUIDs, macDeclUUIDs []string
 	for _, prof := range profs {
 		if prof.Platform == "windows" {
 			winProfUUIDs = append(winProfUUIDs, prof.ProfileUUID)
 		} else {
+			if strings.HasPrefix(prof.ProfileUUID, fleet.MDMAppleDeclarationUUIDPrefix) {
+				macDeclUUIDs = append(macDeclUUIDs, prof.ProfileUUID)
+				continue
+			}
+
 			macProfUUIDs = append(macProfUUIDs, prof.ProfileUUID)
 		}
 	}
-	labels, err := ds.listProfileLabelsForProfiles(ctx, winProfUUIDs, macProfUUIDs)
+	labels, err := ds.listProfileLabelsForProfiles(ctx, winProfUUIDs, macProfUUIDs, macDeclUUIDs)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -225,30 +248,45 @@ FROM (
 	}
 	for _, label := range labels {
 		if prof, ok := profMap[label.ProfileUUID]; ok {
-			prof.Labels = append(prof.Labels, label)
+			if label.Exclude {
+				prof.LabelsExcludeAny = append(prof.LabelsExcludeAny, label)
+			} else {
+				prof.LabelsIncludeAll = append(prof.LabelsIncludeAll, label)
+			}
 		}
 	}
 
 	return profs, metaData, nil
 }
 
-func (ds *Datastore) listProfileLabelsForProfiles(ctx context.Context, winProfUUIDs, macProfUUIDs []string) ([]fleet.ConfigurationProfileLabel, error) {
+func (ds *Datastore) listProfileLabelsForProfiles(ctx context.Context, winProfUUIDs, macProfUUIDs, macDeclUUIDs []string) ([]fleet.ConfigurationProfileLabel, error) {
 	// load the labels associated with those profiles
 	const labelsStmt = `
 SELECT
 	COALESCE(apple_profile_uuid, windows_profile_uuid) as profile_uuid,
 	label_name,
 	COALESCE(label_id, 0) as label_id,
-	IF(label_id IS NULL, 1, 0) as broken
+	IF(label_id IS NULL, 1, 0) as broken,
+	exclude
 FROM
 	mdm_configuration_profile_labels mcpl
 WHERE
 	mcpl.apple_profile_uuid IN (?) OR
 	mcpl.windows_profile_uuid IN (?)
+UNION ALL
+SELECT
+	apple_declaration_uuid as profile_uuid,
+	label_name,
+	COALESCE(label_id, 0) as label_id,
+	IF(label_id IS NULL, 1, 0) as broken,
+	exclude
+FROM
+	mdm_declaration_labels mdl
+WHERE
+	mdl.apple_declaration_uuid IN (?)
 ORDER BY
 	profile_uuid, label_name
 `
-
 	// ensure there's at least one (non-matching) value in the slice so the IN
 	// clause is valid
 	if len(winProfUUIDs) == 0 {
@@ -257,8 +295,11 @@ ORDER BY
 	if len(macProfUUIDs) == 0 {
 		macProfUUIDs = []string{"-"}
 	}
+	if len(macDeclUUIDs) == 0 {
+		macDeclUUIDs = []string{"-"}
+	}
 
-	stmt, args, err := sqlx.In(labelsStmt, macProfUUIDs, winProfUUIDs)
+	stmt, args, err := sqlx.In(labelsStmt, macProfUUIDs, winProfUUIDs, macDeclUUIDs)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "sqlx.In to list labels for profiles")
 	}
@@ -270,18 +311,30 @@ ORDER BY
 	return labels, nil
 }
 
-// Note that team ID 0 is used for profiles that apply to hosts in no team
-// (i.e. pass 0 in that case as part of the teamIDs slice). Only one of the
-// slice arguments can have values.
 func (ds *Datastore) BulkSetPendingMDMHostProfiles(
 	ctx context.Context,
 	hostIDs, teamIDs []uint,
 	profileUUIDs, hostUUIDs []string,
 ) error {
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		return ds.bulkSetPendingMDMHostProfilesDB(ctx, tx, hostIDs, teamIDs, profileUUIDs, hostUUIDs)
+	})
+}
+
+// Note that team ID 0 is used for profiles that apply to hosts in no team
+// (i.e. pass 0 in that case as part of the teamIDs slice). Only one of the
+// slice arguments can have values.
+func (ds *Datastore) bulkSetPendingMDMHostProfilesDB(
+	ctx context.Context,
+	tx sqlx.ExtContext,
+	hostIDs, teamIDs []uint,
+	profileUUIDs, hostUUIDs []string,
+) error {
 	var (
-		countArgs    int
-		macProfUUIDs []string
-		winProfUUIDs []string
+		countArgs     int
+		macProfUUIDs  []string
+		winProfUUIDs  []string
+		hasAppleDecls bool
 	)
 
 	if len(hostIDs) > 0 {
@@ -295,9 +348,14 @@ func (ds *Datastore) BulkSetPendingMDMHostProfiles(
 
 		// split into mac and win profiles
 		for _, puid := range profileUUIDs {
-			if strings.HasPrefix(puid, "a") {
+			if strings.HasPrefix(puid, fleet.MDMAppleProfileUUIDPrefix) {
 				macProfUUIDs = append(macProfUUIDs, puid)
+			} else if strings.HasPrefix(puid, fleet.MDMAppleDeclarationUUIDPrefix) {
+				hasAppleDecls = true
 			} else {
+				// Note: defaulting to windows profiles without checking the prefix as
+				// many tests fail otherwise and it's a whole rabbit hole that I can't
+				// address at the moment.
 				winProfUUIDs = append(winProfUUIDs, puid)
 			}
 		}
@@ -311,8 +369,19 @@ func (ds *Datastore) BulkSetPendingMDMHostProfiles(
 	if countArgs == 0 {
 		return nil
 	}
-	if len(macProfUUIDs) > 0 && len(winProfUUIDs) > 0 {
-		return errors.New("profile uuids must all be Apple or Windows profiles")
+
+	var countProfUUIDs int
+	if len(macProfUUIDs) > 0 {
+		countProfUUIDs++
+	}
+	if len(winProfUUIDs) > 0 {
+		countProfUUIDs++
+	}
+	if hasAppleDecls {
+		countProfUUIDs++
+	}
+	if countProfUUIDs > 1 {
+		return errors.New("profile uuids must be all Apple profiles, all Apple declarations, or all Windows profiles")
 	}
 
 	var (
@@ -360,7 +429,7 @@ FROM hosts h
 JOIN mdm_apple_configuration_profiles macp
 	ON h.team_id = macp.team_id OR (h.team_id IS NULL AND macp.team_id = 0)
 WHERE
-	macp.profile_uuid IN (?) AND h.platform = 'darwin'`
+	macp.profile_uuid IN (?) AND (h.platform = 'darwin' OR h.platform = 'ios' OR h.platform = 'ipados')`
 		args = append(args, macProfUUIDs)
 
 	case len(winProfUUIDs) > 0:
@@ -377,46 +446,58 @@ WHERE
 
 	}
 
-	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
-		// TODO: this could be optimized to avoid querying for platform when
-		// profileIDs or profileUUIDs are provided.
-		if len(hosts) == 0 {
-			uuidStmt, args, err := sqlx.In(uuidStmt, args...)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "prepare query to load host UUIDs")
-			}
-			if err := sqlx.SelectContext(ctx, tx, &hosts, uuidStmt, args...); err != nil {
-				return ctxerr.Wrap(ctx, err, "execute query to load host UUIDs")
-			}
+	// TODO: this could be optimized to avoid querying for platform when
+	// profileIDs or profileUUIDs are provided.
+	if len(hosts) == 0 && !hasAppleDecls {
+		uuidStmt, args, err := sqlx.In(uuidStmt, args...)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "prepare query to load host UUIDs")
 		}
-
-		var macHosts []string
-		var winHosts []string
-		for _, h := range hosts {
-			switch h.Platform {
-			case "darwin":
-				macHosts = append(macHosts, h.UUID)
-			case "windows":
-				winHosts = append(winHosts, h.UUID)
-			default:
-				level.Debug(ds.logger).Log(
-					"msg", "tried to set profile status for a host with unsupported platform",
-					"platform", h.Platform,
-					"host_uuid", h.UUID,
-				)
-			}
+		if err := sqlx.SelectContext(ctx, tx, &hosts, uuidStmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "execute query to load host UUIDs")
 		}
+	}
 
-		if err := ds.bulkSetPendingMDMAppleHostProfilesDB(ctx, tx, macHosts); err != nil {
-			return ctxerr.Wrap(ctx, err, "bulk set pending apple host profiles")
+	var appleHosts []string
+	var winHosts []string
+	for _, h := range hosts {
+		switch h.Platform {
+		case "darwin", "ios", "ipados":
+			appleHosts = append(appleHosts, h.UUID)
+		case "windows":
+			winHosts = append(winHosts, h.UUID)
+		default:
+			level.Debug(ds.logger).Log(
+				"msg", "tried to set profile status for a host with unsupported platform",
+				"platform", h.Platform,
+				"host_uuid", h.UUID,
+			)
 		}
+	}
 
-		if err := ds.bulkSetPendingMDMWindowsHostProfilesDB(ctx, tx, winHosts); err != nil {
-			return ctxerr.Wrap(ctx, err, "bulk set pending windows host profiles")
-		}
+	if err := ds.bulkSetPendingMDMAppleHostProfilesDB(ctx, tx, appleHosts); err != nil {
+		return ctxerr.Wrap(ctx, err, "bulk set pending apple host profiles")
+	}
 
-		return nil
-	})
+	if err := ds.bulkSetPendingMDMWindowsHostProfilesDB(ctx, tx, winHosts); err != nil {
+		return ctxerr.Wrap(ctx, err, "bulk set pending windows host profiles")
+	}
+
+	const defaultBatchSize = 1000
+	batchSize := defaultBatchSize
+	if ds.testUpsertMDMDesiredProfilesBatchSize > 0 {
+		batchSize = ds.testUpsertMDMDesiredProfilesBatchSize
+	}
+	// TODO(roberto): this method currently sets the state of all
+	// declarations for all hosts. I don't see an immediate concern
+	// (and my hunch is that we could even do the same for
+	// profiles) but this could be optimized to use only a provided
+	// set of host uuids.
+	if _, err := mdmAppleBatchSetHostDeclarationStateDB(ctx, tx, batchSize, nil); err != nil {
+		return ctxerr.Wrap(ctx, err, "bulk set pending apple declarations")
+	}
+
+	return nil
 }
 
 func (ds *Datastore) UpdateHostMDMProfilesVerification(ctx context.Context, host *fleet.Host, toVerify, toFail, toRetry []string) error {
@@ -460,7 +541,7 @@ WHERE
 
 	var stmt string
 	switch host.Platform {
-	case "darwin":
+	case "darwin", "ios", "ipados":
 		stmt = fmt.Sprintf(baseStmt, "host_mdm_apple_profiles", "profile_identifier")
 	case "windows":
 		stmt = fmt.Sprintf(baseStmt, "host_mdm_windows_profiles", "profile_name")
@@ -500,7 +581,7 @@ WHERE
 
 	var stmt string
 	switch host.Platform {
-	case "darwin":
+	case "darwin", "ios", "ipados":
 		stmt = fmt.Sprintf(baseStmt, "host_mdm_apple_profiles", "profile_identifier")
 	case "windows":
 		stmt = fmt.Sprintf(baseStmt, "host_mdm_windows_profiles", "profile_name")
@@ -553,7 +634,7 @@ WHERE
 
 	var stmt string
 	switch host.Platform {
-	case "darwin":
+	case "darwin", "ios", "ipados":
 		stmt = fmt.Sprintf(baseStmt, "host_mdm_apple_profiles", "profile_identifier")
 	case "windows":
 		stmt = fmt.Sprintf(baseStmt, "host_mdm_windows_profiles", "profile_name")
@@ -590,7 +671,7 @@ func (ds *Datastore) GetHostMDMProfilesExpectedForVerification(ctx context.Conte
 	}
 
 	switch host.Platform {
-	case "darwin":
+	case "darwin", "ios", "ipados":
 		return ds.getHostMDMAppleProfilesExpectedForVerification(ctx, teamID, host.ID)
 	case "windows":
 		return ds.getHostMDMWindowsProfilesExpectedForVerification(ctx, teamID, host.ID)
@@ -601,49 +682,83 @@ func (ds *Datastore) GetHostMDMProfilesExpectedForVerification(ctx context.Conte
 
 func (ds *Datastore) getHostMDMWindowsProfilesExpectedForVerification(ctx context.Context, teamID, hostID uint) (map[string]*fleet.ExpectedMDMProfile, error) {
 	stmt := `
+-- profiles without labels
 SELECT
 	name,
 	syncml AS raw_profile,
 	min(mwcp.uploaded_at) AS earliest_install_date,
 	0 AS count_profile_labels,
+	0 AS count_non_broken_labels,
 	0 AS count_host_labels
 FROM
 	mdm_windows_configuration_profiles mwcp
 WHERE
-	mwcp.team_id = ?
-	AND NOT EXISTS (
+	mwcp.team_id = ? AND
+	NOT EXISTS (
 		SELECT
 			1
 		FROM
 			mdm_configuration_profile_labels mcpl
 		WHERE
-			mcpl.apple_profile_uuid = mwcp.profile_uuid)
-GROUP BY  name, syncml
-	UNION
-	SELECT
-		name,
-		syncml AS raw_profile,
-		min(mwcp.uploaded_at) AS earliest_install_date,
-		COUNT(*) AS count_profile_labels,
-		COUNT(lm.label_id) AS count_host_labels
-	FROM
-		mdm_windows_configuration_profiles mwcp
-		JOIN mdm_configuration_profile_labels mcpl ON mcpl.windows_profile_uuid = mwcp.profile_uuid
-		LEFT OUTER JOIN label_membership lm ON lm.label_id = mcpl.label_id
-			AND lm.host_id = ?
-	WHERE
-		mwcp.team_id = ?
-	GROUP BY
-		name, syncml
-	HAVING
-		count_profile_labels > 0
-		AND count_host_labels = count_profile_labels
+			mcpl.windows_profile_uuid = mwcp.profile_uuid
+	)
+GROUP BY name, syncml
 
-  `
+UNION
 
+-- label-based profiles where the host is a member of all the labels (include-all).
+-- by design, "include" labels cannot match if they are broken (the host cannot be
+-- a member of a deleted label).
+SELECT
+	name,
+	syncml AS raw_profile,
+	min(mwcp.uploaded_at) AS earliest_install_date,
+	COUNT(*) AS count_profile_labels,
+	COUNT(mcpl.label_id) as count_non_broken_labels,
+	COUNT(lm.label_id) AS count_host_labels
+FROM
+	mdm_windows_configuration_profiles mwcp
+	JOIN mdm_configuration_profile_labels mcpl
+		ON mcpl.windows_profile_uuid = mwcp.profile_uuid AND mcpl.exclude = 0
+	LEFT OUTER JOIN label_membership lm
+		ON lm.label_id = mcpl.label_id AND lm.host_id = ?
+WHERE
+	mwcp.team_id = ?
+GROUP BY
+	name, syncml
+HAVING
+	count_profile_labels > 0 AND
+	count_host_labels = count_profile_labels
+
+UNION
+
+-- label-based entities where the host is NOT a member of any of the labels (exclude-any).
+-- explicitly ignore profiles with broken excluded labels so that they are never applied.
+SELECT
+	name,
+	syncml AS raw_profile,
+	min(mwcp.uploaded_at) AS earliest_install_date,
+	COUNT(*) AS count_profile_labels,
+	COUNT(mcpl.label_id) as count_non_broken_labels,
+	COUNT(lm.label_id) AS count_host_labels
+FROM
+	mdm_windows_configuration_profiles mwcp
+	JOIN mdm_configuration_profile_labels mcpl
+		ON mcpl.windows_profile_uuid = mwcp.profile_uuid AND mcpl.exclude = 1
+	LEFT OUTER JOIN label_membership lm
+		ON lm.label_id = mcpl.label_id AND lm.host_id = ?
+WHERE
+	mwcp.team_id = ?
+GROUP BY
+	name, syncml
+HAVING
+	-- considers only the profiles with labels, without any broken label, and with the host not in any label
+	count_profile_labels > 0 AND
+	count_profile_labels = count_non_broken_labels AND
+	count_host_labels = 0
+`
 	var profiles []*fleet.ExpectedMDMProfile
-	// Note: teamID provided twice
-	err := sqlx.SelectContext(ctx, ds.reader(ctx), &profiles, stmt, teamID, hostID, teamID)
+	err := sqlx.SelectContext(ctx, ds.reader(ctx), &profiles, stmt, teamID, hostID, teamID, hostID, teamID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "running query for windows profiles")
 	}
@@ -658,9 +773,11 @@ GROUP BY  name, syncml
 
 func (ds *Datastore) getHostMDMAppleProfilesExpectedForVerification(ctx context.Context, teamID, hostID uint) (map[string]*fleet.ExpectedMDMProfile, error) {
 	stmt := `
+-- profiles without labels
 SELECT
 	macp.identifier AS identifier,
 	0 AS count_profile_labels,
+	0 AS count_non_broken_labels,
 	0 AS count_host_labels,
 	earliest_install_date
 FROM
@@ -671,49 +788,89 @@ FROM
 			min(uploaded_at) AS earliest_install_date
 		FROM
 			mdm_apple_configuration_profiles
-		GROUP BY
-			checksum) cs ON macp.checksum = cs.checksum
+		GROUP BY checksum
+	) cs ON macp.checksum = cs.checksum
 WHERE
-	macp.team_id = ?
-	AND NOT EXISTS (
+	macp.team_id = ? AND 
+	NOT EXISTS (
 		SELECT
 			1
 		FROM
 			mdm_configuration_profile_labels mcpl
 		WHERE
-			mcpl.apple_profile_uuid = macp.profile_uuid)
-	UNION
-	-- label-based profiles where the host is a member of all the labels
-	SELECT
-		macp.identifier AS identifier,
-		COUNT(*) AS count_profile_labels,
-		COUNT(lm.label_id) AS count_host_labels,
-		min(earliest_install_date) AS earliest_install_date
-	FROM
-		mdm_apple_configuration_profiles macp
-		JOIN (
-			SELECT
-				checksum,
-				min(uploaded_at) AS earliest_install_date
-			FROM
-				mdm_apple_configuration_profiles
-			GROUP BY
-				checksum) cs ON macp.checksum = cs.checksum
-		JOIN mdm_configuration_profile_labels mcpl ON mcpl.apple_profile_uuid = macp.profile_uuid
-		LEFT OUTER JOIN label_membership lm ON lm.label_id = mcpl.label_id
-			AND lm.host_id = ?
-	WHERE
-		macp.team_id = ?
-	GROUP BY
-		identifier
-	HAVING
-		count_profile_labels > 0
-		AND count_host_labels = count_profile_labels
-	`
+			mcpl.apple_profile_uuid = macp.profile_uuid
+	)
+
+UNION
+
+-- label-based profiles where the host is a member of all the labels (include-all)
+-- by design, "include" labels cannot match if they are broken (the host cannot be
+-- a member of a deleted label).
+SELECT
+	macp.identifier AS identifier,
+	COUNT(*) AS count_profile_labels,
+	COUNT(mcpl.label_id) AS count_non_broken_labels,
+	COUNT(lm.label_id) AS count_host_labels,
+	min(earliest_install_date) AS earliest_install_date
+FROM
+	mdm_apple_configuration_profiles macp
+	JOIN (
+		SELECT
+			checksum,
+			min(uploaded_at) AS earliest_install_date
+		FROM
+			mdm_apple_configuration_profiles
+		GROUP BY checksum
+	) cs ON macp.checksum = cs.checksum
+	JOIN mdm_configuration_profile_labels mcpl 
+		ON mcpl.apple_profile_uuid = macp.profile_uuid AND mcpl.exclude = 0
+	LEFT OUTER JOIN label_membership lm 
+		ON lm.label_id = mcpl.label_id AND lm.host_id = ?
+WHERE
+	macp.team_id = ?
+GROUP BY
+	identifier
+HAVING
+	count_profile_labels > 0 AND 
+	count_host_labels = count_profile_labels
+
+UNION
+
+-- label-based entities where the host is NOT a member of any of the labels (exclude-any).
+-- explicitly ignore profiles with broken excluded labels so that they are never applied.
+SELECT
+	macp.identifier AS identifier,
+	COUNT(*) AS count_profile_labels,
+	COUNT(mcpl.label_id) AS count_non_broken_labels,
+	COUNT(lm.label_id) AS count_host_labels,
+	min(earliest_install_date) AS earliest_install_date
+FROM
+	mdm_apple_configuration_profiles macp
+	JOIN (
+		SELECT
+			checksum,
+			min(uploaded_at) AS earliest_install_date
+		FROM
+			mdm_apple_configuration_profiles
+		GROUP BY checksum
+	) cs ON macp.checksum = cs.checksum
+	JOIN mdm_configuration_profile_labels mcpl 
+		ON mcpl.apple_profile_uuid = macp.profile_uuid AND mcpl.exclude = 1
+	LEFT OUTER JOIN label_membership lm 
+		ON lm.label_id = mcpl.label_id AND lm.host_id = ?
+WHERE
+	macp.team_id = ?
+GROUP BY
+	identifier
+HAVING
+	-- considers only the profiles with labels, without any broken label, and with the host not in any label
+	count_profile_labels > 0 AND 
+	count_profile_labels = count_non_broken_labels AND
+	count_host_labels = 0
+`
 
 	var rows []*fleet.ExpectedMDMProfile
-	// Note: teamID provided twice
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, stmt, teamID, hostID, teamID); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, stmt, teamID, hostID, teamID, hostID, teamID); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, fmt.Sprintf("getting expected profiles for host in team %d", teamID))
 	}
 
@@ -746,7 +903,7 @@ WHERE
 
 	var stmt string
 	switch host.Platform {
-	case "darwin":
+	case "darwin", "ios", "ipados":
 		stmt = darwinStmt
 	case "windows":
 		stmt = windowsStmt
@@ -783,7 +940,7 @@ WHERE
 
 	var stmt string
 	switch host.Platform {
-	case "darwin":
+	case "darwin", "ios", "ipados":
 		stmt = darwinStmt
 	case "windows":
 		stmt = windowsStmt
@@ -838,11 +995,12 @@ func batchSetProfileLabelAssociationsDB(
 
 	upsertStmt := `
 	  INSERT INTO mdm_configuration_profile_labels
-              (%s_profile_uuid, label_id, label_name)
+              (%s_profile_uuid, label_id, label_name, exclude)
           VALUES
               %s
           ON DUPLICATE KEY UPDATE
-              label_id = VALUES(label_id)
+              label_id = VALUES(label_id),
+              exclude = VALUES(exclude)
 	`
 
 	var (
@@ -858,9 +1016,9 @@ func batchSetProfileLabelAssociationsDB(
 			insertBuilder.WriteString(",")
 			deleteBuilder.WriteString(",")
 		}
-		insertBuilder.WriteString("(?, ?, ?)")
+		insertBuilder.WriteString("(?, ?, ?, ?)")
 		deleteBuilder.WriteString("(?, ?)")
-		insertParams = append(insertParams, pl.ProfileUUID, pl.LabelID, pl.LabelName)
+		insertParams = append(insertParams, pl.ProfileUUID, pl.LabelID, pl.LabelName, pl.Exclude)
 		deleteParams = append(deleteParams, pl.ProfileUUID, pl.LabelID)
 
 		setProfileUUIDs[pl.ProfileUUID] = struct{}{}
@@ -931,7 +1089,7 @@ func (ds *Datastore) MDMInsertEULA(ctx context.Context, eula *fleet.MDMEULA) err
 
 	_, err := ds.writer(ctx).ExecContext(ctx, stmt, eula.Name, eula.Bytes, eula.Token)
 	if err != nil {
-		if isDuplicate(err) {
+		if IsDuplicate(err) {
 			return ctxerr.Wrap(ctx, alreadyExists("MDMEULA", eula.Token))
 		}
 		return ctxerr.Wrap(ctx, err, "create EULA")
@@ -961,23 +1119,50 @@ func (ds *Datastore) GetHostCertAssociationsToExpire(ctx context.Context, expiry
 	//
 	// Note that we use GROUP BY because we can't guarantee unique entries
 	// based on uuid in the hosts table.
-	stmt, args, err := sqlx.In(
-		`SELECT
-			h.uuid as host_uuid,
-			ncaa.sha256 as sha256,
-			COALESCE(MAX(hm.fleet_enroll_ref), '') as enroll_reference
-		 FROM
-			nano_cert_auth_associations ncaa
-			LEFT JOIN hosts h ON h.uuid = ncaa.id
-			LEFT JOIN host_mdm hm ON hm.host_id = h.id
-		 WHERE
-			cert_not_valid_after BETWEEN '0000-00-00' AND DATE_ADD(CURDATE(), INTERVAL ? DAY)
-			AND renew_command_uuid IS NULL
-		GROUP BY
-			host_uuid, ncaa.sha256, cert_not_valid_after
-		ORDER BY cert_not_valid_after ASC
-		LIMIT ?
-		`, expiryDays, limit)
+	stmt, args, err := sqlx.In(`
+SELECT
+    h.uuid AS host_uuid,
+    ncaa.sha256 AS sha256,
+    COALESCE(MAX(hm.fleet_enroll_ref), '') AS enroll_reference,
+    ne.enrolled_from_migration
+FROM (
+    -- grab only the latest certificate associated with this device
+    SELECT
+        n1.id,
+	n1.sha256,
+	n1.cert_not_valid_after,
+	n1.renew_command_uuid
+    FROM
+        nano_cert_auth_associations n1
+    WHERE
+        n1.sha256 = (
+            SELECT
+                n2.sha256
+            FROM
+                nano_cert_auth_associations n2
+            WHERE
+                n1.id = n2.id
+            ORDER BY
+                n2.created_at DESC,
+                n2.sha256 ASC
+            LIMIT 1
+        )
+) ncaa
+JOIN
+    hosts h ON h.uuid = ncaa.id
+LEFT JOIN
+    host_mdm hm ON hm.host_id = h.id
+LEFT JOIN
+    nano_enrollments ne ON ne.id = ncaa.id
+WHERE
+    ncaa.cert_not_valid_after BETWEEN '0000-00-00' AND DATE_ADD(CURDATE(), INTERVAL ? DAY)
+    AND ncaa.renew_command_uuid IS NULL
+    AND ne.enabled = 1
+GROUP BY
+    host_uuid, ncaa.sha256, ncaa.cert_not_valid_after
+ORDER BY
+    cert_not_valid_after ASC
+LIMIT ?`, expiryDays, limit)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "building sqlx.In query")
 	}
@@ -1035,7 +1220,9 @@ func (ds *Datastore) CleanSCEPRenewRefs(ctx context.Context, hostUUID string) er
 	stmt := `
 	UPDATE nano_cert_auth_associations
 	SET renew_command_uuid = NULL
-	WHERE id = ?`
+	WHERE id = ?
+	ORDER BY created_at desc
+	LIMIT 1`
 
 	res, err := ds.writer(ctx).ExecContext(ctx, stmt, hostUUID)
 	if err != nil {
@@ -1047,4 +1234,121 @@ func (ds *Datastore) CleanSCEPRenewRefs(ctx context.Context, hostUUID string) er
 	}
 
 	return nil
+}
+
+func (ds *Datastore) GetHostMDMProfileInstallStatus(ctx context.Context, hostUUID string, profUUID string) (fleet.MDMDeliveryStatus, error) {
+	table, column, err := getTableAndColumnNameForHostMDMProfileUUID(profUUID)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "getting table and column")
+	}
+
+	selectStmt := fmt.Sprintf(`
+SELECT
+	COALESCE(status, ?) as status
+	FROM
+	%s
+WHERE
+	operation_type = ?
+	AND host_uuid = ?
+	AND %s = ?
+`, table, column)
+
+	var status fleet.MDMDeliveryStatus
+	if err := sqlx.GetContext(ctx, ds.writer(ctx), &status, selectStmt, fleet.MDMDeliveryPending, fleet.MDMOperationTypeInstall, hostUUID, profUUID); err != nil {
+		if err == sql.ErrNoRows {
+			return "", notFound("HostMDMProfile").WithMessage("unable to match profile to host")
+		}
+		return "", ctxerr.Wrap(ctx, err, "get MDM profile status")
+	}
+	return status, nil
+}
+
+func (ds *Datastore) ResendHostMDMProfile(ctx context.Context, hostUUID string, profUUID string) error {
+	table, column, err := getTableAndColumnNameForHostMDMProfileUUID(profUUID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting table and column")
+	}
+
+	// update the status to NULL to trigger resending on the next cron run
+	updateStmt := fmt.Sprintf(`UPDATE %s SET status = NULL WHERE host_uuid = ? AND %s = ?`, table, column)
+
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		res, err := tx.ExecContext(ctx, updateStmt, hostUUID, profUUID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "resending host MDM profile")
+		}
+		if rows, _ := res.RowsAffected(); rows == 0 {
+			// this should never happen, log for debugging
+			level.Debug(ds.logger).Log("msg", "resend profile status not updated", "host_uuid", hostUUID, "profile_uuid", profUUID)
+		}
+
+		return nil
+	})
+}
+
+func getTableAndColumnNameForHostMDMProfileUUID(profUUID string) (table, column string, err error) {
+	switch {
+	case strings.HasPrefix(profUUID, fleet.MDMAppleDeclarationUUIDPrefix):
+		return "host_mdm_apple_declarations", "declaration_uuid", nil
+	case strings.HasPrefix(profUUID, fleet.MDMAppleProfileUUIDPrefix):
+		return "host_mdm_apple_profiles", "profile_uuid", nil
+	case strings.HasPrefix(profUUID, fleet.MDMWindowsProfileUUIDPrefix):
+		return "host_mdm_windows_profiles", "profile_uuid", nil
+	default:
+		return "", "", fmt.Errorf("invalid profile UUID prefix %s", profUUID)
+	}
+}
+
+func (ds *Datastore) AreHostsConnectedToFleetMDM(ctx context.Context, hosts []*fleet.Host) (map[string]bool, error) {
+	var (
+		appleUUIDs []any
+		winUUIDs   []any
+	)
+
+	res := make(map[string]bool, len(hosts))
+	for _, h := range hosts {
+		switch h.Platform {
+		case "darwin", "ipados", "ios":
+			appleUUIDs = append(appleUUIDs, h.UUID)
+		case "windows":
+			winUUIDs = append(winUUIDs, h.UUID)
+		}
+		res[h.UUID] = false
+	}
+
+	setConnectedUUIDs := func(stmtFn func(aliasedCols []string, lenPlaceholders int) string, uuids []any, mp map[string]bool) error {
+		var res []string
+
+		if len(uuids) > 0 {
+			err := sqlx.SelectContext(ctx, ds.reader(ctx), &res, stmtFn(nil, len(uuids)), uuids...)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "retrieving hosts connected to fleet")
+			}
+		}
+
+		for _, uuid := range res {
+			mp[uuid] = true
+		}
+
+		return nil
+	}
+
+	if err := setConnectedUUIDs(appleHostConnectedToFleetCond, appleUUIDs, res); err != nil {
+		return nil, err
+	}
+
+	if err := setConnectedUUIDs(winHostConnectedToFleetCond, winUUIDs, res); err != nil {
+		return nil, err
+	}
+
+	return res, nil
+
+}
+
+func (ds *Datastore) IsHostConnectedToFleetMDM(ctx context.Context, host *fleet.Host) (bool, error) {
+	mp, err := ds.AreHostsConnectedToFleetMDM(ctx, []*fleet.Host{host})
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "finding if host is connected to Fleet MDM")
+	}
+	return mp[host.UUID], nil
 }

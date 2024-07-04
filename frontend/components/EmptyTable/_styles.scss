@@ -39,10 +39,9 @@
 
   &__info,
   &__additional-info {
+    @include help-text;
     line-height: 1.5;
     text-align: center;
-    color: $core-fleet-blue;
-    font-size: $x-small;
     margin: 0;
   }
 

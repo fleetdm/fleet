@@ -360,7 +360,7 @@ const PlatformWrapper = ({
             </InfoBanner>
           </div>
           <InputField
-            disabled
+            readOnly
             inputWrapperClass={`${baseClass}__installer-input ${baseClass}__chromeos-extension-id`}
             name="Extension ID"
             label={renderChromeOSLabel(
@@ -370,7 +370,7 @@ const PlatformWrapper = ({
             value={CHROME_OS_INFO.extensionId}
           />
           <InputField
-            disabled
+            readOnly
             inputWrapperClass={`${baseClass}__installer-input ${baseClass}__chromeos-url`}
             name="Installation URL"
             label={renderChromeOSLabel(
@@ -380,7 +380,7 @@ const PlatformWrapper = ({
             value={CHROME_OS_INFO.installationUrl}
           />
           <InputField
-            disabled
+            readOnly
             inputWrapperClass={`${baseClass}__installer-input ${baseClass}__chromeos-policy-for-extension`}
             name="Policy for extension"
             label={renderChromeOSLabel(
@@ -399,7 +399,7 @@ const PlatformWrapper = ({
           {renderFleetCertificateBlock("tooltip")}
           <div className={`${baseClass}__advanced--installer`}>
             <InputField
-              disabled
+              readOnly
               inputWrapperClass={`${baseClass}__installer-input ${baseClass}__installer-input-${packageType}`}
               name="installer"
               label={renderLabel(
@@ -495,7 +495,7 @@ const PlatformWrapper = ({
                   require sudo or Run as Administrator privileges):
                 </p>
                 <InputField
-                  disabled
+                  readOnly
                   inputWrapperClass={`${baseClass}__run-osquery-input`}
                   name="run-osquery"
                   label={renderLabel(
@@ -533,7 +533,7 @@ const PlatformWrapper = ({
           </Checkbox>
         )}
         <InputField
-          disabled
+          readOnly
           inputWrapperClass={`${baseClass}__installer-input ${baseClass}__installer-input-${packageType}`}
           name="installer"
           label={renderLabel(packageType, renderInstallerString(packageType))}

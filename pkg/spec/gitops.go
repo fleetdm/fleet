@@ -4,14 +4,15 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/ghodss/yaml"
-	"github.com/hashicorp/go-multierror"
-	"golang.org/x/text/unicode/norm"
 	"os"
 	"path/filepath"
 	"slices"
 	"unicode"
+
+	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/ghodss/yaml"
+	"github.com/hashicorp/go-multierror"
+	"golang.org/x/text/unicode/norm"
 )
 
 type BaseItem struct {
@@ -53,12 +54,24 @@ type GitOps struct {
 	Controls     Controls
 	Policies     []*fleet.PolicySpec
 	Queries      []*fleet.QuerySpec
+	// Software is only allowed on teams, not on global config.
+	Software []*fleet.TeamSpecSoftware
 }
 
-// GitOpsFromBytes parses a GitOps yaml file.
-func GitOpsFromBytes(b []byte, baseDir string) (*GitOps, error) {
+// GitOpsFromFile parses a GitOps yaml file.
+func GitOpsFromFile(filePath, baseDir string) (*GitOps, error) {
+	b, err := os.ReadFile(filePath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read file: %s: %w", filePath, err)
+	}
+
+	// Replace $var and ${var} with env values.
+	b, err = ExpandEnvBytes(b)
+	if err != nil {
+		return nil, fmt.Errorf("failed to expand environment in file %s: %w", filePath, err)
+	}
+
 	var top map[string]json.RawMessage
-	b = []byte(os.ExpandEnv(string(b))) // replace $var and ${var} with env values
 	if err := yaml.Unmarshal(b, &top); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal file %w: \n", err)
 	}
@@ -66,7 +79,7 @@ func GitOpsFromBytes(b []byte, baseDir string) (*GitOps, error) {
 	var multiError *multierror.Error
 	result := &GitOps{}
 
-	topKeys := []string{"name", "team_settings", "org_settings", "agent_options", "controls", "policies", "queries"}
+	topKeys := []string{"name", "team_settings", "org_settings", "agent_options", "controls", "policies", "queries", "software"}
 	for k := range top {
 		if !slices.Contains(topKeys, k) {
 			multiError = multierror.Append(multiError, fmt.Errorf("unknown top-level field: %s", k))
@@ -76,16 +89,18 @@ func GitOpsFromBytes(b []byte, baseDir string) (*GitOps, error) {
 	// Figure out if this is an org or team settings file
 	teamRaw, teamOk := top["name"]
 	teamSettingsRaw, teamSettingsOk := top["team_settings"]
+	teamSoftware, teamSoftwareOk := top["software"]
 	orgSettingsRaw, orgOk := top["org_settings"]
 	if orgOk {
-		if teamOk || teamSettingsOk {
-			multiError = multierror.Append(multiError, errors.New("'org_settings' cannot be used with 'name' or 'team_settings'"))
+		if teamOk || teamSettingsOk || teamSoftwareOk {
+			multiError = multierror.Append(multiError, errors.New("'org_settings' cannot be used with 'name', 'team_settings' or 'software'"))
 		} else {
 			multiError = parseOrgSettings(orgSettingsRaw, result, baseDir, multiError)
 		}
 	} else if teamOk && teamSettingsOk {
 		multiError = parseName(teamRaw, result, multiError)
 		multiError = parseTeamSettings(teamSettingsRaw, result, baseDir, multiError)
+		multiError = parseSoftware(teamSoftware, result, baseDir, multiError)
 	} else {
 		multiError = multierror.Append(multiError, errors.New("either 'org_settings' or 'name' and 'team_settings' is required"))
 	}
@@ -124,22 +139,30 @@ func parseOrgSettings(raw json.RawMessage, result *GitOps, baseDir string, multi
 			noError = false
 			multiError = multierror.Append(multiError, fmt.Errorf("failed to read org settings file %s: %v", *orgSettingsTop.Path, err))
 		} else {
-			fileBytes = []byte(os.ExpandEnv(string(fileBytes)))
-			var pathOrgSettings BaseItem
-			if err := yaml.Unmarshal(fileBytes, &pathOrgSettings); err != nil {
+			// Replace $var and ${var} with env values.
+			fileBytes, err = ExpandEnvBytes(fileBytes)
+			if err != nil {
 				noError = false
 				multiError = multierror.Append(
-					multiError, fmt.Errorf("failed to unmarshal org settings file %s: %v", *orgSettingsTop.Path, err),
+					multiError, fmt.Errorf("failed to expand environment in file %s: %v", *orgSettingsTop.Path, err),
 				)
 			} else {
-				if pathOrgSettings.Path != nil {
+				var pathOrgSettings BaseItem
+				if err := yaml.Unmarshal(fileBytes, &pathOrgSettings); err != nil {
 					noError = false
 					multiError = multierror.Append(
-						multiError,
-						fmt.Errorf("nested paths are not supported: %s in %s", *pathOrgSettings.Path, *orgSettingsTop.Path),
+						multiError, fmt.Errorf("failed to unmarshal org settings file %s: %v", *orgSettingsTop.Path, err),
 					)
 				} else {
-					raw = fileBytes
+					if pathOrgSettings.Path != nil {
+						noError = false
+						multiError = multierror.Append(
+							multiError,
+							fmt.Errorf("nested paths are not supported: %s in %s", *pathOrgSettings.Path, *orgSettingsTop.Path),
+						)
+					} else {
+						raw = fileBytes
+					}
 				}
 			}
 		}
@@ -168,22 +191,30 @@ func parseTeamSettings(raw json.RawMessage, result *GitOps, baseDir string, mult
 			noError = false
 			multiError = multierror.Append(multiError, fmt.Errorf("failed to read team settings file %s: %v", *teamSettingsTop.Path, err))
 		} else {
-			fileBytes = []byte(os.ExpandEnv(string(fileBytes)))
-			var pathTeamSettings BaseItem
-			if err := yaml.Unmarshal(fileBytes, &pathTeamSettings); err != nil {
+			// Replace $var and ${var} with env values.
+			fileBytes, err = ExpandEnvBytes(fileBytes)
+			if err != nil {
 				noError = false
 				multiError = multierror.Append(
-					multiError, fmt.Errorf("failed to unmarshal team settings file %s: %v", *teamSettingsTop.Path, err),
+					multiError, fmt.Errorf("failed to expand environment in file %s: %v", *teamSettingsTop.Path, err),
 				)
 			} else {
-				if pathTeamSettings.Path != nil {
+				var pathTeamSettings BaseItem
+				if err := yaml.Unmarshal(fileBytes, &pathTeamSettings); err != nil {
 					noError = false
 					multiError = multierror.Append(
-						multiError,
-						fmt.Errorf("nested paths are not supported: %s in %s", *pathTeamSettings.Path, *teamSettingsTop.Path),
+						multiError, fmt.Errorf("failed to unmarshal team settings file %s: %v", *teamSettingsTop.Path, err),
 					)
 				} else {
-					raw = fileBytes
+					if pathTeamSettings.Path != nil {
+						noError = false
+						multiError = multierror.Append(
+							multiError,
+							fmt.Errorf("nested paths are not supported: %s in %s", *pathTeamSettings.Path, *teamSettingsTop.Path),
+						)
+					} else {
+						raw = fileBytes
+					}
 				}
 			}
 		}
@@ -213,7 +244,8 @@ func parseSecrets(result *GitOps, multiError *multierror.Error) *multierror.Erro
 			return multierror.Append(multiError, errors.New("'team_settings.secrets' is required"))
 		}
 	}
-	var enrollSecrets []*fleet.EnrollSecret
+	// When secrets slice is empty, all secrets are removed.
+	enrollSecrets := make([]*fleet.EnrollSecret, 0)
 	if rawSecrets != nil {
 		secrets, ok := rawSecrets.([]interface{})
 		if !ok {
@@ -264,27 +296,34 @@ func parseAgentOptions(top map[string]json.RawMessage, result *GitOps, baseDir s
 			if err != nil {
 				return multierror.Append(multiError, fmt.Errorf("failed to read agent options file %s: %v", *agentOptionsTop.Path, err))
 			}
-			fileBytes = []byte(os.ExpandEnv(string(fileBytes)))
-			var pathAgentOptions BaseItem
-			if err := yaml.Unmarshal(fileBytes, &pathAgentOptions); err != nil {
-				return multierror.Append(
-					multiError, fmt.Errorf("failed to unmarshal agent options file %s: %v", *agentOptionsTop.Path, err),
+			// Replace $var and ${var} with env values.
+			fileBytes, err = ExpandEnvBytes(fileBytes)
+			if err != nil {
+				multiError = multierror.Append(
+					multiError, fmt.Errorf("failed to expand environment in file %s: %v", *agentOptionsTop.Path, err),
 				)
+			} else {
+				var pathAgentOptions BaseItem
+				if err := yaml.Unmarshal(fileBytes, &pathAgentOptions); err != nil {
+					return multierror.Append(
+						multiError, fmt.Errorf("failed to unmarshal agent options file %s: %v", *agentOptionsTop.Path, err),
+					)
+				}
+				if pathAgentOptions.Path != nil {
+					return multierror.Append(
+						multiError,
+						fmt.Errorf("nested paths are not supported: %s in %s", *pathAgentOptions.Path, *agentOptionsTop.Path),
+					)
+				}
+				var raw json.RawMessage
+				if err := yaml.Unmarshal(fileBytes, &raw); err != nil {
+					// This error is currently unreachable because we know the file is valid YAML when we checked for nested path
+					return multierror.Append(
+						multiError, fmt.Errorf("failed to unmarshal agent options file %s: %v", *agentOptionsTop.Path, err),
+					)
+				}
+				result.AgentOptions = &raw
 			}
-			if pathAgentOptions.Path != nil {
-				return multierror.Append(
-					multiError,
-					fmt.Errorf("nested paths are not supported: %s in %s", *pathAgentOptions.Path, *agentOptionsTop.Path),
-				)
-			}
-			var raw json.RawMessage
-			if err := yaml.Unmarshal(fileBytes, &raw); err != nil {
-				// This error is currently unreachable because we know the file is valid YAML when we checked for nested path
-				return multierror.Append(
-					multiError, fmt.Errorf("failed to unmarshal agent options file %s: %v", *agentOptionsTop.Path, err),
-				)
-			}
-			result.AgentOptions = &raw
 		}
 	}
 	return multiError
@@ -306,18 +345,25 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, baseDir strin
 		if err != nil {
 			return multierror.Append(multiError, fmt.Errorf("failed to read controls file %s: %v", *controlsTop.Path, err))
 		}
-		fileBytes = []byte(os.ExpandEnv(string(fileBytes)))
-		var pathControls Controls
-		if err := yaml.Unmarshal(fileBytes, &pathControls); err != nil {
-			return multierror.Append(multiError, fmt.Errorf("failed to unmarshal controls file %s: %v", *controlsTop.Path, err))
-		}
-		if pathControls.Path != nil {
-			return multierror.Append(
-				multiError,
-				fmt.Errorf("nested paths are not supported: %s in %s", *pathControls.Path, *controlsTop.Path),
+		// Replace $var and ${var} with env values.
+		fileBytes, err = ExpandEnvBytes(fileBytes)
+		if err != nil {
+			multiError = multierror.Append(
+				multiError, fmt.Errorf("failed to expand environment in file %s: %v", *controlsTop.Path, err),
 			)
+		} else {
+			var pathControls Controls
+			if err := yaml.Unmarshal(fileBytes, &pathControls); err != nil {
+				return multierror.Append(multiError, fmt.Errorf("failed to unmarshal controls file %s: %v", *controlsTop.Path, err))
+			}
+			if pathControls.Path != nil {
+				return multierror.Append(
+					multiError,
+					fmt.Errorf("nested paths are not supported: %s in %s", *pathControls.Path, *controlsTop.Path),
+				)
+			}
+			result.Controls = pathControls
 		}
-		result.Controls = pathControls
 	}
 	return multiError
 }
@@ -341,21 +387,28 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 				multiError = multierror.Append(multiError, fmt.Errorf("failed to read policies file %s: %v", *item.Path, err))
 				continue
 			}
-			fileBytes = []byte(os.ExpandEnv(string(fileBytes)))
-			var pathPolicies []*Policy
-			if err := yaml.Unmarshal(fileBytes, &pathPolicies); err != nil {
-				multiError = multierror.Append(multiError, fmt.Errorf("failed to unmarshal policies file %s: %v", *item.Path, err))
-				continue
-			}
-			for _, pp := range pathPolicies {
-				pp := pp
-				if pp != nil {
-					if pp.Path != nil {
-						multiError = multierror.Append(
-							multiError, fmt.Errorf("nested paths are not supported: %s in %s", *pp.Path, *item.Path),
-						)
-					} else {
-						result.Policies = append(result.Policies, &pp.PolicySpec)
+			// Replace $var and ${var} with env values.
+			fileBytes, err = ExpandEnvBytes(fileBytes)
+			if err != nil {
+				multiError = multierror.Append(
+					multiError, fmt.Errorf("failed to expand environment in file %s: %v", *item.Path, err),
+				)
+			} else {
+				var pathPolicies []*Policy
+				if err := yaml.Unmarshal(fileBytes, &pathPolicies); err != nil {
+					multiError = multierror.Append(multiError, fmt.Errorf("failed to unmarshal policies file %s: %v", *item.Path, err))
+					continue
+				}
+				for _, pp := range pathPolicies {
+					pp := pp
+					if pp != nil {
+						if pp.Path != nil {
+							multiError = multierror.Append(
+								multiError, fmt.Errorf("nested paths are not supported: %s in %s", *pp.Path, *item.Path),
+							)
+						} else {
+							result.Policies = append(result.Policies, &pp.PolicySpec)
+						}
 					}
 				}
 			}
@@ -407,21 +460,28 @@ func parseQueries(top map[string]json.RawMessage, result *GitOps, baseDir string
 				multiError = multierror.Append(multiError, fmt.Errorf("failed to read queries file %s: %v", *item.Path, err))
 				continue
 			}
-			fileBytes = []byte(os.ExpandEnv(string(fileBytes)))
-			var pathQueries []*Query
-			if err := yaml.Unmarshal(fileBytes, &pathQueries); err != nil {
-				multiError = multierror.Append(multiError, fmt.Errorf("failed to unmarshal queries file %s: %v", *item.Path, err))
-				continue
-			}
-			for _, pq := range pathQueries {
-				pq := pq
-				if pq != nil {
-					if pq.Path != nil {
-						multiError = multierror.Append(
-							multiError, fmt.Errorf("nested paths are not supported: %s in %s", *pq.Path, *item.Path),
-						)
-					} else {
-						result.Queries = append(result.Queries, &pq.QuerySpec)
+			// Replace $var and ${var} with env values.
+			fileBytes, err = ExpandEnvBytes(fileBytes)
+			if err != nil {
+				multiError = multierror.Append(
+					multiError, fmt.Errorf("failed to expand environment in file %s: %v", *item.Path, err),
+				)
+			} else {
+				var pathQueries []*Query
+				if err := yaml.Unmarshal(fileBytes, &pathQueries); err != nil {
+					multiError = multierror.Append(multiError, fmt.Errorf("failed to unmarshal queries file %s: %v", *item.Path, err))
+					continue
+				}
+				for _, pq := range pathQueries {
+					pq := pq
+					if pq != nil {
+						if pq.Path != nil {
+							multiError = multierror.Append(
+								multiError, fmt.Errorf("nested paths are not supported: %s in %s", *pq.Path, *item.Path),
+							)
+						} else {
+							result.Queries = append(result.Queries, &pq.QuerySpec)
+						}
 					}
 				}
 			}
@@ -452,6 +512,24 @@ func parseQueries(top map[string]json.RawMessage, result *GitOps, baseDir string
 	)
 	if len(duplicates) > 0 {
 		multiError = multierror.Append(multiError, fmt.Errorf("duplicate query names: %v", duplicates))
+	}
+	return multiError
+}
+
+func parseSoftware(softwareRaw json.RawMessage, result *GitOps, baseDir string, multiError *multierror.Error) *multierror.Error {
+	var softwareInstallers []fleet.TeamSpecSoftware
+	if len(softwareRaw) > 0 {
+		if err := json.Unmarshal(softwareRaw, &softwareInstallers); err != nil {
+			return multierror.Append(multiError, fmt.Errorf("failed to unmarshal software: %v", err))
+		}
+	}
+	for _, item := range softwareInstallers {
+		item := item
+		if item.URL == "" {
+			multiError = multierror.Append(multiError, errors.New("software URL is required"))
+			continue
+		}
+		result.Software = append(result.Software, &item)
 	}
 	return multiError
 }

@@ -6,7 +6,7 @@ import (
 	"os"
 	"os/exec"
 
-	"github.com/go-kit/kit/log"
+	"github.com/go-kit/log"
 )
 
 const (

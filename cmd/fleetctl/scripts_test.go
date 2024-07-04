@@ -42,6 +42,9 @@ func TestRunScriptCommand(t *testing.T) {
 	ds.ListHostBatteriesFunc = func(ctx context.Context, hid uint) ([]*fleet.HostBattery, error) {
 		return nil, nil
 	}
+	ds.ListUpcomingHostMaintenanceWindowsFunc = func(ctx context.Context, hid uint) ([]*fleet.HostMaintenanceWindow, error) {
+		return nil, nil
+	}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{ServerSettings: fleet.ServerSettings{ScriptsDisabled: false}}, nil
 	}
@@ -70,6 +73,9 @@ hello world
 -------------------------------------------------------------------------------------
 `
 
+	expectedQuietOutputSuccess := `hello world
+`
+
 	type testCase struct {
 		name                string
 		scriptPath          func() string
@@ -77,6 +83,8 @@ hello world
 		teamID              *uint
 		savedScriptContents func() ([]byte, error)
 		scriptResult        *fleet.HostScriptResult
+		quiet               bool
+		async               bool
 		expectOutput        string
 		expectErrMsg        string
 		expectNotFound      bool
@@ -105,7 +113,48 @@ hello world
 		{
 			name:         "invalid hashbang",
 			scriptPath:   func() string { return writeTmpScriptContents(t, "#! /foo/bar", ".sh") },
-			expectErrMsg: `Interpreter not supported. Bash scripts must run in "#!/bin/sh”.`,
+			expectErrMsg: `Interpreter not supported. Shell scripts must run in "#!/bin/sh" or "#!/bin/zsh."`,
+		},
+		{
+			name:         "unsupported hashbang",
+			scriptPath:   func() string { return writeTmpScriptContents(t, "#!/bin/ksh", ".sh") },
+			expectErrMsg: `Interpreter not supported. Shell scripts must run in "#!/bin/sh" or "#!/bin/zsh."`,
+		},
+		{
+			name:       "posix shell hashbang",
+			scriptPath: func() string { return writeTmpScriptContents(t, "#!/bin/sh", ".sh") },
+			scriptResult: &fleet.HostScriptResult{
+				ExitCode: ptr.Int64(0),
+				Output:   "hello world",
+			},
+			expectOutput: expectedOutputSuccess,
+		},
+		{
+			name:       "zsh hashbang",
+			scriptPath: func() string { return writeTmpScriptContents(t, "#!/bin/zsh", ".sh") },
+			scriptResult: &fleet.HostScriptResult{
+				ExitCode: ptr.Int64(0),
+				Output:   "hello world",
+			},
+			expectOutput: expectedOutputSuccess,
+		},
+		{
+			name:       "usr zsh hashbang",
+			scriptPath: func() string { return writeTmpScriptContents(t, "#!/usr/bin/zsh", ".sh") },
+			scriptResult: &fleet.HostScriptResult{
+				ExitCode: ptr.Int64(0),
+				Output:   "hello world",
+			},
+			expectOutput: expectedOutputSuccess,
+		},
+		{
+			name:       "zsh hashbang with arguments",
+			scriptPath: func() string { return writeTmpScriptContents(t, "#!/bin/zsh -x", ".sh") },
+			scriptResult: &fleet.HostScriptResult{
+				ExitCode: ptr.Int64(0),
+				Output:   "hello world",
+			},
+			expectOutput: expectedOutputSuccess,
 		},
 		{
 			name: "script too long (unsaved)",
@@ -149,11 +198,11 @@ hello world
 			name:         "script-path and script-name disallowed",
 			scriptPath:   generateValidPath,
 			scriptName:   "foo",
-			expectErrMsg: `Only one of '--script-path' or '--script-name' is allowed.`,
+			expectErrMsg: `Only one of '--script-path' or '--script-name' or '-- <contents>' is allowed.`,
 		},
 		{
 			name:         "missing one of script-path and script-nqme",
-			expectErrMsg: `One of '--script-path' or '--script-name' must be specified.`,
+			expectErrMsg: `One of '--script-path' or '--script-name' or '-- <contents>' must be specified.`,
 		},
 		{
 			name:         "script-path and team disallowed",
@@ -185,6 +234,16 @@ hello world
 				Output:   "hello world",
 			},
 			expectOutput: expectedOutputSuccess,
+		},
+		{
+			name:       "script quiet",
+			scriptPath: generateValidPath,
+			scriptResult: &fleet.HostScriptResult{
+				ExitCode: ptr.Int64(0),
+				Output:   "hello world\n",
+			},
+			expectOutput: expectedQuietOutputSuccess,
+			quiet:        true,
 		},
 		{
 			name:       "script failed",
@@ -349,6 +408,14 @@ Fleet records the last 10,000 characters to prevent downtime.
 
 			if c.scriptName != "" {
 				args = append(args, "--script-name", c.scriptName)
+			}
+
+			if c.quiet {
+				args = append(args, "--quiet")
+			}
+
+			if c.async {
+				args = append(args, "--async")
 			}
 
 			if c.teamID != nil {

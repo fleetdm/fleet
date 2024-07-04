@@ -81,10 +81,6 @@ func ResolveWindowsMDMEnroll(serverURL string) (string, error) {
 	return commonmdm.ResolveURL(serverURL, MDE2EnrollPath, false)
 }
 
-func ResolveWindowsMDMAuth(serverURL string) (string, error) {
-	return commonmdm.ResolveURL(serverURL, MDE2AuthPath, false)
-}
-
 func ResolveWindowsMDMManagement(serverURL string) (string, error) {
 	return commonmdm.ResolveURL(serverURL, MDE2ManagementPath, false)
 }

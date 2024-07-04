@@ -12,9 +12,9 @@ Fleet is simple enough to [spin up for yourself](https://fleetdm.com/docs/deploy
 
 Fleet provides a standard [Terraform module](https://fleetdm.com/docs/deploy/deploy-on-aws-with-terraform) that deploys Fleet with best practices, along with [cloud cost calculators and reference architectures](https://fleetdm.com/docs/deploy/reference-architectures#cloud-providers) used by some of Fleet’s largest customers with tens and hundreds of thousands of hosts.  Fleet Premium customers can also opt for managed hosting provided by Fleet.  You can also deploy Fleet anywhere you want.
 
-You can enroll servers and laptops using a simple installer or automatically deliver the agent using your existing tools, such as Chef, Terraform, Munki/autopkg, Ansible, Puppet, Jamf, Intune, etc.
+You can enroll servers and laptops using a simple installer or automatically deliver Fleet's agent (fleetd) using your existing tools, such as Chef, Terraform, Munki/autopkg, Ansible, Puppet, Jamf, Intune, etc.
 
-By default, Fleet keeps agents up to date automatically.  For self-managed instances, Fleet provides a [migration runner](https://fleetdm.com/docs/deploy/upgrading-fleet#upgrading-fleet).
+By default, Fleet keeps fleetd up to date automatically.  For self-managed instances, Fleet provides a [migration runner](https://fleetdm.com/docs/deploy/upgrading-fleet#upgrading-fleet).
 
 ## What options do I have for access control?  What about auditing admin activity?
 
@@ -47,7 +47,7 @@ You can test changes on a small subset of hosts first, then roll them out to the
 
 ## Is Fleet MIT licensed?
 
-We have different licenses for portions of our software which are noted in the [LICENSE](https://github.com/fleetdm/fleet/blob/main/LICENSE) file in our docs. The majority of Fleet is MIT licensed. Paid features require a license key.
+Different portions of the Fleet software are licensed differently, as noted in the [LICENSE](https://github.com/fleetdm/fleet/blob/main/LICENSE) file. The majority of Fleet is MIT licensed. Paid features require a license key.
 
 ## What is your commitment to open source stewardship?
 
@@ -71,7 +71,9 @@ We have different licenses for portions of our software which are noted in the [
 
 ## How do I contact Fleet for support?
 
-For community support, visit https://fleetdm.com/support.
+A lot of questions can be answered [in the documentation](https://fleetdm.com/docs).
+
+To get help from the community, visit https://fleetdm.com/support.
 
 If your organization has Fleet Premium, you can [access professional support](https://fleetdm.com/customers/login) with a guaranteed response time.
 
@@ -106,14 +108,14 @@ Anyone is free to contribute to the free or paid features of the project. We are
 
 The only way we are able to partner as a business to provide support and build new open source and paid features is through customers purchasing Fleet Premium.
 
-## How can I uninstall the osquery agent?
-To uninstall the osquery agent, follow the below instructions for your operating system.
+## How can I uninstall fleetd?
+To uninstall Fleet's agent (fleetd), follow the below instructions for your operating system.
 
 #### MacOS
 Run the Orbit [cleanup script](https://github.com/fleetdm/fleet/blob/main/orbit/tools/cleanup/cleanup_macos.sh)
 
 #### Windows
-Use the "Add or remove programs" dialog to remove Orbit.
+Use the "Add or remove programs" dialog to remove Fleet osquery.
 
 #### Ubuntu
 Run `sudo apt remove fleet-osquery -y`
@@ -458,7 +460,7 @@ Read more about osquery packs and Fleet's commitment to supporting them [here](h
 
 In the Fleet UI, you can turn off MDM for a host by selecting **Actions > Turn off MDM** on the **Host details** page.
 
-When you turn off MDM for a host, Fleet removes the enforcement of all macOS settings for that host. Also, the host will stop receiving macOS update reminders via Nudge. Turning MDM off doesn't remove the fleetd agent from the host. To remove the fleetd agent, share [these guided instructions](#how-can-i-uninstall-the-osquery-agent) with the end user.
+When you turn off MDM for a host, Fleet removes the enforcement of all macOS settings for that host. Also, the host will stop receiving macOS update reminders via Nudge. Turning MDM off doesn't remove the fleetd agent from the host. To remove the fleetd agent, share [these guided instructions](#how-can-i-uninstall-fleetd) with the end user.
 
 To enforce macOS settings and send macOS update reminders, the host has to turn MDM back on. Turning MDM back on for a host requires end user action.
 

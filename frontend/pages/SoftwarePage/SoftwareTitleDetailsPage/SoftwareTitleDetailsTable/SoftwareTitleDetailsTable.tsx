@@ -10,6 +10,7 @@ import { GITHUB_NEW_ISSUE_LINK } from "utilities/constants";
 import { buildQueryStringFromParams } from "utilities/url";
 
 import TableContainer from "components/TableContainer";
+import TableCount from "components/TableContainer/TableCount";
 import EmptyTable from "components/EmptyTable";
 import CustomLink from "components/CustomLink";
 
@@ -77,10 +78,13 @@ const SoftwareTitleDetailsTable = ({
     [router, teamIdForApi]
   );
 
+  const renderVersionsCount = () => (
+    <TableCount name="versions" count={data?.length} />
+  );
+
   return (
     <TableContainer
       className={baseClass}
-      resultsTitle={data.length === 1 ? "version" : "versions"}
       columnConfigs={softwareTableHeaders}
       data={data}
       isLoading={isLoading}
@@ -92,6 +96,7 @@ const SoftwareTitleDetailsTable = ({
       disablePagination
       disableMultiRowSelect
       onSelectSingleRow={handleRowSelect}
+      renderCount={renderVersionsCount}
     />
   );
 };

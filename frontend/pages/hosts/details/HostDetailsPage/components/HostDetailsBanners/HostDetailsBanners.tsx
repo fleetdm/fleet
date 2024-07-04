@@ -1,15 +1,17 @@
-import InfoBanner from "components/InfoBanner";
-import { AppContext } from "context/app";
-import { DiskEncryptionStatus, MdmEnrollmentStatus } from "interfaces/mdm";
 import React, { useContext } from "react";
+import { AppContext } from "context/app";
+
+import { DiskEncryptionStatus, MdmEnrollmentStatus } from "interfaces/mdm";
+import { hasLicenseExpired, willExpireWithinXDays } from "utilities/helpers";
+import InfoBanner from "components/InfoBanner";
 
 const baseClass = "host-details-banners";
 
 interface IHostDetailsBannersProps {
   hostMdmEnrollmentStatus?: MdmEnrollmentStatus | null;
   hostPlatform?: string;
-  mdmName?: string;
   diskEncryptionStatus: DiskEncryptionStatus | null | undefined;
+  connectedToFleetMdm?: boolean;
 }
 
 /**
@@ -18,31 +20,50 @@ interface IHostDetailsBannersProps {
 const HostDetailsBanners = ({
   hostMdmEnrollmentStatus,
   hostPlatform,
-  mdmName,
+  connectedToFleetMdm,
   diskEncryptionStatus,
 }: IHostDetailsBannersProps) => {
-  const { config, isSandboxMode, isPremiumTier } = useContext(AppContext);
+  const { config, isPremiumTier, apnsExpiry, abmExpiry } = useContext(
+    AppContext
+  );
 
-  // checks to see if the ABM message is being shown in a parent component.
-  // We want this to be the only banner shown to the user so we need to know
-  // if it's already being shown so we can suppress other banners.
+  // Checks to see if an app-wide banner is being shown (the ABM terms, ABM expiry,
+  // or APNs expiry banner) in a parent component. App-wide banners found in parent
+  // component take priority over host details page-level banners.
   const isAppleBmTermsExpired = config?.mdm?.apple_bm_terms_expired;
-  const showingAppleABMBanner =
-    (isAppleBmTermsExpired && isPremiumTier && !isSandboxMode) ?? false;
+  const isApplePnsExpired = hasLicenseExpired(apnsExpiry || "");
+  const willApplePnsExpireIn30Days = willExpireWithinXDays(
+    apnsExpiry || "",
+    30
+  );
+  const isAppleBmExpired = hasLicenseExpired(abmExpiry || "");
+  const willAppleBmExpireIn30Days = willExpireWithinXDays(abmExpiry || "", 30);
+  const isFleetLicenseExpired = hasLicenseExpired(
+    config?.license.expiration || ""
+  );
+
+  const showingAppWideBanner =
+    isPremiumTier &&
+    (isAppleBmTermsExpired ||
+      isApplePnsExpired ||
+      willApplePnsExpireIn30Days ||
+      isAppleBmExpired ||
+      willAppleBmExpireIn30Days ||
+      isFleetLicenseExpired);
 
   const isMdmUnenrolled =
     hostMdmEnrollmentStatus === "Off" || !hostMdmEnrollmentStatus;
 
   const showTurnOnMdmInfoBanner =
-    !showingAppleABMBanner &&
+    !showingAppWideBanner &&
     hostPlatform === "darwin" &&
     isMdmUnenrolled &&
     config?.mdm.enabled_and_configured;
 
   const showDiskEncryptionUserActionRequired =
-    !showingAppleABMBanner &&
+    !showingAppWideBanner &&
     config?.mdm.enabled_and_configured &&
-    mdmName === "Fleet" &&
+    connectedToFleetMdm &&
     diskEncryptionStatus === "action_required";
 
   if (showTurnOnMdmInfoBanner || showDiskEncryptionUserActionRequired) {

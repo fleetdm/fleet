@@ -13,7 +13,15 @@ import (
 
 func (c *Client) RunHostScriptSync(hostID uint, scriptContents []byte, scriptName string, teamID uint) (*fleet.HostScriptResult, error) {
 	verb, path := "POST", "/api/latest/fleet/scripts/run/sync"
+	return c.runHostScript(verb, path, hostID, scriptContents, scriptName, teamID, http.StatusOK)
+}
 
+func (c *Client) RunHostScriptAsync(hostID uint, scriptContents []byte, scriptName string, teamID uint) (*fleet.HostScriptResult, error) {
+	verb, path := "POST", "/api/latest/fleet/scripts/run"
+	return c.runHostScript(verb, path, hostID, scriptContents, scriptName, teamID, http.StatusAccepted)
+}
+
+func (c *Client) runHostScript(verb, path string, hostID uint, scriptContents []byte, scriptName string, teamID uint, successStatusCode int) (*fleet.HostScriptResult, error) {
 	req := fleet.HostScriptRequestPayload{
 		HostID:     hostID,
 		ScriptName: scriptName,
@@ -32,7 +40,7 @@ func (c *Client) RunHostScriptSync(hostID uint, scriptContents []byte, scriptNam
 	defer res.Body.Close()
 
 	switch res.StatusCode {
-	case http.StatusOK:
+	case successStatusCode:
 		b, err := io.ReadAll(res.Body)
 		if err != nil {
 			return nil, fmt.Errorf("reading %s %s response: %w", verb, path, err)
@@ -45,13 +53,15 @@ func (c *Client) RunHostScriptSync(hostID uint, scriptContents []byte, scriptNam
 		if err != nil {
 			return nil, err
 		}
-
 		if strings.Contains(errMsg, fleet.RunScriptScriptsDisabledGloballyErrMsg) {
 			return nil, errors.New(fleet.RunScriptScriptsDisabledGloballyErrMsg)
 		}
-
 		return nil, errors.New(fleet.RunScriptForbiddenErrMsg)
-
+	// It's possible we get a GatewayTimeout error message from nginx or another
+	// proxy server, so we want to return a more helpful error message in that
+	// case.
+	case http.StatusGatewayTimeout:
+		return nil, errors.New(fleet.RunScriptGatewayTimeoutErrMsg)
 	case http.StatusPaymentRequired:
 		if teamID > 0 {
 			return nil, errors.New("Team id parameter requires Fleet Premium license.")

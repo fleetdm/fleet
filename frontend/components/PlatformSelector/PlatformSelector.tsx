@@ -1,4 +1,5 @@
 import React from "react";
+import classNames from "classnames";
 import Checkbox from "components/forms/fields/Checkbox";
 
 interface IPlatformSelectorProps {
@@ -11,6 +12,7 @@ interface IPlatformSelectorProps {
   setCheckWindows: (val: boolean) => void;
   setCheckLinux: (val: boolean) => void;
   setCheckChrome: (val: boolean) => void;
+  disabled?: boolean;
 }
 
 export const PlatformSelector = ({
@@ -23,17 +25,23 @@ export const PlatformSelector = ({
   setCheckWindows,
   setCheckLinux,
   setCheckChrome,
+  disabled = false,
 }: IPlatformSelectorProps): JSX.Element => {
   const baseClass = "platform-selector";
 
+  const labelClasses = classNames("form-field__label", {
+    [`form-field__label--disabled`]: disabled,
+  });
+
   return (
     <div className={`${parentClass}__${baseClass} ${baseClass} form-field`}>
-      <span className="form-field__label">Checks on:</span>
+      <span className={labelClasses}>Checks on:</span>
       <span className={`${baseClass}__checkboxes`}>
         <Checkbox
           value={checkDarwin}
           onChange={(value: boolean) => setCheckDarwin(value)}
           wrapperClassName={`${baseClass}__platform-checkbox-wrapper`}
+          disabled={disabled}
         >
           macOS
         </Checkbox>
@@ -41,6 +49,7 @@ export const PlatformSelector = ({
           value={checkWindows}
           onChange={(value: boolean) => setCheckWindows(value)}
           wrapperClassName={`${baseClass}__platform-checkbox-wrapper`}
+          disabled={disabled}
         >
           Windows
         </Checkbox>
@@ -48,6 +57,7 @@ export const PlatformSelector = ({
           value={checkLinux}
           onChange={(value: boolean) => setCheckLinux(value)}
           wrapperClassName={`${baseClass}__platform-checkbox-wrapper`}
+          disabled={disabled}
         >
           Linux
         </Checkbox>
@@ -55,6 +65,7 @@ export const PlatformSelector = ({
           value={checkChrome}
           onChange={(value: boolean) => setCheckChrome(value)}
           wrapperClassName={`${baseClass}__platform-checkbox-wrapper`}
+          disabled={disabled}
         >
           ChromeOS
         </Checkbox>

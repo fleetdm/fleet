@@ -21,6 +21,18 @@
         "activity agent-options"
         "activity labels"
         "users users";
+      grid-auto-flow: column;
+    }
+
+    // Note: CSS for labels card spans the whole grid for iOS and iPadOS
+    // because activity card is missing
+    &__details-panel--ios-grid.react-tabs__tab-panel--selected {
+      // Must be selected to show grid
+      grid-template-columns: 1fr;
+      grid-template-areas:
+        "about"
+        "labels";
+      grid-auto-flow: column;
     }
 
     .about-card {

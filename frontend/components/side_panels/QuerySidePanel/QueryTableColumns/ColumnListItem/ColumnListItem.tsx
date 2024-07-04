@@ -47,6 +47,14 @@ const renderTooltip = (
     );
   };
 
+  const renderHiddenFootnote = () => {
+    return (
+      <span className={`${baseClass}__footnote`}>
+        Not returned in SELECT * FROM {selectedTableName}
+      </span>
+    );
+  };
+
   const renderPlatformFootnotes = (columnPlatforms: OsqueryPlatform[]) => {
     let platformsCopy;
     switch (columnPlatforms.length) {
@@ -78,6 +86,7 @@ const renderTooltip = (
         <span className={`${baseClass}__footnote`}>{FOOTNOTES.required}</span>
       )}
       {column.requires_user_context && renderUserContextFootnote()}
+      {column.hidden && renderHiddenFootnote()}
       {column.platforms && renderPlatformFootnotes(column.platforms)}
     </>
   );

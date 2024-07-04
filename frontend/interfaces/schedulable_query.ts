@@ -1,3 +1,6 @@
+// for legacy legacy query stats interface
+import PropTypes from "prop-types";
+
 import { IFormField } from "./form_field";
 import { IPack } from "./pack";
 import { SelectedPlatformString, SupportedPlatform } from "./platform";
@@ -24,7 +27,7 @@ export interface ISchedulableQuery {
   discard_data: boolean;
   packs: IPack[];
   stats: ISchedulableQueryStats;
-  editingExistingQuery: boolean;
+  editingExistingQuery?: boolean;
 }
 
 export interface IEnhancedQuery extends ISchedulableQuery {
@@ -32,12 +35,21 @@ export interface IEnhancedQuery extends ISchedulableQuery {
   platforms: SupportedPlatform[];
 }
 export interface ISchedulableQueryStats {
-  user_time_p50?: number;
-  user_time_p95?: number;
-  system_time_p50?: number;
-  system_time_p95?: number;
+  user_time_p50?: number | null;
+  user_time_p95?: number | null;
+  system_time_p50?: number | null;
+  system_time_p95?: number | null;
   total_executions?: number;
 }
+
+// legacy
+export default PropTypes.shape({
+  user_time_p50: PropTypes.number,
+  user_time_p95: PropTypes.number,
+  system_time_p50: PropTypes.number,
+  system_time_p95: PropTypes.number,
+  total_executions: PropTypes.number,
+});
 
 // API shapes
 

@@ -65,7 +65,7 @@ module.exports = {
       'mna',
       'edwardsb',
       'eashaw',
-      'drewbakerfdm',
+      'drew-d-drawers',
       'lucasmrod',
       'ksatter',
       'hollidayn',
@@ -83,12 +83,13 @@ module.exports = {
       'AnthonySnyder8',
       'jahzielv',
       'getvictor',
-      '3kindsoffish',
       'phtardif1',
       'pintomi1989',
       'nonpunctual',
-      'hughestaylor',
       'dantecatalfamo',
+      'PezHub',
+      'SFriendLee',
+      'ddribeiro',
     ];
 
     let GREEN_LABEL_COLOR = 'C2E0C6';// « Used in multiple places below.  (FUTURE: Use the "+" prefix for this instead of color.  2022-05-05)
@@ -482,6 +483,7 @@ module.exports = {
             // curl -d "frozen=true&user_name=Scooby Doo&unblocked_prs=[3]" -X POST https://www.mergefreeze.com/api/branches/mergefreeze/core/master/?access_token=[Your access token]
             // ```
             // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
             await sails.helpers.http.post(`https://www.mergefreeze.com/api/branches/fleetdm/fleet/main?access_token=${encodeURIComponent(sails.config.custom.mergeFreezeAccessToken)}`, {
               user_name: 'fleet-release',//eslint-disable-line camelcase
               unblocked_prs: pocketOfPrNumbersUnfrozen,//eslint-disable-line camelcase

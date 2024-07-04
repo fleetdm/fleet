@@ -222,8 +222,18 @@ parasails.registerPage('basic-documentation', {
   //  ╩╝╚╝ ╩ ╚═╝╩╚═╩ ╩╚═╝ ╩ ╩╚═╝╝╚╝╚═╝
   methods: {
 
+    clickSwagRequestCTA: function () {
+      if(typeof gtag !== 'undefined') {
+        gtag('event','fleet_website__swag_request');
+      }
+      if(typeof window.lintrk !== 'undefined') {
+        window.lintrk('track', { conversion_id: 18587105 });// eslint-disable-line camelcase
+      }
+      this.goto('https://kqphpqst851.typeform.com/to/ZfA3sOu0');
+    },
+
     clickCTA: function (slug) {
-      window.location = slug;
+      this.goto(slug);
     },
 
     isCurrentSection: function (section) {
@@ -248,7 +258,6 @@ parasails.registerPage('basic-documentation', {
     findAndSortNavSectionsByUrl: function (url='') {
       let NAV_SECTION_ORDER_BY_DOCS_SLUG = {
         'using-fleet':['The basics', 'Device management', 'Vuln management', 'Security compliance', 'Osquery management', 'Dig deeper'],
-        'deploy':['Uncategorized','TBD','Deployment guides'],
       };
       let slug = _.last(url.split(/\//));
       //

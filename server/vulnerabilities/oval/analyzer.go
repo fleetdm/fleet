@@ -72,6 +72,12 @@ func Analyze(
 				return nil, err
 			}
 			foundInBatch[hostID] = evalR
+
+			evalU, err := defs.EvalKernel(software)
+			if err != nil {
+				return nil, err
+			}
+			foundInBatch[hostID] = append(foundInBatch[hostID], evalU...)
 		}
 
 		existingInBatch, err := ds.ListSoftwareVulnerabilitiesByHostIDsSource(ctx, hostIDs, source)

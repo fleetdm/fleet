@@ -1,9 +1,7 @@
 name: docker_container_mounts
-examples: >-
+examples: |-
   List the source and destination of Docker bind and volume mounts.
 
   ```
-
   SELECT dm.source, dm.destination, dm.mode, dc.name FROM docker_container_mounts dm JOIN docker_containers dc ON dm.id = dc.id;
-
   ```

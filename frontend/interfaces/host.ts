@@ -29,6 +29,8 @@ export default PropTypes.shape({
   uuid: PropTypes.string,
   platform: PropTypes.string,
   osquery_version: PropTypes.string,
+  orbit_version: PropTypes.string,
+  fleet_desktop_version: PropTypes.string,
   os_version: PropTypes.string,
   build: PropTypes.string,
   platform_like: PropTypes.string,
@@ -137,7 +139,7 @@ export interface IMunkiData {
   version: string;
 }
 
-type MacDiskEncryptionActionRequired = "log_out" | "rotate_key" | null;
+export type MacDiskEncryptionActionRequired = "log_out" | "rotate_key";
 
 export interface IOSSettings {
   disk_encryption: {
@@ -173,6 +175,12 @@ export interface IHostMdmData {
   macos_setup?: IMdmMacOsSetup;
   device_status: HostMdmDeviceStatus;
   pending_action: HostMdmPendingAction;
+  connected_to_fleet?: boolean;
+}
+
+export interface IHostMaintenanceWindow {
+  starts_at: string;
+  timezone: string | null;
 }
 
 export interface IMunkiIssue {
@@ -204,7 +212,7 @@ export interface IPackStats {
   type: string;
 }
 
-export interface IHostPolicyQuery {
+export interface IPolicyHostResponse {
   id: number;
   display_name: string;
   query_results?: unknown[];
@@ -233,9 +241,11 @@ export interface IDeviceUserResponse {
   host: IHostDevice;
   license: ILicense;
   org_logo_url: string;
+  org_contact_url: string;
   disk_encryption_enabled?: boolean;
   platform?: string;
   global_config: IDeviceGlobalConfig;
+  self_service: boolean;
 }
 
 export interface IHostEncrpytionKeyResponse {
@@ -248,12 +258,14 @@ export interface IHostEncrpytionKeyResponse {
 
 export interface IHostIssues {
   total_issues_count: number;
+  critical_vulnerabilities_count?: number; // Premium
   failing_policies_count: number;
 }
 
 export interface IHost {
   created_at: string;
   updated_at: string;
+  software_updated_at?: string;
   id: number;
   detail_updated_at: string;
   last_restarted_at: string;
@@ -267,6 +279,8 @@ export interface IHost {
   uuid: string;
   platform: string;
   osquery_version: string;
+  orbit_version: string | null;
+  fleet_desktop_version: string | null;
   os_version: string;
   build: string;
   platform_like: string; // TODO: replace with more specific union type
@@ -297,15 +311,17 @@ export interface IHost {
   gigs_disk_space_available: number;
   labels: ILabel[];
   packs: IPack[];
-  software: ISoftware[];
+  software?: ISoftware[];
   issues: IHostIssues;
   status: HostStatus;
   display_text: string;
   display_name: string;
   target_type?: string;
+  scripts_enabled: boolean | null;
   users: IHostUser[];
   device_users?: IDeviceUser[];
   munki?: IMunkiData;
+  maintenance_window?: IHostMaintenanceWindow;
   mdm: IHostMdmData;
   policies: IHostPolicy[];
   query_results?: unknown[];

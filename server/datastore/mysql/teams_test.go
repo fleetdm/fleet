@@ -97,6 +97,13 @@ func testTeamsGetSetDelete(t *testing.T, ds *Datastore) {
 			})
 			require.NoError(t, err)
 
+			dec, err := ds.NewMDMAppleDeclaration(context.Background(), &fleet.MDMAppleDeclaration{
+				Identifier: "decl-1",
+				Name:       "decl-1",
+				TeamID:     &team.ID,
+			})
+			require.NoError(t, err)
+
 			err = ds.DeleteTeam(context.Background(), team.ID)
 			require.NoError(t, err)
 
@@ -112,6 +119,9 @@ func testTeamsGetSetDelete(t *testing.T, ds *Datastore) {
 			require.ErrorAs(t, err, &nfe)
 
 			_, err = ds.GetMDMWindowsConfigProfile(context.Background(), wcp.ProfileUUID)
+			require.ErrorAs(t, err, &nfe)
+
+			_, err = ds.GetMDMAppleConfigProfile(context.Background(), dec.DeclarationUUID)
 			require.ErrorAs(t, err, &nfe)
 
 			require.NoError(t, ds.DeletePack(context.Background(), newP.Name))
@@ -613,8 +623,9 @@ func testTeamsMDMConfig(t *testing.T, ds *Datastore) {
 				GracePeriodDays: optjson.SetInt(3),
 			},
 			MacOSSetup: fleet.MacOSSetup{
-				BootstrapPackage:    optjson.SetString("bootstrap"),
-				MacOSSetupAssistant: optjson.SetString("assistant"),
+				BootstrapPackage:            optjson.SetString("bootstrap"),
+				MacOSSetupAssistant:         optjson.SetString("assistant"),
+				EnableReleaseDeviceManually: optjson.SetBool(false),
 			},
 			WindowsSettings: fleet.WindowsSettings{
 				CustomSettings: optjson.SetSlice([]fleet.MDMProfileSpec{{Path: "foo"}, {Path: "bar"}}),
@@ -637,13 +648,13 @@ func testTeamsNameUnicode(t *testing.T, ds *Datastore) {
 
 	// Try to create team with equivalent name
 	_, err = ds.NewTeam(context.Background(), &fleet.Team{Name: equivalentNames[1]})
-	assert.True(t, isDuplicate(err), err)
+	assert.True(t, IsDuplicate(err), err)
 
 	// Try to update a different team with equivalent name -- not allowed
 	teamEmoji, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "💻"})
 	require.NoError(t, err)
 	_, err = ds.SaveTeam(context.Background(), &fleet.Team{ID: teamEmoji.ID, Name: equivalentNames[1]})
-	assert.True(t, isDuplicate(err), err)
+	assert.True(t, IsDuplicate(err), err)
 
 	// Try to find team with equivalent name
 	teamFilter := fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}}

@@ -2,11 +2,9 @@
 This handbook page details processes specific to working [with](#contact-us) and [within](#responsibilities) this department.
 
 ## Team
-| Role                            | Contributor(s)
-|:--------------------------------|:------------------------------------------------------------------------------------------------------------------------|
-| 🫧 Head of Demand Generation       | [Dustin Gerdes](https://www.linkedin.com/in/dustingerdes/) _([@3kindsoffish](https://github.com/3kindsoffish))_
-| 🫧 Field Marketer                  | [Drew Baker](https://www.linkedin.com/in/andrew-baker-51547179/) _([@drewbakerfdm](https://github.com/drewbakerfdm))_
-| _🎐 Head of Brand &amp; Product Marketing (CEO)_ | [Mike McNeil](https://www.linkedin.com/in/mikermcneil) _([@mikermcneil](https://github.com/mikermcneil))_
+| Role                               | Contributor(s)
+|:-----------------------------------|:------------------------------------------------------------------------------------------------------------------------|
+| Digital Marketing Manager          | [Drew Baker](https://www.linkedin.com/in/andrew-baker-51547179/) _([@drewbakerfdm](https://github.com/drewbakerfdm))_
 
 
 ## Contact us
@@ -14,19 +12,19 @@ This handbook page details processes specific to working [with](#contact-us) and
   - Please use **issue comments and GitHub mentions** to communicate follow-ups or answer questions related to your request.
   - Any Fleet team member can [view the kanban board](https://app.zenhub.com/workspaces/g-demand-64e6c8e2d35c7f001a457b7f/board?sprints=none) for this department, including pending tasks and the status of new requests.
 
-> To **make a request** related to **product marketing**, **press**, **brandfronts**, **pitchfronts**, **featurefronts**, **ideal customer profiles (ICPs)**, **personas**, or **targeting** [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-digital-experience&projects=&template=custom-request.md&title=Product%20marketing%20request%3A+_______________________) (If urgent, at-mention the [Head of Product Marketing](#team) in the [help-pmm-2023](https://fleetdm.slack.com/archives/C0600L1TTPY) Slack channel).
+> To **make a request** related to **product marketing**, **press**, **brandfronts**, **pitchfronts**, **featurefronts**, **ideal customer profiles (ICPs)**, **personas**, or **targeting** [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-digital-experience&projects=&template=custom-request.md&title=Product%20marketing%20request%3A+_______________________) (If urgent, at-mention the [Head of Product Marketing](#team) in the [#help-leadership](https://fleetdm.slack.com/archives/C0600L1TTPY) Slack channel).
 
 ## Responsibilities
-The Demand department is directly responsible for growing awareness of Fleet and nurturing the community through participation in events, conversations, and other [programs](https://fleetdm.com/handbook/company/communications#programs).
+The Demand department is directly responsible for achieving revenue pipeline targets, increasing awareness and interest in the open-source project, and nurturing the Fleet community through participation in video, sponsored events, and other [programs](https://fleetdm.com/handbook/company/communications#programs).
 
 ### Respond to a "Contact us" submission
 1. Check the [_from-prospective-customers](https://fleetdm.slack.com/archives/C01HE9GQW6B) Slack channel for "Contact us" submissions. 
 2. Mark submission as seen with the "👀" emoji.
 3. Within 4 business hours, use the [best practices template (private Google doc)](https://docs.google.com/document/d/1D02k0tc5v-sEJ4uahAouuqnvZ6phxA_gP-IqmkBdMTE/edit) to respond to general asks.
-4. Answer any technical questions to the best of your ability. If you are unable to answer a technical/product question, ask a Solutions Consultant in [#help-solutions-consulting](https://fleetdm.slack.com/archives/C05HZ2LHEL8). If an SC is unavailable, post in [#help-product-design](https://fleetdm.slack.com/archives/C02A8BRABB5) or [#help-engineering](https://fleetdm.slack.com/archives/C019WG4GH0A) and notify @on-call.
+4. Answer any technical questions to the best of your ability. If you are unable to answer a technical/product question, ask a Solutions Consultant in `#help-solutions-consulting`. If an SC is unavailable, post in `#g-mdm`or `#g-endpoint-ops`and notify @on-call.
 5. log in to [Salesforce](https://fleetdm.lightning.force.com/lightning/o/Lead/list?filterName=00B4x00000DtaRDEAZ) and search the lead list by first name and match the corresponding email to find the right lead.
 6. Enrich each lead with company information and buying situation.
-7. If a lead is completed or out of ICP, update the lead status in Salesforce to "Closed" or "Disqualified". If within ICP at-mention the [Head of Revenue Operations](https://fleetdm.com/handbook/digital-experience#team) in the [#g-digital-experience](https://fleetdm.slack.com/archives/C058S8PFSK0) Slack channel and move lead to their name in SFDC.
+7. If a lead is completed or out of ICP, update the lead status in Salesforce to "Closed" or "Disqualified". If within ICP at-mention the [Head of Digital Experience](https://fleetdm.com/handbook/digital-experience#team) in the [#g-digital-experience](https://fleetdm.slack.com/archives/C058S8PFSK0) Slack channel and move lead to their name in SFDC.
 8. Mark the Slack message as complete with the "✅" emoji.
 
 > For any support-related questions, forward the submission to [Fleet's support team](https://docs.google.com/document/d/1tE-NpNfw1icmU2MjYuBRib0VWBPVAdmq4NiCrpuI0F0/edit#heading=h.wqalwz1je6rq).
@@ -51,7 +49,7 @@ To propose an ad, or a change to an ad:
 4. Launch campaign once approved.
 
 ### Settle event strategy
-The Head of Demand is the DRI for deploying Fleet's event budget, and events are settled significantly in advance to provide ample time for strategy and planning.  The Head of Business Operations is the DRI for executing Fleet events efficiently, on-brand, and on-strategy.
+The Head of Demand is the DRI for deploying Fleet's event budget, and events are settled significantly in advance to provide ample time for strategy and planning.  Fleet's [Client Platform Engineer & Community Advocate](https://fleetdm.com/handbook/engineering#team) is the DRI for executing Fleet events efficiently, on-brand, and on-strategy.
 
 1. Using the [event strategy workbook](https://docs.google.com/spreadsheets/d/1YQXAX2Q_WnGkAwMYjMbQpV3nbCj7gOBbv7Y0u4twxzQ/edit#gid=1411322737), propose the events that Fleet will attend in the next 6 months, and the strategy for those events, including:
   - target buying situation of the audience
@@ -60,8 +58,8 @@ The Head of Demand is the DRI for deploying Fleet's event budget, and events are
   - which talk proposal Fleet will submit
   - all event materials, including printouts, banners, swag given out, and even the clothing worn by fleeties
   - estimated budget, including sponsorship or airfare, and lodging for attendees
-2. Set up and attend a 30m meeting with the Head of Business Operations and CEO:
-  - First during this meeting, the Head of Business Operations proposes an event issue for each of the **_current quarter's_** events to get input and any new information or changes from the Head of Demand and CEO. (Events for the current quarter were already decided in a previous event strategy session, so Fleet does not make changes except in extreme circumstances.)
+2. Set up and attend a 30m meeting with the Fleet's Client Platform Engineer & Community Advocate and CEO:
+  - First during this meeting, the Head of Demand proposes an event issue for each of the **_current quarter's_** events to get input and any new information or changes from Fleet's Client Platform Engineer & Community Advocate and CEO. (Events for the current quarter were already decided in a previous event strategy session, so Fleet does not make changes except in extreme circumstances.)
   - Next, decide which events in the **_following quarter_** the company will invest time or money into.  This includes any event that Fleet pays to send someone to or to sponsor, and even events where Fleet's only involvement is that a fleetie will be giving a talk or otherwise representing the brand.
   - Finally, qualify or disqualify any newly-entered event ideas by either verifying and setting the buying situation, or removing the event idea from the spreadsheet.
 
@@ -121,9 +119,9 @@ There are many times in which community members, customers, and contributors are
 
 ### Run a new ad or change an existing ad
 Any changes to the current running ads visible to a user, including designs, keywords, or targeting, are approved in 🦢🗣 Design review (#g-digital-experience), which [occurs regularly](https://fleetdm.com/handbook/company/product-groups#design-reviews) and is open to all fleeties.
-1. [Head of Demand Generation](https://fleetdm.com/handbook/demand#team) adds a discussion item about the change to the [website design review agenda](https://docs.google.com/document/d/1Q73ublh9bcIL01JsY--gpZRd3KPT_KCX-F0RaorKJcM/edit)
+1. [Digital Marketing Manager](https://fleetdm.com/handbook/demand#team) adds a discussion item about the change to the [website design review agenda](https://docs.google.com/document/d/1Q73ublh9bcIL01JsY--gpZRd3KPT_KCX-F0RaorKJcM/edit)
 2. During the call, they compare existing ads against the planned updates within the corresponding ad platform. ([Google Ads](https://ads.google.com/home/), [LinkedIn Campaign Manager](https://www.linkedin.com/campaignmanager/), etc.)
-3. [Head of Demand Generation](https://fleetdm.com/handbook/demand#team) makes changes and creates a calendar reminder to check performance either two weeks or four weeks from the date changes were made.
+3. [Digital Marketing Manager](https://fleetdm.com/handbook/demand#team) makes changes and creates a calendar reminder to check performance either two weeks or four weeks from the date changes were made.
 
 > **Do changes to keywords or targeting require a design review?** Currently, all changes to these things require discussion with our product marketer.
 
@@ -172,8 +170,6 @@ Fleet invites guests to discuss the future of IT and security on the [ExpedITion
 ## Rituals
 <rituals :rituals="rituals['handbook/demand/demand.rituals.yml']"></rituals>
 
-<!-- TODO: Explore the stubs from this: https://gist.github.com/mikermcneil/d8ffd8849a5e9da722448c9712b1e9c0 -->
-<!-- TODO: Slightly later, in another PR, finish processing this: https://gist.github.com/mikermcneil/d8ffd8849a5e9da722448c9712b1e9c0 -->
 
 #### Stubs
 The following stubs are included only to make links backward compatible
@@ -197,5 +193,5 @@ Please see [handbook/company/communications#video](https://fleetdm.com/handbook/
 
 
 
-<meta name="maintainedBy" value="3kindsoffish">
+<meta name="maintainedBy" value="Drew-P-Drawers">
 <meta name="title" value="🫧 Demand">

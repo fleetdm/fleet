@@ -11,6 +11,8 @@ github.com/fleetdm/fleet/v4/server/fleet/ServerSettings	DebugHostIDs	[]uint
 github.com/fleetdm/fleet/v4/server/fleet/ServerSettings	DeferredSaveHost	bool
 github.com/fleetdm/fleet/v4/server/fleet/ServerSettings	QueryReportsDisabled	bool
 github.com/fleetdm/fleet/v4/server/fleet/ServerSettings	ScriptsDisabled	bool
+github.com/fleetdm/fleet/v4/server/fleet/ServerSettings	AIFeaturesDisabled	bool
+github.com/fleetdm/fleet/v4/server/fleet/ServerSettings	QueryReportCap	int
 github.com/fleetdm/fleet/v4/server/fleet/AppConfig	SMTPSettings	*fleet.SMTPSettings
 github.com/fleetdm/fleet/v4/server/fleet/SMTPSettings	SMTPEnabled	bool
 github.com/fleetdm/fleet/v4/server/fleet/SMTPSettings	SMTPConfigured	bool
@@ -28,6 +30,9 @@ github.com/fleetdm/fleet/v4/server/fleet/SMTPSettings	SMTPEnableStartTLS	bool
 github.com/fleetdm/fleet/v4/server/fleet/AppConfig	HostExpirySettings	fleet.HostExpirySettings
 github.com/fleetdm/fleet/v4/server/fleet/HostExpirySettings	HostExpiryEnabled	bool
 github.com/fleetdm/fleet/v4/server/fleet/HostExpirySettings	HostExpiryWindow	int
+github.com/fleetdm/fleet/v4/server/fleet/AppConfig	ActivityExpirySettings	fleet.ActivityExpirySettings
+github.com/fleetdm/fleet/v4/server/fleet/ActivityExpirySettings	ActivityExpiryEnabled	bool
+github.com/fleetdm/fleet/v4/server/fleet/ActivityExpirySettings	ActivityExpiryWindow	int
 github.com/fleetdm/fleet/v4/server/fleet/AppConfig	Features	fleet.Features
 github.com/fleetdm/fleet/v4/server/fleet/Features	EnableHostUsers	bool
 github.com/fleetdm/fleet/v4/server/fleet/Features	EnableSoftwareInventory	bool
@@ -53,6 +58,9 @@ github.com/fleetdm/fleet/v4/server/fleet/FleetDesktopSettings	TransparencyURL	st
 github.com/fleetdm/fleet/v4/server/fleet/AppConfig	VulnerabilitySettings	fleet.VulnerabilitySettings
 github.com/fleetdm/fleet/v4/server/fleet/VulnerabilitySettings	DatabasesPath	string
 github.com/fleetdm/fleet/v4/server/fleet/AppConfig	WebhookSettings	fleet.WebhookSettings
+github.com/fleetdm/fleet/v4/server/fleet/WebhookSettings	ActivitiesWebhook	fleet.ActivitiesWebhookSettings
+github.com/fleetdm/fleet/v4/server/fleet/ActivitiesWebhookSettings	Enable	bool
+github.com/fleetdm/fleet/v4/server/fleet/ActivitiesWebhookSettings	DestinationURL	string
 github.com/fleetdm/fleet/v4/server/fleet/WebhookSettings	HostStatusWebhook	fleet.HostStatusWebhookSettings
 github.com/fleetdm/fleet/v4/server/fleet/HostStatusWebhookSettings	Enable	bool
 github.com/fleetdm/fleet/v4/server/fleet/HostStatusWebhookSettings	DestinationURL	string
@@ -84,6 +92,9 @@ github.com/fleetdm/fleet/v4/server/fleet/ZendeskIntegration	APIToken	string
 github.com/fleetdm/fleet/v4/server/fleet/ZendeskIntegration	GroupID	int64
 github.com/fleetdm/fleet/v4/server/fleet/ZendeskIntegration	EnableFailingPolicies	bool
 github.com/fleetdm/fleet/v4/server/fleet/ZendeskIntegration	EnableSoftwareVulnerabilities	bool
+github.com/fleetdm/fleet/v4/server/fleet/Integrations	GoogleCalendar	[]*fleet.GoogleCalendarIntegration
+github.com/fleetdm/fleet/v4/server/fleet/GoogleCalendarIntegration	Domain	string
+github.com/fleetdm/fleet/v4/server/fleet/GoogleCalendarIntegration	ApiKey	map[string]string
 github.com/fleetdm/fleet/v4/server/fleet/AppConfig	MDM	fleet.MDM
 github.com/fleetdm/fleet/v4/server/fleet/MDM	AppleBMDefaultTeam	string
 github.com/fleetdm/fleet/v4/server/fleet/MDM	AppleBMEnabledAndConfigured	bool
@@ -105,11 +116,17 @@ github.com/fleetdm/fleet/v4/server/fleet/MDM	MacOSSettings	fleet.MacOSSettings
 github.com/fleetdm/fleet/v4/server/fleet/MacOSSettings	CustomSettings	[]fleet.MDMProfileSpec
 github.com/fleetdm/fleet/v4/server/fleet/MDMProfileSpec	Path	string
 github.com/fleetdm/fleet/v4/server/fleet/MDMProfileSpec	Labels	[]string
+github.com/fleetdm/fleet/v4/server/fleet/MDMProfileSpec	LabelsIncludeAll	[]string
+github.com/fleetdm/fleet/v4/server/fleet/MDMProfileSpec	LabelsExcludeAny	[]string
 github.com/fleetdm/fleet/v4/server/fleet/MacOSSettings	DeprecatedEnableDiskEncryption	*bool
 github.com/fleetdm/fleet/v4/server/fleet/MDM	MacOSSetup	fleet.MacOSSetup
 github.com/fleetdm/fleet/v4/server/fleet/MacOSSetup	BootstrapPackage	optjson.String
 github.com/fleetdm/fleet/v4/server/fleet/MacOSSetup	EnableEndUserAuthentication	bool
 github.com/fleetdm/fleet/v4/server/fleet/MacOSSetup	MacOSSetupAssistant	optjson.String
+github.com/fleetdm/fleet/v4/server/fleet/MacOSSetup	EnableReleaseDeviceManually	optjson.Bool
+github.com/fleetdm/fleet/v4/pkg/optjson/Bool	Set	bool
+github.com/fleetdm/fleet/v4/pkg/optjson/Bool	Valid	bool
+github.com/fleetdm/fleet/v4/pkg/optjson/Bool	Value	bool
 github.com/fleetdm/fleet/v4/server/fleet/MDM	MacOSMigration	fleet.MacOSMigration
 github.com/fleetdm/fleet/v4/server/fleet/MacOSMigration	Enable	bool
 github.com/fleetdm/fleet/v4/server/fleet/MacOSMigration	Mode	fleet.MacOSMigrationMode	string
@@ -118,9 +135,6 @@ github.com/fleetdm/fleet/v4/server/fleet/MDM	EndUserAuthentication	fleet.MDMEndU
 github.com/fleetdm/fleet/v4/server/fleet/MDMEndUserAuthentication	SSOProviderSettings	fleet.SSOProviderSettings
 github.com/fleetdm/fleet/v4/server/fleet/MDM	WindowsEnabledAndConfigured	bool
 github.com/fleetdm/fleet/v4/server/fleet/MDM	EnableDiskEncryption	optjson.Bool
-github.com/fleetdm/fleet/v4/pkg/optjson/Bool	Set	bool
-github.com/fleetdm/fleet/v4/pkg/optjson/Bool	Valid	bool
-github.com/fleetdm/fleet/v4/pkg/optjson/Bool	Value	bool
 github.com/fleetdm/fleet/v4/server/fleet/MDM	WindowsSettings	fleet.WindowsSettings
 github.com/fleetdm/fleet/v4/server/fleet/WindowsSettings	CustomSettings	optjson.Slice[github.com/fleetdm/fleet/v4/server/fleet.MDMProfileSpec]
 github.com/fleetdm/fleet/v4/pkg/optjson/Slice[github.com/fleetdm/fleet/v4/server/fleet.MDMProfileSpec]	Set	bool

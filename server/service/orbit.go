@@ -2,10 +2,12 @@ package service
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -15,7 +17,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/go-kit/kit/log/level"
+	"github.com/go-kit/log/level"
 )
 
 type setOrbitNodeKeyer interface {
@@ -181,19 +183,27 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 		return fleet.OrbitConfig{}, err
 	}
 
+	isConnectedToFleetMDM, err := svc.ds.IsHostConnectedToFleetMDM(ctx, host)
+	if err != nil {
+		return fleet.OrbitConfig{}, ctxerr.Wrap(ctx, err, "checking if host is connected to Fleet")
+	}
+
+	mdmInfo, err := svc.ds.GetHostMDM(ctx, host.ID)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return fleet.OrbitConfig{}, ctxerr.Wrap(ctx, err, "retrieving host mdm info")
+	}
+
 	// set the host's orbit notifications for macOS MDM
 	var notifs fleet.OrbitConfigNotifications
-	if appConfig.MDM.EnabledAndConfigured && host.IsOsqueryEnrolled() {
-		// TODO(mna): all those notifications implied a macos hosts, but none of
-		// the checks enforce that (only indirectly in some cases, like
-		// IsDEPAssignedToFleet), should we add such a platform check?
+	if appConfig.MDM.EnabledAndConfigured && host.IsOsqueryEnrolled() && host.Platform == "darwin" {
+		needsDEPEnrollment := mdmInfo != nil && !mdmInfo.Enrolled && host.IsDEPAssignedToFleet()
 
-		if host.NeedsDEPEnrollment() {
+		if needsDEPEnrollment {
 			notifs.RenewEnrollmentProfile = true
 		}
 
 		if appConfig.MDM.MacOSMigration.Enable &&
-			host.IsEligibleForDEPMigration() {
+			fleet.IsEligibleForDEPMigration(host, mdmInfo, isConnectedToFleetMDM) {
 			notifs.NeedsMDMMigration = true
 		}
 
@@ -210,7 +220,7 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 
 	// set the host's orbit notifications for Windows MDM
 	if appConfig.MDM.WindowsEnabledAndConfigured {
-		if host.IsEligibleForWindowsMDMEnrollment() {
+		if IsEligibleForWindowsMDMEnrollment(host, mdmInfo) {
 			discoURL, err := microsoft_mdm.ResolveWindowsMDMDiscovery(appConfig.ServerSettings.ServerURL)
 			if err != nil {
 				return fleet.OrbitConfig{}, err
@@ -220,7 +230,7 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 		}
 	}
 	if !appConfig.MDM.WindowsEnabledAndConfigured {
-		if host.IsEligibleForWindowsMDMUnenrollment() {
+		if host.IsEligibleForWindowsMDMUnenrollment(isConnectedToFleetMDM) {
 			notifs.NeedsProgrammaticWindowsMDMUnenrollment = true
 		}
 	}
@@ -238,6 +248,14 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 			}
 			notifs.PendingScriptExecutionIDs = execIDs
 		}
+	}
+
+	pendingInstalls, err := svc.ds.ListPendingSoftwareInstalls(ctx, host.ID)
+	if err != nil {
+		return fleet.OrbitConfig{}, err
+	}
+	if len(pendingInstalls) > 0 {
+		notifs.PendingSoftwareInstallerIDs = pendingInstalls
 	}
 
 	// team ID is not nil, get team specific flags and options
@@ -267,15 +285,32 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 		var nudgeConfig *fleet.NudgeConfig
 		if appConfig.MDM.EnabledAndConfigured &&
 			mdmConfig != nil &&
-			mdmConfig.MacOSUpdates.EnabledForHost(host) {
-			nudgeConfig, err = fleet.NewNudgeConfig(mdmConfig.MacOSUpdates)
+			host.IsOsqueryEnrolled() &&
+			isConnectedToFleetMDM &&
+			mdmConfig.MacOSUpdates.Configured() {
+
+			hostOS, err := svc.ds.GetHostOperatingSystem(ctx, host.ID)
+			if errors.Is(err, sql.ErrNoRows) {
+				// host os has not been collected yet (no details query)
+				hostOS = &fleet.OperatingSystem{}
+			} else if err != nil {
+				return fleet.OrbitConfig{}, err
+			}
+			requiresNudge, err := hostOS.RequiresNudge()
 			if err != nil {
 				return fleet.OrbitConfig{}, err
+			}
+
+			if requiresNudge {
+				nudgeConfig, err = fleet.NewNudgeConfig(mdmConfig.MacOSUpdates)
+				if err != nil {
+					return fleet.OrbitConfig{}, err
+				}
 			}
 		}
 
 		if mdmConfig.EnableDiskEncryption &&
-			host.IsEligibleForBitLockerEncryption() {
+			fleet.IsEligibleForBitLockerEncryption(host, mdmInfo, isConnectedToFleetMDM) {
 			notifs.EnforceBitLockerEncryption = true
 		}
 
@@ -312,16 +347,32 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 
 	var nudgeConfig *fleet.NudgeConfig
 	if appConfig.MDM.EnabledAndConfigured &&
-		appConfig.MDM.MacOSUpdates.EnabledForHost(host) {
-		nudgeConfig, err = fleet.NewNudgeConfig(appConfig.MDM.MacOSUpdates)
+		isConnectedToFleetMDM &&
+		host.IsOsqueryEnrolled() &&
+		appConfig.MDM.MacOSUpdates.Configured() {
+		hostOS, err := svc.ds.GetHostOperatingSystem(ctx, host.ID)
+		if errors.Is(err, sql.ErrNoRows) {
+			// host os has not been collected yet (no details query)
+			hostOS = &fleet.OperatingSystem{}
+		} else if err != nil {
+			return fleet.OrbitConfig{}, err
+		}
+		requiresNudge, err := hostOS.RequiresNudge()
 		if err != nil {
 			return fleet.OrbitConfig{}, err
+		}
+
+		if requiresNudge {
+			nudgeConfig, err = fleet.NewNudgeConfig(appConfig.MDM.MacOSUpdates)
+			if err != nil {
+				return fleet.OrbitConfig{}, err
+			}
 		}
 	}
 
 	if appConfig.MDM.WindowsEnabledAndConfigured &&
 		appConfig.MDM.EnableDiskEncryption.Value &&
-		host.IsEligibleForBitLockerEncryption() {
+		fleet.IsEligibleForBitLockerEncryption(host, mdmInfo, isConnectedToFleetMDM) {
 		notifs.EnforceBitLockerEncryption = true
 	}
 
@@ -445,6 +496,10 @@ func (svc *Service) SetOrUpdateDeviceAuthToken(ctx context.Context, deviceAuthTo
 
 	if len(deviceAuthToken) == 0 {
 		return badRequest("device auth token cannot be empty")
+	}
+
+	if url.QueryEscape(deviceAuthToken) != deviceAuthToken {
+		return badRequest("device auth token contains invalid characters")
 	}
 
 	host, ok := hostctx.FromContext(ctx)
@@ -588,7 +643,7 @@ func (svc *Service) SaveHostScriptResult(ctx context.Context, result *fleet.Host
 		}
 
 		// TODO(sarah): We may need to special case lock/unlock script results here?
-		if err := svc.ds.NewActivity(
+		if err := svc.NewActivity(
 			ctx,
 			user,
 			fleet.ActivityTypeRanScript{
@@ -686,7 +741,13 @@ func (svc *Service) SetOrUpdateDiskEncryptionKey(ctx context.Context, encryption
 	if !ok {
 		return newOsqueryError("internal error: missing host from request context")
 	}
-	if !host.MDMInfo.IsFleetEnrolled() {
+
+	connected, err := svc.ds.IsHostConnectedToFleetMDM(ctx, host)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "checking if host is connected to Fleet")
+	}
+
+	if !connected {
 		return badRequest("host is not enrolled with fleet")
 	}
 
@@ -715,5 +776,186 @@ func (svc *Service) SetOrUpdateDiskEncryptionKey(ctx context.Context, encryption
 		return ctxerr.Wrap(ctx, err, "set or update disk encryption key")
 	}
 
+	return nil
+}
+
+/////////////////////////////////////////////////////////////////////////////////
+// Get Orbit pending software installations
+/////////////////////////////////////////////////////////////////////////////////
+
+type orbitGetSoftwareInstallRequest struct {
+	OrbitNodeKey string `json:"orbot_node_key"`
+	InstallUUID  string `json:"install_uuid"`
+}
+
+// interface implementation required by the OrbitClient
+func (r *orbitGetSoftwareInstallRequest) setOrbitNodeKey(nodeKey string) {
+	r.OrbitNodeKey = nodeKey
+}
+
+// interface implementation required by the OrbitClient
+func (r *orbitGetSoftwareInstallRequest) orbitHostNodeKey() string {
+	return r.OrbitNodeKey
+}
+
+type orbitGetSoftwareInstallResponse struct {
+	Err error `json:"error,omitempty"`
+	*fleet.SoftwareInstallDetails
+}
+
+func (r orbitGetSoftwareInstallResponse) error() error { return r.Err }
+
+func getOrbitSoftwareInstallDetails(ctx context.Context, request any, svc fleet.Service) (errorer, error) {
+	req := request.(*orbitGetSoftwareInstallRequest)
+	details, err := svc.GetSoftwareInstallDetails(ctx, req.InstallUUID)
+	if err != nil {
+		return orbitGetSoftwareInstallResponse{Err: err}, nil
+	}
+
+	return orbitGetSoftwareInstallResponse{SoftwareInstallDetails: details}, nil
+}
+
+func (svc *Service) GetSoftwareInstallDetails(ctx context.Context, installUUID string) (*fleet.SoftwareInstallDetails, error) {
+	// this is not a user-authenticated endpoint
+	svc.authz.SkipAuthorization(ctx)
+
+	host, ok := hostctx.FromContext(ctx)
+	if !ok {
+		return nil, fleet.OrbitError{Message: "internal error: missing host from request context"}
+	}
+
+	details, err := svc.ds.GetSoftwareInstallDetails(ctx, installUUID)
+	if err != nil {
+		return nil, err
+	}
+
+	// ensure it cannot get access to a different host's installers
+	if details.HostID != host.ID {
+		return nil, ctxerr.Wrap(ctx, newNotFoundError(), "no installer found for this host")
+	}
+	return details, nil
+}
+
+// Download Orbit software installer request
+/////////////////////////////////////////////////////////////////////////////////
+
+type orbitDownloadSoftwareInstallerRequest struct {
+	Alt          string `query:"alt"`
+	OrbitNodeKey string `json:"orbit_node_key"`
+	InstallerID  uint   `json:"installer_id"`
+}
+
+// interface implementation required by the OrbitClient
+func (r *orbitDownloadSoftwareInstallerRequest) setOrbitNodeKey(nodeKey string) {
+	r.OrbitNodeKey = nodeKey
+}
+
+// interface implementation required by orbit authentication
+func (r *orbitDownloadSoftwareInstallerRequest) orbitHostNodeKey() string {
+	return r.OrbitNodeKey
+}
+
+func orbitDownloadSoftwareInstallerEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*orbitDownloadSoftwareInstallerRequest)
+
+	downloadRequested := req.Alt == "media"
+	if !downloadRequested {
+		// TODO: confirm error handling
+		return orbitDownloadSoftwareInstallerResponse{Err: &fleet.BadRequestError{Message: "only alt=media is supported"}}, nil
+	}
+
+	p, err := svc.OrbitDownloadSoftwareInstaller(ctx, req.InstallerID)
+	if err != nil {
+		return orbitDownloadSoftwareInstallerResponse{Err: err}, nil
+	}
+	return orbitDownloadSoftwareInstallerResponse{payload: p}, nil
+}
+
+func (svc *Service) OrbitDownloadSoftwareInstaller(ctx context.Context, installerID uint) (*fleet.DownloadSoftwareInstallerPayload, error) {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return nil, fleet.ErrMissingLicense
+}
+
+/////////////////////////////////////////////////////////////////////////////////
+// Post Orbit software install result
+/////////////////////////////////////////////////////////////////////////////////
+
+type orbitPostSoftwareInstallResultRequest struct {
+	OrbitNodeKey string `json:"orbit_node_key"`
+	*fleet.HostSoftwareInstallResultPayload
+}
+
+// interface implementation required by the OrbitClient
+func (r *orbitPostSoftwareInstallResultRequest) setOrbitNodeKey(nodeKey string) {
+	r.OrbitNodeKey = nodeKey
+}
+
+func (r *orbitPostSoftwareInstallResultRequest) orbitHostNodeKey() string {
+	return r.OrbitNodeKey
+}
+
+type orbitPostSoftwareInstallResultResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r orbitPostSoftwareInstallResultResponse) error() error { return r.Err }
+func (r orbitPostSoftwareInstallResultResponse) Status() int  { return http.StatusNoContent }
+
+func postOrbitSoftwareInstallResultEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*orbitPostSoftwareInstallResultRequest)
+	if err := svc.SaveHostSoftwareInstallResult(ctx, req.HostSoftwareInstallResultPayload); err != nil {
+		return orbitPostSoftwareInstallResultResponse{Err: err}, nil
+	}
+	return orbitPostSoftwareInstallResultResponse{}, nil
+}
+
+func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *fleet.HostSoftwareInstallResultPayload) error {
+	// this is not a user-authenticated endpoint
+	svc.authz.SkipAuthorization(ctx)
+
+	host, ok := hostctx.FromContext(ctx)
+	if !ok {
+		return newOsqueryError("internal error: missing host from request context")
+	}
+
+	// always use the authenticated host's ID as host_id
+	result.HostID = host.ID
+	if err := svc.ds.SetHostSoftwareInstallResult(ctx, result); err != nil {
+		return ctxerr.Wrap(ctx, err, "save host software installation result")
+	}
+
+	if status := result.Status(); status != fleet.SoftwareInstallerPending {
+		hsi, err := svc.ds.GetSoftwareInstallResults(ctx, result.InstallUUID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "get host software installation result information")
+		}
+
+		var user *fleet.User
+		if hsi.UserID != nil && !hsi.SelfService {
+			user, err = svc.ds.UserByID(ctx, *hsi.UserID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "get host software installation user")
+			}
+		}
+
+		if err := svc.NewActivity(
+			ctx,
+			user,
+			fleet.ActivityTypeInstalledSoftware{
+				HostID:          host.ID,
+				HostDisplayName: host.DisplayName(),
+				SoftwareTitle:   hsi.SoftwareTitle,
+				SoftwarePackage: hsi.SoftwarePackage,
+				InstallUUID:     result.InstallUUID,
+				Status:          string(status),
+				SelfService:     hsi.SelfService,
+			},
+		); err != nil {
+			return ctxerr.Wrap(ctx, err, "create activity for software installation")
+		}
+	}
 	return nil
 }

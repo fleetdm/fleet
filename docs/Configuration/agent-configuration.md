@@ -25,7 +25,7 @@ If you are not using the latest version of osquery, you can create a config YAML
 fleetctl apply --force -f config.yaml
 ```
 
-You can verify that your agent options are valid by using [the fleetctl apply command](https://fleetdm.com/docs/using-fleet/fleetctl-cli#fleetctl-apply) with the `--dry-run` flag. This will report any error and do nothing if the configuration was valid. If you don't use the latest version of osquery, you can override validation using the `--force` flag. This will update agent options even if they are invalid.
+You can verify that your agent options are valid by using [the `fleetctl apply` command](https://fleetdm.com/docs/using-fleet/fleetctl-cli) with the `--dry-run` flag. This will report any error and do nothing if the configuration was valid. If you don't use the latest version of osquery, you can override validation using the `--force` flag. This will update agent options even if they are invalid.
 
 Existing options will be overwritten by the application of this file.
 
@@ -132,7 +132,7 @@ apiVersion: v1
 kind: config
 spec:
   agent_options:
-    command_line_flags: # requires Fleet's osquery installer
+    command_line_flags: # requires Fleet's agent (fleetd)
       verbose: true
       disable_watchdog: false
       logger_path: /path/to/logger
@@ -144,7 +144,7 @@ You can verify that these flags have taken effect on the hosts by running a quer
 
 > If you revoked an old enroll secret, this feature won't update for hosts that were added to Fleet using this old enroll secret. This is because Fleetd uses the enroll secret to receive new flags from Fleet. For these hosts, all existing features will work as expected.
 
-For further documentation on how to rotate enroll secrets, please see [this guide](#rotating-enroll-secrets).
+For further documentation on how to rotate enroll secrets, please see [this guide](https://fleetdm.com/docs/configuration/configuration-files#rotating-enroll-secrets).
 
 If you prefer to deploy a new package with the updated enroll secret:
 
@@ -186,7 +186,7 @@ apiVersion: v1
 kind: config
 spec:
   agent_options:
-    extensions: # requires Fleet's osquery installer
+    extensions: # requires Fleet's agent (fleetd)
       hello_world_macos:
         channel: 'stable'
         platform: 'macos'
@@ -252,7 +252,7 @@ apiVersion: v1
 kind: config
 spec:
   agent_options:
-    extensions: # requires Fleet's osquery installer
+    extensions: # requires Fleet's agent (fleetd)
       hello_world_macos:
         channel: 'stable'
         platform: 'macos'
@@ -284,7 +284,7 @@ apiVersion: v1
 kind: config
 spec:
   agent_options:
-    update_channels: # requires Fleet's osquery installer
+    update_channels: # requires Fleet's agent (fleetd)
       orbit: stable
       osqueryd: '5.10.2'
       desktop: edge
@@ -294,7 +294,7 @@ apiVersion: v1
 kind: config
 spec:
   agent_options:
-    update_channels: # requires Fleet's osquery installer
+    update_channels: # requires Fleet's agent (fleetd)
       orbit: edge
       osqueryd: '5.10.2'
       # in this configuration `desktop` is assumed to be "stable"

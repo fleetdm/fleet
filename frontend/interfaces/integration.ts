@@ -60,7 +60,32 @@ export interface IIntegrationFormErrors {
   enableSoftwareVulnerabilities?: boolean;
 }
 
-export interface IIntegrations {
+export interface IGlobalCalendarIntegration {
+  domain: string;
+  api_key_json: string;
+}
+
+interface ITeamCalendarSettings {
+  enable_calendar_events: boolean;
+  webhook_url: string;
+}
+
+// zendesk and jira fields are coupled – if one is present, the other needs to be present. If
+// one is present and the other is null/missing, the other will be nullified. google_calendar is
+// separated – it can be present without the other 2 without nullifying them.
+// TODO:  Update these types to reflect this.
+
+export interface IZendeskJiraIntegrations {
   zendesk: IZendeskIntegration[];
   jira: IJiraIntegration[];
+}
+
+// reality is that IZendeskJiraIntegrations are optional – should be something like `extends
+// Partial<IZendeskJiraIntegrations>`, but that leads to a mess of types to resolve.
+export interface IGlobalIntegrations extends IZendeskJiraIntegrations {
+  google_calendar?: IGlobalCalendarIntegration[] | null;
+}
+
+export interface ITeamIntegrations extends IZendeskJiraIntegrations {
+  google_calendar?: ITeamCalendarSettings | null;
 }

@@ -16,6 +16,10 @@ func (c *Client) getRawBody(endpoint string) ([]byte, error) {
 	defer response.Body.Close()
 
 	if response.StatusCode != http.StatusOK {
+		body, err := io.ReadAll(response.Body)
+		if err == nil && len(body) > 0 {
+			return nil, fmt.Errorf("get %s received status %d: %s", endpoint, response.StatusCode, body)
+		}
 		return nil, fmt.Errorf("get %s received status %d", endpoint, response.StatusCode)
 	}
 

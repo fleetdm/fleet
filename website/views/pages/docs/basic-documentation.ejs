@@ -114,7 +114,7 @@
               </ul>
               <ul class="px-0 mb-0 pt-3" purpose="mobile-docs-nav-other-links">
                 <li class="px-0 mb-3"><a href="/tables">Data tables</a></li>
-                <li class="px-0 mb-3"><a href="/queries">Built-in queries</a></li>
+                <li class="px-0 mb-3"><a href="/queries"><%= ['eo-it', 'mdm'].includes(primaryBuyingSituation) ? 'Device health checks' : 'Built-in queries' %></a></li>
                 <li class="px-0 mb-3"><a href="https://github.com/fleetdm/fleet/releases" target="_blank">Releases</a></li>
                 <li class="px-0 mb-3"><a href="/support">Support</a></li>
               </ul>
@@ -152,12 +152,12 @@
               </div>
             </li>
           </ul>
-          <a class="pt-4 pb-3" target="_blank" href="https://fleetdm.com/tables">Data tables</a>
-          <a class="pb-3" target="_blank" href="https://fleetdm.com/queries">Built-in queries</a>
+          <a class="pt-4 pb-3" target="_blank" href="/tables">Data tables</a>
+          <a class="pb-3" target="_blank" href="/queries"><%= ['eo-it', 'mdm'].includes(primaryBuyingSituation) ? 'Device health checks' : 'Built-in queries' %></a>
           <a class="pb-3" target="_blank" href="https://github.com/fleetdm/fleet/releases">Releases</a>
-          <a class="pb-3" target="_blank" href="https://fleetdm.com/support">Support</a>
+          <a class="pb-3" target="_blank" href="/support">Support</a>
           <div class="d-none d-lg-block" purpose="swag-cta" v-if="showSwagForm">
-            <a class="d-flex align-items-center justify-content-center" href="https://kqphpqst851.typeform.com/to/ZfA3sOu0" target="_blank">
+            <a class="d-flex align-items-center justify-content-center" @click="clickSwagRequestCTA()">
               <div class="d-flex flex-column align-items-center">
               <img style="height: auto; width: 47px; margin-bottom: 8px;" alt="A very nice Fleet branded shirt" src="/images/fleet-shirt-60x55@2x.png">
                 <p class="mb-0">Request Fleet swag</p>
@@ -203,20 +203,27 @@
             )
           ) %>
 
-          <div class="d-block" purpose="slack-cta">
-            <h3 class="pt-0" style="font-size: 24px; line-height: 28px;">Need more help?</h3>
-            <div class="d-sm-flex">
-              <a href="/support" target="_blank" class="d-flex btn btn-md btn-outline-secondary justify-content-center align-items-center mt-3 mt-sm-0" purpose="next-steps-button">
-                <img class="pr-3" alt="Slack logo" src="/images/logo-slack-24x24@2x.png"/>
-                Ask the community on Slack
-              </a>
+          <div purpose="docs-start-cta" class="d-flex flex-column flex-sm-row justify-content-between">
+            <div purpose="docs-start-cta-image" class="col-sm-6 col-md-5 col-lg-6"></div>
+            <div purpose="docs-start-cta-content" class="d-flex flex-column justify-content-center text-center">
+              <% if(!me){ %>
+              <h2>Try it out</h2>
+              <p>See what Fleet can do</p>
+              <a purpose="continue-button" class="btn btn-primary" href="/register">Start now</a>
+              <% } else if (['2 - Aware', '3 - Intrigued', '4 - Has use case'].includes(me.psychologicalStage)) {%>
+              <h2>Tried Fleet yet?</h2>
+              <p>Continue getting started with Fleet</p>
+              <a purpose="continue-button" class="btn btn-primary" href="/start">Continue</a>
+              <% } else if (me.psychologicalStage === '5 - Personally confident') {%>
+              <h2>Feeling confident?</h2>
+              <p>Get set up with Fleet</p>
+              <a purpose="continue-button" class="btn btn-primary" href="/start">Continue</a>
+              <% } else if (me.psychologicalStage === '6 - Has team buy-in') {%>
+                <h2>Talk to the team</h2>
+                <p>Let’s get you set up!</p>
+                <a purpose="continue-button" class="btn btn-primary" href="/start">Continue</a>
+              <%}%>
             </div>
-          </div>
-          <div class="d-block" purpose="improve-docs">
-            <h3 class="pt-0 pb-4 m-0" style="font-size: 24px; line-height: 28px;">Did we miss anything?</h3>
-            <p>
-              If you notice something we've missed or could be improved on, please follow <a :href="'https://github.com/fleetdm/fleet/edit/main/docs/'+thisPage.sectionRelativeRepoPath" target="_blank">this link</a> and submit a pull request to the Fleet repo.
-            </p>
           </div>
 
         </div>

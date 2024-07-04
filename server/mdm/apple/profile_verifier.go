@@ -32,7 +32,7 @@ import (
 // - When host details are reported via osquery, the Fleet server ingests a list of installed
 //   profiles and compares the reported profiles with the list of profiles expected to be
 //   installed on the host. Expected profiles comprise the profiles that belong to the host's assigned
-//   team (or no  team, as applicable). If an expected profile is found, the verification status is
+//   team (or no team, as applicable). If an expected profile is found, the verification status is
 //   set to "verified". If an expected profile is missing from the reported results, the server determines
 //   if the profile should be retried (in which case, a new install profile command will be enqueued by the server)
 //   or marked as "failed" and updates the datastore accordingly.

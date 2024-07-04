@@ -23,13 +23,19 @@ module.exports = {
     // Get testimonials for the <scrolalble-tweets> component.
     let testimonialsForScrollableTweets = _.clone(sails.config.builtStaticContent.testimonials);
 
-    // Filter the testimonials by product category
-    testimonialsForScrollableTweets = _.filter(testimonialsForScrollableTweets, (testimonial)=>{
-      return _.contains(testimonial.productCategories, 'Endpoint operations');
-    });
 
     // Specify an order for the testimonials on this page using the last names of quote authors
-    let testimonialOrderForThisPage = ['Charles Zaffery','Dan Grzelak','Nico Waisman','Tom Larkin','Austin Anderson','Erik Gomez','Nick Fohs','Brendan Shaklovitz','Mike Arpaia','Andre Shields','Dhruv Majumdar','Ahmed Elshaer','Abubakar Yousafzai','Harrison Ravazzolo','Wes Whetstone','Kenny Botelho', 'Chandra Majumdar'];
+    let testimonialOrderForThisPage = ['Charles Zaffery','Dan Grzelak','Nico Waisman','Tom Larkin','Austin Anderson','Erik Gomez','Nick Fohs','Brendan Shaklovitz','Mike Arpaia','Andre Shields','Dhruv Majumdar','Ahmed Elshaer','Abubakar Yousafzai','Harrison Ravazzolo','Wes Whetstone','Kenny Botelho', 'Chandra Majumdar','Eric Tan'];
+    if(['eo-it', 'mdm'].includes(this.req.session.primaryBuyingSituation)){
+      testimonialOrderForThisPage = [ 'Harrison Ravazzolo', 'Eric Tan','Erik Gomez', 'Tom Larkin', 'Nick Fohs', 'Wes Whetstone', 'Mike Arpaia', 'Kenny Botelho'];
+    } else if(['eo-security', 'vm'].includes(this.req.session.primaryBuyingSituation)){
+      testimonialOrderForThisPage = ['Nico Waisman','Charles Zaffery','Abubakar Yousafzai','Eric Tan','Mike Arpaia','Chandra Majumdar','Ahmed Elshaer','Brendan Shaklovitz','Austin Anderson','Dan Grzelak','Dhruv Majumdar'];
+    }
+    // Filter the testimonials by product category and the filtered list we built above.
+    testimonialsForScrollableTweets = _.filter(testimonialsForScrollableTweets, (testimonial)=>{
+      return _.contains(testimonial.productCategories, 'Endpoint operations') && _.contains(testimonialOrderForThisPage, testimonial.quoteAuthorName);
+    });
+
     testimonialsForScrollableTweets.sort((a, b)=>{
       if(testimonialOrderForThisPage.indexOf(a.quoteAuthorName) === -1){
         return 1;

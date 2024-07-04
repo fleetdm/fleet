@@ -5,7 +5,12 @@ import { InjectedRouter, Params } from "react-router/lib/Router";
 
 import { AppContext } from "context/app";
 import { QueryContext } from "context/query";
-import { DEFAULT_QUERY, DOCUMENT_TITLE_SUFFIX } from "utilities/constants";
+import {
+  DEFAULT_QUERY,
+  DOCUMENT_TITLE_SUFFIX,
+  INVALID_PLATFORMS_FLASH_MESSAGE,
+  INVALID_PLATFORMS_REASON,
+} from "utilities/constants";
 import configAPI from "services/entities/config";
 import queryAPI from "services/entities/queries";
 import statusAPI from "services/entities/status";
@@ -14,11 +19,15 @@ import {
   ICreateQueryRequestBody,
   ISchedulableQuery,
 } from "interfaces/schedulable_query";
+import { IConfig } from "interfaces/config";
+import { getErrorReason } from "interfaces/errors";
 
 import QuerySidePanel from "components/side_panels/QuerySidePanel";
 import MainContent from "components/MainContent";
 import SidePanelContent from "components/SidePanelContent";
 import CustomLink from "components/CustomLink";
+import BackLink from "components/BackLink";
+import InfoBanner from "components/InfoBanner";
 
 import useTeamIdParam from "hooks/useTeamIdParam";
 
@@ -27,17 +36,16 @@ import { NotificationContext } from "context/notification";
 import PATHS from "router/paths";
 import debounce from "utilities/debounce";
 import deepDifference from "utilities/deep_difference";
+import { buildQueryStringFromParams } from "utilities/url";
 
-import BackLink from "components/BackLink";
-import EditQueryForm from "pages/queries/edit/components/EditQueryForm";
-import { IConfig } from "interfaces/config";
+import EditQueryForm from "./components/EditQueryForm";
 
 interface IEditQueryPageProps {
   router: InjectedRouter;
   params: Params;
   location: {
     pathname: string;
-    query: { host_ids: string; team_id?: string };
+    query: { host_id: string; team_id?: string };
     search: string;
   };
 }
@@ -50,9 +58,11 @@ const EditQueryPage = ({
   location,
 }: IEditQueryPageProps): JSX.Element => {
   const queryId = paramsQueryId ? parseInt(paramsQueryId, 10) : null;
+
   const {
     currentTeamName: teamNameForQuery,
     teamIdForApi: apiTeamIdForQuery,
+    currentTeamId,
   } = useTeamIdParam({
     location,
     router,
@@ -69,6 +79,8 @@ const EditQueryPage = ({
     isObserverPlus,
     isAnyTeamObserverPlus,
     config,
+    filteredQueriesPath,
+    isOnGlobalTeam,
   } = useContext(AppContext);
   const {
     editingExistingQuery,
@@ -147,6 +159,24 @@ const EditQueryPage = ({
     }
   );
 
+  /** Pesky bug affecting team level users:
+   - Navigating to queries/:id immediately defaults the user to the first team they're on
+  with the most permissions, in the URL bar because of useTeamIdParam
+  even if the queries/:id entity has a team attached to it
+  Hacky fix:
+   - Push entity's team id to url for team level users
+  */
+  if (
+    !isOnGlobalTeam &&
+    !isStoredQueryLoading &&
+    storedQuery?.team_id &&
+    !(storedQuery?.team_id?.toString() === location.query.team_id)
+  ) {
+    router.push(
+      `${location.pathname}?team_id=${storedQuery?.team_id?.toString()}`
+    );
+  }
+
   // Used to set host's team in AppContext for RBAC actions
   useEffect(() => {
     if (storedQuery?.team_id) {
@@ -164,10 +194,13 @@ const EditQueryPage = ({
   };
 
   /* Observer/Observer+ cannot edit existing query (O+ has access to edit new query to run live),
+  Team admin/team maintainer cannot edit existing query,
  reroute edit existing query page (/:queryId/edit) to query report page (/:queryId) */
   useEffect(() => {
     const canEditExistingQuery =
-      isGlobalAdmin || isGlobalMaintainer || isTeamMaintainerOrTeamAdmin;
+      isGlobalAdmin ||
+      isGlobalMaintainer ||
+      (isTeamMaintainerOrTeamAdmin && storedQuery?.team_id);
 
     if (
       !isStoredQueryLoading && // Confirms teamId for storedQuery before RBAC reroute
@@ -224,7 +257,7 @@ const EditQueryPage = ({
         renderFlash("success", "Query created!");
         setBackendValidators({});
       } catch (createError: any) {
-        if (createError.data.errors[0].reason.includes("already exists")) {
+        if (getErrorReason(createError).includes("already exists")) {
           const teamErrorText =
             teamNameForQuery && apiTeamIdForQuery !== 0
               ? `the ${teamNameForQuery} team`
@@ -270,8 +303,11 @@ const EditQueryPage = ({
       refetchStoredQuery(); // Required to compare recently saved query to a subsequent save to the query
     } catch (updateError: any) {
       console.error(updateError);
-      if (updateError.data.errors[0].reason.includes("Duplicate")) {
+      const reason = getErrorReason(updateError);
+      if (reason.includes("Duplicate")) {
         renderFlash("error", "A query with this name already exists.");
+      } else if (reason.includes(INVALID_PLATFORMS_REASON)) {
+        renderFlash("error", INVALID_PLATFORMS_FLASH_MESSAGE);
       } else {
         renderFlash(
           "error",
@@ -304,25 +340,29 @@ const EditQueryPage = ({
     }
 
     return (
-      <div className={`${baseClass}__warning`}>
-        <div className={`${baseClass}__message`}>
-          <p>
-            Fleet is unable to run a live query. Refresh the page or log in
-            again. If this keeps happening please{" "}
-            <CustomLink
-              url="https://github.com/fleetdm/fleet/issues/new/choose"
-              text="file an issue"
-              newTab
-            />
-          </p>
-        </div>
-      </div>
+      <InfoBanner color="yellow">
+        Fleet is unable to run a live query. Refresh the page or log in again.
+        If this keeps happening please{" "}
+        <CustomLink
+          url="https://github.com/fleetdm/fleet/issues/new/choose"
+          text="file an issue"
+          newTab
+        />
+      </InfoBanner>
     );
   };
 
   // Function instead of constant eliminates race condition
   const backToQueriesPath = () => {
-    return queryId ? PATHS.QUERY_DETAILS(queryId) : PATHS.MANAGE_QUERIES;
+    const manageQueryPage =
+      filteredQueriesPath ||
+      `${PATHS.MANAGE_QUERIES}?${buildQueryStringFromParams({
+        team_id: currentTeamId,
+      })}`;
+
+    return queryId
+      ? PATHS.QUERY_DETAILS(queryId, currentTeamId)
+      : manageQueryPage;
   };
 
   const showSidebar =
@@ -351,6 +391,7 @@ const EditQueryPage = ({
             storedQuery={storedQuery}
             queryIdForEdit={queryId}
             apiTeamIdForQuery={apiTeamIdForQuery}
+            currentTeamId={currentTeamId}
             teamNameForQuery={teamNameForQuery}
             isStoredQueryLoading={isStoredQueryLoading}
             showOpenSchemaActionText={showOpenSchemaActionText}
@@ -359,7 +400,7 @@ const EditQueryPage = ({
             backendValidators={backendValidators}
             isQuerySaving={isQuerySaving}
             isQueryUpdating={isQueryUpdating}
-            hostId={parseInt(location.query.host_ids as string, 10)}
+            hostId={parseInt(location.query.host_id as string, 10)}
             queryReportsDisabled={
               appConfig?.server_settings.query_reports_disabled
             }

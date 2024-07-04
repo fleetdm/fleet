@@ -10,6 +10,32 @@
   text-align: center;
   gap: $pad-small;
 
+  // when the file preview is showing, we want the padding to be
+  // slightly smaller on the top and bottom.
+  &__file-preview {
+    padding: $pad-medium $pad-large;
+  }
+
+  &__selected-file {
+    display: flex;
+    gap: $pad-medium;
+    align-items: center;
+    width: 100%;
+    text-align: left;
+
+    &--details {
+      &--name {
+        font-size: $x-small;
+        font-weight: $bold;
+      }
+
+      &--platform {
+        font-size: $xx-small;
+        color: $ui-fleet-black-75;
+      }
+    }
+  }
+
   &__graphics {
     display: flex;
     align-items: center;
@@ -30,15 +56,16 @@
 
   &__upload-button {
     margin-top: 8px;
+    // we handle the padding in the label so the entire button is clickable
     padding: 0;
   }
 
   label {
-    height: 36px;
-    width: 78.2667px;
+    padding: $pad-small $pad-medium;
     display: flex;
     align-items: center;
     justify-content: center;
+    gap: $pad-small;
 
     &:hover {
       cursor: pointer;

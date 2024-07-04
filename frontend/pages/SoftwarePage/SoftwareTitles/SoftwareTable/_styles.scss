@@ -1,10 +1,4 @@
 .software-table {
-  &__count {
-    display: flex;
-    gap: 12px;
-    align-items: center;
-  }
-
   &__vuln_dropdown {
     .Select-menu-outer {
       width: 250px;
@@ -39,7 +33,6 @@
   .table-container {
     &__header {
       flex-direction: column-reverse; // Search bar on top
-      margin-bottom: $pad-medium;
 
       @media (min-width: $table-controls-break) {
         flex-direction: row;
@@ -124,12 +117,6 @@
               }
             }
 
-            .link-cell {
-              display: flex;
-              align-items: center;
-              gap: $pad-small;
-            }
-
             .hosts_count__cell {
               .hosts-cell__wrapper {
                 display: flex;
@@ -164,6 +151,12 @@
   .data-table {
     &__wrapper {
       overflow-x: auto;
+    }
+  }
+  .view-all-hosts {
+    &__cell {
+      display: flex;
+      justify-content: flex-end;
     }
   }
 }

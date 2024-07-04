@@ -178,15 +178,25 @@ func testQueriesDelete(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.NotNil(t, query)
 	assert.NotEqual(t, query.ID, 0)
+	lastExecuted := time.Now().Add(-time.Hour).Round(time.Second) // TIMESTAMP precision is seconds by default in MySQL
 	err = ds.UpdateLiveQueryStats(
 		context.Background(), query.ID, []*fleet.LiveQueryStats{
 			{
-				HostID:     hostID,
-				Executions: 1,
+				HostID:       hostID,
+				Executions:   1,
+				LastExecuted: lastExecuted,
 			},
 		},
 	)
 	require.NoError(t, err)
+	// Check that the stats were saved correctly
+	stats, err := ds.GetLiveQueryStats(context.Background(), query.ID, []uint{hostID})
+	require.NoError(t, err)
+	require.Len(t, stats, 1)
+	assert.Equal(t, hostID, stats[0].HostID)
+	assert.Equal(t, uint64(1), stats[0].Executions)
+	assert.Equal(t, lastExecuted.UTC(), stats[0].LastExecuted.UTC())
+
 	err = ds.CalculateAggregatedPerfStatsPercentiles(context.Background(), fleet.AggregatedStatsTypeScheduledQuery, query.ID)
 	require.NoError(t, err)
 
@@ -219,7 +229,6 @@ func testQueriesDelete(t *testing.T, ds *Datastore) {
 	case <-time.After(10 * time.Second):
 		t.Error("Timeout: stats not deleted for testQueriesDelete")
 	}
-
 }
 
 func testQueriesGetByName(t *testing.T, ds *Datastore) {
@@ -765,6 +774,27 @@ func testListQueriesFiltersByTeamID(t *testing.T, ds *Datastore) {
 	)
 	require.NoError(t, err)
 	test.QueryElementsMatch(t, queries, []*fleet.Query{teamQ1, teamQ2, teamQ3})
+
+	// test merge inherited
+	queries, err = ds.ListQueries(
+		context.Background(),
+		fleet.ListQueryOptions{
+			TeamID:         &team.ID,
+			MergeInherited: true,
+		},
+	)
+	require.NoError(t, err)
+	test.QueryElementsMatch(t, queries, []*fleet.Query{globalQ1, globalQ2, globalQ3, teamQ1, teamQ2, teamQ3})
+
+	// merge inherited ignored for global queries
+	queries, err = ds.ListQueries(
+		context.Background(),
+		fleet.ListQueryOptions{
+			MergeInherited: true,
+		},
+	)
+	require.NoError(t, err)
+	test.QueryElementsMatch(t, queries, []*fleet.Query{globalQ1, globalQ2, globalQ3})
 }
 
 func testListQueriesFiltersByIsScheduled(t *testing.T, ds *Datastore) {

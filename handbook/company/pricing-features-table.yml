@@ -18,21 +18,33 @@
       moreInfoUrl: https://play.goconsensus.com/s4e490bb9
   buzzwords: [Device trust,Zero trust,Layer 7 device trust,Beyondcorp,Device attestation,Conditional access]
   waysToUse:
-    - description: Create a calendar event and auto-remediate all failing policies when users are free. Coming soon (2024-04-01).
-      moreInfoUrl: https://github.com/fleetdm/fleet/issues/17230
     - description: Automatically manage the behavior of endpoints that are at higher risk of vulnerabilities or data loss due to their configuration or patch level.
     - description: Block access to corporate apps for users whose devices with unexpected settings, like disabled screen lock, passwords that are too short, unencrypted hard disks, and more
     - description: Quickly implement conditional access based on device health using osquery and a simple device health REST API.
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/14920
     - description: Control and restore access to applications by automatically restricting access when devices do not meet particular security requirements.
       moreInfoUrl: https://duo.com/docs/device-health
-    - description: Control which laptop and desktop devices can access corporate apps and websites based on what vulnerabilities it might be exposed to based on how the device is configured, whether it's up to date, its MDM enrollment status, and anything else you can build in a SQL query of Fleet's 300 data tables representing information about enrolled host systems.
+    - description: Control which laptop and desktop devices can access corporate apps and websites based on what vulnerabilities it might be exposed to based on how the device is configured, whether it's up to date, its MDM enrollment status, and anything else you can build in a SQL query of Fleet's 300 data tables representing information about enrolled host systems. Coming soon (2024-09-30).
+      moreInfoUrl: https://github.com/fleetdm/fleet/issues/16236
     - description: Implement multivariate device trust
       moreInfoUrl: https://youtu.be/5sFOdpMLXQg?feature=shared&t=1445
     - description: Implement your own version of Google's zero trust model (BeyondCorp)
       moreInfoUrl: https://cloud.google.com/beyondcorp
     - description: Get endpoint data into ServiceNow and make your asset management teams happy
       moreInfoUrl: https://www.youtube.com/watch?v=aVbU6_9JoM0
+- industryName: Maintenance windows
+  friendlyName: Fleet in your calendar
+  description: Create a calendar event to auto-remediate failing policies when your end users are free.
+  documentationUrl: https://github.com/fleetdm/fleet/issues/17230
+  tier: Premium
+  productCategories: [Endpoint operations]
+  pricingTableCategories: [Endpoint operations]
+- industryName: AI-generated descriptions
+  description: Use AI to explain why your security policies matter.
+  documentationUrl: https://github.com/fleetdm/fleet/issues/18187
+  tier: Free
+  productCategories: [Endpoint operations]
+  pricingTableCategories: [Endpoint operations]
 #
 #  ╔═╗╔═╗╦═╗╦╔═╗╔╦╗  ╔═╗═╗ ╦╔═╗╔═╗╦ ╦╔╦╗╦╔═╗╔╗╔
 #  ╚═╗║  ╠╦╝║╠═╝ ║   ║╣ ╔╩╦╝║╣ ║  ║ ║ ║ ║║ ║║║║
@@ -195,8 +207,8 @@
 #  ║║║╠═╣║  ║║║╠═╣╠╦╝║╣    ║║║╣  ║ ║╣ ║   ║ ║║ ║║║║  │ ╚╦╝╠═╣╠╦╝╠═╣ │
 #  ╩ ╩╩ ╩╩═╝╚╩╝╩ ╩╩╚═╚═╝  ═╩╝╚═╝ ╩ ╚═╝╚═╝ ╩ ╩╚═╝╝╚╝  └─ ╩ ╩ ╩╩╚═╩ ╩─┘
 - industryName: Malware detection (YARA/custom IoCs)  # TODO: consider: technically more than YARA, consider generalizing this and including the concept of comparing known binary hashes and other IoCs (either via live query or in the data lake to compare threat intel feed)
-  friendlyName: Scan files for malware signatures
-  description: Report and trigger automations when malware or other unexpected files are detected on a host using YARA signatures.
+  friendlyName: Scan files for zero days and malware signatures
+  description: Use YARA signatures to report and trigger automations when zero days, malware, or unexpected files are detected on a host.
   documentationUrl: https://fleetdm.com/tables/yara
   tier: Free
   dri: mikermcneil
@@ -343,7 +355,7 @@
 #   ╚╝ ╩ ╩╩╚═╩╩ ╩╚═╝╩═╝╚═╝  ╚═╝╝╚╝╩╚═╚═╝╩═╝╩═╝╩ ╩╚═╝╝╚╝ ╩
 - industryName: Variable enrollment
   description: Enroll hosts in different groups using different enrollment secrets and/or installers per-baseline.
-  documentationUrl: https://fleetdm.com/docs/configuration/configuration-files#teams 
+  documentationUrl: https://fleetdm.com/docs/using-fleet/segment-hosts
   tier: Premium
   productCategories: [Endpoint operations, Device management]
   pricingTableCategories: [Endpoint operations]
@@ -435,8 +447,7 @@
 - industryName: GitOps
   friendlyName: Manage endpoints in git
   documentationUrl: https://github.com/fleetdm/fleet-gitops
-  description: Fork the best practices repo and use the GitHub Action to hook it up to your Fleet instance in minutes. Coming soon (2024-03-31)
-  moreInfoUrl: https://github.com/fleetdm/fleet/issues/13643
+  description: Fork the best practices repo and use the GitHub Action to hook it up to your Fleet instance in minutes.
   productCategories: [Endpoint operations,Device management,Vulnerability management]
   pricingTableCategories: [Deployment]
   usualDepartment: IT
@@ -547,11 +558,12 @@
   waysToUse:
     - description: Deploy configuration profiles on macOS and Windows and verify that they're installed.
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/13281
-    - description: Deploy custom declaration (DDM) profiles on macOS. Coming soon (2024-03-31).
+    - description: Deploy custom declaration (DDM) profiles on macOS.
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/14550
-    - description: Target profiles to specific hosts using SQL.
-      moreInfoUrl: https://github.com/fleetdm/fleet/issues/14715
+    - description: Target profiles to specific hosts using SQL. Exclusions coming soon (2024-07-15) #customer-rosner
+      moreInfoUrl: https://github.com/fleetdm/fleet/issues/17315
     - description: Automatically re-deploy configuration profiles when they're not installed.
+    - description: Deploy configuration profiles on iOS/iPadOS. Coming soon (2024-07-15).
   productCategories: [Device management]
   pricingTableCategories: [Device management]
 - industryName: Self service
@@ -559,23 +571,29 @@
   documentationUrl: https://fleetdm.com/docs/using-fleet/fleet-desktop
   tier: Premium
   usualDepartment: IT
-  productCategories: [Device management]
+  productCategories: [Device management, Vulnerability management]
   pricingTableCategories: [Device management]
+  waysToUse:
+    - description: Send software vulnerability emails to end users to encourage self-remediation.
 - industryName: User-initiated enrollment of macOS computers
   documentationUrl: https://fleetdm.com/docs/using-fleet/mdm-migration-guide#migrate-manually-enrolled-hosts
   tier: Free
   usualDepartment: IT
   productCategories: [Device management]
   pricingTableCategories: [Device management]
-- industryName: Low-level MDM commands for macOS and Windows (e.g. remote restart)
+  waysToUse:
+    - description: Support ACME as a protocol for MDM certificate generation. Coming soon (2024-12-31) #customer-rosner
+      moreInfoUrl: https://github.com/fleetdm/fleet/issues/15611 
+- industryName: Low-level MDM commands for macOS, iOS/iPadOS*, and Windows (e.g. remote restart)
   documentationUrl: https://fleetdm.com/docs/using-fleet/mdm-commands
   tier: Free
   usualDepartment: IT
   productCategories: [Device management]
   pricingTableCategories: [Device management]
   waysToUse:
-    - description: See a list of the upcoming MDM commands and scripts in unified queue. Coming soon (2024-03-31)
+    - description: See a list of the upcoming MDM commands and scripts in unified queue. Coming soon (2024-07-15)
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/15920
+    - description: MDM commands for iOS/iPadOS are coming soon (2024-07-15).
 - industryName: Native macOS update reminders
   description: Send low-level MDM commands to tell end users to update their OS.
   moreInfoUrl: https://developer.apple.com/documentation/devicemanagement/schedule_an_os_update
@@ -583,13 +601,14 @@
   usualDepartment: IT
   productCategories: [Device management]
   pricingTableCategories: [Device management]
-- industryName: Zero-touch setup for macOS computers
+- industryName: Zero-touch setup for macOS, iOS/iPadOS*, and Windows
   documentationUrl: https://fleetdm.com/docs/using-fleet/mdm-macos-setup-experience
   tier: Premium
   usualDepartment: IT
   productCategories: [Device management]
   pricingTableCategories: [Device management]
   waysToUse:
+    - description: Zero-touch for iOS/iPadOS is coming soon (2024-07-15).
     - description: Ship a macOS workstation to the end user's home and have them automatically enroll to Fleet during out-of-the-box setup.
     - description: Ship a Windows workstation to the end user's home and have them automatically enroll to Fleet during out-of-the-box setup.
     - description: Customize the out-of-the-box setup experience for your end users.
@@ -602,13 +621,15 @@
   pricingTableCategories: [Device management]
   waysToUse:
     - description: Enforce macOS updates via Nudge.
+    - description: Progressively enhance from Nudge to DDM-based OS updates.
+      moreInfoUrl: https://github.com/fleetdm/fleet/issues/17295
     - description: Automatically update Windows after the end user reaches a deadline.
 - industryName: Cross-platform remote lock and wipe
   documentationUrl: https://fleetdm.com/docs/using-fleet/mdm-commands
   waysToUse:
-    - description: High-level remote lock for macOS, Windows, and Linux. Coming soon (2024-03-31)
+    - description: High-level remote lock for macOS, Windows, and Linux.
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/9949
-    - description: High-level remote wipe for macOS, Windows, and Linux. Coming soon (2024-03-31)
+    - description: High-level remote wipe for macOS, Windows, and Linux.
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/9951
   tier: Premium
   usualDepartment: IT
@@ -616,13 +637,41 @@
   pricingTableCategories: [Device management]
 - industryName: Deploy security agents on macOS, Windows, and Linux computers.
   documentationUrl: https://github.com/fleetdm/fleet/issues/14921
-  description:
+  description: Easily configure and install SentinelOne, Crowdstrike, and other security tools.
   moreInfoUrl: https://github.com/fleetdm/fleet/issues/14921
   tier: Premium
-  comingSoonOn: 2024-04-22 #customer-reedtimmer,customer-flacourtia 
   usualDepartment: IT
   productCategories: [Device management]
   pricingTableCategories: [Device management]
+- industryName: Update apps on macOS, Windows, and Linux computers.
+  description: Update Zoom, Slack, Chrome, and other apps without interrupting your end users.
+  tier: Premium
+  comingSoonOn: 2024-07-15
+  usualDepartment: IT
+  productCategories: [Device management]
+  pricingTableCategories: [Device management]
+  moreInfoUrl: https://github.com/fleetdm/fleet/issues/18865
+- industryName: Self-service portal for users to install apps
+  description: Add optional apps for your end users through Fleet Desktop (for macOS, Windows, and Linux).
+  tier: Premium
+  comingSoonOn: 2024-06-30
+  usualDepartment: IT
+  productCategories: [Device management]
+  pricingTableCategories: [Device management]
+  moreInfoUrl: https://github.com/fleetdm/fleet/issues/17587
+- industryName: Install Apple App Store apps through Volume Purchasing Program (VPP).
+  description: Offer licenses for Photoshop and other App Sore apps for your end users.
+  tier: Premium
+  comingSoonOn: 2024-08-11
+  waysToUse:
+    - description: macOS coming soon (2024-07-15). #customer-rosner
+      moreInfoUrl: https://github.com/fleetdm/fleet/issues/18867
+    - description: iOS/iPadOS coming soon (2024-08-11).
+      moreInfoUrl: https://github.com/fleetdm/fleet/issues/14899
+  usualDepartment: IT
+  productCategories: [Device management]
+  pricingTableCategories: [Device management]
+  moreInfoUrl: https://github.com/fleetdm/fleet/issues/18867
 - industryName: Puppet module
   documentationUrl: https://fleetdm.com/docs/using-fleet/puppet-module
   friendlyName: Map macOS settings to computers with Puppet module
@@ -666,7 +715,7 @@
   pricingTableCategories: [Endpoint operations]
   tier: Free
 - industryName: Labels (SQL-driven)
-  documentationUrl: https://fleetdm.com/docs/configuration/configuration-files#labels
+  documentationUrl: https://fleetdm.com/docs/rest-api/rest-api#add-label
   friendlyName: Filter hosts using SQL
   productCategories: [Endpoint operations,Device management,Vulnerability management]
   pricingTableCategories: [Endpoint operations]
@@ -690,7 +739,7 @@
   waysToUse:
     - description: Automate remediation for different applications with different security postures (cloud security engineering)
 - industryName: Generate reports for groups of devices
-  documentationUrl: https://fleetdm.com/docs/configuration/configuration-files#server-settings-query-reports-disabled
+  documentationUrl: https://fleetdm.com/docs/rest-api/rest-api#get-query-report
   productCategories: [Endpoint operations,Device management,Vulnerability management]
   pricingTableCategories: [Endpoint operations]
   usualDepartment: IT
@@ -715,6 +764,15 @@
   pricingTableCategories: [Endpoint operations]
   usualDepartment: IT
   tier: Free
+- industryName: Two-factor authentication
+  moreInfoUrl: https://github.com/fleetdm/fleet/issues/5478
+  productCategories: [Endpoint operations,Device management,Vulnerability management]
+  pricingTableCategories: [Endpoint operations]
+  usualDepartment: IT
+  tier: Free
+  waysToUse:
+    - description: Enforce two-factor authentication when logging in to Fleet for added security.
+  comingSoonOn: 2024-12-31 #customer-rosner
 - industryName: Disk encryption
   documentationURL: https://fleetdm.com/docs/using-fleet/mdm-disk-encryption
   friendlyName: Ensure hard disks are encrypted
@@ -747,6 +805,13 @@
   pricingTableCategories: [Endpoint operations]
   usualDepartment: IT
   tier: Premium
+- industryName: System for Cross-domain Identity Management (SCIM) provisioning
+  moreInfoUrl: https://github.com/fleetdm/fleet/issues/15671
+  productCategories: [Endpoint operations,Device management,Vulnerability management]
+  pricingTableCategories: [Endpoint operations]
+  usualDepartment: IT
+  tier: Premium
+  comingSoonOn: 2024-12-31 #customer-rosner
 - industryName: Automated user role sync via Okta, AD, or any IDP
   documentationUrl:
   productCategories: [Endpoint operations,Device management,Vulnerability management]
@@ -756,11 +821,11 @@
   waysToUse:
     - description: Automatically set admin access to Fleet based on your IDP
 - industryName: Trigger a workflow based on a failing policy
-  documentationUrl: https://fleetdm.com/docs/using-fleet/automations#automations
+  documentationUrl: https://fleetdm.com/docs/using-fleet/automations#policy-automations
   productCategories: [Endpoint operations,Device management]
   pricingTableCategories: [Integrations]
   usualDepartment: IT
-  tier: Premium
+  tier: Free
 - industryName: Role-based access control
   documentationUrl: https://fleetdm.com/docs/using-fleet/manage-access#manage-access
   productCategories: [Endpoint operations,Device management,Vulnerability management]
@@ -770,19 +835,26 @@
 #   ╦═╗╦╔═╗╦╔═   ╔╗ ╔═╗╔═╗╔═╗╔╦╗  ╦  ╦╦ ╦╦  ╔╗╔╔═╗╦═╗╔═╗╔╗ ╦╦  ╦╔╦╗╦ ╦  ╔╦╗╔═╗╔╗╔╔═╗╔═╗╔═╗╔╦╗╔═╗╔╗╔╔╦╗
 #   ╠╦╝║╚═╗╠╩╗───╠╩╗╠═╣╚═╗║╣  ║║  ╚╗╔╝║ ║║  ║║║║╣ ╠╦╝╠═╣╠╩╗║║  ║ ║ ╚╦╝  ║║║╠═╣║║║╠═╣║ ╦║╣ ║║║║╣ ║║║ ║ 
 #   ╩╚═╩╚═╝╩ ╩   ╚═╝╩ ╩╚═╝╚═╝═╩╝   ╚╝ ╚═╝╩═╝╝╚╝╚═╝╩╚═╩ ╩╚═╝╩╩═╝╩ ╩  ╩   ╩ ╩╩ ╩╝╚╝╩ ╩╚═╝╚═╝╩ ╩╚═╝╝╚╝ ╩
-- industryName: Risk-based vulnerability management
+- industryName: Continuous scanning
   friendlyName: Detect vulnerable software
   documentationUrl: https://fleetdm.com/vulnerability-management
   productCategories: [Vulnerability management]
   pricingTableCategories: [Vulnerability management]
   usualDepartment: Security
   tier: Free
+  buzzwords: [Stakeholder-specific vulnerability categorization (SSVC),Continuous scanning,Continuous vulnerability scanning,Risk-based vulnerability management]
+  waysToUse:
+    - description: 'Use an SSVC decision tree model to prioritize relevant vulnerabilities into four possible decisions: "Track", "Track*", "Attend", and "Act".'
+      moreInfoUrl: https://www.cisa.gov/stakeholder-specific-vulnerability-categorization-ssvc
+    - description: 'Balint Fazakas: I think what offers a better use of CVSS if you break it down to vectors. You may find that a DoS (High Availability Impact) not as relevant for you, or equally a vulnerability requiring user interaction has a very low likelihood of exploit in another scenario.  If you want to fine tune your SSVC, it worth using the vectors you care about instead of the score itself. But ultimately you would want to read the description of the vulnerabilities to determine the risk they are posing to your environment. SSVC can assist you to do that in a more efficient way.'
+      moreInfoUrl: https://www.linkedin.com/feed/update/urn:li:activity:7162614115025215488?commentUrn=urn%3Ali%3Acomment%3A%28activity%3A7162614115025215488%2C7162681703918985216%29&dashCommentUrn=urn%3Ali%3Afsd_comment%3A%287162681703918985216%2Curn%3Ali%3Aactivity%3A7162614115025215488%29
+    - description: 'Melissa Bischoping: CVSS is never enough to contextualize the urgency or risk of a vulnerability in your environment. It is one metric that needs to be part of an overall risk calculus, but a CVSS of 6 can be a greater threat in your organization than a CVSS of 10 based on the environmental variables and mitigations. Only two 10.0s here, but several lower severity that are resulting in high-impact breaches.   Getting a handle on managing that public facing infrastructure and being able to rapidly patch the apps and devices with such exposure needs to be part of an overall plan, but must go hand in hand with mitigations and layers of a zero trust design. CVSS isn’t the sole determination of risk, it’s only one partial piece of data to understand the impact of a vulnerability if exploited.'
+      moreInfoUrl: https://www.linkedin.com/feed/update/urn:li:activity:7162614115025215488?commentUrn=urn%3Ali%3Acomment%3A%28activity%3A7162614115025215488%2C7162629486344159232%29&dashCommentUrn=urn%3Ali%3Afsd_comment%3A%287162629486344159232%2Curn%3Ali%3Aactivity%3A7162614115025215488%29
   demos:
     - description: A top gaming company wanted to replace Qualys for infrastructure vulnerability detection.
       quote: So we have some stuff today through Qualys, but it's just not very good. A lot of it is...it's just really noisy.  I'm trying to find out specifically, actually what packages are installed where, and then the ability to live query them.
       moreInfoUrl: https://docs.google.com/document/d/1JWtRsW1FUTCkZEESJj9-CvXjLXK4219by-C6vvVVyBY/edit
-  waysToUse:
-    - description: Email relevant, actually-installed vulnerabilities to responsible teams so they can fix them.
+    - description: One of the world's largest, top transportation companies uses Fleet's API to email relevant, actually-installed vulnerabilities to responsible teams so they can fix them.
       moreInfoUrl: https://docs.google.com/document/d/1oeCmT077o_5nxzLhnxs7kcg_4Qn1Pn1F5zx10nQOAp8/edit
 #  ╦  ╦╦ ╦╦  ╔╗╔╔═╗╦═╗╔═╗╔╗ ╦╦  ╦╔╦╗╦ ╦  ╔╦╗╔═╗╔═╗╦ ╦╔╗ ╔═╗╔═╗╦═╗╔╦╗
 #  ╚╗╔╝║ ║║  ║║║║╣ ╠╦╝╠═╣╠╩╗║║  ║ ║ ╚╦╝   ║║╠═╣╚═╗╠═╣╠╩╗║ ║╠═╣╠╦╝ ║║
@@ -795,11 +867,11 @@
   usualDepartment: Security
   tier: Premium
   demos:
-    - description: See a list of all vulneribilities across your hosts. Coming soon (2024-03-31)
+    - description: See a list of all vulnerabilities across your hosts.
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/15919
-    - description: AI generated CVSS v4 context. Coming soon (2024-03-31)
+    - description: AI generated CVSS v4 context. Coming soon (2024-12-31).
   waysToUse:
-    - description: Easily communicate to executives regarding the progress of patching vulnerable software. Only show vulnerabilities that you care about. Coming soon (2024-03-31) #Customer-faltona and customer-rialto
+    - description: Easily communicate to executives regarding the progress of patching vulnerable software. Only show vulnerabilities that you care about. Coming soon (2024-12-31) #Customer-faltona and customer-rialto
 #  ╦  ╦╦ ╦╦  ╔╗╔╔═╗╦═╗╔═╗╔╗ ╦╦  ╦╔╦╗╦ ╦  ╔═╗╔═╗╔═╗╦═╗╔═╗╔═╗       ╔═╗╔═╗╔═╗╔═╗  ╔═╗╔╗╔╔╦╗  ╔═╗╦  ╦╔═╗╔═╗
 #  ╚╗╔╝║ ║║  ║║║║╣ ╠╦╝╠═╣╠╩╗║║  ║ ║ ╚╦╝  ╚═╗║  ║ ║╠╦╝║╣ ╚═╗  ───  ║╣ ╠═╝╚═╗╚═╗  ╠═╣║║║ ║║  ║  ╚╗╔╝╚═╗╚═╗
 #   ╚╝ ╚═╝╩═╝╝╚╝╚═╝╩╚═╩ ╩╚═╝╩╩═╝╩ ╩  ╩   ╚═╝╚═╝╚═╝╩╚═╚═╝╚═╝       ╚═╝╩  ╚═╝╚═╝  ╩ ╩╝╚╝═╩╝  ╚═╝ ╚╝ ╚═╝╚═╝
@@ -872,9 +944,6 @@
   productCategories: [Endpoint operations]
   pricingTableCategories: [Endpoint operations]
   buzzwords: [Real-time export,Ship logs]
-  waysToUse:
-    - description: Choose different file sizes for automated query results and agent logs. Coming soon (2024-04-22) #Customer-blanco
-      moreInfoUrl: https://github.com/fleetdm/fleet/issues/11999
 - industryName: File carving (AWS S3)
   documentationUrl: https://fleetdm.com/docs/configuration/fleet-server-configuration#s-3-file-carving-backend
   tier: Free

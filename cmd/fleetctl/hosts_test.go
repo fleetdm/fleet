@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/stretchr/testify/assert"
@@ -54,7 +55,9 @@ func TestHostsTransferByHosts(t *testing.T) {
 		return &fleet.Team{ID: tid, Name: "team1"}, nil
 	}
 
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+	ds.NewActivityFunc = func(
+		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
+	) error {
 		require.IsType(t, fleet.ActivityTypeTransferredHostsToTeam{}, activity)
 		return nil
 	}
@@ -123,7 +126,9 @@ func TestHostsTransferByLabel(t *testing.T) {
 		return &fleet.Team{ID: tid, Name: "team1"}, nil
 	}
 
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+	ds.NewActivityFunc = func(
+		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
+	) error {
 		require.IsType(t, fleet.ActivityTypeTransferredHostsToTeam{}, activity)
 		return nil
 	}
@@ -191,7 +196,9 @@ func TestHostsTransferByStatus(t *testing.T) {
 		return &fleet.Team{ID: tid, Name: "team1"}, nil
 	}
 
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+	ds.NewActivityFunc = func(
+		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
+	) error {
 		require.IsType(t, fleet.ActivityTypeTransferredHostsToTeam{}, activity)
 		return nil
 	}
@@ -248,7 +255,9 @@ func TestHostsTransferByStatusAndSearchQuery(t *testing.T) {
 		return &fleet.Team{ID: tid, Name: "team1"}, nil
 	}
 
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+	ds.NewActivityFunc = func(
+		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
+	) error {
 		require.IsType(t, fleet.ActivityTypeTransferredHostsToTeam{}, activity)
 		return nil
 	}

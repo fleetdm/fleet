@@ -19,9 +19,10 @@ interface IHostActionsDropdownProps {
    * unlocking, locking, ...etc) */
   hostMdmDeviceStatus: HostMdmDeviceStatusUIState;
   doesStoreEncryptionKey?: boolean;
-  mdmName?: string;
+  isConnectedToFleetMdm?: boolean;
   hostPlatform?: string;
   onSelect: (value: string) => void;
+  hostScriptsEnabled: boolean | null;
 }
 
 const HostActionsDropdown = ({
@@ -30,8 +31,9 @@ const HostActionsDropdown = ({
   hostMdmEnrollmentStatus,
   hostMdmDeviceStatus,
   doesStoreEncryptionKey,
-  mdmName,
+  isConnectedToFleetMdm,
   hostPlatform = "",
+  hostScriptsEnabled = false,
   onSelect,
 }: IHostActionsDropdownProps) => {
   const {
@@ -40,7 +42,6 @@ const HostActionsDropdown = ({
     isGlobalMaintainer = false,
     isMacMdmEnabledAndConfigured = false,
     isWindowsMdmEnabledAndConfigured = false,
-    isSandboxMode = false,
     currentUser,
   } = useContext(AppContext);
 
@@ -67,12 +68,12 @@ const HostActionsDropdown = ({
     isEnrolledInMdm: ["On (automatic)", "On (manual)"].includes(
       hostMdmEnrollmentStatus ?? ""
     ),
-    isFleetMdm: mdmName === "Fleet",
+    isConnectedToFleetMdm,
     isMacMdmEnabledAndConfigured,
     isWindowsMdmEnabledAndConfigured,
     doesStoreEncryptionKey: doesStoreEncryptionKey ?? false,
-    isSandboxMode,
     hostMdmDeviceStatus,
+    hostScriptsEnabled,
   });
 
   // No options to render. Exit early

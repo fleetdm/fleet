@@ -16,9 +16,32 @@ variable "albs" {
     target_group_arn_suffix = string
     min_containers          = optional(string, 1)
     ecs_service_name        = string
+    alert_thresholds = optional(
+      object({
+        HTTPCode_ELB_5XX_Count = object({
+          period    = number
+          threshold = number
+        })
+        HTTPCode_Target_5XX_Count = object({
+          period    = number
+          threshold = number
+        })
+      }),
+      {
+        HTTPCode_ELB_5XX_Count = {
+          period    = 120
+          threshold = 0
+        },
+        HTTPCode_Target_5XX_Count = {
+          period    = 120
+          threshold = 0
+        }
+      }
+    )
   }))
   default = []
 }
+
 
 variable "default_sns_topic_arns" {
   type    = list(string)

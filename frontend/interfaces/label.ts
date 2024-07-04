@@ -40,13 +40,6 @@ export interface ILabel extends ILabelSummary {
   platform: string;
 }
 
-export interface ILabelFormData {
-  name: string;
-  query: string;
-  description: string;
-  platform: string;
-}
-
 // corresponding to fleet>server>fleet>labels.go>LabelSpec
 export interface ILabelSpecResponse {
   specs: {

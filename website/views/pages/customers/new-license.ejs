@@ -9,13 +9,13 @@
       <ajax-form action="createQuote" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-errors.sync="formErrors" :form-data="formData" :form-rules="quoteFormRules" @submitted="submittedQuoteForm($event)">
         <div class="d-flex flex-column flex-sm-row">
           <div class="form-group flex-grow-1 col-12 col-sm-6 order-first px-0 mb-3 mb-sm-5">
-            <label for="numberOfHosts">Total number of devices</label>
+            <label for="numberOfHosts">Total number of hosts</label>
             <input class="form-control" min="1" purpose="quote-input" id="numberOfHosts" type="number" :class="[formErrors.numberOfHosts ? 'is-invalid' : formErrors.numberOfHosts < 1 ]" focus-first v-model.trim="formData.numberOfHosts" v-if="!numberOfHostsQuoted">
             <div class="invalid-feedback" v-if="formErrors.numberOfHosts">Please enter a number of hosts</div>
-            <span purpose="quote-input" style="position: relative; cursor: text; padding: 6px 16px 8px 16px;" class="form-control" @click="clickResetForm()" v-if="numberOfHostsQuoted">{{formData.numberOfHosts}}<span style="position: absolute; cursor: pointer; bottom: 10px; right: 16px;" class="text-muted fa fa-times-circle pl-2"></span></span>
+            <span purpose="quote-input" style="position: relative; cursor: text; padding: 6px 16px 8px 16px;" class="form-control" @click="clickResetForm()" v-if="numberOfHostsQuoted">{{formData.numberOfHosts}}<span style="position: absolute; cursor: pointer; bottom: 14px; right: 16px;" class="text-muted fa fa-times-circle pl-2"></span></span>
           </div>
 
-          <div style="color: #515774;" class="order-last text-left text-sm-right col-12 col-sm-6 pr-0 pl-sm-4 pl-0 pt-sm-4">
+          <div style="color: #515774;" class="order-last text-left text-sm-right col-12 col-sm-6 pr-0 pl-sm-4 pl-0 pt-sm-4" v-if="showQuotedPrice && numberOfHostsQuoted < 700">
             <p class="small">
               <strong class="pr-1" style="font-size: 18px; color: #192147">$7.00</strong>/ host / month<br>(Billed annually)
             </p>
@@ -23,7 +23,7 @@
 
         </div>
         <cloud-error purpose="cloud-error" v-if="cloudError && !showBillingForm"></cloud-error>
-        <div class="mt-2 pt-3 pb-4 border-top d-flex flex-column" v-if="showQuotedPrice && formData.numberOfHosts && numberOfHostsQuoted">
+        <div class="mt-2 pt-3 border-top d-flex flex-column" v-if="showQuotedPrice && formData.numberOfHosts && numberOfHostsQuoted">
           <div class="pb-2">
             <strong>Order summary</strong>
           </div>

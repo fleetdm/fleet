@@ -24,7 +24,7 @@ defaults:
     shell: bash
 
 env:
-  FLEET_DESKTOP_VERSION: 1.22.0
+  FLEET_DESKTOP_VERSION: 1.27.0
 
 permissions:
   contents: read
@@ -84,7 +84,7 @@ jobs:
           make desktop-app-tar-gz
 
       - name: Upload desktop.app.tar.gz
-        uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v2
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # 4.3.3
         with:
           name: desktop.app.tar.gz
           path: desktop.app.tar.gz
@@ -112,10 +112,23 @@ jobs:
           make desktop-windows
 
       - name: Upload fleet-desktop.exe
-        uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v2
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # 4.3.3
         with:
-          name: fleet-desktop.exe
+          name: unsigned-windows
           path: fleet-desktop.exe
+
+  code-sign-windows:
+    needs: desktop-windows
+    uses: ./.github/workflows/code-sign-windows.yml
+    with:
+      filename: fleet-desktop.exe
+      upload_name: fleet-desktop.exe
+    secrets:
+      DIGICERT_KEYLOCKER_CERTIFICATE: ${{ secrets.DIGICERT_KEYLOCKER_CERTIFICATE }}
+      DIGICERT_KEYLOCKER_PASSWORD: ${{ secrets.DIGICERT_KEYLOCKER_PASSWORD }}
+      DIGICERT_KEYLOCKER_HOST_URL: ${{ secrets.DIGICERT_KEYLOCKER_HOST_URL }}
+      DIGICERT_API_KEY: ${{ secrets.DIGICERT_API_KEY }}
+      DIGICERT_KEYLOCKER_CERTIFICATE_FINGERPRINT: ${{ secrets.DIGICERT_KEYLOCKER_CERTIFICATE_FINGERPRINT }}
 
   desktop-linux:
     runs-on: ubuntu-latest
@@ -140,7 +153,7 @@ jobs:
           make desktop-linux
 
       - name: Upload desktop.tar.gz
-        uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v2
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # 4.3.3
         with:
           name: desktop.tar.gz
           path: desktop.tar.gz

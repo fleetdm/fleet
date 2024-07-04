@@ -51,6 +51,7 @@ jobs:
         branch: update-ca-certs
         delete-branch: true
         title: Update Orbit CA certs [automated]
+        reviewers: lukeheath,georgekarrv,sharon-fdm
         commit-message: |
           Update Orbit CA certs [automated]
 

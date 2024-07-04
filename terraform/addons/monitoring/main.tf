@@ -37,7 +37,7 @@ resource "aws_db_event_subscription" "default" {
 }
 
 locals {
-  alb_map = {for k, v in var.albs: k => v}
+  alb_map = { for k, v in var.albs : k => v }
 }
 
 
@@ -102,7 +102,7 @@ resource "aws_cloudwatch_metric_alarm" "target_response_time" {
 locals {
   http_5xx_alert_names = ["HTTPCode_ELB_5XX_Count", "HTTPCode_Target_5XX_Count"]
   http_5xx_alerts_list = flatten([for alert in local.http_5xx_alert_names : [for alb in var.albs : merge(alb, { "alert" : alert })]])
-  http_5xx_alerts      = {for k, v in local.http_5xx_alerts_list : k => v} 
+  http_5xx_alerts      = { for k, v in local.http_5xx_alerts_list : k => v }
 }
 
 
@@ -113,9 +113,9 @@ resource "aws_cloudwatch_metric_alarm" "lb" {
   evaluation_periods  = "1"
   metric_name         = each.value.alert
   namespace           = "AWS/ApplicationELB"
-  period              = "120"
+  period              = each.value.alert_thresholds[each.value.alert].period
   statistic           = "Sum"
-  threshold           = "0"
+  threshold           = each.value.alert_thresholds[each.value.alert].threshold
   alarm_description   = "This alarm indicates there are an abnormal amount of 5XX responses.  Either the lb cannot talk with the Fleet backend target or Fleet is returning an error."
   alarm_actions       = lookup(var.sns_topic_arns_map, "alb_httpcode_5xx", var.default_sns_topic_arns)
   ok_actions          = lookup(var.sns_topic_arns_map, "alb_httpcode_5xx", var.default_sns_topic_arns)

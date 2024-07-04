@@ -1,9 +1,11 @@
 package mysql
 
 import (
+	"bytes"
 	"context"
 	_ "embed"
 	"fmt"
+	"math"
 	"strings"
 	"testing"
 	"time"
@@ -13,6 +15,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -220,6 +223,26 @@ func testHostScriptResult(t *testing.T, ds *Datastore) {
 	pending, err = ds.ListPendingHostScriptExecutions(ctx, 1)
 	require.NoError(t, err)
 	require.Empty(t, pending, 0)
+
+	// check that scripts with large unsigned error codes get
+	// converted to signed error codes
+	createdUnsignedScript, err := ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{
+		HostID:         1,
+		ScriptContents: "echo",
+		UserID:         &u.ID,
+		SyncRequest:    true,
+	})
+	require.NoError(t, err)
+
+	unsignedScriptResult, err := ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
+		HostID:      1,
+		ExecutionID: createdUnsignedScript.ExecutionID,
+		Output:      "foo",
+		Runtime:     1,
+		ExitCode:    math.MaxUint32,
+	})
+	require.NoError(t, err)
+	require.EqualValues(t, -1, *unsignedScriptResult.ExitCode)
 }
 
 func testScripts(t *testing.T, ds *Datastore) {
@@ -742,6 +765,7 @@ func testLockHostViaScript(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, "windows", status.HostFleetPlatform)
 	require.NotNil(t, status.LockScript)
+	assert.Nil(t, status.UnlockScript)
 
 	s := status.LockScript
 	require.Equal(t, script, s.ScriptContents)
@@ -1113,6 +1137,20 @@ func testCleanupUnusedScriptContents(t *testing.T, ds *Datastore) {
 	res, err := ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{ScriptContents: "echo something_else", SyncRequest: true})
 	require.NoError(t, err)
 
+	// create a software install that references scripts
+	swi, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:     "install-script",
+		PreInstallQuery:   "SELECT 1",
+		PostInstallScript: "post-install-script",
+		InstallerFile:     bytes.NewReader([]byte("hello")),
+		StorageID:         "storage1",
+		Filename:          "file1",
+		Title:             "file1",
+		Version:           "1.0",
+		Source:            "apps",
+	})
+	require.NoError(t, err)
+
 	// delete our saved script without ever executing it
 	require.NoError(t, ds.DeleteScript(ctx, s.ID))
 
@@ -1121,12 +1159,65 @@ func testCleanupUnusedScriptContents(t *testing.T, ds *Datastore) {
 	stmt := `SELECT id, HEX(md5_checksum) as md5_checksum FROM script_contents`
 	err = sqlx.SelectContext(ctx, ds.reader(ctx), &sc, stmt)
 	require.NoError(t, err)
-	require.Len(t, sc, 2)
+	require.Len(t, sc, 4)
 
 	// this should only remove the script_contents of the saved script, since the sync script is
 	// still "in use" by the script execution
 	require.NoError(t, ds.CleanupUnusedScriptContents(ctx))
 
+	sc = []scriptContents{}
+	err = sqlx.SelectContext(ctx, ds.reader(ctx), &sc, stmt)
+	require.NoError(t, err)
+	require.Len(t, sc, 3)
+	require.ElementsMatch(t, []string{
+		md5ChecksumScriptContent(res.ScriptContents),
+		md5ChecksumScriptContent("install-script"),
+		md5ChecksumScriptContent("post-install-script"),
+	}, []string{
+		sc[0].Checksum,
+		sc[1].Checksum,
+		sc[2].Checksum,
+	})
+
+	// remove the software installer from the DB
+	err = ds.DeleteSoftwareInstaller(ctx, swi)
+	require.NoError(t, err)
+
+	require.NoError(t, ds.CleanupUnusedScriptContents(ctx))
+
+	// validate that script contents still exist
+	sc = []scriptContents{}
+	err = sqlx.SelectContext(ctx, ds.reader(ctx), &sc, stmt)
+	require.NoError(t, err)
+	require.Len(t, sc, 1)
+	require.Equal(t, md5ChecksumScriptContent(res.ScriptContents), sc[0].Checksum)
+
+	// create a software install without a post-install script
+	swi, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		PreInstallQuery: "SELECT 1",
+		InstallScript:   "install-script",
+		InstallerFile:   bytes.NewReader([]byte("hello")),
+		StorageID:       "storage1",
+		Filename:        "file1",
+		Title:           "file1",
+		Version:         "1.0",
+		Source:          "apps",
+	})
+	require.NoError(t, err)
+
+	// run the cleanup function
+	require.NoError(t, ds.CleanupUnusedScriptContents(ctx))
+	sc = []scriptContents{}
+	err = sqlx.SelectContext(ctx, ds.reader(ctx), &sc, stmt)
+	require.NoError(t, err)
+	require.Len(t, sc, 2)
+
+	// remove the software installer from the DB
+	err = ds.DeleteSoftwareInstaller(ctx, swi)
+	require.NoError(t, err)
+	require.NoError(t, ds.CleanupUnusedScriptContents(ctx))
+
+	// validate that script contents still exist
 	sc = []scriptContents{}
 	err = sqlx.SelectContext(ctx, ds.reader(ctx), &sc, stmt)
 	require.NoError(t, err)

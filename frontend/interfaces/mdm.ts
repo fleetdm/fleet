@@ -1,3 +1,5 @@
+import { IConfigServerSettings } from "./config";
+
 export interface IMdmApple {
   common_name: string;
   serial_number: string;
@@ -12,6 +14,10 @@ export interface IMdmAppleBm {
   mdm_server_url: string;
   renew_date: string;
 }
+
+export const getMdmServerUrl = ({ server_url }: IConfigServerSettings) => {
+  return server_url.concat("/mdm/apple/mdm");
+};
 
 export const MDM_ENROLLMENT_STATUS = {
   "On (manual)": "manual",
@@ -65,7 +71,8 @@ export type ProfilePlatform = "darwin" | "windows";
 
 export interface IProfileLabel {
   name: string;
-  broken: boolean;
+  id?: number; // id is only present when the label is not broken
+  broken?: boolean;
 }
 
 export interface IMdmProfile {
@@ -77,10 +84,16 @@ export interface IMdmProfile {
   created_at: string;
   updated_at: string;
   checksum: string | null; // null for windows profiles
-  labels?: IProfileLabel[];
+  labels_include_all?: IProfileLabel[];
+  labels_exclude_any?: IProfileLabel[];
 }
 
 export type MdmProfileStatus = "verified" | "verifying" | "pending" | "failed";
+export type MdmDDMProfileStatus =
+  | "success"
+  | "pending"
+  | "failed"
+  | "acknowledged";
 
 export type ProfileOperationType = "remove" | "install";
 
@@ -89,7 +102,7 @@ export interface IHostMdmProfile {
   name: string;
   operation_type: ProfileOperationType | null;
   platform: ProfilePlatform;
-  status: MdmProfileStatus;
+  status: MdmProfileStatus | MdmDDMProfileStatus;
   detail: string;
 }
 

@@ -41,9 +41,9 @@ const SoftwareDetailsSummary = ({
       <dl className={`${baseClass}__info`}>
         <h1>{title}</h1>
         <dl className={`${baseClass}__description-list`}>
-          {type && <DataSet title="Type" value={type} />}
+          {!!type && <DataSet title="Type" value={type} />}
 
-          {versions && <DataSet title="Versions" value={versions} />}
+          {!!versions && <DataSet title="Versions" value={versions} />}
           <DataSet title="Hosts" value={hosts === 0 ? "---" : hosts} />
         </dl>
       </dl>

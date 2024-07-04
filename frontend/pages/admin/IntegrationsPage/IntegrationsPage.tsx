@@ -1,9 +1,8 @@
-import { AppContext } from "context/app";
-import React, { useContext } from "react";
+import React from "react";
 import { InjectedRouter, Params } from "react-router/lib/Router";
 
 import SideNav from "../components/SideNav";
-import getFilteredIntegrationSettingsNavItems from "./IntegrationNavItems";
+import integrationSettingsNavItems from "./IntegrationNavItems";
 
 const baseClass = "integrations";
 
@@ -16,9 +15,8 @@ const IntegrationsPage = ({
   router,
   params,
 }: IIntegrationSettingsPageProps) => {
-  const { isSandboxMode } = useContext(AppContext);
   const { section } = params;
-  const navItems = getFilteredIntegrationSettingsNavItems(isSandboxMode);
+  const navItems = integrationSettingsNavItems;
   const DEFAULT_SETTINGS_SECTION = navItems[0];
   const currentSection =
     navItems.find((item) => item.urlSection === section) ??

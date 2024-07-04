@@ -1,13 +1,18 @@
 name: shell_history
-examples: >-
+examples: |-
+  ```
+  SELECT * FROM users CROSS JOIN shell_history USING (uid);
+  ```
+
   See command line executions and related timestamps. Useful for threat hunting
   when a device is suspected of being compromised.
 
   ```
-
   SELECT u.username, s.command, s.time FROM users u CROSS JOIN shell_history s USING (uid);
-
   ```
 columns:
   - name: uid
-    requires_user_context: true
+  
+
+notes: |-
+  - Querying this table requires joining against the `users` table. [Learn more](https://fleetdm.com/guides/osquery-consider-joining-against-the-users-table)

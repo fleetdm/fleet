@@ -13,6 +13,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/config"
@@ -266,7 +267,9 @@ func TestEnrollSecretAuth(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := viewer.NewContext(ctx, viewer.Viewer{User: tt.user})
 
-			err := svc.ApplyEnrollSecretSpec(ctx, &fleet.EnrollSecretSpec{Secrets: []*fleet.EnrollSecret{{Secret: "ABC"}}})
+			err := svc.ApplyEnrollSecretSpec(
+				ctx, &fleet.EnrollSecretSpec{Secrets: []*fleet.EnrollSecret{{Secret: "ABC"}}}, fleet.ApplySpecOptions{},
+			)
 			checkAuthErr(t, tt.shouldFailWrite, err)
 
 			_, err = svc.GetEnrollSecretSpec(ctx)
@@ -277,14 +280,54 @@ func TestEnrollSecretAuth(t *testing.T) {
 
 func TestApplyEnrollSecretWithGlobalEnrollConfig(t *testing.T) {
 	ds := new(mock.Store)
-	ds.ApplyEnrollSecretsFunc = func(ctx context.Context, teamID *uint, secrets []*fleet.EnrollSecret) error {
-		return nil
-	}
 
 	cfg := config.TestConfig()
 	svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil)
 	ctx = test.UserContext(ctx, test.UserAdmin)
-	err := svc.ApplyEnrollSecretSpec(ctx, &fleet.EnrollSecretSpec{Secrets: []*fleet.EnrollSecret{{Secret: "ABC"}}})
+
+	// Dry run
+	ds.IsEnrollSecretAvailableFunc = func(ctx context.Context, secret string, new bool, teamID *uint) (bool, error) {
+		assert.False(t, new)
+		assert.Nil(t, teamID)
+		return true, nil
+	}
+	err := svc.ApplyEnrollSecretSpec(
+		ctx, &fleet.EnrollSecretSpec{Secrets: []*fleet.EnrollSecret{{Secret: "ABC"}}}, fleet.ApplySpecOptions{DryRun: true},
+	)
+	assert.True(t, ds.IsEnrollSecretAvailableFuncInvoked)
+	assert.NoError(t, err)
+
+	// Dry run fails
+	ds.IsEnrollSecretAvailableFuncInvoked = false
+	ds.IsEnrollSecretAvailableFunc = func(ctx context.Context, secret string, new bool, teamID *uint) (bool, error) {
+		assert.False(t, new)
+		assert.Nil(t, teamID)
+		return false, nil
+	}
+	err = svc.ApplyEnrollSecretSpec(
+		ctx, &fleet.EnrollSecretSpec{Secrets: []*fleet.EnrollSecret{{Secret: "ABC"}}}, fleet.ApplySpecOptions{DryRun: true},
+	)
+	assert.True(t, ds.IsEnrollSecretAvailableFuncInvoked)
+	assert.ErrorContains(t, err, "secret is already being used")
+
+	// Dry run with error
+	ds.IsEnrollSecretAvailableFuncInvoked = false
+	ds.IsEnrollSecretAvailableFunc = func(ctx context.Context, secret string, new bool, teamID *uint) (bool, error) {
+		return false, assert.AnError
+	}
+	err = svc.ApplyEnrollSecretSpec(
+		ctx, &fleet.EnrollSecretSpec{Secrets: []*fleet.EnrollSecret{{Secret: "ABC"}}}, fleet.ApplySpecOptions{DryRun: true},
+	)
+	assert.True(t, ds.IsEnrollSecretAvailableFuncInvoked)
+	assert.Equal(t, assert.AnError, err)
+
+	ds.IsEnrollSecretAvailableFunc = nil
+	ds.ApplyEnrollSecretsFunc = func(ctx context.Context, teamID *uint, secrets []*fleet.EnrollSecret) error {
+		return nil
+	}
+	err = svc.ApplyEnrollSecretSpec(
+		ctx, &fleet.EnrollSecretSpec{Secrets: []*fleet.EnrollSecret{{Secret: "ABC"}}}, fleet.ApplySpecOptions{},
+	)
 	require.True(t, ds.ApplyEnrollSecretsFuncInvoked)
 	require.NoError(t, err)
 
@@ -293,7 +336,7 @@ func TestApplyEnrollSecretWithGlobalEnrollConfig(t *testing.T) {
 	cfg.Packaging.GlobalEnrollSecret = "xyz"
 	svc, ctx = newTestServiceWithConfig(t, ds, cfg, nil, nil)
 	ctx = test.UserContext(ctx, test.UserAdmin)
-	err = svc.ApplyEnrollSecretSpec(ctx, &fleet.EnrollSecretSpec{Secrets: []*fleet.EnrollSecret{{Secret: "DEF"}}})
+	err = svc.ApplyEnrollSecretSpec(ctx, &fleet.EnrollSecretSpec{Secrets: []*fleet.EnrollSecret{{Secret: "DEF"}}}, fleet.ApplySpecOptions{})
 	require.Error(t, err)
 	require.False(t, ds.ApplyEnrollSecretsFuncInvoked)
 }
@@ -489,6 +532,9 @@ func TestAppConfigSecretsObfuscated(t *testing.T) {
 				Zendesk: []*fleet.ZendeskIntegration{
 					{APIToken: "zendesktoken"},
 				},
+				GoogleCalendar: []*fleet.GoogleCalendarIntegration{
+					{ApiKey: map[string]string{fleet.GoogleCalendarPrivateKey: "google-calendar-private-key"}},
+				},
 			},
 		}, nil
 	}
@@ -566,6 +612,8 @@ func TestAppConfigSecretsObfuscated(t *testing.T) {
 				require.Equal(t, ac.SMTPSettings.SMTPPassword, fleet.MaskedPassword)
 				require.Equal(t, ac.Integrations.Jira[0].APIToken, fleet.MaskedPassword)
 				require.Equal(t, ac.Integrations.Zendesk[0].APIToken, fleet.MaskedPassword)
+				// Google Calendar private key is not obfuscated
+				require.Equal(t, ac.Integrations.GoogleCalendar[0].ApiKey[fleet.GoogleCalendarPrivateKey], "google-calendar-private-key")
 			}
 		})
 	}
@@ -810,7 +858,7 @@ func TestMDMAppleConfig(t *testing.T) {
 			name:        "nochange",
 			licenseTier: "free",
 			expectedMDM: fleet.MDM{
-				MacOSSetup:     fleet.MacOSSetup{BootstrapPackage: optjson.String{Set: true}, MacOSSetupAssistant: optjson.String{Set: true}},
+				MacOSSetup:     fleet.MacOSSetup{BootstrapPackage: optjson.String{Set: true}, MacOSSetupAssistant: optjson.String{Set: true}, EnableReleaseDeviceManually: optjson.SetBool(false)},
 				MacOSUpdates:   fleet.MacOSUpdates{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
 				WindowsUpdates: fleet.WindowsUpdates{DeadlineDays: optjson.Int{Set: true}, GracePeriodDays: optjson.Int{Set: true}},
 				WindowsSettings: fleet.WindowsSettings{
@@ -840,7 +888,7 @@ func TestMDMAppleConfig(t *testing.T) {
 			newMDM:      fleet.MDM{AppleBMDefaultTeam: "foobar"},
 			expectedMDM: fleet.MDM{
 				AppleBMDefaultTeam: "foobar",
-				MacOSSetup:         fleet.MacOSSetup{BootstrapPackage: optjson.String{Set: true}, MacOSSetupAssistant: optjson.String{Set: true}},
+				MacOSSetup:         fleet.MacOSSetup{BootstrapPackage: optjson.String{Set: true}, MacOSSetupAssistant: optjson.String{Set: true}, EnableReleaseDeviceManually: optjson.SetBool(false)},
 				MacOSUpdates:       fleet.MacOSUpdates{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
 				WindowsUpdates:     fleet.WindowsUpdates{DeadlineDays: optjson.Int{Set: true}, GracePeriodDays: optjson.Int{Set: true}},
 				WindowsSettings: fleet.WindowsSettings{
@@ -855,7 +903,7 @@ func TestMDMAppleConfig(t *testing.T) {
 			newMDM:      fleet.MDM{AppleBMDefaultTeam: "foobar"},
 			expectedMDM: fleet.MDM{
 				AppleBMDefaultTeam: "foobar",
-				MacOSSetup:         fleet.MacOSSetup{BootstrapPackage: optjson.String{Set: true}, MacOSSetupAssistant: optjson.String{Set: true}},
+				MacOSSetup:         fleet.MacOSSetup{BootstrapPackage: optjson.String{Set: true}, MacOSSetupAssistant: optjson.String{Set: true}, EnableReleaseDeviceManually: optjson.SetBool(false)},
 				MacOSUpdates:       fleet.MacOSUpdates{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
 				WindowsUpdates:     fleet.WindowsUpdates{DeadlineDays: optjson.Int{Set: true}, GracePeriodDays: optjson.Int{Set: true}},
 				WindowsSettings: fleet.WindowsSettings{
@@ -876,7 +924,7 @@ func TestMDMAppleConfig(t *testing.T) {
 			oldMDM:      fleet.MDM{EndUserAuthentication: fleet.MDMEndUserAuthentication{SSOProviderSettings: fleet.SSOProviderSettings{EntityID: "foo"}}},
 			expectedMDM: fleet.MDM{
 				EndUserAuthentication: fleet.MDMEndUserAuthentication{SSOProviderSettings: fleet.SSOProviderSettings{EntityID: "foo"}},
-				MacOSSetup:            fleet.MacOSSetup{BootstrapPackage: optjson.String{Set: true}, MacOSSetupAssistant: optjson.String{Set: true}},
+				MacOSSetup:            fleet.MacOSSetup{BootstrapPackage: optjson.String{Set: true}, MacOSSetupAssistant: optjson.String{Set: true}, EnableReleaseDeviceManually: optjson.SetBool(false)},
 				MacOSUpdates:          fleet.MacOSUpdates{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
 				WindowsUpdates:        fleet.WindowsUpdates{DeadlineDays: optjson.Int{Set: true}, GracePeriodDays: optjson.Int{Set: true}},
 				WindowsSettings: fleet.WindowsSettings{
@@ -900,7 +948,7 @@ func TestMDMAppleConfig(t *testing.T) {
 					MetadataURL: "http://isser.metadata.com",
 					IDPName:     "onelogin",
 				}},
-				MacOSSetup:     fleet.MacOSSetup{BootstrapPackage: optjson.String{Set: true}, MacOSSetupAssistant: optjson.String{Set: true}},
+				MacOSSetup:     fleet.MacOSSetup{BootstrapPackage: optjson.String{Set: true}, MacOSSetupAssistant: optjson.String{Set: true}, EnableReleaseDeviceManually: optjson.SetBool(false)},
 				MacOSUpdates:   fleet.MacOSUpdates{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
 				WindowsUpdates: fleet.WindowsUpdates{DeadlineDays: optjson.Int{Set: true}, GracePeriodDays: optjson.Int{Set: true}},
 				WindowsSettings: fleet.WindowsSettings{
@@ -958,7 +1006,7 @@ func TestMDMAppleConfig(t *testing.T) {
 			},
 			expectedMDM: fleet.MDM{
 				EnableDiskEncryption: optjson.Bool{Set: true, Valid: true, Value: false},
-				MacOSSetup:           fleet.MacOSSetup{BootstrapPackage: optjson.String{Set: true}, MacOSSetupAssistant: optjson.String{Set: true}},
+				MacOSSetup:           fleet.MacOSSetup{BootstrapPackage: optjson.String{Set: true}, MacOSSetupAssistant: optjson.String{Set: true}, EnableReleaseDeviceManually: optjson.SetBool(false)},
 				MacOSUpdates:         fleet.MacOSUpdates{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
 				WindowsUpdates:       fleet.WindowsUpdates{DeadlineDays: optjson.Int{Set: true}, GracePeriodDays: optjson.Int{Set: true}},
 				WindowsSettings: fleet.WindowsSettings{
@@ -1085,7 +1133,9 @@ func TestModifyAppConfigSMTPSSOAgentOptions(t *testing.T) {
 		*dsAppConfig = *conf
 		return nil
 	}
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+	ds.NewActivityFunc = func(
+		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
+	) error {
 		return nil
 	}
 

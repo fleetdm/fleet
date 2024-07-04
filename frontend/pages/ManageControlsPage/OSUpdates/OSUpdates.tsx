@@ -17,7 +17,6 @@ import NudgePreview from "./components/NudgePreview";
 import TurnOnMdmMessage from "../components/TurnOnMdmMessage/TurnOnMdmMessage";
 import CurrentVersionSection from "./components/CurrentVersionSection";
 import TargetSection from "./components/TargetSection";
-import { generateKey } from "./components/TargetSection/TargetSection";
 
 export type OSUpdatesSupportedPlatform = "darwin" | "windows";
 
@@ -38,28 +37,26 @@ const getSelectedPlatform = (
 
 interface IOSUpdates {
   router: InjectedRouter;
-  teamIdForApi?: number;
+  teamIdForApi: number;
 }
 
 const OSUpdates = ({ router, teamIdForApi }: IOSUpdates) => {
-  const { isPremiumTier, setConfig } = useContext(AppContext);
+  const { isPremiumTier, config, setConfig } = useContext(AppContext);
 
   const [
     selectedPlatformTab,
     setSelectedPlatformTab,
   ] = useState<OSUpdatesSupportedPlatform | null>(null);
 
-  // FIXME: We're calling this endpoint twice on mount because it also gets called in App.tsx
-  // whenever the pathname changes. We should find a way to avoid this.
   const {
-    data: config,
     isError: isErrorConfig,
     isFetching: isFetchingConfig,
     isLoading: isLoadingConfig,
     refetch: refetchAppConfig,
   } = useQuery<IConfig, Error>(["config"], () => configAPI.loadAll(), {
     refetchOnWindowFocus: false,
-    onSuccess: (data) => setConfig(data), // update the app context with the fetched config
+    onSuccess: (data) => setConfig(data), // update the app context with the refetched config
+    enabled: false, // this is disabled as the config is already fetched in App.tsx
   });
 
   const {
@@ -86,9 +83,6 @@ const OSUpdates = ({ router, teamIdForApi }: IOSUpdates) => {
       />
     );
   }
-
-  // FIXME: Are these checks still necessary?
-  if (config === null || teamIdForApi === undefined) return null;
 
   if (isLoadingConfig || isLoadingTeam) return <Spinner />;
 
@@ -118,11 +112,7 @@ const OSUpdates = ({ router, teamIdForApi }: IOSUpdates) => {
         </div>
         <div className={`${baseClass}__taget-container`}>
           <TargetSection
-            key={generateKey({
-              currentTeamId: teamIdForApi,
-              appConfig: config,
-              teamConfig,
-            })} // FIXME: Find a better way to trigger re-rendering if these change (see FIXME above regarding refetching)
+            key={teamIdForApi} // if the team changes, remount the target section
             appConfig={config}
             currentTeamId={teamIdForApi}
             isFetching={isFetchingConfig || isFetchingTeamConfig}

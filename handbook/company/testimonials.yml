@@ -7,6 +7,8 @@
 #   quoteImageFilename: 
 #   youtubeVideoUrl: 
 #.  productCategories: [Endpoint operations, Vulnerability management, Device management]
+#
+# TODO figure out what to do with this other quote that both Austin and Dre :+1:'d: "Fleet lets us be more actionable with fewer people. It helps us to filter out the noise better than we could with the other big name products we replaced."
 -
   quote: The visibility down into the assets covered by the agent is phenomenal. Fleet has become the central source for a lot of things.
   quoteAuthorName: Andre Shields
@@ -56,6 +58,14 @@
   quoteAuthorJobTitle: CISO of Lyft
   productCategories: [Endpoint operations, Vulnerability management]
 -
+  quote: Having the freedom to take full advantage of the product is one of the reasons why I always support open-source products with a commercially-backed company, like Fleet.
+  quoteImageFilename: social-proof-logo-lyft-47x32@2x.png
+  quoteLinkUrl: https://www.linkedin.com/posts/nwaisman_movingtofleet-activity-7156319785981509632-bk_W
+  quoteAuthorName: Nico Waisman
+  quoteAuthorProfileImageFilename: testimonial-author-nico-waisman-48x48@2x.png
+  quoteAuthorJobTitle: CISO of Lyft
+  productCategories: [Device management] # « explanation: https://github.com/fleetdm/fleet/blob/f412b1f02fb6d6f36bdc0776252fff72fc0fc2ea/website/views/pages/device-management.ejs#L32
+-
   quote: Fleet has been highly effective for our needs. We appreciate your team for always being so open to hearing our feedback.
   quoteAuthorName: Kenny Botelho
   quoteAuthorProfileImageFilename: testimonial-author-kenny-botelho-48x48@2x.png
@@ -71,7 +81,7 @@
   quoteAuthorJobTitle: Staff CPE at Stripe
   productCategories: [Endpoint operations, Device management]
 -
-  quote: Fleet’s come a long way - to now being the top open-source osquery manager. Just in the past 6 months.
+  quote: Fleet’s come a long way - to now being the top open-source osquery manager.
   quoteImageFilename: social-proof-logo-atlassian-192x32@2x.png
   quoteLinkUrl: https://www.linkedin.com/in/bshak/
   quoteAuthorName: Brendan Shaklovitz

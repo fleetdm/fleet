@@ -16,7 +16,7 @@ func (c *Client) ListSoftwareVersions(query string) ([]fleet.Software, error) {
 }
 
 // ListSoftwareTitles retrieves the software titles installed on hosts.
-func (c *Client) ListSoftwareTitles(query string) ([]fleet.SoftwareTitle, error) {
+func (c *Client) ListSoftwareTitles(query string) ([]fleet.SoftwareTitleListResult, error) {
 	verb, path := "GET", "/api/latest/fleet/software/titles"
 	var responseBody listSoftwareTitlesResponse
 	err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, query)

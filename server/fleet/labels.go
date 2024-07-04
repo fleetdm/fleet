@@ -9,13 +9,27 @@ import (
 type ModifyLabelPayload struct {
 	Name        *string `json:"name"`
 	Description *string `json:"description"`
+	// Hosts is the new list of host identifiers to apply for this label, only
+	// valid for manual labels. If it is nil (not just len() == 0, but == nil),
+	// then the list of hosts is not modified. If it is not nil and len == 0,
+	// then all members are removed.
+	Hosts []string `json:"hosts"`
 }
 
 type LabelPayload struct {
-	Name        *string `json:"name"`
-	Query       *string `json:"query"`
-	Platform    *string `json:"platform"`
-	Description *string `json:"description"`
+	Name string `json:"name"`
+	// Query is the SQL query that defines the label. This defines a dynamic
+	// label, where the hosts that are part of the label are determined based on
+	// the query result. Must be empty for a manual label, must be provided for a
+	// dynamic one.
+	Query       string `json:"query"`
+	Platform    string `json:"platform"`
+	Description string `json:"description"`
+	// Hosts is the list of host identifier (serial, uuid, name, etc. as
+	// supported by HostByIdentifier) that are part of the label. This defines a
+	// manual label. Can be empty for a manual label that doesn't target any
+	// host. Must be empty for a dynamic label.
+	Hosts []string `json:"hosts"`
 }
 
 // LabelType is used to catagorize the kind of label
@@ -129,5 +143,33 @@ type LabelSpec struct {
 	Platform            string              `json:"platform,omitempty"`
 	LabelType           LabelType           `json:"label_type,omitempty" db:"label_type"`
 	LabelMembershipType LabelMembershipType `json:"label_membership_type" db:"label_membership_type"`
-	Hosts               []string            `json:"hosts,omitempty"`
+	Hosts               []string            `json:"hosts"`
+}
+
+const (
+	BuiltinLabelNameAllHosts    = "All Hosts"
+	BuiltinLabelNameMacOS       = "macOS"
+	BuiltinLabelNameUbuntuLinux = "Ubuntu Linux"
+	BuiltinLabelNameCentOSLinux = "CentOS Linux"
+	BuiltinLabelNameWindows     = "MS Windows"
+	BuiltinLabelNameRedHatLinux = "Red Hat Linux"
+	BuiltinLabelNameAllLinux    = "All Linux"
+	BuiltinLabelNameChrome      = "chrome"
+	BuiltinLabelMacOS14Plus     = "macOS 14+ (Sonoma+)"
+)
+
+// ReservedLabelNames returns a map of label name strings
+// that are reserved by Fleet.
+func ReservedLabelNames() map[string]struct{} {
+	return map[string]struct{}{
+		BuiltinLabelNameAllHosts:    {},
+		BuiltinLabelNameMacOS:       {},
+		BuiltinLabelNameUbuntuLinux: {},
+		BuiltinLabelNameCentOSLinux: {},
+		BuiltinLabelNameWindows:     {},
+		BuiltinLabelNameRedHatLinux: {},
+		BuiltinLabelNameAllLinux:    {},
+		BuiltinLabelNameChrome:      {},
+		BuiltinLabelMacOS14Plus:     {},
+	}
 }

@@ -51,30 +51,34 @@ const PlatformCompatibility = ({
   if (!compatiblePlatforms) {
     return null;
   }
-  if (error || !compatiblePlatforms?.length) {
-    return (
-      <span className={baseClass}>
-        <b>
-          <TooltipWrapper
-            tipContent={
-              <>
-                Estimated compatiblity based on <br />
-                the tables used in the query.
-              </>
-            }
-          >
-            Compatible with:
-          </TooltipWrapper>
-        </b>
-
-        {displayIncompatibilityText(error || ERROR_NO_COMPATIBLE_TABLES)}
-      </span>
-    );
-  }
 
   const displayPlatforms = formatPlatformsForDisplay(compatiblePlatforms);
+
+  const renderCompatiblePlatforms = () => {
+    if (error || !compatiblePlatforms?.length) {
+      return displayIncompatibilityText(error || ERROR_NO_COMPATIBLE_TABLES);
+    }
+
+    return DISPLAY_ORDER.map((platform) => {
+      const isCompatible = displayPlatforms.includes(platform);
+      return (
+        <span key={`platform-compatibility__${platform}`} className="platform">
+          <Icon
+            name={isCompatible ? "check" : "close"}
+            className={
+              isCompatible ? "compatible-platform" : "incompatible-platform"
+            }
+            color={isCompatible ? "status-success" : "status-error"}
+            size="small"
+          />
+          {platform}
+        </span>
+      );
+    });
+  };
+
   return (
-    <span className={baseClass}>
+    <div className={baseClass}>
       <b>
         <TooltipWrapper
           tipContent={
@@ -87,26 +91,8 @@ const PlatformCompatibility = ({
           Compatible with:
         </TooltipWrapper>
       </b>
-      {DISPLAY_ORDER.map((platform) => {
-        const isCompatible = displayPlatforms.includes(platform);
-        return (
-          <span
-            key={`platform-compatibility__${platform}`}
-            className="platform"
-          >
-            <Icon
-              name={isCompatible ? "check" : "close"}
-              className={
-                isCompatible ? "compatible-platform" : "incompatible-platform"
-              }
-              color={isCompatible ? "status-success" : "status-error"}
-              size="small"
-            />
-            {platform}
-          </span>
-        );
-      })}
-    </span>
+      {renderCompatiblePlatforms()}
+    </div>
   );
 };
 export default PlatformCompatibility;

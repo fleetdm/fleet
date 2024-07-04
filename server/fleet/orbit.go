@@ -33,6 +33,9 @@ type OrbitConfigNotifications struct {
 	// EnforceBitLockerEncryption is sent as true if Windows MDM is
 	// enabled and the device should encrypt its disk volumes with BitLocker.
 	EnforceBitLockerEncryption bool `json:"enforce_bitlocker_encryption,omitempty"`
+
+	// PendingSoftwareInstallerIDs contains a list of software install_ids queued for installation
+	PendingSoftwareInstallerIDs []string `json:"pending_software_installer_ids,omitempty"`
 }
 
 type OrbitConfig struct {
@@ -44,6 +47,16 @@ type OrbitConfig struct {
 	//
 	// If UpdateChannels is nil it means the server isn't using/setting this feature.
 	UpdateChannels *OrbitUpdateChannels `json:"update_channels,omitempty"`
+}
+
+type OrbitConfigReceiver interface {
+	Run(*OrbitConfig) error
+}
+
+type OrbitConfigReceiverFunc func(cfg *OrbitConfig) error
+
+func (f OrbitConfigReceiverFunc) Run(cfg *OrbitConfig) error {
+	return f(cfg)
 }
 
 // OrbitUpdateChannels hold the update channels that can be configured in fleetd agents.

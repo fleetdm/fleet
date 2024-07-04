@@ -1,12 +1,11 @@
 # Business Operations
-This handbook page details processes specific to working [with](#what-we-do) and [within](#responsibilities) the Business Operations (BizOps) department.  
+This handbook page details processes specific to working [with](#contact-us) and [within](#responsibilities) this department.
 
 ## Team
 | Role                          | Contributor(s)           |
 |:------------------------------|:-----------------------------------------------------------------------------------------------------------|
 | Head of Business Operations   | [Joanne Stableford](https://www.linkedin.com/in/joanne-stableford/) _([@jostableford](https://github.com/JoStableford))_
-| Community Advocate              | [JD Strong](https://www.linkedin.com/in/jackdaniyelstrong/) _([@spokanemac](https://github.com/spokanemac/spokanemac))_
-| Business Operations Engineer  | [Nathan Holliday](https://www.linkedin.com/in/nathanael-holliday/) _([@hollidayn](https://github.com/hollidayn))_, [Isabell Reedy](https://www.linkedin.com/in/isabell-reedy-202aa3123/) _([@ireedy](https://github.com/ireedy))_
+| Business Operations Engineer  | [Nathan Holliday](https://www.linkedin.com/in/nathanael-holliday/) _([@hollidayn](https://github.com/hollidayn))_ <br> [Isabell Reedy](https://www.linkedin.com/in/isabell-reedy-202aa3123/) _([@ireedy](https://github.com/ireedy))_
 
 ## Contact us
 - To **make a request** of this department, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-business-operations&projects=&template=custom-request.md&title=Request%3A+_______________________) and a team member will get back to you within one business day (If urgent, mention a [team member](#team) in [#g-business-operations](https://fleetdm.slack.com/archives/C047N5L6EGH).
@@ -15,7 +14,8 @@ This handbook page details processes specific to working [with](#what-we-do) and
 
 
 ## Responsibilities
-The Business Operations department is directly responsible for the functions of all Finance, People, Legal, IT, and Revenue Operations (RevOps). 
+The Business Operations department is directly responsible for people operations, finance + invoicing, tax, compliance, and legal + deal desk.
+
 
 ### Run payroll
 Many of these processes are automated, but it's vital to check Gusto and Plane manually for accuracy.
@@ -24,10 +24,10 @@ Many of these processes are automated, but it's vital to check Gusto and Plane m
 
 | Payroll type                 | What to use                  | DRI                          |
 |:-----------------------------|:-----------------------------|:-----------------------------|
-| [Commissions and ramp](https://fleetdm.com/handbook/business-operations#run-us-commission-payroll)         | "Off-cycle" payroll          | Head of Revenue Operations
+| [Commissions and ramp](https://fleetdm.com/handbook/business-operations#run-us-commission-payroll)         | "Off-cycle - Commission" payroll          | Head of Business Operations
 | Sign-on bonus                | "Bonus" payroll              | Head of Business Operations
 | Performance bonus            | "Bonus" payroll              | Head of Business Operations     
-| Accelerations (quarterly)    | "Off-cycle" payroll          | Head of Revenue Operations
+| Accelerations (quarterly)    | "Off-cycle - Commission" payroll          | Head of Business Operations
 | [US contractor payroll](https://fleetdm.com/handbook/business-operations#run-us-contractor-payroll) | "Off-cycle" payroll | Head of Business Operations
 
 ### Reconcile monthly recurring expenses
@@ -35,25 +35,10 @@ Recurring monthly or annual expenses, such as the tools we use throughout Fleet,
 
 > Use this spreadsheet as the source of truth.  Always make changes to it first before adding or removing a recurring expense. Only track significant expenses. (Other things besides amount can make a payment significant; like it being an individualized expense, for example.)
 
-### Register a domain for Fleet
-Domain name registrations are handled through Namecheap. Access is managed via 1Password.
 
 ### Access a background check
-Fleet team members with access to Fleet's infrastructure undergo a background check provided through [Vetty](https://vetty.co/). Only the most recent background checks appear on the home page of Vetty's dashboard. To access a complete list of background checks run in Vetty, scroll down to the bottom of the candidates page and click "View Historical".
+All Fleet team members undergo a background check provided through [Vetty](https://vetty.co/). Only the most recent background checks appear on the home page of Vetty's dashboard. To access a complete list of background checks run in Vetty, scroll down to the bottom of the candidates page and click "View Historical".
 
-### Secure company-issued equipment for a team member
-As soon as an offer is accepted, Fleet provides laptops and YubiKey security keys for core team members to use while working at Fleet. The BizOps engineer will work with the new team member to get their equipment requested and shipped to them on time.
-
-- [**Check the Fleet IT warehouse**](https://docs.google.com/spreadsheets/d/1hFlymLlRWIaWeVh14IRz03yE-ytBLfUaqVz0VVmmoGI/edit#gid=0) before purchasing any equipment including laptops, monitors, and Yubikeys to ensure we efficiently [utilize existing assets before spending money](https://fleetdm.com/handbook/company/why-this-way#why-spend-less). If Fleet IT warehouse inventory can meet the needs of the request, file a [warehouse request](https://github.com/fleetdm/confidential/issues/new?assignees=sampfluger88&labels=%23g-digital-experience&projects=&template=warehouse-request.md&title=%F0%9F%92%BB+Warehouse+request).
-
-- Apple computers shipping to the United States and Canada are ordered using the Apple [eCommerce Portal](https://ecommerce2.apple.com/asb2bstorefront/asb2b/en/USD/?accountselected=true), or by contacting the business team at an Apple Store or contacting the online sales team at [800-854-3680](tel:18008543680). The BizOps team can arrange for same-day pickup at a store local to the Fleetie if needed.
-  - **Note:** Most Fleeties use 16-inch MacBook Pros. Team members are free to choose any laptop or operating system that works for them, as long as the price [is within reason](https://www.fleetdm.com/handbook/communications#spending-company-money). 
-
-  - When ordering through the Apple eCommerce Portal, look for a banner with *Apple Store for FLEET DEVICE MANAGEMENT | Welcome [Your Name].* Hovering over *Welcome* should display *Your Profile.* If Fleet's account number is displayed, purchases will be automatically made available in Apple Business Manager (ABM).
-
-- Apple computers for Fleeties in other countries should be purchased through an authorized reseller to ensure the device is enrolled in ADE. In countries that Apple does not operate or that do not allow ADE, work with the authorized reseller to find the best solution, or consider shipping to a US based Fleetie and then shipping on to the teammate. 
-
- > A 3-year AppleCare+ Protection Plan (APP) should be considered default for Apple computers >$1500. Base MacBook Airs, Mac minis, etc. do not need APP unless configured beyond the $1500 price point. APP provides 24/7 support, and global repair coverage in case of accidental screen damage or liquid spill, and battery service.
 
 ### Process an email from a state agency
 From time to time, you may get notices via email (or in the mail) from state agencies regarding Fleet's withholding and/or unemployment tax accounts. You can resolve some of these notices on your own by verifying and/or updating the settings in your Gusto account.
@@ -83,112 +68,242 @@ Every quarter, payroll and tax filings are due for each state. Gusto can handle 
 
 
 ### Inform managers about hours worked
-Every Friday at 1:00pm CT, we gather hours worked for anyone who gets paid hourly by Fleet. This includes core team members and consultants, regardless of employment classification, and regardless whether inside or outside of the United States.
+
+Every Friday at 2:00 PM CT, we collect hours worked for all hourly employees at Fleet, including core team members and consultants, regardless of their location.
 
 Here's how:
-- For every hourly core team member in Gusto or Plane.com, find the DRI by looking up ([who they report to](https://fleetdm.com/handbook/company#org-chart)).
-- If any direct report is hourly in Plane.com and does not submit their hours until the end of the month, still list them, but explain. 
-- [Consultants](https://fleetdm.com/handbook/business-operations#hiring) don't have a formal reporting structure. They submit their hours through Gusto (US consultants) or Plane.com (international consultants), which require approval from a DRI. You can find the DRI by looking at the Business Operations [KPIs](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0)
 
-Then, send the DRI a direct message in Slack with a screenshot of the HRIS portal, showing hours logged since last Saturday at midnight and tasks undertaken during those hours (if provided). Ensure the screenshot does not contain any compensation information.
+1. For each hourly core team member in Gusto or Plane.com, find the DRI by checking [who they report to](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0).
+   - If any direct report is hourly in Plane.com and submits hours monthly, still list them and provide an explanation.
+2. Consultants submit their hours through Gusto (US consultants) or Plane.com (international consultants) and require DRI approval. Find the DRI using the [Business Operations KPIs](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0).
+3. Send the teammate's DRI a direct message in Slack with a screenshot of the HRIS portal, showing hours logged since last Saturday at midnight, and ask them to confirm the hours are expected. Ensure the screenshot does not include compensation information.
+4. The following Monday, check for updates to logged hours and ensure the KPI sheet aligns with HRIS records.
+   - If there are discrepancies between what was previously reported, reconfirm logged hours with the teammate's DRI and update the KPI sheet to reflect the correct amount.
 
-> 
-> More info: https://fleetdm.com/handbook/business-operations#inform-managers-about-hours-worked
 
 ### Change the DRI of a consultant
 
 1. In the [KPIs](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0) sheet, find the consultant's column.
 2. Change the DRI documented there to the new DRI who will receive information about the consultant's hours.
 
-
 ### Run US contractor payroll
 For Fleet's US contractors, running payroll is a manual process:
-- Add the amount to be paid to the "Gross" line.
-- Review hours _("Time tools > Time tracking")_
-- Adjust time frame to match current payroll period (the 27th through 26th of the month)
-- Sync hours and run contractor payroll.
+1. Add the amount to be paid to the "Gross" line.
+2. Review hours _("Time tools > Time tracking")_
+3. Adjust time frame to match current payroll period (the 27th through 26th of the month)
+4. Sync hours and run contractor payroll.
+
+### Create an invoice
+To create a new invoice for a Fleet customer, follow these steps:
+1. Go to the [invoice folder in google drive](https://drive.google.com/drive/folders/11limC_KQYNYQPApPoXN0CplHo_5Qgi2b?usp=drive_link).
+2. Create a copy of the invoice template, and title the copy `[invoice number] Fleet invoice - [customer name]`.
+    - The invoice number follows the format of `YYMMDD[daily issued invoice number]`, where the daily issued invoice number should equal `01` if it's the first invoice issued that day, `02` if it's the second, etc.
+3.  Edit the new invoice to reflect details from the signed subscription agreement (and PO if required).
+    - Enter the invoice number (and PO number if required) into the top right section of the invoice.
+    - Update the date of the invoice to reflect the current date.
+    - Make sure the payment terms match the signed subscription agreement.
+    - Copy the customer address from the signed subscription agreement and input it in the "Bill to" section of the invoice.
+    - Copy the "Billing contact" email from the signed subscription agreement and add it to the last line of the "Bill to" address.
+    - Make sure the start and end dates of the contract and amount match the subscription agreement.
+    - If professional services are included in the subscription agreement, include as a separate line in the invoice, and ensure the amounts total correctly.
+    - Ensure the "Notes" section has wiring instructions for payment via SVB.
+4.  Download the completed invoice as a PDF.
+5.  Send the PDF to the billing contact from the "Bill to" section of the invoice and cc [Fleet's billing email address](https://fleetdm.com/handbook/company/communications#email-relays). Use the following template for the email:
+
+```
+Subject: Invoice for Fleet Device Management [invoice number]
+Hello,
+
+I've attached the invoice for [customer name]'s purchase of Fleet Device Management's premium subscription.
+For payment instructions please refer to your invoice, and reach out to [insert Fleet's billing address] with any questions.
+
+Thanks,
+[name]
+```
+
+6. Update the opportunity and the opportunity billing cycle in Salesforce to include the "Invoice date" as the day the invoice was sent.
+8. Notify the AE/CSM that the invoice has been sent.
+
+> Certain vendors require invoices submitted via a payment portal (such as Coupa). Once you've generated the invoice using the steps above, upload it to the relevant payment portal and email the billing contact to let them know you've submitted the invoice.
+
+
+### Communicate the status of customer financial actions
+This reporting is performed to update the status of open or upcoming customer actions regarding the financial health of the opportunity. To complete the report:
+1. Go to this [report folder](https://fleetdm.lightning.force.com/lightning/r/Folder/00lUG000000DstpYAC/view?queryScope=userFolders) in SFDC. The three reports will provide the data used in the report.
+2. Copy the template below and paste it into the [#g-sales slack channel](https://fleetdm.slack.com/archives/C030A767HQV) and complete all "todos" using the data from Salesforce before sending. 
+
+```
+Weekly revenue report - [@`todo: CRO` and @`todo: CEO`]
+- Number accounts with outstanding balances = `todo`
+- Number of customers awaiting invoices = `todo`
+- Number of past-due renewals = `todo`
+```
+
+3. Send payment reminders via email to all outstanding accounts by responding to the invoice email initially sent to the customer.
+
+```
+Hello,
+This is a reminder that you have an outstanding balance due for your Fleet Device Management premium subscription.
+We have included the invoice here for your convenience.
+For payment instructions please refer to your invoice, and reach out to [Fleet's billing contact] with any questions.
+
+Thanks,
+[name]
+```
+4. If any accounts will become overdue within a week, reply in thread to the slack post, mention the opportunity owner of the account, and ask them to notify their contact that Fleet is still awaiting payment.
+5. Review the [billing cycles](https://fleetdm.lightning.force.com/lightning/r/Report/00OUG000000yGjR2AU/view) report in SFDC for customers on multiyear deals. For any customers due for invoicing within the next week, create an issue on the Business Operations board.
+
 
 ### Run US commission payroll
-- Update [commission calculator](https://docs.google.com/spreadsheets/d/1vw6Q7kCC7-FdG5Fgx3ghgUdQiF2qwxk6njgK6z8_O9U/edit) with new revenue from any deals that are closed/won (have a subscription agreement signed by both parties) and have an **effective start date** within the previous month.
-  - Find detailed notes on this process in [Notes - Run commission payroll in Gusto](https://docs.google.com/document/d/1FQLpGxvHPW6X801HYYLPs5y8o943mmasQD3m9k_c0so/edit#). 
-- Let the Head of Business Operations know they can run the commission payroll. Use the off-cycle payroll option in Gusto. Be sure to classify the payment as "Commission" in the "other earnings" field and not the generic "Bonus."
-- Once commission payroll has been run, update the [commission calculator](https://docs.google.com/spreadsheets/d/1vw6Q7kCC7-FdG5Fgx3ghgUdQiF2qwxk6njgK6z8_O9U/edit) to mark the commission as paid. 
+1. Update individual teammates commission calculators (linked from [main commission calculator](https://docs.google.com/spreadsheets/d/1PuqUbfPGos87TfcHWgUd05TRJgQLlBmhyz1euj79m2A/edit?usp=sharing)) with new revenue from any deals that are closed-won (have a subscription agreement signed by both parties) and have a **close date** within the previous month.
+    - Verify closed-won deal numbers with CRO to ensure any agreed upon exceptions are captured (eg: CRO approves an AE to receive commission on a renewal deal due to cross-sell).
+2. In the "Monthly commission payroll party" meeting, present the commission calculations for Fleeties receiving commission for approval.
+    - If there are any quarterly accelerators due for the teammate receiving commission, ensure the individual total includes both the monthly and the quarterly amount.
+3. After the amounts are approved in the meeting, process the commission payroll.
+    - Use the off-cycle payroll option in Gusto. Be sure to classify the payment as "Commission" in the "other earnings" field and not the generic "Bonus."
+4. Once commission payroll has been run, update the [main commission calculator](https://docs.google.com/spreadsheets/d/1PuqUbfPGos87TfcHWgUd05TRJgQLlBmhyz1euj79m2A/edit?usp=sharing) to mark the commission as paid.
+
+### Run international commission payroll
+1. Follow the steps in [run US commission payroll](https://fleetdm.com/handbook/business-operations#run-us-commission-payroll) to have the commission amounts approved by the CRO.
+2. After the amounts are approved in the "Monthly commission payroll party", navigate to Help > Ask a question in Plane to request a commission payment for the teammate.
+3. Send a message using the following template
+
+    ```
+    Hello,
+    I’d like to run an off-cycle commission payment for [teammate’s full name] for the period of [commission period].
+    The amount of [USD amount] should be paid with their next payroll.
+    Please let me know if you need any additional information to process this request.
+    
+    Thanks,
+    [name]
+    ```
+
+4. Once Plane confirms the payroll change has been actioned, update the [main commission calculator](https://docs.google.com/spreadsheets/d/1PuqUbfPGos87TfcHWgUd05TRJgQLlBmhyz1euj79m2A/edit#gid=928324236) to mark the commission as paid. 
+
+
+### Run quarterly or annual employee bonus payroll
+1. Update individual teammate bonus calculator (linked from [main commission calculator](https://docs.google.com/spreadsheets/d/1PuqUbfPGos87TfcHWgUd05TRJgQLlBmhyz1euj79m2A/edit?usp=sharing)) with relevant metrics.
+    - Bonus plans will have details specified on how to measure success, with most drawing from the [KPI spreadsheet](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit?usp=sharing) or from linked SFDC reports. If unsure where to pull achievement metrics from, contact teammate's manager to clarify.
+2. In the "Monthly commission payroll party" meeting, present the bonus calculations for Fleeties receiving bonus for approval.
+3. After the amounts are approved in the meeting, process the bonus payroll.
+    - Use the off-cycle payroll option in Gusto and be sure to classify the payment as "Bonus".
+    - For international teammates, you may need to use the "Help" function, or email support to notify Plane of the amount needing to be paid.
+4. Once bonus payroll has been run, update the [main commission calculator](https://docs.google.com/spreadsheets/d/1PuqUbfPGos87TfcHWgUd05TRJgQLlBmhyz1euj79m2A/edit?usp=sharing) to mark the bonus as paid. 
 
 
 ### Convert a Fleetie to a consultant
 If a Fleetie decides they want to move to being a [consultant](https://fleetdm.com/handbook/company/leadership#consultants), either the Fleetie or their manager need to create a [custom issue for the BizOps team](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-business-operations&projects=&template=custom-request.md&title=Request%3A+_______________________) to notify them of the change.
 Once notified, BizOps takes the following steps:
-- Confirm the following details with the Fleetie:
-  - Date of change
-  - Term of consultancy (time period)
-  - Hours/capacity expected (hours per week or month)
-  - Confirm hourly rate
-- Once details are confirmed, use the information given to create the consulting agreement for the Fleetie (either in docusign (US-based) or via Plane (international)), and send to their personal email for signature. Once signed, save in Fleetie's [employee file](https://drive.google.com/drive/folders/1UL7o3BzkTKnpvIS4hm_RtbOilSABo3oG?usp=drive_link).
-- Schedule the Fleetie's final day in HRIS (Gusto or Plane).
-- Update final day in ["🧑‍🚀 Fleeties"](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) spreadsheet.
-- Create an [offboarding issue](https://github.com/fleetdm/classified/blob/main/.github/ISSUE_TEMPLATE/%F0%9F%9A%AA-offboarding-____________.md) for the Fleetie converting to a consultant, and confirm with their manager if there is a need to retain any tools or access while they are a consultant (default to removing all access from Fleet email, and migrating to personal email for Slack and other tools unless there is a business case to retain the Fleet email and associated tool access).
-- Follow the offboarding issue for next steps, including communicating to teammates and updating equity plan.
+1. Confirm the following details with the Fleetie:
+    - Date of change
+    - Term of consultancy (time period)
+    - Hours/capacity expected (hours per week or month)
+    - Confirm hourly rate
+2. Once details are confirmed, use the information given to create the consulting agreement for the Fleetie (either in docusign (US-based) or via Plane (international)), and send to their personal email for signature. Once signed, save in Fleetie's [employee file](https://drive.google.com/drive/folders/1UL7o3BzkTKnpvIS4hm_RtbOilSABo3oG?usp=drive_link).
+3. Schedule the Fleetie's final day in HRIS (Gusto or Plane).
+4. Update final day in ["🧑‍🚀 Fleeties"](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) spreadsheet.
+5. Create an [offboarding issue](https://github.com/fleetdm/classified/blob/main/.github/ISSUE_TEMPLATE/%F0%9F%9A%AA-offboarding-____________.md) for the Fleetie converting to a consultant, and confirm with their manager if there is a need to retain any tools or access while they are a consultant (default to removing all access from Fleet email, and migrating to personal email for Slack and other tools unless there is a business case to retain the Fleet email and associated tool access).
+6. Follow the offboarding issue for next steps, including communicating to teammates and updating equity plan.
 
 
-### Updating personnel details
+### Update personnel details
 When a Fleetie, consultant or advisor requests an update to their personnel details (name, location, phone, etc), follow these steps to ensure accurate representation across systems.
-- Team member submits a [custom issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-business-operations&projects=&template=custom-request.md&title=Request%3A+_______________________) to update their personnel details (or BizOps team creates if the request comes via email or is sensitive and needs a classified issue).
-  - If change is for a primary identification or contact method, ask for evidence of change and capture in [employee's personnel file](https://drive.google.com/drive/folders/1UL7o3BzkTKnpvIS4hm_RtbOilSABo3oG?usp=drive_link).
-- BizOps makes change to HRIS (Gusto or Plane) to reflect change. 
-  - Note: if making the change requires follow up steps, resolve those steps to action the change.
-- Once change is effected in HRIS, BizOps makes changes to ["🧑‍🚀 Fleeties"](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) spreadsheet.
-- If required, BizOps makes any relevant changes to [Fleet's equity plan](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit#gid=0).
-- If required, BizOps makes any relevant changes to the ["🗺️ Geographical factors"](https://docs.google.com/spreadsheets/d/1rCVCs-eOo-VSEG7fPLgdq5l7oSaActl5bewaWP7PnSE/edit#gid=1533353559) spreadsheet and follows through on any action items involving tax implications (i.e. registering with a new state for employer taxes).
-- If required, BizOps also makes changes to other core systems (e.g: creating a new email alias in google workspace; updating details in Carta; etc).
-- The change is now actioned, notify the team member and close the issue.
+1. Team member submits a [custom issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-business-operations&projects=&template=custom-request.md&title=Request%3A+_______________________) to update their personnel details (or BizOps team creates if the request comes via email or is sensitive and needs a classified issue).
+    - If change is for a primary identification or contact method, ask for evidence of change and capture in [employee's personnel file](https://drive.google.com/drive/folders/1UL7o3BzkTKnpvIS4hm_RtbOilSABo3oG?usp=drive_link).
+2. BizOps makes change to HRIS (Gusto or Plane) to reflect change. 
+    - Note: if making the change requires follow up steps, resolve those steps to action the change.
+3. Once change is effected in HRIS, BizOps makes changes to ["🧑‍🚀 Fleeties"](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) spreadsheet.
+4. If required, BizOps makes any relevant changes to [Fleet's equity plan](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit#gid=0).
+5. If required, BizOps makes any relevant changes to the ["🗺️ Geographical factors"](https://docs.google.com/spreadsheets/d/1rCVCs-eOo-VSEG7fPLgdq5l7oSaActl5bewaWP7PnSE/edit#gid=1533353559) spreadsheet and follows through on any action items involving tax implications (i.e. registering with a new state for employer taxes).
+6. If required, BizOps also makes changes to other core systems (e.g: creating a new email alias in google workspace; updating details in Carta; etc).
+7. The change is now actioned, notify the team member and close the issue.
+
+> Note: if the Fleetie is US based and has a qualifying life event that impacts benefit coverage, they can [follow the Gusto steps](https://support.gusto.com/article/100895878100000/Change-your-benefits-with-a-qualifying-life-event) to update their coverage elections.
 
 
 ### Change a Fleetie's job title
 When BizOps receives notification of a Fleetie's job title changing, follow these steps to ensure accurate recording of the change across our systems.
-- Update the ["🧑‍🚀 Fleeties"](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) spreadsheet:
-  - Search the spreadsheet for the Fleetie in need of a job title change.
-  - Input the new job title in the Fleetie's row in the "Job title" cell.
-  - Navigate to the "Org chart" tab of the spreadsheet, and verify that the Fleetie's title appears correctly in the org chart.
-- Update the relevant HRIS system.
-  - For updating Gusto (US-based Fleeties):
-    - Login to Gusto and navigate to "People > Team members".
-    - Find the Fleetie and select them to see their profile page.
-    - Under the "Compensation" heading, select edit and update the "Job title" and input the specific date the change happened. Save the changes.
-  - For updating Plane (non-US Fleeties):
-    - Login to Plane and navigate to "People > Team".
-    - Find the Fleetie and select them to see their profile page.
-    - Use the "Help" function, or email support@plane.com to notify Plane of the need to change the job title for the Fleetie. Include the Fleetie's name, current title, new title, and effective date.
-    - Take any relevant steps as directed by Plane in order to make the required changes to the Fleetie's profile.
+1. Update ["🧑‍🚀 Fleeties"](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0):
+    - Search the spreadsheet for the Fleetie in need of a job title change.
+    - Input the new job title in the Fleetie's row in the "Job title" cell.
+    - Navigate to the "Org chart" tab of the spreadsheet, and verify that the Fleetie's title appears correctly in the org chart.
+2. Update the departmental handbook page with the change of job title
+3. Update the relevant payroll/HRIS system.
+    - For updating Gusto (US-based Fleeties):
+      - Login to Gusto and navigate to "People > Team members".
+      - Find the Fleetie and select them to see their profile page.
+      - Under the "Compensation" heading, select edit and update the "Job title" and input the specific date the change happened. Save the changes.
+    - For updating Plane (non-US Fleeties):
+      - Login to Plane and navigate to "People > Team".
+      - Find the Fleetie and select them to see their profile page.
+      - Use the "Help" function, or email support@plane.com to notify Plane of the need to change the job title for the Fleetie. Include the Fleetie's name, current title, new title, and effective date.
+      - Take any relevant steps as directed by Plane in order to make the required changes to the Fleetie's profile.
 
 
 ### Change a Fleetie's manager
 When BizOps receives notification of a Fleetie's manager changing, follow these steps to ensure correct recording in our systems.
-- Update the [Fleeties](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0).
-  - Search for the Fleetie's new manager, and copy the new manager's unique ID from the far left "Unique ID" column.
-  - Search for the Fleetie who's manager is changing, and paste (without formatting) their new manager's unique ID in the "Reports to: (manager unique ID)" cell in the Fleetie's row.
-  - Verify that the "Reports to (auto: manager name and job title)" cell in the Fleetie's row reflects the new manager's details.
-  - Verify that in the new manager's row, the "# direct reports" cell reflect the correct number.
-  - Navigate to the "Org chart" tab in the spreadsheet, and verify that the Fleetie now appears in the correct place in the org chart.
-> **Note:** The Fleeties spreadsheet is the source of truth for this information, and any other systems reflecting reporting lines should be disregarded.
- 
+1. Update [🧑‍🚀 Fleeties](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0):
+    - Search for the Fleetie's new manager, and copy the new manager's unique ID from the far left "Unique ID" column.
+    - Search for the Fleetie who's manager is changing, and paste (without formatting) their new manager's unique ID in the "Reports to: (manager unique ID)" cell in the Fleetie's row.
+    - Verify that the "Reports to (auto: manager name and job title)" cell in the Fleetie's row reflects the new manager's details.
+    - Verify that in the new manager's row, the "# direct reports" cell reflect the correct number.
+    - Navigate to the "Org chart" tab in the spreadsheet, and verify that the Fleetie now appears in the correct place in the org chart.
+2. If the person's department is changing, then update both departmental handbook pages to move the person to their new department:
+    - Remove the person from the "Team" section of the old department and add them to the "Team" section of the new department.
+3. If the person's level of confidential access will change along with the change to their manager, then update that level of access:
+    - Update Google Workspace to make sure this person lives in the correct Google Group, removing them from the old and/or adding them to the new.
+    - Update 1password to remove this person from old vaults and/or add them to new vaults.
+    - For a team member moving from "classified" to "confidential" access, check Gusto, Plane, and other systems to remove their access.
+
+> **Note:** The Fleeties spreadsheet is the source of truth for who everyone's manager is and their job titles.
+
+### Recognize employee workiversaries
+
+At Fleet, everyone is recognized on their [workiversary](https://fleetdm.com/handbook/company/communications#workiversaries). To ensure this happens, take the following steps:
+
+1. Bimonthly, use [Fleeties (private google doc)](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) to determine who is celebrating their workiversary in the following two months.
+2. Post in the #help-classifed Slack channel and cc the Head of Business Operations. Use the following template:
+
+   
+    ```
+    [Month]
+    [workiversary date (DD-MMM)] - [teammate name] - [number of years at Fleet]
+    ```
+
+    
+   The Apprentice to the CEO will also use this post to update the [All hands](https://fleetdm.com/handbook/company/communications#all-hands) deck.
+3. On the day prior to a workiversary, send the teammate’s manager a DM on Slack:
+
+
+    ```
+    Hey! Just a heads up, tomorrow is [teammate’s name] [number of years at Fleet] workiversary at Fleet.
+    BizOps were planning on posting something in the #random channel to recognize them, but I was wondering if you would like to instead?
+    ```
+
+    
+   > If a manager elects to post and hasn't done so by 2pm ET on the day of the workiversary, send them a friendly reminder and offer to post instead.
+
+4. If the manager has deferred to BizOps, schedule a Slack post for the following day to recognize the teammate's contributions at Fleet. If you’re unsure about what to post, take a look at what’s been [posted previously](https://docs.google.com/document/d/1Va4TYAs9Tb0soDQPeoeMr-qHxk0Xrlf-DUlBe4jn29Q/edit).
+
 
 
 ### Prepare salary benchmarking information
-- Use the relevant template text in the README section of the [¶¶ 💌 Compensation decisions document](https://docs.google.com/document/d/1NQ-IjcOTbyFluCWqsFLMfP4SvnopoXDcX0civ-STS5c/edit?usp=sharing) for a current Fleetie, a new role, a prospective hire, or other benchmarking use case.
-- Copy the template text and paste at the end of the document.
-- Fill in details as required, pulling from [🧑‍🚀 Fleeties spreadsheet](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) and [equity spreadsheet](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit?usp=sharing) as required.
-- Use the teammate's information to benchmark in [Pave](https://www.pave.com/) (login details in 1Password). You can pattern match from previous benchmarking entries, and include all company assumtions. Add the direct link to the Pave benchmark.
+1. Use the relevant template text in the README section of the [¶¶ 💌 Compensation decisions document](https://docs.google.com/document/d/1NQ-IjcOTbyFluCWqsFLMfP4SvnopoXDcX0civ-STS5c/edit?usp=sharing) for a current Fleetie, a new role, a prospective hire, or other benchmarking use case.
+2. Copy the template text and paste at the end of the document.
+3. Fill in details as required, pulling from [🧑‍🚀 Fleeties spreadsheet](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) and [equity spreadsheet](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit?usp=sharing) as required.
+4. Use the teammate's information to benchmark in [Pave](https://www.pave.com/) (login details in 1Password). You can pattern match from previous benchmarking entries, and include all company assumtions. Add the direct link to the Pave benchmark.
+
 
 ### Update a team member's compensation
 To [change a team member's compensation](https://fleetdm.com/handbook/company/communications#compensation-changes), follow these steps:
-- Create a copy of the ["Values assessment" template](https://docs.google.com/spreadsheets/d/1P5TyRV2v-YN0aR_X8vd8GksKcr3uHfUDdshqpVzamV8/edit?usp=drive_link) and move it to the team member's [personnel folder in Google Drive](https://drive.google.com/drive/folders/1UL7o3BzkTKnpvIS4hm_RtbOilSABo3oG?usp=drive_link).
-- Share the values assessment document with the manager and ask them to perform the values assessment.
-- Once the values assessment is complete, [prepare salary benchmarking information](#prepare-salary-benchmarking-information) and set a meeting between the manager, head of department, and Head of Business Operations about level of job skill in relation to compensation benchmarking levels.
-- Schedule a new calendar event for the Head of Business Operations with the founders over an existing founders' 1:1 to discuss if an adjustment needs to be made to team member's compensation to align with benchmarking. During the 1:1 call, founders review values assessment, benchmarking for role and geography, and decide if there will be an adjustment.
-- Head of Business Operations will post in slack to `#help-classified` with the decision on compensation changes and effective date, if any.
-- Communicate via Slack DM the decision to the teammate's people manager, who will then communicate to their teammate.
-- Update the respective payroll platform (Gusto or Plane) by navigating to the personnel page, selecting salary field, and updating with an effective date that makes the next payroll.
-- Update the [equity spreadsheet](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit?usp=sharing) (internal doc) by copying existing OTE to the bottom of the "Notes" cell, updating the OTE column with the new compensation information, and updating the "Last compensation change" column with the effective date from payroll platform.
+1. Create a copy of the ["Values assessment" template](https://docs.google.com/spreadsheets/d/1P5TyRV2v-YN0aR_X8vd8GksKcr3uHfUDdshqpVzamV8/edit?usp=drive_link) and move it to the team member's [personnel folder in Google Drive](https://drive.google.com/drive/folders/1UL7o3BzkTKnpvIS4hm_RtbOilSABo3oG?usp=drive_link).
+2. Share the values assessment document with the manager and ask them to perform the values assessment.
+3. Once the values assessment is complete, [prepare salary benchmarking information](#prepare-salary-benchmarking-information) and set a meeting between the manager, head of department, and Head of Business Operations about level of job skill in relation to compensation benchmarking levels.
+4. Schedule a new calendar event for the Head of Business Operations with the founders over an existing founders' 1:1 to discuss if an adjustment needs to be made to team member's compensation to align with benchmarking. During the 1:1 call, founders review values assessment, benchmarking for role and geography, and decide if there will be an adjustment.
+5. Head of Business Operations will post in slack to `#help-classified` with the decision on compensation changes and effective date, if any.
+6. Communicate via Slack DM the decision to the teammate's people manager, who will then communicate to their teammate.
+7. Update the respective payroll platform (Gusto or Plane) by navigating to the personnel page, selecting salary field, and updating with an effective date that makes the next payroll.
+8. Update the [equity spreadsheet](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit?usp=sharing) (internal doc) by copying existing OTE to the bottom of the "Notes" cell, updating the OTE column with the new compensation information, and updating the "Last compensation change" column with the effective date from payroll platform.
 
 > If the company decides on an additional equity grant as part of a compensation change, note the previous equity and new situation in detail in the "Notes" column of the equity plan. Update the "Grant started?" column to "todo" which adds it to the queue for the next time grants are processed (quarterly).
 
@@ -200,37 +315,49 @@ Create a [new montly accounting issue](https://github.com/fleetdm/confidential/i
 - The close date is tracked each month in [KPIs](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit).
 - **When is the issue created?** We create and close the monthly accounting issue for the previous month within the first 7 days of the following month.  For example, the monthly accounting issue to close out the month of January is created promptly in February and closed before the end of the day, Feb 7th.  A convenient trick is to create the issue on the first Friday of the month and close it ASAP.
 
+
+### Respond to low credit alert
+Fleet admins will receive an email alert when the usage of company cards for the month is aproaching the company credit limit. To avoid the limit being exceeded, a Brex admin will follow these steps:
+1. Sign in to Fleet's Brex account.
+2. On the landing page, use the "Move money" button to "Add funds to your Brex business accounts".
+3. Select "Transfer from a connected account" and select the primary business account.
+4. Choose the "One time" transfer option and process the transfer.
+
+No further action needs to be taken, the amount available for use will increase without disruption to regular processes.
+
 ### Check franchise tax status
 No later than the second month of every quarter, we check [Delaware divison of corporations](https://icis.corp.delaware.gov) to ensure that Fleet has paid the quarterly franchise tax amounts to remain in good standing with the state of Delaware.
 - Go to the [DCIS - eCorp website](https://icis.corp.delaware.gov/ecorp/logintax.aspx?FilingType=FranchiseTax) and use the details in 1Password to look up Fleet's status.
 - If no outstanding amounts: the tax has been paid.
 - If outstanding amounts shown: ensure payment before due date to avoid penalties, interest, and entering bad standing.
 
+
 ### Check finances for quirks
 Every quarter, we check Quickbooks Online (QBO) for discrepancies and follow up on quirks.
-- Check to make sure [bookkeeping quirks](https://docs.google.com/spreadsheets/d/1nuUPMZb1z_lrbaQEcgjnxppnYv_GWOTTo4FMqLOlsWg/edit?usp=sharing) are all accounted for and resolved or in progress toward resolution.
-- Check balance sheet and profit and loss statements (P&Ls) in QBO against the latest [monthly workbooks](https://drive.google.com/drive/folders/1ben-xJgL5MlMJhIl2OeQpDjbk-pF6eJM) in Google Drive.
-- Reach out to Pilot with any differences or quirks, and ask them to resolve/provide clarity.  This often will need to happen over a call to review sycnhronously.
-- Once quirks are resolved, note the day it was resolved in the spreadsheet.
+1. Check to make sure [bookkeeping quirks](https://docs.google.com/spreadsheets/d/1nuUPMZb1z_lrbaQEcgjnxppnYv_GWOTTo4FMqLOlsWg/edit?usp=sharing) are all accounted for and resolved or in progress toward resolution.
+2. Check balance sheet and profit and loss statements (P&Ls) in QBO against the latest [monthly workbooks](https://drive.google.com/drive/folders/1ben-xJgL5MlMJhIl2OeQpDjbk-pF6eJM) in Google Drive.
+3. Reach out to Pilot with any differences or quirks, and ask them to resolve/provide clarity.  This often will need to happen over a call to review sycnhronously.
+4. Once quirks are resolved, note the day it was resolved in the spreadsheet.
+
 
 ### Report quarterly numbers in Chronograph
 Follow these steps to perform quarterly reporting for Fleet's investors:
-- Login to Chronograph and upload our profit and loss statement (P&L), balance sheet and cash flow statements for CRV (all in one book saved in [Google Drive](https://drive.google.com/drive/folders/1ben-xJgL5MlMJhIl2OeQpDjbk-pF6eJM).
-- Provide updated metrics for the following items using Fleet's [KPI spreadsheet](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0).
-  - Headcount at end of the previous quarter.
-  - Starting ARR for the previous quarter.
-  - Total new ARR for the previous quarter.
-  - "Upsell ARR" (new ARR from expansions only- Chronograph defines "upsell" as price increases for any reason.
-    **- Fleet does not "upsell" anything; we deliver more value and customers enroll more hosts), downgrade ARR and churn ARR (if any) for the previous quarter.**
-  - Ending ARR for the previous quarter.
-  - Starting number of customers, churned customers, and the number of new customers Fleet gained during the previous quarter.
-  - Total amount of Fleet customers at the end of the previous quarter.
-  - Gross margin % 
-    - How to calculate: (total revenue for the quarter - cost of goods sold for the quarter)/total revenue for the quarter (these metrics can be found in our books from Pilot). Chronograph will automatically conver this number to a %.
-  - Net dollar retention rate
-    - How to calculate: (starting ARR + new subscriptions and expansions - churn)/starting ARR. 
-  - Cash burn
-    - How to calculate: start of quarter runway - end of quarter runway. 
+1. Login to Chronograph and upload our profit and loss statement (P&L), balance sheet and cash flow statements for CRV (all in one book saved in [Google Drive](https://drive.google.com/drive/folders/1ben-xJgL5MlMJhIl2OeQpDjbk-pF6eJM).
+2. Provide updated metrics for the following items using Fleet's [KPI spreadsheet](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0).
+    - Headcount at end of the previous quarter.
+    - Starting ARR for the previous quarter.
+    - Total new ARR for the previous quarter.
+    - "Upsell ARR" (new ARR from expansions only- Chronograph defines "upsell" as price increases for any reason.
+      **- Fleet does not "upsell" anything; we deliver more value and customers enroll more hosts), downgrade ARR and churn ARR (if any) for the previous quarter.**
+    - Ending ARR for the previous quarter.
+    - Starting number of customers, churned customers, and the number of new customers Fleet gained during the previous quarter.
+    - Total amount of Fleet customers at the end of the previous quarter.
+    - Gross margin % 
+      - How to calculate: (total revenue for the quarter - cost of goods sold for the quarter)/total revenue for the quarter (these metrics can be found in our books from Pilot). Chronograph will automatically conver this number to a %.
+    - Net dollar retention rate
+      - How to calculate: (starting ARR + new subscriptions and expansions - churn)/starting ARR. 
+    - Cash burn
+      - How to calculate: start of quarter runway - end of quarter runway. 
 
 
 ### Grant equity
@@ -251,90 +378,58 @@ For the status of stock option grants, exercises, and all other _common stock_ i
 
 ### Deliver annual report for venture line
 Within 60 days of the end of the year, follow these steps:
-  - Provide Silicon Valley Bank (SVB) with our balance sheet and profit and loss statement (P&L, sometimes called a cashflow statement) for the past twelve months.  
-  - Provide SVB with our board-approved annual operating budgets and projections (on a quarterly granularity) for the new year.
-  - Deliver this as early as possible in case they have questions.
+1. Provide Silicon Valley Bank (SVB) with our balance sheet and profit and loss statement (P&L, sometimes called a cashflow statement) for the past twelve months.  
+2. Provide SVB with our board-approved annual operating budgets and projections (on a quarterly granularity) for the new year.
+3. Deliver this as early as possible in case they have questions.
 
-### Process a tool upgrade request from a team member
-- A Fleetie may request an upgraded license seat for Fleet tools by submitting an issue through ZenHub.
-- BizOps will upgrade or add the license seat as needed and let the requesting team member know they did it.
-
-### Downgrade an unused license seat
-- On the first Wednesday of every quarter, the CEO, head of BizOps and apprentice to the CEO will meet for 30 minutes to audit license seats in Figma, Slack, GitHub, Salesforce and other tools.
-- During this meeting, as many seats will be downgraded as possible. When doubt exists, downgrade.
-- Afterward, post in #random letting folks know that the quarterly tool reconciliation and seat clearing is complete, and that any members who lost access to anything they still need can submit a ZenHub issue to BizOps to have their access restored.
-- The goal is to build deep, integrated knowledge of tool usage across Fleet and cut costs whenever possible. It will also force conversations on redundancies and decisions that aren't helping the business that otherwise might not be looked at a second time.  
 
 ### Process a new vendor invoice
 - After making sure that an invoice received from a new vendor is valid, add the new vendor to the recurring expenses section of ["The numbers"](https://docs.google.com/spreadsheets/d/1X-brkmUK7_Rgp7aq42drNcUg8ZipzEiS153uKZSabWc/edit#gid=2112277278) before paying the invoice.
+
 
 ### Process a request to cancel a vendor
 - Make the cancellation notification in accordance with the contract terms between Fleet and the vendor, typically these notifications are made via email and may have a specific address that notice must be sent to. If the vendor has an autorenew contract with Fleet there will often be a window of time in which Fleet can cancel, if notification is made after this time period Fleet may be obligated to pay for the subsequent year even if we don't use the vendor during the next contract term.  
 - Once cancelled, update the recurring expenses section of [The Numbers](https://docs.google.com/spreadsheets/d/1X-brkmUK7_Rgp7aq42drNcUg8ZipzEiS153uKZSabWc/edit#gid=2112277278) to reflect the cancellation by changing the projected monthly burn in column G to $0 and adding "CANCELLED" in front of the vendor's name in column C.
 
+
+### Review an NDA
+We need to review an NDA anytime a vendor, customer or other party wants to:
+- Use their own NDA rather than Fleet's standard NDA, or
+- "Redline" (modify) Fleet's NDA by removing, adding or altering its terms.
+
+We should always seek to use Fleet's own NDA first, without alteration. 
+
+When reading an NDA, we want to pay close attention to the following:
+- We want to be sure that the confidentiality obligations of the NDA are reciprocal.  Fleet and the other party to the agreement should be bound to the same standards of confidentiality toward the handling of each other's confidential information.
+- Fleet does not agree to _"do not compete"_ or _"do not solicit clauses"_. An NDA should not contain provisions beyond the scope of an NDA. The two most commonly encountered examples of this are the "do not compete" and "do not solicit" clauses. We want to be free to hire the best people and make the best products, so when reading through an NDA it is important to keep an eye out for language that prohibits Fleet from hiring or soliciting current or former employees of other companies or that prohibit Fleet from independently developing products that compete with another company's products.  Using the `cmd + f` function to search for "solici", "compet" and "hir" and reading through the results is a helpful method to quickly scan for these clauses.
+- Look for any language that discusses a transfer of property rights. Rarely, you may find a clause snuck into an agreement that discusses the transfer of intellectual property rights.  _We want to avoid any situation where Fleet transfers its intellectual property to another party as part of an NDA_.  
+- Should you find any clauses in steps 2 or 3 that are beyond the scope of protecting both party's confidential information in a customer NDA or an altered version of Fleet's NDA, reject this language and communicate that Fleet cannot agree to those terms.
+- Any concerns or uncertainty over _any_ provisions in an NDA should be brought to Nathanael Holliday in BizOps, who will consult legal counsel if necessary to resolve any concerns.
+
+### Review a vendor agreement
+When reviewing contracts from a vendor, Fleet is concerned about the following:
+- If there are confidentiality provisions in the agreement in place of a stand-alone NDA, verify the confidentiality provisions are appropriate and protect Fleet when sensitive data is involved that isn't otherwise available to the public.
+- We want to make sure there are no _do not solicit_ or _do not compete_ clauses in the contract.  To aid in this search, we double check by using the cmd + f function and searching for "solici", "compet" and "hir" and then looking through the results to be sure that nothing prohibits Fleet from independently developing competing products or from hiring personnel with ties to the vendor.
+- We want to make sure that contracts can be terminated relatively easily and be aware of what the process is for terminating them, avoiding commitments over 12 months in length.
+- We want to make sure the payment terms work for us (i.e. being able to pay via wire transfer, credit card or bill.com) and that the price in any contract or order form is what we have agreed to.  While almost never malicious, mistakes often occur in the steps between agreeing on a price, negotiating a contract, and receiving an invoice.  We want to be sure at every step that the dollar amount and service provided is consistent with what has been negotiated and agreed upon.
+- Remember, once we have signed the agreement - we're stuck with it. If any clause in the agreement appears strange or gives you pause or concern, it is better to seek clarification than to commit to something that might be detrimental to Fleet.  Contracts are fairly standardized, and you'll quickly learn what is normal and what feels out of place.  Unusual clauses or wording that seems out of the ordinary should get a second set of eyes just to be sure, do not hesitate to reach out to Nathanael Holliday with questions, who will reach out to legal counsel as necessary.
+
+### Review an order form
+- We should always check order forms for additional terms that go beyond the scope of the order form (caps on price increases, for example).
+- Be sure the order form includes contact information + billing address and information so that Fleet knows how and who to invoice for payment.
+- Verify that the payment terms are correct and matches what's in the agreement. This is a frequent common mistake as companies usually have default payment terms and overlook changing them to match atypical payment terms.
+- Make sure the effective term of the order matches what was agreed upon (usually a one year term) and that the order form includes the correct number of hosts and whether or not it should contain professional services (usually, it does not). 
+- Check that the amount on the order form reflects what Fleet agreed to, as this is the amount that the customer will expect to be invoiced for.
+- Lastly, double check one more time to make sure there are no sneaky, unusual terms snuck in at the bottom of an order form or stashed away in fine print.  Common things that are included in order forms and not always communicated to Fleet are caps on price increases upon renewal, new SLAs, or a product roadmap or milestones we may not have agreed upon.  Any clauses on an order form that appear beyond the scope of simply elaborating on the services being provided, the purchase cost, the contract that the purchase is being made under, how Fleet will bill and how the customer will pay deserves a careful look.  Reach out to Nathanael Holliday in BizOps with concerns.
+
+### Review a non-standard subscription agreement
+We want to use our standard terms whenever possible with our customers, but it is common that customers want to use their own agreement or redline (modify) Fleet's terms.  
+When reviewing subscription agreements on customer paper or when a customer has made changes to Fleet's terms, we review it using [these guidelines](https://docs.google.com/document/d/1aGgN5It1i3fdsBF37vWSbvukO_gQhy5vCp4fINg191Q/edit?usp=sharing).
+   
+
 ### Update weekly KPIs
 - Create the weekly update issue from the template in ZenHub every Friday and update the [KPIs for BizOps](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0) by 5pm US central time.
-- Check the KPI sheet at 5pm US central time to ensure all departments have updated their KPIs on time.  If any departments are delinquent, notify the department head and let the [Apprentice to the CEO](https://fleetdm.com/handbook/ceo#team) know so they can put it on the agenda for their next one-on-one with the CEO.
-
-### Enroll a macOS host in dogfood
-When a device is purchased using the Apple eCommerce store, the device is automatically enrolled in Apple Business Manager (ABM) and assigned to the correct server to ensure the device is in dogfood.
-You can confirm that the device has been ordered correctly by following these steps:
-- Log into ABM
-- Use the device serial number to find the device.
-  - Note: if the device cannot be found, you will need to manually enroll the device.
-- View device settings and ensure the "MDM Server" selected is "Fleet Dogfood".
-<img width="143" alt="Screenshot 2023-11-21 at 11 08 50 AM" src="https://github.com/fleetdm/confidential/assets/47070608/512dc629-76dd-4090-bf86-9c4582286d1d">
-
-On occasion there will be a need to manually enroll a macOS host in dogfood. This could be due to a BYOD arrangement, or because the Fleetie getting the device is in a country when DEP (automatic enrollment) isn't supported. To manually enroll a macOS host in dogfood, follow these steps:
-- If you have physical access to the macOS host, use Apple Configurator (docs are [here](https://support.apple.com/guide/apple-business-manager/add-devices-from-apple-configurator-axm200a54d59/web)).
-- If you do not have physical access to the device, the user will need to undertake the following steps:
-  - Install the fleetd package for your device from shared drive folder [here](https://drive.google.com/drive/folders/1-hMwk4P7NRzCU5kDxkEcOo8Sluuaux1h?usp=drive_link).
-  - Once fleetd is installed, click on Fleet desktop icon in top right menu bar, and select "My device".
-  - In Fleet desktop, follow the instructions to turn on MDM.
-  - Once complete, follow instructions to reset disk encryption key.
-- Disk encryption key will now be stored in Fleet dogfood, which signifies that the device is now enrolled in dogfood.
-
-### Enroll a Windows or Ubuntu Linux device in dogfood
-To enroll a windows or Ubuntu Linux device in dogfood, instruct the user to install fleetd for their platform from internal shared drive folder [here](https://drive.google.com/drive/folders/1-hMwk4P7NRzCU5kDxkEcOo8Sluuaux1h?usp=drive_link).
-Once the user has installed fleetd, verify the device is correctly enrolled by confirming the device encryption key is in dogfood.
-
-### Enroll a ChromeOS device in dogfood
-ChromeOS devices are automatically enrolled in dogfood after the IT admin sets up automatic enrollment. This is done in dogfood by following the steps found in the dialog popup when selecting "Add hosts > ChromeOS" from the dogfood Hosts page.
-
-### Lock a macOS host in dogfood using fleetctl CLI tool
-- Download the lock command XML file from Google Drive [here](https://drive.google.com/file/d/1o6vJ1fHilRtBmyKAj0I5URiKn77qe4gS/view?usp=drive_link).
-- Customize any messaging that will appear on the locked device, and modify the pin for unlocking the device by editing the file in text editor.
-  - Note you will need to safely store the recovery pin for the device, suggest using 1Password or other secure storage method
-- Run this command with fleetctl CLI tool: `fleetctl mdm run-command --hosts=hostname --payload=Downloads/command-lock-macos-host.xml`
-  - Note that `hostname` must be replaced with **Hostname** in Fleet (not the display name)
-  - Note that the payload path may change based on where the file is stored once downloaded
-  - Note that if you haven't logged into fleetctl recently, will need to follow authentication steps (see [Logging in with SAML (SSO) authentication](https://fleetdm.com/docs/using-fleet/fleetctl-cli#logging-in-with-saml-sso-authentication) ).
-- Device will be locked
-- When device needs to be unlocked, enter the security pin (from XML file) in the input field of the device
-- The device will then open to the regular login screen, asking for password
-  -  If you do not have the password available, you can choose the option to enter recovery key/disk encryption key (this option might be behind `?` icon).
-  - Get disk encryption key from Fleet dogfood (using the action menu from the individual host page).
-  - Enter disk encryption key on laptop. This should prompt you to create a new password.
-- You will then be logged into the default device profile, and can complete any needed actions (wipe, recover data).
-
-
-### Book an event
-The Business Operations department is responsible for booking events that Fleet has chosen to attend and/or sponsor. To book an event, complete the steps in each event issue. Contact the [Head of Demand Generation](https://fleetdm.com/handbook/demand#team) as needed with any questions or blockers to booking an event.
-
-> Note: The Demand department [settles all event strategy](https://fleetdm.com/handbook/demand#settle-event-strategy) prior to booking an event. 
-
-<!-- TODO Create Article issue template and update this section of the handbook to reflect reality and add corresponding rituals to business-operations.rituals.yml
-
-### Create an article
-Article creation begins with creation of an issue using the "Article request" template.
-
-1. Create a [new GitHub issue for the #g-demand board](https://github.com/fleetdm/confidential/issues/new?assignees=spokanemac&labels=%23g-demand=&template=custom-request.md&title=Article%20Idea%3A+_______________________) and select the "Event-preparation" template..
-2. Move the issue into the "📃 Planned articles" column.
-
-
-### Review ongoing articles
-Check the "📃 Planned articles" column in [#g-demand board](https://app.zenhub.com/workspaces/g-demand-64e6c8e2d35c7f001a457b7f/board) and continue to work through steps in each event's issue.
--->
+- Check the KPI sheet at 5pm US central time to ensure all departments have updated their KPIs on time.  If any departments are delinquent, notify the department head and let the [Apprentice](https://fleetdm.com/handbook/digital-experience#team) know so they can put it on the agenda for their next one-on-one with the CEO.
 
 
 ## Rituals
@@ -369,8 +464,36 @@ Please see [hanbook/business-operations#grant-role-specific-license-to-a-team me
 ##### Tools we use
 Please see [hanbook/business-operations#grant-role-specific-license-to-a-team member](https://www.fleetdm.com/handbook/business-operations#reconcile-monthly-recurring-expenses).
 
-##### Namecheap
-Please see [handbook/register-a-domain-for-fleet](https://www.fleetdm.com/handbook/business-operations#register-a-domain-for-fleet).
+##### Secure company-issued equipment for a team member
+Please see [handbook/engineering#secure-company-issued-equipment-for-a-team-member](https://www.fleetdm.com/handbook/engineering#secure-company-issued-equipment-for-a-team-member).
+
+##### Register a domain for Fleet
+Please see [handbook/register-a-domain-for-fleet](https://www.fleetdm.com/handbook/engineering#register-a-domain-for-fleet).
+
+##### Updating personnel details
+Please see [handbook/engineering#update-personnel-details](https://www.fleetdm.com/handbook/engineering#update-personnel-details).
+
+##### Fix a laptop that's not checking in
+Please see [handbook/engineering#fix-a-laptop-thats-not-checking-in](https://www.fleetdm.com/handbook/engineering#fix-a-laptop-thats-not-checking-in)
+
+##### Enroll a macOS host in dogfood
+Please see [handbook/engineering#enroll-a-macos-host-in-dogfood](https://www.fleetdm.com/handbook/engineering#enroll-a-macos-host-in-dogfood)
+
+##### Enroll a Windows or Ubuntu Linux device in dogfood
+Please see [handbook/engineering#enroll-a-windows-or-ubuntu-linux-device-in-dogfood](https://www.fleetdm.com/handbook/engineering#enroll-a-windows-or-ubuntu-linux-device-in-dogfood)
+
+##### Enroll a ChromeOS device in dogfood
+Please see [handbook/engineering#enroll-a-chromeos-device-in-dogfood](https://www.fleetdm.com/handbook/engineering#enroll-a-chromeos-device-in-dogfood)
+
+##### Lock a macOS host in dogfood using fleetctl CLI tool
+Please see [handbook/engineering#lock-a-macos-host-in-dogfood-using-fleetctl-cli-tool](https://www.fleetdm.com/handbook/engineering#lock-a-macos-host-in-dogfood-using-fleetctl-cli-tool)
+
+##### Book an event
+Please see [handbook/engineering#book-an-event](https://www.fleetdm.com/handbook/engineering#book-an-event)
+
+##### Order SWAG
+Please see [handbook/engineering#order-swag](https://www.fleetdm.com/handbook/engineering#order-swag)
+
 
 <meta name="maintainedBy" value="jostableford">
 <meta name="title" value="🔦 Business Operations">

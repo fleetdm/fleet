@@ -1,2 +1,0 @@
-* Added Windows MDM support to the `osquery-perf` host-simulation command.
-* Added a missing database index to the MDM Windows enrollments table that will improve performance at scale.

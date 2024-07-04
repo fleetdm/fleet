@@ -126,7 +126,6 @@ const generateColumnConfigs = (
         if (cellProps.cell.value === "GitOps") {
           return (
             <TooltipWrapper
-              position="top-start"
               tipContent={
                 <>
                   The GitOps role is only available on the command-line
@@ -144,7 +143,6 @@ const generateColumnConfigs = (
         if (cellProps.cell.value === "Observer+") {
           return (
             <TooltipWrapper
-              position="top-start"
               tipContent={
                 <>
                   Users with the Observer+ role have access to all of
@@ -168,7 +166,7 @@ const generateColumnConfigs = (
       disableSortBy: true,
       accessor: "email",
       Cell: (cellProps: ICellProps) => (
-        <TextCell classes="w400" value={cellProps.cell.value} />
+        <TextCell className="w400" value={cellProps.cell.value} />
       ),
     },
     {

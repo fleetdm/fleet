@@ -12,7 +12,7 @@
 - name: orbit_info
   query: SELECT * from orbit_info;
   interval: 0
-  platform: darwin,linux,windows
+  platform: darwin,$LINUX_OS,windows
   min_osquery_version: all
   observer_can_run: false
   automations_enabled: true

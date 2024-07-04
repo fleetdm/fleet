@@ -141,8 +141,8 @@ const RunScriptModal = ({
           {!isLoading && isError && <DataError />}
           {!isLoading && !isError && (!tableData || tableData.length === 0) && (
             <EmptyTable
-              header="No scripts are available for this host"
-              info="Expecting to see scripts? Try selecting “Refetch” to ask the host to report new vitals."
+              header="No scripts available for this host"
+              info="Expecting to see scripts? Close this modal and try again."
             />
           )}
           {!isLoading && !isError && tableData && tableData.length > 0 && (

@@ -12,3 +12,8 @@ CVE-2020-7753
 # We feel like the risk of DoS using this technique, which requires being logged in, is low probability and low impact, as such we will not update glob-parent only for this CVE
 
 CVE-2020-28469
+
+# 2024/04/04 (github.com/goreleaser/nfpm/v2 should be updated)
+# When packaging linux files, we do not use global permissions. Manually verified that packed fleet-osquery files do not have group/global write permissions.
+
+CVE-2023-32698

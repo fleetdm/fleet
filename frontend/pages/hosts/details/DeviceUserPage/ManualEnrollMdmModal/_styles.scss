@@ -1,7 +1,21 @@
 .manual-enroll-mdm-modal {
   @include enroll-mdm-modal;
 
-  &__error-message {
-    margin: $pad-xxxlarge;
+  // TODO: make a link component that appears as a button.
+  &__download-link {
+    display: inline-block;
+    border-radius: 6px;
+    margin-top: 12px;
+    background-color: $core-vibrant-blue;
+    color: $core-white;
+    padding: $pad-small $pad-medium;
+
+    &:hover {
+      background-color: $core-vibrant-blue-over;
+    }
+
+    &:active {
+      background-color: $core-vibrant-blue-down;
+    }
   }
 }

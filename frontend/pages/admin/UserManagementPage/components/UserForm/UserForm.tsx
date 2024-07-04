@@ -210,6 +210,15 @@ const UserForm = ({
   };
 
   const validate = (): boolean => {
+    if (!validatePresence(formData.name)) {
+      setErrors({
+        ...errors,
+        name: "Name field must be completed",
+      });
+
+      return false;
+    }
+
     if (!validatePresence(formData.email)) {
       setErrors({
         ...errors,
@@ -403,7 +412,7 @@ const UserForm = ({
         onChange={onInputChange("email")}
         placeholder="Email"
         value={formData.email || ""}
-        disabled={!isNewUser && !(smtpConfigured || sesConfigured)}
+        readOnly={!isNewUser && !(smtpConfigured || sesConfigured)}
         tooltip={
           <>
             Editing an email address requires that SMTP or SES is configured in
@@ -441,7 +450,7 @@ const UserForm = ({
             name="sso_enabled"
             onChange={onCheckboxChange("sso_enabled")}
             value={formData.sso_enabled}
-            disabled={!canUseSso}
+            readOnly={!canUseSso}
             wrapperClassName={`${baseClass}__invite-admin`}
             helpText={
               canUseSso ? (
@@ -464,11 +473,7 @@ const UserForm = ({
               )
             }
           >
-            <span
-              className={!canUseSso ? `${baseClass}__sso-input--disabled` : ""}
-            >
-              Enable single sign-on
-            </span>
+            Enable single sign-on
           </Checkbox>
         </div>
       )}

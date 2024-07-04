@@ -1,9 +1,12 @@
 /* eslint-disable @typescript-eslint/explicit-module-boundary-types */
+import { createMockMdmProfile } from "__mocks__/mdmMock";
 import {
   DiskEncryptionStatus,
+  IHostMdmProfile,
   IMdmProfile,
   MdmProfileStatus,
 } from "interfaces/mdm";
+import { API_NO_TEAM_ID } from "interfaces/team";
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
 import { buildQueryStringFromParams } from "utilities/url";
@@ -43,14 +46,28 @@ export interface IMdmProfilesResponse {
 export interface IUploadProfileApiParams {
   file: File;
   teamId?: number;
-  labels?: string[];
+  labelsIncludeAll?: string[];
+  labelsExcludeAny?: string[];
+}
+
+export const isDDMProfile = (profile: IMdmProfile | IHostMdmProfile) => {
+  return profile.profile_uuid.startsWith("d");
+};
+
+interface IUpdateSetupExperienceBody {
+  team_id?: number;
+  enable_release_device_manually: boolean;
+}
+
+export interface IAppleSetupEnrollmentProfileResponse {
+  team_id: number | null;
+  name: string;
+  uploaded_at: string;
+  // enrollment profile is an object with keys found here https://developer.apple.com/documentation/devicemanagement/profile.
+  enrollment_profile: Record<string, unknown>;
 }
 
 const mdmService = {
-  downloadDeviceUserEnrollmentProfile: (token: string) => {
-    const { DEVICE_USER_MDM_ENROLLMENT_PROFILE } = endpoints;
-    return sendRequest("GET", DEVICE_USER_MDM_ENROLLMENT_PROFILE(token));
-  },
   resetEncryptionKey: (token: string) => {
     const { DEVICE_USER_RESET_ENCRYPTION_KEY } = endpoints;
     return sendRequest("POST", DEVICE_USER_RESET_ENCRYPTION_KEY(token));
@@ -65,13 +82,10 @@ const mdmService = {
       timeout
     );
   },
-  requestCSR: (email: string, organization: string) => {
+  requestCSR: () => {
     const { MDM_REQUEST_CSR } = endpoints;
 
-    return sendRequest("POST", MDM_REQUEST_CSR, {
-      email_address: email,
-      organization,
-    });
+    return sendRequest("GET", MDM_REQUEST_CSR);
   },
 
   getProfiles: (
@@ -85,7 +99,12 @@ const mdmService = {
     return sendRequest("GET", path);
   },
 
-  uploadProfile: ({ file, teamId, labels }: IUploadProfileApiParams) => {
+  uploadProfile: ({
+    file,
+    teamId,
+    labelsIncludeAll,
+    labelsExcludeAny,
+  }: IUploadProfileApiParams) => {
     const { MDM_PROFILES } = endpoints;
 
     const formData = new FormData();
@@ -95,9 +114,15 @@ const mdmService = {
       formData.append("team_id", teamId.toString());
     }
 
-    labels?.forEach((label) => {
-      formData.append("labels", label);
-    });
+    if (labelsIncludeAll || labelsExcludeAny) {
+      const labels = labelsIncludeAll || labelsExcludeAny;
+      const labelKey = labelsIncludeAll
+        ? "labels_include_all"
+        : "labels_exclude_any";
+      labels?.forEach((label) => {
+        formData.append(labelKey, label);
+      });
+    }
 
     return sendRequest("POST", MDM_PROFILES, formData);
   },
@@ -225,6 +250,68 @@ const mdmService = {
       team_id: teamId,
       enable_end_user_authentication: isEnabled,
     });
+  },
+
+  updateReleaseDeviceSetting: (teamId: number, isEnabled: boolean) => {
+    const { MDM_SETUP_EXPERIENCE } = endpoints;
+
+    const body: IUpdateSetupExperienceBody = {
+      enable_release_device_manually: isEnabled,
+    };
+
+    if (teamId !== API_NO_TEAM_ID) {
+      body.team_id = teamId;
+    }
+
+    return sendRequest("PATCH", MDM_SETUP_EXPERIENCE, body);
+  },
+  getSetupEnrollmentProfile: (teamId?: number) => {
+    const { MDM_APPLE_SETUP_ENROLLMENT_PROFILE } = endpoints;
+    if (!teamId || teamId === API_NO_TEAM_ID) {
+      return sendRequest("GET", MDM_APPLE_SETUP_ENROLLMENT_PROFILE);
+    }
+
+    const path = `${MDM_APPLE_SETUP_ENROLLMENT_PROFILE}?${buildQueryStringFromParams(
+      { team_id: teamId }
+    )}`;
+    return sendRequest("GET", path);
+  },
+  uploadSetupEnrollmentProfile: (file: File, teamId: number) => {
+    const { MDM_APPLE_SETUP_ENROLLMENT_PROFILE } = endpoints;
+
+    const reader = new FileReader();
+    reader.readAsText(file);
+
+    return new Promise((resolve, reject) => {
+      reader.addEventListener("load", () => {
+        try {
+          const body: Record<string, unknown> = {
+            name: file.name,
+            enrollment_profile: JSON.parse(reader.result as string),
+          };
+          if (teamId !== API_NO_TEAM_ID) {
+            body.team_id = teamId;
+          }
+          resolve(
+            sendRequest("POST", MDM_APPLE_SETUP_ENROLLMENT_PROFILE, body)
+          );
+        } catch {
+          // catches invalid JSON
+          reject("Couldn't upload. The file should include valid JSON.");
+        }
+      });
+    });
+  },
+  deleteSetupEnrollmentProfile: (teamId: number) => {
+    const { MDM_APPLE_SETUP_ENROLLMENT_PROFILE } = endpoints;
+    if (teamId === API_NO_TEAM_ID) {
+      return sendRequest("DELETE", MDM_APPLE_SETUP_ENROLLMENT_PROFILE);
+    }
+
+    const path = `${MDM_APPLE_SETUP_ENROLLMENT_PROFILE}?${buildQueryStringFromParams(
+      { team_id: teamId }
+    )}`;
+    return sendRequest("DELETE", path);
   },
 };
 

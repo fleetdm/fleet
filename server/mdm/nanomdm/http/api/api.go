@@ -145,6 +145,11 @@ func RawCommandEnqueueHandler(enqueuer storage.CommandEnqueuer, pusher push.Push
 		b, err := mdmhttp.ReadAllAndReplaceBody(r)
 		if err != nil {
 			logger.Info("msg", "reading body", "err", err)
+			var toErr interface{ Timeout() bool }
+			if errors.As(err, &toErr) && toErr.Timeout() {
+				http.Error(w, http.StatusText(http.StatusRequestTimeout), http.StatusRequestTimeout)
+				return
+			}
 			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 			return
 		}
@@ -299,6 +304,11 @@ func StorePushCertHandler(storage storage.PushCertStore, logger log.Logger) http
 		b, err := mdmhttp.ReadAllAndReplaceBody(r)
 		if err != nil {
 			logger.Info("msg", "reading body", "err", err)
+			var toErr interface{ Timeout() bool }
+			if errors.As(err, &toErr) && toErr.Timeout() {
+				http.Error(w, http.StatusText(http.StatusRequestTimeout), http.StatusRequestTimeout)
+				return
+			}
 			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 			return
 		}

@@ -10,6 +10,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
+	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/google/uuid"
@@ -55,7 +56,7 @@ func testMDMWindowsEnrolledDevice(t *testing.T, ds *Datastore) {
 	enrolledDevice := &fleet.MDMWindowsEnrolledDevice{
 		MDMDeviceID:            uuid.New().String(),
 		MDMHardwareID:          uuid.New().String() + uuid.New().String(),
-		MDMDeviceState:         uuid.New().String(),
+		MDMDeviceState:         microsoft_mdm.MDMDeviceStateEnrolled,
 		MDMDeviceType:          "CIMClient_Windows",
 		MDMDeviceName:          "DESKTOP-1C3ARC1",
 		MDMEnrollType:          "ProgrammaticEnrollment",
@@ -157,6 +158,9 @@ func testMDMWindowsDiskEncryption(t *testing.T, ds *Datastore) {
 			h, err := ds.Host(ctx, id)
 			require.NoError(t, err)
 			require.NotNil(t, h)
+			mdmInfo, err := ds.GetHostMDM(ctx, id)
+			require.NoError(t, err)
+			require.NotNil(t, mdmInfo)
 			bls, err := ds.GetMDMWindowsBitLockerStatus(ctx, h)
 			require.NoError(t, err)
 			require.NotNil(t, bls)
@@ -289,6 +293,12 @@ func testMDMWindowsDiskEncryption(t *testing.T, ds *Datastore) {
 		hosts = append(hosts, h)
 
 		require.NoError(t, ds.SetOrUpdateMDMData(ctx, h.ID, false, true, "https://example.com", false, fleet.WellKnownMDMFleet, ""))
+
+		if p == "darwin" {
+			nanoEnroll(t, ds, h, false)
+		} else {
+			windowsEnroll(t, ds, h)
+		}
 	}
 
 	t.Run("Disk encryption disabled", func(t *testing.T) {
@@ -567,8 +577,8 @@ func testMDMWindowsProfilesSummary(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		if len(expectedIDs) != len(gotHosts) {
 			gotIDs := make([]uint, len(gotHosts))
-			for _, h := range gotHosts {
-				gotIDs = append(gotIDs, h.ID)
+			for i, h := range gotHosts {
+				gotIDs[i] = h.ID
 			}
 			require.Len(t, gotHosts, len(expectedIDs), fmt.Sprintf("status: %s expected: %v got: %v", status, expectedIDs, gotIDs))
 
@@ -636,6 +646,7 @@ func testMDMWindowsProfilesSummary(t *testing.T, ds *Datastore) {
 
 	// Create some hosts
 	var hosts []*fleet.Host
+	uuidToDeviceID := map[string]string{}
 	for i := 0; i < 10; i++ {
 		p := "windows"
 		if i >= 5 {
@@ -657,6 +668,9 @@ func testMDMWindowsProfilesSummary(t *testing.T, ds *Datastore) {
 		hosts = append(hosts, h)
 
 		require.NoError(t, ds.SetOrUpdateMDMData(ctx, h.ID, false, true, "https://example.com", false, fleet.WellKnownMDMFleet, ""))
+		if p == "windows" {
+			uuidToDeviceID[h.UUID] = windowsEnroll(t, ds, h)
+		}
 	}
 
 	t.Run("profiles summary accounts for bitlocker status", func(t *testing.T) {
@@ -929,6 +943,7 @@ func testMDMWindowsProfilesSummary(t *testing.T, ds *Datastore) {
 			otherHosts = append(otherHosts, h)
 
 			require.NoError(t, ds.SetOrUpdateMDMData(ctx, h.ID, false, true, "https://example.com", false, fleet.WellKnownMDMFleet, ""))
+			windowsEnroll(t, ds, h)
 		}
 		checkExpected(t, nil, expected)
 
@@ -1036,8 +1051,8 @@ func testMDMWindowsProfilesSummary(t *testing.T, ds *Datastore) {
 		}
 		checkExpected(t, nil, expected)
 
-		// report hosts[3] as not enrolled
-		require.NoError(t, ds.SetOrUpdateMDMData(ctx, hosts[3].ID, false, false, "https://example.com", false, fleet.WellKnownMDMFleet, ""))
+		// unenroll hosts[3]
+		require.NoError(t, ds.MDMWindowsDeleteEnrolledDeviceWithDeviceID(ctx, uuidToDeviceID[hosts[3].UUID]))
 		// hosts[3] is no longer counted
 		expected = hostIDsByProfileStatus{
 			fleet.MDMDeliveryPending: []uint{otherHosts[1].ID, otherHosts[2].ID, otherHosts[3].ID, otherHosts[4].ID},
@@ -1047,6 +1062,7 @@ func testMDMWindowsProfilesSummary(t *testing.T, ds *Datastore) {
 
 		// report hosts[4] as enrolled to a different MDM
 		require.NoError(t, ds.SetOrUpdateMDMData(ctx, hosts[4].ID, false, true, "https://some-other-mdm.example.com", false, "some-other-mdm", ""))
+		require.NoError(t, ds.MDMWindowsDeleteEnrolledDeviceWithDeviceID(ctx, uuidToDeviceID[hosts[4].UUID]))
 		// hosts[4] is no longer counted
 		expected = hostIDsByProfileStatus{
 			fleet.MDMDeliveryPending: []uint{otherHosts[1].ID, otherHosts[2].ID, otherHosts[3].ID, otherHosts[4].ID},
@@ -1067,7 +1083,7 @@ func testMDMWindowsInsertCommandForHosts(t *testing.T, ds *Datastore) {
 	d1 := &fleet.MDMWindowsEnrolledDevice{
 		MDMDeviceID:            uuid.New().String(),
 		MDMHardwareID:          uuid.New().String() + uuid.New().String(),
-		MDMDeviceState:         uuid.New().String(),
+		MDMDeviceState:         microsoft_mdm.MDMDeviceStateEnrolled,
 		MDMDeviceType:          "CIMClient_Windows",
 		MDMDeviceName:          "DESKTOP-1C3ARC1",
 		MDMEnrollType:          "ProgrammaticEnrollment",
@@ -1081,7 +1097,7 @@ func testMDMWindowsInsertCommandForHosts(t *testing.T, ds *Datastore) {
 	d2 := &fleet.MDMWindowsEnrolledDevice{
 		MDMDeviceID:            uuid.New().String(),
 		MDMHardwareID:          uuid.New().String() + uuid.New().String(),
-		MDMDeviceState:         uuid.New().String(),
+		MDMDeviceState:         microsoft_mdm.MDMDeviceStateEnrolled,
 		MDMDeviceType:          "CIMClient_Windows",
 		MDMDeviceName:          "DESKTOP-1C3ARC1",
 		MDMEnrollType:          "ProgrammaticEnrollment",
@@ -1146,7 +1162,7 @@ func testMDMWindowsGetPendingCommands(t *testing.T, ds *Datastore) {
 	d := &fleet.MDMWindowsEnrolledDevice{
 		MDMDeviceID:            uuid.New().String(),
 		MDMHardwareID:          uuid.New().String() + uuid.New().String(),
-		MDMDeviceState:         uuid.New().String(),
+		MDMDeviceState:         microsoft_mdm.MDMDeviceStateEnrolled,
 		MDMDeviceType:          "CIMClient_Windows",
 		MDMDeviceName:          "DESKTOP-1C3ARC1",
 		MDMEnrollType:          "ProgrammaticEnrollment",
@@ -1209,7 +1225,7 @@ func testMDMWindowsCommandResults(t *testing.T, ds *Datastore) {
 	dev := &fleet.MDMWindowsEnrolledDevice{
 		MDMDeviceID:            "test-device-id",
 		MDMHardwareID:          "test-hardware-id",
-		MDMDeviceState:         "ds",
+		MDMDeviceState:         microsoft_mdm.MDMDeviceStateEnrolled,
 		MDMDeviceType:          "dt",
 		MDMDeviceName:          "dn",
 		MDMEnrollType:          "et",
@@ -1272,7 +1288,7 @@ func windowsEnroll(t *testing.T, ds fleet.Datastore, h *fleet.Host) string {
 	d1 := &fleet.MDMWindowsEnrolledDevice{
 		MDMDeviceID:            uuid.New().String(),
 		MDMHardwareID:          uuid.New().String() + uuid.New().String(),
-		MDMDeviceState:         uuid.New().String(),
+		MDMDeviceState:         microsoft_mdm.MDMDeviceStateEnrolled,
 		MDMDeviceType:          "CIMClient_Windows",
 		MDMDeviceName:          "DESKTOP-1C3ARC1",
 		MDMEnrollType:          "ProgrammaticEnrollment",
@@ -1789,10 +1805,10 @@ func testMDMWindowsConfigProfiles(t *testing.T, ds *Datastore) {
 	_, err = ds.NewMDMWindowsConfigProfile(
 		ctx,
 		fleet.MDMWindowsConfigProfile{
-			Name:   "fake-labels",
-			TeamID: nil,
-			SyncML: []byte("<Replace></Replace>"),
-			Labels: []fleet.ConfigurationProfileLabel{{LabelName: "foo", LabelID: 1}},
+			Name:             "fake-labels",
+			TeamID:           nil,
+			SyncML:           []byte("<Replace></Replace>"),
+			LabelsIncludeAll: []fleet.ConfigurationProfileLabel{{LabelName: "foo", LabelID: 1}},
 		})
 	require.NotNil(t, err)
 	require.True(t, fleet.IsForeignKey(err))
@@ -1809,10 +1825,10 @@ func testMDMWindowsConfigProfiles(t *testing.T, ds *Datastore) {
 	profWithLabel, err := ds.NewMDMWindowsConfigProfile(
 		ctx,
 		fleet.MDMWindowsConfigProfile{
-			Name:   "with-labels",
-			TeamID: nil,
-			SyncML: []byte("<Replace></Replace>"),
-			Labels: []fleet.ConfigurationProfileLabel{{LabelName: label.Name, LabelID: label.ID}},
+			Name:             "with-labels",
+			TeamID:           nil,
+			SyncML:           []byte("<Replace></Replace>"),
+			LabelsIncludeAll: []fleet.ConfigurationProfileLabel{{LabelName: label.Name, LabelID: label.ID}},
 		})
 	require.NoError(t, err)
 	require.NotEmpty(t, profWithLabel.ProfileUUID)
@@ -1820,20 +1836,20 @@ func testMDMWindowsConfigProfiles(t *testing.T, ds *Datastore) {
 	// get that profile with label
 	prof, err := ds.GetMDMWindowsConfigProfile(ctx, profWithLabel.ProfileUUID)
 	require.NoError(t, err)
-	require.Len(t, prof.Labels, 1)
-	require.Equal(t, label.Name, prof.Labels[0].LabelName)
-	require.Equal(t, label.ID, prof.Labels[0].LabelID)
-	require.False(t, prof.Labels[0].Broken)
+	require.Len(t, prof.LabelsIncludeAll, 1)
+	require.Equal(t, label.Name, prof.LabelsIncludeAll[0].LabelName)
+	require.Equal(t, label.ID, prof.LabelsIncludeAll[0].LabelID)
+	require.False(t, prof.LabelsIncludeAll[0].Broken)
 
 	// break that profile by deleting the label
 	require.NoError(t, ds.DeleteLabel(ctx, label.Name))
 
 	prof, err = ds.GetMDMWindowsConfigProfile(ctx, profWithLabel.ProfileUUID)
 	require.NoError(t, err)
-	require.Len(t, prof.Labels, 1)
-	require.Equal(t, label.Name, prof.Labels[0].LabelName)
-	require.Zero(t, prof.Labels[0].LabelID)
-	require.True(t, prof.Labels[0].Broken)
+	require.Len(t, prof.LabelsIncludeAll, 1)
+	require.Equal(t, label.Name, prof.LabelsIncludeAll[0].LabelName)
+	require.Zero(t, prof.LabelsIncludeAll[0].LabelID)
+	require.True(t, prof.LabelsIncludeAll[0].Broken)
 
 	_, err = ds.GetMDMWindowsConfigProfile(ctx, "not-valid")
 	require.Error(t, err)
@@ -1848,7 +1864,7 @@ func testMDMWindowsConfigProfiles(t *testing.T, ds *Datastore) {
 	require.Equal(t, "<Replace></Replace>", string(prof.SyncML))
 	require.NotZero(t, prof.CreatedAt)
 	require.NotZero(t, prof.UploadedAt)
-	require.Nil(t, prof.Labels)
+	require.Nil(t, prof.LabelsIncludeAll)
 
 	err = ds.DeleteMDMWindowsConfigProfile(ctx, "not-valid")
 	require.Error(t, err)
@@ -2109,6 +2125,8 @@ func testBatchSetMDMWindowsProfiles(t *testing.T, ds *Datastore) {
 	applyAndExpect(nil, ptr.Uint(1), nil)
 }
 
+// if the label name starts with "exclude-", the label is considered an "exclude-any", otherwise
+// it is an "include-all".
 func windowsConfigProfileForTest(t *testing.T, name, locURI string, labels ...*fleet.Label) *fleet.MDMWindowsConfigProfile {
 	prof := &fleet.MDMWindowsConfigProfile{
 		Name: name,
@@ -2124,7 +2142,11 @@ func windowsConfigProfileForTest(t *testing.T, name, locURI string, labels ...*f
 	}
 
 	for _, lbl := range labels {
-		prof.Labels = append(prof.Labels, fleet.ConfigurationProfileLabel{LabelName: lbl.Name, LabelID: lbl.ID})
+		if strings.HasPrefix(lbl.Name, "exclude-") {
+			prof.LabelsExcludeAny = append(prof.LabelsExcludeAny, fleet.ConfigurationProfileLabel{LabelName: lbl.Name, LabelID: lbl.ID})
+		} else {
+			prof.LabelsIncludeAll = append(prof.LabelsIncludeAll, fleet.ConfigurationProfileLabel{LabelName: lbl.Name, LabelID: lbl.ID})
+		}
 	}
 
 	return prof

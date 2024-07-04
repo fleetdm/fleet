@@ -3,13 +3,18 @@ import sendRequest from "services";
 import endpoints from "utilities/endpoints";
 import { IHost, HostStatus } from "interfaces/host";
 import {
+  QueryParams,
   buildQueryStringFromParams,
   getLabelParam,
   reconcileMutuallyExclusiveHostParams,
   reconcileMutuallyInclusiveHostParams,
 } from "utilities/url";
 import { SelectedPlatform } from "interfaces/platform";
-import { ISoftwareTitle, ISoftware } from "interfaces/software";
+import {
+  IHostSoftware,
+  ISoftware,
+  SoftwareInstallStatus,
+} from "interfaces/software";
 import {
   DiskEncryptionStatus,
   BootstrapPackageStatus,
@@ -28,7 +33,7 @@ export interface ISortOption {
 export interface ILoadHostsResponse {
   hosts: IHost[];
   software: ISoftware | undefined;
-  software_title: ISoftwareTitle | undefined;
+  software_title: { name: string; version?: string } | null | undefined; // TODO: confirm type
   munki_issue: IMunkiIssuesAggregate;
   mobile_device_management_solution: IMdmSolution;
 }
@@ -46,6 +51,7 @@ export type IUnlockHostResponse =
 export const HOSTS_QUERY_PARAMS = {
   OS_SETTINGS: "os_settings",
   DISK_ENCRYPTION: "os_settings_disk_encryption",
+  SOFTWARE_STATUS: "software_status",
 } as const;
 
 export interface ILoadHostsQueryKey extends ILoadHostsOptions {
@@ -67,6 +73,7 @@ export interface ILoadHostsOptions {
   softwareId?: number;
   softwareTitleId?: number;
   softwareVersionId?: number;
+  softwareStatus?: SoftwareInstallStatus;
   status?: HostStatus;
   mdmId?: number;
   mdmEnrollmentStatus?: string;
@@ -97,6 +104,7 @@ export interface IExportHostsOptions {
   softwareId?: number;
   softwareTitleId?: number;
   softwareVersionId?: number;
+  softwareStatus?: SoftwareInstallStatus;
   status?: HostStatus;
   mdmId?: number;
   munkiIssueId?: number;
@@ -116,7 +124,7 @@ export interface IExportHostsOptions {
 }
 
 export interface IActionByFilter {
-  teamId: number | null;
+  teamId?: number | null;
   query: string;
   status: string;
   labelId?: number;
@@ -126,6 +134,7 @@ export interface IActionByFilter {
   softwareId?: number | null;
   softwareTitleId?: number | null;
   softwareVersionId?: number | null;
+  softwareStatus?: SoftwareInstallStatus;
   osName?: string;
   osVersion?: string;
   osVersionId?: number | null;
@@ -138,6 +147,29 @@ export interface IActionByFilter {
   osSettings?: MdmProfileStatus;
   diskEncryptionStatus?: DiskEncryptionStatus;
   vulnerability?: string;
+}
+
+export interface IGetHostSoftwareResponse {
+  software: IHostSoftware[];
+  count: number;
+  meta: {
+    has_next_results: boolean;
+    has_previous_results: boolean;
+  };
+}
+
+export interface IHostSoftwareQueryParams extends QueryParams {
+  page: number;
+  per_page: number;
+  query: string;
+  order_key: string;
+  order_direction: "asc" | "desc";
+}
+
+export interface IHostSoftwareQueryKey extends IHostSoftwareQueryParams {
+  scope: "host_software";
+  id: number;
+  softwareUpdatedAt?: string;
 }
 
 export type ILoadHostDetailsExtension = "device_mapping" | "macadmins";
@@ -204,6 +236,7 @@ export default {
     softwareId,
     softwareTitleId,
     softwareVersionId,
+    softwareStatus,
     osName,
     osVersion,
     osVersionId,
@@ -229,6 +262,7 @@ export default {
         software_id: softwareId,
         software_title_id: softwareTitleId,
         software_version_id: softwareVersionId,
+        [HOSTS_QUERY_PARAMS.SOFTWARE_STATUS]: softwareStatus,
         os_name: osName,
         os_version: osVersion,
         os_version_id: osVersionId,
@@ -254,6 +288,7 @@ export default {
     const softwareId = options?.softwareId;
     const softwareTitleId = options?.softwareTitleId;
     const softwareVersionId = options?.softwareVersionId;
+    const softwareStatus = options?.softwareStatus;
     const macSettingsStatus = options?.macSettingsStatus;
     const osName = options?.osName;
     const osVersionId = options?.osVersionId;
@@ -285,6 +320,7 @@ export default {
         osSettings,
       }),
       ...reconcileMutuallyExclusiveHostParams({
+        teamId,
         label,
         policyId,
         policyResponse,
@@ -294,6 +330,7 @@ export default {
         softwareId,
         softwareTitleId,
         softwareVersionId,
+        softwareStatus,
         osName,
         osVersionId,
         osVersion,
@@ -315,6 +352,18 @@ export default {
 
     return sendRequest("GET", path);
   },
+  // TODO: change/remove this when backend implments way for client to get
+  // a collection of hosts based on ho  st ids
+  getHosts: (hostIds: number[]) => {
+    return Promise.all(
+      hostIds.map((hostId) => {
+        const { HOSTS } = endpoints;
+        const path = `${HOSTS}/${hostId}`;
+        return sendRequest("GET", path);
+      })
+    );
+  },
+
   loadHosts: ({
     page = 0,
     perPage = 100,
@@ -326,6 +375,7 @@ export default {
     softwareId,
     softwareTitleId,
     softwareVersionId,
+    softwareStatus,
     status,
     mdmId,
     mdmEnrollmentStatus,
@@ -360,6 +410,7 @@ export default {
         osSettings,
       }),
       ...reconcileMutuallyExclusiveHostParams({
+        teamId,
         label,
         policyId,
         policyResponse,
@@ -369,6 +420,7 @@ export default {
         softwareId,
         softwareTitleId,
         softwareVersionId,
+        softwareStatus,
         lowDiskSpaceHosts,
         osVersionId,
         osName,
@@ -388,7 +440,7 @@ export default {
   },
   loadHostDetails: (hostID: number) => {
     const { HOSTS } = endpoints;
-    const path = `${HOSTS}/${hostID}`;
+    const path = `${HOSTS}/${hostID}?exclude_software=true`;
 
     return sendRequest("GET", path);
   },
@@ -434,6 +486,7 @@ export default {
     softwareId,
     softwareTitleId,
     softwareVersionId,
+    softwareStatus,
     osName,
     osVersion,
     osVersionId,
@@ -460,6 +513,7 @@ export default {
         software_id: softwareId,
         software_title_id: softwareTitleId,
         software_version_id: softwareVersionId,
+        [HOSTS_QUERY_PARAMS.SOFTWARE_STATUS]: softwareStatus,
         os_name: osName,
         os_version: osVersion,
         os_version_id: osVersionId,
@@ -511,5 +565,30 @@ export default {
   wipeHost: (id: number) => {
     const { HOST_WIPE } = endpoints;
     return sendRequest("POST", HOST_WIPE(id));
+  },
+
+  resendProfile: (hostId: number, profileUUID: string) => {
+    const { HOST_RESEND_PROFILE } = endpoints;
+
+    return sendRequest("POST", HOST_RESEND_PROFILE(hostId, profileUUID));
+  },
+
+  getHostSoftware: (
+    params: IHostSoftwareQueryKey
+  ): Promise<IGetHostSoftwareResponse> => {
+    const { HOST_SOFTWARE } = endpoints;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { id, scope, ...rest } = params;
+    const queryString = buildQueryStringFromParams(rest);
+
+    return sendRequest("GET", `${HOST_SOFTWARE(id)}?${queryString}`);
+  },
+
+  installHostSoftwarePackage: (hostId: number, softwareId: number) => {
+    const { HOST_SOFTWARE_PACKAGE_INSTALL } = endpoints;
+    return sendRequest(
+      "POST",
+      HOST_SOFTWARE_PACKAGE_INSTALL(hostId, softwareId)
+    );
   },
 };

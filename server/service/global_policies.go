@@ -1,9 +1,16 @@
 package service
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
+	"io"
+	"net/http"
+	"strings"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -70,7 +77,7 @@ func (svc Service) NewGlobalPolicy(ctx context.Context, p fleet.PolicyPayload) (
 	}
 	// Note: Issue #4191 proposes that we move to SQL transactions for actions so that we can
 	// rollback an action in the event of an error writing the associated activity
-	if err := svc.ds.NewActivity(
+	if err := svc.NewActivity(
 		ctx,
 		authz.UserFromContext(ctx),
 		fleet.ActivityTypeCreatedPolicy{
@@ -157,7 +164,7 @@ func (svc Service) GetPolicyByIDQueries(ctx context.Context, policyID uint) (*fl
 // ///////////////////////////////////////////////////////////////////////////////
 
 type countGlobalPoliciesRequest struct {
-	fleet.ListOptions `url:"list_options"`
+	ListOptions fleet.ListOptions `url:"list_options"`
 }
 type countGlobalPoliciesResponse struct {
 	Count int   `json:"count"`
@@ -168,7 +175,7 @@ func (r countGlobalPoliciesResponse) error() error { return r.Err }
 
 func countGlobalPoliciesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*countGlobalPoliciesRequest)
-	resp, err := svc.CountGlobalPolicies(ctx, req.MatchQuery)
+	resp, err := svc.CountGlobalPolicies(ctx, req.ListOptions.MatchQuery)
 	if err != nil {
 		return countGlobalPoliciesResponse{Err: err}, nil
 	}
@@ -246,7 +253,7 @@ func (svc Service) DeleteGlobalPolicies(ctx context.Context, ids []uint) ([]uint
 	// Note: Issue #4191 proposes that we move to SQL transactions for actions so that we can
 	// rollback an action in the event of an error writing the associated activity
 	for _, id := range deletedIDs {
-		if err := svc.ds.NewActivity(
+		if err := svc.NewActivity(
 			ctx,
 			authz.UserFromContext(ctx),
 			fleet.ActivityTypeDeletedPolicy{
@@ -539,7 +546,7 @@ func (svc *Service) ApplyPolicySpecs(ctx context.Context, policies []*fleet.Poli
 	}
 	// Note: Issue #4191 proposes that we move to SQL transactions for actions so that we can
 	// rollback an action in the event of an error writing the associated activity
-	if err := svc.ds.NewActivity(
+	if err := svc.NewActivity(
 		ctx,
 		authz.UserFromContext(ctx),
 		fleet.ActivityTypeAppliedSpecPolicy{
@@ -549,4 +556,165 @@ func (svc *Service) ApplyPolicySpecs(ctx context.Context, policies []*fleet.Poli
 		return ctxerr.Wrap(ctx, err, "create activity for policy spec")
 	}
 	return nil
+}
+
+/////////////////////////////////////////////////////////////////////////////////
+// Autofill
+/////////////////////////////////////////////////////////////////////////////////
+
+type autofillPoliciesRequest struct {
+	SQL string `json:"sql"`
+}
+
+type autofillPoliciesResponse struct {
+	Description string `json:"description"`
+	Resolution  string `json:"resolution"`
+	Err         error  `json:"error,omitempty"`
+}
+
+func (a autofillPoliciesResponse) error() error {
+	return a.Err
+}
+
+func autofillPoliciesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*autofillPoliciesRequest)
+	description, resolution, err := svc.AutofillPolicySql(ctx, req.SQL)
+	return autofillPoliciesResponse{Description: description, Resolution: resolution, Err: err}, nil
+}
+
+// Exposing external URL and timeout for testing purposes
+var getHumanInterpretationFromOsquerySqlUrl = "https://fleetdm.com/api/v1/get-human-interpretation-from-osquery-sql"
+var getHumanInterpretationFromOsquerySqlTimeout = 30 * time.Second
+
+type AutofillError struct {
+	Message     string
+	InternalErr error
+}
+
+// Error implements the error interface.
+func (e AutofillError) Error() string {
+	return e.Message
+}
+
+// StatusCode implements the kithttp.StatusCoder interface.
+func (e AutofillError) StatusCode() int {
+	return http.StatusUnprocessableEntity
+}
+
+func (e AutofillError) Internal() string {
+	if e.InternalErr == nil {
+		return ""
+	}
+	return e.InternalErr.Error()
+}
+
+func (svc *Service) AutofillPolicySql(ctx context.Context, sql string) (description string, resolution string, err error) {
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		svc.authz.SkipAuthorization(ctx)
+		return "", "", fleet.ErrNoContext
+	}
+
+	// We expect that only users with policy write permissions will autofill policies.
+	if vc.User.GlobalRole != nil || len(vc.User.Teams) == 0 {
+		if err = svc.authz.Authorize(ctx, &fleet.Policy{}, fleet.ActionWrite); err != nil {
+			return "", "", err
+		}
+	} else {
+		// Check if this user has team policy write permissions.
+		teamID := vc.User.Teams[0].Team.ID
+		for _, teamUser := range vc.User.Teams {
+			if teamUser.Role == fleet.RoleAdmin || teamUser.Role == fleet.RoleMaintainer || teamUser.Role == fleet.RoleGitOps {
+				teamID = teamUser.Team.ID
+				break
+			}
+		}
+		err = svc.authz.Authorize(
+			ctx, &fleet.Policy{PolicyData: fleet.PolicyData{TeamID: &teamID}}, fleet.ActionWrite,
+		)
+		if err != nil {
+			return "", "", err
+		}
+	}
+
+	appConfig, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return "", "", err
+	}
+	if appConfig.ServerSettings.AIFeaturesDisabled {
+		return "", "", ctxerr.Wrap(
+			ctx, &fleet.BadRequestError{
+				Message: "AI features are disabled (server_settings.ai_features_disabled)",
+			},
+		)
+	}
+
+	sql = strings.TrimSpace(sql)
+	if sql == "" {
+		return "", "", ctxerr.Wrap(ctx, &fleet.BadRequestError{Message: "'sql' cannot be empty"})
+	}
+
+	// Using a timeout smaller than the Fleet server's WriteTimeout
+	client := fleethttp.NewClient(fleethttp.WithTimeout(getHumanInterpretationFromOsquerySqlTimeout))
+	reqBodyValues := map[string]string{"sql": sql}
+	reqBody, err := json.Marshal(reqBodyValues)
+	if err != nil {
+		return "", "", ctxerr.Wrap(
+			ctx, &fleet.BadRequestError{
+				Message: fmt.Sprintf("Could not process sql: %s", sql),
+			},
+		)
+	}
+	resp, err := client.Post(
+		getHumanInterpretationFromOsquerySqlUrl, "application/json", bytes.NewBuffer(reqBody),
+	)
+	if err != nil {
+		return "", "", ctxerr.Wrap(
+			ctx, AutofillError{
+				Message:     "error sending request to get human interpretation from osquery sql",
+				InternalErr: err,
+			},
+		)
+	}
+	defer resp.Body.Close()
+	if (resp.StatusCode / 100) != 2 {
+		return "", "", ctxerr.Wrap(
+			ctx, AutofillError{
+				Message: "error from human interpretation of osquery sql",
+				InternalErr: fmt.Errorf(
+					"%s returned %d status code", getHumanInterpretationFromOsquerySqlUrl, resp.StatusCode,
+				),
+			},
+		)
+	}
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", "", ctxerr.Wrap(
+			ctx, AutofillError{
+				Message:     "error reading response body from human interpretation of osquery sql",
+				InternalErr: err,
+			},
+		)
+	}
+
+	var result map[string]string
+	err = json.Unmarshal(body, &result)
+	if err != nil {
+		return "", "", ctxerr.Wrap(
+			ctx, AutofillError{
+				Message:     "error unmarshaling response body from human interpretation of osquery sql",
+				InternalErr: err,
+			},
+		)
+	}
+	const maxLength = 1<<16 - 1
+	descriptionTrimmed := result["risks"]
+	if len(descriptionTrimmed) > maxLength {
+		descriptionTrimmed = descriptionTrimmed[:maxLength]
+	}
+	resolutionTrimmed := result["whatWillProbablyHappenDuringMaintenance"]
+	if len(resolutionTrimmed) > maxLength {
+		resolutionTrimmed = resolutionTrimmed[:maxLength]
+	}
+	return descriptionTrimmed, resolutionTrimmed, nil
 }

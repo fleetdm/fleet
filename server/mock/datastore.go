@@ -9,7 +9,7 @@ import (
 //go:generate go run ./mockimpl/impl.go -o datastore_mock.go "s *DataStore" "fleet.Datastore"
 //go:generate go run ./mockimpl/impl.go -o datastore_installers.go "s *InstallerStore" "fleet.InstallerStore"
 //go:generate go run ./mockimpl/impl.go -o nanodep/storage.go "s *Storage" "github.com/fleetdm/fleet/v4/server/mdm/nanodep/storage.AllDEPStorage"
-//go:generate go run ./mockimpl/impl.go -o datastore_mdm_mock.go "fs *MDMAppleStore" "fleet.MDMAppleStore"
+//go:generate go run ./mockimpl/impl.go -o mdm/datastore_mdm_mock.go "fs *MDMAppleStore" "fleet.MDMAppleStore"
 //go:generate go run ./mockimpl/impl.go -o scep/depot.go "d *Depot" "depot.Depot"
 
 var _ fleet.Datastore = (*Store)(nil)

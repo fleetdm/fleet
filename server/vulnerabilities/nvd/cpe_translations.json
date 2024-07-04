@@ -359,5 +359,33 @@
       "product": ["edge_chromium"],
       "vendor": ["microsoft"]
     }
+  },
+  {
+    "software": {
+      "name": ["Steam"],
+      "source": ["programs"]
+    },
+    "filter": {
+      "skip": true
+    }
+  },
+  {
+    "software": {
+      "name": ["Steam.app"],
+      "source": ["apps"]
+    },
+    "filter": {
+      "skip": true
+    }
+  },
+  {
+    "software": {
+      "name": ["/^linux-image\\.*/"]
+    },
+    "filter": {
+      "product": ["linux_kernel"],
+      "vendor": ["linux"],
+      "part": "o"
+    }
   }
 ]

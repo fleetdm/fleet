@@ -1,12 +1,10 @@
 name: file
-examples: >-
+examples: |-
   List zip files in the downloads folder as well as their associated sha256
   hash.
 
   ```
-
   SELECT f.path, h.sha256 FROM file f JOIN hash h ON f.path = h.path WHERE f.path LIKE '/Users/%/Downloads/%%.zip';
-
   ```
 columns:
   - name: attributes

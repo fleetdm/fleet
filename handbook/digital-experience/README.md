@@ -4,26 +4,27 @@ This page details processes specific to working [with](#contact-us) and [within]
 ## Team
 | Role                            | Contributor(s)
 |:--------------------------------|:----------------------------------------------------------------------|
-| Head of Digital Experience      | [Sam Pfluger](https://www.linkedin.com/in/sampfluger88/) _([@sampfluger88](https://github.com/sampfluger88))_
+| Head of Digital Experience      | [Sam Pfluger](https://www.linkedin.com/in/sampfluger88/) _([@sampfluger88](https://github.com/sampfluger88))_ 
 | Head of Design                  | [Mike Thomas](https://www.linkedin.com/in/mike-thomas-52277938) _([@mike-j-thomas](https://github.com/mike-j-thomas))_
 | Software Engineer               | [Eric Shaw](https://www.linkedin.com/in/eric-shaw-1423831a9/) _([@eashaw](https://github.com/eashaw))_
-| Head of Revenue Operations      | [Taylor Hughes](https://www.linkedin.com/in/taylorhughes834/) _([@hughestaylor](https://github.com/hughestaylor))_
+| Apprentice to the CEO           | <sup><sub> See [Head of Digital Experience](https://www.fleetdm.com/handbook/digital-experience#team) <sup><sub>
+| Apprentice                      | [Savannah Friend](https://www.linkedin.com/in/savannah-friend-2b1a53148/) _([@sfriendlee](https://github.com/sfriendlee))_
 
 
 ## Contact us
 
-- To **make a request** of this department, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-digital-experience&projects=&template=custom-request.md&title=Request%3A+_______________________) and a team member will get back to you within one business day (If urgent, mention a [team member](#team) in the [#g-digital-experience](https://fleetdm.slack.com/archives/C058S8PFSK0) Slack channel.
-  - Any Fleet team member can [view the kanban board](https://app.zenhub.com/workspaces/g-sales-64fbb46c65f9ff003a1530a8/board?sprints=none) for this department, including pending tasks and the status of new requests.
+- To **make a request** of this department, [create an issue](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=%23g-digital-experience&projects=&template=digital-experience-request.md&title=TODO%3A+) and a team member will get back to you within one business day (If urgent, mention a [team member](#team) in the [#g-digital-experience](https://fleetdm.slack.com/archives/C058S8PFSK0) Slack channel.
+  - Any Fleet team member can [view the kanban board](https://app.zenhub.com/workspaces/g-digital-experience-6451748b4eb15200131d4bab/board) for this department, including pending tasks and the status of new requests.
   - Please **use issue comments and GitHub mentions** to communicate follow-ups or answer questions related to your request.
 
-> _**Note:** If a user story involves only changes to fleetdm.com, without changing the core product, then that user story is prioritized, drafted, implemented, and shipped by the [Digital Experience](https://fleetdm.com/handbook/digital-experience) department.  Otherwise, if the story **also** involves changes to the core product **as well as** fleetdm.com, then that user story is prioritized, drafted, implemented, and shipped by [the other relevant product group](https://fleetdm.com/handbook/company/product-groups#current-product-groups), and not by `#g-digital-experience`._
 
 ## Responsibilities
 The Digital Experience department is directly responsible for the framework, content design, and technology behind Fleet's remote work culture, including fleetdm.com, the handbook, issue templates, UI style guides, internal tooling, Zapier flows, Docusign templates, key spreadsheets, and project management processes. 
 
+> _**Note:** If a user story involves only changes to fleetdm.com, without changing the core product, then that user story is prioritized, drafted, implemented, and shipped by the [Digital Experience](https://fleetdm.com/handbook/digital-experience) department.  Otherwise, if the story **also** involves changes to the core product **as well as** fleetdm.com, then that user story is prioritized, drafted, implemented, and shipped by [the other relevant product group](https://fleetdm.com/handbook/company/product-groups#current-product-groups), and not by `#g-digital-experience`._
 
 ### QA a change to fleetdm.com
-Each PR to the website is manually checked for quality and tested before before going live on fleetdm.com. To test any change to fleetdm.com
+Each PR to the website is manually checked for quality and tested before going live on fleetdm.com. To test any change to fleetdm.com
 
 1. Write clear step-by-step instructions to confirm that the change to the fleetdm.com functions as expected and doesn't break any possible automation. These steps should be simple and clear enough for anybody to follow.
 
@@ -31,6 +32,19 @@ Each PR to the website is manually checked for quality and tested before before 
 
 3. Check the change in relation to all breakpoints and [browser compatibility](https://fleetdm.com/handbook/digital-experience#check-browser-compatibility-for-fleetdm-com), Tests are carried out on [supported browsers](https://fleetdm.com/docs/using-fleet/supported-browsers) before website changes go live.
 
+
+### Update the host count of a premium subscription
+When a self-service license dispenser customer reaches out to upgrade a license via the contact form, a member of the [Demand department](https://fleetdm.com/handbook/demand) will create a confidential issue detailing the request and add it to the new requests column of Ditigal Experience kanban board. A member of this team will then log into Stripe using the shared login, and upgrade the customer's subscription.
+
+To update the host count on a user's subscription:
+
+1. Log in to the [Stripe dashboard](https://dashboard.stripe.com/dashboard) and search for the customer's email address.
+2. Click on their subscription and select the "Update subscription" option in the "Actions" dropdown
+3. Update the quantity of the user's subscription to be their desired host count.
+4. Turn the "Proration charges" option on and select the "Charge proration amount immediately" option.
+5. Under "Payment" select "Email invoice to the customer", and set the payment due date to be 15 days, and make sure the "Invoice payment page" option is checked.
+6. Select "Update subscription" to send the user an updated invoice for their subscription. Once the customer pays their new invoice, the Fleet website will update the user's subscription and generate a new Fleet Premium license with an updated host count.
+7. Let the person who created the request know what actions were taken so they can communicate them to the customer.
 
 ### Test fleetdm.com locally 
 When making changes to the Fleet website, you can test your changes by running the website locally. To do this, you'll need the following:
@@ -49,14 +63,12 @@ Once you have the above follow these steps:
 2. Run the `build-static-content` script to generate HTML pages from our Markdown and YAML content.
   - **With Node**, you will need to use `node ./node_modules/sails/bin/sails run build-static-content` to execute the script.
   - **With Sails.js installed globally** you can use `sails run build-static-content` to execute the script.
-    
-    > You can use the `--skipGithubRequests` flag to skip requests made to GitHub if you get rate-limited by GitHub’s API while running this script. 
-    > 
-    > e.g., `node ./node_modules/sails/bin/sails run build-static-content --skipGithubRequests`
 
     > When this script runs, the website's configuration file ([`website/.sailsrc`](https://github.com/fleetdm/fleet/blob/main/website/.sailsrc)) will automatically be updated with information the website uses to display content built from Markdown and YAML. Changes to this file should never be committed to the GitHub repo. If you want to exclude changes to this file in any PRs you make, you can run this terminal command in your local copy of the Fleet repo: `git update-index --assume-unchanged ./website/.sailsrc`.
+    
+    > Note: You can run `npm run start-dev` in the `website/` folder to run the `build-static-content` script and start the website server with a single command.
 
-3. Once the script is complete, start the website server. From the `website/` folder:
+3. Once the script is complete, start the website server:
   - **With Node.js:** start the server by running `node ./node_modules/sails/bin/sails lift`
   - **With Sails.js installed globally:** start the server by running `sails lift`.
 
@@ -152,8 +164,35 @@ If the action fails, please complete the following steps:
 3. Head to the fleetdm/fleet GitHub repository and re-run the Deploy Fleet Website action. 
 
 
-### Grant role-specific license to a team member (RevOps)
-Certain new team members, especially in go-to-market (GTM) roles, will need paid access to paid tools like Salesforce and LinkedIn Sales Navigator immediately on their first day with the company. Gong licenses that other departments need may [request them from BizOps](https://fleetdm.com/handbook/business-operations#contact-us) and we will make sure there is no license redundancy in that department. The table below can be used to determine which paid licenses they will need, based on their role:
+### Communicate Fleet's potential energy to stakeholders
+On the first business day of every month, the Head of Digital Experience will send an update to the stakeholders of Fleet using the following steps:
+1. Copy the following template into an outgoing email with the subject line: "[Investor update] Fleet, YYYY-MM".
+
+```
+Hi investors and friends,
+
+
+FYI we just updated the self-service investor update portal with the numbers from last month:  https://docs.google.com/spreadsheets/d/10T7Q9iuHA4vpfV7qZCm6oMd5U1bLftBSobYD0RR8RkM/edit#gid=0
+
+
+Thanks for your support,
+Mike and the Fleet team
+
+```
+
+2. Address the email to the executive team's Gmail.
+3. Using the [🌧️🦉 Investors + advisors](https://docs.google.com/spreadsheets/d/15knBE2-PrQ1Ad-QcIk0mxCN-xFsATKK9hcifqrm0qFQ/edit#gid=1068113636) spreadsheet, bcc the correct individuals and send the email.
+
+
+### Refresh event calendar
+Fleet's public relations firm is directly responsible for the accuracy of event locations, attendance dates, and CFP deadlines in the event strategy workbook.  At the end of every quarter, the PR firm updates every event in the ["Event strategy workbook"](https://docs.google.com/spreadsheets/d/1YQXAX2Q_WnGkAwMYjMbQpV3nbCj7gOBbv7Y0u4twxzQ/edit) (private Google doc) by following these steps:
+1. Visit the latest website for each event.
+2. Update the workbook with the latest location, dates, and CFP deadlines from the website.
+
+
+### Grant role-specific license to a team member
+
+Certain new team members, especially in go-to-market (GTM) roles, will need paid access to paid tools like Salesforce and LinkedIn Sales Navigator immediately on their first day with the company. Gong licenses that other departments need may [request them from Digital Experience](https://fleetdm.com/handbook/digital-experience#contact-us) and we will make sure there is no license redundancy in that department. The table below can be used to determine which paid licenses they will need, based on their role:
 
 | Role                 | Salesforce CRM | Salesforce "Inbox" | LinkedIn _(paid)_ | Gong _(paid)_ | Zoom _(paid)_|
 |:-----------------|:---|:---|:----|:---|:---|
@@ -163,12 +202,27 @@ Certain new team members, especially in go-to-market (GTM) roles, will need paid
 | ⚗️ PM            | ❌ | ❌ | ❌ | ✅ | ✅
 | ⚗️ PD            | ❌ | ❌ | ❌ | ✅ | ✅
 | 🔦 CEO           | ✅ | ✅ | ✅ | ✅ | ✅
-|   Other roles    | ❌ | ❌ | ❌ | ❌ | ❌
+|   Other roles    | ❌ | ❌ | ❌ | ❌ | ✅
 
-> **Warning:** Do NOT buy LinkedIn Recruiter. AEs and SDRs should use their personal Brex card to purchase the monthly [Core Sales Navigator](https://business.linkedin.com/sales-solutions/compare-plans) plan. Fleet does not use a company wide Sales Navigator account. The goal of Sales Navigator is to access to profile views and data, not InMail.  Fleet does not send InMail. 
+> **Warning:** Do NOT buy LinkedIn Recruiter. AEs should use their personal Brex card to purchase the monthly [Core Sales Navigator](https://business.linkedin.com/sales-solutions/compare-plans) plan. Fleet does not use a company wide Sales Navigator account. The goal of Sales Navigator is to access to profile views and data, not InMail.  Fleet does not send InMail. 
+
+
+### Process a tool upgrade request from a team member
+
+- A Fleetie may request an upgraded license seat for Fleet tools by submitting an issue through ZenHub.
+- Digital Experience will upgrade or add the license seat as needed and let the requesting team member know they did it.
+
+
+### Downgrade an unused license seat
+
+- On the first Wednesday of every quarter, the CEO, head of BizOps and Head of Digital experience will meet for 30 minutes to audit license seats in Figma, Slack, GitHub, Salesforce and other tools.
+- During this meeting, as many seats will be downgraded as possible. When doubt exists, downgrade.
+- Afterward, post in #random letting folks know that the quarterly tool reconciliation and seat clearing is complete, and that any members who lost access to anything they still need can submit a ZenHub issue to Digital Experience to have their access restored.
+- The goal is to build deep, integrated knowledge of tool usage across Fleet and cut costs whenever possible. It will also force conversations on redundancies and decisions that aren't helping the business that otherwise might not be looked at a second time.  
 
 
 ### Add a seat to Salesforce
+
 Here are the steps we take to grant appropriate Salesforce licenses to a new hire:
 - Go to ["My Account"](https://fleetdm.lightning.force.com/lightning/n/standard-OnlineSalesHome).
 - View contracts -> pick current contract.
@@ -179,11 +233,24 @@ Here are the steps we take to grant appropriate Salesforce licenses to a new hir
 - To also assign a user an "Inbox license", go to the ["Setup" page](https://fleetdm.lightning.force.com/lightning/setup/SetupOneHome/home) and select "User > Permission sets". Find the [inbox permission set](https://fleetdm.lightning.force.com/lightning/setup/PermSets/page?address=%2F005%3Fid%3D0PS4x000002uUn2%26isUserEntityOverride%3D1%26SetupNode%3DPermSets%26sfdcIFrameOrigin%3Dhttps%253A%252F%252Ffleetdm.lightning.force.com%26clc%3D1) and assign it to the new team member.
 
 
-### Refresh event calendar
-Fleet's public relations firm is directly responsible for the accuracy of event locations, attendance dates, and CFP deadlines in the event strategy workbook.  At the end of every quarter, the PR firm updates every event in the ["Event strategy workbook"](https://docs.google.com/spreadsheets/d/1YQXAX2Q_WnGkAwMYjMbQpV3nbCj7gOBbv7Y0u4twxzQ/edit) (private Google doc) by following these steps:
-1. Visit the latest website for each event.
-2. Update the workbook with the latest location, dates, and CFP deadlines from the website.
+### Schedule press release
+Fleet will occasionally release information to the press regarding upcoming initiatives before updating the functionality of the core product. This process sUse the following steps to schedule a press release:  
 
+1. Add context for the next press release to the [e-group agenda](https://docs.google.com/document/d/13fjq3T0bZGOUah9cqHVxngckv0EB2R24A3gfl5cH7eo/edit) as a "DISCUSS:" to be reviewed by Fleet's executive team for alignment and finalization of date.
+2. Once a release date is set, at-mention our public relations firm in the [#help-public-relations-firm--mindshare-pr--brand-marketing](https://fleetdm.slack.com/archives/C04PC9H34LF) and schedule a 30m call for our CEO and to communicate the press release.
+
+> The above must be completed 6 weeks before the press release date. 
+
+3. Schedule a 1.5h discussion between the [Head of Digital Experience](https://fleetdm.com/handbook/digital-experience#team) and the CEO to review the first draft linked as "Agenda: LINK" to the calendar event description.
+4. Schedule a 60m call with the CEO and public relations firm to review the first draft linked as above to the calendar event (first draft provided by the PR firm)
+5. Schedule 2.5 hrs of async time for the CEO work on edits and a 60m followup postgame (solo) where CEO edits and then settles+sends final release.
+
+
+### Process the help-being-ceo Slack channel
+The Apprentice will perform the following steps to process all communication from the CEO in the [help-being-ceo Slack channel](https://fleetdm.slack.com/archives/C03U703J0G5).
+1. As soon as the message is received in the channel, add the "`:eyes:` (👀)" emoji to the Slack message to signify that you have seen and understood the task or question.
+2. Start a Slack thread to add any context or let the stakeholders know the status of the task. 
+3. After each task is completed, apply the "`:white_check_mark:`" (✅) to the slack message.
 
 ### Archive a document
 Follow these steps to archive any document:
@@ -220,11 +287,18 @@ Agenda:
 5. Apprentice: LINK_TO_DOC_OR_ISSUE
 ```
 
-> Keep calendar event titles short so they are readable at a glance.  Please include any other info via link, so that information is not duplicated or lost in the calendar.
+### Obtain a signature from the CEO
+When an agreement is routed to the CEO for signature, the [Apprentice](https://fleetdm.com/handbook/digital-experience#team) is responsible for obtaining a signature from the CEO using the following steps:
+1. Drag the email to the ["🔏 SAM: Signature wanted"](https://mail.google.com/mail/u/0/#label/SAM%3A+Signature+wanted) label making sure to mark the email as unread.
+2. A Business Operations Engineer will at-mention the Apprentice in a legal review issue, letting them know the contract is good to go. After that, move the email to the "[✍️ MIKE: Ready to sign](https://mail.google.com/mail/u/0/#label/%E2%9C%8D%EF%B8%8F+MIKE%3A+Ready+to+sign)" label
+
+> If the agreement closes a deal, inform the CEO (via Slack DM) that a subscription agreement is ready for his review/signature. The SLA for CEO review and signature is 48hrs.
+
+3. Comment in the issue once the CEO has signed the agreement and assign the issue to [Nathan Holiday](https://fleetdm.com/handbook/business-operations#team).
 
 
 ### Prepare for CEO office minutes 
-Before the start of the meeting, the Apprentice to the CEO will prepare the "CEO office minutes" meeting [agenda](https://docs.google.com/document/d/12cd0N8KvHkfJxYlo7ggdisrvqw4MCErDoIzLjmBIdj4/edit) such that the following is true:
+Before the start of the meeting, the Apprentice will prepare the "CEO office minutes" meeting [agenda](https://docs.google.com/document/d/12cd0N8KvHkfJxYlo7ggdisrvqw4MCErDoIzLjmBIdj4/edit) such that the following is true:
 1. All agenda items are prefixed with a date of when the item will be covered and name of the person requesting to discuss the issue.
 2. All team members with an agenda item have added themselves **and their manager** to the correct calendar event. If the team member or manager hasn't been added to the calendar event before the meeting begins, the agenda item is de-prioritized in favor of others with representatives in attendance. 
 3. If there are more that two team members attending, the Apprentice will work with the team members to schedule additional time to cover the agenda.  
@@ -242,26 +316,31 @@ Time management for the CEO is essential.  The Apprentice processes the CEO's ca
     - Remind the organizer with [this link to the handbook that all CEO events have times chosen by Sam before booking](https://fleetdm.com/handbook/company/communications#schedule-time-with-the-ceo).
   3. Bring prepped discussion item about this proposed event to the next CEO roundup, including the purpose of the event and why it is helpful or necessary for the CEO to attend (according to the person requesting the CEO's attendance).  The CEO will decide whether to attend.
   4. Delete the "UNCONFIRMED" block if the meeting is confirmed, or otherwise work with the organizer to pick a new time or let them know the decision.
-- **Prepare the agenda for any newly-added meetings**: [Meeting agenda prep](https://docs.google.com/document/d/1gH3IRRgptrqSYzBFy-77g98JROTL8wqrazJIMkp-Gb4/edit#heading=h.i7mkhr6m123r) is especially important to help the CEO focus and transition quickly in and between meetings.
-  - In the notes document include:
-    1. LinkedIn profile link of all outside participants
-    2. Screen-shot of LinkedIn profile pic
-    3. Company name (in doc title and file name)
-    4. Correct date (20XX-XX-XX in doc title and file name)
-    5. Context that helps the CEO to understand the purpose of the meeting at a glance from:
-       - CEO's email
-       - LinkedIn messages (careful not to mark things as read!)
-       - Google Drive 
-  - Be sure to do this from the CEO's browser so as to not lock him out of any meeting docs.
+
+- **Prepare the agenda for any newly-added meetings**: [Meeting agenda prep](https://docs.google.com/document/d/1gH3IRRgptrqSYzBFy-77g98JROTL8wqrazJIMkp-Gb4/edit#heading=h.i7mkhr6m123r) is especially important to help the CEO focus and transition quickly in and between meetings. Using the CEO's browser, prepare each document by including the following:
+
+> If a meeting agenda has to be created from scratch, be sure to move it to the "Meeting notes" folder in Google Drive so that he isn't locked out of any documents.
+> If preparing for a meeting with a current advisor, use the existing journal as the meeting agenda using these steps:
+> 1. Search for the journal in Mike's browser using the advisor's name or email.
+> 2. Update the journal by adding the date of the meeting as an H3 in the Google document (pattern matching the document) and link the document to the calendar description.
+ 
+  1. LinkedIn profile url of all outside participants. Connect with any of the attendees that the CEO is not already connected to on LinkedIn, this should always be a blank connect request meaning "Send without note". Nest everything from prep under the LinkedIn url (ie all under #1)
+  2. A screen-shot of LinkedIn profile pic
+  3. Company name (in doc title, file name and Google calendar event title)
+  4. Correct date (20XX-XX-XX in doc title and file name)
+  5. Context that helps the CEO to understand the purpose of the meeting at a glance from:
+    - CEO's email
+    - LinkedIn messages (careful not to mark things as read!)
+    - Google Drive 
+  6. Edit the calendar event description, changing “Notes” to “Agenda” when you're finished preparing the document to signify that this meeting has been prepped.
 
 
 ### Process the CEO's inbox
-- The Apprentice to the CEO is [responsible](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) for [processing all email traffic](https://docs.google.com/document/d/1gH3IRRgptrqSYzBFy-77g98JROTL8wqrazJIMkp-Gb4/edit#heading=h.i7mkhr6m123r) prior to CEO review.
-The Apprentice will reduce the scope of Mike's inbox to only include necessary and actionable communication.
+- The Apprentice is [responsible](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) for [processing all email traffic](https://docs.google.com/document/d/1gH3IRRgptrqSYzBFy-77g98JROTL8wqrazJIMkp-Gb4/edit#heading=h.i7mkhr6m123r) prior to CEO review to reduce the scope of Mike's inbox to only include necessary and actionable communication.
  -  Marking spam emails as read (same for emails Mike doesn't actually need to read).
  -  Escalate actionable sales communication and update Mike directly.
  -  Ensure all calendar invites have the necessary documents included.
-
+ -  Forward any emails from customers about paying Fleet to the Buisness Operations department using [Fleet's billing email](https://docs.google.com/document/d/1tE-NpNfw1icmU2MjYuBRib0VWBPVAdmq4NiCrpuI0F0/edit#heading=h.wqalwz1je6rq).
 
 ### Document performance feedback
 Every Friday at 5PM a [Business Operations team member](https://fleetdm.com/handbook/business-operations#team) will look for missing data in the [KPIs spreadsheet](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0). 
@@ -270,30 +349,23 @@ Every Friday at 5PM a [Business Operations team member](https://fleetdm.com/hand
 
 
 ### Send the weekly update
-We like to be open about milestones and announcements.
-  - Every Friday, e-group members [report their KPIs for the week](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit) by 5:00pm U.S. Central Time Zone. 
-  - Every Friday at 6PM, the Apprentice will post a short update in [#general](https://fleetdm.slack.com/archives/C019FNQPA23) including:
+We like to be open about milestones and announcements. Every Friday, e-group members [report their KPIs for the week](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit) by 5:00pm U.S. CT. Every Friday at 6PM, the Apprentice will post a short update in [#general](https://fleetdm.slack.com/archives/C019FNQPA23) including:
     - A link to view KPIs
     - Who was on-call that week
     - Fleeties who are currently onboarding
     - Planned hires who haven't started yet
     - Fleeties that departed that week
   
-  - Change the "⚡️" to "🔭" in the beginning of the formula
-
-<img width="464" alt="image" src="https://github.com/fleetdm/fleet/assets/108141731/574f251c-6ea7-4e22-b0ca-1c450ca09ec6">
-
-  - Select this week's cell (first week with the 🔮) in the KPI spreadsheet and copy the entire formula
+  To send the weekly update follow these steps:  
   
-  - Paste without formating (CMD+⇧+V) back into the same cell
-  
-  - The formula will now look like this:
-    
-  <img width="464" alt="image" src="https://github.com/fleetdm/fleet/assets/108141731/1f7c652c-955e-4e84-b16f-83bc48af71f1">
-  
-  - Paste the newly formatted message in the [#general](https://fleetdm.slack.com/archives/C019FNQPA23) Slack channel and delete any links that unfurl from links in the weekly update message.
+1. Navigate to the current weeks row in the [KPIs Google Sheet](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0).
+2. Copy the entire formula in this weeks "Weekly update" update cell and paste without formating (CMD+⇧+V) back into the same cell. The formula will now look like this:
 
-  - 📬 **Send it!**
+<img width="464" alt="image" src="https://github.com/fleetdm/fleet/assets/108141731/1f7c652c-955e-4e84-b16f-83bc48af71f1">
+
+3. In the "Weekly update" column (column E) for that row, double-click into that cell and change the "⚡️" to "🔭" in the beginning of the formula.  
+4. Paste the newly formatted message in the [#general Slack channel](https://fleetdm.slack.com/archives/C019FNQPA23) and delete the double quotes around the message and any links that unfurl from links in the weekly update message.
+5. Use the drop-down next to the send button and select "Custom time" and schedule the message to send "Today" at 18:00 or 6pm CT.
 
 
 ### Troubleshoot signature automation
@@ -326,29 +398,6 @@ The Apprentice schedules all travel arrangements for the CEO including flights, 
   - Frequent flyer details of all (previously flown) airlines are in 1Password as well as important travel documents.
 
 
-### Process incoming equipment
-Upon receiving any device, the Apprentice will process the incoming equipment by:
-1. Search for the SN of the physical device in the ["Company equipment" spreadsheet](https://docs.google.com/spreadsheets/d/1hFlymLlRWIaWeVh14IRz03yE-ytBLfUaqVz0VVmmoGI/edit#gid=0) to confirm the correct equipment was received.
-  - If the serial numbers do not match [create an issue](https://fleetdm.com/handbook/business-operations#contact-us) to get help from the Business Operations department. 
-3. Visibly inspect equipment and all related components (e.g. laptop charger) for damage.
-4. Remove any stickers and clean devices and components.
-5. Using the device's charger plug in the device.
-6. Turn on the device and enter recovery mode using the [appropriate method](https://support.apple.com/en-us/HT204904).
-7. Connect the device to WIFI.
-8. Using the "Recovery assistant" tab (In the top left corner), select "Delete this Mac".
-9. Follow the prompts to activate the device and reinstall the appropriate version of macOS.
-
-
-### Ship approved equipment
-Once the Business Operations department approves inventory to be shipped from Fleet IT, the Apprentice will ship the equipment by:
-1. Compare the equipment request issue with the ["Company equipment" spreadsheet](https://docs.google.com/spreadsheets/d/1hFlymLlRWIaWeVh14IRz03yE-ytBLfUaqVz0VVmmoGI/edit#gid=0) and verify physical inventory.
-2. Plug in the device and ensure inventory has been correctly processed and all components are present (e.g. charger cord, power converter).
-3. package equipment for shipment and include Yubikeys (if requested).
-4. Change the "Company equipment" spreadsheet to reflect the new user
-5. Ship via FedEx to the address listed in the equipment request.
-6. Add a comment to the equipment request issue, at-mentioning the requestor with the FedEx tracking info and close the issue.
-
-
 ### Prepare for the All hands
 - **Every month** the Apprentice will do the prep work for the monthly "✌️ All hands 🖐👋🤲👏🙌🤘" call.
   -  In the ["👋 All hands" folder](https://drive.google.com/drive/folders/1cw_lL3_Xu9ZOXKGPghh8F4tc0ND9kQeY?usp=sharing), create a new folder using "yyyy-mm - All hands".
@@ -370,6 +419,7 @@ The day before the All hands, Mike will prepare slides that reflect the CEO visi
 The Apprentice will post a link to the All hands Gong recording and slide deck in Slack.
 
 Template to use:
+
 ```
 Thanks to everyone who contributed to today's "All hands" call.
 
@@ -378,18 +428,13 @@ Thanks to everyone who contributed to today's "All hands" call.
 You can also grab a copy of the [original slides](https://fleetdm.com/handbook/company/communications#all-hands) for use in your own confidential presentations.
 ```
 
-- Copy and paste the template to the "[# general](https://fleetdm.slack.com/archives/C019FNQPA23)" Slack channel.
- - To create the recording link:
- - Open [Gong recording](https://us-65885.app.gong.io/home?workspace-id=9148397688380544352&r=m) and `Share call`
- - `Share with customers`
- - `Copy link` and paste the url `*[Watch the recording](`here-in-your-template-message`)*`.
-  
- - The PDF can be found in the current months [👋All hands folder](https://drive.google.com/drive/u/0/folders/1cw_lL3_Xu9ZOXKGPghh8F4tc0ND9kQeY) in Google Drive.
- - Download the PDF and upload (double click the `+`) into your updated Slack message, which will look like this:👇 
+1. Copy and paste the template to the "[# general](https://fleetdm.slack.com/archives/C019FNQPA23)" Slack channel.
+2. Open [Gong recording](https://us-65885.app.gong.io/home?workspace-id=9148397688380544352&r=m) and click `Share call`, then click `Share with customers`, then `Copy link`.
+3. Paste the url `*[Watch the recording](`here-in-your-template-message`)*`.
 
 <img width="464" alt="image" src="https://github.com/Sampfluger88/fleet/assets/108141731/c2002cfa-a0f6-4349-bb06-71104f6cdce1">
 
-📬 **Send it!**
+4. Schedule the Slack message to go out at 6pm CT (18:00).
 
 
 ### Process and backup Sid agenda
@@ -403,7 +448,7 @@ Every two weeks, our CEO Mike has a meeting with Sid Sijbrandij. The CEO uses de
 Follow these steps to process and backup the E-group agenda: 
 1. [Archive the E-group agenda](https://fleetdm.com/handbook/digital-experience#archive-a-document) after each meeting, moving it to the ["¶¶ E-group archive"](https://drive.google.com/drive/u/0/folders/1IsSGMgbt4pDcP8gSnLj8Z8NGY7_6UTt6) folder in Google Drive.
 2. **In the backup copy**, leave Google Doc comments assigning all TODOs to the correct DRI.  
-3. If the "All hands" meeting has happened today
+3. If the "All hands" meeting has happened today remove any spotlights covered in the current "All hands" presentation.
 
 ### Check LinkedIn for unread messages 
 Once a day the Apprentice will confirm check LinkedIn for unread messages. 
@@ -415,7 +460,7 @@ Once a day the Apprentice will confirm check LinkedIn for unread messages.
 
 
 ### Unroll a Slack thread
-From time to time the CEO will ask the Apprentice to the CEO to unroll a Slack thread into a well-named whiteboard google doc for safekeeping and future searching. 
+From time to time the CEO will ask the Apprentice to unroll a Slack thread into a well-named whiteboard Google doc for safekeeping and future searching. 
   1. Start with a new doc.
   2. Name the file with "yyyy-mm-dd - topic" (something empathetic and easy to find).
   3. Use CMD+SHFT+V to paste the Slack convo into the doc.

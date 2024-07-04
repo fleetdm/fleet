@@ -1,13 +1,13 @@
 import React from "react";
 import ReactTooltip from "react-tooltip";
 import classnames from "classnames";
-
+import { formatInTimeZone } from "date-fns-tz";
 import {
   IHostMdmProfile,
   BootstrapPackageStatus,
   isWindowsDiskEncryptionStatus,
 } from "interfaces/mdm";
-import { IOSSettings } from "interfaces/host";
+import { IOSSettings, IHostMaintenanceWindow } from "interfaces/host";
 import getHostStatusTooltipText from "pages/hosts/helpers";
 
 import TooltipWrapper from "components/TooltipWrapper";
@@ -15,12 +15,15 @@ import Button from "components/buttons/Button";
 import Icon from "components/Icon/Icon";
 import Card from "components/Card";
 import DataSet from "components/DataSet";
-import DiskSpaceGraph from "components/DiskSpaceGraph";
-import { HumanTimeDiffWithFleetLaunchCutoff } from "components/HumanTimeDiffWithDateTip";
-import PremiumFeatureIconWithTooltip from "components/PremiumFeatureIconWithTooltip";
-import { humanHostMemory, wrapFleetHelper } from "utilities/helpers";
-import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 import StatusIndicator from "components/StatusIndicator";
+import IssuesIndicator from "pages/hosts/components/IssuesIndicator";
+import DiskSpaceIndicator from "pages/hosts/components/DiskSpaceIndicator";
+import { HumanTimeDiffWithFleetLaunchCutoff } from "components/HumanTimeDiffWithDateTip";
+import { humanHostMemory, wrapFleetHelper } from "utilities/helpers";
+import {
+  DATE_FNS_FORMAT_STRINGS,
+  DEFAULT_EMPTY_CELL_VALUE,
+} from "utilities/constants";
 import { COLORS } from "styles/var/colors";
 
 import OSSettingsIndicator from "./OSSettingsIndicator";
@@ -60,7 +63,8 @@ const RefetchButton = ({
     : "Refetch";
 
   // add additonal props when we need to display a tooltip for the button
-  const conditionalProps: any = {};
+  const conditionalProps: { "data-tip"?: boolean; "data-for"?: string } = {};
+
   if (tooltip) {
     conditionalProps["data-tip"] = true;
     conditionalProps["data-for"] = "refetch-tooltip";
@@ -106,16 +110,15 @@ interface IHostSummaryProps {
   summaryData: any; // TODO: create interfaces for this and use consistently across host pages and related helpers
   bootstrapPackageData?: IBootstrapPackageData;
   isPremiumTier?: boolean;
-  isSandboxMode?: boolean;
   toggleOSSettingsModal?: () => void;
   toggleBootstrapPackageModal?: () => void;
   hostMdmProfiles?: IHostMdmProfile[];
-  mdmName?: string;
+  isConnectedToFleetMdm?: boolean;
   showRefetchSpinner: boolean;
   onRefetchHost: (
     evt: React.MouseEvent<HTMLButtonElement, React.MouseEvent>
   ) => void;
-  renderActionButtons: () => JSX.Element | null;
+  renderActionDropdown: () => JSX.Element | null;
   deviceUser?: boolean;
   osSettings?: IOSSettings;
   hostMdmDeviceStatus?: HostMdmDeviceStatusUIState;
@@ -167,14 +170,13 @@ const HostSummary = ({
   summaryData,
   bootstrapPackageData,
   isPremiumTier,
-  isSandboxMode = false,
   toggleOSSettingsModal,
   toggleBootstrapPackageModal,
   hostMdmProfiles,
-  mdmName,
+  isConnectedToFleetMdm,
   showRefetchSpinner,
   onRefetchHost,
-  renderActionButtons,
+  renderActionDropdown,
   deviceUser,
   osSettings,
   hostMdmDeviceStatus,
@@ -185,7 +187,14 @@ const HostSummary = ({
     disk_encryption_enabled: diskEncryptionEnabled,
   } = summaryData;
 
+  const isChromeHost = platform === "chrome";
+  const isIosOrIpadosHost = platform === "ios" || platform === "ipados";
+
   const renderRefetch = () => {
+    if (isIosOrIpadosHost) {
+      return null;
+    }
+
     const isOnline = summaryData.status === "online";
     let isDisabled = false;
     let tooltip: React.ReactNode = <></>;
@@ -220,30 +229,16 @@ const HostSummary = ({
 
   const renderIssues = () => (
     <DataSet
-      title={<>Issues{isSandboxMode && <PremiumFeatureIconWithTooltip />}</>}
+      title="Issues"
       value={
-        <>
-          <span
-            className="host-issue tooltip tooltip__tooltip-icon"
-            data-tip
-            data-for="host-issue-count"
-            data-tip-disable={false}
-          >
-            <Icon name="error-outline" color="ui-fleet-black-50" />
-          </span>
-          <ReactTooltip
-            place="bottom"
-            effect="solid"
-            backgroundColor={COLORS["tooltip-bg"]}
-            id="host-issue-count"
-            data-html
-          >
-            <span className={`tooltip__tooltip-text`}>
-              Failing policies ({summaryData.issues.failing_policies_count})
-            </span>
-          </ReactTooltip>
-          <span>{summaryData.issues.total_issues_count}</span>
-        </>
+        <IssuesIndicator
+          totalIssuesCount={summaryData.issues.total_issues_count}
+          criticalVulnerabilitiesCount={
+            summaryData.issues.critical_vulnerabilities_count
+          }
+          failingPoliciesCount={summaryData.issues.failing_policies_count}
+          tooltipPosition="bottom"
+        />
       }
     />
   );
@@ -266,7 +261,7 @@ const HostSummary = ({
       <DataSet
         title="Disk space"
         value={
-          <DiskSpaceGraph
+          <DiskSpaceIndicator
             baseClass="info-flex"
             gigsDiskSpaceAvailable={summaryData.gigs_disk_space_available}
             percentDiskSpaceAvailable={summaryData.percent_disk_space_available}
@@ -290,7 +285,7 @@ const HostSummary = ({
 
     let statusText;
     switch (true) {
-      case platform === "chrome":
+      case isChromeHost:
         statusText = "Always on";
         break;
       case diskEncryptionEnabled === true:
@@ -317,6 +312,82 @@ const HostSummary = ({
     );
   };
 
+  const renderAgentSummary = () => {
+    if (isChromeHost) {
+      return <DataSet title="Agent" value={summaryData.osquery_version} />;
+    }
+
+    if (isIosOrIpadosHost) {
+      return null;
+    }
+
+    if (summaryData.orbit_version !== DEFAULT_EMPTY_CELL_VALUE) {
+      return (
+        <DataSet
+          title="Agent"
+          value={
+            <TooltipWrapper
+              tipContent={
+                <>
+                  osquery: {summaryData.osquery_version}
+                  <br />
+                  Orbit: {summaryData.orbit_version}
+                  {summaryData.fleet_desktop_version !==
+                    DEFAULT_EMPTY_CELL_VALUE && (
+                    <>
+                      <br />
+                      Fleet Desktop: {summaryData.fleet_desktop_version}
+                    </>
+                  )}
+                </>
+              }
+            >
+              {summaryData.orbit_version}
+            </TooltipWrapper>
+          }
+        />
+      );
+    }
+    return <DataSet title="Osquery" value={summaryData.osquery_version} />;
+  };
+
+  const renderMaintenanceWindow = ({
+    starts_at,
+    timezone,
+  }: IHostMaintenanceWindow) => {
+    const formattedStartsAt = formatInTimeZone(
+      starts_at,
+      // since startsAt is already localized and contains offset information, this 2nd parameter is
+      // logically redundant. It's included here to allow use of date-fns-tz.formatInTimeZone instead of date-fns.format, which
+      // allows us to format a UTC datetime without converting to the user-agent local time.
+      timezone || "UTC",
+      DATE_FNS_FORMAT_STRINGS.dateAtTime
+    );
+
+    const tip = timezone ? (
+      <>
+        End user&apos;s time zone:
+        <br />
+        (GMT{starts_at.slice(-6)}) {timezone.replace("_", " ")}
+      </>
+    ) : (
+      <>
+        End user&apos;s timezone unavailable.
+        <br />
+        Displaying in UTC.
+      </>
+    );
+
+    return (
+      <DataSet
+        title="Scheduled maintenance"
+        value={
+          <TooltipWrapper tipContent={tip}>{formattedStartsAt}</TooltipWrapper>
+        }
+      />
+    );
+  };
+
   const renderSummary = () => {
     // for windows hosts we have to manually add a profile for disk encryption
     // as this is not currently included in the `profiles` value from the API
@@ -337,35 +408,33 @@ const HostSummary = ({
 
     return (
       <Card
-        borderRadiusSize="large"
+        borderRadiusSize="xxlarge"
         includeShadow
         largePadding
         className={`${baseClass}-card`}
       >
-        <DataSet
-          title="Status"
-          value={
-            <StatusIndicator
-              value={status || ""} // temporary work around of integration test bug
-              tooltip={{
-                tooltipText: getHostStatusTooltipText(status),
-                position: "bottom",
-              }}
-            />
-          }
-        />
-        {(summaryData.issues?.total_issues_count > 0 || isSandboxMode) &&
-          isPremiumTier &&
+        {!isIosOrIpadosHost && (
+          <DataSet
+            title="Status"
+            value={
+              <StatusIndicator
+                value={status || ""} // temporary work around of integration test bug
+                tooltip={{
+                  tooltipText: getHostStatusTooltipText(status),
+                  position: "bottom",
+                }}
+              />
+            }
+          />
+        )}
+        {summaryData.issues?.total_issues_count > 0 &&
+          !isIosOrIpadosHost &&
           renderIssues()}
-
         {isPremiumTier && renderHostTeam()}
-
         {/* Rendering of OS Settings data */}
         {(platform === "darwin" || platform === "windows") &&
           isPremiumTier &&
-          // TODO: API INTEGRATION: change this when we figure out why the API is
-          // returning "Fleet" or "FleetDM" for the MDM name.
-          mdmName?.includes("Fleet") && // show if 1 - host is enrolled in Fleet MDM, and
+          isConnectedToFleetMdm && // show if 1 - host is enrolled in Fleet MDM, and
           hostMdmProfiles &&
           hostMdmProfiles.length > 0 && ( // 2 - host has at least one setting (profile) enforced
             <DataSet
@@ -378,8 +447,7 @@ const HostSummary = ({
               }
             />
           )}
-
-        {bootstrapPackageData?.status && (
+        {bootstrapPackageData?.status && !isIosOrIpadosHost && (
           <DataSet
             title="Bootstrap package"
             value={
@@ -390,18 +458,24 @@ const HostSummary = ({
             }
           />
         )}
-
-        {platform !== "chrome" && renderDiskSpaceSummary()}
-
+        {!isChromeHost && renderDiskSpaceSummary()}
         {renderDiskEncryptionSummary()}
-
-        <DataSet
-          title="Memory"
-          value={wrapFleetHelper(humanHostMemory, summaryData.memory)}
-        />
-        <DataSet title="Processor type" value={summaryData.cpu_type} />
+        {!isIosOrIpadosHost && (
+          <DataSet
+            title="Memory"
+            value={wrapFleetHelper(humanHostMemory, summaryData.memory)}
+          />
+        )}
+        {!isIosOrIpadosHost && (
+          <DataSet title="Processor type" value={summaryData.cpu_type} />
+        )}
         <DataSet title="Operating system" value={summaryData.os_version} />
-        <DataSet title="Osquery" value={summaryData.osquery_version} />
+        {!isIosOrIpadosHost && renderAgentSummary()}
+        {isPremiumTier &&
+          // TODO - refactor normalizeEmptyValues pattern
+          !!summaryData.maintenance_window &&
+          summaryData.maintenance_window !== "---" &&
+          renderMaintenanceWindow(summaryData.maintenance_window)}
       </Card>
     );
   };
@@ -463,7 +537,7 @@ const HostSummary = ({
             {renderRefetch()}
           </div>
         </div>
-        {renderActionButtons()}
+        {renderActionDropdown()}
       </div>
       {renderSummary()}
     </div>

@@ -22,3 +22,10 @@
   description: This policy checks if the end user is required to enter a password, with at least 10 characters, to unlock the host.
   resolution: "As an IT admin, deploy a Windows profile with the DevicePasswordEnabled and MinDevicePasswordLength option documented here: https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-csp-devicelock"
   platform: windows
+- name: Windows - Antivirus healthy
+  query: SELECT 1 from windows_security_center wsc CROSS JOIN windows_security_products wsp WHERE antivirus = 'Good' AND type = 'Antivirus' AND signatures_up_to_date=1;
+  critical: false
+  description: Checks the status of antivirus and signature updates from the Windows Security Center.
+  resolution: "Ensure Windows Defender or your third-party antivirus is running, up to date, and visible in the Windows Security Center."
+  platform: windows
+  

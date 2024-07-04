@@ -105,8 +105,8 @@ func TestHostRunScript(t *testing.T) {
 				name:                  "global observer saved",
 				user:                  &fleet.User{GlobalRole: ptr.String(fleet.RoleObserver)},
 				scriptID:              ptr.Uint(1),
-				shouldFailTeamWrite:   false,
-				shouldFailGlobalWrite: false,
+				shouldFailTeamWrite:   true,
+				shouldFailGlobalWrite: true,
 			},
 			{
 				name:                  "global observer+",
@@ -118,8 +118,8 @@ func TestHostRunScript(t *testing.T) {
 				name:                  "global observer+ saved",
 				user:                  &fleet.User{GlobalRole: ptr.String(fleet.RoleObserverPlus)},
 				scriptID:              ptr.Uint(1),
-				shouldFailTeamWrite:   false,
-				shouldFailGlobalWrite: false,
+				shouldFailTeamWrite:   true,
+				shouldFailGlobalWrite: true,
 			},
 			{
 				name:                  "global gitops",
@@ -170,7 +170,7 @@ func TestHostRunScript(t *testing.T) {
 				name:                  "team observer, belongs to team, saved",
 				user:                  &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserver}}},
 				scriptID:              ptr.Uint(1),
-				shouldFailTeamWrite:   false,
+				shouldFailTeamWrite:   true,
 				shouldFailGlobalWrite: true,
 			},
 			{
@@ -183,7 +183,7 @@ func TestHostRunScript(t *testing.T) {
 				name:                  "team observer+, belongs to team, saved",
 				user:                  &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserverPlus}}},
 				scriptID:              ptr.Uint(1),
-				shouldFailTeamWrite:   false,
+				shouldFailTeamWrite:   true,
 				shouldFailGlobalWrite: true,
 			},
 			{
@@ -309,11 +309,13 @@ func TestHostRunScript(t *testing.T) {
 			{"large script", strings.Repeat("a", fleet.UnsavedScriptMaxRuneLen), ""},
 			{"invalid utf8", "\xff\xfa", "Wrong data format."},
 			{"valid without hashbang", "echo 'a'", ""},
-			{"valid with hashbang", "#!/bin/sh\necho 'a'", ""},
+			{"valid with posix hashbang", "#!/bin/sh\necho 'a'", ""},
+			{"valid with usr zsh hashbang", "#!/usr/bin/zsh\necho 'a'", ""},
+			{"valid with zsh hashbang", "#!/bin/zsh\necho 'a'", ""},
+			{"valid with zsh hashbang and arguments", "#!/bin/zsh -x\necho 'a'", ""},
 			{"valid with hashbang and spacing", "#! /bin/sh  \necho 'a'", ""},
 			{"valid with hashbang and Windows newline", "#! /bin/sh  \r\necho 'a'", ""},
 			{"invalid hashbang", "#!/bin/bash\necho 'a'", "Interpreter not supported."},
-			{"invalid hashbang suffix", "#!/bin/sh -n\necho 'a'", "Interpreter not supported."},
 		}
 
 		ctx = viewer.NewContext(ctx, viewer.Viewer{User: test.UserAdmin})
@@ -525,7 +527,9 @@ func TestSavedScripts(t *testing.T) {
 	ds.ListScriptsFunc = func(ctx context.Context, teamID *uint, opt fleet.ListOptions) ([]*fleet.Script, *fleet.PaginationMetadata, error) {
 		return nil, &fleet.PaginationMetadata{}, nil
 	}
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+	ds.NewActivityFunc = func(
+		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
+	) error {
 		return nil
 	}
 	ds.TeamFunc = func(ctx context.Context, id uint) (*fleet.Team, error) {

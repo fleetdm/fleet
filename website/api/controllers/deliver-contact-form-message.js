@@ -60,13 +60,9 @@ module.exports = {
         `Name: ${firstName + ' ' + lastName}, Email: ${emailAddress}, Message: ${message ? message : 'No message.'}`
       );
     }
-    const bannedEmailDomainsForContactFormMessages = [
-      'gmail.com','yahoo.com', 'yahoo.co.uk','hotmail.com','hotmail.co.uk', 'outlook.com', 'icloud.com', 'proton.me','live.com','yandex.ru','ymail.com',
-    ];
 
     let emailDomain = emailAddress.split('@')[1];
-
-    if(_.includes(bannedEmailDomainsForContactFormMessages, emailDomain.toLowerCase())){
+    if(_.includes(sails.config.custom.bannedEmailDomainsForWebsiteSubmissions, emailDomain.toLowerCase())){
       throw 'invalidEmailDomain';
     }
 
@@ -75,25 +71,18 @@ module.exports = {
       `Name: ${firstName + ' ' + lastName}, Email: ${emailAddress}, Message: ${message ? message : 'No message.'}`
     });
 
-
-    // Send a POST request to Zapier
-    await sails.helpers.http.post(
-      'https://hooks.zapier.com/hooks/catch/3627242/3cxcriz/',
-      {
-        'emailAddress': emailAddress,
-        'firstName': firstName,
-        'lastName': lastName,
-        'message': message,
-        'webhookSecret': sails.config.custom.zapierSandboxWebhookSecret
+    sails.helpers.salesforce.updateOrCreateContactAndAccountAndCreateLead.with({
+      emailAddress: emailAddress,
+      firstName: firstName,
+      lastName: lastName,
+      leadSource: 'Website - Contact forms',
+      leadDescription: `Sent a contact form message: ${message}`,
+    }).exec((err)=>{// Use .exec() to run the salesforce helpers in the background.
+      if(err) {
+        sails.log.warn(`Background task failed: When a user submitted a contact form message, a lead/contact could not be updated in the CRM for this email address: ${emailAddress}.`, err);
       }
-    )
-    .timeout(5000)
-    .tolerate(['non200Response', 'requestFailed'], (err)=>{
-      // Note that Zapier responds with a 2xx status code even if something goes wrong, so just because this message is not logged doesn't mean everything is hunky dory.  More info: https://github.com/fleetdm/fleet/pull/6380#issuecomment-1204395762
-      sails.log.warn(`When a user submitted a contact form message, a lead/contact could not be updated in the CRM for this email address: ${emailAddress}. Raw error: ${err}`);
       return;
     });
-
 
   }
 

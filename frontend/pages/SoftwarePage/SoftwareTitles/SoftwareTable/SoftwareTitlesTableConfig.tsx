@@ -3,8 +3,7 @@ import { CellProps, Column } from "react-table";
 import { InjectedRouter } from "react-router";
 
 import {
-  ISoftwareTitleVersion,
-  ISoftwareTitle,
+  ISoftwareTitleWithPackageName,
   formatSoftwareType,
 } from "interfaces/software";
 import PATHS from "router/paths";
@@ -14,29 +13,35 @@ import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
 
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
-import LinkCell from "components/TableContainer/DataTable/LinkCell/LinkCell";
 import ViewAllHostsLink from "components/ViewAllHostsLink";
+import SoftwareNameCell from "components/TableContainer/DataTable/SoftwareNameCell";
 
 import VersionCell from "../../components/VersionCell";
 import VulnerabilitiesCell from "../../components/VulnerabilitiesCell";
-import SoftwareIcon from "../../components/icons/SoftwareIcon";
 
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
 
-type ISoftwareTitlesTableConfig = Column<ISoftwareTitle>;
-type ITableStringCellProps = IStringCellProps<ISoftwareTitle>;
-type IVersionsCellProps = CellProps<ISoftwareTitle, ISoftwareTitle["versions"]>;
+type ISoftwareTitlesTableConfig = Column<ISoftwareTitleWithPackageName>;
+type ITableStringCellProps = IStringCellProps<ISoftwareTitleWithPackageName>;
+type IVersionsCellProps = CellProps<
+  ISoftwareTitleWithPackageName,
+  ISoftwareTitleWithPackageName["versions"]
+>;
 type IVulnerabilitiesCellProps = IVersionsCellProps;
 type IHostCountCellProps = CellProps<
-  ISoftwareTitle,
-  ISoftwareTitle["hosts_count"]
+  ISoftwareTitleWithPackageName,
+  ISoftwareTitleWithPackageName["hosts_count"]
 >;
-type IViewAllHostsLinkProps = CellProps<ISoftwareTitle>;
+type IViewAllHostsLinkProps = CellProps<ISoftwareTitleWithPackageName>;
 
-type ITableHeaderProps = IHeaderProps<ISoftwareTitle>;
+type ITableHeaderProps = IHeaderProps<ISoftwareTitleWithPackageName>;
 
-const getVulnerabilities = (versions: ISoftwareTitleVersion[]) => {
+export const getVulnerabilities = <
+  T extends { vulnerabilities: string[] | null }
+>(
+  versions: T[]
+) => {
   if (!versions) {
     return [];
   }
@@ -64,42 +69,33 @@ const generateTableHeaders = (
       disableSortBy: false,
       accessor: "name",
       Cell: (cellProps: ITableStringCellProps) => {
-        const { id, name, source } = cellProps.row.original;
+        const {
+          id,
+          name,
+          source,
+          software_package,
+          self_service,
+        } = cellProps.row.original;
 
         const teamQueryParam = buildQueryStringFromParams({ team_id: teamId });
         const softwareTitleDetailsPath = `${PATHS.SOFTWARE_TITLE_DETAILS(
           id.toString()
         )}?${teamQueryParam}`;
 
-        const onClickSoftware = (e: React.MouseEvent) => {
-          // Allows for button to be clickable in a clickable row
-          e.stopPropagation();
-
-          router?.push(softwareTitleDetailsPath);
-        };
+        const hasPackage = Boolean(software_package) && !!teamId; // teamId is required for package installation
 
         return (
-          <LinkCell
+          <SoftwareNameCell
+            name={name}
+            source={source}
             path={softwareTitleDetailsPath}
-            customOnClick={onClickSoftware}
-            value={
-              <>
-                <SoftwareIcon name={name} source={source} />
-                <span className="software-name">{name}</span>
-              </>
-            }
+            router={router}
+            hasPackage={hasPackage}
+            isSelfService={self_service === true}
           />
         );
       },
       sortType: "caseInsensitive",
-    },
-    {
-      Header: "Version",
-      disableSortBy: true,
-      accessor: "versions",
-      Cell: (cellProps: IVersionsCellProps) => (
-        <VersionCell versions={cellProps.cell.value} />
-      ),
     },
     {
       Header: "Type",
@@ -107,6 +103,14 @@ const generateTableHeaders = (
       accessor: "source",
       Cell: (cellProps: ITableStringCellProps) => (
         <TextCell value={formatSoftwareType(cellProps.row.original)} />
+      ),
+    },
+    {
+      Header: "Version",
+      disableSortBy: true,
+      accessor: "versions",
+      Cell: (cellProps: IVersionsCellProps) => (
+        <VersionCell versions={cellProps.cell.value} />
       ),
     },
     // the "vulnerabilities" accessor is used but the data is actually coming

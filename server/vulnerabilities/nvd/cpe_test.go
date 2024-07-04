@@ -11,12 +11,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/facebookincubator/nvdtools/cpedict"
 	"github.com/fleetdm/fleet/v4/pkg/nettest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
-	kitlog "github.com/go-kit/kit/log"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/cpedict"
 	"github.com/go-kit/log"
+	kitlog "github.com/go-kit/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -134,6 +134,28 @@ func TestCPETranslations(t *testing.T) {
 				Source:  "apps",
 			},
 			Expected: "cpe:2.3:a:vendor:product-1:1.2.3:*:*:*:*:macos:*:*",
+		},
+		{
+			Name: "translate part",
+			Translations: CPETranslations{
+				{
+					Software: CPETranslationSoftware{
+						Name:   []string{"X"},
+						Source: []string{"apps"},
+					},
+					Filter: CPETranslation{
+						Product: []string{"product-1"},
+						Vendor:  []string{"vendor"},
+						Part:    "o",
+					},
+				},
+			},
+			Software: &fleet.Software{
+				Name:    "X",
+				Version: "1.2.3",
+				Source:  "apps",
+			},
+			Expected: "cpe:2.3:o:vendor:product-1:1.2.3:*:*:*:*:macos:*:*",
 		},
 	}
 
@@ -1612,6 +1634,15 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 				Vendor:  "",
 			},
 			cpe: `cpe:2.3:a:python:python:3.9.18_2:*:*:*:*:*:*:*`,
+		},
+		{
+			software: fleet.Software{
+				Name:    "linux-image-5.4.0-105-custom",
+				Source:  "deb_packages",
+				Version: "5.4.0-105.118",
+				Vendor:  "",
+			},
+			cpe: "cpe:2.3:o:linux:linux_kernel:5.4.0-105.118:*:*:*:*:*:*:*",
 		},
 	}
 

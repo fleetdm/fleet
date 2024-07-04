@@ -16,8 +16,8 @@ import (
 	"github.com/aws/aws-sdk-go/service/firehose"
 	"github.com/aws/aws-sdk-go/service/firehose/firehoseiface"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
-	"github.com/go-kit/kit/log"
-	"github.com/go-kit/kit/log/level"
+	"github.com/go-kit/log"
+	"github.com/go-kit/log/level"
 )
 
 const (
@@ -37,7 +37,7 @@ type firehoseLogWriter struct {
 	logger log.Logger
 }
 
-func NewFirehoseLogWriter(region, endpointURL, id, secret, stsAssumeRoleArn, stream string, logger log.Logger) (*firehoseLogWriter, error) {
+func NewFirehoseLogWriter(region, endpointURL, id, secret, stsAssumeRoleArn, stsExternalID, stream string, logger log.Logger) (*firehoseLogWriter, error) {
 	conf := &aws.Config{
 		Region:   &region,
 		Endpoint: &endpointURL, // empty string or nil will use default values
@@ -55,7 +55,11 @@ func NewFirehoseLogWriter(region, endpointURL, id, secret, stsAssumeRoleArn, str
 	}
 
 	if stsAssumeRoleArn != "" {
-		creds := stscreds.NewCredentials(sess, stsAssumeRoleArn)
+		creds := stscreds.NewCredentials(sess, stsAssumeRoleArn, func(provider *stscreds.AssumeRoleProvider) {
+			if stsExternalID != "" {
+				provider.ExternalID = &stsExternalID
+			}
+		})
 		conf.Credentials = creds
 
 		sess, err = session.NewSession(conf)

@@ -130,6 +130,10 @@ func TestPlatformFromHost(t *testing.T) {
 			expPlatform: "linux",
 		},
 		{
+			host:        "tuxedo",
+			expPlatform: "linux",
+		},
+		{
 			host:        "darwin",
 			expPlatform: "darwin",
 		},
@@ -210,104 +214,181 @@ func TestMDMEnrollmentStatus(t *testing.T) {
 	}
 }
 
-func TestIsEnrolledInThirdPartyMDM(t *testing.T) {
-	for _, tc := range []struct {
-		hostMDM  HostMDM
-		expected bool
-	}{
-		{
-			hostMDM:  HostMDM{Enrolled: true, Name: WellKnownMDMSimpleMDM},
-			expected: true,
-		},
-		{
-			hostMDM:  HostMDM{Enrolled: false, Name: WellKnownMDMSimpleMDM},
-			expected: false,
-		},
-		{
-			hostMDM:  HostMDM{Enrolled: true, Name: WellKnownMDMFleet},
-			expected: false,
-		},
-		{
-			hostMDM:  HostMDM{Enrolled: false, Name: WellKnownMDMFleet},
-			expected: false,
-		},
-	} {
-		require.Equal(t, tc.expected, tc.hostMDM.IsEnrolledInThirdPartyMDM())
-	}
-}
-
-func TestIsDEPCapable(t *testing.T) {
-	for _, tc := range []struct {
-		hostMDM  HostMDM
-		expected bool
-	}{
-		{
-			hostMDM:  HostMDM{IsServer: false, InstalledFromDep: true},
-			expected: true,
-		},
-		{
-			hostMDM:  HostMDM{IsServer: true, InstalledFromDep: true},
-			expected: false,
-		},
-		{
-			hostMDM:  HostMDM{IsServer: true, InstalledFromDep: false},
-			expected: false,
-		},
-		{
-			hostMDM:  HostMDM{IsServer: false, InstalledFromDep: false},
-			expected: false,
-		},
-	} {
-		require.Equal(t, tc.expected, tc.hostMDM.IsDEPCapable())
-	}
-}
-
 func TestIsEligibleForBitLockerEncryption(t *testing.T) {
-	require.False(t, (&Host{}).IsEligibleForBitLockerEncryption())
+	require.False(t, IsEligibleForBitLockerEncryption(&Host{}, &HostMDM{}, false))
 
-	hostThatNeedsEnforcement := Host{
+	hostThatNeedsEnforcement := &Host{
 		Platform:      "windows",
 		OsqueryHostID: ptr.String("test"),
-		MDMInfo: &HostMDM{
-			Name:             WellKnownMDMFleet,
-			Enrolled:         true,
-			IsServer:         false,
-			InstalledFromDep: true,
-		},
 		MDM: MDMHostData{
 			EncryptionKeyAvailable: false,
 		},
 		DiskEncryptionEnabled: ptr.Bool(false),
 	}
-	require.True(t, hostThatNeedsEnforcement.IsEligibleForBitLockerEncryption())
+	hostThatNeedsEnforcementMdmInfo := &HostMDM{
+		Name:             WellKnownMDMFleet,
+		Enrolled:         true,
+		IsServer:         false,
+		InstalledFromDep: true,
+	}
+	require.True(t, IsEligibleForBitLockerEncryption(hostThatNeedsEnforcement, hostThatNeedsEnforcementMdmInfo, true))
 
 	// macOS hosts are not elegible
 	hostThatNeedsEnforcement.Platform = "darwin"
-	require.False(t, hostThatNeedsEnforcement.IsEligibleForBitLockerEncryption())
+	require.False(t, IsEligibleForBitLockerEncryption(hostThatNeedsEnforcement, hostThatNeedsEnforcementMdmInfo, true))
 	hostThatNeedsEnforcement.Platform = "windows"
-	require.True(t, hostThatNeedsEnforcement.IsEligibleForBitLockerEncryption())
+	require.True(t, IsEligibleForBitLockerEncryption(hostThatNeedsEnforcement, hostThatNeedsEnforcementMdmInfo, true))
 
 	// hosts with disk encryption already enabled are elegible only if we
 	// can't decrypt the key
 	hostThatNeedsEnforcement.DiskEncryptionEnabled = ptr.Bool(true)
-	require.True(t, hostThatNeedsEnforcement.IsEligibleForBitLockerEncryption())
+	require.True(t, IsEligibleForBitLockerEncryption(hostThatNeedsEnforcement, hostThatNeedsEnforcementMdmInfo, true))
 	hostThatNeedsEnforcement.MDM.EncryptionKeyAvailable = true
-	require.False(t, hostThatNeedsEnforcement.IsEligibleForBitLockerEncryption())
+	require.False(t, IsEligibleForBitLockerEncryption(hostThatNeedsEnforcement, hostThatNeedsEnforcementMdmInfo, true))
 
 	hostThatNeedsEnforcement.DiskEncryptionEnabled = ptr.Bool(false)
 	hostThatNeedsEnforcement.MDM.EncryptionKeyAvailable = false
-	require.True(t, hostThatNeedsEnforcement.IsEligibleForBitLockerEncryption())
+	require.True(t, IsEligibleForBitLockerEncryption(hostThatNeedsEnforcement, hostThatNeedsEnforcementMdmInfo, true))
 
 	// hosts without MDMinfo are not elegible
-	oldMDMInfo := hostThatNeedsEnforcement.MDMInfo
-	hostThatNeedsEnforcement.MDMInfo = nil
-	require.False(t, hostThatNeedsEnforcement.IsEligibleForBitLockerEncryption())
-	hostThatNeedsEnforcement.MDMInfo = oldMDMInfo
-	require.True(t, hostThatNeedsEnforcement.IsEligibleForBitLockerEncryption())
+	require.False(t, IsEligibleForBitLockerEncryption(hostThatNeedsEnforcement, nil, true))
+	require.True(t, IsEligibleForBitLockerEncryption(hostThatNeedsEnforcement, hostThatNeedsEnforcementMdmInfo, true))
 
 	// hosts that are not enrolled in MDM are not elegible
-	hostThatNeedsEnforcement.MDMInfo.Enrolled = false
-	require.False(t, hostThatNeedsEnforcement.IsEligibleForBitLockerEncryption())
-	hostThatNeedsEnforcement.MDMInfo.Enrolled = true
-	require.True(t, hostThatNeedsEnforcement.IsEligibleForBitLockerEncryption())
+	require.False(t, IsEligibleForBitLockerEncryption(hostThatNeedsEnforcement, hostThatNeedsEnforcementMdmInfo, false))
+}
+
+func TestIsEligibleForDEPMigration(t *testing.T) {
+	testCases := []struct {
+		name                    string
+		osqueryHostID           *string
+		depAssignedToFleet      *bool
+		depProfileResponse      DEPAssignProfileResponseStatus
+		enrolledInThirdPartyMDM bool
+		expected                bool
+	}{
+		{
+			name:                    "Eligible for DEP migration",
+			osqueryHostID:           ptr.String("some-id"),
+			depAssignedToFleet:      ptr.Bool(true),
+			depProfileResponse:      DEPAssignProfileResponseSuccess,
+			enrolledInThirdPartyMDM: true,
+			expected:                true,
+		},
+		{
+			name:                    "Not eligible - osqueryHostID nil",
+			osqueryHostID:           nil,
+			depAssignedToFleet:      ptr.Bool(true),
+			depProfileResponse:      DEPAssignProfileResponseSuccess,
+			enrolledInThirdPartyMDM: true,
+			expected:                false,
+		},
+		{
+			name:                    "Not eligible - not DEP assigned to Fleet",
+			osqueryHostID:           ptr.String("some-id"),
+			depAssignedToFleet:      ptr.Bool(false),
+			depProfileResponse:      DEPAssignProfileResponseSuccess,
+			enrolledInThirdPartyMDM: true,
+			expected:                false,
+		},
+		{
+			name:                    "Not eligible - not enrolled in third-party MDM",
+			osqueryHostID:           ptr.String("some-id"),
+			depAssignedToFleet:      ptr.Bool(true),
+			depProfileResponse:      DEPAssignProfileResponseSuccess,
+			enrolledInThirdPartyMDM: false,
+			expected:                false,
+		},
+		{
+			name:                    "Not eligible - not DEP assigned and DEP profile failed",
+			osqueryHostID:           ptr.String("some-id"),
+			depAssignedToFleet:      ptr.Bool(false),
+			depProfileResponse:      DEPAssignProfileResponseNotAccessible,
+			enrolledInThirdPartyMDM: true,
+			expected:                false,
+		},
+		{
+			name:                    "Not eligible - DEP assigned and DEP profile failed",
+			osqueryHostID:           ptr.String("some-id"),
+			depAssignedToFleet:      ptr.Bool(true),
+			depProfileResponse:      DEPAssignProfileResponseFailed,
+			enrolledInThirdPartyMDM: true,
+			expected:                false,
+		},
+		{
+			name:                    "Not eligible - DEP assigned but not response yet",
+			osqueryHostID:           ptr.String("some-id"),
+			depAssignedToFleet:      ptr.Bool(true),
+			depProfileResponse:      "",
+			enrolledInThirdPartyMDM: true,
+			expected:                false,
+		},
+		{
+			name:                    "Not eligible - DEP assigned but not accessible",
+			osqueryHostID:           ptr.String("some-id"),
+			depAssignedToFleet:      ptr.Bool(true),
+			depProfileResponse:      DEPAssignProfileResponseNotAccessible,
+			enrolledInThirdPartyMDM: true,
+			expected:                false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			host := &Host{
+				OsqueryHostID:      tc.osqueryHostID,
+				DEPAssignedToFleet: tc.depAssignedToFleet,
+			}
+
+			mdmInfo := &HostMDM{
+				Enrolled:               tc.enrolledInThirdPartyMDM,
+				Name:                   "Some MDM",
+				DEPProfileAssignStatus: ptr.String(string(tc.depProfileResponse)),
+			}
+
+			require.Equal(t, tc.expected, IsEligibleForDEPMigration(host, mdmInfo, false))
+		})
+	}
+}
+
+func TestHasJSONProfileAssigned(t *testing.T) {
+	testCases := []struct {
+		name     string
+		hostMDM  *HostMDM
+		expected bool
+	}{
+		{
+			name:     "nil HostMDM",
+			hostMDM:  nil,
+			expected: false,
+		},
+		{
+			name: "nil DEPProfileAssignStatus",
+			hostMDM: &HostMDM{
+				DEPProfileAssignStatus: nil,
+			},
+			expected: false,
+		},
+		{
+			name: "DEPProfileAssignStatus not successful",
+			hostMDM: &HostMDM{
+				DEPProfileAssignStatus: new(string),
+			},
+			expected: false,
+		},
+		{
+			name: "DEPProfileAssignStatus successful",
+			hostMDM: &HostMDM{
+				DEPProfileAssignStatus: ptr.String(string(DEPAssignProfileResponseSuccess)),
+			},
+			expected: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			result := tc.hostMDM.HasJSONProfileAssigned()
+			require.Equal(t, tc.expected, result)
+		})
+	}
 }

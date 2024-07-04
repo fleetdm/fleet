@@ -1,4 +1,4 @@
-import React, { useCallback, useRef } from "react";
+import React, { ReactNode, useCallback, useRef } from "react";
 import AceEditor from "react-ace";
 import ReactAce from "react-ace/lib/ace";
 import { IAceEditor } from "react-ace/lib/types";
@@ -30,10 +30,13 @@ export interface IFleetAceProps {
   name?: string;
   value?: string;
   readOnly?: boolean;
+  maxLines?: number;
   showGutter?: boolean;
   wrapEnabled?: boolean;
+  /** @deprecated use the prop `className` instead */
   wrapperClassName?: string;
-  helpText?: string;
+  className?: string;
+  helpText?: ReactNode;
   labelActionComponent?: React.ReactNode;
   style?: React.CSSProperties;
   onBlur?: (editor?: IAceEditor) => void;
@@ -53,9 +56,11 @@ const FleetAce = ({
   name = "query-editor",
   value,
   readOnly,
+  maxLines = 20,
   showGutter = true,
   wrapEnabled = false,
   wrapperClassName,
+  className,
   helpText,
   style,
   onBlur,
@@ -64,7 +69,7 @@ const FleetAce = ({
   handleSubmit = noop,
 }: IFleetAceProps): JSX.Element => {
   const editorRef = useRef<ReactAce>(null);
-  const wrapperClass = classnames(wrapperClassName, baseClass, {
+  const wrapperClass = classnames(className, wrapperClassName, baseClass, {
     [`${baseClass}__wrapper--error`]: !!error,
   });
 
@@ -250,7 +255,7 @@ const FleetAce = ({
         fontSize={fontSize}
         mode="fleet"
         minLines={2}
-        maxLines={20}
+        maxLines={maxLines}
         name={name}
         onChange={onChange}
         onBlur={onBlurHandler}

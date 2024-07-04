@@ -51,6 +51,7 @@ jobs:
         branch: update-versions-of-fleetd-components-tuf
         delete-branch: true
         title: Update versions of fleetd components in Fleet's TUF [automated]
+        reviewers: lukeheath,georgekarrv,sharon-fdm
         commit-message: |
           Update versions of fleetd components in Fleet's TUF [automated]
 

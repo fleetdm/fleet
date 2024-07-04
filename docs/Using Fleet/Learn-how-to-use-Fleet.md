@@ -17,8 +17,8 @@ To add your device:
 
 1. Select **Add hosts**. In Fleet, devices are referred to as "hosts."
 2. Select your device's platform.
-3. Select **Download** to download your Fleet osquery installer. The download may take several seconds.
-4. Open the Fleet osquery installer and follow the installation steps.
+3. Select **Download** to download Fleet's agent (fleetd). The download may take several seconds.
+4. Open fleetd and follow the installation steps.
 
 > It may take several seconds for Fleet osquery to send your device's data to Fleet.
 
@@ -43,7 +43,7 @@ To run this query on your device:
 3. Type the query you would like to run, `SELECT * FROM os_version;`.
 4. Select **Run query**, then select **All hosts** (your device may be the only host added to Fleet), and finally select **Run** to execute the query.
 
-The query may take several seconds to complete, because Fleet has to wait for the osquery agents to respond with results. Only online hosts will respond with results to a live query.
+The query may take several seconds to complete, because Fleet has to wait for the Fleet's agent (fleetd) to respond with results. Only online hosts will respond with results to a live query.
 
 > Fleet's query response time is inherently variable because of osquery's heartbeat response time. This helps prevent performance issues on hosts.
 

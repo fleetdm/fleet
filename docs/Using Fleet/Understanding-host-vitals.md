@@ -32,7 +32,7 @@ SELECT 1 FROM disk_encryption WHERE user_uuid IS NOT "" AND filevault_status = '
 
 ## disk_encryption_linux
 
-- Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, opensuse-leap, opensuse-tumbleweed
+- Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, opensuse-leap, opensuse-tumbleweed, tuxedo
 
 - Query:
 ```sql
@@ -45,12 +45,19 @@ SELECT de.encrypted, m.path FROM disk_encryption de JOIN mounts m ON m.device_al
 
 - Query:
 ```sql
-SELECT 1 FROM bitlocker_info WHERE drive_letter = 'C:' AND protection_status = 1;
+WITH encrypted(enabled) AS (
+		SELECT CASE WHEN
+			NOT EXISTS(SELECT 1 FROM windows_optional_features WHERE name = 'BitLocker')
+			OR
+			(SELECT 1 FROM windows_optional_features WHERE name = 'BitLocker' AND state = 1)
+		THEN (SELECT 1 FROM bitlocker_info WHERE drive_letter = 'C:' AND protection_status = 1)
+	END)
+	SELECT 1 FROM encrypted WHERE enabled IS NOT NULL
 ```
 
 ## disk_space_unix
 
-- Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, opensuse-leap, opensuse-tumbleweed, darwin
+- Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, opensuse-leap, opensuse-tumbleweed, tuxedo, darwin
 
 - Query:
 ```sql
@@ -78,7 +85,7 @@ FROM logical_drives WHERE file_system = 'NTFS' LIMIT 1;
 
 - Discovery query:
 ```sql
-SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'google_chrome_profiles';
+SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'google_chrome_profiles'
 ```
 
 - Query:
@@ -92,7 +99,7 @@ SELECT email FROM google_chrome_profiles WHERE NOT ephemeral AND email <> ''
 
 - Discovery query:
 ```sql
-SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'kubernetes_info';
+SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'kubernetes_info'
 ```
 
 - Query:
@@ -106,7 +113,7 @@ SELECT * from kubernetes_info
 
 - Discovery query:
 ```sql
-SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'mdm';
+SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'mdm'
 ```
 
 - Query:
@@ -120,7 +127,7 @@ select enrolled, server_url, installed_from_dep, payload_identifier from mdm;
 
 - Discovery query:
 ```sql
-SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'macos_profiles';
+SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'macos_profiles'
 ```
 
 - Query:
@@ -134,7 +141,7 @@ SELECT display_name, identifier, install_date FROM macos_profiles where type = "
 
 - Discovery query:
 ```sql
-SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'filevault_prk';
+SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'filevault_prk'
 ```
 
 - Query:
@@ -199,7 +206,7 @@ WITH registry_keys AS (
 		    -- coalesce to 'unknown' and keep that state in the list
 		    -- in order to account for hosts that might not have this
 		    -- key, and servers
-                    WHERE COALESCE(e.state, '0') IN ('0', '1', '2')
+                    WHERE COALESCE(e.state, '0') IN ('0', '1', '2', '3')
                     LIMIT 1;
 ```
 
@@ -209,7 +216,7 @@ WITH registry_keys AS (
 
 - Discovery query:
 ```sql
-SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'munki_info';
+SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'munki_info'
 ```
 
 - Query:
@@ -228,7 +235,7 @@ SELECT ipv4 AS address, mac FROM network_interfaces LIMIT 1
 
 ## network_interface_unix
 
-- Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, opensuse-leap, opensuse-tumbleweed, darwin
+- Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, opensuse-leap, opensuse-tumbleweed, tuxedo, darwin
 
 - Query:
 ```sql
@@ -242,8 +249,8 @@ FROM
 	-- whereas on Windows ia.interface is the IP of the interface.
     JOIN routes r ON r.interface = ia.interface
 WHERE
-	-- Destination 0.0.0.0/0 is the default route on route tables.
-    r.destination = '0.0.0.0' AND r.netmask = 0
+	-- Destination 0.0.0.0/0 or ::/0 (IPv6) is the default route on route tables.
+    (r.destination = '0.0.0.0' OR r.destination = '::') AND r.netmask = 0
 	-- Type of route is "gateway" for Unix, "remote" for Windows.
     AND r.type = 'gateway'
 	-- We are only interested on private IPs (some devices have their Public IP as Primary IP too).
@@ -280,8 +287,8 @@ FROM
 	-- whereas on Windows ia.interface is the IP of the interface.
     JOIN routes r ON r.interface = ia.address
 WHERE
-	-- Destination 0.0.0.0/0 is the default route on route tables.
-    r.destination = '0.0.0.0' AND r.netmask = 0
+	-- Destination 0.0.0.0/0 or ::/0 (IPv6) is the default route on route tables.
+    (r.destination = '0.0.0.0' OR r.destination = '::') AND r.netmask = 0
 	-- Type of route is "gateway" for Unix, "remote" for Windows.
     AND r.type = 'remote'
 	-- We are only interested on private IPs (some devices have their Public IP as Primary IP too).
@@ -304,16 +311,16 @@ LIMIT 1;
 
 ## orbit_info
 
-- Platforms: all
+- Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, opensuse-leap, opensuse-tumbleweed, tuxedo, darwin, windows
 
 - Discovery query:
 ```sql
-SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'orbit_info';
+SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'orbit_info'
 ```
 
 - Query:
 ```sql
-SELECT version FROM orbit_info
+SELECT * FROM orbit_info
 ```
 
 ## os_chrome
@@ -338,7 +345,7 @@ SELECT
 
 ## os_unix_like
 
-- Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, opensuse-leap, opensuse-tumbleweed, darwin
+- Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, opensuse-leap, opensuse-tumbleweed, tuxedo, darwin
 
 - Query:
 ```sql
@@ -373,12 +380,27 @@ SELECT * FROM os_version LIMIT 1
 
 - Query:
 ```sql
-SELECT os.name, r.data as display_version, k.version
+WITH display_version_table AS (
+			SELECT data as display_version
+			FROM registry
+			WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\DisplayVersion'
+		),
+		ubr_table AS (
+			SELECT data AS ubr
+			FROM registry
+			WHERE path ='HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\UBR'
+		)
+		SELECT
+			os.name,
+			COALESCE(d.display_version, '') AS display_version,
+			COALESCE(CONCAT((SELECT version FROM os_version), '.', u.ubr), k.version) AS version
 		FROM
-			registry r,
 			os_version os,
 			kernel_info k
-		WHERE r.path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\DisplayVersion'
+		LEFT JOIN
+			display_version_table d
+		LEFT JOIN
+			ubr_table u
 ```
 
 ## os_windows
@@ -387,24 +409,35 @@ SELECT os.name, r.data as display_version, k.version
 
 - Query:
 ```sql
-SELECT
+WITH display_version_table AS (
+		SELECT data as display_version
+		FROM registry
+		WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\DisplayVersion'
+	),
+	ubr_table AS (
+	SELECT data AS ubr
+	FROM registry
+	WHERE path ='HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\UBR'
+	)
+	SELECT
 		os.name,
 		os.platform,
 		os.arch,
 		k.version as kernel_version,
-		os.version,
-		r.data as display_version
+		COALESCE(CONCAT((SELECT version FROM os_version), '.', u.ubr), k.version) AS version,
+		COALESCE(d.display_version, '') AS display_version
 	FROM
 		os_version os,
-		kernel_info k,
-		registry r
-	WHERE
-		r.path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\DisplayVersion'
+		kernel_info k
+	LEFT JOIN
+		display_version_table d
+	LEFT JOIN
+		ubr_table u
 ```
 
 ## osquery_flags
 
-- Platforms: all
+- Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, opensuse-leap, opensuse-tumbleweed, tuxedo, darwin, windows
 
 - Query:
 ```sql
@@ -422,7 +455,7 @@ select * from osquery_info limit 1
 
 ## scheduled_query_stats
 
-- Platforms: all
+- Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, opensuse-leap, opensuse-tumbleweed, tuxedo, darwin, windows
 
 - Query:
 ```sql
@@ -451,7 +484,7 @@ FROM chrome_extensions
 
 ## software_linux
 
-- Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, opensuse-leap, opensuse-tumbleweed
+- Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, opensuse-leap, opensuse-tumbleweed, tuxedo
 
 - Query:
 ```sql
@@ -641,13 +674,56 @@ SELECT
 FROM homebrew_packages;
 ```
 
-## software_vscode_extensions
+## software_macos_firefox
 
-- Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, opensuse-leap, opensuse-tumbleweed, darwin, windows
+- Description: A software override query[^1] to differentiate between Firefox and Firefox ESR on macOS.  Requires `fleetd`
+
+- Platforms: darwin
 
 - Discovery query:
 ```sql
-SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'vscode_extensions';
+SELECT 1 WHERE EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.mozilla.firefox' LIMIT 1) AND EXISTS (SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'parse_ini')
+```
+
+- Query:
+```sql
+WITH app_paths AS (
+				SELECT path
+				FROM apps
+				WHERE bundle_identifier = 'org.mozilla.firefox'
+			),
+			remoting_name AS (
+				SELECT value, path
+				FROM parse_ini
+				WHERE key = 'RemotingName'
+				AND path IN (SELECT CONCAT(path, '/Contents/Resources/application.ini') FROM app_paths)
+			)
+			SELECT
+				CASE
+					WHEN remoting_name.value = 'firefox-esr' THEN 'Firefox ESR.app'
+					ELSE 'Firefox.app'
+				END AS name,
+				COALESCE(NULLIF(apps.bundle_short_version, ''), apps.bundle_version) AS version,
+				'Application (macOS)' AS type,
+				apps.bundle_identifier AS bundle_identifier,
+				'' AS extension_id,
+				'' AS browser,
+				'apps' AS source,
+				'' AS vendor,
+				apps.last_opened_time AS last_opened_at,
+				apps.path AS installed_path
+			FROM apps
+			LEFT JOIN remoting_name ON apps.path = REPLACE(remoting_name.path, '/Contents/Resources/application.ini', '')
+			WHERE apps.bundle_identifier = 'org.mozilla.firefox'
+```
+
+## software_vscode_extensions
+
+- Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, opensuse-leap, opensuse-tumbleweed, tuxedo, darwin, windows
+
+- Discovery query:
+```sql
+SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'vscode_extensions'
 ```
 
 - Query:
@@ -758,7 +834,7 @@ select * from system_info limit 1
 
 ## uptime
 
-- Platforms: all
+- Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, opensuse-leap, opensuse-tumbleweed, tuxedo, darwin, windows
 
 - Query:
 ```sql
@@ -767,7 +843,7 @@ select * from uptime limit 1
 
 ## users
 
-- Platforms: linux, darwin, windows
+- Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, opensuse-leap, opensuse-tumbleweed, tuxedo, darwin, windows
 
 - Query:
 ```sql
@@ -792,7 +868,7 @@ SELECT uid, username, email FROM users
 
 - Discovery query:
 ```sql
-SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'windows_update_history';
+SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'windows_update_history'
 ```
 
 - Query:
@@ -800,6 +876,6 @@ SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND na
 SELECT date, title FROM windows_update_history WHERE result_code = 'Succeeded'
 ```
 
-
+<br /><br />[^1]: Software override queries write over the default queries. They are used to populate the software inventory.
 <meta name="navSection" value="Dig deeper">
 <meta name="pageOrderInSection" value="1600">

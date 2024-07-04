@@ -46,7 +46,7 @@ func TestListVulnerabilities(t *testing.T) {
 		require.Contains(t, err.Error(), "invalid order key")
 
 		// valid order key
-		opts.OrderKey = "cve"
+		opts.ListOptions.OrderKey = "cve"
 		_, _, err = svc.ListVulnerabilities(ctx, opts)
 		require.NoError(t, err)
 	})

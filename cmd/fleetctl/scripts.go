@@ -15,6 +15,14 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
+// Helper function to convert a boolean to an integer
+func boolToInt(b bool) int {
+	if b {
+		return 1
+	}
+	return 0
+}
+
 func runScriptCommand() *cli.Command {
 	return &cli.Command{
 		Name:      "run-script",
@@ -42,6 +50,16 @@ func runScriptCommand() *cli.Command {
 				Usage:    `Available in Fleet Premium. ID of the team that the saved script belongs to. 0 targets hosts assigned to “No team” (default: 0).`,
 				Required: false,
 			},
+			&cli.BoolFlag{
+				Name:     "async",
+				Usage:    `Queue the script and don't wait for the return.`,
+				Required: false,
+			},
+			&cli.BoolFlag{
+				Name:     "quiet",
+				Usage:    `Suppress messages that are not the script output / error`,
+				Required: false,
+			},
 			configFlag(),
 			contextFlag(),
 			debugFlag(),
@@ -61,15 +79,22 @@ func runScriptCommand() *cli.Command {
 				return errors.New(fleet.RunScriptScriptsDisabledGloballyErrMsg)
 			}
 
+			async := c.Bool("async")
+			quiet := c.Bool("quiet")
+
+			// Require 1 and only 1 of these 3 options
 			path := c.String("script-path")
 			name := c.String("script-name")
+			args := c.Args().Len()
 
-			if path == "" && name == "" {
-				return errors.New("One of '--script-path' or '--script-name' must be specified.")
+			notEmpty := boolToInt(path != "") + boolToInt(name != "") + boolToInt(args > 0)
+
+			if notEmpty < 1 {
+				return errors.New("One of '--script-path' or '--script-name' or '-- <contents>' must be specified.")
 			}
 
-			if path != "" && name != "" {
-				return errors.New("Only one of '--script-path' or '--script-name' is allowed.")
+			if notEmpty > 1 {
+				return errors.New("Only one of '--script-path' or '--script-name' or '-- <contents>' is allowed.")
 			}
 
 			if path != "" {
@@ -99,10 +124,17 @@ func runScriptCommand() *cli.Command {
 			}
 
 			var b []byte
-			if path != "" {
-				b, err = os.ReadFile(path)
-				if err != nil {
-					return err
+			if path != "" || args > 0 {
+				if path != "" {
+					b, err = os.ReadFile(path)
+					if err != nil {
+						return err
+					}
+				}
+
+				if args > 0 {
+					commandString := strings.Join(c.Args().Slice(), " ")
+					b = []byte(commandString)
 				}
 
 				// validate script contents with isSavedScript flag set to false so that we check
@@ -115,7 +147,21 @@ func runScriptCommand() *cli.Command {
 				}
 			}
 
-			fmt.Println("\nScript is running. Please wait for it to finish...")
+			if async {
+				res, err := client.RunHostScriptAsync(h.ID, b, name, c.Uint("team"))
+				if err != nil {
+					if strings.Contains(err.Error(), `Only one of 'script_contents' or 'team_id' is allowed`) {
+						return errors.New("Only one of '--script-path' or '--team' is allowed.")
+					}
+					return err
+				}
+				fmt.Fprintf(c.App.Writer, "%s\n", res.ExecutionID)
+				return nil
+			}
+
+			if !quiet {
+				fmt.Println("\nScript is running. Please wait for it to finish...")
+			}
 
 			res, err := client.RunHostScriptSync(h.ID, b, name, c.Uint("team"))
 			if err != nil {
@@ -125,8 +171,12 @@ func runScriptCommand() *cli.Command {
 				return err
 			}
 
-			if err := renderScriptResult(c, res); err != nil {
-				return err
+			if !quiet {
+				if err := renderScriptResult(c, res); err != nil {
+					return err
+				}
+			} else {
+				fmt.Fprintf(c.App.Writer, "%s", res.Output)
 			}
 
 			return nil

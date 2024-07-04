@@ -38,12 +38,19 @@ func (p Products) GetMatchForOS(ctx context.Context, os fleet.OperatingSystem) (
 			break
 		}
 
-		// Ensure a match against an unknown or blank os.DisplayVersion to
-		// a MSRC product that does not have a display version (eg. The initial release
-		// of Windows 11 is 21H2, which does not appear in the MSRC data)
+		// If os.DisplayVersion is empty, we need to confirm that the product
+		// matches the correct build number. This is necessary to avoid false
+		// positives when vulnerability scans have run before the host has been
+		// updated after an upgrade to fleet v4.44.0 or later
 		if !product.HasDisplayVersion() {
-			noDvMatch = pID
-			continue
+			var build string
+			parts := strings.Split(os.KernelVersion, ".")
+			if len(parts) > 3 {
+				build = parts[2]
+			}
+			if build == "22000" || build == "10240" {
+				noDvMatch = pID
+			}
 		}
 	}
 

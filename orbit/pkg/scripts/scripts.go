@@ -15,6 +15,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/rs/zerolog/log"
 )
 
 // Client defines the methods required for the API requests to the server. The
@@ -39,7 +40,7 @@ type Runner struct {
 	// execCmdFn can be set for tests to mock actual execution of the script. If
 	// nil, execCmd will be used, which has a different implementation on Windows
 	// and non-Windows platforms.
-	execCmdFn func(ctx context.Context, scriptPath string) ([]byte, int, error)
+	execCmdFn func(ctx context.Context, scriptPath string, env []string) ([]byte, int, error)
 
 	// can be set for tests to replace os.RemoveAll, which is called to remove
 	// the script's temporary directory after execution.
@@ -65,6 +66,7 @@ func (r *Runner) Run(execIDs []string) error {
 			break
 		}
 
+		log.Debug().Msgf("running script %v", execID)
 		if err := r.runOne(script); err != nil {
 			errs = append(errs, err)
 		}
@@ -103,13 +105,11 @@ func (r *Runner) runOne(script *fleet.HostScriptResult) (finalErr error) {
 		}()
 	}
 
-	ext := ".sh"
+	var ext string
 	if runtime.GOOS == "windows" {
 		ext = ".ps1"
 	}
 	scriptFile := filepath.Join(runDir, "script"+ext)
-	// the file does not need the executable bit set, it will be executed as
-	// argument to powershell or /bin/sh.
 	if err := os.WriteFile(scriptFile, []byte(script.ScriptContents), constant.DefaultFileMode); err != nil {
 		return fmt.Errorf("write script file: %w", err)
 	}
@@ -119,10 +119,12 @@ func (r *Runner) runOne(script *fleet.HostScriptResult) (finalErr error) {
 
 	execCmdFn := r.execCmdFn
 	if execCmdFn == nil {
-		execCmdFn = execCmd
+		execCmdFn = ExecCmd
 	}
 	start := time.Now()
-	output, exitCode, execErr := execCmdFn(ctx, scriptFile)
+	log.Debug().Msgf("starting script execution of %v", script.ExecutionID)
+	output, exitCode, execErr := execCmdFn(ctx, scriptFile, nil)
+	log.Debug().Msgf("after script execution of %v", script.ExecutionID)
 	duration := time.Since(start)
 
 	// report the output or the error

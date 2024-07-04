@@ -1,7 +1,7 @@
 
 # Supported browsers
 
-Fleet supports the latest, stable releases of all major browsers and platforms. Specific minimum supported browser information is provided below.
+Fleet supports the latest, stable releases of all major browsers and platforms.
 
 We test each browser on Windows whenever possible, because our engineering team primarily uses macOS.
 
@@ -9,15 +9,15 @@ We test each browser on Windows whenever possible, because our engineering team 
 
 ### Desktop
 
-- Chrome 29
-- Firefox 52
-- Edge 16
-- Safari 13.x (macOS only)
+- Chrome
+- Firefox
+- Edge
+- Safari (macOS only)
 
 ### Mobile
 
-- Mobile Safari on iOS 10
-- Mobile Chrome on Android 6
+- Mobile Safari on iOS
+- Mobile Chrome on Android
 
 ### Note
 > - Mobile web is not yet supported in the Fleet product.

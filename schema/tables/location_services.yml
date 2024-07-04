@@ -1,10 +1,8 @@
 name: location_services
-examples: >-
+examples: |-
   If this query returns a 1 in the enabled column, location services are enabled
   on this Mac.
 
   ```
-
   SELECT enabled from location_services;
-
   ```

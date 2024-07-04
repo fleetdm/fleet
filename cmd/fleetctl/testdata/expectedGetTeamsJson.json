@@ -3,7 +3,7 @@
 	"apiVersion": "v1",
 	"spec": {
 		"team": {
-			"id": 42,
+			"id": 12,
 			"created_at": "1999-03-10T02:45:06.371Z",
 			"name": "team1",
 			"description": "team1 description",
@@ -22,7 +22,8 @@
 			},
 			"integrations": {
 				"jira": null,
-				"zendesk": null
+				"zendesk": null,
+				"google_calendar": null
 			},
 			"features": {
 				"enable_host_users": true,
@@ -44,13 +45,15 @@
 				"macos_setup": {
 					"bootstrap_package": null,
 					"enable_end_user_authentication": false,
-					"macos_setup_assistant": null
+					"macos_setup_assistant": null,
+					"enable_release_device_manually": false
 				},
 				"windows_settings": {
 					"custom_settings": null
 				}
 			},
 			"scripts": null,
+			"software": null,
 			"user_count": 99,
 			"host_count": 42
 		}
@@ -61,7 +64,7 @@
 	"apiVersion": "v1",
 	"spec": {
 		"team": {
-			"id": 43,
+			"id": 32,
 			"created_at": "1999-03-10T02:45:06.371Z",
 			"name": "team2",
 			"description": "team2 description",
@@ -92,7 +95,8 @@
 			},
 			"integrations": {
 				"jira": null,
-				"zendesk": null
+				"zendesk": null,
+				"google_calendar": null
 			},
 			"features": {
 				"enable_host_users": false,
@@ -117,13 +121,15 @@
 				"macos_setup": {
 					"bootstrap_package": null,
 					"enable_end_user_authentication": false,
-					"macos_setup_assistant": null
+					"macos_setup_assistant": null,
+					"enable_release_device_manually": false
 				},
 				"windows_settings": {
 					"custom_settings": null
 				}
 			},
 			"scripts": null,
+			"software": null,
 			"user_count": 87,
 			"host_count": 43
 		}

@@ -5,10 +5,10 @@
   task: "Check browser compatibility for fleetdm.com"
   startedOn: "2024-03-06" 
   frequency: "Monthly"
-  description: "Run `npm audit --only=prod` to check for vulnerabilities on the production dependencies of fleetdm.com."
-  moreInfoUrl: "https://fleetdm.com/handbook/digital-experience#check-production-dependencies-of-fleetdm-com"
+  description: "Use Browserstack to manually QA pages on fleetdm.com in each of the earliest supported browser versions"
+  moreInfoUrl: "https://fleetdm.com/handbook/digital-experience#check-browser-compatibility-for-fleetdm-com"
   dri: "eashaw"
-  autoIssue:   # Enables automation of GitHub issues
+  autoIssue:   
     labels: [ "#g-digital-experience" ] # label to be applied to issue
     repo: fleet
 - 
@@ -18,8 +18,8 @@
   description: "Check for vulnerabilities on the production dependencies of fleetdm.com."
   moreInfoUrl: "https://fleetdm.com/handbook/digital-experience#check-production-dependencies-of-fleetdm-com"
   dri: "eashaw"
-  autoIssue:   # Enables automation of GitHub issues
-    labels: [ "#g-digital-experience" ] # label to be applied to issue
+  autoIssue:  
+    labels: [ "#g-digital-experience" ] 
     repo: fleet
 - 
   task: "Generate latest schema"
@@ -28,8 +28,8 @@
   description: "After each sprint, generate the latest tables json file to incorporate any new schema documentation."
   moreInfoUrl: https://fleetdm.com/handbook/company/product-groups#changes-to-tables-schema
   dri: "eashaw"
-  autoIssue:   # Enables automation of GitHub issues
-    labels: [ "#g-digital-experience" ] # label to be applied to issue
+  autoIssue:   
+    labels: [ "#g-digital-experience" ]
     repo: fleet
 - 
   task: "Check osquery Slack invitation"
@@ -38,8 +38,8 @@
   description: "Check the osquery Slack invitation that is linked to from Fleet and the Fleet website to make sure it is valid."
   moreInfoUrl: "https://fleetdm.com/slack"
   dri: "eashaw"
-  autoIssue:   # Enables automation of GitHub issues
-    labels: [ "#g-digital-experience" ] # label to be applied to issue
+  autoIssue:   
+    labels: [ "#g-digital-experience" ] 
     repo: fleet
 - 
   task: "Prepare for CEO office minutes"
@@ -47,17 +47,7 @@
   frequency: "Daily"
   description: "Prepare the CEO office minutes calendar event and meeting agenda"
   moreInfoUrl: "https://fleetdm.com/handbook/digital-experience#prepare-for-ceo-office-minutes"
-  dri: "sampfluger88"
-- 
-  task: "Revenue report" # TODO tie this to a responsibility
-  startedOn: "2024-02-12" 
-  frequency: "Weekly"
-  description: "At the start of every week, check the Salesforce reports for past due invoices, non-invoiced opportunities, and past due renewals.  Report any findings to in the `#g-sales` channel by mentioning Alex Mitchell and Mike McNeil." 
-  moreInfoUrl: 
-  dri: "hughestaylor" 
-  autoIssue:   
-    labels: [ "#g-digital-experience" ] 
-    repo: "confidential"
+  dri: "SFriendLee"
 - 
   task: "Refresh event calendar"
   startedOn: "2023-12-31"
@@ -81,7 +71,7 @@
   frequency: "Daily ⏰"
   description: "Process the CEO's inbox"
   moreInfoUrl: "https://fleetdm.com/handbook/digital-experience#process-the-ceos-email"
-  dri: "sampfluger88"
+  dri: "SFriendLee"
 -
   task: "Process all \"New requests\" on the #g-digital-experience kanban board"
   startedOn: "2023-07-29"
@@ -95,56 +85,61 @@
   frequency: "Daily ⏰"
   description: "Process the CEO's calendar"  
   moreInfoUrl: "https://fleetdm.com/handbook/digital-experience#process-the-ceos-calendar"
-  dri: "sampfluger88"
--
-  task: "Fleet IT warehouse management"
-  startedOn: "2023-07-29"
-  frequency: "Weekly"
-  description: "Fleet IT warehouse management"
-  moreInfoUrl: "https://fleetdm.com/handbook/digital-experience#fleet-it-warehouse-management"
-  dri: "sampfluger88"
+  dri: "SFriendLee"
 -
   task: "Send weekly update"
   startedOn: "2023-09-15"
   frequency: "Weekly"
   description: "Send weekly update"
   moreInfoUrl: "https://fleetdm.com/handbook/digital-experience#send-the-weekly-update"
-  dri: "sampfluger88"
-  autoIssue:
+  dri: "SFriendLee"
+  autoIssue:  
+    labels: [ "#g-digital-experience" ] 
+    repo: "confidential"
 -
   task: "Process and backup E-group agenda"
   startedOn: "2023-09-20"
   frequency: "Weekly"
   description: "Process and backup E-group agenda"
   moreInfoUrl: "https://fleetdm.com/handbook/digital-experience#process-and-backup-sid-agenda"
-  dri: "sampfluger88"
-  autoIssue:
+  dri: "SFriendLee"
+  autoIssue:  
+    labels: [ "#g-digital-experience" ] 
+    repo: "confidential"
 -
   task: "Process and backup Sid agenda"
   startedOn: "2023-09-15"
   frequency: "Weekly"
   description: "Process and backup Sid agenda"
   moreInfoUrl: "https://fleetdm.com/handbook/digital-experience#process-and-backup-e-group-agenda"
-  dri: "sampfluger88"
-  autoIssue:
+  dri: "SFriendLee"
+  autoIssue:  
+    labels: [ "#g-digital-experience" ] 
+    repo: "confidential"
 -
   task: "Share recording of all hands meeting"
-  startedOn: "2023-07-xx"
-  frequency: "After each monthly all hands meeting"
+  startedOn: "2023-07-01"
+  frequency: "Monthly"
   description: "Sharing the all hands recording"
   moreInfoUrl: "https://fleetdm.com/handbook/digital-experience#share-recording-of-all-hands-meeting"
-  dri: "sampfluger88"
+  dri: "SFriendLee"
+  autoIssue:  
+    labels: [ "#g-digital-experience" ] 
+    repo: "confidential"
 -
   task: "Prepare all hands deck"
-  startedOn: "2023-07-xx"
-  frequency: "The night (CT) before each monthly all hands meeting"
+  startedOn: "2023-07-01"
+  frequency: "Monthly"
   description: "Preparing the all hands deck"
   moreInfoUrl: "https://fleetdm.com/handbook/digital-experience#preparing-for-the-all-hands"
   dri: "sampfluger88"
+  autoIssue:  
+    labels: [ "#g-digital-experience" ] 
+    repo: "confidential"
 -
   task: "Prepare board deck"
   startedOn: "2023-09-25"
-  frequency: "Monday week of CRV"
+  frequency: "Quarterly"
   description: "Prepare slide deck for the next board meeting"
   dri: "sampfluger88"
 -
@@ -160,4 +155,42 @@
   description: "Prevent connections from slipping through the cracks"
   moreInfoUrl: "https://fleetdm.com/handbook/digital-experience#check-linkedin-for-unread-messages"
   dri: "sampfluger88"
-  autoIssue:
+-
+  task: "Add funds to coresignal account"
+  startedOn: "2023-09-25"
+  frequency: "Monthly"
+  description: "Top up coresignal account once per month: https://dashboard.coresignal.com/pricing-plans"
+  moreInfoUrl: "https://dashboard.coresignal.com/pricing-plans"
+  dri: "SFriendLee"
+  autoIssue:  
+    labels: [ "#g-digital-experience" ] 
+    repo: "confidential" 
+-
+  task: "Downgrade unused license seats" 
+  startedOn: "2024-03-31" 
+  frequency: "Quarterly"
+  description: "Downgrade unused or questionable license seats on the first Wednesday of every quarter" 
+  moreInfoUrl: "https://fleetdm.com/handbook/business-operations#downgrade-an-unused-license-seat"
+  dri: "sampfluger88"
+-
+  task: "Communicate Fleet's potential energy to stakeholders" 
+  startedOn: "2024-05-01" 
+  frequency: "Monthly"
+  description: "Via hand or automation, send a monthly update email to all investors that hold 4% equity or greater in Fleet who have opted in to receive emails on the company's progress." 
+  moreInfoUrl: "https://fleetdm.com/handbook/digital-experience#communicate-fleets-potential-energy-to-stakeholders"
+  dri: "sampfluger88"
+  autoIssue:  
+    labels: [ "#g-digital-experience" ] 
+    repo: "confidential"
+
+
+
+
+
+
+
+
+
+
+
+

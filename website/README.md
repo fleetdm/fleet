@@ -7,18 +7,8 @@ This is where the code for the public https://fleetdm.com website lives.
 To report a bug or make a suggestion for the website, [click here](https://github.com/fleetdm/fleet/issues).
 
 ## Testing locally
-Run the following commands to test the site locally:
 
-```sh
-npm install -g sails
-cd website/
-npm install
-sails run scripts/build-static-content.js
-sails lift
-```
-
-Your local copy of the website is now running at [http://localhost:2024](http://localhost:2024)!
-
+See https://fleetdm.com/handbook/digital-experience#test-fleetdm-com-locally
 
 ## Deploying the website
 To deploy changes to the website to production, merge changes to the `main` branch.  If the changes affect the website's code, or touch any files that the website relies on to build content, such as the query library, osquery schema, docs, handbook, articles, etc., then the website will be redeployed.

@@ -39,7 +39,7 @@ parasails.registerPage('connect-vanta', {
 
     submittedAuthorizationForm: async function() {
       this.syncing = true;
-      window.location = this.vantaAuthorizationRequestURL;
+      this.goto(this.vantaAuthorizationRequestURL);
     },
 
     clickClearErrors: async function() {

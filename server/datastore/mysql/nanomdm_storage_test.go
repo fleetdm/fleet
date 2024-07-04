@@ -32,7 +32,7 @@ func TestNanoMDMStorage(t *testing.T) {
 
 func testEnqueueDeviceLockCommand(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
-	ns, err := ds.NewMDMAppleMDMStorage(nil, nil)
+	ns, err := ds.NewMDMAppleMDMStorage()
 	require.NoError(t, err)
 
 	host, err := ds.NewHost(ctx, &fleet.Host{

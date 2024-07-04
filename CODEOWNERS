@@ -38,8 +38,20 @@
 *.go @fleetdm/go
 go.sum @fleetdm/go
 go.mod @fleetdm/go
-/server/ @fleetdm/go
 /cmd/ @fleetdm/go
+/orbit/ @lucasmrod @getvictor @roperzh @gillespi314
+/server/ @fleetdm/go
+/server/service/handler.go @lucasmrod @getvictor @roperzh @gillespi314
+/server/mdm/ @roperzh @gillespi314
+/server/worker/ @lucasmrod @getvictor @roperzh @gillespi314
+/server/vulnerabilities/ @lucasmrod @mostlikelee
+/server/cron/ @getvictor @lucasmrod
+/ee/fleetd-chrome @lucasmrod @getvictor
+/ee/vulnerability-dashboard @eashaw
+/ee/cis @sharon-fdm @lucasmrod
+/ee/server/calender @lucasmrod @getvictor
+/ee/server/service @roperzh @gillespi314 @lucasmrod @getvictor
+/scripts/mdm @roperzh @gillespi314
 
 ##############################################################################################
 # 🚀 React files and other files related to the core product frontend.
@@ -54,10 +66,10 @@ go.mod @fleetdm/go
 # FUTURE: Look for a way to not have this notify every single person in this "github team".
 ##############################################################################################
 
-/infrastructure/ @rfairburn @ksatter @lukeheath @edwardsb
-/charts/ @rfairburn @ksatter @lukeheath @edwardsb
-/terraform/ @rfairburn @ksatter @lukeheath @edwardsb
-/it-and-security/ @noahtalerman
+/infrastructure/ @rfairburn @ksatter @lukeheath @edwardsb @pacamaster @georgekarrv
+/charts/ @rfairburn @ksatter @lukeheath @edwardsb @pacamaster @georgekarrv
+/terraform/ @rfairburn @ksatter @lukeheath @edwardsb @pacamaster @georgekarrv
+/it-and-security/ @noahtalerman @lukeheath @spokanemac @getvictor
 
 ##############################################################################################
 # ⚗️ Reference, config surface, built-in queries, API, and other documentation.
@@ -66,7 +78,7 @@ go.mod @fleetdm/go
 ##############################################################################################
 /docs                                           @rachaelshaw
 /docs/Using-Fleet/REST-API.md                   @rachaelshaw # « REST API reference documentation
-/docs/Contributing/API-for-contributors.md      @rachaelshaw # « Advanced / contributors-only API reference documentation
+/docs/Contributing/API-for-contributors.md      @rachaelshaw @lukeheath # « Advanced / contributors-only API reference documentation
 /schema                                         @eashaw # « Data tables (osquery/fleetd schema) documentation
 /docs/Deploy/_kubernetes/ @dherder # « Kubernetes best practice
 ##############################################################################################
@@ -74,37 +86,43 @@ go.mod @fleetdm/go
 #
 # (see website/config/custom.js for DRIs of other paths not listed here)
 ##############################################################################################
-/handbook/company/pricing-features-table.yml          @mikermcneil # « CEO is current DRI for features table
+/handbook/company/pricing-features-table.yml          @noahtalerman # « Head of Product Design is current DRI for features table
 
 ##############################################################################################
-# 🦿 Repo automation and change control settings
+# 🌐 Repo automation and change control settings
 ##############################################################################################
 # /CODEOWNERS                 @mikermcneil  # Covered in DRIs
 
 ##############################################################################################
-# 🦿 Handbook
+# 🌐 Handbook
 #
 # (see website/config/custom.js for DRIs of other paths not listed here)
 ##############################################################################################
-/handbook/company/README.md            @mikermcneil
-/handbook/company/communications.md    @mikermcneil
-/handbook/company/leadership.md        @mikermcneil
-/handbook/company/why-this-way.md      @mikermcneil
-/handbook/README.md                    @mikermcneil
-/handbook/company/open-positions.yml   @sampfluger88
-/handbook/company/product-groups.md    @mikermcneil @sampfluger88 @lukeheath
-/handbook/business-operations       @sampfluger88
-/handbook/digital-experience        @sampfluger88
-/handbook/customer-success          @sampfluger88
-/handbook/demand                    @sampfluger88
-/handbook/engineering               @sampfluger88 @lukeheath
-/handbook/sales                     @sampfluger88
-/handbook/product-design            @sampfluger88
+/handbook/company/README.md                                      @mikermcneil
+/handbook/company/communications.md                              @mikermcneil
+/handbook/company/leadership.md                                  @mikermcneil
+/handbook/company/why-this-way.md                                @mikermcneil
+/handbook/README.md                                              @mikermcneil
+/handbook/company/open-positions.yml                             @sampfluger88
+/handbook/company/product-groups.md                              @lukeheath
+/handbook/business-operations/README.md                          @sampfluger88
+/handbook/business-operations/business-operations.rituals.yml    @sampfluger88
+/handbook/business-operations/Application-security.md            @lukeheath
+/handbook/business-operations/security-audits.md                 @lukeheath
+/handbook/business-operations/security-policies.md               @lukeheath
+/handbook/business-operations/security.md                        @lukeheath
+/handbook/business-operations/vendor-questionnaires.md           @lukeheath
+/handbook/digital-experience                              @sampfluger88
+/handbook/customer-success                                @sampfluger88
+/handbook/demand                                          @sampfluger88
+/handbook/engineering                                     @sampfluger88 @lukeheath
+/handbook/sales                                           @sampfluger88
+/handbook/product-design                                  @sampfluger88
 
 ##############################################################################################
-# 🦿 GitHub issue templates
+# 🌐 GitHub issue templates
 ##############################################################################################
-/.github/ISSUE_TEMPLATE     @mikermcneil @sampfluger88 @lukeheath  # See https://github.com/fleetdm/fleet/pull/16203
+#/.github/ISSUE_TEMPLATE     @mikermcneil @sampfluger88 @lukeheath  # Covered in custom.js See https://github.com/fleetdm/fleet/pull/18668
 
 ##############################################################################################
 # 🌐 GitHub workflows

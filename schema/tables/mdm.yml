@@ -1,16 +1,17 @@
 name: mdm
-notes: This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).<p> Code based on work by [Kolide](https://github.com/kolide/launcher). <p> Due to changes in macOS 12.3, the output of `profiles show -type enrollment` can only be generated once a day. If you are running this command with another tool, you should set the `PROFILES_SHOW_ENROLLMENT_CACHE_PATH` environment variable to the path you are caching this. The cache file should be `json` with the keys `dep_capable` and `rate_limited present`, both booleans representing whether the device is capable of DEP enrollment and whether the response from `profiles show -type enrollment` is being rate limited or not.
+notes: |-
+  This table is from the [Mac Admins osquery extension](https://github.com/macadmins/osquery-extension).
+  
+  - Due to changes in macOS 12.3, the output of `profiles show -type enrollment` can only be generated once a day. If you are running this command with another tool, you should set the `PROFILES_SHOW_ENROLLMENT_CACHE_PATH` environment variable to the path you are caching this. The cache file should be `json` with the keys `dep_capable` and `rate_limited present`, both booleans representing whether the device is capable of DEP enrollment and whether the response from `profiles show -type enrollment` is being rate limited or not.
 description: Information on the device's MDM enrollment.
 platforms: 
   - darwin
 evented: false
-examples: >-
+examples: |-
   Identify Macs that are DEP capable but have not been enrolled to MDM.
 
   ```
-  
   SELECT * FROM mdm WHERE dep_capable='true' AND enrolled='false';
-  
   ```
 columns:
   - name: access_rights

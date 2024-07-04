@@ -21,13 +21,18 @@
     border-color: $core-vibrant-blue;
   }
 
-  &:hover {
+  &:hover &:not(.input-field--read-only) {
     box-shadow: none;
     border: 1px solid $core-vibrant-blue;
   }
 
   &--disabled {
     color: $ui-fleet-black-50;
+
+    .form-field__label,
+    .form-field__help-text {
+      color: $ui-fleet-black-50;
+    }
   }
 
   &--error {

@@ -1,4 +1,5 @@
 import React from "react";
+import { InjectedRouter } from "react-router";
 import { render, RenderOptions, RenderResult } from "@testing-library/react";
 import type { UserEvent } from "@testing-library/user-event/dist/types/setup/setup";
 import userEvent from "@testing-library/user-event";
@@ -46,15 +47,6 @@ interface ICustomRenderOptions {
   context?: IContextOptions;
   withBackendMock?: boolean;
 }
-
-// TODO: types
-// type RenderOptionsWithoutUserEvents = ICustomRenderOptions & {
-//   withUserEvents: false;
-// };
-
-// type RenderOptionsWithUserEvents = ICustomRenderOptions & {
-//   withUserEvents: true;
-// };
 
 const CONTEXT_PROVIDER_MAP = {
   app: AppContext,
@@ -158,5 +150,24 @@ export const renderWithSetup = (component: JSX.Element) => {
   return {
     user: userEvent.setup(),
     ...render(component),
+  };
+};
+
+const DEFAULT_MOCK_ROUTER: InjectedRouter = {
+  push: jest.fn(),
+  replace: jest.fn(),
+  goBack: jest.fn(),
+  goForward: jest.fn(),
+  go: jest.fn(),
+  setRouteLeaveHook: jest.fn(),
+  isActive: jest.fn(),
+  createHref: jest.fn(),
+  createPath: jest.fn(),
+};
+
+export const createMockRouter = (overrides?: Partial<InjectedRouter>) => {
+  return {
+    ...DEFAULT_MOCK_ROUTER,
+    ...overrides,
   };
 };
