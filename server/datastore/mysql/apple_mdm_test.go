@@ -1730,20 +1730,38 @@ func testGetMDMAppleProfilesContents(t *testing.T, ds *Datastore) {
 // createBuiltinLabels creates entries for "All Hosts" and "macOS" labels, which are assumed to be
 // extant for MDM flows
 func createBuiltinLabels(t *testing.T, ds *Datastore) {
+	// Labels are deleted when truncating tables in between tests.
+	// We need to delete the iOS/iPadOS labels because these two are created on a table migration,
+	// and also we want to keep their indexes higher than "All Hosts" and "macOS" (to not break existing tests).
 	_, err := ds.writer(context.Background()).Exec(`
+		DELETE FROM labels WHERE name = 'iOS' OR name = 'iPadOS'`,
+	)
+	require.NoError(t, err)
+
+	_, err = ds.writer(context.Background()).Exec(`
 		INSERT INTO labels (
 			name,
 			description,
 			query,
 			platform,
 			label_type
-		) VALUES (?, ?, ?, ?, ?), (?, ?, ?, ?, ?)`,
+		) VALUES (?, ?, ?, ?, ?), (?, ?, ?, ?, ?), (?, ?, ?, ?, ?), (?, ?, ?, ?, ?)`,
 		"All Hosts",
 		"",
 		"",
 		"",
 		fleet.LabelTypeBuiltIn,
 		"macOS",
+		"",
+		"",
+		"",
+		fleet.LabelTypeBuiltIn,
+		"iOS",
+		"",
+		"",
+		"",
+		fleet.LabelTypeBuiltIn,
+		"iPadOS",
 		"",
 		"",
 		"",
@@ -5735,8 +5753,16 @@ func testMDMAppleUpsertHostIOSIPadOS(t *testing.T, ds *Datastore) {
 
 		labels, err := ds.ListLabelsForHost(ctx, h.ID)
 		require.NoError(t, err)
-		require.Len(t, labels, 1)
+		require.Len(t, labels, 2)
+		sort.Slice(labels, func(i, j int) bool {
+			return labels[i].ID < labels[j].ID
+		})
 		require.Equal(t, "All Hosts", labels[0].Name)
+		if i == 0 {
+			require.Equal(t, "iOS", labels[1].Name)
+		} else {
+			require.Equal(t, "iPadOS", labels[1].Name)
+		}
 
 		// Insert again to test updateMDMAppleHostDB.
 		err = ds.MDMAppleUpsertHost(ctx, &fleet.Host{
@@ -5754,8 +5780,16 @@ func testMDMAppleUpsertHostIOSIPadOS(t *testing.T, ds *Datastore) {
 
 		labels, err = ds.ListLabelsForHost(ctx, h.ID)
 		require.NoError(t, err)
-		require.Len(t, labels, 1)
+		require.Len(t, labels, 2)
+		sort.Slice(labels, func(i, j int) bool {
+			return labels[i].ID < labels[j].ID
+		})
 		require.Equal(t, "All Hosts", labels[0].Name)
+		if i == 0 {
+			require.Equal(t, "iOS", labels[1].Name)
+		} else {
+			require.Equal(t, "iPadOS", labels[1].Name)
+		}
 	}
 
 	err := ds.MDMAppleUpsertHost(ctx, &fleet.Host{

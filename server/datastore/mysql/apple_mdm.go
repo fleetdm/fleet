@@ -1179,17 +1179,17 @@ func upsertMDMAppleHostLabelMembershipDB(ctx context.Context, tx sqlx.ExtContext
 	parts := []string{}
 	args := []interface{}{}
 	for _, h := range hosts {
-		var osLabel uint
+		var osLabelID uint
 		switch h.Platform {
 		case "ios":
-			osLabel = iOSLabelID
+			osLabelID = iOSLabelID
 		case "ipados":
-			osLabel = iPadOSLabelID
+			osLabelID = iPadOSLabelID
 		default: // at this point, assume "darwin"
-			osLabel = macOSLabelID
+			osLabelID = macOSLabelID
 		}
 		parts = append(parts, "(?,?),(?,?)")
-		args = append(args, h.ID, allHostsLabelID, h.ID, osLabel)
+		args = append(args, h.ID, allHostsLabelID, h.ID, osLabelID)
 	}
 	_, err = tx.ExecContext(ctx, fmt.Sprintf(`
 			INSERT INTO label_membership (host_id, label_id) VALUES %s
