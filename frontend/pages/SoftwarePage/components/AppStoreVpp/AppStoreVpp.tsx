@@ -11,7 +11,7 @@ interface IVppSoftwareListItemProps {
   software: any;
 }
 
-const VppSoftwareListItem = ({}: IVppSoftwareListItemProps) => {
+const VppSoftwareListItem = ({ software }: IVppSoftwareListItemProps) => {
   return <p>test</p>;
 };
 
@@ -38,8 +38,7 @@ const VppSoftwareList = ({ software }: IVppSoftwareListProps) => {
     return (
       <div className={`${baseClass}__software-list-items`}>
         {software.map((softwareItem) => (
-          <p>test</p>
-          // <VppSoftwareListItem key={software.id} software={software} />
+          <VppSoftwareListItem key={softwareItem.id} software={softwareItem} />
         ))}
       </div>
     );
@@ -59,7 +58,7 @@ const AppStoreVpp = ({ teamId, router, onExit }: IAppStoreVppProps) => {
 
   const renderContent = () => {
     const isLoading = false;
-    const isError = true;
+    const isError = false;
     if (isLoading) {
       return <Spinner />;
     }
@@ -68,7 +67,7 @@ const AppStoreVpp = ({ teamId, router, onExit }: IAppStoreVppProps) => {
       return <DataError className={`${baseClass}__error`} />;
     }
 
-    return <VppSoftwareList software={[]} />;
+    return <VppSoftwareList software={[1, 2, 3]} />;
   };
 
   return (
