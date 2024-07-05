@@ -2729,7 +2729,7 @@ func (ds *Datastore) GetMDMIdPAccountByHostUUID(ctx context.Context, hostUUID st
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &acct, stmt, hostUUID)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return nil, ctxerr.Wrap(ctx, notFound("MDMIdPAccount").WithMessage(fmt.Sprintf("with uuid %s", hostUUID)))
+			return nil, ctxerr.Wrap(ctx, notFound("MDMIdPAccount").WithMessage(fmt.Sprintf("with host uuid %s", hostUUID)))
 		}
 		return nil, ctxerr.Wrap(ctx, err, "select mdm_idp_accounts")
 	}
