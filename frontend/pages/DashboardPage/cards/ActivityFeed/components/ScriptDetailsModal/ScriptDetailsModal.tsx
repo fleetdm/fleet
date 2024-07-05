@@ -94,17 +94,9 @@ const StatusMessage = ({
       let varText = "";
       // should always be present
       if (timeoutSeconds) {
-        let limitCopy = "";
-        if (timeoutSeconds > 60) {
-          limitCopy = `${Math.round(timeoutSeconds / 60)} minutes`;
-        } else if (timeoutSeconds === 60) {
-          limitCopy = "1 minute";
-        } else {
-          limitCopy = `${timeoutSeconds} seconds`;
-        }
         varText = `after ${(
           <TooltipWrapper tipContent="Timeout can be configured by updating agent options.">
-            {limitCopy}
+            {`${timeoutSeconds} seconds`}
           </TooltipWrapper>
         )} `;
       }
