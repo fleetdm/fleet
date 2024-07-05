@@ -2566,11 +2566,12 @@ func (ds *Datastore) HostIDsByIdentifier(ctx context.Context, filter fleet.TeamF
 	}
 
 	sqlStatement := fmt.Sprintf(`
-			SELECT id FROM hosts
+			SELECT
+				DISTINCT id FROM hosts
 			WHERE
-				hostname IN (?)
+				(hostname IN (?)
 				OR uuid IN (?)
-				OR hardware_serial IN (?)
+				OR hardware_serial IN (?))
 			AND %s
 		`, ds.whereFilterHostsByTeams(filter, "hosts"),
 	)

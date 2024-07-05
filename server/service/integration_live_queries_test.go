@@ -1006,7 +1006,7 @@ func (s *liveQueriesTestSuite) TestCreateDistributedQueryCampaign() {
 			Hosts: []string{h1.Hostname},
 		},
 	}
-	s.DoJSON("POST", "/api/latest/fleet/queries/run_by_names", req2, http.StatusOK, &createResp)
+	s.DoJSON("POST", "/api/latest/fleet/queries/run_by_identifiers", req2, http.StatusOK, &createResp)
 	assert.NotEqual(t, camp1.ID, createResp.Campaign.ID)
 	assert.Equal(t, uint(1), createResp.Campaign.Metrics.TotalHosts)
 
@@ -1020,7 +1020,7 @@ func (s *liveQueriesTestSuite) TestCreateDistributedQueryCampaign() {
 			Hosts: []string{h1.Hostname, h2.Hostname + "ZZZZZ"},
 		},
 	}
-	s.DoJSON("POST", "/api/latest/fleet/queries/run_by_names", req2, http.StatusOK, &createResp)
+	s.DoJSON("POST", "/api/latest/fleet/queries/run_by_identifiers", req2, http.StatusOK, &createResp)
 }
 
 func (s *liveQueriesTestSuite) TestOsqueryDistributedRead() {
