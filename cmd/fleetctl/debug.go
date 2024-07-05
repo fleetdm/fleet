@@ -455,7 +455,7 @@ or provide an <address> argument to debug: fleetctl debug connection localhost:8
 			// Scenarios:
 			// 	- If a --fleet-certificate is provided, use it as root CA.
 			// 	- If a --fleet-certificate is not provided, but a cc.RootCA is set in the configuration, use it as root CA.
-			// 	- If a --fleet-certificate is not provided and there isn't a RootCA set in the configuration, use the embedded certs as root CA.
+			// 	- If a --fleet-certificate is not provided and there isn't a cc.RootCA set in the configuration, use the embedded certs as root CA.
 			//
 			usingEmbeddedCA := false
 			if usingHTTPS {
@@ -466,7 +466,7 @@ or provide an <address> argument to debug: fleetctl debug connection localhost:8
 					cc.TLSSkipVerify = false
 				} else { // --fleet-certificate is not set
 					if cc.RootCA == "" {
-						// If a certificate is not provided and a RootCA is not set in the configuration,
+						// If a certificate is not provided and a cc.RootCA is not set in the configuration,
 						// then use the embedded root CA which is used by osquery to connect to Fleet.
 						usingEmbeddedCA = true
 						tmpDir, err := os.MkdirTemp("", "")
