@@ -149,6 +149,11 @@ func TestSavedLiveQuery(t *testing.T) {
 		))
 	}()
 
+	// errors before requesting live query
+	_, err = runAppNoChecks([]string{"query", "--hosts", "", "--query-name", queryName})
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "No hosts or labels targeted")
+
 	expected := `{"host":"somehostname","rows":[{"bing":"fds","host_display_name":"somehostname","host_hostname":"somehostname"}]}
 `
 	// Note: runAppForTest never closes the WebSocket connection and does not exit,

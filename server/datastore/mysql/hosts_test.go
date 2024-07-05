@@ -97,7 +97,7 @@ func TestHosts(t *testing.T) {
 		{"MarkSeen", testHostsMarkSeen},
 		{"MarkSeenMany", testHostsMarkSeenMany},
 		{"CleanupIncoming", testHostsCleanupIncoming},
-		{"IDsByIdentifier", testHostsIDsByIdentifier},
+		{"IDsByIdentifier", testHostIDsByIdentifier},
 		{"Additional", testHostsAdditional},
 		{"ByIdentifier", testHostsByIdentifier},
 		{"HostLiteByIdentifierAndID", testHostLiteByIdentifierAndID},
@@ -2273,7 +2273,7 @@ func testHostsCleanupIncoming(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 }
 
-func testHostsIDsByIdentifier(t *testing.T, ds *Datastore) {
+func testHostIDsByIdentifier(t *testing.T, ds *Datastore) {
 	hosts := make([]*fleet.Host, 10)
 	for i := range hosts {
 		h, err := ds.NewHost(context.Background(), &fleet.Host{
@@ -2281,9 +2281,10 @@ func testHostsIDsByIdentifier(t *testing.T, ds *Datastore) {
 			LabelUpdatedAt:  time.Now(),
 			PolicyUpdatedAt: time.Now(),
 			SeenTime:        time.Now(),
-			OsqueryHostID:   ptr.String(fmt.Sprintf("host%d", i)),
-			NodeKey:         ptr.String(fmt.Sprintf("%d", i)),
-			UUID:            fmt.Sprintf("%d", i),
+			OsqueryHostID:   ptr.String(fmt.Sprintf("osq.host%d", i)),
+			NodeKey:         ptr.String(fmt.Sprintf("nk.%d", i)),
+			UUID:            fmt.Sprintf("uuid.%d", i),
+			HardwareSerial:  fmt.Sprintf("hws.%d", i),
 			Hostname:        fmt.Sprintf("foo.%d.local", i),
 		})
 		require.NoError(t, err)
@@ -2299,6 +2300,19 @@ func testHostsIDsByIdentifier(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	sort.Slice(hostsByIdentifier, func(i, j int) bool { return hostsByIdentifier[i] < hostsByIdentifier[j] })
 	assert.Equal(t, hostsByIdentifier, []uint{2, 3, 6})
+
+	// by UUID
+	hostsByIdentifier, err = ds.HostIDsByIdentifier(context.Background(), filter, []string{"uuid.0", "uuid.4"})
+	require.NoError(t, err)
+	require.Len(t, hostsByIdentifier, 2)
+	assert.Equal(t, hostsByIdentifier[0], hosts[0].ID)
+	assert.Equal(t, hostsByIdentifier[1], hosts[4].ID)
+
+	// by HardwareSerial
+	hostsByIdentifier, err = ds.HostIDsByIdentifier(context.Background(), filter, []string{"hws.2"})
+	require.NoError(t, err)
+	require.Len(t, hostsByIdentifier, 1)
+	assert.Equal(t, hostsByIdentifier[0], hosts[2].ID)
 
 	userObs := &fleet.User{GlobalRole: ptr.String(fleet.RoleObserver)}
 	filter = fleet.TeamFilter{User: userObs}
