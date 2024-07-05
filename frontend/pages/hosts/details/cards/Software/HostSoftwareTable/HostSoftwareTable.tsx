@@ -127,6 +127,10 @@ const HostSoftwareTable = ({
         disableNextPage={data?.meta.has_next_results === false}
         pageSize={DEFAULT_PAGE_SIZE}
         inputPlaceHolder="Search by name"
+        filters={{
+          global: searchQuery,
+          // vulnerabilities: filterVuln,
+        }}
         onQueryChange={onQueryChange}
         emptyComponent={memoizedEmptyComponent}
         showMarkAllPages={false}

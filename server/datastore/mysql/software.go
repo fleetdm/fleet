@@ -1967,6 +1967,13 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 	if opts.SelfServiceOnly {
 		onlySelfServiceClause = ` AND si.self_service = 1 `
 	}
+
+	var onlyVulnerableClause string
+	if opts.VulnerableOnly {
+		onlyVulnerableClause = `JOIN software s ON s.title_id = st.id
+		JOIN software_cve scv ON scv.software_id = s.id`
+	}
+
 	stmtInstalled := fmt.Sprintf(`
 		SELECT
 			st.id,
@@ -1985,6 +1992,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 			software_installers si ON st.id = si.title_id
 		LEFT OUTER JOIN
 			host_software_installs hsi ON si.id = hsi.software_installer_id AND hsi.host_id = :host_id
+			%s
 		WHERE
 			-- use the latest install only
 			( hsi.id IS NULL OR hsi.id = (
@@ -2007,7 +2015,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 			-- or software install has been attempted on host
 			hsi.host_id IS NOT NULL )
 			%s
-`, softwareInstallerHostStatusNamedQuery("hsi", "status"), onlySelfServiceClause)
+`, softwareInstallerHostStatusNamedQuery("hsi", "status"), onlyVulnerableClause, onlySelfServiceClause)
 
 	const stmtAvailable = `
 		SELECT
