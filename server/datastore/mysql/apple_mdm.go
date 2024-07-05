@@ -2693,10 +2693,7 @@ func (ds *Datastore) InsertMDMIdPAccount(ctx context.Context, account *fleet.MDM
 }
 
 func (ds *Datastore) AssociateMDMIdPAccount(ctx context.Context, accountUUID, hostUUID string) error {
-	stmt := `
-      UPDATE mdm_idp_accounts SET host_uuid = ? WHERE uuid = ?`
-
-	_, err := ds.writer(ctx).ExecContext(ctx, stmt, hostUUID, accountUUID)
+	_, err := ds.writer(ctx).ExecContext(ctx, `UPDATE mdm_idp_accounts SET host_uuid = ? WHERE uuid = ?`, hostUUID, accountUUID)
 	return ctxerr.Wrap(ctx, err, "associating MDM IdP account with device")
 }
 

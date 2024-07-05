@@ -4711,6 +4711,11 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	// test runs.
 	mdmDevice.EnrollInfo.MDMURL = strings.Replace(enrollURL, "https://localhost:8080", s.server.URL, 1)
 	mdmDevice.EnrollInfo.SCEPURL = strings.Replace(scepURL, "https://localhost:8080", s.server.URL, 1)
+
+	// associate the mdm idp account with the host uuid manually (we can't mock the Apple webview client
+	// deviceinfo header because it is signed with the Apple Root CA)
+	require.NoError(t, s.ds.AssociateMDMIdPAccount(context.Background(), user1EnrollRef, mdmDevice.UUID))
+
 	err = mdmDevice.Enroll()
 	require.NoError(t, err)
 
@@ -4738,13 +4743,22 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	require.Equal(t, "SSO User 1", fullAccCmd.Command.AccountConfiguration.PrimaryAccountFullName)
 	require.Equal(t, "sso_user", fullAccCmd.Command.AccountConfiguration.PrimaryAccountUserName)
 
-	// report host details for the device
+	// check that the host was created and get the host id and other details for the next steps
 	var hostResp getHostResponse
 	s.DoJSON("GET", "/api/v1/fleet/hosts/identifier/"+mdmDevice.UUID, nil, http.StatusOK, &hostResp)
 
+	// ensure that host_emails entry was created from mdm_idp_accounts
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		var email string
+		err := sqlx.GetContext(context.Background(), q, &email, `SELECT email FROM host_emails WHERE host_id = ? AND source = ?`, hostResp.Host.ID, fleet.DeviceMappingMDMIdpAccounts)
+		require.NoError(t, err)
+		require.Equal(t, "sso_user@example.com", email)
+		return nil
+	})
+
+	// get app config and host detail queries
 	ac, err := s.ds.AppConfig(context.Background())
 	require.NoError(t, err)
-
 	detailQueries := osquery_utils.GetDetailQueries(context.Background(), config.FleetConfig{}, ac, &ac.Features)
 
 	// simulate osquery reporting mdm information
