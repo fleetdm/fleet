@@ -4,6 +4,7 @@ import FileSaver from "file-saver";
 import classnames from "classnames";
 
 import { IMdmProfile } from "interfaces/mdm";
+import { isAppleDevice } from "interfaces/platform";
 import mdmAPI, { isDDMProfile } from "services/entities/mdm";
 
 import Button from "components/buttons/Button";
@@ -57,7 +58,7 @@ const createProfileExtension = (profile: IMdmProfile) => {
   if (isDDMProfile(profile)) {
     return "json";
   }
-  return profile.platform === "darwin" ? "mobileconfig" : "xml";
+  return isAppleDevice(profile.platform) ? "mobileconfig" : "xml";
 };
 
 const createFileContent = async (profile: IMdmProfile) => {
@@ -95,7 +96,7 @@ const ProfileListItem = ({
   const onClickDownload = async () => {
     const fileContent = await createFileContent(profile);
     const formatDate = format(new Date(), "yyyy-MM-dd");
-    const extension = createProfileExtension(profile); // TODO: How does createProfileExtension work with iOS/iPadOS profiles
+    const extension = createProfileExtension(profile);
     const filename = `${formatDate}_${name}.${extension}`;
     const file = new File([fileContent], filename);
     FileSaver.saveAs(file);
