@@ -387,9 +387,8 @@ Within 60 days of the end of the year, follow these steps:
 Fleet pays its vendors in less than 15 business days in most cases. All invoices and tax documents should be submitted to the Business Operations department using the [appropriate Fleet email address (confidential Google Doc)](https://docs.google.com/document/d/1tE-NpNfw1icmU2MjYuBRib0VWBPVAdmq4NiCrpuI0F0/edit#heading=h.wqalwz1je6rq).
 - After making sure the invoice received from a new vendor is valid, add the new vendor to the recurring expenses section of ["The numbers"](https://docs.google.com/spreadsheets/d/1X-brkmUK7_Rgp7aq42drNcUg8ZipzEiS153uKZSabWc/edit#gid=2112277278) before paying the invoice.
 - If we have not paid this vendor before, make sure we have received the required W-9 or W-8 form from the vendor. **Accounting cannot process a payment without these tax forms for compliance reasons.**
-  - For US-based vendors, vendors are required to provide a completed [W-9 Form ](https://www.irs.gov/pub/irs-pdf/fw9.pdf) to [accounting@fleetdm.com](mailto:accounting@fleetdm.com)
-  - **Non-US based vendors** are required to follow these [instructions](https://www.irs.gov/instructions/iw8bene) and provide a completed [W-8BEN-E](https://www.irs.gov/pub/irs-pdf/fw8bene.pdf) form.
-  - Non-US individuals are required to follow these [instructions](https://www.irs.gov/instructions/iw8bene) and provide a completed [W-8BEN-E](https://www.irs.gov/pub/irs-pdf/fw8bene.pdf) form.
+  - **US-based vendors** are required to complete a [W-9 form](https://www.irs.gov/pub/irs-pdf/fw9.pdf).
+  - **Non-US based vendors and individuals** are required to follow these [instructions](https://www.irs.gov/instructions/iw8bene) and provide a completed [W-8BEN-E](https://www.irs.gov/pub/irs-pdf/fw8bene.pdf) form.
 
 
 
