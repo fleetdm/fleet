@@ -26,7 +26,7 @@ In the Fleet UI, head to the **Controls > OS settings** tab.
 
 In the top box, with "Verified," "Verifying," "Pending," and "Failed" statuses, click each status to view a list of hosts:
 
-* Verified: hosts that installed all configuration profiles. Fleet has verified with osquery. Declaration profiles are verified with DDM
+* Verified: hosts that installed all configuration profiles. Fleet has verified with osquery. Declaration profiles are verified with DDM.
 
 * Verifying: hosts that have acknowledged all MDM commands to install configuration profiles. Fleet is verifying the profiles are installed with osquery. If the profile wasn't installed, Fleet will redeliver the profile.
 
