@@ -400,3 +400,35 @@ func (svc *Service) HasSelfServiceSoftwareInstallers(ctx context.Context, host *
 
 	return svc.ds.HasSelfServiceSoftwareInstallers(ctx, host.Platform, host.TeamID)
 }
+
+//////////////////////////////////////////////////////////////////////////////
+// Get App Store Software
+//////////////////////////////////////////////////////////////////////////////
+
+type getAppStoreSoftwareRequest struct {
+	TeamID uint `url:"team_id"`
+}
+
+type getAppStoreSoftwareResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r getAppStoreSoftwareResponse) error() error { return r.Err }
+
+func getAppStoreSoftwareEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*getAppStoreSoftwareRequest)
+	err := svc.GetAppStoreSoftware(ctx, &req.TeamID)
+	if err != nil {
+		return &getAppStoreSoftwareResponse{Err: err}, nil
+	}
+
+	return &getAppStoreSoftwareResponse{}, nil
+}
+
+func (svc *Service) GetAppStoreSoftware(ctx context.Context, teamID *uint) error {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return fleet.ErrMissingLicense
+}
