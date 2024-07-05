@@ -8726,7 +8726,7 @@ Get a list of all software.
 | team_id                 | integer | query | _Available in Fleet Premium_. Filters the software to only include the software installed on the hosts that are assigned to the specified team.                            |
 | vulnerable              | bool    | query | If true or 1, only list software that has detected vulnerabilities. Default is `false`.                                                                                    |
 | available_for_install   | bool    | query | If `true` or `1`, only list software that is available for install (added by the user). Default is `false`.                                                                |
-| self_service    | bool    | query | If true or 1, only lists self-service software. Default is `false`.  |
+| self_service    | bool    | query | If `true` or `1`, only lists self-service software. Default is `false`.  |
 
 #### Example
 
