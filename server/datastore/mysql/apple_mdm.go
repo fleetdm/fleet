@@ -3639,6 +3639,20 @@ func (ds *Datastore) MDMResetEnrollment(ctx context.Context, hostUUID string) er
 			return ctxerr.Wrap(ctx, err, "resetting disk encryption key information for host")
 		}
 
+		// Delete any stored host emails sourced from mdm_idp_accounts. Note that we aren't deleting
+		// the mdm_idp_accounts themselves, just the host_emails associated with the host. This
+		// ensures that hosts that reenroll without IdP will have their emails removed. Hosts
+		// that reenroll with IdP will have their emails re-added in the
+		// AppleMDMPostDEPEnrollmentTask.
+		//
+		// TODO: Should we be applying any platform check here or is this ok for macOS, iOS, and Windows?
+		_, err = tx.ExecContext(ctx, `
+					DELETE FROM host_emails
+					WHERE host_id = ? AND source = ?`, host.ID, fleet.DeviceMappingMDMIdpAccounts)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "resetting host_emails sourced from mdm_idp_accounts")
+		}
+
 		if host.Platform == "darwin" {
 			// Deleting the matching entry on this table will cause
 			// the aggregate report to show this host as 'pending' to

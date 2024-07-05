@@ -1709,19 +1709,19 @@ func directIngestMDMMac(ctx context.Context, logger log.Logger, host *fleet.Host
 			// We should clean this up at some point, but for now we'll just check both.
 			fleetEnrollRef = serverURL.Query().Get("enrollment_reference")
 		}
-		// if fleetEnrollRef != "" {
-		// 	if err := ds.SetOrUpdateHostEmailsFromMdmIdpAccounts(ctx, host.ID, fleetEnrollRef); err != nil {
-		// 		if !fleet.IsNotFound(err) {
-		// 			return ctxerr.Wrap(ctx, err, "updating host emails from mdm idp accounts")
-		// 		}
+		if fleetEnrollRef != "" {
+			if err := ds.SetOrUpdateHostEmailsFromMdmIdpAccounts(ctx, host.ID, fleetEnrollRef); err != nil {
+				if !fleet.IsNotFound(err) {
+					return ctxerr.Wrap(ctx, err, "updating host emails from mdm idp accounts")
+				}
 
-		// 		level.Warn(logger).Log(
-		// 			"component", "service",
-		// 			"method", "directIngestMDMMac",
-		// 			"msg", err.Error(),
-		// 		)
-		// 	}
-		// }
+				level.Warn(logger).Log(
+					"component", "service",
+					"method", "directIngestMDMMac",
+					"msg", err.Error(),
+				)
+			}
+		}
 	}
 
 	// strip any query parameters from the URL

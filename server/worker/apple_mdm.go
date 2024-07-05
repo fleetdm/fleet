@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/fleetdbase"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
@@ -106,6 +107,9 @@ func (a *AppleMDM) runPostManualEnrollment(ctx context.Context, args appleMDMArg
 func (a *AppleMDM) runPostDEPEnrollment(ctx context.Context, args appleMDMArgs) error {
 	var awaitCmdUUIDs []string
 
+	// use primary db to ensure we have the latest records for enrollments
+	ctx = ctxdb.RequirePrimary(ctx, true)
+
 	if isMacOS(args.Platform) {
 		fleetdCmdUUID, err := a.installFleetd(ctx, args.HostUUID)
 		if err != nil {
@@ -162,18 +166,14 @@ func (a *AppleMDM) runPostDEPEnrollment(ctx context.Context, args appleMDMArgs) 
 				return ctxerr.Wrap(ctx, err, "sending AccountConfiguration command")
 			}
 			awaitCmdUUIDs = append(awaitCmdUUIDs, cmdUUID)
-		}
-	}
 
-	// TODO: Questions:
-	// - Can we be sure we have a hosts table record and an mdm_idp_accounts record at this
-	//   point?
-	// - Where are all the lifecycle events that we need set or reset host emails? DEP device enrolls
-	//   manually?
-	// - DEP device re-enrolls with SSO off? Should we delete pre-existing emails?
-	// - What should happen if post release job or any awaited commands fail?
-	if err := a.Datastore.SetOrUpdateHostEmailsFromMdmIdpAccountsByHostUUID(ctx, args.HostUUID); err != nil {
-		return ctxerr.Wrap(ctx, err, "upserting host emails from mdm idp accounts")
+			// NOTE: We only set the email address here if we have an MDM IdP account and sso is enabled. We rely on the
+			// `resetDarwin` lifecycle event to delete from `host_emails` for this host uuid if there is
+			// any email where `source = 'mdm_idp_account'`.
+			if err := a.Datastore.SetOrUpdateHostEmailsFromMdmIdpAccountsByHostUUID(ctx, args.HostUUID); err != nil {
+				return ctxerr.Wrap(ctx, err, "setting host emails from mdm idp accounts")
+			}
+		}
 	}
 
 	var manualRelease bool

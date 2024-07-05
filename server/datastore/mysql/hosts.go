@@ -3675,15 +3675,14 @@ func (ds *Datastore) SetOrUpdateHostEmailsFromMdmIdpAccountsByHostUUID(
 		idp, err := ds.GetMDMIdPAccountByHostUUID(ctx, hostUUID)
 		if err != nil {
 			if fleet.IsNotFound(err) {
-				level.Debug(ds.logger).Log("msg", "getting idp account by host uuid to upsert host emails with mdm idp account", "host_uuid", hostUUID, "err", err)
+				return ctxerr.New(ctx, fmt.Sprintf("no idp account found for host uuid %s", hostUUID))
 			} else {
 				return ctxerr.Wrap(ctx, err, "getting idp account by host uuid to upsert host emails with mdm idp account")
 			}
 		}
 		email = idp.Email
 	}
-	// TODO: Do we want to update with empty email if no idp account is found?
-	// TODO: Do we want to insert a new row if the email is empty?
+
 	return ds.updateOrInsert(
 		ctx,
 		`UPDATE host_emails SET email = ? WHERE host_id = ? AND source = ?`,
@@ -5174,8 +5173,8 @@ func (ds *Datastore) loadHostLite(ctx context.Context, id *uint, identifier *str
     SELECT
       h.id,
       h.team_id,
-      h.osquery_host_id,
-      h.node_key,
+      COALESCE(h.osquery_host_id, '') AS osquery_host_id,
+      COALESCE(h.node_key, '') AS node_key,
       h.hostname,
       h.uuid,
       h.hardware_serial,
