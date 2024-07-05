@@ -69,8 +69,6 @@ func (c *Client) LiveQuery(query string, queryID *uint, labels []string, hostIde
 func (c *Client) LiveQueryWithContext(
 	ctx context.Context, query string, queryID *uint, labels []string, hostIdentifiers []string,
 ) (*LiveQueryResultsHandler, error) {
-	// TODO - determine the type of host identifier(s), and get a campaign going appropriately
-	// Should this accept different types of host identifiers at once or just one?
 	req := createDistributedQueryCampaignByIdentifierRequest{
 		QueryID:  queryID,
 		QuerySQL: query,

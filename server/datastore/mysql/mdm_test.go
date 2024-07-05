@@ -859,7 +859,7 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 	}
 
 	getProfs := func(teamID *uint) []*fleet.MDMConfigProfilePayload {
-		// TODO(roberto): the docs says that you can pass a comma-separated
+		// TODO(roberto): the docs says that you can pass a comma separated
 		// list of columns to OrderKey, but that doesn't seem to work
 		profs, _, err := ds.ListMDMConfigProfiles(ctx, teamID, fleet.ListOptions{})
 		require.NoError(t, err)
