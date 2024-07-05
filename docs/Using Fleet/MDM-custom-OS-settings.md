@@ -42,8 +42,8 @@ Variables can be used in the configuration profile to input host-specific inform
 
 Available variables:
 
-|    First Header    | Second Header |
-| ------------------ | ------------- |
+|       Variable       |                   Description                  |
+| -------------------- | ---------------------------------------------- |
 | `${display_name}`    | Host's display name (`host.computer_name`).    |
 | `${hardware_serial}` | Host's serial number (`host.hardware_serial`)  |
 | `${uuid} `           | Host's UUID (`host.uuid`)                      |
