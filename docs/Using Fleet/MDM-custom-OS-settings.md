@@ -38,15 +38,15 @@ In the list of hosts, click on an individual host and click the **OS settings** 
 
 ## Variables
 
-Variables can be used in the configuration profile to input host-specific information. When the configuration profile is applied, the `${variable}` is replaced with the value of the [respective host information](https://fleetdm.com/docs/rest-api/rest-api#get-host).  
+Variables can be used in the configuration profile to input host-specific information. When the configuration profile is applied, the variable is replaced with the value of the [respective host information](https://fleetdm.com/docs/rest-api/rest-api#get-host).  
 
 Available variables:
 
 |       Variable       |                   Description                  |
 | -------------------- | ---------------------------------------------- |
-| `${display_name}`    | Host's display name (`host.computer_name`).    |
-| `${hardware_serial}` | Host's serial number (`host.hardware_serial`)  |
-| `${uuid} `           | Host's UUID (`host.uuid`)                      |
+| `DISPLAY_NAME`       | Host's display name (`host.computer_name`).    |
+| `HARDWARE_SERIAL`    | Host's serial number (`host.hardware_serial`)  |
+| `$UUID`              | Host's UUID (`host.uuid`)                      |
 
 
 <meta name="pageOrderInSection" value="1505">
