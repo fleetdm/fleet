@@ -23,12 +23,23 @@ CREATE TABLE vpp_apps (
 	-- This is a count of how many licenses are still available for this asset
 	available_count INT UNSIGNED,
 
+	-- FK to the "software title" this app matches
+	title_id int(10) unsigned DEFAULT NULL,
+
 	bundle_identifier VARCHAR(255) NOT NULL DEFAULT '',
 	icon_url VARCHAR(255) NOT NULL DEFAULT '',
 	name VARCHAR(255) NOT NULL DEFAULT '',
 	created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 	updated_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-	PRIMARY KEY (adam_id)
+
+	PRIMARY KEY (adam_id),
+
+
+	CONSTRAINT fk_vpp_apps_title
+	  FOREIGN KEY (title_id)
+	  REFERENCES software_titles (id)
+	  ON DELETE SET NULL
+	  ON UPDATE CASCADE
 )`)
 	if err != nil {
 		return fmt.Errorf("failed to create table vpp_apps: %w", err)
