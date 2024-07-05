@@ -805,13 +805,13 @@ func TestEventDescription(t *testing.T) {
 		}, nil
 	}
 
-	hostID1, userEmail1 := uint(100), "user1@example.com"
-	hostID2, userEmail2 := uint(101), "user2@example.com"
-	hostID3, userEmail3 := uint(102), "user3@example.com"
-	hostID4, userEmail4 := uint(103), "user4@example.com"
-	hostID5, userEmail5 := uint(104), "user5@example.com"
-	hostID6, userEmail6 := uint(105), "user6@example.com"
-	hostID7, userEmail7 := uint(106), "user7@example.com"
+	hostID1, userEmail1, hostDisplayName1 := uint(100), "user1@example.com", "Host 1"
+	hostID2, userEmail2, hostDisplayName2 := uint(101), "user2@example.com", "Host 2"
+	hostID3, userEmail3, hostDisplayName3 := uint(102), "user3@example.com", "Host 3"
+	hostID4, userEmail4, hostDisplayName4 := uint(103), "user4@example.com", "Host 4"
+	hostID5, userEmail5, hostDisplayName5 := uint(104), "user5@example.com", "Host 5"
+	hostID6, userEmail6, hostDisplayName6 := uint(105), "user6@example.com", "Host 6"
+	hostID7, userEmail7, hostDisplayName7 := uint(106), "user7@example.com", "Host 7"
 
 	ds.GetTeamHostsPolicyMembershipsFunc = func(
 		ctx context.Context, domain string, teamID uint, policyIDs []uint, _ *uint,
@@ -823,42 +823,49 @@ func TestEventDescription(t *testing.T) {
 			{
 				HostID:           hostID1,
 				Email:            userEmail1,
+				HostDisplayName:  hostDisplayName1,
 				Passing:          false,
 				FailingPolicyIDs: fmt.Sprintf("%d", policyID1),
 			},
 			{
 				HostID:           hostID2,
 				Email:            userEmail2,
+				HostDisplayName:  hostDisplayName2,
 				Passing:          false,
 				FailingPolicyIDs: fmt.Sprintf("%d", policyID2),
 			},
 			{
 				HostID:           hostID3,
 				Email:            userEmail3,
+				HostDisplayName:  hostDisplayName3,
 				Passing:          false,
 				FailingPolicyIDs: fmt.Sprintf("%d", policyID3),
 			},
 			{
 				HostID:           hostID4,
 				Email:            userEmail4,
+				HostDisplayName:  hostDisplayName4,
 				Passing:          false,
 				FailingPolicyIDs: fmt.Sprintf("%d", policyID4),
 			},
 			{
 				HostID:           hostID5,
 				Email:            userEmail5,
+				HostDisplayName:  hostDisplayName5,
 				Passing:          false,
 				FailingPolicyIDs: fmt.Sprintf("%d,%d,%d,%d", policyID1, policyID2, policyID3, policyID4),
 			},
 			{
 				HostID:           hostID6,
 				Email:            userEmail6,
+				HostDisplayName:  hostDisplayName6,
 				Passing:          false,
 				FailingPolicyIDs: fmt.Sprintf("%d", policyID1),
 			},
 			{
 				HostID:           hostID7,
 				Email:            userEmail7,
+				HostDisplayName:  hostDisplayName7,
 				Passing:          false,
 				FailingPolicyIDs: fmt.Sprintf("%d", policyID5),
 			},
@@ -957,14 +964,19 @@ func TestEventDescription(t *testing.T) {
 		err = json.Unmarshal(calendarEvents[hostCalEvent.HostID].Data, &details)
 		require.NoError(t, err)
 		description := createdCalendarEvents[details["id"]].Description
-		defaultDescriptionWithOrg := fmt.Sprintf("%s %s", orgName, fleet.CalendarDefaultDescription)
+		defaultDescriptionWithOrgAndHost := fmt.Sprintf(`%s %s (Host`, orgName, defaultDescription)
 		switch hostCalEvent.HostID {
-		case hostID1, hostID6:
+		case hostID1:
+			assert.Contains(t, description, "(Host 1)")
+			assert.Contains(t, description, "Description for policy 1")
+			assert.Contains(t, description, "Resolution for policy 1")
+		case hostID6:
+			assert.Contains(t, description, "(Host 6)")
 			assert.Contains(t, description, "Description for policy 1")
 			assert.Contains(t, description, "Resolution for policy 1")
 		default:
-			assert.Contains(t, description, defaultDescriptionWithOrg)
-			assert.Contains(t, description, fleet.CalendarDefaultResolution)
+			assert.Contains(t, description, defaultDescriptionWithOrgAndHost)
+			assert.Contains(t, description, defaultResolution)
 		}
 	}
 }
