@@ -585,3 +585,25 @@ func (ds *Datastore) HasSelfServiceSoftwareInstallers(ctx context.Context, hostP
 	}
 	return hasInstallers, nil
 }
+
+func (ds *Datastore) BatchInsertVPPApps(ctx context.Context, apps []fleet.VPPApp) error {
+	stmt := `
+INSERT INTO vpp_apps
+	(adam_id, available_count, bundle_identifier, icon_url, name)
+VALUES
+%s
+	`
+	var args []any
+	var insertVals strings.Builder
+
+	for _, a := range apps {
+		insertVals.WriteString(`(?, ?, ?, ?, ?),`)
+		args = append(args, a.AdamID, a.AvailableCount, a.BundleIdentifer, a.IconURL, a.Name)
+	}
+
+	stmt = fmt.Sprintf(stmt, strings.TrimSuffix(insertVals.String(), ","))
+
+	_, err := ds.writer(ctx).ExecContext(ctx, stmt, args...)
+
+	return ctxerr.Wrap(ctx, err, "insert VPP apps")
+}

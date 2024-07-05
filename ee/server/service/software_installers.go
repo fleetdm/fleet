@@ -616,42 +616,28 @@ func (svc *Service) GetAppStoreSoftware(ctx context.Context, teamID *uint) error
 		return ctxerr.Wrap(ctx, err, "fetching VPP asset metadata")
 	}
 
-	var apps []VPPApp
+	var apps []fleet.VPPApp
 	for _, a := range assets {
-		m := assetMetadata[a.AdamID]
-		apps = append(apps, VPPApp{AdamID: a.AdamID, AvailableCount: a.AvailableCount, BundleIdentifer: m.BundleID, IconURL: m.ArtworkURL, Name: m.TrackName})
+		m, ok := assetMetadata[a.AdamID]
+		if !ok {
+			// Then this adam_id belongs to a non-desktop app.
+			continue
+		}
+		apps = append(apps, fleet.VPPApp{AdamID: a.AdamID, AvailableCount: a.AvailableCount, BundleIdentifer: m.BundleID, IconURL: m.ArtworkURL, Name: m.TrackName})
 	}
 
 	slog.With("filename", "ee/server/service/software_installers.go", "func", "GetAppStoreSoftware").Info("JVE_LOG: got final form apps", "apps", apps)
 
+	if err := svc.ds.BatchInsertVPPApps(ctx, apps); err != nil {
+		return ctxerr.Wrap(ctx, err, "writing VPP apps to db")
+	}
+
 	return nil
-}
-
-type AppleVPPAsset struct {
-	AdamID         string `json:"adamId"`
-	AvailableCount uint   `json:"availableCount"`
-}
-
-type AppleVPPAssetMetadata struct {
-	BundleID   string `json:"bundleId"`
-	ArtworkURL string `json:"artworkUrl60"` // TODO(JVE): confirm this is the size we want
-	Version    string `json:"version"`
-	TrackName  string `json:"trackName"`
-	TrackID    uint   `json:"trackId"`
-}
-
-type VPPApp struct {
-	AdamID          string `json:"adam_id" db:"adam_id"`
-	AvailableCount  uint   `json:"available_count" db:"available_count"`
-	BundleIdentifer string `json:"bundle_identifier" db:"bundle_identifier"`
-	IconURL         string `json:"icon_url" db:"icon_url"`
-	// Version         string `json:"version"` //TODO(JVE) do we need a version in the Fleet representation?
-	Name string `json:"name" db:"name"`
 }
 
 var testOverrideAppleVPPAssetsURL string
 
-func getVPPAssets(token string) ([]AppleVPPAsset, error) {
+func getVPPAssets(token string) ([]fleet.AppleVPPAsset, error) {
 	url := "https://vpp.itunes.apple.com/mdm/v2/assets"
 	if testOverrideAppleVPPAssetsURL != "" {
 		url = testOverrideAppleVPPAssetsURL
@@ -682,8 +668,8 @@ func getVPPAssets(token string) ([]AppleVPPAsset, error) {
 	// We will need to parse the response and check to see if it contains an error.
 
 	var respJSON struct {
-		Assets      []AppleVPPAsset `json:"assets"`
-		ErrorNumber int             `json:"errorNumber"`
+		Assets      []fleet.AppleVPPAsset `json:"assets"`
+		ErrorNumber int                   `json:"errorNumber"`
 	}
 
 	if err := json.Unmarshal(body, &respJSON); err != nil {
@@ -704,9 +690,9 @@ func getVPPAssets(token string) ([]AppleVPPAsset, error) {
 
 var testOverrideAppleAssetMetadataURL string
 
-func getVPPAssetMetadata(assets []AppleVPPAsset) (map[string]AppleVPPAssetMetadata, error) {
+func getVPPAssetMetadata(assets []fleet.AppleVPPAsset) (map[string]fleet.AppleVPPAssetMetadata, error) {
 	var adamIDs []string
-	metadata := make(map[string]AppleVPPAssetMetadata)
+	metadata := make(map[string]fleet.AppleVPPAssetMetadata)
 
 	for _, a := range assets {
 		adamIDs = append(adamIDs, a.AdamID)
@@ -743,7 +729,7 @@ func getVPPAssetMetadata(assets []AppleVPPAsset) (map[string]AppleVPPAssetMetada
 	}
 
 	var respJSON struct {
-		Results []AppleVPPAssetMetadata `json:"results"`
+		Results []fleet.AppleVPPAssetMetadata `json:"results"`
 	}
 
 	if err := json.Unmarshal(body, &respJSON); err != nil {
