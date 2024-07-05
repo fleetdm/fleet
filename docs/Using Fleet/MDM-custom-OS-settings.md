@@ -26,7 +26,7 @@ In the Fleet UI, head to the **Controls > OS settings** tab.
 
 In the top box, with "Verified," "Verifying," "Pending," and "Failed" statuses, click each status to view a list of hosts:
 
-* Verified: hosts that installed all configuration profiles. Fleet has verified with osquery.
+* Verified: hosts that installed all configuration profiles. Fleet has verified with osquery. Declaration profiles are verified with DDM
 
 * Verifying: hosts that have acknowledged all MDM commands to install configuration profiles. Fleet is verifying the profiles are installed with osquery. If the profile wasn't installed, Fleet will redeliver the profile.
 
@@ -35,6 +35,19 @@ In the top box, with "Verified," "Verifying," "Pending," and "Failed" statuses, 
 * Failed: hosts that failed to install configuration profiles. For Windows profiles, the status codes are documented in Microsoft's documentation [here](https://learn.microsoft.com/en-us/windows/client-management/oma-dm-protocol-support#syncml-response-status-codes).
 
 In the list of hosts, click on an individual host and click the **OS settings** item to see the status for a specific setting.
+
+## Variables
+
+Variables can be used in the configuration profile to input host-specific information. When the configuration profile is applied, the `${variable}` is replaced with the value of the [respective host information](https://fleetdm.com/docs/rest-api/rest-api#get-host).  
+
+Available variables:
+
+|    First Header    | Second Header |
+| ------------------ | ------------- |
+| `${display_name}`    | Host's display name (`host.computer_name`).    |
+| `${hardware_serial}` | Host's serial number (`host.hardware_serial`)  |
+| `${uuid} `           | Host's UUID (`host.uuid`)                      |
+
 
 <meta name="pageOrderInSection" value="1505">
 <meta name="title" value="Custom OS settings">
