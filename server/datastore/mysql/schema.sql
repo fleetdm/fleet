@@ -1666,12 +1666,15 @@ CREATE TABLE `users` (
 CREATE TABLE `vpp_apps` (
   `adam_id` varchar(16) COLLATE utf8mb4_unicode_ci NOT NULL,
   `available_count` int(10) unsigned DEFAULT NULL,
+  `title_id` int(10) unsigned DEFAULT NULL,
   `bundle_identifier` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
   `icon_url` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
   `name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
   `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (`adam_id`)
+  PRIMARY KEY (`adam_id`),
+  KEY `fk_vpp_apps_title` (`title_id`),
+  CONSTRAINT `fk_vpp_apps_title` FOREIGN KEY (`title_id`) REFERENCES `software_titles` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
