@@ -2,10 +2,10 @@
 
 
  -
-  task: "Close leads contacted >7 days ago"
+  task: "Close leads contacted ≥7 days ago"
   startedOn: "2024-07-05"
   frequency: "Daily"
-  description: "Close all of your leads in the 'Attempted to contact' stage and which have been there for more than 7 days.  If follow-up is appropriate, and won't be bothersome, it can be done after closing the lead.  (A new lead can always be opened for the contact later.)"
+  description: "Close all of your leads in the 'Attempted to contact' stage and which have been there for 7 or more days.  If follow-up is appropriate, and won't be bothersome, it can be done after closing the lead.  (A new lead can always be opened for the contact later.)"
   moreInfoUrl: ""
   dri: "Every AE"
  -
