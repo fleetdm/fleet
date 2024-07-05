@@ -1805,10 +1805,10 @@ func testMDMWindowsConfigProfiles(t *testing.T, ds *Datastore) {
 	_, err = ds.NewMDMWindowsConfigProfile(
 		ctx,
 		fleet.MDMWindowsConfigProfile{
-			Name:   "fake-labels",
-			TeamID: nil,
-			SyncML: []byte("<Replace></Replace>"),
-			Labels: []fleet.ConfigurationProfileLabel{{LabelName: "foo", LabelID: 1}},
+			Name:             "fake-labels",
+			TeamID:           nil,
+			SyncML:           []byte("<Replace></Replace>"),
+			LabelsIncludeAll: []fleet.ConfigurationProfileLabel{{LabelName: "foo", LabelID: 1}},
 		})
 	require.NotNil(t, err)
 	require.True(t, fleet.IsForeignKey(err))
@@ -1825,10 +1825,10 @@ func testMDMWindowsConfigProfiles(t *testing.T, ds *Datastore) {
 	profWithLabel, err := ds.NewMDMWindowsConfigProfile(
 		ctx,
 		fleet.MDMWindowsConfigProfile{
-			Name:   "with-labels",
-			TeamID: nil,
-			SyncML: []byte("<Replace></Replace>"),
-			Labels: []fleet.ConfigurationProfileLabel{{LabelName: label.Name, LabelID: label.ID}},
+			Name:             "with-labels",
+			TeamID:           nil,
+			SyncML:           []byte("<Replace></Replace>"),
+			LabelsIncludeAll: []fleet.ConfigurationProfileLabel{{LabelName: label.Name, LabelID: label.ID}},
 		})
 	require.NoError(t, err)
 	require.NotEmpty(t, profWithLabel.ProfileUUID)
@@ -1836,20 +1836,20 @@ func testMDMWindowsConfigProfiles(t *testing.T, ds *Datastore) {
 	// get that profile with label
 	prof, err := ds.GetMDMWindowsConfigProfile(ctx, profWithLabel.ProfileUUID)
 	require.NoError(t, err)
-	require.Len(t, prof.Labels, 1)
-	require.Equal(t, label.Name, prof.Labels[0].LabelName)
-	require.Equal(t, label.ID, prof.Labels[0].LabelID)
-	require.False(t, prof.Labels[0].Broken)
+	require.Len(t, prof.LabelsIncludeAll, 1)
+	require.Equal(t, label.Name, prof.LabelsIncludeAll[0].LabelName)
+	require.Equal(t, label.ID, prof.LabelsIncludeAll[0].LabelID)
+	require.False(t, prof.LabelsIncludeAll[0].Broken)
 
 	// break that profile by deleting the label
 	require.NoError(t, ds.DeleteLabel(ctx, label.Name))
 
 	prof, err = ds.GetMDMWindowsConfigProfile(ctx, profWithLabel.ProfileUUID)
 	require.NoError(t, err)
-	require.Len(t, prof.Labels, 1)
-	require.Equal(t, label.Name, prof.Labels[0].LabelName)
-	require.Zero(t, prof.Labels[0].LabelID)
-	require.True(t, prof.Labels[0].Broken)
+	require.Len(t, prof.LabelsIncludeAll, 1)
+	require.Equal(t, label.Name, prof.LabelsIncludeAll[0].LabelName)
+	require.Zero(t, prof.LabelsIncludeAll[0].LabelID)
+	require.True(t, prof.LabelsIncludeAll[0].Broken)
 
 	_, err = ds.GetMDMWindowsConfigProfile(ctx, "not-valid")
 	require.Error(t, err)
@@ -1864,7 +1864,7 @@ func testMDMWindowsConfigProfiles(t *testing.T, ds *Datastore) {
 	require.Equal(t, "<Replace></Replace>", string(prof.SyncML))
 	require.NotZero(t, prof.CreatedAt)
 	require.NotZero(t, prof.UploadedAt)
-	require.Nil(t, prof.Labels)
+	require.Nil(t, prof.LabelsIncludeAll)
 
 	err = ds.DeleteMDMWindowsConfigProfile(ctx, "not-valid")
 	require.Error(t, err)
@@ -2125,6 +2125,8 @@ func testBatchSetMDMWindowsProfiles(t *testing.T, ds *Datastore) {
 	applyAndExpect(nil, ptr.Uint(1), nil)
 }
 
+// if the label name starts with "exclude-", the label is considered an "exclude-any", otherwise
+// it is an "include-all".
 func windowsConfigProfileForTest(t *testing.T, name, locURI string, labels ...*fleet.Label) *fleet.MDMWindowsConfigProfile {
 	prof := &fleet.MDMWindowsConfigProfile{
 		Name: name,
@@ -2140,7 +2142,11 @@ func windowsConfigProfileForTest(t *testing.T, name, locURI string, labels ...*f
 	}
 
 	for _, lbl := range labels {
-		prof.Labels = append(prof.Labels, fleet.ConfigurationProfileLabel{LabelName: lbl.Name, LabelID: lbl.ID})
+		if strings.HasPrefix(lbl.Name, "exclude-") {
+			prof.LabelsExcludeAny = append(prof.LabelsExcludeAny, fleet.ConfigurationProfileLabel{LabelName: lbl.Name, LabelID: lbl.ID})
+		} else {
+			prof.LabelsIncludeAll = append(prof.LabelsIncludeAll, fleet.ConfigurationProfileLabel{LabelName: lbl.Name, LabelID: lbl.ID})
+		}
 	}
 
 	return prof

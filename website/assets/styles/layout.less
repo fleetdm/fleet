@@ -137,6 +137,10 @@ html, body {
     [purpose='continue-chevron'] {
       display: none;
     }
+    [purpose='banner-image-background'] {
+      background-color: #EEF9FE;
+      border-radius: 4px;
+    }
     [purpose='banner-image'] {
       height: 80px;
       min-width: 80px;
@@ -659,6 +663,12 @@ body.detected-mobile {
     [purpose='banner-body'].collapsed {
       [purpose='banner-text'] {
         display: flex;
+      }
+      [purpose='banner-image'] {
+        height: 54px;
+        min-width: 54px;
+        background-image: url('/images/continue-thumbnail.png');
+        background-size: cover;
       }
       transform: none;
       transition: none;

@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/explicit-module-boundary-types */
+import { createMockMdmProfile } from "__mocks__/mdmMock";
 import {
   DiskEncryptionStatus,
   IHostMdmProfile,
@@ -46,7 +47,8 @@ export interface IMdmProfilesResponse {
 export interface IUploadProfileApiParams {
   file: File;
   teamId?: number;
-  labels?: string[];
+  labelsIncludeAll?: string[];
+  labelsExcludeAny?: string[];
 }
 
 export const isDDMProfile = (profile: IMdmProfile | IHostMdmProfile) => {
@@ -108,7 +110,12 @@ const mdmService = {
     return sendRequest("GET", path);
   },
 
-  uploadProfile: ({ file, teamId, labels }: IUploadProfileApiParams) => {
+  uploadProfile: ({
+    file,
+    teamId,
+    labelsIncludeAll,
+    labelsExcludeAny,
+  }: IUploadProfileApiParams) => {
     const { MDM_PROFILES } = endpoints;
 
     const formData = new FormData();
@@ -118,9 +125,15 @@ const mdmService = {
       formData.append("team_id", teamId.toString());
     }
 
-    labels?.forEach((label) => {
-      formData.append("labels", label);
-    });
+    if (labelsIncludeAll || labelsExcludeAny) {
+      const labels = labelsIncludeAll || labelsExcludeAny;
+      const labelKey = labelsIncludeAll
+        ? "labels_include_all"
+        : "labels_exclude_any";
+      labels?.forEach((label) => {
+        formData.append(labelKey, label);
+      });
+    }
 
     return sendRequest("POST", MDM_PROFILES, formData);
   },
@@ -295,7 +308,7 @@ const mdmService = {
           );
         } catch {
           // catches invalid JSON
-          reject("Couldn’t upload. The file should include valid JSON.");
+          reject("Couldn't upload. The file should include valid JSON.");
         }
       });
     });

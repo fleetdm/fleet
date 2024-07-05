@@ -106,6 +106,7 @@ const DeviceUserPage = ({
   const [globalConfig, setGlobalConfig] = useState<IDeviceGlobalConfig | null>(
     null
   );
+  const [hasSelfService, setSelfService] = useState(false);
 
   const { data: deviceMapping, refetch: refetchDeviceMapping } = useQuery(
     ["deviceMapping", deviceAuthToken],
@@ -179,12 +180,14 @@ const DeviceUserPage = ({
         org_contact_url,
         global_config,
         host: responseHost,
+        self_service,
       }) => {
         setShowRefetchSpinner(isRefetching(responseHost));
         setIsPremiumTier(license.tier === "premium");
         setOrgLogoURL(org_logo_url);
         setOrgContactURL(org_contact_url);
         setGlobalConfig(global_config);
+        setSelfService(self_service);
         if (isRefetching(responseHost)) {
           // If the API reports that a Fleet refetch request is pending, we want to check back for fresh
           // host details. Here we set a one second timeout and poll the API again using
@@ -380,7 +383,7 @@ const DeviceUserPage = ({
               >
                 <TabList>
                   <Tab>Details</Tab>
-                  {isPremiumTier && isSoftwareEnabled && (
+                  {isPremiumTier && isSoftwareEnabled && hasSelfService && (
                     <Tab>Self-service</Tab>
                   )}
                   {isSoftwareEnabled && <Tab>Software</Tab>}
@@ -402,7 +405,7 @@ const DeviceUserPage = ({
                     munki={deviceMacAdminsData?.munki}
                   />
                 </TabPanel>
-                {isPremiumTier && isSoftwareEnabled && (
+                {isPremiumTier && isSoftwareEnabled && hasSelfService && (
                   <TabPanel>
                     <SelfService
                       contactUrl={orgContactURL}

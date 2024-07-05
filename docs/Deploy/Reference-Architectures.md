@@ -161,30 +161,30 @@ assume On-Demand pricing (savings are available through Reserved Instances). Cal
 #### AWS
 
 ##### Example configuration breakpoints
-###### [Up to 1000 hosts](https://calculator.aws/#/estimate?id=ae7d7ddec64bb979f3f6611d23616b1dff0e8dbd)
+###### [Up to 1000 hosts](https://calculator.aws/#/estimate?id=7a821fc049a0ecc6ead22b6720246e55498be50e)
 
 | Fleet instances | CPU Units     | RAM |
 | --------------- | ------------- | --- |
 | 1 Fargate task  | 512 CPU Units | 4GB |
 
-| Dependencies | Version                 | Instance type |
-| ------------ | ----------------------- | ------------- |
-| Redis        | 6                       | t4g.small     |
-| MySQL        | 8.0.mysql_aurora.3.04.2 | db.t4g.medium |
+| Dependencies | Version                 | Instance type | Nodes |
+| ------------ | ----------------------- | ------------- | ----- |
+| Redis        | 6                       | t4g.small     | 3     |
+| MySQL        | 8.0.mysql_aurora.3.04.2 | db.t4g.medium | 2     |
 
-###### [Up to 25000 hosts](https://calculator.aws/#/estimate?id=4a3e3168275967d1e79a3d1fcfedc5b17d67a271)
+###### [Up to 25000 hosts](https://calculator.aws/#/estimate?id=d735758715f059118dbce8dc42f3ff2410adc621)
 
 | Fleet instances | CPU Units      | RAM |
 | --------------- | -------------- | --- |
 | 10 Fargate task | 1024 CPU Units | 4GB |
 
-| Dependencies | Version                 | Instance type |
-| ------------ | ----------------------- | ------------- |
-| Redis        | 6                       | m6g.large     |
-| MySQL        | 8.0.mysql_aurora.3.04.2 | db.r6g.large  |
+| Dependencies | Version                 | Instance type | Nodes |
+| ------------ | ----------------------- | ------------- | ----- |
+| Redis        | 6                       | m6g.large     | 3     |
+| MySQL        | 8.0.mysql_aurora.3.04.2 | db.r6g.large  | 2     |
 
 
-###### [Up to 150000 hosts](https://calculator.aws/#/estimate?id=1d8fdd63f01e71027e9d898ed05f4a07299a7000)
+###### [Up to 150000 hosts](https://calculator.aws/#/estimate?id=689fea65efff361ee070b15044a01224b8d26621)
 
 | Fleet instances | CPU Units      | RAM |
 | --------------- | -------------- | --- |
@@ -193,9 +193,9 @@ assume On-Demand pricing (savings are available through Reserved Instances). Cal
 | Dependencies | Version                 | Instance type  | Nodes |
 | ------------ | ----------------------- | -------------- | ----- |
 | Redis        | 6                       | m6g.large      | 3     |
-| MySQL        | 8.0.mysql_aurora.3.04.2 | db.r6g.4xlarge | 1     |
+| MySQL        | 8.0.mysql_aurora.3.04.2 | db.r6g.4xlarge | 2     |
 
-###### [Up to 300000 hosts](https://calculator.aws/#/estimate?id=f3da0597a172c6a0a3683023e2700a6df6d42c0b)
+###### [Up to 300000 hosts](https://calculator.aws/#/estimate?id=19b667fde567df0d64d9fae632d4885d7fdc726a)
 
 | Fleet instances | CPU Units      | RAM |
 | --------------- | -------------- | --- |

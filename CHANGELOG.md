@@ -1,3 +1,21 @@
+## Fleet 4.53.1 (Jul 01, 2024)
+
+### Bug fixes
+
+* Updated fleetctl get queries/labels/hosts descriptions.
+* Fixed exporting CSVs with fields that contain commas to render properly.
+* Fixed link to fleetd uninstall instructions in "Delete device" modal.
+* Rendered only one banner on the my device page based on priority order.
+* Hidden query delete checkboxes from team observers.
+* Fixed issue where the Fleet UI could not be used to renew the ABM token after the ABM user who created the token was deleted.
+* Fixed an issue where special characters in HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall broke the "installer_utils.ps1 -uninstallOrbit" step in the Windows MSI installer.
+* Fixed counts for hosts with low disk space in summary page.
+* Fleet UI fixes: Hide CTA on inherited queries/policies from team level users.
+* Updated software updated timestamp tooltip.
+* Fixed issue where some Windows applications were getting matched against Windows OS vulnerabilities.
+* Fixed crash in `fleetd` installer on Windows if there are registry keys with special characters on the system.
+* Fixed UI capitalizations.
+
 ## Fleet 4.53.0 (Jun 25, 2024)
 
 ### Endpoint Operations

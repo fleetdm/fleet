@@ -1088,6 +1088,53 @@ func TestTeamSofwareInstallersGitOps(t *testing.T) {
 	}
 }
 
+func TestCustomSettingsGitOps(t *testing.T) {
+	cases := []struct {
+		file    string
+		wantErr string
+	}{
+		{"testdata/gitops/global_macos_windows_custom_settings_valid.yml", ""},
+		{"testdata/gitops/global_macos_custom_settings_valid_deprecated.yml", ""},
+		{"testdata/gitops/global_windows_custom_settings_invalid_label_mix.yml", `For each profile, only one of "labels_exclude_any", "labels_include_all" or "labels" can be included`},
+		{"testdata/gitops/global_windows_custom_settings_unknown_label.yml", `some or all the labels provided don't exist`},
+		{"testdata/gitops/team_macos_windows_custom_settings_valid.yml", ""},
+		{"testdata/gitops/team_macos_custom_settings_valid_deprecated.yml", ""},
+		{"testdata/gitops/team_macos_windows_custom_settings_invalid_labels_mix.yml", `For each profile, only one of "labels_exclude_any", "labels_include_all" or "labels" can be included.`},
+		{"testdata/gitops/team_macos_windows_custom_settings_unknown_label.yml", `some or all the labels provided don't exist`},
+	}
+	for _, c := range cases {
+		t.Run(filepath.Base(c.file), func(t *testing.T) {
+			ds, appCfgPtr, _ := setupFullGitOpsPremiumServer(t)
+			(*appCfgPtr).MDM.EnabledAndConfigured = true
+			(*appCfgPtr).MDM.WindowsEnabledAndConfigured = true
+			labelToIDs := map[string]uint{
+				fleet.BuiltinLabelMacOS14Plus: 1,
+				"A":                           2,
+				"B":                           3,
+				"C":                           4,
+			}
+			ds.LabelIDsByNameFunc = func(ctx context.Context, labels []string) (map[string]uint, error) {
+				// for this test, recognize labels A, B and C (as well as the built-in macos 14+ one)
+				ret := make(map[string]uint)
+				for _, lbl := range labels {
+					id, ok := labelToIDs[lbl]
+					if ok {
+						ret[lbl] = id
+					}
+				}
+				return ret, nil
+			}
+
+			_, err := runAppNoChecks([]string{"gitops", "-f", c.file})
+			if c.wantErr == "" {
+				require.NoError(t, err)
+			} else {
+				require.ErrorContains(t, err, c.wantErr)
+			}
+		})
+	}
+}
+
 func startSoftwareInstallerServer(t *testing.T) {
 	// start the web server that will serve the installer
 	b, err := os.ReadFile(filepath.Join("..", "..", "server", "service", "testdata", "software-installers", "ruby.deb"))
