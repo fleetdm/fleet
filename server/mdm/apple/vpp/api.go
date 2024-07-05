@@ -13,6 +13,8 @@ import (
 )
 
 // Asset is a product in the store.
+//
+// https://developer.apple.com/documentation/devicemanagement/asset
 type Asset struct {
 	// AdamID is the unique identifier for a product in the store.
 	AdamID string `json:"adamId"`
@@ -22,6 +24,8 @@ type Asset struct {
 }
 
 // ErrorResponse represents the response that contains the error that occurs.
+//
+// https://developer.apple.com/documentation/devicemanagement/errorresponse
 type ErrorResponse struct {
 	ErrorInfo    ResponseErrorInfo `json:"errorInfo"`
 	ErrorMessage string            `json:"errorMessage"`
@@ -30,6 +34,8 @@ type ErrorResponse struct {
 
 // ResponseErrorInfo represents the request-specific information regarding the
 // failure.
+//
+// https://developer.apple.com/documentation/devicemanagement/responseerrorinfo
 type ResponseErrorInfo struct {
 	Assets        []Asset  `json:"assets"`
 	ClientUserIds []string `json:"clientUserIds"`
@@ -44,6 +50,8 @@ var client = fleethttp.NewClient(fleethttp.WithTimeout(10 * time.Second))
 
 // GetConfig fetches the VPP config from Apple's VPP API. This doubles as a
 // verification that the user-provided VPP token is valid.
+//
+// https://developer.apple.com/documentation/devicemanagement/client_config-a40
 func GetConfig(token string) (string, bool, error) {
 	req, err := http.NewRequest(http.MethodGet, getBaseURL()+"/client/config", nil)
 	if err != nil {
