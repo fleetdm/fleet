@@ -12,6 +12,8 @@ import (
 //go:generate go run ../../tools/osquery-agent-options agent_options_generated.go
 
 type AgentOptions struct {
+	// ScriptExecutionTimeout is the maximum time in seconds that a script can run.
+	ScriptExecutionTimeout int `json:"script_execution_timeout,omitempty"`
 	// Config is the base config options.
 	Config json.RawMessage `json:"config"`
 	// Overrides includes any platform-based overrides.
@@ -47,6 +49,10 @@ func ValidateJSONAgentOptions(ctx context.Context, ds Datastore, rawJSON json.Ra
 	var opts AgentOptions
 	if err := JSONStrictDecode(bytes.NewReader(rawJSON), &opts); err != nil {
 		return err
+	}
+
+	if opts.ScriptExecutionTimeout > 3600 {
+		return errors.New("'script_execution_timeout' value exceeds limit. Maximum value is 3600")
 	}
 
 	if len(opts.CommandLineStartUpFlags) > 0 {
