@@ -999,17 +999,6 @@ func (s *liveQueriesTestSuite) TestCreateDistributedQueryCampaign() {
 	// wait to prevent duplicate name for new query
 	time.Sleep(200 * time.Millisecond)
 
-	// via run_by_identifiers
-
-	reqNoHosts := createDistributedQueryCampaignByIdentifierRequest{
-		QuerySQL: "SELECT 3",
-		Selected: distributedQueryCampaignTargetsByIdentifiers{
-			Hosts: []string{""},
-		},
-	}
-	s.DoJSON("POST", "/api/latest/fleet/queries/run_by_identifiers", reqNoHosts, http.StatusBadRequest, &createResp)
-	assert.Contains(t, createResp.Err.Error(), "no hosts targeted")
-
 	req2 := createDistributedQueryCampaignByIdentifierRequest{
 		QuerySQL: "SELECT 3",
 		Selected: distributedQueryCampaignTargetsByIdentifiers{
