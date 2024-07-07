@@ -31,6 +31,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
+	"github.com/fleetdm/fleet/v4/server/mdm/apple/vpp"
 	"github.com/fleetdm/fleet/v4/server/mdm/assets"
 	nanomdm "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -2600,7 +2601,7 @@ func (svc *Service) UploadMDMAppleVPPToken(ctx context.Context, token io.ReadSee
 		return ctxerr.Wrap(ctx, err, "reading VPP token")
 	}
 
-	locName, tokenValid, err := getVPPConfig(string(tokenBytes))
+	locName, tokenValid, err := vpp.GetConfig(string(tokenBytes))
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "validating VPP token with Apple")
 	}
@@ -2632,61 +2633,6 @@ func (svc *Service) UploadMDMAppleVPPToken(ctx context.Context, token io.ReadSee
 	}
 
 	return nil
-}
-
-var testOverrideAppleVPPConfigURL string
-
-// getVPPConfig fetches the VPP config from Apple's VPP API. This doubles as a verification that the
-// user-provided VPP token is valid.
-func getVPPConfig(token string) (string, bool, error) {
-	url := "https://vpp.itunes.apple.com/mdm/v2/client/config"
-	if testOverrideAppleVPPConfigURL != "" {
-		url = testOverrideAppleVPPConfigURL
-	}
-
-	bearer := fmt.Sprintf("Bearer %s", token)
-
-	req, err := http.NewRequest(http.MethodGet, url, nil)
-	if err != nil {
-		return "", false, fmt.Errorf("creating request to Apple VPP endpoint: %w", err)
-	}
-
-	req.Header.Add("Authorization", bearer)
-
-	client := fleethttp.NewClient(fleethttp.WithTimeout(10 * time.Second))
-	resp, err := client.Do(req)
-	if err != nil {
-		return "", false, fmt.Errorf("making request to Apple VPP endpoint: %w", err)
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return "", false, fmt.Errorf("reading response body from Apple VPP endpoint: %w", err)
-	}
-
-	// For some reason, Apple returns 200 OK even if you pass an invalid token in the Auth header.
-	// We will need to parse the response and check to see if it contains an error.
-
-	var respJSON struct {
-		LocationName string `json:"locationName"`
-		ErrorNumber  int    `json:"errorNumber"`
-	}
-
-	if err := json.Unmarshal(body, &respJSON); err != nil {
-		return "", false, fmt.Errorf("parsing response body from Apple VPP endpoint: %w", err)
-	}
-
-	// Per https://developer.apple.com/documentation/devicemanagement/app_and_book_management/app_and_book_management_legacy/interpreting_error_codes
-	if resp.StatusCode == 401 || respJSON.ErrorNumber == 9622 {
-		return "", false, nil
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		return "", false, fmt.Errorf("calling Apple VPP config endpoint failed with status %d", resp.StatusCode)
-	}
-
-	return respJSON.LocationName, true, nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////

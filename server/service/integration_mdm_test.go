@@ -1054,11 +1054,11 @@ func (s *integrationMDMTestSuite) uploadDataViaForm(endpoint, fieldName, fileNam
 func (s *integrationMDMTestSuite) TestMDMVPPToken() {
 	t := s.T()
 	// Invalid token
-	testOverrideAppleVPPConfigURL = s.appleVPPConfigSrv.URL + "?invalidToken"
+	t.Setenv("FLEET_DEV_VPP_URL", s.appleVPPConfigSrv.URL+"?invalidToken")
 	s.uploadDataViaForm("/api/latest/fleet/mdm/apple/vpp_token", "token", "token.vpptoken", []byte("foobar"), http.StatusUnprocessableEntity, "Invalid token. Please provide a valid content token from Apple Business Manager.")
 
 	// Simulate a server error from the Apple API
-	testOverrideAppleVPPConfigURL = s.appleVPPConfigSrv.URL + "?serverError"
+	t.Setenv("FLEET_DEV_VPP_URL", s.appleVPPConfigSrv.URL+"?serverError")
 	s.uploadDataViaForm("/api/latest/fleet/mdm/apple/vpp_token", "token", "token.vpptoken", []byte("foobar"), http.StatusInternalServerError, "calling Apple VPP config endpoint failed with status 500")
 
 	// Valid token
@@ -1067,7 +1067,7 @@ func (s *integrationMDMTestSuite) TestMDMVPPToken() {
 	token := "mycooltoken"
 	expDate := "2025-06-24T15:50:50+0000"
 	tokenJSON := fmt.Sprintf(`{"expDate":"%s","token":"%s","orgName":"%s"}`, expDate, token, orgName)
-	testOverrideAppleVPPConfigURL = s.appleVPPConfigSrv.URL
+	t.Setenv("FLEET_DEV_VPP_URL", s.appleVPPConfigSrv.URL)
 	s.uploadDataViaForm("/api/latest/fleet/mdm/apple/vpp_token", "token", "token.vpptoken", []byte(base64.StdEncoding.EncodeToString([]byte(tokenJSON))), http.StatusAccepted, "")
 
 	// Get the token
