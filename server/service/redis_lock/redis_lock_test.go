@@ -14,7 +14,7 @@ import (
 func TestRedisLock(t *testing.T) {
 	for _, f := range []func(*testing.T, fleet.Lock){
 		testRedisAcquireLock,
-		testRedisIncrement,
+		testRedisSet,
 	} {
 		t.Run(test.FunctionName(f), func(t *testing.T) {
 			t.Run("standalone", func(t *testing.T) {
@@ -85,6 +85,12 @@ func testRedisAcquireLock(t *testing.T, lock fleet.Lock) {
 	require.NoError(t, err)
 	assert.Equal(t, "OK", result)
 
+	// Get lock
+	getResult, err := lock.Get(ctx, "test")
+	assert.NoError(t, err)
+	require.NotNil(t, getResult)
+	assert.Equal(t, "1", *getResult)
+
 	// Try to set lock with expiration
 	var expire uint64 = 10
 	result, err = lock.AcquireLock(ctx, "testE", "1", expire)
@@ -97,50 +103,49 @@ func testRedisAcquireLock(t *testing.T, lock fleet.Lock) {
 	result, err = lock.AcquireLock(ctx, "testE", "1", 0)
 	require.NoError(t, err)
 	assert.Equal(t, "OK", result)
-}
-
-func testRedisIncrement(t *testing.T, lock fleet.Lock) {
-	ctx := context.Background()
-
-	// Increment non-existent key
-	var expire uint64 = 10
-	num, err := lock.Increment(ctx, "newKey", expire)
-	assert.NoError(t, err)
-	assert.Equal(t, int64(1), num)
-
-	// Try to acquire the same lock after waiting
-	duration := time.Duration(expire+1) * time.Millisecond
-	time.Sleep(duration)
-	result, err := lock.AcquireLock(ctx, "newKey", "1", 0)
-	require.NoError(t, err)
-	assert.Equal(t, "OK", result)
 
 	// Get non-existent key
-	getResult, err := lock.Get(ctx, "test")
+	getResult, err = lock.Get(ctx, "testNonExistent")
 	assert.NoError(t, err)
 	assert.Nil(t, getResult)
 
-	// Save non-integer value
-	result, err = lock.AcquireLock(ctx, "test", "foo", 0)
-	require.NoError(t, err)
-	assert.Equal(t, "OK", result)
+}
 
-	// Increment non-integer value
-	_, err = lock.Increment(ctx, "test", 0)
-	assert.Error(t, err)
+func testRedisSet(t *testing.T, lock fleet.Lock) {
+	ctx := context.Background()
 
-	// Save an integer value
-	result, err = lock.AcquireLock(ctx, "testI", "1", 0)
-	require.NoError(t, err)
-	assert.Equal(t, "OK", result)
-
-	num, err = lock.Increment(ctx, "testI", 0)
+	// Get a non-existent set
+	result, err := lock.GetSet(ctx, "missingSet")
 	assert.NoError(t, err)
-	assert.Equal(t, int64(2), num)
+	assert.Empty(t, result)
 
-	getResult, err = lock.Get(ctx, "testI")
+	// Add to a set
+	values := []string{"foo", "bar"}
+	err = lock.AddToSet(ctx, "testSet", values[0])
 	assert.NoError(t, err)
-	require.NotNil(t, getResult)
-	assert.Equal(t, "2", *getResult)
+	err = lock.AddToSet(ctx, "testSet", values[1])
+	assert.NoError(t, err)
 
+	// Get the set
+	result, err = lock.GetSet(ctx, "testSet")
+	assert.NoError(t, err)
+	assert.ElementsMatch(t, values, result)
+
+	// Remove from set
+	err = lock.RemoveFromSet(ctx, "testSet", values[0])
+	assert.NoError(t, err)
+
+	// Get the set
+	result, err = lock.GetSet(ctx, "testSet")
+	assert.NoError(t, err)
+	assert.Equal(t, []string{values[1]}, result)
+
+	// Remove from set
+	err = lock.RemoveFromSet(ctx, "testSet", values[1])
+	assert.NoError(t, err)
+
+	// Get the set
+	result, err = lock.GetSet(ctx, "testSet")
+	assert.NoError(t, err)
+	assert.Empty(t, result)
 }
