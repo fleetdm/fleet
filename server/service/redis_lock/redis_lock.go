@@ -77,37 +77,48 @@ func (r *redisLock) ReleaseLock(ctx context.Context, name string, value string) 
 	return result > 0, nil
 }
 
-func (r *redisLock) Increment(ctx context.Context, name string, expireMs uint64) (int64, error) {
+func (r *redisLock) AddToSet(ctx context.Context, key string, value string) error {
 	conn := redis.ConfigureDoer(r.pool, r.pool.Get())
 	defer conn.Close()
 
-	res, err := conn.Do("INCR", r.testPrefix+name)
+	// Reference: https://redis.io/docs/latest/commands/sadd/
+	_, err := conn.Do("SADD", r.testPrefix+key, value)
 	if err != nil {
-		return 0, ctxerr.Wrap(ctx, err, "redis increment")
+		return ctxerr.Wrap(ctx, err, "redis add to set")
 	}
+	return nil
+}
 
-	var result int64
-	var ok bool
-	if result, ok = res.(int64); !ok {
-		return 0, ctxerr.Errorf(ctx, "redis increment: unexpected result type %T", res)
+func (r *redisLock) RemoveFromSet(ctx context.Context, key string, value string) error {
+	conn := redis.ConfigureDoer(r.pool, r.pool.Get())
+	defer conn.Close()
+
+	// Reference: https://redis.io/docs/latest/commands/srem/
+	_, err := conn.Do("SREM", r.testPrefix+key, value)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "redis add to set")
 	}
+	return nil
+}
 
-	// A result of 1 indicates that the key was created. So we must also add an expiration to it.
-	if result == 1 {
-		if expireMs == 0 {
-			expireMs = defaultExpireMs
-		}
-		// Reference: https://redis.io/docs/latest/commands/pexpire/
-		expireResult, err := conn.Do("PEXPIRE", r.testPrefix+name, expireMs)
-		if err != nil {
-			return 0, ctxerr.Wrap(ctx, err, "redis increment expire")
-		}
-		if expireResult != int64(1) {
-			return 0, ctxerr.Errorf(ctx, "redis increment expire: unexpected result %v", expireResult)
-		}
+func (r *redisLock) GetSet(ctx context.Context, key string) ([]string, error) {
+	conn := redis.ConfigureDoer(r.pool, r.pool.Get())
+	defer conn.Close()
+
+	// Reference: https://redis.io/docs/latest/commands/smembers/
+	raw, err := conn.Do("SMEMBERS", r.testPrefix+key)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "redis get set")
 	}
-
-	return result, nil
+	rawMembers, ok := raw.([]interface{})
+	if !ok {
+		return nil, ctxerr.Errorf(ctx, "redis get set: unexpected result type %T", raw)
+	}
+	var members []string
+	for _, member := range rawMembers {
+		members = append(members, fmt.Sprintf("%s", member))
+	}
+	return members, nil
 }
 
 func (r *redisLock) Get(ctx context.Context, name string) (*string, error) {
