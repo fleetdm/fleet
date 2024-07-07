@@ -46,9 +46,10 @@ type UserCalendar interface {
 type Lock interface {
 	AcquireLock(ctx context.Context, name string, value string, expireMs uint64) (result string, err error)
 	ReleaseLock(ctx context.Context, name string, value string) (ok bool, err error)
-	// Increment increments a counter stored in Redis. Creates a counter if it doesn't exist. Returns the new value of the counter.
-	Increment(ctx context.Context, name string, expireMs uint64) (int64, error)
 	Get(ctx context.Context, name string) (*string, error)
+	AddToSet(ctx context.Context, key string, value string) error
+	RemoveFromSet(ctx context.Context, key string, value string) error
+	GetSet(ctx context.Context, key string) ([]string, error)
 }
 
 type CalendarWebhookPayload struct {
