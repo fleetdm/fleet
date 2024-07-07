@@ -24,7 +24,6 @@ func TestGetConfig(t *testing.T) {
 		token     string
 		handler   http.HandlerFunc
 		wantName  string
-		wantValid bool
 		expectErr bool
 	}{
 		{
@@ -35,7 +34,6 @@ func TestGetConfig(t *testing.T) {
 				fmt.Fprintln(w, `{"locationName": "Test Location"}`)
 			},
 			wantName:  "Test Location",
-			wantValid: true,
 			expectErr: false,
 		},
 		{
@@ -46,8 +44,7 @@ func TestGetConfig(t *testing.T) {
 				fmt.Fprintln(w, `{"errorNumber": 9622}`)
 			},
 			wantName:  "",
-			wantValid: false,
-			expectErr: false,
+			expectErr: true,
 		},
 		{
 			name:  "server error",
@@ -56,7 +53,6 @@ func TestGetConfig(t *testing.T) {
 				w.WriteHeader(http.StatusInternalServerError)
 			},
 			wantName:  "",
-			wantValid: false,
 			expectErr: true,
 		},
 	}
@@ -65,14 +61,13 @@ func TestGetConfig(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			setupFakeServer(t, tt.handler)
 
-			name, valid, err := GetConfig(tt.token)
+			name, err := GetConfig(tt.token)
 			if tt.expectErr {
 				require.Error(t, err)
 			} else {
 				require.NoError(t, err)
 			}
 			require.Equal(t, tt.wantName, name)
-			require.Equal(t, tt.wantValid, valid)
 		})
 	}
 }
@@ -149,9 +144,93 @@ func TestAssociateAssets(t *testing.T) {
 			err := AssociateAssets(tt.token, tt.params)
 			if tt.expectErr {
 				require.Error(t, err)
-				require.Equal(t, tt.expectedErrMsg, err.Error())
+				require.ErrorContains(t, err, tt.expectedErrMsg)
 			} else {
 				require.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestGetAssets(t *testing.T) {
+	tests := []struct {
+		name           string
+		token          string
+		filter         *AssetFilter
+		handler        http.HandlerFunc
+		expectedAssets []Asset
+		expectErr      bool
+		expectedErrMsg string
+	}{
+		{
+			name:  "valid token and filters",
+			token: "valid_token",
+			filter: &AssetFilter{
+				AdamID: "12345",
+			},
+			handler: func(w http.ResponseWriter, r *http.Request) {
+				require.Equal(t, http.MethodGet, r.Method)
+				require.Equal(t, "/assets", r.URL.Path)
+				require.Equal(t, "Bearer valid_token", r.Header.Get("Authorization"))
+
+				query := r.URL.Query()
+				require.Equal(t, "12345", query.Get("adamId"))
+
+				type resp struct {
+					Assets []Asset `json:"assets"`
+				}
+				assets := resp{
+					Assets: []Asset{
+						{AdamID: "12345", PricingParam: "STDQ"},
+						{AdamID: "67890", PricingParam: "PLUS"},
+					},
+				}
+				w.WriteHeader(http.StatusOK)
+				require.NoError(t, json.NewEncoder(w).Encode(assets))
+			},
+			expectedAssets: []Asset{
+				{AdamID: "12345", PricingParam: "STDQ"},
+				{AdamID: "67890", PricingParam: "PLUS"},
+			},
+			expectErr: false,
+		},
+		{
+			name:   "server error",
+			token:  "valid_token",
+			filter: nil,
+			handler: func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(http.StatusInternalServerError)
+				fmt.Fprintln(w, `{"errorInfo":{},"errorMessage":"Internal Server Error","errorNumber":500}`)
+			},
+			expectedAssets: nil,
+			expectErr:      true,
+			expectedErrMsg: "Apple VPP endpoint returned error: Internal Server Error (error number: 500)",
+		},
+		{
+			name:   "client error",
+			token:  "valid_token",
+			filter: nil,
+			handler: func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(http.StatusBadRequest)
+				fmt.Fprintln(w, `{"errorInfo":{},"errorMessage":"Bad Request","errorNumber":400}`)
+			},
+			expectedAssets: nil,
+			expectErr:      true,
+			expectedErrMsg: "Apple VPP endpoint returned error: Bad Request (error number: 400)",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			setupFakeServer(t, tt.handler)
+
+			assets, err := GetAssets(tt.token, tt.filter)
+			if tt.expectErr {
+				require.Error(t, err)
+				require.ErrorContains(t, err, tt.expectedErrMsg)
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, tt.expectedAssets, assets)
 			}
 		})
 	}

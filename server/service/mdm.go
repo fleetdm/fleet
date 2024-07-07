@@ -2601,13 +2601,16 @@ func (svc *Service) UploadMDMAppleVPPToken(ctx context.Context, token io.ReadSee
 		return ctxerr.Wrap(ctx, err, "reading VPP token")
 	}
 
-	locName, tokenValid, err := vpp.GetConfig(string(tokenBytes))
+	locName, err := vpp.GetConfig(string(tokenBytes))
 	if err != nil {
+		var vppErr *vpp.ErrorResponse
+		if errors.As(err, &vppErr) {
+			// Per https://developer.apple.com/documentation/devicemanagement/app_and_book_management/app_and_book_management_legacy/interpreting_error_codes
+			if vppErr.ErrorNumber == 9622 {
+				return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("token", "Invalid token. Please provide a valid content token from Apple Business Manager."))
+			}
+		}
 		return ctxerr.Wrap(ctx, err, "validating VPP token with Apple")
-	}
-
-	if !tokenValid {
-		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("token", "Invalid token. Please provide a valid content token from Apple Business Manager."))
 	}
 
 	decodedTokenBytes, err := base64.StdEncoding.DecodeString(string(tokenBytes))

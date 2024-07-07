@@ -1059,7 +1059,7 @@ func (s *integrationMDMTestSuite) TestMDMVPPToken() {
 
 	// Simulate a server error from the Apple API
 	t.Setenv("FLEET_DEV_VPP_URL", s.appleVPPConfigSrv.URL+"?serverError")
-	s.uploadDataViaForm("/api/latest/fleet/mdm/apple/vpp_token", "token", "token.vpptoken", []byte("foobar"), http.StatusInternalServerError, "calling Apple VPP config endpoint failed with status 500")
+	s.uploadDataViaForm("/api/latest/fleet/mdm/apple/vpp_token", "token", "token.vpptoken", []byte("foobar"), http.StatusInternalServerError, "Apple VPP endpoint returned error: Internal server error (error number: 9603)")
 
 	// Valid token
 	orgName := "Fleet Device Management Inc."
