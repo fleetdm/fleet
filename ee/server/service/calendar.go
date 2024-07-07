@@ -11,7 +11,49 @@ import (
 	"sync"
 )
 
+const calendarCallbackKeyPrefix = "calendar:callback:"
+
 func (svc *Service) CalendarWebhook(ctx context.Context, eventUUID string, channelID string, resourceState string) error {
+
+	if resourceState == "sync" {
+		// This is a sync notification, not a real event
+		svc.authz.SkipAuthorization(ctx)
+		return nil
+	}
+
+	lockValue := "1"
+	result, err := svc.distributedLock.AcquireLock(ctx, calendarCallbackKeyPrefix+eventUUID, lockValue, 0)
+	if err != nil {
+		svc.authz.SkipAuthorization(ctx)
+		return ctxerr.Wrap(ctx, err, "acquire calendar lock")
+	}
+	if result == "" {
+		// Could not acquire lock, so we are already processing this event. In this case, we increment the lock value to indicate
+		// that we should re-process the event.
+		incrementResult, err := svc.distributedLock.Increment(ctx, calendarCallbackKeyPrefix+eventUUID, 0)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "increment calendar lock")
+		}
+		// An increment result of 1 indicates that we acquired the lock, so we will continue processing the event.
+		if incrementResult != 1 {
+			svc.authz.SkipAuthorization(ctx)
+			return nil
+		}
+	}
+
+	unlocked := false
+	defer func() {
+		if !unlocked {
+			ok, err := svc.distributedLock.ReleaseLock(ctx, calendarCallbackKeyPrefix+eventUUID, lockValue)
+			if err != nil {
+				level.Warn(svc.logger).Log("msg", "Failed to release calendar lock", "err", err)
+			}
+			if !ok {
+				// If the lock was not released, it will expire on its own.
+				level.Warn(svc.logger).Log("msg", "Failed to release calendar lock")
+			}
+		}
+	}()
 
 	appConfig, err := svc.ds.AppConfig(ctx)
 	if err != nil {
@@ -25,11 +67,7 @@ func (svc *Service) CalendarWebhook(ctx context.Context, eventUUID string, chann
 	}
 	googleCalendarIntegrationConfig := appConfig.Integrations.GoogleCalendar[0]
 
-	if resourceState == "sync" {
-		// This is a sync notification, not a real event
-		svc.authz.SkipAuthorization(ctx)
-		return nil
-	}
+	fmt.Printf("VICTOR callback - eventUUID: %s, channelID: %s\n", eventUUID, channelID)
 
 	eventDetails, err := svc.ds.GetCalendarEventDetailsByUUID(ctx, eventUUID)
 	if err != nil {
@@ -129,5 +167,17 @@ func (svc *Service) CalendarWebhook(ctx context.Context, eventUUID string, chann
 			return ctxerr.Wrap(ctx, err, "create or update calendar event")
 		}
 	}
+
+	// Release the lock
+	ok, err := svc.distributedLock.ReleaseLock(ctx, calendarCallbackKeyPrefix+eventUUID, lockValue)
+	if err != nil {
+		level.Warn(svc.logger).Log("msg", "Failed to release calendar lock", "err", err)
+	}
+	if !ok {
+		// TODO: Do another loop
+		// If the lock was not released, it will expire on its own.
+		level.Warn(svc.logger).Log("msg", "Failed to release calendar lock")
+	}
+
 	return nil
 }
