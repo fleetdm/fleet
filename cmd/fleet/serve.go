@@ -50,6 +50,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/pubsub"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/service/async"
+	"github.com/fleetdm/fleet/v4/server/service/redis_lock"
 	"github.com/fleetdm/fleet/v4/server/service/redis_policy_set"
 	"github.com/fleetdm/fleet/v4/server/sso"
 	"github.com/fleetdm/fleet/v4/server/version"
@@ -730,6 +731,7 @@ the way that the Fleet server works.
 					ssoSessionStore,
 					profileMatcher,
 					softwareInstallStore,
+					redis_lock.NewLock(redisPool),
 				)
 				if err != nil {
 					initFatal(err, "initial Fleet Premium service")

@@ -41,6 +41,15 @@ type UserCalendar interface {
 	Get(event *CalendarEvent, key string) (interface{}, error)
 }
 
+// Lock interface for managing distributed locks.
+type Lock interface {
+	AcquireLock(ctx context.Context, name string, value string, expireMs uint64) (result string, err error)
+	ReleaseLock(ctx context.Context, name string, value string) (ok bool, err error)
+	// Increment increments a counter stored in Redis. Creates a counter if it doesn't exist. Returns the new value of the counter.
+	Increment(ctx context.Context, name string, expireMs uint64) (int64, error)
+	Get(ctx context.Context, name string) (*string, error)
+}
+
 type CalendarWebhookPayload struct {
 	Timestamp        time.Time            `json:"timestamp"`
 	HostID           uint                 `json:"host_id"`
