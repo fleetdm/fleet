@@ -349,7 +349,7 @@ func (h *runScriptsConfigReceiver) runDynamicScriptsEnabledCheck() {
 func (h *runScriptsConfigReceiver) Run(cfg *fleet.OrbitConfig) error {
 	timeout := fleetscripts.MaxHostExecutionTime
 	if cfg.ScriptExeTimeout > 0 {
-		timeout = time.Duration(cfg.ScriptExeTimeout)
+		timeout = time.Duration(cfg.ScriptExeTimeout) * time.Second
 	}
 
 	if len(cfg.Notifications.PendingScriptExecutionIDs) > 0 {
