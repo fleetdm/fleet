@@ -56,10 +56,14 @@ func (ds *Datastore) NewTeam(ctx context.Context, team *fleet.Team) (*fleet.Team
 }
 
 func (ds *Datastore) Team(ctx context.Context, tid uint) (*fleet.Team, error) {
-	return teamDB(ctx, ds.reader(ctx), tid)
+	return teamDB(ctx, ds.reader(ctx), tid, true)
 }
 
-func teamDB(ctx context.Context, q sqlx.QueryerContext, tid uint) (*fleet.Team, error) {
+func (ds *Datastore) TeamWithoutExtras(ctx context.Context, tid uint) (*fleet.Team, error) {
+	return teamDB(ctx, ds.reader(ctx), tid, false)
+}
+
+func teamDB(ctx context.Context, q sqlx.QueryerContext, tid uint, withExtras bool) (*fleet.Team, error) {
 	stmt := `
 		SELECT ` + teamColumns + ` FROM teams
 			WHERE id = ?
@@ -73,18 +77,20 @@ func teamDB(ctx context.Context, q sqlx.QueryerContext, tid uint) (*fleet.Team, 
 		return nil, ctxerr.Wrap(ctx, err, "select team")
 	}
 
-	if err := loadSecretsForTeamsDB(ctx, q, []*fleet.Team{team}); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "getting secrets for teams")
-	}
+	if withExtras {
+		if err := loadSecretsForTeamsDB(ctx, q, []*fleet.Team{team}); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "getting secrets for teams")
+		}
 
-	if err := loadUsersForTeamDB(ctx, q, team); err != nil {
-		return nil, err
-	}
-	if err := loadHostCountForTeamDB(ctx, q, team); err != nil {
-		return nil, err
-	}
-	if err := loadFeaturesForTeamDB(ctx, q, team); err != nil {
-		return nil, err
+		if err := loadUsersForTeamDB(ctx, q, team); err != nil {
+			return nil, err
+		}
+		if err := loadHostCountForTeamDB(ctx, q, team); err != nil {
+			return nil, err
+		}
+		if err := loadFeaturesForTeamDB(ctx, q, team); err != nil {
+			return nil, err
+		}
 	}
 
 	return team, nil
