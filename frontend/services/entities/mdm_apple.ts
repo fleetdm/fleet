@@ -25,4 +25,10 @@ export default {
     const { MDM_REQUEST_CSR } = endpoints;
     return sendRequest("GET", MDM_REQUEST_CSR);
   },
+
+  getAppStoreVppApps: (teamId: number) => {
+    const { MDM_APPLE_VPP_APPS } = endpoints;
+    const path = MDM_APPLE_VPP_APPS.replace(":teamId", teamId.toString());
+    return sendRequest("GET", path);
+  },
 };

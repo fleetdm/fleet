@@ -1,18 +1,38 @@
 import React, { useState } from "react";
 import { InjectedRouter } from "react-router";
+import { useQuery } from "react-query";
 
 import Spinner from "components/Spinner";
 import Button from "components/buttons/Button";
 import DataError from "components/DataError";
+import Radio from "components/forms/fields/Radio";
+import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 
 const baseClass = "app-store-vpp";
 
 interface IVppSoftwareListItemProps {
   software: any;
+  selected: boolean;
+  onSelect: (software: any) => void;
 }
 
-const VppSoftwareListItem = ({ software }: IVppSoftwareListItemProps) => {
-  return <p>test</p>;
+const VppSoftwareListItem = ({
+  software,
+  selected,
+  onSelect,
+}: IVppSoftwareListItemProps) => {
+  return (
+    <li className={`${baseClass}__list-item`}>
+      <Radio
+        label="Test software"
+        id="test-software"
+        checked={selected}
+        value={"test-software "}
+        name="vppSoftware"
+        onChange={onSelect}
+      />
+    </li>
+  );
 };
 
 interface IVppSoftwareListProps {
@@ -36,15 +56,20 @@ const VppSoftwareList = ({ software }: IVppSoftwareListProps) => {
     }
 
     return (
-      <div className={`${baseClass}__software-list-items`}>
+      <ul className={`${baseClass}__list-items`}>
         {software.map((softwareItem) => (
-          <VppSoftwareListItem key={softwareItem.id} software={softwareItem} />
+          <VppSoftwareListItem
+            key={softwareItem.id}
+            software={softwareItem}
+            selected={false}
+            onSelect={() => {}}
+          />
         ))}
-      </div>
+      </ul>
     );
   };
 
-  return <div className={`${baseClass}__software-list`}>{renderContent()}</div>;
+  return <div className={`${baseClass}__list`}>{renderContent()}</div>;
 };
 
 interface IAppStoreVppProps {
@@ -56,9 +81,11 @@ interface IAppStoreVppProps {
 const AppStoreVpp = ({ teamId, router, onExit }: IAppStoreVppProps) => {
   const [isSubmitDisabled, setIsSubmitDisabled] = useState(true);
 
+  const { data, isLoading, isError } = useQuery("vppSoftware", () => {}, {
+    ...DEFAULT_USE_QUERY_OPTIONS,
+  });
+
   const renderContent = () => {
-    const isLoading = false;
-    const isError = false;
     if (isLoading) {
       return <Spinner />;
     }
