@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
+	"github.com/fleetdm/fleet/v4/server/service/redis_lock"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -69,6 +70,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		ssoStore             sso.SessionStore
 		profMatcher          fleet.ProfileMatcher
 		softwareInstallStore fleet.SoftwareInstallerStore
+		distributedLock      fleet.Lock
 	)
 	if len(opts) > 0 {
 		if opts[0].Clock != nil {
@@ -95,6 +97,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		if opts[0].Pool != nil {
 			ssoStore = sso.NewSessionStore(opts[0].Pool)
 			profMatcher = apple_mdm.NewProfileMatcher(opts[0].Pool)
+			distributedLock = redis_lock.NewLock(opts[0].Pool)
 		}
 		if opts[0].ProfileMatcher != nil {
 			profMatcher = opts[0].ProfileMatcher
@@ -194,6 +197,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 			ssoStore,
 			profMatcher,
 			softwareInstallStore,
+			distributedLock,
 		)
 		if err != nil {
 			panic(err)

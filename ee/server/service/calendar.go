@@ -3,19 +3,14 @@ package service
 import (
 	"context"
 	"fmt"
+	"sync"
+
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/service/calendar"
 	"github.com/go-kit/log/level"
 	"github.com/google/uuid"
-	"sync"
-)
-
-const (
-	calendarLockKeyPrefix         = "calendar:lock:"
-	calendarReservedLockKeyPrefix = "calendar:reserved:"
-	calendarQueueKey              = "calendar:queue"
 )
 
 var asyncCalendarProcessing bool
@@ -59,7 +54,7 @@ func (svc *Service) CalendarWebhook(ctx context.Context, eventUUID string, chann
 		return fmt.Errorf("calendar event %s has no team ID", eventUUID)
 	}
 
-	localConfig := &calendar.CalendarConfig{
+	localConfig := &calendar.Config{
 		GoogleCalendarIntegration: *googleCalendarIntegrationConfig,
 		ServerURL:                 appConfig.ServerSettings.ServerURL,
 	}
@@ -75,34 +70,44 @@ func (svc *Service) CalendarWebhook(ctx context.Context, eventUUID string, chann
 		return authz.ForbiddenWithInternal(fmt.Sprintf("calendar channel ID mismatch: %s != %s", savedChannelID, channelID), nil, nil, nil)
 	}
 
-	lockValue, err := svc.getCalendarLock(ctx, eventUUID, true)
+	lockValue, reserved, err := svc.getCalendarLock(ctx, eventUUID, true)
 	if err != nil {
 		return err
 	}
-	if lockValue == "" {
+	// If lock has been reserved by cron, we will need to re-process this event in case the calendar event was changed after the cron job read it.
+	if lockValue == "" && !reserved {
 		// We did not get a lock, so there is nothing to do here
 		return nil
 	}
 
-	unlocked := false
-	defer func() {
-		if !unlocked {
-			svc.releaseCalendarLock(ctx, eventUUID, lockValue)
-		}
-	}()
+	if !reserved {
+		unlocked := false
+		defer func() {
+			if !unlocked {
+				svc.releaseCalendarLock(ctx, eventUUID, lockValue)
+			}
+		}()
 
-	err = svc.processCalendarEvent(ctx, eventDetails, googleCalendarIntegrationConfig, userCalendar)
-	if err != nil {
-		return err
+		// Remove event from the queue so that we don't process this event again.
+		// Note: This item can be added back to the queue while we are processing it.
+		err = svc.distributedLock.RemoveFromSet(ctx, calendar.QueueKey, eventUUID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "remove calendar event from queue")
+		}
+
+		err = svc.processCalendarEvent(ctx, eventDetails, googleCalendarIntegrationConfig, userCalendar)
+		if err != nil {
+			return err
+		}
+		svc.releaseCalendarLock(ctx, eventUUID, lockValue)
+		unlocked = true
 	}
-	svc.releaseCalendarLock(ctx, eventUUID, lockValue)
-	unlocked = true
 
 	// Now, we need to check if there are any events in the queue that need to be re-processed.
 	asyncMutex.Lock()
 	defer asyncMutex.Unlock()
 	if !asyncCalendarProcessing {
-		eventIDs, err := svc.distributedLock.GetSet(ctx, calendarQueueKey)
+		eventIDs, err := svc.distributedLock.GetSet(ctx, calendar.QueueKey)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "get calendar event queue")
 		}
@@ -190,7 +195,7 @@ func (svc *Service) processCalendarEvent(ctx context.Context, eventDetails *flee
 }
 
 func (svc *Service) releaseCalendarLock(ctx context.Context, eventUUID string, lockValue string) {
-	ok, err := svc.distributedLock.ReleaseLock(ctx, calendarLockKeyPrefix+eventUUID, lockValue)
+	ok, err := svc.distributedLock.ReleaseLock(ctx, calendar.LockKeyPrefix+eventUUID, lockValue)
 	if err != nil {
 		level.Error(svc.logger).Log("msg", "Failed to release calendar lock", "err", err)
 	}
@@ -200,42 +205,46 @@ func (svc *Service) releaseCalendarLock(ctx context.Context, eventUUID string, l
 	}
 }
 
-func (svc *Service) getCalendarLock(ctx context.Context, eventUUID string, addToQueue bool) (string, error) {
+func (svc *Service) getCalendarLock(ctx context.Context, eventUUID string, addToQueue bool) (lockValue string, reserved bool, err error) {
 	// Check if lock has been reserved, which means we can't have it.
-	reserved, err := svc.distributedLock.Get(ctx, calendarReservedLockKeyPrefix+eventUUID)
+	reservedValue, err := svc.distributedLock.Get(ctx, calendar.ReservedLockKeyPrefix+eventUUID)
 	if err != nil {
-		return "", ctxerr.Wrap(ctx, err, "get calendar reserved lock")
+		return "", false, ctxerr.Wrap(ctx, err, "get calendar reserved lock")
 	}
-	if reserved != nil {
-		// We assume that the lock is reserved by cron, which will fully process this event. Nothing to do here.
-		return "", nil
+	reserved = reservedValue != nil
+	if reserved && !addToQueue {
+		// We flag the lock as reserved.
+		return "", reserved, nil
 	}
-	// Try to acquire the lock
-	lockValue := uuid.New().String()
-	result, err := svc.distributedLock.AcquireLock(ctx, calendarLockKeyPrefix+eventUUID, lockValue, 0)
-	if err != nil {
-		return "", ctxerr.Wrap(ctx, err, "acquire calendar lock")
+	var result string
+	if !reserved {
+		// Try to acquire the lock
+		lockValue = uuid.New().String()
+		result, err = svc.distributedLock.AcquireLock(ctx, calendar.LockKeyPrefix+eventUUID, lockValue, 0)
+		if err != nil {
+			return "", false, ctxerr.Wrap(ctx, err, "acquire calendar lock")
+		}
 	}
-	if result == "" && addToQueue {
+	if (result == "" || reserved) && addToQueue {
 		// Could not acquire lock, so we are already processing this event. In this case, we add the event to
 		// the queue (actually a set) to indicate that we need to re-process the event.
-		err = svc.distributedLock.AddToSet(ctx, calendarQueueKey, eventUUID)
+		err = svc.distributedLock.AddToSet(ctx, calendar.QueueKey, eventUUID)
 		if err != nil {
-			return "", ctxerr.Wrap(ctx, err, "add calendar event to queue")
+			return "", false, ctxerr.Wrap(ctx, err, "add calendar event to queue")
 		}
 
 		// Try to acquire the lock again in case it was released while we were adding the event to the queue.
-		result, err = svc.distributedLock.AcquireLock(ctx, calendarLockKeyPrefix+eventUUID, lockValue, 0)
+		result, err = svc.distributedLock.AcquireLock(ctx, calendar.LockKeyPrefix+eventUUID, lockValue, 0)
 		if err != nil {
-			return "", ctxerr.Wrap(ctx, err, "acquire calendar lock again")
+			return "", false, ctxerr.Wrap(ctx, err, "acquire calendar lock again")
 		}
 
 		if result == "" {
 			// We could not acquire the lock, so we are done here.
-			return "", nil
+			return "", reserved, nil
 		}
 	}
-	return lockValue, nil
+	return lockValue, false, nil
 }
 
 func (svc *Service) processCalendarAsync(ctx context.Context, eventIDs []string) {
@@ -256,7 +265,7 @@ func (svc *Service) processCalendarAsync(ctx context.Context, eventIDs []string)
 
 		// Now we check whether there are any more events in the queue.
 		var err error
-		eventIDs, err = svc.distributedLock.GetSet(ctx, calendarQueueKey)
+		eventIDs, err = svc.distributedLock.GetSet(ctx, calendar.QueueKey)
 		if err != nil {
 			level.Error(svc.logger).Log("msg", "Failed to get calendar event queue", "err", err)
 			return
@@ -265,7 +274,7 @@ func (svc *Service) processCalendarAsync(ctx context.Context, eventIDs []string)
 }
 
 func (svc *Service) processCalendarEventAsync(ctx context.Context, eventUUID string) bool {
-	lockValue, err := svc.getCalendarLock(ctx, eventUUID, false)
+	lockValue, _, err := svc.getCalendarLock(ctx, eventUUID, false)
 	if err != nil {
 		level.Error(svc.logger).Log("msg", "Failed to get calendar lock", "err", err)
 		return false
@@ -278,7 +287,7 @@ func (svc *Service) processCalendarEventAsync(ctx context.Context, eventUUID str
 
 	// Remove event from the queue so that we don't process this event again.
 	// Note: This item can be added back to the queue while we are processing it.
-	err = svc.distributedLock.RemoveFromSet(ctx, calendarQueueKey, eventUUID)
+	err = svc.distributedLock.RemoveFromSet(ctx, calendar.QueueKey, eventUUID)
 	if err != nil {
 		level.Error(svc.logger).Log("msg", "Failed to remove calendar event from queue", "err", err)
 		return false
@@ -311,7 +320,7 @@ func (svc *Service) processCalendarEventAsync(ctx context.Context, eventUUID str
 		return false
 	}
 
-	localConfig := &calendar.CalendarConfig{
+	localConfig := &calendar.Config{
 		GoogleCalendarIntegration: *googleCalendarIntegrationConfig,
 		ServerURL:                 appConfig.ServerSettings.ServerURL,
 	}

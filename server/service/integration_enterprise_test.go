@@ -87,7 +87,7 @@ func (s *integrationEnterpriseTestSuite) SetupSuite() {
 						cronLog = kitlog.NewNopLogger()
 					}
 					calendarSchedule, err = cron.NewCalendarSchedule(
-						ctx, s.T().Name(), s.ds, config.CalendarConfig{Periodicity: 24 * time.Hour}, cronLog,
+						ctx, s.T().Name(), s.ds, nil, config.CalendarConfig{Periodicity: 24 * time.Hour}, cronLog,
 					)
 					return calendarSchedule, err
 				}
@@ -10941,9 +10941,9 @@ func (s *integrationEnterpriseTestSuite) TestCalendarCallback() {
 		},
 	)
 	require.NoError(t, err)
-	team1Policy2, err := s.ds.NewTeamPolicy(
+	team1Policy2Calendar, err := s.ds.NewTeamPolicy(
 		ctx, team1.ID, nil, fleet.PolicyPayload{
-			Name:                  "team1Policy2",
+			Name:                  "team1Policy2Calendar",
 			Query:                 "SELECT 2;",
 			CalendarEventsEnabled: true,
 		},
@@ -10994,7 +10994,7 @@ func (s *integrationEnterpriseTestSuite) TestCalendarCallback() {
 		host1Team1,
 		map[uint]*bool{
 			team1Policy1Calendar.ID: ptr.Bool(false),
-			team1Policy2.ID:         ptr.Bool(true),
+			team1Policy2Calendar.ID: ptr.Bool(true),
 			globalPolicy.ID:         nil,
 		},
 	), http.StatusOK, &distributedResp)
@@ -11004,7 +11004,7 @@ func (s *integrationEnterpriseTestSuite) TestCalendarCallback() {
 		host2Team1,
 		map[uint]*bool{
 			team1Policy1Calendar.ID: ptr.Bool(true),
-			team1Policy2.ID:         ptr.Bool(false),
+			team1Policy2Calendar.ID: ptr.Bool(false),
 			globalPolicy.ID:         nil,
 		},
 	), http.StatusOK, &distributedResp)
@@ -11161,7 +11161,7 @@ func (s *integrationEnterpriseTestSuite) TestCalendarCallback() {
 		host1Team1,
 		map[uint]*bool{
 			team1Policy1Calendar.ID: ptr.Bool(true),
-			team1Policy2.ID:         ptr.Bool(true),
+			team1Policy2Calendar.ID: ptr.Bool(true),
 			globalPolicy.ID:         nil,
 		},
 	), http.StatusOK, &distributedResp)
