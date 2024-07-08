@@ -9128,7 +9128,7 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 		{Name: "foo", Version: "0.0.2", Source: "chrome_extensions"},
 		{Name: "bar", Version: "0.0.1", Source: "apps"},
 	}
-	_, err = s.ds.UpdateHostSoftware(ctx, host.ID, software)
+	mutationResults, err := s.ds.UpdateHostSoftware(ctx, host.ID, software)
 	require.NoError(t, err)
 	err = s.ds.ReconcileSoftwareTitles(ctx)
 	require.NoError(t, err)
@@ -9147,6 +9147,36 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 	require.Nil(t, getHostSw.Software[1].Package)
 	require.Nil(t, getHostSw.Software[1].PackageAvailableForInstall)
 
+	// Add vulnerabilities to software to check query param filtering
+	_, err = s.ds.InsertSoftwareVulnerability(ctx, fleet.SoftwareVulnerability{SoftwareID: getHostSw.Software[0].ID, CVE: "CVE-bar-1234"}, fleet.NVDSource)
+	_, err = s.ds.InsertSoftwareVulnerability(ctx, fleet.SoftwareVulnerability{SoftwareID: getHostSw.Software[0].ID, CVE: "CVE-bar-5678"}, fleet.NVDSource)
+
+	swPaths := map[string]struct{}{}
+	installPaths := make([]string, 0, len(software))
+	for _, s := range software {
+		path := fmt.Sprintf("/some/path/%s", s.Name)
+		key := fmt.Sprintf("%s%s%s", path, fleet.SoftwareFieldSeparator, s.ToUniqueStr())
+		swPaths[key] = struct{}{}
+		installPaths = append(installPaths, path)
+	}
+	err = s.ds.UpdateHostSoftwareInstalledPaths(ctx, host.ID, swPaths, mutationResults)
+	require.NoError(t, err)
+
+	err = s.ds.ReconcileSoftwareTitles(ctx)
+	require.NoError(t, err)
+
+	getHostSw = getHostSoftwareResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host.ID), nil, http.StatusOK, &getHostSw, "vulnerable", "true")
+	require.Len(t, getHostSw.Software, 1)
+	require.NoError(t, err)
+	require.Equal(t, "bar", getHostSw.Software[0].Name)
+	require.Nil(t, getHostSw.Software[0].SelfService)
+	require.Nil(t, getHostSw.Software[0].Package)
+	require.Nil(t, getHostSw.Software[0].PackageAvailableForInstall)
+	require.Len(t, getHostSw.Software[0].InstalledVersions, 1)
+	require.Len(t, getHostSw.Software[0].InstalledVersions[0].Vulnerabilities, 2)
+	require.Equal(t, getHostSw.Software[0].InstalledVersions[0].Vulnerabilities, []string{"CVE-bar-1234", "CVE-bar-5678"})
+
 	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/software", nil, http.StatusOK)
 	getDeviceSw = getDeviceSoftwareResponse{}
 	err = json.NewDecoder(res.Body).Decode(&getDeviceSw)
@@ -9156,12 +9186,12 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 	require.Equal(t, getDeviceSw.Software[1].Name, "foo")
 	require.Len(t, getDeviceSw.Software[1].InstalledVersions, 2)
 	// no package information as there is no installer
-	require.Nil(t, getHostSw.Software[0].SelfService)
-	require.Nil(t, getHostSw.Software[0].Package)
-	require.Nil(t, getHostSw.Software[0].PackageAvailableForInstall)
-	require.Nil(t, getHostSw.Software[1].SelfService)
-	require.Nil(t, getHostSw.Software[1].Package)
-	require.Nil(t, getHostSw.Software[1].PackageAvailableForInstall)
+	require.Nil(t, getDeviceSw.Software[0].SelfService)
+	require.Nil(t, getDeviceSw.Software[0].Package)
+	require.Nil(t, getDeviceSw.Software[0].PackageAvailableForInstall)
+	require.Nil(t, getDeviceSw.Software[1].SelfService)
+	require.Nil(t, getDeviceSw.Software[1].Package)
+	require.Nil(t, getDeviceSw.Software[1].PackageAvailableForInstall)
 
 	// create a software installer, not installed on the host
 	payload := &fleet.UploadSoftwareInstallerPayload{
