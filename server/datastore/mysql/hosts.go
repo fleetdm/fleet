@@ -766,60 +766,9 @@ func queryStatsToScheduledQueryStats(queriesStats []fleet.QueryStats, packName s
 	return scheduledQueriesStats
 }
 
-func winHostConnectedToFleetCond(aliasedCols []string, lenPlaceholders int) string {
-	in := strings.Repeat("?,", lenPlaceholders)
-	in += strings.Join(aliasedCols, ",")
-	in = strings.Trim(in, ",")
-
-	return fmt.Sprintf(`
-	SELECT mwe.host_uuid
-	FROM mdm_windows_enrollments mwe
-	JOIN hosts h ON h.uuid = mwe.host_uuid
-	JOIN host_mdm hm ON hm.host_id = h.id
-	WHERE mwe.host_uuid IN (%s)
-	AND mwe.device_state = '%s'
-	AND hm.enrolled = 1`,
-		in,
-		microsoft_mdm.MDMDeviceStateEnrolled)
-}
-
-func appleHostConnectedToFleetCond(aliasedCols []string, lenPlaceholders int) string {
-	in := strings.Repeat("?,", lenPlaceholders)
-	in += strings.Join(aliasedCols, ",")
-	in = strings.Trim(in, ",")
-
-	return fmt.Sprintf(`
-	SELECT ne.id
-	FROM nano_enrollments ne
-	JOIN hosts h ON h.uuid = ne.id
-	JOIN host_mdm hm ON hm.host_id = h.id
-	WHERE ne.id IN (%s)
-	AND ne.enabled = 1
-	AND ne.type = 'Device'
-	AND hm.enrolled = 1`, in)
-}
-
-var caseConnectedToFleet = `
-CASE
-	WHEN h.platform = 'windows' THEN (
-		SELECT CASE  WHEN EXISTS (` + winHostConnectedToFleetCond([]string{"h.uuid"}, 0) + `)
-		THEN CAST(TRUE AS JSON)
-		ELSE CAST(FALSE AS JSON)
-		END
-	)
-	WHEN h.platform IN ('ios', 'ipados', 'darwin') THEN (
-		SELECT CASE  WHEN EXISTS (` + appleHostConnectedToFleetCond([]string{"h.uuid"}, 0) + `)
-		THEN CAST(TRUE AS JSON)
-		ELSE CAST(FALSE AS JSON)
-		END
-	)
-	ELSE CAST(FALSE AS JSON)
-END
-`
-
 // hostMDMSelect is the SQL fragment used to construct the JSON object
 // of MDM host data. It assumes that hostMDMJoin is included in the query.
-var hostMDMSelect = `,
+const hostMDMSelect = `,
 	JSON_OBJECT(
 		'enrollment_status',
 		CASE
@@ -856,7 +805,39 @@ var hostMDMSelect = `,
 			ELSE hdek.decryptable
 		END,
 		'connected_to_fleet',
-		` + caseConnectedToFleet + `,
+		CASE
+			WHEN h.platform = 'windows' THEN (` +
+	// NOTE: if you change any of the conditions in this
+	// query, please update the AreHostsConnectedToFleetMDM
+	// datastore method and any relevant filters.
+	`SELECT CASE WHEN EXISTS (
+				    SELECT mwe.host_uuid
+				    FROM mdm_windows_enrollments mwe
+				    WHERE mwe.host_uuid = h.uuid
+				    AND mwe.device_state = '` + microsoft_mdm.MDMDeviceStateEnrolled + `'
+				    AND hmdm.enrolled = 1
+				)
+				THEN CAST(TRUE AS JSON)
+				ELSE CAST(FALSE AS JSON)
+				END
+			)
+			WHEN h.platform IN ('ios', 'ipados', 'darwin') THEN (` +
+	// NOTE: if you change any of the conditions in this
+	// query, please update the AreHostsConnectedToFleetMDM
+	// datastore method and any relevant filters.
+	`SELECT CASE WHEN EXISTS (
+				    SELECT ne.id FROM nano_enrollments ne
+				    WHERE ne.id = h.uuid
+				    AND ne.enabled = 1
+				    AND ne.type = 'Device'
+				    AND hmdm.enrolled = 1
+				)
+				THEN CAST(TRUE AS JSON)
+				ELSE CAST(FALSE AS JSON)
+				END
+			)
+			ELSE CAST(FALSE AS JSON)
+		END,
 		'name', hmdm.name
 	) mdm_host_data
 	`

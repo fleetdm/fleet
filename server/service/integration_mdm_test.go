@@ -9012,7 +9012,7 @@ func (s *integrationMDMTestSuite) TestSilentMigrationGotchas() {
 	t := s.T()
 	ctx := context.Background()
 
-	host := createOrbitEnrolledHost(t, "darwin", "h1", s.ds)
+	host := createOrbitEnrolledHost(t, "darwin", t.Name(), s.ds)
 	// set the host as enrolled in a third-party MDM
 	err := s.ds.SetOrUpdateMDMData(ctx, host.ID, true, true, "https://foo.com", false, fleet.WellKnownMDMSimpleMDM, "")
 	require.NoError(t, err)
@@ -9085,7 +9085,7 @@ func (s *integrationMDMTestSuite) TestSilentMigrationGotchas() {
 	err = mdmDevice.Enroll()
 	require.NoError(t, err)
 
-	// host response says that's connected to Fleet
+	// host response says that's not connected to Fleet
 	hostResp = getHostResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &hostResp)
 	require.NotNil(t, hostResp.Host)
