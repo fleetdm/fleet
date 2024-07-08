@@ -160,7 +160,9 @@ type SoftwareTitle struct {
 	CountsUpdatedAt *time.Time `json:"-" db:"counts_updated_at"`
 	// SoftwarePackage is the software installer information for this title.
 	SoftwarePackage *SoftwareInstaller `json:"software_package" db:"-"`
-	// BundleIdentifier TODO
+	// BundleIdentifier is used by Apple installers to uniquely identify
+	// the software installed. It's surfaced in software_titles to match
+	// with existing software entries.
 	BundleIdentifier *string `json:"-" db:"bundle_identifier"`
 }
 

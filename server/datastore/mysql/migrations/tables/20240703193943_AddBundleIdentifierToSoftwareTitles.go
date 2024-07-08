@@ -50,7 +50,7 @@ func Up_20240703193943(tx *sql.Tx) error {
 	    SET si.title_id = st_min.min_id;
 	`)
 	if err != nil {
-		return fmt.Errorf("TODO: %w", err)
+		return fmt.Errorf("ensuring software_installers point to the same software_title: %w", err)
 	}
 
 	// delete duplicates, keeping the row with the smallest `id`
