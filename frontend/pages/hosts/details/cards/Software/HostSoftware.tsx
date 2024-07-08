@@ -77,7 +77,7 @@ export const parseHostSoftwareQueryParams = (queryParams: {
     order_key: sortHeader,
     order_direction: sortDirection,
     per_page: pageSize,
-    vulnerable: vulnerable,
+    vulnerable,
   };
 };
 
