@@ -18,6 +18,9 @@ var asyncMutex sync.Mutex
 
 func (svc *Service) CalendarWebhook(ctx context.Context, eventUUID string, channelID string, resourceState string) error {
 
+	// We don't want the sender to cancel the context since we want to make sure we process the webhook.
+	ctx = context.WithoutCancel(ctx)
+
 	appConfig, err := svc.ds.AppConfig(ctx)
 	if err != nil {
 		return fmt.Errorf("load app config: %w", err)
@@ -30,8 +33,6 @@ func (svc *Service) CalendarWebhook(ctx context.Context, eventUUID string, chann
 	}
 	googleCalendarIntegrationConfig := appConfig.Integrations.GoogleCalendar[0]
 
-	fmt.Printf("VICTOR callback - eventUUID: %s, channelID: %s\n", eventUUID, channelID)
-
 	if resourceState == "sync" {
 		// This is a sync notification, not a real event
 		svc.authz.SkipAuthorization(ctx)
@@ -43,9 +44,9 @@ func (svc *Service) CalendarWebhook(ctx context.Context, eventUUID string, chann
 		svc.authz.SkipAuthorization(ctx)
 		if fleet.IsNotFound(err) {
 			// We could try to stop the channel callbacks here, but that may not be secure since we don't know if the request is legitimate
-			level.Warn(svc.logger).Log("msg", "Received calendar callback, but did not find corresponding event in database", "event_uuid",
+			level.Info(svc.logger).Log("msg", "Received calendar callback, but did not find corresponding event in database", "event_uuid",
 				eventUUID, "channel_id", channelID)
-			return err
+			return nil
 		}
 		return err
 	}
@@ -113,7 +114,7 @@ func (svc *Service) CalendarWebhook(ctx context.Context, eventUUID string, chann
 		}
 		if len(eventIDs) > 0 {
 			asyncCalendarProcessing = true
-			go svc.processCalendarAsync(context.WithoutCancel(ctx), eventIDs)
+			go svc.processCalendarAsync(ctx, eventIDs)
 		}
 		return nil
 	}
