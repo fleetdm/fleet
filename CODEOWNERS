@@ -76,9 +76,9 @@ go.mod @fleetdm/go
 #
 # (see website/config/custom.js for DRIs of other paths not listed here)
 ##############################################################################################
-/docs                                           @rachaelshaw
-/docs/Using-Fleet/REST-API.md                   @rachaelshaw # « REST API reference documentation
-/docs/Contributing/API-for-contributors.md      @rachaelshaw @lukeheath # « Advanced / contributors-only API reference documentation
+/docs                                           @eashaw
+/docs/Using-Fleet/REST-API.md                   @eashaw # « REST API reference documentation
+/docs/Contributing/API-for-contributors.md      @eashaw @lukeheath # « Advanced / contributors-only API reference documentation
 /schema                                         @eashaw # « Data tables (osquery/fleetd schema) documentation
 /docs/Deploy/_kubernetes/ @dherder # « Kubernetes best practice
 ##############################################################################################
