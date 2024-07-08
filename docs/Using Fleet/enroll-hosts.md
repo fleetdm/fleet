@@ -58,13 +58,9 @@ You can use your software management tool of choice to distribute Fleet's agent 
 
 You can include Fleet Desktop in Fleet's agent (fleetd) by including `--fleet-desktop` in the `fleetctl package` command.
 
-### TLS certificates
+### Debug TLS certificates and connection to Fleet
 
-[Fleetd certificates](fleetd-certificates.md) describes how TLS CA root certificates are configured in fleetd to connect to a Fleet server securely.
-
-#### Debug certificates and connection to Fleet
-
-You can use `fleetctl debug connection` to troubleshoot issues with server/client certificates, e.g.:
+You can use `fleetctl debug connection` to troubleshoot issues with server/client TLS certificates, e.g.:
 ```sh
 # Test TLS connection using the CA root file that will be embedded on fleetd packages:
 fleetctl debug connection \

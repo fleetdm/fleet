@@ -1,7 +1,7 @@
-# fleetd certificates
+# Certificates in fleetd
 
-There are three components in fleetd connecting to the Fleet server (TLS): `orbit`, `Fleet Desktop` and `osqueryd`.
-This document aims to describe how TLS CA root certificates are configured in fleetd to connect to a Fleet server securely.
+There are three components in fleetd connecting to the Fleet server using TLS: `orbit`, `Fleet Desktop` and `osqueryd`.
+This article aims to describe how TLS CA root certificates are configured in fleetd to connect to a Fleet server securely.
 
 ## Default
 
@@ -52,7 +52,11 @@ fleetctl debug connection \
 [0]: We have a Github CI action that runs daily that updates the [certs.pem on the repository](https://github.com/fleetdm/fleet/blob/main/orbit/pkg/packaging/certs.pem) whenever there's a new version of `cacert.pem` in https://curl.se/docs/caextract.html. Such file is embedded into the `fleetctl` executable and used when generating fleetd packages.
 [1]: The bundled certificate in fleetd is installed in `/opt/orbit` in macOS/Linux and `C:\Program Files\Orbit` on Windows. By default its name is `certs.pem`, but it will have a different name if the `--fleet-certificate` flag was used when generating the package (`fleetctl package`).
 
-<meta name="pageOrderInSection" value="1511">
-<meta name="title" value="TLS certificates in fleetd">
-<meta name="description" value="Learn about TLS server certificates in fleetd.">
-<meta name="navSection" value="Dig deeper">
+
+<meta name="articleTitle" value="Certificates in fleetd">
+<meta name="authorFullName" value="Lucas Manuel Rodriguez">
+<meta name="authorGitHubUsername" value="lucasmrod">
+<meta name="category" value="guides">
+<meta name="publishedOn" value="2024-08-09">
+<meta name="articleImageUrl" value="../website/assets/images/articles/apple-developer-certificates-on-linux-for-configuration-profile-signing-1600x900@2x.png">
+<meta name="description" value="TLS certificates in fleetd">
