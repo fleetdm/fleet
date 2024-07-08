@@ -16,13 +16,19 @@ import (
 	"github.com/go-kit/log/level"
 )
 
-type CalendarConfig struct {
+const (
+	LockKeyPrefix         = "calendar:lock:"
+	ReservedLockKeyPrefix = "calendar:reserved:"
+	QueueKey              = "calendar:queue"
+)
+
+type Config struct {
 	config.CalendarConfig
 	fleet.GoogleCalendarIntegration
 	ServerURL string
 }
 
-func CreateUserCalendarFromConfig(ctx context.Context, config *CalendarConfig, logger kitlog.Logger) fleet.UserCalendar {
+func CreateUserCalendarFromConfig(ctx context.Context, config *Config, logger kitlog.Logger) fleet.UserCalendar {
 	googleCalendarConfig := calendar.GoogleCalendarConfig{
 		Context:           ctx,
 		IntegrationConfig: &config.GoogleCalendarIntegration,

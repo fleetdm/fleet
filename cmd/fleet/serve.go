@@ -692,6 +692,7 @@ the way that the Fleet server works.
 			}
 
 			var softwareInstallStore fleet.SoftwareInstallerStore
+			var distributedLock fleet.Lock
 			if license.IsPremium() {
 				profileMatcher := apple_mdm.NewProfileMatcher(redisPool)
 				if config.S3.SoftwareInstallersBucket != "" {
@@ -719,6 +720,7 @@ the way that the Fleet server works.
 					}
 				}
 
+				distributedLock = redis_lock.NewLock(redisPool)
 				svc, err = eeservice.NewService(
 					svc,
 					ds,
@@ -731,7 +733,7 @@ the way that the Fleet server works.
 					ssoSessionStore,
 					profileMatcher,
 					softwareInstallStore,
-					redis_lock.NewLock(redisPool),
+					distributedLock,
 				)
 				if err != nil {
 					initFatal(err, "initial Fleet Premium service")
@@ -872,7 +874,7 @@ the way that the Fleet server works.
 						} else {
 							config.Calendar.Periodicity = 5 * time.Minute
 						}
-						return cron.NewCalendarSchedule(ctx, instanceID, ds, config.Calendar, logger)
+						return cron.NewCalendarSchedule(ctx, instanceID, ds, distributedLock, config.Calendar, logger)
 					},
 				); err != nil {
 					initFatal(err, "failed to register calendar schedule")
