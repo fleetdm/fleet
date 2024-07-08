@@ -10790,8 +10790,8 @@ func (s *integrationEnterpriseTestSuite) TestCalendarCallback() {
 	assert.NotEqual(t, event.EndTime, eventRecreated.EndTime)
 	assert.Equal(t, 1, calendar.MockChannelsCount())
 
-	// The previous event UUID should not work anymore
-	_ = s.DoRawWithHeaders("POST", "/api/v1/fleet/calendar/webhook/"+event.UUID, []byte(""), http.StatusNotFound, map[string]string{
+	// The previous event UUID should not work anymore, but API returns OK because this is a common occurrence.
+	_ = s.DoRawWithHeaders("POST", "/api/v1/fleet/calendar/webhook/"+event.UUID, []byte(""), http.StatusOK, map[string]string{
 		"X-Goog-Channel-Id":     details.ChannelID,
 		"X-Goog-Resource-State": "exists",
 	})
