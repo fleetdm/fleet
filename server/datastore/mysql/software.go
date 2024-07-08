@@ -581,12 +581,17 @@ func (ds *Datastore) insertNewInstalledHostSoftwareDB(
 				if ok {
 					titleID = &title.ID
 				} else if _, ok := newTitlesNeeded[checksum]; !ok {
-					newTitlesNeeded[checksum] = fleet.SoftwareTitle{
-						Name:             sw.Name,
-						Source:           sw.Source,
-						Browser:          sw.Browser,
-						BundleIdentifier: sw.BundleIdentifier,
+					st := fleet.SoftwareTitle{
+						Name:    sw.Name,
+						Source:  sw.Source,
+						Browser: sw.Browser,
 					}
+
+					if sw.BundleIdentifier != "" {
+						st.BundleIdentifier = ptr.String(sw.BundleIdentifier)
+					}
+
+					newTitlesNeeded[checksum] = st
 				}
 				args = append(
 					args, sw.Name, sw.Version, sw.Source, sw.Release, sw.Vendor, sw.Arch, sw.BundleIdentifier, sw.ExtensionID, sw.Browser,
@@ -600,7 +605,7 @@ func (ds *Datastore) insertNewInstalledHostSoftwareDB(
 			// Insert into software_titles
 			totalTitlesToProcess := len(newTitlesNeeded)
 			if totalTitlesToProcess > 0 {
-				const numberOfArgsPerSoftwareTitles = 3 // number of ? in each VALUES clause
+				const numberOfArgsPerSoftwareTitles = 4 // number of ? in each VALUES clause
 				titlesValues := strings.TrimSuffix(strings.Repeat("(?,?,?,?),", totalTitlesToProcess), ",")
 				// INSERT IGNORE is used to avoid duplicate key errors, which may occur since our previous read came from the replica.
 				titlesStmt := fmt.Sprintf("INSERT IGNORE INTO software_titles (name, source, browser, bundle_identifier) VALUES %s", titlesValues)
@@ -1599,7 +1604,7 @@ SELECT
     browser,
     bundle_identifier
 FROM (
-    SELECT
+    SELECT DISTINCT
         name,
         source,
         browser,

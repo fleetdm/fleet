@@ -161,7 +161,7 @@ type SoftwareTitle struct {
 	// SoftwarePackage is the software installer information for this title.
 	SoftwarePackage *SoftwareInstaller `json:"software_package" db:"-"`
 	// BundleIdentifier TODO
-	BundleIdentifier string `json:"-" db:"bundle_identifier"`
+	BundleIdentifier *string `json:"-" db:"bundle_identifier"`
 }
 
 // This type is essentially the same as the above SoftwareTitle type. The only difference is that
