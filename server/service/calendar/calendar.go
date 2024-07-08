@@ -41,7 +41,7 @@ func GenerateCalendarEventBody(ctx context.Context, ds fleet.Datastore, orgName 
 	if conflict {
 		conflictStr = "because there was no remaining availability "
 	}
-	return fmt.Sprintf(`%s reserved this time to make some changes to your work computer %s(%s).
+	return fmt.Sprintf(`%s %s %s(%s).
 
 Please leave your device on and connected to power.
 
@@ -50,7 +50,7 @@ Please leave your device on and connected to power.
 
 <b>What we'll do</b>
 %s
-`, orgName, conflictStr, host.HostDisplayName, description, resolution)
+`, orgName, fleet.CalendarBodyStaticHeader, conflictStr, host.HostDisplayName, description, resolution)
 }
 
 func getCalendarEventDescriptionAndResolution(ctx context.Context, ds fleet.Datastore, orgName string, host fleet.HostPolicyMembershipData,

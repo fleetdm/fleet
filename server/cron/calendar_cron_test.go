@@ -706,8 +706,8 @@ func TestCalendarEvents1KHosts(t *testing.T) {
 	require.Len(t, createdCalendarEvents, 0)
 }
 
-// TestEventDescription tests generation of the event description.
-func TestEventDescription(t *testing.T) {
+// TestEventBody tests generation of the event body.
+func TestEventBody(t *testing.T) {
 	ds := new(mock.Store)
 	ctx := context.Background()
 	logger := kitlog.With(kitlog.NewLogfmtLogger(os.Stdout))
@@ -963,20 +963,21 @@ func TestEventDescription(t *testing.T) {
 		var details map[string]string
 		err = json.Unmarshal(calendarEvents[hostCalEvent.HostID].Data, &details)
 		require.NoError(t, err)
-		description := createdCalendarEvents[details["id"]].Description
-		defaultDescriptionWithOrgAndHost := fmt.Sprintf(`%s %s (Host`, orgName, defaultDescription)
+		// What Google Calendar calls the "Description" is what Fleet calls the "Body," since the Body
+		// contains a description and a resolution.
+		eventBody := createdCalendarEvents[details["id"]].Description
 		switch hostCalEvent.HostID {
 		case hostID1:
-			assert.Contains(t, description, "(Host 1)")
-			assert.Contains(t, description, "Description for policy 1")
-			assert.Contains(t, description, "Resolution for policy 1")
+			assert.Contains(t, eventBody, fmt.Sprintf(`%s %s (Host 1).`, orgName, fleet.CalendarBodyStaticHeader))
+			assert.Contains(t, eventBody, "Description for policy 1")
+			assert.Contains(t, eventBody, "Resolution for policy 1")
 		case hostID6:
-			assert.Contains(t, description, "(Host 6)")
-			assert.Contains(t, description, "Description for policy 1")
-			assert.Contains(t, description, "Resolution for policy 1")
+			assert.Contains(t, eventBody, fmt.Sprintf(`%s %s (Host 6).`, orgName, fleet.CalendarBodyStaticHeader))
+			assert.Contains(t, eventBody, "Description for policy 1")
+			assert.Contains(t, eventBody, "Resolution for policy 1")
 		default:
-			assert.Contains(t, description, defaultDescriptionWithOrgAndHost)
-			assert.Contains(t, description, defaultResolution)
+			assert.Contains(t, eventBody, fmt.Sprintf(`%s %s (Host`, orgName, fleet.CalendarBodyStaticHeader))
+			assert.Contains(t, eventBody, fleet.CalendarDefaultResolution)
 		}
 	}
 }
