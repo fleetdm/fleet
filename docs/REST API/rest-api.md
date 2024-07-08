@@ -2611,7 +2611,7 @@ If `hostname` is specified when there is more than one host with the same hostna
 
 | Name       | Type              | In   | Description                                                        |
 | ---------- | ----------------- | ---- | ------------------------------------------------------------------ |
-| identifier | integer or string | path | **Required**. The host's `hostname`, `uuid`, or `hardware_serial`. |
+| identifier | string | path | **Required**. The host's `hostname`, `uuid`, or `hardware_serial`. |
 
 #### Example
 
