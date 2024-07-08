@@ -81,7 +81,7 @@ parasails.registerPage('contact', {
 
     submittedContactForm: async function() {
       if(typeof gtag !== 'undefined'){
-        gtag('event','website_contact_forms');
+        gtag('event','fleet_website__contact_forms');
       }
       if(typeof window.lintrk !== 'undefined') {
         window.lintrk('track', { conversion_id: 18587089 });// eslint-disable-line camelcase
@@ -93,7 +93,7 @@ parasails.registerPage('contact', {
     submittedTalkToUsForm: async function() {
       this.syncing = true;
       if(typeof gtag !== 'undefined'){
-        gtag('event','website_contact_forms');
+        gtag('event','fleet_website__contact_forms');
       }
       if(typeof window.lintrk !== 'undefined') {
         window.lintrk('track', { conversion_id: 18587089 });// eslint-disable-line camelcase

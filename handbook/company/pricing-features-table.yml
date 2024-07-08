@@ -355,7 +355,7 @@
 #   ╚╝ ╩ ╩╩╚═╩╩ ╩╚═╝╩═╝╚═╝  ╚═╝╝╚╝╩╚═╚═╝╩═╝╩═╝╩ ╩╚═╝╝╚╝ ╩
 - industryName: Variable enrollment
   description: Enroll hosts in different groups using different enrollment secrets and/or installers per-baseline.
-  documentationUrl: https://fleetdm.com/docs/configuration/configuration-files#teams 
+  documentationUrl: https://fleetdm.com/docs/using-fleet/segment-hosts
   tier: Premium
   productCategories: [Endpoint operations, Device management]
   pricingTableCategories: [Endpoint operations]
@@ -659,10 +659,15 @@
   productCategories: [Device management]
   pricingTableCategories: [Device management]
   moreInfoUrl: https://github.com/fleetdm/fleet/issues/17587
-- industryName: License apps on macOS and iOS/iPadOS through Volume Purchasing Program (VPP).
+- industryName: Install Apple App Store apps through Volume Purchasing Program (VPP).
   description: Offer licenses for Photoshop and other App Sore apps for your end users.
   tier: Premium
-  comingSoonOn: 2024-07-15 #customer-rosner
+  comingSoonOn: 2024-08-11
+  waysToUse:
+    - description: macOS coming soon (2024-07-15). #customer-rosner
+      moreInfoUrl: https://github.com/fleetdm/fleet/issues/18867
+    - description: iOS/iPadOS coming soon (2024-08-11).
+      moreInfoUrl: https://github.com/fleetdm/fleet/issues/14899
   usualDepartment: IT
   productCategories: [Device management]
   pricingTableCategories: [Device management]
@@ -710,7 +715,7 @@
   pricingTableCategories: [Endpoint operations]
   tier: Free
 - industryName: Labels (SQL-driven)
-  documentationUrl: https://fleetdm.com/docs/configuration/configuration-files#labels
+  documentationUrl: https://fleetdm.com/docs/rest-api/rest-api#add-label
   friendlyName: Filter hosts using SQL
   productCategories: [Endpoint operations,Device management,Vulnerability management]
   pricingTableCategories: [Endpoint operations]
@@ -734,7 +739,7 @@
   waysToUse:
     - description: Automate remediation for different applications with different security postures (cloud security engineering)
 - industryName: Generate reports for groups of devices
-  documentationUrl: https://fleetdm.com/docs/configuration/configuration-files#server-settings-query-reports-disabled
+  documentationUrl: https://fleetdm.com/docs/rest-api/rest-api#get-query-report
   productCategories: [Endpoint operations,Device management,Vulnerability management]
   pricingTableCategories: [Endpoint operations]
   usualDepartment: IT

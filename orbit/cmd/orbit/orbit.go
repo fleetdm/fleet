@@ -51,6 +51,9 @@ import (
 	"gopkg.in/natefinch/lumberjack.v2"
 )
 
+// unusedFlagKeyword is used by the MSI installer to populate parameters, which cannot be empty
+const unusedFlagKeyword = "dummy"
+
 func main() {
 	app := cli.NewApp()
 	app.Name = "Orbit osquery"
@@ -368,7 +371,7 @@ func main() {
 			return fmt.Errorf("--host-identifier=%s is not supported, currently supported values are 'uuid' and 'instance'", hostIdentifier)
 		}
 
-		if email := c.String("end-user-email"); email != "" && !fleet.IsLooseEmail(email) {
+		if email := c.String("end-user-email"); email != "" && email != unusedFlagKeyword && !fleet.IsLooseEmail(email) {
 			return fmt.Errorf("the provided end-user email address %q is not a valid email address", email)
 		}
 
@@ -1156,10 +1159,11 @@ func main() {
 
 		// --end-user-email is only supported on Windows and Linux (for macOS it gets the
 		// email from the enrollment profile)
-		if (runtime.GOOS == "windows" || runtime.GOOS == "linux") && c.String("end-user-email") != "" {
+		endUserEmail := c.String("end-user-email")
+		if (runtime.GOOS == "windows" || runtime.GOOS == "linux") && endUserEmail != "" && endUserEmail != unusedFlagKeyword {
 			if orbitClient.GetServerCapabilities().Has(fleet.CapabilityEndUserEmail) {
 				log.Debug().Msg("sending end-user email to Fleet")
-				if err := orbitClient.SetOrUpdateDeviceMappingEmail(c.String("end-user-email")); err != nil {
+				if err := orbitClient.SetOrUpdateDeviceMappingEmail(endUserEmail); err != nil {
 					log.Error().Err(err).Msg("error sending end-user email to Fleet")
 				}
 			} else {

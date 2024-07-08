@@ -308,6 +308,18 @@ func (s MacOSSettings) ToMap() map[string]interface{} {
 func (s *MacOSSettings) FromMap(m map[string]interface{}) (map[string]bool, error) {
 	set := make(map[string]bool)
 
+	extractLabelField := func(parentMap map[string]interface{}, fieldName string) []string {
+		var ret []string
+		if labels, ok := parentMap[fieldName].([]interface{}); ok {
+			for _, label := range labels {
+				if strLabel, ok := label.(string); ok {
+					ret = append(ret, strLabel)
+				}
+			}
+		}
+		return ret
+	}
+
 	if v, ok := m["custom_settings"]; ok {
 		set["custom_settings"] = true
 
@@ -322,15 +334,9 @@ func (s *MacOSSettings) FromMap(m map[string]interface{}) (map[string]bool, erro
 						spec.Path = path
 					}
 
-					// extract the Labels field (if they are not provided, labels are
-					// cleared for that profile)
-					if labels, ok := m["labels"].([]interface{}); ok {
-						for _, label := range labels {
-							if strLabel, ok := label.(string); ok {
-								spec.Labels = append(spec.Labels, strLabel)
-							}
-						}
-					}
+					spec.Labels = extractLabelField(m, "labels")
+					spec.LabelsIncludeAll = extractLabelField(m, "labels_include_all")
+					spec.LabelsExcludeAny = extractLabelField(m, "labels_exclude_any")
 
 					csSpecs = append(csSpecs, spec)
 				} else if m, ok := v.(string); ok { // for backwards compatibility with the old way to define profiles

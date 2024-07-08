@@ -13,7 +13,10 @@ parasails.registerPage('device-management-page', {
     //…
   },
   mounted: async function() {
-
+    $('[data-toggle="tooltip"]').tooltip({
+      container: '#device-management-page',
+      trigger: 'hover',
+    });
   },
 
   //  ╦╔╗╔╔╦╗╔═╗╦═╗╔═╗╔═╗╔╦╗╦╔═╗╔╗╔╔═╗

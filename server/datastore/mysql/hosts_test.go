@@ -168,6 +168,7 @@ func TestHosts(t *testing.T) {
 		{"HostnamesByIdentifiers", testHostnamesByIdentifiers},
 		{"HostsAddToTeamCleansUpTeamQueryResults", testHostsAddToTeamCleansUpTeamQueryResults},
 		{"UpdateHostIssues", testUpdateHostIssues},
+		{"ListUpcomingHostMaintenanceWindows", testListUpcomingHostMaintenanceWindows},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -6051,9 +6052,8 @@ func testHostsLoadHostByDeviceAuthToken(t *testing.T, ds *Datastore) {
 
 	loadSimple, err := ds.LoadHostByDeviceAuthToken(ctx, "simple", time.Second)
 	require.NoError(t, err)
+
 	require.Equal(t, hSimple.ID, loadSimple.ID)
-	require.NotNil(t, loadSimple.MDMInfo)
-	require.Equal(t, hSimple.ID, loadSimple.MDMInfo.HostID)
 	require.True(t, loadSimple.IsOsqueryEnrolled())
 
 	// create a host that will be pending enrollment in Fleet MDM
@@ -6063,11 +6063,9 @@ func testHostsLoadHostByDeviceAuthToken(t *testing.T, ds *Datastore) {
 
 	loadFleet, err := ds.LoadHostByDeviceAuthToken(ctx, "fleet", time.Second)
 	require.NoError(t, err)
+
 	require.Equal(t, hFleet.ID, loadFleet.ID)
-	require.NotNil(t, loadFleet.MDMInfo)
-	require.Equal(t, hFleet.ID, loadFleet.MDMInfo.HostID)
 	require.True(t, loadFleet.IsOsqueryEnrolled())
-	require.False(t, loadFleet.MDMInfo.IsServer)
 
 	// force its is_server mdm field to NULL, should be same as false
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
@@ -6076,8 +6074,8 @@ func testHostsLoadHostByDeviceAuthToken(t *testing.T, ds *Datastore) {
 	})
 	loadFleet, err = ds.LoadHostByDeviceAuthToken(ctx, "fleet", time.Second)
 	require.NoError(t, err)
+
 	require.Equal(t, hFleet.ID, loadFleet.ID)
-	require.False(t, loadFleet.MDMInfo.IsServer)
 }
 
 func testHostsSetOrUpdateDeviceAuthToken(t *testing.T, ds *Datastore) {
@@ -7312,7 +7310,6 @@ func testHostOrder(t *testing.T, ds *Datastore) {
 	)
 	require.NoError(t, err)
 	chk(hosts, "0003", "0004", "0001")
-
 }
 
 func testHostIDsByOSID(t *testing.T, ds *Datastore) {
@@ -7571,11 +7568,9 @@ func testHostsLoadHostByOrbitNodeKey(t *testing.T, ds *Datastore) {
 
 	loadSimple, err := ds.LoadHostByOrbitNodeKey(ctx, *hSimple.OrbitNodeKey)
 	require.NoError(t, err)
+
 	require.Equal(t, hSimple.ID, loadSimple.ID)
-	require.NotNil(t, loadSimple.MDMInfo)
-	require.Equal(t, hSimple.ID, loadSimple.MDMInfo.HostID)
 	require.True(t, loadSimple.IsOsqueryEnrolled())
-	require.False(t, loadSimple.IsEligibleForDEPMigration(false))
 
 	// create a host that will be pending enrollment in Fleet MDM
 	hFleet := createOrbitHost("fleet")
@@ -7584,13 +7579,9 @@ func testHostsLoadHostByOrbitNodeKey(t *testing.T, ds *Datastore) {
 
 	loadFleet, err := ds.LoadHostByOrbitNodeKey(ctx, *hFleet.OrbitNodeKey)
 	require.NoError(t, err)
+
 	require.Equal(t, hFleet.ID, loadFleet.ID)
-	require.NotNil(t, loadFleet.MDMInfo)
-	require.Equal(t, hFleet.ID, loadFleet.MDMInfo.HostID)
 	require.True(t, loadFleet.IsOsqueryEnrolled())
-	require.False(t, loadFleet.MDMInfo.IsServer)
-	require.Empty(t, loadFleet.MDMInfo.DEPProfileAssignStatus)
-	require.False(t, loadFleet.IsEligibleForDEPMigration(false))
 
 	// force its is_server mdm field to NULL, should be same as false
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
@@ -7600,8 +7591,6 @@ func testHostsLoadHostByOrbitNodeKey(t *testing.T, ds *Datastore) {
 	loadFleet, err = ds.LoadHostByOrbitNodeKey(ctx, *hFleet.OrbitNodeKey)
 	require.NoError(t, err)
 	require.Equal(t, hFleet.ID, loadFleet.ID)
-	require.False(t, loadFleet.MDMInfo.IsServer)
-	require.False(t, loadFleet.IsEligibleForDEPMigration(false))
 
 	// fill in disk encryption information
 	require.NoError(t, ds.SetOrUpdateHostDisksEncryption(context.Background(), hFleet.ID, true))
@@ -7615,15 +7604,12 @@ func testHostsLoadHostByOrbitNodeKey(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.NotNil(t, loadFleet.DiskEncryptionEnabled)
 	require.True(t, *loadFleet.DiskEncryptionEnabled)
-	require.False(t, loadFleet.IsEligibleForDEPMigration(false))
-	require.Empty(t, loadFleet.MDMInfo.DEPProfileAssignStatus)
 
 	// simulate the device being assigned to Fleet in ABM
 	err = ds.UpsertMDMAppleHostDEPAssignments(ctx, []fleet.Host{*hFleet})
 	require.NoError(t, err)
 	loadFleet, err = ds.LoadHostByOrbitNodeKey(ctx, *hFleet.OrbitNodeKey)
 	require.NoError(t, err)
-	require.Empty(t, loadFleet.MDMInfo.DEPProfileAssignStatus)
 
 	// simulate a failed JSON profile assignment
 	err = updateHostDEPAssignProfileResponses(
@@ -7633,7 +7619,6 @@ func testHostsLoadHostByOrbitNodeKey(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	loadFleet, err = ds.LoadHostByOrbitNodeKey(ctx, *hFleet.OrbitNodeKey)
 	require.NoError(t, err)
-	require.EqualValues(t, *loadFleet.MDMInfo.DEPProfileAssignStatus, fleet.DEPAssignProfileResponseFailed)
 }
 
 func checkEncryptionKeyStatus(t *testing.T, ds *Datastore, hostID uint, expectedKey string, expectedDecryptable *bool) {
@@ -9411,8 +9396,8 @@ func testUpdateHostIssues(t *testing.T, ds *Datastore) {
 	}
 	assert.Len(t, nonZeroIssues, 6)
 	for i, hostIssue := range nonZeroIssues {
-		var policiesCount = uint64(i + 2)
-		var criticalCount = uint64(0)
+		policiesCount := uint64(i + 2)
+		criticalCount := uint64(0)
 		if i > 1 {
 			criticalCount = uint64(i - 1)
 		}
@@ -9499,4 +9484,52 @@ func testUpdateHostIssues(t *testing.T, ds *Datastore) {
 		assert.Zero(t, hostIssue.TotalIssuesCount, "host issue: %+v", hostIssue)
 	}
 	assert.True(t, hostIssueFound)
+}
+
+func testListUpcomingHostMaintenanceWindows(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	host, err := ds.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         ptr.String("1"),
+		UUID:            "1",
+		Hostname:        "foo.local",
+		PrimaryIP:       "192.168.1.1",
+		PrimaryMac:      "30-65-EC-6F-C4-58",
+	})
+	require.NoError(t, err)
+	err = ds.ReplaceHostDeviceMapping(ctx, host.ID, []*fleet.HostDeviceMapping{
+		{
+			HostID: host.ID,
+			Email:  "foo@example.com",
+			Source: "google_chrome_profiles",
+		},
+	}, "google_chrome_profiles")
+	require.NoError(t, err)
+
+	// call before any calendare events exist
+	mWs, err := ds.ListUpcomingHostMaintenanceWindows(ctx, host.ID)
+	require.NoError(t, err)
+	require.Empty(t, mWs)
+
+	// create an event
+	timeZone := "America/Argentina/Buenos_Aires"
+
+	startTime := time.Now().UTC().Add(30 * time.Minute)
+	endTime := startTime.Add(30 * time.Minute)
+	calendarEvent, err := ds.CreateOrUpdateCalendarEvent(ctx, uuid.New().String(), "foo@example.com", startTime, endTime, []byte(`{}`),
+		timeZone, host.ID, fleet.CalendarWebhookStatusNone)
+	require.NoError(t, err)
+	require.Equal(t, calendarEvent.TimeZone, timeZone)
+
+	mWs, err = ds.ListUpcomingHostMaintenanceWindows(ctx, host.ID)
+	require.NoError(t, err)
+	require.Equal(t, 1, len(mWs))
+	mW := mWs[0]
+	// round to match MySQL setting to round to nearest second (as of 6/27/2024)
+	require.Equal(t, startTime.Round(time.Second), mW.StartsAt)
+	require.Equal(t, timeZone, *mW.TimeZone)
 }

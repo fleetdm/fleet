@@ -375,9 +375,11 @@ func getProfilesContents(baseDir string, macProfiles []fleet.MDMProfileSpec, win
 			extByName[name] = ext
 
 			result = append(result, fleet.MDMProfileBatchPayload{
-				Name:     name,
-				Contents: fileContents,
-				Labels:   profile.Labels,
+				Name:             name,
+				Contents:         fileContents,
+				Labels:           profile.Labels,
+				LabelsIncludeAll: profile.LabelsIncludeAll,
+				LabelsExcludeAny: profile.LabelsExcludeAny,
 			})
 
 		}
@@ -671,19 +673,36 @@ func (c *Client) ApplyGroup(
 			ApplySpecOptions:  opts.ApplySpecOptions,
 			DryRunAssumptions: specs.TeamsDryRunAssumptions,
 		}
+		// In dry-run, the team names returned are the old team names (when team name is modified via gitops)
 		teamIDsByName, err = c.ApplyTeams(specs.Teams, teamOpts)
 		if err != nil {
 			return nil, fmt.Errorf("applying teams: %w", err)
 		}
 
+		// When using GitOps, the team name could change, so we need to check for that
+		getTeamName := func(teamName string) string {
+			return teamName
+		}
+		if len(specs.Teams) == 1 && len(teamIDsByName) == 1 {
+			for key := range teamIDsByName {
+				if key != extractTeamName(specs.Teams[0]) {
+					getTeamName = func(teamName string) string {
+						return key
+					}
+				}
+			}
+		}
+
 		if len(tmFileContents) > 0 {
 			for tmName, profs := range tmFileContents {
-				teamID, ok := teamIDsByName[tmName]
+				// For non-dry run, currentTeamName and tmName are the same
+				currentTeamName := getTeamName(tmName)
+				teamID, ok := teamIDsByName[currentTeamName]
 				if opts.DryRun && (teamID == 0 || !ok) {
 					logfn("[+] would've applied MDM profiles for new team %s\n", tmName)
 				} else {
 					logfn("[+] applying MDM profiles for team %s\n", tmName)
-					if err := c.ApplyTeamProfiles(tmName, profs, teamOpts); err != nil {
+					if err := c.ApplyTeamProfiles(currentTeamName, profs, teamOpts); err != nil {
 						return nil, fmt.Errorf("applying custom settings for team %q: %w", tmName, err)
 					}
 				}
@@ -705,14 +724,18 @@ func (c *Client) ApplyGroup(
 		}
 		if len(tmScriptsPayloads) > 0 {
 			for tmName, scripts := range tmScriptsPayloads {
-				if err := c.ApplyTeamScripts(tmName, scripts, opts.ApplySpecOptions); err != nil {
+				// For non-dry run, currentTeamName and tmName are the same
+				currentTeamName := getTeamName(tmName)
+				if err := c.ApplyTeamScripts(currentTeamName, scripts, opts.ApplySpecOptions); err != nil {
 					return nil, fmt.Errorf("applying scripts for team %q: %w", tmName, err)
 				}
 			}
 		}
 		if len(tmSoftwarePayloads) > 0 {
 			for tmName, software := range tmSoftwarePayloads {
-				if err := c.ApplyTeamSoftwareInstallers(tmName, software, opts.ApplySpecOptions); err != nil {
+				// For non-dry run, currentTeamName and tmName are the same
+				currentTeamName := getTeamName(tmName)
+				if err := c.ApplyTeamSoftwareInstallers(currentTeamName, software, opts.ApplySpecOptions); err != nil {
 					return nil, fmt.Errorf("applying software installers for team %q: %w", tmName, err)
 				}
 			}
@@ -807,6 +830,18 @@ func extractAppCfgCustomSettings(appCfg interface{}, platformKey string) []fleet
 		return []fleet.MDMProfileSpec{}
 	}
 
+	extractLabelField := func(parentMap map[string]interface{}, fieldName string) []string {
+		var ret []string
+		if labels, ok := parentMap[fieldName].([]interface{}); ok {
+			for _, label := range labels {
+				if strLabel, ok := label.(string); ok {
+					ret = append(ret, strLabel)
+				}
+			}
+		}
+		return ret
+	}
+
 	csSpecs := make([]fleet.MDMProfileSpec, 0, len(csAny))
 	for _, v := range csAny {
 		if m, ok := v.(map[string]interface{}); ok {
@@ -817,14 +852,11 @@ func extractAppCfgCustomSettings(appCfg interface{}, platformKey string) []fleet
 				profSpec.Path = path
 			}
 
-			// extract the Labels field, labels are cleared if not provided
-			if labels, ok := m["labels"].([]interface{}); ok {
-				for _, label := range labels {
-					if strLabel, ok := label.(string); ok {
-						profSpec.Labels = append(profSpec.Labels, strLabel)
-					}
-				}
-			}
+			// at this stage we extract and return all supported label fields, the
+			// validations are done later on in the Fleet API endpoint.
+			profSpec.Labels = extractLabelField(m, "labels")
+			profSpec.LabelsIncludeAll = extractLabelField(m, "labels_include_all")
+			profSpec.LabelsExcludeAny = extractLabelField(m, "labels_exclude_any")
 
 			if profSpec.Path != "" {
 				csSpecs = append(csSpecs, profSpec)
@@ -878,6 +910,16 @@ func extractAppCfgScripts(appCfg interface{}) []string {
 type profileSpecsByPlatform struct {
 	macos   []fleet.MDMProfileSpec
 	windows []fleet.MDMProfileSpec
+}
+
+func extractTeamName(tmSpec json.RawMessage) string {
+	var s struct {
+		Name string `json:"name"`
+	}
+	if err := json.Unmarshal(tmSpec, &s); err != nil {
+		return ""
+	}
+	return norm.NFC.String(s.Name)
 }
 
 // returns the custom macOS and Windows settings keyed by team name.
@@ -1046,12 +1088,14 @@ func extractTmSpecsMacOSSetup(tmSpecs []json.RawMessage) map[string]*fleet.MacOS
 func (c *Client) DoGitOps(
 	ctx context.Context,
 	config *spec.GitOps,
-	baseDir string,
+	fullFilename string,
 	logf func(format string, args ...interface{}),
 	dryRun bool,
 	teamDryRunAssumptions *fleet.TeamSpecsDryRunAssumptions,
 	appConfig *fleet.EnrichedAppConfig,
 ) (*fleet.TeamSpecsDryRunAssumptions, error) {
+	baseDir := filepath.Dir(fullFilename)
+	filename := filepath.Base(fullFilename)
 	var teamAssumptions *fleet.TeamSpecsDryRunAssumptions
 	var err error
 	logFn := func(format string, args ...interface{}) {
@@ -1243,6 +1287,7 @@ func (c *Client) DoGitOps(
 		mdmAppConfig["enable_disk_encryption"] = false
 	}
 	if config.TeamName != nil {
+		team["gitops_filename"] = filename
 		rawTeam, err := json.Marshal(team)
 		if err != nil {
 			return nil, fmt.Errorf("error marshalling team spec: %w", err)
@@ -1262,15 +1307,20 @@ func (c *Client) DoGitOps(
 		return nil, err
 	}
 	if config.TeamName != nil {
+		if len(teamIDsByName) != 1 {
+			return nil, fmt.Errorf("expected 1 team spec to be applied, got %d", len(teamIDsByName))
+		}
 		teamID, ok := teamIDsByName[*config.TeamName]
-		if !ok || teamID == 0 {
+		if ok && teamID == 0 {
 			if dryRun {
 				logFn("[+] would've added any policies/queries to new team %s\n", *config.TeamName)
 				return nil, nil
 			}
 			return nil, fmt.Errorf("team %s not created", *config.TeamName)
 		}
-		config.TeamID = &teamID
+		for _, teamID = range teamIDsByName {
+			config.TeamID = &teamID
+		}
 	}
 
 	err = c.doGitOpsPolicies(config, logFn, dryRun)

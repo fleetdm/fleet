@@ -15,6 +15,8 @@ import (
 	"golang.org/x/text/unicode/norm"
 )
 
+const filenameMaxLength = 255
+
 func gitopsCommand() *cli.Command {
 	var (
 		flFilenames        cli.StringSlice
@@ -57,6 +59,9 @@ func gitopsCommand() *cli.Command {
 			for _, flFilename := range flFilenames.Value() {
 				if strings.TrimSpace(flFilename) == "" {
 					return errors.New("file name cannot be empty")
+				}
+				if len(filepath.Base(flFilename)) > filenameMaxLength {
+					return fmt.Errorf("file name must be less than %d characters: %s", filenameMaxLength, filepath.Base(flFilename))
 				}
 			}
 
@@ -120,7 +125,7 @@ func gitopsCommand() *cli.Command {
 						secrets[secret] = struct{}{}
 					}
 				}
-				assumptions, err := fleetClient.DoGitOps(c.Context, config, baseDir, logf, flDryRun, teamDryRunAssumptions, appConfig)
+				assumptions, err := fleetClient.DoGitOps(c.Context, config, flFilename, logf, flDryRun, teamDryRunAssumptions, appConfig)
 				if err != nil {
 					return err
 				}

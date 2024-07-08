@@ -5,51 +5,35 @@
 - [Server configuration](#server-configuration)
 - [Environment variables](#environment-variables)
 
-This document includes configuration files and settings that are helpful when developing or contributing to Fleet.
+This document includes Fleet server configuration settings that are helpful when developing or contributing to Fleet.
 
-Unlike the [configuration files documentation](https://fleetdm.com/docs/using-fleet/configuration-files), the files and settings in this document are not recommended for production use. Each setting includes the best practice for being successful in production.
-## Integrations
+Unlike the [fleetctl apply format](https://github.com/fleetdm/fleet/tree/main/docs/Contributing/fleetctl-apply.md), the files and settings in this document are not recommended for production use. Each setting includes the best practice for being successful in production.
 
-Integration settings in Fleet can be configured using the `integrations` section of the `config` YAML file. To see all settings in this file, check out the [configuration files documentation](https://fleetdm.com/docs/using-fleet/configuration-files#organization-settings).
+## Server configuration
 
-> **Warning:** Be careful not to store your integration credentials in source control. The best practice is to configure integrations [via the Fleet UI](https://fleetdm.com/docs/using-fleet/automations).
+##### s3_software_installers_disable_ssl
 
-### Jira
+AWS S3 Disable SSL. Useful for local testing.
 
-Jira integrations are configured under the `integrations.jira` field, which is an array of dictionaries.
-
-#### integrations.jira[].url
-
-This is the URL of the Jira server to use, including the scheme (e.g. "https://").
-
-- Required setting (string)
-- Default value: none
+- Default value: false
+- Environment variable: `FLEET_S3_SOFTWARE_INSTALLERS_DISABLE_SSL`
 - Config file format:
   ```yaml
-  integrations:
-    jira:
-      - url: "https://example.atlassian.net"
-        username: "user1"
-        api_token: "secret"
-        project_key: "PJ1"
+  s3:
+    software_installers_disable_ssl: false
   ```
 
-#### integrations.jira[].username
+##### s3_carves_disable_ssl
 
-Use this username to authenticate API requests with the Jira server.
-
-- Required setting (string)
-- Default value: none
+- Default value: false
+- Environment variable: `FLEET_S3_CARVES_DISABLE_SSL`
 - Config file format:
   ```yaml
-  integrations:
-    jira:
-      - url: "https://example.atlassian.net"
-        username: "user1"
-        api_token: "secret"
-        project_key: "PJ1"
+  s3:
+    carves_disable_ssl: false
   ```
 
+<<<<<<< HEAD
 #### integrations.jira[].api_token
 
 Use this API token to authenticate API requests with the Jira server.
@@ -387,6 +371,8 @@ AWS S3 Disable SSL. Useful for local testing.
     carves_disable_ssl: false
   ```
 
+=======
+>>>>>>> 6f3d0fa3fb52ed920228404e47c3644c63929e3b
 ##### mdm.apple_apns_cert_bytes
 
 The content of the Apple Push Notification service (APNs) certificate. An X.509 certificate, PEM-encoded. Typically generated via `fleetctl generate mdm-apple`.

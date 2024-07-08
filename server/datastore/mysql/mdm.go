@@ -125,7 +125,6 @@ func (ds *Datastore) ListMDMConfigProfiles(ctx context.Context, teamID *uint, op
 
 	var profs []*fleet.MDMConfigProfilePayload
 
-	// TODO(roberto): Consider using UNION ALL here, as we know there won't be any duplicates between the tables.
 	const selectStmt = `
 SELECT
 	profile_uuid,
@@ -152,7 +151,7 @@ FROM (
 		team_id = ? AND
 		identifier NOT IN (?)
 
-	UNION
+	UNION ALL
 
 	SELECT
 		profile_uuid,
@@ -169,7 +168,7 @@ FROM (
 		team_id = ? AND
 		name NOT IN (?)
 
-	UNION
+	UNION ALL
 
 	SELECT
 		declaration_uuid AS profile_uuid,
@@ -249,7 +248,11 @@ FROM (
 	}
 	for _, label := range labels {
 		if prof, ok := profMap[label.ProfileUUID]; ok {
-			prof.Labels = append(prof.Labels, label)
+			if label.Exclude {
+				prof.LabelsExcludeAny = append(prof.LabelsExcludeAny, label)
+			} else {
+				prof.LabelsIncludeAll = append(prof.LabelsIncludeAll, label)
+			}
 		}
 	}
 
@@ -263,7 +266,8 @@ SELECT
 	COALESCE(apple_profile_uuid, windows_profile_uuid) as profile_uuid,
 	label_name,
 	COALESCE(label_id, 0) as label_id,
-	IF(label_id IS NULL, 1, 0) as broken
+	IF(label_id IS NULL, 1, 0) as broken,
+	exclude
 FROM
 	mdm_configuration_profile_labels mcpl
 WHERE
@@ -274,7 +278,8 @@ SELECT
 	apple_declaration_uuid as profile_uuid,
 	label_name,
 	COALESCE(label_id, 0) as label_id,
-	IF(label_id IS NULL, 1, 0) as broken
+	IF(label_id IS NULL, 1, 0) as broken,
+	exclude
 FROM
 	mdm_declaration_labels mdl
 WHERE
@@ -282,7 +287,6 @@ WHERE
 ORDER BY
 	profile_uuid, label_name
 `
-
 	// ensure there's at least one (non-matching) value in the slice so the IN
 	// clause is valid
 	if len(winProfUUIDs) == 0 {
@@ -678,49 +682,83 @@ func (ds *Datastore) GetHostMDMProfilesExpectedForVerification(ctx context.Conte
 
 func (ds *Datastore) getHostMDMWindowsProfilesExpectedForVerification(ctx context.Context, teamID, hostID uint) (map[string]*fleet.ExpectedMDMProfile, error) {
 	stmt := `
+-- profiles without labels
 SELECT
 	name,
 	syncml AS raw_profile,
 	min(mwcp.uploaded_at) AS earliest_install_date,
 	0 AS count_profile_labels,
+	0 AS count_non_broken_labels,
 	0 AS count_host_labels
 FROM
 	mdm_windows_configuration_profiles mwcp
 WHERE
-	mwcp.team_id = ?
-	AND NOT EXISTS (
+	mwcp.team_id = ? AND
+	NOT EXISTS (
 		SELECT
 			1
 		FROM
 			mdm_configuration_profile_labels mcpl
 		WHERE
-			mcpl.apple_profile_uuid = mwcp.profile_uuid)
-GROUP BY  name, syncml
-	UNION
-	SELECT
-		name,
-		syncml AS raw_profile,
-		min(mwcp.uploaded_at) AS earliest_install_date,
-		COUNT(*) AS count_profile_labels,
-		COUNT(lm.label_id) AS count_host_labels
-	FROM
-		mdm_windows_configuration_profiles mwcp
-		JOIN mdm_configuration_profile_labels mcpl ON mcpl.windows_profile_uuid = mwcp.profile_uuid
-		LEFT OUTER JOIN label_membership lm ON lm.label_id = mcpl.label_id
-			AND lm.host_id = ?
-	WHERE
-		mwcp.team_id = ?
-	GROUP BY
-		name, syncml
-	HAVING
-		count_profile_labels > 0
-		AND count_host_labels = count_profile_labels
+			mcpl.windows_profile_uuid = mwcp.profile_uuid
+	)
+GROUP BY name, syncml
 
-  `
+UNION
 
+-- label-based profiles where the host is a member of all the labels (include-all).
+-- by design, "include" labels cannot match if they are broken (the host cannot be
+-- a member of a deleted label).
+SELECT
+	name,
+	syncml AS raw_profile,
+	min(mwcp.uploaded_at) AS earliest_install_date,
+	COUNT(*) AS count_profile_labels,
+	COUNT(mcpl.label_id) as count_non_broken_labels,
+	COUNT(lm.label_id) AS count_host_labels
+FROM
+	mdm_windows_configuration_profiles mwcp
+	JOIN mdm_configuration_profile_labels mcpl
+		ON mcpl.windows_profile_uuid = mwcp.profile_uuid AND mcpl.exclude = 0
+	LEFT OUTER JOIN label_membership lm
+		ON lm.label_id = mcpl.label_id AND lm.host_id = ?
+WHERE
+	mwcp.team_id = ?
+GROUP BY
+	name, syncml
+HAVING
+	count_profile_labels > 0 AND
+	count_host_labels = count_profile_labels
+
+UNION
+
+-- label-based entities where the host is NOT a member of any of the labels (exclude-any).
+-- explicitly ignore profiles with broken excluded labels so that they are never applied.
+SELECT
+	name,
+	syncml AS raw_profile,
+	min(mwcp.uploaded_at) AS earliest_install_date,
+	COUNT(*) AS count_profile_labels,
+	COUNT(mcpl.label_id) as count_non_broken_labels,
+	COUNT(lm.label_id) AS count_host_labels
+FROM
+	mdm_windows_configuration_profiles mwcp
+	JOIN mdm_configuration_profile_labels mcpl
+		ON mcpl.windows_profile_uuid = mwcp.profile_uuid AND mcpl.exclude = 1
+	LEFT OUTER JOIN label_membership lm
+		ON lm.label_id = mcpl.label_id AND lm.host_id = ?
+WHERE
+	mwcp.team_id = ?
+GROUP BY
+	name, syncml
+HAVING
+	-- considers only the profiles with labels, without any broken label, and with the host not in any label
+	count_profile_labels > 0 AND
+	count_profile_labels = count_non_broken_labels AND
+	count_host_labels = 0
+`
 	var profiles []*fleet.ExpectedMDMProfile
-	// Note: teamID provided twice
-	err := sqlx.SelectContext(ctx, ds.reader(ctx), &profiles, stmt, teamID, hostID, teamID)
+	err := sqlx.SelectContext(ctx, ds.reader(ctx), &profiles, stmt, teamID, hostID, teamID, hostID, teamID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "running query for windows profiles")
 	}
@@ -735,9 +773,11 @@ GROUP BY  name, syncml
 
 func (ds *Datastore) getHostMDMAppleProfilesExpectedForVerification(ctx context.Context, teamID, hostID uint) (map[string]*fleet.ExpectedMDMProfile, error) {
 	stmt := `
+-- profiles without labels
 SELECT
 	macp.identifier AS identifier,
 	0 AS count_profile_labels,
+	0 AS count_non_broken_labels,
 	0 AS count_host_labels,
 	earliest_install_date
 FROM
@@ -748,49 +788,89 @@ FROM
 			min(uploaded_at) AS earliest_install_date
 		FROM
 			mdm_apple_configuration_profiles
-		GROUP BY
-			checksum) cs ON macp.checksum = cs.checksum
+		GROUP BY checksum
+	) cs ON macp.checksum = cs.checksum
 WHERE
-	macp.team_id = ?
-	AND NOT EXISTS (
+	macp.team_id = ? AND 
+	NOT EXISTS (
 		SELECT
 			1
 		FROM
 			mdm_configuration_profile_labels mcpl
 		WHERE
-			mcpl.apple_profile_uuid = macp.profile_uuid)
-	UNION
-	-- label-based profiles where the host is a member of all the labels
-	SELECT
-		macp.identifier AS identifier,
-		COUNT(*) AS count_profile_labels,
-		COUNT(lm.label_id) AS count_host_labels,
-		min(earliest_install_date) AS earliest_install_date
-	FROM
-		mdm_apple_configuration_profiles macp
-		JOIN (
-			SELECT
-				checksum,
-				min(uploaded_at) AS earliest_install_date
-			FROM
-				mdm_apple_configuration_profiles
-			GROUP BY
-				checksum) cs ON macp.checksum = cs.checksum
-		JOIN mdm_configuration_profile_labels mcpl ON mcpl.apple_profile_uuid = macp.profile_uuid
-		LEFT OUTER JOIN label_membership lm ON lm.label_id = mcpl.label_id
-			AND lm.host_id = ?
-	WHERE
-		macp.team_id = ?
-	GROUP BY
-		identifier
-	HAVING
-		count_profile_labels > 0
-		AND count_host_labels = count_profile_labels
-	`
+			mcpl.apple_profile_uuid = macp.profile_uuid
+	)
+
+UNION
+
+-- label-based profiles where the host is a member of all the labels (include-all)
+-- by design, "include" labels cannot match if they are broken (the host cannot be
+-- a member of a deleted label).
+SELECT
+	macp.identifier AS identifier,
+	COUNT(*) AS count_profile_labels,
+	COUNT(mcpl.label_id) AS count_non_broken_labels,
+	COUNT(lm.label_id) AS count_host_labels,
+	min(earliest_install_date) AS earliest_install_date
+FROM
+	mdm_apple_configuration_profiles macp
+	JOIN (
+		SELECT
+			checksum,
+			min(uploaded_at) AS earliest_install_date
+		FROM
+			mdm_apple_configuration_profiles
+		GROUP BY checksum
+	) cs ON macp.checksum = cs.checksum
+	JOIN mdm_configuration_profile_labels mcpl 
+		ON mcpl.apple_profile_uuid = macp.profile_uuid AND mcpl.exclude = 0
+	LEFT OUTER JOIN label_membership lm 
+		ON lm.label_id = mcpl.label_id AND lm.host_id = ?
+WHERE
+	macp.team_id = ?
+GROUP BY
+	identifier
+HAVING
+	count_profile_labels > 0 AND 
+	count_host_labels = count_profile_labels
+
+UNION
+
+-- label-based entities where the host is NOT a member of any of the labels (exclude-any).
+-- explicitly ignore profiles with broken excluded labels so that they are never applied.
+SELECT
+	macp.identifier AS identifier,
+	COUNT(*) AS count_profile_labels,
+	COUNT(mcpl.label_id) AS count_non_broken_labels,
+	COUNT(lm.label_id) AS count_host_labels,
+	min(earliest_install_date) AS earliest_install_date
+FROM
+	mdm_apple_configuration_profiles macp
+	JOIN (
+		SELECT
+			checksum,
+			min(uploaded_at) AS earliest_install_date
+		FROM
+			mdm_apple_configuration_profiles
+		GROUP BY checksum
+	) cs ON macp.checksum = cs.checksum
+	JOIN mdm_configuration_profile_labels mcpl 
+		ON mcpl.apple_profile_uuid = macp.profile_uuid AND mcpl.exclude = 1
+	LEFT OUTER JOIN label_membership lm 
+		ON lm.label_id = mcpl.label_id AND lm.host_id = ?
+WHERE
+	macp.team_id = ?
+GROUP BY
+	identifier
+HAVING
+	-- considers only the profiles with labels, without any broken label, and with the host not in any label
+	count_profile_labels > 0 AND 
+	count_profile_labels = count_non_broken_labels AND
+	count_host_labels = 0
+`
 
 	var rows []*fleet.ExpectedMDMProfile
-	// Note: teamID provided twice
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, stmt, teamID, hostID, teamID); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, stmt, teamID, hostID, teamID, hostID, teamID); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, fmt.Sprintf("getting expected profiles for host in team %d", teamID))
 	}
 
@@ -915,11 +995,12 @@ func batchSetProfileLabelAssociationsDB(
 
 	upsertStmt := `
 	  INSERT INTO mdm_configuration_profile_labels
-              (%s_profile_uuid, label_id, label_name)
+              (%s_profile_uuid, label_id, label_name, exclude)
           VALUES
               %s
           ON DUPLICATE KEY UPDATE
-              label_id = VALUES(label_id)
+              label_id = VALUES(label_id),
+              exclude = VALUES(exclude)
 	`
 
 	var (
@@ -935,9 +1016,9 @@ func batchSetProfileLabelAssociationsDB(
 			insertBuilder.WriteString(",")
 			deleteBuilder.WriteString(",")
 		}
-		insertBuilder.WriteString("(?, ?, ?)")
+		insertBuilder.WriteString("(?, ?, ?, ?)")
 		deleteBuilder.WriteString("(?, ?)")
-		insertParams = append(insertParams, pl.ProfileUUID, pl.LabelID, pl.LabelName)
+		insertParams = append(insertParams, pl.ProfileUUID, pl.LabelID, pl.LabelName, pl.Exclude)
 		deleteParams = append(deleteParams, pl.ProfileUUID, pl.LabelID)
 
 		setProfileUUIDs[pl.ProfileUUID] = struct{}{}
@@ -1042,9 +1123,10 @@ func (ds *Datastore) GetHostCertAssociationsToExpire(ctx context.Context, expiry
 SELECT
     h.uuid AS host_uuid,
     ncaa.sha256 AS sha256,
-    COALESCE(MAX(hm.fleet_enroll_ref), '') AS enroll_reference
+    COALESCE(MAX(hm.fleet_enroll_ref), '') AS enroll_reference,
+    ne.enrolled_from_migration
 FROM (
-    -- grab only the latest certificate associated with this device 
+    -- grab only the latest certificate associated with this device
     SELECT
         n1.id,
 	n1.sha256,
@@ -1070,9 +1152,12 @@ JOIN
     hosts h ON h.uuid = ncaa.id
 LEFT JOIN
     host_mdm hm ON hm.host_id = h.id
+LEFT JOIN
+    nano_enrollments ne ON ne.id = ncaa.id
 WHERE
     ncaa.cert_not_valid_after BETWEEN '0000-00-00' AND DATE_ADD(CURDATE(), INTERVAL ? DAY)
     AND ncaa.renew_command_uuid IS NULL
+    AND ne.enabled = 1
 GROUP BY
     host_uuid, ncaa.sha256, ncaa.cert_not_valid_after
 ORDER BY
@@ -1158,14 +1243,14 @@ func (ds *Datastore) GetHostMDMProfileInstallStatus(ctx context.Context, hostUUI
 	}
 
 	selectStmt := fmt.Sprintf(`
-SELECT	
+SELECT
 	COALESCE(status, ?) as status
 	FROM
 	%s
 WHERE
 	operation_type = ?
 	AND host_uuid = ?
-	AND %s = ? 
+	AND %s = ?
 `, table, column)
 
 	var status fleet.MDMDeliveryStatus

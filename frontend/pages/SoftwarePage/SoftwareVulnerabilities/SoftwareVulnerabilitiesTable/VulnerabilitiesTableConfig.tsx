@@ -144,6 +144,7 @@ const generateTableHeaders = (
                 This data is reported by FIRST.org.
               </>
             }
+            fixedPositionStrategy
           >
             Probability of exploit
           </TooltipWrapper>
