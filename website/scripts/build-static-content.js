@@ -282,8 +282,9 @@ module.exports = {
                 }
                 let referencedPageNewUrl = 'https://fleetdm.com/' + (
                   (path.relative(topLvlRepoPath, referencedPageSourcePath).replace(/(^|\/)([^/]+)\.[^/]*$/, '$1$2').split(/\//)
-                  .map((fileOrFolderName) => fileOrFolderName.toLowerCase().replace(/%20/g, '-')).join('/'))// « Replaces url-encoded spaces with dashes to support relative links to folders with spaces on Github.com and the Fleet website.
-                  .split(/\//).map((fileOrFolderName) => encodeURIComponent(fileOrFolderName.replace(/^[0-9]+[\-]+/,''))).join('/')
+                  .map((fileOrFolderNameWithPossibleUrlEncodedSpaces) => fileOrFolderNameWithPossibleUrlEncodedSpaces.toLowerCase().replace(/%20/g, '-'))// « Replaces url-encoded spaces with dashes to support relative links to folders with spaces on Github.com and the Fleet website.
+                  .map((fileOrFolderNameWithPossibleSpaces) => fileOrFolderNameWithPossibleSpaces.toLowerCase().replace(/\s/g, '-')).join('/'))// « Replaces spaces in folder names with dashes to support relative links to folders with spaces on Fleet website.
+                  .split(/\//).map((fileOrFolderNameWithNoSpaces) => encodeURIComponent(fileOrFolderNameWithNoSpaces.replace(/^[0-9]+[\-]+/,''))).join('/')
                 ).replace(RX_README_FILENAME, '');
                 if(possibleReferencedUrlHash) {
                   referencedPageNewUrl = referencedPageNewUrl + '#' + encodeURIComponent(possibleReferencedUrlHash);

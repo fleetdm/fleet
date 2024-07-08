@@ -1,13 +1,17 @@
 import React from "react";
 
-import { OsqueryPlatform } from "interfaces/platform";
+import {
+  DisplayPlatform,
+  QueryableDisplayPlatform,
+  QueryablePlatform,
+} from "interfaces/platform";
 import { PLATFORM_DISPLAY_NAMES } from "utilities/constants";
 
 import TooltipWrapper from "components/TooltipWrapper";
 import Icon from "components/Icon";
 
 interface IPlatformCompatibilityProps {
-  compatiblePlatforms: OsqueryPlatform[] | null;
+  compatiblePlatforms: any[] | null;
   error: Error | null;
 }
 
@@ -18,13 +22,13 @@ const DISPLAY_ORDER = [
   "Windows",
   "Linux",
   "ChromeOS",
-] as OsqueryPlatform[];
+] as QueryableDisplayPlatform[];
 
 const ERROR_NO_COMPATIBLE_TABLES = Error("no tables in query");
 
 const formatPlatformsForDisplay = (
-  compatiblePlatforms: OsqueryPlatform[]
-): OsqueryPlatform[] => {
+  compatiblePlatforms: QueryablePlatform[]
+): DisplayPlatform[] => {
   return compatiblePlatforms.map((str) => PLATFORM_DISPLAY_NAMES[str] || str);
 };
 
@@ -83,8 +87,9 @@ const PlatformCompatibility = ({
         <TooltipWrapper
           tipContent={
             <>
-              Estimated compatiblity based on <br /> the tables used in the
-              query.
+              Estimated compatibility based on the <br />
+              tables used in the query. Querying <br />
+              iPhones & iPads is not supported.
             </>
           }
         >
