@@ -203,10 +203,9 @@ func do[T any](req *http.Request, token string, dest *T) error {
 	if resp.StatusCode != http.StatusOK {
 		// use an io.LimitedReader to read only a limited amount of the
 		// response body for logging purposes
-		limitedReader := io.LimitedReader{R: bytes.NewReader(body), N: 1024}
-		limitedBody, err := io.ReadAll(&limitedReader)
-		if err != nil {
-			return fmt.Errorf("calling Apple VPP endpoint failed with status %d: (unable to read limited response body: %w)", resp.StatusCode, err)
+		limitedBody := body
+		if len(limitedBody) > 1000 {
+			limitedBody = limitedBody[:1000]
 		}
 		return fmt.Errorf("calling Apple VPP endpoint failed with status %d: %s", resp.StatusCode, string(limitedBody))
 	}
