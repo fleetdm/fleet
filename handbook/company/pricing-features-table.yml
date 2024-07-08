@@ -139,7 +139,7 @@
   documentationUrl: https://fleetdm.com/docs/rest-api/rest-api#get-hosts-google-chrome-profiles
   screenshotSrc:
   tier: Free
-  jamfProHasFeature: no
+  jamfProHasFeature: yes
   jamfProtectHasFeature: yes
   productCategories: [Endpoint operations]
   pricingTableCategories: [Endpoint operations]
