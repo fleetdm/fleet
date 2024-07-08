@@ -344,7 +344,7 @@ func packageCommand() *cli.Command {
 
 			linuxPackage := false
 			switch c.String("type") {
-			case "msi", "deb", "rpm":
+			case "deb", "rpm":
 				linuxPackage = true
 			}
 
