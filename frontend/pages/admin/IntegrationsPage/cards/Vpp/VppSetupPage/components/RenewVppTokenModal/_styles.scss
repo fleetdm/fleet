@@ -1,5 +1,15 @@
 .renew-vpp-token-modal {
   &__file-uploader {
     margin-top: $pad-medium;
+
+    button {
+      margin-top: 0;
+    }
+
+    &--loading {
+      label {
+        opacity: 0.5;
+      }
+    }
   }
 }

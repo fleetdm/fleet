@@ -32,10 +32,10 @@ const VPPSetupContent = ({ router }: IVppSetupContentProps) => {
   const { renderFlash } = useContext(NotificationContext);
   const [isUploading, setIsUploading] = useState(false);
 
-  const uploadToken = async (data: FileList | null) => {
+  const uploadToken = async (files: FileList | null) => {
     setIsUploading(true);
 
-    const token = data?.[0];
+    const token = files?.[0];
     if (!token) {
       setIsUploading(false);
       renderFlash("error", "No token selected.");

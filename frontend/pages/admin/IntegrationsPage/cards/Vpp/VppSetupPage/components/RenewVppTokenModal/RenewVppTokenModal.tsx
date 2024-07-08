@@ -1,5 +1,11 @@
-import React, { useState } from "react";
+import React, { useContext, useState } from "react";
+import { InjectedRouter } from "react-router";
 
+import mdmAppleAPI from "services/entities/mdm_apple";
+import { NotificationContext } from "context/notification";
+import { getErrorReason } from "interfaces/errors";
+
+import PATHS from "router/paths";
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import FileUploader from "components/FileUploader";
@@ -11,10 +17,12 @@ const baseClass = "renew-vpp-token-modal";
 
 interface IRenewVppTokenModalProps {
   onExit: () => void;
+  router: InjectedRouter;
 }
 
-const RenewVppTokenModal = ({ onExit }: IRenewVppTokenModalProps) => {
-  const [isRenewing, setIsRenewing] = useState(false);
+const RenewVppTokenModal = ({ onExit, router }: IRenewVppTokenModalProps) => {
+  const { renderFlash } = useContext(NotificationContext);
+  const [isUploading, setIsUploading] = useState(false);
 
   const [tokenFile, setTokenFile] = useState<File | null>(null);
 
@@ -25,8 +33,33 @@ const RenewVppTokenModal = ({ onExit }: IRenewVppTokenModalProps) => {
     }
   };
 
-  const onRenewToken = () => {
-    // TODO: API integration
+  const onRenewToken = async (files: FileList | null) => {
+    setIsUploading(true);
+
+    const token = files?.[0];
+    if (!token) {
+      setIsUploading(false);
+      renderFlash("error", "No token selected.");
+      return;
+    }
+
+    try {
+      await mdmAppleAPI.uploadVppToken(token);
+      renderFlash(
+        "success",
+        "Volume Purchasing Program (VPP) integration enabled successfully."
+      );
+      router.push(PATHS.ADMIN_INTEGRATIONS_VPP);
+    } catch (e) {
+      const msg = getErrorReason(e, { reasonIncludes: "valid token" });
+      if (msg) {
+        renderFlash("error", msg);
+      } else {
+        renderFlash("error", "Couldn't Upload. Please try again.");
+      }
+    }
+    onExit();
+    setIsUploading(false);
   };
 
   return (
@@ -39,6 +72,7 @@ const RenewVppTokenModal = ({ onExit }: IRenewVppTokenModalProps) => {
           message="Content token (.vpptoken)"
           graphicName="file-vpp"
           buttonType="link"
+          buttonMessage={isUploading ? "Uploading..." : "Upload"}
           filePreview={
             tokenFile && (
               <FileDetails
@@ -53,7 +87,7 @@ const RenewVppTokenModal = ({ onExit }: IRenewVppTokenModalProps) => {
           <Button
             variant="brand"
             onClick={onRenewToken}
-            isLoading={isRenewing}
+            isLoading={isUploading}
             disabled={!tokenFile}
           >
             Renew token
