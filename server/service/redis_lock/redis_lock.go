@@ -2,10 +2,12 @@ package redis_lock
 
 import (
 	"context"
-	"fmt"
+	"errors"
+
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	redigo "github.com/gomodule/redigo/redis"
 )
 
 // This package implements a distributed lock using Redis. The lock can be used
@@ -37,16 +39,10 @@ func (r *redisLock) AcquireLock(ctx context.Context, name string, value string, 
 
 	// Reference: https://redis.io/docs/latest/commands/set/
 	// NX -- Only set the key if it does not already exist.
-	res, err := conn.Do("SET", r.testPrefix+name, value, "NX", "PX", expireMs)
-	if err != nil {
+	result, err = redigo.String(conn.Do("SET", r.testPrefix+name, value, "NX", "PX", expireMs))
+	if err != nil && !errors.Is(err, redigo.ErrNil) {
 		return "", ctxerr.Wrap(ctx, err, "redis acquire lock")
 	}
-	var ok bool
-	result, ok = res.(string)
-	if !ok {
-		return "", nil
-	}
-
 	return result, nil
 }
 
@@ -64,17 +60,11 @@ func (r *redisLock) ReleaseLock(ctx context.Context, name string, value string) 
 
 	// Reference: https://redis.io/docs/latest/commands/set/
 	// Only release the lock if the value matches.
-	res, err := conn.Do("EVAL", unlockScript, 1, r.testPrefix+name, value)
-	if err != nil {
+	res, err := redigo.Int64(conn.Do("EVAL", unlockScript, 1, r.testPrefix+name, value))
+	if err != nil && !errors.Is(err, redigo.ErrNil) {
 		return false, ctxerr.Wrap(ctx, err, "redis release lock")
 	}
-	var result int64
-	var castOk bool
-	if result, castOk = res.(int64); !castOk {
-		return false, nil
-	}
-
-	return result > 0, nil
+	return res > 0, nil
 }
 
 func (r *redisLock) AddToSet(ctx context.Context, key string, value string) error {
@@ -106,17 +96,9 @@ func (r *redisLock) GetSet(ctx context.Context, key string) ([]string, error) {
 	defer conn.Close()
 
 	// Reference: https://redis.io/docs/latest/commands/smembers/
-	raw, err := conn.Do("SMEMBERS", r.testPrefix+key)
+	members, err := redigo.Strings(conn.Do("SMEMBERS", r.testPrefix+key))
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "redis get set")
-	}
-	rawMembers, ok := raw.([]interface{})
-	if !ok {
-		return nil, ctxerr.Errorf(ctx, "redis get set: unexpected result type %T", raw)
-	}
-	var members []string
-	for _, member := range rawMembers {
-		members = append(members, fmt.Sprintf("%s", member))
+		return nil, ctxerr.Wrap(ctx, err, "redis get set members")
 	}
 	return members, nil
 }
@@ -125,15 +107,12 @@ func (r *redisLock) Get(ctx context.Context, name string) (*string, error) {
 	conn := redis.ConfigureDoer(r.pool, r.pool.Get())
 	defer conn.Close()
 
-	res, err := conn.Do("GET", r.testPrefix+name)
+	res, err := redigo.String(conn.Do("GET", r.testPrefix+name))
+	if errors.Is(err, redigo.ErrNil) {
+		return nil, nil
+	}
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "redis get")
 	}
-
-	if res == nil {
-		return nil, nil
-	}
-
-	result := fmt.Sprintf("%s", res)
-	return &result, nil
+	return &res, nil
 }

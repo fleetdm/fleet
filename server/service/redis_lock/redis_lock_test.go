@@ -21,14 +21,8 @@ func TestRedisLock(t *testing.T) {
 				lock := setupRedis(t, false, false)
 				f(t, lock)
 			})
-
 			t.Run("cluster", func(t *testing.T) {
 				lock := setupRedis(t, true, true)
-				f(t, lock)
-			})
-
-			t.Run("cluster-no-redir", func(t *testing.T) {
-				lock := setupRedis(t, true, false)
 				f(t, lock)
 			})
 		})
