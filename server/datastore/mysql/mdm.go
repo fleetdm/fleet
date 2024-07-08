@@ -1342,7 +1342,6 @@ func (ds *Datastore) AreHostsConnectedToFleetMDM(ctx context.Context, hosts []*f
 	}
 
 	return res, nil
-
 }
 
 func (ds *Datastore) IsHostConnectedToFleetMDM(ctx context.Context, host *fleet.Host) (bool, error) {
