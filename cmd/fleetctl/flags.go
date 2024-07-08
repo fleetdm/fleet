@@ -61,13 +61,13 @@ func getStdout(c *cli.Context) bool {
 func byHostIdentifier() cli.Flag {
 	return &cli.StringFlag{
 		Name:  "host",
-		Usage: "The host identifier to operate on",
+		Usage: "Filter MDM commands by host specified by hostname, UUID, or serial number.",
 	}
 }
 
 func byMDMCommandRequestType() cli.Flag {
 	return &cli.StringFlag{
 		Name:  "type",
-		Usage: "The type of MDM command to operate on",
+		Usage: "Filter MDM commands by type.",
 	}
 }

@@ -1,2 +1,1 @@
-- `fleetctl get mdm_commands` now returns 20 rows, supports a `--host-identifier` filter, and
-  pagination using `--page` to improve response time
+- `fleetctl get mdm_commands` now returns 20 rows and supports `--host` `--type` filters to improve response time
