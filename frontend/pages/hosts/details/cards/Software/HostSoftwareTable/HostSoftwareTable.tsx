@@ -12,11 +12,26 @@ import Dropdown from "components/forms/fields/Dropdown";
 
 import EmptySoftwareTable from "pages/SoftwarePage/components/EmptySoftwareTable";
 import TableCount from "components/TableContainer/TableCount";
-import { VULNERABLE_DROPDOWN_OPTIONS } from "utilities/constants";
 
 const DEFAULT_PAGE_SIZE = 20;
 
 const baseClass = "host-software-table";
+
+export const VULNERABLE_DROPDOWN_OPTIONS = [
+  {
+    disabled: false,
+    label: "All software",
+    value: false,
+    helpText: "All software installed on your hosts.",
+  },
+  {
+    disabled: false,
+    label: "Vulnerable software",
+    value: true,
+    helpText:
+      "All software installed on your hosts with detected vulnerabilities.",
+  },
+] as const;
 
 interface IHostSoftwareTableProps {
   tableConfig: any; // TODO: type
@@ -47,23 +62,25 @@ const HostSoftwareTable = ({
   pathPrefix,
   vulnerable,
 }: IHostSoftwareTableProps) => {
-  const handleVulnFilterDropdownChange = (isFilterVulnerable: boolean) => {
-    const nextPath = getNextLocationPath({
-      pathPrefix,
-      routeTemplate,
-      queryParams: {
-        query: searchQuery,
-        order_key: sortHeader,
-        order_direction: sortDirection,
-        page: 0,
-        vulnerable: isFilterVulnerable.toString(),
-      },
-    });
-    console.log("path generated: ", nextPath, isFilterVulnerable);
-    router?.replace(nextPath);
-  };
+  const handleVulnFilterDropdownChange = useCallback(
+    (isFilterVulnerable: boolean) => {
+      const nextPath = getNextLocationPath({
+        pathPrefix,
+        routeTemplate,
+        queryParams: {
+          query: searchQuery,
+          order_key: sortHeader,
+          order_direction: sortDirection,
+          page: 0,
+          vulnerable: isFilterVulnerable.toString(),
+        },
+      });
+      router.replace(nextPath);
+    },
+    [pathPrefix, routeTemplate, router, searchQuery, sortDirection, sortHeader]
+  );
 
-  const renderVulnFilterDropdown = () => {
+  const memoizedVulnFilterDropdown = useCallback(() => {
     return (
       <Dropdown
         value={vulnerable}
@@ -74,7 +91,7 @@ const HostSoftwareTable = ({
         tableFilterDropdown
       />
     );
-  };
+  }, [handleVulnFilterDropdownChange, vulnerable]);
   const determineQueryParamChange = useCallback(
     (newTableQuery: ITableQueryData) => {
       const changedEntry = Object.entries(newTableQuery).find(([key, val]) => {
@@ -174,7 +191,7 @@ const HostSoftwareTable = ({
         inputPlaceHolder="Search by name"
         onQueryChange={onQueryChange}
         emptyComponent={memoizedEmptyComponent}
-        customControl={renderVulnFilterDropdown}
+        customControl={memoizedVulnFilterDropdown}
         showMarkAllPages={false}
         isAllPagesSelected={false}
         searchable
