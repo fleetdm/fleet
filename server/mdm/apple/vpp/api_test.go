@@ -20,11 +20,11 @@ func setupFakeServer(t *testing.T, handler http.HandlerFunc) {
 
 func TestGetConfig(t *testing.T) {
 	tests := []struct {
-		name      string
-		token     string
-		handler   http.HandlerFunc
-		wantName  string
-		expectErr bool
+		name           string
+		token          string
+		handler        http.HandlerFunc
+		wantName       string
+		expectedErrMsg string
 	}{
 		{
 			name:  "valid token",
@@ -33,8 +33,8 @@ func TestGetConfig(t *testing.T) {
 				w.WriteHeader(http.StatusOK)
 				fmt.Fprintln(w, `{"locationName": "Test Location"}`)
 			},
-			wantName:  "Test Location",
-			expectErr: false,
+			wantName:       "Test Location",
+			expectedErrMsg: "",
 		},
 		{
 			name:  "invalid token",
@@ -43,17 +43,18 @@ func TestGetConfig(t *testing.T) {
 				w.WriteHeader(http.StatusUnauthorized)
 				fmt.Fprintln(w, `{"errorNumber": 9622}`)
 			},
-			wantName:  "",
-			expectErr: true,
+			wantName:       "",
+			expectedErrMsg: "making request to Apple VPP endpoint: Apple VPP endpoint returned error:  (error number: 9622)",
 		},
 		{
 			name:  "server error",
 			token: "valid_token",
 			handler: func(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(http.StatusInternalServerError)
+				fmt.Fprintln(w, `Internal Server Error`)
 			},
-			wantName:  "",
-			expectErr: true,
+			wantName:       "",
+			expectedErrMsg: "calling Apple VPP endpoint failed with status 500: Internal Server Error\n",
 		},
 	}
 
@@ -62,8 +63,9 @@ func TestGetConfig(t *testing.T) {
 			setupFakeServer(t, tt.handler)
 
 			name, err := GetConfig(tt.token)
-			if tt.expectErr {
+			if tt.expectedErrMsg != "" {
 				require.Error(t, err)
+				require.Contains(t, err.Error(), tt.expectedErrMsg)
 			} else {
 				require.NoError(t, err)
 			}
@@ -78,7 +80,6 @@ func TestAssociateAssets(t *testing.T) {
 		token          string
 		params         *AssociateAssetsRequest
 		handler        http.HandlerFunc
-		expectErr      bool
 		expectedErrMsg string
 	}{
 		{
@@ -105,35 +106,31 @@ func TestAssociateAssets(t *testing.T) {
 
 				w.WriteHeader(http.StatusOK)
 			},
-			expectErr: false,
+			expectedErrMsg: "",
 		},
 		{
 			name:  "server error",
 			token: "valid_token",
 			params: &AssociateAssetsRequest{
 				Assets:        []Asset{{AdamID: "12345", PricingParam: "STDQ"}},
-				SerialNumbers: []string{"SN12345"},
-			},
+				SerialNumbers: []string{"SN12345"}},
 			handler: func(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(http.StatusInternalServerError)
-				fmt.Fprintln(w, `{"errorInfo":{},"errorMessage":"Internal Server Error","errorNumber":500}`)
+				fmt.Fprintln(w, `Internal Server Error`)
 			},
-			expectErr:      true,
-			expectedErrMsg: "Apple VPP endpoint returned error: Internal Server Error (error number: 500)",
+			expectedErrMsg: "calling Apple VPP endpoint failed with status 500: Internal Server Error\n",
 		},
 		{
 			name:  "client error",
 			token: "valid_token",
 			params: &AssociateAssetsRequest{
 				Assets:        []Asset{{AdamID: "12345", PricingParam: "STDQ"}},
-				SerialNumbers: []string{"SN12345"},
-			},
+				SerialNumbers: []string{"SN12345"}},
 			handler: func(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(http.StatusBadRequest)
 				fmt.Fprintln(w, `{"errorInfo":{},"errorMessage":"Bad Request","errorNumber":400}`)
 			},
-			expectErr:      true,
-			expectedErrMsg: "Apple VPP endpoint returned error: Bad Request (error number: 400)",
+			expectedErrMsg: "making request to Apple VPP endpoint: Apple VPP endpoint returned error: Bad Request (error number: 400)",
 		},
 	}
 
@@ -142,9 +139,9 @@ func TestAssociateAssets(t *testing.T) {
 			setupFakeServer(t, tt.handler)
 
 			err := AssociateAssets(tt.token, tt.params)
-			if tt.expectErr {
+			if tt.expectedErrMsg != "" {
 				require.Error(t, err)
-				require.ErrorContains(t, err, tt.expectedErrMsg)
+				require.Contains(t, err.Error(), tt.expectedErrMsg)
 			} else {
 				require.NoError(t, err)
 			}
@@ -159,7 +156,6 @@ func TestGetAssets(t *testing.T) {
 		filter         *AssetFilter
 		handler        http.HandlerFunc
 		expectedAssets []Asset
-		expectErr      bool
 		expectedErrMsg string
 	}{
 		{
@@ -192,7 +188,7 @@ func TestGetAssets(t *testing.T) {
 				{AdamID: "12345", PricingParam: "STDQ"},
 				{AdamID: "67890", PricingParam: "PLUS"},
 			},
-			expectErr: false,
+			expectedErrMsg: "",
 		},
 		{
 			name:   "server error",
@@ -200,11 +196,10 @@ func TestGetAssets(t *testing.T) {
 			filter: nil,
 			handler: func(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(http.StatusInternalServerError)
-				fmt.Fprintln(w, `{"errorInfo":{},"errorMessage":"Internal Server Error","errorNumber":500}`)
+				fmt.Fprintln(w, `Internal Server Error`)
 			},
 			expectedAssets: nil,
-			expectErr:      true,
-			expectedErrMsg: "Apple VPP endpoint returned error: Internal Server Error (error number: 500)",
+			expectedErrMsg: "calling Apple VPP endpoint failed with status 500: Internal Server Error\n",
 		},
 		{
 			name:   "client error",
@@ -215,8 +210,7 @@ func TestGetAssets(t *testing.T) {
 				fmt.Fprintln(w, `{"errorInfo":{},"errorMessage":"Bad Request","errorNumber":400}`)
 			},
 			expectedAssets: nil,
-			expectErr:      true,
-			expectedErrMsg: "Apple VPP endpoint returned error: Bad Request (error number: 400)",
+			expectedErrMsg: "retrieving assets: Apple VPP endpoint returned error: Bad Request (error number: 400)",
 		},
 	}
 
@@ -225,9 +219,9 @@ func TestGetAssets(t *testing.T) {
 			setupFakeServer(t, tt.handler)
 
 			assets, err := GetAssets(tt.token, tt.filter)
-			if tt.expectErr {
+			if tt.expectedErrMsg != "" {
 				require.Error(t, err)
-				require.ErrorContains(t, err, tt.expectedErrMsg)
+				require.Contains(t, err.Error(), tt.expectedErrMsg)
 			} else {
 				require.NoError(t, err)
 				require.Equal(t, tt.expectedAssets, assets)
