@@ -9149,7 +9149,9 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 
 	// Add vulnerabilities to software to check query param filtering
 	_, err = s.ds.InsertSoftwareVulnerability(ctx, fleet.SoftwareVulnerability{SoftwareID: getHostSw.Software[0].ID, CVE: "CVE-bar-1234"}, fleet.NVDSource)
+	require.NoError(t, err)
 	_, err = s.ds.InsertSoftwareVulnerability(ctx, fleet.SoftwareVulnerability{SoftwareID: getHostSw.Software[0].ID, CVE: "CVE-bar-5678"}, fleet.NVDSource)
+	require.NoError(t, err)
 
 	swPaths := map[string]struct{}{}
 	installPaths := make([]string, 0, len(software))
