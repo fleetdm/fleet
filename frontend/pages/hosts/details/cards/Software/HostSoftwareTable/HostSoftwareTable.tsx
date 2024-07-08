@@ -7,7 +7,6 @@ import { getNextLocationPath } from "utilities/helpers";
 
 import TableContainer from "components/TableContainer";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
-import { generateResultsCountText } from "components/TableContainer/utilities/TableContainerUtils";
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
 
@@ -119,7 +118,7 @@ const HostSoftwareTable = ({
 
       return newQueryParam;
     },
-    []
+    [vulnerable]
   );
 
   // TODO: Look into useDebounceCallback with dependencies
@@ -155,7 +154,7 @@ const HostSoftwareTable = ({
     }
 
     return <TableCount name="items" count={count} />;
-  }, [data?.count, data?.software.length]);
+  }, [count, isSoftwareNotDetected]);
 
   const memoizedEmptyComponent = useCallback(() => {
     return (
@@ -164,7 +163,7 @@ const HostSoftwareTable = ({
         isNotDetectingSoftware={searchQuery === ""}
       />
     );
-  }, [searchQuery]);
+  }, [searchQuery, vulnerable]);
 
   return (
     <div className={baseClass}>
