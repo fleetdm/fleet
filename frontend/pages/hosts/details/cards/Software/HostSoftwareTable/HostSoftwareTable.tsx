@@ -8,9 +8,12 @@ import { getNextLocationPath } from "utilities/helpers";
 import TableContainer from "components/TableContainer";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
 import { generateResultsCountText } from "components/TableContainer/utilities/TableContainerUtils";
+// @ts-ignore
+import Dropdown from "components/forms/fields/Dropdown";
 
 import EmptySoftwareTable from "pages/SoftwarePage/components/EmptySoftwareTable";
 import TableCount from "components/TableContainer/TableCount";
+import { VULNERABLE_DROPDOWN_OPTIONS } from "utilities/constants";
 
 const DEFAULT_PAGE_SIZE = 20;
 
@@ -26,6 +29,16 @@ interface IHostSoftwareTableProps {
   searchQuery: string;
   page: number;
   pagePath: string;
+  queryParams?: {
+    vulnerable?: string;
+    page?: string;
+    query?: string;
+    order_key?: string;
+    order_direction?: "asc" | "desc";
+  };
+  routeTemplate?: string;
+  pathPrefix: string;
+  vulnerable?: boolean;
 }
 
 const HostSoftwareTable = ({
@@ -38,7 +51,38 @@ const HostSoftwareTable = ({
   searchQuery,
   page,
   pagePath,
+  routeTemplate,
+  pathPrefix,
+  vulnerable,
 }: IHostSoftwareTableProps) => {
+  const handleVulnFilterDropdownChange = (isFilterVulnerable: boolean) => {
+    const nextPath = getNextLocationPath({
+      pathPrefix,
+      routeTemplate,
+      queryParams: {
+        query: searchQuery,
+        order_key: sortHeader,
+        order_direction: sortDirection,
+        page: 0,
+        vulnerable: isFilterVulnerable.toString(),
+      },
+    });
+    console.log("path generated: ", nextPath, isFilterVulnerable);
+    router?.replace(nextPath);
+  };
+
+  const renderVulnFilterDropdown = () => {
+    return (
+      <Dropdown
+        value={vulnerable}
+        className={`${baseClass}__vuln_dropdown`}
+        options={VULNERABLE_DROPDOWN_OPTIONS}
+        searchable={false}
+        onChange={handleVulnFilterDropdownChange}
+        tableFilterDropdown
+      />
+    );
+  };
   const determineQueryParamChange = useCallback(
     (newTableQuery: ITableQueryData) => {
       const changedEntry = Object.entries(newTableQuery).find(([key, val]) => {
@@ -62,11 +106,15 @@ const HostSoftwareTable = ({
 
   const generateNewQueryParams = useCallback(
     (newTableQuery: ITableQueryData, changedParam: string) => {
-      const newQueryParam: Record<string, string | number | undefined> = {
+      const newQueryParam: Record<
+        string,
+        string | number | boolean | undefined
+      > = {
         query: newTableQuery.searchQuery,
         order_direction: newTableQuery.sortDirection,
         order_key: newTableQuery.sortHeader,
         page: changedParam === "pageIndex" ? newTableQuery.pageIndex : 0,
+        vulnerable,
       };
 
       return newQueryParam;
@@ -110,7 +158,12 @@ const HostSoftwareTable = ({
   }, [data?.count, data?.software.length]);
 
   const memoizedEmptyComponent = useCallback(() => {
-    return <EmptySoftwareTable isNotDetectingSoftware={searchQuery === ""} />;
+    return (
+      <EmptySoftwareTable
+        isFilterVulnerable={vulnerable}
+        isNotDetectingSoftware={searchQuery === ""}
+      />
+    );
   }, [searchQuery]);
 
   return (
@@ -127,12 +180,9 @@ const HostSoftwareTable = ({
         disableNextPage={data?.meta.has_next_results === false}
         pageSize={DEFAULT_PAGE_SIZE}
         inputPlaceHolder="Search by name"
-        filters={{
-          global: searchQuery,
-          // vulnerabilities: filterVuln,
-        }}
         onQueryChange={onQueryChange}
         emptyComponent={memoizedEmptyComponent}
+        customControl={renderVulnFilterDropdown}
         showMarkAllPages={false}
         isAllPagesSelected={false}
         searchable={!isSoftwareNotDetected}

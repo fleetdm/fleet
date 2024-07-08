@@ -60,6 +60,7 @@ export const parseHostSoftwareQueryParams = (queryParams: {
   query?: string;
   order_key?: string;
   order_direction?: "asc" | "desc";
+  vulnerable?: string;
 }) => {
   const searchQuery = queryParams?.query ?? DEFAULT_SEARCH_QUERY;
   const sortHeader = queryParams?.order_key ?? DEFAULT_SORT_HEADER;
@@ -68,6 +69,7 @@ export const parseHostSoftwareQueryParams = (queryParams: {
     ? parseInt(queryParams.page, 10)
     : DEFAULT_PAGE;
   const pageSize = DEFAULT_PAGE_SIZE;
+  const vulnerable = queryParams.vulnerable === "true";
 
   return {
     page,
@@ -75,6 +77,7 @@ export const parseHostSoftwareQueryParams = (queryParams: {
     order_key: sortHeader,
     order_direction: sortDirection,
     per_page: pageSize,
+    vulnerable: vulnerable,
   };
 };
 
@@ -283,6 +286,8 @@ const HostSoftware = ({
             searchQuery={queryParams.query}
             page={queryParams.page}
             pagePath={pathname}
+            vulnerable={queryParams.vulnerable}
+            pathPrefix={pathname}
           />
         )}
       </>

@@ -412,3 +412,19 @@ export const DATE_FNS_FORMAT_STRINGS = {
   dateAtTime: "E, MMM d 'at' p",
   hoursAndMinutes: "HH:mm",
 };
+
+export const VULNERABLE_DROPDOWN_OPTIONS = [
+  {
+    disabled: false,
+    label: "All software",
+    value: false,
+    helpText: "All software installed on your hosts.",
+  },
+  {
+    disabled: false,
+    label: "Vulnerable software",
+    value: true,
+    helpText:
+      "All software installed on your hosts with detected vulnerabilities.",
+  },
+];
