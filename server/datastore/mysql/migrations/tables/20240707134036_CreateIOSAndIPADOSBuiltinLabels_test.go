@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20240703154850(t *testing.T) {
+func TestUp_20240707134036(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	// Insert existing hosts before migration.
