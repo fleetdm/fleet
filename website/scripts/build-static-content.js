@@ -297,8 +297,8 @@ module.exports = {
                 // Check if this is an external link (like https://google.com) but that is ALSO not a link
                 // to some page on the destination site where this will be hosted, like `(*.)?fleetdm.com`.
                 // If external, add target="_blank" so the link will open in a new tab.
-                // Note: links to blog.fleetdm.com will be treated as an external link.
-                let isExternal = ! hrefString.match(/^href=\"https?:\/\/([^\.|blog]+\.)*fleetdm\.com/g);// « FUTURE: make this smarter with sails.config.baseUrl + _.escapeRegExp()
+                // Note: links to trust.fleetdm.com and blog.fleetdm.com will be treated as an external link.
+                let isExternal = ! hrefString.match(/^href=\"https?:\/\/([^\.|trust|blog]+\.)*fleetdm\.com/g);// « FUTURE: make this smarter with sails.config.baseUrl + _.escapeRegExp()
                 // Check if this link is to fleetdm.com or www.fleetdm.com.
                 let isBaseUrl = hrefString.match(/^(href="https?:\/\/)([^\.]+\.)*fleetdm\.com"$/g);
                 if (isExternal) {

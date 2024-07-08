@@ -11,10 +11,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20240703154850, Down_20240703154850)
+	MigrationClient.AddMigration(Up_20240707134036, Down_20240707134036)
 }
 
-func Up_20240703154850(tx *sql.Tx) error {
+func Up_20240707134036(tx *sql.Tx) error {
 	// Create new builtin+manual labels for iOS/iPadOS
 	iOSLabelID, iPadOSLabelID, err := createBuiltinManualIOSAndIPadOSLabels(tx)
 	if err != nil {
@@ -109,6 +109,6 @@ func createBuiltinManualIOSAndIPadOSLabels(tx *sql.Tx) (iOSLabelID uint, iPadOSL
 	return iOSLabelID, iPadOSLabelID, nil
 }
 
-func Down_20240703154850(tx *sql.Tx) error {
+func Down_20240707134036(tx *sql.Tx) error {
 	return nil
 }

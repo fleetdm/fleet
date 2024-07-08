@@ -167,7 +167,7 @@ func TestEventForDifferentHost(t *testing.T) {
 	hostID2 := uint(101)
 	userEmail1 := "user@example.com"
 	ds.GetTeamHostsPolicyMembershipsFunc = func(
-		ctx context.Context, domain string, teamID uint, policyIDs []uint,
+		ctx context.Context, domain string, teamID uint, policyIDs []uint, _ *uint,
 	) ([]fleet.HostPolicyMembershipData, error) {
 		require.Equal(t, teamID1, teamID)
 		require.Equal(t, []uint{policyID1}, policyIDs)
@@ -209,6 +209,7 @@ func TestCalendarEventsMultipleHosts(t *testing.T) {
 	logger := kitlog.With(kitlog.NewLogfmtLogger(os.Stdout))
 	t.Cleanup(func() {
 		calendar.ClearMockEvents()
+		calendar.ClearMockChannels()
 	})
 
 	//
@@ -279,7 +280,7 @@ func TestCalendarEventsMultipleHosts(t *testing.T) {
 	hostID4 := uint(103)
 
 	ds.GetTeamHostsPolicyMembershipsFunc = func(
-		ctx context.Context, domain string, teamID uint, policyIDs []uint,
+		ctx context.Context, domain string, teamID uint, policyIDs []uint, _ *uint,
 	) ([]fleet.HostPolicyMembershipData, error) {
 		require.Equal(t, "example.com", domain)
 		require.Equal(t, teamID1, teamID)
@@ -336,6 +337,7 @@ func TestCalendarEventsMultipleHosts(t *testing.T) {
 	hostCalendarEvents := make(map[uint]*fleet.HostCalendarEvent)
 
 	ds.CreateOrUpdateCalendarEventFunc = func(ctx context.Context,
+		uuid string,
 		email string,
 		startTime, endTime time.Time,
 		data []byte,
@@ -343,6 +345,7 @@ func TestCalendarEventsMultipleHosts(t *testing.T) {
 		hostID uint,
 		webhookStatus fleet.CalendarWebhookStatus,
 	) (*fleet.CalendarEvent, error) {
+		assert.NotEmpty(t, uuid)
 		require.Equal(t, hostID1, hostID)
 		require.Equal(t, userEmail1, email)
 		require.Equal(t, fleet.CalendarWebhookStatusNone, webhookStatus)
@@ -380,8 +383,8 @@ func TestCalendarEventsMultipleHosts(t *testing.T) {
 
 	createdCalendarEvents := calendar.ListGoogleMockEvents()
 	require.Len(t, createdCalendarEvents, 1)
-	strings.Contains(createdCalendarEvents["1"].Description, defaultDescription)
-	strings.Contains(createdCalendarEvents["1"].Description, defaultResolution)
+	strings.Contains(createdCalendarEvents["1"].Description, fleet.CalendarDefaultDescription)
+	strings.Contains(createdCalendarEvents["1"].Description, fleet.CalendarDefaultResolution)
 }
 
 type notFoundErr struct{}
@@ -405,6 +408,7 @@ func TestCalendarEvents1KHosts(t *testing.T) {
 	}
 	t.Cleanup(func() {
 		calendar.ClearMockEvents()
+		calendar.ClearMockChannels()
 	})
 
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
@@ -594,7 +598,7 @@ func TestCalendarEvents1KHosts(t *testing.T) {
 	}
 
 	ds.GetTeamHostsPolicyMembershipsFunc = func(
-		ctx context.Context, domain string, teamID uint, policyIDs []uint,
+		ctx context.Context, domain string, teamID uint, policyIDs []uint, _ *uint,
 	) ([]fleet.HostPolicyMembershipData, error) {
 		var start, end int
 		switch teamID {
@@ -622,6 +626,7 @@ func TestCalendarEvents1KHosts(t *testing.T) {
 	eventPerHost := make(map[uint]*fleet.CalendarEvent)
 
 	ds.CreateOrUpdateCalendarEventFunc = func(ctx context.Context,
+		uuid string,
 		email string,
 		startTime, endTime time.Time,
 		data []byte,
@@ -629,6 +634,7 @@ func TestCalendarEvents1KHosts(t *testing.T) {
 		hostID uint,
 		webhookStatus fleet.CalendarWebhookStatus,
 	) (*fleet.CalendarEvent, error) {
+		assert.NotEmpty(t, uuid)
 		require.Equal(t, fmt.Sprintf("user%d@example.com", hostID), email)
 		eventsCreatedMu.Lock()
 		eventsCreated += 1
@@ -708,6 +714,7 @@ func TestEventDescription(t *testing.T) {
 	t.Cleanup(
 		func() {
 			calendar.ClearMockEvents()
+			calendar.ClearMockChannels()
 		},
 	)
 
@@ -807,7 +814,7 @@ func TestEventDescription(t *testing.T) {
 	hostID7, userEmail7 := uint(106), "user7@example.com"
 
 	ds.GetTeamHostsPolicyMembershipsFunc = func(
-		ctx context.Context, domain string, teamID uint, policyIDs []uint,
+		ctx context.Context, domain string, teamID uint, policyIDs []uint, _ *uint,
 	) ([]fleet.HostPolicyMembershipData, error) {
 		require.Equal(t, "example.com", domain)
 		require.Equal(t, teamID1, teamID)
@@ -900,6 +907,7 @@ func TestEventDescription(t *testing.T) {
 
 	ds.CreateOrUpdateCalendarEventFunc = func(
 		ctx context.Context,
+		uuid string,
 		email string,
 		startTime, endTime time.Time,
 		data []byte,
@@ -907,6 +915,7 @@ func TestEventDescription(t *testing.T) {
 		hostID uint,
 		webhookStatus fleet.CalendarWebhookStatus,
 	) (*fleet.CalendarEvent, error) {
+		assert.NotEmpty(t, uuid)
 		require.Equal(t, fleet.CalendarWebhookStatusNone, webhookStatus)
 		require.NotEmpty(t, data)
 		require.NotZero(t, startTime)
@@ -948,14 +957,14 @@ func TestEventDescription(t *testing.T) {
 		err = json.Unmarshal(calendarEvents[hostCalEvent.HostID].Data, &details)
 		require.NoError(t, err)
 		description := createdCalendarEvents[details["id"]].Description
-		defaultDescriptionWithOrg := fmt.Sprintf("%s %s", orgName, defaultDescription)
+		defaultDescriptionWithOrg := fmt.Sprintf("%s %s", orgName, fleet.CalendarDefaultDescription)
 		switch hostCalEvent.HostID {
 		case hostID1, hostID6:
 			assert.Contains(t, description, "Description for policy 1")
 			assert.Contains(t, description, "Resolution for policy 1")
 		default:
 			assert.Contains(t, description, defaultDescriptionWithOrg)
-			assert.Contains(t, description, defaultResolution)
+			assert.Contains(t, description, fleet.CalendarDefaultResolution)
 		}
 	}
 }
