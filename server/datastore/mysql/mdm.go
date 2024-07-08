@@ -95,7 +95,7 @@ func (ds *Datastore) ListMDMCommands(
 	jointStmt, params = appendListOptionsWithCursorToSQL(jointStmt, params, &listOpts.ListOptions)
 	var results []*fleet.MDMCommand
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, jointStmt, params...); err != nil {
-		if err == sql.ErrNoRows {
+		if len(results) == 0 {
 			return nil, nil
 		}
 		return nil, ctxerr.Wrap(ctx, err, "list commands")

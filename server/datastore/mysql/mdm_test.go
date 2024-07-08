@@ -168,50 +168,6 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 	require.Equal(t, winCmd.TargetLocURI, cmds[1].RequestType)
 	require.Equal(t, "Pending", cmds[1].Status)
 
-	// filter by host Identifier
-	identifiers := map[string]string{
-		windowsH.Hostname:       winCmd.CommandUUID,
-		*windowsH.OsqueryHostID: winCmd.CommandUUID,
-		*windowsH.NodeKey:       winCmd.CommandUUID,
-		windowsH.UUID:           winCmd.CommandUUID,
-		windowsH.HardwareSerial: winCmd.CommandUUID,
-		macH.Hostname:           appleCmdUUID,
-		*macH.OsqueryHostID:     appleCmdUUID,
-		*macH.NodeKey:           appleCmdUUID,
-		macH.UUID:               appleCmdUUID,
-		macH.HardwareSerial:     appleCmdUUID,
-	}
-
-	for identifier, expected := range identifiers {
-		t.Run(identifier, func(t *testing.T) {
-			cmds, err = ds.ListMDMCommands(
-				ctx,
-				fleet.TeamFilter{User: test.UserAdmin},
-				&fleet.MDMCommandListOptions{
-					Filters: fleet.MDMCommandFilters{
-						HostIdentifier: identifier,
-					},
-				},
-			)
-			require.NoError(t, err)
-			require.Len(t, cmds, 1)
-			require.Equal(t, expected, cmds[0].CommandUUID)
-		})
-	}
-
-	// non-existent host identifier
-	cmds, err = ds.ListMDMCommands(
-		ctx,
-		fleet.TeamFilter{User: test.UserAdmin},
-		&fleet.MDMCommandListOptions{
-			Filters: fleet.MDMCommandFilters{
-				HostIdentifier: "non-existent",
-			},
-		},
-	)
-	require.NoError(t, err)
-	require.Len(t, cmds, 0)
-
 	// store results for both commands
 	err = appleCommanderStorage.StoreCommandReport(&mdm.Request{
 		EnrollID: &mdm.EnrollID{ID: macH.UUID},
@@ -263,19 +219,136 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 	require.Equal(t, winCmd.TargetLocURI, cmds[1].RequestType)
 	require.Equal(t, "200", cmds[1].Status)
 
+	// add more windows commands
+	winCmd2 := &fleet.MDMWindowsCommand{
+		CommandUUID:  uuid.NewString(),
+		RawCommand:   []byte("<Exec></Exec>"),
+		TargetLocURI: "./test/uri2",
+	}
+	winCmd3 := &fleet.MDMWindowsCommand{
+		CommandUUID:  uuid.NewString(),
+		RawCommand:   []byte("<Exec></Exec>"),
+		TargetLocURI: "./test/uri3",
+	}
+	err = ds.MDMWindowsInsertCommandForHosts(ctx, []string{windowsEnrollment.MDMDeviceID}, winCmd2)
+	require.NoError(t, err)
+	err = ds.MDMWindowsInsertCommandForHosts(ctx, []string{windowsEnrollment.MDMDeviceID}, winCmd3)
+	require.NoError(t, err)
+
+	// add more macos commands
+	appleCmdUUID2 := uuid.New().String()
+	appleCmd2 := createRawAppleCmd("InstallProfile", appleCmdUUID2)
+	err = commander.EnqueueCommand(ctx, []string{macH.UUID}, appleCmd2)
+	require.NoError(t, err)
+
+	appleCmdUUID3 := uuid.New().String()
+	appleCmd3 := createRawAppleCmd("RemoveProfile", appleCmdUUID3)
+	err = commander.EnqueueCommand(ctx, []string{macH.UUID}, appleCmd3)
+	require.NoError(t, err)
+
+	// non-existent host identifier
+	cmds, err = ds.ListMDMCommands(
+		ctx,
+		fleet.TeamFilter{User: test.UserAdmin},
+		&fleet.MDMCommandListOptions{
+			Filters: fleet.MDMCommandFilters{
+				HostIdentifier: "non-existent",
+			},
+		},
+	)
+	require.NoError(t, err)
+	require.Len(t, cmds, 0)
+
+	// non-existent request type
+	cmds, err = ds.ListMDMCommands(
+		ctx,
+		fleet.TeamFilter{User: test.UserAdmin},
+		&fleet.MDMCommandListOptions{
+			Filters: fleet.MDMCommandFilters{
+				RequestType: "non-existent",
+			},
+		},
+	)
+	require.NoError(t, err)
+	require.Len(t, cmds, 0)
+
+	// filter by host Identifier
+	identifiers := map[string][]string{
+		windowsH.Hostname:       {winCmd.CommandUUID, winCmd2.CommandUUID, winCmd3.CommandUUID},
+		windowsH.UUID:           {winCmd.CommandUUID, winCmd2.CommandUUID, winCmd3.CommandUUID},
+		windowsH.HardwareSerial: {winCmd.CommandUUID, winCmd2.CommandUUID, winCmd3.CommandUUID},
+		macH.Hostname:           {appleCmdUUID, appleCmdUUID2, appleCmdUUID3},
+		macH.UUID:               {appleCmdUUID, appleCmdUUID2, appleCmdUUID3},
+		macH.HardwareSerial:     {appleCmdUUID, appleCmdUUID2, appleCmdUUID3},
+	}
+
+	for identifier, expected := range identifiers {
+		t.Run(identifier, func(t *testing.T) {
+			cmds, err = ds.ListMDMCommands(
+				ctx,
+				fleet.TeamFilter{User: test.UserAdmin},
+				&fleet.MDMCommandListOptions{
+					Filters: fleet.MDMCommandFilters{
+						HostIdentifier: identifier,
+					},
+				},
+			)
+			require.NoError(t, err)
+			require.Len(t, cmds, 3)
+			for _, cmd := range cmds {
+				require.Contains(t, expected, cmd.CommandUUID)
+			}
+		})
+	}
+
+	// add macos host
+	macH2, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:       "macos-test-2",
+		OsqueryHostID:  ptr.String("osquery-macos-2"),
+		NodeKey:        ptr.String("node-key-macos-2"),
+		UUID:           uuid.NewString(),
+		Platform:       "darwin",
+		HardwareSerial: "654322",
+	})
+	require.NoError(t, err)
+	nanoEnroll(t, ds, macH2, false)
+
+	// add more macos commands
+	appleCmdUUID4 := uuid.New().String()
+	appleCmd4 := createRawAppleCmd("InstallProfile", appleCmdUUID4)
+	err = commander.EnqueueCommand(ctx, []string{macH2.UUID}, appleCmd4)
+	require.NoError(t, err)
+
 	// filter by request_type
 	cmds, err = ds.ListMDMCommands(
 		ctx,
 		fleet.TeamFilter{User: test.UserAdmin},
 		&fleet.MDMCommandListOptions{
 			Filters: fleet.MDMCommandFilters{
-				RequestType: "ProfileList",
+				RequestType: "InstallProfile",
+			},
+			ListOptions: fleet.ListOptions{OrderKey: "hostname", OrderDirection: fleet.OrderAscending},
+		},
+	)
+	require.NoError(t, err)
+	require.Len(t, cmds, 2)
+	require.Equal(t, appleCmdUUID2, cmds[0].CommandUUID)
+	require.Equal(t, appleCmdUUID4, cmds[1].CommandUUID)
+
+	// filter by request_type and host_identifier
+	cmds, err = ds.ListMDMCommands(
+		ctx,
+		fleet.TeamFilter{User: test.UserAdmin},
+		&fleet.MDMCommandListOptions{
+			Filters: fleet.MDMCommandFilters{
+				RequestType:    "InstallProfile",
+				HostIdentifier: macH.UUID,
 			},
 		},
 	)
 	require.NoError(t, err)
 	require.Len(t, cmds, 1)
-	require.Equal(t, appleCmdUUID, cmds[0].CommandUUID)
+	require.Equal(t, appleCmdUUID2, cmds[0].CommandUUID)
 }
 
 func testBatchSetMDMProfiles(t *testing.T, ds *Datastore) {

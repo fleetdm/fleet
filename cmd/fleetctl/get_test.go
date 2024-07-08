@@ -2690,7 +2690,6 @@ func TestGetMDMCommands(t *testing.T) {
 	var noHostErr error
 	var expectIdentifier bool
 	var expectRequestType bool
-	var expectPage bool
 	ds.ListMDMCommandsFunc = func(ctx context.Context, tmFilter fleet.TeamFilter, listOpts *fleet.MDMCommandListOptions) ([]*fleet.MDMCommand, error) {
 		if empty || listErr != nil {
 			return nil, listErr
@@ -2706,10 +2705,6 @@ func TestGetMDMCommands(t *testing.T) {
 
 		if expectRequestType {
 			require.NotEmpty(t, listOpts.Filters.RequestType)
-		}
-
-		if expectPage {
-			require.NotEmpty(t, listOpts.Page)
 		}
 
 		return []*fleet.MDMCommand{
