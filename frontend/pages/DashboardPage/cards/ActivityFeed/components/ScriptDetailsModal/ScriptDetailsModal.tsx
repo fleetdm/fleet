@@ -88,10 +88,11 @@ const StatusMessage = ({
       // Expected API message: "Scripts are disabled for this host. To run scripts, deploy the fleetd agent with scripts enabled."
       return <StatusMessageError message={message} />;
     case -1: {
-      // message should look like: "Timeout. Fleet stopped the script after 5 minutes to protect host performance.";
-      const timeOutValue = message.match(/(\d+\s(?:seconds|minutes|hours))/);
+      // message should look like: "Timeout. Fleet stopped the script after 600 seconds to protect host performance.";
+      const timeOutValue = message.match(/(\d+\s(?:seconds))/);
 
       let varText = "";
+      // should always be there
       if (timeOutValue) {
         varText = `after ${(
           <TooltipWrapper tipContent="Timeout can be configured by updating agent options.">
