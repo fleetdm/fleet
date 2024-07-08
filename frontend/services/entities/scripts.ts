@@ -39,8 +39,6 @@ export interface IScriptResultResponse {
   message: string;
   runtime: number;
   host_timeout: boolean;
-  // configured timeout limit in seconds
-  script_execution_timeout: number;
 }
 
 /**

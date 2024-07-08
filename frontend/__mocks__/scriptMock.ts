@@ -23,7 +23,6 @@ const DEFAULT_SCRIPT_RESULT_MOCK: IScriptResultResponse = {
   message: "",
   runtime: 0,
   host_timeout: false,
-  script_execution_timeout: 600,
   script_id: 1,
 };
 
