@@ -140,23 +140,14 @@ func (t *Team) UnmarshalJSON(b []byte) error {
 
 type TeamConfig struct {
 	// AgentOptions is the options for osquery and Orbit.
-	AgentOptions       *json.RawMessage                       `json:"agent_options,omitempty"`
-	HostExpirySettings HostExpirySettings                     `json:"host_expiry_settings"`
-	WebhookSettings    TeamWebhookSettings                    `json:"webhook_settings"`
-	Integrations       TeamIntegrations                       `json:"integrations"`
-	Features           Features                               `json:"features"`
-	MDM                TeamMDM                                `json:"mdm"`
-	Scripts            optjson.Slice[string]                  `json:"scripts,omitempty"`
-	Software           optjson.Slice[TeamSpecSoftwarePackage] `json:"software,omitempty"`
-}
-
-type TeamSpecSoftware struct {
-	Packages     optjson.Slice[TeamSpecSoftwarePackage] `json:"packages,omitempty"`
-	AppStoreApps optjson.Slice[TeamSpecAppStoreApp]     `json:"app_store_apps,omitempty"`
-}
-
-type TeamSpecAppStoreApp struct {
-	AppStoreID string `json:"app_store_id"`
+	AgentOptions       *json.RawMessage      `json:"agent_options,omitempty"`
+	HostExpirySettings HostExpirySettings    `json:"host_expiry_settings"`
+	WebhookSettings    TeamWebhookSettings   `json:"webhook_settings"`
+	Integrations       TeamIntegrations      `json:"integrations"`
+	Features           Features              `json:"features"`
+	MDM                TeamMDM               `json:"mdm"`
+	Scripts            optjson.Slice[string] `json:"scripts,omitempty"`
+	Software           *TeamSpecSoftware     `json:"software,omitempty"`
 }
 
 type TeamWebhookSettings struct {
@@ -167,6 +158,15 @@ type TeamWebhookSettings struct {
 
 type TeamSpecSoftwareAsset struct {
 	Path string `json:"path"`
+}
+
+type TeamSpecSoftware struct {
+	Packages     optjson.Slice[TeamSpecSoftwarePackage] `json:"packages,omitempty"`
+	AppStoreApps optjson.Slice[TeamSpecAppStoreApp]     `json:"app_store_apps,omitempty"`
+}
+
+type TeamSpecAppStoreApp struct {
+	AppStoreID string `json:"app_store_id"`
 }
 
 type TeamSpecSoftwarePackage struct {
@@ -426,15 +426,15 @@ type TeamSpec struct {
 	// If the agent_options key is present but empty in the YAML, will be set to
 	// "null" (JSON null). Otherwise, if the key is present and set, it will be
 	// set to the agent options JSON object.
-	AgentOptions       json.RawMessage                        `json:"agent_options,omitempty"` // marshals as "null" if omitempty is not set
-	HostExpirySettings *HostExpirySettings                    `json:"host_expiry_settings,omitempty"`
-	Secrets            *[]EnrollSecret                        `json:"secrets,omitempty"`
-	Features           *json.RawMessage                       `json:"features"`
-	MDM                TeamSpecMDM                            `json:"mdm"`
-	Scripts            optjson.Slice[string]                  `json:"scripts"`
-	WebhookSettings    TeamSpecWebhookSettings                `json:"webhook_settings"`
-	Integrations       TeamSpecIntegrations                   `json:"integrations"`
-	Software           optjson.Slice[TeamSpecSoftwarePackage] `json:"software,omitempty"`
+	AgentOptions       json.RawMessage         `json:"agent_options,omitempty"` // marshals as "null" if omitempty is not set
+	HostExpirySettings *HostExpirySettings     `json:"host_expiry_settings,omitempty"`
+	Secrets            *[]EnrollSecret         `json:"secrets,omitempty"`
+	Features           *json.RawMessage        `json:"features"`
+	MDM                TeamSpecMDM             `json:"mdm"`
+	Scripts            optjson.Slice[string]   `json:"scripts"`
+	WebhookSettings    TeamSpecWebhookSettings `json:"webhook_settings"`
+	Integrations       TeamSpecIntegrations    `json:"integrations"`
+	Software           *TeamSpecSoftware       `json:"software,omitempty"`
 }
 
 type TeamSpecWebhookSettings struct {

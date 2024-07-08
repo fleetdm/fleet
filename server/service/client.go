@@ -606,9 +606,9 @@ func (c *Client) ApplyGroup(
 			tmScriptsPayloads[k] = scriptPayloads
 		}
 
-		tmSoftware := extractTmSpecsSoftware(specs.Teams)
+		tmSoftwarePackages := extractTmSpecsSoftware(specs.Teams)
 		tmSoftwarePayloads := make(map[string][]fleet.SoftwareInstallerPayload, len(tmScripts))
-		for tmName, software := range tmSoftware {
+		for tmName, software := range tmSoftwarePackages {
 			softwarePayloads := make([]fleet.SoftwareInstallerPayload, len(software))
 			for i, si := range software {
 				var qc string
@@ -995,8 +995,8 @@ func extractTmSpecsMDMCustomSettings(tmSpecs []json.RawMessage) map[string]profi
 	return m
 }
 
-func extractTmSpecsSoftware(tmSpecs []json.RawMessage) map[string][]fleet.TeamSpecSoftware {
-	var m map[string][]fleet.TeamSpecSoftware
+func extractTmSpecsSoftware(tmSpecs []json.RawMessage) map[string][]fleet.TeamSpecSoftwarePackage {
+	var m map[string][]fleet.TeamSpecSoftwarePackage
 	for _, tm := range tmSpecs {
 		var spec struct {
 			Name     string          `json:"name"`
@@ -1009,19 +1009,22 @@ func extractTmSpecsSoftware(tmSpecs []json.RawMessage) map[string][]fleet.TeamSp
 		spec.Name = norm.NFC.String(spec.Name)
 		if spec.Name != "" && len(spec.Software) > 0 {
 			if m == nil {
-				m = make(map[string][]fleet.TeamSpecSoftware)
+				m = make(map[string][]fleet.TeamSpecSoftwarePackage)
 			}
-			var software []fleet.TeamSpecSoftware
+			var software fleet.TeamSpecSoftware
+			var packages []fleet.TeamSpecSoftwarePackage
 			if err := json.Unmarshal(spec.Software, &software); err != nil {
 				// ignore, will fail in apply team specs call
 				continue
 			}
-			if software == nil {
+			if !software.Packages.Valid {
 				// to be consistent with the AppConfig custom settings, set it to an
 				// empty slice if the provided custom settings are present but empty.
-				software = []fleet.TeamSpecSoftware{}
+				packages = []fleet.TeamSpecSoftwarePackage{}
+			} else {
+				packages = software.Packages.Value
 			}
-			m[spec.Name] = software
+			m[spec.Name] = packages
 		}
 	}
 	return m

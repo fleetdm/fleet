@@ -55,10 +55,12 @@ type GitOps struct {
 	Policies     []*fleet.PolicySpec
 	Queries      []*fleet.QuerySpec
 	// Software is only allowed on teams, not on global config.
-	Software struct {
-		Packages     []*fleet.TeamSpecSoftwarePackage
-		AppStoreApps []*fleet.TeamSpecAppStoreApp
-	}
+	Software GitOpsSoftware
+}
+
+type GitOpsSoftware struct {
+	Packages     []*fleet.TeamSpecSoftwarePackage
+	AppStoreApps []*fleet.TeamSpecAppStoreApp
 }
 
 // GitOpsFromFile parses a GitOps yaml file.
