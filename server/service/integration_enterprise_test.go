@@ -9603,8 +9603,10 @@ func (s *integrationEnterpriseTestSuite) TestApplyTeamsSoftwareConfig() {
 	teamSpecs = map[string]any{
 		"specs": []any{
 			map[string]any{
-				"name":     teamName,
-				"software": nil,
+				"name": teamName,
+				"software": map[string]any{
+					"packages": nil,
+				},
 			},
 		},
 	}
@@ -9613,12 +9615,28 @@ func (s *integrationEnterpriseTestSuite) TestApplyTeamsSoftwareConfig() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
 	require.Equal(t, wantSoftware, teamResp.Team.Config.Software.Packages.Value)
 
-	// apply with explicitly empty software clears the existing software
+	// apply with empty top-level software field, should not clear packages
 	teamSpecs = map[string]any{
 		"specs": []any{
 			map[string]any{
 				"name":     teamName,
 				"software": nil,
+			},
+		},
+	}
+	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
+	teamResp = getTeamResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
+	require.Equal(t, wantSoftware, teamResp.Team.Config.Software.Packages.Value)
+
+	// apply with explicitly empty software clears the existing software
+	teamSpecs = map[string]any{
+		"specs": []any{
+			map[string]any{
+				"name": teamName,
+				"software": map[string]any{
+					"packages": nil,
+				},
 			},
 		},
 	}

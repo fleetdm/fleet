@@ -1170,11 +1170,15 @@ func (svc *Service) editTeamFromSpec(
 	}
 
 	if spec.Software != nil {
-		if spec.Software.Packages.Valid {
+		if team.Config.Software == nil {
+			team.Config.Software = &fleet.TeamSpecSoftware{}
+		}
+
+		if spec.Software.Packages.Set {
 			team.Config.Software.Packages = spec.Software.Packages
 		}
 
-		if spec.Software.AppStoreApps.Valid {
+		if spec.Software.AppStoreApps.Set {
 			team.Config.Software.AppStoreApps = spec.Software.AppStoreApps
 		}
 	}
