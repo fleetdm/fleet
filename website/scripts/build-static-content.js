@@ -282,7 +282,7 @@ module.exports = {
                 }
                 let referencedPageNewUrl = 'https://fleetdm.com/' + (
                   (path.relative(topLvlRepoPath, referencedPageSourcePath).replace(/(^|\/)([^/]+)\.[^/]*$/, '$1$2').split(/\//)
-                  .map((fileOrFolderName) => fileOrFolderName.toLowerCase().replace(/%20/g, '-')).join('/'))// « Replaces url-encoded spaces with dashes to support relative links to folders with spaces on Github.com and the Fleet website.
+                  .map((fileOrFolderName) => fileOrFolderName.toLowerCase().replace(/%20|\s/g, '-')).join('/'))// « Replaces url-encoded spaces and spaces in folder names with dashes to support relative links to folders with spaces on Github.com and the Fleet website.
                   .split(/\//).map((fileOrFolderName) => encodeURIComponent(fileOrFolderName.replace(/^[0-9]+[\-]+/,''))).join('/')
                 ).replace(RX_README_FILENAME, '');
                 if(possibleReferencedUrlHash) {
