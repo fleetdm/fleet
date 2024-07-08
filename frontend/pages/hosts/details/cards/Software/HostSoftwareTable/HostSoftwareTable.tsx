@@ -28,13 +28,6 @@ interface IHostSoftwareTableProps {
   searchQuery: string;
   page: number;
   pagePath: string;
-  queryParams?: {
-    vulnerable?: string;
-    page?: string;
-    query?: string;
-    order_key?: string;
-    order_direction?: "asc" | "desc";
-  };
   routeTemplate?: string;
   pathPrefix: string;
   vulnerable?: boolean;
@@ -184,7 +177,7 @@ const HostSoftwareTable = ({
         customControl={renderVulnFilterDropdown}
         showMarkAllPages={false}
         isAllPagesSelected={false}
-        searchable={!isSoftwareNotDetected}
+        searchable
         manualSortBy
       />
     </div>
