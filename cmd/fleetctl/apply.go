@@ -66,7 +66,7 @@ func applyCommand() *cli.Command {
 			// Check if the file has a .yml or .yaml extension
 			ext := strings.ToLower(filepath.Ext(flFilename))
 			if ext == "" {
-				return fmt.Errorf("Missing file extension: only .yml or .yaml files can be applied")
+				return errors.New("Missing file extension: only .yml or .yaml files can be applied")
 			}
 			if ext != ".yml" && ext != ".yaml" {
 				return fmt.Errorf("Invalid file extension %s: only .yml or .yaml files can be applied", ext)
