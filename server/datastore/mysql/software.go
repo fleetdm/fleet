@@ -1970,8 +1970,9 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 
 	var onlyVulnerableClause string
 	if opts.VulnerableOnly {
-		onlyVulnerableClause = `JOIN software s ON s.title_id = st.id
-		JOIN software_cve scv ON scv.software_id = s.id`
+		onlyVulnerableClause = `
+AND EXISTS (SELECT 1 FROM software s JOIN software_cve scve ON scve.software_id = s.id WHERE s.title_id = st.id)
+		`
 	}
 
 	stmtInstalled := fmt.Sprintf(`
@@ -1992,7 +1993,6 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 			software_installers si ON st.id = si.title_id
 		LEFT OUTER JOIN
 			host_software_installs hsi ON si.id = hsi.software_installer_id AND hsi.host_id = :host_id
-			%s
 		WHERE
 			-- use the latest install only
 			( hsi.id IS NULL OR hsi.id = (
@@ -2015,7 +2015,8 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 			-- or software install has been attempted on host
 			hsi.host_id IS NOT NULL )
 			%s
-`, softwareInstallerHostStatusNamedQuery("hsi", "status"), onlyVulnerableClause, onlySelfServiceClause)
+			%s
+`, softwareInstallerHostStatusNamedQuery("hsi", "status"), onlySelfServiceClause, onlyVulnerableClause)
 
 	const stmtAvailable = `
 		SELECT
@@ -2084,7 +2085,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 		return nil, nil, ctxerr.Wrap(ctx, err, "build named query for list host software")
 	}
 
-	if opts.IncludeAvailableForInstall {
+	if opts.IncludeAvailableForInstall && !opts.VulnerableOnly {
 		platformArgs := []string{host.Platform}
 		if fleet.IsLinux(host.Platform) {
 			platformArgs = fleet.HostLinuxOSs
