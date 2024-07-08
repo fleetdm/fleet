@@ -9557,13 +9557,21 @@ func (s *integrationEnterpriseTestSuite) TestApplyTeamsSoftwareConfig() {
 							},
 						},
 					},
+					"app_store_apps": []map[string]any{
+						{
+							"app_store_id": "1234",
+						},
+						{
+							"app_store_id": "5678",
+						},
+					},
 				},
 			},
 		},
 	}
 	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
 
-	wantSoftware := []fleet.TeamSpecSoftwarePackage{
+	wantSoftwarePackages := []fleet.TeamSpecSoftwarePackage{
 		{
 			URL:               "http://foo.com",
 			SelfService:       true,
@@ -9579,11 +9587,19 @@ func (s *integrationEnterpriseTestSuite) TestApplyTeamsSoftwareConfig() {
 			PreInstallQuery:   fleet.TeamSpecSoftwareAsset{Path: "./bar/query.yaml"},
 		},
 	}
+	wantAppStoreApps := []fleet.TeamSpecAppStoreApp{
+		{
+			AppStoreID: "1234",
+		},
+		{
+			AppStoreID: "5678",
+		},
+	}
 
 	// retrieving the team returns the software
 	var teamResp getTeamResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
-	require.Equal(t, wantSoftware, teamResp.Team.Config.Software.Packages.Value)
+	require.Equal(t, wantSoftwarePackages, teamResp.Team.Config.Software.Packages.Value)
 
 	// apply without custom software specified, should not replace existing software
 	teamSpecs = map[string]any{
@@ -9596,7 +9612,8 @@ func (s *integrationEnterpriseTestSuite) TestApplyTeamsSoftwareConfig() {
 	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
 	teamResp = getTeamResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
-	require.Equal(t, wantSoftware, teamResp.Team.Config.Software.Packages.Value)
+	require.Equal(t, wantSoftwarePackages, teamResp.Team.Config.Software.Packages.Value)
+	require.Equal(t, wantAppStoreApps, teamResp.Team.Config.Software.AppStoreApps.Value)
 
 	// apply with explicitly empty custom software would clear the existing
 	// software, but dry-run
@@ -9613,7 +9630,24 @@ func (s *integrationEnterpriseTestSuite) TestApplyTeamsSoftwareConfig() {
 	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK, "dry_run", "true")
 	teamResp = getTeamResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
-	require.Equal(t, wantSoftware, teamResp.Team.Config.Software.Packages.Value)
+	require.Equal(t, wantSoftwarePackages, teamResp.Team.Config.Software.Packages.Value)
+
+	// apply with explicitly empty custom app store apps would clear the existing
+	// software, but dry-run
+	teamSpecs = map[string]any{
+		"specs": []any{
+			map[string]any{
+				"name": teamName,
+				"software": map[string]any{
+					"app_store_apps": nil,
+				},
+			},
+		},
+	}
+	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK, "dry_run", "true")
+	teamResp = getTeamResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
+	require.Equal(t, wantAppStoreApps, teamResp.Team.Config.Software.AppStoreApps.Value)
 
 	// apply with empty top-level software field, should not clear packages
 	teamSpecs = map[string]any{
@@ -9627,9 +9661,10 @@ func (s *integrationEnterpriseTestSuite) TestApplyTeamsSoftwareConfig() {
 	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
 	teamResp = getTeamResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
-	require.Equal(t, wantSoftware, teamResp.Team.Config.Software.Packages.Value)
+	require.Equal(t, wantSoftwarePackages, teamResp.Team.Config.Software.Packages.Value)
+	require.Equal(t, wantAppStoreApps, teamResp.Team.Config.Software.AppStoreApps.Value)
 
-	// apply with explicitly empty software clears the existing software
+	// apply with explicitly empty software packages clears the existing software, but not apps
 	teamSpecs = map[string]any{
 		"specs": []any{
 			map[string]any{
@@ -9644,6 +9679,24 @@ func (s *integrationEnterpriseTestSuite) TestApplyTeamsSoftwareConfig() {
 	teamResp = getTeamResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
 	require.Empty(t, teamResp.Team.Config.Software.Packages.Value)
+	require.Equal(t, wantAppStoreApps, teamResp.Team.Config.Software.AppStoreApps.Value)
+
+	// apply with explicitly empty software apps clears the existing apps
+	teamSpecs = map[string]any{
+		"specs": []any{
+			map[string]any{
+				"name": teamName,
+				"software": map[string]any{
+					"app_store_apps": nil,
+				},
+			},
+		},
+	}
+	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
+	teamResp = getTeamResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
+	require.Empty(t, teamResp.Team.Config.Software.Packages.Value)
+	require.Empty(t, teamResp.Team.Config.Software.AppStoreApps.Value)
 
 	// patch with an invalid array returns an error
 	teamSpecs = map[string]any{
@@ -9658,6 +9711,20 @@ func (s *integrationEnterpriseTestSuite) TestApplyTeamsSoftwareConfig() {
 	teamResp = getTeamResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
 	require.Empty(t, teamResp.Team.Config.Software.Packages.Value)
+
+	// patch with an invalid array returns an error
+	teamSpecs = map[string]any{
+		"specs": []any{
+			map[string]any{
+				"name":           teamName,
+				"app_store_apps": []any{"foo", 1},
+			},
+		},
+	}
+	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusBadRequest)
+	teamResp = getTeamResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
+	require.Empty(t, teamResp.Team.Config.Software.AppStoreApps.Value)
 }
 
 func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
