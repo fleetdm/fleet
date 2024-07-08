@@ -201,8 +201,6 @@ func do[T any](req *http.Request, token string, dest *T) error {
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		// use an io.LimitedReader to read only a limited amount of the
-		// response body for logging purposes
 		limitedBody := body
 		if len(limitedBody) > 1000 {
 			limitedBody = limitedBody[:1000]
