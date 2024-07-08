@@ -50,7 +50,7 @@ type ResponseErrorInfo struct {
 }
 
 // client is a package-level client (similar to http.DefaultClient) so it can
-// be reused instead of crated as needed, as the internal Transport typically
+// be reused instead of created as needed, as the internal Transport typically
 // has internal state (cached connections, etc) and it's safe for concurrent
 // use.
 var client = fleethttp.NewClient(fleethttp.WithTimeout(10 * time.Second))
