@@ -644,7 +644,7 @@ func main() {
 			log.Info().Err(err).Msg("failed to remove temporary osquery db")
 		}
 
-		if oi.HardwareUUID != orbitHostInfo.HardwareUUID {
+		if runtime.GOOS == "darwin" && oi.HardwareUUID != orbitHostInfo.HardwareUUID {
 			// Then we have moved to a new physical machine, so we should restart!
 			// Removing the osquery DB should trigger a re-enrollment when fleetd is restarted.
 			if err := os.RemoveAll(osqueryDB); err != nil {
