@@ -29,7 +29,7 @@ func NewLock(pool fleet.RedisPool) fleet.Lock {
 	return fleet.Lock(lock)
 }
 
-func (r *redisLock) AcquireLock(ctx context.Context, name string, value string, expireMs uint64) (result string, err error) {
+func (r *redisLock) AcquireLock(ctx context.Context, key string, value string, expireMs uint64) (result string, err error) {
 	conn := redis.ConfigureDoer(r.pool, r.pool.Get())
 	defer conn.Close()
 
@@ -39,14 +39,14 @@ func (r *redisLock) AcquireLock(ctx context.Context, name string, value string, 
 
 	// Reference: https://redis.io/docs/latest/commands/set/
 	// NX -- Only set the key if it does not already exist.
-	result, err = redigo.String(conn.Do("SET", r.testPrefix+name, value, "NX", "PX", expireMs))
+	result, err = redigo.String(conn.Do("SET", r.testPrefix+key, value, "NX", "PX", expireMs))
 	if err != nil && !errors.Is(err, redigo.ErrNil) {
 		return "", ctxerr.Wrap(ctx, err, "redis acquire lock")
 	}
 	return result, nil
 }
 
-func (r *redisLock) ReleaseLock(ctx context.Context, name string, value string) (ok bool, err error) {
+func (r *redisLock) ReleaseLock(ctx context.Context, key string, value string) (ok bool, err error) {
 	conn := redis.ConfigureDoer(r.pool, r.pool.Get())
 	defer conn.Close()
 
@@ -60,7 +60,7 @@ func (r *redisLock) ReleaseLock(ctx context.Context, name string, value string) 
 
 	// Reference: https://redis.io/docs/latest/commands/set/
 	// Only release the lock if the value matches.
-	res, err := redigo.Int64(conn.Do("EVAL", unlockScript, 1, r.testPrefix+name, value))
+	res, err := redigo.Int64(conn.Do("EVAL", unlockScript, 1, r.testPrefix+key, value))
 	if err != nil && !errors.Is(err, redigo.ErrNil) {
 		return false, ctxerr.Wrap(ctx, err, "redis release lock")
 	}
@@ -103,11 +103,11 @@ func (r *redisLock) GetSet(ctx context.Context, key string) ([]string, error) {
 	return members, nil
 }
 
-func (r *redisLock) Get(ctx context.Context, name string) (*string, error) {
+func (r *redisLock) Get(ctx context.Context, key string) (*string, error) {
 	conn := redis.ConfigureDoer(r.pool, r.pool.Get())
 	defer conn.Close()
 
-	res, err := redigo.String(conn.Do("GET", r.testPrefix+name))
+	res, err := redigo.String(conn.Do("GET", r.testPrefix+key))
 	if errors.Is(err, redigo.ErrNil) {
 		return nil, nil
 	}
