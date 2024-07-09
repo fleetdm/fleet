@@ -36,14 +36,14 @@ END AS platform
 	return p, nil
 }
 
-func getCombinedMDMCommandsQuery() string {
+func getCombinedMDMCommandsQuery(ds *Datastore, hostFilter string) (string, []interface{}) {
 	appleStmt := `
 SELECT
     nvq.id as host_uuid,
     nvq.command_uuid,
     COALESCE(NULLIF(nvq.status, ''), 'Pending') as status,
     COALESCE(nvq.result_updated_at, nvq.created_at) as updated_at,
-    nvq.request_type,
+    nvq.request_type as request_type,
     h.hostname,
     h.team_id
 FROM
@@ -70,12 +70,19 @@ LEFT JOIN windows_mdm_command_queue wmcq ON wmcq.command_uuid = wmc.command_uuid
 LEFT JOIN windows_mdm_command_results wmcr ON wmc.command_uuid = wmcr.command_uuid
 INNER JOIN mdm_windows_enrollments mwe ON wmcq.enrollment_id = mwe.id OR wmcr.enrollment_id = mwe.id
 INNER JOIN hosts h ON h.uuid = mwe.host_uuid
+WHERE TRUE
 `
 
-	return fmt.Sprintf(
+	var params []interface{}
+	appleStmtWithFilter, params := ds.whereFilterHostsByIdentifier(hostFilter, appleStmt, params)
+	windowsStmtWithFilter, params := ds.whereFilterHostsByIdentifier(hostFilter, windowsStmt, params)
+
+	stmt := fmt.Sprintf(
 		`SELECT * FROM ((%s) UNION ALL (%s)) as combined_commands WHERE `,
-		appleStmt, windowsStmt,
+		appleStmtWithFilter, windowsStmtWithFilter,
 	)
+
+	return stmt, params
 }
 
 func (ds *Datastore) ListMDMCommands(
@@ -83,8 +90,10 @@ func (ds *Datastore) ListMDMCommands(
 	tmFilter fleet.TeamFilter,
 	listOpts *fleet.MDMCommandListOptions,
 ) ([]*fleet.MDMCommand, error) {
-	jointStmt := getCombinedMDMCommandsQuery() + ds.whereFilterHostsByTeams(tmFilter, "h")
-	jointStmt, params := appendListOptionsWithCursorToSQL(jointStmt, nil, &listOpts.ListOptions)
+	jointStmt, params := getCombinedMDMCommandsQuery(ds, listOpts.Filters.HostIdentifier)
+	jointStmt += ds.whereFilterHostsByTeams(tmFilter, "h")
+	jointStmt, params = addRequestTypeFilter(jointStmt, &listOpts.Filters, params)
+	jointStmt, params = appendListOptionsWithCursorToSQL(jointStmt, params, &listOpts.ListOptions)
 	var results []*fleet.MDMCommand
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, jointStmt, params...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "list commands")
@@ -92,8 +101,18 @@ func (ds *Datastore) ListMDMCommands(
 	return results, nil
 }
 
+func addRequestTypeFilter(stmt string, filter *fleet.MDMCommandFilters, params []interface{}) (string, []interface{}) {
+	if filter.RequestType != "" {
+		stmt += " AND request_type = ?"
+		params = append(params, filter.RequestType)
+	}
+
+	return stmt, params
+}
+
 func (ds *Datastore) getMDMCommand(ctx context.Context, q sqlx.QueryerContext, cmdUUID string) (*fleet.MDMCommand, error) {
-	stmt := getCombinedMDMCommandsQuery() + "command_uuid = ?"
+	stmt, _ := getCombinedMDMCommandsQuery(ds, "")
+	stmt += "command_uuid = ?"
 
 	var cmd fleet.MDMCommand
 	if err := sqlx.GetContext(ctx, q, &cmd, stmt, cmdUUID); err != nil {

@@ -756,7 +756,9 @@ func (svc *Service) GetMDMCommandResults(ctx context.Context, commandUUID string
 ////////////////////////////////////////////////////////////////////////////////
 
 type listMDMCommandsRequest struct {
-	ListOptions fleet.ListOptions `url:"list_options"`
+	ListOptions    fleet.ListOptions `url:"list_options"`
+	HostIdentifier string            `query:"host_identifier,optional"`
+	RequestType    string            `query:"request_type,optional"`
 }
 
 type listMDMCommandsResponse struct {
@@ -770,6 +772,7 @@ func listMDMCommandsEndpoint(ctx context.Context, request interface{}, svc fleet
 	req := request.(*listMDMCommandsRequest)
 	results, err := svc.ListMDMCommands(ctx, &fleet.MDMCommandListOptions{
 		ListOptions: req.ListOptions,
+		Filters:     fleet.MDMCommandFilters{HostIdentifier: req.HostIdentifier, RequestType: req.RequestType},
 	})
 	if err != nil {
 		return listMDMCommandsResponse{
@@ -853,6 +856,14 @@ func (svc *Service) ListMDMCommands(ctx context.Context, opts *fleet.MDMCommandL
 			}
 		}
 		results = allowedResults
+	}
+
+	if len(results) == 0 && opts.Filters.HostIdentifier != "" {
+		_, err := svc.ds.HostLiteByIdentifier(ctx, opts.Filters.HostIdentifier)
+		var nve fleet.NotFoundError
+		if errors.As(err, &nve) {
+			return nil, fleet.NewInvalidArgumentError("Invalid Host", fleet.HostIdentiferNotFound).WithStatus(http.StatusNotFound)
+		}
 	}
 
 	return results, nil
