@@ -820,6 +820,15 @@
   tier: Premium
   waysToUse:
     - description: Automatically set admin access to Fleet based on your IDP
+- industryName: Multi-tenancy for white label MDM solutions
+  description: Build your MDM solution on top of the Fleet API to manage workstations for multiple customers.
+  documentationUrl: https://github.com/fleetdm/fleet/issues/9956 #customer-deebradel
+  productCategories: [Device management]
+  pricingTableCategories: [Device management]
+  usualDepartment: IT
+  buzzwords: [OEM,Private label,House brand,Clear label,Multi-tenancy]
+  tier: Premium
+  comingSoonOn: 2024-08-26
 - industryName: Trigger a workflow based on a failing policy
   documentationUrl: https://fleetdm.com/docs/using-fleet/automations#policy-automations
   productCategories: [Endpoint operations,Device management]

@@ -64,6 +64,12 @@ interface INudgePreviewProps {
 }
 
 const NudgePreview = ({ platform }: INudgePreviewProps) => {
+  const isSupportedPlatform = platform === "windows" || platform === "darwin";
+
+  if (!isSupportedPlatform) {
+    return null;
+  }
+
   // FIXME: on slow connection the image loads after the text which looks weird and can cause a
   // mismatch between the text and the image when switching between platforms. We should load the
   // image first and then the text.
