@@ -380,24 +380,3 @@ func (h *HostSoftwareInstallResultPayload) Status() SoftwareInstallerStatus {
 		return SoftwareInstallerPending
 	}
 }
-
-type AppleVPPAsset struct {
-	AdamID         string `json:"adamId"`
-	AvailableCount uint   `json:"availableCount"`
-}
-
-type AppleVPPAssetMetadata struct {
-	BundleID   string `json:"bundleId"`
-	ArtworkURL string `json:"artworkUrl60"` // TODO(JVE): confirm this is the size we want
-	Version    string `json:"version"`
-	TrackName  string `json:"trackName"`
-	TrackID    uint   `json:"trackId"`
-}
-
-type VPPApp struct {
-	AdamID          string `json:"adam_id" db:"adam_id"`
-	AvailableCount  uint   `json:"available_count" db:"available_count"`
-	BundleIdentifer string `json:"bundle_identifier" db:"bundle_identifier"`
-	IconURL         string `json:"icon_url" db:"icon_url"`
-	Name            string `json:"name" db:"name"`
-}

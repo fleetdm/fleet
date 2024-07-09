@@ -598,7 +598,7 @@ VALUES
 
 	for _, a := range apps {
 		insertVals.WriteString(`(?, ?, ?, ?, ?),`)
-		args = append(args, a.AdamID, a.AvailableCount, a.BundleIdentifer, a.IconURL, a.Name)
+		args = append(args, a.AdamID, a.AvailableCount, a.BundleIdentifier, a.IconURL, a.Name)
 	}
 
 	stmt = fmt.Sprintf(stmt, strings.TrimSuffix(insertVals.String(), ","))

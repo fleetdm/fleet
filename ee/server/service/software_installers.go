@@ -14,8 +14,6 @@ import (
 	"net/http"
 	"net/url"
 	"path/filepath"
-	"strings"
-	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
@@ -23,6 +21,8 @@ import (
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm/apple/itunes"
+	"github.com/fleetdm/fleet/v4/server/mdm/apple/vpp"
 	"github.com/go-kit/log/level"
 	"golang.org/x/sync/errgroup"
 )
@@ -604,14 +604,19 @@ func (svc *Service) GetAppStoreSoftware(ctx context.Context, teamID *uint) error
 
 	slog.With("filename", "ee/server/service/software_installers.go", "func", "GetAppStoreSoftware").Info("JVE_LOG: unmarshaled token data ", "location", vppTokenData.Location, "token", vppTokenData.Token)
 
-	assets, err := getVPPAssets(base64.StdEncoding.EncodeToString([]byte(vppTokenData.Token)))
+	assets, err := vpp.GetAssets(base64.StdEncoding.EncodeToString([]byte(vppTokenData.Token)), nil)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "fetching Apple VPP assets")
 	}
 
 	slog.With("filename", "ee/server/service/software_installers.go", "func", "GetAppStoreSoftware").Info("JVE_LOG: got assets", "assets", assets)
 
-	assetMetadata, err := getVPPAssetMetadata(assets)
+	var adamIDs []string
+	for _, a := range assets {
+		adamIDs = append(adamIDs, a.AdamID)
+	}
+
+	assetMetadata, err := itunes.GetAssetMetadata(adamIDs, &itunes.AssetMetadataFilter{Entity: "desktopSoftware"})
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "fetching VPP asset metadata")
 	}
@@ -623,7 +628,7 @@ func (svc *Service) GetAppStoreSoftware(ctx context.Context, teamID *uint) error
 			// Then this adam_id belongs to a non-desktop app.
 			continue
 		}
-		apps = append(apps, fleet.VPPApp{AdamID: a.AdamID, AvailableCount: a.AvailableCount, BundleIdentifer: m.BundleID, IconURL: m.ArtworkURL, Name: m.TrackName})
+		apps = append(apps, fleet.VPPApp{AdamID: a.AdamID, AvailableCount: a.AvailableCount, BundleIdentifier: m.BundleID, IconURL: m.ArtworkURL, Name: m.TrackName})
 	}
 
 	slog.With("filename", "ee/server/service/software_installers.go", "func", "GetAppStoreSoftware").Info("JVE_LOG: got final form apps", "apps", apps)
@@ -633,113 +638,4 @@ func (svc *Service) GetAppStoreSoftware(ctx context.Context, teamID *uint) error
 	}
 
 	return nil
-}
-
-var testOverrideAppleVPPAssetsURL string
-
-func getVPPAssets(token string) ([]fleet.AppleVPPAsset, error) {
-	url := "https://vpp.itunes.apple.com/mdm/v2/assets"
-	if testOverrideAppleVPPAssetsURL != "" {
-		url = testOverrideAppleVPPAssetsURL
-	}
-
-	bearer := fmt.Sprintf("Bearer %s", token)
-
-	req, err := http.NewRequest(http.MethodGet, url, nil)
-	if err != nil {
-		return nil, fmt.Errorf("creating request to Apple VPP assets endpoint: %w", err)
-	}
-
-	req.Header.Add("Authorization", bearer)
-
-	client := fleethttp.NewClient(fleethttp.WithTimeout(10 * time.Second))
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("making request to Apple VPP assets endpoint: %w", err)
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("reading response body from Apple VPP assets endpoint: %w", err)
-	}
-
-	// For some reason, Apple returns 200 OK even if you pass an invalid token in the Auth header.
-	// We will need to parse the response and check to see if it contains an error.
-
-	var respJSON struct {
-		Assets      []fleet.AppleVPPAsset `json:"assets"`
-		ErrorNumber int                   `json:"errorNumber"`
-	}
-
-	if err := json.Unmarshal(body, &respJSON); err != nil {
-		return nil, fmt.Errorf("parsing response body from Apple VPP assets endpoint: %w", err)
-	}
-
-	// Per https://developer.apple.com/documentation/devicemanagement/app_and_book_management/app_and_book_management_legacy/interpreting_error_codes
-	if resp.StatusCode == 401 || respJSON.ErrorNumber == 9622 {
-		return nil, errors.New("invalid token TODO(JVE): what to return here?")
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("calling Apple VPP assets endpoint failed with status %d", resp.StatusCode)
-	}
-
-	return respJSON.Assets, nil
-}
-
-var testOverrideAppleAssetMetadataURL string
-
-func getVPPAssetMetadata(assets []fleet.AppleVPPAsset) (map[string]fleet.AppleVPPAssetMetadata, error) {
-	var adamIDs []string
-	metadata := make(map[string]fleet.AppleVPPAssetMetadata)
-
-	for _, a := range assets {
-		adamIDs = append(adamIDs, a.AdamID)
-	}
-
-	adamIDsParam := strings.Join(adamIDs, ",")
-
-	url := "https://itunes.apple.com/lookup"
-	if testOverrideAppleAssetMetadataURL != "" {
-		url = testOverrideAppleAssetMetadataURL
-	}
-
-	req, err := http.NewRequest(http.MethodGet, url, nil)
-	if err != nil {
-		return nil, fmt.Errorf("creating request to Apple asset metadata endpoint: %w", err)
-	}
-
-	query := req.URL.Query()
-	query.Add("id", adamIDsParam)
-	query.Add("entity", "desktopSoftware")
-
-	req.URL.RawQuery = query.Encode()
-
-	client := fleethttp.NewClient(fleethttp.WithTimeout(10 * time.Second))
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("making request to Apple asset metadata endpoint: %w", err)
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("reading response body from Apple asset metadata endpoint: %w", err)
-	}
-
-	var respJSON struct {
-		Results []fleet.AppleVPPAssetMetadata `json:"results"`
-	}
-
-	if err := json.Unmarshal(body, &respJSON); err != nil {
-		return nil, fmt.Errorf("parsing response body from Apple asset metadata endpoint: %w", err)
-	}
-
-	for _, a := range respJSON.Results {
-		adamID := fmt.Sprintf("%d", a.TrackID)
-		metadata[adamID] = a
-	}
-
-	return metadata, nil
 }
