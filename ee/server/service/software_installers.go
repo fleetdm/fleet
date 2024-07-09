@@ -9,7 +9,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log/slog"
 	"mime"
 	"net/http"
 	"net/url"
@@ -583,33 +582,34 @@ func packageExtensionToPlatform(ext string) string {
 	return requiredPlatform
 }
 
-func (svc *Service) GetAppStoreSoftware(ctx context.Context, teamID *uint) error {
-	if err := svc.authz.Authorize(ctx, &fleet.SoftwareInstaller{TeamID: teamID}, fleet.ActionRead); err != nil {
-		return err
-	}
-
-	slog.With("filename", "ee/server/service/software_installers.go", "func", "GetAppStoreSoftware").Info("JVE_LOG: in service layer ")
-
+func (svc *Service) getVPPToken(ctx context.Context) (string, error) {
 	configMap, err := svc.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetVPPToken})
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "fetching vpp token")
+		return "", ctxerr.Wrap(ctx, err, "fetching vpp token")
 	}
 
-	// TODO(JVE): would be cool to have a helper method that did this. Not immediately clear that
-	// you have to do this additional unmarshalling step to use the VPP token.
 	var vppTokenData fleet.VPPTokenData
 	if err := json.Unmarshal(configMap[fleet.MDMAssetVPPToken].Value, &vppTokenData); err != nil {
-		return ctxerr.Wrap(ctx, err, "unmarshaling VPP token data")
+		return "", ctxerr.Wrap(ctx, err, "unmarshaling VPP token data")
 	}
 
-	slog.With("filename", "ee/server/service/software_installers.go", "func", "GetAppStoreSoftware").Info("JVE_LOG: unmarshaled token data ", "location", vppTokenData.Location, "token", vppTokenData.Token)
+	return base64.StdEncoding.EncodeToString([]byte(vppTokenData.Token)), nil
+}
 
-	assets, err := vpp.GetAssets(base64.StdEncoding.EncodeToString([]byte(vppTokenData.Token)), nil)
+func (svc *Service) GetAppStoreSoftware(ctx context.Context, teamID *uint) ([]*fleet.VPPApp, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.SoftwareInstaller{TeamID: teamID}, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+
+	vppToken, err := svc.getVPPToken(ctx)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "fetching Apple VPP assets")
+		return nil, ctxerr.Wrap(ctx, err, "retrieving VPP token")
 	}
 
-	slog.With("filename", "ee/server/service/software_installers.go", "func", "GetAppStoreSoftware").Info("JVE_LOG: got assets", "assets", assets)
+	assets, err := vpp.GetAssets(vppToken, nil)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "fetching Apple VPP assets")
+	}
 
 	var adamIDs []string
 	for _, a := range assets {
@@ -618,23 +618,73 @@ func (svc *Service) GetAppStoreSoftware(ctx context.Context, teamID *uint) error
 
 	assetMetadata, err := itunes.GetAssetMetadata(adamIDs, &itunes.AssetMetadataFilter{Entity: "desktopSoftware"})
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "fetching VPP asset metadata")
+		return nil, ctxerr.Wrap(ctx, err, "fetching VPP asset metadata")
 	}
 
-	var apps []fleet.VPPApp
+	assignedApps, err := svc.ds.GetAssignedVPPApps(ctx, teamID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "retrieving assigned VPP apps")
+	}
+
+	var apps []*fleet.VPPApp
 	for _, a := range assets {
 		m, ok := assetMetadata[a.AdamID]
 		if !ok {
 			// Then this adam_id belongs to a non-desktop app.
 			continue
 		}
-		apps = append(apps, fleet.VPPApp{AdamID: a.AdamID, AvailableCount: a.AvailableCount, BundleIdentifier: m.BundleID, IconURL: m.ArtworkURL, Name: m.TrackName})
+
+		if _, ok := assignedApps[a.AdamID]; ok {
+			// Then this is already assigned, so filter it out.
+			continue
+		}
+
+		apps = append(apps, &fleet.VPPApp{
+			AdamID:           a.AdamID,
+			AvailableCount:   a.AvailableCount,
+			BundleIdentifier: m.BundleID,
+			IconURL:          m.ArtworkURL,
+			Name:             m.TrackName,
+		})
 	}
 
-	slog.With("filename", "ee/server/service/software_installers.go", "func", "GetAppStoreSoftware").Info("JVE_LOG: got final form apps", "apps", apps)
+	return apps, nil
+}
 
-	if err := svc.ds.BatchInsertVPPApps(ctx, apps); err != nil {
-		return ctxerr.Wrap(ctx, err, "writing VPP apps to db")
+func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, adamID string) error {
+	// TODO(JVE): I think we need to validate based on team ID as well
+	if err := svc.authz.Authorize(ctx, &fleet.VPPApp{}, fleet.ActionRead); err != nil {
+		return err
+	}
+
+	vppToken, err := svc.getVPPToken(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "retrieving VPP token")
+	}
+
+	assets, err := vpp.GetAssets(vppToken, &vpp.AssetFilter{AdamID: adamID})
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "retrieving VPP asset")
+	}
+
+	asset := assets[0]
+
+	assetMetadata, err := itunes.GetAssetMetadata([]string{asset.AdamID}, &itunes.AssetMetadataFilter{Entity: "desktopSoftware"})
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "fetching VPP asset metadata")
+	}
+
+	assetMD := assetMetadata[asset.AdamID]
+
+	app := &fleet.VPPApp{
+		AdamID:           asset.AdamID,
+		AvailableCount:   asset.AvailableCount,
+		BundleIdentifier: assetMD.BundleID,
+		IconURL:          assetMD.ArtworkURL,
+		Name:             assetMD.TrackName,
+	}
+	if err := svc.ds.InsertVPPAppWithTeam(ctx, app, teamID); err != nil {
+		return ctxerr.Wrap(ctx, err, "writing VPP app to db")
 	}
 
 	return nil

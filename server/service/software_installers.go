@@ -410,22 +410,52 @@ type getAppStoreSoftwareRequest struct {
 }
 
 type getAppStoreSoftwareResponse struct {
-	Err error `json:"error,omitempty"`
+	Apps []*fleet.VPPApp `json:"apps"`
+	Err  error           `json:"error,omitempty"`
 }
 
 func (r getAppStoreSoftwareResponse) error() error { return r.Err }
 
 func getAppStoreSoftwareEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*getAppStoreSoftwareRequest)
-	err := svc.GetAppStoreSoftware(ctx, &req.TeamID)
+	apps, err := svc.GetAppStoreSoftware(ctx, &req.TeamID)
 	if err != nil {
 		return &getAppStoreSoftwareResponse{Err: err}, nil
 	}
 
-	return &getAppStoreSoftwareResponse{}, nil
+	return &getAppStoreSoftwareResponse{Apps: apps}, nil
 }
 
-func (svc *Service) GetAppStoreSoftware(ctx context.Context, teamID *uint) error {
+func (svc *Service) GetAppStoreSoftware(ctx context.Context, teamID *uint) ([]*fleet.VPPApp, error) {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return nil, fleet.ErrMissingLicense
+}
+
+type addAppStoreAppRequest struct {
+	TeamID     *uint  `query:"team_id"`
+	AppStoreID string `url:"app_store_id"`
+}
+
+type addAppStoreAppResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r addAppStoreAppResponse) error() error { return r.Err }
+
+func addAppStoreAppEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*addAppStoreAppRequest)
+	err := svc.AddAppStoreApp(ctx, req.TeamID, req.AppStoreID)
+	if err != nil {
+		return &addAppStoreAppResponse{Err: err}, nil
+	}
+
+	return &addAppStoreAppResponse{}, nil
+}
+
+func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, adamID string) error {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)

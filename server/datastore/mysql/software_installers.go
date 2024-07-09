@@ -586,7 +586,54 @@ func (ds *Datastore) HasSelfServiceSoftwareInstallers(ctx context.Context, hostP
 	return hasInstallers, nil
 }
 
-func (ds *Datastore) BatchInsertVPPApps(ctx context.Context, apps []fleet.VPPApp) error {
+func (ds *Datastore) BatchInsertVPPApps(ctx context.Context, apps []*fleet.VPPApp) error {
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		if err := insertVPPApps(ctx, tx, apps); err != nil {
+			return ctxerr.Wrap(ctx, err, "BatchInsertVPPApps insertVPPApps transaction")
+		}
+
+		return nil
+	})
+}
+
+func (ds *Datastore) InsertVPPAppWithTeam(ctx context.Context, app *fleet.VPPApp, teamID *uint) error {
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		if err := insertVPPApps(ctx, tx, []*fleet.VPPApp{app}); err != nil {
+			return ctxerr.Wrap(ctx, err, "InsertVPPAppWithTeam insertVPPApps transaction")
+		}
+
+		if err := insertVPPAppTeams(ctx, tx, app.AdamID, teamID); err != nil {
+			return ctxerr.Wrap(ctx, err, "InsertVPPAppWithTeam insertVPPAppTeams transaction")
+		}
+
+		return nil
+	})
+}
+
+// TODO(JVE): does this need to filter by apps that are already assigned to a team? probably?
+func (ds *Datastore) GetAssignedVPPApps(ctx context.Context, teamID *uint) (map[string]struct{}, error) {
+	stmt := `
+SELECT 
+	adam_id
+FROM 
+	vpp_apps_teams vat
+WHERE
+	vat.team_id = ?
+	`
+	var results []string
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, stmt, teamID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get assigned VPP apps")
+	}
+
+	appSet := make(map[string]struct{})
+	for _, r := range results {
+		appSet[r] = struct{}{}
+	}
+
+	return appSet, nil
+}
+
+func insertVPPApps(ctx context.Context, tx sqlx.ExtContext, apps []*fleet.VPPApp) error {
 	stmt := `
 INSERT INTO vpp_apps
 	(adam_id, available_count, bundle_identifier, icon_url, name)
@@ -603,7 +650,20 @@ VALUES
 
 	stmt = fmt.Sprintf(stmt, strings.TrimSuffix(insertVals.String(), ","))
 
-	_, err := ds.writer(ctx).ExecContext(ctx, stmt, args...)
+	_, err := tx.ExecContext(ctx, stmt, args...)
 
 	return ctxerr.Wrap(ctx, err, "insert VPP apps")
+}
+
+func insertVPPAppTeams(ctx context.Context, tx sqlx.ExtContext, adamID string, teamID *uint) error {
+	stmt := `
+INSERT INTO vpp_apps_teams
+	(adam_id, team_id)
+VALUES
+	(?, ?)
+	`
+
+	_, err := tx.ExecContext(ctx, stmt, adamID, teamID)
+
+	return ctxerr.Wrap(ctx, err, "writing vpp app team mapping to db")
 }

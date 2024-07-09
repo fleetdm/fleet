@@ -5,7 +5,7 @@ import "time"
 // VPPApp represents a VPP (Volume Purchase Program) application,
 // this is used by Apple MDM to manage applications via Apple
 // Bussines Manager.
-type VPPApp struct {
+type VPPApp struct { // TODO(JVE): do we need the team id here?
 	// AdamID is a unique identifier assigned to each app in
 	// the App Store, this value is managed by Apple.
 	AdamID string `db:"adam_id"`
