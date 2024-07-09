@@ -9128,10 +9128,19 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 		{Name: "foo", Version: "0.0.2", Source: "chrome_extensions"},
 		{Name: "bar", Version: "0.0.1", Source: "apps"},
 	}
-	mutationResults, err := s.ds.UpdateHostSoftware(ctx, host.ID, software)
+	us, err := s.ds.UpdateHostSoftware(ctx, host.ID, software)
 	require.NoError(t, err)
 	err = s.ds.ReconcileSoftwareTitles(ctx)
 	require.NoError(t, err)
+
+	// Note: the ID returned by ListHostSoftware is the title ID, not the software ID. We need the
+	// software ID to assign the vulnerabilities correctly below.
+	var barSoftwareID uint
+	for _, s := range us.Inserted {
+		if s.Name == "bar" {
+			barSoftwareID = s.ID
+		}
+	}
 
 	getHostSw = getHostSoftwareResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host.ID), nil, http.StatusOK, &getHostSw)
@@ -9148,23 +9157,9 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 	require.Nil(t, getHostSw.Software[1].PackageAvailableForInstall)
 
 	// Add vulnerabilities to software to check query param filtering
-	_, err = s.ds.InsertSoftwareVulnerability(ctx, fleet.SoftwareVulnerability{SoftwareID: getHostSw.Software[0].ID, CVE: "CVE-bar-1234"}, fleet.NVDSource)
+	_, err = s.ds.InsertSoftwareVulnerability(ctx, fleet.SoftwareVulnerability{SoftwareID: barSoftwareID, CVE: "CVE-bar-1234"}, fleet.NVDSource)
 	require.NoError(t, err)
-	_, err = s.ds.InsertSoftwareVulnerability(ctx, fleet.SoftwareVulnerability{SoftwareID: getHostSw.Software[0].ID, CVE: "CVE-bar-5678"}, fleet.NVDSource)
-	require.NoError(t, err)
-
-	swPaths := map[string]struct{}{}
-	installPaths := make([]string, 0, len(software))
-	for _, s := range software {
-		path := fmt.Sprintf("/some/path/%s", s.Name)
-		key := fmt.Sprintf("%s%s%s", path, fleet.SoftwareFieldSeparator, s.ToUniqueStr())
-		swPaths[key] = struct{}{}
-		installPaths = append(installPaths, path)
-	}
-	err = s.ds.UpdateHostSoftwareInstalledPaths(ctx, host.ID, swPaths, mutationResults)
-	require.NoError(t, err)
-
-	err = s.ds.ReconcileSoftwareTitles(ctx)
+	_, err = s.ds.InsertSoftwareVulnerability(ctx, fleet.SoftwareVulnerability{SoftwareID: barSoftwareID, CVE: "CVE-bar-5678"}, fleet.NVDSource)
 	require.NoError(t, err)
 
 	getHostSw = getHostSoftwareResponse{}
