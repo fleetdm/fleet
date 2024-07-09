@@ -217,16 +217,16 @@ func (svc *Service) getCalendarLock(ctx context.Context, eventUUID string, addTo
 		// We flag the lock as reserved.
 		return "", reserved, nil
 	}
-	var result string
+	var lockAcquired bool
 	if !reserved {
 		// Try to acquire the lock
 		lockValue = uuid.New().String()
-		result, err = svc.distributedLock.AcquireLock(ctx, calendar.LockKeyPrefix+eventUUID, lockValue, 0)
+		lockAcquired, err = svc.distributedLock.AcquireLock(ctx, calendar.LockKeyPrefix+eventUUID, lockValue, 0)
 		if err != nil {
 			return "", false, ctxerr.Wrap(ctx, err, "acquire calendar lock")
 		}
 	}
-	if (result == "" || reserved) && addToQueue {
+	if (!lockAcquired || reserved) && addToQueue {
 		// Could not acquire lock, so we are already processing this event. In this case, we add the event to
 		// the queue (actually a set) to indicate that we need to re-process the event.
 		err = svc.distributedLock.AddToSet(ctx, calendar.QueueKey, eventUUID)
@@ -240,12 +240,12 @@ func (svc *Service) getCalendarLock(ctx context.Context, eventUUID string, addTo
 		}
 
 		// Try to acquire the lock again in case it was released while we were adding the event to the queue.
-		result, err = svc.distributedLock.AcquireLock(ctx, calendar.LockKeyPrefix+eventUUID, lockValue, 0)
+		lockAcquired, err = svc.distributedLock.AcquireLock(ctx, calendar.LockKeyPrefix+eventUUID, lockValue, 0)
 		if err != nil {
 			return "", false, ctxerr.Wrap(ctx, err, "acquire calendar lock again")
 		}
 
-		if result == "" {
+		if !lockAcquired {
 			// We could not acquire the lock, so we are done here.
 			return "", reserved, nil
 		}

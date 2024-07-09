@@ -52,12 +52,12 @@ func testRedisAcquireLock(t *testing.T, lock fleet.Lock) {
 	ctx := context.Background()
 	result, err := lock.AcquireLock(ctx, "test", "1", 0)
 	require.NoError(t, err)
-	assert.Equal(t, "OK", result)
+	assert.True(t, result)
 
 	// Try to acquire the same lock
 	result, err = lock.AcquireLock(ctx, "test", "1", 0)
 	assert.NoError(t, err)
-	assert.Equal(t, "", result)
+	assert.False(t, result)
 
 	// Try to release the lock with a wrong value
 	ok, err := lock.ReleaseLock(ctx, "test", "2")
@@ -77,7 +77,7 @@ func testRedisAcquireLock(t *testing.T, lock fleet.Lock) {
 	// Acquire the lock again
 	result, err = lock.AcquireLock(ctx, "test", "1", 0)
 	require.NoError(t, err)
-	assert.Equal(t, "OK", result)
+	assert.True(t, result)
 
 	// Get lock
 	getResult, err := lock.Get(ctx, "test")
@@ -89,14 +89,14 @@ func testRedisAcquireLock(t *testing.T, lock fleet.Lock) {
 	var expire uint64 = 10
 	result, err = lock.AcquireLock(ctx, "testE", "1", expire)
 	require.NoError(t, err)
-	assert.Equal(t, "OK", result)
+	assert.True(t, result)
 
 	// Try to acquire the same lock after waiting
 	duration := time.Duration(expire+1) * time.Millisecond
 	time.Sleep(duration)
 	result, err = lock.AcquireLock(ctx, "testE", "1", 0)
 	require.NoError(t, err)
-	assert.Equal(t, "OK", result)
+	assert.True(t, result)
 
 	// Get non-existent key
 	getResult, err = lock.Get(ctx, "testNonExistent")

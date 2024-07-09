@@ -323,19 +323,19 @@ func processFailingHostExistingCalendarEvent(
 	// Try to acquire the lock. Lock is needed to ensure calendar callback is not processed for this event at the same time.
 	eventUUID := calendarEvent.UUID
 	lockValue := uuid.New().String()
-	result, err := distributedLock.AcquireLock(ctx, calendar.LockKeyPrefix+eventUUID, lockValue, 0)
+	lockAcquired, err := distributedLock.AcquireLock(ctx, calendar.LockKeyPrefix+eventUUID, lockValue, 0)
 	if err != nil {
 		return fmt.Errorf("acquire calendar lock: %w", err)
 	}
 	lockReserved := false
-	if result == "" {
+	if !lockAcquired {
 		// Lock was not acquired. We reserve the lock and try to acquire it until we do.
 		var timeoutMs uint64 = 2 * 60 * 1000
-		result, err = distributedLock.AcquireLock(ctx, calendar.ReservedLockKeyPrefix+eventUUID, lockValue, timeoutMs)
+		lockAcquired, err = distributedLock.AcquireLock(ctx, calendar.ReservedLockKeyPrefix+eventUUID, lockValue, timeoutMs)
 		if err != nil {
 			return fmt.Errorf("reserve calendar lock: %w", err)
 		}
-		if result == "" {
+		if !lockAcquired {
 			// Lock was not reserved. Another cron job is processing this event. This is not expected.
 			return errors.New("could not reserve calendar lock")
 		}
@@ -344,8 +344,8 @@ func processFailingHostExistingCalendarEvent(
 		go func() {
 			for {
 				// Keep trying to get the lock.
-				result, err = distributedLock.AcquireLock(ctx, calendar.LockKeyPrefix+eventUUID, lockValue, 0)
-				if err != nil || result != "" {
+				lockAcquired, err = distributedLock.AcquireLock(ctx, calendar.LockKeyPrefix+eventUUID, lockValue, 0)
+				if err != nil || lockAcquired {
 					done <- struct{}{}
 					return
 				}

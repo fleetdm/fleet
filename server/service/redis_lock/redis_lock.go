@@ -29,7 +29,7 @@ func NewLock(pool fleet.RedisPool) fleet.Lock {
 	return fleet.Lock(lock)
 }
 
-func (r *redisLock) AcquireLock(ctx context.Context, key string, value string, expireMs uint64) (result string, err error) {
+func (r *redisLock) AcquireLock(ctx context.Context, key string, value string, expireMs uint64) (ok bool, err error) {
 	conn := redis.ConfigureDoer(r.pool, r.pool.Get())
 	defer conn.Close()
 
@@ -39,11 +39,11 @@ func (r *redisLock) AcquireLock(ctx context.Context, key string, value string, e
 
 	// Reference: https://redis.io/docs/latest/commands/set/
 	// NX -- Only set the key if it does not already exist.
-	result, err = redigo.String(conn.Do("SET", r.testPrefix+key, value, "NX", "PX", expireMs))
+	result, err := redigo.String(conn.Do("SET", r.testPrefix+key, value, "NX", "PX", expireMs))
 	if err != nil && !errors.Is(err, redigo.ErrNil) {
-		return "", ctxerr.Wrap(ctx, err, "redis acquire lock")
+		return false, ctxerr.Wrap(ctx, err, "redis acquire lock")
 	}
-	return result, nil
+	return result != "", nil
 }
 
 func (r *redisLock) ReleaseLock(ctx context.Context, key string, value string) (ok bool, err error) {
