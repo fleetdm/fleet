@@ -43,11 +43,17 @@ type UserCalendar interface {
 
 // Lock interface for managing distributed locks.
 type Lock interface {
-	AcquireLock(ctx context.Context, name string, value string, expireMs uint64) (result string, err error)
-	ReleaseLock(ctx context.Context, name string, value string) (ok bool, err error)
-	Get(ctx context.Context, name string) (*string, error)
+	// AcquireLock attempts to acquire a lock with the given key. value is the value to set for the key, which is used to release the lock.
+	AcquireLock(ctx context.Context, key string, value string, expireMs uint64) (result string, err error)
+	// ReleaseLock attempts to release a lock with the given key and value. If key does not exist or value does not match, the lock is not released.
+	ReleaseLock(ctx context.Context, key string, value string) (ok bool, err error)
+	// Get retrieves the value of the given key. If the key does not exist, nil is returned.
+	Get(ctx context.Context, key string) (*string, error)
+	// AddToSet adds the value to the set identified by the given key.
 	AddToSet(ctx context.Context, key string, value string) error
+	// RemoveFromSet removes the value from the set identified by the given key.
 	RemoveFromSet(ctx context.Context, key string, value string) error
+	// GetSet retrieves a slice of string values from the set identified by the given key.
 	GetSet(ctx context.Context, key string) ([]string, error)
 }
 
