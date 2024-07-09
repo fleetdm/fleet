@@ -791,8 +791,8 @@ func TestGetSoftwareVersions(t *testing.T) {
 	foo001 := fleet.Software{
 		Name: "foo", Version: "0.0.1", Source: "chrome_extensions", GenerateCPE: "somecpe",
 		Vulnerabilities: fleet.Vulnerabilities{
-			{CVE: "cve-321-432-543", DetailsLink: "https://nvd.nist.gov/vuln/detail/cve-321-432-543"},
-			{CVE: "cve-333-444-555", DetailsLink: "https://nvd.nist.gov/vuln/detail/cve-333-444-555"},
+			{CVE: "cve-321-432-543", DetailsLink: "https://nvd.nist.gov/vuln/detail/cve-321-432-543", CreatedAt: time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC)},
+			{CVE: "cve-333-444-555", DetailsLink: "https://nvd.nist.gov/vuln/detail/cve-333-444-555", CreatedAt: time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC)},
 		},
 	}
 	foo002 := fleet.Software{Name: "foo", Version: "0.0.2", Source: "chrome_extensions", ExtensionID: "xyz", Browser: "edge"}
@@ -836,8 +836,10 @@ spec:
   vulnerabilities:
   - cve: cve-321-432-543
     details_link: https://nvd.nist.gov/vuln/detail/cve-321-432-543
+    created_at: "2021-01-01T00:00:00Z"
   - cve: cve-333-444-555
     details_link: https://nvd.nist.gov/vuln/detail/cve-333-444-555
+    created_at: "2021-01-01T00:00:00Z"
 - generated_cpe: ""
   id: 0
   name: foo
@@ -878,11 +880,13 @@ spec:
       "vulnerabilities": [
         {
           "cve": "cve-321-432-543",
-          "details_link": "https://nvd.nist.gov/vuln/detail/cve-321-432-543"
+          "details_link": "https://nvd.nist.gov/vuln/detail/cve-321-432-543",
+		  "created_at": "2021-01-01T00:00:00Z"
         },
         {
           "cve": "cve-333-444-555",
-          "details_link": "https://nvd.nist.gov/vuln/detail/cve-333-444-555"
+          "details_link": "https://nvd.nist.gov/vuln/detail/cve-333-444-555",
+		  "created_at": "2021-01-01T00:00:00Z"
         }
       ]
     },
@@ -2687,10 +2691,26 @@ func TestGetMDMCommands(t *testing.T) {
 	}
 	var empty bool
 	var listErr error
+	var noHostErr error
+	var expectIdentifier bool
+	var expectRequestType bool
 	ds.ListMDMCommandsFunc = func(ctx context.Context, tmFilter fleet.TeamFilter, listOpts *fleet.MDMCommandListOptions) ([]*fleet.MDMCommand, error) {
 		if empty || listErr != nil {
 			return nil, listErr
 		}
+
+		if noHostErr != nil {
+			return nil, errors.New(fleet.HostIdentiferNotFound)
+		}
+
+		if expectIdentifier {
+			require.NotEmpty(t, listOpts.Filters.HostIdentifier)
+		}
+
+		if expectRequestType {
+			require.NotEmpty(t, listOpts.Filters.RequestType)
+		}
+
 		return []*fleet.MDMCommand{
 			{
 				HostUUID:    "h1",
@@ -2734,16 +2754,56 @@ func TestGetMDMCommands(t *testing.T) {
 	buf, err = runAppNoChecks([]string{"get", "mdm-commands"})
 	require.NoError(t, err)
 	require.Contains(t, buf.String(), strings.TrimSpace(`
-+----+----------------------+---------------------------------------+--------------+----------+
-| ID |         TIME         |                 TYPE                  |    STATUS    | HOSTNAME |
-+----+----------------------+---------------------------------------+--------------+----------+
-| u1 | 2023-04-12T09:05:00Z | ProfileList                           | Acknowledged | host1    |
-+----+----------------------+---------------------------------------+--------------+----------+
-| u2 | 2023-04-11T09:05:00Z | ./Device/Vendor/MSFT/Reboot/RebootNow |          200 | host2    |
-+----+----------------------+---------------------------------------+--------------+----------+
-| u3 | 2023-04-11T09:05:00Z | InstallProfile                        |          200 | host2    |
-+----+----------------------+---------------------------------------+--------------+----------+
+
+The list of 3 most recent commands:
+
++------+----------------------+---------------------------------------+--------------+----------+
+| UUID |         TIME         |                 TYPE                  |    STATUS    | HOSTNAME |
++------+----------------------+---------------------------------------+--------------+----------+
+| u1   | 2023-04-12T09:05:00Z | ProfileList                           | Acknowledged | host1    |
++------+----------------------+---------------------------------------+--------------+----------+
+| u2   | 2023-04-11T09:05:00Z | ./Device/Vendor/MSFT/Reboot/RebootNow |          200 | host2    |
++------+----------------------+---------------------------------------+--------------+----------+
+| u3   | 2023-04-11T09:05:00Z | InstallProfile                        |          200 | host2    |
++------+----------------------+---------------------------------------+--------------+----------+
 `))
+
+	// Test with invalid option
+	_, err = runAppNoChecks([]string{"get", "mdm-commands", "--invalid", "foo"})
+	require.Error(t, err)
+
+	// Test with host identifier filter
+	listErr = nil
+	empty = false
+	expectIdentifier = true
+	_, err = runAppNoChecks([]string{"get", "mdm-commands", "--host", "foo"})
+	require.NoError(t, err)
+
+	// Test with request type filter
+	listErr = nil
+	empty = false
+	expectRequestType = true
+	expectIdentifier = false
+	_, err = runAppNoChecks([]string{"get", "mdm-commands", "--type", "foo"})
+	require.NoError(t, err)
+
+	// Test with request type and host identifier filter
+	listErr = nil
+	empty = false
+	expectRequestType = true
+	expectIdentifier = true
+	_, err = runAppNoChecks([]string{"get", "mdm-commands", "--type", "foo", "--host", "bar"})
+	require.NoError(t, err)
+
+	// No Host Identifier found
+	listErr = nil
+	empty = false
+	expectRequestType = false
+	expectIdentifier = true
+	noHostErr = errors.New(fleet.HostIdentiferNotFound)
+	_, err = runAppNoChecks([]string{"get", "mdm-commands", "--host", "foo"})
+	require.Error(t, err)
+	require.ErrorContains(t, err, fleet.HostIdentiferNotFound)
 }
 
 func TestUserIsObserver(t *testing.T) {

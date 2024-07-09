@@ -114,6 +114,12 @@ type VulnerableSoftware struct {
 	ResolvedInVersion *string `json:"resolved_in_version" db:"resolved_in_version"`
 }
 
+type VulnSoftwareFilter struct {
+	HostID *uint
+	Name   string // LIKE filter
+	Source string // exact match
+}
+
 type SliceString []string
 
 func (c *SliceString) Scan(v interface{}) error {
@@ -160,6 +166,10 @@ type SoftwareTitle struct {
 	CountsUpdatedAt *time.Time `json:"-" db:"counts_updated_at"`
 	// SoftwarePackage is the software installer information for this title.
 	SoftwarePackage *SoftwareInstaller `json:"software_package" db:"-"`
+	// BundleIdentifier is used by Apple installers to uniquely identify
+	// the software installed. It's surfaced in software_titles to match
+	// with existing software entries.
+	BundleIdentifier *string `json:"-" db:"bundle_identifier"`
 }
 
 // This type is essentially the same as the above SoftwareTitle type. The only difference is that
