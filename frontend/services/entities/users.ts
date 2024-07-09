@@ -25,7 +25,7 @@ interface IUserSearchOptions {
   teamId?: number;
 }
 
-interface IForgotPassword {
+export interface IForgotPassword {
   email: string;
 }
 

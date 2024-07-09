@@ -1230,8 +1230,6 @@ const ManageHostsPage = ({
   const renderDeleteSecretModal = () => (
     <DeleteSecretModal
       onDeleteSecret={onDeleteSecret}
-      selectedTeam={teamIdForApi || 0}
-      teams={teams || []}
       toggleDeleteSecretModal={toggleDeleteSecretModal}
       isUpdatingSecret={isUpdatingSecret}
     />

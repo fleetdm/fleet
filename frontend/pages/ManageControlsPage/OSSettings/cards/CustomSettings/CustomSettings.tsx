@@ -30,7 +30,7 @@ const PROFILES_PER_PAGE = 10;
 
 const baseClass = "custom-settings";
 
-interface ICustomSettingsProps {
+export interface ICustomSettingsProps {
   currentTeamId: number;
   router: InjectedRouter; // v3
   currentPage: number;

@@ -6,7 +6,7 @@ import { IScript } from "interfaces/script";
 import ScriptListItem from "./ScriptListItem";
 
 describe("ScriptListItem", () => {
-  const onDelete = (script: IScript) => jest.fn();
+  const onDelete = () => jest.fn();
   it("Renders a Script list item with correct graphic and platform for macOS", () => {
     const script: IScript = {
       id: 1,

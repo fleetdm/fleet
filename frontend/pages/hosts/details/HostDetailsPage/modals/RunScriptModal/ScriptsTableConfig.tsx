@@ -1,8 +1,4 @@
 import React from "react";
-import ReactTooltip from "react-tooltip";
-import { noop } from "lodash";
-
-import { COLORS } from "styles/var/colors";
 
 import { IDropdownOption } from "interfaces/dropdownOption";
 import { IHostScript, ILastExecution } from "interfaces/script";

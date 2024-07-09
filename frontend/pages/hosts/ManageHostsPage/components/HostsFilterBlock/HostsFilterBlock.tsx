@@ -12,6 +12,7 @@ import {
   IMdmSolution,
   MDM_ENROLLMENT_STATUS,
   MdmProfileStatus,
+  MdmEnrollmentStatus,
 } from "interfaces/mdm";
 import { IMunkiIssuesAggregate } from "interfaces/macadmins";
 import { IPolicy } from "interfaces/policy";
@@ -52,14 +53,14 @@ interface IHostsFilterBlockProps {
   params: {
     munkiIssueDetails: IMunkiIssuesAggregate | null;
     policyResponse: PolicyResponse;
-    policyId?: any;
+    policyId?: string;
     policy?: IPolicy;
-    macSettingsStatus?: any;
+    macSettingsStatus?: MacSettingsStatusQueryParam;
     softwareId?: number;
     softwareTitleId?: number;
     softwareVersionId?: number;
     mdmId?: number;
-    mdmEnrollmentStatus?: any;
+    mdmEnrollmentStatus?: MdmEnrollmentStatus;
     lowDiskSpaceHosts?: number;
     osVersionId?: string;
     osName?: string;

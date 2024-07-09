@@ -23,8 +23,6 @@ interface IQueryEditorProps {
   storedPolicyError: Error | null;
   showOpenSchemaActionText: boolean;
   isStoredPolicyLoading: boolean;
-  isTeamAdmin: boolean;
-  isTeamMaintainer: boolean;
   isTeamObserver: boolean;
   createPolicy: (formData: IPolicyFormData) => Promise<any>;
   onOsqueryTableSelect: (tableName: string) => void;
@@ -41,8 +39,6 @@ const QueryEditor = ({
   storedPolicyError,
   showOpenSchemaActionText,
   isStoredPolicyLoading,
-  isTeamAdmin,
-  isTeamMaintainer,
   isTeamObserver,
   createPolicy,
   onOsqueryTableSelect,

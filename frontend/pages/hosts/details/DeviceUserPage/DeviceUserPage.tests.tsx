@@ -39,7 +39,7 @@ describe("Device User Page", () => {
     });
 
     // TODO: fix return type from render
-    const { user } = render(
+    render(
       <DeviceUserPage
         router={mockRouter}
         params={{ device_auth_token: "testToken" }}

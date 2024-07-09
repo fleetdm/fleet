@@ -18,7 +18,7 @@ import SectionHeader from "components/SectionHeader";
 import DiskEncryptionTable from "./components/DiskEncryptionTable";
 
 const baseClass = "disk-encryption";
-interface IDiskEncryptionProps {
+export interface IDiskEncryptionProps {
   currentTeamId: number;
   onMutation: () => void;
 }

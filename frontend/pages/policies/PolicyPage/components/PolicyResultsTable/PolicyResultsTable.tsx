@@ -16,14 +16,12 @@ interface IPolicyResultsTableProps {
   hostResponses: IPolicyHostResponse[];
   isLoading: boolean;
   resultsTitle?: string;
-  canAddOrDeletePolicy?: boolean;
 }
 
 const PolicyResultsTable = ({
   hostResponses,
   isLoading,
   resultsTitle,
-  canAddOrDeletePolicy,
 }: IPolicyResultsTableProps): JSX.Element => {
   return (
     <div className={baseClass}>

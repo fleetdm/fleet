@@ -42,7 +42,6 @@ const Checkbox = (props: ICheckboxProps) => {
     parseTarget,
     tooltipContent,
     isLeftLabel,
-    helpText,
   } = props;
 
   const handleChange = () => {

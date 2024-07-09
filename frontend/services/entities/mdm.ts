@@ -1,5 +1,4 @@
 /* eslint-disable @typescript-eslint/explicit-module-boundary-types */
-import { createMockMdmProfile } from "__mocks__/mdmMock";
 import {
   DiskEncryptionStatus,
   IHostMdmProfile,

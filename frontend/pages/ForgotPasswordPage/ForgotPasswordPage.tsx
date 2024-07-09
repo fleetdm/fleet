@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { InjectedRouter } from "react-router";
 import PATHS from "router/paths";
-import usersAPI from "services/entities/users";
+import usersAPI, { IForgotPassword } from "services/entities/users";
 import formatErrorResponse from "utilities/format_error_response";
 
 // @ts-ignore
@@ -27,7 +27,7 @@ const ForgotPasswordPage = ({ router }: IForgotPasswordPage) => {
     setErrors({});
   }, []);
 
-  const handleSubmit = async (formData: any) => {
+  const handleSubmit = async (formData: IForgotPassword) => {
     setIsLoading(true);
     try {
       await usersAPI.forgotPassword(formData);
