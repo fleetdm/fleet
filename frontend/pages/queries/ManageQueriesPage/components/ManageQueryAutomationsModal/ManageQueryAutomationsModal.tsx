@@ -179,7 +179,7 @@ const ManageQueryAutomationsModal = ({
         </InfoBanner>
         <Button
           type="button"
-          variant="inverse"
+          variant="text-link"
           onClick={togglePreviewDataModal}
           className={`${baseClass}__preview-data`}
         >

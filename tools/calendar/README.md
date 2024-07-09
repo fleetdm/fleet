@@ -4,6 +4,8 @@ To delete all downtime events from a Google Calendar, use `delete-events/delete-
 
 To move all downtime events from multiple Google Calendars to a specific time, use `move-events/move-events.go`
 
+To use the helper scripts, you must set `FLEET_TEST_GOOGLE_CALENDAR_SERVICE_EMAIL` and `FLEET_TEST_GOOGLE_CALENDAR_PRIVATE_KEY` environment variables. The email is the `client_email` from JSON key file. The private key also comes from JSON key file for the service account, and starts with `-----BEGIN PRIVATE KEY-----`.
+
 # Calendar server for load testing
 
 Test calendar server that provides a REST API for managing events.

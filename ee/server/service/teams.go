@@ -950,6 +950,9 @@ func (svc *Service) createTeamFromSpec(
 		)
 	}
 
+	validateTeamCustomSettings(invalid, "macos", macOSSettings.CustomSettings)
+	validateTeamCustomSettings(invalid, "windows", spec.MDM.WindowsSettings.CustomSettings.Value)
+
 	var hostExpirySettings fleet.HostExpirySettings
 	if spec.HostExpirySettings != nil {
 		if spec.HostExpirySettings.HostExpiryEnabled && spec.HostExpirySettings.HostExpiryWindow <= 0 {
@@ -1006,6 +1009,7 @@ func (svc *Service) createTeamFromSpec(
 				WindowsUpdates:       spec.MDM.WindowsUpdates,
 				MacOSSettings:        macOSSettings,
 				MacOSSetup:           macOSSetup,
+				WindowsSettings:      spec.MDM.WindowsSettings,
 			},
 			HostExpirySettings: hostExpirySettings,
 			WebhookSettings: fleet.TeamWebhookSettings{
@@ -1183,6 +1187,9 @@ func (svc *Service) editTeamFromSpec(
 		team.Config.HostExpirySettings = *spec.HostExpirySettings
 	}
 
+	validateTeamCustomSettings(invalid, "macos", team.Config.MDM.MacOSSettings.CustomSettings)
+	validateTeamCustomSettings(invalid, "windows", team.Config.MDM.WindowsSettings.CustomSettings.Value)
+
 	// If host status webhook is not provided, do not change it
 	if spec.WebhookSettings.HostStatusWebhook != nil {
 		fleet.ValidateEnabledHostStatusIntegrations(*spec.WebhookSettings.HostStatusWebhook, invalid)
@@ -1280,6 +1287,25 @@ func (svc *Service) editTeamFromSpec(
 	}
 
 	return nil
+}
+
+func validateTeamCustomSettings(invalid *fleet.InvalidArgumentError, prefix string, customSettings []fleet.MDMProfileSpec) {
+	for i, prof := range customSettings {
+		count := 0
+		for _, b := range []bool{len(prof.Labels) > 0, len(prof.LabelsIncludeAll) > 0, len(prof.LabelsExcludeAny) > 0} {
+			if b {
+				count++
+			}
+		}
+		if count > 1 {
+			invalid.Append(fmt.Sprintf("%s_settings.custom_settings", prefix),
+				fmt.Sprintf(`Couldn't edit %s_settings.custom_settings. For each profile, only one of "labels_exclude_any", "labels_include_all" or "labels" can be included.`, prefix))
+		}
+		if len(prof.Labels) > 0 {
+			customSettings[i].LabelsIncludeAll = customSettings[i].Labels
+			customSettings[i].Labels = nil
+		}
+	}
 }
 
 func (svc *Service) validateTeamCalendarIntegrations(

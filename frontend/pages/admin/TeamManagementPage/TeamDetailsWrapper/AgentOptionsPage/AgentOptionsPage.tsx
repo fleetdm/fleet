@@ -147,7 +147,7 @@ const AgentOptionsPage = ({
         Fleet.
         <br />
         <CustomLink
-          url="https://fleetdm.com/docs/configuration/configuration-files#team-agent-options"
+          url="https://fleetdm.com/learn-more-about/agent-options"
           text="Learn more about agent options"
           newTab
           multiline

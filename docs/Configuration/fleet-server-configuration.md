@@ -2701,7 +2701,9 @@ If both `basic_auth.username` and `basic_auth.password` are set, then this setti
       disable: true
   ```
 
-#### Packaging
+<!-- #### Packaging
+
+Fleet Sandbox no longer exists. Fleet might use this later to enable one-click, downloaded agents (fleetd) (noahtalerman 2024-06-26)
 
 These configurations control how Fleet interacts with the
 packaging server (coming soon).  These features are currently only intended to be used within
@@ -2874,7 +2876,7 @@ Minio users must set this to any non-empty value (e.g., `minio`), as Minio does 
   packaging:
     s3:
       region: us-east-1
-  ```
+  ``` -->
 
 ##### Example YAML
 
