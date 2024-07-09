@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-func TestUp_20240709112642(t *testing.T) {
+func TestUp_20240709132642(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	testUUID := strings.ToUpper(uuid.New().String())

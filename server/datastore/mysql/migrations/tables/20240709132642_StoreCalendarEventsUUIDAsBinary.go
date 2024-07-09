@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20240709112642, Down_20240709112642)
+	MigrationClient.AddMigration(Up_20240709132642, Down_20240709132642)
 }
 
-func Up_20240709112642(tx *sql.Tx) error {
+func Up_20240709132642(tx *sql.Tx) error {
 	// Implementation based on: https://dev.mysql.com/blog-archive/storing-uuid-values-in-mysql-tables/
 
 	if _, err := tx.Exec(`ALTER TABLE calendar_events ADD COLUMN uuid_bin BINARY(16) NOT NULL`); err != nil {
@@ -33,7 +33,7 @@ func Up_20240709112642(tx *sql.Tx) error {
 
 	// Add a new GENERATED uuid column
 	if _, err := tx.Exec(
-		`ALTER TABLE calendar_events ADD COLUMN uuid VARCHAR(36) GENERATED ALWAYS AS (
+		`ALTER TABLE calendar_events ADD COLUMN uuid VARCHAR(36) COLLATE utf8mb4_unicode_ci GENERATED ALWAYS AS (
 			(INSERT(
 			    INSERT(
 				  INSERT(
@@ -48,6 +48,6 @@ func Up_20240709112642(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20240709112642(_ *sql.Tx) error {
+func Down_20240709132642(_ *sql.Tx) error {
 	return nil
 }
