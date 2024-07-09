@@ -992,7 +992,9 @@ type refetchHostResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r refetchHostResponse) error() error { return r.Err }
+func (r refetchHostResponse) error() error {
+	return r.Err
+}
 
 func refetchHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*refetchHostRequest)
