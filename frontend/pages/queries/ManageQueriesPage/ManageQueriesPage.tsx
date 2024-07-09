@@ -14,7 +14,7 @@ import { QueryContext } from "context/query";
 import { TableContext } from "context/table";
 import { NotificationContext } from "context/notification";
 import { getPerformanceImpactDescription } from "utilities/helpers";
-import { SupportedPlatform, SelectedPlatform } from "interfaces/platform";
+import { QueryablePlatform, SelectedPlatform } from "interfaces/platform";
 import {
   IEnhancedQuery,
   IQueryKeyQueriesLoadAll,
@@ -54,7 +54,7 @@ interface IManageQueriesPageProps {
   };
 }
 
-const getPlatforms = (queryString: string): SupportedPlatform[] => {
+const getPlatforms = (queryString: string): QueryablePlatform[] => {
   const { platforms } = checkPlatformCompatibility(queryString);
 
   return platforms ?? [];

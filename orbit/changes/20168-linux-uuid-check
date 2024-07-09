@@ -1,0 +1,1 @@
+- Fix boot loop caused by Linux hosts with no hardware UUID

@@ -1,0 +1,1 @@
+* Automatic install of `fleetd` when a host turns on MDM now uses the latest released `fleetd` version.

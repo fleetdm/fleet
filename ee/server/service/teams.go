@@ -724,19 +724,31 @@ func setAuthCheckedOnPreAuthErr(ctx context.Context) {
 
 func (svc *Service) checkAuthorizationForTeams(ctx context.Context, specs []*fleet.TeamSpec) error {
 	for _, spec := range specs {
-		team, err := svc.ds.TeamByName(ctx, spec.Name)
-		if err != nil {
-			if fleet.IsNotFound(err) {
-				// Can the user create a new team?
-				if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionWrite); err != nil {
-					return err
-				}
-				continue
+		var team *fleet.Team
+		var err error
+		// If filename is provided, try to find the team by filename first.
+		// This is needed in case user is trying to modify the team name.
+		if spec.Filename != nil && *spec.Filename != "" {
+			team, err = svc.ds.TeamByFilename(ctx, *spec.Filename)
+			if err != nil && !fleet.IsNotFound(err) {
+				return err
 			}
+		}
+		if team == nil {
+			team, err = svc.ds.TeamByName(ctx, spec.Name)
+			if err != nil {
+				if fleet.IsNotFound(err) {
+					// Can the user create a new team?
+					if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionWrite); err != nil {
+						return err
+					}
+					continue
+				}
 
-			// Set authorization as checked to return a proper error.
-			setAuthCheckedOnPreAuthErr(ctx)
-			return err
+				// Set authorization as checked to return a proper error.
+				setAuthCheckedOnPreAuthErr(ctx)
+				return err
+			}
 		}
 
 		// can the user modify each team it's trying to modify
@@ -783,18 +795,29 @@ func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec,
 			}
 		}
 
-		var create bool
-		team, err := svc.ds.TeamByName(ctx, spec.Name)
-		switch {
-		case err == nil:
-			// OK
-		case fleet.IsNotFound(err):
-			if spec.Name == "" {
-				return nil, fleet.NewInvalidArgumentError("name", "name may not be empty")
+		var team *fleet.Team
+		// If filename is provided, try to find the team by filename first.
+		// This is needed in case user is trying to modify the team name.
+		if spec.Filename != nil && *spec.Filename != "" {
+			team, err = svc.ds.TeamByFilename(ctx, *spec.Filename)
+			if err != nil && !fleet.IsNotFound(err) {
+				return nil, err
 			}
-			create = true
-		default:
-			return nil, err
+		}
+		var create bool
+		if team == nil {
+			team, err = svc.ds.TeamByName(ctx, spec.Name)
+			switch {
+			case err == nil:
+				// OK
+			case fleet.IsNotFound(err):
+				if spec.Name == "" {
+					return nil, fleet.NewInvalidArgumentError("name", "name may not be empty")
+				}
+				create = true
+			default:
+				return nil, err
+			}
 		}
 
 		if len(spec.AgentOptions) > 0 && !bytes.Equal(spec.AgentOptions, jsonNull) {
@@ -927,6 +950,9 @@ func (svc *Service) createTeamFromSpec(
 		)
 	}
 
+	validateTeamCustomSettings(invalid, "macos", macOSSettings.CustomSettings)
+	validateTeamCustomSettings(invalid, "windows", spec.MDM.WindowsSettings.CustomSettings.Value)
+
 	var hostExpirySettings fleet.HostExpirySettings
 	if spec.HostExpirySettings != nil {
 		if spec.HostExpirySettings.HostExpiryEnabled && spec.HostExpirySettings.HostExpiryWindow <= 0 {
@@ -941,6 +967,13 @@ func (svc *Service) createTeamFromSpec(
 	if spec.WebhookSettings.HostStatusWebhook != nil {
 		fleet.ValidateEnabledHostStatusIntegrations(*spec.WebhookSettings.HostStatusWebhook, invalid)
 		hostStatusWebhook = spec.WebhookSettings.HostStatusWebhook
+	}
+
+	if spec.Integrations.GoogleCalendar != nil {
+		err = svc.validateTeamCalendarIntegrations(spec.Integrations.GoogleCalendar, appCfg, dryRun, invalid)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "validate team calendar integrations")
+		}
 	}
 
 	if dryRun {
@@ -965,7 +998,8 @@ func (svc *Service) createTeamFromSpec(
 	}
 
 	tm, err := svc.ds.NewTeam(ctx, &fleet.Team{
-		Name: spec.Name,
+		Name:     spec.Name,
+		Filename: spec.Filename,
 		Config: fleet.TeamConfig{
 			AgentOptions: agentOptions,
 			Features:     features,
@@ -975,10 +1009,14 @@ func (svc *Service) createTeamFromSpec(
 				WindowsUpdates:       spec.MDM.WindowsUpdates,
 				MacOSSettings:        macOSSettings,
 				MacOSSetup:           macOSSetup,
+				WindowsSettings:      spec.MDM.WindowsSettings,
 			},
 			HostExpirySettings: hostExpirySettings,
 			WebhookSettings: fleet.TeamWebhookSettings{
 				HostStatusWebhook: hostStatusWebhook,
+			},
+			Integrations: fleet.TeamIntegrations{
+				GoogleCalendar: spec.Integrations.GoogleCalendar,
 			},
 		},
 		Secrets: secrets,
@@ -1012,7 +1050,11 @@ func (svc *Service) editTeamFromSpec(
 	secrets []*fleet.EnrollSecret,
 	opts fleet.ApplyTeamSpecOptions,
 ) error {
-	team.Name = spec.Name
+	if !opts.DryRun {
+		// We keep the original name for dry run because subsequent dry run calls may need the original name to fetch the team
+		team.Name = spec.Name
+	}
+	team.Filename = spec.Filename
 
 	// if agent options are not provided, do not change them
 	if len(spec.AgentOptions) > 0 {
@@ -1145,6 +1187,9 @@ func (svc *Service) editTeamFromSpec(
 		team.Config.HostExpirySettings = *spec.HostExpirySettings
 	}
 
+	validateTeamCustomSettings(invalid, "macos", team.Config.MDM.MacOSSettings.CustomSettings)
+	validateTeamCustomSettings(invalid, "windows", team.Config.MDM.WindowsSettings.CustomSettings.Value)
+
 	// If host status webhook is not provided, do not change it
 	if spec.WebhookSettings.HostStatusWebhook != nil {
 		fleet.ValidateEnabledHostStatusIntegrations(*spec.WebhookSettings.HostStatusWebhook, invalid)
@@ -1242,6 +1287,25 @@ func (svc *Service) editTeamFromSpec(
 	}
 
 	return nil
+}
+
+func validateTeamCustomSettings(invalid *fleet.InvalidArgumentError, prefix string, customSettings []fleet.MDMProfileSpec) {
+	for i, prof := range customSettings {
+		count := 0
+		for _, b := range []bool{len(prof.Labels) > 0, len(prof.LabelsIncludeAll) > 0, len(prof.LabelsExcludeAny) > 0} {
+			if b {
+				count++
+			}
+		}
+		if count > 1 {
+			invalid.Append(fmt.Sprintf("%s_settings.custom_settings", prefix),
+				fmt.Sprintf(`Couldn't edit %s_settings.custom_settings. For each profile, only one of "labels_exclude_any", "labels_include_all" or "labels" can be included.`, prefix))
+		}
+		if len(prof.Labels) > 0 {
+			customSettings[i].LabelsIncludeAll = customSettings[i].Labels
+			customSettings[i].Labels = nil
+		}
+	}
 }
 
 func (svc *Service) validateTeamCalendarIntegrations(

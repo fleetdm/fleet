@@ -12,6 +12,7 @@ import (
 	"io"
 	"mime/multipart"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -305,7 +306,7 @@ func newMDMAppleConfigProfileEndpoint(ctx context.Context, request interface{}, 
 	}
 	defer ff.Close()
 	// providing an empty set of labels since this endpoint is only maintained for backwards compat
-	cp, err := svc.NewMDMAppleConfigProfile(ctx, req.TeamID, ff, nil)
+	cp, err := svc.NewMDMAppleConfigProfile(ctx, req.TeamID, ff, nil, false)
 	if err != nil {
 		return &newMDMAppleConfigProfileResponse{Err: err}, nil
 	}
@@ -314,7 +315,7 @@ func newMDMAppleConfigProfileEndpoint(ctx context.Context, request interface{}, 
 	}, nil
 }
 
-func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r io.Reader, labels []string) (*fleet.MDMAppleConfigProfile, error) {
+func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r io.Reader, labels []string, labelsExcludeMode bool) (*fleet.MDMAppleConfigProfile, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.MDMConfigProfileAuthz{TeamID: &teamID}, fleet.ActionWrite); err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
 	}
@@ -358,7 +359,11 @@ func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "validating labels")
 	}
-	cp.Labels = labelMap
+	if labelsExcludeMode {
+		cp.LabelsExcludeAny = labelMap
+	} else {
+		cp.LabelsIncludeAll = labelMap
+	}
 
 	newCP, err := svc.ds.NewMDMAppleConfigProfile(ctx, *cp)
 	if err != nil {
@@ -400,7 +405,7 @@ func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r
 	return newCP, nil
 }
 
-func (svc *Service) NewMDMAppleDeclaration(ctx context.Context, teamID uint, r io.Reader, labels []string, name string) (*fleet.MDMAppleDeclaration, error) {
+func (svc *Service) NewMDMAppleDeclaration(ctx context.Context, teamID uint, r io.Reader, labels []string, name string, labelsExcludeMode bool) (*fleet.MDMAppleDeclaration, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.MDMConfigProfileAuthz{TeamID: &teamID}, fleet.ActionWrite); err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
 	}
@@ -454,8 +459,11 @@ func (svc *Service) NewMDMAppleDeclaration(ctx context.Context, teamID uint, r i
 
 	d := fleet.NewMDMAppleDeclaration(data, tmID, name, rawDecl.Type, rawDecl.Identifier)
 
-	// TODO(roberto): this should be part of fleet.NewMDMAppleDeclaration
-	d.Labels = validatedLabels
+	if labelsExcludeMode {
+		d.LabelsExcludeAny = validatedLabels
+	} else {
+		d.LabelsIncludeAll = validatedLabels
+	}
 
 	decl, err := svc.ds.NewMDMAppleDeclaration(ctx, d)
 	if err != nil {
@@ -2729,13 +2737,18 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 		host.Hostname = deviceName
 		host.GigsDiskSpaceAvailable = availableDeviceCapacity
 		host.GigsTotalDiskSpace = deviceCapacity
-		var osVersionPrefix string
+		var (
+			osVersionPrefix string
+			platform        string
+		)
 		if strings.HasPrefix(productName, "iPhone") {
-			osVersionPrefix = "iOS "
+			osVersionPrefix = "iOS"
+			platform = "ios"
 		} else { // iPad
-			osVersionPrefix = "iPadOS "
+			osVersionPrefix = "iPadOS"
+			platform = "ipados"
 		}
-		host.OSVersion = osVersionPrefix + osVersion
+		host.OSVersion = osVersionPrefix + " " + osVersion
 		host.PrimaryMac = wifiMac
 		host.HardwareModel = productName
 		host.DetailUpdatedAt = time.Now()
@@ -2744,6 +2757,13 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 		}
 		if err := svc.ds.SetOrUpdateHostDisksSpace(r.Context, host.ID, availableDeviceCapacity, 100*availableDeviceCapacity/deviceCapacity, deviceCapacity); err != nil {
 			return nil, ctxerr.Wrap(r.Context, err, "failed to update host storage")
+		}
+		if err := svc.ds.UpdateHostOperatingSystem(r.Context, host.ID, fleet.OperatingSystem{
+			Name:     osVersionPrefix,
+			Version:  osVersion,
+			Platform: platform,
+		}); err != nil {
+			return nil, ctxerr.Wrap(r.Context, err, "failed to update host operating system")
 		}
 		return nil, nil
 	}
@@ -3261,7 +3281,16 @@ func RenewSCEPCertificates(
 	// assocsWithoutRefs stores hosts that don't have an enrollment
 	// reference in their enrollment profile.
 	assocsWithoutRefs := []fleet.SCEPIdentityAssociation{}
+	// assocsFromMigration stores hosts that were migrated from another MDM
+	// using the process described in
+	// https://github.com/fleetdm/fleet/issues/19387
+	assocsFromMigration := []fleet.SCEPIdentityAssociation{}
 	for _, assoc := range certAssociations {
+		if assoc.EnrolledFromMigration {
+			assocsFromMigration = append(assocsFromMigration, assoc)
+			continue
+		}
+
 		if assoc.EnrollReference != "" {
 			assocsWithRefs = append(assocsWithRefs, assoc)
 			continue
@@ -3294,31 +3323,8 @@ func RenewSCEPCertificates(
 			return ctxerr.Wrap(ctx, err, "generating enrollment profile for hosts without enroll reference")
 		}
 
-		cmdUUID := uuid.NewString()
-		var uuids []string
-		duplicateUUIDCheck := map[string]struct{}{}
-		for _, assoc := range assocsWithoutRefs {
-			// this should never happen if our DB logic is on point.
-			// This sanity check is in place to prevent issues like
-			// https://github.com/fleetdm/fleet/issues/19311 where a
-			// single duplicated UUID prevents _all_ the commands from
-			// being enqueued.
-			if _, ok := duplicateUUIDCheck[assoc.HostUUID]; ok {
-				logger.Log("inf", "duplicated host UUID while renewing associations", "host_uuid", assoc.HostUUID)
-				continue
-			}
-
-			duplicateUUIDCheck[assoc.HostUUID] = struct{}{}
-			uuids = append(uuids, assoc.HostUUID)
-			assoc.RenewCommandUUID = cmdUUID
-		}
-
-		if err := commander.InstallProfile(ctx, uuids, profile, cmdUUID); err != nil {
-			return ctxerr.Wrapf(ctx, err, "sending InstallProfile command for hosts %s", assocsWithoutRefs)
-		}
-
-		if err := ds.SetCommandForPendingSCEPRenewal(ctx, assocsWithoutRefs, cmdUUID); err != nil {
-			return ctxerr.Wrap(ctx, err, "setting pending command associations")
+		if err := renewSCEPWithProfile(ctx, ds, commander, logger, assocsWithoutRefs, profile); err != nil {
+			return ctxerr.Wrap(ctx, err, "sending profile to hosts without associations")
 		}
 	}
 
@@ -3338,14 +3344,61 @@ func RenewSCEPCertificates(
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "generating enrollment profile for hosts with enroll reference")
 		}
-		cmdUUID := uuid.NewString()
-		if err := commander.InstallProfile(ctx, []string{assoc.HostUUID}, profile, cmdUUID); err != nil {
-			return ctxerr.Wrapf(ctx, err, "sending InstallProfile command for hosts %s", assocsWithRefs)
+
+		// each host with association needs a different enrollment profile, and thus a different command.
+		if err := renewSCEPWithProfile(ctx, ds, commander, logger, []fleet.SCEPIdentityAssociation{assoc}, profile); err != nil {
+			return ctxerr.Wrap(ctx, err, "sending profile to hosts without associations")
+		}
+	}
+
+	migrationEnrollmentProfile := os.Getenv("FLEET_SILENT_MIGRATION_ENROLLMENT_PROFILE")
+	hasAssocsFromMigration := len(assocsFromMigration) > 0
+
+	if migrationEnrollmentProfile == "" && hasAssocsFromMigration {
+		level.Debug(logger).Log("msg", "found devices from migration that need SCEP renewals but FLEET_SILENT_MIGRATION_ENROLLMENT_PROFILE is empty")
+	}
+	if migrationEnrollmentProfile != "" && hasAssocsFromMigration {
+		profileBytes := []byte(migrationEnrollmentProfile)
+		if err := renewSCEPWithProfile(ctx, ds, commander, logger, assocsFromMigration, profileBytes); err != nil {
+			return ctxerr.Wrap(ctx, err, "sending profile to hosts from migration")
+		}
+	}
+
+	return nil
+}
+
+func renewSCEPWithProfile(
+	ctx context.Context,
+	ds fleet.Datastore,
+	commander *apple_mdm.MDMAppleCommander,
+	logger kitlog.Logger,
+	assocs []fleet.SCEPIdentityAssociation,
+	profile []byte,
+) error {
+	cmdUUID := uuid.NewString()
+	var uuids []string
+	duplicateUUIDCheck := map[string]struct{}{}
+	for _, assoc := range assocs {
+		// this should never happen if our DB logic is on point.
+		// This sanity check is in place to prevent issues like
+		// https://github.com/fleetdm/fleet/issues/19311 where a
+		// single duplicated UUID prevents _all_ the commands from
+		// being enqueued.
+		if _, ok := duplicateUUIDCheck[assoc.HostUUID]; ok {
+			logger.Log("inf", "duplicated host UUID while renewing associations", "host_uuid", assoc.HostUUID)
+			continue
 		}
 
-		if err := ds.SetCommandForPendingSCEPRenewal(ctx, []fleet.SCEPIdentityAssociation{assoc}, cmdUUID); err != nil {
-			return ctxerr.Wrap(ctx, err, "setting pending command associations")
-		}
+		duplicateUUIDCheck[assoc.HostUUID] = struct{}{}
+		uuids = append(uuids, assoc.HostUUID)
+	}
+
+	if err := commander.InstallProfile(ctx, uuids, profile, cmdUUID); err != nil {
+		return ctxerr.Wrapf(ctx, err, "sending InstallProfile command for hosts %s", uuids)
+	}
+
+	if err := ds.SetCommandForPendingSCEPRenewal(ctx, assocs, cmdUUID); err != nil {
+		return ctxerr.Wrap(ctx, err, "setting pending command associations")
 	}
 
 	return nil

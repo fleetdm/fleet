@@ -1,2 +1,0 @@
-- Adds S3 config variables with a `carves_` and `software_installers` prefix, which are used to
-  configure buckets for those features. The existing non-prefixed variables are kept for backwards compatibility.

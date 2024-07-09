@@ -1,1 +1,0 @@
-- Improved performance by removing unnecessary database query that listed host software during initial page load of the "My device" page.

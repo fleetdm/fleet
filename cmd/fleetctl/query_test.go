@@ -48,7 +48,7 @@ func TestSavedLiveQuery(t *testing.T) {
 		Saved: true,
 	}
 
-	ds.HostIDsByNameFunc = func(ctx context.Context, filter fleet.TeamFilter, hostnames []string) ([]uint, error) {
+	ds.HostIDsByIdentifierFunc = func(ctx context.Context, filter fleet.TeamFilter, hostIdentifiers []string) ([]uint, error) {
 		return []uint{1234}, nil
 	}
 	ds.LabelIDsByNameFunc = func(ctx context.Context, labels []string) (map[string]uint, error) {
@@ -149,6 +149,11 @@ func TestSavedLiveQuery(t *testing.T) {
 		))
 	}()
 
+	// errors before requesting live query
+	_, err = runAppNoChecks([]string{"query", "--hosts", "", "--query-name", queryName})
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "No hosts or labels targeted")
+
 	expected := `{"host":"somehostname","rows":[{"bing":"fds","host_display_name":"somehostname","host_hostname":"somehostname"}]}
 `
 	// Note: runAppForTest never closes the WebSocket connection and does not exit,
@@ -197,7 +202,7 @@ func TestAdHocLiveQuery(t *testing.T) {
 		}
 	}
 
-	ds.HostIDsByNameFunc = func(ctx context.Context, filter fleet.TeamFilter, hostnames []string) ([]uint, error) {
+	ds.HostIDsByIdentifierFunc = func(ctx context.Context, filter fleet.TeamFilter, hostIdentifiers []string) ([]uint, error) {
 		return []uint{1234}, nil
 	}
 	ds.LabelIDsByNameFunc = func(ctx context.Context, labels []string) (map[string]uint, error) {

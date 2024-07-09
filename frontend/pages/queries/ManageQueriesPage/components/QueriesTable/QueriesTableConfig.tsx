@@ -2,8 +2,7 @@
 // disable this rule as it was throwing an error in Header and Cell component
 // definitions for the selection row for some reason when we dont really need it.
 import React from "react";
-import ReactTooltip from "react-tooltip";
-import formatDistanceToNow from "date-fns/formatDistanceToNow";
+import { formatDistanceToNow } from "date-fns";
 import PATHS from "router/paths";
 
 import permissionsUtils from "utilities/permissions";
@@ -13,7 +12,7 @@ import {
   IEnhancedQuery,
   ISchedulableQuery,
 } from "interfaces/schedulable_query";
-import { SupportedPlatform } from "interfaces/platform";
+import { QueryablePlatform } from "interfaces/platform";
 import { API_ALL_TEAMS_ID } from "interfaces/team";
 
 import Icon from "components/Icon";
@@ -82,7 +81,7 @@ interface IBoolCellProps extends IRowProps {
 }
 interface IPlatformCellProps extends IRowProps {
   cell: {
-    value: SupportedPlatform[];
+    value: QueryablePlatform[];
   };
 }
 
