@@ -1616,7 +1616,7 @@ FROM (
             SELECT 1 FROM software_titles st
             WHERE s.bundle_identifier = st.bundle_identifier
         )
-        AND bundle_identifier != ''
+        AND COALESCE(bundle_identifier, '') != ''
 
     UNION ALL
 
@@ -1632,7 +1632,7 @@ FROM (
             SELECT 1 FROM software_titles st
             WHERE (s.name, s.source, s.browser) = (st.name, st.source, st.browser)
         )
-        AND s.bundle_identifier = ''
+        AND COALESCE(s.bundle_identifier, '') = ''
 ) as combined_results
 ON DUPLICATE KEY UPDATE
     software_titles.id = software_titles.id
@@ -1650,7 +1650,7 @@ UPDATE software s
 JOIN software_titles st
 ON (
     s.bundle_identifier = st.bundle_identifier
-    OR (s.bundle_identifier = '' AND (s.name, s.source, s.browser) = (st.name, st.source, st.browser))
+    OR (COALESCE(s.bundle_identifier, '') = '' AND (s.name, s.source, s.browser) = (st.name, st.source, st.browser))
 )
 SET s.title_id = st.id
 WHERE s.title_id IS NULL
