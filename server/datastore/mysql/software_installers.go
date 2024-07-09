@@ -610,7 +610,6 @@ func (ds *Datastore) InsertVPPAppWithTeam(ctx context.Context, app *fleet.VPPApp
 	})
 }
 
-// TODO(JVE): does this need to filter by apps that are already assigned to a team? probably?
 func (ds *Datastore) GetAssignedVPPApps(ctx context.Context, teamID *uint) (map[string]struct{}, error) {
 	stmt := `
 SELECT 
@@ -618,10 +617,15 @@ SELECT
 FROM 
 	vpp_apps_teams vat
 WHERE
-	vat.team_id = ?
+	vat.global_or_team_id = ?
 	`
+	var tmID uint
+	if teamID != nil {
+		tmID = *teamID
+	}
+
 	var results []string
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, stmt, teamID); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, stmt, tmID); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get assigned VPP apps")
 	}
 
@@ -658,12 +662,17 @@ VALUES
 func insertVPPAppTeams(ctx context.Context, tx sqlx.ExtContext, adamID string, teamID *uint) error {
 	stmt := `
 INSERT INTO vpp_apps_teams
-	(adam_id, team_id)
+	(adam_id, global_or_team_id, team_id)
 VALUES
-	(?, ?)
+	(?, ?, ?)
 	`
 
-	_, err := tx.ExecContext(ctx, stmt, adamID, teamID)
+	var globalOrTmID uint
+	if teamID != nil {
+		globalOrTmID = *teamID
+	}
+
+	_, err := tx.ExecContext(ctx, stmt, adamID, globalOrTmID, teamID)
 
 	return ctxerr.Wrap(ctx, err, "writing vpp app team mapping to db")
 }

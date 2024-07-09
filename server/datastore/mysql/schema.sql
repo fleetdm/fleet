@@ -1681,7 +1681,7 @@ CREATE TABLE `vpp_apps` (
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `vpp_apps_teams` (
   `adam_id` varchar(16) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `team_id` int(10) unsigned NOT NULL,
+  `team_id` int(10) unsigned DEFAULT NULL,
   `global_or_team_id` int(10) NOT NULL DEFAULT '0',
   UNIQUE KEY `idx_global_or_team_id_adam_id` (`global_or_team_id`,`adam_id`),
   KEY `adam_id` (`adam_id`),
