@@ -9,8 +9,8 @@
             <h1><%- partial('../partials/primary-tagline.partial.ejs') %></h1>
             <p>Replace the sprawl with <%= primaryBuyingSituation === 'vm'? 'secure, open-source reporting that works the way you want' : primaryBuyingSituation === 'eo-security'? 'universal, open-source endpoint visibility' : 'secure, open-source device management that works the way you want' %>.</p>
             <div purpose="button-row" class="d-flex flex-sm-row flex-column justify-content-center align-items-center">
-              <a purpose="cta-button" href="/register">Start now</a>
-              <a purpose="animated-arrow-button-red" href="/contact">Talk to us</a>
+              <a purpose="cta-button" href="<%= primaryBuyingSituation === 'mdm' ? '/device-management' : primaryBuyingSituation === 'vm' ? '/vulnerability-management' : primaryBuyingSituation === 'eo-security' ? '/endpoint-ops' : primaryBuyingSituation === 'eo-it' ? '/endpoint-ops' : '/device-management' %>">Learn how</a>
+              <animated-arrow-button href="/contact">Talk to us</animated-arrow-button>
             </div>
           </div>
         </div>
@@ -43,12 +43,12 @@
           <img alt="Operating systems entering a glass device management dome" src="/images/device-management-hero-380x293@2x.png">
         </div>
         <div purpose="category-text-block" class="d-flex flex-column">
-          <strong>Your last MDM migration</strong>
+          <strong>Your easiest MDM migration</strong>
           <p>Even if you've never done an MDM migration, you've probably heard it's hard.  Fleet makes it easy to get your data in and get it out.</p>
           <strong>Tidy up your tools</strong>
           <p>Deploy a modern Mac-first MDM purpose-built for IT engineers and cross-training. Use principles from DevOps to manage Apple, Windows, and Linux computers declaratively.</p>
-          <strong>“Zero” trust, fewer tickets</strong>
-          <p>You can use Fleet’s API to customize every aspect of conditional access – even the stuff your CISO hasn’t thought of yet.</p>
+          <strong>Less friction</strong>
+          <p>Fork the CIS benchmarks or easily build your own compliance framework. 100% source available.</p>
           <div>
             <a purpose="category-button" class="text-nowrap btn btn-primary" href="/device-management">Start with device management</a>
           </div>
@@ -103,7 +103,7 @@
                <h3>Manage everything in one place</h3>
                <p>Modernize your device management practice with a single, open platform for Apple, Windows, and Linux.</p>
                <div>
-                 <a purpose="animated-arrow-button-red" class="text-nowrap" href="/device-management">Start with device management</a>
+                 <animated-arrow-button href="/device-management">Start with device management</animated-arrow-button>
                </div>
              </div>
            </div>
@@ -114,7 +114,7 @@
              <h3><%= primaryBuyingSituation==='eo-security'? 'Instrument your endpoints' : 'Understand your computers'%></h3>
              <p>A <%= primaryBuyingSituation==='eo-security'? 'lightweight' : 'quick-fast' %> way to gather <%= primaryBuyingSituation==='vm'? 'patch level and custom reports across all your computing devices, even in OT and production environments' : primaryBuyingSituation==='eo-security'? 'deep context and custom telemetry across all your endpoints, even servers' : primaryBuyingSituation==='mdm'||primaryBuyingSituation==='eo-it'? 'compliance and inventory data across all your devices' : 'device data across all your computers' %>. Pulse check or automate anything on any platform.</p>
              <div>
-               <a purpose="animated-arrow-button-red" class="text-nowrap" href="/endpoint-ops">Start with endpoint ops</a>
+               <animated-arrow-button href="/endpoint-ops">Start with endpoint ops</animated-arrow-button>
              </div>
            </div>
            <div purpose="endpoint-ops-image" class="right">
@@ -132,7 +132,7 @@
                <h3>Build the vulnerability program you actually want</h3>
                <p>Show how quickly zero days and "celebrity CVEs" are resolved and which teams need extra help. Use scoring, known exploit feeds, and live, down-to-the-chip data about your own environment to prioritize, export, automate, and monitor mitigations of everyday vulnerabilities in operating systems, software packages, browsers, and plugins, anywhere.</p>
                <div>
-                 <a purpose="animated-arrow-button-red" class="text-nowrap"  href="/vulnerability-management">Start with vuln management</a>
+                <animated-arrow-button href="/vulnerability-management">Start with vuln management</animated-arrow-button>
                </div>
              </div>
            </div>
@@ -148,7 +148,7 @@
                <h3>Manage everything in one place</h3>
                <p>Modernize your device management practice with a single, open platform for Apple, Windows, and Linux.</p>
                <div>
-                 <a purpose="animated-arrow-button-red" class="text-nowrap" href="/device-management">Start with device management</a>
+                 <animated-arrow-button href="/device-management">Start with device management</animated-arrow-button>
                </div>
              </div>
              <div purpose="device-management-image" class="right">
@@ -163,7 +163,7 @@
                <h3>Build the vulnerability program you actually want</h3>
                <p>Show how quickly zero days and "celebrity CVEs" are resolved and which teams need extra help. Use scoring, known exploit feeds, and live, down-to-the-chip data about your own environment to prioritize, export, automate, and monitor mitigations of everyday vulnerabilities in operating systems, software packages, browsers, and plugins, anywhere.</p>
                <div>
-                 <a purpose="animated-arrow-button-red" class="text-nowrap"  href="/vulnerability-management">Start with vuln management</a>
+                 <animated-arrow-button href="/vulnerability-management">Start with vuln management</animated-arrow-button>
                </div>
              </div>
              <div purpose="vuln-management-image" class="right">
@@ -181,7 +181,7 @@
              <h3><%= primaryBuyingSituation==='eo-security'? 'Instrument your endpoints' : 'Understand your computers'%></h3>
              <p>A <%= primaryBuyingSituation==='eo-security'? 'lightweight' : 'quick-fast' %> way to gather <%= primaryBuyingSituation==='vm'? 'patch level and custom reports across all your computing devices, even in OT and production environments' : primaryBuyingSituation==='eo-security'? 'deep context and custom telemetry across all your endpoints, even servers' : primaryBuyingSituation==='mdm'||primaryBuyingSituation==='eo-it'? 'compliance and inventory data across all your devices' : 'device data across all your computers' %>. Pulse check or automate anything on any platform.</p>
              <div>
-               <a purpose="animated-arrow-button-red" class="text-nowrap" href="/endpoint-ops">Start with endpoint ops</a>
+               <animated-arrow-button href="/endpoint-ops">Start with endpoint ops</animated-arrow-button>
              </div>
            </div>
          </div>
@@ -235,7 +235,7 @@
           </div>
         </div>
         <div class="d-flex flex-column align-items-center">
-          <a purpose="animated-arrow-button-red" href="/integrations">View all integrations</a>
+          <animated-arrow-button href="/integrations">View all integrations</animated-arrow-button>
         </div>
       </div>
     </div>
@@ -245,7 +245,7 @@
           <h2>An open interface for every OS</h2>
           <p>Normalize how you manage clouds and computers without losing low-level access to OS-specific features.</p>
           <div class="d-flex flex-row align-items-center justify-content-md-start justify-content-center">
-            <a purpose="animated-arrow-button-red-no-transform" href="/docs/get-started/why-fleet">Read the docs</a>
+            <animated-arrow-button href="/docs/get-started/why-fleet">Read the docs</animated-arrow-button>
           </div>
         </div>
         <div purpose="endpoints-images">
@@ -382,7 +382,7 @@
         <h1><%- partial('../partials/primary-tagline.partial.ejs') %></h1>
         <div purpose="button-row" style="margin-top: 40px;" class="d-flex flex-sm-row flex-column justify-content-center align-items-center mx-auto">
           <a purpose="cta-button" href="/register">Start now</a>
-          <a purpose="animated-arrow-button-red" href="/contact">Talk to us</a>
+          <animated-arrow-button href="/contact">Talk to us</animated-arrow-button>
         </div>
       </div>
     </div>

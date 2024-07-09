@@ -3,6 +3,7 @@ package mysql
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"time"
 
@@ -13,10 +14,12 @@ import (
 
 func (ds *Datastore) CreateOrUpdateCalendarEvent(
 	ctx context.Context,
+	uuid string,
 	email string,
 	startTime time.Time,
 	endTime time.Time,
 	data []byte,
+	timeZone string,
 	hostID uint,
 	webhookStatus fleet.CalendarWebhookStatus,
 ) (*fleet.CalendarEvent, error) {
@@ -24,24 +27,30 @@ func (ds *Datastore) CreateOrUpdateCalendarEvent(
 	if err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		const calendarEventsQuery = `
 			INSERT INTO calendar_events (
+				uuid,
 				email,
 				start_time,
 				end_time,
-				event
-			) VALUES (?, ?, ?, ?)
+				event,
+				timezone
+			) VALUES (?, ?, ?, ?, ?, ?)
 			ON DUPLICATE KEY UPDATE
+				uuid = VALUES(uuid),
 				start_time = VALUES(start_time),
 				end_time = VALUES(end_time),
 				event = VALUES(event),
+				timezone = VALUES(timezone),
 				updated_at = CURRENT_TIMESTAMP;
 		`
 		result, err := tx.ExecContext(
 			ctx,
 			calendarEventsQuery,
+			uuid,
 			email,
 			startTime,
 			endTime,
 			data,
+			timeZone,
 		)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "insert calendar event")
@@ -118,16 +127,38 @@ func (ds *Datastore) GetCalendarEvent(ctx context.Context, email string) (*fleet
 	return &calendarEvent, nil
 }
 
-func (ds *Datastore) UpdateCalendarEvent(ctx context.Context, calendarEventID uint, startTime time.Time, endTime time.Time, data []byte) error {
+func (ds *Datastore) GetCalendarEventDetailsByUUID(ctx context.Context, uuid string) (*fleet.CalendarEventDetails, error) {
+	const calendarEventsByUUIDQuery = `
+		SELECT ce.*, h.team_id as team_id, h.id as host_id FROM calendar_events ce
+		LEFT JOIN host_calendar_events hce ON hce.calendar_event_id = ce.id
+		LEFT JOIN hosts h ON h.id = hce.host_id
+		WHERE ce.uuid = ?;
+	`
+	var calendarEvent fleet.CalendarEventDetails
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &calendarEvent, calendarEventsByUUIDQuery, uuid)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ctxerr.Wrap(ctx, notFound("CalendarEvent").WithMessage(fmt.Sprintf("uuid: %s", uuid)))
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get calendar event")
+	}
+	return &calendarEvent, nil
+}
+
+func (ds *Datastore) UpdateCalendarEvent(ctx context.Context, calendarEventID uint, uuid string, startTime time.Time, endTime time.Time,
+	data []byte, timeZone string) error {
 	const calendarEventsQuery = `
 		UPDATE calendar_events SET
+			uuid = ?,
 			start_time = ?,
 			end_time = ?,
 			event = ?,
+			timezone = ?,
 			updated_at = CURRENT_TIMESTAMP
 		WHERE id = ?;
 	`
-	if _, err := ds.writer(ctx).ExecContext(ctx, calendarEventsQuery, startTime, endTime, data, calendarEventID); err != nil {
+	if _, err := ds.writer(ctx).ExecContext(ctx, calendarEventsQuery, uuid, startTime, endTime, data, timeZone,
+		calendarEventID); err != nil {
 		return ctxerr.Wrap(ctx, err, "update calendar event")
 	}
 	return nil

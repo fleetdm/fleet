@@ -1,0 +1,1 @@
+- Add .yml and .yaml file type validation and error message to fleetctl apply

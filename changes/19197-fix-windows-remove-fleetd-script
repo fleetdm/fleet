@@ -1,1 +1,0 @@
-* Fixed an issue with the Windows-specific `windows-remove-fleetd.ps1` script provided in the Fleet repository where running the script did remove `fleetd` but made it impossible to reinstall the agent.

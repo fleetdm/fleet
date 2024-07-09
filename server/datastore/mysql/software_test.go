@@ -3320,6 +3320,13 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 	require.Equal(t, &fleet.PaginationMetadata{TotalResults: 5}, meta)
 	compareResults(expected, sw, true)
 
+	opts.VulnerableOnly = true
+	sw, meta, err = ds.ListHostSoftware(ctx, host, opts)
+	require.NoError(t, err)
+	require.Equal(t, &fleet.PaginationMetadata{TotalResults: 2}, meta)
+	compareResults(expected, sw, true, byNSV[a2].Name+byNSV[a2].Source, byNSV[c1].Name+byNSV[c1].Source, byNSV[d].Name+byNSV[d].Source)
+	opts.VulnerableOnly = false
+
 	// create some Fleet installers and map them to a software title,
 	// including one for a team
 	tm, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})

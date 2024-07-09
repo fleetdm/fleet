@@ -39,7 +39,8 @@ const OSVersionTable = ({
         defaultSortDirection={DEFAULT_SORT_DIRECTION}
         disableTableHeader
         disableCount
-        disablePagination
+        pageSize={8}
+        isClientSidePagination
       />
     </div>
   );

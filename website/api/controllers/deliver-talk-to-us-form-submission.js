@@ -74,21 +74,21 @@ module.exports = {
       throw 'invalidEmailDomain';
     }
 
-    // Use timers.setImmediate() to update/create CRM records in the background.
-    require('timers').setImmediate(async ()=>{
-      await sails.helpers.salesforce.updateOrCreateContactAndAccountAndCreateLead.with({
-        emailAddress: emailAddress,
-        firstName: firstName,
-        lastName: lastName,
-        organization: organization,
-        numberOfHosts: numberOfHosts,
-        primaryBuyingSituation: primaryBuyingSituation === 'eo-security' ? 'Endpoint operations - Security' : primaryBuyingSituation === 'eo-it' ? 'Endpoint operations - IT' : primaryBuyingSituation === 'mdm' ? 'Device management (MDM)' : primaryBuyingSituation === 'vm' ? 'Vulnerability management' : undefined,
-        leadSource: 'Website - Contact forms',
-        leadDescription: `Submitted the "Talk to us" form.`,
-      }).tolerate((err)=>{
+
+    sails.helpers.salesforce.updateOrCreateContactAndAccountAndCreateLead.with({
+      emailAddress: emailAddress,
+      firstName: firstName,
+      lastName: lastName,
+      organization: organization,
+      numberOfHosts: numberOfHosts,
+      primaryBuyingSituation: primaryBuyingSituation === 'eo-security' ? 'Endpoint operations - Security' : primaryBuyingSituation === 'eo-it' ? 'Endpoint operations - IT' : primaryBuyingSituation === 'mdm' ? 'Device management (MDM)' : primaryBuyingSituation === 'vm' ? 'Vulnerability management' : undefined,
+      leadSource: 'Website - Contact forms',
+      leadDescription: `Submitted the "Talk to us" form and was taken to the Calendly page for the "${numberOfHosts > 700 ? 'Talk to us' : 'Let\'s get you set up!'}" event.`,
+    }).exec((err)=>{
+      if(err) {
         sails.log.warn(`Background task failed: When a user submitted the "Talk to us" form, a lead/contact could not be updated in the CRM for this email address: ${emailAddress}.`, err);
-      });
-    });//_∏_  (Meanwhile...)
+      }
+    });
 
     return;
   }

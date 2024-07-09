@@ -1,3 +1,0 @@
-Fixed host details page and device details page not showing the latest software.
-
-Added `exclude_software` query parameter to the `/api/latest/fleet/hosts/:id` endpoint to exclude software from the response.

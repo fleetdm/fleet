@@ -1,1 +1,0 @@
-- Fixed issue where Windows-specific error message was displayed when failing to parse macOS configuration profiles.

@@ -3,15 +3,13 @@ import React from "react";
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import TooltipWrapper from "components/TooltipWrapper";
 
-const baseClass = "version-cell";
-
 const generateText = <T extends { version: string }>(versions: T[] | null) => {
   if (!versions) {
-    return <TextCell value="---" greyed />;
+    return <TextCell value="---" grey italic />;
   }
   const text =
     versions.length !== 1 ? `${versions.length} versions` : versions[0].version;
-  return <TextCell value={text} greyed={versions.length !== 1} />;
+  return <TextCell value={text} italic={versions.length !== 1} />;
 };
 
 interface IVersionCellProps<T extends { version: string }> {
@@ -29,11 +27,7 @@ const VersionCell = <T extends { version: string }>({
 
   return (
     <TooltipWrapper
-      tipContent={
-        <p className={`${baseClass}__versions`}>
-          {versions.map((version) => version.version).join(", ")}
-        </p>
-      }
+      tipContent={<>{versions.map((version) => version.version).join(", ")}</>}
       tipOffset={14}
       position="top"
       showArrow

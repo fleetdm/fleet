@@ -1,1 +1,0 @@
-- Removed duplicate `os_versions` results in /api/latest/fleet/vulnerabilities/:cve endpoint

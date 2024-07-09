@@ -648,6 +648,9 @@ type Service interface {
 	// initiated by the user
 	SelfServiceInstallSoftwareTitle(ctx context.Context, host *Host, softwareTitleID uint) error
 
+	// HasSelfServiceSoftwareInstallers returns whether the host has self-service software installers
+	HasSelfServiceSoftwareInstallers(ctx context.Context, host *Host) (bool, error)
+
 	// /////////////////////////////////////////////////////////////////////////////
 	// Vulnerabilities
 
@@ -707,9 +710,9 @@ type Service interface {
 	GetHostDEPAssignment(ctx context.Context, host *Host) (*HostDEPAssignment, error)
 
 	// NewMDMAppleConfigProfile creates a new configuration profile for the specified team.
-	NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r io.Reader, labels []string) (*MDMAppleConfigProfile, error)
+	NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r io.Reader, labels []string, labelsExcludeMode bool) (*MDMAppleConfigProfile, error)
 	// NewMDMAppleConfigProfileWithPayload creates a new declaration for the specified team.
-	NewMDMAppleDeclaration(ctx context.Context, teamID uint, r io.Reader, labels []string, name string) (*MDMAppleDeclaration, error)
+	NewMDMAppleDeclaration(ctx context.Context, teamID uint, r io.Reader, labels []string, name string, labelsExcludeMode bool) (*MDMAppleDeclaration, error)
 
 	// GetMDMAppleConfigProfileByDeprecatedID retrieves the specified Apple
 	// configuration profile via its numeric ID. This method is deprecated and
@@ -971,7 +974,7 @@ type Service interface {
 
 	// NewMDMWindowsConfigProfile creates a new Windows configuration profile for
 	// the specified team.
-	NewMDMWindowsConfigProfile(ctx context.Context, teamID uint, profileName string, r io.Reader, labels []string) (*MDMWindowsConfigProfile, error)
+	NewMDMWindowsConfigProfile(ctx context.Context, teamID uint, profileName string, r io.Reader, labels []string, labelsExcludeMode bool) (*MDMWindowsConfigProfile, error)
 
 	// NewMDMUnsupportedConfigProfile is called when a profile with an
 	// unsupported extension is uploaded.
@@ -1055,4 +1058,10 @@ type Service interface {
 	GetSoftwareInstallerMetadata(ctx context.Context, titleID uint, teamID *uint) (*SoftwareInstaller, error)
 	DownloadSoftwareInstaller(ctx context.Context, titleID uint, teamID *uint) (*DownloadSoftwareInstallerPayload, error)
 	OrbitDownloadSoftwareInstaller(ctx context.Context, installerID uint) (*DownloadSoftwareInstallerPayload, error)
+
+	// /////////////////////////////////////////////////////////////////////////////
+	// Maintenance windows
+
+	// CalendarWebhook handles incoming calendar callback requests.
+	CalendarWebhook(ctx context.Context, eventUUID string, channelID string, resourceState string) error
 }

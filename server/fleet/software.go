@@ -217,6 +217,8 @@ type HostSoftwareTitleListOptions struct {
 	// service layer to indicate to the datastore if software available for
 	// install (but not currently installed on the host) should be returned.
 	IncludeAvailableForInstall bool
+
+	VulnerableOnly bool `query:"vulnerable,optional"`
 }
 
 // AuthzSoftwareInventory is used for access controls on software inventory.

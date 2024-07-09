@@ -163,10 +163,12 @@ const generateTableHeaders = (
             </TooltipWrapper>
           );
         }
+        const greyAndItalic = greyCell(cellProps.cell.value);
         return (
           <TextCell
             value={cellProps.cell.value}
-            greyed={greyCell(cellProps.cell.value)}
+            grey={greyAndItalic}
+            italic={greyAndItalic}
           />
         );
       },
@@ -210,7 +212,7 @@ const generateTableHeaders = (
     },
   ];
 
-  // Add Teams tab for premium tier only
+  // Add Teams column for premium tier
   if (isPremiumTier) {
     tableHeaders.splice(2, 0, {
       title: "Teams",
@@ -218,10 +220,7 @@ const generateTableHeaders = (
       accessor: "teams",
       disableSortBy: true,
       Cell: (cellProps: ICellProps) => (
-        <TextCell
-          value={cellProps.cell.value}
-          greyed={greyCell(cellProps.cell.value)}
-        />
+        <TextCell value={cellProps.cell.value} />
       ),
     });
   }
