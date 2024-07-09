@@ -234,6 +234,11 @@ func (svc *Service) getCalendarLock(ctx context.Context, eventUUID string, addTo
 			return "", false, ctxerr.Wrap(ctx, err, "add calendar event to queue")
 		}
 
+		if reserved {
+			// We flag the lock as reserved.
+			return "", reserved, nil
+		}
+
 		// Try to acquire the lock again in case it was released while we were adding the event to the queue.
 		result, err = svc.distributedLock.AcquireLock(ctx, calendar.LockKeyPrefix+eventUUID, lockValue, 0)
 		if err != nil {
