@@ -519,14 +519,14 @@ func (s *integrationMDMTestSuite) recordAppleHostStatus(
 	require.NoError(t, err)
 	for cmd != nil {
 		var fullCmd micromdm.CommandPayload
-		require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
 
 		// command uuid is a random value, we only care that's set
-		require.NotEmpty(t, fullCmd.CommandUUID)
-		fullCmd.CommandUUID = ""
+		require.NotEmpty(t, cmd.CommandUUID)
 
 		// strip the signature of the profiles so they can be easily compared
-		if fullCmd.Command.RequestType == "InstallProfile" {
+		if cmd.Command.RequestType == "InstallProfile" {
+			require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
+			fullCmd.CommandUUID = ""
 			p7, err := pkcs7.Parse(fullCmd.Command.InstallProfile.Payload)
 			require.NoError(t, err)
 			fullCmd.Command.InstallProfile.Payload = p7.Content

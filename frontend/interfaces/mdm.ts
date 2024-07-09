@@ -67,11 +67,12 @@ export interface IMdmSummaryResponse {
   mobile_device_management_solution: IMdmSummaryMdmSolution[] | null;
 }
 
-export type ProfilePlatform = "darwin" | "windows";
+export type ProfilePlatform = "darwin" | "windows" | "ios" | "ipados";
 
 export interface IProfileLabel {
   name: string;
-  broken: boolean;
+  id?: number; // id is only present when the label is not broken
+  broken?: boolean;
 }
 
 export interface IMdmProfile {
@@ -83,7 +84,8 @@ export interface IMdmProfile {
   created_at: string;
   updated_at: string;
   checksum: string | null; // null for windows profiles
-  labels?: IProfileLabel[];
+  labels_include_all?: IProfileLabel[];
+  labels_exclude_any?: IProfileLabel[];
 }
 
 export type MdmProfileStatus = "verified" | "verifying" | "pending" | "failed";
