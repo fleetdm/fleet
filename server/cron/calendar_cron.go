@@ -337,8 +337,7 @@ func processFailingHostExistingCalendarEvent(
 		}
 		if result == "" {
 			// Lock was not reserved. Another cron job is processing this event. This is not expected.
-			level.Warn(logger).Log("msg", "could not reserve calendar lock")
-			return nil
+			return errors.New("could not reserve calendar lock")
 		}
 		lockReserved = true
 		done := make(chan struct{})

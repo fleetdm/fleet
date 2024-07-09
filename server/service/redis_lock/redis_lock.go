@@ -97,7 +97,7 @@ func (r *redisLock) GetSet(ctx context.Context, key string) ([]string, error) {
 
 	// Reference: https://redis.io/docs/latest/commands/smembers/
 	members, err := redigo.Strings(conn.Do("SMEMBERS", r.testPrefix+key))
-	if err != nil {
+	if err != nil && !errors.Is(err, redigo.ErrNil) {
 		return nil, ctxerr.Wrap(ctx, err, "redis get set members")
 	}
 	return members, nil

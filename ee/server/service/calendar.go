@@ -314,7 +314,7 @@ func (svc *Service) processCalendarEventAsync(ctx context.Context, eventUUID str
 	eventDetails, err := svc.ds.GetCalendarEventDetailsByUUID(ctx, eventUUID)
 	if err != nil {
 		if fleet.IsNotFound(err) {
-			// We found this event when the callback initially came in. So the event may have been removed from DB since then.
+			// We found this event when the callback initially came in. So the event may have been removed or re-created since then.
 			return true
 		}
 		level.Error(svc.logger).Log("msg", "Failed to get calendar event details", "err", err)

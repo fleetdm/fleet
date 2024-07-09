@@ -45,8 +45,10 @@ type UserCalendar interface {
 // Lock interface for managing distributed locks.
 type Lock interface {
 	// AcquireLock attempts to acquire a lock with the given key. value is the value to set for the key, which is used to release the lock.
+	// expireMs is the time in milliseconds after which the lock is automatically released. expireMs=0 means a default expiration time is used.
 	AcquireLock(ctx context.Context, key string, value string, expireMs uint64) (result string, err error)
 	// ReleaseLock attempts to release a lock with the given key and value. If key does not exist or value does not match, the lock is not released.
+	// Returns true if the lock was released, false otherwise.
 	ReleaseLock(ctx context.Context, key string, value string) (ok bool, err error)
 	// Get retrieves the value of the given key. If the key does not exist, nil is returned.
 	Get(ctx context.Context, key string) (*string, error)
