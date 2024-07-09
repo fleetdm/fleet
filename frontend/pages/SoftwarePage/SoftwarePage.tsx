@@ -330,9 +330,9 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
           <Button
             onClick={toggleManageAutomationsModal}
             className={`${baseClass}__manage-automations`}
-            variant="text-link"
+            variant="inverse"
           >
-            <span>Manage automations</span>
+            Manage automations
           </Button>
         )}
         {canAddSoftware && (
