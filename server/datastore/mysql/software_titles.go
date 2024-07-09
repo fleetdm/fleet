@@ -206,6 +206,8 @@ SELECT
 	COALESCE(si.self_service, false) as self_service
 FROM software_titles st
 LEFT JOIN software_installers si ON si.title_id = st.id AND si.global_or_team_id = ?
+LEFT JOIN vpp_apps vap ON vap.title_id = st.id
+LEFT JOIN vpp_apps_teams vat ON vat.global_or_team_id = ? AND vat.adam_id = vap.adam_id
 LEFT JOIN software_titles_host_counts sthc ON sthc.software_title_id = st.id AND sthc.team_id = ?
 -- placeholder for JOIN on software/software_cve
 %s
@@ -220,9 +222,9 @@ GROUP BY st.id, software_package, self_service`
 		cveJoinType = "INNER"
 	}
 
-	args := []any{0, 0}
+	args := []any{0, 0, 0}
 	if opt.TeamID != nil {
-		args[0], args[1] = *opt.TeamID, *opt.TeamID
+		args[0], args[1], args[2] = *opt.TeamID, *opt.TeamID, *opt.TeamID
 	}
 
 	additionalWhere := "TRUE"
@@ -246,9 +248,9 @@ GROUP BY st.id, software_package, self_service`
 		args = append(args, match, match)
 	}
 
-	// default to "a software installer exists", and see next condition.
+	// default to "a software installer or VPP app exists", and see next condition.
 	defaultFilter := `
-		si.id IS NOT NULL
+		(si.id IS NOT NULL OR vat.adam_id IS NOT NULL)
 	`
 
 	// add software installed for hosts if any of this is true:
