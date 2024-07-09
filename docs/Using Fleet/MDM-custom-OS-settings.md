@@ -44,9 +44,9 @@ Available variables:
 
 |       Variable       |                   Description                  |
 | -------------------- | ---------------------------------------------- |
-| `DISPLAY_NAME`       | Host's display name (`host.computer_name`).    |
-| `HARDWARE_SERIAL`    | Host's serial number (`host.hardware_serial`)  |
-| `$UUID`              | Host's UUID (`host.uuid`)                      |
+| `$FLEET.HOST.COMPUTER_NAME`       | Host's display name (`host.computer_name`).    |
+| `$FLEET.HOST.HARDWARE_SERIAL`    | Host's serial number (`host.hardware_serial`)  |
+| `$FLEET.HOST.UUID`               | Host's UUID (`host.uuid`)                      |
 
 
 <meta name="pageOrderInSection" value="1505">
