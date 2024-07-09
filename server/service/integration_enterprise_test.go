@@ -10603,7 +10603,7 @@ func (s *integrationEnterpriseTestSuite) TestAutofillPoliciesAuthTeamUser() {
 // 1. software title uploaded doesn't match existing title
 // 2. host reports software with the same bundle identifier
 // 3. reconciler runs, doesn't create a new title
-func (s *integrationEnterpriseTestSuite) TestAPKNewSoftwareTitleFlow() {
+func (s *integrationEnterpriseTestSuite) TestPKGNewSoftwareTitleFlow() {
 	t := s.T()
 	ctx := context.Background()
 
@@ -10727,7 +10727,7 @@ func (s *integrationEnterpriseTestSuite) TestAPKNewSoftwareTitleFlow() {
 // 1. host reports software
 // 2. reconciler runs, creates title
 // 3. installer is uploaded, matches existing software title
-func (s *integrationEnterpriseTestSuite) TestAPKSoftwareAlreadyReported() {
+func (s *integrationEnterpriseTestSuite) TestPKGSoftwareAlreadyReported() {
 	t := s.T()
 	ctx := context.Background()
 
@@ -10813,7 +10813,7 @@ func (s *integrationEnterpriseTestSuite) TestAPKSoftwareAlreadyReported() {
 // 1. host reports software
 // 2. installer is uploaded, matches existing software
 // 2. reconciler runs, matches existing software title
-func (s *integrationEnterpriseTestSuite) TestAPKSoftwareReconciliation() {
+func (s *integrationEnterpriseTestSuite) TestPKGSoftwareReconciliation() {
 	t := s.T()
 	ctx := context.Background()
 
