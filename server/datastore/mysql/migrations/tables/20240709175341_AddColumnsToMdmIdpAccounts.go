@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20240705152704, Down_20240705152704)
+	MigrationClient.AddMigration(Up_20240709175341, Down_20240709175341)
 }
 
-func Up_20240705152704(tx *sql.Tx) error {
+func Up_20240709175341(tx *sql.Tx) error {
 	alterStmt := `
 ALTER TABLE mdm_idp_accounts ADD COLUMN (
   host_uuid varchar(63) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
@@ -37,6 +37,6 @@ SET
 	return nil
 }
 
-func Down_20240705152704(tx *sql.Tx) error {
+func Down_20240709175341(tx *sql.Tx) error {
 	return nil
 }
