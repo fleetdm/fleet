@@ -62,33 +62,19 @@ You can customize the locking message for macOS devices and set a PIN using an X
     ```xml
 
     <?xml version="1.0" encoding="UTF-8"?>
-
     <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-
     <plist version="1.0">
-
     <dict>
-
         <key>Command</key>
-
         <dict>
-
             <key>Message</key>
-
             <string>This device has been locked. Contact IT on (123) 456-7890.</string>
-
             <key>PIN</key>
-
             <string>123456</string>
-
             <key>RequestType</key>
-
             <string>DeviceLock</string>
-
         </dict>
-
     </dict>
-
     </plist>
 
     ```
