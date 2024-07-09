@@ -52,8 +52,8 @@ CREATE TABLE `calendar_events` (
   `event` json NOT NULL,
   `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  `timezone` varchar(64) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `uuid` varchar(36) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `timezone` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `uuid` varchar(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `idx_one_calendar_event_per_email` (`email`),
   UNIQUE KEY `idx_calendar_events_uuid_unique` (`uuid`)
