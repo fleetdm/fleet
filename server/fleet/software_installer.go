@@ -104,7 +104,7 @@ type SoftwareInstaller struct {
 
 // AuthzType implements authz.AuthzTyper.
 func (s *SoftwareInstaller) AuthzType() string {
-	return "software_installer"
+	return "installable_entity"
 }
 
 // SoftwareInstallerStatusSummary represents aggregated status metrics for a software installer package.
