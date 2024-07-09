@@ -60,7 +60,7 @@ type GitOps struct {
 
 type GitOpsSoftware struct {
 	Packages     []*fleet.TeamSpecSoftwarePackage
-	AppStoreApps []*fleet.TeamSpecAppStoreApp
+	AppStoreApps []*fleet.TeamSpecAppStoreApp `json:"app_store_apps"`
 }
 
 // GitOpsFromFile parses a GitOps yaml file.
