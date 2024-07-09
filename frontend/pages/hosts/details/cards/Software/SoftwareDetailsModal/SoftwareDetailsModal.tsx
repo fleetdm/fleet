@@ -43,14 +43,8 @@ const SoftwareDetailsInfo = ({
   source,
   bundleIdentifier,
 }: ISoftwareDetailsInfoProps) => {
-  const { vulnerabilities } = installedVersion;
+  const { vulnerabilities, installed_paths } = installedVersion;
 
-  const installed_paths = [
-    "/System/Library/PrivateFrameworks/AppleMediaServicesUI.framework/Versions/A/Resources/AMSEngagementViewService.app",
-    "Fake/System/Library/PrivateFrameworks/AppleMediaServicesUI.framework/Versions/A/Resources/AMSEngagementViewService.app",
-    "Fake2/System/Library/PrivateFrameworks/AppleMediaServicesUI.framework/Versions/A/Resources/AMSEngagementViewService.app",
-    "short/file/path",
-  ];
   return (
     <div className={`${baseClass}__details-info`}>
       <div className={`${baseClass}__row`}>
