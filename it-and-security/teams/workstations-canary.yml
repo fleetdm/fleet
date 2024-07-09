@@ -129,7 +129,7 @@ policies:
     platform: darwin
     calendar_events_enabled: false
   - name: macOS - System maintenance complete
-    query: SELECT 1 AS result FROM system_info WHERE computer_name NOT IN ('Titanosauria', 'Drew’s MacBook Pro','fleetwoodmike');
+    query: SELECT 1 AS result FROM system_info WHERE computer_name NOT IN ('Titanosauria', 'Drew’s MacBook Pro','fleetwoodmike','Anthony’s MacBook Pro','Patricia’s MacBook Pro','Paul’s MacBook Pro','Tom’s MacBook Air');
     critical: false
     description: Determines if the device has completed system maintenance.
     resolution: We will perform system maintenance on your device.
