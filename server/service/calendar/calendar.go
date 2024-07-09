@@ -33,14 +33,15 @@ func CreateUserCalendarFromConfig(ctx context.Context, config *CalendarConfig, l
 }
 
 func GenerateCalendarEventBody(ctx context.Context, ds fleet.Datastore, orgName string, host fleet.HostPolicyMembershipData,
-	policyIDtoPolicy *sync.Map, conflict bool, logger kitlog.Logger) string {
+	policyIDtoPolicy *sync.Map, conflict bool, logger kitlog.Logger,
+) string {
 	description, resolution := getCalendarEventDescriptionAndResolution(ctx, ds, orgName, host, policyIDtoPolicy, logger)
 
 	conflictStr := ""
 	if conflict {
-		conflictStr = " because there was no remaining availability"
+		conflictStr = "because there was no remaining availability "
 	}
-	return fmt.Sprintf(`%s reserved this time to make some changes to your work computer%s.
+	return fmt.Sprintf(`%s %s %s(%s).
 
 Please leave your device on and connected to power.
 
@@ -49,11 +50,12 @@ Please leave your device on and connected to power.
 
 <b>What we'll do</b>
 %s
-`, orgName, conflictStr, description, resolution)
+`, orgName, fleet.CalendarBodyStaticHeader, conflictStr, host.HostDisplayName, description, resolution)
 }
 
 func getCalendarEventDescriptionAndResolution(ctx context.Context, ds fleet.Datastore, orgName string, host fleet.HostPolicyMembershipData,
-	policyIDtoPolicy *sync.Map, logger kitlog.Logger) (string, string) {
+	policyIDtoPolicy *sync.Map, logger kitlog.Logger,
+) (string, string) {
 	getDefaultDescription := func() string {
 		return fmt.Sprintf(`%s %s`, orgName, fleet.CalendarDefaultDescription)
 	}
