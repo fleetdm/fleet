@@ -2,40 +2,75 @@
 
 ### Endpoint Operations
 
-- Added support for the database migrations, API changes, and `fleetctl gitops` support for labels_include_all and labels_exclude_any.
+- Updated scheduled maintenance windows so that calendar events are now recreated within 30 seconds if deleted or moved to the past.
+- Updated scheduled maintenance to weekly on Tuesdays (previously monthly on the third Tuesday of the month).
+- Added a host's upcoming scheduled maintenance window, if any, on the host details page of the UI and in host responses from the API.
+- Updated `fleetctl gitops` to be used to rename teams.
+  - **NOTE:** `fleetctl gitops` needs to have previously run with this Fleet/fleetctl version or later.
+  - The team name is changed if the YAML config is applied from the same filename as before.
 - Updated `fleetctl query --hosts` to work with hostnames, host UUIDs, and/or hardware serial numbers.
-- Updated UI's delete secret link
-- Clarify various help and error texts around host identifiers.
-- Fix styling issues with the target inputs loading spinner on the run live query/policy page.
+- Added support to `fleetctl debug connection` to test TLS connection with the embedded certs.pem in
+  the fleetctl executable.
+- Added host's display name to calendar event descriptions.
+- Added .yml and .yaml file type validation and error message to `fleetctl apply`.
 
 ### Device Management (MDM)
 
+- Added iOS/iPadOS builtin manual labels. 
+  - **NOTE:** Before migrating to this version, make sure to delete any labels with name "iOS" or "iPadOS".
+- Added aggregation of iOS/iPadOS OS versions.
+- Added change to custom profiles for iOS/iPadOS to go from 'pending' straight to 'verified' (skip 'verifying').
 - Added support for renewing SCEP certificates with custom enrollment profiles.
-- Add UI for uploading custom profiles with a target of hosts that include all/exclude any selected
-  labels.
-- Updated script run permissions -- only admins and maintainers can run arbitrary or saved scripts (not observer or observer+).
-- Improved the accuracy of the heuristic used to determine if a host is connected to Fleet via MDM by using osquery data for hosts that didn't send a Checkout message.
-- Added support for END_USER_EMAIL and FLEET_DESKTOP parameters to Windows MSI install package.
-- Addresses Microsoft Office June 2024 false negative vulnerabilities and adds custom vulnerability matching.
+- Added automatic install of `fleetd` when a host turns on MDM now uses the latest released `fleetd` version.
+- Added support for `END_USER_EMAIL` and `FLEET_DESKTOP` parameters to Windows MSI install package.
+- Added API changes to support the `labels_include_all` and `labels_exclude_any` fields (and accept the deprecated `labels` field as an alias for `labels_include_all`).
+- Added `fleetctl gitops` and `fleetctl apply` support for `labels_include_all` and `labels_exclude_any` to configure a custom setting.
+- Added UI for uploading custom profiles with a target of hosts that include all/exclude any selected labels.
+- Added the database migrations to create the new `exclude` column for labels associated with MDM profiles (and declarations).
 - Updated the profile reconciliation logic to handle the new "exclude any" labels.
-- Updated the instructions for manual MDM enrollment on the "My device" page to be clearer and align with Apple updates.
-- Fix bug where macOS declarations were stuck in "to be removed" state indefinitely.
+- Updated so that the `fleetd` cleanup script for macOS that will return completed when run from Fleet.
+- Updated so that the `fleetd` uninstall script will return completed when run from Fleet.
+- Updated script run permissions -- only admins and maintainers can run arbitrary or saved scripts (not observer or observer+).
+- Updated `fleetctl get mdm_commands` to return 20 rows and support `--host` `--type` filters to improve response time.
+- Updated the instructions for manual MDM enrollment on the "My device" page to be clearer and align
+  with Apple updates.
+- Disabled credential caching and reboot on Windows lock.
 
 ### Vulnerability Management
 
-- Fixed issue where some Windows applications were getting matched against Windows OS vulnerabilities.
-- Fixed an issue where special characters in HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall breaks the "installer_utils.ps1 -uninstallOrbit" step in the Windows MSI installer.
+- Added "Vulnerable" filter to the host details software table.
 
 ### Bug fixes and improvements
 
-- Hide "Self-service" in Fleet Desktop and My device page if there is no self-service software available.
+- Updated Go version to go1.22.4.
+- Updated to render only one banner on the my device page based on priority order.
+- Updated software updated timestamp tooltip.
+- Removed DB error message from the UI when showing a error response.
+- Updated fleetctl get queries/labels/hosts descriptions.
+- Reinstated ability to sort policies by passing count.
+- Improved the accuracy of the heuristic used to deterimine if a host is connected to Fleet via MDM by using osquery data for hosts that didn't send a Checkout message.
+- Improved the matching of `pkg` installer files to existing software.
+- Improved extraction of application name from `pkg` installers.
+- Clarified various help and error texts around host identifiers.
+- Hid CTA on inherited queries/policies from team level users.
+- Hid query delete checkboxes from team observers.
+- Hid "Self-service" in Fleet Desktop and My device page if there is no self-service software available.
+- Hid the host detail page's "Run script" action from Global and Team Observer/+s.
+- Aligned the "View all hosts" links in the Software titles and versions tables.
+- Fixed Microsoft Office June 2024 false negative vulnerabilities and added custom vulnerability matching.
+- Fixed issue where some Windows applications were getting matched against Windows OS vulnerabilities.
+- Fixed counts for hosts with with low disk space in summary page.
+- Fixed allowing Observer and Observer+ roles to download software installers.
 - Fixed crash in `fleetd` installer on Windows if there are registry keys with special characters on the system.
-- Disable credential caching and reboot on Windows lock.
-- Fixed counts for hosts with low disk space in summary page.
-- Updates the instructions for manual MDM enrollment on the "My device" page to be clearer and align with Apple updates.
-- Show a host's upcoming scheduled maintenance window, if any, on the host details page of the UI and in host responses from the API.
-- In maintenance windows using Google Calendar, calendar event is now recreated within 30 seconds if deleted or moved to the past.
-- Maintenance window now scheduled weekly on Tuesdays (previously monthly on the third Tuesday of the month).
+- Fixed `fleetctl debug connection` to support server TLS certificates with intermediates.
+- Fixed macOS declarations being stuck in "to be removed" state indefinitely.
+- Fixed link to `fleetd` uninstall instructions in "Delete device" modal.
+- Fixed exporting CSVs with fields that contain commas to render properly.
+- Fixed issue where the Fleet UI could not be used to renew the ABM token after the ABM user who created the token was deleted.
+- Fixed styling issues with the target inputs loading spinner on the run live query/policy page.
+- Fixed an issue where special characters in HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall breaks the "installer_utils.ps1 -uninstallOrbit" step in the Windows MSI installer.
+- Fixed various UI capitalizations.
+
 ## Fleet 4.53.1 (Jul 01, 2024)
 
 ### Bug fixes
