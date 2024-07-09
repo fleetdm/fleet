@@ -816,8 +816,6 @@ github.com/kolide/kit v0.0.0-20221107170827-fb85e3d59eab/go.mod h1:OYYulo9tUqRad
 github.com/kolide/launcher v1.0.12 h1:f2uT1kKYGIbj/WVsHDc10f7MIiwu8MpmgwaGaT7D09k=
 github.com/kolide/launcher v1.0.12/go.mod h1:j854Q4LqMXi3DQ+fnDy8Ij4uuKRG707ulWOcIz7BCz4=
 github.com/konsorten/go-windows-terminal-sequences v1.0.1/go.mod h1:T0+1ngSBFLxvqU3pZ+m/2kptfBszLMUkC4ZK/EgS/cQ=
-github.com/korylprince/dep-webview-oidc v0.1.2 h1:afOSZOL6cljmfaBSkeVKwgM0I8Zufkjd2IyNNIy324s=
-github.com/korylprince/dep-webview-oidc v0.1.2/go.mod h1:r3QYYazmQbxji1vuiUP8qW59UR0JCItbhWTuYrs49BQ=
 github.com/kr/fs v0.1.0/go.mod h1:FFnZGqtBN9Gxj7eW1uZ42v5BccTP0vu6NEaFoC2HwRg=
 github.com/kr/logfmt v0.0.0-20140226030751-b84e30acd515/go.mod h1:+0opPa2QZZtGFBFZlji/RkVcI2GknAs/DXo4wKdlNEc=
 github.com/kr/pretty v0.1.0/go.mod h1:dAy3ld7l9f0ibDNOQOHHMYYIIbhfbHSm3C4ZsoJORNo=

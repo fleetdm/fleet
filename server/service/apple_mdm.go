@@ -45,8 +45,6 @@ import (
 	"github.com/go-kit/log/level"
 	"github.com/google/uuid"
 	"github.com/groob/plist"
-
-	dep_webview "github.com/korylprince/dep-webview-oidc/header" // TODO: Decide if we want to use this package
 )
 
 type getMDMAppleCommandResultsRequest struct {
@@ -1380,16 +1378,8 @@ func (svc *Service) GetMDMAppleEnrollmentProfileByToken(ctx context.Context, tok
 
 	// if we have device info, we need to parse it and associate the device with an MDM IdP account
 	if deviceinfo != "" {
-		// TODO: Consider implementing just what we need from the parser, instead of needing to
-		// mock up a request that we can pass to the parser
-		r, err := http.NewRequest("", "", nil)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "creating request")
-		}
-		level.Info(svc.logger).Log("msg", "deviceinfo", "deviceinfo", deviceinfo)
-		r.Header.Add("x-apple-aspen-deviceinfo", deviceinfo)
 		// extract x-apple-aspen-deviceinfo custom header from request
-		di, err := dep_webview.DefaultParser.Parse(r)
+		di, err := apple_mdm.ParseDeviceinfo(deviceinfo, true)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "parsing deviceinfo")
 		}

@@ -37,8 +37,6 @@ import (
 	otmiddleware "go.opentelemetry.io/contrib/instrumentation/github.com/gorilla/mux/otelmux"
 
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
-
-	dep_webview "github.com/korylprince/dep-webview-oidc/header" // TODO: Decide if we want to use this package
 )
 
 type errorHandler struct {
@@ -1043,14 +1041,11 @@ func WithDEPWebviewRedirect(svc fleet.Service, logger kitlog.Logger, next http.H
 			// redirect to the same URL with added query params after parsing the x-apple-aspen-deviceinfo
 			// header. Whenever we see a request with any query params already present, we'll
 			// skip this step and just continue to the next handler.
-
-			// TODO: should we do any precautionary checks befere we try to parse the header?
-			// xml or pki performance concerns?
 			di := r.Header.Get("X-apple-aspen-deviceinfo")
 			if di != "" {
 				level.Debug(logger).Log("msg", "parsing X-apple-aspen-deviceinfo", "url", r.URL.String())
 				// extract x-apple-aspen-deviceinfo custom header from request
-				_, err := dep_webview.DefaultParser.Parse(r)
+				_, err := apple_mdm.ParseDeviceinfo(di, true)
 				if err != nil {
 					level.Error(logger).Log("msg", "parsing X-apple-aspen-deviceinfo", "err", err)
 					http.Redirect(w, r, r.URL.String()+"?error=true", http.StatusSeeOther)

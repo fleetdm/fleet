@@ -853,13 +853,26 @@ type Datastore interface {
 
 	SetOrUpdateMunkiInfo(ctx context.Context, hostID uint, version string, errors, warnings []string) error
 	SetOrUpdateMDMData(ctx context.Context, hostID uint, isServer, enrolled bool, serverURL string, installedFromDep bool, name string, fleetEnrollRef string) error
-	// SetOrUpdateHostEmailsFromMdmIdpAccounts sets or updates the host emails associated with the provided
-	// host based on the MDM IdP account information associated with the provided fleet enrollment reference.
-	SetOrUpdateHostEmailsFromMdmIdpAccounts(ctx context.Context, hostID uint, fleetEnrollmentRef string) error
-	// SetOrUpdateHostEmailsFromMdmIdpAccountsByHostUUID sets or updates the host emails associated
+	// SetOrUpdateHostEmailsFromMDMIdPAccountsByLegacyEnrollRef sets or updates the host emails associated with the provided
+	// host based on the MDM IdP account information associated with the provided fleet enrollment
+	// reference.
+	//
+	// Deprecated: Use SetOrUpdateHostEmailsFromMdmIdpAccountsByHostUUID instead.
+	SetOrUpdateHostEmailsFromMDMIdPAccountsByLegacyEnrollRef(ctx context.Context, hostID uint, fleetEnrollmentRef string) error
+	// SetOrUpdateHostEmailsFromMDMIdPAccountsByHostUUID sets or updates the host emails associated
 	// with the provided host uuid based on the MDM IdP account information (if any) associated with the
 	// provided host uuid.
-	SetOrUpdateHostEmailsFromMdmIdpAccountsByHostUUID(ctx context.Context, hostUUID string) error
+	//
+	// Note: Use this method only if the host ID is not available to the caller, otherwise use
+	// SetOrUpdateHostEmailsFromMdmIdpAccountsByHostID.
+	SetOrUpdateHostEmailsFromMDMIdPAccountsByHostUUID(ctx context.Context, hostUUID string) error
+	// SetOrUpdateEmailsFromMDMIdPAccountsByHostID sets or updates the host emails associated with
+	// the provided host ID based on the MDM IdP account information (if any) associated with the
+	// provided host UUID.
+	//
+	// Note: Use this method when both the host ID and host UUID are known to the caller, otherwise
+	// use SetOrUpdateHostEmailsFromMdmIdpAccountsByHostUUID.
+	SetOrUpdateEmailsFromMDMIdPAccountsByHostID(ctx context.Context, hostID uint, hostUUID string) error
 	SetOrUpdateHostDisksSpace(ctx context.Context, hostID uint, gigsAvailable, percentAvailable, gigsTotal float64) error
 	SetOrUpdateHostDisksEncryption(ctx context.Context, hostID uint, encrypted bool) error
 	// SetOrUpdateHostDiskEncryptionKey sets the base64, encrypted key for
@@ -1178,7 +1191,7 @@ type Datastore interface {
 	// GetMDMIdPAccountByLegacyEnrollRef returns MDM IdP account that matches the given Fleet
 	// enrollment ref.
 	//
-	// NOTE: This method is deprecated and only used for backwards compatibility.
+	// Deprecated: This method is deprecated and only used for backwards compatibility.
 	// GetMDMIdPAccountByAccountUUID and GetMDMIdPAccountByDeviceUUID are the preferred methods.
 	GetMDMIdPAccountByLegacyEnrollRef(ctx context.Context, ref string) (*MDMIdPAccount, error)
 

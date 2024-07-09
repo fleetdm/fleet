@@ -170,7 +170,7 @@ func (a *AppleMDM) runPostDEPEnrollment(ctx context.Context, args appleMDMArgs) 
 			// NOTE: We only set the email address here if we have an MDM IdP account and sso is enabled. We rely on the
 			// `resetDarwin` lifecycle event to delete from `host_emails` for this host uuid if there is
 			// any email where `source = 'mdm_idp_account'`.
-			if err := a.Datastore.SetOrUpdateHostEmailsFromMdmIdpAccountsByHostUUID(ctx, args.HostUUID); err != nil {
+			if err := a.Datastore.SetOrUpdateHostEmailsFromMDMIdPAccountsByHostUUID(ctx, args.HostUUID); err != nil {
 				return ctxerr.Wrap(ctx, err, "setting host emails from mdm idp accounts")
 			}
 		}

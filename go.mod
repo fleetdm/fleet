@@ -259,7 +259,6 @@ require (
 	github.com/kevinburke/ssh_config v1.2.0 // indirect
 	github.com/klauspost/compress v1.17.7 // indirect
 	github.com/kolide/kit v0.0.0-20221107170827-fb85e3d59eab // indirect
-	github.com/korylprince/dep-webview-oidc v0.1.2
 	github.com/lufia/plan9stats v0.0.0-20211012122336-39d0f177ccd0 // indirect
 	github.com/magiconair/properties v1.8.5 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect

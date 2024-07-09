@@ -595,9 +595,11 @@ type SetOrUpdateMunkiInfoFunc func(ctx context.Context, hostID uint, version str
 
 type SetOrUpdateMDMDataFunc func(ctx context.Context, hostID uint, isServer bool, enrolled bool, serverURL string, installedFromDep bool, name string, fleetEnrollRef string) error
 
-type SetOrUpdateHostEmailsFromMdmIdpAccountsFunc func(ctx context.Context, hostID uint, fleetEnrollmentRef string) error
+type SetOrUpdateHostEmailsFromMDMIdPAccountsByLegacyEnrollRefFunc func(ctx context.Context, hostID uint, fleetEnrollmentRef string) error
 
-type SetOrUpdateHostEmailsFromMdmIdpAccountsByHostUUIDFunc func(ctx context.Context, hostUUID string) error
+type SetOrUpdateHostEmailsFromMDMIdPAccountsByHostUUIDFunc func(ctx context.Context, hostUUID string) error
+
+type SetOrUpdateEmailsFromMDMIdPAccountsByHostIDFunc func(ctx context.Context, hostID uint, hostUUID string) error
 
 type SetOrUpdateHostDisksSpaceFunc func(ctx context.Context, hostID uint, gigsAvailable float64, percentAvailable float64, gigsTotal float64) error
 
@@ -1854,11 +1856,14 @@ type DataStore struct {
 	SetOrUpdateMDMDataFunc        SetOrUpdateMDMDataFunc
 	SetOrUpdateMDMDataFuncInvoked bool
 
-	SetOrUpdateHostEmailsFromMdmIdpAccountsFunc        SetOrUpdateHostEmailsFromMdmIdpAccountsFunc
-	SetOrUpdateHostEmailsFromMdmIdpAccountsFuncInvoked bool
+	SetOrUpdateHostEmailsFromMDMIdPAccountsByLegacyEnrollRefFunc        SetOrUpdateHostEmailsFromMDMIdPAccountsByLegacyEnrollRefFunc
+	SetOrUpdateHostEmailsFromMDMIdPAccountsByLegacyEnrollRefFuncInvoked bool
 
-	SetOrUpdateHostEmailsFromMdmIdpAccountsByHostUUIDFunc        SetOrUpdateHostEmailsFromMdmIdpAccountsByHostUUIDFunc
-	SetOrUpdateHostEmailsFromMdmIdpAccountsByHostUUIDFuncInvoked bool
+	SetOrUpdateHostEmailsFromMDMIdPAccountsByHostUUIDFunc        SetOrUpdateHostEmailsFromMDMIdPAccountsByHostUUIDFunc
+	SetOrUpdateHostEmailsFromMDMIdPAccountsByHostUUIDFuncInvoked bool
+
+	SetOrUpdateEmailsFromMDMIdPAccountsByHostIDFunc        SetOrUpdateEmailsFromMDMIdPAccountsByHostIDFunc
+	SetOrUpdateEmailsFromMDMIdPAccountsByHostIDFuncInvoked bool
 
 	SetOrUpdateHostDisksSpaceFunc        SetOrUpdateHostDisksSpaceFunc
 	SetOrUpdateHostDisksSpaceFuncInvoked bool
@@ -4464,18 +4469,25 @@ func (s *DataStore) SetOrUpdateMDMData(ctx context.Context, hostID uint, isServe
 	return s.SetOrUpdateMDMDataFunc(ctx, hostID, isServer, enrolled, serverURL, installedFromDep, name, fleetEnrollRef)
 }
 
-func (s *DataStore) SetOrUpdateHostEmailsFromMdmIdpAccounts(ctx context.Context, hostID uint, fleetEnrollmentRef string) error {
+func (s *DataStore) SetOrUpdateHostEmailsFromMDMIdPAccountsByLegacyEnrollRef(ctx context.Context, hostID uint, fleetEnrollmentRef string) error {
 	s.mu.Lock()
-	s.SetOrUpdateHostEmailsFromMdmIdpAccountsFuncInvoked = true
+	s.SetOrUpdateHostEmailsFromMDMIdPAccountsByLegacyEnrollRefFuncInvoked = true
 	s.mu.Unlock()
-	return s.SetOrUpdateHostEmailsFromMdmIdpAccountsFunc(ctx, hostID, fleetEnrollmentRef)
+	return s.SetOrUpdateHostEmailsFromMDMIdPAccountsByLegacyEnrollRefFunc(ctx, hostID, fleetEnrollmentRef)
 }
 
-func (s *DataStore) SetOrUpdateHostEmailsFromMdmIdpAccountsByHostUUID(ctx context.Context, hostUUID string) error {
+func (s *DataStore) SetOrUpdateHostEmailsFromMDMIdPAccountsByHostUUID(ctx context.Context, hostUUID string) error {
 	s.mu.Lock()
-	s.SetOrUpdateHostEmailsFromMdmIdpAccountsByHostUUIDFuncInvoked = true
+	s.SetOrUpdateHostEmailsFromMDMIdPAccountsByHostUUIDFuncInvoked = true
 	s.mu.Unlock()
-	return s.SetOrUpdateHostEmailsFromMdmIdpAccountsByHostUUIDFunc(ctx, hostUUID)
+	return s.SetOrUpdateHostEmailsFromMDMIdPAccountsByHostUUIDFunc(ctx, hostUUID)
+}
+
+func (s *DataStore) SetOrUpdateEmailsFromMDMIdPAccountsByHostID(ctx context.Context, hostID uint, hostUUID string) error {
+	s.mu.Lock()
+	s.SetOrUpdateEmailsFromMDMIdPAccountsByHostIDFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetOrUpdateEmailsFromMDMIdPAccountsByHostIDFunc(ctx, hostID, hostUUID)
 }
 
 func (s *DataStore) SetOrUpdateHostDisksSpace(ctx context.Context, hostID uint, gigsAvailable float64, percentAvailable float64, gigsTotal float64) error {
