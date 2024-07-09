@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/sha256"
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/hex"
@@ -13,7 +14,7 @@ import (
 	"strings"
 
 	"github.com/boltdb/bolt"
-	boltdepot "github.com/fleetdm/fleet/v4/server/mdm/scep/depot/bolt"
+	scepdepot "github.com/fleetdm/fleet/v4/server/mdm/scep/depot/bolt"
 	"github.com/groob/plist"
 	apnsbuiltin "github.com/micromdm/micromdm/platform/apns/builtin"
 	"github.com/micromdm/micromdm/platform/device"
@@ -82,6 +83,33 @@ func main() {
 			log.Printf("Found %d devices", len(devices))
 		}
 
+		// SCEP certificates are stored using the certificate CN as the
+		// key. I couldn't find any CN <-> device association in the
+		// db, as it's not needed: micro extracts the certificate CN
+		// from the request and uses it to authenticate devices.
+		//
+		// To avoid loading all certs in memory (rough estimation is
+		// ~2KB per cert) we store a map of the cert hash (which is
+		// stored along the device record) to the CN for later
+		// retrieval.
+		certHashToCertKey := make(map[string][]byte, len(devices))
+		// NOTE: the depot doesn't expose methods to list certs so we
+		// need to use bolt directly.
+		err = boltDB.View(func(tx *bolt.Tx) error {
+			bucket := tx.Bucket([]byte("scep_certificates"))
+			if bucket == nil {
+				log.Fatalf("No identity certificates found. Are you sure %s is a MicroMDM DB?", *flDB)
+			}
+			return bucket.ForEach(func(k, v []byte) error {
+				hash := sha256.Sum256(v)
+				certHashToCertKey[string(hash[:])] = k
+				return nil
+			})
+		})
+		if err != nil {
+			log.Fatal(err)
+		}
+
 		var sb strings.Builder
 		for _, device := range devices {
 			pushInfo, err := apnsDB.PushInfo(context.Background(), device.UDID)
@@ -141,6 +169,39 @@ func main() {
 				log.Fatal(device.UDID, " FAILED: ", err)
 			}
 
+			var certDer []byte
+			certKey := certHashToCertKey[string(certHash)]
+			err = boltDB.View(func(tx *bolt.Tx) error {
+				bucket := tx.Bucket([]byte("scep_certificates"))
+				certDer = bucket.Get(certKey)
+				return nil
+			})
+			if err != nil {
+				log.Fatal(device.UDID, " FAILED: ", err)
+			}
+
+			var certExpiration string
+			var certPEM []byte
+			if certDer != nil {
+				// parse the cert to extract the expiration date
+				cert, err := x509.ParseCertificate(certDer)
+				if err != nil {
+					log.Printf("WARN: unable to parse SCEP identity certificate for %s: %s\n", device.UDID, err)
+				}
+				certExpiration = cert.NotAfter.Format("2006-01-02 15:04:05")
+
+				// encode it to PEM to store it in the DB in
+				// the format that nano expects. At the moment
+				// we don't really need this value as we can
+				// make do with the hash and the expiration,
+				// but I figured it would be good to have it.
+				pemBlock := &pem.Block{
+					Type:  "CERTIFICATE",
+					Bytes: cert.Raw,
+				}
+				certPEM = pem.EncodeToMemory(pemBlock)
+			}
+
 			base64BootstrapToken := base64.StdEncoding.EncodeToString(device.BootstrapToken)
 
 			sb.WriteString(fmt.Sprintf(`
@@ -153,7 +214,8 @@ INSERT INTO nano_devices
       token_update,
       token_update_at,
       bootstrap_token_b64,
-      bootstrap_token_at
+      bootstrap_token_at,
+      identity_cert
     )
 VALUES
     (
@@ -164,7 +226,8 @@ VALUES
       '%s',
       CURRENT_TIMESTAMP,
       '%s',
-      CURRENT_TIMESTAMP
+      CURRENT_TIMESTAMP,
+      NULLIF('%s', '')
     )
 ON DUPLICATE KEY
 UPDATE
@@ -174,8 +237,9 @@ UPDATE
     token_update = VALUES(token_update),
     token_update_at = CURRENT_TIMESTAMP,
     bootstrap_token_b64 = VALUES(bootstrap_token_b64),
-    bootstrap_token_at = CURRENT_TIMESTAMP;
-		`, device.UDID, device.SerialNumber, authenticatePlist, tokenPlist, base64BootstrapToken))
+    bootstrap_token_at = CURRENT_TIMESTAMP,
+    identity_cert = VALUES(identity_cert);
+		`, device.UDID, device.SerialNumber, authenticatePlist, tokenPlist, base64BootstrapToken, certPEM))
 
 			sb.WriteString(fmt.Sprintf(`
 INSERT INTO nano_enrollments
@@ -188,6 +252,8 @@ INSERT INTO nano_enrollments
 	  token_hex,
 	  enabled,
 	  last_seen_at,
+	  -- TODO: remove comment when the new column is released
+	  -- enrolled_from_migration,
 	  token_update_tally
 	)
 VALUES
@@ -201,6 +267,8 @@ VALUES
 	  '%s',
 	  %t,
 	  CURRENT_TIMESTAMP,
+	  -- TODO: remove comment when the new column is released
+	  -- 1,
 	  1
 	)
 ON DUPLICATE KEY
@@ -226,12 +294,16 @@ UPDATE
 INSERT INTO nano_cert_auth_associations
     (id, sha256, cert_not_valid_after)
 VALUES
-    ('%s', '%s', DATE_ADD(NOW(), INTERVAL 1 YEAR));
-	    `, device.UDID, hex.EncodeToString(certHash[:])))
+    ('%s', '%s', NULLIF('%s', ''))
+ON DUPLICATE KEY UPDATE
+  id = VALUES(id),
+  sha256 = VALUES(sha256),
+  cert_not_valid_after = VALUES(cert_not_valid_after);
+	    `, device.UDID, hex.EncodeToString(certHash[:]), certExpiration))
 		}
 
 		sb.WriteString("\n")
-		if err := os.WriteFile("dump.sql", []byte(sb.String()), 0o777); err != nil {
+		if err := os.WriteFile("dump.sql", []byte(sb.String()), 0o600); err != nil {
 			log.Fatal(err)
 		}
 		log.Println("Wrote device/enrollment records to dump.sql")
@@ -246,17 +318,17 @@ VALUES
 		}
 		defer bboltDB.Close()
 
-		svcBoltDepot, err := boltdepot.NewBoltDepot(bboltDB)
+		scepBoltDepot, err := scepdepot.NewBoltDepot(bboltDB)
 		if err != nil {
 			log.Fatal(err)
 		}
 
-		key, err := svcBoltDepot.CreateOrLoadKey(2048)
+		key, err := scepBoltDepot.CreateOrLoadKey(2048)
 		if err != nil {
 			log.Fatal(err)
 		}
 
-		crt, err := svcBoltDepot.CreateOrLoadCA(key, 5, "MicroMDM", "US")
+		crt, err := scepBoltDepot.CreateOrLoadCA(key, 5, "MicroMDM", "US")
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -267,7 +339,7 @@ VALUES
 			Bytes: privateKeyBytes,
 		})
 
-		if err := os.WriteFile("scep.key", privateKeyPEM, 0o777); err != nil {
+		if err := os.WriteFile("scep.key", privateKeyPEM, 0o600); err != nil {
 			log.Fatal(err)
 		}
 
@@ -276,10 +348,10 @@ VALUES
 			Bytes: crt.Raw,
 		})
 
-		if err := os.WriteFile("scep.cert", certPEM, 0o777); err != nil {
+		if err := os.WriteFile("scep.cert", certPEM, 0o600); err != nil {
 			log.Fatal(err)
 		}
 
-		log.Println("Wrote SCEP cert/key to scep.cert/skep.key")
+		log.Println("Wrote SCEP cert/key to scep.cert/scep.key")
 	}()
 }
