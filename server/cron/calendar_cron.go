@@ -342,20 +342,23 @@ func processFailingHostExistingCalendarEvent(
 		}
 		lockReserved = true
 		done := make(chan struct{})
-		for {
-			// Keep trying to get the lock.
-			result, err = distributedLock.AcquireLock(ctx, calendar.LockKeyPrefix+eventUUID, lockValue, 0)
-			if err != nil {
-				return fmt.Errorf("try to acquire calendar lock: %w", err)
+		go func() {
+			for {
+				// Keep trying to get the lock.
+				result, err = distributedLock.AcquireLock(ctx, calendar.LockKeyPrefix+eventUUID, lockValue, 0)
+				if err != nil || result != "" {
+					done <- struct{}{}
+					return
+				}
+				time.Sleep(100 * time.Millisecond)
 			}
-			if result != "" {
-				break
-			}
-			time.Sleep(100 * time.Millisecond)
-		}
+		}()
 		select {
 		case <-done:
 			// Lock was acquired.
+			if err != nil {
+				return fmt.Errorf("try to acquire calendar lock: %w", err)
+			}
 		case <-time.After(time.Duration(timeoutMs) * time.Millisecond):
 			// We couldn't acquire the lock in time.
 			return errors.New("could not acquire calendar lock in time")
