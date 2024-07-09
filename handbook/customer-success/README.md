@@ -26,15 +26,13 @@ Occasionally, we will need to track public issues for customers and prospects wh
 
 ### Prepare for routine customer meeting
 
-Before a routine customer call, the CSM should prepare an agenda including the following items:
-1. Documentation of who will be in attendance from both the customer's end and from Fleet
-2. Notes on the latest version, or versions of Fleet
-3. A section to inquire about what version of Fleet the customer is currently using (If they are self hosted)
-4. Any follow ups to the agenda from your previous session, or from Slack
-5. Agenda items from any other Fleet attendees
-6. A section to inquire about feature requests
-7. A section to inquire about bugs
-8. A section to take notes in during the call
+Before a routine customer call, the CSM prepares an agenda including the following items:
+1. Customer and Fleet expected attendees
+2. Release notes for the latest version of Fleet
+3. Update notes for which version of Fleet the customer is running (if self-hosted)
+4. Follow ups to the agenda from the previous call or Slack
+5. Provide updates to open feature requests (can be done monthly or quarterly)
+6. Provide updates to open bug reports
 
 ### Create customer support issue
 Locate the relevant issue or create it if it doesn't already exist (to avoid duplication, be creative when searching GitHub for issues - it can often take a couple of tries with different keywords to find an existing issue). When creating a new issue, make sure the following:
