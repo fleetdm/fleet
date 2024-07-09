@@ -1907,40 +1907,54 @@ func (ds *Datastore) ListSoftwareVulnerabilitiesByHostIDsSource(
 
 func (ds *Datastore) ListSoftwareForVulnDetection(
 	ctx context.Context,
-	hostID uint,
+	filters fleet.VulnSoftwareFilter,
 ) ([]fleet.Software, error) {
 	var result []fleet.Software
+	var sqlstmt string
+	var args []interface{}
 
-	stmt := dialect.
-		From(goqu.T("software").As("s")).
-		LeftJoin(
-			goqu.T("software_cpe").As("cpe"),
-			goqu.On(goqu.Ex{
-				"s.id": goqu.I("cpe.software_id"),
-			}),
-		).
-		Join(
-			goqu.T("host_software").As("hs"),
-			goqu.On(goqu.Ex{
-				"s.id": goqu.I("hs.software_id"),
-			}),
-		).
-		Select(
-			goqu.I("s.id"),
-			goqu.I("s.name"),
-			goqu.I("s.version"),
-			goqu.I("s.release"),
-			goqu.I("s.arch"),
-			goqu.COALESCE(goqu.I("cpe.cpe"), "").As("generated_cpe"),
-		).
-		Where(goqu.C("host_id").Eq(hostID))
+	baseSQL := `
+		SELECT 
+			s.id,
+			s.name,
+			s.version,
+			s.release,
+			s.arch,
+			COALESCE(cpe.cpe, '') AS generated_cpe
+		FROM 
+			software s
+		LEFT JOIN 
+			software_cpe cpe ON s.id = cpe.software_id
+	`
 
-	sql, args, err := stmt.ToSQL()
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "error generating SQL statement")
+	if filters.HostID != nil {
+		baseSQL += "JOIN host_software hs ON s.id = hs.software_id "
 	}
 
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &result, sql, args...); err != nil {
+	conditions := []string{}
+
+	if filters.HostID != nil {
+		conditions = append(conditions, "hs.host_id = ?")
+		args = append(args, *filters.HostID)
+	}
+
+	if filters.Name != "" {
+		conditions = append(conditions, "s.name LIKE ?")
+		args = append(args, "%"+filters.Name+"%")
+	}
+
+	if filters.Source != "" {
+		conditions = append(conditions, "s.source = ?")
+		args = append(args, filters.Source)
+	}
+
+	if len(conditions) > 0 {
+		sqlstmt = baseSQL + "WHERE " + strings.Join(conditions, " AND ")
+	} else {
+		sqlstmt = baseSQL
+	}
+
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &result, sqlstmt, args...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "error executing SQL statement")
 	}
 

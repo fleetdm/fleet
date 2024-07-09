@@ -114,6 +114,12 @@ type VulnerableSoftware struct {
 	ResolvedInVersion *string `json:"resolved_in_version" db:"resolved_in_version"`
 }
 
+type VulnSoftwareFilter struct {
+	HostID *uint
+	Name   string // LIKE filter
+	Source string // exact match
+}
+
 type SliceString []string
 
 func (c *SliceString) Scan(v interface{}) error {

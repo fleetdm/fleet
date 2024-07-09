@@ -126,6 +126,7 @@ const (
 	RHELOVALSource
 	MSRCSource
 	MacOfficeReleaseNotesSource
+	CustomSource
 )
 
 type VulnerabilityWithMetadata struct {
