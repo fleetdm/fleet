@@ -1,6 +1,6 @@
 #!/bin/sh
 
-if [ $(id -u) -ne 0 ]; then
+if [ $(id -u) -ne 0 -a -z "$GITHUB_ACTIONS" ]; then
     echo "Please run as root"
     exit 1
 fi
@@ -28,5 +28,11 @@ else
     # We are in the parent shell, start the detached child and return success
     echo "Removing fleet, system will be unenrolled in 15 seconds..."
     echo "Executing detached child process"
-    bash -c "bash $0 remove >/dev/null 2>/dev/null </dev/null &"
+    if [ -z "$GITHUB_ACTIONS" ]; then
+        # We are root
+        bash -c "bash $0 remove >/dev/null 2>/dev/null </dev/null &"
+    else
+        # We are in a github action
+        sudo bash -c "bash $0 remove >/dev/null 2>/dev/null </dev/null &"
+    fi
 fi

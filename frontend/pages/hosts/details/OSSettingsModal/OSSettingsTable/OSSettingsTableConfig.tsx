@@ -146,6 +146,10 @@ export const generateTableData = (
       return makeWindowsRows(hostMDMData);
     case "darwin":
       return makeDarwinRows(hostMDMData);
+    case "ios":
+      return hostMDMData.profiles;
+    case "ipados":
+      return hostMDMData.profiles;
     default:
       return null;
   }
