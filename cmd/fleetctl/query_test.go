@@ -49,7 +49,10 @@ func TestSavedLiveQuery(t *testing.T) {
 	}
 
 	ds.HostIDsByIdentifierFunc = func(ctx context.Context, filter fleet.TeamFilter, hostIdentifiers []string) ([]uint, error) {
-		return []uint{1234}, nil
+		if len(hostIdentifiers) == 1 && hostIdentifiers[0] == "1234" {
+			return []uint{1234}, nil
+		}
+		return nil, nil
 	}
 	ds.LabelIDsByNameFunc = func(ctx context.Context, labels []string) (map[string]uint, error) {
 		return nil, nil
@@ -70,7 +73,11 @@ func TestSavedLiveQuery(t *testing.T) {
 	ds.NewDistributedQueryCampaignTargetFunc = func(ctx context.Context, target *fleet.DistributedQueryCampaignTarget) (*fleet.DistributedQueryCampaignTarget, error) {
 		return target, nil
 	}
+	noHostsTargeted := false
 	ds.HostIDsInTargetsFunc = func(ctx context.Context, filter fleet.TeamFilter, targets fleet.HostTargets) ([]uint, error) {
+		if noHostsTargeted {
+			return nil, nil
+		}
 		return []uint{1}, nil
 	}
 	ds.CountHostsInTargetsFunc = func(ctx context.Context, filter fleet.TeamFilter, targets fleet.HostTargets, now time.Time) (fleet.TargetMetrics, error) {
@@ -176,6 +183,12 @@ func TestSavedLiveQuery(t *testing.T) {
 		)
 	case <-c: // All good
 	}
+
+	// Test targeting no hosts (e.g. host does exist)
+	noHostsTargeted = true
+	_, err = runAppNoChecks([]string{"query", "--hosts", "foobar", "--query-name", queryName})
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "No hosts targeted")
 }
 
 func TestAdHocLiveQuery(t *testing.T) {
