@@ -661,7 +661,7 @@
 - industryName: Low-level MDM commands for macOS, iOS/iPadOS*, and Windows (e.g. remote restart)
   documentationUrl: https://fleetdm.com/docs/using-fleet/mdm-commands
   tier: Free
-  jamfProHasFeature: macOnly
+  jamfProHasFeature: appleOnly
   jamfProtectHasFeature: no
   usualDepartment: IT
   productCategories: [Device management]
@@ -682,7 +682,7 @@
 - industryName: Zero-touch setup for macOS, iOS/iPadOS*, and Windows
   documentationUrl: https://fleetdm.com/docs/using-fleet/mdm-macos-setup-experience
   tier: Premium
-  jamfProHasFeature: macOnly
+  jamfProHasFeature: appleOnly
   jamfProtectHasFeature: no
   usualDepartment: IT
   productCategories: [Device management]
@@ -714,7 +714,7 @@
     - description: High-level remote wipe for macOS, Windows, and Linux.
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/9951
   tier: Premium
-  jamfProHasFeature: macOnly
+  jamfProHasFeature: appleOnly
   jamfProtectHasFeature: no
   usualDepartment: IT
   productCategories: [Device management]
@@ -724,7 +724,7 @@
   description: Easily configure and install SentinelOne, Crowdstrike, and other security tools.
   moreInfoUrl: https://github.com/fleetdm/fleet/issues/14921
   tier: Premium
-  jamfProHasFeature: macOnly
+  jamfProHasFeature: appleOnly
   jamfProtectHasFeature: no
   usualDepartment: IT
   productCategories: [Device management]
@@ -732,7 +732,7 @@
 - industryName: Update apps on macOS, Windows, and Linux computers.
   description: Update Zoom, Slack, Chrome, and other apps without interrupting your end users.
   tier: Premium
-  jamfProHasFeature: macOnly
+  jamfProHasFeature: appleOnly
   jamfProtectHasFeature: no
   comingSoonOn: 2024-07-15
   usualDepartment: IT
@@ -898,7 +898,7 @@
   usualDepartment: Security
   description: Encrypt hard disks of macOS and Windows computers, manage escrowed encryption keys, and report on disk encryption status (FileVault, BitLocker).
   tier: Premium
-  jamfProHasFeature: macOnly
+  jamfProHasFeature: appleOnly
   jamfProtectHasFeature: no
   waysToUse:
     - description: Report on disk encryption status
@@ -1108,7 +1108,7 @@
   pricingTableCategories: [Vulnerability management]
 - industryName: Cross-platform MDM support (macOS, Windows, Linux)
   tier: Premium
-  jamfProHasFeature: macOnly
+  jamfProHasFeature: appleOnly
   jamfProtectHasFeature: no
   usualDepartment: IT
   productCategories: [Device management]
