@@ -30,7 +30,7 @@ import (
 	"bytes"
 	"crypto"
 	"crypto/rsa"
-	"crypto/sha1"
+	"crypto/sha1" // nolint:gosec // See comments regarding Apple's Root CA below
 	"crypto/x509"
 	_ "embed"
 	"encoding/base64"
@@ -79,7 +79,7 @@ type MachineInfo struct {
 // This follows guidance from Apple on the expired certificate.
 func verifyPKCS7SHA1RSA(p7 *pkcs7.PKCS7, verifyChain bool) error {
 	if len(p7.Signers) == 0 {
-		return fmt.Errorf("not signed")
+		return errors.New("not signed")
 	}
 
 	// get signing cert
@@ -92,7 +92,7 @@ func verifyPKCS7SHA1RSA(p7 *pkcs7.PKCS7, verifyChain bool) error {
 	}
 
 	// get sha1 hash of content
-	hashed := sha1.Sum(p7.Content)
+	hashed := sha1.Sum(p7.Content) // nolint:gosec
 
 	// verify content signature
 	signature := p7.Signers[0].EncryptedDigest
@@ -110,7 +110,7 @@ outer:
 	for {
 		// check if cert is signed by root
 		if bytes.Equal(cert.RawIssuer, appleRootCA.RawSubject) {
-			hashed := sha1.Sum(cert.RawTBSCertificate)
+			hashed := sha1.Sum(cert.RawTBSCertificate) // nolint:gosec
 			// check signature
 			if err := rsa.VerifyPKCS1v15(appleRootCA.PublicKey.(*rsa.PublicKey), crypto.SHA1, hashed[:], cert.Signature); err != nil {
 				return fmt.Errorf("could not verify root CA signature: %w", err)
@@ -124,7 +124,7 @@ outer:
 			// check if cert is signed by intermediate cert in chain
 			if bytes.Equal(cert.RawIssuer, c.RawSubject) {
 				// check signature
-				hashed := sha1.Sum(cert.RawTBSCertificate)
+				hashed := sha1.Sum(cert.RawTBSCertificate) // nolint:gosec
 				if err := rsa.VerifyPKCS1v15(c.PublicKey.(*rsa.PublicKey), crypto.SHA1, hashed[:], cert.Signature); err != nil {
 					return fmt.Errorf("could not verify chained certificate signature: %w", err)
 				}
