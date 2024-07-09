@@ -97,7 +97,7 @@ func (ds *Datastore) SetHostScriptExecutionResult(ctx context.Context, result *f
     output = ?,
     runtime = ?,
     exit_code = ?,
-	timeout = ?
+    timeout = ?
   WHERE
     host_id = ? AND
     execution_id = ?`
