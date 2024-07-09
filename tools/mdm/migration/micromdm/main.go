@@ -252,8 +252,7 @@ INSERT INTO nano_enrollments
 	  token_hex,
 	  enabled,
 	  last_seen_at,
-	  -- TODO: remove comment when the new column is released
-	  -- enrolled_from_migration,
+	  enrolled_from_migration,
 	  token_update_tally
 	)
 VALUES
@@ -267,8 +266,7 @@ VALUES
 	  '%s',
 	  %t,
 	  CURRENT_TIMESTAMP,
-	  -- TODO: remove comment when the new column is released
-	  -- 1,
+	  1,
 	  1
 	)
 ON DUPLICATE KEY
