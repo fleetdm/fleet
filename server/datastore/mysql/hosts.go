@@ -4670,7 +4670,9 @@ func (ds *Datastore) executeOSVersionQuery(ctx context.Context, teamFilter *flee
     `
 	args := []interface{}{aggregatedStatsTypeOSVersions}
 	switch {
-	case teamFilter != nil && teamFilter.TeamID != nil && *teamFilter.TeamID != 0:
+	case teamFilter != nil && teamFilter.TeamID != nil:
+		// Aggregated stats for os versions are stored by team id with 0 representing
+		// no team or the all teams if global_stats is true.
 		query += " AND id = ? AND global_stats = ?"
 		args = append(args, *teamFilter.TeamID, false)
 	case teamFilter != nil:
