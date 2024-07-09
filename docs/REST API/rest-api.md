@@ -4185,6 +4185,7 @@ Retrieves information about the specified OS version.
       {
         "cve": "CVE-2022-30190",
         "details_link": "https://nvd.nist.gov/vuln/detail/CVE-2022-30190",
+        "created_at": "2024-07-01T00:15:00Z",
         "cvss_score": 7.8,// Available in Fleet Premium
         "epss_probability": 0.9729,// Available in Fleet Premium
         "cisa_known_exploit": false,// Available in Fleet Premium
@@ -9003,20 +9004,22 @@ Returns information about the specified software version.
       {
         "cve": "CVE-2023-4863",
         "details_link": "https://nvd.nist.gov/vuln/detail/CVE-2023-4863",
-        "cvss_score": 8.8,
-        "epss_probability": 0.4101,
-        "cisa_known_exploit": true,
-        "cve_published": "2023-09-12T15:15:00Z",
-        "resolved_in_version": ""
+        "created_at": "2024-07-01T00:15:00Z",
+        "cvss_score": 8.8, // Available in Fleet Premium
+        "epss_probability": 0.4101, // Available in Fleet Premium
+        "cisa_known_exploit": true, // Available in Fleet Premium
+        "cve_published": "2023-09-12T15:15:00Z", // Available in Fleet Premium
+        "resolved_in_version": "" // Available in Fleet Premium
       },
       {
         "cve": "CVE-2023-5169",
         "details_link": "https://nvd.nist.gov/vuln/detail/CVE-2023-5169",
-        "cvss_score": 6.5,
-        "epss_probability": 0.00073,
-        "cisa_known_exploit": false,
-        "cve_published": "2023-09-27T15:19:00Z",
-        "resolved_in_version": "118"
+        "created_at": "2024-07-01T00:15:00Z",
+        "cvss_score": 6.5, // Available in Fleet Premium
+        "epss_probability": 0.00073, // Available in Fleet Premium
+        "cisa_known_exploit": false, // Available in Fleet Premium
+        "cve_published": "2023-09-27T15:19:00Z", // Available in Fleet Premium
+        "resolved_in_version": "118" // Available in Fleet Premium
       }
     ]
   }
