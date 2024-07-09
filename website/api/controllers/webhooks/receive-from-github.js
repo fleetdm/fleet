@@ -36,7 +36,7 @@ module.exports = {
       throw new Error(`Consistency violation: when the GitHub webhook received an event, more than one platform record was found.`);
     }
 
-    let pocketOfPrNumbersUnfrozen = platformRecord.currentUnfrozenGitHubPrNumbers;
+    // let pocketOfPrNumbersUnfrozen = platformRecord.currentUnfrozenGitHubPrNumbers;
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -446,7 +446,9 @@ module.exports = {
           githubUserToCheck: sender.login,
           isGithubUserMaintainerOrDoesntMatter: GITHUB_USERNAMES_OF_BOTS_AND_MAINTAINERS.includes(sender.login.toLowerCase())
         });
-        // (2024-07-09): The Mergefreeze requests and related code in this webhook are disabled because we are no longer freezing the main brach.
+        // (2024-07-09): The Mergefreeze requests and related code in this webhook are disabled/commented out because we are no longer freezing the main branch.
+        // FUTURE: Remove mergefreeze related code and leave a comment with a link to an older version of this file
+        // -----------------------------------------------------
         // Check whether the "main" branch is currently frozen (i.e. a feature freeze)
         // [?] https://docs.mergefreeze.com/web-api#get-freeze-status
         // let mergeFreezeMainBranchStatusReport = await sails.helpers.http.get('https://www.mergefreeze.com/api/branches/fleetdm/fleet/main', { access_token: sails.config.custom.mergeFreezeAccessToken }) //eslint-disable-line camelcase
