@@ -8293,9 +8293,11 @@ func (s *integrationTestSuite) TestGetHostMaintenanceWindow() {
 		Data:      []byte(`{}`),
 		// will replace with NULL - db method doesn't allow nil
 		TimeZone: "",
+		UUID:     uuid.New().String(),
 	}
 
-	dsEvent, err := s.ds.CreateOrUpdateCalendarEvent(ctx, testEvent.Email, testEvent.StartTime, testEvent.EndTime, testEvent.Data, testEvent.TimeZone, host.ID, fleet.CalendarWebhookStatusNone)
+	dsEvent, err := s.ds.CreateOrUpdateCalendarEvent(ctx, testEvent.UUID, testEvent.Email, testEvent.StartTime, testEvent.EndTime,
+		testEvent.Data, testEvent.TimeZone, host.ID, fleet.CalendarWebhookStatusNone)
 	require.NoError(t, err)
 
 	time.Sleep(1 * time.Second)
@@ -8325,7 +8327,8 @@ func (s *integrationTestSuite) TestGetHostMaintenanceWindow() {
 	zonedStartsAt := startTime.In(tZLoc).Round(time.Second)
 
 	// update the timezone
-	_, err = s.ds.CreateOrUpdateCalendarEvent(ctx, testEvent.Email, testEvent.StartTime, testEvent.EndTime, testEvent.Data, timeZone, host.ID, fleet.CalendarWebhookStatusNone)
+	_, err = s.ds.CreateOrUpdateCalendarEvent(ctx, testEvent.UUID, testEvent.Email, testEvent.StartTime, testEvent.EndTime, testEvent.Data,
+		timeZone, host.ID, fleet.CalendarWebhookStatusNone)
 	require.NoError(t, err)
 
 	time.Sleep(1 * time.Second)

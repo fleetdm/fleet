@@ -1434,6 +1434,7 @@ func (ds *Datastore) GetTeamHostsPolicyMemberships(
 	domain string,
 	teamID uint,
 	policyIDs []uint,
+	hostID *uint,
 ) ([]fleet.HostPolicyMembershipData, error) {
 	query := `
 	SELECT 
@@ -1459,12 +1460,16 @@ func (ds *Datastore) GetTeamHostsPolicyMemberships(
 	) sh ON h.id = sh.host_id
 	LEFT JOIN host_display_names hdn ON h.id = hdn.host_id
 	LEFT JOIN host_calendar_events hce ON h.id = hce.host_id
-	WHERE h.team_id = ? AND ((pm.passing IS NOT NULL AND NOT pm.passing) OR (COALESCE(pm.passing, 1) AND hce.host_id IS NOT NULL));
+	WHERE h.team_id = ? AND ((pm.passing IS NOT NULL AND NOT pm.passing) OR (COALESCE(pm.passing, 1) AND hce.host_id IS NOT NULL))
 `
 
 	query, args, err := sqlx.In(query, policyIDs, domain, teamID, teamID)
 	if err != nil {
 		return nil, ctxerr.Wrapf(ctx, err, "build select get team hosts policy memberships query")
+	}
+	if hostID != nil {
+		query += ` AND h.id = ?`
+		args = append(args, *hostID)
 	}
 	var hosts []fleet.HostPolicyMembershipData
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &hosts, query, args...); err != nil {

@@ -7,7 +7,8 @@ import { getNextLocationPath } from "utilities/helpers";
 
 import TableContainer from "components/TableContainer";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
-import { generateResultsCountText } from "components/TableContainer/utilities/TableContainerUtils";
+// @ts-ignore
+import Dropdown from "components/forms/fields/Dropdown";
 
 import EmptySoftwareTable from "pages/SoftwarePage/components/EmptySoftwareTable";
 import TableCount from "components/TableContainer/TableCount";
@@ -15,6 +16,22 @@ import TableCount from "components/TableContainer/TableCount";
 const DEFAULT_PAGE_SIZE = 20;
 
 const baseClass = "host-software-table";
+
+export const VULNERABLE_DROPDOWN_OPTIONS = [
+  {
+    disabled: false,
+    label: "All software",
+    value: false,
+    helpText: "All software installed on your hosts.",
+  },
+  {
+    disabled: false,
+    label: "Vulnerable software",
+    value: true,
+    helpText:
+      "All software installed on your hosts with detected vulnerabilities.",
+  },
+] as const;
 
 interface IHostSoftwareTableProps {
   tableConfig: any; // TODO: type
@@ -26,6 +43,9 @@ interface IHostSoftwareTableProps {
   searchQuery: string;
   page: number;
   pagePath: string;
+  routeTemplate?: string;
+  pathPrefix: string;
+  vulnerable?: boolean;
 }
 
 const HostSoftwareTable = ({
@@ -38,7 +58,40 @@ const HostSoftwareTable = ({
   searchQuery,
   page,
   pagePath,
+  routeTemplate,
+  pathPrefix,
+  vulnerable,
 }: IHostSoftwareTableProps) => {
+  const handleVulnFilterDropdownChange = useCallback(
+    (isFilterVulnerable: boolean) => {
+      const nextPath = getNextLocationPath({
+        pathPrefix,
+        routeTemplate,
+        queryParams: {
+          query: searchQuery,
+          order_key: sortHeader,
+          order_direction: sortDirection,
+          page: 0,
+          vulnerable: isFilterVulnerable.toString(),
+        },
+      });
+      router.replace(nextPath);
+    },
+    [pathPrefix, routeTemplate, router, searchQuery, sortDirection, sortHeader]
+  );
+
+  const memoizedVulnFilterDropdown = useCallback(() => {
+    return (
+      <Dropdown
+        value={vulnerable}
+        className={`${baseClass}__vuln_dropdown`}
+        options={VULNERABLE_DROPDOWN_OPTIONS}
+        searchable={false}
+        onChange={handleVulnFilterDropdownChange}
+        tableFilterDropdown
+      />
+    );
+  }, [handleVulnFilterDropdownChange, vulnerable]);
   const determineQueryParamChange = useCallback(
     (newTableQuery: ITableQueryData) => {
       const changedEntry = Object.entries(newTableQuery).find(([key, val]) => {
@@ -62,16 +115,20 @@ const HostSoftwareTable = ({
 
   const generateNewQueryParams = useCallback(
     (newTableQuery: ITableQueryData, changedParam: string) => {
-      const newQueryParam: Record<string, string | number | undefined> = {
+      const newQueryParam: Record<
+        string,
+        string | number | boolean | undefined
+      > = {
         query: newTableQuery.searchQuery,
         order_direction: newTableQuery.sortDirection,
         order_key: newTableQuery.sortHeader,
         page: changedParam === "pageIndex" ? newTableQuery.pageIndex : 0,
+        vulnerable,
       };
 
       return newQueryParam;
     },
-    []
+    [vulnerable]
   );
 
   // TODO: Look into useDebounceCallback with dependencies
@@ -107,11 +164,16 @@ const HostSoftwareTable = ({
     }
 
     return <TableCount name="items" count={count} />;
-  }, [data?.count, data?.software.length]);
+  }, [count, isSoftwareNotDetected]);
 
   const memoizedEmptyComponent = useCallback(() => {
-    return <EmptySoftwareTable isNotDetectingSoftware={searchQuery === ""} />;
-  }, [searchQuery]);
+    return (
+      <EmptySoftwareTable
+        isFilterVulnerable={vulnerable}
+        isNotDetectingSoftware={searchQuery === ""}
+      />
+    );
+  }, [searchQuery, vulnerable]);
 
   return (
     <div className={baseClass}>
@@ -129,9 +191,10 @@ const HostSoftwareTable = ({
         inputPlaceHolder="Search by name"
         onQueryChange={onQueryChange}
         emptyComponent={memoizedEmptyComponent}
+        customControl={memoizedVulnFilterDropdown}
         showMarkAllPages={false}
         isAllPagesSelected={false}
-        searchable={!isSoftwareNotDetected}
+        searchable
         manualSortBy
       />
     </div>
