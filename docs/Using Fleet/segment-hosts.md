@@ -13,12 +13,16 @@ You can manage teams by selecting your avatar in the top navigation and then **S
 ## Best practice
 
 Fleet's best practice teams: 
-- `Workstations`: End user's production work computers (macOS, Windows, and Linux)
-- `Workstations (canary)`: IT team's test work computers. Sometimes, for demos or testing, includes end user's work computers. Used for [dogfooding](https://en.wikipedia.org/wiki/Eating_your_own_dog_food) a new workflow or feature that may or may not be rolled out to the "Workstations" team.
-- `Servers`: Security team's production servers.
-- `Servers (canary)`: Security team's test servers.
+- `💻 Workstations`: End users' production work computers (macOS, Windows, and Linux)
+- `💻🐣 Workstations (canary)`: IT team's test work computers. Sometimes, for demos or testing, includes end user's work computers. Used for [dogfooding](https://en.wikipedia.org/wiki/Eating_your_own_dog_food) a new workflow or feature that may or may not be rolled out to the "Workstations" team.
+- `☁️ Servers`: Security team's production servers.
+- `☁️🐣 Servers (canary)`: Security team's test servers.
 - `Compliance exclusions`: All contributors' test work computers or virtual machines (VMs). Used for validating workflows for Fleet customers or reproducing bugs in the Fleet product.
-- `iPhones`: All contributors' test iOS hosts. Used to dogfood Fleet's iOS features (coming soon).
+- `📱🏢 Company-owned iPhones`: iPhones purchased by the organization that enroll to Fleet automatically via Apple Business Manager. For example, iPhones used by iOS Engineers.
+- `🔳🏢 Company-owned iPads`: iPads purchased by the organization that enroll to Fleet automatically via Apple Business Manager. For example, conference-room iPads.
+<!---
+- `📱👔 BYOD iPhones`: End users' personal iPhones that have access to company resources. For example, Slack and Gmail. contributors' test iOS hosts. (BYOD iPhone features are coming soon)
+-->
 
 If some of your hosts don't fall under the above teams, what are these hosts for? The answer determines the the hosts' risk/compliance needs, and thus their security basline, and thus their "team" in Fleet. If the hosts' have a different compliance needs, and thus different security baseline, then it's time to create a new team in Fleet.
 
