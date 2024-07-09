@@ -1,4 +1,4 @@
-name: "Virtual machines"
+name: "Compliance exclusions"
 team_settings:
   features:
     enable_host_users: true
