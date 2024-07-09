@@ -162,6 +162,20 @@ func AddBuiltinLabels(t *testing.T, ds fleet.Datastore) {
 			LabelType:           fleet.LabelTypeBuiltIn,
 			LabelMembershipType: fleet.LabelMembershipTypeDynamic,
 		},
+		{
+			Name:                "iOS",
+			Platform:            "ios",
+			Query:               "",
+			LabelType:           fleet.LabelTypeBuiltIn,
+			LabelMembershipType: fleet.LabelMembershipTypeManual,
+		},
+		{
+			Name:                "iPadOS",
+			Platform:            "ipados",
+			Query:               "",
+			LabelType:           fleet.LabelTypeBuiltIn,
+			LabelMembershipType: fleet.LabelMembershipTypeManual,
+		},
 	}
 
 	names := fleet.ReservedLabelNames()
