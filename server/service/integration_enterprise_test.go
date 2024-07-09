@@ -25,6 +25,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/ee/server/calendar"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
+	"github.com/fleetdm/fleet/v4/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/cron"
@@ -6733,7 +6734,7 @@ VALUES
 				name:       "script-timeout",
 				exitCode:   ptr.Int64(-1),
 				executedAt: now.Add(-1 * time.Hour),
-				expected:   fleet.RunScriptScriptTimeoutErrMsg,
+				expected:   fleet.HostScriptTimeoutMessage(ptr.Int(int(scripts.MaxHostExecutionTime.Seconds()))),
 			},
 			{
 				name:       "pending",
