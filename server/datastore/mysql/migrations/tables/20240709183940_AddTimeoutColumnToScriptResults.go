@@ -5,14 +5,14 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20240707183940, Down_20240707183940)
+	MigrationClient.AddMigration(Up_20240709183940, Down_20240709183940)
 }
 
 // At the time of this migration, all script timeouts are
 // hardcoded to 300 seconds. This migration adds a timeout
 // column to the host_script_results table to allow for
 // custom timeouts.
-func Up_20240707183940(tx *sql.Tx) error {
+func Up_20240709183940(tx *sql.Tx) error {
 	stmt := `
 	ALTER TABLE host_script_results
 	ADD COLUMN timeout INT DEFAULT NULL;
@@ -33,6 +33,6 @@ func Up_20240707183940(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20240707183940(tx *sql.Tx) error {
+func Down_20240709183940(tx *sql.Tx) error {
 	return nil
 }
