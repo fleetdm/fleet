@@ -460,7 +460,7 @@ CREATE TABLE `host_script_results` (
   `sync_request` tinyint(1) NOT NULL DEFAULT '0',
   `script_content_id` int(10) unsigned DEFAULT NULL,
   `host_deleted_at` timestamp NULL DEFAULT NULL,
-  `timeout` int(11) NOT NULL,
+  `timeout` int(11) DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `idx_host_script_results_execution_id` (`execution_id`),
   KEY `idx_host_script_results_host_exit_created` (`host_id`,`exit_code`,`created_at`),

@@ -96,7 +96,8 @@ func (ds *Datastore) SetHostScriptExecutionResult(ctx context.Context, result *f
   UPDATE host_script_results SET
     output = ?,
     runtime = ?,
-    exit_code = ?
+    exit_code = ?,
+	timeout = ?
   WHERE
     host_id = ? AND
     execution_id = ?`
@@ -138,6 +139,7 @@ func (ds *Datastore) SetHostScriptExecutionResult(ctx context.Context, result *f
 			// it to a 32-bit signed integer.
 			// See /orbit/pkg/scripts/exec_windows.go
 			int32(result.ExitCode),
+			result.Timeout,
 			result.HostID,
 			result.ExecutionID,
 		)
@@ -236,6 +238,7 @@ func (ds *Datastore) getHostScriptExecutionResultDB(ctx context.Context, q sqlx.
     hsr.output,
     hsr.runtime,
     hsr.exit_code,
+    hsr.timeout,
     hsr.created_at,
     hsr.user_id,
     hsr.sync_request,

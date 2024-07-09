@@ -144,6 +144,7 @@ func (r *Runner) runOne(script *fleet.HostScriptResult) (finalErr error) {
 		Output:      string(output),
 		Runtime:     int(duration.Seconds()),
 		ExitCode:    exitCode,
+		Timeout:     int(r.ScriptExecutionTimeout.Seconds()),
 	})
 	if err != nil {
 		return fmt.Errorf("save script result: %w", err)

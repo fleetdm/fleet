@@ -28,7 +28,7 @@ func TestUp_20240707183940(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, 300, timeout)
 
-	// inserting no timeout fails
+	// inserting no timeout succeeds
 	_, err = db.Exec(insertStmt, 2, 2, "output")
-	require.Error(t, err)
+	require.NoError(t, err)
 }
