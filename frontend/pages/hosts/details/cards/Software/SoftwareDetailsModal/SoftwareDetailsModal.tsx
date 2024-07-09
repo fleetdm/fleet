@@ -14,6 +14,7 @@ import DataSet from "components/DataSet";
 import { dateAgo } from "utilities/date_format";
 
 import { SoftwareInstallDetails } from "pages/SoftwarePage/components/SoftwareInstallDetails";
+import TooltipTruncatedText from "components/TooltipTruncatedText";
 
 const baseClass = "software-details-modal";
 
@@ -42,8 +43,14 @@ const SoftwareDetailsInfo = ({
   source,
   bundleIdentifier,
 }: ISoftwareDetailsInfoProps) => {
-  const { vulnerabilities, installed_paths } = installedVersion;
+  const { vulnerabilities } = installedVersion;
 
+  const installed_paths = [
+    "/System/Library/PrivateFrameworks/AppleMediaServicesUI.framework/Versions/A/Resources/AMSEngagementViewService.app",
+    "Fake/System/Library/PrivateFrameworks/AppleMediaServicesUI.framework/Versions/A/Resources/AMSEngagementViewService.app",
+    "Fake2/System/Library/PrivateFrameworks/AppleMediaServicesUI.framework/Versions/A/Resources/AMSEngagementViewService.app",
+    "short/file/path",
+  ];
   return (
     <div className={`${baseClass}__details-info`}>
       <div className={`${baseClass}__row`}>
@@ -67,7 +74,7 @@ const SoftwareDetailsInfo = ({
             value={
               <div className={`${baseClass}__file-path-values`}>
                 {installed_paths.map((path) => (
-                  <span key={path}>{path}</span>
+                  <TooltipTruncatedText value={path} />
                 ))}
               </div>
             }
