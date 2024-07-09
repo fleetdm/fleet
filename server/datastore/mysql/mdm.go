@@ -11,6 +11,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
+	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/go-kit/log/level"
 	"github.com/jmoiron/sqlx"
 )
@@ -1316,11 +1317,15 @@ func (ds *Datastore) AreHostsConnectedToFleetMDM(ctx context.Context, hosts []*f
 		res[h.UUID] = false
 	}
 
-	setConnectedUUIDs := func(stmtFn func(aliasedCols []string, lenPlaceholders int) string, uuids []any, mp map[string]bool) error {
+	setConnectedUUIDs := func(stmt string, uuids []any, mp map[string]bool) error {
 		var res []string
 
 		if len(uuids) > 0 {
-			err := sqlx.SelectContext(ctx, ds.reader(ctx), &res, stmtFn(nil, len(uuids)), uuids...)
+			stmt, args, err := sqlx.In(stmt, uuids)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "building sqlx.In statement")
+			}
+			err = sqlx.SelectContext(ctx, ds.reader(ctx), &res, stmt, args...)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "retrieving hosts connected to fleet")
 			}
@@ -1333,16 +1338,40 @@ func (ds *Datastore) AreHostsConnectedToFleetMDM(ctx context.Context, hosts []*f
 		return nil
 	}
 
-	if err := setConnectedUUIDs(appleHostConnectedToFleetCond, appleUUIDs, res); err != nil {
+	// NOTE: if you change any of the conditions in this query, please
+	// update the `hostMDMSelect` constant too, which has a
+	// `connected_to_fleet` condition, and any relevant filters.
+	const appleStmt = `
+	  SELECT ne.id
+	  FROM nano_enrollments ne
+	    JOIN hosts h ON h.uuid = ne.id
+	    JOIN host_mdm hm ON hm.host_id = h.id
+	  WHERE ne.id IN (?)
+	    AND ne.enabled = 1
+	    AND ne.type = 'Device'
+	    AND hm.enrolled = 1
+	`
+	if err := setConnectedUUIDs(appleStmt, appleUUIDs, res); err != nil {
 		return nil, err
 	}
 
-	if err := setConnectedUUIDs(winHostConnectedToFleetCond, winUUIDs, res); err != nil {
+	// NOTE: if you change any of the conditions in this query, please
+	// update the `hostMDMSelect` constant too, which has a
+	// `connected_to_fleet` condition, and any relevant filters.
+	const winStmt = `
+	  SELECT mwe.host_uuid
+	  FROM mdm_windows_enrollments mwe
+	    JOIN hosts h ON h.uuid = mwe.host_uuid
+	    JOIN host_mdm hm ON hm.host_id = h.id
+	  WHERE mwe.host_uuid IN (?)
+	    AND mwe.device_state = '` + microsoft_mdm.MDMDeviceStateEnrolled + `'
+	    AND hm.enrolled = 1
+	`
+	if err := setConnectedUUIDs(winStmt, winUUIDs, res); err != nil {
 		return nil, err
 	}
 
 	return res, nil
-
 }
 
 func (ds *Datastore) IsHostConnectedToFleetMDM(ctx context.Context, host *fleet.Host) (bool, error) {
