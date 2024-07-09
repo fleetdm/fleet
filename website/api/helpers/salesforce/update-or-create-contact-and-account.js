@@ -29,6 +29,13 @@ module.exports = {
         '6 - Has team buy-in'
       ]
     },
+    leadSource: {
+      type: 'string',
+      isIn: [
+        'Website - Contact forms',
+        'Website - Sign up',
+      ],
+    },
   },
 
 
@@ -44,7 +51,7 @@ module.exports = {
   },
 
 
-  fn: async function ({emailAddress, linkedinUrl, firstName, lastName, organization, primaryBuyingSituation, psychologicalStage}) {
+  fn: async function ({emailAddress, linkedinUrl, firstName, lastName, organization, primaryBuyingSituation, psychologicalStage, leadSource}) {
     // Return undefined if we're not running in a production environment.
     if(sails.config.environment !== 'production') {
       sails.log.verbose('Skipping Salesforce integration...');
@@ -88,7 +95,6 @@ module.exports = {
     if(psychologicalStage) {
       valuesToSet.Stage__c = psychologicalStage;// eslint-disable-line camelcase
     }
-
 
     let existingContactRecord;
     // Search for an existing Contact record using the provided email address or linkedIn profile URL.
@@ -184,6 +190,10 @@ module.exports = {
         // console.log('New account created!', salesforceAccountId);
       }//ﬁ
 
+      // Only add leadSource to valuesToSet if we're creating a new contact record.
+      if(leadSource) {
+        valuesToSet.LeadSource = leadSource;
+      }
       // console.log(`creating new Contact record.`)
       // Create a new Contact record for this person.
       let newContactRecord = await salesforceConnection.sobject('Contact')

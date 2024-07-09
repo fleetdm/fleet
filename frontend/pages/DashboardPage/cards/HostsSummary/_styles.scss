@@ -3,19 +3,17 @@
   width: 100%;
   display: flex;
   justify-content: space-around;
+  flex-wrap: wrap;
   font-size: $x-small;
+  gap: $pad-medium;
 
-  &__tile {
-    flex-grow: 1;
-    display: flex;
-    justify-content: center;
-    align-items: center;
+  .summary-tile {
+    flex: 1 1 30%;
+  }
 
-    &:first-of-type {
-      justify-content: flex-end;
-    }
-    &:last-of-type {
-      justify-content: flex-start;
+  @media (min-width: $break-md) {
+    .summary-tile {
+      flex: initial;
     }
   }
 

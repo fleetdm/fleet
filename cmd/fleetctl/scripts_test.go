@@ -102,7 +102,7 @@ hello world
 		{
 			name:           "host not found",
 			scriptPath:     generateValidPath,
-			expectErrMsg:   fleet.RunScriptHostNotFoundErrMsg,
+			expectErrMsg:   fleet.HostNotFoundErrMsg,
 			expectNotFound: true,
 		},
 		{

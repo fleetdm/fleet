@@ -422,6 +422,14 @@ func (s *integrationMDMTestSuite) TearDownTest() {
 		_, err := tx.ExecContext(ctx, "DELETE FROM host_mdm_apple_declarations")
 		return err
 	})
+	mysql.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(ctx, "DELETE FROM mobile_device_management_solutions;")
+		return err
+	})
+	mysql.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(ctx, "DELETE FROM host_mdm;")
+		return err
+	})
 }
 
 func (s *integrationMDMTestSuite) mockDEPResponse(handler http.Handler) {
@@ -769,6 +777,8 @@ func createWindowsHostThenEnrollMDM(ds fleet.Datastore, fleetServerURL string, t
 	err := mdmDevice.Enroll()
 	require.NoError(t, err)
 	err = ds.UpdateMDMWindowsEnrollmentsHostUUID(context.Background(), host.UUID, mdmDevice.DeviceID)
+	require.NoError(t, err)
+	err = ds.SetOrUpdateMDMData(context.Background(), host.ID, false, true, fleetServerURL, false, fleet.WellKnownMDMFleet, "")
 	require.NoError(t, err)
 	return host, mdmDevice
 }
@@ -2828,7 +2838,7 @@ func (s *integrationMDMTestSuite) TestBootstrapPackageStatus() {
 	})
 	require.NoError(t, err)
 
-	err = s.ds.SetOrUpdateMDMData(context.Background(), winHost.ID, false, true, "https://example.com", true, fleet.WellKnownMDMFleet, "")
+	err = s.ds.SetOrUpdateMDMData(context.Background(), winHost.ID, false, true, s.server.URL+apple_mdm.MDMPath, true, fleet.WellKnownMDMFleet, "")
 	require.NoError(t, err)
 
 	// create a host that's not enrolled into MDM
@@ -6453,11 +6463,7 @@ func (s *integrationMDMTestSuite) TestRunMDMCommands() {
 	t := s.T()
 
 	// create a Windows host enrolled in MDM
-	enrolledWindows := createOrbitEnrolledHost(t, "windows", "h1", s.ds)
-	// deviceID := "DB257C3A08778F4FB61E2749066C1F27"
-	mdmDevice := mdmtest.NewTestMDMClientWindowsProgramatic(s.server.URL, *enrolledWindows.OrbitNodeKey)
-	err := mdmDevice.Enroll()
-	require.NoError(t, err)
+	enrolledWindows, _ := createWindowsHostThenEnrollMDM(s.ds, s.server.URL, t)
 
 	// create an unenrolled Windows host
 	unenrolledWindows := createOrbitEnrolledHost(t, "windows", "h2", s.ds)
@@ -6746,6 +6752,8 @@ func (s *integrationMDMTestSuite) TestHostDiskEncryptionKey() {
 	// enroll it in fleet
 	mdmDevice := mdmtest.NewTestMDMClientWindowsProgramatic(s.server.URL, *host.OrbitNodeKey)
 	err := mdmDevice.Enroll()
+	require.NoError(t, err)
+	err = s.ds.SetOrUpdateMDMData(ctx, host.ID, false, true, s.server.URL, false, fleet.WellKnownMDMFleet, "")
 	require.NoError(t, err)
 
 	// set its encryption key
@@ -9016,7 +9024,7 @@ func (s *integrationMDMTestSuite) TestSilentMigrationGotchas() {
 	t := s.T()
 	ctx := context.Background()
 
-	host := createOrbitEnrolledHost(t, "darwin", "h1", s.ds)
+	host := createOrbitEnrolledHost(t, "darwin", t.Name(), s.ds)
 	// set the host as enrolled in a third-party MDM
 	err := s.ds.SetOrUpdateMDMData(ctx, host.ID, true, true, "https://foo.com", false, fleet.WellKnownMDMSimpleMDM, "")
 	require.NoError(t, err)
@@ -9089,7 +9097,7 @@ func (s *integrationMDMTestSuite) TestSilentMigrationGotchas() {
 	err = mdmDevice.Enroll()
 	require.NoError(t, err)
 
-	// host response says that's connected to Fleet
+	// host response says that's not connected to Fleet
 	hostResp = getHostResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &hostResp)
 	require.NotNil(t, hostResp.Host)
@@ -9164,4 +9172,44 @@ func (s *integrationMDMTestSuite) TestMDMRequestWithoutCerts() {
 	t := s.T()
 	res := s.DoRawNoAuth("PUT", "/mdm/apple/mdm", nil, http.StatusBadRequest)
 	require.NoError(t, res.Body.Close())
+}
+
+func (s *integrationMDMTestSuite) TestConnectedToFleetWithoutCheckout() {
+	t := s.T()
+	ctx := context.Background()
+
+	host := createOrbitEnrolledHost(t, "darwin", t.Name(), s.ds)
+
+	// simulate that's actually enrolled to Fleet under the hood
+	mdmDevice := mdmtest.NewTestMDMClientAppleDirect(mdmtest.AppleEnrollInfo{
+		SCEPChallenge: s.scepChallenge,
+		SCEPURL:       s.server.URL + apple_mdm.SCEPPath,
+		MDMURL:        s.server.URL + apple_mdm.MDMPath,
+	}, "MacBookPro16,1")
+	mdmDevice.UUID = host.UUID
+	mdmDevice.SerialNumber = host.HardwareSerial
+	err := mdmDevice.Enroll()
+	require.NoError(t, err)
+
+	// but, set the host as enrolled in a third-party MDM
+	err = s.ds.SetOrUpdateMDMData(ctx, host.ID, true, true, "https://foo.com", false, fleet.WellKnownMDMSimpleMDM, "")
+	require.NoError(t, err)
+
+	// host is connected to Fleet
+	var hostResp getHostResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &hostResp)
+	require.NotNil(t, hostResp.Host)
+	require.NotNil(t, hostResp.Host.MDM.ConnectedToFleet)
+	require.True(t, *hostResp.Host.MDM.ConnectedToFleet)
+
+	// now simulate an un-enrollment without checkout, in this case, osquery reports the host as not-enrolled
+	err = s.ds.SetOrUpdateMDMData(ctx, host.ID, false, false, "", false, "", "")
+	require.NoError(t, err)
+
+	// host is not connected to Fleet anymore
+	hostResp = getHostResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &hostResp)
+	require.NotNil(t, hostResp.Host)
+	require.NotNil(t, hostResp.Host.MDM.ConnectedToFleet)
+	require.False(t, *hostResp.Host.MDM.ConnectedToFleet)
 }

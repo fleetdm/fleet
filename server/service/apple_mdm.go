@@ -2786,13 +2786,18 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 		host.Hostname = deviceName
 		host.GigsDiskSpaceAvailable = availableDeviceCapacity
 		host.GigsTotalDiskSpace = deviceCapacity
-		var osVersionPrefix string
+		var (
+			osVersionPrefix string
+			platform        string
+		)
 		if strings.HasPrefix(productName, "iPhone") {
-			osVersionPrefix = "iOS "
+			osVersionPrefix = "iOS"
+			platform = "ios"
 		} else { // iPad
-			osVersionPrefix = "iPadOS "
+			osVersionPrefix = "iPadOS"
+			platform = "ipados"
 		}
-		host.OSVersion = osVersionPrefix + osVersion
+		host.OSVersion = osVersionPrefix + " " + osVersion
 		host.PrimaryMac = wifiMac
 		host.HardwareModel = productName
 		host.DetailUpdatedAt = time.Now()
@@ -2801,6 +2806,13 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 		}
 		if err := svc.ds.SetOrUpdateHostDisksSpace(r.Context, host.ID, availableDeviceCapacity, 100*availableDeviceCapacity/deviceCapacity, deviceCapacity); err != nil {
 			return nil, ctxerr.Wrap(r.Context, err, "failed to update host storage")
+		}
+		if err := svc.ds.UpdateHostOperatingSystem(r.Context, host.ID, fleet.OperatingSystem{
+			Name:     osVersionPrefix,
+			Version:  osVersion,
+			Platform: platform,
+		}); err != nil {
+			return nil, ctxerr.Wrap(r.Context, err, "failed to update host operating system")
 		}
 		return nil, nil
 	}
