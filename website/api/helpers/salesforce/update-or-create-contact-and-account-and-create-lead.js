@@ -72,6 +72,7 @@ module.exports = {
       linkedinUrl,
       primaryBuyingSituation,
       psychologicalStage,
+      leadSource,
     });
 
     await sails.helpers.salesforce.createLead.with({
