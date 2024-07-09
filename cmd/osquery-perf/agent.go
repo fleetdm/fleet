@@ -2299,7 +2299,7 @@ func main() {
 		munkiIssueCount             = flag.Int("munki_issue_count", 10, "Number of munki issues reported by hosts identified to have munki issues")
 		// E.g. when running with `-host_count=10`, you can set host count for each template the following way:
 		// `-os_templates=windows_11.tmpl:3,macos_14.1.2.tmpl:4,ubuntu_22.04.tmpl:3`
-		osTemplates     = flag.String("os_templates", "macos_14.1.2", fmt.Sprintf("Comma separated list of host OS templates to use and optionally their host count separated by ':' (any of %v, with or without the .tmpl extension)", allowedTemplateNames))
+		osTemplates     = flag.String("os_templates", "macos_14.1.2", fmt.Sprintf("Comma-separated list of host OS templates to use and optionally their host count separated by ':' (any of %v, with or without the .tmpl extension)", allowedTemplateNames))
 		emptySerialProb = flag.Float64("empty_serial_prob", 0.1, "Probability of a host having no serial number [0, 1]")
 
 		mdmProb          = flag.Float64("mdm_prob", 0.0, "Probability of a host enrolling via Fleet MDM (applies for macOS and Windows hosts, implies orbit enrollment on Windows) [0, 1]")

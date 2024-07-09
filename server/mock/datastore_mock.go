@@ -191,7 +191,7 @@ type CleanupIncomingHostsFunc func(ctx context.Context, now time.Time) ([]uint, 
 
 type GenerateHostStatusStatisticsFunc func(ctx context.Context, filter fleet.TeamFilter, now time.Time, platform *string, lowDiskSpace *int) (*fleet.HostSummary, error)
 
-type HostIDsByNameFunc func(ctx context.Context, filter fleet.TeamFilter, hostnames []string) ([]uint, error)
+type HostIDsByIdentifierFunc func(ctx context.Context, filter fleet.TeamFilter, hostnames []string) ([]uint, error)
 
 type HostIDsByOSIDFunc func(ctx context.Context, osID uint, offset int, limit int) ([]uint, error)
 
@@ -1244,8 +1244,8 @@ type DataStore struct {
 	GenerateHostStatusStatisticsFunc        GenerateHostStatusStatisticsFunc
 	GenerateHostStatusStatisticsFuncInvoked bool
 
-	HostIDsByNameFunc        HostIDsByNameFunc
-	HostIDsByNameFuncInvoked bool
+	HostIDsByIdentifierFunc        HostIDsByIdentifierFunc
+	HostIDsByIdentifierFuncInvoked bool
 
 	HostIDsByOSIDFunc        HostIDsByOSIDFunc
 	HostIDsByOSIDFuncInvoked bool
@@ -3040,11 +3040,11 @@ func (s *DataStore) GenerateHostStatusStatistics(ctx context.Context, filter fle
 	return s.GenerateHostStatusStatisticsFunc(ctx, filter, now, platform, lowDiskSpace)
 }
 
-func (s *DataStore) HostIDsByName(ctx context.Context, filter fleet.TeamFilter, hostnames []string) ([]uint, error) {
+func (s *DataStore) HostIDsByIdentifier(ctx context.Context, filter fleet.TeamFilter, hostIdentifiers []string) ([]uint, error) {
 	s.mu.Lock()
-	s.HostIDsByNameFuncInvoked = true
+	s.HostIDsByIdentifierFuncInvoked = true
 	s.mu.Unlock()
-	return s.HostIDsByNameFunc(ctx, filter, hostnames)
+	return s.HostIDsByIdentifierFunc(ctx, filter, hostIdentifiers)
 }
 
 func (s *DataStore) HostIDsByOSID(ctx context.Context, osID uint, offset int, limit int) ([]uint, error) {

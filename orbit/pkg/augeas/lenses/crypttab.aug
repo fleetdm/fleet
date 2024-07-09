@@ -75,7 +75,7 @@ module Crypttab =
 
   (************************************************************************
    * View: comma_sep_list
-   *   A comma separated list of options (opt=value or opt)
+   *   A comma-separated list of options (opt=value or opt)
    *************************************************************************)
   let comma_sep_list (l:string) =
     let value = [ label "value" . Util.del_str "=" . store optval ] in
