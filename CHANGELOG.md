@@ -1,3 +1,41 @@
+## Fleet 4.54.0 (Jul 15, 2024)
+
+### Endpoint Operations
+
+- Added support for the database migrations, API changes, and `fleetctl gitops` support for labels_include_all and labels_exclude_any.
+- Updated `fleetctl query --hosts` to work with hostnames, host UUIDs, and/or hardware serial numbers.
+- Updated UI's delete secret link
+- Clarify various help and error texts around host identifiers.
+- Fix styling issues with the target inputs loading spinner on the run live query/policy page.
+
+### Device Management (MDM)
+
+- Added support for renewing SCEP certificates with custom enrollment profiles.
+- Add UI for uploading custom profiles with a target of hosts that include all/exclude any selected
+  labels.
+- Updated script run permissions -- only admins and maintainers can run arbitrary or saved scripts (not observer or observer+).
+- Improved the accuracy of the heuristic used to determine if a host is connected to Fleet via MDM by using osquery data for hosts that didn't send a Checkout message.
+- Added support for END_USER_EMAIL and FLEET_DESKTOP parameters to Windows MSI install package.
+- Addresses Microsoft Office June 2024 false negative vulnerabilities and adds custom vulnerability matching.
+- Updated the profile reconciliation logic to handle the new "exclude any" labels.
+- Updated the instructions for manual MDM enrollment on the "My device" page to be clearer and align with Apple updates.
+- Fix bug where macOS declarations were stuck in "to be removed" state indefinitely.
+
+### Vulnerability Management
+
+- Fixed issue where some Windows applications were getting matched against Windows OS vulnerabilities.
+- Fixed an issue where special characters in HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall breaks the "installer_utils.ps1 -uninstallOrbit" step in the Windows MSI installer.
+
+### Bug fixes and improvements
+
+- Hide "Self-service" in Fleet Desktop and My device page if there is no self-service software available.
+- Fixed crash in `fleetd` installer on Windows if there are registry keys with special characters on the system.
+- Disable credential caching and reboot on Windows lock.
+- Fixed counts for hosts with low disk space in summary page.
+- Updates the instructions for manual MDM enrollment on the "My device" page to be clearer and align with Apple updates.
+- Show a host's upcoming scheduled maintenance window, if any, on the host details page of the UI and in host responses from the API.
+- In maintenance windows using Google Calendar, calendar event is now recreated within 30 seconds if deleted or moved to the past.
+- Maintenance window now scheduled weekly on Tuesdays (previously monthly on the third Tuesday of the month).
 ## Fleet 4.53.1 (Jul 01, 2024)
 
 ### Bug fixes
