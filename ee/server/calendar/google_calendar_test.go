@@ -32,6 +32,7 @@ type MockGoogleCalendarLowLevelAPI struct {
 	GetSettingFunc  func(name string) (*calendar.Setting, error)
 	ListEventsFunc  func(timeMin, timeMax string) (*calendar.Events, error)
 	CreateEventFunc func(event *calendar.Event) (*calendar.Event, error)
+	UpdateEventFunc func(event *calendar.Event) (*calendar.Event, error)
 	GetEventFunc    func(id, eTag string) (*calendar.Event, error)
 	DeleteEventFunc func(id string) error
 	WatchFunc       func(eventUUID string, channelID string, ttl uint64) (resourceID string, err error)
@@ -62,6 +63,10 @@ func (m *MockGoogleCalendarLowLevelAPI) ListEvents(timeMin, timeMax string) (*ca
 
 func (m *MockGoogleCalendarLowLevelAPI) CreateEvent(event *calendar.Event) (*calendar.Event, error) {
 	return m.CreateEventFunc(event)
+}
+
+func (m *MockGoogleCalendarLowLevelAPI) UpdateEvent(event *calendar.Event) (*calendar.Event, error) {
+	return m.UpdateEventFunc(event)
 }
 
 func (m *MockGoogleCalendarLowLevelAPI) GetEvent(id, eTag string) (*calendar.Event, error) {
