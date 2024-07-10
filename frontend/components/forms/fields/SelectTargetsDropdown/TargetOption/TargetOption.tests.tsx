@@ -16,11 +16,14 @@ describe("TargetOption - component", () => {
       <TargetOption
         onSelect={noop}
         onMoreInfoClick={onMoreInfoClick}
-        target={createMockLabel()}
+        target={createMockLabel({
+          target_type: "labels",
+          count: 20,
+        })}
       />
     );
     expect(container.querySelectorAll(".is-label").length).toEqual(1);
-    expect(screen.getByText(`5 hosts`)).toBeInTheDocument();
+    expect(screen.getByText(`20 hosts`)).toBeInTheDocument();
   });
 
   it("renders a host option for host targets", () => {
@@ -28,7 +31,7 @@ describe("TargetOption - component", () => {
       <TargetOption
         onSelect={noop}
         onMoreInfoClick={onMoreInfoClick}
-        target={createMockHost({ platform: "windows" })}
+        target={createMockHost({ target_type: "hosts", platform: "windows" })}
       />
     );
     expect(container.querySelectorAll(".is-host").length).toEqual(1);

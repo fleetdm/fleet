@@ -19,7 +19,7 @@ import PolicyResults from "../components/PolicyResults";
 
 interface IRunQueryProps {
   storedPolicy: IPolicy | undefined;
-  selectedTargets: any; // TODO
+  selectedTargets: ITarget[];
   setSelectedTargets: (value: ITarget[]) => void;
   goToQueryEditor: () => void;
   targetsTotalCount: number;

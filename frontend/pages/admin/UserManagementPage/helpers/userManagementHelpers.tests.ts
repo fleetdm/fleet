@@ -21,13 +21,13 @@ describe("userManagementHelpers module", () => {
       const formData: IFormData = {
         email: "newemail@test.com",
         sso_enabled: false,
-        name: "Gnar Mike",
+        name: "Test User",
         newUserType: NewUserType.AdminCreated, // TODO revisit test
         global_role: "admin",
         teams: [updatedTeam, newTeam],
       };
       const updatedData = userManagementHelpers.generateUpdateData(
-        createMockUser(),
+        createMockUser({ role: "Observer", global_role: null }),
         formData
       );
 

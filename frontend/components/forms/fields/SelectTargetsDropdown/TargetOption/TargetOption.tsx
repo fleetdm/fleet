@@ -40,7 +40,7 @@ const TargetOption = ({
       );
     }
 
-    if (isTargetTeam(target)) {
+    if (isTargetTeam(target) || isTargetLabel(target)) {
       return (
         <span className={`${baseClass}__count`}>{target.count} hosts</span>
       );
