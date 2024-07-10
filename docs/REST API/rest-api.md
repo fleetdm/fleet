@@ -8926,6 +8926,7 @@ Returns information about the specified software. By default, `versions` are sor
   "software_title": {
     "id": 12,
     "name": "Firefox.app",
+    "bundle_identifier": "org.mozilla.firefox",
     "software_package": {
       "name": "FalconSensor-6.44.pkg",
       "version": "6.44",
