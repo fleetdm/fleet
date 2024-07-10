@@ -169,7 +169,7 @@ type SoftwareTitle struct {
 	// BundleIdentifier is used by Apple installers to uniquely identify
 	// the software installed. It's surfaced in software_titles to match
 	// with existing software entries.
-	BundleIdentifier *string `json:"-" db:"bundle_identifier"`
+	BundleIdentifier *string `json:"bundle_identifier,omitempty" db:"bundle_identifier"`
 }
 
 // This type is essentially the same as the above SoftwareTitle type. The only difference is that
@@ -196,6 +196,10 @@ type SoftwareTitleListResult struct {
 	SoftwarePackage *string `json:"software_package" db:"software_package"`
 	// SelfService indicates if the end user can initiate the installation
 	SelfService bool `json:"self_service" db:"self_service"`
+	// BundleIdentifier is used by Apple installers to uniquely identify
+	// the software installed. It's surfaced in software_titles to match
+	// with existing software entries.
+	BundleIdentifier *string `json:"bundle_identifier,omitempty" db:"bundle_identifier"`
 }
 
 type SoftwareTitleListOptions struct {
