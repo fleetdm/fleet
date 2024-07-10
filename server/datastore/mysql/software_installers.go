@@ -643,6 +643,7 @@ INSERT INTO vpp_apps
 	(adam_id, available_count, bundle_identifier, icon_url, name)
 VALUES
 %s
+ON DUPLICATE KEY UPDATE updated_at = CURRENT_TIMESTAMP
 	`
 	var args []any
 	var insertVals strings.Builder

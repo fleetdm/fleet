@@ -10571,7 +10571,7 @@ func (s *integrationEnterpriseTestSuite) TestAutofillPoliciesAuthTeamUser() {
 	}
 }
 
-func (s *integrationMDMTestSuite) TestMDMVPPToken() {
+func (s *integrationMDMTestSuite) TestVPPApps() {
 	t := s.T()
 	// Invalid token
 	t.Setenv("FLEET_DEV_VPP_URL", s.appleVPPConfigSrv.URL+"?invalidToken")
@@ -10644,6 +10644,9 @@ func (s *integrationMDMTestSuite) TestMDMVPPToken() {
 	var addAppResp addAppStoreAppResponse
 	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{TeamID: &team.ID, AppStoreID: appResp.AppStoreApps[0].AdamID}, http.StatusOK, &addAppResp)
 
+	// Add an app store app to non-existent team
+	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{TeamID: ptr.Uint(9999), AppStoreID: appResp.AppStoreApps[0].AdamID}, http.StatusOK, &addAppResp)
+
 	// Now we should be filtering out the app we added to team 1
 	s.DoJSON("GET", "/api/latest/fleet/software/app_store_apps", &getAppStoreSoftwareRequest{}, http.StatusOK, &appResp, "team_id", strconv.Itoa(int(team.ID)))
 	require.NoError(t, appResp.Err)
@@ -10655,9 +10658,6 @@ func (s *integrationMDMTestSuite) TestMDMVPPToken() {
 	require.Equal(t, "2", appResp.AppStoreApps[0].AdamID)
 	require.Equal(t, "2.0.0", appResp.AppStoreApps[0].LatestVersion)
 	require.False(t, appResp.AppStoreApps[0].Added)
-
-	// Add an app store app to non-existent team
-	// s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps/1", &addAppStoreAppRequest{}, http.StatusOK, &addAppResp, "team_id", "9999")
 
 	// Delete VPP token and check that it's not appearing anymore
 	s.Do("DELETE", "/api/latest/fleet/mdm/apple/vpp_token", &deleteMDMAppleVPPTokenRequest{}, http.StatusNoContent)

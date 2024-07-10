@@ -661,6 +661,16 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, adamID str
 		return err
 	}
 
+	if teamID != nil {
+		exists, err := svc.ds.TeamExists(ctx, *teamID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "checking if team exists")
+		} else if !exists {
+			return fleet.NewInvalidArgumentError("team_id", fmt.Sprintf("team %d does not exist", *teamID)).
+				WithStatus(http.StatusNotFound)
+		}
+	}
+
 	vppToken, err := svc.getVPPToken(ctx)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "retrieving VPP token")
