@@ -3959,6 +3959,24 @@ func (s *integrationEnterpriseTestSuite) TestOSVersions() {
 		"GET", fmt.Sprintf("/api/latest/fleet/os_versions/%d", osinfo.OSVersionID), nil, http.StatusForbidden, &osVersionResp, "team_id",
 		"99999",
 	)
+
+	// team user doesn't have acess to "no team"
+	osVersionsResp = osVersionsResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/os_versions"), nil, http.StatusForbidden, &osVersionsResp, "team_id", "0")
+	require.Len(t, osVersionsResp.OSVersions, 0)
+
+	// team_id=0 is supported and returns results for hosts in "no team"
+	s.token = getTestAdminToken(t, s.server)
+	// no hosts, the results are empty
+	osVersionsResp = osVersionsResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/os_versions"), nil, http.StatusOK, &osVersionsResp, "team_id", "0")
+	require.Len(t, osVersionsResp.OSVersions, 0)
+	osVersionsResp = osVersionsResponse{}
+	// move the host to "no team" and update the stats
+	require.NoError(t, s.ds.AddHostsToTeam(context.Background(), nil, []uint{hosts[0].ID}))
+	require.NoError(t, s.ds.UpdateOSVersions(context.Background()))
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/os_versions"), nil, http.StatusOK, &osVersionsResp, "team_id", "0")
+	require.Len(t, osVersionsResp.OSVersions, 1)
 }
 
 func (s *integrationEnterpriseTestSuite) TestMDMNotConfiguredEndpoints() {
