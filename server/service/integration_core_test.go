@@ -8991,6 +8991,15 @@ func (s *integrationTestSuite) TestOSVersions() {
 	require.Equal(t, 4, osVersionsResp.Count)
 	require.False(t, osVersionsResp.Meta.HasNextResults)
 	require.True(t, osVersionsResp.Meta.HasPreviousResults)
+
+	// same results with team_id=0
+	s.DoJSON("GET", "/api/latest/fleet/os_versions", nil, http.StatusOK, &osVersionsResp, "page", "1", "per_page", "2", "team_id", "0")
+	require.Len(t, osVersionsResp.OSVersions, 2)
+	require.Equal(t, "macOS 13.2.1", osVersionsResp.OSVersions[0].Name)
+	require.Equal(t, "macOS 14.1.2", osVersionsResp.OSVersions[1].Name)
+	require.Equal(t, 4, osVersionsResp.Count)
+	require.False(t, osVersionsResp.Meta.HasNextResults)
+	require.True(t, osVersionsResp.Meta.HasPreviousResults)
 }
 
 func (s *integrationTestSuite) TestPingEndpoints() {
