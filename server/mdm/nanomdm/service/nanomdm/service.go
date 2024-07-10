@@ -239,6 +239,12 @@ func (s *Service) CommandAndReportResults(r *mdm.Request, results *mdm.CommandRe
 		if !service.IsNotFound(err) {
 			return nil, fmt.Errorf("storing command report: %w", err)
 		}
+
+		logger.Debug(
+			"msg", "host reported status with invalid command uuid",
+			"command_uuid", results.CommandUUID,
+			"request_type", results.RequestType,
+		)
 	}
 	cmd, err := s.store.RetrieveNextCommand(r, results.Status == "NotNow")
 	if err != nil {
