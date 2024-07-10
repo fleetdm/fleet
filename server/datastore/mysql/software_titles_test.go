@@ -637,6 +637,8 @@ func testTeamFilterSoftwareTitles(t *testing.T, ds *Datastore) {
 
 	title, err := ds.SoftwareTitleByID(context.Background(), titles[0].ID, nil, globalTeamFilter)
 	require.NoError(t, err)
+	require.Zero(t, title.SoftwareInstallersCount)
+	require.Zero(t, title.VPPAppsCount)
 	// ListSoftwareTitles does not populate version host counts, so we do that manually
 	titles[0].Versions[0].HostsCount = ptr.Uint(1)
 	assert.Equal(t, titles[0], fleet.SoftwareTitleListResult{ID: title.ID, Name: title.Name, Source: title.Source, Browser: title.Browser, HostsCount: title.HostsCount, VersionsCount: title.VersionsCount, Versions: title.Versions, CountsUpdatedAt: title.CountsUpdatedAt})
@@ -648,6 +650,8 @@ func testTeamFilterSoftwareTitles(t *testing.T, ds *Datastore) {
 	// Testing with team filter -- this team does contain this software title
 	title, err = ds.SoftwareTitleByID(context.Background(), titles[1].ID, &team1.ID, globalTeamFilter)
 	require.NoError(t, err)
+	require.Zero(t, title.SoftwareInstallersCount)
+	require.Zero(t, title.VPPAppsCount)
 	assert.Equal(t, uint(1), title.HostsCount)
 	assert.Equal(t, uint(1), title.VersionsCount)
 	require.Len(t, title.Versions, 1)
@@ -714,6 +718,11 @@ func testTeamFilterSoftwareTitles(t *testing.T, ds *Datastore) {
 	require.Len(t, titles, 1)
 	require.Equal(t, "installer1", titles[0].Name)
 	require.Equal(t, "apps", titles[0].Source)
+
+	title, err = ds.SoftwareTitleByID(context.Background(), titles[0].ID, &team1.ID, team1TeamFilter)
+	require.NoError(t, err)
+	require.Equal(t, 1, title.SoftwareInstallersCount)
+	require.Zero(t, title.VPPAppsCount)
 
 	// Testing the team 2 user with self-service only
 	titles, _, _, err = ds.ListSoftwareTitles(context.Background(), fleet.SoftwareTitleListOptions{ListOptions: fleet.ListOptions{}, SelfServiceOnly: true, TeamID: &team2.ID}, fleet.TeamFilter{
