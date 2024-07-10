@@ -2469,11 +2469,11 @@ func testMDMAppleIdPAccount(t *testing.T, ds *Datastore) {
 	require.ErrorAs(t, err, &nfe)
 	require.Nil(t, out)
 
-	out, err = ds.GetMDMIdPAccountByUUID(ctx, acc.UUID)
+	out, err = ds.GetMDMIdPAccountByAccountUUID(ctx, acc.UUID)
 	require.NoError(t, err)
 	require.Equal(t, acc, out)
 
-	out, err = ds.GetMDMIdPAccountByUUID(ctx, "BAD-TOKEN")
+	out, err = ds.GetMDMIdPAccountByAccountUUID(ctx, "BAD-TOKEN")
 	require.ErrorAs(t, err, &nfe)
 	require.Nil(t, out)
 }
