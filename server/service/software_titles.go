@@ -198,11 +198,11 @@ func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint
 				return nil, ctxerr.Wrap(ctx, err, "get VPP app metadata")
 			}
 			if meta != nil {
-				//summary, err := svc.ds.GetSummaryHostVPPAppInstalls(ctx, meta.AppStoreID)
-				//if err != nil {
-				//	return nil, ctxerr.Wrap(ctx, err, "get VPP app status summary")
-				//}
-				//meta.Status = summary
+				summary, err := svc.ds.GetSummaryHostVPPAppInstalls(ctx, teamID, meta.AppStoreID)
+				if err != nil {
+					return nil, ctxerr.Wrap(ctx, err, "get VPP app status summary")
+				}
+				meta.Status = summary
 			}
 			software.AppStoreApp = meta
 		}

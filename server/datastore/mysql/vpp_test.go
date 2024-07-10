@@ -123,17 +123,17 @@ func testVPPAppStatus(t *testing.T, ds *Datastore) {
 	createVPPAppTeamOnly(t, ds, &team1.ID, vpp3)
 
 	// for now they all return zeroes
-	summary, err := ds.GetSummaryHostVPPAppInstalls(ctx, vpp1)
+	summary, err := ds.GetSummaryHostVPPAppInstalls(ctx, nil, vpp1)
 	require.NoError(t, err)
 	require.Equal(t, &fleet.VPPAppStatusSummary{Pending: 0, Failed: 0, Installed: 0}, summary)
-	summary, err = ds.GetSummaryHostVPPAppInstalls(ctx, vpp2)
+	summary, err = ds.GetSummaryHostVPPAppInstalls(ctx, &team1.ID, vpp2)
 	require.NoError(t, err)
 	require.Equal(t, &fleet.VPPAppStatusSummary{Pending: 0, Failed: 0, Installed: 0}, summary)
-	summary, err = ds.GetSummaryHostVPPAppInstalls(ctx, vpp3)
+	summary, err = ds.GetSummaryHostVPPAppInstalls(ctx, nil, vpp3)
 	require.NoError(t, err)
 	require.Equal(t, &fleet.VPPAppStatusSummary{Pending: 0, Failed: 0, Installed: 0}, summary)
 
-	// create a couple enrolled hosts
+	// create a few enrolled hosts
 	h1, err := ds.NewHost(ctx, &fleet.Host{
 		Hostname:       "macos-test-1",
 		OsqueryHostID:  ptr.String("osquery-macos-1"),
@@ -155,4 +155,109 @@ func testVPPAppStatus(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 	nanoEnroll(t, ds, h2, false)
+
+	h3, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:       "macos-test-3",
+		OsqueryHostID:  ptr.String("osquery-macos-3"),
+		NodeKey:        ptr.String("node-key-macos-3"),
+		UUID:           uuid.NewString(),
+		Platform:       "darwin",
+		HardwareSerial: "654321c",
+	})
+	require.NoError(t, err)
+	nanoEnroll(t, ds, h3, false)
+
+	// move h3 to team1
+	err = ds.AddHostsToTeam(ctx, &team1.ID, []uint{h3.ID})
+	require.NoError(t, err)
+
+	// simulate an install request of vpp1 on h1
+	cmd1 := createVPPAppInstallRequest(t, ds, h1, vpp1)
+
+	summary, err = ds.GetSummaryHostVPPAppInstalls(ctx, nil, vpp1)
+	require.NoError(t, err)
+	require.Equal(t, &fleet.VPPAppStatusSummary{Pending: 1, Failed: 0, Installed: 0}, summary)
+
+	// record a failed result
+	createVPPAppInstallResult(t, ds, h1, cmd1, fleet.MDMAppleStatusError)
+
+	summary, err = ds.GetSummaryHostVPPAppInstalls(ctx, nil, vpp1)
+	require.NoError(t, err)
+	require.Equal(t, &fleet.VPPAppStatusSummary{Pending: 0, Failed: 1, Installed: 0}, summary)
+
+	// create a new request for h1 that supercedes the failed on, and a request
+	// for h2 with a successful result.
+	cmd2 := createVPPAppInstallRequest(t, ds, h1, vpp1)
+	cmd3 := createVPPAppInstallRequest(t, ds, h2, vpp1)
+	createVPPAppInstallResult(t, ds, h2, cmd3, fleet.MDMAppleStatusAcknowledged)
+
+	summary, err = ds.GetSummaryHostVPPAppInstalls(ctx, nil, vpp1)
+	require.NoError(t, err)
+	require.Equal(t, &fleet.VPPAppStatusSummary{Pending: 1, Failed: 0, Installed: 1}, summary)
+
+	// mark the pending request as successful too
+	createVPPAppInstallResult(t, ds, h1, cmd2, fleet.MDMAppleStatusAcknowledged)
+
+	summary, err = ds.GetSummaryHostVPPAppInstalls(ctx, nil, vpp1)
+	require.NoError(t, err)
+	require.Equal(t, &fleet.VPPAppStatusSummary{Pending: 0, Failed: 0, Installed: 2}, summary)
+
+	// requesting for a team (the VPP app is not on any team) returns all zeroes
+	summary, err = ds.GetSummaryHostVPPAppInstalls(ctx, &team1.ID, vpp1)
+	require.NoError(t, err)
+	require.Equal(t, &fleet.VPPAppStatusSummary{Pending: 0, Failed: 0, Installed: 0}, summary)
+
+	// simulate a successful request for team app vpp2 on h3
+	cmd4 := createVPPAppInstallRequest(t, ds, h3, vpp2)
+	createVPPAppInstallResult(t, ds, h3, cmd4, fleet.MDMAppleStatusAcknowledged)
+
+	summary, err = ds.GetSummaryHostVPPAppInstalls(ctx, &team1.ID, vpp2)
+	require.NoError(t, err)
+	require.Equal(t, &fleet.VPPAppStatusSummary{Pending: 0, Failed: 0, Installed: 1}, summary)
+
+	// simulate a successful, failed and pending request for app vpp3 on team
+	// (h3) and no team (h1, h2)
+	cmd5 := createVPPAppInstallRequest(t, ds, h3, vpp3)
+	createVPPAppInstallResult(t, ds, h3, cmd5, fleet.MDMAppleStatusAcknowledged)
+	cmd6 := createVPPAppInstallRequest(t, ds, h1, vpp3)
+	createVPPAppInstallResult(t, ds, h1, cmd6, fleet.MDMAppleStatusCommandFormatError)
+	createVPPAppInstallRequest(t, ds, h2, vpp3)
+
+	// for no team, it sees the failed and pending counts
+	summary, err = ds.GetSummaryHostVPPAppInstalls(ctx, nil, vpp3)
+	require.NoError(t, err)
+	require.Equal(t, &fleet.VPPAppStatusSummary{Pending: 1, Failed: 1, Installed: 0}, summary)
+
+	// for the team, it sees the successful count
+	summary, err = ds.GetSummaryHostVPPAppInstalls(ctx, &team1.ID, vpp3)
+	require.NoError(t, err)
+	require.Equal(t, &fleet.VPPAppStatusSummary{Pending: 0, Failed: 0, Installed: 1}, summary)
+}
+
+// simulates creating the VPP app install request on the host, returns the command UUID.
+func createVPPAppInstallRequest(t *testing.T, ds *Datastore, host *fleet.Host, adamID string) string {
+	ctx := context.Background()
+
+	cmdUUID := uuid.NewString()
+	appleCmd := createRawAppleCmd("ProfileList", cmdUUID)
+	commander, _ := createMDMAppleCommanderAndStorage(t, ds)
+	err := commander.EnqueueCommand(ctx, []string{host.UUID}, appleCmd)
+	require.NoError(t, err)
+
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `INSERT INTO host_vpp_software_installs (host_id, adam_id, command_uuid) VALUES (?, ?, ?)`,
+			host.ID, adamID, cmdUUID)
+		return err
+	})
+	return cmdUUID
+}
+
+func createVPPAppInstallResult(t *testing.T, ds *Datastore, host *fleet.Host, cmdUUID string, status string) {
+	ctx := context.Background()
+
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `INSERT INTO nano_command_results (id, command_uuid, status, result) VALUES (?, ?, ?, '')`,
+			host.UUID, cmdUUID, status)
+		return err
+	})
 }
