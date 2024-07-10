@@ -622,37 +622,3 @@ func testHasSelfServiceSoftwareInstallers(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	assert.False(t, hasSelfService)
 }
-
-func testVPPApps(t *testing.T, ds *Datastore) {
-	ctx := context.Background()
-
-	// Create a team
-	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "foobar"})
-	require.NoError(t, err)
-
-	// Insert some VPP apps for the team
-	app1 := &fleet.VPPApp{Name: "vpp_app_1", AdamID: "1"}
-	app2 := &fleet.VPPApp{Name: "vpp_app_2", AdamID: "2"}
-	err = ds.InsertVPPAppWithTeam(ctx, app1, &team.ID)
-	require.NoError(t, err)
-
-	err = ds.InsertVPPAppWithTeam(ctx, app2, &team.ID)
-	require.NoError(t, err)
-
-	// Insert some VPP apps for no team
-	appNoTeam1 := &fleet.VPPApp{Name: "vpp_no_team_app_1", AdamID: "3"}
-	appNoTeam2 := &fleet.VPPApp{Name: "vpp_no_team_app_2", AdamID: "4"}
-	err = ds.InsertVPPAppWithTeam(ctx, appNoTeam1, nil)
-	require.NoError(t, err)
-	err = ds.InsertVPPAppWithTeam(ctx, appNoTeam2, nil)
-	require.NoError(t, err)
-
-	// Check that getting the assigned apps works
-	appSet, err := ds.GetAssignedVPPApps(ctx, &team.ID)
-	require.NoError(t, err)
-	require.Equal(t, map[string]struct{}{app1.AdamID: {}, app2.AdamID: {}}, appSet)
-
-	appSet, err = ds.GetAssignedVPPApps(ctx, nil)
-	require.NoError(t, err)
-	require.Equal(t, map[string]struct{}{appNoTeam1.AdamID: {}, appNoTeam2.AdamID: {}}, appSet)
-}

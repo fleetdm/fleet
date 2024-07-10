@@ -10736,8 +10736,8 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	// Get list of VPP apps from "Apple"
 	// We're passing team 1 here, but we haven't added any app store apps to that team, so we get
 	// back all available apps in our VPP location.
-	var appResp getAppStoreSoftwareResponse
-	s.DoJSON("GET", "/api/latest/fleet/software/app_store_apps", &getAppStoreSoftwareRequest{}, http.StatusOK, &appResp, "team_id", strconv.Itoa(int(team.ID)))
+	var appResp getAppStoreAppsResponse
+	s.DoJSON("GET", "/api/latest/fleet/software/app_store_apps", &getAppStoreAppsRequest{}, http.StatusOK, &appResp, "team_id", strconv.Itoa(int(team.ID)))
 	require.NoError(t, appResp.Err)
 	require.Len(t, appResp.AppStoreApps, 2)
 	require.Equal(t, "App 1", appResp.AppStoreApps[0].Name)
@@ -10764,7 +10764,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{TeamID: ptr.Uint(9999), AppStoreID: appResp.AppStoreApps[0].AdamID}, http.StatusNotFound, &addAppResp)
 
 	// Now we should be filtering out the app we added to team 1
-	s.DoJSON("GET", "/api/latest/fleet/software/app_store_apps", &getAppStoreSoftwareRequest{}, http.StatusOK, &appResp, "team_id", strconv.Itoa(int(team.ID)))
+	s.DoJSON("GET", "/api/latest/fleet/software/app_store_apps", &getAppStoreAppsRequest{}, http.StatusOK, &appResp, "team_id", strconv.Itoa(int(team.ID)))
 	require.NoError(t, appResp.Err)
 	require.Len(t, appResp.AppStoreApps, 1)
 	require.Equal(t, "App 2", appResp.AppStoreApps[0].Name)

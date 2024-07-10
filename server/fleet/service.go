@@ -651,7 +651,7 @@ type Service interface {
 	// HasSelfServiceSoftwareInstallers returns whether the host has self-service software installers
 	HasSelfServiceSoftwareInstallers(ctx context.Context, host *Host) (bool, error)
 
-	GetAppStoreSoftware(ctx context.Context, teamID *uint) ([]*VPPApp, error)
+	GetAppStoreApps(ctx context.Context, teamID *uint) ([]*VPPApp, error)
 
 	AddAppStoreApp(ctx context.Context, teamID *uint, adamID string) error
 
