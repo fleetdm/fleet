@@ -10621,7 +10621,7 @@ func (s *integrationMDMTestSuite) TestMDMVPPToken() {
 	// We're passing team 1 here, but we haven't added any app store apps to that team, so we get
 	// back all available apps in our VPP location.
 	var appResp getAppStoreSoftwareResponse
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/app_store/%d", team.ID), &getAppStoreSoftwareRequest{}, http.StatusOK, &appResp)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/app_store_apps/%d", team.ID), &getAppStoreSoftwareRequest{}, http.StatusOK, &appResp)
 	require.NoError(t, appResp.Err)
 	require.Len(t, appResp.Apps, 2)
 	require.Equal(t, "App 1", appResp.Apps[0].Name)
@@ -10638,10 +10638,10 @@ func (s *integrationMDMTestSuite) TestMDMVPPToken() {
 
 	// Add an app store app to team 1
 	var addAppResp addAppStoreAppResponse
-	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/software/app_store/1"), &addAppStoreAppRequest{}, http.StatusOK, &addAppResp, "team_id", strconv.Itoa(int(team.ID)))
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/software/app_store_apps/1"), &addAppStoreAppRequest{}, http.StatusOK, &addAppResp, "team_id", strconv.Itoa(int(team.ID)))
 
 	// Now we should be filtering out the app we added to team 1
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/app_store/%d", team.ID), &getAppStoreSoftwareRequest{}, http.StatusOK, &appResp)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/app_store_apps/%d", team.ID), &getAppStoreSoftwareRequest{}, http.StatusOK, &appResp)
 	require.NoError(t, appResp.Err)
 	require.Len(t, appResp.Apps, 1)
 	require.Equal(t, "App 2", appResp.Apps[0].Name)
@@ -10651,7 +10651,7 @@ func (s *integrationMDMTestSuite) TestMDMVPPToken() {
 	require.Equal(t, "2", appResp.Apps[0].AdamID)
 
 	// Add an app store app to non-existent team
-	// s.DoJSON("POST", "/api/latest/fleet/software/app_store/1", &addAppStoreAppRequest{}, http.StatusOK, &addAppResp, "team_id", "9999")
+	// s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps/1", &addAppStoreAppRequest{}, http.StatusOK, &addAppResp, "team_id", "9999")
 
 	// Delete VPP token and check that it's not appearing anymore
 	s.Do("DELETE", "/api/latest/fleet/mdm/apple/vpp_token", &deleteMDMAppleVPPTokenRequest{}, http.StatusNoContent)

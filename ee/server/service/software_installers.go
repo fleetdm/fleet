@@ -9,7 +9,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log/slog"
 	"mime"
 	"net/http"
 	"net/url"
@@ -612,10 +611,7 @@ func (svc *Service) GetAppStoreSoftware(ctx context.Context, teamID *uint) ([]*f
 		return nil, ctxerr.Wrap(ctx, err, "fetching Apple VPP assets")
 	}
 
-	slog.With("filename", "ee/server/service/software_installers.go", "func", "GetAppStoreSoftware").Info("JVE_LOG: made call to get assets ", "assets", assets)
-
 	if len(assets) == 0 {
-		// TODO(JVE): what should we do in this situation?
 		return []*fleet.VPPApp{}, nil
 	}
 

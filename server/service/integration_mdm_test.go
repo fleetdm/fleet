@@ -15,7 +15,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log/slog"
 	"math/big"
 	"mime/multipart"
 	"net/http"
@@ -317,7 +316,6 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	s.appleVPPConfigSrv = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if strings.Contains(r.URL.Path, "assets") {
 			// Then we're responding to GetAssets
-			slog.With("filename", "integration_mdm_test.go", "func", "apple_handler").Info("JVE_LOG: in assets handler ")
 			w.Header().Set("Content-Type", "application/json")
 			_, _ = w.Write([]byte(`{"assets": [{"adamId": "1", "pricingParam": "STDQ", "availableCount": 12}, {"adamId": "2", "pricingParam": "STDQ", "availableCount": 3}]}`))
 			return
@@ -342,10 +340,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 		_, _ = w.Write(resp)
 	}))
 
-	s.appleITunesSrv = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		slog.With("filename", "integration_mdm_test.go", "func", "apple_handler").Info("JVE_LOG: in big apple handler ")
-
-		// a map of apps we can respond with
+	s.appleITunesSrv = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { // a map of apps we can respond with
 		db := map[string]string{
 			"2": `{"bundleId": "b-2", "artworkUrl60": "https://example.com/images/2", "version": "2.0.0", "trackName": "App 2", "TrackID": 2}`,
 			"1": `{"bundleId": "a-1", "artworkUrl60": "https://example.com/images/1", "version": "1.0.0", "trackName": "App 1", "TrackID": 1}`,

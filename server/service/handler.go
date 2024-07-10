@@ -377,8 +377,8 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ue.POST("/api/_version_/fleet/software/batch", batchSetSoftwareInstallersEndpoint, batchSetSoftwareInstallersRequest{})
 
 	// App store software
-	ue.GET("/api/_version_/fleet/software/app_store/{team_id:[0-9]+}", getAppStoreSoftwareEndpoint, getAppStoreSoftwareRequest{})
-	ue.POST("/api/_version_/fleet/software/app_store/{app_store_id:[0-9]+}", addAppStoreAppEndpoint, addAppStoreAppRequest{})
+	ue.GET("/api/_version_/fleet/software/app_store_apps/{team_id:[0-9]+}", getAppStoreSoftwareEndpoint, getAppStoreSoftwareRequest{})
+	ue.POST("/api/_version_/fleet/software/app_store_apps/{app_store_id:[0-9]+}", addAppStoreAppEndpoint, addAppStoreAppRequest{})
 
 	// Vulnerabilities
 	ue.GET("/api/_version_/fleet/vulnerabilities", listVulnerabilitiesEndpoint, listVulnerabilitiesRequest{})

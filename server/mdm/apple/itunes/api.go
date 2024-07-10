@@ -23,7 +23,6 @@ type AssetMetadata struct {
 }
 
 type AssetMetadataFilter struct {
-	ID     string
 	Entity string
 }
 
@@ -44,8 +43,8 @@ func GetAssetMetadata(adamIDs []string, filter *AssetMetadataFilter) (map[string
 
 	if filter != nil {
 		query := url.Values{}
-		addFilter(query, "id", adamIDsParam)
-		addFilter(query, "entity", filter.Entity)
+		query.Add("id", adamIDsParam)
+		query.Add("entity", filter.Entity)
 		reqURL.RawQuery = query.Encode()
 	}
 
@@ -105,24 +104,4 @@ func getBaseURL() string {
 		return devURL
 	}
 	return "https://itunes.apple.com/lookup"
-}
-
-// addFilter adds a filter to the query values if it is not the zero value.
-// TODO(JVE): should we move funcs like this into a separate api_utils package? Since this is
-// identical to the implementation in vpp.
-func addFilter(query url.Values, key string, value any) {
-	switch v := value.(type) {
-	case string:
-		if v != "" {
-			query.Add(key, v)
-		}
-	case *bool:
-		if v != nil {
-			query.Add(key, strconv.FormatBool(*v))
-		}
-	case int32:
-		if v != 0 {
-			query.Add(key, fmt.Sprintf("%d", v))
-		}
-	}
 }
