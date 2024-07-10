@@ -403,14 +403,18 @@ func processFailingHostExistingCalendarEvent(
 	}
 
 	// Check if event body needs to be updated.
-	updatedBodyTag := getBodyTag(ctx, ds, host, policyIDtoPolicy, logger)
+	currentBodyTag := calendarEvent.GetBodyTag()
+	// But don't update events created before we introduced body tags.
+	if currentBodyTag != "" {
+		updatedBodyTag := getBodyTag(ctx, ds, host, policyIDtoPolicy, logger)
 
-	if calendarEvent.GetBodyTag() != updatedBodyTag && updatedBodyTag != "" {
-		err = userCalendar.UpdateEventBody(calendarEvent, genBodyFn)
-		if err != nil {
-			return fmt.Errorf("update event body: %w", err)
+		if currentBodyTag != updatedBodyTag && updatedBodyTag != "" {
+			err = userCalendar.UpdateEventBody(calendarEvent, genBodyFn)
+			if err != nil {
+				return fmt.Errorf("update event body: %w", err)
+			}
+			updated = true
 		}
-		updated = true
 	}
 
 	if calendarConfig.AlwaysReloadEvent() || shouldReloadCalendarEvent(now, calendarEvent, hostCalendarEvent) {

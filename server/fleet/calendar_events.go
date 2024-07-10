@@ -32,9 +32,13 @@ func (ce *CalendarEvent) GetBodyTag() string {
 
 func (ce *CalendarEvent) SaveBodyTag(bodyTag string) error {
 	var result map[string]any
-	err := json.Unmarshal(ce.Data, &result)
-	if err != nil {
-		return fmt.Errorf("could not unmarshal event data: %w", err)
+	if len(ce.Data) > 0 {
+		err := json.Unmarshal(ce.Data, &result)
+		if err != nil {
+			return fmt.Errorf("could not unmarshal event data: %w", err)
+		}
+	} else {
+		result = make(map[string]any, 1)
 	}
 	result["body_tag"] = bodyTag
 	data, err := json.Marshal(result)
