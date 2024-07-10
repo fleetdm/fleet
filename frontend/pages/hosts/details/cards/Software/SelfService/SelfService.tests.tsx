@@ -35,6 +35,7 @@ describe("SelfService", () => {
           order_key: "name",
           order_direction: "asc",
           per_page: 10,
+          vulnerable: true,
         }}
         router={createMockRouter()}
       />
@@ -70,6 +71,7 @@ describe("SelfService", () => {
           order_key: "name",
           order_direction: "asc",
           per_page: 10,
+          vulnerable: true,
         }}
         router={createMockRouter()}
       />

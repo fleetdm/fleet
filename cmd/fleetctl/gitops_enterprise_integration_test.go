@@ -152,7 +152,7 @@ contexts:
 	require.NoError(t, err)
 
 	// Set the required environment variables
-	t.Setenv("FLEET_SSO_METADATA", "sso_metadata")
+	t.Setenv("FLEET_URL", s.server.URL)
 	t.Setenv("FLEET_GLOBAL_ENROLL_SECRET", "global_enroll_secret")
 	t.Setenv("FLEET_WORKSTATIONS_ENROLL_SECRET", "workstations_enroll_secret")
 	t.Setenv("FLEET_WORKSTATIONS_CANARY_ENROLL_SECRET", "workstations_canary_enroll_secret")
