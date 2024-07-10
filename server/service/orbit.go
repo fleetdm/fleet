@@ -324,11 +324,12 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 		}
 
 		return fleet.OrbitConfig{
-			Flags:          opts.CommandLineStartUpFlags,
-			Extensions:     extensionsFiltered,
-			Notifications:  notifs,
-			NudgeConfig:    nudgeConfig,
-			UpdateChannels: updateChannels,
+			ScriptExeTimeout: opts.ScriptExecutionTimeout,
+			Flags:            opts.CommandLineStartUpFlags,
+			Extensions:       extensionsFiltered,
+			Notifications:    notifs,
+			NudgeConfig:      nudgeConfig,
+			UpdateChannels:   updateChannels,
 		}, nil
 	}
 
@@ -386,11 +387,12 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 	}
 
 	return fleet.OrbitConfig{
-		Flags:          opts.CommandLineStartUpFlags,
-		Extensions:     extensionsFiltered,
-		Notifications:  notifs,
-		NudgeConfig:    nudgeConfig,
-		UpdateChannels: updateChannels,
+		ScriptExeTimeout: opts.ScriptExecutionTimeout,
+		Flags:            opts.CommandLineStartUpFlags,
+		Extensions:       extensionsFiltered,
+		Notifications:    notifs,
+		NudgeConfig:      nudgeConfig,
+		UpdateChannels:   updateChannels,
 	}, nil
 }
 
