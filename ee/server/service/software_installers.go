@@ -578,3 +578,31 @@ func packageExtensionToPlatform(ext string) string {
 
 	return requiredPlatform
 }
+
+func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, payloads []fleet.VPPBatchPayload, dryRun bool) error {
+	if teamName == "" {
+		svc.authz.SkipAuthorization(ctx) // so that the error message is not replaced by "forbidden"
+		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("team_name", "must not be empty"))
+	}
+
+	if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionRead); err != nil {
+		return err
+	}
+
+	team, err := svc.ds.TeamByName(ctx, teamName)
+	if err != nil {
+		// If this is a dry run, the team may not have been created yet
+		if dryRun && fleet.IsNotFound(err) {
+			return nil
+		}
+		return err
+	}
+
+	if err := svc.authz.Authorize(ctx, &fleet.SoftwareInstaller{TeamID: &team.ID}, fleet.ActionWrite); err != nil {
+		return ctxerr.Wrap(ctx, err, "validating authorization")
+	}
+
+	// association goes here
+
+	return nil
+}
