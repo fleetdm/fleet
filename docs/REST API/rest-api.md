@@ -9095,7 +9095,7 @@ _Available in Fleet Premium._
 
 Add App Store (VPP) app purchased in Apple Business Manager.
 
-`POST /api/v1/fleet/software/app_store/:app_store_id`
+`POST /api/v1/fleet/software/app_store_apps/:app_store_id`
 
 #### Parameters
 
