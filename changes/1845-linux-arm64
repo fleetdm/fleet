@@ -1,2 +1,2 @@
-* Added support for Linux ARM64
+* Added support for generating fleetd packages for Linux ARM64
 * fleetctl: New `fleetctl package` --arch flag
