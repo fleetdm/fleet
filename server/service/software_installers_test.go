@@ -85,6 +85,10 @@ func TestSoftwareInstallersAuth(t *testing.T) {
 				return nil, nil
 			}
 
+			ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+				return map[fleet.MDMAssetName]fleet.MDMConfigAsset{}, nil
+			}
+
 			_, err := svc.DownloadSoftwareInstaller(ctx, 1, tt.teamID)
 			if tt.teamID == nil {
 				require.Error(t, err)
@@ -97,6 +101,26 @@ func TestSoftwareInstallersAuth(t *testing.T) {
 				require.Error(t, err)
 			} else {
 				checkAuthErr(t, tt.shouldFailWrite, err)
+			}
+
+			// Note: these calls always return an error because they're attempting to unmarshal a
+			// non-existent VPP token.
+			_, err = svc.GetAppStoreSoftware(ctx, tt.teamID)
+			if tt.teamID == nil {
+				require.Error(t, err)
+			} else {
+				if tt.shouldFailRead {
+					checkAuthErr(t, true, err)
+				}
+			}
+
+			err = svc.AddAppStoreApp(ctx, tt.teamID, "123")
+			if tt.teamID == nil {
+				require.Error(t, err)
+			} else {
+				if tt.shouldFailWrite {
+					checkAuthErr(t, true, err)
+				}
 			}
 
 			// TODO: configure test with mock software installer store and add tests to check upload auth

@@ -16,7 +16,7 @@ import (
 
 type AssetMetadata struct {
 	BundleID   string `json:"bundleId"`
-	ArtworkURL string `json:"artworkUrl60"` // TODO(JVE): confirm this is the size we want
+	ArtworkURL string `json:"artworkUrl512"`
 	Version    string `json:"version"`
 	TrackName  string `json:"trackName"`
 	TrackID    uint   `json:"trackId"`

@@ -342,8 +342,8 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 
 	s.appleITunesSrv = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { // a map of apps we can respond with
 		db := map[string]string{
-			"2": `{"bundleId": "b-2", "artworkUrl60": "https://example.com/images/2", "version": "2.0.0", "trackName": "App 2", "TrackID": 2}`,
-			"1": `{"bundleId": "a-1", "artworkUrl60": "https://example.com/images/1", "version": "1.0.0", "trackName": "App 1", "TrackID": 1}`,
+			"2": `{"bundleId": "b-2", "artworkUrl512": "https://example.com/images/2", "version": "2.0.0", "trackName": "App 2", "TrackID": 2}`,
+			"1": `{"bundleId": "a-1", "artworkUrl512": "https://example.com/images/1", "version": "1.0.0", "trackName": "App 1", "TrackID": 1}`,
 		}
 
 		adamIDString := r.URL.Query().Get("id")

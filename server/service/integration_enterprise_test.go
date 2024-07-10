@@ -10621,34 +10621,40 @@ func (s *integrationMDMTestSuite) TestMDMVPPToken() {
 	// We're passing team 1 here, but we haven't added any app store apps to that team, so we get
 	// back all available apps in our VPP location.
 	var appResp getAppStoreSoftwareResponse
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/app_store_apps/%d", team.ID), &getAppStoreSoftwareRequest{}, http.StatusOK, &appResp)
+	s.DoJSON("GET", "/api/latest/fleet/software/app_store_apps", &getAppStoreSoftwareRequest{}, http.StatusOK, &appResp, "team_id", strconv.Itoa(int(team.ID)))
 	require.NoError(t, appResp.Err)
-	require.Len(t, appResp.Apps, 2)
-	require.Equal(t, "App 1", appResp.Apps[0].Name)
-	require.Equal(t, "a-1", appResp.Apps[0].BundleIdentifier)
-	require.Equal(t, uint(12), appResp.Apps[0].AvailableCount)
-	require.Equal(t, "https://example.com/images/1", appResp.Apps[0].IconURL)
-	require.Equal(t, "1", appResp.Apps[0].AdamID)
+	require.Len(t, appResp.AppStoreApps, 2)
+	require.Equal(t, "App 1", appResp.AppStoreApps[0].Name)
+	require.Equal(t, "a-1", appResp.AppStoreApps[0].BundleIdentifier)
+	require.Equal(t, uint(12), appResp.AppStoreApps[0].AvailableCount)
+	require.Equal(t, "https://example.com/images/1", appResp.AppStoreApps[0].IconURL)
+	require.Equal(t, "1", appResp.AppStoreApps[0].AdamID)
+	require.Equal(t, "1.0.0", appResp.AppStoreApps[0].LatestVersion)
+	require.False(t, appResp.AppStoreApps[0].Added)
 
-	require.Equal(t, "App 2", appResp.Apps[1].Name)
-	require.Equal(t, "b-2", appResp.Apps[1].BundleIdentifier)
-	require.Equal(t, uint(3), appResp.Apps[1].AvailableCount)
-	require.Equal(t, "https://example.com/images/2", appResp.Apps[1].IconURL)
-	require.Equal(t, "2", appResp.Apps[1].AdamID)
+	require.Equal(t, "App 2", appResp.AppStoreApps[1].Name)
+	require.Equal(t, "b-2", appResp.AppStoreApps[1].BundleIdentifier)
+	require.Equal(t, uint(3), appResp.AppStoreApps[1].AvailableCount)
+	require.Equal(t, "https://example.com/images/2", appResp.AppStoreApps[1].IconURL)
+	require.Equal(t, "2", appResp.AppStoreApps[1].AdamID)
+	require.Equal(t, "2.0.0", appResp.AppStoreApps[1].LatestVersion)
+	require.False(t, appResp.AppStoreApps[1].Added)
 
 	// Add an app store app to team 1
 	var addAppResp addAppStoreAppResponse
-	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/software/app_store_apps/1"), &addAppStoreAppRequest{}, http.StatusOK, &addAppResp, "team_id", strconv.Itoa(int(team.ID)))
+	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{TeamID: &team.ID, AppStoreID: appResp.AppStoreApps[0].AdamID}, http.StatusOK, &addAppResp)
 
 	// Now we should be filtering out the app we added to team 1
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/app_store_apps/%d", team.ID), &getAppStoreSoftwareRequest{}, http.StatusOK, &appResp)
+	s.DoJSON("GET", "/api/latest/fleet/software/app_store_apps", &getAppStoreSoftwareRequest{}, http.StatusOK, &appResp, "team_id", strconv.Itoa(int(team.ID)))
 	require.NoError(t, appResp.Err)
-	require.Len(t, appResp.Apps, 1)
-	require.Equal(t, "App 2", appResp.Apps[0].Name)
-	require.Equal(t, "b-2", appResp.Apps[0].BundleIdentifier)
-	require.Equal(t, uint(3), appResp.Apps[0].AvailableCount)
-	require.Equal(t, "https://example.com/images/2", appResp.Apps[0].IconURL)
-	require.Equal(t, "2", appResp.Apps[0].AdamID)
+	require.Len(t, appResp.AppStoreApps, 1)
+	require.Equal(t, "App 2", appResp.AppStoreApps[0].Name)
+	require.Equal(t, "b-2", appResp.AppStoreApps[0].BundleIdentifier)
+	require.Equal(t, uint(3), appResp.AppStoreApps[0].AvailableCount)
+	require.Equal(t, "https://example.com/images/2", appResp.AppStoreApps[0].IconURL)
+	require.Equal(t, "2", appResp.AppStoreApps[0].AdamID)
+	require.Equal(t, "2.0.0", appResp.AppStoreApps[0].LatestVersion)
+	require.False(t, appResp.AppStoreApps[0].Added)
 
 	// Add an app store app to non-existent team
 	// s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps/1", &addAppStoreAppRequest{}, http.StatusOK, &addAppResp, "team_id", "9999")

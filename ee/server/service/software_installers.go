@@ -597,7 +597,7 @@ func (svc *Service) getVPPToken(ctx context.Context) (string, error) {
 }
 
 func (svc *Service) GetAppStoreSoftware(ctx context.Context, teamID *uint) ([]*fleet.VPPApp, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.SoftwareInstaller{TeamID: teamID}, fleet.ActionRead); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.VPPApp{TeamID: teamID}, fleet.ActionRead); err != nil {
 		return nil, err
 	}
 
@@ -649,6 +649,7 @@ func (svc *Service) GetAppStoreSoftware(ctx context.Context, teamID *uint) ([]*f
 			BundleIdentifier: m.BundleID,
 			IconURL:          m.ArtworkURL,
 			Name:             m.TrackName,
+			LatestVersion:    m.Version,
 		})
 	}
 
@@ -656,8 +657,7 @@ func (svc *Service) GetAppStoreSoftware(ctx context.Context, teamID *uint) ([]*f
 }
 
 func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, adamID string) error {
-	// TODO(JVE): I think we need to validate based on team ID as well
-	if err := svc.authz.Authorize(ctx, &fleet.VPPApp{}, fleet.ActionRead); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.VPPApp{TeamID: teamID}, fleet.ActionWrite); err != nil {
 		return err
 	}
 

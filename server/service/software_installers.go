@@ -406,12 +406,12 @@ func (svc *Service) HasSelfServiceSoftwareInstallers(ctx context.Context, host *
 //////////////////////////////////////////////////////////////////////////////
 
 type getAppStoreSoftwareRequest struct {
-	TeamID uint `url:"team_id"`
+	TeamID uint `query:"team_id"`
 }
 
 type getAppStoreSoftwareResponse struct {
-	Apps []*fleet.VPPApp `json:"apps"`
-	Err  error           `json:"error,omitempty"`
+	AppStoreApps []*fleet.VPPApp `json:"app_store_apps"`
+	Err          error           `json:"error,omitempty"`
 }
 
 func (r getAppStoreSoftwareResponse) error() error { return r.Err }
@@ -423,7 +423,7 @@ func getAppStoreSoftwareEndpoint(ctx context.Context, request interface{}, svc f
 		return &getAppStoreSoftwareResponse{Err: err}, nil
 	}
 
-	return &getAppStoreSoftwareResponse{Apps: apps}, nil
+	return &getAppStoreSoftwareResponse{AppStoreApps: apps}, nil
 }
 
 func (svc *Service) GetAppStoreSoftware(ctx context.Context, teamID *uint) ([]*fleet.VPPApp, error) {
@@ -435,8 +435,8 @@ func (svc *Service) GetAppStoreSoftware(ctx context.Context, teamID *uint) ([]*f
 }
 
 type addAppStoreAppRequest struct {
-	TeamID     *uint  `query:"team_id,optional"`
-	AppStoreID string `url:"app_store_id"`
+	TeamID     *uint  `json:"team_id"`
+	AppStoreID string `json:"app_store_id"`
 }
 
 type addAppStoreAppResponse struct {
