@@ -8966,6 +8966,7 @@ Returns information about the specified software. By default, `versions` are sor
         "failed": 2,
       }
     },
+    "app_store_app": null,
     "source": "apps",
     "browser": "",
     "hosts_count": 48,
