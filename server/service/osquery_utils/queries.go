@@ -336,7 +336,9 @@ var hostDetailQueries = map[string]DetailQuery{
 			host.HardwareVendor = rows[0]["hardware_vendor"]
 			host.HardwareModel = rows[0]["hardware_model"]
 			host.HardwareVersion = rows[0]["hardware_version"]
-			host.HardwareSerial = rows[0]["hardware_serial"]
+			if rows[0]["hardware_serial"] != "-1" { // ignoring the default -1 serial. See: https://github.com/fleetdm/fleet/issues/19789
+				host.HardwareSerial = rows[0]["hardware_serial"]
+			}
 			host.ComputerName = rows[0]["computer_name"]
 			return nil
 		},
