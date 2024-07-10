@@ -119,6 +119,17 @@ func (m *MySQLStorage) StoreCommandReport(r *mdm.Request, result *mdm.CommandRes
 	if result.Status == "Idle" {
 		return nil
 	}
+
+	// ensure there's a matching command
+	matchingRow := m.db.QueryRowContext(
+		r.Context,
+		`SELECT 1 FROM nano_commands WHERE command_uuid = ?`,
+		result.CommandUUID,
+	)
+	if err := matchingRow.Scan(); err != nil {
+		return err
+	}
+
 	if m.rm && result.Status != "NotNow" {
 		return m.deleteCommandTx(r, result)
 	}
