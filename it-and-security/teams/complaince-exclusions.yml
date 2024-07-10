@@ -1,4 +1,4 @@
-name: "Virtual machines"
+name: Compliance exclusions
 team_settings:
   features:
     enable_host_users: true
@@ -7,7 +7,7 @@ team_settings:
     host_expiry_enabled: false
     host_expiry_window: 0
   secrets:
-    - secret: $DOGFOOD_VIRTUAL_MACHINES_ENROLL_SECRET
+    - secret: $DOGFOOD_COMPLIANCE_EXCLUSIONS_ENROLL_SECRET
 agent_options:
   path: ../lib/agent-options.yml
 controls:
