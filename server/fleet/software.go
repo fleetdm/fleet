@@ -114,6 +114,12 @@ type VulnerableSoftware struct {
 	ResolvedInVersion *string `json:"resolved_in_version" db:"resolved_in_version"`
 }
 
+type VulnSoftwareFilter struct {
+	HostID *uint
+	Name   string // LIKE filter
+	Source string // exact match
+}
+
 type SliceString []string
 
 func (c *SliceString) Scan(v interface{}) error {
@@ -145,9 +151,6 @@ type SoftwareTitle struct {
 	ID uint `json:"id" db:"id"`
 	// Name is the name reported by osquery.
 	Name string `json:"name" db:"name"`
-	// BundleIdentifier is the bundle identifier associated with this software
-	// title, as reported by osquery.
-	BundleIdentifier string `json:"bundle_identifier" db:"bundle_identifier"`
 	// Source is the source reported by osquery.
 	Source string `json:"source" db:"source"`
 	// Browser is the browser type (e.g., "chrome", "firefox", "safari")
@@ -165,6 +168,10 @@ type SoftwareTitle struct {
 	SoftwarePackage *SoftwareInstaller `json:"software_package" db:"-"`
 	// AppStoreApp is the VPP app information for this title.
 	AppStoreApp *VPPAppStoreApp `json:"app_store_app" db:"-"`
+	// BundleIdentifier is used by Apple installers to uniquely identify
+	// the software installed. It's surfaced in software_titles to match
+	// with existing software entries.
+	BundleIdentifier *string `json:"-" db:"bundle_identifier"`
 }
 
 // This type is essentially the same as the above SoftwareTitle type. The only difference is that
