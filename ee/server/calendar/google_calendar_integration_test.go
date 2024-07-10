@@ -66,8 +66,8 @@ func (s *googleCalendarIntegrationTestSuite) TestCreateGetDeleteEvent() {
 	gCal := NewGoogleCalendar(config)
 	err := gCal.Configure(userEmail)
 	require.NoError(t, err)
-	genBodyFn := func(bool) string {
-		return "Test event"
+	genBodyFn := func(bool) (string, bool, error) {
+		return "Test event", true, nil
 	}
 	eventDate := time.Now().Add(48 * time.Hour)
 	event, err := gCal.CreateEvent(eventDate, genBodyFn)
@@ -110,8 +110,8 @@ func (s *googleCalendarIntegrationTestSuite) TestFillUpCalendar() {
 	gCal := NewGoogleCalendar(config)
 	err := gCal.Configure(userEmail)
 	require.NoError(t, err)
-	genBodyFn := func(bool) string {
-		return "Test event"
+	genBodyFn := func(bool) (string, bool, error) {
+		return "Test event", true, nil
 	}
 	eventDate := time.Now().Add(48 * time.Hour)
 	event, err := gCal.CreateEvent(eventDate, genBodyFn)

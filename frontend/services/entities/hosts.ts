@@ -9,7 +9,6 @@ import {
   reconcileMutuallyExclusiveHostParams,
   reconcileMutuallyInclusiveHostParams,
 } from "utilities/url";
-import { SelectedPlatform } from "interfaces/platform";
 import {
   IHostSoftware,
   ISoftware,
@@ -23,7 +22,7 @@ import {
   MdmEnrollmentStatus,
 } from "interfaces/mdm";
 import { IMunkiIssuesAggregate } from "interfaces/macadmins";
-import { PolicyResponse } from "utilities/constants";
+import { PlatformValueOptions, PolicyResponse } from "utilities/constants";
 
 export interface ISortOption {
   key: string;
@@ -206,7 +205,7 @@ const getSortParams = (sortOptions?: ISortOption[]) => {
   };
 };
 
-const createMdmParams = (platform?: SelectedPlatform, teamId?: number) => {
+const createMdmParams = (platform?: PlatformValueOptions, teamId?: number) => {
   if (platform === "all") {
     return buildQueryStringFromParams({ team_id: teamId });
   }
@@ -535,7 +534,7 @@ export default {
     return sendRequest("GET", HOST_MDM(id));
   },
 
-  getMdmSummary: (platform?: SelectedPlatform, teamId?: number) => {
+  getMdmSummary: (platform?: PlatformValueOptions, teamId?: number) => {
     const { MDM_SUMMARY } = endpoints;
 
     if (!platform || platform === "linux") {

@@ -1,0 +1,3 @@
+- Added iOS/iPadOS builtin manual labels. IMPORTANT: Before migrating to this version, make sure to delete any labels with name "iOS" or "iPadOS".
+- Added aggregation of iOS/iPadOS OS versions.
+- Added change to custom profiles for iOS/iPadOS to go from 'pending' straight to 'verified' (skip 'verifying').
