@@ -30,7 +30,6 @@ spec:
         custom_settings: null
     scripts: null
     secrets: null
-    software: null
     webhook_settings:
       host_status_webhook: null
     name: tm1
