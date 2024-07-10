@@ -25,7 +25,7 @@ func Up_20240710155623(tx *sql.Tx) error {
 		SET h.last_enrolled_at = hd.created_at, h.updated_at = h.updated_at
 		WHERE h.platform = 'darwin' AND h.last_enrolled_at = '2000-01-01 00:00:00';`,
 	); err != nil {
-		return fmt.Errorf("failed to insert label membership: %w", err)
+		return fmt.Errorf("failed to update hosts.last_enrolled_at: %w", err)
 	}
 
 	return nil
