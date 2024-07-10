@@ -20,6 +20,11 @@ func (c *Client) RunHostScriptSync(hostID uint, scriptContents []byte, scriptNam
 	if err != nil {
 		return nil, err
 	}
+
+	if res.ExecutionID == "" {
+		return nil, errors.New("missing execution id in response")
+	}
+
 	return c.pollForResult(res.ExecutionID)
 }
 
