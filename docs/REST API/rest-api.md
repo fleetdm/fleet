@@ -8691,7 +8691,7 @@ Deletes software that's available for install (package or App Store app).
 
 #### Example
 
-`DELETE /api/v1/fleet/software/titles/24?team_id=2`
+`DELETE /api/v1/fleet/software/titles/24/available_for_install?team_id=2`
 
 ##### Default response
 
