@@ -176,16 +176,6 @@ func (r HostScriptRequestPayload) ValidateParams(waitForResult time.Duration) er
 			return NewInvalidArgumentError("script_contents", `"Only one of 'script_contents' or 'team_id' is allowed.`)
 		}
 	}
-	//
-	// TODO: script_name and team_id are only allowed for synchronous requests; they probably should be allowed for asynchronous requests too, but we need to get a product decision on this
-	if waitForResult <= 0 {
-		switch {
-		case r.ScriptName != "":
-			return NewInvalidArgumentError("script_name", `Only synchronous script execution requests can use the 'script_name' parameter.`)
-		case r.TeamID > 0:
-			return NewInvalidArgumentError("team_id", `Only synchronous script execution requests can use the 'team_id' parameter.`)
-		}
-	}
 
 	return nil
 }

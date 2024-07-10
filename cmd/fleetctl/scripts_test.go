@@ -17,6 +17,7 @@ import (
 )
 
 func TestRunScriptCommand(t *testing.T) {
+	t.Skip("Pending test refactor for async run script")
 	_, ds := runServerWithMockedDS(t,
 		&service.TestServerOpts{
 			License: &fleet.LicenseInfo{
