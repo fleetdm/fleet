@@ -54,6 +54,25 @@ Locate the relevant issue or create it if it doesn't already exist (to avoid dup
     - The output of fleetctl debug archive
 - Have we provided a link to that issue for the customer to remind everyone of the plan and for the sake of visibility, so other folks who weren't directly involved are up to speed  (e.g., "Hi everyone, here's a link to the issue we discussed on today's call: […link…](https://omfgdogs.com)")?
 
+### Hold a QBR
+Business reviews are conducted bi-annually to ensure ongoing alignment and success criteria delivery. Use the meeting to assess customer needs and priorities for the coming quarter or year, review performance metrics, address any challenges and showcase value in existing and upcoming features.
+
+1. Inform your customer that you want to conduct a business review and explain why
+2. Agree upon a date
+3. Work with your champion to ensure their stakeholders will be present for the call
+4. Spend time collecting usage metrics from your customer's Fleet dashboard in a scoping call before delivering the review. Some of the usual metrics that will be important include:
+    - Total % licenses utilized = total # of hosts in Fleet
+    - Total licenses remaining open.
+    - Discuss with a CSE to collect data on open and closed support issues and highlight any P0 or P1 incidents plus any post mortem and RCA information.
+    - Status updates for open feature requests 
+    - For managed cloud customers, reach out to #g-infra to collect information on cloud uptime, any outages, etc. 
+    - Look at the Fleet Github repo and perform a search by label for your customer's code name to identify any past or present feature requests and bugs that have either been resolved already or are still in the backlog
+    - Pull together a slide or two that talk to the latest release with the Product and ensure there is information about the features that are currently on our roadmap
+
+After the QBR:
+1. At the conclusion of your review call, save the presentation as a PDF and share it with your customer
+2. Make sure to follow up on any TODOs that come out of the QBR
+
 ### Contact the developer on-call
 The acting developer on-call rotation is reflected in the [📈KPIs spreadsheet (confidential Google sheet)](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0&range=F2 ). The developer on-call is responsible for responses to technical Slack comments, Slack threads, and GitHub issues raised by customers and the community, which the CSE team cannot address.
 - To reach the developer on-call for assistance, mention them in Fleet Slack using `@oncall` in the [#help-engineering](https://fleetdm.slack.com/archives/C019WG4GH0A) channel. 
