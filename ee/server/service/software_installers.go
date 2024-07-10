@@ -681,6 +681,10 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, adamID str
 		return ctxerr.Wrap(ctx, err, "retrieving VPP asset")
 	}
 
+	if len(assets) == 0 {
+		return ctxerr.New(ctx, fmt.Sprintf("Error: Couldn't add software. %s isn't available in Apple Business Manager. Please purchase license in Apple Business Manager and try again.", adamID))
+	}
+
 	asset := assets[0]
 
 	assetMetadata, err := itunes.GetAssetMetadata([]string{asset.AdamID}, &itunes.AssetMetadataFilter{Entity: "desktopSoftware"})
