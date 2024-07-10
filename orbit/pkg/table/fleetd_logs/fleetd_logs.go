@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"strings"
 	"sync"
 	"time"
 
@@ -135,12 +134,7 @@ func processLogEntry(event []byte) ([]Event, error) {
 		var sqliteTime string
 		evtTime, ok := evt["time"].(string)
 		if ok {
-			// UTC times sometimes end in Z instead of time offset.
-			// Replace it with a regular offset so we can parse it
-			if strings.HasSuffix(evtTime, "Z") {
-				evtTime = evtTime[:len(evtTime)-1] + "+00:00"
-			}
-			goTime, err := time.Parse("2006-01-02T15:04:05-07:00", evtTime)
+			goTime, err := time.Parse(time.RFC3339, evtTime)
 			if err != nil {
 				return nil, fmt.Errorf("processLogEntry parsing time: %w", err)
 			}
