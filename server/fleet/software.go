@@ -171,7 +171,7 @@ type SoftwareTitle struct {
 	// BundleIdentifier is used by Apple installers to uniquely identify
 	// the software installed. It's surfaced in software_titles to match
 	// with existing software entries.
-	BundleIdentifier *string `json:"-" db:"bundle_identifier"`
+	BundleIdentifier *string `json:"bundle_identifier" db:"bundle_identifier"`
 }
 
 // This type is essentially the same as the above SoftwareTitle type. The only difference is that

@@ -31,21 +31,27 @@ SELECT
 	st.name,
 	st.source,
 	st.browser,
+	st.bundle_identifier,
 	COALESCE(SUM(sthc.hosts_count), 0) as hosts_count,
 	MAX(sthc.updated_at)  as counts_updated_at
 FROM software_titles st
 LEFT JOIN software_titles_host_counts sthc ON sthc.software_title_id = st.id AND %s
-WHERE st.id = ?
-AND (sthc.hosts_count > 0 OR EXISTS (SELECT 1 FROM software_installers si WHERE si.title_id = st.id AND si.global_or_team_id = ?))
+WHERE st.id = ? AND
+	(
+		sthc.hosts_count > 0 OR
+		EXISTS (SELECT 1 FROM software_installers si WHERE si.title_id = st.id AND si.global_or_team_id = ?) OR
+		EXISTS (SELECT 1 FROM vpp_apps_teams vat JOIN vpp_apps vap ON vat.adam_id = vap.adam_id WHERE vap.title_id = st.id AND vat.global_or_team_id = ?)
+	)
 GROUP BY
 	st.id,
 	st.name,
 	st.source,
-	st.browser
+	st.browser,
+	st.bundle_identifier
 	`, teamFilter,
 	)
 	var title fleet.SoftwareTitle
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &title, selectSoftwareTitleStmt, id, tmID); err != nil {
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &title, selectSoftwareTitleStmt, id, tmID, tmID); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, notFound("SoftwareTitle").WithID(id)
 		}
