@@ -8768,7 +8768,7 @@ Get a list of all software.
     {
       "id": 12,
       "name": "Firefox.app",
-      "software_package": "FirefoxInstall.pkg",
+      "available_for_install": true,
       "self_service": true,
       "versions_count": 3,
       "source": "apps",
@@ -8795,7 +8795,8 @@ Get a list of all software.
     {
       "id": 22,
       "name": "Google Chrome.app",
-      "software_package": null,
+      "available_for_install": false,
+      "app_store_app": null,
       "self_service": false,
       "versions_count": 5,
       "source": "apps",
@@ -8827,7 +8828,7 @@ Get a list of all software.
     {
       "id": 32,
       "name": "1Password – Password Manager",
-      "software_package": null,
+      "available_for_install": false,
       "self_service": false,
       "versions_count": 1,
       "source": "chrome_extensions",
