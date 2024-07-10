@@ -91,18 +91,15 @@ const StatusMessage = ({
       // message should look like: "Timeout. Fleet stopped the script after 600 seconds to protect host performance.";
       const timeOutValue = message.match(/(\d+\s(?:seconds))/);
 
-      let varText = null;
-      // should always be there
-      if (timeOutValue) {
-        varText = (
-          <>
-            after{" "}
-            <TooltipWrapper tipContent="Timeout can be configured by updating agent options.">
-              {timeOutValue[0]}
-            </TooltipWrapper>{" "}
-          </>
-        );
-      }
+      // should always be there, but handle cleanly if not
+      const varText = timeOutValue ? (
+        <>
+          after{" "}
+          <TooltipWrapper tipContent="Timeout can be configured by updating agent options.">
+            {timeOutValue[0]}
+          </TooltipWrapper>{" "}
+        </>
+      ) : null;
 
       const modMessage = (
         <>
