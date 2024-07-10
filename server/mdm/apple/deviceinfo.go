@@ -51,7 +51,6 @@ var appleRootCert []byte
 func newAppleRootCert() *x509.Certificate {
 	cert, err := x509.ParseCertificate(appleRootCert)
 	if err != nil {
-		// TODO: panic recovery?
 		panic(fmt.Errorf("could not parse cert: %w", err))
 	}
 	return cert

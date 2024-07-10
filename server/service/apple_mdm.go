@@ -1373,12 +1373,8 @@ func (svc *Service) GetMDMAppleEnrollmentProfileByToken(ctx context.Context, tok
 		}
 	}
 
-	// TODO: Consider renaming/refactoring this method. We need to do more than just getting the
-	// profile here, we also need to the device with an MDM IdP account
-
 	// if we have device info, we need to parse it and associate the device with an MDM IdP account
 	if deviceinfo != "" {
-		// extract x-apple-aspen-deviceinfo custom header from request
 		di, err := apple_mdm.ParseDeviceinfo(deviceinfo, true)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "parsing deviceinfo")
