@@ -542,7 +542,7 @@ func (u *Updater) checkExec(target, tmpPath string, customCheckExec func(execPat
 			containsArch = true
 		}
 	}
-	if !containsArch {
+	if !containsArch && strings.HasSuffix(os.Args[0], "fleetctl") {
 		// Nothing to do, we can't reliably execute a
 		// cross-architecture binary. This happens when cross-building
 		// packages
