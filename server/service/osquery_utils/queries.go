@@ -1712,11 +1712,18 @@ func directIngestMDMMac(ctx context.Context, logger log.Logger, host *fleet.Host
 			fleetEnrollRef = serverURL.Query().Get("enrollment_reference")
 		}
 		if fleetEnrollRef != "" {
-			if err := ds.SetOrUpdateHostEmailsFromMdmIdpAccounts(ctx, host.ID, fleetEnrollRef); err != nil {
-				if !fleet.IsNotFound(err) {
-					return ctxerr.Wrap(ctx, err, "updating host emails from mdm idp accounts")
-				}
-
+			if err := ds.SetOrUpdateHostEmailsFromMDMIdPAccountsByLegacyEnrollRef(ctx, host.ID, fleetEnrollRef); err != nil {
+				level.Warn(logger).Log(
+					"component", "service",
+					"method", "directIngestMDMMac",
+					"msg", err.Error(),
+				)
+			}
+		} else if installedFromDep {
+			// ensure that mdm_idp_accounts are included in host_emails for Apple DEP-enrolled hosts;
+			// note that we're relying on the osquery platform compatibility checks to ensure that this
+			// ingest function is only applied darwin hosts
+			if err := ds.SetOrUpdateEmailsFromMDMIdPAccountsByHostID(ctx, host.ID, host.UUID); err != nil {
 				level.Warn(logger).Log(
 					"component", "service",
 					"method", "directIngestMDMMac",

@@ -4,6 +4,7 @@ import {
   DiskEncryptionStatus,
   IHostMdmProfile,
   IMdmProfile,
+  IMdmSSOReponse,
   MdmProfileStatus,
 } from "interfaces/mdm";
 import { API_NO_TEAM_ID } from "interfaces/team";
@@ -65,6 +66,16 @@ export interface IAppleSetupEnrollmentProfileResponse {
   uploaded_at: string;
   // enrollment profile is an object with keys found here https://developer.apple.com/documentation/devicemanagement/profile.
   enrollment_profile: Record<string, unknown>;
+}
+
+export interface IMDMSSOParams {
+  dep_device_info: string;
+}
+
+export interface IMDMAppleEnrollmentProfileParams {
+  token: string;
+  ref?: string;
+  dep_device_info?: string;
 }
 
 const mdmService = {
@@ -181,9 +192,9 @@ const mdmService = {
     });
   },
 
-  initiateMDMAppleSSO: () => {
+  initiateMDMAppleSSO: (params: IMDMSSOParams): Promise<IMdmSSOReponse> => {
     const { MDM_APPLE_SSO } = endpoints;
-    return sendRequest("POST", MDM_APPLE_SSO, {});
+    return sendRequest("POST", MDM_APPLE_SSO, params);
   },
 
   getBootstrapPackageMetadata: (teamId: number) => {
