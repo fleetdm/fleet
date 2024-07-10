@@ -2,7 +2,7 @@ import React, { useState, useRef, useLayoutEffect } from "react";
 import { uniqueId } from "lodash";
 import classnames from "classnames";
 
-import { Tooltip as ReactTooltip, PlacesType } from "react-tooltip-5";
+import ReactTooltip from "react-tooltip";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 import { COLORS } from "styles/var/colors";
 
