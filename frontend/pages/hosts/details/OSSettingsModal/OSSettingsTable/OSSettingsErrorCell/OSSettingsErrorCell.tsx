@@ -138,7 +138,9 @@ const OSSettingsErrorCell = ({
         // we dont want the default "w250" class so we pass in empty string
         classes={""}
         className={
-          showRefetchButton ? `${baseClass}__failed-message` : undefined
+          isFailed || showRefetchButton
+            ? `${baseClass}__failed-message`
+            : undefined
         }
       />
       {showRefetchButton && (

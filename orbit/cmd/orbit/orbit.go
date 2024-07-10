@@ -43,12 +43,16 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/secure"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/service"
+	"github.com/google/uuid"
 	"github.com/oklog/run"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/urfave/cli/v2"
 	"gopkg.in/natefinch/lumberjack.v2"
 )
+
+// unusedFlagKeyword is used by the MSI installer to populate parameters, which cannot be empty
+const unusedFlagKeyword = "dummy"
 
 func main() {
 	app := cli.NewApp()
@@ -367,7 +371,7 @@ func main() {
 			return fmt.Errorf("--host-identifier=%s is not supported, currently supported values are 'uuid' and 'instance'", hostIdentifier)
 		}
 
-		if email := c.String("end-user-email"); email != "" && !fleet.IsLooseEmail(email) {
+		if email := c.String("end-user-email"); email != "" && email != unusedFlagKeyword && !fleet.IsLooseEmail(email) {
 			return fmt.Errorf("the provided end-user email address %q is not a valid email address", email)
 		}
 
@@ -623,6 +627,38 @@ func main() {
 			HardwareUUID:   osqueryHostInfo.HardwareUUID,
 			Hostname:       osqueryHostInfo.Hostname,
 			Platform:       osqueryHostInfo.Platform,
+		}
+
+		if runtime.GOOS == "darwin" {
+			// Get the hardware UUID. We use a temporary osquery DB location in order to guarantee that
+			// we're getting true UUID, not a cached UUID. See
+			// https://github.com/fleetdm/fleet/issues/17934 and
+			// https://github.com/osquery/osquery/issues/7509 for more details.
+
+			tmpDBPath := filepath.Join(os.TempDir(), strings.Join([]string{uuid.NewString(), "tmp-db"}, "-"))
+			oi, err := getHostInfo(osquerydPath, tmpDBPath)
+			if err != nil {
+				return fmt.Errorf("get UUID from temp db: %w", err)
+			}
+
+			if err := os.RemoveAll(tmpDBPath); err != nil {
+				log.Info().Err(err).Msg("failed to remove temporary osquery db")
+			}
+
+			if oi.HardwareUUID != orbitHostInfo.HardwareUUID {
+				// Then we have moved to a new physical machine, so we should restart!
+				// Removing the osquery DB should trigger a re-enrollment when fleetd is restarted.
+				if err := os.RemoveAll(osqueryDB); err != nil {
+					return fmt.Errorf("removing old osquery.db: %w", err)
+				}
+
+				// We can remove this because we want it to be regenerated during the re-enrollment.
+				if err := os.RemoveAll(filepath.Join(c.String("root-dir"), constant.OrbitNodeKeyFileName)); err != nil {
+					return fmt.Errorf("removing old orbit node key file: %w", err)
+				}
+
+				return errors.New("found a new hardware uuid, restarting")
+			}
 		}
 
 		// Only send osquery's `instance_id` if the user is running orbit with `--host-identifier=instance`.
@@ -1123,12 +1159,13 @@ func main() {
 			g.Add(desktopRunner.actor())
 		}
 
-		// --end-user-email is only supported on Windows (for macOS it gets the
+		// --end-user-email is only supported on Windows and Linux (for macOS it gets the
 		// email from the enrollment profile)
-		if runtime.GOOS == "windows" && c.String("end-user-email") != "" {
+		endUserEmail := c.String("end-user-email")
+		if (runtime.GOOS == "windows" || runtime.GOOS == "linux") && endUserEmail != "" && endUserEmail != unusedFlagKeyword {
 			if orbitClient.GetServerCapabilities().Has(fleet.CapabilityEndUserEmail) {
 				log.Debug().Msg("sending end-user email to Fleet")
-				if err := orbitClient.SetOrUpdateDeviceMappingEmail(c.String("end-user-email")); err != nil {
+				if err := orbitClient.SetOrUpdateDeviceMappingEmail(endUserEmail); err != nil {
 					log.Error().Err(err).Msg("error sending end-user email to Fleet")
 				}
 			} else {

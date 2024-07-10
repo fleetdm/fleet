@@ -10,8 +10,8 @@ const baseClass = "host-details-banners";
 interface IHostDetailsBannersProps {
   hostMdmEnrollmentStatus?: MdmEnrollmentStatus | null;
   hostPlatform?: string;
-  mdmName?: string;
   diskEncryptionStatus: DiskEncryptionStatus | null | undefined;
+  connectedToFleetMdm?: boolean;
 }
 
 /**
@@ -20,7 +20,7 @@ interface IHostDetailsBannersProps {
 const HostDetailsBanners = ({
   hostMdmEnrollmentStatus,
   hostPlatform,
-  mdmName,
+  connectedToFleetMdm,
   diskEncryptionStatus,
 }: IHostDetailsBannersProps) => {
   const { config, isPremiumTier, apnsExpiry, abmExpiry } = useContext(
@@ -63,7 +63,7 @@ const HostDetailsBanners = ({
   const showDiskEncryptionUserActionRequired =
     !showingAppWideBanner &&
     config?.mdm.enabled_and_configured &&
-    mdmName === "Fleet" &&
+    connectedToFleetMdm &&
     diskEncryptionStatus === "action_required";
 
   if (showTurnOnMdmInfoBanner || showDiskEncryptionUserActionRequired) {

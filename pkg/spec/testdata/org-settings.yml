@@ -4,6 +4,7 @@ server_settings:
   deferred_save_host: false
   enable_analytics: true
   live_query_disabled: false
+  query_report_cap: 2000
   query_reports_disabled: false
   scripts_disabled: false
   server_url: https://fleet.example.com

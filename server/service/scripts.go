@@ -211,9 +211,8 @@ func (svc *Service) RunHostScript(ctx context.Context, request *fleet.HostScript
 
 	maxPending := maxPendingScripts
 
-	// authorize with the host's team and the script id provided, as both affect
-	// the permissions.
-	if err := svc.authz.Authorize(ctx, &fleet.HostScriptResult{TeamID: host.TeamID, ScriptID: request.ScriptID}, fleet.ActionWrite); err != nil {
+	// authorize with the host's team
+	if err := svc.authz.Authorize(ctx, &fleet.HostScriptResult{TeamID: host.TeamID}, fleet.ActionWrite); err != nil {
 		return nil, err
 	}
 
@@ -911,30 +910,42 @@ func (svc *Service) authorizeScriptByID(ctx context.Context, scriptID uint, auth
 ////////////////////////////////////////////////////////////////////////////////
 
 type lockHostRequest struct {
-	HostID uint `url:"id"`
+	HostID  uint `url:"id"`
+	ViewPin bool `query:"view_pin,optional"`
 }
 
 type lockHostResponse struct {
-	Err error `json:"error,omitempty"`
+	Err        error  `json:"error,omitempty"`
+	UnlockPIN  string `json:"unlock_pin,omitempty"`
+	StatusCode int    `json:"-"`
 }
 
-func (r lockHostResponse) Status() int  { return http.StatusNoContent }
+func (r lockHostResponse) Status() int {
+	if r.StatusCode != 0 {
+		return r.StatusCode
+	}
+	return http.StatusNoContent
+}
 func (r lockHostResponse) error() error { return r.Err }
 
 func lockHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*lockHostRequest)
-	if err := svc.LockHost(ctx, req.HostID); err != nil {
+	unlockPIN, err := svc.LockHost(ctx, req.HostID, req.ViewPin)
+	if err != nil {
 		return lockHostResponse{Err: err}, nil
+	}
+	if req.ViewPin && unlockPIN != "" {
+		return lockHostResponse{UnlockPIN: unlockPIN, StatusCode: http.StatusOK}, nil
 	}
 	return lockHostResponse{}, nil
 }
 
-func (svc *Service) LockHost(ctx context.Context, hostID uint) error {
+func (svc *Service) LockHost(ctx context.Context, _ uint, _ bool) (string, error) {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)
 
-	return fleet.ErrMissingLicense
+	return "", fleet.ErrMissingLicense
 }
 
 ////////////////////////////////////////////////////////////////////////////////

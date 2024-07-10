@@ -1023,7 +1023,7 @@ func (ds *Datastore) UnlockHostManually(ctx context.Context, hostID uint, hostFl
 	return ctxerr.Wrap(ctx, err, "record manual unlock host request")
 }
 
-func buildHostLockWipeStatusUpdateStmt(refCol string, succeeded bool, joinPart string) string {
+func buildHostLockWipeStatusUpdateStmt(refCol string, succeeded bool, joinPart string, setUnlockRef bool) string {
 	var alias string
 
 	stmt := `UPDATE host_mdm_actions `
@@ -1039,7 +1039,14 @@ func buildHostLockWipeStatusUpdateStmt(refCol string, succeeded bool, joinPart s
 			// Note that this must not clear the unlock_pin, because recording the
 			// lock request does generate the PIN and store it there to be used by an
 			// eventual unlock.
-			stmt += fmt.Sprintf("%sunlock_ref = NULL, %[1]swipe_ref = NULL", alias)
+			if !setUnlockRef {
+				stmt += fmt.Sprintf("%sunlock_ref = NULL, %[1]swipe_ref = NULL", alias)
+			} else {
+				// Currently only used for Apple MDM devices.
+				// We set the unlock_ref to current time since the device can be unlocked any time after the lock.
+				// Apple MDM does not have a concept of unlock pending.
+				stmt += fmt.Sprintf("%sunlock_ref = '%s', %[1]swipe_ref = NULL", alias, time.Now().Format(time.DateTime))
+			}
 		case "unlock_ref":
 			// a successful unlock clears itself as well as the lock ref, because
 			// unlock is the default state so we don't need to keep its unlock_ref
@@ -1061,26 +1068,30 @@ func (ds *Datastore) UpdateHostLockWipeStatusFromAppleMDMResult(ctx context.Cont
 	// a bit of MDM protocol leaking in the mysql layer, but it's either that or
 	// the other way around (MDM protocol would translate to database column)
 	var refCol string
+	var setUnlockRef bool
 	switch requestType {
 	case "EraseDevice":
 		refCol = "wipe_ref"
 	case "DeviceLock":
 		refCol = "lock_ref"
+		setUnlockRef = true
 	default:
 		return nil
 	}
-	return updateHostLockWipeStatusFromResultAndHostUUID(ctx, ds.writer(ctx), hostUUID, refCol, cmdUUID, succeeded)
+	return updateHostLockWipeStatusFromResultAndHostUUID(ctx, ds.writer(ctx), hostUUID, refCol, cmdUUID, succeeded, setUnlockRef)
 }
 
-func updateHostLockWipeStatusFromResultAndHostUUID(ctx context.Context, tx sqlx.ExtContext, hostUUID, refCol, cmdUUID string, succeeded bool) error {
-	stmt := buildHostLockWipeStatusUpdateStmt(refCol, succeeded, `JOIN hosts h ON hma.host_id = h.id`)
+func updateHostLockWipeStatusFromResultAndHostUUID(
+	ctx context.Context, tx sqlx.ExtContext, hostUUID, refCol, cmdUUID string, succeeded bool, setUnlockRef bool,
+) error {
+	stmt := buildHostLockWipeStatusUpdateStmt(refCol, succeeded, `JOIN hosts h ON hma.host_id = h.id`, setUnlockRef)
 	stmt += ` WHERE h.uuid = ? AND hma.` + refCol + ` = ?`
 	_, err := tx.ExecContext(ctx, stmt, hostUUID, cmdUUID)
 	return ctxerr.Wrap(ctx, err, "update host lock/wipe status from result via host uuid")
 }
 
 func updateHostLockWipeStatusFromResult(ctx context.Context, tx sqlx.ExtContext, hostID uint, refCol string, succeeded bool) error {
-	stmt := buildHostLockWipeStatusUpdateStmt(refCol, succeeded, "")
+	stmt := buildHostLockWipeStatusUpdateStmt(refCol, succeeded, "", false)
 	stmt += ` WHERE host_id = ?`
 	_, err := tx.ExecContext(ctx, stmt, hostID)
 	return ctxerr.Wrap(ctx, err, "update host lock/wipe status from result")

@@ -191,12 +191,10 @@ type MacOSUpdates struct {
 	Deadline optjson.String `json:"deadline"`
 }
 
-// EnabledForHost returns a boolean indicating if updates are enabled for the host
-func (m MacOSUpdates) EnabledForHost(h *Host) bool {
+// Configured returns a boolean indicating if updates are configured
+func (m MacOSUpdates) Configured() bool {
 	return m.Deadline.Value != "" &&
-		m.MinimumVersion.Value != "" &&
-		h.IsOsqueryEnrolled() &&
-		h.MDMInfo.IsFleetEnrolled()
+		m.MinimumVersion.Value != ""
 }
 
 func (m MacOSUpdates) Validate() error {
@@ -235,16 +233,6 @@ func (m MacOSUpdates) Validate() error {
 type WindowsUpdates struct {
 	DeadlineDays    optjson.Int `json:"deadline_days"`
 	GracePeriodDays optjson.Int `json:"grace_period_days"`
-}
-
-// EnabledForHost returns a boolean indicating if enforced Windows OS updates
-// are enabled for the host. Note that the provided Host needs to be loaded
-// with full MDMInfo data for the check to be valid.
-func (w WindowsUpdates) EnabledForHost(h *Host) bool {
-	return w.DeadlineDays.Valid &&
-		w.GracePeriodDays.Valid &&
-		h.IsOsqueryEnrolled() &&
-		h.MDMInfo.IsFleetEnrolled()
 }
 
 // Equal returns true if the values of the fields of w and other are equal. It
@@ -320,6 +308,18 @@ func (s MacOSSettings) ToMap() map[string]interface{} {
 func (s *MacOSSettings) FromMap(m map[string]interface{}) (map[string]bool, error) {
 	set := make(map[string]bool)
 
+	extractLabelField := func(parentMap map[string]interface{}, fieldName string) []string {
+		var ret []string
+		if labels, ok := parentMap[fieldName].([]interface{}); ok {
+			for _, label := range labels {
+				if strLabel, ok := label.(string); ok {
+					ret = append(ret, strLabel)
+				}
+			}
+		}
+		return ret
+	}
+
 	if v, ok := m["custom_settings"]; ok {
 		set["custom_settings"] = true
 
@@ -334,15 +334,9 @@ func (s *MacOSSettings) FromMap(m map[string]interface{}) (map[string]bool, erro
 						spec.Path = path
 					}
 
-					// extract the Labels field (if they are not provided, labels are
-					// cleared for that profile)
-					if labels, ok := m["labels"].([]interface{}); ok {
-						for _, label := range labels {
-							if strLabel, ok := label.(string); ok {
-								spec.Labels = append(spec.Labels, strLabel)
-							}
-						}
-					}
+					spec.Labels = extractLabelField(m, "labels")
+					spec.LabelsIncludeAll = extractLabelField(m, "labels_include_all")
+					spec.LabelsExcludeAny = extractLabelField(m, "labels_exclude_any")
 
 					csSpecs = append(csSpecs, spec)
 				} else if m, ok := v.(string); ok { // for backwards compatibility with the old way to define profiles
@@ -888,6 +882,16 @@ type ServerSettings struct {
 	QueryReportsDisabled bool   `json:"query_reports_disabled"`
 	ScriptsDisabled      bool   `json:"scripts_disabled"`
 	AIFeaturesDisabled   bool   `json:"ai_features_disabled"`
+	QueryReportCap       int    `json:"query_report_cap"`
+}
+
+const DefaultMaxQueryReportRows int = 1000
+
+func (f *ServerSettings) GetQueryReportCap() int {
+	if f.QueryReportCap <= 0 {
+		return DefaultMaxQueryReportRows
+	}
+	return f.QueryReportCap
 }
 
 // HostExpirySettings contains settings pertaining to automatic host expiry.
@@ -991,7 +995,7 @@ type ListOptions struct {
 	// How many results per page (must be positive integer, 0 indicates
 	// unlimited)
 	PerPage uint `query:"per_page,optional"`
-	// Key to use for ordering. Can be a comma separated set of items, eg: host_count,id
+	// Key to use for ordering. Can be a comma-separated set of items, eg: host_count,id
 	OrderKey string `query:"order_key,optional"`
 	// Direction of ordering
 	OrderDirection OrderDirection `query:"order_direction,optional"`

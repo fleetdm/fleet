@@ -1,14 +1,14 @@
 # Setup
 
-To turn on macOS MDM features, follow the instructions on this page to connect Fleet to Apple Push Notification service (APNs).
+To turn on macOS, iOS, and iPadOS MDM features, follow the instructions on this page to connect Fleet to Apple Push Notification service (APNs).
 
-To use automatic enrollment (aka zero-touch) features on macOS, follow instructions to connect Fleet with Apple Business Manager (ABM).
+To use automatic enrollment (aka zero-touch) features on macOS, iOS, and iPadOS, follow instructions to connect Fleet with Apple Business Manager (ABM).
 
 To turn on Windows MDM features, head to this [Windows MDM setup article](https://fleetdm.com/guides/windows-mdm-setup). 
 
 ## Apple Push Notification service (APNs)
 
-Apple uses APNs to authenticate and manage interactions between Fleet and the host.
+Apple uses APNs to authenticate and manage interactions between Fleet and hosts.
 
 To connect Fleet to APNs or renew APNs, head to the **Settings > Integrations > Mobile device management (MDM)** page.
 
@@ -28,11 +28,11 @@ After connecting Fleet to ABM, set Fleet to be the MDM for all Macs:
 2. Click your profile icon in the bottom left
 3. Click **Preferences**
 4. Click **MDM Server Assignment** and click **Edit** next to **Default Server Assignment**.
-5. Switch **Mac** to Fleet.
+5. Switch **Mac**, **iPhone**, and **iPad** to Fleet.
 
-New or wiped macOS hosts that are in ABM, before they've been set up, appear in Fleet with **MDM status** set to "Pending".
+New or wiped macOS, iOS, and iPadOS hosts that are in ABM, before they've been set up, appear in Fleet with **MDM status** set to "Pending".
 
-All hosts that automatically enroll will be assigned to the default team. If no default team is set, then the host will be placed in "No team". 
+All macOS hosts that automatically enroll will be assigned to the default team. If no default team is set, then the host will be placed in "No team". 
 
 > A host can be transferred to a new (not default) team before it enrolls. In the Fleet UI, you can do this under **Settings** > **Teams**.
 

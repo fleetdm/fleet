@@ -57,6 +57,11 @@ func (c *Client) runHostScript(verb, path string, hostID uint, scriptContents []
 			return nil, errors.New(fleet.RunScriptScriptsDisabledGloballyErrMsg)
 		}
 		return nil, errors.New(fleet.RunScriptForbiddenErrMsg)
+	// It's possible we get a GatewayTimeout error message from nginx or another
+	// proxy server, so we want to return a more helpful error message in that
+	// case.
+	case http.StatusGatewayTimeout:
+		return nil, errors.New(fleet.RunScriptGatewayTimeoutErrMsg)
 	case http.StatusPaymentRequired:
 		if teamID > 0 {
 			return nil, errors.New("Team id parameter requires Fleet Premium license.")

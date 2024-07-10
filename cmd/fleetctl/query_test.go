@@ -11,8 +11,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/live_query/live_query_mock"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
 	"github.com/fleetdm/fleet/v4/server/service"
-	kitlog "github.com/go-kit/kit/log"
-	"github.com/go-kit/kit/log/level"
+	kitlog "github.com/go-kit/log"
+	"github.com/go-kit/log/level"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -48,8 +48,11 @@ func TestSavedLiveQuery(t *testing.T) {
 		Saved: true,
 	}
 
-	ds.HostIDsByNameFunc = func(ctx context.Context, filter fleet.TeamFilter, hostnames []string) ([]uint, error) {
-		return []uint{1234}, nil
+	ds.HostIDsByIdentifierFunc = func(ctx context.Context, filter fleet.TeamFilter, hostIdentifiers []string) ([]uint, error) {
+		if len(hostIdentifiers) == 1 && hostIdentifiers[0] == "1234" {
+			return []uint{1234}, nil
+		}
+		return nil, nil
 	}
 	ds.LabelIDsByNameFunc = func(ctx context.Context, labels []string) (map[string]uint, error) {
 		return nil, nil
@@ -70,7 +73,11 @@ func TestSavedLiveQuery(t *testing.T) {
 	ds.NewDistributedQueryCampaignTargetFunc = func(ctx context.Context, target *fleet.DistributedQueryCampaignTarget) (*fleet.DistributedQueryCampaignTarget, error) {
 		return target, nil
 	}
+	noHostsTargeted := false
 	ds.HostIDsInTargetsFunc = func(ctx context.Context, filter fleet.TeamFilter, targets fleet.HostTargets) ([]uint, error) {
+		if noHostsTargeted {
+			return nil, nil
+		}
 		return []uint{1}, nil
 	}
 	ds.CountHostsInTargetsFunc = func(ctx context.Context, filter fleet.TeamFilter, targets fleet.HostTargets, now time.Time) (fleet.TargetMetrics, error) {
@@ -149,6 +156,11 @@ func TestSavedLiveQuery(t *testing.T) {
 		))
 	}()
 
+	// errors before requesting live query
+	_, err = runAppNoChecks([]string{"query", "--hosts", "", "--query-name", queryName})
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "No hosts or labels targeted")
+
 	expected := `{"host":"somehostname","rows":[{"bing":"fds","host_display_name":"somehostname","host_hostname":"somehostname"}]}
 `
 	// Note: runAppForTest never closes the WebSocket connection and does not exit,
@@ -171,6 +183,12 @@ func TestSavedLiveQuery(t *testing.T) {
 		)
 	case <-c: // All good
 	}
+
+	// Test targeting no hosts (e.g. host does exist)
+	noHostsTargeted = true
+	_, err = runAppNoChecks([]string{"query", "--hosts", "foobar", "--query-name", queryName})
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "No hosts targeted")
 }
 
 func TestAdHocLiveQuery(t *testing.T) {
@@ -197,7 +215,7 @@ func TestAdHocLiveQuery(t *testing.T) {
 		}
 	}
 
-	ds.HostIDsByNameFunc = func(ctx context.Context, filter fleet.TeamFilter, hostnames []string) ([]uint, error) {
+	ds.HostIDsByIdentifierFunc = func(ctx context.Context, filter fleet.TeamFilter, hostIdentifiers []string) ([]uint, error) {
 		return []uint{1234}, nil
 	}
 	ds.LabelIDsByNameFunc = func(ctx context.Context, labels []string) (map[string]uint, error) {

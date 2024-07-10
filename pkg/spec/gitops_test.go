@@ -137,6 +137,7 @@ func TestValidGitOpsYaml(t *testing.T) {
 					serverSettings, ok := gitops.OrgSettings["server_settings"]
 					assert.True(t, ok, "server_settings not found")
 					assert.Equal(t, "https://fleet.example.com", serverSettings.(map[string]interface{})["server_url"])
+					assert.EqualValues(t, 2000, serverSettings.(map[string]interface{})["query_report_cap"])
 					assert.Contains(t, gitops.OrgSettings, "org_info")
 					orgInfo, ok := gitops.OrgSettings["org_info"].(map[string]interface{})
 					assert.True(t, ok)

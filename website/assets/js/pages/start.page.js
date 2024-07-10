@@ -309,8 +309,14 @@ parasails.registerPage('start', {
           this.formData[step] = this.previouslyAnsweredQuestions[step];
         }
         this.currentStep = this.getNextStep();
+        // If the last step was a redirect, take the user to the step they submitted previously.
         if(_.startsWith(this.currentStep, '/')){
           this.currentStep = this.me.lastSubmittedGetStartedQuestionnaireStep;
+          // If this user is coming back to the form after submitting the 'thanks-for-checking-out-fleet' step,
+          // take them back to the step they submitted before they reached that step. (Either what-did-you-think or how-was-your-deployment)
+          if(this.currentStep === 'thanks-for-checking-out-fleet'){
+            this.clickGoToPreviousStep();
+          }
         }
       }
     },

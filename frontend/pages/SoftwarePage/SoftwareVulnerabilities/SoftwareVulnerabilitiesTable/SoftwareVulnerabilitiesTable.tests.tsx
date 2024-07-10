@@ -93,9 +93,7 @@ describe("Software Vulnerabilities table", () => {
       />
     );
 
-    expect(
-      screen.getByText("No software match the current search criteria")
-    ).toBeInTheDocument();
+    expect(screen.getByText("No software detected")).toBeInTheDocument();
     expect(screen.queryByText("Vulnerability")).toBeNull();
   });
 
@@ -133,7 +131,7 @@ describe("Software Vulnerabilities table", () => {
     );
 
     expect(
-      screen.getByText("No software match the current search criteria")
+      screen.getByText("No items match the current search criteria")
     ).toBeInTheDocument();
     expect(screen.queryByText("Vulnerability")).toBeNull();
   });

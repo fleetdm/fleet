@@ -129,6 +129,13 @@
     labels: [ "#g-business-operations" ] 
     repo: "confidential"
 -
+  task: "Recognize and benchmark workiversaries" 
+  startedOn: "2024-07-15" 
+  frequency: "Bimonthly"
+  description: "Identify workiversaries coming up in the next two months and follow the steps to ensure they're recognized and benchmarked" 
+  moreInfoUrl: "https://fleetdm.com/handbook/business-operations#recognize-employee-workiversaries"
+  dri: "ireedy" 
+-
   task: "Run bonus payroll" 
   startedOn: "2024-01-31" 
   frequency: "Quarterly"

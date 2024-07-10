@@ -1,0 +1,1 @@
+- Fixes a bug that caused log Orbit's osquery table log output to be inconsistent.

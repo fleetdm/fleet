@@ -50,9 +50,6 @@ type PluginOpts struct {
 	Socket string
 }
 
-// Logger for osquery tables
-var osqueryLogger *Logger
-
 // WithExtension registers the given Extension on the Runner.
 func WithExtension(t Extension) Opt {
 	return func(r *Runner) {
@@ -72,8 +69,6 @@ func NewRunner(socket string, opts ...Opt) *Runner {
 // Execute creates an osquery extension manager server and registers osquery plugins.
 func (r *Runner) Execute() error {
 	log.Debug().Msg("start osquery extension")
-
-	osqueryLogger = NewOsqueryLogger()
 
 	if err := waitExtensionSocket(r.socket, 1*time.Minute); err != nil {
 		return err
@@ -111,7 +106,12 @@ func (r *Runner) Execute() error {
 	plugins := OrbitDefaultTables()
 
 	opts := PluginOpts{Socket: r.socket}
-	plugins = append(plugins, PlatformTables(opts)...)
+	platformTables, err := PlatformTables(opts)
+	if err != nil {
+		return fmt.Errorf("populating platform tables: %w", err)
+	}
+
+	plugins = append(plugins, platformTables...)
 	for _, t := range r.tableExtensions {
 		plugins = append(plugins, table.NewPlugin(
 			t.Name(),
@@ -141,14 +141,17 @@ func OrbitDefaultTables() []osquery.OsqueryPlugin {
 		table.NewPlugin("sntp_request", sntp_request.Columns(), sntp_request.GenerateFunc),
 		fleetd_logs.TablePlugin(),
 
-		firefox_preferences.TablePlugin(osqueryLogger),
-		cryptoinfotable.TablePlugin(osqueryLogger),
+		// Note: the logger passed here and to all other tables is the global logger from zerolog.
+		// This logger has already been configured with some required settings in
+		// orbit/cmd/orbit/orbit.go.
+		firefox_preferences.TablePlugin(log.Logger),
+		cryptoinfotable.TablePlugin(log.Logger),
 
 		// Additional data format tables
-		dataflattentable.TablePlugin(osqueryLogger, dataflattentable.JsonType),  // table name is "parse_json"
-		dataflattentable.TablePlugin(osqueryLogger, dataflattentable.JsonlType), // table name is "parse_jsonl"
-		dataflattentable.TablePlugin(osqueryLogger, dataflattentable.XmlType),   // table name is "parse_xml"
-		dataflattentable.TablePlugin(osqueryLogger, dataflattentable.IniType),   // table name is "parse_ini"
+		dataflattentable.TablePlugin(log.Logger, dataflattentable.JsonType),  // table name is "parse_json"
+		dataflattentable.TablePlugin(log.Logger, dataflattentable.JsonlType), // table name is "parse_jsonl"
+		dataflattentable.TablePlugin(log.Logger, dataflattentable.XmlType),   // table name is "parse_xml"
+		dataflattentable.TablePlugin(log.Logger, dataflattentable.IniType),   // table name is "parse_ini"
 
 	}
 	return plugins

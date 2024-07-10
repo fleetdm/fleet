@@ -25,15 +25,6 @@
     }
   }
 
-  .Select-option {
-    .dropdown__option {
-      [data-id="tooltip"] {
-        font-size: $xx-small;
-        font-style: normal;
-      }
-    }
-  }
-
   // style a basic span that doesn't use the dropdown component (which relies on react-select
   // and makes it difficult for us to style the disabled tooltip underline on the placeholder text.
   .run-script-action--disabled {

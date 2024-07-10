@@ -10,31 +10,47 @@ import { ISoftwareDropdownFilterVal } from "pages/SoftwarePage/SoftwareTitles/So
 
 export interface IEmptySoftwareTableProps {
   softwareFilter?: ISoftwareDropdownFilterVal;
+  /** tableName is displayed in the search empty state */
+  tableName?: string;
   isSoftwareDisabled?: boolean;
+  /** isNotDetectingSoftware renders empty states when no search string is present */
+  isNotDetectingSoftware?: boolean;
+  /** isCollectingSoftware is only used on the Dashboard page with a TODO to revisit */
   isCollectingSoftware?: boolean;
-  isSearching?: boolean;
+  isFilterVulnerable?: boolean;
 }
 
-const generateTypeText = (softwareFilter?: ISoftwareDropdownFilterVal) => {
+const generateTypeText = (
+  tableName: string,
+  softwareFilter?: ISoftwareDropdownFilterVal
+) => {
   if (softwareFilter === "installableSoftware") {
-    return "installable";
+    return "installable software";
   }
-  return softwareFilter === "vulnerableSoftware" ? "vulnerable" : "";
+  if (softwareFilter === "vulnerableSoftware") {
+    return "vulnerable software";
+  }
+  return tableName;
 };
 
 const EmptySoftwareTable = ({
-  softwareFilter,
+  softwareFilter = "allSoftware",
+  tableName = "software",
   isSoftwareDisabled,
+  isNotDetectingSoftware,
   isCollectingSoftware,
-  isSearching,
+  isFilterVulnerable,
 }: IEmptySoftwareTableProps): JSX.Element => {
-  const softwareTypeText = generateTypeText(softwareFilter);
+  const softwareTypeText = generateTypeText(tableName, softwareFilter);
 
   const emptySoftware: IEmptyTableProps = {
-    header: `No ${softwareTypeText} software match the current search criteria`,
-    info:
-      "This report is updated every hour to protect the performance of your devices.",
+    header: "No items match the current search criteria",
+    info: `Expecting to see ${softwareTypeText}? Check back later.`,
   };
+
+  if (isNotDetectingSoftware && softwareFilter === "allSoftware") {
+    emptySoftware.header = "No software detected";
+  }
 
   if (isCollectingSoftware) {
     emptySoftware.header = "No software detected";
@@ -55,11 +71,6 @@ const EmptySoftwareTable = ({
         .
       </>
     );
-  }
-  if (softwareFilter === "vulnerableSoftware" && !isSearching) {
-    emptySoftware.header = "No vulnerable software detected";
-    emptySoftware.info =
-      "This report is updated every hour to protect the performance of your devices.";
   }
 
   return (

@@ -131,7 +131,6 @@ func (d *threadSafeDSMock) InsertSoftwareVulnerability(ctx context.Context, vuln
 }
 
 func TestTranslateCPEToCVE(t *testing.T) {
-	t.Skip("REMOVEME: when API keys are restored")
 	t.Parallel()
 	ctx := context.Background()
 
@@ -307,6 +306,34 @@ func TestTranslateCPEToCVE(t *testing.T) {
 			},
 			continuesToUpdate: false,
 		},
+		"cpe:2.3:a:adobe:animate:*:*:*:*:*:macos:*:*": {
+			includedCVEs: []cve{
+				{ID: "CVE-2023-44325"},
+			},
+			continuesToUpdate: true,
+		},
+		"cpe:2.3:a:apple:safari:17.0:*:*:*:*:macos:*:*": {
+			includedCVEs: []cve{
+				{ID: "CVE-2023-42852", resolvedInVersion: "17.1"},
+				{ID: "CVE-2023-42950", resolvedInVersion: "17.2"},
+				{ID: "CVE-2024-23273", resolvedInVersion: "17.4"},
+			},
+			excludedCVEs:      []string{"CVE-2023-28205"},
+			continuesToUpdate: true,
+		},
+		"cpe:2.3:a:apple:safari:16.4.0:*:*:*:*:macos:*:*": {
+			includedCVEs: []cve{
+				{ID: "CVE-2023-28205", resolvedInVersion: "16.4.1"},
+			},
+			continuesToUpdate: true,
+		},
+		"cpe:2.3:a:microsoft:365_apps:16.0.17628.20144:*:*:*:*:windows:*:*": {
+			includedCVEs: []cve{
+				{ID: "CVE-2024-21402"},
+			},
+			excludedCVEs:      []string{"CVE-2011-5049"}, // OS vulnerability
+			continuesToUpdate: true,
+		},
 	}
 
 	cveOSTests := []struct {
@@ -469,7 +496,9 @@ func TestTranslateCPEToCVE(t *testing.T) {
 			}
 
 			for _, cve := range tc.excludedCVEs {
-				require.NotContains(t, cvesFound[cpe], cve, tc.cpe)
+				for _, cveFound := range cvesFound[cpe] {
+					require.NotEqual(t, cve, cveFound.ID, fmt.Sprintf("%s should not contain %s", cpe, cve))
+				}
 			}
 		}
 

@@ -1,11 +1,11 @@
 import React from "react";
 import classnames from "classnames";
-import ReactTooltip from "react-tooltip";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
-import { uniqueId } from "lodash";
-import { COLORS } from "styles/var/colors";
+import TooltipWrapper from "components/TooltipWrapper";
+import { capitalize } from "lodash";
 
 interface IStatusIndicatorProps {
+  /** Only the first letter of value will be capitalized by the component */
   value: string;
   tooltip?: {
     tooltipText: string | JSX.Element;
@@ -39,34 +39,23 @@ const StatusIndicator = ({
     `status-indicator--${indicatorStateClassTag}`,
     `status--${indicatorStateClassTag}`
   );
-  let indicatorContent;
-  if (tooltip) {
-    const tooltipId = uniqueId();
-    indicatorContent = (
-      <>
-        <span
-          className="host-status tooltip tooltip__tooltip-icon"
-          data-tip
-          data-for={`status-${tooltipId}`}
-          data-tip-disable={false}
-        >
-          <span>{value}</span>
-        </span>
-        <ReactTooltip
-          className="status-tooltip"
-          place={tooltip?.position ? tooltip.position : "top"}
-          type="dark"
-          effect="solid"
-          id={`status-${tooltipId}`}
-          backgroundColor={COLORS["tooltip-bg"]}
-        >
-          {tooltip.tooltipText}
-        </ReactTooltip>
-      </>
-    );
-  } else {
-    indicatorContent = <span>{value}</span>;
-  }
+
+  const capitalizedValue = capitalize(value);
+
+  const indicatorContent = tooltip ? (
+    <TooltipWrapper
+      position={tooltip?.position ? tooltip.position : "top"}
+      showArrow
+      underline={false}
+      tipContent={tooltip.tooltipText}
+      tipOffset={14}
+    >
+      {capitalizedValue}
+    </TooltipWrapper>
+  ) : (
+    capitalizedValue
+  );
+
   return <span className={indicatorClassNames}>{indicatorContent}</span>;
 };
 

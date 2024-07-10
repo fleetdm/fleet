@@ -1,0 +1,1 @@
+- Updated script run permissions -- only admins and maintainers can run arbitrary or saved scripts (not observer or observer+)

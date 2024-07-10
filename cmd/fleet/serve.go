@@ -54,10 +54,10 @@ import (
 	"github.com/fleetdm/fleet/v4/server/sso"
 	"github.com/fleetdm/fleet/v4/server/version"
 	"github.com/getsentry/sentry-go"
-	kitlog "github.com/go-kit/kit/log"
-	"github.com/go-kit/kit/log/level"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	"github.com/go-kit/log"
+	kitlog "github.com/go-kit/log"
+	"github.com/go-kit/log/level"
 	"github.com/google/uuid"
 	"github.com/ngrok/sqlmw"
 	"github.com/prometheus/client_golang/prometheus"
@@ -73,6 +73,8 @@ import (
 )
 
 var allowedURLPrefixRegexp = regexp.MustCompile("^(?:/[a-zA-Z0-9_.~-]+)+$")
+
+const softwareInstallerUploadTimeout = 2 * time.Minute
 
 type initializer interface {
 	// Initialize is used to populate a datastore with
@@ -196,7 +198,7 @@ the way that the Fleet server works.
 			}
 			ds = mds
 
-			if config.S3.CarvesBucket != "" {
+			if config.S3.CarvesBucket != "" || config.S3.Bucket != "" {
 				carveStore, err = s3.NewCarveStore(config.S3, ds)
 				if err != nil {
 					initFatal(err, "initializing S3 carvestore")
@@ -1056,8 +1058,14 @@ the way that the Fleet server works.
 					// the frontend times out waiting for the upload after 2 minutes, so
 					// use that same timeout:
 					// https://www.figma.com/design/oQl2oQUG0iRkUy0YOxc307/%2314921-Deploy-security-agents-to-macOS%2C-Windows%2C-and-Linux-hosts?node-id=773-18032&t=QjEU6tc73tddNSqn-0
-					if err := rc.SetReadDeadline(time.Now().Add(2 * time.Minute)); err != nil {
+					if err := rc.SetReadDeadline(time.Now().Add(softwareInstallerUploadTimeout)); err != nil {
 						level.Error(logger).Log("msg", "http middleware failed to override endpoint read timeout", "err", err)
+					}
+					// the write timeout should be extended as well to give the server time to
+					// write a response body with the right error, otherwise the connection is
+					// terminated abruptly.
+					if err := rc.SetWriteDeadline(time.Now().Add(softwareInstallerUploadTimeout + 30*time.Second)); err != nil {
+						level.Error(logger).Log("msg", "http middleware failed to override endpoint write timeout", "err", err)
 					}
 					req.Body = http.MaxBytesReader(rw, req.Body, service.MaxSoftwareInstallerSize)
 				}
