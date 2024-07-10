@@ -7773,8 +7773,7 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 	)
 
 	require.Len(t, resp.SoftwareTitles, 1)
-	require.NotNil(t, resp.SoftwareTitles[0].SoftwarePackage)
-	require.Equal(t, "ruby.deb", *resp.SoftwareTitles[0].SoftwarePackage)
+	require.True(t, resp.SoftwareTitles[0].AvailableForInstall)
 
 	// Upload an installer for the same software but different arch to a different team
 	payloadRubyTm2 := &fleet.UploadSoftwareInstallerPayload{
@@ -7794,8 +7793,7 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 		"team_id", fmt.Sprintf("%d", team1.ID),
 	)
 	require.Len(t, resp.SoftwareTitles, 1)
-	require.NotNil(t, resp.SoftwareTitles[0].SoftwarePackage)
-	require.Equal(t, "ruby.deb", *resp.SoftwareTitles[0].SoftwarePackage)
+	require.True(t, resp.SoftwareTitles[0].AvailableForInstall)
 
 	// software installer not returned with self-service only (not marked as such)
 	resp = listSoftwareTitlesResponse{}
@@ -7812,9 +7810,8 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &resp,
 		"self_service", "1", "query", "ruby", "team_id", fmt.Sprint(team1.ID))
 	require.Len(t, resp.SoftwareTitles, 1)
-	require.NotNil(t, resp.SoftwareTitles[0].SoftwarePackage)
-	require.Equal(t, "ruby.deb", *resp.SoftwareTitles[0].SoftwarePackage)
-	require.True(t, *&resp.SoftwareTitles[0].SelfService)
+	require.True(t, resp.SoftwareTitles[0].AvailableForInstall)
+	require.True(t, resp.SoftwareTitles[0].SelfService)
 
 	// no team but self-service returns the emacs software (technically impossible via the UI)
 	resp = listSoftwareTitlesResponse{}
@@ -7826,9 +7823,8 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 	)
 
 	require.Len(t, resp.SoftwareTitles, 1)
-	require.NotNil(t, resp.SoftwareTitles[0].SoftwarePackage)
-	require.Equal(t, "emacs.deb", *resp.SoftwareTitles[0].SoftwarePackage)
-	require.True(t, *&resp.SoftwareTitles[0].SelfService)
+	require.True(t, resp.SoftwareTitles[0].AvailableForInstall)
+	require.True(t, resp.SoftwareTitles[0].SelfService)
 
 	emacsPath := fmt.Sprintf("/api/latest/fleet/software/titles/%d", resp.SoftwareTitles[0].ID)
 	respTitle := getSoftwareTitleResponse{}
@@ -10641,8 +10637,7 @@ func (s *integrationEnterpriseTestSuite) TestPKGNewSoftwareTitleFlow() {
 		"team_id", fmt.Sprintf("%d", team.ID),
 	)
 	require.Len(t, resp.SoftwareTitles, 1)
-	require.NotNil(t, resp.SoftwareTitles[0].SoftwarePackage)
-	require.Equal(t, "dummy_installer.pkg", *resp.SoftwareTitles[0].SoftwarePackage)
+	require.True(t, resp.SoftwareTitles[0].AvailableForInstall)
 
 	software := []fleet.Software{
 		{Name: "foo", Version: "0.0.1", Source: "homebrew"},

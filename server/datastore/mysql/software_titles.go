@@ -39,7 +39,7 @@ SELECT
 FROM software_titles st
 LEFT JOIN software_titles_host_counts sthc ON sthc.software_title_id = st.id AND %s
 LEFT JOIN software_installers si ON si.title_id = st.id AND si.global_or_team_id = ?
-LEFT JOIN vpp_apps vap ON vap.title_id = st.id  
+LEFT JOIN vpp_apps vap ON vap.title_id = st.id
 LEFT JOIN vpp_apps_teams vat ON vat.global_or_team_id = ? AND vat.adam_id = vap.adam_id
 WHERE st.id = ? AND
 	(sthc.hosts_count > 0 OR vat.adam_id IS NOT NULL OR si.id IS NOT NULL)
@@ -209,7 +209,6 @@ SELECT
 	st.browser,
 	MAX(COALESCE(sthc.hosts_count, 0)) as hosts_count,
 	MAX(COALESCE(sthc.updated_at, date('0001-01-01 00:00:00'))) as counts_updated_at,
-	si.filename as software_package,
 	COALESCE(si.self_service, false) as self_service,
 	-- this count will be 1 if an installer or VPP app is available, 0 otherwise
 	COUNT(COALESCE(si.id, vat.adam_id)) as available_for_install
@@ -224,7 +223,7 @@ LEFT JOIN software_titles_host_counts sthc ON sthc.software_title_id = st.id AND
 WHERE %s
 -- placeholder for filter based on software installed on hosts + software installers
 AND (%s)
-GROUP BY st.id, software_package, self_service`
+GROUP BY st.id, self_service`
 
 	cveJoinType := "LEFT"
 	if opt.VulnerableOnly {

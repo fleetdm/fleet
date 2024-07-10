@@ -689,7 +689,6 @@ spec:
   id: 0
   name: foo
   self_service: false
-  software_package: null
   source: chrome_extensions
   versions:
   - id: 0
@@ -711,7 +710,6 @@ spec:
   id: 0
   name: bar
   self_service: false
-  software_package: null
   source: deb_packages
   versions:
   - id: 0
@@ -756,8 +754,7 @@ spec:
           ]
         }
       ],
-      "self_service": false,
-	  "software_package": null
+      "self_service": false
     },
     {
       "id": 0,
@@ -770,11 +767,10 @@ spec:
         {
           "id": 0,
           "version": "0.0.3",
-		  "vulnerabilities": null
+      "vulnerabilities": null
         }
       ],
-      "self_service": false,
-	  "software_package": null
+      "self_service": false
     }
   ]
 }

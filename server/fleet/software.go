@@ -202,8 +202,6 @@ type SoftwareTitleListResult struct {
 	// CountsUpdatedAt is the timestamp when the hosts count
 	// was last updated for that software title
 	CountsUpdatedAt *time.Time `json:"-" db:"counts_updated_at"`
-	// SoftwarePackage is the filename of the installer for this software title.
-	SoftwarePackage *string `json:"software_package" db:"software_package"`
 	// SelfService indicates if the end user can initiate the installation
 	SelfService bool `json:"self_service" db:"self_service"`
 	// AvailableForInstall is true if the software title has an installer or a

@@ -5,6 +5,8 @@ import (
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
 )
@@ -130,4 +132,27 @@ func testVPPAppStatus(t *testing.T, ds *Datastore) {
 	summary, err = ds.GetSummaryHostVPPAppInstalls(ctx, vpp3)
 	require.NoError(t, err)
 	require.Equal(t, &fleet.VPPAppStatusSummary{Pending: 0, Failed: 0, Installed: 0}, summary)
+
+	// create a couple enrolled hosts
+	h1, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:       "macos-test-1",
+		OsqueryHostID:  ptr.String("osquery-macos-1"),
+		NodeKey:        ptr.String("node-key-macos-1"),
+		UUID:           uuid.NewString(),
+		Platform:       "darwin",
+		HardwareSerial: "654321a",
+	})
+	require.NoError(t, err)
+	nanoEnroll(t, ds, h1, false)
+
+	h2, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:       "macos-test-2",
+		OsqueryHostID:  ptr.String("osquery-macos-2"),
+		NodeKey:        ptr.String("node-key-macos-2"),
+		UUID:           uuid.NewString(),
+		Platform:       "darwin",
+		HardwareSerial: "654321b",
+	})
+	require.NoError(t, err)
+	nanoEnroll(t, ds, h2, false)
 }
