@@ -33,15 +33,16 @@ SELECT
 	st.browser,
 	st.bundle_identifier,
 	COALESCE(SUM(sthc.hosts_count), 0) as hosts_count,
-	MAX(sthc.updated_at)  as counts_updated_at
+	MAX(sthc.updated_at)  as counts_updated_at,
+	COUNT(si.id) as software_installers_count,
+	COUNT(vat.adam_id) as vpp_apps_count
 FROM software_titles st
 LEFT JOIN software_titles_host_counts sthc ON sthc.software_title_id = st.id AND %s
+LEFT JOIN software_installers si ON si.title_id = st.id AND si.global_or_team_id = ?
+LEFT JOIN vpp_apps vap ON vap.title_id = st.id  
+LEFT JOIN vpp_apps_teams vat ON vat.global_or_team_id = ? AND vat.adam_id = vap.adam_id
 WHERE st.id = ? AND
-	(
-		sthc.hosts_count > 0 OR
-		EXISTS (SELECT 1 FROM software_installers si WHERE si.title_id = st.id AND si.global_or_team_id = ?) OR
-		EXISTS (SELECT 1 FROM vpp_apps_teams vat JOIN vpp_apps vap ON vat.adam_id = vap.adam_id WHERE vap.title_id = st.id AND vat.global_or_team_id = ?)
-	)
+	(sthc.hosts_count > 0 OR vat.adam_id IS NOT NULL OR si.id IS NOT NULL)
 GROUP BY
 	st.id,
 	st.name,
@@ -51,7 +52,7 @@ GROUP BY
 	`, teamFilter,
 	)
 	var title fleet.SoftwareTitle
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &title, selectSoftwareTitleStmt, id, tmID, tmID); err != nil {
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &title, selectSoftwareTitleStmt, tmID, tmID, id); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, notFound("SoftwareTitle").WithID(id)
 		}

@@ -164,6 +164,14 @@ type SoftwareTitle struct {
 	// CountsUpdatedAt is the timestamp when the hosts count
 	// was last updated for that software title
 	CountsUpdatedAt *time.Time `json:"-" db:"counts_updated_at"`
+	// SoftwareInstallersCount is 0 or 1, indicating if the software title has an
+	// installer. This is an internal field for an optimization so that the extra
+	// queries to fetch installer information is done only if necessary.
+	SoftwareInstallersCount int `json:"-" db:"software_installers_count"`
+	// VPPAppsCount is 0 or 1, indicating if the software title has a VPP app.
+	// This is an internal field for an optimization so that the extra queries to
+	// fetch app information is done only if necessary.
+	VPPAppsCount int `json:"-" db:"vpp_apps_count"`
 	// SoftwarePackage is the software installer information for this title.
 	SoftwarePackage *SoftwareInstaller `json:"software_package" db:"-"`
 	// AppStoreApp is the VPP app information for this title.

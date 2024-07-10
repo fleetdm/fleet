@@ -1544,11 +1544,15 @@ type Datastore interface {
 	// GetSoftwareInstallerMetadataByID returns the software installer corresponding to the installer id.
 	GetSoftwareInstallerMetadataByID(ctx context.Context, id uint) (*SoftwareInstaller, error)
 
-	// GetSoftwareInstallerMetadataByTitleID returns the software installer
-	// corresponding to the specified team and title ids. If withScriptContents
-	// is true, also returns the contents of the install and (if set)
-	// post-install scripts, otherwise those fields are left empty.
+	// GetSoftwareInstallerMetadataByTeamAndTitleID returns the software
+	// installer corresponding to the specified team and title ids. If
+	// withScriptContents is true, also returns the contents of the install and
+	// (if set) post-install scripts, otherwise those fields are left empty.
 	GetSoftwareInstallerMetadataByTeamAndTitleID(ctx context.Context, teamID *uint, titleID uint, withScriptContents bool) (*SoftwareInstaller, error)
+
+	// GetVPPAppMetadataByTeamAndTitleID returns the VPP app corresponding to the
+	// specified team and title ids.
+	GetVPPAppMetadataByTeamAndTitleID(ctx context.Context, teamID *uint, titleID uint) (*VPPAppStoreApp, error)
 
 	// DeleteSoftwareInstaller deletes the software installer corresponding to the id.
 	DeleteSoftwareInstaller(ctx context.Context, id uint) error

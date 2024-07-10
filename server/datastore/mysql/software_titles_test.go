@@ -913,22 +913,29 @@ func createVPPApp(t *testing.T, ds *Datastore, teamID *uint, name, bundle string
 	require.NoError(t, err)
 	adamID := base64.RawStdEncoding.EncodeToString(rawBytes)
 
-	titleID, err := ds.getOrGenerateSoftwareInstallerTitleID(ctx, name, "apps")
+	titleID, err := ds.getOrGenerateSoftwareInstallerTitleID(ctx, &fleet.UploadSoftwareInstallerPayload{Title: name, Source: "apps", BundleIdentifier: bundle})
 	require.NoError(t, err)
 
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, `INSERT INTO vpp_apps (adam_id, available_count, title_id, name, bundle_identifier) VALUES (?, ?, ?, ?, ?)`,
 			adamID, 1, titleID, name, bundle)
-		if err != nil {
-			return err
-		}
+		return err
+	})
+
+	createVPPAppTeamOnly(t, ds, teamID, adamID)
+	return adamID, titleID
+}
+
+func createVPPAppTeamOnly(t *testing.T, ds *Datastore, teamID *uint, adamID string) {
+	ctx := context.Background()
+
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		var globalOrTeamID uint
 		if teamID != nil {
 			globalOrTeamID = *teamID
 		}
-		_, err = q.ExecContext(ctx, `INSERT INTO vpp_apps_teams (adam_id, team_id, global_or_team_id) VALUES (?, ?, ?)`,
+		_, err := q.ExecContext(ctx, `INSERT INTO vpp_apps_teams (adam_id, team_id, global_or_team_id) VALUES (?, ?, ?)`,
 			adamID, teamID, globalOrTeamID)
 		return err
 	})
-	return adamID, titleID
 }
