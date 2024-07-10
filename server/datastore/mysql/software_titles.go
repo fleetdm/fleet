@@ -203,7 +203,9 @@ SELECT
 	MAX(COALESCE(sthc.hosts_count, 0)) as hosts_count,
 	MAX(COALESCE(sthc.updated_at, date('0001-01-01 00:00:00'))) as counts_updated_at,
 	si.filename as software_package,
-	COALESCE(si.self_service, false) as self_service
+	COALESCE(si.self_service, false) as self_service,
+	-- this count will be 1 if an installer or VPP app is available, 0 otherwise
+	COUNT(COALESCE(si.id, vat.adam_id)) as available_for_install
 FROM software_titles st
 LEFT JOIN software_installers si ON si.title_id = st.id AND si.global_or_team_id = ?
 LEFT JOIN vpp_apps vap ON vap.title_id = st.id

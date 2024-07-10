@@ -334,35 +334,45 @@ func testOrderSoftwareTitles(t *testing.T, ds *Datastore) {
 	i := 0
 	require.Equal(t, "bar", titles[i].Name)
 	require.Equal(t, "deb_packages", titles[i].Source)
+	require.False(t, titles[i].AvailableForInstall)
 	i++
 	require.Equal(t, "foo", titles[i].Name)
 	require.Equal(t, "chrome_extensions", titles[i].Source)
+	require.False(t, titles[i].AvailableForInstall)
 	i++
 	require.Equal(t, "foo", titles[i].Name)
 	require.Equal(t, "deb_packages", titles[i].Source)
+	require.False(t, titles[i].AvailableForInstall)
 	i++
 	require.Equal(t, "bar", titles[i].Name)
 	require.Equal(t, "apps", titles[i].Source)
+	require.False(t, titles[i].AvailableForInstall)
 	i++
 	require.Equal(t, "baz", titles[i].Name)
 	require.Equal(t, "chrome_extensions", titles[i].Source)
 	require.Equal(t, "chrome", titles[i].Browser)
+	require.False(t, titles[i].AvailableForInstall)
 	i++
 	require.Equal(t, "baz", titles[i].Name)
 	require.Equal(t, "chrome_extensions", titles[i].Source)
 	require.Equal(t, "edge", titles[i].Browser)
+	require.False(t, titles[i].AvailableForInstall)
 	i++
 	require.Equal(t, "foo", titles[i].Name)
 	require.Equal(t, "rpm_packages", titles[i].Source)
+	require.False(t, titles[i].AvailableForInstall)
 	i++
 	require.Equal(t, "installer1", titles[i].Name)
 	require.Equal(t, "apps", titles[i].Source)
+	require.True(t, titles[i].AvailableForInstall)
 	i++
 	require.Equal(t, "installer2", titles[i].Name)
 	require.Equal(t, "apps", titles[i].Source)
+	require.True(t, titles[i].AvailableForInstall)
 	i++
 	require.Equal(t, "vpp1", titles[i].Name)
 	require.Equal(t, "apps", titles[i].Source)
+	require.True(t, titles[i].AvailableForInstall)
 
 	// primary sort is "hosts_count ASC", followed by "name ASC, source ASC, browser ASC"
 	titles, _, _, err = ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{ListOptions: fleet.ListOptions{
@@ -620,8 +630,10 @@ func testTeamFilterSoftwareTitles(t *testing.T, ds *Datastore) {
 	require.Equal(t, "chrome_extensions", titles[1].Source)
 	require.Equal(t, uint(1), titles[0].VersionsCount)
 	assert.Equal(t, uint(1), titles[0].HostsCount)
+	require.False(t, titles[0].AvailableForInstall)
 	require.Equal(t, uint(2), titles[1].VersionsCount)
 	assert.Equal(t, uint(2), titles[1].HostsCount)
+	require.False(t, titles[1].AvailableForInstall)
 
 	title, err := ds.SoftwareTitleByID(context.Background(), titles[0].ID, nil, globalTeamFilter)
 	require.NoError(t, err)
@@ -656,7 +668,9 @@ func testTeamFilterSoftwareTitles(t *testing.T, ds *Datastore) {
 	require.Equal(t, "installer1", titles[1].Name)
 	require.Equal(t, "apps", titles[1].Source)
 	require.Equal(t, uint(1), titles[0].VersionsCount)
+	require.False(t, titles[0].AvailableForInstall)
 	require.Equal(t, uint(0), titles[1].VersionsCount)
+	require.True(t, titles[1].AvailableForInstall)
 
 	// Testing with team filter -- this team does contain this software title
 	title, err = ds.SoftwareTitleByID(context.Background(), titles[0].ID, &team1.ID, team1TeamFilter)
@@ -686,6 +700,10 @@ func testTeamFilterSoftwareTitles(t *testing.T, ds *Datastore) {
 	require.Equal(t, uint(1), titles[1].VersionsCount)
 	require.Equal(t, uint(0), titles[2].VersionsCount)
 	require.Equal(t, uint(0), titles[3].VersionsCount)
+	require.False(t, titles[0].AvailableForInstall)
+	require.False(t, titles[1].AvailableForInstall)
+	require.True(t, titles[2].AvailableForInstall)
+	require.True(t, titles[3].AvailableForInstall)
 
 	// Testing the team 1 user with self-service only
 	titles, _, _, err = ds.ListSoftwareTitles(
