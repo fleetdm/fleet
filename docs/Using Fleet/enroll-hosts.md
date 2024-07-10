@@ -58,6 +58,20 @@ You can use your software management tool of choice to distribute Fleet's agent 
 
 You can include Fleet Desktop in Fleet's agent (fleetd) by including `--fleet-desktop` in the `fleetctl package` command.
 
+### Debug TLS certificates and connection to Fleet
+
+You can use `fleetctl debug connection` to troubleshoot issues with server/client TLS certificates, e.g.:
+```sh
+# Test TLS connection using the CA root file that will be embedded on fleetd packages:
+fleetctl debug connection \
+  https://fleet.example.com
+
+# Test TLS connection using a custom CA root file:
+fleetctl debug connection \
+  --fleet-certificate ./your-ca-root.pem \
+  https://fleet.example.com
+```
+
 ## Enroll Chromebooks
 
 > The fleetd Chrome browser extension is supported on ChromeOS operating systems that are managed using [Google Admin](https://admin.google.com). It is not intended for non-ChromeOS hosts with the Chrome browser installed.

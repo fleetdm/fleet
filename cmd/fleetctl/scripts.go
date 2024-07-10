@@ -37,7 +37,7 @@ func runScriptCommand() *cli.Command {
 			},
 			&cli.StringFlag{
 				Name:     "host",
-				Usage:    "A host, specified by hostname, serial number, UUID, osquery host ID, or node key.",
+				Usage:    "The host, specified by hostname, UUID, or serial number.",
 				Required: true,
 			},
 			&cli.StringFlag{
@@ -108,7 +108,7 @@ func runScriptCommand() *cli.Command {
 			if err != nil {
 				var nfe service.NotFoundErr
 				if errors.As(err, &nfe) {
-					return errors.New(fleet.RunScriptHostNotFoundErrMsg)
+					return errors.New(fleet.HostNotFoundErrMsg)
 				}
 				var sce fleet.ErrWithStatusCode
 				if errors.As(err, &sce) {
