@@ -9106,7 +9106,7 @@ Add App Store (VPP) app purchased in Apple Business Manager.
 
 #### Example
 
-`POST /api/v1/fleet/software/app_store/2?team_id=3`
+`POST /api/v1/fleet/software/app_store_apps/2?team_id=3`
 
 ##### Default response
 
