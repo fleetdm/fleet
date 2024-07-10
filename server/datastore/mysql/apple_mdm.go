@@ -2725,8 +2725,13 @@ func (ds *Datastore) InsertMDMIdPAccount(ctx context.Context, account *fleet.MDM
 	return ctxerr.Wrap(ctx, err, "creating new MDM IdP account")
 }
 
+func (ds *Datastore) AssociateMDMIdPAccount(ctx context.Context, accountUUID, hostUUID string) error {
+	_, err := ds.writer(ctx).ExecContext(ctx, `UPDATE mdm_idp_accounts SET host_uuid = ? WHERE uuid = ?`, hostUUID, accountUUID)
+	return ctxerr.Wrap(ctx, err, "associating MDM IdP account with device")
+}
+
 func (ds *Datastore) GetMDMIdPAccountByEmail(ctx context.Context, email string) (*fleet.MDMIdPAccount, error) {
-	stmt := `SELECT uuid, username, fullname, email FROM mdm_idp_accounts WHERE email = ?`
+	stmt := `SELECT uuid, username, fullname, email, host_uuid, fleet_enroll_ref FROM mdm_idp_accounts WHERE email = ?`
 	var acct fleet.MDMIdPAccount
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &acct, stmt, email)
 	if err != nil {
@@ -2738,13 +2743,39 @@ func (ds *Datastore) GetMDMIdPAccountByEmail(ctx context.Context, email string) 
 	return &acct, nil
 }
 
-func (ds *Datastore) GetMDMIdPAccountByUUID(ctx context.Context, uuid string) (*fleet.MDMIdPAccount, error) {
-	stmt := `SELECT uuid, username, fullname, email FROM mdm_idp_accounts WHERE uuid = ?`
+func (ds *Datastore) GetMDMIdPAccountByAccountUUID(ctx context.Context, accountUUID string) (*fleet.MDMIdPAccount, error) {
+	stmt := `SELECT uuid, username, fullname, email, host_uuid, fleet_enroll_ref FROM mdm_idp_accounts WHERE uuid = ?`
 	var acct fleet.MDMIdPAccount
-	err := sqlx.GetContext(ctx, ds.reader(ctx), &acct, stmt, uuid)
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &acct, stmt, accountUUID)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return nil, ctxerr.Wrap(ctx, notFound("MDMIdPAccount").WithMessage(fmt.Sprintf("with uuid %s", uuid)))
+			return nil, ctxerr.Wrap(ctx, notFound("MDMIdPAccount").WithMessage(fmt.Sprintf("with uuid %s", accountUUID)))
+		}
+		return nil, ctxerr.Wrap(ctx, err, "select mdm_idp_accounts")
+	}
+	return &acct, nil
+}
+
+func (ds *Datastore) GetMDMIdPAccountByHostUUID(ctx context.Context, hostUUID string) (*fleet.MDMIdPAccount, error) {
+	stmt := `SELECT uuid, username, fullname, email, host_uuid, fleet_enroll_ref FROM mdm_idp_accounts WHERE host_uuid = ?`
+	var acct fleet.MDMIdPAccount
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &acct, stmt, hostUUID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ctxerr.Wrap(ctx, notFound("MDMIdPAccount").WithMessage(fmt.Sprintf("with host uuid %s", hostUUID)))
+		}
+		return nil, ctxerr.Wrap(ctx, err, "select mdm_idp_accounts")
+	}
+	return &acct, nil
+}
+
+func (ds *Datastore) GetMDMIdPAccountByLegacyEnrollRef(ctx context.Context, ref string) (*fleet.MDMIdPAccount, error) {
+	stmt := `SELECT uuid, username, fullname, email, host_uuid, fleet_enroll_ref FROM mdm_idp_accounts WHERE fleet_enroll_ref = ?`
+	var acct fleet.MDMIdPAccount
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &acct, stmt, ref)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ctxerr.Wrap(ctx, notFound("MDMIdPAccount").WithMessage(fmt.Sprintf("with fleet_enroll_ref %s", ref)))
 		}
 		return nil, ctxerr.Wrap(ctx, err, "select mdm_idp_accounts")
 	}
@@ -3636,6 +3667,20 @@ func (ds *Datastore) MDMResetEnrollment(ctx context.Context, hostUUID string) er
                     WHERE host_id = ?`, host.ID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "resetting disk encryption key information for host")
+		}
+
+		// Delete any stored host emails sourced from mdm_idp_accounts. Note that we aren't deleting
+		// the mdm_idp_accounts themselves, just the host_emails associated with the host. This
+		// ensures that hosts that reenroll without IdP will have their emails removed. Hosts
+		// that reenroll with IdP will have their emails re-added in the
+		// AppleMDMPostDEPEnrollmentTask.
+		//
+		// TODO: Should we be applying any platform check here or is this ok for macOS, iOS, and Windows?
+		_, err = tx.ExecContext(ctx, `
+					DELETE FROM host_emails
+					WHERE host_id = ? AND source = ?`, host.ID, fleet.DeviceMappingMDMIdpAccounts)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "resetting host_emails sourced from mdm_idp_accounts")
 		}
 
 		if host.Platform == "darwin" {
