@@ -16,7 +16,8 @@ func TestVPPApps(t *testing.T) {
 		name string
 		fn   func(t *testing.T, ds *Datastore)
 	}{
-		{"VPPAppMetadataAndStatus", testVPPAppMetadataAndStatus},
+		{"VPPAppMetadata", testVPPAppMetadata},
+		{"VPPAppStatus", testVPPAppStatus},
 	}
 
 	for _, c := range cases {
@@ -27,7 +28,7 @@ func TestVPPApps(t *testing.T) {
 	}
 }
 
-func testVPPAppMetadataAndStatus(t *testing.T, ds *Datastore) {
+func testVPPAppMetadata(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
 	// create teams
@@ -103,4 +104,30 @@ func testVPPAppMetadataAndStatus(t *testing.T, ds *Datastore) {
 	require.Error(t, err)
 	require.ErrorAs(t, err, &nfe)
 	require.Nil(t, meta)
+}
+
+func testVPPAppStatus(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	// create a team
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team 1"})
+	require.NoError(t, err)
+	require.NotNil(t, team1)
+
+	// create some apps, one for no-team, one for team1, and one in both
+	vpp1, _ := createVPPApp(t, ds, nil, "vpp1", "com.app.vpp1")
+	vpp2, _ := createVPPApp(t, ds, &team1.ID, "vpp2", "com.app.vpp2")
+	vpp3, _ := createVPPApp(t, ds, nil, "vpp3", "com.app.vpp3")
+	createVPPAppTeamOnly(t, ds, &team1.ID, vpp3)
+
+	// for now they all return zeroes
+	summary, err := ds.GetSummaryHostVPPAppInstalls(ctx, vpp1)
+	require.NoError(t, err)
+	require.Equal(t, &fleet.VPPAppStatusSummary{Pending: 0, Failed: 0, Installed: 0}, summary)
+	summary, err = ds.GetSummaryHostVPPAppInstalls(ctx, vpp2)
+	require.NoError(t, err)
+	require.Equal(t, &fleet.VPPAppStatusSummary{Pending: 0, Failed: 0, Installed: 0}, summary)
+	summary, err = ds.GetSummaryHostVPPAppInstalls(ctx, vpp3)
+	require.NoError(t, err)
+	require.Equal(t, &fleet.VPPAppStatusSummary{Pending: 0, Failed: 0, Installed: 0}, summary)
 }

@@ -1557,9 +1557,13 @@ type Datastore interface {
 	// DeleteSoftwareInstaller deletes the software installer corresponding to the id.
 	DeleteSoftwareInstaller(ctx context.Context, id uint) error
 
-	// GetSoftwareInstallerContents returns the software install summary for the given
-	// software installer id.
+	// GetSummaryHostSoftwareInstalls returns the software install summary for
+	// the given software installer id.
 	GetSummaryHostSoftwareInstalls(ctx context.Context, installerID uint) (*SoftwareInstallerStatusSummary, error)
+
+	// GetSummaryHostVPPAppInstalls returns the VPP app install summary for the
+	// given VPP app adam_id.
+	GetSummaryHostVPPAppInstalls(ctx context.Context, adamID string) (*VPPAppStatusSummary, error)
 
 	GetSoftwareInstallResults(ctx context.Context, resultsUUID string) (*HostSoftwareInstallerResult, error)
 

@@ -193,6 +193,18 @@ func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint
 
 		// add VPP app data if needed
 		if software.VPPAppsCount > 0 {
+			meta, err := svc.ds.GetVPPAppMetadataByTeamAndTitleID(ctx, teamID, id)
+			if err != nil && !fleet.IsNotFound(err) {
+				return nil, ctxerr.Wrap(ctx, err, "get VPP app metadata")
+			}
+			if meta != nil {
+				//summary, err := svc.ds.GetSummaryHostVPPAppInstalls(ctx, meta.AppStoreID)
+				//if err != nil {
+				//	return nil, ctxerr.Wrap(ctx, err, "get VPP app status summary")
+				//}
+				//meta.Status = summary
+			}
+			software.AppStoreApp = meta
 		}
 	}
 
