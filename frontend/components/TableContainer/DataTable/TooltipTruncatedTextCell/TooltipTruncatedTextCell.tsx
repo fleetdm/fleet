@@ -39,7 +39,6 @@ const TooltipTruncatedTextCell = ({
 
   useLayoutEffect(() => {
     if (ref?.current !== null) {
-      console.log("ref.current", ref.current);
       setOffsetWidth(ref.current.offsetWidth);
       setScrollWidth(ref.current.scrollWidth);
     }
