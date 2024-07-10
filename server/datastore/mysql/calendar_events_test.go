@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
+	"strings"
 	"testing"
 	"time"
 
@@ -79,7 +80,7 @@ func testUpdateCalendarEvent(t *testing.T, ds *Datastore) {
 
 	eventDetails, err := ds.GetCalendarEventDetailsByUUID(ctx, eventUUIDNew)
 	require.NoError(t, err)
-	assert.Equal(t, eventUUIDNew, eventDetails.UUID)
+	assert.Equal(t, strings.ToUpper(eventUUIDNew), eventDetails.UUID)
 	assert.Equal(t, *calendarEvent, eventDetails.CalendarEvent)
 	assert.Equal(t, host.ID, eventDetails.HostID)
 	assert.Nil(t, eventDetails.TeamID)

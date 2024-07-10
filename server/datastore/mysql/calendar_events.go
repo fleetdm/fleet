@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"github.com/google/uuid"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -12,9 +13,11 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
+const calendarEventCols = `ce.id, ce.uuid, ce.email, ce.start_time, ce.end_time, ce.event, ce.timezone, ce.created_at, ce.updated_at`
+
 func (ds *Datastore) CreateOrUpdateCalendarEvent(
 	ctx context.Context,
-	uuid string,
+	uuidStr string,
 	email string,
 	startTime time.Time,
 	endTime time.Time,
@@ -23,11 +26,15 @@ func (ds *Datastore) CreateOrUpdateCalendarEvent(
 	hostID uint,
 	webhookStatus fleet.CalendarWebhookStatus,
 ) (*fleet.CalendarEvent, error) {
+	UUID, err := uuid.Parse(uuidStr)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "invalid uuid")
+	}
 	var id int64
 	if err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		const calendarEventsQuery = `
 			INSERT INTO calendar_events (
-				uuid,
+				uuid_bin,
 				email,
 				start_time,
 				end_time,
@@ -35,7 +42,7 @@ func (ds *Datastore) CreateOrUpdateCalendarEvent(
 				timezone
 			) VALUES (?, ?, ?, ?, ?, ?)
 			ON DUPLICATE KEY UPDATE
-				uuid = VALUES(uuid),
+				uuid_bin = VALUES(uuid_bin),
 				start_time = VALUES(start_time),
 				end_time = VALUES(end_time),
 				event = VALUES(event),
@@ -45,7 +52,7 @@ func (ds *Datastore) CreateOrUpdateCalendarEvent(
 		result, err := tx.ExecContext(
 			ctx,
 			calendarEventsQuery,
-			uuid,
+			UUID[:],
 			email,
 			startTime,
 			endTime,
@@ -98,9 +105,7 @@ func (ds *Datastore) CreateOrUpdateCalendarEvent(
 }
 
 func getCalendarEventByID(ctx context.Context, q sqlx.QueryerContext, id uint) (*fleet.CalendarEvent, error) {
-	const calendarEventsQuery = `
-		SELECT * FROM calendar_events WHERE id = ?;
-	`
+	const calendarEventsQuery = "SELECT " + calendarEventCols + " FROM calendar_events ce WHERE id = ?"
 	var calendarEvent fleet.CalendarEvent
 	err := sqlx.GetContext(ctx, q, &calendarEvent, calendarEventsQuery, id)
 	if err != nil {
@@ -113,9 +118,7 @@ func getCalendarEventByID(ctx context.Context, q sqlx.QueryerContext, id uint) (
 }
 
 func (ds *Datastore) GetCalendarEvent(ctx context.Context, email string) (*fleet.CalendarEvent, error) {
-	const calendarEventsQuery = `
-		SELECT * FROM calendar_events WHERE email = ?;
-	`
+	const calendarEventsQuery = "SELECT " + calendarEventCols + " FROM calendar_events ce WHERE email = ?"
 	var calendarEvent fleet.CalendarEvent
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &calendarEvent, calendarEventsQuery, email)
 	if err != nil {
@@ -127,29 +130,37 @@ func (ds *Datastore) GetCalendarEvent(ctx context.Context, email string) (*fleet
 	return &calendarEvent, nil
 }
 
-func (ds *Datastore) GetCalendarEventDetailsByUUID(ctx context.Context, uuid string) (*fleet.CalendarEventDetails, error) {
+func (ds *Datastore) GetCalendarEventDetailsByUUID(ctx context.Context, uuidStr string) (*fleet.CalendarEventDetails, error) {
+	UUID, err := uuid.Parse(uuidStr)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "invalid uuid")
+	}
 	const calendarEventsByUUIDQuery = `
-		SELECT ce.*, h.team_id as team_id, h.id as host_id FROM calendar_events ce
+		SELECT ` + calendarEventCols + `, h.team_id as team_id, h.id as host_id FROM calendar_events ce
 		LEFT JOIN host_calendar_events hce ON hce.calendar_event_id = ce.id
 		LEFT JOIN hosts h ON h.id = hce.host_id
-		WHERE ce.uuid = ?;
+		WHERE ce.uuid_bin = ?;
 	`
 	var calendarEvent fleet.CalendarEventDetails
-	err := sqlx.GetContext(ctx, ds.reader(ctx), &calendarEvent, calendarEventsByUUIDQuery, uuid)
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &calendarEvent, calendarEventsByUUIDQuery, UUID[:])
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, ctxerr.Wrap(ctx, notFound("CalendarEvent").WithMessage(fmt.Sprintf("uuid: %s", uuid)))
+			return nil, ctxerr.Wrap(ctx, notFound("CalendarEvent").WithMessage(fmt.Sprintf("uuid: %s", UUID.String())))
 		}
 		return nil, ctxerr.Wrap(ctx, err, "get calendar event")
 	}
 	return &calendarEvent, nil
 }
 
-func (ds *Datastore) UpdateCalendarEvent(ctx context.Context, calendarEventID uint, uuid string, startTime time.Time, endTime time.Time,
+func (ds *Datastore) UpdateCalendarEvent(ctx context.Context, calendarEventID uint, uuidStr string, startTime time.Time, endTime time.Time,
 	data []byte, timeZone string) error {
+	UUID, err := uuid.Parse(uuidStr)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "invalid uuid")
+	}
 	const calendarEventsQuery = `
 		UPDATE calendar_events SET
-			uuid = ?,
+			uuid_bin = ?,
 			start_time = ?,
 			end_time = ?,
 			event = ?,
@@ -157,7 +168,7 @@ func (ds *Datastore) UpdateCalendarEvent(ctx context.Context, calendarEventID ui
 			updated_at = CURRENT_TIMESTAMP
 		WHERE id = ?;
 	`
-	if _, err := ds.writer(ctx).ExecContext(ctx, calendarEventsQuery, uuid, startTime, endTime, data, timeZone,
+	if _, err := ds.writer(ctx).ExecContext(ctx, calendarEventsQuery, UUID[:], startTime, endTime, data, timeZone,
 		calendarEventID); err != nil {
 		return ctxerr.Wrap(ctx, err, "update calendar event")
 	}
@@ -186,7 +197,7 @@ func (ds *Datastore) GetHostCalendarEvent(ctx context.Context, hostID uint) (*fl
 		return nil, nil, ctxerr.Wrap(ctx, err, "get host calendar event")
 	}
 	const calendarEventsQuery = `
-		SELECT * FROM calendar_events WHERE id = ?
+		SELECT ` + calendarEventCols + ` FROM calendar_events ce WHERE id = ?
 	`
 	var calendarEvent fleet.CalendarEvent
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &calendarEvent, calendarEventsQuery, hostCalendarEvent.CalendarEventID); err != nil {
@@ -200,7 +211,7 @@ func (ds *Datastore) GetHostCalendarEvent(ctx context.Context, hostID uint) (*fl
 
 func (ds *Datastore) GetHostCalendarEventByEmail(ctx context.Context, email string) (*fleet.HostCalendarEvent, *fleet.CalendarEvent, error) {
 	const calendarEventsQuery = `
-		SELECT * FROM calendar_events WHERE email = ?
+		SELECT ` + calendarEventCols + ` FROM calendar_events ce WHERE email = ?
 	`
 	var calendarEvent fleet.CalendarEvent
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &calendarEvent, calendarEventsQuery, email); err != nil {
@@ -236,7 +247,7 @@ func (ds *Datastore) UpdateHostCalendarWebhookStatus(ctx context.Context, hostID
 
 func (ds *Datastore) ListCalendarEvents(ctx context.Context, teamID *uint) ([]*fleet.CalendarEvent, error) {
 	calendarEventsQuery := `
-		SELECT ce.* FROM calendar_events ce
+		SELECT ` + calendarEventCols + ` FROM calendar_events ce
 	`
 
 	var args []interface{}
@@ -258,7 +269,7 @@ func (ds *Datastore) ListCalendarEvents(ctx context.Context, teamID *uint) ([]*f
 
 func (ds *Datastore) ListOutOfDateCalendarEvents(ctx context.Context, t time.Time) ([]*fleet.CalendarEvent, error) {
 	calendarEventsQuery := `
-		SELECT ce.* FROM calendar_events ce WHERE updated_at < ?
+		SELECT ` + calendarEventCols + ` FROM calendar_events ce WHERE updated_at < ?
 	`
 	var calendarEvents []*fleet.CalendarEvent
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &calendarEvents, calendarEventsQuery, t); err != nil {
