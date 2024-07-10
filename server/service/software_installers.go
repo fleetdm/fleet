@@ -435,7 +435,7 @@ func (svc *Service) GetAppStoreSoftware(ctx context.Context, teamID *uint) ([]*f
 }
 
 type addAppStoreAppRequest struct {
-	TeamID     *uint  `query:"team_id"`
+	TeamID     *uint  `query:"team_id,optional"`
 	AppStoreID string `url:"app_store_id"`
 }
 

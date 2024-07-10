@@ -10570,3 +10570,90 @@ func (s *integrationEnterpriseTestSuite) TestAutofillPoliciesAuthTeamUser() {
 		)
 	}
 }
+
+func (s *integrationMDMTestSuite) TestMDMVPPToken() {
+	t := s.T()
+	// Invalid token
+	t.Setenv("FLEET_DEV_VPP_URL", s.appleVPPConfigSrv.URL+"?invalidToken")
+	s.uploadDataViaForm("/api/latest/fleet/mdm/apple/vpp_token", "token", "token.vpptoken", []byte("foobar"), http.StatusUnprocessableEntity, "Invalid token. Please provide a valid content token from Apple Business Manager.")
+
+	// Simulate a server error from the Apple API
+	t.Setenv("FLEET_DEV_VPP_URL", s.appleVPPConfigSrv.URL+"?serverError")
+	s.uploadDataViaForm("/api/latest/fleet/mdm/apple/vpp_token", "token", "token.vpptoken", []byte("foobar"), http.StatusInternalServerError, "Apple VPP endpoint returned error: Internal server error (error number: 9603)")
+
+	// Valid token
+	orgName := "Fleet Device Management Inc."
+	location := "Fleet Location One"
+	token := "mycooltoken"
+	expDate := "2025-06-24T15:50:50+0000"
+	tokenJSON := fmt.Sprintf(`{"expDate":"%s","token":"%s","orgName":"%s"}`, expDate, token, orgName)
+	t.Setenv("FLEET_DEV_VPP_URL", s.appleVPPConfigSrv.URL)
+	s.uploadDataViaForm("/api/latest/fleet/mdm/apple/vpp_token", "token", "token.vpptoken", []byte(base64.StdEncoding.EncodeToString([]byte(tokenJSON))), http.StatusAccepted, "")
+
+	// Get the token
+	var resp getMDMAppleVPPTokenResponse
+	s.DoJSON("GET", "/api/latest/fleet/vpp", &getMDMAppleVPPTokenRequest{}, http.StatusOK, &resp)
+	require.NoError(t, resp.Err)
+	require.Equal(t, orgName, resp.OrgName)
+	require.Equal(t, location, resp.Location)
+	require.Equal(t, expDate, resp.RenewDate)
+
+	// Simulate renewal flow
+	orgName = "Fleet Device Management Inc. New Org Name"
+	token = "myothercooltoken"
+	expDate = "2026-06-24T15:50:50+0000"
+	tokenJSON = fmt.Sprintf(`{"expDate":"%s","token":"%s","orgName":"%s"}`, expDate, token, orgName)
+	s.uploadDataViaForm("/api/latest/fleet/mdm/apple/vpp_token", "token", "token.vpptoken", []byte(base64.StdEncoding.EncodeToString([]byte(tokenJSON))), http.StatusAccepted, "")
+
+	resp = getMDMAppleVPPTokenResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/vpp", &getMDMAppleVPPTokenRequest{}, http.StatusOK, &resp)
+	require.NoError(t, resp.Err)
+	require.Equal(t, orgName, resp.OrgName)
+	require.Equal(t, location, resp.Location)
+	require.Equal(t, expDate, resp.RenewDate)
+
+	// Create a team
+	var newTeamResp teamResponse
+	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{TeamPayload: fleet.TeamPayload{Name: ptr.String("Team 1")}}, http.StatusOK, &newTeamResp)
+	team := newTeamResp.Team
+
+	// Get list of VPP apps from "Apple"
+	// We're passing team 1 here, but we haven't added any app store apps to that team, so we get
+	// back all available apps in our VPP location.
+	var appResp getAppStoreSoftwareResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/app_store/%d", team.ID), &getAppStoreSoftwareRequest{}, http.StatusOK, &appResp)
+	require.NoError(t, appResp.Err)
+	require.Len(t, appResp.Apps, 2)
+	require.Equal(t, "App 1", appResp.Apps[0].Name)
+	require.Equal(t, "a-1", appResp.Apps[0].BundleIdentifier)
+	require.Equal(t, uint(12), appResp.Apps[0].AvailableCount)
+	require.Equal(t, "https://example.com/images/1", appResp.Apps[0].IconURL)
+	require.Equal(t, "1", appResp.Apps[0].AdamID)
+
+	require.Equal(t, "App 2", appResp.Apps[1].Name)
+	require.Equal(t, "b-2", appResp.Apps[1].BundleIdentifier)
+	require.Equal(t, uint(3), appResp.Apps[1].AvailableCount)
+	require.Equal(t, "https://example.com/images/2", appResp.Apps[1].IconURL)
+	require.Equal(t, "2", appResp.Apps[1].AdamID)
+
+	// Add an app store app to team 1
+	var addAppResp addAppStoreAppResponse
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/software/app_store/1"), &addAppStoreAppRequest{}, http.StatusOK, &addAppResp, "team_id", strconv.Itoa(int(team.ID)))
+
+	// Now we should be filtering out the app we added to team 1
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/app_store/%d", team.ID), &getAppStoreSoftwareRequest{}, http.StatusOK, &appResp)
+	require.NoError(t, appResp.Err)
+	require.Len(t, appResp.Apps, 1)
+	require.Equal(t, "App 2", appResp.Apps[0].Name)
+	require.Equal(t, "b-2", appResp.Apps[0].BundleIdentifier)
+	require.Equal(t, uint(3), appResp.Apps[0].AvailableCount)
+	require.Equal(t, "https://example.com/images/2", appResp.Apps[0].IconURL)
+	require.Equal(t, "2", appResp.Apps[0].AdamID)
+
+	// Add an app store app to non-existent team
+	// s.DoJSON("POST", "/api/latest/fleet/software/app_store/1", &addAppStoreAppRequest{}, http.StatusOK, &addAppResp, "team_id", "9999")
+
+	// Delete VPP token and check that it's not appearing anymore
+	s.Do("DELETE", "/api/latest/fleet/mdm/apple/vpp_token", &deleteMDMAppleVPPTokenRequest{}, http.StatusNoContent)
+	s.DoJSON("GET", "/api/latest/fleet/vpp", &getMDMAppleVPPTokenRequest{}, http.StatusNotFound, &resp)
+}
