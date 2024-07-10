@@ -2,9 +2,12 @@ package cron
 
 import (
 	"context"
+	"crypto/sha256"
 	"errors"
 	"fmt"
 	"slices"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -391,6 +394,25 @@ func processFailingHostExistingCalendarEvent(
 	updated := false
 	now := time.Now()
 
+	// Function to generate calendar event body.
+	var generatedTag string
+	genBodyFn := func(conflict bool) (string, bool, error) {
+		var body string
+		body, generatedTag = calendar.GenerateCalendarEventBody(ctx, ds, orgName, host, policyIDtoPolicy, conflict, logger)
+		return body, true, nil
+	}
+
+	// Check if event body needs to be updated.
+	updatedBodyTag := getBodyTag(ctx, ds, host, policyIDtoPolicy, logger)
+
+	if calendarEvent.GetBodyTag() != updatedBodyTag && updatedBodyTag != "" {
+		err = userCalendar.UpdateEventBody(calendarEvent, genBodyFn)
+		if err != nil {
+			return fmt.Errorf("update event body: %w", err)
+		}
+		updated = true
+	}
+
 	if calendarConfig.AlwaysReloadEvent() || shouldReloadCalendarEvent(now, calendarEvent, hostCalendarEvent) {
 		// Refetch the event since it may have updated since we got the lock.
 		// We need the latest event data (ETag) to make sure that we get correct data from the calendar service.
@@ -406,7 +428,7 @@ func processFailingHostExistingCalendarEvent(
 
 		updatedEvent, _, err = userCalendar.GetAndUpdateEvent(
 			calendarEvent, func(conflict bool) (string, bool, error) {
-				return calendar.GenerateCalendarEventBody(ctx, ds, orgName, host, policyIDtoPolicy, conflict, logger), true, nil
+				return calendar.GenerateCalendarEventBody(ctx, ds, orgName, host, policyIDtoPolicy, conflict, logger), true, nil)
 			},
 			fleet.CalendarGetAndUpdateEventOpts{UpdateTimezone: true},
 		)
@@ -418,6 +440,12 @@ func processFailingHostExistingCalendarEvent(
 	}
 
 	if updated {
+		if generatedTag != "" {
+			err = updatedEvent.SaveBodyTag(generatedTag)
+			if err != nil {
+				return fmt.Errorf("save calendar event body tag: %w", err)
+			}
+		}
 		if err := ds.UpdateCalendarEvent(
 			ctx,
 			calendarEvent.ID,
@@ -482,6 +510,50 @@ func processFailingHostExistingCalendarEvent(
 	return nil
 }
 
+func getBodyTag(ctx context.Context, ds fleet.Datastore, host fleet.HostPolicyMembershipData, policyIDtoPolicy *sync.Map,
+	logger kitlog.Logger) string {
+	var updatedBodyTag string
+	policyIDs := strings.Split(host.FailingPolicyIDs, ",")
+	if len(policyIDs) == 1 && policyIDs[0] != "" {
+		var policy *calendar.PolicyLiteWithMeta
+		policyAny, ok := policyIDtoPolicy.Load(policyIDs[0])
+		if !ok {
+			id, err := strconv.ParseUint(policyIDs[0], 10, 64)
+			if err != nil {
+				level.Error(logger).Log("msg", "parse policy id", "err", err)
+				// Do nothing
+				return ""
+			}
+			policyLite, err := ds.PolicyLite(ctx, uint(id))
+			if err != nil {
+				level.Error(logger).Log("msg", "get policy", "err", err)
+				// Do nothing
+				return ""
+			}
+			policy = new(calendar.PolicyLiteWithMeta)
+			policy.PolicyLite = *policyLite
+			policyIDtoPolicy.Store(policyIDs[0], policy)
+		} else {
+			policy = policyAny.(*calendar.PolicyLiteWithMeta)
+		}
+		if policy.Tag != "" {
+			updatedBodyTag = policy.Tag
+			return updatedBodyTag
+		}
+		// If body tag wasn't cached, we calculate it.
+		policyDescription := strings.TrimSpace(policy.Description)
+		if policyDescription == "" || policy.Resolution == nil || strings.TrimSpace(*policy.Resolution) == "" {
+			updatedBodyTag = calendar.DefaultEventBodyTag
+		} else {
+			// Calculate a unique signature for the event body, which we will use to check if the event body has changed.
+			updatedBodyTag = fmt.Sprintf("%x", sha256.Sum256([]byte(policy.Description+*policy.Resolution)))
+		}
+	} else {
+		updatedBodyTag = calendar.DefaultEventBodyTag
+	}
+	return updatedBodyTag
+}
+
 func shouldReloadCalendarEvent(now time.Time, calendarEvent *fleet.CalendarEvent, hostCalendarEvent *fleet.HostCalendarEvent) bool {
 	// Check the user calendar regularly (but not every cron run)
 	// to reduce load on both Fleet and the calendar service.
@@ -540,14 +612,22 @@ func attemptCreatingEventOnUserCalendar(
 	year, month, today := time.Now().Date()
 	preferredDate := getPreferredCalendarEventDate(year, month, today)
 	for {
+		var generatedTag string
 		calendarEvent, err := userCalendar.CreateEvent(
 			preferredDate, func(conflict bool) (string, bool, error) {
-				return calendar.GenerateCalendarEventBody(ctx, ds, orgName, host, policyIDtoPolicy, conflict, logger), true, nil
+				var body string
+				body, generatedTag = calendar.GenerateCalendarEventBody(ctx, ds, orgName, host, policyIDtoPolicy, conflict, logger), true, nil)
+				body, generatedTag = calendar.GenerateCalendarEventBody(ctx, ds, orgName, host, policyIDtoPolicy, conflict, logger)
+				return body, true, nil
 			}, fleet.CalendarCreateEventOpts{},
 		)
 		var dee fleet.DayEndedError
 		switch {
 		case err == nil:
+			err = calendarEvent.SaveBodyTag(generatedTag)
+			if err != nil {
+				return nil, err
+			}
 			return calendarEvent, nil
 		case errors.As(err, &dee):
 			preferredDate = addBusinessDay(preferredDate)

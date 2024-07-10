@@ -89,6 +89,7 @@ type GoogleCalendarAPI interface {
 	GetSetting(name string) (*calendar.Setting, error)
 	ListEvents(timeMin, timeMax string) (*calendar.Events, error)
 	CreateEvent(event *calendar.Event) (*calendar.Event, error)
+	UpdateEvent(event *calendar.Event) (*calendar.Event, error)
 	GetEvent(id, eTag string) (*calendar.Event, error)
 	DeleteEvent(id string) error
 	Watch(eventUUID string, channelID string, ttl uint64) (resourceID string, err error)
@@ -101,6 +102,8 @@ type eventDetails struct {
 	// ChannelID and ResourceID are for watching event changes
 	ChannelID  string `json:"channel_id"`
 	ResourceID string `json:"resource_id"`
+	// BodyTag is an identifier for the body content of the event
+	BodyTag string `json:"body_tag"`
 }
 
 type GoogleCalendarLowLevelAPI struct {
@@ -151,6 +154,15 @@ func (lowLevelAPI *GoogleCalendarLowLevelAPI) CreateEvent(event *calendar.Event)
 	result, err := lowLevelAPI.withRetry(
 		func() (any, error) {
 			return lowLevelAPI.service.Events.Insert(calendarID, event).Do()
+		},
+	)
+	return result.(*calendar.Event), err
+}
+
+func (lowLevelAPI *GoogleCalendarLowLevelAPI) UpdateEvent(event *calendar.Event) (*calendar.Event, error) {
+	result, err := lowLevelAPI.withRetry(
+		func() (any, error) {
+			return lowLevelAPI.service.Events.Update(calendarID, event.Id, event).Do()
 		},
 	)
 	return result.(*calendar.Event), err
@@ -258,6 +270,33 @@ func (c *GoogleCalendar) Configure(userEmail string) error {
 	c.adjustedUserEmail = adjustedUserEmail
 	// Clear the timezone offset so that it will be recalculated
 	c.location = nil
+	return nil
+}
+
+func (c *GoogleCalendar) UpdateEventBody(event *fleet.CalendarEvent,
+	genBodyFn func(conflict bool) (body string, ok bool, err error)) error {
+	details, err := c.unmarshalDetails(event)
+	if err != nil {
+		return err
+	}
+	gEvent, err := c.config.API.GetEvent(details.ID, "")
+	if err != nil {
+		return ctxerr.Wrap(c.config.Context, err, "retrieving Google calendar event")
+	}
+	// Check if the current description contains the conflict text
+	conflict := strings.Contains(gEvent.Description, fleet.CalendarEventConflictText)
+	var ok bool
+	gEvent.Description, ok, err = genBodyFn(conflict)
+	if err != nil {
+		return ctxerr.Wrap(c.config.Context, err, "generating calendar event body")
+	}
+	if !ok {
+		return nil
+	}
+	_, err = c.config.API.UpdateEvent(gEvent)
+	if err != nil {
+		return ctxerr.Wrap(c.config.Context, err, "updating Google calendar event")
+	}
 	return nil
 }
 

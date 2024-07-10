@@ -11,6 +11,7 @@ import (
 
 const (
 	CalendarBodyStaticHeader   = "reserved this time to make some changes to your work computer"
+	CalendarEventConflictText  = "because there was no remaining availability "
 	CalendarDefaultDescription = "needs to make sure your device meets the organization's requirements."
 	CalendarDefaultResolution  = "During this maintenance window, you can expect updates to be applied automatically. Your device may be unavailable during this time."
 )
@@ -39,6 +40,8 @@ type UserCalendar interface {
 	GetAndUpdateEvent(event *CalendarEvent, genBodyFn func(conflict bool) (body string, ok bool, err error),
 		opts CalendarGetAndUpdateEventOpts) (updatedEvent *CalendarEvent,
 		updated bool, err error)
+	// UpdateEventBody updates the body of the calendar event.
+	UpdateEventBody(event *CalendarEvent, genBodyFn func(conflict bool) (body string, ok bool, err error)) error
 	// DeleteEvent deletes the event with the given ID.
 	DeleteEvent(event *CalendarEvent) error
 	// StopEventChannel stops the event's callback channel.
