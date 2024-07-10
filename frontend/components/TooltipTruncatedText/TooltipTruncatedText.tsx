@@ -30,16 +30,15 @@ const TooltipTruncatedText = ({
 
   // Tooltip visibility logic: Enable only when text is truncated
   const ref = useRef<HTMLInputElement>(null);
-  const [offsetWidth, setOffsetWidth] = useState(0);
-  const [scrollWidth, setScrollWidth] = useState(0);
+  const [tooltipDisabled, setTooltipDisabled] = useState(true);
 
   useLayoutEffect(() => {
     if (ref?.current !== null) {
-      setOffsetWidth(ref.current.offsetWidth);
-      setScrollWidth(ref.current.scrollWidth);
+      const scrollWidth = ref.current.scrollWidth;
+      const offsetWidth = ref.current.offsetWidth;
+      setTooltipDisabled(scrollWidth <= offsetWidth);
     }
   }, [ref]);
-  const tooltipDisabled = offsetWidth === scrollWidth;
   // End
 
   const tooltipId = uniqueId();
