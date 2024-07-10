@@ -8796,7 +8796,6 @@ Get a list of all software.
       "id": 22,
       "name": "Google Chrome.app",
       "available_for_install": false,
-      "app_store_app": null,
       "self_service": false,
       "versions_count": 5,
       "source": "apps",
