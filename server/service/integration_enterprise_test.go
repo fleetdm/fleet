@@ -12069,6 +12069,16 @@ func (s *integrationEnterpriseTestSuite) TestCalendarEventBodyUpdate() {
 	assert.Contains(t, calEvents[0].Description, team1Policy1Calendar.Description)
 	assert.Contains(t, calEvents[0].Description, *team1Policy1Calendar.Resolution)
 
+	// Change resolution
+	team1Policy1Calendar.Resolution = ptr.String("changeResolution")
+	require.NoError(t, s.ds.SavePolicy(ctx, team1Policy1Calendar, false, false))
+	triggerAndWait(ctx, t, s.ds, s.calendarSchedule, 5*time.Second)
+
+	calEvents = getEvents()
+	require.Len(t, calEvents, 1)
+	assert.Contains(t, calEvents[0].Description, team1Policy1Calendar.Description)
+	assert.Contains(t, calEvents[0].Description, *team1Policy1Calendar.Resolution)
+
 	// Cause another policy to fail
 	s.DoJSON("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
 		host1Team1,
