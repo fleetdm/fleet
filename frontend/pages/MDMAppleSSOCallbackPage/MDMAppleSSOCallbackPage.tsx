@@ -29,6 +29,8 @@ const EnrollmentGate = ({
 }: IEnrollmentGateProps) => {
   const [showEULA, setShowEULA] = useState(Boolean(eulaToken));
 
+  const dep_device_info = localStorage.getItem("dep_device_info") || "";
+
   if (!profileToken || error) {
     return <SSOError />;
   }
@@ -55,10 +57,11 @@ const EnrollmentGate = ({
 
   return (
     <RedirectTo
-      url={endpoints.MDM_APPLE_ENROLLMENT_PROFILE(
-        profileToken,
-        enrollmentReference
-      )}
+      url={endpoints.MDM_APPLE_ENROLLMENT_PROFILE({
+        token: profileToken,
+        ref: enrollmentReference,
+        dep_device_info,
+      })}
     />
   );
 };
