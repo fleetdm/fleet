@@ -1,4 +1,5 @@
-import { userStub, userTeamStub } from "test/stubs";
+import { userTeamStub } from "test/stubs";
+import createMockUser from "__mocks__/userMock";
 import { IUserUpdateBody } from "interfaces/user";
 
 import { IFormData, NewUserType } from "../components/UserForm/UserForm";
@@ -26,7 +27,7 @@ describe("userManagementHelpers module", () => {
         teams: [updatedTeam, newTeam],
       };
       const updatedData = userManagementHelpers.generateUpdateData(
-        userStub,
+        createMockUser(),
         formData
       );
 

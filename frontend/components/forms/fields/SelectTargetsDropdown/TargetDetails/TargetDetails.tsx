@@ -1,28 +1,35 @@
-import React, { Component } from "react";
-import PropTypes from "prop-types";
+import React from "react";
 import { noop } from "lodash";
 import AceEditor from "react-ace";
 import classnames from "classnames";
 
 import { humanHostMemory } from "utilities/helpers";
+// @ts-ignore
 import FleetIcon from "components/icons/FleetIcon";
+// @ts-ignore
 import PlatformIcon from "components/icons/PlatformIcon";
-import targetInterface from "interfaces/target";
+import { ISelectHost, ISelectLabel, ISelectTeam } from "interfaces/target";
+
+import { isTargetHost, isTargetTeam, isTargetLabel } from "../helpers";
 
 const baseClass = "target-details";
 
-class TargetDetails extends Component {
-  static propTypes = {
-    target: targetInterface,
-    className: PropTypes.string,
-    handleBackToResults: PropTypes.func,
-  };
+interface ITargetDetailsProps {
+  target: ISelectHost | ISelectTeam | ISelectLabel; // Replace with Target
+  className?: string;
+  handleBackToResults?: () => void;
+}
 
-  static defaultProps = {
-    handleBackToResults: noop,
-  };
-
-  onlineHosts = (labelBaseClass, count, online) => {
+const TargetDetails = ({
+  target,
+  className = "",
+  handleBackToResults = noop,
+}: ITargetDetailsProps): JSX.Element => {
+  const onlineHosts = (
+    labelBaseClass: string,
+    count: number,
+    online: number
+  ) => {
     const offline = count - online;
     const percentCount = ((count - offline) / count) * 100;
     const percentOnline = parseFloat(percentCount.toFixed(2));
@@ -39,8 +46,7 @@ class TargetDetails extends Component {
     return false;
   };
 
-  renderHost = () => {
-    const { className, handleBackToResults, target } = this.props;
+  const renderHost = (hostTarget: ISelectHost) => {
     const {
       display_text: displayText,
       primary_mac: hostMac,
@@ -50,7 +56,7 @@ class TargetDetails extends Component {
       os_version: osVersion,
       platform,
       status,
-    } = target;
+    } = hostTarget;
     const hostBaseClass = "host-target";
     const isOnline = status === "online";
     const isOffline = status === "offline";
@@ -131,19 +137,17 @@ class TargetDetails extends Component {
     );
   };
 
-  renderLabel = () => {
-    const { onlineHosts } = this;
-    const { handleBackToResults, className, target } = this.props;
+  const renderLabel = (labelTarget: ISelectLabel) => {
     const {
       count,
       description,
       display_text: displayText,
       label_type: labelType,
-      online,
+      // online,
       query,
-    } = target;
+    } = labelTarget;
     const labelBaseClass = "label-target";
-
+    console.log("ERROR 1: labelTarget", labelTarget);
     return (
       <div className={`${labelBaseClass} ${className}`}>
         <button
@@ -162,39 +166,35 @@ class TargetDetails extends Component {
           <span className={`${labelBaseClass}__hosts-count`}>
             <strong>{count}</strong>HOSTS
           </span>
-          {onlineHosts(labelBaseClass, count, online)}
+          {/* {onlineHosts(labelBaseClass, count, online)} */}
         </p>
 
         <p className={`${labelBaseClass}__description`}>
           {description || "No Description"}
         </p>
-
-        {labelType !== 1 && (
-          <div className={`${labelBaseClass}__editor`}>
-            <AceEditor
-              editorProps={{ $blockScrolling: Infinity }}
-              mode="fleet"
-              minLines={1}
-              maxLines={20}
-              name="label-query"
-              readOnly
-              setOptions={{ wrap: true }}
-              showGutter={false}
-              showPrintMargin={false}
-              theme="fleet"
-              value={query}
-              width="100%"
-              fontSize={14}
-            />
-          </div>
-        )}
+        <div className={`${labelBaseClass}__editor`}>
+          <AceEditor
+            editorProps={{ $blockScrolling: Infinity }}
+            mode="fleet"
+            minLines={1}
+            maxLines={20}
+            name="label-query"
+            readOnly
+            setOptions={{ wrap: true }}
+            showGutter={false}
+            showPrintMargin={false}
+            theme="fleet"
+            value={query}
+            width="100%"
+            fontSize={14}
+          />
+        </div>
       </div>
     );
   };
 
-  renderTeam = () => {
-    const { className, target } = this.props;
-    const { count, display_text: displayText } = target;
+  const renderTeam = (teamTarget: ISelectTeam) => {
+    const { count, display_text: displayText } = teamTarget;
     const labelBaseClass = "label-target";
 
     return (
@@ -217,26 +217,22 @@ class TargetDetails extends Component {
     );
   };
 
-  render() {
-    const { target } = this.props;
-
-    if (!target) {
-      return false;
-    }
-
-    const { target_type: targetType } = target;
-    const { renderHost, renderLabel, renderTeam } = this;
-
-    if (targetType === "labels") {
-      return renderLabel();
-    }
-
-    if (targetType === "teams") {
-      return renderTeam();
-    }
-
-    return renderHost();
+  if (!target) {
+    return <></>;
   }
-}
+
+  if (isTargetHost(target)) {
+    return renderHost(target);
+  }
+
+  if (isTargetLabel(target)) {
+    return renderLabel(target);
+  }
+
+  if (isTargetTeam(target)) {
+    return renderTeam(target);
+  }
+  return <></>;
+};
 
 export default TargetDetails;
