@@ -81,9 +81,10 @@ func orbitCommand() *cli.Command {
 		},
 		Action: func(c *cli.Context) error {
 			return downloadComponents("goreleaser-orbit.yaml", gitTag, map[string]string{
-				"macos":   "orbit-macos",
-				"linux":   "orbit-linux",
-				"windows": "orbit-windows",
+				"macos":       "orbit-macos",
+				"linux":       "orbit-linux",
+				"linux-arm64": "orbit-linux-arm64",
+				"windows":     "orbit-windows",
 			}, outputDirectory, githubUsername, githubAPIToken, retry)
 		},
 	}
@@ -138,9 +139,10 @@ func desktopCommand() *cli.Command {
 		},
 		Action: func(c *cli.Context) error {
 			return downloadComponents("generate-desktop-targets.yml", gitBranch, map[string]string{
-				"macos":   "desktop.app.tar.gz",
-				"linux":   "desktop.tar.gz",
-				"windows": "fleet-desktop.exe",
+				"macos":       "desktop.app.tar.gz",
+				"linux":       "desktop.tar.gz",
+				"linux-arm64": "desktop-arm64.tar.gz",
+				"windows":     "fleet-desktop.exe",
 			}, outputDirectory, githubUsername, githubAPIToken, retry)
 		},
 	}
