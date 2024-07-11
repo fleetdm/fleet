@@ -64,17 +64,21 @@ WHERE
 func insertVPPApps(ctx context.Context, tx sqlx.ExtContext, apps []*fleet.VPPApp) error {
 	stmt := `
 INSERT INTO vpp_apps
-	(adam_id, available_count, bundle_identifier, icon_url, name)
+	(adam_id, available_count, bundle_identifier, icon_url, name, latest_version)
 VALUES
 %s
-ON DUPLICATE KEY UPDATE updated_at = CURRENT_TIMESTAMP
+ON DUPLICATE KEY UPDATE
+	updated_at = CURRENT_TIMESTAMP,
+	latest_version = VALUES(latest_version),
+	icon_url = VALUES(icon_url),
+	name = VALUES(name)
 	`
 	var args []any
 	var insertVals strings.Builder
 
 	for _, a := range apps {
-		insertVals.WriteString(`(?, ?, ?, ?, ?),`)
-		args = append(args, a.AdamID, a.AvailableCount, a.BundleIdentifier, a.IconURL, a.Name)
+		insertVals.WriteString(`(?, ?, ?, ?, ?, ?),`)
+		args = append(args, a.AdamID, a.AvailableCount, a.BundleIdentifier, a.IconURL, a.Name, a.LatestVersion)
 	}
 
 	stmt = fmt.Sprintf(stmt, strings.TrimSuffix(insertVals.String(), ","))

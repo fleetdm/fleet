@@ -62,6 +62,7 @@ func (svc *Service) GetAppStoreApps(ctx context.Context, teamID *uint) ([]*fleet
 	}
 
 	var apps []*fleet.VPPApp
+	var appsToUpdate []*fleet.VPPApp
 	for _, a := range assets {
 		m, ok := assetMetadata[a.AdamID]
 		if !ok {
@@ -69,19 +70,28 @@ func (svc *Service) GetAppStoreApps(ctx context.Context, teamID *uint) ([]*fleet
 			continue
 		}
 
-		if _, ok := assignedApps[a.AdamID]; ok {
-			// Then this is already assigned, so filter it out.
-			continue
-		}
-
-		apps = append(apps, &fleet.VPPApp{
+		app := &fleet.VPPApp{
 			AdamID:           a.AdamID,
 			AvailableCount:   a.AvailableCount,
 			BundleIdentifier: m.BundleID,
 			IconURL:          m.ArtworkURL,
 			Name:             m.TrackName,
 			LatestVersion:    m.Version,
-		})
+		}
+
+		if _, ok := assignedApps[a.AdamID]; ok {
+			// Then this is already assigned, so filter it out.
+			appsToUpdate = append(appsToUpdate, app)
+			continue
+		}
+
+		apps = append(apps, app)
+	}
+
+	if len(appsToUpdate) > 0 {
+		if err := svc.ds.BatchInsertVPPApps(ctx, appsToUpdate); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "updating existing VPP apps")
+		}
 	}
 
 	return apps, nil

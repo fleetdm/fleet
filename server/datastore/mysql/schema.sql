@@ -1674,6 +1674,7 @@ CREATE TABLE `vpp_apps` (
   `bundle_identifier` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
   `icon_url` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
   `name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `latest_version` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
   `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`adam_id`),
