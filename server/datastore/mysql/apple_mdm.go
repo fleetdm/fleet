@@ -784,30 +784,37 @@ func updateMDMAppleHostDB(
 ) error {
 	refetchRequested, lastEnrolledAt := mdmHostEnrollFields(mdmHost)
 
-	updateStmt := `
-		UPDATE hosts SET
-			hardware_serial = ?,
-			uuid = ?,
-			hardware_model = ?,
-			platform =  ?,
-			refetch_requested = ?,
-			last_enrolled_at = ?,
-			osquery_host_id = COALESCE(NULLIF(osquery_host_id, ''), ?)
-		WHERE id = ?`
-
-	if _, err := tx.ExecContext(
-		ctx,
-		updateStmt,
+	args := []interface{}{
 		mdmHost.HardwareSerial,
 		mdmHost.UUID,
 		mdmHost.HardwareModel,
 		mdmHost.Platform,
 		refetchRequested,
-		lastEnrolledAt,
 		// Set osquery_host_id to the device UUID only if it is not already set.
 		mdmHost.UUID,
 		hostID,
-	); err != nil {
+	}
+
+	// Only update last_enrolled_at if this is a iOS/iPadOS device.
+	// macOS should not update last_enrolled_at as it is set when osquery enrolls.
+	lastEnrolledAtColumn := ""
+	if mdmHost.Platform == "ios" || mdmHost.Platform == "ipados" {
+		lastEnrolledAtColumn = "last_enrolled_at = ?,"
+		args = append([]interface{}{lastEnrolledAt}, args...)
+	}
+
+	updateStmt := fmt.Sprintf(`
+		UPDATE hosts SET
+			%s
+			hardware_serial = ?,
+			uuid = ?,
+			hardware_model = ?,
+			platform =  ?,
+			refetch_requested = ?,
+			osquery_host_id = COALESCE(NULLIF(osquery_host_id, ''), ?)
+		WHERE id = ?`, lastEnrolledAtColumn)
+
+	if _, err := tx.ExecContext(ctx, updateStmt, args...); err != nil {
 		return ctxerr.Wrap(ctx, err, "update mdm apple host")
 	}
 
