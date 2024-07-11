@@ -22,6 +22,13 @@ func (ds *Datastore) BatchInsertVPPApps(ctx context.Context, apps []*fleet.VPPAp
 
 func (ds *Datastore) InsertVPPAppWithTeam(ctx context.Context, app *fleet.VPPApp, teamID *uint) error {
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		titleID, err := insertSoftwareTitleForVPPApp(ctx, tx, app)
+		if err != nil {
+			return err
+		}
+
+		app.TitleID = titleID
+
 		if err := insertVPPApps(ctx, tx, []*fleet.VPPApp{app}); err != nil {
 			return ctxerr.Wrap(ctx, err, "InsertVPPAppWithTeam insertVPPApps transaction")
 		}
@@ -64,7 +71,7 @@ WHERE
 func insertVPPApps(ctx context.Context, tx sqlx.ExtContext, apps []*fleet.VPPApp) error {
 	stmt := `
 INSERT INTO vpp_apps
-	(adam_id, available_count, bundle_identifier, icon_url, name, latest_version)
+	(adam_id, available_count, bundle_identifier, icon_url, name, latest_version, title_id)
 VALUES
 %s
 ON DUPLICATE KEY UPDATE
@@ -77,8 +84,8 @@ ON DUPLICATE KEY UPDATE
 	var insertVals strings.Builder
 
 	for _, a := range apps {
-		insertVals.WriteString(`(?, ?, ?, ?, ?, ?),`)
-		args = append(args, a.AdamID, a.AvailableCount, a.BundleIdentifier, a.IconURL, a.Name, a.LatestVersion)
+		insertVals.WriteString(`(?, ?, ?, ?, ?, ?, ?),`)
+		args = append(args, a.AdamID, a.AvailableCount, a.BundleIdentifier, a.IconURL, a.Name, a.LatestVersion, a.TitleID)
 	}
 
 	stmt = fmt.Sprintf(stmt, strings.TrimSuffix(insertVals.String(), ","))
@@ -104,4 +111,17 @@ VALUES
 	_, err := tx.ExecContext(ctx, stmt, adamID, globalOrTmID, teamID)
 
 	return ctxerr.Wrap(ctx, err, "writing vpp app team mapping to db")
+}
+
+func insertSoftwareTitleForVPPApp(ctx context.Context, tx sqlx.ExtContext, app *fleet.VPPApp) (uint, error) {
+	stmt := `INSERT INTO software_titles (name, source, bundle_identifier, browser) VALUES (?, '', ?, '')`
+
+	result, err := tx.ExecContext(ctx, stmt, app.Name, app.BundleIdentifier)
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "writing vpp app software title")
+	}
+
+	id, _ := result.LastInsertId()
+
+	return uint(id), nil
 }
