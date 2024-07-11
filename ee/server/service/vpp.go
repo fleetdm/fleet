@@ -100,11 +100,13 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 		return ctxerr.Wrap(ctx, err, "cannot get team serials for association")
 	}
 
-	if err := vpp.AssociateAssets(token, &vpp.AssociateAssetsRequest{
-		Assets:        assets,
-		SerialNumbers: serials,
-	}); err != nil {
-		return ctxerr.Wrap(ctx, err, "failed to associate vpp assets")
+	if !dryRun {
+		if err := vpp.AssociateAssets(token, &vpp.AssociateAssetsRequest{
+			Assets:        assets,
+			SerialNumbers: serials,
+		}); err != nil {
+			return ctxerr.Wrap(ctx, err, "failed to associate vpp assets")
+		}
 	}
 
 	return nil
