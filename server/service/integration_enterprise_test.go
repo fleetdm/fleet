@@ -10763,6 +10763,9 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	// Add an app store app to non-existent team
 	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{TeamID: ptr.Uint(9999), AppStoreID: appResp.AppStoreApps[0].AdamID}, http.StatusNotFound, &addAppResp)
 
+	// Add an installer
+	// Verify that we are not able to add the VPP app for that same app whose installer we just added
+
 	// Now we should be filtering out the app we added to team 1
 	s.DoJSON("GET", "/api/latest/fleet/software/app_store_apps", &getAppStoreAppsRequest{}, http.StatusOK, &appResp, "team_id", strconv.Itoa(int(team.ID)))
 	require.NoError(t, appResp.Err)

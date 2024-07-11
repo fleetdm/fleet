@@ -68,6 +68,10 @@ func TestVPPAuth(t *testing.T) {
 				return map[fleet.MDMAssetName]fleet.MDMConfigAsset{}, nil
 			}
 
+			ds.TeamFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
+				return &fleet.Team{ID: 1}, nil
+			}
+
 			// Note: these calls always return an error because they're attempting to unmarshal a
 			// non-existent VPP token.
 			_, err := svc.GetAppStoreApps(ctx, tt.teamID)
