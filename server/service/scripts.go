@@ -29,6 +29,8 @@ type runScriptRequest struct {
 	HostID         uint   `json:"host_id"`
 	ScriptID       *uint  `json:"script_id"`
 	ScriptContents string `json:"script_contents"`
+	ScriptName     string `json:"script_name"`
+	TeamID         uint   `json:"team_id"`
 }
 
 type runScriptResponse struct {
@@ -48,6 +50,8 @@ func runScriptEndpoint(ctx context.Context, request interface{}, svc fleet.Servi
 		HostID:         req.HostID,
 		ScriptID:       req.ScriptID,
 		ScriptContents: req.ScriptContents,
+		ScriptName:     req.ScriptName,
+		TeamID:         req.TeamID,
 	}, noWait)
 	if err != nil {
 		return runScriptResponse{Err: err}, nil
