@@ -92,14 +92,17 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, adamID str
 		return err
 	}
 
+	var teamName string
 	if teamID != nil {
-		exists, err := svc.ds.TeamExists(ctx, *teamID)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "checking if team exists")
-		} else if !exists {
+		tm, err := svc.ds.Team(ctx, *teamID)
+		if fleet.IsNotFound(err) {
 			return fleet.NewInvalidArgumentError("team_id", fmt.Sprintf("team %d does not exist", *teamID)).
 				WithStatus(http.StatusNotFound)
+		} else if err != nil {
+			return ctxerr.Wrap(ctx, err, "checking if team exists")
 		}
+
+		teamName = tm.Name
 	}
 
 	vppToken, err := svc.getVPPToken(ctx)
@@ -124,6 +127,16 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, adamID str
 	}
 
 	assetMD := assetMetadata[asset.AdamID]
+
+	// Check if we've already added an installer for this app
+	exists, err := svc.ds.UploadedSoftwareExists(ctx, assetMD.BundleID, teamID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "checking existence of VPP app installer")
+	}
+
+	if exists {
+		return ctxerr.New(ctx, fmt.Sprintf("Error: Couldn't add software. %s already has software available for install on the %s team.", assetMD.TrackName, teamName))
+	}
 
 	app := &fleet.VPPApp{
 		AdamID:           asset.AdamID,

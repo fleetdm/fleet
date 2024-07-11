@@ -583,6 +583,10 @@ type Datastore interface {
 	// attempt on the host.
 	SetHostSoftwareInstallResult(ctx context.Context, result *HostSoftwareInstallResultPayload) error
 
+	// UploadedSoftwareExists checks if a software title with the given bundle identifier exists in
+	// the given team.
+	UploadedSoftwareExists(ctx context.Context, bundleIdentifier string, teamID *uint) (bool, error)
+
 	///////////////////////////////////////////////////////////////////////////////
 	// OperatingSystemsStore
 

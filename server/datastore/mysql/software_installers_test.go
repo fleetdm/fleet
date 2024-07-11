@@ -31,7 +31,6 @@ func TestSoftwareInstallers(t *testing.T) {
 		{"BatchSetSoftwareInstallers", testBatchSetSoftwareInstallers},
 		{"GetSoftwareInstallerMetadataByTeamAndTitleID", testGetSoftwareInstallerMetadataByTeamAndTitleID},
 		{"HasSelfServiceSoftwareInstallers", testHasSelfServiceSoftwareInstallers},
-		{"VPPApps", testVPPApps},
 	}
 
 	for _, c := range cases {

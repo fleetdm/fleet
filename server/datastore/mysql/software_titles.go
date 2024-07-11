@@ -430,3 +430,29 @@ func (ds *Datastore) SyncHostsSoftwareTitles(ctx context.Context, updatedAt time
 	}
 	return nil
 }
+
+func (ds *Datastore) UploadedSoftwareExists(ctx context.Context, bundleIdentifier string, teamID *uint) (bool, error) {
+	stmt := `
+SELECT
+	1
+FROM
+	software_titles st JOIN software_installers si ON si.title_id = st.id
+WHERE
+	st.bundle_identifier = ? AND si.global_or_team_id = ?
+	`
+	var tmID uint
+	if teamID != nil {
+		tmID = *teamID
+	}
+
+	var titleExists bool
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &titleExists, stmt, bundleIdentifier, tmID); err != nil {
+		if err == sql.ErrNoRows {
+			return false, nil
+		}
+
+		return false, ctxerr.Wrap(ctx, err, "checking if software installer exists")
+	}
+
+	return titleExists, nil
+}

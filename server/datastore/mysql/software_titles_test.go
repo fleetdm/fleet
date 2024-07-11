@@ -28,6 +28,7 @@ func TestSoftwareTitles(t *testing.T) {
 		{"TeamFilterSoftwareTitles", testTeamFilterSoftwareTitles},
 		{"ListSoftwareTitlesInstallersOnly", testListSoftwareTitlesInstallersOnly},
 		{"ListSoftwareTitlesAvailableForInstallFilter", testListSoftwareTitlesAvailableForInstallFilter},
+		{"UploadedSoftwareExists", testUploadedSoftwareExists},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -795,4 +796,43 @@ func testListSoftwareTitlesAvailableForInstallFilter(t *testing.T, ds *Datastore
 	require.NoError(t, err)
 	require.EqualValues(t, 2, counts)
 	require.Len(t, titles, 2)
+}
+
+func testUploadedSoftwareExists(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	tm, err := ds.NewTeam(ctx, &fleet.Team{Name: "Team Foo"})
+	require.NoError(t, err)
+
+	installer1, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		Title:            "installer1",
+		Source:           "apps",
+		InstallScript:    "echo",
+		Filename:         "installer1.pkg",
+		BundleIdentifier: "com.foo.installer1",
+	})
+	require.NoError(t, err)
+	require.NotZero(t, installer1)
+	installer2, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		Title:            "installer2",
+		Source:           "apps",
+		InstallScript:    "echo",
+		Filename:         "installer2.pkg",
+		TeamID:           &tm.ID,
+		BundleIdentifier: "com.foo.installer2",
+	})
+	require.NoError(t, err)
+	require.NotZero(t, installer2)
+
+	exists, err := ds.UploadedSoftwareExists(ctx, "com.foo.installer1", nil)
+	require.NoError(t, err)
+	require.True(t, exists)
+
+	exists, err = ds.UploadedSoftwareExists(ctx, "com.foo.installer2", nil)
+	require.NoError(t, err)
+	require.False(t, exists)
+
+	exists, err = ds.UploadedSoftwareExists(ctx, "com.foo.installer2", &tm.ID)
+	require.NoError(t, err)
+	require.True(t, exists)
 }
