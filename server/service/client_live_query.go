@@ -62,19 +62,19 @@ func (h *LiveQueryResultsHandler) Status() *campaignStatus {
 }
 
 // LiveQuery creates a new live query and begins streaming results.
-func (c *Client) LiveQuery(query string, queryID *uint, labels []string, hosts []string) (*LiveQueryResultsHandler, error) {
-	return c.LiveQueryWithContext(context.Background(), query, queryID, labels, hosts)
+func (c *Client) LiveQuery(query string, queryID *uint, labels []string, hostIdentifiers []string) (*LiveQueryResultsHandler, error) {
+	return c.LiveQueryWithContext(context.Background(), query, queryID, labels, hostIdentifiers)
 }
 
 func (c *Client) LiveQueryWithContext(
-	ctx context.Context, query string, queryID *uint, labels []string, hosts []string,
+	ctx context.Context, query string, queryID *uint, labels []string, hostIdentifiers []string,
 ) (*LiveQueryResultsHandler, error) {
-	req := createDistributedQueryCampaignByNamesRequest{
+	req := createDistributedQueryCampaignByIdentifierRequest{
 		QueryID:  queryID,
 		QuerySQL: query,
-		Selected: distributedQueryCampaignTargetsByNames{Labels: labels, Hosts: hosts},
+		Selected: distributedQueryCampaignTargetsByIdentifiers{Labels: labels, Hosts: hostIdentifiers},
 	}
-	verb, path := "POST", "/api/latest/fleet/queries/run_by_names"
+	verb, path := "POST", "/api/latest/fleet/queries/run_by_identifiers"
 	var responseBody createDistributedQueryCampaignResponse
 	err := c.authenticatedRequest(req, verb, path, &responseBody)
 	if err != nil {

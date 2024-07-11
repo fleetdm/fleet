@@ -114,7 +114,7 @@ func runScriptSyncEndpoint(ctx context.Context, request interface{}, svc fleet.S
 		// response struct.
 		hostTimeout = true
 	}
-	result.Message = result.UserMessage(hostTimeout)
+	result.Message = result.UserMessage(hostTimeout, result.Timeout)
 	return runScriptSyncResponse{
 		HostScriptResult: result,
 		HostTimeout:      hostTimeout,
@@ -211,9 +211,8 @@ func (svc *Service) RunHostScript(ctx context.Context, request *fleet.HostScript
 
 	maxPending := maxPendingScripts
 
-	// authorize with the host's team and the script id provided, as both affect
-	// the permissions.
-	if err := svc.authz.Authorize(ctx, &fleet.HostScriptResult{TeamID: host.TeamID, ScriptID: request.ScriptID}, fleet.ActionWrite); err != nil {
+	// authorize with the host's team
+	if err := svc.authz.Authorize(ctx, &fleet.HostScriptResult{TeamID: host.TeamID}, fleet.ActionWrite); err != nil {
 		return nil, err
 	}
 
@@ -372,7 +371,7 @@ func getScriptResultEndpoint(ctx context.Context, request interface{}, svc fleet
 	// TODO: move this logic out of the endpoint function and consolidate in either the service
 	// method or the fleet package
 	hostTimeout := scriptResult.HostTimeout(scripts.MaxServerWaitTime)
-	scriptResult.Message = scriptResult.UserMessage(hostTimeout)
+	scriptResult.Message = scriptResult.UserMessage(hostTimeout, scriptResult.Timeout)
 
 	return &getScriptResultResponse{
 		ScriptContents: scriptResult.ScriptContents,

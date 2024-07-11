@@ -6,7 +6,7 @@ Read more about [getting and staying compliant across your fleet.](https://fleet
 
 ## Add policies
 
-To reduce the barrier of entry with Fleet, we’ve introduced our [standard templates](fleetdm.com/queries) that allow users to choose from a library of pre-made policies. Those handy with [osquery](https://osquery.io/) and SQL can still create custom policies to their heart’s content: 
+To reduce the barrier of entry with Fleet, we’ve introduced our [standard templates](https://fleetdm.com/queries) that allow users to choose from a library of pre-made policies. Those handy with [osquery](https://osquery.io/) and SQL can still create custom policies to their heart’s content: 
 
 1. In the top navigation, select **Policies**.
 
@@ -56,7 +56,7 @@ These principles helped us create policies for our own devices to track:
 Policies and automation help your security and IT teams feel confident that devices are passing your organization’s standards. Fleet is building an open, transparent, and simple future for device management and is the [most widely deployed osquery fleet manager.](https://fleetdm.com/) 
 
 <meta name="category" value="security">
-<meta name="authorGitHubUsername" value="DrewBakerfdm">
+<meta name="authorGitHubUsername" value="Drew-P-drawers">
 <meta name="authorFullName" value="Andrew Baker">
 <meta name="publishedOn" value="2022-05-20">
 <meta name="articleTitle" value="What are Fleet policies?">

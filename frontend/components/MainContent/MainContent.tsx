@@ -52,7 +52,7 @@ const MainContent = ({
       apnsExpiry || "",
       30
     );
-    const isAppleBmExpired = hasLicenseExpired(abmExpiry || "");
+    const isAppleBmExpired = hasLicenseExpired(abmExpiry || ""); // NOTE: See Rachel's related FIXME added to App.tsx in https://github.com/fleetdm/fleet/pull/19571
     const willAppleBmExpireIn30Days = willExpireWithinXDays(
       abmExpiry || "",
       30

@@ -1,0 +1,2 @@
+- Show a host's upcoming scheduled maintenance window, if any, on the host details page of the UI
+  and in host responses from the API.

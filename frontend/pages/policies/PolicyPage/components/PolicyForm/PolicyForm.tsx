@@ -15,7 +15,7 @@ import usePlatformCompatibility from "hooks/usePlatformCompatibility";
 import usePlatformSelector from "hooks/usePlatformSelector";
 
 import { IPolicy, IPolicyFormData } from "interfaces/policy";
-import { OsqueryPlatform, SelectedPlatformString } from "interfaces/platform";
+import { SelectedPlatformString } from "interfaces/platform";
 import { DEFAULT_POLICIES } from "pages/policies/constants";
 
 import Avatar from "components/Avatar";
@@ -38,8 +38,6 @@ interface IPolicyFormProps {
   showOpenSchemaActionText: boolean;
   storedPolicy: IPolicy | undefined;
   isStoredPolicyLoading: boolean;
-  isTeamAdmin: boolean;
-  isTeamMaintainer: boolean;
   isTeamObserver: boolean;
   isUpdatingPolicy: boolean;
   onCreatePolicy: (formData: IPolicyFormData) => void;
@@ -73,8 +71,6 @@ const PolicyForm = ({
   showOpenSchemaActionText,
   storedPolicy,
   isStoredPolicyLoading,
-  isTeamAdmin,
-  isTeamMaintainer,
   isTeamObserver,
   isUpdatingPolicy,
   onCreatePolicy,
@@ -124,6 +120,7 @@ const PolicyForm = ({
     isGlobalObserver,
     isGlobalAdmin,
     isGlobalMaintainer,
+    isTeamMaintainerOrTeamAdmin,
     isObserverPlus,
     isOnGlobalTeam,
     isPremiumTier,
@@ -192,8 +189,7 @@ const PolicyForm = ({
     !isEditMode || // save a new policy
     isGlobalAdmin ||
     isGlobalMaintainer ||
-    (isTeamAdmin && policyTeamId === storedPolicy?.team_id) || // team admin cannot save global policy
-    (isTeamMaintainer && policyTeamId === storedPolicy?.team_id); // team maintainer cannot save global policy
+    isTeamMaintainerOrTeamAdmin;
 
   const onLoad = (editor: IAceEditor) => {
     editor.setOptions({
@@ -504,8 +500,10 @@ const PolicyForm = ({
     );
   };
 
-  // Non-editable form used for Team Observers and Observer+ of their team policy and inherited policies
-  // And Global Observers and Observer+ of all policies
+  // Non-editable form used for:
+  // Team observers and team observer+ viewing any of their team's policies and any inherited policies
+  // Team admins and team maintainers viewing any inherited policy
+  // And Global observers and global observer+ viewing any team's policies and any inherited policies
   const renderNonEditableForm = (
     <form className={`${baseClass}__wrapper`}>
       <div className={`${baseClass}__title-bar`}>
@@ -542,7 +540,7 @@ const PolicyForm = ({
         />
       )}
       {renderLiveQueryWarning()}
-      {isObserverPlus && ( // Observer+ can run existing policies
+      {(isObserverPlus || isTeamMaintainerOrTeamAdmin) && ( // Team admin, team maintainer and any Observer+ can run a policy
         <div className="button-wrap">
           <Button
             className={`${baseClass}__run`}
@@ -557,7 +555,9 @@ const PolicyForm = ({
     </form>
   );
 
-  // Admin or maintainer
+  // Editable form is used for:
+  // Global admins and global maintainers
+  // Team admins and team maintainers viewing any of their team's policies
   const renderEditableQueryForm = () => {
     // Save disabled for no platforms selected, query name blank on existing query, or sql errors
     const disableSaveFormErrors =
@@ -690,10 +690,12 @@ const PolicyForm = ({
     return <Spinner />;
   }
 
+  const isInheritedPolicy = !!policyIdForEdit && storedPolicy?.team_id === null;
+
   const noEditPermissions =
     isTeamObserver ||
     isGlobalObserver ||
-    (policyTeamId === 0 && !isOnGlobalTeam); // Team user viewing inherited policy
+    (!isOnGlobalTeam && isInheritedPolicy); // Team user viewing inherited policy
 
   // Render non-editable form only
   if (noEditPermissions) {

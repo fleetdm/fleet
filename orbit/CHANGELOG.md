@@ -1,3 +1,16 @@
+## Orbit 1.27.0 (Jun 21, 2024)
+
+* Disabled `mdm_bridge` table on Windows Server.
+
+* Fixes an issue related to hardware UUIDs being cached in osquery's database. When an orbit install
+  is transferred from one machine to another (e.g. via MacOS Migration Assistant), the new machine
+  now shows up in Fleet as a separate host from the old one.
+
+* Added support for `--end-user-email` option when building fleetd Linux packages.
+
+* Fixed bug where MDM migration fails when attempting to renew enrollment profiles on macOS Sonoma devices.
+
+
 ## Orbit 1.26.0 (Jun 11, 2024)
 
 * Added `tcc_access` table to `fleetd` for macOS.

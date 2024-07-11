@@ -1,2 +1,0 @@
-* /api/latest/fleet/hosts/:id/lock returns `unlock_pin` for Apple hosts when query parameter `view_pin=true` is set
-* UI no longer uses unlock pending state for Apple hosts

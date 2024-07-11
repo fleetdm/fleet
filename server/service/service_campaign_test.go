@@ -235,6 +235,7 @@ func testUpdateStats(t *testing.T, ds *mysql.Datastore, usingReplica bool) {
 	assert.True(t, tracker.saveStats)
 	assert.Equal(t, 0, len(tracker.stats))
 	assert.True(t, tracker.aggregationNeeded)
+	assert.Equal(t, overwriteLastExecutedTime, tracker.lastStatsEntry.LastExecuted)
 
 	// Aggregate stats
 	svc.updateStats(ctx, queryID, svc.logger, &tracker, true)
@@ -271,6 +272,9 @@ func testUpdateStats(t *testing.T, ds *mysql.Datastore, usingReplica bool) {
 		} else {
 			t.Logf("Aggregated stats from primary DB: totalExecutions=%f %#v", *aggStats.TotalExecutions, aggStats)
 		}
+		replicaStatus, err := ds.ReplicaStatus(ctx)
+		assert.NoError(t, err)
+		t.Logf("Replica status: %v", replicaStatus)
 		t.Fatalf("Timeout waiting for aggregated stats. Last error: %s", lastErr)
 	case <-done:
 		// Continue
@@ -395,10 +399,7 @@ func TestUpdateStats(t *testing.T) {
 }
 
 func TestUpdateStatsOnReplica(t *testing.T) {
-	opts := &mysql.DatastoreTestOptions{
-		RealReplica: true,
-	}
-	ds := mysql.CreateMySQLDSWithOptions(t, opts)
+	ds := mysql.CreateMySQLDSWithReplica(t, nil)
 	defer mysql.TruncateTables(t, ds)
 	testUpdateStats(t, ds, true)
 }

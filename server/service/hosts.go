@@ -1050,6 +1050,26 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 		return nil, ctxerr.Wrap(ctx, err, "get batteries for host")
 	}
 
+	mws, err := svc.ds.ListUpcomingHostMaintenanceWindows(ctx, host.ID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "list upcoming host maintenance windows")
+	}
+	// we are only interested in the next maintenance window. There should only be one for now, anyway.
+	var nextMw *fleet.HostMaintenanceWindow
+	if len(mws) > 0 {
+		nextMw = mws[0]
+	}
+
+	// nil TimeZone is okay
+	if nextMw != nil && nextMw.TimeZone != nil {
+		// return the start time in the local timezone of the host's associated google calendar user
+		gCalLoc, err := time.LoadLocation(*nextMw.TimeZone)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "list upcoming host maintenance windows - invalid google calendar timezone")
+		}
+		nextMw.StartsAt = nextMw.StartsAt.In(gCalLoc)
+	}
+
 	// Due to a known osquery issue with M1 Macs, we are ignoring the stored value in the db
 	// and replacing it at the service layer with custom values determined by the cycle count.
 	// See https://github.com/fleetdm/fleet/issues/6763.
@@ -1096,7 +1116,7 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 				// we include disk encryption status only for premium so initialize it to default struct
 				host.MDM.OSSettings.DiskEncryption = fleet.HostMDMDiskEncryption{}
 				// ensure host mdm info is loaded (we don't know if our caller populated it)
-				err := svc.ensureHostMDMInfo(ctx, host)
+				_, err := svc.ds.GetHostMDM(ctx, host.ID)
 				switch {
 				case err != nil && fleet.IsNotFound(err):
 					// assume host is unmanaged, log for debugging, and move on
@@ -1191,27 +1211,14 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 	}
 
 	host.Policies = policies
-	return &fleet.HostDetail{
-		Host:      *host,
-		Labels:    labels,
-		Packs:     packs,
-		Batteries: &bats,
-	}, nil
-}
 
-func (svc *Service) ensureHostMDMInfo(ctx context.Context, host *fleet.Host) error {
-	if host.MDMInfo == nil {
-		mdmInfo, err := svc.ds.GetHostMDM(ctx, host.ID)
-		if err != nil {
-			return err
-		}
-		host.MDMInfo = mdmInfo
-	}
-	if host.MDMInfo == nil {
-		// this should not happen, but just in case
-		return ctxerr.New(ctx, fmt.Sprintf("nil mdm info for host %d", host.ID))
-	}
-	return nil
+	return &fleet.HostDetail{
+		Host:              *host,
+		Labels:            labels,
+		Packs:             packs,
+		Batteries:         &bats,
+		MaintenanceWindow: nextMw,
+	}, nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -1903,12 +1910,15 @@ func (svc *Service) OSVersions(ctx context.Context, teamID *uint, platform *stri
 		if err := svc.authz.Authorize(ctx, &fleet.AuthzSoftwareInventory{TeamID: teamID}, fleet.ActionRead); err != nil {
 			return nil, count, nil, err
 		}
-		exists, err := svc.ds.TeamExists(ctx, *teamID)
-		if err != nil {
-			return nil, count, nil, ctxerr.Wrap(ctx, err, "checking if team exists")
-		} else if !exists {
-			return nil, count, nil, fleet.NewInvalidArgumentError("team_id", fmt.Sprintf("team %d does not exist", *teamID)).
-				WithStatus(http.StatusNotFound)
+
+		if *teamID != 0 {
+			exists, err := svc.ds.TeamExists(ctx, *teamID)
+			if err != nil {
+				return nil, count, nil, ctxerr.Wrap(ctx, err, "checking if team exists")
+			} else if !exists {
+				return nil, count, nil, fleet.NewInvalidArgumentError("team_id", fmt.Sprintf("team %d does not exist", *teamID)).
+					WithStatus(http.StatusNotFound)
+			}
 		}
 	}
 
