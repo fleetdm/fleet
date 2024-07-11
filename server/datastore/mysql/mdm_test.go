@@ -37,10 +37,7 @@ func TestMDMShared(t *testing.T) {
 		{"TestBulkSetPendingMDMHostProfiles", testBulkSetPendingMDMHostProfiles},
 		{"TestBulkSetPendingMDMHostProfilesBatch2", testBulkSetPendingMDMHostProfilesBatch2},
 		{"TestBulkSetPendingMDMHostProfilesBatch3", testBulkSetPendingMDMHostProfilesBatch3},
-		{
-			"TestGetHostMDMProfilesExpectedForVerification",
-			testGetHostMDMProfilesExpectedForVerification,
-		},
+		{"TestGetHostMDMProfilesExpectedForVerification", testGetHostMDMProfilesExpectedForVerification},
 		{"TestBatchSetProfileLabelAssociations", testBatchSetProfileLabelAssociations},
 		{"TestBatchSetProfilesTransactionError", testBatchSetMDMProfilesTransactionError},
 		{"TestMDMEULA", testMDMEULA},
@@ -49,6 +46,7 @@ func TestMDMShared(t *testing.T) {
 		{"TestMDMProfilesSummaryAndHostFilters", testMDMProfilesSummaryAndHostFilters},
 		{"TestIsHostConnectedToFleetMDM", testIsHostConnectedToFleetMDM},
 		{"TestAreHostsConnectedToFleetMDM", testAreHostsConnectedToFleetMDM},
+		{"TestBulkSetPendingMDMHostProfilesExcludeAny", testBulkSetPendingMDMHostProfilesExcludeAny},
 	}
 
 	for _, c := range cases {
@@ -69,11 +67,12 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 
 	// enroll a windows device
 	windowsH, err := ds.NewHost(ctx, &fleet.Host{
-		Hostname:      "windows-test",
-		OsqueryHostID: ptr.String("osquery-windows"),
-		NodeKey:       ptr.String("node-key-windows"),
-		UUID:          uuid.NewString(),
-		Platform:      "windows",
+		Hostname:       "windows-test",
+		OsqueryHostID:  ptr.String("osquery-windows"),
+		NodeKey:        ptr.String("node-key-windows"),
+		UUID:           uuid.NewString(),
+		Platform:       "windows",
+		HardwareSerial: "123456",
 	})
 	require.NoError(t, err)
 	windowsEnrollment := &fleet.MDMWindowsEnrolledDevice{
@@ -105,11 +104,12 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 
 	// enroll a macOS device
 	macH, err := ds.NewHost(ctx, &fleet.Host{
-		Hostname:      "macos-test",
-		OsqueryHostID: ptr.String("osquery-macos"),
-		NodeKey:       ptr.String("node-key-macos"),
-		UUID:          uuid.NewString(),
-		Platform:      "darwin",
+		Hostname:       "macos-test",
+		OsqueryHostID:  ptr.String("osquery-macos"),
+		NodeKey:        ptr.String("node-key-macos"),
+		UUID:           uuid.NewString(),
+		Platform:       "darwin",
+		HardwareSerial: "654321",
 	})
 	require.NoError(t, err)
 	nanoEnroll(t, ds, macH, false)
@@ -216,6 +216,137 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 	require.Equal(t, winCmd.CommandUUID, cmds[1].CommandUUID)
 	require.Equal(t, winCmd.TargetLocURI, cmds[1].RequestType)
 	require.Equal(t, "200", cmds[1].Status)
+
+	// add more windows commands
+	winCmd2 := &fleet.MDMWindowsCommand{
+		CommandUUID:  uuid.NewString(),
+		RawCommand:   []byte("<Exec></Exec>"),
+		TargetLocURI: "./test/uri2",
+	}
+	winCmd3 := &fleet.MDMWindowsCommand{
+		CommandUUID:  uuid.NewString(),
+		RawCommand:   []byte("<Exec></Exec>"),
+		TargetLocURI: "./test/uri3",
+	}
+	err = ds.MDMWindowsInsertCommandForHosts(ctx, []string{windowsEnrollment.MDMDeviceID}, winCmd2)
+	require.NoError(t, err)
+	err = ds.MDMWindowsInsertCommandForHosts(ctx, []string{windowsEnrollment.MDMDeviceID}, winCmd3)
+	require.NoError(t, err)
+
+	// add more macos commands
+	appleCmdUUID2 := uuid.New().String()
+	appleCmd2 := createRawAppleCmd("InstallProfile", appleCmdUUID2)
+	err = commander.EnqueueCommand(ctx, []string{macH.UUID}, appleCmd2)
+	require.NoError(t, err)
+
+	appleCmdUUID3 := uuid.New().String()
+	appleCmd3 := createRawAppleCmd("RemoveProfile", appleCmdUUID3)
+	err = commander.EnqueueCommand(ctx, []string{macH.UUID}, appleCmd3)
+	require.NoError(t, err)
+
+	// non-existent host identifier
+	cmds, err = ds.ListMDMCommands(
+		ctx,
+		fleet.TeamFilter{User: test.UserAdmin},
+		&fleet.MDMCommandListOptions{
+			Filters: fleet.MDMCommandFilters{
+				HostIdentifier: "non-existent",
+			},
+		},
+	)
+	require.NoError(t, err)
+	require.Len(t, cmds, 0)
+
+	// non-existent request type
+	cmds, err = ds.ListMDMCommands(
+		ctx,
+		fleet.TeamFilter{User: test.UserAdmin},
+		&fleet.MDMCommandListOptions{
+			Filters: fleet.MDMCommandFilters{
+				RequestType: "non-existent",
+			},
+		},
+	)
+	require.NoError(t, err)
+	require.Len(t, cmds, 0)
+
+	// filter by host Identifier
+	identifiers := map[string][]string{
+		windowsH.Hostname:       {winCmd.CommandUUID, winCmd2.CommandUUID, winCmd3.CommandUUID},
+		windowsH.UUID:           {winCmd.CommandUUID, winCmd2.CommandUUID, winCmd3.CommandUUID},
+		windowsH.HardwareSerial: {winCmd.CommandUUID, winCmd2.CommandUUID, winCmd3.CommandUUID},
+		macH.Hostname:           {appleCmdUUID, appleCmdUUID2, appleCmdUUID3},
+		macH.UUID:               {appleCmdUUID, appleCmdUUID2, appleCmdUUID3},
+		macH.HardwareSerial:     {appleCmdUUID, appleCmdUUID2, appleCmdUUID3},
+	}
+
+	for identifier, expected := range identifiers {
+		t.Run(identifier, func(t *testing.T) {
+			cmds, err = ds.ListMDMCommands(
+				ctx,
+				fleet.TeamFilter{User: test.UserAdmin},
+				&fleet.MDMCommandListOptions{
+					Filters: fleet.MDMCommandFilters{
+						HostIdentifier: identifier,
+					},
+				},
+			)
+			require.NoError(t, err)
+			require.Len(t, cmds, 3)
+			for _, cmd := range cmds {
+				require.Contains(t, expected, cmd.CommandUUID)
+			}
+		})
+	}
+
+	// add macos host
+	macH2, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:       "macos-test-2",
+		OsqueryHostID:  ptr.String("osquery-macos-2"),
+		NodeKey:        ptr.String("node-key-macos-2"),
+		UUID:           uuid.NewString(),
+		Platform:       "darwin",
+		HardwareSerial: "654322",
+	})
+	require.NoError(t, err)
+	nanoEnroll(t, ds, macH2, false)
+
+	// add more macos commands
+	appleCmdUUID4 := uuid.New().String()
+	appleCmd4 := createRawAppleCmd("InstallProfile", appleCmdUUID4)
+	err = commander.EnqueueCommand(ctx, []string{macH2.UUID}, appleCmd4)
+	require.NoError(t, err)
+
+	// filter by request_type
+	cmds, err = ds.ListMDMCommands(
+		ctx,
+		fleet.TeamFilter{User: test.UserAdmin},
+		&fleet.MDMCommandListOptions{
+			Filters: fleet.MDMCommandFilters{
+				RequestType: "InstallProfile",
+			},
+			ListOptions: fleet.ListOptions{OrderKey: "hostname", OrderDirection: fleet.OrderAscending},
+		},
+	)
+	require.NoError(t, err)
+	require.Len(t, cmds, 2)
+	require.Equal(t, appleCmdUUID2, cmds[0].CommandUUID)
+	require.Equal(t, appleCmdUUID4, cmds[1].CommandUUID)
+
+	// filter by request_type and host_identifier
+	cmds, err = ds.ListMDMCommands(
+		ctx,
+		fleet.TeamFilter{User: test.UserAdmin},
+		&fleet.MDMCommandListOptions{
+			Filters: fleet.MDMCommandFilters{
+				RequestType:    "InstallProfile",
+				HostIdentifier: macH.UUID,
+			},
+		},
+	)
+	require.NoError(t, err)
+	require.Len(t, cmds, 1)
+	require.Equal(t, appleCmdUUID2, cmds[0].CommandUUID)
 }
 
 func testBatchSetMDMProfiles(t *testing.T, ds *Datastore) {
@@ -476,7 +607,7 @@ func testListMDMConfigProfiles(t *testing.T, ds *Datastore) {
 		// create label-based profiles for i==0, meaning CDEF will be label-based
 		acp := *generateCP(string(rune('C'+inc)), string(rune('C'+inc)), 0)
 		if i == 0 {
-			acp.Labels = []fleet.ConfigurationProfileLabel{
+			acp.LabelsIncludeAll = []fleet.ConfigurationProfileLabel{
 				{LabelName: labels[0].Name, LabelID: labels[0].ID},
 				{LabelName: labels[1].Name, LabelID: labels[1].ID},
 			}
@@ -486,7 +617,7 @@ func testListMDMConfigProfiles(t *testing.T, ds *Datastore) {
 
 		acp = *generateCP(string(rune('C'+inc+1)), string(rune('C'+inc+1)), team.ID)
 		if i == 0 {
-			acp.Labels = []fleet.ConfigurationProfileLabel{
+			acp.LabelsIncludeAll = []fleet.ConfigurationProfileLabel{
 				{LabelName: labels[2].Name, LabelID: labels[2].ID},
 				{LabelName: labels[3].Name, LabelID: labels[3].ID},
 			}
@@ -500,7 +631,7 @@ func testListMDMConfigProfiles(t *testing.T, ds *Datastore) {
 			SyncML: winProf,
 		}
 		if i == 0 {
-			wcp.Labels = []fleet.ConfigurationProfileLabel{
+			wcp.LabelsIncludeAll = []fleet.ConfigurationProfileLabel{
 				{LabelName: labels[4].Name, LabelID: labels[4].ID},
 				{LabelName: labels[5].Name, LabelID: labels[5].ID},
 			}
@@ -514,7 +645,7 @@ func testListMDMConfigProfiles(t *testing.T, ds *Datastore) {
 			SyncML: winProf,
 		}
 		if i == 0 {
-			wcp.Labels = []fleet.ConfigurationProfileLabel{
+			wcp.LabelsIncludeAll = []fleet.ConfigurationProfileLabel{
 				{LabelName: labels[6].Name, LabelID: labels[6].ID},
 				{LabelName: labels[7].Name, LabelID: labels[7].ID},
 			}
@@ -723,14 +854,14 @@ func testListMDMConfigProfiles(t *testing.T, ds *Datastore) {
 				got[i] = p.Name
 
 				wantProfs := profLabels[p.Name]
-				require.Equal(t, len(wantProfs), len(p.Labels), "profile name: %s", p.Name)
+				require.Equal(t, len(wantProfs), len(p.LabelsIncludeAll), "profile name: %s", p.Name)
 				if len(wantProfs) > 0 {
 					// clear the profile uuids from the labels list
-					for i, l := range p.Labels {
+					for i, l := range p.LabelsIncludeAll {
 						l.ProfileUUID = ""
-						p.Labels[i] = l
+						p.LabelsIncludeAll[i] = l
 					}
-					require.ElementsMatch(t, wantProfs, p.Labels, "profile name: %s", p.Name)
+					require.ElementsMatch(t, wantProfs, p.LabelsIncludeAll, "profile name: %s", p.Name)
 				}
 			}
 			require.Equal(t, got, c.wantNames)
@@ -764,6 +895,91 @@ func testBulkSetPendingMDMHostProfilesBatch3(t *testing.T, ds *Datastore) {
 	testBulkSetPendingMDMHostProfiles(t, ds)
 }
 
+type anyProfile struct {
+	ProfileUUID      string
+	Status           *fleet.MDMDeliveryStatus
+	OperationType    fleet.MDMOperationType
+	IdentifierOrName string
+}
+
+// only asserts the profile ID, status and operation
+func assertHostProfiles(t *testing.T, ds *Datastore, want map[*fleet.Host][]anyProfile) {
+	ctx := context.Background()
+	for h, wantProfs := range want {
+		var gotProfs []anyProfile
+
+		switch h.Platform {
+		case "windows":
+			profs, err := ds.GetHostMDMWindowsProfiles(ctx, h.UUID)
+			require.NoError(t, err)
+			require.Equal(t, len(wantProfs), len(profs), "host uuid: %s", h.UUID)
+			for _, p := range profs {
+				gotProfs = append(gotProfs, anyProfile{
+					ProfileUUID:      p.ProfileUUID,
+					Status:           p.Status,
+					OperationType:    p.OperationType,
+					IdentifierOrName: p.Name,
+				})
+			}
+		default:
+			profs, err := ds.GetHostMDMAppleProfiles(ctx, h.UUID)
+			require.NoError(t, err)
+			require.Equal(t, len(wantProfs), len(profs), "host uuid: %s", h.UUID)
+			for _, p := range profs {
+				gotProfs = append(gotProfs, anyProfile{
+					ProfileUUID:      p.ProfileUUID,
+					Status:           p.Status,
+					OperationType:    p.OperationType,
+					IdentifierOrName: p.Identifier,
+				})
+			}
+		}
+
+		sortProfs := func(profs []anyProfile) []anyProfile {
+			sort.Slice(profs, func(i, j int) bool {
+				l, r := profs[i], profs[j]
+				if l.ProfileUUID == r.ProfileUUID {
+					return l.OperationType < r.OperationType
+				}
+
+				// default alphabetical comparison
+				return l.IdentifierOrName < r.IdentifierOrName
+			})
+			return profs
+		}
+
+		gotProfs = sortProfs(gotProfs)
+		wantProfs = sortProfs(wantProfs)
+		for i, wp := range wantProfs {
+			gp := gotProfs[i]
+			require.Equal(
+				t,
+				wp.ProfileUUID,
+				gp.ProfileUUID,
+				"host uuid: %s, prof id or name: %s",
+				h.UUID,
+				gp.IdentifierOrName,
+			)
+			require.Equal(
+				t,
+				wp.Status,
+				gp.Status,
+				"host uuid: %s, prof id or name: %s",
+				h.UUID,
+				gp.IdentifierOrName,
+			)
+			require.Equal(
+				t,
+				wp.OperationType,
+				gp.OperationType,
+				"host uuid: %s, prof id or name: %s",
+				h.UUID,
+				gp.IdentifierOrName,
+			)
+		}
+	}
+}
+
 func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
@@ -773,95 +989,6 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 			ids[i] = h.ID
 		}
 		return ids
-	}
-
-	type anyProfile struct {
-		ProfileUUID      string
-		Status           *fleet.MDMDeliveryStatus
-		OperationType    fleet.MDMOperationType
-		IdentifierOrName string
-	}
-
-	// only asserts the profile ID, status and operation
-	assertHostProfiles := func(want map[*fleet.Host][]anyProfile) {
-		// TODO(mna): it would help readability of this test to capture the "last
-		// state" of this call and accept the diff as the expected result, merging
-		// them together before the assertions. Would need some hackery to clear a
-		// profile from the list.
-
-		for h, wantProfs := range want {
-			var gotProfs []anyProfile
-
-			switch h.Platform {
-			case "windows":
-				profs, err := ds.GetHostMDMWindowsProfiles(ctx, h.UUID)
-				require.NoError(t, err)
-				require.Equal(t, len(wantProfs), len(profs), "host uuid: %s", h.UUID)
-				for _, p := range profs {
-					gotProfs = append(gotProfs, anyProfile{
-						ProfileUUID:      p.ProfileUUID,
-						Status:           p.Status,
-						OperationType:    p.OperationType,
-						IdentifierOrName: p.Name,
-					})
-				}
-			default:
-				profs, err := ds.GetHostMDMAppleProfiles(ctx, h.UUID)
-				require.NoError(t, err)
-				require.Equal(t, len(wantProfs), len(profs), "host uuid: %s", h.UUID)
-				for _, p := range profs {
-					gotProfs = append(gotProfs, anyProfile{
-						ProfileUUID:      p.ProfileUUID,
-						Status:           p.Status,
-						OperationType:    p.OperationType,
-						IdentifierOrName: p.Identifier,
-					})
-				}
-			}
-
-			sortProfs := func(profs []anyProfile) []anyProfile {
-				sort.Slice(profs, func(i, j int) bool {
-					l, r := profs[i], profs[j]
-					if l.ProfileUUID == r.ProfileUUID {
-						return l.OperationType < r.OperationType
-					}
-
-					// default alphabetical comparison
-					return l.IdentifierOrName < r.IdentifierOrName
-				})
-				return profs
-			}
-
-			gotProfs = sortProfs(gotProfs)
-			wantProfs = sortProfs(wantProfs)
-			for i, wp := range wantProfs {
-				gp := gotProfs[i]
-				require.Equal(
-					t,
-					wp.ProfileUUID,
-					gp.ProfileUUID,
-					"host uuid: %s, prof id or name: %s",
-					h.UUID,
-					gp.IdentifierOrName,
-				)
-				require.Equal(
-					t,
-					wp.Status,
-					gp.Status,
-					"host uuid: %s, prof id or name: %s",
-					h.UUID,
-					gp.IdentifierOrName,
-				)
-				require.Equal(
-					t,
-					wp.OperationType,
-					gp.OperationType,
-					"host uuid: %s, prof id or name: %s",
-					h.UUID,
-					gp.IdentifierOrName,
-				)
-			}
-		}
 	}
 
 	getProfs := func(teamID *uint) []*fleet.MDMConfigProfilePayload {
@@ -947,7 +1074,7 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 	allHosts = append(allHosts, windowsHosts...)
 	err = ds.BulkSetPendingMDMHostProfiles(ctx, hostIDsFromHosts(allHosts...), nil, nil, nil)
 	require.NoError(t, err)
-	assertHostProfiles(map[*fleet.Host][]anyProfile{
+	assertHostProfiles(t, ds, map[*fleet.Host][]anyProfile{
 		darwinHosts[0]:  {},
 		darwinHosts[1]:  {},
 		darwinHosts[2]:  {},
@@ -1007,7 +1134,7 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 	// bulk set for all created hosts, enrolled hosts get the no-team profiles
 	err = ds.BulkSetPendingMDMHostProfiles(ctx, hostIDsFromHosts(allHosts...), nil, nil, nil)
 	require.NoError(t, err)
-	assertHostProfiles(map[*fleet.Host][]anyProfile{
+	assertHostProfiles(t, ds, map[*fleet.Host][]anyProfile{
 		darwinHosts[0]: {
 			{
 				ProfileUUID:      globalProfiles[0].ProfileUUID,
@@ -1192,7 +1319,7 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 		nil,
 	)
 	require.NoError(t, err)
-	assertHostProfiles(map[*fleet.Host][]anyProfile{
+	assertHostProfiles(t, ds, map[*fleet.Host][]anyProfile{
 		darwinHosts[0]: {
 			{
 				ProfileUUID:      globalProfiles[0].ProfileUUID,
@@ -1363,7 +1490,7 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 		[]string{darwinHosts[1].UUID, windowsHosts[1].UUID},
 	)
 	require.NoError(t, err)
-	assertHostProfiles(map[*fleet.Host][]anyProfile{
+	assertHostProfiles(t, ds, map[*fleet.Host][]anyProfile{
 		darwinHosts[0]: {
 			{
 				ProfileUUID:      globalProfiles[0].ProfileUUID,
@@ -1519,7 +1646,7 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 	// update status of the affected team
 	err = ds.BulkSetPendingMDMHostProfiles(ctx, nil, []uint{team1.ID}, nil, nil)
 	require.NoError(t, err)
-	assertHostProfiles(map[*fleet.Host][]anyProfile{
+	assertHostProfiles(t, ds, map[*fleet.Host][]anyProfile{
 		darwinHosts[0]: {
 			{
 				ProfileUUID:      globalProfiles[0].ProfileUUID,
@@ -1710,7 +1837,7 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 	err = ds.BulkSetPendingMDMHostProfiles(ctx, nil, []uint{team1.ID}, nil, nil)
 	require.NoError(t, err)
 
-	assertHostProfiles(map[*fleet.Host][]anyProfile{
+	assertHostProfiles(t, ds, map[*fleet.Host][]anyProfile{
 		darwinHosts[0]: {
 			{
 				ProfileUUID:      tm1Profiles[0].ProfileUUID,
@@ -1871,7 +1998,7 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 	err = ds.BulkSetPendingMDMHostProfiles(ctx, nil, []uint{team1.ID}, nil, nil)
 	require.NoError(t, err)
 
-	assertHostProfiles(map[*fleet.Host][]anyProfile{
+	assertHostProfiles(t, ds, map[*fleet.Host][]anyProfile{
 		darwinHosts[0]: {
 			{
 				ProfileUUID:      newTm1Profiles[0].ProfileUUID,
@@ -2041,7 +2168,7 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.MDMAppleStoreDDMStatusReport(ctx, darwinHosts[1].UUID, nil))
 	require.NoError(t, ds.MDMAppleStoreDDMStatusReport(ctx, darwinHosts[2].UUID, nil))
 
-	assertHostProfiles(map[*fleet.Host][]anyProfile{
+	assertHostProfiles(t, ds, map[*fleet.Host][]anyProfile{
 		darwinHosts[0]: {
 			{
 				ProfileUUID:      globalProfiles[4].ProfileUUID,
@@ -2172,7 +2299,7 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 	err = ds.BulkSetPendingMDMHostProfiles(ctx, nil, nil, []string{newDarwinProfileUUID}, nil)
 	require.NoError(t, err)
 
-	assertHostProfiles(map[*fleet.Host][]anyProfile{
+	assertHostProfiles(t, ds, map[*fleet.Host][]anyProfile{
 		darwinHosts[0]: {
 			{
 				ProfileUUID:   globalProfiles[4].ProfileUUID,
@@ -2283,7 +2410,7 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 	err = ds.BulkSetPendingMDMHostProfiles(ctx, nil, nil, []string{newWindowsProfileUUID}, nil)
 	require.NoError(t, err)
 
-	assertHostProfiles(map[*fleet.Host][]anyProfile{
+	assertHostProfiles(t, ds, map[*fleet.Host][]anyProfile{
 		darwinHosts[0]: {
 			{
 				ProfileUUID:   globalProfiles[4].ProfileUUID,
@@ -2413,7 +2540,7 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 	err = ds.BulkSetPendingMDMHostProfiles(ctx, nil, []uint{team2.ID, 0}, nil, nil)
 	require.NoError(t, err)
 
-	assertHostProfiles(map[*fleet.Host][]anyProfile{
+	assertHostProfiles(t, ds, map[*fleet.Host][]anyProfile{
 		darwinHosts[0]: {
 			{
 				ProfileUUID:   globalProfiles[4].ProfileUUID,
@@ -2620,7 +2747,7 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 	)
 	require.NoError(t, err)
 
-	assertHostProfiles(map[*fleet.Host][]anyProfile{
+	assertHostProfiles(t, ds, map[*fleet.Host][]anyProfile{
 		darwinHosts[0]: {
 			{
 				ProfileUUID:   globalProfiles[4].ProfileUUID,
@@ -2795,7 +2922,7 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 	)
 	require.NoError(t, err)
 
-	assertHostProfiles(map[*fleet.Host][]anyProfile{
+	assertHostProfiles(t, ds, map[*fleet.Host][]anyProfile{
 		darwinHosts[0]: {
 			{
 				ProfileUUID:   globalProfiles[4].ProfileUUID,
@@ -2999,7 +3126,7 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 	)
 	require.NoError(t, err)
 
-	assertHostProfiles(map[*fleet.Host][]anyProfile{
+	assertHostProfiles(t, ds, map[*fleet.Host][]anyProfile{
 		darwinHosts[0]: {
 			{
 				ProfileUUID:   globalProfiles[4].ProfileUUID,
@@ -3218,7 +3345,7 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// nothing changes - broken label-based profiles are simply ignored
-	assertHostProfiles(map[*fleet.Host][]anyProfile{
+	assertHostProfiles(t, ds, map[*fleet.Host][]anyProfile{
 		darwinHosts[0]: {
 			{
 				ProfileUUID:   globalProfiles[4].ProfileUUID,
@@ -3433,7 +3560,7 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 	)
 	require.NoError(t, err)
 
-	assertHostProfiles(map[*fleet.Host][]anyProfile{
+	assertHostProfiles(t, ds, map[*fleet.Host][]anyProfile{
 		darwinHosts[0]: {
 			{
 				ProfileUUID:   globalProfiles[4].ProfileUUID,
@@ -3646,7 +3773,7 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 	)
 	require.NoError(t, err)
 
-	assertHostProfiles(map[*fleet.Host][]anyProfile{
+	assertHostProfiles(t, ds, map[*fleet.Host][]anyProfile{
 		darwinHosts[0]: {
 			{
 				ProfileUUID:   globalProfiles[4].ProfileUUID,
@@ -3855,7 +3982,7 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 	err = ds.BulkSetPendingMDMHostProfiles(ctx, nil, []uint{team2.ID}, nil, nil)
 	require.NoError(t, err)
 
-	assertHostProfiles(map[*fleet.Host][]anyProfile{
+	assertHostProfiles(t, ds, map[*fleet.Host][]anyProfile{
 		darwinHosts[0]: {
 			{
 				ProfileUUID:   globalProfiles[4].ProfileUUID,
@@ -4054,7 +4181,7 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 	err = ds.BulkSetPendingMDMHostProfiles(ctx, nil, []uint{team2.ID}, nil, nil)
 	require.NoError(t, err)
 
-	assertHostProfiles(map[*fleet.Host][]anyProfile{
+	assertHostProfiles(t, ds, map[*fleet.Host][]anyProfile{
 		darwinHosts[0]: {
 			{
 				ProfileUUID:   globalProfiles[4].ProfileUUID,
@@ -4264,7 +4391,7 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 	err = ds.BulkSetPendingMDMHostProfiles(ctx, nil, []uint{team2.ID}, nil, nil)
 	require.NoError(t, err)
 
-	assertHostProfiles(map[*fleet.Host][]anyProfile{
+	assertHostProfiles(t, ds, map[*fleet.Host][]anyProfile{
 		darwinHosts[0]: {
 			{
 				ProfileUUID:   globalProfiles[4].ProfileUUID,
@@ -4479,7 +4606,7 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 	err = ds.BulkSetPendingMDMHostProfiles(ctx, nil, []uint{team2.ID}, nil, nil)
 	require.NoError(t, err)
 
-	assertHostProfiles(map[*fleet.Host][]anyProfile{
+	assertHostProfiles(t, ds, map[*fleet.Host][]anyProfile{
 		darwinHosts[0]: {
 			{
 				ProfileUUID:   globalProfiles[4].ProfileUUID,
@@ -4684,7 +4811,7 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 	err = ds.BulkSetPendingMDMHostProfiles(ctx, nil, []uint{team2.ID}, nil, nil)
 	require.NoError(t, err)
 
-	assertHostProfiles(map[*fleet.Host][]anyProfile{
+	assertHostProfiles(t, ds, map[*fleet.Host][]anyProfile{
 		darwinHosts[0]: {
 			{
 				ProfileUUID:   globalProfiles[4].ProfileUUID,
@@ -4886,7 +5013,7 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 	)
 	require.NoError(t, err)
 
-	assertHostProfiles(map[*fleet.Host][]anyProfile{
+	assertHostProfiles(t, ds, map[*fleet.Host][]anyProfile{
 		darwinHosts[0]: {
 			{
 				ProfileUUID:   globalProfiles[4].ProfileUUID,
@@ -5824,8 +5951,9 @@ func testBatchSetProfileLabelAssociations(t *testing.T, ds *Datastore) {
 		t,
 		batchSetProfileLabelAssociationsDB(ctx, ds.writer(ctx), wantOtherWin, "windows"),
 	)
+	// make it an "exclude" label on the other macos profile
 	wantOtherMac := []fleet.ConfigurationProfileLabel{
-		{ProfileUUID: otherMacProfile.ProfileUUID, LabelName: label.Name, LabelID: label.ID},
+		{ProfileUUID: otherMacProfile.ProfileUUID, LabelName: label.Name, LabelID: label.ID, Exclude: true},
 	}
 	require.NoError(
 		t,
@@ -5839,17 +5967,13 @@ func testBatchSetProfileLabelAssociations(t *testing.T, ds *Datastore) {
 
 	for platform, uuid := range platforms {
 		expectLabels := func(t *testing.T, profUUID, platform string, want []fleet.ConfigurationProfileLabel) {
-			if len(want) == 0 {
-				return
-			}
-
 			p := platform
 			if p == "darwin" {
 				p = "apple"
 			}
 
 			query := fmt.Sprintf(
-				"SELECT %s_profile_uuid as profile_uuid, label_id, label_name FROM mdm_configuration_profile_labels WHERE %s_profile_uuid = ?",
+				"SELECT %s_profile_uuid as profile_uuid, label_id, label_name, exclude FROM mdm_configuration_profile_labels WHERE %s_profile_uuid = ?",
 				p,
 				p,
 			)
@@ -5881,6 +6005,19 @@ func testBatchSetProfileLabelAssociations(t *testing.T, ds *Datastore) {
 				{ProfileUUID: uuid, LabelName: label.Name, LabelID: label.ID},
 			}
 			err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+				return batchSetProfileLabelAssociationsDB(ctx, tx, profileLabels, platform)
+			})
+			require.NoError(t, err)
+			expectLabels(t, uuid, platform, profileLabels)
+			// does not change other profiles
+			expectLabels(t, otherWinProfile.ProfileUUID, "windows", wantOtherWin)
+			expectLabels(t, otherMacProfile.ProfileUUID, "darwin", wantOtherMac)
+
+			// now set it with Exclude mode
+			profileLabels = []fleet.ConfigurationProfileLabel{
+				{ProfileUUID: uuid, LabelName: label.Name, LabelID: label.ID, Exclude: true},
+			}
+			err = ds.withTx(ctx, func(tx sqlx.ExtContext) error {
 				return batchSetProfileLabelAssociationsDB(ctx, tx, profileLabels, platform)
 			})
 			require.NoError(t, err)
@@ -5933,8 +6070,8 @@ func testBatchSetProfileLabelAssociations(t *testing.T, ds *Datastore) {
 
 			// apply a batch set with the new label
 			profileLabels := []fleet.ConfigurationProfileLabel{
-				{ProfileUUID: uuid, LabelName: label.Name, LabelID: label.ID},
-				{ProfileUUID: uuid, LabelName: newLabel.Name, LabelID: newLabel.ID},
+				{ProfileUUID: uuid, LabelName: label.Name, LabelID: label.ID, Exclude: true},
+				{ProfileUUID: uuid, LabelName: newLabel.Name, LabelID: newLabel.ID, Exclude: true},
 			}
 			err = ds.withTx(ctx, func(tx sqlx.ExtContext) error {
 				return batchSetProfileLabelAssociationsDB(ctx, tx, profileLabels, platform)
@@ -5943,7 +6080,7 @@ func testBatchSetProfileLabelAssociations(t *testing.T, ds *Datastore) {
 			// both are stored in the DB
 			expectLabels(t, uuid, platform, profileLabels)
 
-			// batch apply again without the newLabel
+			// batch apply again without the newLabel, and without Exclude flag
 			profileLabels = []fleet.ConfigurationProfileLabel{
 				{ProfileUUID: uuid, LabelName: label.Name, LabelID: label.ID},
 			}
@@ -6783,8 +6920,21 @@ func testAreHostsConnectedToFleetMDM(t *testing.T, ds *Datastore) {
 		Platform:      "darwin",
 	})
 	require.NoError(t, err)
-
 	nanoEnroll(t, ds, connectedMac, false)
+	err = ds.SetOrUpdateMDMData(ctx, connectedMac.ID, false, true, "http://foo.com", false, "foo", "")
+	require.NoError(t, err)
+
+	disconnectedWithoutCheckoutMac, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:      "macos-test-disconnected",
+		OsqueryHostID: ptr.String("osquery-macos-disconnected"),
+		NodeKey:       ptr.String("node-key-macos-disconnected"),
+		UUID:          uuid.NewString(),
+		Platform:      "darwin",
+	})
+	require.NoError(t, err)
+	nanoEnroll(t, ds, disconnectedWithoutCheckoutMac, false)
+	err = ds.SetOrUpdateMDMData(ctx, disconnectedWithoutCheckoutMac.ID, false, false, "", false, "", "")
+	require.NoError(t, err)
 
 	notConnectedWin, err := ds.NewHost(ctx, &fleet.Host{
 		Hostname:      "windows-test",
@@ -6819,19 +6969,51 @@ func testAreHostsConnectedToFleetMDM(t *testing.T, ds *Datastore) {
 	}
 	err = ds.MDMWindowsInsertEnrolledDevice(ctx, windowsEnrollment)
 	require.NoError(t, err)
+	err = ds.SetOrUpdateMDMData(ctx, connectedWin.ID, false, true, "http://foo.com", false, "foo", "")
+	require.NoError(t, err)
+
+	disconnectedWithoutCheckoutWin, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:      "windows-test-disconnected",
+		OsqueryHostID: ptr.String("osquery-windows-disconnected"),
+		NodeKey:       ptr.String("node-key-windows-disconnected"),
+		UUID:          uuid.NewString(),
+		Platform:      "windows",
+	})
+	require.NoError(t, err)
+	windowsEnrollmentDisconnectedWithoutCheckout := &fleet.MDMWindowsEnrolledDevice{
+		MDMDeviceID:            uuid.New().String(),
+		MDMHardwareID:          uuid.New().String() + uuid.New().String(),
+		MDMDeviceState:         microsoft_mdm.MDMDeviceStateEnrolled,
+		MDMDeviceType:          "CIMClient_Windows",
+		MDMDeviceName:          "DESKTOP-1C3ARC1-disconnected",
+		MDMEnrollType:          "ProgrammaticEnrollment",
+		MDMEnrollUserID:        "",
+		MDMEnrollProtoVersion:  "5.0",
+		MDMEnrollClientVersion: "10.0.19045.2965",
+		MDMNotInOOBE:           false,
+		HostUUID:               disconnectedWithoutCheckoutWin.UUID,
+	}
+	err = ds.MDMWindowsInsertEnrolledDevice(ctx, windowsEnrollmentDisconnectedWithoutCheckout)
+	require.NoError(t, err)
+	err = ds.SetOrUpdateMDMData(ctx, disconnectedWithoutCheckoutWin.ID, false, false, "", false, "", "")
+	require.NoError(t, err)
 
 	connectedMap, err := ds.AreHostsConnectedToFleetMDM(ctx, []*fleet.Host{
 		notConnectedMac,
 		connectedMac,
 		connectedWin,
 		notConnectedWin,
+		disconnectedWithoutCheckoutMac,
+		disconnectedWithoutCheckoutWin,
 	})
 	require.NoError(t, err)
 	require.Equal(t, map[string]bool{
-		notConnectedMac.UUID: false,
-		connectedMac.UUID:    true,
-		connectedWin.UUID:    true,
-		notConnectedWin.UUID: false,
+		notConnectedMac.UUID:                false,
+		connectedMac.UUID:                   true,
+		connectedWin.UUID:                   true,
+		notConnectedWin.UUID:                false,
+		disconnectedWithoutCheckoutMac.UUID: false,
+		disconnectedWithoutCheckoutWin.UUID: false,
 	}, connectedMap)
 
 	linuxHost, err := ds.NewHost(ctx, &fleet.Host{
@@ -6848,14 +7030,18 @@ func testAreHostsConnectedToFleetMDM(t *testing.T, ds *Datastore) {
 		connectedWin,
 		notConnectedWin,
 		linuxHost,
+		disconnectedWithoutCheckoutMac,
+		disconnectedWithoutCheckoutWin,
 	})
 	require.NoError(t, err)
 	require.Equal(t, map[string]bool{
-		notConnectedMac.UUID: false,
-		connectedMac.UUID:    true,
-		connectedWin.UUID:    true,
-		notConnectedWin.UUID: false,
-		linuxHost.UUID:       false,
+		notConnectedMac.UUID:                false,
+		connectedMac.UUID:                   true,
+		connectedWin.UUID:                   true,
+		notConnectedWin.UUID:                false,
+		linuxHost.UUID:                      false,
+		disconnectedWithoutCheckoutMac.UUID: false,
+		disconnectedWithoutCheckoutWin.UUID: false,
 	}, connectedMap)
 }
 
@@ -6875,6 +7061,9 @@ func testIsHostConnectedToFleetMDM(t *testing.T, ds *Datastore) {
 	require.False(t, connected)
 
 	nanoEnroll(t, ds, macH, false)
+	err = ds.SetOrUpdateMDMData(ctx, macH.ID, false, true, "http://foo.com", false, "foo", "")
+	require.NoError(t, err)
+
 	connected, err = ds.IsHostConnectedToFleetMDM(ctx, macH)
 	require.NoError(t, err)
 	require.True(t, connected)
@@ -6906,8 +7095,284 @@ func testIsHostConnectedToFleetMDM(t *testing.T, ds *Datastore) {
 	}
 	err = ds.MDMWindowsInsertEnrolledDevice(ctx, windowsEnrollment)
 	require.NoError(t, err)
+	err = ds.SetOrUpdateMDMData(ctx, windowsH.ID, false, true, "http://foo.com", false, "foo", "")
+	require.NoError(t, err)
 
 	connected, err = ds.IsHostConnectedToFleetMDM(ctx, windowsH)
 	require.NoError(t, err)
 	require.True(t, connected)
+
+	// now simulate an un-enrollment without checkout, in this case, osquery reports the host as not-enrolled
+	err = ds.SetOrUpdateMDMData(ctx, macH.ID, false, false, "", false, "", "")
+	require.NoError(t, err)
+	err = ds.SetOrUpdateMDMData(ctx, windowsH.ID, false, false, "", false, "", "")
+	require.NoError(t, err)
+
+	connected, err = ds.IsHostConnectedToFleetMDM(ctx, macH)
+	require.NoError(t, err)
+	require.False(t, connected)
+
+	connected, err = ds.IsHostConnectedToFleetMDM(ctx, windowsH)
+	require.NoError(t, err)
+	require.False(t, connected)
+}
+
+func testBulkSetPendingMDMHostProfilesExcludeAny(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	// create some "exclude" labels
+	var labels []*fleet.Label
+	for i := 0; i < 6; i++ {
+		lbl, err := ds.NewLabel(ctx, &fleet.Label{Name: "exclude-label-" + strconv.Itoa(i), Query: "select 1"})
+		require.NoError(t, err)
+		labels = append(labels, lbl)
+	}
+
+	// create an Apple profile, a Windows profile and an Apple Declaration with excluded labels
+	appleProfs := []*fleet.MDMAppleConfigProfile{
+		configProfileForTest(t, "A1", "A1", uuid.NewString(), labels[0], labels[1]),
+	}
+	windowsProfs := []*fleet.MDMWindowsConfigProfile{
+		windowsConfigProfileForTest(t, "W1", "W1", labels[2]),
+	}
+	appleDecls := []*fleet.MDMAppleDeclaration{
+		declForTest("D1", "D1", "{}", labels[3], labels[4], labels[5]),
+	}
+
+	err := ds.BatchSetMDMProfiles(ctx, nil, appleProfs, windowsProfs, appleDecls)
+	require.NoError(t, err)
+
+	// must reload them to get the profile/declaration uuid
+	getProfs := func(teamID *uint) []*fleet.MDMConfigProfilePayload {
+		// TODO(roberto): the docs says that you can pass a comma separated
+		// list of columns to OrderKey, but that doesn't seem to work
+		profs, _, err := ds.ListMDMConfigProfiles(ctx, teamID, fleet.ListOptions{})
+		require.NoError(t, err)
+		sort.Slice(profs, func(i, j int) bool {
+			l, r := profs[i], profs[j]
+			if l.Platform != r.Platform {
+				return l.Platform < r.Platform
+			}
+
+			return l.Name < r.Name
+		})
+		return profs
+	}
+	allProfs := getProfs(nil)
+
+	// create an Apple and Windows hosts, not members of any host
+	var i int
+	winHost, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:      fmt.Sprintf("win-host%d-name", i),
+		OsqueryHostID: ptr.String(fmt.Sprintf("osquery-%d", i)),
+		NodeKey:       ptr.String(fmt.Sprintf("nodekey-%d", i)),
+		UUID:          fmt.Sprintf("win-uuid-%d", i),
+		Platform:      "windows",
+	})
+	require.NoError(t, err)
+	windowsEnroll(t, ds, winHost)
+
+	i++
+	appleHost, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:      fmt.Sprintf("apple-host%d-name", i),
+		OsqueryHostID: ptr.String(fmt.Sprintf("osquery-%d", i)),
+		NodeKey:       ptr.String(fmt.Sprintf("nodekey-%d", i)),
+		UUID:          fmt.Sprintf("apple-uuid-%d", i),
+		Platform:      "darwin",
+	})
+	require.NoError(t, err)
+	nanoEnroll(t, ds, appleHost, false)
+
+	// do a sync, they get all platform-specific profiles since they are not part
+	// of any label
+	err = ds.BulkSetPendingMDMHostProfiles(ctx, []uint{winHost.ID, appleHost.ID}, nil, nil, nil)
+	require.NoError(t, err)
+
+	assertHostProfiles(t, ds, map[*fleet.Host][]anyProfile{
+		appleHost: {
+			{
+				ProfileUUID:      allProfs[0].ProfileUUID,
+				Status:           &fleet.MDMDeliveryPending,
+				OperationType:    fleet.MDMOperationTypeInstall,
+				IdentifierOrName: allProfs[0].Identifier,
+			},
+			{
+				ProfileUUID:      allProfs[1].ProfileUUID,
+				Status:           &fleet.MDMDeliveryPending,
+				OperationType:    fleet.MDMOperationTypeInstall,
+				IdentifierOrName: allProfs[1].Identifier,
+			},
+		},
+		winHost: {
+			{
+				ProfileUUID:      allProfs[2].ProfileUUID,
+				Status:           &fleet.MDMDeliveryPending,
+				OperationType:    fleet.MDMOperationTypeInstall,
+				IdentifierOrName: allProfs[2].Name,
+			},
+		},
+	})
+
+	// make all hosts members of labels[1], [2], and [3] so that all profiles are
+	// excluded
+	err = ds.AsyncBatchInsertLabelMembership(ctx, [][2]uint{
+		{labels[1].ID, appleHost.ID},
+		{labels[2].ID, appleHost.ID},
+		{labels[3].ID, appleHost.ID},
+		{labels[1].ID, winHost.ID},
+		{labels[2].ID, winHost.ID},
+		{labels[3].ID, winHost.ID},
+	})
+	require.NoError(t, err)
+
+	err = ds.BulkSetPendingMDMHostProfiles(ctx, []uint{winHost.ID, appleHost.ID}, nil, nil, nil)
+	require.NoError(t, err)
+
+	assertHostProfiles(t, ds, map[*fleet.Host][]anyProfile{
+		appleHost: {
+			{
+				ProfileUUID:      allProfs[0].ProfileUUID,
+				Status:           &fleet.MDMDeliveryPending,
+				OperationType:    fleet.MDMOperationTypeRemove,
+				IdentifierOrName: allProfs[0].Identifier,
+			},
+			{
+				ProfileUUID:      allProfs[1].ProfileUUID,
+				Status:           &fleet.MDMDeliveryPending,
+				OperationType:    fleet.MDMOperationTypeRemove,
+				IdentifierOrName: allProfs[1].Identifier,
+			},
+		},
+		// windows profiles are directly deleted without a pending state (there's no on-host removal of profiles)
+		winHost: {},
+	})
+
+	// make apple host member of labels[2], and windows host member of [3], which are irrelevant
+	// for their platforms' profiles, so they get all profiles
+	err = ds.AsyncBatchDeleteLabelMembership(ctx, [][2]uint{
+		{labels[1].ID, appleHost.ID},
+		{labels[3].ID, appleHost.ID},
+		{labels[1].ID, winHost.ID},
+		{labels[2].ID, winHost.ID},
+	})
+	require.NoError(t, err)
+
+	err = ds.BulkSetPendingMDMHostProfiles(ctx, []uint{winHost.ID, appleHost.ID}, nil, nil, nil)
+	require.NoError(t, err)
+
+	assertHostProfiles(t, ds, map[*fleet.Host][]anyProfile{
+		appleHost: {
+			{
+				ProfileUUID:      allProfs[0].ProfileUUID,
+				Status:           &fleet.MDMDeliveryPending,
+				OperationType:    fleet.MDMOperationTypeInstall,
+				IdentifierOrName: allProfs[0].Identifier,
+			},
+			{
+				ProfileUUID:      allProfs[1].ProfileUUID,
+				Status:           &fleet.MDMDeliveryPending,
+				OperationType:    fleet.MDMOperationTypeInstall,
+				IdentifierOrName: allProfs[1].Identifier,
+			},
+		},
+		winHost: {
+			{
+				ProfileUUID:      allProfs[2].ProfileUUID,
+				Status:           &fleet.MDMDeliveryPending,
+				OperationType:    fleet.MDMOperationTypeInstall,
+				IdentifierOrName: allProfs[2].Name,
+			},
+		},
+	})
+
+	// delete labels 0, 2 and 3, breaking all profiles
+	err = ds.DeleteLabel(ctx, labels[0].Name)
+	require.NoError(t, err)
+	err = ds.DeleteLabel(ctx, labels[2].Name)
+	require.NoError(t, err)
+	err = ds.DeleteLabel(ctx, labels[3].Name)
+	require.NoError(t, err)
+
+	err = ds.BulkSetPendingMDMHostProfiles(ctx, []uint{winHost.ID, appleHost.ID}, nil, nil, nil)
+	require.NoError(t, err)
+
+	// broken profiles do not get reported as "to remove"
+	assertHostProfiles(t, ds, map[*fleet.Host][]anyProfile{
+		appleHost: {
+			{
+				ProfileUUID:      allProfs[0].ProfileUUID,
+				Status:           &fleet.MDMDeliveryPending,
+				OperationType:    fleet.MDMOperationTypeInstall,
+				IdentifierOrName: allProfs[0].Identifier,
+			},
+			{
+				ProfileUUID:      allProfs[1].ProfileUUID,
+				Status:           &fleet.MDMDeliveryPending,
+				OperationType:    fleet.MDMOperationTypeInstall,
+				IdentifierOrName: allProfs[1].Identifier,
+			},
+		},
+		winHost: {
+			{
+				ProfileUUID:      allProfs[2].ProfileUUID,
+				Status:           &fleet.MDMDeliveryPending,
+				OperationType:    fleet.MDMOperationTypeInstall,
+				IdentifierOrName: allProfs[2].Name,
+			},
+		},
+	})
+
+	// create a new windows and apple host, not a member of any label
+	i++
+	winHost2, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:      fmt.Sprintf("win-host%d-name", i),
+		OsqueryHostID: ptr.String(fmt.Sprintf("osquery-%d", i)),
+		NodeKey:       ptr.String(fmt.Sprintf("nodekey-%d", i)),
+		UUID:          fmt.Sprintf("win-uuid-%d", i),
+		Platform:      "windows",
+	})
+	require.NoError(t, err)
+	windowsEnroll(t, ds, winHost2)
+
+	i++
+	appleHost2, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:      fmt.Sprintf("apple-host%d-name", i),
+		OsqueryHostID: ptr.String(fmt.Sprintf("osquery-%d", i)),
+		NodeKey:       ptr.String(fmt.Sprintf("nodekey-%d", i)),
+		UUID:          fmt.Sprintf("apple-uuid-%d", i),
+		Platform:      "darwin",
+	})
+	require.NoError(t, err)
+	nanoEnroll(t, ds, appleHost2, false)
+
+	err = ds.BulkSetPendingMDMHostProfiles(ctx, []uint{winHost.ID, appleHost.ID, winHost2.ID, appleHost2.ID}, nil, nil, nil)
+	require.NoError(t, err)
+
+	// broken profiles do not get reported as "to install"
+	assertHostProfiles(t, ds, map[*fleet.Host][]anyProfile{
+		appleHost: {
+			{
+				ProfileUUID:      allProfs[0].ProfileUUID,
+				Status:           &fleet.MDMDeliveryPending,
+				OperationType:    fleet.MDMOperationTypeInstall,
+				IdentifierOrName: allProfs[0].Identifier,
+			},
+			{
+				ProfileUUID:      allProfs[1].ProfileUUID,
+				Status:           &fleet.MDMDeliveryPending,
+				OperationType:    fleet.MDMOperationTypeInstall,
+				IdentifierOrName: allProfs[1].Identifier,
+			},
+		},
+		winHost: {
+			{
+				ProfileUUID:      allProfs[2].ProfileUUID,
+				Status:           &fleet.MDMDeliveryPending,
+				OperationType:    fleet.MDMOperationTypeInstall,
+				IdentifierOrName: allProfs[2].Name,
+			},
+		},
+		appleHost2: {},
+		winHost2:   {},
+	})
 }

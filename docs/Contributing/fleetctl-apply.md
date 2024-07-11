@@ -1,8 +1,8 @@
 # fleetctl apply
 
-The `fleectl apply` command and YAML format is used for one-off imports and updates.
+The `fleectl apply` command and YAML interface is used for one-off imports and backwards compatibility GitOps.
 
-To use fleetctl for GitOps, check out Fleet's best practice workflow [here](https://fleetdm.com/using-fleet/gitops).
+To use Fleet's best practice GitOps, check out the GitOps docs [here](https://fleetdm.com/docs/using-fleet/gitops).
 
 ## Queries
 
