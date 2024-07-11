@@ -2222,8 +2222,7 @@ func (s *integrationMDMTestSuite) TestEnrollOrbitAfterDEPSync() {
 	ctx := context.Background()
 
 	// create a host with minimal information and the serial, no uuid/osquery id
-	// (as when created via DEP sync). Platform must be "darwin" as this is the
-	// only supported OS with DEP.
+	// (as when created via DEP sync).
 	dbZeroTime := time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
 	h, err := s.ds.NewHost(ctx, &fleet.Host{
 		HardwareSerial:   uuid.New().String(),
@@ -2233,6 +2232,7 @@ func (s *integrationMDMTestSuite) TestEnrollOrbitAfterDEPSync() {
 		RefetchRequested: true,
 	})
 	require.NoError(t, err)
+	require.Equal(t, dbZeroTime, h.LastEnrolledAt)
 
 	// create an enroll secret
 	secret := uuid.New().String()
@@ -2258,6 +2258,7 @@ func (s *integrationMDMTestSuite) TestEnrollOrbitAfterDEPSync() {
 	var hostResp getHostResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", h.ID), nil, http.StatusOK, &hostResp)
 	require.Equal(t, h.ID, hostResp.Host.ID)
+	require.NotEqual(t, dbZeroTime, hostResp.Host.LastEnrolledAt)
 
 	got, err := s.ds.LoadHostByOrbitNodeKey(ctx, resp.OrbitNodeKey)
 	require.NoError(t, err)
@@ -9221,6 +9222,41 @@ func (s *integrationMDMTestSuite) TestInvalidCommandUUID() {
 	cmd, err := device.Acknowledge("foo")
 	require.NoError(t, err)
 	require.NotNil(t, cmd)
+}
+
+func (s *integrationMDMTestSuite) TestMDMEnrollDoesntClearLastEnrolledAtForMacOS() {
+	t := s.T()
+
+	// Enroll to Fleet with fleetd first.
+	desktopToken := uuid.New().String()
+	lastEnrolledAt := time.Now().UTC()
+	mdmDevice := mdmtest.NewTestMDMClientAppleDesktopManual(s.server.URL, desktopToken)
+	fleetHost, err := s.ds.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		LastEnrolledAt:  lastEnrolledAt,
+		SeenTime:        time.Now().Add(-1 * time.Minute),
+		OsqueryHostID:   ptr.String(t.Name() + uuid.New().String()),
+		NodeKey:         ptr.String(t.Name() + uuid.New().String()),
+		Hostname:        fmt.Sprintf("%sfoo.local", t.Name()),
+		Platform:        "darwin",
+
+		UUID:           mdmDevice.UUID,
+		HardwareSerial: mdmDevice.SerialNumber,
+	})
+	require.NoError(t, err)
+	err = s.ds.SetOrUpdateDeviceAuthToken(context.Background(), fleetHost.ID, desktopToken)
+	require.NoError(t, err)
+
+	// Enroll with MDM manually after.
+	err = mdmDevice.Enroll()
+	require.NoError(t, err)
+
+	hostResp := getHostResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", fleetHost.ID), nil, http.StatusOK, &hostResp)
+	require.NotNil(t, hostResp.Host)
+	require.Equal(t, lastEnrolledAt.Truncate(1*time.Second).UTC(), hostResp.Host.LastEnrolledAt.Truncate(1*time.Second).UTC())
 }
 
 func (s *integrationMDMTestSuite) TestEnrollAfterDEPSyncIOSIPadOS() {
