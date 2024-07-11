@@ -1113,7 +1113,7 @@ Modifies the Fleet's configuration with the supplied information.
   },
   "server_settings": {
     "server_url": "https://localhost:8080",
-    "enable_analytics": true, 
+    "enable_analytics": true,
     "live_query_disabled": false,
     "query_reports_disabled": false,
     "ai_features_disabled": false
@@ -1194,7 +1194,7 @@ Modifies the Fleet's configuration with the supplied information.
           "path": "path/to/profile3.xml",
           "labels": ["Label 1", "Label 2"]
         }
-      ]     
+      ]
     },
     "end_user_authentication": {
       "entity_id": "",
@@ -3089,6 +3089,7 @@ If `hostname` is specified when there is more than one host with the same hostna
 | Name       | Type              | In   | Description                                                                   |
 | ---------- | ----------------- | ---- | ----------------------------------------------------------------------------- |
 | identifier | integer or string | path | **Required**. The host's `hardware_serial`, `uuid`, `osquery_host_id`, `hostname`, or `node_key` |
+| exclude_software | boolean | query | If `true`, the response will not include a list of installed software for the host. |
 
 #### Example
 
@@ -4309,7 +4310,7 @@ OS vulnerability data is currently available for Windows and macOS. For other pl
         "installed_at": "2024-05-15T15:23:57Z"
       },
       "installed_versions": [
-        { 
+        {
           "version": "121.0",
           "last_opened_at": "2024-04-01T23:03:07Z",
           "vulnerabilities": ["CVE-2023-1234","CVE-2023-4321","CVE-2023-7654"],
@@ -4341,7 +4342,7 @@ OS vulnerability data is currently available for Windows and macOS. For other pl
           "vulnerabilities": ["CVE-2023-1234"],
           "installed_paths": ["/Applications/Firefox.app"]
         },
-        { 
+        {
           "version": "119.0",
           "last_opened_at": "2024-04-01T23:03:07Z",
           "vulnerabilities": ["CVE-2023-4321","CVE-2023-7654"],
@@ -4733,7 +4734,7 @@ To wipe a macOS or Windows host, the host must have MDM turned on. To lock a Lin
 
 ### Add labels to host
 
-Adds manual labels to a host. 
+Adds manual labels to a host.
 
 `POST /api/v1/fleet/hosts/:id/labels`
 
@@ -8751,14 +8752,14 @@ Get a list of all software.
       "source": "apps",
       "browser": "",
       "hosts_count": 48,
-      "versions": [ 
+      "versions": [
         {
           "id": 123,
           "version": "1.12",
           "vulnerabilities": ["CVE-2023-1234","CVE-2023-4321","CVE-2023-7654"]
-        }, 
+        },
         {
-          "id": 124, 
+          "id": 124,
           "version": "3.4",
           "vulnerabilities": ["CVE-2023-1234","CVE-2023-4321","CVE-2023-7654"]
         },
@@ -8767,7 +8768,7 @@ Get a list of all software.
           "version": "1.13",
           "vulnerabilities": ["CVE-2023-1234","CVE-2023-4321","CVE-2023-7654"]
         }
-      ]  
+      ]
     },
     {
       "id": 22,
@@ -8945,7 +8946,7 @@ Returns information about the specified software. By default, `versions` are sor
     "source": "apps",
     "browser": "",
     "hosts_count": 48,
-    "versions": [ 
+    "versions": [
       {
         "id": 123,
         "version": "117.0",
@@ -8964,7 +8965,7 @@ Returns information about the specified software. By default, `versions` are sor
         "vulnerabilities": ["CVE-2023-7654"],
         "hosts_count": 4
       }
-    ]  
+    ]
   }
 }
 ```
