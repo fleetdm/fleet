@@ -8,8 +8,10 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 	"unicode/utf8"
 
+	"github.com/briandowns/spinner"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/urfave/cli/v2"
@@ -159,11 +161,15 @@ func runScriptCommand() *cli.Command {
 				return nil
 			}
 
+			s := spinner.New(spinner.CharSets[24], 200*time.Millisecond)
 			if !quiet {
-				fmt.Println("\nScript is running. Please wait for it to finish...")
+				fmt.Println()
+				s.Suffix = " Script is running or will run when the host comes online..."
+				s.Start()
 			}
 
 			res, err := client.RunHostScriptSync(h.ID, b, name, c.Uint("team"))
+			s.Stop()
 			if err != nil {
 				if strings.Contains(err.Error(), `Only one of 'script_contents' or 'team_id' is allowed`) {
 					return errors.New("Only one of '--script-path' or '--team' is allowed.")
