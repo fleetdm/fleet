@@ -1,0 +1,33 @@
+.tooltip-truncated-text {
+  .tooltip-truncated {
+    max-width: 100%;
+  }
+
+  .truncated {
+    display: inline-block;
+    max-width: 99%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .inner-text {
+    text-overflow: ellipsis;
+    overflow: hidden;
+    white-space: nowrap;
+  }
+  .truncated-tooltip {
+    text-wrap: wrap;
+    overflow-wrap: break-word;
+
+    .safari-hack {
+      height: 0px;
+    }
+  }
+
+  // allows for the tooltip text to break on a word instead of a character
+  &.tooltip-break-on-word {
+    .truncated-tooltip {
+      word-break: normal;
+    }
+  }
+}
