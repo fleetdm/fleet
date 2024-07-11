@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestSoftwareInstallersAuth(t *testing.T) {
+func TestVPPAuth(t *testing.T) {
 	ds := new(mock.Store)
 
 	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
@@ -60,31 +60,6 @@ func TestSoftwareInstallersAuth(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := viewer.NewContext(ctx, viewer.Viewer{User: tt.user})
 
-			ds.GetSoftwareInstallerMetadataByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint, withScripts bool) (*fleet.SoftwareInstaller, error) {
-				return &fleet.SoftwareInstaller{TeamID: tt.teamID}, nil
-			}
-
-			ds.DeleteSoftwareInstallerFunc = func(ctx context.Context, installerID uint) error {
-				return nil
-			}
-
-			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-				return &fleet.AppConfig{}, nil
-			}
-			ds.NewActivityFunc = func(
-				ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-			) error {
-				return nil
-			}
-
-			ds.TeamFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
-				if tt.teamID != nil {
-					return &fleet.Team{ID: *tt.teamID}, nil
-				}
-
-				return nil, nil
-			}
-
 			ds.TeamExistsFunc = func(ctx context.Context, teamID uint) (bool, error) {
 				return false, nil
 			}
@@ -93,23 +68,13 @@ func TestSoftwareInstallersAuth(t *testing.T) {
 				return map[fleet.MDMAssetName]fleet.MDMConfigAsset{}, nil
 			}
 
-			_, err := svc.DownloadSoftwareInstaller(ctx, 1, tt.teamID)
-			if tt.teamID == nil {
-				require.Error(t, err)
-			} else {
-				checkAuthErr(t, tt.shouldFailRead, err)
-			}
-
-			err = svc.DeleteSoftwareInstaller(ctx, 1, tt.teamID)
-			if tt.teamID == nil {
-				require.Error(t, err)
-			} else {
-				checkAuthErr(t, tt.shouldFailWrite, err)
+			ds.TeamFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
+				return &fleet.Team{ID: 1}, nil
 			}
 
 			// Note: these calls always return an error because they're attempting to unmarshal a
 			// non-existent VPP token.
-			_, err = svc.GetAppStoreApps(ctx, tt.teamID)
+			_, err := svc.GetAppStoreApps(ctx, tt.teamID)
 			if tt.teamID == nil {
 				require.Error(t, err)
 			} else {
@@ -126,8 +91,6 @@ func TestSoftwareInstallersAuth(t *testing.T) {
 					checkAuthErr(t, true, err)
 				}
 			}
-
-			// TODO: configure test with mock software installer store and add tests to check upload auth
 		})
 	}
 }

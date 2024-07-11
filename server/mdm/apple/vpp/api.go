@@ -23,6 +23,9 @@ type Asset struct {
 	// PricingParam is the quality of a product in the store.
 	// Possible Values are `STDQ` and `PLUS`
 	PricingParam string `json:"pricingParam"`
+	// AvailableCount is the number of available licenses for this app in the location specified by
+	// the VPP token.
+	AvailableCount uint `json:"availableCount"`
 }
 
 // ErrorResponse represents the response that contains the error that occurs.
