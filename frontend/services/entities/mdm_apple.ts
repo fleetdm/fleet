@@ -64,17 +64,20 @@ export default {
 
   getVppApps: (teamId: number): Promise<IGetVppAppsResponse> => {
     const { MDM_APPLE_VPP_APPS } = endpoints;
-    // return sendRequest("GET", MDM_APPLE_VPP_APPS(teamId));
+    const path = `${MDM_APPLE_VPP_APPS}?team_id=${teamId}`;
 
-    return new Promise((resolve) =>
-      resolve({
-        app_store_apps: [
-          createMockVppApp({ name: "Test App 1", app_store_id: 1 }),
-          createMockVppApp({ name: "Test App 2", app_store_id: 2 }),
-          createMockVppApp({ name: "Test App 3", app_store_id: 3 }),
-        ],
-      })
-    );
+    return sendRequest("GET", path);
+    // return sendRequest("GET", MDM_APPLE_VPP_APPS);
+
+    // return new Promise((resolve) =>
+    //   resolve({
+    //     app_store_apps: [
+    //       createMockVppApp({ name: "Test App 1", app_store_id: 1 }),
+    //       createMockVppApp({ name: "Test App 2", app_store_id: 2 }),
+    //       createMockVppApp({ name: "Test App 3", app_store_id: 3 }),
+    //     ],
+    //   })
+    // );
   },
 
   addVppApp: (teamId: number, appStoreId: number) => {
