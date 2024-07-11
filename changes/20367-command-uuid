@@ -1,0 +1,1 @@
+* Avoid returning a 500 status code if a host sends a command response with an invalid command uuid.
