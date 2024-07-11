@@ -102,3 +102,13 @@ func (c *Client) ApplyTeamSoftwareInstallers(tmName string, softwareInstallers [
 	query.Add("team_name", tmName)
 	return c.authenticatedRequestWithQuery(map[string]interface{}{"software": softwareInstallers}, verb, path, nil, query.Encode())
 }
+
+func (c *Client) ApplyTeamAppStoreAppsAssociation(tmName string, vppBatchPayload []fleet.VPPBatchPayload, opts fleet.ApplySpecOptions) error {
+	verb, path := "POST", "/api/_version_/fleet/software/vpp/app_store/batch"
+	query, err := url.ParseQuery(opts.RawQuery())
+	if err != nil {
+		return err
+	}
+	query.Add("team_name", tmName)
+	return c.authenticatedRequestWithQuery(map[string]interface{}{"app_store_apps": vppBatchPayload}, verb, path, nil, query.Encode())
+}
