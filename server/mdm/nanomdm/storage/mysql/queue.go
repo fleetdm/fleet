@@ -126,8 +126,14 @@ func (m *MySQLStorage) StoreCommandReport(r *mdm.Request, result *mdm.CommandRes
 		`SELECT 1 FROM nano_commands WHERE command_uuid = ?`,
 		result.CommandUUID,
 	)
-	if err := matchingRow.Scan(); err != nil {
+	var matchingCount int
+	if err := matchingRow.Scan(&matchingCount); err != nil {
 		return err
+	}
+	// this should be already handed by the error value in Scan above, but
+	// just to be safe
+	if matchingCount == 0 {
+		return sql.ErrNoRows
 	}
 
 	if m.rm && result.Status != "NotNow" {
