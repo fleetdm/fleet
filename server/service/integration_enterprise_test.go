@@ -25,6 +25,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/ee/server/calendar"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
+	"github.com/fleetdm/fleet/v4/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/cron"
@@ -5307,7 +5308,7 @@ func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
 	require.Equal(t, "echo", scriptResultResp.ScriptContents)
 	require.Nil(t, scriptResultResp.ExitCode)
 	require.False(t, scriptResultResp.HostTimeout)
-	require.Contains(t, scriptResultResp.Message, fleet.RunScriptAsyncScriptEnqueuedErrMsg)
+	require.Contains(t, scriptResultResp.Message, fleet.RunScriptAsyncScriptEnqueuedMsg)
 
 	// an async script doesn't care about timeouts
 	now := time.Now()
@@ -5324,7 +5325,7 @@ func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
 	require.Equal(t, "echo", scriptResultResp.ScriptContents)
 	require.Nil(t, scriptResultResp.ExitCode)
 	require.False(t, scriptResultResp.HostTimeout)
-	require.Contains(t, scriptResultResp.Message, fleet.RunScriptAsyncScriptEnqueuedErrMsg)
+	require.Contains(t, scriptResultResp.Message, fleet.RunScriptAsyncScriptEnqueuedMsg)
 
 	// Disable scripts and verify that there are no Orbit notifs
 	acr := appConfigResponse{}
@@ -5566,6 +5567,21 @@ func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
 	require.Contains(t, extractServerErrorText(res.Body), fleet.RunScriptDisabledErrMsg)
 	res = s.Do("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: plainOsqueryHost.ID, ScriptContents: "echo"}, http.StatusUnprocessableEntity)
 	require.Contains(t, extractServerErrorText(res.Body), fleet.RunScriptDisabledErrMsg)
+
+	// create a execution request that will return a timeout
+	s.DoJSON("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo"}, http.StatusAccepted, &runResp)
+
+	// simulate a host response
+	s.DoJSON("POST", "/api/fleet/orbit/scripts/result",
+		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "execution_id": %q, "exit_code": -1, "output": "script execution error: signal: killed", "timeout": 900}`, *host.OrbitNodeKey, runSyncResp.ExecutionID)),
+		http.StatusOK, &orbitPostScriptResp)
+
+	s.DoJSON("GET", "/api/latest/fleet/scripts/results/"+runSyncResp.ExecutionID, nil, http.StatusOK, &scriptResultResp)
+	require.Equal(t, host.ID, scriptResultResp.HostID)
+	require.Equal(t, "echo", scriptResultResp.ScriptContents)
+	require.Equal(t, int64(-1), *scriptResultResp.ExitCode)
+	require.Equal(t, "Timeout. Fleet stopped the script after 900 seconds to protect host performance.", scriptResultResp.Message)
+	require.Equal(t, "script execution error: signal: killed", scriptResultResp.Output)
 }
 
 func (s *integrationEnterpriseTestSuite) TestRunHostSavedScript() {
@@ -5630,7 +5646,7 @@ func (s *integrationEnterpriseTestSuite) TestRunHostSavedScript() {
 	require.Equal(t, "echo 'no team'", scriptResultResp.ScriptContents)
 	require.Nil(t, scriptResultResp.ExitCode)
 	require.False(t, scriptResultResp.HostTimeout)
-	require.Contains(t, scriptResultResp.Message, fleet.RunScriptAsyncScriptEnqueuedErrMsg)
+	require.Contains(t, scriptResultResp.Message, fleet.RunScriptAsyncScriptEnqueuedMsg)
 	require.NotNil(t, scriptResultResp.ScriptID)
 	require.Equal(t, savedNoTmScript.ID, *scriptResultResp.ScriptID)
 
@@ -5699,8 +5715,16 @@ func (s *integrationEnterpriseTestSuite) TestRunHostSavedScript() {
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, `Only one of 'script_contents' or 'script_name' is allowed.`)
 
+	res = s.Do("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo", ScriptName: savedTmScript.Name}, http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, `Only one of 'script_contents' or 'script_name' is allowed.`)
+
 	// attempt to run sync with both script id and script name
 	res = s.Do("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptID: ptr.Uint(savedTmScript.ID + 999), ScriptName: savedTmScript.Name}, http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, `Only one of 'script_id' or 'script_name' is allowed.`)
+
+	res = s.Do("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptID: ptr.Uint(savedTmScript.ID + 999), ScriptName: savedTmScript.Name}, http.StatusUnprocessableEntity)
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, `Only one of 'script_id' or 'script_name' is allowed.`)
 
@@ -5709,13 +5733,25 @@ func (s *integrationEnterpriseTestSuite) TestRunHostSavedScript() {
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, `Only one of 'script_contents' or 'team_id' is allowed.`)
 
+	res = s.Do("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo", TeamID: 1}, http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, `Only one of 'script_contents' or 'team_id' is allowed.`)
+
 	// attempt to run sync with both script id and team id
 	res = s.Do("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptID: ptr.Uint(savedTmScript.ID + 999), TeamID: 1}, http.StatusUnprocessableEntity)
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, `Only one of 'script_id' or 'team_id' is allowed.`)
 
+	res = s.Do("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptID: ptr.Uint(savedTmScript.ID + 999), TeamID: 1}, http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, `Only one of 'script_id' or 'team_id' is allowed.`)
+
 	// attempt to run sync without script contents, script id, or script name
 	res = s.Do("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: host.ID}, http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, `One of 'script_id', 'script_contents', or 'script_name' is required.`)
+
+	res = s.Do("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID}, http.StatusUnprocessableEntity)
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, `One of 'script_id', 'script_contents', or 'script_name' is required.`)
 
@@ -5776,6 +5812,13 @@ func (s *integrationEnterpriseTestSuite) TestRunHostSavedScript() {
 	require.NoError(t, err)
 	require.NotEqual(t, savedNoTmScript2.ID, savedTmScript2.ID)
 
+	_, err = s.ds.NewScript(ctx, &fleet.Script{
+		TeamID:         nil,
+		Name:           "f13372.sh",
+		ScriptContents: "echo 'ALL YOUR BASE ARE BELONG TO US'",
+	})
+	require.NoError(t, err)
+
 	// make sure the new host is seen as "online"
 	err = s.ds.MarkHostsSeen(ctx, []uint{host2.ID}, time.Now())
 	require.NoError(t, err)
@@ -5820,6 +5863,31 @@ func (s *integrationEnterpriseTestSuite) TestRunHostSavedScript() {
 	require.Contains(t, extractServerErrorText(res.Body), fleet.RunScriptDisabledErrMsg)
 	res = s.Do("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: plainOsqueryHost.ID, ScriptID: &script.ID}, http.StatusUnprocessableEntity)
 	require.Contains(t, extractServerErrorText(res.Body), fleet.RunScriptDisabledErrMsg)
+
+	// Async Run Script by Name
+
+	// attempt to run async with a script that does not exist on the specified team
+	res = s.Do("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host2.ID, ScriptName: "f1337.sh", TeamID: tm.ID}, http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, `Script 'f1337.sh' doesn’t exist.`)
+
+	// attempt to run async with an existing team script that belongs to a team different from the host's team
+	res = s.Do("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host2.ID, ScriptName: "f1337.sh", TeamID: tm2.ID}, http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, `The script does not belong to the same team`)
+
+	var runSyncResp3 runScriptSyncResponse
+	s.DoJSON("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host2.ID, ScriptName: "f13372.sh"}, http.StatusAccepted, &runSyncResp3)
+	require.Equal(t, host2.ID, runSyncResp3.HostID)
+	require.NotEmpty(t, runSyncResp3.ExecutionID)
+
+	// verify pending result
+	s.DoJSON("GET", "/api/latest/fleet/scripts/results/"+runSyncResp3.ExecutionID, nil, http.StatusOK, &scriptResultResp)
+	require.Equal(t, host2.ID, scriptResultResp.HostID)
+	require.Equal(t, "echo 'ALL YOUR BASE ARE BELONG TO US'", scriptResultResp.ScriptContents)
+	require.Nil(t, scriptResultResp.ExitCode)
+	require.False(t, scriptResultResp.HostTimeout)
+	require.Contains(t, scriptResultResp.Message, fleet.RunScriptAsyncScriptEnqueuedMsg)
 }
 
 func (s *integrationEnterpriseTestSuite) TestEnqueueSameScriptTwice() {
@@ -6733,7 +6801,7 @@ VALUES
 				name:       "script-timeout",
 				exitCode:   ptr.Int64(-1),
 				executedAt: now.Add(-1 * time.Hour),
-				expected:   fleet.RunScriptScriptTimeoutErrMsg,
+				expected:   fleet.HostScriptTimeoutMessage(ptr.Int(int(scripts.MaxHostExecutionTime.Seconds()))),
 			},
 			{
 				name:       "pending",
@@ -11345,5 +11413,4 @@ func (s *integrationEnterpriseTestSuite) TestCalendarCallback() {
 	team1CalendarEvents, err = s.ds.ListCalendarEvents(ctx, &team1.ID)
 	require.NoError(t, err)
 	assert.Empty(t, team1CalendarEvents)
-
 }
