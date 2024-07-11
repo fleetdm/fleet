@@ -1,6 +1,6 @@
 import React, { useContext, useState } from "react";
-import { InjectedRouter } from "react-router";
 import { useQuery } from "react-query";
+import { InjectedRouter } from "react-router";
 
 import PATHS from "router/paths";
 import mdmAppleAPI, { IVppApp } from "services/entities/mdm_apple";
@@ -13,6 +13,7 @@ import Radio from "components/forms/fields/Radio";
 import { NotificationContext } from "context/notification";
 import { getErrorReason } from "interfaces/errors";
 import { buildQueryStringFromParams } from "utilities/url";
+import SoftwareIcon from "../icons/SoftwareIcon";
 
 const baseClass = "app-store-vpp";
 
@@ -26,7 +27,12 @@ const VppAppListItem = ({ app, selected, onSelect }: IVppAppListItemProps) => {
   return (
     <li className={`${baseClass}__list-item`}>
       <Radio
-        label={app.name}
+        label={
+          <div className={`${baseClass}__app-info`}>
+            <SoftwareIcon url={app.icon_url} />
+            <span>{app.name}</span>
+          </div>
+        }
         id={`vppApp-${app.app_store_id}`}
         checked={selected}
         value={app.app_store_id.toString()}

@@ -25,6 +25,12 @@
     }
   }
 
+  &__app-info {
+    display: flex;
+    align-items: center;
+    gap: $pad-small;
+  }
+
   &__no-software {
     padding: $pad-xxlarge 48px;
     text-align: center;

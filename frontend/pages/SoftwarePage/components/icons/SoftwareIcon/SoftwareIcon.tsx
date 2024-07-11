@@ -1,27 +1,43 @@
 import React from "react";
 import getMatchedSoftwareIcon from "../";
+import classnames from "classnames";
 
 const baseClass = "software-icon";
+
+type SoftwareIconSizes = "small" | "medium" | "large";
 
 interface ISoftwareIconProps {
   name?: string;
   source?: string;
   size?: SoftwareIconSizes;
+  /** Accepts a url for a software icon image. */
+  url?: string;
 }
 
-const SOFTWARE_ICON_SIZES: Record<string, string> = {
-  medium: "24",
-  meduim_large: "64", // TODO: rename this to large and update large to xlarge
+const SOFTWARE_ICON_SIZES: Record<SoftwareIconSizes, string> = {
+  small: "24",
+  medium: "64",
   large: "96",
-} as const;
-
-type SoftwareIconSizes = keyof typeof SOFTWARE_ICON_SIZES;
+};
 
 const SoftwareIcon = ({
   name = "",
   source = "",
-  size = "medium",
+  size = "small",
+  url,
 }: ISoftwareIconProps) => {
+  if (url) {
+    const imgClasses = classnames(
+      `${baseClass}__software-img`,
+      `${baseClass}__software-img-${size}`
+    );
+    return (
+      <div className={baseClass}>
+        <img className={imgClasses} src={url} alt="" />
+      </div>
+    );
+  }
+
   const MatchedIcon = getMatchedSoftwareIcon({ name, source });
   return (
     <MatchedIcon
