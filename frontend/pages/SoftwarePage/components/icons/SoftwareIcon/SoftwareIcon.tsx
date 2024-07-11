@@ -1,27 +1,47 @@
 import React from "react";
+import classnames from "classnames";
+
 import getMatchedSoftwareIcon from "../";
 
 const baseClass = "software-icon";
+
+type SoftwareIconSizes = "small" | "medium" | "large";
 
 interface ISoftwareIconProps {
   name?: string;
   source?: string;
   size?: SoftwareIconSizes;
+  /** Accepts an image url to display for a the software icon image. */
+  url?: string;
 }
 
-const SOFTWARE_ICON_SIZES: Record<string, string> = {
-  medium: "24",
-  meduim_large: "64", // TODO: rename this to large and update large to xlarge
+const SOFTWARE_ICON_SIZES: Record<SoftwareIconSizes, string> = {
+  small: "24",
+  medium: "64",
   large: "96",
-} as const;
-
-type SoftwareIconSizes = keyof typeof SOFTWARE_ICON_SIZES;
+};
 
 const SoftwareIcon = ({
   name = "",
   source = "",
-  size = "medium",
+  size = "small",
+  url,
 }: ISoftwareIconProps) => {
+  // If we are given a url to render as the icon, we need to render it
+  // differently than the svg icons. We will use an img tag instead with the
+  // src set to the url.
+  if (url) {
+    const imgClasses = classnames(
+      `${baseClass}__software-img`,
+      `${baseClass}__software-img-${size}`
+    );
+    return (
+      <div className={baseClass}>
+        <img className={imgClasses} src={url} alt="" />
+      </div>
+    );
+  }
+
   const MatchedIcon = getMatchedSoftwareIcon({ name, source });
   return (
     <MatchedIcon
