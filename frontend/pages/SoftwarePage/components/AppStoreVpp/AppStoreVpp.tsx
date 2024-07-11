@@ -60,7 +60,7 @@ const VppAppList = ({ apps, selectedApp, onSelect }: IVppAppListProps) => {
     }
 
     return (
-      <ul className={`${baseClass}__list-items`}>
+      <ul className={`${baseClass}__list`}>
         {apps.map((app) => (
           <VppAppListItem
             key={app.app_store_id}
@@ -73,7 +73,9 @@ const VppAppList = ({ apps, selectedApp, onSelect }: IVppAppListProps) => {
     );
   };
 
-  return <div className={`${baseClass}__list`}>{renderContent()}</div>;
+  return (
+    <div className={`${baseClass}__list-container`}>{renderContent()}</div>
+  );
 };
 
 interface IAppStoreVppProps {

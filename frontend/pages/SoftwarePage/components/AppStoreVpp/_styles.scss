@@ -5,9 +5,24 @@
     margin: $pad-medium 0;
   }
 
-  &__list {
+  &__list-container {
     border: 1px solid $ui-fleet-black-10;
     border-radius: $border-radius-medium;
+  }
+
+  &__list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  &__list-item {
+    padding: $pad-small $pad-medium;
+    border-bottom: 1px solid $ui-fleet-black-10;
+
+    &:last-child {
+      border-bottom: none;
+    }
   }
 
   &__no-software {
