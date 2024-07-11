@@ -40,7 +40,7 @@ Recurring monthly or annual expenses, such as the tools we use throughout Fleet,
 All Fleet team members undergo a background check provided through [Vetty](https://vetty.co/). Only the most recent background checks appear on the home page of Vetty's dashboard. To access a complete list of background checks run in Vetty, scroll down to the bottom of the candidates page and click "View Historical".
 
 
-### Register with a new state 
+### Register Fleet as an employer with a new state 
 Fleet must register as an employer in any state where we hire new teammates. To do this, complete the following steps in Gusto:
 1. After a new teammate completes their Gusto profile, the Business Operations department will be prompted to approve it for payroll. Sign in to your Gusto admin account and begin the approval process.
 2. Select "yes" when prompted to file a new hire report and complete the approval process.
