@@ -35,16 +35,16 @@ const platformSubNav: IPlatformSubNav[] = [
     type: "msi",
   },
   {
-    name: "Linux (RPM)",
-    type: "rpm",
-  },
-  {
-    name: "Linux (deb)",
+    name: "Linux",
     type: "deb",
   },
   {
     name: "ChromeOS",
     type: "chromeos",
+  },
+  {
+    name: "iOS & iPadOS",
+    type: "ios-ipados",
   },
   {
     name: "Advanced",
@@ -393,6 +393,23 @@ const PlatformWrapper = ({
         </>
       );
     }
+
+    if (packageType === "ios-ipados") {
+      return (
+        <div className={`${baseClass}__ios-ipados--info`}>
+          <p>
+            Enroll iPhones and iPads by adding them to Fleet in Apple Business
+            Manager (ABM).{" "}
+            <CustomLink
+              url="https://fleetdm.com/learn-more-about/setup-abm"
+              text="Learn more"
+              newTab
+            />
+          </p>
+        </div>
+      );
+    }
+
     if (packageType === "advanced") {
       return (
         <>
@@ -539,7 +556,11 @@ const PlatformWrapper = ({
           label={renderLabel(packageType, renderInstallerString(packageType))}
           type="textarea"
           value={renderInstallerString(packageType)}
-          helpText="Distribute your package to add hosts to Fleet."
+          helpText={`Distribute your package to add hosts to Fleet.${
+            packageType === "deb"
+              ? " For CentOS, Red Hat, and Fedora Linux, use --type=rpm."
+              : ""
+          }`}
         />
       </>
     );

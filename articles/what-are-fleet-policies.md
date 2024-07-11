@@ -6,7 +6,7 @@ Read more about [getting and staying compliant across your fleet.](https://fleet
 
 ## Add policies
 
-To reduce the barrier of entry with Fleet, we’ve introduced our [standard templates](fleetdm.com/queries) that allow users to choose from a library of pre-made policies. Those handy with [osquery](https://osquery.io/) and SQL can still create custom policies to their heart’s content: 
+To reduce the barrier of entry with Fleet, we’ve introduced our [standard templates](https://fleetdm.com/queries) that allow users to choose from a library of pre-made policies. Those handy with [osquery](https://osquery.io/) and SQL can still create custom policies to their heart’s content: 
 
 1. In the top navigation, select **Policies**.
 

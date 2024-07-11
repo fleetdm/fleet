@@ -48,7 +48,7 @@ const Users = ({
             <>
               Check out the Fleet documentation for{" "}
               <CustomLink
-                url="https://fleetdm.com/docs/using-fleet/configuration-files#features"
+                url="https://fleetdm.com/learn-more-about/enable-user-collection"
                 text="steps to enable this feature"
                 newTab
               />

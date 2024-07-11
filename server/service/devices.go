@@ -110,6 +110,7 @@ func (r *getDeviceHostRequest) deviceAuthToken() string {
 
 type getDeviceHostResponse struct {
 	Host                      *HostDetailResponse      `json:"host"`
+	SelfService               bool                     `json:"self_service"`
 	OrgLogoURL                string                   `json:"org_logo_url"`
 	OrgLogoURLLightBackground string                   `json:"org_logo_url_light_background"`
 	OrgContactURL             string                   `json:"org_contact_url"`
@@ -178,6 +179,14 @@ func getDeviceHostEndpoint(ctx context.Context, request interface{}, svc fleet.S
 		}
 	}
 
+	hasSelfService := false
+	if softwareInventoryEnabled {
+		hasSelfService, err = svc.HasSelfServiceSoftwareInstallers(ctx, host)
+		if err != nil {
+			return getDeviceHostResponse{Err: err}, nil
+		}
+	}
+
 	deviceGlobalConfig := fleet.DeviceGlobalConfig{
 		MDM: fleet.DeviceGlobalMDMConfig{
 			// TODO(mna): It currently only returns the Apple enabled and configured,
@@ -196,6 +205,7 @@ func getDeviceHostEndpoint(ctx context.Context, request interface{}, svc fleet.S
 		OrgContactURL: ac.OrgInfo.ContactURL,
 		License:       *license,
 		GlobalConfig:  deviceGlobalConfig,
+		SelfService:   hasSelfService,
 	}, nil
 }
 

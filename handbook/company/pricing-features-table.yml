@@ -8,8 +8,10 @@
   documentationUrl: https://fleetdm.com/docs/using-fleet/automations#automations
   screenshotSrc:
   tier: Free
+  jamfProHasFeature: no
+  jamfProtectHasFeature: yes
   productCategories: [Device management,Endpoint operations]
-  pricingTableCategories: [Device management,Endpoint operations]
+  pricingTableCategories: [Endpoint operations]
   usualDepartment: IT
   dri: mikermcneil
   demos:
@@ -37,12 +39,16 @@
   description: Create a calendar event to auto-remediate failing policies when your end users are free.
   documentationUrl: https://github.com/fleetdm/fleet/issues/17230
   tier: Premium
+  jamfProHasFeature: no
+  jamfProtectHasFeature: no
   productCategories: [Endpoint operations]
   pricingTableCategories: [Endpoint operations]
 - industryName: AI-generated descriptions
   description: Use AI to explain why your security policies matter.
   documentationUrl: https://github.com/fleetdm/fleet/issues/18187
   tier: Free
+  jamfProHasFeature: no
+  jamfProtectHasFeature: no
   productCategories: [Endpoint operations]
   pricingTableCategories: [Endpoint operations]
 #
@@ -54,6 +60,8 @@
   description: Deploy and execute custom scripts using a REST API, and manage your library of scripts in the UI or a git repo.
   documentationUrl: https://fleetdm.com/docs/using-fleet/scripts
   tier: Free
+  jamfProHasFeature: yes
+  jamfProtectHasFeature: no
   dri: mikermcneil
   usualDepartment: IT
   productCategories: [Endpoint operations,Device management]
@@ -76,6 +84,8 @@
       moreInfoUrl: https://scalefusion.com/custom-scripting
     - description: Run scripts on online/offline hosts
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/15529
+    - description: Only maintainers and admins can run scripts. Coming soon (2024-09-15) #customer-faltona
+      moreInfoUrl: https://github.com/fleetdm/fleet/issues/19055
 #
 #  ╔═╗╦ ╦╔╦╗╔═╗╔╦╗╔═╗╔╦╗╦╔═╗  ╔═╗╔═╗╔═╗╔╦╗╦ ╦╦═╗╔═╗  ╔═╗╔═╗╔═╗╔═╗╔═╗╔═╗╔╦╗╔═╗╔╗╔╔╦╗
 #  ╠═╣║ ║ ║ ║ ║║║║╠═╣ ║ ║║    ╠═╝║ ║╚═╗ ║ ║ ║╠╦╝║╣   ╠═╣╚═╗╚═╗║╣ ╚═╗╚═╗║║║║╣ ║║║ ║
@@ -87,6 +97,8 @@
   screenshotSrc:
   usualDepartment: Security
   tier: Free
+  jamfProHasFeature: no
+  jamfProtectHasFeature: yes
   productCategories: [Endpoint operations]
   pricingTableCategories: [Endpoint operations]
   dri: mikermcneil
@@ -129,6 +141,8 @@
   documentationUrl: https://fleetdm.com/docs/rest-api/rest-api#get-hosts-google-chrome-profiles
   screenshotSrc:
   tier: Free
+  jamfProHasFeature: yes
+  jamfProtectHasFeature: yes
   productCategories: [Endpoint operations]
   pricingTableCategories: [Endpoint operations]
   usualDepartment: IT
@@ -158,6 +172,8 @@
   description: Send webhooks and ship logs to detect intrusions and issues with devices.
   documentationUrl: https://fleetdm.com/docs/using-fleet/log-destinations
   tier: Free
+  jamfProHasFeature: no
+  jamfProtectHasFeature: yes
   usualDepartment: Security
   productCategories: [Endpoint operations]
   pricingTableCategories: [Endpoint operations]
@@ -184,6 +200,8 @@
   documentationUrl: https://fleetdm.com/guides/osquery-evented-tables-overview#file-integrity-monitoring-fim # URL of the single-best page within the docs which serves as a "jumping-off point" for this feature.
   screenshotSrc: "" # A screenshot of the single, best, simplifying, obvious example 
   tier: Free # Either "Free" or "Premium"
+  jamfProHasFeature: no
+  jamfProtectHasFeature: yes
   usualDepartment: Security # or omit if there isn't a particular departmental leaning we've noticed
   productCategories: [Endpoint operations] # or omit if this isn't associated with a single product category
   pricingTableCategories: [Endpoint operations]
@@ -211,10 +229,12 @@
   description: Use YARA signatures to report and trigger automations when zero days, malware, or unexpected files are detected on a host.
   documentationUrl: https://fleetdm.com/tables/yara
   tier: Free
+  jamfProHasFeature: no
+  jamfProtectHasFeature: yes
   dri: mikermcneil
   usualDepartment: Security
   productCategories: [Endpoint operations,Vulnerability management]
-  pricingTableCategories: [Endpoint operations,Vulnerability management]
+  pricingTableCategories: [Vulnerability management]
   buzzwords: [YARA scanning,Cyber Threat Intelligence (CTI),Indicators of compromise (IOCs),Antivirus (AV),Endpoint protection platform (EPP),Endpoint detection and response (EDR),Malware detection,Signature-based malware detection,Malware scanning,Malware analysis,Anomaly detection]
   demos:
     - description: A top media company used Fleet policies with YARA rules to continuously scan host filesystems for malware signatures provided by internal and external threat intelligence teams.
@@ -241,6 +261,8 @@
   description: 
   documentationUrl: https://fleetdm.com/docs/using-fleet/log-destinations
   tier: Free
+  jamfProHasFeature: no
+  jamfProtectHasFeature: yes
   dri: mikermcneil
   usualDepartment: Security
   productCategories: [Endpoint operations]
@@ -256,6 +278,8 @@
   description: 
   documentationUrl: https://fleetdm.com/queries
   tier: Free
+  jamfProHasFeature: no
+  jamfProtectHasFeature: yes
   dri: mikermcneil
   usualDepartment: Security
   productCategories: [Endpoint operations]
@@ -271,6 +295,8 @@
   description: Live query, triage, figuring out scope of impact, remediate using scripts or MDM commands (e.g. remote wipe), and quarantine or reimage using other systems and APIs (e.g. remove from network, decommission container)
   documentationUrl: https://fleetdm.com/securing/how-osquery-can-help-cyber-responders#simplifying-endpoint-visibility-with-osquery-and-fleet
   tier: Free
+  jamfProHasFeature: yes
+  jamfProtectHasFeature: yes
   dri: mikermcneil
   usualDepartment: Security
   productCategories: [Endpoint operations]
@@ -286,6 +312,8 @@
   description: 
   documentationUrl: 
   tier: Free
+  jamfProHasFeature: yes
+  jamfProtectHasFeature: yes
   dri: mikermcneil
   usualDepartment: Security
   productCategories: [Endpoint operations]
@@ -310,6 +338,8 @@
   descrption: Keep agents and extensions up to date by loading code from Fleet's free update registry.
   documentationUrl: https://fleetdm.com/docs/using-fleet/enroll-hosts
   tier: Free
+  jamfProHasFeature: yes
+  jamfProtectHasFeature: no
   productCategories: [Endpoint operations]
   pricingTableCategories: [Endpoint operations]
   usualDepartment: IT
@@ -318,6 +348,8 @@
 #  ╩╝╚╝╚═╝ ╩ ╩ ╩╩═╝╩═╝╚═╝╩╚═╚═╝
 - industryName: Installers (self-service)
   tier: Free
+  jamfProHasFeature: yes
+  jamfProtectHasFeature: no
   productCategories: [Endpoint operations]
   pricingTableCategories: [Endpoint operations]
   usualDepartment: IT
@@ -336,6 +368,8 @@
   friendlyName: Install agents over the air
   documentationUrl: https://fleetdm.com/docs/using-fleet/enroll-hosts
   tier: Free
+  jamfProHasFeature: no
+  jamfProtectHasFeature: no
   productCategories: [Endpoint operations]
   pricingTableCategories: [Endpoint operations]
   usualDepartment: IT
@@ -347,6 +381,8 @@
   documentationUrl: https://fleetdm.com/docs/configuration/agent-configuration
   moreInfoUrl: https://github.com/fleetdm/fleet/issues/13825
   tier: Free
+  jamfProHasFeature: no
+  jamfProtectHasFeature: no
   productCategories: [Endpoint operations]
   pricingTableCategories: [Endpoint operations]
   usualDepartment: Security
@@ -355,8 +391,10 @@
 #   ╚╝ ╩ ╩╩╚═╩╩ ╩╚═╝╩═╝╚═╝  ╚═╝╝╚╝╩╚═╚═╝╩═╝╩═╝╩ ╩╚═╝╝╚╝ ╩
 - industryName: Variable enrollment
   description: Enroll hosts in different groups using different enrollment secrets and/or installers per-baseline.
-  documentationUrl: https://fleetdm.com/docs/configuration/configuration-files#teams 
+  documentationUrl: https://fleetdm.com/docs/using-fleet/segment-hosts
   tier: Premium
+  jamfProHasFeature: yes
+  jamfProtectHasFeature: no
   productCategories: [Endpoint operations, Device management]
   pricingTableCategories: [Endpoint operations]
   usualDepartment: IT
@@ -368,6 +406,8 @@
   description: Load agent code from a secret URL that you manage.
   documentationUrl: https://fleetdm.com/docs/using-fleet/update-agents
   tier: Premium
+  jamfProHasFeature: no
+  jamfProtectHasFeature: no
   productCategories: [Endpoint operations]
   pricingTableCategories: [Endpoint operations]
   usualDepartment: Security
@@ -375,6 +415,8 @@
   descrption: Manage agents remotely by setting different versions per-baseline.
   documentationUrl: https://fleetdm.com/docs/configuration/agent-configuration#configure-fleetd-update-channels
   tier: Premium
+  jamfProHasFeature: no
+  jamfProtectHasFeature: no
   productCategories: [Endpoint operations]
   pricingTableCategories: [Endpoint operations]
   usualDepartment: IT
@@ -387,6 +429,8 @@
   documentationUrl: https://fleetdm.com/docs/configuration/agent-configuration#extensions
   moreInfoUrl: https://github.com/trailofbits/osquery-extensions/blob/3df2b72ad78549e25344c79dbc9bce6808c4d92a/README.md#extensions
   tier: Premium
+  jamfProHasFeature: no
+  jamfProtectHasFeature: no
   productCategories: [Endpoint operations]
   pricingTableCategories: [Endpoint operations]
   usualDepartment: IT
@@ -403,6 +447,8 @@
   documentationUrl: https://fleetdm.com/docs/rest-api/rest-api 
   screenshotSrc:
   tier: Free
+  jamfProHasFeature: yes
+  jamfProtectHasFeature: yes
   dri: rachaelshaw
 #  ╔═╗╔═╗╔╦╗╔╦╗╔═╗╔╗╔╔╦╗  ╦  ╦╔╗╔╔═╗  ╔╦╗╔═╗╔═╗╦    ┌─  ╔═╗╦  ╦  ─┐
 #  ║  ║ ║║║║║║║╠═╣║║║ ║║  ║  ║║║║║╣    ║ ║ ║║ ║║    │   ║  ║  ║   │
@@ -414,6 +460,8 @@
   pricingTableCategories: [Endpoint operations]
   usualDepartment: IT
   tier: Free
+  jamfProHasFeature: yes
+  jamfProtectHasFeature: yes
 #  ╦ ╦╔═╗╔╗ ╦ ╦╔═╗╔═╗╦╔═╔═╗
 #  ║║║║╣ ╠╩╗╠═╣║ ║║ ║╠╩╗╚═╗
 #  ╚╩╝╚═╝╚═╝╩ ╩╚═╝╚═╝╩ ╩╚═╝
@@ -424,6 +472,8 @@
   pricingTableCategories: [Integrations]
   usualDepartment: IT 
   tier: Free
+  jamfProHasFeature: yes
+  jamfProtectHasFeature: yes
 #  ╔╦╗╔═╗╔═╗╔═╗  ╔═╗╦ ╦╔╦╗╔═╗╔╦╗╔═╗╔╦╗╦╔═╗╔╗╔╔═╗
 #   ║║║╣ ║╣ ╠═╝  ╠═╣║ ║ ║ ║ ║║║║╠═╣ ║ ║║ ║║║║╚═╗
 #  ═╩╝╚═╝╚═╝╩    ╩ ╩╚═╝ ╩ ╚═╝╩ ╩╩ ╩ ╩ ╩╚═╝╝╚╝╚═╝
@@ -452,6 +502,8 @@
   pricingTableCategories: [Deployment]
   usualDepartment: IT
   tier: Free
+  jamfProHasFeature: yes
+  jamfProtectHasFeature: yes
   demos:
     description: A top savings and investment company wanted workflows and automation so that one bad actor can't brick their fleet.  This way, they have to make a pull request first.
     quote: I don't want one bad actor to brick my fleet.  I want them to make a pull request first.
@@ -459,7 +511,7 @@
   #  ╔═╗╦═╗╔═╗╔═╗  ╦╔╗╔╔╦╗╔═╗╔═╗╦═╗╔═╗╔╦╗╦╔═╗╔╗╔╔═╗
   #  ╠╣ ╠╦╝║╣ ║╣   ║║║║ ║ ║╣ ║ ╦╠╦╝╠═╣ ║ ║║ ║║║║╚═╗
   #  ╚  ╩╚═╚═╝╚═╝  ╩╝╚╝ ╩ ╚═╝╚═╝╩╚═╩ ╩ ╩ ╩╚═╝╝╚╝╚═╝
-- industryName: Free integrations (Tines, Snowflake, Terraform, Chronicle, Jira, Zendesk, etc)
+- industryName: Integrations (Tines, Snowflake, Terraform, Chronicle, Jira, Zendesk, etc)
   friendlyName: Borrow off-the-shelf tactics from the community
   documentationUrl: https://fleetdm.com/integrations
   productCategories: [Endpoint operations,Device management,Vulnerability management]
@@ -468,6 +520,8 @@
   description:
   moreInfoUrl: https://fleetdm.com/integrations
   tier: Free
+  jamfProHasFeature: yes
+  jamfProtectHasFeature: yes
   waysToUse:
     - description: (ActiveDirectory) Know who opened your computer and check their device posture before you let them log into anything.
     - description: (Ansible) Easily issue MDM commands and standardize data across operating systems.
@@ -506,47 +560,63 @@
     - description: (Torq) Build custom workflows that trigger in various situations.
     - description: (Custom IdP) Manage access to Fleet single sign-on (SSO) through any IdP (using SAML).
   buzzwords: [Vanta,Puppet,Custom IdP]
-- industryName: Public issue tracker (GitHub)
+- industryName: Open-source issue tracker (GitHub)
   documentationUrl: https://fleetdm.com/support
   productCategories: [Endpoint operations,Device management,Vulnerability management]
   pricingTableCategories: [Support]
   tier: Free
+  jamfProHasFeature: no
+  jamfProtectHasFeature: no
 - industryName: Community Slack channel
   documentationUrl: https://fleetdm.com/support
   productCategories: [Endpoint operations,Device management,Vulnerability management]
   pricingTableCategories: [Support]
   tier: Free
+  jamfProHasFeature: yes
+  jamfProtectHasFeature: yes
 - industryName: Unlimited email support (confidential)
   documentationUrl: https://fleetdm.com/support
   productCategories: [Endpoint operations,Device management,Vulnerability management]
   pricingTableCategories: [Support]
   tier: Premium
+  jamfProHasFeature: yes
+  jamfProtectHasFeature: yes
 - industryName: Phone and video call support
   documentationUrl: https://fleetdm.com/support
   productCategories: [Endpoint operations,Device management,Vulnerability management]
   pricingTableCategories: [Support]
   tier: Premium
-- industryName: Self-managed
+  jamfProHasFeature: no
+  jamfProtectHasFeature: no
+- industryName: Self-hosted
   friendlyName: Host it yourself
   description: Deploy Fleet anywhere and host it yourself, even in air-gapped environments except where technologically impossible.
   pricingTableCategories: [Deployment]
   documentationUrl: https://fleetdm.com/docs/deploy/introduction
   productCategories: [Endpoint operations,Device management,Vulnerability management]
   tier: Free
+  jamfProHasFeature: yes
+  jamfProtectHasFeature: no
   buzzwords: [Self-hosted]
 - industryName: Deployment tools (Terraform, Helm)
   documentationUrl: https://fleetdm.com/docs/deploy/introduction
   usualDepartment: IT
   tier: Free
+  jamfProHasFeature: no
+  jamfProtectHasFeature: no
   productCategories: [Endpoint operations]
   pricingTableCategories: [Deployment]
-- industryName: Managed Cloud (700+ hosts)
+- industryName: Managed Cloud
   description: Have Fleet host it for you (currently only available for customers with 700+ hosts.  PS. Wish we could host for you?  We're working on it!  Please let us know if you know of a good partner.  In the meantime, join fleetdm.com/support and we're happy to help you deploy Fleet yourself.)
   pricingTableCategories: [Deployment]
   productCategories: [Endpoint operations,Device management,Vulnerability management]
   tier: Premium
+  jamfProHasFeature: yes
+  jamfProtectHasFeature: yes
 - industryName: Interactive MDM migration #   « end-user initiated MDM migration, with interactive UI
   tier: Premium
+  jamfProHasFeature: yes
+  jamfProtectHasFeature: no
   documentationUrl: https://fleetdm.com/docs/using-fleet/mdm-migration-guide#migrate-automatically-enrolled-dep-hosts
   usualDepartment: IT
   productCategories: [Device management]
@@ -555,6 +625,8 @@
   documentationUrl: https://fleetdm.com/docs/using-fleet/mdm-custom-os-settings
   usualDepartment: IT
   tier: Free
+  jamfProHasFeature: yes
+  jamfProtectHasFeature: no
   waysToUse:
     - description: Deploy configuration profiles on macOS and Windows and verify that they're installed.
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/13281
@@ -566,10 +638,12 @@
     - description: Deploy configuration profiles on iOS/iPadOS. Coming soon (2024-07-15).
   productCategories: [Device management]
   pricingTableCategories: [Device management]
-- industryName: Self service
+- industryName: Self-remediation
   description: Provide resolution instructions for end users through Fleet Desktop that suggest how an end user can fix a posture issue themselves.
   documentationUrl: https://fleetdm.com/docs/using-fleet/fleet-desktop
   tier: Premium
+  jamfProHasFeature: yes
+  jamfProtectHasFeature: no
   usualDepartment: IT
   productCategories: [Device management, Vulnerability management]
   pricingTableCategories: [Device management]
@@ -578,6 +652,8 @@
 - industryName: User-initiated enrollment of macOS computers
   documentationUrl: https://fleetdm.com/docs/using-fleet/mdm-migration-guide#migrate-manually-enrolled-hosts
   tier: Free
+  jamfProHasFeature: yes
+  jamfProtectHasFeature: no
   usualDepartment: IT
   productCategories: [Device management]
   pricingTableCategories: [Device management]
@@ -587,6 +663,8 @@
 - industryName: Low-level MDM commands for macOS, iOS/iPadOS*, and Windows (e.g. remote restart)
   documentationUrl: https://fleetdm.com/docs/using-fleet/mdm-commands
   tier: Free
+  jamfProHasFeature: appleOnly
+  jamfProtectHasFeature: no
   usualDepartment: IT
   productCategories: [Device management]
   pricingTableCategories: [Device management]
@@ -598,12 +676,16 @@
   description: Send low-level MDM commands to tell end users to update their OS.
   moreInfoUrl: https://developer.apple.com/documentation/devicemanagement/schedule_an_os_update
   tier: Free
+  jamfProHasFeature: yes
+  jamfProtectHasFeature: no
   usualDepartment: IT
   productCategories: [Device management]
   pricingTableCategories: [Device management]
 - industryName: Zero-touch setup for macOS, iOS/iPadOS*, and Windows
   documentationUrl: https://fleetdm.com/docs/using-fleet/mdm-macos-setup-experience
   tier: Premium
+  jamfProHasFeature: appleOnly
+  jamfProtectHasFeature: no
   usualDepartment: IT
   productCategories: [Device management]
   pricingTableCategories: [Device management]
@@ -612,10 +694,14 @@
     - description: Ship a macOS workstation to the end user's home and have them automatically enroll to Fleet during out-of-the-box setup.
     - description: Ship a Windows workstation to the end user's home and have them automatically enroll to Fleet during out-of-the-box setup.
     - description: Customize the out-of-the-box setup experience for your end users.
+    - description: Install a bootstrap package to run custom scripts during the setup experience. Store the bootstrap package outside the Fleet database coming soon (2024-09-15) #customer-faltona
+      moreInfoUrl: https://github.com/fleetdm/fleet/issues/19037
     - description: Require end users to authenticate with your identity provider (IdP) and agree to an end user license agreement (EULA) before they can use their new workstation
 - industryName: Enforce OS updates
   documentationUrl: https://fleetdm.com/docs/using-fleet/mdm-macos-updates
   tier: Premium
+  jamfProHasFeature: yes
+  jamfProtectHasFeature: no
   usualDepartment: IT
   productCategories: [Device management,Vulnerability management]
   pricingTableCategories: [Device management]
@@ -632,6 +718,8 @@
     - description: High-level remote wipe for macOS, Windows, and Linux.
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/9951
   tier: Premium
+  jamfProHasFeature: appleOnly
+  jamfProtectHasFeature: no
   usualDepartment: IT
   productCategories: [Device management]
   pricingTableCategories: [Device management]
@@ -640,12 +728,16 @@
   description: Easily configure and install SentinelOne, Crowdstrike, and other security tools.
   moreInfoUrl: https://github.com/fleetdm/fleet/issues/14921
   tier: Premium
+  jamfProHasFeature: appleOnly
+  jamfProtectHasFeature: no
   usualDepartment: IT
   productCategories: [Device management]
   pricingTableCategories: [Device management]
 - industryName: Update apps on macOS, Windows, and Linux computers.
   description: Update Zoom, Slack, Chrome, and other apps without interrupting your end users.
   tier: Premium
+  jamfProHasFeature: appleOnly
+  jamfProtectHasFeature: no
   comingSoonOn: 2024-07-15
   usualDepartment: IT
   productCategories: [Device management]
@@ -654,7 +746,8 @@
 - industryName: Self-service portal for users to install apps
   description: Add optional apps for your end users through Fleet Desktop (for macOS, Windows, and Linux).
   tier: Premium
-  comingSoonOn: 2024-06-30
+  jamfProHasFeature: yes
+  jamfProtectHasFeature: no
   usualDepartment: IT
   productCategories: [Device management]
   pricingTableCategories: [Device management]
@@ -662,6 +755,8 @@
 - industryName: Install Apple App Store apps through Volume Purchasing Program (VPP).
   description: Offer licenses for Photoshop and other App Sore apps for your end users.
   tier: Premium
+  jamfProHasFeature: yes
+  jamfProtectHasFeature: no
   comingSoonOn: 2024-08-11
   waysToUse:
     - description: macOS coming soon (2024-07-15). #customer-rosner
@@ -676,12 +771,16 @@
   documentationUrl: https://fleetdm.com/docs/using-fleet/puppet-module
   friendlyName: Map macOS settings to computers with Puppet module
   tier: Premium
+  jamfProHasFeature: no
+  jamfProtectHasFeature: no
   usualDepartment: IT
   productCategories: [Device management]
   pricingTableCategories: [Device management]
 - industryName: Software inventory
   documentationUrl: https://fleetdm.com/docs/get-started/anatomy#software-library
   tier: Free
+  jamfProHasFeature: yes
+  jamfProtectHasFeature: no
   productCategories: [Endpoint operations,Device management,Vulnerability management]
   pricingTableCategories: [Endpoint operations]
   waysToUse:
@@ -695,6 +794,8 @@
   productCategories: [Endpoint operations,Device management,Vulnerability management]
   pricingTableCategories: [Endpoint operations]
   tier: Free
+  jamfProHasFeature: yes
+  jamfProtectHasFeature: no
   waysToUse:
     - description: Implement hardware and infrastructure inventory recommendations from the SANS 20 / CIS 18.
       moreInfoUrl: https://docs.google.com/document/d/1E6EQMMqrsRc6Z3YsR6Q33OaF9eAa8zLNaz4K2YzFdyo/edit#heading=h.7en766pueek4
@@ -704,28 +805,38 @@
   pricingTableCategories: [Endpoint operations]
   usualDepartment: IT
   tier: Free
+  jamfProHasFeature: yes
+  jamfProtectHasFeature: yes
 - industryName: Browse installed software packages
   documentationUrl: https://fleetdm.com/docs/rest-api/rest-api#software
   productCategories: [Endpoint operations,Device management,Vulnerability management]
   pricingTableCategories: [Endpoint operations]
   tier: Free
+  jamfProHasFeature: yes
+  jamfProtectHasFeature: no
 - industryName: Search devices by IP, serial, hostname, UUID
   documentationUrl: https://fleetdm.com/docs/rest-api/rest-api#hosts
   productCategories: [Endpoint operations,Device management]
   pricingTableCategories: [Endpoint operations]
   tier: Free
+  jamfProHasFeature: yes
+  jamfProtectHasFeature: yes
 - industryName: Labels (SQL-driven)
-  documentationUrl: https://fleetdm.com/docs/configuration/configuration-files#labels
+  documentationUrl: https://fleetdm.com/docs/rest-api/rest-api#add-label
   friendlyName: Filter hosts using SQL
   productCategories: [Endpoint operations,Device management,Vulnerability management]
   pricingTableCategories: [Endpoint operations]
   usualDepartment: IT
   tier: Free
+  jamfProHasFeature: no
+  jamfProtectHasFeature: no
 - industryName: Custom device data for help desk
   documentationUrl: https://fleetdm.com/securing/end-user-self-remediation#set-your-enforcement-standards
   description:
   moreInfoUrl: https://github.com/fleetdm/fleet/issues/14415
   tier: Free
+  jamfProHasFeature: yes
+  jamfProtectHasFeature: yes
   usualDepartment: IT
   productCategories: [Endpoint operations,Device management]
   pricingTableCategories: [Device management]
@@ -734,19 +845,25 @@
   documentationUrl: https://fleetdm.com/docs/using-fleet/segment-hosts
   description: Set baselines and strategies for hosts in different situations called "teams", and move hosts between them via API-driven automations or a simple, delegatable user interface with role-based access.
   tier: Premium
+  jamfProHasFeature: yes
+  jamfProtectHasFeature: yes
   productCategories: [Endpoint operations,Device management,Vulnerability management]
   pricingTableCategories: [Endpoint operations]
   waysToUse:
     - description: Automate remediation for different applications with different security postures (cloud security engineering)
 - industryName: Generate reports for groups of devices
-  documentationUrl: https://fleetdm.com/docs/configuration/configuration-files#server-settings-query-reports-disabled
+  documentationUrl: https://fleetdm.com/docs/rest-api/rest-api#get-query-report
   productCategories: [Endpoint operations,Device management,Vulnerability management]
   pricingTableCategories: [Endpoint operations]
   usualDepartment: IT
   tier: Premium
+  jamfProHasFeature: yes
+  jamfProtectHasFeature: yes
 - industryName: Versionable queries and config (GitOps)
   documentationUrl: https://fleetdm.com/guides/using-github-actions-to-apply-configuration-profiles-with-fleet#basic-article
   tier: Free
+  jamfProHasFeature: no
+  jamfProtectHasFeature: no
   productCategories: [Endpoint operations,Device management,Vulnerability management]
   pricingTableCategories: [Endpoint operations]
   usualDepartment: IT
@@ -764,12 +881,16 @@
   pricingTableCategories: [Endpoint operations]
   usualDepartment: IT
   tier: Free
+  jamfProHasFeature: yes
+  jamfProtectHasFeature: yes
 - industryName: Two-factor authentication
   moreInfoUrl: https://github.com/fleetdm/fleet/issues/5478
   productCategories: [Endpoint operations,Device management,Vulnerability management]
   pricingTableCategories: [Endpoint operations]
   usualDepartment: IT
   tier: Free
+  jamfProHasFeature: yes
+  jamfProtectHasFeature: yes
   waysToUse:
     - description: Enforce two-factor authentication when logging in to Fleet for added security.
   comingSoonOn: 2024-12-31 #customer-rosner
@@ -781,6 +902,8 @@
   usualDepartment: Security
   description: Encrypt hard disks of macOS and Windows computers, manage escrowed encryption keys, and report on disk encryption status (FileVault, BitLocker).
   tier: Premium
+  jamfProHasFeature: appleOnly
+  jamfProtectHasFeature: no
   waysToUse:
     - description: Report on disk encryption status
     - description: Encrypt hard disks on macOS with FileVault
@@ -791,11 +914,15 @@
   productCategories: [Endpoint operations]
   pricingTableCategories: [Endpoint operations]
   tier: Free
-- industryName: Audit log of Fleet activity (queries, scripts, logins, etc)
+  jamfProHasFeature: yes
+  jamfProtectHasFeature: yes
+- industryName: Audit log of activity (queries, scripts, logins, etc)
   documentationUrl: https://fleetdm.com/docs/rest-api/rest-api#list-activities
   productCategories: [Endpoint operations, Device management]
-  pricingTableCategories: [Endpoint operations, Device management]
+  pricingTableCategories: [Endpoint operations]
   tier: Premium
+  jamfProHasFeature: yes
+  jamfProtectHasFeature: yes
   usualDepartment: Security
   waysToUse:
     - description: Export activity of Fleet admins to your SIEM or data lake
@@ -805,6 +932,8 @@
   pricingTableCategories: [Endpoint operations]
   usualDepartment: IT
   tier: Premium
+  jamfProHasFeature: yes
+  jamfProtectHasFeature: no
 - industryName: System for Cross-domain Identity Management (SCIM) provisioning
   moreInfoUrl: https://github.com/fleetdm/fleet/issues/15671
   productCategories: [Endpoint operations,Device management,Vulnerability management]
@@ -818,20 +947,35 @@
   pricingTableCategories: [Device management]
   usualDepartment: IT
   tier: Premium
+  jamfProHasFeature: yes
+  jamfProtectHasFeature: yes
   waysToUse:
     - description: Automatically set admin access to Fleet based on your IDP
+- industryName: Multi-tenancy for white label MDM solutions
+  description: Build your MDM solution on top of the Fleet API to manage workstations for multiple customers.
+  documentationUrl: https://github.com/fleetdm/fleet/issues/9956 #customer-deebradel
+  productCategories: [Device management]
+  pricingTableCategories: [Device management]
+  usualDepartment: IT
+  buzzwords: [OEM,Private label,House brand,Clear label,Multi-tenancy]
+  tier: Premium
+  comingSoonOn: 2024-08-26
 - industryName: Trigger a workflow based on a failing policy
   documentationUrl: https://fleetdm.com/docs/using-fleet/automations#policy-automations
   productCategories: [Endpoint operations,Device management]
   pricingTableCategories: [Integrations]
   usualDepartment: IT
   tier: Free
+  jamfProHasFeature: yes
+  jamfProtectHasFeature: no
 - industryName: Role-based access control
   documentationUrl: https://fleetdm.com/docs/using-fleet/manage-access#manage-access
   productCategories: [Endpoint operations,Device management,Vulnerability management]
   pricingTableCategories: [Endpoint operations]
   usualDepartment: IT
   tier: Premium
+  jamfProHasFeature: yes
+  jamfProtectHasFeature: yes
 #   ╦═╗╦╔═╗╦╔═   ╔╗ ╔═╗╔═╗╔═╗╔╦╗  ╦  ╦╦ ╦╦  ╔╗╔╔═╗╦═╗╔═╗╔╗ ╦╦  ╦╔╦╗╦ ╦  ╔╦╗╔═╗╔╗╔╔═╗╔═╗╔═╗╔╦╗╔═╗╔╗╔╔╦╗
 #   ╠╦╝║╚═╗╠╩╗───╠╩╗╠═╣╚═╗║╣  ║║  ╚╗╔╝║ ║║  ║║║║╣ ╠╦╝╠═╣╠╩╗║║  ║ ║ ╚╦╝  ║║║╠═╣║║║╠═╣║ ╦║╣ ║║║║╣ ║║║ ║ 
 #   ╩╚═╩╚═╝╩ ╩   ╚═╝╩ ╩╚═╝╚═╝═╩╝   ╚╝ ╚═╝╩═╝╝╚╝╚═╝╩╚═╩ ╩╚═╝╩╩═╝╩ ╩  ╩   ╩ ╩╩ ╩╝╚╝╩ ╩╚═╝╚═╝╩ ╩╚═╝╝╚╝ ╩
@@ -842,6 +986,8 @@
   pricingTableCategories: [Vulnerability management]
   usualDepartment: Security
   tier: Free
+  jamfProHasFeature: no
+  jamfProtectHasFeature: yes
   buzzwords: [Stakeholder-specific vulnerability categorization (SSVC),Continuous scanning,Continuous vulnerability scanning,Risk-based vulnerability management]
   waysToUse:
     - description: 'Use an SSVC decision tree model to prioritize relevant vulnerabilities into four possible decisions: "Track", "Track*", "Attend", and "Act".'
@@ -866,18 +1012,22 @@
   pricingTableCategories: [Vulnerability management]
   usualDepartment: Security
   tier: Premium
+  jamfProHasFeature: no
+  jamfProtectHasFeature: yes
   demos:
     - description: See a list of all vulnerabilities across your hosts.
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/15919
     - description: AI generated CVSS v4 context. Coming soon (2024-12-31).
   waysToUse:
-    - description: Easily communicate to executives regarding the progress of patching vulnerable software. Only show vulnerabilities that you care about. Coming soon (2024-12-31) #Customer-faltona and customer-rialto
+    - description: Easily communicate to executives regarding the progress of patching vulnerable software. Only show vulnerabilities that you care about.
 #  ╦  ╦╦ ╦╦  ╔╗╔╔═╗╦═╗╔═╗╔╗ ╦╦  ╦╔╦╗╦ ╦  ╔═╗╔═╗╔═╗╦═╗╔═╗╔═╗       ╔═╗╔═╗╔═╗╔═╗  ╔═╗╔╗╔╔╦╗  ╔═╗╦  ╦╔═╗╔═╗
 #  ╚╗╔╝║ ║║  ║║║║╣ ╠╦╝╠═╣╠╩╗║║  ║ ║ ╚╦╝  ╚═╗║  ║ ║╠╦╝║╣ ╚═╗  ───  ║╣ ╠═╝╚═╗╚═╗  ╠═╣║║║ ║║  ║  ╚╗╔╝╚═╗╚═╗
 #   ╚╝ ╚═╝╩═╝╝╚╝╚═╝╩╚═╩ ╩╚═╝╩╩═╝╩ ╩  ╩   ╚═╝╚═╝╚═╝╩╚═╚═╝╚═╝       ╚═╝╩  ╚═╝╚═╝  ╩ ╩╝╚╝═╩╝  ╚═╝ ╚╝ ╚═╝╚═╝
 - industryName: Vulnerability scores (EPSS and CVSS) 
   documentationUrl: https://fleetdm.com/vulnerability-management
   tier: Premium
+  jamfProHasFeature: no
+  jamfProtectHasFeature: yes
   usualDepartment: Security
   productCategories: [Vulnerability management]
   pricingTableCategories: [Vulnerability management]
@@ -897,6 +1047,8 @@
 - industryName: CISA KEVs (known exploited vulnerabilities)
   documentationUrl: https://fleetdm.com/vulnerability-management
   tier: Premium
+  jamfProHasFeature: no
+  jamfProtectHasFeature: yes
   usualDepartment: Security
   productCategories: [Vulnerability management]
   pricingTableCategories: [Vulnerability management]
@@ -910,6 +1062,8 @@
 - industryName: Query performance monitoring
   documentationUrl: https://fleetdm.com/docs/get-started/faq#will-fleet-slow-down-my-servers-what-about-my-employee-laptops
   tier: Free
+  jamfProHasFeature: no
+  jamfProtectHasFeature: no
   productCategories: [Endpoint operations]
   pricingTableCategories: [Endpoint operations]
   demos:
@@ -927,6 +1081,8 @@
   pricingTableCategories: [Endpoint operations]
   usualDepartment: IT
   tier: Free
+  jamfProHasFeature: yes
+  jamfProtectHasFeature: yes
 - industryName: Policy scoring
   documentationUrl: 
   friendlyName: Mark policies as critical
@@ -934,12 +1090,16 @@
   pricingTableCategories: [Endpoint operations]
   usualDepartment: IT
   tier: Premium
+  jamfProHasFeature: no
+  jamfProtectHasFeature: no
   waysToUse:
     - description: Block access to corporate apps if your end users are failing a specific number of critical policies.
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/16206
 - industryName: Flexible log destinations (AWS Kinesis, Lambda, GCP, Kafka)
   documentationUrl: https://fleetdm.com/docs/using-fleet/log-destinations#log-destinations
   tier: Free
+  jamfProHasFeature: yes
+  jamfProtectHasFeature: yes
   usualDepartment: Security
   productCategories: [Endpoint operations]
   pricingTableCategories: [Endpoint operations]
@@ -947,6 +1107,8 @@
 - industryName: File carving (AWS S3)
   documentationUrl: https://fleetdm.com/docs/configuration/fleet-server-configuration#s-3-file-carving-backend
   tier: Free
+  jamfProHasFeature: no
+  jamfProtectHasFeature: no
   usualDepartment: Security
   productCategories: [Endpoint operations]
   pricingTableCategories: [Endpoint operations]
@@ -957,3 +1119,45 @@
   usualDepartment: Security
   productCategories: [Vulnerability management]
   pricingTableCategories: [Vulnerability management]
+- industryName: Cross-platform MDM support (macOS, Windows, Linux)
+  tier: Premium
+  jamfProHasFeature: appleOnly
+  jamfProtectHasFeature: no
+  usualDepartment: IT
+  productCategories: [Device management]
+  pricingTableCategories: [Device management]
+- industryName: Apple Declarative Device Management (DDM) support for Configuration Profiles
+  tier: Premium
+  jamfProHasFeature: cloudOnly
+  jamfProtectHasFeature: cloudOnly
+  usualDepartment: IT
+  productCategories: [Device management]
+  pricingTableCategories: [Device management]
+- industryName: API first by design
+  tier: Free
+  jamfProHasFeature: no
+  jamfProtectHasFeature: no
+  usualDepartment: IT
+  productCategories: [Device management]
+  pricingTableCategories: [Device management]
+- industryName: Targeted device scoping
+  tier: Premium
+  jamfProHasFeature: yes
+  jamfProtectHasFeature: yes
+  usualDepartment: IT
+  productCategories: [Device management]
+  pricingTableCategories: [Device management]
+- industryName: Application deployment
+  tier: Premium
+  jamfProHasFeature: yes
+  jamfProtectHasFeature: no
+  usualDepartment: IT
+  productCategories: [Device management]
+  pricingTableCategories: [Device management]
+- industryName: Munki compatibility / integration
+  tier: Premium
+  jamfProHasFeature: yes
+  jamfProtectHasFeature: yes
+  usualDepartment: IT
+  productCategories: [Device management]
+  pricingTableCategories: [Device management]

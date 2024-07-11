@@ -115,8 +115,6 @@ module.exports = {
     //  - procurement-wants-some-stuff » No change (Stage ??)
     //  - nothing » No change (Stage ??)
 
-    // Set a variable to track whether we should create a Lead record in Salesforce.
-    let createLeadRecord = false;
     let psychologicalStage = userRecord.psychologicalStage;
     // Get the value of the submitted formData, we do this so we only need to check one variable, instead of (formData.attribute === 'foo');
     let valueFromFormData = _.values(formData)[0];
@@ -127,10 +125,8 @@ module.exports = {
     } else if(currentStep === 'have-you-ever-used-fleet') {
       if(['yes-deployed'].includes(valueFromFormData)) {
         // If the user has Fleet deployed, set their stage to 6.
-        createLeadRecord = true;
         psychologicalStage = '6 - Has team buy-in';
       } else if(valueFromFormData === 'yes-recently-deployed'){
-        createLeadRecord = true;
         psychologicalStage = '5 - Personally confident';
       } else if(valueFromFormData === 'yes-deployed-local'){
         // If they've tried Fleet locally, set their stage to 3.
@@ -155,7 +151,6 @@ module.exports = {
             psychologicalStage = '2 - Aware';
           }
         } else {// Otherwise, they have a use case and will be set to stage 4.
-          createLeadRecord = true;
           psychologicalStage = '4 - Has use case';
         }
       } else if(currentStep === 'is-it-any-good') {
@@ -171,11 +166,9 @@ module.exports = {
               psychologicalStage = '2 - Aware';
             }
           } else {
-            createLeadRecord = true;
             psychologicalStage = '4 - Has use case';
           }
         } else {// For any other selected primary buying situation, since a use case will have been selected, set their psyStage to 4
-          createLeadRecord = true;
           psychologicalStage = '4 - Has use case';
           // FUTURE: check previous answers for other selected buying situations.
         }
@@ -184,7 +177,6 @@ module.exports = {
         if(valueFromFormData === 'let-me-think-about-it') {
           psychologicalStage = '2 - Aware';
         } else if (['deploy-fleet-in-environment','host-fleet-for-me'].includes(valueFromFormData)) {
-          createLeadRecord = true;
           psychologicalStage = '4 - Has use case';
         } else { require('assert')(false,'This should never happen.'); }
       } else if(currentStep === 'how-was-your-deployment') {
@@ -219,38 +211,20 @@ module.exports = {
 
     // Only update CRM records if the user's psychological stage changes.
     if(psychologicalStage !== userRecord.psychologicalStage) {
-      // If the createLeadRecord flag was set to true, create a lead record.
-      if(createLeadRecord){
-      // Use setImmediate to queue CRM updates.
-      // [?]: https://nodejs.org/api/timers.html#setimmediatecallback-args
-        require('timers').setImmediate(async ()=>{
-          await sails.helpers.salesforce.updateOrCreateContactAndAccountAndCreateLead.with({
-            emailAddress: this.req.me.emailAddress,
-            firstName: this.req.me.firstName,
-            lastName: this.req.me.lastName,
-            primaryBuyingSituation: primaryBuyingSituation === 'eo-security' ? 'Endpoint operations - Security' : primaryBuyingSituation === 'eo-it' ? 'Endpoint operations - IT' : primaryBuyingSituation === 'mdm' ? 'Device management (MDM)' : primaryBuyingSituation === 'vm' ? 'Vulnerability management' : undefined,
-            organization: this.req.me.organization,
-            psychologicalStage,
-            leadSource: 'Website - Sign up',
-          }).tolerate((err)=>{
-            sails.log.warn(`Background task failed: When a user (email: ${this.req.me.emailAddress} submitted a step of the get started questionnaire, a Contact and Account record could not be created/updated in the CRM.`, err);
-          });
-        });//_∏_  (Meanwhile...)
-      } else {
-        // Otherwise, update or create a contact and account record.
-        require('timers').setImmediate(async ()=>{
-          await sails.helpers.salesforce.updateOrCreateContactAndAccount.with({
-            emailAddress: this.req.me.emailAddress,
-            firstName: this.req.me.firstName,
-            lastName: this.req.me.lastName,
-            primaryBuyingSituation: primaryBuyingSituation === 'eo-security' ? 'Endpoint operations - Security' : primaryBuyingSituation === 'eo-it' ? 'Endpoint operations - IT' : primaryBuyingSituation === 'mdm' ? 'Device management (MDM)' : primaryBuyingSituation === 'vm' ? 'Vulnerability management' : undefined,
-            organization: this.req.me.organization,
-            psychologicalStage,
-          }).tolerate((err)=>{
-            sails.log.warn(`Background task failed: When a user (email: ${this.req.me.emailAddress} submitted a step of the get started questionnaire, a Contact and Account record could not be created/updated in the CRM.`, err);
-          });
-        });//_∏_  (Meanwhile...)
-      }
+      sails.helpers.salesforce.updateOrCreateContactAndAccount.with({
+        emailAddress: this.req.me.emailAddress,
+        firstName: this.req.me.firstName,
+        lastName: this.req.me.lastName,
+        primaryBuyingSituation: primaryBuyingSituation === 'eo-security' ? 'Endpoint operations - Security' : primaryBuyingSituation === 'eo-it' ? 'Endpoint operations - IT' : primaryBuyingSituation === 'mdm' ? 'Device management (MDM)' : primaryBuyingSituation === 'vm' ? 'Vulnerability management' : undefined,
+        organization: this.req.me.organization,
+        psychologicalStage,
+        leadSource: 'Website - Sign up',
+      }).exec((err)=>{
+        if(err){
+          sails.log.warn(`Background task failed: When a user (email: ${this.req.me.emailAddress} submitted a step of the get started questionnaire, a Contact and Account record could not be created/updated in the CRM.`, err);
+        }
+        return;
+      });
     }//ﬁ
     // TODO: send all other answers to Salesforce (when there are fields for them)
     // Set the user's answer to the current step.
