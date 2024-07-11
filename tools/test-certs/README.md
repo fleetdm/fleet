@@ -2,6 +2,8 @@
 
 This directory contains a fake certificate chain to test TLS functionality in `fleet`, `fleetctl` and `fleetd`.
 
+> The certificates were generated using the following guide: [OpenSSL create certificate chain](https://www.golinuxcloud.com/openssl-create-certificate-chain-linux/#Step_6_Generate_and_sign_server_certificate_using_Intermediate_CA)
+
 ## Directories
 
 ### root-ca directory
