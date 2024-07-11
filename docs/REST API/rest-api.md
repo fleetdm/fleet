@@ -9053,7 +9053,7 @@ Returns information about the specified software version.
 
 ### Get available App Store apps
 
-Returns the list of App Store (VPP) apps purchased in Apple Business Manager.
+Returns the list of App Store (VPP) apps purchased in Apple Business Manager. Apps that are already added to a team won't be returned.
 
 `GET /api/v1/fleet/software/app_store_apps`
 
