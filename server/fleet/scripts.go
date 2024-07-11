@@ -152,9 +152,6 @@ type HostScriptRequestPayload struct {
 
 func (r HostScriptRequestPayload) ValidateParams(waitForResult time.Duration) error {
 	if r.ScriptContents == "" && r.ScriptID == nil && r.ScriptName == "" {
-		if waitForResult <= 0 {
-			return NewInvalidArgumentError("script", `Script contents must not be empty.`)
-		}
 		return NewInvalidArgumentError("script", `One of 'script_id', 'script_contents', or 'script_name' is required.`)
 	}
 
