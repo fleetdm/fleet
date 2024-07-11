@@ -9055,7 +9055,7 @@ Returns information about the specified software version.
 
 Returns the list of App Store (VPP) apps purchased in Apple Business Manager.
 
-`GET /api/v1/fleet/software/app_store_apps/:team_id`
+`GET /api/v1/fleet/software/app_store_apps`
 
 #### Parameters
 
