@@ -3,7 +3,6 @@ import { uniqueId } from "lodash";
 import classnames from "classnames";
 
 import ReactTooltip from "react-tooltip";
-import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 import { COLORS } from "styles/var/colors";
 
 interface ITooltipTruncatedTextCellProps {
@@ -14,21 +13,18 @@ interface ITooltipTruncatedTextCellProps {
   /** If set to `true` the text inside the tooltip will break on words instead of any character.
    * By default the tooltip text breaks on any character. Default: false */
   tooltipBreakOnWord?: boolean;
-  /** @deprecated use the prop `className` in order to add custom classes to this component */
-  classes?: string;
   className?: string;
 }
 
-const baseClass = "tooltip-truncated-cell";
+const baseClass = "tooltip-truncated-text";
 
-const TooltipTruncatedTextCell = ({
+const TooltipTruncatedText = ({
   value,
   tooltip,
   tooltipBreakOnWord = false,
-  classes = "w250",
   className,
 }: ITooltipTruncatedTextCellProps): JSX.Element => {
-  const classNames = classnames(baseClass, classes, className, {
+  const classNames = classnames(baseClass, className, {
     "tooltip-break-on-word": tooltipBreakOnWord,
   });
 
@@ -46,23 +42,10 @@ const TooltipTruncatedTextCell = ({
   // End
 
   const tooltipId = uniqueId();
-  const isDefaultValue = value === DEFAULT_EMPTY_CELL_VALUE;
-
   return (
     <div ref={ref} className={classNames}>
-      <div
-        className="data-table__tooltip-truncated-text"
-        data-tip
-        data-for={tooltipId}
-        data-tip-disable={isDefaultValue || tooltipDisabled}
-      >
-        <span
-          className={`data-table__tooltip-truncated-text--cell ${
-            isDefaultValue ? "text-muted" : ""
-          } ${tooltipDisabled ? "" : "truncated"}`}
-        >
-          {value}
-        </span>
+      <div className={"tooltip-truncated"} data-tip data-for={tooltipId}>
+        <span className={tooltipDisabled ? "" : "truncated"}>{value}</span>
       </div>
       <ReactTooltip
         place="top"
@@ -73,6 +56,7 @@ const TooltipTruncatedTextCell = ({
         className="truncated-tooltip" // responsive widths
         clickable
         delayHide={200} // need delay set to hover using clickable
+        disable={tooltipDisabled}
       >
         <>
           {tooltip ?? value}
@@ -84,4 +68,4 @@ const TooltipTruncatedTextCell = ({
   );
 };
 
-export default TooltipTruncatedTextCell;
+export default TooltipTruncatedText;
