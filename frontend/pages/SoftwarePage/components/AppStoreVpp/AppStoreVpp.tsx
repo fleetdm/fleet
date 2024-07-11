@@ -2,6 +2,7 @@ import React, { useContext, useState } from "react";
 import { InjectedRouter } from "react-router";
 import { useQuery } from "react-query";
 
+import PATHS from "router/paths";
 import mdmAppleAPI, { IVppApp } from "services/entities/mdm_apple";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 
@@ -11,6 +12,7 @@ import DataError from "components/DataError";
 import Radio from "components/forms/fields/Radio";
 import { NotificationContext } from "context/notification";
 import { getErrorReason } from "interfaces/errors";
+import { buildQueryStringFromParams } from "utilities/url";
 
 const baseClass = "app-store-vpp";
 
@@ -113,6 +115,11 @@ const AppStoreVpp = ({ teamId, router, onExit }: IAppStoreVppProps) => {
           to install software.
         </>
       );
+      const queryParams = buildQueryStringFromParams({
+        team_id: teamId,
+        available_for_install: true,
+      });
+      router.push(`${PATHS.SOFTWARE}?${queryParams}`);
     } catch (e) {
       renderFlash("error", getErrorReason(e));
     }
