@@ -619,25 +619,38 @@ func (ds *Datastore) insertNewInstalledHostSoftwareDB(
 					return nil, ctxerr.Wrap(ctx, err, "insert software_titles")
 				}
 
+				updateSoftwareWithoutIdentifierStmt := `
+				    UPDATE software s
+				    JOIN software_titles st
+				    ON COALESCE(s.bundle_identifier, '') = '' AND s.name = st.name AND s.source = st.source AND s.browser = st.browser
+				    SET s.title_id = st.id
+				    WHERE (s.title_id IS NULL OR s.title_id != st.id)
+				    AND COALESCE(s.bundle_identifier, '') = ''
+				    AND s.checksum IN (?)
+				    `
+				updateSoftwareWithoutIdentifierStmt, updateArgs, err := sqlx.In(updateSoftwareWithoutIdentifierStmt, titleChecksums)
+				if err != nil {
+					return nil, ctxerr.Wrap(ctx, err, "build update software title_id without identifier")
+				}
+				if _, err = tx.ExecContext(ctx, updateSoftwareWithoutIdentifierStmt, updateArgs...); err != nil {
+					return nil, ctxerr.Wrap(ctx, err, "update software title_id without identifier")
+				}
+
 				// update new title ids for new software table entries
 				updateSoftwareStmt := `
-				UPDATE
-					software s,
-					software_titles st
-				SET
-					s.title_id = st.id
-				WHERE
-				         s.bundle_identifier = st.bundle_identifier OR (
-					   s.bundle_identifier = '' AND
-					   (s.name, s.source, s.browser) = (st.name, st.source, st.browser)
-					 )
-					AND s.checksum IN (?)`
-				updateSoftwareStmt, updateArgs, err := sqlx.In(updateSoftwareStmt, titleChecksums)
+				      UPDATE software s
+				      JOIN software_titles st
+				      ON s.bundle_identifier = st.bundle_identifier
+				      SET s.title_id = st.id
+				      WHERE s.title_id IS NULL
+				      OR s.title_id != st.id
+				      AND s.checksum IN (?)`
+				updateSoftwareStmt, updateArgs, err = sqlx.In(updateSoftwareStmt, titleChecksums)
 				if err != nil {
-					return nil, ctxerr.Wrap(ctx, err, "build update software title_id")
+					return nil, ctxerr.Wrap(ctx, err, "build update software title_id with identifier")
 				}
 				if _, err = tx.ExecContext(ctx, updateSoftwareStmt, updateArgs...); err != nil {
-					return nil, ctxerr.Wrap(ctx, err, "update software title_id")
+					return nil, ctxerr.Wrap(ctx, err, "update software title_id with identifier")
 				}
 			}
 		}
