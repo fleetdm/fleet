@@ -9065,7 +9065,7 @@ Returns the list of App Store (VPP) apps purchased in Apple Business Manager.
 
 #### Example
 
-`GET /api/v1/fleet/software/app_store_apps/3`
+`GET /api/v1/fleet/software/app_store_apps/?team_id=3`
 
 ##### Default response
 
