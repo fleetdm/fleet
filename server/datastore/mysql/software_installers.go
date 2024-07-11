@@ -248,7 +248,7 @@ SELECT
   %s
 FROM
   software_installers si
-  LEFT OUTER JOIN software_titles st ON st.id = si.title_id
+  JOIN software_titles st ON st.id = si.title_id
   %s
 WHERE
   si.title_id = ? AND si.global_or_team_id = ?`,

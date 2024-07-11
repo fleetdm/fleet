@@ -15,7 +15,7 @@ func Up_20240701113709(tx *sql.Tx) error {
 -- This table is also used as a cache of the response from the "Get Assets"
 -- Apple endpoint as well as the FleetDM website endpoint which will return
 -- the app metadata.
--- If an asset has an entry here and an entry in vpp_apps_teams, then it has 
+-- If an asset has an entry here and an entry in vpp_apps_teams, then it has
 -- been added to Fleet.
 CREATE TABLE vpp_apps (
 	adam_id VARCHAR(16) NOT NULL,
@@ -72,7 +72,7 @@ CREATE TABLE vpp_apps_teams (
 CREATE TABLE host_vpp_software_installs (
 	id int(10) unsigned NOT NULL AUTO_INCREMENT,
 	host_id INT(10) UNSIGNED NOT NULL,
-	
+
 	-- This is the adam_id of the VPP software that's being installed
 	adam_id VARCHAR(16) NOT NULL,
 
@@ -82,8 +82,8 @@ CREATE TABLE host_vpp_software_installs (
 
 	-- This indicates whether or not this was a self-service install
 	self_service TINYINT(1) NOT NULL DEFAULT FALSE,
-	
-	-- This is an ID for the event of "associating" the software with a host. 
+
+	-- This is an ID for the event of "associating" the software with a host.
 	-- This value comes from the "eventId" field in the response here:
 	-- https://developer.apple.com/documentation/devicemanagement/associate_assets
 	associated_event_id VARCHAR(36),
