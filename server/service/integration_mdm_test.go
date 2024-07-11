@@ -9250,6 +9250,15 @@ func (s *integrationMDMTestSuite) TestConnectedToFleetWithoutCheckout() {
 	require.False(t, *hostResp.Host.MDM.ConnectedToFleet)
 }
 
+func (s *integrationMDMTestSuite) TestInvalidCommandUUID() {
+	t := s.T()
+	_, device := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	s.runWorker()
+	cmd, err := device.Acknowledge("foo")
+	require.NoError(t, err)
+	require.NotNil(t, cmd)
+}
+
 func (s *integrationMDMTestSuite) TestEnrollAfterDEPSyncIOSIPadOS() {
 	t := s.T()
 	ctx := context.Background()
