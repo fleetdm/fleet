@@ -9213,3 +9213,49 @@ func (s *integrationMDMTestSuite) TestConnectedToFleetWithoutCheckout() {
 	require.NotNil(t, hostResp.Host.MDM.ConnectedToFleet)
 	require.False(t, *hostResp.Host.MDM.ConnectedToFleet)
 }
+
+func (s *integrationMDMTestSuite) TestInvalidCommandUUID() {
+	t := s.T()
+	_, device := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	s.runWorker()
+	cmd, err := device.Acknowledge("foo")
+	require.NoError(t, err)
+	require.NotNil(t, cmd)
+}
+
+func (s *integrationMDMTestSuite) TestEnrollAfterDEPSyncIOSIPadOS() {
+	t := s.T()
+	ctx := context.Background()
+
+	// create a host with minimal information and the serial, no uuid/osquery id
+	// (as when created via DEP sync).
+	dbZeroTime := time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
+	serialNumber := mdmtest.RandSerialNumber()
+	h, err := s.ds.NewHost(ctx, &fleet.Host{
+		HardwareSerial:   serialNumber,
+		Platform:         "ios",
+		LastEnrolledAt:   dbZeroTime,
+		DetailUpdatedAt:  dbZeroTime,
+		RefetchRequested: true,
+	})
+	require.NoError(t, err)
+	require.Equal(t, dbZeroTime, h.LastEnrolledAt)
+
+	// Perform the MDM enrollment.
+	mdmEnrollInfo := mdmtest.AppleEnrollInfo{
+		SCEPChallenge: s.scepChallenge,
+		SCEPURL:       s.server.URL + apple_mdm.SCEPPath,
+		MDMURL:        s.server.URL + apple_mdm.MDMPath,
+	}
+	mdmDevice := mdmtest.NewTestMDMClientAppleDirect(mdmEnrollInfo, "iPhone14,6")
+	mdmDevice.SerialNumber = serialNumber
+	err = mdmDevice.Enroll()
+	require.NoError(t, err)
+
+	// fetch the host, it will match the one created above
+	// (NOTE: cannot check the returned OrbitNodeKey, this field is not part of the response)
+	var hostResp getHostResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", h.ID), nil, http.StatusOK, &hostResp)
+	require.Equal(t, h.ID, hostResp.Host.ID)
+	require.NotEqual(t, dbZeroTime, hostResp.Host.LastEnrolledAt)
+}
