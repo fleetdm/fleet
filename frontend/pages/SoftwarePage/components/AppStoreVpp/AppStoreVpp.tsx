@@ -1,47 +1,49 @@
-import React, { useState } from "react";
+import React, { useContext, useState } from "react";
 import { InjectedRouter } from "react-router";
 import { useQuery } from "react-query";
+
+import mdmAppleAPI, { IVppApp } from "services/entities/mdm_apple";
+import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 
 import Spinner from "components/Spinner";
 import Button from "components/buttons/Button";
 import DataError from "components/DataError";
 import Radio from "components/forms/fields/Radio";
-import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
+import { NotificationContext } from "context/notification";
+import { getErrorReason } from "interfaces/errors";
 
 const baseClass = "app-store-vpp";
 
-interface IVppSoftwareListItemProps {
-  software: any;
+interface IVppAppListItemProps {
+  app: IVppApp;
   selected: boolean;
-  onSelect: (software: any) => void;
+  onSelect: (software: IVppApp) => void;
 }
 
-const VppSoftwareListItem = ({
-  software,
-  selected,
-  onSelect,
-}: IVppSoftwareListItemProps) => {
+const VppAppListItem = ({ app, selected, onSelect }: IVppAppListItemProps) => {
   return (
     <li className={`${baseClass}__list-item`}>
       <Radio
-        label="Test software"
-        id="test-software"
+        label={app.name}
+        id={`vppApp-${app.app_store_id}`}
         checked={selected}
-        value={"test-software "}
-        name="vppSoftware"
-        onChange={onSelect}
+        value={app.app_store_id.toString()}
+        name="vppApp"
+        onChange={() => onSelect(app)}
       />
     </li>
   );
 };
 
-interface IVppSoftwareListProps {
-  software: any[];
+interface IVppAppListProps {
+  apps: IVppApp[];
+  selectedApp: IVppApp | null;
+  onSelect: (app: IVppApp) => void;
 }
 
-const VppSoftwareList = ({ software }: IVppSoftwareListProps) => {
+const VppAppList = ({ apps, selectedApp, onSelect }: IVppAppListProps) => {
   const renderContent = () => {
-    if (software.length === 0) {
+    if (apps.length === 0) {
       return (
         <div className={`${baseClass}__no-software`}>
           <p className={`${baseClass}__no-software-title`}>
@@ -57,12 +59,12 @@ const VppSoftwareList = ({ software }: IVppSoftwareListProps) => {
 
     return (
       <ul className={`${baseClass}__list-items`}>
-        {software.map((softwareItem) => (
-          <VppSoftwareListItem
-            key={softwareItem.id}
-            software={softwareItem}
-            selected={false}
-            onSelect={() => {}}
+        {apps.map((app) => (
+          <VppAppListItem
+            key={app.app_store_id}
+            app={app}
+            selected={selectedApp?.app_store_id === app.app_store_id}
+            onSelect={onSelect}
           />
         ))}
       </ul>
@@ -79,11 +81,43 @@ interface IAppStoreVppProps {
 }
 
 const AppStoreVpp = ({ teamId, router, onExit }: IAppStoreVppProps) => {
+  const { renderFlash } = useContext(NotificationContext);
   const [isSubmitDisabled, setIsSubmitDisabled] = useState(true);
+  const [selectedApp, setSelectedApp] = useState<IVppApp | null>(null);
 
-  const { data, isLoading, isError } = useQuery("vppSoftware", () => {}, {
-    ...DEFAULT_USE_QUERY_OPTIONS,
-  });
+  const { data: vppApps, isLoading, isError } = useQuery(
+    "vppSoftware",
+    () => mdmAppleAPI.getVppApps(teamId),
+    {
+      ...DEFAULT_USE_QUERY_OPTIONS,
+      select: (res) => res.app_store_apps,
+    }
+  );
+
+  const onSelectApp = (app: IVppApp) => {
+    setIsSubmitDisabled(false);
+    setSelectedApp(app);
+  };
+
+  const onAddSoftware = async () => {
+    if (!selectedApp) {
+      return;
+    }
+
+    try {
+      await mdmAppleAPI.addVppApp(teamId, selectedApp.app_store_id);
+      renderFlash(
+        "success",
+        <>
+          <b>{selectedApp.name}</b> successfully added. Go to Host details page
+          to install software.
+        </>
+      );
+    } catch (e) {
+      renderFlash("error", getErrorReason(e));
+    }
+    onExit();
+  };
 
   const renderContent = () => {
     if (isLoading) {
@@ -94,7 +128,13 @@ const AppStoreVpp = ({ teamId, router, onExit }: IAppStoreVppProps) => {
       return <DataError className={`${baseClass}__error`} />;
     }
 
-    return <VppSoftwareList software={[1, 2, 3]} />;
+    return vppApps ? (
+      <VppAppList
+        apps={vppApps}
+        selectedApp={selectedApp}
+        onSelect={onSelectApp}
+      />
+    ) : null;
   };
 
   return (
@@ -104,7 +144,12 @@ const AppStoreVpp = ({ teamId, router, onExit }: IAppStoreVppProps) => {
       </p>
       {renderContent()}
       <div className="modal-cta-wrap">
-        <Button type="submit" variant="brand" disabled={isSubmitDisabled}>
+        <Button
+          type="submit"
+          variant="brand"
+          disabled={isSubmitDisabled}
+          onClick={onAddSoftware}
+        >
           Add software
         </Button>
         <Button onClick={onExit} variant="inverse">

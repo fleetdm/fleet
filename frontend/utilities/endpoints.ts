@@ -82,8 +82,7 @@ export default {
   MDM_APPLE_PNS: `/${API_VERSION}/fleet/apns`,
   MDM_APPLE_BM: `/${API_VERSION}/fleet/abm`,
   MDM_APPLE_BM_KEYS: `/${API_VERSION}/fleet/mdm/apple/dep/key_pair`,
-  MDM_APPLE_APP_STORE_APPS: (teamId: number) =>
-    `/${API_VERSION}/fleet/software/app_store/${teamId}`,
+  MDM_APPLE_VPP_APPS: `/${API_VERSION}/fleet/software/app_store`,
   MDM_SUMMARY: `/${API_VERSION}/fleet/hosts/summary/mdm`,
   MDM_REQUEST_CSR: `/${API_VERSION}/fleet/mdm/apple/request_csr`,
 

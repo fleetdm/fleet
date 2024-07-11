@@ -1,6 +1,19 @@
-/* eslint-disable @typescript-eslint/explicit-module-boundary-types */
+import { createMockVppApp } from "__mocks__/appleMdm";
+import { create } from "lodash";
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
+
+export interface IVppApp {
+  name: string;
+  icon_url: string;
+  latest_version: string;
+  app_store_id: number;
+  added: boolean;
+}
+
+interface IGetVppAppsResponse {
+  app_store_apps: IVppApp[];
+}
 
 export default {
   getAppleAPNInfo: () => {
@@ -26,9 +39,26 @@ export default {
     return sendRequest("GET", MDM_REQUEST_CSR);
   },
 
-  getAppStoreVppApps: (teamId: number) => {
+  getVppApps: (teamId: number): Promise<IGetVppAppsResponse> => {
     const { MDM_APPLE_VPP_APPS } = endpoints;
-    const path = MDM_APPLE_VPP_APPS.replace(":teamId", teamId.toString());
-    return sendRequest("GET", path);
+    // return sendRequest("GET", MDM_APPLE_VPP_APPS(teamId));
+
+    return new Promise((resolve) =>
+      resolve({
+        app_store_apps: [
+          createMockVppApp({ name: "Test App 1", app_store_id: 1 }),
+          createMockVppApp({ name: "Test App 2", app_store_id: 2 }),
+          createMockVppApp({ name: "Test App 3", app_store_id: 3 }),
+        ],
+      })
+    );
+  },
+
+  addVppApp: (teamId: number, appStoreId: number) => {
+    const { MDM_APPLE_VPP_APPS } = endpoints;
+    return sendRequest("POST", MDM_APPLE_VPP_APPS, {
+      app_store_id: appStoreId,
+      team_id: teamId,
+    });
   },
 };
