@@ -18,7 +18,11 @@ import TurnOnMdmMessage from "../components/TurnOnMdmMessage/TurnOnMdmMessage";
 import CurrentVersionSection from "./components/CurrentVersionSection";
 import TargetSection from "./components/TargetSection";
 
-export type OSUpdatesSupportedPlatform = "darwin" | "windows";
+export type OSUpdatesSupportedPlatform =
+  | "darwin"
+  | "windows"
+  | "iOS"
+  | "iPadOS";
 
 const baseClass = "os-updates";
 
@@ -89,6 +93,7 @@ const OSUpdates = ({ router, teamIdForApi }: IOSUpdates) => {
   // FIXME: Handle error states for app config and team config (need specifications for this).
 
   // mdm is not enabled for mac or windows.
+
   if (
     !config?.mdm.enabled_and_configured &&
     !config?.mdm.windows_enabled_and_configured

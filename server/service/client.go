@@ -375,9 +375,11 @@ func getProfilesContents(baseDir string, macProfiles []fleet.MDMProfileSpec, win
 			extByName[name] = ext
 
 			result = append(result, fleet.MDMProfileBatchPayload{
-				Name:     name,
-				Contents: fileContents,
-				Labels:   profile.Labels,
+				Name:             name,
+				Contents:         fileContents,
+				Labels:           profile.Labels,
+				LabelsIncludeAll: profile.LabelsIncludeAll,
+				LabelsExcludeAny: profile.LabelsExcludeAny,
 			})
 
 		}
@@ -604,9 +606,9 @@ func (c *Client) ApplyGroup(
 			tmScriptsPayloads[k] = scriptPayloads
 		}
 
-		tmSoftware := extractTmSpecsSoftware(specs.Teams)
+		tmSoftwarePackages := extractTmSpecsSoftware(specs.Teams)
 		tmSoftwarePayloads := make(map[string][]fleet.SoftwareInstallerPayload, len(tmScripts))
-		for tmName, software := range tmSoftware {
+		for tmName, software := range tmSoftwarePackages {
 			softwarePayloads := make([]fleet.SoftwareInstallerPayload, len(software))
 			for i, si := range software {
 				var qc string
@@ -828,6 +830,18 @@ func extractAppCfgCustomSettings(appCfg interface{}, platformKey string) []fleet
 		return []fleet.MDMProfileSpec{}
 	}
 
+	extractLabelField := func(parentMap map[string]interface{}, fieldName string) []string {
+		var ret []string
+		if labels, ok := parentMap[fieldName].([]interface{}); ok {
+			for _, label := range labels {
+				if strLabel, ok := label.(string); ok {
+					ret = append(ret, strLabel)
+				}
+			}
+		}
+		return ret
+	}
+
 	csSpecs := make([]fleet.MDMProfileSpec, 0, len(csAny))
 	for _, v := range csAny {
 		if m, ok := v.(map[string]interface{}); ok {
@@ -838,14 +852,11 @@ func extractAppCfgCustomSettings(appCfg interface{}, platformKey string) []fleet
 				profSpec.Path = path
 			}
 
-			// extract the Labels field, labels are cleared if not provided
-			if labels, ok := m["labels"].([]interface{}); ok {
-				for _, label := range labels {
-					if strLabel, ok := label.(string); ok {
-						profSpec.Labels = append(profSpec.Labels, strLabel)
-					}
-				}
-			}
+			// at this stage we extract and return all supported label fields, the
+			// validations are done later on in the Fleet API endpoint.
+			profSpec.Labels = extractLabelField(m, "labels")
+			profSpec.LabelsIncludeAll = extractLabelField(m, "labels_include_all")
+			profSpec.LabelsExcludeAny = extractLabelField(m, "labels_exclude_any")
 
 			if profSpec.Path != "" {
 				csSpecs = append(csSpecs, profSpec)
@@ -984,8 +995,8 @@ func extractTmSpecsMDMCustomSettings(tmSpecs []json.RawMessage) map[string]profi
 	return m
 }
 
-func extractTmSpecsSoftware(tmSpecs []json.RawMessage) map[string][]fleet.TeamSpecSoftware {
-	var m map[string][]fleet.TeamSpecSoftware
+func extractTmSpecsSoftware(tmSpecs []json.RawMessage) map[string][]fleet.TeamSpecSoftwarePackage {
+	var m map[string][]fleet.TeamSpecSoftwarePackage
 	for _, tm := range tmSpecs {
 		var spec struct {
 			Name     string          `json:"name"`
@@ -998,19 +1009,22 @@ func extractTmSpecsSoftware(tmSpecs []json.RawMessage) map[string][]fleet.TeamSp
 		spec.Name = norm.NFC.String(spec.Name)
 		if spec.Name != "" && len(spec.Software) > 0 {
 			if m == nil {
-				m = make(map[string][]fleet.TeamSpecSoftware)
+				m = make(map[string][]fleet.TeamSpecSoftwarePackage)
 			}
-			var software []fleet.TeamSpecSoftware
+			var software fleet.TeamSpecSoftware
+			var packages []fleet.TeamSpecSoftwarePackage
 			if err := json.Unmarshal(spec.Software, &software); err != nil {
 				// ignore, will fail in apply team specs call
 				continue
 			}
-			if software == nil {
+			if !software.Packages.Valid {
 				// to be consistent with the AppConfig custom settings, set it to an
 				// empty slice if the provided custom settings are present but empty.
-				software = []fleet.TeamSpecSoftware{}
+				packages = []fleet.TeamSpecSoftwarePackage{}
+			} else {
+				packages = software.Packages.Value
 			}
-			m[spec.Name] = software
+			m[spec.Name] = packages
 		}
 	}
 	return m
@@ -1167,7 +1181,9 @@ func (c *Client) DoGitOps(
 			team["features"] = features
 		}
 		team["scripts"] = scripts
-		team["software"] = config.Software
+		team["software"] = map[string]any{}
+		team["software"].(map[string]any)["app_store_apps"] = config.Software.AppStoreApps
+		team["software"].(map[string]any)["packages"] = config.Software.Packages
 		team["secrets"] = config.TeamSettings["secrets"]
 		team["webhook_settings"] = map[string]interface{}{}
 		clearHostStatusWebhook := true

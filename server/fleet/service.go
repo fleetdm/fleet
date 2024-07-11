@@ -294,9 +294,9 @@ type Service interface {
 	// /////////////////////////////////////////////////////////////////////////////
 	// CampaignService defines the distributed query campaign related service methods
 
-	// NewDistributedQueryCampaignByNames creates a new distributed query campaign with the provided query (or the query
-	// referenced by ID) and host/label targets (specified by name).
-	NewDistributedQueryCampaignByNames(
+	// NewDistributedQueryCampaignByIdentifiers creates a new distributed query campaign with the provided query (or the query
+	// referenced by ID) and host/label targets (specified by hostname, UUID, or hardware serial).
+	NewDistributedQueryCampaignByIdentifiers(
 		ctx context.Context, queryString string, queryID *uint, hosts []string, labels []string,
 	) (*DistributedQueryCampaign, error)
 
@@ -648,6 +648,9 @@ type Service interface {
 	// initiated by the user
 	SelfServiceInstallSoftwareTitle(ctx context.Context, host *Host, softwareTitleID uint) error
 
+	// HasSelfServiceSoftwareInstallers returns whether the host has self-service software installers
+	HasSelfServiceSoftwareInstallers(ctx context.Context, host *Host) (bool, error)
+
 	// /////////////////////////////////////////////////////////////////////////////
 	// Vulnerabilities
 
@@ -703,13 +706,17 @@ type Service interface {
 	UploadMDMAppleAPNSCert(ctx context.Context, cert io.ReadSeeker) error
 	DeleteMDMAppleAPNSCert(ctx context.Context) error
 
+	UploadMDMAppleVPPToken(ctx context.Context, token io.ReadSeeker) error
+	GetMDMAppleVPPToken(ctx context.Context) (*VPPTokenInfo, error)
+	DeleteMDMAppleVPPToken(ctx context.Context) error
+
 	// GetHostDEPAssignment retrieves the host DEP assignment for the specified host.
 	GetHostDEPAssignment(ctx context.Context, host *Host) (*HostDEPAssignment, error)
 
 	// NewMDMAppleConfigProfile creates a new configuration profile for the specified team.
-	NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r io.Reader, labels []string) (*MDMAppleConfigProfile, error)
+	NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r io.Reader, labels []string, labelsExcludeMode bool) (*MDMAppleConfigProfile, error)
 	// NewMDMAppleConfigProfileWithPayload creates a new declaration for the specified team.
-	NewMDMAppleDeclaration(ctx context.Context, teamID uint, r io.Reader, labels []string, name string) (*MDMAppleDeclaration, error)
+	NewMDMAppleDeclaration(ctx context.Context, teamID uint, r io.Reader, labels []string, name string, labelsExcludeMode bool) (*MDMAppleDeclaration, error)
 
 	// GetMDMAppleConfigProfileByDeprecatedID retrieves the specified Apple
 	// configuration profile via its numeric ID. This method is deprecated and
@@ -971,7 +978,7 @@ type Service interface {
 
 	// NewMDMWindowsConfigProfile creates a new Windows configuration profile for
 	// the specified team.
-	NewMDMWindowsConfigProfile(ctx context.Context, teamID uint, profileName string, r io.Reader, labels []string) (*MDMWindowsConfigProfile, error)
+	NewMDMWindowsConfigProfile(ctx context.Context, teamID uint, profileName string, r io.Reader, labels []string, labelsExcludeMode bool) (*MDMWindowsConfigProfile, error)
 
 	// NewMDMUnsupportedConfigProfile is called when a profile with an
 	// unsupported extension is uploaded.
@@ -1055,4 +1062,10 @@ type Service interface {
 	GetSoftwareInstallerMetadata(ctx context.Context, titleID uint, teamID *uint) (*SoftwareInstaller, error)
 	DownloadSoftwareInstaller(ctx context.Context, titleID uint, teamID *uint) (*DownloadSoftwareInstallerPayload, error)
 	OrbitDownloadSoftwareInstaller(ctx context.Context, installerID uint) (*DownloadSoftwareInstallerPayload, error)
+
+	// /////////////////////////////////////////////////////////////////////////////
+	// Maintenance windows
+
+	// CalendarWebhook handles incoming calendar callback requests.
+	CalendarWebhook(ctx context.Context, eventUUID string, channelID string, resourceState string) error
 }

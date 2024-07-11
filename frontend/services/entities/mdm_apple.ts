@@ -3,6 +3,12 @@ import { create } from "lodash";
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
 
+export interface IGetVppInfoResponse {
+  org_name: string;
+  renew_date: string;
+  location: string;
+}
+
 export interface IVppApp {
   name: string;
   icon_url: string;
@@ -37,6 +43,23 @@ export default {
   requestCSR: () => {
     const { MDM_REQUEST_CSR } = endpoints;
     return sendRequest("GET", MDM_REQUEST_CSR);
+  },
+
+  getVppInfo: (): Promise<IGetVppInfoResponse> => {
+    const { MDM_APPLE_VPP } = endpoints;
+    return sendRequest("GET", MDM_APPLE_VPP);
+  },
+
+  uploadVppToken: (token: File) => {
+    const { MDM_APPLE_VPP_TOKEN } = endpoints;
+    const formData = new FormData();
+    formData.append("token", token);
+    return sendRequest("POST", MDM_APPLE_VPP_TOKEN, formData);
+  },
+
+  disableVpp: () => {
+    const { MDM_APPLE_VPP_TOKEN } = endpoints;
+    return sendRequest("DELETE", MDM_APPLE_VPP_TOKEN);
   },
 
   getVppApps: (teamId: number): Promise<IGetVppAppsResponse> => {

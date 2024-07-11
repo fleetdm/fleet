@@ -45,7 +45,8 @@ func (ds *Datastore) ListVulnsByOsNameAndVersion(ctx context.Context, name, vers
 				cm.cisa_known_exploit,
 				cm.published as cve_published,
 				cm.description,
-				osv.resolved_in_version
+				osv.resolved_in_version,
+				osv.created_at
 			FROM operating_system_vulnerabilities osv
 			LEFT JOIN cve_meta cm ON cm.cve = osv.cve
 			WHERE osv.operating_system_id IN (
@@ -55,7 +56,8 @@ func (ds *Datastore) ListVulnsByOsNameAndVersion(ctx context.Context, name, vers
 	} else {
 		sqlstmt = `
 			SELECT DISTINCT
-				osv.cve
+				osv.cve,
+				osv.created_at
 			FROM operating_system_vulnerabilities osv
 			WHERE osv.operating_system_id IN (
 				SELECT id FROM operating_systems WHERE name = ? AND version = ?

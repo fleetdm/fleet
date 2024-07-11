@@ -86,6 +86,10 @@ export default {
   MDM_SUMMARY: `/${API_VERSION}/fleet/hosts/summary/mdm`,
   MDM_REQUEST_CSR: `/${API_VERSION}/fleet/mdm/apple/request_csr`,
 
+  // Apple VPP endpoints
+  MDM_APPLE_VPP: `/${API_VERSION}/fleet/vpp`,
+  MDM_APPLE_VPP_TOKEN: `/${API_VERSION}/fleet/mdm/apple/vpp_token`,
+
   // MDM profile endpoints
   MDM_PROFILES: `/${API_VERSION}/fleet/mdm/profiles`,
   MDM_PROFILE: (id: string) => `/${API_VERSION}/fleet/mdm/profiles/${id}`,

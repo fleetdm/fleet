@@ -6,6 +6,7 @@ import (
 	"crypto/rsa"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/base64"
 	"encoding/json"
 	"encoding/pem"
 	"errors"
@@ -30,6 +31,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
+	"github.com/fleetdm/fleet/v4/server/mdm/apple/vpp"
 	"github.com/fleetdm/fleet/v4/server/mdm/assets"
 	nanomdm "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -756,7 +758,9 @@ func (svc *Service) GetMDMCommandResults(ctx context.Context, commandUUID string
 ////////////////////////////////////////////////////////////////////////////////
 
 type listMDMCommandsRequest struct {
-	ListOptions fleet.ListOptions `url:"list_options"`
+	ListOptions    fleet.ListOptions `url:"list_options"`
+	HostIdentifier string            `query:"host_identifier,optional"`
+	RequestType    string            `query:"request_type,optional"`
 }
 
 type listMDMCommandsResponse struct {
@@ -770,6 +774,7 @@ func listMDMCommandsEndpoint(ctx context.Context, request interface{}, svc fleet
 	req := request.(*listMDMCommandsRequest)
 	results, err := svc.ListMDMCommands(ctx, &fleet.MDMCommandListOptions{
 		ListOptions: req.ListOptions,
+		Filters:     fleet.MDMCommandFilters{HostIdentifier: req.HostIdentifier, RequestType: req.RequestType},
 	})
 	if err != nil {
 		return listMDMCommandsResponse{
@@ -853,6 +858,14 @@ func (svc *Service) ListMDMCommands(ctx context.Context, opts *fleet.MDMCommandL
 			}
 		}
 		results = allowedResults
+	}
+
+	if len(results) == 0 && opts.Filters.HostIdentifier != "" {
+		_, err := svc.ds.HostLiteByIdentifier(ctx, opts.Filters.HostIdentifier)
+		var nve fleet.NotFoundError
+		if errors.As(err, &nve) {
+			return nil, fleet.NewInvalidArgumentError("Invalid Host", fleet.HostIdentiferNotFound).WithStatus(http.StatusNotFound)
+		}
 	}
 
 	return results, nil
@@ -1194,9 +1207,10 @@ func isAppleDeclarationUUID(profileUUID string) bool {
 ////////////////////////////////////////////////////////////////////////////////
 
 type newMDMConfigProfileRequest struct {
-	TeamID  uint
-	Profile *multipart.FileHeader
-	Labels  []string
+	TeamID           uint
+	Profile          *multipart.FileHeader
+	LabelsIncludeAll []string
+	LabelsExcludeAny []string
 }
 
 func (newMDMConfigProfileRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
@@ -1235,7 +1249,25 @@ func (newMDMConfigProfileRequest) DecodeRequest(ctx context.Context, r *http.Req
 	}
 
 	// add labels
-	decoded.Labels = r.MultipartForm.Value["labels"]
+	var existsIncl, existsExcl, existsDepr bool
+	var deprecatedLabels []string
+	decoded.LabelsIncludeAll, existsIncl = r.MultipartForm.Value["labels_include_all"]
+	decoded.LabelsExcludeAny, existsExcl = r.MultipartForm.Value["labels_exclude_any"]
+	deprecatedLabels, existsDepr = r.MultipartForm.Value["labels"]
+
+	// validate that only one of the labels type is provided
+	var count int
+	for _, b := range []bool{existsIncl, existsExcl, existsDepr} {
+		if b {
+			count++
+		}
+	}
+	if count > 1 {
+		return nil, &fleet.BadRequestError{Message: `Only one of "labels_exclude_any", "labels_include_all" or "labels" can be included.`}
+	}
+	if existsDepr {
+		decoded.LabelsIncludeAll = deprecatedLabels
+	}
 
 	return &decoded, nil
 }
@@ -1260,10 +1292,18 @@ func newMDMConfigProfileEndpoint(ctx context.Context, request interface{}, svc f
 	profileName := strings.TrimSuffix(filepath.Base(req.Profile.Filename), fileExt)
 	isMobileConfig := strings.EqualFold(fileExt, ".mobileconfig")
 	isJSON := strings.EqualFold(fileExt, ".json")
+
+	labels := req.LabelsIncludeAll
+	excludeMode := false
+	if len(req.LabelsExcludeAny) > 0 {
+		labels = req.LabelsExcludeAny
+		excludeMode = true
+	}
+
 	if isMobileConfig || isJSON {
 		// Then it's an Apple configuration file
 		if isJSON {
-			decl, err := svc.NewMDMAppleDeclaration(ctx, req.TeamID, ff, req.Labels, profileName)
+			decl, err := svc.NewMDMAppleDeclaration(ctx, req.TeamID, ff, labels, profileName, excludeMode)
 			if err != nil {
 				return &newMDMConfigProfileResponse{Err: err}, nil
 			}
@@ -1274,7 +1314,7 @@ func newMDMConfigProfileEndpoint(ctx context.Context, request interface{}, svc f
 
 		}
 
-		cp, err := svc.NewMDMAppleConfigProfile(ctx, req.TeamID, ff, req.Labels)
+		cp, err := svc.NewMDMAppleConfigProfile(ctx, req.TeamID, ff, labels, excludeMode)
 		if err != nil {
 			return &newMDMConfigProfileResponse{Err: err}, nil
 		}
@@ -1284,7 +1324,7 @@ func newMDMConfigProfileEndpoint(ctx context.Context, request interface{}, svc f
 	}
 
 	if isWindows := strings.EqualFold(fileExt, ".xml"); isWindows {
-		cp, err := svc.NewMDMWindowsConfigProfile(ctx, req.TeamID, profileName, ff, req.Labels)
+		cp, err := svc.NewMDMWindowsConfigProfile(ctx, req.TeamID, profileName, ff, labels, excludeMode)
 		if err != nil {
 			return &newMDMConfigProfileResponse{Err: err}, nil
 		}
@@ -1308,7 +1348,7 @@ func (svc *Service) NewMDMUnsupportedConfigProfile(ctx context.Context, teamID u
 	return &fleet.BadRequestError{Message: "Couldn't add profile. The file should be a .mobileconfig, XML, or JSON file."}
 }
 
-func (svc *Service) NewMDMWindowsConfigProfile(ctx context.Context, teamID uint, profileName string, r io.Reader, labels []string) (*fleet.MDMWindowsConfigProfile, error) {
+func (svc *Service) NewMDMWindowsConfigProfile(ctx context.Context, teamID uint, profileName string, r io.Reader, labels []string, labelsExcludeMode bool) (*fleet.MDMWindowsConfigProfile, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.MDMConfigProfileAuthz{TeamID: &teamID}, fleet.ActionWrite); err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
 	}
@@ -1357,7 +1397,11 @@ func (svc *Service) NewMDMWindowsConfigProfile(ctx context.Context, teamID uint,
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "validating labels")
 	}
-	cp.Labels = labelMap
+	if labelsExcludeMode {
+		cp.LabelsExcludeAny = labelMap
+	} else {
+		cp.LabelsIncludeAll = labelMap
+	}
 
 	newCP, err := svc.ds.NewMDMWindowsConfigProfile(ctx, cp)
 	if err != nil {
@@ -1522,8 +1566,17 @@ func (svc *Service) BatchSetMDMProfiles(
 	}
 
 	labels := []string{}
-	for _, prof := range profiles {
-		labels = append(labels, prof.Labels...)
+	for i := range profiles {
+		// from this point on (after this condition), only LabelsIncludeAll or
+		// LabelsExcludeAny need to be checked.
+		if len(profiles[i].Labels) > 0 {
+			// must update the struct in the slice directly, because we don't have a
+			// pointer to it (it is a slice of structs, not of pointer to structs)
+			profiles[i].LabelsIncludeAll = profiles[i].Labels
+			profiles[i].Labels = nil
+		}
+		labels = append(labels, profiles[i].LabelsIncludeAll...)
+		labels = append(labels, profiles[i].LabelsExcludeAny...)
 	}
 	labelMap, err := svc.batchValidateProfileLabels(ctx, labels)
 	if err != nil {
@@ -1732,13 +1785,23 @@ func getAppleProfiles(
 			}
 
 			mdmDecl := fleet.NewMDMAppleDeclaration(prof.Contents, tmID, prof.Name, rawDecl.Type, rawDecl.Identifier)
-			for _, labelName := range prof.Labels {
+			for _, labelName := range prof.LabelsIncludeAll {
 				if lbl, ok := labelMap[labelName]; ok {
 					declLabel := fleet.ConfigurationProfileLabel{
 						LabelName: lbl.LabelName,
 						LabelID:   lbl.LabelID,
 					}
-					mdmDecl.Labels = append(mdmDecl.Labels, declLabel)
+					mdmDecl.LabelsIncludeAll = append(mdmDecl.LabelsIncludeAll, declLabel)
+				}
+			}
+			for _, labelName := range prof.LabelsExcludeAny {
+				if lbl, ok := labelMap[labelName]; ok {
+					declLabel := fleet.ConfigurationProfileLabel{
+						LabelName: lbl.LabelName,
+						LabelID:   lbl.LabelID,
+						Exclude:   true,
+					}
+					mdmDecl.LabelsExcludeAny = append(mdmDecl.LabelsExcludeAny, declLabel)
 				}
 			}
 
@@ -1773,9 +1836,14 @@ func getAppleProfiles(
 				"invalid mobileconfig profile")
 		}
 
-		for _, labelName := range prof.Labels {
+		for _, labelName := range prof.LabelsIncludeAll {
 			if lbl, ok := labelMap[labelName]; ok {
-				mdmProf.Labels = append(mdmProf.Labels, lbl)
+				mdmProf.LabelsIncludeAll = append(mdmProf.LabelsIncludeAll, lbl)
+			}
+		}
+		for _, labelName := range prof.LabelsExcludeAny {
+			if lbl, ok := labelMap[labelName]; ok {
+				mdmProf.LabelsExcludeAny = append(mdmProf.LabelsExcludeAny, lbl)
 			}
 		}
 
@@ -1844,9 +1912,14 @@ func getWindowsProfiles(
 			Name:   profile.Name,
 			SyncML: profile.Contents,
 		}
-		for _, labelName := range profile.Labels {
+		for _, labelName := range profile.LabelsIncludeAll {
 			if lbl, ok := labelMap[labelName]; ok {
-				mdmProf.Labels = append(mdmProf.Labels, lbl)
+				mdmProf.LabelsIncludeAll = append(mdmProf.LabelsIncludeAll, lbl)
+			}
+		}
+		for _, labelName := range profile.LabelsExcludeAny {
+			if lbl, ok := labelMap[labelName]; ok {
+				mdmProf.LabelsExcludeAny = append(mdmProf.LabelsExcludeAny, lbl)
 			}
 		}
 
@@ -1876,6 +1949,21 @@ func getWindowsProfiles(
 
 func validateProfiles(profiles []fleet.MDMProfileBatchPayload) error {
 	for _, profile := range profiles {
+		// validate that only one of labels, labels_include_all and labels_exclude_any is provided.
+		var count int
+		for _, b := range []bool{
+			len(profile.LabelsIncludeAll) > 0,
+			len(profile.LabelsExcludeAny) > 0,
+			len(profile.Labels) > 0,
+		} {
+			if b {
+				count++
+			}
+		}
+		if count > 1 {
+			return fleet.NewInvalidArgumentError("mdm", `Couldn't edit custom_settings. For each profile, only one of "labels_exclude_any", "labels_include_all" or "labels" can be included.`)
+		}
+
 		if len(profile.Contents) > 1024*1024 {
 			return fleet.NewInvalidArgumentError("mdm", "maximum configuration profile file size is 1 MB")
 		}
@@ -2443,4 +2531,203 @@ func (svc *Service) DeleteMDMAppleAPNSCert(ctx context.Context) error {
 	appCfg.MDM.EnabledAndConfigured = false
 
 	return svc.ds.SaveAppConfig(ctx, appCfg)
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// POST /mdm/apple/vpp_token
+////////////////////////////////////////////////////////////////////////////////
+
+type uploadMDMAppleVPPTokenRequest struct {
+	File *multipart.FileHeader
+}
+
+func (uploadMDMAppleVPPTokenRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+	decoded := uploadMDMAppleVPPTokenRequest{}
+
+	err := r.ParseMultipartForm(512 * units.MiB)
+	if err != nil {
+		return nil, &fleet.BadRequestError{
+			Message:     "failed to parse multipart form",
+			InternalErr: err,
+		}
+	}
+
+	if r.MultipartForm.File["token"] == nil || len(r.MultipartForm.File["token"]) == 0 {
+		return nil, &fleet.BadRequestError{
+			Message:     "token multipart field is required",
+			InternalErr: err,
+		}
+	}
+
+	decoded.File = r.MultipartForm.File["token"][0]
+
+	return &decoded, nil
+}
+
+type uploadMDMAppleVPPTokenResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r uploadMDMAppleVPPTokenResponse) Status() int { return http.StatusAccepted }
+
+func (r uploadMDMAppleVPPTokenResponse) error() error {
+	return r.Err
+}
+
+func uploadMDMAppleVPPTokenEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*uploadMDMAppleVPPTokenRequest)
+	file, err := req.File.Open()
+	if err != nil {
+		return uploadMDMAppleAPNSCertResponse{Err: err}, nil
+	}
+	defer file.Close()
+
+	if err := svc.UploadMDMAppleVPPToken(ctx, file); err != nil {
+		return &uploadMDMAppleVPPTokenResponse{Err: err}, nil
+	}
+
+	return &uploadMDMAppleVPPTokenResponse{}, nil
+}
+
+func (svc *Service) UploadMDMAppleVPPToken(ctx context.Context, token io.ReadSeeker) error {
+	if err := svc.authz.Authorize(ctx, &fleet.AppleCSR{}, fleet.ActionWrite); err != nil {
+		return err
+	}
+
+	privateKey := svc.config.Server.PrivateKey
+	if testSetEmptyPrivateKey {
+		privateKey = ""
+	}
+
+	if len(privateKey) == 0 {
+		return ctxerr.New(ctx, "Couldn't upload content token. Missing required private key. Learn how to configure the private key here: https://fleetdm.com/learn-more-about/fleet-server-private-key")
+	}
+
+	if token == nil {
+		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("token", "Invalid token. Please provide a valid content token from Apple Business Manager."))
+	}
+
+	tokenBytes, err := io.ReadAll(token)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "reading VPP token")
+	}
+
+	locName, err := vpp.GetConfig(string(tokenBytes))
+	if err != nil {
+		var vppErr *vpp.ErrorResponse
+		if errors.As(err, &vppErr) {
+			// Per https://developer.apple.com/documentation/devicemanagement/app_and_book_management/app_and_book_management_legacy/interpreting_error_codes
+			if vppErr.ErrorNumber == 9622 {
+				return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("token", "Invalid token. Please provide a valid content token from Apple Business Manager."))
+			}
+		}
+		return ctxerr.Wrap(ctx, err, "validating VPP token with Apple")
+	}
+
+	decodedTokenBytes, err := base64.StdEncoding.DecodeString(string(tokenBytes))
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "decoding VPP token")
+	}
+
+	data := fleet.VPPTokenData{
+		Token:    string(decodedTokenBytes),
+		Location: locName,
+	}
+
+	dataBytes, err := json.Marshal(data)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "creating VPP data object for storage")
+	}
+
+	err = svc.ds.ReplaceMDMConfigAssets(ctx, []fleet.MDMConfigAsset{
+		{Name: fleet.MDMAssetVPPToken, Value: dataBytes},
+	})
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "writing VPP token to db")
+	}
+
+	return nil
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// GET /vpp
+////////////////////////////////////////////////////////////////////////////////
+
+type getMDMAppleVPPTokenRequest struct{}
+
+type getMDMAppleVPPTokenResponse struct {
+	*fleet.VPPTokenInfo
+	Err error `json:"error,omitempty"`
+}
+
+func (r getMDMAppleVPPTokenResponse) error() error {
+	return r.Err
+}
+
+func getMDMAppleVPPTokenEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	vpp, err := svc.GetMDMAppleVPPToken(ctx)
+	if err != nil {
+		return &getMDMAppleVPPTokenResponse{Err: err}, nil
+	}
+
+	return &getMDMAppleVPPTokenResponse{VPPTokenInfo: vpp}, nil
+}
+
+func (svc *Service) GetMDMAppleVPPToken(ctx context.Context) (*fleet.VPPTokenInfo, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.AppleCSR{}, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+
+	assetMap, err := svc.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetVPPToken})
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get mdm config assets by name VPP token")
+	}
+
+	var tokenData fleet.VPPTokenData
+	if err := json.Unmarshal(assetMap[fleet.MDMAssetVPPToken].Value, &tokenData); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "unmarshaling VPP token data")
+	}
+
+	var rawToken fleet.VPPTokenRaw
+	if err := json.Unmarshal([]byte(tokenData.Token), &rawToken); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "unmarshaling VPP token")
+	}
+
+	info := fleet.VPPTokenInfo{
+		Location:  tokenData.Location,
+		RenewDate: rawToken.ExpDate,
+		OrgName:   rawToken.OrgName,
+	}
+
+	return &info, nil
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// DELETE /mdm/apple/vpp_token
+////////////////////////////////////////////////////////////////////////////////
+
+type deleteMDMAppleVPPTokenRequest struct{}
+
+type deleteMDMAppleVPPTokenResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r deleteMDMAppleVPPTokenResponse) error() error { return r.Err }
+
+func (r deleteMDMAppleVPPTokenResponse) Status() int { return http.StatusNoContent }
+
+func deleteMDMAppleVPPTokenEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	if err := svc.DeleteMDMAppleVPPToken(ctx); err != nil {
+		return &deleteMDMAppleVPPTokenResponse{Err: err}, nil
+	}
+
+	return &deleteMDMAppleVPPTokenResponse{}, nil
+}
+
+func (svc *Service) DeleteMDMAppleVPPToken(ctx context.Context) error {
+	if err := svc.authz.Authorize(ctx, &fleet.AppleCSR{}, fleet.ActionWrite); err != nil {
+		return err
+	}
+
+	return svc.ds.DeleteMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetVPPToken})
 }
