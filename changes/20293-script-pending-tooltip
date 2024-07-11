@@ -1,0 +1,1 @@
+- Fixed UI issue where "Script is already running" tooltip incorrectly displayed when the script is not running.
