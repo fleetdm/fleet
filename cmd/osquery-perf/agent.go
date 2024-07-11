@@ -476,6 +476,7 @@ type agent struct {
 	EnrollSecret          string
 	UUID                  string
 	SerialNumber          string
+	defaultSerialProb     float64
 	ConfigInterval        time.Duration
 	LogInterval           time.Duration
 	QueryInterval         time.Duration
@@ -491,6 +492,13 @@ type agent struct {
 	// increase indefinitely (we sacrifice accuracy of logs but that's
 	// a-ok for osquery-perf and load testing).
 	bufferedResults map[resultLog]int
+}
+
+func (a *agent) GetSerialNumber() string {
+	if rand.Float64() <= a.defaultSerialProb {
+		return "-1"
+	}
+	return a.SerialNumber
 }
 
 type entityCount struct {
@@ -530,6 +538,7 @@ func newAgent(
 	orbitProb float64,
 	munkiIssueProb float64, munkiIssueCount int,
 	emptySerialProb float64,
+	defaultSerialProb float64,
 	mdmProb float64,
 	mdmSCEPChallenge string,
 	liveQueryFailProb float64,
@@ -608,6 +617,7 @@ func newAgent(
 		MDMCheckInInterval:            mdmCheckInInterval,
 		UUID:                          hostUUID,
 		SerialNumber:                  serialNumber,
+		defaultSerialProb:             defaultSerialProb,
 
 		softwareQueryFailureProb:         softwareQueryFailureProb,
 		softwareVSCodeExtensionsFailProb: softwareVSCodeExtensionsQueryFailureProb,
@@ -2299,8 +2309,10 @@ func main() {
 		munkiIssueCount             = flag.Int("munki_issue_count", 10, "Number of munki issues reported by hosts identified to have munki issues")
 		// E.g. when running with `-host_count=10`, you can set host count for each template the following way:
 		// `-os_templates=windows_11.tmpl:3,macos_14.1.2.tmpl:4,ubuntu_22.04.tmpl:3`
-		osTemplates     = flag.String("os_templates", "macos_14.1.2", fmt.Sprintf("Comma separated list of host OS templates to use and optionally their host count separated by ':' (any of %v, with or without the .tmpl extension)", allowedTemplateNames))
-		emptySerialProb = flag.Float64("empty_serial_prob", 0.1, "Probability of a host having no serial number [0, 1]")
+		osTemplates       = flag.String("os_templates", "macos_14.1.2", fmt.Sprintf("Comma-separated list of host OS templates to use and optionally their host count separated by ':' (any of %v, with or without the .tmpl extension)", allowedTemplateNames))
+		emptySerialProb   = flag.Float64("empty_serial_prob", 0.1, "Probability of a host having no serial number [0, 1]")
+		defaultSerialProb = flag.Float64("default_serial_prob", 0.05,
+			"Probability of osquery returning a default (-1) serial number. See: #19789")
 
 		mdmProb          = flag.Float64("mdm_prob", 0.0, "Probability of a host enrolling via Fleet MDM (applies for macOS and Windows hosts, implies orbit enrollment on Windows) [0, 1]")
 		mdmSCEPChallenge = flag.String("mdm_scep_challenge", "", "SCEP challenge to use when running macOS MDM enroll")
@@ -2451,6 +2463,7 @@ func main() {
 			*munkiIssueProb,
 			*munkiIssueCount,
 			*emptySerialProb,
+			*defaultSerialProb,
 			*mdmProb,
 			*mdmSCEPChallenge,
 			*liveQueryFailProb,

@@ -327,7 +327,6 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
 			require.NoError(s.T(), json.NewEncoder(w).Encode(s.mockedDownloadFleetdmMeta))
-
 		}
 	}))
 	s.T().Setenv("FLEET_DEV_DOWNLOAD_FLEETDM_URL", downloadFleetdmSrv.URL)
@@ -2223,8 +2222,7 @@ func (s *integrationMDMTestSuite) TestEnrollOrbitAfterDEPSync() {
 	ctx := context.Background()
 
 	// create a host with minimal information and the serial, no uuid/osquery id
-	// (as when created via DEP sync). Platform must be "darwin" as this is the
-	// only supported OS with DEP.
+	// (as when created via DEP sync).
 	dbZeroTime := time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
 	h, err := s.ds.NewHost(ctx, &fleet.Host{
 		HardwareSerial:   uuid.New().String(),
@@ -2234,6 +2232,7 @@ func (s *integrationMDMTestSuite) TestEnrollOrbitAfterDEPSync() {
 		RefetchRequested: true,
 	})
 	require.NoError(t, err)
+	require.Equal(t, dbZeroTime, h.LastEnrolledAt)
 
 	// create an enroll secret
 	secret := uuid.New().String()
@@ -2259,6 +2258,7 @@ func (s *integrationMDMTestSuite) TestEnrollOrbitAfterDEPSync() {
 	var hostResp getHostResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", h.ID), nil, http.StatusOK, &hostResp)
 	require.Equal(t, h.ID, hostResp.Host.ID)
+	require.NotEqual(t, dbZeroTime, hostResp.Host.LastEnrolledAt)
 
 	got, err := s.ds.LoadHostByOrbitNodeKey(ctx, resp.OrbitNodeKey)
 	require.NoError(t, err)
@@ -4593,7 +4593,7 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	require.Equal(t, lastSubmittedProfile.ConfigurationWebURL, lastSubmittedProfile.URL)
 
 	checkStoredIdPInfo := func(uuid, username, fullname, email string) {
-		acc, err := s.ds.GetMDMIdPAccountByUUID(context.Background(), uuid)
+		acc, err := s.ds.GetMDMIdPAccountByAccountUUID(context.Background(), uuid)
 		require.NoError(t, err)
 		require.Equal(t, username, acc.Username)
 		require.Equal(t, fullname, acc.Fullname)
@@ -4722,6 +4722,11 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	// test runs.
 	mdmDevice.EnrollInfo.MDMURL = strings.Replace(enrollURL, "https://localhost:8080", s.server.URL, 1)
 	mdmDevice.EnrollInfo.SCEPURL = strings.Replace(scepURL, "https://localhost:8080", s.server.URL, 1)
+
+	// associate the mdm idp account with the host uuid manually (we can't mock the Apple webview client
+	// deviceinfo header because it is signed with the Apple Root CA)
+	require.NoError(t, s.ds.AssociateMDMIdPAccount(context.Background(), user1EnrollRef, mdmDevice.UUID))
+
 	err = mdmDevice.Enroll()
 	require.NoError(t, err)
 
@@ -4749,13 +4754,22 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	require.Equal(t, "SSO User 1", fullAccCmd.Command.AccountConfiguration.PrimaryAccountFullName)
 	require.Equal(t, "sso_user", fullAccCmd.Command.AccountConfiguration.PrimaryAccountUserName)
 
-	// report host details for the device
+	// check that the host was created and get the host id and other details for the next steps
 	var hostResp getHostResponse
 	s.DoJSON("GET", "/api/v1/fleet/hosts/identifier/"+mdmDevice.UUID, nil, http.StatusOK, &hostResp)
 
+	// ensure that host_emails entry was created from mdm_idp_accounts
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		var email string
+		err := sqlx.GetContext(context.Background(), q, &email, `SELECT email FROM host_emails WHERE host_id = ? AND source = ?`, hostResp.Host.ID, fleet.DeviceMappingMDMIdpAccounts)
+		require.NoError(t, err)
+		require.Equal(t, "sso_user@example.com", email)
+		return nil
+	})
+
+	// get app config and host detail queries
 	ac, err := s.ds.AppConfig(context.Background())
 	require.NoError(t, err)
-
 	detailQueries := osquery_utils.GetDetailQueries(context.Background(), config.FleetConfig{}, ac, &ac.Features)
 
 	// simulate osquery reporting mdm information
@@ -8292,7 +8306,6 @@ func (s *integrationMDMTestSuite) TestLockUnlockWipeMacOS() {
 
 	// lock the host without viewing the PIN
 	s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/lock", host.ID), nil, http.StatusNoContent)
-
 }
 
 func (s *integrationMDMTestSuite) TestZCustomConfigurationWebURL() {
@@ -9162,6 +9175,41 @@ func (s *integrationMDMTestSuite) TestMDMRequestWithoutCerts() {
 	require.NoError(t, res.Body.Close())
 }
 
+func (s *integrationMDMTestSuite) TestMDMEnrollDoesntClearLastEnrolledAtForMacOS() {
+	t := s.T()
+
+	// Enroll to Fleet with fleetd first.
+	desktopToken := uuid.New().String()
+	lastEnrolledAt := time.Now().UTC()
+	mdmDevice := mdmtest.NewTestMDMClientAppleDesktopManual(s.server.URL, desktopToken)
+	fleetHost, err := s.ds.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		LastEnrolledAt:  lastEnrolledAt,
+		SeenTime:        time.Now().Add(-1 * time.Minute),
+		OsqueryHostID:   ptr.String(t.Name() + uuid.New().String()),
+		NodeKey:         ptr.String(t.Name() + uuid.New().String()),
+		Hostname:        fmt.Sprintf("%sfoo.local", t.Name()),
+		Platform:        "darwin",
+
+		UUID:           mdmDevice.UUID,
+		HardwareSerial: mdmDevice.SerialNumber,
+	})
+	require.NoError(t, err)
+	err = s.ds.SetOrUpdateDeviceAuthToken(context.Background(), fleetHost.ID, desktopToken)
+	require.NoError(t, err)
+
+	// Enroll with MDM manually after.
+	err = mdmDevice.Enroll()
+	require.NoError(t, err)
+
+	hostResp := getHostResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", fleetHost.ID), nil, http.StatusOK, &hostResp)
+	require.NotNil(t, hostResp.Host)
+	require.Equal(t, lastEnrolledAt.Truncate(1*time.Second).UTC(), hostResp.Host.LastEnrolledAt.Truncate(1*time.Second).UTC())
+}
+
 func (s *integrationMDMTestSuite) TestConnectedToFleetWithoutCheckout() {
 	t := s.T()
 	ctx := context.Background()
@@ -9200,4 +9248,50 @@ func (s *integrationMDMTestSuite) TestConnectedToFleetWithoutCheckout() {
 	require.NotNil(t, hostResp.Host)
 	require.NotNil(t, hostResp.Host.MDM.ConnectedToFleet)
 	require.False(t, *hostResp.Host.MDM.ConnectedToFleet)
+}
+
+func (s *integrationMDMTestSuite) TestInvalidCommandUUID() {
+	t := s.T()
+	_, device := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	s.runWorker()
+	cmd, err := device.Acknowledge("foo")
+	require.NoError(t, err)
+	require.NotNil(t, cmd)
+}
+
+func (s *integrationMDMTestSuite) TestEnrollAfterDEPSyncIOSIPadOS() {
+	t := s.T()
+	ctx := context.Background()
+
+	// create a host with minimal information and the serial, no uuid/osquery id
+	// (as when created via DEP sync).
+	dbZeroTime := time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
+	serialNumber := mdmtest.RandSerialNumber()
+	h, err := s.ds.NewHost(ctx, &fleet.Host{
+		HardwareSerial:   serialNumber,
+		Platform:         "ios",
+		LastEnrolledAt:   dbZeroTime,
+		DetailUpdatedAt:  dbZeroTime,
+		RefetchRequested: true,
+	})
+	require.NoError(t, err)
+	require.Equal(t, dbZeroTime, h.LastEnrolledAt)
+
+	// Perform the MDM enrollment.
+	mdmEnrollInfo := mdmtest.AppleEnrollInfo{
+		SCEPChallenge: s.scepChallenge,
+		SCEPURL:       s.server.URL + apple_mdm.SCEPPath,
+		MDMURL:        s.server.URL + apple_mdm.MDMPath,
+	}
+	mdmDevice := mdmtest.NewTestMDMClientAppleDirect(mdmEnrollInfo, "iPhone14,6")
+	mdmDevice.SerialNumber = serialNumber
+	err = mdmDevice.Enroll()
+	require.NoError(t, err)
+
+	// fetch the host, it will match the one created above
+	// (NOTE: cannot check the returned OrbitNodeKey, this field is not part of the response)
+	var hostResp getHostResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", h.ID), nil, http.StatusOK, &hostResp)
+	require.Equal(t, h.ID, hostResp.Host.ID)
+	require.NotEqual(t, dbZeroTime, hostResp.Host.LastEnrolledAt)
 }

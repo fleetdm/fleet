@@ -2547,25 +2547,30 @@ func (ds *Datastore) SearchHosts(ctx context.Context, filter fleet.TeamFilter, m
 	return hosts, nil
 }
 
-func (ds *Datastore) HostIDsByName(ctx context.Context, filter fleet.TeamFilter, hostnames []string) ([]uint, error) {
-	if len(hostnames) == 0 {
+func (ds *Datastore) HostIDsByIdentifier(ctx context.Context, filter fleet.TeamFilter, hostIdentifiers []string) ([]uint, error) {
+	if len(hostIdentifiers) == 0 {
 		return []uint{}, nil
 	}
 
 	sqlStatement := fmt.Sprintf(`
-			SELECT id FROM hosts
-			WHERE hostname IN (?) AND %s
+			SELECT
+				DISTINCT id FROM hosts
+			WHERE
+				(hostname IN (?)
+				OR uuid IN (?)
+				OR hardware_serial IN (?))
+			AND %s
 		`, ds.whereFilterHostsByTeams(filter, "hosts"),
 	)
 
-	sql, args, err := sqlx.In(sqlStatement, hostnames)
+	sql, args, err := sqlx.In(sqlStatement, hostIdentifiers, hostIdentifiers, hostIdentifiers)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "building query to get host IDs")
+		return nil, ctxerr.Wrap(ctx, err, "building query to get host IDs by identifier")
 	}
 
 	var hostIDs []uint
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &hostIDs, sql, args...); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "get host IDs")
+		return nil, ctxerr.Wrap(ctx, err, "get host IDs by identifier")
 	}
 
 	return hostIDs, nil
@@ -3624,19 +3629,78 @@ func (ds *Datastore) SetOrUpdateMDMData(
 	)
 }
 
-func (ds *Datastore) SetOrUpdateHostEmailsFromMdmIdpAccounts(
+func (ds *Datastore) SetOrUpdateHostEmailsFromMDMIdPAccountsByLegacyEnrollRef(
 	ctx context.Context,
 	hostID uint,
 	fleetEnrollmentRef string,
 ) error {
-	var email *string
-	if fleetEnrollmentRef != "" {
-		idp, err := ds.GetMDMIdPAccountByUUID(ctx, fleetEnrollmentRef)
-		if err != nil {
-			return err
-		}
-		email = &idp.Email
+	if fleetEnrollmentRef == "" {
+		return ctxerr.New(ctx, "missing fleet enroll ref to upsert host emails with mdm idp account")
 	}
+
+	var email *string
+	idp, err := ds.GetMDMIdPAccountByLegacyEnrollRef(ctx, fleetEnrollmentRef)
+	if err != nil {
+		return err
+	}
+	email = &idp.Email
+
+	return ds.updateOrInsert(
+		ctx,
+		`UPDATE host_emails SET email = ? WHERE host_id = ? AND source = ?`,
+		`INSERT INTO host_emails (email, host_id, source) VALUES (?, ?, ?)`,
+		email, hostID, fleet.DeviceMappingMDMIdpAccounts,
+	)
+}
+
+func (ds *Datastore) SetOrUpdateHostEmailsFromMDMIdPAccountsByHostUUID(
+	ctx context.Context,
+	hostUUID string,
+) error {
+	if hostUUID == "" {
+		return ctxerr.New(ctx, "missing host uuid to upsert host emails with mdm idp account")
+	}
+
+	var hid uint
+	var email string
+	host, err := ds.HostLiteByIdentifier(ctx, hostUUID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting host by identifier to upsert host emails with mdm idp account")
+	}
+	hid = host.ID
+
+	idp, err := ds.GetMDMIdPAccountByHostUUID(ctx, hostUUID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting idp account by host uuid to upsert host emails with mdm idp account")
+	}
+	email = idp.Email
+
+	return ds.updateOrInsert(
+		ctx,
+		`UPDATE host_emails SET email = ? WHERE host_id = ? AND source = ?`,
+		`INSERT INTO host_emails (email, host_id, source) VALUES (?, ?, ?)`,
+		email, hid, fleet.DeviceMappingMDMIdpAccounts,
+	)
+}
+
+func (ds *Datastore) SetOrUpdateEmailsFromMDMIdPAccountsByHostID(
+	ctx context.Context,
+	hostID uint,
+	hostUUID string,
+) error {
+	if hostID == 0 {
+		return ctxerr.New(ctx, "missing host id to upsert host emails with mdm idp account")
+	}
+	if hostUUID == "" {
+		return ctxerr.New(ctx, "missing host uuid to upsert host emails with mdm idp account")
+	}
+
+	var email string
+	idp, err := ds.GetMDMIdPAccountByHostUUID(ctx, hostUUID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting idp account by host uuid to upsert host emails with mdm idp account")
+	}
+	email = idp.Email
 
 	return ds.updateOrInsert(
 		ctx,
@@ -4660,6 +4724,8 @@ func (ds *Datastore) executeOSVersionQuery(ctx context.Context, teamFilter *flee
 	args := []interface{}{aggregatedStatsTypeOSVersions}
 	switch {
 	case teamFilter != nil && teamFilter.TeamID != nil:
+		// Aggregated stats for os versions are stored by team id with 0 representing
+		// no team or the all teams if global_stats is true.
 		query += " AND id = ? AND global_stats = ?"
 		args = append(args, *teamFilter.TeamID, false)
 	case teamFilter != nil:
@@ -5128,8 +5194,8 @@ func (ds *Datastore) loadHostLite(ctx context.Context, id *uint, identifier *str
     SELECT
       h.id,
       h.team_id,
-      h.osquery_host_id,
-      h.node_key,
+      COALESCE(h.osquery_host_id, '') AS osquery_host_id,
+      COALESCE(h.node_key, '') AS node_key,
       h.hostname,
       h.uuid,
       h.hardware_serial,

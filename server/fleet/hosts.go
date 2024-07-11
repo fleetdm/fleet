@@ -37,6 +37,10 @@ const (
 	// online interval to avoid flapping of hosts that check in a bit later
 	// than their expected checkin interval.
 	OnlineIntervalBuffer = 60
+
+	// HostIdentiferNotFound is the error message returned when a search for a host by its
+	// identifier (hostname, UUID, or serial number) does not return any results.
+	HostIdentiferNotFound = "Host doesn't exist. Make sure you provide a valid hostname, UUID, or serial number. Learn more about host identifiers: https://fleetdm.com/learn-more-about/host-identifiers"
 )
 
 func (s HostStatus) IsValid() bool {
