@@ -76,6 +76,8 @@
       moreInfoUrl: https://scalefusion.com/custom-scripting
     - description: Run scripts on online/offline hosts
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/15529
+    - description: Only maintainers and admins can run scripts. Coming soon (2024-09-15) #customer-faltona
+      moreInfoUrl: https://github.com/fleetdm/fleet/issues/19055
 #
 #  ╔═╗╦ ╦╔╦╗╔═╗╔╦╗╔═╗╔╦╗╦╔═╗  ╔═╗╔═╗╔═╗╔╦╗╦ ╦╦═╗╔═╗  ╔═╗╔═╗╔═╗╔═╗╔═╗╔═╗╔╦╗╔═╗╔╗╔╔╦╗
 #  ╠═╣║ ║ ║ ║ ║║║║╠═╣ ║ ║║    ╠═╝║ ║╚═╗ ║ ║ ║╠╦╝║╣   ╠═╣╚═╗╚═╗║╣ ╚═╗╚═╗║║║║╣ ║║║ ║
@@ -612,6 +614,8 @@
     - description: Ship a macOS workstation to the end user's home and have them automatically enroll to Fleet during out-of-the-box setup.
     - description: Ship a Windows workstation to the end user's home and have them automatically enroll to Fleet during out-of-the-box setup.
     - description: Customize the out-of-the-box setup experience for your end users.
+    - description: Install a bootstrap package to run custom scripts during the setup experience. Store the bootstrap package outside the Fleet database coming soon (2024-09-15) #customer-faltona
+      moreInfoUrl: https://github.com/fleetdm/fleet/issues/19037
     - description: Require end users to authenticate with your identity provider (IdP) and agree to an end user license agreement (EULA) before they can use their new workstation
 - industryName: Enforce OS updates
   documentationUrl: https://fleetdm.com/docs/using-fleet/mdm-macos-updates
