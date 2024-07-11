@@ -5,8 +5,8 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-  "strings"
 	"net/http"
+	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -110,7 +110,7 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 		}); err != nil {
 			return ctxerr.Wrap(ctx, err, "failed to associate vpp assets")
 		}
- 	}
+	}
 
 	return nil
 }
