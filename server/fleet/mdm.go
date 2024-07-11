@@ -66,10 +66,22 @@ type AppConfigUpdater interface {
 // MDMIdPAccount contains account information of a third-party IdP that can be
 // later used for MDM operations like creating local accounts.
 type MDMIdPAccount struct {
+	// UUID is the unique identifier created when a new user email is ingested (e.g., from the IdP response
+	// payload during the DEP automatic enrollment flow). It is used to subsequently associate the
+	// IdP account info to the device UUID extracted from the DEP webview client request.
 	UUID     string
 	Username string
 	Fullname string
 	Email    string
+	// HostUUID is the unique device identifier associated with the MDM enrollment. For Apple
+	// devices, it corresponds to the UDID extracted from the `x-apple-aspen-deviceinfo` header of
+	// the DEP webview client request.
+	HostUUID string `db:"host_uuid"`
+	// FleetEnrollRef is a legacy reference that is preserved for devices that enrolled
+	// via a mobileconfig that included an enrollment reference query param in the service URL. It
+	// is preserved for backwards compatibility with existing enrollments because Apple requires
+	// server URLs to match exactly when re-enrolling (e.g., via `profiles renew -type enrollment`).
+	FleetEnrollRef string `db:"fleet_enroll_ref"`
 }
 
 type MDMAppleBootstrapPackage struct {
@@ -249,6 +261,12 @@ type MDMCommand struct {
 // https://github.com/fleetdm/fleet/issues/11008#issuecomment-1503466119
 type MDMCommandListOptions struct {
 	ListOptions
+	Filters MDMCommandFilters
+}
+
+type MDMCommandFilters struct {
+	HostIdentifier string
+	RequestType    string
 }
 
 type MDMPlatformsCounts struct {

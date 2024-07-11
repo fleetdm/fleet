@@ -2,19 +2,20 @@
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
 import { IOperatingSystemVersion } from "interfaces/operating_system";
-import { OsqueryPlatform } from "interfaces/platform";
+import { Platform } from "interfaces/platform";
 import { buildQueryStringFromParams } from "utilities/url";
-import { API_NO_TEAM_ID } from "interfaces/team";
 
 // TODO: add platforms to this constant as new ones are supported
 export const OS_VERSIONS_API_SUPPORTED_PLATFORMS = [
   "darwin",
   "windows",
   "chrome",
+  "ios",
+  "ipados",
 ];
 
 export interface IGetOSVersionsQueryParams {
-  platform?: OsqueryPlatform;
+  platform?: Platform | "";
   teamId?: number;
   os_name?: string;
   os_version?: string;
@@ -70,6 +71,7 @@ export const getOSVersions = ({
 
   const params: IGetOSVersionsRequestQueryParams = {
     platform,
+    team_id: teamId,
     os_name,
     os_version,
     order_key,
@@ -77,10 +79,6 @@ export const getOSVersions = ({
     page,
     per_page,
   };
-
-  if (teamId !== API_NO_TEAM_ID) {
-    params.team_id = teamId;
-  }
 
   const queryString = buildQueryStringFromParams(params);
 

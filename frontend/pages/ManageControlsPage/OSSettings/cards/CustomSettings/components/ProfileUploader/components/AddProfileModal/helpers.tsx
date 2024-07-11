@@ -1,7 +1,6 @@
 import React from "react";
 
 import { IDropdownOption } from "interfaces/dropdownOption";
-import { snakeCase } from "lodash";
 
 export const CUSTOM_TARGET_OPTIONS: IDropdownOption[] = [
   {

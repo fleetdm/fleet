@@ -114,7 +114,7 @@ func runScriptSyncEndpoint(ctx context.Context, request interface{}, svc fleet.S
 		// response struct.
 		hostTimeout = true
 	}
-	result.Message = result.UserMessage(hostTimeout)
+	result.Message = result.UserMessage(hostTimeout, result.Timeout)
 	return runScriptSyncResponse{
 		HostScriptResult: result,
 		HostTimeout:      hostTimeout,
@@ -371,7 +371,7 @@ func getScriptResultEndpoint(ctx context.Context, request interface{}, svc fleet
 	// TODO: move this logic out of the endpoint function and consolidate in either the service
 	// method or the fleet package
 	hostTimeout := scriptResult.HostTimeout(scripts.MaxServerWaitTime)
-	scriptResult.Message = scriptResult.UserMessage(hostTimeout)
+	scriptResult.Message = scriptResult.UserMessage(hostTimeout, scriptResult.Timeout)
 
 	return &getScriptResultResponse{
 		ScriptContents: scriptResult.ScriptContents,

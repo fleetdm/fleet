@@ -24,6 +24,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
@@ -1285,8 +1286,17 @@ func (svc *Service) EnqueueMDMAppleCommand(
 }
 
 type mdmAppleEnrollRequest struct {
-	Token               string `query:"token"`
+	// Token is expected to be a UUID string that identifies a template MDM Apple enrollment profile.
+	Token string `query:"token"`
+	// EnrollmentReference is expected to be a UUID string that identifies the MDM IdP account used
+	// to authenticate the end user as part of the MDM IdP flow.
 	EnrollmentReference string `query:"enrollment_reference,optional"`
+	// DEPDeviceInfo is expected to be a base64 encoded string containing DEP deviceinfo extracted
+	// from the x-apple-aspen-deviceinfo header of the original configuration web view request and
+	// persisted by the client in local storage for inclusion in a subsequent enrollment request as
+	// part of the MDM IdP flow.
+	// See https://developer.apple.com/documentation/devicemanagement/device_assignment/authenticating_through_web_views
+	DEPDeviceInfo string `query:"dep_device_info,optional"`
 }
 
 func (r mdmAppleEnrollResponse) error() error { return r.Err }
@@ -1316,7 +1326,7 @@ func (r mdmAppleEnrollResponse) hijackRender(ctx context.Context, w http.Respons
 func mdmAppleEnrollEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*mdmAppleEnrollRequest)
 
-	profile, err := svc.GetMDMAppleEnrollmentProfileByToken(ctx, req.Token, req.EnrollmentReference)
+	profile, err := svc.GetMDMAppleEnrollmentProfileByToken(ctx, req.Token, req.EnrollmentReference, req.DEPDeviceInfo)
 	if err != nil {
 		return mdmAppleEnrollResponse{Err: err}, nil
 	}
@@ -1325,7 +1335,7 @@ func mdmAppleEnrollEndpoint(ctx context.Context, request interface{}, svc fleet.
 	}, nil
 }
 
-func (svc *Service) GetMDMAppleEnrollmentProfileByToken(ctx context.Context, token string, ref string) (profile []byte, err error) {
+func (svc *Service) GetMDMAppleEnrollmentProfileByToken(ctx context.Context, token string, ref string, deviceinfo string) (profile []byte, err error) {
 	// skipauth: The enroll profile endpoint is unauthenticated.
 	svc.authz.SkipAuthorization(ctx)
 
@@ -1342,9 +1352,44 @@ func (svc *Service) GetMDMAppleEnrollmentProfileByToken(ctx context.Context, tok
 		return nil, ctxerr.Wrap(ctx, err)
 	}
 
-	enrollURL, err := apple_mdm.AddEnrollmentRefToFleetURL(appConfig.ServerSettings.ServerURL, ref)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "adding reference to fleet URL")
+	enrollURL := appConfig.ServerSettings.ServerURL
+	// check if there is a legacy enroll ref and preserve it for backwards compatibility
+	if ref != "" {
+		idpAcct, err := svc.ds.GetMDMIdPAccountByAccountUUID(
+			// use the primary db as the account might have been just inserted
+			ctxdb.RequirePrimary(ctx, true),
+			ref,
+		)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "getting MDM IdP account")
+		}
+		if idpAcct.FleetEnrollRef != "" {
+			level.Debug(svc.logger).Log("msg", "using legacy enroll ref", "enroll_ref", idpAcct.FleetEnrollRef)
+			// we have a legacy enroll ref, add it to the enroll URL
+			enrollURL, err = apple_mdm.AddEnrollmentRefToFleetURL(appConfig.ServerSettings.ServerURL, idpAcct.FleetEnrollRef)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "adding reference to fleet URL")
+			}
+		}
+	}
+
+	// if we have device info, we need to parse it and associate the device with an MDM IdP account
+	if deviceinfo != "" {
+		di, err := apple_mdm.ParseDeviceinfo(deviceinfo, true)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "parsing deviceinfo")
+		}
+
+		// try to associate the device with an MDM IdP account
+		if ref == "" {
+			// this is unexpected, there should be a reference if we have device info
+			level.Debug(svc.logger).Log("msg", "associating mdm idp account, missing idp account uuid", "device_uuid", di.UDID)
+		} else {
+			// associate the device with the DEP account
+			if err := svc.ds.AssociateMDMIdPAccount(ctx, ref, di.UDID); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "associating MDM IdP account")
+			}
+		}
 	}
 
 	topic, err := svc.mdmPushCertTopic(ctx)
@@ -2737,13 +2782,18 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 		host.Hostname = deviceName
 		host.GigsDiskSpaceAvailable = availableDeviceCapacity
 		host.GigsTotalDiskSpace = deviceCapacity
-		var osVersionPrefix string
+		var (
+			osVersionPrefix string
+			platform        string
+		)
 		if strings.HasPrefix(productName, "iPhone") {
-			osVersionPrefix = "iOS "
+			osVersionPrefix = "iOS"
+			platform = "ios"
 		} else { // iPad
-			osVersionPrefix = "iPadOS "
+			osVersionPrefix = "iPadOS"
+			platform = "ipados"
 		}
-		host.OSVersion = osVersionPrefix + osVersion
+		host.OSVersion = osVersionPrefix + " " + osVersion
 		host.PrimaryMac = wifiMac
 		host.HardwareModel = productName
 		host.DetailUpdatedAt = time.Now()
@@ -2752,6 +2802,13 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 		}
 		if err := svc.ds.SetOrUpdateHostDisksSpace(r.Context, host.ID, availableDeviceCapacity, 100*availableDeviceCapacity/deviceCapacity, deviceCapacity); err != nil {
 			return nil, ctxerr.Wrap(r.Context, err, "failed to update host storage")
+		}
+		if err := svc.ds.UpdateHostOperatingSystem(r.Context, host.ID, fleet.OperatingSystem{
+			Name:     osVersionPrefix,
+			Version:  osVersion,
+			Platform: platform,
+		}); err != nil {
+			return nil, ctxerr.Wrap(r.Context, err, "failed to update host operating system")
 		}
 		return nil, nil
 	}

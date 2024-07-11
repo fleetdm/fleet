@@ -1,32 +1,44 @@
-export type OsqueryPlatform =
-  | "darwin"
+export type DisplayPlatform =
   | "macOS"
-  | "windows"
   | "Windows"
-  | "linux"
   | "Linux"
+  | "ChromeOS"
+  | "iOS"
+  | "iPadOS";
+
+export type Platform =
+  | "darwin"
+  | "windows"
+  | "linux"
   | "chrome"
-  | "ChromeOS";
+  | "ios"
+  | "ipados";
 
-export type SupportedPlatform = "darwin" | "windows" | "linux" | "chrome";
+export type QueryableDisplayPlatform = Exclude<
+  DisplayPlatform,
+  "iOS" | "iPadOS"
+>;
 
-export const SUPPORTED_PLATFORMS: SupportedPlatform[] = [
+export type QueryablePlatform = Exclude<Platform, "ios" | "ipados">;
+
+export const SUPPORTED_PLATFORMS: QueryablePlatform[] = [
   "darwin",
   "windows",
   "linux",
   "chrome",
 ];
-export type SelectedPlatform = SupportedPlatform | "all";
+
+export type SelectedPlatform = QueryablePlatform | "all";
 
 export type SelectedPlatformString =
   | ""
-  | SupportedPlatform
-  | `${SupportedPlatform},${SupportedPlatform}`
-  | `${SupportedPlatform},${SupportedPlatform},${SupportedPlatform}`
-  | `${SupportedPlatform},${SupportedPlatform},${SupportedPlatform},${SupportedPlatform}`;
+  | QueryablePlatform
+  | `${QueryablePlatform},${QueryablePlatform}`
+  | `${QueryablePlatform},${QueryablePlatform},${QueryablePlatform}`
+  | `${QueryablePlatform},${QueryablePlatform},${QueryablePlatform},${QueryablePlatform}`;
 
 // TODO: revisit this approach pending resolution of https://github.com/fleetdm/fleet/issues/3555.
-export const MACADMINS_EXTENSION_TABLES: Record<string, OsqueryPlatform[]> = {
+export const MACADMINS_EXTENSION_TABLES: Record<string, QueryablePlatform[]> = {
   file_lines: ["darwin", "linux", "windows"],
   filevault_users: ["darwin"],
   google_chrome_profiles: ["darwin", "linux", "windows"],
