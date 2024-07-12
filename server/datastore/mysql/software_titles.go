@@ -207,6 +207,7 @@ SELECT
 	st.name,
 	st.source,
 	st.browser,
+	vap.icon_url AS icon_url,
 	MAX(COALESCE(sthc.hosts_count, 0)) as hosts_count,
 	MAX(COALESCE(sthc.updated_at, date('0001-01-01 00:00:00'))) as counts_updated_at,
 	COALESCE(si.self_service, false) as self_service,
@@ -223,7 +224,7 @@ LEFT JOIN software_titles_host_counts sthc ON sthc.software_title_id = st.id AND
 WHERE %s
 -- placeholder for filter based on software installed on hosts + software installers
 AND (%s)
-GROUP BY st.id, self_service`
+GROUP BY st.id, self_service, icon_url`
 
 	cveJoinType := "LEFT"
 	if opt.VulnerableOnly {

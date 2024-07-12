@@ -75,7 +75,8 @@ func (ds *Datastore) GetVPPAppMetadataByTeamAndTitleID(ctx context.Context, team
 SELECT
 	vap.adam_id,
 	vap.name,
-	vap.latest_version
+	vap.latest_version,
+	vap.icon_url
 FROM
 	vpp_apps vap
 	INNER JOIN vpp_apps_teams vat ON vat.adam_id = vap.adam_id

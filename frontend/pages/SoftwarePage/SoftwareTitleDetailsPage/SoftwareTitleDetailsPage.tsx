@@ -167,6 +167,13 @@ const SoftwareTitleDetailsPage = ({
               }}
               name={softwareTitle.name}
               source={softwareTitle.source}
+              url={
+                // @ts-ignore
+                softwareTitle.app_store_app?.icon_url
+                  ? // @ts-ignore
+                    softwareTitle.app_store_app?.icon_url
+                  : ""
+              }
             />
             {showPackageCard &&
               softwareTitle.software_package &&

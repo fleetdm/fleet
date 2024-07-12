@@ -75,6 +75,8 @@ const generateTableHeaders = (
           source,
           software_package,
           self_service,
+          // @ts-ignore
+          icon_url,
         } = cellProps.row.original;
 
         const teamQueryParam = buildQueryStringFromParams({ team_id: teamId });
@@ -92,6 +94,7 @@ const generateTableHeaders = (
             router={router}
             hasPackage={hasPackage}
             isSelfService={self_service === true}
+            url={icon_url}
           />
         );
       },

@@ -61,6 +61,7 @@ interface ISoftwareNameCellProps {
   router?: InjectedRouter;
   hasPackage?: boolean;
   isSelfService?: boolean;
+  url?: string;
 }
 
 const SoftwareNameCell = ({
@@ -70,6 +71,7 @@ const SoftwareNameCell = ({
   router,
   hasPackage = false,
   isSelfService = false,
+  url,
 }: ISoftwareNameCellProps) => {
   // NO path or router means it's not clickable. return
   // a non-clickable cell early
@@ -95,7 +97,7 @@ const SoftwareNameCell = ({
       customOnClick={onClickSoftware}
       value={
         <>
-          <SoftwareIcon name={name} source={source} />
+          <SoftwareIcon name={name} source={source} url={url} />
           <span className="software-name">{name}</span>
           {hasPackage && (
             <InstallIconWithTooltip isSelfService={isSelfService} />

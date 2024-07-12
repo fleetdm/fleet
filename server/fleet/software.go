@@ -206,7 +206,8 @@ type SoftwareTitleListResult struct {
 	SelfService bool `json:"self_service" db:"self_service"`
 	// AvailableForInstall is true if the software title has an installer or a
 	// VPP App available to install it, false otherwise.
-	AvailableForInstall bool `json:"available_for_install" db:"available_for_install"`
+	AvailableForInstall bool   `json:"available_for_install" db:"available_for_install"`
+	IconURL             string `db:"icon_url" json:"icon_url"`
 }
 
 type SoftwareTitleListOptions struct {

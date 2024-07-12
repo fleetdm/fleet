@@ -48,6 +48,7 @@ type VPPAppStoreApp struct {
 	Name          string               `db:"name" json:"name"`
 	LatestVersion string               `db:"latest_version" json:"latest_version"`
 	Status        *VPPAppStatusSummary `db:"-" json:"status"`
+	IconURL       string               `db:"icon_url" json:"icon_url"`
 }
 
 // VPPAppStatusSummary represents aggregated status metrics for a VPP app.

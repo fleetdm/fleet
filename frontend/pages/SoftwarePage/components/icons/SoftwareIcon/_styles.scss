@@ -8,10 +8,11 @@
   }
 
   &__software-img-small {
-    width: 22px;
-    height: 22px;
-    border-radius: $border-radius-small;
-    padding: 1px;
+    width: 22px !important;
+    height: 22px !important;
+    border-radius: $border-radius-small !important;
+    padding: 1px !important;
+    margin-left: 0 !important;
   }
 
   &__software-img-medium {
