@@ -12,10 +12,7 @@ import useTeamIdParam from "hooks/useTeamIdParam";
 
 import { AppContext } from "context/app";
 
-import {
-  ISoftwareTitleWithPackageDetail,
-  formatSoftwareType,
-} from "interfaces/software";
+import { ISoftwareTitleDetails, formatSoftwareType } from "interfaces/software";
 import { ignoreAxiosError } from "interfaces/errors";
 import softwareAPI, {
   ISoftwareTitleResponse,
@@ -83,7 +80,7 @@ const SoftwareTitleDetailsPage = ({
   } = useQuery<
     ISoftwareTitleResponse,
     AxiosError,
-    ISoftwareTitleWithPackageDetail,
+    ISoftwareTitleDetails,
     IGetSoftwareTitleQueryKey[]
   >(
     [{ scope: "softwareById", softwareId, teamId: teamIdForApi }],

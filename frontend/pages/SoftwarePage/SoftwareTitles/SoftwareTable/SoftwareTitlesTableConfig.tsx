@@ -2,10 +2,7 @@ import React from "react";
 import { CellProps, Column } from "react-table";
 import { InjectedRouter } from "react-router";
 
-import {
-  ISoftwareTitleWithPackageName,
-  formatSoftwareType,
-} from "interfaces/software";
+import { ISoftwareTitle, formatSoftwareType } from "interfaces/software";
 import PATHS from "router/paths";
 
 import { buildQueryStringFromParams } from "utilities/url";
@@ -22,20 +19,17 @@ import VulnerabilitiesCell from "../../components/VulnerabilitiesCell";
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
 
-type ISoftwareTitlesTableConfig = Column<ISoftwareTitleWithPackageName>;
-type ITableStringCellProps = IStringCellProps<ISoftwareTitleWithPackageName>;
-type IVersionsCellProps = CellProps<
-  ISoftwareTitleWithPackageName,
-  ISoftwareTitleWithPackageName["versions"]
->;
+type ISoftwareTitlesTableConfig = Column<ISoftwareTitle>;
+type ITableStringCellProps = IStringCellProps<ISoftwareTitle>;
+type IVersionsCellProps = CellProps<ISoftwareTitle, ISoftwareTitle["versions"]>;
 type IVulnerabilitiesCellProps = IVersionsCellProps;
 type IHostCountCellProps = CellProps<
-  ISoftwareTitleWithPackageName,
-  ISoftwareTitleWithPackageName["hosts_count"]
+  ISoftwareTitle,
+  ISoftwareTitle["hosts_count"]
 >;
-type IViewAllHostsLinkProps = CellProps<ISoftwareTitleWithPackageName>;
+type IViewAllHostsLinkProps = CellProps<ISoftwareTitle>;
 
-type ITableHeaderProps = IHeaderProps<ISoftwareTitleWithPackageName>;
+type ITableHeaderProps = IHeaderProps<ISoftwareTitle>;
 
 export const getVulnerabilities = <
   T extends { vulnerabilities: string[] | null }
@@ -73,7 +67,7 @@ const generateTableHeaders = (
           id,
           name,
           source,
-          software_package,
+          available_for_install,
           self_service,
         } = cellProps.row.original;
 
@@ -82,7 +76,7 @@ const generateTableHeaders = (
           id.toString()
         )}?${teamQueryParam}`;
 
-        const hasPackage = Boolean(software_package) && !!teamId; // teamId is required for package installation
+        const hasPackage = available_for_install && !!teamId; // teamId is required for package installation
 
         return (
           <SoftwareNameCell

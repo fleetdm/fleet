@@ -65,28 +65,40 @@ export interface ISoftwarePackage {
   };
 }
 
-interface ISoftwareTitle {
+export interface IAppStoreApp {
+  name: string;
+  app_store_id: number;
+  latest_version: string;
+  status: {
+    installed: number;
+    pending: number;
+    failed: number;
+  };
+}
+
+export interface ISoftwareTitle {
   id: number;
   name: string;
-  software_package: ISoftwarePackage | string | null;
   versions_count: number;
   source: string;
   hosts_count: number;
   versions: ISoftwareTitleVersion[] | null;
-  browser: string;
-  self_service?: boolean;
-}
-
-export interface ISoftwareTitleWithPackageName
-  extends Omit<ISoftwareTitle, "software_package" | "self-service"> {
-  software_package: string | null;
+  available_for_install: boolean;
   self_service: boolean;
+  browser?: string;
 }
 
-export interface ISoftwareTitleWithPackageDetail
-  extends Omit<ISoftwareTitle, "software_package" | "self-service"> {
+export interface ISoftwareTitleDetails {
+  id: number;
+  name: string;
   software_package: ISoftwarePackage | null;
-  self_service?: never;
+  app_store_app: IAppStoreApp | null;
+  source: string;
+  hosts_count: number;
+  versions: ISoftwareTitleVersion[] | null;
+  bundle_identifier?: string;
+  browser?: string;
+  versions_count?: number;
 }
 
 export interface ISoftwareVulnerability {
