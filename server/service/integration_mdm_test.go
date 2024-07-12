@@ -9169,6 +9169,71 @@ func (s *integrationMDMTestSuite) TestSilentMigrationGotchas() {
 	require.False(t, resp.Notifications.NeedsMDMMigration)
 }
 
+func (s *integrationMDMTestSuite) TestAPNsPushCron() {
+	t := s.T()
+	ctx := context.Background()
+
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+		{Name: "N1", Contents: mobileconfigForTest("N1", "I1")},
+		{Name: "N2", Contents: syncMLForTest("./Foo/Bar")},
+		{Name: "N4", Contents: declarationForTest("D1")},
+	}}, http.StatusNoContent)
+
+	// macOS host, MDM on
+	_, macDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	// windows host, MDM on
+	createWindowsHostThenEnrollMDM(s.ds, s.server.URL, t)
+	// linux and darwin, MDM off
+	createOrbitEnrolledHost(t, "linux", "linux_host", s.ds)
+	createOrbitEnrolledHost(t, "darwin", "mac_not_enrolled", s.ds)
+
+	// we're going to modify this mock, make sure we restore its default
+	originalPushMock := s.pushProvider.PushFunc
+	defer func() { s.pushProvider.PushFunc = originalPushMock }()
+
+	var recordedPushes []*mdm.Push
+	s.pushProvider.PushFunc = func(pushes []*mdm.Push) (map[string]*push.Response, error) {
+		recordedPushes = pushes
+		return mockSuccessfulPush(pushes)
+	}
+
+	// trigger the reconciliation schedule
+	err := ReconcileAppleProfiles(ctx, s.ds, s.mdmCommander, s.logger)
+	require.NoError(t, err)
+	require.Len(t, recordedPushes, 1)
+	recordedPushes = nil
+
+	// triggering the schedule again doesn't send any more pushes
+	err = ReconcileAppleProfiles(ctx, s.ds, s.mdmCommander, s.logger)
+	require.NoError(t, err)
+	require.Len(t, recordedPushes, 0)
+	recordedPushes = nil
+
+	// the cron to trigger pushes sends a new push request each time it
+	// runs if there are pending commands
+	for i := 0; i < 3; i++ {
+		err := SendPushesToPendingDevices(ctx, s.ds, s.mdmCommander, s.logger)
+		require.NoError(t, err)
+		require.Len(t, recordedPushes, 1)
+		recordedPushes = nil
+	}
+
+	// device acknowledges the commands
+	cmd, err := macDevice.Idle()
+	require.NoError(t, err)
+	require.NotNil(t, cmd)
+	for cmd != nil {
+		cmd, err = macDevice.Acknowledge(cmd.CommandUUID)
+		require.NoError(t, err)
+	}
+
+	// no more pushes are enqueued
+	err = SendPushesToPendingDevices(ctx, s.ds, s.mdmCommander, s.logger)
+	require.NoError(t, err)
+	require.Len(t, recordedPushes, 0)
+
+}
+
 func (s *integrationMDMTestSuite) TestMDMRequestWithoutCerts() {
 	t := s.T()
 	res := s.DoRawNoAuth("PUT", "/mdm/apple/mdm", nil, http.StatusBadRequest)

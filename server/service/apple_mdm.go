@@ -2967,6 +2967,35 @@ func ensureFleetProfiles(ctx context.Context, ds fleet.Datastore, logger kitlog.
 	return nil
 }
 
+func SendPushesToPendingDevices(
+	ctx context.Context,
+	ds fleet.Datastore,
+	commander *apple_mdm.MDMAppleCommander,
+	logger kitlog.Logger,
+) error {
+	uuids, err := ds.GetHostUUIDsWithPendingMDMAppleCommands(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting host uuids with pending commands")
+	}
+
+	if len(uuids) == 0 {
+		return nil
+	}
+
+	if err := commander.SendNotifications(ctx, uuids); err != nil {
+		var apnsErr *apple_mdm.APNSDeliveryError
+		if errors.As(err, &apnsErr) {
+			level.Info(logger).Log("msg", "failed to send APNs notification to some hosts", "host_uuids", apnsErr.FailedUUIDs)
+			return nil
+		}
+
+		return ctxerr.Wrap(ctx, err, "sending push notifications")
+
+	}
+
+	return nil
+}
+
 func ReconcileAppleDeclarations(
 	ctx context.Context,
 	ds fleet.Datastore,
