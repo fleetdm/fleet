@@ -14,16 +14,14 @@ interface IOSVersionTableProps {
   osVersionData: IOperatingSystemVersion[];
   currentTeamId: number;
   isLoading: boolean;
-  currentVersionQueryParams: ReturnType<
-    typeof parseOSUpdatesCurrentVersionsQueryParams
-  >;
+  queryParams: ReturnType<typeof parseOSUpdatesCurrentVersionsQueryParams>;
 }
 
 const OSVersionTable = ({
   osVersionData,
   currentTeamId,
   isLoading,
-  currentVersionQueryParams,
+  queryParams,
 }: IOSVersionTableProps) => {
   const columns = generateTableHeaders(currentTeamId);
 
@@ -37,12 +35,12 @@ const OSVersionTable = ({
         emptyComponent={OSVersionsEmptyState}
         showMarkAllPages={false}
         isAllPagesSelected={false}
-        defaultSortHeader={currentVersionQueryParams.order_key}
-        defaultSortDirection={currentVersionQueryParams.order_direction}
-        defaultPageIndex={currentVersionQueryParams.page}
+        defaultSortHeader={queryParams.order_key}
+        defaultSortDirection={queryParams.order_direction}
+        defaultPageIndex={queryParams.page}
         disableTableHeader
         disableCount
-        pageSize={currentVersionQueryParams.per_page}
+        pageSize={queryParams.per_page}
       />
     </div>
   );

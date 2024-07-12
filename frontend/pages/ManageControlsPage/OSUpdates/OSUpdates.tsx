@@ -117,9 +117,6 @@ const OSUpdates = ({ router, teamIdForApi, queryParams }: IOSUpdates) => {
         <div className={`${baseClass}__current-version-container`}>
           <CurrentVersionSection
             currentTeamId={teamIdForApi}
-            // queryParams={parseOSUpdatesCurrentVersionsQueryParams(
-            //   location.query
-            // )}
             queryParams={queryParams}
           />
         </div>

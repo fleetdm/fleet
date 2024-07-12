@@ -62,17 +62,12 @@ const CurrentVersionSection = ({
   currentTeamId,
   queryParams,
 }: ICurrentVersionSectionProps) => {
-  const currentVersionQueryParams = parseOSUpdatesCurrentVersionsQueryParams(
-    queryParams
-  );
-
   const { data, isError, isLoading: isLoadingOsVersions } = useQuery<
     IOSVersionsResponse,
     AxiosError
   >(
     ["os_versions", currentTeamId],
-    () =>
-      getOSVersions({ teamId: currentTeamId, ...currentVersionQueryParams }),
+    () => getOSVersions({ teamId: currentTeamId, ...queryParams }),
     {
       retry: false,
       refetchOnWindowFocus: false,
@@ -126,7 +121,7 @@ const CurrentVersionSection = ({
         osVersionData={filteredOSVersionData}
         currentTeamId={currentTeamId}
         isLoading={isLoadingOsVersions}
-        currentVersionQueryParams={currentVersionQueryParams}
+        queryParams={queryParams}
       />
     );
   };
