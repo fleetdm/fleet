@@ -1108,6 +1108,47 @@ func newMDMProfileManager(
 	return s, nil
 }
 
+func newMDMAPNsPusher(
+	ctx context.Context,
+	instanceID string,
+	ds fleet.Datastore,
+	commander *apple_mdm.MDMAppleCommander,
+	logger kitlog.Logger,
+) (*schedule.Schedule, error) {
+
+	const name = string(fleet.CronAppleMDMAPNsPusher)
+
+	var interval = 1 * time.Minute
+	if intervalEnv := os.Getenv("FLEET_DEV_CUSTOM_APNS_PUSHER_INTERVAL"); intervalEnv != "" {
+		var err error
+		interval, err = time.ParseDuration(intervalEnv)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "invalid duration provided in env var FLEET_DEV_CUSTOM_APNS_PUSHER_INTERVAL")
+		}
+
+	}
+
+	logger = kitlog.With(logger, "cron", name)
+	s := schedule.New(
+		ctx, name, instanceID, interval, ds, ds,
+		schedule.WithLogger(logger),
+		schedule.WithJob("apns_push_to_pending_hosts", func(ctx context.Context) error {
+			appCfg, err := ds.AppConfig(ctx)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "retrieving app config")
+			}
+
+			if !appCfg.MDM.EnabledAndConfigured {
+				return nil
+			}
+
+			return service.SendPushesToPendingDevices(ctx, ds, commander, logger)
+		}),
+	)
+
+	return s, nil
+}
+
 func cleanupCronStatsOnShutdown(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, instanceID string) {
 	if err := ds.UpdateAllCronStatsForInstance(ctx, instanceID, fleet.CronStatsStatusPending, fleet.CronStatsStatusCanceled); err != nil {
 		logger.Log("err", "cancel pending cron stats for instance", "details", err)
