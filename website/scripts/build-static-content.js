@@ -253,6 +253,10 @@ module.exports = {
               if(mdString.match(/[A-Z0-9._%+-]+@fleetdm\.com/gi)) {
                 throw new Error(`A Markdown file (${pageSourcePath}) contains a @fleetdm.com email address. To resolve this error, remove the email address in that file or change it to be an @example.com email address and try running this script again.`);
               }
+              // Look for multi-line HTML comments starting after lists without a blank newline. (The opening comment block is parsed as part of the list item preceeding it, and the closing block will be parsed as a paragraph)
+              if(mdString.match(/[-|\d\.].*\n<!-+\n/g)) {
+                throw new Error(`A Markdown file (${pageSourcePath}) contains an HTML comment directly after a list that will cause rendering issues when converted to HTML. To resolve this error, add a blank newline before the start of the HTML comment in this file.`);
+              }
               // Look for anything in markdown content that could be interpreted as a Vue template when converted to HTML (e.g. {{ foo }}). If any are found, throw an error.
               if(mdString.match(/\{\{([^}]+)\}\}/gi)) {
                 throw new Error(`A Markdown file (${pageSourcePath}) contains a Vue template (${mdString.match(/\{\{([^}]+)\}\}/gi)[0]}) that will cause client-side javascript errors when converted to HTML. To resolve this error, change or remove the double curly brackets in this file.`);
