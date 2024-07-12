@@ -30,7 +30,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/storage"
 	"github.com/fleetdm/fleet/v4/server/sso"
 	"github.com/fleetdm/fleet/v4/server/worker"
-	kitlog "github.com/go-kit/kit/log"
+	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"github.com/google/uuid"
 )
@@ -135,7 +135,7 @@ func (svc *Service) MDMAppleDeviceLock(ctx context.Context, hostID uint) error {
 		return err
 	}
 
-	err = svc.mdmAppleCommander.DeviceLock(ctx, host, uuid.New().String())
+	_, err = svc.mdmAppleCommander.DeviceLock(ctx, host, uuid.New().String())
 	if err != nil {
 		return err
 	}
@@ -892,16 +892,16 @@ func (svc *Service) MDMAppleMatchPreassignment(ctx context.Context, externalHost
 		return err // will return a not found error if host does not exist
 	}
 
-	hostMDM, err := svc.ds.GetHostMDM(ctx, host.ID)
-	if err != nil || !hostMDM.IsFleetEnrolled() {
-		if err == nil || fleet.IsNotFound(err) {
-			err = errors.New("host is not enrolled in Fleet MDM")
-			return ctxerr.Wrap(ctx, &fleet.BadRequestError{
-				Message:     err.Error(),
-				InternalErr: err,
-			})
-		}
-		return err
+	connected, err := svc.ds.IsHostConnectedToFleetMDM(ctx, host)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "checking if host is connected to Fleet")
+	}
+	if !connected {
+		err = errors.New("host is not enrolled in Fleet MDM")
+		return ctxerr.Wrap(ctx, &fleet.BadRequestError{
+			Message:     err.Error(),
+			InternalErr: err,
+		})
 	}
 
 	// Collect the profiles' groups in case we need to create a new team,
@@ -1119,7 +1119,7 @@ func (svc *Service) mdmAppleEditedMacOSUpdates(ctx context.Context, teamID *uint
 	if err != nil {
 		return err
 	}
-	d.Labels = []fleet.ConfigurationProfileLabel{
+	d.LabelsIncludeAll = []fleet.ConfigurationProfileLabel{
 		{LabelName: fleet.BuiltinLabelMacOS14Plus, LabelID: lblIDs[fleet.BuiltinLabelMacOS14Plus]},
 	}
 

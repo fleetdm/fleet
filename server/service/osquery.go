@@ -1799,7 +1799,8 @@ func (svc *Service) SubmitResultLogs(ctx context.Context, logs []json.RawMessage
 
 	unmarshaledResults, queriesDBData := svc.preProcessOsqueryResults(ctx, logs, queryReportsDisabled)
 	if !queryReportsDisabled {
-		svc.saveResultLogsToQueryReports(ctx, unmarshaledResults, queriesDBData)
+		maxQueryReportRows := appConfig.ServerSettings.GetQueryReportCap()
+		svc.saveResultLogsToQueryReports(ctx, unmarshaledResults, queriesDBData, maxQueryReportRows)
 	}
 
 	var filteredLogs []json.RawMessage
@@ -1861,7 +1862,12 @@ func (svc *Service) SubmitResultLogs(ctx context.Context, logs []json.RawMessage
 // Query Reports
 ////////////////////////////////////////////////////////////////////////////////
 
-func (svc *Service) saveResultLogsToQueryReports(ctx context.Context, unmarshaledResults []*fleet.ScheduledQueryResult, queriesDBData map[string]*fleet.Query) {
+func (svc *Service) saveResultLogsToQueryReports(
+	ctx context.Context,
+	unmarshaledResults []*fleet.ScheduledQueryResult,
+	queriesDBData map[string]*fleet.Query,
+	maxQueryReportRows int,
+) {
 	// skipauth: Authorization is currently for user endpoints only.
 	svc.authz.SkipAuthorization(ctx)
 
@@ -1903,11 +1909,11 @@ func (svc *Service) saveResultLogsToQueryReports(ctx context.Context, unmarshale
 			level.Error(svc.logger).Log("msg", "get result count for query", "err", err, "query_id", dbQuery.ID)
 			continue
 		}
-		if count >= fleet.MaxQueryReportRows {
+		if count >= maxQueryReportRows {
 			continue
 		}
 
-		if err := svc.overwriteResultRows(ctx, result, dbQuery.ID, host.ID); err != nil {
+		if err := svc.overwriteResultRows(ctx, result, dbQuery.ID, host.ID, maxQueryReportRows); err != nil {
 			level.Error(svc.logger).Log("msg", "overwrite results", "err", err, "query_id", dbQuery.ID, "host_id", host.ID)
 			continue
 		}
@@ -1919,7 +1925,7 @@ func (svc *Service) saveResultLogsToQueryReports(ctx context.Context, unmarshale
 // The "snapshot" array in a ScheduledQueryResult can contain multiple rows.
 // Each row is saved as a separate ScheduledQueryResultRow, i.e. a result could contain
 // many USB Devices or a result could contain all user accounts on a host.
-func (svc *Service) overwriteResultRows(ctx context.Context, result *fleet.ScheduledQueryResult, queryID, hostID uint) error {
+func (svc *Service) overwriteResultRows(ctx context.Context, result *fleet.ScheduledQueryResult, queryID, hostID uint, maxQueryReportRows int) error {
 	fetchTime := time.Now()
 
 	rows := make([]*fleet.ScheduledQueryResultRow, 0, len(result.Snapshot))
@@ -1945,7 +1951,7 @@ func (svc *Service) overwriteResultRows(ctx context.Context, result *fleet.Sched
 		rows = append(rows, row)
 	}
 
-	if err := svc.ds.OverwriteQueryResultRows(ctx, rows); err != nil {
+	if err := svc.ds.OverwriteQueryResultRows(ctx, rows, maxQueryReportRows); err != nil {
 		return ctxerr.Wrap(ctx, err, "overwriting query result rows")
 	}
 	return nil

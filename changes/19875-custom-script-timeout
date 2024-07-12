@@ -1,0 +1,3 @@
+host script timeouts are now configurable via agent options using `script_execution_timeout`.
+`fleetctl` now uses a polling mechanism when running `run-script` to accommodate longer script
+timeout values.

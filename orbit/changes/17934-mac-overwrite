@@ -1,3 +1,0 @@
-- Fixes an issue related to hardware UUIDs being cached in osquery's database. When an orbit install
-  is transferred from one machine to another (e.g. via MacOS Migration Assistant), the new machine
-  now shows up in Fleet as a separate host from the old one.

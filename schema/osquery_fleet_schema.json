@@ -16111,7 +16111,7 @@
         "description": "The full raw output of the MDM command execution."
       }
     ],
-    "notes": "This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).",
+    "notes": "This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)). This table does not work on Windows Server",
     "evented": false,
     "url": "https://fleetdm.com/tables/mdm_bridge",
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/mdm_bridge.yml"
@@ -19126,15 +19126,15 @@
   },
   {
     "name": "patches",
-    "description": "Lists all the patches applied. Note: This does not include patches applied via MSI or downloaded from Windows Update (e.g. Service Packs).",
+    "description": "The `patches` osquery table lists Windows security patch updates.",
     "url": "https://fleetdm.com/tables/patches",
     "platforms": [
       "windows"
     ],
     "evented": false,
     "cacheable": false,
-    "notes": "",
-    "examples": "```\nselect * from patches\n```",
+    "notes": "Microsoft creates a support page per hotfix patch. Support pages can be discovered by doing a web browser search for the hotfix ID string (e.g., KB5037663).\n\nMicrosoft documentation for [KB5037663](https://support.microsoft.com/en-us/topic/may-29-2024-kb5037853-os-builds-22621-3672-and-22631-3672-preview-dcf14fd8-84d6-4234-9d5b-784c319cd7cf)\n\nThe `patches` table does not include updates that are applied via Windows Installer / Microsoft Standard Installer packages (.msi) or updates downloaded directly from Windows Update (e.g., Service Packs).\n\n[Windows Installer](https://learn.microsoft.com/en-us/windows/win32/msi/windows-installer-portal)",
+    "examples": "Basic query:\n\n```\nSELECT * FROM patches;\n```\n\nThis query determines if a specific hotfix patch is installed:\n\n```\nSELECT * FROM patches WHERE hotfix_id='kb5037663';\n```",
     "columns": [
       {
         "name": "csname",
@@ -19209,8 +19209,7 @@
         "index": false
       }
     ],
-    "osqueryRepoUrl": "https://github.com/osquery/osquery/blob/master/specs/windows/patches.table",
-    "fleetRepoUrl": "https://github.com/fleetdm/fleet/new/main/schema?filename=tables%2Fpatches.yml&value=name%3A%20patches%0Adescription%3A%20%7C-%20%23%20(required)%20string%20-%20The%20description%20for%20this%20table.%20Note%3A%20this%20field%20supports%20Markdown%0A%09%23%20Add%20description%20here%0Aexamples%3A%20%7C-%20%23%20(optional)%20string%20-%20An%20example%20query%20for%20this%20table.%20Note%3A%20This%20field%20supports%20Markdown%0A%09%23%20Add%20examples%20here%0Anotes%3A%20%7C-%20%23%20(optional)%20string%20-%20Notes%20about%20this%20table.%20Note%3A%20This%20field%20supports%20Markdown.%0A%09%23%20Add%20notes%20here%0Acolumns%3A%20%23%20(required)%0A%09-%20name%3A%20%23%20(required)%20string%20-%20The%20name%20of%20the%20column%0A%09%20%20description%3A%20%23%20(required)%20string%20-%20The%20column's%20description.%20Note%3A%20this%20field%20supports%20Markdown%0A%09%20%20type%3A%20%23%20(required)%20string%20-%20the%20column's%20data%20type%0A%09%20%20required%3A%20%23%20(required)%20boolean%20-%20whether%20or%20not%20this%20column%20is%20required%20to%20query%20this%20table."
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/patches.yml"
   },
   {
     "name": "pci_devices",
@@ -19507,7 +19506,7 @@
     ],
     "evented": false,
     "cacheable": false,
-    "notes": "Running the following command at a prompt in PowerShell lists the named pipes currently open on a Windows computer:\n\n```\nget-childitem \\\\.\\pipe\\\n```\n\nLinks:\n- Microsoft documentation on [named pipes](https://learn.microsoft.com/en-us/windows/win32/ipc/named-pipes)\n- Discover files linked to processes with Windows [Process Explorer](https://learn.microsoft.com/en-us/sysinternals/downloads/process-explorer)",
+    "notes": "Running the following command at a prompt in PowerShell lists the named pipes currently open on a Windows computer:\n\n```\nPS C:\\Windows\\System32> get-childitem \\\\.\\pipe\\\n```\n\nLinks:\n- Microsoft documentation on [named pipes](https://learn.microsoft.com/en-us/windows/win32/ipc/named-pipes)\n- Discover files linked to processes with Windows [Process Explorer](https://learn.microsoft.com/en-us/sysinternals/downloads/process-explorer)\n- Windows [PowerShell](https://learn.microsoft.com/en-us/powershell/scripting/overview?view=powershell-7.4)",
     "examples": "This query displays all attributes (columns) for the named pipe enabled by opening PowerShell:\n\n```\nSELECT * FROM pipes WHERE name LIKE '%powershell';\n```",
     "columns": [
       {
@@ -22011,15 +22010,15 @@
   },
   {
     "name": "programs",
-    "description": "Represents products as they are installed by Windows Installer. A product generally correlates to one installation package on Windows. Some fields may be blank as Windows installation details are left to the discretion of the product author.",
+    "description": "The `programs` table lists applications installed via Windows Installer from a package.",
     "url": "https://fleetdm.com/tables/programs",
     "platforms": [
       "windows"
     ],
     "evented": false,
     "cacheable": false,
-    "notes": "",
-    "examples": "```\nselect name, install_location from programs where install_location not like 'C:\\Program Files%';\n```",
+    "notes": "This table includes references for applications:\n\n- downloaded directly from websites and installed by an end user like Google Chrome or Notepad++\n- installed via automation frameworks like winget or Chocolatey\n- installed via command line in cmd or PowerShell\n\nLinks:\n\n- [Windows Installer](https://learn.microsoft.com/en-us/windows/win32/msi/windows-installer-portal)\n- [Chocolatey](https://chocolatey.org/)\n- The Fleet `chocolatey_packages`[table](https://fleetdm.com/tables/chocolatey_packages)\n- [winget](https://learn.microsoft.com/en-us/windows/package-manager/winget/)\n- [winget.run](https://winget.run/)\n- Windows [cmd](https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/cmd)\n- Windows [PowerShell](https://learn.microsoft.com/en-us/powershell/scripting/overview?view=powershell-7.4)\n- [PowerShell primer](https://www.howtogeek.com/devops/how-to-get-started-with-learning-powershell/)\n- [Notepad++](https://notepad-plus-plus.org/)",
+    "examples": "Basic query:\n\n```\nSELECT * FROM programs;\n```\n\nThis query determines if a specific version of Google Chrome.exe is installed:\n\n```\nSELECT name,version FROM programs WHERE name='Google Chrome' AND version='125.0.6422.142';\n```",
     "columns": [
       {
         "name": "name",
@@ -22103,8 +22102,7 @@
         "index": false
       }
     ],
-    "osqueryRepoUrl": "https://github.com/osquery/osquery/blob/master/specs/windows/programs.table",
-    "fleetRepoUrl": "https://github.com/fleetdm/fleet/new/main/schema?filename=tables%2Fprograms.yml&value=name%3A%20programs%0Adescription%3A%20%7C-%20%23%20(required)%20string%20-%20The%20description%20for%20this%20table.%20Note%3A%20this%20field%20supports%20Markdown%0A%09%23%20Add%20description%20here%0Aexamples%3A%20%7C-%20%23%20(optional)%20string%20-%20An%20example%20query%20for%20this%20table.%20Note%3A%20This%20field%20supports%20Markdown%0A%09%23%20Add%20examples%20here%0Anotes%3A%20%7C-%20%23%20(optional)%20string%20-%20Notes%20about%20this%20table.%20Note%3A%20This%20field%20supports%20Markdown.%0A%09%23%20Add%20notes%20here%0Acolumns%3A%20%23%20(required)%0A%09-%20name%3A%20%23%20(required)%20string%20-%20The%20name%20of%20the%20column%0A%09%20%20description%3A%20%23%20(required)%20string%20-%20The%20column's%20description.%20Note%3A%20this%20field%20supports%20Markdown%0A%09%20%20type%3A%20%23%20(required)%20string%20-%20the%20column's%20data%20type%0A%09%20%20required%3A%20%23%20(required)%20boolean%20-%20whether%20or%20not%20this%20column%20is%20required%20to%20query%20this%20table."
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/programs.yml"
   },
   {
     "name": "prometheus_metrics",
@@ -22682,15 +22680,15 @@
   },
   {
     "name": "registry",
-    "description": "All of the Windows registry hives.",
+    "description": "The Windows Registry is a database that stores Windows application data and low-level Windows settings like driver, security, service, system and user information. The `registry` osquery table expresses the data in the Windows Registry.",
     "url": "https://fleetdm.com/tables/registry",
     "platforms": [
       "windows"
     ],
     "evented": false,
     "cacheable": false,
-    "notes": "",
-    "examples": "```\nselect name, type, data from registry where key like 'HKEY_USERS\\%\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Wallpapers'; -- same, but filtering by key instead of path\n```",
+    "notes": "The `registry` table is ideal for use in Fleet policies and queries because of the critical operating system and application data stored in the Windows Registry.\n\nLinks:\n\n- [Windows Registry](https://learn.microsoft.com/en-us/windows/win32/sysinfo/registry)\n- [Fleet Windows MDM Setup](https://fleetdm.com/guides/windows-mdm-setup)\n- [Windows Firewall](https://learn.microsoft.com/en-us/windows/security/operating-system-security/network-security/windows-firewall/)",
+    "examples": "This query returns the date a Windows Host was enrolled in Fleet:\n\n```\nSELECT strftime('%Y-%m-%d %H:%M:%S', mtime, 'unixepoch') AS enroll_time FROM registry WHERE path LIKE 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Enrollments\\%%\\DeviceEnroller';\n```\n\nThis query returns the state of the configurable profiles (i.e., domain, public, standard) in the Windows firewall settings (a value of 1 means the firewall is enabled for the profile):\n\n```\nWITH profiles AS (\nSELECT SPLIT(KEY, '\\', 7) AS enabled,name,data,'profile' AS grpkey\nFROM registry r\nWHERE r.path IN (\n'\\HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\SharedAccess\\Parameters\\FirewallPolicy\\DomainProfile\\EnableFirewall', \n'\\HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\SharedAccess\\Parameters\\FirewallPolicy\\PublicProfile\\EnableFirewall',\n'\\HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\SharedAccess\\Parameters\\FirewallPolicy\\StandardProfile\\EnableFirewall'\n    )\n),\nfirewall AS (\nSELECT\n    MAX(CASE WHEN enabled='DomainProfile' THEN DATA END) AS domain_enabled,\n    MAX(CASE WHEN enabled='PublicProfile' THEN DATA END) AS public_enabled,\n    MAX(CASE WHEN enabled='StandardProfile' THEN DATA END) AS standard_enabled\nFROM profiles\nGROUP BY grpkey\n)\nSELECT *\nFROM firewall;\n```",
     "columns": [
       {
         "name": "key",
@@ -22747,8 +22745,7 @@
         "index": false
       }
     ],
-    "osqueryRepoUrl": "https://github.com/osquery/osquery/blob/master/specs/windows/registry.table",
-    "fleetRepoUrl": "https://github.com/fleetdm/fleet/new/main/schema?filename=tables%2Fregistry.yml&value=name%3A%20registry%0Adescription%3A%20%7C-%20%23%20(required)%20string%20-%20The%20description%20for%20this%20table.%20Note%3A%20this%20field%20supports%20Markdown%0A%09%23%20Add%20description%20here%0Aexamples%3A%20%7C-%20%23%20(optional)%20string%20-%20An%20example%20query%20for%20this%20table.%20Note%3A%20This%20field%20supports%20Markdown%0A%09%23%20Add%20examples%20here%0Anotes%3A%20%7C-%20%23%20(optional)%20string%20-%20Notes%20about%20this%20table.%20Note%3A%20This%20field%20supports%20Markdown.%0A%09%23%20Add%20notes%20here%0Acolumns%3A%20%23%20(required)%0A%09-%20name%3A%20%23%20(required)%20string%20-%20The%20name%20of%20the%20column%0A%09%20%20description%3A%20%23%20(required)%20string%20-%20The%20column's%20description.%20Note%3A%20this%20field%20supports%20Markdown%0A%09%20%20type%3A%20%23%20(required)%20string%20-%20the%20column's%20data%20type%0A%09%20%20required%3A%20%23%20(required)%20boolean%20-%20whether%20or%20not%20this%20column%20is%20required%20to%20query%20this%20table."
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/registry.yml"
   },
   {
     "name": "routes",
@@ -23120,15 +23117,15 @@
   },
   {
     "name": "safari_extensions",
-    "description": "Installed Safari browser extensions (plugins).",
+    "description": "Safari extensions add functionality to Safari.app, the native web browser in macOS. The `safari_extensions` table collects all Safari extensions installed on a Mac.",
     "url": "https://fleetdm.com/tables/safari_extensions",
     "platforms": [
       "darwin"
     ],
     "evented": false,
     "cacheable": false,
-    "notes": "- Querying this table requires joining against the `users` table. [Learn more](https://fleetdm.com/guides/osquery-consider-joining-against-the-users-table)\n- Includes installed extensions for all system users.",
-    "examples": "```\nSELECT * FROM users CROSS JOIN safari_extensions USING (uid);\n```",
+    "notes": "Because Safari data is intentionally isolated for each macOS user to maintain privacy, this query requires a `JOIN` operation.\n\nQuery explanation:\n\n- The `safari_extensions` table has a row for each installed extension\n- Each row has a column with the `uid` of the user who installed the extension\n- Each `uid` from the `safari_extensions` table is matched in the `users` table to collect Safari extensions in the output data for all user accounts on the Mac by the `JOIN`\n\nLinks:\n\n- Apple dcoumentaion on Safari Extensions: https://support.apple.com/en-us/102343\n- CROSS JOIN SQLite tutorial: https://www.sqlitetutorial.net/sqlite-cross-join/\n- [Fleet documentation on joining against the `users` table](https://fleetdm.com/guides/osquery-consider-joining-against-the-users-table)\n- Fleet users table: https://fleetdm.com/tables/users",
+    "examples": "Collect Safari extensions for all Mac users:\n\n```\nSELECT * FROM users CROSS JOIN safari_extensions USING (uid);\n```",
     "columns": [
       {
         "name": "uid",
@@ -23321,15 +23318,15 @@
   },
   {
     "name": "scheduled_tasks",
-    "description": "Lists all of the tasks in the Windows task scheduler.",
+    "description": "The Windows Task Scheduler tracks and performs automated tasks on a Windows device. The `scheduled_tasks` table collects the data from the Windows Task Scheduler.",
     "url": "https://fleetdm.com/tables/scheduled_tasks",
     "platforms": [
       "windows"
     ],
     "evented": false,
     "cacheable": false,
-    "notes": "",
-    "examples": "```\nselect * from scheduled_tasks where hidden=1 and enabled=1\n```",
+    "notes": "Many automated tasks are added to the Task Scheduler by Windows itself, however, administrators can also customize the Task Scheduler. Scheduled tasks are analogous to Launch Daemons and Launch Agents used on Linux or macOS. Because automation is a potential vector for malicious activity, monitoring the Windows Task Scheduler may be critical in an enterprise environment.\n\n[Windows Task Scheduler](https://learn.microsoft.com/en-us/windows/win32/taskschd/about-the-task-scheduler)",
+    "examples": "This query collects all tasks that are enabled but have not run:\n\n```\nSELECT * FROM scheduled_tasks WHERE enabled='1' AND last_run_message='The task has not yet run.';\n```",
     "columns": [
       {
         "name": "name",
@@ -23422,8 +23419,7 @@
         "index": false
       }
     ],
-    "osqueryRepoUrl": "https://github.com/osquery/osquery/blob/master/specs/windows/scheduled_tasks.table",
-    "fleetRepoUrl": "https://github.com/fleetdm/fleet/new/main/schema?filename=tables%2Fscheduled_tasks.yml&value=name%3A%20scheduled_tasks%0Adescription%3A%20%7C-%20%23%20(required)%20string%20-%20The%20description%20for%20this%20table.%20Note%3A%20this%20field%20supports%20Markdown%0A%09%23%20Add%20description%20here%0Aexamples%3A%20%7C-%20%23%20(optional)%20string%20-%20An%20example%20query%20for%20this%20table.%20Note%3A%20This%20field%20supports%20Markdown%0A%09%23%20Add%20examples%20here%0Anotes%3A%20%7C-%20%23%20(optional)%20string%20-%20Notes%20about%20this%20table.%20Note%3A%20This%20field%20supports%20Markdown.%0A%09%23%20Add%20notes%20here%0Acolumns%3A%20%23%20(required)%0A%09-%20name%3A%20%23%20(required)%20string%20-%20The%20name%20of%20the%20column%0A%09%20%20description%3A%20%23%20(required)%20string%20-%20The%20column's%20description.%20Note%3A%20this%20field%20supports%20Markdown%0A%09%20%20type%3A%20%23%20(required)%20string%20-%20the%20column's%20data%20type%0A%09%20%20required%3A%20%23%20(required)%20boolean%20-%20whether%20or%20not%20this%20column%20is%20required%20to%20query%20this%20table."
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/scheduled_tasks.yml"
   },
   {
     "name": "screenlock",
@@ -24896,15 +24892,15 @@
   },
   {
     "name": "sip_config",
-    "description": "Apple's System Integrity Protection (rootless) status.",
+    "description": "macOS System Integrity Protection (SIP) protects the Mac by preventing the execution of unauthorized code. The `sip_config` osquery table collects the current SIP status of a Mac.",
     "url": "https://fleetdm.com/tables/sip_config",
     "platforms": [
       "darwin"
     ],
     "evented": false,
     "cacheable": false,
-    "notes": "",
-    "examples": "View the status of System Integrity Protection.\n\n```\nSELECT config_flag, enabled FROM sip_config WHERE config_flag='sip';\n```",
+    "notes": "SIP:\n- automatically authorizes apps users download from the App Store\n- authorizes apps developers notarize and distribute directly to users\n- prevents launching of other apps unless users or administrators modify \"Gatekeeper\" settings\n\nOrganizations that develop software for Apple operating systems on the Mac may allow users to disable SIP. Because SIP is a basic and critical macOS security protection it is important to monitor SIP status on Hosts.\n\nLinks:\n\n- [About System Integrity Protection](https://support.apple.com/en-us/102149)\n- [Disabling and Enabling System Integrity Protection](https://developer.apple.com/documentation/security/disabling_and_enabling_system_integrity_protection/)\n- [Gatekeeper and runtime protection in macOS](https://support.apple.com/guide/security/gatekeeper-and-runtime-protection-sec5599b66df/web)",
+    "examples": "Basic query:\n\n```\nSELECT * FROM sip_config;\n```\n\nThis query displays the current SIP status (SIP is enabled if the value=1):\n\n```\nSELECT enabled FROM sip_config WHERE config_flag='sip';\n```",
     "columns": [
       {
         "name": "config_flag",
@@ -25373,19 +25369,20 @@
   },
   {
     "name": "software_update",
+    "description": "The `software_update` table displays the number of updates available from Apple's Software Update service on a Mac.",
     "platforms": [
       "darwin"
     ],
-    "description": "Information about available Apple software updates.",
+    "examples": "Basic query:\n\n```\nSELECT * FROM software_update;\n```",
     "columns": [
       {
         "name": "software_update_required",
         "type": "integer",
         "required": false,
-        "description": "If true, means one of the Apple softwares installed on this machine has a new available upgrade."
+        "description": "A value of 0 means no updates are available. Any other integer represents the number of updates available."
       }
     ],
-    "notes": "This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).",
+    "notes": "This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).\n\nAvailable updates on a Mac can be displayed in the macOS Graphical User Interface (GUI) by clicking on the Apple menu and then selecting “System Settings”. In the System Settings.app, click General > Software Update.\n\nApple Software Updates can also be listed in Terminal with the following command:\n\n```\nsoftwareupdate --list --verbose\n```\n\n[Update Your Apple Software](https://support.apple.com/guide/personal-safety/update-your-apple-software-ips4930e3486/web)",
     "evented": false,
     "url": "https://fleetdm.com/tables/software_update",
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/software_update.yml"
@@ -26323,6 +26320,85 @@
     ],
     "osqueryRepoUrl": "https://github.com/osquery/osquery/blob/master/specs/linux/systemd_units.table",
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/new/main/schema?filename=tables%2Fsystemd_units.yml&value=name%3A%20systemd_units%0Adescription%3A%20%7C-%20%23%20(required)%20string%20-%20The%20description%20for%20this%20table.%20Note%3A%20this%20field%20supports%20Markdown%0A%09%23%20Add%20description%20here%0Aexamples%3A%20%7C-%20%23%20(optional)%20string%20-%20An%20example%20query%20for%20this%20table.%20Note%3A%20This%20field%20supports%20Markdown%0A%09%23%20Add%20examples%20here%0Anotes%3A%20%7C-%20%23%20(optional)%20string%20-%20Notes%20about%20this%20table.%20Note%3A%20This%20field%20supports%20Markdown.%0A%09%23%20Add%20notes%20here%0Acolumns%3A%20%23%20(required)%0A%09-%20name%3A%20%23%20(required)%20string%20-%20The%20name%20of%20the%20column%0A%09%20%20description%3A%20%23%20(required)%20string%20-%20The%20column's%20description.%20Note%3A%20this%20field%20supports%20Markdown%0A%09%20%20type%3A%20%23%20(required)%20string%20-%20the%20column's%20data%20type%0A%09%20%20required%3A%20%23%20(required)%20boolean%20-%20whether%20or%20not%20this%20column%20is%20required%20to%20query%20this%20table."
+  },
+  {
+    "name": "tcc_access",
+    "platforms": [
+      "darwin"
+    ],
+    "description": "Information about macOS TCC database contents, for determining permissions granted to applications.",
+    "evented": false,
+    "columns": [
+      {
+        "name": "source",
+        "type": "text",
+        "description": "Either \"user\" or \"system\".",
+        "required": false
+      },
+      {
+        "name": "uid",
+        "type": "integer",
+        "description": "The local user the permissions are for.  `0` for the system (root) user.",
+        "required": false
+      },
+      {
+        "name": "service",
+        "type": "text",
+        "description": "The name of the TCC service.",
+        "required": false
+      },
+      {
+        "name": "client",
+        "type": "text",
+        "description": "The bundle identifier or absolute path to the program using the TCC service.",
+        "required": false
+      },
+      {
+        "name": "client_type",
+        "type": "integer",
+        "description": "Indicates whether client is a bundle identifier (0) or absolute path (1).",
+        "required": false
+      },
+      {
+        "name": "auth_value",
+        "type": "integer",
+        "description": "Indicates whether the access is: denied (0), unknown (1), allowed (2), or limited (3).",
+        "required": false
+      },
+      {
+        "name": "auth_reason",
+        "type": "integer",
+        "description": "TODO",
+        "required": false
+      },
+      {
+        "name": "last_modified",
+        "type": "bigint",
+        "description": "The last time the entry was modified, in epoch seconds.",
+        "required": false
+      },
+      {
+        "name": "policy_id",
+        "type": "integer",
+        "description": "The MDM policy that allows TCC access for the application.",
+        "required": false
+      },
+      {
+        "name": "indirect_object_identifier",
+        "type": "text",
+        "description": "For kTCCServiceAppleEvents, what the client is asking to interact with, or \"UNUSED\" when it doesn't apply. Absolute path or bundle identifier.",
+        "required": false
+      },
+      {
+        "name": "indirect_object_identifier_type",
+        "type": "integer",
+        "description": "Indicates whether indirect_object_identifier is a bundle identifier (0) or absolute path (1), if applicable.",
+        "required": false
+      }
+    ],
+    "notes": "- This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).\n- This table requires that Fleet's agent (fleetd) has Full Disk Access.",
+    "url": "https://fleetdm.com/tables/tcc_access",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/tcc_access.yml"
   },
   {
     "name": "temperature_sensors",
@@ -29519,7 +29595,7 @@
     "name": "windows_updates",
     "description": "Returns information about Windows updates that are available for installation.",
     "evented": false,
-    "notes": "This table is not a core osquery table. It is included as part of fleetd, the osquery manager from Fleet. Code based on work by [Kolide](https://github.com/kolide/launcher).",
+    "notes": "- This table may not return any results while updates are being downloaded and installed.\n- This table is not a core osquery table. It is included as part of fleetd, the osquery manager from Fleet. Code based on work by [Kolide](https://github.com/kolide/launcher).",
     "platforms": [
       "windows"
     ],

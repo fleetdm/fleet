@@ -69,11 +69,40 @@ func (cm *cpeMatch) Match(attrs []*wfn.Attributes, requireVersion bool) (matches
 		if cm.match(attr, requireVersion) {
 			matches = append(matches, attr)
 		}
-		if osMatch := cm.MatchTargetSW(attr); osMatch != nil {
+		if osMatch := cm.matchTargetSW(attr); osMatch != nil {
 			matches = append(matches, osMatch)
 		}
 	}
 	return matches
+}
+
+// matchTargetSW returns an OS CPE for the given application CPE
+// if the application CPE has a target software attribute and
+// matches the given cpeMatch
+func (cm *cpeMatch) matchTargetSW(attr *wfn.Attributes) *wfn.Attributes {
+	if cm == nil || attr == nil {
+		return nil
+	}
+
+	if attr.Part != "a" || attr.TargetSW == "" {
+		return nil
+	}
+
+	osAttr := &wfn.Attributes{
+		Part:    "o",
+		Product: attr.TargetSW,
+	}
+
+	partMatches := cm.Part == osAttr.Part
+	productMatches := cm.Product == osAttr.Product
+	versionMatches := cm.Version == wfn.NA || cm.Version == wfn.Any
+	noVersionRanges := !cm.hasVersionRanges
+
+	if partMatches && productMatches && versionMatches && noVersionRanges {
+		return osAttr
+	}
+
+	return nil
 }
 
 // Match implements wfn.Matcher interface
@@ -128,16 +157,16 @@ func (cm *cpeMatch) match(attr *wfn.Attributes, requireVersion bool) bool {
 	matches := true
 
 	if cm.versionStartIncluding != "" {
-		matches = matches && smartVerCmp(ver, cm.versionStartIncluding) >= 0
+		matches = matches && SmartVerCmp(ver, cm.versionStartIncluding) >= 0
 	}
 	if cm.versionStartExcluding != "" {
-		matches = matches && smartVerCmp(ver, cm.versionStartExcluding) > 0
+		matches = matches && SmartVerCmp(ver, cm.versionStartExcluding) > 0
 	}
 	if cm.versionEndIncluding != "" {
-		matches = matches && smartVerCmp(ver, cm.versionEndIncluding) <= 0
+		matches = matches && SmartVerCmp(ver, cm.versionEndIncluding) <= 0
 	}
 	if cm.versionEndExcluding != "" {
-		matches = matches && smartVerCmp(ver, cm.versionEndExcluding) < 0
+		matches = matches && SmartVerCmp(ver, cm.versionEndExcluding) < 0
 	}
 
 	return matches

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
@@ -65,7 +66,7 @@ func TestLabels(t *testing.T) {
 		{"RecordNonExistentQueryLabelExecution", testLabelsRecordNonexistentQueryLabelExecution},
 		{"DeleteLabel", testDeleteLabel},
 		{"LabelsSummary", testLabelsSummary},
-		{"ListHostsInLabelFailingPolicies", testListHostsInLabelFailingPolicies},
+		{"ListHostsInLabelIssues", testListHostsInLabelIssues},
 		{"ListHostsInLabelDiskEncryptionStatus", testListHostsInLabelDiskEncryptionStatus},
 		{"HostMemberOfAllLabels", testHostMemberOfAllLabels},
 		{"ListHostsInLabelOSSettings", testLabelsListHostsInLabelOSSettings},
@@ -495,6 +496,8 @@ func testLabelsListHostsInLabelAndTeamFilter(deferred bool, t *testing.T, db *Da
 	listHostsInLabelCheckCount(t, db, userFilter, l1.ID, fleet.HostListOptions{TeamFilter: teamIDFilterNil}, 2)  // h1 and h2
 
 	// test team filter in combination with macos settings filter
+	nanoEnrollAndSetHostMDMData(t, db, h1, false)
+	require.NoError(t, err)
 	require.NoError(t, db.BulkUpsertMDMAppleHostProfiles(context.Background(), []*fleet.MDMAppleBulkUpsertHostProfilePayload{
 		{
 			ProfileUUID:       "a" + uuid.NewString(),
@@ -513,6 +516,7 @@ func testLabelsListHostsInLabelAndTeamFilter(deferred bool, t *testing.T, db *Da
 	listHostsInLabelCheckCount(t, db, userFilter, l1.ID, fleet.HostListOptions{TeamFilter: teamIDFilterNil, MacOSSettingsFilter: fleet.OSSettingsVerifying}, 0)  // no team
 	listHostsInLabelCheckCount(t, db, userFilter, l1.ID, fleet.HostListOptions{MacOSSettingsFilter: fleet.OSSettingsVerifying}, 0)                               // no team
 
+	nanoEnrollAndSetHostMDMData(t, db, h2, false)
 	require.NoError(t, db.BulkUpsertMDMAppleHostProfiles(context.Background(), []*fleet.MDMAppleBulkUpsertHostProfilePayload{
 		{
 			ProfileUUID:       "a" + uuid.NewString(),
@@ -950,7 +954,7 @@ func testLabelsSummary(t *testing.T, db *Datastore) {
 	require.Len(t, ls, 5)
 }
 
-func testListHostsInLabelFailingPolicies(t *testing.T, ds *Datastore) {
+func testListHostsInLabelIssues(t *testing.T, ds *Datastore) {
 	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
 	for i := 0; i < 10; i++ {
 		_, err := ds.NewHost(context.Background(), &fleet.Host{
@@ -1001,28 +1005,101 @@ func testListHostsInLabelFailingPolicies(t *testing.T, ds *Datastore) {
 	h2 := hosts[1]
 
 	assert.Zero(t, h1.HostIssues.FailingPoliciesCount)
+	assert.Zero(t, *h1.HostIssues.CriticalVulnerabilitiesCount)
 	assert.Zero(t, h1.HostIssues.TotalIssuesCount)
 	assert.Zero(t, h2.HostIssues.FailingPoliciesCount)
+	assert.Zero(t, *h2.HostIssues.CriticalVulnerabilitiesCount)
 	assert.Zero(t, h2.HostIssues.TotalIssuesCount)
 
 	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h1, map[uint]*bool{p.ID: ptr.Bool(true)}, time.Now(), false))
 
 	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h2, map[uint]*bool{p.ID: ptr.Bool(false), p2.ID: ptr.Bool(false)}, time.Now(), false))
-	checkLabelHostIssues(t, ds, hosts, l1.ID, filter, h2.ID, fleet.HostListOptions{}, 2)
+	checkLabelHostIssues(t, ds, hosts, l1.ID, filter, h2.ID, fleet.HostListOptions{}, 2, 0)
+
+	// Add a critical vulnerability
+	// seed software
+	software := []fleet.Software{
+		{Name: "foo0", Version: "0", Source: "chrome_extensions"}, // vulnerable
+		{Name: "foo1", Version: "1", Source: "chrome_extensions"},
+		{Name: "foo2", Version: "2", Source: "chrome_extensions"},
+		{Name: "foo3", Version: "3", Source: "chrome_extensions"},
+		{Name: "foo4", Version: "4", Source: "chrome_extensions"}, // vulnerable
+		{Name: "foo5", Version: "5", Source: "chrome_extensions"}, // vulnerable
+		{Name: "foo6", Version: "6", Source: "chrome_extensions"}, // vulnerable
+		{Name: "foo7", Version: "7", Source: "chrome_extensions"}, // vulnerable
+	}
+
+	for i := 0; i < len(software); i++ {
+		_, err := ds.UpdateHostSoftware(context.Background(), hosts[i].ID, software[:i+1])
+		require.NoError(t, err)
+	}
+
+	softwareItems := make([]fleet.Software, 0, len(software))
+	ctx := context.Background()
+	require.NoError(t, sqlx.SelectContext(ctx, ds.reader(ctx), &softwareItems, "SELECT id, version FROM software"))
+	require.Len(t, softwareItems, len(software))
+
+	for _, sw := range softwareItems {
+		_, err := ds.InsertSoftwareVulnerability(
+			context.Background(), fleet.SoftwareVulnerability{
+				CVE:        fmt.Sprintf("CVE-%s", sw.Version),
+				SoftwareID: sw.ID,
+			}, fleet.NVDSource,
+		)
+		require.NoError(t, err)
+	}
+	require.NoError(
+		t, ds.InsertCVEMeta(
+			ctx, []fleet.CVEMeta{
+				{
+					CVE:       "CVE-0",
+					CVSSScore: ptr.Float64(2 * criticalCVSSScoreCutoff),
+				},
+				{
+					CVE:       "CVE-3",
+					CVSSScore: ptr.Float64(criticalCVSSScoreCutoff), // not critical
+				},
+				{
+					CVE:       "CVE-4",
+					CVSSScore: ptr.Float64(criticalCVSSScoreCutoff + 0.001),
+				},
+				{
+					CVE:       "CVE-5",
+					CVSSScore: ptr.Float64(criticalCVSSScoreCutoff + 0.01),
+				},
+				{
+					CVE:       "CVE-6",
+					CVSSScore: ptr.Float64(criticalCVSSScoreCutoff + 0.1),
+				},
+				{
+					CVE:       "CVE-7",
+					CVSSScore: ptr.Float64(criticalCVSSScoreCutoff + 1),
+				},
+			},
+		),
+	)
+	// Populate critical vulnerabilities, which can be done with premium license.
+	ctx = license.NewContext(ctx, &fleet.LicenseInfo{Tier: fleet.TierPremium})
+	assert.NoError(t, ds.UpdateHostIssuesVulnerabilities(ctx))
+	checkLabelHostIssues(t, ds, hosts, l1.ID, filter, hosts[6].ID, fleet.HostListOptions{}, 0, 4)
 
 	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h2, map[uint]*bool{p.ID: ptr.Bool(true), p2.ID: ptr.Bool(false)}, time.Now(), false))
-	checkLabelHostIssues(t, ds, hosts, l1.ID, filter, h2.ID, fleet.HostListOptions{}, 1)
+	checkLabelHostIssues(t, ds, hosts, l1.ID, filter, h2.ID, fleet.HostListOptions{}, 1, 1)
 
 	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h2, map[uint]*bool{p.ID: ptr.Bool(true), p2.ID: ptr.Bool(true)}, time.Now(), false))
-	checkLabelHostIssues(t, ds, hosts, l1.ID, filter, h2.ID, fleet.HostListOptions{}, 0)
+	checkLabelHostIssues(t, ds, hosts, l1.ID, filter, h2.ID, fleet.HostListOptions{}, 0, 1)
 
 	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h1, map[uint]*bool{p.ID: ptr.Bool(false)}, time.Now(), false))
-	checkLabelHostIssues(t, ds, hosts, l1.ID, filter, h1.ID, fleet.HostListOptions{}, 1)
+	checkLabelHostIssues(t, ds, hosts, l1.ID, filter, h1.ID, fleet.HostListOptions{}, 1, 1)
 
-	checkLabelHostIssues(t, ds, hosts, l1.ID, filter, h1.ID, fleet.HostListOptions{DisableFailingPolicies: true}, 0)
+	checkLabelHostIssues(t, ds, hosts, l1.ID, filter, h1.ID, fleet.HostListOptions{DisableIssues: true}, 0, 0)
+	checkLabelHostIssues(t, ds, hosts, l1.ID, filter, hosts[6].ID, fleet.HostListOptions{DisableIssues: true}, 0, 0)
 }
 
-func checkLabelHostIssues(t *testing.T, ds *Datastore, hosts []*fleet.Host, lid uint, filter fleet.TeamFilter, hid uint, opts fleet.HostListOptions, expected int) {
+func checkLabelHostIssues(
+	t *testing.T, ds *Datastore, hosts []*fleet.Host, lid uint, filter fleet.TeamFilter, hid uint, opts fleet.HostListOptions,
+	failingPoliciesExpected uint64, criticalVulnerabilitiesExpected uint64,
+) {
 	hosts = listHostsInLabelCheckCount(t, ds, filter, lid, opts, 10)
 	foundH2 := false
 	var foundHost *fleet.Host
@@ -1034,17 +1111,21 @@ func checkLabelHostIssues(t *testing.T, ds *Datastore, hosts []*fleet.Host, lid 
 		}
 	}
 	require.True(t, foundH2)
-	assert.Equal(t, expected, foundHost.HostIssues.FailingPoliciesCount)
-	assert.Equal(t, expected, foundHost.HostIssues.TotalIssuesCount)
+	assert.Equal(t, failingPoliciesExpected, foundHost.HostIssues.FailingPoliciesCount)
 
-	if opts.DisableFailingPolicies {
+	if opts.DisableIssues {
+		assert.Nil(t, foundHost.HostIssues.CriticalVulnerabilitiesCount)
+		assert.Zero(t, foundHost.HostIssues.TotalIssuesCount)
 		return
 	}
+	assert.Equal(t, criticalVulnerabilitiesExpected, *foundHost.HostIssues.CriticalVulnerabilitiesCount)
+	assert.Equal(t, failingPoliciesExpected+criticalVulnerabilitiesExpected, foundHost.HostIssues.TotalIssuesCount)
 
 	hostById, err := ds.Host(context.Background(), hid)
 	require.NoError(t, err)
-	assert.Equal(t, expected, hostById.HostIssues.FailingPoliciesCount)
-	assert.Equal(t, expected, hostById.HostIssues.TotalIssuesCount)
+	assert.Equal(t, failingPoliciesExpected, hostById.HostIssues.FailingPoliciesCount)
+	assert.Equal(t, failingPoliciesExpected+criticalVulnerabilitiesExpected, hostById.HostIssues.TotalIssuesCount)
+	assert.Equal(t, foundHost.HostIssues.CriticalVulnerabilitiesCount, hostById.HostIssues.CriticalVulnerabilitiesCount)
 }
 
 func testListHostsInLabelDiskEncryptionStatus(t *testing.T, ds *Datastore) {
@@ -1065,6 +1146,7 @@ func testListHostsInLabelDiskEncryptionStatus(t *testing.T, ds *Datastore) {
 		})
 		require.NoError(t, err)
 		hosts = append(hosts, h)
+		nanoEnrollAndSetHostMDMData(t, ds, h, false)
 	}
 
 	// set up data
@@ -1425,7 +1507,7 @@ func testLabelsListHostsInLabelOSSettings(t *testing.T, db *Datastore) {
 
 	// add two hosts to MDM to enforce disk encryption, fleet doesn't enforce settings on centos so h3 is not included
 	for _, h := range []*fleet.Host{h1, h2} {
-		require.NoError(t, db.SetOrUpdateMDMData(context.Background(), h.ID, false, true, "https://example.com", false, fleet.WellKnownMDMFleet, ""))
+		nanoEnrollAndSetHostMDMData(t, db, h, false)
 	}
 	// add disk encryption key for h1
 	require.NoError(t, db.SetOrUpdateHostDiskEncryptionKey(context.Background(), h1.ID, "test-key", "", ptr.Bool(true)))

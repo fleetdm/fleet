@@ -66,7 +66,7 @@ const SoftwareSelfService = ({
     ({ queryKey }) => deviceApi.getDeviceSoftware(queryKey[0]),
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
-      enabled: isSoftwareEnabled,
+      enabled: isSoftwareEnabled, // if software inventory is disabled, we don't bother fetching and always show the empty state
       keepPreviousData: true,
       staleTime: 7000,
     }

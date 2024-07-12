@@ -22,7 +22,6 @@ import OrgLogoIcon from "components/icons/OrgLogoIcon";
 import Spinner from "components/Spinner";
 import Button from "components/buttons/Button";
 import TabsWrapper from "components/TabsWrapper";
-import InfoBanner from "components/InfoBanner";
 import Icon from "components/Icon/Icon";
 import { normalizeEmptyValues } from "utilities/helpers";
 import PATHS from "router/paths";
@@ -47,6 +46,7 @@ import ResetKeyModal from "./ResetKeyModal";
 import BootstrapPackageModal from "../HostDetailsPage/modals/BootstrapPackageModal";
 import { parseHostSoftwareQueryParams } from "../cards/Software/HostSoftware";
 import SelfService from "../cards/Software/SelfService";
+import DeviceUserBanners from "./components/DeviceUserBanners";
 
 const baseClass = "device-user";
 
@@ -106,6 +106,7 @@ const DeviceUserPage = ({
   const [globalConfig, setGlobalConfig] = useState<IDeviceGlobalConfig | null>(
     null
   );
+  const [hasSelfService, setSelfService] = useState(false);
 
   const { data: deviceMapping, refetch: refetchDeviceMapping } = useQuery(
     ["deviceMapping", deviceAuthToken],
@@ -160,7 +161,11 @@ const DeviceUserPage = ({
     refetch: refetchHostDetails,
   } = useQuery<IDeviceUserResponse, Error>(
     ["host", deviceAuthToken],
-    () => deviceUserAPI.loadHostDetails(deviceAuthToken),
+    () =>
+      deviceUserAPI.loadHostDetails({
+        token: deviceAuthToken,
+        exclude_software: true,
+      }),
     {
       enabled: !!deviceAuthToken,
       refetchOnMount: false,
@@ -175,12 +180,14 @@ const DeviceUserPage = ({
         org_contact_url,
         global_config,
         host: responseHost,
+        self_service,
       }) => {
         setShowRefetchSpinner(isRefetching(responseHost));
         setIsPremiumTier(license.tier === "premium");
         setOrgLogoURL(org_logo_url);
         setOrgContactURL(org_contact_url);
         setGlobalConfig(global_config);
+        setSelfService(self_service);
         if (isRefetching(responseHost)) {
           // If the API reports that a Fleet refetch request is pending, we want to check back for fresh
           // host details. Here we set a one second timeout and poll the API again using
@@ -303,12 +310,6 @@ const DeviceUserPage = ({
     );
   };
 
-  const turnOnMdmButton = (
-    <Button variant="unstyled" onClick={toggleEnrollMdmModal}>
-      <b>Turn on MDM</b>
-    </Button>
-  );
-
   const renderEnrollMdmModal = () => {
     return host?.dep_assigned_to_fleet ? (
       <AutoEnrollMdmModal host={host} onCancel={toggleEnrollMdmModal} />
@@ -320,28 +321,8 @@ const DeviceUserPage = ({
     );
   };
 
-  const resetKeyButton = (
-    <Button variant="unstyled" onClick={toggleResetKeyModal}>
-      <b>Reset key</b>
-    </Button>
-  );
-
   const renderDeviceUserPage = () => {
     const failingPoliciesCount = host?.issues?.failing_policies_count || 0;
-    const isMdmUnenrolled =
-      host?.mdm.enrollment_status === "Off" || !host?.mdm.enrollment_status;
-
-    const diskEncryptionBannersEnabled =
-      globalConfig?.mdm.enabled_and_configured && host?.mdm.name === "Fleet";
-
-    const showDiskEncryptionLogoutRestart =
-      diskEncryptionBannersEnabled &&
-      host?.mdm.macos_settings?.disk_encryption === "action_required" &&
-      host?.mdm.macos_settings?.action_required === "log_out";
-    const showDiskEncryptionKeyResetRequired =
-      diskEncryptionBannersEnabled &&
-      host?.mdm.macos_settings?.disk_encryption === "action_required" &&
-      host?.mdm.macos_settings?.action_required === "rotate_key";
 
     // TODO: We should probably have a standard way to handle this on all pages. Do we want to show
     // a premium-only message in the case that a user tries direct navigation to a premium-only page
@@ -355,13 +336,10 @@ const DeviceUserPage = ({
       router.push(tabPaths[0]);
     }
 
-    // TODO: This is a temporary fix that conditionally shows the new software tab depending on
-    // whether software items returned in the device details response (legacy endpoint).
-    // If the tab is selected, we call the new host software endpoint and display those results.
-    // Software in the legacy response is only being used as a proxy for `iseSoftwareEnabled`.
-    // Ideally we should be checking the config for whether software is enabled to show/hide the tab,
-    // but it isn't available via device token authenticated API. And we need better specified empty states.
-    const isSoftwareEnabled = !!host?.software?.length;
+    // Note: API response global_config is misnamed because the backend actually returns the global
+    // or team config (as applicable)
+    const isSoftwareEnabled = !!globalConfig?.features
+      ?.enable_software_inventory;
 
     return (
       <div className="core-wrapper">
@@ -369,40 +347,29 @@ const DeviceUserPage = ({
           <Spinner />
         ) : (
           <div className={`${baseClass} main-content`}>
-            {host?.platform === "darwin" &&
-              isMdmUnenrolled &&
-              globalConfig?.mdm.enabled_and_configured && (
-                // Turn on MDM banner
-                <InfoBanner color="yellow" cta={turnOnMdmButton}>
-                  Mobile device management (MDM) is off. MDM allows your
-                  organization to change settings and install software. This
-                  lets your organization keep your device up to date so you
-                  don’t have to.
-                </InfoBanner>
-              )}
-            {showDiskEncryptionLogoutRestart && (
-              // MDM - Disk Encryption: Logout or restart banner
-              <InfoBanner color="yellow">
-                Disk encryption: Log out of your device or restart to turn on
-                disk encryption. Then, select <strong>Refetch</strong>. This
-                prevents unauthorized access to the information on your device.
-              </InfoBanner>
-            )}
-            {showDiskEncryptionKeyResetRequired && (
-              // MDM - Disk Encryption: Reset key required banner
-              <InfoBanner color="yellow" cta={resetKeyButton}>
-                Disk encryption: Reset your disk encryption key. This lets your
-                organization help you unlock your device if you forget your
-                password.
-              </InfoBanner>
-            )}
+            <DeviceUserBanners
+              hostPlatform={host.platform}
+              mdmEnrollmentStatus={host.mdm.enrollment_status}
+              mdmEnabledAndConfigured={
+                !!globalConfig?.mdm.enabled_and_configured
+              }
+              mdmConnectedToFleet={!!host.mdm.connected_to_fleet}
+              diskEncryptionStatus={
+                host.mdm.macos_settings?.disk_encryption ?? null
+              }
+              diskEncryptionActionRequired={
+                host.mdm.macos_settings?.action_required ?? null
+              }
+              onTurnOnMdm={toggleEnrollMdmModal}
+              onResetKey={toggleResetKeyModal}
+            />
             <HostSummaryCard
               summaryData={summaryData}
               bootstrapPackageData={bootstrapPackageData}
               isPremiumTier={isPremiumTier}
               toggleOSSettingsModal={toggleOSSettingsModal}
               hostMdmProfiles={host?.mdm.profiles ?? []}
-              mdmName={deviceMacAdminsData?.mobile_device_management?.name}
+              isConnectedToFleetMdm={host?.mdm.connected_to_fleet}
               showRefetchSpinner={showRefetchSpinner}
               onRefetchHost={onRefetchHost}
               renderActionDropdown={renderActionButtons}
@@ -416,7 +383,9 @@ const DeviceUserPage = ({
               >
                 <TabList>
                   <Tab>Details</Tab>
-                  {isPremiumTier && <Tab>Self-service</Tab>}
+                  {isPremiumTier && isSoftwareEnabled && hasSelfService && (
+                    <Tab>Self-service</Tab>
+                  )}
                   {isSoftwareEnabled && <Tab>Software</Tab>}
                   {isPremiumTier && (
                     <Tab>
@@ -436,7 +405,7 @@ const DeviceUserPage = ({
                     munki={deviceMacAdminsData?.munki}
                   />
                 </TabPanel>
-                {isPremiumTier && (
+                {isPremiumTier && isSoftwareEnabled && hasSelfService && (
                   <TabPanel>
                     <SelfService
                       contactUrl={orgContactURL}

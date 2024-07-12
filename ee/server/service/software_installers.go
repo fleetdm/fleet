@@ -306,7 +306,7 @@ func (svc *Service) addMetadataToSoftwarePayload(ctx context.Context, payload *f
 		return "", ctxerr.New(ctx, "installer file is required")
 	}
 
-	title, vers, ext, hash, err := file.ExtractInstallerMetadata(payload.InstallerFile)
+	meta, err := file.ExtractInstallerMetadata(payload.InstallerFile)
 	if err != nil {
 		if errors.Is(err, file.ErrUnsupportedType) {
 			return "", &fleet.BadRequestError{
@@ -316,13 +316,14 @@ func (svc *Service) addMetadataToSoftwarePayload(ctx context.Context, payload *f
 		}
 		return "", ctxerr.Wrap(ctx, err, "extracting metadata from installer")
 	}
-	if title == "" {
+	payload.Title = meta.Name
+	if payload.Title == "" {
 		// use the filename if no title from metadata
-		title = payload.Filename
+		payload.Title = payload.Filename
 	}
-	payload.Title = title
-	payload.Version = vers
-	payload.StorageID = hex.EncodeToString(hash)
+	payload.Version = meta.Version
+	payload.StorageID = hex.EncodeToString(meta.SHASum)
+	payload.BundleIdentifier = meta.BundleIdentifier
 
 	// reset the reader (it was consumed to extract metadata)
 	if _, err := payload.InstallerFile.Seek(0, 0); err != nil {
@@ -330,22 +331,22 @@ func (svc *Service) addMetadataToSoftwarePayload(ctx context.Context, payload *f
 	}
 
 	if payload.InstallScript == "" {
-		payload.InstallScript = file.GetInstallScript(ext)
+		payload.InstallScript = file.GetInstallScript(meta.Extension)
 	}
 
-	source, err := fleet.SofwareInstallerSourceFromExtension(ext)
+	source, err := fleet.SofwareInstallerSourceFromExtensionAndName(meta.Extension, meta.Name)
 	if err != nil {
-		return "", ctxerr.Wrap(ctx, err, "determining source from extension")
+		return "", ctxerr.Wrap(ctx, err, "determining source from extension and name")
 	}
 	payload.Source = source
 
-	platform, err := fleet.SofwareInstallerPlatformFromExtension(ext)
+	platform, err := fleet.SofwareInstallerPlatformFromExtension(meta.Extension)
 	if err != nil {
 		return "", ctxerr.Wrap(ctx, err, "determining platform from extension")
 	}
 	payload.Platform = platform
 
-	return ext, nil
+	return meta.Extension, nil
 }
 
 const maxInstallerSizeBytes int64 = 1024 * 1024 * 500

@@ -19,29 +19,30 @@ import (
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
-	nanodep_client "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
-	kitlog "github.com/go-kit/kit/log"
+	kitlog "github.com/go-kit/log"
 )
 
 func main() {
 	mysqlAddr := flag.String("mysql", "localhost:3306", "mysql address")
-	appleBMToken := flag.String("apple-bm-token", "", "path to (decrypted) Apple BM token")
+	serverPrivateKey := flag.String("server-private-key", "", "fleet server's private key (to decrypt MDM assets)")
 	profileUUID := flag.String("profile-uuid", "", "the Apple profile UUID to retrieve")
 	serialNum := flag.String("serial-number", "", "serial number of a device to get the device details")
 
 	flag.Parse()
 
-	if *appleBMToken == "" {
-		log.Fatal("must provide Apple BM token")
+	if *serverPrivateKey == "" {
+		log.Fatal("must provide -server-private-key")
 	}
 	if *profileUUID != "" && *serialNum != "" {
 		log.Fatal("only one of -profile-uuid or -serial-number must be provided")
 	}
 
-	tok, err := os.ReadFile(*appleBMToken)
-	if err != nil {
-		log.Fatal(err)
+	if len(*serverPrivateKey) > 32 {
+		// We truncate to 32 bytes because AES-256 requires a 32 byte (256 bit) PK, but some
+		// infra setups generate keys that are longer than 32 bytes.
+		truncatedServerPrivateKey := (*serverPrivateKey)[:32]
+		serverPrivateKey = &truncatedServerPrivateKey
 	}
 
 	cfg := config.MysqlConfig{
@@ -55,14 +56,16 @@ func main() {
 		ConnMaxLifetime: 0,
 	}
 	logger := kitlog.NewLogfmtLogger(os.Stderr)
-	opts := []mysql.DBOption{mysql.Logger(logger)}
+	opts := []mysql.DBOption{
+		mysql.Logger(logger),
+		mysql.WithFleetConfig(&config.FleetConfig{
+			Server: config.ServerConfig{
+				PrivateKey: *serverPrivateKey,
+			},
+		}),
+	}
 	mds, err := mysql.New(cfg, clock.C, opts...)
 	if err != nil {
-		log.Fatal(err)
-	}
-
-	var jsonTok nanodep_client.OAuth1Tokens
-	if err := json.Unmarshal(tok, &jsonTok); err != nil {
 		log.Fatal(err)
 	}
 

@@ -2,13 +2,15 @@ package service
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/go-kit/kit/log/level"
+	"github.com/go-kit/log/level"
 )
 
 func (svc *Service) ListDevicePolicies(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error) {
@@ -46,15 +48,28 @@ func (svc *Service) TriggerMigrateMDMDevice(ctx context.Context, host *fleet.Hos
 		return nil
 	}
 
+	connected, err := svc.ds.IsHostConnectedToFleetMDM(ctx, host)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "checking if host is connected to Fleet")
+	}
+
 	var bre fleet.BadRequestError
 	switch {
 	case !ac.MDM.MacOSMigration.Enable:
 		bre.InternalErr = ctxerr.New(ctx, "macOS migration not enabled")
 	case ac.MDM.MacOSMigration.WebhookURL == "":
 		bre.InternalErr = ctxerr.New(ctx, "macOS migration webhook URL not configured")
-	case !host.IsEligibleForDEPMigration():
+	}
+
+	mdmInfo, err := svc.ds.GetHostMDM(ctx, host.ID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "fetching host mdm info")
+	}
+
+	if !fleet.IsEligibleForDEPMigration(host, mdmInfo, connected) {
 		bre.InternalErr = ctxerr.New(ctx, "host not eligible for macOS migration")
 	}
+
 	if bre.InternalErr != nil {
 		return &bre
 	}
@@ -94,6 +109,12 @@ func (svc *Service) GetFleetDesktopSummary(ctx context.Context) (fleet.DesktopSu
 		return sum, err
 	}
 
+	hasSelfService, err := svc.ds.HasSelfServiceSoftwareInstallers(ctx, host.Platform, host.TeamID)
+	if err != nil {
+		return sum, ctxerr.Wrap(ctx, err, "retrieving self service software installers")
+	}
+	sum.SelfService = &hasSelfService
+
 	r, err := svc.ds.FailingPoliciesCount(ctx, host)
 	if err != nil {
 		return sum, ctxerr.Wrap(ctx, err, "retrieving failing policies")
@@ -106,11 +127,23 @@ func (svc *Service) GetFleetDesktopSummary(ctx context.Context) (fleet.DesktopSu
 	}
 
 	if appCfg.MDM.EnabledAndConfigured && appCfg.MDM.MacOSMigration.Enable {
-		if host.NeedsDEPEnrollment() {
+		connected, err := svc.ds.IsHostConnectedToFleetMDM(ctx, host)
+		if err != nil {
+			return sum, ctxerr.Wrap(ctx, err, "checking if host is connected to Fleet")
+		}
+
+		mdmInfo, err := svc.ds.GetHostMDM(ctx, host.ID)
+		if err != nil && !errors.Is(err, sql.ErrNoRows) {
+			return sum, ctxerr.Wrap(ctx, err, "could not retrieve mdm info")
+		}
+
+		needsDEPEnrollment := mdmInfo != nil && !mdmInfo.Enrolled && host.IsDEPAssignedToFleet()
+
+		if needsDEPEnrollment {
 			sum.Notifications.RenewEnrollmentProfile = true
 		}
 
-		if host.IsEligibleForDEPMigration() {
+		if fleet.IsEligibleForDEPMigration(host, mdmInfo, connected) {
 			sum.Notifications.NeedsMDMMigration = true
 		}
 	}

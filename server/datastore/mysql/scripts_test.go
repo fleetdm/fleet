@@ -15,6 +15,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -92,6 +93,7 @@ func testHostScriptResult(t *testing.T, ds *Datastore) {
 		Output:      "foo",
 		Runtime:     2,
 		ExitCode:    0,
+		Timeout:     300,
 	})
 	require.NoError(t, err)
 
@@ -102,6 +104,7 @@ func testHostScriptResult(t *testing.T, ds *Datastore) {
 		Output:      "foobarbaz",
 		Runtime:     22,
 		ExitCode:    1,
+		Timeout:     360,
 	})
 	require.NoError(t, err)
 	require.Nil(t, hsr)
@@ -118,6 +121,7 @@ func testHostScriptResult(t *testing.T, ds *Datastore) {
 	expectScript.Output = "foo"
 	expectScript.Runtime = 2
 	expectScript.ExitCode = ptr.Int64(0)
+	expectScript.Timeout = ptr.Int(300)
 	require.Equal(t, &expectScript, script)
 
 	// create another script execution request (null user id this time)
@@ -165,6 +169,7 @@ func testHostScriptResult(t *testing.T, ds *Datastore) {
 		Output:      largeOutput,
 		Runtime:     10,
 		ExitCode:    1,
+		Timeout:     300,
 	})
 	require.NoError(t, err)
 
@@ -239,6 +244,7 @@ func testHostScriptResult(t *testing.T, ds *Datastore) {
 		Output:      "foo",
 		Runtime:     1,
 		ExitCode:    math.MaxUint32,
+		Timeout:     300,
 	})
 	require.NoError(t, err)
 	require.EqualValues(t, -1, *unsignedScriptResult.ExitCode)
@@ -764,6 +770,7 @@ func testLockHostViaScript(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, "windows", status.HostFleetPlatform)
 	require.NotNil(t, status.LockScript)
+	assert.Nil(t, status.UnlockScript)
 
 	s := status.LockScript
 	require.Equal(t, script, s.ScriptContents)

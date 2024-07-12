@@ -24,8 +24,8 @@ import (
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/async"
-	"github.com/go-kit/kit/log"
-	"github.com/go-kit/kit/log/level"
+	"github.com/go-kit/log"
+	"github.com/go-kit/log/level"
 	"github.com/spf13/cast"
 )
 
@@ -336,7 +336,9 @@ var hostDetailQueries = map[string]DetailQuery{
 			host.HardwareVendor = rows[0]["hardware_vendor"]
 			host.HardwareModel = rows[0]["hardware_model"]
 			host.HardwareVersion = rows[0]["hardware_version"]
-			host.HardwareSerial = rows[0]["hardware_serial"]
+			if rows[0]["hardware_serial"] != "-1" { // ignoring the default -1 serial. See: https://github.com/fleetdm/fleet/issues/19789
+				host.HardwareSerial = rows[0]["hardware_serial"]
+			}
 			host.ComputerName = rows[0]["computer_name"]
 			return nil
 		},
@@ -1125,14 +1127,14 @@ var SoftwareOverrideQueries = map[string]DetailQuery{
 		Description: "A software override query[^1] to differentiate between Firefox and Firefox ESR on macOS.  Requires `fleetd`",
 		Query: `
 			WITH app_paths AS (
-				SELECT path 
-				FROM apps 
+				SELECT path
+				FROM apps
 				WHERE bundle_identifier = 'org.mozilla.firefox'
-			),	
+			),
 			remoting_name AS (
-				SELECT value, path 
-				FROM parse_ini 
-				WHERE key = 'RemotingName' 
+				SELECT value, path
+				FROM parse_ini
+				WHERE key = 'RemotingName'
 				AND path IN (SELECT CONCAT(path, '/Contents/Resources/application.ini') FROM app_paths)
 			)
 			SELECT
@@ -1710,8 +1712,23 @@ func directIngestMDMMac(ctx context.Context, logger log.Logger, host *fleet.Host
 			fleetEnrollRef = serverURL.Query().Get("enrollment_reference")
 		}
 		if fleetEnrollRef != "" {
-			if err := ds.SetOrUpdateHostEmailsFromMdmIdpAccounts(ctx, host.ID, fleetEnrollRef); err != nil {
-				return ctxerr.Wrap(ctx, err, "updating host emails from mdm idp accounts")
+			if err := ds.SetOrUpdateHostEmailsFromMDMIdPAccountsByLegacyEnrollRef(ctx, host.ID, fleetEnrollRef); err != nil {
+				level.Warn(logger).Log(
+					"component", "service",
+					"method", "directIngestMDMMac",
+					"msg", err.Error(),
+				)
+			}
+		} else if installedFromDep {
+			// ensure that mdm_idp_accounts are included in host_emails for Apple DEP-enrolled hosts;
+			// note that we're relying on the osquery platform compatibility checks to ensure that this
+			// ingest function is only applied darwin hosts
+			if err := ds.SetOrUpdateEmailsFromMDMIdPAccountsByHostID(ctx, host.ID, host.UUID); err != nil {
+				level.Warn(logger).Log(
+					"component", "service",
+					"method", "directIngestMDMMac",
+					"msg", err.Error(),
+				)
 			}
 		}
 	}

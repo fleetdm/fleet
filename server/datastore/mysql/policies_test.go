@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
@@ -51,7 +52,6 @@ func TestPolicies(t *testing.T) {
 		{"PolicyViolationDays", testPolicyViolationDays},
 		{"IncreasePolicyAutomationIteration", testIncreasePolicyAutomationIteration},
 		{"OutdatedAutomationBatch", testOutdatedAutomationBatch},
-		{"TestUpdatePolicyFailureCountsForHosts", testUpdatePolicyFailureCountsForHosts},
 		{"TestListGlobalPoliciesCanPaginate", testListGlobalPoliciesCanPaginate},
 		{"TestListTeamPoliciesCanPaginate", testListTeamPoliciesCanPaginate},
 		{"TestCountPolicies", testCountPolicies},
@@ -1522,6 +1522,59 @@ func testApplyPolicySpec(t *testing.T, ds *Datastore) {
 			}))
 }
 
+func updatePolicyFailureCountsForHosts(ctx context.Context, ds *Datastore, hosts []*fleet.Host) ([]*fleet.Host, error) {
+	if len(hosts) == 0 {
+		return hosts, nil
+	}
+
+	// Get policy failure counts for each host
+	hostIDs := make([]uint, 0, len(hosts))
+
+	for _, host := range hosts {
+		hostIDs = append(hostIDs, host.ID)
+	}
+
+	query, args, err := sqlx.In(
+		`
+		SELECT
+			pm.host_id,
+			COUNT(*) AS failing_policy_count
+		FROM
+			policy_membership pm
+		WHERE
+			pm.passes = 0 AND
+			pm.host_id IN (?)
+		GROUP BY
+			pm.host_id
+	`, hostIDs,
+	)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "build policy failure count query")
+	}
+
+	var policyFailureCounts []struct {
+		HostID             uint   `db:"host_id"`
+		FailingPolicyCount uint64 `db:"failing_policy_count"`
+	}
+
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &policyFailureCounts, query, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get policy failure counts for hosts")
+	}
+
+	// Map policy failure counts to hosts
+	hostIDToPolicyFailureCounts := make(map[uint]uint64)
+	for _, policyFailureCount := range policyFailureCounts {
+		hostIDToPolicyFailureCounts[policyFailureCount.HostID] = policyFailureCount.FailingPolicyCount
+	}
+
+	for _, host := range hosts {
+		host.TotalIssuesCount = hostIDToPolicyFailureCounts[host.ID]
+		host.FailingPoliciesCount = hostIDToPolicyFailureCounts[host.ID]
+	}
+
+	return hosts, nil
+}
+
 func testApplyPolicySpecWithQueryPlatformChanges(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 	unicode, _ := strconv.Unquote(`"\uAC00"`)         // 가
@@ -1663,18 +1716,18 @@ func testApplyPolicySpecWithQueryPlatformChanges(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// Update host failure counts and ensure they are correct
-	teamHosts, err = ds.UpdatePolicyFailureCountsForHosts(ctx, teamHosts)
+	teamHosts, err = updatePolicyFailureCountsForHosts(ctx, ds, teamHosts)
 	require.NoError(t, err)
-	assert.Equal(t, 6, teamHosts[hostWin].FailingPoliciesCount)
-	assert.Equal(t, 6, teamHosts[hostMac].FailingPoliciesCount)
-	assert.Equal(t, 6, teamHosts[hostDeb].FailingPoliciesCount)
-	assert.Equal(t, 6, teamHosts[hostLin].FailingPoliciesCount)
-	globalHosts, err = ds.UpdatePolicyFailureCountsForHosts(ctx, globalHosts)
+	assert.Equal(t, uint64(6), teamHosts[hostWin].FailingPoliciesCount)
+	assert.Equal(t, uint64(6), teamHosts[hostMac].FailingPoliciesCount)
+	assert.Equal(t, uint64(6), teamHosts[hostDeb].FailingPoliciesCount)
+	assert.Equal(t, uint64(6), teamHosts[hostLin].FailingPoliciesCount)
+	globalHosts, err = updatePolicyFailureCountsForHosts(ctx, ds, globalHosts)
 	require.NoError(t, err)
-	assert.Equal(t, 3, globalHosts[hostWin].FailingPoliciesCount)
-	assert.Equal(t, 3, globalHosts[hostMac].FailingPoliciesCount)
-	assert.Equal(t, 3, globalHosts[hostDeb].FailingPoliciesCount)
-	assert.Equal(t, 3, globalHosts[hostLin].FailingPoliciesCount)
+	assert.Equal(t, uint64(3), globalHosts[hostWin].FailingPoliciesCount)
+	assert.Equal(t, uint64(3), globalHosts[hostMac].FailingPoliciesCount)
+	assert.Equal(t, uint64(3), globalHosts[hostDeb].FailingPoliciesCount)
+	assert.Equal(t, uint64(3), globalHosts[hostLin].FailingPoliciesCount)
 
 	// Ensure policy passing and failing counts are correct
 	gPolicies, err = ds.ListGlobalPolicies(ctx, fleet.ListOptions{})
@@ -1756,18 +1809,18 @@ func testApplyPolicySpecWithQueryPlatformChanges(t *testing.T, ds *Datastore) {
 	)
 
 	// Update host failure counts and ensure they are correct
-	teamHosts, err = ds.UpdatePolicyFailureCountsForHosts(ctx, teamHosts)
+	teamHosts, err = updatePolicyFailureCountsForHosts(ctx, ds, teamHosts)
 	require.NoError(t, err)
-	assert.Equal(t, 1, teamHosts[hostWin].FailingPoliciesCount) // kept result from globalNames[0]
-	assert.Equal(t, 3, teamHosts[hostMac].FailingPoliciesCount)
-	assert.Equal(t, 2, teamHosts[hostDeb].FailingPoliciesCount)
-	assert.Equal(t, 2, teamHosts[hostLin].FailingPoliciesCount)
-	globalHosts, err = ds.UpdatePolicyFailureCountsForHosts(ctx, globalHosts)
+	assert.Equal(t, uint64(1), teamHosts[hostWin].FailingPoliciesCount) // kept result from globalNames[0]
+	assert.Equal(t, uint64(3), teamHosts[hostMac].FailingPoliciesCount)
+	assert.Equal(t, uint64(2), teamHosts[hostDeb].FailingPoliciesCount)
+	assert.Equal(t, uint64(2), teamHosts[hostLin].FailingPoliciesCount)
+	globalHosts, err = updatePolicyFailureCountsForHosts(ctx, ds, globalHosts)
 	require.NoError(t, err)
-	assert.Equal(t, 1, globalHosts[hostWin].FailingPoliciesCount)
-	assert.Equal(t, 2, globalHosts[hostMac].FailingPoliciesCount)
-	assert.Equal(t, 1, globalHosts[hostDeb].FailingPoliciesCount)
-	assert.Equal(t, 1, globalHosts[hostLin].FailingPoliciesCount)
+	assert.Equal(t, uint64(1), globalHosts[hostWin].FailingPoliciesCount)
+	assert.Equal(t, uint64(2), globalHosts[hostMac].FailingPoliciesCount)
+	assert.Equal(t, uint64(1), globalHosts[hostDeb].FailingPoliciesCount)
+	assert.Equal(t, uint64(1), globalHosts[hostLin].FailingPoliciesCount)
 
 	// Ensure policy passing and failing counts are correct
 	gPolicies, err = ds.ListGlobalPolicies(ctx, fleet.ListOptions{})
@@ -1981,23 +2034,41 @@ func testCachedPolicyCountDeletesOnPolicyChange(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	// teamHost and globalHost pass all policies
-	require.NoError(t, ds.RecordPolicyQueryExecutions(ctx, teamHost, map[uint]*bool{globalPolicy.ID: ptr.Bool(true), globalPolicy.ID: ptr.Bool(true)}, time.Now(), false))
-	require.NoError(t, ds.RecordPolicyQueryExecutions(ctx, teamHost, map[uint]*bool{teamPolicy.ID: ptr.Bool(true), teamPolicy.ID: ptr.Bool(true)}, time.Now(), false))
-	require.NoError(t, ds.RecordPolicyQueryExecutions(ctx, globalHost, map[uint]*bool{globalPolicy.ID: ptr.Bool(true), globalPolicy.ID: ptr.Bool(true)}, time.Now(), false))
+	// teamHost and globalHost fail all policies
+	require.NoError(
+		t, ds.RecordPolicyQueryExecutions(
+			ctx, teamHost, map[uint]*bool{globalPolicy.ID: ptr.Bool(false), globalPolicy.ID: ptr.Bool(false)}, time.Now(), false,
+		),
+	)
+	require.NoError(
+		t, ds.RecordPolicyQueryExecutions(
+			ctx, teamHost, map[uint]*bool{teamPolicy.ID: ptr.Bool(false), teamPolicy.ID: ptr.Bool(false)}, time.Now(), false,
+		),
+	)
+	require.NoError(
+		t, ds.RecordPolicyQueryExecutions(
+			ctx, globalHost, map[uint]*bool{globalPolicy.ID: ptr.Bool(false), globalPolicy.ID: ptr.Bool(false)}, time.Now(), false,
+		),
+	)
 
 	err = ds.UpdateHostPolicyCounts(ctx)
 	require.NoError(t, err)
 
 	globalPolicy, err = ds.Policy(ctx, globalPolicy.ID)
 	require.NoError(t, err)
-	assert.Equal(t, uint(2), globalPolicy.PassingHostCount)
+	assert.Equal(t, uint(2), globalPolicy.FailingHostCount)
 	teamPolicies, inheritedPolicies, err := ds.ListTeamPolicies(ctx, team1.ID, fleet.ListOptions{}, fleet.ListOptions{})
 	require.NoError(t, err)
 	require.Len(t, teamPolicies, 1)
 	require.Len(t, inheritedPolicies, 1)
-	assert.Equal(t, uint(1), teamPolicies[0].PassingHostCount)
-	assert.Equal(t, uint(1), inheritedPolicies[0].PassingHostCount)
+	assert.Equal(t, uint(1), teamPolicies[0].FailingHostCount)
+	assert.Equal(t, uint(1), inheritedPolicies[0].FailingHostCount)
+
+	var count uint64
+	require.NoError(t, ds.writer(ctx).Get(&count, "select COUNT(*) from host_issues WHERE total_issues_count > 0"))
+	assert.Equal(t, uint64(2), count)
+	require.NoError(t, ds.writer(ctx).Get(&count, "select COUNT(*) from host_issues WHERE total_issues_count = 2"))
+	assert.Equal(t, uint64(1), count)
 
 	// Update the global policy sql to trigger a cache invalidation
 	err = ds.SavePolicy(ctx, globalPolicy, true, true)
@@ -2005,13 +2076,20 @@ func testCachedPolicyCountDeletesOnPolicyChange(t *testing.T, ds *Datastore) {
 
 	globalPolicy, err = ds.Policy(ctx, globalPolicy.ID)
 	require.NoError(t, err)
-	assert.Equal(t, uint(0), globalPolicy.PassingHostCount)
+	assert.Equal(t, uint(0), globalPolicy.FailingHostCount)
 	teamPolicies, inheritedPolicies, err = ds.ListTeamPolicies(ctx, team1.ID, fleet.ListOptions{}, fleet.ListOptions{})
 	require.NoError(t, err)
 	require.Len(t, teamPolicies, 1)
 	require.Len(t, inheritedPolicies, 1)
-	assert.Equal(t, uint(1), teamPolicies[0].PassingHostCount)
-	assert.Equal(t, uint(0), inheritedPolicies[0].PassingHostCount)
+	assert.Equal(t, uint(1), teamPolicies[0].FailingHostCount)
+	assert.Equal(t, uint(0), inheritedPolicies[0].FailingHostCount)
+	// Only the team host now has issues
+	require.NoError(t, ds.writer(ctx).Get(&count, "select COUNT(*) from host_issues WHERE total_issues_count > 0"))
+	assert.Equal(t, uint64(1), count)
+	require.NoError(
+		t, ds.writer(ctx).Get(&count, "select COUNT(*) from host_issues WHERE total_issues_count = 1 AND host_id = ?", teamHost.ID),
+	)
+	assert.Equal(t, uint64(1), count)
 
 	// Update the team policy platform to trigger a cache invalidation
 	err = ds.SavePolicy(ctx, teamPolicy, false, true)
@@ -2021,8 +2099,8 @@ func testCachedPolicyCountDeletesOnPolicyChange(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, teamPolicies, 1)
 	require.Len(t, inheritedPolicies, 1)
-	assert.Equal(t, uint(0), teamPolicies[0].PassingHostCount)
-	assert.Equal(t, uint(0), inheritedPolicies[0].PassingHostCount)
+	assert.Equal(t, uint(0), teamPolicies[0].FailingHostCount)
+	assert.Equal(t, uint(0), inheritedPolicies[0].FailingHostCount)
 }
 
 func testPoliciesDelUser(t *testing.T, ds *Datastore) {
@@ -2615,17 +2693,22 @@ func testPolicyCleanupPolicyMembership(t *testing.T, ds *Datastore) {
 	err := ds.CleanupPolicyMembership(ctx, time.Now())
 	require.NoError(t, err)
 	assertPolicyMembership(t, ds, polsByName, wantHostsByPol)
+	var count uint64
+	require.NoError(t, ds.writer(ctx).Get(&count, "select COUNT(*) from host_issues"))
+	assert.Zero(t, count)
 
 	// record results for each policy, all hosts, even if invalid for the policy
 	for _, h := range hosts {
 		res := map[uint]*bool{
-			polsByName["p1"].ID: ptr.Bool(true),
+			polsByName["p1"].ID: ptr.Bool(false), // This failing policy will increment the host_issues count.
 			polsByName["p2"].ID: ptr.Bool(true),
 			polsByName["p3"].ID: ptr.Bool(true),
 		}
 		err = ds.RecordPolicyQueryExecutions(ctx, h, res, time.Now(), false)
 		require.NoError(t, err)
 	}
+	require.NoError(t, ds.writer(ctx).Get(&count, "select COUNT(*) from host_issues WHERE total_issues_count > 0"))
+	assert.Equal(t, uint64(len(hosts)), count)
 
 	// no recently updated policies, so no host gets cleaned up
 	wantHostsByPol = map[string][]uint{
@@ -2658,6 +2741,8 @@ func testPolicyCleanupPolicyMembership(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	wantHostsByPol["p1"] = []uint{hosts[hostWin].ID}
 	assertPolicyMembership(t, ds, polsByName, wantHostsByPol)
+	require.NoError(t, ds.writer(ctx).Get(&count, "select COUNT(*) from host_issues WHERE total_issues_count > 0"))
+	assert.Equal(t, uint64(1), count, "only the Windows host should have issues")
 
 	// update policy p2 to "linux,darwin", but cleanup with a timestamp of just over 24h, so
 	// not "recently updated", no changes
@@ -2751,12 +2836,18 @@ func testDeleteAllPolicyMemberships(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, 1, count)
 
+	require.NoError(t, ds.writer(ctx).Get(&count, "select COUNT(*) from host_issues WHERE total_issues_count > 0"))
+	assert.Equal(t, 1, count)
+
 	err = deleteAllPolicyMemberships(ctx, ds.writer(ctx), []uint{host.ID})
 	require.NoError(t, err)
 
 	err = ds.writer(ctx).Get(&count, "select COUNT(*) from policy_membership")
 	require.NoError(t, err)
 	require.Equal(t, 0, count)
+
+	require.NoError(t, ds.writer(ctx).Get(&count, "select COUNT(*) from host_issues WHERE total_issues_count > 0"))
+	assert.Zero(t, count)
 }
 
 func testIncreasePolicyAutomationIteration(t *testing.T, ds *Datastore) {
@@ -2852,73 +2943,6 @@ func testOutdatedAutomationBatch(t *testing.T, ds *Datastore) {
 	batch, err = ds.OutdatedAutomationBatch(ctx)
 	require.NoError(t, err)
 	require.ElementsMatch(t, batch, []fleet.PolicyFailure{})
-}
-
-func testUpdatePolicyFailureCountsForHosts(t *testing.T, ds *Datastore) {
-	ctx := context.Background()
-
-	// create 4 hosts
-	var hosts []*fleet.Host
-	for i := 0; i < 4; i++ {
-		h, err := ds.NewHost(ctx, &fleet.Host{OsqueryHostID: ptr.String(fmt.Sprintf("host%d", i)), NodeKey: ptr.String(fmt.Sprintf("host%d", i))})
-		require.NoError(t, err)
-		hosts = append(hosts, h)
-	}
-
-	// create 2 policies
-	var pols []*fleet.Policy
-	for i := 0; i < 2; i++ {
-		p, err := ds.NewGlobalPolicy(ctx, nil, fleet.PolicyPayload{Name: fmt.Sprintf("policy%d", i)})
-		require.NoError(t, err)
-		pols = append(pols, p)
-	}
-
-	// create policy membership for hosts
-	_, err := ds.writer(ctx).ExecContext(ctx, `
-		INSERT INTO policy_membership (policy_id, host_id, passes)
-		VALUES
-			(?, ?, 1),
-			(?, ?, 1),
-			(?, ?, 0),
-			(?, ?, 0),
-			(?, ?, 1),
-			(?, ?, 0)
-	`,
-		pols[0].ID, hosts[0].ID,
-		pols[0].ID, hosts[1].ID,
-		pols[0].ID, hosts[2].ID,
-		pols[1].ID, hosts[0].ID,
-		pols[1].ID, hosts[1].ID,
-		pols[1].ID, hosts[2].ID,
-	)
-
-	require.NoError(t, err)
-
-	// update policy failure counts for hosts
-	hostsUpdated, err := ds.UpdatePolicyFailureCountsForHosts(ctx, hosts)
-	require.NoError(t, err)
-	require.Len(t, hostsUpdated, 4)
-
-	// host 0 should have 1 failing policy
-	assert.Equal(t, 1, hostsUpdated[0].TotalIssuesCount)
-	assert.Equal(t, 1, hostsUpdated[0].FailingPoliciesCount)
-
-	// host 1 should have 0 failing policies
-	assert.Equal(t, 0, hostsUpdated[1].TotalIssuesCount)
-	assert.Equal(t, 0, hostsUpdated[1].FailingPoliciesCount)
-
-	// host 2 should have 2 failing policies
-	assert.Equal(t, 2, hostsUpdated[2].TotalIssuesCount)
-	assert.Equal(t, 2, hostsUpdated[2].FailingPoliciesCount)
-
-	// host 3 doesn't have any policy membership
-	assert.Equal(t, 0, hostsUpdated[3].TotalIssuesCount)
-	assert.Equal(t, 0, hostsUpdated[3].FailingPoliciesCount)
-
-	// return empty list if no hosts are passed
-	hostsUpdated, err = ds.UpdatePolicyFailureCountsForHosts(ctx, []*fleet.Host{})
-	require.NoError(t, err)
-	require.Len(t, hostsUpdated, 0)
 }
 
 func testListGlobalPoliciesCanPaginate(t *testing.T, ds *Datastore) {
@@ -3461,7 +3485,7 @@ func testGetTeamHostsPolicyMemberships(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// Empty teams.
-	hostsTeam1, err := ds.GetTeamHostsPolicyMemberships(ctx, "example.com", team1.ID, []uint{team1Policy1.ID, team1Policy2.ID})
+	hostsTeam1, err := ds.GetTeamHostsPolicyMemberships(ctx, "example.com", team1.ID, []uint{team1Policy1.ID, team1Policy2.ID}, nil)
 	require.NoError(t, err)
 	require.Empty(t, hostsTeam1)
 
@@ -3514,12 +3538,12 @@ func testGetTeamHostsPolicyMemberships(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// Some domain that doesn't exist on any of the hosts
-	hostsTeam1, err = ds.GetTeamHostsPolicyMemberships(ctx, "not-exists.com", team1.ID, []uint{team1Policy1.ID, team1Policy2.ID})
+	hostsTeam1, err = ds.GetTeamHostsPolicyMemberships(ctx, "not-exists.com", team1.ID, []uint{team1Policy1.ID, team1Policy2.ID}, nil)
 	require.NoError(t, err)
 	require.Empty(t, hostsTeam1)
 
 	// No policy results yet (and no calendar events).
-	hostsTeam1, err = ds.GetTeamHostsPolicyMemberships(ctx, "example.com", team1.ID, []uint{team1Policy1.ID, team1Policy2.ID})
+	hostsTeam1, err = ds.GetTeamHostsPolicyMemberships(ctx, "example.com", team1.ID, []uint{team1Policy1.ID, team1Policy2.ID}, nil)
 	require.NoError(t, err)
 	require.Empty(t, hostsTeam1)
 
@@ -3609,7 +3633,7 @@ func testGetTeamHostsPolicyMemberships(t *testing.T, ds *Datastore) {
 	require.Len(t, team2Policies, 2)
 
 	// Only returns the failing host, because the passing hosts do not have a calendar event.
-	hostsTeam1, err = ds.GetTeamHostsPolicyMemberships(ctx, "example.com", team1.ID, []uint{team1Policies[0].ID})
+	hostsTeam1, err = ds.GetTeamHostsPolicyMemberships(ctx, "example.com", team1.ID, []uint{team1Policies[0].ID}, nil)
 	require.NoError(t, err)
 	sort.Slice(hostsTeam1, func(i, j int) bool {
 		return hostsTeam1[i].HostID < hostsTeam1[j].HostID
@@ -3624,13 +3648,18 @@ func testGetTeamHostsPolicyMemberships(t *testing.T, ds *Datastore) {
 	//
 	// Create a calendar event on host1 and host6.
 	//
+	tZ := "America/Argentina/Buenos_Aires"
 	now := time.Now()
-	_, err = ds.CreateOrUpdateCalendarEvent(ctx, "foo@example.com", now, now.Add(30*time.Minute), []byte(`{"foo": "bar"}`), host1.ID, fleet.CalendarWebhookStatusPending)
+	eventUUID1 := uuid.New().String()
+	_, err = ds.CreateOrUpdateCalendarEvent(ctx, eventUUID1, "foo@example.com", now, now.Add(30*time.Minute), []byte(`{"foo": "bar"}`), tZ,
+		host1.ID, fleet.CalendarWebhookStatusPending)
 	require.NoError(t, err)
-	_, err = ds.CreateOrUpdateCalendarEvent(ctx, "bar@example.com", now, now.Add(30*time.Minute), []byte(`{"foo": "bar"}`), host6.ID, fleet.CalendarWebhookStatusPending)
+	eventUUID2 := uuid.New().String()
+	_, err = ds.CreateOrUpdateCalendarEvent(ctx, eventUUID2, "bar@example.com", now, now.Add(30*time.Minute), []byte(`{"foo": "bar"}`), tZ,
+		host6.ID, fleet.CalendarWebhookStatusPending)
 	require.NoError(t, err)
 
-	hostsTeam1, err = ds.GetTeamHostsPolicyMemberships(ctx, "example.com", team1.ID, []uint{team1Policies[0].ID})
+	hostsTeam1, err = ds.GetTeamHostsPolicyMemberships(ctx, "example.com", team1.ID, []uint{team1Policies[0].ID}, nil)
 	require.NoError(t, err)
 	sort.Slice(hostsTeam1, func(i, j int) bool {
 		return hostsTeam1[i].HostID < hostsTeam1[j].HostID
@@ -3664,7 +3693,7 @@ func testGetTeamHostsPolicyMemberships(t *testing.T, ds *Datastore) {
 	}, time.Now(), false)
 	require.NoError(t, err)
 
-	hostsTeam1, err = ds.GetTeamHostsPolicyMemberships(ctx, "example.com", team1.ID, []uint{team1Policies[0].ID})
+	hostsTeam1, err = ds.GetTeamHostsPolicyMemberships(ctx, "example.com", team1.ID, []uint{team1Policies[0].ID}, nil)
 	require.NoError(t, err)
 	require.Len(t, hostsTeam1, 4)
 	sort.Slice(hostsTeam1, func(i, j int) bool {
@@ -3695,7 +3724,7 @@ func testGetTeamHostsPolicyMemberships(t *testing.T, ds *Datastore) {
 	// host3 doesn't have a calendar event so it's not returned by GetTeamHostsPolicyMemberships.
 	//
 
-	hostsTeam2, err := ds.GetTeamHostsPolicyMemberships(ctx, "example.com", team2.ID, []uint{team2Policies[0].ID, team2Policies[1].ID})
+	hostsTeam2, err := ds.GetTeamHostsPolicyMemberships(ctx, "example.com", team2.ID, []uint{team2Policies[0].ID, team2Policies[1].ID}, nil)
 	require.NoError(t, err)
 	require.Len(t, hostsTeam2, 1)
 	require.Equal(t, host2.ID, hostsTeam2[0].HostID)
@@ -3708,16 +3737,19 @@ func testGetTeamHostsPolicyMemberships(t *testing.T, ds *Datastore) {
 	// Create a calendar event on host2 and host3.
 	//
 	now = time.Now()
-	_, err = ds.CreateOrUpdateCalendarEvent(ctx, "foo@example.com", now, now.Add(30*time.Minute), []byte(`{"foo": "bar"}`), host2.ID, fleet.CalendarWebhookStatusPending)
+	_, err = ds.CreateOrUpdateCalendarEvent(ctx, eventUUID1, "foo@example.com", now, now.Add(30*time.Minute), []byte(`{"foo": "bar"}`), tZ,
+		host2.ID, fleet.CalendarWebhookStatusPending)
 	require.NoError(t, err)
-	calendarEventHost3, err := ds.CreateOrUpdateCalendarEvent(ctx, "zoo@example.com", now, now.Add(30*time.Minute), []byte(`{"foo": "bar"}`), host3.ID, fleet.CalendarWebhookStatusPending)
+	eventUUID3 := uuid.New().String()
+	calendarEventHost3, err := ds.CreateOrUpdateCalendarEvent(ctx, eventUUID3, "zoo@example.com", now, now.Add(30*time.Minute),
+		[]byte(`{"foo": "bar"}`), tZ, host3.ID, fleet.CalendarWebhookStatusPending)
 	require.NoError(t, err)
 
 	//
 	// Now it should return host3 because it's passing and has a calendar event.
 	//
 
-	hostsTeam2, err = ds.GetTeamHostsPolicyMemberships(ctx, "example.com", team2.ID, []uint{team2Policies[0].ID, team2Policies[1].ID})
+	hostsTeam2, err = ds.GetTeamHostsPolicyMemberships(ctx, "example.com", team2.ID, []uint{team2Policies[0].ID, team2Policies[1].ID}, nil)
 	require.NoError(t, err)
 	require.Len(t, hostsTeam2, 2)
 	sort.Slice(hostsTeam2, func(i, j int) bool {
@@ -3746,7 +3778,7 @@ func testGetTeamHostsPolicyMemberships(t *testing.T, ds *Datastore) {
 	)
 	require.NoError(t, err)
 
-	hostsTeam2, err = ds.GetTeamHostsPolicyMemberships(ctx, "example.com", team2.ID, []uint{team2Policies[0].ID, team2Policies[1].ID})
+	hostsTeam2, err = ds.GetTeamHostsPolicyMemberships(ctx, "example.com", team2.ID, []uint{team2Policies[0].ID, team2Policies[1].ID}, nil)
 	require.NoError(t, err)
 	require.Len(t, hostsTeam2, 2)
 	sort.Slice(
@@ -3775,7 +3807,7 @@ func testGetTeamHostsPolicyMemberships(t *testing.T, ds *Datastore) {
 	}, time.Now(), false)
 	require.NoError(t, err)
 
-	hostsTeam2, err = ds.GetTeamHostsPolicyMemberships(ctx, "example.com", team2.ID, []uint{team2Policies[0].ID, team2Policies[1].ID})
+	hostsTeam2, err = ds.GetTeamHostsPolicyMemberships(ctx, "example.com", team2.ID, []uint{team2Policies[0].ID, team2Policies[1].ID}, nil)
 	require.NoError(t, err)
 	require.Len(t, hostsTeam2, 2)
 	sort.Slice(hostsTeam2, func(i, j int) bool {
@@ -3792,6 +3824,17 @@ func testGetTeamHostsPolicyMemberships(t *testing.T, ds *Datastore) {
 	require.Equal(t, "serial3", hostsTeam2[1].HostHardwareSerial)
 	require.Equal(t, "display_name3", hostsTeam2[1].HostDisplayName)
 
+	// Retrieve the data only for host2.
+	hostsTeam2, err = ds.GetTeamHostsPolicyMemberships(ctx, "example.com", team2.ID, []uint{team2Policies[0].ID, team2Policies[1].ID},
+		&host2.ID)
+	require.NoError(t, err)
+	require.Len(t, hostsTeam2, 1)
+	require.Equal(t, host2.ID, hostsTeam2[0].HostID)
+	require.Equal(t, "foo@example.com", hostsTeam2[0].Email)
+	require.True(t, hostsTeam2[0].Passing)
+	require.Equal(t, "serial2", hostsTeam2[0].HostHardwareSerial)
+	require.Equal(t, "display_name2", hostsTeam2[0].HostDisplayName)
+
 	//
 	// Delete host3 calendar event
 	//
@@ -3799,7 +3842,7 @@ func testGetTeamHostsPolicyMemberships(t *testing.T, ds *Datastore) {
 	err = ds.DeleteCalendarEvent(ctx, calendarEventHost3.ID)
 	require.NoError(t, err)
 
-	hostsTeam2, err = ds.GetTeamHostsPolicyMemberships(ctx, "example.com", team2.ID, []uint{team2Policies[0].ID, team2Policies[1].ID})
+	hostsTeam2, err = ds.GetTeamHostsPolicyMemberships(ctx, "example.com", team2.ID, []uint{team2Policies[0].ID, team2Policies[1].ID}, nil)
 	require.NoError(t, err)
 	require.Len(t, hostsTeam2, 1)
 	require.Equal(t, host2.ID, hostsTeam2[0].HostID)
@@ -3823,7 +3866,7 @@ func testGetTeamHostsPolicyMemberships(t *testing.T, ds *Datastore) {
 	// We should still get host2 as passing because it has an associated calendar event.
 	//
 
-	hostsTeam2, err = ds.GetTeamHostsPolicyMemberships(ctx, "example.com", team2.ID, []uint{team2Policies[0].ID, team2Policies[1].ID})
+	hostsTeam2, err = ds.GetTeamHostsPolicyMemberships(ctx, "example.com", team2.ID, []uint{team2Policies[0].ID, team2Policies[1].ID}, nil)
 	require.NoError(t, err)
 	require.Len(t, hostsTeam2, 1)
 	require.Equal(t, host2.ID, hostsTeam2[0].HostID)
