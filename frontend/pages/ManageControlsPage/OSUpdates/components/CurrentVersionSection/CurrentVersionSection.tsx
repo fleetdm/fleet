@@ -1,6 +1,7 @@
 import React from "react";
 import { useQuery } from "react-query";
 import { AxiosError } from "axios";
+import { InjectedRouter } from "react-router";
 
 import { IOperatingSystemVersion } from "interfaces/operating_system";
 import {
@@ -29,6 +30,7 @@ export type IFilteredOperatingSystemVersion = Omit<
 const baseClass = "os-updates-current-version-section";
 
 interface ICurrentVersionSectionProps {
+  router: InjectedRouter;
   currentTeamId: number;
   queryParams: ReturnType<typeof parseOSUpdatesCurrentVersionsQueryParams>;
 }
@@ -36,7 +38,7 @@ interface ICurrentVersionSectionProps {
 const DEFAULT_SORT_DIRECTION = "desc";
 const DEFAULT_SORT_HEADER = "hosts_count";
 const DEFAULT_PAGE = 0;
-const DEFAULT_PAGE_SIZE = 8;
+const DEFAULT_PAGE_SIZE = 1;
 
 export const parseOSUpdatesCurrentVersionsQueryParams = (queryParams: {
   page?: string;
@@ -59,6 +61,7 @@ export const parseOSUpdatesCurrentVersionsQueryParams = (queryParams: {
 };
 
 const CurrentVersionSection = ({
+  router,
   currentTeamId,
   queryParams,
 }: ICurrentVersionSectionProps) => {
@@ -66,7 +69,7 @@ const CurrentVersionSection = ({
     IOSVersionsResponse,
     AxiosError
   >(
-    ["os_versions", currentTeamId],
+    ["os_versions", currentTeamId, queryParams],
     () => getOSVersions({ teamId: currentTeamId, ...queryParams }),
     {
       retry: false,
@@ -118,6 +121,7 @@ const CurrentVersionSection = ({
 
     return (
       <OSVersionTable
+        router={router}
         osVersionData={filteredOSVersionData}
         currentTeamId={currentTeamId}
         isLoading={isLoadingOsVersions}
