@@ -36,6 +36,19 @@ interface INotSupportedVulnProps {
   platform: string;
 }
 
+const platformDisplayName = (platform: string) => {
+  switch (platform) {
+    case "chrome":
+      return "Chromebooks";
+    case "ios":
+      return "iPhones";
+    case "ipados":
+      return "iPadOS";
+    default:
+      return "Linux hosts";
+  }
+};
+
 const NotSupportedVuln = ({ platform }: INotSupportedVulnProps) => {
   return (
     <EmptyTable
@@ -43,7 +56,7 @@ const NotSupportedVuln = ({ platform }: INotSupportedVulnProps) => {
       info={
         <>
           Interested in vulnerability management for{" "}
-          {platform === "chrome" ? "Chromebooks" : "Linux hosts"}?{" "}
+          {platformDisplayName(platform)}?{" "}
           <CustomLink url={SUPPORT_LINK} text="Let us know" newTab />
         </>
       }
