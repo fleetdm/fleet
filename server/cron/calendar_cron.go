@@ -4,10 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/google/uuid"
 	"slices"
 	"sync"
 	"time"
+
+	"github.com/google/uuid"
 
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -320,6 +321,7 @@ func processFailingHostExistingCalendarEvent(
 	logger kitlog.Logger,
 ) error {
 
+	fmt.Println("\n\nprocessFailingHostExistingCalendarEvent\n\n")
 	// Try to acquire the lock. Lock is needed to ensure calendar callback is not processed for this event at the same time.
 	eventUUID := calendarEvent.UUID
 	lockValue := uuid.New().String()
@@ -411,6 +413,7 @@ func processFailingHostExistingCalendarEvent(
 	}
 
 	if updated {
+		fmt.Printf("\n\nupdated Event timezone: %s\n\n", updatedEvent.TimeZone)
 		if err := ds.UpdateCalendarEvent(
 			ctx,
 			calendarEvent.ID,
