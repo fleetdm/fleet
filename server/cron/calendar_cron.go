@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/google/uuid"
 	"slices"
 	"sync"
 	"time"
@@ -17,11 +16,12 @@ import (
 	"github.com/go-kit/log"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
+	"github.com/google/uuid"
 )
 
 const (
 	calendarConsumers = 18
-	reloadFrequency   = 12 * time.Hour
+	reloadFrequency   = 30 * time.Minute
 )
 
 func NewCalendarSchedule(
