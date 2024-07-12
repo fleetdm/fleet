@@ -36,8 +36,6 @@ const TooltipTruncatedText = ({
     if (ref?.current !== null) {
       const scrollWidth = ref.current.scrollWidth;
       const offsetWidth = ref.current.offsetWidth;
-      console.log("scrollWidth", scrollWidth);
-      console.log("offsetWidth", offsetWidth);
       setTooltipDisabled(scrollWidth <= offsetWidth);
     }
   }, [ref]);
