@@ -99,6 +99,7 @@ var ActivityDetailsList = []ActivityDetails{
 	ActivityTypeInstalledSoftware{},
 	ActivityTypeAddedSoftware{},
 	ActivityTypeDeletedSoftware{},
+	ActivityEnabledVPP{},
 }
 
 type ActivityDetails interface {
@@ -1597,4 +1598,44 @@ func LogRoleChangeActivities(
 		}
 	}
 	return nil
+}
+
+type ActivityEnabledVPP struct{}
+
+// ActivityName is the name/type of the activity.
+func (a ActivityEnabledVPP) ActivityName() string {
+	return "vpp_enabled"
+}
+
+// Documentation is used by "go generate" to generate markdown docs.
+func (a ActivityEnabledVPP) Documentation() (activity string, details string, detailsExample string) {
+	return "", "", "TODO(JVE)"
+}
+
+type ActivityDisabledVPP struct{}
+
+// ActivityName is the name/type of the activity.
+func (a ActivityDisabledVPP) ActivityName() string {
+	return "vpp_disabled"
+}
+
+// Documentation is used by "go generate" to generate markdown docs.
+func (a ActivityDisabledVPP) Documentation() (activity string, details string, detailsExample string) {
+	return "", "", "TODO(JVE)"
+}
+
+type ActivityAddedAppStoreApp struct {
+	SoftwareTitle string `json:"software_title"`
+	AppStoreID    string `json:"app_store_id"`
+	TeamName      string `json:"team_name"`
+}
+
+// ActivityName is the name/type of the activity.
+func (a ActivityAddedAppStoreApp) ActivityName() string {
+	return "added_app_store_app"
+}
+
+// Documentation is used by "go generate" to generate markdown docs.
+func (a ActivityAddedAppStoreApp) Documentation() (activity string, details string, detailsExample string) {
+	return "", "", "" // TODO(JVE):
 }
