@@ -8,7 +8,6 @@ import {
   ISoftwareTitleDetails,
   IAppStoreApp,
 } from "interfaces/software";
-import { over } from "lodash";
 import {
   ISoftwareTitlesResponse,
   ISoftwareTitleResponse,
