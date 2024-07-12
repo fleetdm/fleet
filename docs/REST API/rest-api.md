@@ -7327,6 +7327,7 @@ Returns the query report specified by ID.
 ```json
 {
   "query_id": 31,
+  "report_clipped": false,
   "results": [
     {
       "host_id": 1,
