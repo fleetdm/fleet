@@ -65,6 +65,11 @@ export interface ISoftwarePackage {
   };
 }
 
+export const isSoftwarePackage = (
+  data: ISoftwarePackage | IAppStoreApp
+): data is ISoftwarePackage =>
+  (data as ISoftwarePackage).install_script !== undefined;
+
 export interface IAppStoreApp {
   name: string;
   app_store_id: number;

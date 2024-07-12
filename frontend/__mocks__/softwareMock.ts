@@ -136,18 +136,6 @@ export const createMockSoftwareVersionsReponse = (
   return { ...DEFAULT_SOFTWARE_VERSIONS_RESPONSE_MOCK, ...overrides };
 };
 
-const DEFAULT_SOFTWARE_TITLE_DETAILS_MOCK: ISoftwareTitleDetails = {
-  id: 1,
-  name: "test.app",
-  software_package: null,
-  app_store_app: null,
-  source: "test_package",
-  hosts_count: 1,
-  versions: [createMockSoftwareTitleVersion()],
-  bundle_identifier: "com.test.Desktop",
-  versions_count: 1,
-};
-
 const DEFAULT_APP_STORE_APP_MOCK: IAppStoreApp = {
   name: "test app",
   app_store_id: 1,
@@ -163,7 +151,19 @@ export const createMockAppStoreApp = (overrides?: Partial<IAppStoreApp>) => {
   return { ...DEFAULT_APP_STORE_APP_MOCK, ...overrides };
 };
 
-const createMockSoftwareTitleDetails = (
+const DEFAULT_SOFTWARE_TITLE_DETAILS_MOCK: ISoftwareTitleDetails = {
+  id: 1,
+  name: "test.app",
+  software_package: null,
+  app_store_app: null,
+  source: "test_package",
+  hosts_count: 1,
+  versions: [createMockSoftwareTitleVersion()],
+  bundle_identifier: "com.test.Desktop",
+  versions_count: 1,
+};
+
+export const createMockSoftwareTitleDetails = (
   overrides?: Partial<ISoftwareTitleDetails>
 ) => {
   return { ...DEFAULT_SOFTWARE_TITLE_DETAILS_MOCK, ...overrides };

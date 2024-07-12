@@ -12,7 +12,11 @@ import useTeamIdParam from "hooks/useTeamIdParam";
 
 import { AppContext } from "context/app";
 
-import { ISoftwareTitleDetails, formatSoftwareType } from "interfaces/software";
+import {
+  ISoftwareTitleDetails,
+  formatSoftwareType,
+  isSoftwarePackage,
+} from "interfaces/software";
 import { ignoreAxiosError } from "interfaces/errors";
 import softwareAPI, {
   ISoftwareTitleResponse,
@@ -32,6 +36,13 @@ import DetailsNoHosts from "../components/DetailsNoHosts";
 import SoftwarePackageCard from "./SoftwarePackageCard";
 
 const baseClass = "software-title-details-page";
+
+const getPackageCardInfo = (software: ISoftwareTitleDetails) => {
+  return {
+    name: softwareTitle.name,
+    version: isSoftwarePackage(softwareTitle.software_package),
+  };
+};
 
 interface ISoftwareTitleDetailsRouteParams {
   id: string;
@@ -117,85 +128,99 @@ const SoftwareTitleDetailsPage = ({
     [handleTeamChange]
   );
 
-  const hasPermission = Boolean(
-    isOnGlobalTeam || isTeamAdmin || isTeamMaintainer || isTeamObserver
-  );
-  const hasSoftwarePackage = softwareTitle && softwareTitle.software_package;
-  const showPackageCard =
-    currentTeamId !== APP_CONTEXT_ALL_TEAMS_ID &&
-    hasPermission &&
-    hasSoftwarePackage;
+  const renderSoftwarePackageCard = (title: ISoftwareTitleDetails) => {
+    const hasPermission = Boolean(
+      isOnGlobalTeam || isTeamAdmin || isTeamMaintainer || isTeamObserver
+    );
+    const hasSoftwarePackage = !!title.software_package;
+    const hasAppStoreApp = !!title.app_store_app;
+
+    const showPackageCard =
+      currentTeamId !== APP_CONTEXT_ALL_TEAMS_ID &&
+      hasPermission &&
+      (hasSoftwarePackage || hasAppStoreApp);
+
+    title.software_package ? title.software_package : title.app_store_app;
+
+    if (showPackageCard) {
+      return (
+        <SoftwarePackageCard
+          name={title.name}
+          version={}
+          uploadedAt={}
+          status={softwareTitle}
+          softwareId={softwareId}
+          teamId={currentTeamId}
+          onDelete={onDeleteInstaller}
+        />
+      );
+    }
+
+    return null;
+  };
 
   const renderContent = () => {
     if (isSoftwareTitleLoading) {
       return <Spinner />;
     }
 
-    if (!softwareTitle && !isSoftwareTitleError) {
-      return null;
+    if (isSoftwareTitleError) {
+      return (
+        <DetailsNoHosts
+          header="Software not detected"
+          details={`No hosts ${
+            teamIdForApi ? "on this team " : ""
+          }have this software installed.`}
+        />
+      );
     }
-    return (
-      <>
-        {isPremiumTier && (
-          <TeamsHeader
-            isOnGlobalTeam={isOnGlobalTeam}
-            currentTeamId={currentTeamId}
-            userTeams={userTeams}
-            onTeamChange={onTeamChange}
+
+    if (softwareTitle) {
+      return (
+        <>
+          <SoftwareDetailsSummary
+            title={softwareTitle.name}
+            type={formatSoftwareType(softwareTitle)}
+            versions={softwareTitle.versions?.length ?? 0}
+            hosts={softwareTitle.hosts_count}
+            queryParams={{
+              software_title_id: softwareId,
+              team_id: teamIdForApi,
+            }}
+            name={softwareTitle.name}
+            source={softwareTitle.source}
           />
-        )}
-        {isSoftwareTitleError ? (
-          <DetailsNoHosts
-            header="Software not detected"
-            details={`No hosts ${
-              teamIdForApi ? "on this team " : ""
-            }have this software installed.`}
-          />
-        ) : (
-          <>
-            <SoftwareDetailsSummary
-              title={softwareTitle.name}
-              type={formatSoftwareType(softwareTitle)}
-              versions={softwareTitle.versions?.length ?? 0}
-              hosts={softwareTitle.hosts_count}
-              queryParams={{
-                software_title_id: softwareId,
-                team_id: teamIdForApi,
-              }}
-              name={softwareTitle.name}
-              source={softwareTitle.source}
+          {renderSoftwarePackageCard(softwareTitle)}
+          <Card
+            borderRadiusSize="xxlarge"
+            includeShadow
+            className={`${baseClass}__versions-section`}
+          >
+            <h2>Versions</h2>
+            <SoftwareTitleDetailsTable
+              router={router}
+              data={softwareTitle.versions ?? []}
+              isLoading={isSoftwareTitleLoading}
+              teamIdForApi={teamIdForApi}
             />
-            {showPackageCard &&
-              softwareTitle.software_package &&
-              currentTeamId && (
-                <SoftwarePackageCard
-                  softwarePackage={softwareTitle.software_package}
-                  softwareId={softwareId}
-                  teamId={currentTeamId}
-                  onDelete={onDeleteInstaller}
-                />
-              )}
-            <Card
-              borderRadiusSize="xxlarge"
-              includeShadow
-              className={`${baseClass}__versions-section`}
-            >
-              <h2>Versions</h2>
-              <SoftwareTitleDetailsTable
-                router={router}
-                data={softwareTitle.versions ?? []}
-                isLoading={isSoftwareTitleLoading}
-                teamIdForApi={teamIdForApi}
-              />
-            </Card>
-          </>
-        )}
-      </>
-    );
+          </Card>
+        </>
+      );
+    }
+
+    return null;
   };
 
   return (
     <MainContent className={baseClass}>
+      {isPremiumTier && (
+        <TeamsHeader
+          isOnGlobalTeam={isOnGlobalTeam}
+          currentTeamId={currentTeamId}
+          userTeams={userTeams}
+          onTeamChange={onTeamChange}
+        />
+      )}
       <>{renderContent()}</>
     </MainContent>
   );

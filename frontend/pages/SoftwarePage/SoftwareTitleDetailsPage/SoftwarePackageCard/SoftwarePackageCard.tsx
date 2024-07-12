@@ -196,6 +196,15 @@ const ActionsDropdown = ({
 };
 
 interface ISoftwarePackageCardProps {
+  name: string;
+  version: string;
+  uploadedAt: string; // TODO: optional?
+  status: {
+    installed: number;
+    pending: number;
+    failed: number;
+  };
+  isSelfService: boolean;
   softwarePackage: ISoftwarePackage;
   softwareId: number;
   teamId: number;
@@ -203,6 +212,11 @@ interface ISoftwarePackageCardProps {
 }
 
 const SoftwarePackageCard = ({
+  name,
+  version,
+  uploadedAt,
+  status,
+  isSelfService,
   softwarePackage,
   softwareId,
   teamId,
@@ -246,7 +260,7 @@ const SoftwarePackageCard = ({
           `Byte size (${resp.data.size}) does not match content-length header (${contentLength})`
         );
       }
-      const filename = softwarePackage.name;
+      const filename = name;
       const file = new File([resp.data], filename, {
         type: "application/octet-stream",
       });
@@ -261,9 +275,9 @@ const SoftwarePackageCard = ({
       FileSaver.saveAs(file);
     } catch (e) {
       console.log(e);
-      renderFlash("error", "Couldn’t download. Please try again.");
+      renderFlash("error", "Couldn't download. Please try again.");
     }
-  }, [renderFlash, softwareId, softwarePackage.name, teamId]);
+  }, [renderFlash, softwareId, name, teamId]);
 
   const showActions =
     isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
@@ -276,16 +290,14 @@ const SoftwarePackageCard = ({
         <div className={`${baseClass}__main-info`}>
           <Graphic name="file-pkg" />
           <div className={`${baseClass}__info`}>
-            <SoftwareName name={softwarePackage.name} />
+            <SoftwareName name={name} />
             <span className={`${baseClass}__details`}>
-              <span>Version {softwarePackage.version} &bull; </span>
+              <span>Version {version} &bull; </span>
               <TooltipWrapper
-                tipContent={internationalTimeFormat(
-                  new Date(softwarePackage.uploaded_at)
-                )}
+                tipContent={internationalTimeFormat(new Date(uploadedAt))}
                 underline={false}
               >
-                {uploadedFromNow(softwarePackage.uploaded_at)}
+                {uploadedFromNow(uploadedAt)}
               </TooltipWrapper>
             </span>
           </div>
@@ -294,25 +306,25 @@ const SoftwarePackageCard = ({
           <PackageStatusCount
             softwareId={softwareId}
             status="installed"
-            count={softwarePackage.status.installed}
+            count={status.installed}
             teamId={teamId}
           />
           <PackageStatusCount
             softwareId={softwareId}
             status="pending"
-            count={softwarePackage.status.pending}
+            count={status.pending}
             teamId={teamId}
           />
           <PackageStatusCount
             softwareId={softwareId}
             status="failed"
-            count={softwarePackage.status.failed}
+            count={status.failed}
             teamId={teamId}
           />
         </div>
       </div>
       <div className={`${baseClass}__actions-wrapper`}>
-        {softwarePackage.self_service && (
+        {isSelfService && (
           <div className={`${baseClass}__self-service-badge`}>
             <Icon
               name="install-self-service"

@@ -14,6 +14,12 @@ import {
   convertParamsToSnakeCase,
 } from "utilities/url";
 import { IAddSoftwareFormData } from "pages/SoftwarePage/components/AddPackageForm/AddSoftwareForm";
+import {
+  createMockAppStoreApp,
+  createMockSoftware,
+  createMockSoftwareTitleDetails,
+  createMockSoftwareTitleResponse,
+} from "__mocks__/softwareMock";
 
 export interface ISoftwareApiParams {
   page?: number;
@@ -169,7 +175,17 @@ export default {
   }: IGetSoftwareTitleQueryParams): Promise<ISoftwareTitleResponse> => {
     const endpoint = endpoints.SOFTWARE_TITLE(softwareId);
     const path = teamId ? `${endpoint}?team_id=${teamId}` : endpoint;
-    return sendRequest("GET", path);
+
+    return new Promise((resolve, reject) => {
+      resolve(
+        createMockSoftwareTitleResponse({
+          software_title: createMockSoftwareTitleDetails({
+            app_store_app: createMockAppStoreApp(),
+          }),
+        })
+      );
+    });
+    // return sendRequest("GET", path);
   },
 
   getSoftwareVersions: (params: ISoftwareApiParams) => {
