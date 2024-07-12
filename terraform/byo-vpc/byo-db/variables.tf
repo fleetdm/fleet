@@ -77,7 +77,7 @@ variable "fleet_config" {
     mem                          = optional(number, 4096)
     cpu                          = optional(number, 512)
     pid_mode                     = optional(string, null)
-    image                        = optional(string, "fleetdm/fleet:v4.52.0")
+    image                        = optional(string, "fleetdm/fleet:v4.53.1")
     family                       = optional(string, "fleet")
     sidecars                     = optional(list(any), [])
     depends_on                   = optional(list(any), [])
@@ -136,11 +136,28 @@ variable "fleet_config" {
     })
     extra_load_balancers = optional(list(any), [])
     networking = optional(object({
-      subnets         = list(string)
+      subnets         = optional(list(string), null)
       security_groups = optional(list(string), null)
+      ingress_sources = optional(object({
+        cidr_blocks      = optional(list(string), [])
+        ipv6_cidr_blocks = optional(list(string), [])
+        security_groups  = optional(list(string), [])
+        prefix_list_ids  = optional(list(string), [])
+        }), {
+        cidr_blocks      = []
+        ipv6_cidr_blocks = []
+        security_groups  = []
+        prefix_list_ids  = []
+      })
       }), {
       subnets         = null
       security_groups = null
+      ingress_sources = {
+        cidr_blocks      = []
+        ipv6_cidr_blocks = []
+        security_groups  = []
+        prefix_list_ids  = []
+      }
     })
     autoscaling = optional(object({
       max_capacity                 = optional(number, 5)
@@ -189,7 +206,7 @@ variable "fleet_config" {
     mem                          = 512
     cpu                          = 256
     pid_mode                     = null
-    image                        = "fleetdm/fleet:v4.52.0"
+    image                        = "fleetdm/fleet:v4.53.1"
     family                       = "fleet"
     sidecars                     = []
     depends_on                   = []
@@ -232,6 +249,12 @@ variable "fleet_config" {
     networking = {
       subnets         = null
       security_groups = null
+      ingress_sources = {
+        cidr_blocks      = []
+        ipv6_cidr_blocks = []
+        security_groups  = []
+        prefix_list_ids  = []
+      }
     }
     autoscaling = {
       max_capacity                 = 5

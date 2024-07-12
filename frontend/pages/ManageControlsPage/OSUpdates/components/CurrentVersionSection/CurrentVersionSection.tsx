@@ -11,6 +11,7 @@ import {
 import LastUpdatedText from "components/LastUpdatedText";
 import SectionHeader from "components/SectionHeader";
 import DataError from "components/DataError";
+import Spinner from "components/Spinner";
 
 import OSVersionTable from "../OSVersionTable";
 import { OSUpdatesSupportedPlatform } from "../../OSUpdates";
@@ -56,6 +57,10 @@ const CurrentVersionSection = ({
   };
 
   const renderTable = () => {
+    if (isLoadingOsVersions) {
+      return <Spinner />;
+    }
+
     if (isError) {
       return (
         <DataError
@@ -74,10 +79,13 @@ const CurrentVersionSection = ({
       return <OSVersionsEmptyState />;
     }
 
-    // We only want to show windows and mac versions atm.
+    // We only want to show windows mac, ios, ipados versions atm.
     const filteredOSVersionData = data.os_versions.filter((osVersion) => {
       return (
-        osVersion.platform === "windows" || osVersion.platform === "darwin"
+        osVersion.platform === "windows" ||
+        osVersion.platform === "darwin" ||
+        osVersion.platform === "ios" ||
+        osVersion.platform === "ipados"
       );
     }) as IFilteredOperatingSystemVersion[];
 

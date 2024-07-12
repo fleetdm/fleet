@@ -24,7 +24,7 @@ const UploadingSoftware = () => {
   return (
     <div className={`${baseClass}__uploading-message`}>
       <Spinner centered={false} />
-      <p>Uploading. It may take few minutes to finish.</p>
+      <p>Uploading. It may take a few minutes to finish.</p>
     </div>
   );
 };

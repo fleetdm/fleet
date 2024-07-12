@@ -1,13 +1,13 @@
 import React, { useCallback, useState } from "react";
 import { useDebouncedCallback } from "use-debounce";
 
-import { OsqueryPlatform, SUPPORTED_PLATFORMS } from "interfaces/platform";
+import { QueryablePlatform, SUPPORTED_PLATFORMS } from "interfaces/platform";
 import { checkPlatformCompatibility } from "utilities/sql_tools";
 
 import PlatformCompatibility from "components/PlatformCompatibility";
 
 export interface IPlatformCompatibility {
-  getCompatiblePlatforms: () => ("darwin" | "windows" | "linux" | "chrome")[];
+  getCompatiblePlatforms: () => QueryablePlatform[];
   setCompatiblePlatforms: (sqlString: string) => void;
   render: () => JSX.Element;
 }
@@ -16,7 +16,7 @@ const DEBOUNCE_DELAY = 300;
 
 const usePlatformCompatibility = (): IPlatformCompatibility => {
   const [compatiblePlatforms, setCompatiblePlatforms] = useState<
-    OsqueryPlatform[] | null
+    QueryablePlatform[] | null
   >(null);
   const [error, setError] = useState<Error | null>(null);
 

@@ -7,6 +7,7 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"database/sql"
 	"errors"
 	"math/big"
 	"net/http"
@@ -489,19 +490,26 @@ func TestRunMDMCommandValidations(t *testing.T) {
 	svc, ctx := newTestService(t, ds, nil, nil)
 
 	enrolledMDMInfo := &fleet.HostMDM{Enrolled: true, InstalledFromDep: false, Name: fleet.WellKnownMDMFleet, IsServer: false}
-	singleUnenrolledHost := []*fleet.Host{{ID: 1, TeamID: ptr.Uint(1), UUID: "a"}}
+	singleUnenrolledHost := []*fleet.Host{{ID: 0xf1337, TeamID: ptr.Uint(1), UUID: "unenrolled"}}
 	differentPlatformsHosts := []*fleet.Host{
-		{ID: 1, UUID: "a", MDMInfo: enrolledMDMInfo, Platform: "darwin"},
-		{ID: 2, UUID: "b", MDMInfo: enrolledMDMInfo, Platform: "windows"},
+		{ID: 1, UUID: "a", Platform: "darwin"},
+		{ID: 2, UUID: "b", Platform: "windows"},
 	}
-	linuxSingleHost := []*fleet.Host{{ID: 1, TeamID: ptr.Uint(1), UUID: "a", MDMInfo: enrolledMDMInfo, Platform: "linux"}}
-	windowsSingleHost := []*fleet.Host{{ID: 1, TeamID: ptr.Uint(1), UUID: "a", MDMInfo: enrolledMDMInfo, Platform: "windows"}}
-	macosSingleHost := []*fleet.Host{{ID: 1, TeamID: ptr.Uint(1), UUID: "a", MDMInfo: enrolledMDMInfo, Platform: "darwin"}}
+	linuxSingleHost := []*fleet.Host{{ID: 1, TeamID: ptr.Uint(1), UUID: "a", Platform: "linux"}}
+	windowsSingleHost := []*fleet.Host{{ID: 1, TeamID: ptr.Uint(1), UUID: "a", Platform: "windows"}}
+	macosSingleHost := []*fleet.Host{{ID: 1, TeamID: ptr.Uint(1), UUID: "a", Platform: "darwin"}}
+
+	ds.GetHostMDMFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
+		if hostID == 0xf1337 {
+			return nil, sql.ErrNoRows
+		}
+		return enrolledMDMInfo, nil
+	}
 
 	ds.AreHostsConnectedToFleetMDMFunc = func(ctx context.Context, hosts []*fleet.Host) (map[string]bool, error) {
 		res := make(map[string]bool, len(hosts))
 		for _, h := range hosts {
-			res[h.UUID] = h.MDMInfo != nil && h.MDMInfo.Enrolled && h.MDMInfo.Name == fleet.WellKnownMDMFleet
+			res[h.UUID] = h.ID != 0xf1337
 		}
 		return res, nil
 	}
@@ -1080,11 +1088,11 @@ func TestMDMWindowsConfigProfileAuthz(t *testing.T) {
 			checkShouldFail(t, err, tt.shouldFailTeamRead)
 
 			// test authz create new profile (no team)
-			_, err = svc.NewMDMWindowsConfigProfile(ctx, 0, "prof", strings.NewReader(winProfContent), nil)
+			_, err = svc.NewMDMWindowsConfigProfile(ctx, 0, "prof", strings.NewReader(winProfContent), nil, false)
 			checkShouldFail(t, err, tt.shouldFailGlobalWrite)
 
 			// test authz create new profile (team 1)
-			_, err = svc.NewMDMWindowsConfigProfile(ctx, 1, "prof", strings.NewReader(winProfContent), nil)
+			_, err = svc.NewMDMWindowsConfigProfile(ctx, 1, "prof", strings.NewReader(winProfContent), nil, false)
 			checkShouldFail(t, err, tt.shouldFailTeamWrite)
 
 			// test authz delete config profile (no team)
@@ -1166,7 +1174,7 @@ func TestUploadWindowsMDMConfigProfileValidations(t *testing.T) {
 				}, nil
 			}
 			ctx = test.UserContext(ctx, test.UserAdmin)
-			_, err := svc.NewMDMWindowsConfigProfile(ctx, c.tmID, "foo", strings.NewReader(c.profile), nil)
+			_, err := svc.NewMDMWindowsConfigProfile(ctx, c.tmID, "foo", strings.NewReader(c.profile), nil, false)
 			if c.wantErr != "" {
 				require.Error(t, err)
 				require.ErrorContains(t, err, c.wantErr)
@@ -1556,6 +1564,34 @@ func TestValidateProfiles(t *testing.T) {
 			name: "Empty Profile",
 			profiles: []fleet.MDMProfileBatchPayload{
 				{Name: "emptyProfile", Contents: []byte("")},
+			},
+			wantErr: true,
+		},
+		{
+			name: "Windows Profile With Deprecated Labels",
+			profiles: []fleet.MDMProfileBatchPayload{
+				{Name: "windowsProfile", Labels: []string{"a"}, Contents: []byte("<replace><Target><LocURI>Custom/URI</LocURI></Target></replace>")},
+			},
+			wantErr: false,
+		},
+		{
+			name: "Windows Profile With Excluded Labels",
+			profiles: []fleet.MDMProfileBatchPayload{
+				{Name: "windowsProfile", LabelsExcludeAny: []string{"a"}, Contents: []byte("<replace><Target><LocURI>Custom/URI</LocURI></Target></replace>")},
+			},
+			wantErr: false,
+		},
+		{
+			name: "Windows Profile With Included Labels",
+			profiles: []fleet.MDMProfileBatchPayload{
+				{Name: "windowsProfile", LabelsIncludeAll: []string{"a"}, Contents: []byte("<replace><Target><LocURI>Custom/URI</LocURI></Target></replace>")},
+			},
+			wantErr: false,
+		},
+		{
+			name: "Windows Profile With Mixed Labels",
+			profiles: []fleet.MDMProfileBatchPayload{
+				{Name: "windowsProfile", Labels: []string{"z"}, LabelsIncludeAll: []string{"a"}, Contents: []byte("<replace><Target><LocURI>Custom/URI</LocURI></Target></replace>")},
 			},
 			wantErr: true,
 		},

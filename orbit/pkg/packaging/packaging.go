@@ -117,6 +117,8 @@ type Options struct {
 	LocalWixDir string
 	// HostIdentifier is the host identifier to use in osquery.
 	HostIdentifier string
+	// EnableHostIdentifierProperty is a boolean indicating whether to enable END_USER_EMAIL property in Windows MSI package.
+	EnableEndUserEmailProperty bool
 	// EndUserEmail is the email address of the end user that uses the host on
 	// which the agent is going to be installed.
 	EndUserEmail string
@@ -277,10 +279,10 @@ func writeOsqueryFlagfile(opt Options, orbitRoot string) error {
 }
 
 // Embed the certs file that osquery uses so that we can drop it into our installation packages.
-// This file copied from https://raw.githubusercontent.com/osquery/osquery/master/tools/deployment/certs.pem
+// This file is generated and updated by .github/workflows/update-certs.yml.
 //
 //go:embed certs.pem
-var osqueryCerts []byte
+var OsqueryCerts []byte
 
 func writeOsqueryCertPEM(opt Options, orbitRoot string) error {
 	path := filepath.Join(orbitRoot, "certs.pem")
@@ -288,7 +290,7 @@ func writeOsqueryCertPEM(opt Options, orbitRoot string) error {
 		return fmt.Errorf("mkdir: %w", err)
 	}
 
-	if err := os.WriteFile(path, osqueryCerts, 0o644); err != nil {
+	if err := os.WriteFile(path, OsqueryCerts, 0o644); err != nil {
 		return fmt.Errorf("write file: %w", err)
 	}
 

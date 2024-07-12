@@ -27,6 +27,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/service/externalsvc"
 	"github.com/fleetdm/fleet/v4/server/service/schedule"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/customcve"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/macoffice"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/msrc"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd"
@@ -159,6 +160,7 @@ func scanVulnerabilities(
 	nvdVulns := checkNVDVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
 	ovalVulns := checkOvalVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
 	macOfficeVulns := checkMacOfficeVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
+	customVulns := checkCustomVulnerabilities(ctx, ds, logger, config, vulnAutomationEnabled != "")
 
 	checkWinVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
 
@@ -171,6 +173,7 @@ func scanVulnerabilities(
 	vulns = append(vulns, nvdVulns...)
 	vulns = append(vulns, ovalVulns...)
 	vulns = append(vulns, macOfficeVulns...)
+	vulns = append(vulns, customVulns...)
 
 	meta, err := ds.ListCVEs(ctx, config.RecentVulnerabilityMaxAge)
 	if err != nil {
@@ -235,6 +238,27 @@ func scanVulnerabilities(
 	}
 
 	return nil
+}
+
+func checkCustomVulnerabilities(
+	ctx context.Context,
+	ds fleet.Datastore,
+	logger kitlog.Logger,
+	config *config.VulnerabilitiesConfig,
+	collectVulns bool,
+) []fleet.SoftwareVulnerability {
+	vulns, err := customcve.CheckCustomVulnerabilities(ctx, ds, logger, config.Periodicity)
+	if err != nil {
+		errHandler(ctx, logger, "checking custom vulnerabilities", err)
+	}
+
+	level.Debug(logger).Log("msg", "custom-vulnerabilities-analysis-done", "found new", len(vulns))
+
+	if !collectVulns {
+		return nil
+	}
+
+	return vulns
 }
 
 func checkWinVulnerabilities(

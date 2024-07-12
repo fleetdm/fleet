@@ -2,7 +2,8 @@
 # All settings related to how Fleet is deployed in Kubernetes
 hostName: fleet.localhost
 replicas: 3 # The number of Fleet instances to deploy
-imageTag: v4.52.0 # Version of Fleet to deploy
+imageRepository: fleetdm/fleet
+imageTag: v4.53.1 # Version of Fleet to deploy
 podAnnotations: {} # Additional annotations to add to the Fleet pod
 serviceAccountAnnotations: {} # Additional annotations to add to the Fleet service account
 resources:
@@ -191,6 +192,7 @@ gke:
   # The CloudSQL Proxy runs as a container in the Fleet Pod that proxies connections to a Cloud SQL instance
   cloudSQL:
     enableProxy: false
+    imageRepository: gcr.io/cloudsql-docker/gce-proxy
     imageTag: 1.17-alpine
     verbose: true
     instanceName: ""

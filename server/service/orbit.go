@@ -188,15 +188,22 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 		return fleet.OrbitConfig{}, ctxerr.Wrap(ctx, err, "checking if host is connected to Fleet")
 	}
 
+	mdmInfo, err := svc.ds.GetHostMDM(ctx, host.ID)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return fleet.OrbitConfig{}, ctxerr.Wrap(ctx, err, "retrieving host mdm info")
+	}
+
 	// set the host's orbit notifications for macOS MDM
 	var notifs fleet.OrbitConfigNotifications
 	if appConfig.MDM.EnabledAndConfigured && host.IsOsqueryEnrolled() && host.Platform == "darwin" {
-		if host.NeedsDEPEnrollment(isConnectedToFleetMDM) {
+		needsDEPEnrollment := mdmInfo != nil && !mdmInfo.Enrolled && host.IsDEPAssignedToFleet()
+
+		if needsDEPEnrollment {
 			notifs.RenewEnrollmentProfile = true
 		}
 
 		if appConfig.MDM.MacOSMigration.Enable &&
-			host.IsEligibleForDEPMigration(isConnectedToFleetMDM) {
+			fleet.IsEligibleForDEPMigration(host, mdmInfo, isConnectedToFleetMDM) {
 			notifs.NeedsMDMMigration = true
 		}
 
@@ -213,7 +220,7 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 
 	// set the host's orbit notifications for Windows MDM
 	if appConfig.MDM.WindowsEnabledAndConfigured {
-		if host.IsEligibleForWindowsMDMEnrollment() {
+		if IsEligibleForWindowsMDMEnrollment(host, mdmInfo) {
 			discoURL, err := microsoft_mdm.ResolveWindowsMDMDiscovery(appConfig.ServerSettings.ServerURL)
 			if err != nil {
 				return fleet.OrbitConfig{}, err
@@ -303,7 +310,7 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 		}
 
 		if mdmConfig.EnableDiskEncryption &&
-			host.IsEligibleForBitLockerEncryption(isConnectedToFleetMDM) {
+			fleet.IsEligibleForBitLockerEncryption(host, mdmInfo, isConnectedToFleetMDM) {
 			notifs.EnforceBitLockerEncryption = true
 		}
 
@@ -317,11 +324,12 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 		}
 
 		return fleet.OrbitConfig{
-			Flags:          opts.CommandLineStartUpFlags,
-			Extensions:     extensionsFiltered,
-			Notifications:  notifs,
-			NudgeConfig:    nudgeConfig,
-			UpdateChannels: updateChannels,
+			ScriptExeTimeout: opts.ScriptExecutionTimeout,
+			Flags:            opts.CommandLineStartUpFlags,
+			Extensions:       extensionsFiltered,
+			Notifications:    notifs,
+			NudgeConfig:      nudgeConfig,
+			UpdateChannels:   updateChannels,
 		}, nil
 	}
 
@@ -365,7 +373,7 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 
 	if appConfig.MDM.WindowsEnabledAndConfigured &&
 		appConfig.MDM.EnableDiskEncryption.Value &&
-		host.IsEligibleForBitLockerEncryption(isConnectedToFleetMDM) {
+		fleet.IsEligibleForBitLockerEncryption(host, mdmInfo, isConnectedToFleetMDM) {
 		notifs.EnforceBitLockerEncryption = true
 	}
 
@@ -379,11 +387,12 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 	}
 
 	return fleet.OrbitConfig{
-		Flags:          opts.CommandLineStartUpFlags,
-		Extensions:     extensionsFiltered,
-		Notifications:  notifs,
-		NudgeConfig:    nudgeConfig,
-		UpdateChannels: updateChannels,
+		ScriptExeTimeout: opts.ScriptExecutionTimeout,
+		Flags:            opts.CommandLineStartUpFlags,
+		Extensions:       extensionsFiltered,
+		Notifications:    notifs,
+		NudgeConfig:      nudgeConfig,
+		UpdateChannels:   updateChannels,
 	}, nil
 }
 

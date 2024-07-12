@@ -45,9 +45,11 @@ If there are no product changes, and the DRI decides to prioritize the story, th
 > We prefer the term engineering-initiated stories over technical debt because the user story format helps keep us focused on our users and contributors.
 
 ### Fix a bug
+
+All bug fix pull requests should have a mention back to the issue they resolve with #<ticket_number> in the description or even in a comment. Please do not use any [automated words](https://docs.github.com/en/issues/tracking-your-work-with-issues/linking-a-pull-request-to-an-issue#linking-a-pull-request-to-an-issue-using-a-keyword) since we don't want the tickets auto-closing when PR's are merged. 
 If the bug is labeled `~unreleased bug`, branch off and put your PR into `main`. These issues can be closed as soon as they complete QA.
 
-If the bug is labeled `~released bug`, branch off the tag for the latest release of Fleet and put your PR into `main`. For example, `git checkout fleet-v4.48.2`, then `git checkout -b my-bug-fix-branch`. These issues are not closed until the next release of Fleet. This approach makes sure the bug fix is not built on top of unreleased feature code, which can cause merge conflicts during patch releases. 
+If the bug is labeled `~released bug`, branch off and put your PR into `main`. After merging checkout the latest tag, for example `git checkout fleet-v4.48.2`, then `git fetch; git cherry-pick <commit>`. If the cherry-pick fails with a conflict call out in the ticket how to resolve or if it is sufficiently complicated call out this fix is not suited for the patch release process and should only be included in the end of sprint release. This approach makes sure the bug fix is not built on top of unreleased feature code, which can cause merge conflicts during patch releases. 
 
 ### Begin a merge freeze
 To ensure release quality, Fleet has a freeze period for testing beginning the Tuesday before the release at 11:00 AM Pacific. Effective at the start of the freeze period, new feature work will not be merged into `main`.
@@ -279,6 +281,13 @@ Check the "📃 Planned articles" column in [#g-demand board](https://app.zenhub
     - [Sharpie Fine Point Markers](https://www.everythingbranded.com/product/sharpie-fine-point-332908)
     - [Custom sticky note pads](https://www.everythingbranded.com/product/custom-sticky-notes-585601) (design is in the StickerMule [brand kit](https://www.stickermule.com/studio/brand-kits))
 
+### Review another product group's pull request
+Some code paths require pull request review from multiple product groups to confirm there are no
+unintended side effects of the change for another product group. All code paths defined in
+[CODEOWNERS](https://github.com/fleetdm/fleet/blob/main/CODEOWNERS) that are assigned to individual
+engineers across multiple product groups must be approved by one engineer from each product group
+before merging.
+
 ### Review a community pull request
 If you're assigned a community pull request for review, it is important to keep things moving for the contributor. The goal is to not go more than one business day without following up with the contributor.
 
@@ -314,6 +323,9 @@ When merging a pull request from a community contributor:
 - Merge the PR.
 - Thank and congratulate the contributor.
 - Share the merged PR with the team in the #help-promote channel of Fleet Slack to be publicized on social media. Those who contribute to Fleet and are recognized for their contributions often become great champions for the project.
+
+### Close a stale community issue
+If a community member opens an issue that we can't reproduce leave a comment asking the author for more context. After one week with no reply, close the issue with a comment letting them know they are welcome to re-open it with any updates.
 
 ### Schedule developer on-call workload
 Engineering managers are asked to be aware of the [on-call rotation](https://docs.google.com/document/d/1FNQdu23wc1S9Yo6x5k04uxT2RwT77CIMzLLeEI2U7JA/edit#) and schedule a light workload for engineers while they are on-call. While it varies week to week considerably, the on-call responsibilities can sometimes take up a substantial portion of the engineer's time.
@@ -393,7 +405,7 @@ As a hiring manager we want to ensure the interview process follows these steps 
 If the candidate passes all of these steps then continue with [hiring a new team member](https://fleetdm.com/handbook/company/leadership#hiring-a-new-team-member).
 
 ### Renew MDM certificate signing request (CSR) 
-The certificate signing request (CSR) certificate expires every year. It needs to be renewed prior to expiring. This is notified to the team by the MDM calendar event [IMPORTANT: Renew MDM CSR certificate](https://calendar.google.com/calendar/event?action=TEMPLATE&tmeid=NHM3YzZja2FoZTA4bm9jZTE3NWFvMTduMTlfMjAyNDA5MTFUMTczMDAwWiBjXzI0YjkwMjZiZmIzZDVkMDk1ZGQzNzA2ZTEzMWQ3ZjE2YTJmNDhjN2E1MDU1NDcxNzA1NjlmMDc4ODNiNmU3MzJAZw&tmsrc=c_24b9026bfb3d5d095dd3706e131d7f16a2f48c7a505547170569f07883b6e732%40group.calendar.google.com&scp=ALL)
+The certificate signing request (CSR) certificate expires every year. It needs to be renewed prior to expiring. This is notified to the team by the MDM calendar event [IMPORTANT: Renew MDM CSR certificate](https://calendar.google.com/calendar/u/0/r/eventedit/MmdqNTY4dG9nbWZycnNxbDBzYjQ5dGplM2FfMjAyNDA5MDlUMTczMDAwWiBjXzMyMjM3NjgyZGRlOThlMzI4MjVhNTY1ZDEyZjk0MDEyNmNjMWI0ZDljYjZjNjgyYzQ2MjcxZGY0N2UzNjM5NDZAZw)
 
 Steps to renew the certificate:
 

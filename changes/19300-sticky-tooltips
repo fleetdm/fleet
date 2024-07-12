@@ -1,1 +1,0 @@
-- Replace React Tooltip with Tooltipwrapper to fix "sticky tooltip"s observed in 2 places.

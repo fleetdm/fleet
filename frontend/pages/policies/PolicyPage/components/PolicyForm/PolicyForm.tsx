@@ -188,7 +188,8 @@ const PolicyForm = ({
   const hasSavePermissions =
     !isEditMode || // save a new policy
     isGlobalAdmin ||
-    isGlobalMaintainer;
+    isGlobalMaintainer ||
+    isTeamMaintainerOrTeamAdmin;
 
   const onLoad = (editor: IAceEditor) => {
     editor.setOptions({
@@ -689,10 +690,12 @@ const PolicyForm = ({
     return <Spinner />;
   }
 
+  const isInheritedPolicy = !!policyIdForEdit && storedPolicy?.team_id === null;
+
   const noEditPermissions =
     isTeamObserver ||
     isGlobalObserver ||
-    (!isOnGlobalTeam && policyTeamId !== storedPolicy?.team_id); // Team user viewing inherited policy
+    (!isOnGlobalTeam && isInheritedPolicy); // Team user viewing inherited policy
 
   // Render non-editable form only
   if (noEditPermissions) {

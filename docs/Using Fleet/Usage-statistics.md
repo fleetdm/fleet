@@ -128,8 +128,6 @@ To disable usage statistics:
 
 3. Uncheck the "Enable usage statistics" checkbox and then select "Update settings."
 
-Usage statistics can also be disabled via [configuration files](https://fleetdm.com/docs/configuration/configuration-files#server-settings-enable-analytics).
-
 <meta name="pageOrderInSection" value="1100">
 <meta name="description" value="Learn about Fleet's usage statistics and what information is collected.">
 <meta name="navSection" value="Dig deeper">
