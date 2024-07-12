@@ -250,7 +250,6 @@
       .fleet-checkbox__tick {
         flex: 0 0 auto; /* This prevents growing and shrinking */
         width: fit-content; /* This ensures button isn't cut off */
-        visibility: hidden;
       }
 
       .fleet-checkbox__label {
