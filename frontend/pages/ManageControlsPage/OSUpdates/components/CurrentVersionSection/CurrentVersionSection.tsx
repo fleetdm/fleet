@@ -30,17 +30,49 @@ const baseClass = "os-updates-current-version-section";
 
 interface ICurrentVersionSectionProps {
   currentTeamId: number;
+  queryParams: ReturnType<typeof parseOSUpdatesCurrentVersionsQueryParams>;
 }
+
+const DEFAULT_SORT_DIRECTION = "desc";
+const DEFAULT_SORT_HEADER = "hosts_count";
+const DEFAULT_PAGE = 0;
+const DEFAULT_PAGE_SIZE = 8;
+
+export const parseOSUpdatesCurrentVersionsQueryParams = (queryParams: {
+  page?: string;
+  order_key?: string;
+  order_direction?: "asc" | "desc";
+}) => {
+  const sortHeader = queryParams?.order_key ?? DEFAULT_SORT_HEADER;
+  const sortDirection = queryParams?.order_direction ?? DEFAULT_SORT_DIRECTION;
+  const page = queryParams?.page
+    ? parseInt(queryParams.page, 10)
+    : DEFAULT_PAGE;
+  const pageSize = DEFAULT_PAGE_SIZE;
+
+  return {
+    page,
+    order_key: sortHeader,
+    order_direction: sortDirection,
+    per_page: pageSize,
+  };
+};
 
 const CurrentVersionSection = ({
   currentTeamId,
+  queryParams,
 }: ICurrentVersionSectionProps) => {
+  const currentVersionQueryParams = parseOSUpdatesCurrentVersionsQueryParams(
+    queryParams
+  );
+
   const { data, isError, isLoading: isLoadingOsVersions } = useQuery<
     IOSVersionsResponse,
     AxiosError
   >(
     ["os_versions", currentTeamId],
-    () => getOSVersions({ teamId: currentTeamId }),
+    () =>
+      getOSVersions({ teamId: currentTeamId, ...currentVersionQueryParams }),
     {
       retry: false,
       refetchOnWindowFocus: false,
@@ -94,6 +126,7 @@ const CurrentVersionSection = ({
         osVersionData={filteredOSVersionData}
         currentTeamId={currentTeamId}
         isLoading={isLoadingOsVersions}
+        currentVersionQueryParams={currentVersionQueryParams}
       />
     );
   };
