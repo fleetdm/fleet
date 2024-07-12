@@ -38,7 +38,7 @@ interface ICurrentVersionSectionProps {
 const DEFAULT_SORT_DIRECTION = "desc";
 const DEFAULT_SORT_HEADER = "hosts_count";
 const DEFAULT_PAGE = 0;
-const DEFAULT_PAGE_SIZE = 1;
+const DEFAULT_PAGE_SIZE = 8;
 
 export const parseOSUpdatesCurrentVersionsQueryParams = (queryParams: {
   page?: string;
