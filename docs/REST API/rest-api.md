@@ -1340,7 +1340,7 @@ Modifies the Fleet's configuration with the supplied information.
 | live_query_disabled               | boolean | Whether the live query capabilities are disabled.                                                                                                                   |
 | query_reports_disabled            | boolean | Whether query report capabilities are disabled.                                                                                                                   |
 | ai_features_disabled              | boolean | Whether AI features are disabled. |
-| query_report_cap                  | integer | The maximum number of results to store per query report before the report is clipped. (Default: `1000`) |
+| query_report_cap                  | integer | The maximum number of results to store per query report before the report is clipped. If increasing this cap, we recommend enabling reports for one query at time and monitoring your infrastructure. (Default: `1000`) |
 
 <br/>
 
