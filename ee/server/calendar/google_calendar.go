@@ -269,6 +269,13 @@ func (c *GoogleCalendar) GetAndUpdateEvent(event *fleet.CalendarEvent, genBodyFn
 	if err != nil {
 		return nil, false, err
 	}
+	// Replace nil or Golang time.Location default of UTC with Google calendar timezone
+	if c.location == nil || c.location.String() == "UTC" {
+		c.location, err = getTimezone(c)
+		if err != nil {
+			return nil, false, err
+		}
+	}
 	gEvent, err := c.config.API.GetEvent(details.ID, details.ETag)
 	var deleted bool
 	switch {
