@@ -15,6 +15,7 @@ If some of the following don't apply, delete the relevant line.
   - [ ] Confirmed that updating the timestamps is acceptable, and will not cause unwanted side effects.
   - [ ] Ensured the correct collation is explicitly set for character columns (`COLLATE utf8mb4_unicode_ci`).
 - [ ] Manual QA for all new/changed functionality
-  - For Orbit and Fleet Desktop changes:
-    - [ ] Manual QA must be performed in the three main OSs, macOS, Windows and Linux.
-    - [ ] Auto-update manual QA, from released version of component to new version (see [tools/tuf/test](../tools/tuf/test/README.md)).
+- For Orbit and Fleet Desktop changes:
+   - [ ] Orbit runs on macOS, Linux and Windows. Check if the orbit feature/bugfix should only apply to one platform (`runtime.GOOS`).
+   - [ ] Manual QA must be performed in the three main OSs, macOS, Windows and Linux.
+   - [ ] Auto-update manual QA, from released version of component to new version (see [tools/tuf/test](../tools/tuf/test/README.md)).
