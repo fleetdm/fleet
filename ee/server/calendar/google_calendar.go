@@ -264,7 +264,6 @@ func (c *GoogleCalendar) Configure(userEmail string) error {
 func (c *GoogleCalendar) GetAndUpdateEvent(event *fleet.CalendarEvent, genBodyFn func(conflict bool) (body string, ok bool, err error)) (
 	*fleet.CalendarEvent, bool, error,
 ) {
-	fmt.Printf("\n\nfleet gCal timezone as soon as GetAndUpdateEvent is called: %v\n\n", c.location.String())
 	// We assume that the Fleet event has not already ended. We will simply return it if it has not been modified.
 	details, err := c.unmarshalDetails(event)
 	if err != nil {
@@ -278,20 +277,18 @@ func (c *GoogleCalendar) GetAndUpdateEvent(event *fleet.CalendarEvent, genBodyFn
 		}
 	}
 	tzUpdated := c.location.String() != event.TimeZone
-	fmt.Printf("\n\nc.location.String(): %v\n\n", c.location.String())
-	fmt.Printf("\n\nevent.TimeZone: %v\n\n", event.TimeZone)
-	fmt.Printf("\n\ntzUpdated: %v\n\n", tzUpdated)
 	gEvent, err := c.config.API.GetEvent(details.ID, details.ETag)
 	var deleted bool
 	switch {
 	// http.StatusNotModified is returned sometimes, but not always, so we need to check ETag explicitly later
-	case (googleapi.IsNotModified(err) && !tzUpdated):
+	case googleapi.IsNotModified(err):
+		if tzUpdated {
+			// this condition occurs when the event itself hasn't been updated, but the calendar timezone
+			// has been, so just update the event's timezone
+			event.TimeZone = c.location.String()
+			return event, true, nil
+		}
 		return event, false, nil
-	case strings.Contains(err.Error(), "googleapi: got HTTP response code 304") && tzUpdated:
-		// this condition occurs when the event itself hasn't been updated, but the calendar timezone
-		// has been, so just update the event's timezone
-		event.TimeZone = c.location.String()
-		return event, true, nil
 	// http.StatusNotFound should be very rare -- Google keeps events for a while after they are deleted
 	case isNotFound(err):
 		deleted = true
@@ -305,8 +302,14 @@ func (c *GoogleCalendar) GetAndUpdateEvent(event *fleet.CalendarEvent, genBodyFn
 			return nil, false, ctxerr.Wrap(c.config.Context, err, "retrieving Google calendar event")
 	}
 	if !deleted && gEvent.Status != "cancelled" {
-		if details.ETag != "" && details.ETag == gEvent.Etag && !tzUpdated {
+		if details.ETag != "" && details.ETag == gEvent.Etag {
 			// Event was not modified
+			if tzUpdated {
+				// this condition occurs when the event itself hasn't been updated, but the calendar timezone
+				// has been, so just update the event's timezone
+				event.TimeZone = c.location.String()
+				return event, true, nil
+			}
 			return event, false, nil
 		}
 		if gEvent.End == nil || (gEvent.End.DateTime == "" && gEvent.End.Date == "") {
@@ -360,10 +363,7 @@ func (c *GoogleCalendar) GetAndUpdateEvent(event *fleet.CalendarEvent, genBodyFn
 			if err != nil {
 				return nil, false, err
 			}
-			fmt.Printf("\n\nfleet gCal timezone right before converting updated google event: %v\n\n", c.location.String())
 			fleetEvent, err := c.googleEventToFleetEvent(*startTime, *endTime, gEvent, event.UUID, details.ChannelID, details.ResourceID)
-			fmt.Printf("\n\nfleetEvent from gCal event: %v\n\n", fleetEvent)
-			fmt.Printf("\n\nfleetEvent from gCal event timezone: %v\n\n", fleetEvent.TimeZone)
 			if err != nil {
 				return nil, false, err
 			}
@@ -576,7 +576,6 @@ func (c *GoogleCalendar) createEvent(
 	}
 
 	// Convert Google event to Fleet event
-	fmt.Printf("\n\nfleet gCal timezone right before converting NEW google event: %v\n\n", c.location.String())
 	fleetEvent, err := c.googleEventToFleetEvent(eventStart, eventEnd, event, eventUUID, channelUUID, resourceID)
 	if err != nil {
 		return nil, err
@@ -607,11 +606,9 @@ func adjustEventTimes(endTime time.Time, dayEnd time.Time) (eventStart time.Time
 }
 
 func getTimezone(gCal *GoogleCalendar) (location *time.Location, err error) {
-	fmt.Println("\ngetTimezone called\n")
 	config := gCal.config
 	// "The ID of the user’s timezone." https://developers.google.com/calendar/api/v3/reference/settings
 	gCalTz, err := config.API.GetSetting("timezone")
-	fmt.Printf("\n\ngCalTz.Value: %v\n\n", gCalTz.Value)
 	if err != nil {
 		return nil, ctxerr.Wrap(config.Context, err, "retrieving Google calendar timezone")
 	}
@@ -621,7 +618,6 @@ func getTimezone(gCal *GoogleCalendar) (location *time.Location, err error) {
 
 func getLocation(tz string, config *GoogleCalendarConfig) *time.Location {
 	loc, err := time.LoadLocation(tz)
-	fmt.Printf("\n\nresult of time.LoadLocation(gCalTz.Value): %v\n\n", loc)
 	if err != nil {
 		// Could not load location, use EST
 		level.Warn(config.Logger).Log("msg", "parsing Google calendar timezone", "timezone", tz, "err", err)
@@ -635,7 +631,6 @@ func (c *GoogleCalendar) googleEventToFleetEvent(startTime time.Time, endTime ti
 	resourceID string) (
 	*fleet.CalendarEvent, error,
 ) {
-	fmt.Printf("\n\nFleet GoogleCalendar timezone (c.location.String()): %v \n\n", c.location.String())
 
 	fleetEvent := &fleet.CalendarEvent{}
 	fleetEvent.StartTime = startTime
