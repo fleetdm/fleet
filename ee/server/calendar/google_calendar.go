@@ -299,7 +299,7 @@ func (c *GoogleCalendar) GetAndUpdateEvent(event *fleet.CalendarEvent, genBodyFn
 		}
 
 	case err != nil:
-			return nil, false, ctxerr.Wrap(c.config.Context, err, "retrieving Google calendar event")
+		return nil, false, ctxerr.Wrap(c.config.Context, err, "retrieving Google calendar event")
 	}
 	if !deleted && gEvent.Status != "cancelled" {
 		if details.ETag != "" && details.ETag == gEvent.Etag {
