@@ -450,13 +450,16 @@ Follow these steps to process and backup the E-group agenda:
 2. **In the backup copy**, leave Google Doc comments assigning all TODOs to the correct DRI.  
 3. If the "All hands" meeting has happened today remove any spotlights covered in the current "All hands" presentation.
 
-### Check LinkedIn for unread messages 
-Once a day the Apprentice will confirm check LinkedIn for unread messages. 
-- Log into the CEO's [LinkedIn](https://www.linkedin.com/search/results/all/?sid=s2%3A).
-  - Bring up the messaging window and filter out all read messages. 
-    - Click the "filter" icon in the messaging search bar.
-    - Click "Unread".
-    Bring all unreads to the CEO.
+### Check LinkedIn for new activity 
+Once a day the Apprentice will check LinkedIn for unread messages and pending connect request. 
+
+  1. Log into the CEO's [LinkedIn](https://www.linkedin.com/search/results/all/?sid=s2%3A) and bring up the messaging window.
+  2. Filter out all read messages by clicking "filter" and then "Unread".
+  3. Bring all unreads to the CEO during the daily roundup.
+     
+To check for pending connect requests, perform the following steps:
+  1. Log into the CEO's LinkedIn (if you're not already) and click "My Network".
+  2. Bring all pending connect requests to the CEO during the daily roundup.  
 
 
 ### Unroll a Slack thread
@@ -466,7 +469,6 @@ From time to time the CEO will ask the Apprentice to unroll a Slack thread into 
   3. Use CMD+SHFT+V to paste the Slack convo into the doc.
   4. Reapply formatting manually (be mindful of quotes, links, and images).
       - To copy images right-click+copy and then paste in the doc (some resizing may be necessary to fit the page).
-
 
 
 ### Delete an accidental meeting recording
