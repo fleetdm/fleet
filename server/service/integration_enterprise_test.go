@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/ee/server/calendar"
+	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/server/config"
@@ -10996,6 +10997,12 @@ func (s *integrationEnterpriseTestSuite) TestCalendarCallback() {
 		require.NoError(t, err)
 	})
 
+	origRecentUpdateDuration := eeservice.RecentUpdateDuration
+	eeservice.RecentUpdateDuration = 0
+	t.Cleanup(func() {
+		eeservice.RecentUpdateDuration = origRecentUpdateDuration
+	})
+
 	team1, err := s.ds.NewTeam(ctx, &fleet.Team{
 		Name: "team1",
 	})
@@ -11392,7 +11399,17 @@ func (s *integrationEnterpriseTestSuite) TestCalendarCallback() {
 		},
 	), http.StatusOK, &distributedResp)
 
-	// Callback should still work, but only clear the callback channel. Event in DB will be deleted on the next cron run.
+	// Callback shouldn't do anything since event was updated recently
+	eeservice.RecentUpdateDuration = -10 * time.Minute
+	_ = s.DoRawWithHeaders("POST", "/api/v1/fleet/calendar/webhook/"+eventRecreated.UUID, []byte(""), http.StatusOK,
+		map[string]string{
+			"X-Goog-Channel-Id":     details.ChannelID,
+			"X-Goog-Resource-State": "exists",
+		})
+	assert.Equal(t, 1, calendar.MockChannelsCount())
+
+	// Callback should work, but only clear the callback channel. Event in DB will be deleted on the next cron run.
+	eeservice.RecentUpdateDuration = 0
 	_ = s.DoRawWithHeaders("POST", "/api/v1/fleet/calendar/webhook/"+eventRecreated.UUID, []byte(""), http.StatusOK,
 		map[string]string{
 			"X-Goog-Channel-Id":     details.ChannelID,
