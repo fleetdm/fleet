@@ -1916,16 +1916,16 @@ func (ds *Datastore) ListSoftwareForVulnDetection(
 	var args []interface{}
 
 	baseSQL := `
-		SELECT 
+		SELECT
 			s.id,
 			s.name,
 			s.version,
 			s.release,
 			s.arch,
 			COALESCE(cpe.cpe, '') AS generated_cpe
-		FROM 
+		FROM
 			software s
-		LEFT JOIN 
+		LEFT JOIN
 			software_cpe cpe ON s.id = cpe.software_id
 	`
 
@@ -2051,8 +2051,7 @@ AND EXISTS (SELECT 1 FROM software s JOIN software_cve scve ON scve.software_id 
 			si.version as package_version,
 			hsi.created_at as last_install_installed_at,
 			hsi.execution_id as last_install_install_uuid,
-			%s,
-			si.id AS installer_id -- NULL if no Fleet installer
+			%s
 		FROM
 			software_titles st
 		LEFT OUTER JOIN
@@ -2094,8 +2093,7 @@ AND EXISTS (SELECT 1 FROM software s JOIN software_cve scve ON scve.software_id 
 			si.version as package_version,
 			NULL as last_install_installed_at,
 			NULL as last_install_install_uuid,
-			NULL as status,
-			si.id as installer_id
+			NULL as status
 		FROM
 			software_titles st
 		INNER JOIN
