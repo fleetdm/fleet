@@ -36,7 +36,19 @@
         <div purpose="desktop-comparison-table" class="d-none d-sm-block">
           <div purpose="comparison-table-header" class="d-sm-flex d-none flex-row justify-content-end">
             <div purpose="fleet-column"><strong>Fleet</strong></div>
-            <div purpose="comparison-column">
+            <div purpose="comparison-column" class="d-flex">
+              <div purpose="comparison-selector" class="d-flex flex-row justify-content-between align-items-center"
+                id="dropdownMenuSelectPurpose" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                {{comparisonMode === 'omnissa' ? 'Omnissa (WS1)' : 'Jamf Pro'}}<img class="d-flex" style="width: 16px; height: 16px;" src="/images/chevron-down-16x16@2x.png" alt="a small shevron pointing downwards">
+              </div>
+              <div purpose="comparison-selector-dropwdown" class="dropdown-menu" aria-labelledby="dropdownMenuSelectPurpose">
+                <div class="dropdown-item"
+                  @click="comparisonMode = 'omnissa'">Omnissa (WS1)</div>
+                  <div class="dropdown-item"
+                  @click="comparisonMode = 'jamf'">Jamf Pro</div>
+              </div>
+            </div>
+<!--             <div >
               <select v-model="comparisonMode">
                 <option value="omnissa">
                   <strong>Omnissa (WS1)</strong>
@@ -45,7 +57,7 @@
                   <strong>Jamf Pro</strong>
                 </option>
               </select>
-            </div>
+            </div> -->
           </div>
           <div purpose="comparison-table" class="d-sm-flex d-none flex-column">
             <div purpose="table-row">
@@ -166,14 +178,14 @@
                 <img src="/images/os-windows-black-50-16x16@2x.png" alt="Windows logo">
               </div>
             </div>
-            <div purpose="feature-table-row" v-if="comparisonMode === 'omnissa'">
+            <div purpose="feature-table-row">
               <div>Omnissa (WS1)</div>
               <div purpose="feature-status">
                 <img src="/images/os-macos-black-50-16x16@2x.png" alt="macOS logo" >
                 <img src="/images/os-windows-black-50-16x16@2x.png" alt="Windows logo">
               </div>
             </div>
-            <div purpose="feature-table-row" v-if="comparisonMode === 'jamf'">
+            <div purpose="feature-table-row">
               <div>Jamf Pro</div>
               <div purpose="feature-status">
                 <img src="/images/os-macos-black-50-16x16@2x.png" alt="macOS logo" >
@@ -188,13 +200,13 @@
                 <img style="height: 14px; width: 14px;" alt="coming soon" src="/images/icon-coming-soon-14x14@2x.png">
               </div>
             </div>
-            <div purpose="feature-table-row" v-if="comparisonMode === 'omnissa'">
+            <div purpose="feature-table-row">
               <div>Omnissa (WS1)</div>
               <div purpose="feature-status">
                 <img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
               </div>
             </div>
-            <div purpose="feature-table-row" v-if="comparisonMode === 'jamf'">
+            <div purpose="feature-table-row">
               <div>Jamf Pro</div>
               <div purpose="feature-status">
                 <img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
@@ -209,13 +221,13 @@
                 <img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
               </div>
             </div>
-            <div purpose="feature-table-row" v-if="comparisonMode === 'omnissa'">
+            <div purpose="feature-table-row">
               <div>Omnissa (WS1)</div>
               <div purpose="feature-status">
 
               </div>
             </div>
-            <div purpose="feature-table-row" v-if="comparisonMode === 'jamf'">
+            <div purpose="feature-table-row">
               <div>Jamf Pro</div>
               <div purpose="feature-status">
 
@@ -230,13 +242,13 @@
                 <img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
               </div>
             </div>
-            <div purpose="feature-table-row" v-if="comparisonMode === 'omnissa'">
+            <div purpose="feature-table-row">
               <div>Omnissa (WS1)</div>
               <div purpose="feature-status">
                 <img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
               </div>
             </div>
-            <div purpose="feature-table-row" v-if="comparisonMode === 'jamf'">
+            <div purpose="feature-table-row">
               <div>Jamf Pro</div>
               <div purpose="feature-status">
                 <img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
@@ -251,13 +263,13 @@
                 <img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
               </div>
             </div>
-            <div purpose="feature-table-row" v-if="comparisonMode === 'omnissa'">
+            <div purpose="feature-table-row">
               <div>Omnissa (WS1)</div>
               <div purpose="feature-status">
                 <img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
               </div>
             </div>
-            <div purpose="feature-table-row" v-if="comparisonMode === 'jamf'">
+            <div purpose="feature-table-row">
               <div>Jamf Pro</div>
               <div purpose="feature-status">
                 <img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
@@ -274,13 +286,13 @@
                 <img src="/images/os-linux-black-50-16x16@2x.png" alt="Linux logo">
               </div>
             </div>
-            <div purpose="feature-table-row" v-if="comparisonMode === 'omnissa'">
+            <div purpose="feature-table-row">
               <div>Omnissa (WS1)</div>
               <div purpose="feature-status">
                 <img src="/images/os-macos-black-50-16x16@2x.png" alt="macOS logo">
               </div>
             </div>
-            <div purpose="feature-table-row" v-if="comparisonMode === 'jamf'">
+            <div purpose="feature-table-row">
               <div>Jamf Pro</div>
               <div purpose="feature-status">
                 <img src="/images/os-macos-black-50-16x16@2x.png" alt="macOS logo">
@@ -297,13 +309,13 @@
                 <img style="height: 14px; width: 14px;" alt="coming soon" src="/images/icon-coming-soon-14x14@2x.png">
               </div>
             </div>
-            <div purpose="feature-table-row" v-if="comparisonMode === 'omnissa'">
+            <div purpose="feature-table-row">
               <div>Omnissa (WS1)</div>
               <div purpose="feature-status">
                 <img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
               </div>
             </div>
-            <div purpose="feature-table-row" v-if="comparisonMode === 'jamf'">
+            <div purpose="feature-table-row">
               <div>Jamf Pro</div>
               <div purpose="feature-status">
                 <img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
@@ -319,13 +331,13 @@
                 <img style="height: 14px; width: 14px;" alt="coming soon" src="/images/icon-coming-soon-14x14@2x.png">
               </div>
             </div>
-            <div purpose="feature-table-row" v-if="comparisonMode === 'omnissa'">
+            <div purpose="feature-table-row">
               <div>Omnissa (WS1)</div>
               <div purpose="feature-status">
                 <img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
               </div>
             </div>
-            <div purpose="feature-table-row" v-if="comparisonMode === 'jamf'">
+            <div purpose="feature-table-row">
               <div>Jamf Pro</div>
               <div purpose="feature-status">
                 <img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
@@ -341,13 +353,13 @@
                 <img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
               </div>
             </div>
-            <div purpose="feature-table-row" v-if="comparisonMode === 'omnissa'">
+            <div purpose="feature-table-row">
               <div>Omnissa (WS1)</div>
               <div purpose="feature-status">
                 <img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
               </div>
             </div>
-            <div purpose="feature-table-row" v-if="comparisonMode === 'jamf'">
+            <div purpose="feature-table-row">
               <div>Jamf Pro</div>
               <div purpose="feature-status">
                 <img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
@@ -362,13 +374,13 @@
                 <img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
               </div>
             </div>
-            <div purpose="feature-table-row" v-if="comparisonMode === 'omnissa'">
+            <div purpose="feature-table-row">
               <div>Omnissa (WS1)</div>
               <div purpose="feature-status">
 
               </div>
             </div>
-            <div purpose="feature-table-row" v-if="comparisonMode === 'jamf'">
+            <div purpose="feature-table-row">
               <div>Jamf Pro</div>
               <div purpose="feature-status">
 
@@ -384,13 +396,13 @@
                 <img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
               </div>
             </div>
-            <div purpose="feature-table-row" v-if="comparisonMode === 'omnissa'">
+            <div purpose="feature-table-row">
               <div>Omnissa (WS1)</div>
               <div purpose="feature-status">
 
               </div>
             </div>
-            <div purpose="feature-table-row" v-if="comparisonMode === 'jamf'">
+            <div purpose="feature-table-row">
               <div>Jamf Pro</div>
               <div purpose="feature-status">
 
