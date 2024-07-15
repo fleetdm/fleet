@@ -1684,7 +1684,7 @@ func (a ActivityInstalledAppStoreApp) Documentation() (string, string, string) {
   "host_id": 42,
   "host_display_name": "Anna's MacBook Pro",
   "software_title": "Logic Pro",
-  "app_store_id": 1234567,
+  "app_store_id": "1234567",
   "command_uuid": "98765432-1234-1234-1234-1234567890ab"
 }`
 }

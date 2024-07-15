@@ -10706,6 +10706,8 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	t.Setenv("FLEET_DEV_VPP_URL", s.appleVPPConfigSrv.URL)
 	s.uploadDataViaForm("/api/latest/fleet/mdm/apple/vpp_token", "token", "token.vpptoken", []byte(base64.StdEncoding.EncodeToString([]byte(tokenJSON))), http.StatusAccepted, "")
 
+	s.lastActivityMatches(fleet.ActivityEnabledVPP{}.ActivityName(), "", 0)
+
 	// Get the token
 	var resp getMDMAppleVPPTokenResponse
 	s.DoJSON("GET", "/api/latest/fleet/vpp", &getMDMAppleVPPTokenRequest{}, http.StatusOK, &resp)
@@ -10759,6 +10761,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	// Add an app store app to team 1
 	var addAppResp addAppStoreAppResponse
 	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{TeamID: &team.ID, AppStoreID: appResp.AppStoreApps[0].AdamID}, http.StatusOK, &addAppResp)
+	s.lastActivityMatches(fleet.ActivityAddedAppStoreApp{}.ActivityName(), fmt.Sprintf(`{"team_name": "%s", "software_title": "%s", "app_store_id": "%s"}`, team.Name, appResp.AppStoreApps[0].Name, appResp.AppStoreApps[0].AdamID), 0)
 
 	// Add an app store app to non-existent team
 	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{TeamID: ptr.Uint(9999), AppStoreID: appResp.AppStoreApps[0].AdamID}, http.StatusNotFound, &addAppResp)
@@ -10781,6 +10784,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	// Delete VPP token and check that it's not appearing anymore
 	s.Do("DELETE", "/api/latest/fleet/mdm/apple/vpp_token", &deleteMDMAppleVPPTokenRequest{}, http.StatusNoContent)
 	s.DoJSON("GET", "/api/latest/fleet/vpp", &getMDMAppleVPPTokenRequest{}, http.StatusNotFound, &resp)
+	s.lastActivityMatches(fleet.ActivityDisabledVPP{}.ActivityName(), "", 0)
 }
 
 // 1. software title uploaded doesn't match existing title
