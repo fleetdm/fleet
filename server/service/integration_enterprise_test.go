@@ -9838,6 +9838,42 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
 	require.Len(t, titlesResp.SoftwareTitles, 0)
 }
 
+func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
+	t := s.T()
+	batchURL := "/api/latest/fleet/software/vpp/app_store/batch"
+
+	// a team name is required (we don't allow installers for "no team")
+	s.Do("POST", batchURL, batchAssociateAppStoreAppsRequest{}, http.StatusBadRequest)
+
+	// non-existent team
+	s.Do("POST", batchURL, batchAssociateAppStoreAppsRequest{}, http.StatusNotFound, "team_name", "foo")
+
+	// // create a team
+	tm, err := s.ds.NewTeam(context.Background(), &fleet.Team{
+		Name:        t.Name(),
+		Description: "desc",
+	})
+	require.NoError(t, err)
+
+	// apps
+	appsToInstall := []fleet.VPPBatchPayload{
+		{AppStoreID: "123"},
+		{AppStoreID: "456"},
+		{AppStoreID: "789"},
+	}
+	// No vpp token set
+	s.Do("POST", batchURL, batchAssociateAppStoreAppsRequest{Apps: appsToInstall}, http.StatusUnprocessableEntity, "team_name", tm.Name)
+
+	// Valid token
+	orgName := "Fleet Device Management Inc."
+	location := "Fleet Location One"
+	token := "mycooltoken"
+	expDate := "2025-06-24T15:50:50+0000"
+	tokenJSON := fmt.Sprintf(`{"expDate":"%s","token":"%s","orgName":"%s"}`, expDate, token, orgName)
+	t.Setenv("FLEET_DEV_VPP_URL", s.appleVPPConfigSrv.URL)
+	s.uploadDataViaForm("/api/latest/fleet/mdm/apple/vpp_token", "token", "token.vpptoken", []byte(base64.StdEncoding.EncodeToString([]byte(tokenJSON))), http.StatusAccepted, "")
+}
+
 func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerNewInstallRequestPlatformValidation() {
 	t := s.T()
 

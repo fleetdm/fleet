@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -23,6 +24,20 @@ func (svc *Service) getVPPToken(ctx context.Context) (string, error) {
 	var vppTokenData fleet.VPPTokenData
 	if err := json.Unmarshal(configMap[fleet.MDMAssetVPPToken].Value, &vppTokenData); err != nil {
 		return "", ctxerr.Wrap(ctx, err, "unmarshaling VPP token data")
+	}
+
+	var vppTokenRaw fleet.VPPTokenRaw
+	if err := json.Unmarshal([]byte(vppTokenData.Token), &vppTokenRaw); err != nil {
+		return "", ctxerr.Wrap(ctx, err, "unmarshaling raw vpp token")
+	}
+
+	exp, err := time.Parse(time.RFC3339, vppTokenRaw.ExpDate)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "parsing vpp token expiration date")
+	}
+
+	if time.Now().After(exp) {
+		return "", ctxerr.Errorf(ctx, "vpp token expired on %s", exp.String())
 	}
 
 	return base64.StdEncoding.EncodeToString([]byte(vppTokenData.Token)), nil
@@ -48,7 +63,7 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 	}
 
 	if team == nil {
-		return ctxerr.Errorf(ctx, "team required for VPP app assocoation")
+		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("team_name", "team does not exist"))
 	}
 
 	if err := svc.authz.Authorize(ctx, &fleet.SoftwareInstaller{TeamID: &team.ID}, fleet.ActionWrite); err != nil {
@@ -57,12 +72,7 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 
 	token, err := svc.getVPPToken(ctx)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "retrieving stored vpp token")
-	}
-
-	_, err = vpp.GetConfig(token)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "validating vpp token")
+		return fleet.NewUserMessageError(ctxerr.Wrap(ctx, err, "could not retrieve vpp token"), http.StatusUnprocessableEntity)
 	}
 
 	var adamIDs []string

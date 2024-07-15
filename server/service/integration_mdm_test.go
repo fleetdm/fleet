@@ -44,6 +44,7 @@ import (
 	servermdm "github.com/fleetdm/fleet/v4/server/mdm"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
+	"github.com/fleetdm/fleet/v4/server/mdm/apple/vpp"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
 	nanodep_client "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
@@ -97,6 +98,12 @@ type integrationMDMTestSuite struct {
 	appleVPPConfigSrv          *httptest.Server
 	appleITunesSrv             *httptest.Server
 	mockedDownloadFleetdmMeta  fleetdbase.Metadata
+}
+
+type AppleVPPConfigSrvConf struct {
+	Apps             vpp.Asset
+	SerialNumbers    []string
+	AssociateSuccess bool
 }
 
 func (s *integrationMDMTestSuite) SetupSuite() {
@@ -314,6 +321,10 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	}))
 
 	s.appleVPPConfigSrv = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.Contains(r.URL.Path, "associate") {
+
+		}
+
 		if strings.Contains(r.URL.Path, "assets") {
 			// Then we're responding to GetAssets
 			w.Header().Set("Content-Type", "application/json")
