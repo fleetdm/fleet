@@ -450,13 +450,16 @@ Follow these steps to process and backup the E-group agenda:
 2. **In the backup copy**, leave Google Doc comments assigning all TODOs to the correct DRI.  
 3. If the "All hands" meeting has happened today remove any spotlights covered in the current "All hands" presentation.
 
-### Check LinkedIn for unread messages 
-Once a day the Apprentice will confirm check LinkedIn for unread messages. 
-- Log into the CEO's [LinkedIn](https://www.linkedin.com/search/results/all/?sid=s2%3A).
-  - Bring up the messaging window and filter out all read messages. 
-    - Click the "filter" icon in the messaging search bar.
-    - Click "Unread".
-    Bring all unreads to the CEO.
+### Check LinkedIn for new activity 
+Once a day the Apprentice will check LinkedIn for unread messages and pending connect request. 
+
+  1. Log into the CEO's [LinkedIn](https://www.linkedin.com/search/results/all/?sid=s2%3A) and bring up the messaging window.
+  2. Filter out all read messages by clicking "filter" and then "Unread".
+  3. Bring all unreads to the CEO during the daily roundup.
+     
+To check for pending connect requests, perform the following steps:
+  1. Log into the CEO's LinkedIn (if you're not already) and click "My Network".
+  2. Bring all pending connect requests to the CEO during the daily roundup.  
 
 
 ### Unroll a Slack thread
@@ -468,13 +471,12 @@ From time to time the CEO will ask the Apprentice to unroll a Slack thread into 
       - To copy images right-click+copy and then paste in the doc (some resizing may be necessary to fit the page).
 
 
-
 ### Delete an accidental meeting recording
 It's not enough to just "delete" a recording of a meeting in Gong.  Instead, use these steps:
 
 - Wait for at least 30 minutes after the meeting has ended to ensure the recording and transcript exist and can be deleted.
 - [Sign in to Gong](https://us-65885.app.gong.io/deals?company-id=2676443513846037003&workspace-id=9148397688380544352&board-id=8761946992754097113&view-mode=DEALS&tab-idx=0&account-activity=true&owner-ids=&owner-team-ids=5778354842532790437&timespan-id=34&sort-by=DealActivity&sort-field=%7B%22type%22%3A%22RegularField%22%2C%22name%22%3A%22DealActivity%22%7D&sort-order=DESC&owner-id=5778354842532790437&include-team=true) through the CEO's browser.
-- Click `Conversations`
+- Scroll down to `Conversations`
 - Select the call recording no longer needed
 - Click the "hotdog" menu in the right-hand corner
 <img width="264" alt="image" src="https://github.com/fleetdm/fleet/assets/108141731/86948d02-a972-42ef-9a2d-1d93f24a1780">

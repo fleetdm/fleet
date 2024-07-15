@@ -1336,6 +1336,16 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 		},
 		{
 			software: fleet.Software{
+				Name:             "intellij-idea-ce",
+				Source:           "homebrew_packages",
+				Version:          "2023.3.2,233.13135.103",
+				Vendor:           "",
+				BundleIdentifier: "",
+			},
+			cpe: "cpe:2.3:a:jetbrains:intellij_idea:2023.3.2.233.13135.103:*:*:*:*:*:*:*",
+		},
+		{
+			software: fleet.Software{
 				Name:             "User PyCharm Custom Name.app", // 2023/10/31: The actual product name must be part of the app name per our code in CPEFromSoftware
 				Source:           "apps",
 				Version:          "2019.2",

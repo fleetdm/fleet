@@ -152,9 +152,6 @@ type HostScriptRequestPayload struct {
 
 func (r HostScriptRequestPayload) ValidateParams(waitForResult time.Duration) error {
 	if r.ScriptContents == "" && r.ScriptID == nil && r.ScriptName == "" {
-		if waitForResult <= 0 {
-			return NewInvalidArgumentError("script", `Script contents must not be empty.`)
-		}
 		return NewInvalidArgumentError("script", `One of 'script_id', 'script_contents', or 'script_name' is required.`)
 	}
 
@@ -174,16 +171,6 @@ func (r HostScriptRequestPayload) ValidateParams(waitForResult time.Duration) er
 			return NewInvalidArgumentError("script_contents", `Only one of 'script_contents' or 'script_name' is allowed.`)
 		case r.TeamID > 0:
 			return NewInvalidArgumentError("script_contents", `"Only one of 'script_contents' or 'team_id' is allowed.`)
-		}
-	}
-	//
-	// TODO: script_name and team_id are only allowed for synchronous requests; they probably should be allowed for asynchronous requests too, but we need to get a product decision on this
-	if waitForResult <= 0 {
-		switch {
-		case r.ScriptName != "":
-			return NewInvalidArgumentError("script_name", `Only synchronous script execution requests can use the 'script_name' parameter.`)
-		case r.TeamID > 0:
-			return NewInvalidArgumentError("team_id", `Only synchronous script execution requests can use the 'team_id' parameter.`)
 		}
 	}
 
@@ -282,7 +269,7 @@ func (hsr HostScriptResult) UserMessage(hostTimeout bool, hostTimeoutValue *int)
 		}
 
 		if !hsr.SyncRequest {
-			return RunScriptAsyncScriptEnqueuedErrMsg
+			return RunScriptAsyncScriptEnqueuedMsg
 		}
 
 		return RunScriptAlreadyRunningErrMsg
@@ -300,7 +287,7 @@ func (hsr HostScriptResult) UserMessage(hostTimeout bool, hostTimeoutValue *int)
 
 func HostScriptTimeoutMessage(seconds *int) string {
 	var timeout int
-	if seconds == nil {
+	if seconds == nil || *seconds == 0 {
 		timeout = int(scripts.MaxHostExecutionTime.Seconds())
 	} else {
 		timeout = *seconds
