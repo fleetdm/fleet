@@ -10,6 +10,13 @@
 #
 # TODO figure out what to do with this other quote that both Austin and Dre :+1:'d: "Fleet lets us be more actionable with fewer people. It helps us to filter out the noise better than we could with the other big name products we replaced."
 -
+  quote: I had to answer some really complex questions for a compliance audit, and I was able to do it in about 15 minutes by munging some data together via a few queries into a csv. It took me longer to remember how to use `xsv` than to actually put together the report. If you aren't using osquery in your environment, you should be.
+  quoteAuthorName: Charles Zaffery
+  quoteAuthorProfileImageFilename: testimonial-author-charles-zaffery-48x48@2x.png
+  quoteLinkUrl: https://www.linkedin.com/in/charleszaffery/
+  quoteAuthorJobTitle: Principle Computer Janitor
+  productCategories: [Endpoint operations, Vulnerability management]
+-
   quote: The visibility down into the assets covered by the agent is phenomenal. Fleet has become the central source for a lot of things.
   quoteAuthorName: Andre Shields
   quoteAuthorProfileImageFilename: testimonial-author-andre-shields-48x48@2x.png
