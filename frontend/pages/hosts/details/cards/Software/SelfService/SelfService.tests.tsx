@@ -82,4 +82,191 @@ describe("SelfService", () => {
       expectedUrl
     );
   });
+
+  it("renders 'Reinstall' action button with 'Installed' status", async () => {
+    mockServer.use(
+      customDeviceSoftwareHandler({
+        software: [
+          createMockDeviceSoftware({
+            name: "test-software",
+            status: "installed",
+            last_install: {
+              install_uuid: "test-uuid",
+              installed_at: "2021-08-18T15:11:35Z",
+            },
+          }),
+        ],
+      })
+    );
+
+    const render = createCustomRenderer({ withBackendMock: true });
+
+    const expectedUrl = "http://example.com";
+
+    render(
+      <SelfService
+        contactUrl={expectedUrl}
+        deviceToken={"123-456"}
+        isSoftwareEnabled
+        pathname={"/test"}
+        queryParams={{
+          page: 1,
+          query: "test",
+          order_key: "name",
+          order_direction: "asc",
+          per_page: 10,
+          vulnerable: true,
+        }}
+        router={createMockRouter()}
+      />
+    );
+
+    // waiting for the device software data to render
+    await screen.findByText("test-software");
+
+    expect(
+      screen.getByTestId("self-service-item__status--test")
+    ).toHaveTextContent("Installed");
+
+    expect(
+      screen.getByTestId("self-service-item__item-action-button--test")
+    ).toHaveTextContent("Reinstall");
+  });
+
+  it("renders 'Retry' action button with 'Failed' status", async () => {
+    mockServer.use(
+      customDeviceSoftwareHandler({
+        software: [
+          createMockDeviceSoftware({
+            name: "test-software",
+            status: "failed",
+          }),
+        ],
+      })
+    );
+
+    const render = createCustomRenderer({ withBackendMock: true });
+
+    const expectedUrl = "http://example.com";
+
+    render(
+      <SelfService
+        contactUrl={expectedUrl}
+        deviceToken={"123-456"}
+        isSoftwareEnabled
+        pathname={"/test"}
+        queryParams={{
+          page: 1,
+          query: "test",
+          order_key: "name",
+          order_direction: "asc",
+          per_page: 10,
+          vulnerable: true,
+        }}
+        router={createMockRouter()}
+      />
+    );
+
+    // waiting for the device software data to render
+    await screen.findByText("test-software");
+
+    expect(
+      screen.getByTestId("self-service-item__status--test")
+    ).toHaveTextContent("Failed");
+
+    expect(
+      screen.getByTestId("self-service-item__item-action-button--test")
+    ).toHaveTextContent("Retry");
+  });
+
+  it("renders 'Install' action button with no status", async () => {
+    mockServer.use(
+      customDeviceSoftwareHandler({
+        software: [
+          createMockDeviceSoftware({
+            name: "test-software",
+            status: null,
+          }),
+        ],
+      })
+    );
+
+    const render = createCustomRenderer({ withBackendMock: true });
+
+    const expectedUrl = "http://example.com";
+
+    render(
+      <SelfService
+        contactUrl={expectedUrl}
+        deviceToken={"123-456"}
+        isSoftwareEnabled
+        pathname={"/test"}
+        queryParams={{
+          page: 1,
+          query: "test",
+          order_key: "name",
+          order_direction: "asc",
+          per_page: 10,
+          vulnerable: true,
+        }}
+        router={createMockRouter()}
+      />
+    );
+
+    // waiting for the device software data to render
+    await screen.findByText("test-software");
+
+    expect(
+      screen.queryByTestId("self-service-item__status--test")
+    ).not.toBeInTheDocument();
+
+    expect(
+      screen.getByTestId("self-service-item__item-action-button--test")
+    ).toHaveTextContent("Install");
+  });
+  it("renders no action button with 'Install in progress...' status", async () => {
+    mockServer.use(
+      customDeviceSoftwareHandler({
+        software: [
+          createMockDeviceSoftware({
+            name: "test-software",
+            status: "pending",
+          }),
+        ],
+      })
+    );
+
+    const render = createCustomRenderer({ withBackendMock: true });
+
+    const expectedUrl = "http://example.com";
+
+    render(
+      <SelfService
+        contactUrl={expectedUrl}
+        deviceToken={"123-456"}
+        isSoftwareEnabled
+        pathname={"/test"}
+        queryParams={{
+          page: 1,
+          query: "test",
+          order_key: "name",
+          order_direction: "asc",
+          per_page: 10,
+          vulnerable: true,
+        }}
+        router={createMockRouter()}
+      />
+    );
+
+    // waiting for the device software data to render
+    await screen.findByText("test-software");
+
+    expect(
+      screen.getByTestId("self-service-item__status--test")
+    ).toHaveTextContent("Install in progress...");
+
+    expect(
+      screen.queryByTestId("self-service-item__item-action-button--test")
+    ).not.toBeInTheDocument();
+  });
 });
