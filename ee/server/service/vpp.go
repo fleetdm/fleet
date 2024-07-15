@@ -75,9 +75,8 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 		return fleet.NewUserMessageError(ctxerr.Wrap(ctx, err, "could not retrieve vpp token"), http.StatusUnprocessableEntity)
 	}
 
-	// Not associating anything, no issue
 	if len(payloads) == 0 {
-		return nil
+		return fleet.NewUserMessageError(ctxerr.Errorf(ctx, "request must contain at least one assset"), http.StatusBadRequest)
 	}
 
 	var adamIDs []string
