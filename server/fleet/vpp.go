@@ -9,14 +9,6 @@ type VPPApp struct {
 	// AdamID is a unique identifier assigned to each app in
 	// the App Store, this value is managed by Apple.
 	AdamID string `db:"adam_id" json:"app_store_id"`
-	// AvailableCount keeps track of how many licenses are
-	// available for the specific software, this value is
-	// managed by Apple and tracked in the DB as a helper.
-	//
-	// TODO(roberto): could we omit this and rely on API errors
-	// from Apple instead? seems safer unless we really need to
-	// display this value in the API.
-	AvailableCount uint `db:"available_count" json:"available_count"`
 	// BundleIdentifier is the unique bundle identifier of the
 	// Application.
 	BundleIdentifier string `db:"bundle_identifier" json:"bundle_identifier"`

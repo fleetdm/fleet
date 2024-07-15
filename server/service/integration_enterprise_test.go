@@ -10742,7 +10742,6 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	require.Len(t, appResp.AppStoreApps, 2)
 	require.Equal(t, "App 1", appResp.AppStoreApps[0].Name)
 	require.Equal(t, "a-1", appResp.AppStoreApps[0].BundleIdentifier)
-	require.Equal(t, uint(12), appResp.AppStoreApps[0].AvailableCount)
 	require.Equal(t, "https://example.com/images/1", appResp.AppStoreApps[0].IconURL)
 	require.Equal(t, "1", appResp.AppStoreApps[0].AdamID)
 	require.Equal(t, "1.0.0", appResp.AppStoreApps[0].LatestVersion)
@@ -10750,7 +10749,6 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 
 	require.Equal(t, "App 2", appResp.AppStoreApps[1].Name)
 	require.Equal(t, "b-2", appResp.AppStoreApps[1].BundleIdentifier)
-	require.Equal(t, uint(3), appResp.AppStoreApps[1].AvailableCount)
 	require.Equal(t, "https://example.com/images/2", appResp.AppStoreApps[1].IconURL)
 	require.Equal(t, "2", appResp.AppStoreApps[1].AdamID)
 	require.Equal(t, "2.0.0", appResp.AppStoreApps[1].LatestVersion)
@@ -10772,7 +10770,6 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	require.Len(t, appResp.AppStoreApps, 1)
 	require.Equal(t, "App 2", appResp.AppStoreApps[0].Name)
 	require.Equal(t, "b-2", appResp.AppStoreApps[0].BundleIdentifier)
-	require.Equal(t, uint(3), appResp.AppStoreApps[0].AvailableCount)
 	require.Equal(t, "https://example.com/images/2", appResp.AppStoreApps[0].IconURL)
 	require.Equal(t, "2", appResp.AppStoreApps[0].AdamID)
 	require.Equal(t, "2.0.0", appResp.AppStoreApps[0].LatestVersion)

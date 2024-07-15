@@ -183,6 +183,73 @@ func GetAssets(token string, filter *AssetFilter) ([]Asset, error) {
 	return bodyResp.Assets, nil
 }
 
+type AssignmentFilter struct {
+	// The filter for the assignment product's unique identifier.
+	AdamID string `json:"adamId"`
+	// The filter for the unique identifier of assigned users in your organization.
+	ClientUserID string `json:"clientUserId"`
+	// The requested page index.
+	PageIndex int `json:"pageIndex"`
+	// The filter for the unique identifier of assigned devices in your organization.
+	SerialNumber string `json:"serialNumber"`
+	// The filter for modified assignments since the specified version identifier.
+	SinceVersionID string `json:"sinceVersionId"`
+}
+
+// Assignment represents an asset assignment for a device.
+//
+// https://developer.apple.com/documentation/devicemanagement/assignment
+type Assignment struct {
+	// The unique identifier for a product in the store.
+	AdamID string `json:"adamId"`
+	// PricingParam is the quality of a product in the store.
+	// Possible Values are `STDQ` and `PLUS`
+	PricingParam string `json:"pricingParam"`
+	// The unique identifier for a device.
+	SerialNumber string `json:"serialNumber"`
+}
+
+// GetAssignments fetches the assets from Apple's VPP API with optional filters.
+//
+// https://developer.apple.com/documentation/devicemanagement/get_assignments-o3j
+func GetAssignments(token string, filter *AssignmentFilter) ([]Assignment, error) {
+	baseURL := getBaseURL() + "/assignments"
+	reqURL, err := url.Parse(baseURL)
+	if err != nil {
+		return nil, fmt.Errorf("parsing base URL: %w", err)
+	}
+
+	if filter != nil {
+		query := url.Values{}
+		addFilter(query, "adamId", filter.AdamID)
+		addFilter(query, "clientUserId", filter.ClientUserID)
+		addFilter(query, "serialNumber", filter.SerialNumber)
+		addFilter(query, "sinceVersionId", filter.SinceVersionID)
+		addFilter(query, "pageIndex", filter.PageIndex)
+		reqURL.RawQuery = query.Encode()
+	}
+
+	req, err := http.NewRequest(http.MethodGet, reqURL.String(), nil)
+	if err != nil {
+		return nil, fmt.Errorf("creating request to Apple VPP endpoint: %w", err)
+	}
+
+	// TODO(roberto): when we get to importing assets assigned by other
+	// MDMs we'll need other top-level keys in this struct, and to pmodify
+	// the return value of this function.
+	//
+	// https://developer.apple.com/documentation/devicemanagement/getassignmentsresponse
+	var bodyResp struct {
+		Assignments []Assignment `json:"assignments"`
+	}
+
+	if err = do(req, token, &bodyResp); err != nil {
+		return nil, fmt.Errorf("retrieving assignments: %w", err)
+	}
+
+	return bodyResp.Assignments, nil
+}
+
 func do[T any](req *http.Request, token string, dest *T) error {
 	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", token))
 	resp, err := client.Do(req)

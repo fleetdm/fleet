@@ -2,6 +2,7 @@ package mysql
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"strings"
 
@@ -71,7 +72,7 @@ WHERE
 func insertVPPApps(ctx context.Context, tx sqlx.ExtContext, apps []*fleet.VPPApp) error {
 	stmt := `
 INSERT INTO vpp_apps
-	(adam_id, available_count, bundle_identifier, icon_url, name, latest_version, title_id)
+	(adam_id, bundle_identifier, icon_url, name, latest_version, title_id)
 VALUES
 %s
 ON DUPLICATE KEY UPDATE
@@ -85,7 +86,7 @@ ON DUPLICATE KEY UPDATE
 
 	for _, a := range apps {
 		insertVals.WriteString(`(?, ?, ?, ?, ?, ?, ?),`)
-		args = append(args, a.AdamID, a.AvailableCount, a.BundleIdentifier, a.IconURL, a.Name, a.LatestVersion, a.TitleID)
+		args = append(args, a.AdamID, a.BundleIdentifier, a.IconURL, a.Name, a.LatestVersion, a.TitleID)
 	}
 
 	stmt = fmt.Sprintf(stmt, strings.TrimSuffix(insertVals.String(), ","))
@@ -124,4 +125,36 @@ func insertSoftwareTitleForVPPApp(ctx context.Context, tx sqlx.ExtContext, app *
 	id, _ := result.LastInsertId()
 
 	return uint(id), nil
+}
+
+func (ds *Datastore) GetVPPAppByTeamAndTitleID(ctx context.Context, teamID *uint, titleID uint, withScriptContents bool) (*fleet.VPPApp, error) {
+	stmt := `
+SELECT
+  va.adam_id,
+  va.bundle_identifier,
+  va.icon_url,
+  va.name,
+  va.title_id,
+  va.created_at,
+  va.updated_at
+FROM vpp_apps va
+JOIN vpp_apps_teams vat ON va.adam_id = vat.adam_id
+WHERE vat.global_or_team_id = ? AND va.title_id = ?
+  `
+
+	var tmID uint
+	if teamID != nil {
+		tmID = *teamID
+	}
+
+	var dest fleet.VPPApp
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &dest, stmt, tmID, titleID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ctxerr.Wrap(ctx, notFound("VPPApp"), "get VPP app")
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get VPP app")
+	}
+
+	return &dest, nil
 }

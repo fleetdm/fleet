@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
 )
@@ -17,6 +18,7 @@ func TestVPP(t *testing.T) {
 		fn   func(t *testing.T, ds *Datastore)
 	}{
 		{"VPPApps", testVPPApps},
+		{"GetVPPAppByTeamAndTitleID", testGetVPPAppByTeamAndTitleID},
 	}
 
 	for _, c := range cases {
@@ -68,4 +70,77 @@ func testVPPApps(t *testing.T, ds *Datastore) {
 	require.Equal(t, app2.BundleIdentifier, *appTitles[1].BundleIdentifier)
 	require.Equal(t, app1.Name, appTitles[0].Name)
 	require.Equal(t, app2.Name, appTitles[1].Name)
+}
+
+func testGetVPPAppByTeamAndTitleID(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "team 2"})
+	require.NoError(t, err)
+
+	// TODO(roberto): replace with actual datastore method(s) once we have them
+	createVPPApp := func(adamID string, teamID *uint) uint {
+		var titleID int64
+		ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
+			res, err := tx.ExecContext(
+				ctx,
+				"INSERT INTO software_titles (name, source, browser) VALUES (?, ?, ?)",
+				uuid.NewString(), uuid.NewString(), "",
+			)
+			if err != nil {
+				return err
+			}
+
+			titleID, _ = res.LastInsertId()
+			return nil
+		})
+
+		ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
+			_, err = tx.ExecContext(
+				ctx,
+				"INSERT INTO vpp_apps (adam_id, title_id) VALUES (?, ?)",
+				adamID,
+				titleID,
+			)
+			return err
+		})
+
+		ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
+			var tmID uint
+			if teamID != nil {
+				tmID = *teamID
+			}
+			_, err = tx.ExecContext(
+				ctx,
+				"INSERT INTO vpp_apps_teams (adam_id, team_id, global_or_team_id) VALUES (?, ?, ?)",
+				adamID,
+				teamID,
+				tmID,
+			)
+			return err
+		})
+
+		return uint(titleID)
+	}
+
+	var nfe fleet.NotFoundError
+
+	fooTitleID := createVPPApp("foo", &team.ID)
+	gotVPPApp, err := ds.GetVPPAppByTeamAndTitleID(ctx, &team.ID, fooTitleID, true)
+	require.NoError(t, err)
+	require.Equal(t, "foo", gotVPPApp.AdamID)
+	require.Equal(t, fooTitleID, gotVPPApp.TitleID)
+	// title that doesn't exist
+	gotVPPApp, err = ds.GetVPPAppByTeamAndTitleID(ctx, &team.ID, 999, true)
+	require.ErrorAs(t, err, &nfe)
+
+	// create an entry for the global team
+	barTitleID := createVPPApp("bar", nil)
+	// not found providing the team id
+	gotVPPApp, err = ds.GetVPPAppByTeamAndTitleID(ctx, &team.ID, barTitleID, true)
+	require.ErrorAs(t, err, &nfe)
+	// found for the global team
+	gotVPPApp, err = ds.GetVPPAppByTeamAndTitleID(ctx, nil, barTitleID, true)
+	require.NoError(t, err)
+	require.Equal(t, "bar", gotVPPApp.AdamID)
+	require.Equal(t, barTitleID, gotVPPApp.TitleID)
 }

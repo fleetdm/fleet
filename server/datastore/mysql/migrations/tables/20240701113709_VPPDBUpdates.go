@@ -20,9 +20,6 @@ func Up_20240701113709(tx *sql.Tx) error {
 CREATE TABLE vpp_apps (
 	adam_id VARCHAR(16) NOT NULL,
 
-	-- This is a count of how many licenses are still available for this asset
-	available_count INT UNSIGNED,
-
 	-- FK to the "software title" this app matches
 	title_id int(10) unsigned DEFAULT NULL,
 

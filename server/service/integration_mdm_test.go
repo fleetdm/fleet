@@ -9251,3 +9251,6 @@ func (s *integrationMDMTestSuite) TestConnectedToFleetWithoutCheckout() {
 	require.NotNil(t, hostResp.Host.MDM.ConnectedToFleet)
 	require.False(t, *hostResp.Host.MDM.ConnectedToFleet)
 }
+
+func (s *integrationMDMTestSuite) TestInstallVPPApp() {
+}

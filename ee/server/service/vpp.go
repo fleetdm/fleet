@@ -72,7 +72,6 @@ func (svc *Service) GetAppStoreApps(ctx context.Context, teamID *uint) ([]*fleet
 
 		app := &fleet.VPPApp{
 			AdamID:           a.AdamID,
-			AvailableCount:   a.AvailableCount,
 			BundleIdentifier: m.BundleID,
 			IconURL:          m.ArtworkURL,
 			Name:             m.TrackName,
@@ -150,7 +149,6 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, adamID str
 
 	app := &fleet.VPPApp{
 		AdamID:           asset.AdamID,
-		AvailableCount:   asset.AvailableCount,
 		BundleIdentifier: assetMD.BundleID,
 		IconURL:          assetMD.ArtworkURL,
 		Name:             assetMD.TrackName,

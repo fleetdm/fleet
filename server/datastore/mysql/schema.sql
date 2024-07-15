@@ -1669,7 +1669,6 @@ CREATE TABLE `users` (
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `vpp_apps` (
   `adam_id` varchar(16) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `available_count` int(10) unsigned DEFAULT NULL,
   `title_id` int(10) unsigned DEFAULT NULL,
   `bundle_identifier` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
   `icon_url` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
