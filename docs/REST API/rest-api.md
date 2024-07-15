@@ -9105,7 +9105,7 @@ Add App Store (VPP) app purchased in Apple Business Manager.
 
 | Name | Type | In | Description |
 | ---- | ---- | -- | ----------- |
-| app_store_id   | integer | path | **Required.** The ID of App Store app. |
+| app_store_id   | integer | body | **Required.** The ID of App Store app. |
 | team_id       | integer | query | **Required**. The team ID. Adds VPP software to the specified team.  |
 
 #### Example
