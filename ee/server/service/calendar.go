@@ -125,6 +125,8 @@ func (svc *Service) CalendarWebhook(ctx context.Context, eventUUID string, chann
 func (svc *Service) processCalendarEvent(ctx context.Context, eventDetails *fleet.CalendarEventDetails,
 	googleCalendarIntegrationConfig *fleet.GoogleCalendarIntegration, userCalendar fleet.UserCalendar) error {
 
+	// This flag indicates that calendar event should no longer exist, and we can stop watching it.
+	stopChannel := false
 	genBodyFn := func(conflict bool) (body string, ok bool, err error) {
 
 		// This function is called when a new event is being created.
@@ -136,6 +138,7 @@ func (svc *Service) processCalendarEvent(ctx context.Context, eventDetails *flee
 
 		if team.Config.Integrations.GoogleCalendar == nil ||
 			!team.Config.Integrations.GoogleCalendar.Enable {
+			stopChannel = true
 			return "", false, nil
 		}
 
@@ -146,6 +149,7 @@ func (svc *Service) processCalendarEvent(ctx context.Context, eventDetails *flee
 		}
 
 		if len(policies) == 0 {
+			stopChannel = true
 			return "", false, nil
 		}
 
@@ -161,10 +165,12 @@ func (svc *Service) processCalendarEvent(ctx context.Context, eventDetails *flee
 			return "", false, err
 		}
 		if len(hosts) != 1 {
+			stopChannel = true
 			return "", false, nil
 		}
 		host := hosts[0]
 		if host.Passing { // host is passing all configured policies
+			stopChannel = true
 			return "", false, nil
 		}
 		if host.Email == "" {
@@ -189,6 +195,12 @@ func (svc *Service) processCalendarEvent(ctx context.Context, eventDetails *flee
 			event.TimeZone, eventDetails.HostID, fleet.CalendarWebhookStatusNone)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "create or update calendar event")
+		}
+	}
+	if stopChannel {
+		err = userCalendar.StopEventChannel(&eventDetails.CalendarEvent)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "stop event channel")
 		}
 	}
 

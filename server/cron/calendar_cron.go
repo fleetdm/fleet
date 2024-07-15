@@ -417,6 +417,7 @@ func processFailingHostExistingCalendarEvent(
 		}
 
 		// Remove event from the queue so that we don't process this event again.
+		// If we just modified the event in the calendar, calendar will send a callback, and we don't need to process that callback.
 		err = distributedLock.RemoveFromSet(ctx, calendar.QueueKey, eventUUID)
 		if err != nil {
 			return fmt.Errorf("remove calendar event from queue: %w", err)
