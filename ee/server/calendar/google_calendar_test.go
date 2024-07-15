@@ -228,7 +228,7 @@ func TestGoogleCalendar_GetAndUpdateEvent(t *testing.T) {
 		StartTime: eventStartTime,
 		EndTime:   time.Now().Add(time.Hour).In(baseTzLocation),
 		Data:      []byte(`{"ID":"` + baseEventID + `","ETag":"` + baseETag + `"}`),
-		TimeZone: baseTzName,
+		TimeZone:  baseTzName,
 	}
 
 	// ETag matches
