@@ -686,6 +686,7 @@ kind: software_title
 spec:
 - available_for_install: false
   hosts_count: 2
+  icon_url: null
   id: 0
   name: foo
   self_service: false
@@ -707,6 +708,7 @@ spec:
   versions_count: 3
 - available_for_install: false
   hosts_count: 0
+  icon_url: null
   id: 0
   name: bar
   self_service: false
@@ -729,6 +731,7 @@ spec:
       "source": "chrome_extensions",
       "available_for_install": false,
       "hosts_count": 2,
+      "icon_url": null,
       "versions_count": 3,
       "versions": [
         {
@@ -762,6 +765,7 @@ spec:
       "source": "deb_packages",
       "available_for_install": false,
       "hosts_count": 0,
+      "icon_url": null,
       "versions_count": 1,
       "versions": [
         {
