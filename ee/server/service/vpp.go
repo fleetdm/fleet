@@ -31,7 +31,7 @@ func (svc *Service) getVPPToken(ctx context.Context) (string, error) {
 		return "", ctxerr.Wrap(ctx, err, "unmarshaling raw vpp token")
 	}
 
-	exp, err := time.Parse(time.RFC3339, vppTokenRaw.ExpDate)
+	exp, err := time.Parse("2006-01-02T15:04:05Z0700", vppTokenRaw.ExpDate)
 	if err != nil {
 		return "", ctxerr.Wrap(ctx, err, "parsing vpp token expiration date")
 	}
