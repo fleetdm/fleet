@@ -81,26 +81,26 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 		adamIDs = append(adamIDs, payload.AppStoreID)
 	}
 
-	filter := &vpp.AssetFilter{
-		AdamID: strings.Join(adamIDs, ","),
-	}
-	assets, err := vpp.GetAssets(token, filter)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "unable to retrieve assets")
-	}
-
 	var missingAssets []string
+	var validAssets []vpp.Asset
+
+	// Check if we have the assets before we try to associate them,
+	// also returns pricing information
 	for _, adamID := range adamIDs {
-		var assetAvailable bool
-		for _, asset := range assets {
-			if adamID == asset.AdamID {
-				assetAvailable = true
-				break
-			}
+		filter := &vpp.AssetFilter{
+			AdamID: adamID,
 		}
-		if !assetAvailable {
+
+		assets, err := vpp.GetAssets(token, filter)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "unable to retrieve assets")
+		}
+
+		if len(assets) == 0 {
 			missingAssets = append(missingAssets, adamID)
 		}
+
+		validAssets = append(validAssets, assets[0])
 	}
 
 	if len(missingAssets) != 0 {
@@ -115,7 +115,7 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 
 	if !dryRun {
 		if err := vpp.AssociateAssets(token, &vpp.AssociateAssetsRequest{
-			Assets:        assets,
+			Assets:        validAssets,
 			SerialNumbers: serials,
 		}); err != nil {
 			return ctxerr.Wrap(ctx, err, "failed to associate vpp assets")
