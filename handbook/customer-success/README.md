@@ -35,19 +35,15 @@ Before a routine customer call, the CSM prepares an agenda including the followi
 6. Provide updates to open bug reports
 
 ### Conduct a quarterly business review (QBR)
-Business reviews are conducted quarterly or bi-annually to ensure initial success criteria completion, ongoing adoption and alignment on goals, and delivery of value as a vendor. Use the meeting to assess customer priorities for the coming year, review performance metrics, address any challenges and showcase value in features not being adopted and upcoming features.
-1. Coordinate with your customer to schedule the business review (typically 90 days after kickoff and again, 90 days before renewal).
-2. Work with your champion to ensure their stakeholders will be present for the call.
-3. Collect usage metrics from the [usage data report](https://docs.google.com/spreadsheets/d/1Mh7Vf4kJL8b5TWlHxcX7mYwaakZMg_ZGNLY3kl1VI-c/edit?gid=0#gid=0) (internal Fleet document) and the following:
+Business reviews are conducted quarterly or bi-annually to ensure initial success criteria completion, ongoing adoption, alignment on goals, and delivery of value as a vendor. Use the meeting to assess customer priorities for the coming year, review performance metrics, address any challenges and showcase value in upcoming and unutilized features.
+1. Work with your champion to schedule the business review at a time thier stakeholders are available (typically 90 days after kickoff and again, 90 days before renewal).
+2. Collect usage metrics from the [usage data report](https://docs.google.com/spreadsheets/d/1Mh7Vf4kJL8b5TWlHxcX7mYwaakZMg_ZGNLY3kl1VI-c/edit?gid=0#gid=0) (internal Fleet document) and the following:
     - Optionally schedule a health check with day to day admins prior to the QBR to better understand how the product is being used and which features have been adopted.
     - Have a support engineer collect data on open and closed bugs from the previous quarter and highlight any P0 or P1 incidents along with a summary of the postmortem (search Unthread and GitHub for issues tagged with the customer codename and ':bug').
     - Summarize status updates for open feature requests and highlight delivered feature requests.
     - For managed cloud customers, reach out to #help-infrastructure to collect information on cloud uptime and any outages or alarms.
     - Provide one slide with information on the latest Fleet release and any upcoming big ticket features which can be found on the product board and current release board for #g-mdm and #g-endpoint-ops
-
-#### After the business review:
-1. Save the presentation as a PDF and share it with your customer
-2. Follow up on any action items as a result of the call
+4. After the business review, save the presentation as a PDF and share it with your customer.
 
 ### Create customer support issue
 Locate the relevant issue or create it if it doesn't already exist (to avoid duplication, be creative when searching GitHub for issues - it can often take a couple of tries with different keywords to find an existing issue). When creating a new issue, make sure the following:
