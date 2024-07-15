@@ -725,7 +725,7 @@ func updateModifiedHostSoftwareDB(
 			continue
 		}
 
-		if curSw.LastOpenedAt == nil || (*newSw.LastOpenedAt).Sub(*curSw.LastOpenedAt) >= minLastOpenedAtDiff {
+		if curSw.LastOpenedAt == nil || newSw.LastOpenedAt.Sub(*curSw.LastOpenedAt) >= minLastOpenedAtDiff {
 			keysToUpdate = append(keysToUpdate, key)
 		}
 	}
@@ -2041,6 +2041,8 @@ AND EXISTS (SELECT 1 FROM software s JOIN software_cve scve ON scve.software_id 
 		`
 	}
 
+	// this statement lists only the software that is reported as installed on
+	// the host or has been attempted to be installed on the host.
 	stmtInstalled := fmt.Sprintf(`
 		SELECT
 			st.id,
@@ -2083,6 +2085,9 @@ AND EXISTS (SELECT 1 FROM software s JOIN software_cve scve ON scve.software_id 
 			%s
 `, softwareInstallerHostStatusNamedQuery("hsi", "status"), onlySelfServiceClause, onlyVulnerableClause)
 
+	// this statement lists only the software that has never been installed nor
+	// attempted to be installed on the host, but that is available to be
+	// installed on the host's platform.
 	const stmtAvailable = `
 		SELECT
 			st.id,
@@ -2124,6 +2129,8 @@ AND EXISTS (SELECT 1 FROM software s JOIN software_cve scve ON scve.software_id 
 			%s
 `
 
+	// this is the top-level SELECT of fields from the UNION of the sub-selects
+	// (stmtAvailable and stmtInstalled).
 	const selectColNames = `
 	SELECT
 		id,
