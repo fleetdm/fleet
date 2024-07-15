@@ -257,7 +257,7 @@ func createVPPAppInstallResult(t *testing.T, ds *Datastore, host *fleet.Host, cm
 	ctx := context.Background()
 
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(ctx, `INSERT INTO nano_command_results (id, command_uuid, status, result) VALUES (?, ?, ?, '')`,
+		_, err := q.ExecContext(ctx, `INSERT INTO nano_command_results (id, command_uuid, status, result) VALUES (?, ?, ?, '<?xml')`,
 			host.UUID, cmdUUID, status)
 		return err
 	})
