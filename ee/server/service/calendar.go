@@ -102,6 +102,8 @@ func (svc *Service) CalendarWebhook(ctx context.Context, eventUUID string, chann
 			}
 		}()
 
+		fmt.Printf("CALDEBUG: Got lock for %s", eventUUID)
+
 		// Remove event from the queue so that we don't process this event again.
 		// Note: This item can be added back to the queue while we are processing it.
 		err = svc.distributedLock.RemoveFromSet(ctx, calendar.QueueKey, eventUUID)
@@ -114,6 +116,7 @@ func (svc *Service) CalendarWebhook(ctx context.Context, eventUUID string, chann
 			return err
 		}
 		svc.releaseCalendarLock(ctx, eventUUID, lockValue)
+		fmt.Printf("CALDEBUG: Release lock for %s", eventUUID)
 		unlocked = true
 	}
 
@@ -126,6 +129,7 @@ func (svc *Service) CalendarWebhook(ctx context.Context, eventUUID string, chann
 			return ctxerr.Wrap(ctx, err, "get calendar event queue")
 		}
 		if len(eventIDs) > 0 {
+			fmt.Printf("CALDEBUG: async calendar processing started by event %s", eventUUID)
 			asyncCalendarProcessing = true
 			go svc.processCalendarAsync(ctx, eventIDs)
 		}
@@ -244,6 +248,7 @@ func (svc *Service) getCalendarLock(ctx context.Context, eventUUID string, addTo
 		return "", false, ctxerr.Wrap(ctx, err, "get calendar reserved lock")
 	}
 	reserved = reservedValue != nil
+	fmt.Printf("CALDEBUG: Reserved value for %s: %v", eventUUID, reserved)
 	if reserved && !addToQueue {
 		// We flag the lock as reserved.
 		return "", reserved, nil
@@ -258,6 +263,7 @@ func (svc *Service) getCalendarLock(ctx context.Context, eventUUID string, addTo
 		}
 	}
 	if (!lockAcquired || reserved) && addToQueue {
+		fmt.Printf("CALDEBUG: Could not acquire the lock %s", eventUUID)
 		// Could not acquire lock, so we are already processing this event. In this case, we add the event to
 		// the queue (actually a set) to indicate that we need to re-process the event.
 		err = svc.distributedLock.AddToSet(ctx, calendar.QueueKey, eventUUID)
@@ -275,6 +281,7 @@ func (svc *Service) getCalendarLock(ctx context.Context, eventUUID string, addTo
 		if err != nil {
 			return "", false, ctxerr.Wrap(ctx, err, "acquire calendar lock again")
 		}
+		fmt.Printf("CALDEBUG: Acquired lock again for %s: with result: %v", eventUUID, lockAcquired)
 
 		if !lockAcquired {
 			// We could not acquire the lock, so we are done here.
