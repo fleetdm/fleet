@@ -348,6 +348,30 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 				return
 			}
 
+			fmt.Printf("Mock VPP Server: Trying to associate %v with %v\n", associations.SerialNumbers, associations.Assets)
+
+			if len(associations.Assets) == 0 {
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusBadRequest)
+				res := vpp.ErrorResponse{
+					ErrorNumber:  9718,
+					ErrorMessage: "This request doesn't contain an asset, which is a required argument. Change the request to provide an asset.",
+				}
+				json.NewEncoder(w).Encode(res)
+				return
+			}
+
+			if len(associations.SerialNumbers) == 0 {
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusBadRequest)
+				res := vpp.ErrorResponse{
+					ErrorNumber:  9719,
+					ErrorMessage: "Either clientUserIds or serialNumbers are required arguments. Change the request to provide assignable users and devices.",
+				}
+				json.NewEncoder(w).Encode(res)
+				return
+			}
+
 			var badAssets []vpp.Asset
 			for _, reqAsset := range associations.Assets {
 				var found bool
@@ -397,7 +421,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 					ErrorNumber:  1,
 					ErrorMessage: errMsg,
 				}
-				w.Header().Set("Content-Type", "application/json; charset=utf-8")
+				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(http.StatusBadRequest)
 				json.NewEncoder(w).Encode(res)
 			}
