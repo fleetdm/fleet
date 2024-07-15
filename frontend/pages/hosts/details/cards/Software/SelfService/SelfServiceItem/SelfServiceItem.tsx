@@ -179,9 +179,6 @@ const InstallerStatusAction = ({
     }
   }, [deviceToken, id, onInstall, renderFlash]);
 
-  console.log("installButtonText", installButtonText);
-  console.log("localStatus", localStatus);
-
   return (
     <div className={`${baseClass}__item-status-action`}>
       <div className={`${baseClass}__item-status`}>
