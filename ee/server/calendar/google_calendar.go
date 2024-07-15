@@ -261,7 +261,7 @@ func (c *GoogleCalendar) Configure(userEmail string) error {
 	return nil
 }
 
-func (c *GoogleCalendar) GetAndUpdateEvent(event *fleet.CalendarEvent, genBodyFn func(conflict bool) (body string, ok bool, err error)) (
+func (c *GoogleCalendar) GetAndUpdateEvent(event *fleet.CalendarEvent, genBodyFn func(conflict bool) (body string, updated bool, err error)) (
 	*fleet.CalendarEvent, bool, error,
 ) {
 	// We assume that the Fleet event has not already ended. We will simply return it if it has not been modified.
@@ -269,22 +269,23 @@ func (c *GoogleCalendar) GetAndUpdateEvent(event *fleet.CalendarEvent, genBodyFn
 	if err != nil {
 		return nil, false, err
 	}
-	// Replace nil or Golang time.Location default of UTC with updated Google calendar timezone
-	if c.location == nil || c.location.String() == "UTC" {
-		c.location, err = getTimezone(c)
-		if err != nil {
-			return nil, false, err
-		}
+
+	// Set current calendar instance timezone to the latest from google calendar.
+	c.location, err = getTimezone(c)
+	if err != nil {
+		return nil, false, err
 	}
 	tzUpdated := c.location.String() != event.TimeZone
+	
 	gEvent, err := c.config.API.GetEvent(details.ID, details.ETag)
+
 	var deleted bool
 	switch {
 	// http.StatusNotModified is returned sometimes, but not always, so we need to check ETag explicitly later
 	case googleapi.IsNotModified(err):
 		if tzUpdated {
 			// this condition occurs when the event itself hasn't been updated, but the calendar timezone
-			// has been, so just update the event's timezone
+			// has been, so update the Fleet event's timezone
 			event.TimeZone = c.location.String()
 			return event, true, nil
 		}
