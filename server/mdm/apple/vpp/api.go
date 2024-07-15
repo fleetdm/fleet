@@ -103,6 +103,8 @@ func AssociateAssets(token string, params *AssociateAssetsRequest) error {
 		return fmt.Errorf("creating request to Apple VPP endpoint: %w", err)
 	}
 
+	req.Header.Add("Content-Type", "application/json")
+
 	if err := do[any](req, token, nil); err != nil {
 		return fmt.Errorf("making request to Apple VPP endpoint: %w", err)
 	}
