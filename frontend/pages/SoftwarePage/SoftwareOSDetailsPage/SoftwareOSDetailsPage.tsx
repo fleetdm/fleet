@@ -17,6 +17,7 @@ import osVersionsAPI, {
   IGetOsVersionQueryKey,
 } from "services/entities/operating_systems";
 import { IOperatingSystemVersion } from "interfaces/operating_system";
+import { isLinuxLike } from "interfaces/platform";
 import { DEFAULT_USE_QUERY_OPTIONS, SUPPORT_LINK } from "utilities/constants";
 
 import Spinner from "components/Spinner";
@@ -37,15 +38,19 @@ interface INotSupportedVulnProps {
 }
 
 const platformDisplayName = (platform: string) => {
+  if (isLinuxLike(platform)) {
+    return "Linux hosts";
+  }
+
   switch (platform) {
     case "chrome":
       return "Chromebooks";
     case "ios":
       return "iPhones";
     case "ipados":
-      return "iPadOS";
+      return "iPads";
     default:
-      return "Linux hosts";
+      return "this operating system";
   }
 };
 
