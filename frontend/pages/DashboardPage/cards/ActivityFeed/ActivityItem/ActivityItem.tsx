@@ -3,6 +3,7 @@ import { find, lowerCase, noop } from "lodash";
 import { formatDistanceToNowStrict } from "date-fns";
 
 import { ActivityType, IActivity, IActivityDetails } from "interfaces/activity";
+import { getInstallStatusPredicate } from "interfaces/software";
 import {
   addGravatarUrlToResource,
   formatScriptNameForActivityItem,
@@ -16,7 +17,6 @@ import Icon from "components/Icon";
 import ReactTooltip from "react-tooltip";
 import PremiumFeatureIconWithTooltip from "components/PremiumFeatureIconWithTooltip";
 import { COLORS } from "styles/var/colors";
-import { getSoftwareInstallStatusPredicate } from "pages/hosts/details/cards/Activity/ActivityItems/InstalledSoftwareActivityItem/InstalledSoftwareActivityItem";
 
 const baseClass = "activity-item";
 
@@ -881,8 +881,7 @@ const TAGGED_TEMPLATES = {
     return (
       <>
         {" "}
-        {getSoftwareInstallStatusPredicate(status)} <b>{title}</b> software on{" "}
-        <b>{hostName}</b>.{" "}
+        {getInstallStatusPredicate(status)} <b>{title}</b> on <b>{hostName}</b>.{" "}
         <Button
           className={`${baseClass}__show-query-link`}
           variant="text-link"
