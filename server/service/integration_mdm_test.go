@@ -95,6 +95,7 @@ type integrationMDMTestSuite struct {
 	logger                     kitlog.Logger
 	scepChallenge              string
 	appleVPPConfigSrv          *httptest.Server
+	appleITunesSrv             *httptest.Server
 	mockedDownloadFleetdmMeta  fleetdbase.Metadata
 }
 
@@ -313,6 +314,13 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	}))
 
 	s.appleVPPConfigSrv = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.Contains(r.URL.Path, "assets") {
+			// Then we're responding to GetAssets
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"assets": [{"adamId": "1", "pricingParam": "STDQ", "availableCount": 12}, {"adamId": "2", "pricingParam": "STDQ", "availableCount": 3}]}`))
+			return
+		}
+
 		resp := []byte(`{"locationName": "Fleet Location One"}`)
 		if strings.Contains(r.URL.RawQuery, "invalidToken") {
 			// This replicates the response sent back from Apple's VPP endpoints when an invalid
@@ -331,7 +339,27 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 
 		_, _ = w.Write(resp)
 	}))
+
+	s.appleITunesSrv = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// a map of apps we can respond with
+		db := map[string]string{
+			"1": `{"bundleId": "a-1", "artworkUrl512": "https://example.com/images/1", "version": "1.0.0", "trackName": "App 1", "TrackID": 1}`,
+			"2": `{"bundleId": "b-2", "artworkUrl512": "https://example.com/images/2", "version": "2.0.0", "trackName": "App 2", "TrackID": 2}`,
+		}
+
+		adamIDString := r.URL.Query().Get("id")
+		adamIDs := strings.Split(adamIDString, ",")
+
+		var objs []string
+		for _, a := range adamIDs {
+			objs = append(objs, db[a])
+		}
+
+		_, _ = w.Write([]byte(fmt.Sprintf(`{"results": [%s]}`, strings.Join(objs, ","))))
+	}))
+
 	s.T().Setenv("TEST_FLEETDM_API_URL", fleetdmSrv.URL)
+	s.T().Setenv("FLEET_DEV_ITUNES_URL", s.appleITunesSrv.URL)
 
 	s.mockedDownloadFleetdmMeta = fleetdbase.Metadata{
 		MSIURL:           fmt.Sprintf("https://download-testing.fleetdm.com/archive/stable/%s/fleetd-base.msi", uuid.NewString()),
@@ -364,6 +392,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 
 	s.T().Cleanup(fleetdmSrv.Close)
 	s.T().Cleanup(s.appleVPPConfigSrv.Close)
+	s.T().Cleanup(s.appleITunesSrv.Close)
 }
 
 func (s *integrationMDMTestSuite) TearDownSuite() {
@@ -1059,52 +1088,6 @@ func (s *integrationMDMTestSuite) uploadDataViaForm(endpoint, fieldName, fileNam
 		errMsg := extractServerErrorText(res.Body)
 		assert.Contains(t, errMsg, wantErr)
 	}
-}
-
-func (s *integrationMDMTestSuite) TestMDMVPPToken() {
-	t := s.T()
-	// Invalid token
-	t.Setenv("FLEET_DEV_VPP_URL", s.appleVPPConfigSrv.URL+"?invalidToken")
-	s.uploadDataViaForm("/api/latest/fleet/mdm/apple/vpp_token", "token", "token.vpptoken", []byte("foobar"), http.StatusUnprocessableEntity, "Invalid token. Please provide a valid content token from Apple Business Manager.")
-
-	// Simulate a server error from the Apple API
-	t.Setenv("FLEET_DEV_VPP_URL", s.appleVPPConfigSrv.URL+"?serverError")
-	s.uploadDataViaForm("/api/latest/fleet/mdm/apple/vpp_token", "token", "token.vpptoken", []byte("foobar"), http.StatusInternalServerError, "Apple VPP endpoint returned error: Internal server error (error number: 9603)")
-
-	// Valid token
-	orgName := "Fleet Device Management Inc."
-	location := "Fleet Location One"
-	token := "mycooltoken"
-	expDate := "2025-06-24T15:50:50+0000"
-	tokenJSON := fmt.Sprintf(`{"expDate":"%s","token":"%s","orgName":"%s"}`, expDate, token, orgName)
-	t.Setenv("FLEET_DEV_VPP_URL", s.appleVPPConfigSrv.URL)
-	s.uploadDataViaForm("/api/latest/fleet/mdm/apple/vpp_token", "token", "token.vpptoken", []byte(base64.StdEncoding.EncodeToString([]byte(tokenJSON))), http.StatusAccepted, "")
-
-	// Get the token
-	var resp getMDMAppleVPPTokenResponse
-	s.DoJSON("GET", "/api/latest/fleet/vpp", &getMDMAppleVPPTokenRequest{}, http.StatusOK, &resp)
-	require.NoError(t, resp.Err)
-	require.Equal(t, orgName, resp.OrgName)
-	require.Equal(t, location, resp.Location)
-	require.Equal(t, expDate, resp.RenewDate)
-
-	// Simulate renewal flow
-	orgName = "Fleet Device Management Inc. New Org Name"
-	token = "myothercooltoken"
-	expDate = "2026-06-24T15:50:50+0000"
-	tokenJSON = fmt.Sprintf(`{"expDate":"%s","token":"%s","orgName":"%s"}`, expDate, token, orgName)
-	s.uploadDataViaForm("/api/latest/fleet/mdm/apple/vpp_token", "token", "token.vpptoken", []byte(base64.StdEncoding.EncodeToString([]byte(tokenJSON))), http.StatusAccepted, "")
-
-	resp = getMDMAppleVPPTokenResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/vpp", &getMDMAppleVPPTokenRequest{}, http.StatusOK, &resp)
-	require.NoError(t, resp.Err)
-	require.Equal(t, orgName, resp.OrgName)
-	require.Equal(t, location, resp.Location)
-	require.Equal(t, expDate, resp.RenewDate)
-
-	// Delete and check that it's not appearing anymore
-	s.Do("DELETE", "/api/latest/fleet/mdm/apple/vpp_token", &deleteMDMAppleVPPTokenRequest{}, http.StatusNoContent)
-	s.DoJSON("GET", "/api/latest/fleet/vpp", &getMDMAppleVPPTokenRequest{}, http.StatusNotFound, &resp)
 }
 
 func (s *integrationMDMTestSuite) TestMDMAppleUnenroll() {

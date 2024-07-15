@@ -29,7 +29,7 @@ CREATE TABLE vpp_apps (
 	bundle_identifier VARCHAR(255) NOT NULL DEFAULT '',
 	icon_url VARCHAR(255) NOT NULL DEFAULT '',
 	name VARCHAR(255) NOT NULL DEFAULT '',
-	version VARCHAR(255) NOT NULL DEFAULT '',
+	latest_version VARCHAR(255) NOT NULL DEFAULT '',
 	created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 	updated_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 
@@ -49,8 +49,14 @@ CREATE TABLE vpp_apps (
 	_, err = tx.Exec(`
 CREATE TABLE vpp_apps_teams (
 	adam_id VARCHAR(16) NOT NULL,
+	-- team_id NULL is for no team (cannot use 0 with foreign key)
 	team_id INT(10) UNSIGNED NULL,
+
+	-- this field is 0 for global, and the team_id otherwise, and is
+  -- used for the unique index/constraint (team_id cannot be used
+  -- as it allows NULL).
 	global_or_team_id INT(10) NOT NULL DEFAULT 0,
+
 	FOREIGN KEY (adam_id) REFERENCES vpp_apps (adam_id) ON DELETE CASCADE,
 	FOREIGN KEY (team_id) REFERENCES teams (id) ON DELETE CASCADE,
 	UNIQUE KEY idx_global_or_team_id_adam_id (global_or_team_id, adam_id)

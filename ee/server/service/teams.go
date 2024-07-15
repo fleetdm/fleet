@@ -1018,6 +1018,7 @@ func (svc *Service) createTeamFromSpec(
 			Integrations: fleet.TeamIntegrations{
 				GoogleCalendar: spec.Integrations.GoogleCalendar,
 			},
+			Software: spec.Software,
 		},
 		Secrets: secrets,
 	})
@@ -1168,8 +1169,18 @@ func (svc *Service) editTeamFromSpec(
 		team.Config.Scripts = spec.Scripts
 	}
 
-	if spec.Software.Set {
-		team.Config.Software = spec.Software
+	if spec.Software != nil {
+		if team.Config.Software == nil {
+			team.Config.Software = &fleet.TeamSpecSoftware{}
+		}
+
+		if spec.Software.Packages.Set {
+			team.Config.Software.Packages = spec.Software.Packages
+		}
+
+		if spec.Software.AppStoreApps.Set {
+			team.Config.Software.AppStoreApps = spec.Software.AppStoreApps
+		}
 	}
 
 	if secrets != nil {

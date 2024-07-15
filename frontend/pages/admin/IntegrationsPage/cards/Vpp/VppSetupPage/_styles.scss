@@ -1,0 +1,48 @@
+.vpp-setup-page {
+  &__back-to-vpp {
+    margin-bottom: $pad-xlarge;
+  }
+
+  h1 {
+    margin-bottom: $pad-xxlarge;
+    font-size: $large;
+  }
+
+  &__description {
+    font-size: $x-small;
+    margin: 0 0 $pad-large;
+  }
+
+  &__file-uploader {
+    max-width: 784px;
+    margin-top: $pad-medium;
+    margin-left: $pad-medium;
+
+    button {
+      margin-top: 0;
+    }
+
+    &--loading {
+      label {
+        opacity: 0.5;
+      }
+    }
+  }
+
+  &__button-wrap {
+    display: flex;
+    gap: $pad-medium;
+  }
+
+  &__disable-renew-content {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-large;
+  }
+
+  &__info {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-medium;
+  }
+}
