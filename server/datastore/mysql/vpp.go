@@ -21,7 +21,7 @@ FROM
 	vpp_apps vap
 	INNER JOIN vpp_apps_teams vat ON vat.adam_id = vap.adam_id
 WHERE
-  vap.title_id = ? AND
+	vap.title_id = ? AND
 	vat.global_or_team_id = ?`
 
 	var tmID uint

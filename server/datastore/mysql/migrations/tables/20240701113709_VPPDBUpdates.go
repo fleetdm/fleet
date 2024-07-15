@@ -53,8 +53,8 @@ CREATE TABLE vpp_apps_teams (
 	team_id INT(10) UNSIGNED NULL,
 
 	-- this field is 0 for global, and the team_id otherwise, and is
-  -- used for the unique index/constraint (team_id cannot be used
-  -- as it allows NULL).
+	-- used for the unique index/constraint (team_id cannot be used
+	-- as it allows NULL).
 	global_or_team_id INT(10) NOT NULL DEFAULT 0,
 
 	FOREIGN KEY (adam_id) REFERENCES vpp_apps (adam_id) ON DELETE CASCADE,
