@@ -1602,24 +1602,20 @@ func LogRoleChangeActivities(
 
 type ActivityEnabledVPP struct{}
 
-// ActivityName is the name/type of the activity.
 func (a ActivityEnabledVPP) ActivityName() string {
 	return "vpp_enabled"
 }
 
-// Documentation is used by "go generate" to generate markdown docs.
 func (a ActivityEnabledVPP) Documentation() (activity string, details string, detailsExample string) {
 	return "Generated when the VPP feature is enabled in Fleet.", "", ""
 }
 
 type ActivityDisabledVPP struct{}
 
-// ActivityName is the name/type of the activity.
 func (a ActivityDisabledVPP) ActivityName() string {
 	return "vpp_disabled"
 }
 
-// Documentation is used by "go generate" to generate markdown docs.
 func (a ActivityDisabledVPP) Documentation() (activity string, details string, detailsExample string) {
 	return "Generated when the VPP feature is disabled in Fleet.", "", ""
 }
@@ -1630,12 +1626,10 @@ type ActivityAddedAppStoreApp struct {
 	TeamName      string `json:"team_name"`
 }
 
-// ActivityName is the name/type of the activity.
 func (a ActivityAddedAppStoreApp) ActivityName() string {
 	return "added_app_store_app"
 }
 
-// Documentation is used by "go generate" to generate markdown docs.
 func (a ActivityAddedAppStoreApp) Documentation() (activity string, details string, detailsExample string) {
 	return "Generated when an App Store app is added to Fleet.", `This activity contains the following fields:
 - "software_title": Name of the App Store app.
@@ -1653,12 +1647,10 @@ type ActivityDeletedAppStoreApp struct {
 	TeamName      string `json:"team_name"`
 }
 
-// ActivityName is the name/type of the activity.
 func (a ActivityDeletedAppStoreApp) ActivityName() string {
 	return "deleted_app_store_app"
 }
 
-// Documentation is used by "go generate" to generate markdown docs.
 func (a ActivityDeletedAppStoreApp) Documentation() (activity string, details string, detailsExample string) {
 	return "Generated when an App Store app is deleted from Fleet.", `This activity contains the following fields:
 - "software_title": Name of the App Store app.
@@ -1667,5 +1659,32 @@ func (a ActivityDeletedAppStoreApp) Documentation() (activity string, details st
   "software_title": "Logic Pro",
   "app_store_id": "1234567",
   "team_name": "Workstations"
+}`
+}
+
+type ActivityInstalledAppStoreApp struct {
+	HostID          int    `json:"host_id"`
+	HostDisplayName string `json:"host_display_name"`
+	SoftwareTitle   string `json:"software_title"`
+	AppStoreID      int    `json:"app_store_id"`
+	CommandUUID     string `json:"command_uuid"`
+}
+
+func (a ActivityInstalledAppStoreApp) ActivityName() string {
+	return "installed_app_store_app"
+}
+
+func (a ActivityInstalledAppStoreApp) Documentation() (string, string, string) {
+	return "Generated when an App Store app is installed on a device.", `This activity contains the following fields:
+- host_id: ID of the host on which the app was installed.
+- host_display_name: Display name of the host.
+- software_title: Name of the App Store app.
+- app_store_id: ID of the app on the Apple App Store.
+- command_uuid: UUID of the MDM command used to install the app.`, `{
+  "host_id": 42,
+  "host_display_name": "Anna's MacBook Pro",
+  "software_title": "Logic Pro",
+  "app_store_id": 1234567,
+  "command_uuid": "98765432-1234-1234-1234-1234567890ab"
 }`
 }
