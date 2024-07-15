@@ -1,0 +1,2 @@
+adding support for new agent option `script_execution_timeout` to configure seconds until a script
+is killed due to timeout.
