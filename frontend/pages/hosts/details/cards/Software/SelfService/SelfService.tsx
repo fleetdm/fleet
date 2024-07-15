@@ -32,7 +32,7 @@ const DEFAULT_SELF_SERVICE_QUERY_PARAMS = {
   self_service: true,
 } as const;
 
-interface ISoftwareSelfServiceProps {
+export interface ISoftwareSelfServiceProps {
   contactUrl: string;
   deviceToken: string;
   isSoftwareEnabled?: boolean;
