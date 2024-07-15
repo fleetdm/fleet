@@ -379,7 +379,12 @@ func (c *GoogleCalendar) GetAndUpdateEvent(event *fleet.CalendarEvent, genBodyFn
 
 	newStartDate := calculateNewEventDate(event.StartTime)
 
-	fleetEvent, err := c.CreateEvent(newStartDate, genBodyFn)
+	opts := map[string]string{
+		"eventUUID":  event.UUID,
+		"channelID":  details.ChannelID,
+		"resourceID": details.ResourceID,
+	}
+	fleetEvent, err := c.CreateEvent(newStartDate, genBodyFn, opts)
 	if err != nil {
 		return nil, false, err
 	}
@@ -457,14 +462,16 @@ func (c *GoogleCalendar) unmarshalDetails(event *fleet.CalendarEvent) (*eventDet
 }
 
 func (c *GoogleCalendar) CreateEvent(dayOfEvent time.Time,
-	genBodyFn func(conflict bool) (body string, ok bool, err error)) (*fleet.CalendarEvent, error) {
-	return c.createEvent(dayOfEvent, genBodyFn, time.Now)
+	genBodyFn func(conflict bool) (body string, ok bool, err error),
+	opts map[string]string) (*fleet.CalendarEvent, error) {
+	return c.createEvent(dayOfEvent, genBodyFn, time.Now, opts)
 }
 
 // createEvent creates a new event on the calendar on the given date. timeNow is a function that returns the current time.
 // timeNow can be overwritten for testing
 func (c *GoogleCalendar) createEvent(
 	dayOfEvent time.Time, genBodyFn func(conflict bool) (body string, ok bool, err error), timeNow func() time.Time,
+	opts map[string]string,
 ) (*fleet.CalendarEvent, error) {
 	var err error
 	if c.location == nil {
@@ -572,17 +579,25 @@ func (c *GoogleCalendar) createEvent(
 		return nil, ctxerr.Wrap(c.config.Context, err, "creating Google calendar event")
 	}
 
-	// Watch for event changes
-	secondsToEventEnd := eventEnd.Sub(now).Milliseconds() / 1000
-	eventUUID := uuid.New().String()
-	channelUUID := uuid.New().String()
-	resourceID, err := c.config.API.Watch(eventUUID, channelUUID, uint64(secondsToEventEnd))
-	if err != nil {
-		return nil, ctxerr.Wrap(c.config.Context, err, "watching Google calendar event")
+	// Watch for event changes, if not already watching.
+	var eventUUID, channelID, resourceID string
+	if channelID, ok = opts["channelID"]; !ok {
+		// Watch for changes until the end of the event, plus 1 more week. The extra time is to handle cases when end user moves the event forward.
+		// We don't support watching events longer than 1 week from the original event time.
+		secondsToEventEnd := (eventEnd.Sub(now).Milliseconds() / 1000) + (7 * 24 * 60 * 60)
+		eventUUID = uuid.New().String()
+		channelID = uuid.New().String()
+		resourceID, err = c.config.API.Watch(eventUUID, channelID, uint64(secondsToEventEnd))
+		if err != nil {
+			return nil, ctxerr.Wrap(c.config.Context, err, "watching Google calendar event")
+		}
+	} else {
+		eventUUID, _ = opts["eventUUID"]
+		resourceID, _ = opts["resourceID"]
 	}
 
 	// Convert Google event to Fleet event
-	fleetEvent, err := c.googleEventToFleetEvent(eventStart, eventEnd, event, eventUUID, channelUUID, resourceID)
+	fleetEvent, err := c.googleEventToFleetEvent(eventStart, eventEnd, event, eventUUID, channelID, resourceID)
 	if err != nil {
 		return nil, err
 	}
@@ -662,13 +677,6 @@ func (c *GoogleCalendar) DeleteEvent(event *fleet.CalendarEvent) error {
 	details, err := c.unmarshalDetails(event)
 	if err != nil {
 		return err
-	}
-	// Stop watching the event before deleting the event so that we don't get a callback for the deletion
-	if details.ChannelID != "" && details.ResourceID != "" {
-		stopErr := c.config.API.Stop(details.ChannelID, details.ResourceID)
-		if stopErr != nil {
-			level.Warn(c.config.Logger).Log("msg", "stopping Google calendar event watch", "err", stopErr)
-		}
 	}
 	// Delete the event
 	err = c.config.API.DeleteEvent(details.ID)

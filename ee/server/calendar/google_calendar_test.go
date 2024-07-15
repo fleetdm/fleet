@@ -508,7 +508,7 @@ func TestGoogleCalendar_CreateEvent(t *testing.T) {
 		assert.Greater(t, ttl, uint64(60*30-1))
 		return baseResourceID, nil
 	}
-	event, err := cal.CreateEvent(date, genBodyFn)
+	event, err := cal.CreateEvent(date, genBodyFn, nil)
 	require.NoError(t, err)
 	assert.Equal(t, uuid, event.UUID)
 	assert.Equal(t, baseUserEmail, event.Email)
@@ -529,7 +529,7 @@ func TestGoogleCalendar_CreateEvent(t *testing.T) {
 
 	// Workday already ended
 	date = time.Now().Add(-48 * time.Hour)
-	_, err = cal.CreateEvent(date, genBodyFn)
+	_, err = cal.CreateEvent(date, genBodyFn, nil)
 	assert.ErrorAs(t, err, &fleet.DayEndedError{})
 
 	// There is no time left in the day to schedule an event
@@ -538,7 +538,7 @@ func TestGoogleCalendar_CreateEvent(t *testing.T) {
 		now := time.Date(date.Year(), date.Month(), date.Day(), endHour-1, 45, 0, 0, location)
 		return now
 	}
-	_, err = gCal.createEvent(date, genBodyFn, timeNow)
+	_, err = gCal.createEvent(date, genBodyFn, timeNow, nil)
 	assert.ErrorAs(t, err, &fleet.DayEndedError{})
 
 	// Workday already started
@@ -547,7 +547,7 @@ func TestGoogleCalendar_CreateEvent(t *testing.T) {
 	timeNow = func() time.Time {
 		return expectedStartTime
 	}
-	event, err = gCal.createEvent(date, genBodyFn, timeNow)
+	event, err = gCal.createEvent(date, genBodyFn, timeNow, nil)
 	require.NoError(t, err)
 	assert.Equal(t, expectedStartTime.UTC(), event.StartTime.UTC())
 	assert.Equal(t, expectedStartTime.Add(eventLength).UTC(), event.EndTime.UTC())
@@ -640,7 +640,7 @@ func TestGoogleCalendar_CreateEvent(t *testing.T) {
 		return gEvents, nil
 	}
 	expectedStartTime = time.Date(date.Year(), date.Month(), date.Day(), 12, 0, 0, 0, location)
-	event, err = gCal.CreateEvent(date, genBodyFn)
+	event, err = gCal.CreateEvent(date, genBodyFn, nil)
 	require.NoError(t, err)
 	assert.Equal(t, expectedStartTime.UTC(), event.StartTime.UTC())
 	assert.Equal(t, expectedStartTime.Add(eventLength).UTC(), event.EndTime.UTC())
@@ -660,7 +660,7 @@ func TestGoogleCalendar_CreateEvent(t *testing.T) {
 		return gEvents, nil
 	}
 	expectedStartTime = time.Date(date.Year(), date.Month(), date.Day(), endHour-1, 30, 0, 0, location)
-	event, err = gCal.CreateEvent(date, genBodyConflictFn)
+	event, err = gCal.CreateEvent(date, genBodyConflictFn, nil)
 	require.NoError(t, err)
 	assert.Equal(t, expectedStartTime.UTC(), event.StartTime.UTC())
 	assert.Equal(t, expectedStartTime.Add(eventLength).UTC(), event.EndTime.UTC())
@@ -680,7 +680,7 @@ func TestGoogleCalendar_CreateEvent(t *testing.T) {
 		return gEvents, nil
 	}
 	expectedStartTime = dayEnd
-	event, err = gCal.CreateEvent(date, genBodyFn)
+	event, err = gCal.CreateEvent(date, genBodyFn, nil)
 	require.NoError(t, err)
 	assert.Equal(t, expectedStartTime.UTC(), event.StartTime.UTC())
 	assert.Equal(t, expectedStartTime.Add(eventLength).UTC(), event.EndTime.UTC())
@@ -689,7 +689,7 @@ func TestGoogleCalendar_CreateEvent(t *testing.T) {
 	mockAPI.ListEventsFunc = func(timeMin, timeMax string) (*calendar.Events, error) {
 		return nil, assert.AnError
 	}
-	_, err = gCal.CreateEvent(date, genBodyFn)
+	_, err = gCal.CreateEvent(date, genBodyFn, nil)
 	assert.ErrorIs(t, err, assert.AnError)
 
 	// API error in CreateEvent
@@ -699,6 +699,6 @@ func TestGoogleCalendar_CreateEvent(t *testing.T) {
 	mockAPI.CreateEventFunc = func(event *calendar.Event) (*calendar.Event, error) {
 		return nil, assert.AnError
 	}
-	_, err = gCal.CreateEvent(date, genBodyFn)
+	_, err = gCal.CreateEvent(date, genBodyFn, nil)
 	assert.ErrorIs(t, err, assert.AnError)
 }
