@@ -276,7 +276,7 @@ func (c *GoogleCalendar) GetAndUpdateEvent(event *fleet.CalendarEvent, genBodyFn
 		return nil, false, err
 	}
 	tzUpdated := c.location.String() != event.TimeZone
-	
+
 	gEvent, err := c.config.API.GetEvent(details.ID, details.ETag)
 
 	var deleted, channelStopped bool
