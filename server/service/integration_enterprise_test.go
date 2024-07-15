@@ -9855,23 +9855,54 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 	})
 	require.NoError(t, err)
 
-	// apps
-	appsToInstall := []fleet.VPPBatchPayload{
-		{AppStoreID: "123"},
-		{AppStoreID: "456"},
-		{AppStoreID: "789"},
-	}
 	// No vpp token set
-	s.Do("POST", batchURL, batchAssociateAppStoreAppsRequest{Apps: appsToInstall}, http.StatusUnprocessableEntity, "team_name", tm.Name)
+	s.Do("POST", batchURL, batchAssociateAppStoreAppsRequest{}, http.StatusUnprocessableEntity, "team_name", tm.Name)
 
 	// Valid token
 	orgName := "Fleet Device Management Inc."
-	location := "Fleet Location One"
 	token := "mycooltoken"
 	expDate := "2025-06-24T15:50:50+0000"
 	tokenJSON := fmt.Sprintf(`{"expDate":"%s","token":"%s","orgName":"%s"}`, expDate, token, orgName)
 	t.Setenv("FLEET_DEV_VPP_URL", s.appleVPPConfigSrv.URL)
 	s.uploadDataViaForm("/api/latest/fleet/mdm/apple/vpp_token", "token", "token.vpptoken", []byte(base64.StdEncoding.EncodeToString([]byte(tokenJSON))), http.StatusAccepted, "")
+
+	// Associating nothing with no team members
+	s.Do("POST", batchURL, batchAssociateAppStoreAppsRequest{}, http.StatusNoContent, "team_name", tm.Name)
+
+	// host with valid serial number
+	hValid, err := s.ds.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		HardwareSerial:  "123",
+		SeenTime:        time.Now().Add(-1 * time.Minute),
+		OsqueryHostID:   ptr.String(t.Name() + uuid.New().String()),
+		NodeKey:         ptr.String(t.Name() + uuid.New().String()),
+		Hostname:        fmt.Sprintf("%sfoo.local", t.Name()),
+		Platform:        "darwin",
+	})
+	require.NoError(t, err)
+	err = s.ds.AddHostsToTeam(context.Background(), &tm.ID, []uint{hValid.ID})
+	require.NoError(t, err)
+
+	// host with valid serial number
+	hInvalid, err := s.ds.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		HardwareSerial:  "fake",
+		SeenTime:        time.Now().Add(-1 * time.Minute),
+		OsqueryHostID:   ptr.String(t.Name() + uuid.New().String()),
+		NodeKey:         ptr.String(t.Name() + uuid.New().String()),
+		Hostname:        fmt.Sprintf("%sfoo.local", t.Name()),
+		Platform:        "darwin",
+	})
+	require.NoError(t, err)
+	err = s.ds.AddHostsToTeam(context.Background(), &tm.ID, []uint{hInvalid.ID})
+	require.NoError(t, err)
+
+	// Associating nothing with no team members
+	s.Do("POST", batchURL, batchAssociateAppStoreAppsRequest{}, http.StatusUnprocessableEntity, "team_name", tm.Name)
 }
 
 func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerNewInstallRequestPlatformValidation() {

@@ -104,7 +104,8 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 	}
 
 	if len(missingAssets) != 0 {
-		return ctxerr.Errorf(ctx, "requested app store not available on vpp account: %s", strings.Join(missingAssets, ","))
+		reqErr := ctxerr.Errorf(ctx, "requested app store not available on vpp account: %s", strings.Join(missingAssets, ","))
+		return fleet.NewUserMessageError(reqErr, http.StatusUnprocessableEntity)
 	}
 
 	// we cheked if the team is null earlier

@@ -323,12 +323,12 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	if s.appleVPPConfigSrvConfig == nil {
 		s.appleVPPConfigSrvConfig = &AppleVPPConfigSrvConf{
 			Assets: []vpp.Asset{
-				vpp.Asset{
+				{
 					AdamID:         "1",
 					PricingParam:   "STDQ",
 					AvailableCount: 12,
 				},
-				vpp.Asset{
+				{
 					AdamID:         "2",
 					PricingParam:   "STDQ",
 					AvailableCount: 3,
@@ -375,6 +375,17 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 			}
 
 			if len(badAssets) != 0 || len(badSerials) != 0 {
+				errMsg := "error associating assets."
+				if len(badAssets) > 0 {
+					var badAdamIds []string
+					for _, asset := range badAssets {
+						badAdamIds = append(badAdamIds, asset.AdamID)
+					}
+					errMsg += fmt.Sprintf(" assets don't exist on account: %s.", strings.Join(badAdamIds, ", "))
+				}
+				if len(badSerials) > 0 {
+					errMsg += fmt.Sprintf(" bad serials: %s.", strings.Join(badSerials, ", "))
+				}
 				res := vpp.ErrorResponse{
 					ErrorInfo: vpp.ResponseErrorInfo{
 						Assets:        badAssets,
@@ -384,7 +395,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 					// Not sure what error should be returned on each
 					// error type
 					ErrorNumber:  1,
-					ErrorMessage: "error associating assets",
+					ErrorMessage: errMsg,
 				}
 				w.Header().Set("Content-Type", "application/json; charset=utf-8")
 				w.WriteHeader(http.StatusBadRequest)
