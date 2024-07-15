@@ -9118,7 +9118,6 @@ Add App Store (VPP) app purchased in Apple Business Manager.
 {
   "app_store_id": 2
 }
-
 ##### Default response
 
 `Status: 200`
