@@ -529,7 +529,7 @@ func attemptCreatingEventOnUserCalendar(
 		calendarEvent, err := userCalendar.CreateEvent(
 			preferredDate, func(conflict bool) (string, bool, error) {
 				return calendar.GenerateCalendarEventBody(ctx, ds, orgName, host, policyIDtoPolicy, conflict, logger), true, nil
-			},
+			}, nil,
 		)
 		var dee fleet.DayEndedError
 		switch {
@@ -816,6 +816,9 @@ func deleteCalendarEvent(
 			}
 			if err := userCalendar.DeleteEvent(calendarEvent); err != nil {
 				return fmt.Errorf("delete calendar event: %w", err)
+			}
+			if err := userCalendar.StopEventChannel(calendarEvent); err != nil {
+				return fmt.Errorf("stop event channel: %w", err)
 			}
 		}
 	}
