@@ -96,12 +96,13 @@ type integrationMDMTestSuite struct {
 	logger                     kitlog.Logger
 	scepChallenge              string
 	appleVPPConfigSrv          *httptest.Server
+	appleVPPConfigSrvConfig    *AppleVPPConfigSrvConf
 	appleITunesSrv             *httptest.Server
 	mockedDownloadFleetdmMeta  fleetdbase.Metadata
 }
 
 type AppleVPPConfigSrvConf struct {
-	Apps             vpp.Asset
+	Assets           []vpp.Asset
 	SerialNumbers    []string
 	AssociateSuccess bool
 }
@@ -320,15 +321,75 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 		_, _ = w.Write(resp)
 	}))
 
+	if s.appleVPPConfigSrvConfig == nil {
+		s.appleVPPConfigSrvConfig = &AppleVPPConfigSrvConf{
+			Assets: []vpp.Asset{
+				vpp.Asset{
+					AdamID:         "1",
+					PricingParam:   "STDQ",
+					AvailableCount: 12,
+				},
+				vpp.Asset{
+					AdamID:         "2",
+					PricingParam:   "STDQ",
+					AvailableCount: 3,
+				},
+			},
+			SerialNumbers:    []string{"123", "456"},
+			AssociateSuccess: true,
+		}
+	}
+
 	s.appleVPPConfigSrv = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if strings.Contains(r.URL.Path, "associate") {
+			var associations vpp.AssociateAssetsRequest
+
+			decoder := json.NewDecoder(r.Body)
+			if err := decoder.Decode(&associations); err != nil {
+				http.Error(w, "invalid request", http.StatusBadRequest)
+				return
+			}
+
+			for _, reqAsset := range associations.Assets {
+				var found bool
+				for _, goodAsset := range s.appleVPPConfigSrvConfig.Assets {
+					if reqAsset == goodAsset {
+						found = true
+					}
+				}
+				if !found {
+					http.Error(w, "requested asset not in vpp account", http.StatusBadRequest)
+					return
+				}
+			}
+
+			for _, reqSerial := range associations.SerialNumbers {
+				var found bool
+				for _, goodSerial := range s.appleVPPConfigSrvConfig.SerialNumbers {
+					if reqSerial == goodSerial {
+						found = true
+					}
+				}
+				if !found {
+					http.Error(w, "requested serial doesn't exist", http.StatusBadRequest)
+					return
+				}
+			}
+
+			if !s.appleVPPConfigSrvConfig.AssociateSuccess {
+				http.Error(w, "failed to associate", http.StatusBadRequest)
+			}
 
 		}
 
 		if strings.Contains(r.URL.Path, "assets") {
 			// Then we're responding to GetAssets
 			w.Header().Set("Content-Type", "application/json")
-			_, _ = w.Write([]byte(`{"assets": [{"adamId": "1", "pricingParam": "STDQ", "availableCount": 12}, {"adamId": "2", "pricingParam": "STDQ", "availableCount": 3}]}`))
+			encoder := json.NewEncoder(w)
+			err := encoder.Encode(map[string][]vpp.Asset{"assets": s.appleVPPConfigSrvConfig.Assets})
+			if err != nil {
+				panic(err)
+			}
 			return
 		}
 
