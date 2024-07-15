@@ -347,10 +347,14 @@ func (c *GoogleCalendar) GetAndUpdateEvent(event *fleet.CalendarEvent, genBodyFn
 
 	newStartDate := calculateNewEventDate(event.StartTime)
 
-	opts := map[string]string{
-		"eventUUID":  event.UUID,
-		"channelID":  details.ChannelID,
-		"resourceID": details.ResourceID,
+	var opts map[string]string
+	// Check for backward compatibility, for events created before we introduced notification channels
+	if details.ChannelID != "" && details.ResourceID != "" {
+		opts = map[string]string{
+			"eventUUID":  event.UUID,
+			"channelID":  details.ChannelID,
+			"resourceID": details.ResourceID,
+		}
 	}
 	fleetEvent, err := c.CreateEvent(newStartDate, genBodyFn, opts)
 	if err != nil {
