@@ -1508,7 +1508,7 @@ func (a ActivityTypeDeletedSoftware) Documentation() (string, string, string) {
 	return `Generated when a software installer is deleted from Fleet.`, `This activity contains the following fields:
 - "software_title": Name of the software.
 - "software_package": Filename of the installer.
-- "team_name": Name of the team to which this software was added.` + " `null " + `if it was added to no team.
+- "team_name": Name of the team to which this software was added.` + " `null` " + `if it was added to no team.
 - "team_id": The ID of the team to which this software was added.` + " `null` " + `if it was added to no team.
 - "self_service": Whether the software was available for installation by the end user.`, `{
   "software_title": "Falcon.app",
@@ -1609,7 +1609,7 @@ func (a ActivityEnabledVPP) ActivityName() string {
 
 // Documentation is used by "go generate" to generate markdown docs.
 func (a ActivityEnabledVPP) Documentation() (activity string, details string, detailsExample string) {
-	return "", "", "TODO(JVE)"
+	return "Generated when the VPP feature is enabled in Fleet.", "", ""
 }
 
 type ActivityDisabledVPP struct{}
@@ -1621,7 +1621,7 @@ func (a ActivityDisabledVPP) ActivityName() string {
 
 // Documentation is used by "go generate" to generate markdown docs.
 func (a ActivityDisabledVPP) Documentation() (activity string, details string, detailsExample string) {
-	return "", "", "TODO(JVE)"
+	return "Generated when the VPP feature is disabled in Fleet.", "", ""
 }
 
 type ActivityAddedAppStoreApp struct {
@@ -1637,5 +1637,35 @@ func (a ActivityAddedAppStoreApp) ActivityName() string {
 
 // Documentation is used by "go generate" to generate markdown docs.
 func (a ActivityAddedAppStoreApp) Documentation() (activity string, details string, detailsExample string) {
-	return "", "", "" // TODO(JVE):
+	return "Generated when an App Store app is added to Fleet.", `This activity contains the following fields:
+- "software_title": Name of the App Store app.
+- "app_store_id": ID of the app on the Apple App Store.
+- "team_name": Name of the team to which this App Store app was added.`, `{
+  "software_title": "Logic Pro",
+  "app_store_id": "1234567",
+  "team_name": "Workstations"
+}`
+}
+
+type ActivityDeletedAppStoreApp struct {
+	SoftwareTitle string `json:"software_title"`
+	AppStoreID    string `json:"app_store_id"`
+	TeamName      string `json:"team_name"`
+}
+
+// ActivityName is the name/type of the activity.
+func (a ActivityDeletedAppStoreApp) ActivityName() string {
+	return "deleted_app_store_app"
+}
+
+// Documentation is used by "go generate" to generate markdown docs.
+func (a ActivityDeletedAppStoreApp) Documentation() (activity string, details string, detailsExample string) {
+	return "Generated when an App Store app is deleted from Fleet.", `This activity contains the following fields:
+- "software_title": Name of the App Store app.
+- "app_store_id": ID of the app on the Apple App Store.
+- "team_name": Name of the team from which this App Store app was deleted.`, `{
+  "software_title": "Logic Pro",
+  "app_store_id": "1234567",
+  "team_name": "Workstations"
+}`
 }
