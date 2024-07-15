@@ -133,6 +133,8 @@ const routes = (
             <Route path="mac" component={DashboardPage} />
             <Route path="windows" component={DashboardPage} />
             <Route path="chrome" component={DashboardPage} />
+            <Route path="ios" component={DashboardPage} />
+            <Route path="ipados" component={DashboardPage} />
           </Route>
           <Route path="settings" component={AuthAnyAdminRoutes}>
             <IndexRedirect to="organization/info" />

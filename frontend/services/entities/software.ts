@@ -191,7 +191,11 @@ export default {
     return sendRequest("GET", path);
   },
 
-  addSoftwarePackage: (data: IAddSoftwareFormData, teamId?: number) => {
+  addSoftwarePackage: (
+    data: IAddSoftwareFormData,
+    teamId?: number,
+    timeout?: number
+  ) => {
     const { SOFTWARE_PACKAGE_ADD } = endpoints;
 
     if (!data.software) {
@@ -208,7 +212,14 @@ export default {
       formData.append("post_install_script", data.postInstallScript);
     teamId && formData.append("team_id", teamId.toString());
 
-    return sendRequest("POST", SOFTWARE_PACKAGE_ADD, formData);
+    return sendRequest(
+      "POST",
+      SOFTWARE_PACKAGE_ADD,
+      formData,
+      undefined,
+      timeout,
+      true
+    );
   },
 
   deleteSoftwarePackage: (softwareId: number, teamId: number) => {

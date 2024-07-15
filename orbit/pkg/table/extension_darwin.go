@@ -25,6 +25,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/sudo_info"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/tcc_access"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/user_login_settings"
+	"github.com/rs/zerolog/log"
 
 	"github.com/macadmins/osquery-extension/tables/filevaultusers"
 	"github.com/macadmins/osquery-extension/tables/macos_profiles"
@@ -38,7 +39,7 @@ import (
 	"github.com/osquery/osquery-go/plugin/table"
 )
 
-func PlatformTables(opts PluginOpts) []osquery.OsqueryPlugin {
+func PlatformTables(opts PluginOpts) ([]osquery.OsqueryPlugin, error) {
 	plugins := []osquery.OsqueryPlugin{
 		// Fleet tables
 		table.NewPlugin("icloud_private_relay", privaterelay.Columns(), privaterelay.Generate),
@@ -83,18 +84,18 @@ func PlatformTables(opts PluginOpts) []osquery.OsqueryPlugin {
 			},
 		),
 
-		filevault_status.TablePlugin(osqueryLogger), // table name is "filevault_status"
-		ioreg.TablePlugin(osqueryLogger),            // table name is "ioreg"
+		filevault_status.TablePlugin(log.Logger), // table name is "filevault_status"
+		ioreg.TablePlugin(log.Logger),            // table name is "ioreg"
 
 		// firmwarepasswd table. Only returns valid data on a Mac with an Intel processor. Background: https://support.apple.com/en-us/HT204455
-		firmwarepasswd.TablePlugin(osqueryLogger), // table name is "firmwarepasswd"
+		firmwarepasswd.TablePlugin(log.Logger), // table name is "firmwarepasswd"
 
 		// Table for parsing Apple Property List files, which are typically stored in ~/Library/Preferences/
-		dataflattentable.TablePlugin(osqueryLogger, dataflattentable.PlistType), // table name is "parse_plist"
+		dataflattentable.TablePlugin(log.Logger, dataflattentable.PlistType), // table name is "parse_plist"
 	}
 
 	// append platform specific tables
 	plugins = appendTables(plugins)
 
-	return plugins
+	return plugins, nil
 }

@@ -20,6 +20,8 @@ const capitalizeRole = (str: UserRole): UserRole => {
 
 export const STYLIZATIONS_AND_ACRONYMS = [
   "macOS",
+  "iOS",
+  "iPadOS",
   "osquery",
   "MySQL",
   "MDM",
@@ -29,7 +31,7 @@ export const STYLIZATIONS_AND_ACRONYMS = [
 ];
 
 // fleetdm.com/handbook/marketing/content-style-guide#sentence-case
-// * doesn't recognize proper nouns!
+/** Does not recognize proper nouns! */
 export const enforceFleetSentenceCasing = (s: string) => {
   const resArr = s.split(" ").map((word, i) => {
     if (!STYLIZATIONS_AND_ACRONYMS.includes(word)) {

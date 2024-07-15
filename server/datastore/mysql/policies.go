@@ -15,8 +15,8 @@ import (
 	"github.com/doug-martin/goqu/v9"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	kitlog "github.com/go-kit/kit/log"
-	"github.com/go-kit/kit/log/level"
+	kitlog "github.com/go-kit/log"
+	"github.com/go-kit/log/level"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -150,18 +150,21 @@ func (ds *Datastore) SavePolicy(ctx context.Context, p *fleet.Policy, shouldRemo
 		return ctxerr.Wrap(ctx, notFound("Policy").WithID(p.ID))
 	}
 
-	return cleanupPolicy(ctx, ds.writer(ctx), p.ID, p.Platform, shouldRemoveAllPolicyMemberships, removePolicyStats, ds.logger)
+	return cleanupPolicy(
+		ctx, ds.reader(ctx), ds.writer(ctx), p.ID, p.Platform, shouldRemoveAllPolicyMemberships, removePolicyStats, ds.logger,
+	)
 }
 
 func cleanupPolicy(
-	ctx context.Context, extContext sqlx.ExtContext, policyID uint, policyPlatform string, shouldRemoveAllPolicyMemberships bool,
+	ctx context.Context, queryerContext sqlx.QueryerContext, extContext sqlx.ExtContext, policyID uint, policyPlatform string,
+	shouldRemoveAllPolicyMemberships bool,
 	removePolicyStats bool, logger kitlog.Logger,
 ) error {
 	var err error
 	if shouldRemoveAllPolicyMemberships {
-		err = cleanupPolicyMembershipForPolicy(ctx, extContext, policyID)
+		err = cleanupPolicyMembershipForPolicy(ctx, queryerContext, extContext, policyID)
 	} else {
-		err = cleanupPolicyMembershipOnPolicyUpdate(ctx, extContext, policyID, policyPlatform)
+		err = cleanupPolicyMembershipOnPolicyUpdate(ctx, queryerContext, extContext, policyID, policyPlatform)
 	}
 	if err != nil {
 		return err
@@ -321,6 +324,11 @@ func (ds *Datastore) RecordPolicyQueryExecutions(ctx context.Context, host *flee
 	})
 	if err != nil {
 		return err
+	}
+	if len(results) > 0 {
+		if err := ds.UpdateHostIssuesFailingPolicies(ctx, []uint{host.ID}); err != nil {
+			return err
+		}
 	}
 
 	if deferredSaveHost {
@@ -803,7 +811,7 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 							}
 						}
 						if err = cleanupPolicy(
-							ctx, tx, uint(lastID), spec.Platform, shouldRemoveAllPolicyMemberships, removePolicyStats, ds.logger,
+							ctx, tx, tx, uint(lastID), spec.Platform, shouldRemoveAllPolicyMemberships, removePolicyStats, ds.logger,
 						); err != nil {
 							return err
 						}
@@ -838,13 +846,23 @@ func (ds *Datastore) AsyncBatchInsertPolicyMembership(ctx context.Context, batch
 	sql += ` ON DUPLICATE KEY UPDATE updated_at = VALUES(updated_at), passes = VALUES(passes)`
 
 	vals := make([]interface{}, 0, len(batch)*3)
+	hostIDs := make([]uint, 0, len(batch))
 	for _, tup := range batch {
 		vals = append(vals, tup.PolicyID, tup.HostID, tup.Passes)
+		hostIDs = append(hostIDs, tup.HostID)
 	}
-	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		_, err := tx.ExecContext(ctx, sql, vals...)
-		return ctxerr.Wrap(ctx, err, "insert into policy_membership")
-	})
+	err := ds.withRetryTxx(
+		ctx, func(tx sqlx.ExtContext) error {
+			_, err := tx.ExecContext(ctx, sql, vals...)
+			return ctxerr.Wrap(ctx, err, "insert into policy_membership")
+		})
+	if err != nil {
+		return err
+	}
+	if err = ds.UpdateHostIssuesFailingPolicies(ctx, hostIDs); err != nil {
+		return err
+	}
+	return nil
 }
 
 // AsyncBatchUpdatePolicyTimestamp updates the hosts' policy_updated_at timestamp
@@ -877,6 +895,10 @@ func deleteAllPolicyMemberships(ctx context.Context, tx sqlx.ExtContext, hostIDs
 	if _, err := tx.ExecContext(ctx, query, args...); err != nil {
 		return ctxerr.Wrap(ctx, err, "exec delete policies")
 	}
+	// This method is currently only called for 1 host at a time, so it is not a performance concern.
+	if err = updateHostIssuesFailingPolicies(ctx, tx, hostIDs); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -890,6 +912,11 @@ func cleanupPolicyMembershipOnTeamChange(ctx context.Context, tx sqlx.ExtContext
 	}
 	if _, err := tx.ExecContext(ctx, query, args...); err != nil {
 		return ctxerr.Wrap(ctx, err, "exec clean old policy memberships")
+	}
+	// This method is currently called for a batch of hosts. Performance should be monitored. If performance becomes a concern,
+	// we can reduce batch size or move this method outside the transaction.
+	if err = updateHostIssuesFailingPolicies(ctx, tx, hostIDs); err != nil {
+		return err
 	}
 	return nil
 }
@@ -910,7 +937,9 @@ func cleanupQueryResultsOnTeamChange(ctx context.Context, tx sqlx.ExtContext, ho
 	return nil
 }
 
-func cleanupPolicyMembershipOnPolicyUpdate(ctx context.Context, db sqlx.ExecerContext, policyID uint, platforms string) error {
+func cleanupPolicyMembershipOnPolicyUpdate(
+	ctx context.Context, queryerContext sqlx.QueryerContext, db sqlx.ExecerContext, policyID uint, platforms string,
+) error {
 	if platforms == "" {
 		// all platforms allowed, nothing to clean up
 		return nil
@@ -930,18 +959,62 @@ func cleanupPolicyMembershipOnPolicyUpdate(ctx context.Context, db sqlx.ExecerCo
 	  ( h.id IS NULL OR
 		FIND_IN_SET(h.platform, ?) = 0 )`
 
+	selectStmt := `
+	SELECT DISTINCT
+	  h.id
+	FROM
+	  policy_membership pm
+	INNER JOIN
+	  hosts h
+	ON
+	  pm.host_id = h.id
+	WHERE
+	  pm.policy_id = ? AND
+	  FIND_IN_SET(h.platform, ?) = 0`
+
 	var expandedPlatforms []string
 	splitPlatforms := strings.Split(platforms, ",")
 	for _, platform := range splitPlatforms {
 		expandedPlatforms = append(expandedPlatforms, fleet.ExpandPlatform(strings.TrimSpace(platform))...)
 	}
-	_, err := db.ExecContext(ctx, delStmt, policyID, strings.Join(expandedPlatforms, ","))
-	return ctxerr.Wrap(ctx, err, "cleanup policy membership")
+
+	// Find the impacted host IDs, so we can update their host issues entries
+	var hostIDs []uint
+	err := sqlx.SelectContext(ctx, queryerContext, &hostIDs, selectStmt, policyID, strings.Join(expandedPlatforms, ","))
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "select hosts to cleanup policy membership")
+	}
+
+	_, err = db.ExecContext(ctx, delStmt, policyID, strings.Join(expandedPlatforms, ","))
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "cleanup policy membership")
+	}
+
+	// Update host issues entries. This method is rarely called, so performance should not be a concern.
+	if err = updateHostIssuesFailingPolicies(ctx, db, hostIDs); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // cleanupPolicyMembership is similar to cleanupPolicyMembershipOnPolicyUpdate but without the platform constraints.
 // Used when we want to remove all policy membership.
-func cleanupPolicyMembershipForPolicy(ctx context.Context, exec sqlx.ExecerContext, policyID uint) error {
+func cleanupPolicyMembershipForPolicy(
+	ctx context.Context, queryerContext sqlx.QueryerContext, exec sqlx.ExecerContext, policyID uint,
+) error {
+	selectStmt := `
+	SELECT DISTINCT
+	  h.id
+	FROM
+	  policy_membership pm
+	INNER JOIN
+	  hosts h
+	ON
+	  pm.host_id = h.id
+	WHERE
+	  pm.policy_id = ?`
+
 	// delete all policy memberships for the policy
 	delStmt := `
 		DELETE
@@ -956,9 +1029,21 @@ func cleanupPolicyMembershipForPolicy(ctx context.Context, exec sqlx.ExecerConte
 			pm.policy_id = ?
 	`
 
-	_, err := exec.ExecContext(ctx, delStmt, policyID)
+	// Find the impacted host IDs, so we can update their host issues entries
+	var hostIDs []uint
+	err := sqlx.SelectContext(ctx, queryerContext, &hostIDs, selectStmt, policyID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "select hosts to cleanup policy membership for policy")
+	}
+
+	_, err = exec.ExecContext(ctx, delStmt, policyID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "cleanup policy membership")
+	}
+
+	// Update host issues entries. This method is rarely called, so performance should not be a concern.
+	if err = updateHostIssuesFailingPolicies(ctx, exec, hostIDs); err != nil {
+		return err
 	}
 
 	return nil
@@ -983,19 +1068,6 @@ func (ds *Datastore) CleanupPolicyMembership(ctx context.Context, now time.Time)
 			WHERE
 				p.updated_at >= DATE_SUB(?, INTERVAL ? SECOND) AND
 				p.created_at < p.updated_at`
-
-		deleteMembershipStmt = `
-			DELETE
-				pm
-			FROM
-				policy_membership pm
-			INNER JOIN
-				hosts h
-			ON
-				pm.host_id = h.id
-			WHERE
-				pm.policy_id = ? AND
-				FIND_IN_SET(h.platform, ?) = 0`
 	)
 
 	var pols []*fleet.Policy
@@ -1004,73 +1076,12 @@ func (ds *Datastore) CleanupPolicyMembership(ctx context.Context, now time.Time)
 	}
 
 	for _, pol := range pols {
-		if pol.Platform == "" {
-			continue
-		}
-
-		var expandedPlatforms []string
-		splitPlatforms := strings.Split(pol.Platform, ",")
-		for _, platform := range splitPlatforms {
-			expandedPlatforms = append(expandedPlatforms, fleet.ExpandPlatform(strings.TrimSpace(platform))...)
-		}
-
-		if _, err := ds.writer(ctx).ExecContext(ctx, deleteMembershipStmt, pol.ID, strings.Join(expandedPlatforms, ",")); err != nil {
-			return ctxerr.Wrapf(ctx, err, "delete outdated hosts membership for policy: %d; platforms: %v", pol.ID, expandedPlatforms)
+		if err := cleanupPolicyMembershipOnPolicyUpdate(ctx, ds.reader(ctx), ds.writer(ctx), pol.ID, pol.Platform); err != nil {
+			return ctxerr.Wrapf(ctx, err, "delete outdated hosts membership for policy: %d; platforms: %v", pol.ID, pol.Platform)
 		}
 	}
 
 	return nil
-}
-
-func (ds *Datastore) UpdatePolicyFailureCountsForHosts(ctx context.Context, hosts []*fleet.Host) ([]*fleet.Host, error) {
-	if len(hosts) == 0 {
-		return hosts, nil
-	}
-
-	// Get policy failure counts for each host
-	hostIDs := make([]uint, 0, len(hosts))
-
-	for _, host := range hosts {
-		hostIDs = append(hostIDs, host.ID)
-	}
-
-	query, args, err := sqlx.In(`
-		SELECT
-			pm.host_id,
-			COUNT(*) AS failing_policy_count
-		FROM
-			policy_membership pm
-		WHERE
-			pm.passes = 0 AND
-			pm.host_id IN (?)
-		GROUP BY
-			pm.host_id
-	`, hostIDs)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "build policy failure count query")
-	}
-
-	var policyFailureCounts []struct {
-		HostID             uint `db:"host_id"`
-		FailingPolicyCount int  `db:"failing_policy_count"`
-	}
-
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &policyFailureCounts, query, args...); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "get policy failure counts for hosts")
-	}
-
-	// Map policy failure counts to hosts
-	hostIDToPolicyFailureCounts := make(map[uint]int)
-	for _, policyFailureCount := range policyFailureCounts {
-		hostIDToPolicyFailureCounts[policyFailureCount.HostID] = policyFailureCount.FailingPolicyCount
-	}
-
-	for _, host := range hosts {
-		host.TotalIssuesCount = hostIDToPolicyFailureCounts[host.ID]
-		host.FailingPoliciesCount = hostIDToPolicyFailureCounts[host.ID]
-	}
-
-	return hosts, nil
 }
 
 // PolicyViolationDays is a structure used for aggregate counts of policy violation days.
@@ -1423,6 +1434,7 @@ func (ds *Datastore) GetTeamHostsPolicyMemberships(
 	domain string,
 	teamID uint,
 	policyIDs []uint,
+	hostID *uint,
 ) ([]fleet.HostPolicyMembershipData, error) {
 	query := `
 	SELECT 
@@ -1448,12 +1460,16 @@ func (ds *Datastore) GetTeamHostsPolicyMemberships(
 	) sh ON h.id = sh.host_id
 	LEFT JOIN host_display_names hdn ON h.id = hdn.host_id
 	LEFT JOIN host_calendar_events hce ON h.id = hce.host_id
-	WHERE h.team_id = ? AND ((pm.passing IS NOT NULL AND NOT pm.passing) OR (COALESCE(pm.passing, 1) AND hce.host_id IS NOT NULL));
+	WHERE h.team_id = ? AND ((pm.passing IS NOT NULL AND NOT pm.passing) OR (COALESCE(pm.passing, 1) AND hce.host_id IS NOT NULL))
 `
 
 	query, args, err := sqlx.In(query, policyIDs, domain, teamID, teamID)
 	if err != nil {
 		return nil, ctxerr.Wrapf(ctx, err, "build select get team hosts policy memberships query")
+	}
+	if hostID != nil {
+		query += ` AND h.id = ?`
+		args = append(args, *hostID)
 	}
 	var hosts []fleet.HostPolicyMembershipData
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &hosts, query, args...); err != nil {

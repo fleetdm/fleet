@@ -3,13 +3,15 @@
 
   <div purpose="continue-banner" class="d-flex justify-content-end">
     <div purpose="banner-body" class="d-flex flex-row align-items-center invisible <%- collapseStartCta ? 'collapsed' : ''%>">
-      <div purpose="banner-image">
+      <div purpose="banner-image-background">
+        <div purpose="banner-image">
+        </div>
       </div>
       <div purpose="banner-text" class="d-flex flex-column justify-content-center">
-        <% if(['2 - Aware', '3 - Intrigued'].includes(me.psychologicalStage)) { %>
+        <% if(['2 - Aware', '3 - Intrigued', '4 - Has use case'].includes(me.psychologicalStage)) { %>
           <strong>Tried Fleet yet?</strong>
           <p>Get started with Fleet</p>
-        <% } else if(['4 - Has use case', '5 - Personally confident'].includes(me.psychologicalStage)) { %>
+        <% } else if(me.psychologicalStage === '5 - Personally confident') { %>
           <strong>Feeling confident?</strong>
           <p>Get set up with Fleet</p>
         <% } else if (me.psychologicalStage === '6 - Has team buy-in') {%>
@@ -17,12 +19,18 @@
           <p>Let’s get you set up!</p>
         <% } %>
         <div>
-          <a purpose="continue-button" href="/start">Continue</a>
+          <a purpose="continue-button" class="start-cta-continue-button" href="/start">
+            Continue
+            <svg purpose="animated-arrow" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12">
+              <path purpose="arrow-line" d="M1 6H9" stroke-width="2" stroke-linecap="round"/>
+              <path purpose="chevron" d="M1.35712 1L5.64283 6L1.35712 11" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </a>
         </div>
       </div>
-      <a purpose="continue-chevron" href="/start"> <img alt="continue" src="/images/chevron-core-fleet-black-7x12@2x.png"> </a>
+      <a purpose="continue-chevron" class="mobile-start-cta-continue-button" href="/start"> <img alt="continue" src="/images/chevron-core-fleet-black-7x12@2x.png"> </a>
       <div class="d-flex flex-column align-self-start">
-        <div purpose="banner-close-button">&times;</div>
+        <div purpose="banner-close-button" class="start-cta-close-button">&times;</div>
       </div>
     </div>
 

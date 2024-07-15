@@ -11,6 +11,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -26,9 +27,9 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/service/schedule"
-	kitlog "github.com/go-kit/kit/log"
-	"github.com/go-kit/kit/log/level"
 	"github.com/go-kit/log"
+	kitlog "github.com/go-kit/log"
+	"github.com/go-kit/log/level"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.mozilla.org/pkcs7"
@@ -332,16 +333,17 @@ func TestCronVulnerabilitiesCreatesDatabasesPath(t *testing.T) {
 
 	config := config.VulnerabilitiesConfig{
 		DatabasesPath:         vulnPath,
-		Periodicity:           10 * time.Second,
+		Periodicity:           time.Second,
 		CurrentInstanceChecks: "auto",
 	}
 	// Use schedule to test that the schedule does indeed call cronVulnerabilities.
 	ctx = license.NewContext(ctx, &fleet.LicenseInfo{Tier: fleet.TierPremium})
-	s, err := newVulnerabilitiesSchedule(ctx, "test_instance", ds, kitlog.NewNopLogger(), &config)
+	lg := kitlog.NewJSONLogger(os.Stdout)
+	s, err := newVulnerabilitiesSchedule(ctx, "test_instance", ds, lg, &config)
 	require.NoError(t, err)
 	s.Start()
 
-	require.Eventually(t, func() bool {
+	assert.Eventually(t, func() bool {
 		info, err := os.Lstat(vulnPath)
 		if err != nil {
 			return false
@@ -351,6 +353,23 @@ func TestCronVulnerabilitiesCreatesDatabasesPath(t *testing.T) {
 		}
 		return true
 	}, 5*time.Minute, 30*time.Second)
+
+	// at this point, the assertion has succeeded or failed, try to remove the
+	// temp dir and all content instead of leaving it to the testing package to
+	// handle - the assumption is that this test used to fail because it tried to
+	// remove the temp dir while trying to write to it concurrently, and resulted
+	// in e.g.:
+	// === RUN   TestCronVulnerabilitiesCreatesDatabasesPath
+	//  testing.go:1231: TempDir RemoveAll cleanup: unlinkat /tmp/TestCronVulnerabilitiesCreatesDatabasesPath2986870230/001/something: directory not empty
+	// --- FAIL: TestCronVulnerabilitiesCreatesDatabasesPath (60.22s)
+	for err := os.RemoveAll(vulnPath); err != nil; err = os.RemoveAll(vulnPath) {
+		if strings.Contains(err.Error(), "directory not empty") {
+			time.Sleep(time.Second)
+			continue
+		}
+		// for any other unexpected error, fail the test
+		require.NoError(t, err)
+	}
 }
 
 type softwareIterator struct {
@@ -475,7 +494,7 @@ func TestScanVulnerabilities(t *testing.T) {
 		}
 		return []uint{}, nil
 	}
-	ds.ListSoftwareForVulnDetectionFunc = func(ctx context.Context, hostID uint) ([]fleet.Software, error) {
+	ds.ListSoftwareForVulnDetectionFunc = func(ctx context.Context, filter fleet.VulnSoftwareFilter) ([]fleet.Software, error) {
 		return []fleet.Software{
 			{
 				ID:               1,

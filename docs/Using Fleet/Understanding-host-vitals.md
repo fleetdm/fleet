@@ -85,7 +85,7 @@ FROM logical_drives WHERE file_system = 'NTFS' LIMIT 1;
 
 - Discovery query:
 ```sql
-SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'google_chrome_profiles';
+SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'google_chrome_profiles'
 ```
 
 - Query:
@@ -99,7 +99,7 @@ SELECT email FROM google_chrome_profiles WHERE NOT ephemeral AND email <> ''
 
 - Discovery query:
 ```sql
-SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'kubernetes_info';
+SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'kubernetes_info'
 ```
 
 - Query:
@@ -113,7 +113,7 @@ SELECT * from kubernetes_info
 
 - Discovery query:
 ```sql
-SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'mdm';
+SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'mdm'
 ```
 
 - Query:
@@ -127,7 +127,7 @@ select enrolled, server_url, installed_from_dep, payload_identifier from mdm;
 
 - Discovery query:
 ```sql
-SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'macos_profiles';
+SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'macos_profiles'
 ```
 
 - Query:
@@ -141,7 +141,7 @@ SELECT display_name, identifier, install_date FROM macos_profiles where type = "
 
 - Discovery query:
 ```sql
-SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'filevault_prk';
+SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'filevault_prk'
 ```
 
 - Query:
@@ -216,7 +216,7 @@ WITH registry_keys AS (
 
 - Discovery query:
 ```sql
-SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'munki_info';
+SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'munki_info'
 ```
 
 - Query:
@@ -315,7 +315,7 @@ LIMIT 1;
 
 - Discovery query:
 ```sql
-SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'orbit_info';
+SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'orbit_info'
 ```
 
 - Query:
@@ -674,13 +674,56 @@ SELECT
 FROM homebrew_packages;
 ```
 
+## software_macos_firefox
+
+- Description: A software override query[^1] to differentiate between Firefox and Firefox ESR on macOS.  Requires `fleetd`
+
+- Platforms: darwin
+
+- Discovery query:
+```sql
+SELECT 1 WHERE EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.mozilla.firefox' LIMIT 1) AND EXISTS (SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'parse_ini')
+```
+
+- Query:
+```sql
+WITH app_paths AS (
+				SELECT path
+				FROM apps
+				WHERE bundle_identifier = 'org.mozilla.firefox'
+			),
+			remoting_name AS (
+				SELECT value, path
+				FROM parse_ini
+				WHERE key = 'RemotingName'
+				AND path IN (SELECT CONCAT(path, '/Contents/Resources/application.ini') FROM app_paths)
+			)
+			SELECT
+				CASE
+					WHEN remoting_name.value = 'firefox-esr' THEN 'Firefox ESR.app'
+					ELSE 'Firefox.app'
+				END AS name,
+				COALESCE(NULLIF(apps.bundle_short_version, ''), apps.bundle_version) AS version,
+				'Application (macOS)' AS type,
+				apps.bundle_identifier AS bundle_identifier,
+				'' AS extension_id,
+				'' AS browser,
+				'apps' AS source,
+				'' AS vendor,
+				apps.last_opened_time AS last_opened_at,
+				apps.path AS installed_path
+			FROM apps
+			LEFT JOIN remoting_name ON apps.path = REPLACE(remoting_name.path, '/Contents/Resources/application.ini', '')
+			WHERE apps.bundle_identifier = 'org.mozilla.firefox'
+```
+
 ## software_vscode_extensions
 
 - Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, opensuse-leap, opensuse-tumbleweed, tuxedo, darwin, windows
 
 - Discovery query:
 ```sql
-SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'vscode_extensions';
+SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'vscode_extensions'
 ```
 
 - Query:
@@ -825,7 +868,7 @@ SELECT uid, username, email FROM users
 
 - Discovery query:
 ```sql
-SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'windows_update_history';
+SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'windows_update_history'
 ```
 
 - Query:
@@ -833,6 +876,6 @@ SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND na
 SELECT date, title FROM windows_update_history WHERE result_code = 'Succeeded'
 ```
 
-
+<br /><br />[^1]: Software override queries write over the default queries. They are used to populate the software inventory.
 <meta name="navSection" value="Dig deeper">
 <meta name="pageOrderInSection" value="1600">

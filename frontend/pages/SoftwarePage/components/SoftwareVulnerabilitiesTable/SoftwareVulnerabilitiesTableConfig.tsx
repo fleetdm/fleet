@@ -10,7 +10,6 @@ import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCel
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import TooltipWrapper from "components/TooltipWrapper";
 import { HumanTimeDiffWithDateTip } from "components/HumanTimeDiffWithDateTip";
-import PremiumFeatureIconWithTooltip from "components/PremiumFeatureIconWithTooltip";
 import ProbabilityOfExploit from "components/ProbabilityOfExploit/ProbabilityOfExploit";
 import ViewAllHostsLink from "components/ViewAllHostsLink";
 import LinkCell from "components/TableContainer/DataTable/LinkCell";
@@ -49,7 +48,6 @@ interface IDataColumn {
 
 const generateTableConfig = (
   isPremiumTier: boolean,
-  isSandboxMode: boolean,
   router: InjectedRouter,
   teamId?: number
 ): IDataColumn[] => {
@@ -94,8 +92,8 @@ const generateTableConfig = (
           <TooltipWrapper
             tipContent={
               <>
-                The worst case impact across different environments (CVSS base
-                score).
+                The worst case impact across different environments (CVSS
+                version 3.x base score).
               </>
             }
           >
@@ -108,7 +106,6 @@ const generateTableConfig = (
               value={titleWithTooltip}
               isSortedDesc={headerProps.column.isSortedDesc}
             />
-            {isSandboxMode && <PremiumFeatureIconWithTooltip />}
           </>
         );
       },
@@ -131,6 +128,7 @@ const generateTableConfig = (
                 This data is reported by FIRST.org.
               </>
             }
+            fixedPositionStrategy
           >
             Probability of exploit
           </TooltipWrapper>
@@ -141,7 +139,6 @@ const generateTableConfig = (
               value={titleWithTooltip}
               isSortedDesc={headerProps.column.isSortedDesc}
             />
-            {isSandboxMode && <PremiumFeatureIconWithTooltip />}
           </>
         );
       },
@@ -175,7 +172,6 @@ const generateTableConfig = (
               value={titleWithTooltip}
               isSortedDesc={headerProps.column.isSortedDesc}
             />
-            {isSandboxMode && <PremiumFeatureIconWithTooltip />}
           </>
         );
       },
@@ -209,7 +205,6 @@ const generateTableConfig = (
               value={titleWithTooltip}
               isSortedDesc={headerProps.column.isSortedDesc}
             />
-            {isSandboxMode && <PremiumFeatureIconWithTooltip />}
           </>
         );
       },

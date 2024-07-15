@@ -14,6 +14,8 @@
 
 package wfn
 
+import "sync"
+
 // Matcher knows whether it matches some attributes
 type Matcher interface {
 	// Match returns attributes which match it
@@ -51,12 +53,12 @@ func (a *Attributes) MatchWithoutVersion(attr *Attributes) bool {
 
 // MatchAll returns a Matcher which matches only if all matchers match
 func MatchAll(ms ...Matcher) Matcher {
-	return &multiMatcher{ms, true}
+	return &multiMatcher{matchers: ms, allMatch: true}
 }
 
 // MatchAll returns a Matcher which matches if any of the matchers match
 func MatchAny(ms ...Matcher) Matcher {
-	return &multiMatcher{ms, false}
+	return &multiMatcher{matchers: ms, allMatch: false}
 }
 
 // DontMatch returns a Matcher which matches if the given matchers doesn't
@@ -67,13 +69,29 @@ func DontMatch(m Matcher) Matcher {
 type multiMatcher struct {
 	matchers []Matcher
 	// if true, match will only return something if all matchers matched at least something
-	allMatch bool
+	allMatch   bool
+	depth      int
+	depthMutex sync.Mutex
 }
 
 // Match is part of the Matcher interface
 func (mm *multiMatcher) Match(attrs []*Attributes, requireVersion bool) []*Attributes {
+	defer func() {
+		mm.depthMutex.Lock()
+		if mm.depth > 0 {
+			mm.depth--
+		}
+		mm.depthMutex.Unlock()
+	}()
+
 	matched := make(map[*Attributes]bool)
 	for _, matcher := range mm.matchers {
+		// type check matcher against multiMatcher
+		if _, ok := matcher.(*multiMatcher); !ok {
+			mm.depthMutex.Lock()
+			mm.depth++
+			mm.depthMutex.Unlock()
+		}
 		matches := matcher.Match(attrs, requireVersion)
 		if mm.allMatch && len(matches) == 0 {
 			// all matchers need to match at least one attr
@@ -88,6 +106,13 @@ func (mm *multiMatcher) Match(attrs []*Attributes, requireVersion bool) []*Attri
 	for m := range matched {
 		matches = append(matches, m)
 	}
+
+	if mm.depthMutex.Lock(); mm.depth == 0 && len(matches) > 1 && !attributesIncludeApp(matches) {
+		mm.depthMutex.Unlock()
+		return nil
+	}
+	mm.depthMutex.Unlock()
+
 	return matches
 }
 
@@ -117,4 +142,13 @@ func (nm notMatcher) Match(attrs []*Attributes, requireVersion bool) (matches []
 		}
 	}
 	return matches
+}
+
+func attributesIncludeApp(attrs []*Attributes) bool {
+	for _, a := range attrs {
+		if a.Part == "a" {
+			return true
+		}
+	}
+	return false
 }

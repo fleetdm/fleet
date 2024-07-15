@@ -1,10 +1,5 @@
-import React, { ComponentType, SVGProps } from "react";
-import {
-  SOFTWARE_NAME_TO_ICON_MAP,
-  SOFTWARE_SOURCE_TO_ICON_MAP,
-  SOFTWARE_ICON_SIZES,
-  SoftwareIconSizes,
-} from "../";
+import React from "react";
+import getMatchedSoftwareIcon from "../";
 
 const baseClass = "software-icon";
 
@@ -14,43 +9,20 @@ interface ISoftwareIconProps {
   size?: SoftwareIconSizes;
 }
 
-const matchInMap = (
-  map: Record<string, ComponentType<SVGProps<SVGSVGElement>>>,
-  potentialKey?: string
-) => {
-  if (!potentialKey) {
-    return null;
-  }
+const SOFTWARE_ICON_SIZES: Record<string, string> = {
+  medium: "24",
+  meduim_large: "64", // TODO: rename this to large and update large to xlarge
+  large: "96",
+} as const;
 
-  const sanitizedKey = potentialKey.trim().toLowerCase();
-  const match = Object.entries(map).find(([namePrefix, icon]) => {
-    if (sanitizedKey.startsWith(namePrefix)) {
-      return icon;
-    }
-    return null;
-  });
-
-  return match ? match[1] : null;
-};
+type SoftwareIconSizes = keyof typeof SOFTWARE_ICON_SIZES;
 
 const SoftwareIcon = ({
-  name,
-  source,
+  name = "",
+  source = "",
   size = "medium",
 }: ISoftwareIconProps) => {
-  // try to find a match for name
-  let MatchedIcon = matchInMap(SOFTWARE_NAME_TO_ICON_MAP, name);
-
-  // otherwise, try to find a match for source
-  if (!MatchedIcon) {
-    MatchedIcon = matchInMap(SOFTWARE_SOURCE_TO_ICON_MAP, source);
-  }
-
-  // default to 'package'
-  if (!MatchedIcon) {
-    MatchedIcon = SOFTWARE_SOURCE_TO_ICON_MAP.package;
-  }
-
+  const MatchedIcon = getMatchedSoftwareIcon({ name, source });
   return (
     <MatchedIcon
       width={SOFTWARE_ICON_SIZES[size]}

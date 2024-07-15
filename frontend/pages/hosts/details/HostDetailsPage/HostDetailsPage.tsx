@@ -77,7 +77,7 @@ import TransferHostModal from "../../components/TransferHostModal";
 import DeleteHostModal from "../../components/DeleteHostModal";
 
 import DiskEncryptionKeyModal from "./modals/DiskEncryptionKeyModal";
-import HostActionDropdown from "./HostActionsDropdown/HostActionsDropdown";
+import HostActionsDropdown from "./HostActionsDropdown/HostActionsDropdown";
 import OSSettingsModal from "../OSSettingsModal";
 import BootstrapPackageModal from "./modals/BootstrapPackageModal";
 import RunScriptModal from "./modals/RunScriptModal";
@@ -141,7 +141,6 @@ const HostDetailsPage = ({
     isGlobalAdmin = false,
     isGlobalObserver,
     isPremiumTier = false,
-    isSandboxMode,
     isOnlyObserver,
     filteredHostsPath,
     currentTeam,
@@ -672,7 +671,7 @@ const HostDetailsPage = ({
     }
 
     return (
-      <HostActionDropdown
+      <HostActionsDropdown
         hostTeamId={host.team_id}
         onSelect={onSelectHostAction}
         hostPlatform={host.platform}
@@ -680,7 +679,7 @@ const HostDetailsPage = ({
         hostMdmDeviceStatus={hostMdmDeviceStatus}
         hostMdmEnrollmentStatus={host.mdm.enrollment_status}
         doesStoreEncryptionKey={host.mdm.encryption_key_available}
-        mdmName={mdm?.name}
+        isConnectedToFleetMdm={host.mdm?.connected_to_fleet}
         hostScriptsEnabled={host.scripts_enabled}
       />
     );
@@ -774,8 +773,8 @@ const HostDetailsPage = ({
         <HostDetailsBanners
           hostMdmEnrollmentStatus={host?.mdm.enrollment_status}
           hostPlatform={host?.platform}
-          mdmName={host?.mdm.name}
           diskEncryptionStatus={host?.mdm.macos_settings?.disk_encryption}
+          connectedToFleetMdm={host?.mdm.connected_to_fleet}
         />
         <div className={`${baseClass}__header-links`}>
           <BackLink
@@ -787,11 +786,10 @@ const HostDetailsPage = ({
           summaryData={summaryData}
           bootstrapPackageData={bootstrapPackageData}
           isPremiumTier={isPremiumTier}
-          isSandboxMode={isSandboxMode}
           toggleOSSettingsModal={toggleOSSettingsModal}
           toggleBootstrapPackageModal={toggleBootstrapPackageModal}
           hostMdmProfiles={host?.mdm.profiles ?? []}
-          mdmName={mdm?.name}
+          isConnectedToFleetMdm={host?.mdm?.connected_to_fleet}
           showRefetchSpinner={showRefetchSpinner}
           onRefetchHost={onRefetchHost}
           renderActionDropdown={renderActionDropdown}

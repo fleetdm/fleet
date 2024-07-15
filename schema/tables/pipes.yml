@@ -11,9 +11,10 @@ notes: |- # (optional) string - Notes about this table. Note: This field support
   Running the following command at a prompt in PowerShell lists the named pipes currently open on a Windows computer:
 
   ```
-  get-childitem \\.\pipe\
+  PS C:\Windows\System32> get-childitem \\.\pipe\
   ```
 
   Links:
   - Microsoft documentation on [named pipes](https://learn.microsoft.com/en-us/windows/win32/ipc/named-pipes)
   - Discover files linked to processes with Windows [Process Explorer](https://learn.microsoft.com/en-us/sysinternals/downloads/process-explorer)
+  - Windows [PowerShell](https://learn.microsoft.com/en-us/powershell/scripting/overview?view=powershell-7.4)

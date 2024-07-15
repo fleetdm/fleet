@@ -114,6 +114,12 @@ type VulnerableSoftware struct {
 	ResolvedInVersion *string `json:"resolved_in_version" db:"resolved_in_version"`
 }
 
+type VulnSoftwareFilter struct {
+	HostID *uint
+	Name   string // LIKE filter
+	Source string // exact match
+}
+
 type SliceString []string
 
 func (c *SliceString) Scan(v interface{}) error {
@@ -160,6 +166,10 @@ type SoftwareTitle struct {
 	CountsUpdatedAt *time.Time `json:"-" db:"counts_updated_at"`
 	// SoftwarePackage is the software installer information for this title.
 	SoftwarePackage *SoftwareInstaller `json:"software_package" db:"-"`
+	// BundleIdentifier is used by Apple installers to uniquely identify
+	// the software installed. It's surfaced in software_titles to match
+	// with existing software entries.
+	BundleIdentifier *string `json:"bundle_identifier,omitempty" db:"bundle_identifier"`
 }
 
 // This type is essentially the same as the above SoftwareTitle type. The only difference is that
@@ -186,6 +196,10 @@ type SoftwareTitleListResult struct {
 	SoftwarePackage *string `json:"software_package" db:"software_package"`
 	// SelfService indicates if the end user can initiate the installation
 	SelfService bool `json:"self_service" db:"self_service"`
+	// BundleIdentifier is used by Apple installers to uniquely identify
+	// the software installed. It's surfaced in software_titles to match
+	// with existing software entries.
+	BundleIdentifier *string `json:"bundle_identifier,omitempty" db:"bundle_identifier"`
 }
 
 type SoftwareTitleListOptions struct {
@@ -211,6 +225,8 @@ type HostSoftwareTitleListOptions struct {
 	// service layer to indicate to the datastore if software available for
 	// install (but not currently installed on the host) should be returned.
 	IncludeAvailableForInstall bool
+
+	VulnerableOnly bool `query:"vulnerable,optional"`
 }
 
 // AuthzSoftwareInventory is used for access controls on software inventory.
@@ -267,6 +283,8 @@ type SoftwareListOptions struct {
 type SoftwareIterQueryOptions struct {
 	ExcludedSources []string // what sources to exclude
 	IncludedSources []string // what sources to include
+	NameMatch       string   // mysql regex to filter software by name
+	NameExclude     string   // mysql regex to filter software by name
 }
 
 // IsValid checks that either ExcludedSources or IncludedSources is specified but not both

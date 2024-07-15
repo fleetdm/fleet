@@ -6,10 +6,10 @@ output "fleet_extra_environment_variables" {
     FLEET_KINESIS_STS_ASSUME_ROLE_ARN = var.iam_role_arn
     FLEET_KINESIS_STS_EXTERNAL_ID     = var.sts_external_id
     FLEET_KINESIS_REGION              = var.region
-    FLEET_OSQUERY_STATUS_LOG_PLUGIN    = "kinesis"
-    FLEET_OSQUERY_RESULT_LOG_PLUGIN    = "kinesis"
-    FLEET_ACTIVITY_ENABLE_AUDIT_LOG    = length(var.kinesis_audit_name) > 0 ? "true" : "false"
-    FLEET_ACTIVITY_AUDIT_LOG_PLUGIN    = "kinesis" # only has an effect if ^ is true
+    FLEET_OSQUERY_STATUS_LOG_PLUGIN   = length(var.kinesis_status_name) > 0 ? "kinesis" : ""
+    FLEET_OSQUERY_RESULT_LOG_PLUGIN   = length(var.kinesis_results_name) > 0 ? "kinesis" : ""
+    FLEET_ACTIVITY_AUDIT_LOG_PLUGIN   = length(var.kinesis_audit_name) > 0 ? "kinesis" : ""
+    FLEET_ACTIVITY_ENABLE_AUDIT_LOG   = length(var.kinesis_audit_name) > 0 ? "true" : "false"
   }
 }
 

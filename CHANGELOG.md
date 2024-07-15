@@ -1,3 +1,102 @@
+## Fleet 4.53.1 (Jul 01, 2024)
+
+### Bug fixes
+
+* Updated fleetctl get queries/labels/hosts descriptions.
+* Fixed exporting CSVs with fields that contain commas to render properly.
+* Fixed link to fleetd uninstall instructions in "Delete device" modal.
+* Rendered only one banner on the my device page based on priority order.
+* Hidden query delete checkboxes from team observers.
+* Fixed issue where the Fleet UI could not be used to renew the ABM token after the ABM user who created the token was deleted.
+* Fixed an issue where special characters in HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall broke the "installer_utils.ps1 -uninstallOrbit" step in the Windows MSI installer.
+* Fixed counts for hosts with low disk space in summary page.
+* Fleet UI fixes: Hide CTA on inherited queries/policies from team level users.
+* Updated software updated timestamp tooltip.
+* Fixed issue where some Windows applications were getting matched against Windows OS vulnerabilities.
+* Fixed crash in `fleetd` installer on Windows if there are registry keys with special characters on the system.
+* Fixed UI capitalizations.
+
+## Fleet 4.53.0 (Jun 25, 2024)
+
+### Endpoint Operations
+
+- Enabled `fleetctl gitops` to create teams with no enroll secrets, or clear enroll secrets for an existing team.
+- Added support for upgrades to `fleetd` RPMs packages.
+- Changed `activities.created_at` timestamp precision to microseconds.
+- Added character validation to /api/fleet/orbit/device_token endpoint.
+- Cleaned up count rendering fixing clientside flashing counts.
+- Improved performance by removing unnecessary database query that listed host software during
+  initial page load of the "My device" page.
+- Made the rendering of empty text cell values consistent. Also render the '0' value as a number instead of the default value.
+- Added a server setting to configure the query report max size.
+- Fixed a bug where scrollbars were always present on modal backgrounds.
+- Fixed bug in `fleetctl preview` caused by creating enroll secrets.
+
+### Device Management (MDM)
+
+- Extended the timeout for the endpoint to upload a software installer.
+- Improved the logic used by Fleet to detect if a host is currently MDM-managed.
+- Added S3 config variables with a `carves_` and `software_installers` prefix.
+- Fixed bug where MDM migration failed when attempting to renew enrollment profiles on macOS Sonoma devices.
+- Fixed issue where Windows-specific error message was displayed when failing to parse macOS configuration profiles.
+- Fixed a bug where MDM migration failed when attempting to renew enrollment profiles on macOS Sonoma devices.
+- Fixed a server panic when sending a request to `/mdm/apple/mdm` without certificate headers.
+- Fixed issue where profiles larger than 65KB were being truncated when stored on MySQL 8.
+- Fixed a bug that prevented unused script contents to be periodically cleaned up from the database.
+- Fixed UI bug where error detail was overflowing the table in "OS settings" modal in "My device"
+  page UI.
+- Fixed a bug where the software installer exists in the database but the installer does not exist
+  in the storage.
+- Added a "soft-delete" approach when deleting a host so that its script execution details are still
+  available for the activities feed.
+- Fixed UI bug where Zoom icon was displayed for ZoomInfo.
+- Fixed issue with backwards compatibility with the deprecated `FLEET_S3_*` environment variables.
+- Fixed a code linter issue where a slice was created non-empty and appended-to, instead of empty with the required capacity.
+
+### Vulnerability Management
+
+- Added vulnerabilities matching for applications that include an OS scope.
+- Added vulnerability detection in NVD for custom ubuntu kernels.
+- Removed duplicate `os_versions` results in /api/latest/fleet/vulnerabilities/:cve endpoint.
+- Removed vscode false positive vulnerabilities.
+- Clarified Fleet uses CVSS base score version 3.x.
+
+## Fleet 4.52.0 (Jun 20, 2024)
+
+### Bug fixes
+
+* Fixed an issue where profiles larger than 65KB were being truncated when stored on MySQL 8.
+* Fixed activity without public IP to be human readable.
+* Made the rendering of empty text cell values consistent. Also rendered the '0' value as a number instead of the default value `---`.
+* Fixed bug in `fleetctl preview` caused by creating enroll secrets.
+* Disabled AI features on non-new installations upgrading from < 4.50.X to >= 4.51.X.
+* Fixed various icon misalignments on the dashboard page.
+* Used a "soft-delete" approach when deleting a host so that its script execution details are still available for the activities feed.
+* Fixed UI bug where error detail was overflowing the table in "OS settings" modal in "My device" page UI.
+* Fixed bug where MDM migration failed when attempting to renew enrollment profiles on macOS Sonoma devices.
+* Fixed queries with dot notation in the column name to show results.
+* `/api/latest/fleet/hosts/:id/lock` returns `unlock_pin` for Apple hosts when query parameter `view_pin=true` is set. UI no longer uses unlock pending state for Apple hosts.
+* Improved the logic used by Fleet to detect if a host is currently MDM-managed.
+* Fixed issue where the MDM ingestion flow would fail if an invalid enrollment reference was passed.
+* Removed vscode false positive vulnerabilities.
+* Fixed a code linter issue where a slice was created non-empty and appended-to, instead of empty with the required capacity.
+* Fixed UI bug where Zoom icon was displayed for ZoomInfo.
+* Error with 404 when the user attempts to delete team policies for a non-existent team.
+* Fixed the Linux unlock script to support passwordless users.
+* Fixed an issue with the Windows-specific `windows-remove-fleetd.ps1` script provided in the Fleet repository where running the script did remove `fleetd` but made it impossible to reinstall the agent.
+* Fixed host details page and device details page not showing the latest software. Added `exclude_software` query parameter to the `/api/latest/fleet/hosts/:id` endpoint to exclude software from the response.
+* Fixed the `/mdm/apple/mdm` endpoint so that it returns status code 408 (request timeout) instead of 500 (internal server error) when encountering a timeout reading the request body.
+* Extended the timeout for the endpoint to upload a software installer (`POST /fleet/software/package`), and improved handling of the maximum size.
+* Fixed issue where Windows-specific error message was displayed when failing to parse macOS configuration profiles.
+* Fixed a panic (API returning code 500) when the software installer exists in the database but the installer does not exist in the storage.
+
+## Fleet 4.51.1 (Jun 11, 2024)
+
+### Bug fixes
+
+* Added S3 config variables with a `carves_` and `software_installers` prefix, which were used to configure buckets for those features. The existing non-prefixed variables were kept for backwards compatibility.
+* Fixed a bug that prevented unused script contents to be periodically cleaned up from the database.
+
 ## Fleet 4.51.0 (Jun 10, 2024)
 
 ### Endpoint Operations

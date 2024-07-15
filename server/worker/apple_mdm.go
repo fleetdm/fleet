@@ -8,12 +8,14 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/fleetdbase"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/appmanifest"
-	kitlog "github.com/go-kit/kit/log"
-	"github.com/go-kit/kit/log/level"
+	kitlog "github.com/go-kit/log"
+	"github.com/go-kit/log/level"
 	"github.com/google/uuid"
 )
 
@@ -105,6 +107,9 @@ func (a *AppleMDM) runPostManualEnrollment(ctx context.Context, args appleMDMArg
 func (a *AppleMDM) runPostDEPEnrollment(ctx context.Context, args appleMDMArgs) error {
 	var awaitCmdUUIDs []string
 
+	// use primary db to ensure we have the latest records for enrollments
+	ctx = ctxdb.RequirePrimary(ctx, true)
+
 	if isMacOS(args.Platform) {
 		fleetdCmdUUID, err := a.installFleetd(ctx, args.HostUUID)
 		if err != nil {
@@ -121,18 +126,24 @@ func (a *AppleMDM) runPostDEPEnrollment(ctx context.Context, args appleMDMArgs) 
 		}
 	}
 
+	idpAcct, err := a.Datastore.GetMDMIdPAccountByHostUUID(ctx, args.HostUUID)
+	if err != nil && !fleet.IsNotFound(err) {
+		return ctxerr.Wrap(ctx, err, "getting idp account details")
+	}
+
 	if ref := args.EnrollReference; ref != "" {
 		a.Log.Log("info", "got an enroll_reference", "host_uuid", args.HostUUID, "ref", ref)
+		idpAcct, err = a.Datastore.GetMDMIdPAccountByLegacyEnrollRef(ctx, ref)
+		if err != nil {
+			return ctxerr.Wrapf(ctx, err, "getting idp account details for enroll reference %s", ref)
+		}
+	}
+
+	if idpAcct != nil {
 		appCfg, err := a.Datastore.AppConfig(ctx)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "getting app config")
 		}
-
-		acct, err := a.Datastore.GetMDMIdPAccountByUUID(ctx, ref)
-		if err != nil {
-			return ctxerr.Wrapf(ctx, err, "getting idp account details for enroll reference %s", ref)
-		}
-
 		ssoEnabled := appCfg.MDM.MacOSSetup.EnableEndUserAuthentication
 		if args.TeamID != nil {
 			team, err := a.Datastore.Team(ctx, *args.TeamID)
@@ -149,12 +160,19 @@ func (a *AppleMDM) runPostDEPEnrollment(ctx context.Context, args appleMDMArgs) 
 				ctx,
 				[]string{args.HostUUID},
 				cmdUUID,
-				acct.Fullname,
-				acct.Username,
+				idpAcct.Fullname,
+				idpAcct.Username,
 			); err != nil {
 				return ctxerr.Wrap(ctx, err, "sending AccountConfiguration command")
 			}
 			awaitCmdUUIDs = append(awaitCmdUUIDs, cmdUUID)
+
+			// NOTE: We only set the email address here if we have an MDM IdP account and sso is enabled. We rely on the
+			// `resetDarwin` lifecycle event to delete from `host_emails` for this host uuid if there is
+			// any email where `source = 'mdm_idp_account'`.
+			if err := a.Datastore.SetOrUpdateHostEmailsFromMDMIdPAccountsByHostUUID(ctx, args.HostUUID); err != nil {
+				return ctxerr.Wrap(ctx, err, "setting host emails from mdm idp accounts")
+			}
 		}
 	}
 
@@ -279,8 +297,9 @@ func (a *AppleMDM) runPostDEPReleaseDevice(ctx context.Context, args appleMDMArg
 }
 
 func (a *AppleMDM) installFleetd(ctx context.Context, hostUUID string) (string, error) {
+	manifestURL := fleetdbase.GetPKGManifestURL()
 	cmdUUID := uuid.New().String()
-	if err := a.Commander.InstallEnterpriseApplication(ctx, []string{hostUUID}, cmdUUID, apple_mdm.FleetdPublicManifestURL); err != nil {
+	if err := a.Commander.InstallEnterpriseApplication(ctx, []string{hostUUID}, cmdUUID, manifestURL); err != nil {
 		return "", err
 	}
 	a.Log.Log("info", "sent command to install fleetd", "host_uuid", hostUUID)

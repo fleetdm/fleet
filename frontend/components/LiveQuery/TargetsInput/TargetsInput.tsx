@@ -9,6 +9,7 @@ import DataError from "components/DataError";
 // @ts-ignore
 import InputFieldWithIcon from "components/forms/fields/InputFieldWithIcon/InputFieldWithIcon";
 import TableContainer from "components/TableContainer";
+import Spinner from "components/Spinner";
 import { ITargestInputHostTableConfig } from "./TargetsInputHostsTableConfig";
 
 interface ITargetsInputProps {
@@ -70,33 +71,35 @@ const TargetsInput = ({
           placeholder={placeholder}
           onChange={setSearchText}
         />
-        {isActiveSearch && (
-          <div className={`${baseClass}__hosts-search-dropdown`}>
-            <TableContainer<Row<IHost>>
-              columnConfigs={searchResultsTableConfig}
-              data={dropdownHosts}
-              isLoading={isTargetsLoading}
-              resultsTitle=""
-              emptyComponent={() => (
-                <div className="empty-search">
-                  <div className="empty-search__inner">
-                    <h4>No hosts match the current search criteria.</h4>
-                    <p>
-                      Expecting to see hosts? Try again in a few seconds as the
-                      system catches up.
-                    </p>
+        {isActiveSearch &&
+          (isTargetsLoading ? (
+            <Spinner />
+          ) : (
+            <div className={`${baseClass}__hosts-search-dropdown`}>
+              <TableContainer<Row<IHost>>
+                columnConfigs={searchResultsTableConfig}
+                data={dropdownHosts}
+                isLoading={false}
+                emptyComponent={() => (
+                  <div className="empty-search">
+                    <div className="empty-search__inner">
+                      <h4>No hosts match the current search criteria.</h4>
+                      <p>
+                        Expecting to see hosts? Try again in a few seconds as
+                        the system catches up.
+                      </p>
+                    </div>
                   </div>
-                </div>
-              )}
-              showMarkAllPages={false}
-              isAllPagesSelected={false}
-              disableCount
-              disablePagination
-              disableMultiRowSelect
-              onClickRow={handleRowSelect}
-            />
-          </div>
-        )}
+                )}
+                showMarkAllPages={false}
+                isAllPagesSelected={false}
+                disableCount
+                disablePagination
+                disableMultiRowSelect
+                onClickRow={handleRowSelect}
+              />
+            </div>
+          ))}
         {isSearchError && (
           <div className={`${baseClass}__hosts-search-dropdown`}>
             <DataError />
@@ -107,7 +110,6 @@ const TargetsInput = ({
             columnConfigs={selectedHostsTableConifg}
             data={targetedHosts}
             isLoading={false}
-            resultsTitle=""
             showMarkAllPages={false}
             isAllPagesSelected={false}
             disableCount

@@ -22,11 +22,21 @@ export interface IGetDeviceSoftwareResponse {
   };
 }
 
-export default {
-  loadHostDetails: (deviceAuthToken: string): Promise<IDeviceUserResponse> => {
-    const { DEVICE_USER_DETAILS } = endpoints;
-    const path = `${DEVICE_USER_DETAILS}/${deviceAuthToken}`;
+interface IGetDeviceDetailsRequest {
+  token: string;
+  exclude_software?: boolean;
+}
 
+export default {
+  loadHostDetails: ({
+    token,
+    exclude_software,
+  }: IGetDeviceDetailsRequest): Promise<IDeviceUserResponse> => {
+    const { DEVICE_USER_DETAILS } = endpoints;
+    let path = `${DEVICE_USER_DETAILS}/${token}`;
+    if (exclude_software) {
+      path += "?exclude_software=true";
+    }
     return sendRequest("GET", path);
   },
   loadHostDetailsExtension: (

@@ -222,6 +222,16 @@ parasails.registerPage('basic-documentation', {
   //  ╩╝╚╝ ╩ ╚═╝╩╚═╩ ╩╚═╝ ╩ ╩╚═╝╝╚╝╚═╝
   methods: {
 
+    clickSwagRequestCTA: function () {
+      if(typeof gtag !== 'undefined') {
+        gtag('event','fleet_website__swag_request');
+      }
+      if(typeof window.lintrk !== 'undefined') {
+        window.lintrk('track', { conversion_id: 18587105 });// eslint-disable-line camelcase
+      }
+      this.goto('https://kqphpqst851.typeform.com/to/ZfA3sOu0');
+    },
+
     clickCTA: function (slug) {
       this.goto(slug);
     },

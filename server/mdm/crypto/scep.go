@@ -23,6 +23,10 @@ func NewSCEPVerifier(ds fleet.MDMAssetRetriever) *SCEPVerifier {
 }
 
 func (s *SCEPVerifier) Verify(cert *x509.Certificate) error {
+	if cert == nil {
+		return errors.New("no certificate provided")
+	}
+
 	opts := x509.VerifyOptions{
 		KeyUsages: []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
 		Roots:     x509.NewCertPool(),

@@ -31,6 +31,7 @@ import Slider from "components/forms/fields/Slider";
 import CustomLink from "components/CustomLink";
 import LastUpdatedText from "components/LastUpdatedText";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
+import TableCount from "components/TableContainer/TableCount";
 
 import EmptySoftwareTable from "pages/SoftwarePage/components/EmptySoftwareTable";
 
@@ -187,24 +188,9 @@ const SoftwareTable = ({
   // determines if a user be able to search in the table
   const searchable =
     isSoftwareEnabled &&
-    (!!tableData || query !== "" || softwareFilter === "vulnerableSoftware");
-
-  const getItemsCountText = () => {
-    const count = data?.count;
-    if (!tableData || !count) return "";
-
-    return count === 1 ? `${count} item` : `${count} items`;
-  };
-
-  const getLastUpdatedText = () => {
-    if (!tableData || !data?.counts_updated_at) return "";
-    return (
-      <LastUpdatedText
-        lastUpdatedAt={data.counts_updated_at}
-        whatToRetrieve="software"
-      />
-    );
-  };
+    ((tableData && tableData.length > 0) ||
+      query !== "" ||
+      softwareFilter !== "allSoftware");
 
   const handleShowVersionsToggle = () => {
     const queryParams: Record<string, string | number | undefined> = {
@@ -276,20 +262,37 @@ const SoftwareTable = ({
   };
 
   const renderSoftwareCount = () => {
-    const itemText = getItemsCountText();
-    const lastUpdatedText = getLastUpdatedText();
-
-    if (!itemText) return null;
+    if (!tableData || !data?.count) return null;
 
     return (
-      <div className={`${baseClass}__count`}>
-        <span>{itemText}</span>
-        {lastUpdatedText}
-      </div>
+      <>
+        <TableCount name="items" count={data?.count} />
+        {tableData && data?.counts_updated_at && (
+          <LastUpdatedText
+            lastUpdatedAt={data.counts_updated_at}
+            customTooltipText={
+              <>
+                The last time software data was <br />
+                updated, including vulnerabilities <br />
+                and host counts.
+              </>
+            }
+          />
+        )}
+      </>
     );
   };
 
   const renderCustomFilters = () => {
+    // Hide filters if no software is detected with no filters present
+    if (
+      query === "" &&
+      !showVersions &&
+      softwareFilter === "allSoftware" &&
+      data?.count === 0
+    )
+      return <></>;
+
     const options = showVersions
       ? SOFTWARE_VERSIONS_DROPDOWN_OPTIONS
       : SOFTWARE_TITLES_DROPDOWN_OPTIONS;
@@ -341,8 +344,7 @@ const SoftwareTable = ({
           <EmptySoftwareTable
             softwareFilter={softwareFilter}
             isSoftwareDisabled={!isSoftwareEnabled}
-            isCollectingSoftware={false} // TODO: update with new API
-            isSearching={query !== ""}
+            isNotDetectingSoftware={query === ""}
           />
         )}
         defaultSortHeader={orderKey}
