@@ -9099,14 +9099,14 @@ _Available in Fleet Premium._
 
 Add App Store (VPP) app purchased in Apple Business Manager.
 
-`POST /api/v1/fleet/software/app_store_apps/:app_store_id`
+`POST /api/v1/fleet/software/app_store_apps`
 
 #### Parameters
 
 | Name | Type | In | Description |
 | ---- | ---- | -- | ----------- |
 | app_store_id   | integer | body | **Required.** The ID of App Store app. |
-| team_id       | integer | query | **Required**. The team ID. Adds VPP software to the specified team.  |
+| team_id       | integer | body | **Required**. The team ID. Adds VPP software to the specified team.  |
 
 #### Example
 
@@ -9116,8 +9116,11 @@ Add App Store (VPP) app purchased in Apple Business Manager.
 
 ```json
 {
-  "app_store_id": 2
+  "app_store_id": 2,
+  "team_id": 2
 }
+```
+
 ##### Default response
 
 `Status: 200`
