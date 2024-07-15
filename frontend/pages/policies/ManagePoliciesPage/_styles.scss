@@ -234,13 +234,34 @@
 
     .checkbox-row {
       display: flex;
+      max-width: 100%;
       padding: 8px 12px;
       justify-content: space-between;
       align-items: center;
       align-self: stretch;
       border-bottom: 1px solid $ui-fleet-black-10;
+      gap: 20px;
+
+      .form-field--checkbox {
+        flex: 1 1 0%; /* This allows growing and shrinking */
+        min-width: 0; /* This is crucial for proper shrinking */
+      }
+
+      .fleet-checkbox__tick {
+        flex: 0 0 auto; /* This prevents growing and shrinking */
+        width: fit-content; /* This ensures button isn't cut off */
+      }
+
+      .fleet-checkbox__label {
+        display: flex;
+        white-space: nowrap;
+        flex: 1 1 0%; /* This allows growing and shrinking */
+        min-width: 0; /* This is crucial for proper shrinking */
+      }
 
       &__preview-button {
+        flex: 0 0 auto; /* This prevents growing and shrinking */
+        width: fit-content; /* This ensures button isn't cut off */
         visibility: hidden;
       }
 
