@@ -102,9 +102,8 @@ type integrationMDMTestSuite struct {
 }
 
 type AppleVPPConfigSrvConf struct {
-	Assets           []vpp.Asset
-	SerialNumbers    []string
-	AssociateSuccess bool
+	Assets        []vpp.Asset
+	SerialNumbers []string
 }
 
 func (s *integrationMDMTestSuite) SetupSuite() {
@@ -335,8 +334,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 					AvailableCount: 3,
 				},
 			},
-			SerialNumbers:    []string{"123", "456"},
-			AssociateSuccess: true,
+			SerialNumbers: []string{"123", "456"},
 		}
 	}
 
@@ -350,6 +348,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 				return
 			}
 
+			var badAssets []vpp.Asset
 			for _, reqAsset := range associations.Assets {
 				var found bool
 				for _, goodAsset := range s.appleVPPConfigSrvConfig.Assets {
@@ -358,11 +357,11 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 					}
 				}
 				if !found {
-					http.Error(w, "requested asset not in vpp account", http.StatusBadRequest)
-					return
+					badAssets = append(badAssets, reqAsset)
 				}
 			}
 
+			var badSerials []string
 			for _, reqSerial := range associations.SerialNumbers {
 				var found bool
 				for _, goodSerial := range s.appleVPPConfigSrvConfig.SerialNumbers {
@@ -371,15 +370,27 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 					}
 				}
 				if !found {
-					http.Error(w, "requested serial doesn't exist", http.StatusBadRequest)
-					return
+					badSerials = append(badSerials, reqSerial)
 				}
 			}
 
-			if !s.appleVPPConfigSrvConfig.AssociateSuccess {
-				http.Error(w, "failed to associate", http.StatusBadRequest)
+			if len(badAssets) != 0 || len(badSerials) != 0 {
+				res := vpp.ErrorResponse{
+					ErrorInfo: vpp.ResponseErrorInfo{
+						Assets:        badAssets,
+						ClientUserIds: []string{"something"},
+						SerialNumbers: badSerials,
+					},
+					// Not sure what error should be returned on each
+					// error type
+					ErrorNumber:  1,
+					ErrorMessage: "error associating assets",
+				}
+				w.Header().Set("Content-Type", "application/json; charset=utf-8")
+				w.WriteHeader(http.StatusBadRequest)
+				json.NewEncoder(w).Encode(res)
 			}
-
+			return
 		}
 
 		if strings.Contains(r.URL.Path, "assets") {
