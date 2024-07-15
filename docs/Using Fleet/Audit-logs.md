@@ -1158,7 +1158,7 @@ Generated when a software installer is deleted from Fleet.
 This activity contains the following fields:
 - "software_title": Name of the software.
 - "software_package": Filename of the installer.
-- "team_name": Name of the team to which this software was added. `null if it was added to no team.
+- "team_name": Name of the team to which this software was added. `null` if it was added to no team.
 - "team_id": The ID of the team to which this software was added. `null` if it was added to no team.
 - "self_service": Whether the software was available for installation by the end user.
 
@@ -1173,6 +1173,12 @@ This activity contains the following fields:
   "self_service": true
 }
 ```
+
+## vpp_enabled
+
+Generated when the VPP feature is enabled in Fleet.
+
+
 
 
 <meta name="title" value="Audit logs">
