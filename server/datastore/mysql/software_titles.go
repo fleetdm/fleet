@@ -211,7 +211,8 @@ SELECT
 	MAX(COALESCE(sthc.updated_at, date('0001-01-01 00:00:00'))) as counts_updated_at,
 	COALESCE(si.self_service, false) as self_service,
 	-- this count will be 1 if an installer or VPP app is available, 0 otherwise
-	COUNT(COALESCE(si.id, vat.adam_id)) as available_for_install
+	COUNT(COALESCE(si.id, vat.adam_id)) as available_for_install,
+	NULLIF(vap.icon_url, '') as icon_url
 FROM software_titles st
 LEFT JOIN software_installers si ON si.title_id = st.id AND si.global_or_team_id = ?
 LEFT JOIN vpp_apps vap ON vap.title_id = st.id

@@ -47,6 +47,7 @@ type VPPAppStoreApp struct {
 	AppStoreID    string               `db:"adam_id" json:"app_store_id"`
 	Name          string               `db:"name" json:"name"`
 	LatestVersion string               `db:"latest_version" json:"latest_version"`
+	IconURL       *string              `db:"icon_url" json:"icon_url"`
 	Status        *VPPAppStatusSummary `db:"-" json:"status"`
 }
 

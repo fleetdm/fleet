@@ -207,6 +207,9 @@ type SoftwareTitleListResult struct {
 	// AvailableForInstall is true if the software title has an installer or a
 	// VPP App available to install it, false otherwise.
 	AvailableForInstall bool `json:"available_for_install" db:"available_for_install"`
+	// IconURL is the VPP App icon URL. It is nil for non-VPP Apps or if no icon
+	// is available.
+	IconURL *string `json:"icon_url" db:"icon_url"`
 }
 
 type SoftwareTitleListOptions struct {
