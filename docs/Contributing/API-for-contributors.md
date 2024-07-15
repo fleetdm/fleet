@@ -2597,6 +2597,10 @@ Lists the software installed on the current device.
     {
       "id": 121,
       "name": "Google Chrome.app",
+      "available_for_install": {
+	"name": "GoogleChrome.pkg"
+	"version": "126.0.6478.127"
+      },
       "source": "apps",
       "status": "failed",
       "last_install": {
