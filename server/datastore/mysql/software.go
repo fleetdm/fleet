@@ -619,25 +619,38 @@ func (ds *Datastore) insertNewInstalledHostSoftwareDB(
 					return nil, ctxerr.Wrap(ctx, err, "insert software_titles")
 				}
 
+				updateSoftwareWithoutIdentifierStmt := `
+				    UPDATE software s
+				    JOIN software_titles st
+				    ON COALESCE(s.bundle_identifier, '') = '' AND s.name = st.name AND s.source = st.source AND s.browser = st.browser
+				    SET s.title_id = st.id
+				    WHERE (s.title_id IS NULL OR s.title_id != st.id)
+				    AND COALESCE(s.bundle_identifier, '') = ''
+				    AND s.checksum IN (?)
+				    `
+				updateSoftwareWithoutIdentifierStmt, updateArgs, err := sqlx.In(updateSoftwareWithoutIdentifierStmt, titleChecksums)
+				if err != nil {
+					return nil, ctxerr.Wrap(ctx, err, "build update software title_id without identifier")
+				}
+				if _, err = tx.ExecContext(ctx, updateSoftwareWithoutIdentifierStmt, updateArgs...); err != nil {
+					return nil, ctxerr.Wrap(ctx, err, "update software title_id without identifier")
+				}
+
 				// update new title ids for new software table entries
 				updateSoftwareStmt := `
-				UPDATE
-					software s,
-					software_titles st
-				SET
-					s.title_id = st.id
-				WHERE
-				         s.bundle_identifier = st.bundle_identifier OR (
-					   s.bundle_identifier = '' AND
-					   (s.name, s.source, s.browser) = (st.name, st.source, st.browser)
-					 )
-					AND s.checksum IN (?)`
-				updateSoftwareStmt, updateArgs, err := sqlx.In(updateSoftwareStmt, titleChecksums)
+				      UPDATE software s
+				      JOIN software_titles st
+				      ON s.bundle_identifier = st.bundle_identifier
+				      SET s.title_id = st.id
+				      WHERE s.title_id IS NULL
+				      OR s.title_id != st.id
+				      AND s.checksum IN (?)`
+				updateSoftwareStmt, updateArgs, err = sqlx.In(updateSoftwareStmt, titleChecksums)
 				if err != nil {
-					return nil, ctxerr.Wrap(ctx, err, "build update software title_id")
+					return nil, ctxerr.Wrap(ctx, err, "build update software title_id with identifier")
 				}
 				if _, err = tx.ExecContext(ctx, updateSoftwareStmt, updateArgs...); err != nil {
-					return nil, ctxerr.Wrap(ctx, err, "update software title_id")
+					return nil, ctxerr.Wrap(ctx, err, "update software title_id with identifier")
 				}
 			}
 		}
@@ -1652,24 +1665,37 @@ ON DUPLICATE KEY UPDATE
 		level.Debug(ds.logger).Log("msg", "upsert software titles", "rows_affected", n)
 
 		// update title ids for software table entries
-		updateSoftwareStmt := `
+		updateSoftwareWithoutIdentifierStmt := `
 UPDATE software s
 JOIN software_titles st
-ON (
-    s.bundle_identifier = st.bundle_identifier
-    OR (COALESCE(s.bundle_identifier, '') = '' AND (s.name, s.source, s.browser) = (st.name, st.source, st.browser))
-)
+ON COALESCE(s.bundle_identifier, '') = '' AND s.name = st.name AND s.source = st.source AND s.browser = st.browser
+SET s.title_id = st.id
+WHERE (s.title_id IS NULL OR s.title_id != st.id)
+AND COALESCE(s.bundle_identifier, '') = '';
+`
+
+		res, err = tx.ExecContext(ctx, updateSoftwareWithoutIdentifierStmt)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "update software title_id without bundle identifier")
+		}
+		n, _ = res.RowsAffected()
+		level.Debug(ds.logger).Log("msg", "update software title_id without bundle identifier", "rows_affected", n)
+
+		updateSoftwareWithIdentifierStmt := `
+UPDATE software s
+JOIN software_titles st
+ON s.bundle_identifier = st.bundle_identifier
 SET s.title_id = st.id
 WHERE s.title_id IS NULL
 OR s.title_id != st.id;
 `
 
-		res, err = tx.ExecContext(ctx, updateSoftwareStmt)
+		res, err = tx.ExecContext(ctx, updateSoftwareWithIdentifierStmt)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "update software title_id")
+			return ctxerr.Wrap(ctx, err, "update software title_id with bundle identifier")
 		}
 		n, _ = res.RowsAffected()
-		level.Debug(ds.logger).Log("msg", "update software title_id", "rows_affected", n)
+		level.Debug(ds.logger).Log("msg", "update software title_id with bundle identifier", "rows_affected", n)
 
 		// clean up orphaned software titles
 		cleanupStmt := `
