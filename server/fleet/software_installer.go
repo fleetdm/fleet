@@ -316,7 +316,10 @@ type HostSoftwareWithInstaller struct {
 	InstalledVersions []*HostSoftwareInstalledVersion `json:"installed_versions"`
 
 	// PackageAvailableForInstall is only present for the user-authenticated
-	// endpoint, not the device-authenticated one.
+	// endpoint, not the device-authenticated one. If non-nil and non-empty, it
+	// indicates that a software installer is present for that software (and the
+	// name is the installer's filename). If non-nil and empty, it indicates that
+	// a VPP app is present for that software. If nil, none of those are present.
 	PackageAvailableForInstall *string `json:"package_available_for_install,omitempty" db:"package_available_for_install"`
 
 	// Package provides software installer package information, it is only
