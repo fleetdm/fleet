@@ -142,12 +142,19 @@
       font-weight: 700;
     }
     [purpose='comparison-selector-dropwdown'] {
-      width: 160px;
+      width: 152px;
       cursor: pointer;
       font-size: 14px;
-      padding: 0px 12px;
+      padding: 0px;
       .dropdown-item {
+        display: flex;
+        justify-content: center;
+        border-top: 1px solid @core-vibrant-blue-15;
+        padding: 0px 12px;
         height: 48px;
+        &:active {
+          color: unset;
+        }
       }
     }
   }
