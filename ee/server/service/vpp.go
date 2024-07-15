@@ -84,23 +84,23 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 	var missingAssets []string
 	var validAssets []vpp.Asset
 
-	// Check if we have the assets before we try to associate them,
-	// also returns pricing information
+	assets, err := vpp.GetAssets(token, nil)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "unable to retrieve assets")
+	}
+
 	for _, adamID := range adamIDs {
-		filter := &vpp.AssetFilter{
-			AdamID: adamID,
+		var found bool
+		for _, asset := range assets {
+			if asset.AdamID == adamID {
+				found = true
+				validAssets = append(validAssets, asset)
+				continue
+			}
 		}
-
-		assets, err := vpp.GetAssets(token, filter)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "unable to retrieve assets")
-		}
-
-		if len(assets) == 0 {
+		if !found {
 			missingAssets = append(missingAssets, adamID)
 		}
-
-		validAssets = append(validAssets, assets[0])
 	}
 
 	if len(missingAssets) != 0 {
