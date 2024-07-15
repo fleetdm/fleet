@@ -11240,8 +11240,9 @@ func (s *integrationEnterpriseTestSuite) TestCalendarCallback() {
 			time.Sleep(100 * time.Millisecond)
 			team1CalendarEvents, err = s.ds.ListCalendarEvents(ctx, &team1.ID)
 			require.NoError(t, err)
-			require.Len(t, team1CalendarEvents, 1)
-			if event.UUID != team1CalendarEvents[0].UUID {
+			// Event should be rescheduled on a future date/time
+			if len(team1CalendarEvents) == 1 && team1CalendarEvents[0].UUID == event.UUID &&
+				team1CalendarEvents[0].StartTime.After(event.StartTime) {
 				done <- struct{}{}
 				return
 			}
