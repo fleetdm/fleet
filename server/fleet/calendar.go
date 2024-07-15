@@ -28,7 +28,11 @@ type UserCalendar interface {
 	// CreateEvent, GetAndUpdateEvent and DeleteEvent reference the user's calendar.
 	Configure(userEmail string) error
 	// CreateEvent creates a new event on the calendar on the given date. DayEndedError is returned if there is no time left on the given date to schedule event.
-	CreateEvent(dateOfEvent time.Time, genBodyFn func(conflict bool) (body string, ok bool, err error)) (event *CalendarEvent, err error)
+	CreateEvent(
+		dateOfEvent time.Time,
+		genBodyFn func(conflict bool) (body string, ok bool, err error),
+		opts map[string]string,
+	) (event *CalendarEvent, err error)
 	// GetAndUpdateEvent retrieves the event from the calendar.
 	// If the event has been modified, it returns the updated event.
 	// If the event has been deleted, it schedules a new event with given body callback and returns the new event.
