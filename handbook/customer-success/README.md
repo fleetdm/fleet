@@ -43,7 +43,7 @@ Business reviews are conducted quarterly or bi-annually to ensure initial succes
     - Summarize status updates for open feature requests and highlight delivered feature requests.
     - For managed cloud customers, reach out to #help-infrastructure to collect information on cloud uptime and any outages or alarms.
     - Provide one slide with information on the latest Fleet release and any upcoming big ticket features which can be found on the product board and current release board for #g-mdm and #g-endpoint-ops
-4. After the business review, save the presentation as a PDF and share it with your customer.
+3. After the business review, save the presentation as a PDF and share it with your customer.
 
 ### Create customer support issue
 Locate the relevant issue or create it if it doesn't already exist (to avoid duplication, be creative when searching GitHub for issues - it can often take a couple of tries with different keywords to find an existing issue). When creating a new issue, make sure the following:
