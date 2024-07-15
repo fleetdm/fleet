@@ -2048,11 +2048,14 @@ AND EXISTS (SELECT 1 FROM software s JOIN software_cve scve ON scve.software_id 
 			st.id,
 			st.name,
 			st.source,
-			si.self_service as self_service,
-			si.filename as package_available_for_install,
+			-- will be NULL for VPP apps for now, self-service not supported yet
+			si.self_service as self_service, 
+			-- we want that field to be empty string for VPP apps, the filename for installers,
+			-- and NULL otherwise.
+			CASE WHEN vap.adam_id IS NOT NULL THEN '' ELSE si.filename END as package_available_for_install,
 			si.version as package_version,
-			hsi.created_at as last_install_installed_at,
-			hsi.execution_id as last_install_install_uuid,
+			COALESCE(hsi.created_at, hvsi.created_at) as last_install_installed_at,
+			COALESCE(hsi.execution_id, hvsi.command_uuid) as last_install_install_uuid,
 			%s
 		FROM
 			software_titles st
@@ -2060,6 +2063,10 @@ AND EXISTS (SELECT 1 FROM software s JOIN software_cve scve ON scve.software_id 
 			software_installers si ON st.id = si.title_id
 		LEFT OUTER JOIN
 			host_software_installs hsi ON si.id = hsi.software_installer_id AND hsi.host_id = :host_id
+		LEFT OUTER JOIN 
+			vpp_apps vap ON st.id = vap.title_id
+		LEFT OUTER JOIN
+			host_vpp_software_installs hvsi ON vap.adam_id = hvsi.adam_id AND hvsi.host_id = :host_id
 		WHERE
 			-- use the latest install only
 			( hsi.id IS NULL OR hsi.id = (
@@ -2067,6 +2074,12 @@ AND EXISTS (SELECT 1 FROM software s JOIN software_cve scve ON scve.software_id 
 				FROM host_software_installs hsi2
 				WHERE hsi2.host_id = hsi.host_id AND hsi2.software_installer_id = hsi.software_installer_id
 				ORDER BY hsi2.created_at DESC
+				LIMIT 1 ) ) AND
+			( hvsi.id IS NULL OR hvsi.id = (
+				SELECT hvsi2.id
+				FROM host_vpp_software_installs hvsi2
+				WHERE hvsi2.host_id = hvsi.host_id AND hvsi2.adam_id = hvsi.adam_id
+				ORDER BY hvsi2.created_at DESC
 				LIMIT 1 ) ) AND
 			-- software is installed on host
 			( EXISTS (
@@ -2079,8 +2092,8 @@ AND EXISTS (SELECT 1 FROM software s JOIN software_cve scve ON scve.software_id 
 					hs.host_id = :host_id AND
 					s.title_id = st.id
 			) OR
-			-- or software install has been attempted on host
-			hsi.host_id IS NOT NULL )
+			-- or software install has been attempted on host (via installer or VPP app)
+			hsi.host_id IS NOT NULL OR hvsi.host_id IS NOT NULL )
 			%s
 			%s
 `, softwareInstallerHostStatusNamedQuery("hsi", "status"), onlySelfServiceClause, onlyVulnerableClause)
@@ -2093,17 +2106,25 @@ AND EXISTS (SELECT 1 FROM software s JOIN software_cve scve ON scve.software_id 
 			st.id,
 			st.name,
 			st.source,
+			-- will be NULL for VPP apps for now, self-service not supported yet
 			si.self_service as self_service,
-			si.filename as package_available_for_install,
+			-- we want that field to be empty string for VPP apps, the filename for installers,
+			-- and NULL otherwise.
+			CASE WHEN vap.adam_id IS NOT NULL THEN '' ELSE si.filename END as package_available_for_install,
 			si.version as package_version,
 			NULL as last_install_installed_at,
 			NULL as last_install_install_uuid,
 			NULL as status
 		FROM
 			software_titles st
-		INNER JOIN
+		LEFT OUTER JOIN
 			-- filter out software that is not available for install on the host's platform
 			software_installers si ON st.id = si.title_id AND si.platform IN(%s)
+		LEFT OUTER JOIN
+			-- include VPP apps only if the host is on a supported platform
+			vpp_apps vap ON st.id = vap.title_id AND ? IN (%s)
+		LEFT OUTER JOIN 
+			vpp_apps_teams vat ON vap.adam_id = vat.adam_id AND vat.global_or_team_id = ?
 		WHERE
 			-- software is not installed on host, but is available in host's team
 			NOT EXISTS (
@@ -2116,6 +2137,7 @@ AND EXISTS (SELECT 1 FROM software s JOIN software_cve scve ON scve.software_id 
 					hs.host_id = ? AND
 					s.title_id = st.id
 			) AND
+			si.global_or_team_id = (SELECT COALESCE(h.team_id, 0) FROM hosts h WHERE h.id = ?) AND
 			-- sofware install has not been attempted on host
 			NOT EXISTS (
 				SELECT 1
@@ -2125,7 +2147,14 @@ AND EXISTS (SELECT 1 FROM software s JOIN software_cve scve ON scve.software_id 
 					hsi.host_id = ? AND
 					hsi.software_installer_id = si.id
 			) AND
-			si.global_or_team_id = (SELECT COALESCE(h.team_id, 0) FROM hosts h WHERE h.id = ?)
+			NOT EXISTS (
+				SELECT 1
+				FROM
+					host_vpp_software_installs hvsi
+				WHERE
+					hvsi.host_id = ? AND
+					hvsi.adam_id = vat.adam_id
+			) 
 			%s
 `
 
@@ -2216,8 +2245,9 @@ AND EXISTS (SELECT 1 FROM software s JOIN software_cve scve ON scve.software_id 
 
 		// promote the package name and version to the proper destination fields
 		// (the service layer will arbitrate whether package_available_for_install
-		// or package fields are returned).
-		if hs.PackageAvailableForInstall != nil {
+		// or package fields are returned). For now this "Package" object is only
+		// for software installers.
+		if hs.PackageAvailableForInstall != nil && *hs.PackageAvailableForInstall != "" {
 			var version string
 			if hs.PackageVersion != nil {
 				version = *hs.PackageVersion
