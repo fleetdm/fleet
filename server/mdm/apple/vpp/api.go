@@ -227,7 +227,7 @@ func do[T any](req *http.Request, token string, dest *T) error {
 		//
 		// https://developer.apple.com/documentation/devicemanagement/app_and_book_management/handling_error_responses#3783126
 		case 9646:
-			retry.Do(
+			return retry.Do(
 				func() error { return do(req, token, dest) },
 				retry.WithBackoffMultiplier(3),
 				retry.WithInterval(5*time.Second),
