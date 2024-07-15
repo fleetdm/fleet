@@ -75,6 +75,11 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 		return fleet.NewUserMessageError(ctxerr.Wrap(ctx, err, "could not retrieve vpp token"), http.StatusUnprocessableEntity)
 	}
 
+	// Not associating anything, no issue
+	if len(payloads) == 0 {
+		return nil
+	}
+
 	var adamIDs []string
 
 	for _, payload := range payloads {
@@ -119,7 +124,7 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 			Assets:        validAssets,
 			SerialNumbers: serials,
 		}); err != nil {
-			return ctxerr.Wrap(ctx, err, "failed to associate vpp assets")
+			return fleet.NewUserMessageError(ctxerr.Wrap(ctx, err, "failed to associate vpp assets"), http.StatusUnprocessableEntity)
 		}
 	}
 

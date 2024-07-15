@@ -9848,15 +9848,22 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 	// non-existent team
 	s.Do("POST", batchURL, batchAssociateAppStoreAppsRequest{}, http.StatusNotFound, "team_name", "foo")
 
-	// // create a team
-	tm, err := s.ds.NewTeam(context.Background(), &fleet.Team{
-		Name:        t.Name(),
+	// create a team
+	tmGood, err := s.ds.NewTeam(context.Background(), &fleet.Team{
+		Name:        t.Name() + " good",
+		Description: "desc",
+	})
+	require.NoError(t, err)
+
+	// create a team
+	tmBad, err := s.ds.NewTeam(context.Background(), &fleet.Team{
+		Name:        t.Name() + " bad",
 		Description: "desc",
 	})
 	require.NoError(t, err)
 
 	// No vpp token set
-	s.Do("POST", batchURL, batchAssociateAppStoreAppsRequest{}, http.StatusUnprocessableEntity, "team_name", tm.Name)
+	s.Do("POST", batchURL, batchAssociateAppStoreAppsRequest{}, http.StatusUnprocessableEntity, "team_name", tmGood.Name)
 
 	// Valid token
 	orgName := "Fleet Device Management Inc."
@@ -9867,7 +9874,7 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 	s.uploadDataViaForm("/api/latest/fleet/mdm/apple/vpp_token", "token", "token.vpptoken", []byte(base64.StdEncoding.EncodeToString([]byte(tokenJSON))), http.StatusAccepted, "")
 
 	// Associating nothing with no team members
-	s.Do("POST", batchURL, batchAssociateAppStoreAppsRequest{}, http.StatusNoContent, "team_name", tm.Name)
+	s.Do("POST", batchURL, batchAssociateAppStoreAppsRequest{}, http.StatusNoContent, "team_name", tmGood.Name)
 
 	// host with valid serial number
 	hValid, err := s.ds.NewHost(context.Background(), &fleet.Host{
@@ -9882,7 +9889,7 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 		Platform:        "darwin",
 	})
 	require.NoError(t, err)
-	err = s.ds.AddHostsToTeam(context.Background(), &tm.ID, []uint{hValid.ID})
+	err = s.ds.AddHostsToTeam(context.Background(), &tmGood.ID, []uint{hValid.ID})
 	require.NoError(t, err)
 
 	// host with valid serial number
@@ -9898,11 +9905,15 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 		Platform:        "darwin",
 	})
 	require.NoError(t, err)
-	err = s.ds.AddHostsToTeam(context.Background(), &tm.ID, []uint{hInvalid.ID})
+	err = s.ds.AddHostsToTeam(context.Background(), &tmBad.ID, []uint{hInvalid.ID})
 	require.NoError(t, err)
 
-	// Associating nothing with no team members
-	s.Do("POST", batchURL, batchAssociateAppStoreAppsRequest{}, http.StatusUnprocessableEntity, "team_name", tm.Name)
+	// Associating nothing with invalid serial
+	s.Do("POST", batchURL, batchAssociateAppStoreAppsRequest{}, http.StatusUnprocessableEntity, "team_name", tmBad.Name)
+
+	// Associating nothing with valid serial
+	s.Do("POST", batchURL, batchAssociateAppStoreAppsRequest{}, http.StatusNoContent, "team_name", tmGood.Name)
+
 }
 
 func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerNewInstallRequestPlatformValidation() {
