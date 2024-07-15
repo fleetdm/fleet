@@ -3,7 +3,7 @@ import React from "react";
 import type { SVGProps } from "react";
 
 const iPadOS = (props: SVGProps<SVGSVGElement>) => {
-  // Note: small icon has thicker lines and a smaller Apple logo
+  // Note: smaller icon on OS table has thicker outline and a smaller Apple logo
   if (props.width === "24") {
     return (
       <svg fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
