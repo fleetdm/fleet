@@ -196,6 +196,12 @@ func (svc *Service) processCalendarEvent(ctx context.Context, eventDetails *flee
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "create or update calendar event")
 		}
+		// Remove event from the queue (again) so that we don't process this event again in case we got a callback from the event change which we ourselves made.
+		err = svc.distributedLock.RemoveFromSet(ctx, calendar.QueueKey, event.UUID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "remove calendar event from queue")
+		}
+
 	}
 	if stopChannel {
 		err = userCalendar.StopEventChannel(&eventDetails.CalendarEvent)
