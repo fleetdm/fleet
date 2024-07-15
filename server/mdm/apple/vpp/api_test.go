@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 )
@@ -226,6 +227,68 @@ func TestGetAssets(t *testing.T) {
 				require.NoError(t, err)
 				require.Equal(t, tt.expectedAssets, assets)
 			}
+		})
+	}
+}
+
+func TestDoRetryAfter(t *testing.T) {
+	tests := []struct {
+		name      string
+		handler   http.HandlerFunc
+		wantCalls int
+		wantErr   bool
+	}{
+		{
+			name: "no retry-after header",
+			handler: func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(http.StatusInternalServerError)
+				_, err := w.Write([]byte("{}"))
+				require.NoError(t, err)
+			},
+			wantCalls: 1,
+			wantErr:   true,
+		},
+		{
+			name: "invalid retry-after header",
+			handler: func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Add("Retry-After", "foo")
+				w.WriteHeader(http.StatusInternalServerError)
+				_, err := w.Write([]byte("{}"))
+				require.NoError(t, err)
+			},
+			wantCalls: 1,
+			wantErr:   true,
+		},
+		{
+			name: "three retries",
+			handler: func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Add("Retry-After", "1")
+				w.WriteHeader(http.StatusInternalServerError)
+				_, err := w.Write([]byte("{}"))
+				require.NoError(t, err)
+			},
+			wantCalls: 3,
+			wantErr:   false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var calls int
+			setupFakeServer(t, func(w http.ResponseWriter, r *http.Request) {
+				calls++
+				if calls < tt.wantCalls {
+					tt.handler(w, r)
+					return
+				}
+			})
+
+			start := time.Now()
+			req, err := http.NewRequest(http.MethodGet, os.Getenv("FLEET_DEV_VPP_URL"), nil)
+			require.NoError(t, err)
+			err = do[any](req, "test-token", nil)
+			require.NoError(t, err)
+			require.Equal(t, tt.wantCalls, calls)
+			require.WithinRange(t, time.Now(), start, start.Add(time.Duration(tt.wantCalls)*time.Second))
 		})
 	}
 }
