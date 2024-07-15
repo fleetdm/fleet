@@ -270,7 +270,7 @@ func (c *GoogleCalendar) GetAndUpdateEvent(event *fleet.CalendarEvent, genBodyFn
 		return nil, false, err
 	}
 	gEvent, err := c.config.API.GetEvent(details.ID, details.ETag)
-	var deleted, channelStopped bool
+	var deleted bool
 	switch {
 	// http.StatusNotModified is returned sometimes, but not always, so we need to check ETag explicitly later
 	case googleapi.IsNotModified(err):
@@ -299,7 +299,6 @@ func (c *GoogleCalendar) GetAndUpdateEvent(event *fleet.CalendarEvent, genBodyFn
 				level.Warn(c.config.Logger).Log("msg", "deleting Google calendar event which was changed to all-day event", "err", err)
 			}
 			deleted = true
-			channelStopped = true
 		}
 
 		var endTime *time.Time
@@ -316,7 +315,6 @@ func (c *GoogleCalendar) GetAndUpdateEvent(event *fleet.CalendarEvent, genBodyFn
 					level.Warn(c.config.Logger).Log("msg", "deleting Google calendar event which is in the past", "err", err)
 				}
 				deleted = true
-				channelStopped = true
 			}
 		}
 		if !deleted {
@@ -332,7 +330,6 @@ func (c *GoogleCalendar) GetAndUpdateEvent(event *fleet.CalendarEvent, genBodyFn
 					level.Warn(c.config.Logger).Log("msg", "deleting Google calendar event which was changed to all-day event", "err", err)
 				}
 				deleted = true
-				channelStopped = true
 			}
 		}
 		if !deleted {
@@ -345,14 +342,6 @@ func (c *GoogleCalendar) GetAndUpdateEvent(event *fleet.CalendarEvent, genBodyFn
 				return nil, false, err
 			}
 			return fleetEvent, true, nil
-		}
-	}
-
-	// If event was deleted/cancelled, we need to stop watching it
-	if !channelStopped {
-		err = c.config.API.Stop(details.ChannelID, details.ResourceID)
-		if err != nil {
-			level.Warn(c.config.Logger).Log("msg", "stopping Google calendar event watch", "err", err)
 		}
 	}
 
