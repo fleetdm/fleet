@@ -875,23 +875,74 @@ const TAGGED_TEMPLATES = {
       host_display_name: hostName,
       software_title: title,
       status,
-      install_uuid,
     } = details;
+
+    const showSoftwarePackage =
+      !!details.software_package &&
+      activity.type === ActivityType.InstalledSoftware;
 
     return (
       <>
         {" "}
-        {getInstallStatusPredicate(status)} <b>{title}</b> on <b>{hostName}</b>.{" "}
+        {getInstallStatusPredicate(status)} <b>{title}</b>
+        {showSoftwarePackage && ` (${details.software_package})`} on{" "}
+        <b>{hostName}</b>.{" "}
         <Button
           className={`${baseClass}__show-query-link`}
           variant="text-link"
-          onClick={() =>
-            onDetailsClick?.(ActivityType.InstalledSoftware, { install_uuid })
-          }
+          onClick={() => onDetailsClick?.(activity.type, details)}
         >
           Show details{" "}
           <Icon className={`${baseClass}__show-query-icon`} name="eye" />
         </Button>
+      </>
+    );
+  },
+  enabledVpp: () => {
+    return (
+      <>
+        {" "}
+        enabled <b>Volume Purchasing Program (VPP)</b>.
+      </>
+    );
+  },
+  disabledVpp: () => {
+    return (
+      <>
+        {" "}
+        disabled <b>Volume Purchasing Program (VPP)</b>.
+      </>
+    );
+  },
+  addedAppStoreApp: (activity: IActivity) => {
+    return (
+      <>
+        {" "}
+        added <b>{activity.details?.software_title}</b> to{" "}
+        {activity.details?.team_name ? (
+          <>
+            {" "}
+            the <b>{activity.details?.team_name}</b> team.
+          </>
+        ) : (
+          "no team."
+        )}
+      </>
+    );
+  },
+  deletedAppStoreApp: (activity: IActivity) => {
+    return (
+      <>
+        {" "}
+        deleted <b>{activity.details?.software_title}</b> from{" "}
+        {activity.details?.team_name ? (
+          <>
+            {" "}
+            the <b>{activity.details?.team_name}</b> team.
+          </>
+        ) : (
+          "no team."
+        )}
       </>
     );
   },
@@ -1076,6 +1127,21 @@ const getDetail = (
     }
     case ActivityType.InstalledSoftware: {
       return TAGGED_TEMPLATES.installedSoftware(activity, onDetailsClick);
+    }
+    case ActivityType.AddedAppStoreApp: {
+      return TAGGED_TEMPLATES.addedAppStoreApp(activity);
+    }
+    case ActivityType.DeletedAppStoreApp: {
+      return TAGGED_TEMPLATES.deletedAppStoreApp(activity);
+    }
+    case ActivityType.InstalledAppStoreApp: {
+      return TAGGED_TEMPLATES.installedSoftware(activity, onDetailsClick);
+    }
+    case ActivityType.EnabledVpp: {
+      return TAGGED_TEMPLATES.enabledVpp();
+    }
+    case ActivityType.DisabledVpp: {
+      return TAGGED_TEMPLATES.disabledVpp();
     }
 
     default: {
