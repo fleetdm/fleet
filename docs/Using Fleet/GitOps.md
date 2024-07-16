@@ -196,9 +196,11 @@ config:
 
 `default.yml` or `teams/team-name.yml`
 
+> We want `-` for policies and queries because it’s an array. Agent Options we do not use `-` for `path`.
+
 ```yaml
 queries:
-  - path: ../lib/agent-options.yml
+  path: ../lib/agent-options.yml
 # path is relative to default.yml or teams/team-name.yml
 ```
 
