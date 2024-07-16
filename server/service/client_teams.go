@@ -104,7 +104,7 @@ func (c *Client) ApplyTeamSoftwareInstallers(tmName string, softwareInstallers [
 }
 
 func (c *Client) ApplyTeamAppStoreAppsAssociation(tmName string, vppBatchPayload []fleet.VPPBatchPayload, opts fleet.ApplySpecOptions) error {
-	verb, path := "POST", "/api/_version_/fleet/software/vpp/app_store/batch"
+	verb, path := "POST", "/api/latest/fleet/software/vpp/app_store/batch"
 	query, err := url.ParseQuery(opts.RawQuery())
 	if err != nil {
 		return err

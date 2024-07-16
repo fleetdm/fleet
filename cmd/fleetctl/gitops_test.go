@@ -1115,15 +1115,21 @@ func TestTeamVPPAppsGitOps(t *testing.T) {
 		file            string
 		wantErr         string
 		tokenExpiration time.Time
+		emptyTeam       bool
 	}{
-		{"testdata/gitops/team_vpp_invalid_app.yml", "zzzzzz", time.Now().Add(24 * time.Hour)},
-		{"testdata/gitops/team_vpp_invalid_app.yml", "zzzzzz", time.Now().Add(-24 * time.Hour)},
+		{"testdata/gitops/team_vpp_valid_app.yml", "", time.Now().Add(24 * time.Hour), false},
+		{"testdata/gitops/team_vpp_valid_app.yml", "", time.Now().Add(24 * time.Hour), true},
+		{"testdata/gitops/team_vpp_valid_app.yml", "vpp token expired", time.Now().Add(-24 * time.Hour), false},
+		{"testdata/gitops/team_vpp_invalid_app.yml", "app not available on vpp account", time.Now().Add(24 * time.Hour), false},
 	}
 
 	for _, c := range cases {
 		t.Run(filepath.Base(c.file), func(t *testing.T) {
 			ds, _, _ := setupFullGitOpsPremiumServer(t)
 			ds.GetTeamAppleSerialNumbersFunc = func(ctx context.Context, teamID uint) ([]string, error) {
+				if c.emptyTeam {
+					return nil, nil
+				}
 				return []string{"123"}, nil
 			}
 			token, err := createVPPDataToken(c.tokenExpiration, "fleet", "ca")

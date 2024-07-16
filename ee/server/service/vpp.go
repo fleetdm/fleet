@@ -108,7 +108,7 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 	}
 
 	if len(missingAssets) != 0 {
-		reqErr := ctxerr.Errorf(ctx, "requested app store not available on vpp account: %s", strings.Join(missingAssets, ","))
+		reqErr := ctxerr.Errorf(ctx, "requested app not available on vpp account: %s", strings.Join(missingAssets, ","))
 		return fleet.NewUserMessageError(reqErr, http.StatusUnprocessableEntity)
 	}
 
@@ -116,6 +116,12 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 	serials, err := svc.ds.GetTeamAppleSerialNumbers(ctx, team.ID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "cannot get team serials for association")
+	}
+
+	// There is nothing to assiciate, and calling the apple API with
+	// no serial numbers returns an error
+	if len(serials) == 0 {
+		return nil
 	}
 
 	if !dryRun {
