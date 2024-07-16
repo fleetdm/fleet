@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"net/url"
 	"regexp"
 
 	"github.com/fleetdm/fleet/v4/server/config"
@@ -1035,44 +1034,6 @@ func RedirectSetupToLogin(svc fleet.Service, logger kitlog.Logger, next http.Han
 			return
 		}
 		next.ServeHTTP(w, r)
-	}
-}
-
-func WithDEPWebviewRedirect(svc fleet.Service, logger kitlog.Logger, next http.Handler, urlPrefix string) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/mdm/sso" && r.URL.RawQuery == "" {
-			level.Debug(logger).Log("msg", "handling mdm sso", "url", r.URL.String())
-			// Note: We'll apply this redirect only if query params are empty because want to
-			// redirect to the same URL with added query params after parsing the x-apple-aspen-deviceinfo
-			// header. Whenever we see a request with any query params already present, we'll
-			// skip this step and just continue to the next handler.
-			di := r.Header.Get("X-apple-aspen-deviceinfo")
-			if di != "" {
-				level.Debug(logger).Log("msg", "parsing X-apple-aspen-deviceinfo", "url", r.URL.String())
-				// extract x-apple-aspen-deviceinfo custom header from request
-				_, err := apple_mdm.ParseDeviceinfo(di, true)
-				if err != nil {
-					level.Error(logger).Log("msg", "parsing X-apple-aspen-deviceinfo", "err", err)
-					http.Redirect(w, r, r.URL.String()+"?error=true", http.StatusSeeOther)
-					return
-				}
-				// redirect to the same URL with added deviceinfo query params
-				newURL := r.URL
-				q := url.Values{
-					"dep_device_info": []string{di},
-				}
-				newURL.RawQuery = q.Encode()
-				level.Debug(logger).Log("msg", "adding query params to redirect url", "query", newURL.RawQuery)
-				http.Redirect(w, r, newURL.String(), http.StatusTemporaryRedirect)
-				return
-			}
-			// TODO: consider whether we want always return an error here if the header is missing for this endpoint?
-			level.Info(logger).Log("msg", "missig x-apple-aspen-deviceinfo header, continuing to next")
-
-		}
-
-		next.ServeHTTP(w, r)
-		return
 	}
 }
 
