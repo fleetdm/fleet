@@ -2605,7 +2605,7 @@ Lists the software installed on the current device.
       "app_store_app": null,
       "self_service": true,	
       "source": "apps",
-      "status": null,
+      "status": "failed",
       "last_install": {
         "install_uuid": "8bbb8ac2-b254-4387-8cba-4d8a0407368b",
         "installed_at": "2024-05-15T15:23:57Z"
