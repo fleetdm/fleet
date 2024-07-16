@@ -3,7 +3,6 @@ package mysql
 import (
 	"context"
 	"crypto/md5" //nolint:gosec // This hash is used as a DB optimization for software row lookup, not security
-	"database/sql"
 	"encoding/hex"
 	"fmt"
 	"sort"
@@ -725,7 +724,7 @@ func updateModifiedHostSoftwareDB(
 			continue
 		}
 
-		if curSw.LastOpenedAt == nil || (*newSw.LastOpenedAt).Sub(*curSw.LastOpenedAt) >= minLastOpenedAtDiff {
+		if curSw.LastOpenedAt == nil || newSw.LastOpenedAt.Sub(*curSw.LastOpenedAt) >= minLastOpenedAtDiff {
 			keysToUpdate = append(keysToUpdate, key)
 		}
 	}
@@ -1675,7 +1674,9 @@ OR s.title_id != st.id;
 		cleanupStmt := `
 DELETE st FROM software_titles st
 	LEFT JOIN software s ON s.title_id = st.id
-	WHERE s.title_id IS NULL AND NOT EXISTS (SELECT 1 FROM software_installers si WHERE si.title_id = st.id)`
+	WHERE s.title_id IS NULL AND
+		NOT EXISTS (SELECT 1 FROM software_installers si WHERE si.title_id = st.id) AND
+		NOT EXISTS (SELECT 1 FROM vpp_apps vap WHERE vap.title_id = st.id)`
 
 		res, err = tx.ExecContext(ctx, cleanupStmt)
 		if err != nil {
@@ -1914,16 +1915,16 @@ func (ds *Datastore) ListSoftwareForVulnDetection(
 	var args []interface{}
 
 	baseSQL := `
-		SELECT 
+		SELECT
 			s.id,
 			s.name,
 			s.version,
 			s.release,
 			s.arch,
 			COALESCE(cpe.cpe, '') AS generated_cpe
-		FROM 
+		FROM
 			software s
-		LEFT JOIN 
+		LEFT JOIN
 			software_cpe cpe ON s.id = cpe.software_id
 	`
 
@@ -1989,7 +1990,7 @@ func (ds *Datastore) ListCVEs(ctx context.Context, maxAge time.Duration) ([]flee
 	return result, nil
 }
 
-// tblAlias is the table alias to use as prefix for the host_script_installs
+// tblAlias is the table alias to use as prefix for the host_software_installs
 // column names, no prefix used if empty.
 // colAlias is the name to be assigned to the computed status column, pass
 // empty to have the value only, no column alias set.
@@ -2039,24 +2040,37 @@ AND EXISTS (SELECT 1 FROM software s JOIN software_cve scve ON scve.software_id 
 		`
 	}
 
+	// this statement lists only the software that is reported as installed on
+	// the host or has been attempted to be installed on the host.
 	stmtInstalled := fmt.Sprintf(`
 		SELECT
 			st.id,
 			st.name,
 			st.source,
+			-- will be NULL for VPP apps for now, self-service not supported yet
 			si.self_service as self_service,
-			si.filename as package_available_for_install,
+			-- this count will be 1 if an installer or VPP app is available, 0 otherwise
+			IF(COALESCE(si.id, vap.adam_id) IS NOT NULL, 1, 0) as available_for_install,
+			si.filename as package_name,
 			si.version as package_version,
-			hsi.created_at as last_install_installed_at,
-			hsi.execution_id as last_install_install_uuid,
-			%s,
-			si.id AS installer_id -- NULL if no Fleet installer
+			vap.adam_id as vpp_app_adam_id,
+			vap.latest_version as vpp_app_version,
+			COALESCE(hsi.created_at, hvsi.created_at) as last_install_installed_at,
+			COALESCE(hsi.execution_id, hvsi.command_uuid) as last_install_install_uuid,
+			-- get either the softare installer status or the vpp app status
+			COALESCE(%s, %s) as status
 		FROM
 			software_titles st
 		LEFT OUTER JOIN
 			software_installers si ON st.id = si.title_id
 		LEFT OUTER JOIN
 			host_software_installs hsi ON si.id = hsi.software_installer_id AND hsi.host_id = :host_id
+		LEFT OUTER JOIN
+			vpp_apps vap ON st.id = vap.title_id
+		LEFT OUTER JOIN
+			host_vpp_software_installs hvsi ON vap.adam_id = hvsi.adam_id AND hvsi.host_id = :host_id
+		LEFT OUTER JOIN
+			nano_command_results ncr ON ncr.command_uuid = hvsi.command_uuid
 		WHERE
 			-- use the latest install only
 			( hsi.id IS NULL OR hsi.id = (
@@ -2064,6 +2078,12 @@ AND EXISTS (SELECT 1 FROM software s JOIN software_cve scve ON scve.software_id 
 				FROM host_software_installs hsi2
 				WHERE hsi2.host_id = hsi.host_id AND hsi2.software_installer_id = hsi.software_installer_id
 				ORDER BY hsi2.created_at DESC
+				LIMIT 1 ) ) AND
+			( hvsi.id IS NULL OR hvsi.id = (
+				SELECT hvsi2.id
+				FROM host_vpp_software_installs hvsi2
+				WHERE hvsi2.host_id = hvsi.host_id AND hvsi2.adam_id = hvsi.adam_id
+				ORDER BY hvsi2.created_at DESC
 				LIMIT 1 ) ) AND
 			-- software is installed on host
 			( EXISTS (
@@ -2076,31 +2096,42 @@ AND EXISTS (SELECT 1 FROM software s JOIN software_cve scve ON scve.software_id 
 					hs.host_id = :host_id AND
 					s.title_id = st.id
 			) OR
-			-- or software install has been attempted on host
-			hsi.host_id IS NOT NULL )
+			-- or software install has been attempted on host (via installer or VPP app)
+			hsi.host_id IS NOT NULL OR hvsi.host_id IS NOT NULL )
 			%s
 			%s
-`, softwareInstallerHostStatusNamedQuery("hsi", "status"), onlySelfServiceClause, onlyVulnerableClause)
+`, softwareInstallerHostStatusNamedQuery("hsi", ""), vppAppHostStatusNamedQuery("hvsi", "ncr", ""), onlySelfServiceClause, onlyVulnerableClause)
 
-	const stmtAvailable = `
+	// this statement lists only the software that has never been installed nor
+	// attempted to be installed on the host, but that is available to be
+	// installed on the host's platform.
+	stmtAvailable := fmt.Sprintf(`
 		SELECT
 			st.id,
 			st.name,
 			st.source,
+			-- will be NULL for VPP apps for now, self-service not supported yet
 			si.self_service as self_service,
-			si.filename as package_available_for_install,
+			1 as available_for_install,
+			si.filename as package_name,
 			si.version as package_version,
+			vap.adam_id as vpp_app_adam_id,
+			vap.latest_version as vpp_app_version,
 			NULL as last_install_installed_at,
 			NULL as last_install_install_uuid,
-			NULL as status,
-			si.id as installer_id
+			NULL as status
 		FROM
 			software_titles st
-		INNER JOIN
+		LEFT OUTER JOIN
 			-- filter out software that is not available for install on the host's platform
-			software_installers si ON st.id = si.title_id AND si.platform IN(%s)
+			software_installers si ON st.id = si.title_id AND si.platform IN (:host_compatible_platforms) AND si.global_or_team_id = :global_or_team_id
+		LEFT OUTER JOIN
+			-- include VPP apps only if the host is on a supported platform
+			vpp_apps vap ON st.id = vap.title_id AND :host_platform IN (:vpp_apps_platforms)
+		LEFT OUTER JOIN
+			vpp_apps_teams vat ON vap.adam_id = vat.adam_id AND vat.global_or_team_id = :global_or_team_id
 		WHERE
-			-- software is not installed on host, but is available in host's team
+			-- software is not installed on host (but is available in host's team)
 			NOT EXISTS (
 				SELECT 1
 				FROM
@@ -2108,7 +2139,7 @@ AND EXISTS (SELECT 1 FROM software s JOIN software_cve scve ON scve.software_id 
 				INNER JOIN
 					software s ON hs.software_id = s.id
 				WHERE
-					hs.host_id = ? AND
+					hs.host_id = :host_id AND
 					s.title_id = st.id
 			) AND
 			-- sofware install has not been attempted on host
@@ -2117,50 +2148,76 @@ AND EXISTS (SELECT 1 FROM software s JOIN software_cve scve ON scve.software_id 
 				FROM
 					host_software_installs hsi
 				WHERE
-					hsi.host_id = ? AND
+					hsi.host_id = :host_id AND
 					hsi.software_installer_id = si.id
 			) AND
-			si.global_or_team_id = (SELECT COALESCE(h.team_id, 0) FROM hosts h WHERE h.id = ?)
+			NOT EXISTS (
+				SELECT 1
+				FROM
+					host_vpp_software_installs hvsi
+				WHERE
+					hvsi.host_id = :host_id AND
+					hvsi.adam_id = vat.adam_id
+			) AND
+			-- either the software installer or the vpp app exists for the host's team
+			( si.id IS NOT NULL OR vat.adam_id IS NOT NULL )
 			%s
-`
+`, onlySelfServiceClause)
 
+	// this is the top-level SELECT of fields from the UNION of the sub-selects
+	// (stmtAvailable and stmtInstalled).
 	const selectColNames = `
 	SELECT
 		id,
 		name,
 		source,
 		self_service,
-		package_available_for_install,
+		available_for_install,
+		package_name,
 		package_version,
+		vpp_app_adam_id,
+		vpp_app_version,
 		last_install_installed_at,
 		last_install_install_uuid,
 		status
 `
 
-	// must resolve the named bindings here, before adding the stmtAvailable and searchLike which
-	// uses standard placeholders.
-	stmt, args, err := sqlx.Named(stmtInstalled, map[string]any{
+	var globalOrTeamID uint
+	if host.TeamID != nil {
+		globalOrTeamID = *host.TeamID
+	}
+	namedArgs := map[string]any{
 		"host_id":                   host.ID,
 		"software_status_failed":    fleet.SoftwareInstallerFailed,
 		"software_status_pending":   fleet.SoftwareInstallerPending,
 		"software_status_installed": fleet.SoftwareInstallerInstalled,
-	})
+		"mdm_status_acknowledged":   fleet.MDMAppleStatusAcknowledged,
+		"mdm_status_error":          fleet.MDMAppleStatusError,
+		"mdm_status_format_error":   fleet.MDMAppleStatusCommandFormatError,
+		"global_or_team_id":         globalOrTeamID,
+	}
+
+	stmt := stmtInstalled
+	if opts.IncludeAvailableForInstall && !opts.VulnerableOnly {
+		namedArgs["host_platform"] = host.FleetPlatform()
+		namedArgs["vpp_apps_platforms"] = []string{"darwin"} // for now, only macOS, not iOS/iPadOS
+		if fleet.IsLinux(host.Platform) {
+			namedArgs["host_compatible_platforms"] = fleet.HostLinuxOSs
+		} else {
+			namedArgs["host_compatible_platforms"] = []string{host.FleetPlatform()}
+		}
+		stmt += ` UNION ` + stmtAvailable
+	}
+
+	// must resolve the named bindings here, before adding the searchLike which
+	// uses standard placeholders.
+	stmt, args, err := sqlx.Named(stmt, namedArgs)
 	if err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "build named query for list host software")
 	}
-
-	if opts.IncludeAvailableForInstall && !opts.VulnerableOnly {
-		platformArgs := []string{host.Platform}
-		if fleet.IsLinux(host.Platform) {
-			platformArgs = fleet.HostLinuxOSs
-		}
-		placeholders := ""
-		for _, p := range platformArgs {
-			placeholders += "?,"
-			args = append(args, p)
-		}
-		stmt += ` UNION ` + fmt.Sprintf(stmtAvailable, strings.TrimSuffix(placeholders, ","), onlySelfServiceClause)
-		args = append(args, host.ID, host.ID, host.ID)
+	stmt, args, err = sqlx.In(stmt, args...)
+	if err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "expand IN query for list host software")
 	}
 
 	stmt = selectColNames + ` FROM ( ` + stmt + ` ) AS tbl `
@@ -2182,10 +2239,12 @@ AND EXISTS (SELECT 1 FROM software s JOIN software_cve scve ON scve.software_id 
 
 	type hostSoftware struct {
 		fleet.HostSoftwareWithInstaller
-		LastInstallInstalledAt *time.Time    `db:"last_install_installed_at"`
-		LastInstallInstallUUID *string       `db:"last_install_install_uuid"`
-		StatusSort             sql.NullInt32 `db:"status_sort"`
-		PackageVersion         *string       `db:"package_version"`
+		LastInstallInstalledAt *time.Time `db:"last_install_installed_at"`
+		LastInstallInstallUUID *string    `db:"last_install_install_uuid"`
+		PackageName            *string    `db:"package_name"`
+		PackageVersion         *string    `db:"package_version"`
+		VPPAppAdamID           *string    `db:"vpp_app_adam_id"`
+		VPPAppVersion          *string    `db:"vpp_app_version"`
 	}
 	var hostSoftwareList []*hostSoftware
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &hostSoftwareList, stmt, args...); err != nil {
@@ -2208,16 +2267,26 @@ AND EXISTS (SELECT 1 FROM software s JOIN software_cve scve ON scve.software_id 
 		}
 
 		// promote the package name and version to the proper destination fields
-		// (the service layer will arbitrate whether package_available_for_install
-		// or package fields are returned).
-		if hs.PackageAvailableForInstall != nil {
+		if hs.PackageName != nil {
 			var version string
 			if hs.PackageVersion != nil {
 				version = *hs.PackageVersion
 			}
-			hs.Package = &fleet.DeviceSoftwarePackage{
-				Name:    *hs.PackageAvailableForInstall,
+			hs.SoftwarePackage = &fleet.HostSoftwarePackageOrApp{
+				Name:    *hs.PackageName,
 				Version: version,
+			}
+		}
+
+		// promote the VPP app id and version to the proper destination fields
+		if hs.VPPAppAdamID != nil {
+			var version string
+			if hs.VPPAppVersion != nil {
+				version = *hs.VPPAppVersion
+			}
+			hs.AppStoreApp = &fleet.HostSoftwarePackageOrApp{
+				AppStoreID: *hs.VPPAppAdamID,
+				Version:    version,
 			}
 		}
 

@@ -119,6 +119,10 @@ func TestMDMAppleAuthorization(t *testing.T) {
 		return nil
 	}
 
+	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time) error {
+		return nil
+	}
+
 	ds.DeleteMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName) error { return nil }
 
 	// use a custom implementation of checkAuthErr as the service call will fail

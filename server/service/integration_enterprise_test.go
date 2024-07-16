@@ -7773,8 +7773,7 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 	)
 
 	require.Len(t, resp.SoftwareTitles, 1)
-	require.NotNil(t, resp.SoftwareTitles[0].SoftwarePackage)
-	require.Equal(t, "ruby.deb", *resp.SoftwareTitles[0].SoftwarePackage)
+	require.True(t, resp.SoftwareTitles[0].AvailableForInstall)
 
 	// Upload an installer for the same software but different arch to a different team
 	payloadRubyTm2 := &fleet.UploadSoftwareInstallerPayload{
@@ -7794,8 +7793,7 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 		"team_id", fmt.Sprintf("%d", team1.ID),
 	)
 	require.Len(t, resp.SoftwareTitles, 1)
-	require.NotNil(t, resp.SoftwareTitles[0].SoftwarePackage)
-	require.Equal(t, "ruby.deb", *resp.SoftwareTitles[0].SoftwarePackage)
+	require.True(t, resp.SoftwareTitles[0].AvailableForInstall)
 
 	// software installer not returned with self-service only (not marked as such)
 	resp = listSoftwareTitlesResponse{}
@@ -7812,9 +7810,8 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &resp,
 		"self_service", "1", "query", "ruby", "team_id", fmt.Sprint(team1.ID))
 	require.Len(t, resp.SoftwareTitles, 1)
-	require.NotNil(t, resp.SoftwareTitles[0].SoftwarePackage)
-	require.Equal(t, "ruby.deb", *resp.SoftwareTitles[0].SoftwarePackage)
-	require.True(t, *&resp.SoftwareTitles[0].SelfService)
+	require.True(t, resp.SoftwareTitles[0].AvailableForInstall)
+	require.True(t, resp.SoftwareTitles[0].SelfService)
 
 	// no team but self-service returns the emacs software (technically impossible via the UI)
 	resp = listSoftwareTitlesResponse{}
@@ -7826,9 +7823,8 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 	)
 
 	require.Len(t, resp.SoftwareTitles, 1)
-	require.NotNil(t, resp.SoftwareTitles[0].SoftwarePackage)
-	require.Equal(t, "emacs.deb", *resp.SoftwareTitles[0].SoftwarePackage)
-	require.True(t, *&resp.SoftwareTitles[0].SelfService)
+	require.True(t, resp.SoftwareTitles[0].AvailableForInstall)
+	require.True(t, resp.SoftwareTitles[0].SelfService)
 
 	emacsPath := fmt.Sprintf("/api/latest/fleet/software/titles/%d", resp.SoftwareTitles[0].ID)
 	respTitle := getSoftwareTitleResponse{}
@@ -9152,11 +9148,13 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 	require.Len(t, getHostSw.Software[1].InstalledVersions, 2)
 	// no package information as there is no installer
 	require.Nil(t, getHostSw.Software[0].SelfService)
-	require.Nil(t, getHostSw.Software[0].Package)
-	require.Nil(t, getHostSw.Software[0].PackageAvailableForInstall)
+	require.False(t, getHostSw.Software[0].AvailableForInstall)
+	require.Nil(t, getHostSw.Software[0].SoftwarePackage)
+	require.Nil(t, getHostSw.Software[0].AppStoreApp)
 	require.Nil(t, getHostSw.Software[1].SelfService)
-	require.Nil(t, getHostSw.Software[1].Package)
-	require.Nil(t, getHostSw.Software[1].PackageAvailableForInstall)
+	require.False(t, getHostSw.Software[1].AvailableForInstall)
+	require.Nil(t, getHostSw.Software[1].SoftwarePackage)
+	require.Nil(t, getHostSw.Software[1].AppStoreApp)
 
 	// Add vulnerabilities to software to check query param filtering
 	_, err = s.ds.InsertSoftwareVulnerability(ctx, fleet.SoftwareVulnerability{SoftwareID: barSoftwareID, CVE: "CVE-bar-1234"}, fleet.NVDSource)
@@ -9170,8 +9168,9 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 	require.NoError(t, err)
 	require.Equal(t, "bar", getHostSw.Software[0].Name)
 	require.Nil(t, getHostSw.Software[0].SelfService)
-	require.Nil(t, getHostSw.Software[0].Package)
-	require.Nil(t, getHostSw.Software[0].PackageAvailableForInstall)
+	require.False(t, getHostSw.Software[0].AvailableForInstall)
+	require.Nil(t, getHostSw.Software[0].SoftwarePackage)
+	require.Nil(t, getHostSw.Software[0].AppStoreApp)
 	require.Len(t, getHostSw.Software[0].InstalledVersions, 1)
 	require.Len(t, getHostSw.Software[0].InstalledVersions[0].Vulnerabilities, 2)
 	require.Equal(t, getHostSw.Software[0].InstalledVersions[0].Vulnerabilities, []string{"CVE-bar-1234", "CVE-bar-5678"})
@@ -9186,11 +9185,13 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 	require.Len(t, getDeviceSw.Software[1].InstalledVersions, 2)
 	// no package information as there is no installer
 	require.Nil(t, getDeviceSw.Software[0].SelfService)
-	require.Nil(t, getDeviceSw.Software[0].Package)
-	require.Nil(t, getDeviceSw.Software[0].PackageAvailableForInstall)
+	require.False(t, getDeviceSw.Software[0].AvailableForInstall)
+	require.Nil(t, getDeviceSw.Software[0].SoftwarePackage)
+	require.Nil(t, getDeviceSw.Software[0].AppStoreApp)
 	require.Nil(t, getDeviceSw.Software[1].SelfService)
-	require.Nil(t, getDeviceSw.Software[1].Package)
-	require.Nil(t, getDeviceSw.Software[1].PackageAvailableForInstall)
+	require.False(t, getDeviceSw.Software[1].AvailableForInstall)
+	require.Nil(t, getDeviceSw.Software[1].SoftwarePackage)
+	require.Nil(t, getDeviceSw.Software[1].AppStoreApp)
 
 	// create a software installer, not installed on the host
 	payload := &fleet.UploadSoftwareInstallerPayload{
@@ -9212,18 +9213,19 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host.ID), nil, http.StatusOK, &getHostSw)
 	require.Len(t, getHostSw.Software, 3) // foo, bar and ruby.deb
 	require.Equal(t, getHostSw.Software[0].Name, "bar")
-	require.Nil(t, getHostSw.Software[0].PackageAvailableForInstall)
+	require.False(t, getHostSw.Software[0].AvailableForInstall)
 	require.Equal(t, getHostSw.Software[1].Name, "foo")
-	require.Nil(t, getHostSw.Software[1].PackageAvailableForInstall)
+	require.False(t, getHostSw.Software[1].AvailableForInstall)
 	require.Equal(t, getHostSw.Software[2].Name, "ruby")
 	require.Len(t, getHostSw.Software[1].InstalledVersions, 2)
-	require.NotNil(t, getHostSw.Software[2].PackageAvailableForInstall)
-	require.Equal(t, "ruby.deb", *getHostSw.Software[2].PackageAvailableForInstall)
+	require.True(t, getHostSw.Software[2].AvailableForInstall)
+	require.Nil(t, getHostSw.Software[2].AppStoreApp)
+	require.NotNil(t, getHostSw.Software[2].SoftwarePackage)
+	require.Equal(t, "ruby.deb", getHostSw.Software[2].SoftwarePackage.Name)
+	require.Equal(t, payload.Version, getHostSw.Software[2].SoftwarePackage.Version)
 	require.NotNil(t, getHostSw.Software[2].SelfService)
 	require.True(t, *getHostSw.Software[2].SelfService)
 	require.Nil(t, getHostSw.Software[2].Status)
-	// package object is not returned for user-authenticated endpoint
-	require.Nil(t, getHostSw.Software[2].Package)
 
 	// only the installer is returned for self-service only
 	getHostSw = getHostSoftwareResponse{}
@@ -9240,8 +9242,8 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 	require.Equal(t, getDeviceSw.Software[0].Name, "bar")
 	require.Equal(t, getDeviceSw.Software[1].Name, "foo")
 	require.Len(t, getDeviceSw.Software[1].InstalledVersions, 2)
-	require.Nil(t, getDeviceSw.Software[0].PackageAvailableForInstall)
-	require.Nil(t, getDeviceSw.Software[1].PackageAvailableForInstall)
+	require.False(t, getDeviceSw.Software[0].AvailableForInstall)
+	require.False(t, getDeviceSw.Software[1].AvailableForInstall)
 
 	// but it gets returned for self-service only
 	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/software?self_service=1", nil, http.StatusOK)
@@ -9250,14 +9252,13 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 	require.NoError(t, err)
 	require.Len(t, getDeviceSw.Software, 1)
 	require.Equal(t, getDeviceSw.Software[0].Name, "ruby")
-	// package available for install is not returned for device-authenticated
-	require.Nil(t, getDeviceSw.Software[0].PackageAvailableForInstall)
-	// but package object is
-	require.NotNil(t, getDeviceSw.Software[0].Package)
+	require.True(t, getDeviceSw.Software[0].AvailableForInstall)
+	require.Nil(t, getDeviceSw.Software[0].AppStoreApp)
+	require.NotNil(t, getDeviceSw.Software[0].SoftwarePackage)
 	require.NotNil(t, getDeviceSw.Software[0].SelfService)
 	require.True(t, *getDeviceSw.Software[0].SelfService)
-	require.Equal(t, payload.Filename, getDeviceSw.Software[0].Package.Name)
-	require.Equal(t, payload.Version, getDeviceSw.Software[0].Package.Version)
+	require.Equal(t, payload.Filename, getDeviceSw.Software[0].SoftwarePackage.Name)
+	require.Equal(t, payload.Version, getDeviceSw.Software[0].SoftwarePackage.Version)
 
 	// request installation on the host
 	var installResp installSoftwareResponse
@@ -9272,13 +9273,13 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 	require.Equal(t, getHostSw.Software[1].Name, "foo")
 	require.Equal(t, getHostSw.Software[2].Name, "ruby")
 	require.Len(t, getHostSw.Software[1].InstalledVersions, 2)
-	require.NotNil(t, getHostSw.Software[2].PackageAvailableForInstall)
-	require.Equal(t, "ruby.deb", *getHostSw.Software[2].PackageAvailableForInstall)
+	require.True(t, getHostSw.Software[2].AvailableForInstall)
+	require.NotNil(t, getHostSw.Software[2].SoftwarePackage)
+	require.Equal(t, "ruby.deb", getHostSw.Software[2].SoftwarePackage.Name)
 	require.NotNil(t, getHostSw.Software[2].Status)
 	require.Equal(t, fleet.SoftwareInstallerPending, *getHostSw.Software[2].Status)
 	require.NotNil(t, getHostSw.Software[2].SelfService)
 	require.True(t, *getHostSw.Software[2].SelfService)
-	require.Nil(t, getHostSw.Software[2].Package)
 
 	// still returned with self-service filter
 	getHostSw = getHostSoftwareResponse{}
@@ -9296,12 +9297,13 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 	require.Equal(t, getDeviceSw.Software[1].Name, "foo")
 	require.Equal(t, getDeviceSw.Software[2].Name, "ruby")
 	require.Len(t, getDeviceSw.Software[1].InstalledVersions, 2)
-	require.Nil(t, getDeviceSw.Software[2].PackageAvailableForInstall)
+	require.True(t, getDeviceSw.Software[2].AvailableForInstall)
 	require.NotNil(t, getDeviceSw.Software[2].Status)
 	require.Equal(t, fleet.SoftwareInstallerPending, *getDeviceSw.Software[2].Status)
 	require.NotNil(t, getDeviceSw.Software[2].SelfService)
 	require.True(t, *getDeviceSw.Software[2].SelfService)
-	require.NotNil(t, getDeviceSw.Software[2].Package)
+	require.NotNil(t, getDeviceSw.Software[2].SoftwarePackage)
+	require.Nil(t, getDeviceSw.Software[2].AppStoreApp)
 
 	// still returned for self-service only too
 	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/software?self_service=1", nil, http.StatusOK)
@@ -9312,8 +9314,9 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 	require.Equal(t, getDeviceSw.Software[0].Name, "ruby")
 	require.NotNil(t, getDeviceSw.Software[0].SelfService)
 	require.True(t, *getDeviceSw.Software[0].SelfService)
-	require.NotNil(t, getDeviceSw.Software[0].Package)
-	require.Nil(t, getDeviceSw.Software[0].PackageAvailableForInstall)
+	require.NotNil(t, getDeviceSw.Software[0].SoftwarePackage)
+	require.Nil(t, getDeviceSw.Software[0].AppStoreApp)
+	require.True(t, getDeviceSw.Software[0].AvailableForInstall)
 
 	// test with a query
 	getHostSw = getHostSoftwareResponse{}
@@ -10780,6 +10783,8 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	t.Setenv("FLEET_DEV_VPP_URL", s.appleVPPConfigSrv.URL)
 	s.uploadDataViaForm("/api/latest/fleet/mdm/apple/vpp_token", "token", "token.vpptoken", []byte(base64.StdEncoding.EncodeToString([]byte(tokenJSON))), http.StatusAccepted, "")
 
+	s.lastActivityMatches(fleet.ActivityEnabledVPP{}.ActivityName(), "", 0)
+
 	// Get the token
 	var resp getMDMAppleVPPTokenResponse
 	s.DoJSON("GET", "/api/latest/fleet/vpp", &getMDMAppleVPPTokenRequest{}, http.StatusOK, &resp)
@@ -10833,6 +10838,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	// Add an app store app to team 1
 	var addAppResp addAppStoreAppResponse
 	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{TeamID: &team.ID, AppStoreID: appResp.AppStoreApps[0].AdamID}, http.StatusOK, &addAppResp)
+	s.lastActivityMatches(fleet.ActivityAddedAppStoreApp{}.ActivityName(), fmt.Sprintf(`{"team_name": "%s", "software_title": "%s", "app_store_id": "%s", "team_id": %d}`, team.Name, appResp.AppStoreApps[0].Name, appResp.AppStoreApps[0].AdamID, team.ID), 0)
 
 	// Add an app store app to non-existent team
 	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{TeamID: ptr.Uint(9999), AppStoreID: appResp.AppStoreApps[0].AdamID}, http.StatusNotFound, &addAppResp)
@@ -10855,6 +10861,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	// Delete VPP token and check that it's not appearing anymore
 	s.Do("DELETE", "/api/latest/fleet/mdm/apple/vpp_token", &deleteMDMAppleVPPTokenRequest{}, http.StatusNoContent)
 	s.DoJSON("GET", "/api/latest/fleet/vpp", &getMDMAppleVPPTokenRequest{}, http.StatusNotFound, &resp)
+	s.lastActivityMatches(fleet.ActivityDisabledVPP{}.ActivityName(), "", 0)
 }
 
 // 1. software title uploaded doesn't match existing title
@@ -10898,8 +10905,7 @@ func (s *integrationEnterpriseTestSuite) TestPKGNewSoftwareTitleFlow() {
 		"team_id", fmt.Sprintf("%d", team.ID),
 	)
 	require.Len(t, resp.SoftwareTitles, 1)
-	require.NotNil(t, resp.SoftwareTitles[0].SoftwarePackage)
-	require.Equal(t, "dummy_installer.pkg", *resp.SoftwareTitles[0].SoftwarePackage)
+	require.True(t, resp.SoftwareTitles[0].AvailableForInstall)
 
 	software := []fleet.Software{
 		{Name: "foo", Version: "0.0.1", Source: "homebrew"},

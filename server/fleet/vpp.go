@@ -39,3 +39,24 @@ type VPPApp struct {
 func (v *VPPApp) AuthzType() string {
 	return "installable_entity"
 }
+
+// TODO(mna): It might be possible to merge this with the VPPApp struct above,
+// but since it will evolve via the other PRs implemented in parallel, I'll
+// create a distinct struct and we'll see at integration time.
+type VPPAppStoreApp struct {
+	AppStoreID    string               `db:"adam_id" json:"app_store_id"`
+	Name          string               `db:"name" json:"name"`
+	LatestVersion string               `db:"latest_version" json:"latest_version"`
+	IconURL       *string              `db:"icon_url" json:"icon_url"`
+	Status        *VPPAppStatusSummary `db:"-" json:"status"`
+}
+
+// VPPAppStatusSummary represents aggregated status metrics for a VPP app.
+type VPPAppStatusSummary struct {
+	// Installed is the number of hosts that have the VPP app installed.
+	Installed uint `json:"installed" db:"installed"`
+	// Pending is the number of hosts that have the VPP app pending installation.
+	Pending uint `json:"pending" db:"pending"`
+	// Failed is the number of hosts that have the VPP app installation failed.
+	Failed uint `json:"failed" db:"failed"`
+}

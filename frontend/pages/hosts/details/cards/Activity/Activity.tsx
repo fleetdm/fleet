@@ -68,7 +68,6 @@ const Activity = ({
   onPreviousPage,
   onShowDetails,
 }: IActivityProps) => {
-  // TODO: add count to upcoming activities tab when available via API
   return (
     <Card
       borderRadiusSize="xxlarge"
