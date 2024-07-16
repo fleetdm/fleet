@@ -316,41 +316,55 @@ const HostSummary = ({
   };
 
   const renderOperatingSystemSummary = () => {
-    const summaryData2 = { os_version: "macOS 13.1" };
-    const osUpdatesData2 = {
-      minimum_version: "14.5",
-      deadline: "2024-07-12",
-    };
     // No tooltip if minimum version is not set, including all Windows, Linux, ChromeOS operating systems
-    if (!osUpdatesData2?.minimum_version) {
+    if (!osUpdatesData?.minimum_version) {
       return (
         <DataSet title="Operating system" value={summaryData.os_version} />
       );
     }
 
-    const removeOSPrefix = (osVersion: string): string => {
-      return osVersion.replace(/^(macOS |iOS |iPadOS )/i, "");
+    const tooltipMessage = (osVersion: string, minimumOsVersion: string) => {
+      const requirementMetTooltip = "Meets minimum version requirement.";
+      const requirementNotMetTooltip = (
+        <>
+          Does not meet minimum version requirement.
+          <br />
+          Deadline to update: {osUpdatesData.deadline}
+        </>
+      );
+
+      const removeOSPrefix = (version: string): string => {
+        return version.replace(/^(macOS |iOS |iPadOS )/i, "");
+      };
+      const osVersionParts = removeOSPrefix(osVersion).split(".").map(Number);
+      const minimumOSVersionParts = minimumOsVersion.split(".").map(Number);
+
+      if (osVersionParts[0] < minimumOSVersionParts[0]) {
+        return requirementNotMetTooltip;
+      } else if (osVersionParts[0] > minimumOSVersionParts[0]) {
+        return requirementMetTooltip;
+      } else if (osVersionParts[1] < minimumOSVersionParts[1]) {
+        return requirementNotMetTooltip;
+      } else if (osVersionParts[1] > minimumOSVersionParts[1]) {
+        return requirementMetTooltip;
+      } else if (osVersionParts[2] < minimumOSVersionParts[2]) {
+        return requirementNotMetTooltip;
+      } else if (osVersionParts[2] > minimumOSVersionParts[2]) {
+        return requirementMetTooltip;
+      }
+      return requirementMetTooltip; // Equal
     };
-
-    const osVersion = parseInt(removeOSPrefix(summaryData2.os_version), 10);
-    const minimumOsVersion = parseInt(osUpdatesData2.minimum_version, 10);
-    const meetsVersionRequirement = osVersion >= minimumOsVersion;
-
-    const tooltip = meetsVersionRequirement ? (
-      "Meets minimum version requirement."
-    ) : (
-      <>
-        Does not meet minimum version requirement.
-        <br />
-        Deadline to update: {osUpdatesData2.deadline}
-      </>
-    );
 
     return (
       <DataSet
         title="Operating system"
         value={
-          <TooltipWrapper tipContent={tooltip}>
+          <TooltipWrapper
+            tipContent={tooltipMessage(
+              summaryData.os_version,
+              osUpdatesData.minimum_version
+            )}
+          >
             {summaryData.os_version}
           </TooltipWrapper>
         }
