@@ -57,12 +57,12 @@ Bugs are exempt from the release freeze period.
 
 Before beginning the freeze, create the release candidate branch. [Run the first step](https://github.com/fleetdm/fleet/tree/main/tools/release#minor-release-typically-end-of-sprint) of the minor release section of the Fleet releases script to create the release candidate branch, the release QA issue, and announce the release candidate in Slack. 
 
-After creating the release candidate branch, open the [repo settings on Merge Freeze](https://app.mergefreeze.com/installations/3704/branches/6847/edit) and populate the "Protected branch name" field with the name of the release candidate branch. Then, [open the repo on Merge Freeze](https://www.mergefreeze.com/installations/3704/branches/6847) and click the "Freeze now" button. This will freeze the selected release candidate branch branch and require any PRs to be manually unfrozen before merging. PRs can be manually unfrozen in Merge Freeze using the PR number.
+After creating the release candidate branch, open the [repo settings on Merge Freeze](https://app.mergefreeze.com/installations/3704/branches/6847/edit) and populate the "Protected branch name" field with the name of the release candidate branch. Then, [open the repo on Merge Freeze](https://www.mergefreeze.com/installations/3704/branches/6847) and click the "Freeze now" button. This will freeze the selected release candidate branch and require any PRs to be manually unfrozen before merging. PRs may be manually unfrozen in Merge Freeze using the PR number.
 
 > Any Fleetie can [unfreeze PRs on Merge Freeze](https://www.mergefreeze.com/installations/3704/branches) if the PR contains documentation changes or bug fixes only. If the PR contains other changes, please confirm with your manager before unfreezing.
 
 ### Deploy the release candidate to QA Wolf during merge freeze
-During merge freeze, we deploy the release candidate to our QA Wolf instance every morning instead of `main` to ensure that any new bugs reported by QA Wolf are in the upcoming release and need to be fixed before publishing the release.
+During merge freeze, deploy the release candidate to our QA Wolf instance every morning instead of `main` to ensure that any new bugs reported by QA Wolf are in the upcoming release and need to be fixed before publishing the release.
 
 Open the [confidential repo environment variables](https://github.com/fleetdm/confidential/settings/variables/actions) page and update the `QAWOLF_DEPLOY_TAG` repository variable with the name of the release candidate branch. 
 
@@ -81,7 +81,7 @@ If there is partially merged feature work when freeze begins, the previously mer
 
 ### Merge a bug fix during the freeze period
 To merge a bug fix into the release candidate during freeze, it should first be merged into `main`. Then, `git checkout` the release candidate branch and create a new branch. Next, `git cherry-pick` your
-commit from `main` into your new branch, then create a pull request from your new branch to the release candidate. This process ensures your bug fix is included in `main` in future releases, as well as the release candidate for the next release.
+commit from `main` into your new branch, then create a pull request from your new branch to the release candidate. This process ensures your bug fix is included in `main` for future releases, as well as the release candidate branch for the next release.
 
 ### Confirm latest versions of dependencies
 Before kicking off release QA, confirm that we are using the latest versions of dependencies we want to keep up-to-date with each release. Currently, those dependencies are:
