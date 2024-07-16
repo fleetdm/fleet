@@ -93,23 +93,28 @@ type AssociateAssetsRequest struct {
 // request parameters provided.
 //
 // https://developer.apple.com/documentation/devicemanagement/associate_assets
-func AssociateAssets(token string, params *AssociateAssetsRequest) error {
+func AssociateAssets(token string, params *AssociateAssetsRequest) (string, error) {
 	var reqBody bytes.Buffer
 	if err := json.NewEncoder(&reqBody).Encode(params); err != nil {
-		return fmt.Errorf("encoding params as JSON: %w", err)
+		return "", fmt.Errorf("encoding params as JSON: %w", err)
 	}
 
 	req, err := http.NewRequest(http.MethodPost, getBaseURL()+"/assets/associate", &reqBody)
 	if err != nil {
-		return fmt.Errorf("creating request to Apple VPP endpoint: %w", err)
+		return "", fmt.Errorf("creating request to Apple VPP endpoint: %w", err)
 	}
 
 	req.Header.Add("Content-Type", "application/json")
 
-	if err := do[any](req, token, nil); err != nil {
-		return fmt.Errorf("making request to Apple VPP endpoint: %w", err)
+	var respBody struct {
+		EventID string `json:"eventId"`
 	}
-	return nil
+
+	if err := do(req, token, &respBody); err != nil {
+		return "", fmt.Errorf("making request to Apple VPP endpoint: %w", err)
+	}
+
+	return respBody.EventID, nil
 }
 
 // AssetFilter represents the filters for querying assets.

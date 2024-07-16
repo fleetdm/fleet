@@ -14,6 +14,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
+	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
@@ -292,6 +293,8 @@ func (svc *Service) installSoftwareFromVPP(ctx context.Context, host *fleet.Host
 		return ctxerr.Wrap(ctx, err, "getting assignments from VPP API")
 	}
 
+	var eventID string
+
 	// this app is not assigned to this device, check if we have licenses
 	// left and assign it.
 	if len(assignments) == 0 {
@@ -331,16 +334,28 @@ func (svc *Service) installSoftwareFromVPP(ctx context.Context, host *fleet.Host
 			}
 		}
 
-		err = vpp.AssociateAssets(token, &vpp.AssociateAssetsRequest{Assets: assets, SerialNumbers: []string{host.HardwareSerial}})
+		eventID, err = vpp.AssociateAssets(token, &vpp.AssociateAssetsRequest{Assets: assets, SerialNumbers: []string{host.HardwareSerial}})
 		if err != nil {
 			return ctxerr.Wrapf(ctx, err, "associating asset with adamID %s to host %s", vppApp.AdamID, host.HardwareSerial)
 		}
 
 	}
 
+	user := authz.UserFromContext(ctx)
+
 	// add command to install
-	err = svc.mdmAppleCommander.InstallApplication(ctx, []string{host.UUID}, uuid.NewString(), vppApp.AdamID)
-	return ctxerr.Wrapf(ctx, err, "sending command to install VPP %s application to host with serial %s", vppApp.AdamID, host.HardwareSerial)
+	cmdUUID := uuid.NewString()
+	err = svc.mdmAppleCommander.InstallApplication(ctx, []string{host.UUID}, cmdUUID, vppApp.AdamID)
+	if err != nil {
+		ctxerr.Wrapf(ctx, err, "sending command to install VPP %s application to host with serial %s", vppApp.AdamID, host.HardwareSerial)
+	}
+
+	err = svc.ds.InsertHostVPPSoftwareInstall(ctx, host.ID, user.ID, vppApp.AdamID, cmdUUID, eventID)
+	if err != nil {
+		return ctxerr.Wrapf(ctx, err, "inserting host vpp software install for host with serial %s and app with adamID %s", host.HardwareSerial, vppApp.AdamID)
+	}
+
+	return nil
 }
 
 func (svc *Service) installSoftwareTitleUsingInstaller(ctx context.Context, host *fleet.Host, installer *fleet.SoftwareInstaller) error {

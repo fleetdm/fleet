@@ -276,3 +276,18 @@ WHERE vat.global_or_team_id = ? AND va.title_id = ?
 
 	return &dest, nil
 }
+
+func (ds *Datastore) InsertHostVPPSoftwareInstall(ctx context.Context, hostID, userID uint, adamID, commandUUID, associatedEventID string) error {
+	stmt := `
+INSERT INTO host_vpp_software_installs
+  (host_id, adam_id, command_uuid, user_id, associated_event_id)
+VALUES
+  (?,?,?,?,?)
+	`
+
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, hostID, adamID, commandUUID, userID, associatedEventID); err != nil {
+		return ctxerr.Wrap(ctx, err, "insert into host_vpp_software_installs")
+	}
+
+	return nil
+}

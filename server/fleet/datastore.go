@@ -1585,6 +1585,7 @@ type Datastore interface {
 	BatchInsertVPPApps(ctx context.Context, apps []*VPPApp) error
 	GetAssignedVPPApps(ctx context.Context, teamID *uint) (map[string]struct{}, error)
 	InsertVPPAppWithTeam(ctx context.Context, app *VPPApp, teamID *uint) error
+	InsertHostVPPSoftwareInstall(ctx context.Context, hostID, userID uint, adamID, commandUUID, associatedEventID string) error
 }
 
 // MDMAppleStore wraps nanomdm's storage and adds methods to deal with
