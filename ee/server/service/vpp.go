@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/itunes"
@@ -155,6 +156,16 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, adamID str
 	}
 	if err := svc.ds.InsertVPPAppWithTeam(ctx, app, teamID); err != nil {
 		return ctxerr.Wrap(ctx, err, "writing VPP app to db")
+	}
+
+	act := fleet.ActivityAddedAppStoreApp{
+		AppStoreID:    app.AdamID,
+		TeamName:      &teamName,
+		SoftwareTitle: app.Name,
+		TeamID:        teamID,
+	}
+	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
+		return ctxerr.Wrap(ctx, err, "create activity for add app store app")
 	}
 
 	return nil

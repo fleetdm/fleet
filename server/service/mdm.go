@@ -2646,6 +2646,11 @@ func (svc *Service) UploadMDMAppleVPPToken(ctx context.Context, token io.ReadSee
 		return ctxerr.Wrap(ctx, err, "writing VPP token to db")
 	}
 
+	act := fleet.ActivityEnabledVPP{}
+	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
+		return ctxerr.Wrap(ctx, err, "create activity for upload VPP token")
+	}
+
 	return nil
 }
 
@@ -2729,5 +2734,14 @@ func (svc *Service) DeleteMDMAppleVPPToken(ctx context.Context) error {
 		return err
 	}
 
-	return svc.ds.DeleteMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetVPPToken})
+	if err := svc.ds.DeleteMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetVPPToken}); err != nil {
+		return ctxerr.Wrap(ctx, err, "delete VPP token")
+	}
+
+	act := fleet.ActivityDisabledVPP{}
+	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
+		return ctxerr.Wrap(ctx, err, "create activity for delete VPP token")
+	}
+
+	return nil
 }

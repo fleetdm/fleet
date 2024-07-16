@@ -45,21 +45,14 @@ WHERE
 func (ds *Datastore) GetSummaryHostVPPAppInstalls(ctx context.Context, teamID *uint, adamID string) (*fleet.VPPAppStatusSummary, error) {
 	var dest fleet.VPPAppStatusSummary
 
-	const stmt = `
+	stmt := fmt.Sprintf(`
 SELECT
 	COALESCE(SUM( IF(status = :software_status_pending, 1, 0)), 0) AS pending,
 	COALESCE(SUM( IF(status = :software_status_failed, 1, 0)), 0) AS failed,
 	COALESCE(SUM( IF(status = :software_status_installed, 1, 0)), 0) AS installed
 FROM (
 SELECT
-	CASE
-	WHEN ncr.status = :mdm_status_acknowledged THEN
-		:software_status_installed
-	WHEN ncr.status = :mdm_status_error OR ncr.status = :mdm_status_format_error THEN
-		:software_status_failed
-	ELSE
-		:software_status_pending
-	END as status
+	%s
 FROM
 	host_vpp_software_installs hvsi
 INNER JOIN
@@ -79,7 +72,7 @@ WHERE
 		GROUP BY
 			hvsi2.host_id
 	)
-) s`
+) s`, vppAppHostStatusNamedQuery("hvsi", "ncr", "status"))
 
 	var tmID uint
 	if teamID != nil {
@@ -105,6 +98,35 @@ WHERE
 		return nil, ctxerr.Wrap(ctx, err, "get summary host vpp install status")
 	}
 	return &dest, nil
+}
+
+// hvsiAlias is the table alias to use as prefix for the
+// host_vpp_software_installs column names, no prefix used if empty.
+// ncrAlias is the table alias to use as prefix for the nano_command_results
+// column names, no prefix used if empty.
+// colAlias is the name to be assigned to the computed status column, pass
+// empty to have the value only, no column alias set.
+func vppAppHostStatusNamedQuery(hvsiAlias, ncrAlias, colAlias string) string {
+	if hvsiAlias != "" {
+		hvsiAlias += "."
+	}
+	if ncrAlias != "" {
+		ncrAlias += "."
+	}
+	if colAlias != "" {
+		colAlias = " AS " + colAlias
+	}
+	return fmt.Sprintf(`
+			CASE
+				WHEN %[1]sstatus = :mdm_status_acknowledged THEN
+					:software_status_installed
+				WHEN %[1]sstatus = :mdm_status_error OR %[1]sstatus = :mdm_status_format_error THEN
+					:software_status_failed
+				WHEN %[2]sid IS NOT NULL THEN
+					:software_status_pending
+				ELSE
+					NULL -- not installed via VPP App
+			END %[3]s `, ncrAlias, hvsiAlias, colAlias)
 }
 
 func (ds *Datastore) BatchInsertVPPApps(ctx context.Context, apps []*fleet.VPPApp) error {
