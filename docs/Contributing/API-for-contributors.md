@@ -2631,7 +2631,7 @@ Lists the software installed on the current device.
       "last_install": null,
       "installed_versions": [
         { 
-          "version": "25.04",
+          "version": "125.6",
           "last_opened_at": "2024-04-01T23:03:07Z",
           "vulnerabilities": [],
           "installed_paths": ["/Applications/Firefox.app"]
