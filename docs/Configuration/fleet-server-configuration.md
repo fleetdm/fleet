@@ -1444,7 +1444,6 @@ AWS secret access key to use for Firehose authentication.
   firehose:
     secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
   ```
-Optional unique identifier that can be used by the principal assuming the role to assert its identity.
 
 ##### firehose_sts_assume_role_arn
 
