@@ -2,6 +2,9 @@ package main
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -16,6 +19,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
+	"github.com/fleetdm/fleet/v4/server/mdm/apple/vpp"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/tokenpki"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	mdmmock "github.com/fleetdm/fleet/v4/server/mock/mdm"
@@ -1088,6 +1092,89 @@ func TestTeamSofwareInstallersGitOps(t *testing.T) {
 	}
 }
 
+func TestTeamVPPAppsGitOps(t *testing.T) {
+	config := &AppleVPPConfigSrvConf{
+		Assets: []vpp.Asset{
+			{
+				AdamID:         "1",
+				PricingParam:   "STDQ",
+				AvailableCount: 12,
+			},
+			{
+				AdamID:         "2",
+				PricingParam:   "STDQ",
+				AvailableCount: 3,
+			},
+		},
+		SerialNumbers: []string{"123", "456"},
+	}
+
+	startVPPApplyServer(t, config)
+
+	cases := []struct {
+		file            string
+		wantErr         string
+		tokenExpiration time.Time
+	}{
+		{"testdata/gitops/team_vpp_invalid_app.yml", "zzzzzz", time.Now().Add(24 * time.Hour)},
+		{"testdata/gitops/team_vpp_invalid_app.yml", "zzzzzz", time.Now().Add(-24 * time.Hour)},
+	}
+
+	for _, c := range cases {
+		t.Run(filepath.Base(c.file), func(t *testing.T) {
+			ds, _, _ := setupFullGitOpsPremiumServer(t)
+			ds.GetTeamAppleSerialNumbersFunc = func(ctx context.Context, teamID uint) ([]string, error) {
+				return []string{"123"}, nil
+			}
+			token, err := createVPPDataToken(c.tokenExpiration, "fleet", "ca")
+			require.NoError(t, err)
+
+			ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+				asset := map[fleet.MDMAssetName]fleet.MDMConfigAsset{
+					fleet.MDMAssetVPPToken: {
+						Name:  fleet.MDMAssetVPPToken,
+						Value: token,
+					},
+				}
+				return asset, nil
+			}
+
+			_, err = runAppNoChecks([]string{"gitops", "-f", c.file})
+			if c.wantErr == "" {
+				require.NoError(t, err)
+			} else {
+				require.ErrorContains(t, err, c.wantErr)
+			}
+		})
+	}
+}
+
+func createVPPDataToken(expiration time.Time, orgName, location string) ([]byte, error) {
+	var randBytes [32]byte
+	_, err := rand.Read(randBytes[:])
+	if err != nil {
+		return nil, fmt.Errorf("generating random bytes: %w", err)
+	}
+	token := base64.StdEncoding.EncodeToString(randBytes[:])
+	raw := fleet.VPPTokenRaw{
+		OrgName: orgName,
+		Token:   token,
+		ExpDate: expiration.Format("2006-01-02T15:04:05Z0700"),
+	}
+	rawJson, err := json.Marshal(raw)
+	if err != nil {
+		return nil, fmt.Errorf("marshalling vpp raw token: %w", err)
+	}
+
+	dataToken := fleet.VPPTokenData{Token: string(rawJson), Location: location}
+	dataTokenJson, err := json.Marshal(dataToken)
+	if err != nil {
+		return nil, fmt.Errorf("marshalling vpp data token: %w", err)
+	}
+
+	return dataTokenJson, nil
+}
+
 func TestCustomSettingsGitOps(t *testing.T) {
 	cases := []struct {
 		file    string
@@ -1167,6 +1254,136 @@ func startSoftwareInstallerServer(t *testing.T) {
 	)
 	t.Cleanup(srv.Close)
 	t.Setenv("SOFTWARE_INSTALLER_URL", srv.URL)
+}
+
+type AppleVPPConfigSrvConf struct {
+	Assets        []vpp.Asset
+	SerialNumbers []string
+}
+
+func startVPPApplyServer(t *testing.T, config *AppleVPPConfigSrvConf) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.Contains(r.URL.Path, "associate") {
+			var associations vpp.AssociateAssetsRequest
+
+			decoder := json.NewDecoder(r.Body)
+			if err := decoder.Decode(&associations); err != nil {
+				http.Error(w, "invalid request", http.StatusBadRequest)
+				return
+			}
+
+			fmt.Printf("Mock VPP Server: Trying to associate %v with %v\n", associations.SerialNumbers, associations.Assets)
+
+			if len(associations.Assets) == 0 {
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusBadRequest)
+				res := vpp.ErrorResponse{
+					ErrorNumber:  9718,
+					ErrorMessage: "This request doesn't contain an asset, which is a required argument. Change the request to provide an asset.",
+				}
+				json.NewEncoder(w).Encode(res)
+				return
+			}
+
+			if len(associations.SerialNumbers) == 0 {
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusBadRequest)
+				res := vpp.ErrorResponse{
+					ErrorNumber:  9719,
+					ErrorMessage: "Either clientUserIds or serialNumbers are required arguments. Change the request to provide assignable users and devices.",
+				}
+				json.NewEncoder(w).Encode(res)
+				return
+			}
+
+			var badAssets []vpp.Asset
+			for _, reqAsset := range associations.Assets {
+				var found bool
+				for _, goodAsset := range config.Assets {
+					if reqAsset == goodAsset {
+						found = true
+					}
+				}
+				if !found {
+					badAssets = append(badAssets, reqAsset)
+				}
+			}
+
+			var badSerials []string
+			for _, reqSerial := range associations.SerialNumbers {
+				var found bool
+				for _, goodSerial := range config.SerialNumbers {
+					if reqSerial == goodSerial {
+						found = true
+					}
+				}
+				if !found {
+					badSerials = append(badSerials, reqSerial)
+				}
+			}
+
+			if len(badAssets) != 0 || len(badSerials) != 0 {
+				errMsg := "error associating assets."
+				if len(badAssets) > 0 {
+					var badAdamIds []string
+					for _, asset := range badAssets {
+						badAdamIds = append(badAdamIds, asset.AdamID)
+					}
+					errMsg += fmt.Sprintf(" assets don't exist on account: %s.", strings.Join(badAdamIds, ", "))
+				}
+				if len(badSerials) > 0 {
+					errMsg += fmt.Sprintf(" bad serials: %s.", strings.Join(badSerials, ", "))
+				}
+				res := vpp.ErrorResponse{
+					ErrorInfo: vpp.ResponseErrorInfo{
+						Assets:        badAssets,
+						ClientUserIds: []string{"something"},
+						SerialNumbers: badSerials,
+					},
+					// Not sure what error should be returned on each
+					// error type
+					ErrorNumber:  1,
+					ErrorMessage: errMsg,
+				}
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusBadRequest)
+				json.NewEncoder(w).Encode(res)
+			}
+			return
+		}
+
+		if strings.Contains(r.URL.Path, "assets") {
+			// Then we're responding to GetAssets
+			w.Header().Set("Content-Type", "application/json")
+			encoder := json.NewEncoder(w)
+			err := encoder.Encode(map[string][]vpp.Asset{"assets": config.Assets})
+			if err != nil {
+				panic(err)
+			}
+			return
+		}
+
+		resp := []byte(`{"locationName": "Fleet Location One"}`)
+		if strings.Contains(r.URL.RawQuery, "invalidToken") {
+			// This replicates the response sent back from Apple's VPP endpoints when an invalid
+			// token is passed. For more details see:
+			// https://developer.apple.com/documentation/devicemanagement/app_and_book_management/app_and_book_management_legacy/interpreting_error_codes
+			// https://developer.apple.com/documentation/devicemanagement/client_config
+			// https://developer.apple.com/documentation/devicemanagement/errorresponse
+			// Note that the Apple server returns 200 in this case.
+			resp = []byte(`{"errorNumber": 9622,"errorMessage": "Invalid authentication token"}`)
+		}
+
+		if strings.Contains(r.URL.RawQuery, "serverError") {
+			resp = []byte(`{"errorNumber": 9603,"errorMessage": "Internal server error"}`)
+			w.WriteHeader(http.StatusInternalServerError)
+		}
+
+		_, _ = w.Write(resp)
+	}))
+
+	t.Setenv("FLEET_DEV_VPP_URL", srv.URL)
+	t.Cleanup(srv.Close)
 }
 
 func setupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig, **fleet.Team) {
