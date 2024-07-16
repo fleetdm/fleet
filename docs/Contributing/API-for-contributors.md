@@ -2633,7 +2633,7 @@ Lists the software installed on the current device.
         { 
           "version": "125.6",
           "last_opened_at": "2024-04-01T23:03:07Z",
-          "vulnerabilities": [],
+          "vulnerabilities": ["CVE-2023-1234","CVE-2023-4321","CVE-2023-7654"],
           "installed_paths": ["/Applications/Firefox.app"]
         }
       ]
