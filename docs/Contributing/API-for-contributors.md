@@ -2621,23 +2621,19 @@ Lists the software installed on the current device.
     },
     {
       "id": 143,
-      "name": "Logic Pro",
-      "available_for_install" true,
+      "name": "Firefox.app",
+      "available_for_install" false,
       "software_package": null,
-      "app_store_app": {
-	"app_store_id": "1091189122"
-        "version": "2.04"
-      },
       "self_service": false,
       "source": "apps",
       "status": null,
       "last_install": null,
       "installed_versions": [
         { 
-          "version": "2.04",
+          "version": "25.04",
           "last_opened_at": "2024-04-01T23:03:07Z",
           "vulnerabilities": [],
-          "installed_paths": ["/Applications/Logic Pro.app"]
+          "installed_paths": ["/Applications/Firefox.app"]
         }
       ]
     }
