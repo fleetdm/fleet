@@ -94,8 +94,6 @@ import {
 import WipeModal from "./modals/WipeModal";
 import SoftwareDetailsModal from "../cards/Software/SoftwareDetailsModal";
 import { parseHostSoftwareQueryParams } from "../cards/Software/HostSoftware";
-import { platform } from "os";
-import PlatformCell from "components/TableContainer/DataTable/PlatformCell";
 
 const baseClass = "host-details";
 
