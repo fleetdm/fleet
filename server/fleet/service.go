@@ -749,7 +749,7 @@ type Service interface {
 	GetMDMAppleProfilesSummary(ctx context.Context, teamID *uint) (*MDMProfilesSummary, error)
 
 	// GetMDMAppleEnrollmentProfileByToken returns the Apple enrollment from its secret token.
-	GetMDMAppleEnrollmentProfileByToken(ctx context.Context, enrollmentToken string, enrollmentRef string, deviceinfo string) (profile []byte, err error)
+	GetMDMAppleEnrollmentProfileByToken(ctx context.Context, enrollmentToken string, enrollmentRef string) (profile []byte, err error)
 
 	// GetDeviceMDMAppleEnrollmentProfile loads the raw (PList-format) enrollment
 	// profile for the currently authenticated device.

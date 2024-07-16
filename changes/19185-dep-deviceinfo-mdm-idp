@@ -1,4 +1,0 @@
-- Fixed bug where MDM devices would fail to renew enrollment profiles if applicable end user authentication
-  settings changed after the device was enrolled.
-- Improved device user account creation during MDM IdP enrollment flow by removing enrollment
-  reference from MDM server url in Fleet-generated enrollment profiles.
