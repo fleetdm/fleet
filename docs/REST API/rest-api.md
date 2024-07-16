@@ -4301,7 +4301,12 @@ OS vulnerability data is currently available for Windows and macOS. For other pl
     {
       "id": 121,
       "name": "Google Chrome.app",
-      "package_available_for_install": "GoogleChrome.pkg",
+      "available_for_install": true,
+      "software_package": {
+        "name": "GoogleChrome.pkg",
+        "version": "125.12.0.3"
+      },
+      "app_store_app": null
       "self_service": true,
       "source": "apps",
       "status": "failed",
@@ -4321,7 +4326,11 @@ OS vulnerability data is currently available for Windows and macOS. For other pl
     {
       "id": 134,
       "name": "Falcon.app",
-      "package_available_for_install": "FalconSensor-6.44.pkg",
+      "available_for_install": true,
+      "software_package": {
+        "name": "FalconSensor-6.44.pkg"
+      },
+      "app_store_app": null
       "self_service": false,
       "source": "",
       "status": null,
@@ -4330,9 +4339,14 @@ OS vulnerability data is currently available for Windows and macOS. For other pl
     },
     {
       "id": 147,
-      "name": "Firefox.app",
+      "name": "Logic Pro",
+      "available_for_install": true,
+      "software_package": null
+      "app_store_app": {
+        "app_store_id": "1091189122"
+      },
+      "self_service": false,
       "source": "apps",
-      "bundle_identifier": "org.mozilla.firefox",
       "status": null,
       "last_install": null,
       "installed_versions": [
@@ -8770,6 +8784,7 @@ Get a list of all software.
       "id": 12,
       "name": "Firefox.app",
       "available_for_install": true,
+      "icon_url": null,
       "self_service": true,
       "versions_count": 3,
       "source": "apps",
@@ -8797,6 +8812,7 @@ Get a list of all software.
       "id": 22,
       "name": "Google Chrome.app",
       "available_for_install": false,
+      "icon_url": null,
       "self_service": false,
       "versions_count": 5,
       "source": "apps",
@@ -8829,6 +8845,7 @@ Get a list of all software.
       "id": 32,
       "name": "1Password – Password Manager",
       "available_for_install": false,
+      "icon_url": null,
       "self_service": false,
       "versions_count": 1,
       "source": "chrome_extensions",
@@ -8989,6 +9006,47 @@ Returns information about the specified software. By default, `versions` are sor
         "version": "115.5",
         "vulnerabilities": ["CVE-2023-7654"],
         "hosts_count": 4
+      }
+    ]
+  }
+}
+```
+
+#### Example (App Store app)
+
+`GET /api/v1/fleet/software/titles/15`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "software_title": {
+    "id": 15,
+    "name": "Logic Pro",
+    "bundle_identifier": "com.apple.logic10",
+    "software_package": null,
+    "app_store_app": {
+      "name": "Logic Pro",
+      "app_store_id": 1091189122,
+      "latest_version": "2.04",
+      "icon_url": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/f1/65/1e/a4844ccd-486d-455f-bb31-67336fe46b14/AppIcon-1x_U007emarketing-0-7-0-85-220-0.png/512x512bb.jpg",
+      "status": {
+        "installed": 3,
+        "pending": 1,
+        "failed": 2,
+      }
+    },
+    "source": "apps",
+    "browser": "",
+    "hosts_count": 48,
+    "versions": [
+      {
+        "id": 123,
+        "version": "2.04",
+        "vulnerabilities": [],
+        "hosts_count": 24
       }
     ]
   }
