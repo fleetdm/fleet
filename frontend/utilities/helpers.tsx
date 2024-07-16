@@ -104,6 +104,20 @@ export const createHostsByPolicyPath = (
   })}`;
 };
 
+/** Returns 1 if first version is newer, -1 if first version is older, and 0 if equal  */
+export const compareVersions = (version1: string, version2: string) => {
+  const v1Parts = version1.split(".").map(Number);
+  const v2Parts = version2.split(".").map(Number);
+
+  return v1Parts.reduce((result, v1Part, index) => {
+    if (result !== 0) return result;
+    const v2Part = v2Parts[index];
+    if (v1Part < v2Part) return -1;
+    if (v1Part > v2Part) return 1;
+    return 0;
+  }, 0);
+};
+
 const labelSlug = (label: ILabel): string => {
   const { id, name } = label;
 
@@ -978,6 +992,7 @@ export function getCustomDropdownOptions(
 
 export default {
   addGravatarUrlToResource,
+  compareVersions,
   createHostsByPolicyPath,
   formatConfigDataForServer,
   formatLabelResponse,

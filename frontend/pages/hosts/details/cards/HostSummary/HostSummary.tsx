@@ -20,7 +20,11 @@ import StatusIndicator from "components/StatusIndicator";
 import IssuesIndicator from "pages/hosts/components/IssuesIndicator";
 import DiskSpaceIndicator from "pages/hosts/components/DiskSpaceIndicator";
 import { HumanTimeDiffWithFleetLaunchCutoff } from "components/HumanTimeDiffWithDateTip";
-import { humanHostMemory, wrapFleetHelper } from "utilities/helpers";
+import {
+  humanHostMemory,
+  wrapFleetHelper,
+  compareVersions,
+} from "utilities/helpers";
 import {
   DATE_FNS_FORMAT_STRINGS,
   DEFAULT_EMPTY_CELL_VALUE,
@@ -336,23 +340,12 @@ const HostSummary = ({
       const removeOSPrefix = (version: string): string => {
         return version.replace(/^(macOS |iOS |iPadOS )/i, "");
       };
-      const osVersionParts = removeOSPrefix(osVersion).split(".").map(Number);
-      const minimumOSVersionParts = minimumOsVersion.split(".").map(Number);
 
-      if (osVersionParts[0] < minimumOSVersionParts[0]) {
-        return requirementNotMetTooltip;
-      } else if (osVersionParts[0] > minimumOSVersionParts[0]) {
-        return requirementMetTooltip;
-      } else if (osVersionParts[1] < minimumOSVersionParts[1]) {
-        return requirementNotMetTooltip;
-      } else if (osVersionParts[1] > minimumOSVersionParts[1]) {
-        return requirementMetTooltip;
-      } else if (osVersionParts[2] < minimumOSVersionParts[2]) {
-        return requirementNotMetTooltip;
-      } else if (osVersionParts[2] > minimumOSVersionParts[2]) {
-        return requirementMetTooltip;
-      }
-      return requirementMetTooltip; // Equal
+      const result = compareVersions(
+        removeOSPrefix(osVersion),
+        minimumOsVersion
+      );
+      return result < 0 ? requirementNotMetTooltip : requirementMetTooltip;
     };
 
     return (
