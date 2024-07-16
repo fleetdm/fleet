@@ -1287,7 +1287,9 @@ func startVPPApplyServer(t *testing.T, config *AppleVPPConfigSrvConf) {
 					ErrorNumber:  9718,
 					ErrorMessage: "This request doesn't contain an asset, which is a required argument. Change the request to provide an asset.",
 				}
-				json.NewEncoder(w).Encode(res)
+				if err := json.NewEncoder(w).Encode(res); err != nil {
+					panic(err)
+				}
 				return
 			}
 
@@ -1298,7 +1300,9 @@ func startVPPApplyServer(t *testing.T, config *AppleVPPConfigSrvConf) {
 					ErrorNumber:  9719,
 					ErrorMessage: "Either clientUserIds or serialNumbers are required arguments. Change the request to provide assignable users and devices.",
 				}
-				json.NewEncoder(w).Encode(res)
+				if err := json.NewEncoder(w).Encode(res); err != nil {
+					panic(err)
+				}
 				return
 			}
 
@@ -1353,7 +1357,9 @@ func startVPPApplyServer(t *testing.T, config *AppleVPPConfigSrvConf) {
 				}
 				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(http.StatusBadRequest)
-				json.NewEncoder(w).Encode(res)
+				if err := json.NewEncoder(w).Encode(res); err != nil {
+					panic(err)
+				}
 			}
 			return
 		}
