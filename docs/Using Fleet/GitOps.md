@@ -31,7 +31,7 @@ team_settings: # Only teams/team-name.yml
 
 - [policies](#policies)
 - [queries](#queries)
-- [agent_options](#agent_options)
+- [agent_options](#agent-options)
 - [controls](#controls)
 - [org_settings and team_settings](#org-settings-and-team-settings)
 
