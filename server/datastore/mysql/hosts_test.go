@@ -7623,7 +7623,6 @@ func testHostsLoadHostByOrbitNodeKey(t *testing.T, ds *Datastore) {
 		// compare only the fields we care about
 		h.CreatedAt = returned.CreatedAt
 		h.UpdatedAt = returned.UpdatedAt
-		h.LastEnrolledAt = returned.LastEnrolledAt // FIXME: this seems to be flaky (off by one second) in CI so don't compare it
 		h.DEPAssignedToFleet = ptr.Bool(false)
 		assert.Equal(t, h, returned)
 	}
