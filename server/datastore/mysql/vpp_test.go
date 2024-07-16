@@ -91,7 +91,8 @@ func testGetTeamAppleSerialNumbers(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	ds.AddHostsToTeam(ctx, &team.ID, []uint{h1.ID, h2.ID, h3.ID, h4.ID, h5.ID})
+	err = ds.AddHostsToTeam(ctx, &team.ID, []uint{h1.ID, h2.ID, h3.ID, h4.ID, h5.ID})
+	require.NoError(t, err)
 
 	serials, err := ds.GetTeamAppleSerialNumbers(ctx, team.ID)
 	require.NoError(t, err)
