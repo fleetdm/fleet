@@ -203,10 +203,6 @@ interface ISoftwarePackageCardProps {
   teamId: number;
   // NOTE: we will only have this if we are working with a software package.
   softwarePackage?: ISoftwarePackage;
-  // NOTE: We should consider removing this and passing in dynamic actions and
-  // icon if there are other packages added besides software package and
-  // app store app.
-  isAppStoreApp?: boolean;
   onDelete: () => void;
 }
 
