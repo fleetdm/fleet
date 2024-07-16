@@ -9891,7 +9891,7 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 	// Associating an app we don't own with valid serial
 	s.Do("POST", batchURL, batchAssociateAppStoreAppsRequest{Apps: []fleet.VPPBatchPayload{{AppStoreID: "fake-app"}}}, http.StatusUnprocessableEntity, "team_name", tmGood.Name)
 
-	// Associating real app with valid serial
+	// Associating an app we own with valid serial
 	s.Do("POST", batchURL, batchAssociateAppStoreAppsRequest{Apps: []fleet.VPPBatchPayload{{AppStoreID: s.appleVPPConfigSrvConfig.Assets[0].AdamID}}}, http.StatusNoContent, "team_name", tmGood.Name)
 }
 
