@@ -18,6 +18,7 @@ func TestVPP(t *testing.T) {
 		name string
 		fn   func(t *testing.T, ds *Datastore)
 	}{
+		{"GetTeamAppleSerialNumbers", testGetTeamAppleSerialNumbers},
 		{"VPPAppMetadata", testVPPAppMetadata},
 		{"VPPAppStatus", testVPPAppStatus},
 		{"VPPApps", testVPPApps},
@@ -29,6 +30,76 @@ func TestVPP(t *testing.T) {
 			c.fn(t, ds)
 		})
 	}
+}
+
+func testGetTeamAppleSerialNumbers(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	// create a few enrolled hosts
+	h1, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:       "macos-test-1",
+		OsqueryHostID:  ptr.String("osquery-macos-1"),
+		NodeKey:        ptr.String("node-key-macos-1"),
+		UUID:           uuid.NewString(),
+		Platform:       "darwin",
+		HardwareSerial: "654321a",
+	})
+	require.NoError(t, err)
+
+	h2, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:       "macos-test-2",
+		OsqueryHostID:  ptr.String("osquery-macos-2"),
+		NodeKey:        ptr.String("node-key-macos-2"),
+		UUID:           uuid.NewString(),
+		Platform:       "darwin",
+		HardwareSerial: "654321b",
+	})
+	require.NoError(t, err)
+
+	h3, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:       "macos-test-3",
+		OsqueryHostID:  ptr.String("osquery-macos-3"),
+		NodeKey:        ptr.String("node-key-macos-3"),
+		UUID:           uuid.NewString(),
+		Platform:       "darwin",
+		HardwareSerial: "654321c",
+	})
+	require.NoError(t, err)
+
+	h4, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:       "windows-test",
+		OsqueryHostID:  ptr.String("osquery-windows"),
+		NodeKey:        ptr.String("node-key-windows"),
+		UUID:           uuid.NewString(),
+		Platform:       "windows",
+		HardwareSerial: "654321d",
+	})
+	require.NoError(t, err)
+
+	h5, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:       "ubuntu-test",
+		OsqueryHostID:  ptr.String("osquery-ubuntu"),
+		NodeKey:        ptr.String("node-key-ubuntu"),
+		UUID:           uuid.NewString(),
+		Platform:       "ubuntu",
+		HardwareSerial: "654321e",
+	})
+	require.NoError(t, err)
+
+	team, err := ds.NewTeam(ctx, &fleet.Team{
+		Name: "vpp gang",
+	})
+	require.NoError(t, err)
+
+	ds.AddHostsToTeam(ctx, &team.ID, []uint{h1.ID, h2.ID, h3.ID, h4.ID, h5.ID})
+
+	serials, err := ds.GetTeamAppleSerialNumbers(ctx, team.ID)
+	require.NoError(t, err)
+
+	require.Len(t, serials, 3)
+	require.Contains(t, serials, h1.HardwareSerial)
+	require.Contains(t, serials, h2.HardwareSerial)
+	require.Contains(t, serials, h3.HardwareSerial)
 }
 
 func testVPPAppMetadata(t *testing.T, ds *Datastore) {
