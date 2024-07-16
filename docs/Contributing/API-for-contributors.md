@@ -2624,7 +2624,7 @@ Lists the software installed on the current device.
       "name": "Firefox.app",
       "available_for_install" false,
       "software_package": null,
-       "app_store_app": null,
+      "app_store_app": null,
       "self_service": false,
       "source": "apps",
       "status": null,
