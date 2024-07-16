@@ -100,6 +100,10 @@ var ActivityDetailsList = []ActivityDetails{
 	ActivityTypeAddedSoftware{},
 	ActivityTypeDeletedSoftware{},
 	ActivityEnabledVPP{},
+	ActivityDisabledVPP{},
+	ActivityAddedAppStoreApp{},
+	ActivityDeletedAppStoreApp{},
+	ActivityInstalledAppStoreApp{},
 }
 
 type ActivityDetails interface {
@@ -1621,9 +1625,10 @@ func (a ActivityDisabledVPP) Documentation() (activity string, details string, d
 }
 
 type ActivityAddedAppStoreApp struct {
-	SoftwareTitle string `json:"software_title"`
-	AppStoreID    string `json:"app_store_id"`
-	TeamName      string `json:"team_name"`
+	SoftwareTitle string  `json:"software_title"`
+	AppStoreID    string  `json:"app_store_id"`
+	TeamName      *string `json:"team_name"`
+	TeamID        *uint   `json:"team_id"`
 }
 
 func (a ActivityAddedAppStoreApp) ActivityName() string {
@@ -1634,10 +1639,12 @@ func (a ActivityAddedAppStoreApp) Documentation() (activity string, details stri
 	return "Generated when an App Store app is added to Fleet.", `This activity contains the following fields:
 - "software_title": Name of the App Store app.
 - "app_store_id": ID of the app on the Apple App Store.
-- "team_name": Name of the team to which this App Store app was added.`, `{
+- "team_name": Name of the team to which this App Store app was added, or ` + "`null`" + ` if it was added to no team.
+- "team_id": ID of the team to which this App Store app was added, or ` + "`null`" + `if it was added to no team.`, `{
   "software_title": "Logic Pro",
   "app_store_id": "1234567",
-  "team_name": "Workstations"
+  "team_name": "Workstations",
+  "team_id": 1
 }`
 }
 
@@ -1655,10 +1662,12 @@ func (a ActivityDeletedAppStoreApp) Documentation() (activity string, details st
 	return "Generated when an App Store app is deleted from Fleet.", `This activity contains the following fields:
 - "software_title": Name of the App Store app.
 - "app_store_id": ID of the app on the Apple App Store.
-- "team_name": Name of the team from which this App Store app was deleted.`, `{
+- "team_name": Name of the team from which this App Store app was deleted, or ` + "`null`" + ` if it was deleted from no team.
+- "team_id": ID of the team from which this App Store app was deleted, or ` + "`null`" + `if it was deleted from no team.`, `{
   "software_title": "Logic Pro",
   "app_store_id": "1234567",
-  "team_name": "Workstations"
+  "team_name": "Workstations",
+  "team_id": 1
 }`
 }
 

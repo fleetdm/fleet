@@ -1180,6 +1180,77 @@ Generated when the VPP feature is enabled in Fleet.
 
 
 
+## vpp_disabled
+
+Generated when the VPP feature is disabled in Fleet.
+
+
+
+## added_app_store_app
+
+Generated when an App Store app is added to Fleet.
+
+This activity contains the following fields:
+- "software_title": Name of the App Store app.
+- "app_store_id": ID of the app on the Apple App Store.
+- "team_name": Name of the team to which this App Store app was added, or `null` if it was added to no team.
+- "team_id": ID of the team to which this App Store app was added, or `null`if it was added to no team.
+
+#### Example
+
+```json
+{
+  "software_title": "Logic Pro",
+  "app_store_id": "1234567",
+  "team_name": "Workstations",
+  "team_id": 1
+}
+```
+
+## deleted_app_store_app
+
+Generated when an App Store app is deleted from Fleet.
+
+This activity contains the following fields:
+- "software_title": Name of the App Store app.
+- "app_store_id": ID of the app on the Apple App Store.
+- "team_name": Name of the team from which this App Store app was deleted, or `null` if it was deleted from no team.
+- "team_id": ID of the team from which this App Store app was deleted, or `null`if it was deleted from no team.
+
+#### Example
+
+```json
+{
+  "software_title": "Logic Pro",
+  "app_store_id": "1234567",
+  "team_name": "Workstations",
+  "team_id": 1
+}
+```
+
+## installed_app_store_app
+
+Generated when an App Store app is installed on a device.
+
+This activity contains the following fields:
+- host_id: ID of the host on which the app was installed.
+- host_display_name: Display name of the host.
+- software_title: Name of the App Store app.
+- app_store_id: ID of the app on the Apple App Store.
+- command_uuid: UUID of the MDM command used to install the app.
+
+#### Example
+
+```json
+{
+  "host_id": 42,
+  "host_display_name": "Anna's MacBook Pro",
+  "software_title": "Logic Pro",
+  "app_store_id": "1234567",
+  "command_uuid": "98765432-1234-1234-1234-1234567890ab"
+}
+```
+
 
 <meta name="title" value="Audit logs">
 <meta name="pageOrderInSection" value="1400">
