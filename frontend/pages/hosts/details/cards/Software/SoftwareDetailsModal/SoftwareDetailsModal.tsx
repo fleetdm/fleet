@@ -13,7 +13,7 @@ import Button from "components/buttons/Button";
 import DataSet from "components/DataSet";
 import { dateAgo } from "utilities/date_format";
 
-import { SoftwareInstallDetails } from "pages/SoftwarePage/components/SoftwareInstallDetails";
+import { SoftwareInstallDetails } from "components/ActivityDetails/InstallDetails/SoftwareInstallDetails";
 
 const baseClass = "software-details-modal";
 
