@@ -4301,7 +4301,11 @@ OS vulnerability data is currently available for Windows and macOS. For other pl
     {
       "id": 121,
       "name": "Google Chrome.app",
-      "package_available_for_install": "GoogleChrome.pkg",
+      "available_for_install": true,
+      "software_package": {
+        "name": "GoogleChrome.pkg"
+      },
+      "app_store_app": null
       "self_service": true,
       "source": "apps",
       "status": "failed",
@@ -4321,7 +4325,11 @@ OS vulnerability data is currently available for Windows and macOS. For other pl
     {
       "id": 134,
       "name": "Falcon.app",
-      "package_available_for_install": "FalconSensor-6.44.pkg",
+      "available_for_install": true,
+      "software_package": {
+        "name": "FalconSensor-6.44.pkg"
+      },
+      "app_store_app": null
       "self_service": false,
       "source": "",
       "status": null,
@@ -4330,9 +4338,14 @@ OS vulnerability data is currently available for Windows and macOS. For other pl
     },
     {
       "id": 147,
-      "name": "Firefox.app",
+      "name": "Logic Pro",
+      "available_for_install": true,
+      "software_package": null
+      "app_store_app": {
+        "app_store_id": "1091189122"
+      },
+      "self_service": false,
       "source": "apps",
-      "bundle_identifier": "org.mozilla.firefox",
       "status": null,
       "last_install": null,
       "installed_versions": [
