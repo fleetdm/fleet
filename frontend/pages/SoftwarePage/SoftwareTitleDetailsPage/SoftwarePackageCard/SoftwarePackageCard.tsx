@@ -4,16 +4,12 @@ import React, {
   useLayoutEffect,
   useState,
 } from "react";
-
 import FileSaver from "file-saver";
 
 import PATHS from "router/paths";
-
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
-
 import { SoftwareInstallStatus, ISoftwarePackage } from "interfaces/software";
-
 import softwareAPI from "services/entities/software";
 
 import { buildQueryStringFromParams } from "utilities/url";
@@ -22,12 +18,13 @@ import { uploadedFromNow } from "utilities/date_format";
 
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
-
 import Card from "components/Card";
 import Graphic from "components/Graphic";
 import TooltipWrapper from "components/TooltipWrapper";
 import DataSet from "components/DataSet";
 import Icon from "components/Icon";
+
+import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
 
 import DeleteSoftwareModal from "../DeleteSoftwareModal";
 import AdvancedOptionsModal from "../AdvancedOptionsModal";
@@ -284,6 +281,14 @@ const SoftwarePackageCard = ({
     }
   }, [renderFlash, softwareId, name, teamId]);
 
+  const renderIcon = () => {
+    return softwarePackage ? (
+      <Graphic name="file-pkg" />
+    ) : (
+      <SoftwareIcon name="appStore" size="medium" />
+    );
+  };
+
   const renderDetails = () => {
     return !uploadedAt ? (
       <span>Version {version}</span>
@@ -309,7 +314,7 @@ const SoftwarePackageCard = ({
         {/* TODO: main-info could be a seperate component as its reused on a couple
         pages already. Come back and pull this into a component */}
         <div className={`${baseClass}__main-info`}>
-          <Graphic name="file-pkg" />
+          {renderIcon()}
           <div className={`${baseClass}__info`}>
             <SoftwareName name={name} />
             <span className={`${baseClass}__details`}>{renderDetails()}</span>

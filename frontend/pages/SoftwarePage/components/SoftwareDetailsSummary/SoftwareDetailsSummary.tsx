@@ -37,7 +37,7 @@ const SoftwareDetailsSummary = ({
 }: ISoftwareDetailsSummaryProps) => {
   return (
     <div className={baseClass}>
-      <SoftwareIcon name={name} source={source} size="large" />
+      <SoftwareIcon name={name} source={source} size="xlarge" />
       <dl className={`${baseClass}__info`}>
         <h1>{title}</h1>
         <dl className={`${baseClass}__description-list`}>

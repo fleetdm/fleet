@@ -5,7 +5,7 @@ import getMatchedSoftwareIcon from "../";
 
 const baseClass = "software-icon";
 
-type SoftwareIconSizes = "small" | "medium" | "large";
+type SoftwareIconSizes = "small" | "medium" | "large" | "xlarge";
 
 interface ISoftwareIconProps {
   name?: string;
@@ -17,8 +17,9 @@ interface ISoftwareIconProps {
 
 const SOFTWARE_ICON_SIZES: Record<SoftwareIconSizes, string> = {
   small: "24",
-  medium: "64",
-  large: "96",
+  medium: "40",
+  large: "64",
+  xlarge: "96",
 };
 
 const SoftwareIcon = ({
@@ -47,7 +48,7 @@ const SoftwareIcon = ({
     <MatchedIcon
       width={SOFTWARE_ICON_SIZES[size]}
       height={SOFTWARE_ICON_SIZES[size]}
-      viewBox="0 0 32 32"
+      viewBox="0 0 32 32" // TODO: we should make this dynamic based on the icon size
       className={baseClass}
     />
   );
