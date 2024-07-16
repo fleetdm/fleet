@@ -109,7 +109,7 @@ interface IBootstrapPackageData {
 
 interface IHostSummaryProps {
   summaryData: any; // TODO: create interfaces for this and use consistently across host pages and related helpers
-  osUpdatesData: IAppleDeviceUpdates | null;
+  osUpdatesData?: IAppleDeviceUpdates;
   bootstrapPackageData?: IBootstrapPackageData;
   isPremiumTier?: boolean;
   toggleOSSettingsModal?: () => void;
@@ -316,8 +316,13 @@ const HostSummary = ({
   };
 
   const renderOperatingSystemSummary = () => {
+    const summaryData2 = { os_version: "macOS 13.1" };
+    const osUpdatesData2 = {
+      minimum_version: "14.5",
+      deadline: "2024-07-12",
+    };
     // No tooltip if minimum version is not set, including all Windows, Linux, ChromeOS operating systems
-    if (!osUpdatesData?.minimum_version) {
+    if (!osUpdatesData2?.minimum_version) {
       return (
         <DataSet title="Operating system" value={summaryData.os_version} />
       );
@@ -327,8 +332,8 @@ const HostSummary = ({
       return osVersion.replace(/^(macOS |iOS |iPadOS )/i, "");
     };
 
-    const osVersion = parseInt(removeOSPrefix(summaryData.os_version), 10);
-    const minimumOsVersion = parseInt(osUpdatesData.minimum_version, 10);
+    const osVersion = parseInt(removeOSPrefix(summaryData2.os_version), 10);
+    const minimumOsVersion = parseInt(osUpdatesData2.minimum_version, 10);
     const meetsVersionRequirement = osVersion >= minimumOsVersion;
 
     const tooltip = meetsVersionRequirement ? (
@@ -337,7 +342,7 @@ const HostSummary = ({
       <>
         Does not meet minimum version requirement.
         <br />
-        Deadline to update: {osUpdatesData.deadline}
+        Deadline to update: {osUpdatesData2.deadline}
       </>
     );
 
