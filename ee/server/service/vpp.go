@@ -162,8 +162,9 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, adamID str
 
 	act := fleet.ActivityAddedAppStoreApp{
 		AppStoreID:    app.AdamID,
-		TeamName:      teamName,
+		TeamName:      &teamName,
 		SoftwareTitle: app.Name,
+		TeamID:        teamID,
 	}
 	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
 		return ctxerr.Wrap(ctx, err, "create activity for add app store app")
