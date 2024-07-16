@@ -285,7 +285,7 @@ Can only be configure for all teams (`default.yml`).
 
 The `software` section allows you to configure packages and Apple App Store apps that you want to install on your hosts.
 
-- `packages` is a list of packages (.pkg, .msi, .exe, or .deb) and package specific options.
+- `packages` is a list of software packages (.pkg, .msi, .exe, or .deb) and software specific options.
 - `app_store_apps` is a list of Apple App Store apps.
 
 ##### Example
@@ -308,15 +308,15 @@ software:
 
 #### packages
 
-- `url` specifies the URL at which the software is located. Fleet will download the software and upload it to S3 (default: `""`)
-- `install_script.path` specifies the command Fleet will run on hosts to install software. The default is dependent on the software type (ex. .pkg). TODO
-- `pre_install_query.path` is the osquery query Fleet runs before installing the software. Software will be installed only if the [query returns results](https://fleetdm.com/tables/account_policy_data) (default: `""`)
-- `post_install_script.path` is the script Fleet will run on hosts after intalling software. (default: `""`)
+- `url` specifies the URL at which the software is located. Fleet will download the software and upload it to S3 (default: `""`).
+- `install_script.path` specifies the command Fleet will run on hosts to install software. The [default script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) is dependent on the software type (i.e. .pkg).
+- `pre_install_query.path` is the osquery query Fleet runs before installing the software. Software will be installed only if the [query returns results](https://fleetdm.com/tables/account_policy_data) (default: `""`).
+- `post_install_script.path` is the script Fleet will run on hosts after intalling software (default: `""`).
 - `self_service` specifies whether or not end users can install from **Fleet Desktop > Self-service**.
 
 #### app_store_apps
 
-- `app_store_id` TODO
+- `app_store_id` is the ID of the Apple App Store app. You can find this at the end of the app's App Store URL. For example, "Bear - Markdown Notes" URL is "https://apps.apple.com/us/app/bear-markdown-notes/id1016366447" and the `app_store_id` is `1016366447` (default: `0`).
 
 ### org_settings and team_settings
 
