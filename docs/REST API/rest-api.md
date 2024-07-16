@@ -4303,7 +4303,8 @@ OS vulnerability data is currently available for Windows and macOS. For other pl
       "name": "Google Chrome.app",
       "available_for_install": true,
       "software_package": {
-        "name": "GoogleChrome.pkg"
+        "name": "GoogleChrome.pkg",
+        "version": "125.12.0.3"
       },
       "app_store_app": null
       "self_service": true,
