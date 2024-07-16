@@ -147,7 +147,6 @@ const SoftwareTitleDetailsPage = ({
           isSelfService={packageCardData.isSelfService}
           softwareId={softwareId}
           teamId={currentTeamId ?? APP_CONTEXT_NO_TEAM_ID}
-          isAppStoreApp={hasAppStoreApp}
           onDelete={onDeleteInstaller}
         />
       );
