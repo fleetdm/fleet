@@ -2597,6 +2597,13 @@ Lists the software installed on the current device.
     {
       "id": 121,
       "name": "Google Chrome.app",
+      "available_for_install" true,
+      "software_package": {
+        "name": "GoogleChrome.pkg"
+        "version": "125.12.2"
+      },
+      "app_store_app": null,
+      "self_service": true,
       "source": "apps",
       "status": "failed",
       "last_install": {
@@ -2614,16 +2621,23 @@ Lists the software installed on the current device.
     },
     {
       "id": 143,
-      "name": "Firefox.app",
+      "name": "Logic Pro",
+      "available_for_install" true,
+      "software_package": null,
+      "app_store_app": {
+	"app_store_id": "1091189122"
+        "version": "2.04"
+      },
+      "self_service": false,
       "source": "apps",
       "status": null,
       "last_install": null,
       "installed_versions": [
         { 
-          "version": "125.6",
+          "version": "2.04",
           "last_opened_at": "2024-04-01T23:03:07Z",
-          "vulnerabilities": ["CVE-2023-1234","CVE-2023-4321","CVE-2023-7654"],
-          "installed_paths": ["/Applications/Firefox.app"]
+          "vulnerabilities": [],
+          "installed_paths": ["/Applications/Logic Pro.app"]
         }
       ]
     }
