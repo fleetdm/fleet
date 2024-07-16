@@ -94,6 +94,8 @@ import {
 import WipeModal from "./modals/WipeModal";
 import SoftwareDetailsModal from "../cards/Software/SoftwareDetailsModal";
 import { parseHostSoftwareQueryParams } from "../cards/Software/HostSoftware";
+import { platform } from "os";
+import PlatformCell from "components/TableContainer/DataTable/PlatformCell";
 
 const baseClass = "host-details";
 
@@ -441,6 +443,23 @@ const HostDetailsPage = ({
     ? teams?.find((t) => t.id === host.team_id)?.features
     : config?.features;
 
+  const getOSUpdatesFromMDMConfig = (hostPlatform: string) => {
+    const mdmConfig = host?.team_id
+      ? teams?.find((t) => t.id === host.team_id)?.mdm
+      : config?.mdm;
+
+    switch (hostPlatform) {
+      case "darwin":
+        return mdmConfig?.macos_updates;
+      case "ipados":
+        return mdmConfig?.ipados_updates;
+      case "ios":
+        return mdmConfig?.ios_updates;
+      default:
+        null;
+    }
+  };
+
   useEffect(() => {
     setUsersState(() => {
       return (
@@ -784,6 +803,7 @@ const HostDetailsPage = ({
         </div>
         <HostSummaryCard
           summaryData={summaryData}
+          osUpdatesData={getOSUpdatesFromMDMConfig(host.platform)}
           bootstrapPackageData={bootstrapPackageData}
           isPremiumTier={isPremiumTier}
           toggleOSSettingsModal={toggleOSSettingsModal}

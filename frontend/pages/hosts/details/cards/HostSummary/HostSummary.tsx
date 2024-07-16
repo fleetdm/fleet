@@ -8,6 +8,7 @@ import {
   isWindowsDiskEncryptionStatus,
 } from "interfaces/mdm";
 import { IOSSettings, IHostMaintenanceWindow } from "interfaces/host";
+import { IAppleDeviceUpdates } from "interfaces/config";
 import getHostStatusTooltipText from "pages/hosts/helpers";
 
 import TooltipWrapper from "components/TooltipWrapper";
@@ -108,6 +109,7 @@ interface IBootstrapPackageData {
 
 interface IHostSummaryProps {
   summaryData: any; // TODO: create interfaces for this and use consistently across host pages and related helpers
+  osUpdatesData: IAppleDeviceUpdates | null;
   bootstrapPackageData?: IBootstrapPackageData;
   isPremiumTier?: boolean;
   toggleOSSettingsModal?: () => void;
@@ -168,6 +170,7 @@ const getHostDiskEncryptionTooltipMessage = (
 
 const HostSummary = ({
   summaryData,
+  osUpdatesData,
   bootstrapPackageData,
   isPremiumTier,
   toggleOSSettingsModal,
@@ -306,6 +309,44 @@ const HostSummary = ({
         value={
           <TooltipWrapper tipContent={tooltipMessage}>
             {statusText}
+          </TooltipWrapper>
+        }
+      />
+    );
+  };
+
+  const renderOperatingSystemSummary = () => {
+    // No tooltip if minimum version is not set, including all Windows, Linux, ChromeOS operating systems
+    if (!osUpdatesData?.minimum_version) {
+      return (
+        <DataSet title="Operating system" value={summaryData.os_version} />
+      );
+    }
+
+    const removeOSPrefix = (osVersion: string): string => {
+      return osVersion.replace(/^(macOS |iOS |iPadOS )/i, "");
+    };
+
+    const osVersion = parseInt(removeOSPrefix(summaryData.os_version), 10);
+    const minimumOsVersion = parseInt(osUpdatesData.minimum_version, 10);
+    const meetsVersionRequirement = osVersion >= minimumOsVersion;
+
+    const tooltip = meetsVersionRequirement ? (
+      "Meets minimum version requirement."
+    ) : (
+      <>
+        Does not meet minimum version requirement.
+        <br />
+        Deadline to update: {osUpdatesData.deadline}
+      </>
+    );
+
+    return (
+      <DataSet
+        title="Operating system"
+        value={
+          <TooltipWrapper tipContent={tooltip}>
+            {summaryData.os_version}
           </TooltipWrapper>
         }
       />
@@ -473,7 +514,7 @@ const HostSummary = ({
         {!isIosOrIpadosHost && (
           <DataSet title="Processor type" value={summaryData.cpu_type} />
         )}
-        <DataSet title="Operating system" value={summaryData.os_version} />
+        {renderOperatingSystemSummary()}
         {!isIosOrIpadosHost && renderAgentSummary()}
         {isPremiumTier &&
           // TODO - refactor normalizeEmptyValues pattern

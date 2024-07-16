@@ -147,6 +147,14 @@ const DEFAULT_CONFIG_MOCK: IConfig = {
       minimum_version: "",
       deadline: "",
     },
+    ios_updates: {
+      minimum_version: "",
+      deadline: "",
+    },
+    ipados_updates: {
+      minimum_version: "",
+      deadline: "",
+    },
     macos_settings: {
       custom_settings: null,
       enable_disk_encryption: false,
