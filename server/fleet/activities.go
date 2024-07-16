@@ -99,6 +99,11 @@ var ActivityDetailsList = []ActivityDetails{
 	ActivityTypeInstalledSoftware{},
 	ActivityTypeAddedSoftware{},
 	ActivityTypeDeletedSoftware{},
+	ActivityEnabledVPP{},
+	ActivityDisabledVPP{},
+	ActivityAddedAppStoreApp{},
+	ActivityDeletedAppStoreApp{},
+	ActivityInstalledAppStoreApp{},
 }
 
 type ActivityDetails interface {
@@ -1507,7 +1512,7 @@ func (a ActivityTypeDeletedSoftware) Documentation() (string, string, string) {
 	return `Generated when a software installer is deleted from Fleet.`, `This activity contains the following fields:
 - "software_title": Name of the software.
 - "software_package": Filename of the installer.
-- "team_name": Name of the team to which this software was added.` + " `null " + `if it was added to no team.
+- "team_name": Name of the team to which this software was added.` + " `null` " + `if it was added to no team.
 - "team_id": The ID of the team to which this software was added.` + " `null` " + `if it was added to no team.
 - "self_service": Whether the software was available for installation by the end user.`, `{
   "software_title": "Falcon.app",
@@ -1597,4 +1602,98 @@ func LogRoleChangeActivities(
 		}
 	}
 	return nil
+}
+
+type ActivityEnabledVPP struct{}
+
+func (a ActivityEnabledVPP) ActivityName() string {
+	return "vpp_enabled"
+}
+
+func (a ActivityEnabledVPP) Documentation() (activity string, details string, detailsExample string) {
+	return "Generated when the VPP feature is enabled in Fleet.", "", ""
+}
+
+type ActivityDisabledVPP struct{}
+
+func (a ActivityDisabledVPP) ActivityName() string {
+	return "vpp_disabled"
+}
+
+func (a ActivityDisabledVPP) Documentation() (activity string, details string, detailsExample string) {
+	return "Generated when the VPP feature is disabled in Fleet.", "", ""
+}
+
+type ActivityAddedAppStoreApp struct {
+	SoftwareTitle string  `json:"software_title"`
+	AppStoreID    string  `json:"app_store_id"`
+	TeamName      *string `json:"team_name"`
+	TeamID        *uint   `json:"team_id"`
+}
+
+func (a ActivityAddedAppStoreApp) ActivityName() string {
+	return "added_app_store_app"
+}
+
+func (a ActivityAddedAppStoreApp) Documentation() (activity string, details string, detailsExample string) {
+	return "Generated when an App Store app is added to Fleet.", `This activity contains the following fields:
+- "software_title": Name of the App Store app.
+- "app_store_id": ID of the app on the Apple App Store.
+- "team_name": Name of the team to which this App Store app was added, or ` + "`null`" + ` if it was added to no team.
+- "team_id": ID of the team to which this App Store app was added, or ` + "`null`" + `if it was added to no team.`, `{
+  "software_title": "Logic Pro",
+  "app_store_id": "1234567",
+  "team_name": "Workstations",
+  "team_id": 1
+}`
+}
+
+type ActivityDeletedAppStoreApp struct {
+	SoftwareTitle string `json:"software_title"`
+	AppStoreID    string `json:"app_store_id"`
+	TeamName      string `json:"team_name"`
+}
+
+func (a ActivityDeletedAppStoreApp) ActivityName() string {
+	return "deleted_app_store_app"
+}
+
+func (a ActivityDeletedAppStoreApp) Documentation() (activity string, details string, detailsExample string) {
+	return "Generated when an App Store app is deleted from Fleet.", `This activity contains the following fields:
+- "software_title": Name of the App Store app.
+- "app_store_id": ID of the app on the Apple App Store.
+- "team_name": Name of the team from which this App Store app was deleted, or ` + "`null`" + ` if it was deleted from no team.
+- "team_id": ID of the team from which this App Store app was deleted, or ` + "`null`" + `if it was deleted from no team.`, `{
+  "software_title": "Logic Pro",
+  "app_store_id": "1234567",
+  "team_name": "Workstations",
+  "team_id": 1
+}`
+}
+
+type ActivityInstalledAppStoreApp struct {
+	HostID          int    `json:"host_id"`
+	HostDisplayName string `json:"host_display_name"`
+	SoftwareTitle   string `json:"software_title"`
+	AppStoreID      int    `json:"app_store_id"`
+	CommandUUID     string `json:"command_uuid"`
+}
+
+func (a ActivityInstalledAppStoreApp) ActivityName() string {
+	return "installed_app_store_app"
+}
+
+func (a ActivityInstalledAppStoreApp) Documentation() (string, string, string) {
+	return "Generated when an App Store app is installed on a device.", `This activity contains the following fields:
+- host_id: ID of the host on which the app was installed.
+- host_display_name: Display name of the host.
+- software_title: Name of the App Store app.
+- app_store_id: ID of the app on the Apple App Store.
+- command_uuid: UUID of the MDM command used to install the app.`, `{
+  "host_id": 42,
+  "host_display_name": "Anna's MacBook Pro",
+  "software_title": "Logic Pro",
+  "app_store_id": "1234567",
+  "command_uuid": "98765432-1234-1234-1234-1234567890ab"
+}`
 }

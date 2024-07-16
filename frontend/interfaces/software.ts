@@ -1,5 +1,8 @@
 import { startCase } from "lodash";
 import PropTypes from "prop-types";
+
+import { IconNames } from "components/icons";
+
 import vulnerabilityInterface from "./vulnerability";
 
 export default PropTypes.shape({
@@ -241,3 +244,24 @@ export type IDeviceSoftware = Omit<
     version: string;
   };
 };
+const INSTALL_STATUS_PREDICATES: Record<SoftwareInstallStatus, string> = {
+  failed: "failed to install",
+  installed: "installed",
+  pending: "told Fleet to install",
+} as const;
+
+export const getInstallStatusPredicate = (status: string | undefined) => {
+  if (!status) {
+    return INSTALL_STATUS_PREDICATES.pending;
+  }
+  return (
+    INSTALL_STATUS_PREDICATES[status.toLowerCase() as SoftwareInstallStatus] ||
+    INSTALL_STATUS_PREDICATES.pending
+  );
+};
+
+export const INSTALL_STATUS_ICONS: Record<SoftwareInstallStatus, IconNames> = {
+  pending: "pending-outline",
+  installed: "success-outline",
+  failed: "error-outline",
+} as const;

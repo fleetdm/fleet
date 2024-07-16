@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
+	"github.com/fleetdm/fleet/v4/pkg/retry"
 )
 
 // Asset is a product in the store.
@@ -196,11 +197,45 @@ func do[T any](req *http.Request, token string, dest *T) error {
 		return fmt.Errorf("reading response body from Apple VPP endpoint: %w", err)
 	}
 
+	// For HTTP 5xx server error responses, a Retry-After header indicates
+	// how long the client must wait before making additional requests.
+	//
+	// https://developer.apple.com/documentation/devicemanagement/app_and_book_management/handling_error_responses#3742679
+	retryAfter := resp.Header.Get("Retry-After")
+	if resp.StatusCode == http.StatusInternalServerError && retryAfter != "" {
+		seconds, err := strconv.ParseInt(retryAfter, 10, 0)
+		if err != nil {
+			return fmt.Errorf("parsing retry-after header: %w", err)
+		}
+
+		ticker := time.NewTicker(time.Duration(seconds) * time.Second)
+		defer ticker.Stop()
+		<-ticker.C
+		return do(req, token, dest)
+	}
+
 	// For some reason, Apple returns 200 OK even if you pass an invalid token in the Auth header.
 	// We will need to parse the response and check to see if it contains an error.
 	var errResp ErrorResponse
 	if err := json.Unmarshal(body, &errResp); err == nil && (errResp.ErrorMessage != "" || errResp.ErrorNumber != 0) {
-		return &errResp
+		switch errResp.ErrorNumber {
+		// 9646: There are too many requests for the current
+		// Organization and the request has been rejected, either due
+		// to high server volume or an MDM issue. Use an
+		// incremental/exponential backoff strategy to retry the
+		// request until successful.
+		//
+		// https://developer.apple.com/documentation/devicemanagement/app_and_book_management/handling_error_responses#3783126
+		case 9646:
+			return retry.Do(
+				func() error { return do(req, token, dest) },
+				retry.WithBackoffMultiplier(3),
+				retry.WithInterval(5*time.Second),
+				retry.WithMaxAttempts(3),
+			)
+		default:
+			return &errResp
+		}
 	}
 
 	if resp.StatusCode != http.StatusOK {
