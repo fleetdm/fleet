@@ -12,17 +12,16 @@ import useTeamIdParam from "hooks/useTeamIdParam";
 
 import { AppContext } from "context/app";
 
-import {
-  ISoftwareTitleDetails,
-  formatSoftwareType,
-  isSoftwarePackage,
-} from "interfaces/software";
+import { ISoftwareTitleDetails, formatSoftwareType } from "interfaces/software";
 import { ignoreAxiosError } from "interfaces/errors";
 import softwareAPI, {
   ISoftwareTitleResponse,
   IGetSoftwareTitleQueryKey,
 } from "services/entities/software";
-import { APP_CONTEXT_ALL_TEAMS_ID } from "interfaces/team";
+import {
+  APP_CONTEXT_ALL_TEAMS_ID,
+  APP_CONTEXT_NO_TEAM_ID,
+} from "interfaces/team";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 
 import Spinner from "components/Spinner";
@@ -34,15 +33,9 @@ import SoftwareDetailsSummary from "../components/SoftwareDetailsSummary";
 import SoftwareTitleDetailsTable from "./SoftwareTitleDetailsTable";
 import DetailsNoHosts from "../components/DetailsNoHosts";
 import SoftwarePackageCard from "./SoftwarePackageCard";
+import { getPackageCardInfo } from "./helpers";
 
 const baseClass = "software-title-details-page";
-
-const getPackageCardInfo = (software: ISoftwareTitleDetails) => {
-  return {
-    name: softwareTitle.name,
-    version: isSoftwarePackage(softwareTitle.software_package),
-  };
-};
 
 interface ISoftwareTitleDetailsRouteParams {
   id: string;
@@ -108,6 +101,9 @@ const SoftwareTitleDetailsPage = ({
     }
   );
 
+  const hasSoftwarePackage = !!softwareTitle?.software_package;
+  const hasAppStoreApp = !!softwareTitle?.app_store_app;
+
   const onDeleteInstaller = useCallback(() => {
     if (softwareTitle?.versions?.length) {
       refetchSoftwareTitle();
@@ -132,25 +128,26 @@ const SoftwareTitleDetailsPage = ({
     const hasPermission = Boolean(
       isOnGlobalTeam || isTeamAdmin || isTeamMaintainer || isTeamObserver
     );
-    const hasSoftwarePackage = !!title.software_package;
-    const hasAppStoreApp = !!title.app_store_app;
 
     const showPackageCard =
       currentTeamId !== APP_CONTEXT_ALL_TEAMS_ID &&
       hasPermission &&
       (hasSoftwarePackage || hasAppStoreApp);
 
-    title.software_package ? title.software_package : title.app_store_app;
+    const packageCardData = getPackageCardInfo(title);
 
     if (showPackageCard) {
       return (
         <SoftwarePackageCard
-          name={title.name}
-          version={}
-          uploadedAt={}
-          status={softwareTitle}
+          softwarePackage={packageCardData.softwarePackage}
+          name={packageCardData.name}
+          version={packageCardData.version}
+          uploadedAt={packageCardData.uploadedAt}
+          status={packageCardData.status}
+          isSelfService={packageCardData.isSelfService}
           softwareId={softwareId}
-          teamId={currentTeamId}
+          teamId={currentTeamId ?? APP_CONTEXT_NO_TEAM_ID}
+          isAppStoreApp={hasAppStoreApp}
           onDelete={onDeleteInstaller}
         />
       );

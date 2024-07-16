@@ -238,8 +238,10 @@ export default {
   },
 
   deleteSoftwarePackage: (softwareId: number, teamId: number) => {
-    const { SOFTWARE_PACKAGE } = endpoints;
-    const path = `${SOFTWARE_PACKAGE(softwareId)}?team_id=${teamId}`;
+    const { SOFTWARE_AVAILABLE_FOR_INSTALL } = endpoints;
+    const path = `${SOFTWARE_AVAILABLE_FOR_INSTALL(
+      softwareId
+    )}?team_id=${teamId}`;
     return sendRequest("DELETE", path);
   },
 

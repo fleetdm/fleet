@@ -31,6 +31,10 @@ import Icon from "components/Icon";
 
 import DeleteSoftwareModal from "../DeleteSoftwareModal";
 import AdvancedOptionsModal from "../AdvancedOptionsModal";
+import {
+  APP_STORE_APP_DROPDOWN_OPTIONS,
+  SOFTWARE_PACAKGE_DROPDOWN_OPTIONS,
+} from "./helpers";
 
 const baseClass = "software-package-card";
 
@@ -142,30 +146,19 @@ const PackageStatusCount = ({
   );
 };
 
-const DROPDOWN_OPTIONS = [
-  {
-    label: "Download",
-    value: "download",
-  },
-  {
-    label: "Delete",
-    value: "delete",
-  },
-  {
-    label: "Advanced options",
-    value: "advanced",
-  },
-] as const;
-
-const ActionsDropdown = ({
-  onDownloadClick,
-  onDeleteClick,
-  onAdvancedOptionsClick,
-}: {
+interface IActionsDropdownProps {
+  isSoftwarePackage: boolean;
   onDownloadClick: () => void;
   onDeleteClick: () => void;
   onAdvancedOptionsClick: () => void;
-}) => {
+}
+
+const ActionsDropdown = ({
+  isSoftwarePackage,
+  onDownloadClick,
+  onDeleteClick,
+  onAdvancedOptionsClick,
+}: IActionsDropdownProps) => {
   const onSelect = (value: string) => {
     switch (value) {
       case "download":
@@ -189,7 +182,11 @@ const ActionsDropdown = ({
         onChange={onSelect}
         placeholder="Actions"
         searchable={false}
-        options={DROPDOWN_OPTIONS}
+        options={
+          isSoftwarePackage
+            ? SOFTWARE_PACAKGE_DROPDOWN_OPTIONS
+            : APP_STORE_APP_DROPDOWN_OPTIONS
+        }
       />
     </div>
   );
@@ -205,12 +202,20 @@ interface ISoftwarePackageCardProps {
     failed: number;
   };
   isSelfService: boolean;
-  softwarePackage: ISoftwarePackage;
   softwareId: number;
   teamId: number;
+  // NOTE: we will only have this if we are working with a software package.
+  softwarePackage?: ISoftwarePackage;
+  // NOTE: We should consider removing this and passing in dynamic actions and
+  // icon if there are other packages added besides software package and
+  // app store app.
+  isAppStoreApp?: boolean;
   onDelete: () => void;
 }
 
+// NOTE: This component is depeent on having either a software package
+// (ISoftwarePackage) or an app store app (IAppStoreApp). If we add more types
+// of packages we should consider refactoring this to be more dynamic.
 const SoftwarePackageCard = ({
   name,
   version,
@@ -279,6 +284,22 @@ const SoftwarePackageCard = ({
     }
   }, [renderFlash, softwareId, name, teamId]);
 
+  const renderDetails = () => {
+    return !uploadedAt ? (
+      <span>Version {version}</span>
+    ) : (
+      <>
+        <span>Version {version} &bull; </span>
+        <TooltipWrapper
+          tipContent={internationalTimeFormat(new Date(uploadedAt))}
+          underline={false}
+        >
+          {uploadedFromNow(uploadedAt)}
+        </TooltipWrapper>
+      </>
+    );
+  };
+
   const showActions =
     isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
 
@@ -291,15 +312,7 @@ const SoftwarePackageCard = ({
           <Graphic name="file-pkg" />
           <div className={`${baseClass}__info`}>
             <SoftwareName name={name} />
-            <span className={`${baseClass}__details`}>
-              <span>Version {version} &bull; </span>
-              <TooltipWrapper
-                tipContent={internationalTimeFormat(new Date(uploadedAt))}
-                underline={false}
-              >
-                {uploadedFromNow(uploadedAt)}
-              </TooltipWrapper>
-            </span>
+            <span className={`${baseClass}__details`}>{renderDetails()}</span>
           </div>
         </div>
         <div className={`${baseClass}__package-statuses`}>
@@ -336,6 +349,7 @@ const SoftwarePackageCard = ({
         )}
         {showActions && (
           <ActionsDropdown
+            isSoftwarePackage={!!softwarePackage}
             onDownloadClick={onDownloadClick}
             onDeleteClick={onDeleteClick}
             onAdvancedOptionsClick={onAdvancedOptionsClick}
@@ -344,9 +358,9 @@ const SoftwarePackageCard = ({
       </div>
       {showAdvancedOptionsModal && (
         <AdvancedOptionsModal
-          installScript={softwarePackage.install_script}
-          preInstallQuery={softwarePackage.pre_install_query}
-          postInstallScript={softwarePackage.post_install_script}
+          installScript={softwarePackage?.install_script ?? ""}
+          preInstallQuery={softwarePackage?.pre_install_query}
+          postInstallScript={softwarePackage?.post_install_script}
           onExit={() => setShowAdvancedOptionsModal(false)}
         />
       )}
