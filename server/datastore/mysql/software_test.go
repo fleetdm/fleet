@@ -3387,10 +3387,10 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 				globalOrTeamID = tm.ID
 			}
 			res, err := q.ExecContext(ctx, `
-				INSERT INTO software_installers
-					(team_id, global_or_team_id, title_id, filename, version, install_script_content_id, storage_id, platform, self_service)
-				VALUES
-					(?, ?, ?, ?, ?, ?, unhex(?), ?, ?)`,
+						INSERT INTO software_installers
+							(team_id, global_or_team_id, title_id, filename, version, install_script_content_id, storage_id, platform, self_service)
+						VALUES
+							(?, ?, ?, ?, ?, ?, unhex(?), ?, ?)`,
 				teamID, globalOrTeamID, titleID, fmt.Sprintf("installer-%d.pkg", i), fmt.Sprintf("v%d.0.0", i), scriptContentID, hex.EncodeToString([]byte("test")), "linux", i < 2)
 			if err != nil {
 				return err
@@ -3405,7 +3405,7 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 
 		// swi1 is pending (all results are NULL)
 		_, err = q.ExecContext(ctx, `
-					INSERT INTO host_software_installs (execution_id, host_id, software_installer_id) VALUES (?, ?, ?)`,
+							INSERT INTO host_software_installs (execution_id, host_id, software_installer_id) VALUES (?, ?, ?)`,
 			"uuid1", host.ID, swi1Pending)
 		if err != nil {
 			return err
@@ -3413,8 +3413,8 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 
 		// swi2 is installed
 		_, err = q.ExecContext(ctx, `
-					INSERT INTO host_software_installs (execution_id, host_id, software_installer_id, pre_install_query_output, install_script_exit_code, post_install_script_exit_code)
-					VALUES (?, ?, ?, ?, ?, ?)`,
+							INSERT INTO host_software_installs (execution_id, host_id, software_installer_id, pre_install_query_output, install_script_exit_code, post_install_script_exit_code)
+							VALUES (?, ?, ?, ?, ?, ?)`,
 			"uuid2", host.ID, swi2Installed, "ok", 0, 0)
 		if err != nil {
 			return err
@@ -3422,14 +3422,14 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 
 		// swi3 is failed, also add an install request on the other host
 		_, err = q.ExecContext(ctx, `
-					INSERT INTO host_software_installs (execution_id, host_id, software_installer_id, pre_install_query_output, install_script_exit_code)
-					VALUES (?, ?, ?, ?, ?)`,
+							INSERT INTO host_software_installs (execution_id, host_id, software_installer_id, pre_install_query_output, install_script_exit_code)
+							VALUES (?, ?, ?, ?, ?)`,
 			"uuid3", host.ID, swi3Failed, "ok", 1)
 		if err != nil {
 			return err
 		}
 		_, err = q.ExecContext(ctx, `
-					INSERT INTO host_software_installs (execution_id, host_id, software_installer_id) VALUES (?, ?, ?)`,
+							INSERT INTO host_software_installs (execution_id, host_id, software_installer_id) VALUES (?, ?, ?)`,
 			uuid.NewString(), otherHost.ID, swi3Failed)
 		if err != nil {
 			return err
@@ -3437,7 +3437,7 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 
 		// swi4 is available (no install request), but add a pending request on the other host
 		_, err = q.ExecContext(ctx, `
-					INSERT INTO host_software_installs (execution_id, host_id, software_installer_id) VALUES (?, ?, ?)`,
+							INSERT INTO host_software_installs (execution_id, host_id, software_installer_id) VALUES (?, ?, ?)`,
 			uuid.NewString(), otherHost.ID, swi4Available)
 		if err != nil {
 			return err
@@ -3453,10 +3453,10 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 		}
 		lid, _ := res.LastInsertId()
 		_, err = q.ExecContext(ctx, `
-				INSERT INTO software_installers
-					(team_id, global_or_team_id, title_id, filename, version, install_script_content_id, storage_id, platform)
-				VALUES
-					(?, ?, ?, ?, ?, ?, unhex(?), ?)`,
+						INSERT INTO software_installers
+							(team_id, global_or_team_id, title_id, filename, version, install_script_content_id, storage_id, platform)
+						VALUES
+							(?, ?, ?, ?, ?, ?, unhex(?), ?)`,
 			nil, 0, lid, "windows-installer-6.msi", "v6.0.0", scriptContentID, hex.EncodeToString([]byte("test")), "windows")
 		if err != nil {
 			return err
@@ -3526,6 +3526,7 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 	expected[i3.Name+i3.Source] = i3
 
 	opts.IncludeAvailableForInstall = true
+	opts.ListOptions.PerPage = 20
 	sw, meta, err = ds.ListHostSoftware(ctx, host, opts)
 	require.NoError(t, err)
 	require.Equal(t, &fleet.PaginationMetadata{TotalResults: 8}, meta)
@@ -3554,8 +3555,8 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		// swi3 has a new install request pending
 		_, err = q.ExecContext(ctx, `
-					INSERT INTO host_software_installs (execution_id, host_id, software_installer_id)
-					VALUES (?, ?, ?)`,
+							INSERT INTO host_software_installs (execution_id, host_id, software_installer_id)
+							VALUES (?, ?, ?)`,
 			"uuid4", host.ID, swi3Failed)
 		if err != nil {
 			return err
@@ -3601,6 +3602,7 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 	tmHost := test.NewHost(t, ds, "host3", "", "host3key", "host3uuid", time.Now(), test.WithPlatform("linux"))
 	err = ds.AddHostsToTeam(ctx, &tm.ID, []uint{tmHost.ID})
 	require.NoError(t, err)
+	tmHost.TeamID = &tm.ID
 
 	// no installed software for this host
 	opts.IncludeAvailableForInstall = false

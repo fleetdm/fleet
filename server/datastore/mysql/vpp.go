@@ -107,6 +107,35 @@ WHERE
 	return &dest, nil
 }
 
+// hvsiAlias is the table alias to use as prefix for the
+// host_vpp_software_installs column names, no prefix used if empty.
+// ncrAlias is the table alias to use as prefix for the nano_command_results
+// column names, no prefix used if empty.
+// colAlias is the name to be assigned to the computed status column, pass
+// empty to have the value only, no column alias set.
+func vppAppHostStatusNamedQuery(hvsiAlias, ncrAlias, colAlias string) string {
+	if hvsiAlias != "" {
+		hvsiAlias += "."
+	}
+	if ncrAlias != "" {
+		ncrAlias += "."
+	}
+	if colAlias != "" {
+		colAlias = " AS " + colAlias
+	}
+	return fmt.Sprintf(`
+			CASE
+				WHEN %[1]sstatus = :mdm_status_acknowledged THEN
+					:software_status_installed
+				WHEN %[1]sstatus = :mdm_status_error OR %[1]sstatus = :mdm_status_format_error THEN
+					:software_status_failed
+				WHEN %[2]sid IS NOT NULL THEN
+					:software_status_pending
+				ELSE
+					NULL -- not installed via VPP App
+			END %[3]s `, ncrAlias, hvsiAlias, colAlias)
+}
+
 func (ds *Datastore) BatchInsertVPPApps(ctx context.Context, apps []*fleet.VPPApp) error {
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		if err := insertVPPApps(ctx, tx, apps); err != nil {

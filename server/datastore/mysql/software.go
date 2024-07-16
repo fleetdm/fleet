@@ -1991,7 +1991,7 @@ func (ds *Datastore) ListCVEs(ctx context.Context, maxAge time.Duration) ([]flee
 	return result, nil
 }
 
-// tblAlias is the table alias to use as prefix for the host_script_installs
+// tblAlias is the table alias to use as prefix for the host_software_installs
 // column names, no prefix used if empty.
 // colAlias is the name to be assigned to the computed status column, pass
 // empty to have the value only, no column alias set.
@@ -2049,24 +2049,29 @@ AND EXISTS (SELECT 1 FROM software s JOIN software_cve scve ON scve.software_id 
 			st.name,
 			st.source,
 			-- will be NULL for VPP apps for now, self-service not supported yet
-			si.self_service as self_service, 
+			si.self_service as self_service,
 			-- we want that field to be empty string for VPP apps, the filename for installers,
 			-- and NULL otherwise.
 			CASE WHEN vap.adam_id IS NOT NULL THEN '' ELSE si.filename END as package_available_for_install,
+			-- we don't store VPP app information in the package sub-object at the moment,
+			-- only software installer information
 			si.version as package_version,
 			COALESCE(hsi.created_at, hvsi.created_at) as last_install_installed_at,
 			COALESCE(hsi.execution_id, hvsi.command_uuid) as last_install_install_uuid,
-			%s
+			-- get either the softare installer status or the vpp app status
+			COALESCE(%s, %s) as status
 		FROM
 			software_titles st
 		LEFT OUTER JOIN
 			software_installers si ON st.id = si.title_id
 		LEFT OUTER JOIN
 			host_software_installs hsi ON si.id = hsi.software_installer_id AND hsi.host_id = :host_id
-		LEFT OUTER JOIN 
+		LEFT OUTER JOIN
 			vpp_apps vap ON st.id = vap.title_id
 		LEFT OUTER JOIN
 			host_vpp_software_installs hvsi ON vap.adam_id = hvsi.adam_id AND hvsi.host_id = :host_id
+		LEFT OUTER JOIN 
+			nano_command_results ncr ON ncr.command_uuid = hvsi.command_uuid
 		WHERE
 			-- use the latest install only
 			( hsi.id IS NULL OR hsi.id = (
@@ -2096,12 +2101,12 @@ AND EXISTS (SELECT 1 FROM software s JOIN software_cve scve ON scve.software_id 
 			hsi.host_id IS NOT NULL OR hvsi.host_id IS NOT NULL )
 			%s
 			%s
-`, softwareInstallerHostStatusNamedQuery("hsi", "status"), onlySelfServiceClause, onlyVulnerableClause)
+`, softwareInstallerHostStatusNamedQuery("hsi", ""), vppAppHostStatusNamedQuery("hvsi", "ncr", ""), onlySelfServiceClause, onlyVulnerableClause)
 
 	// this statement lists only the software that has never been installed nor
 	// attempted to be installed on the host, but that is available to be
 	// installed on the host's platform.
-	const stmtAvailable = `
+	stmtAvailable := fmt.Sprintf(`
 		SELECT
 			st.id,
 			st.name,
@@ -2111,6 +2116,8 @@ AND EXISTS (SELECT 1 FROM software s JOIN software_cve scve ON scve.software_id 
 			-- we want that field to be empty string for VPP apps, the filename for installers,
 			-- and NULL otherwise.
 			CASE WHEN vap.adam_id IS NOT NULL THEN '' ELSE si.filename END as package_available_for_install,
+			-- we don't store VPP app information in the package sub-object at the moment,
+			-- only software installer information
 			si.version as package_version,
 			NULL as last_install_installed_at,
 			NULL as last_install_install_uuid,
@@ -2119,14 +2126,14 @@ AND EXISTS (SELECT 1 FROM software s JOIN software_cve scve ON scve.software_id 
 			software_titles st
 		LEFT OUTER JOIN
 			-- filter out software that is not available for install on the host's platform
-			software_installers si ON st.id = si.title_id AND si.platform IN(%s)
+			software_installers si ON st.id = si.title_id AND si.platform IN (:host_compatible_platforms) AND si.global_or_team_id = :global_or_team_id
 		LEFT OUTER JOIN
 			-- include VPP apps only if the host is on a supported platform
-			vpp_apps vap ON st.id = vap.title_id AND ? IN (%s)
-		LEFT OUTER JOIN 
-			vpp_apps_teams vat ON vap.adam_id = vat.adam_id AND vat.global_or_team_id = ?
+			vpp_apps vap ON st.id = vap.title_id AND :host_platform IN (:vpp_apps_platforms)
+		LEFT OUTER JOIN
+			vpp_apps_teams vat ON vap.adam_id = vat.adam_id AND vat.global_or_team_id = :global_or_team_id
 		WHERE
-			-- software is not installed on host, but is available in host's team
+			-- software is not installed on host (but is available in host's team)
 			NOT EXISTS (
 				SELECT 1
 				FROM
@@ -2134,17 +2141,16 @@ AND EXISTS (SELECT 1 FROM software s JOIN software_cve scve ON scve.software_id 
 				INNER JOIN
 					software s ON hs.software_id = s.id
 				WHERE
-					hs.host_id = ? AND
+					hs.host_id = :host_id AND
 					s.title_id = st.id
 			) AND
-			si.global_or_team_id = (SELECT COALESCE(h.team_id, 0) FROM hosts h WHERE h.id = ?) AND
 			-- sofware install has not been attempted on host
 			NOT EXISTS (
 				SELECT 1
 				FROM
 					host_software_installs hsi
 				WHERE
-					hsi.host_id = ? AND
+					hsi.host_id = :host_id AND
 					hsi.software_installer_id = si.id
 			) AND
 			NOT EXISTS (
@@ -2152,11 +2158,13 @@ AND EXISTS (SELECT 1 FROM software s JOIN software_cve scve ON scve.software_id 
 				FROM
 					host_vpp_software_installs hvsi
 				WHERE
-					hvsi.host_id = ? AND
+					hvsi.host_id = :host_id AND
 					hvsi.adam_id = vat.adam_id
-			) 
+			) AND
+			-- either the software installer or the vpp app exists for the host's team
+			( si.id IS NOT NULL OR vat.adam_id IS NOT NULL )
 			%s
-`
+`, onlySelfServiceClause)
 
 	// this is the top-level SELECT of fields from the UNION of the sub-selects
 	// (stmtAvailable and stmtInstalled).
@@ -2173,30 +2181,42 @@ AND EXISTS (SELECT 1 FROM software s JOIN software_cve scve ON scve.software_id 
 		status
 `
 
-	// must resolve the named bindings here, before adding the stmtAvailable and searchLike which
-	// uses standard placeholders.
-	stmt, args, err := sqlx.Named(stmtInstalled, map[string]any{
+	var globalOrTeamID uint
+	if host.TeamID != nil {
+		globalOrTeamID = *host.TeamID
+	}
+	namedArgs := map[string]any{
 		"host_id":                   host.ID,
 		"software_status_failed":    fleet.SoftwareInstallerFailed,
 		"software_status_pending":   fleet.SoftwareInstallerPending,
 		"software_status_installed": fleet.SoftwareInstallerInstalled,
-	})
+		"mdm_status_acknowledged":   fleet.MDMAppleStatusAcknowledged,
+		"mdm_status_error":          fleet.MDMAppleStatusError,
+		"mdm_status_format_error":   fleet.MDMAppleStatusCommandFormatError,
+		"global_or_team_id":         globalOrTeamID,
+	}
+
+	stmt := stmtInstalled
+	if opts.IncludeAvailableForInstall && !opts.VulnerableOnly {
+		namedArgs["host_platform"] = host.FleetPlatform()
+		namedArgs["vpp_apps_platforms"] = []string{"darwin"} // for now, only macOS, not iOS/iPadOS
+		if fleet.IsLinux(host.Platform) {
+			namedArgs["host_compatible_platforms"] = fleet.HostLinuxOSs
+		} else {
+			namedArgs["host_compatible_platforms"] = []string{host.FleetPlatform()}
+		}
+		stmt += ` UNION ` + stmtAvailable
+	}
+
+	// must resolve the named bindings here, before adding the searchLike which
+	// uses standard placeholders.
+	stmt, args, err := sqlx.Named(stmt, namedArgs)
 	if err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "build named query for list host software")
 	}
-
-	if opts.IncludeAvailableForInstall && !opts.VulnerableOnly {
-		platformArgs := []string{host.Platform}
-		if fleet.IsLinux(host.Platform) {
-			platformArgs = fleet.HostLinuxOSs
-		}
-		placeholders := ""
-		for _, p := range platformArgs {
-			placeholders += "?,"
-			args = append(args, p)
-		}
-		stmt += ` UNION ` + fmt.Sprintf(stmtAvailable, strings.TrimSuffix(placeholders, ","), onlySelfServiceClause)
-		args = append(args, host.ID, host.ID, host.ID)
+	stmt, args, err = sqlx.In(stmt, args...)
+	if err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "expand IN query for list host software")
 	}
 
 	stmt = selectColNames + ` FROM ( ` + stmt + ` ) AS tbl `
