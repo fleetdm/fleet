@@ -45,21 +45,14 @@ WHERE
 func (ds *Datastore) GetSummaryHostVPPAppInstalls(ctx context.Context, teamID *uint, adamID string) (*fleet.VPPAppStatusSummary, error) {
 	var dest fleet.VPPAppStatusSummary
 
-	const stmt = `
+	stmt := fmt.Sprintf(`
 SELECT
 	COALESCE(SUM( IF(status = :software_status_pending, 1, 0)), 0) AS pending,
 	COALESCE(SUM( IF(status = :software_status_failed, 1, 0)), 0) AS failed,
 	COALESCE(SUM( IF(status = :software_status_installed, 1, 0)), 0) AS installed
 FROM (
 SELECT
-	CASE
-	WHEN ncr.status = :mdm_status_acknowledged THEN
-		:software_status_installed
-	WHEN ncr.status = :mdm_status_error OR ncr.status = :mdm_status_format_error THEN
-		:software_status_failed
-	ELSE
-		:software_status_pending
-	END as status
+	%s
 FROM
 	host_vpp_software_installs hvsi
 INNER JOIN
@@ -79,7 +72,7 @@ WHERE
 		GROUP BY
 			hvsi2.host_id
 	)
-) s`
+) s`, vppAppHostStatusNamedQuery("hvsi", "ncr", "status"))
 
 	var tmID uint
 	if teamID != nil {
