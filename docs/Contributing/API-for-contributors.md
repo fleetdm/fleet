@@ -2597,12 +2597,15 @@ Lists the software installed on the current device.
     {
       "id": 121,
       "name": "Google Chrome.app",
-      "available_for_install": {
-	"name": "GoogleChrome.pkg"
-	"version": "126.0.6478.127"
+      "available_for_install" true,
+      "software_package": {
+        "name": "GoogleChrome.pkg"
+        "version": "125.12.2"
       },
+      "app_store_app": null,
+      "self_service": true,	
       "source": "apps",
-      "status": "failed",
+      "status": null,
       "last_install": {
         "install_uuid": "8bbb8ac2-b254-4387-8cba-4d8a0407368b",
         "installed_at": "2024-05-15T15:23:57Z"
@@ -2638,6 +2641,8 @@ Lists the software installed on the current device.
   }
 }
 ```
+
+
 
 #### Install self-service software
 
