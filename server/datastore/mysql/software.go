@@ -3,7 +3,6 @@ package mysql
 import (
 	"context"
 	"crypto/md5" //nolint:gosec // This hash is used as a DB optimization for software row lookup, not security
-	"database/sql"
 	"encoding/hex"
 	"fmt"
 	"sort"
@@ -2050,12 +2049,12 @@ AND EXISTS (SELECT 1 FROM software s JOIN software_cve scve ON scve.software_id 
 			st.source,
 			-- will be NULL for VPP apps for now, self-service not supported yet
 			si.self_service as self_service,
-			-- we want that field to be empty string for VPP apps, the filename for installers,
-			-- and NULL otherwise.
-			CASE WHEN vap.adam_id IS NOT NULL THEN '' ELSE si.filename END as package_available_for_install,
-			-- we don't store VPP app information in the package sub-object at the moment,
-			-- only software installer information
+			-- this count will be 1 if an installer or VPP app is available, 0 otherwise
+			IF(COALESCE(si.id, vap.adam_id) IS NOT NULL, 1, 0) as available_for_install,
+			si.filename as package_name,
 			si.version as package_version,
+			vap.adam_id as vpp_app_adam_id,
+			vap.latest_version as vpp_app_version,
 			COALESCE(hsi.created_at, hvsi.created_at) as last_install_installed_at,
 			COALESCE(hsi.execution_id, hvsi.command_uuid) as last_install_install_uuid,
 			-- get either the softare installer status or the vpp app status
@@ -2070,7 +2069,7 @@ AND EXISTS (SELECT 1 FROM software s JOIN software_cve scve ON scve.software_id 
 			vpp_apps vap ON st.id = vap.title_id
 		LEFT OUTER JOIN
 			host_vpp_software_installs hvsi ON vap.adam_id = hvsi.adam_id AND hvsi.host_id = :host_id
-		LEFT OUTER JOIN 
+		LEFT OUTER JOIN
 			nano_command_results ncr ON ncr.command_uuid = hvsi.command_uuid
 		WHERE
 			-- use the latest install only
@@ -2113,12 +2112,11 @@ AND EXISTS (SELECT 1 FROM software s JOIN software_cve scve ON scve.software_id 
 			st.source,
 			-- will be NULL for VPP apps for now, self-service not supported yet
 			si.self_service as self_service,
-			-- we want that field to be empty string for VPP apps, the filename for installers,
-			-- and NULL otherwise.
-			CASE WHEN vap.adam_id IS NOT NULL THEN '' ELSE si.filename END as package_available_for_install,
-			-- we don't store VPP app information in the package sub-object at the moment,
-			-- only software installer information
+			1 as available_for_install,
+			si.filename as package_name,
 			si.version as package_version,
+			vap.adam_id as vpp_app_adam_id,
+			vap.latest_version as vpp_app_version,
 			NULL as last_install_installed_at,
 			NULL as last_install_install_uuid,
 			NULL as status
@@ -2174,8 +2172,11 @@ AND EXISTS (SELECT 1 FROM software s JOIN software_cve scve ON scve.software_id 
 		name,
 		source,
 		self_service,
-		package_available_for_install,
+		available_for_install,
+		package_name,
 		package_version,
+		vpp_app_adam_id,
+		vpp_app_version,
 		last_install_installed_at,
 		last_install_install_uuid,
 		status
@@ -2238,10 +2239,12 @@ AND EXISTS (SELECT 1 FROM software s JOIN software_cve scve ON scve.software_id 
 
 	type hostSoftware struct {
 		fleet.HostSoftwareWithInstaller
-		LastInstallInstalledAt *time.Time    `db:"last_install_installed_at"`
-		LastInstallInstallUUID *string       `db:"last_install_install_uuid"`
-		StatusSort             sql.NullInt32 `db:"status_sort"`
-		PackageVersion         *string       `db:"package_version"`
+		LastInstallInstalledAt *time.Time `db:"last_install_installed_at"`
+		LastInstallInstallUUID *string    `db:"last_install_install_uuid"`
+		PackageName            *string    `db:"package_name"`
+		PackageVersion         *string    `db:"package_version"`
+		VPPAppAdamID           *string    `db:"vpp_app_adam_id"`
+		VPPAppVersion          *string    `db:"vpp_app_version"`
 	}
 	var hostSoftwareList []*hostSoftware
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &hostSoftwareList, stmt, args...); err != nil {
@@ -2264,17 +2267,26 @@ AND EXISTS (SELECT 1 FROM software s JOIN software_cve scve ON scve.software_id 
 		}
 
 		// promote the package name and version to the proper destination fields
-		// (the service layer will arbitrate whether package_available_for_install
-		// or package fields are returned). For now this "Package" object is only
-		// for software installers.
-		if hs.PackageAvailableForInstall != nil && *hs.PackageAvailableForInstall != "" {
+		if hs.PackageName != nil {
 			var version string
 			if hs.PackageVersion != nil {
 				version = *hs.PackageVersion
 			}
-			hs.Package = &fleet.DeviceSoftwarePackage{
-				Name:    *hs.PackageAvailableForInstall,
+			hs.SoftwarePackage = &fleet.HostSoftwarePackageOrApp{
+				Name:    *hs.PackageName,
 				Version: version,
+			}
+		}
+
+		// promote the VPP app id and version to the proper destination fields
+		if hs.VPPAppAdamID != nil {
+			var version string
+			if hs.VPPAppVersion != nil {
+				version = *hs.VPPAppVersion
+			}
+			hs.AppStoreApp = &fleet.HostSoftwarePackageOrApp{
+				AppStoreID: *hs.VPPAppAdamID,
+				Version:    version,
 			}
 		}
 

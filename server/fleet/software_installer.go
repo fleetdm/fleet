@@ -315,23 +315,26 @@ type HostSoftwareWithInstaller struct {
 	LastInstall       *HostSoftwareInstall            `json:"last_install"`
 	InstalledVersions []*HostSoftwareInstalledVersion `json:"installed_versions"`
 
-	// PackageAvailableForInstall is only present for the user-authenticated
-	// endpoint, not the device-authenticated one. If non-nil and non-empty, it
-	// indicates that a software installer is present for that software (and the
-	// name is the installer's filename). If non-nil and empty, it indicates that
-	// a VPP app is present for that software. If nil, none of those are present.
-	PackageAvailableForInstall *string `json:"package_available_for_install,omitempty" db:"package_available_for_install"`
+	// AvailableForInstall is true if a software installer or a VPP app is
+	// available to install this software.
+	AvailableForInstall bool `json:"available_for_install" db:"available_for_install"`
 
-	// Package provides software installer package information, it is only
-	// present for the device-authenticated endpoint, not for the
-	// user-authenticated one.
-	Package *DeviceSoftwarePackage `json:"package,omitempty"`
+	// SoftwarePackage provides software installer package information, it is
+	// only present if a software installer is available for the software title.
+	SoftwarePackage *HostSoftwarePackageOrApp `json:"software_package"`
+
+	// AppStoreApp provides VPP app information, it is only present if a VPP app
+	// is available for the software title.
+	AppStoreApp *HostSoftwarePackageOrApp `json:"app_store_app"`
 }
 
-// DeviceSoftwarePackage provides information about a software installer
-// package for self-service on a device.
-type DeviceSoftwarePackage struct {
-	Name    string `json:"name"`
+// HostSoftwarePackageOrApp provides information about a software installer
+// package or a VPP app.
+type HostSoftwarePackageOrApp struct {
+	// AppStoreID is only present for VPP apps.
+	AppStoreID string `json:"app_store_id,omitempty"`
+	// Name is only present for software installer packages.
+	Name    string `json:"name,omitempty"`
 	Version string `json:"version"`
 }
 
