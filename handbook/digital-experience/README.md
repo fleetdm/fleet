@@ -485,6 +485,15 @@ It's not enough to just "delete" a recording of a meeting in Gong.  Instead, use
 - Always check back to ensure the recording **and** transcript were both deleted.
 
 
+### Failed Gong recording
+In some instances, Gong may not record a call and it will go unnoticed throughout the meeting. A local recording will be made and then it will need to be shared to the related parties.
+
+- The Apprentice will schedule a meeting with the CEO.
+- They will then take the local recording and share it in slack.
+- The local recording will also be uploaded into the "whiteboards" folder in Google Drive titled, "year-month-day subject".
+- The link of the recording will be shared to those named by the CEO.
+
+
 ## Rituals
 
 - Note: Some rituals (⏰) are especially time-sensitive and require attention multiple times (3+) per day.  Set reminders for the following times (CT):
