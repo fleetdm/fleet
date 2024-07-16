@@ -1,7 +1,18 @@
 .software-icon {
   flex-shrink: 0;
   border: 1px solid $ui-fleet-black-10;
-  border-radius: $border-radius;
+
+  &__small {
+    border-radius: $border-radius;
+  }
+
+  &__medium {
+    border-radius: $border-radius-xlarge;
+  }
+
+  &__xlarge {
+    border-radius: $border-radius-xxlarge;
+  }
 
   &__software-img {
     display: block;
@@ -12,10 +23,6 @@
     height: 22px;
     border-radius: $border-radius-small;
     padding: 1px;
-  }
-
-  &__software-img-medium {
-
   }
 
   &__software-img-xlarge {

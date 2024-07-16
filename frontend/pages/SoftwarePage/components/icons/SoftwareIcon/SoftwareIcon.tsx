@@ -28,6 +28,8 @@ const SoftwareIcon = ({
   size = "small",
   url,
 }: ISoftwareIconProps) => {
+  const classNames = classnames(baseClass, `${baseClass}__${size}`);
+
   // If we are given a url to render as the icon, we need to render it
   // differently than the svg icons. We will use an img tag instead with the
   // src set to the url.
@@ -37,7 +39,7 @@ const SoftwareIcon = ({
       `${baseClass}__software-img-${size}`
     );
     return (
-      <div className={baseClass}>
+      <div className={classNames}>
         <img className={imgClasses} src={url} alt="" />
       </div>
     );
@@ -48,8 +50,8 @@ const SoftwareIcon = ({
     <MatchedIcon
       width={SOFTWARE_ICON_SIZES[size]}
       height={SOFTWARE_ICON_SIZES[size]}
-      viewBox="0 0 32 32" // TODO: we should make this dynamic based on the icon size
-      className={baseClass}
+      viewBox="0 0 32 32"
+      className={classNames}
     />
   );
 };
