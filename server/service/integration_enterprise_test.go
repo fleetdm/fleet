@@ -9855,6 +9855,13 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 	})
 	require.NoError(t, err)
 
+	// create a team
+	tmEmpty, err := s.ds.NewTeam(context.Background(), &fleet.Team{
+		Name:        t.Name() + " empty",
+		Description: "desc",
+	})
+	require.NoError(t, err)
+
 	// No vpp token set
 	s.Do("POST", batchURL, batchAssociateAppStoreAppsRequest{}, http.StatusUnprocessableEntity, "team_name", tmGood.Name)
 
@@ -9901,6 +9908,8 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 			{AppStoreID: s.appleVPPConfigSrvConfig.Assets[0].AdamID},
 			{AppStoreID: "fake-app"},
 		}}, http.StatusUnprocessableEntity, "team_name", tmGood.Name)
+
+	s.Do("POST", batchURL, batchAssociateAppStoreAppsRequest{Apps: []fleet.VPPBatchPayload{{AppStoreID: s.appleVPPConfigSrvConfig.Assets[0].AdamID}}}, http.StatusNoContent, "team_name", tmEmpty.Name)
 }
 
 func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerNewInstallRequestPlatformValidation() {
