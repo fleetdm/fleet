@@ -1685,9 +1685,11 @@ CREATE TABLE `vpp_apps` (
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `vpp_apps_teams` (
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `adam_id` varchar(16) COLLATE utf8mb4_unicode_ci NOT NULL,
   `team_id` int(10) unsigned DEFAULT NULL,
   `global_or_team_id` int(10) NOT NULL DEFAULT '0',
+  PRIMARY KEY (`id`),
   UNIQUE KEY `idx_global_or_team_id_adam_id` (`global_or_team_id`,`adam_id`),
   KEY `adam_id` (`adam_id`),
   KEY `team_id` (`team_id`),
