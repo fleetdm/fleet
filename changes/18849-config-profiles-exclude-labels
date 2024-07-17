@@ -1,5 +1,0 @@
-* Added the database migrations to create the new `exclude` column for labels associated with MDM profiles (and declarations).
-* Added the API changes to support the `labels_include_all` and `labels_exclude_any` fields (and accept the deprecated `labels` field as an alias for `labels_include_all`).
-* Added `fleetctl gitops` and `fleetctl apply` support for `labels_include_all` and `labels_exclude_any` to configure a custom setting.
-* Updated the profile reconciliation logic to handle the new "exclude any" labels.
-* Fix bug where macOS declarations were stuck in "to be removed" state indefinitely.
