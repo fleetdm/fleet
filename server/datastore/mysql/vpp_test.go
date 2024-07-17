@@ -66,7 +66,18 @@ func testGetTeamAppleSerialNumbers(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
+	// No serial
 	h4, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:       "macos-test-4",
+		OsqueryHostID:  ptr.String("osquery-macos-4"),
+		NodeKey:        ptr.String("node-key-macos-4"),
+		UUID:           uuid.NewString(),
+		Platform:       "darwin",
+		HardwareSerial: "",
+	})
+	require.NoError(t, err)
+
+	h5, err := ds.NewHost(ctx, &fleet.Host{
 		Hostname:       "windows-test",
 		OsqueryHostID:  ptr.String("osquery-windows"),
 		NodeKey:        ptr.String("node-key-windows"),
@@ -76,7 +87,7 @@ func testGetTeamAppleSerialNumbers(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	h5, err := ds.NewHost(ctx, &fleet.Host{
+	h6, err := ds.NewHost(ctx, &fleet.Host{
 		Hostname:       "ubuntu-test",
 		OsqueryHostID:  ptr.String("osquery-ubuntu"),
 		NodeKey:        ptr.String("node-key-ubuntu"),
@@ -91,7 +102,7 @@ func testGetTeamAppleSerialNumbers(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	err = ds.AddHostsToTeam(ctx, &team.ID, []uint{h1.ID, h2.ID, h3.ID, h4.ID, h5.ID})
+	err = ds.AddHostsToTeam(ctx, &team.ID, []uint{h1.ID, h2.ID, h3.ID, h4.ID, h5.ID, h6.ID})
 	require.NoError(t, err)
 
 	serials, err := ds.GetTeamAppleSerialNumbers(ctx, team.ID)

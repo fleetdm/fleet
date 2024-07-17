@@ -20,6 +20,8 @@ FROM
 WHERE
   platform = 'darwin'
 AND
+  hardware_serial != ''
+AND
   team_id = ?
 `
 
