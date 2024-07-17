@@ -1001,6 +1001,8 @@ type GetAssignedVPPAppsFunc func(ctx context.Context, teamID *uint) (map[string]
 
 type InsertVPPAppWithTeamFunc func(ctx context.Context, app *fleet.VPPApp, teamID *uint) error
 
+type SetTeamVPPAppsFunc func(ctx context.Context, teamID *uint, adamIDs []string) error
+
 type DataStore struct {
 	HealthCheckFunc        HealthCheckFunc
 	HealthCheckFuncInvoked bool
@@ -2474,6 +2476,9 @@ type DataStore struct {
 
 	InsertVPPAppWithTeamFunc        InsertVPPAppWithTeamFunc
 	InsertVPPAppWithTeamFuncInvoked bool
+
+	SetTeamVPPAppsFunc        SetTeamVPPAppsFunc
+	SetTeamVPPAppsFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -5913,4 +5918,11 @@ func (s *DataStore) InsertVPPAppWithTeam(ctx context.Context, app *fleet.VPPApp,
 	s.InsertVPPAppWithTeamFuncInvoked = true
 	s.mu.Unlock()
 	return s.InsertVPPAppWithTeamFunc(ctx, app, teamID)
+}
+
+func (s *DataStore) SetTeamVPPApps(ctx context.Context, teamID *uint, adamIDs []string) error {
+	s.mu.Lock()
+	s.SetTeamVPPAppsFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetTeamVPPAppsFunc(ctx, teamID, adamIDs)
 }

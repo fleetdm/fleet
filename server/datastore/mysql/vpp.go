@@ -161,6 +161,50 @@ func (ds *Datastore) BatchInsertVPPApps(ctx context.Context, apps []*fleet.VPPAp
 	})
 }
 
+func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, adamIDs []string) error {
+	existingApps, err := ds.GetAssignedVPPApps(ctx, teamID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "SetTeamVPPApps getting list of existing apps")
+	}
+
+	var missingApps []string
+	var toRemoveApps []string
+
+	for existingApp := range existingApps {
+		var found bool
+		for _, adamID := range adamIDs {
+			if adamID == existingApp {
+				found = true
+			}
+		}
+		if !found {
+			toRemoveApps = append(toRemoveApps, existingApp)
+		}
+	}
+
+	for _, adamID := range adamIDs {
+		if _, ok := existingApps[adamID]; !ok {
+			missingApps = append(missingApps, adamID)
+		}
+	}
+
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		for _, toAdd := range missingApps {
+			if err := insertVPPAppTeams(ctx, tx, toAdd, teamID); err != nil {
+				return ctxerr.Wrap(ctx, err, "SetTeamVPPApps inserting vpp app into team")
+			}
+		}
+
+		for _, toRemove := range toRemoveApps {
+			if err := removeVPPAppTeams(ctx, tx, toRemove, teamID); err != nil {
+				return ctxerr.Wrap(ctx, err, "SetTeamVPPApps removing vpp app from team")
+			}
+		}
+
+		return nil
+	})
+}
+
 func (ds *Datastore) InsertVPPAppWithTeam(ctx context.Context, app *fleet.VPPApp, teamID *uint) error {
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		titleID, err := insertSoftwareTitleForVPPApp(ctx, tx, app)
@@ -252,6 +296,23 @@ VALUES
 	_, err := tx.ExecContext(ctx, stmt, adamID, globalOrTmID, teamID)
 
 	return ctxerr.Wrap(ctx, err, "writing vpp app team mapping to db")
+}
+
+func removeVPPAppTeams(ctx context.Context, tx sqlx.ExtContext, adamID string, teamID *uint) error {
+	stmt := `
+DELETE FROM
+  vpp_apps_teams
+WHERE
+  adam_id = ?
+AND
+  team_id = ?
+`
+	_, err := tx.ExecContext(ctx, stmt, adamID, teamID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "deleting vpp app from team")
+	}
+
+	return nil
 }
 
 func insertSoftwareTitleForVPPApp(ctx context.Context, tx sqlx.ExtContext, app *fleet.VPPApp) (uint, error) {

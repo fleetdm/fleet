@@ -76,10 +76,6 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 		return fleet.NewUserMessageError(ctxerr.Wrap(ctx, err, "could not retrieve vpp token"), http.StatusUnprocessableEntity)
 	}
 
-	if len(payloads) == 0 {
-		return fleet.NewUserMessageError(ctxerr.Errorf(ctx, "request must contain at least one assset"), http.StatusBadRequest)
-	}
-
 	var adamIDs []string
 
 	for _, payload := range payloads {
@@ -113,24 +109,9 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 		return fleet.NewUserMessageError(reqErr, http.StatusUnprocessableEntity)
 	}
 
-	// we checked if the team is null earlier
-	serials, err := svc.ds.GetTeamAppleSerialNumbers(ctx, team.ID)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "cannot get team serials for association")
-	}
-
-	// There is nothing to associate, and calling the apple API with
-	// no serial numbers returns an error
-	if len(serials) == 0 {
-		return nil
-	}
-
 	if !dryRun {
-		if err := vpp.AssociateAssets(token, &vpp.AssociateAssetsRequest{
-			Assets:        validAssets,
-			SerialNumbers: serials,
-		}); err != nil {
-			return fleet.NewUserMessageError(ctxerr.Wrap(ctx, err, "failed to associate vpp assets"), http.StatusUnprocessableEntity)
+		if svc.ds.SetTeamVPPApps(ctx, &team.ID, adamIDs); err != nil {
+			return fleet.NewUserMessageError(ctxerr.Wrap(ctx, err, "set team vpp assets"), http.StatusInternalServerError)
 		}
 	}
 
