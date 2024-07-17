@@ -341,8 +341,6 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 			hsi.pre_install_query_output IS NULL AND
 			hsi.install_script_exit_code IS NULL
 		`, softwareInstallerHostStatusNamedQuery("hsi", "")),
-		// TODO(JVE): should we be setting pending for the status always? since we're only checking
-		// pending commands anyway
 		`
 SELECT
 	hvsi.command_uuid AS uuid,
@@ -358,7 +356,8 @@ SELECT
 		"software_title", st.name,
 		"app_store_id", hvsi.adam_id,
 		"command_uuid", hvsi.command_uuid,
-		"status", "pending"
+		-- status is always pending because only pending MDM commands are upcoming.
+		"status", :software_status_pending
 	) AS details
 FROM
 	host_vpp_software_installs hvsi
@@ -368,7 +367,7 @@ FROM
 	LEFT OUTER JOIN vpp_apps vpa ON hvsi.adam_id = vpa.adam_id
 	LEFT OUTER JOIN software_titles st ON st.id = vpa.title_id
 WHERE
-	nvq.status = ''
+	nvq.status IS NULL
 	AND hvsi.host_id = :host_id
 `,
 	}
@@ -511,4 +510,70 @@ func (ds *Datastore) CleanupActivitiesAndAssociatedData(ctx context.Context, max
 		return ctxerr.Wrap(ctx, err, "delete expired distributed queries")
 	}
 	return nil
+}
+
+func (ds *Datastore) GetPastActivityDataForVPPAppInstall(ctx context.Context, commandUUID string) (*fleet.User, *fleet.ActivityInstalledAppStoreApp, error) {
+	stmt := `
+SELECT
+	u.name AS user_name,
+	u.id AS user_id,
+	u.email as user_email,
+	hvsi.host_id AS host_id,
+	hdn.display_name AS host_display_name,
+	st.name AS software_title,
+	hvsi.adam_id AS app_store_id,
+	hvsi.command_uuid AS command_uuid,
+	nvq.status AS status
+FROM
+	host_vpp_software_installs hvsi
+	INNER JOIN nano_view_queue nvq ON nvq.command_uuid = hvsi.command_uuid
+	LEFT OUTER JOIN users u ON hvsi.user_id = u.id
+	LEFT OUTER JOIN host_display_names hdn ON hdn.host_id = hvsi.host_id
+	LEFT OUTER JOIN vpp_apps vpa ON hvsi.adam_id = vpa.adam_id
+	LEFT OUTER JOIN software_titles st ON st.id = vpa.title_id
+WHERE
+	hvsi.command_uuid = :command_uuid
+	`
+
+	type result struct {
+		HostID          uint   `db:"host_id"`
+		HostDisplayName string `db:"host_display_name"`
+		SoftwareTitle   string `db:"software_title"`
+		AppStoreID      int    `db:"app_store_id"`
+		CommandUUID     string `db:"command_uuid"`
+		Status          string `db:"status"`
+		UserName        string `db:"user_name"`
+		UserID          uint   `db:"user_id"`
+		UserEmail       string `db:"user_email"`
+	}
+
+	listStmt, args, err := sqlx.Named(stmt, map[string]any{
+		"command_uuid": commandUUID,
+	})
+	if err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "build list query from named args")
+	}
+
+	var res result
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &res, listStmt, args...); err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "select past activity data for VPP app install")
+	}
+	// TODO(JVE): handle nothing returned case
+
+	user := &fleet.User{
+		ID:    res.UserID,
+		Name:  res.UserName,
+		Email: res.UserEmail,
+	}
+
+	act := &fleet.ActivityInstalledAppStoreApp{
+		HostID:          res.HostID,
+		HostDisplayName: res.HostDisplayName,
+		SoftwareTitle:   res.SoftwareTitle,
+		AppStoreID:      res.AppStoreID,
+		CommandUUID:     res.CommandUUID,
+		Status:          res.Status,
+	}
+
+	return user, act, nil
 }

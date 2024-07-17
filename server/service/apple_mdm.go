@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"mime/multipart"
 	"net/http"
 	"os"
@@ -2808,7 +2809,18 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 		detail := fmt.Sprintf("%s. Make sure the host is on macOS 13 or higher.", apple_mdm.FmtErrorChain(cmdResult.ErrorChain))
 		err := svc.ds.MDMAppleSetPendingDeclarationsAs(r.Context, cmdResult.UDID, status, detail)
 		return nil, ctxerr.Wrap(r.Context, err, "update declaration status on DeclarativeManagement ack")
+	case "InstallApplication":
+		slog.With("filename", "server/service/apple_mdm.go", "func", "CommandAndReportResults").Info("JVE_LOG: handling InstallApplication ", "cmdUUID", cmdResult.CommandUUID, "hostUUID", cmdResult.UDID)
+		// Create activity entry for installation
+		user, act, err := svc.ds.GetPastActivityDataForVPPAppInstall(r.Context, cmdResult.CommandUUID)
+		if err != nil {
+			// if nothing returned, we should just return
+			return nil, ctxerr.Wrap(r.Context, err, "fetching data for installed app store app activity")
+		}
 
+		if err := newActivity(r.Context, user, act, svc.ds, svc.logger); err != nil {
+			return nil, ctxerr.Wrap(r.Context, err, "creating activity for installed app store app")
+		}
 	}
 
 	return nil, nil
