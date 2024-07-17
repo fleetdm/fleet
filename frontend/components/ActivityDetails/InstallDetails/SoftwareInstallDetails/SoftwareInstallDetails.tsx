@@ -4,7 +4,6 @@ import { useQuery } from "react-query";
 import {
   ISoftwareInstallResult,
   ISoftwareInstallResults,
-  SoftwareInstallStatus,
 } from "interfaces/software";
 import softwareAPI from "services/entities/software";
 
@@ -14,21 +13,13 @@ import Icon from "components/Icon";
 import Textarea from "components/Textarea";
 import DataError from "components/DataError/DataError";
 import Spinner from "components/Spinner/Spinner";
-import { IconNames } from "components/icons";
+import {
+  INSTALL_DETAILS_STATUS_ICONS,
+  SOFTWARE_INSTALL_OUTPUT_DISPLAY_LABELS,
+  getInstallDetailsStatusPredicate,
+} from "../constants";
 
 const baseClass = "software-install-details";
-
-const STATUS_ICONS: Record<SoftwareInstallStatus, IconNames> = {
-  pending: "pending-outline",
-  installed: "success-outline",
-  failed: "error-outline",
-} as const;
-
-const STATUS_PREDICATES: Record<SoftwareInstallStatus, string> = {
-  pending: "will install",
-  installed: "installed",
-  failed: "failed to install",
-} as const;
 
 const StatusMessage = ({
   result: { host_display_name, software_package, software_title, status },
@@ -37,32 +28,26 @@ const StatusMessage = ({
 }) => {
   return (
     <div className={`${baseClass}__status-message`}>
-      <Icon name={STATUS_ICONS[status]} />
+      <Icon name={INSTALL_DETAILS_STATUS_ICONS[status]} />
       <span>
-        Fleet {STATUS_PREDICATES[status]} <b>{software_title}</b> (
-        {software_package}) on <b>{host_display_name}</b>
+        Fleet {getInstallDetailsStatusPredicate(status)} <b>{software_title}</b>{" "}
+        ({software_package}) on <b>{host_display_name}</b>
         {status === "pending" ? " when it comes online" : ""}.
       </span>
     </div>
   );
 };
 
-const OUTPUT_DISPLAY_LABELS = {
-  pre_install_query_output: "Pre-install condition",
-  output: "Software install output",
-  post_install_script_output: "Post-install script output",
-} as const;
-
 const Output = ({
   displayKey,
   result,
 }: {
-  displayKey: keyof typeof OUTPUT_DISPLAY_LABELS;
+  displayKey: keyof typeof SOFTWARE_INSTALL_OUTPUT_DISPLAY_LABELS;
   result: ISoftwareInstallResult;
 }) => {
   return (
     <div className={`${baseClass}__script-output`}>
-      {OUTPUT_DISPLAY_LABELS[displayKey]}:
+      {SOFTWARE_INSTALL_OUTPUT_DISPLAY_LABELS[displayKey]}:
       <Textarea className={`${baseClass}__output-textarea`}>
         {result[displayKey]}
       </Textarea>

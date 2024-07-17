@@ -31,21 +31,28 @@ SELECT
 	st.name,
 	st.source,
 	st.browser,
+	st.bundle_identifier,
 	COALESCE(SUM(sthc.hosts_count), 0) as hosts_count,
-	MAX(sthc.updated_at)  as counts_updated_at
+	MAX(sthc.updated_at)  as counts_updated_at,
+	COUNT(si.id) as software_installers_count,
+	COUNT(vat.adam_id) as vpp_apps_count
 FROM software_titles st
 LEFT JOIN software_titles_host_counts sthc ON sthc.software_title_id = st.id AND %s
-WHERE st.id = ?
-AND (sthc.hosts_count > 0 OR EXISTS (SELECT 1 FROM software_installers si WHERE si.title_id = st.id AND si.global_or_team_id = ?))
+LEFT JOIN software_installers si ON si.title_id = st.id AND si.global_or_team_id = ?
+LEFT JOIN vpp_apps vap ON vap.title_id = st.id
+LEFT JOIN vpp_apps_teams vat ON vat.global_or_team_id = ? AND vat.adam_id = vap.adam_id
+WHERE st.id = ? AND
+	(sthc.hosts_count > 0 OR vat.adam_id IS NOT NULL OR si.id IS NOT NULL)
 GROUP BY
 	st.id,
 	st.name,
 	st.source,
-	st.browser
+	st.browser,
+	st.bundle_identifier
 	`, teamFilter,
 	)
 	var title fleet.SoftwareTitle
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &title, selectSoftwareTitleStmt, id, tmID); err != nil {
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &title, selectSoftwareTitleStmt, tmID, tmID, id); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, notFound("SoftwareTitle").WithID(id)
 		}
@@ -202,10 +209,14 @@ SELECT
 	st.browser,
 	MAX(COALESCE(sthc.hosts_count, 0)) as hosts_count,
 	MAX(COALESCE(sthc.updated_at, date('0001-01-01 00:00:00'))) as counts_updated_at,
-	si.filename as software_package,
-	COALESCE(si.self_service, false) as self_service
+	COALESCE(si.self_service, false) as self_service,
+	-- this count will be 1 if an installer or VPP app is available, 0 otherwise
+	COUNT(COALESCE(si.id, vat.adam_id)) as available_for_install,
+	NULLIF(vap.icon_url, '') as icon_url
 FROM software_titles st
 LEFT JOIN software_installers si ON si.title_id = st.id AND si.global_or_team_id = ?
+LEFT JOIN vpp_apps vap ON vap.title_id = st.id
+LEFT JOIN vpp_apps_teams vat ON vat.global_or_team_id = ? AND vat.adam_id = vap.adam_id
 LEFT JOIN software_titles_host_counts sthc ON sthc.software_title_id = st.id AND sthc.team_id = ?
 -- placeholder for JOIN on software/software_cve
 %s
@@ -213,16 +224,16 @@ LEFT JOIN software_titles_host_counts sthc ON sthc.software_title_id = st.id AND
 WHERE %s
 -- placeholder for filter based on software installed on hosts + software installers
 AND (%s)
-GROUP BY st.id, software_package, self_service`
+GROUP BY st.id, self_service, icon_url`
 
 	cveJoinType := "LEFT"
 	if opt.VulnerableOnly {
 		cveJoinType = "INNER"
 	}
 
-	args := []any{0, 0}
+	args := []any{0, 0, 0}
 	if opt.TeamID != nil {
-		args[0], args[1] = *opt.TeamID, *opt.TeamID
+		args[0], args[1], args[2] = *opt.TeamID, *opt.TeamID, *opt.TeamID
 	}
 
 	additionalWhere := "TRUE"
@@ -246,9 +257,9 @@ GROUP BY st.id, software_package, self_service`
 		args = append(args, match, match)
 	}
 
-	// default to "a software installer exists", and see next condition.
+	// default to "a software installer or VPP app exists", and see next condition.
 	defaultFilter := `
-		si.id IS NOT NULL
+		(si.id IS NOT NULL OR vat.adam_id IS NOT NULL)
 	`
 
 	// add software installed for hosts if any of this is true:
@@ -429,4 +440,30 @@ func (ds *Datastore) SyncHostsSoftwareTitles(ctx context.Context, updatedAt time
 		return ctxerr.Wrap(ctx, err, "delete software_titles_host_counts for non-existing teams")
 	}
 	return nil
+}
+
+func (ds *Datastore) UploadedSoftwareExists(ctx context.Context, bundleIdentifier string, teamID *uint) (bool, error) {
+	stmt := `
+SELECT
+	1
+FROM
+	software_titles st JOIN software_installers si ON si.title_id = st.id
+WHERE
+	st.bundle_identifier = ? AND si.global_or_team_id = ?
+	`
+	var tmID uint
+	if teamID != nil {
+		tmID = *teamID
+	}
+
+	var titleExists bool
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &titleExists, stmt, bundleIdentifier, tmID); err != nil {
+		if err == sql.ErrNoRows {
+			return false, nil
+		}
+
+		return false, ctxerr.Wrap(ctx, err, "checking if software installer exists")
+	}
+
+	return titleExists, nil
 }
