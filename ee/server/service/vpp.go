@@ -119,7 +119,7 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 		return ctxerr.Wrap(ctx, err, "cannot get team serials for association")
 	}
 
-	// There is nothing to assiciate, and calling the apple API with
+	// There is nothing to associate, and calling the apple API with
 	// no serial numbers returns an error
 	if len(serials) == 0 {
 		return nil
