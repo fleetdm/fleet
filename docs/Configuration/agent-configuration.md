@@ -276,7 +276,7 @@ In the above example:
 
 _Available in Fleet Premium v4.43.0 and fleetd v1.20.0_
 
-Users can configure fleetd component TUF auto-update channels from Fleet's agent options. The components that can be configured are `orbit`, `osqueryd` and `desktop` (Fleet Desktop). When one of these components is omitted in `update_channels` then `stable` is assumed as the value for such component.
+Users can configure fleetd component TUF auto-update channels from Fleet's agent options. The components that can be configured are `orbit`, `osqueryd` and `desktop` (Fleet Desktop). When one of these components is omitted in `update_channels` then `stable` is assumed as the value for such component. Available options for update channels can be viewed [here](https://fleetdm.com/docs/using-fleet/enroll-hosts#specifying-update-channels).
 
 Examples:
 ```yaml
