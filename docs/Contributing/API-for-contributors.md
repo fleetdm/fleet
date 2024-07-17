@@ -2597,13 +2597,12 @@ Lists the software installed on the current device.
     {
       "id": 121,
       "name": "Google Chrome.app",
-      "available_for_install": true,
       "software_package": {
         "name": "GoogleChrome.pkg"
         "version": "125.12.2"
+        "self_service": true,
       },
       "app_store_app": null,
-      "self_service": true,
       "source": "apps",
       "status": "failed",
       "last_install": {
@@ -2622,10 +2621,8 @@ Lists the software installed on the current device.
     {
       "id": 143,
       "name": "Firefox.app",
-      "available_for_install" false,
       "software_package": null,
       "app_store_app": null,
-      "self_service": false,
       "source": "apps",
       "status": null,
       "last_install": null,
