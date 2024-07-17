@@ -983,6 +983,8 @@ type GetVPPAppMetadataByTeamAndTitleIDFunc func(ctx context.Context, teamID *uin
 
 type DeleteSoftwareInstallerFunc func(ctx context.Context, id uint) error
 
+type DeleteVPPAppFromTeamFunc func(ctx context.Context, teamID *uint, adamID string) error
+
 type GetSummaryHostSoftwareInstallsFunc func(ctx context.Context, installerID uint) (*fleet.SoftwareInstallerStatusSummary, error)
 
 type GetSummaryHostVPPAppInstallsFunc func(ctx context.Context, teamID *uint, adamID string) (*fleet.VPPAppStatusSummary, error)
@@ -2447,6 +2449,9 @@ type DataStore struct {
 
 	DeleteSoftwareInstallerFunc        DeleteSoftwareInstallerFunc
 	DeleteSoftwareInstallerFuncInvoked bool
+
+	DeleteVPPAppFromTeamFunc        DeleteVPPAppFromTeamFunc
+	DeleteVPPAppFromTeamFuncInvoked bool
 
 	GetSummaryHostSoftwareInstallsFunc        GetSummaryHostSoftwareInstallsFunc
 	GetSummaryHostSoftwareInstallsFuncInvoked bool
@@ -5850,6 +5855,13 @@ func (s *DataStore) DeleteSoftwareInstaller(ctx context.Context, id uint) error 
 	s.DeleteSoftwareInstallerFuncInvoked = true
 	s.mu.Unlock()
 	return s.DeleteSoftwareInstallerFunc(ctx, id)
+}
+
+func (s *DataStore) DeleteVPPAppFromTeam(ctx context.Context, teamID *uint, adamID string) error {
+	s.mu.Lock()
+	s.DeleteVPPAppFromTeamFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeleteVPPAppFromTeamFunc(ctx, teamID, adamID)
 }
 
 func (s *DataStore) GetSummaryHostSoftwareInstalls(ctx context.Context, installerID uint) (*fleet.SoftwareInstallerStatusSummary, error) {

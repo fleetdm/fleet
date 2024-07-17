@@ -153,6 +153,7 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, adamID str
 		BundleIdentifier: assetMD.BundleID,
 		IconURL:          assetMD.ArtworkURL,
 		Name:             assetMD.TrackName,
+		LatestVersion:    assetMD.Version,
 	}
 	if err := svc.ds.InsertVPPAppWithTeam(ctx, app, teamID); err != nil {
 		return ctxerr.Wrap(ctx, err, "writing VPP app to db")

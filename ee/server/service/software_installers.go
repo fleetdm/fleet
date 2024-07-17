@@ -88,15 +88,60 @@ func (svc *Service) DeleteSoftwareInstaller(ctx context.Context, titleID uint, t
 		return fleet.NewInvalidArgumentError("team_id", "is required and can't be zero")
 	}
 
+	// we authorize with SoftwareInstaller here, but it uses the same AuthzType
+	// as VPPApp, so this is correct for both software installers and VPP apps.
 	if err := svc.authz.Authorize(ctx, &fleet.SoftwareInstaller{TeamID: teamID}, fleet.ActionWrite); err != nil {
 		return err
 	}
 
+	// first, look for a software installer
 	meta, err := svc.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, teamID, titleID, false)
 	if err != nil {
+		if fleet.IsNotFound(err) {
+			// no software installer, look for a VPP app
+			meta, err := svc.ds.GetVPPAppMetadataByTeamAndTitleID(ctx, teamID, titleID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "getting software app metadata")
+			}
+			return svc.deleteVPPApp(ctx, teamID, meta)
+		}
 		return ctxerr.Wrap(ctx, err, "getting software installer metadata")
 	}
+	return svc.deleteSoftwareInstaller(ctx, meta)
+}
 
+func (svc *Service) deleteVPPApp(ctx context.Context, teamID *uint, meta *fleet.VPPAppStoreApp) error {
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return fleet.ErrNoContext
+	}
+
+	if err := svc.ds.DeleteVPPAppFromTeam(ctx, teamID, meta.AppStoreID); err != nil {
+		return ctxerr.Wrap(ctx, err, "deleting VPP app")
+	}
+
+	var teamName *string
+	if teamID != nil {
+		t, err := svc.ds.Team(ctx, *teamID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "getting team name for deleted vpp app")
+		}
+		teamName = &t.Name
+	}
+
+	if err := svc.NewActivity(ctx, vc.User, fleet.ActivityDeletedAppStoreApp{
+		AppStoreID:    meta.AppStoreID,
+		SoftwareTitle: meta.Name,
+		TeamName:      teamName,
+		TeamID:        teamID,
+	}); err != nil {
+		return ctxerr.Wrap(ctx, err, "creating activity for deleted vpp app")
+	}
+
+	return nil
+}
+
+func (svc *Service) deleteSoftwareInstaller(ctx context.Context, meta *fleet.SoftwareInstaller) error {
 	vc, ok := viewer.FromContext(ctx)
 	if !ok {
 		return fleet.ErrNoContext

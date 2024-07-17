@@ -9460,10 +9460,10 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 		}, http.StatusUnauthorized)
 
 		// download the installer
-		s.Do("GET", fmt.Sprintf("/api/latest/fleet/software/%d/package?alt=media", titleID), nil, http.StatusBadRequest)
+		s.Do("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package?alt=media", titleID), nil, http.StatusBadRequest)
 
 		// delete the installer
-		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/%d/package", titleID), nil, http.StatusBadRequest)
+		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleID), nil, http.StatusBadRequest)
 	})
 
 	t.Run("create team software installer", func(t *testing.T) {
@@ -9499,7 +9499,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 		s.uploadSoftwareInstaller(payload, http.StatusConflict, "already exists")
 
 		// download the installer
-		r := s.Do("GET", fmt.Sprintf("/api/latest/fleet/software/%d/package?alt=media", titleID), nil, http.StatusOK, "team_id", fmt.Sprintf("%d", *payload.TeamID))
+		r := s.Do("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package?alt=media", titleID), nil, http.StatusOK, "team_id", fmt.Sprintf("%d", *payload.TeamID))
 		checkDownloadResponse(t, r, payload.Filename)
 
 		// create an orbit host that is not in the team
@@ -9530,13 +9530,13 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 		checkDownloadResponse(t, r, payload.Filename)
 
 		// delete the installer
-		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/%d/package", titleID), nil, http.StatusNoContent, "team_id", fmt.Sprintf("%d", *payload.TeamID))
+		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleID), nil, http.StatusNoContent, "team_id", fmt.Sprintf("%d", *payload.TeamID))
 
 		// check activity
 		s.lastActivityOfTypeMatches(fleet.ActivityTypeDeletedSoftware{}.ActivityName(), fmt.Sprintf(`{"software_title": "ruby", "software_package": "ruby.deb", "team_name": "%s", "team_id": %d, "self_service": true}`, createTeamResp.Team.Name, createTeamResp.Team.ID), 0)
 
 		// download the installer, not found anymore
-		s.Do("GET", fmt.Sprintf("/api/latest/fleet/software/%d/package?alt=media", titleID), nil, http.StatusNotFound, "team_id", fmt.Sprintf("%d", *payload.TeamID))
+		s.Do("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package?alt=media", titleID), nil, http.StatusNotFound, "team_id", fmt.Sprintf("%d", *payload.TeamID))
 	})
 }
 
@@ -10760,17 +10760,19 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	require.False(t, appResp.AppStoreApps[1].Added)
 
 	// Add an app store app to team 1
+	addedApp := appResp.AppStoreApps[0]
 	var addAppResp addAppStoreAppResponse
-	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{TeamID: &team.ID, AppStoreID: appResp.AppStoreApps[0].AdamID}, http.StatusOK, &addAppResp)
-	s.lastActivityMatches(fleet.ActivityAddedAppStoreApp{}.ActivityName(), fmt.Sprintf(`{"team_name": "%s", "software_title": "%s", "app_store_id": "%s", "team_id": %d}`, team.Name, appResp.AppStoreApps[0].Name, appResp.AppStoreApps[0].AdamID, team.ID), 0)
+	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{TeamID: &team.ID, AppStoreID: addedApp.AdamID}, http.StatusOK, &addAppResp)
+	s.lastActivityMatches(fleet.ActivityAddedAppStoreApp{}.ActivityName(), fmt.Sprintf(`{"team_name": "%s", "software_title": "%s", "app_store_id": "%s", "team_id": %d}`, team.Name, addedApp.Name, addedApp.AdamID, team.ID), 0)
 
 	// Add an app store app to non-existent team
-	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{TeamID: ptr.Uint(9999), AppStoreID: appResp.AppStoreApps[0].AdamID}, http.StatusNotFound, &addAppResp)
+	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{TeamID: ptr.Uint(9999), AppStoreID: addedApp.AdamID}, http.StatusNotFound, &addAppResp)
 
 	// Add an installer
 	// Verify that we are not able to add the VPP app for that same app whose installer we just added
 
 	// Now we should be filtering out the app we added to team 1
+	appResp = getAppStoreAppsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/software/app_store_apps", &getAppStoreAppsRequest{}, http.StatusOK, &appResp, "team_id", strconv.Itoa(int(team.ID)))
 	require.NoError(t, appResp.Err)
 	require.Len(t, appResp.AppStoreApps, 1)
@@ -10780,6 +10782,27 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	require.Equal(t, "2", appResp.AppStoreApps[0].AdamID)
 	require.Equal(t, "2.0.0", appResp.AppStoreApps[0].LatestVersion)
 	require.False(t, appResp.AppStoreApps[0].Added)
+
+	// list the software titles for that team, to get the title id of the VPP app
+	var listSw listSoftwareTitlesResponse
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listSw, "team_id", fmt.Sprint(team.ID), "available_for_install", "true")
+	require.Len(t, listSw.SoftwareTitles, 1)
+	titleID := listSw.SoftwareTitles[0].ID
+
+	// delete the app store app for team 1
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleID), nil, http.StatusNoContent, "team_id", fmt.Sprint(team.ID))
+	s.lastActivityMatches(fleet.ActivityDeletedAppStoreApp{}.ActivityName(), fmt.Sprintf(`{"team_name": "%s", "software_title": "%s", "app_store_id": "%s", "team_id": %d}`, team.Name, addedApp.Name, addedApp.AdamID, team.ID), 0)
+
+	// deleting it again fails, not found
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleID), nil, http.StatusNotFound, "team_id", fmt.Sprint(team.ID))
+
+	// get the list of available apps, returns both apps now
+	appResp = getAppStoreAppsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/software/app_store_apps", nil, http.StatusOK, &appResp, "team_id", fmt.Sprint(team.ID))
+	require.NoError(t, appResp.Err)
+	require.Len(t, appResp.AppStoreApps, 2)
+	require.Equal(t, "App 1", appResp.AppStoreApps[0].Name)
+	require.Equal(t, "App 2", appResp.AppStoreApps[1].Name)
 
 	// Delete VPP token and check that it's not appearing anymore
 	s.Do("DELETE", "/api/latest/fleet/mdm/apple/vpp_token", &deleteMDMAppleVPPTokenRequest{}, http.StatusNoContent)
