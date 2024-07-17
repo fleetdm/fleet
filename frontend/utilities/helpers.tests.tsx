@@ -1,6 +1,14 @@
-import { compareVersions } from "./helpers";
+import { removeOSPrefix, compareVersions } from "./helpers";
 
 describe("helpers utilities", () => {
+  describe("removeOSPrefix function", () => {
+    it("properly removes Apple prefix from a host.os_version", () => {
+      expect(removeOSPrefix("macOS 14.1.2")).toEqual("14.1.2");
+      expect(removeOSPrefix("iOS 18.0")).toEqual("18.0");
+      expect(removeOSPrefix("iPadOS 17.5.1")).toEqual("17.5.1");
+    });
+  });
+
   describe("compareVersions function", () => {
     it("properly checks if a version is older than another", () => {
       expect(compareVersions("14.4.1", "14.4.2")).toEqual(-1);

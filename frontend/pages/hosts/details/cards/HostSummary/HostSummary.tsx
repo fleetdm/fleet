@@ -23,6 +23,7 @@ import { HumanTimeDiffWithFleetLaunchCutoff } from "components/HumanTimeDiffWith
 import {
   humanHostMemory,
   wrapFleetHelper,
+  removeOSPrefix,
   compareVersions,
 } from "utilities/helpers";
 import {
@@ -113,7 +114,6 @@ interface IBootstrapPackageData {
 
 interface IHostSummaryProps {
   summaryData: any; // TODO: create interfaces for this and use consistently across host pages and related helpers
-  osUpdatesData?: IAppleDeviceUpdates;
   bootstrapPackageData?: IBootstrapPackageData;
   isPremiumTier?: boolean;
   toggleOSSettingsModal?: () => void;
@@ -126,6 +126,7 @@ interface IHostSummaryProps {
   ) => void;
   renderActionDropdown: () => JSX.Element | null;
   deviceUser?: boolean;
+  osVersionRequirement?: IAppleDeviceUpdates;
   osSettings?: IOSSettings;
   hostMdmDeviceStatus?: HostMdmDeviceStatusUIState;
 }
@@ -172,9 +173,28 @@ const getHostDiskEncryptionTooltipMessage = (
   ];
 };
 
+const getOSVersionRequirementTooltipMessage = (
+  osVersion: string,
+  osVersionRequirement: IAppleDeviceUpdates
+) => {
+  const requirementMetTooltip = "Meets minimum version requirement.";
+  const requirementNotMetTooltip = (
+    <>
+      Does not meet minimum version requirement.
+      <br />
+      Deadline to update: {osVersionRequirement.deadline}
+    </>
+  );
+
+  const result = compareVersions(
+    removeOSPrefix(osVersion),
+    osVersionRequirement.minimum_version
+  );
+  return result < 0 ? requirementNotMetTooltip : requirementMetTooltip;
+};
+
 const HostSummary = ({
   summaryData,
-  osUpdatesData,
   bootstrapPackageData,
   isPremiumTier,
   toggleOSSettingsModal,
@@ -185,6 +205,7 @@ const HostSummary = ({
   onRefetchHost,
   renderActionDropdown,
   deviceUser,
+  osVersionRequirement,
   osSettings,
   hostMdmDeviceStatus,
 }: IHostSummaryProps): JSX.Element => {
@@ -321,45 +342,22 @@ const HostSummary = ({
 
   const renderOperatingSystemSummary = () => {
     // No tooltip if minimum version is not set, including all Windows, Linux, ChromeOS operating systems
-    if (!osUpdatesData?.minimum_version) {
-      return (
-        <DataSet title="Operating system" value={summaryData.os_version} />
-      );
-    }
-
-    const tooltipMessage = (osVersion: string, minimumOsVersion: string) => {
-      const requirementMetTooltip = "Meets minimum version requirement.";
-      const requirementNotMetTooltip = (
-        <>
-          Does not meet minimum version requirement.
-          <br />
-          Deadline to update: {osUpdatesData.deadline}
-        </>
-      );
-
-      const removeOSPrefix = (version: string): string => {
-        return version.replace(/^(macOS |iOS |iPadOS )/i, "");
-      };
-
-      const result = compareVersions(
-        removeOSPrefix(osVersion),
-        minimumOsVersion
-      );
-      return result < 0 ? requirementNotMetTooltip : requirementMetTooltip;
-    };
-
     return (
       <DataSet
         title="Operating system"
         value={
-          <TooltipWrapper
-            tipContent={tooltipMessage(
-              summaryData.os_version,
-              osUpdatesData.minimum_version
-            )}
-          >
-            {summaryData.os_version}
-          </TooltipWrapper>
+          osVersionRequirement?.minimum_version ? (
+            <TooltipWrapper
+              tipContent={getOSVersionRequirementTooltipMessage(
+                summaryData.os_version,
+                osVersionRequirement
+              )}
+            >
+              {summaryData.os_version}
+            </TooltipWrapper>
+          ) : (
+            summaryData.os_version
+          )
         }
       />
     );

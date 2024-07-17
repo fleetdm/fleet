@@ -104,6 +104,11 @@ export const createHostsByPolicyPath = (
   })}`;
 };
 
+/** Removes Apple OS Prefix from host.os_version. */
+export const removeOSPrefix = (version: string): string => {
+  return version.replace(/^(macOS |iOS |iPadOS )/i, "");
+};
+
 /** Returns 1 if first version is newer, -1 if first version is older, and 0 if equal  */
 export const compareVersions = (version1: string, version2: string) => {
   const v1Parts = version1.split(".").map(Number);
@@ -1004,6 +1009,7 @@ export function getCustomDropdownOptions(
 
 export default {
   addGravatarUrlToResource,
+  removeOSPrefix,
   compareVersions,
   createHostsByPolicyPath,
   formatConfigDataForServer,

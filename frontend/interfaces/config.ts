@@ -36,8 +36,8 @@ interface ICustomSetting {
 }
 
 export interface IAppleDeviceUpdates {
-  minimum_version: string | null;
-  deadline: string | null;
+  minimum_version: string;
+  deadline: string;
 }
 
 export interface IMdmConfig {

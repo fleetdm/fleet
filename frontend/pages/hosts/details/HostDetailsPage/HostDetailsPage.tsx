@@ -801,7 +801,6 @@ const HostDetailsPage = ({
         </div>
         <HostSummaryCard
           summaryData={summaryData}
-          osUpdatesData={getOSUpdatesFromMDMConfig(host.platform)}
           bootstrapPackageData={bootstrapPackageData}
           isPremiumTier={isPremiumTier}
           toggleOSSettingsModal={toggleOSSettingsModal}
@@ -812,6 +811,7 @@ const HostDetailsPage = ({
           onRefetchHost={onRefetchHost}
           renderActionDropdown={renderActionDropdown}
           osSettings={host?.mdm.os_settings}
+          osVersionRequirement={getOSUpdatesFromMDMConfig(host.platform)}
           hostMdmDeviceStatus={hostMdmDeviceStatus}
         />
         <TabsWrapper className={`${baseClass}__tabs-wrapper`}>
