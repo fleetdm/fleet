@@ -300,7 +300,27 @@ func testVPPApps(t *testing.T, ds *Datastore) {
 	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "foobar"})
 	require.NoError(t, err)
 
-	// Insert some VPP apps for the team
+	// create a host with some non-VPP software
+	h1, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:       "macos-test-1",
+		OsqueryHostID:  ptr.String("osquery-macos-1"),
+		NodeKey:        ptr.String("node-key-macos-1"),
+		UUID:           uuid.NewString(),
+		Platform:       "darwin",
+		HardwareSerial: "654321a",
+	})
+	require.NoError(t, err)
+	software := []fleet.Software{
+		{Name: "foo", Version: "0.0.1", BundleIdentifier: "b1"},
+		{Name: "foo", Version: "0.0.2", BundleIdentifier: "b1"},
+		{Name: "bar", Version: "0.0.3", BundleIdentifier: "bar"},
+	}
+	_, err = ds.UpdateHostSoftware(ctx, h1.ID, software)
+	require.NoError(t, err)
+	err = ds.ReconcileSoftwareTitles(ctx)
+	require.NoError(t, err)
+
+	// Insert some VPP apps for the team, "vpp_app_1" should match the existing "foo" title
 	app1 := &fleet.VPPApp{Name: "vpp_app_1", AdamID: "1", BundleIdentifier: "b1"}
 	app2 := &fleet.VPPApp{Name: "vpp_app_2", AdamID: "2", BundleIdentifier: "b2"}
 	err = ds.InsertVPPAppWithTeam(ctx, app1, &team.ID)
@@ -332,6 +352,6 @@ func testVPPApps(t *testing.T, ds *Datastore) {
 	require.Len(t, appTitles, 2)
 	require.Equal(t, app1.BundleIdentifier, *appTitles[0].BundleIdentifier)
 	require.Equal(t, app2.BundleIdentifier, *appTitles[1].BundleIdentifier)
-	require.Equal(t, app1.Name, appTitles[0].Name)
+	require.Equal(t, "foo", appTitles[0].Name)
 	require.Equal(t, app2.Name, appTitles[1].Name)
 }
