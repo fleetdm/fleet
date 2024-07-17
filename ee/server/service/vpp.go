@@ -63,10 +63,6 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 		return err
 	}
 
-	if team == nil {
-		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("team_name", "team does not exist"))
-	}
-
 	if err := svc.authz.Authorize(ctx, &fleet.SoftwareInstaller{TeamID: &team.ID}, fleet.ActionWrite); err != nil {
 		return ctxerr.Wrap(ctx, err, "validating authorization")
 	}
