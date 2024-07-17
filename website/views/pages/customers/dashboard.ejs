@@ -168,6 +168,8 @@
             <div class="invalid-feedback" v-if="formErrors.emailAddress" focus-first>Please enter a valid email address.</div>
           </div>
         </div>
+        <cloud-error class="mt-0" v-if="cloudError === 'emailAlreadyInUse'">That email is already linked to another Fleet account.</cloud-error>
+        <cloud-error class="mt-0" v-else-if="cloudError"></cloud-error>
         <div class="border-0 justify-content-center">
           <ajax-button purpose="submit-button" spinner="true" type="submit" :syncing="syncing" class="btn btn-sm btn-block btn-info" focus-first>Save</ajax-button>
         </div>
