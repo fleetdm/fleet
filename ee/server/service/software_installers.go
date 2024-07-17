@@ -113,7 +113,9 @@ func (svc *Service) deleteVPPApp(ctx context.Context, teamID *uint, meta *fleet.
 		return fleet.ErrNoContext
 	}
 
-	// TODO(mna): implement VPP app deletion
+	if err := svc.ds.DeleteVPPAppFromTeam(ctx, teamID, meta.AppStoreID); err != nil {
+		return ctxerr.Wrap(ctx, err, "deleting VPP app")
+	}
 
 	var teamName *string
 	if teamID != nil {

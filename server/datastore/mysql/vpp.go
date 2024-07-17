@@ -141,6 +141,8 @@ func (ds *Datastore) BatchInsertVPPApps(ctx context.Context, apps []*fleet.VPPAp
 
 func (ds *Datastore) InsertVPPAppWithTeam(ctx context.Context, app *fleet.VPPApp, teamID *uint) error {
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		// TODO: we should not just create a software title, I think we should try
+		// to match to an existing one (i.e. getOrCreate logic)?
 		titleID, err := insertSoftwareTitleForVPPApp(ctx, tx, app)
 		if err != nil {
 			return err
