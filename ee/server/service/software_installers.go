@@ -124,7 +124,7 @@ func (svc *Service) deleteVPPApp(ctx context.Context, teamID *uint, meta *fleet.
 	if teamID != nil {
 		t, err := svc.ds.Team(ctx, *teamID)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "getting team name for deleted vpp app")
+			return ctxerr.Wrap(ctx, err, "getting team name for deleted VPP app")
 		}
 		teamName = &t.Name
 	}
@@ -135,7 +135,7 @@ func (svc *Service) deleteVPPApp(ctx context.Context, teamID *uint, meta *fleet.
 		TeamName:      teamName,
 		TeamID:        teamID,
 	}); err != nil {
-		return ctxerr.Wrap(ctx, err, "creating activity for deleted vpp app")
+		return ctxerr.Wrap(ctx, err, "creating activity for deleted VPP app")
 	}
 
 	return nil
@@ -300,7 +300,7 @@ func (svc *Service) InstallSoftwareTitle(ctx context.Context, hostID uint, softw
 			}
 		}
 
-		return ctxerr.Wrap(ctx, err, "finding vpp app for title")
+		return ctxerr.Wrap(ctx, err, "finding VPP app for title")
 	}
 
 	return svc.installSoftwareFromVPP(ctx, host, vppApp)

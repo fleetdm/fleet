@@ -44,6 +44,7 @@ import (
 	servermdm "github.com/fleetdm/fleet/v4/server/mdm"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
+	"github.com/fleetdm/fleet/v4/server/mdm/apple/vpp"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
 	nanodep_client "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
@@ -94,9 +95,16 @@ type integrationMDMTestSuite struct {
 	mdmCommander               *apple_mdm.MDMAppleCommander
 	logger                     kitlog.Logger
 	scepChallenge              string
+	appleVPPConfigSrvConfig    *appleVPPConfigSrvConf
 	appleVPPConfigSrv          *httptest.Server
 	appleITunesSrv             *httptest.Server
 	mockedDownloadFleetdmMeta  fleetdbase.Metadata
+}
+
+// appleVPPConfigSrvConf is used to configure the mock server that mocks Apple's VPP endpoints.
+type appleVPPConfigSrvConf struct {
+	Assets        []vpp.Asset
+	SerialNumbers []string
 }
 
 func (s *integrationMDMTestSuite) SetupSuite() {
@@ -313,14 +321,146 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 		_, _ = w.Write(resp)
 	}))
 
+	if s.appleVPPConfigSrvConfig == nil {
+		s.appleVPPConfigSrvConfig = &appleVPPConfigSrvConf{
+			Assets: []vpp.Asset{
+				{
+					AdamID:         "1",
+					PricingParam:   "STDQ",
+					AvailableCount: 12,
+				},
+				{
+					AdamID:         "2",
+					PricingParam:   "STDQ",
+					AvailableCount: 3,
+				},
+			},
+			SerialNumbers: []string{"123", "456"},
+		}
+	}
+
 	s.appleVPPConfigSrv = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if strings.Contains(r.URL.Path, "assets") {
-			// Then we're responding to GetAssets
-			w.Header().Set("Content-Type", "application/json")
-			_, _ = w.Write([]byte(`{"assets": [{"adamId": "1", "pricingParam": "STDQ", "availableCount": 12}, {"adamId": "2", "pricingParam": "STDQ", "availableCount": 3}]}`))
+		// Handle /associate
+		if strings.Contains(r.URL.Path, "associate") {
+			var associations vpp.AssociateAssetsRequest
+
+			decoder := json.NewDecoder(r.Body)
+			if err := decoder.Decode(&associations); err != nil {
+				http.Error(w, "invalid request", http.StatusBadRequest)
+				return
+			}
+
+			fmt.Printf("Mock VPP Server: Trying to associate %v with %v\n", associations.SerialNumbers, associations.Assets)
+
+			if len(associations.Assets) == 0 {
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusBadRequest)
+				res := vpp.ErrorResponse{
+					ErrorNumber:  9718,
+					ErrorMessage: "This request doesn't contain an asset, which is a required argument. Change the request to provide an asset.",
+				}
+				if err := json.NewEncoder(w).Encode(res); err != nil {
+					panic(err)
+				}
+				return
+			}
+
+			if len(associations.SerialNumbers) == 0 {
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusBadRequest)
+				res := vpp.ErrorResponse{
+					ErrorNumber:  9719,
+					ErrorMessage: "Either clientUserIds or serialNumbers are required arguments. Change the request to provide assignable users and devices.",
+				}
+				if err := json.NewEncoder(w).Encode(res); err != nil {
+					panic(err)
+				}
+				return
+			}
+
+			var badAssets []vpp.Asset
+			for _, reqAsset := range associations.Assets {
+				var found bool
+				for _, goodAsset := range s.appleVPPConfigSrvConfig.Assets {
+					if reqAsset == goodAsset {
+						found = true
+					}
+				}
+				if !found {
+					badAssets = append(badAssets, reqAsset)
+				}
+			}
+
+			var badSerials []string
+			for _, reqSerial := range associations.SerialNumbers {
+				var found bool
+				for _, goodSerial := range s.appleVPPConfigSrvConfig.SerialNumbers {
+					if reqSerial == goodSerial {
+						found = true
+					}
+				}
+				if !found {
+					badSerials = append(badSerials, reqSerial)
+				}
+			}
+
+			if len(badAssets) != 0 || len(badSerials) != 0 {
+				errMsg := "error associating assets."
+				if len(badAssets) > 0 {
+					var badAdamIds []string
+					for _, asset := range badAssets {
+						badAdamIds = append(badAdamIds, asset.AdamID)
+					}
+					errMsg += fmt.Sprintf(" assets don't exist on account: %s.", strings.Join(badAdamIds, ", "))
+				}
+				if len(badSerials) > 0 {
+					errMsg += fmt.Sprintf(" bad serials: %s.", strings.Join(badSerials, ", "))
+				}
+				res := vpp.ErrorResponse{
+					ErrorInfo: vpp.ResponseErrorInfo{
+						Assets:        badAssets,
+						ClientUserIds: []string{"something"},
+						SerialNumbers: badSerials,
+					},
+					// Not sure what error should be returned on each
+					// error type
+					ErrorNumber:  1,
+					ErrorMessage: errMsg,
+				}
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusBadRequest)
+				if err := json.NewEncoder(w).Encode(res); err != nil {
+					panic(err)
+				}
+			}
+
+			// TODO(JVE): clean up this code ^. probably want to convert those arrays to maps so we can cut out
+			// searching logic
+			// TODO(JVE): update this to use a real UUID?
+			_, _ = w.Write([]byte(`{"eventId": "123-345"}`))
 			return
 		}
 
+		// Handle /assets
+		if strings.Contains(r.URL.Path, "assets") {
+			w.Header().Set("Content-Type", "application/json")
+			assets := s.appleVPPConfigSrvConfig.Assets
+			if adamID := r.URL.Query().Get("adamId"); adamID != "" {
+				for _, a := range assets {
+					if a.AdamID == adamID {
+						assets = []vpp.Asset{a}
+					}
+				}
+			}
+			encoder := json.NewEncoder(w)
+			err := encoder.Encode(map[string][]vpp.Asset{"assets": assets})
+			if err != nil {
+				panic(err)
+			}
+			return
+		}
+
+		// Handle /client/config
 		resp := []byte(`{"locationName": "Fleet Location One"}`)
 		if strings.Contains(r.URL.RawQuery, "invalidToken") {
 			// This replicates the response sent back from Apple's VPP endpoints when an invalid
@@ -9252,5 +9392,147 @@ func (s *integrationMDMTestSuite) TestConnectedToFleetWithoutCheckout() {
 	require.False(t, *hostResp.Host.MDM.ConnectedToFleet)
 }
 
-func (s *integrationMDMTestSuite) TestInstallVPPApp() {
+func (s *integrationMDMTestSuite) TestVPPApps() {
+	t := s.T()
+	// Invalid token
+	t.Setenv("FLEET_DEV_VPP_URL", s.appleVPPConfigSrv.URL+"?invalidToken")
+	s.uploadDataViaForm("/api/latest/fleet/mdm/apple/vpp_token", "token", "token.vpptoken", []byte("foobar"), http.StatusUnprocessableEntity, "Invalid token. Please provide a valid content token from Apple Business Manager.")
+
+	// Simulate a server error from the Apple API
+	t.Setenv("FLEET_DEV_VPP_URL", s.appleVPPConfigSrv.URL+"?serverError")
+	s.uploadDataViaForm("/api/latest/fleet/mdm/apple/vpp_token", "token", "token.vpptoken", []byte("foobar"), http.StatusInternalServerError, "Apple VPP endpoint returned error: Internal server error (error number: 9603)")
+
+	// Valid token
+	orgName := "Fleet Device Management Inc."
+	location := "Fleet Location One"
+	token := "mycooltoken"
+	expDate := "2025-06-24T15:50:50+0000"
+	tokenJSON := fmt.Sprintf(`{"expDate":"%s","token":"%s","orgName":"%s"}`, expDate, token, orgName)
+	t.Setenv("FLEET_DEV_VPP_URL", s.appleVPPConfigSrv.URL)
+	s.uploadDataViaForm("/api/latest/fleet/mdm/apple/vpp_token", "token", "token.vpptoken", []byte(base64.StdEncoding.EncodeToString([]byte(tokenJSON))), http.StatusAccepted, "")
+
+	s.lastActivityMatches(fleet.ActivityEnabledVPP{}.ActivityName(), "", 0)
+
+	// Get the token
+	var resp getMDMAppleVPPTokenResponse
+	s.DoJSON("GET", "/api/latest/fleet/vpp", &getMDMAppleVPPTokenRequest{}, http.StatusOK, &resp)
+	require.NoError(t, resp.Err)
+	require.Equal(t, orgName, resp.OrgName)
+	require.Equal(t, location, resp.Location)
+	require.Equal(t, expDate, resp.RenewDate)
+
+	// Simulate renewal flow
+	orgName = "Fleet Device Management Inc. New Org Name"
+	token = "myothercooltoken"
+	expDate = "2026-06-24T15:50:50+0000"
+	tokenJSON = fmt.Sprintf(`{"expDate":"%s","token":"%s","orgName":"%s"}`, expDate, token, orgName)
+	s.uploadDataViaForm("/api/latest/fleet/mdm/apple/vpp_token", "token", "token.vpptoken", []byte(base64.StdEncoding.EncodeToString([]byte(tokenJSON))), http.StatusAccepted, "")
+
+	resp = getMDMAppleVPPTokenResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/vpp", &getMDMAppleVPPTokenRequest{}, http.StatusOK, &resp)
+	require.NoError(t, resp.Err)
+	require.Equal(t, orgName, resp.OrgName)
+	require.Equal(t, location, resp.Location)
+	require.Equal(t, expDate, resp.RenewDate)
+
+	// Create a team
+	var newTeamResp teamResponse
+	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{TeamPayload: fleet.TeamPayload{Name: ptr.String("Team 1")}}, http.StatusOK, &newTeamResp)
+	team := newTeamResp.Team
+
+	// Get list of VPP apps from "Apple"
+	// We're passing team 1 here, but we haven't added any app store apps to that team, so we get
+	// back all available apps in our VPP location.
+	var appResp getAppStoreAppsResponse
+	s.DoJSON("GET", "/api/latest/fleet/software/app_store_apps", &getAppStoreAppsRequest{}, http.StatusOK, &appResp, "team_id", strconv.Itoa(int(team.ID)))
+	require.NoError(t, appResp.Err)
+	require.Len(t, appResp.AppStoreApps, 2)
+	require.Equal(t, "App 1", appResp.AppStoreApps[0].Name)
+	require.Equal(t, "a-1", appResp.AppStoreApps[0].BundleIdentifier)
+	require.Equal(t, "https://example.com/images/1", appResp.AppStoreApps[0].IconURL)
+	require.Equal(t, "1", appResp.AppStoreApps[0].AdamID)
+	require.Equal(t, "1.0.0", appResp.AppStoreApps[0].LatestVersion)
+	require.False(t, appResp.AppStoreApps[0].Added)
+
+	require.Equal(t, "App 2", appResp.AppStoreApps[1].Name)
+	require.Equal(t, "b-2", appResp.AppStoreApps[1].BundleIdentifier)
+	require.Equal(t, "https://example.com/images/2", appResp.AppStoreApps[1].IconURL)
+	require.Equal(t, "2", appResp.AppStoreApps[1].AdamID)
+	require.Equal(t, "2.0.0", appResp.AppStoreApps[1].LatestVersion)
+	require.False(t, appResp.AppStoreApps[1].Added)
+
+	// Add an app store app to team 1
+	addedApp := appResp.AppStoreApps[0]
+	var addAppResp addAppStoreAppResponse
+	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{TeamID: &team.ID, AppStoreID: addedApp.AdamID}, http.StatusOK, &addAppResp)
+	s.lastActivityMatches(fleet.ActivityAddedAppStoreApp{}.ActivityName(), fmt.Sprintf(`{"team_name": "%s", "software_title": "%s", "app_store_id": "%s", "team_id": %d}`, team.Name, addedApp.Name, addedApp.AdamID, team.ID), 0)
+
+	// Add an app store app to non-existent team
+	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{TeamID: ptr.Uint(9999), AppStoreID: addedApp.AdamID}, http.StatusNotFound, &addAppResp)
+
+	// Add an installer
+	// Verify that we are not able to add the VPP app for that same app whose installer we just added
+
+	// Now we should be filtering out the app we added to team 1
+	appResp = getAppStoreAppsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/software/app_store_apps", &getAppStoreAppsRequest{}, http.StatusOK, &appResp, "team_id", strconv.Itoa(int(team.ID)))
+	require.NoError(t, appResp.Err)
+	require.Len(t, appResp.AppStoreApps, 1)
+	require.Equal(t, "App 2", appResp.AppStoreApps[0].Name)
+	require.Equal(t, "b-2", appResp.AppStoreApps[0].BundleIdentifier)
+	require.Equal(t, "https://example.com/images/2", appResp.AppStoreApps[0].IconURL)
+	require.Equal(t, "2", appResp.AppStoreApps[0].AdamID)
+	require.Equal(t, "2.0.0", appResp.AppStoreApps[0].LatestVersion)
+	require.False(t, appResp.AppStoreApps[0].Added)
+
+	// list the software titles for that team, to get the title id of the VPP app
+	var listSw listSoftwareTitlesResponse
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listSw, "team_id", fmt.Sprint(team.ID), "available_for_install", "true")
+	require.Len(t, listSw.SoftwareTitles, 1)
+	titleID := listSw.SoftwareTitles[0].ID
+
+	// delete the app store app for team 1
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleID), nil, http.StatusNoContent, "team_id", fmt.Sprint(team.ID))
+	s.lastActivityMatches(fleet.ActivityDeletedAppStoreApp{}.ActivityName(), fmt.Sprintf(`{"team_name": "%s", "software_title": "%s", "app_store_id": "%s", "team_id": %d}`, team.Name, addedApp.Name, addedApp.AdamID, team.ID), 0)
+
+	// deleting it again fails, not found
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleID), nil, http.StatusNotFound, "team_id", fmt.Sprint(team.ID))
+
+	// get the list of available apps, returns both apps now
+	appResp = getAppStoreAppsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/software/app_store_apps", nil, http.StatusOK, &appResp, "team_id", fmt.Sprint(team.ID))
+	require.NoError(t, appResp.Err)
+	require.Len(t, appResp.AppStoreApps, 2)
+	require.Equal(t, "App 1", appResp.AppStoreApps[0].Name)
+	require.Equal(t, "App 2", appResp.AppStoreApps[1].Name)
+
+	// Installation flow
+
+	// Create a host and add to the team
+	host, _ := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	setOrbitEnrollment(t, host, s.ds)
+	s.Do("POST", "/api/latest/fleet/hosts/transfer", &addHostsToTeamRequest{HostIDs: []uint{host.ID}, TeamID: &team.ID}, http.StatusOK)
+	s.appleVPPConfigSrvConfig.SerialNumbers = append(s.appleVPPConfigSrvConfig.SerialNumbers, host.HardwareSerial)
+
+	// Add the deleted app back to the team
+	addedApp = appResp.AppStoreApps[0]
+	addAppResp = addAppStoreAppResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{TeamID: &team.ID, AppStoreID: addedApp.AdamID}, http.StatusOK, &addAppResp)
+	s.lastActivityMatches(fleet.ActivityAddedAppStoreApp{}.ActivityName(), fmt.Sprintf(`{"team_name": "%s", "software_title": "%s", "app_store_id": "%s", "team_id": %d}`, team.Name, addedApp.Name, addedApp.AdamID, team.ID), 0)
+
+	listSw = listSoftwareTitlesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listSw, "team_id", fmt.Sprint(team.ID), "available_for_install", "true")
+	require.Len(t, listSw.SoftwareTitles, 1)
+	titleID = listSw.SoftwareTitles[0].ID
+
+	// Trigger install to the host
+
+	installResp := installSoftwareResponse{}
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/install/%d", host.ID, titleID), &installSoftwareRequest{}, http.StatusAccepted, &installResp)
+	s.lastActivityMatches(fleet.ActivityAddedAppStoreApp{}.ActivityName(), fmt.Sprintf(`{"team_name": "%s", "software_title": "%s", "app_store_id": "%s", "team_id": %d}`, team.Name, addedApp.Name, addedApp.AdamID, team.ID), 0)
+
+	// Delete VPP token and check that it's not appearing anymore
+	s.Do("DELETE", "/api/latest/fleet/mdm/apple/vpp_token", &deleteMDMAppleVPPTokenRequest{}, http.StatusNoContent)
+	s.DoJSON("GET", "/api/latest/fleet/vpp", &getMDMAppleVPPTokenRequest{}, http.StatusNotFound, &resp)
+	s.lastActivityMatches(fleet.ActivityDisabledVPP{}.ActivityName(), "", 0)
 }
