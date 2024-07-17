@@ -251,7 +251,7 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 			COUNT(*) c
 			FROM nano_view_queue nvq
 			JOIN host_vpp_software_installs hvsi ON nvq.command_uuid = hvsi.command_uuid
-			WHERE hvsi.host_id = :host_id AND nvq.status = ''
+			WHERE hvsi.host_id = :host_id AND nvq.status IS NULL
 		`,
 	}
 
