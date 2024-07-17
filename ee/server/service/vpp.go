@@ -79,23 +79,19 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 	}
 
 	var missingAssets []string
-	var validAssets []vpp.Asset
 
 	assets, err := vpp.GetAssets(token, nil)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "unable to retrieve assets")
 	}
 
+	assetMap := map[string]struct{}{}
+	for _, asset := range assets {
+		assetMap[asset.AdamID] = struct{}{}
+	}
+
 	for _, adamID := range adamIDs {
-		var found bool
-		for _, asset := range assets {
-			if asset.AdamID == adamID {
-				found = true
-				validAssets = append(validAssets, asset)
-				continue
-			}
-		}
-		if !found {
+		if _, ok := assetMap[adamID]; !ok {
 			missingAssets = append(missingAssets, adamID)
 		}
 	}
