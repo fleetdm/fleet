@@ -290,9 +290,9 @@ Fleet uses these levels to standardize a commitment to minimal esotericism acros
 
 ## Google Drive
 
-Fleet uses Google Drive in order to keep files correctly bucketed and as accesable as possible for all team members. Here are some best practices for to keep in mind:
-- Check for existing files defore uploading to avoid duplication.
-- Avoid breaking google drive links when uploading new versions of existing files.  In most cases, you can update files by using the "Manage versions" option (in the right click menu) so links continue to work.
+Fleet uses Google Drive to keep files correctly bucketed and accessible for team members. When adding a file, you can: 
+- Check for existing files to avoid duplication.
+- Avoid breaking Google Drive links. In some cases, you can update files by using the "Manage versions" option (in the right-click menu) so that links continue to work.
 
 
 ## Email relays
