@@ -18,7 +18,7 @@ func TestVPP(t *testing.T) {
 		name string
 		fn   func(t *testing.T, ds *Datastore)
 	}{
-		{"GetTeamAppleSerialNumbers", testGetTeamAppleSerialNumbers},
+		{"SetTeamVPPApps", testSetTeamVPPApps},
 		{"VPPAppMetadata", testVPPAppMetadata},
 		{"VPPAppStatus", testVPPAppStatus},
 		{"VPPApps", testVPPApps},
@@ -30,88 +30,6 @@ func TestVPP(t *testing.T) {
 			c.fn(t, ds)
 		})
 	}
-}
-
-func testGetTeamAppleSerialNumbers(t *testing.T, ds *Datastore) {
-	ctx := context.Background()
-
-	// create a few enrolled hosts
-	h1, err := ds.NewHost(ctx, &fleet.Host{
-		Hostname:       "macos-test-1",
-		OsqueryHostID:  ptr.String("osquery-macos-1"),
-		NodeKey:        ptr.String("node-key-macos-1"),
-		UUID:           uuid.NewString(),
-		Platform:       "darwin",
-		HardwareSerial: "654321a",
-	})
-	require.NoError(t, err)
-
-	h2, err := ds.NewHost(ctx, &fleet.Host{
-		Hostname:       "macos-test-2",
-		OsqueryHostID:  ptr.String("osquery-macos-2"),
-		NodeKey:        ptr.String("node-key-macos-2"),
-		UUID:           uuid.NewString(),
-		Platform:       "darwin",
-		HardwareSerial: "654321b",
-	})
-	require.NoError(t, err)
-
-	h3, err := ds.NewHost(ctx, &fleet.Host{
-		Hostname:       "macos-test-3",
-		OsqueryHostID:  ptr.String("osquery-macos-3"),
-		NodeKey:        ptr.String("node-key-macos-3"),
-		UUID:           uuid.NewString(),
-		Platform:       "darwin",
-		HardwareSerial: "654321c",
-	})
-	require.NoError(t, err)
-
-	// No serial
-	h4, err := ds.NewHost(ctx, &fleet.Host{
-		Hostname:       "macos-test-4",
-		OsqueryHostID:  ptr.String("osquery-macos-4"),
-		NodeKey:        ptr.String("node-key-macos-4"),
-		UUID:           uuid.NewString(),
-		Platform:       "darwin",
-		HardwareSerial: "",
-	})
-	require.NoError(t, err)
-
-	h5, err := ds.NewHost(ctx, &fleet.Host{
-		Hostname:       "windows-test",
-		OsqueryHostID:  ptr.String("osquery-windows"),
-		NodeKey:        ptr.String("node-key-windows"),
-		UUID:           uuid.NewString(),
-		Platform:       "windows",
-		HardwareSerial: "654321d",
-	})
-	require.NoError(t, err)
-
-	h6, err := ds.NewHost(ctx, &fleet.Host{
-		Hostname:       "ubuntu-test",
-		OsqueryHostID:  ptr.String("osquery-ubuntu"),
-		NodeKey:        ptr.String("node-key-ubuntu"),
-		UUID:           uuid.NewString(),
-		Platform:       "ubuntu",
-		HardwareSerial: "654321e",
-	})
-	require.NoError(t, err)
-
-	team, err := ds.NewTeam(ctx, &fleet.Team{
-		Name: "vpp gang",
-	})
-	require.NoError(t, err)
-
-	err = ds.AddHostsToTeam(ctx, &team.ID, []uint{h1.ID, h2.ID, h3.ID, h4.ID, h5.ID, h6.ID})
-	require.NoError(t, err)
-
-	serials, err := ds.GetTeamAppleSerialNumbers(ctx, team.ID)
-	require.NoError(t, err)
-
-	require.Len(t, serials, 3)
-	require.Contains(t, serials, h1.HardwareSerial)
-	require.Contains(t, serials, h2.HardwareSerial)
-	require.Contains(t, serials, h3.HardwareSerial)
 }
 
 func testVPPAppMetadata(t *testing.T, ds *Datastore) {
@@ -387,4 +305,70 @@ func testVPPApps(t *testing.T, ds *Datastore) {
 	require.Equal(t, app2.BundleIdentifier, *appTitles[1].BundleIdentifier)
 	require.Equal(t, app1.Name, appTitles[0].Name)
 	require.Equal(t, app2.Name, appTitles[1].Name)
+}
+
+func testSetTeamVPPApps(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	// Create a team
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "vpp gang"})
+	require.NoError(t, err)
+
+	// Insert some VPP apps for the team
+	app1 := &fleet.VPPApp{Name: "vpp_app_1", AdamID: "1", BundleIdentifier: "b1"}
+	err = ds.InsertVPPAppWithTeam(ctx, app1, nil)
+	require.NoError(t, err)
+	app2 := &fleet.VPPApp{Name: "vpp_app_2", AdamID: "2", BundleIdentifier: "b2"}
+	err = ds.InsertVPPAppWithTeam(ctx, app2, nil)
+	require.NoError(t, err)
+	app3 := &fleet.VPPApp{Name: "vpp_app_3", AdamID: "3", BundleIdentifier: "b3"}
+	err = ds.InsertVPPAppWithTeam(ctx, app3, nil)
+	require.NoError(t, err)
+	app4 := &fleet.VPPApp{Name: "vpp_app_4", AdamID: "4", BundleIdentifier: "b4"}
+	err = ds.InsertVPPAppWithTeam(ctx, app4, nil)
+	require.NoError(t, err)
+
+	assigned, err := ds.GetAssignedVPPApps(ctx, &team.ID)
+	require.NoError(t, err)
+	require.Len(t, assigned, 0)
+
+	// Assign 2 apps
+	err = ds.SetTeamVPPApps(ctx, &team.ID, []string{app1.AdamID, app2.AdamID})
+	require.NoError(t, err)
+
+	assigned, err = ds.GetAssignedVPPApps(ctx, &team.ID)
+	require.NoError(t, err)
+	require.Len(t, assigned, 2)
+	require.Contains(t, assigned, app1.AdamID)
+	require.Contains(t, assigned, app2.AdamID)
+
+	// Assign an additional app
+	err = ds.SetTeamVPPApps(ctx, &team.ID, []string{app1.AdamID, app2.AdamID, app3.AdamID})
+	require.NoError(t, err)
+
+	assigned, err = ds.GetAssignedVPPApps(ctx, &team.ID)
+	require.NoError(t, err)
+	require.Len(t, assigned, 3)
+	require.Contains(t, assigned, app1.AdamID)
+	require.Contains(t, assigned, app2.AdamID)
+	require.Contains(t, assigned, app3.AdamID)
+
+	// Swap one app out for another
+	err = ds.SetTeamVPPApps(ctx, &team.ID, []string{app1.AdamID, app2.AdamID, app4.AdamID})
+	require.NoError(t, err)
+
+	assigned, err = ds.GetAssignedVPPApps(ctx, &team.ID)
+	require.NoError(t, err)
+	require.Len(t, assigned, 3)
+	require.Contains(t, assigned, app1.AdamID)
+	require.Contains(t, assigned, app2.AdamID)
+	require.Contains(t, assigned, app4.AdamID)
+
+	// Remove all apps
+	err = ds.SetTeamVPPApps(ctx, &team.ID, []string{})
+	require.NoError(t, err)
+
+	assigned, err = ds.GetAssignedVPPApps(ctx, &team.ID)
+	require.NoError(t, err)
+	require.Len(t, assigned, 0)
 }
