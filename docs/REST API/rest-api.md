@@ -4301,13 +4301,12 @@ OS vulnerability data is currently available for Windows and macOS. For other pl
     {
       "id": 121,
       "name": "Google Chrome.app",
-      "available_for_install": true,
       "software_package": {
         "name": "GoogleChrome.pkg",
-        "version": "125.12.0.3"
+        "version": "125.12.0.3",
+        "self_service": true
       },
       "app_store_app": null
-      "self_service": true,
       "source": "apps",
       "status": "failed",
       "last_install": {
@@ -4326,12 +4325,11 @@ OS vulnerability data is currently available for Windows and macOS. For other pl
     {
       "id": 134,
       "name": "Falcon.app",
-      "available_for_install": true,
       "software_package": {
         "name": "FalconSensor-6.44.pkg"
+        "self_service": false,
       },
-      "app_store_app": null
-      "self_service": false,
+      "app_store_app": null    
       "source": "",
       "status": null,
       "last_install": null,
@@ -4340,12 +4338,10 @@ OS vulnerability data is currently available for Windows and macOS. For other pl
     {
       "id": 147,
       "name": "Logic Pro",
-      "available_for_install": true,
       "software_package": null
       "app_store_app": {
         "app_store_id": "1091189122"
       },
-      "self_service": false,
       "source": "apps",
       "status": null,
       "last_install": null,
@@ -8783,9 +8779,13 @@ Get a list of all software.
     {
       "id": 12,
       "name": "Firefox.app",
-      "available_for_install": true,
-      "icon_url": null,
-      "self_service": true,
+      "software_package": {
+        "name": "FirefoxInsall.pkg",
+        "version": "125.6",
+        "icon_url": null,
+        "self_service": true
+      },
+      "app_store_app": null,
       "versions_count": 3,
       "source": "apps",
       "browser": "",
@@ -8811,9 +8811,8 @@ Get a list of all software.
     {
       "id": 22,
       "name": "Google Chrome.app",
-      "available_for_install": false,
-      "icon_url": null,
-      "self_service": false,
+      "software_package": null,
+      "app_store_app": null,
       "versions_count": 5,
       "source": "apps",
       "browser": "",
@@ -8844,9 +8843,8 @@ Get a list of all software.
     {
       "id": 32,
       "name": "1Password – Password Manager",
-      "available_for_install": false,
-      "icon_url": null,
-      "self_service": false,
+      "software_package": null,
+      "app_store_app": null,
       "versions_count": 1,
       "source": "chrome_extensions",
       "browser": "chrome",
