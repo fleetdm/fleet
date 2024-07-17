@@ -113,7 +113,7 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 		return fleet.NewUserMessageError(reqErr, http.StatusUnprocessableEntity)
 	}
 
-	// we cheked if the team is null earlier
+	// we checked if the team is null earlier
 	serials, err := svc.ds.GetTeamAppleSerialNumbers(ctx, team.ID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "cannot get team serials for association")
