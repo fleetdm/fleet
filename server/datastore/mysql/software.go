@@ -2054,6 +2054,7 @@ AND EXISTS (SELECT 1 FROM software s JOIN software_cve scve ON scve.software_id 
 			NULL as vpp_app_self_service,
 			vap.adam_id as vpp_app_adam_id,
 			vap.latest_version as vpp_app_version,
+			NULLIF(vap.icon_url, '') as vpp_app_icon_url,
 			COALESCE(hsi.created_at, hvsi.created_at) as last_install_installed_at,
 			COALESCE(hsi.execution_id, hvsi.command_uuid) as last_install_install_uuid,
 			-- get either the softare installer status or the vpp app status
@@ -2116,6 +2117,7 @@ AND EXISTS (SELECT 1 FROM software s JOIN software_cve scve ON scve.software_id 
 			NULL as vpp_app_self_service,
 			vap.adam_id as vpp_app_adam_id,
 			vap.latest_version as vpp_app_version,
+			NULLIF(vap.icon_url, '') as vpp_app_icon_url,
 			NULL as last_install_installed_at,
 			NULL as last_install_install_uuid,
 			NULL as status
@@ -2176,6 +2178,7 @@ AND EXISTS (SELECT 1 FROM software s JOIN software_cve scve ON scve.software_id 
 		vpp_app_self_service,
 		vpp_app_adam_id,
 		vpp_app_version,
+		vpp_app_icon_url,
 		last_install_installed_at,
 		last_install_install_uuid,
 		status
@@ -2246,6 +2249,7 @@ AND EXISTS (SELECT 1 FROM software s JOIN software_cve scve ON scve.software_id 
 		VPPAppSelfService      *bool      `db:"vpp_app_self_service"`
 		VPPAppAdamID           *string    `db:"vpp_app_adam_id"`
 		VPPAppVersion          *string    `db:"vpp_app_version"`
+		VPPAppIconURL          *string    `db:"vpp_app_icon_url"`
 	}
 	var hostSoftwareList []*hostSoftware
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &hostSoftwareList, stmt, args...); err != nil {
@@ -2273,7 +2277,7 @@ AND EXISTS (SELECT 1 FROM software s JOIN software_cve scve ON scve.software_id 
 			if hs.PackageVersion != nil {
 				version = *hs.PackageVersion
 			}
-			hs.SoftwarePackage = &fleet.HostSoftwarePackageOrApp{
+			hs.SoftwarePackage = &fleet.SoftwarePackageOrApp{
 				Name:        *hs.PackageName,
 				Version:     version,
 				SelfService: hs.PackageSelfService,
@@ -2286,10 +2290,11 @@ AND EXISTS (SELECT 1 FROM software s JOIN software_cve scve ON scve.software_id 
 			if hs.VPPAppVersion != nil {
 				version = *hs.VPPAppVersion
 			}
-			hs.AppStoreApp = &fleet.HostSoftwarePackageOrApp{
+			hs.AppStoreApp = &fleet.SoftwarePackageOrApp{
 				AppStoreID:  *hs.VPPAppAdamID,
 				Version:     version,
 				SelfService: hs.VPPAppSelfService,
+				IconURL:     hs.VPPAppIconURL,
 			}
 		}
 
