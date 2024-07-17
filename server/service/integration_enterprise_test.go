@@ -9843,7 +9843,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
 
 func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 	t := s.T()
-	batchURL := "/api/latest/fleet/software/vpp/app_store/batch"
+	batchURL := "/api/latest/fleet/software/app_store_apps/batch"
 
 	// a team name is required (we don't allow installers for "no team")
 	s.Do("POST", batchURL, batchAssociateAppStoreAppsRequest{}, http.StatusBadRequest)
