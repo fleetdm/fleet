@@ -40,9 +40,8 @@ func (v *VPPApp) AuthzType() string {
 	return "installable_entity"
 }
 
-// TODO(mna): It might be possible to merge this with the VPPApp struct above,
-// but since it will evolve via the other PRs implemented in parallel, I'll
-// create a distinct struct and we'll see at integration time.
+// VPPAppStoreApp contains the field required by the get software title
+// endpoint to represent an App Store app (VPP app).
 type VPPAppStoreApp struct {
 	AppStoreID    string               `db:"adam_id" json:"app_store_id"`
 	Name          string               `db:"name" json:"name"`

@@ -2047,12 +2047,11 @@ AND EXISTS (SELECT 1 FROM software s JOIN software_cve scve ON scve.software_id 
 			st.id,
 			st.name,
 			st.source,
-			-- will be NULL for VPP apps for now, self-service not supported yet
-			si.self_service as self_service,
-			-- this count will be 1 if an installer or VPP app is available, 0 otherwise
-			IF(COALESCE(si.id, vap.adam_id) IS NOT NULL, 1, 0) as available_for_install,
+			si.self_service as package_self_service,
 			si.filename as package_name,
 			si.version as package_version,
+			-- in a future iteration, will be supported for VPP apps
+			NULL as vpp_app_self_service,
 			vap.adam_id as vpp_app_adam_id,
 			vap.latest_version as vpp_app_version,
 			COALESCE(hsi.created_at, hvsi.created_at) as last_install_installed_at,
@@ -2110,11 +2109,11 @@ AND EXISTS (SELECT 1 FROM software s JOIN software_cve scve ON scve.software_id 
 			st.id,
 			st.name,
 			st.source,
-			-- will be NULL for VPP apps for now, self-service not supported yet
-			si.self_service as self_service,
-			1 as available_for_install,
+			si.self_service as package_self_service,
 			si.filename as package_name,
 			si.version as package_version,
+			-- in a future iteration, will be supported for VPP apps
+			NULL as vpp_app_self_service,
 			vap.adam_id as vpp_app_adam_id,
 			vap.latest_version as vpp_app_version,
 			NULL as last_install_installed_at,
@@ -2171,10 +2170,10 @@ AND EXISTS (SELECT 1 FROM software s JOIN software_cve scve ON scve.software_id 
 		id,
 		name,
 		source,
-		self_service,
-		available_for_install,
+		package_self_service,
 		package_name,
 		package_version,
+		vpp_app_self_service,
 		vpp_app_adam_id,
 		vpp_app_version,
 		last_install_installed_at,
@@ -2241,8 +2240,10 @@ AND EXISTS (SELECT 1 FROM software s JOIN software_cve scve ON scve.software_id 
 		fleet.HostSoftwareWithInstaller
 		LastInstallInstalledAt *time.Time `db:"last_install_installed_at"`
 		LastInstallInstallUUID *string    `db:"last_install_install_uuid"`
+		PackageSelfService     *bool      `db:"package_self_service"`
 		PackageName            *string    `db:"package_name"`
 		PackageVersion         *string    `db:"package_version"`
+		VPPAppSelfService      *bool      `db:"vpp_app_self_service"`
 		VPPAppAdamID           *string    `db:"vpp_app_adam_id"`
 		VPPAppVersion          *string    `db:"vpp_app_version"`
 	}
@@ -2273,8 +2274,9 @@ AND EXISTS (SELECT 1 FROM software s JOIN software_cve scve ON scve.software_id 
 				version = *hs.PackageVersion
 			}
 			hs.SoftwarePackage = &fleet.HostSoftwarePackageOrApp{
-				Name:    *hs.PackageName,
-				Version: version,
+				Name:        *hs.PackageName,
+				Version:     version,
+				SelfService: hs.PackageSelfService,
 			}
 		}
 
@@ -2285,8 +2287,9 @@ AND EXISTS (SELECT 1 FROM software s JOIN software_cve scve ON scve.software_id 
 				version = *hs.VPPAppVersion
 			}
 			hs.AppStoreApp = &fleet.HostSoftwarePackageOrApp{
-				AppStoreID: *hs.VPPAppAdamID,
-				Version:    version,
+				AppStoreID:  *hs.VPPAppAdamID,
+				Version:     version,
+				SelfService: hs.VPPAppSelfService,
 			}
 		}
 

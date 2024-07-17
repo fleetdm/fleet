@@ -9147,12 +9147,8 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 	require.Equal(t, getHostSw.Software[1].Name, "foo")
 	require.Len(t, getHostSw.Software[1].InstalledVersions, 2)
 	// no package information as there is no installer
-	require.Nil(t, getHostSw.Software[0].SelfService)
-	require.False(t, getHostSw.Software[0].AvailableForInstall)
 	require.Nil(t, getHostSw.Software[0].SoftwarePackage)
 	require.Nil(t, getHostSw.Software[0].AppStoreApp)
-	require.Nil(t, getHostSw.Software[1].SelfService)
-	require.False(t, getHostSw.Software[1].AvailableForInstall)
 	require.Nil(t, getHostSw.Software[1].SoftwarePackage)
 	require.Nil(t, getHostSw.Software[1].AppStoreApp)
 
@@ -9167,8 +9163,6 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 	require.Len(t, getHostSw.Software, 1)
 	require.NoError(t, err)
 	require.Equal(t, "bar", getHostSw.Software[0].Name)
-	require.Nil(t, getHostSw.Software[0].SelfService)
-	require.False(t, getHostSw.Software[0].AvailableForInstall)
 	require.Nil(t, getHostSw.Software[0].SoftwarePackage)
 	require.Nil(t, getHostSw.Software[0].AppStoreApp)
 	require.Len(t, getHostSw.Software[0].InstalledVersions, 1)
@@ -9184,12 +9178,8 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 	require.Equal(t, getDeviceSw.Software[1].Name, "foo")
 	require.Len(t, getDeviceSw.Software[1].InstalledVersions, 2)
 	// no package information as there is no installer
-	require.Nil(t, getDeviceSw.Software[0].SelfService)
-	require.False(t, getDeviceSw.Software[0].AvailableForInstall)
 	require.Nil(t, getDeviceSw.Software[0].SoftwarePackage)
 	require.Nil(t, getDeviceSw.Software[0].AppStoreApp)
-	require.Nil(t, getDeviceSw.Software[1].SelfService)
-	require.False(t, getDeviceSw.Software[1].AvailableForInstall)
 	require.Nil(t, getDeviceSw.Software[1].SoftwarePackage)
 	require.Nil(t, getDeviceSw.Software[1].AppStoreApp)
 
@@ -9213,18 +9203,15 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host.ID), nil, http.StatusOK, &getHostSw)
 	require.Len(t, getHostSw.Software, 3) // foo, bar and ruby.deb
 	require.Equal(t, getHostSw.Software[0].Name, "bar")
-	require.False(t, getHostSw.Software[0].AvailableForInstall)
 	require.Equal(t, getHostSw.Software[1].Name, "foo")
-	require.False(t, getHostSw.Software[1].AvailableForInstall)
 	require.Equal(t, getHostSw.Software[2].Name, "ruby")
 	require.Len(t, getHostSw.Software[1].InstalledVersions, 2)
-	require.True(t, getHostSw.Software[2].AvailableForInstall)
 	require.Nil(t, getHostSw.Software[2].AppStoreApp)
 	require.NotNil(t, getHostSw.Software[2].SoftwarePackage)
 	require.Equal(t, "ruby.deb", getHostSw.Software[2].SoftwarePackage.Name)
 	require.Equal(t, payload.Version, getHostSw.Software[2].SoftwarePackage.Version)
-	require.NotNil(t, getHostSw.Software[2].SelfService)
-	require.True(t, *getHostSw.Software[2].SelfService)
+	require.NotNil(t, getHostSw.Software[2].SoftwarePackage.SelfService)
+	require.True(t, *getHostSw.Software[2].SoftwarePackage.SelfService)
 	require.Nil(t, getHostSw.Software[2].Status)
 
 	// only the installer is returned for self-service only
@@ -9242,8 +9229,6 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 	require.Equal(t, getDeviceSw.Software[0].Name, "bar")
 	require.Equal(t, getDeviceSw.Software[1].Name, "foo")
 	require.Len(t, getDeviceSw.Software[1].InstalledVersions, 2)
-	require.False(t, getDeviceSw.Software[0].AvailableForInstall)
-	require.False(t, getDeviceSw.Software[1].AvailableForInstall)
 
 	// but it gets returned for self-service only
 	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/software?self_service=1", nil, http.StatusOK)
@@ -9252,11 +9237,10 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 	require.NoError(t, err)
 	require.Len(t, getDeviceSw.Software, 1)
 	require.Equal(t, getDeviceSw.Software[0].Name, "ruby")
-	require.True(t, getDeviceSw.Software[0].AvailableForInstall)
 	require.Nil(t, getDeviceSw.Software[0].AppStoreApp)
 	require.NotNil(t, getDeviceSw.Software[0].SoftwarePackage)
-	require.NotNil(t, getDeviceSw.Software[0].SelfService)
-	require.True(t, *getDeviceSw.Software[0].SelfService)
+	require.NotNil(t, getDeviceSw.Software[0].SoftwarePackage.SelfService)
+	require.True(t, *getDeviceSw.Software[0].SoftwarePackage.SelfService)
 	require.Equal(t, payload.Filename, getDeviceSw.Software[0].SoftwarePackage.Name)
 	require.Equal(t, payload.Version, getDeviceSw.Software[0].SoftwarePackage.Version)
 
@@ -9273,13 +9257,12 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 	require.Equal(t, getHostSw.Software[1].Name, "foo")
 	require.Equal(t, getHostSw.Software[2].Name, "ruby")
 	require.Len(t, getHostSw.Software[1].InstalledVersions, 2)
-	require.True(t, getHostSw.Software[2].AvailableForInstall)
 	require.NotNil(t, getHostSw.Software[2].SoftwarePackage)
 	require.Equal(t, "ruby.deb", getHostSw.Software[2].SoftwarePackage.Name)
 	require.NotNil(t, getHostSw.Software[2].Status)
 	require.Equal(t, fleet.SoftwareInstallerPending, *getHostSw.Software[2].Status)
-	require.NotNil(t, getHostSw.Software[2].SelfService)
-	require.True(t, *getHostSw.Software[2].SelfService)
+	require.NotNil(t, getHostSw.Software[2].SoftwarePackage.SelfService)
+	require.True(t, *getHostSw.Software[2].SoftwarePackage.SelfService)
 
 	// still returned with self-service filter
 	getHostSw = getHostSoftwareResponse{}
@@ -9297,13 +9280,12 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 	require.Equal(t, getDeviceSw.Software[1].Name, "foo")
 	require.Equal(t, getDeviceSw.Software[2].Name, "ruby")
 	require.Len(t, getDeviceSw.Software[1].InstalledVersions, 2)
-	require.True(t, getDeviceSw.Software[2].AvailableForInstall)
 	require.NotNil(t, getDeviceSw.Software[2].Status)
 	require.Equal(t, fleet.SoftwareInstallerPending, *getDeviceSw.Software[2].Status)
-	require.NotNil(t, getDeviceSw.Software[2].SelfService)
-	require.True(t, *getDeviceSw.Software[2].SelfService)
 	require.NotNil(t, getDeviceSw.Software[2].SoftwarePackage)
 	require.Nil(t, getDeviceSw.Software[2].AppStoreApp)
+	require.NotNil(t, getDeviceSw.Software[2].SoftwarePackage.SelfService)
+	require.True(t, *getDeviceSw.Software[2].SoftwarePackage.SelfService)
 
 	// still returned for self-service only too
 	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/software?self_service=1", nil, http.StatusOK)
@@ -9312,11 +9294,10 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 	require.NoError(t, err)
 	require.Len(t, getDeviceSw.Software, 1)
 	require.Equal(t, getDeviceSw.Software[0].Name, "ruby")
-	require.NotNil(t, getDeviceSw.Software[0].SelfService)
-	require.True(t, *getDeviceSw.Software[0].SelfService)
 	require.NotNil(t, getDeviceSw.Software[0].SoftwarePackage)
+	require.NotNil(t, getDeviceSw.Software[0].SoftwarePackage.SelfService)
+	require.True(t, *getDeviceSw.Software[0].SoftwarePackage.SelfService)
 	require.Nil(t, getDeviceSw.Software[0].AppStoreApp)
-	require.True(t, getDeviceSw.Software[0].AvailableForInstall)
 
 	// test with a query
 	getHostSw = getHostSoftwareResponse{}
