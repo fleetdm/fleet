@@ -613,7 +613,7 @@
   tier: Premium
   jamfProHasFeature: yes
   jamfProtectHasFeature: yes
-- industryName: Interactive MDM migration #   « end-user initiated MDM migration, with interactive UI
+- industryName: MDM migration #   « end-user initiated MDM migration, with interactive UI
   tier: Premium
   jamfProHasFeature: yes
   jamfProtectHasFeature: no
@@ -621,7 +621,8 @@
   usualDepartment: IT
   productCategories: [Device management]
   pricingTableCategories: [Device management]
-- industryName: Remotely enforce OS settings
+- industryName: Enforce OS settings
+  description: MDM support for macOS, iOS/iPadOS, Windows, and Android (coming soon) devices. Management support for Linux.
   documentationUrl: https://fleetdm.com/docs/using-fleet/mdm-custom-os-settings
   usualDepartment: IT
   tier: Free
@@ -636,10 +637,13 @@
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/17315
     - description: Automatically re-deploy configuration profiles when they're not installed.
     - description: Deploy configuration profiles on iOS/iPadOS. Coming soon (2024-07-15).
+    - description: See a list of the upcoming MDM commands and scripts in unified queue. Coming soon (2024-07-15)
+      moreInfoUrl: https://github.com/fleetdm/fleet/issues/15920
+    - description: MDM commands for iOS/iPadOS are coming soon (2024-07-15).
   productCategories: [Device management]
   pricingTableCategories: [Device management]
-- industryName: Self-remediation
-  description: Provide resolution instructions for end users through Fleet Desktop that suggest how an end user can fix a posture issue themselves.
+- industryName: Device remediation
+  description: Use Fleet Policies to detect the device state. Automate remediations for issues or allow users to remediate problems in self-service.
   documentationUrl: https://fleetdm.com/docs/using-fleet/fleet-desktop
   tier: Premium
   jamfProHasFeature: yes
@@ -660,28 +664,8 @@
   waysToUse:
     - description: Support ACME as a protocol for MDM certificate generation. Coming soon (2024-12-31) #customer-rosner
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/15611 
-- industryName: Low-level MDM commands for macOS, iOS/iPadOS*, and Windows (e.g. remote restart)
-  documentationUrl: https://fleetdm.com/docs/using-fleet/mdm-commands
-  tier: Free
-  jamfProHasFeature: appleOnly
-  jamfProtectHasFeature: no
-  usualDepartment: IT
-  productCategories: [Device management]
-  pricingTableCategories: [Device management]
-  waysToUse:
-    - description: See a list of the upcoming MDM commands and scripts in unified queue. Coming soon (2024-07-15)
-      moreInfoUrl: https://github.com/fleetdm/fleet/issues/15920
-    - description: MDM commands for iOS/iPadOS are coming soon (2024-07-15).
-- industryName: Native macOS update reminders
-  description: Send low-level MDM commands to tell end users to update their OS.
-  moreInfoUrl: https://developer.apple.com/documentation/devicemanagement/schedule_an_os_update
-  tier: Free
-  jamfProHasFeature: yes
-  jamfProtectHasFeature: no
-  usualDepartment: IT
-  productCategories: [Device management]
-  pricingTableCategories: [Device management]
-- industryName: Zero-touch setup for macOS, iOS/iPadOS*, and Windows
+- industryName: Zero-touch setup
+  description: Zero-touch setup for macOS, iOS/iPadOS (coming soon), and Windows.
   documentationUrl: https://fleetdm.com/docs/using-fleet/mdm-macos-setup-experience
   tier: Premium
   jamfProHasFeature: appleOnly
@@ -697,7 +681,8 @@
     - description: Install a bootstrap package to run custom scripts during the setup experience. Store the bootstrap package outside the Fleet database coming soon (2024-09-15) #customer-faltona
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/19037
     - description: Require end users to authenticate with your identity provider (IdP) and agree to an end user license agreement (EULA) before they can use their new workstation
-- industryName: Enforce OS updates
+- industryName: Enforce operating system (OS) updates
+  description: Keep operating systems up to date for macOS, iOS/iPadOS, Windows, and Android (coming soon) devices.
   documentationUrl: https://fleetdm.com/docs/using-fleet/mdm-macos-updates
   tier: Premium
   jamfProHasFeature: yes
@@ -710,7 +695,16 @@
     - description: Progressively enhance from Nudge to DDM-based OS updates.
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/17295
     - description: Automatically update Windows after the end user reaches a deadline.
-- industryName: Cross-platform remote lock and wipe
+- industryName: Native macOS update reminders
+  description: Send MDM commands to tell end users to update their OS.
+  moreInfoUrl: https://developer.apple.com/documentation/devicemanagement/schedule_an_os_update
+  tier: Free
+  jamfProHasFeature: yes
+  jamfProtectHasFeature: no
+  usualDepartment: IT
+  productCategories: [Device management]
+  pricingTableCategories: [Device management]    
+- industryName: Send lock and wipe commands
   documentationUrl: https://fleetdm.com/docs/using-fleet/mdm-commands
   waysToUse:
     - description: High-level remote lock for macOS, Windows, and Linux.
@@ -723,18 +717,8 @@
   usualDepartment: IT
   productCategories: [Device management]
   pricingTableCategories: [Device management]
-- industryName: Deploy security agents on macOS, Windows, and Linux computers.
-  documentationUrl: https://github.com/fleetdm/fleet/issues/14921
-  description: Easily configure and install SentinelOne, Crowdstrike, and other security tools.
-  moreInfoUrl: https://github.com/fleetdm/fleet/issues/14921
-  tier: Premium
-  jamfProHasFeature: appleOnly
-  jamfProtectHasFeature: no
-  usualDepartment: IT
-  productCategories: [Device management]
-  pricingTableCategories: [Device management]
-- industryName: Update apps on macOS, Windows, and Linux computers.
-  description: Update Zoom, Slack, Chrome, and other apps without interrupting your end users.
+- industryName: Application management
+  description: Manage updates and patches for apps on macOS, Windows, and Linux computers.
   tier: Premium
   jamfProHasFeature: appleOnly
   jamfProtectHasFeature: no
@@ -743,8 +727,8 @@
   productCategories: [Device management]
   pricingTableCategories: [Device management]
   moreInfoUrl: https://github.com/fleetdm/fleet/issues/18865
-- industryName: Self-service portal for users to install apps
-  description: Add optional apps for your end users through Fleet Desktop (for macOS, Windows, and Linux).
+- industryName: Self service application installation
+  description: Allow end users to install apps through Fleet Desktop for macOS, Linux, and Windows.
   tier: Premium
   jamfProHasFeature: yes
   jamfProtectHasFeature: no
@@ -767,15 +751,6 @@
   productCategories: [Device management]
   pricingTableCategories: [Device management]
   moreInfoUrl: https://github.com/fleetdm/fleet/issues/18867
-- industryName: Puppet module
-  documentationUrl: https://fleetdm.com/docs/using-fleet/puppet-module
-  friendlyName: Map macOS settings to computers with Puppet module
-  tier: Premium
-  jamfProHasFeature: no
-  jamfProtectHasFeature: no
-  usualDepartment: IT
-  productCategories: [Device management]
-  pricingTableCategories: [Device management]
 - industryName: Software inventory
   documentationUrl: https://fleetdm.com/docs/get-started/anatomy#software-library
   tier: Free
@@ -830,9 +805,9 @@
   tier: Free
   jamfProHasFeature: no
   jamfProtectHasFeature: no
-- industryName: Custom device data for help desk
+- industryName: Device inventory
+  description: The device inventory allows help desk technicians to view custom device data and to organize devices with Teams and Labels.
   documentationUrl: https://fleetdm.com/securing/end-user-self-remediation#set-your-enforcement-standards
-  description:
   moreInfoUrl: https://github.com/fleetdm/fleet/issues/14415
   tier: Free
   jamfProHasFeature: yes
@@ -894,7 +869,7 @@
   waysToUse:
     - description: Enforce two-factor authentication when logging in to Fleet for added security.
   comingSoonOn: 2024-12-31 #customer-rosner
-- industryName: Disk encryption
+- industryName: Enforce disk encryption
   documentationURL: https://fleetdm.com/docs/using-fleet/mdm-disk-encryption
   friendlyName: Ensure hard disks are encrypted
   productCategories: [Device management]
@@ -941,7 +916,8 @@
   usualDepartment: IT
   tier: Premium
   comingSoonOn: 2024-12-31 #customer-rosner
-- industryName: Automated user role sync via Okta, AD, or any IDP
+- industryName: User account sync
+  description: Sync user accounts via Okta, AD, or any IDP. 
   documentationUrl:
   productCategories: [Endpoint operations,Device management,Vulnerability management]
   pricingTableCategories: [Device management]
@@ -955,7 +931,7 @@
   description: Build your MDM solution on top of the Fleet API to manage workstations for multiple customers.
   documentationUrl: https://github.com/fleetdm/fleet/issues/9956 #customer-deebradel
   productCategories: [Device management]
-  pricingTableCategories: [Device management]
+  pricingTableCategories: [Deployment]
   usualDepartment: IT
   buzzwords: [OEM,Private label,House brand,Clear label,Multi-tenancy]
   tier: Premium
@@ -1140,16 +1116,10 @@
   usualDepartment: IT
   productCategories: [Device management]
   pricingTableCategories: [Device management]
-- industryName: Targeted device scoping
-  tier: Premium
-  jamfProHasFeature: yes
-  jamfProtectHasFeature: yes
-  usualDepartment: IT
-  productCategories: [Device management]
-  pricingTableCategories: [Device management]
 - industryName: Application deployment
+  description: Deploy applications and security agents on macOS, iOS/iPadOS, Linux, Windows, and Android (coming soon) devices. Additionally, install macOS and iOS/iPadOS apps from the App Store.
   tier: Premium
-  jamfProHasFeature: yes
+  jamfProHasFeature: appleOnly
   jamfProtectHasFeature: no
   usualDepartment: IT
   productCategories: [Device management]
@@ -1160,4 +1130,4 @@
   jamfProtectHasFeature: yes
   usualDepartment: IT
   productCategories: [Device management]
-  pricingTableCategories: [Device management]
+  pricingTableCategories: [Integrations]
