@@ -134,9 +134,8 @@ const SoftwareTitleDetailsPage = ({
       hasPermission &&
       (hasSoftwarePackage || hasAppStoreApp);
 
-    const packageCardData = getPackageCardInfo(title);
-
     if (showPackageCard) {
+      const packageCardData = getPackageCardInfo(title);
       return (
         <SoftwarePackageCard
           softwarePackage={packageCardData.softwarePackage}
