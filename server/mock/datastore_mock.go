@@ -855,8 +855,6 @@ type DeleteMDMConfigAssetsByNameFunc func(ctx context.Context, assetNames []flee
 
 type ReplaceMDMConfigAssetsFunc func(ctx context.Context, assets []fleet.MDMConfigAsset) error
 
-type GetTeamAppleSerialNumbersFunc func(ctx context.Context, teamID uint) ([]string, error)
-
 type WSTEPStoreCertificateFunc func(ctx context.Context, name string, crt *x509.Certificate) error
 
 type WSTEPNewSerialFunc func(ctx context.Context) (*big.Int, error)
@@ -2257,9 +2255,6 @@ type DataStore struct {
 
 	ReplaceMDMConfigAssetsFunc        ReplaceMDMConfigAssetsFunc
 	ReplaceMDMConfigAssetsFuncInvoked bool
-
-	GetTeamAppleSerialNumbersFunc        GetTeamAppleSerialNumbersFunc
-	GetTeamAppleSerialNumbersFuncInvoked bool
 
 	WSTEPStoreCertificateFunc        WSTEPStoreCertificateFunc
 	WSTEPStoreCertificateFuncInvoked bool
@@ -5407,13 +5402,6 @@ func (s *DataStore) ReplaceMDMConfigAssets(ctx context.Context, assets []fleet.M
 	s.ReplaceMDMConfigAssetsFuncInvoked = true
 	s.mu.Unlock()
 	return s.ReplaceMDMConfigAssetsFunc(ctx, assets)
-}
-
-func (s *DataStore) GetTeamAppleSerialNumbers(ctx context.Context, teamID uint) ([]string, error) {
-	s.mu.Lock()
-	s.GetTeamAppleSerialNumbersFuncInvoked = true
-	s.mu.Unlock()
-	return s.GetTeamAppleSerialNumbersFunc(ctx, teamID)
 }
 
 func (s *DataStore) WSTEPStoreCertificate(ctx context.Context, name string, crt *x509.Certificate) error {

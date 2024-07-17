@@ -1309,10 +1309,6 @@ type Datastore interface {
 	// generated ones.
 	ReplaceMDMConfigAssets(ctx context.Context, assets []MDMConfigAsset) error
 
-	// GetTeamAppleSerialNumbers returns a list of all serial numbers
-	// belonging to apple devices on a team
-	GetTeamAppleSerialNumbers(ctx context.Context, teamID uint) ([]string, error)
-
 	///////////////////////////////////////////////////////////////////////////////
 	// Microsoft MDM
 
