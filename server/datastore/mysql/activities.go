@@ -246,6 +246,13 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 			WHERE host_id = :host_id AND
 						pre_install_query_output IS NULL AND
 						install_script_exit_code IS NULL`,
+		`
+		SELECT
+			COUNT(*) c
+			FROM nano_view_queue nvq
+			JOIN host_vpp_software_installs hvsi ON nvq.command_uuid = hvsi.command_uuid
+			WHERE hvsi.host_id = :host_id AND nvq.status = ''
+		`,
 	}
 
 	var count uint
@@ -334,6 +341,36 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 			hsi.pre_install_query_output IS NULL AND
 			hsi.install_script_exit_code IS NULL
 		`, softwareInstallerHostStatusNamedQuery("hsi", "")),
+		// TODO(JVE): should we be setting pending for the status always? since we're only checking
+		// pending commands anyway
+		`
+SELECT
+	hvsi.command_uuid AS uuid,
+	u.name AS name,
+	u.id AS user_id,
+	u.gravatar_url as gravatar_url,
+	u.email as user_email,
+	:installed_app_store_app_type AS activity_type,
+	hvsi.created_at AS created_at,
+	JSON_OBJECT(
+		"host_id", hvsi.host_id,
+		"host_display_name", hdn.display_name,
+		"software_title", st.name,
+		"app_store_id", hvsi.adam_id,
+		"command_uuid", hvsi.command_uuid,
+		"status", "pending"
+	) AS details
+FROM
+	host_vpp_software_installs hvsi
+	INNER JOIN nano_view_queue nvq ON nvq.command_uuid = hvsi.command_uuid
+	LEFT OUTER JOIN users u ON hvsi.user_id = u.id
+	LEFT OUTER JOIN host_display_names hdn ON hdn.host_id = hvsi.host_id
+	LEFT OUTER JOIN vpp_apps vpa ON hvsi.adam_id = vpa.adam_id
+	LEFT OUTER JOIN software_titles st ON st.id = vpa.title_id
+WHERE
+	nvq.status = ''
+	AND hvsi.host_id = :host_id
+`,
 	}
 
 	listStmt := `
@@ -348,13 +385,14 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 			details
 		FROM ( ` + strings.Join(listStmts, " UNION ALL ") + ` ) AS upcoming `
 	listStmt, args, err = sqlx.Named(listStmt, map[string]any{
-		"host_id":                   hostID,
-		"ran_script_type":           fleet.ActivityTypeRanScript{}.ActivityName(),
-		"installed_software_type":   fleet.ActivityTypeInstalledSoftware{}.ActivityName(),
-		"max_wait_time":             seconds,
-		"software_status_failed":    string(fleet.SoftwareInstallerFailed),
-		"software_status_installed": string(fleet.SoftwareInstallerInstalled),
-		"software_status_pending":   string(fleet.SoftwareInstallerPending),
+		"host_id":                      hostID,
+		"ran_script_type":              fleet.ActivityTypeRanScript{}.ActivityName(),
+		"installed_software_type":      fleet.ActivityTypeInstalledSoftware{}.ActivityName(),
+		"installed_app_store_app_type": fleet.ActivityInstalledAppStoreApp{}.ActivityName(),
+		"max_wait_time":                seconds,
+		"software_status_failed":       string(fleet.SoftwareInstallerFailed),
+		"software_status_installed":    string(fleet.SoftwareInstallerInstalled),
+		"software_status_pending":      string(fleet.SoftwareInstallerPending),
 	})
 	if err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "build list query from named args")
