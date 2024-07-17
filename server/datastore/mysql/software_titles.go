@@ -100,12 +100,22 @@ func (ds *Datastore) ListSoftwareTitles(
 	getTitlesCountStmt := fmt.Sprintf(`SELECT COUNT(DISTINCT s.id) FROM (%s) AS s`, getTitlesStmt)
 
 	// grab titles that match the list options
-	var titles []fleet.SoftwareTitleListResult
+	type softwareTitle struct {
+		fleet.SoftwareTitleListResult
+		PackageSelfService *bool   `db:"package_self_service"`
+		PackageName        *string `db:"package_name"`
+		PackageVersion     *string `db:"package_version"`
+		VPPAppSelfService  *bool   `db:"vpp_app_self_service"`
+		VPPAppAdamID       *string `db:"vpp_app_adam_id"`
+		VPPAppVersion      *string `db:"vpp_app_version"`
+		VPPAppIconURL      *string `db:"vpp_app_icon_url"`
+	}
+	var softwareList []*softwareTitle
 	getTitlesStmt, args = appendListOptionsWithCursorToSQL(getTitlesStmt, args, &opt.ListOptions)
 	// appendListOptionsWithCursorToSQL doesn't support multicolumn sort, so
 	// we need to add it here
 	getTitlesStmt = spliceSecondaryOrderBySoftwareTitlesSQL(getTitlesStmt, opt.ListOptions)
-	if err := sqlx.SelectContext(ctx, dbReader, &titles, getTitlesStmt, args...); err != nil {
+	if err := sqlx.SelectContext(ctx, dbReader, &softwareList, getTitlesStmt, args...); err != nil {
 		return nil, 0, nil, ctxerr.Wrap(ctx, err, "select software titles")
 	}
 
@@ -117,15 +127,42 @@ func (ds *Datastore) ListSoftwareTitles(
 
 	// if we don't have any matching titles, there's no point trying to
 	// find matching versions. Early return
-	if len(titles) == 0 {
-		return titles, counts, &fleet.PaginationMetadata{}, nil
+	if len(softwareList) == 0 {
+		return nil, counts, &fleet.PaginationMetadata{}, nil
 	}
 
 	// grab all the IDs to find matching versions below
-	titleIDs := make([]uint, len(titles))
+	titleIDs := make([]uint, len(softwareList))
 	// build an index to quickly access a title by it's ID
-	titleIndex := make(map[uint]int, len(titles))
-	for i, title := range titles {
+	titleIndex := make(map[uint]int, len(softwareList))
+	for i, title := range softwareList {
+		// promote the package name and version to the proper destination fields
+		if title.PackageName != nil {
+			var version string
+			if title.PackageVersion != nil {
+				version = *title.PackageVersion
+			}
+			title.SoftwarePackage = &fleet.SoftwarePackageOrApp{
+				Name:        *title.PackageName,
+				Version:     version,
+				SelfService: title.PackageSelfService,
+			}
+		}
+
+		// promote the VPP app id and version to the proper destination fields
+		if title.VPPAppAdamID != nil {
+			var version string
+			if title.VPPAppVersion != nil {
+				version = *title.VPPAppVersion
+			}
+			title.AppStoreApp = &fleet.SoftwarePackageOrApp{
+				AppStoreID:  *title.VPPAppAdamID,
+				Version:     version,
+				SelfService: title.VPPAppSelfService,
+				IconURL:     title.VPPAppIconURL,
+			}
+		}
+
 		titleIDs[i] = title.ID
 		titleIndex[title.ID] = i
 	}
@@ -151,18 +188,24 @@ func (ds *Datastore) ListSoftwareTitles(
 	// append matching versions to titles
 	for _, version := range versions {
 		if i, ok := titleIndex[version.TitleID]; ok {
-			titles[i].VersionsCount++
-			titles[i].Versions = append(titles[i].Versions, version)
+			softwareList[i].VersionsCount++
+			softwareList[i].Versions = append(softwareList[i].Versions, version)
 		}
 	}
 
 	var metaData *fleet.PaginationMetadata
 	if opt.ListOptions.IncludeMetadata {
 		metaData = &fleet.PaginationMetadata{HasPreviousResults: opt.ListOptions.Page > 0}
-		if len(titles) > int(opt.ListOptions.PerPage) {
+		if len(softwareList) > int(opt.ListOptions.PerPage) {
 			metaData.HasNextResults = true
-			titles = titles[:len(titles)-1]
+			softwareList = softwareList[:len(softwareList)-1]
 		}
+	}
+
+	titles := make([]fleet.SoftwareTitleListResult, 0, len(softwareList))
+	for _, st := range softwareList {
+		st := st
+		titles = append(titles, st.SoftwareTitleListResult)
 	}
 
 	return titles, counts, metaData, nil
@@ -209,10 +252,14 @@ SELECT
 	st.browser,
 	MAX(COALESCE(sthc.hosts_count, 0)) as hosts_count,
 	MAX(COALESCE(sthc.updated_at, date('0001-01-01 00:00:00'))) as counts_updated_at,
-	COALESCE(si.self_service, false) as self_service,
-	-- this count will be 1 if an installer or VPP app is available, 0 otherwise
-	COUNT(COALESCE(si.id, vat.adam_id)) as available_for_install,
-	NULLIF(vap.icon_url, '') as icon_url
+	si.self_service as package_self_service,
+	si.filename as package_name,
+	si.version as package_version,
+	-- in a future iteration, will be supported for VPP apps
+	0 as vpp_app_self_service,
+	vat.adam_id as vpp_app_adam_id,
+	vap.latest_version as vpp_app_version,
+	vap.icon_url as vpp_app_icon_url
 FROM software_titles st
 LEFT JOIN software_installers si ON si.title_id = st.id AND si.global_or_team_id = ?
 LEFT JOIN vpp_apps vap ON vap.title_id = st.id
@@ -224,7 +271,7 @@ LEFT JOIN software_titles_host_counts sthc ON sthc.software_title_id = st.id AND
 WHERE %s
 -- placeholder for filter based on software installed on hosts + software installers
 AND (%s)
-GROUP BY st.id, self_service, icon_url`
+GROUP BY st.id, package_self_service, package_name, package_version, vpp_app_self_service, vpp_app_adam_id, vpp_app_version, vpp_app_icon_url`
 
 	cveJoinType := "LEFT"
 	if opt.VulnerableOnly {
