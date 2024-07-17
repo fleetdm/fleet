@@ -1,4 +1,3 @@
-import { createMockVppApp } from "__mocks__/appleMdm";
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
 
@@ -63,17 +62,8 @@ export default {
 
   getVppApps: (teamId: number): Promise<IGetVppAppsResponse> => {
     const { MDM_APPLE_VPP_APPS } = endpoints;
-    // return sendRequest("GET", MDM_APPLE_VPP_APPS(teamId));
-
-    return new Promise((resolve) =>
-      resolve({
-        app_store_apps: [
-          createMockVppApp({ name: "Test App 1", app_store_id: 1 }),
-          createMockVppApp({ name: "Test App 2", app_store_id: 2 }),
-          createMockVppApp({ name: "Test App 3", app_store_id: 3 }),
-        ],
-      })
-    );
+    const path = `${MDM_APPLE_VPP_APPS}?team_id=${teamId}`;
+    return sendRequest("GET", path);
   },
 
   addVppApp: (teamId: number, appStoreId: number) => {

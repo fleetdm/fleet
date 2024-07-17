@@ -185,6 +185,11 @@ const SoftwareTitleDetailsPage = ({
             }}
             name={softwareTitle.name}
             source={softwareTitle.source}
+            iconUrl={
+              softwareTitle.app_store_app
+                ? softwareTitle.app_store_app.icon_url
+                : undefined
+            }
           />
           {renderSoftwarePackageCard(softwareTitle)}
           <Card

@@ -175,17 +175,7 @@ export default {
   }: IGetSoftwareTitleQueryParams): Promise<ISoftwareTitleResponse> => {
     const endpoint = endpoints.SOFTWARE_TITLE(softwareId);
     const path = teamId ? `${endpoint}?team_id=${teamId}` : endpoint;
-
-    return new Promise((resolve, reject) => {
-      resolve(
-        createMockSoftwareTitleResponse({
-          software_title: createMockSoftwareTitleDetails({
-            app_store_app: createMockAppStoreApp(),
-          }),
-        })
-      );
-    });
-    // return sendRequest("GET", path);
+    return sendRequest("GET", path);
   },
 
   getSoftwareVersions: (params: ISoftwareApiParams) => {

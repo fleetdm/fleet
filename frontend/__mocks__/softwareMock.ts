@@ -49,6 +49,7 @@ const DEFAULT_SOFTWARE_TITLE_MOCK: ISoftwareTitle = {
   id: 1,
   name: "mock software 1.app",
   available_for_install: false,
+  icon_url: "",
   versions_count: 1,
   source: "apps",
   hosts_count: 1,
@@ -139,6 +140,7 @@ export const createMockSoftwareVersionsReponse = (
 const DEFAULT_APP_STORE_APP_MOCK: IAppStoreApp = {
   name: "test app",
   app_store_id: 1,
+  icon_url: "https://via.placeholder.com/512",
   latest_version: "1.2.3",
   status: {
     installed: 1,

@@ -77,6 +77,7 @@ export interface IAppStoreApp {
   name: string;
   app_store_id: number;
   latest_version: string;
+  icon_url: string;
   status: {
     installed: number;
     pending: number;
@@ -87,6 +88,7 @@ export interface IAppStoreApp {
 export interface ISoftwareTitle {
   id: number;
   name: string;
+  icon_url: string | null;
   versions_count: number;
   source: string;
   hosts_count: number;
