@@ -2,7 +2,7 @@ import { removeOSPrefix, compareVersions } from "./helpers";
 
 describe("helpers utilities", () => {
   describe("removeOSPrefix function", () => {
-    it("properly removes Apple prefix from a host.os_version", () => {
+    it("properly removes Apple prefix from a host's operating system version", () => {
       expect(removeOSPrefix("macOS 14.1.2")).toEqual("14.1.2");
       expect(removeOSPrefix("iOS 18.0")).toEqual("18.0");
       expect(removeOSPrefix("iPadOS 17.5.1")).toEqual("17.5.1");
