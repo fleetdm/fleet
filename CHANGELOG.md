@@ -1,4 +1,4 @@
-## Fleet 4.54.0 (Jul 15, 2024)
+## Fleet 4.54.0 (Jul 17, 2024)
 
 ### Endpoint Operations
 
@@ -13,6 +13,7 @@
   the fleetctl executable.
 - Added host's display name to calendar event descriptions.
 - Added .yml and .yaml file type validation and error message to `fleetctl apply`.
+- Added a tooltip to truncated text and not to untruncated values.
 
 ### Device Management (MDM)
 
@@ -27,13 +28,17 @@
 - Added `fleetctl gitops` and `fleetctl apply` support for `labels_include_all` and `labels_exclude_any` to configure a custom setting.
 - Added UI for uploading custom profiles with a target of hosts that include all/exclude any selected labels.
 - Added the database migrations to create the new `exclude` column for labels associated with MDM profiles (and declarations).
+- Updated host script timeouts to be configurable via agent options using `script_execution_timeout`. 
+- `fleetctl` now uses a polling mechanism when running `run-script` to accommodate longer script timeout values.
 - Updated the profile reconciliation logic to handle the new "exclude any" labels.
 - Updated so that the `fleetd` cleanup script for macOS that will return completed when run from Fleet.
 - Updated so that the `fleetd` uninstall script will return completed when run from Fleet.
 - Updated script run permissions -- only admins and maintainers can run arbitrary or saved scripts (not observer or observer+).
 - Updated `fleetctl get mdm_commands` to return 20 rows and support `--host` `--type` filters to improve response time.
-- Updated the instructions for manual MDM enrollment on the "My device" page to be clearer and align
-  with Apple updates.
+- Updated the instructions for manual MDM enrollment on the "My device" page to be clearer and align with Apple updates.
+- Updated UI to allow device users to reinstall self-service software.
+- Updated API to not return a 500 status code if a host sends a command response with an invalid command uuid.
+- Increased the timeout of the upload software installer endpoint to 4 minutes.
 - Disabled credential caching and reboot on Windows lock.
 
 ### Vulnerability Management
@@ -69,7 +74,12 @@
 - Fixed issue where the Fleet UI could not be used to renew the ABM token after the ABM user who created the token was deleted.
 - Fixed styling issues with the target inputs loading spinner on the run live query/policy page.
 - Fixed an issue where special characters in HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall breaks the "installer_utils.ps1 -uninstallOrbit" step in the Windows MSI installer.
+- Fixed a bug causing "No Team" OS versions to display the wrong number.
 - Fixed various UI capitalizations.
+- Fixed UI issue where "Script is already running" tooltip incorrectly displayed when the script is not running.
+- Fixed the script details modal's error message on script timeout to reflect the newly dynamic script timeout limit, if hit.
+- Fixed a discrepancy in the spacing between DataSet labels and values on Firefox relative to other browsers.
+* Fixed bug that set `Added to Fleet` to `Never` after macOS hosts re-enrolled to Fleet via MDM. 
 
 ## Fleet 4.53.1 (Jul 01, 2024)
 
