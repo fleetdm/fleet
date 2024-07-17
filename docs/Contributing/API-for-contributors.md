@@ -1435,7 +1435,7 @@ If the `name` is not already associated with an existing team, this API route cr
 | scripts                                   | list   | body  | A list of script files to add to this team so they can be executed at a later time.                                                                                                                                                 |
 | software                                   | object   | body  | The team's software that will be available for install.  |
 | software.packages                          | list   | body  | An array of objects. Each object consists of:`url`- URL to the software package (PKG, MSI, EXE or DEB),`install_script` - command that Fleet runs to install software, `pre_install_query` - condition query that determines if the install will proceed, `post_install_script` - script that runs after software install, and `self_service` boolean.   |
-| software.app_store_apps                   | list   | body  | An array objects. Each object consists of `app_store_id` - ID of the App Store app. |
+| software.app_store_apps                   | list   | body  | An array of objects. Each object consists of `app_store_id` - ID of the App Store app and `self_service` boolean. |
 | mdm.macos_settings.enable_disk_encryption | bool   | body  | Whether disk encryption should be enabled for hosts that belong to this team.                                                                                                                                                       |
 | force                                     | bool   | query | Force apply the spec even if there are (ignorable) validation errors. Those are unknown keys and agent options-related validations.                                                                                                 |
 | dry_run                                   | bool   | query | Validate the provided JSON for unknown keys and invalid value types and return any validation errors, but do not apply the changes.                                                                                                 |
@@ -1524,6 +1524,7 @@ If the `name` is not already associated with an existing team, this API route cr
         "app_store_apps": [
           {
             "app_store_id": 12464567,
+            "self_service": true
           }
         ]
       }  
@@ -2643,8 +2644,6 @@ Lists the software installed on the current device.
 }
 ```
 
-
-
 #### Install self-service software
 
 Install self-service software on macOS, Windows, or Linux (Ubuntu) host. The software must have a `self_service` flag `true` to be installed.
@@ -3049,7 +3048,7 @@ _Available in Fleet Premium._
 | dry_run   | bool   | query | If `true`, will validate the provided software packages and return any validation errors, but will not apply the changes.                                                                         |
 | software  | object   | body  | The team's software that will be available for install.  |
 | software.packages   | list   | body  | An array of objects. Each object consists of:`url`- URL to the software package (PKG, MSI, EXE or DEB),`install_script` - command that Fleet runs to install software, `pre_install_query` - condition query that determines if the install will proceed, and `post_install_script` - script that runs after software install.   |
-| software.app_store_apps | list   | body  | An array objects. Each object consists of `app_store_id` - ID of the App Store app. |
+| software.app_store_apps | list   | body  | An array of objects. Each object consists of `app_store_id` - ID of the App Store app and `self_service` boolean. |
 
 If both `team_id` and `team_name` parameters are included, this endpoint will respond with an error. If no `team_name` or `team_id` is provided, the scripts will be applied for **all hosts**.
 
