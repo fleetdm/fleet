@@ -100,6 +100,7 @@ const AppStoreVpp = ({ teamId, router, onExit }: IAppStoreVppProps) => {
     () => mdmAppleAPI.getVppApps(teamId),
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
+      staleTime: 30000,
       select: (res) => res.app_store_apps,
     }
   );

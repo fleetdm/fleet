@@ -272,7 +272,6 @@ const SoftwarePackageCard = ({
       }
       FileSaver.saveAs(file);
     } catch (e) {
-      console.log(e);
       renderFlash("error", "Couldn't download. Please try again.");
     }
   }, [renderFlash, softwareId, name, teamId]);

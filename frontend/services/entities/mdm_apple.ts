@@ -1,5 +1,4 @@
 import { createMockVppApp } from "__mocks__/appleMdm";
-import { create } from "lodash";
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
 

@@ -1,6 +1,5 @@
 import { IMdmApple } from "interfaces/mdm";
-import { IGetVppInfoResponse } from "services/entities/mdm_apple";
-import { IVppApp } from "services/entities/mdm_apple";
+import { IGetVppInfoResponse, IVppApp } from "services/entities/mdm_apple";
 
 const DEFAULT_MDM_APPLE_MOCK: IMdmApple = {
   common_name: "APSP:12345",
