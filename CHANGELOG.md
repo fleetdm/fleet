@@ -44,6 +44,8 @@
 ### Vulnerability Management
 
 - Added "Vulnerable" filter to the host details software table.
+- Fixed Microsoft Office June 2024 false negative vulnerabilities and added custom vulnerability matching.
+- Fixed issue where some Windows applications were getting matched against Windows OS vulnerabilities.
 
 ### Bug fixes and improvements
 
@@ -62,8 +64,6 @@
 - Hid "Self-service" in Fleet Desktop and My device page if there is no self-service software available.
 - Hid the host detail page's "Run script" action from Global and Team Observer/+s.
 - Aligned the "View all hosts" links in the Software titles and versions tables.
-- Fixed Microsoft Office June 2024 false negative vulnerabilities and added custom vulnerability matching.
-- Fixed issue where some Windows applications were getting matched against Windows OS vulnerabilities.
 - Fixed counts for hosts with with low disk space in summary page.
 - Fixed allowing Observer and Observer+ roles to download software installers.
 - Fixed crash in `fleetd` installer on Windows if there are registry keys with special characters on the system.
@@ -79,7 +79,7 @@
 - Fixed UI issue where "Script is already running" tooltip incorrectly displayed when the script is not running.
 - Fixed the script details modal's error message on script timeout to reflect the newly dynamic script timeout limit, if hit.
 - Fixed a discrepancy in the spacing between DataSet labels and values on Firefox relative to other browsers.
-* Fixed bug that set `Added to Fleet` to `Never` after macOS hosts re-enrolled to Fleet via MDM. 
+- Fixed bug that set `Added to Fleet` to `Never` after macOS hosts re-enrolled to Fleet via MDM. 
 
 ## Fleet 4.53.1 (Jul 01, 2024)
 
