@@ -1093,7 +1093,7 @@ func TestTeamSofwareInstallersGitOps(t *testing.T) {
 }
 
 func TestTeamVPPAppsGitOps(t *testing.T) {
-	config := &AppleVPPConfigSrvConf{
+	config := &appleVPPConfigSrvConf{
 		Assets: []vpp.Asset{
 			{
 				AdamID:         "1",
@@ -1262,12 +1262,12 @@ func startSoftwareInstallerServer(t *testing.T) {
 	t.Setenv("SOFTWARE_INSTALLER_URL", srv.URL)
 }
 
-type AppleVPPConfigSrvConf struct {
+type appleVPPConfigSrvConf struct {
 	Assets        []vpp.Asset
 	SerialNumbers []string
 }
 
-func startVPPApplyServer(t *testing.T, config *AppleVPPConfigSrvConf) {
+func startVPPApplyServer(t *testing.T, config *appleVPPConfigSrvConf) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if strings.Contains(r.URL.Path, "associate") {
 			var associations vpp.AssociateAssetsRequest

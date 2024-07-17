@@ -96,12 +96,12 @@ type integrationMDMTestSuite struct {
 	logger                     kitlog.Logger
 	scepChallenge              string
 	appleVPPConfigSrv          *httptest.Server
-	appleVPPConfigSrvConfig    *AppleVPPConfigSrvConf
+	appleVPPConfigSrvConfig    *appleVPPConfigSrvConf
 	appleITunesSrv             *httptest.Server
 	mockedDownloadFleetdmMeta  fleetdbase.Metadata
 }
 
-type AppleVPPConfigSrvConf struct {
+type appleVPPConfigSrvConf struct {
 	Assets        []vpp.Asset
 	SerialNumbers []string
 }
@@ -321,7 +321,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	}))
 
 	if s.appleVPPConfigSrvConfig == nil {
-		s.appleVPPConfigSrvConfig = &AppleVPPConfigSrvConf{
+		s.appleVPPConfigSrvConfig = &appleVPPConfigSrvConf{
 			Assets: []vpp.Asset{
 				{
 					AdamID:         "1",
