@@ -2815,7 +2815,11 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 			cmdResult.Status == fleet.MDMAppleStatusCommandFormatError {
 			user, act, err := svc.ds.GetPastActivityDataForVPPAppInstall(r.Context, cmdResult.CommandUUID)
 			if err != nil {
-				// if nothing returned, we should just return
+				if fleet.IsNotFound(err) {
+					// Then this isn't a VPP install, so no activity generated
+					return nil, nil
+				}
+
 				return nil, ctxerr.Wrap(r.Context, err, "fetching data for installed app store app activity")
 			}
 

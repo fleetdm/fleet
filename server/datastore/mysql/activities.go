@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -556,9 +557,12 @@ WHERE
 
 	var res result
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &res, listStmt, args...); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil, notFound("install_command")
+		}
+
 		return nil, nil, ctxerr.Wrap(ctx, err, "select past activity data for VPP app install")
 	}
-	// TODO(JVE): handle nothing returned case
 
 	user := &fleet.User{
 		ID:    res.UserID,
