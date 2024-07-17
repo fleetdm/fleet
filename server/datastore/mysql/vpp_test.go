@@ -96,6 +96,35 @@ func testVPPAppMetadata(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, &fleet.VPPAppStoreApp{Name: "vpp3", AppStoreID: vpp3}, meta)
 
+	// delete vpp1
+	err = ds.DeleteVPPAppFromTeam(ctx, nil, vpp1)
+	require.NoError(t, err)
+	// it is now not found
+	_, err = ds.GetVPPAppMetadataByTeamAndTitleID(ctx, nil, titleID1)
+	require.Error(t, err)
+	require.ErrorAs(t, err, &nfe)
+	// vpp3 (also in no team) is left untouched
+	meta, err = ds.GetVPPAppMetadataByTeamAndTitleID(ctx, nil, titleID3)
+	require.NoError(t, err)
+	require.Equal(t, &fleet.VPPAppStoreApp{Name: "vpp3", AppStoreID: vpp3}, meta)
+
+	// delete vpp2 for team1
+	err = ds.DeleteVPPAppFromTeam(ctx, &team1.ID, vpp2)
+	require.NoError(t, err)
+	// it is now not found for team1
+	_, err = ds.GetVPPAppMetadataByTeamAndTitleID(ctx, &team1.ID, titleID2)
+	require.Error(t, err)
+	require.ErrorAs(t, err, &nfe)
+	// but still found for team2
+	meta, err = ds.GetVPPAppMetadataByTeamAndTitleID(ctx, &team2.ID, titleID2)
+	require.NoError(t, err)
+	require.Equal(t, &fleet.VPPAppStoreApp{Name: "vpp2", AppStoreID: vpp2}, meta)
+
+	// delete vpp1 again fails, not found
+	err = ds.DeleteVPPAppFromTeam(ctx, nil, vpp1)
+	require.Error(t, err)
+	require.ErrorAs(t, err, &nfe)
+
 	// delete the software title
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, "DELETE FROM software_titles WHERE id = ?", titleID3)
@@ -107,6 +136,7 @@ func testVPPAppMetadata(t *testing.T, ds *Datastore) {
 	require.Error(t, err)
 	require.ErrorAs(t, err, &nfe)
 	require.Nil(t, meta)
+
 }
 
 func testVPPAppStatus(t *testing.T, ds *Datastore) {

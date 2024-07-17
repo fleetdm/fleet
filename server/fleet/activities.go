@@ -1649,9 +1649,10 @@ func (a ActivityAddedAppStoreApp) Documentation() (activity string, details stri
 }
 
 type ActivityDeletedAppStoreApp struct {
-	SoftwareTitle string `json:"software_title"`
-	AppStoreID    string `json:"app_store_id"`
-	TeamName      string `json:"team_name"`
+	SoftwareTitle string  `json:"software_title"`
+	AppStoreID    string  `json:"app_store_id"`
+	TeamName      *string `json:"team_name"`
+	TeamID        *uint   `json:"team_id"`
 }
 
 func (a ActivityDeletedAppStoreApp) ActivityName() string {

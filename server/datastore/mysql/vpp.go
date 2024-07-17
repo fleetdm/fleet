@@ -141,6 +141,8 @@ func (ds *Datastore) BatchInsertVPPApps(ctx context.Context, apps []*fleet.VPPAp
 
 func (ds *Datastore) InsertVPPAppWithTeam(ctx context.Context, app *fleet.VPPApp, teamID *uint) error {
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		// TODO: we should not just create a software title, I think we should try
+		// to match to an existing one (i.e. getOrCreate logic)?
 		titleID, err := insertSoftwareTitleForVPPApp(ctx, tx, app)
 		if err != nil {
 			return err
@@ -243,4 +245,23 @@ func insertSoftwareTitleForVPPApp(ctx context.Context, tx sqlx.ExtContext, app *
 	id, _ := result.LastInsertId()
 
 	return uint(id), nil
+}
+
+func (ds *Datastore) DeleteVPPAppFromTeam(ctx context.Context, teamID *uint, adamID string) error {
+	const stmt = `DELETE FROM vpp_apps_teams WHERE global_or_team_id = ? AND adam_id = ?`
+
+	var globalOrTeamID uint
+	if teamID != nil {
+		globalOrTeamID = *teamID
+	}
+	res, err := ds.writer(ctx).ExecContext(ctx, stmt, globalOrTeamID, adamID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "delete VPP app from team")
+	}
+
+	rows, _ := res.RowsAffected()
+	if rows == 0 {
+		return notFound("VPPApp").WithMessage(fmt.Sprintf("adam id %s for team id %d", adamID, globalOrTeamID))
+	}
+	return nil
 }
