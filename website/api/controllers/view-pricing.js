@@ -29,7 +29,7 @@ module.exports = {
 
     let pricingTable = [];
 
-    let pricingTableCategories = ['Support', 'Deployment', 'Integrations','Device management', 'Endpoint operations', 'Vulnerability management'];
+    let pricingTableCategories = ['Device management', 'Support', 'Deployment', 'Integrations', 'Endpoint operations', 'Vulnerability management'];
     for(let category of pricingTableCategories) {
       // Get all the features in that have a pricingTableFeatures array that contains this category.
       let featuresInThisCategory = _.filter(pricingTableFeatures, (feature)=>{
