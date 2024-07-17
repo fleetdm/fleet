@@ -1278,8 +1278,6 @@ func startVPPApplyServer(t *testing.T, config *AppleVPPConfigSrvConf) {
 				return
 			}
 
-			fmt.Printf("Mock VPP Server: Trying to associate %v with %v\n", associations.SerialNumbers, associations.Assets)
-
 			if len(associations.Assets) == 0 {
 				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(http.StatusBadRequest)
