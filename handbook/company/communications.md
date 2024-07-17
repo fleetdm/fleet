@@ -726,7 +726,7 @@ In responding to security questionnaires, Fleet endeavors to provide full transp
 
 ## Getting a contract signed
 
-If a contract is ready for signature and requires no review or revision, the requestor logins into DocuSign using hello@ from the 1Password vault and routes the agreement to the CEO for signature. 
+If a contract is ready for signature and requires no review or revision, the requestor logins into DocuSign using the login from the 1Password vault and routes the agreement to the CEO for signature. 
 
 When a contract is going to be routed for signature by someone outside of Fleet (i.e. the vendor or customer), the requestor is responsible for working with the other party to make sure the document gets routed to the CEO for signature.
 
@@ -734,7 +734,7 @@ The SLA for contract signature is **2 business days**. Please do not follow up o
 
 _**Note:** Signature open time for the CEO is not currently measured, to avoid the overhead of creating separate signature issues to measure open and close time. This may change as signature volume increases._
 
-> _**Note:** If a contract is ready for signature and requires no review or revision, the requestor logins into DocuSign using hello@ from the 1Password and routes the agreement to the CEO for signature._ 
+> _**Note:** If a contract is ready for signature and requires no review or revision, the requestor logins into DocuSign using the login from 1Password and routes the agreement to the CEO for signature._ 
 
 Please use [Fleet's billing email address](https://fleetdm.com/handbook/company/communications#email-relays) for all contracts, and never use individual emails except for signature.  If the page to sign includes any individual emails in the docusign contract, please remove it before routing to the CEO for signature.
 
