@@ -48,6 +48,7 @@ CREATE TABLE vpp_apps (
 
 	_, err = tx.Exec(`
 CREATE TABLE vpp_apps_teams (
+	id int(10) unsigned NOT NULL AUTO_INCREMENT PRIMARY KEY,
 	adam_id VARCHAR(16) NOT NULL,
 	-- team_id NULL is for no team (cannot use 0 with foreign key)
 	team_id INT(10) UNSIGNED NULL,
