@@ -244,3 +244,22 @@ func insertSoftwareTitleForVPPApp(ctx context.Context, tx sqlx.ExtContext, app *
 
 	return uint(id), nil
 }
+
+func (ds *Datastore) DeleteVPPAppFromTeam(ctx context.Context, teamID *uint, adamID string) error {
+	const stmt = `DELETE FROM vpp_apps_teams WHERE global_or_team_id = ? AND adam_id = ?`
+
+	var globalOrTeamID uint
+	if teamID != nil {
+		globalOrTeamID = *teamID
+	}
+	res, err := ds.writer(ctx).ExecContext(ctx, stmt, globalOrTeamID, adamID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "delete VPP app from team")
+	}
+
+	rows, _ := res.RowsAffected()
+	if rows == 0 {
+		return notFound("VPPApp").WithMessage(fmt.Sprintf("adam id %s for team id %d", adamID, globalOrTeamID))
+	}
+	return nil
+}
