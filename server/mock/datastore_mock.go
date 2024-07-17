@@ -1003,6 +1003,10 @@ type GetAssignedVPPAppsFunc func(ctx context.Context, teamID *uint) (map[string]
 
 type InsertVPPAppWithTeamFunc func(ctx context.Context, app *fleet.VPPApp, teamID *uint) error
 
+type InsertHostVPPSoftwareInstallFunc func(ctx context.Context, hostID uint, userID uint, adamID string, commandUUID string, associatedEventID string) error
+
+type GetPastActivityDataForVPPAppInstallFunc func(ctx context.Context, commandUUID string) (*fleet.User, *fleet.ActivityInstalledAppStoreApp, error)
+
 type DataStore struct {
 	HealthCheckFunc        HealthCheckFunc
 	HealthCheckFuncInvoked bool
@@ -2479,6 +2483,12 @@ type DataStore struct {
 
 	InsertVPPAppWithTeamFunc        InsertVPPAppWithTeamFunc
 	InsertVPPAppWithTeamFuncInvoked bool
+
+	InsertHostVPPSoftwareInstallFunc        InsertHostVPPSoftwareInstallFunc
+	InsertHostVPPSoftwareInstallFuncInvoked bool
+
+	GetPastActivityDataForVPPAppInstallFunc        GetPastActivityDataForVPPAppInstallFunc
+	GetPastActivityDataForVPPAppInstallFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -5925,4 +5935,18 @@ func (s *DataStore) InsertVPPAppWithTeam(ctx context.Context, app *fleet.VPPApp,
 	s.InsertVPPAppWithTeamFuncInvoked = true
 	s.mu.Unlock()
 	return s.InsertVPPAppWithTeamFunc(ctx, app, teamID)
+}
+
+func (s *DataStore) InsertHostVPPSoftwareInstall(ctx context.Context, hostID uint, userID uint, adamID string, commandUUID string, associatedEventID string) error {
+	s.mu.Lock()
+	s.InsertHostVPPSoftwareInstallFuncInvoked = true
+	s.mu.Unlock()
+	return s.InsertHostVPPSoftwareInstallFunc(ctx, hostID, userID, adamID, commandUUID, associatedEventID)
+}
+
+func (s *DataStore) GetPastActivityDataForVPPAppInstall(ctx context.Context, commandUUID string) (*fleet.User, *fleet.ActivityInstalledAppStoreApp, error) {
+	s.mu.Lock()
+	s.GetPastActivityDataForVPPAppInstallFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetPastActivityDataForVPPAppInstallFunc(ctx, commandUUID)
 }
