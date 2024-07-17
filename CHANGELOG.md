@@ -2,13 +2,11 @@
 
 ### Endpoint Operations
 
-- Updated scheduled maintenance windows so that calendar events are now recreated within 30 seconds if deleted or moved to the past.
-- Updated scheduled maintenance to weekly on Tuesdays (previously monthly on the third Tuesday of the month).
-- Added a host's upcoming scheduled maintenance window, if any, on the host details page of the UI and in host responses from the API.
 - Updated `fleetctl gitops` to be used to rename teams.
   - **NOTE:** `fleetctl gitops` needs to have previously run with this Fleet/fleetctl version or later.
   - The team name is changed if the YAML config is applied from the same filename as before.
 - Updated `fleetctl query --hosts` to work with hostnames, host UUIDs, and/or hardware serial numbers.
+- Added a host's upcoming scheduled maintenance window, if any, on the host details page of the UI and in host responses from the API.
 - Added support to `fleetctl debug connection` to test TLS connection with the embedded certs.pem in
   the fleetctl executable.
 - Added host's display name to calendar event descriptions.
