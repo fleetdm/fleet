@@ -185,7 +185,7 @@ func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, adamIDs [
 
 func (ds *Datastore) InsertVPPAppWithTeam(ctx context.Context, app *fleet.VPPApp, teamID *uint) error {
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		titleID, err := insertSoftwareTitleForVPPApp(ctx, tx, app)
+		titleID, err := ds.getOrInsertSoftwareTitleForVPPApp(ctx, tx, app)
 		if err != nil {
 			return err
 		}
@@ -293,15 +293,57 @@ AND
 	return nil
 }
 
-func insertSoftwareTitleForVPPApp(ctx context.Context, tx sqlx.ExtContext, app *fleet.VPPApp) (uint, error) {
-	stmt := `INSERT INTO software_titles (name, source, bundle_identifier, browser) VALUES (?, '', ?, '')`
+func (ds *Datastore) getOrInsertSoftwareTitleForVPPApp(ctx context.Context, tx sqlx.ExtContext, app *fleet.VPPApp) (uint, error) {
+	// NOTE: it was decided to leave the source empty for VPP apps for now, TBD
+	// if this needs to change to better map to how software titles are reported
+	// back by osquery. Since I think this will likely not stay empty, I'm using
+	// a variable for the source.
+	const source = ""
 
-	result, err := tx.ExecContext(ctx, stmt, app.Name, app.BundleIdentifier)
+	selectStmt := `SELECT id FROM software_titles WHERE name = ? AND source = ? AND browser = ''`
+	selectArgs := []any{app.Name, source}
+	insertStmt := `INSERT INTO software_titles (name, source, browser) VALUES (?, ?, '')`
+	insertArgs := []any{app.Name, source}
+
+	if app.BundleIdentifier != "" {
+		selectStmt = `SELECT id FROM software_titles WHERE bundle_identifier = ?`
+		selectArgs = []any{app.BundleIdentifier}
+		insertStmt = `INSERT INTO software_titles (name, source, bundle_identifier, browser) VALUES (?, ?, ?, '')`
+		insertArgs = append(insertArgs, app.BundleIdentifier)
+	}
+ 
+	titleID, err := ds.optimisticGetOrInsert(ctx,
+		&parameterizedStmt{
+			Statement: selectStmt,
+			Args:      selectArgs,
+		},
+		&parameterizedStmt{
+			Statement: insertStmt,
+			Args:      insertArgs,
+		},
+	)
 	if err != nil {
-		return 0, ctxerr.Wrap(ctx, err, "writing vpp app software title")
+		return 0, err
 	}
 
-	id, _ := result.LastInsertId()
+	return titleID, nil
+}
 
-	return uint(id), nil
+func (ds *Datastore) DeleteVPPAppFromTeam(ctx context.Context, teamID *uint, adamID string) error {
+	const stmt = `DELETE FROM vpp_apps_teams WHERE global_or_team_id = ? AND adam_id = ?`
+
+	var globalOrTeamID uint
+	if teamID != nil {
+		globalOrTeamID = *teamID
+	}
+	res, err := ds.writer(ctx).ExecContext(ctx, stmt, globalOrTeamID, adamID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "delete VPP app from team")
+	}
+
+	rows, _ := res.RowsAffected()
+	if rows == 0 {
+		return notFound("VPPApp").WithMessage(fmt.Sprintf("adam id %s for team id %d", adamID, globalOrTeamID))
+	}
+	return nil
 }
