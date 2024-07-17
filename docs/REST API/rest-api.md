@@ -9175,7 +9175,7 @@ Add App Store (VPP) app purchased in Apple Business Manager.
 
 ```json
 {
-  "app_store_id": 2,
+  "app_store_id": 497799835,
   "team_id": 2,
   "self_service": true
 }
