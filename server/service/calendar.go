@@ -6,6 +6,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
+// Disabling the calendarWebhookEndpoint to address bugs
+
 // type calendarWebhookRequest struct {
 // 	eventUUID           string
 // 	googleChannelID     string

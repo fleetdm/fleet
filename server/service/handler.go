@@ -940,8 +940,8 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 
 	ne.HEAD("/api/fleet/orbit/ping", orbitPingEndpoint, orbitPingRequest{})
 
-	// This is a callback endpoint for calendar integration -- it is called to notify an event
-	// change in a user calendar
+	// This is a callback endpoint for calendar integration -- it is called to notify an event change in a user calendar
+	// Disabling the calendarWebhookEndpoint to address bugs
 	// ne.POST("/api/_version_/fleet/calendar/webhook/{event_uuid}", calendarWebhookEndpoint, calendarWebhookRequest{})
 
 	neAppleMDM.WithCustomMiddleware(limiter.Limit("login", throttled.RateQuota{MaxRate: loginRateLimit, MaxBurst: 9})).
