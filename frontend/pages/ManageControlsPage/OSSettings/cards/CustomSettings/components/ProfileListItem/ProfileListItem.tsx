@@ -4,6 +4,7 @@ import FileSaver from "file-saver";
 import classnames from "classnames";
 
 import { IMdmProfile } from "interfaces/mdm";
+import { isAppleDevice } from "interfaces/platform";
 import mdmAPI, { isDDMProfile } from "services/entities/mdm";
 
 import Button from "components/buttons/Button";
@@ -39,7 +40,7 @@ const ProfileDetails = ({
 }: IProfileDetailsProps) => {
   const getPlatformName = () => {
     if (platform === "windows") return "Windows";
-    return isDDM ? "macOS (declaration)" : "macOS";
+    return isDDM ? "macOS, iOS, iPadOS (declaration)" : "macOS, iOS, iPadOS";
   };
 
   return (
@@ -57,7 +58,7 @@ const createProfileExtension = (profile: IMdmProfile) => {
   if (isDDMProfile(profile)) {
     return "json";
   }
-  return profile.platform === "darwin" ? "mobileconfig" : "xml";
+  return isAppleDevice(profile.platform) ? "mobileconfig" : "xml";
 };
 
 const createFileContent = async (profile: IMdmProfile) => {

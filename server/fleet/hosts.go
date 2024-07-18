@@ -37,6 +37,10 @@ const (
 	// online interval to avoid flapping of hosts that check in a bit later
 	// than their expected checkin interval.
 	OnlineIntervalBuffer = 60
+
+	// HostIdentiferNotFound is the error message returned when a search for a host by its
+	// identifier (hostname, UUID, or serial number) does not return any results.
+	HostIdentiferNotFound = "Host doesn't exist. Make sure you provide a valid hostname, UUID, or serial number. Learn more about host identifiers: https://fleetdm.com/learn-more-about/host-identifiers"
 )
 
 func (s HostStatus) IsValid() bool {
@@ -741,7 +745,7 @@ type HostMaintenanceWindow struct {
 	//  StartsAt is the start time of the future maintenance window, retrieved from calendar_events,
 	//  represented as a time.Time in the host's associated google calendar user's timezone, which is represented as a time.Location
 	StartsAt time.Time `json:"starts_at" db:"start_time"`
-	// TimeZone is the IANA timezone of the user's google calendar, retrieved from calendar_evants
+	// TimeZone is the IANA timezone of the user's google calendar, retrieved from calendar_events
 	TimeZone *string `json:"timezone" db:"timezone"`
 }
 

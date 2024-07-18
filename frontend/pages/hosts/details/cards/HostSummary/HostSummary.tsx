@@ -364,19 +364,20 @@ const HostSummary = ({
       DATE_FNS_FORMAT_STRINGS.dateAtTime
     );
 
-    const tip = timezone ? (
-      <>
-        End user&apos;s time zone:
-        <br />
-        (GMT{starts_at.slice(-6)}) {timezone.replace("_", " ")}
-      </>
-    ) : (
-      <>
-        End user&apos;s timezone unavailable.
-        <br />
-        Displaying in UTC.
-      </>
-    );
+    const tip =
+      timezone && timezone !== "UTC" ? (
+        <>
+          End user&apos;s time zone:
+          <br />
+          (GMT{starts_at.slice(-6)}) {timezone.replace("_", " ")}
+        </>
+      ) : (
+        <>
+          End user&apos;s timezone unavailable.
+          <br />
+          Displaying in UTC.
+        </>
+      );
 
     return (
       <DataSet
@@ -432,7 +433,10 @@ const HostSummary = ({
           renderIssues()}
         {isPremiumTier && renderHostTeam()}
         {/* Rendering of OS Settings data */}
-        {(platform === "darwin" || platform === "windows") &&
+        {(platform === "darwin" ||
+          platform === "windows" ||
+          platform === "ios" ||
+          platform === "ipados") &&
           isPremiumTier &&
           isConnectedToFleetMdm && // show if 1 - host is enrolled in Fleet MDM, and
           hostMdmProfiles &&

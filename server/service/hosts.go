@@ -681,7 +681,8 @@ func (svc *Service) GetHostSummary(ctx context.Context, teamID *uint, platform *
 ////////////////////////////////////////////////////////////////////////////////
 
 type hostByIdentifierRequest struct {
-	Identifier string `url:"identifier"`
+	Identifier      string `url:"identifier"`
+	ExcludeSoftware bool   `query:"exclude_software,optional"`
 }
 
 func hostByIdentifierEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
@@ -689,6 +690,7 @@ func hostByIdentifierEndpoint(ctx context.Context, request interface{}, svc flee
 	opts := fleet.HostDetailOptions{
 		IncludeCVEScores: false,
 		IncludePolicies:  true, // intentionally true to preserve existing behavior
+		ExcludeSoftware:  req.ExcludeSoftware,
 	}
 	host, err := svc.HostByIdentifier(ctx, req.Identifier, opts)
 	if err != nil {
@@ -1910,12 +1912,15 @@ func (svc *Service) OSVersions(ctx context.Context, teamID *uint, platform *stri
 		if err := svc.authz.Authorize(ctx, &fleet.AuthzSoftwareInventory{TeamID: teamID}, fleet.ActionRead); err != nil {
 			return nil, count, nil, err
 		}
-		exists, err := svc.ds.TeamExists(ctx, *teamID)
-		if err != nil {
-			return nil, count, nil, ctxerr.Wrap(ctx, err, "checking if team exists")
-		} else if !exists {
-			return nil, count, nil, fleet.NewInvalidArgumentError("team_id", fmt.Sprintf("team %d does not exist", *teamID)).
-				WithStatus(http.StatusNotFound)
+
+		if *teamID != 0 {
+			exists, err := svc.ds.TeamExists(ctx, *teamID)
+			if err != nil {
+				return nil, count, nil, ctxerr.Wrap(ctx, err, "checking if team exists")
+			} else if !exists {
+				return nil, count, nil, fleet.NewInvalidArgumentError("team_id", fmt.Sprintf("team %d does not exist", *teamID)).
+					WithStatus(http.StatusNotFound)
+			}
 		}
 	}
 

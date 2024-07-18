@@ -12,8 +12,7 @@ import {
   isWindowsDiskEncryptionStatus,
 } from "interfaces/mdm";
 
-import TextCell from "components/TableContainer/DataTable/TextCell";
-
+import TooltipTruncatedTextCell from "components/TableContainer/DataTable/TooltipTruncatedTextCell";
 import OSSettingStatusCell from "./OSSettingStatusCell";
 import { generateWinDiskEncryptionProfile } from "../../helpers";
 import OSSettingsErrorCell from "./OSSettingsErrorCell";
@@ -53,7 +52,7 @@ const generateTableConfig = (
       accessor: "name",
       Cell: (cellProps: ITableStringCellProps) => {
         return (
-          <TextCell
+          <TooltipTruncatedTextCell
             value={cellProps.cell.value}
             className="os-settings-name-cell"
           />
@@ -146,6 +145,10 @@ export const generateTableData = (
       return makeWindowsRows(hostMDMData);
     case "darwin":
       return makeDarwinRows(hostMDMData);
+    case "ios":
+      return hostMDMData.profiles;
+    case "ipados":
+      return hostMDMData.profiles;
     default:
       return null;
   }

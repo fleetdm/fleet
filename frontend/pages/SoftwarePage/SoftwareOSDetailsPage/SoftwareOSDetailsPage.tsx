@@ -17,6 +17,7 @@ import osVersionsAPI, {
   IGetOsVersionQueryKey,
 } from "services/entities/operating_systems";
 import { IOperatingSystemVersion } from "interfaces/operating_system";
+import { isLinuxLike } from "interfaces/platform";
 import { DEFAULT_USE_QUERY_OPTIONS, SUPPORT_LINK } from "utilities/constants";
 
 import Spinner from "components/Spinner";
@@ -36,6 +37,23 @@ interface INotSupportedVulnProps {
   platform: string;
 }
 
+const platformDisplayName = (platform: string) => {
+  if (isLinuxLike(platform)) {
+    return "Linux hosts";
+  }
+
+  switch (platform) {
+    case "chrome":
+      return "Chromebooks";
+    case "ios":
+      return "iPhones";
+    case "ipados":
+      return "iPads";
+    default:
+      return "this operating system";
+  }
+};
+
 const NotSupportedVuln = ({ platform }: INotSupportedVulnProps) => {
   return (
     <EmptyTable
@@ -43,7 +61,7 @@ const NotSupportedVuln = ({ platform }: INotSupportedVulnProps) => {
       info={
         <>
           Interested in vulnerability management for{" "}
-          {platform === "chrome" ? "Chromebooks" : "Linux hosts"}?{" "}
+          {platformDisplayName(platform)}?{" "}
           <CustomLink url={SUPPORT_LINK} text="Let us know" newTab />
         </>
       }

@@ -1,7 +1,6 @@
 import React from "react";
 
 import { IDropdownOption } from "interfaces/dropdownOption";
-import { snakeCase } from "lodash";
 
 export const CUSTOM_TARGET_OPTIONS: IDropdownOption[] = [
   {
@@ -17,7 +16,7 @@ export const CUSTOM_TARGET_OPTIONS: IDropdownOption[] = [
   },
   {
     value: "labelsExcludeAny",
-    label: "Exclude all",
+    label: "Exclude any",
     helpText: (
       <>
         Profile will be applied to hosts that don&apos;t have <b>any</b> of

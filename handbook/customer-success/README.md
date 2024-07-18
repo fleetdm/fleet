@@ -24,6 +24,15 @@ Occasionally, we will need to track public issues for customers and prospects wh
 1. The team member creating the issue will choose an appropriate minor planet name from this [Minor planets page](https://minorplanetcenter.net//iau/lists/MPNames.html) (alphabetical).
 2. Create a label in the fleetdm/fleet and fleetdm/confidential repos which can be attached to current and future issues for the customer or prospect. As part of the label description in the fleetdm/confidential repo, add the customer or prospect name. This way, we maintain a confidential mapping of codename to customer or prospect.
 
+### Prepare for routine customer meeting
+
+Before a routine customer call, the CSM prepares an agenda including the following items:
+1. Customer and Fleet expected attendees
+2. Release notes for the latest version of Fleet
+3. Update notes for which version of Fleet the customer is running (if self-hosted)
+4. Follow ups to the agenda from the previous call or Slack
+5. Provide updates to open feature requests (can be done monthly or quarterly)
+6. Provide updates to open bug reports
 
 ### Create customer support issue
 Locate the relevant issue or create it if it doesn't already exist (to avoid duplication, be creative when searching GitHub for issues - it can often take a couple of tries with different keywords to find an existing issue). When creating a new issue, make sure the following:

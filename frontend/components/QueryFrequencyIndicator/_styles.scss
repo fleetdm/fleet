@@ -1,12 +1,12 @@
 .query-frequency-indicator {
   width: 90px;
-  display: flex;
   align-items: center;
   text-overflow: ellipsis;
   overflow: hidden;
   white-space: nowrap;
 
   .icon {
+    vertical-align: middle;
     padding-right: $pad-small;
   }
 }

@@ -2737,13 +2737,18 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 		host.Hostname = deviceName
 		host.GigsDiskSpaceAvailable = availableDeviceCapacity
 		host.GigsTotalDiskSpace = deviceCapacity
-		var osVersionPrefix string
+		var (
+			osVersionPrefix string
+			platform        string
+		)
 		if strings.HasPrefix(productName, "iPhone") {
-			osVersionPrefix = "iOS "
+			osVersionPrefix = "iOS"
+			platform = "ios"
 		} else { // iPad
-			osVersionPrefix = "iPadOS "
+			osVersionPrefix = "iPadOS"
+			platform = "ipados"
 		}
-		host.OSVersion = osVersionPrefix + osVersion
+		host.OSVersion = osVersionPrefix + " " + osVersion
 		host.PrimaryMac = wifiMac
 		host.HardwareModel = productName
 		host.DetailUpdatedAt = time.Now()
@@ -2752,6 +2757,13 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 		}
 		if err := svc.ds.SetOrUpdateHostDisksSpace(r.Context, host.ID, availableDeviceCapacity, 100*availableDeviceCapacity/deviceCapacity, deviceCapacity); err != nil {
 			return nil, ctxerr.Wrap(r.Context, err, "failed to update host storage")
+		}
+		if err := svc.ds.UpdateHostOperatingSystem(r.Context, host.ID, fleet.OperatingSystem{
+			Name:     osVersionPrefix,
+			Version:  osVersion,
+			Platform: platform,
+		}); err != nil {
+			return nil, ctxerr.Wrap(r.Context, err, "failed to update host operating system")
 		}
 		return nil, nil
 	}
@@ -2905,6 +2917,35 @@ func ensureFleetProfiles(ctx context.Context, ds fleet.Datastore, logger kitlog.
 
 	if err := ds.BulkUpsertMDMAppleConfigProfiles(ctx, profiles); err != nil {
 		return ctxerr.Wrap(ctx, err, "bulk-upserting configuration profiles")
+	}
+
+	return nil
+}
+
+func SendPushesToPendingDevices(
+	ctx context.Context,
+	ds fleet.Datastore,
+	commander *apple_mdm.MDMAppleCommander,
+	logger kitlog.Logger,
+) error {
+	uuids, err := ds.GetHostUUIDsWithPendingMDMAppleCommands(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting host uuids with pending commands")
+	}
+
+	if len(uuids) == 0 {
+		return nil
+	}
+
+	if err := commander.SendNotifications(ctx, uuids); err != nil {
+		var apnsErr *apple_mdm.APNSDeliveryError
+		if errors.As(err, &apnsErr) {
+			level.Info(logger).Log("msg", "failed to send APNs notification to some hosts", "host_uuids", apnsErr.FailedUUIDs)
+			return nil
+		}
+
+		return ctxerr.Wrap(ctx, err, "sending push notifications")
+
 	}
 
 	return nil

@@ -82,6 +82,7 @@ func setupMockDatastorePremiumService() (*mock.Store, *eeservice.Service, contex
 		nil,
 		nil,
 		nil,
+		nil,
 	)
 	if err != nil {
 		panic(err)

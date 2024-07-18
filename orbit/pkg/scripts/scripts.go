@@ -13,7 +13,6 @@ import (
 	"unicode/utf8"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
-	"github.com/fleetdm/fleet/v4/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/rs/zerolog/log"
 )
@@ -31,6 +30,7 @@ type Client interface {
 type Runner struct {
 	Client                 Client
 	ScriptExecutionEnabled bool
+	ScriptExecutionTimeout time.Duration
 
 	// tempDirFn is the function to call to get the temporary directory to use,
 	// inside of which the script-specific subdirectories will be created. If nil,
@@ -114,7 +114,7 @@ func (r *Runner) runOne(script *fleet.HostScriptResult) (finalErr error) {
 		return fmt.Errorf("write script file: %w", err)
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), scripts.MaxHostExecutionTime)
+	ctx, cancel := context.WithTimeout(context.Background(), r.ScriptExecutionTimeout)
 	defer cancel()
 
 	execCmdFn := r.execCmdFn
@@ -122,7 +122,7 @@ func (r *Runner) runOne(script *fleet.HostScriptResult) (finalErr error) {
 		execCmdFn = ExecCmd
 	}
 	start := time.Now()
-	log.Debug().Msgf("starting script execution of %v", script.ExecutionID)
+	log.Debug().Msgf("starting script execution of %v with timeout of %v", script.ExecutionID, r.ScriptExecutionTimeout)
 	output, exitCode, execErr := execCmdFn(ctx, scriptFile, nil)
 	log.Debug().Msgf("after script execution of %v", script.ExecutionID)
 	duration := time.Since(start)
@@ -144,6 +144,7 @@ func (r *Runner) runOne(script *fleet.HostScriptResult) (finalErr error) {
 		Output:      string(output),
 		Runtime:     int(duration.Seconds()),
 		ExitCode:    exitCode,
+		Timeout:     int(r.ScriptExecutionTimeout.Seconds()),
 	})
 	if err != nil {
 		return fmt.Errorf("save script result: %w", err)
