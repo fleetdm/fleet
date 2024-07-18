@@ -202,14 +202,14 @@ type SoftwareTitleListResult struct {
 	// CountsUpdatedAt is the timestamp when the hosts count
 	// was last updated for that software title
 	CountsUpdatedAt *time.Time `json:"-" db:"counts_updated_at"`
-	// SelfService indicates if the end user can initiate the installation
-	SelfService bool `json:"self_service" db:"self_service"`
-	// AvailableForInstall is true if the software title has an installer or a
-	// VPP App available to install it, false otherwise.
-	AvailableForInstall bool `json:"available_for_install" db:"available_for_install"`
-	// IconURL is the VPP App icon URL. It is nil for non-VPP Apps or if no icon
-	// is available.
-	IconURL *string `json:"icon_url" db:"icon_url"`
+
+	// SoftwarePackage provides software installer package information, it is
+	// only present if a software installer is available for the software title.
+	SoftwarePackage *SoftwarePackageOrApp `json:"software_package"`
+
+	// AppStoreApp provides VPP app information, it is only present if a VPP app
+	// is available for the software title.
+	AppStoreApp *SoftwarePackageOrApp `json:"app_store_app"`
 }
 
 type SoftwareTitleListOptions struct {

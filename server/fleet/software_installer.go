@@ -310,32 +310,30 @@ type HostSoftwareWithInstaller struct {
 	ID                uint                            `json:"id" db:"id"`
 	Name              string                          `json:"name" db:"name"`
 	Source            string                          `json:"source" db:"source"`
-	SelfService       *bool                           `json:"self_service,omitempty" db:"self_service"`
 	Status            *SoftwareInstallerStatus        `json:"status" db:"status"`
 	LastInstall       *HostSoftwareInstall            `json:"last_install"`
 	InstalledVersions []*HostSoftwareInstalledVersion `json:"installed_versions"`
 
-	// AvailableForInstall is true if a software installer or a VPP app is
-	// available to install this software.
-	AvailableForInstall bool `json:"available_for_install" db:"available_for_install"`
-
 	// SoftwarePackage provides software installer package information, it is
 	// only present if a software installer is available for the software title.
-	SoftwarePackage *HostSoftwarePackageOrApp `json:"software_package"`
+	SoftwarePackage *SoftwarePackageOrApp `json:"software_package"`
 
 	// AppStoreApp provides VPP app information, it is only present if a VPP app
 	// is available for the software title.
-	AppStoreApp *HostSoftwarePackageOrApp `json:"app_store_app"`
+	AppStoreApp *SoftwarePackageOrApp `json:"app_store_app"`
 }
 
-// HostSoftwarePackageOrApp provides information about a software installer
+// SoftwarePackageOrApp provides information about a software installer
 // package or a VPP app.
-type HostSoftwarePackageOrApp struct {
+type SoftwarePackageOrApp struct {
 	// AppStoreID is only present for VPP apps.
 	AppStoreID string `json:"app_store_id,omitempty"`
 	// Name is only present for software installer packages.
-	Name    string `json:"name,omitempty"`
-	Version string `json:"version"`
+	Name string `json:"name,omitempty"`
+
+	Version     string  `json:"version"`
+	SelfService *bool   `json:"self_service,omitempty"`
+	IconURL     *string `json:"icon_url"`
 }
 
 // HostSoftwareInstall represents installation of software on a host from a
