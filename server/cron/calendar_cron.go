@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/google/uuid"
 	"slices"
 	"sync"
 	"time"
@@ -17,11 +16,12 @@ import (
 	"github.com/go-kit/log"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
+	"github.com/google/uuid"
 )
 
 const (
 	calendarConsumers = 18
-	reloadFrequency   = 12 * time.Hour
+	reloadFrequency   = 30 * time.Minute
 )
 
 func NewCalendarSchedule(
@@ -385,13 +385,6 @@ func processFailingHostExistingCalendarEvent(
 		}
 	}()
 
-	// Remove event from the queue so that we don't process this event again.
-	// Note: This item can be added back to the queue while we are processing it.
-	err = distributedLock.RemoveFromSet(ctx, calendar.QueueKey, eventUUID)
-	if err != nil {
-		return fmt.Errorf("remove calendar event from queue: %w", err)
-	}
-
 	updatedEvent := calendarEvent
 	updated := false
 	now := time.Now()
@@ -421,6 +414,12 @@ func processFailingHostExistingCalendarEvent(
 			updatedEvent.TimeZone,
 		); err != nil {
 			return fmt.Errorf("updating event calendar on db: %w", err)
+		}
+
+		// Remove event from the queue so that we don't process this event again.
+		err = distributedLock.RemoveFromSet(ctx, calendar.QueueKey, eventUUID)
+		if err != nil {
+			return fmt.Errorf("remove calendar event from queue: %w", err)
 		}
 	}
 

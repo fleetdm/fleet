@@ -113,7 +113,6 @@ module.exports.routes = {
   'GET /register': {
     action: 'entrance/view-signup',
     locals: {
-      hideHeaderLinks: true,
       hideFooterLinks: true,
       pageTitleForMeta: 'Sign up | Fleet',
       pageDescriptionForMeta: 'Sign up for a Fleet account.',
@@ -122,7 +121,6 @@ module.exports.routes = {
   'GET /login': {
     action: 'entrance/view-login',
     locals: {
-      hideHeaderLinks: true,
       hideFooterLinks: true,
       pageTitleForMeta: 'Log in | Fleet',
       pageDescriptionForMeta: 'Log in to Fleet.',
