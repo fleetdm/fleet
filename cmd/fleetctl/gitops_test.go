@@ -1094,7 +1094,11 @@ func TestTeamSofwareInstallersGitOps(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(filepath.Base(c.file), func(t *testing.T) {
-			setupFullGitOpsPremiumServer(t)
+			ds, _, _ := setupFullGitOpsPremiumServer(t)
+
+			ds.SetTeamVPPAppsFunc = func(ctx context.Context, teamID *uint, adamIDs []string) error {
+				return nil
+			}
 
 			_, err := runAppNoChecks([]string{"gitops", "-f", c.file})
 			if c.wantErr == "" {
