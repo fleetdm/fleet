@@ -38,9 +38,7 @@ module.exports = {
       // Build a dictionary containing the category name, and all features in the category, sorting premium features to the bottom of the list.
       let allFeaturesInThisCategory = {
         categoryName: category,
-        features: _.sortBy(featuresInThisCategory, (feature)=>{
-          return feature.tier !== 'Free';
-        })
+        features: featuresInThisCategory
       };
       // Add the dictionaries to the arrays that we'll use to build the features table.
       pricingTable.push(allFeaturesInThisCategory);
