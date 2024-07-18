@@ -61,6 +61,7 @@ export interface ISoftwarePackage {
   pre_install_query?: string;
   post_install_script?: string;
   self_service: boolean;
+  icon_url: string | null;
   status: {
     installed: number;
     pending: number;
@@ -88,13 +89,12 @@ export interface IAppStoreApp {
 export interface ISoftwareTitle {
   id: number;
   name: string;
-  icon_url: string | null;
   versions_count: number;
   source: string;
   hosts_count: number;
   versions: ISoftwareTitleVersion[] | null;
-  available_for_install: boolean;
-  self_service: boolean;
+  software_package: ISoftwarePackage | null;
+  app_store_app: IAppStoreApp | null;
   browser?: string;
 }
 

@@ -2,7 +2,13 @@ import React from "react";
 import { CellProps, Column } from "react-table";
 import { InjectedRouter } from "react-router";
 
-import { ISoftwareTitle, formatSoftwareType } from "interfaces/software";
+import {
+  IAppStoreApp,
+  ISoftware,
+  ISoftwarePackage,
+  ISoftwareTitle,
+  formatSoftwareType,
+} from "interfaces/software";
 import PATHS from "router/paths";
 
 import { buildQueryStringFromParams } from "utilities/url";
@@ -51,6 +57,41 @@ export const getVulnerabilities = <
   return vulnerabilities;
 };
 
+/**
+ * Gets the data needed to render the software name cell.
+ */
+const getSoftwareNameCellData = (
+  softwareTitle: ISoftwareTitle,
+  teamId?: number
+) => {
+  const teamQueryParam = buildQueryStringFromParams({ team_id: teamId });
+  const softwareTitleDetailsPath = `${PATHS.SOFTWARE_TITLE_DETAILS(
+    softwareTitle.id.toString()
+  )}?${teamQueryParam}`;
+
+  const { software_package, app_store_app } = softwareTitle;
+  let hasPackage = false;
+  let isSelfService = false;
+  let iconUrl: string | null = null;
+  if (software_package) {
+    hasPackage = true;
+    isSelfService = software_package.self_service;
+  } else if (app_store_app) {
+    hasPackage = true;
+    isSelfService = false;
+    iconUrl = app_store_app.icon_url;
+  }
+
+  return {
+    name: softwareTitle.name,
+    source: softwareTitle.source,
+    path: softwareTitleDetailsPath,
+    hasPackage: hasPackage && !!teamId,
+    isSelfService,
+    iconUrl,
+  };
+};
+
 const generateTableHeaders = (
   router: InjectedRouter,
   teamId?: number
@@ -63,31 +104,20 @@ const generateTableHeaders = (
       disableSortBy: false,
       accessor: "name",
       Cell: (cellProps: ITableStringCellProps) => {
-        const {
-          id,
-          name,
-          source,
-          available_for_install,
-          self_service,
-          icon_url,
-        } = cellProps.row.original;
-
-        const teamQueryParam = buildQueryStringFromParams({ team_id: teamId });
-        const softwareTitleDetailsPath = `${PATHS.SOFTWARE_TITLE_DETAILS(
-          id.toString()
-        )}?${teamQueryParam}`;
-
-        const hasPackage = available_for_install && !!teamId; // teamId is required for package installation
+        const nameCellData = getSoftwareNameCellData(
+          cellProps.row.original,
+          teamId
+        );
 
         return (
           <SoftwareNameCell
-            name={name}
-            source={source}
-            path={softwareTitleDetailsPath}
+            name={nameCellData.name}
+            source={nameCellData.source}
+            path={nameCellData.path}
             router={router}
-            hasPackage={hasPackage}
-            isSelfService={self_service === true}
-            iconUrl={icon_url ?? undefined}
+            hasPackage={nameCellData.hasPackage}
+            isSelfService={nameCellData.isSelfService}
+            iconUrl={nameCellData.iconUrl ?? undefined}
           />
         );
       },
