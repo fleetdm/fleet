@@ -1,18 +1,18 @@
 ## Orbit 1.28.0 (Jul 18, 2024)
 
-* Hide "Self-service" in Fleet Desktop and My device page if there is no self-service software available.
+* Hid "Self-service" in Fleet Desktop and My device page if there is no self-service software available.
 
-* Fixes a bug that caused log Orbit's osquery table log output to be inconsistent.
+* Fixed a bug that caused log Orbit's osquery table log output to be inconsistent.
 
-* Adding support for new agent option `script_execution_timeout` to configure seconds until a script is killed due to timeout.
+* Added support for new agent option `script_execution_timeout` to configure seconds until a script is killed due to timeout.
 
-* Updated Go version to go1.22.4
+* Updated Go version to go1.22.4.
 
-* Fix boot loop caused by Linux hosts with no hardware UUID
+* Fixed boot loop caused by Linux hosts with no hardware UUID.
 
-* Added support for Linux ARM64
+* Added support for Linux ARM64.
 
-* Fix bug where UTC timezone could cause error in `fleetd_logs` table time parsing
+* Fixed bug where UTC timezone could cause error in `fleetd_logs` table time parsing.
 
 ## Orbit 1.27.0 (Jun 21, 2024)
 
