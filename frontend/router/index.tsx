@@ -57,7 +57,7 @@ import OSUpdates from "pages/ManageControlsPage/OSUpdates";
 import OSSettings from "pages/ManageControlsPage/OSSettings";
 import SetupExperience from "pages/ManageControlsPage/SetupExperience/SetupExperience";
 import WindowsMdmPage from "pages/admin/IntegrationsPage/cards/MdmSettings/WindowsMdmPage";
-import MacOSMdmPage from "pages/admin/IntegrationsPage/cards/MdmSettings/MacOSMdmPage";
+import AppleMdmPage from "pages/admin/IntegrationsPage/cards/MdmSettings/AppleMdmPage";
 import Scripts from "pages/ManageControlsPage/Scripts/Scripts";
 import AppleAutomaticEnrollmentPage from "pages/admin/IntegrationsPage/cards/AutomaticEnrollment/AppleAutomaticEnrollmentPage";
 import WindowsAutomaticEnrollmentPage from "pages/admin/IntegrationsPage/cards/AutomaticEnrollment/WindowsAutomaticEnrollmentPage";
@@ -160,7 +160,7 @@ const routes = (
               </Route>
             </Route>
             <Route path="integrations/mdm/windows" component={WindowsMdmPage} />
-            <Route path="integrations/mdm/apple" component={MacOSMdmPage} />
+            <Route path="integrations/mdm/apple" component={AppleMdmPage} />
             <Route
               path="integrations/automatic-enrollment/apple"
               component={AppleAutomaticEnrollmentPage}

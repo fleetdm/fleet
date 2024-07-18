@@ -19,11 +19,11 @@ import ApplePushCertSetup from "./components/content/ApplePushCertSetup";
 import ApplePushCertInfo from "./components/content/ApplePushCertInfo";
 
 import RenewCertModal from "./components/modals/RenewCertModal";
-import TurnOffMacOsMdmModal from "./components/modals/TurnOffMacOsMdmModal";
+import TurnOffAppleMdmModal from "./components/modals/TurnOffAppleMdmModal";
 
-export const baseClass = "mac-os-mdm-page";
+export const baseClass = "apple-mdm-page";
 
-const MacOSMdmPage = ({ router }: { router: InjectedRouter }) => {
+const AppleMdmPage = ({ router }: { router: InjectedRouter }) => {
   const { config } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
 
@@ -65,10 +65,10 @@ const MacOSMdmPage = ({ router }: { router: InjectedRouter }) => {
     toggleTurnOffMdmModal();
     try {
       await mdmAppleAPI.deleteApplePushCertificate();
-      renderFlash("success", "macOS MDM turned off successfully.");
+      renderFlash("success", "Apple MDM turned off successfully.");
       router.push(PATHS.ADMIN_INTEGRATIONS_MDM);
     } catch (e) {
-      renderFlash("error", "Couldn’t turn off MDM. Please try again.");
+      renderFlash("error", "Couldn't turn off MDM. Please try again.");
       setIsUpdating(false);
     }
   }, [renderFlash, router]);
@@ -124,7 +124,7 @@ const MacOSMdmPage = ({ router }: { router: InjectedRouter }) => {
           />
         )}
         {showTurnOffMdmModal && (
-          <TurnOffMacOsMdmModal
+          <TurnOffAppleMdmModal
             onCancel={toggleTurnOffMdmModal}
             onConfirm={turnOffMdm}
           />
@@ -134,4 +134,4 @@ const MacOSMdmPage = ({ router }: { router: InjectedRouter }) => {
   );
 };
 
-export default MacOSMdmPage;
+export default AppleMdmPage;

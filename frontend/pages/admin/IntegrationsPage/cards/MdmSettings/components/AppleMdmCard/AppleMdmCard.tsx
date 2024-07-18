@@ -7,17 +7,17 @@ import DataError from "components/DataError";
 import { AxiosError } from "axios";
 import { IMdmApple } from "interfaces/mdm";
 
-const baseClass = "mac-os-mdm-card";
+const baseClass = "apple-mdm-card";
 
-interface ITurnOnMacOSMdmProps {
+interface ITurnOnAppleMdmProps {
   onClickTurnOn: () => void;
 }
 
-const TurnOnMacOSMdm = ({ onClickTurnOn }: ITurnOnMacOSMdmProps) => {
+const TurnOnAppleMdm = ({ onClickTurnOn }: ITurnOnAppleMdmProps) => {
   return (
-    <div className={`${baseClass}__turn-on-mac-os`}>
+    <div className={`${baseClass}__turn-on-apple-mdm`}>
       <div>
-        <h3>Turn on macOS MDM</h3>
+        <h3>Turn on Apple MDM</h3>
         <p>Enforce settings, OS updates, disk encryption, and more.</p>
       </div>
       <Button variant="brand" onClick={onClickTurnOn}>
@@ -27,16 +27,16 @@ const TurnOnMacOSMdm = ({ onClickTurnOn }: ITurnOnMacOSMdmProps) => {
   );
 };
 
-interface ITurnOffMacOSMdmProps {
+interface ITurnOffAppleMdmProps {
   onClickDetails: () => void;
 }
 
-const SeeDetailsMacOSMdm = ({ onClickDetails }: ITurnOffMacOSMdmProps) => {
+const SeeDetailsAppleMdm = ({ onClickDetails }: ITurnOffAppleMdmProps) => {
   return (
     <div className={`${baseClass}__turn-off-mac-os`}>
       <div>
         <Icon name="success" />
-        <p>macOS MDM turned on</p>
+        <p>Apple (macOS, iOS, iPadOS) MDM turned on.</p>
       </div>
       <Button onClick={onClickDetails} variant="text-icon">
         <Icon name="pencil" />
@@ -46,25 +46,25 @@ const SeeDetailsMacOSMdm = ({ onClickDetails }: ITurnOffMacOSMdmProps) => {
   );
 };
 
-interface IMacOSMdmCardProps {
+interface IAppleMdmCardProps {
   appleAPNInfo: IMdmApple | undefined;
   errorData: AxiosError | null;
-  turnOnMacOSMdm: () => void;
+  turnOnAppleMdm: () => void;
   viewDetails: () => void;
 }
 
 /**
- * This compoent is responsible for showing the correct UI for the macOS MDM card.
+ * This compoent is responsible for showing the correct UI for the Apple MDM card.
  * We pass in the appleAPNInfo and errorData from the MdmSettings component because
  * we need to make that API call higher up in the component tree to correctly show
  * loading states on the page.
  */
-const MacOSMdmCard = ({
+const AppleMdmCard = ({
   appleAPNInfo,
   errorData,
-  turnOnMacOSMdm,
+  turnOnAppleMdm,
   viewDetails,
-}: IMacOSMdmCardProps) => {
+}: IAppleMdmCardProps) => {
   // The API returns an error if MDM is turned off or APNS is not configured yet.
   // If there is any other error we will show the DataError component.
   const showError =
@@ -77,12 +77,12 @@ const MacOSMdmCard = ({
   return (
     <Card className={baseClass} color="gray">
       {appleAPNInfo !== undefined ? (
-        <SeeDetailsMacOSMdm onClickDetails={viewDetails} />
+        <SeeDetailsAppleMdm onClickDetails={viewDetails} />
       ) : (
-        <TurnOnMacOSMdm onClickTurnOn={turnOnMacOSMdm} />
+        <TurnOnAppleMdm onClickTurnOn={turnOnAppleMdm} />
       )}
     </Card>
   );
 };
 
-export default MacOSMdmCard;
+export default AppleMdmCard;

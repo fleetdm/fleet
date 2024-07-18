@@ -29,7 +29,7 @@ describe("Vpp Section", () => {
     render(<Vpp router={createMockRouter()} />);
 
     expect(
-      await screen.findByRole("button", { name: "Turn on macOS MDM" })
+      await screen.findByRole("button", { name: "Turn on Apple MDM" })
     ).toBeInTheDocument();
   });
 
