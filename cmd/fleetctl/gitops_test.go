@@ -1126,12 +1126,6 @@ func TestTeamVPPAppsGitOps(t *testing.T) {
 	for _, c := range cases {
 		t.Run(filepath.Base(c.file), func(t *testing.T) {
 			ds, _, _ := setupFullGitOpsPremiumServer(t)
-			ds.GetTeamAppleSerialNumbersFunc = func(ctx context.Context, teamID uint) ([]string, error) {
-				if c.emptyTeam {
-					return nil, nil
-				}
-				return []string{"123"}, nil
-			}
 			token, err := createVPPDataToken(c.tokenExpiration, "fleet", "ca")
 			require.NoError(t, err)
 
