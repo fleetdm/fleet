@@ -36,9 +36,12 @@ export enum ActivityType {
   MdmUnenrolled = "mdm_unenrolled",
   EditedMacosMinVersion = "edited_macos_min_version",
   ReadHostDiskEncryptionKey = "read_host_disk_encryption_key",
-  CreatedMacOSProfile = "created_macos_profile", // TODO: rename on frontend only
-  DeletedMacOSProfile = "deleted_macos_profile", // same
-  EditedMacOSProfile = "edited_macos_profile", // same
+  /** Note: BE not renamed (yet) from macOS even though activity is also used for iOS and iPadOS */
+  CreatedAppleOSProfile = "created_macos_profile",
+  /** Note: BE not renamed (yet) from macOS even though activity is also used for iOS and iPadOS */
+  DeletedAppleOSProfile = "deleted_macos_profile",
+  /** Note: BE not renamed (yet) from macOS even though activity is also used for iOS and iPadOS */
+  EditedAppleOSProfile = "edited_macos_profile",
   CreatedWindowsProfile = "created_windows_profile",
   DeletedWindowsProfile = "deleted_windows_profile",
   EditedWindowsProfile = "edited_windows_profile",

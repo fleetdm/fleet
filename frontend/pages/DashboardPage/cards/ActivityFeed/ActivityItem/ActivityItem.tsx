@@ -969,14 +969,13 @@ const getDetail = (
     case ActivityType.ReadHostDiskEncryptionKey: {
       return TAGGED_TEMPLATES.readHostDiskEncryptionKey(activity);
     }
-    // Change name
-    case ActivityType.CreatedMacOSProfile: {
+    case ActivityType.CreatedAppleOSProfile: {
       return TAGGED_TEMPLATES.createdAppleOSProfile(activity, isPremiumTier);
     }
-    case ActivityType.DeletedMacOSProfile: {
+    case ActivityType.DeletedAppleOSProfile: {
       return TAGGED_TEMPLATES.deletedAppleOSProfile(activity, isPremiumTier);
     }
-    case ActivityType.EditedMacOSProfile: {
+    case ActivityType.EditedAppleOSProfile: {
       return TAGGED_TEMPLATES.editedAppleOSProfile(activity, isPremiumTier);
     }
     case ActivityType.CreatedWindowsProfile: {
