@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/explicit-module-boundary-types */
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
 
@@ -6,6 +5,18 @@ export interface IGetVppInfoResponse {
   org_name: string;
   renew_date: string;
   location: string;
+}
+
+export interface IVppApp {
+  name: string;
+  icon_url: string;
+  latest_version: string;
+  app_store_id: number;
+  added: boolean;
+}
+
+interface IGetVppAppsResponse {
+  app_store_apps: IVppApp[];
 }
 
 export default {
@@ -47,5 +58,19 @@ export default {
   disableVpp: () => {
     const { MDM_APPLE_VPP_TOKEN } = endpoints;
     return sendRequest("DELETE", MDM_APPLE_VPP_TOKEN);
+  },
+
+  getVppApps: (teamId: number): Promise<IGetVppAppsResponse> => {
+    const { MDM_APPLE_VPP_APPS } = endpoints;
+    const path = `${MDM_APPLE_VPP_APPS}?team_id=${teamId}`;
+    return sendRequest("GET", path);
+  },
+
+  addVppApp: (teamId: number, appStoreId: number) => {
+    const { MDM_APPLE_VPP_APPS } = endpoints;
+    return sendRequest("POST", MDM_APPLE_VPP_APPS, {
+      app_store_id: appStoreId,
+      team_id: teamId,
+    });
   },
 };
