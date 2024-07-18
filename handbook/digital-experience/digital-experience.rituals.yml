@@ -18,9 +18,6 @@
   description: "Run through the entire website in `?utm_content=clear` mode and build a fresh outline of the headings to make sure they all still make sense."
   moreInfoUrl: ""
   dri: "mike-j-thomas"
-  autoIssue:   
-    labels: [ "#g-digital-experience" ] # label to be applied to issue
-    repo: fleet
 - 
   task: "Check production dependencies of fleetdm.com"
   startedOn: "2023-11-10" 
