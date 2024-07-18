@@ -1109,13 +1109,6 @@
   usualDepartment: IT
   productCategories: [Device management]
   pricingTableCategories: [Device management]
-- industryName: API first by design
-  tier: Free
-  jamfProHasFeature: no
-  jamfProtectHasFeature: no
-  usualDepartment: IT
-  productCategories: [Device management]
-  pricingTableCategories: [Device management]
 - industryName: Application deployment
   description: Deploy applications and security agents on macOS, iOS/iPadOS, Linux, Windows, and Android (coming soon) devices. Additionally, install macOS and iOS/iPadOS apps from the App Store.
   tier: Premium
