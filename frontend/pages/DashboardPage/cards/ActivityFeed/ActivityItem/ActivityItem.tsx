@@ -17,6 +17,8 @@ import Icon from "components/Icon";
 import ReactTooltip from "react-tooltip";
 import PremiumFeatureIconWithTooltip from "components/PremiumFeatureIconWithTooltip";
 import { COLORS } from "styles/var/colors";
+import { getSoftwareInstallStatusPredicate } from "pages/hosts/details/cards/Activity/ActivityItems/InstalledSoftwareActivityItem/InstalledSoftwareActivityItem";
+import { AppleDisplayPlatform } from "interfaces/platform";
 
 const baseClass = "activity-item";
 
@@ -305,8 +307,8 @@ const TAGGED_TEMPLATES = {
     );
   },
   editedAppleosMinVersion: (
-    activity: IActivity,
-    osType: "darwin" | "ios" | "ipados"
+    osType: AppleDisplayPlatform,
+    activity: IActivity
   ) => {
     const editedActivity =
       activity.details?.minimum_version === "" ? "removed" : "updated";
@@ -977,13 +979,13 @@ const getDetail = (
       return TAGGED_TEMPLATES.mdmUnenrolled(activity);
     }
     case ActivityType.EditedMacosMinVersion: {
-      return TAGGED_TEMPLATES.editedAppleosMinVersion(activity, "darwin");
+      return TAGGED_TEMPLATES.editedAppleosMinVersion("macOS", activity);
     }
     case ActivityType.EditedIosMinVersion: {
-      return TAGGED_TEMPLATES.editedAppleosMinVersion(activity, "ios");
+      return TAGGED_TEMPLATES.editedAppleosMinVersion("iOS", activity);
     }
     case ActivityType.EditedIpadosMinVersion: {
-      return TAGGED_TEMPLATES.editedAppleosMinVersion(activity, "ipados");
+      return TAGGED_TEMPLATES.editedAppleosMinVersion("iPadOS", activity);
     }
 
     case ActivityType.ReadHostDiskEncryptionKey: {

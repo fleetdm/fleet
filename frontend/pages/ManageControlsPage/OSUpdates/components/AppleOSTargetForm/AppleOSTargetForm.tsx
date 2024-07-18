@@ -11,14 +11,14 @@ import InputField from "components/forms/fields/InputField";
 import Button from "components/buttons/Button";
 import validatePresence from "components/forms/validators/validate_presence";
 
-const baseClass = "mac-os-target-form";
+const baseClass = "apple-os-target-form";
 
-interface IMacOSTargetFormData {
+interface IAppleOSTargetFormData {
   minOsVersion: string;
   deadline: string;
 }
 
-interface IMacOSTargetFormErrors {
+interface IAppleOSTargetFormErrors {
   minOsVersion?: string;
   deadline?: string;
 }
@@ -31,8 +31,8 @@ const validateDeadline = (value: string) => {
   return /^\d{4}-(0[1-9]|1[012])-(0[1-9]|[12][0-9]|3[01])$/.test(value);
 };
 
-const validateForm = (formData: IMacOSTargetFormData) => {
-  const errors: IMacOSTargetFormErrors = {};
+const validateForm = (formData: IAppleOSTargetFormData) => {
+  const errors: IAppleOSTargetFormErrors = {};
 
   if (!validatePresence(formData.minOsVersion)) {
     errors.minOsVersion = "The minimum version is required.";
@@ -49,9 +49,17 @@ const validateForm = (formData: IMacOSTargetFormData) => {
   return errors;
 };
 
-interface IMacMdmConfigData {
+interface IAppleUpdatesMdmConfigData {
   mdm: {
-    macos_updates: {
+    macos_updates?: {
+      minimum_version: string;
+      deadline: string;
+    };
+    ipados_updates?: {
+      minimum_version: string;
+      deadline: string;
+    };
+    ios_updates?: {
       minimum_version: string;
       deadline: string;
     };
@@ -59,12 +67,33 @@ interface IMacMdmConfigData {
 }
 
 const createMdmConfigData = (
+  osType: "darwin" | "ios" | "ipados",
   minOsVersion: string,
   deadline: string
-): IMacMdmConfigData => {
+): IAppleUpdatesMdmConfigData => {
+  if (osType === "darwin") {
+    return {
+      mdm: {
+        macos_updates: {
+          minimum_version: minOsVersion,
+          deadline,
+        },
+      },
+    };
+  }
+  if (osType === "ios") {
+    return {
+      mdm: {
+        ios_updates: {
+          minimum_version: minOsVersion,
+          deadline,
+        },
+      },
+    };
+  }
   return {
     mdm: {
-      macos_updates: {
+      ipados_updates: {
         minimum_version: minOsVersion,
         deadline,
       },
@@ -72,21 +101,23 @@ const createMdmConfigData = (
   };
 };
 
-interface IMacOSTargetFormProps {
+interface IAppleOSTargetFormProps {
   currentTeamId: number;
+  osType: "darwin" | "ios" | "ipados";
   defaultMinOsVersion: string;
   defaultDeadline: string;
   refetchAppConfig: () => void;
   refetchTeamConfig: () => void;
 }
 
-const MacOSTargetForm = ({
+const AppleOSTargetForm = ({
   currentTeamId,
+  osType,
   defaultMinOsVersion,
   defaultDeadline,
   refetchAppConfig,
   refetchTeamConfig,
-}: IMacOSTargetFormProps) => {
+}: IAppleOSTargetFormProps) => {
   const { renderFlash } = useContext(NotificationContext);
 
   const [isSaving, setIsSaving] = useState(false);
@@ -111,7 +142,7 @@ const MacOSTargetForm = ({
 
     if (isEmpty(errors)) {
       setIsSaving(true);
-      const updateData = createMdmConfigData(minOsVersion, deadline);
+      const updateData = createMdmConfigData(osType, minOsVersion, deadline);
       try {
         currentTeamId === APP_CONTEXT_NO_TEAM_ID
           ? await configAPI.update(updateData)
@@ -136,11 +167,23 @@ const MacOSTargetForm = ({
     setDeadline(val);
   };
 
+  const getDeviceTypeTooltip = (platform: string) => {
+    if (platform === "darwin") {
+      return "The end user sees the window until their macOS is at or above this version.";
+    }
+    if (platform === "ios") {
+      return "TODO";
+    }
+    if (platform === "ipados") {
+      return "TODO";
+    }
+  };
+
   return (
     <form className={baseClass} onSubmit={handleSubmit}>
       <InputField
         label="Minimum version"
-        tooltip="The end user sees the window until their macOS is at or above this version."
+        tooltip={getDeviceTypeTooltip("darwin")}
         helpText="Version number only (e.g., “13.0.1” not “Ventura 13” or “13.0.1 (22A400)”)"
         placeholder="13.0.1"
         value={minOsVersion}
@@ -163,4 +206,4 @@ const MacOSTargetForm = ({
   );
 };
 
-export default MacOSTargetForm;
+export default AppleOSTargetForm;

@@ -2,10 +2,9 @@ import React from "react";
 import { Tab, TabList, TabPanel, Tabs } from "react-tabs";
 import TabsWrapper from "components/TabsWrapper";
 
-import MacOSTargetForm from "../MacOSTargetForm";
 import WindowsTargetForm from "../WindowsTargetForm";
 import { OSUpdatesSupportedPlatform } from "../../OSUpdates";
-import EmptyTargetForm from "../EmptyTargetForm";
+import AppleOSTargetForm from "../AppleOSTargetForm";
 
 const baseClass = "platform-tabs";
 
@@ -13,6 +12,10 @@ interface IPlatformTabsProps {
   currentTeamId: number;
   defaultMacOSVersion: string;
   defaultMacOSDeadline: string;
+  defaultIOSVersion: string;
+  defaultIOSDeadline: string;
+  defaultIPadOSVersion: string;
+  defaultIPadOSDeadline: string;
   defaultWindowsDeadlineDays: string;
   defaultWindowsGracePeriodDays: string;
   selectedPlatform: OSUpdatesSupportedPlatform;
@@ -25,6 +28,10 @@ const PlatformTabs = ({
   currentTeamId,
   defaultMacOSDeadline,
   defaultMacOSVersion,
+  defaultIOSDeadline,
+  defaultIOSVersion,
+  defaultIPadOSDeadline,
+  defaultIPadOSVersion,
   defaultWindowsDeadlineDays,
   defaultWindowsGracePeriodDays,
   selectedPlatform,
@@ -70,8 +77,9 @@ const PlatformTabs = ({
             </Tab>
           </TabList>
           <TabPanel>
-            <MacOSTargetForm
+            <AppleOSTargetForm
               currentTeamId={currentTeamId}
+              osType="darwin"
               defaultMinOsVersion={defaultMacOSVersion}
               defaultDeadline={defaultMacOSDeadline}
               key={currentTeamId}
@@ -90,10 +98,26 @@ const PlatformTabs = ({
             />
           </TabPanel>
           <TabPanel>
-            <EmptyTargetForm targetPlatform="iOS" />
+            <AppleOSTargetForm
+              currentTeamId={currentTeamId}
+              osType="ios"
+              defaultMinOsVersion={defaultIOSVersion}
+              defaultDeadline={defaultIOSDeadline}
+              key={currentTeamId}
+              refetchAppConfig={refetchAppConfig}
+              refetchTeamConfig={refetchTeamConfig}
+            />
           </TabPanel>
           <TabPanel>
-            <EmptyTargetForm targetPlatform="iPadOS" />
+            <AppleOSTargetForm
+              currentTeamId={currentTeamId}
+              osType="ipados"
+              defaultMinOsVersion={defaultIPadOSVersion}
+              defaultDeadline={defaultIPadOSDeadline}
+              key={currentTeamId}
+              refetchAppConfig={refetchAppConfig}
+              refetchTeamConfig={refetchTeamConfig}
+            />
           </TabPanel>
         </Tabs>
       </TabsWrapper>

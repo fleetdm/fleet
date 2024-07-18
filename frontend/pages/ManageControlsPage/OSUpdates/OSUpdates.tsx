@@ -121,7 +121,7 @@ const OSUpdates = ({ router, teamIdForApi, queryParams }: IOSUpdates) => {
             queryParams={queryParams}
           />
         </div>
-        <div className={`${baseClass}__taget-container`}>
+        <div className={`${baseClass}__target-container`}>
           <TargetSection
             key={teamIdForApi} // if the team changes, remount the target section
             appConfig={config}
