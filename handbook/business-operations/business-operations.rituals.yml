@@ -147,7 +147,7 @@
   startedOn: "2024-07-19" 
   frequency: "Quarterly"
   description: "Verify that state filings have been successfully submitted for the previous quarter" 
-  moreInfoUrl: null 
+  moreInfoUrl: 
   dri: "ireedy" 
 -
   task: "Investor reporting" 
