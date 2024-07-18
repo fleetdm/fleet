@@ -4330,7 +4330,7 @@ OS vulnerability data is currently available for Windows and macOS. For other pl
         "self_service": false,
       },
       "app_store_app": null    
-      "source": "",
+      "source": "", #ios,ipados
       "status": null,
       "last_install": null,
       "installed_versions": [],
@@ -4372,7 +4372,7 @@ OS vulnerability data is currently available for Windows and macOS. For other pl
 
 _Available in Fleet Premium._
 
-Install software on a macOS, Windows, or Linux (Ubuntu) host. Software title must have `software_package` added to be installed.
+Install software on a macOS, iOS, iPadOS, Windows, or Linux (Ubuntu) host. Software title must have `software_package` added to be installed.
 
 `POST /api/v1/fleet/hosts/:id/software/install/:software_title_id`
 
@@ -4700,7 +4700,7 @@ To wipe a macOS or Windows host, the host must have MDM turned on. To lock a Lin
 
 ```json
 {
-  "count": 2,
+  "count": 3,
   "activities": [
     {
       "created_at": "2023-07-27T14:35:08Z",
@@ -8583,8 +8583,8 @@ Deletes the session specified by ID. When the user associated with the session n
 
 ## Software
 
-- [Add software package](#add-software)
-- [Download software package](#download-software)
+- [Add software](#add-software)
+- [Download software](#download-software)
 - [Delete software available for install](#delete-software)
 - [Get installation result](#get-installation-result)
 - [List software](#list-software)
@@ -8594,7 +8594,7 @@ Deletes the session specified by ID. When the user associated with the session n
 - [Get available App Store apps](#get-available-app-store-apps)
 - [Add App Store app](#add-app-store-app)
 
-### Add software package
+### Add software
 
 _Available in Fleet Premium._
 
@@ -8655,7 +8655,7 @@ Content-Type: application/octet-stream
 `Status: 200`
 
 
-### Download software available for install
+### Download software
 
 _Available in Fleet Premium._
 
@@ -8786,7 +8786,7 @@ Get a list of all software.
       },
       "app_store_app": null,
       "versions_count": 3,
-      "source": "apps",
+      "source": "apps", # ios,ipados
       "browser": "",
       "hosts_count": 48,
       "versions": [
@@ -8899,7 +8899,7 @@ Get a list of all software versions.
         "id": 1,
         "name": "glibc",
         "version": "2.12",
-        "source": "rpm_packages",
+        "source": "rpm_packages", #ios/ipados
         "browser": "",
         "release": "1.212.el6",
         "vendor": "CentOS",
@@ -8982,7 +8982,7 @@ Returns information about the specified software. By default, `versions` are sor
       }
     },
     "app_store_app": null,
-    "source": "apps",
+    "source": "apps", #ios,ipados
     "browser": "",
     "hosts_count": 48,
     "versions": [
@@ -9078,7 +9078,7 @@ Returns information about the specified software version.
     "name": "Firefox.app",
     "version": "117.0",
     "bundle_identifier": "org.mozilla.firefox",
-    "source": "apps",
+    "source": "apps", #ios,ipados
     "browser": "",
     "generated_cpe": "cpe:2.3:a:mozilla:firefox:117.0:*:*:*:*:macos:*:*",
     "vulnerabilities": [
@@ -9107,9 +9107,9 @@ Returns information about the specified software version.
 }
 ```
 
-### Get available App Store apps
+### List Apple App Store apps
 
-Returns the list of App Store (VPP) apps purchased in Apple Business Manager. Apps that are already added to a team won't be returned.
+Returns the list of App Store apps purchased in Apple Business Manager (VPP). Apps that are already added to a team won't be returned.
 
 `GET /api/v1/fleet/software/app_store_apps`
 
@@ -9129,22 +9129,32 @@ Returns the list of App Store (VPP) apps purchased in Apple Business Manager. Ap
 
 ```json
 {
-  "app_store_apps": {
+  "app_store_apps": [
     {
       "name": "Xcode",
       "icon_url": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/f1/65/1e/a4844ccd-486d-455f-bb31-67336fe46b14/AppIcon-1x_U007emarketing-0-7-0-85-220-0.png/512x512bb.jpg",
       "latest_version": "15.4",
       "app_store_id": 497799835,
-      "added": true
+      "added": true,
+      "platform": "darwin"
     },
     {
       "name": "Logic Pro",
       "icon_url": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/f1/65/1e/a4844ccd-486d-455f-bb31-67336fe46b14/AppIcon-1x_U007emarketing-0-7-0-85-220-0.png/512x512bb.jpg",
       "latest_version": "2.04",
       "app_store_id": 634148309,
-      "added": false
+      "added": false,
+      "platform": "ios"
     },
-}
+    {
+      "name": "Logic Pro",
+      "icon_url": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/f1/65/1e/a4844ccd-486d-455f-bb31-67336fe46b14/AppIcon-1x_U007emarketing-0-7-0-85-220-0.png/512x512bb.jpg",
+      "latest_version": "2.04",
+      "app_store_id": 634148309,
+      "added": false,
+      "platform": "ipados"
+    },
+  ]
 }
 ```
 
@@ -9272,10 +9282,10 @@ Retrieve details about a vulnerability and its affected software and OS versions
     {
       "os_version_id": 6,
       "hosts_count": 200,
-      "name": "macOS 14.1.2",
-      "name_only": "macOS",
+      "name": "macOS 14.1.2", #iOS 17.0.1,#iPadOS 17.0.1
+      "name_only": "macOS", #iOS,iPadOS
       "version": "14.1.2",
-      "platform": "darwin",
+
       "resolved_in_version": "14.2",
       "generated_cpes": [
         "cpe:2.3:o:apple:macos:*:*:*:*:*:14.2:*:*",
@@ -9288,7 +9298,7 @@ Retrieve details about a vulnerability and its affected software and OS versions
       "id": 2363,
       "name": "Docker Desktop",
       "version": "4.9.1",
-      "source": "programs",
+      "source": "programs", #ios,ipados
       "browser": "",
       "generated_cpe": "cpe:2.3:a:docker:docker_desktop:4.9.1:*:*:*:*:windows:*:*",
       "hosts_count": 50,
