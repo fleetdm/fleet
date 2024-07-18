@@ -1034,6 +1034,10 @@ func TestFullGlobalAndTeamGitOps(t *testing.T) {
 		}, nil
 	}
 
+	ds.SetTeamVPPAppsFunc = func(ctx context.Context, teamID *uint, adamIDs []string) error {
+		return nil
+	}
+
 	globalFile := "./testdata/gitops/global_config_no_paths.yml"
 	teamFile := "./testdata/gitops/team_config_no_paths.yml"
 
@@ -1129,6 +1133,10 @@ func TestTeamVPPAppsGitOps(t *testing.T) {
 			ds, _, _ := setupFullGitOpsPremiumServer(t)
 			token, err := createVPPDataToken(c.tokenExpiration, "fleet", "ca")
 			require.NoError(t, err)
+
+			ds.SetTeamVPPAppsFunc = func(ctx context.Context, teamID *uint, adamIDs []string) error {
+				return nil
+			}
 
 			ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
 				asset := map[fleet.MDMAssetName]fleet.MDMConfigAsset{
