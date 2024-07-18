@@ -191,6 +191,9 @@ func GetAssets(token string, filter *AssetFilter) ([]Asset, error) {
 	return bodyResp.Assets, nil
 }
 
+// AssignmentFilter is a representation of the query params for the Apple "Get Assignments"
+// endpoint.
+// https://developer.apple.com/documentation/devicemanagement/get_assignments-o3j#query-parameters
 type AssignmentFilter struct {
 	// The filter for the assignment product's unique identifier.
 	AdamID string `json:"adamId"`
