@@ -1115,12 +1115,12 @@ func TestTeamVPPAppsGitOps(t *testing.T) {
 		file            string
 		wantErr         string
 		tokenExpiration time.Time
-		emptyTeam       bool
 	}{
-		{"testdata/gitops/team_vpp_valid_app.yml", "", time.Now().Add(24 * time.Hour), false},
-		{"testdata/gitops/team_vpp_valid_app.yml", "", time.Now().Add(24 * time.Hour), true},
-		{"testdata/gitops/team_vpp_valid_app.yml", "vpp token expired", time.Now().Add(-24 * time.Hour), false},
-		{"testdata/gitops/team_vpp_invalid_app.yml", "app not available on vpp account", time.Now().Add(24 * time.Hour), false},
+		{"testdata/gitops/team_vpp_valid_app.yml", "", time.Now().Add(24 * time.Hour)},
+		{"testdata/gitops/team_vpp_valid_app.yml", "", time.Now().Add(24 * time.Hour)},
+		{"testdata/gitops/team_vpp_valid_empty.yml", "", time.Now().Add(24 * time.Hour)},
+		{"testdata/gitops/team_vpp_valid_app.yml", "vpp token expired", time.Now().Add(-24 * time.Hour)},
+		{"testdata/gitops/team_vpp_invalid_app.yml", "app not available on vpp account", time.Now().Add(24 * time.Hour)},
 	}
 
 	for _, c := range cases {
