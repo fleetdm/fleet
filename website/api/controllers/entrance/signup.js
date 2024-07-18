@@ -138,18 +138,14 @@ the account verification message.)`,
     .intercept({name: 'UsageError'}, 'invalid')
     .fetch();
 
-
-    sails.helpers.salesforce.updateOrCreateContactAndAccount.with({
+    // Create a CRM record for the new user.
+    // Note: We're running using await instead of .exec() to reduce the chances of duplicate records created for the same user.
+    await sails.helpers.salesforce.updateOrCreateContactAndAccount.with({
       emailAddress: newEmailAddress,
       firstName: firstName,
       lastName: lastName,
       organization: organization,
       leadSource: 'Website - Sign up'
-    }).exec((err)=>{
-      if(err){
-        sails.log.warn(`Background task failed: When a user (email: ${newEmailAddress} signed up for a fleetdm.com account, a Contact and Account record could not be created/updated in the CRM.`, err);
-      }
-      return;
     });
 
 
