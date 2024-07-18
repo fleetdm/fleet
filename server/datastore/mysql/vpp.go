@@ -346,7 +346,13 @@ SELECT
 	st.name AS software_title,
 	hvsi.adam_id AS app_store_id,
 	hvsi.command_uuid AS command_uuid,
-	nvq.status AS status
+	CASE
+		WHEN nvq.status = 'Acknowledged'
+		THEN :software_status_installed
+		
+		WHEN nvq.status = 'Error'
+		THEN :software_status_failed
+	END AS status
 FROM
 	host_vpp_software_installs hvsi
 	INNER JOIN nano_view_queue nvq ON nvq.command_uuid = hvsi.command_uuid
@@ -371,7 +377,9 @@ WHERE
 	}
 
 	listStmt, args, err := sqlx.Named(stmt, map[string]any{
-		"command_uuid": commandUUID,
+		"command_uuid":              commandUUID,
+		"software_status_failed":    string(fleet.SoftwareInstallerFailed),
+		"software_status_installed": string(fleet.SoftwareInstallerInstalled),
 	})
 	if err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "build list query from named args")

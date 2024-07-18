@@ -15,6 +15,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"math/big"
 	"mime/multipart"
 	"net/http"
@@ -9505,28 +9506,71 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 
 	// Installation flow
 
-	// Create a host and add to the team
-	host, _ := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	// Create a host and add it to the team
+	host, mdmDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
 	setOrbitEnrollment(t, host, s.ds)
 	s.Do("POST", "/api/latest/fleet/hosts/transfer", &addHostsToTeamRequest{HostIDs: []uint{host.ID}, TeamID: &team.ID}, http.StatusOK)
 	s.appleVPPConfigSrvConfig.SerialNumbers = append(s.appleVPPConfigSrvConfig.SerialNumbers, host.HardwareSerial)
 
-	// Add the deleted app back to the team
+	// Add both apps to the team
 	addedApp = appResp.AppStoreApps[0]
 	addAppResp = addAppStoreAppResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{TeamID: &team.ID, AppStoreID: addedApp.AdamID}, http.StatusOK, &addAppResp)
 	s.lastActivityMatches(fleet.ActivityAddedAppStoreApp{}.ActivityName(), fmt.Sprintf(`{"team_name": "%s", "software_title": "%s", "app_store_id": "%s", "team_id": %d}`, team.Name, addedApp.Name, addedApp.AdamID, team.ID), 0)
 
+	errApp := appResp.AppStoreApps[1]
+	addAppResp = addAppStoreAppResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{TeamID: &team.ID, AppStoreID: errApp.AdamID}, http.StatusOK, &addAppResp)
+	s.lastActivityMatches(fleet.ActivityAddedAppStoreApp{}.ActivityName(), fmt.Sprintf(`{"team_name": "%s", "software_title": "%s", "app_store_id": "%s", "team_id": %d}`, team.Name, errApp.Name, errApp.AdamID, team.ID), 0)
+
 	listSw = listSoftwareTitlesResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listSw, "team_id", fmt.Sprint(team.ID), "available_for_install", "true")
-	require.Len(t, listSw.SoftwareTitles, 1)
+	require.Len(t, listSw.SoftwareTitles, 2)
 	titleID = listSw.SoftwareTitles[0].ID
+	errTitleID := listSw.SoftwareTitles[1].ID
 
 	// Trigger install to the host
 	installResp := installSoftwareResponse{}
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/install/%d", host.ID, errTitleID), &installSoftwareRequest{}, http.StatusAccepted, &installResp)
+
+	// Simulate failed installation on the host
+	cmd, err := mdmDevice.Idle()
+	var cmdUUID string
+	require.NoError(t, err)
+	for cmd != nil {
+		var fullCmd micromdm.CommandPayload
+		switch cmd.Command.RequestType {
+		case "InstallApplication":
+			require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
+			slog.With("filename", "server/service/integration_mdm_test.go", "func", "TestVPPApps").Info("JVE_LOG: checkNextPayloads ", "commandUUID", fullCmd.CommandUUID)
+			cmdUUID = cmd.CommandUUID
+			cmd, err = mdmDevice.Err(cmd.CommandUUID, []mdm.ErrorChain{{ErrorCode: 1234}})
+			require.NoError(t, err)
+		}
+	}
+
+	s.lastActivityMatches(fleet.ActivityInstalledAppStoreApp{}.ActivityName(), fmt.Sprintf(`{"host_id": %d, "host_display_name": "%s", "software_title": "%s", "app_store_id": "%s", "command_uuid": "%s", "status": "%s"}`, host.ID, host.DisplayName(), errApp.Name, errApp.AdamID, cmdUUID, fleet.SoftwareInstallerFailed), 0)
+
+	// Trigger install to the host
+	installResp = installSoftwareResponse{}
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/install/%d", host.ID, titleID), &installSoftwareRequest{}, http.StatusAccepted, &installResp)
-	// TODO(JVE): this needs to be the install activity
-	// s.lastActivityMatches(fleet.ActivityAddedAppStoreApp{}.ActivityName(), fmt.Sprintf(`{"team_name": "%s", "software_title": "%s", "app_store_id": "%s", "team_id": %d}`, team.Name, addedApp.Name, addedApp.AdamID, team.ID), 0)
+
+	// Simulate successful installation on the host
+	cmd, err = mdmDevice.Idle()
+	require.NoError(t, err)
+	for cmd != nil {
+		var fullCmd micromdm.CommandPayload
+		switch cmd.Command.RequestType {
+		case "InstallApplication":
+			require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
+			slog.With("filename", "server/service/integration_mdm_test.go", "func", "TestVPPApps").Info("JVE_LOG: checkNextPayloads ", "commandUUID", fullCmd.CommandUUID)
+			cmdUUID = cmd.CommandUUID
+			cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+			require.NoError(t, err)
+		}
+	}
+
+	s.lastActivityMatches(fleet.ActivityInstalledAppStoreApp{}.ActivityName(), fmt.Sprintf(`{"host_id": %d, "host_display_name": "%s", "software_title": "%s", "app_store_id": "%s", "command_uuid": "%s", "status": "%s"}`, host.ID, host.DisplayName(), addedApp.Name, addedApp.AdamID, cmdUUID, fleet.SoftwareInstallerInstalled), 0)
 
 	// Delete VPP token and check that it's not appearing anymore
 	s.Do("DELETE", "/api/latest/fleet/mdm/apple/vpp_token", &deleteMDMAppleVPPTokenRequest{}, http.StatusNoContent)
