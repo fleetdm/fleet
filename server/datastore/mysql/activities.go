@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -520,73 +519,4 @@ func (ds *Datastore) CleanupActivitiesAndAssociatedData(ctx context.Context, max
 		return ctxerr.Wrap(ctx, err, "delete expired distributed queries")
 	}
 	return nil
-}
-
-func (ds *Datastore) GetPastActivityDataForVPPAppInstall(ctx context.Context, commandUUID string) (*fleet.User, *fleet.ActivityInstalledAppStoreApp, error) {
-	stmt := `
-SELECT
-	u.name AS user_name,
-	u.id AS user_id,
-	u.email as user_email,
-	hvsi.host_id AS host_id,
-	hdn.display_name AS host_display_name,
-	st.name AS software_title,
-	hvsi.adam_id AS app_store_id,
-	hvsi.command_uuid AS command_uuid,
-	nvq.status AS status
-FROM
-	host_vpp_software_installs hvsi
-	INNER JOIN nano_view_queue nvq ON nvq.command_uuid = hvsi.command_uuid
-	LEFT OUTER JOIN users u ON hvsi.user_id = u.id
-	LEFT OUTER JOIN host_display_names hdn ON hdn.host_id = hvsi.host_id
-	LEFT OUTER JOIN vpp_apps vpa ON hvsi.adam_id = vpa.adam_id
-	LEFT OUTER JOIN software_titles st ON st.id = vpa.title_id
-WHERE
-	hvsi.command_uuid = :command_uuid
-	`
-
-	type result struct {
-		HostID          uint   `db:"host_id"`
-		HostDisplayName string `db:"host_display_name"`
-		SoftwareTitle   string `db:"software_title"`
-		AppStoreID      int    `db:"app_store_id"`
-		CommandUUID     string `db:"command_uuid"`
-		Status          string `db:"status"`
-		UserName        string `db:"user_name"`
-		UserID          uint   `db:"user_id"`
-		UserEmail       string `db:"user_email"`
-	}
-
-	listStmt, args, err := sqlx.Named(stmt, map[string]any{
-		"command_uuid": commandUUID,
-	})
-	if err != nil {
-		return nil, nil, ctxerr.Wrap(ctx, err, "build list query from named args")
-	}
-
-	var res result
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &res, listStmt, args...); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, nil, notFound("install_command")
-		}
-
-		return nil, nil, ctxerr.Wrap(ctx, err, "select past activity data for VPP app install")
-	}
-
-	user := &fleet.User{
-		ID:    res.UserID,
-		Name:  res.UserName,
-		Email: res.UserEmail,
-	}
-
-	act := &fleet.ActivityInstalledAppStoreApp{
-		HostID:          res.HostID,
-		HostDisplayName: res.HostDisplayName,
-		SoftwareTitle:   res.SoftwareTitle,
-		AppStoreID:      res.AppStoreID,
-		CommandUUID:     res.CommandUUID,
-		Status:          res.Status,
-	}
-
-	return user, act, nil
 }

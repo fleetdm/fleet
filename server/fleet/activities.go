@@ -1676,7 +1676,7 @@ type ActivityInstalledAppStoreApp struct {
 	HostID          uint   `json:"host_id"`
 	HostDisplayName string `json:"host_display_name"`
 	SoftwareTitle   string `json:"software_title"`
-	AppStoreID      int    `json:"app_store_id"`
+	AppStoreID      string `json:"app_store_id"`
 	CommandUUID     string `json:"command_uuid"`
 	Status          string `json:"status,omitempty"`
 }
