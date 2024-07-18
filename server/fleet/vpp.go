@@ -18,10 +18,8 @@ type VPPApp struct {
 	Name string `db:"name" json:"name"`
 	// LatestVersion is the latest version of this app.
 	LatestVersion string `db:"latest_version" json:"latest_version"`
-	// Added indicates whether or not this app has been added to Fleet.
-	Added   bool  `json:"added"`
-	TeamID  *uint `db:"-" json:"-"`
-	TitleID uint  `db:"title_id" json:"-"`
+	TeamID        *uint  `db:"-" json:"-"`
+	TitleID       uint   `db:"title_id" json:"-"`
 
 	CreatedAt time.Time `db:"created_at" json:"-"`
 	UpdatedAt time.Time `db:"updated_at" json:"-"`

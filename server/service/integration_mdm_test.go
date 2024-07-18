@@ -9449,14 +9449,12 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	require.Equal(t, "https://example.com/images/1", appResp.AppStoreApps[0].IconURL)
 	require.Equal(t, "1", appResp.AppStoreApps[0].AdamID)
 	require.Equal(t, "1.0.0", appResp.AppStoreApps[0].LatestVersion)
-	require.False(t, appResp.AppStoreApps[0].Added)
 
 	require.Equal(t, "App 2", appResp.AppStoreApps[1].Name)
 	require.Equal(t, "b-2", appResp.AppStoreApps[1].BundleIdentifier)
 	require.Equal(t, "https://example.com/images/2", appResp.AppStoreApps[1].IconURL)
 	require.Equal(t, "2", appResp.AppStoreApps[1].AdamID)
 	require.Equal(t, "2.0.0", appResp.AppStoreApps[1].LatestVersion)
-	require.False(t, appResp.AppStoreApps[1].Added)
 
 	// Add an app store app to team 1
 	addedApp := appResp.AppStoreApps[0]
@@ -9477,7 +9475,6 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	require.Equal(t, "https://example.com/images/2", appResp.AppStoreApps[0].IconURL)
 	require.Equal(t, "2", appResp.AppStoreApps[0].AdamID)
 	require.Equal(t, "2.0.0", appResp.AppStoreApps[0].LatestVersion)
-	require.False(t, appResp.AppStoreApps[0].Added)
 
 	// list the software titles for that team, to get the title id of the VPP app
 	var listSw listSoftwareTitlesResponse
