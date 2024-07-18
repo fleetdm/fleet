@@ -65,7 +65,9 @@ In Gusto, you can click **How to review your notice** to help you understand wha
 
 Every quarter, payroll and tax filings are due for each state. Gusto can handle these automatically if Third-party authorization (TPA) is enabled. Each state is unique and Gusto has a library of [State registration and resources](https://support.gusto.com/hub/Employers-and-admins/Taxes-forms-and-compliance/State-registration-and-resources) available to review.  You will need to grant Third-party authorization (TPA) per state and this should be checked quarterly before the filing due dates to ensure that Gusto can file on time. -->
 
+
 ### Review state employment tax filings for the previous quarter
+
 Every quarter, payroll and tax filings are due for each state. Gusto automates this process, however there are often delays or quirks between Gusto's submission and the state receiving the filings.
 To mitigate the risk of penalties and to ensure filings occur as expected, follow these steps in the first month of the new quarter, verifying past quarter submission:
 1. Create an issue to "Review state filings for the previous quarter".
