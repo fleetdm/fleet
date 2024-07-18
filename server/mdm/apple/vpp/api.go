@@ -243,7 +243,7 @@ func GetAssignments(token string, filter *AssignmentFilter) ([]Assignment, error
 	}
 
 	// TODO(roberto): when we get to importing assets assigned by other
-	// MDMs we'll need other top-level keys in this struct, and to pmodify
+	// MDMs we'll need other top-level keys in this struct, and to modify
 	// the return value of this function.
 	//
 	// https://developer.apple.com/documentation/devicemanagement/getassignmentsresponse
