@@ -8,24 +8,15 @@ For upgrade instructions, see our [upgrade guide](https://fleetdm.com/docs/deplo
 ## Highlights
 
 * Target hosts via label exclusion
-* Arm64 support
 * Remote script execution time
-
-
 
 ### Target hosts via label exclusion
 
 Fleet has enhanced its targeting capabilities by adding support for excluding specific labels when managing and deploying configuration profiles to hosts. This feature allows administrators to precisely control which devices are affected by particular settings or policies by excluding hosts that match specified labels. For instance, if an organization has a group of conference room computers that should not receive a particular configuration, administrators can now easily exclude these devices by applying the relevant label exclusions. This added granularity ensures more accurate and tailored management of devices, reducing the risk of unintended changes and enhancing overall operational efficiency. By allowing the exclusion of any label when targeting hosts, Fleet demonstrates its commitment to providing flexible, user-centric solutions that cater to the nuanced needs of modern IT environments.
 
-### Arm64 support
-
-Fleet now includes support for Linux hosts running on the arm64 architecture. This update enables organizations to seamlessly integrate a broader range of devices into their Fleet management system, ensuring comprehensive oversight and control across diverse hardware environments. By supporting arm64 Linux hosts, Fleet caters to the growing use of ARM-based systems in various sectors, allowing IT administrators to manage these devices with the same level of detail and efficiency as traditional x86-based hosts. This aligns with Fleet's commitment to providing versatile and inclusive device management solutions, empowering users to maintain a unified and efficient IT infrastructure.
-
-
 ### Remote script execution time
 
 Fleet has increased the timeout limit for remote script execution, significantly enhancing its capabilities for deploying software updates and managing complex workflows. This extension allows administrators to run longer, more intricate scripts without interruption, facilitating tasks such as deploying software updates through tools like Homebrew, Installomator, and Chocolatey. Additionally, this update supports extensive log gathering operations and workflows that involve moving data in either direction, making it ideal for comprehensive maintenance and configuration activities. By extending the timeout limit, Fleet ensures that IT teams can execute more demanding tasks efficiently, improving overall operational effectiveness and flexibility. This enhancement reflects Fleet's commitment to providing robust and adaptable solutions that meet the evolving needs of modern IT environments.
-
 
 ## Changes
 
@@ -134,5 +125,5 @@ Visit our [Upgrade guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in
 <meta name="authorFullName" value="JD Strong">
 <meta name="authorGitHubUsername" value="spokanemac">
 <meta name="publishedOn" value="2024-07-17">
-<meta name="articleTitle" value="Fleet 4.54.0 | Target hosts via label exclusion, arm64 support, script execution time.">
+<meta name="articleTitle" value="Fleet 4.54.0 | Target hosts via label exclusion, script execution time.">
 <meta name="articleImageUrl" value="../website/assets/images/articles/fleet-4.54.0-1600x900@2x.png">
