@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
+	"github.com/fleetdm/fleet/v4/pkg/retry"
 )
 
 type AssetMetadata struct {
@@ -86,6 +87,16 @@ func do[T any](req *http.Request, dest *T) error {
 		if len(limitedBody) > 1000 {
 			limitedBody = limitedBody[:1000]
 		}
+
+		if resp.StatusCode >= http.StatusInternalServerError {
+			return retry.Do(
+				func() error { return do(req, dest) },
+				retry.WithInterval(1*time.Second),
+				retry.WithMaxAttempts(4),
+			)
+
+		}
+
 		return fmt.Errorf("calling Apple iTunes endpoint failed with status %d: %s", resp.StatusCode, string(limitedBody))
 	}
 
