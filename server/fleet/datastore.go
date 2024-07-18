@@ -1590,7 +1590,7 @@ type Datastore interface {
 	GetAssignedVPPApps(ctx context.Context, teamID *uint) (map[string]struct{}, error)
 	InsertVPPAppWithTeam(ctx context.Context, app *VPPApp, teamID *uint) error
 	InsertHostVPPSoftwareInstall(ctx context.Context, hostID, userID uint, adamID, commandUUID, associatedEventID string) error
-	GetPastActivityDataForVPPAppInstall(ctx context.Context, commandUUID string) (*User, *ActivityInstalledAppStoreApp, error)
+	GetPastActivityDataForVPPAppInstall(ctx context.Context, commandResults *mdm.CommandResults) (*User, *ActivityInstalledAppStoreApp, error)
 }
 
 // MDMAppleStore wraps nanomdm's storage and adds methods to deal with

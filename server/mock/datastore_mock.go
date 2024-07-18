@@ -15,6 +15,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 )
 
 var _ fleet.Datastore = (*DataStore)(nil)
@@ -1005,7 +1006,7 @@ type InsertVPPAppWithTeamFunc func(ctx context.Context, app *fleet.VPPApp, teamI
 
 type InsertHostVPPSoftwareInstallFunc func(ctx context.Context, hostID uint, userID uint, adamID string, commandUUID string, associatedEventID string) error
 
-type GetPastActivityDataForVPPAppInstallFunc func(ctx context.Context, commandUUID string) (*fleet.User, *fleet.ActivityInstalledAppStoreApp, error)
+type GetPastActivityDataForVPPAppInstallFunc func(ctx context.Context, commandResults *mdm.CommandResults) (*fleet.User, *fleet.ActivityInstalledAppStoreApp, error)
 
 type DataStore struct {
 	HealthCheckFunc        HealthCheckFunc
@@ -5944,9 +5945,9 @@ func (s *DataStore) InsertHostVPPSoftwareInstall(ctx context.Context, hostID uin
 	return s.InsertHostVPPSoftwareInstallFunc(ctx, hostID, userID, adamID, commandUUID, associatedEventID)
 }
 
-func (s *DataStore) GetPastActivityDataForVPPAppInstall(ctx context.Context, commandUUID string) (*fleet.User, *fleet.ActivityInstalledAppStoreApp, error) {
+func (s *DataStore) GetPastActivityDataForVPPAppInstall(ctx context.Context, commandResults *mdm.CommandResults) (*fleet.User, *fleet.ActivityInstalledAppStoreApp, error) {
 	s.mu.Lock()
 	s.GetPastActivityDataForVPPAppInstallFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetPastActivityDataForVPPAppInstallFunc(ctx, commandUUID)
+	return s.GetPastActivityDataForVPPAppInstallFunc(ctx, commandResults)
 }

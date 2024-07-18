@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
@@ -231,7 +232,7 @@ func testVPPAppStatus(t *testing.T, ds *Datastore) {
 	cmd3 := createVPPAppInstallRequest(t, ds, h2, vpp1, user.ID)
 	createVPPAppInstallResult(t, ds, h2, cmd3, fleet.MDMAppleStatusAcknowledged)
 
-	actUser, act, err := ds.GetPastActivityDataForVPPAppInstall(ctx, cmd3)
+	actUser, act, err := ds.GetPastActivityDataForVPPAppInstall(ctx, &mdm.CommandResults{CommandUUID: cmd3})
 	require.NoError(t, err)
 	require.Equal(t, user.ID, actUser.ID)
 	require.Equal(t, user.Name, actUser.Name)

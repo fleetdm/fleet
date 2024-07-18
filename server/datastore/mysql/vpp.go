@@ -9,6 +9,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -335,7 +336,11 @@ VALUES
 	return nil
 }
 
-func (ds *Datastore) GetPastActivityDataForVPPAppInstall(ctx context.Context, commandUUID string) (*fleet.User, *fleet.ActivityInstalledAppStoreApp, error) {
+func (ds *Datastore) GetPastActivityDataForVPPAppInstall(ctx context.Context, commandResults *mdm.CommandResults) (*fleet.User, *fleet.ActivityInstalledAppStoreApp, error) {
+	if commandResults == nil {
+		return nil, nil, nil
+	}
+
 	stmt := `
 SELECT
 	u.name AS user_name,
@@ -345,17 +350,9 @@ SELECT
 	hdn.display_name AS host_display_name,
 	st.name AS software_title,
 	hvsi.adam_id AS app_store_id,
-	hvsi.command_uuid AS command_uuid,
-	CASE
-		WHEN nvq.status = 'Acknowledged'
-		THEN :software_status_installed
-		
-		WHEN nvq.status = 'Error'
-		THEN :software_status_failed
-	END AS status
+	hvsi.command_uuid AS command_uuid
 FROM
 	host_vpp_software_installs hvsi
-	INNER JOIN nano_view_queue nvq ON nvq.command_uuid = hvsi.command_uuid
 	LEFT OUTER JOIN users u ON hvsi.user_id = u.id
 	LEFT OUTER JOIN host_display_names hdn ON hdn.host_id = hvsi.host_id
 	LEFT OUTER JOIN vpp_apps vpa ON hvsi.adam_id = vpa.adam_id
@@ -370,14 +367,13 @@ WHERE
 		SoftwareTitle   string `db:"software_title"`
 		AppStoreID      string `db:"app_store_id"`
 		CommandUUID     string `db:"command_uuid"`
-		Status          string `db:"status"`
 		UserName        string `db:"user_name"`
 		UserID          uint   `db:"user_id"`
 		UserEmail       string `db:"user_email"`
 	}
 
 	listStmt, args, err := sqlx.Named(stmt, map[string]any{
-		"command_uuid":              commandUUID,
+		"command_uuid":              commandResults.CommandUUID,
 		"software_status_failed":    string(fleet.SoftwareInstallerFailed),
 		"software_status_installed": string(fleet.SoftwareInstallerInstalled),
 	})
@@ -400,13 +396,26 @@ WHERE
 		Email: res.UserEmail,
 	}
 
+	var status string
+	switch commandResults.Status {
+	case fleet.MDMAppleStatusAcknowledged:
+		status = string(fleet.SoftwareInstallerInstalled)
+	case fleet.MDMAppleStatusCommandFormatError:
+	case fleet.MDMAppleStatusError:
+		status = string(fleet.SoftwareInstallerFailed)
+	default:
+		// This case shouldn't happen (we should only be doing this check if the command is in a
+		// "terminal" state, but adding it so we have a default
+		status = string(fleet.SoftwareInstallerPending)
+	}
+
 	act := &fleet.ActivityInstalledAppStoreApp{
 		HostID:          res.HostID,
 		HostDisplayName: res.HostDisplayName,
 		SoftwareTitle:   res.SoftwareTitle,
 		AppStoreID:      res.AppStoreID,
 		CommandUUID:     res.CommandUUID,
-		Status:          res.Status,
+		Status:          status,
 	}
 
 	return user, act, nil
