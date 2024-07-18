@@ -56,7 +56,7 @@ const InstallerInfo = ({ software }: IInstallerInfoProps) => {
   return (
     <div className={`${baseClass}__item-topline`}>
       <div className={`${baseClass}__item-icon`}>
-        <SoftwareIcon name={name} source={source} size="medium_large" />
+        <SoftwareIcon name={name} source={source} size="large" />
       </div>
       <div className={`${baseClass}__item-name-version`}>
         <div className={`${baseClass}__item-name`}>
