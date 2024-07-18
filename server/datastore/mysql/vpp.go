@@ -311,7 +311,7 @@ func (ds *Datastore) getOrInsertSoftwareTitleForVPPApp(ctx context.Context, tx s
 		insertStmt = `INSERT INTO software_titles (name, source, bundle_identifier, browser) VALUES (?, ?, ?, '')`
 		insertArgs = append(insertArgs, app.BundleIdentifier)
 	}
- 
+
 	titleID, err := ds.optimisticGetOrInsert(ctx,
 		&parameterizedStmt{
 			Statement: selectStmt,
