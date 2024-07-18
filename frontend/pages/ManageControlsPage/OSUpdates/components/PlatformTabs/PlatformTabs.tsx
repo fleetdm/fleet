@@ -22,6 +22,7 @@ interface IPlatformTabsProps {
   onSelectPlatform: (platform: OSUpdatesSupportedPlatform) => void;
   refetchAppConfig: () => void;
   refetchTeamConfig: () => void;
+  isWindowsMdmEnabled: boolean;
 }
 
 const PlatformTabs = ({
@@ -38,6 +39,7 @@ const PlatformTabs = ({
   onSelectPlatform,
   refetchAppConfig,
   refetchTeamConfig,
+  isWindowsMdmEnabled,
 }: IPlatformTabsProps) => {
   // FIXME: This behaves unexpectedly when a user switches tabs or changes the teams dropdown while a form is
   // submitting.
@@ -66,9 +68,11 @@ const PlatformTabs = ({
             <Tab key="macOS" data-text="macOS">
               macOS
             </Tab>
-            <Tab key="Windows" data-text="Windows">
-              Windows
-            </Tab>
+            {isWindowsMdmEnabled && (
+              <Tab key="Windows" data-text="Windows">
+                Windows
+              </Tab>
+            )}
             <Tab key="iOS" data-text="iOS">
               iOS
             </Tab>
@@ -79,7 +83,7 @@ const PlatformTabs = ({
           <TabPanel>
             <AppleOSTargetForm
               currentTeamId={currentTeamId}
-              osType="darwin"
+              applePlatform="darwin"
               defaultMinOsVersion={defaultMacOSVersion}
               defaultDeadline={defaultMacOSDeadline}
               key={currentTeamId}
@@ -87,20 +91,22 @@ const PlatformTabs = ({
               refetchTeamConfig={refetchTeamConfig}
             />
           </TabPanel>
-          <TabPanel>
-            <WindowsTargetForm
-              currentTeamId={currentTeamId}
-              defaultDeadlineDays={defaultWindowsDeadlineDays}
-              defaultGracePeriodDays={defaultWindowsGracePeriodDays}
-              key={currentTeamId}
-              refetchAppConfig={refetchAppConfig}
-              refetchTeamConfig={refetchTeamConfig}
-            />
-          </TabPanel>
+          {isWindowsMdmEnabled && (
+            <TabPanel>
+              <WindowsTargetForm
+                currentTeamId={currentTeamId}
+                defaultDeadlineDays={defaultWindowsDeadlineDays}
+                defaultGracePeriodDays={defaultWindowsGracePeriodDays}
+                key={currentTeamId}
+                refetchAppConfig={refetchAppConfig}
+                refetchTeamConfig={refetchTeamConfig}
+              />
+            </TabPanel>
+          )}
           <TabPanel>
             <AppleOSTargetForm
               currentTeamId={currentTeamId}
-              osType="ios"
+              applePlatform="ios"
               defaultMinOsVersion={defaultIOSVersion}
               defaultDeadline={defaultIOSDeadline}
               key={currentTeamId}
@@ -111,7 +117,7 @@ const PlatformTabs = ({
           <TabPanel>
             <AppleOSTargetForm
               currentTeamId={currentTeamId}
-              osType="ipados"
+              applePlatform="ipados"
               defaultMinOsVersion={defaultIPadOSVersion}
               defaultDeadline={defaultIPadOSDeadline}
               key={currentTeamId}

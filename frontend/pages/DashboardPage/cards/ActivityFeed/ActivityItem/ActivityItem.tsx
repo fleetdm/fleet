@@ -4,6 +4,8 @@ import { formatDistanceToNowStrict } from "date-fns";
 
 import { ActivityType, IActivity, IActivityDetails } from "interfaces/activity";
 import { getInstallStatusPredicate } from "interfaces/software";
+import { AppleDisplayPlatform } from "interfaces/platform";
+
 import {
   addGravatarUrlToResource,
   formatScriptNameForActivityItem,
@@ -18,7 +20,6 @@ import ReactTooltip from "react-tooltip";
 import PremiumFeatureIconWithTooltip from "components/PremiumFeatureIconWithTooltip";
 import { COLORS } from "styles/var/colors";
 import { getSoftwareInstallStatusPredicate } from "pages/hosts/details/cards/Activity/ActivityItems/InstalledSoftwareActivityItem/InstalledSoftwareActivityItem";
-import { AppleDisplayPlatform } from "interfaces/platform";
 
 const baseClass = "activity-item";
 
@@ -307,7 +308,7 @@ const TAGGED_TEMPLATES = {
     );
   },
   editedAppleosMinVersion: (
-    osType: AppleDisplayPlatform,
+    applePlatform: AppleDisplayPlatform,
     activity: IActivity
   ) => {
     const editedActivity =
@@ -333,7 +334,7 @@ const TAGGED_TEMPLATES = {
 
     return (
       <>
-        {editedActivity} the minimum macOS version {versionSection}{" "}
+        {editedActivity} the minimum {applePlatform} version {versionSection}{" "}
         {deadlineSection} on hosts assigned to {teamSection}.
       </>
     );

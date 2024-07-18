@@ -10,6 +10,7 @@ import teamsAPI from "services/entities/teams";
 import InputField from "components/forms/fields/InputField";
 import Button from "components/buttons/Button";
 import validatePresence from "components/forms/validators/validate_presence";
+import { ApplePlatform } from "interfaces/platform";
 
 const baseClass = "apple-os-target-form";
 
@@ -67,11 +68,11 @@ interface IAppleUpdatesMdmConfigData {
 }
 
 const createMdmConfigData = (
-  osType: "darwin" | "ios" | "ipados",
+  applePlatform: ApplePlatform,
   minOsVersion: string,
   deadline: string
 ): IAppleUpdatesMdmConfigData => {
-  if (osType === "darwin") {
+  if (applePlatform === "darwin") {
     return {
       mdm: {
         macos_updates: {
@@ -81,7 +82,7 @@ const createMdmConfigData = (
       },
     };
   }
-  if (osType === "ios") {
+  if (applePlatform === "ios") {
     return {
       mdm: {
         ios_updates: {
@@ -103,7 +104,7 @@ const createMdmConfigData = (
 
 interface IAppleOSTargetFormProps {
   currentTeamId: number;
-  osType: "darwin" | "ios" | "ipados";
+  applePlatform: ApplePlatform;
   defaultMinOsVersion: string;
   defaultDeadline: string;
   refetchAppConfig: () => void;
@@ -112,7 +113,7 @@ interface IAppleOSTargetFormProps {
 
 const AppleOSTargetForm = ({
   currentTeamId,
-  osType,
+  applePlatform,
   defaultMinOsVersion,
   defaultDeadline,
   refetchAppConfig,
@@ -142,7 +143,11 @@ const AppleOSTargetForm = ({
 
     if (isEmpty(errors)) {
       setIsSaving(true);
-      const updateData = createMdmConfigData(osType, minOsVersion, deadline);
+      const updateData = createMdmConfigData(
+        applePlatform,
+        minOsVersion,
+        deadline
+      );
       try {
         currentTeamId === APP_CONTEXT_NO_TEAM_ID
           ? await configAPI.update(updateData)
@@ -167,15 +172,27 @@ const AppleOSTargetForm = ({
     setDeadline(val);
   };
 
-  const getDeviceTypeTooltip = (platform: string) => {
+  const getMinimumVersionTooltip = (platform: ApplePlatform) => {
     if (platform === "darwin") {
       return "The end user sees the window until their macOS is at or above this version.";
     }
     if (platform === "ios") {
-      return "TODO";
+      return "TODO: Need designed copy, example copy: The end user sees this warning until their iPhone is at or above this version.";
     }
     if (platform === "ipados") {
-      return "TODO";
+      return "TODO: Need designed copy, example copy: The end user sees this warning until their iPad is at or above this version.";
+    }
+  };
+
+  const getDeadlineTooltip = (platform: ApplePlatform) => {
+    if (platform === "darwin") {
+      return "The end user can’t dismiss the window once they reach this deadline. Deadline is at 12:00 (Noon) Pacific Standard Time (GMT-8).";
+    }
+    if (platform === "ios") {
+      return "TODO: Need designed copy, example copy: The end user can’t dismiss the window once they reach this deadline. Deadline is at 12:00 (Noon) Pacific Standard Time (GMT-8).";
+    }
+    if (platform === "ipados") {
+      return "TODO: Need designed copy, example copy: The end user can’t dismiss the window once they reach this deadline. Deadline is at 12:00 (Noon) Pacific Standard Time (GMT-8).";
     }
   };
 
@@ -183,7 +200,7 @@ const AppleOSTargetForm = ({
     <form className={baseClass} onSubmit={handleSubmit}>
       <InputField
         label="Minimum version"
-        tooltip={getDeviceTypeTooltip("darwin")}
+        tooltip={getMinimumVersionTooltip(applePlatform)}
         helpText="Version number only (e.g., “13.0.1” not “Ventura 13” or “13.0.1 (22A400)”)"
         placeholder="13.0.1"
         value={minOsVersion}
@@ -192,7 +209,7 @@ const AppleOSTargetForm = ({
       />
       <InputField
         label="Deadline"
-        tooltip="The end user can’t dismiss the window once they reach this deadline. Deadline is at 12:00 (Noon) Pacific Standard Time (GMT-8)."
+        tooltip={getDeadlineTooltip(applePlatform)}
         helpText="YYYY-MM-DD format only (e.g., “2023-06-01”)."
         placeholder="2023-06-01"
         value={deadline}

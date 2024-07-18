@@ -13,7 +13,7 @@ import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 import Spinner from "components/Spinner";
 
-import NudgePreview from "./components/NudgePreview";
+import NudgePreview from "./components/EndUserOSRequirementPreview";
 import TurnOnMdmMessage from "../components/TurnOnMdmMessage/TurnOnMdmMessage";
 import CurrentVersionSection from "./components/CurrentVersionSection";
 import TargetSection from "./components/TargetSection";

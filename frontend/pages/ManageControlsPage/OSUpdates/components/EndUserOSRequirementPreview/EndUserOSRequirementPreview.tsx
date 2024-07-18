@@ -7,12 +7,14 @@ import { OSUpdatesSupportedPlatform } from "../../OSUpdates";
 import MacOSUpdateScreenshot from "../../../../../../assets/images/macos-updates-preview.png";
 import WindowsUpdateScreenshot from "../../../../../../assets/images/windows-nudge-screenshot.png";
 
-const baseClass = "nudge-preview";
+const baseClass = "os-requirement-preview";
 
-interface INudgeDescriptionProps {
+interface IOSRequirementDescriptionProps {
   platform: OSUpdatesSupportedPlatform;
 }
-const NudgeDescription = ({ platform }: INudgeDescriptionProps) => {
+const OSRequirementDescription = ({
+  platform,
+}: IOSRequirementDescriptionProps) => {
   return platform === "darwin" ? (
     <>
       <h3>End user experience on macOS</h3>
@@ -45,9 +47,9 @@ const NudgeDescription = ({ platform }: INudgeDescriptionProps) => {
   );
 };
 
-type INudgeImageProps = INudgeDescriptionProps;
+type IOSRequirementImageProps = IOSRequirementDescriptionProps;
 
-const NudgeImage = ({ platform }: INudgeImageProps) => {
+const OSRequirementImage = ({ platform }: IOSRequirementImageProps) => {
   return (
     <img
       className={`${baseClass}__preview-img`}
@@ -59,26 +61,22 @@ const NudgeImage = ({ platform }: INudgeImageProps) => {
   );
 };
 
-interface INudgePreviewProps {
+interface IEndUserOSRequirementPreviewProps {
   platform: OSUpdatesSupportedPlatform;
 }
 
-const NudgePreview = ({ platform }: INudgePreviewProps) => {
-  const isSupportedPlatform = platform === "windows" || platform === "darwin";
-
-  if (!isSupportedPlatform) {
-    return null;
-  }
-
+const EndUserOSRequirementPreview = ({
+  platform,
+}: IEndUserOSRequirementPreviewProps) => {
   // FIXME: on slow connection the image loads after the text which looks weird and can cause a
   // mismatch between the text and the image when switching between platforms. We should load the
   // image first and then the text.
   return (
     <div className={baseClass}>
-      <NudgeDescription platform={platform} />
-      <NudgeImage platform={platform} />
+      <OSRequirementDescription platform={platform} />
+      <OSRequirementImage platform={platform} />
     </div>
   );
 };
 
-export default NudgePreview;
+export default EndUserOSRequirementPreview;

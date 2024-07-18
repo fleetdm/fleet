@@ -29,8 +29,11 @@ const getDefaultOSVersion = ({
     currentTeamId === API_NO_TEAM_ID ? appConfig?.mdm : teamConfig?.mdm;
 
   if (osType === "darwin") return mdmData?.macos_updates.minimum_version ?? "";
-  if (osType === "ios") return mdmData?.ios_updates.minimum_version ?? "";
-  if (osType === "ipados") return mdmData?.ipados_updates.minimum_version ?? "";
+  // if (osType === "ios") return mdmData?.ios_updates.minimum_version ?? "";
+  // if (osType === "ipados")
+  //   return mdmData?.ipados_updates.minimum_version ?? "";
+  if (osType === "ios") return "13.1.1";
+  if (osType === "ipados") return "14.1.3";
 
   return "";
 };
@@ -45,8 +48,10 @@ const getDefaultDeadline = ({
     currentTeamId === API_NO_TEAM_ID ? appConfig?.mdm : teamConfig?.mdm;
 
   if (osType === "darwin") return mdmData?.macos_updates.deadline ?? "";
-  if (osType === "ios") return mdmData?.ios_updates.deadline ?? "";
-  if (osType === "ipados") return mdmData?.ipados_updates.deadline ?? "";
+  // if (osType === "ios") return mdmData?.ios_updates.deadline ?? "";
+  // if (osType === "ipados") return mdmData?.ipados_updates.deadline ?? "";
+  if (osType === "ios") return "2024-10-3";
+  if (osType === "ipados") return "2024-07-30";
 
   return "";
 };
@@ -97,6 +102,8 @@ const TargetSection = ({
   }
 
   const isAppleMdmEnabled = appConfig.mdm.enabled_and_configured;
+
+  const isWindowsMdmEnabled = appConfig.mdm.windows_enabled_and_configured;
 
   const defaultMacOSVersion = getDefaultOSVersion({
     osType: "darwin",
@@ -164,6 +171,7 @@ const TargetSection = ({
           onSelectPlatform={onSelectPlatform}
           refetchAppConfig={refetchAppConfig}
           refetchTeamConfig={refetchTeamConfig}
+          isWindowsMdmEnabled={isWindowsMdmEnabled}
         />
       );
     }
