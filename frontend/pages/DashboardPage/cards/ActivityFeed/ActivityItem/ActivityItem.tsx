@@ -304,7 +304,10 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
-  editedMacosMinVersion: (activity: IActivity) => {
+  editedAppleosMinVersion: (
+    activity: IActivity,
+    osType: "darwin" | "ios" | "ipados"
+  ) => {
     const editedActivity =
       activity.details?.minimum_version === "" ? "removed" : "updated";
 
@@ -924,7 +927,13 @@ const getDetail = (
       return TAGGED_TEMPLATES.mdmUnenrolled(activity);
     }
     case ActivityType.EditedMacosMinVersion: {
-      return TAGGED_TEMPLATES.editedMacosMinVersion(activity);
+      return TAGGED_TEMPLATES.editedAppleosMinVersion(activity, "darwin");
+    }
+    case ActivityType.EditedIosMinVersion: {
+      return TAGGED_TEMPLATES.editedAppleosMinVersion(activity, "ios");
+    }
+    case ActivityType.EditedIpadosMinVersion: {
+      return TAGGED_TEMPLATES.editedAppleosMinVersion(activity, "ipados");
     }
 
     case ActivityType.ReadHostDiskEncryptionKey: {
