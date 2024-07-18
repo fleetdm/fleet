@@ -81,9 +81,10 @@ func orbitCommand() *cli.Command {
 		},
 		Action: func(c *cli.Context) error {
 			return downloadComponents("goreleaser-orbit.yaml", gitTag, map[string]string{
-				"macos":   "orbit-macos",
-				"linux":   "orbit-linux",
-				"windows": "orbit-windows",
+				"macos":       "orbit-macos",
+				"linux":       "orbit-linux",
+				"linux-arm64": "orbit-linux-arm64",
+				"windows":     "orbit-windows",
 			}, outputDirectory, githubUsername, githubAPIToken, retry)
 		},
 	}
@@ -138,9 +139,10 @@ func desktopCommand() *cli.Command {
 		},
 		Action: func(c *cli.Context) error {
 			return downloadComponents("generate-desktop-targets.yml", gitBranch, map[string]string{
-				"macos":   "desktop.app.tar.gz",
-				"linux":   "desktop.tar.gz",
-				"windows": "fleet-desktop.exe",
+				"macos":       "desktop.app.tar.gz",
+				"linux":       "desktop.tar.gz",
+				"linux-arm64": "desktop-arm64.tar.gz",
+				"windows":     "fleet-desktop.exe",
 			}, outputDirectory, githubUsername, githubAPIToken, retry)
 		},
 	}
@@ -250,7 +252,7 @@ func downloadComponents(workflowName string, headBranch string, artifactNames ma
 	if err := os.RemoveAll(outputDirectory); err != nil {
 		return err
 	}
-	for _, osPath := range []string{"macos", "windows", "linux"} {
+	for _, osPath := range []string{"macos", "windows", "linux", "linux-arm64"} {
 		if err := os.MkdirAll(filepath.Join(outputDirectory, osPath), constant.DefaultDirMode); err != nil {
 			return err
 		}
@@ -292,6 +294,8 @@ func downloadComponents(workflowName string, headBranch string, artifactNames ma
 		for _, artifact := range artifactList.Artifacts {
 			if *artifact.Name == artifactNames["linux"] {
 				urls["linux"] = *artifact.ArchiveDownloadURL
+			} else if *artifact.Name == artifactNames["linux-arm64"] {
+				urls["linux-arm64"] = *artifact.ArchiveDownloadURL
 			} else if *artifact.Name == artifactNames["macos"] {
 				urls["macos"] = *artifact.ArchiveDownloadURL
 			} else if *artifact.Name == artifactNames["windows"] {
@@ -300,13 +304,13 @@ func downloadComponents(workflowName string, headBranch string, artifactNames ma
 				fmt.Printf("skipping artifact name: %q\n", *artifact.Name)
 			}
 		}
-		if len(urls) == 3 || !retry {
+		if len(urls) == 4 || !retry {
 			break
 		}
 		fmt.Printf("All artifacts are not available yet, the workflow might still be running, retrying in 60s...\n")
 		time.Sleep(60 * time.Second)
 	}
-	if len(urls) != 3 {
+	if len(urls) != 4 {
 		return fmt.Errorf("missing some artifact: %+v", urls)
 	}
 	for osName, downloadURL := range urls {
@@ -368,9 +372,10 @@ func osquerydCommand() *cli.Command {
 		},
 		Action: func(c *cli.Context) error {
 			return downloadComponents("generate-osqueryd-targets.yml", gitBranch, map[string]string{
-				"macos":   "osqueryd.app.tar.gz",
-				"linux":   "osqueryd",
-				"windows": "osqueryd.exe",
+				"macos":       "osqueryd.app.tar.gz",
+				"linux":       "osqueryd",
+				"linux-arm64": "osqueryd-arm64",
+				"windows":     "osqueryd.exe",
 			}, outputDirectory, githubUsername, githubAPIToken, retry)
 		},
 	}

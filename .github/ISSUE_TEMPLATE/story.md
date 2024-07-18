@@ -32,6 +32,7 @@ What else should contributors [keep in mind](https://fleetdm.com/handbook/compan
 ## Changes
 
 ### Product
+- [ ] Reference documentation changes: TODO <!-- Specify references documentation changes at fleetdm.com/docs -->
 - [ ] UI changes: TODO <!-- Insert the link to the relevant Figma cover page. Remove this checkbox if there are no changes to the user interface. -->
 - [ ] CLI usage changes: TODO <!-- Insert the link to the relevant Figma cover page. Remove this checkbox if there are no changes to the CLI. -->
 - [ ] REST API changes: TODO <!-- Specify changes as a draft PR to the REST API doc page and request the API DRI for review (codeowner reviews are not automatically requested for drafts). Remove this checkbox if there are no changes necessary. Move this item to the engineering list below if engineering will design the API changes. -->
@@ -40,8 +41,7 @@ What else should contributors [keep in mind](https://fleetdm.com/handbook/compan
 - [ ] Changes to paid features or tiers: TODO  <!-- Specify "Fleet Free" or "Fleet Premium".  If only certain parts of the user story involve paid features, specify which parts.  Implementation of paid features should live in the `ee/` directory. -->
 
 ### Engineering
-- [ ] Reference documentation changes: TODO <!-- Specify references documentation changes at fleetdm.com/docs -->
-- [ ] Usage documentation changes: TODO <!-- Specify usage documentation changes at fleetdm.com/docs/using-fleet -->
+- [ ] Feature guide changes: TODO <!-- Specify if a new feature guide is required at fleetdm.com/guides, or if a previous guide should be updated to reflect feature changes. -->
 - [ ] Database schema migrations: TODO <!-- Specify what changes to the database schema are required. (This will be used to change migration scripts accordingly.) Remove this checkbox if there are no changes necessary. -->
 - [ ] Load testing: TODO  <!-- List any required scalability testing to be conducted.  Remove this checkbox if there is no scalability testing required. -->
 
