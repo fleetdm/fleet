@@ -1119,6 +1119,7 @@ func TestTeamVPPAppsGitOps(t *testing.T) {
 		{"testdata/gitops/team_vpp_valid_app.yml", "", time.Now().Add(24 * time.Hour)},
 		{"testdata/gitops/team_vpp_valid_app.yml", "", time.Now().Add(24 * time.Hour)},
 		{"testdata/gitops/team_vpp_valid_empty.yml", "", time.Now().Add(24 * time.Hour)},
+		{"testdata/gitops/team_vpp_valid_empty.yml", "", time.Now().Add(-24 * time.Hour)},
 		{"testdata/gitops/team_vpp_valid_app.yml", "vpp token expired", time.Now().Add(-24 * time.Hour)},
 		{"testdata/gitops/team_vpp_invalid_app.yml", "app not available on vpp account", time.Now().Add(24 * time.Hour)},
 	}
