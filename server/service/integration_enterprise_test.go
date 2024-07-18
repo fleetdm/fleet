@@ -7257,9 +7257,6 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 				{Version: "0.0.1", Vulnerabilities: nil},
 				{Version: "0.0.3", Vulnerabilities: nil},
 			},
-			SoftwarePackage: &fleet.SoftwarePackageOrApp{
-				SelfService: ptr.Bool(false),
-			},
 		},
 		{
 			Name:          "bar",
@@ -7268,9 +7265,6 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 			HostsCount:    1,
 			Versions: []fleet.SoftwareVersion{
 				{Version: "0.0.4", Vulnerabilities: &fleet.SliceString{"cve-123-123-132"}},
-			},
-			SoftwarePackage: &fleet.SoftwarePackageOrApp{
-				SelfService: ptr.Bool(false),
 			},
 		},
 	}, resp.SoftwareTitles)
