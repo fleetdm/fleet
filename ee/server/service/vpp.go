@@ -67,38 +67,41 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 		return ctxerr.Wrap(ctx, err, "validating authorization")
 	}
 
-	token, err := svc.getVPPToken(ctx)
-	if err != nil {
-		return fleet.NewUserMessageError(ctxerr.Wrap(ctx, err, "could not retrieve vpp token"), http.StatusUnprocessableEntity)
-	}
-
 	var adamIDs []string
 
-	for _, payload := range payloads {
-		adamIDs = append(adamIDs, payload.AppStoreID)
-	}
-
-	var missingAssets []string
-
-	assets, err := vpp.GetAssets(token, nil)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "unable to retrieve assets")
-	}
-
-	assetMap := map[string]struct{}{}
-	for _, asset := range assets {
-		assetMap[asset.AdamID] = struct{}{}
-	}
-
-	for _, adamID := range adamIDs {
-		if _, ok := assetMap[adamID]; !ok {
-			missingAssets = append(missingAssets, adamID)
+	// Don't check for token if we're only disassociating assets
+	if len(payloads) > 0 {
+		token, err := svc.getVPPToken(ctx)
+		if err != nil {
+			return fleet.NewUserMessageError(ctxerr.Wrap(ctx, err, "could not retrieve vpp token"), http.StatusUnprocessableEntity)
 		}
-	}
 
-	if len(missingAssets) != 0 {
-		reqErr := ctxerr.Errorf(ctx, "requested app not available on vpp account: %s", strings.Join(missingAssets, ","))
-		return fleet.NewUserMessageError(reqErr, http.StatusUnprocessableEntity)
+		for _, payload := range payloads {
+			adamIDs = append(adamIDs, payload.AppStoreID)
+		}
+
+		var missingAssets []string
+
+		assets, err := vpp.GetAssets(token, nil)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "unable to retrieve assets")
+		}
+
+		assetMap := map[string]struct{}{}
+		for _, asset := range assets {
+			assetMap[asset.AdamID] = struct{}{}
+		}
+
+		for _, adamID := range adamIDs {
+			if _, ok := assetMap[adamID]; !ok {
+				missingAssets = append(missingAssets, adamID)
+			}
+		}
+
+		if len(missingAssets) != 0 {
+			reqErr := ctxerr.Errorf(ctx, "requested app not available on vpp account: %s", strings.Join(missingAssets, ","))
+			return fleet.NewUserMessageError(reqErr, http.StatusUnprocessableEntity)
+		}
 	}
 
 	if !dryRun {
