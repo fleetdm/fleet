@@ -155,7 +155,7 @@ export default {
   SOFTWARE_PACKAGE_INSTALL: (id: number) =>
     `/${API_VERSION}/fleet/software/packages/${id}`,
   SOFTWARE_AVAILABLE_FOR_INSTALL: (id: number) =>
-    `/${API_VERSION}/fleet/software/${id}/available_for_install`,
+    `/${API_VERSION}/fleet/software/titles/${id}/available_for_install`,
 
   // AI endpoints
   AUTOFILL_POLICY: `/${API_VERSION}/fleet/autofill/policy`,
