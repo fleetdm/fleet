@@ -1174,13 +1174,13 @@ This activity contains the following fields:
 }
 ```
 
-## vpp_enabled
+## enabled_vpp
 
 Generated when the VPP feature is enabled in Fleet.
 
 
 
-## vpp_disabled
+## disabled_vpp
 
 Generated when the VPP feature is disabled in Fleet.
 
