@@ -598,13 +598,16 @@ For non-travel purchases that would require an increase in the Brex cardholder's
 
 <img width="384" alt="image" src="https://github.com/fleetdm/fleet/assets/618009/1890e56b-7b03-4340-97d4-a6590c7715a9">
 
+
 ### SaaS tool purchases
+
 When procuring SaaS tools and services, analyze the purchase of these subscription services look for these way to help the company:
 - Get product demos whenever possible.  Does the product do what it's supposed to do in the way that it is supposed to do it?
 - Avoid extra features you don't need, and if they're there anyway, avoid using them.
 - Data portability: is it possible for Fleet to export it's data if we stop using it? Is it easy to pull that data in an understandable format?
 - Programability: Does it have a publicly documented legible REST API that requires at most a single API token?
 - Intentionality: The product fits into other tools and processes that Fleet uses today. Avoid [unintended consequences](https://en.wikipedia.org/wiki/Midas). The tool will change to fit the company, or we won't use it. 
+
 
 #### Reimbursements
 
