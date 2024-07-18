@@ -752,6 +752,10 @@ func TestBasicGlobalAndTeamGitOps(t *testing.T) {
 		return nil
 	}
 
+	ds.SetTeamVPPAppsFunc = func(ctx context.Context, teamID *uint, adamIDs []string) error {
+		return nil
+	}
+
 	const (
 		fleetServerURL = "https://fleet.example.com"
 		orgName        = "GitOps Test"
