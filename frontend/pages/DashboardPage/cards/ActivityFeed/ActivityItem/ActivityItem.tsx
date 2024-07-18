@@ -307,7 +307,7 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
-  editedMacOSMinVersion: (activity: IActivity) => {
+  editedMacosMinVersion: (activity: IActivity) => {
     const editedActivity =
       activity.details?.minimum_version === "" ? "removed" : "updated";
 
@@ -963,7 +963,7 @@ const getDetail = (
       return TAGGED_TEMPLATES.mdmUnenrolled(activity);
     }
     case ActivityType.EditedMacosMinVersion: {
-      return TAGGED_TEMPLATES.editedMacOSMinVersion(activity);
+      return TAGGED_TEMPLATES.editedMacosMinVersion(activity);
     }
 
     case ActivityType.ReadHostDiskEncryptionKey: {
