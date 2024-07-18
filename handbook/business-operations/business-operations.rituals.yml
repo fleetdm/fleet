@@ -142,6 +142,13 @@
   description: "Verify completion of any objective or outcome based bonus plans, and process payroll." 
   moreInfoUrl: "https://fleetdm.com/handbook/business-operations#run-us-commission-payroll" # TODO update linked process and add a new process that captures MBO payment
   dri: "jostableford" 
+  -
+  task: "Review state filings for the previous quarter" # TODO create and link this to a responsibility 
+  startedOn: "2024-07-19" 
+  frequency: "Quarterly"
+  description: "Verify that state filings have been successfully submitted for the previous quarter" 
+  moreInfoUrl: 
+  dri: "ireedy" 
 -
   task: "Investor reporting" 
   startedOn: "2024-03-31" 
