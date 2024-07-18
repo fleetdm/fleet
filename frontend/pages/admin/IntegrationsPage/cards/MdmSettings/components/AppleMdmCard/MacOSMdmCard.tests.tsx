@@ -5,41 +5,43 @@ import { render, screen } from "@testing-library/react";
 import createMockMdmApple from "__mocks__/appleMdm";
 import createMockAxiosError from "__mocks__/axiosError";
 
-import MacOSMdmCard from "./MacOSMdmCard";
+import AppleMdmCard from "./AppleMdmCard";
 
-describe("MacOSMdmCard", () => {
-  it("renders the turn on macOs mdm state when there is no appleAPNInfo", () => {
+describe("AppleMdmCard", () => {
+  it("renders the turn on Apple mdm state when there is no appleAPNInfo", () => {
     render(
-      <MacOSMdmCard
+      <AppleMdmCard
         appleAPNInfo={undefined}
         errorData={null}
-        turnOnMacOSMdm={noop}
+        turnOnAppleMdm={noop}
         viewDetails={noop}
       />
     );
 
-    expect(screen.getByText("Turn on macOS MDM")).toBeInTheDocument();
+    expect(screen.getByText("Turn on Apple MDM")).toBeInTheDocument();
   });
 
   it("renders the show details state when there is appleAPNInfo", () => {
     render(
-      <MacOSMdmCard
+      <AppleMdmCard
         appleAPNInfo={createMockMdmApple()}
         errorData={null}
-        turnOnMacOSMdm={noop}
+        turnOnAppleMdm={noop}
         viewDetails={noop}
       />
     );
 
-    expect(screen.getByText("macOS MDM turned on")).toBeInTheDocument();
+    expect(
+      screen.getByText("Apple (macOS, iOS, iPadOS) MDM turned on.")
+    ).toBeInTheDocument();
   });
 
   it("renders the error state when there is a non 404 error", () => {
     render(
-      <MacOSMdmCard
+      <AppleMdmCard
         appleAPNInfo={createMockMdmApple()}
         errorData={createMockAxiosError({ status: 500 })}
-        turnOnMacOSMdm={noop}
+        turnOnAppleMdm={noop}
         viewDetails={noop}
       />
     );
@@ -47,10 +49,10 @@ describe("MacOSMdmCard", () => {
     expect(screen.getByText(/Something's gone wrong/)).toBeInTheDocument();
 
     render(
-      <MacOSMdmCard
+      <AppleMdmCard
         appleAPNInfo={createMockMdmApple()}
         errorData={createMockAxiosError({ status: 404 })}
-        turnOnMacOSMdm={noop}
+        turnOnAppleMdm={noop}
         viewDetails={noop}
       />
     );
