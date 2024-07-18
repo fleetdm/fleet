@@ -307,10 +307,7 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
-  editedAppleosMinVersion: (
-    osType: AppleDisplayPlatform,
-    activity: IActivity
-  ) => {
+  editedMacOSMinVersion: (activity: IActivity) => {
     const editedActivity =
       activity.details?.minimum_version === "" ? "removed" : "updated";
 
@@ -349,8 +346,7 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
-  // TODO: This should be reword to create AppleOSProfile
-  createMacOSProfile: (activity: IActivity, isPremiumTier: boolean) => {
+  createdAppleOSProfile: (activity: IActivity, isPremiumTier: boolean) => {
     const profileName = activity.details?.profile_name;
     return (
       <>
@@ -373,7 +369,7 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
-  deleteMacOSProfile: (activity: IActivity, isPremiumTier: boolean) => {
+  deletedAppleOSProfile: (activity: IActivity, isPremiumTier: boolean) => {
     const profileName = activity.details?.profile_name;
     return (
       <>
@@ -389,28 +385,28 @@ const TAGGED_TEMPLATES = {
         from{" "}
         {getProfileMessageSuffix(
           isPremiumTier,
-          "darwin",
+          "apple",
           activity.details?.team_name
         )}
         .
       </>
     );
   },
-  editMacOSProfile: (activity: IActivity, isPremiumTier: boolean) => {
+  editedAppleOSProfile: (activity: IActivity, isPremiumTier: boolean) => {
     return (
       <>
         {" "}
         edited configuration profiles for{" "}
         {getProfileMessageSuffix(
           isPremiumTier,
-          "darwin",
+          "apple",
           activity.details?.team_name
         )}{" "}
         via fleetctl.
       </>
     );
   },
-  createWindowsProfile: (activity: IActivity, isPremiumTier: boolean) => {
+  createdWindowsProfile: (activity: IActivity, isPremiumTier: boolean) => {
     const profileName = activity.details?.profile_name;
     return (
       <>
@@ -433,7 +429,7 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
-  deleteWindowsProfile: (activity: IActivity, isPremiumTier: boolean) => {
+  deletedWindowsProfile: (activity: IActivity, isPremiumTier: boolean) => {
     const profileName = activity.details?.profile_name;
     return (
       <>
@@ -456,7 +452,7 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
-  editWindowsProfile: (activity: IActivity, isPremiumTier: boolean) => {
+  editedWindowsProfile: (activity: IActivity, isPremiumTier: boolean) => {
     return (
       <>
         {" "}
@@ -967,7 +963,7 @@ const getDetail = (
       return TAGGED_TEMPLATES.mdmUnenrolled(activity);
     }
     case ActivityType.EditedMacosMinVersion: {
-      return TAGGED_TEMPLATES.editedmacOSMinVersion(activity);
+      return TAGGED_TEMPLATES.editedMacOSMinVersion(activity);
     }
 
     case ActivityType.ReadHostDiskEncryptionKey: {
@@ -975,22 +971,22 @@ const getDetail = (
     }
     // Change name
     case ActivityType.CreatedMacOSProfile: {
-      return TAGGED_TEMPLATES.createMacOSProfile(activity, isPremiumTier);
+      return TAGGED_TEMPLATES.createdAppleOSProfile(activity, isPremiumTier);
     }
     case ActivityType.DeletedMacOSProfile: {
-      return TAGGED_TEMPLATES.deleteMacOSProfile(activity, isPremiumTier);
+      return TAGGED_TEMPLATES.deletedAppleOSProfile(activity, isPremiumTier);
     }
     case ActivityType.EditedMacOSProfile: {
-      return TAGGED_TEMPLATES.editMacOSProfile(activity, isPremiumTier);
+      return TAGGED_TEMPLATES.editedAppleOSProfile(activity, isPremiumTier);
     }
     case ActivityType.CreatedWindowsProfile: {
-      return TAGGED_TEMPLATES.createWindowsProfile(activity, isPremiumTier);
+      return TAGGED_TEMPLATES.createdWindowsProfile(activity, isPremiumTier);
     }
     case ActivityType.DeletedWindowsProfile: {
-      return TAGGED_TEMPLATES.deleteWindowsProfile(activity, isPremiumTier);
+      return TAGGED_TEMPLATES.deletedWindowsProfile(activity, isPremiumTier);
     }
     case ActivityType.EditedWindowsProfile: {
-      return TAGGED_TEMPLATES.editWindowsProfile(activity, isPremiumTier);
+      return TAGGED_TEMPLATES.editedWindowsProfile(activity, isPremiumTier);
     }
     // Note: Both "enabled_disk_encryption" and "enabled_macos_disk_encryption" display the same
     // message. The latter is deprecated in the API but it is retained here for backwards compatibility.
