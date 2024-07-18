@@ -457,7 +457,8 @@ func (c *GoogleCalendar) unmarshalDetails(event *fleet.CalendarEvent) (*eventDet
 }
 
 func (c *GoogleCalendar) CreateEvent(dayOfEvent time.Time,
-	genBodyFn func(conflict bool) (body string, ok bool, err error)) (*fleet.CalendarEvent, error) {
+	genBodyFn func(conflict bool) (body string, ok bool, err error),
+) (*fleet.CalendarEvent, error) {
 	return c.createEvent(dayOfEvent, genBodyFn, time.Now)
 }
 
@@ -637,7 +638,6 @@ func (c *GoogleCalendar) googleEventToFleetEvent(startTime time.Time, endTime ti
 	resourceID string) (
 	*fleet.CalendarEvent, error,
 ) {
-
 	fleetEvent := &fleet.CalendarEvent{}
 	fleetEvent.StartTime = startTime
 	fleetEvent.EndTime = endTime

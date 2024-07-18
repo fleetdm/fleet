@@ -40,10 +40,13 @@ func (r *redisLock) AcquireLock(ctx context.Context, key string, value string, e
 	// Reference: https://redis.io/docs/latest/commands/set/
 	// NX -- Only set the key if it does not already exist.
 	result, err := redigo.String(conn.Do("SET", r.testPrefix+key, value, "NX", "PX", expireMs))
-	if err != nil && !errors.Is(err, redigo.ErrNil) {
+	if err != nil {
+		if errors.Is(err, redigo.ErrNil) {
+			return false, nil
+		}
 		return false, ctxerr.Wrap(ctx, err, "redis acquire lock")
 	}
-	return result != "", nil
+	return result == "OK", nil
 }
 
 func (r *redisLock) ReleaseLock(ctx context.Context, key string, value string) (ok bool, err error) {

@@ -13,13 +13,20 @@ import (
 	"github.com/google/uuid"
 )
 
-var asyncCalendarProcessing bool
-var asyncMutex sync.Mutex
+var (
+	asyncCalendarProcessing bool
+	asyncMutex              sync.Mutex
+)
 
 func (svc *Service) CalendarWebhook(ctx context.Context, eventUUID string, channelID string, resourceState string) error {
-
 	// We don't want the sender to cancel the context since we want to make sure we process the webhook.
 	ctx = context.WithoutCancel(ctx)
+
+	if resourceState == "sync" {
+		// This is a sync notification, not a real event
+		svc.authz.SkipAuthorization(ctx)
+		return nil
+	}
 
 	appConfig, err := svc.ds.AppConfig(ctx)
 	if err != nil {
@@ -32,12 +39,6 @@ func (svc *Service) CalendarWebhook(ctx context.Context, eventUUID string, chann
 		return nil
 	}
 	googleCalendarIntegrationConfig := appConfig.Integrations.GoogleCalendar[0]
-
-	if resourceState == "sync" {
-		// This is a sync notification, not a real event
-		svc.authz.SkipAuthorization(ctx)
-		return nil
-	}
 
 	eventDetails, err := svc.ds.GetCalendarEventDetailsByUUID(ctx, eventUUID)
 	if err != nil {
@@ -71,37 +72,9 @@ func (svc *Service) CalendarWebhook(ctx context.Context, eventUUID string, chann
 		return authz.ForbiddenWithInternal(fmt.Sprintf("calendar channel ID mismatch: %s != %s", savedChannelID, channelID), nil, nil, nil)
 	}
 
-	lockValue, reserved, err := svc.getCalendarLock(ctx, eventUUID, true)
+	err = svc.distributedLock.AddToSet(ctx, calendar.QueueKey, eventUUID)
 	if err != nil {
-		return err
-	}
-	// If lock has been reserved by cron, we will need to re-process this event in case the calendar event was changed after the cron job read it.
-	if lockValue == "" && !reserved {
-		// We did not get a lock, so there is nothing to do here
-		return nil
-	}
-
-	if !reserved {
-		unlocked := false
-		defer func() {
-			if !unlocked {
-				svc.releaseCalendarLock(ctx, eventUUID, lockValue)
-			}
-		}()
-
-		// Remove event from the queue so that we don't process this event again.
-		// Note: This item can be added back to the queue while we are processing it.
-		err = svc.distributedLock.RemoveFromSet(ctx, calendar.QueueKey, eventUUID)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "remove calendar event from queue")
-		}
-
-		err = svc.processCalendarEvent(ctx, eventDetails, googleCalendarIntegrationConfig, userCalendar)
-		if err != nil {
-			return err
-		}
-		svc.releaseCalendarLock(ctx, eventUUID, lockValue)
-		unlocked = true
+		return ctxerr.Wrap(ctx, err, "add calendar event to queue")
 	}
 
 	// Now, we need to check if there are any events in the queue that need to be re-processed.
@@ -123,10 +96,9 @@ func (svc *Service) CalendarWebhook(ctx context.Context, eventUUID string, chann
 }
 
 func (svc *Service) processCalendarEvent(ctx context.Context, eventDetails *fleet.CalendarEventDetails,
-	googleCalendarIntegrationConfig *fleet.GoogleCalendarIntegration, userCalendar fleet.UserCalendar) error {
-
+	googleCalendarIntegrationConfig *fleet.GoogleCalendarIntegration, userCalendar fleet.UserCalendar,
+) error {
 	genBodyFn := func(conflict bool) (body string, ok bool, err error) {
-
 		// This function is called when a new event is being created.
 		var team *fleet.Team
 		team, err = svc.ds.TeamWithoutExtras(ctx, *eventDetails.TeamID)
