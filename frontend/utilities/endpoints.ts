@@ -82,6 +82,7 @@ export default {
   MDM_APPLE_PNS: `/${API_VERSION}/fleet/apns`,
   MDM_APPLE_BM: `/${API_VERSION}/fleet/abm`,
   MDM_APPLE_BM_KEYS: `/${API_VERSION}/fleet/mdm/apple/dep/key_pair`,
+  MDM_APPLE_VPP_APPS: `/${API_VERSION}/fleet/software/app_store_apps`,
   MDM_SUMMARY: `/${API_VERSION}/fleet/hosts/summary/mdm`,
   MDM_REQUEST_CSR: `/${API_VERSION}/fleet/mdm/apple/request_csr`,
 
@@ -153,6 +154,8 @@ export default {
     `/${API_VERSION}/fleet/software/install/results/${uuid}`,
   SOFTWARE_PACKAGE_INSTALL: (id: number) =>
     `/${API_VERSION}/fleet/software/packages/${id}`,
+  SOFTWARE_AVAILABLE_FOR_INSTALL: (id: number) =>
+    `/${API_VERSION}/fleet/software/${id}/available_for_install`,
 
   // AI endpoints
   AUTOFILL_POLICY: `/${API_VERSION}/fleet/autofill/policy`,

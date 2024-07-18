@@ -20,6 +20,7 @@ import Zoom from "./Zoom";
 import ChromeOS from "./ChromeOS";
 import LinuxOS from "./LinuxOS";
 import Falcon from "./Falcon";
+import AppStore from "./AppStore";
 
 // Maps all known Linux platforms to the LinuxOS icon
 const LINUX_OS_NAME_TO_ICON_MAP = HOST_LINUX_PLATFORMS.reduce(
@@ -31,6 +32,7 @@ const LINUX_OS_NAME_TO_ICON_MAP = HOST_LINUX_PLATFORMS.reduce(
 // icon for them, keys refer to application names, and are intended to be fuzzy
 // matched in the application logic.
 const SOFTWARE_NAME_TO_ICON_MAP = {
+  appStore: AppStore,
   "adobe acrobat reader": AcrobatReader,
   "microsoft excel": Excel,
   falcon: Falcon,
