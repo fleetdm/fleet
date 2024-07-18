@@ -43,7 +43,7 @@ const DisableVppModal = ({ onExit }: IDisableVppModalProps) => {
       <>
         <p>
           Apps purchased in Apple Business Manager won&apos;t appear in Fleet.
-          Apps won&apos;t be uninstalled from hosts. If you want to enable
+          Apps won&apos;t be uninstalled from hosts. If you want to enable VPP
           integration again, you&apos;ll have to upload a new content token.
         </p>
         <div className="modal-cta-wrap">
