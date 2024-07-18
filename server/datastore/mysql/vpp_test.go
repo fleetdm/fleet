@@ -137,7 +137,6 @@ func testVPPAppMetadata(t *testing.T, ds *Datastore) {
 	require.Error(t, err)
 	require.ErrorAs(t, err, &nfe)
 	require.Nil(t, meta)
-
 }
 
 func testVPPAppStatus(t *testing.T, ds *Datastore) {
@@ -337,6 +336,43 @@ func testVPPApps(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	err = ds.InsertVPPAppWithTeam(ctx, appNoTeam2, nil)
 	require.NoError(t, err)
+
+	// Check that host_vpp_software_installs works
+	u, err := ds.NewUser(ctx, &fleet.User{
+		Password:   []byte("p4ssw0rd.123"),
+		Name:       "user1",
+		Email:      "user1@example.com",
+		GlobalRole: ptr.String(fleet.RoleAdmin),
+	})
+	require.NoError(t, err)
+	err = ds.InsertHostVPPSoftwareInstall(ctx, 1, u.ID, app1.AdamID, "a", "b")
+	require.NoError(t, err)
+
+	err = ds.InsertHostVPPSoftwareInstall(ctx, 2, u.ID, app2.AdamID, "c", "d")
+	require.NoError(t, err)
+
+	var results []struct {
+		HostID            uint   `db:"host_id"`
+		UserID            uint   `db:"user_id"`
+		AdamID            string `db:"adam_id"`
+		CommandUUID       string `db:"command_uuid"`
+		AssociatedEventID string `db:"associated_event_id"`
+	}
+	err = sqlx.SelectContext(ctx, ds.reader(ctx), &results, `SELECT host_id, user_id, adam_id, command_uuid, associated_event_id FROM host_vpp_software_installs ORDER BY adam_id`)
+	require.NoError(t, err)
+	require.Len(t, results, 2)
+	a1 := results[0]
+	a2 := results[1]
+	require.Equal(t, a1.HostID, uint(1))
+	require.Equal(t, a1.UserID, u.ID)
+	require.Equal(t, a1.AdamID, app1.AdamID)
+	require.Equal(t, a1.CommandUUID, "a")
+	require.Equal(t, a1.AssociatedEventID, "b")
+	require.Equal(t, a2.HostID, uint(2))
+	require.Equal(t, a2.UserID, u.ID)
+	require.Equal(t, a2.AdamID, app2.AdamID)
+	require.Equal(t, a2.CommandUUID, "c")
+	require.Equal(t, a2.AssociatedEventID, "d")
 
 	// Check that getting the assigned apps works
 	appSet, err := ds.GetAssignedVPPApps(ctx, &team.ID)
