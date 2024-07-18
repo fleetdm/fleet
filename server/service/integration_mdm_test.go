@@ -9411,8 +9411,8 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 	t.Setenv("FLEET_DEV_VPP_URL", s.appleVPPConfigSrv.URL)
 	s.uploadDataViaForm("/api/latest/fleet/mdm/apple/vpp_token", "token", "token.vpptoken", []byte(base64.StdEncoding.EncodeToString([]byte(tokenJSON))), http.StatusAccepted, "")
 
-	// Associating nothing with no team members
-	s.Do("POST", batchURL, batchAssociateAppStoreAppsRequest{}, http.StatusBadRequest, "team_name", tmGood.Name)
+	// Remove all vpp associations from team with no members
+	s.Do("POST", batchURL, batchAssociateAppStoreAppsRequest{}, http.StatusNoContent, "team_name", tmGood.Name)
 
 	// host with valid serial number
 	hValid, err := s.ds.NewHost(context.Background(), &fleet.Host{
@@ -9430,13 +9430,24 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 	err = s.ds.AddHostsToTeam(context.Background(), &tmGood.ID, []uint{hValid.ID})
 	require.NoError(t, err)
 
-	// Associating nothing with valid serial
-	s.Do("POST", batchURL, batchAssociateAppStoreAppsRequest{}, http.StatusBadRequest, "team_name", tmGood.Name)
+	ctx := context.Background()
 
-	// Associating an app we don't own with valid serial
+	// Insert apps we can associate
+	app1 := &fleet.VPPApp{Name: "vpp_app_1", AdamID: "1", BundleIdentifier: "b1"}
+	err = s.ds.InsertVPPAppWithTeam(ctx, app1, nil)
+	require.NoError(t, err)
+
+	app2 := &fleet.VPPApp{Name: "vpp_app_2", AdamID: "2", BundleIdentifier: "b2"}
+	err = s.ds.InsertVPPAppWithTeam(ctx, app2, nil)
+	require.NoError(t, err)
+
+	// Remove all vpp associations from team with no members
+	s.Do("POST", batchURL, batchAssociateAppStoreAppsRequest{}, http.StatusNoContent, "team_name", tmGood.Name)
+
+	// Associating an app we don't own
 	s.Do("POST", batchURL, batchAssociateAppStoreAppsRequest{Apps: []fleet.VPPBatchPayload{{AppStoreID: "fake-app"}}}, http.StatusUnprocessableEntity, "team_name", tmGood.Name)
 
-	// Associating an app we own with valid serial
+	// Associating an app we own
 	s.Do("POST", batchURL, batchAssociateAppStoreAppsRequest{Apps: []fleet.VPPBatchPayload{{AppStoreID: s.appleVPPConfigSrvConfig.Assets[0].AdamID}}}, http.StatusNoContent, "team_name", tmGood.Name)
 
 	// Associating one good and one bad app
@@ -9447,5 +9458,9 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 			{AppStoreID: "fake-app"},
 		}}, http.StatusUnprocessableEntity, "team_name", tmGood.Name)
 
+	// Associate an app with a team with no team members
 	s.Do("POST", batchURL, batchAssociateAppStoreAppsRequest{Apps: []fleet.VPPBatchPayload{{AppStoreID: s.appleVPPConfigSrvConfig.Assets[0].AdamID}}}, http.StatusNoContent, "team_name", tmEmpty.Name)
+
+	// Remove all vpp associations
+	s.Do("POST", batchURL, batchAssociateAppStoreAppsRequest{}, http.StatusNoContent, "team_name", tmGood.Name)
 }
