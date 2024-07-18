@@ -488,8 +488,7 @@ It's not enough to just "delete" a recording of a meeting in Gong.  Instead, use
 ### Failed Gong recording
 
 In some instances, The CEO may need to record a call locally (i.e. the recording is stored on the CEO's computer and not in the cloud ☁️). When that happens, use the following steps to log the call:
-- Schedule a meeting with the CEO.
-- Share the local recording in slack.
+- Schedule a meeting with the CEO to locate the local recording and share it to the preferred slack channel so that you have it.
 - Upload the recording into the "whiteboards" folder in Google Drive titled, "year-month-day subject".
 - Share the recording to those named by the CEO.
 
