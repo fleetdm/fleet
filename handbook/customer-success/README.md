@@ -34,6 +34,17 @@ Before a routine customer call, the CSM prepares an agenda including the followi
 5. Provide updates to open feature requests (can be done monthly or quarterly)
 6. Provide updates to open bug reports
 
+### Generate an expansion opportunity in Salesforce
+One of the key performance indicators for CSMs is handling all customer expansions to ensure they are closed out on time and tracked properly. Below are the steps you should take when creating a new expansion opportunity in Salesforce, which is performed when a customer notifies you that they will be adding licenses to an existing subscription.
+
+1. Navigate to your customer's account in SFDC
+2. Scroll down to the section labeled "Upcoming renewal (± expansions)"
+3. Click the "New" button to generate a new opportunity
+4. Change the type of opportunity to "Expansion"
+5. Change the opportunity name to reflect the following naming structure: Customername_FleetPremium_Expansion_Q12024 (Quarter and year will be unique to the timing of the opp you are generating)
+6. Fill out all required information
+7. Press the save button to complete this process and finish creating the expansion opportunity
+
 ### Create customer support issue
 Locate the relevant issue or create it if it doesn't already exist (to avoid duplication, be creative when searching GitHub for issues - it can often take a couple of tries with different keywords to find an existing issue). When creating a new issue, make sure the following:
 - Make sure the issue has a "customer request" label or "customer-codename" label.
