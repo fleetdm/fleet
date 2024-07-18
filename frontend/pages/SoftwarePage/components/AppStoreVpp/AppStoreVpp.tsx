@@ -28,7 +28,7 @@ const EnableVppCard = () => {
     <Card borderRadiusSize="medium">
       <div className={`${baseClass}__enable-vpp`}>
         <p className={`${baseClass}__enable-vpp-title`}>
-          <b>Volume Purchasing Program (VPP) isn&apos;t enabled.</b>
+          <b>Volume Purchasing Program (VPP) isn’t enabled.</b>
         </p>
         <p className={`${baseClass}__enable-vpp-description`}>
           To add App Store apps, first enable VPP.
