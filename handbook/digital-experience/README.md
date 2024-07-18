@@ -486,7 +486,7 @@ It's not enough to just "delete" a recording of a meeting in Gong.  Instead, use
 
 
 ### Failed Gong recording
-In some instances, Gong may not record a call and it will go unnoticed throughout the meeting. A local recording will be made and then it will need to be shared to the related parties.
+In some instances, The CEO may need to record a call locally (i.e. the recording is stored on the CEO's computer and not in the cloud ☁️). When that happens, use the following steps to log the call:
 
 - The Apprentice will schedule a meeting with the CEO.
 - They will then take the local recording and share it in slack.
