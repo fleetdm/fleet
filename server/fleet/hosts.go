@@ -745,7 +745,7 @@ type HostMaintenanceWindow struct {
 	//  StartsAt is the start time of the future maintenance window, retrieved from calendar_events,
 	//  represented as a time.Time in the host's associated google calendar user's timezone, which is represented as a time.Location
 	StartsAt time.Time `json:"starts_at" db:"start_time"`
-	// TimeZone is the IANA timezone of the user's google calendar, retrieved from calendar_evants
+	// TimeZone is the IANA timezone of the user's google calendar, retrieved from calendar_events
 	TimeZone *string `json:"timezone" db:"timezone"`
 }
 

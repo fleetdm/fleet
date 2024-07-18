@@ -23,7 +23,13 @@ if [ "$1" = "remove" ]; then
     # Give the parent process time to report the success before removing
     echo "inside remove process" >>/tmp/fleet_remove_log.txt
     sleep 15
-    remove_fleet >>/tmp/fleet_remove_log.txt 2>&1
+    if [ -z "$GITHUB_ACTIONS" ]; then
+        # We are root
+        remove_fleet >>/tmp/fleet_remove_log.txt 2>&1
+    else
+        # Inside a github action, sudo is passwordless
+        sudo remove_fleet >>/tmp/fleet_remove_log.txt 2>&1
+    fi
 else
     # We are in the parent shell, start the detached child and return success
     echo "Removing fleet, system will be unenrolled in 15 seconds..."

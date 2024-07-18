@@ -45,7 +45,6 @@ interface ITableContainerProps<T = any> {
   disableMultiRowSelect?: boolean;
   /** resultsTitle used in DataTable for matching results text */
   resultsTitle?: string;
-  resultsHtml?: JSX.Element;
   additionalQueries?: string;
   emptyComponent: React.ElementType;
   className?: string;
@@ -119,7 +118,6 @@ const TableContainer = <T,>({
   inputPlaceHolder = "Search",
   additionalQueries,
   resultsTitle,
-  resultsHtml,
   emptyComponent,
   className,
   disableActionButton,

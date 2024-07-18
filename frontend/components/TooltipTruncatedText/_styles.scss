@@ -1,4 +1,11 @@
+/** Modify with extreme caution as this CSS:
+- determines whether a tooltip is being rendered via useRef
+- is implemented in widely used checkbox labels
+- is highly sensitive */
+
 .tooltip-truncated-text {
+  max-width: 101%; // Required for implementation in checkbox labels
+
   .tooltip-truncated {
     max-width: 100%;
   }
@@ -8,6 +15,7 @@
     max-width: 99%;
     overflow: hidden;
     text-overflow: ellipsis;
+    vertical-align: middle;
   }
 
   .inner-text {
