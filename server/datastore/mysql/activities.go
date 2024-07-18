@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -237,14 +238,14 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 	countStmts := []string{
 		`SELECT
 			COUNT(*) c
-			FROM host_script_results
-			WHERE host_id = :host_id AND
+			FROM host_script_results hsr
+			WHERE hsr.host_id = :host_id AND
 						exit_code IS NULL AND
 						(sync_request = 0 OR created_at >= DATE_SUB(NOW(), INTERVAL :max_wait_time SECOND))`,
 		`SELECT
 			COUNT(*) c
-			FROM host_software_installs
-			WHERE host_id = :host_id AND
+			FROM host_software_installs hsi
+			WHERE hsi.host_id = :host_id AND
 						pre_install_query_output IS NULL AND
 						install_script_exit_code IS NULL`,
 		`
@@ -270,6 +271,7 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &count, countStmt, args...); err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "count upcoming activities")
 	}
+	slog.With("filename", "server/datastore/mysql/activities.go", "func", "ListHostUpcomingActivities").Info("JVE_LOG: made it past count query ")
 	if count == 0 {
 		return []*fleet.Activity{}, &fleet.PaginationMetadata{}, nil
 	}
@@ -352,21 +354,26 @@ SELECT
 	:installed_app_store_app_type AS activity_type,
 	hvsi.created_at AS created_at,
 	JSON_OBJECT(
-		"host_id", hvsi.host_id,
-		"host_display_name", hdn.display_name,
-		"software_title", st.name,
-		"app_store_id", hvsi.adam_id,
-		"command_uuid", hvsi.command_uuid,
+		'host_id', hvsi.host_id,
+		'host_display_name', hdn.display_name,
+		'software_title', st.name,
+		'app_store_id', hvsi.adam_id,
+		'command_uuid', hvsi.command_uuid,
 		-- status is always pending because only pending MDM commands are upcoming.
-		"status", :software_status_pending
+		'status', :software_status_pending
 	) AS details
 FROM
 	host_vpp_software_installs hvsi
-	INNER JOIN nano_view_queue nvq ON nvq.command_uuid = hvsi.command_uuid
-	LEFT OUTER JOIN users u ON hvsi.user_id = u.id
-	LEFT OUTER JOIN host_display_names hdn ON hdn.host_id = hvsi.host_id
-	LEFT OUTER JOIN vpp_apps vpa ON hvsi.adam_id = vpa.adam_id
-	LEFT OUTER JOIN software_titles st ON st.id = vpa.title_id
+INNER JOIN 
+	nano_view_queue nvq ON nvq.command_uuid = hvsi.command_uuid
+LEFT OUTER JOIN 
+	users u ON hvsi.user_id = u.id
+LEFT OUTER JOIN 
+	host_display_names hdn ON hdn.host_id = hvsi.host_id
+LEFT OUTER JOIN 
+	vpp_apps vpa ON hvsi.adam_id = vpa.adam_id
+LEFT OUTER JOIN 
+	software_titles st ON st.id = vpa.title_id
 WHERE
 	nvq.status IS NULL
 	AND hvsi.host_id = :host_id
@@ -400,9 +407,11 @@ WHERE
 	stmt, args := appendListOptionsWithCursorToSQL(listStmt, args, &opt)
 
 	var activities []*fleet.Activity
+	slog.With("filename", "server/datastore/mysql/activities.go", "func", "ListHostUpcomingActivities").Info("JVE_LOG: before list query ", "stmt", stmt)
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &activities, stmt, args...); err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "select upcoming activities")
 	}
+	slog.With("filename", "server/datastore/mysql/activities.go", "func", "ListHostUpcomingActivities").Info("JVE_LOG: made it past list query ")
 
 	var metaData *fleet.PaginationMetadata
 	metaData = &fleet.PaginationMetadata{HasPreviousResults: opt.Page > 0, TotalResults: count}
