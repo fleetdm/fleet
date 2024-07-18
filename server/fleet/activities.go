@@ -1607,7 +1607,7 @@ func LogRoleChangeActivities(
 type ActivityEnabledVPP struct{}
 
 func (a ActivityEnabledVPP) ActivityName() string {
-	return "vpp_enabled"
+	return "enabled_vpp"
 }
 
 func (a ActivityEnabledVPP) Documentation() (activity string, details string, detailsExample string) {
@@ -1617,7 +1617,7 @@ func (a ActivityEnabledVPP) Documentation() (activity string, details string, de
 type ActivityDisabledVPP struct{}
 
 func (a ActivityDisabledVPP) ActivityName() string {
-	return "vpp_disabled"
+	return "disabled_vpp"
 }
 
 func (a ActivityDisabledVPP) Documentation() (activity string, details string, detailsExample string) {
