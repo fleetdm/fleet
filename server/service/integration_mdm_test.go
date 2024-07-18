@@ -9441,14 +9441,27 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 	err = s.ds.InsertVPPAppWithTeam(ctx, app2, nil)
 	require.NoError(t, err)
 
+	assoc, err := s.ds.GetAssignedVPPApps(ctx, &tmGood.ID)
+	require.NoError(t, err)
+	require.Len(t, assoc, 0)
+
 	// Remove all vpp associations from team with no members
 	s.Do("POST", batchURL, batchAssociateAppStoreAppsRequest{}, http.StatusNoContent, "team_name", tmGood.Name)
 
 	// Associating an app we don't own
 	s.Do("POST", batchURL, batchAssociateAppStoreAppsRequest{Apps: []fleet.VPPBatchPayload{{AppStoreID: "fake-app"}}}, http.StatusUnprocessableEntity, "team_name", tmGood.Name)
 
+	assoc, err = s.ds.GetAssignedVPPApps(ctx, &tmGood.ID)
+	require.NoError(t, err)
+	require.Len(t, assoc, 0)
+
 	// Associating an app we own
 	s.Do("POST", batchURL, batchAssociateAppStoreAppsRequest{Apps: []fleet.VPPBatchPayload{{AppStoreID: s.appleVPPConfigSrvConfig.Assets[0].AdamID}}}, http.StatusNoContent, "team_name", tmGood.Name)
+
+	assoc, err = s.ds.GetAssignedVPPApps(ctx, &tmGood.ID)
+	require.NoError(t, err)
+	require.Len(t, assoc, 1)
+	require.Contains(t, assoc, s.appleVPPConfigSrvConfig.Assets[0].AdamID)
 
 	// Associating one good and one bad app
 	s.Do("POST",
@@ -9456,11 +9469,20 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 		batchAssociateAppStoreAppsRequest{Apps: []fleet.VPPBatchPayload{
 			{AppStoreID: s.appleVPPConfigSrvConfig.Assets[0].AdamID},
 			{AppStoreID: "fake-app"},
-		}}, http.StatusUnprocessableEntity, "team_name", tmGood.Name)
+		}}, http.StatusUnprocessableEntity, "team_name", tmGood.Name,
+	)
+
+	assoc, err = s.ds.GetAssignedVPPApps(ctx, &tmGood.ID)
+	require.NoError(t, err)
+	require.Len(t, assoc, 1)
 
 	// Associate an app with a team with no team members
 	s.Do("POST", batchURL, batchAssociateAppStoreAppsRequest{Apps: []fleet.VPPBatchPayload{{AppStoreID: s.appleVPPConfigSrvConfig.Assets[0].AdamID}}}, http.StatusNoContent, "team_name", tmEmpty.Name)
 
 	// Remove all vpp associations
 	s.Do("POST", batchURL, batchAssociateAppStoreAppsRequest{}, http.StatusNoContent, "team_name", tmGood.Name)
+
+	assoc, err = s.ds.GetAssignedVPPApps(ctx, &tmGood.ID)
+	require.NoError(t, err)
+	require.Len(t, assoc, 0)
 }
