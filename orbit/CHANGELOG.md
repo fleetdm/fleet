@@ -1,9 +1,10 @@
 ## Orbit 1.28.0 (Jul 18, 2024)
 
+* Hide "Self-service" in Fleet Desktop and My device page if there is no self-service software available.
+
 * Fixes a bug that caused log Orbit's osquery table log output to be inconsistent.
 
-adding support for new agent option `script_execution_timeout` to configure seconds until a script
-is killed due to timeout.
+* Adding support for new agent option `script_execution_timeout` to configure seconds until a script is killed due to timeout.
 
 * Updated Go version to go1.22.4
 
