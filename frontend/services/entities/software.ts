@@ -14,12 +14,6 @@ import {
   convertParamsToSnakeCase,
 } from "utilities/url";
 import { IAddSoftwareFormData } from "pages/SoftwarePage/components/AddPackageForm/AddSoftwareForm";
-import {
-  createMockAppStoreApp,
-  createMockSoftware,
-  createMockSoftwareTitleDetails,
-  createMockSoftwareTitleResponse,
-} from "__mocks__/softwareMock";
 
 export interface ISoftwareApiParams {
   page?: number;

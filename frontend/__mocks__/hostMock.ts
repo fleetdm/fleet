@@ -5,7 +5,11 @@ import { pick } from "lodash";
 import { normalizeEmptyValues } from "utilities/helpers";
 import { HOST_SUMMARY_DATA } from "utilities/constants";
 import { IGetHostSoftwareResponse } from "services/entities/hosts";
-import { IHostSoftware } from "interfaces/software";
+import {
+  IHostAppStoreApp,
+  IHostSoftware,
+  IHostSoftwarePackage,
+} from "interfaces/software";
 
 const DEFAULT_HOST_PROFILE_MOCK: IHostMdmProfile = {
   profile_uuid: "123-abc",
@@ -136,11 +140,37 @@ export const createMockHostSummary = (overrides?: Partial<IHost>) => {
   );
 };
 
+const DEFAULT_HOST_SOFTWARE_PACKAGE_MOCK: IHostSoftwarePackage = {
+  name: "mock software.app",
+  version: "1.0.0",
+  self_service: false,
+  icon_url: "https://example.com/icon.png",
+};
+
+export const createMockHostSoftwarePackage = (
+  overrides?: Partial<IHostSoftwarePackage>
+): IHostSoftwarePackage => {
+  return { ...DEFAULT_HOST_SOFTWARE_PACKAGE_MOCK, ...overrides };
+};
+
+const DEFAULT_HOST_APP_STORE_APP_MOCK: IHostAppStoreApp = {
+  appStoreId: "123456789",
+  version: "1.0.0",
+  self_service: false,
+  icon_url: "https://via.placeholder.com/512",
+};
+
+export const createMockHostAppStoreApp = (
+  overrides?: Partial<IHostAppStoreApp>
+): IHostAppStoreApp => {
+  return { ...DEFAULT_HOST_APP_STORE_APP_MOCK, ...overrides };
+};
+
 const DEFAULT_HOST_SOFTWARE_MOCK: IHostSoftware = {
   id: 1,
   name: "mock software.app",
-  package_available_for_install: "mockSoftware.app",
-  self_service: false,
+  software_package: createMockHostSoftwarePackage(),
+  app_store_app: null,
   source: "apps",
   bundle_identifier: "com.test.mock",
   status: "installed",

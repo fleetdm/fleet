@@ -242,11 +242,25 @@ export interface ISoftwareInstallVersion {
   installed_paths: string[];
 }
 
+export interface IHostSoftwarePackage {
+  name: string;
+  self_service: boolean;
+  icon_url: string;
+  version: string;
+}
+
+export interface IHostAppStoreApp {
+  appStoreId: string;
+  self_service: boolean;
+  icon_url: string;
+  version: string;
+}
+
 export interface IHostSoftware {
   id: number;
   name: string;
-  package_available_for_install?: string | null;
-  self_service: boolean;
+  software_package: IHostSoftwarePackage | null;
+  app_store_app: IHostAppStoreApp | null;
   source: string;
   bundle_identifier?: string;
   status: SoftwareInstallStatus | null;
@@ -254,15 +268,8 @@ export interface IHostSoftware {
   installed_versions: ISoftwareInstallVersion[] | null;
 }
 
-export type IDeviceSoftware = Omit<
-  IHostSoftware,
-  "package_available_for_install"
-> & {
-  package: {
-    name: string;
-    version: string;
-  };
-};
+export type IDeviceSoftware = IHostSoftware;
+
 const INSTALL_STATUS_PREDICATES: Record<SoftwareInstallStatus, string> = {
   failed: "failed to install",
   installed: "installed",
