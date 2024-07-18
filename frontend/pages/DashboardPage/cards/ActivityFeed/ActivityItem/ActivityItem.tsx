@@ -36,10 +36,11 @@ const PREMIUM_ACTIVITIES = new Set([
 
 const getProfileMessageSuffix = (
   isPremiumTier: boolean,
-  platform: "darwin" | "windows",
+  platform: "apple" | "windows",
   teamName?: string | null
 ) => {
-  const platformDisplayName = platform === "darwin" ? "macOS" : "Windows";
+  const platformDisplayName =
+    platform === "apple" ? "macOS, iOS, and iPadOS" : "Windows";
   let messageSuffix = <>all {platformDisplayName} hosts</>;
   if (isPremiumTier) {
     messageSuffix = teamName ? (
@@ -306,7 +307,10 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
-  editedMacosMinVersion: (activity: IActivity) => {
+  editedAppleosMinVersion: (
+    osType: AppleDisplayPlatform,
+    activity: IActivity
+  ) => {
     const editedActivity =
       activity.details?.minimum_version === "" ? "removed" : "updated";
 
@@ -345,6 +349,7 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
+  // TODO: This should be reword to create AppleOSProfile
   createMacOSProfile: (activity: IActivity, isPremiumTier: boolean) => {
     const profileName = activity.details?.profile_name;
     return (
@@ -361,7 +366,7 @@ const TAGGED_TEMPLATES = {
         to{" "}
         {getProfileMessageSuffix(
           isPremiumTier,
-          "darwin",
+          "apple",
           activity.details?.team_name
         )}
         .
@@ -781,7 +786,7 @@ const TAGGED_TEMPLATES = {
         to{" "}
         {getProfileMessageSuffix(
           isPremiumTier,
-          "darwin",
+          "apple",
           activity.details?.team_name
         )}
         .
@@ -796,7 +801,7 @@ const TAGGED_TEMPLATES = {
         <b>{activity.details?.profile_name}</b> from{" "}
         {getProfileMessageSuffix(
           isPremiumTier,
-          "darwin",
+          "apple",
           activity.details?.team_name
         )}
         .
@@ -811,7 +816,7 @@ const TAGGED_TEMPLATES = {
         <b>{activity.details?.profile_name}</b> for{" "}
         {getProfileMessageSuffix(
           isPremiumTier,
-          "darwin",
+          "apple",
           activity.details?.team_name
         )}{" "}
         via fleetctl.
@@ -962,11 +967,13 @@ const getDetail = (
       return TAGGED_TEMPLATES.mdmUnenrolled(activity);
     }
     case ActivityType.EditedMacosMinVersion: {
-      return TAGGED_TEMPLATES.editedMacosMinVersion(activity);
+      return TAGGED_TEMPLATES.editedmacOSMinVersion(activity);
     }
+
     case ActivityType.ReadHostDiskEncryptionKey: {
       return TAGGED_TEMPLATES.readHostDiskEncryptionKey(activity);
     }
+    // Change name
     case ActivityType.CreatedMacOSProfile: {
       return TAGGED_TEMPLATES.createMacOSProfile(activity, isPremiumTier);
     }
