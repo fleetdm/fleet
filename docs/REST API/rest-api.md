@@ -8782,7 +8782,6 @@ Get a list of all software.
       "software_package": {
         "name": "FirefoxInsall.pkg",
         "version": "125.6",
-        "icon_url": null,
         "self_service": true
       },
       "app_store_app": null,
