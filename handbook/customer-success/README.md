@@ -35,15 +35,20 @@ Before a routine customer call, the CSM prepares an agenda including the followi
 6. Provide updates to open bug reports
 
 ### Generate an expansion opportunity in Salesforce
-One of the key performance indicators for CSMs is handling all customer expansions to ensure they are closed out on time and tracked properly. Below are the steps you should take when creating a new expansion opportunity in Salesforce, which is performed when a customer notifies you that they will be adding licenses to an existing subscription.
+Customer Success Manager's (CSM's) are responsible for developing customer expansion opportunities that are not being worked on in conjunction with an Account Executive (AE). An AE will be assigned by the Chief Revenue Officer (CRO) for large scale expansion opportunities such as bringing on a new Fleet use case or bringing on a new group of hosts to an existing Fleet use case. CSM's manage expansion opportunities for things like host count increase for customer growth and price increases on renewals. Discuss examples of these scenarios with your manager to learn more.
 
-1. Navigate to your customer's account in SFDC
-2. Scroll down to the section labeled "Upcoming renewal (± expansions)"
-3. Click the "New" button to generate a new opportunity
-4. Change the type of opportunity to "Expansion"
-5. Change the opportunity name to reflect the following naming structure: Customername_FleetPremium_Expansion_Q12024 (Quarter and year will be unique to the timing of the opp you are generating)
-6. Fill out all required information
-7. Press the save button to complete this process and finish creating the expansion opportunity
+Take the steps below when creating an expansion opportunity in Salesforce:
+
+1. Navigate to the customer account record in Salesforce.
+2. Scroll down to the section labeled "Upcoming renewal (± expansions)".
+3. Click the "New" button.
+4. Change the type of opportunity to "Expansion".
+5. Change the opportunity name to reflect the following naming structure: CustomerName_FleetProduct_Expansion_QuarterDue
+    - Example: ABCTestCompany_FleetPremiumMDM_HostExpansion_Q12025
+    - Example: ABCTestCompany_FleetPremium_PriceIncreaseExpansion_Q12025
+6. Fill out all the required fields.
+7. Press the "Save" button to complete the opportunity creation process.
+8. Moving forward, CSM's are responsible for keeping the stage, next steps, and date of next steps fields updated as the opportunity progresses through the sales cycle.
 
 ### Create customer support issue
 Locate the relevant issue or create it if it doesn't already exist (to avoid duplication, be creative when searching GitHub for issues - it can often take a couple of tries with different keywords to find an existing issue). When creating a new issue, make sure the following:
