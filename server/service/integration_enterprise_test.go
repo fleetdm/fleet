@@ -7257,7 +7257,9 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 				{Version: "0.0.1", Vulnerabilities: nil},
 				{Version: "0.0.3", Vulnerabilities: nil},
 			},
-			SelfService: false,
+			SoftwarePackage: &fleet.SoftwarePackageOrApp{
+				SelfService: ptr.Bool(false),
+			},
 		},
 		{
 			Name:          "bar",
@@ -7267,7 +7269,9 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 			Versions: []fleet.SoftwareVersion{
 				{Version: "0.0.4", Vulnerabilities: &fleet.SliceString{"cve-123-123-132"}},
 			},
-			SelfService: false,
+			SoftwarePackage: &fleet.SoftwarePackageOrApp{
+				SelfService: ptr.Bool(false),
+			},
 		},
 	}, resp.SoftwareTitles)
 
@@ -7773,7 +7777,7 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 	)
 
 	require.Len(t, resp.SoftwareTitles, 1)
-	require.True(t, resp.SoftwareTitles[0].AvailableForInstall)
+	require.NotNil(t, resp.SoftwareTitles[0].SoftwarePackage)
 
 	// Upload an installer for the same software but different arch to a different team
 	payloadRubyTm2 := &fleet.UploadSoftwareInstallerPayload{
@@ -7793,7 +7797,7 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 		"team_id", fmt.Sprintf("%d", team1.ID),
 	)
 	require.Len(t, resp.SoftwareTitles, 1)
-	require.True(t, resp.SoftwareTitles[0].AvailableForInstall)
+	require.NotNil(t, resp.SoftwareTitles[0].SoftwarePackage)
 
 	// software installer not returned with self-service only (not marked as such)
 	resp = listSoftwareTitlesResponse{}
@@ -7810,8 +7814,9 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &resp,
 		"self_service", "1", "query", "ruby", "team_id", fmt.Sprint(team1.ID))
 	require.Len(t, resp.SoftwareTitles, 1)
-	require.True(t, resp.SoftwareTitles[0].AvailableForInstall)
-	require.True(t, resp.SoftwareTitles[0].SelfService)
+	require.NotNil(t, resp.SoftwareTitles[0].SoftwarePackage)
+	require.NotNil(t, resp.SoftwareTitles[0].SoftwarePackage.SelfService)
+	require.True(t, *resp.SoftwareTitles[0].SoftwarePackage.SelfService)
 
 	// no team but self-service returns the emacs software (technically impossible via the UI)
 	resp = listSoftwareTitlesResponse{}
@@ -7823,8 +7828,9 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 	)
 
 	require.Len(t, resp.SoftwareTitles, 1)
-	require.True(t, resp.SoftwareTitles[0].AvailableForInstall)
-	require.True(t, resp.SoftwareTitles[0].SelfService)
+	require.NotNil(t, resp.SoftwareTitles[0].SoftwarePackage)
+	require.NotNil(t, resp.SoftwareTitles[0].SoftwarePackage.SelfService)
+	require.True(t, *resp.SoftwareTitles[0].SoftwarePackage.SelfService)
 
 	emacsPath := fmt.Sprintf("/api/latest/fleet/software/titles/%d", resp.SoftwareTitles[0].ID)
 	respTitle := getSoftwareTitleResponse{}
@@ -9810,7 +9816,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
 	s.Do("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusNoContent, "team_name", tm.Name)
 	newTitlesResp = listSoftwareTitlesResponse{}
 	s.DoJSON("GET", "/api/v1/fleet/software/titles", nil, http.StatusOK, &newTitlesResp, "available_for_install", "true", "team_id", strconv.Itoa(int(tm.ID)))
-	titlesResp.SoftwareTitles[0].SelfService = true
+	titlesResp.SoftwareTitles[0].SoftwarePackage.SelfService = ptr.Bool(true)
 	require.Equal(t, titlesResp, newTitlesResp)
 
 	// empty payload cleans the software items
@@ -10835,7 +10841,7 @@ func (s *integrationEnterpriseTestSuite) TestPKGNewSoftwareTitleFlow() {
 		"team_id", fmt.Sprintf("%d", team.ID),
 	)
 	require.Len(t, resp.SoftwareTitles, 1)
-	require.True(t, resp.SoftwareTitles[0].AvailableForInstall)
+	require.NotNil(t, resp.SoftwareTitles[0].SoftwarePackage)
 
 	software := []fleet.Software{
 		{Name: "foo", Version: "0.0.1", Source: "homebrew"},
