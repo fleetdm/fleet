@@ -9506,11 +9506,13 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 
 	// Installation flow
 
-	// Create a host and add it to the team
-	host, mdmDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
-	setOrbitEnrollment(t, host, s.ds)
-	s.Do("POST", "/api/latest/fleet/hosts/transfer", &addHostsToTeamRequest{HostIDs: []uint{host.ID}, TeamID: &team.ID}, http.StatusOK)
-	s.appleVPPConfigSrvConfig.SerialNumbers = append(s.appleVPPConfigSrvConfig.SerialNumbers, host.HardwareSerial)
+	// Create a couple of hosts
+	orbitHost := createOrbitEnrolledHost(t, "darwin", "nonmdm", s.ds)
+	mdmHost, mdmDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	setOrbitEnrollment(t, mdmHost, s.ds)
+	// Add serial number to our fake Apple server
+	s.appleVPPConfigSrvConfig.SerialNumbers = append(s.appleVPPConfigSrvConfig.SerialNumbers, mdmHost.HardwareSerial)
+	s.Do("POST", "/api/latest/fleet/hosts/transfer", &addHostsToTeamRequest{HostIDs: []uint{mdmHost.ID, orbitHost.ID}, TeamID: &team.ID}, http.StatusOK)
 
 	// Add both apps to the team
 	addedApp = appResp.AppStoreApps[0]
@@ -9529,9 +9531,14 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	titleID = listSw.SoftwareTitles[0].ID
 	errTitleID := listSw.SoftwareTitles[1].ID
 
-	// Trigger install to the host
+	// attempt to install a VPP app on the non-MDM enrolled host
+
 	installResp := installSoftwareResponse{}
-	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/install/%d", host.ID, errTitleID), &installSoftwareRequest{}, http.StatusAccepted, &installResp)
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/install/%d", orbitHost.ID, titleID), &installSoftwareRequest{}, http.StatusBadRequest, &installResp)
+
+	// Trigger install to the host
+	installResp = installSoftwareResponse{}
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/install/%d", mdmHost.ID, errTitleID), &installSoftwareRequest{}, http.StatusAccepted, &installResp)
 
 	// Simulate failed installation on the host
 	cmd, err := mdmDevice.Idle()
@@ -9549,11 +9556,11 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 		}
 	}
 
-	s.lastActivityMatches(fleet.ActivityInstalledAppStoreApp{}.ActivityName(), fmt.Sprintf(`{"host_id": %d, "host_display_name": "%s", "software_title": "%s", "app_store_id": "%s", "command_uuid": "%s", "status": "%s"}`, host.ID, host.DisplayName(), errApp.Name, errApp.AdamID, cmdUUID, fleet.SoftwareInstallerFailed), 0)
+	s.lastActivityMatches(fleet.ActivityInstalledAppStoreApp{}.ActivityName(), fmt.Sprintf(`{"host_id": %d, "host_display_name": "%s", "software_title": "%s", "app_store_id": "%s", "command_uuid": "%s", "status": "%s"}`, mdmHost.ID, mdmHost.DisplayName(), errApp.Name, errApp.AdamID, cmdUUID, fleet.SoftwareInstallerFailed), 0)
 
 	// Trigger install to the host
 	installResp = installSoftwareResponse{}
-	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/install/%d", host.ID, titleID), &installSoftwareRequest{}, http.StatusAccepted, &installResp)
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/install/%d", mdmHost.ID, titleID), &installSoftwareRequest{}, http.StatusAccepted, &installResp)
 
 	// Simulate successful installation on the host
 	cmd, err = mdmDevice.Idle()
@@ -9570,7 +9577,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 		}
 	}
 
-	s.lastActivityMatches(fleet.ActivityInstalledAppStoreApp{}.ActivityName(), fmt.Sprintf(`{"host_id": %d, "host_display_name": "%s", "software_title": "%s", "app_store_id": "%s", "command_uuid": "%s", "status": "%s"}`, host.ID, host.DisplayName(), addedApp.Name, addedApp.AdamID, cmdUUID, fleet.SoftwareInstallerInstalled), 0)
+	s.lastActivityMatches(fleet.ActivityInstalledAppStoreApp{}.ActivityName(), fmt.Sprintf(`{"host_id": %d, "host_display_name": "%s", "software_title": "%s", "app_store_id": "%s", "command_uuid": "%s", "status": "%s"}`, mdmHost.ID, mdmHost.DisplayName(), addedApp.Name, addedApp.AdamID, cmdUUID, fleet.SoftwareInstallerInstalled), 0)
 
 	// Delete VPP token and check that it's not appearing anymore
 	s.Do("DELETE", "/api/latest/fleet/mdm/apple/vpp_token", &deleteMDMAppleVPPTokenRequest{}, http.StatusNoContent)

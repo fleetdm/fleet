@@ -317,6 +317,21 @@ func (svc *Service) installSoftwareFromVPP(ctx context.Context, host *fleet.Host
 		}
 	}
 
+	mdmConnected, err := svc.ds.IsHostConnectedToFleetMDM(ctx, host)
+	if err != nil {
+		return ctxerr.Wrapf(ctx, err, "checking MDM status for host %d", host.ID)
+	}
+
+	if !mdmConnected {
+		return &fleet.BadRequestError{
+			Message: "VPP apps can only be installed only on hosts enrolled in MDM.",
+			InternalErr: ctxerr.NewWithData(
+				ctx, "VPP install attempted on non-MDM host",
+				map[string]any{"host_id": host.ID, "team_id": host.TeamID, "title_id": vppApp.TitleID},
+			),
+		}
+	}
+
 	token, err := svc.getVPPToken(ctx)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "getting VPP token")
