@@ -48,8 +48,8 @@ Fleet must register as an employer in any state where we hire new teammates. To 
 4. Select “Have us register for you” and then “Start registration.”
 5. Verify, add, and amend any company information to ensure accuracy.
 6. Select “Send registration” and authorize payment for the specified amount. CorpNet will then send an email with next steps, which vary by state.
+7. Update the [list of states that Fleet is currently registered with as an employer](https://fleetdm.com/handbook/business-operations#review-state-employment-tax-filings-for-the-previous-quarter).
     
-
 
 ### Process an email from a state agency
 From time to time, you may get notices via email (or in the mail) from state agencies regarding Fleet's withholding and/or unemployment tax accounts. You can resolve some of these notices on your own by verifying and/or updating the settings in your Gusto account.
@@ -63,19 +63,46 @@ In Gusto, you can click **How to review your notice** to help you understand wha
 
 > **Note:** Many agencies do not send notices to Gusto directly, so it’s important that you read and take action before any listed deadlines or effective dates of requested changes, in case you have to do something.  If you can't resolve the notice on your own, are unsure what the notice is in reference to, or the tax notice has a missing payment or balance owed, follow the steps in the Report and upload a tax notice in Gusto.
 
-<!-- 2023-08-19: I commented this out because I wasn't sure if we were still doing it this way and I didn't want to leave infomration that was potentially incorrect or contradictory.  -mikermcneil
-#### Process an email from a state agency with help from CorpNet
-In CorpNet, select "place an order for an existing business":
-- Email the CorpNet account rep "Subject: Fleet Device Management: State - Foreign Registration and Payroll Tax Registration" (this takes about two weeks).
-- Select "Foreign Qualification," place the order and email the confirmation to the CorpNet rep for "Payroll registration" (this is a shorter turnaround).
-  - You can also do this on your own by visiting the state's "Secretary of State" website and checking that the company name is available. To register online, you'll need the EIN, business address, information about the owners and their percentages, the first date of business, sales within the state, and the business type (usually get an email right away for approval ~24-48 hrs). 
--->
-
-<!-- 2023-08-19: This linked sheet is out of date so I'm commenting it out.  -mikermcneil
-For more information about how Fleet and our accounting team work together, check out [Fleet - who does what](https://docs.google.com/spreadsheets/d/1FFOudmHmfVFIk-hdIWoPFsvMPmsjnRB8/edit#gid=829046836) (private doc). -->
-
-<!-- 2023-08-19: I commented this out because I wasn't sure how to map it to an imperative mood verb phrase (responsibility) that bizops is doing either ad hoc or as part of a ritual (recurring task). -mikermcneil
 Every quarter, payroll and tax filings are due for each state. Gusto can handle these automatically if Third-party authorization (TPA) is enabled. Each state is unique and Gusto has a library of [State registration and resources](https://support.gusto.com/hub/Employers-and-admins/Taxes-forms-and-compliance/State-registration-and-resources) available to review.  You will need to grant Third-party authorization (TPA) per state and this should be checked quarterly before the filing due dates to ensure that Gusto can file on time. -->
+
+### Review state employment tax filings for the previous quarter
+Every quarter, payroll and tax filings are due for each state. Gusto automates this process, however there are often delays or quirks between Gusto's submission and the state receiving the filings.
+To mitigate the risk of penalties and to ensure filings occur as expected, follow these steps in the first month of the new quarter, verifying past quarter submission:
+1. Create an issue to "Review state filings for the previous quarter".
+2. Copy this text block into the issue to track progress by state:
+
+
+```
+States checked:
+- [ ] California
+- [ ] Colorado
+- [ ] Connecticut
+- [ ] Florida
+- [ ] Georgia
+- [ ] Hawaii
+- [ ] Illinois
+- [ ] Kansas
+- [ ] Maryland
+- [ ] Massachusetts
+- [ ] New York
+- [ ] Ohio
+- [ ] Oregon
+- [ ] Pennsylvania
+- [ ] Rhode Island
+- [ ] Tennessee
+- [ ] Texas
+- [ ] Utah
+- [ ] Virginia
+- [ ] Washington
+- [ ] Washington, DC
+- [ ] West Virginia
+- [ ] Wisconsin
+```
+ 
+
+3. Login to Gusto and navigate to "Taxes and compliance", then "Tax documents".
+4. Login to each State portal (using the details saved in 1Password) and verify that the portal has received the automated submission from Gusto.
+5. Check off states that are correct, and use comments to explain any quirks or remediation that's needed.
 
 
 ### Inform managers about hours worked
