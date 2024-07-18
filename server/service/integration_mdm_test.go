@@ -15,7 +15,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log/slog"
 	"math/big"
 	"mime/multipart"
 	"net/http"
@@ -435,9 +434,6 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 				}
 			}
 
-			// TODO(JVE): clean up this code ^. probably want to convert those arrays to maps so we can cut out
-			// searching logic
-			// TODO(JVE): update this to use a real UUID?
 			_, _ = w.Write([]byte(`{"eventId": "123-345"}`))
 			return
 		}
@@ -9549,7 +9545,6 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 		switch cmd.Command.RequestType {
 		case "InstallApplication":
 			require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
-			slog.With("filename", "server/service/integration_mdm_test.go", "func", "TestVPPApps").Info("JVE_LOG: checkNextPayloads ", "commandUUID", fullCmd.CommandUUID)
 			cmdUUID = cmd.CommandUUID
 			cmd, err = mdmDevice.Err(cmd.CommandUUID, []mdm.ErrorChain{{ErrorCode: 1234}})
 			require.NoError(t, err)
@@ -9570,7 +9565,6 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 		switch cmd.Command.RequestType {
 		case "InstallApplication":
 			require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
-			slog.With("filename", "server/service/integration_mdm_test.go", "func", "TestVPPApps").Info("JVE_LOG: checkNextPayloads ", "commandUUID", fullCmd.CommandUUID)
 			cmdUUID = cmd.CommandUUID
 			cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
 			require.NoError(t, err)

@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"log/slog"
 	"strings"
 	"time"
 
@@ -270,7 +269,6 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &count, countStmt, args...); err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "count upcoming activities")
 	}
-	slog.With("filename", "server/datastore/mysql/activities.go", "func", "ListHostUpcomingActivities").Info("JVE_LOG: made it past count query ")
 	if count == 0 {
 		return []*fleet.Activity{}, &fleet.PaginationMetadata{}, nil
 	}
@@ -406,11 +404,9 @@ WHERE
 	stmt, args := appendListOptionsWithCursorToSQL(listStmt, args, &opt)
 
 	var activities []*fleet.Activity
-	slog.With("filename", "server/datastore/mysql/activities.go", "func", "ListHostUpcomingActivities").Info("JVE_LOG: before list query ", "stmt", stmt)
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &activities, stmt, args...); err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "select upcoming activities")
 	}
-	slog.With("filename", "server/datastore/mysql/activities.go", "func", "ListHostUpcomingActivities").Info("JVE_LOG: made it past list query ")
 
 	var metaData *fleet.PaginationMetadata
 	metaData = &fleet.PaginationMetadata{HasPreviousResults: opt.Page > 0, TotalResults: count}
