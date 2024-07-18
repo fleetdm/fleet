@@ -71,12 +71,12 @@ func (ds *Datastore) Vulnerability(ctx context.Context, cve string, teamID *uint
 	args = append(args, cve, cve)
 
 	if teamID != nil {
-		eeSelectStmt += " AND vhc.team_id = ?"
-		freeSelectStmt += " AND vhc.team_id = ?"
+		eeSelectStmt += " AND vhc.team_id = ? AND vhc.global_stats = 0"
+		freeSelectStmt += " AND vhc.team_id = ? AND vhc.global_stats = 0"
 		args = append(args, *teamID)
 	} else {
-		eeSelectStmt += " AND vhc.team_id = 0"
-		freeSelectStmt += " AND vhc.team_id = 0"
+		eeSelectStmt += " AND vhc.team_id = 0 AND vhc.global_stats = 1"
+		freeSelectStmt += " AND vhc.team_id = 0 AND vhc.global_stats = 1"
 	}
 
 	var selectStmt string

@@ -175,12 +175,13 @@ func testVulnerabilityWithOS(t *testing.T, ds *Datastore) {
 
 	// Insert Host Count
 	insertStmt := `
-		INSERT INTO vulnerability_host_counts (cve, team_id, host_count)
-		VALUES (?, ?, ?), (?, ?, ?)
+		INSERT INTO vulnerability_host_counts (cve, team_id, host_count, global_stats)
+		VALUES (?, ?, ?, ?), (?, ?, ?, ?), (?, ?, ?, ?)
 	`
 	_, err = ds.writer(context.Background()).Exec(insertStmt,
-		"CVE-2020-1234", 0, 10,
-		"CVE-2020-1234", 1, 4,
+		"CVE-2020-1234", 0, 10, 1, // global
+		"CVE-2020-1234", 1, 4, 0, // team 1
+		"CVE-2020-1234", 0, 6, 0, // no team
 	)
 	require.NoError(t, err)
 
@@ -230,6 +231,14 @@ func testVulnerabilityWithOS(t *testing.T, ds *Datastore) {
 	require.Equal(t, expected.HostsCount, v.HostsCount)
 	require.Equal(t, expected.Source, v.Source)
 
+	// No Team
+	expected.HostsCount = 6
+	v, err = ds.Vulnerability(ctx, "CVE-2020-1234", ptr.Uint(0), false)
+	require.NoError(t, err)
+	require.Equal(t, expected.CVE, v.CVE)
+	require.Equal(t, expected.HostsCount, v.HostsCount)
+	require.Equal(t, expected.Source, v.Source)
+
 	expected = fleet.VulnerabilityWithMetadata{
 		CVE: fleet.CVE{
 			CVE:              "CVE-2020-1234",
@@ -263,11 +272,15 @@ func testVulnerabilityWithSoftware(t *testing.T, ds *Datastore) {
 
 	// Insert Host Count
 	insertStmt := `
-		INSERT INTO vulnerability_host_counts (cve, team_id, host_count)
-		VALUES (?, ?, ?)
+		INSERT INTO vulnerability_host_counts (cve, team_id, host_count, global_stats)
+		VALUES (?, ?, ?, ?)
 	`
 
-	_, err = ds.writer(context.Background()).Exec(insertStmt, "CVE-2020-1234", 0, 10)
+	_, err = ds.writer(context.Background()).Exec(insertStmt, "CVE-2020-1234", 0, 10, 1)
+	require.NoError(t, err)
+	_, err = ds.writer(context.Background()).Exec(insertStmt, "CVE-2020-1234", 1, 4, 0)
+	require.NoError(t, err)
+	_, err = ds.writer(context.Background()).Exec(insertStmt, "CVE-2020-1234", 0, 6, 0)
 	require.NoError(t, err)
 
 	// insert Software Vuln
@@ -299,7 +312,24 @@ func testVulnerabilityWithSoftware(t *testing.T, ds *Datastore) {
 		Source:     fleet.NVDSource,
 	}
 
+	// Global (all teams)
 	v, err = ds.Vulnerability(ctx, "CVE-2020-1234", nil, false)
+	require.NoError(t, err)
+	require.Equal(t, expected.CVE, v.CVE)
+	require.Equal(t, expected.HostsCount, v.HostsCount)
+	require.Equal(t, expected.Source, v.Source)
+
+	// Team 1
+	expected.HostsCount = 4
+	v, err = ds.Vulnerability(ctx, "CVE-2020-1234", ptr.Uint(1), false)
+	require.NoError(t, err)
+	require.Equal(t, expected.CVE, v.CVE)
+	require.Equal(t, expected.HostsCount, v.HostsCount)
+	require.Equal(t, expected.Source, v.Source)
+
+	// No Team
+	expected.HostsCount = 6
+	v, err = ds.Vulnerability(ctx, "CVE-2020-1234", ptr.Uint(0), false)
 	require.NoError(t, err)
 	require.Equal(t, expected.CVE, v.CVE)
 	require.Equal(t, expected.HostsCount, v.HostsCount)
