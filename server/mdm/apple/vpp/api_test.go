@@ -105,7 +105,7 @@ func TestAssociateAssets(t *testing.T) {
 				require.Equal(t, []Asset{{AdamID: "12345", PricingParam: "STDQ"}}, reqParams.Assets)
 				require.Equal(t, []string{"SN12345"}, reqParams.SerialNumbers)
 
-				w.WriteHeader(http.StatusOK)
+				_, _ = w.Write([]byte(`{"eventId": "123"}`))
 			},
 			expectedErrMsg: "",
 		},
@@ -114,7 +114,8 @@ func TestAssociateAssets(t *testing.T) {
 			token: "valid_token",
 			params: &AssociateAssetsRequest{
 				Assets:        []Asset{{AdamID: "12345", PricingParam: "STDQ"}},
-				SerialNumbers: []string{"SN12345"}},
+				SerialNumbers: []string{"SN12345"},
+			},
 			handler: func(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(http.StatusInternalServerError)
 				fmt.Fprintln(w, `Internal Server Error`)
@@ -126,7 +127,8 @@ func TestAssociateAssets(t *testing.T) {
 			token: "valid_token",
 			params: &AssociateAssetsRequest{
 				Assets:        []Asset{{AdamID: "12345", PricingParam: "STDQ"}},
-				SerialNumbers: []string{"SN12345"}},
+				SerialNumbers: []string{"SN12345"},
+			},
 			handler: func(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(http.StatusBadRequest)
 				fmt.Fprintln(w, `{"errorInfo":{},"errorMessage":"Bad Request","errorNumber":400}`)
@@ -139,7 +141,7 @@ func TestAssociateAssets(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			setupFakeServer(t, tt.handler)
 
-			err := AssociateAssets(tt.token, tt.params)
+			_, err := AssociateAssets(tt.token, tt.params)
 			if tt.expectedErrMsg != "" {
 				require.Error(t, err)
 				require.Contains(t, err.Error(), tt.expectedErrMsg)

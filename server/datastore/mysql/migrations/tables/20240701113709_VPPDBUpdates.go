@@ -20,9 +20,6 @@ func Up_20240701113709(tx *sql.Tx) error {
 CREATE TABLE vpp_apps (
 	adam_id VARCHAR(16) NOT NULL,
 
-	-- This is a count of how many licenses are still available for this asset
-	available_count INT UNSIGNED,
-
 	-- FK to the "software title" this app matches
 	title_id int(10) unsigned DEFAULT NULL,
 
@@ -77,7 +74,7 @@ CREATE TABLE host_vpp_software_installs (
 	adam_id VARCHAR(16) NOT NULL,
 
 	-- This is the UUID of the MDM command issued to install the software
-	command_uuid VARCHAR(127),
+	command_uuid VARCHAR(127) NOT NULL,
 	user_id INT(10) UNSIGNED NULL,
 
 	-- This indicates whether or not this was a self-service install
@@ -92,7 +89,8 @@ CREATE TABLE host_vpp_software_installs (
 	updated_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 	PRIMARY KEY(id),
 	FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE SET NULL,
-	FOREIGN KEY (adam_id) REFERENCES vpp_apps (adam_id) ON DELETE CASCADE
+	FOREIGN KEY (adam_id) REFERENCES vpp_apps (adam_id) ON DELETE CASCADE,
+	UNIQUE INDEX idx_host_vpp_software_installs_command_uuid (command_uuid)
 )`)
 	if err != nil {
 		return fmt.Errorf("failed to create table host_vpp_software_installs: %w", err)

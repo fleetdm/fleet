@@ -3145,6 +3145,14 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 	otherHost := test.NewHost(t, ds, "host2", "", "host2key", "host2uuid", time.Now(), test.WithPlatform("linux"))
 	opts := fleet.HostSoftwareTitleListOptions{ListOptions: fleet.ListOptions{PerPage: 10, IncludeMetadata: true, OrderKey: "name", TestSecondaryOrderKey: "source"}}
 
+	user, err := ds.NewUser(ctx, &fleet.User{
+		Password:   []byte("p4ssw0rd.123"),
+		Name:       "user1",
+		Email:      "user1@example.com",
+		GlobalRole: ptr.String(fleet.RoleAdmin),
+	})
+	require.NoError(t, err)
+
 	expectStatus := func(s fleet.SoftwareInstallerStatus) *fleet.SoftwareInstallerStatus {
 		return &s
 	}
@@ -3647,18 +3655,18 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 
 	// create an installation request for vpp1 and vpp2, leaving vpp3 as
 	// available only
-	vpp1CmdUUID := createVPPAppInstallRequest(t, ds, host, vpp1)
-	vpp2CmdUUID := createVPPAppInstallRequest(t, ds, host, vpp2)
+	vpp1CmdUUID := createVPPAppInstallRequest(t, ds, host, vpp1, user.ID)
+	vpp2CmdUUID := createVPPAppInstallRequest(t, ds, host, vpp2, user.ID)
 	// make vpp1 install a success, while vpp2 has its initial request as failed
 	// and a subsequent request as pending.
 	createVPPAppInstallResult(t, ds, host, vpp1CmdUUID, fleet.MDMAppleStatusAcknowledged)
 	createVPPAppInstallResult(t, ds, host, vpp2CmdUUID, fleet.MDMAppleStatusError)
 	time.Sleep(time.Second) // ensure a different created_at timestamp
-	vpp2bCmdUUID := createVPPAppInstallRequest(t, ds, host, vpp2)
+	vpp2bCmdUUID := createVPPAppInstallRequest(t, ds, host, vpp2, user.ID)
 	require.NotEmpty(t, vpp2bCmdUUID)
 	// add an install request for the team host on vpp1, should not impact
 	// main host
-	vpp1TmCmdUUID := createVPPAppInstallRequest(t, ds, tmHost, vpp1)
+	vpp1TmCmdUUID := createVPPAppInstallRequest(t, ds, tmHost, vpp1, user.ID)
 	require.NotEmpty(t, vpp1TmCmdUUID)
 
 	expected["vpp1apps"] = fleet.HostSoftwareWithInstaller{

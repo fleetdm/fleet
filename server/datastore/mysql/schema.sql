@@ -555,13 +555,14 @@ CREATE TABLE `host_vpp_software_installs` (
   `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `host_id` int(10) unsigned NOT NULL,
   `adam_id` varchar(16) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `command_uuid` varchar(127) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `command_uuid` varchar(127) COLLATE utf8mb4_unicode_ci NOT NULL,
   `user_id` int(10) unsigned DEFAULT NULL,
   `self_service` tinyint(1) NOT NULL DEFAULT '0',
   `associated_event_id` varchar(36) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_host_vpp_software_installs_command_uuid` (`command_uuid`),
   KEY `user_id` (`user_id`),
   KEY `adam_id` (`adam_id`),
   CONSTRAINT `host_vpp_software_installs_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE SET NULL,
@@ -1669,7 +1670,6 @@ CREATE TABLE `users` (
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `vpp_apps` (
   `adam_id` varchar(16) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `available_count` int(10) unsigned DEFAULT NULL,
   `title_id` int(10) unsigned DEFAULT NULL,
   `bundle_identifier` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
   `icon_url` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',

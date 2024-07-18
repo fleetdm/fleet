@@ -1673,11 +1673,16 @@ func (a ActivityDeletedAppStoreApp) Documentation() (activity string, details st
 }
 
 type ActivityInstalledAppStoreApp struct {
-	HostID          int    `json:"host_id"`
+	HostID          uint   `json:"host_id"`
 	HostDisplayName string `json:"host_display_name"`
 	SoftwareTitle   string `json:"software_title"`
-	AppStoreID      int    `json:"app_store_id"`
+	AppStoreID      string `json:"app_store_id"`
 	CommandUUID     string `json:"command_uuid"`
+	Status          string `json:"status,omitempty"`
+}
+
+func (a ActivityInstalledAppStoreApp) HostIDs() []uint {
+	return []uint{a.HostID}
 }
 
 func (a ActivityInstalledAppStoreApp) ActivityName() string {

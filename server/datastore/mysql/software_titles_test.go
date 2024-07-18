@@ -940,8 +940,8 @@ func createVPPApp(t *testing.T, ds *Datastore, teamID *uint, name, bundle string
 	require.NoError(t, err)
 
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(ctx, `INSERT INTO vpp_apps (adam_id, available_count, title_id, name, bundle_identifier) VALUES (?, ?, ?, ?, ?)`,
-			adamID, 1, titleID, name, bundle)
+		_, err := q.ExecContext(ctx, `INSERT INTO vpp_apps (adam_id, title_id, name, bundle_identifier) VALUES (?, ?, ?, ?)`,
+			adamID, titleID, name, bundle)
 		return err
 	})
 
