@@ -86,7 +86,7 @@ Here's how:
 
 1. For each hourly core team member in Gusto or Plane.com, find the DRI by checking [who they report to](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0).
    - If any direct report is hourly in Plane.com and submits hours monthly, still list them and provide an explanation.
-2. Consultants submit their hours through Gusto (US consultants) or Plane.com (international consultants) and ree DRI approval. Find the DRI using the [Business Operations KPIs](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0).
+2. Consultants submit their hours through Gusto (US consultants) or Plane.com (international consultants) and require DRI approval. Find the DRI using the [Business Operations KPIs](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0).
 3. Send the teammate's DRI a direct message in Slack with a screenshot of the HRIS portal, showing hours logged since last Saturday at midnight, and ask them to confirm the hours are expected. Ensure the screenshot does not include compensation information.
 4. The following Monday, check for updates to logged hours and ensure the KPI sheet aligns with HRIS records.
    - If there are discrepancies between what was previously reported, reconfirm logged hours with the teammate's DRI and update the KPI sheet to reflect the correct amount.
@@ -109,8 +109,8 @@ To create a new invoice for a Fleet customer, follow these steps:
 1. Go to the [invoice folder in google drive](https://drive.google.com/drive/folders/11limC_KQYNYQPApPoXN0CplHo_5Qgi2b?usp=drive_link).
 2. Create a copy of the invoice template, and title the copy `[invoice number] Fleet invoice - [customer name]`.
     - The invoice number follows the format of `YYMMDD[daily issued invoice number]`, where the daily issued invoice number should equal `01` if it's the first invoice issued that day, `02` if it's the second, etc.
-3.  Edit the new invoice to reflect details from the signed subscription agreement (and PO if reed).
-    - Enter the invoice number (and PO number if reed) into the top right section of the invoice.
+3.  Edit the new invoice to reflect details from the signed subscription agreement (and PO if required).
+    - Enter the invoice number (and PO number if required) into the top right section of the invoice.
     - Update the date of the invoice to reflect the current date.
     - Make sure the payment terms match the signed subscription agreement.
     - Copy the customer address from the signed subscription agreement and input it in the "Bill to" section of the invoice.
