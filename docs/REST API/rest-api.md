@@ -1180,11 +1180,11 @@ Modifies the Fleet's configuration with the supplied information.
       "custom_settings": [
         {
           "path": "path/to/profile1.mobileconfig",
-          "labels": ["Label 1", "Label 2"]
+          "labels_exclude_any": ["Label 1", "Label 2"]
         },
         {
           "path": "path/to/profile2.json",
-          "labels": ["Label 3", "Label 4"]
+          "labels_include_all": ["Label 3", "Label 4"]
         },
       ]
     },
@@ -1192,7 +1192,7 @@ Modifies the Fleet's configuration with the supplied information.
       "custom_settings": [
         {
           "path": "path/to/profile3.xml",
-          "labels": ["Label 1", "Label 2"]
+          "labels_exclude_any": ["Label 1", "Label 2"]
         }
       ]
     },
@@ -1680,7 +1680,7 @@ _Available in Fleet Premium._
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | apple_bm_default_team             | string  | _Available in Fleet Premium._ The default team to use with Apple Business Manager. |
 | windows_enabled_and_configured    | boolean | Enables Windows MDM support. |
-| enable_disk_encryption            | boolean | _Available in Fleet Premium._ Hosts that belong to no team and are enrolled into Fleet's MDM will have disk encryption enabled if set to true. |
+| enable_disk_encryption            | boolean | _Available in Fleet Premium._ Hosts that belong to no team will have disk encryption enabled if set to true. |
 | macos_updates         | object  | See [`mdm.macos_updates`](#mdm-macos-updates). |
 | macos_migration         | object  | See [`mdm.macos_migration`](#mdm-macos-migration). |
 | macos_setup         | object  | See [`mdm.macos_setup`](#mdm-macos-setup). |
@@ -1697,8 +1697,8 @@ _Available in Fleet Premium._
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| minimum_version                   | string  | Hosts that belong to no team and are enrolled into Fleet's MDM will be nudged until their macOS is at or above this version. |
-| deadline                          | string  | Hosts that belong to no team and are enrolled into Fleet's MDM won't be able to dismiss the Nudge window once this deadline is past. |
+| minimum_version                   | string  | Hosts that belong to no team will be nudged until their macOS is at or above this version. |
+| deadline                          | string  | Hosts that belong to no team won't be able to dismiss the Nudge window once this deadline is past. |
 
 <br/>
 
@@ -1710,8 +1710,8 @@ _Available in Fleet Premium._
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| deadline_days                     | integer | Hosts that belong to no team and are enrolled into Fleet's MDM will have this number of days before updates are installed on Windows. |
-| grace_period_days                 | integer | Hosts that belong to no team and are enrolled into Fleet's MDM will have this number of days before Windows restarts to install updates. |
+| deadline_days                     | integer | Hosts that belong to no team will have this number of days before updates are installed on Windows. |
+| grace_period_days                 | integer | Hosts that belong to no team will have this number of days before Windows restarts to install updates. |
 
 <br/>
 
@@ -1747,7 +1747,7 @@ _Available in Fleet Premium._
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| custom_settings                   | list    | macOS hosts that belong to no team, and are members of specified labels will have custom profiles applied. |
+| custom_settings                   | list    | macOS hosts that belong to no team will have custom profiles applied. |
 
 <br/>
 
@@ -1757,7 +1757,7 @@ _Available in Fleet Premium._
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| custom_settings                   | list    | Windows hosts that belong to no team, and are members of specified labels will have custom profiles applied. |
+| custom_settings                   | list    | Windows hosts that belong to no team will have custom profiles applied. |
 
 <br/>
 
@@ -5367,8 +5367,8 @@ Add a configuration profile to enforce custom settings on macOS and Windows host
 | ------------------------- | -------- | ---- | ------------------------------------------------------------------------------------------------------------- |
 | profile                   | file     | form | **Required.** The .mobileconfig and JSON for macOS or XML for Windows file containing the profile. |
 | team_id                   | string   | form | _Available in Fleet Premium_. The team ID for the profile. If specified, the profile is applied to only hosts that are assigned to the specified team. If not specified, the profile is applied to only to hosts that are not assigned to any team. |
-| labels                    | array     | form | _Available in Fleet Premium_. An array of labels to filter hosts in a team (or no team) that should get a profile. |
-
+| labels_include_all        | array     | form | _Available in Fleet Premium_. Profile will only be applied to hosts that have all of these labels. |
+| labels_exclude_any | array | form | _Available in Fleet Premium_. Profile will be applied to hosts that don’t have any of these labels. |
 
 #### Example
 
@@ -5393,11 +5393,11 @@ Content-Disposition: form-data; name="team_id"
 
 1
 --------------------------f02md47480und42y
-Content-Disposition: form-data; name="labels"
+Content-Disposition: form-data; name="labels_include_all"
 
 Label name 1
 --------------------------f02md47480und42y
-Content-Disposition: form-data; name="labels"
+Content-Disposition: form-data; name="labels_include_all"
 
 Label name 2
 --------------------------f02md47480und42y
@@ -5483,7 +5483,7 @@ List all configuration profiles for macOS and Windows hosts enrolled to Fleet's 
       "created_at": "2023-03-31T00:00:00Z",
       "updated_at": "2023-03-31T00:00:00Z",
       "checksum": "dGVzdAo=",
-      "labels": [
+      "labels_exclude_any": [
        {
         "name": "Label name 1"
        }
@@ -5497,14 +5497,14 @@ List all configuration profiles for macOS and Windows hosts enrolled to Fleet's 
       "created_at": "2023-04-31T00:00:00Z",
       "updated_at": "2023-04-31T00:00:00Z",
       "checksum": "aCLemVr)",
-      "labels": [
-       {
-         "name": "Label name 1",
-         "broken": true
-       },
-       {
-         "name": "Label name 2"
-       }
+      "labels_include_all": [
+        {
+          "name": "Label name 1",
+          "broken": true
+        },
+        {
+          "name": "Label name 2"
+        }
       ]
     }
   ],
@@ -5548,7 +5548,7 @@ If one or more assigned labels are deleted the profile is considered broken (`br
   "created_at": "2023-03-31T00:00:00Z",
   "updated_at": "2023-03-31T00:00:00Z",
   "checksum": "dGVzdAo=",
-  "labels": [
+  "labels_include_all": [
     {
       "name": "Label name 1",
       "broken": true
