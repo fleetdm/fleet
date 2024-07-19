@@ -281,7 +281,8 @@ func (c *GoogleCalendar) GetAndUpdateEvent(event *fleet.CalendarEvent, genBodyFn
 		return nil, false, err
 	}
 	latestTzName := c.location.String()
-	tzUpdated := latestTzName != *event.TimeZone
+	// nil if cal event created before Fleet tracked timezone
+	tzUpdated := event.TimeZone == nil || (latestTzName != *event.TimeZone)
 
 	gEvent, err := c.config.API.GetEvent(details.ID, details.ETag)
 
