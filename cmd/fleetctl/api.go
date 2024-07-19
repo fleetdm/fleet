@@ -21,6 +21,9 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
+var ErrGeneric = errors.New(`Something's gone wrong. Please try again. If this keeps happening please file an issue:
+https://github.com/fleetdm/fleet/issues/new/choose`)
+
 func unauthenticatedClientFromCLI(c *cli.Context) (*service.Client, error) {
 	cc, err := clientConfigFromCLI(c)
 	if err != nil {

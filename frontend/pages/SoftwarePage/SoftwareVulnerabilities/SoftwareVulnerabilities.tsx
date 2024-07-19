@@ -10,6 +10,7 @@ import {
 } from "services/entities/vulnerabilities";
 
 import TableDataError from "components/DataError";
+import Spinner from "components/Spinner";
 
 import SoftwareVulnerabilitiesTable from "./SoftwareVulnerabilitiesTable";
 
@@ -25,6 +26,7 @@ interface ISoftwareVulnerabilitiesProps {
   currentPage: number;
   teamId?: number;
   showExploitedVulnerabilitiesOnly: boolean;
+  resetPageIndex: boolean;
 }
 
 const SoftwareVulnerabilities = ({
@@ -37,6 +39,7 @@ const SoftwareVulnerabilities = ({
   currentPage,
   teamId,
   showExploitedVulnerabilitiesOnly,
+  resetPageIndex,
 }: ISoftwareVulnerabilitiesProps) => {
   const queryParams = {
     page: currentPage,
@@ -48,7 +51,7 @@ const SoftwareVulnerabilities = ({
     exploit: showExploitedVulnerabilitiesOnly,
   };
 
-  const { data, isFetching, isError } = useQuery<
+  const { data, isFetching, isLoading, isError } = useQuery<
     IVulnerabilitiesResponse,
     Error,
     IVulnerabilitiesResponse,
@@ -66,6 +69,10 @@ const SoftwareVulnerabilities = ({
       staleTime: 30000,
     }
   );
+
+  if (isLoading) {
+    return <Spinner />;
+  }
 
   if (isError) {
     return <TableDataError className={`${baseClass}__table-error`} />;
@@ -85,6 +92,7 @@ const SoftwareVulnerabilities = ({
         currentPage={currentPage}
         teamId={teamId}
         isLoading={isFetching}
+        resetPageIndex={resetPageIndex}
       />
     </div>
   );

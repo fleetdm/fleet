@@ -1,16 +1,16 @@
 import React, { ReactNode, useContext } from "react";
 import classnames from "classnames";
 import { formatDistanceToNow } from "date-fns";
-import { hasLicenseExpired } from "utilities/helpers";
+import { hasLicenseExpired, willExpireWithinXDays } from "utilities/helpers";
 
 import SandboxExpiryMessage from "components/Sandbox/SandboxExpiryMessage";
 import AppleBMTermsMessage from "components/MDM/AppleBMTermsMessage";
 
-import InfoBanner from "components/InfoBanner";
-import CustomLink from "components/CustomLink";
 import SandboxGate from "components/Sandbox/SandboxGate";
 import { AppContext } from "context/app";
 import LicenseExpirationBanner from "components/LicenseExpirationBanner";
+import ApplePNCertRenewalMessage from "components/MDM/ApplePNCertRenewalMessage";
+import AppleBMRenewalMessage from "components/MDM/AppleBMRenewalMessage";
 
 interface IMainContentProps {
   children: ReactNode;
@@ -34,31 +34,57 @@ const MainContent = ({
   const {
     sandboxExpiry,
     config,
-    isSandboxMode,
     isPremiumTier,
     noSandboxHosts,
+    apnsExpiry,
+    abmExpiry,
   } = useContext(AppContext);
-
-  const isAppleBmTermsExpired = config?.mdm?.apple_bm_terms_expired;
-  const isLicenseExpired = hasLicenseExpired(config?.license.expiration || "");
 
   const sandboxExpiryTime =
     sandboxExpiry === undefined
       ? "..."
       : formatDistanceToNow(new Date(sandboxExpiry));
 
-  const showAppleABMBanner =
-    isAppleBmTermsExpired && isPremiumTier && !isSandboxMode;
+  const renderAppWideBanner = () => {
+    const isAppleBmTermsExpired = config?.mdm?.apple_bm_terms_expired;
+    const isApplePnsExpired = hasLicenseExpired(apnsExpiry || "");
+    const willApplePnsExpireIn30Days = willExpireWithinXDays(
+      apnsExpiry || "",
+      30
+    );
+    const isAppleBmExpired = hasLicenseExpired(abmExpiry || ""); // NOTE: See Rachel's related FIXME added to App.tsx in https://github.com/fleetdm/fleet/pull/19571
+    const willAppleBmExpireIn30Days = willExpireWithinXDays(
+      abmExpiry || "",
+      30
+    );
+    const isFleetLicenseExpired = hasLicenseExpired(
+      config?.license.expiration || ""
+    );
 
-  // ABM banner takes precedence
-  const showLicenseExpirationBanner =
-    isLicenseExpired && isPremiumTier && !isAppleBmTermsExpired;
+    if (isPremiumTier) {
+      if (isApplePnsExpired || willApplePnsExpireIn30Days) {
+        return <ApplePNCertRenewalMessage expired={isApplePnsExpired} />;
+      }
 
+      if (isAppleBmExpired || willAppleBmExpireIn30Days) {
+        return <AppleBMRenewalMessage expired={isAppleBmExpired} />;
+      }
+
+      if (isAppleBmTermsExpired) {
+        return <AppleBMTermsMessage />;
+      }
+
+      if (isFleetLicenseExpired) {
+        return <LicenseExpirationBanner />;
+      }
+    }
+
+    return <></>;
+  };
   return (
     <div className={classes}>
       <div className={`${baseClass}--animation-disabled`}>
-        {showAppleABMBanner && <AppleBMTermsMessage />}
-        {showLicenseExpirationBanner && <LicenseExpirationBanner />}
+        {renderAppWideBanner()}
         <SandboxGate
           fallbackComponent={() => (
             <SandboxExpiryMessage

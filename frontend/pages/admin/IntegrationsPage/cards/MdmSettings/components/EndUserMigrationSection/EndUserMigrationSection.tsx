@@ -212,7 +212,7 @@ const EndUserMigrationSection = ({ router }: IEndUserMigrationSectionProps) => {
             page.
           </p>
           <InputField
-            disabled={!formData.isEnabled}
+            readOnly={!formData.isEnabled}
             name="webhook_url"
             label="Webhook URL"
             value={formData.webhookUrl}

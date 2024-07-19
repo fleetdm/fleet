@@ -25,11 +25,13 @@ import (
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/tokenpki"
 	"github.com/fleetdm/fleet/v4/server/mock"
+	mdmmock "github.com/fleetdm/fleet/v4/server/mock/mdm"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/urfave/cli/v2"
 )
 
 var userRoleSpecList = []*fleet.User{
@@ -1109,7 +1111,7 @@ func mobileconfigForTest(name, identifier string) []byte {
 }
 
 func TestApplyAsGitOps(t *testing.T) {
-	enqueuer := new(mock.MDMAppleStore)
+	enqueuer := new(mdmmock.MDMAppleStore)
 	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
 
 	// mdm test configuration must be set so that activating windows MDM works.
@@ -1118,7 +1120,7 @@ func TestApplyAsGitOps(t *testing.T) {
 	testCertPEM := tokenpki.PEMCertificate(testCert.Raw)
 	testKeyPEM := tokenpki.PEMRSAPrivateKey(testKey)
 	fleetCfg := config.TestConfig()
-	config.SetTestMDMConfig(t, &fleetCfg, testCertPEM, testKeyPEM, nil, "../../server/service/testdata")
+	config.SetTestMDMConfig(t, &fleetCfg, testCertPEM, testKeyPEM, "../../server/service/testdata")
 
 	_, ds := runServerWithMockedDS(t, &service.TestServerOpts{
 		License:     license,
@@ -1186,6 +1188,12 @@ func TestApplyAsGitOps(t *testing.T) {
 	}
 	ds.TeamFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
 		return savedTeam, nil
+	}
+
+	ds.IsEnrollSecretAvailableFunc = func(ctx context.Context, secret string, new bool, teamID *uint) (bool, error) {
+		assert.False(t, new)
+		assert.Equal(t, uint(123), *teamID)
+		return true, nil
 	}
 	var teamEnrollSecrets []*fleet.EnrollSecret
 	ds.ApplyEnrollSecretsFunc = func(ctx context.Context, teamID *uint, secrets []*fleet.EnrollSecret) error {
@@ -1665,7 +1673,6 @@ func TestApplyLabels(t *testing.T) {
 	_, err = runAppNoChecks([]string{"apply", "-f", name})
 	require.Error(t, err)
 	require.ErrorContains(t, err, "cannot modify or add built-in label")
-
 }
 
 func TestApplyPacks(t *testing.T) {
@@ -1913,6 +1920,9 @@ func TestApplyMacosSetup(t *testing.T) {
 			return nil
 		}
 
+		ds.IsEnrollSecretAvailableFunc = func(ctx context.Context, secret string, new bool, teamID *uint) (bool, error) {
+			return true, nil
+		}
 		ds.SaveTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
 			teamsByName[team.Name] = team
 			teamsByID[team.ID] = team
@@ -2596,6 +2606,9 @@ func TestApplySpecs(t *testing.T) {
 			return team, nil
 		}
 
+		ds.IsEnrollSecretAvailableFunc = func(ctx context.Context, secret string, new bool, teamID *uint) (bool, error) {
+			return true, nil
+		}
 		ds.ApplyEnrollSecretsFunc = func(ctx context.Context, teamID *uint, secrets []*fleet.EnrollSecret) error {
 			return nil
 		}
@@ -3743,6 +3756,84 @@ spec:
 				require.Empty(t, got)
 			} else {
 				require.Contains(t, got, c.wantOutput)
+			}
+		})
+	}
+}
+
+func TestApplyFileExtensionValidation(t *testing.T) {
+	cases := []struct {
+		desc     string
+		filename string
+		wantErr  string
+	}{
+		{
+			desc:     "Valid .yml extension",
+			filename: "test_file.yml",
+			wantErr:  "",
+		},
+		{
+			desc:     "Valid .yaml extension",
+			filename: "test_file.yaml",
+			wantErr:  "",
+		},
+		{
+			desc:     "Invalid .txt extension",
+			filename: "test_file.txt",
+			wantErr:  "Invalid file extension .txt: only .yml or .yaml files can be applied",
+		},
+		{
+			desc:     "Invalid .json extension",
+			filename: "test_file.json",
+			wantErr:  "Invalid file extension .json: only .yml or .yaml files can be applied",
+		},
+		{
+			desc:     "No extension",
+			filename: "test_file",
+			wantErr:  "Missing file extension: only .yml or .yaml files can be applied",
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.desc, func(t *testing.T) {
+			// Create a temporary directory
+			tmpDir, err := os.MkdirTemp("", "test")
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer os.RemoveAll(tmpDir) // clean up
+
+			// Create the file with the exact name in the temporary directory
+			tmpFilePath := filepath.Join(tmpDir, c.filename)
+			tmpFile, err := os.Create(tmpFilePath)
+			if err != nil {
+				t.Fatal(err)
+			}
+			tmpFile.Close()
+
+			// Create a new cli.App for each test
+			app := &cli.App{
+				Commands: []*cli.Command{
+					applyCommand(),
+				},
+			}
+
+			// Set up arguments
+			args := []string{"fleetctl", "apply", "-f", tmpFilePath}
+
+			// Run the command
+			err = app.Run(args)
+
+			if c.wantErr == "" {
+				if err != nil {
+					t.Errorf("Expected no error, but got: %v", err)
+				}
+			} else {
+				if err == nil {
+					t.Errorf("Expected error, but got none")
+				} else if err.Error() != c.wantErr {
+					t.Errorf("Expected error message '%s', but got '%s'", c.wantErr, err.Error())
+				}
 			}
 		})
 	}

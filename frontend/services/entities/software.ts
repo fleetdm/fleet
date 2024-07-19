@@ -1,16 +1,18 @@
 import { AxiosResponse } from "axios";
 
-import { snakeCase, reduce } from "lodash";
-
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
 import {
   ISoftwareResponse,
   ISoftwareCountResponse,
   ISoftwareVersion,
-  ISoftwareTitle,
+  ISoftwareTitleWithPackageDetail,
+  ISoftwareTitleWithPackageName,
 } from "interfaces/software";
-import { buildQueryStringFromParams, QueryParams } from "utilities/url";
+import {
+  buildQueryStringFromParams,
+  convertParamsToSnakeCase,
+} from "utilities/url";
 
 import { IAddSoftwareFormData } from "pages/SoftwarePage/components/AddSoftwareForm/AddSoftwareForm";
 
@@ -22,13 +24,14 @@ export interface ISoftwareApiParams {
   query?: string;
   vulnerable?: boolean;
   availableForInstall?: boolean;
+  selfService?: boolean;
   teamId?: number;
 }
 
 export interface ISoftwareTitlesResponse {
   counts_updated_at: string | null;
   count: number;
-  software_titles: ISoftwareTitle[];
+  software_titles: ISoftwareTitleWithPackageName[];
   meta: {
     has_next_results: boolean;
     has_previous_results: boolean;
@@ -46,11 +49,19 @@ export interface ISoftwareVersionsResponse {
 }
 
 export interface ISoftwareTitleResponse {
-  software_title: ISoftwareTitle;
+  software_title: ISoftwareTitleWithPackageDetail;
 }
 
 export interface ISoftwareVersionResponse {
   software: ISoftwareVersion;
+}
+
+export interface ISoftwareVersionsQueryKey extends ISoftwareApiParams {
+  scope: "software-versions";
+}
+
+export interface ISoftwareTitlesQueryKey extends ISoftwareApiParams {
+  scope: "software-titles";
 }
 
 export interface ISoftwareQueryKey extends ISoftwareApiParams {
@@ -85,17 +96,6 @@ export interface IGetSoftwareVersionQueryKey
 const ORDER_KEY = "name";
 const ORDER_DIRECTION = "asc";
 
-const convertParamsToSnakeCase = (params: ISoftwareApiParams) => {
-  return reduce<typeof params, QueryParams>(
-    params,
-    (result, val, key) => {
-      result[snakeCase(key)] = val;
-      return result;
-    },
-    {}
-  );
-};
-
 export default {
   load: async ({
     page,
@@ -104,9 +104,12 @@ export default {
     orderDirection: orderDir = ORDER_DIRECTION,
     query,
     vulnerable,
-    availableForInstall,
+    // availableForInstall, // TODO: Is this supported for the versions endpoint?
     teamId,
-  }: ISoftwareApiParams): Promise<ISoftwareResponse> => {
+  }: Omit<
+    ISoftwareApiParams,
+    "availableForInstall" | "selfService"
+  >): Promise<ISoftwareResponse> => {
     const { SOFTWARE } = endpoints;
     const queryParams = {
       page,
@@ -116,7 +119,7 @@ export default {
       teamId,
       query,
       vulnerable,
-      availableForInstall,
+      // availableForInstall,
     };
 
     const snakeCaseParams = convertParamsToSnakeCase(queryParams);
@@ -188,7 +191,11 @@ export default {
     return sendRequest("GET", path);
   },
 
-  addSoftwarePackage: (data: IAddSoftwareFormData, teamId?: number) => {
+  addSoftwarePackage: (
+    data: IAddSoftwareFormData,
+    teamId?: number,
+    timeout?: number
+  ) => {
     const { SOFTWARE_PACKAGE_ADD } = endpoints;
 
     if (!data.software) {
@@ -197,6 +204,7 @@ export default {
 
     const formData = new FormData();
     formData.append("software", data.software);
+    formData.append("self_service", data.selfService.toString());
     data.installScript && formData.append("install_script", data.installScript);
     data.preInstallCondition &&
       formData.append("pre_install_query", data.preInstallCondition);
@@ -204,7 +212,14 @@ export default {
       formData.append("post_install_script", data.postInstallScript);
     teamId && formData.append("team_id", teamId.toString());
 
-    return sendRequest("POST", SOFTWARE_PACKAGE_ADD, formData);
+    return sendRequest(
+      "POST",
+      SOFTWARE_PACKAGE_ADD,
+      formData,
+      undefined,
+      timeout,
+      true
+    );
   },
 
   deleteSoftwarePackage: (softwareId: number, teamId: number) => {

@@ -11,6 +11,9 @@ const baseClass = "fleet-checkbox";
 export interface ICheckboxProps {
   children?: ReactNode;
   className?: string;
+  /** readOnly displays a non-editable field */
+  readOnly?: boolean;
+  /** disabled displays a greyed out non-editable field */
   disabled?: boolean;
   name?: string;
   onChange?: any; // TODO: meant to be an event; figure out type for this
@@ -22,13 +25,13 @@ export interface ICheckboxProps {
   tooltipContent?: React.ReactNode;
   isLeftLabel?: boolean;
   helpText?: React.ReactNode;
-  smallTick?: boolean;
 }
 
 const Checkbox = (props: ICheckboxProps) => {
   const {
     children,
     className,
+    readOnly = false,
     disabled = false,
     name,
     onChange = noop,
@@ -40,7 +43,6 @@ const Checkbox = (props: ICheckboxProps) => {
     tooltipContent,
     isLeftLabel,
     helpText,
-    smallTick = false,
   } = props;
 
   const handleChange = () => {
@@ -59,12 +61,13 @@ const Checkbox = (props: ICheckboxProps) => {
   );
 
   const checkBoxTickClass = classnames(`${baseClass}__tick`, {
+    [`${baseClass}__tick--read-only`]: readOnly || disabled,
     [`${baseClass}__tick--disabled`]: disabled,
     [`${baseClass}__tick--indeterminate`]: indeterminate,
-    [`${baseClass}__tick--small`]: smallTick,
   });
 
   const checkBoxLabelClass = classnames(checkBoxClass, {
+    [`${baseClass}__label--read-only`]: readOnly || disabled,
     [`${baseClass}__label--disabled`]: disabled,
   });
 
@@ -81,7 +84,7 @@ const Checkbox = (props: ICheckboxProps) => {
           <input
             checked={value}
             className={`${baseClass}__input`}
-            disabled={disabled}
+            disabled={readOnly || disabled}
             id={name}
             name={name}
             onChange={handleChange}
@@ -91,7 +94,10 @@ const Checkbox = (props: ICheckboxProps) => {
           <span className={checkBoxTickClass} />
           {tooltipContent ? (
             <span className={`${baseClass}__label-tooltip tooltip`}>
-              <TooltipWrapper tipContent={tooltipContent}>
+              <TooltipWrapper
+                tipContent={tooltipContent}
+                clickable={false} // Not block form behind tooltip
+              >
                 {children}
               </TooltipWrapper>
             </span>

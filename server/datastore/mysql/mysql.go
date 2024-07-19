@@ -28,8 +28,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/goose"
 	scep_depot "github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
-	"github.com/go-kit/kit/log"
-	"github.com/go-kit/kit/log/level"
+	"github.com/go-kit/log"
+	"github.com/go-kit/log/level"
 	"github.com/go-sql-driver/mysql"
 	"github.com/hashicorp/go-multierror"
 	"github.com/jmoiron/sqlx"
@@ -104,6 +104,10 @@ type Datastore struct {
 	//
 	//	e.g.: testBatchSetMDMWindowsProfilesErr = "insert:fail"
 	testBatchSetMDMWindowsProfilesErr string
+
+	// This key is used to encrypt sensitive data stored in the Fleet DB, for example MDM
+	// certificates and keys.
+	serverPrivateKey string
 }
 
 // reader returns the DB instance to use for read-only statements, which is the
@@ -158,8 +162,8 @@ func (ds *Datastore) loadOrPrepareStmt(ctx context.Context, query string) *sqlx.
 
 // NewMDMAppleSCEPDepot returns a scep_depot.Depot that uses the Datastore
 // underlying MySQL writer *sql.DB.
-func (ds *Datastore) NewSCEPDepot(caCertPEM []byte, caKeyPEM []byte) (scep_depot.Depot, error) {
-	return newSCEPDepot(ds.primary.DB, caCertPEM, caKeyPEM)
+func (ds *Datastore) NewSCEPDepot() (scep_depot.Depot, error) {
+	return newSCEPDepot(ds.primary.DB, ds)
 }
 
 type txFn func(tx sqlx.ExtContext) error
@@ -335,6 +339,7 @@ func New(config config.MysqlConfig, c clock.Clock, opts ...DBOption) (*Datastore
 		writeCh:             make(chan itemToWrite),
 		stmtCache:           make(map[string]*sqlx.Stmt),
 		minLastOpenedAtDiff: options.minLastOpenedAtDiff,
+		serverPrivateKey:    options.privateKey,
 	}
 
 	go ds.writeChanLoop()
@@ -1025,6 +1030,17 @@ func (ds *Datastore) whereOmitIDs(colName string, omit []uint) string {
 	return fmt.Sprintf("%s NOT IN (%s)", colName, strings.Join(idStrs, ","))
 }
 
+func (ds *Datastore) whereFilterHostsByIdentifier(identifier, stmt string, params []interface{}) (string, []interface{}) {
+	if identifier == "" {
+		return stmt, params
+	}
+
+	stmt += " AND ? IN (h.hostname, h.osquery_host_id, h.node_key, h.uuid, h.hardware_serial)"
+	params = append(params, identifier)
+
+	return stmt, params
+}
+
 // registerTLS adds client certificate configuration to the mysql connection.
 func registerTLS(conf config.MysqlConfig) error {
 	tlsCfg := config.TLS{
@@ -1279,7 +1295,7 @@ func (ds *Datastore) optimisticGetOrInsert(ctx context.Context, readStmt, insert
 			// this does not exist yet, try to insert it
 			res, err := ds.writer(ctx).ExecContext(ctx, insertStmt.Statement, insertStmt.Args...)
 			if err != nil {
-				if isDuplicate(err) {
+				if IsDuplicate(err) {
 					// it might've been created between the select and the insert, read
 					// again this time from the primary database connection.
 					id, err := readID(ds.writer(ctx))

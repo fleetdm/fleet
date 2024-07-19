@@ -3,7 +3,7 @@
     margin-top: 0;
   }
 
-  &__section:not(:last-child) {
-    margin-bottom: $pad-xxxlarge;
+  &__section {
+    margin-bottom: $pad-xxlarge;
   }
 }

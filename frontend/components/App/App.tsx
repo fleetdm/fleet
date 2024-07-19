@@ -18,6 +18,8 @@ import useDeepEffect from "hooks/useDeepEffect";
 import usersAPI from "services/entities/users";
 import configAPI from "services/entities/config";
 import hostCountAPI from "services/entities/host_count";
+import mdmAppleBMAPI from "services/entities/mdm_apple_bm";
+import mdmAppleAPI from "services/entities/mdm_apple";
 
 import { ErrorBoundary } from "react-error-boundary";
 // @ts-ignore
@@ -54,6 +56,7 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
   const {
     config,
     currentUser,
+    isGlobalAdmin,
     isGlobalObserver,
     isOnlyObserver,
     isAnyTeamMaintainerOrTeamAdmin,
@@ -61,6 +64,8 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
     setCurrentUser,
     setConfig,
     setEnrollSecret,
+    setABMExpiry,
+    setAPNsExpiry,
     setSandboxExpiry,
     setNoSandboxHosts,
   } = useContext(AppContext);
@@ -77,6 +82,38 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
         const noSandboxHosts = hostCount.count === 0;
         setNoSandboxHosts(noSandboxHosts);
       }
+
+      // These endpoints 403 for non-global admins
+      if (isGlobalAdmin) {
+        if (configResponse.mdm.apple_bm_enabled_and_configured) {
+          // FIXME: we need to catch and check for a 400 status code because the
+          // API behaves this way when the token is already expired or invalid.
+          //
+          // This is a quick fix to not completely break the UI, but it doesn't
+          // allow us to show ABM information when the token is expired so it
+          // should be fixed upstream.
+          try {
+            const abmInfo = await mdmAppleBMAPI.getAppleBMInfo();
+            setABMExpiry(abmInfo.renew_date);
+          } catch (error) {
+            console.error(error);
+            const abmError = error as AxiosResponse;
+            if (abmError.status === 400) {
+              const pastDate = "2024-06-03T17:28:44Z";
+              setABMExpiry(pastDate);
+            }
+          }
+        }
+        if (configResponse.mdm.enabled_and_configured) {
+          try {
+            const apnsInfo = await mdmAppleAPI.getAppleAPNInfo();
+            setAPNsExpiry(apnsInfo.renew_date);
+          } catch (error) {
+            console.error(error);
+          }
+        }
+      }
+
       setConfig(configResponse);
     } catch (error) {
       console.error(error);

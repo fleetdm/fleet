@@ -14,7 +14,7 @@ This page details processes specific to working [with](#contact-us) and [within]
 ## Contact us
 
 - To **make a request** of this department, [create an issue](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=%23g-digital-experience&projects=&template=digital-experience-request.md&title=TODO%3A+) and a team member will get back to you within one business day (If urgent, mention a [team member](#team) in the [#g-digital-experience](https://fleetdm.slack.com/archives/C058S8PFSK0) Slack channel.
-  - Any Fleet team member can [view the kanban board](https://app.zenhub.com/workspaces/g-sales-64fbb46c65f9ff003a1530a8/board?sprints=none) for this department, including pending tasks and the status of new requests.
+  - Any Fleet team member can [view the kanban board](https://app.zenhub.com/workspaces/g-digital-experience-6451748b4eb15200131d4bab/board) for this department, including pending tasks and the status of new requests.
   - Please **use issue comments and GitHub mentions** to communicate follow-ups or answer questions related to your request.
 
 
@@ -165,28 +165,23 @@ If the action fails, please complete the following steps:
 
 
 ### Communicate Fleet's potential energy to stakeholders
-On the first business day of every month, the Apprentice will send an update to the stakeholders of Fleet using the following steps:
+On the first business day of every month, the Head of Digital Experience will send an update to the stakeholders of Fleet using the following steps:
 1. Copy the following template into an outgoing email with the subject line: "[Investor update] Fleet, YYYY-MM".
 
 ```
 Hi investors and friends,
 
-Here’s a quick update on the numbers from last month:
 
-• Gross new ∆ARR (QTD): + TODO
-• Social media mentions (LinkedIn): 3.8 per day (Goal: 5) (Want to help?)
-• Current version: 4.48.0 (See what's new)
-• Next in-person event: Kansas City, (April 20) BSides KC
-• Next press release: 2024-04-30: "Stop nudging"
-"Stop installing updates and forcing restarts when your users are busy using their computers.  Fleet finds time in the calendar for a reboot and uses AI to explain why." 
+FYI we just updated the self-service investor update portal with the numbers from last month:  https://docs.google.com/spreadsheets/d/10T7Q9iuHA4vpfV7qZCm6oMd5U1bLftBSobYD0RR8RkM/edit#gid=0
 
 
 Thanks for your support,
 Mike and the Fleet team
+
 ```
 
 2. Address the email to the executive team's Gmail.
-3. Using the [🌧️🦉 Investors + advisors](https://docs.google.com/spreadsheets/d/15knBE2-PrQ1Ad-QcIk0mxCN-xFsATKK9hcifqrm0qFQ/edit#gid=1068113636) spreadsheet, collect all of the investor emails from previous funding rounds and add them to bcc of the email and send.
+3. Using the [🌧️🦉 Investors + advisors](https://docs.google.com/spreadsheets/d/15knBE2-PrQ1Ad-QcIk0mxCN-xFsATKK9hcifqrm0qFQ/edit#gid=1068113636) spreadsheet, bcc the correct individuals and send the email.
 
 
 ### Refresh event calendar
@@ -321,11 +316,15 @@ Time management for the CEO is essential.  The Apprentice processes the CEO's ca
     - Remind the organizer with [this link to the handbook that all CEO events have times chosen by Sam before booking](https://fleetdm.com/handbook/company/communications#schedule-time-with-the-ceo).
   3. Bring prepped discussion item about this proposed event to the next CEO roundup, including the purpose of the event and why it is helpful or necessary for the CEO to attend (according to the person requesting the CEO's attendance).  The CEO will decide whether to attend.
   4. Delete the "UNCONFIRMED" block if the meeting is confirmed, or otherwise work with the organizer to pick a new time or let them know the decision.
+
 - **Prepare the agenda for any newly-added meetings**: [Meeting agenda prep](https://docs.google.com/document/d/1gH3IRRgptrqSYzBFy-77g98JROTL8wqrazJIMkp-Gb4/edit#heading=h.i7mkhr6m123r) is especially important to help the CEO focus and transition quickly in and between meetings. Using the CEO's browser, prepare each document by including the following:
 
 > If a meeting agenda has to be created from scratch, be sure to move it to the "Meeting notes" folder in Google Drive so that he isn't locked out of any documents.
+> If preparing for a meeting with a current advisor, use the existing journal as the meeting agenda using these steps:
+> 1. Search for the journal in Mike's browser using the advisor's name or email.
+> 2. Update the journal by adding the date of the meeting as an H3 in the Google document (pattern matching the document) and link the document to the calendar description.
  
-  1. LinkedIn profile url of all outside participants. Connect with any of the attendees that the CEO is not already connected to on LinkedIn, this should always be a blank connect request meaning "Send without note". 
+  1. LinkedIn profile url of all outside participants. Connect with any of the attendees that the CEO is not already connected to on LinkedIn, this should always be a blank connect request meaning "Send without note". Nest everything from prep under the LinkedIn url (ie all under #1)
   2. A screen-shot of LinkedIn profile pic
   3. Company name (in doc title, file name and Google calendar event title)
   4. Correct date (20XX-XX-XX in doc title and file name)
@@ -333,7 +332,7 @@ Time management for the CEO is essential.  The Apprentice processes the CEO's ca
     - CEO's email
     - LinkedIn messages (careful not to mark things as read!)
     - Google Drive 
-  6. Edit the calendar event description, changing “Notes” to “Agenda” when you're finished preparing the document to signify that this meeting has been prepped. 
+  6. Edit the calendar event description, changing “Notes” to “Agenda” when you're finished preparing the document to signify that this meeting has been prepped.
 
 
 ### Process the CEO's inbox
@@ -341,7 +340,7 @@ Time management for the CEO is essential.  The Apprentice processes the CEO's ca
  -  Marking spam emails as read (same for emails Mike doesn't actually need to read).
  -  Escalate actionable sales communication and update Mike directly.
  -  Ensure all calendar invites have the necessary documents included.
-
+ -  Forward any emails from customers about paying Fleet to the Buisness Operations department using [Fleet's billing email](https://docs.google.com/document/d/1tE-NpNfw1icmU2MjYuBRib0VWBPVAdmq4NiCrpuI0F0/edit#heading=h.wqalwz1je6rq).
 
 ### Document performance feedback
 Every Friday at 5PM a [Business Operations team member](https://fleetdm.com/handbook/business-operations#team) will look for missing data in the [KPIs spreadsheet](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0). 
@@ -420,6 +419,7 @@ The day before the All hands, Mike will prepare slides that reflect the CEO visi
 The Apprentice will post a link to the All hands Gong recording and slide deck in Slack.
 
 Template to use:
+
 ```
 Thanks to everyone who contributed to today's "All hands" call.
 
@@ -428,18 +428,13 @@ Thanks to everyone who contributed to today's "All hands" call.
 You can also grab a copy of the [original slides](https://fleetdm.com/handbook/company/communications#all-hands) for use in your own confidential presentations.
 ```
 
-- Copy and paste the template to the "[# general](https://fleetdm.slack.com/archives/C019FNQPA23)" Slack channel.
- - To create the recording link:
- - Open [Gong recording](https://us-65885.app.gong.io/home?workspace-id=9148397688380544352&r=m) and `Share call`
- - `Share with customers`
- - `Copy link` and paste the url `*[Watch the recording](`here-in-your-template-message`)*`.
-  
- - The PDF can be found in the current months [👋All hands folder](https://drive.google.com/drive/u/0/folders/1cw_lL3_Xu9ZOXKGPghh8F4tc0ND9kQeY) in Google Drive.
- - Download the PDF and upload (double click the `+`) into your updated Slack message, which will look like this:👇 
+1. Copy and paste the template to the "[# general](https://fleetdm.slack.com/archives/C019FNQPA23)" Slack channel.
+2. Open [Gong recording](https://us-65885.app.gong.io/home?workspace-id=9148397688380544352&r=m) and click `Share call`, then click `Share with customers`, then `Copy link`.
+3. Paste the url `*[Watch the recording](`here-in-your-template-message`)*`.
 
 <img width="464" alt="image" src="https://github.com/Sampfluger88/fleet/assets/108141731/c2002cfa-a0f6-4349-bb06-71104f6cdce1">
 
-📬 **Send it!**
+4. Schedule the Slack message to go out at 6pm CT (18:00).
 
 
 ### Process and backup Sid agenda
@@ -455,13 +450,16 @@ Follow these steps to process and backup the E-group agenda:
 2. **In the backup copy**, leave Google Doc comments assigning all TODOs to the correct DRI.  
 3. If the "All hands" meeting has happened today remove any spotlights covered in the current "All hands" presentation.
 
-### Check LinkedIn for unread messages 
-Once a day the Apprentice will confirm check LinkedIn for unread messages. 
-- Log into the CEO's [LinkedIn](https://www.linkedin.com/search/results/all/?sid=s2%3A).
-  - Bring up the messaging window and filter out all read messages. 
-    - Click the "filter" icon in the messaging search bar.
-    - Click "Unread".
-    Bring all unreads to the CEO.
+### Check LinkedIn for new activity 
+Once a day the Apprentice will check LinkedIn for unread messages and pending connect request. 
+
+  1. Log into the CEO's [LinkedIn](https://www.linkedin.com/search/results/all/?sid=s2%3A) and bring up the messaging window.
+  2. Filter out all read messages by clicking "filter" and then "Unread".
+  3. Bring all unreads to the CEO during the daily roundup.
+     
+To check for pending connect requests, perform the following steps:
+  1. Log into the CEO's LinkedIn (if you're not already) and click "My Network".
+  2. Bring all pending connect requests to the CEO during the daily roundup.  
 
 
 ### Unroll a Slack thread
@@ -473,13 +471,12 @@ From time to time the CEO will ask the Apprentice to unroll a Slack thread into 
       - To copy images right-click+copy and then paste in the doc (some resizing may be necessary to fit the page).
 
 
-
 ### Delete an accidental meeting recording
 It's not enough to just "delete" a recording of a meeting in Gong.  Instead, use these steps:
 
 - Wait for at least 30 minutes after the meeting has ended to ensure the recording and transcript exist and can be deleted.
 - [Sign in to Gong](https://us-65885.app.gong.io/deals?company-id=2676443513846037003&workspace-id=9148397688380544352&board-id=8761946992754097113&view-mode=DEALS&tab-idx=0&account-activity=true&owner-ids=&owner-team-ids=5778354842532790437&timespan-id=34&sort-by=DealActivity&sort-field=%7B%22type%22%3A%22RegularField%22%2C%22name%22%3A%22DealActivity%22%7D&sort-order=DESC&owner-id=5778354842532790437&include-team=true) through the CEO's browser.
-- Click `Conversations`
+- Scroll down to `Conversations`
 - Select the call recording no longer needed
 - Click the "hotdog" menu in the right-hand corner
 <img width="264" alt="image" src="https://github.com/fleetdm/fleet/assets/108141731/86948d02-a972-42ef-9a2d-1d93f24a1780">

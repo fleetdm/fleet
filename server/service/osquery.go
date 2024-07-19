@@ -26,6 +26,7 @@ import (
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"github.com/spf13/cast"
+	"golang.org/x/exp/slices"
 )
 
 // osqueryError is the error returned to osquery agents.
@@ -954,7 +955,7 @@ func (svc *Service) SubmitDistributedQueryResults(
 
 	svc.maybeDebugHost(ctx, host, results, statuses, messages, stats)
 
-	preProcessSoftwareResults(host.ID, &results, &statuses, &messages, svc.logger)
+	preProcessSoftwareResults(host.ID, &results, &statuses, &messages, osquery_utils.SoftwareOverrideQueries, svc.logger)
 
 	var hostWithoutPolicies bool
 	for query, rows := range results {
@@ -1221,7 +1222,8 @@ func getFailingCalendarPolicies(policyResults map[uint]*bool, calendarPolicies [
 
 // preProcessSoftwareResults will run pre-processing on the responses of the software queries.
 // It will move the results from the software extra queries (e.g. software_vscode_extensions)
-// into the main software query results (software_{macos|linux|windows}).
+// into the main software query results (software_{macos|linux|windows}) as well as process
+// any overrides that are set.
 // We do this to not grow the main software queries and to ingest
 // all software together (one direct ingest function for all software).
 func preProcessSoftwareResults(
@@ -1229,10 +1231,16 @@ func preProcessSoftwareResults(
 	results *fleet.OsqueryDistributedQueryResults,
 	statuses *map[string]fleet.OsqueryStatus,
 	messages *map[string]string,
+	overrides map[string]osquery_utils.DetailQuery,
 	logger log.Logger,
 ) {
 	vsCodeExtensionsExtraQuery := hostDetailQueryPrefix + "software_vscode_extensions"
-	preProcessSoftwareExtraResults(vsCodeExtensionsExtraQuery, hostID, results, statuses, messages, logger)
+	preProcessSoftwareExtraResults(vsCodeExtensionsExtraQuery, hostID, results, statuses, messages, osquery_utils.DetailQuery{}, logger)
+
+	for name, query := range overrides {
+		fullQueryName := hostDetailQueryPrefix + "software_" + name
+		preProcessSoftwareExtraResults(fullQueryName, hostID, results, statuses, messages, query, logger)
+	}
 }
 
 func preProcessSoftwareExtraResults(
@@ -1241,6 +1249,7 @@ func preProcessSoftwareExtraResults(
 	results *fleet.OsqueryDistributedQueryResults,
 	statuses *map[string]fleet.OsqueryStatus,
 	messages *map[string]string,
+	override osquery_utils.DetailQuery,
 	logger log.Logger,
 ) {
 	// We always remove the extra query and its results
@@ -1282,9 +1291,21 @@ func preProcessSoftwareExtraResults(
 			// Do not append results if the main query failed to run.
 			continue
 		}
+		(*results)[query] = removeOverrides((*results)[query], override)
+
 		(*results)[query] = append((*results)[query], softwareExtraRows...)
 		return
 	}
+}
+
+func removeOverrides(rows []map[string]string, override osquery_utils.DetailQuery) []map[string]string {
+	if override.SoftwareOverrideMatch != nil {
+		rows = slices.DeleteFunc(rows, func(row map[string]string) bool {
+			return override.SoftwareOverrideMatch(row)
+		})
+	}
+
+	return rows
 }
 
 // globalPolicyAutomationsEnabled returns true if any of the global policy automations are enabled.
@@ -1778,7 +1799,8 @@ func (svc *Service) SubmitResultLogs(ctx context.Context, logs []json.RawMessage
 
 	unmarshaledResults, queriesDBData := svc.preProcessOsqueryResults(ctx, logs, queryReportsDisabled)
 	if !queryReportsDisabled {
-		svc.saveResultLogsToQueryReports(ctx, unmarshaledResults, queriesDBData)
+		maxQueryReportRows := appConfig.ServerSettings.GetQueryReportCap()
+		svc.saveResultLogsToQueryReports(ctx, unmarshaledResults, queriesDBData, maxQueryReportRows)
 	}
 
 	var filteredLogs []json.RawMessage
@@ -1840,7 +1862,12 @@ func (svc *Service) SubmitResultLogs(ctx context.Context, logs []json.RawMessage
 // Query Reports
 ////////////////////////////////////////////////////////////////////////////////
 
-func (svc *Service) saveResultLogsToQueryReports(ctx context.Context, unmarshaledResults []*fleet.ScheduledQueryResult, queriesDBData map[string]*fleet.Query) {
+func (svc *Service) saveResultLogsToQueryReports(
+	ctx context.Context,
+	unmarshaledResults []*fleet.ScheduledQueryResult,
+	queriesDBData map[string]*fleet.Query,
+	maxQueryReportRows int,
+) {
 	// skipauth: Authorization is currently for user endpoints only.
 	svc.authz.SkipAuthorization(ctx)
 
@@ -1882,11 +1909,11 @@ func (svc *Service) saveResultLogsToQueryReports(ctx context.Context, unmarshale
 			level.Error(svc.logger).Log("msg", "get result count for query", "err", err, "query_id", dbQuery.ID)
 			continue
 		}
-		if count >= fleet.MaxQueryReportRows {
+		if count >= maxQueryReportRows {
 			continue
 		}
 
-		if err := svc.overwriteResultRows(ctx, result, dbQuery.ID, host.ID); err != nil {
+		if err := svc.overwriteResultRows(ctx, result, dbQuery.ID, host.ID, maxQueryReportRows); err != nil {
 			level.Error(svc.logger).Log("msg", "overwrite results", "err", err, "query_id", dbQuery.ID, "host_id", host.ID)
 			continue
 		}
@@ -1898,7 +1925,7 @@ func (svc *Service) saveResultLogsToQueryReports(ctx context.Context, unmarshale
 // The "snapshot" array in a ScheduledQueryResult can contain multiple rows.
 // Each row is saved as a separate ScheduledQueryResultRow, i.e. a result could contain
 // many USB Devices or a result could contain all user accounts on a host.
-func (svc *Service) overwriteResultRows(ctx context.Context, result *fleet.ScheduledQueryResult, queryID, hostID uint) error {
+func (svc *Service) overwriteResultRows(ctx context.Context, result *fleet.ScheduledQueryResult, queryID, hostID uint, maxQueryReportRows int) error {
 	fetchTime := time.Now()
 
 	rows := make([]*fleet.ScheduledQueryResultRow, 0, len(result.Snapshot))
@@ -1924,7 +1951,7 @@ func (svc *Service) overwriteResultRows(ctx context.Context, result *fleet.Sched
 		rows = append(rows, row)
 	}
 
-	if err := svc.ds.OverwriteQueryResultRows(ctx, rows); err != nil {
+	if err := svc.ds.OverwriteQueryResultRows(ctx, rows, maxQueryReportRows); err != nil {
 		return ctxerr.Wrap(ctx, err, "overwriting query result rows")
 	}
 	return nil

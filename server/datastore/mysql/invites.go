@@ -27,7 +27,7 @@ func (ds *Datastore) NewInvite(ctx context.Context, i *fleet.Invite) (*fleet.Inv
 
 		result, err := tx.ExecContext(ctx, sqlStmt, i.InvitedBy, i.Email,
 			i.Name, i.Position, i.Token, i.SSOEnabled, i.GlobalRole)
-		if err != nil && isDuplicate(err) {
+		if err != nil && IsDuplicate(err) {
 			return ctxerr.Wrap(ctx, alreadyExists("Invite", i.Email))
 		} else if err != nil {
 			return ctxerr.Wrap(ctx, err, "create invite")

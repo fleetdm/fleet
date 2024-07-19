@@ -152,7 +152,7 @@ const SoftwareVersionDetailsPage = ({
               source={softwareVersion.source}
             />
             <Card
-              borderRadiusSize="large"
+              borderRadiusSize="xxlarge"
               includeShadow
               className={`${baseClass}__vulnerabilities-section`}
             >

@@ -31,12 +31,17 @@ const InstalledSoftwareActivityItem = ({
   onShowDetails,
 }: IHostActivityItemComponentPropsWithShowDetails) => {
   const { actor_full_name: actorName, details } = activity;
+  const { self_service, status, software_title: title } = details;
 
-  const { status, software_title: title } = details;
+  const actorDisplayName = self_service ? (
+    <span>An end user</span>
+  ) : (
+    <b>{actorName}</b>
+  );
 
   return (
     <HostActivityItem className={baseClass} activity={activity}>
-      <b>{actorName}</b> {getSoftwareInstallStatusPredicate(status)}{" "}
+      <>{actorDisplayName}</> {getSoftwareInstallStatusPredicate(status)}{" "}
       <b>{title}</b> software on this host.{" "}
       <ShowDetailsButton activity={activity} onShowDetails={onShowDetails} />
     </HostActivityItem>

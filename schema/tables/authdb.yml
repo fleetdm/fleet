@@ -1,25 +1,26 @@
 name: authdb
 platforms:
   - darwin
-description: The macOS authorizationdb is used by Mac admins to give their users or themselves granular permissions on the Macs they manage. The `authdb` osquery table returns JSON output for the `authorizationdb read <right_name|-` command.
+description: The macOS authorizationdb is used by Mac admins to give their users or themselves granular permissions on the Macs they manage. The `authdb` osquery table returns JSON output for the `authorizationdb read <right_name>` command.
 evented: false
 columns:
   - name: right_name
     type: text
     required: true
     description: |-
-      The right_name to query in the `authorizationdb read <right_name|-` command.
+      The right_name to query in the `authorizationdb read <right_name>` command.
   - name: json_result
     type: text
     required: false
     description: |-
-      The JSON output parsed from the plist output of the `authorizationdb read <right_name|-` command. 
-example: |-
+      The JSON output parsed from `authorizationdb` plist. 
+examples: |-
+  The “right_name” string `system.login.console` is used in the mandatory WHERE clause for this table:
 
   ```
   SELECT * FROM authdb WHERE right_name='system.login.console';
   ```
-
+  
 notes: |-
   This table is from the [Mac Admins osquery extension](https://github.com/macadmins/osquery-extension).
 
@@ -33,12 +34,6 @@ notes: |-
 
   ```
   security authorizationdb read system.login.console
-  ```
-
-  The “right_name” string `system.login.console` is used in the mandatory WHERE clause for this table:
-
-  ```
-  SELECT * FROM authdb WHERE right_name='system.login.console';
   ```
 
   - [Apple documentation](https://developer.apple.com/library/archive/documentation/Security/Conceptual/authorization_concepts/02authconcepts/authconcepts.html)

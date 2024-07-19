@@ -37,8 +37,14 @@ const MdmSettings = ({ router }: IMdmSettingsProps) => {
     ["appleAPNInfo"],
     () => mdmAppleAPI.getAppleAPNInfo(),
     {
-      retry: (tries, error) => error.status !== 404 && tries <= 3,
-      enabled: config?.mdm.enabled_and_configured,
+      retry: (tries, error) =>
+        error.status !== 404 && error.status !== 400 && tries <= 3,
+      // TODO: There is a potential race condition here immediately after MDM is turned off. This
+      // component gets remounted and stale config data is used to determine it this API call is
+      // enabled, resulting in a 400 response. The race really should  be fixed higher up the chain where
+      // we're fetching and setting the config, but for now we'll just assume that any 400 response
+      // means that MDM is not enabled and we'll show the "Turn on MDM" button.
+      enabled: !!config?.mdm.enabled_and_configured,
       staleTime: 5000,
     }
   );

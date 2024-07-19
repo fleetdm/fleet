@@ -34,9 +34,10 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/async"
 	"github.com/fleetdm/fleet/v4/server/service/mock"
+	"github.com/fleetdm/fleet/v4/server/service/redis_lock"
 	"github.com/fleetdm/fleet/v4/server/sso"
 	"github.com/fleetdm/fleet/v4/server/test"
-	kitlog "github.com/go-kit/kit/log"
+	kitlog "github.com/go-kit/log"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -69,6 +70,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		ssoStore             sso.SessionStore
 		profMatcher          fleet.ProfileMatcher
 		softwareInstallStore fleet.SoftwareInstallerStore
+		distributedLock      fleet.Lock
 	)
 	if len(opts) > 0 {
 		if opts[0].Clock != nil {
@@ -95,6 +97,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		if opts[0].Pool != nil {
 			ssoStore = sso.NewSessionStore(opts[0].Pool)
 			profMatcher = apple_mdm.NewProfileMatcher(opts[0].Pool)
+			distributedLock = redis_lock.NewLock(opts[0].Pool)
 		}
 		if opts[0].ProfileMatcher != nil {
 			profMatcher = opts[0].ProfileMatcher
@@ -135,11 +138,6 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		}
 	}
 
-	mdmPushCertTopic := ""
-	if len(opts) > 0 && opts[0].APNSTopic != "" {
-		mdmPushCertTopic = opts[0].APNSTopic
-	}
-
 	var wstepManager microsoft_mdm.CertManager
 	if fleetConfig.MDM.WindowsWSTEPIdentityCert != "" && fleetConfig.MDM.WindowsWSTEPIdentityKey != "" {
 		rawCert, err := os.ReadFile(fleetConfig.MDM.WindowsWSTEPIdentityCert)
@@ -171,7 +169,6 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		depStorage,
 		mdmStorage,
 		mdmPusher,
-		mdmPushCertTopic,
 		cronSchedulesService,
 		wstepManager,
 	)
@@ -196,11 +193,11 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 			mailer,
 			c,
 			depStorage,
-			apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPusher, fleetConfig.MDM),
-			"",
+			apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPusher),
 			ssoStore,
 			profMatcher,
 			softwareInstallStore,
+			distributedLock,
 		)
 		if err != nil {
 			panic(err)
@@ -351,7 +348,7 @@ func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServ
 	if len(opts) > 0 {
 		mdmStorage := opts[0].MDMStorage
 		scepStorage := opts[0].SCEPStorage
-		commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPusher, cfg.MDM)
+		commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPusher)
 		if mdmStorage != nil && scepStorage != nil {
 			err := RegisterAppleMDMProtocolServices(
 				rootMux,

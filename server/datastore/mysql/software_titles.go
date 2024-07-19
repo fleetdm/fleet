@@ -31,11 +31,12 @@ SELECT
 	st.name,
 	st.source,
 	st.browser,
+	st.bundle_identifier,
 	COALESCE(SUM(sthc.hosts_count), 0) as hosts_count,
 	MAX(sthc.updated_at)  as counts_updated_at
 FROM software_titles st
 LEFT JOIN software_titles_host_counts sthc ON sthc.software_title_id = st.id AND %s
-WHERE st.id = ? 
+WHERE st.id = ?
 AND (sthc.hosts_count > 0 OR EXISTS (SELECT 1 FROM software_installers si WHERE si.title_id = st.id AND si.global_or_team_id = ?))
 GROUP BY
 	st.id,
@@ -200,11 +201,13 @@ SELECT
 	st.name,
 	st.source,
 	st.browser,
+	st.bundle_identifier,
 	MAX(COALESCE(sthc.hosts_count, 0)) as hosts_count,
 	MAX(COALESCE(sthc.updated_at, date('0001-01-01 00:00:00'))) as counts_updated_at,
-	si.filename as software_package
+	si.filename as software_package,
+	COALESCE(si.self_service, false) as self_service
 FROM software_titles st
-LEFT JOIN software_installers si ON si.title_id = st.id AND COALESCE(si.team_id, 0) = ?
+LEFT JOIN software_installers si ON si.title_id = st.id AND si.global_or_team_id = ?
 LEFT JOIN software_titles_host_counts sthc ON sthc.software_title_id = st.id AND sthc.team_id = ?
 -- placeholder for JOIN on software/software_cve
 %s
@@ -212,19 +215,16 @@ LEFT JOIN software_titles_host_counts sthc ON sthc.software_title_id = st.id AND
 WHERE %s
 -- placeholder for filter based on software installed on hosts + software installers
 AND (%s)
-GROUP BY st.id, software_package`
+GROUP BY st.id, software_package, self_service`
 
 	cveJoinType := "LEFT"
 	if opt.VulnerableOnly {
 		cveJoinType = "INNER"
 	}
 
-	var globalOrTeamID uint
 	args := []any{0, 0}
 	if opt.TeamID != nil {
-		args[0] = *opt.TeamID
-		args[1] = *opt.TeamID
-		globalOrTeamID = *opt.TeamID
+		args[0], args[1] = *opt.TeamID, *opt.TeamID
 	}
 
 	additionalWhere := "TRUE"
@@ -248,15 +248,9 @@ GROUP BY st.id, software_package`
 		args = append(args, match, match)
 	}
 
+	// default to "a software installer exists", and see next condition.
 	defaultFilter := `
-	  EXISTS (
-	    SELECT 1
-	    FROM
-	      software_installers si
-	    WHERE
-	      si.title_id = st.id
-	      AND si.global_or_team_id = ?
-	  )
+		si.id IS NOT NULL
 	`
 
 	// add software installed for hosts if any of this is true:
@@ -264,10 +258,11 @@ GROUP BY st.id, software_package`
 	// - we're not filtering for "available for install" only
 	// - we're filtering by vulnerable only
 	if !opt.AvailableForInstall || opt.VulnerableOnly {
-		defaultFilter += `OR sthc.hosts_count > 0`
+		defaultFilter = ` ( ` + defaultFilter + ` OR sthc.hosts_count > 0 ) `
 	}
-
-	args = append(args, globalOrTeamID)
+	if opt.SelfServiceOnly {
+		defaultFilter += ` AND si.self_service = 1 `
+	}
 
 	stmt = fmt.Sprintf(stmt, softwareJoin, additionalWhere, defaultFilter)
 	return stmt, args

@@ -109,64 +109,11 @@ To sign the package we need a valid Developer ID Installer certificate:
 
 ### Step 3: upload the package to Fleet
 
-Fleet UI:
-
-1. Head to the **Controls > macOS settings > macOS setup > Bootstrap package** page.
+1. Head to the **Controls > Setup experience > Bootstrap package** page.
 
 2. Choose which team you want to add the bootstrap package to by selecting the desired team in the teams dropdown in the upper left corner.
 
 3. Select **Upload** and choose your bootstrap package.
-
-fleetctl CLI:
-
-1. Upload the package to a storage location (ex. S3 or GitHub). During step 4, Fleet will retrieve the package from this storage location and host it for deployment.
-
-  > The URL must be accessible by the computer that uploads the package to Fleet.
-  > This could be your local computer or the computer that runs your CI/CD workflow.
-
-2. Choose which team you want to add the bootstrap package to.
-
-  In this example, we'll add a bootstrap package to the "Workstations (canary)" team so that the package only gets installed on hosts that automatically enroll to this team.
-
-3. Create a `workstations-canary-config.yaml` file:
-
-  ```yaml
-  apiVersion: v1
-  kind: team
-  spec:
-    team:
-      name: Workstations (canary)
-      mdm:
-        macos_setup:
-          bootstrap_package: https://github.com/organinzation/repository/bootstrap-package.pkg
-      ...
-  ```
-
-  Learn more about team configurations options [here](./configuration-files/README.md#teams).
-
-  If you want to install the package on hosts that automatically enroll to "No team," we'll need to create a `fleet-config.yaml` file:
-
-  ```yaml
-  apiVersion: v1
-  kind: config
-  spec:
-    mdm:
-      macos_setup:
-        bootstrap_package: https://github.com/organinzation/repository/bootstrap-package.pkg
-    ...
-  ```
-
-  Learn more about "No team" configuration options [here](./configuration-files/README.md#organization-settings).
-
-3. Add an `mdm.macos_setup.bootstrap_package` key to your YAML document. This key accepts the URL for the storage location of the bootstrap package.
-
-4. Run the fleetctl `apply -f workstations-canary-config.yml` command to upload your bootstrap package to Fleet.
-
-5. Confirm that your bootstrap package was uploaded to Fleet by running the `fleetctl get teams --name=Workstations --yaml` command.
-
-  If you uploaded the package to "No team," run `fleetctl get config`.
-
-  You should see the URL for your bootstrap package as the value for `mdm.macos_setup.bootstrap_package`.
 
 ## macOS Setup Assistant
 
@@ -182,7 +129,7 @@ To customize the macOS Setup Assistant, we will do the following steps:
 
 ### Step 1: create an automatic enrollment profile
 
-1. Download Fleet's example automatic enrollment profile by navigating to the example [here](fleetdm.com/example-dep-profile) and clicking the download icon.
+1. Download Fleet's example automatic enrollment profile by navigating to the example [here](https://fleetdm.com/example-dep-profile) and clicking the download icon.
 
 2. Open the automatic enrollment profile and replace the `profile_name` key with your organization's name.
 
@@ -194,45 +141,11 @@ To customize the macOS Setup Assistant, we will do the following steps:
 
 ### Step 2: upload the profile to Fleet
 
-1. Choose which team you want to add the automatic enrollment profile to.
+1. Head to the **Controls > Setup experience > Setup assistant** page.
 
-  In this example, let's assume you have a "Workstations" team as your [default team](./mdm-setup.md#step-6-optional-set-the-default-team-for-hosts-enrolled-via-abm) in Fleet and you want to test your profile before it's used in production.
+2. Choose which team you want to add the profile to by selecting the desired team in the teams dropdown in the upper left corner.
 
-  To do this, we'll create a new "Workstations (canary)" team and add the automatic enrollment profile to it. Only hosts that automatically enroll to this team will see the custom macOS Setup Assistant.
-
-2. Create a `workstations-canary-config.yaml` file:
-
-  ```yaml
-  apiVersion: v1
-  kind: team
-  spec:
-    team:
-      name: Workstations (canary)
-      mdm:
-        macos_setup:
-          macos_setup_assistant: ./path/to/automatic_enrollment_profile.json
-      ...
-  ```
-
-  Learn more about team configurations options [here](./configuration-files/README.md#teams).
-
-  If you want to customize the macOS Setup Assistant for hosts that automatically enroll to "No team," we'll need to create a `fleet-config.yaml` file:
-
-  ```yaml
-  apiVersion: v1
-  kind: config
-  spec:
-    mdm:
-      macos_setup:
-        macos_setup_assistant: ./path/to/automatic_enrollment_profile.json
-    ...
-  ```
-
-  Learn more about configuration options for hosts that aren't assigned to a team [here](./configuration-files/README.md#organization-settings).
-
-3. Add an `mdm.macos_setup.macos_setup_assistant` key to your YAML document. This key accepts a path to your automatic enrollment profile.
-
-4. Run the `fleetctl apply -f workstations-canary-config.yml` command to upload the automatic enrollment profile to Fleet.
+3. Select **Add profile** and choose your profile package.
 
 ### Step 3: test the custom macOS Setup Assistant
 

@@ -1,9 +1,9 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useState, useEffect } from "react";
 
-import { IPolicy } from "interfaces/policy";
+import { IPolicyStats } from "interfaces/policy";
 
+import { syntaxHighlight } from "utilities/helpers";
 import validURL from "components/forms/validators/valid_url";
-
 import Button from "components/buttons/Button";
 import RevealButton from "components/buttons/RevealButton";
 import CustomLink from "components/CustomLink";
@@ -12,7 +12,7 @@ import Slider from "components/forms/fields/Slider";
 import InputField from "components/forms/fields/InputField";
 import Modal from "components/Modal";
 import Checkbox from "components/forms/fields/Checkbox";
-import { syntaxHighlight } from "utilities/helpers";
+import TooltipTruncatedText from "components/TooltipTruncatedText";
 import Icon from "components/Icon";
 import CalendarEventPreviewModal from "../CalendarEventPreviewModal";
 import CalendarPreview from "../../../../../../assets/images/calendar-preview-720x436@2x.png";
@@ -32,14 +32,12 @@ export interface ICalendarEventsFormData {
 
 interface ICalendarEventsModal {
   onExit: () => void;
-  updatePolicyEnabledCalendarEvents: (
-    formData: ICalendarEventsFormData
-  ) => void;
+  onSubmit: (formData: ICalendarEventsFormData) => void;
   isUpdating: boolean;
   configured: boolean;
   enabled: boolean;
   url: string;
-  policies: IPolicy[];
+  policies: IPolicyStats[];
 }
 
 // allows any policy name to be the name of a form field, one of the checkboxes
@@ -47,7 +45,7 @@ type FormNames = string;
 
 const CalendarEventsModal = ({
   onExit,
-  updatePolicyEnabledCalendarEvents,
+  onSubmit,
   isUpdating,
   configured,
   enabled,
@@ -71,8 +69,20 @@ const CalendarEventsModal = ({
   );
   const [showExamplePayload, setShowExamplePayload] = useState(false);
   const [selectedPolicyToPreview, setSelectedPolicyToPreview] = useState<
-    IPolicy | undefined
+    IPolicyStats | undefined
   >();
+
+  // Eliminate race condition after updating policies
+  useEffect(() => {
+    setFormData({
+      ...formData,
+      policies: policies.map((policy) => ({
+        name: policy.name,
+        id: policy.id,
+        isChecked: policy.calendar_events_enabled || false,
+      })),
+    });
+  }, [policies]);
 
   // Used on URL change only when URL error exists and always on attempting to save
   const validateForm = (newFormData: ICalendarEventsFormData) => {
@@ -133,13 +143,13 @@ const CalendarEventsModal = ({
     [formData]
   );
 
-  const onUpdatePolicyEnabledCalendarEvents = () => {
+  const onUpdateCalendarEvents = () => {
     const errors = validateForm(formData);
 
     if (Object.keys(errors).length > 0) {
       setFormErrors(errors);
     } else {
-      updatePolicyEnabledCalendarEvents(formData);
+      onSubmit(formData);
     }
   };
 
@@ -187,24 +197,21 @@ const CalendarEventsModal = ({
                   onChange={() => {
                     onPolicyEnabledChange({ name, value: !isChecked });
                   }}
-                  smallTick
                 >
-                  {name}
+                  <TooltipTruncatedText value={name} />
                 </Checkbox>
-                <div>
-                  <Button
-                    variant="text-icon"
-                    onClick={() => {
-                      setSelectedPolicyToPreview(
-                        policies.find((p) => p.id === id)
-                      );
-                      togglePreviewCalendarEvent();
-                    }}
-                    className="checkbox-row__preview-button"
-                  >
-                    <Icon name="eye" /> Preview
-                  </Button>
-                </div>
+                <Button
+                  variant="text-icon"
+                  onClick={() => {
+                    setSelectedPolicyToPreview(
+                      policies.find((p) => p.id === id)
+                    );
+                    togglePreviewCalendarEvent();
+                  }}
+                  className="checkbox-row__preview-button"
+                >
+                  <Icon name="eye" /> Preview
+                </Button>
               </div>
             );
           })}
@@ -233,8 +240,8 @@ const CalendarEventsModal = ({
           you must first connect Fleet to your Google Workspace service account.
         </div>
         <div>
-          This can be configured in{" "}
-          <b>Settings &gt; Integrations &gt; Calendars.</b>
+          This can be configured in <b>Settings</b> &gt; <b>Integrations</b>{" "}
+          &gt; <b>Calendars.</b>
         </div>
         <CustomLink
           url="https://www.fleetdm.com/learn-more-about/calendar-events"
@@ -300,7 +307,7 @@ const CalendarEventsModal = ({
         <Button
           type="submit"
           variant="brand"
-          onClick={onUpdatePolicyEnabledCalendarEvents}
+          onClick={onUpdateCalendarEvents}
           className="save-loading"
           isLoading={isUpdating}
           disabled={Object.keys(formErrors).length > 0}
@@ -330,7 +337,7 @@ const CalendarEventsModal = ({
       onEnter={
         configured
           ? () => {
-              updatePolicyEnabledCalendarEvents(formData);
+              onUpdateCalendarEvents();
             }
           : onExit
       }

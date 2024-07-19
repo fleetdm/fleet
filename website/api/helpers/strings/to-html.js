@@ -94,7 +94,11 @@ module.exports = {
       };
     } else  {
       customRenderer.heading = function (text, level) {
-        return '<h'+level+'>'+text+'</h'+level+'>';
+        var textWithLineBreaks;
+        if(text.match(/\S(\w+\_\S)+(\w\S)+/g) && !text.match(/\s/g)){
+          textWithLineBreaks = text.replace(/(\_)/g, '&#8203;_');
+        }
+        return '<h'+level+'>'+(textWithLineBreaks ? textWithLineBreaks : text)+'</h'+level+'>';
       };
     }
 

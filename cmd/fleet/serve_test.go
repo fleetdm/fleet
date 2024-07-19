@@ -11,6 +11,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -21,15 +22,14 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
-	nanodep_client "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/tokenpki"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/service/schedule"
-	kitlog "github.com/go-kit/kit/log"
-	"github.com/go-kit/kit/log/level"
 	"github.com/go-kit/log"
+	kitlog "github.com/go-kit/log"
+	"github.com/go-kit/log/level"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.mozilla.org/pkcs7"
@@ -333,16 +333,17 @@ func TestCronVulnerabilitiesCreatesDatabasesPath(t *testing.T) {
 
 	config := config.VulnerabilitiesConfig{
 		DatabasesPath:         vulnPath,
-		Periodicity:           10 * time.Second,
+		Periodicity:           time.Second,
 		CurrentInstanceChecks: "auto",
 	}
 	// Use schedule to test that the schedule does indeed call cronVulnerabilities.
 	ctx = license.NewContext(ctx, &fleet.LicenseInfo{Tier: fleet.TierPremium})
-	s, err := newVulnerabilitiesSchedule(ctx, "test_instance", ds, kitlog.NewNopLogger(), &config)
+	lg := kitlog.NewJSONLogger(os.Stdout)
+	s, err := newVulnerabilitiesSchedule(ctx, "test_instance", ds, lg, &config)
 	require.NoError(t, err)
 	s.Start()
 
-	require.Eventually(t, func() bool {
+	assert.Eventually(t, func() bool {
 		info, err := os.Lstat(vulnPath)
 		if err != nil {
 			return false
@@ -352,6 +353,23 @@ func TestCronVulnerabilitiesCreatesDatabasesPath(t *testing.T) {
 		}
 		return true
 	}, 5*time.Minute, 30*time.Second)
+
+	// at this point, the assertion has succeeded or failed, try to remove the
+	// temp dir and all content instead of leaving it to the testing package to
+	// handle - the assumption is that this test used to fail because it tried to
+	// remove the temp dir while trying to write to it concurrently, and resulted
+	// in e.g.:
+	// === RUN   TestCronVulnerabilitiesCreatesDatabasesPath
+	//  testing.go:1231: TempDir RemoveAll cleanup: unlinkat /tmp/TestCronVulnerabilitiesCreatesDatabasesPath2986870230/001/something: directory not empty
+	// --- FAIL: TestCronVulnerabilitiesCreatesDatabasesPath (60.22s)
+	for err := os.RemoveAll(vulnPath); err != nil; err = os.RemoveAll(vulnPath) {
+		if strings.Contains(err.Error(), "directory not empty") {
+			time.Sleep(time.Second)
+			continue
+		}
+		// for any other unexpected error, fail the test
+		require.NoError(t, err)
+	}
 }
 
 type softwareIterator struct {
@@ -476,7 +494,7 @@ func TestScanVulnerabilities(t *testing.T) {
 		}
 		return []uint{}, nil
 	}
-	ds.ListSoftwareForVulnDetectionFunc = func(ctx context.Context, hostID uint) ([]fleet.Software, error) {
+	ds.ListSoftwareForVulnDetectionFunc = func(ctx context.Context, filter fleet.VulnSoftwareFilter) ([]fleet.Software, error) {
 		return []fleet.Software{
 			{
 				ID:               1,
@@ -1040,13 +1058,6 @@ func TestVerifyDiskEncryptionKeysJob(t *testing.T) {
 	ctx := context.Background()
 	logger := log.NewNopLogger()
 
-	testBMToken := &nanodep_client.OAuth1Tokens{
-		ConsumerKey:       "test_consumer",
-		ConsumerSecret:    "test_secret",
-		AccessToken:       "test_access_token",
-		AccessSecret:      "test_access_secret",
-		AccessTokenExpiry: time.Date(2999, 1, 1, 0, 0, 0, 0, time.UTC),
-	}
 	testCert, testKey, err := apple_mdm.NewSCEPCACertKey()
 	require.NoError(t, err)
 	testCertPEM := tokenpki.PEMCertificate(testCert.Raw)
@@ -1057,8 +1068,18 @@ func TestVerifyDiskEncryptionKeysJob(t *testing.T) {
 	require.NoError(t, err)
 	base64EncryptedKey := base64.StdEncoding.EncodeToString(encryptedKey)
 
-	fleetCfg := config.TestConfig()
-	config.SetTestMDMConfig(t, &fleetCfg, testCertPEM, testKeyPEM, testBMToken, "../../server/service/testdata")
+	assets := map[fleet.MDMAssetName]fleet.MDMConfigAsset{
+		fleet.MDMAssetCACert: {Value: testCertPEM},
+		fleet.MDMAssetCAKey:  {Value: testKeyPEM},
+	}
+	ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+		return assets, nil
+	}
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		appCfg := fleet.AppConfig{}
+		appCfg.MDM.EnabledAndConfigured = true
+		return &appCfg, nil
+	}
 
 	now := time.Now()
 
@@ -1087,7 +1108,7 @@ func TestVerifyDiskEncryptionKeysJob(t *testing.T) {
 			return nil
 		}
 
-		err = verifyDiskEncryptionKeys(ctx, logger, ds, &fleetCfg)
+		err = verifyDiskEncryptionKeys(ctx, logger, ds)
 		require.NoError(t, err)
 		require.True(t, ds.GetUnverifiedDiskEncryptionKeysFuncInvoked)
 		require.True(t, ds.SetHostsDiskEncryptionKeyStatusFuncInvoked)
@@ -1110,7 +1131,7 @@ func TestVerifyDiskEncryptionKeysJob(t *testing.T) {
 			return nil
 		}
 
-		err = verifyDiskEncryptionKeys(ctx, logger, ds, &fleetCfg)
+		err = verifyDiskEncryptionKeys(ctx, logger, ds)
 		require.NoError(t, err)
 		require.True(t, ds.GetUnverifiedDiskEncryptionKeysFuncInvoked)
 		require.True(t, ds.SetHostsDiskEncryptionKeyStatusFuncInvoked)

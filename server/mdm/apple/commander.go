@@ -6,11 +6,11 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/appmanifest"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
+	mdmcrypto "github.com/fleetdm/fleet/v4/server/mdm/crypto"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	nanomdm_push "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
 	"github.com/groob/plist"
@@ -30,23 +30,21 @@ type commandPayload struct {
 // the caller.
 type MDMAppleCommander struct {
 	storage fleet.MDMAppleStore
-	config  config.MDMConfig
 	pusher  nanomdm_push.Pusher
 }
 
 // NewMDMAppleCommander creates a new commander instance.
-func NewMDMAppleCommander(mdmStorage fleet.MDMAppleStore, mdmPushService nanomdm_push.Pusher, config config.MDMConfig) *MDMAppleCommander {
+func NewMDMAppleCommander(mdmStorage fleet.MDMAppleStore, mdmPushService nanomdm_push.Pusher) *MDMAppleCommander {
 	return &MDMAppleCommander{
 		storage: mdmStorage,
 		pusher:  mdmPushService,
-		config:  config,
 	}
 }
 
 // InstallProfile sends the homonymous MDM command to the given hosts, it also
 // takes care of the base64 encoding of the provided profile bytes.
 func (svc *MDMAppleCommander) InstallProfile(ctx context.Context, hostUUIDs []string, profile mobileconfig.Mobileconfig, uuid string) error {
-	signedProfile, err := mobileconfig.Sign(profile, svc.config)
+	signedProfile, err := mdmcrypto.Sign(ctx, profile, svc.storage)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "signing profile")
 	}
@@ -92,8 +90,8 @@ func (svc *MDMAppleCommander) RemoveProfile(ctx context.Context, hostUUIDs []str
 	return ctxerr.Wrap(ctx, err, "commander remove profile")
 }
 
-func (svc *MDMAppleCommander) DeviceLock(ctx context.Context, host *fleet.Host, uuid string) error {
-	pin := GenerateRandomPin(6)
+func (svc *MDMAppleCommander) DeviceLock(ctx context.Context, host *fleet.Host, uuid string) (unlockPIN string, err error) {
+	unlockPIN = GenerateRandomPin(6)
 	raw := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -108,22 +106,23 @@ func (svc *MDMAppleCommander) DeviceLock(ctx context.Context, host *fleet.Host, 
       <string>%s</string>
     </dict>
   </dict>
-</plist>`, uuid, pin)
+</plist>`, uuid, unlockPIN,
+	)
 
 	cmd, err := mdm.DecodeCommand([]byte(raw))
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "decoding command")
+		return "", ctxerr.Wrap(ctx, err, "decoding command")
 	}
 
-	if err := svc.storage.EnqueueDeviceLockCommand(ctx, host, cmd, pin); err != nil {
-		return ctxerr.Wrap(ctx, err, "enqueuing for DeviceLock")
+	if err := svc.storage.EnqueueDeviceLockCommand(ctx, host, cmd, unlockPIN); err != nil {
+		return "", ctxerr.Wrap(ctx, err, "enqueuing for DeviceLock")
 	}
 
-	if err := svc.sendNotifications(ctx, []string{host.UUID}); err != nil {
-		return ctxerr.Wrap(ctx, err, "sending notifications for DeviceLock")
+	if err := svc.SendNotifications(ctx, []string{host.UUID}); err != nil {
+		return "", ctxerr.Wrap(ctx, err, "sending notifications for DeviceLock")
 	}
 
-	return nil
+	return unlockPIN, nil
 }
 
 func (svc *MDMAppleCommander) EraseDevice(ctx context.Context, host *fleet.Host, uuid string) error {
@@ -155,7 +154,7 @@ func (svc *MDMAppleCommander) EraseDevice(ctx context.Context, host *fleet.Host,
 		return ctxerr.Wrap(ctx, err, "enqueuing for DeviceWipe")
 	}
 
-	if err := svc.sendNotifications(ctx, []string{host.UUID}); err != nil {
+	if err := svc.SendNotifications(ctx, []string{host.UUID}); err != nil {
 		return ctxerr.Wrap(ctx, err, "sending notifications for DeviceWipe")
 	}
 
@@ -290,14 +289,14 @@ func (svc *MDMAppleCommander) EnqueueCommand(ctx context.Context, hostUUIDs []st
 		return ctxerr.Wrap(ctx, err, "enqueuing command")
 	}
 
-	if err := svc.sendNotifications(ctx, hostUUIDs); err != nil {
+	if err := svc.SendNotifications(ctx, hostUUIDs); err != nil {
 		return ctxerr.Wrap(ctx, err, "sending notifications")
 	}
 
 	return nil
 }
 
-func (svc *MDMAppleCommander) sendNotifications(ctx context.Context, hostUUIDs []string) error {
+func (svc *MDMAppleCommander) SendNotifications(ctx context.Context, hostUUIDs []string) error {
 	apnsResponses, err := svc.pusher.Push(ctx, hostUUIDs)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "commander push")

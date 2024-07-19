@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<installer-gui-script minSpecVersion="2">
+  <!-- Top-level info about the distribution. -->
+  <title>Google Chrome</title>
+  <options customize="never" require-scripts="false" hostArchitectures="x86_64,arm64"/>
+  <domains enable_anywhere="false" enable_currentUserHome="false" enable_localSystem="true"/>
+  <volume-check>
+    <allowed-os-versions>
+      <os-version min="10.15"/>
+    </allowed-os-versions>
+  </volume-check>
+  <!-- The hierarchy of installation choices. -->
+  <choices-outline>
+    <line choice="default">
+      <line choice="com.google.Chrome"/>
+    </line>
+  </choices-outline>
+  <!-- The individual choices. -->
+  <choice id="default"/>
+  <choice id="com.google.Chrome" visible="false" title="Google Chrome">
+    <pkg-ref id="com.google.Chrome">
+      <must-close>
+        <app id="com.google.Chrome"/>
+      </must-close>
+    </pkg-ref>
+  </choice>
+  <!-- The lone component package. -->
+  <pkg-ref id="com.google.Chrome" version="126.0.6478.62" onConclusion="none" installKBytes="567336">#GoogleChrome.pkg</pkg-ref>
+  <pkg-ref id="com.google.Chrome">
+    <bundle-version>
+      <bundle CFBundleShortVersionString="126.0.6478.62" CFBundleVersion="6478.62" id="com.google.Chrome" path="Google Chrome.app"/>
+    </bundle-version>
+  </pkg-ref>
+  <product id="com.google.Chrome" version="126.0.6478.62"/>
+</installer-gui-script>

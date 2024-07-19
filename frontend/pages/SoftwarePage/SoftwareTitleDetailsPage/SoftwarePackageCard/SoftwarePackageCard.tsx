@@ -1,4 +1,9 @@
-import React, { useCallback, useContext, useState } from "react";
+import React, {
+  useCallback,
+  useContext,
+  useLayoutEffect,
+  useState,
+} from "react";
 
 import FileSaver from "file-saver";
 
@@ -15,17 +20,57 @@ import { buildQueryStringFromParams } from "utilities/url";
 import { internationalTimeFormat } from "utilities/helpers";
 import { uploadedFromNow } from "utilities/date_format";
 
+// @ts-ignore
+import Dropdown from "components/forms/fields/Dropdown";
+
 import Card from "components/Card";
 import Graphic from "components/Graphic";
 import TooltipWrapper from "components/TooltipWrapper";
 import DataSet from "components/DataSet";
 import Icon from "components/Icon";
-import Button from "components/buttons/Button";
 
 import DeleteSoftwareModal from "../DeleteSoftwareModal";
 import AdvancedOptionsModal from "../AdvancedOptionsModal";
 
 const baseClass = "software-package-card";
+
+/** TODO: pull this hook and SoftwareName component out. We could use this other places */
+function useTruncatedElement<T extends HTMLElement>(ref: React.RefObject<T>) {
+  const [isTruncated, setIsTruncated] = useState(false);
+
+  useLayoutEffect(() => {
+    const element = ref.current;
+    if (element) {
+      const { scrollWidth, clientWidth } = element;
+      setIsTruncated(scrollWidth > clientWidth);
+    }
+  }, [ref]);
+
+  return isTruncated;
+}
+
+interface ISoftwareNameProps {
+  name: string;
+}
+
+const SoftwareName = ({ name }: ISoftwareNameProps) => {
+  const titleRef = React.useRef<HTMLDivElement>(null);
+  const isTruncated = useTruncatedElement(titleRef);
+
+  return (
+    <TooltipWrapper
+      tipContent={name}
+      position="top"
+      underline={false}
+      disableTooltip={!isTruncated}
+      showArrow
+    >
+      <div ref={titleRef} className={`${baseClass}__title`}>
+        {name}
+      </div>
+    </TooltipWrapper>
+  );
+};
 
 interface IStatusDisplayOption {
   displayName: string;
@@ -80,6 +125,7 @@ const PackageStatusCount = ({
           position="top"
           tipContent={displayData.tooltip}
           underline={false}
+          showArrow
         >
           <div className={`${baseClass}__status-title`}>
             <Icon name={displayData.iconName} />
@@ -93,6 +139,59 @@ const PackageStatusCount = ({
         </a>
       }
     />
+  );
+};
+
+const DROPDOWN_OPTIONS = [
+  {
+    label: "Download",
+    value: "download",
+  },
+  {
+    label: "Delete",
+    value: "delete",
+  },
+  {
+    label: "Advanced options",
+    value: "advanced",
+  },
+] as const;
+
+const ActionsDropdown = ({
+  onDownloadClick,
+  onDeleteClick,
+  onAdvancedOptionsClick,
+}: {
+  onDownloadClick: () => void;
+  onDeleteClick: () => void;
+  onAdvancedOptionsClick: () => void;
+}) => {
+  const onSelect = (value: string) => {
+    switch (value) {
+      case "download":
+        onDownloadClick();
+        break;
+      case "delete":
+        onDeleteClick();
+        break;
+      case "advanced":
+        onAdvancedOptionsClick();
+        break;
+      default:
+      // noop
+    }
+  };
+
+  return (
+    <div className={`${baseClass}__actions`}>
+      <Dropdown
+        className={`${baseClass}__host-actions-dropdown`}
+        onChange={onSelect}
+        placeholder="Actions"
+        searchable={false}
+        options={DROPDOWN_OPTIONS}
+      />
+    </div>
   );
 };
 
@@ -115,7 +214,6 @@ const SoftwarePackageCard = ({
     isTeamAdmin,
     isTeamMaintainer,
   } = useContext(AppContext);
-
   const { renderFlash } = useContext(NotificationContext);
 
   const [showAdvancedOptionsModal, setShowAdvancedOptionsModal] = useState(
@@ -171,16 +269,14 @@ const SoftwarePackageCard = ({
     isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
 
   return (
-    <Card borderRadiusSize="large" includeShadow className={baseClass}>
+    <Card borderRadiusSize="xxlarge" includeShadow className={baseClass}>
       <div className={`${baseClass}__main-content`}>
         {/* TODO: main-info could be a seperate component as its reused on a couple
         pages already. Come back and pull this into a component */}
         <div className={`${baseClass}__main-info`}>
           <Graphic name="file-pkg" />
           <div className={`${baseClass}__info`}>
-            <span className={`${baseClass}__title`}>
-              {softwarePackage.name}
-            </span>
+            <SoftwareName name={softwarePackage.name} />
             <span className={`${baseClass}__details`}>
               <span>Version {softwarePackage.version} &bull; </span>
               <TooltipWrapper
@@ -215,20 +311,25 @@ const SoftwarePackageCard = ({
           />
         </div>
       </div>
-      {showActions && (
-        <div className={`${baseClass}__actions`}>
-          <Button variant="icon" onClick={onAdvancedOptionsClick}>
-            <Icon name="settings" color={"ui-fleet-black-75"} />
-          </Button>
-          {/* TODO: make a component for download icons */}
-          <Button variant="icon" onClick={onDownloadClick}>
-            <Icon name="download" color={"ui-fleet-black-75"} />
-          </Button>
-          <Button variant="icon" onClick={onDeleteClick}>
-            <Icon name="trash" color={"ui-fleet-black-75"} />
-          </Button>
-        </div>
-      )}
+      <div className={`${baseClass}__actions-wrapper`}>
+        {softwarePackage.self_service && (
+          <div className={`${baseClass}__self-service-badge`}>
+            <Icon
+              name="install-self-service"
+              size="small"
+              color="ui-fleet-black-75"
+            />
+            Self-service
+          </div>
+        )}
+        {showActions && (
+          <ActionsDropdown
+            onDownloadClick={onDownloadClick}
+            onDeleteClick={onDeleteClick}
+            onAdvancedOptionsClick={onAdvancedOptionsClick}
+          />
+        )}
+      </div>
       {showAdvancedOptionsModal && (
         <AdvancedOptionsModal
           installScript={softwarePackage.install_script}

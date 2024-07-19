@@ -20,12 +20,14 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
+	"github.com/fleetdm/fleet/v4/server/mdm/assets"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	"github.com/fleetdm/fleet/v4/server/policies"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/service/externalsvc"
 	"github.com/fleetdm/fleet/v4/server/service/schedule"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/customcve"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/macoffice"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/msrc"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd"
@@ -158,6 +160,7 @@ func scanVulnerabilities(
 	nvdVulns := checkNVDVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
 	ovalVulns := checkOvalVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
 	macOfficeVulns := checkMacOfficeVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
+	customVulns := checkCustomVulnerabilities(ctx, ds, logger, config, vulnAutomationEnabled != "")
 
 	checkWinVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
 
@@ -170,6 +173,7 @@ func scanVulnerabilities(
 	vulns = append(vulns, nvdVulns...)
 	vulns = append(vulns, ovalVulns...)
 	vulns = append(vulns, macOfficeVulns...)
+	vulns = append(vulns, customVulns...)
 
 	meta, err := ds.ListCVEs(ctx, config.RecentVulnerabilityMaxAge)
 	if err != nil {
@@ -234,6 +238,27 @@ func scanVulnerabilities(
 	}
 
 	return nil
+}
+
+func checkCustomVulnerabilities(
+	ctx context.Context,
+	ds fleet.Datastore,
+	logger kitlog.Logger,
+	config *config.VulnerabilitiesConfig,
+	collectVulns bool,
+) []fleet.SoftwareVulnerability {
+	vulns, err := customcve.CheckCustomVulnerabilities(ctx, ds, logger, config.Periodicity)
+	if err != nil {
+		errHandler(ctx, logger, "checking custom vulnerabilities", err)
+	}
+
+	level.Debug(logger).Log("msg", "custom-vulnerabilities-analysis-done", "found new", len(vulns))
+
+	if !collectVulns {
+		return nil
+	}
+
+	return vulns
 }
 
 func checkWinVulnerabilities(
@@ -756,6 +781,12 @@ func newCleanupsAndAggregationSchedule(
 			},
 		),
 		schedule.WithJob(
+			"cleanup_host_issues",
+			func(ctx context.Context) error {
+				return ds.CleanupHostIssues(ctx)
+			},
+		),
+		schedule.WithJob(
 			"sync_enrolled_host_ids",
 			func(ctx context.Context) error {
 				return enrollHostLimiter.SyncEnrolledHostIDs(ctx)
@@ -807,7 +838,7 @@ func newCleanupsAndAggregationSchedule(
 		schedule.WithJob(
 			"verify_disk_encryption_keys",
 			func(ctx context.Context) error {
-				return verifyDiskEncryptionKeys(ctx, logger, ds, config)
+				return verifyDiskEncryptionKeys(ctx, logger, ds)
 			},
 		),
 		schedule.WithJob(
@@ -904,9 +935,15 @@ func verifyDiskEncryptionKeys(
 	ctx context.Context,
 	logger kitlog.Logger,
 	ds fleet.Datastore,
-	config *config.FleetConfig,
 ) error {
-	if !config.MDM.IsAppleSCEPSet() {
+
+	appCfg, err := ds.AppConfig(ctx)
+	if err != nil {
+		logger.Log("err", "unable to get app config", "details", err)
+		return ctxerr.Wrap(ctx, err, "fetching app config")
+	}
+
+	if !appCfg.MDM.EnabledAndConfigured {
 		logger.Log("inf", "skipping verification of macOS encryption keys as MDM is not fully configured")
 		return nil
 	}
@@ -917,10 +954,10 @@ func verifyDiskEncryptionKeys(
 		return err
 	}
 
-	cert, _, _, err := config.MDM.AppleSCEP()
+	cert, err := assets.CAKeyPair(ctx, ds)
 	if err != nil {
-		logger.Log("err", "unable to get SCEP keypair to decrypt keys", "details", err)
-		return err
+		logger.Log("err", "unable to get CA keypair", "details", err)
+		return ctxerr.Wrap(ctx, err, "parsing SCEP keypair")
 	}
 
 	decryptable := []uint{}
@@ -1013,11 +1050,24 @@ func newAppleMDMDEPProfileAssigner(
 ) (*schedule.Schedule, error) {
 	const name = string(fleet.CronAppleMDMDEPProfileAssigner)
 	logger = kitlog.With(logger, "cron", name, "component", "nanodep-syncer")
-	fleetSyncer := apple_mdm.NewDEPService(ds, depStorage, logger)
+	var fleetSyncer *apple_mdm.DEPService
 	s := schedule.New(
 		ctx, name, instanceID, periodicity, ds, ds,
 		schedule.WithLogger(logger),
 		schedule.WithJob("dep_syncer", func(ctx context.Context) error {
+			appCfg, err := ds.AppConfig(ctx)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "retrieving app config")
+			}
+
+			if !appCfg.MDM.AppleBMEnabledAndConfigured {
+				return nil
+			}
+
+			if fleetSyncer == nil {
+				fleetSyncer = apple_mdm.NewDEPService(ds, depStorage, logger)
+			}
+
 			return fleetSyncer.RunAssigner(ctx)
 		}),
 	)
@@ -1031,8 +1081,6 @@ func newMDMProfileManager(
 	ds fleet.Datastore,
 	commander *apple_mdm.MDMAppleCommander,
 	logger kitlog.Logger,
-	loggingDebug bool,
-	cfg config.MDMConfig,
 ) (*schedule.Schedule, error) {
 	const (
 		name = string(fleet.CronMDMAppleProfileManager)
@@ -1047,13 +1095,54 @@ func newMDMProfileManager(
 		ctx, name, instanceID, defaultInterval, ds, ds,
 		schedule.WithLogger(logger),
 		schedule.WithJob("manage_apple_profiles", func(ctx context.Context) error {
-			return service.ReconcileAppleProfiles(ctx, ds, commander, logger, cfg)
+			return service.ReconcileAppleProfiles(ctx, ds, commander, logger)
 		}),
 		schedule.WithJob("manage_apple_declarations", func(ctx context.Context) error {
 			return service.ReconcileAppleDeclarations(ctx, ds, commander, logger)
 		}),
 		schedule.WithJob("manage_windows_profiles", func(ctx context.Context) error {
 			return service.ReconcileWindowsProfiles(ctx, ds, logger)
+		}),
+	)
+
+	return s, nil
+}
+
+func newMDMAPNsPusher(
+	ctx context.Context,
+	instanceID string,
+	ds fleet.Datastore,
+	commander *apple_mdm.MDMAppleCommander,
+	logger kitlog.Logger,
+) (*schedule.Schedule, error) {
+
+	const name = string(fleet.CronAppleMDMAPNsPusher)
+
+	var interval = 1 * time.Minute
+	if intervalEnv := os.Getenv("FLEET_DEV_CUSTOM_APNS_PUSHER_INTERVAL"); intervalEnv != "" {
+		var err error
+		interval, err = time.ParseDuration(intervalEnv)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "invalid duration provided in env var FLEET_DEV_CUSTOM_APNS_PUSHER_INTERVAL")
+		}
+
+	}
+
+	logger = kitlog.With(logger, "cron", name)
+	s := schedule.New(
+		ctx, name, instanceID, interval, ds, ds,
+		schedule.WithLogger(logger),
+		schedule.WithJob("apns_push_to_pending_hosts", func(ctx context.Context) error {
+			appCfg, err := ds.AppConfig(ctx)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "retrieving app config")
+			}
+
+			if !appCfg.MDM.EnabledAndConfigured {
+				return nil
+			}
+
+			return service.SendPushesToPendingDevices(ctx, ds, commander, logger)
 		}),
 	)
 
@@ -1196,6 +1285,16 @@ func newIPhoneIPadRefetcher(
 		ctx, name, instanceID, periodicity, ds, ds,
 		schedule.WithLogger(logger),
 		schedule.WithJob("cron_iphone_ipad_refetcher", func(ctx context.Context) error {
+			appCfg, err := ds.AppConfig(ctx)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "fetching app config")
+			}
+
+			if !appCfg.MDM.EnabledAndConfigured {
+				level.Debug(logger).Log("msg", "apple mdm is not configured, skipping run")
+				return nil
+			}
+
 			start := time.Now()
 			uuids, err := ds.ListIOSAndIPadOSToRefetch(ctx, 1*time.Hour)
 			if err != nil {

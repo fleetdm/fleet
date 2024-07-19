@@ -23,7 +23,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/go-kit/kit/log"
+	"github.com/go-kit/log"
 	"github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
@@ -43,7 +43,7 @@ func TestDatastoreReplica(t *testing.T) {
 	})
 
 	t.Run("replica", func(t *testing.T) {
-		opts := &DatastoreTestOptions{Replica: true}
+		opts := &DatastoreTestOptions{DummyReplica: true}
 		ds := CreateMySQLDSWithOptions(t, opts)
 		defer ds.Close()
 		require.NotEqual(t, ds.reader(ctx), ds.writer(ctx))

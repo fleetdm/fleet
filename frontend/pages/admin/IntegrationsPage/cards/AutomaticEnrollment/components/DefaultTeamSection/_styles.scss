@@ -1,0 +1,16 @@
+.default-team-section {
+  h4 {
+    margin: $pad-medium 0 0;
+    font-size: $x-small;
+  }
+
+  p {
+    display: flex;
+    align-items: center;
+    margin: 0;
+  }
+
+  &__edit-team-btn {
+    margin-left: $pad-medium;
+  }
+}

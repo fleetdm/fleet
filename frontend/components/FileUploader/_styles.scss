@@ -16,6 +16,26 @@
     padding: $pad-medium $pad-large;
   }
 
+  &__selected-file {
+    display: flex;
+    gap: $pad-medium;
+    align-items: center;
+    width: 100%;
+    text-align: left;
+
+    &--details {
+      &--name {
+        font-size: $x-small;
+        font-weight: $bold;
+      }
+
+      &--platform {
+        font-size: $xx-small;
+        color: $ui-fleet-black-75;
+      }
+    }
+  }
+
   &__graphics {
     display: flex;
     align-items: center;

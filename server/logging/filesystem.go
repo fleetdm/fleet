@@ -14,7 +14,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/pkg/secure"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
-	"github.com/go-kit/kit/log"
+	"github.com/go-kit/log"
 	lumberjack "gopkg.in/natefinch/lumberjack.v2"
 )
 

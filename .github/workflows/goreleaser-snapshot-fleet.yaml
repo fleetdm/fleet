@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - "main"
-      - "prepare-*"
+      - "minor-*"
       - "patch-*"
     paths-ignore:
       - "handbook/**"
@@ -72,7 +72,7 @@ jobs:
         uses: goreleaser/goreleaser-action@f82d6c1c344bcacabba2c841718984797f664a6b
         with:
           distribution: goreleaser-pro
-          version: latest
+          version: "~> 1"
           args: release --snapshot --rm-dist -f .goreleaser-snapshot.yml
         env:
           GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}

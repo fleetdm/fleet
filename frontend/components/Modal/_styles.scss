@@ -3,7 +3,7 @@
     @include position(fixed, 0 0 0 0);
     background-color: rgba($core-fleet-black, 0.4);
     z-index: 101;
-    overflow: scroll;
+    overflow: auto;
     display: flex;
     justify-content: center;
     animation: fade-in 150ms ease-out;

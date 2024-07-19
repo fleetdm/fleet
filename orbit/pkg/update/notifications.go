@@ -10,6 +10,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/bitlocker"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/profiles"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/scripts"
+	fleetscripts "github.com/fleetdm/fleet/v4/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/rs/zerolog/log"
 )
@@ -104,14 +105,15 @@ func (h *renewEnrollmentProfileConfigReceiver) Run(config *fleet.OrbitConfig) er
 					fn = runRenewEnrollmentProfile
 				}
 				if err := fn(); err != nil {
-					// TODO: Look into whether we should increment lastRun here or implement a
-					// backoff to avoid unnecessary user notification popups and mitigate rate
-					// limiting by Apple.
 					log.Info().Err(err).Msg("calling /usr/bin/profiles to renew enrollment profile failed")
-				} else {
-					h.lastRun = time.Now()
-					log.Info().Msg("successfully called /usr/bin/profiles to renew enrollment profile")
+					// TODO: Design a better way to backoff `profiles show` so that the device doesn't get rate
+					// limited by Apple. For now, wait at least 2 minutes before retrying.
+					h.lastRun = time.Now().Add(-h.Frequency).Add(2 * time.Minute)
+					return nil
 				}
+				h.lastRun = time.Now()
+				log.Info().Msg("successfully called /usr/bin/profiles to renew enrollment profile")
+
 			} else {
 				log.Debug().Msg("skipped calling /usr/bin/profiles to renew enrollment profile, last run was too recent")
 			}
@@ -345,6 +347,11 @@ func (h *runScriptsConfigReceiver) runDynamicScriptsEnabledCheck() {
 // server sent a list of scripts to execute, starts a goroutine to execute
 // them.
 func (h *runScriptsConfigReceiver) Run(cfg *fleet.OrbitConfig) error {
+	timeout := fleetscripts.MaxHostExecutionTime
+	if cfg.ScriptExeTimeout > 0 {
+		timeout = time.Duration(cfg.ScriptExeTimeout) * time.Second
+	}
+
 	if len(cfg.Notifications.PendingScriptExecutionIDs) > 0 {
 		if h.mu.TryLock() {
 			log.Debug().Msgf("received request to run scripts %v", cfg.Notifications.PendingScriptExecutionIDs)
@@ -352,6 +359,7 @@ func (h *runScriptsConfigReceiver) Run(cfg *fleet.OrbitConfig) error {
 			runner := &scripts.Runner{
 				ScriptExecutionEnabled: h.scriptsEnabled(),
 				Client:                 h.ScriptsClient,
+				ScriptExecutionTimeout: timeout,
 			}
 			fn := runner.Run
 			if h.runScriptsFn != nil {

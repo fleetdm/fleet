@@ -104,12 +104,14 @@ func TestEmptyEnrollSecret(t *testing.T) {
 		&fleet.EnrollSecretSpec{
 			Secrets: []*fleet.EnrollSecret{{}},
 		},
+		fleet.ApplySpecOptions{},
 	)
 	require.Error(t, err)
 
 	err = svc.ApplyEnrollSecretSpec(
 		test.UserContext(ctx, test.UserAdmin),
 		&fleet.EnrollSecretSpec{Secrets: []*fleet.EnrollSecret{{Secret: ""}}},
+		fleet.ApplySpecOptions{},
 	)
 	require.Error(t, err, "empty secret should be disallowed")
 
@@ -118,6 +120,7 @@ func TestEmptyEnrollSecret(t *testing.T) {
 		&fleet.EnrollSecretSpec{
 			Secrets: []*fleet.EnrollSecret{{Secret: "foo"}},
 		},
+		fleet.ApplySpecOptions{},
 	)
 	require.NoError(t, err)
 }

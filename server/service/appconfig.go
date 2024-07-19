@@ -24,7 +24,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/version"
-	"github.com/go-kit/kit/log/level"
+	"github.com/go-kit/log/level"
 )
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -743,6 +743,25 @@ func (svc *Service) validateMDM(
 				`Couldn't update macos_setup because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`)
 		}
 	}
+	checkCustomSettings := func(prefix string, customSettings []fleet.MDMProfileSpec) {
+		for i, prof := range customSettings {
+			count := 0
+			for _, b := range []bool{len(prof.Labels) > 0, len(prof.LabelsIncludeAll) > 0, len(prof.LabelsExcludeAny) > 0} {
+				if b {
+					count++
+				}
+			}
+			if count > 1 {
+				invalid.Append(fmt.Sprintf("%s_settings.custom_settings", prefix),
+					fmt.Sprintf(`Couldn't edit %s_settings.custom_settings. For each profile, only one of "labels_exclude_any", "labels_include_all" or "labels" can be included.`, prefix))
+			}
+			if len(prof.Labels) > 0 {
+				customSettings[i].LabelsIncludeAll = customSettings[i].Labels
+				customSettings[i].Labels = nil
+			}
+		}
+	}
+	checkCustomSettings("macos", mdm.MacOSSettings.CustomSettings)
 
 	if !mdm.WindowsEnabledAndConfigured {
 		if mdm.WindowsSettings.CustomSettings.Set &&
@@ -752,6 +771,7 @@ func (svc *Service) validateMDM(
 				`Couldn’t edit windows_settings.custom_settings. Windows MDM isn’t turned on. Visit https://fleetdm.com/docs/using-fleet to learn how to turn on MDM.`)
 		}
 	}
+	checkCustomSettings("windows", mdm.WindowsSettings.CustomSettings.Value)
 
 	if name := mdm.AppleBMDefaultTeam; name != "" && name != oldMdm.AppleBMDefaultTeam {
 		if !license.IsPremium() {
@@ -922,7 +942,8 @@ func validateSSOSettings(p fleet.AppConfig, existing *fleet.AppConfig, invalid *
 // //////////////////////////////////////////////////////////////////////////////
 
 type applyEnrollSecretSpecRequest struct {
-	Spec *fleet.EnrollSecretSpec `json:"spec"`
+	Spec   *fleet.EnrollSecretSpec `json:"spec"`
+	DryRun bool                    `json:"-" query:"dry_run,optional"` // if true, apply validation but do not save changes
 }
 
 type applyEnrollSecretSpecResponse struct {
@@ -933,14 +954,18 @@ func (r applyEnrollSecretSpecResponse) error() error { return r.Err }
 
 func applyEnrollSecretSpecEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*applyEnrollSecretSpecRequest)
-	err := svc.ApplyEnrollSecretSpec(ctx, req.Spec)
+	err := svc.ApplyEnrollSecretSpec(
+		ctx, req.Spec, fleet.ApplySpecOptions{
+			DryRun: req.DryRun,
+		},
+	)
 	if err != nil {
 		return applyEnrollSecretSpecResponse{Err: err}, nil
 	}
 	return applyEnrollSecretSpecResponse{}, nil
 }
 
-func (svc *Service) ApplyEnrollSecretSpec(ctx context.Context, spec *fleet.EnrollSecretSpec) error {
+func (svc *Service) ApplyEnrollSecretSpec(ctx context.Context, spec *fleet.EnrollSecretSpec, applyOpts fleet.ApplySpecOptions) error {
 	if err := svc.authz.Authorize(ctx, &fleet.EnrollSecret{}, fleet.ActionWrite); err != nil {
 		return err
 	}
@@ -956,6 +981,19 @@ func (svc *Service) ApplyEnrollSecretSpec(ctx context.Context, spec *fleet.Enrol
 
 	if svc.config.Packaging.GlobalEnrollSecret != "" {
 		return ctxerr.New(ctx, "enroll secret cannot be changed when fleet_packaging.global_enroll_secret is set")
+	}
+
+	if applyOpts.DryRun {
+		for _, s := range spec.Secrets {
+			available, err := svc.ds.IsEnrollSecretAvailable(ctx, s.Secret, false, nil)
+			if err != nil {
+				return err
+			}
+			if !available {
+				return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("secrets", "a provided global enroll secret is already being used"))
+			}
+		}
+		return nil
 	}
 
 	return svc.ds.ApplyEnrollSecrets(ctx, nil, spec.Secrets)

@@ -7,7 +7,7 @@ import ReactTooltip from "react-tooltip";
 
 import { IDeviceUser, IHost } from "interfaces/host";
 import Checkbox from "components/forms/fields/Checkbox";
-import DiskSpaceGraph from "components/DiskSpaceGraph";
+import DiskSpaceIndicator from "pages/hosts/components/DiskSpaceIndicator";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
 import HostMdmStatusCell from "components/TableContainer/DataTable/HostMdmStatusCell/HostMdmStatusCell";
 import IssueCell from "components/TableContainer/DataTable/IssueCell/IssueCell";
@@ -236,6 +236,12 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
     accessor: "status",
     id: "status",
     Cell: (cellProps: IHostTableStringCellProps) => {
+      if (
+        cellProps.row.original.platform === "ios" ||
+        cellProps.row.original.platform === "ipados"
+      ) {
+        return NotSupported;
+      }
       const value = cellProps.cell.value;
       const tooltip = {
         tooltipText: getHostStatusTooltipText(value),
@@ -245,16 +251,26 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
   },
   {
     title: "Issues",
-    Header: "Issues",
-    disableSortBy: true,
+    Header: (cellProps: IHostTableHeaderProps) => (
+      <HeaderCell value="Issues" isSortedDesc={cellProps.column.isSortedDesc} />
+    ),
     accessor: "issues",
     id: "issues",
-    Cell: (cellProps: IIssuesCellProps) => (
-      <IssueCell
-        issues={cellProps.row.original.issues}
-        rowId={cellProps.row.original.id}
-      />
-    ),
+    sortDescFirst: true,
+    Cell: (cellProps: IIssuesCellProps) => {
+      if (
+        cellProps.row.original.platform === "ios" ||
+        cellProps.row.original.platform === "ipados"
+      ) {
+        return NotSupported;
+      }
+      return (
+        <IssueCell
+          issues={cellProps.row.original.issues}
+          rowId={cellProps.row.original.id}
+        />
+      );
+    },
   },
   {
     title: "Disk space available",
@@ -276,7 +292,7 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
         return NotSupported;
       }
       return (
-        <DiskSpaceGraph
+        <DiskSpaceIndicator
           baseClass="gigs_disk_space_available__cell"
           gigsDiskSpaceAvailable={cellProps.cell.value}
           percentDiskSpaceAvailable={percent_disk_space_available}
@@ -310,9 +326,15 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
     ),
     accessor: "osquery_version",
     id: "osquery_version",
-    Cell: (cellProps: IHostTableStringCellProps) => (
-      <TextCell value={cellProps.cell.value} />
-    ),
+    Cell: (cellProps: IHostTableStringCellProps) => {
+      if (
+        cellProps.row.original.platform === "ios" ||
+        cellProps.row.original.platform === "ipados"
+      ) {
+        return NotSupported;
+      }
+      return <TextCell value={cellProps.cell.value} />;
+    },
   },
   {
     title: "Used by",
@@ -323,34 +345,23 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
     Cell: (cellProps: IDeviceUserCellProps) => {
       const numUsers = cellProps.cell.value?.length || 0;
       const users = condenseDeviceUsers(cellProps.cell.value || []);
-      if (users.length) {
-        const tooltipText = tooltipTextWithLineBreaks(users);
+      if (users.length > 1) {
         return (
-          <>
-            <span
-              className={`text-cell ${
-                users.length > 1 ? "text-muted tooltip" : ""
-              }`}
-              data-tip
-              data-for={`device_mapping__${cellProps.row.original.id}`}
-              data-tip-disable={users.length <= 1}
-            >
-              {numUsers === 1 ? users[0] : `${numUsers} users`}
-            </span>
-            <ReactTooltip
-              effect="solid"
-              backgroundColor={COLORS["tooltip-bg"]}
-              id={`device_mapping__${cellProps.row.original.id}`}
-              data-html
-              clickable
-              delayHide={300}
-            >
-              <span className={`tooltip__tooltip-text`}>{tooltipText}</span>
-            </ReactTooltip>
-          </>
+          <TooltipWrapper
+            tipContent={tooltipTextWithLineBreaks(users)}
+            underline={false}
+            showArrow
+            position="top"
+            tipOffset={10}
+          >
+            <TextCell italic value={`${numUsers} users`} />
+          </TooltipWrapper>
         );
       }
-      return <span className="text-muted">{DEFAULT_EMPTY_CELL_VALUE}</span>;
+      if (users.length === 1) {
+        return <TextCell value={users[0]} />;
+      }
+      return <TextCell />;
     },
   },
   {
@@ -363,9 +374,15 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
     ),
     accessor: "primary_ip",
     id: "primary_ip",
-    Cell: (cellProps: IHostTableStringCellProps) => (
-      <TextCell value={cellProps.cell.value} />
-    ),
+    Cell: (cellProps: IHostTableStringCellProps) => {
+      if (
+        cellProps.row.original.platform === "ios" ||
+        cellProps.row.original.platform === "ipados"
+      ) {
+        return NotSupported;
+      }
+      return <TextCell value={cellProps.cell.value} />;
+    },
   },
   {
     title: "MDM status",
@@ -436,6 +453,12 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
     accessor: "public_ip",
     id: "public_ip",
     Cell: (cellProps: IHostTableStringCellProps) => {
+      if (
+        cellProps.row.original.platform === "ios" ||
+        cellProps.row.original.platform === "ipados"
+      ) {
+        return NotSupported;
+      }
       return (
         <TextCell value={cellProps.cell.value ?? DEFAULT_EMPTY_CELL_VALUE} />
       );
@@ -496,12 +519,20 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
     },
     accessor: "seen_time",
     id: "seen_time",
-    Cell: (cellProps: IHostTableStringCellProps) => (
-      <TextCell
-        value={{ timeString: cellProps.cell.value }}
-        formatter={HumanTimeDiffWithFleetLaunchCutoff}
-      />
-    ),
+    Cell: (cellProps: IHostTableStringCellProps) => {
+      if (
+        cellProps.row.original.platform === "ios" ||
+        cellProps.row.original.platform === "ipados"
+      ) {
+        return NotSupported;
+      }
+      return (
+        <TextCell
+          value={{ timeString: cellProps.cell.value }}
+          formatter={HumanTimeDiffWithFleetLaunchCutoff}
+        />
+      );
+    },
   },
   {
     title: "UUID",
@@ -527,7 +558,11 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
     Cell: (cellProps: IHostTableStringCellProps) => {
       const { platform, last_restarted_at } = cellProps.row.original;
 
-      if (platform === "chrome") {
+      if (
+        platform === "ios" ||
+        platform === "ipados" ||
+        platform === "chrome"
+      ) {
         return NotSupported;
       }
       return (
@@ -546,9 +581,15 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
     disableSortBy: true,
     accessor: "cpu_type",
     id: "cpu_type",
-    Cell: (cellProps: IHostTableStringCellProps) => (
-      <TextCell value={cellProps.cell.value} />
-    ),
+    Cell: (cellProps: IHostTableStringCellProps) => {
+      if (
+        cellProps.row.original.platform === "ios" ||
+        cellProps.row.original.platform === "ipados"
+      ) {
+        return NotSupported;
+      }
+      return <TextCell value={cellProps.cell.value} />;
+    },
   },
   {
     title: "RAM",
@@ -557,9 +598,17 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
     ),
     accessor: "memory",
     id: "memory",
-    Cell: (cellProps: IHostTableNumberCellProps) => (
-      <TextCell value={cellProps.cell.value} formatter={humanHostMemory} />
-    ),
+    Cell: (cellProps: IHostTableNumberCellProps) => {
+      if (
+        cellProps.row.original.platform === "ios" ||
+        cellProps.row.original.platform === "ipados"
+      ) {
+        return NotSupported;
+      }
+      return (
+        <TextCell value={cellProps.cell.value} formatter={humanHostMemory} />
+      );
+    },
   },
   {
     title: "MAC address",

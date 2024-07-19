@@ -29,7 +29,7 @@
         }
       }
 
-      &--disabled {
+      &--read-only {
         &::after {
           @include disabled-checkbox;
         }
@@ -86,14 +86,6 @@
         background-color: $ui-fleet-black-25;
       }
       cursor: default;
-    }
-
-    &--small {
-      @include size(16px);
-
-      &::after {
-        @include size(16px);
-      }
     }
 
     &--indeterminate {

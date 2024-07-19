@@ -13,10 +13,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/fleetdbase"
 	"github.com/fleetdm/fleet/v4/pkg/mdm/mdmtest"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
@@ -400,7 +400,7 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 			require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
 			if fullCmd.Command.RequestType == "InstallEnterpriseApplication" &&
 				fullCmd.Command.InstallEnterpriseApplication.ManifestURL != nil &&
-				strings.Contains(*fullCmd.Command.InstallEnterpriseApplication.ManifestURL, apple_mdm.FleetdPublicManifestURL) {
+				strings.Contains(*fullCmd.Command.InstallEnterpriseApplication.ManifestURL, fleetdbase.GetPKGManifestURL()) {
 				fleetdCmd = &fullCmd
 			} else if cmd.Command.RequestType == "InstallProfile" {
 				installProfileCmd = &fullCmd

@@ -5,6 +5,11 @@
     gap: $pad-small;
   }
 
+  &__status-with-tooltip {
+    display: flex;
+    gap: $pad-small;
+  }
+
   &__status-tooltip {
     text-align: center;
   }

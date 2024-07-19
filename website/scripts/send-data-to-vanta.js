@@ -57,14 +57,21 @@ module.exports = {
       //  ╠╣ │  ├┤ ├┤  │   │ │└─┐├┤ ├┬┘└─┐
       //  ╚  ┴─┘└─┘└─┘ ┴   └─┘└─┘└─┘┴└─└─┘
       // Request user data from the Fleet instance to send to Vanta.
-      let responseFromUserEndpoint = await sails.helpers.http.get(
-        updatedRecord.fleetInstanceUrl + '/api/v1/fleet/users',
-        {},
-        {'Authorization': 'Bearer '+updatedRecord.fleetApiKey }
-      )
-      .tolerate((err)=>{// If an error occurs while sending a request to the Fleet instance, we'll add the error to the errorReportById object, with this connections ID set as the key.
-        errorReportById[connectionIdAsString] = new Error(`When sending a request to the /users endpoint of a Fleet instance for a VantaConnection (id: ${connectionIdAsString}), the Fleet instance returned an Error: ${util.inspect(err.raw)}`);
-      });
+      // Note: this request is in a try-catch block so we can handle errors sent from the retry() method
+      let responseFromUserEndpoint;
+      try {
+        responseFromUserEndpoint = await sails.helpers.http.get(
+          updatedRecord.fleetInstanceUrl + '/api/v1/fleet/users',
+          {},
+          {'Authorization': 'Bearer '+updatedRecord.fleetApiKey }
+        )
+        .retry()
+        .tolerate((err)=>{// If an error occurs while sending a request to the Fleet instance, we'll add the error to the errorReportById object, with this connections ID set as the key.
+          errorReportById[connectionIdAsString] = new Error(`When sending a request to the /users endpoint of a Fleet instance for a VantaConnection (id: ${connectionIdAsString}), the Fleet instance returned an Error: ${util.inspect(err.raw)}`);
+        });
+      } catch(error) {
+        errorReportById[connectionIdAsString] = new Error(`When sending a request to the /users endpoint of a Fleet instance for a VantaConnection (id: ${connectionIdAsString}), the Fleet instance returned an Error: ${util.inspect(error.raw)}`);
+      }
 
       if(errorReportById[connectionIdAsString]){// If there was an error with the previous request, bail early for this Vanta connection.
         return;
@@ -130,14 +137,15 @@ module.exports = {
           `${updatedRecord.fleetInstanceUrl}/api/v1/fleet/hosts?per_page=${numberOfHostsPerRequest}&page=${pageNumberForPossiblePaginatedResults}`,
           {},
           {'Authorization': 'bearer '+updatedRecord.fleetApiKey},
-        );
+        )
+        .retry();
         // Add the results to the allHostsOnThisFleetInstance array.
         allHostsOnThisFleetInstance = allHostsOnThisFleetInstance.concat(getHostsResponse.hosts);
         // Increment the page of results we're requesting.
         pageNumberForPossiblePaginatedResults++;
         // If we recieved less results than we requested, we've reached the last page of the results.
         return getHostsResponse.hosts.length !== numberOfHostsPerRequest;
-      }, 10000)
+      }, 30000)
       .tolerate(()=>{// If an error occurs while sending a request to the Fleet instance, we'll add the error to the errorReportById object, with this connections ID set as the key.
         errorReportById[connectionIdAsString] = new Error(`When requesting all hosts from a Fleet instance for a VantaConnection (id: ${connectionIdAsString}), the Fleet instance did not respond with all of it's hosts in the set amount of time.`);
       });

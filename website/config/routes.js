@@ -87,6 +87,7 @@ module.exports.routes = {
     skipAssets: false,
     action: 'docs/view-basic-documentation',// Meta title and description set in view action
     locals: {
+      hideStartCTA: true,
       currentSection: 'documentation',
     }
   },// handles /docs and /docs/foo/bar
@@ -99,18 +100,12 @@ module.exports.routes = {
     }
   },// handles /handbook and /handbook/foo/bar
 
-  'GET /transparency': {
-    action: 'view-transparency',
-    locals: {
-      pageTitleForMeta: 'Transparency | Fleet',
-      pageDescriptionForMeta: 'Learn what data osquery can see.',
-    }
-  },
   'GET /new-license': {
     action: 'customers/view-new-license',
     locals: {
       hideHeaderLinks: true,
       hideFooterLinks: true,
+      hideStartCTA: true,
       pageTitleForMeta: 'Get Fleet Premium | Fleet',
       pageDescriptionForMeta: 'Generate your quote and start using Fleet Premium today.',
     }
@@ -118,7 +113,6 @@ module.exports.routes = {
   'GET /register': {
     action: 'entrance/view-signup',
     locals: {
-      hideHeaderLinks: true,
       hideFooterLinks: true,
       pageTitleForMeta: 'Sign up | Fleet',
       pageDescriptionForMeta: 'Sign up for a Fleet account.',
@@ -127,7 +121,6 @@ module.exports.routes = {
   'GET /login': {
     action: 'entrance/view-login',
     locals: {
-      hideHeaderLinks: true,
       hideFooterLinks: true,
       pageTitleForMeta: 'Log in | Fleet',
       pageDescriptionForMeta: 'Log in to Fleet.',
@@ -138,6 +131,7 @@ module.exports.routes = {
     locals: {
       hideHeaderLinks: true,
       hideFooterLinks: true,
+      hideStartCTA: true,
       pageTitleForMeta: 'Customer dashboard | Fleet',
       pageDescriptionForMeta: 'View and edit information about your Fleet Premium license.',
     }
@@ -147,6 +141,7 @@ module.exports.routes = {
     locals: {
       hideHeaderLinks: true,
       hideFooterLinks: true,
+      hideStartCTA: true,
       pageTitleForMeta: 'Forgot password | Fleet',
       pageDescriptionForMeta: 'Recover the password for your Fleet customer account.',
     }
@@ -156,6 +151,7 @@ module.exports.routes = {
     locals: {
       hideHeaderLinks: true,
       hideFooterLinks: true,
+      hideStartCTA: true,
       pageTitleForMeta: 'New password | Fleet',
       pageDescriptionForMeta: 'Change the password for your Fleet customer account.',
     }
@@ -169,27 +165,12 @@ module.exports.routes = {
     }
   },
 
-  'GET /try-fleet/explore-data': {
-    action: 'try-fleet/view-explore-data',
-    locals: {
-      pageTitleForMeta: 'Explore real data | Fleet',
-      pageDescriptionForMeta: 'See live data collected from a real device enrolled in Fleet.',
-    }
-  },
-
-  'GET /try-fleet/explore-data/:hostPlatform/:tableName': {// [?]: https://github.com/fleetdm/fleet/blob/97a0d419e1a25d2155606c09b9c483ae5067544e/website/api/controllers/try-fleet/view-query-report.js#L16
-    action: 'try-fleet/view-query-report',
-    locals: {
-      pageTitleForMeta: 'Explore real data | Fleet',
-      pageDescriptionForMeta: 'See live data collected from a real device enrolled in Fleet.',
-    }
-  },
-
   'GET /admin/email-preview': {
     action: 'admin/view-email-templates',
     locals: {
       hideFooterLinks: true,
       showAdminLinks: true,
+      hideStartCTA: true,
     },
   },
 
@@ -199,6 +180,7 @@ module.exports.routes = {
     locals: {
       hideFooterLinks: true,
       showAdminLinks: true,
+      hideStartCTA: true,
     },
   },
 
@@ -207,6 +189,7 @@ module.exports.routes = {
     locals: {
       hideFooterLinks: true,
       showAdminLinks: true,
+      hideStartCTA: true,
     },
   },
 
@@ -222,6 +205,7 @@ module.exports.routes = {
     locals: {
       hideFooterLinks: true,
       showAdminLinks: true,
+      hideStartCTA: true,
     }
   },
 
@@ -284,8 +268,17 @@ module.exports.routes = {
     locals: {
       hideFooterLinks: true,
       hideGetStartedButton: true,
+      hideStartCTA: true,
       pageTitleForMeta: 'Start | Fleet',
       pageDescriptionForMeta: 'Get Started with Fleet. Spin up a local demo or get your Premium license key.',
+    }
+  },
+
+  'GET /better': {
+    action: 'view-transparency',
+    locals: {
+      pageDescriptionForMeta: 'Discover how Fleet simplifies IT and security, prioritizing privacy, transparency, and trust for end users.',
+      pageTitleForMeta: 'Better with Fleet | Fleet'
     }
   },
 
@@ -440,6 +433,14 @@ module.exports.routes = {
   'GET /docs/deploy/deploy-on-render': '/guides/deploy-fleet-on-render',
   'GET /docs/deploy/deploy-fleet-on-kubernetes': '/guides/deploy-fleet-on-kubernetes',
   'GET /docs/using-fleet/mdm-macos-setup': '/docs/using-fleet/mdm-setup',
+  'GET /transparency': '/better',
+  'GET /docs/configuration/configuration-files': '/docs/using-fleet/gitops',
+  'GET /try-fleet/explore-data': '/tables/account_policy_data',
+  'GET /try-fleet/explore-data/:hostPlatform/:tableName': {
+    fn: (req, res)=>{
+      return res.redirect('/tables/'+req.param('tableName'));
+    }
+  },
 
   //  ╔╦╗╦╔═╗╔═╗  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗   ┬   ╔╦╗╔═╗╦ ╦╔╗╔╦  ╔═╗╔═╗╔╦╗╔═╗
   //  ║║║║╚═╗║    ╠╦╝║╣  ║║║╠╦╝║╣ ║   ║ ╚═╗  ┌┼─   ║║║ ║║║║║║║║  ║ ║╠═╣ ║║╚═╗
@@ -505,12 +506,19 @@ module.exports.routes = {
   'GET /learn-more-about/enabling-calendar-api': 'https://console.cloud.google.com/apis/library/calendar-json.googleapis.com',
   'GET /learn-more-about/downgrading': '/docs/using-fleet/downgrading-fleet',
   'GET /learn-more-about/fleetd': '/docs/get-started/anatomy#fleetd',
-  'GET /learn-more-about/rotating-enroll-secrets': '/docs/configuration/configuration-files#rotating-enroll-secrets',
+  'GET /learn-more-about/rotating-enroll-secrets': 'https://github.com/fleetdm/fleet/blob/main/docs/Contributing/fleetctl-apply.md#rotating-enroll-secrets',
   'GET /learn-more-about/audit-logs': '/docs/using-fleet/audit-logs',
   'GET /learn-more-about/calendar-events': '/announcements/fleet-in-your-calendar-introducing-maintenance-windows',
   'GET /learn-more-about/setup-windows-mdm': '/docs/using-fleet/mdm-setup',
   'GET /learn-more-about/setup-abm': '/docs/using-fleet/mdm-setup#apple-business-manager-abm',
-  'GET /learn-more-about/renew-apns': '/docs/using-fleet/mdm-setup#renewing-apns',
+  'GET /learn-more-about/renew-apns': '/docs/using-fleet/mdm-setup#apple-push-notification-service-apns',
+  'GET /learn-more-about/renew-abm': '/docs/using-fleet/mdm-setup#apple-business-manager-abm',
+  'GET /learn-more-about/fleet-server-private-key': '/docs/configuration/fleet-server-configuration#server-private-key',
+  'GET /learn-more-about/agent-options': '/docs/configuration/agent-configuration',
+  'GET /learn-more-about/enable-user-collection': '/docs/using-fleet/gitops#features',
+  'GET /learn-more-about/host-identifiers': '/docs/rest-api/rest-api#get-host-by-identifier',
+  'GET /learn-more-about/uninstall-fleetd': '/docs/using-fleet/faq#how-can-i-uninstall-fleetd',
+  'GET /learn-more-about/vulnerability-processing': '/docs/using-fleet/vulnerability-processing',
 
   // Sitemap
   // =============================================================================================================
@@ -575,7 +583,9 @@ module.exports.routes = {
   'POST /api/v1/create-or-update-one-newsletter-subscription': { action: 'create-or-update-one-newsletter-subscription' },
   '/api/v1/unsubscribe-from-all-newsletters': { action: 'unsubscribe-from-all-newsletters' },
   'POST /api/v1/admin/build-license-key': { action: 'admin/build-license-key' },
-  'POST /api/v1/create-vanta-authorization-request': { action: 'create-vanta-authorization-request' },
+  'POST /api/v1/create-vanta-authorization-request': { action: 'create-vanta-authorization-request'},
+  'POST /api/v1/create-external-vanta-authorization-request': { action: 'create-vanta-authorization-request', csrf: false },
+  'GET /redirect-vanta-authorization-request': { action: 'redirect-vanta-authorization-request' },
   'POST /api/v1/deliver-mdm-beta-signup':                   { action: 'deliver-mdm-beta-signup' },
   'POST /api/v1/get-human-interpretation-from-osquery-sql': { action: 'get-human-interpretation-from-osquery-sql', csrf: false },
   'POST /api/v1/deliver-apple-csr ': { action: 'deliver-apple-csr', csrf: false},
@@ -583,4 +593,5 @@ module.exports.routes = {
   'POST /api/v1/admin/provision-sandbox-instance-and-deliver-email': { action: 'admin/provision-sandbox-instance-and-deliver-email' },
   'POST /api/v1/deliver-talk-to-us-form-submission': { action: 'deliver-talk-to-us-form-submission' },
   'POST /api/v1/save-questionnaire-progress': { action: 'save-questionnaire-progress' },
+  'POST /api/v1/account/update-start-cta-visibility': { action: 'account/update-start-cta-visibility' },
 };

@@ -24,12 +24,15 @@ import (
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/async"
-	"github.com/go-kit/kit/log"
-	"github.com/go-kit/kit/log/level"
+	"github.com/go-kit/log"
+	"github.com/go-kit/log/level"
 	"github.com/spf13/cast"
 )
 
 type DetailQuery struct {
+	// Description is an optional description of the query to be displayed in the
+	// Host Vitals documentation https://fleetdm.com/docs/using-fleet/understanding-host-vitals
+	Description string
 	// Query is the SQL query string.
 	Query string
 	// QueryFunc is optionally used to dynamically build a query.
@@ -40,6 +43,11 @@ type DetailQuery struct {
 	// Platforms is a list of platforms to run the query on. If this value is
 	// empty, run on all platforms.
 	Platforms []string
+	// SoftwareOverrideMatch is a function that can be used to override a software
+	// result.  The function evaluates a software detail query result row and deletes
+	// the result if the function returns true so the result of this detail query can be
+	// used instead.
+	SoftwareOverrideMatch func(row map[string]string) bool
 	// IngestFunc translates a query result into an update to the host struct,
 	// around data that lives on the hosts table.
 	IngestFunc func(ctx context.Context, logger log.Logger, host *fleet.Host, rows []map[string]string) error
@@ -328,7 +336,9 @@ var hostDetailQueries = map[string]DetailQuery{
 			host.HardwareVendor = rows[0]["hardware_vendor"]
 			host.HardwareModel = rows[0]["hardware_model"]
 			host.HardwareVersion = rows[0]["hardware_version"]
-			host.HardwareSerial = rows[0]["hardware_serial"]
+			if rows[0]["hardware_serial"] != "-1" { // ignoring the default -1 serial. See: https://github.com/fleetdm/fleet/issues/19789
+				host.HardwareSerial = rows[0]["hardware_serial"]
+			}
 			host.ComputerName = rows[0]["computer_name"]
 			return nil
 		},
@@ -747,7 +757,39 @@ var mdmQueries = map[string]DetailQuery{
 
 // discoveryTable returns a query to determine whether a table exists or not.
 func discoveryTable(tableName string) string {
-	return fmt.Sprintf("SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = '%s';", tableName)
+	return fmt.Sprintf("SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = '%s'", tableName)
+}
+
+func macOSBundleIDExistsQuery(appName string) string {
+	return fmt.Sprintf("SELECT 1 FROM apps WHERE bundle_identifier = '%s' LIMIT 1", appName)
+}
+
+// generateSQLForAllExists generates a SQL query that returns
+// 1 if all subqueries return 1, otherwise returns no rows.
+// subqueries should be a list of SQL queries that return 1+ rows
+// if a condition is met, otherwise returns no rows.
+func generateSQLForAllExists(subqueries ...string) string {
+	if len(subqueries) == 0 {
+		return "SELECT 0 LIMIT 0" // Return no rows if no subqueries provided
+	}
+
+	// Generate EXISTS clause for each subquery
+	var conditions []string
+	for _, query := range subqueries {
+		// Remove trailing semicolons from the query to ensure subqueries
+		// are not terminated early (Issue #19401)
+		sanitized := strings.TrimRight(strings.TrimSpace(query), ";")
+
+		condition := fmt.Sprintf("EXISTS (%s)", sanitized)
+		conditions = append(conditions, condition)
+	}
+
+	// Join all conditions with AND
+	fullCondition := strings.Join(conditions, " AND ")
+
+	// Build the final SQL query
+	sql := fmt.Sprintf("SELECT 1 WHERE %s", fullCondition)
+	return sql
 }
 
 const usersQueryStr = `WITH cached_groups AS (select * from groups)
@@ -1071,6 +1113,56 @@ var softwareChrome = DetailQuery{
 FROM chrome_extensions`,
 	Platforms:        []string{"chrome"},
 	DirectIngestFunc: directIngestSoftware,
+}
+
+// SoftwareOverrideQueries are used to override software detail query results.  These DetailQueries
+// must include a `SoftwareOverrideMatch` function that returns true if the software row should be
+// overridden with the results of `Query`.
+// Software queries expect specific columns to be present.  Reference the
+// software_{macos|windows|linux} queries for the expected columns.
+var SoftwareOverrideQueries = map[string]DetailQuery{
+	// macos_firefox Differentiates between Firefox and Firefox ESR by checking the RemotingName value in the
+	// application.ini file. If the RemotingName is 'firefox-esr', the name is set to 'Firefox ESR.app'.
+	"macos_firefox": {
+		Description: "A software override query[^1] to differentiate between Firefox and Firefox ESR on macOS.  Requires `fleetd`",
+		Query: `
+			WITH app_paths AS (
+				SELECT path
+				FROM apps
+				WHERE bundle_identifier = 'org.mozilla.firefox'
+			),
+			remoting_name AS (
+				SELECT value, path
+				FROM parse_ini
+				WHERE key = 'RemotingName'
+				AND path IN (SELECT CONCAT(path, '/Contents/Resources/application.ini') FROM app_paths)
+			)
+			SELECT
+				CASE
+					WHEN remoting_name.value = 'firefox-esr' THEN 'Firefox ESR.app'
+					ELSE 'Firefox.app'
+				END AS name,
+				COALESCE(NULLIF(apps.bundle_short_version, ''), apps.bundle_version) AS version,
+				'Application (macOS)' AS type,
+				apps.bundle_identifier AS bundle_identifier,
+				'' AS extension_id,
+				'' AS browser,
+				'apps' AS source,
+				'' AS vendor,
+				apps.last_opened_time AS last_opened_at,
+				apps.path AS installed_path
+			FROM apps
+			LEFT JOIN remoting_name ON apps.path = REPLACE(remoting_name.path, '/Contents/Resources/application.ini', '')
+			WHERE apps.bundle_identifier = 'org.mozilla.firefox'`,
+		Platforms: []string{"darwin"},
+		Discovery: generateSQLForAllExists(
+			macOSBundleIDExistsQuery("org.mozilla.firefox"),
+			discoveryTable("parse_ini"),
+		),
+		SoftwareOverrideMatch: func(row map[string]string) bool {
+			return row["bundle_identifier"] == "org.mozilla.firefox"
+		},
+	},
 }
 
 var usersQuery = DetailQuery{
@@ -1621,7 +1713,15 @@ func directIngestMDMMac(ctx context.Context, logger log.Logger, host *fleet.Host
 		}
 		if fleetEnrollRef != "" {
 			if err := ds.SetOrUpdateHostEmailsFromMdmIdpAccounts(ctx, host.ID, fleetEnrollRef); err != nil {
-				return ctxerr.Wrap(ctx, err, "updating host emails from mdm idp accounts")
+				if !fleet.IsNotFound(err) {
+					return ctxerr.Wrap(ctx, err, "updating host emails from mdm idp accounts")
+				}
+
+				level.Warn(logger).Log(
+					"component", "service",
+					"method", "directIngestMDMMac",
+					"msg", err.Error(),
+				)
 			}
 		}
 	}
@@ -1928,6 +2028,10 @@ func GetDetailQueries(
 		generatedMap["software_windows"] = softwareWindows
 		generatedMap["software_chrome"] = softwareChrome
 		generatedMap["software_vscode_extensions"] = softwareVSCodeExtensions
+
+		for key, query := range SoftwareOverrideQueries {
+			generatedMap["software_"+key] = query
+		}
 	}
 
 	if features != nil && features.EnableHostUsers {

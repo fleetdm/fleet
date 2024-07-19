@@ -648,13 +648,13 @@ func testTeamsNameUnicode(t *testing.T, ds *Datastore) {
 
 	// Try to create team with equivalent name
 	_, err = ds.NewTeam(context.Background(), &fleet.Team{Name: equivalentNames[1]})
-	assert.True(t, isDuplicate(err), err)
+	assert.True(t, IsDuplicate(err), err)
 
 	// Try to update a different team with equivalent name -- not allowed
 	teamEmoji, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "💻"})
 	require.NoError(t, err)
 	_, err = ds.SaveTeam(context.Background(), &fleet.Team{ID: teamEmoji.ID, Name: equivalentNames[1]})
-	assert.True(t, isDuplicate(err), err)
+	assert.True(t, IsDuplicate(err), err)
 
 	// Try to find team with equivalent name
 	teamFilter := fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}}

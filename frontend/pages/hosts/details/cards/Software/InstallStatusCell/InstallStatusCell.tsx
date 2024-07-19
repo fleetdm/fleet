@@ -3,7 +3,7 @@ import React, { ReactNode } from "react";
 import ReactTooltip from "react-tooltip";
 import { uniqueId } from "lodash";
 
-import { SoftwareInstallStatus } from "interfaces/software";
+import { IHostSoftware, SoftwareInstallStatus } from "interfaces/software";
 import { dateAgo } from "utilities/date_format";
 
 import Icon from "components/Icon";
@@ -13,17 +13,28 @@ const baseClass = "install-status-cell";
 
 type IStatusValue = SoftwareInstallStatus | "avaiableForInstall";
 
-type IStatusDisplayConfig = {
-  iconName: "success" | "pending-outline" | "error" | "install";
+export type IStatusDisplayConfig = {
+  iconName:
+    | "success"
+    | "pending-outline"
+    | "error"
+    | "install"
+    | "install-self-service";
   displayText: string;
-  tooltip: (softwareName?: string | null, lastInstall?: string) => ReactNode;
+  tooltip: (args: {
+    softwareName?: string | null;
+    lastInstalledAt?: string;
+  }) => ReactNode;
 };
 
-const CELL_DISPLAY_OPTIONS: Record<IStatusValue, IStatusDisplayConfig> = {
+export const INSTALL_STATUS_DISPLAY_OPTIONS: Record<
+  IStatusValue | "selfService",
+  IStatusDisplayConfig
+> = {
   installed: {
     iconName: "success",
     displayText: "Installed",
-    tooltip: (_, lastInstall) => (
+    tooltip: ({ lastInstalledAt: lastInstall }) => (
       <>
         Fleet installed software on these hosts. (
         {dateAgo(lastInstall as string)})
@@ -38,7 +49,7 @@ const CELL_DISPLAY_OPTIONS: Record<IStatusValue, IStatusDisplayConfig> = {
   failed: {
     iconName: "error",
     displayText: "Failed",
-    tooltip: (_, lastInstall) => (
+    tooltip: ({ lastInstalledAt: lastInstall }) => (
       <>
         Fleet failed to install software ({dateAgo(lastInstall as string)} ago).
         Select <b>Actions &gt; Software details</b> to see more.
@@ -48,37 +59,47 @@ const CELL_DISPLAY_OPTIONS: Record<IStatusValue, IStatusDisplayConfig> = {
   avaiableForInstall: {
     iconName: "install",
     displayText: "Available for install",
-    tooltip: (softwareName) => (
+    tooltip: ({ softwareName }) => (
       <>
-        <b>{softwareName}</b> can be installed on the host. Select{" "}
-        <b>Actions &gt; Install</b> to install.
+        {softwareName ? <b>{softwareName}</b> : "Software"} can be installed on
+        the host. Select <b>Actions {">"} Install</b> to install.
+      </>
+    ),
+  },
+  selfService: {
+    iconName: "install-self-service",
+    displayText: "Self-service",
+    tooltip: ({ softwareName }) => (
+      <>
+        {softwareName ? <b>{softwareName}</b> : "Software"} can be installed on
+        the host. End users can install from{" "}
+        <b>Fleet Desktop {">"} Self-service</b>.
       </>
     ),
   },
 };
 
-interface IInstallStatusCellProps {
-  status: SoftwareInstallStatus | null;
-  packageToInstall?: string | null;
-  installedAt?: string;
-}
-
 const InstallStatusCell = ({
   status,
-  packageToInstall,
-  installedAt,
-}: IInstallStatusCellProps) => {
-  let displayStatus: IStatusValue;
+  last_install,
+  package_available_for_install: softwareName,
+  self_service,
+}: IHostSoftware) => {
+  const lastInstalledAt = last_install?.installed_at;
+
+  let displayStatus: keyof typeof INSTALL_STATUS_DISPLAY_OPTIONS;
 
   if (status !== null) {
     displayStatus = status;
-  } else if (packageToInstall) {
+  } else if (softwareName && self_service) {
+    displayStatus = "selfService";
+  } else if (softwareName) {
     displayStatus = "avaiableForInstall";
   } else {
-    return <TextCell value="---" greyed />;
+    return <TextCell value="---" grey italic />;
   }
 
-  const displayConfig = CELL_DISPLAY_OPTIONS[displayStatus];
+  const displayConfig = INSTALL_STATUS_DISPLAY_OPTIONS[displayStatus];
   const tooltipId = uniqueId();
 
   return (
@@ -88,7 +109,8 @@ const InstallStatusCell = ({
         data-tip
         data-for={tooltipId}
       >
-        <Icon name={displayConfig.iconName} />
+        <Icon name={displayConfig.iconName} />{" "}
+        <span>{displayConfig.displayText}</span>
       </div>
       <ReactTooltip
         className={`${baseClass}__status-tooltip`}
@@ -98,10 +120,12 @@ const InstallStatusCell = ({
         data-html
       >
         <span className={`${baseClass}__status-tooltip-text`}>
-          {displayConfig.tooltip(packageToInstall, installedAt)}
+          {displayConfig.tooltip({
+            softwareName,
+            lastInstalledAt,
+          })}
         </span>
       </ReactTooltip>
-      <span>{displayConfig.displayText}</span>
     </div>
   );
 };

@@ -269,6 +269,18 @@ func deleteTeamPoliciesEndpoint(ctx context.Context, request interface{}, svc fl
 }
 
 func (svc Service) DeleteTeamPolicies(ctx context.Context, teamID uint, ids []uint) ([]uint, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.Policy{
+		PolicyData: fleet.PolicyData{
+			TeamID: ptr.Uint(teamID),
+		},
+	}, fleet.ActionWrite); err != nil {
+		return nil, err
+	}
+
+	if _, err := svc.ds.Team(ctx, teamID); err != nil {
+		return nil, ctxerr.Wrapf(ctx, err, "loading team %d", teamID)
+	}
+
 	if len(ids) == 0 {
 		return nil, nil
 	}
@@ -277,13 +289,6 @@ func (svc Service) DeleteTeamPolicies(ctx context.Context, teamID uint, ids []ui
 		return nil, ctxerr.Wrap(ctx, err, "getting policies by ID")
 	}
 
-	if err := svc.authz.Authorize(ctx, &fleet.Policy{
-		PolicyData: fleet.PolicyData{
-			TeamID: ptr.Uint(teamID),
-		},
-	}, fleet.ActionWrite); err != nil {
-		return nil, err
-	}
 	for _, policy := range policiesByID {
 		if t := policy.PolicyData.TeamID; t == nil || *t != teamID {
 			return nil, authz.ForbiddenWithInternal(

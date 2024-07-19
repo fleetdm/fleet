@@ -10,7 +10,7 @@ import (
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/storage"
 	"github.com/fleetdm/fleet/v4/server/sso"
-	kitlog "github.com/go-kit/kit/log"
+	kitlog "github.com/go-kit/log"
 )
 
 // Service wraps a free Service and implements additional premium functionality on top of it.
@@ -24,11 +24,11 @@ type Service struct {
 	authz                *authz.Authorizer
 	depStorage           storage.AllDEPStorage
 	mdmAppleCommander    fleet.MDMAppleCommandIssuer
-	mdmPushCertTopic     string
 	ssoSessionStore      sso.SessionStore
 	depService           *apple_mdm.DEPService
 	profileMatcher       fleet.ProfileMatcher
 	softwareInstallStore fleet.SoftwareInstallerStore
+	distributedLock      fleet.Lock
 }
 
 func NewService(
@@ -40,10 +40,10 @@ func NewService(
 	c clock.Clock,
 	depStorage storage.AllDEPStorage,
 	mdmAppleCommander fleet.MDMAppleCommandIssuer,
-	mdmPushCertTopic string,
 	sso sso.SessionStore,
 	profileMatcher fleet.ProfileMatcher,
 	softwareInstallStore fleet.SoftwareInstallerStore,
+	distributedLock fleet.Lock,
 ) (*Service, error) {
 	authorizer, err := authz.NewAuthorizer()
 	if err != nil {
@@ -59,11 +59,11 @@ func NewService(
 		authz:                authorizer,
 		depStorage:           depStorage,
 		mdmAppleCommander:    mdmAppleCommander,
-		mdmPushCertTopic:     mdmPushCertTopic,
 		ssoSessionStore:      sso,
 		depService:           apple_mdm.NewDEPService(ds, depStorage, logger),
 		profileMatcher:       profileMatcher,
 		softwareInstallStore: softwareInstallStore,
+		distributedLock:      distributedLock,
 	}
 
 	// Override methods that can't be easily overriden via
