@@ -2,10 +2,7 @@ package mysql
 
 import (
 	"context"
-	"crypto/rand"
 	"database/sql"
-	"encoding/base64"
-	"io"
 	"sort"
 	"testing"
 	"time"
@@ -921,45 +918,6 @@ func testListSoftwareTitlesAvailableForInstallFilter(t *testing.T, ds *Datastore
 		names = append(names, title.Name)
 	}
 	require.ElementsMatch(t, []string{"installer1", "installer2", "vpp1", "vpp2"}, names)
-}
-
-// creates the entry in vpp_apps and vpp_apps_teams, linking to a software
-// title, creating it if necessary. The source column is always "apps". Returns
-// the adam_id (auto-generated) and the software title id.
-// TODO: temporary, until datastore methods are available for VPP apps.
-func createVPPApp(t *testing.T, ds *Datastore, teamID *uint, name, bundle string) (string, uint) {
-	ctx := context.Background()
-
-	rawBytes := make([]byte, 10)
-	_, err := io.ReadFull(rand.Reader, rawBytes)
-	require.NoError(t, err)
-	adamID := base64.RawStdEncoding.EncodeToString(rawBytes)
-
-	titleID, err := ds.getOrGenerateSoftwareInstallerTitleID(ctx, &fleet.UploadSoftwareInstallerPayload{Title: name, Source: "apps", BundleIdentifier: bundle})
-	require.NoError(t, err)
-
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(ctx, `INSERT INTO vpp_apps (adam_id, title_id, name, bundle_identifier) VALUES (?, ?, ?, ?)`,
-			adamID, titleID, name, bundle)
-		return err
-	})
-
-	createVPPAppTeamOnly(t, ds, teamID, adamID)
-	return adamID, titleID
-}
-
-func createVPPAppTeamOnly(t *testing.T, ds *Datastore, teamID *uint, adamID string) {
-	ctx := context.Background()
-
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		var globalOrTeamID uint
-		if teamID != nil {
-			globalOrTeamID = *teamID
-		}
-		_, err := q.ExecContext(ctx, `INSERT INTO vpp_apps_teams (adam_id, team_id, global_or_team_id) VALUES (?, ?, ?)`,
-			adamID, teamID, globalOrTeamID)
-		return err
-	})
 }
 
 func testUploadedSoftwareExists(t *testing.T, ds *Datastore) {
