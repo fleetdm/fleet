@@ -4304,15 +4304,15 @@ OS vulnerability data is currently available for Windows and macOS. For other pl
       "software_package": {
         "name": "GoogleChrome.pkg",
         "version": "125.12.0.3",
-        "self_service": true
+        "self_service": true,
+        "last_install": {
+          "install_uuid": "8bbb8ac2-b254-4387-8cba-4d8a0407368b",
+          "installed_at": "2024-05-15T15:23:57Z"
+        },
       },
       "app_store_app": null
       "source": "apps",
       "status": "failed",
-      "last_install": {
-        "install_uuid": "8bbb8ac2-b254-4387-8cba-4d8a0407368b",
-        "installed_at": "2024-05-15T15:23:57Z"
-      },
       "installed_versions": [
         {
           "version": "121.0",
