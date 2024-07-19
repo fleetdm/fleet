@@ -52,9 +52,7 @@ interface IInstallerInfoProps {
 }
 
 const InstallerInfo = ({ software }: IInstallerInfoProps) => {
-  // TODO: fix this.
-  // @ts-ignore
-  const { name, source, package: installerPackage } = software;
+  const { name, source, software_package: installerPackage } = software;
   return (
     <div className={`${baseClass}__item-topline`}>
       <div className={`${baseClass}__item-icon`}>
