@@ -95,7 +95,7 @@ const AppleAutomaticEnrollmentPage = ({
         if (msg.toLowerCase().includes("valid token")) {
           renderFlash("error", msg);
         } else {
-          renderFlash("error", "Couldnt’ enable. Please try again.");
+          renderFlash("error", "Couldn’t enable. Please try again.");
         }
       } finally {
         setIsUploading(false);
