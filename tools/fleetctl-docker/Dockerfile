@@ -1,4 +1,4 @@
-FROM rust:latest@sha256:56418f03475cf7b107f87d7fabe99ce9a4a9f9904daafa99be7c50d9e7b8f84d AS builder
+FROM rust:slim@sha256:8147f469458ff9dd26ac25c7dac505749db934088776a624869c01cd60581314 as builder
 
 ARG transporter_url=https://itunesconnect.apple.com/WebObjects/iTunesConnect.woa/ra/resources/download/public/Transporter__Linux/bin
 
@@ -6,7 +6,7 @@ RUN cargo install --version 0.16.0 apple-codesign \
   && curl -sSf $transporter_url -o transporter_install.sh \
   && sh transporter_install.sh --target transporter --accept --noexec
 
-FROM debian:stable-slim@sha256:0f116858482fd8222b4f7e9b4cdc9a054051e67fbb8a57bc22651f0d56b45ad8
+FROM debian:stable-slim@sha256:f8bbfa052db81e5b8ac12e4a1d8310a85d1509d4d0d5579148059c0e8b717d4e
 
 ARG binpath=build/binary-bundle/linux/fleetctl
 
