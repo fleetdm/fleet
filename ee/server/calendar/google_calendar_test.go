@@ -232,7 +232,7 @@ func TestGoogleCalendar_GetAndUpdateEvent(t *testing.T) {
 	}
 
 	// ETag matches
-	retrievedEvent, updated, err := cal.GetAndUpdateEvent(event, genBodyFn)
+	retrievedEvent, updated, err := cal.GetAndUpdateEvent(event, genBodyFn, "test")
 	assert.NoError(t, err)
 	assert.False(t, updated)
 	assert.Equal(t, event, retrievedEvent)
@@ -241,7 +241,7 @@ func TestGoogleCalendar_GetAndUpdateEvent(t *testing.T) {
 	mockAPI.GetEventFunc = func(id, eTag string) (*calendar.Event, error) {
 		return nil, &googleapi.Error{Code: http.StatusNotModified}
 	}
-	retrievedEvent, updated, err = cal.GetAndUpdateEvent(event, genBodyFn)
+	retrievedEvent, updated, err = cal.GetAndUpdateEvent(event, genBodyFn, "test")
 	assert.NoError(t, err)
 	assert.False(t, updated)
 	assert.Equal(t, event, retrievedEvent)
@@ -252,14 +252,14 @@ func TestGoogleCalendar_GetAndUpdateEvent(t *testing.T) {
 		EndTime:   time.Now().Add(time.Hour),
 		Data:      []byte(`{"bozo`),
 	}
-	_, _, err = cal.GetAndUpdateEvent(eventBadDetails, genBodyFn)
+	_, _, err = cal.GetAndUpdateEvent(eventBadDetails, genBodyFn, "test")
 	assert.Error(t, err)
 
 	// API error test
 	mockAPI.GetEventFunc = func(id, eTag string) (*calendar.Event, error) {
 		return nil, assert.AnError
 	}
-	_, _, err = cal.GetAndUpdateEvent(event, genBodyFn)
+	_, _, err = cal.GetAndUpdateEvent(event, genBodyFn, "test")
 	assert.ErrorIs(t, err, assert.AnError)
 
 	// Event has been modified
@@ -273,7 +273,7 @@ func TestGoogleCalendar_GetAndUpdateEvent(t *testing.T) {
 			End:   &calendar.EventDateTime{DateTime: endTime.Format(time.RFC3339)},
 		}, nil
 	}
-	retrievedEvent, updated, err = cal.GetAndUpdateEvent(event, genBodyFn)
+	retrievedEvent, updated, err = cal.GetAndUpdateEvent(event, genBodyFn, "test")
 	assert.NoError(t, err)
 	assert.True(t, updated)
 	assert.NotEqual(t, event, retrievedEvent)
@@ -296,7 +296,7 @@ func TestGoogleCalendar_GetAndUpdateEvent(t *testing.T) {
 			End:   &calendar.EventDateTime{DateTime: ""},
 		}, nil
 	}
-	_, _, err = cal.GetAndUpdateEvent(event, genBodyFn)
+	_, _, err = cal.GetAndUpdateEvent(event, genBodyFn, "test")
 	assert.Error(t, err)
 
 	// missing start time
@@ -307,7 +307,7 @@ func TestGoogleCalendar_GetAndUpdateEvent(t *testing.T) {
 			End:  &calendar.EventDateTime{DateTime: endTime.Format(time.RFC3339)},
 		}, nil
 	}
-	_, _, err = cal.GetAndUpdateEvent(event, genBodyFn)
+	_, _, err = cal.GetAndUpdateEvent(event, genBodyFn, "test")
 	assert.Error(t, err)
 
 	// Bad time format
@@ -319,7 +319,7 @@ func TestGoogleCalendar_GetAndUpdateEvent(t *testing.T) {
 			End:   &calendar.EventDateTime{DateTime: "bozo"},
 		}, nil
 	}
-	_, _, err = cal.GetAndUpdateEvent(event, genBodyFn)
+	_, _, err = cal.GetAndUpdateEvent(event, genBodyFn, "test")
 	assert.Error(t, err)
 
 	// Event has been modified, with custom timezone.
@@ -338,7 +338,7 @@ func TestGoogleCalendar_GetAndUpdateEvent(t *testing.T) {
 			End:   &calendar.EventDateTime{DateTime: endTime.Format(time.RFC3339), TimeZone: newTzName},
 		}, nil
 	}
-	retrievedEvent, updated, err = cal.GetAndUpdateEvent(event, genBodyFn)
+	retrievedEvent, updated, err = cal.GetAndUpdateEvent(event, genBodyFn, "test")
 	assert.NoError(t, err)
 	assert.True(t, updated)
 	assert.NotEqual(t, event, retrievedEvent)
@@ -382,7 +382,7 @@ func TestGoogleCalendar_GetAndUpdateEvent(t *testing.T) {
 		eventCreated = true
 		return event, nil
 	}
-	retrievedEvent, updated, err = cal.GetAndUpdateEvent(event, genBodyFn)
+	retrievedEvent, updated, err = cal.GetAndUpdateEvent(event, genBodyFn, "test")
 	require.NoError(t, err)
 	assert.True(t, updated)
 	assert.NotEqual(t, event, retrievedEvent)
@@ -410,7 +410,7 @@ func TestGoogleCalendar_GetAndUpdateEvent(t *testing.T) {
 		}, nil
 	}
 	eventCreated = false
-	retrievedEvent, updated, err = cal.GetAndUpdateEvent(event, genBodyFn)
+	retrievedEvent, updated, err = cal.GetAndUpdateEvent(event, genBodyFn, "test")
 	require.NoError(t, err)
 	assert.True(t, updated)
 	require.NotNil(t, retrievedEvent)
@@ -433,7 +433,7 @@ func TestGoogleCalendar_GetAndUpdateEvent(t *testing.T) {
 		}, nil
 	}
 	eventCreated = false
-	retrievedEvent, updated, err = cal.GetAndUpdateEvent(event, genBodyFn)
+	retrievedEvent, updated, err = cal.GetAndUpdateEvent(event, genBodyFn, "test")
 	require.NoError(t, err)
 	assert.True(t, updated)
 	require.NotNil(t, retrievedEvent)
@@ -452,7 +452,7 @@ func TestGoogleCalendar_GetAndUpdateEvent(t *testing.T) {
 		}, nil
 	}
 	eventCreated = false
-	retrievedEvent, updated, err = cal.GetAndUpdateEvent(event, genBodyFn)
+	retrievedEvent, updated, err = cal.GetAndUpdateEvent(event, genBodyFn, "test")
 	require.NoError(t, err)
 	assert.True(t, updated)
 	require.NotNil(t, retrievedEvent)

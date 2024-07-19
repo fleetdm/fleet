@@ -32,7 +32,7 @@ type UserCalendar interface {
 	// GetAndUpdateEvent retrieves the event from the calendar.
 	// If the event has been modified, it returns the updated event.
 	// If the event has been deleted, it schedules a new event with given body callback and returns the new event.
-	GetAndUpdateEvent(event *CalendarEvent, genBodyFn func(conflict bool) (body string, ok bool, err error)) (updatedEvent *CalendarEvent,
+	GetAndUpdateEvent(event *CalendarEvent, genBodyFn func(conflict bool) (body string, ok bool, err error), requestID string) (updatedEvent *CalendarEvent,
 		updated bool, err error)
 	// DeleteEvent deletes the event with the given ID.
 	DeleteEvent(event *CalendarEvent) error

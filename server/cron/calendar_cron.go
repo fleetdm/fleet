@@ -58,7 +58,8 @@ func NewCalendarSchedule(
 }
 
 func cronCalendarEvents(ctx context.Context, ds fleet.Datastore, distributedLock fleet.Lock, serverConfig config.CalendarConfig,
-	logger kitlog.Logger) error {
+	logger kitlog.Logger,
+) error {
 	appConfig, err := ds.AppConfig(ctx)
 	if err != nil {
 		return fmt.Errorf("load app config: %w", err)
@@ -319,7 +320,6 @@ func processFailingHostExistingCalendarEvent(
 	calendarConfig *calendar.Config,
 	logger kitlog.Logger,
 ) error {
-
 	// Try to acquire the lock. Lock is needed to ensure calendar callback is not processed for this event at the same time.
 	eventUUID := calendarEvent.UUID
 	lockValue := uuid.New().String()
@@ -395,6 +395,7 @@ func processFailingHostExistingCalendarEvent(
 			calendarEvent, func(conflict bool) (string, bool, error) {
 				return calendar.GenerateCalendarEventBody(ctx, ds, orgName, host, policyIDtoPolicy, conflict, logger), true, nil
 			},
+			"cron",
 		)
 		if err != nil {
 			return fmt.Errorf("get event calendar on db: %w", err)

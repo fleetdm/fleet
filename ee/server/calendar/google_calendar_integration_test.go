@@ -75,7 +75,7 @@ func (s *googleCalendarIntegrationTestSuite) TestCreateGetDeleteEvent() {
 	assert.Equal(t, startHour, event.StartTime.Hour())
 	assert.Equal(t, 0, event.StartTime.Minute())
 
-	eventRsp, updated, err := gCal.GetAndUpdateEvent(event, genBodyFn)
+	eventRsp, updated, err := gCal.GetAndUpdateEvent(event, genBodyFn, "test")
 	require.NoError(t, err)
 	assert.False(t, updated)
 	assert.Equal(t, event, eventRsp)
@@ -87,7 +87,7 @@ func (s *googleCalendarIntegrationTestSuite) TestCreateGetDeleteEvent() {
 	assert.NoError(t, err)
 
 	// Try to get deleted event
-	eventRsp, updated, err = gCal.GetAndUpdateEvent(event, genBodyFn)
+	eventRsp, updated, err = gCal.GetAndUpdateEvent(event, genBodyFn, "test")
 	require.NoError(t, err)
 	assert.True(t, updated)
 	assert.NotEqual(t, event.StartTime.UTC().Truncate(24*time.Hour), eventRsp.StartTime.UTC().Truncate(24*time.Hour))
