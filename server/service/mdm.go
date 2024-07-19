@@ -2624,11 +2624,6 @@ func (svc *Service) UploadMDMAppleVPPToken(ctx context.Context, token io.ReadSee
 		return ctxerr.Wrap(ctx, err, "validating VPP token with Apple")
 	}
 
-	// decodedTokenBytes, err := base64.StdEncoding.DecodeString(string(tokenBytes))
-	// if err != nil {
-	// 	return ctxerr.Wrap(ctx, err, "decoding VPP token")
-	// }
-
 	data := fleet.VPPTokenData{
 		Token:    string(tokenBytes),
 		Location: locName,
