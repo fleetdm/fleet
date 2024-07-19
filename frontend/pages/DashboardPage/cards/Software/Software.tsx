@@ -23,7 +23,6 @@ interface ISoftwareCardProps {
   isSoftwareEnabled?: boolean;
   software?: ISoftwareResponse;
   teamId?: number;
-  pageIndex: number;
   navTabIndex: number;
   onTabChange: (index: number, last: number, event: Event) => boolean | void;
   onQueryChange?:

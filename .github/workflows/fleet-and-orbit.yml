@@ -296,7 +296,7 @@ jobs:
 
       - name: Build Repository and run TUF server
         env:
-          SYSTEMS: "macos windows linux"
+          SYSTEMS: "macos windows linux linux-arm64"
           PKG_FLEET_URL: ${{ needs.gen.outputs.address }}
           PKG_TUF_URL: http://localhost:8081
           DEB_FLEET_URL: ${{ needs.gen.outputs.address }}
