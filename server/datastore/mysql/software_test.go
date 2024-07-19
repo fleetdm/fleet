@@ -3675,15 +3675,13 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 	require.NotEmpty(t, vpp1TmCmdUUID)
 
 	expected["vpp1"] = fleet.HostSoftwareWithInstaller{
-		Name: "vpp1",
-		// Source:      "apps",
+		Name:        "vpp1",
 		Status:      expectStatus(fleet.SoftwareInstallerInstalled),
 		LastInstall: &fleet.HostSoftwareInstall{InstallUUID: vpp1CmdUUID},
 		AppStoreApp: &fleet.SoftwarePackageOrApp{AppStoreID: vpp1},
 	}
 	expected["vpp2"] = fleet.HostSoftwareWithInstaller{
-		Name: "vpp2",
-		// Source:      "apps",
+		Name:        "vpp2",
 		Status:      expectStatus(fleet.SoftwareInstallerPending),
 		LastInstall: &fleet.HostSoftwareInstall{InstallUUID: vpp2bCmdUUID},
 		AppStoreApp: &fleet.SoftwarePackageOrApp{AppStoreID: vpp2},
