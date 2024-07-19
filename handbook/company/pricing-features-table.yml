@@ -736,21 +736,6 @@
   productCategories: [Device management]
   pricingTableCategories: [Device management]
   moreInfoUrl: https://github.com/fleetdm/fleet/issues/17587
-- industryName: Install Apple App Store apps through Volume Purchasing Program (VPP).
-  description: Offer licenses for Photoshop and other App Sore apps for your end users.
-  tier: Premium
-  jamfProHasFeature: yes
-  jamfProtectHasFeature: no
-  comingSoonOn: 2024-08-11
-  waysToUse:
-    - description: macOS coming soon (2024-07-15). #customer-rosner
-      moreInfoUrl: https://github.com/fleetdm/fleet/issues/18867
-    - description: iOS/iPadOS coming soon (2024-08-11).
-      moreInfoUrl: https://github.com/fleetdm/fleet/issues/14899
-  usualDepartment: IT
-  productCategories: [Device management]
-  pricingTableCategories: [Device management]
-  moreInfoUrl: https://github.com/fleetdm/fleet/issues/18867
 - industryName: Software inventory
   documentationUrl: https://fleetdm.com/docs/get-started/anatomy#software-library
   tier: Free
@@ -1114,6 +1099,14 @@
   tier: Premium
   jamfProHasFeature: appleOnly
   jamfProtectHasFeature: no
+  waysToUse:
+   - description: Easily configure and install SentinelOne, Crowdstrike, and other security tools.
+     moreInfoUrl: https://github.com/fleetdm/fleet/issues/14921 
+   - description: Offer licenses for Photoshop and other App Sore apps for your end users.
+   - description: macOS coming soon (2024-07-15). #customer-rosner
+     moreInfoUrl: https://github.com/fleetdm/fleet/issues/18867
+   - description: iOS/iPadOS coming soon (2024-08-11).
+     moreInfoUrl: https://github.com/fleetdm/fleet/issues/14899
   usualDepartment: IT
   productCategories: [Device management]
   pricingTableCategories: [Device management]
