@@ -1450,6 +1450,9 @@ func setupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig,
 		savedAppConfig = &appConfigCopy
 		return nil
 	}
+	ds.SetTeamVPPAppsFunc = func(ctx context.Context, teamID *uint, adamIDs []string) error {
+		return nil
+	}
 
 	var savedTeam *fleet.Team
 
