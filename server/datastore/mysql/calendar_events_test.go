@@ -2,11 +2,12 @@ package mysql
 
 import (
 	"context"
-	"github.com/google/uuid"
-	"github.com/stretchr/testify/assert"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/google/uuid"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -120,7 +121,7 @@ func testCreateOrUpdateCalendarEvent(t *testing.T, ds *Datastore) {
 	calendarEvent, err := ds.CreateOrUpdateCalendarEvent(ctx, eventUUID, "foo@example.com", startTime1, endTime1, []byte(`{}`), timeZone,
 		host.ID, fleet.CalendarWebhookStatusNone)
 	require.NoError(t, err)
-	require.Equal(t, calendarEvent.TimeZone, timeZone)
+	require.Equal(t, *calendarEvent.TimeZone, timeZone)
 
 	time.Sleep(1 * time.Second)
 
