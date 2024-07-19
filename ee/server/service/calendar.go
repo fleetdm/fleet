@@ -186,7 +186,7 @@ func (svc *Service) processCalendarEvent(ctx context.Context, eventDetails *flee
 	if updated && event != nil {
 		// Event was updated, so we need to save it
 		_, err = svc.ds.CreateOrUpdateCalendarEvent(ctx, event.UUID, event.Email, event.StartTime, event.EndTime, event.Data,
-			*event.TimeZone, eventDetails.HostID, fleet.CalendarWebhookStatusNone)
+			event.TimeZone, eventDetails.HostID, fleet.CalendarWebhookStatusNone)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "create or update calendar event")
 		}

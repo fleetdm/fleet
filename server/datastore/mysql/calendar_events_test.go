@@ -61,14 +61,14 @@ func testUpdateCalendarEvent(t *testing.T, ds *Datastore) {
 	endTime1 := startTime1.Add(30 * time.Minute)
 	timeZone := "America/Argentina/Buenos_Aires"
 	eventUUID := uuid.New().String()
-	calendarEvent, err := ds.CreateOrUpdateCalendarEvent(ctx, eventUUID, "foo@example.com", startTime1, endTime1, []byte(`{}`), timeZone,
+	calendarEvent, err := ds.CreateOrUpdateCalendarEvent(ctx, eventUUID, "foo@example.com", startTime1, endTime1, []byte(`{}`), &timeZone,
 		host.ID, fleet.CalendarWebhookStatusNone)
 	require.NoError(t, err)
 
 	time.Sleep(1 * time.Second)
 
 	eventUUIDNew := uuid.New().String()
-	err = ds.UpdateCalendarEvent(ctx, calendarEvent.ID, eventUUIDNew, startTime1, endTime1, []byte(`{}`), timeZone)
+	err = ds.UpdateCalendarEvent(ctx, calendarEvent.ID, eventUUIDNew, startTime1, endTime1, []byte(`{}`), &timeZone)
 	require.NoError(t, err)
 
 	calendarEvent2, err := ds.GetCalendarEvent(ctx, "foo@example.com")
@@ -118,7 +118,7 @@ func testCreateOrUpdateCalendarEvent(t *testing.T, ds *Datastore) {
 	startTime1 := time.Now()
 	endTime1 := startTime1.Add(30 * time.Minute)
 	eventUUID := uuid.New().String()
-	calendarEvent, err := ds.CreateOrUpdateCalendarEvent(ctx, eventUUID, "foo@example.com", startTime1, endTime1, []byte(`{}`), timeZone,
+	calendarEvent, err := ds.CreateOrUpdateCalendarEvent(ctx, eventUUID, "foo@example.com", startTime1, endTime1, []byte(`{}`), &timeZone,
 		host.ID, fleet.CalendarWebhookStatusNone)
 	require.NoError(t, err)
 	require.Equal(t, *calendarEvent.TimeZone, timeZone)
@@ -126,7 +126,7 @@ func testCreateOrUpdateCalendarEvent(t *testing.T, ds *Datastore) {
 	time.Sleep(1 * time.Second)
 
 	eventUUID2 := uuid.New().String()
-	calendarEvent2, err := ds.CreateOrUpdateCalendarEvent(ctx, eventUUID2, "foo@example.com", startTime1, endTime1, []byte(`{}`), timeZone,
+	calendarEvent2, err := ds.CreateOrUpdateCalendarEvent(ctx, eventUUID2, "foo@example.com", startTime1, endTime1, []byte(`{}`), &timeZone,
 		host.ID, fleet.CalendarWebhookStatusNone)
 	require.NoError(t, err)
 	require.Greater(t, calendarEvent2.UpdatedAt, calendarEvent.UpdatedAt)
@@ -140,7 +140,7 @@ func testCreateOrUpdateCalendarEvent(t *testing.T, ds *Datastore) {
 	startTime2 := startTime1.Add(1 * time.Hour)
 	endTime2 := startTime1.Add(30 * time.Minute)
 	calendarEvent3, err := ds.CreateOrUpdateCalendarEvent(ctx, eventUUID2, "foo@example.com", startTime2, endTime2,
-		[]byte(`{"foo": "bar"}`), timeZone, host.ID, fleet.CalendarWebhookStatusPending)
+		[]byte(`{"foo": "bar"}`), &timeZone, host.ID, fleet.CalendarWebhookStatusPending)
 	require.NoError(t, err)
 	require.Greater(t, calendarEvent3.UpdatedAt, calendarEvent2.UpdatedAt)
 	require.WithinDuration(t, startTime2, calendarEvent3.StartTime, 1*time.Second)

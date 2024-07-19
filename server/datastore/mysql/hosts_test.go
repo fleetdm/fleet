@@ -9617,7 +9617,7 @@ func testListUpcomingHostMaintenanceWindows(t *testing.T, ds *Datastore) {
 	startTime := time.Now().UTC().Add(30 * time.Minute)
 	endTime := startTime.Add(30 * time.Minute)
 	calendarEvent, err := ds.CreateOrUpdateCalendarEvent(ctx, uuid.New().String(), "foo@example.com", startTime, endTime, []byte(`{}`),
-		timeZone, host.ID, fleet.CalendarWebhookStatusNone)
+		&timeZone, host.ID, fleet.CalendarWebhookStatusNone)
 	require.NoError(t, err)
 	require.Equal(t, *calendarEvent.TimeZone, timeZone)
 

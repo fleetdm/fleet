@@ -8341,7 +8341,7 @@ func (s *integrationTestSuite) TestGetHostMaintenanceWindow() {
 	}
 
 	dsEvent, err := s.ds.CreateOrUpdateCalendarEvent(ctx, testEvent.UUID, testEvent.Email, testEvent.StartTime, testEvent.EndTime,
-		testEvent.Data, *testEvent.TimeZone, host.ID, fleet.CalendarWebhookStatusNone)
+		testEvent.Data, testEvent.TimeZone, host.ID, fleet.CalendarWebhookStatusNone)
 	require.NoError(t, err)
 
 	time.Sleep(1 * time.Second)
@@ -8372,7 +8372,7 @@ func (s *integrationTestSuite) TestGetHostMaintenanceWindow() {
 
 	// update the timezone
 	_, err = s.ds.CreateOrUpdateCalendarEvent(ctx, testEvent.UUID, testEvent.Email, testEvent.StartTime, testEvent.EndTime, testEvent.Data,
-		timeZone, host.ID, fleet.CalendarWebhookStatusNone)
+		&timeZone, host.ID, fleet.CalendarWebhookStatusNone)
 	require.NoError(t, err)
 
 	time.Sleep(1 * time.Second)
