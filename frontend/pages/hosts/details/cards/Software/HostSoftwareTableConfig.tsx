@@ -53,14 +53,14 @@ const generateActions = ({
   isFleetdHost,
   softwareId,
   status,
-  packageToInstall,
+  hasSoftwareToInstall,
 }: {
   canInstall: boolean;
   installingSoftwareId: number | null;
   isFleetdHost: boolean;
   softwareId: number;
   status: SoftwareInstallStatus | null;
-  packageToInstall?: string | null;
+  hasSoftwareToInstall?: boolean;
 }) => {
   // this gives us a clean slate of the default actions so we can modify
   // the options.
@@ -74,7 +74,7 @@ const generateActions = ({
   }
 
   // remove install if there is no package to install
-  if (!packageToInstall || !canInstall) {
+  if (!hasSoftwareToInstall || !canInstall) {
     actions.splice(indexInstallAction, 1);
     return actions;
   }
@@ -188,8 +188,10 @@ export const generateSoftwareTableHeaders = ({
         const {
           id: softwareId,
           status,
-          package_available_for_install: packageToInstall,
+          software_package,
+          app_store_app,
         } = original;
+
         return (
           <DropdownCell
             placeholder="Actions"
@@ -199,7 +201,7 @@ export const generateSoftwareTableHeaders = ({
               installingSoftwareId,
               softwareId,
               status,
-              packageToInstall,
+              hasSoftwareToInstall: !!software_package || !!app_store_app,
             })}
             onChange={(action) => onSelectAction(original, action)}
           />
