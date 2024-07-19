@@ -8334,8 +8334,8 @@ func (s *integrationTestSuite) TestGetHostMaintenanceWindow() {
 		StartTime: startTime,
 		EndTime:   endTime,
 		Data:      []byte(`{}`),
-		TimeZone: nil,
-		UUID:     uuid.New().String(),
+		TimeZone:  nil,
+		UUID:      uuid.New().String(),
 	}
 
 	dsEvent, err := s.ds.CreateOrUpdateCalendarEvent(ctx, testEvent.UUID, testEvent.Email, testEvent.StartTime, testEvent.EndTime,
