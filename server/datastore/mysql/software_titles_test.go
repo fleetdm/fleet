@@ -378,7 +378,7 @@ func testOrderSoftwareTitles(t *testing.T, ds *Datastore) {
 	require.Nil(t, titles[i].AppStoreApp)
 	i++
 	require.Equal(t, "vpp1", titles[i].Name)
-	require.Equal(t, "", titles[i].Source)
+	require.Equal(t, "apps", titles[i].Source)
 	require.Nil(t, titles[i].SoftwarePackage)
 	require.NotNil(t, titles[i].AppStoreApp)
 
@@ -397,7 +397,7 @@ func testOrderSoftwareTitles(t *testing.T, ds *Datastore) {
 	require.Equal(t, "apps", titles[i].Source)
 	i++
 	require.Equal(t, "vpp1", titles[i].Name)
-	require.Equal(t, "", titles[i].Source)
+	require.Equal(t, "apps", titles[i].Source)
 	i++
 	require.Equal(t, "bar", titles[i].Name)
 	require.Equal(t, "apps", titles[i].Source)
@@ -460,7 +460,7 @@ func testOrderSoftwareTitles(t *testing.T, ds *Datastore) {
 	require.Equal(t, "apps", titles[i].Source)
 	i++
 	require.Equal(t, "vpp1", titles[i].Name)
-	require.Equal(t, "", titles[i].Source)
+	require.Equal(t, "apps", titles[i].Source)
 
 	// primary sort is "name DESC", followed by "host_count DESC, source ASC, browser ASC"
 	titles, _, _, err = ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{ListOptions: fleet.ListOptions{
@@ -471,7 +471,7 @@ func testOrderSoftwareTitles(t *testing.T, ds *Datastore) {
 	require.Len(t, titles, 10)
 	i = 0
 	require.Equal(t, "vpp1", titles[i].Name)
-	require.Equal(t, "", titles[i].Source)
+	require.Equal(t, "apps", titles[i].Source)
 	i++
 	require.Equal(t, "installer2", titles[i].Name)
 	require.Equal(t, "apps", titles[i].Source)
@@ -734,7 +734,7 @@ func testTeamFilterSoftwareTitles(t *testing.T, ds *Datastore) {
 	require.Equal(t, "installer2", titles[2].Name)
 	require.Equal(t, "apps", titles[2].Source)
 	require.Equal(t, "vpp2", titles[3].Name)
-	require.Equal(t, "", titles[3].Source)
+	require.Equal(t, "apps", titles[3].Source)
 	require.Equal(t, uint(1), titles[0].VersionsCount)
 	require.Equal(t, uint(1), titles[1].VersionsCount)
 	require.Equal(t, uint(0), titles[2].VersionsCount)
@@ -812,7 +812,7 @@ func testListSoftwareTitlesInstallersOnly(t *testing.T, ds *Datastore) {
 	require.Equal(t, "installer2", titles[1].Name)
 	require.Equal(t, "apps", titles[1].Source)
 	require.Equal(t, "vpp1", titles[2].Name)
-	require.Equal(t, "", titles[2].Source)
+	require.Equal(t, "apps", titles[2].Source)
 	require.True(t, titles[0].CountsUpdatedAt.IsZero())
 	require.True(t, titles[1].CountsUpdatedAt.IsZero())
 	require.True(t, titles[2].CountsUpdatedAt.IsZero())

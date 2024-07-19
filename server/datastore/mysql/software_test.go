@@ -3674,14 +3674,16 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 	vpp1TmCmdUUID := createVPPAppInstallRequest(t, ds, tmHost, vpp1, user.ID)
 	require.NotEmpty(t, vpp1TmCmdUUID)
 
-	expected["vpp1"] = fleet.HostSoftwareWithInstaller{
+	expected["vpp1apps"] = fleet.HostSoftwareWithInstaller{
 		Name:        "vpp1",
+		Source:      "apps",
 		Status:      expectStatus(fleet.SoftwareInstallerInstalled),
 		LastInstall: &fleet.HostSoftwareInstall{InstallUUID: vpp1CmdUUID},
 		AppStoreApp: &fleet.SoftwarePackageOrApp{AppStoreID: vpp1},
 	}
-	expected["vpp2"] = fleet.HostSoftwareWithInstaller{
+	expected["vpp2apps"] = fleet.HostSoftwareWithInstaller{
 		Name:        "vpp2",
+		Source:      "apps",
 		Status:      expectStatus(fleet.SoftwareInstallerPending),
 		LastInstall: &fleet.HostSoftwareInstall{InstallUUID: vpp2bCmdUUID},
 		AppStoreApp: &fleet.SoftwarePackageOrApp{AppStoreID: vpp2},
@@ -3694,8 +3696,9 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 	require.Equal(t, &fleet.PaginationMetadata{TotalResults: 9}, meta)
 	compareResults(expected, sw, true, i3.Name+i3.Source, i2.Name+i2.Source) // i3 is for team, i2 is available (excluded)
 
-	expected["vpp3"] = fleet.HostSoftwareWithInstaller{
+	expected["vpp3apps"] = fleet.HostSoftwareWithInstaller{
 		Name:        "vpp3",
+		Source:      "apps",
 		Status:      nil,
 		LastInstall: nil,
 		AppStoreApp: &fleet.SoftwarePackageOrApp{AppStoreID: vpp3},
@@ -3714,8 +3717,9 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 	require.Equal(t, &fleet.PaginationMetadata{TotalResults: 2}, meta)
 	compareResults(map[string]fleet.HostSoftwareWithInstaller{
 		i3.Name + i3.Source: expected[i3.Name+i3.Source],
-		"vpp1": {
+		"vpp1apps": {
 			Name:        "vpp1",
+			Source:      "apps",
 			Status:      expectStatus(fleet.SoftwareInstallerPending),
 			LastInstall: &fleet.HostSoftwareInstall{InstallUUID: vpp1TmCmdUUID},
 			AppStoreApp: &fleet.SoftwarePackageOrApp{AppStoreID: vpp1},
