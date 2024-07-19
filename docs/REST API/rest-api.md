@@ -4328,11 +4328,11 @@ OS vulnerability data is currently available for Windows and macOS. For other pl
       "software_package": {
         "name": "FalconSensor-6.44.pkg"
         "self_service": false,
+        "last_install": null
       },
       "app_store_app": null    
       "source": "",
       "status": null,
-      "last_install": null,
       "installed_versions": [],
     },
     {
@@ -4341,10 +4341,14 @@ OS vulnerability data is currently available for Windows and macOS. For other pl
       "software_package": null
       "app_store_app": {
         "app_store_id": "1091189122"
+        "version": "2.04",
+        "last_install": {
+          "command_uuid": "0aa14ae5-58fe-491a-ac9a-e4ee2b3aac40",
+          "installed_at": "2024-05-15T15:23:57Z"
+        },
       },
       "source": "apps",
-      "status": null,
-      "last_install": null,
+      "status": "installed",
       "installed_versions": [
         {
           "version": "118.0",
