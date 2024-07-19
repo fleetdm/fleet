@@ -339,18 +339,18 @@ func testVPPApps(t *testing.T, ds *Datastore) {
 	// Insert some VPP apps for the team, "vpp_app_1" should match the existing "foo" title
 	app1 := &fleet.VPPApp{Name: "vpp_app_1", AdamID: "1", BundleIdentifier: "b1"}
 	app2 := &fleet.VPPApp{Name: "vpp_app_2", AdamID: "2", BundleIdentifier: "b2"}
-	err = ds.InsertVPPAppWithTeam(ctx, app1, &team.ID)
+	_, err = ds.InsertVPPAppWithTeam(ctx, app1, &team.ID)
 	require.NoError(t, err)
 
-	err = ds.InsertVPPAppWithTeam(ctx, app2, &team.ID)
+	_, err = ds.InsertVPPAppWithTeam(ctx, app2, &team.ID)
 	require.NoError(t, err)
 
 	// Insert some VPP apps for no team
 	appNoTeam1 := &fleet.VPPApp{Name: "vpp_no_team_app_1", AdamID: "3", BundleIdentifier: "b3"}
 	appNoTeam2 := &fleet.VPPApp{Name: "vpp_no_team_app_2", AdamID: "4", BundleIdentifier: "b4"}
-	err = ds.InsertVPPAppWithTeam(ctx, appNoTeam1, nil)
+	_, err = ds.InsertVPPAppWithTeam(ctx, appNoTeam1, nil)
 	require.NoError(t, err)
-	err = ds.InsertVPPAppWithTeam(ctx, appNoTeam2, nil)
+	_, err = ds.InsertVPPAppWithTeam(ctx, appNoTeam2, nil)
 	require.NoError(t, err)
 
 	// Check that host_vpp_software_installs works
@@ -414,54 +414,12 @@ func testGetVPPAppByTeamAndTitleID(t *testing.T, ds *Datastore) {
 	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "team 2"})
 	require.NoError(t, err)
 
-	// TODO(roberto): replace with actual datastore method(s) once we have them
-	createVPPApp := func(adamID string, teamID *uint) uint {
-		var titleID int64
-		ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
-			res, err := tx.ExecContext(
-				ctx,
-				"INSERT INTO software_titles (name, source, browser) VALUES (?, ?, ?)",
-				uuid.NewString(), uuid.NewString(), "",
-			)
-			if err != nil {
-				return err
-			}
-
-			titleID, _ = res.LastInsertId()
-			return nil
-		})
-
-		ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
-			_, err = tx.ExecContext(
-				ctx,
-				"INSERT INTO vpp_apps (adam_id, title_id) VALUES (?, ?)",
-				adamID,
-				titleID,
-			)
-			return err
-		})
-
-		ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
-			var tmID uint
-			if teamID != nil {
-				tmID = *teamID
-			}
-			_, err = tx.ExecContext(
-				ctx,
-				"INSERT INTO vpp_apps_teams (adam_id, team_id, global_or_team_id) VALUES (?, ?, ?)",
-				adamID,
-				teamID,
-				tmID,
-			)
-			return err
-		})
-
-		return uint(titleID)
-	}
-
 	var nfe fleet.NotFoundError
 
-	fooTitleID := createVPPApp("foo", &team.ID)
+	fooApp, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{AdamID: "foo", BundleIdentifier: "b1", Name: "Foo"}, &team.ID)
+	require.NoError(t, err)
+
+	fooTitleID := fooApp.TitleID
 	gotVPPApp, err := ds.GetVPPAppByTeamAndTitleID(ctx, &team.ID, fooTitleID, true)
 	require.NoError(t, err)
 	require.Equal(t, "foo", gotVPPApp.AdamID)
@@ -471,7 +429,9 @@ func testGetVPPAppByTeamAndTitleID(t *testing.T, ds *Datastore) {
 	require.ErrorAs(t, err, &nfe)
 
 	// create an entry for the global team
-	barTitleID := createVPPApp("bar", nil)
+	barApp, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{AdamID: "bar", BundleIdentifier: "b2", Name: "Bar"}, nil)
+	require.NoError(t, err)
+	barTitleID := barApp.TitleID
 	// not found providing the team id
 	gotVPPApp, err = ds.GetVPPAppByTeamAndTitleID(ctx, &team.ID, barTitleID, true)
 	require.ErrorAs(t, err, &nfe)

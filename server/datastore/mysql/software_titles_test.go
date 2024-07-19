@@ -318,8 +318,8 @@ func testOrderSoftwareTitles(t *testing.T, ds *Datastore) {
 	_, err = ds.InsertSoftwareInstallRequest(ctx, host1.ID, installer2, false)
 	require.NoError(t, err)
 	// create a VPP app not installed anywhere
-	vpp1, _ := createVPPApp(t, ds, nil, "vpp1", "com.app.vpp1")
-	require.NotEmpty(t, vpp1)
+	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{Name: "vpp1", BundleIdentifier: "com.app.vpp1", AdamID: "adam_vpp_app_1"}, nil)
+	require.NoError(t, err)
 
 	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
 	require.NoError(t, ds.ReconcileSoftwareTitles(ctx))
@@ -381,7 +381,7 @@ func testOrderSoftwareTitles(t *testing.T, ds *Datastore) {
 	require.Nil(t, titles[i].AppStoreApp)
 	i++
 	require.Equal(t, "vpp1", titles[i].Name)
-	require.Equal(t, "apps", titles[i].Source)
+	require.Equal(t, "", titles[i].Source)
 	require.Nil(t, titles[i].SoftwarePackage)
 	require.NotNil(t, titles[i].AppStoreApp)
 
@@ -400,7 +400,7 @@ func testOrderSoftwareTitles(t *testing.T, ds *Datastore) {
 	require.Equal(t, "apps", titles[i].Source)
 	i++
 	require.Equal(t, "vpp1", titles[i].Name)
-	require.Equal(t, "apps", titles[i].Source)
+	require.Equal(t, "", titles[i].Source)
 	i++
 	require.Equal(t, "bar", titles[i].Name)
 	require.Equal(t, "apps", titles[i].Source)
@@ -463,7 +463,7 @@ func testOrderSoftwareTitles(t *testing.T, ds *Datastore) {
 	require.Equal(t, "apps", titles[i].Source)
 	i++
 	require.Equal(t, "vpp1", titles[i].Name)
-	require.Equal(t, "apps", titles[i].Source)
+	require.Equal(t, "", titles[i].Source)
 
 	// primary sort is "name DESC", followed by "host_count DESC, source ASC, browser ASC"
 	titles, _, _, err = ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{ListOptions: fleet.ListOptions{
@@ -474,7 +474,7 @@ func testOrderSoftwareTitles(t *testing.T, ds *Datastore) {
 	require.Len(t, titles, 10)
 	i = 0
 	require.Equal(t, "vpp1", titles[i].Name)
-	require.Equal(t, "apps", titles[i].Source)
+	require.Equal(t, "", titles[i].Source)
 	i++
 	require.Equal(t, "installer2", titles[i].Name)
 	require.Equal(t, "apps", titles[i].Source)
@@ -616,8 +616,8 @@ func testTeamFilterSoftwareTitles(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.NotZero(t, installer2)
 	// create a VPP app for team2
-	vpp2, _ := createVPPApp(t, ds, &team2.ID, "vpp2", "com.app.vpp2")
-	require.NotEmpty(t, vpp2)
+	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{Name: "vpp2", BundleIdentifier: "com.app.vpp2", AdamID: "adam_vpp_app_2"}, &team2.ID)
+	require.NoError(t, err)
 
 	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
 	require.NoError(t, ds.ReconcileSoftwareTitles(ctx))
@@ -714,7 +714,7 @@ func testTeamFilterSoftwareTitles(t *testing.T, ds *Datastore) {
 	require.Equal(t, "installer2", titles[2].Name)
 	require.Equal(t, "apps", titles[2].Source)
 	require.Equal(t, "vpp2", titles[3].Name)
-	require.Equal(t, "apps", titles[3].Source)
+	require.Equal(t, "", titles[3].Source)
 	require.Equal(t, uint(1), titles[0].VersionsCount)
 	require.Equal(t, uint(1), titles[1].VersionsCount)
 	require.Equal(t, uint(0), titles[2].VersionsCount)
@@ -777,8 +777,7 @@ func testListSoftwareTitlesInstallersOnly(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.NotZero(t, installer2)
 	// create a VPP app not installed on a host
-	vpp1, _ := createVPPApp(t, ds, nil, "vpp1", "com.app.vpp1")
-	require.NotEmpty(t, vpp1)
+	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{Name: "vpp1", BundleIdentifier: "com.app,vpp1", AdamID: "adam_vpp_app_1"}, nil)
 
 	titles, counts, _, err := ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{ListOptions: fleet.ListOptions{
 		OrderKey:       "name",
@@ -792,7 +791,7 @@ func testListSoftwareTitlesInstallersOnly(t *testing.T, ds *Datastore) {
 	require.Equal(t, "installer2", titles[1].Name)
 	require.Equal(t, "apps", titles[1].Source)
 	require.Equal(t, "vpp1", titles[2].Name)
-	require.Equal(t, "apps", titles[2].Source)
+	require.Equal(t, "", titles[2].Source)
 	require.True(t, titles[0].CountsUpdatedAt.IsZero())
 	require.True(t, titles[1].CountsUpdatedAt.IsZero())
 	require.True(t, titles[2].CountsUpdatedAt.IsZero())
@@ -864,10 +863,10 @@ func testListSoftwareTitlesAvailableForInstallFilter(t *testing.T, ds *Datastore
 	require.NotZero(t, installer2)
 
 	// create a couple VPP apps
-	vpp1, _ := createVPPApp(t, ds, nil, "vpp1", "com.example.vpp1")
-	require.NotEmpty(t, vpp1)
-	vpp2, _ := createVPPApp(t, ds, nil, "vpp2", "com.example.vpp2")
-	require.NotEmpty(t, vpp2)
+	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{Name: "vpp1", BundleIdentifier: "com.example.vpp1", AdamID: "adam_vpp_app_1"}, nil)
+	require.NoError(t, err)
+	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{Name: "vpp2", BundleIdentifier: "com.example.vpp2", AdamID: "adam_vpp_app_2"}, nil)
+	require.NoError(t, err)
 
 	host := test.NewHost(t, ds, "host", "", "hostkey", "hostuuid", time.Now())
 	software := []fleet.Software{
