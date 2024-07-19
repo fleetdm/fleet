@@ -14,6 +14,7 @@ import DataSet from "components/DataSet";
 import { dateAgo } from "utilities/date_format";
 
 import { SoftwareInstallDetails } from "components/ActivityDetails/InstallDetails/SoftwareInstallDetails";
+import TooltipTruncatedText from "components/TooltipTruncatedText";
 
 const baseClass = "software-details-modal";
 
@@ -67,7 +68,7 @@ const SoftwareDetailsInfo = ({
             value={
               <div className={`${baseClass}__file-path-values`}>
                 {installed_paths.map((path) => (
-                  <span key={path}>{path}</span>
+                  <TooltipTruncatedText value={path} />
                 ))}
               </div>
             }

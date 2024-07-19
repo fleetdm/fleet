@@ -14,11 +14,14 @@ import (
 
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
+	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm/apple/vpp"
 	"github.com/go-kit/log/level"
+	"github.com/google/uuid"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -121,7 +124,7 @@ func (svc *Service) deleteVPPApp(ctx context.Context, teamID *uint, meta *fleet.
 	if teamID != nil {
 		t, err := svc.ds.Team(ctx, *teamID)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "getting team name for deleted vpp app")
+			return ctxerr.Wrap(ctx, err, "getting team name for deleted VPP app")
 		}
 		teamName = &t.Name
 	}
@@ -132,7 +135,7 @@ func (svc *Service) deleteVPPApp(ctx context.Context, teamID *uint, meta *fleet.
 		TeamName:      teamName,
 		TeamID:        teamID,
 	}); err != nil {
-		return ctxerr.Wrap(ctx, err, "creating activity for deleted vpp app")
+		return ctxerr.Wrap(ctx, err, "creating activity for deleted VPP app")
 	}
 
 	return nil
@@ -262,7 +265,6 @@ func (svc *Service) InstallSoftwareTitle(ctx context.Context, hostID uint, softw
 		// fleetd is required to install software so if the host is
 		// enrolled via plain osquery we return an error
 		svc.authz.SkipAuthorization(ctx)
-		// TODO(roberto): for cleanup task, confirm with product error message.
 		return fleet.NewUserMessageError(errors.New("Host doesn't have fleetd installed"), http.StatusUnprocessableEntity)
 	}
 
@@ -273,19 +275,150 @@ func (svc *Service) InstallSoftwareTitle(ctx context.Context, hostID uint, softw
 
 	installer, err := svc.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, host.TeamID, softwareTitleID, false)
 	if err != nil {
+		if !fleet.IsNotFound(err) {
+			return ctxerr.Wrap(ctx, err, "finding software installer for title")
+		}
+		installer = nil
+	}
+
+	// if we found an installer, use that
+	if installer != nil {
+		return svc.installSoftwareTitleUsingInstaller(ctx, host, installer)
+	}
+
+	vppApp, err := svc.ds.GetVPPAppByTeamAndTitleID(ctx, host.TeamID, softwareTitleID, false)
+	if err != nil {
+		// if we couldn't find an installer or a VPP app, return a bad
+		// request error
 		if fleet.IsNotFound(err) {
 			return &fleet.BadRequestError{
-				Message: "Software title has no package added. Please add software package to install.",
+				Message: "Software title has no package or VPP app added. Please add software package or VPP app to install.",
 				InternalErr: ctxerr.WrapWithData(
-					ctx, err, "couldn't find an installer for software title",
+					ctx, err, "couldn't find an installer or VPP app for software title",
 					map[string]any{"host_id": host.ID, "team_id": host.TeamID, "title_id": softwareTitleID},
 				),
 			}
 		}
 
-		return ctxerr.Wrap(ctx, err, "finding software installer for title")
+		return ctxerr.Wrap(ctx, err, "finding VPP app for title")
 	}
 
+	return svc.installSoftwareFromVPP(ctx, host, vppApp)
+}
+
+func (svc *Service) installSoftwareFromVPP(ctx context.Context, host *fleet.Host, vppApp *fleet.VPPApp) error {
+	if host.FleetPlatform() != "darwin" {
+		return &fleet.BadRequestError{
+			Message: "VPP apps can only be installed only on macOS hosts.",
+			InternalErr: ctxerr.NewWithData(
+				ctx, "invalid host platform for requested installer",
+				map[string]any{"host_id": host.ID, "team_id": host.TeamID, "title_id": vppApp.TitleID},
+			),
+		}
+	}
+
+	mdmConnected, err := svc.ds.IsHostConnectedToFleetMDM(ctx, host)
+	if err != nil {
+		return ctxerr.Wrapf(ctx, err, "checking MDM status for host %d", host.ID)
+	}
+
+	if !mdmConnected {
+		return &fleet.BadRequestError{
+			Message: "VPP apps can only be installed only on hosts enrolled in MDM.",
+			InternalErr: ctxerr.NewWithData(
+				ctx, "VPP install attempted on non-MDM host",
+				map[string]any{"host_id": host.ID, "team_id": host.TeamID, "title_id": vppApp.TitleID},
+			),
+		}
+	}
+
+	token, err := svc.getVPPToken(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting VPP token")
+	}
+
+	// at this moment, neither the UI or the back-end are prepared to
+	// handle [asyncronous errors][1] on assignment, so before assigning a
+	// device to a license, we need to:
+	//
+	// 1. Check if the app is already assigned to the serial number.
+	// 2. If it's not assigned yet, check if we have enough licenses.
+	//
+	// A race still might happen, so async error checking needs to be
+	// implemented anyways at some point.
+	//
+	// [1]: https://developer.apple.com/documentation/devicemanagement/app_and_book_management/handling_error_responses#3729433
+	assignments, err := vpp.GetAssignments(token, &vpp.AssignmentFilter{AdamID: vppApp.AdamID, SerialNumber: host.HardwareSerial})
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting assignments from VPP API")
+	}
+
+	var eventID string
+
+	// this app is not assigned to this device, check if we have licenses
+	// left and assign it.
+	if len(assignments) == 0 {
+		assets, err := vpp.GetAssets(token, &vpp.AssetFilter{AdamID: vppApp.AdamID})
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "getting assets from VPP API")
+		}
+
+		if len(assets) == 0 {
+			level.Debug(svc.logger).Log(
+				"msg", "trying to assign VPP asset to host",
+				"adam_id", vppApp.AdamID,
+				"host_serial", host.HardwareSerial,
+			)
+			return &fleet.BadRequestError{
+				Message:     "Couldn't add software. <app_store_id> isn't available in Apple Business Manager. Please purchase license in Apple Business Manager and try again.",
+				InternalErr: ctxerr.Errorf(ctx, "VPP API didn't return any assets for adamID %s", vppApp.AdamID),
+			}
+		}
+
+		if len(assets) > 1 {
+			return ctxerr.Errorf(ctx, "VPP API returned more than one asset for adamID %s", vppApp.AdamID)
+		}
+
+		if assets[0].AvailableCount <= 0 {
+			return &fleet.BadRequestError{
+				Message: "Couldn't install. No available licenses. Please purchase license in Apple Business Manager and try again.",
+				InternalErr: ctxerr.NewWithData(
+					ctx, "license available count <= 0",
+					map[string]any{
+						"host_id": host.ID,
+						"team_id": host.TeamID,
+						"adam_id": vppApp.AdamID,
+						"count":   assets[0].AvailableCount,
+					},
+				),
+			}
+		}
+
+		eventID, err = vpp.AssociateAssets(token, &vpp.AssociateAssetsRequest{Assets: assets, SerialNumbers: []string{host.HardwareSerial}})
+		if err != nil {
+			return ctxerr.Wrapf(ctx, err, "associating asset with adamID %s to host %s", vppApp.AdamID, host.HardwareSerial)
+		}
+
+	}
+
+	user := authz.UserFromContext(ctx)
+
+	// add command to install
+	cmdUUID := uuid.NewString()
+	err = svc.mdmAppleCommander.InstallApplication(ctx, []string{host.UUID}, cmdUUID, vppApp.AdamID)
+	if err != nil {
+		return ctxerr.Wrapf(ctx, err, "sending command to install VPP %s application to host with serial %s", vppApp.AdamID, host.HardwareSerial)
+	}
+
+	err = svc.ds.InsertHostVPPSoftwareInstall(ctx, host.ID, user.ID, vppApp.AdamID, cmdUUID, eventID)
+	if err != nil {
+		return ctxerr.Wrapf(ctx, err, "inserting host vpp software install for host with serial %s and app with adamID %s", host.HardwareSerial, vppApp.AdamID)
+	}
+
+	return nil
+}
+
+func (svc *Service) installSoftwareTitleUsingInstaller(ctx context.Context, host *fleet.Host, installer *fleet.SoftwareInstaller) error {
 	ext := filepath.Ext(installer.Name)
 	requiredPlatform := packageExtensionToPlatform(ext)
 	if requiredPlatform == "" {
@@ -296,14 +429,14 @@ func (svc *Service) InstallSoftwareTitle(ctx context.Context, hostID uint, softw
 	if host.FleetPlatform() != requiredPlatform {
 		return &fleet.BadRequestError{
 			Message: fmt.Sprintf("Package (%s) can be installed only on %s hosts.", ext, requiredPlatform),
-			InternalErr: ctxerr.WrapWithData(
-				ctx, err, "invalid host platform for requested installer",
-				map[string]any{"host_id": host.ID, "team_id": host.TeamID, "title_id": softwareTitleID},
+			InternalErr: ctxerr.NewWithData(
+				ctx, "invalid host platform for requested installer",
+				map[string]any{"host_id": host.ID, "team_id": host.TeamID, "title_id": installer.TitleID},
 			),
 		}
 	}
 
-	_, err = svc.ds.InsertSoftwareInstallRequest(ctx, hostID, installer.InstallerID, false)
+	_, err := svc.ds.InsertSoftwareInstallRequest(ctx, host.ID, installer.InstallerID, false)
 	return ctxerr.Wrap(ctx, err, "inserting software install request")
 }
 

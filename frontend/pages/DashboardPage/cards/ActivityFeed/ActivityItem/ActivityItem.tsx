@@ -833,7 +833,7 @@ const TAGGED_TEMPLATES = {
       <>
         {" "}
         added <b>{activity.details?.software_title}</b> (
-        {activity.details?.software_package}) software to{" "}
+        {activity.details?.software_package}) to{" "}
         {activity.details?.team_name ? (
           <>
             {" "}
@@ -850,7 +850,7 @@ const TAGGED_TEMPLATES = {
       <>
         {" "}
         deleted <b>{activity.details?.software_title}</b> (
-        {activity.details?.software_package}) software from{" "}
+        {activity.details?.software_package}) from{" "}
         {activity.details?.team_name ? (
           <>
             {" "}

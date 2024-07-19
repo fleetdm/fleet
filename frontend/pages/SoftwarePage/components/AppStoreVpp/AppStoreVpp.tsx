@@ -130,7 +130,13 @@ const AppStoreVpp = ({ teamId, router, onExit }: IAppStoreVppProps) => {
       });
       router.push(`${PATHS.SOFTWARE}?${queryParams}`);
     } catch (e) {
-      renderFlash("error", getErrorReason(e));
+      const reason = getErrorReason(e);
+      // TODO: update with pre-defined error messages we want to pass through from the API
+      if (reason.toLowerCase().includes("already")) {
+        renderFlash("error", reason);
+      } else {
+        renderFlash("error", "Couldn’t add software. Please try again.");
+      }
     }
     onExit();
   };

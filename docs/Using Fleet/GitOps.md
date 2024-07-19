@@ -31,7 +31,7 @@ team_settings: # Only teams/team-name.yml
 
 - [policies](#policies)
 - [queries](#queries)
-- [agent_options](#agent_options)
+- [agent_options](#agent-options)
 - [controls](#controls)
 - [org_settings and team_settings](#org-settings-and-team-settings)
 
@@ -366,6 +366,7 @@ org_settings:
 - `enable_analytics` specifies whether or not to enable Fleet's [usage statistics](https://fleetdm.com/docs/using-fleet/usage-statistics) (default: `true`).
 - `live_query_disabled` disables the ability to run live queries (ad hoc queries executed via the UI or fleetctl) (default: `false`).
 - `query_reports_disabled` disables query reports and deletes existing repors (default: `false`).
+- `query_report_cap` sets the maximum number of results to store per query report before the report is clipped. If increasing this cap, we recommend enabling reports for one query at time and monitoring your infrastructure. (Default: `1000`)
 - `scripts_disabled` blocks access to run scripts. Scripts may still be added in the UI and CLI (defaul: `false`).
 - `server_url` is the base URL of the Fleet instance (default: provided during Fleet setup)
 

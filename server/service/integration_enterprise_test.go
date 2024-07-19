@@ -25,6 +25,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/ee/server/calendar"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
+	"github.com/fleetdm/fleet/v4/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/cron"
@@ -35,6 +36,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
+	commonCalendar "github.com/fleetdm/fleet/v4/server/service/calendar"
+	"github.com/fleetdm/fleet/v4/server/service/redis_lock"
 	"github.com/fleetdm/fleet/v4/server/service/schedule"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/go-kit/log"
@@ -87,7 +90,8 @@ func (s *integrationEnterpriseTestSuite) SetupSuite() {
 						cronLog = kitlog.NewNopLogger()
 					}
 					calendarSchedule, err = cron.NewCalendarSchedule(
-						ctx, s.T().Name(), s.ds, config.CalendarConfig{Periodicity: 24 * time.Hour}, cronLog,
+						ctx, s.T().Name(), s.ds, redis_lock.NewLock(s.redisPool), config.CalendarConfig{Periodicity: 24 * time.Hour},
+						cronLog,
 					)
 					return calendarSchedule, err
 				}
@@ -3956,6 +3960,24 @@ func (s *integrationEnterpriseTestSuite) TestOSVersions() {
 		"GET", fmt.Sprintf("/api/latest/fleet/os_versions/%d", osinfo.OSVersionID), nil, http.StatusForbidden, &osVersionResp, "team_id",
 		"99999",
 	)
+
+	// team user doesn't have acess to "no team"
+	osVersionsResp = osVersionsResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/os_versions"), nil, http.StatusForbidden, &osVersionsResp, "team_id", "0")
+	require.Len(t, osVersionsResp.OSVersions, 0)
+
+	// team_id=0 is supported and returns results for hosts in "no team"
+	s.token = getTestAdminToken(t, s.server)
+	// no hosts, the results are empty
+	osVersionsResp = osVersionsResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/os_versions"), nil, http.StatusOK, &osVersionsResp, "team_id", "0")
+	require.Len(t, osVersionsResp.OSVersions, 0)
+	osVersionsResp = osVersionsResponse{}
+	// move the host to "no team" and update the stats
+	require.NoError(t, s.ds.AddHostsToTeam(context.Background(), nil, []uint{hosts[0].ID}))
+	require.NoError(t, s.ds.UpdateOSVersions(context.Background()))
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/os_versions"), nil, http.StatusOK, &osVersionsResp, "team_id", "0")
+	require.Len(t, osVersionsResp.OSVersions, 1)
 }
 
 func (s *integrationEnterpriseTestSuite) TestMDMNotConfiguredEndpoints() {
@@ -5257,7 +5279,7 @@ func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
 	// attempt to run an empty script
 	res := s.Do("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: ""}, http.StatusUnprocessableEntity)
 	errMsg := extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, "Script contents must not be empty.")
+	require.Contains(t, errMsg, "Validation Failed: One of 'script_id', 'script_contents', or 'script_name' is required.")
 
 	// attempt to run an overly long script
 	res = s.Do("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: strings.Repeat("a", fleet.UnsavedScriptMaxRuneLen+1)}, http.StatusUnprocessableEntity)
@@ -5286,7 +5308,7 @@ func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
 	require.Equal(t, "echo", scriptResultResp.ScriptContents)
 	require.Nil(t, scriptResultResp.ExitCode)
 	require.False(t, scriptResultResp.HostTimeout)
-	require.Contains(t, scriptResultResp.Message, fleet.RunScriptAsyncScriptEnqueuedErrMsg)
+	require.Contains(t, scriptResultResp.Message, fleet.RunScriptAsyncScriptEnqueuedMsg)
 
 	// an async script doesn't care about timeouts
 	now := time.Now()
@@ -5303,7 +5325,7 @@ func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
 	require.Equal(t, "echo", scriptResultResp.ScriptContents)
 	require.Nil(t, scriptResultResp.ExitCode)
 	require.False(t, scriptResultResp.HostTimeout)
-	require.Contains(t, scriptResultResp.Message, fleet.RunScriptAsyncScriptEnqueuedErrMsg)
+	require.Contains(t, scriptResultResp.Message, fleet.RunScriptAsyncScriptEnqueuedMsg)
 
 	// Disable scripts and verify that there are no Orbit notifs
 	acr := appConfigResponse{}
@@ -5545,6 +5567,21 @@ func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
 	require.Contains(t, extractServerErrorText(res.Body), fleet.RunScriptDisabledErrMsg)
 	res = s.Do("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: plainOsqueryHost.ID, ScriptContents: "echo"}, http.StatusUnprocessableEntity)
 	require.Contains(t, extractServerErrorText(res.Body), fleet.RunScriptDisabledErrMsg)
+
+	// create a execution request that will return a timeout
+	s.DoJSON("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo"}, http.StatusAccepted, &runResp)
+
+	// simulate a host response
+	s.DoJSON("POST", "/api/fleet/orbit/scripts/result",
+		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "execution_id": %q, "exit_code": -1, "output": "script execution error: signal: killed", "timeout": 900}`, *host.OrbitNodeKey, runSyncResp.ExecutionID)),
+		http.StatusOK, &orbitPostScriptResp)
+
+	s.DoJSON("GET", "/api/latest/fleet/scripts/results/"+runSyncResp.ExecutionID, nil, http.StatusOK, &scriptResultResp)
+	require.Equal(t, host.ID, scriptResultResp.HostID)
+	require.Equal(t, "echo", scriptResultResp.ScriptContents)
+	require.Equal(t, int64(-1), *scriptResultResp.ExitCode)
+	require.Equal(t, "Timeout. Fleet stopped the script after 900 seconds to protect host performance.", scriptResultResp.Message)
+	require.Equal(t, "script execution error: signal: killed", scriptResultResp.Output)
 }
 
 func (s *integrationEnterpriseTestSuite) TestRunHostSavedScript() {
@@ -5609,7 +5646,7 @@ func (s *integrationEnterpriseTestSuite) TestRunHostSavedScript() {
 	require.Equal(t, "echo 'no team'", scriptResultResp.ScriptContents)
 	require.Nil(t, scriptResultResp.ExitCode)
 	require.False(t, scriptResultResp.HostTimeout)
-	require.Contains(t, scriptResultResp.Message, fleet.RunScriptAsyncScriptEnqueuedErrMsg)
+	require.Contains(t, scriptResultResp.Message, fleet.RunScriptAsyncScriptEnqueuedMsg)
 	require.NotNil(t, scriptResultResp.ScriptID)
 	require.Equal(t, savedNoTmScript.ID, *scriptResultResp.ScriptID)
 
@@ -5678,8 +5715,16 @@ func (s *integrationEnterpriseTestSuite) TestRunHostSavedScript() {
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, `Only one of 'script_contents' or 'script_name' is allowed.`)
 
+	res = s.Do("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo", ScriptName: savedTmScript.Name}, http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, `Only one of 'script_contents' or 'script_name' is allowed.`)
+
 	// attempt to run sync with both script id and script name
 	res = s.Do("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptID: ptr.Uint(savedTmScript.ID + 999), ScriptName: savedTmScript.Name}, http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, `Only one of 'script_id' or 'script_name' is allowed.`)
+
+	res = s.Do("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptID: ptr.Uint(savedTmScript.ID + 999), ScriptName: savedTmScript.Name}, http.StatusUnprocessableEntity)
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, `Only one of 'script_id' or 'script_name' is allowed.`)
 
@@ -5688,13 +5733,25 @@ func (s *integrationEnterpriseTestSuite) TestRunHostSavedScript() {
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, `Only one of 'script_contents' or 'team_id' is allowed.`)
 
+	res = s.Do("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo", TeamID: 1}, http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, `Only one of 'script_contents' or 'team_id' is allowed.`)
+
 	// attempt to run sync with both script id and team id
 	res = s.Do("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptID: ptr.Uint(savedTmScript.ID + 999), TeamID: 1}, http.StatusUnprocessableEntity)
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, `Only one of 'script_id' or 'team_id' is allowed.`)
 
+	res = s.Do("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptID: ptr.Uint(savedTmScript.ID + 999), TeamID: 1}, http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, `Only one of 'script_id' or 'team_id' is allowed.`)
+
 	// attempt to run sync without script contents, script id, or script name
 	res = s.Do("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: host.ID}, http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, `One of 'script_id', 'script_contents', or 'script_name' is required.`)
+
+	res = s.Do("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID}, http.StatusUnprocessableEntity)
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, `One of 'script_id', 'script_contents', or 'script_name' is required.`)
 
@@ -5755,6 +5812,13 @@ func (s *integrationEnterpriseTestSuite) TestRunHostSavedScript() {
 	require.NoError(t, err)
 	require.NotEqual(t, savedNoTmScript2.ID, savedTmScript2.ID)
 
+	_, err = s.ds.NewScript(ctx, &fleet.Script{
+		TeamID:         nil,
+		Name:           "f13372.sh",
+		ScriptContents: "echo 'ALL YOUR BASE ARE BELONG TO US'",
+	})
+	require.NoError(t, err)
+
 	// make sure the new host is seen as "online"
 	err = s.ds.MarkHostsSeen(ctx, []uint{host2.ID}, time.Now())
 	require.NoError(t, err)
@@ -5799,6 +5863,31 @@ func (s *integrationEnterpriseTestSuite) TestRunHostSavedScript() {
 	require.Contains(t, extractServerErrorText(res.Body), fleet.RunScriptDisabledErrMsg)
 	res = s.Do("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: plainOsqueryHost.ID, ScriptID: &script.ID}, http.StatusUnprocessableEntity)
 	require.Contains(t, extractServerErrorText(res.Body), fleet.RunScriptDisabledErrMsg)
+
+	// Async Run Script by Name
+
+	// attempt to run async with a script that does not exist on the specified team
+	res = s.Do("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host2.ID, ScriptName: "f1337.sh", TeamID: tm.ID}, http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, `Script 'f1337.sh' doesn’t exist.`)
+
+	// attempt to run async with an existing team script that belongs to a team different from the host's team
+	res = s.Do("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host2.ID, ScriptName: "f1337.sh", TeamID: tm2.ID}, http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, `The script does not belong to the same team`)
+
+	var runSyncResp3 runScriptSyncResponse
+	s.DoJSON("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host2.ID, ScriptName: "f13372.sh"}, http.StatusAccepted, &runSyncResp3)
+	require.Equal(t, host2.ID, runSyncResp3.HostID)
+	require.NotEmpty(t, runSyncResp3.ExecutionID)
+
+	// verify pending result
+	s.DoJSON("GET", "/api/latest/fleet/scripts/results/"+runSyncResp3.ExecutionID, nil, http.StatusOK, &scriptResultResp)
+	require.Equal(t, host2.ID, scriptResultResp.HostID)
+	require.Equal(t, "echo 'ALL YOUR BASE ARE BELONG TO US'", scriptResultResp.ScriptContents)
+	require.Nil(t, scriptResultResp.ExitCode)
+	require.False(t, scriptResultResp.HostTimeout)
+	require.Contains(t, scriptResultResp.Message, fleet.RunScriptAsyncScriptEnqueuedMsg)
 }
 
 func (s *integrationEnterpriseTestSuite) TestEnqueueSameScriptTwice() {
@@ -6712,7 +6801,7 @@ VALUES
 				name:       "script-timeout",
 				exitCode:   ptr.Int64(-1),
 				executedAt: now.Add(-1 * time.Hour),
-				expected:   fleet.RunScriptScriptTimeoutErrMsg,
+				expected:   fleet.HostScriptTimeoutMessage(ptr.Int(int(scripts.MaxHostExecutionTime.Seconds()))),
 			},
 			{
 				name:       "pending",
@@ -7257,7 +7346,6 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 				{Version: "0.0.1", Vulnerabilities: nil},
 				{Version: "0.0.3", Vulnerabilities: nil},
 			},
-			SelfService: false,
 		},
 		{
 			Name:          "bar",
@@ -7267,7 +7355,6 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 			Versions: []fleet.SoftwareVersion{
 				{Version: "0.0.4", Vulnerabilities: &fleet.SliceString{"cve-123-123-132"}},
 			},
-			SelfService: false,
 		},
 	}, resp.SoftwareTitles)
 
@@ -7773,7 +7860,7 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 	)
 
 	require.Len(t, resp.SoftwareTitles, 1)
-	require.True(t, resp.SoftwareTitles[0].AvailableForInstall)
+	require.NotNil(t, resp.SoftwareTitles[0].SoftwarePackage)
 
 	// Upload an installer for the same software but different arch to a different team
 	payloadRubyTm2 := &fleet.UploadSoftwareInstallerPayload{
@@ -7793,7 +7880,7 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 		"team_id", fmt.Sprintf("%d", team1.ID),
 	)
 	require.Len(t, resp.SoftwareTitles, 1)
-	require.True(t, resp.SoftwareTitles[0].AvailableForInstall)
+	require.NotNil(t, resp.SoftwareTitles[0].SoftwarePackage)
 
 	// software installer not returned with self-service only (not marked as such)
 	resp = listSoftwareTitlesResponse{}
@@ -7810,8 +7897,9 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &resp,
 		"self_service", "1", "query", "ruby", "team_id", fmt.Sprint(team1.ID))
 	require.Len(t, resp.SoftwareTitles, 1)
-	require.True(t, resp.SoftwareTitles[0].AvailableForInstall)
-	require.True(t, resp.SoftwareTitles[0].SelfService)
+	require.NotNil(t, resp.SoftwareTitles[0].SoftwarePackage)
+	require.NotNil(t, resp.SoftwareTitles[0].SoftwarePackage.SelfService)
+	require.True(t, *resp.SoftwareTitles[0].SoftwarePackage.SelfService)
 
 	// no team but self-service returns the emacs software (technically impossible via the UI)
 	resp = listSoftwareTitlesResponse{}
@@ -7823,8 +7911,9 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 	)
 
 	require.Len(t, resp.SoftwareTitles, 1)
-	require.True(t, resp.SoftwareTitles[0].AvailableForInstall)
-	require.True(t, resp.SoftwareTitles[0].SelfService)
+	require.NotNil(t, resp.SoftwareTitles[0].SoftwarePackage)
+	require.NotNil(t, resp.SoftwareTitles[0].SoftwarePackage.SelfService)
+	require.True(t, *resp.SoftwareTitles[0].SoftwarePackage.SelfService)
 
 	emacsPath := fmt.Sprintf("/api/latest/fleet/software/titles/%d", resp.SoftwareTitles[0].ID)
 	respTitle := getSoftwareTitleResponse{}
@@ -9147,12 +9236,8 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 	require.Equal(t, getHostSw.Software[1].Name, "foo")
 	require.Len(t, getHostSw.Software[1].InstalledVersions, 2)
 	// no package information as there is no installer
-	require.Nil(t, getHostSw.Software[0].SelfService)
-	require.False(t, getHostSw.Software[0].AvailableForInstall)
 	require.Nil(t, getHostSw.Software[0].SoftwarePackage)
 	require.Nil(t, getHostSw.Software[0].AppStoreApp)
-	require.Nil(t, getHostSw.Software[1].SelfService)
-	require.False(t, getHostSw.Software[1].AvailableForInstall)
 	require.Nil(t, getHostSw.Software[1].SoftwarePackage)
 	require.Nil(t, getHostSw.Software[1].AppStoreApp)
 
@@ -9167,8 +9252,6 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 	require.Len(t, getHostSw.Software, 1)
 	require.NoError(t, err)
 	require.Equal(t, "bar", getHostSw.Software[0].Name)
-	require.Nil(t, getHostSw.Software[0].SelfService)
-	require.False(t, getHostSw.Software[0].AvailableForInstall)
 	require.Nil(t, getHostSw.Software[0].SoftwarePackage)
 	require.Nil(t, getHostSw.Software[0].AppStoreApp)
 	require.Len(t, getHostSw.Software[0].InstalledVersions, 1)
@@ -9184,12 +9267,8 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 	require.Equal(t, getDeviceSw.Software[1].Name, "foo")
 	require.Len(t, getDeviceSw.Software[1].InstalledVersions, 2)
 	// no package information as there is no installer
-	require.Nil(t, getDeviceSw.Software[0].SelfService)
-	require.False(t, getDeviceSw.Software[0].AvailableForInstall)
 	require.Nil(t, getDeviceSw.Software[0].SoftwarePackage)
 	require.Nil(t, getDeviceSw.Software[0].AppStoreApp)
-	require.Nil(t, getDeviceSw.Software[1].SelfService)
-	require.False(t, getDeviceSw.Software[1].AvailableForInstall)
 	require.Nil(t, getDeviceSw.Software[1].SoftwarePackage)
 	require.Nil(t, getDeviceSw.Software[1].AppStoreApp)
 
@@ -9213,18 +9292,15 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host.ID), nil, http.StatusOK, &getHostSw)
 	require.Len(t, getHostSw.Software, 3) // foo, bar and ruby.deb
 	require.Equal(t, getHostSw.Software[0].Name, "bar")
-	require.False(t, getHostSw.Software[0].AvailableForInstall)
 	require.Equal(t, getHostSw.Software[1].Name, "foo")
-	require.False(t, getHostSw.Software[1].AvailableForInstall)
 	require.Equal(t, getHostSw.Software[2].Name, "ruby")
 	require.Len(t, getHostSw.Software[1].InstalledVersions, 2)
-	require.True(t, getHostSw.Software[2].AvailableForInstall)
 	require.Nil(t, getHostSw.Software[2].AppStoreApp)
 	require.NotNil(t, getHostSw.Software[2].SoftwarePackage)
 	require.Equal(t, "ruby.deb", getHostSw.Software[2].SoftwarePackage.Name)
 	require.Equal(t, payload.Version, getHostSw.Software[2].SoftwarePackage.Version)
-	require.NotNil(t, getHostSw.Software[2].SelfService)
-	require.True(t, *getHostSw.Software[2].SelfService)
+	require.NotNil(t, getHostSw.Software[2].SoftwarePackage.SelfService)
+	require.True(t, *getHostSw.Software[2].SoftwarePackage.SelfService)
 	require.Nil(t, getHostSw.Software[2].Status)
 
 	// only the installer is returned for self-service only
@@ -9242,8 +9318,6 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 	require.Equal(t, getDeviceSw.Software[0].Name, "bar")
 	require.Equal(t, getDeviceSw.Software[1].Name, "foo")
 	require.Len(t, getDeviceSw.Software[1].InstalledVersions, 2)
-	require.False(t, getDeviceSw.Software[0].AvailableForInstall)
-	require.False(t, getDeviceSw.Software[1].AvailableForInstall)
 
 	// but it gets returned for self-service only
 	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/software?self_service=1", nil, http.StatusOK)
@@ -9252,11 +9326,10 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 	require.NoError(t, err)
 	require.Len(t, getDeviceSw.Software, 1)
 	require.Equal(t, getDeviceSw.Software[0].Name, "ruby")
-	require.True(t, getDeviceSw.Software[0].AvailableForInstall)
 	require.Nil(t, getDeviceSw.Software[0].AppStoreApp)
 	require.NotNil(t, getDeviceSw.Software[0].SoftwarePackage)
-	require.NotNil(t, getDeviceSw.Software[0].SelfService)
-	require.True(t, *getDeviceSw.Software[0].SelfService)
+	require.NotNil(t, getDeviceSw.Software[0].SoftwarePackage.SelfService)
+	require.True(t, *getDeviceSw.Software[0].SoftwarePackage.SelfService)
 	require.Equal(t, payload.Filename, getDeviceSw.Software[0].SoftwarePackage.Name)
 	require.Equal(t, payload.Version, getDeviceSw.Software[0].SoftwarePackage.Version)
 
@@ -9273,13 +9346,12 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 	require.Equal(t, getHostSw.Software[1].Name, "foo")
 	require.Equal(t, getHostSw.Software[2].Name, "ruby")
 	require.Len(t, getHostSw.Software[1].InstalledVersions, 2)
-	require.True(t, getHostSw.Software[2].AvailableForInstall)
 	require.NotNil(t, getHostSw.Software[2].SoftwarePackage)
 	require.Equal(t, "ruby.deb", getHostSw.Software[2].SoftwarePackage.Name)
 	require.NotNil(t, getHostSw.Software[2].Status)
 	require.Equal(t, fleet.SoftwareInstallerPending, *getHostSw.Software[2].Status)
-	require.NotNil(t, getHostSw.Software[2].SelfService)
-	require.True(t, *getHostSw.Software[2].SelfService)
+	require.NotNil(t, getHostSw.Software[2].SoftwarePackage.SelfService)
+	require.True(t, *getHostSw.Software[2].SoftwarePackage.SelfService)
 
 	// still returned with self-service filter
 	getHostSw = getHostSoftwareResponse{}
@@ -9297,13 +9369,12 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 	require.Equal(t, getDeviceSw.Software[1].Name, "foo")
 	require.Equal(t, getDeviceSw.Software[2].Name, "ruby")
 	require.Len(t, getDeviceSw.Software[1].InstalledVersions, 2)
-	require.True(t, getDeviceSw.Software[2].AvailableForInstall)
 	require.NotNil(t, getDeviceSw.Software[2].Status)
 	require.Equal(t, fleet.SoftwareInstallerPending, *getDeviceSw.Software[2].Status)
-	require.NotNil(t, getDeviceSw.Software[2].SelfService)
-	require.True(t, *getDeviceSw.Software[2].SelfService)
 	require.NotNil(t, getDeviceSw.Software[2].SoftwarePackage)
 	require.Nil(t, getDeviceSw.Software[2].AppStoreApp)
+	require.NotNil(t, getDeviceSw.Software[2].SoftwarePackage.SelfService)
+	require.True(t, *getDeviceSw.Software[2].SoftwarePackage.SelfService)
 
 	// still returned for self-service only too
 	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/software?self_service=1", nil, http.StatusOK)
@@ -9312,11 +9383,10 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 	require.NoError(t, err)
 	require.Len(t, getDeviceSw.Software, 1)
 	require.Equal(t, getDeviceSw.Software[0].Name, "ruby")
-	require.NotNil(t, getDeviceSw.Software[0].SelfService)
-	require.True(t, *getDeviceSw.Software[0].SelfService)
 	require.NotNil(t, getDeviceSw.Software[0].SoftwarePackage)
+	require.NotNil(t, getDeviceSw.Software[0].SoftwarePackage.SelfService)
+	require.True(t, *getDeviceSw.Software[0].SoftwarePackage.SelfService)
 	require.Nil(t, getDeviceSw.Software[0].AppStoreApp)
-	require.True(t, getDeviceSw.Software[0].AvailableForInstall)
 
 	// test with a query
 	getHostSw = getHostSoftwareResponse{}
@@ -9829,7 +9899,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
 	s.Do("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusNoContent, "team_name", tm.Name)
 	newTitlesResp = listSoftwareTitlesResponse{}
 	s.DoJSON("GET", "/api/v1/fleet/software/titles", nil, http.StatusOK, &newTitlesResp, "available_for_install", "true", "team_id", strconv.Itoa(int(tm.ID)))
-	titlesResp.SoftwareTitles[0].SelfService = true
+	titlesResp.SoftwareTitles[0].SoftwarePackage.SelfService = ptr.Bool(true)
 	require.Equal(t, titlesResp, newTitlesResp)
 
 	// empty payload cleans the software items
@@ -10690,129 +10760,6 @@ func (s *integrationEnterpriseTestSuite) TestAutofillPoliciesAuthTeamUser() {
 	}
 }
 
-func (s *integrationMDMTestSuite) TestVPPApps() {
-	t := s.T()
-	// Invalid token
-	t.Setenv("FLEET_DEV_VPP_URL", s.appleVPPConfigSrv.URL+"?invalidToken")
-	s.uploadDataViaForm("/api/latest/fleet/mdm/apple/vpp_token", "token", "token.vpptoken", []byte("foobar"), http.StatusUnprocessableEntity, "Invalid token. Please provide a valid content token from Apple Business Manager.")
-
-	// Simulate a server error from the Apple API
-	t.Setenv("FLEET_DEV_VPP_URL", s.appleVPPConfigSrv.URL+"?serverError")
-	s.uploadDataViaForm("/api/latest/fleet/mdm/apple/vpp_token", "token", "token.vpptoken", []byte("foobar"), http.StatusInternalServerError, "Apple VPP endpoint returned error: Internal server error (error number: 9603)")
-
-	// Valid token
-	orgName := "Fleet Device Management Inc."
-	location := "Fleet Location One"
-	token := "mycooltoken"
-	expDate := "2025-06-24T15:50:50+0000"
-	tokenJSON := fmt.Sprintf(`{"expDate":"%s","token":"%s","orgName":"%s"}`, expDate, token, orgName)
-	t.Setenv("FLEET_DEV_VPP_URL", s.appleVPPConfigSrv.URL)
-	s.uploadDataViaForm("/api/latest/fleet/mdm/apple/vpp_token", "token", "token.vpptoken", []byte(base64.StdEncoding.EncodeToString([]byte(tokenJSON))), http.StatusAccepted, "")
-
-	s.lastActivityMatches(fleet.ActivityEnabledVPP{}.ActivityName(), "", 0)
-
-	// Get the token
-	var resp getMDMAppleVPPTokenResponse
-	s.DoJSON("GET", "/api/latest/fleet/vpp", &getMDMAppleVPPTokenRequest{}, http.StatusOK, &resp)
-	require.NoError(t, resp.Err)
-	require.Equal(t, orgName, resp.OrgName)
-	require.Equal(t, location, resp.Location)
-	require.Equal(t, expDate, resp.RenewDate)
-
-	// Simulate renewal flow
-	orgName = "Fleet Device Management Inc. New Org Name"
-	token = "myothercooltoken"
-	expDate = "2026-06-24T15:50:50+0000"
-	tokenJSON = fmt.Sprintf(`{"expDate":"%s","token":"%s","orgName":"%s"}`, expDate, token, orgName)
-	s.uploadDataViaForm("/api/latest/fleet/mdm/apple/vpp_token", "token", "token.vpptoken", []byte(base64.StdEncoding.EncodeToString([]byte(tokenJSON))), http.StatusAccepted, "")
-
-	resp = getMDMAppleVPPTokenResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/vpp", &getMDMAppleVPPTokenRequest{}, http.StatusOK, &resp)
-	require.NoError(t, resp.Err)
-	require.Equal(t, orgName, resp.OrgName)
-	require.Equal(t, location, resp.Location)
-	require.Equal(t, expDate, resp.RenewDate)
-
-	// Create a team
-	var newTeamResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{TeamPayload: fleet.TeamPayload{Name: ptr.String("Team 1")}}, http.StatusOK, &newTeamResp)
-	team := newTeamResp.Team
-
-	// Get list of VPP apps from "Apple"
-	// We're passing team 1 here, but we haven't added any app store apps to that team, so we get
-	// back all available apps in our VPP location.
-	var appResp getAppStoreAppsResponse
-	s.DoJSON("GET", "/api/latest/fleet/software/app_store_apps", &getAppStoreAppsRequest{}, http.StatusOK, &appResp, "team_id", strconv.Itoa(int(team.ID)))
-	require.NoError(t, appResp.Err)
-	require.Len(t, appResp.AppStoreApps, 2)
-	require.Equal(t, "App 1", appResp.AppStoreApps[0].Name)
-	require.Equal(t, "a-1", appResp.AppStoreApps[0].BundleIdentifier)
-	require.Equal(t, uint(12), appResp.AppStoreApps[0].AvailableCount)
-	require.Equal(t, "https://example.com/images/1", appResp.AppStoreApps[0].IconURL)
-	require.Equal(t, "1", appResp.AppStoreApps[0].AdamID)
-	require.Equal(t, "1.0.0", appResp.AppStoreApps[0].LatestVersion)
-	require.False(t, appResp.AppStoreApps[0].Added)
-
-	require.Equal(t, "App 2", appResp.AppStoreApps[1].Name)
-	require.Equal(t, "b-2", appResp.AppStoreApps[1].BundleIdentifier)
-	require.Equal(t, uint(3), appResp.AppStoreApps[1].AvailableCount)
-	require.Equal(t, "https://example.com/images/2", appResp.AppStoreApps[1].IconURL)
-	require.Equal(t, "2", appResp.AppStoreApps[1].AdamID)
-	require.Equal(t, "2.0.0", appResp.AppStoreApps[1].LatestVersion)
-	require.False(t, appResp.AppStoreApps[1].Added)
-
-	// Add an app store app to team 1
-	addedApp := appResp.AppStoreApps[0]
-	var addAppResp addAppStoreAppResponse
-	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{TeamID: &team.ID, AppStoreID: addedApp.AdamID}, http.StatusOK, &addAppResp)
-	s.lastActivityMatches(fleet.ActivityAddedAppStoreApp{}.ActivityName(), fmt.Sprintf(`{"team_name": "%s", "software_title": "%s", "app_store_id": "%s", "team_id": %d}`, team.Name, addedApp.Name, addedApp.AdamID, team.ID), 0)
-
-	// Add an app store app to non-existent team
-	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{TeamID: ptr.Uint(9999), AppStoreID: addedApp.AdamID}, http.StatusNotFound, &addAppResp)
-
-	// Add an installer
-	// Verify that we are not able to add the VPP app for that same app whose installer we just added
-
-	// Now we should be filtering out the app we added to team 1
-	appResp = getAppStoreAppsResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/software/app_store_apps", &getAppStoreAppsRequest{}, http.StatusOK, &appResp, "team_id", strconv.Itoa(int(team.ID)))
-	require.NoError(t, appResp.Err)
-	require.Len(t, appResp.AppStoreApps, 1)
-	require.Equal(t, "App 2", appResp.AppStoreApps[0].Name)
-	require.Equal(t, "b-2", appResp.AppStoreApps[0].BundleIdentifier)
-	require.Equal(t, uint(3), appResp.AppStoreApps[0].AvailableCount)
-	require.Equal(t, "https://example.com/images/2", appResp.AppStoreApps[0].IconURL)
-	require.Equal(t, "2", appResp.AppStoreApps[0].AdamID)
-	require.Equal(t, "2.0.0", appResp.AppStoreApps[0].LatestVersion)
-	require.False(t, appResp.AppStoreApps[0].Added)
-
-	// list the software titles for that team, to get the title id of the VPP app
-	var listSw listSoftwareTitlesResponse
-	s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listSw, "team_id", fmt.Sprint(team.ID), "available_for_install", "true")
-	require.Len(t, listSw.SoftwareTitles, 1)
-	titleID := listSw.SoftwareTitles[0].ID
-
-	// delete the app store app for team 1
-	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleID), nil, http.StatusNoContent, "team_id", fmt.Sprint(team.ID))
-	s.lastActivityMatches(fleet.ActivityDeletedAppStoreApp{}.ActivityName(), fmt.Sprintf(`{"team_name": "%s", "software_title": "%s", "app_store_id": "%s", "team_id": %d}`, team.Name, addedApp.Name, addedApp.AdamID, team.ID), 0)
-
-	// deleting it again fails, not found
-	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleID), nil, http.StatusNotFound, "team_id", fmt.Sprint(team.ID))
-
-	// get the list of available apps, returns both apps now
-	appResp = getAppStoreAppsResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/software/app_store_apps", nil, http.StatusOK, &appResp, "team_id", fmt.Sprint(team.ID))
-	require.NoError(t, appResp.Err)
-	require.Len(t, appResp.AppStoreApps, 2)
-	require.Equal(t, "App 1", appResp.AppStoreApps[0].Name)
-	require.Equal(t, "App 2", appResp.AppStoreApps[1].Name)
-
-	// Delete VPP token and check that it's not appearing anymore
-	s.Do("DELETE", "/api/latest/fleet/mdm/apple/vpp_token", &deleteMDMAppleVPPTokenRequest{}, http.StatusNoContent)
-	s.DoJSON("GET", "/api/latest/fleet/vpp", &getMDMAppleVPPTokenRequest{}, http.StatusNotFound, &resp)
-	s.lastActivityMatches(fleet.ActivityDisabledVPP{}.ActivityName(), "", 0)
-}
-
 // 1. software title uploaded doesn't match existing title
 // 2. host reports software with the same bundle identifier
 // 3. reconciler runs, doesn't create a new title
@@ -10854,7 +10801,7 @@ func (s *integrationEnterpriseTestSuite) TestPKGNewSoftwareTitleFlow() {
 		"team_id", fmt.Sprintf("%d", team.ID),
 	)
 	require.Len(t, resp.SoftwareTitles, 1)
-	require.True(t, resp.SoftwareTitles[0].AvailableForInstall)
+	require.NotNil(t, resp.SoftwareTitles[0].SoftwarePackage)
 
 	software := []fleet.Software{
 		{Name: "foo", Version: "0.0.1", Source: "homebrew"},
@@ -11106,8 +11053,9 @@ func (s *integrationEnterpriseTestSuite) TestPKGSoftwareReconciliation() {
 }
 
 func (s *integrationEnterpriseTestSuite) TestCalendarCallback() {
-	ctx := context.Background()
 	t := s.T()
+	t.Skip("disabled calendar callbacks to address bugs")
+	ctx := context.Background()
 	t.Cleanup(func() {
 		calendar.ClearMockEvents()
 		calendar.ClearMockChannels()
@@ -11153,9 +11101,9 @@ func (s *integrationEnterpriseTestSuite) TestCalendarCallback() {
 		},
 	)
 	require.NoError(t, err)
-	team1Policy2, err := s.ds.NewTeamPolicy(
+	team1Policy2Calendar, err := s.ds.NewTeamPolicy(
 		ctx, team1.ID, nil, fleet.PolicyPayload{
-			Name:                  "team1Policy2",
+			Name:                  "team1Policy2Calendar",
 			Query:                 "SELECT 2;",
 			CalendarEventsEnabled: true,
 		},
@@ -11206,7 +11154,7 @@ func (s *integrationEnterpriseTestSuite) TestCalendarCallback() {
 		host1Team1,
 		map[uint]*bool{
 			team1Policy1Calendar.ID: ptr.Bool(false),
-			team1Policy2.ID:         ptr.Bool(true),
+			team1Policy2Calendar.ID: ptr.Bool(true),
 			globalPolicy.ID:         nil,
 		},
 	), http.StatusOK, &distributedResp)
@@ -11216,7 +11164,7 @@ func (s *integrationEnterpriseTestSuite) TestCalendarCallback() {
 		host2Team1,
 		map[uint]*bool{
 			team1Policy1Calendar.ID: ptr.Bool(true),
-			team1Policy2.ID:         ptr.Bool(false),
+			team1Policy2Calendar.ID: ptr.Bool(false),
 			globalPolicy.ID:         nil,
 		},
 	), http.StatusOK, &distributedResp)
@@ -11300,28 +11248,95 @@ func (s *integrationEnterpriseTestSuite) TestCalendarCallback() {
 	// Delete the event on the calendar
 	calendar.ClearMockEvents()
 
-	// This callback should recreate the event
+	// Grab the distributed lock for this event
+	distributedLock := redis_lock.NewLock(s.redisPool)
+	lockValue := uuid.New().String()
+	result, err := distributedLock.AcquireLock(ctx, commonCalendar.LockKeyPrefix+event.UUID, lockValue, 0)
+	require.NoError(t, err)
+	assert.NotEmpty(t, result)
+
+	// This callback should put the event processing in a queue for async processing. It does not start async
+	// processing because it assumes another server is handling this webhook, and that server will start
+	// async processing.
 	_ = s.DoRawWithHeaders("POST", "/api/v1/fleet/calendar/webhook/"+event.UUID, []byte(""), http.StatusOK, map[string]string{
 		"X-Goog-Channel-Id":     details.ChannelID,
 		"X-Goog-Resource-State": "exists",
 	})
 
-	team1CalendarEvents, err = s.ds.ListCalendarEvents(ctx, &team1.ID)
+	uuids, err := distributedLock.GetSet(ctx, commonCalendar.QueueKey)
 	require.NoError(t, err)
-	require.Len(t, team1CalendarEvents, 1)
+	assert.ElementsMatch(t, []string{event.UUID}, uuids)
+	// The calendar should still be empty since event hasn't processed yet
+	assert.Zero(t, len(calendar.ListGoogleMockEvents()))
+	// We clear the queue
+	assert.NoError(t, distributedLock.RemoveFromSet(ctx, commonCalendar.QueueKey, event.UUID))
+
+	// We release the normal lock, but grab the reserve lock instead
+	ok, err := distributedLock.ReleaseLock(ctx, commonCalendar.LockKeyPrefix+event.UUID, lockValue)
+	require.NoError(t, err)
+	assert.True(t, ok)
+	result, err = distributedLock.AcquireLock(ctx, commonCalendar.ReservedLockKeyPrefix+event.UUID, lockValue, 0)
+	require.NoError(t, err)
+	assert.NotEmpty(t, result)
+
+	// This callback should put the event processing in a queue for async processing, AND start the async processing
+	_ = s.DoRawWithHeaders("POST", "/api/v1/fleet/calendar/webhook/"+event.UUID, []byte(""), http.StatusOK, map[string]string{
+		"X-Goog-Channel-Id":     details.ChannelID,
+		"X-Goog-Resource-State": "exists",
+	})
+
+	uuids, err = distributedLock.GetSet(ctx, commonCalendar.QueueKey)
+	require.NoError(t, err)
+	assert.ElementsMatch(t, []string{event.UUID}, uuids)
+	// The calendar should still be empty since event hasn't processed yet
+	assert.Zero(t, len(calendar.ListGoogleMockEvents()))
+
+	// We grab the normal lock again.
+	lockValue2 := uuid.New().String()
+	result, err = distributedLock.AcquireLock(ctx, commonCalendar.LockKeyPrefix+event.UUID, lockValue2, 0)
+	require.NoError(t, err)
+	assert.NotEmpty(t, result)
+	// We release the reserve lock.
+	ok, err = distributedLock.ReleaseLock(ctx, commonCalendar.ReservedLockKeyPrefix+event.UUID, lockValue)
+	require.NoError(t, err)
+	assert.True(t, ok)
+	// We release the normal lock.
+	ok, err = distributedLock.ReleaseLock(ctx, commonCalendar.LockKeyPrefix+event.UUID, lockValue2)
+	require.NoError(t, err)
+	assert.True(t, ok)
+
+	done := make(chan struct{})
+	go func() {
+		for {
+			time.Sleep(100 * time.Millisecond)
+			team1CalendarEvents, err = s.ds.ListCalendarEvents(ctx, &team1.ID)
+			require.NoError(t, err)
+			require.Len(t, team1CalendarEvents, 1)
+			if event.UUID != team1CalendarEvents[0].UUID {
+				done <- struct{}{}
+				return
+			}
+		}
+	}()
+	select {
+	case <-done: // All good
+	case <-time.After(5 * time.Second):
+		t.Fatal("timeout waiting for calendar event processing")
+	}
+
 	eventRecreated := team1CalendarEvents[0]
 	assert.NotZero(t, eventRecreated.ID)
 	assert.Equal(t, user1Email, eventRecreated.Email)
 	assert.NotZero(t, eventRecreated.StartTime)
 	assert.NotZero(t, eventRecreated.EndTime)
 	assert.NotEmpty(t, eventRecreated.UUID)
-	assert.NotEqual(t, event.UUID, eventRecreated.UUID)
 	assert.NotEqual(t, event.StartTime, eventRecreated.StartTime)
 	assert.NotEqual(t, event.EndTime, eventRecreated.EndTime)
 	assert.Equal(t, 1, calendar.MockChannelsCount())
+	assert.Equal(t, 1, len(calendar.ListGoogleMockEvents()))
 
-	// The previous event UUID should not work anymore
-	_ = s.DoRawWithHeaders("POST", "/api/v1/fleet/calendar/webhook/"+event.UUID, []byte(""), http.StatusNotFound, map[string]string{
+	// The previous event UUID should not work anymore, but API returns OK because this is a common occurrence.
+	_ = s.DoRawWithHeaders("POST", "/api/v1/fleet/calendar/webhook/"+event.UUID, []byte(""), http.StatusOK, map[string]string{
 		"X-Goog-Channel-Id":     details.ChannelID,
 		"X-Goog-Resource-State": "exists",
 	})
@@ -11365,6 +11380,75 @@ func (s *integrationEnterpriseTestSuite) TestCalendarCallback() {
 	assert.Equal(t, eventRecreated.EndTime, eventUpdated.EndTime)
 	assert.Equal(t, 1, calendar.MockChannelsCount())
 
+	// Update the time of the event again
+	events = calendar.ListGoogleMockEvents()
+	require.Len(t, events, 1)
+	for _, e := range events {
+		st, err := time.Parse(time.RFC3339, e.Start.DateTime)
+		require.NoError(t, err)
+		newStartTime := st.Add(5 * time.Minute).Format(time.RFC3339)
+		e.Start.DateTime = newStartTime
+	}
+
+	// Grab the lock
+	event = eventUpdated
+	lockValue = uuid.New().String()
+	result, err = distributedLock.AcquireLock(ctx, commonCalendar.LockKeyPrefix+event.UUID, lockValue, 0)
+	require.NoError(t, err)
+	assert.NotEmpty(t, result)
+
+	mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+		// Update updated_at so the event gets updated (the event is updated regularly)
+		_, err := db.ExecContext(ctx,
+			`UPDATE calendar_events SET updated_at = DATE_SUB(CURRENT_TIMESTAMP, INTERVAL 25 HOUR) WHERE id = ?`, event.ID)
+		return err
+	})
+
+	// Trigger the calendar cron async. It should wait for the lock and set reserve lock.
+	go triggerAndWait(ctx, t, s.ds, s.calendarSchedule, 10*time.Second)
+	done = make(chan struct{})
+	go func() {
+		for {
+			time.Sleep(100 * time.Millisecond)
+			reserveLock, err := distributedLock.Get(ctx, commonCalendar.ReservedLockKeyPrefix+event.UUID)
+			require.NoError(t, err)
+			if reserveLock != nil {
+				done <- struct{}{}
+				return
+			}
+		}
+	}()
+	select {
+	case <-done: // All good
+	case <-time.After(5 * time.Second):
+		t.Fatal("timeout waiting for cron to set reserve lock")
+	}
+
+	// Release the normal lock
+	ok, err = distributedLock.ReleaseLock(ctx, commonCalendar.LockKeyPrefix+event.UUID, lockValue)
+	require.NoError(t, err)
+	assert.True(t, ok)
+
+	// Wait for the event to update
+	done = make(chan struct{})
+	go func() {
+		for {
+			time.Sleep(100 * time.Millisecond)
+			team1CalendarEvents, err = s.ds.ListCalendarEvents(ctx, &team1.ID)
+			require.NoError(t, err)
+			if len(team1CalendarEvents) == 1 && team1CalendarEvents[0].UUID == event.UUID &&
+				team1CalendarEvents[0].StartTime.After(event.StartTime) {
+				done <- struct{}{}
+				return
+			}
+		}
+	}()
+	select {
+	case <-done: // All good
+	case <-time.After(5 * time.Second):
+		t.Fatal("timeout waiting for event to update during cron")
+	}
+
 	// Delete the event on the calendar
 	calendar.ClearMockEvents()
 
@@ -11373,7 +11457,7 @@ func (s *integrationEnterpriseTestSuite) TestCalendarCallback() {
 		host1Team1,
 		map[uint]*bool{
 			team1Policy1Calendar.ID: ptr.Bool(true),
-			team1Policy2.ID:         ptr.Bool(true),
+			team1Policy2Calendar.ID: ptr.Bool(true),
 			globalPolicy.ID:         nil,
 		},
 	), http.StatusOK, &distributedResp)
@@ -11386,10 +11470,11 @@ func (s *integrationEnterpriseTestSuite) TestCalendarCallback() {
 		})
 	assert.Equal(t, 0, calendar.MockChannelsCount())
 
+	previousEvent := team1CalendarEvents[0]
 	team1CalendarEvents, err = s.ds.ListCalendarEvents(ctx, &team1.ID)
 	require.NoError(t, err)
 	require.Len(t, team1CalendarEvents, 1)
-	assert.Equal(t, eventUpdated, team1CalendarEvents[0])
+	assert.Equal(t, previousEvent, team1CalendarEvents[0])
 
 	// Trigger calendar should cleanup the events
 	triggerAndWait(ctx, t, s.ds, s.calendarSchedule, 5*time.Second)

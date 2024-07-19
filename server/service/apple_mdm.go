@@ -2808,7 +2808,25 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 		detail := fmt.Sprintf("%s. Make sure the host is on macOS 13 or higher.", apple_mdm.FmtErrorChain(cmdResult.ErrorChain))
 		err := svc.ds.MDMAppleSetPendingDeclarationsAs(r.Context, cmdResult.UDID, status, detail)
 		return nil, ctxerr.Wrap(r.Context, err, "update declaration status on DeclarativeManagement ack")
+	case "InstallApplication":
+		// Create an activity for installing only if we're in a terminal state
+		if cmdResult.Status == fleet.MDMAppleStatusAcknowledged ||
+			cmdResult.Status == fleet.MDMAppleStatusError ||
+			cmdResult.Status == fleet.MDMAppleStatusCommandFormatError {
+			user, act, err := svc.ds.GetPastActivityDataForVPPAppInstall(r.Context, cmdResult)
+			if err != nil {
+				if fleet.IsNotFound(err) {
+					// Then this isn't a VPP install, so no activity generated
+					return nil, nil
+				}
 
+				return nil, ctxerr.Wrap(r.Context, err, "fetching data for installed app store app activity")
+			}
+
+			if err := newActivity(r.Context, user, act, svc.ds, svc.logger); err != nil {
+				return nil, ctxerr.Wrap(r.Context, err, "creating activity for installed app store app")
+			}
+		}
 	}
 
 	return nil, nil
@@ -2917,6 +2935,35 @@ func ensureFleetProfiles(ctx context.Context, ds fleet.Datastore, logger kitlog.
 
 	if err := ds.BulkUpsertMDMAppleConfigProfiles(ctx, profiles); err != nil {
 		return ctxerr.Wrap(ctx, err, "bulk-upserting configuration profiles")
+	}
+
+	return nil
+}
+
+func SendPushesToPendingDevices(
+	ctx context.Context,
+	ds fleet.Datastore,
+	commander *apple_mdm.MDMAppleCommander,
+	logger kitlog.Logger,
+) error {
+	uuids, err := ds.GetHostUUIDsWithPendingMDMAppleCommands(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting host uuids with pending commands")
+	}
+
+	if len(uuids) == 0 {
+		return nil
+	}
+
+	if err := commander.SendNotifications(ctx, uuids); err != nil {
+		var apnsErr *apple_mdm.APNSDeliveryError
+		if errors.As(err, &apnsErr) {
+			level.Info(logger).Log("msg", "failed to send APNs notification to some hosts", "host_uuids", apnsErr.FailedUUIDs)
+			return nil
+		}
+
+		return ctxerr.Wrap(ctx, err, "sending push notifications")
+
 	}
 
 	return nil

@@ -172,7 +172,10 @@ const VppSetupPage = ({ router }: IVppSetupPageProps) => {
         <>{renderContent()}</>
       </>
       {showDisableModal && (
-        <DisableVppModal onExit={() => setShowDisableModal(false)} />
+        <DisableVppModal
+          router={router}
+          onExit={() => setShowDisableModal(false)}
+        />
       )}
       {showRenewModal && (
         <RenewVppTokenModal

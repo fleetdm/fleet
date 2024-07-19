@@ -1,4 +1,6 @@
 import React, { useContext, useState } from "react";
+import { InjectedRouter } from "react-router";
+import paths from "router/paths";
 
 import mdmAppleAPI from "services/entities/mdm_apple";
 import { NotificationContext } from "context/notification";
@@ -9,21 +11,23 @@ import Button from "components/buttons/Button";
 const baseClass = "diable-vpp-modal";
 
 interface IDisableVppModalProps {
+  router: InjectedRouter;
   onExit: () => void;
 }
 
-const DisableVppModal = ({ onExit }: IDisableVppModalProps) => {
+const DisableVppModal = ({ router, onExit }: IDisableVppModalProps) => {
   const { renderFlash } = useContext(NotificationContext);
   const [isDisabling, setIsDisabling] = useState(false);
 
   const onDisableVpp = async () => {
-    // TODO: API integration
+    setIsDisabling(true);
     try {
       await mdmAppleAPI.disableVpp();
       renderFlash(
         "success",
         "Volume Purchasing Program (VPP) disabled successfully."
       );
+      router.push(paths.ADMIN_INTEGRATIONS_VPP);
     } catch {
       renderFlash(
         "error",

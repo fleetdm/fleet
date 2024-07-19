@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
@@ -22,6 +23,7 @@ func TestVPP(t *testing.T) {
 		{"VPPAppMetadata", testVPPAppMetadata},
 		{"VPPAppStatus", testVPPAppStatus},
 		{"VPPApps", testVPPApps},
+		{"GetVPPAppByTeamAndTitleID", testGetVPPAppByTeamAndTitleID},
 	}
 
 	for _, c := range cases {
@@ -137,11 +139,19 @@ func testVPPAppMetadata(t *testing.T, ds *Datastore) {
 	require.Error(t, err)
 	require.ErrorAs(t, err, &nfe)
 	require.Nil(t, meta)
-
 }
 
 func testVPPAppStatus(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
+
+	// create a user
+	user, err := ds.NewUser(ctx, &fleet.User{
+		Password:   []byte("p4ssw0rd.123"),
+		Name:       "user1",
+		Email:      "user1@example.com",
+		GlobalRole: ptr.String(fleet.RoleAdmin),
+	})
+	require.NoError(t, err)
 
 	// create a team
 	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team 1"})
@@ -204,7 +214,7 @@ func testVPPAppStatus(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// simulate an install request of vpp1 on h1
-	cmd1 := createVPPAppInstallRequest(t, ds, h1, vpp1)
+	cmd1 := createVPPAppInstallRequest(t, ds, h1, vpp1, user.ID)
 
 	summary, err = ds.GetSummaryHostVPPAppInstalls(ctx, nil, vpp1)
 	require.NoError(t, err)
@@ -219,9 +229,15 @@ func testVPPAppStatus(t *testing.T, ds *Datastore) {
 
 	// create a new request for h1 that supercedes the failed on, and a request
 	// for h2 with a successful result.
-	cmd2 := createVPPAppInstallRequest(t, ds, h1, vpp1)
-	cmd3 := createVPPAppInstallRequest(t, ds, h2, vpp1)
+	cmd2 := createVPPAppInstallRequest(t, ds, h1, vpp1, user.ID)
+	cmd3 := createVPPAppInstallRequest(t, ds, h2, vpp1, user.ID)
 	createVPPAppInstallResult(t, ds, h2, cmd3, fleet.MDMAppleStatusAcknowledged)
+
+	actUser, act, err := ds.GetPastActivityDataForVPPAppInstall(ctx, &mdm.CommandResults{CommandUUID: cmd3})
+	require.NoError(t, err)
+	require.Equal(t, user.ID, actUser.ID)
+	require.Equal(t, user.Name, actUser.Name)
+	require.Equal(t, cmd3, act.CommandUUID)
 
 	summary, err = ds.GetSummaryHostVPPAppInstalls(ctx, nil, vpp1)
 	require.NoError(t, err)
@@ -240,7 +256,7 @@ func testVPPAppStatus(t *testing.T, ds *Datastore) {
 	require.Equal(t, &fleet.VPPAppStatusSummary{Pending: 0, Failed: 0, Installed: 0}, summary)
 
 	// simulate a successful request for team app vpp2 on h3
-	cmd4 := createVPPAppInstallRequest(t, ds, h3, vpp2)
+	cmd4 := createVPPAppInstallRequest(t, ds, h3, vpp2, user.ID)
 	createVPPAppInstallResult(t, ds, h3, cmd4, fleet.MDMAppleStatusAcknowledged)
 
 	summary, err = ds.GetSummaryHostVPPAppInstalls(ctx, &team1.ID, vpp2)
@@ -249,11 +265,11 @@ func testVPPAppStatus(t *testing.T, ds *Datastore) {
 
 	// simulate a successful, failed and pending request for app vpp3 on team
 	// (h3) and no team (h1, h2)
-	cmd5 := createVPPAppInstallRequest(t, ds, h3, vpp3)
+	cmd5 := createVPPAppInstallRequest(t, ds, h3, vpp3, user.ID)
 	createVPPAppInstallResult(t, ds, h3, cmd5, fleet.MDMAppleStatusAcknowledged)
-	cmd6 := createVPPAppInstallRequest(t, ds, h1, vpp3)
+	cmd6 := createVPPAppInstallRequest(t, ds, h1, vpp3, user.ID)
 	createVPPAppInstallResult(t, ds, h1, cmd6, fleet.MDMAppleStatusCommandFormatError)
-	createVPPAppInstallRequest(t, ds, h2, vpp3)
+	createVPPAppInstallRequest(t, ds, h2, vpp3, user.ID)
 
 	// for no team, it sees the failed and pending counts
 	summary, err = ds.GetSummaryHostVPPAppInstalls(ctx, nil, vpp3)
@@ -267,7 +283,7 @@ func testVPPAppStatus(t *testing.T, ds *Datastore) {
 }
 
 // simulates creating the VPP app install request on the host, returns the command UUID.
-func createVPPAppInstallRequest(t *testing.T, ds *Datastore, host *fleet.Host, adamID string) string {
+func createVPPAppInstallRequest(t *testing.T, ds *Datastore, host *fleet.Host, adamID string, userID uint) string {
 	ctx := context.Background()
 
 	cmdUUID := uuid.NewString()
@@ -277,8 +293,8 @@ func createVPPAppInstallRequest(t *testing.T, ds *Datastore, host *fleet.Host, a
 	require.NoError(t, err)
 
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(ctx, `INSERT INTO host_vpp_software_installs (host_id, adam_id, command_uuid) VALUES (?, ?, ?)`,
-			host.ID, adamID, cmdUUID)
+		_, err := q.ExecContext(ctx, `INSERT INTO host_vpp_software_installs (host_id, adam_id, command_uuid, user_id) VALUES (?, ?, ?, ?)`,
+			host.ID, adamID, cmdUUID, userID)
 		return err
 	})
 	return cmdUUID
@@ -337,6 +353,43 @@ func testVPPApps(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	err = ds.InsertVPPAppWithTeam(ctx, appNoTeam2, nil)
 	require.NoError(t, err)
+
+	// Check that host_vpp_software_installs works
+	u, err := ds.NewUser(ctx, &fleet.User{
+		Password:   []byte("p4ssw0rd.123"),
+		Name:       "user1",
+		Email:      "user1@example.com",
+		GlobalRole: ptr.String(fleet.RoleAdmin),
+	})
+	require.NoError(t, err)
+	err = ds.InsertHostVPPSoftwareInstall(ctx, 1, u.ID, app1.AdamID, "a", "b")
+	require.NoError(t, err)
+
+	err = ds.InsertHostVPPSoftwareInstall(ctx, 2, u.ID, app2.AdamID, "c", "d")
+	require.NoError(t, err)
+
+	var results []struct {
+		HostID            uint   `db:"host_id"`
+		UserID            uint   `db:"user_id"`
+		AdamID            string `db:"adam_id"`
+		CommandUUID       string `db:"command_uuid"`
+		AssociatedEventID string `db:"associated_event_id"`
+	}
+	err = sqlx.SelectContext(ctx, ds.reader(ctx), &results, `SELECT host_id, user_id, adam_id, command_uuid, associated_event_id FROM host_vpp_software_installs ORDER BY adam_id`)
+	require.NoError(t, err)
+	require.Len(t, results, 2)
+	a1 := results[0]
+	a2 := results[1]
+	require.Equal(t, a1.HostID, uint(1))
+	require.Equal(t, a1.UserID, u.ID)
+	require.Equal(t, a1.AdamID, app1.AdamID)
+	require.Equal(t, a1.CommandUUID, "a")
+	require.Equal(t, a1.AssociatedEventID, "b")
+	require.Equal(t, a2.HostID, uint(2))
+	require.Equal(t, a2.UserID, u.ID)
+	require.Equal(t, a2.AdamID, app2.AdamID)
+	require.Equal(t, a2.CommandUUID, "c")
+	require.Equal(t, a2.AssociatedEventID, "d")
 
 	// Check that getting the assigned apps works
 	appSet, err := ds.GetAssignedVPPApps(ctx, &team.ID)
@@ -421,4 +474,77 @@ func testSetTeamVPPApps(t *testing.T, ds *Datastore) {
 	assigned, err = ds.GetAssignedVPPApps(ctx, &team.ID)
 	require.NoError(t, err)
 	require.Len(t, assigned, 0)
+}
+
+func testGetVPPAppByTeamAndTitleID(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "team 2"})
+	require.NoError(t, err)
+
+	// TODO(roberto): replace with actual datastore method(s) once we have them
+	createVPPApp := func(adamID string, teamID *uint) uint {
+		var titleID int64
+		ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
+			res, err := tx.ExecContext(
+				ctx,
+				"INSERT INTO software_titles (name, source, browser) VALUES (?, ?, ?)",
+				uuid.NewString(), uuid.NewString(), "",
+			)
+			if err != nil {
+				return err
+			}
+
+			titleID, _ = res.LastInsertId()
+			return nil
+		})
+
+		ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
+			_, err = tx.ExecContext(
+				ctx,
+				"INSERT INTO vpp_apps (adam_id, title_id) VALUES (?, ?)",
+				adamID,
+				titleID,
+			)
+			return err
+		})
+
+		ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
+			var tmID uint
+			if teamID != nil {
+				tmID = *teamID
+			}
+			_, err = tx.ExecContext(
+				ctx,
+				"INSERT INTO vpp_apps_teams (adam_id, team_id, global_or_team_id) VALUES (?, ?, ?)",
+				adamID,
+				teamID,
+				tmID,
+			)
+			return err
+		})
+
+		return uint(titleID)
+	}
+
+	var nfe fleet.NotFoundError
+
+	fooTitleID := createVPPApp("foo", &team.ID)
+	gotVPPApp, err := ds.GetVPPAppByTeamAndTitleID(ctx, &team.ID, fooTitleID, true)
+	require.NoError(t, err)
+	require.Equal(t, "foo", gotVPPApp.AdamID)
+	require.Equal(t, fooTitleID, gotVPPApp.TitleID)
+	// title that doesn't exist
+	gotVPPApp, err = ds.GetVPPAppByTeamAndTitleID(ctx, &team.ID, 999, true)
+	require.ErrorAs(t, err, &nfe)
+
+	// create an entry for the global team
+	barTitleID := createVPPApp("bar", nil)
+	// not found providing the team id
+	gotVPPApp, err = ds.GetVPPAppByTeamAndTitleID(ctx, &team.ID, barTitleID, true)
+	require.ErrorAs(t, err, &nfe)
+	// found for the global team
+	gotVPPApp, err = ds.GetVPPAppByTeamAndTitleID(ctx, nil, barTitleID, true)
+	require.NoError(t, err)
+	require.Equal(t, "bar", gotVPPApp.AdamID)
+	require.Equal(t, barTitleID, gotVPPApp.TitleID)
 }

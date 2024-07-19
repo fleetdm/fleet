@@ -195,6 +195,8 @@ type Datastore interface {
 	ListLabels(ctx context.Context, filter TeamFilter, opt ListOptions) ([]*Label, error)
 	LabelsSummary(ctx context.Context) ([]*LabelSummary, error)
 
+	GetHostUUIDsWithPendingMDMAppleCommands(ctx context.Context) ([]string, error)
+
 	// LabelQueriesForHost returns the label queries that should be executed for the given host.
 	// Results are returned in a map of label id -> query
 	LabelQueriesForHost(ctx context.Context, host *Host) (map[string]string, error)
@@ -1554,6 +1556,7 @@ type Datastore interface {
 	// (if set) post-install scripts, otherwise those fields are left empty.
 	GetSoftwareInstallerMetadataByTeamAndTitleID(ctx context.Context, teamID *uint, titleID uint, withScriptContents bool) (*SoftwareInstaller, error)
 
+	GetVPPAppByTeamAndTitleID(ctx context.Context, teamID *uint, titleID uint, withScriptContents bool) (*VPPApp, error)
 	// GetVPPAppMetadataByTeamAndTitleID returns the VPP app corresponding to the
 	// specified team and title ids.
 	GetVPPAppMetadataByTeamAndTitleID(ctx context.Context, teamID *uint, titleID uint) (*VPPAppStoreApp, error)
@@ -1589,6 +1592,8 @@ type Datastore interface {
 	GetAssignedVPPApps(ctx context.Context, teamID *uint) (map[string]struct{}, error)
 	InsertVPPAppWithTeam(ctx context.Context, app *VPPApp, teamID *uint) error
 	SetTeamVPPApps(ctx context.Context, teamID *uint, adamIDs []string) error
+	InsertHostVPPSoftwareInstall(ctx context.Context, hostID, userID uint, adamID, commandUUID, associatedEventID string) error
+	GetPastActivityDataForVPPAppInstall(ctx context.Context, commandResults *mdm.CommandResults) (*User, *ActivityInstalledAppStoreApp, error)
 }
 
 // MDMAppleStore wraps nanomdm's storage and adds methods to deal with

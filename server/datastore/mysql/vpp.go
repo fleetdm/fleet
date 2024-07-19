@@ -3,11 +3,13 @@ package mysql
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -234,7 +236,7 @@ WHERE
 func insertVPPApps(ctx context.Context, tx sqlx.ExtContext, apps []*fleet.VPPApp) error {
 	stmt := `
 INSERT INTO vpp_apps
-	(adam_id, available_count, bundle_identifier, icon_url, name, latest_version, title_id)
+	(adam_id, bundle_identifier, icon_url, name, latest_version, title_id)
 VALUES
 %s
 ON DUPLICATE KEY UPDATE
@@ -247,8 +249,8 @@ ON DUPLICATE KEY UPDATE
 	var insertVals strings.Builder
 
 	for _, a := range apps {
-		insertVals.WriteString(`(?, ?, ?, ?, ?, ?, ?),`)
-		args = append(args, a.AdamID, a.AvailableCount, a.BundleIdentifier, a.IconURL, a.Name, a.LatestVersion, a.TitleID)
+		insertVals.WriteString(`(?, ?, ?, ?, ?, ?),`)
+		args = append(args, a.AdamID, a.BundleIdentifier, a.IconURL, a.Name, a.LatestVersion, a.TitleID)
 	}
 
 	stmt = fmt.Sprintf(stmt, strings.TrimSuffix(insertVals.String(), ","))
@@ -346,4 +348,136 @@ func (ds *Datastore) DeleteVPPAppFromTeam(ctx context.Context, teamID *uint, ada
 		return notFound("VPPApp").WithMessage(fmt.Sprintf("adam id %s for team id %d", adamID, globalOrTeamID))
 	}
 	return nil
+}
+
+func (ds *Datastore) GetVPPAppByTeamAndTitleID(ctx context.Context, teamID *uint, titleID uint, withScriptContents bool) (*fleet.VPPApp, error) {
+	stmt := `
+SELECT
+  va.adam_id,
+  va.bundle_identifier,
+  va.icon_url,
+  va.name,
+  va.title_id,
+  va.created_at,
+  va.updated_at
+FROM vpp_apps va
+JOIN vpp_apps_teams vat ON va.adam_id = vat.adam_id
+WHERE vat.global_or_team_id = ? AND va.title_id = ?
+  `
+
+	var tmID uint
+	if teamID != nil {
+		tmID = *teamID
+	}
+
+	var dest fleet.VPPApp
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &dest, stmt, tmID, titleID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ctxerr.Wrap(ctx, notFound("VPPApp"), "get VPP app")
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get VPP app")
+	}
+
+	return &dest, nil
+}
+
+func (ds *Datastore) InsertHostVPPSoftwareInstall(ctx context.Context, hostID, userID uint, adamID, commandUUID, associatedEventID string) error {
+	stmt := `
+INSERT INTO host_vpp_software_installs
+  (host_id, adam_id, command_uuid, user_id, associated_event_id)
+VALUES
+  (?,?,?,?,?)
+	`
+
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, hostID, adamID, commandUUID, userID, associatedEventID); err != nil {
+		return ctxerr.Wrap(ctx, err, "insert into host_vpp_software_installs")
+	}
+
+	return nil
+}
+
+func (ds *Datastore) GetPastActivityDataForVPPAppInstall(ctx context.Context, commandResults *mdm.CommandResults) (*fleet.User, *fleet.ActivityInstalledAppStoreApp, error) {
+	if commandResults == nil {
+		return nil, nil, nil
+	}
+
+	stmt := `
+SELECT
+	u.name AS user_name,
+	u.id AS user_id,
+	u.email as user_email,
+	hvsi.host_id AS host_id,
+	hdn.display_name AS host_display_name,
+	st.name AS software_title,
+	hvsi.adam_id AS app_store_id,
+	hvsi.command_uuid AS command_uuid
+FROM
+	host_vpp_software_installs hvsi
+	LEFT OUTER JOIN users u ON hvsi.user_id = u.id
+	LEFT OUTER JOIN host_display_names hdn ON hdn.host_id = hvsi.host_id
+	LEFT OUTER JOIN vpp_apps vpa ON hvsi.adam_id = vpa.adam_id
+	LEFT OUTER JOIN software_titles st ON st.id = vpa.title_id
+WHERE
+	hvsi.command_uuid = :command_uuid
+	`
+
+	type result struct {
+		HostID          uint   `db:"host_id"`
+		HostDisplayName string `db:"host_display_name"`
+		SoftwareTitle   string `db:"software_title"`
+		AppStoreID      string `db:"app_store_id"`
+		CommandUUID     string `db:"command_uuid"`
+		UserName        string `db:"user_name"`
+		UserID          uint   `db:"user_id"`
+		UserEmail       string `db:"user_email"`
+	}
+
+	listStmt, args, err := sqlx.Named(stmt, map[string]any{
+		"command_uuid":              commandResults.CommandUUID,
+		"software_status_failed":    string(fleet.SoftwareInstallerFailed),
+		"software_status_installed": string(fleet.SoftwareInstallerInstalled),
+	})
+	if err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "build list query from named args")
+	}
+
+	var res result
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &res, listStmt, args...); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil, notFound("install_command")
+		}
+
+		return nil, nil, ctxerr.Wrap(ctx, err, "select past activity data for VPP app install")
+	}
+
+	user := &fleet.User{
+		ID:    res.UserID,
+		Name:  res.UserName,
+		Email: res.UserEmail,
+	}
+
+	var status string
+	switch commandResults.Status {
+	case fleet.MDMAppleStatusAcknowledged:
+		status = string(fleet.SoftwareInstallerInstalled)
+	case fleet.MDMAppleStatusCommandFormatError:
+	case fleet.MDMAppleStatusError:
+		status = string(fleet.SoftwareInstallerFailed)
+	default:
+		// This case shouldn't happen (we should only be doing this check if the command is in a
+		// "terminal" state, but adding it so we have a default
+		status = string(fleet.SoftwareInstallerPending)
+	}
+
+	act := &fleet.ActivityInstalledAppStoreApp{
+		HostID:          res.HostID,
+		HostDisplayName: res.HostDisplayName,
+		SoftwareTitle:   res.SoftwareTitle,
+		AppStoreID:      res.AppStoreID,
+		CommandUUID:     res.CommandUUID,
+		Status:          status,
+	}
+
+	return user, act, nil
 }
