@@ -9547,11 +9547,11 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 	ctx := context.Background()
 
 	// Insert apps we can associate
-	app1 := &fleet.VPPApp{Name: "App Foo", AdamID: "1", BundleIdentifier: "b1"}
+	app1 := &fleet.VPPApp{Name: "App Foo", AdamID: "50", BundleIdentifier: "z1"}
 	err = s.ds.InsertVPPAppWithTeam(ctx, app1, nil)
 	require.NoError(t, err)
 
-	app2 := &fleet.VPPApp{Name: "App Bar", AdamID: "2", BundleIdentifier: "b2"}
+	app2 := &fleet.VPPApp{Name: "App Bar", AdamID: "51", BundleIdentifier: "z2"}
 	err = s.ds.InsertVPPAppWithTeam(ctx, app2, nil)
 	require.NoError(t, err)
 
@@ -9570,7 +9570,7 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 	require.Len(t, assoc, 0)
 
 	// Associating an app we own
-	s.Do("POST", batchURL, batchAssociateAppStoreAppsRequest{Apps: []fleet.VPPBatchPayload{{AppStoreID: s.appleVPPConfigSrvConfig.Assets[0].AdamID}}}, http.StatusNoContent, "team_name", tmGood.Name)
+	s.Do("POST", batchURL, batchAssociateAppStoreAppsRequest{Apps: []fleet.VPPBatchPayload{{AppStoreID: "50"}}}, http.StatusNoContent, "team_name", tmGood.Name)
 
 	assoc, err = s.ds.GetAssignedVPPApps(ctx, &tmGood.ID)
 	require.NoError(t, err)
