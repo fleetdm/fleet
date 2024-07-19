@@ -8329,14 +8329,12 @@ func (s *integrationTestSuite) TestGetHostMaintenanceWindow() {
 
 	startTime := time.Now().Add(time.Minute).In(time.UTC)
 	endTime := startTime.Add(time.Minute * 30)
-	emptyTz := ""
 	testEvent := fleet.CalendarEvent{
 		Email:     "foo@example.com",
 		StartTime: startTime,
 		EndTime:   endTime,
 		Data:      []byte(`{}`),
-		// will replaced with NULL - db method doesn't allow nil
-		TimeZone: &emptyTz,
+		TimeZone: nil,
 		UUID:     uuid.New().String(),
 	}
 
