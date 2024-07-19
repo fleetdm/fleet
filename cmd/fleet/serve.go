@@ -942,8 +942,6 @@ the way that the Fleet server works.
 					"get_frontend",
 					service.ServeFrontend(config.Server.URLPrefix, config.Server.SandboxEnabled, httpLogger),
 				)
-				frontendHandler = service.WithDEPWebviewRedirect(svc, logger, frontendHandler, config.Server.URLPrefix)
-
 				apiHandler = service.MakeHandler(svc, config, httpLogger, limiterStore)
 
 				setupRequired, err := svc.SetupRequired(baseCtx)

@@ -1,5 +1,3 @@
-import { IMDMAppleEnrollmentProfileParams } from "services/entities/mdm";
-
 const API_VERSION = "latest";
 
 export default {
@@ -95,14 +93,11 @@ export default {
   MDM_PROFILES_STATUS_SUMMARY: `/${API_VERSION}/fleet/mdm/profiles/summary`,
   MDM_DISK_ENCRYPTION_SUMMARY: `/${API_VERSION}/fleet/mdm/disk_encryption/summary`,
   MDM_APPLE_SSO: `/${API_VERSION}/fleet/mdm/sso`,
-  MDM_APPLE_ENROLLMENT_PROFILE: ({
-    token,
-    ref,
-    dep_device_info,
-  }: IMDMAppleEnrollmentProfileParams) => {
+  MDM_APPLE_ENROLLMENT_PROFILE: (token: string, ref?: string) => {
     const query = new URLSearchParams({ token });
-    ref && query.append("enrollment_reference", ref);
-    dep_device_info && query.append("dep_device_info", dep_device_info);
+    if (ref) {
+      query.append("enrollment_reference", ref);
+    }
     return `/api/mdm/apple/enroll?${query}`;
   },
   MDM_APPLE_SETUP_ENROLLMENT_PROFILE: `/${API_VERSION}/fleet/mdm/apple/enrollment_profile`,
