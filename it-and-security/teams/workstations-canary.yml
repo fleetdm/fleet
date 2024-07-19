@@ -118,3 +118,4 @@ queries:
   - path: ../lib/collect-vs-code-extensions.queries.yml
   - path: ../lib/collect-software-permissions-system.queries.yml
   - path: ../lib/collect-software-permissions-user.queries.yml
+  - path: ../lib/collect-crowdstrike-info.queries.yml
