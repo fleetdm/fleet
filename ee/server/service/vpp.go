@@ -105,6 +105,15 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 	}
 
 	if !dryRun {
+		apps, err := getVPPAppsMetadata(ctx, adamIDs)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "refreshing VPP app metadata")
+		}
+
+		if err := svc.ds.BatchInsertVPPApps(ctx, apps); err != nil {
+			return ctxerr.Wrap(ctx, err, "inserting vpp app metadata")
+		}
+
 		if err := svc.ds.SetTeamVPPApps(ctx, &team.ID, adamIDs); err != nil {
 			return fleet.NewUserMessageError(ctxerr.Wrap(ctx, err, "set team vpp assets"), http.StatusInternalServerError)
 		}
@@ -255,4 +264,27 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, adamID str
 	}
 
 	return nil
+}
+
+func getVPPAppsMetadata(ctx context.Context, adamIDs []string) ([]*fleet.VPPApp, error) {
+	var apps []*fleet.VPPApp
+
+	assetMetatada, err := itunes.GetAssetMetadata(adamIDs, &itunes.AssetMetadataFilter{Entity: "desktopSoftware"})
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "fetching VPP asset metadata")
+	}
+
+	for adamID, metadata := range assetMetatada {
+		app := &fleet.VPPApp{
+			AdamID:           adamID,
+			BundleIdentifier: metadata.BundleID,
+			IconURL:          metadata.ArtworkURL,
+			Name:             metadata.TrackName,
+			LatestVersion:    metadata.Version,
+		}
+
+		apps = append(apps, app)
+	}
+
+	return apps, nil
 }
