@@ -640,7 +640,9 @@ func TestFullTeamGitOps(t *testing.T) {
 	ds.SetTeamVPPAppsFunc = func(ctx context.Context, teamID *uint, adamIDs []string) error {
 		return nil
 	}
-
+	ds.BatchInsertVPPAppsFunc = func(ctx context.Context, apps []*fleet.VPPApp) error {
+		return nil
+	}
 	ds.ApplyEnrollSecretsFunc = func(ctx context.Context, teamID *uint, secrets []*fleet.EnrollSecret) error {
 		enrolledSecrets = secrets
 		return nil
