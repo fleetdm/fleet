@@ -133,10 +133,18 @@ func vppAppHostStatusNamedQuery(hvsiAlias, ncrAlias, colAlias string) string {
 
 func (ds *Datastore) BatchInsertVPPApps(ctx context.Context, apps []*fleet.VPPApp) error {
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		if err := insertVPPApps(ctx, tx, apps); err != nil {
-			return ctxerr.Wrap(ctx, err, "BatchInsertVPPApps insertVPPApps transaction")
-		}
+		for _, app := range apps {
+			titleID, err := ds.getOrInsertSoftwareTitleForVPPApp(ctx, tx, app)
+			if err != nil {
+				return err
+			}
 
+			app.TitleID = titleID
+
+			if err := insertVPPApps(ctx, tx, []*fleet.VPPApp{app}); err != nil {
+				return ctxerr.Wrap(ctx, err, "BatchInsertVPPApps insertVPPApps transaction")
+			}
+		}
 		return nil
 	})
 }
