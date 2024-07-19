@@ -766,6 +766,9 @@ func TestBasicGlobalAndTeamGitOps(t *testing.T) {
 	ds.SetTeamVPPAppsFunc = func(ctx context.Context, teamID *uint, adamIDs []string) error {
 		return nil
 	}
+	ds.BatchInsertVPPAppsFunc = func(ctx context.Context, apps []*fleet.VPPApp) error {
+		return nil
+	}
 
 	const (
 		fleetServerURL = "https://fleet.example.com"
@@ -1052,6 +1055,9 @@ func TestFullGlobalAndTeamGitOps(t *testing.T) {
 	ds.SetTeamVPPAppsFunc = func(ctx context.Context, teamID *uint, adamIDs []string) error {
 		return nil
 	}
+	ds.BatchInsertVPPAppsFunc = func(ctx context.Context, apps []*fleet.VPPApp) error {
+		return nil
+	}
 
 	globalFile := "./testdata/gitops/global_config_no_paths.yml"
 	teamFile := "./testdata/gitops/team_config_no_paths.yml"
@@ -1104,6 +1110,9 @@ func TestTeamSofwareInstallersGitOps(t *testing.T) {
 			ds.SetTeamVPPAppsFunc = func(ctx context.Context, teamID *uint, adamIDs []string) error {
 				return nil
 			}
+			ds.BatchInsertVPPAppsFunc = func(ctx context.Context, apps []*fleet.VPPApp) error {
+				return nil
+			}
 
 			_, err := runAppNoChecks([]string{"gitops", "-f", c.file})
 			if c.wantErr == "" {
@@ -1154,6 +1163,9 @@ func TestTeamVPPAppsGitOps(t *testing.T) {
 			require.NoError(t, err)
 
 			ds.SetTeamVPPAppsFunc = func(ctx context.Context, teamID *uint, adamIDs []string) error {
+				return nil
+			}
+			ds.BatchInsertVPPAppsFunc = func(ctx context.Context, apps []*fleet.VPPApp) error {
 				return nil
 			}
 
@@ -1240,6 +1252,9 @@ func TestCustomSettingsGitOps(t *testing.T) {
 				return ret, nil
 			}
 			ds.SetTeamVPPAppsFunc = func(ctx context.Context, teamID *uint, adamIDs []string) error {
+				return nil
+			}
+			ds.BatchInsertVPPAppsFunc = func(ctx context.Context, apps []*fleet.VPPApp) error {
 				return nil
 			}
 
@@ -1456,6 +1471,9 @@ func setupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig,
 		return nil
 	}
 	ds.SetTeamVPPAppsFunc = func(ctx context.Context, teamID *uint, adamIDs []string) error {
+		return nil
+	}
+	ds.BatchInsertVPPAppsFunc = func(ctx context.Context, apps []*fleet.VPPApp) error {
 		return nil
 	}
 
