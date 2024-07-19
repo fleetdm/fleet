@@ -2624,13 +2624,13 @@ func (svc *Service) UploadMDMAppleVPPToken(ctx context.Context, token io.ReadSee
 		return ctxerr.Wrap(ctx, err, "validating VPP token with Apple")
 	}
 
-	decodedTokenBytes, err := base64.StdEncoding.DecodeString(string(tokenBytes))
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "decoding VPP token")
-	}
+	// decodedTokenBytes, err := base64.StdEncoding.DecodeString(string(tokenBytes))
+	// if err != nil {
+	// 	return ctxerr.Wrap(ctx, err, "decoding VPP token")
+	// }
 
 	data := fleet.VPPTokenData{
-		Token:    string(decodedTokenBytes),
+		Token:    string(tokenBytes),
 		Location: locName,
 	}
 
@@ -2694,7 +2694,12 @@ func (svc *Service) GetMDMAppleVPPToken(ctx context.Context) (*fleet.VPPTokenInf
 	}
 
 	var rawToken fleet.VPPTokenRaw
-	if err := json.Unmarshal([]byte(tokenData.Token), &rawToken); err != nil {
+	decodedBytes, err := base64.StdEncoding.DecodeString(tokenData.Token)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "decoding VPP token")
+	}
+
+	if err := json.Unmarshal(decodedBytes, &rawToken); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "unmarshaling VPP token")
 	}
 
