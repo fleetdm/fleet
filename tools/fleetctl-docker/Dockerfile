@@ -1,4 +1,4 @@
-FROM rust:slim@sha256:8147f469458ff9dd26ac25c7dac505749db934088776a624869c01cd60581314 as builder
+FROM rust:latest@sha256:4c45f61ebe054560190f232b7d883f174ff287e1a0972c8f6d7ab88da0188870 as builder
 
 ARG transporter_url=https://itunesconnect.apple.com/WebObjects/iTunesConnect.woa/ra/resources/download/public/Transporter__Linux/bin
 
