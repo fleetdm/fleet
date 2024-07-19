@@ -9547,11 +9547,11 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 	ctx := context.Background()
 
 	// Insert apps we can associate
-	app1 := &fleet.VPPApp{Name: "vpp_app_1", AdamID: "1", BundleIdentifier: "b1"}
+	app1 := &fleet.VPPApp{Name: "App 1", AdamID: "1", BundleIdentifier: "b1"}
 	err = s.ds.InsertVPPAppWithTeam(ctx, app1, nil)
 	require.NoError(t, err)
 
-	app2 := &fleet.VPPApp{Name: "vpp_app_2", AdamID: "2", BundleIdentifier: "b2"}
+	app2 := &fleet.VPPApp{Name: "App 2", AdamID: "2", BundleIdentifier: "b2"}
 	err = s.ds.InsertVPPAppWithTeam(ctx, app2, nil)
 	require.NoError(t, err)
 
