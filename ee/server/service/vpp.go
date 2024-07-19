@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -25,7 +24,7 @@ func (svc *Service) getVPPToken(ctx context.Context) (string, error) {
 		return "", ctxerr.Wrap(ctx, err, "unmarshaling VPP token data")
 	}
 
-	return base64.StdEncoding.EncodeToString([]byte(vppTokenData.Token)), nil
+	return vppTokenData.Token, nil
 }
 
 func (svc *Service) GetAppStoreApps(ctx context.Context, teamID *uint) ([]*fleet.VPPApp, error) {
