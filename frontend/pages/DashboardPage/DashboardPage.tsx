@@ -660,7 +660,6 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
         isSoftwareEnabled={isSoftwareEnabled}
         software={software}
         teamId={currentTeamId}
-        pageIndex={softwarePageIndex}
         navTabIndex={softwareNavTabIndex}
         onTabChange={onSoftwareTabChange}
         onQueryChange={onSoftwareQueryChange}

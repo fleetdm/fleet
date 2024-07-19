@@ -364,19 +364,20 @@ const HostSummary = ({
       DATE_FNS_FORMAT_STRINGS.dateAtTime
     );
 
-    const tip = timezone ? (
-      <>
-        End user&apos;s time zone:
-        <br />
-        (GMT{starts_at.slice(-6)}) {timezone.replace("_", " ")}
-      </>
-    ) : (
-      <>
-        End user&apos;s timezone unavailable.
-        <br />
-        Displaying in UTC.
-      </>
-    );
+    const tip =
+      timezone && timezone !== "UTC" ? (
+        <>
+          End user&apos;s time zone:
+          <br />
+          (GMT{starts_at.slice(-6)}) {timezone.replace("_", " ")}
+        </>
+      ) : (
+        <>
+          End user&apos;s timezone unavailable.
+          <br />
+          Displaying in UTC.
+        </>
+      );
 
     return (
       <DataSet

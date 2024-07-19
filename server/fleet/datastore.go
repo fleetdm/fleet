@@ -195,6 +195,8 @@ type Datastore interface {
 	ListLabels(ctx context.Context, filter TeamFilter, opt ListOptions) ([]*Label, error)
 	LabelsSummary(ctx context.Context) ([]*LabelSummary, error)
 
+	GetHostUUIDsWithPendingMDMAppleCommands(ctx context.Context) ([]string, error)
+
 	// LabelQueriesForHost returns the label queries that should be executed for the given host.
 	// Results are returned in a map of label id -> query
 	LabelQueriesForHost(ctx context.Context, host *Host) (map[string]string, error)

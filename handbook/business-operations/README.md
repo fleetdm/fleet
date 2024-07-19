@@ -40,6 +40,17 @@ Recurring monthly or annual expenses, such as the tools we use throughout Fleet,
 All Fleet team members undergo a background check provided through [Vetty](https://vetty.co/). Only the most recent background checks appear on the home page of Vetty's dashboard. To access a complete list of background checks run in Vetty, scroll down to the bottom of the candidates page and click "View Historical".
 
 
+### Register Fleet as an employer with a new state 
+Fleet must register as an employer in any state where we hire new teammates. To do this, complete the following steps in Gusto:
+1. After a new teammate completes their Gusto profile, the Business Operations department will be prompted to approve it for payroll. Sign in to your Gusto admin account and begin the approval process.
+2. Select "yes" when prompted to file a new hire report and complete the approval process.
+3. Once the profile is approved, navigate to Tax setup and select the state you’d like to register Fleet in.
+4. Select “Have us register for you” and then “Start registration.”
+5. Verify, add, and amend any company information to ensure accuracy.
+6. Select “Send registration” and authorize payment for the specified amount. CorpNet will then send an email with next steps, which vary by state.
+    
+
+
 ### Process an email from a state agency
 From time to time, you may get notices via email (or in the mail) from state agencies regarding Fleet's withholding and/or unemployment tax accounts. You can resolve some of these notices on your own by verifying and/or updating the settings in your Gusto account.
 
@@ -384,7 +395,12 @@ Within 60 days of the end of the year, follow these steps:
 
 
 ### Process a new vendor invoice
-- After making sure that an invoice received from a new vendor is valid, add the new vendor to the recurring expenses section of ["The numbers"](https://docs.google.com/spreadsheets/d/1X-brkmUK7_Rgp7aq42drNcUg8ZipzEiS153uKZSabWc/edit#gid=2112277278) before paying the invoice.
+Fleet pays its vendors in less than 15 business days in most cases. All invoices and tax documents should be submitted to the Business Operations department using the [appropriate Fleet email address (confidential Google Doc)](https://docs.google.com/document/d/1tE-NpNfw1icmU2MjYuBRib0VWBPVAdmq4NiCrpuI0F0/edit#heading=h.wqalwz1je6rq).
+- After making sure the invoice received from a new vendor is valid, add the new vendor to the recurring expenses section of ["The numbers"](https://docs.google.com/spreadsheets/d/1X-brkmUK7_Rgp7aq42drNcUg8ZipzEiS153uKZSabWc/edit#gid=2112277278) before paying the invoice.
+- If we have not paid this vendor before, make sure we have received the required W-9 or W-8 form from the vendor. **Accounting cannot process a payment without these tax forms for compliance reasons.**
+  - **US-based vendors** are required to complete a [W-9 form](https://www.irs.gov/pub/irs-pdf/fw9.pdf).
+  - **Non-US based vendors and individuals** are required to follow these [instructions](https://www.irs.gov/instructions/iw8bene) and provide a completed [W-8BEN-E](https://www.irs.gov/pub/irs-pdf/fw8bene.pdf) form.
+
 
 
 ### Process a request to cancel a vendor

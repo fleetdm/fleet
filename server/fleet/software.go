@@ -179,7 +179,7 @@ type SoftwareTitle struct {
 	// BundleIdentifier is used by Apple installers to uniquely identify
 	// the software installed. It's surfaced in software_titles to match
 	// with existing software entries.
-	BundleIdentifier *string `json:"bundle_identifier" db:"bundle_identifier"`
+	BundleIdentifier *string `json:"bundle_identifier,omitempty" db:"bundle_identifier"`
 }
 
 // This type is essentially the same as the above SoftwareTitle type. The only difference is that
@@ -210,6 +210,10 @@ type SoftwareTitleListResult struct {
 	// AppStoreApp provides VPP app information, it is only present if a VPP app
 	// is available for the software title.
 	AppStoreApp *SoftwarePackageOrApp `json:"app_store_app"`
+	// BundleIdentifier is used by Apple installers to uniquely identify
+	// the software installed. It's surfaced in software_titles to match
+	// with existing software entries.
+	BundleIdentifier *string `json:"bundle_identifier,omitempty" db:"bundle_identifier"`
 }
 
 type SoftwareTitleListOptions struct {

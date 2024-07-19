@@ -12,8 +12,8 @@ import { getErrorMessage } from "../AddSoftwareModal/helpers";
 
 const baseClass = "add-package";
 
-// 2 minutes + 15 seconds to account for extra roundtrip time.
-const UPLOAD_TIMEOUT = (2 * 60 + 15) * 1000;
+// 8 minutes + 15 seconds to account for extra roundtrip time.
+const UPLOAD_TIMEOUT = (8 * 60 + 15) * 1000;
 const MAX_FILE_SIZE_MB = 500;
 const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 
