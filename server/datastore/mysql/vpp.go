@@ -316,6 +316,10 @@ func (ds *Datastore) getOrInsertSoftwareTitleForVPPApp(ctx context.Context, tx s
 	insertArgs := []any{app.Name, source}
 
 	if app.BundleIdentifier != "" {
+		// NOTE: The index `idx_sw_titles` doesn't include the bundle
+		// identifier. It's possible for the select to return nothing
+		// but for the insert to fail if an app with the same name but
+		// no bundle identifier exists in the DB.
 		selectStmt = `SELECT id FROM software_titles WHERE bundle_identifier = ?`
 		selectArgs = []any{app.BundleIdentifier}
 		insertStmt = `INSERT INTO software_titles (name, source, bundle_identifier, browser) VALUES (?, ?, ?, '')`
