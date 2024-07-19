@@ -592,11 +592,12 @@ func testTeamFilterSoftwareTitles(t *testing.T, ds *Datastore) {
 
 	// create a software installer for team1
 	installer1, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
-		Title:         "installer1",
-		Source:        "apps",
-		InstallScript: "echo",
-		Filename:      "installer1.pkg",
-		TeamID:        &team1.ID,
+		Title:            "installer1",
+		Source:           "apps",
+		InstallScript:    "echo",
+		Filename:         "installer1.pkg",
+		BundleIdentifier: "foo.bar",
+		TeamID:           &team1.ID,
 	})
 	require.NoError(t, err)
 	require.NotZero(t, installer1)
@@ -654,7 +655,20 @@ func testTeamFilterSoftwareTitles(t *testing.T, ds *Datastore) {
 	require.Zero(t, title.VPPAppsCount)
 	// ListSoftwareTitles does not populate version host counts, so we do that manually
 	titles[0].Versions[0].HostsCount = ptr.Uint(1)
-	assert.Equal(t, titles[0], fleet.SoftwareTitleListResult{ID: title.ID, Name: title.Name, Source: title.Source, Browser: title.Browser, HostsCount: title.HostsCount, VersionsCount: title.VersionsCount, Versions: title.Versions, CountsUpdatedAt: title.CountsUpdatedAt})
+	assert.Equal(
+		t,
+		titles[0],
+		fleet.SoftwareTitleListResult{
+			ID:              title.ID,
+			Name:            title.Name,
+			Source:          title.Source,
+			Browser:         title.Browser,
+			HostsCount:      title.HostsCount,
+			VersionsCount:   title.VersionsCount,
+			Versions:        title.Versions,
+			CountsUpdatedAt: title.CountsUpdatedAt,
+		},
+	)
 
 	// Testing with team filter -- this team does not contain this software title
 	_, err = ds.SoftwareTitleByID(context.Background(), titles[0].ID, &team1.ID, globalTeamFilter)
@@ -684,12 +698,21 @@ func testTeamFilterSoftwareTitles(t *testing.T, ds *Datastore) {
 	require.Equal(t, "chrome_extensions", titles[0].Source)
 	require.Equal(t, "installer1", titles[1].Name)
 	require.Equal(t, "apps", titles[1].Source)
+	require.NotNil(t, titles[1].BundleIdentifier)
+	require.Equal(t, "foo.bar", *titles[1].BundleIdentifier)
 	require.Equal(t, uint(1), titles[0].VersionsCount)
 	require.Nil(t, titles[0].SoftwarePackage)
 	require.Nil(t, titles[0].AppStoreApp)
 	require.Equal(t, uint(0), titles[1].VersionsCount)
 	require.NotNil(t, titles[1].SoftwarePackage)
 	require.Nil(t, titles[1].AppStoreApp)
+
+	title, err = ds.SoftwareTitleByID(context.Background(), titles[1].ID, &team1.ID, team1TeamFilter)
+	require.NoError(t, err)
+	require.Equal(t, "installer1", title.Name)
+	require.Equal(t, "apps", title.Source)
+	require.NotNil(t, title.BundleIdentifier)
+	require.Equal(t, "foo.bar", *title.BundleIdentifier)
 
 	// Testing with team filter -- this team does contain this software title
 	title, err = ds.SoftwareTitleByID(context.Background(), titles[0].ID, &team1.ID, team1TeamFilter)

@@ -15,7 +15,7 @@ BASE_FLEET_URL=$2
 
 rm -rf test_tuf desktop.tar.gz
 
-SYSTEMS="macos windows linux" \
+SYSTEMS="macos windows linux linux-arm64" \
 PKG_FLEET_URL=$BASE_FLEET_URL \
 PKG_TUF_URL=$BASE_TUF_URL \
 DEB_FLEET_URL=$BASE_FLEET_URL \

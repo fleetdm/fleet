@@ -21,6 +21,8 @@ import ChromeOS from "./ChromeOS";
 import LinuxOS from "./LinuxOS";
 import Falcon from "./Falcon";
 import AppStore from "./AppStore";
+import iOS from "./iOS";
+import iPadOS from "./iPadOS";
 
 // Maps all known Linux platforms to the LinuxOS icon
 const LINUX_OS_NAME_TO_ICON_MAP = HOST_LINUX_PLATFORMS.reduce(
@@ -46,6 +48,8 @@ const SOFTWARE_NAME_TO_ICON_MAP = {
   darwin: MacOS,
   windows: WindowsOS,
   chrome: ChromeOS,
+  ios: iOS,
+  ipados: iPadOS,
   ...LINUX_OS_NAME_TO_ICON_MAP,
 } as const;
 

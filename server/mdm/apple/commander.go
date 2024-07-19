@@ -118,7 +118,7 @@ func (svc *MDMAppleCommander) DeviceLock(ctx context.Context, host *fleet.Host, 
 		return "", ctxerr.Wrap(ctx, err, "enqueuing for DeviceLock")
 	}
 
-	if err := svc.sendNotifications(ctx, []string{host.UUID}); err != nil {
+	if err := svc.SendNotifications(ctx, []string{host.UUID}); err != nil {
 		return "", ctxerr.Wrap(ctx, err, "sending notifications for DeviceLock")
 	}
 
@@ -154,7 +154,7 @@ func (svc *MDMAppleCommander) EraseDevice(ctx context.Context, host *fleet.Host,
 		return ctxerr.Wrap(ctx, err, "enqueuing for DeviceWipe")
 	}
 
-	if err := svc.sendNotifications(ctx, []string{host.UUID}); err != nil {
+	if err := svc.SendNotifications(ctx, []string{host.UUID}); err != nil {
 		return ctxerr.Wrap(ctx, err, "sending notifications for DeviceWipe")
 	}
 
@@ -315,14 +315,14 @@ func (svc *MDMAppleCommander) EnqueueCommand(ctx context.Context, hostUUIDs []st
 		return ctxerr.Wrap(ctx, err, "enqueuing command")
 	}
 
-	if err := svc.sendNotifications(ctx, hostUUIDs); err != nil {
+	if err := svc.SendNotifications(ctx, hostUUIDs); err != nil {
 		return ctxerr.Wrap(ctx, err, "sending notifications")
 	}
 
 	return nil
 }
 
-func (svc *MDMAppleCommander) sendNotifications(ctx context.Context, hostUUIDs []string) error {
+func (svc *MDMAppleCommander) SendNotifications(ctx context.Context, hostUUIDs []string) error {
 	apnsResponses, err := svc.pusher.Push(ctx, hostUUIDs)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "commander push")

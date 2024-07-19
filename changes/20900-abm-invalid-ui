@@ -1,2 +1,0 @@
-- Fixed issue where the Fleet UI could not be used to renew the ABM token after the ABM user who created
-  the token was deleted.

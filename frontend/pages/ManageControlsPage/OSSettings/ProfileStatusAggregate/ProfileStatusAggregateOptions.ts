@@ -28,7 +28,7 @@ const AGGREGATE_STATUS_DISPLAY_OPTIONS: IAggregateDisplayOption[] = [
     text: "Pending",
     iconName: "pendingPartial",
     tooltipText:
-      "These hosts will receive MDM command to apply OS settings when the host come online.",
+      "These hosts will apply the latest OS settings. Click on a host to view which settings.",
   },
   {
     value: "failed",

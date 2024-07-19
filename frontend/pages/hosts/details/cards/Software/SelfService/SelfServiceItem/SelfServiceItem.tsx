@@ -94,7 +94,9 @@ const InstallerStatus = ({
         data-for={`install-tooltip__${id}`}
       >
         <Icon name={displayConfig.iconName} />
-        <span>{displayConfig.displayText}</span>
+        <span data-testid={`${baseClass}__status--test`}>
+          {displayConfig.displayText}
+        </span>
       </div>
       <ReactTooltip
         className={`${baseClass}__status-tooltip`}
@@ -119,6 +121,20 @@ interface IInstallerStatusActionProps {
   onInstall: () => void;
 }
 
+const getInstallButtonText = (status: SoftwareInstallStatus | null) => {
+  switch (status) {
+    case null:
+      return "Install";
+    case "failed":
+      return "Retry";
+    case "installed":
+      return "Reinstall";
+    default:
+      // we don't show a button for pending installs
+      return "";
+  }
+};
+
 const InstallerStatusAction = ({
   deviceToken,
   software: { id, status, last_install },
@@ -134,6 +150,7 @@ const InstallerStatusAction = ({
   // displayStatus allows us to display the localStatus (if any) or the status from the list
   // software reponse
   const displayStatus = localStatus || status;
+  const installButtonText = getInstallButtonText(displayStatus);
 
   // if the localStatus is "failed", we don't our tooltip to include the old installed_at date so we
   // set this to null, which tells the tooltip to omit the parenthetical date
@@ -172,7 +189,7 @@ const InstallerStatusAction = ({
         />
       </div>
       <div className={`${baseClass}__item-action`}>
-        {(displayStatus === "failed" || displayStatus === null) && (
+        {!!installButtonText && (
           <Button
             variant="text-icon"
             type="button"
@@ -181,7 +198,9 @@ const InstallerStatusAction = ({
             }`}
             onClick={onClick}
           >
-            {displayStatus === "failed" ? "Retry" : "Install"}
+            <span data-testid={`${baseClass}__item-action-button--test`}>
+              {installButtonText}
+            </span>
           </Button>
         )}
       </div>

@@ -7,13 +7,25 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
+const pollWaitTime = 5 * time.Second
+
 func (c *Client) RunHostScriptSync(hostID uint, scriptContents []byte, scriptName string, teamID uint) (*fleet.HostScriptResult, error) {
-	verb, path := "POST", "/api/latest/fleet/scripts/run/sync"
-	return c.runHostScript(verb, path, hostID, scriptContents, scriptName, teamID, http.StatusOK)
+	verb, path := "POST", "/api/latest/fleet/scripts/run"
+	res, err := c.runHostScript(verb, path, hostID, scriptContents, scriptName, teamID, http.StatusAccepted)
+	if err != nil {
+		return nil, err
+	}
+
+	if res.ExecutionID == "" {
+		return nil, errors.New("missing execution id in response")
+	}
+
+	return c.pollForResult(res.ExecutionID)
 }
 
 func (c *Client) RunHostScriptAsync(hostID uint, scriptContents []byte, scriptName string, teamID uint) (*fleet.HostScriptResult, error) {
@@ -79,6 +91,43 @@ func (c *Client) runHostScript(verb, path string, hostID uint, scriptContents []
 	}
 
 	return &result, nil
+}
+
+func (c *Client) pollForResult(id string) (*fleet.HostScriptResult, error) {
+	verb, path := "GET", fmt.Sprintf("/api/latest/fleet/scripts/results/%s", id)
+	var result *fleet.HostScriptResult
+	for {
+		res, err := c.AuthenticatedDo(verb, path, "", nil)
+		if err != nil {
+			return nil, fmt.Errorf("polling for result: %w", err)
+		}
+		defer res.Body.Close()
+
+		if res.StatusCode != http.StatusOK && res.StatusCode != http.StatusNotFound {
+
+			msg, err := extractServerErrMsg(verb, path, res)
+			if err != nil {
+				return nil, fmt.Errorf("extracting error message: %w", err)
+			}
+			if msg == "" {
+				msg = fmt.Sprintf("decoding %d response is missing expected message.", res.StatusCode)
+			}
+			return nil, errors.New(msg)
+		}
+
+		if err := json.NewDecoder(res.Body).Decode(&result); err != nil {
+			return nil, fmt.Errorf("decoding response: %w", err)
+		}
+
+		if result.ExitCode != nil {
+			break
+		}
+
+		time.Sleep(pollWaitTime)
+
+	}
+
+	return result, nil
 }
 
 // ApplyNoTeamScripts sends the list of scripts to be applied for the hosts in
