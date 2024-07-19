@@ -250,7 +250,7 @@ export interface IHostSoftwarePackage {
 }
 
 export interface IHostAppStoreApp {
-  appStoreId: string;
+  app_store_id: string;
   self_service: boolean;
   icon_url: string;
   version: string;

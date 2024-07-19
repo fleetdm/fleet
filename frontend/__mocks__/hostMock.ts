@@ -154,7 +154,7 @@ export const createMockHostSoftwarePackage = (
 };
 
 const DEFAULT_HOST_APP_STORE_APP_MOCK: IHostAppStoreApp = {
-  appStoreId: "123456789",
+  app_store_id: "123456789",
   version: "1.0.0",
   self_service: false,
   icon_url: "https://via.placeholder.com/512",

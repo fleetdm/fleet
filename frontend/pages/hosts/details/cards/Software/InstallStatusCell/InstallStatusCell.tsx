@@ -65,7 +65,7 @@ export const INSTALL_STATUS_DISPLAY_OPTIONS: Record<
       isAppStoreApp ? (
         <>
           App Store app can be installed on the host. Select{" "}
-          <b>Actions &gt; Install</b> to install.
+          <b>Actions {">"} Install</b> to install.
         </>
       ) : (
         <>
