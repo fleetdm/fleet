@@ -99,6 +99,7 @@ func (s *integrationTestSuite) TestSlowOsqueryHost() {
 
 func (s *integrationTestSuite) TestDistributedReadWithChangedQueries() {
 	t := s.T()
+	t.Fail()
 
 	spec := []byte(`
   features:
