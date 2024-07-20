@@ -9657,12 +9657,20 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	addedApp = appResp.AppStoreApps[0]
 	addAppResp = addAppStoreAppResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{TeamID: &team.ID, AppStoreID: addedApp.AdamID}, http.StatusOK, &addAppResp)
-	s.lastActivityMatches(fleet.ActivityAddedAppStoreApp{}.ActivityName(), fmt.Sprintf(`{"team_name": "%s", "software_title": "%s", "app_store_id": "%s", "team_id": %d}`, team.Name, addedApp.Name, addedApp.AdamID, team.ID), 0)
+	s.lastActivityMatches(
+		fleet.ActivityAddedAppStoreApp{}.ActivityName(),
+		fmt.Sprintf(`{"team_name": "%s", "software_title": "%s", "app_store_id": "%s", "team_id": %d}`, team.Name, addedApp.Name, addedApp.AdamID, team.ID),
+		0,
+	)
 
 	errApp := appResp.AppStoreApps[1]
 	addAppResp = addAppStoreAppResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{TeamID: &team.ID, AppStoreID: errApp.AdamID}, http.StatusOK, &addAppResp)
-	s.lastActivityMatches(fleet.ActivityAddedAppStoreApp{}.ActivityName(), fmt.Sprintf(`{"team_name": "%s", "software_title": "%s", "app_store_id": "%s", "team_id": %d}`, team.Name, errApp.Name, errApp.AdamID, team.ID), 0)
+	s.lastActivityMatches(
+		fleet.ActivityAddedAppStoreApp{}.ActivityName(),
+		fmt.Sprintf(`{"team_name": "%s", "software_title": "%s", "app_store_id": "%s", "team_id": %d}`, team.Name, errApp.Name, errApp.AdamID, team.ID),
+		0,
+	)
 
 	listSw = listSoftwareTitlesResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listSw, "team_id", fmt.Sprint(team.ID), "available_for_install", "true")
@@ -9694,7 +9702,19 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 		}
 	}
 
-	s.lastActivityMatches(fleet.ActivityInstalledAppStoreApp{}.ActivityName(), fmt.Sprintf(`{"host_id": %d, "host_display_name": "%s", "software_title": "%s", "app_store_id": "%s", "command_uuid": "%s", "status": "%s"}`, mdmHost.ID, mdmHost.DisplayName(), errApp.Name, errApp.AdamID, cmdUUID, fleet.SoftwareInstallerFailed), 0)
+	s.lastActivityMatches(
+		fleet.ActivityInstalledAppStoreApp{}.ActivityName(),
+		fmt.Sprintf(
+			`{"host_id": %d, "host_display_name": "%s", "software_title": "%s", "app_store_id": "%s", "command_uuid": "%s", "status": "%s"}`,
+			mdmHost.ID,
+			mdmHost.DisplayName(),
+			errApp.Name,
+			errApp.AdamID,
+			cmdUUID,
+			fleet.SoftwareInstallerFailed,
+		),
+		0,
+	)
 
 	// Trigger install to the host
 	installResp = installSoftwareResponse{}
@@ -9714,7 +9734,29 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 		}
 	}
 
-	s.lastActivityMatches(fleet.ActivityInstalledAppStoreApp{}.ActivityName(), fmt.Sprintf(`{"host_id": %d, "host_display_name": "%s", "software_title": "%s", "app_store_id": "%s", "command_uuid": "%s", "status": "%s"}`, mdmHost.ID, mdmHost.DisplayName(), addedApp.Name, addedApp.AdamID, cmdUUID, fleet.SoftwareInstallerInstalled), 0)
+	s.lastActivityMatches(
+		fleet.ActivityInstalledAppStoreApp{}.ActivityName(),
+		fmt.Sprintf(
+			`{"host_id": %d, "host_display_name": "%s", "software_title": "%s", "app_store_id": "%s", "command_uuid": "%s", "status": "%s"}`,
+			mdmHost.ID,
+			mdmHost.DisplayName(),
+			addedApp.Name,
+			addedApp.AdamID,
+			cmdUUID,
+			fleet.SoftwareInstallerInstalled,
+		),
+		0,
+	)
+
+	// Check list host software
+
+	getHostSw := getHostSoftwareResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", mdmHost.ID), nil, http.StatusOK, &getHostSw)
+	require.Len(t, getHostSw.Software, 2) // failed and successful
+	require.Equal(t, getHostSw.Software[0].Name, "App 1")
+	require.NotNil(t, getHostSw.Software[0].AppStoreApp)
+	require.Equal(t, getHostSw.Software[1].Name, "App 2")
+	require.NotNil(t, getHostSw.Software[1].AppStoreApp)
 
 	// Delete VPP token and check that it's not appearing anymore
 	s.Do("DELETE", "/api/latest/fleet/mdm/apple/vpp_token", &deleteMDMAppleVPPTokenRequest{}, http.StatusNoContent)
