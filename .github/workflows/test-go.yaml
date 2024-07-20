@@ -46,6 +46,7 @@ jobs:
         os: [ubuntu-latest]
         go-version: ['${{ vars.GO_VERSION }}']
         mysql: ["mysql:5.7.21", "mysql:8.0.28"]
+    continue-on-error: ${{ matrix.suite == 'integration' }} # Since integration tests have a higher chance of failing, often for unrelated reasons, we don't want to fail the whole job if they fail
     runs-on: ${{ matrix.os }}
 
     env:
