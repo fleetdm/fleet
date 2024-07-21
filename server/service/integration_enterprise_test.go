@@ -10983,9 +10983,8 @@ func (s *integrationEnterpriseTestSuite) TestPKGSoftwareReconciliation() {
 }
 
 func (s *integrationEnterpriseTestSuite) TestCalendarCallback() {
-	t := s.T()
-	t.Skip("disabled calendar callbacks to address bugs")
 	ctx := context.Background()
+	t := s.T()
 	t.Cleanup(func() {
 		calendar.ClearMockEvents()
 		calendar.ClearMockChannels()

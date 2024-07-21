@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -191,41 +192,35 @@ func (lowLevelAPI *GoogleCalendarLowLevelAPI) DeleteEvent(id string) error {
 }
 
 func (lowLevelAPI *GoogleCalendarLowLevelAPI) Watch(eventUUID string, channelID string, ttl uint64) (resourceID string, err error) {
-	// Disabling this feature to address bugs
-	return "", nil
-
-	// resp, err := lowLevelAPI.withRetry(
-	// 	func() (any, error) {
-	// 		return lowLevelAPI.service.Events.Watch(calendarID, &calendar.Channel{
-	// 			Id:   channelID, // channelID is also used for authentication -- it should be a random value
-	// 			Type: "web_hook",
-	// 			Address: fmt.Sprintf("%s/api/v1/fleet/calendar/webhook/%s",
-	// 				lowLevelAPI.serverURL, eventUUID),
-	// 			Params: map[string]string{
-	// 				"ttl": strconv.FormatUint(ttl, 10),
-	// 			},
-	// 		}).EventTypes("default").Do()
-	// 	},
-	// )
-	// if err != nil {
-	// 	return "", err
-	// }
-	// return resp.(*calendar.Channel).ResourceId, nil
+	resp, err := lowLevelAPI.withRetry(
+		func() (any, error) {
+			return lowLevelAPI.service.Events.Watch(calendarID, &calendar.Channel{
+				Id:   channelID, // channelID is also used for authentication -- it should be a random value
+				Type: "web_hook",
+				Address: fmt.Sprintf("%s/api/v1/fleet/calendar/webhook/%s",
+					lowLevelAPI.serverURL, eventUUID),
+				Params: map[string]string{
+					"ttl": strconv.FormatUint(ttl, 10),
+				},
+			}).EventTypes("default").Do()
+		},
+	)
+	if err != nil {
+		return "", err
+	}
+	return resp.(*calendar.Channel).ResourceId, nil
 }
 
 func (lowLevelAPI *GoogleCalendarLowLevelAPI) Stop(channelID string, resourceID string) error {
-	// Disabling this feature to address bugs
-	return nil
-
-	// _, err := lowLevelAPI.withRetry(
-	// 	func() (any, error) {
-	// 		return nil, lowLevelAPI.service.Channels.Stop(&calendar.Channel{
-	// 			Id:         channelID,
-	// 			ResourceId: resourceID,
-	// 		}).Do()
-	// 	},
-	// )
-	// return err
+	_, err := lowLevelAPI.withRetry(
+		func() (any, error) {
+			return nil, lowLevelAPI.service.Channels.Stop(&calendar.Channel{
+				Id:         channelID,
+				ResourceId: resourceID,
+			}).Do()
+		},
+	)
+	return err
 }
 
 func (lowLevelAPI *GoogleCalendarLowLevelAPI) withRetry(fn func() (any, error)) (any, error) {
