@@ -39,6 +39,22 @@ func (svc *Service) CalendarWebhook(ctx context.Context, eventUUID string, chann
 		return nil
 	}
 
+	// In the common case, we get the lock right away and process the event.
+	// Otherwise, we do additional validation to see if we need to process the event.
+	lockValue, reserved, err := svc.getCalendarLock(ctx, eventUUID, false)
+	level.Warn(svc.logger).Log("msg", "VICTOR getCalendarLock", "event_uuid", eventUUID, "lock_value", lockValue, "reserved", reserved)
+	if err != nil {
+		return err
+	}
+	unlocked := false
+	defer func() {
+		if !unlocked && lockValue != "" {
+			level.Warn(svc.logger).Log("msg", "VICTOR trying to releaseCalendarLock in defer", "event_uuid", eventUUID, "lock_value",
+				lockValue)
+			svc.releaseCalendarLock(ctx, eventUUID, lockValue)
+		}
+	}()
+
 	eventDetails, err := svc.ds.GetCalendarEventDetailsByUUID(ctx, eventUUID)
 	if err != nil {
 		svc.authz.SkipAuthorization(ctx)
@@ -71,10 +87,30 @@ func (svc *Service) CalendarWebhook(ctx context.Context, eventUUID string, chann
 		return authz.ForbiddenWithInternal(fmt.Sprintf("calendar channel ID mismatch: %s != %s", savedChannelID, channelID), nil, nil, nil)
 	}
 
-	lockValue, reserved, err := svc.getCalendarLock(ctx, eventUUID, true)
-	if err != nil {
-		return err
+	// Now that we fully validated the request, try to get the lock again if we didn't get it the first time.
+	// This time the event will be added to the queue if needed.
+	if lockValue == "" {
+		lockValue, reserved, err = svc.getCalendarLock(ctx, eventUUID, true)
+		if err != nil {
+			return err
+		}
+		level.Warn(svc.logger).Log("msg", "VICTOR getCalendarLock 2", "event_uuid", eventUUID, "lock_value", lockValue, "reserved",
+			reserved)
+		if lockValue != "" {
+			// We got the lock, so we can process the event. We need to refetch the event from DB, since it may have changed since the last fetch.
+			eventDetails, err = svc.ds.GetCalendarEventDetailsByUUID(ctx, eventUUID)
+			if err != nil {
+				if fleet.IsNotFound(err) {
+					// We found the event the first time, but it was deleted before we got the lock.
+					level.Info(svc.logger).Log("msg", "Received calendar callback, but the event was just deleted", "event_uuid",
+						eventUUID, "channel_id", channelID)
+					return nil
+				}
+				return err
+			}
+		}
 	}
+
 	// If lock has been reserved by cron, we will need to re-process this event in case the calendar event was changed after the cron job read it.
 	if lockValue == "" && !reserved {
 		// We did not get a lock, so there is nothing to do here
@@ -82,13 +118,6 @@ func (svc *Service) CalendarWebhook(ctx context.Context, eventUUID string, chann
 	}
 
 	if !reserved {
-		unlocked := false
-		defer func() {
-			if !unlocked {
-				svc.releaseCalendarLock(ctx, eventUUID, lockValue)
-			}
-		}()
-
 		// Remove event from the queue so that we don't process this event again.
 		// Note: This item can be added back to the queue while we are processing it.
 		err = svc.distributedLock.RemoveFromSet(ctx, calendar.QueueKey, eventUUID)
@@ -96,10 +125,14 @@ func (svc *Service) CalendarWebhook(ctx context.Context, eventUUID string, chann
 			return ctxerr.Wrap(ctx, err, "remove calendar event from queue")
 		}
 
+		level.Warn(svc.logger).Log("msg", "VICTOR processing calendar event", "event_uuid", eventUUID, "lock_value", lockValue,
+			"start_time", eventDetails.CalendarEvent.StartTime, "hostID", eventDetails.HostID)
 		err = svc.processCalendarEvent(ctx, eventDetails, googleCalendarIntegrationConfig, userCalendar)
 		if err != nil {
 			return err
 		}
+		level.Warn(svc.logger).Log("msg", "VICTOR trying to releaseCalendarLock after processing", "event_uuid", eventUUID, "lock_value",
+			lockValue)
 		svc.releaseCalendarLock(ctx, eventUUID, lockValue)
 		unlocked = true
 	}
@@ -190,6 +223,8 @@ func (svc *Service) processCalendarEvent(ctx context.Context, eventDetails *flee
 		return ctxerr.Wrap(ctx, err, "get and update event")
 	}
 	if updated && event != nil {
+		level.Warn(svc.logger).Log("msg", "VICTOR event updated", "event_uuid", event.UUID, "start_time", event.StartTime, "hostID",
+			eventDetails.HostID)
 		// Event was updated, so we need to save it
 		_, err = svc.ds.CreateOrUpdateCalendarEvent(ctx, event.UUID, event.Email, event.StartTime, event.EndTime, event.Data,
 			event.TimeZone, eventDetails.HostID, fleet.CalendarWebhookStatusNone)
@@ -220,7 +255,7 @@ func (svc *Service) releaseCalendarLock(ctx context.Context, eventUUID string, l
 	}
 	if !ok {
 		// If the lock was not released, it will expire on its own.
-		level.Warn(svc.logger).Log("msg", "Failed to release calendar lock")
+		level.Error(svc.logger).Log("msg", "Failed to release calendar lock", "event uuid", eventUUID, "lockValue", lockValue)
 	}
 }
 
@@ -303,11 +338,16 @@ func (svc *Service) processCalendarEventAsync(ctx context.Context, eventUUID str
 		level.Error(svc.logger).Log("msg", "Failed to get calendar lock", "err", err)
 		return false
 	}
+	level.Warn(svc.logger).Log("msg", "VICTOR getCalendarLock async", "event_uuid", eventUUID, "lock_value", lockValue)
 	if lockValue == "" {
 		// We did not get a lock, so there is nothing to do here
 		return true
 	}
-	defer svc.releaseCalendarLock(ctx, eventUUID, lockValue)
+	defer func() {
+		level.Warn(svc.logger).Log("msg", "VICTOR trying to releaseCalendarLock in async defer", "event_uuid", eventUUID, "lock_value",
+			lockValue)
+		svc.releaseCalendarLock(ctx, eventUUID, lockValue)
+	}()
 
 	// Remove event from the queue so that we don't process this event again.
 	// Note: This item can be added back to the queue while we are processing it.
@@ -350,6 +390,8 @@ func (svc *Service) processCalendarEventAsync(ctx context.Context, eventUUID str
 	}
 	userCalendar := calendar.CreateUserCalendarFromConfig(ctx, localConfig, svc.logger)
 
+	level.Warn(svc.logger).Log("msg", "VICTOR processing calendar event async", "event_uuid", eventUUID, "lock_value", lockValue,
+		"start_time", eventDetails.CalendarEvent.StartTime, "hostID", eventDetails.HostID)
 	err = svc.processCalendarEvent(ctx, eventDetails, googleCalendarIntegrationConfig, userCalendar)
 	if err != nil {
 		level.Error(svc.logger).Log("msg", "Failed to process calendar event", "err", err)
