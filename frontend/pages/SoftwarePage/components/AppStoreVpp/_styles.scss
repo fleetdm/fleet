@@ -50,4 +50,17 @@
   &__error {
     margin: $pad-xxlarge 0;
   }
+
+  &__enable-vpp {
+    display: flex;
+    flex-direction: column;
+    min-height: 149px;
+    align-items: center;
+    justify-content: center;
+    gap: $pad-small;
+
+    p {
+      margin: 0;
+    }
+  }
 }

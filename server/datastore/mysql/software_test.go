@@ -3647,11 +3647,16 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 	require.Empty(t, sw)
 
 	// add VPP apps, one for both no team and team, and two for no-team only.
-	vpp1, _ := createVPPApp(t, ds, nil, "vpp1", "com.app.vpp1")
-	createVPPAppTeamOnly(t, ds, &tm.ID, vpp1)
-	vpp2, _ := createVPPApp(t, ds, nil, "vpp2", "com.app.vpp2")
-	vpp3, _ := createVPPApp(t, ds, nil, "vpp3", "com.app.vpp3")
-	require.NotEmpty(t, vpp3)
+	va1, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{AdamID: "adam_vpp_1", Name: "vpp1", BundleIdentifier: "com.app.vpp1"}, nil)
+	require.NoError(t, err)
+	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{AdamID: "adam_vpp_1", Name: "vpp1", BundleIdentifier: "com.app.vpp1"}, &tm.ID)
+	require.NoError(t, err)
+	vpp1 := va1.AdamID
+	va2, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{AdamID: "adam_vpp_2", Name: "vpp2", BundleIdentifier: "com.app.vpp2"}, nil)
+	require.NoError(t, err)
+	va3, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{AdamID: "adam_vpp_3", Name: "vpp3", BundleIdentifier: "com.app.vpp3"}, nil)
+	require.NoError(t, err)
+	vpp2, vpp3 := va2.AdamID, va3.AdamID
 
 	// create an installation request for vpp1 and vpp2, leaving vpp3 as
 	// available only

@@ -1,11 +1,17 @@
 import React, { useContext, useState } from "react";
 import { useQuery } from "react-query";
 import { InjectedRouter } from "react-router";
+import { AxiosError } from "axios";
 
 import PATHS from "router/paths";
-import mdmAppleAPI, { IVppApp } from "services/entities/mdm_apple";
+import mdmAppleAPI, {
+  IGetVppInfoResponse,
+  IVppApp,
+} from "services/entities/mdm_apple";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 
+import Card from "components/Card";
+import CustomLink from "components/CustomLink";
 import Spinner from "components/Spinner";
 import Button from "components/buttons/Button";
 import DataError from "components/DataError";
@@ -16,6 +22,26 @@ import { buildQueryStringFromParams } from "utilities/url";
 import SoftwareIcon from "../icons/SoftwareIcon";
 
 const baseClass = "app-store-vpp";
+
+const EnableVppCard = () => {
+  return (
+    <Card borderRadiusSize="medium">
+      <div className={`${baseClass}__enable-vpp`}>
+        <p className={`${baseClass}__enable-vpp-title`}>
+          <b>Volume Purchasing Program (VPP) isn’t enabled.</b>
+        </p>
+        <p className={`${baseClass}__enable-vpp-description`}>
+          To add App Store apps, first enable VPP.
+        </p>
+        <CustomLink
+          url={PATHS.ADMIN_INTEGRATIONS_VPP}
+          text="Enable VPP"
+          className={`${baseClass}__enable-vpp-link`}
+        />
+      </div>
+    </Card>
+  );
+};
 
 interface IVppAppListItemProps {
   app: IVppApp;
@@ -95,15 +121,30 @@ const AppStoreVpp = ({ teamId, router, onExit }: IAppStoreVppProps) => {
   const [isSubmitDisabled, setIsSubmitDisabled] = useState(true);
   const [selectedApp, setSelectedApp] = useState<IVppApp | null>(null);
 
-  const { data: vppApps, isLoading, isError } = useQuery(
-    "vppSoftware",
-    () => mdmAppleAPI.getVppApps(teamId),
+  const {
+    data: vppInfo,
+    isLoading: isLoadingVppInfo,
+    error: errorVppInfo,
+  } = useQuery<IGetVppInfoResponse, AxiosError>(
+    ["vppInfo"],
+    () => mdmAppleAPI.getVppInfo(),
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
       staleTime: 30000,
-      select: (res) => res.app_store_apps,
+      retry: (tries, error) => error.status !== 404 && tries <= 3,
     }
   );
+
+  const {
+    data: vppApps,
+    isLoading: isLoadingVppApps,
+    error: errorVppApps,
+  } = useQuery(["vppSoftware", teamId], () => mdmAppleAPI.getVppApps(teamId), {
+    ...DEFAULT_USE_QUERY_OPTIONS,
+    enabled: !!vppInfo,
+    staleTime: 30000,
+    select: (res) => res.app_store_apps,
+  });
 
   const onSelectApp = (app: IVppApp) => {
     setIsSubmitDisabled(false);
@@ -142,11 +183,18 @@ const AppStoreVpp = ({ teamId, router, onExit }: IAppStoreVppProps) => {
   };
 
   const renderContent = () => {
-    if (isLoading) {
+    if (isLoadingVppInfo || isLoadingVppApps) {
       return <Spinner />;
     }
 
-    if (isError) {
+    if (
+      errorVppInfo &&
+      getErrorReason(errorVppInfo).includes("MDMConfigAsset was not found")
+    ) {
+      return <EnableVppCard />;
+    }
+
+    if (errorVppInfo || errorVppApps) {
       return <DataError className={`${baseClass}__error`} />;
     }
 

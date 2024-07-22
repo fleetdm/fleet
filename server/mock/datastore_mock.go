@@ -1004,7 +1004,7 @@ type BatchInsertVPPAppsFunc func(ctx context.Context, apps []*fleet.VPPApp) erro
 
 type GetAssignedVPPAppsFunc func(ctx context.Context, teamID *uint) (map[string]struct{}, error)
 
-type InsertVPPAppWithTeamFunc func(ctx context.Context, app *fleet.VPPApp, teamID *uint) error
+type InsertVPPAppWithTeamFunc func(ctx context.Context, app *fleet.VPPApp, teamID *uint) (*fleet.VPPApp, error)
 
 type SetTeamVPPAppsFunc func(ctx context.Context, teamID *uint, adamIDs []string) error
 
@@ -5948,7 +5948,7 @@ func (s *DataStore) GetAssignedVPPApps(ctx context.Context, teamID *uint) (map[s
 	return s.GetAssignedVPPAppsFunc(ctx, teamID)
 }
 
-func (s *DataStore) InsertVPPAppWithTeam(ctx context.Context, app *fleet.VPPApp, teamID *uint) error {
+func (s *DataStore) InsertVPPAppWithTeam(ctx context.Context, app *fleet.VPPApp, teamID *uint) (*fleet.VPPApp, error) {
 	s.mu.Lock()
 	s.InsertVPPAppWithTeamFuncInvoked = true
 	s.mu.Unlock()

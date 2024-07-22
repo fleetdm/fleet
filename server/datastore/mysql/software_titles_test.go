@@ -2,10 +2,7 @@ package mysql
 
 import (
 	"context"
-	"crypto/rand"
 	"database/sql"
-	"encoding/base64"
-	"io"
 	"sort"
 	"testing"
 	"time"
@@ -318,8 +315,8 @@ func testOrderSoftwareTitles(t *testing.T, ds *Datastore) {
 	_, err = ds.InsertSoftwareInstallRequest(ctx, host1.ID, installer2, false)
 	require.NoError(t, err)
 	// create a VPP app not installed anywhere
-	vpp1, _ := createVPPApp(t, ds, nil, "vpp1", "com.app.vpp1")
-	require.NotEmpty(t, vpp1)
+	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{Name: "vpp1", BundleIdentifier: "com.app.vpp1", AdamID: "adam_vpp_app_1"}, nil)
+	require.NoError(t, err)
 
 	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
 	require.NoError(t, ds.ReconcileSoftwareTitles(ctx))
@@ -617,8 +614,8 @@ func testTeamFilterSoftwareTitles(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.NotZero(t, installer2)
 	// create a VPP app for team2
-	vpp2, _ := createVPPApp(t, ds, &team2.ID, "vpp2", "com.app.vpp2")
-	require.NotEmpty(t, vpp2)
+	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{Name: "vpp2", BundleIdentifier: "com.app.vpp2", AdamID: "adam_vpp_app_2"}, &team2.ID)
+	require.NoError(t, err)
 
 	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
 	require.NoError(t, ds.ReconcileSoftwareTitles(ctx))
@@ -800,8 +797,8 @@ func testListSoftwareTitlesInstallersOnly(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.NotZero(t, installer2)
 	// create a VPP app not installed on a host
-	vpp1, _ := createVPPApp(t, ds, nil, "vpp1", "com.app.vpp1")
-	require.NotEmpty(t, vpp1)
+	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{Name: "vpp1", BundleIdentifier: "com.app,vpp1", AdamID: "adam_vpp_app_1"}, nil)
+	require.NoError(t, err)
 
 	titles, counts, _, err := ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{ListOptions: fleet.ListOptions{
 		OrderKey:       "name",
@@ -887,10 +884,10 @@ func testListSoftwareTitlesAvailableForInstallFilter(t *testing.T, ds *Datastore
 	require.NotZero(t, installer2)
 
 	// create a couple VPP apps
-	vpp1, _ := createVPPApp(t, ds, nil, "vpp1", "com.example.vpp1")
-	require.NotEmpty(t, vpp1)
-	vpp2, _ := createVPPApp(t, ds, nil, "vpp2", "com.example.vpp2")
-	require.NotEmpty(t, vpp2)
+	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{Name: "vpp1", BundleIdentifier: "com.example.vpp1", AdamID: "adam_vpp_app_1"}, nil)
+	require.NoError(t, err)
+	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{Name: "vpp2", BundleIdentifier: "com.example.vpp2", AdamID: "adam_vpp_app_2"}, nil)
+	require.NoError(t, err)
 
 	host := test.NewHost(t, ds, "host", "", "hostkey", "hostuuid", time.Now())
 	software := []fleet.Software{
@@ -945,45 +942,6 @@ func testListSoftwareTitlesAvailableForInstallFilter(t *testing.T, ds *Datastore
 		names = append(names, title.Name)
 	}
 	require.ElementsMatch(t, []string{"installer1", "installer2", "vpp1", "vpp2"}, names)
-}
-
-// creates the entry in vpp_apps and vpp_apps_teams, linking to a software
-// title, creating it if necessary. The source column is always "apps". Returns
-// the adam_id (auto-generated) and the software title id.
-// TODO: temporary, until datastore methods are available for VPP apps.
-func createVPPApp(t *testing.T, ds *Datastore, teamID *uint, name, bundle string) (string, uint) {
-	ctx := context.Background()
-
-	rawBytes := make([]byte, 10)
-	_, err := io.ReadFull(rand.Reader, rawBytes)
-	require.NoError(t, err)
-	adamID := base64.RawStdEncoding.EncodeToString(rawBytes)
-
-	titleID, err := ds.getOrGenerateSoftwareInstallerTitleID(ctx, &fleet.UploadSoftwareInstallerPayload{Title: name, Source: "apps", BundleIdentifier: bundle})
-	require.NoError(t, err)
-
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(ctx, `INSERT INTO vpp_apps (adam_id, title_id, name, bundle_identifier) VALUES (?, ?, ?, ?)`,
-			adamID, titleID, name, bundle)
-		return err
-	})
-
-	createVPPAppTeamOnly(t, ds, teamID, adamID)
-	return adamID, titleID
-}
-
-func createVPPAppTeamOnly(t *testing.T, ds *Datastore, teamID *uint, adamID string) {
-	ctx := context.Background()
-
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		var globalOrTeamID uint
-		if teamID != nil {
-			globalOrTeamID = *teamID
-		}
-		_, err := q.ExecContext(ctx, `INSERT INTO vpp_apps_teams (adam_id, team_id, global_or_team_id) VALUES (?, ?, ?)`,
-			adamID, teamID, globalOrTeamID)
-		return err
-	})
 }
 
 func testUploadedSoftwareExists(t *testing.T, ds *Datastore) {

@@ -193,8 +193,8 @@ func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, adamIDs [
 	})
 }
 
-func (ds *Datastore) InsertVPPAppWithTeam(ctx context.Context, app *fleet.VPPApp, teamID *uint) error {
-	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+func (ds *Datastore) InsertVPPAppWithTeam(ctx context.Context, app *fleet.VPPApp, teamID *uint) (*fleet.VPPApp, error) {
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		titleID, err := ds.getOrInsertSoftwareTitleForVPPApp(ctx, tx, app)
 		if err != nil {
 			return err
@@ -212,6 +212,11 @@ func (ds *Datastore) InsertVPPAppWithTeam(ctx context.Context, app *fleet.VPPApp
 
 		return nil
 	})
+	if err != nil {
+		return nil, err
+	}
+
+	return app, nil
 }
 
 func (ds *Datastore) GetAssignedVPPApps(ctx context.Context, teamID *uint) (map[string]struct{}, error) {
@@ -304,11 +309,10 @@ AND
 }
 
 func (ds *Datastore) getOrInsertSoftwareTitleForVPPApp(ctx context.Context, tx sqlx.ExtContext, app *fleet.VPPApp) (uint, error) {
-	// NOTE: it was decided to leave the source empty for VPP apps for now, TBD
+	// NOTE: it was decided to populate "apps" as the source for VPP apps for now, TBD
 	// if this needs to change to better map to how software titles are reported
-	// back by osquery. Since I think this will likely not stay empty, I'm using
-	// a variable for the source.
-	const source = ""
+	// back by osquery. Since it may change, we're using a variable for the source.
+	const source = "apps"
 
 	selectStmt := `SELECT id FROM software_titles WHERE name = ? AND source = ? AND browser = ''`
 	selectArgs := []any{app.Name, source}

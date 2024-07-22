@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -27,21 +26,7 @@ func (svc *Service) getVPPToken(ctx context.Context) (string, error) {
 		return "", ctxerr.Wrap(ctx, err, "unmarshaling VPP token data")
 	}
 
-	var vppTokenRaw fleet.VPPTokenRaw
-	if err := json.Unmarshal([]byte(vppTokenData.Token), &vppTokenRaw); err != nil {
-		return "", ctxerr.Wrap(ctx, err, "unmarshaling raw vpp token")
-	}
-
-	exp, err := time.Parse("2006-01-02T15:04:05Z0700", vppTokenRaw.ExpDate)
-	if err != nil {
-		return "", ctxerr.Wrap(ctx, err, "parsing vpp token expiration date")
-	}
-
-	if time.Now().After(exp) {
-		return "", ctxerr.Errorf(ctx, "vpp token expired on %s", exp.String())
-	}
-
-	return base64.StdEncoding.EncodeToString([]byte(vppTokenData.Token)), nil
+	return vppTokenData.Token, nil
 }
 
 func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, payloads []fleet.VPPBatchPayload, dryRun bool) error {
@@ -249,7 +234,7 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, adamID str
 		Name:             assetMD.TrackName,
 		LatestVersion:    assetMD.Version,
 	}
-	if err := svc.ds.InsertVPPAppWithTeam(ctx, app, teamID); err != nil {
+	if _, err := svc.ds.InsertVPPAppWithTeam(ctx, app, teamID); err != nil {
 		return ctxerr.Wrap(ctx, err, "writing VPP app to db")
 	}
 
