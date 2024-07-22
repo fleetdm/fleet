@@ -603,7 +603,7 @@ func (c *GoogleCalendar) createEvent(
 		// Watch for changes until the end of the event, plus 1 more week. The extra time is to handle cases when end user moves the event forward.
 		// We don't support watching events longer than 1 week from the original event time.
 		secondsToEventEnd := (eventEnd.Sub(now).Milliseconds() / 1000) + (7 * 24 * 60 * 60)
-		eventUUID = uuid.New().String()
+		eventUUID = strings.ToUpper(uuid.New().String()) // Standardize on uppercase UUIDs since that's how they come from DB
 		channelID = uuid.New().String()
 		resourceID, err = c.config.API.Watch(eventUUID, channelID, uint64(secondsToEventEnd))
 		if err != nil {
