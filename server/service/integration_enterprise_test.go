@@ -11485,3 +11485,10 @@ func (s *integrationEnterpriseTestSuite) TestCalendarCallback() {
 	require.NoError(t, err)
 	assert.Empty(t, team1CalendarEvents)
 }
+
+func (s *integrationEnterpriseTestSuite) TestVPPAppsWithoutMDM() {
+	t := s.T()
+	orbitHost := createOrbitEnrolledHost(t, "darwin", "nonmdm", s.ds)
+	r := s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/install/9999", orbitHost.ID), &installSoftwareRequest{}, http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(r.Body), "Couldn't install. MDM is turned off. Please make sure that MDM is turned on to install App Store apps.")
+}

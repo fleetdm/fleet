@@ -9790,9 +9790,23 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	errTitleID := listSw.SoftwareTitles[1].ID
 
 	// attempt to install a VPP app on the non-MDM enrolled host
-
 	installResp := installSoftwareResponse{}
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/install/%d", orbitHost.ID, titleID), &installSoftwareRequest{}, http.StatusBadRequest, &installResp)
+
+	// Spoof an expired VPP token and attempt to install VPP app
+	tokenJSON = fmt.Sprintf(`{"expDate":"%s","token":"%s","orgName":"%s"}`, "2020-06-24T15:50:50+0000", token, orgName)
+	s.uploadDataViaForm("/api/latest/fleet/mdm/apple/vpp_token", "token", "token.vpptoken", []byte(base64.StdEncoding.EncodeToString([]byte(tokenJSON))), http.StatusAccepted, "")
+
+	r := s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/install/%d", mdmHost.ID, errTitleID), &installSoftwareRequest{}, http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(r.Body), "VPP token expired")
+
+	// Put a valid token back in
+	tokenJSON = fmt.Sprintf(`{"expDate":"%s","token":"%s","orgName":"%s"}`, "2050-06-24T15:50:50+0000", token, orgName)
+	s.uploadDataViaForm("/api/latest/fleet/mdm/apple/vpp_token", "token", "token.vpptoken", []byte(base64.StdEncoding.EncodeToString([]byte(tokenJSON))), http.StatusAccepted, "")
+
+	// Attempt to install non-existent app
+	r = s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/install/%d", mdmHost.ID, 99999), &installSoftwareRequest{}, http.StatusBadRequest)
+	require.Contains(t, extractServerErrorText(r.Body), "Couldn't install software. Software title is not available for install. Please add software package or App Store app to install.")
 
 	// Trigger install to the host
 	installResp = installSoftwareResponse{}

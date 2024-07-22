@@ -286,13 +286,18 @@ func (svc *Service) InstallSoftwareTitle(ctx context.Context, hostID uint, softw
 		return svc.installSoftwareTitleUsingInstaller(ctx, host, installer)
 	}
 
+	config, err := svc.ds.AppConfig(ctx)
+	if !config.MDM.EnabledAndConfigured {
+		return fleet.NewUserMessageError(errors.New("Couldn't install. MDM is turned off. Please make sure that MDM is turned on to install App Store apps."), http.StatusUnprocessableEntity)
+	}
+
 	vppApp, err := svc.ds.GetVPPAppByTeamAndTitleID(ctx, host.TeamID, softwareTitleID, false)
 	if err != nil {
 		// if we couldn't find an installer or a VPP app, return a bad
 		// request error
 		if fleet.IsNotFound(err) {
 			return &fleet.BadRequestError{
-				Message: "Software title has no package or VPP app added. Please add software package or VPP app to install.",
+				Message: "Couldn't install software. Software title is not available for install. Please add software package or App Store app to install.",
 				InternalErr: ctxerr.WrapWithData(
 					ctx, err, "couldn't find an installer or VPP app for software title",
 					map[string]any{"host_id": host.ID, "team_id": host.TeamID, "title_id": softwareTitleID},
