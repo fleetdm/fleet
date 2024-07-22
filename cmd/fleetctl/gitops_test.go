@@ -1206,7 +1206,9 @@ func createVPPDataToken(expiration time.Time, orgName, location string) ([]byte,
 		return nil, fmt.Errorf("marshalling vpp raw token: %w", err)
 	}
 
-	dataToken := fleet.VPPTokenData{Token: string(rawJson), Location: location}
+	base64Token := base64.StdEncoding.EncodeToString(rawJson)
+
+	dataToken := fleet.VPPTokenData{Token: string(base64Token), Location: location}
 	dataTokenJson, err := json.Marshal(dataToken)
 	if err != nil {
 		return nil, fmt.Errorf("marshalling vpp data token: %w", err)
