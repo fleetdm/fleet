@@ -7,6 +7,10 @@
     align-items: center;
     gap: $pad-small;
     margin: 0;
+    .icon {
+      padding-top: 3px;
+      align-self: flex-start;
+    }
   }
   &__script-output {
     padding-top: $pad-xlarge;

@@ -1046,6 +1046,7 @@ const HostDetailsPage = ({
         )}
         {selectedSoftwareDetails && (
           <SoftwareDetailsModal
+            hostDisplayName={host.display_name}
             software={selectedSoftwareDetails}
             onExit={() => setSelectedSoftwareDetails(null)}
           />
