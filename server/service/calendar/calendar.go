@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/ee/server/calendar"
 	"github.com/fleetdm/fleet/v4/server/config"
@@ -29,7 +30,17 @@ const (
 	DistributedLockExpireMs = 20 * 60 * 1000
 	// ReserveLockExpireMs is used by cron job to guarantee that it gets the next lock.
 	ReserveLockExpireMs = 2 * DistributedLockExpireMs
+
+	// RecentCalendarUpdateValue is the value stored in Redis to indicate that a calendar event was recently updated.
+	RecentCalendarUpdateValue = "1"
 )
+
+// RecentCalendarUpdateDuration is the duration during which we will ignore a calendar event callback if the event in DB was just updated by a previous callback.
+// This reduces CPU load and Google API load. If we update the event, Google calendar may send a callback which we don't need to process.
+// We are using Redis instead of updated_at timestamp in DB because the calendar cron job may update the timestamp even when the event did not change, which could
+// cause us to miss a legitimate update.
+// This variable is exposed so that it can be modified by unit tests.
+var RecentCalendarUpdateDuration = 10 * time.Second
 
 type Config struct {
 	config.CalendarConfig

@@ -17,15 +17,6 @@ import (
 var asyncCalendarProcessing bool
 var asyncMutex sync.Mutex
 
-// RecentCalendarUpdateDuration is the duration during which we will ignore a calendar event callback if the event in DB was just updated by a previous callback.
-// This reduces CPU load and Google API load. If we update the event, Google calendar may send a callback which we don't need to process.
-// We are using Redis instead of updated_at timestamp in DB because the calendar cron job may update the timestamp even when the event did not change, which could
-// cause us to miss a legitimate update.
-// This variable is exposed so that it can be modified by unit tests.
-var RecentCalendarUpdateDuration = 10 * time.Second
-
-const RecentCalendarUpdateValue = "1"
-
 func (svc *Service) CalendarWebhook(ctx context.Context, eventUUID string, channelID string, resourceState string) error {
 
 	// We don't want the sender to cancel the context since we want to make sure we process the webhook.
@@ -55,7 +46,7 @@ func (svc *Service) CalendarWebhook(ctx context.Context, eventUUID string, chann
 	if err != nil {
 		return err
 	}
-	if recent != nil && *recent == RecentCalendarUpdateValue {
+	if recent != nil && *recent == calendar.RecentCalendarUpdateValue {
 		svc.authz.SkipAuthorization(ctx)
 		level.Warn(svc.logger).Log("msg", "VICTOR ignoring calendar event", "event_uuid", eventUUID)
 		return nil
@@ -248,8 +239,8 @@ func (svc *Service) processCalendarEvent(ctx context.Context, eventDetails *flee
 		level.Warn(svc.logger).Log("msg", "VICTOR event updated", "event_uuid", event.UUID, "start_time", event.StartTime, "hostID",
 			eventDetails.HostID)
 		// Event was updated, so we set a flag.
-		_, err = svc.distributedLock.AcquireLock(ctx, calendar.RecentUpdateKeyPrefix+event.UUID, RecentCalendarUpdateValue,
-			uint64(RecentCalendarUpdateDuration.Milliseconds()))
+		_, err = svc.distributedLock.AcquireLock(ctx, calendar.RecentUpdateKeyPrefix+event.UUID, calendar.RecentCalendarUpdateValue,
+			uint64(calendar.RecentCalendarUpdateDuration.Milliseconds()))
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "set recent update flag")
 		}
@@ -380,7 +371,7 @@ func (svc *Service) processCalendarEventAsync(ctx context.Context, eventUUID str
 		level.Error(svc.logger).Log("msg", "Failed to get recent update flag", "err", err)
 		return false
 	}
-	if recent != nil && *recent == RecentCalendarUpdateValue {
+	if recent != nil && *recent == calendar.RecentCalendarUpdateValue {
 		level.Warn(svc.logger).Log("msg", "VICTOR ignoring calendar event async", "event_uuid", eventUUID)
 		err = svc.distributedLock.RemoveFromSet(ctx, calendar.QueueKey, eventUUID)
 		if err != nil {
