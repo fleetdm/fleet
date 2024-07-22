@@ -2287,15 +2287,6 @@ AND EXISTS (SELECT 1 FROM software s JOIN software_cve scve ON scve.software_id 
 	titleIDs := make([]uint, 0, len(hostSoftwareList))
 	byTitleID := make(map[uint]*hostSoftware, len(hostSoftwareList))
 	for _, hs := range hostSoftwareList {
-		// promote the last install info to the proper destination fields
-		if hs.LastInstallInstallUUID != nil && *hs.LastInstallInstallUUID != "" {
-			hs.LastInstall = &fleet.HostSoftwareInstall{
-				InstallUUID: *hs.LastInstallInstallUUID,
-			}
-			if hs.LastInstallInstalledAt != nil {
-				hs.LastInstall.InstalledAt = *hs.LastInstallInstalledAt
-			}
-		}
 
 		// promote the package name and version to the proper destination fields
 		if hs.PackageName != nil {
@@ -2307,6 +2298,16 @@ AND EXISTS (SELECT 1 FROM software s JOIN software_cve scve ON scve.software_id 
 				Name:        *hs.PackageName,
 				Version:     version,
 				SelfService: hs.PackageSelfService,
+			}
+
+			// promote the last install info to the proper destination fields
+			if hs.LastInstallInstallUUID != nil && *hs.LastInstallInstallUUID != "" {
+				hs.SoftwarePackage.LastInstall = &fleet.HostSoftwareInstall{
+					InstallUUID: *hs.LastInstallInstallUUID,
+				}
+				if hs.LastInstallInstalledAt != nil {
+					hs.SoftwarePackage.LastInstall.InstalledAt = *hs.LastInstallInstalledAt
+				}
 			}
 		}
 
@@ -2321,6 +2322,16 @@ AND EXISTS (SELECT 1 FROM software s JOIN software_cve scve ON scve.software_id 
 				Version:     version,
 				SelfService: hs.VPPAppSelfService,
 				IconURL:     hs.VPPAppIconURL,
+			}
+
+			// promote the last install info to the proper destination fields
+			if hs.LastInstallInstallUUID != nil && *hs.LastInstallInstallUUID != "" {
+				hs.AppStoreApp.LastInstall = &fleet.HostSoftwareInstall{
+					InstallUUID: *hs.LastInstallInstallUUID,
+				}
+				if hs.LastInstallInstalledAt != nil {
+					hs.AppStoreApp.LastInstall.InstalledAt = *hs.LastInstallInstalledAt
+				}
 			}
 		}
 
