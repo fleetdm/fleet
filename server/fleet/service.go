@@ -713,6 +713,7 @@ type Service interface {
 	UploadMDMAppleVPPToken(ctx context.Context, token io.ReadSeeker) error
 	GetMDMAppleVPPToken(ctx context.Context) (*VPPTokenInfo, error)
 	DeleteMDMAppleVPPToken(ctx context.Context) error
+	BatchAssociateVPPApps(ctx context.Context, teamName string, payloads []VPPBatchPayload, dryRun bool) error
 
 	// GetHostDEPAssignment retrieves the host DEP assignment for the specified host.
 	GetHostDEPAssignment(ctx context.Context, host *Host) (*HostDEPAssignment, error)

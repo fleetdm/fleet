@@ -133,8 +133,60 @@ func vppAppHostStatusNamedQuery(hvsiAlias, ncrAlias, colAlias string) string {
 
 func (ds *Datastore) BatchInsertVPPApps(ctx context.Context, apps []*fleet.VPPApp) error {
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		if err := insertVPPApps(ctx, tx, apps); err != nil {
-			return ctxerr.Wrap(ctx, err, "BatchInsertVPPApps insertVPPApps transaction")
+		for _, app := range apps {
+			titleID, err := ds.getOrInsertSoftwareTitleForVPPApp(ctx, tx, app)
+			if err != nil {
+				return err
+			}
+
+			app.TitleID = titleID
+
+			if err := insertVPPApps(ctx, tx, []*fleet.VPPApp{app}); err != nil {
+				return ctxerr.Wrap(ctx, err, "BatchInsertVPPApps insertVPPApps transaction")
+			}
+		}
+		return nil
+	})
+}
+
+func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, adamIDs []string) error {
+	existingApps, err := ds.GetAssignedVPPApps(ctx, teamID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "SetTeamVPPApps getting list of existing apps")
+	}
+
+	var missingApps []string
+	var toRemoveApps []string
+
+	for existingApp := range existingApps {
+		var found bool
+		for _, adamID := range adamIDs {
+			if adamID == existingApp {
+				found = true
+			}
+		}
+		if !found {
+			toRemoveApps = append(toRemoveApps, existingApp)
+		}
+	}
+
+	for _, adamID := range adamIDs {
+		if _, ok := existingApps[adamID]; !ok {
+			missingApps = append(missingApps, adamID)
+		}
+	}
+
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		for _, toAdd := range missingApps {
+			if err := insertVPPAppTeams(ctx, tx, toAdd, teamID); err != nil {
+				return ctxerr.Wrap(ctx, err, "SetTeamVPPApps inserting vpp app into team")
+			}
+		}
+
+		for _, toRemove := range toRemoveApps {
+			if err := removeVPPAppTeams(ctx, tx, toRemove, teamID); err != nil {
+				return ctxerr.Wrap(ctx, err, "SetTeamVPPApps removing vpp app from team")
+			}
 		}
 
 		return nil
@@ -239,6 +291,23 @@ VALUES
 	return ctxerr.Wrap(ctx, err, "writing vpp app team mapping to db")
 }
 
+func removeVPPAppTeams(ctx context.Context, tx sqlx.ExtContext, adamID string, teamID *uint) error {
+	stmt := `
+DELETE FROM
+  vpp_apps_teams
+WHERE
+  adam_id = ?
+AND
+  team_id = ?
+`
+	_, err := tx.ExecContext(ctx, stmt, adamID, teamID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "deleting vpp app from team")
+	}
+
+	return nil
+}
+
 func (ds *Datastore) getOrInsertSoftwareTitleForVPPApp(ctx context.Context, tx sqlx.ExtContext, app *fleet.VPPApp) (uint, error) {
 	// NOTE: it was decided to populate "apps" as the source for VPP apps for now, TBD
 	// if this needs to change to better map to how software titles are reported
@@ -251,6 +320,10 @@ func (ds *Datastore) getOrInsertSoftwareTitleForVPPApp(ctx context.Context, tx s
 	insertArgs := []any{app.Name, source}
 
 	if app.BundleIdentifier != "" {
+		// NOTE: The index `idx_sw_titles` doesn't include the bundle
+		// identifier. It's possible for the select to return nothing
+		// but for the insert to fail if an app with the same name but
+		// no bundle identifier exists in the DB.
 		selectStmt = `SELECT id FROM software_titles WHERE bundle_identifier = ?`
 		selectArgs = []any{app.BundleIdentifier}
 		insertStmt = `INSERT INTO software_titles (name, source, bundle_identifier, browser) VALUES (?, ?, ?, '')`

@@ -19,6 +19,7 @@ func TestVPP(t *testing.T) {
 		name string
 		fn   func(t *testing.T, ds *Datastore)
 	}{
+		{"SetTeamVPPApps", testSetTeamVPPApps},
 		{"VPPAppMetadata", testVPPAppMetadata},
 		{"VPPAppStatus", testVPPAppStatus},
 		{"VPPApps", testVPPApps},
@@ -421,6 +422,72 @@ func testVPPApps(t *testing.T, ds *Datastore) {
 	require.Equal(t, app2.BundleIdentifier, *appTitles[1].BundleIdentifier)
 	require.Equal(t, "foo", appTitles[0].Name)
 	require.Equal(t, app2.Name, appTitles[1].Name)
+}
+
+func testSetTeamVPPApps(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	// Create a team
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "vpp gang"})
+	require.NoError(t, err)
+
+	// Insert some VPP apps for the team
+	app1 := &fleet.VPPApp{Name: "vpp_app_1", AdamID: "1", BundleIdentifier: "b1"}
+	_, err = ds.InsertVPPAppWithTeam(ctx, app1, nil)
+	require.NoError(t, err)
+	app2 := &fleet.VPPApp{Name: "vpp_app_2", AdamID: "2", BundleIdentifier: "b2"}
+	_, err = ds.InsertVPPAppWithTeam(ctx, app2, nil)
+	require.NoError(t, err)
+	app3 := &fleet.VPPApp{Name: "vpp_app_3", AdamID: "3", BundleIdentifier: "b3"}
+	_, err = ds.InsertVPPAppWithTeam(ctx, app3, nil)
+	require.NoError(t, err)
+	app4 := &fleet.VPPApp{Name: "vpp_app_4", AdamID: "4", BundleIdentifier: "b4"}
+	_, err = ds.InsertVPPAppWithTeam(ctx, app4, nil)
+	require.NoError(t, err)
+
+	assigned, err := ds.GetAssignedVPPApps(ctx, &team.ID)
+	require.NoError(t, err)
+	require.Len(t, assigned, 0)
+
+	// Assign 2 apps
+	err = ds.SetTeamVPPApps(ctx, &team.ID, []string{app1.AdamID, app2.AdamID})
+	require.NoError(t, err)
+
+	assigned, err = ds.GetAssignedVPPApps(ctx, &team.ID)
+	require.NoError(t, err)
+	require.Len(t, assigned, 2)
+	require.Contains(t, assigned, app1.AdamID)
+	require.Contains(t, assigned, app2.AdamID)
+
+	// Assign an additional app
+	err = ds.SetTeamVPPApps(ctx, &team.ID, []string{app1.AdamID, app2.AdamID, app3.AdamID})
+	require.NoError(t, err)
+
+	assigned, err = ds.GetAssignedVPPApps(ctx, &team.ID)
+	require.NoError(t, err)
+	require.Len(t, assigned, 3)
+	require.Contains(t, assigned, app1.AdamID)
+	require.Contains(t, assigned, app2.AdamID)
+	require.Contains(t, assigned, app3.AdamID)
+
+	// Swap one app out for another
+	err = ds.SetTeamVPPApps(ctx, &team.ID, []string{app1.AdamID, app2.AdamID, app4.AdamID})
+	require.NoError(t, err)
+
+	assigned, err = ds.GetAssignedVPPApps(ctx, &team.ID)
+	require.NoError(t, err)
+	require.Len(t, assigned, 3)
+	require.Contains(t, assigned, app1.AdamID)
+	require.Contains(t, assigned, app2.AdamID)
+	require.Contains(t, assigned, app4.AdamID)
+
+	// Remove all apps
+	err = ds.SetTeamVPPApps(ctx, &team.ID, []string{})
+	require.NoError(t, err)
+
+	assigned, err = ds.GetAssignedVPPApps(ctx, &team.ID)
+	require.NoError(t, err)
+	require.Len(t, assigned, 0)
 }
 
 func testGetVPPAppByTeamAndTitleID(t *testing.T, ds *Datastore) {

@@ -2,9 +2,12 @@ package service
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -24,7 +27,105 @@ func (svc *Service) getVPPToken(ctx context.Context) (string, error) {
 		return "", ctxerr.Wrap(ctx, err, "unmarshaling VPP token data")
 	}
 
+	vppTokenRawBytes, err := base64.StdEncoding.DecodeString(vppTokenData.Token)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "decoding raw vpp token data")
+	}
+
+	var vppTokenRaw fleet.VPPTokenRaw
+
+	if err := json.Unmarshal(vppTokenRawBytes, &vppTokenRaw); err != nil {
+		return "", ctxerr.Wrap(ctx, err, "unmarshaling raw vpp token data")
+	}
+
+	exp, err := time.Parse("2006-01-02T15:04:05Z0700", vppTokenRaw.ExpDate)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "parsing vpp token expiration date")
+	}
+
+	if time.Now().After(exp) {
+		return "", ctxerr.Errorf(ctx, "vpp token expired on %s", exp.String())
+	}
+
 	return vppTokenData.Token, nil
+}
+
+func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, payloads []fleet.VPPBatchPayload, dryRun bool) error {
+	if teamName == "" {
+		svc.authz.SkipAuthorization(ctx) // so that the error message is not replaced by "forbidden"
+		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("team_name", "must not be empty"))
+	}
+
+	if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionRead); err != nil {
+		return err
+	}
+
+	team, err := svc.ds.TeamByName(ctx, teamName)
+	if err != nil {
+		// If this is a dry run, the team may not have been created yet
+		if dryRun && fleet.IsNotFound(err) {
+			return nil
+		}
+		return err
+	}
+
+	if err := svc.authz.Authorize(ctx, &fleet.SoftwareInstaller{TeamID: &team.ID}, fleet.ActionWrite); err != nil {
+		return ctxerr.Wrap(ctx, err, "validating authorization")
+	}
+
+	var adamIDs []string
+
+	// Don't check for token if we're only disassociating assets
+	if len(payloads) > 0 {
+		token, err := svc.getVPPToken(ctx)
+		if err != nil {
+			return fleet.NewUserMessageError(ctxerr.Wrap(ctx, err, "could not retrieve vpp token"), http.StatusUnprocessableEntity)
+		}
+
+		for _, payload := range payloads {
+			adamIDs = append(adamIDs, payload.AppStoreID)
+		}
+
+		var missingAssets []string
+
+		assets, err := vpp.GetAssets(token, nil)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "unable to retrieve assets")
+		}
+
+		assetMap := map[string]struct{}{}
+		for _, asset := range assets {
+			assetMap[asset.AdamID] = struct{}{}
+		}
+
+		for _, adamID := range adamIDs {
+			if _, ok := assetMap[adamID]; !ok {
+				missingAssets = append(missingAssets, adamID)
+			}
+		}
+
+		if len(missingAssets) != 0 {
+			reqErr := ctxerr.Errorf(ctx, "requested app not available on vpp account: %s", strings.Join(missingAssets, ","))
+			return fleet.NewUserMessageError(reqErr, http.StatusUnprocessableEntity)
+		}
+	}
+
+	if !dryRun {
+		apps, err := getVPPAppsMetadata(ctx, adamIDs)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "refreshing VPP app metadata")
+		}
+
+		if err := svc.ds.BatchInsertVPPApps(ctx, apps); err != nil {
+			return ctxerr.Wrap(ctx, err, "inserting vpp app metadata")
+		}
+
+		if err := svc.ds.SetTeamVPPApps(ctx, &team.ID, adamIDs); err != nil {
+			return fleet.NewUserMessageError(ctxerr.Wrap(ctx, err, "set team vpp assets"), http.StatusInternalServerError)
+		}
+	}
+
+	return nil
 }
 
 func (svc *Service) GetAppStoreApps(ctx context.Context, teamID *uint) ([]*fleet.VPPApp, error) {
@@ -169,4 +270,27 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, adamID str
 	}
 
 	return nil
+}
+
+func getVPPAppsMetadata(ctx context.Context, adamIDs []string) ([]*fleet.VPPApp, error) {
+	var apps []*fleet.VPPApp
+
+	assetMetatada, err := itunes.GetAssetMetadata(adamIDs, &itunes.AssetMetadataFilter{Entity: "desktopSoftware"})
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "fetching VPP asset metadata")
+	}
+
+	for adamID, metadata := range assetMetatada {
+		app := &fleet.VPPApp{
+			AdamID:           adamID,
+			BundleIdentifier: metadata.BundleID,
+			IconURL:          metadata.ArtworkURL,
+			Name:             metadata.TrackName,
+			LatestVersion:    metadata.Version,
+		}
+
+		apps = append(apps, app)
+	}
+
+	return apps, nil
 }

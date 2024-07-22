@@ -95,8 +95,8 @@ type integrationMDMTestSuite struct {
 	mdmCommander               *apple_mdm.MDMAppleCommander
 	logger                     kitlog.Logger
 	scepChallenge              string
-	appleVPPConfigSrvConfig    *appleVPPConfigSrvConf
 	appleVPPConfigSrv          *httptest.Server
+	appleVPPConfigSrvConfig    *appleVPPConfigSrvConf
 	appleITunesSrv             *httptest.Server
 	mockedDownloadFleetdmMeta  fleetdbase.Metadata
 }
@@ -433,7 +433,6 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 					panic(err)
 				}
 			}
-
 			_, _ = w.Write([]byte(`{"eventId": "123-345"}`))
 			return
 		}
@@ -9487,6 +9486,126 @@ func (s *integrationMDMTestSuite) TestConnectedToFleetWithoutCheckout() {
 	require.NotNil(t, hostResp.Host)
 	require.NotNil(t, hostResp.Host.MDM.ConnectedToFleet)
 	require.False(t, *hostResp.Host.MDM.ConnectedToFleet)
+}
+
+func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
+	t := s.T()
+	batchURL := "/api/latest/fleet/software/app_store_apps/batch"
+
+	// a team name is required (we don't allow installers for "no team")
+	s.Do("POST", batchURL, batchAssociateAppStoreAppsRequest{}, http.StatusBadRequest)
+
+	// non-existent team
+	s.Do("POST", batchURL, batchAssociateAppStoreAppsRequest{}, http.StatusNotFound, "team_name", "foo")
+
+	// create a team
+	tmGood, err := s.ds.NewTeam(context.Background(), &fleet.Team{
+		Name:        t.Name() + " good",
+		Description: "desc",
+	})
+	require.NoError(t, err)
+
+	// create a team
+	tmEmpty, err := s.ds.NewTeam(context.Background(), &fleet.Team{
+		Name:        t.Name() + " empty",
+		Description: "desc",
+	})
+	require.NoError(t, err)
+
+	// No vpp token set, no association
+	s.Do("POST", batchURL, batchAssociateAppStoreAppsRequest{}, http.StatusNoContent, "team_name", tmGood.Name)
+
+	// No vpp token set, try association
+	s.Do("POST", batchURL, batchAssociateAppStoreAppsRequest{Apps: []fleet.VPPBatchPayload{{AppStoreID: s.appleVPPConfigSrvConfig.Assets[0].AdamID}}}, http.StatusUnprocessableEntity, "team_name", tmGood.Name)
+
+	// Valid token
+	orgName := "Fleet Device Management Inc."
+	token := "mycooltoken"
+	expDate := "2025-06-24T15:50:50+0000"
+	tokenJSON := fmt.Sprintf(`{"expDate":"%s","token":"%s","orgName":"%s"}`, expDate, token, orgName)
+	t.Setenv("FLEET_DEV_VPP_URL", s.appleVPPConfigSrv.URL)
+	s.uploadDataViaForm("/api/latest/fleet/mdm/apple/vpp_token", "token", "token.vpptoken", []byte(base64.StdEncoding.EncodeToString([]byte(tokenJSON))), http.StatusAccepted, "")
+	// Remove all vpp associations from team with no members
+	s.Do("POST", batchURL, batchAssociateAppStoreAppsRequest{}, http.StatusNoContent, "team_name", tmGood.Name)
+
+	// host with valid serial number
+	hValid, err := s.ds.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		HardwareSerial:  "123",
+		SeenTime:        time.Now().Add(-1 * time.Minute),
+		OsqueryHostID:   ptr.String(t.Name() + uuid.New().String()),
+		NodeKey:         ptr.String(t.Name() + uuid.New().String()),
+		Hostname:        fmt.Sprintf("%sfoo.local", t.Name()),
+		Platform:        "darwin",
+	})
+	require.NoError(t, err)
+	err = s.ds.AddHostsToTeam(context.Background(), &tmGood.ID, []uint{hValid.ID})
+	require.NoError(t, err)
+
+	ctx := context.Background()
+
+	assoc, err := s.ds.GetAssignedVPPApps(ctx, &tmGood.ID)
+	require.NoError(t, err)
+	require.Len(t, assoc, 0)
+
+	// Remove all vpp associations from team with no members
+	s.Do("POST", batchURL, batchAssociateAppStoreAppsRequest{}, http.StatusNoContent, "team_name", tmGood.Name)
+
+	// Associating an app we don't own
+	s.Do("POST", batchURL, batchAssociateAppStoreAppsRequest{Apps: []fleet.VPPBatchPayload{{AppStoreID: "fake-app"}}}, http.StatusUnprocessableEntity, "team_name", tmGood.Name)
+
+	assoc, err = s.ds.GetAssignedVPPApps(ctx, &tmGood.ID)
+	require.NoError(t, err)
+	require.Len(t, assoc, 0)
+
+	// Associating an app we own
+	s.Do("POST", batchURL, batchAssociateAppStoreAppsRequest{Apps: []fleet.VPPBatchPayload{{AppStoreID: s.appleVPPConfigSrvConfig.Assets[0].AdamID}}}, http.StatusNoContent, "team_name", tmGood.Name)
+
+	assoc, err = s.ds.GetAssignedVPPApps(ctx, &tmGood.ID)
+	require.NoError(t, err)
+	require.Len(t, assoc, 1)
+	require.Contains(t, assoc, s.appleVPPConfigSrvConfig.Assets[0].AdamID)
+
+	// Associating one good and one bad app
+	s.Do("POST",
+		batchURL,
+		batchAssociateAppStoreAppsRequest{Apps: []fleet.VPPBatchPayload{
+			{AppStoreID: s.appleVPPConfigSrvConfig.Assets[0].AdamID},
+			{AppStoreID: "fake-app"},
+		}}, http.StatusUnprocessableEntity, "team_name", tmGood.Name,
+	)
+
+	assoc, err = s.ds.GetAssignedVPPApps(ctx, &tmGood.ID)
+	require.NoError(t, err)
+	require.Len(t, assoc, 1)
+
+	// Associating two apps we own
+	s.Do("POST",
+		batchURL,
+		batchAssociateAppStoreAppsRequest{
+			Apps: []fleet.VPPBatchPayload{
+				{AppStoreID: s.appleVPPConfigSrvConfig.Assets[0].AdamID},
+				{AppStoreID: s.appleVPPConfigSrvConfig.Assets[1].AdamID},
+			},
+		}, http.StatusNoContent, "team_name", tmGood.Name,
+	)
+	assoc, err = s.ds.GetAssignedVPPApps(ctx, &tmGood.ID)
+	require.NoError(t, err)
+	require.Len(t, assoc, 2)
+	require.Contains(t, assoc, s.appleVPPConfigSrvConfig.Assets[0].AdamID)
+	require.Contains(t, assoc, s.appleVPPConfigSrvConfig.Assets[1].AdamID)
+
+	// Associate an app with a team with no team members
+	s.Do("POST", batchURL, batchAssociateAppStoreAppsRequest{Apps: []fleet.VPPBatchPayload{{AppStoreID: s.appleVPPConfigSrvConfig.Assets[0].AdamID}}}, http.StatusNoContent, "team_name", tmEmpty.Name)
+
+	// Remove all vpp associations
+	s.Do("POST", batchURL, batchAssociateAppStoreAppsRequest{}, http.StatusNoContent, "team_name", tmGood.Name)
+
+	assoc, err = s.ds.GetAssignedVPPApps(ctx, &tmGood.ID)
+	require.NoError(t, err)
+	require.Len(t, assoc, 0)
 }
 
 func (s *integrationMDMTestSuite) TestInvalidCommandUUID() {

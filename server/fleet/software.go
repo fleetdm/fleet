@@ -413,3 +413,7 @@ func SoftwareFromOsqueryRow(name, version, source, vendor, installedPath, releas
 	}
 	return &software, nil
 }
+
+type VPPBatchPayload struct {
+	AppStoreID string `json:"app_store_id"`
+}
