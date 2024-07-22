@@ -94,6 +94,7 @@ const DEFAULT_HOST_MOCK: IHost = {
   percent_disk_space_available: 50,
   issues: {
     total_issues_count: 0,
+    critical_vulnerabilities_count: 0,
     failing_policies_count: 0,
   },
   status: "offline",
@@ -139,6 +140,7 @@ const DEFAULT_HOST_SOFTWARE_MOCK: IHostSoftware = {
   id: 1,
   name: "mock software.app",
   package_available_for_install: "mockSoftware.app",
+  self_service: false,
   source: "apps",
   bundle_identifier: "com.test.mock",
   status: "installed",

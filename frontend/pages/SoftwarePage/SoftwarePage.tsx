@@ -1,4 +1,4 @@
-import React, { useCallback, useContext, useState } from "react";
+import React, { useCallback, useContext, useState, useEffect } from "react";
 import { InjectedRouter } from "react-router";
 import { useQuery } from "react-query";
 import { Tab, TabList, Tabs } from "react-tabs";
@@ -29,7 +29,7 @@ import TabsWrapper from "components/TabsWrapper";
 
 import ManageAutomationsModal from "./components/ManageSoftwareAutomationsModal";
 import AddSoftwareModal from "./components/AddSoftwareModal";
-import { ISoftwareDropdownFilterVal } from "./SoftwareTitles/SoftwareTable/helpers";
+import { getSoftwareFilterFromQueryParams } from "./SoftwareTitles/SoftwareTable/helpers";
 
 interface ISoftwareSubNavItem {
   name: string;
@@ -61,16 +61,6 @@ const getTabIndex = (path: string): number => {
     // tab stays highlighted for paths that start with same pathname
     return path.startsWith(navItem.pathname);
   });
-};
-
-const getSoftwareFilter = (
-  vulnerable?: string,
-  installable?: string
-): ISoftwareDropdownFilterVal => {
-  if (installable === "true") return "installableSoftware";
-  return vulnerable && vulnerable === "true"
-    ? "vulnerableSoftware"
-    : "allSoftware";
 };
 
 // default values for query params used on this page if not provided
@@ -149,10 +139,11 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
   const query = queryParams && queryParams.query ? queryParams.query : "";
   const showExploitedVulnerabilitiesOnly =
     queryParams !== undefined && queryParams.exploit === "true";
-  const softwareFilter = getSoftwareFilter(
-    queryParams.vulnerable,
-    queryParams.available_for_install
-  );
+
+  // TODO: there should be better validation of the params depending on the route (e.g., self_service
+  // and available_for_install don't apply to versions, os, or vulnerabilities routes) and some
+  // defined redirect behavior if the params are invalid
+  const softwareFilter = getSoftwareFilterFromQueryParams(queryParams);
 
   const [showManageAutomationsModal, setShowManageAutomationsModal] = useState(
     false
@@ -160,6 +151,7 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
   const [showPreviewPayloadModal, setShowPreviewPayloadModal] = useState(false);
   const [showPreviewTicketModal, setShowPreviewTicketModal] = useState(false);
   const [showAddSoftwareModal, setShowAddSoftwareModal] = useState(false);
+  const [resetPageIndex, setResetPageIndex] = useState<boolean>(false);
 
   const {
     currentTeamId,
@@ -275,23 +267,32 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
     }
   };
 
+  // NOTE: used to reset page number to 0 when modifying filters
+  // NOTE: Solution reused from ManageHostPage.tsx
+  useEffect(() => {
+    setResetPageIndex(false);
+  }, [queryParams, page]);
+
   const onTeamChange = useCallback(
     (teamId: number) => {
       handleTeamChange(teamId);
-      // TODO: reset page to 0 when changing teams
+      // NOTE: used to reset page number to 0 when modifying filters
+      setResetPageIndex(true);
     },
     [handleTeamChange]
   );
 
   const navigateToNav = useCallback(
     (i: number): void => {
+      setResetPageIndex(true); // Fixes flakey page reset in table state when switching between tabs
+
       // Only query param to persist between tabs is team id
       const teamIdParam = buildQueryStringFromParams({
         team_id: location?.query.team_id,
+        page: 0, // Fixes flakey page reset in API call when switching between tabs
       });
 
       const navPath = softwareSubNav[i].pathname.concat(`?${teamIdParam}`);
-
       router.replace(navPath);
     },
     [location, router]
@@ -329,9 +330,9 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
           <Button
             onClick={toggleManageAutomationsModal}
             className={`${baseClass}__manage-automations`}
-            variant="text-link"
+            variant="inverse"
           >
-            <span>Manage automations</span>
+            Manage automations
           </Button>
         )}
         {canAddSoftware && (
@@ -385,6 +386,7 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
           query,
           showExploitedVulnerabilitiesOnly,
           softwareFilter,
+          resetPageIndex,
         })}
       </div>
     );

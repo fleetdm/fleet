@@ -39,4 +39,5 @@ Click the deploy on render button or import the blueprint from the Render servic
 
 ### Post-Deployment
 
-Navigate to the generated URL and run through the initial setup.
+Navigate to the generated URL and run through the initial setup. If you have a license key you can add it post-deploy as
+an environment variable `FLEET_LICENSE_KEY=value` in the Fleet service configuration.

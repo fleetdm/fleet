@@ -139,7 +139,7 @@ export interface IMunkiData {
   version: string;
 }
 
-type MacDiskEncryptionActionRequired = "log_out" | "rotate_key" | null;
+export type MacDiskEncryptionActionRequired = "log_out" | "rotate_key";
 
 export interface IOSSettings {
   disk_encryption: {
@@ -175,6 +175,12 @@ export interface IHostMdmData {
   macos_setup?: IMdmMacOsSetup;
   device_status: HostMdmDeviceStatus;
   pending_action: HostMdmPendingAction;
+  connected_to_fleet?: boolean;
+}
+
+export interface IHostMaintenanceWindow {
+  starts_at: string;
+  timezone: string | null;
 }
 
 export interface IMunkiIssue {
@@ -235,9 +241,11 @@ export interface IDeviceUserResponse {
   host: IHostDevice;
   license: ILicense;
   org_logo_url: string;
+  org_contact_url: string;
   disk_encryption_enabled?: boolean;
   platform?: string;
   global_config: IDeviceGlobalConfig;
+  self_service: boolean;
 }
 
 export interface IHostEncrpytionKeyResponse {
@@ -250,12 +258,14 @@ export interface IHostEncrpytionKeyResponse {
 
 export interface IHostIssues {
   total_issues_count: number;
+  critical_vulnerabilities_count?: number; // Premium
   failing_policies_count: number;
 }
 
 export interface IHost {
   created_at: string;
   updated_at: string;
+  software_updated_at?: string;
   id: number;
   detail_updated_at: string;
   last_restarted_at: string;
@@ -311,6 +321,7 @@ export interface IHost {
   users: IHostUser[];
   device_users?: IDeviceUser[];
   munki?: IMunkiData;
+  maintenance_window?: IHostMaintenanceWindow;
   mdm: IHostMdmData;
   policies: IHostPolicy[];
   query_results?: unknown[];

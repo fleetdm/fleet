@@ -2,7 +2,7 @@ import React from "react";
 import { cloneDeep } from "lodash";
 
 import { IDropdownOption } from "interfaces/dropdownOption";
-import { isLinuxLike } from "interfaces/platform";
+import { isLinuxLike, isAppleDevice } from "interfaces/platform";
 import { isScriptSupportedPlatform } from "interfaces/script";
 
 import {
@@ -71,7 +71,7 @@ interface IHostActionConfigOptions {
   isTeamObserver: boolean;
   isHostOnline: boolean;
   isEnrolledInMdm: boolean;
-  isFleetMdm: boolean;
+  isConnectedToFleetMdm?: boolean;
   isMacMdmEnabledAndConfigured: boolean;
   isWindowsMdmEnabledAndConfigured: boolean;
   doesStoreEncryptionKey: boolean;
@@ -86,21 +86,29 @@ const canTransferTeam = (config: IHostActionConfigOptions) => {
 
 const canEditMdm = (config: IHostActionConfigOptions) => {
   const {
+    hostPlatform,
     isGlobalAdmin,
     isGlobalMaintainer,
     isTeamAdmin,
     isTeamMaintainer,
     isEnrolledInMdm,
-    isFleetMdm,
+    isConnectedToFleetMdm,
     isMacMdmEnabledAndConfigured,
   } = config;
   return (
-    config.hostPlatform === "darwin" &&
+    hostPlatform === "darwin" &&
     isMacMdmEnabledAndConfigured &&
     isEnrolledInMdm &&
-    isFleetMdm &&
+    isConnectedToFleetMdm &&
     (isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer)
   );
+};
+
+const canQueryHost = ({ hostPlatform }: IHostActionConfigOptions) => {
+  // Currently we cannot query iOS or iPadOS
+  const isIosOrIpadosHost = hostPlatform === "ios" || hostPlatform === "ipados";
+
+  return !isIosOrIpadosHost;
 };
 
 const canLockHost = ({
@@ -108,7 +116,7 @@ const canLockHost = ({
   hostPlatform,
   isMacMdmEnabledAndConfigured,
   isEnrolledInMdm,
-  isFleetMdm,
+  isConnectedToFleetMdm,
   isGlobalAdmin,
   isGlobalMaintainer,
   isTeamAdmin,
@@ -118,7 +126,7 @@ const canLockHost = ({
   // macOS hosts can be locked if they are enrolled in MDM and the MDM is enabled
   const canLockDarwin =
     hostPlatform === "darwin" &&
-    isFleetMdm &&
+    isConnectedToFleetMdm &&
     isMacMdmEnabledAndConfigured &&
     isEnrolledInMdm;
 
@@ -138,7 +146,7 @@ const canWipeHost = ({
   isGlobalMaintainer,
   isTeamAdmin,
   isTeamMaintainer,
-  isFleetMdm,
+  isConnectedToFleetMdm,
   isEnrolledInMdm,
   isMacMdmEnabledAndConfigured,
   isWindowsMdmEnabledAndConfigured,
@@ -146,17 +154,18 @@ const canWipeHost = ({
   hostMdmDeviceStatus,
 }: IHostActionConfigOptions) => {
   const hostMdmEnabled =
-    (hostPlatform === "darwin" && isMacMdmEnabledAndConfigured) ||
+    (isAppleDevice(hostPlatform) && isMacMdmEnabledAndConfigured) ||
     (hostPlatform === "windows" && isWindowsMdmEnabledAndConfigured);
 
-  // macOS and Windows hosts have the same conditions and can be wiped if they
+  // Windows and Apple devices (i.e. macOS, iOS, iPadOS) have the same conditions and can be wiped if they
   // are enrolled in MDM and the MDM is enabled.
-  const canWipeMacOrWindows = hostMdmEnabled && isFleetMdm && isEnrolledInMdm;
+  const canWipeWindowsOrAppleOS =
+    hostMdmEnabled && isConnectedToFleetMdm && isEnrolledInMdm;
 
   return (
     isPremiumTier &&
     hostMdmDeviceStatus === "unlocked" &&
-    (isLinuxLike(hostPlatform) || canWipeMacOrWindows) &&
+    (isLinuxLike(hostPlatform) || canWipeWindowsOrAppleOS) &&
     (isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer)
   );
 };
@@ -167,7 +176,7 @@ const canUnlock = ({
   isGlobalMaintainer,
   isTeamAdmin,
   isTeamMaintainer,
-  isFleetMdm,
+  isConnectedToFleetMdm,
   isEnrolledInMdm,
   isMacMdmEnabledAndConfigured,
   hostPlatform,
@@ -175,7 +184,7 @@ const canUnlock = ({
 }: IHostActionConfigOptions) => {
   const canUnlockDarwin =
     hostPlatform === "darwin" &&
-    isFleetMdm &&
+    isConnectedToFleetMdm &&
     isMacMdmEnabledAndConfigured &&
     isEnrolledInMdm;
 
@@ -205,26 +214,23 @@ const canDeleteHost = (config: IHostActionConfigOptions) => {
 };
 
 const canShowDiskEncryption = (config: IHostActionConfigOptions) => {
-  const { isPremiumTier, doesStoreEncryptionKey } = config;
-  return isPremiumTier && doesStoreEncryptionKey;
+  const { isPremiumTier, doesStoreEncryptionKey, hostPlatform } = config;
+
+  // Currently we cannot show disk encryption key for iOS or iPadOS
+  const isIosOrIpadosHost = hostPlatform === "ios" || hostPlatform === "ipados";
+
+  return isPremiumTier && doesStoreEncryptionKey && !isIosOrIpadosHost;
 };
 
 const canRunScript = ({
   hostPlatform,
   isGlobalAdmin,
   isGlobalMaintainer,
-  isGlobalObserver,
   isTeamAdmin,
   isTeamMaintainer,
-  isTeamObserver,
 }: IHostActionConfigOptions) => {
   return (
-    (isGlobalAdmin ||
-      isGlobalMaintainer ||
-      isGlobalObserver ||
-      isTeamAdmin ||
-      isTeamMaintainer ||
-      isTeamObserver) &&
+    (isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer) &&
     isScriptSupportedPlatform(hostPlatform)
   );
 };
@@ -235,6 +241,10 @@ const removeUnavailableOptions = (
 ) => {
   if (!canTransferTeam(config)) {
     options = options.filter((option) => option.value !== "transfer");
+  }
+
+  if (!canQueryHost(config)) {
+    options = options.filter((option) => option.value !== "query");
   }
 
   if (!canShowDiskEncryption(config)) {
@@ -266,9 +276,8 @@ const removeUnavailableOptions = (
   }
 
   // TODO: refactor to filter in one pass using predefined filters specified for each of the
-  // DEFAULT_OPTIONS. Note that as currently, structured the default is to include all options. For
-  // example, "Query" is implicitly included by default because there is no equivalent `canQuery`
-  // filter being applied here. This is a bit confusing since
+  // DEFAULT_OPTIONS. Note that as currently, structured the default is to include all options.
+  // This is a bit confusing since we remove options instead of add options
 
   return options;
 };

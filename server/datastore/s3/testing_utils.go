@@ -42,14 +42,23 @@ func setupTestStore[T testBucketCreator](tb testing.TB, bucket, prefix string, n
 	checkEnv(tb)
 
 	store, err := newFn(config.S3Config{
-		Bucket:           bucket,
-		Prefix:           prefix,
-		Region:           "minio",
-		EndpointURL:      testEndpoint,
-		AccessKeyID:      accessKeyID,
-		SecretAccessKey:  secretAccessKey,
-		ForceS3PathStyle: true,
-		DisableSSL:       true,
+		SoftwareInstallersBucket:           bucket,
+		SoftwareInstallersPrefix:           prefix,
+		SoftwareInstallersRegion:           "minio",
+		SoftwareInstallersEndpointURL:      testEndpoint,
+		SoftwareInstallersAccessKeyID:      accessKeyID,
+		SoftwareInstallersSecretAccessKey:  secretAccessKey,
+		SoftwareInstallersForceS3PathStyle: true,
+		SoftwareInstallersDisableSSL:       true,
+
+		CarvesBucket:           bucket,
+		CarvesPrefix:           prefix,
+		CarvesRegion:           "minio",
+		CarvesEndpointURL:      testEndpoint,
+		CarvesAccessKeyID:      accessKeyID,
+		CarvesSecretAccessKey:  secretAccessKey,
+		CarvesForceS3PathStyle: true,
+		CarvesDisableSSL:       true,
 	})
 	require.Nil(tb, err)
 

@@ -58,14 +58,8 @@ const rebuildQueryStringWithTeamId = (
 
   // Reset page to 0
   const pageIndex = parts.findIndex((p) => p.startsWith("page="));
-  const inheritedPageIndex = parts.findIndex((p) =>
-    p.startsWith("inherited_page=")
-  );
   if (pageIndex !== -1) {
     parts.splice(pageIndex, 1, "page=0");
-  }
-  if (inheritedPageIndex !== -1) {
-    parts.splice(inheritedPageIndex, 1, "inherited_page=0");
   }
 
   const teamIndex = parts.findIndex((p) => p.startsWith("team_id="));

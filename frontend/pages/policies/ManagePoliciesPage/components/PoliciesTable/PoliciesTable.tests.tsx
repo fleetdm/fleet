@@ -30,6 +30,7 @@ describe("Policies table", () => {
         page={0}
         onQueryChange={noop}
         renderPoliciesCount={() => null}
+        resetPageIndex={false}
       />
     );
 
@@ -59,6 +60,7 @@ describe("Policies table", () => {
         page={0}
         onQueryChange={noop}
         renderPoliciesCount={() => null}
+        resetPageIndex={false}
       />
     );
 
@@ -90,6 +92,7 @@ describe("Policies table", () => {
         page={0}
         onQueryChange={noop}
         renderPoliciesCount={() => null}
+        resetPageIndex={false}
       />
     );
 
@@ -128,6 +131,7 @@ describe("Policies table", () => {
         page={0}
         onQueryChange={noop}
         renderPoliciesCount={() => null}
+        resetPageIndex={false}
       />
     );
 
@@ -166,6 +170,7 @@ describe("Policies table", () => {
         page={0}
         onQueryChange={noop}
         renderPoliciesCount={() => null}
+        resetPageIndex={false}
       />
     );
 
@@ -207,6 +212,7 @@ describe("Policies table", () => {
         renderPoliciesCount={() => null}
         canAddOrDeletePolicy
         hasPoliciesToDelete
+        resetPageIndex={false}
       />
     );
 

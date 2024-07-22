@@ -17,8 +17,13 @@ import NudgePreview from "./components/NudgePreview";
 import TurnOnMdmMessage from "../components/TurnOnMdmMessage/TurnOnMdmMessage";
 import CurrentVersionSection from "./components/CurrentVersionSection";
 import TargetSection from "./components/TargetSection";
+import { parseOSUpdatesCurrentVersionsQueryParams } from "./components/CurrentVersionSection/CurrentVersionSection";
 
-export type OSUpdatesSupportedPlatform = "darwin" | "windows";
+export type OSUpdatesSupportedPlatform =
+  | "darwin"
+  | "windows"
+  | "iOS"
+  | "iPadOS";
 
 const baseClass = "os-updates";
 
@@ -38,9 +43,10 @@ const getSelectedPlatform = (
 interface IOSUpdates {
   router: InjectedRouter;
   teamIdForApi: number;
+  queryParams: ReturnType<typeof parseOSUpdatesCurrentVersionsQueryParams>;
 }
 
-const OSUpdates = ({ router, teamIdForApi }: IOSUpdates) => {
+const OSUpdates = ({ router, teamIdForApi, queryParams }: IOSUpdates) => {
   const { isPremiumTier, config, setConfig } = useContext(AppContext);
 
   const [
@@ -89,6 +95,7 @@ const OSUpdates = ({ router, teamIdForApi }: IOSUpdates) => {
   // FIXME: Handle error states for app config and team config (need specifications for this).
 
   // mdm is not enabled for mac or windows.
+
   if (
     !config?.mdm.enabled_and_configured &&
     !config?.mdm.windows_enabled_and_configured
@@ -108,7 +115,11 @@ const OSUpdates = ({ router, teamIdForApi }: IOSUpdates) => {
       </p>
       <div className={`${baseClass}__content`}>
         <div className={`${baseClass}__current-version-container`}>
-          <CurrentVersionSection currentTeamId={teamIdForApi} />
+          <CurrentVersionSection
+            router={router}
+            currentTeamId={teamIdForApi}
+            queryParams={queryParams}
+          />
         </div>
         <div className={`${baseClass}__taget-container`}>
           <TargetSection

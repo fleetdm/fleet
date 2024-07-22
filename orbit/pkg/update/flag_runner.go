@@ -1,7 +1,6 @@
 package update
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -23,8 +22,8 @@ import (
 // It uses an OrbitConfigFetcher (which may be the OrbitClient with additional middleware), along
 // with FlagUpdateOptions to connect to Fleet
 type FlagRunner struct {
-	queueOrbitRestart context.CancelFunc
-	opt               FlagUpdateOptions
+	triggerOrbitRestart func(reason string)
+	opt                 FlagUpdateOptions
 }
 
 // FlagUpdateOptions is options provided for the flag update runner
@@ -35,10 +34,10 @@ type FlagUpdateOptions struct {
 
 // NewFlagRunner creates a new runner with provided options
 // The runner must be started with Execute
-func NewFlagReceiver(queueOrbitRestart context.CancelFunc, opt FlagUpdateOptions) *FlagRunner {
+func NewFlagReceiver(triggerOrbitRestart func(reason string), opt FlagUpdateOptions) *FlagRunner {
 	return &FlagRunner{
-		queueOrbitRestart: queueOrbitRestart,
-		opt:               opt,
+		triggerOrbitRestart: triggerOrbitRestart,
+		opt:                 opt,
 	}
 }
 
@@ -79,7 +78,7 @@ func (r *FlagRunner) Run(config *fleet.OrbitConfig) error {
 		return fmt.Errorf("error writing flags to disk: %w", err)
 	}
 
-	r.queueOrbitRestart()
+	r.triggerOrbitRestart("osquery flags updated")
 	return nil
 }
 
@@ -89,9 +88,9 @@ func (r *FlagRunner) Run(config *fleet.OrbitConfig) error {
 // It uses an an OrbitConfigFetcher (which may be the OrbitClient with additional middleware), along
 // with ExtensionUpdateOptions and updateRunner to connect to Fleet.
 type ExtensionRunner struct {
-	opt               ExtensionUpdateOptions
-	updateRunner      *Runner
-	queueOrbitRestart context.CancelFunc
+	opt                 ExtensionUpdateOptions
+	updateRunner        *Runner
+	triggerOrbitRestart func(reason string)
 }
 
 // ExtensionUpdateOptions is options provided for the extensions fetch/update runner
@@ -102,19 +101,18 @@ type ExtensionUpdateOptions struct {
 
 // NewExtensionConfigUpdateRunner creates a new runner with provided options
 // The runner must be started with Execute
-func NewExtensionConfigUpdateRunner(opt ExtensionUpdateOptions, updateRunner *Runner, queueOrbitRestart context.CancelFunc) *ExtensionRunner {
+func NewExtensionConfigUpdateRunner(opt ExtensionUpdateOptions, updateRunner *Runner, triggerOrbitRestart func(reason string)) *ExtensionRunner {
 	return &ExtensionRunner{
-		opt:               opt,
-		updateRunner:      updateRunner,
-		queueOrbitRestart: queueOrbitRestart,
+		opt:                 opt,
+		updateRunner:        updateRunner,
+		triggerOrbitRestart: triggerOrbitRestart,
 	}
 }
 
 // DoExtensionConfigUpdate calls the /config API endpoint to grab extensions from Fleet
 // It parses the extensions, computes the local hash, and writes the binary path to extension.load file
 //
-// It returns a (bool, error), where bool indicates whether orbit should restart
-// It only returns (true, nil) when extensions were previously configured and now are cleared
+// It will only trigger a orbit restart when extensions were previously configured and now are cleared.
 func (r *ExtensionRunner) Run(config *fleet.OrbitConfig) error {
 	extensionAutoLoadFile := filepath.Join(r.opt.RootDir, "extensions.load")
 	if len(config.Extensions) == 0 {
@@ -126,7 +124,6 @@ func (r *ExtensionRunner) Run(config *fleet.OrbitConfig) error {
 		// Handle case 1, where our autoload file does not exist, so there is nothing to update and no error
 		case errors.Is(err, os.ErrNotExist):
 			log.Debug().Msg(extensionAutoLoadFile + " not found, nothing to update")
-			// we do not want orbit to restart
 			return nil
 		case err == nil:
 			// handle case 2: create/truncate the extensions.load file and let the runner interrupt, so that
@@ -135,19 +132,14 @@ func (r *ExtensionRunner) Run(config *fleet.OrbitConfig) error {
 			if stat.Size() > 0 {
 				err := os.WriteFile(extensionAutoLoadFile, []byte(""), constant.DefaultFileMode)
 				if err != nil {
-					// we do not want orbit to restart
 					return fmt.Errorf("extensionsUpdate: error creating file %s, %w", extensionAutoLoadFile, err)
 				}
-				// we want to return true here, and restart with the empty extensions.load file
-				// so that we "unload" the previously loaded
-				// extensions
-				r.queueOrbitRestart()
+				// Restart with the empty extensions.load file so that we "unload" the previously loaded extensions.
+				r.triggerOrbitRestart("unloading extensions")
 				return nil
 			}
-			// we do not want orbit to restart
 			return nil
 		default:
-			// we do not want orbit to restart, just log the error
 			return fmt.Errorf("stat file: %s", extensionAutoLoadFile)
 		}
 	}
@@ -157,7 +149,6 @@ func (r *ExtensionRunner) Run(config *fleet.OrbitConfig) error {
 	var extensions fleet.Extensions
 	err := json.Unmarshal(config.Extensions, &extensions)
 	if err != nil {
-		// we do not want orbit to restart
 		return fmt.Errorf("error unmarshing json extensions config from fleet: %w", err)
 	}
 
@@ -205,7 +196,6 @@ func (r *ExtensionRunner) Run(config *fleet.OrbitConfig) error {
 		}
 
 		if err := r.updateRunner.StoreLocalHash(targetName); err != nil {
-			// we do not want orbit to restart
 			return fmt.Errorf("unable to lookup metadata for target: %s, %w", targetName, err)
 		}
 
@@ -215,8 +205,6 @@ func (r *ExtensionRunner) Run(config *fleet.OrbitConfig) error {
 		return fmt.Errorf("error writing extensions autoload file: %w", err)
 	}
 
-	// we do not want orbit to restart
-	// runner.UpdateAction() will fetch the new targets and restart for us if needed
 	return nil
 }
 

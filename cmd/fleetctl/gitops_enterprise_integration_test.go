@@ -81,6 +81,10 @@ func (s *enterpriseIntegrationGitopsTestSuite) SetupSuite() {
 		Pool:        redisPool,
 		APNSTopic:   "com.apple.mgmt.External.10ac3ce5-4668-4e58-b69a-b2b5ce667589",
 	}
+	err = s.ds.InsertMDMConfigAssets(context.Background(), []fleet.MDMConfigAsset{
+		{Name: fleet.MDMAssetSCEPChallenge, Value: []byte("scepchallenge")},
+	})
+	require.NoError(s.T(), err)
 	users, server := service.RunServerForTestsWithDS(s.T(), s.ds, &serverConfig)
 	s.T().Setenv("FLEET_SERVER_ADDRESS", server.URL) // fleetctl always uses this env var in tests
 	s.server = server
@@ -148,7 +152,7 @@ contexts:
 	require.NoError(t, err)
 
 	// Set the required environment variables
-	t.Setenv("FLEET_SSO_METADATA", "sso_metadata")
+	t.Setenv("FLEET_URL", s.server.URL)
 	t.Setenv("FLEET_GLOBAL_ENROLL_SECRET", "global_enroll_secret")
 	t.Setenv("FLEET_WORKSTATIONS_ENROLL_SECRET", "workstations_enroll_secret")
 	t.Setenv("FLEET_WORKSTATIONS_CANARY_ENROLL_SECRET", "workstations_canary_enroll_secret")

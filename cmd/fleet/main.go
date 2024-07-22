@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/config"
-	kitlog "github.com/go-kit/kit/log"
-	"github.com/go-kit/kit/log/level"
+	kitlog "github.com/go-kit/log"
+	"github.com/go-kit/log/level"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/spf13/cobra"
 )
@@ -73,14 +73,23 @@ func applyDevFlags(cfg *config.FleetConfig) {
 	}
 
 	cfg.S3 = config.S3Config{
-		Bucket:           "carves-dev",
-		Region:           "minio",
-		Prefix:           "dev-prefix",
-		EndpointURL:      "localhost:9000",
-		AccessKeyID:      "minio",
-		SecretAccessKey:  "minio123!",
-		DisableSSL:       true,
-		ForceS3PathStyle: true,
+		CarvesBucket:           "carves-dev",
+		CarvesRegion:           "minio",
+		CarvesPrefix:           "dev-prefix",
+		CarvesEndpointURL:      "localhost:9000",
+		CarvesAccessKeyID:      "minio",
+		CarvesSecretAccessKey:  "minio123!",
+		CarvesDisableSSL:       true,
+		CarvesForceS3PathStyle: true,
+
+		SoftwareInstallersBucket:           "software-installers-dev",
+		SoftwareInstallersRegion:           "minio",
+		SoftwareInstallersPrefix:           "dev-prefix",
+		SoftwareInstallersEndpointURL:      "localhost:9000",
+		SoftwareInstallersAccessKeyID:      "minio",
+		SoftwareInstallersSecretAccessKey:  "minio123!",
+		SoftwareInstallersDisableSSL:       true,
+		SoftwareInstallersForceS3PathStyle: true,
 	}
 
 	cfg.Packaging.S3 = config.S3Config{

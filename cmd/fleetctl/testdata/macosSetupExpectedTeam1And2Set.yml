@@ -29,6 +29,7 @@ spec:
         deadline_days: null
         grace_period_days: null
     scripts: null
+    secrets: null
     software: null
     webhook_settings:
       host_status_webhook: null
@@ -63,6 +64,7 @@ spec:
         deadline_days: null
         grace_period_days: null
     scripts: null
+    secrets: null
     software: null
     webhook_settings:
       host_status_webhook: null

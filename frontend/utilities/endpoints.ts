@@ -1,5 +1,3 @@
-import software from "interfaces/software";
-
 const API_VERSION = "latest";
 
 export default {
@@ -31,6 +29,8 @@ export default {
   DEVICE_USER_DETAILS: `/${API_VERSION}/fleet/device`,
   DEVICE_SOFTWARE: (token: string) =>
     `/${API_VERSION}/fleet/device/${token}/software`,
+  DEVICE_SOFTWARE_INSTALL: (token: string, softwareTitleId: number) =>
+    `/${API_VERSION}/fleet/device/${token}/software/install/${softwareTitleId}`,
   DEVICE_USER_RESET_ENCRYPTION_KEY: (token: string): string => {
     return `/${API_VERSION}/fleet/device/${token}/rotate_encryption_key`;
   },

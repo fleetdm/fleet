@@ -16,6 +16,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
+	"github.com/google/uuid"
 	"golang.org/x/oauth2/google"
 	"golang.org/x/oauth2/jwt"
 	"google.golang.org/api/calendar/v3"
@@ -35,7 +36,7 @@ const (
 	endHour     = 17
 	eventLength = 30 * time.Minute
 	calendarID  = "primary"
-	mockEmail   = "calendar-mock@example.com"
+	MockEmail   = "calendar-mock@example.com"
 	loadEmail   = "calendar-load@example.com"
 )
 
@@ -52,6 +53,7 @@ type GoogleCalendarConfig struct {
 	Context           context.Context
 	IntegrationConfig *fleet.GoogleCalendarIntegration
 	Logger            kitlog.Logger
+	ServerURL         string
 	// Should be nil for production
 	API GoogleCalendarAPI
 }
@@ -71,7 +73,7 @@ func NewGoogleCalendar(config *GoogleCalendarConfig) *GoogleCalendar {
 		// Use the provided API.
 	case config.IntegrationConfig.ApiKey[fleet.GoogleCalendarEmail] == loadEmail:
 		config.API = &GoogleCalendarLoadAPI{Logger: config.Logger}
-	case config.IntegrationConfig.ApiKey[fleet.GoogleCalendarEmail] == mockEmail:
+	case config.IntegrationConfig.ApiKey[fleet.GoogleCalendarEmail] == MockEmail:
 		config.API = &GoogleCalendarMockAPI{config.Logger}
 	default:
 		config.API = &GoogleCalendarLowLevelAPI{logger: config.Logger}
@@ -82,27 +84,33 @@ func NewGoogleCalendar(config *GoogleCalendarConfig) *GoogleCalendar {
 }
 
 type GoogleCalendarAPI interface {
-	Configure(ctx context.Context, serviceAccountEmail, privateKey, userToImpersonateEmail string) error
+	Configure(ctx context.Context, serviceAccountEmail, privateKey, userToImpersonateEmail, serverURL string) error
 	GetSetting(name string) (*calendar.Setting, error)
 	ListEvents(timeMin, timeMax string) (*calendar.Events, error)
 	CreateEvent(event *calendar.Event) (*calendar.Event, error)
 	GetEvent(id, eTag string) (*calendar.Event, error)
 	DeleteEvent(id string) error
+	Watch(eventUUID string, channelID string, ttl uint64) (resourceID string, err error)
+	Stop(channelID string, resourceID string) error
 }
 
 type eventDetails struct {
 	ID   string `json:"id"`
 	ETag string `json:"etag"`
+	// ChannelID and ResourceID are for watching event changes
+	ChannelID  string `json:"channel_id"`
+	ResourceID string `json:"resource_id"`
 }
 
 type GoogleCalendarLowLevelAPI struct {
-	service *calendar.Service
-	logger  kitlog.Logger
+	service   *calendar.Service
+	logger    kitlog.Logger
+	serverURL string
 }
 
 // Configure creates a new Google Calendar service using the provided credentials.
 func (lowLevelAPI *GoogleCalendarLowLevelAPI) Configure(
-	ctx context.Context, serviceAccountEmail, privateKey, userToImpersonateEmail string,
+	ctx context.Context, serviceAccountEmail, privateKey, userToImpersonateEmail, serverURL string,
 ) error {
 	// Create a new calendar service
 	conf := &jwt.Config{
@@ -118,6 +126,7 @@ func (lowLevelAPI *GoogleCalendarLowLevelAPI) Configure(
 		return err
 	}
 	lowLevelAPI.service = service
+	lowLevelAPI.serverURL = serverURL
 	return nil
 }
 
@@ -181,6 +190,44 @@ func (lowLevelAPI *GoogleCalendarLowLevelAPI) DeleteEvent(id string) error {
 	return err
 }
 
+func (lowLevelAPI *GoogleCalendarLowLevelAPI) Watch(eventUUID string, channelID string, ttl uint64) (resourceID string, err error) {
+	// Disabling this feature to address bugs
+	return "", nil
+
+	// resp, err := lowLevelAPI.withRetry(
+	// 	func() (any, error) {
+	// 		return lowLevelAPI.service.Events.Watch(calendarID, &calendar.Channel{
+	// 			Id:   channelID, // channelID is also used for authentication -- it should be a random value
+	// 			Type: "web_hook",
+	// 			Address: fmt.Sprintf("%s/api/v1/fleet/calendar/webhook/%s",
+	// 				lowLevelAPI.serverURL, eventUUID),
+	// 			Params: map[string]string{
+	// 				"ttl": strconv.FormatUint(ttl, 10),
+	// 			},
+	// 		}).EventTypes("default").Do()
+	// 	},
+	// )
+	// if err != nil {
+	// 	return "", err
+	// }
+	// return resp.(*calendar.Channel).ResourceId, nil
+}
+
+func (lowLevelAPI *GoogleCalendarLowLevelAPI) Stop(channelID string, resourceID string) error {
+	// Disabling this feature to address bugs
+	return nil
+
+	// _, err := lowLevelAPI.withRetry(
+	// 	func() (any, error) {
+	// 		return nil, lowLevelAPI.service.Channels.Stop(&calendar.Channel{
+	// 			Id:         channelID,
+	// 			ResourceId: resourceID,
+	// 		}).Do()
+	// 	},
+	// )
+	// return err
+}
+
 func (lowLevelAPI *GoogleCalendarLowLevelAPI) withRetry(fn func() (any, error)) (any, error) {
 	retryStrategy := backoff.NewExponentialBackOff()
 	retryStrategy.MaxElapsedTime = 10 * time.Minute
@@ -207,6 +254,7 @@ func (c *GoogleCalendar) Configure(userEmail string) error {
 	err := c.config.API.Configure(
 		c.config.Context, c.config.IntegrationConfig.ApiKey[fleet.GoogleCalendarEmail],
 		c.config.IntegrationConfig.ApiKey[fleet.GoogleCalendarPrivateKey], adjustedUserEmail,
+		c.config.ServerURL,
 	)
 	if err != nil {
 		return ctxerr.Wrap(c.config.Context, err, "creating Google calendar service")
@@ -218,7 +266,7 @@ func (c *GoogleCalendar) Configure(userEmail string) error {
 	return nil
 }
 
-func (c *GoogleCalendar) GetAndUpdateEvent(event *fleet.CalendarEvent, genBodyFn func(conflict bool) string) (
+func (c *GoogleCalendar) GetAndUpdateEvent(event *fleet.CalendarEvent, genBodyFn func(conflict bool) (body string, updated bool, err error)) (
 	*fleet.CalendarEvent, bool, error,
 ) {
 	// We assume that the Fleet event has not already ended. We will simply return it if it has not been modified.
@@ -226,11 +274,28 @@ func (c *GoogleCalendar) GetAndUpdateEvent(event *fleet.CalendarEvent, genBodyFn
 	if err != nil {
 		return nil, false, err
 	}
+
+	// Set current calendar instance timezone to the latest from google calendar.
+	c.location, err = getTimezone(c)
+	if err != nil {
+		return nil, false, err
+	}
+	latestTzName := c.location.String()
+	// nil if cal event created before Fleet tracked timezone
+	tzUpdated := event.TimeZone == nil || (latestTzName != *event.TimeZone)
+
 	gEvent, err := c.config.API.GetEvent(details.ID, details.ETag)
-	var deleted bool
+
+	var deleted, channelStopped bool
 	switch {
 	// http.StatusNotModified is returned sometimes, but not always, so we need to check ETag explicitly later
 	case googleapi.IsNotModified(err):
+		if tzUpdated {
+			// this condition occurs when the event itself hasn't been updated, but the calendar timezone
+			// has been, so update the Fleet event's timezone
+			event.TimeZone = &latestTzName
+			return event, true, nil
+		}
 		return event, false, nil
 	// http.StatusNotFound should be very rare -- Google keeps events for a while after they are deleted
 	case isNotFound(err):
@@ -241,6 +306,12 @@ func (c *GoogleCalendar) GetAndUpdateEvent(event *fleet.CalendarEvent, genBodyFn
 	if !deleted && gEvent.Status != "cancelled" {
 		if details.ETag != "" && details.ETag == gEvent.Etag {
 			// Event was not modified
+			if tzUpdated {
+				// this condition occurs when the event itself hasn't been updated, but the calendar timezone
+				// has been, so just update the event's timezone
+				event.TimeZone = &latestTzName
+				return event, true, nil
+			}
 			return event, false, nil
 		}
 		if gEvent.End == nil || (gEvent.End.DateTime == "" && gEvent.End.Date == "") {
@@ -256,6 +327,7 @@ func (c *GoogleCalendar) GetAndUpdateEvent(event *fleet.CalendarEvent, genBodyFn
 				level.Warn(c.config.Logger).Log("msg", "deleting Google calendar event which was changed to all-day event", "err", err)
 			}
 			deleted = true
+			channelStopped = true
 		}
 
 		var endTime *time.Time
@@ -272,6 +344,7 @@ func (c *GoogleCalendar) GetAndUpdateEvent(event *fleet.CalendarEvent, genBodyFn
 					level.Warn(c.config.Logger).Log("msg", "deleting Google calendar event which is in the past", "err", err)
 				}
 				deleted = true
+				channelStopped = true
 			}
 		}
 		if !deleted {
@@ -287,6 +360,7 @@ func (c *GoogleCalendar) GetAndUpdateEvent(event *fleet.CalendarEvent, genBodyFn
 					level.Warn(c.config.Logger).Log("msg", "deleting Google calendar event which was changed to all-day event", "err", err)
 				}
 				deleted = true
+				channelStopped = true
 			}
 		}
 		if !deleted {
@@ -294,11 +368,19 @@ func (c *GoogleCalendar) GetAndUpdateEvent(event *fleet.CalendarEvent, genBodyFn
 			if err != nil {
 				return nil, false, err
 			}
-			fleetEvent, err := c.googleEventToFleetEvent(*startTime, *endTime, gEvent)
+			fleetEvent, err := c.googleEventToFleetEvent(*startTime, *endTime, gEvent, event.UUID, details.ChannelID, details.ResourceID)
 			if err != nil {
 				return nil, false, err
 			}
 			return fleetEvent, true, nil
+		}
+	}
+
+	// If event was deleted/cancelled, we need to stop watching it
+	if !channelStopped {
+		err = c.config.API.Stop(details.ChannelID, details.ResourceID)
+		if err != nil {
+			level.Warn(c.config.Logger).Log("msg", "stopping Google calendar event watch", "err", err)
 		}
 	}
 
@@ -381,14 +463,15 @@ func (c *GoogleCalendar) unmarshalDetails(event *fleet.CalendarEvent) (*eventDet
 	return &details, nil
 }
 
-func (c *GoogleCalendar) CreateEvent(dayOfEvent time.Time, genBodyFn func(conflict bool) string) (*fleet.CalendarEvent, error) {
+func (c *GoogleCalendar) CreateEvent(dayOfEvent time.Time,
+	genBodyFn func(conflict bool) (body string, ok bool, err error)) (*fleet.CalendarEvent, error) {
 	return c.createEvent(dayOfEvent, genBodyFn, time.Now)
 }
 
 // createEvent creates a new event on the calendar on the given date. timeNow is a function that returns the current time.
 // timeNow can be overwritten for testing
 func (c *GoogleCalendar) createEvent(
-	dayOfEvent time.Time, genBodyFn func(conflict bool) string, timeNow func() time.Time,
+	dayOfEvent time.Time, genBodyFn func(conflict bool) (body string, ok bool, err error), timeNow func() time.Time,
 ) (*fleet.CalendarEvent, error) {
 	var err error
 	if c.location == nil {
@@ -482,14 +565,31 @@ func (c *GoogleCalendar) createEvent(
 	event.Start = &calendar.EventDateTime{DateTime: eventStart.Format(time.RFC3339)}
 	event.End = &calendar.EventDateTime{DateTime: eventEnd.Format(time.RFC3339)}
 	event.Summary = eventTitle
-	event.Description = genBodyFn(conflict)
+	body, ok, err := genBodyFn(conflict)
+	if err != nil {
+		return nil, ctxerr.Wrap(c.config.Context, err, "generating Google calendar event body")
+	}
+	if !ok {
+		// We don't need to create this event
+		return nil, nil
+	}
+	event.Description = body
 	event, err = c.config.API.CreateEvent(event)
 	if err != nil {
 		return nil, ctxerr.Wrap(c.config.Context, err, "creating Google calendar event")
 	}
 
+	// Watch for event changes
+	secondsToEventEnd := eventEnd.Sub(now).Milliseconds() / 1000
+	eventUUID := uuid.New().String()
+	channelUUID := uuid.New().String()
+	resourceID, err := c.config.API.Watch(eventUUID, channelUUID, uint64(secondsToEventEnd))
+	if err != nil {
+		return nil, ctxerr.Wrap(c.config.Context, err, "watching Google calendar event")
+	}
+
 	// Convert Google event to Fleet event
-	fleetEvent, err := c.googleEventToFleetEvent(eventStart, eventEnd, event)
+	fleetEvent, err := c.googleEventToFleetEvent(eventStart, eventEnd, event, eventUUID, channelUUID, resourceID)
 	if err != nil {
 		return nil, err
 	}
@@ -518,36 +618,44 @@ func adjustEventTimes(endTime time.Time, dayEnd time.Time) (eventStart time.Time
 	return eventStart, eventEnd, isLastSlot, conflict
 }
 
-func getTimezone(gCal *GoogleCalendar) (*time.Location, error) {
+func getTimezone(gCal *GoogleCalendar) (location *time.Location, err error) {
 	config := gCal.config
-	setting, err := config.API.GetSetting("timezone")
+	// "The ID of the user’s timezone." https://developers.google.com/calendar/api/v3/reference/settings
+	gCalTz, err := config.API.GetSetting("timezone")
 	if err != nil {
 		return nil, ctxerr.Wrap(config.Context, err, "retrieving Google calendar timezone")
 	}
 
-	return getLocation(setting.Value, config), nil
+	return getLocation(gCalTz.Value, config), nil
 }
 
-func getLocation(name string, config *GoogleCalendarConfig) *time.Location {
-	loc, err := time.LoadLocation(name)
+func getLocation(tz string, config *GoogleCalendarConfig) *time.Location {
+	loc, err := time.LoadLocation(tz)
 	if err != nil {
 		// Could not load location, use EST
-		level.Warn(config.Logger).Log("msg", "parsing Google calendar timezone", "timezone", name, "err", err)
+		level.Warn(config.Logger).Log("msg", "parsing Google calendar timezone", "timezone", tz, "err", err)
 		loc, _ = time.LoadLocation("America/New_York")
 	}
 	return loc
 }
 
-func (c *GoogleCalendar) googleEventToFleetEvent(startTime time.Time, endTime time.Time, event *calendar.Event) (
+func (c *GoogleCalendar) googleEventToFleetEvent(startTime time.Time, endTime time.Time, event *calendar.Event, eventUUID string,
+	channelID string,
+	resourceID string) (
 	*fleet.CalendarEvent, error,
 ) {
+	tzName := c.location.String()
 	fleetEvent := &fleet.CalendarEvent{}
 	fleetEvent.StartTime = startTime
 	fleetEvent.EndTime = endTime
 	fleetEvent.Email = c.currentUserEmail
+	fleetEvent.TimeZone = &tzName
+	fleetEvent.UUID = eventUUID
 	details := &eventDetails{
-		ID:   event.Id,
-		ETag: event.Etag,
+		ID:         event.Id,
+		ETag:       event.Etag,
+		ChannelID:  channelID,
+		ResourceID: resourceID,
 	}
 	detailsJson, err := json.Marshal(details)
 	if err != nil {
@@ -562,6 +670,14 @@ func (c *GoogleCalendar) DeleteEvent(event *fleet.CalendarEvent) error {
 	if err != nil {
 		return err
 	}
+	// Stop watching the event before deleting the event so that we don't get a callback for the deletion
+	if details.ChannelID != "" && details.ResourceID != "" {
+		stopErr := c.config.API.Stop(details.ChannelID, details.ResourceID)
+		if stopErr != nil {
+			level.Warn(c.config.Logger).Log("msg", "stopping Google calendar event watch", "err", stopErr)
+		}
+	}
+	// Delete the event
 	err = c.config.API.DeleteEvent(details.ID)
 	switch {
 	case isAlreadyDeleted(err):
@@ -570,4 +686,29 @@ func (c *GoogleCalendar) DeleteEvent(event *fleet.CalendarEvent) error {
 		return ctxerr.Wrap(c.config.Context, err, "deleting Google calendar event")
 	}
 	return nil
+}
+
+func (c *GoogleCalendar) StopEventChannel(event *fleet.CalendarEvent) error {
+	details, err := c.unmarshalDetails(event)
+	if err != nil {
+		return err
+	}
+	if details.ChannelID != "" && details.ResourceID != "" {
+		stopErr := c.config.API.Stop(details.ChannelID, details.ResourceID)
+		if stopErr != nil {
+			level.Warn(c.config.Logger).Log("msg", "stopping Google calendar event watch", "err", stopErr)
+		}
+	}
+	return nil
+}
+
+func (c *GoogleCalendar) Get(event *fleet.CalendarEvent, key string) (interface{}, error) {
+	if key == "channelID" {
+		details, err := c.unmarshalDetails(event)
+		if err != nil {
+			return nil, err
+		}
+		return details.ChannelID, nil
+	}
+	return nil, ctxerr.Errorf(c.config.Context, "unknown key: %s", key)
 }

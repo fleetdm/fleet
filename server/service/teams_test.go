@@ -431,7 +431,7 @@ func TestApplyTeamSpecEnrollSecretForNewTeams(t *testing.T) {
 			return false, nil
 		}
 		_, err := svc.ApplyTeamSpecs(
-			ctx, []*fleet.TeamSpec{{Name: "Foo", Secrets: []fleet.EnrollSecret{enrollSecret}}},
+			ctx, []*fleet.TeamSpec{{Name: "Foo", Secrets: &[]fleet.EnrollSecret{enrollSecret}}},
 			fleet.ApplyTeamSpecOptions{ApplySpecOptions: fleet.ApplySpecOptions{DryRun: true}},
 		)
 		assert.ErrorContains(t, err, "is already being used")
@@ -441,14 +441,14 @@ func TestApplyTeamSpecEnrollSecretForNewTeams(t *testing.T) {
 			return true, nil
 		}
 		_, err = svc.ApplyTeamSpecs(
-			ctx, []*fleet.TeamSpec{{Name: "Foo", Secrets: []fleet.EnrollSecret{enrollSecret}}},
+			ctx, []*fleet.TeamSpec{{Name: "Foo", Secrets: &[]fleet.EnrollSecret{enrollSecret}}},
 			fleet.ApplyTeamSpecOptions{ApplySpecOptions: fleet.ApplySpecOptions{DryRun: true}},
 		)
 		assert.NoError(t, err)
 		assert.False(t, ds.NewTeamFuncInvoked)
 
 		_, err = svc.ApplyTeamSpecs(
-			ctx, []*fleet.TeamSpec{{Name: "Foo", Secrets: []fleet.EnrollSecret{enrollSecret}}}, fleet.ApplyTeamSpecOptions{},
+			ctx, []*fleet.TeamSpec{{Name: "Foo", Secrets: &[]fleet.EnrollSecret{enrollSecret}}}, fleet.ApplyTeamSpecOptions{},
 		)
 		require.NoError(t, err)
 		require.True(t, ds.TeamByNameFuncInvoked)

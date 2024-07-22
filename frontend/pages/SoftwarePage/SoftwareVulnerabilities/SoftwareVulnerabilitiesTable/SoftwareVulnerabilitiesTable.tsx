@@ -15,6 +15,7 @@ import CustomLink from "components/CustomLink";
 import TableContainer from "components/TableContainer";
 import LastUpdatedText from "components/LastUpdatedText";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
+import TableCount from "components/TableContainer/TableCount";
 
 import EmptySoftwareTable from "pages/SoftwarePage/components/EmptySoftwareTable";
 import { IVulnerabilitiesResponse } from "services/entities/vulnerabilities";
@@ -43,6 +44,7 @@ interface ISoftwareVulnerabilitiesTableProps {
   currentPage: number;
   teamId?: number;
   isLoading: boolean;
+  resetPageIndex: boolean;
 }
 
 const SoftwareVulnerabilitiesTable = ({
@@ -57,10 +59,9 @@ const SoftwareVulnerabilitiesTable = ({
   currentPage,
   teamId,
   isLoading,
+  resetPageIndex,
 }: ISoftwareVulnerabilitiesTableProps) => {
-  const { isPremiumTier, isSandboxMode, noSandboxHosts } = useContext(
-    AppContext
-  );
+  const { isPremiumTier } = useContext(AppContext);
 
   const determineQueryParamChange = useCallback(
     (newTableQuery: ITableQueryData) => {
@@ -137,7 +138,6 @@ const SoftwareVulnerabilitiesTable = ({
     if (!data) return [];
     return generateTableConfig(
       isPremiumTier,
-      isSandboxMode,
       router,
       {
         includeName: true,
@@ -180,34 +180,25 @@ const SoftwareVulnerabilitiesTable = ({
     router.push(path);
   };
 
-  const getItemsCountText = () => {
-    const count = data?.count;
-    if (!data?.vulnerabilities || !count) return "";
-
-    return count === 1 ? `${count} item` : `${count} items`;
-  };
-
-  const getLastUpdatedText = () => {
-    if (!data?.vulnerabilities || !data?.counts_updated_at) return "";
-    return (
-      <LastUpdatedText
-        lastUpdatedAt={data.counts_updated_at}
-        whatToRetrieve="vulnerabilities"
-      />
-    );
-  };
-
   const renderVulnerabilityCount = () => {
-    const itemText = getItemsCountText();
-    const lastUpdatedText = getLastUpdatedText();
-
-    if (!itemText) return null;
+    if (!data?.vulnerabilities || !data?.count) return null;
 
     return (
-      <div className={`${baseClass}__count`}>
-        <span>{itemText}</span>
-        {lastUpdatedText}
-      </div>
+      <>
+        <TableCount name="items" count={data?.count} />
+        {data?.vulnerabilities && data?.counts_updated_at && (
+          <LastUpdatedText
+            lastUpdatedAt={data.counts_updated_at}
+            customTooltipText={
+              <>
+                The last time software data was <br />
+                updated, including vulnerabilities <br />
+                and host counts.
+              </>
+            }
+          />
+        )}
+      </>
     );
   };
 
@@ -267,7 +258,11 @@ const SoftwareVulnerabilitiesTable = ({
         isLoading={isLoading}
         resultsTitle={"items"}
         emptyComponent={() => (
-          <EmptySoftwareTable isSoftwareDisabled={!isSoftwareEnabled} />
+          <EmptySoftwareTable
+            tableName="vulnerabilities"
+            isSoftwareDisabled={!isSoftwareEnabled}
+            isNotDetectingSoftware={query === ""}
+          />
         )}
         defaultSortHeader={orderKey}
         defaultSortDirection={orderDirection}
@@ -288,6 +283,7 @@ const SoftwareVulnerabilitiesTable = ({
         renderFooter={renderTableFooter}
         disableMultiRowSelect
         onSelectSingleRow={handleRowSelect}
+        resetPageIndex={resetPageIndex}
       />
     </div>
   );

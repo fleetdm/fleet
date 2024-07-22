@@ -31,6 +31,7 @@ env:
   TF_VAR_elastic_url: ${{ secrets.ELASTIC_APM_SERVER_URL }}
   TF_VAR_elastic_token: ${{ secrets.ELASTIC_APM_SECRET_TOKEN }}
   TF_VAR_geolite2_license: ${{ secrets.MAXMIND_LICENSE }}
+  TF_VAR_dogfood_sidecar_enroll_secret: ${{ secrets.DOGFOOD_SERVERS_CANARY_ENROLL_SECRET }}
 
 permissions:
   id-token: write

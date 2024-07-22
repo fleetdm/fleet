@@ -232,7 +232,21 @@ func (s *Service) CommandAndReportResults(r *mdm.Request, results *mdm.CommandRe
 	logger.Info(logs...)
 	err := s.store.StoreCommandReport(r, results)
 	if err != nil {
-		return nil, fmt.Errorf("storing command report: %w", err)
+		// allow not found commands, this is an edge case only
+		// valid for migrations, other response codes confuse the
+		// mdmclient, and this gives us the opportunity to answer
+		// with more commands
+		if !service.IsNotFound(err) {
+			return nil, fmt.Errorf("storing command report: %w", err)
+		}
+
+		logger.Info(
+			"msg", "host reported status with invalid command uuid",
+			"command_uuid", results.CommandUUID,
+			"request_type", results.RequestType,
+			"status", results.Status,
+			"error_chain", results.ErrorChain,
+		)
 	}
 	cmd, err := s.store.RetrieveNextCommand(r, results.Status == "NotNow")
 	if err != nil {

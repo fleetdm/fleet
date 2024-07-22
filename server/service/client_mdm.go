@@ -43,21 +43,19 @@ func (c *Client) GetAppleBM() (*fleet.AppleBM, error) {
 // RequestAppleCSR requests a signed CSR from the Fleet server and returns the
 // CSR bytes
 func (c *Client) RequestAppleCSR() ([]byte, error) {
-	verb, path := "GET", "/api/v1/fleet/mdm/apple/request_csr"
-	// TODO(roberto): adjust request/response type when the endpoint is ready
-	var request, resp map[string][]byte
-	err := c.authenticatedRequest(request, verb, path, &resp)
-	return resp["csr"], err
+	verb, path := "GET", "/api/latest/fleet/mdm/apple/request_csr"
+	var resp getMDMAppleCSRResponse
+	err := c.authenticatedRequest(nil, verb, path, &resp)
+	return resp.CSR, err
 }
 
 // RequestAppleABM requests a signed CSR from the Fleet server and returns the
 // public key bytes
 func (c *Client) RequestAppleABM() ([]byte, error) {
-	verb, path := "GET", "/api/v1/fleet/mdm/apple/abm_public_key?alt=media"
-	// TODO(roberto): adjust this request type when the endpoint is ready
-	var request, resp map[string][]byte
-	err := c.authenticatedRequest(request, verb, path, &resp)
-	return resp["public_key"], err
+	verb, path := "GET", "/api/latest/fleet/mdm/apple/abm_public_key"
+	var resp generateABMKeyPairResponse
+	err := c.authenticatedRequest(nil, verb, path, &resp)
+	return resp.PublicKey, err
 }
 
 func (c *Client) GetBootstrapPackageMetadata(teamID uint, forUpdate bool) (*fleet.MDMAppleBootstrapPackage, error) {
@@ -252,8 +250,8 @@ func (c *Client) uploadMacOSSetupAssistant(data []byte, teamID *uint, name strin
 	return c.authenticatedRequest(request, verb, path, nil)
 }
 
-func (c *Client) MDMListCommands() ([]*fleet.MDMCommand, error) {
-	const defaultCommandsPerPage = 1000
+func (c *Client) MDMListCommands(opts fleet.MDMCommandListOptions) ([]*fleet.MDMCommand, error) {
+	const defaultCommandsPerPage = 20
 
 	verb, path := http.MethodGet, "/api/latest/fleet/mdm/commands"
 
@@ -261,11 +259,13 @@ func (c *Client) MDMListCommands() ([]*fleet.MDMCommand, error) {
 	query.Set("per_page", fmt.Sprint(defaultCommandsPerPage))
 	query.Set("order_key", "updated_at")
 	query.Set("order_direction", "desc")
+	query.Set("host_identifier", opts.Filters.HostIdentifier)
+	query.Set("request_type", opts.Filters.RequestType)
 
 	var responseBody listMDMCommandsResponse
 	err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, query.Encode())
 	if err != nil {
-		return nil, fmt.Errorf("send request: %w", err)
+		return nil, err
 	}
 
 	return responseBody.Results, nil

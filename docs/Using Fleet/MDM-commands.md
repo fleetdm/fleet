@@ -1,6 +1,6 @@
 # Commands
 
-In Fleet you can run MDM commands to take action on your macOS and Windows hosts, like restarting the host, remotely.
+In Fleet you can run MDM commands to take action on your macOS, iOS, iPadOS, and Windows hosts, like restarting the host, remotely.
 
 ## Custom commands
 
@@ -85,7 +85,7 @@ You can view a list of the 1,000 latest commands:
 
 The command ID can be used to view command results as documented in [step 4 of the previous section](#step-4-view-the-commands-results). 
 
-The possible statuses for macOS hosts are the following:
+The possible statuses for macOS, iOS, and iPadOS hosts are the following:
 
 * Pending: the command has yet to run on the host. The host will run the command the next time it comes online.
 * NotNow: the host responded with "NotNow" status via the MDM protocol: the host received the command, but couldn’t execute it. The host will try to run the command the next time it comes online.

@@ -8,20 +8,6 @@ import { ActivityType } from "interfaces/activity";
 
 import ActivityItem from ".";
 
-const getByTextContent = (text: string) => {
-  return screen.getByText((content, element) => {
-    if (!element) {
-      return false;
-    }
-    const hasText = (thisElement: Element) => thisElement.textContent === text;
-    const elementHasText = hasText(element);
-    const childrenDontHaveText = Array.from(element?.children || []).every(
-      (child) => !hasText(child)
-    );
-    return elementHasText && childrenDontHaveText;
-  });
-};
-
 describe("Activity Feed", () => {
   it("renders avatar, actor name, timestamp", async () => {
     const currentDate = new Date();
@@ -258,6 +244,15 @@ describe("Activity Feed", () => {
     expect(
       screen.getByText("successfully logged in from public IP 192.168.0.1.")
     ).toBeInTheDocument();
+  });
+  it("renders a user_logged_in type activity without public IP", () => {
+    const activity = createMockActivity({
+      type: ActivityType.UserLoggedIn,
+      details: {},
+    });
+    render(<ActivityItem activity={activity} isPremiumTier />);
+
+    expect(screen.getByText("successfully logged in.")).toBeInTheDocument();
   });
 
   it("renders a user_failed_login type activity globally", () => {
@@ -1177,5 +1172,35 @@ describe("Activity Feed", () => {
 
     expect(screen.getByText("wiped", { exact: false })).toBeInTheDocument();
     expect(screen.getByText("Foo Host", { exact: false })).toBeInTheDocument();
+  });
+
+  it("renders the correct actor for a installed_software activity without self_service", () => {
+    const activity = createMockActivity({
+      type: ActivityType.InstalledSoftware,
+      actor_id: 1,
+      actor_full_name: "Test Admin",
+      details: {
+        software_title: "Foo Software",
+        host_display_name: "Foo Host",
+      },
+    });
+
+    render(<ActivityItem activity={activity} isPremiumTier />);
+    expect(screen.getByText("Test Admin")).toBeInTheDocument();
+  });
+
+  it("renders the correct actor for a installed_software activity that was self_service", () => {
+    const activity = createMockActivity({
+      type: ActivityType.InstalledSoftware,
+      actor_id: 1,
+      details: {
+        software_title: "Foo Software",
+        self_service: true,
+        host_display_name: "Foo Host",
+      },
+    });
+
+    render(<ActivityItem activity={activity} isPremiumTier />);
+    expect(screen.getByText("An end user")).toBeInTheDocument();
   });
 });

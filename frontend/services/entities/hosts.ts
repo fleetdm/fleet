@@ -9,10 +9,8 @@ import {
   reconcileMutuallyExclusiveHostParams,
   reconcileMutuallyInclusiveHostParams,
 } from "utilities/url";
-import { SelectedPlatform } from "interfaces/platform";
 import {
   IHostSoftware,
-  ISoftwareTitle,
   ISoftware,
   SoftwareInstallStatus,
 } from "interfaces/software";
@@ -24,7 +22,7 @@ import {
   MdmEnrollmentStatus,
 } from "interfaces/mdm";
 import { IMunkiIssuesAggregate } from "interfaces/macadmins";
-import { PolicyResponse } from "utilities/constants";
+import { PlatformValueOptions, PolicyResponse } from "utilities/constants";
 
 export interface ISortOption {
   key: string;
@@ -34,7 +32,7 @@ export interface ISortOption {
 export interface ILoadHostsResponse {
   hosts: IHost[];
   software: ISoftware | undefined;
-  software_title: ISoftwareTitle | undefined;
+  software_title: { name: string; version?: string } | null | undefined; // TODO: confirm type
   munki_issue: IMunkiIssuesAggregate;
   mobile_device_management_solution: IMdmSolution;
 }
@@ -170,6 +168,7 @@ export interface IHostSoftwareQueryParams extends QueryParams {
 export interface IHostSoftwareQueryKey extends IHostSoftwareQueryParams {
   scope: "host_software";
   id: number;
+  softwareUpdatedAt?: string;
 }
 
 export type ILoadHostDetailsExtension = "device_mapping" | "macadmins";
@@ -206,7 +205,7 @@ const getSortParams = (sortOptions?: ISortOption[]) => {
   };
 };
 
-const createMdmParams = (platform?: SelectedPlatform, teamId?: number) => {
+const createMdmParams = (platform?: PlatformValueOptions, teamId?: number) => {
   if (platform === "all") {
     return buildQueryStringFromParams({ team_id: teamId });
   }
@@ -440,7 +439,7 @@ export default {
   },
   loadHostDetails: (hostID: number) => {
     const { HOSTS } = endpoints;
-    const path = `${HOSTS}/${hostID}`;
+    const path = `${HOSTS}/${hostID}?exclude_software=true`;
 
     return sendRequest("GET", path);
   },
@@ -535,7 +534,7 @@ export default {
     return sendRequest("GET", HOST_MDM(id));
   },
 
-  getMdmSummary: (platform?: SelectedPlatform, teamId?: number) => {
+  getMdmSummary: (platform?: PlatformValueOptions, teamId?: number) => {
     const { MDM_SUMMARY } = endpoints;
 
     if (!platform || platform === "linux") {

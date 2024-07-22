@@ -133,6 +133,8 @@ const routes = (
             <Route path="mac" component={DashboardPage} />
             <Route path="windows" component={DashboardPage} />
             <Route path="chrome" component={DashboardPage} />
+            <Route path="ios" component={DashboardPage} />
+            <Route path="ipados" component={DashboardPage} />
           </Route>
           <Route path="settings" component={AuthAnyAdminRoutes}>
             <IndexRedirect to="organization/info" />
@@ -293,6 +295,7 @@ const routes = (
 
         <Route component={DeviceUserPage}>
           <Route path=":device_auth_token" component={DeviceUserPage}>
+            <Route path="self-service" component={DeviceUserPage} />
             <Route path="software" component={DeviceUserPage} />
             <Route path="policies" component={DeviceUserPage} />
           </Route>

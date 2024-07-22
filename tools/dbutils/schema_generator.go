@@ -12,7 +12,7 @@ import (
 	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
-	"github.com/go-kit/kit/log"
+	"github.com/go-kit/log"
 )
 
 const (

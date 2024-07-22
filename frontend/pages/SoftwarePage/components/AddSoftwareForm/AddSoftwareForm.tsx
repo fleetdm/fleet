@@ -1,15 +1,18 @@
-import React, { useState } from "react";
+import React, { useContext, useState } from "react";
 
+import { NotificationContext } from "context/notification";
+import { getFileDetails } from "utilities/file/fileUtils";
 import getInstallScript from "utilities/software_install_scripts";
 
-import Spinner from "components/Spinner";
 import Button from "components/buttons/Button";
+import Checkbox from "components/forms/fields/Checkbox";
 import Editor from "components/Editor";
-import FileUploader, {
+import {
+  FileUploader,
   FileDetails,
 } from "components/FileUploader/FileUploader";
-
-import { getFileDetails } from "utilities/file/fileUtils";
+import Spinner from "components/Spinner";
+import TooltipWrapper from "components/TooltipWrapper";
 
 import AddSoftwareAdvancedOptions from "../AddSoftwareAdvancedOptions";
 
@@ -21,7 +24,7 @@ const UploadingSoftware = () => {
   return (
     <div className={`${baseClass}__uploading-message`}>
       <Spinner centered={false} />
-      <p>Uploading. It may take few minutes to finish.</p>
+      <p>Uploading. It may take a few minutes to finish.</p>
     </div>
   );
 };
@@ -31,6 +34,7 @@ export interface IAddSoftwareFormData {
   installScript: string;
   preInstallCondition?: string;
   postInstallScript?: string;
+  selfService: boolean;
 }
 
 export interface IFormValidation {
@@ -38,6 +42,7 @@ export interface IFormValidation {
   software: { isValid: boolean };
   preInstallCondition?: { isValid: boolean; message?: string };
   postInstallScript?: { isValid: boolean; message?: string };
+  selfService?: { isValid: boolean };
 }
 
 interface IAddSoftwareFormProps {
@@ -51,6 +56,8 @@ const AddSoftwareForm = ({
   onCancel,
   onSubmit,
 }: IAddSoftwareFormProps) => {
+  const { renderFlash } = useContext(NotificationContext);
+
   const [showPreInstallCondition, setShowPreInstallCondition] = useState(false);
   const [showPostInstallScript, setShowPostInstallScript] = useState(false);
   const [formData, setFormData] = useState<IAddSoftwareFormData>({
@@ -58,6 +65,7 @@ const AddSoftwareForm = ({
     installScript: "",
     preInstallCondition: undefined,
     postInstallScript: undefined,
+    selfService: false,
   });
   const [formValidation, setFormValidation] = useState<IFormValidation>({
     isValid: false,
@@ -67,10 +75,19 @@ const AddSoftwareForm = ({
   const onFileUpload = (files: FileList | null) => {
     if (files && files.length > 0) {
       const file = files[0];
+
+      let installScript: string;
+      try {
+        installScript = getInstallScript(file.name);
+      } catch (e) {
+        renderFlash("error", `${e}`);
+        return;
+      }
+
       const newData = {
         ...formData,
         software: file,
-        installScript: getInstallScript(file.name),
+        installScript,
       };
       setFormData(newData);
       setFormValidation(
@@ -134,6 +151,18 @@ const AddSoftwareForm = ({
     );
   };
 
+  const onToggleSelfServiceCheckbox = (value: boolean) => {
+    const newData = { ...formData, selfService: value };
+    setFormData(newData);
+    setFormValidation(
+      generateFormValidation(
+        newData,
+        showPreInstallCondition,
+        showPostInstallScript
+      )
+    );
+  };
+
   const isSubmitDisabled = !formValidation.isValid;
 
   return (
@@ -175,6 +204,21 @@ const AddSoftwareForm = ({
               }
             />
           )}
+          <Checkbox
+            value={formData.selfService}
+            onChange={onToggleSelfServiceCheckbox}
+          >
+            <TooltipWrapper
+              tipContent={
+                <>
+                  End users can install from{" "}
+                  <b>Fleet Desktop {">"} Self-service</b>.
+                </>
+              }
+            >
+              Self-service
+            </TooltipWrapper>
+          </Checkbox>
           <AddSoftwareAdvancedOptions
             errors={{
               preInstallCondition: formValidation.preInstallCondition?.message,

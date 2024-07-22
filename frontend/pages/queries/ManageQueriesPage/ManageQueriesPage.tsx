@@ -14,7 +14,7 @@ import { QueryContext } from "context/query";
 import { TableContext } from "context/table";
 import { NotificationContext } from "context/notification";
 import { getPerformanceImpactDescription } from "utilities/helpers";
-import { SupportedPlatform } from "interfaces/platform";
+import { QueryablePlatform, SelectedPlatform } from "interfaces/platform";
 import {
   IEnhancedQuery,
   IQueryKeyQueriesLoadAll,
@@ -43,7 +43,7 @@ interface IManageQueriesPageProps {
   location: {
     pathname: string;
     query: {
-      platform?: string;
+      platform?: SelectedPlatform;
       page?: string;
       query?: string;
       order_key?: string;
@@ -54,7 +54,7 @@ interface IManageQueriesPageProps {
   };
 }
 
-const getPlatforms = (queryString: string): SupportedPlatform[] => {
+const getPlatforms = (queryString: string): QueryablePlatform[] => {
   const { platforms } = checkPlatformCompatibility(queryString);
 
   return platforms ?? [];
@@ -77,7 +77,9 @@ const ManageQueriesPage = ({
   const queryParams = location.query;
   const {
     isGlobalAdmin,
+    isGlobalMaintainer,
     isTeamAdmin,
+    isTeamMaintainer,
     isOnlyObserver,
     isObserverPlus,
     isAnyTeamObserverPlus,
@@ -359,6 +361,14 @@ const ManageQueriesPage = ({
     );
   };
 
+  // CTA button shows for all roles but global observers and current team's observers
+  const canCustomQuery =
+    isGlobalAdmin ||
+    isGlobalMaintainer ||
+    isTeamAdmin ||
+    isTeamMaintainer ||
+    isObserverPlus; // isObserverPlus checks global and selected team
+
   return (
     <MainContent className={baseClass}>
       <div className={`${baseClass}__wrapper`}>
@@ -379,7 +389,7 @@ const ManageQueriesPage = ({
                   Manage automations
                 </Button>
               )}
-              {(!isOnlyObserver || isObserverPlus || isAnyTeamObserverPlus) && (
+              {canCustomQuery && (
                 <Button
                   variant="brand"
                   className={`${baseClass}__create-button`}

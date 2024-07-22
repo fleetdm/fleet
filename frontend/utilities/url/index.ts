@@ -1,4 +1,4 @@
-import { isEmpty, reduce, omitBy, Dictionary } from "lodash";
+import { isEmpty, reduce, omitBy, Dictionary, snakeCase } from "lodash";
 
 import {
   DiskEncryptionStatus,
@@ -249,4 +249,23 @@ export const getLabelParam = (selectedLabels?: string[]) => {
   if (label === undefined) return undefined;
 
   return label.slice(7);
+};
+
+type QueryParamish<T> = keyof T extends string
+  ? {
+      [K in keyof T]: QueryValues;
+    }
+  : never;
+
+export const convertParamsToSnakeCase = <T extends QueryParamish<T>>(
+  params: T
+) => {
+  return reduce<typeof params, QueryParams>(
+    params,
+    (result, val, key) => {
+      result[snakeCase(key)] = val;
+      return result;
+    },
+    {}
+  );
 };

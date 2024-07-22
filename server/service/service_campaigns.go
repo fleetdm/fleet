@@ -2,6 +2,8 @@ package service
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"fmt"
 	"time"
 
@@ -11,8 +13,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/websocket"
-	"github.com/go-kit/kit/log"
-	"github.com/go-kit/kit/log/level"
+	"github.com/go-kit/log"
+	"github.com/go-kit/log/level"
 	"github.com/igm/sockjs-go/v3/sockjs"
 )
 
@@ -68,10 +70,41 @@ func (svc Service) StreamCampaignResults(ctx context.Context, conn *websocket.Co
 		return
 	}
 
-	// Find the campaign and ensure it is active
-	campaign, err := svc.ds.DistributedQueryCampaign(ctx, campaignID)
-	if err != nil {
-		conn.WriteJSONError(fmt.Sprintf("cannot find campaign for ID %d", campaignID)) //nolint:errcheck
+	// Find the campaign and ensure it is active.
+	// Since we are reading from the replica DB, the campaign may not be found until it is replicated from the master.
+	done := make(chan error, 1)
+	stop := make(chan struct{}, 1)
+	var campaign *fleet.DistributedQueryCampaign
+	go func() {
+		var err error
+		for {
+			select {
+			case <-stop:
+				return
+			default:
+				campaign, err = svc.ds.DistributedQueryCampaign(ctx, campaignID)
+				if err != nil {
+					if errors.Is(err, sql.ErrNoRows) {
+						time.Sleep(30 * time.Millisecond) // We see the replication time less than 30 ms in production.
+						continue
+					}
+					done <- err
+					return
+				}
+				done <- nil
+				return
+			}
+		}
+	}()
+	select {
+	case err := <-done:
+		if err != nil {
+			_ = conn.WriteJSONError(fmt.Sprintf("cannot find campaign for ID %d", campaignID)) //nolint:errcheck
+			return
+		}
+	case <-time.After(5 * time.Second):
+		stop <- struct{}{}
+		_ = conn.WriteJSONError(fmt.Sprintf("timeout: cannot find campaign for ID %d", campaignID)) //nolint:errcheck
 		return
 	}
 

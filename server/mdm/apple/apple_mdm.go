@@ -51,10 +51,6 @@ const (
 	// FleetPayloadIdentifier is the value for the "<key>PayloadIdentifier</key>"
 	// used by Fleet MDM on the enrollment profile.
 	FleetPayloadIdentifier = "com.fleetdm.fleet.mdm.apple"
-
-	// FleetdPublicManifestURL contains a valid manifest that can be used
-	// by InstallEnterpriseApplication to install `fleetd` in a host.
-	FleetdPublicManifestURL = "https://download.fleetdm.com/fleetd-base-manifest.plist"
 )
 
 func ResolveAppleMDMURL(serverURL string) (string, error) {
@@ -91,7 +87,7 @@ type DEPService struct {
 // getDefaultProfile returns a godep.Profile with default values set.
 func (d *DEPService) getDefaultProfile() *godep.Profile {
 	return &godep.Profile{
-		ProfileName:      "FleetDM default enrollment profile",
+		ProfileName:      "Fleet default enrollment profile",
 		AllowPairing:     true,
 		AutoAdvanceSetup: false,
 		IsSupervised:     false,
@@ -688,8 +684,8 @@ var enrollmentProfileMobileconfigTemplate = template.Must(template.New("").Parse
 				<string>{{ .SCEPURL }}</string>
 				<key>Subject</key>
 				<array>
-					<array><array><string>O</string><string>FleetDM</string></array></array>
-					<array><array><string>CN</string><string>FleetDM Identity</string></array></array>
+					<array><array><string>O</string><string>Fleet</string></array></array>
+					<array><array><string>CN</string><string>Fleet Identity</string></array></array>
 				</array>
 			</dict>
 			<key>PayloadIdentifier</key>

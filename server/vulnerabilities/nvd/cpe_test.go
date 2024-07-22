@@ -15,8 +15,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/cpedict"
-	kitlog "github.com/go-kit/kit/log"
 	"github.com/go-kit/log"
+	kitlog "github.com/go-kit/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -134,6 +134,28 @@ func TestCPETranslations(t *testing.T) {
 				Source:  "apps",
 			},
 			Expected: "cpe:2.3:a:vendor:product-1:1.2.3:*:*:*:*:macos:*:*",
+		},
+		{
+			Name: "translate part",
+			Translations: CPETranslations{
+				{
+					Software: CPETranslationSoftware{
+						Name:   []string{"X"},
+						Source: []string{"apps"},
+					},
+					Filter: CPETranslation{
+						Product: []string{"product-1"},
+						Vendor:  []string{"vendor"},
+						Part:    "o",
+					},
+				},
+			},
+			Software: &fleet.Software{
+				Name:    "X",
+				Version: "1.2.3",
+				Source:  "apps",
+			},
+			Expected: "cpe:2.3:o:vendor:product-1:1.2.3:*:*:*:*:macos:*:*",
 		},
 	}
 
@@ -1314,6 +1336,16 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 		},
 		{
 			software: fleet.Software{
+				Name:             "intellij-idea-ce",
+				Source:           "homebrew_packages",
+				Version:          "2023.3.2,233.13135.103",
+				Vendor:           "",
+				BundleIdentifier: "",
+			},
+			cpe: "cpe:2.3:a:jetbrains:intellij_idea:2023.3.2.233.13135.103:*:*:*:*:*:*:*",
+		},
+		{
+			software: fleet.Software{
 				Name:             "User PyCharm Custom Name.app", // 2023/10/31: The actual product name must be part of the app name per our code in CPEFromSoftware
 				Source:           "apps",
 				Version:          "2019.2",
@@ -1612,6 +1644,15 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 				Vendor:  "",
 			},
 			cpe: `cpe:2.3:a:python:python:3.9.18_2:*:*:*:*:*:*:*`,
+		},
+		{
+			software: fleet.Software{
+				Name:    "linux-image-5.4.0-105-custom",
+				Source:  "deb_packages",
+				Version: "5.4.0-105.118",
+				Vendor:  "",
+			},
+			cpe: "cpe:2.3:o:linux:linux_kernel:5.4.0-105.118:*:*:*:*:*:*:*",
 		},
 	}
 

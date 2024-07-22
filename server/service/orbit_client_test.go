@@ -39,8 +39,8 @@ func TestGetConfig(t *testing.T) {
 func clientWithConfig(cfg *fleet.OrbitConfig) *OrbitClient {
 	ctx, cancel := context.WithCancel(context.Background())
 	oc := &OrbitClient{
-		ReceiverUpdateContext:    ctx,
-		ReceiverUpdateCancelFunc: cancel,
+		receiverUpdateContext:    ctx,
+		receiverUpdateCancelFunc: cancel,
 	}
 	oc.configCache.config = cfg
 	oc.configCache.lastUpdated = time.Now().Add(1 * time.Hour)
@@ -127,7 +127,7 @@ func TestExecuteConfigReceiversCancel(t *testing.T) {
 	cfunc := fleet.OrbitConfigReceiverFunc(func(cfg *fleet.OrbitConfig) error {
 		calls1++
 		if calls1 == requiredCalls {
-			client.ReceiverUpdateCancelFunc()
+			client.receiverUpdateCancelFunc()
 		}
 		return nil
 	})
@@ -149,10 +149,11 @@ func TestExecuteConfigReceiversCancel(t *testing.T) {
 
 func TestExecuteConfigReceiversInterrupt(t *testing.T) {
 	client := clientWithConfig(&fleet.OrbitConfig{})
-	client.ReceiverUpdateInterval = 200 * time.Millisecond
+	defer client.receiverUpdateCancelFunc()
+
+	client.ReceiverUpdateInterval = 100 * time.Millisecond
 
 	var called bool
-
 	rfunc := fleet.OrbitConfigReceiverFunc(func(cfg *fleet.OrbitConfig) error {
 		called = true
 		return nil
@@ -160,15 +161,14 @@ func TestExecuteConfigReceiversInterrupt(t *testing.T) {
 
 	client.RegisterConfigReceiver(rfunc)
 
-	finChan := make(chan error, 1)
-
+	finChan := make(chan error)
 	go func() {
 		finChan <- client.ExecuteConfigReceivers()
 	}()
 
 	go func() {
-		time.Sleep(200 * time.Millisecond)
-		client.ReceiverUpdateCancelFunc()
+		time.Sleep(500 * time.Millisecond)
+		client.receiverUpdateCancelFunc()
 	}()
 
 	select {
@@ -178,6 +178,4 @@ func TestExecuteConfigReceiversInterrupt(t *testing.T) {
 	case <-time.NewTimer(2 * time.Second).C:
 		require.Fail(t, "receiver interrupt cancel didn't work")
 	}
-
-	client.ReceiverUpdateCancelFunc()
 }

@@ -407,8 +407,8 @@ Use the stop and reset subcommands to manage the server and dependencies once st
 				return fmt.Errorf("Error retrieving enroll secret: %w", err)
 			}
 
-			if len(secrets.Secrets) != 1 {
-				return errors.New("Expected 1 active enroll secret")
+			if len(secrets.Secrets) == 0 {
+				return errors.New("Expected at least one enroll secret")
 			}
 
 			// disable analytics collection for preview

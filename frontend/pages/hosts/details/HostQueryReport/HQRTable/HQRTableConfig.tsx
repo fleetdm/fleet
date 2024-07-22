@@ -31,7 +31,7 @@ const generateColumnConfigs = (rows: IWebSocketData[]): IHQRTTableColumn[] =>
           isSortedDesc={headerProps.column.isSortedDesc}
         />
       ),
-      accessor: colName,
+      accessor: (data) => data[colName],
       Cell: (cellProps: ITableStringCellProps) => {
         if (typeof cellProps?.cell?.value !== "string") return null;
 

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -61,6 +62,8 @@ type SoftwareInstallDetails struct {
 	InstallScript string `json:"install_script" db:"install_script"`
 	// PostInstallScript is the script to run after installing the software package.
 	PostInstallScript string `json:"post_install_script" db:"post_install_script"`
+	// SelfService indicates the install was initiated by the device user
+	SelfService bool `json:"self_service" db:"self_service"`
 }
 
 // SoftwareInstaller represents a software installer package that can be used to install software on
@@ -95,6 +98,9 @@ type SoftwareInstaller struct {
 	Status *SoftwareInstallerStatusSummary `json:"status,omitempty" db:"-"`
 	// SoftwareTitle is the title of the software pointed installed by this installer.
 	SoftwareTitle string `json:"-" db:"software_title"`
+	// SelfService indicates that the software can be installed by the
+	// end user without admin intervention
+	SelfService bool `json:"self_service" db:"self_service"`
 }
 
 // AuthzType implements authz.AuthzTyper.
@@ -175,6 +181,9 @@ type HostSoftwareInstallerResult struct {
 	InstallScriptExitCode *int `json:"-" db:"install_script_exit_code"`
 	// PostInstallScriptExitCode is used internally to determine the output displayed to the user.
 	PostInstallScriptExitCode *int `json:"-" db:"post_install_script_exit_code"`
+	// SelfService indicates that the installation was queued by the
+	// end user and not an administrator
+	SelfService bool `json:"self_service" db:"self_service"`
 }
 
 const (
@@ -252,6 +261,8 @@ type UploadSoftwareInstallerPayload struct {
 	Version           string
 	Source            string
 	Platform          string
+	BundleIdentifier  string
+	SelfService       bool
 }
 
 // DownloadSoftwareInstallerPayload is the payload for downloading a software installer.
@@ -261,7 +272,7 @@ type DownloadSoftwareInstallerPayload struct {
 	Size      int64
 }
 
-func SofwareInstallerSourceFromExtension(ext string) (string, error) {
+func SofwareInstallerSourceFromExtensionAndName(ext, name string) (string, error) {
 	ext = strings.TrimPrefix(ext, ".")
 	switch ext {
 	case "deb":
@@ -269,6 +280,9 @@ func SofwareInstallerSourceFromExtension(ext string) (string, error) {
 	case "exe", "msi":
 		return "programs", nil
 	case "pkg":
+		if filepath.Ext(name) == ".app" {
+			return "apps", nil
+		}
 		return "pkg_packages", nil
 	default:
 		return "", fmt.Errorf("unsupported file type: %s", ext)
@@ -296,14 +310,26 @@ type HostSoftwareWithInstaller struct {
 	ID                uint                            `json:"id" db:"id"`
 	Name              string                          `json:"name" db:"name"`
 	Source            string                          `json:"source" db:"source"`
+	SelfService       *bool                           `json:"self_service,omitempty" db:"self_service"`
 	Status            *SoftwareInstallerStatus        `json:"status" db:"status"`
 	LastInstall       *HostSoftwareInstall            `json:"last_install"`
 	InstalledVersions []*HostSoftwareInstalledVersion `json:"installed_versions"`
 
 	// PackageAvailableForInstall is only present for the user-authenticated
-	// endpoint, not the device-authenticated one. I.e. when
-	// available-but-not-installed software are part of the response.
+	// endpoint, not the device-authenticated one.
 	PackageAvailableForInstall *string `json:"package_available_for_install,omitempty" db:"package_available_for_install"`
+
+	// Package provides software installer package information, it is only
+	// present for the device-authenticated endpoint, not for the
+	// user-authenticated one.
+	Package *DeviceSoftwarePackage `json:"package,omitempty"`
+}
+
+// DeviceSoftwarePackage provides information about a software installer
+// package for self-service on a device.
+type DeviceSoftwarePackage struct {
+	Name    string `json:"name"`
+	Version string `json:"version"`
 }
 
 // HostSoftwareInstall represents installation of software on a host from a

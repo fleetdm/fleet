@@ -23,6 +23,8 @@ export default {
   DASHBOARD_MAC: `${URL_PREFIX}/dashboard/mac`,
   DASHBOARD_WINDOWS: `${URL_PREFIX}/dashboard/windows`,
   DASHBOARD_CHROME: `${URL_PREFIX}/dashboard/chrome`,
+  DASHBOARD_IOS: `${URL_PREFIX}/dashboard/ios`,
+  DASHBOARD_IPADOS: `${URL_PREFIX}/dashboard/ipados`,
 
   // Admin pages
   ADMIN_SETTINGS: `${URL_PREFIX}/settings`,
@@ -136,6 +138,9 @@ export default {
     `${URL_PREFIX}/hosts/${hostId}/queries/${queryId}`,
   DEVICE_USER_DETAILS: (deviceAuthToken: string): string => {
     return `${URL_PREFIX}/device/${deviceAuthToken}`;
+  },
+  DEVICE_USER_DETAILS_SELF_SERVICE: (deviceAuthToken: string): string => {
+    return `${URL_PREFIX}/device/${deviceAuthToken}/self-service`;
   },
   DEVICE_USER_DETAILS_SOFTWARE: (deviceAuthToken: string): string => {
     return `${URL_PREFIX}/device/${deviceAuthToken}/software`;

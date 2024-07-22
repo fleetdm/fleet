@@ -19,12 +19,11 @@ import {
   intlFormat,
   intervalToDuration,
   isAfter,
-  isBefore,
   addDays,
 } from "date-fns";
 import yaml from "js-yaml";
 
-import { buildQueryStringFromParams } from "utilities/url";
+import { QueryParams, buildQueryStringFromParams } from "utilities/url";
 import { IHost } from "interfaces/host";
 import { ILabel } from "interfaces/label";
 import { IPack } from "interfaces/pack";
@@ -41,6 +40,7 @@ import {
 import { ITeam } from "interfaces/team";
 import { UserRole } from "interfaces/user";
 
+import PATHS from "router/paths";
 import stringUtils from "utilities/strings";
 import sortUtils from "utilities/sort";
 import { checkTable } from "utilities/sql_tools";
@@ -54,6 +54,7 @@ import {
   INITIAL_FLEET_DATE,
   PLATFORM_LABEL_DISPLAY_TYPES,
   isPlatformLabelNameFromAPI,
+  PolicyResponse,
 } from "utilities/constants";
 import { ISchedulableQueryStats } from "interfaces/schedulable_query";
 import { IDropdownOption } from "interfaces/dropdownOption";
@@ -89,6 +90,18 @@ export const addGravatarUrlToResource = (resource: any): any => {
     gravatar_url,
     gravatar_url_dark,
   };
+};
+
+export const createHostsByPolicyPath = (
+  policyId: number,
+  policyResponse: PolicyResponse,
+  teamId?: number | null
+) => {
+  return `${PATHS.MANAGE_HOSTS}?${buildQueryStringFromParams({
+    policy_id: policyId,
+    policy_response: policyResponse,
+    team_id: teamId,
+  })}`;
 };
 
 const labelSlug = (label: ILabel): string => {
@@ -828,7 +841,7 @@ interface ILocationParams {
   pathPrefix?: string;
   routeTemplate?: string;
   routeParams?: { [key: string]: string };
-  queryParams?: { [key: string]: string | number | undefined };
+  queryParams?: QueryParams;
 }
 
 type RouteParams = Record<string, string>;
@@ -965,6 +978,7 @@ export function getCustomDropdownOptions(
 
 export default {
   addGravatarUrlToResource,
+  createHostsByPolicyPath,
   formatConfigDataForServer,
   formatLabelResponse,
   formatFloatAsPercentage,
