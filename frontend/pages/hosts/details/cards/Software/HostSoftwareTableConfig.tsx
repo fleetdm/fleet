@@ -123,7 +123,7 @@ export const generateSoftwareTableHeaders = ({
       accessor: "name",
       disableSortBy: false,
       Cell: (cellProps: ITableStringCellProps) => {
-        const { id, name, source } = cellProps.row.original;
+        const { id, name, source, app_store_app } = cellProps.row.original;
 
         const softwareTitleDetailsPath = PATHS.SOFTWARE_TITLE_DETAILS(
           id.toString().concat(`?team_id=${teamId}`)
@@ -133,6 +133,7 @@ export const generateSoftwareTableHeaders = ({
           <SoftwareNameCell
             name={name}
             source={source}
+            iconUrl={app_store_app?.icon_url}
             path={softwareTitleDetailsPath}
             router={router}
           />
