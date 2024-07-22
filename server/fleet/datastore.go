@@ -696,12 +696,12 @@ type Datastore interface {
 	// Calendar events
 
 	CreateOrUpdateCalendarEvent(ctx context.Context, uuid string, email string, startTime time.Time, endTime time.Time, data []byte,
-		timeZone string, hostID uint, webhookStatus CalendarWebhookStatus) (*CalendarEvent, error)
+		timeZone *string, hostID uint, webhookStatus CalendarWebhookStatus) (*CalendarEvent, error)
 	GetCalendarEvent(ctx context.Context, email string) (*CalendarEvent, error)
 	GetCalendarEventDetailsByUUID(ctx context.Context, uuid string) (*CalendarEventDetails, error)
 	DeleteCalendarEvent(ctx context.Context, calendarEventID uint) error
 	UpdateCalendarEvent(ctx context.Context, calendarEventID uint, uuid string, startTime time.Time, endTime time.Time, data []byte,
-		timeZone string) error
+		timeZone *string) error
 	GetHostCalendarEvent(ctx context.Context, hostID uint) (*HostCalendarEvent, *CalendarEvent, error)
 	GetHostCalendarEventByEmail(ctx context.Context, email string) (*HostCalendarEvent, *CalendarEvent, error)
 	UpdateHostCalendarWebhookStatus(ctx context.Context, hostID uint, status CalendarWebhookStatus) error

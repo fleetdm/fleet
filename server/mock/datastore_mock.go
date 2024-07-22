@@ -506,7 +506,7 @@ type DeleteSoftwareVulnerabilitiesFunc func(ctx context.Context, vulnerabilities
 
 type DeleteOutOfDateVulnerabilitiesFunc func(ctx context.Context, source fleet.VulnerabilitySource, duration time.Duration) error
 
-type CreateOrUpdateCalendarEventFunc func(ctx context.Context, uuid string, email string, startTime time.Time, endTime time.Time, data []byte, timeZone string, hostID uint, webhookStatus fleet.CalendarWebhookStatus) (*fleet.CalendarEvent, error)
+type CreateOrUpdateCalendarEventFunc func(ctx context.Context, uuid string, email string, startTime time.Time, endTime time.Time, data []byte, timeZone *string, hostID uint, webhookStatus fleet.CalendarWebhookStatus) (*fleet.CalendarEvent, error)
 
 type GetCalendarEventFunc func(ctx context.Context, email string) (*fleet.CalendarEvent, error)
 
@@ -514,7 +514,7 @@ type GetCalendarEventDetailsByUUIDFunc func(ctx context.Context, uuid string) (*
 
 type DeleteCalendarEventFunc func(ctx context.Context, calendarEventID uint) error
 
-type UpdateCalendarEventFunc func(ctx context.Context, calendarEventID uint, uuid string, startTime time.Time, endTime time.Time, data []byte, timeZone string) error
+type UpdateCalendarEventFunc func(ctx context.Context, calendarEventID uint, uuid string, startTime time.Time, endTime time.Time, data []byte, timeZone *string) error
 
 type GetHostCalendarEventFunc func(ctx context.Context, hostID uint) (*fleet.HostCalendarEvent, *fleet.CalendarEvent, error)
 
@@ -4205,7 +4205,7 @@ func (s *DataStore) DeleteOutOfDateVulnerabilities(ctx context.Context, source f
 	return s.DeleteOutOfDateVulnerabilitiesFunc(ctx, source, duration)
 }
 
-func (s *DataStore) CreateOrUpdateCalendarEvent(ctx context.Context, uuid string, email string, startTime time.Time, endTime time.Time, data []byte, timeZone string, hostID uint, webhookStatus fleet.CalendarWebhookStatus) (*fleet.CalendarEvent, error) {
+func (s *DataStore) CreateOrUpdateCalendarEvent(ctx context.Context, uuid string, email string, startTime time.Time, endTime time.Time, data []byte, timeZone *string, hostID uint, webhookStatus fleet.CalendarWebhookStatus) (*fleet.CalendarEvent, error) {
 	s.mu.Lock()
 	s.CreateOrUpdateCalendarEventFuncInvoked = true
 	s.mu.Unlock()
@@ -4233,7 +4233,7 @@ func (s *DataStore) DeleteCalendarEvent(ctx context.Context, calendarEventID uin
 	return s.DeleteCalendarEventFunc(ctx, calendarEventID)
 }
 
-func (s *DataStore) UpdateCalendarEvent(ctx context.Context, calendarEventID uint, uuid string, startTime time.Time, endTime time.Time, data []byte, timeZone string) error {
+func (s *DataStore) UpdateCalendarEvent(ctx context.Context, calendarEventID uint, uuid string, startTime time.Time, endTime time.Time, data []byte, timeZone *string) error {
 	s.mu.Lock()
 	s.UpdateCalendarEventFuncInvoked = true
 	s.mu.Unlock()
