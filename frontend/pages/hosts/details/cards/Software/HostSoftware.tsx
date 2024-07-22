@@ -27,6 +27,7 @@ import CustomLink from "components/CustomLink";
 import { generateSoftwareTableHeaders as generateHostSoftwareTableConfig } from "./HostSoftwareTableConfig";
 import { generateSoftwareTableHeaders as generateDeviceSoftwareTableConfig } from "./DeviceSoftwareTableConfig";
 import HostSoftwareTable from "./HostSoftwareTable";
+import { getErrorMessage } from "./helpers";
 
 const baseClass = "software-card";
 
@@ -187,17 +188,7 @@ const HostSoftware = ({
           "Software is installing or will install when the host comes online."
         );
       } catch (e) {
-        const reason = upperFirst(trimEnd(getErrorReason(e), "."));
-        if (reason.includes("fleetd installed")) {
-          renderFlash("error", `Couldn't install. ${reason}.`);
-        } else if (reason.includes("can be installed only on")) {
-          renderFlash(
-            "error",
-            `Couldn't install. ${reason.replace("darwin", "macOS")}.`
-          );
-        } else {
-          renderFlash("error", "Couldn't install. Please try again.");
-        }
+        renderFlash("error", getErrorMessage(e));
       }
       setInstallingSoftwareId(null);
       refetchSoftware();
