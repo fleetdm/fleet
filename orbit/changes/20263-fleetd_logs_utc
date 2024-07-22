@@ -1,1 +1,0 @@
-- Fix bug where UTC timezone could cause error in `fleetd_logs` table time parsing
