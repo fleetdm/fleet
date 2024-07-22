@@ -19,6 +19,7 @@ import (
 const (
 	LockKeyPrefix         = "calendar:lock:"
 	ReservedLockKeyPrefix = "calendar:reserved:"
+	RecentUpdateKeyPrefix = "calendar:recent_update:"
 	QueueKey              = "calendar:queue"
 
 	// DistributedLockExpireMs is the time Redis will hold the lock before automatically releasing it.

@@ -819,9 +819,10 @@ func deleteCalendarEvent(
 			if err := userCalendar.DeleteEvent(calendarEvent); err != nil {
 				return fmt.Errorf("delete calendar event: %w", err)
 			}
-			if err := userCalendar.StopEventChannel(calendarEvent); err != nil {
-				return fmt.Errorf("stop event channel: %w", err)
-			}
+		}
+		// Stop watching for calendar changes
+		if err := userCalendar.StopEventChannel(calendarEvent); err != nil {
+			return fmt.Errorf("stop event channel: %w", err)
 		}
 	}
 	if err := ds.DeleteCalendarEvent(ctx, calendarEvent.ID); err != nil {

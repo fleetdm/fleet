@@ -10997,10 +10997,10 @@ func (s *integrationEnterpriseTestSuite) TestCalendarCallback() {
 		require.NoError(t, err)
 	})
 
-	origRecentUpdateDuration := eeservice.RecentUpdateDuration
-	eeservice.RecentUpdateDuration = 0
+	origRecentUpdateDuration := eeservice.RecentCalendarUpdateDuration
+	eeservice.RecentCalendarUpdateDuration = 1 * time.Millisecond
 	t.Cleanup(func() {
-		eeservice.RecentUpdateDuration = origRecentUpdateDuration
+		eeservice.RecentCalendarUpdateDuration = origRecentUpdateDuration
 	})
 
 	team1, err := s.ds.NewTeam(ctx, &fleet.Team{
@@ -11399,8 +11399,9 @@ func (s *integrationEnterpriseTestSuite) TestCalendarCallback() {
 		},
 	), http.StatusOK, &distributedResp)
 
-	// Callback shouldn't do anything since event was updated recently
-	eeservice.RecentUpdateDuration = -10 * time.Minute
+	// We set a flag that event was updated recently. Callback shouldn't do anything since event was updated recently
+	_, err = distributedLock.AcquireLock(ctx, commonCalendar.RecentUpdateKeyPrefix+event.UUID, eeservice.RecentCalendarUpdateValue, 1000)
+	require.NoError(t, err)
 	_ = s.DoRawWithHeaders("POST", "/api/v1/fleet/calendar/webhook/"+eventRecreated.UUID, []byte(""), http.StatusOK,
 		map[string]string{
 			"X-Goog-Channel-Id":     details.ChannelID,
@@ -11409,7 +11410,8 @@ func (s *integrationEnterpriseTestSuite) TestCalendarCallback() {
 	assert.Equal(t, 1, calendar.MockChannelsCount())
 
 	// Callback should work, but only clear the callback channel. Event in DB will be deleted on the next cron run.
-	eeservice.RecentUpdateDuration = 0
+	_, err = distributedLock.ReleaseLock(ctx, commonCalendar.RecentUpdateKeyPrefix+event.UUID, eeservice.RecentCalendarUpdateValue)
+	require.NoError(t, err)
 	_ = s.DoRawWithHeaders("POST", "/api/v1/fleet/calendar/webhook/"+eventRecreated.UUID, []byte(""), http.StatusOK,
 		map[string]string{
 			"X-Goog-Channel-Id":     details.ChannelID,

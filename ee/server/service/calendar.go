@@ -17,9 +17,14 @@ import (
 var asyncCalendarProcessing bool
 var asyncMutex sync.Mutex
 
-// RecentUpdateDuration is the duration during which we will ignore a calendar event callback if the event was just updated.
-// This variable is exposed to be modified by unit tests.
-var RecentUpdateDuration = -2 * time.Second
+// RecentCalendarUpdateDuration is the duration during which we will ignore a calendar event callback if the event in DB was just updated by a previous callback.
+// This reduces CPU load and Google API load. If we update the event, Google calendar may send a callback which we don't need to process.
+// We are using Redis instead of updated_at timestamp in DB because the calendar cron job may update the timestamp even when the event did not change, which could
+// cause us to miss a legitimate update.
+// This variable is exposed so that it can be modified by unit tests.
+var RecentCalendarUpdateDuration = 10 * time.Second
+
+const RecentCalendarUpdateValue = "1"
 
 func (svc *Service) CalendarWebhook(ctx context.Context, eventUUID string, channelID string, resourceState string) error {
 
@@ -41,6 +46,18 @@ func (svc *Service) CalendarWebhook(ctx context.Context, eventUUID string, chann
 	if resourceState == "sync" {
 		// This is a sync notification, not a real event
 		svc.authz.SkipAuthorization(ctx)
+		return nil
+	}
+
+	// If the event was updated recently, we will ignore the callback.
+	// If this was a legitimate update, then it will be caught by the next cron job run (or a future callback).
+	recent, err := svc.distributedLock.Get(ctx, calendar.RecentUpdateKeyPrefix+eventUUID)
+	if err != nil {
+		return err
+	}
+	if recent != nil && *recent == RecentCalendarUpdateValue {
+		svc.authz.SkipAuthorization(ctx)
+		level.Warn(svc.logger).Log("msg", "VICTOR ignoring calendar event", "event_uuid", eventUUID)
 		return nil
 	}
 
@@ -74,14 +91,6 @@ func (svc *Service) CalendarWebhook(ctx context.Context, eventUUID string, chann
 	if eventDetails.TeamID == nil {
 		// Should not happen
 		return fmt.Errorf("calendar event %s has no team ID", eventUUID)
-	}
-	now := time.Now()
-	if eventDetails.UpdatedAt.After(now.Add(RecentUpdateDuration)) {
-		// If the event was updated recently, we will ignore the callback.
-		// This is to avoid reading stale data from Google Calendar after we just updated the event.
-		// If this was a legitimate update, then it will be caught by the next cron job run (or the next callback).
-		svc.authz.SkipAuthorization(ctx)
-		return nil
 	}
 
 	localConfig := &calendar.Config{
@@ -238,6 +247,12 @@ func (svc *Service) processCalendarEvent(ctx context.Context, eventDetails *flee
 	if updated && event != nil {
 		level.Warn(svc.logger).Log("msg", "VICTOR event updated", "event_uuid", event.UUID, "start_time", event.StartTime, "hostID",
 			eventDetails.HostID)
+		// Event was updated, so we set a flag.
+		_, err = svc.distributedLock.AcquireLock(ctx, calendar.RecentUpdateKeyPrefix+event.UUID, RecentCalendarUpdateValue,
+			uint64(RecentCalendarUpdateDuration.Milliseconds()))
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "set recent update flag")
+		}
 		// Event was updated, so we need to save it
 		_, err = svc.ds.CreateOrUpdateCalendarEvent(ctx, event.UUID, event.Email, event.StartTime, event.EndTime, event.Data,
 			event.TimeZone, eventDetails.HostID, fleet.CalendarWebhookStatusNone)
@@ -337,6 +352,7 @@ func (svc *Service) processCalendarAsync(ctx context.Context, eventIDs []string)
 		if runTime < minLoopTime && runTime > 0 {
 			time.Sleep(minLoopTime - runTime)
 		}
+		level.Warn(svc.logger).Log("msg", "VICTOR processing calendar events async", "event_count", len(eventIDs))
 		start := svc.clock.Now()
 		for _, eventUUID := range eventIDs {
 			if ok := svc.processCalendarEventAsync(ctx, eventUUID); !ok {
@@ -357,6 +373,23 @@ func (svc *Service) processCalendarAsync(ctx context.Context, eventIDs []string)
 }
 
 func (svc *Service) processCalendarEventAsync(ctx context.Context, eventUUID string) bool {
+	// If the event was updated recently, we will ignore it.
+	// If this was a legitimate update, then it will be caught by the next cron job run (or a future callback).
+	recent, err := svc.distributedLock.Get(ctx, calendar.RecentUpdateKeyPrefix+eventUUID)
+	if err != nil {
+		level.Error(svc.logger).Log("msg", "Failed to get recent update flag", "err", err)
+		return false
+	}
+	if recent != nil && *recent == RecentCalendarUpdateValue {
+		level.Warn(svc.logger).Log("msg", "VICTOR ignoring calendar event async", "event_uuid", eventUUID)
+		err = svc.distributedLock.RemoveFromSet(ctx, calendar.QueueKey, eventUUID)
+		if err != nil {
+			level.Error(svc.logger).Log("msg", "Failed to remove calendar event from queue", "err", err)
+			return false
+		}
+		return true
+	}
+
 	lockValue, _, err := svc.getCalendarLock(ctx, eventUUID, false)
 	if err != nil {
 		level.Error(svc.logger).Log("msg", "Failed to get calendar lock", "err", err)
