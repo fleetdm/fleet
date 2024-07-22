@@ -22,7 +22,14 @@ const PassingColumnHeader = ({
   return (
     <div className={baseClass}>
       <Icon name={iconName} />
-      <TooltipWrapper tipContent={<>{updateText} Counts are updated hourly.</>}>
+      <TooltipWrapper
+        tipContent={
+          <>
+            {updateText}
+            <br /> Counts are updated hourly.
+          </>
+        }
+      >
         <span className="status-header-text">{columnText}</span>
       </TooltipWrapper>
     </div>

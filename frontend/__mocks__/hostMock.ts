@@ -94,6 +94,7 @@ const DEFAULT_HOST_MOCK: IHost = {
   percent_disk_space_available: 50,
   issues: {
     total_issues_count: 0,
+    critical_vulnerabilities_count: 0,
     failing_policies_count: 0,
   },
   status: "offline",

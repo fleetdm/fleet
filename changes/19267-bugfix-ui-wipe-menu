@@ -1,3 +1,0 @@
-- Fixed UI bug where "Wipe" action was not being hidden from observers (note: this is only a
-  frontend bug and any observer that attempted to perform this action would be forbidden by the
-  backend).

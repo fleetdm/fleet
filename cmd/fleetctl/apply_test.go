@@ -31,6 +31,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/urfave/cli/v2"
 )
 
 var userRoleSpecList = []*fleet.User{
@@ -1672,7 +1673,6 @@ func TestApplyLabels(t *testing.T) {
 	_, err = runAppNoChecks([]string{"apply", "-f", name})
 	require.Error(t, err)
 	require.ErrorContains(t, err, "cannot modify or add built-in label")
-
 }
 
 func TestApplyPacks(t *testing.T) {
@@ -3756,6 +3756,84 @@ spec:
 				require.Empty(t, got)
 			} else {
 				require.Contains(t, got, c.wantOutput)
+			}
+		})
+	}
+}
+
+func TestApplyFileExtensionValidation(t *testing.T) {
+	cases := []struct {
+		desc     string
+		filename string
+		wantErr  string
+	}{
+		{
+			desc:     "Valid .yml extension",
+			filename: "test_file.yml",
+			wantErr:  "",
+		},
+		{
+			desc:     "Valid .yaml extension",
+			filename: "test_file.yaml",
+			wantErr:  "",
+		},
+		{
+			desc:     "Invalid .txt extension",
+			filename: "test_file.txt",
+			wantErr:  "Invalid file extension .txt: only .yml or .yaml files can be applied",
+		},
+		{
+			desc:     "Invalid .json extension",
+			filename: "test_file.json",
+			wantErr:  "Invalid file extension .json: only .yml or .yaml files can be applied",
+		},
+		{
+			desc:     "No extension",
+			filename: "test_file",
+			wantErr:  "Missing file extension: only .yml or .yaml files can be applied",
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.desc, func(t *testing.T) {
+			// Create a temporary directory
+			tmpDir, err := os.MkdirTemp("", "test")
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer os.RemoveAll(tmpDir) // clean up
+
+			// Create the file with the exact name in the temporary directory
+			tmpFilePath := filepath.Join(tmpDir, c.filename)
+			tmpFile, err := os.Create(tmpFilePath)
+			if err != nil {
+				t.Fatal(err)
+			}
+			tmpFile.Close()
+
+			// Create a new cli.App for each test
+			app := &cli.App{
+				Commands: []*cli.Command{
+					applyCommand(),
+				},
+			}
+
+			// Set up arguments
+			args := []string{"fleetctl", "apply", "-f", tmpFilePath}
+
+			// Run the command
+			err = app.Run(args)
+
+			if c.wantErr == "" {
+				if err != nil {
+					t.Errorf("Expected no error, but got: %v", err)
+				}
+			} else {
+				if err == nil {
+					t.Errorf("Expected error, but got none")
+				} else if err.Error() != c.wantErr {
+					t.Errorf("Expected error message '%s', but got '%s'", c.wantErr, err.Error())
+				}
 			}
 		})
 	}

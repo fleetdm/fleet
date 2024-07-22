@@ -18,7 +18,7 @@ import (
 	nanodep_client "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	kitlog "github.com/go-kit/kit/log"
+	kitlog "github.com/go-kit/log"
 	"github.com/stretchr/testify/require"
 )
 
@@ -72,7 +72,7 @@ func TestMacosSetupAssistant(t *testing.T) {
 		DEPClient:  apple_mdm.NewDEPClient(depStorage, ds, logger),
 	}
 
-	const defaultProfileName = "FleetDM default enrollment profile"
+	const defaultProfileName = "Fleet default enrollment profile"
 
 	// track the profile assigned to each device
 	serialsToProfile := map[string]string{

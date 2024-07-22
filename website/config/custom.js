@@ -91,7 +91,9 @@ module.exports.custom = {
   // iqSecret: undefined, // You gotta use the base64-encoded API secret.  (Get it in your account settings in LeadIQ.)
   // salesforceIntegrationUsername: undefined,
   // salesforceIntegrationPasskey: undefined,
-  RX_PROTOCOL_AND_COMMON_SUBDOMAINS: /^(https?\:\/\/)?(www\.|about\.|ch\.|uk\.|pl\.|ca\.|jp\.|im\.|fr\.|pt\.|vn\.)*/,// For cleaning up LinkedIn URLs before creating CRM records.
+
+  // For cleaning up LinkedIn URLs before creating CRM records.
+  RX_PROTOCOL_AND_COMMON_SUBDOMAINS: /^(https?\:\/\/)?(www\.|about\.|ch\.|uk\.|pl\.|ca\.|jp\.|im\.|fr\.|pt\.|vn\.|pk\.|in\.|lu\.|mu\.|nl\.|np\.)*/,
 
   //  ██████╗ ██████╗ ██╗███████╗
   //  ██╔══██╗██╔══██╗██║██╔════╝
@@ -119,6 +121,7 @@ module.exports.custom = {
 
     // 🚀 Code for core product and integrations
     'ee/tools/puppet': 'georgekarrv', //« Puppet integration (especially useful with macOS MDM turned on) -- FYI: Originally developed by request from "customer-eponym"
+    'tools/api': 'lukeheath', //« Scripts used to interact with the Fleet API
 
     // ⚗️ Reference, config surface, built-in queries, API, and other documentation
     // 'docs/Using-Fleet/REST-API.md': '',              // « Covered in CODEOWNERS (2023-07-22)
@@ -197,10 +200,12 @@ module.exports.custom = {
 
     // Code for core product and integrations
     'ee/tools/puppet': ['lukeheath', 'roperzh', 'gillespi314', 'mna', 'georgekarrv'],
+    'tools/api': ['lukeheath', 'georgekarrv', 'sharon-fdm'],//« Scripts for interacting with the Fleet API
 
     // Reference, config surface, built-in queries, API, and other documentation
-    'docs': ['rachaelshaw'],// (default for docs)
-    'docs/01-Using-Fleet/standard-query-library/standard-query-library.yml': ['rachaelshaw'],// (standard query library)
+    'docs': ['rachaelshaw', 'noahtalerman', 'eashaw'],// (default for docs)
+    'docs/01-Using-Fleet/standard-query-library/standard-query-library.yml': ['rachaelshaw', 'noahtalerman', 'eashaw'],// (standard query library)
+    'docs/REST API/rest-api.md': ['rachaelshaw', 'lukeheath'],// (standard query library)
     'schema': ['eashaw'],// (Osquery table schema)
     'ee/cis': ['lukeheath', 'sharon-fdm', 'lucasmrod', 'rachelElysia', 'rachaelshaw'],
 
@@ -305,27 +310,6 @@ module.exports.custom = {
   // (both in Fleet's query console and on fleetdm.com)
   versionOfOsquerySchemaToUseWhenGeneratingDocumentation: '5.12.1',
 
-  //  ███████╗██╗  ██╗██████╗ ██╗      ██████╗ ██████╗ ███████╗    ██████╗  █████╗ ████████╗ █████╗
-  //  ██╔════╝╚██╗██╔╝██╔══██╗██║     ██╔═══██╗██╔══██╗██╔════╝    ██╔══██╗██╔══██╗╚══██╔══╝██╔══██╗
-  //  █████╗   ╚███╔╝ ██████╔╝██║     ██║   ██║██████╔╝█████╗      ██║  ██║███████║   ██║   ███████║
-  //  ██╔══╝   ██╔██╗ ██╔═══╝ ██║     ██║   ██║██╔══██╗██╔══╝      ██║  ██║██╔══██║   ██║   ██╔══██║
-  //  ███████╗██╔╝ ██╗██║     ███████╗╚██████╔╝██║  ██║███████╗    ██████╔╝██║  ██║   ██║   ██║  ██║
-  //  ╚══════╝╚═╝  ╚═╝╚═╝     ╚══════╝ ╚═════╝ ╚═╝  ╚═╝╚══════╝    ╚═════╝ ╚═╝  ╚═╝   ╚═╝   ╚═╝  ╚═╝
-  //
-  // Config variables in this section are used for the /try-fleet/explore-data page on fleetdm.com
-
-  // For sending requests to a Fleet instance:
-  // fleetBaseUrlForQueryReports: '…',
-  // fleetTokenForQueryReports: '…',
-
-  // The API ID of the team of hosts created for query reports.
-  // teamApidForQueryReports:
-
-  // A dictionary where each key is the name of an osquery table, and the value is the API ID of the query that selects all information from that table. e.g., {'account_policy_data': 2045, 'ad_config': 2047, …}
-  // queryIdsByTableName: {…}
-
-  // A dictionary where each key is the lowercased platform, and the value is the API ID of a host. e.g., {'macos': 92, 'windows': 94, 'linux': 93}
-  // hostIdsByHostPlatform: {…}
 
   //  ███╗   ███╗██╗███████╗ ██████╗
   //  ████╗ ████║██║██╔════╝██╔════╝
@@ -387,6 +371,7 @@ module.exports.custom = {
     'live.com',
     'yandex.ru',
     'ymail.com',
+    'qq.com',
   ],
 
   // Contact form:

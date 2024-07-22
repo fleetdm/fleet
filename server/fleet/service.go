@@ -84,8 +84,8 @@ type Service interface {
 	// to fleetd (formerly orbit).
 	GetOrbitConfig(ctx context.Context) (OrbitConfig, error)
 
-	// ReceiveFleetdError handles an erorr report from a `fleetd` component
-	ReceiveFleetdError(ctx context.Context, errData FleetdError) error
+	// LogFleetdError logs an error report from a `fleetd` component
+	LogFleetdError(ctx context.Context, errData FleetdError) error
 
 	// SetOrUpdateDeviceAuthToken creates or updates a device auth token for the given host.
 	SetOrUpdateDeviceAuthToken(ctx context.Context, authToken string) error
@@ -106,7 +106,8 @@ type Service interface {
 	CreateUserFromInvite(ctx context.Context, p UserPayload) (user *User, err error)
 
 	// CreateUser allows an admin to create a new user without first creating  and validating invite tokens.
-	CreateUser(ctx context.Context, p UserPayload) (user *User, err error)
+	// The sessionKey is only returned (not-nil) when creating API-only (non-SSO) users.
+	CreateUser(ctx context.Context, p UserPayload) (user *User, sessionKey *string, err error)
 
 	// CreateInitialUser creates the first user, skipping authorization checks.  If a user already exists this method
 	// should fail.
@@ -274,12 +275,13 @@ type Service interface {
 	// included in the results.
 	ListQueries(ctx context.Context, opt ListOptions, teamID *uint, scheduled *bool, mergeInherited bool) ([]*Query, error)
 	GetQuery(ctx context.Context, id uint) (*Query, error)
-	// GetQueryReportResults returns all the stored results of a query for hosts the requestor has access to
-	GetQueryReportResults(ctx context.Context, id uint) ([]HostQueryResultRow, error)
+	// GetQueryReportResults returns all the stored results of a query for hosts the requestor has access to.
+	// Returns a boolean indicating whether the report is clipped.
+	GetQueryReportResults(ctx context.Context, id uint) ([]HostQueryResultRow, bool, error)
 	// GetHostQueryReportResults returns all stored results of a query for a specific host
 	GetHostQueryReportResults(ctx context.Context, hid uint, queryID uint) (rows []HostQueryReportResult, lastFetched *time.Time, err error)
 	// QueryReportIsClipped returns true if the number of query report rows exceeds the maximum
-	QueryReportIsClipped(ctx context.Context, queryID uint) (bool, error)
+	QueryReportIsClipped(ctx context.Context, queryID uint, maxQueryReportRows int) (bool, error)
 	NewQuery(ctx context.Context, p QueryPayload) (*Query, error)
 	ModifyQuery(ctx context.Context, id uint, p QueryPayload) (*Query, error)
 	DeleteQuery(ctx context.Context, teamID *uint, name string) error
@@ -292,9 +294,9 @@ type Service interface {
 	// /////////////////////////////////////////////////////////////////////////////
 	// CampaignService defines the distributed query campaign related service methods
 
-	// NewDistributedQueryCampaignByNames creates a new distributed query campaign with the provided query (or the query
-	// referenced by ID) and host/label targets (specified by name).
-	NewDistributedQueryCampaignByNames(
+	// NewDistributedQueryCampaignByIdentifiers creates a new distributed query campaign with the provided query (or the query
+	// referenced by ID) and host/label targets (specified by hostname, UUID, or hardware serial).
+	NewDistributedQueryCampaignByIdentifiers(
 		ctx context.Context, queryString string, queryID *uint, hosts []string, labels []string,
 	) (*DistributedQueryCampaign, error)
 
@@ -646,6 +648,9 @@ type Service interface {
 	// initiated by the user
 	SelfServiceInstallSoftwareTitle(ctx context.Context, host *Host, softwareTitleID uint) error
 
+	// HasSelfServiceSoftwareInstallers returns whether the host has self-service software installers
+	HasSelfServiceSoftwareInstallers(ctx context.Context, host *Host) (bool, error)
+
 	// /////////////////////////////////////////////////////////////////////////////
 	// Vulnerabilities
 
@@ -705,9 +710,9 @@ type Service interface {
 	GetHostDEPAssignment(ctx context.Context, host *Host) (*HostDEPAssignment, error)
 
 	// NewMDMAppleConfigProfile creates a new configuration profile for the specified team.
-	NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r io.Reader, labels []string) (*MDMAppleConfigProfile, error)
+	NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r io.Reader, labels []string, labelsExcludeMode bool) (*MDMAppleConfigProfile, error)
 	// NewMDMAppleConfigProfileWithPayload creates a new declaration for the specified team.
-	NewMDMAppleDeclaration(ctx context.Context, teamID uint, r io.Reader, labels []string, name string) (*MDMAppleDeclaration, error)
+	NewMDMAppleDeclaration(ctx context.Context, teamID uint, r io.Reader, labels []string, name string, labelsExcludeMode bool) (*MDMAppleDeclaration, error)
 
 	// GetMDMAppleConfigProfileByDeprecatedID retrieves the specified Apple
 	// configuration profile via its numeric ID. This method is deprecated and
@@ -969,7 +974,7 @@ type Service interface {
 
 	// NewMDMWindowsConfigProfile creates a new Windows configuration profile for
 	// the specified team.
-	NewMDMWindowsConfigProfile(ctx context.Context, teamID uint, profileName string, r io.Reader, labels []string) (*MDMWindowsConfigProfile, error)
+	NewMDMWindowsConfigProfile(ctx context.Context, teamID uint, profileName string, r io.Reader, labels []string, labelsExcludeMode bool) (*MDMWindowsConfigProfile, error)
 
 	// NewMDMUnsupportedConfigProfile is called when a profile with an
 	// unsupported extension is uploaded.
@@ -1040,7 +1045,7 @@ type Service interface {
 	BatchSetScripts(ctx context.Context, maybeTmID *uint, maybeTmName *string, payloads []ScriptPayload, dryRun bool) error
 
 	// Script-based methods (at least for some platforms, MDM-based for others)
-	LockHost(ctx context.Context, hostID uint) error
+	LockHost(ctx context.Context, hostID uint, viewPIN bool) (unlockPIN string, err error)
 	UnlockHost(ctx context.Context, hostID uint) (unlockPIN string, err error)
 	WipeHost(ctx context.Context, hostID uint) error
 
@@ -1053,4 +1058,10 @@ type Service interface {
 	GetSoftwareInstallerMetadata(ctx context.Context, titleID uint, teamID *uint) (*SoftwareInstaller, error)
 	DownloadSoftwareInstaller(ctx context.Context, titleID uint, teamID *uint) (*DownloadSoftwareInstallerPayload, error)
 	OrbitDownloadSoftwareInstaller(ctx context.Context, installerID uint) (*DownloadSoftwareInstallerPayload, error)
+
+	// /////////////////////////////////////////////////////////////////////////////
+	// Maintenance windows
+
+	// CalendarWebhook handles incoming calendar callback requests.
+	CalendarWebhook(ctx context.Context, eventUUID string, channelID string, resourceState string) error
 }

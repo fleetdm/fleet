@@ -32,7 +32,10 @@ const ApplePushCertSetup = ({
         onSetupSuccess();
       } catch (e) {
         const msg = getErrorReason(e);
-        if (msg.toLowerCase().includes("invalid certificate")) {
+        if (
+          msg.toLowerCase().includes("invalid certificate") ||
+          msg.toLowerCase().includes("required private key")
+        ) {
           renderFlash("error", msg);
         } else {
           renderFlash("error", "Couldn’t connect. Please try again.");
@@ -46,7 +49,10 @@ const ApplePushCertSetup = ({
   const onDownloadError = useCallback(
     (e: unknown) => {
       const msg = getErrorReason(e);
-      if (msg.toLowerCase().includes("email address")) {
+      if (
+        msg.toLowerCase().includes("email address") ||
+        msg.toLowerCase().includes("required private key")
+      ) {
         renderFlash("error", msg);
       } else {
         renderFlash("error", "Something’s gone wrong. Please try again.");

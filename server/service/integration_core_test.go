@@ -33,7 +33,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service/osquery_utils"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/ghodss/yaml"
-	"github.com/go-kit/kit/log"
+	"github.com/go-kit/log"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
@@ -279,6 +279,44 @@ func (s *integrationTestSuite) TestQueryCreationLogsActivity() {
 		}
 	}
 	require.True(t, found)
+}
+
+func (s *integrationTestSuite) TestCreatingAPIOnlyUserReturnsAPIToken() {
+	t := s.T()
+
+	defer func() {
+		s.token = s.getTestAdminToken()
+	}()
+
+	var createResp createUserResponse
+	params := fleet.UserPayload{
+		Name:       ptr.String("someadmin"),
+		Email:      ptr.String("someadmin@example.com"),
+		Password:   ptr.String(test.GoodPassword),
+		GlobalRole: ptr.String(fleet.RoleAdmin),
+		APIOnly:    ptr.Bool(false),
+	}
+	s.DoJSON("POST", "/api/latest/fleet/users/admin", params, http.StatusOK, &createResp)
+	assert.NotZero(t, createResp.User.ID)
+	assert.Nil(t, createResp.Token)
+
+	params = fleet.UserPayload{
+		Name:       ptr.String("apionly"),
+		Email:      ptr.String("apionly@example.com"),
+		Password:   ptr.String(test.GoodPassword),
+		GlobalRole: ptr.String(fleet.RoleObserver),
+		APIOnly:    ptr.Bool(true),
+		// AdminForcedPasswordReset is set to false when creating api-only users via `fleetctl user create --api-only`.
+		AdminForcedPasswordReset: ptr.Bool(false),
+	}
+	s.DoJSON("POST", "/api/latest/fleet/users/admin", params, http.StatusOK, &createResp)
+	assert.NotZero(t, createResp.User.ID)
+	assert.NotNil(t, createResp.Token)
+
+	s.token = *createResp.Token
+	var chr countHostsResponse
+	s.DoJSON("GET", "/api/latest/fleet/hosts/count", countHostsRequest{}, http.StatusOK, &chr)
+	assert.Equal(t, 0, chr.Count)
 }
 
 func (s *integrationTestSuite) TestActivityUserEmailPersistsAfterDeletion() {
@@ -755,38 +793,65 @@ func (s *integrationTestSuite) TestVulnerableSoftware() {
 	require.NoError(t, err)
 	require.True(t, inserted)
 
-	resp := s.Do("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK)
-	bodyBytes, err := io.ReadAll(resp.Body)
-	require.NoError(t, err)
+	var hostResponse getHostResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &hostResponse)
 
-	expectedJSONSoft2 := `"name": "bar",
-        "version": "0.0.3",
-        "source": "apps",
-        "extension_id": "xyz",
-        "browser": "chrome",
-        "generated_cpe": "somecpe",
-        "vulnerabilities": [
-          {
-            "cve": "cve-123-123-132",
-            "details_link": "https://nvd.nist.gov/vuln/detail/cve-123-123-132"
-          }
-        ]`
-	expectedJSONSoft1 := `"name": "foo",
-        "version": "0.0.1",
-        "source": "chrome_extensions",
-        "extension_id": "abc",
-        "browser": "edge",
-        "generated_cpe": "",
-        "vulnerabilities": null`
-	// We are doing Contains instead of equals to test the output for software in particular
-	// ignoring other things like timestamps and things that are outside the cope of this ticket
-	assert.Contains(t, string(bodyBytes), expectedJSONSoft2)
-	assert.Contains(t, string(bodyBytes), expectedJSONSoft1)
+	assertSoftware := func(t *testing.T, software []fleet.HostSoftwareEntry, contains *fleet.Software) {
+		t.Helper()
+		var found bool
+		for _, s := range software {
+			if s.Name == contains.Name {
+				found = true
+				assert.Equal(t, s.Name, contains.Name)
+				assert.Equal(t, s.Version, contains.Version)
+				assert.Equal(t, s.Source, contains.Source)
+				assert.Equal(t, s.ExtensionID, contains.ExtensionID)
+				assert.Equal(t, s.Browser, contains.Browser)
+				assert.Equal(t, s.GenerateCPE, contains.GenerateCPE)
+				assert.Len(t, contains.Vulnerabilities, len(s.Vulnerabilities))
+				for i, vuln := range s.Vulnerabilities {
+					assert.Equal(t, vuln.CVE, contains.Vulnerabilities[i].CVE)
+					assert.Equal(t, vuln.DetailsLink, contains.Vulnerabilities[i].DetailsLink)
+				}
+			}
+		}
+		if !found {
+			t.Fatalf("software not found")
+		}
+	}
+
+	expectedSoft2 := &fleet.Software{
+		Name:        "bar",
+		Version:     "0.0.3",
+		Source:      "apps",
+		ExtensionID: "xyz",
+		Browser:     "chrome",
+		GenerateCPE: "somecpe",
+		Vulnerabilities: fleet.Vulnerabilities{
+			{
+				CVE:         "cve-123-123-132",
+				DetailsLink: "https://nvd.nist.gov/vuln/detail/cve-123-123-132",
+			},
+		},
+	}
+
+	expectedSoft1 := &fleet.Software{
+		Name:            "foo",
+		Version:         "0.0.1",
+		Source:          "chrome_extensions",
+		ExtensionID:     "abc",
+		Browser:         "edge",
+		GenerateCPE:     "",
+		Vulnerabilities: nil,
+	}
+
+	assertSoftware(t, hostResponse.Host.Software, expectedSoft1)
+	assertSoftware(t, hostResponse.Host.Software, expectedSoft2)
 
 	// no software host counts have been calculated yet, so this returns nothing
 	var lsResp listSoftwareResponse
-	resp = s.Do("GET", "/api/latest/fleet/software", nil, http.StatusOK, "vulnerable", "true", "order_key", "generated_cpe", "order_direction", "desc")
-	bodyBytes, err = io.ReadAll(resp.Body)
+	resp := s.Do("GET", "/api/latest/fleet/software", nil, http.StatusOK, "vulnerable", "true", "order_key", "generated_cpe", "order_direction", "desc")
+	bodyBytes, err := io.ReadAll(resp.Body)
 	require.NoError(t, err)
 	assert.Contains(t, string(bodyBytes), `"counts_updated_at": null`)
 	require.NoError(t, json.Unmarshal(bodyBytes, &lsResp))
@@ -1600,14 +1665,26 @@ func (s *integrationTestSuite) TestListHosts() {
 	resp = listHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "software_id", fmt.Sprint(fooV1ID))
 	require.Len(t, resp.Hosts, 1)
-	assert.Equal(t, 1, resp.Hosts[0].HostIssues.FailingPoliciesCount)
-	assert.Equal(t, 1, resp.Hosts[0].HostIssues.TotalIssuesCount)
+	assert.Equal(t, uint64(1), resp.Hosts[0].HostIssues.FailingPoliciesCount)
+	assert.Equal(t, uint64(1), resp.Hosts[0].HostIssues.TotalIssuesCount)
+	assert.Nil(t, resp.Hosts[0].HostIssues.CriticalVulnerabilitiesCount)
 
 	resp = listHostsResponse{}
+	// disable_failing_policies has been deprecated and is no longer documented; it is an alias for disable_issues
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "software_version_id", fmt.Sprint(fooV1ID), "disable_failing_policies", "true")
 	require.Len(t, resp.Hosts, 1)
-	assert.Equal(t, 0, resp.Hosts[0].HostIssues.FailingPoliciesCount)
-	assert.Equal(t, 0, resp.Hosts[0].HostIssues.TotalIssuesCount)
+	assert.Zero(t, resp.Hosts[0].HostIssues.FailingPoliciesCount)
+	assert.Zero(t, resp.Hosts[0].HostIssues.TotalIssuesCount)
+	assert.Nil(t, resp.Hosts[0].HostIssues.CriticalVulnerabilitiesCount)
+
+	resp = listHostsResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "software_version_id", fmt.Sprint(fooV1ID), "disable_issues", "true",
+	)
+	require.Len(t, resp.Hosts, 1)
+	assert.Zero(t, resp.Hosts[0].HostIssues.FailingPoliciesCount)
+	assert.Zero(t, resp.Hosts[0].HostIssues.TotalIssuesCount)
+	assert.Nil(t, resp.Hosts[0].HostIssues.CriticalVulnerabilitiesCount)
 
 	// filter by MDM criteria without any host having such information
 	resp = listHostsResponse{}
@@ -6012,7 +6089,7 @@ func (s *integrationTestSuite) TestPremiumEndpointsWithoutLicense() {
 
 	// apply team specs
 	var specResp applyTeamSpecsResponse
-	teamSpecs := applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{Name: "newteam", Secrets: []fleet.EnrollSecret{{Secret: "ABC"}}}}}
+	teamSpecs := applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{Name: "newteam", Secrets: &[]fleet.EnrollSecret{{Secret: "ABC"}}}}}
 	s.DoJSON("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusPaymentRequired, &specResp)
 
 	// modify team agent options
@@ -6211,6 +6288,9 @@ func (s *integrationTestSuite) TestTeamPoliciesTeamNotExists() {
 	teamPoliciesResponse := listTeamPoliciesResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", 9999999), nil, http.StatusNotFound, &teamPoliciesResponse)
 	require.Len(t, teamPoliciesResponse.Policies, 0)
+
+	deleteTeamPoliciesResponse := deleteTeamPoliciesResponse{}
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/delete", 9999999), deleteTeamPoliciesRequest{IDs: []uint{1, 1000}}, http.StatusNotFound, &deleteTeamPoliciesResponse)
 }
 
 func (s *integrationTestSuite) TestSessionInfo() {
@@ -6771,6 +6851,10 @@ func (s *integrationTestSuite) TestListSoftwareAndSoftwareDetails() {
 			assert.Equal(t, sw.Version, detailsResp.Software.Version)
 			assert.Equal(t, sw.Source, detailsResp.Software.Source)
 			assert.Equal(t, sw.Browser, detailsResp.Software.Browser)
+			if len(sw.Vulnerabilities) > 0 {
+				assert.Len(t, detailsResp.Software.Vulnerabilities, len(sw.Vulnerabilities))
+				assert.Greater(t, detailsResp.Software.Vulnerabilities[0].CreatedAt, time.Now().Add(-time.Hour)) // asserting a non-zero time
+			}
 		}
 	}
 
@@ -7879,7 +7963,7 @@ func (s *integrationTestSuite) TestGetHostSoftwareUpdatedAt() {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		NodeKey:         ptr.String(t.Name() + "1"),
+		NodeKey:         ptr.String(strings.ReplaceAll(t.Name(), "/", "_") + "1"),
 		UUID:            t.Name() + "1",
 		Hostname:        t.Name() + "foo.local",
 		PrimaryIP:       "192.168.1.1",
@@ -7907,6 +7991,24 @@ func (s *integrationTestSuite) TestGetHostSoftwareUpdatedAt() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
 	require.Equal(t, host.ID, getHostResp.Host.ID)
 	require.Len(t, getHostResp.Host.Software, len(software))
+	require.Greater(t, getHostResp.Host.SoftwareUpdatedAt, getHostResp.Host.CreatedAt)
+
+	getHostResp = getHostResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp, "exclude_software", "true")
+	require.Equal(t, host.ID, getHostResp.Host.ID)
+	require.Empty(t, getHostResp.Host.Software)
+	require.Greater(t, getHostResp.Host.SoftwareUpdatedAt, getHostResp.Host.CreatedAt)
+
+	getHostResp = getHostResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/identifier/%s", *host.NodeKey), nil, http.StatusOK, &getHostResp)
+	require.Equal(t, host.ID, getHostResp.Host.ID)
+	require.Len(t, getHostResp.Host.Software, len(software))
+	require.Greater(t, getHostResp.Host.SoftwareUpdatedAt, getHostResp.Host.CreatedAt)
+
+	getHostResp = getHostResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/identifier/%s", *host.NodeKey), nil, http.StatusOK, &getHostResp, "exclude_software", "true")
+	require.Equal(t, host.ID, getHostResp.Host.ID)
+	require.Empty(t, getHostResp.Host.Software)
 	require.Greater(t, getHostResp.Host.SoftwareUpdatedAt, getHostResp.Host.CreatedAt)
 }
 
@@ -8198,6 +8300,93 @@ func (s *integrationTestSuite) TestGetHostBatteries() {
 		{CycleCount: 1, Health: "Normal"},
 		{CycleCount: 1002, Health: "Replacement recommended"},
 	}, *getHostResp.Host.Batteries)
+}
+
+func (s *integrationTestSuite) TestGetHostMaintenanceWindow() {
+	t := s.T()
+	ctx := context.Background()
+
+	host, err := s.ds.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         ptr.String("1"),
+		UUID:            "1",
+		Hostname:        "foo.local",
+		PrimaryIP:       "192.168.1.1",
+		PrimaryMac:      "30-65-EC-6F-C4-58",
+	})
+	require.NoError(t, err)
+	err = s.ds.ReplaceHostDeviceMapping(ctx, host.ID, []*fleet.HostDeviceMapping{
+		{
+			HostID: host.ID,
+			Email:  "foo@example.com",
+			Source: "google_chrome_profiles",
+		},
+	}, "google_chrome_profiles")
+	require.NoError(t, err)
+
+	startTime := time.Now().Add(time.Minute).In(time.UTC)
+	endTime := startTime.Add(time.Minute * 30)
+	testEvent := fleet.CalendarEvent{
+		Email:     "foo@example.com",
+		StartTime: startTime,
+		EndTime:   endTime,
+		Data:      []byte(`{}`),
+		// will replace with NULL - db method doesn't allow nil
+		TimeZone: "",
+		UUID:     uuid.New().String(),
+	}
+
+	dsEvent, err := s.ds.CreateOrUpdateCalendarEvent(ctx, testEvent.UUID, testEvent.Email, testEvent.StartTime, testEvent.EndTime,
+		testEvent.Data, testEvent.TimeZone, host.ID, fleet.CalendarWebhookStatusNone)
+	require.NoError(t, err)
+
+	time.Sleep(1 * time.Second)
+
+	// DB methods don't allow nil timezone, since we only allow it for the edge case that the db has
+	// just undergone a migration and the calendar_cron has not run to populate the new `time_zone`
+	// column yet. This means we need to manually set the timezone to nil.
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, "UPDATE calendar_events SET timezone = NULL WHERE id = ?", dsEvent.ID)
+		return err
+	})
+
+	// GET host, check maintenance window
+	var getHostResp getHostResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
+	require.Equal(t, host.ID, getHostResp.Host.ID)
+	// Round to account for sub-second precision differences between DB and Go
+	require.Equal(t, testEvent.StartTime.Round(time.Second), getHostResp.Host.MaintenanceWindow.StartsAt)
+	require.Nil(t, getHostResp.Host.MaintenanceWindow.TimeZone)
+
+	timeZone := "America/Argentina/Buenos_Aires"
+	// get a time.Location from the timezone string
+	tZLoc, err := time.LoadLocation(timeZone)
+	require.NoError(t, err)
+
+	// use the time.Location to update the start time for the timezone
+	zonedStartsAt := startTime.In(tZLoc).Round(time.Second)
+
+	// update the timezone
+	_, err = s.ds.CreateOrUpdateCalendarEvent(ctx, testEvent.UUID, testEvent.Email, testEvent.StartTime, testEvent.EndTime, testEvent.Data,
+		timeZone, host.ID, fleet.CalendarWebhookStatusNone)
+	require.NoError(t, err)
+
+	time.Sleep(1 * time.Second)
+
+	// GET it again
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
+	require.Equal(t, host.ID, getHostResp.Host.ID)
+	require.Equal(t, timeZone, *getHostResp.Host.MaintenanceWindow.TimeZone)
+
+	// for equality comparison with original Go-derived start time, add a Location to the DB-derived start time, which only has an offset
+	respStartsAt := getHostResp.Host.MaintenanceWindow.StartsAt
+	respSAWithLoc, err := time.ParseInLocation("2006-01-02T15:04:05", respStartsAt.Format("2006-01-02T15:04:05"), tZLoc)
+	require.NoError(t, err)
+
+	require.Equal(t, zonedStartsAt, respSAWithLoc)
 }
 
 func (s *integrationTestSuite) TestHostByIdentifierSoftwareUpdatedAt() {
@@ -8727,6 +8916,21 @@ func (s *integrationTestSuite) TestOSVersions() {
 	}, fleet.MSRCSource)
 	require.NoError(t, err)
 
+	assertOSVersion := func(t *testing.T, expected fleet.OSVersion, actual fleet.OSVersion) {
+		require.Equal(t, expected.HostsCount, actual.HostsCount)
+		require.Equal(t, expected.Name, actual.Name)
+		require.Equal(t, expected.NameOnly, actual.NameOnly)
+		require.Equal(t, expected.Version, actual.Version)
+		require.Equal(t, expected.Platform, actual.Platform)
+		require.Equal(t, expected.OSVersionID, actual.OSVersionID)
+		require.Len(t, actual.Vulnerabilities, len(expected.Vulnerabilities))
+		for i, vuln := range expected.Vulnerabilities {
+			require.Equal(t, vuln.CVE, actual.Vulnerabilities[i].CVE)
+			require.Equal(t, vuln.DetailsLink, actual.Vulnerabilities[i].DetailsLink)
+			require.Greater(t, actual.Vulnerabilities[i].CreatedAt, time.Now().Add(-time.Hour)) // assert non-zero value
+		}
+	}
+
 	var osVersionsResp osVersionsResponse
 	s.DoJSON("GET", "/api/latest/fleet/os_versions", nil, http.StatusOK, &osVersionsResp)
 	require.Len(t, osVersionsResp.OSVersions, 4) // different archs are grouped together
@@ -8752,12 +8956,12 @@ func (s *integrationTestSuite) TestOSVersions() {
 	}
 
 	// Default sort is by hosts count, descending
-	require.Equal(t, expectedVersion, osVersionsResp.OSVersions[0])
+	assertOSVersion(t, expectedVersion, osVersionsResp.OSVersions[0])
 
 	// get OS version by id
 	var osVersionResp getOSVersionResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/os_versions/%d", osvMap["Windows 11 Pro 21H2 10.0.22000.2 ARM64"].OSVersionID), nil, http.StatusOK, &osVersionResp)
-	require.Equal(t, &expectedVersion, osVersionResp.OSVersion)
+	assertOSVersion(t, expectedVersion, *osVersionResp.OSVersion)
 
 	// invalid id
 	s.DoJSON("GET", "/api/latest/fleet/os_versions/999", nil, http.StatusOK, &osVersionResp)
@@ -8793,6 +8997,15 @@ func (s *integrationTestSuite) TestOSVersions() {
 	require.False(t, osVersionsResp.Meta.HasPreviousResults)
 
 	s.DoJSON("GET", "/api/latest/fleet/os_versions", nil, http.StatusOK, &osVersionsResp, "page", "1", "per_page", "2")
+	require.Len(t, osVersionsResp.OSVersions, 2)
+	require.Equal(t, "macOS 13.2.1", osVersionsResp.OSVersions[0].Name)
+	require.Equal(t, "macOS 14.1.2", osVersionsResp.OSVersions[1].Name)
+	require.Equal(t, 4, osVersionsResp.Count)
+	require.False(t, osVersionsResp.Meta.HasNextResults)
+	require.True(t, osVersionsResp.Meta.HasPreviousResults)
+
+	// same results with team_id=0
+	s.DoJSON("GET", "/api/latest/fleet/os_versions", nil, http.StatusOK, &osVersionsResp, "page", "1", "per_page", "2", "team_id", "0")
 	require.Len(t, osVersionsResp.OSVersions, 2)
 	require.Equal(t, "macOS 13.2.1", osVersionsResp.OSVersions[0].Name)
 	require.Equal(t, "macOS 14.1.2", osVersionsResp.OSVersions[1].Name)
@@ -10171,9 +10384,12 @@ func (s *integrationTestSuite) TestHostsReportWithPolicyResults() {
 		require.Equal(t, row[issuesIdx], "1")
 	}
 
-	// Running with disable_failing_policies=true disable the counting of failed policies for a host.
+	// Running with disable_issues=true (which overrides disable_failing_policies=false) disable the counting of failed policies for a host.
 	// Thus, all "issues" values should be 0.
-	res = s.DoRaw("GET", "/api/latest/fleet/hosts/report", nil, http.StatusOK, "format", "csv", "disable_failing_policies", "true")
+	res = s.DoRaw(
+		"GET", "/api/latest/fleet/hosts/report", nil, http.StatusOK, "format", "csv", "disable_failing_policies", "false", "disable_issues",
+		"true",
+	)
 	rows2, err := csv.NewReader(res.Body).ReadAll()
 	res.Body.Close()
 	require.NoError(t, err)
@@ -10242,8 +10458,10 @@ func (s *integrationTestSuite) TestHostsReportWithPolicyResults() {
 			res.Body.Close()
 			require.NoError(t, err)
 			tc.checkRows(t, rows)
-			// Test the same with "disable_failing_policies=true" which should not change the result.
-			res = s.DoRaw("GET", "/api/latest/fleet/hosts/report", nil, http.StatusOK, append(tc.args, "format", "csv", "disable_failing_policies", "true")...)
+			// Test the same with "disable_issues=true" which should not change the result.
+			res = s.DoRaw(
+				"GET", "/api/latest/fleet/hosts/report", nil, http.StatusOK, append(tc.args, "format", "csv", "disable_issues", "true")...,
+			)
 			rows, err = csv.NewReader(res.Body).ReadAll()
 			res.Body.Close()
 			require.NoError(t, err)
@@ -10790,12 +11008,14 @@ func (s *integrationTestSuite) TestQueryReports() {
 	}, http.StatusOK, &applyResp)
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/queries/%d/report", osqueryInfoQuery.ID), getQueryReportRequest{}, http.StatusOK, &gqrr)
 	require.Len(t, gqrr.Results, 0)
+	require.False(t, gqrr.ReportClipped)
 
 	// Re-add results to our query and check that they're actually there
 	s.DoJSON("POST", "/api/osquery/log", slreq, http.StatusOK, &slres)
 	require.NoError(t, slres.Err)
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/queries/%d/report", osqueryInfoQuery.ID), getQueryReportRequest{}, http.StatusOK, &gqrr)
 	require.Len(t, gqrr.Results, 1)
+	require.False(t, gqrr.ReportClipped)
 
 	// don't change platform or min_osquery_version and results should not be deleted
 	s.DoJSON("POST", "/api/latest/fleet/spec/queries", applyQuerySpecsRequest{
@@ -10803,6 +11023,7 @@ func (s *integrationTestSuite) TestQueryReports() {
 	}, http.StatusOK, &applyResp)
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/queries/%d/report", osqueryInfoQuery.ID), getQueryReportRequest{}, http.StatusOK, &gqrr)
 	require.Len(t, gqrr.Results, 1)
+	require.False(t, gqrr.ReportClipped)
 
 	// now update the platform and results should be deleted.
 	osqueryInfoQuerySpec.Platform = "darwin"
@@ -10811,30 +11032,35 @@ func (s *integrationTestSuite) TestQueryReports() {
 	}, http.StatusOK, &applyResp)
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/queries/%d/report", osqueryInfoQuery.ID), getQueryReportRequest{}, http.StatusOK, &gqrr)
 	require.Len(t, gqrr.Results, 0)
+	require.False(t, gqrr.ReportClipped)
 
 	// Update logging type, which should cause results deletion
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", usbDevicesQuery.ID), modifyQueryRequest{ID: usbDevicesQuery.ID, QueryPayload: fleet.QueryPayload{Logging: &fleet.LoggingDifferential}}, http.StatusOK, &modifyQueryResp)
 	require.Equal(t, fleet.LoggingDifferential, modifyQueryResp.Query.Logging)
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/queries/%d/report", usbDevicesQuery.ID), getQueryReportRequest{}, http.StatusOK, &gqrr)
 	require.Len(t, gqrr.Results, 0)
+	require.False(t, gqrr.ReportClipped)
 
 	// Re-add results to our query and check that they're actually there
 	s.DoJSON("POST", "/api/osquery/log", slreq, http.StatusOK, &slres)
 	require.NoError(t, slres.Err)
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/queries/%d/report", osqueryInfoQuery.ID), getQueryReportRequest{}, http.StatusOK, &gqrr)
 	require.Len(t, gqrr.Results, 1)
+	require.False(t, gqrr.ReportClipped)
 
 	discardData := true
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", osqueryInfoQuery.ID), modifyQueryRequest{ID: osqueryInfoQuery.ID, QueryPayload: fleet.QueryPayload{DiscardData: &discardData}}, http.StatusOK, &modifyQueryResp)
 	require.True(t, modifyQueryResp.Query.DiscardData)
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/queries/%d/report", osqueryInfoQuery.ID), getQueryReportRequest{}, http.StatusOK, &gqrr)
 	require.Len(t, gqrr.Results, 0)
+	require.False(t, gqrr.ReportClipped)
 
 	// check that now that discardData is set, we don't add new results
 	s.DoJSON("POST", "/api/osquery/log", slreq, http.StatusOK, &slres)
 	require.NoError(t, slres.Err)
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/queries/%d/report", osqueryInfoQuery.ID), getQueryReportRequest{}, http.StatusOK, &gqrr)
 	require.Len(t, gqrr.Results, 0)
+	require.False(t, gqrr.ReportClipped)
 
 	// Verify that we can't have more than 1k results
 
@@ -10846,7 +11072,7 @@ func (s *integrationTestSuite) TestQueryReports() {
 		NodeKey: *host1Global.NodeKey,
 		LogType: "result",
 		Data: json.RawMessage(`[{
-  "snapshot": [` + results(1000, host1Global.UUID) + `
+  "snapshot": [` + results(fleet.DefaultMaxQueryReportRows, host1Global.UUID) + `
   ],
   "action": "snapshot",
   "name": "pack/Global/` + osqueryInfoQuery.Name + `",
@@ -10869,13 +11095,14 @@ func (s *integrationTestSuite) TestQueryReports() {
 	s.DoJSON("POST", "/api/osquery/log", slreq, http.StatusOK, &slres)
 	require.NoError(t, slres.Err)
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/queries/%d/report", osqueryInfoQuery.ID), getQueryReportRequest{}, http.StatusOK, &gqrr)
-	require.Len(t, gqrr.Results, fleet.MaxQueryReportRows)
+	require.Len(t, gqrr.Results, fleet.DefaultMaxQueryReportRows)
+	require.True(t, gqrr.ReportClipped)
 
 	ghqrr = getHostQueryReportResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/queries/%d", host1Global.ID, osqueryInfoQuery.ID), getHostQueryReportRequest{}, http.StatusOK, &ghqrr)
 	require.NoError(t, ghqrr.Err)
+	require.Len(t, ghqrr.Results, fleet.DefaultMaxQueryReportRows)
 	require.True(t, ghqrr.ReportClipped)
-	require.Len(t, ghqrr.Results, fleet.MaxQueryReportRows)
 
 	slreq.Data = json.RawMessage(`[{
   "snapshot": [` + results(1, host1Global.UUID) + `
@@ -10897,7 +11124,41 @@ func (s *integrationTestSuite) TestQueryReports() {
 	s.DoJSON("POST", "/api/osquery/log", slreq, http.StatusOK, &slres)
 	require.NoError(t, slres.Err)
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/queries/%d/report", osqueryInfoQuery.ID), getQueryReportRequest{}, http.StatusOK, &gqrr)
-	require.Len(t, gqrr.Results, fleet.MaxQueryReportRows)
+	require.Len(t, gqrr.Results, fleet.DefaultMaxQueryReportRows)
+	require.True(t, gqrr.ReportClipped)
+
+	appConfigSpec := map[string]map[string]int{
+		"server_settings": {"query_report_cap": fleet.DefaultMaxQueryReportRows + 1},
+	}
+	s.Do("PATCH", "/api/latest/fleet/config", appConfigSpec, http.StatusOK)
+
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/queries/%d/report", osqueryInfoQuery.ID), getQueryReportRequest{}, http.StatusOK, &gqrr)
+	require.Len(t, gqrr.Results, fleet.DefaultMaxQueryReportRows)
+	require.False(t, gqrr.ReportClipped)
+
+	slreq.Data = json.RawMessage(`[{
+  "snapshot": [` + results(1002, host1Global.UUID) + `
+  ],
+  "action": "snapshot",
+  "name": "pack/Global/` + osqueryInfoQuery.Name + `",
+  "hostIdentifier": "` + *host1Global.OsqueryHostID + `",
+  "calendarTime": "Fri Oct  6 18:13:04 2023 UTC",
+  "unixTime": 1696615984,
+  "epoch": 0,
+  "counter": 0,
+  "numerics": false,
+  "decorations": {
+    "host_uuid": "187c4d56-8e45-1a9d-8513-ac17efd2f0fd",
+    "hostname": "` + host1Global.Hostname + `"
+  }
+}]`)
+
+	s.DoJSON("POST", "/api/osquery/log", slreq, http.StatusOK, &slres)
+	require.NoError(t, slres.Err)
+
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/queries/%d/report", osqueryInfoQuery.ID), getQueryReportRequest{}, http.StatusOK, &gqrr)
+	require.Len(t, gqrr.Results, fleet.DefaultMaxQueryReportRows+1)
+	require.True(t, gqrr.ReportClipped)
 
 	// TODO: Set global discard flag and verify that all data is gone.
 }
@@ -11077,6 +11338,13 @@ func (s *integrationTestSuite) TestHostDeviceToken() {
 	body := setOrUpdateDeviceTokenRequest{
 		OrbitNodeKey:    *orbitHost.OrbitNodeKey,
 		DeviceAuthToken: "",
+	}
+	s.DoJSON("POST", "/api/fleet/orbit/device_token", body, http.StatusBadRequest, &response{})
+
+	// Use illegal characters
+	body = setOrUpdateDeviceTokenRequest{
+		OrbitNodeKey:    *orbitHost.OrbitNodeKey,
+		DeviceAuthToken: "../.",
 	}
 	s.DoJSON("POST", "/api/fleet/orbit/device_token", body, http.StatusBadRequest, &response{})
 
@@ -11262,8 +11530,9 @@ func (s *integrationTestSuite) TestListHostUpcomingActivities() {
 	endTime = mysql.SetOrderedCreatedAtTimestamps(t, s.ds, endTime, "host_software_installs", "execution_id", h1Foo)
 	mysql.SetOrderedCreatedAtTimestamps(t, s.ds, endTime, "host_script_results", "execution_id", h1C, h1D, h1E)
 
-	// modify the timestamp h1A and h1B to simulate an script that has
-	// been pending for a long time
+	// modify the timestamp h1A and h1B to simulate an script that has been
+	// pending for a long time (h1A is a sync request, so it will be ignored for
+	// upcoming activities)
 	mysql.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
 		_, err := tx.ExecContext(ctx, "UPDATE host_script_results SET created_at = ? WHERE execution_id IN (?, ?)", time.Now().Add(-24*time.Hour), h1A, h1B)
 		return err
@@ -11320,7 +11589,7 @@ func (s *integrationTestSuite) TestListHostUpcomingActivities() {
 			queryArgs := c.queries
 			s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming", host1.ID), nil, http.StatusOK, &listResp, queryArgs...)
 
-			require.Equal(t, uint(6), listResp.Count)
+			require.Equal(t, uint(5), listResp.Count)
 			require.Equal(t, len(c.wantExecs), len(listResp.Activities))
 			require.Equal(t, c.wantMeta, listResp.Meta)
 

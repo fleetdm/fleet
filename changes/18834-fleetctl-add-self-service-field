@@ -1,1 +1,0 @@
-* Added the `self_service` field to `fleetctl apply` and `fleetctl gitops` YAML configuration files.

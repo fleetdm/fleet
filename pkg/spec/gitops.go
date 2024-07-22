@@ -244,7 +244,8 @@ func parseSecrets(result *GitOps, multiError *multierror.Error) *multierror.Erro
 			return multierror.Append(multiError, errors.New("'team_settings.secrets' is required"))
 		}
 	}
-	var enrollSecrets []*fleet.EnrollSecret
+	// When secrets slice is empty, all secrets are removed.
+	enrollSecrets := make([]*fleet.EnrollSecret, 0)
 	if rawSecrets != nil {
 		secrets, ok := rawSecrets.([]interface{})
 		if !ok {

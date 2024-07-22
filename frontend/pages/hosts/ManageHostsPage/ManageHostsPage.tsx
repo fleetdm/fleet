@@ -54,7 +54,7 @@ import {
   isValidSoftwareInstallStatus,
   SoftwareInstallStatus,
 } from "interfaces/software";
-import { API_NO_TEAM_ID, ITeam } from "interfaces/team";
+import { ITeam } from "interfaces/team";
 import { IEmptyTableProps } from "interfaces/empty_table";
 import {
   DiskEncryptionStatus,
@@ -77,6 +77,7 @@ import Dropdown from "components/forms/fields/Dropdown";
 import TableContainer from "components/TableContainer";
 import InfoBanner from "components/InfoBanner/InfoBanner";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
+import TableCount from "components/TableContainer/TableCount";
 import TableDataError from "components/DataError";
 import { IActionButtonProps } from "components/TableContainer/DataTable/ActionButton/ActionButton";
 import TeamsDropdown from "components/TeamsDropdown";
@@ -1257,21 +1258,15 @@ const ManageHostsPage = ({
   );
 
   const renderAddHostsModal = () => {
-    const enrollSecret =
-      // TODO: Currently, prepacked installers in Fleet Sandbox use the global enroll secret,
-      // and Fleet Sandbox runs Fleet Free so the isSandboxMode check here is an
-      // additional precaution/reminder to revisit this in connection with future changes.
-      // See https://github.com/fleetdm/fleet/issues/4970#issuecomment-1187679407.
-      isAnyTeamSelected && !isSandboxMode
-        ? teamSecrets?.[0].secret
-        : globalSecrets?.[0].secret;
+    const enrollSecret = isAnyTeamSelected
+      ? teamSecrets?.[0].secret
+      : globalSecrets?.[0].secret;
     return (
       <AddHostsModal
         currentTeamName={currentTeamName || "Fleet"}
         enrollSecret={enrollSecret}
         isAnyTeamSelected={isAnyTeamSelected}
         isLoading={isLoadingTeams || isGlobalSecretsLoading}
-        isSandboxMode={!!isSandboxMode}
         onCancel={toggleAddHostsModal}
         openEnrollSecretModal={() => setShowEnrollSecretModal(true)}
       />
@@ -1403,18 +1398,10 @@ const ManageHostsPage = ({
   };
 
   const renderHostCount = useCallback(() => {
-    const count = hostsCount;
-
     return (
-      <div
-        className={`${baseClass}__count ${
-          isLoadingHostsCount ? "count-loading" : ""
-        }`}
-      >
-        {count !== undefined && (
-          <span>{`${count} host${count === 1 ? "" : "s"}`}</span>
-        )}
-        {!!count && (
+      <>
+        <TableCount name="hosts" count={hostsCount} />
+        {!!hostsCount && (
           <Button
             className={`${baseClass}__export-btn`}
             onClick={onExportHostsResults}
@@ -1426,7 +1413,7 @@ const ManageHostsPage = ({
             </>
           </Button>
         )}
-      </div>
+      </>
     );
   }, [isLoadingHostsCount, hostsCount]);
 
@@ -1741,7 +1728,6 @@ const ManageHostsPage = ({
             }
             onClickEditLabel={onEditLabelClick}
             onClickDeleteLabel={toggleDeleteLabelModal}
-            isSandboxMode={isSandboxMode}
           />
           {renderNoEnrollSecretBanner()}
           {renderTable()}

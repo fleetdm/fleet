@@ -1,12 +1,13 @@
-import React, { useContext, useMemo } from "react";
+import React, { useMemo } from "react";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 import { Row } from "react-table";
-import { InjectedRouter } from "react-router";
 import PATHS from "router/paths";
+import { InjectedRouter } from "react-router";
 
-import { AppContext } from "context/app";
 import { buildQueryStringFromParams } from "utilities/url";
+import { ISoftwareResponse } from "interfaces/software";
 
+import { ITableQueryData } from "components/TableContainer/TableContainer";
 import TabsWrapper from "components/TabsWrapper";
 import TableContainer from "components/TableContainer";
 import TableDataError from "components/DataError";
@@ -20,12 +21,13 @@ interface ISoftwareCardProps {
   isCollectingInventory: boolean;
   isSoftwareFetching: boolean;
   isSoftwareEnabled?: boolean;
-  software: any;
+  software?: ISoftwareResponse;
   teamId?: number;
-  pageIndex: number;
-  navTabIndex: any;
-  onTabChange: any;
-  onQueryChange: any;
+  navTabIndex: number;
+  onTabChange: (index: number, last: number, event: Event) => boolean | void;
+  onQueryChange?:
+    | ((queryData: ITableQueryData) => void)
+    | ((queryData: ITableQueryData) => number);
   router: InjectedRouter;
 }
 
@@ -53,8 +55,6 @@ const Software = ({
   teamId,
   router,
 }: ISoftwareCardProps): JSX.Element => {
-  const { noSandboxHosts } = useContext(AppContext);
-
   const tableHeaders = useMemo(() => generateTableHeaders(teamId), [teamId]);
 
   const handleRowSelect = (row: IRowProps) => {

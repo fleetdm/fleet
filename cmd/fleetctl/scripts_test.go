@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
@@ -21,6 +22,7 @@ func TestRunScriptCommand(t *testing.T) {
 			License: &fleet.LicenseInfo{
 				Tier: fleet.TierPremium,
 			},
+			NoCacheDatastore: true,
 		},
 		&service.TestServerOpts{
 			HTTPServerConfig: &http.Server{WriteTimeout: 90 * time.Second}, // nolint:gosec
@@ -40,6 +42,12 @@ func TestRunScriptCommand(t *testing.T) {
 		return nil, nil
 	}
 	ds.ListHostBatteriesFunc = func(ctx context.Context, hid uint) ([]*fleet.HostBattery, error) {
+		return nil, nil
+	}
+	ds.HostLiteFunc = func(ctx context.Context, hid uint) (*fleet.Host, error) {
+		return &fleet.Host{}, nil
+	}
+	ds.ListUpcomingHostMaintenanceWindowsFunc = func(ctx context.Context, hid uint) ([]*fleet.HostMaintenanceWindow, error) {
 		return nil, nil
 	}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
@@ -91,15 +99,9 @@ hello world
 
 	cases := []testCase{
 		{
-			name:          "host offline",
-			scriptPath:    generateValidPath,
-			expectErrMsg:  fleet.RunScriptHostOfflineErrMsg,
-			expectOffline: true,
-		},
-		{
 			name:           "host not found",
 			scriptPath:     generateValidPath,
-			expectErrMsg:   fleet.RunScriptHostNotFoundErrMsg,
+			expectErrMsg:   fleet.HostNotFoundErrMsg,
 			expectNotFound: true,
 		},
 		{
@@ -218,12 +220,6 @@ hello world
 			expectErrMsg: `Wrong data format. Only plain text allowed.`,
 		},
 		{
-			name:          "script already running",
-			scriptPath:    generateValidPath,
-			expectErrMsg:  fleet.RunScriptAlreadyRunningErrMsg,
-			expectPending: true,
-		},
-		{
 			name:       "script successful",
 			scriptPath: generateValidPath,
 			scriptResult: &fleet.HostScriptResult{
@@ -267,10 +263,10 @@ Output:
 			scriptResult: &fleet.HostScriptResult{
 				ExitCode: ptr.Int64(-1),
 				Output:   "Oh no!",
-				Message:  fleet.RunScriptScriptTimeoutErrMsg,
+				Message:  fleet.HostScriptTimeoutMessage(ptr.Int(int(scripts.MaxHostExecutionTime.Seconds()))),
 			},
 			expectOutput: `
-Error: Timeout. Fleet stopped the script after 5 minutes to protect host performance.
+Error: Timeout. Fleet stopped the script after 300 seconds to protect host performance.
 
 Output before timeout:
 
@@ -364,6 +360,7 @@ Fleet records the last 10,000 characters to prevent downtime.
 				Hostname:       "host1",
 				HostID:         req.HostID,
 				ScriptContents: req.ScriptContents,
+				ExecutionID:    "123",
 			}, nil
 		}
 		if c.name == "disabled scripts globally" {

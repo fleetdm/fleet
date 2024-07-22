@@ -105,8 +105,8 @@ func TestHostRunScript(t *testing.T) {
 				name:                  "global observer saved",
 				user:                  &fleet.User{GlobalRole: ptr.String(fleet.RoleObserver)},
 				scriptID:              ptr.Uint(1),
-				shouldFailTeamWrite:   false,
-				shouldFailGlobalWrite: false,
+				shouldFailTeamWrite:   true,
+				shouldFailGlobalWrite: true,
 			},
 			{
 				name:                  "global observer+",
@@ -118,8 +118,8 @@ func TestHostRunScript(t *testing.T) {
 				name:                  "global observer+ saved",
 				user:                  &fleet.User{GlobalRole: ptr.String(fleet.RoleObserverPlus)},
 				scriptID:              ptr.Uint(1),
-				shouldFailTeamWrite:   false,
-				shouldFailGlobalWrite: false,
+				shouldFailTeamWrite:   true,
+				shouldFailGlobalWrite: true,
 			},
 			{
 				name:                  "global gitops",
@@ -170,7 +170,7 @@ func TestHostRunScript(t *testing.T) {
 				name:                  "team observer, belongs to team, saved",
 				user:                  &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserver}}},
 				scriptID:              ptr.Uint(1),
-				shouldFailTeamWrite:   false,
+				shouldFailTeamWrite:   true,
 				shouldFailGlobalWrite: true,
 			},
 			{
@@ -183,7 +183,7 @@ func TestHostRunScript(t *testing.T) {
 				name:                  "team observer+, belongs to team, saved",
 				user:                  &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserverPlus}}},
 				scriptID:              ptr.Uint(1),
-				shouldFailTeamWrite:   false,
+				shouldFailTeamWrite:   true,
 				shouldFailGlobalWrite: true,
 			},
 			{
@@ -304,7 +304,7 @@ func TestHostRunScript(t *testing.T) {
 			script  string
 			wantErr string
 		}{
-			{"empty script", "", "Script contents must not be empty."},
+			{"empty script", "", "One of 'script_id', 'script_contents', or 'script_name' is required."},
 			{"overly long script", strings.Repeat("a", fleet.UnsavedScriptMaxRuneLen+1), "Script is too large."},
 			{"large script", strings.Repeat("a", fleet.UnsavedScriptMaxRuneLen), ""},
 			{"invalid utf8", "\xff\xfa", "Wrong data format."},

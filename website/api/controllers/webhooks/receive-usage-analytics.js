@@ -33,6 +33,12 @@ module.exports = {
     mdmWindowsEnabled: {type: 'boolean', defaultsTo: false},
     liveQueryDisabled: {type: 'boolean', defaultsTo: false},
     hostExpiryEnabled: {type: 'boolean', defaultsTo: false},
+    numSoftwareVersions: {type: 'number', defaultsTo: 0},
+    numHostSoftwares: {type: 'number', defaultsTo: 0},
+    numSoftwareTitles: {type: 'number', defaultsTo: 0},
+    numHostSoftwareInstalledPaths: {type: 'number', defaultsTo: 0},
+    numSoftwareCPEs: {type: 'number', defaultsTo: 0},
+    numSoftwareCVEs: {type: 'number', defaultsTo: 0},
   },
 
 

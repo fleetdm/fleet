@@ -39,8 +39,8 @@ func TestGetConfig(t *testing.T) {
 func clientWithConfig(cfg *fleet.OrbitConfig) *OrbitClient {
 	ctx, cancel := context.WithCancel(context.Background())
 	oc := &OrbitClient{
-		ReceiverUpdateContext:    ctx,
-		ReceiverUpdateCancelFunc: cancel,
+		receiverUpdateContext:    ctx,
+		receiverUpdateCancelFunc: cancel,
 	}
 	oc.configCache.config = cfg
 	oc.configCache.lastUpdated = time.Now().Add(1 * time.Hour)
@@ -127,7 +127,7 @@ func TestExecuteConfigReceiversCancel(t *testing.T) {
 	cfunc := fleet.OrbitConfigReceiverFunc(func(cfg *fleet.OrbitConfig) error {
 		calls1++
 		if calls1 == requiredCalls {
-			client.ReceiverUpdateCancelFunc()
+			client.receiverUpdateCancelFunc()
 		}
 		return nil
 	})
@@ -149,7 +149,7 @@ func TestExecuteConfigReceiversCancel(t *testing.T) {
 
 func TestExecuteConfigReceiversInterrupt(t *testing.T) {
 	client := clientWithConfig(&fleet.OrbitConfig{})
-	defer client.ReceiverUpdateCancelFunc()
+	defer client.receiverUpdateCancelFunc()
 
 	client.ReceiverUpdateInterval = 100 * time.Millisecond
 
@@ -168,7 +168,7 @@ func TestExecuteConfigReceiversInterrupt(t *testing.T) {
 
 	go func() {
 		time.Sleep(500 * time.Millisecond)
-		client.ReceiverUpdateCancelFunc()
+		client.receiverUpdateCancelFunc()
 	}()
 
 	select {

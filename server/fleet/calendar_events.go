@@ -4,12 +4,20 @@ import "time"
 
 type CalendarEvent struct {
 	ID        uint      `db:"id"`
+	UUID      string    `db:"uuid"`
 	Email     string    `db:"email"`
 	StartTime time.Time `db:"start_time"`
 	EndTime   time.Time `db:"end_time"`
 	Data      []byte    `db:"event"`
+	TimeZone  string    `db:"timezone"`
 
 	UpdateCreateTimestamps
+}
+
+type CalendarEventDetails struct {
+	CalendarEvent
+	TeamID *uint `db:"team_id"` // Should not be nil, but is nullable in the database
+	HostID uint  `db:"host_id"`
 }
 
 type CalendarWebhookStatus int

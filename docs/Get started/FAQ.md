@@ -124,6 +124,8 @@ Run `sudo apt remove fleet-osquery -y`
 Run `sudo rpm -e fleet-osquery-X.Y.Z.x86_64`
 
 <!--
+Mike T: In 2023 we made the decision to comment out the following questions because the FAQs had become a dumping ground for miscellaneous content that wasn't quite reference docs and wasn't quite committed learning docs (suitable for articles). We chose to hide the content rather than remove, or spend time trying to figure out better places in the docs, with the assumption that if it's important enough content, someone will circle back at some point to prioritize a better home.
+
 ## Using Fleet
 
 ### How can I switch to Fleet from Kolide Fleet?
@@ -460,7 +462,7 @@ Read more about osquery packs and Fleet's commitment to supporting them [here](h
 
 In the Fleet UI, you can turn off MDM for a host by selecting **Actions > Turn off MDM** on the **Host details** page.
 
-When you turn off MDM for a host, Fleet removes the enforcement of all macOS settings for that host. Also, the host will stop receiving macOS update reminders via Nudge. Turning MDM off doesn't remove the fleetd agent from the host. To remove the fleetd agent, share [these guided instructions](#how-can-i-uninstall-the-osquery-agent) with the end user.
+When you turn off MDM for a host, Fleet removes the enforcement of all macOS settings for that host. Also, the host will stop receiving macOS update reminders via Nudge. Turning MDM off doesn't remove the fleetd agent from the host. To remove the fleetd agent, share [these guided instructions](#how-can-i-uninstall-fleetd) with the end user.
 
 To enforce macOS settings and send macOS update reminders, the host has to turn MDM back on. Turning MDM back on for a host requires end user action.
 

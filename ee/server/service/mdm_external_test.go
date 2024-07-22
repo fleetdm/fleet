@@ -25,7 +25,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/fleetdm/fleet/v4/server/worker"
-	kitlog "github.com/go-kit/kit/log"
+	kitlog "github.com/go-kit/log"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 )
@@ -78,6 +78,7 @@ func setupMockDatastorePremiumService() (*mock.Store, *eeservice.Service, contex
 		nil,
 		clock.C,
 		depStorage,
+		nil,
 		nil,
 		nil,
 		nil,

@@ -50,14 +50,15 @@ import (
 	"github.com/fleetdm/fleet/v4/server/pubsub"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/service/async"
+	"github.com/fleetdm/fleet/v4/server/service/redis_lock"
 	"github.com/fleetdm/fleet/v4/server/service/redis_policy_set"
 	"github.com/fleetdm/fleet/v4/server/sso"
 	"github.com/fleetdm/fleet/v4/server/version"
 	"github.com/getsentry/sentry-go"
-	kitlog "github.com/go-kit/kit/log"
-	"github.com/go-kit/kit/log/level"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	"github.com/go-kit/log"
+	kitlog "github.com/go-kit/log"
+	"github.com/go-kit/log/level"
 	"github.com/google/uuid"
 	"github.com/ngrok/sqlmw"
 	"github.com/prometheus/client_golang/prometheus"
@@ -73,6 +74,8 @@ import (
 )
 
 var allowedURLPrefixRegexp = regexp.MustCompile("^(?:/[a-zA-Z0-9_.~-]+)+$")
+
+const softwareInstallerUploadTimeout = 4 * time.Minute
 
 type initializer interface {
 	// Initialize is used to populate a datastore with
@@ -196,7 +199,7 @@ the way that the Fleet server works.
 			}
 			ds = mds
 
-			if config.S3.Bucket != "" {
+			if config.S3.CarvesBucket != "" || config.S3.Bucket != "" {
 				carveStore, err = s3.NewCarveStore(config.S3, ds)
 				if err != nil {
 					initFatal(err, "initializing S3 carvestore")
@@ -689,15 +692,19 @@ the way that the Fleet server works.
 			}
 
 			var softwareInstallStore fleet.SoftwareInstallerStore
+			var distributedLock fleet.Lock
 			if license.IsPremium() {
 				profileMatcher := apple_mdm.NewProfileMatcher(redisPool)
-				if config.S3.Bucket != "" {
+				if config.S3.SoftwareInstallersBucket != "" {
+					if config.S3.BucketsAndPrefixesMatch() {
+						level.Warn(logger).Log("msg", "the S3 buckets and prefixes for carves and software installers appear to be identical, this can cause issues")
+					}
 					store, err := s3.NewSoftwareInstallerStore(config.S3)
 					if err != nil {
 						initFatal(err, "initializing S3 software installer store")
 					}
 					softwareInstallStore = store
-					level.Info(logger).Log("msg", "using S3 software installer store", "bucket", config.S3.Bucket)
+					level.Info(logger).Log("msg", "using S3 software installer store", "bucket", config.S3.SoftwareInstallersBucket)
 				} else {
 					installerDir := os.TempDir()
 					if dir := os.Getenv("FLEET_SOFTWARE_INSTALLER_STORE_DIR"); dir != "" {
@@ -713,6 +720,7 @@ the way that the Fleet server works.
 					}
 				}
 
+				distributedLock = redis_lock.NewLock(redisPool)
 				svc, err = eeservice.NewService(
 					svc,
 					ds,
@@ -725,6 +733,7 @@ the way that the Fleet server works.
 					ssoSessionStore,
 					profileMatcher,
 					softwareInstallStore,
+					distributedLock,
 				)
 				if err != nil {
 					initFatal(err, "initial Fleet Premium service")
@@ -840,6 +849,18 @@ the way that the Fleet server works.
 				initFatal(err, "failed to register mdm_apple_profile_manager schedule")
 			}
 
+			if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
+				return newMDMAPNsPusher(
+					ctx,
+					instanceID,
+					ds,
+					apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService),
+					logger,
+				)
+			}); err != nil {
+				initFatal(err, "failed to register APNs pusher schedule")
+			}
+
 			if license.IsPremium() {
 				if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
 					commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
@@ -860,7 +881,12 @@ the way that the Fleet server works.
 			if license.IsPremium() {
 				if err := cronSchedules.StartCronSchedule(
 					func() (fleet.CronSchedule, error) {
-						return cron.NewCalendarSchedule(ctx, instanceID, ds, 5*time.Minute, logger)
+						if config.Calendar.Periodicity > 0 {
+							config.Calendar.SetAlwaysReloadEvent(true)
+						} else {
+							config.Calendar.Periodicity = 5 * time.Minute
+						}
+						return cron.NewCalendarSchedule(ctx, instanceID, ds, distributedLock, config.Calendar, logger)
 					},
 				); err != nil {
 					initFatal(err, "failed to register calendar schedule")
@@ -1019,7 +1045,7 @@ the way that the Fleet server works.
 				}
 			}
 
-			// We must wrap the Handler here to set special per-endpoint Write
+			// We must wrap the Handler here to set special per-endpoint Read/Write
 			// timeouts, so that we have access to the raw http.ResponseWriter.
 			// Otherwise, the handler is wrapped by the promhttp response delegator,
 			// which does not support the Unwrap call needed to work with
@@ -1030,12 +1056,37 @@ the way that the Fleet server works.
 			// does not implement.
 			rootMux.HandleFunc("/api/", func(rw http.ResponseWriter, req *http.Request) {
 				if req.Method == http.MethodPost && strings.HasSuffix(req.URL.Path, "/fleet/scripts/run/sync") {
+					// when running a script synchronously, we wait a while for a script
+					// execution result, so the write timeout (to write the response)
+					// must be extended.
 					rc := http.NewResponseController(rw)
 					// add an additional 30 seconds to prevent race conditions where the
 					// request is terminated early.
 					if err := rc.SetWriteDeadline(time.Now().Add(scripts.MaxServerWaitTime + (30 * time.Second))); err != nil {
 						level.Error(logger).Log("msg", "http middleware failed to override endpoint write timeout", "err", err)
 					}
+				}
+
+				if req.Method == http.MethodPost && strings.HasSuffix(req.URL.Path, "/fleet/software/package") {
+					// when uploading a software installer, the file might be large so
+					// the read timeout (to read the full request body) must be extended.
+					rc := http.NewResponseController(rw)
+					// the frontend times out waiting for the upload after 4 minutes,
+					// use that same timeout:
+					// https://www.figma.com/design/oQl2oQUG0iRkUy0YOxc307/%2314921-Deploy-security-agents-to-macOS%2C-Windows%2C-and-Linux-hosts?node-id=773-18032&t=QjEU6tc73tddNSqn-0
+					if err := rc.SetReadDeadline(time.Now().Add(softwareInstallerUploadTimeout)); err != nil {
+						level.Error(logger).Log("msg", "http middleware failed to override endpoint read timeout", "err", err)
+					}
+					// the write timeout should be extended to give the server time to
+					// store the installer to S3 (or the configured storage location) and
+					// write a response body, otherwise the connection is terminated
+					// abruptly. Give it twice the read timeout, so that if it takes
+					// 3m59s to upload an installer, we don't fail because of a lack of
+					// time to store to S3.
+					if err := rc.SetWriteDeadline(time.Now().Add(2 * softwareInstallerUploadTimeout)); err != nil {
+						level.Error(logger).Log("msg", "http middleware failed to override endpoint write timeout", "err", err)
+					}
+					req.Body = http.MaxBytesReader(rw, req.Body, service.MaxSoftwareInstallerSize)
 				}
 				apiHandler.ServeHTTP(rw, req)
 			})

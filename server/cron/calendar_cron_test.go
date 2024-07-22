@@ -4,8 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/stretchr/testify/assert"
 	"os"
 	"strconv"
 	"strings"
@@ -14,11 +12,18 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/ee/server/calendar"
+	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
+	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/service/redis_lock"
 	kitlog "github.com/go-kit/log"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+var defaultCalendarConfig = config.CalendarConfig{Periodicity: 5 * time.Minute}
 
 func TestGetPreferredCalendarEventDate(t *testing.T) {
 	t.Parallel()
@@ -35,28 +40,28 @@ func TestGetPreferredCalendarEventDate(t *testing.T) {
 		expected time.Time
 	}{
 		{
-			name:      "March 2024 (before 3rd Tuesday)",
+			name:      "March 2024 (before 1st Tuesday)",
 			year:      2024,
 			month:     3,
 			daysStart: 1,
-			daysEnd:   19,
+			daysEnd:   5,
 
-			expected: date(2024, 3, 19),
+			expected: date(2024, 3, 5),
 		},
 		{
-			name:      "March 2024 (past 3rd Tuesday)",
+			name:      "March 2024 (past 1st Tuesday)",
 			year:      2024,
 			month:     3,
-			daysStart: 20,
-			daysEnd:   31,
+			daysStart: 6,
+			daysEnd:   12,
 
-			expected: date(2024, 4, 16),
+			expected: date(2024, 3, 12),
 		},
 		{
 			name:      "April 2024 (before 3rd Tuesday)",
 			year:      2024,
 			month:     4,
-			daysStart: 1,
+			daysStart: 10,
 			daysEnd:   16,
 
 			expected: date(2024, 4, 16),
@@ -66,45 +71,45 @@ func TestGetPreferredCalendarEventDate(t *testing.T) {
 			year:      2024,
 			month:     4,
 			daysStart: 17,
-			daysEnd:   30,
+			daysEnd:   23,
 
-			expected: date(2024, 5, 21),
+			expected: date(2024, 4, 23),
 		},
 		{
-			name:      "May 2024 (before 3rd Tuesday)",
-			year:      2024,
-			month:     5,
-			daysStart: 1,
-			daysEnd:   21,
-
-			expected: date(2024, 5, 21),
-		},
-		{
-			name:      "May 2024 (after 3rd Tuesday)",
+			name:      "May 2024 (before last Tuesday)",
 			year:      2024,
 			month:     5,
 			daysStart: 22,
-			daysEnd:   31,
+			daysEnd:   28,
 
-			expected: date(2024, 6, 18),
+			expected: date(2024, 5, 28),
 		},
 		{
-			name:      "Dec 2024 (before 3rd Tuesday)",
+			name:      "May 2024 (after last Tuesday)",
 			year:      2024,
-			month:     12,
-			daysStart: 1,
-			daysEnd:   17,
-
-			expected: date(2024, 12, 17),
-		},
-		{
-			name:      "Dec 2024 (after 3rd Tuesday)",
-			year:      2024,
-			month:     12,
-			daysStart: 18,
+			month:     5,
+			daysStart: 29,
 			daysEnd:   31,
 
-			expected: date(2025, 1, 21),
+			expected: date(2024, 6, 4),
+		},
+		{
+			name:      "Dec 2025 (before last Tuesday)",
+			year:      2025,
+			month:     12,
+			daysStart: 24,
+			daysEnd:   30,
+
+			expected: date(2025, 12, 30),
+		},
+		{
+			name:      "Dec 2025 (after last Tuesday)",
+			year:      2025,
+			month:     12,
+			daysStart: 31,
+			daysEnd:   31,
+
+			expected: date(2026, 1, 6),
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -163,7 +168,7 @@ func TestEventForDifferentHost(t *testing.T) {
 	hostID2 := uint(101)
 	userEmail1 := "user@example.com"
 	ds.GetTeamHostsPolicyMembershipsFunc = func(
-		ctx context.Context, domain string, teamID uint, policyIDs []uint,
+		ctx context.Context, domain string, teamID uint, policyIDs []uint, _ *uint,
 	) ([]fleet.HostPolicyMembershipData, error) {
 		require.Equal(t, teamID1, teamID)
 		require.Equal(t, []uint{policyID1}, policyIDs)
@@ -195,7 +200,8 @@ func TestEventForDifferentHost(t *testing.T) {
 		return hcEvent, calEvent, nil
 	}
 
-	err := cronCalendarEvents(ctx, ds, logger)
+	pool := redistest.SetupRedis(t, t.Name(), false, false, false)
+	err := cronCalendarEvents(ctx, ds, redis_lock.NewLock(pool), defaultCalendarConfig, logger)
 	require.NoError(t, err)
 }
 
@@ -205,6 +211,7 @@ func TestCalendarEventsMultipleHosts(t *testing.T) {
 	logger := kitlog.With(kitlog.NewLogfmtLogger(os.Stdout))
 	t.Cleanup(func() {
 		calendar.ClearMockEvents()
+		calendar.ClearMockChannels()
 	})
 
 	//
@@ -275,7 +282,7 @@ func TestCalendarEventsMultipleHosts(t *testing.T) {
 	hostID4 := uint(103)
 
 	ds.GetTeamHostsPolicyMembershipsFunc = func(
-		ctx context.Context, domain string, teamID uint, policyIDs []uint,
+		ctx context.Context, domain string, teamID uint, policyIDs []uint, _ *uint,
 	) ([]fleet.HostPolicyMembershipData, error) {
 		require.Equal(t, "example.com", domain)
 		require.Equal(t, teamID1, teamID)
@@ -332,12 +339,15 @@ func TestCalendarEventsMultipleHosts(t *testing.T) {
 	hostCalendarEvents := make(map[uint]*fleet.HostCalendarEvent)
 
 	ds.CreateOrUpdateCalendarEventFunc = func(ctx context.Context,
+		uuid string,
 		email string,
 		startTime, endTime time.Time,
 		data []byte,
+		timeZone string,
 		hostID uint,
 		webhookStatus fleet.CalendarWebhookStatus,
 	) (*fleet.CalendarEvent, error) {
+		assert.NotEmpty(t, uuid)
 		require.Equal(t, hostID1, hostID)
 		require.Equal(t, userEmail1, email)
 		require.Equal(t, fleet.CalendarWebhookStatusNone, webhookStatus)
@@ -365,7 +375,8 @@ func TestCalendarEventsMultipleHosts(t *testing.T) {
 		return nil, nil
 	}
 
-	err := cronCalendarEvents(ctx, ds, logger)
+	pool := redistest.SetupRedis(t, t.Name(), false, false, false)
+	err := cronCalendarEvents(ctx, ds, redis_lock.NewLock(pool), defaultCalendarConfig, logger)
 	require.NoError(t, err)
 
 	eventsMu.Lock()
@@ -375,8 +386,8 @@ func TestCalendarEventsMultipleHosts(t *testing.T) {
 
 	createdCalendarEvents := calendar.ListGoogleMockEvents()
 	require.Len(t, createdCalendarEvents, 1)
-	strings.Contains(createdCalendarEvents["1"].Description, defaultDescription)
-	strings.Contains(createdCalendarEvents["1"].Description, defaultResolution)
+	strings.Contains(createdCalendarEvents["1"].Description, fleet.CalendarDefaultDescription)
+	strings.Contains(createdCalendarEvents["1"].Description, fleet.CalendarDefaultResolution)
 }
 
 type notFoundErr struct{}
@@ -400,6 +411,7 @@ func TestCalendarEvents1KHosts(t *testing.T) {
 	}
 	t.Cleanup(func() {
 		calendar.ClearMockEvents()
+		calendar.ClearMockChannels()
 	})
 
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
@@ -589,7 +601,7 @@ func TestCalendarEvents1KHosts(t *testing.T) {
 	}
 
 	ds.GetTeamHostsPolicyMembershipsFunc = func(
-		ctx context.Context, domain string, teamID uint, policyIDs []uint,
+		ctx context.Context, domain string, teamID uint, policyIDs []uint, _ *uint,
 	) ([]fleet.HostPolicyMembershipData, error) {
 		var start, end int
 		switch teamID {
@@ -617,12 +629,15 @@ func TestCalendarEvents1KHosts(t *testing.T) {
 	eventPerHost := make(map[uint]*fleet.CalendarEvent)
 
 	ds.CreateOrUpdateCalendarEventFunc = func(ctx context.Context,
+		uuid string,
 		email string,
 		startTime, endTime time.Time,
 		data []byte,
+		timeZone string,
 		hostID uint,
 		webhookStatus fleet.CalendarWebhookStatus,
 	) (*fleet.CalendarEvent, error) {
+		assert.NotEmpty(t, uuid)
 		require.Equal(t, fmt.Sprintf("user%d@example.com", hostID), email)
 		eventsCreatedMu.Lock()
 		eventsCreated += 1
@@ -650,7 +665,9 @@ func TestCalendarEvents1KHosts(t *testing.T) {
 		return nil, nil
 	}
 
-	err := cronCalendarEvents(ctx, ds, logger)
+	pool := redistest.SetupRedis(t, t.Name(), false, false, false)
+	distributedLock := redis_lock.NewLock(pool)
+	err := cronCalendarEvents(ctx, ds, distributedLock, defaultCalendarConfig, logger)
 	require.NoError(t, err)
 
 	createdCalendarEvents := calendar.ListGoogleMockEvents()
@@ -687,21 +704,22 @@ func TestCalendarEvents1KHosts(t *testing.T) {
 		return nil
 	}
 
-	err = cronCalendarEvents(ctx, ds, logger)
+	err = cronCalendarEvents(ctx, ds, distributedLock, defaultCalendarConfig, logger)
 	require.NoError(t, err)
 
 	createdCalendarEvents = calendar.ListGoogleMockEvents()
 	require.Len(t, createdCalendarEvents, 0)
 }
 
-// TestEventDescription tests generation of the event description.
-func TestEventDescription(t *testing.T) {
+// TestEventBody tests generation of the event body.
+func TestEventBody(t *testing.T) {
 	ds := new(mock.Store)
 	ctx := context.Background()
 	logger := kitlog.With(kitlog.NewLogfmtLogger(os.Stdout))
 	t.Cleanup(
 		func() {
 			calendar.ClearMockEvents()
+			calendar.ClearMockChannels()
 		},
 	)
 
@@ -792,16 +810,16 @@ func TestEventDescription(t *testing.T) {
 		}, nil
 	}
 
-	hostID1, userEmail1 := uint(100), "user1@example.com"
-	hostID2, userEmail2 := uint(101), "user2@example.com"
-	hostID3, userEmail3 := uint(102), "user3@example.com"
-	hostID4, userEmail4 := uint(103), "user4@example.com"
-	hostID5, userEmail5 := uint(104), "user5@example.com"
-	hostID6, userEmail6 := uint(105), "user6@example.com"
-	hostID7, userEmail7 := uint(106), "user7@example.com"
+	hostID1, userEmail1, hostDisplayName1 := uint(100), "user1@example.com", "Host 1"
+	hostID2, userEmail2, hostDisplayName2 := uint(101), "user2@example.com", "Host 2"
+	hostID3, userEmail3, hostDisplayName3 := uint(102), "user3@example.com", "Host 3"
+	hostID4, userEmail4, hostDisplayName4 := uint(103), "user4@example.com", "Host 4"
+	hostID5, userEmail5, hostDisplayName5 := uint(104), "user5@example.com", "Host 5"
+	hostID6, userEmail6, hostDisplayName6 := uint(105), "user6@example.com", "Host 6"
+	hostID7, userEmail7, hostDisplayName7 := uint(106), "user7@example.com", "Host 7"
 
 	ds.GetTeamHostsPolicyMembershipsFunc = func(
-		ctx context.Context, domain string, teamID uint, policyIDs []uint,
+		ctx context.Context, domain string, teamID uint, policyIDs []uint, _ *uint,
 	) ([]fleet.HostPolicyMembershipData, error) {
 		require.Equal(t, "example.com", domain)
 		require.Equal(t, teamID1, teamID)
@@ -810,42 +828,49 @@ func TestEventDescription(t *testing.T) {
 			{
 				HostID:           hostID1,
 				Email:            userEmail1,
+				HostDisplayName:  hostDisplayName1,
 				Passing:          false,
 				FailingPolicyIDs: fmt.Sprintf("%d", policyID1),
 			},
 			{
 				HostID:           hostID2,
 				Email:            userEmail2,
+				HostDisplayName:  hostDisplayName2,
 				Passing:          false,
 				FailingPolicyIDs: fmt.Sprintf("%d", policyID2),
 			},
 			{
 				HostID:           hostID3,
 				Email:            userEmail3,
+				HostDisplayName:  hostDisplayName3,
 				Passing:          false,
 				FailingPolicyIDs: fmt.Sprintf("%d", policyID3),
 			},
 			{
 				HostID:           hostID4,
 				Email:            userEmail4,
+				HostDisplayName:  hostDisplayName4,
 				Passing:          false,
 				FailingPolicyIDs: fmt.Sprintf("%d", policyID4),
 			},
 			{
 				HostID:           hostID5,
 				Email:            userEmail5,
+				HostDisplayName:  hostDisplayName5,
 				Passing:          false,
 				FailingPolicyIDs: fmt.Sprintf("%d,%d,%d,%d", policyID1, policyID2, policyID3, policyID4),
 			},
 			{
 				HostID:           hostID6,
 				Email:            userEmail6,
+				HostDisplayName:  hostDisplayName6,
 				Passing:          false,
 				FailingPolicyIDs: fmt.Sprintf("%d", policyID1),
 			},
 			{
 				HostID:           hostID7,
 				Email:            userEmail7,
+				HostDisplayName:  hostDisplayName7,
 				Passing:          false,
 				FailingPolicyIDs: fmt.Sprintf("%d", policyID5),
 			},
@@ -894,12 +919,15 @@ func TestEventDescription(t *testing.T) {
 
 	ds.CreateOrUpdateCalendarEventFunc = func(
 		ctx context.Context,
+		uuid string,
 		email string,
 		startTime, endTime time.Time,
 		data []byte,
+		timeZone string,
 		hostID uint,
 		webhookStatus fleet.CalendarWebhookStatus,
 	) (*fleet.CalendarEvent, error) {
+		assert.NotEmpty(t, uuid)
 		require.Equal(t, fleet.CalendarWebhookStatusNone, webhookStatus)
 		require.NotEmpty(t, data)
 		require.NotZero(t, startTime)
@@ -925,7 +953,8 @@ func TestEventDescription(t *testing.T) {
 		return nil, nil
 	}
 
-	err := cronCalendarEvents(ctx, ds, logger)
+	pool := redistest.SetupRedis(t, t.Name(), false, false, false)
+	err := cronCalendarEvents(ctx, ds, redis_lock.NewLock(pool), defaultCalendarConfig, logger)
 	require.NoError(t, err)
 
 	numberOfEvents := 7
@@ -940,15 +969,21 @@ func TestEventDescription(t *testing.T) {
 		var details map[string]string
 		err = json.Unmarshal(calendarEvents[hostCalEvent.HostID].Data, &details)
 		require.NoError(t, err)
-		description := createdCalendarEvents[details["id"]].Description
-		defaultDescriptionWithOrg := fmt.Sprintf("%s %s", orgName, defaultDescription)
+		// What Google Calendar calls the "Description" is what Fleet calls the "Body," since the Body
+		// contains a description and a resolution.
+		eventBody := createdCalendarEvents[details["id"]].Description
 		switch hostCalEvent.HostID {
-		case hostID1, hostID6:
-			assert.Contains(t, description, "Description for policy 1")
-			assert.Contains(t, description, "Resolution for policy 1")
+		case hostID1:
+			assert.Contains(t, eventBody, fmt.Sprintf(`%s %s (Host 1).`, orgName, fleet.CalendarBodyStaticHeader))
+			assert.Contains(t, eventBody, "Description for policy 1")
+			assert.Contains(t, eventBody, "Resolution for policy 1")
+		case hostID6:
+			assert.Contains(t, eventBody, fmt.Sprintf(`%s %s (Host 6).`, orgName, fleet.CalendarBodyStaticHeader))
+			assert.Contains(t, eventBody, "Description for policy 1")
+			assert.Contains(t, eventBody, "Resolution for policy 1")
 		default:
-			assert.Contains(t, description, defaultDescriptionWithOrg)
-			assert.Contains(t, description, defaultResolution)
+			assert.Contains(t, eventBody, fmt.Sprintf(`%s %s (Host`, orgName, fleet.CalendarBodyStaticHeader))
+			assert.Contains(t, eventBody, fleet.CalendarDefaultResolution)
 		}
 	}
 }

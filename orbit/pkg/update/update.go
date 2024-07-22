@@ -493,8 +493,25 @@ func goosFromPlatform(platform string) (string, error) {
 		return "darwin", nil
 	case "windows", "linux":
 		return platform, nil
+	case "linux-arm64":
+		return "linux", nil
 	default:
 		return "", fmt.Errorf("unknown platform: %s", platform)
+	}
+}
+
+func goarchFromPlatform(platform string) ([]string, error) {
+	switch platform {
+	case "macos", "macos-app":
+		return []string{"amd64", "arm64"}, nil
+	case "windows":
+		return []string{"amd64"}, nil
+	case "linux":
+		return []string{"amd64"}, nil
+	case "linux-arm64":
+		return []string{"arm64"}, nil
+	default:
+		return nil, fmt.Errorf("unknown platform: %s", platform)
 	}
 }
 
@@ -512,6 +529,23 @@ func (u *Updater) checkExec(target, tmpPath string, customCheckExec func(execPat
 		// Nothing to do, we can't check the executable if running cross-platform.
 		// This generally happens when generating a package from a different platform
 		// than the target package (e.g. generating an MSI package from macOS).
+		return nil
+	}
+
+	platformGOARCH, err := goarchFromPlatform(localTarget.Info.Platform)
+	if err != nil {
+		return err
+	}
+	var containsArch bool
+	for _, arch := range platformGOARCH {
+		if arch == runtime.GOARCH {
+			containsArch = true
+		}
+	}
+	if !containsArch && strings.HasSuffix(os.Args[0], "fleetctl") {
+		// Nothing to do, we can't reliably execute a
+		// cross-architecture binary. This happens when cross-building
+		// packages
 		return nil
 	}
 

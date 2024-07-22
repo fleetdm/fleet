@@ -8,7 +8,7 @@
     position: initial;
     .react-tabs {
       &__tab-list {
-        margin: 0 0 1.25rem;
+        margin: 0 0 $pad-large;
       }
     }
   }
@@ -26,8 +26,7 @@
       min-height: 88px;
     }
 
-    &__textarea,
-    &--disabled {
+    &__textarea {
       font-family: "SourceCodePro", $monospace;
       font-weight: $bold;
       font-size: 13px;

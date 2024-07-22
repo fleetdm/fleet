@@ -182,7 +182,14 @@ const TAGGED_TEMPLATES = {
     return "was added to Fleet by SSO.";
   },
   userLoggedIn: (activity: IActivity) => {
-    return `successfully logged in from public IP ${activity.details?.public_ip}.`;
+    return (
+      <>
+        successfully logged in
+        {activity.details?.public_ip &&
+          ` from public IP ${activity.details?.public_ip}`}
+        .
+      </>
+    );
   },
   userFailedLogin: (activity: IActivity) => {
     return (

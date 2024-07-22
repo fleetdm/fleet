@@ -1444,7 +1444,7 @@ AWS secret access key to use for Firehose authentication.
   firehose:
     secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
   ```
-Optional unique identifier that can be used by the principal assuming the role to assert its identity.
+
 ##### firehose_sts_assume_role_arn
 
 This flag only has effect if one of the following is true:
@@ -2201,33 +2201,31 @@ for the email address specified in the Source parameter of SendRawEmail.
 
 #### S3
 
-##### s3_bucket
+##### s3_software_installers_bucket
 
-Name of the S3 bucket for storing software and file carves.
+Name of the S3 bucket for storing software.
 
 - Default value: none
-- Environment variable: `FLEET_S3_BUCKET`
+- Environment variable: `FLEET_S3_SOFTWARE_INSTALLERS_BUCKET`
 - Config file format:
   ```yaml
   s3:
-    bucket: some-bucket
+    software_intallers_bucket: some-bucket
   ```
 
-##### s3_prefix
+##### s3_software_installers_prefix
 
-Prefix to prepend to software and file carves.
-
-All carve objects will also be prefixed by date and hour (UTC), making the resulting keys look like: `<prefix><year>/<month>/<day>/<hour>/<carve-name>`.
+Prefix to prepend to software.
 
 - Default value: none
-- Environment variable: `FLEET_S3_PREFIX`
+- Environment variable: `FLEET_S3_SOFTWARE_INSTALLERS_PREFIX`
 - Config file format:
   ```yaml
   s3:
-    prefix: prefix-here/
+    software_intallers_prefix: prefix-here/
   ```
 
-##### s3_access_key_id
+##### s3_software_installers_access_key_id
 
 AWS access key ID to use for S3 authentication.
 
@@ -2237,76 +2235,64 @@ If `s3_access_key_id` and `s3_secret_access_key` are omitted, Fleet will try to 
 The IAM identity used in this context must be allowed to perform the following actions on the bucket: `s3:PutObject`, `s3:GetObject`, `s3:ListMultipartUploadParts`, `s3:ListBucket`, `s3:GetBucketLocation`.
 
 - Default value: none
-- Environment variable: `FLEET_S3_ACCESS_KEY_ID`
+- Environment variable: `FLEET_S3_SOFTWARE_INSTALLERS_ACCESS_KEY_ID`
 - Config file format:
   ```yaml
   s3:
-    access_key_id: AKIAIOSFODNN7EXAMPLE
+    software_intallers_access_key_id: AKIAIOSFODNN7EXAMPLE
   ```
 
-##### s3_secret_access_key
+##### s3_software_installers_secret_access_key
 
 AWS secret access key to use for S3 authentication.
 
 - Default value: none
-- Environment variable: `FLEET_S3_SECRET_ACCESS_KEY`
+- Environment variable: `FLEET_S3_SOFTWARE_INSTALLERS_SECRET_ACCESS_KEY`
 - Config file format:
   ```yaml
   s3:
-    secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+    software_intallers_secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
   ```
 
-##### s3_sts_assume_role_arn
+##### s3_software_installers_sts_assume_role_arn
 
 AWS STS role ARN to use for S3 authentication.
 
 - Default value: none
-- Environment variable: `FLEET_S3_STS_ASSUME_ROLE_ARN`
+- Environment variable: `FLEET_S3_SOFTWARE_INSTALLERS_STS_ASSUME_ROLE_ARN`
 - Config file format:
   ```yaml
   s3:
-    sts_assume_role_arn: arn:aws:iam::1234567890:role/some-s3-role
+    software_intallers_sts_assume_role_arn: arn:aws:iam::1234567890:role/some-s3-role
   ```
 
-##### s3_sts_external_id
+##### s3_software_installers_sts_external_id
 
 AWS STS External ID to use for S3 authentication. This is typically used in
 conjunction with an STS role ARN to ensure that only the intended AWS account can assume the role.
 
 - Default value: none
-- Environment variable: `FLEET_S3_STS_EXTERNAL_ID`
+- Environment variable: `FLEET_S3_SOFTWARE_INSTALLERS_STS_EXTERNAL_ID`
 - Config file format:
   ```yaml
   s3:
-    sts_external_id: your_unique_id
+   software_intallers_sts_external_id: your_unique_id
   ```
 
-##### s3_endpoint_url
+##### s3_software_installers_endpoint_url
 
 AWS S3 Endpoint URL. Override when using a different S3 compatible object storage backend (such as Minio),
 or running s3 locally with localstack. Leave this blank to use the default S3 service endpoint.
 
 - Default value: none
-- Environment variable: `FLEET_S3_ENDPOINT_URL`
+- Environment variable: `FLEET_S3_SOFTWARE_INSTALLERS_ENDPOINT_URL`
 - Config file format:
   ```yaml
   s3:
-    endpoint_url: http://localhost:9000
+    software_intallers_endpoint_url: http://localhost:9000
   ```
 
-##### s3_disable_ssl
-
-AWS S3 Disable SSL. Useful for local testing.
-
-- Default value: false
-- Environment variable: `FLEET_S3_DISABLE_SSL`
-- Config file format:
-  ```yaml
-  s3:
-    disable_ssl: false
-  ```
-
-##### s3_force_s3_path_style
+##### s3_software_installers_force_s3_path_style
 
 AWS S3 Force S3 Path Style. Set this to `true` to force the request to use path-style addressing,
 i.e., `http://s3.amazonaws.com/BUCKET/KEY`. By default, the S3 client
@@ -2316,37 +2302,137 @@ will use virtual hosted bucket addressing when possible
 See [here](http://docs.aws.amazon.com/AmazonS3/latest/dev/VirtualHosting.html) for details.
 
 - Default value: false
-- Environment variable: `FLEET_S3_FORCE_S3_PATH_STYLE`
+- Environment variable: `FLEET_S3_SOFTWARE_INSTALLERS_FORCE_S3_PATH_STYLE`
 - Config file format:
   ```yaml
   s3:
-    force_s3_path_style: false
+    software_intallers_force_s3_path_style: false
   ```
 
-##### s3_region
+##### s3_software_installers_region
 
 AWS S3 Region. Leave blank to enable region discovery.
 
 Minio users must set this to any nonempty value (eg. `minio`), as Minio does not support region discovery.
 
 - Default value:
-- Environment variable: `FLEET_S3_REGION`
+- Environment variable: `FLEET_S3_SOFTWARE_INSTALLERS_REGION`
 - Config file format:
   ```yaml
   s3:
-    region: us-east-1
+    software_intallers_region: us-east-1
+  ```
+
+##### s3_carves_bucket
+
+Name of the S3 bucket for file carves.
+
+- Default value: none
+- Environment variable: `FLEET_S3_CARVES_BUCKET`
+- Config file format:
+  ```yaml
+  s3:
+     carves_bucket: some-bucket
+  ```
+
+##### s3_carves_prefix
+
+All carve objects will also be prefixed by date and hour (UTC), making the resulting keys look like: `<prefix><year>/<month>/<day>/<hour>/<carve-name>`.
+
+- Default value: none
+- Environment variable: `FLEET_S3_CARVES_PREFIX`
+- Config file format:
+  ```yaml
+  s3:
+     carves_prefix: prefix-here/
+  ```
+
+##### s3_carves_access_key_id
+
+- Default value: none
+- Environment variable: `FLEET_S3_CARVES_ACCESS_KEY_ID`
+- Config file format:
+  ```yaml
+  s3:
+    carves_access_key_id: AKIAIOSFODNN7EXAMPLE
+  ```
+
+##### s3_carves_secret_access_key
+
+- Default value: none
+- Environment variable: `FLEET_S3_CARVES_SECRET_ACCESS_KEY`
+- Config file format:
+  ```yaml
+  s3:
+     carves_secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+  ```
+
+##### s3_carves_sts_assume_role_arn
+
+- Default value: none
+- Environment variable: `FLEET_S3_CARVES_STS_ASSUME_ROLE_ARN`
+- Config file format:
+  ```yaml
+  s3:
+     carves_sts_assume_role_arn: arn:aws:iam::1234567890:role/some-s3-role
+  ```
+
+##### s3_carves_sts_external_id
+
+- Default value: none
+- Environment variable: `FLEET_S3_CARVES_STS_EXTERNAL_ID`
+- Config file format:
+  ```yaml
+  s3:
+     carves_sts_external_id: your_unique_id
+  ```
+
+##### s3_carves_endpoint_url
+
+- Default value: none
+- Environment variable: `FLEET_S3_CARVES_ENDPOINT_URL`
+- Config file format:
+  ```yaml
+  s3:
+     carves_endpoint_url: http://localhost:9000
+  ```
+
+##### s3_carves_force_s3_path_style
+
+- Default value: false
+- Environment variable: `FLEET_S3_CARVES_FORCE_S3_PATH_STYLE`
+- Config file format:
+  ```yaml
+  s3:
+     carves_force_s3_path_style: false
+  ```
+
+##### s3_carves_region
+
+- Default value:
+- Environment variable: `FLEET_S3_CARVES_REGION`
+- Config file format:
+  ```yaml
+  s3:
+    carves_region: us-east-1
   ```
 
 ##### Example YAML
 
 ```yaml
 s3:
-  bucket: some-bucket
-  prefix: prefix-here/
-  access_key_id: AKIAIOSFODNN7EXAMPLE
-  secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
-  sts_assume_role_arn: arn:aws:iam::1234567890:role/some-s3-role
-  region: us-east-1
+  software_installers_bucket: software-installers-bucket
+  software_installers_prefix: prefix-here/
+  software_installers_access_key_id: AKIAIOSFODNN7EXAMPLE
+  software_installers_secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+  software_installers_sts_assume_role_arn: arn:aws:iam::1234567890:role/some-s3-role
+  software_installers_region: us-east-1
+  carves_bucket: carves-bucket
+  carves_prefix: prefix-here/
+  carves_access_key_id: AKIAIOSFODNN7EXAMPLE
+  carves_secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+  carves_sts_assume_role_arn: arn:aws:iam::1234567890:role/some-s3-role
+  carves_region: us-east-1
 ```
 
 #### Upgrades
@@ -2615,7 +2701,9 @@ If both `basic_auth.username` and `basic_auth.password` are set, then this setti
       disable: true
   ```
 
-#### Packaging
+<!-- #### Packaging
+
+Fleet Sandbox no longer exists. Fleet might use this later to enable one-click, downloaded agents (fleetd) (noahtalerman 2024-06-26)
 
 These configurations control how Fleet interacts with the
 packaging server (coming soon).  These features are currently only intended to be used within
@@ -2788,7 +2876,7 @@ Minio users must set this to any non-empty value (e.g., `minio`), as Minio does 
   packaging:
     s3:
       region: us-east-1
-  ```
+  ``` -->
 
 ##### Example YAML
 
@@ -2807,7 +2895,7 @@ packaging:
 
 > The [`server_private_key` configuration option](#server_private_key) is required for macOS MDM features.
 
-> The Apple Push Notification service (APNs), SCEP, and Apple Business Manager (ABM) [configuration](https://github.com/fleetdm/fleet/fleet-v4.51.0/main/docs/Contributing/Configuration-for-contributors.md#mobile-device-management-mdm) are deprecated as of Fleet 4.51. They are maintained for backwards compatibility. Please upload your APNs certificate and ABM token in **Settings > Integrations MDM** and **Settings > Integrations > Automatic enrollment** respectively.
+> The Apple Push Notification service (APNs), Simple Certificate Enrollment Protocol (SCEP), and Apple Business Manager (ABM) [certificate and key configuration](https://github.com/fleetdm/fleet/blob/fleet-v4.51.0/docs/Contributing/Configuration-for-contributors.md#mobile-device-management-mdm) are deprecated as of Fleet 4.51. They are maintained for backwards compatibility. Please upload your APNs certificate and ABM token. Learn how [here](https://fleetdm.com/docs/using-fleet/mdm-setup).
 
 ##### mdm.apple_scep_signer_validity_days
 

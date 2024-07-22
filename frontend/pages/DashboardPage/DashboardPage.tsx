@@ -29,7 +29,6 @@ import {
   IMdmSummaryResponse,
   IMdmSummaryMdmSolution,
 } from "interfaces/mdm";
-import { SelectedPlatform } from "interfaces/platform";
 import { ISoftwareResponse, ISoftwareCountResponse } from "interfaces/software";
 import { API_ALL_TEAMS_ID, ITeam } from "interfaces/team";
 import { IConfig } from "interfaces/config";
@@ -50,8 +49,7 @@ import hosts from "services/entities/hosts";
 import sortUtils from "utilities/sort";
 import {
   DEFAULT_USE_QUERY_OPTIONS,
-  PLATFORM_DROPDOWN_OPTIONS,
-  PLATFORM_NAME_TO_LABEL_NAME,
+  PlatformValueOptions,
 } from "utilities/constants";
 
 import { ITableQueryData } from "components/TableContainer/TableContainer";
@@ -64,6 +62,10 @@ import Dropdown from "components/forms/fields/Dropdown";
 import MainContent from "components/MainContent";
 import LastUpdatedText from "components/LastUpdatedText";
 
+import {
+  PLATFORM_DROPDOWN_OPTIONS,
+  PLATFORM_NAME_TO_LABEL_NAME,
+} from "./helpers";
 import useInfoCard from "./components/InfoCard";
 import MissingHosts from "./cards/MissingHosts";
 import LowDiskSpaceHosts from "./cards/LowDiskSpaceHosts";
@@ -124,9 +126,10 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     includeNoTeam: false,
   });
 
-  const [selectedPlatform, setSelectedPlatform] = useState<SelectedPlatform>(
-    "all"
-  );
+  const [
+    selectedPlatform,
+    setSelectedPlatform,
+  ] = useState<PlatformValueOptions>("all");
   const [
     selectedPlatformLabelId,
     setSelectedPlatformLabelId,
@@ -136,6 +139,8 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
   const [windowsCount, setWindowsCount] = useState(0);
   const [linuxCount, setLinuxCount] = useState(0);
   const [chromeCount, setChromeCount] = useState(0);
+  const [iosCount, setIosCount] = useState(0);
+  const [ipadosCount, setIpadosCount] = useState(0);
   const [missingCount, setMissingCount] = useState(0);
   const [lowDiskSpaceCount, setLowDiskSpaceCount] = useState(0);
   const [showActivityFeedTitle, setShowActivityFeedTitle] = useState(false);
@@ -243,10 +248,20 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
           (platform: IHostSummaryPlatforms) => platform.platform === "chrome"
         ) || { platform: "chrome", hosts_count: 0 };
 
+        const iphones = data.platforms?.find(
+          (platform: IHostSummaryPlatforms) => platform.platform === "ios"
+        ) || { platform: "ios", hosts_count: 0 };
+
+        const ipads = data.platforms?.find(
+          (platform: IHostSummaryPlatforms) => platform.platform === "ipados"
+        ) || { platform: "ipados", hosts_count: 0 };
+
         setMacCount(macHosts.hosts_count);
         setWindowsCount(windowsHosts.hosts_count);
         setLinuxCount(data.all_linux_count);
         setChromeCount(chromebooks.hosts_count);
+        setIosCount(iphones.hosts_count);
+        setIpadosCount(ipads.hosts_count);
         setShowHostsUI(true);
       },
     }
@@ -551,6 +566,8 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
         windowsCount={windowsCount}
         linuxCount={linuxCount}
         chromeCount={chromeCount}
+        iosCount={iosCount}
+        ipadosCount={ipadosCount}
         isLoadingHostsSummary={isHostSummaryFetching}
         builtInLabels={labels}
         showHostsUI={showHostsUI}
@@ -643,7 +660,6 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
         isSoftwareEnabled={isSoftwareEnabled}
         software={software}
         teamId={currentTeamId}
-        pageIndex={softwarePageIndex}
         navTabIndex={softwareNavTabIndex}
         onTabChange={onSoftwareTabChange}
         onQueryChange={onSoftwareQueryChange}
@@ -756,6 +772,20 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     </>
   );
 
+  const iosLayout = () => (
+    <>
+      <div className={`${baseClass}__section`}>{OperatingSystemsCard}</div>
+      {showMdmCard && <div className={`${baseClass}__section`}>{MDMCard}</div>}
+    </>
+  );
+
+  const ipadosLayout = () => (
+    <>
+      <div className={`${baseClass}__section`}>{OperatingSystemsCard}</div>
+      {showMdmCard && <div className={`${baseClass}__section`}>{MDMCard}</div>}
+    </>
+  );
+
   const renderCards = () => {
     switch (selectedPlatform) {
       case "darwin":
@@ -766,6 +796,10 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
         return linuxLayout();
       case "chrome":
         return chromeLayout();
+      case "ios":
+        return iosLayout();
+      case "ipados":
+        return ipadosLayout();
       default:
         return allLayout();
     }
@@ -850,7 +884,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
             className={`${baseClass}__platform_dropdown`}
             options={PLATFORM_DROPDOWN_OPTIONS}
             searchable={false}
-            onChange={(value: SelectedPlatform) => {
+            onChange={(value: PlatformValueOptions) => {
               const selectedPlatformOption = PLATFORM_DROPDOWN_OPTIONS.find(
                 (platform) => platform.value === value
               );
@@ -870,12 +904,14 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
               </div>
             )}
             <div className={`${baseClass}__section`}>{HostsSummaryCard}</div>
-            {isPremiumTier && (
-              <div className={`${baseClass}__section`}>
-                {MissingHostsCard}
-                {LowDiskSpaceHostsCard}
-              </div>
-            )}
+            {isPremiumTier &&
+              selectedPlatform !== "ios" &&
+              selectedPlatform !== "ipados" && (
+                <div className={`${baseClass}__section`}>
+                  {MissingHostsCard}
+                  {LowDiskSpaceHostsCard}
+                </div>
+              )}
           </>
         </div>
         {renderCards()}

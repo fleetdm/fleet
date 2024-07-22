@@ -29,6 +29,12 @@ export interface IMacOsMigrationSettings {
   webhook_url: string;
 }
 
+interface ICustomSetting {
+  path: string;
+  labels_include_all?: string[];
+  labels_exclude_any?: string[];
+}
+
 export interface IMdmConfig {
   enable_disk_encryption: boolean;
   enabled_and_configured: boolean;
@@ -42,7 +48,7 @@ export interface IMdmConfig {
     deadline: string | null;
   };
   macos_settings: {
-    custom_settings: null;
+    custom_settings: null | ICustomSetting[];
     enable_disk_encryption: boolean;
   };
   macos_setup: {
@@ -58,8 +64,12 @@ export interface IMdmConfig {
   };
 }
 
+// Note: IDeviceGlobalConfig is misnamed on the backend because in some cases it returns team config
+// values if the device is assigned to a team, e.g., features.enable_software_inventory reflects the
+// team config, if applicable, rather than the global config.
 export interface IDeviceGlobalConfig {
   mdm: Pick<IMdmConfig, "enabled_and_configured">;
+  features: Pick<IConfigFeatures, "enable_software_inventory">;
 }
 
 export interface IFleetDesktopSettings {

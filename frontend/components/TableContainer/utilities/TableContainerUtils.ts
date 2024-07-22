@@ -1,11 +1,10 @@
 const DEFAULT_RESULTS_NAME = "results";
 
-const generateResultsCountText = (
+export const generateResultsCountText = (
   name: string = DEFAULT_RESULTS_NAME,
-  resultsCount: number,
-  show0Count = false
+  resultsCount?: number
 ): string => {
-  if (resultsCount === 0 && !show0Count) return `No ${name}`;
+  if (!resultsCount || resultsCount === 0) return `0 ${name}`;
   // If there is 1 result and the last 3 letters in the result
   // name are "ies," we remove the "ies" and add "y"
   // to make the name singular
