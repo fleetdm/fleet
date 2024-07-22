@@ -433,16 +433,16 @@ func testSetTeamVPPApps(t *testing.T, ds *Datastore) {
 
 	// Insert some VPP apps for the team
 	app1 := &fleet.VPPApp{Name: "vpp_app_1", AdamID: "1", BundleIdentifier: "b1"}
-	err = ds.InsertVPPAppWithTeam(ctx, app1, nil)
+	_, err = ds.InsertVPPAppWithTeam(ctx, app1, nil)
 	require.NoError(t, err)
 	app2 := &fleet.VPPApp{Name: "vpp_app_2", AdamID: "2", BundleIdentifier: "b2"}
-	err = ds.InsertVPPAppWithTeam(ctx, app2, nil)
+	_, err = ds.InsertVPPAppWithTeam(ctx, app2, nil)
 	require.NoError(t, err)
 	app3 := &fleet.VPPApp{Name: "vpp_app_3", AdamID: "3", BundleIdentifier: "b3"}
-	err = ds.InsertVPPAppWithTeam(ctx, app3, nil)
+	_, err = ds.InsertVPPAppWithTeam(ctx, app3, nil)
 	require.NoError(t, err)
 	app4 := &fleet.VPPApp{Name: "vpp_app_4", AdamID: "4", BundleIdentifier: "b4"}
-	err = ds.InsertVPPAppWithTeam(ctx, app4, nil)
+	_, err = ds.InsertVPPAppWithTeam(ctx, app4, nil)
 	require.NoError(t, err)
 
 	assigned, err := ds.GetAssignedVPPApps(ctx, &team.ID)
