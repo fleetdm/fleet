@@ -287,6 +287,10 @@ func (svc *Service) InstallSoftwareTitle(ctx context.Context, hostID uint, softw
 	}
 
 	config, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "fetching config to check MDM status")
+	}
+
 	if !config.MDM.EnabledAndConfigured {
 		return fleet.NewUserMessageError(errors.New("Couldn't install. MDM is turned off. Please make sure that MDM is turned on to install App Store apps."), http.StatusUnprocessableEntity)
 	}
