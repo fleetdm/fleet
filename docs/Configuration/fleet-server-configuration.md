@@ -1444,7 +1444,7 @@ AWS secret access key to use for Firehose authentication.
   firehose:
     secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
   ```
-Optional unique identifier that can be used by the principal assuming the role to assert its identity.
+
 ##### firehose_sts_assume_role_arn
 
 This flag only has effect if one of the following is true:
@@ -2247,7 +2247,7 @@ The IAM identity used in this context must be allowed to perform the following a
 AWS secret access key to use for S3 authentication.
 
 - Default value: none
-- Environment variable: `FLEET_S3_SECRET_ACCESS_KEY`
+- Environment variable: `FLEET_S3_SOFTWARE_INSTALLERS_SECRET_ACCESS_KEY`
 - Config file format:
   ```yaml
   s3:

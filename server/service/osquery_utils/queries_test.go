@@ -596,15 +596,12 @@ func TestDirectIngestMDMMac(t *testing.T) {
 				require.Equal(t, fleetEnrollmentRef, c.enrollRef)
 				return nil
 			}
-			ds.SetOrUpdateEmailsFromMDMIdPAccountsByHostIDFunc = func(ctx context.Context, hostID uint, hostUUID string) error {
-				return nil
-			}
-			ds.SetOrUpdateHostEmailsFromMDMIdPAccountsByLegacyEnrollRefFunc = func(ctx context.Context, hostID uint, fleetEnrollmentRef string) error {
+			ds.SetOrUpdateHostEmailsFromMdmIdpAccountsFunc = func(ctx context.Context, hostID uint, fleetEnrollmentRef string) error {
 				return nil
 			}
 
 			if c.name == "with invalid enrollment reference" {
-				ds.SetOrUpdateHostEmailsFromMDMIdPAccountsByLegacyEnrollRefFunc = func(ctx context.Context, hostID uint, fleetEnrollmentRef string) error {
+				ds.SetOrUpdateHostEmailsFromMdmIdpAccountsFunc = func(ctx context.Context, hostID uint, fleetEnrollmentRef string) error {
 					return &nfe{}
 				}
 			}
@@ -619,7 +616,7 @@ func TestDirectIngestMDMMac(t *testing.T) {
 				require.NoError(t, err)
 				ds.SetOrUpdateMDMDataFuncInvoked = false
 				if c.name != "with invalid enrollment reference" {
-					require.False(t, ds.SetOrUpdateHostEmailsFromMDMIdPAccountsByLegacyEnrollRefFuncInvoked)
+					require.False(t, ds.SetOrUpdateHostEmailsFromMdmIdpAccountsFuncInvoked)
 				}
 			}
 		})
@@ -687,11 +684,8 @@ func TestDirectIngestMDMFleetEnrollRef(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			ds.SetOrUpdateHostEmailsFromMDMIdPAccountsByLegacyEnrollRefFunc = func(ctx context.Context, hostID uint, fleetEnrollmentRef string) error {
+			ds.SetOrUpdateHostEmailsFromMdmIdpAccountsFunc = func(ctx context.Context, hostID uint, fleetEnrollmentRef string) error {
 				require.Equal(t, tc.wantEnrollRef, fleetEnrollmentRef)
-				return nil
-			}
-			ds.SetOrUpdateEmailsFromMDMIdPAccountsByHostIDFunc = func(ctx context.Context, hostID uint, hostUUID string) error {
 				return nil
 			}
 			ds.SetOrUpdateMDMDataFunc = func(ctx context.Context, hostID uint, isServer, enrolled bool, serverURL string, installedFromDep bool, name string, fleetEnrollmentRef string) error {
@@ -717,8 +711,8 @@ func TestDirectIngestMDMFleetEnrollRef(t *testing.T) {
 			require.NoError(t, err)
 			require.True(t, ds.SetOrUpdateMDMDataFuncInvoked)
 			ds.SetOrUpdateMDMDataFuncInvoked = false
-			require.Equal(t, tc.wantHostEmailsCalled, ds.SetOrUpdateHostEmailsFromMDMIdPAccountsByLegacyEnrollRefFuncInvoked)
-			ds.SetOrUpdateHostEmailsFromMDMIdPAccountsByLegacyEnrollRefFuncInvoked = false
+			require.Equal(t, tc.wantHostEmailsCalled, ds.SetOrUpdateHostEmailsFromMdmIdpAccountsFuncInvoked)
+			ds.SetOrUpdateHostEmailsFromMdmIdpAccountsFuncInvoked = false
 		})
 	}
 }
@@ -942,10 +936,7 @@ func TestDirectIngestMDMWindows(t *testing.T) {
 				require.Empty(t, fleetEnrollmentRef)
 				return nil
 			}
-			ds.SetOrUpdateEmailsFromMDMIdPAccountsByHostIDFunc = func(ctx context.Context, hostID uint, hostUUID string) error {
-				return nil
-			}
-			ds.SetOrUpdateHostEmailsFromMDMIdPAccountsByLegacyEnrollRefFunc = func(ctx context.Context, hostID uint, fleetEnrollmentRef string) error {
+			ds.SetOrUpdateHostEmailsFromMdmIdpAccountsFunc = func(ctx context.Context, hostID uint, fleetEnrollmentRef string) error {
 				return nil
 			}
 		})
@@ -953,7 +944,7 @@ func TestDirectIngestMDMWindows(t *testing.T) {
 		require.NoError(t, err)
 		require.True(t, ds.SetOrUpdateMDMDataFuncInvoked)
 		ds.SetOrUpdateMDMDataFuncInvoked = false
-		require.False(t, ds.SetOrUpdateHostEmailsFromMDMIdPAccountsByLegacyEnrollRefFuncInvoked)
+		require.False(t, ds.SetOrUpdateHostEmailsFromMdmIdpAccountsFuncInvoked)
 	}
 }
 

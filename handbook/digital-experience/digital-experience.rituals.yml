@@ -12,6 +12,13 @@
     labels: [ "#g-digital-experience" ] # label to be applied to issue
     repo: fleet
 - 
+  task: "Regenerate messaging framework"
+  startedOn: "2024-07-15"
+  frequency: "Quarterly"
+  description: "Run through the entire website in `?utm_content=clear` mode and build a fresh outline of the headings to make sure they all still make sense."
+  moreInfoUrl: ""
+  dri: "mike-j-thomas"
+- 
   task: "Check production dependencies of fleetdm.com"
   startedOn: "2023-11-10" 
   frequency: "Weekly"

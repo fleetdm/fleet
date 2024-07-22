@@ -126,6 +126,7 @@ const CurrentVersionSection = ({
         currentTeamId={currentTeamId}
         isLoading={isLoadingOsVersions}
         queryParams={queryParams}
+        hasNextPage={data.meta.has_next_results}
       />
     );
   };

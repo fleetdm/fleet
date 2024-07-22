@@ -2,16 +2,17 @@ package calendar
 
 import (
 	"context"
+	"net/http"
+	"os"
+	"testing"
+	"time"
+
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/go-kit/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/api/calendar/v3"
 	"google.golang.org/api/googleapi"
-	"net/http"
-	"os"
-	"testing"
-	"time"
 )
 
 const (
@@ -202,12 +203,17 @@ func TestGoogleCalendar_GetAndUpdateEvent(t *testing.T) {
 	const baseETag = "event-eTag"
 	const baseEventID = "event-id"
 	const baseResourceID = "resource-id"
+	baseTzName := "America/New_York"
+	baseTzLocation, _ := time.LoadLocation(baseTzName)
 	mockAPI.GetEventFunc = func(id, eTag string) (*calendar.Event, error) {
 		assert.Equal(t, baseEventID, id)
 		assert.Equal(t, baseETag, eTag)
 		return &calendar.Event{
 			Etag: baseETag, // ETag matches -- no modifications to event
 		}, nil
+	}
+	mockAPI.GetSettingFunc = func(name string) (*calendar.Setting, error) {
+		return &calendar.Setting{Value: baseTzName}, nil
 	}
 	genBodyFn := func(bool) (string, bool, error) {
 		t.Error("genBodyFn should not be called")
@@ -217,11 +223,12 @@ func TestGoogleCalendar_GetAndUpdateEvent(t *testing.T) {
 	err := cal.Configure(baseUserEmail)
 	assert.NoError(t, err)
 
-	eventStartTime := time.Now().UTC()
+	eventStartTime := time.Now().In(baseTzLocation)
 	event := &fleet.CalendarEvent{
 		StartTime: eventStartTime,
-		EndTime:   time.Now().Add(time.Hour),
+		EndTime:   time.Now().Add(time.Hour).In(baseTzLocation),
 		Data:      []byte(`{"ID":"` + baseEventID + `","ETag":"` + baseETag + `"}`),
+		TimeZone:  &baseTzName,
 	}
 
 	// ETag matches
@@ -316,16 +323,19 @@ func TestGoogleCalendar_GetAndUpdateEvent(t *testing.T) {
 	assert.Error(t, err)
 
 	// Event has been modified, with custom timezone.
-	tzId := "Africa/Kinshasa"
-	location, _ := time.LoadLocation(tzId)
-	startTime = time.Now().Add(time.Minute).Truncate(time.Second).In(location)
-	endTime = time.Now().Add(time.Hour).Truncate(time.Second).In(location)
+	newTzName := "Africa/Kinshasa"
+	newTzLocation, _ := time.LoadLocation(newTzName)
+	mockAPI.GetSettingFunc = func(name string) (*calendar.Setting, error) {
+		return &calendar.Setting{Value: newTzName}, nil
+	}
+	startTime = time.Now().Add(time.Minute).Truncate(time.Second).In(newTzLocation)
+	endTime = time.Now().Add(time.Hour).Truncate(time.Second).In(newTzLocation)
 	mockAPI.GetEventFunc = func(id, eTag string) (*calendar.Event, error) {
 		return &calendar.Event{
 			Id:    baseEventID,
 			Etag:  "new-eTag",
-			Start: &calendar.EventDateTime{DateTime: startTime.UTC().Format(time.RFC3339), TimeZone: tzId},
-			End:   &calendar.EventDateTime{DateTime: endTime.Format(time.RFC3339), TimeZone: tzId},
+			Start: &calendar.EventDateTime{DateTime: startTime.UTC().Format(time.RFC3339), TimeZone: newTzName},
+			End:   &calendar.EventDateTime{DateTime: endTime.Format(time.RFC3339), TimeZone: newTzName},
 		}, nil
 	}
 	retrievedEvent, updated, err = cal.GetAndUpdateEvent(event, genBodyFn)
@@ -340,9 +350,6 @@ func TestGoogleCalendar_GetAndUpdateEvent(t *testing.T) {
 	// 404 response (deleted)
 	mockAPI.GetEventFunc = func(id, eTag string) (*calendar.Event, error) {
 		return nil, &googleapi.Error{Code: http.StatusNotFound}
-	}
-	mockAPI.GetSettingFunc = func(name string) (*calendar.Setting, error) {
-		return &calendar.Setting{Value: "UTC"}, nil
 	}
 	mockAPI.ListEventsFunc = func(timeMin, timeMax string) (*calendar.Events, error) {
 		return &calendar.Events{}, nil
@@ -383,7 +390,7 @@ func TestGoogleCalendar_GetAndUpdateEvent(t *testing.T) {
 	assert.Equal(t, uuid, retrievedEvent.UUID)
 	assert.Equal(t, baseUserEmail, retrievedEvent.Email)
 	newEventDate := calculateNewEventDate(eventStartTime)
-	expectedStartTime := time.Date(newEventDate.Year(), newEventDate.Month(), newEventDate.Day(), startHour, 0, 0, 0, time.UTC)
+	expectedStartTime := time.Date(newEventDate.Year(), newEventDate.Month(), newEventDate.Day(), startHour, 0, 0, 0, newTzLocation)
 	assert.Equal(t, expectedStartTime.UTC(), retrievedEvent.StartTime.UTC())
 	assert.Equal(t, expectedStartTime.Add(eventLength).UTC(), retrievedEvent.EndTime.UTC())
 	assert.True(t, eventCreated)
@@ -518,7 +525,7 @@ func TestGoogleCalendar_CreateEvent(t *testing.T) {
 	assert.Equal(t, baseEventID, details.ID)
 	assert.Equal(t, channelUUID, details.ChannelID)
 	assert.Equal(t, baseResourceID, details.ResourceID)
-	assert.Equal(t, tzId, event.TimeZone)
+	assert.Equal(t, tzId, *event.TimeZone)
 
 	// Workday already ended
 	date = time.Now().Add(-48 * time.Hour)
