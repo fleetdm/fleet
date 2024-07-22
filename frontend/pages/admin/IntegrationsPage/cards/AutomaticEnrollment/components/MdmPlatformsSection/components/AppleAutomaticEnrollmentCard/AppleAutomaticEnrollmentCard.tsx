@@ -19,12 +19,12 @@ const AppleAutomaticEnrollmentCard = ({
 }: IAppleAutomaticEnrollmentCardProps) => {
   let icon = "";
   let msg =
-    "To enable automatic enrollment for macOS devices, first turn on Apple MDM.";
+    "To enable automatic enrollment for macOS, iOS, and iPadOS hosts, first turn on Apple MDM.";
   if (!turnOn && !configured) {
     msg =
-      "Automatically enroll newly purchased macOS devices when they're first unboxed and set up by your end user.";
+      "Automatically enroll newly purchased Apple hosts when they're first unboxed and set up by your end user.";
   } else if (!turnOn && configured) {
-    msg = "Automatic enrollment for macOS enabled.";
+    msg = "Automatic enrollment for Apple (macOS, iOS, iPadOS) hosts enabled.";
     icon = "success";
   }
 
@@ -34,7 +34,9 @@ const AppleAutomaticEnrollmentCard = ({
       color="gray"
     >
       <div>
-        {!icon && <h3>Automatic enrollment for macOS hosts</h3>}
+        {!icon && (
+          <h3>Automatic enrollment for Apple (macOS, iOS, iPadOS) hosts.</h3>
+        )}
         <p>
           {icon ? (
             <span>

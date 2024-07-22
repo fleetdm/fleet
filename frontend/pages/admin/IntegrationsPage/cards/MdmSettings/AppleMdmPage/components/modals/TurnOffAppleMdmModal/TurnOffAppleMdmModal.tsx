@@ -23,10 +23,11 @@ const TurnOffAppleMdmModal = ({
   }, [onConfirm]);
 
   return (
-    <Modal title="Turn off Apple MDM" onExit={onCancel} className={baseClass}>
+    <Modal title="Turn off MDM" onExit={onCancel} className={baseClass}>
       <div className={baseClass}>
-        If you want to use MDM features again, you’ll have to upload a new APNs
-        certificate and all end users will have to turn MDM off and back on.
+        If you want to use MDM features again, you&apos;ll have to upload a new
+        APNs certificate and all end users will have to turn MDM off and back
+        on.
         <div className="modal-cta-wrap">
           <Button
             type="button"

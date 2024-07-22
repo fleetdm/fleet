@@ -17,7 +17,7 @@ const TurnOnAppleMdm = ({ onClickTurnOn }: ITurnOnAppleMdmProps) => {
   return (
     <div className={`${baseClass}__turn-on-apple-mdm`}>
       <div>
-        <h3>Turn on Apple MDM</h3>
+        <h3>Turn on Apple (macOS, iOS, iPadOS) MDM</h3>
         <p>Enforce settings, OS updates, disk encryption, and more.</p>
       </div>
       <Button variant="brand" onClick={onClickTurnOn}>
