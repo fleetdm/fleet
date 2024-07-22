@@ -273,15 +273,15 @@ func (c *GoogleCalendar) GetAndUpdateEvent(event *fleet.CalendarEvent, genBodyFn
 
 	// Set current calendar instance timezone to the latest from Google calendar.
 	var tzUpdated bool
+	var latestTzName string
 	updateTimezone := func() error {
 		c.location, err = getTimezone(c)
 		if err != nil {
 			return err
 		}
-	  latestTzName := c.location.String()
-	  // nil if cal event created before Fleet tracked timezone
-    tzUpdated = event.TimeZone == nil || (latestTzName != *event.TimeZone)
-		tzUpdated = c.location.String() != event.TimeZone
+		latestTzName = c.location.String()
+		// nil if cal event created before Fleet tracked timezone
+		tzUpdated = event.TimeZone == nil || (latestTzName != *event.TimeZone)
 		return nil
 	}
 	if opts.UpdateTimezone {
@@ -398,13 +398,6 @@ func (c *GoogleCalendar) GetAndUpdateEvent(event *fleet.CalendarEvent, genBodyFn
 		createOpts.ChannelID = details.ChannelID
 		createOpts.ResourceID = details.ResourceID
 	}
-	gStartTime := "DELETED"
-	if gEvent != nil && gEvent.Start != nil {
-		gStartTime = gEvent.Start.DateTime
-	}
-	level.Warn(c.config.Logger).Log("msg", "VICTOR updating event", "event_uuid", event.UUID, "old_start_time_db", event.StartTime,
-		"old_start_time_google", gStartTime,
-		"new_start_time", newStartDate)
 	fleetEvent, err := c.CreateEvent(newStartDate, genBodyFn, createOpts)
 	if err != nil {
 		return nil, false, err

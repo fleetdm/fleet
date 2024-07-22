@@ -48,22 +48,18 @@ func (svc *Service) CalendarWebhook(ctx context.Context, eventUUID string, chann
 	}
 	if recent != nil && *recent == calendar.RecentCalendarUpdateValue {
 		svc.authz.SkipAuthorization(ctx)
-		level.Warn(svc.logger).Log("msg", "VICTOR ignoring calendar event", "event_uuid", eventUUID)
 		return nil
 	}
 
 	// In the common case, we get the lock right away and process the event.
 	// Otherwise, we do additional validation to see if we need to process the event.
 	lockValue, reserved, err := svc.getCalendarLock(ctx, eventUUID, false)
-	level.Warn(svc.logger).Log("msg", "VICTOR getCalendarLock", "event_uuid", eventUUID, "lock_value", lockValue, "reserved", reserved)
 	if err != nil {
 		return err
 	}
 	unlocked := false
 	defer func() {
 		if !unlocked && lockValue != "" {
-			level.Warn(svc.logger).Log("msg", "VICTOR trying to releaseCalendarLock in defer", "event_uuid", eventUUID, "lock_value",
-				lockValue)
 			svc.releaseCalendarLock(ctx, eventUUID, lockValue)
 		}
 	}()
@@ -107,8 +103,6 @@ func (svc *Service) CalendarWebhook(ctx context.Context, eventUUID string, chann
 		if err != nil {
 			return err
 		}
-		level.Warn(svc.logger).Log("msg", "VICTOR getCalendarLock 2", "event_uuid", eventUUID, "lock_value", lockValue, "reserved",
-			reserved)
 		if lockValue != "" {
 			// We got the lock, so we can process the event. We need to refetch the event from DB, since it may have changed since the last fetch.
 			eventDetails, err = svc.ds.GetCalendarEventDetailsByUUID(ctx, eventUUID)
@@ -138,14 +132,10 @@ func (svc *Service) CalendarWebhook(ctx context.Context, eventUUID string, chann
 			return ctxerr.Wrap(ctx, err, "remove calendar event from queue")
 		}
 
-		level.Warn(svc.logger).Log("msg", "VICTOR processing calendar event", "event_uuid", eventUUID, "lock_value", lockValue,
-			"start_time", eventDetails.CalendarEvent.StartTime, "hostID", eventDetails.HostID)
 		err = svc.processCalendarEvent(ctx, eventDetails, googleCalendarIntegrationConfig, userCalendar)
 		if err != nil {
 			return err
 		}
-		level.Warn(svc.logger).Log("msg", "VICTOR trying to releaseCalendarLock after processing", "event_uuid", eventUUID, "lock_value",
-			lockValue)
 		svc.releaseCalendarLock(ctx, eventUUID, lockValue)
 		unlocked = true
 	}
@@ -236,8 +226,6 @@ func (svc *Service) processCalendarEvent(ctx context.Context, eventDetails *flee
 		return ctxerr.Wrap(ctx, err, "get and update event")
 	}
 	if updated && event != nil {
-		level.Warn(svc.logger).Log("msg", "VICTOR event updated", "event_uuid", event.UUID, "start_time", event.StartTime, "hostID",
-			eventDetails.HostID)
 		// Event was updated, so we set a flag.
 		_, err = svc.distributedLock.AcquireLock(ctx, calendar.RecentUpdateKeyPrefix+event.UUID, calendar.RecentCalendarUpdateValue,
 			uint64(calendar.RecentCalendarUpdateDuration.Milliseconds()))
@@ -343,7 +331,6 @@ func (svc *Service) processCalendarAsync(ctx context.Context, eventIDs []string)
 		if runTime < minLoopTime && runTime > 0 {
 			time.Sleep(minLoopTime - runTime)
 		}
-		level.Warn(svc.logger).Log("msg", "VICTOR processing calendar events async", "event_count", len(eventIDs))
 		start := svc.clock.Now()
 		for _, eventUUID := range eventIDs {
 			if ok := svc.processCalendarEventAsync(ctx, eventUUID); !ok {
@@ -372,7 +359,6 @@ func (svc *Service) processCalendarEventAsync(ctx context.Context, eventUUID str
 		return false
 	}
 	if recent != nil && *recent == calendar.RecentCalendarUpdateValue {
-		level.Warn(svc.logger).Log("msg", "VICTOR ignoring calendar event async", "event_uuid", eventUUID)
 		err = svc.distributedLock.RemoveFromSet(ctx, calendar.QueueKey, eventUUID)
 		if err != nil {
 			level.Error(svc.logger).Log("msg", "Failed to remove calendar event from queue", "err", err)
@@ -386,14 +372,11 @@ func (svc *Service) processCalendarEventAsync(ctx context.Context, eventUUID str
 		level.Error(svc.logger).Log("msg", "Failed to get calendar lock", "err", err)
 		return false
 	}
-	level.Warn(svc.logger).Log("msg", "VICTOR getCalendarLock async", "event_uuid", eventUUID, "lock_value", lockValue)
 	if lockValue == "" {
 		// We did not get a lock, so there is nothing to do here
 		return true
 	}
 	defer func() {
-		level.Warn(svc.logger).Log("msg", "VICTOR trying to releaseCalendarLock in async defer", "event_uuid", eventUUID, "lock_value",
-			lockValue)
 		svc.releaseCalendarLock(ctx, eventUUID, lockValue)
 	}()
 
@@ -438,8 +421,6 @@ func (svc *Service) processCalendarEventAsync(ctx context.Context, eventUUID str
 	}
 	userCalendar := calendar.CreateUserCalendarFromConfig(ctx, localConfig, svc.logger)
 
-	level.Warn(svc.logger).Log("msg", "VICTOR processing calendar event async", "event_uuid", eventUUID, "lock_value", lockValue,
-		"start_time", eventDetails.CalendarEvent.StartTime, "hostID", eventDetails.HostID)
 	err = svc.processCalendarEvent(ctx, eventDetails, googleCalendarIntegrationConfig, userCalendar)
 	if err != nil {
 		level.Error(svc.logger).Log("msg", "Failed to process calendar event", "err", err)

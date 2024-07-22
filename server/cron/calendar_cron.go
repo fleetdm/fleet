@@ -327,8 +327,6 @@ func processFailingHostExistingCalendarEvent(
 	if err != nil {
 		return fmt.Errorf("acquire calendar lock: %w", err)
 	}
-	level.Warn(logger).Log("msg", "VICTOR getCalendarLock cron", "event_uuid", eventUUID, "lock_value", lockValue, "lockAcquired",
-		lockAcquired)
 
 	lockReserved := false
 	if !lockAcquired {
@@ -338,8 +336,6 @@ func processFailingHostExistingCalendarEvent(
 		if err != nil {
 			return fmt.Errorf("reserve calendar lock: %w", err)
 		}
-		level.Warn(logger).Log("msg", "VICTOR getReservedLock cron", "event_uuid", eventUUID, "lock_value", lockValue, "lockAcquired",
-			lockAcquired)
 		if !lockAcquired {
 			// Lock was not reserved. Another cron job is processing this event. This is not expected.
 			return errors.New("could not reserve calendar lock")
@@ -351,8 +347,6 @@ func processFailingHostExistingCalendarEvent(
 				// Keep trying to get the lock.
 				lockAcquired, err = distributedLock.AcquireLock(ctx, calendar.LockKeyPrefix+eventUUID, lockValue,
 					calendar.DistributedLockExpireMs)
-				level.Warn(logger).Log("msg", "VICTOR getCalendarLock cron loop", "event_uuid", eventUUID, "lock_value", lockValue,
-					"lockAcquired", lockAcquired)
 				if err != nil || lockAcquired {
 					done <- struct{}{}
 					return
@@ -378,7 +372,6 @@ func processFailingHostExistingCalendarEvent(
 			if err != nil {
 				level.Error(logger).Log("msg", "Failed to release calendar reserve lock", "err", err)
 			}
-			level.Warn(logger).Log("msg", "VICTOR release reserved lock cron", "event_uuid", eventUUID, "lock_value", lockValue)
 			if !ok {
 				// If the lock was not released, it will expire on its own.
 				level.Error(logger).Log("msg", "Failed to release calendar reserve lock", "event uuid", eventUUID, "lockValue", lockValue)
@@ -388,7 +381,6 @@ func processFailingHostExistingCalendarEvent(
 		if err != nil {
 			level.Error(logger).Log("msg", "Failed to release calendar lock", "err", err)
 		}
-		level.Warn(logger).Log("msg", "VICTOR release lock cron", "event_uuid", eventUUID, "lock_value", lockValue)
 		if !ok {
 			// If the lock was not released, it will expire on its own. However, we should adjust expiration time or something else to make sure we don't get here.
 			level.Error(logger).Log("msg", "Failed to release calendar lock", "event uuid", eventUUID, "lockValue", lockValue)
