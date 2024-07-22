@@ -291,3 +291,13 @@ export const INSTALL_STATUS_ICONS: Record<SoftwareInstallStatus, IconNames> = {
   installed: "success-outline",
   failed: "error-outline",
 } as const;
+
+export type IHostSoftwareWithLastInstall = IHostSoftware & {
+  last_install: ISoftwareLastInstall;
+};
+
+export const hasLastInstall = (
+  software: IHostSoftware
+): software is IHostSoftwareWithLastInstall => {
+  return !!software.last_install;
+};

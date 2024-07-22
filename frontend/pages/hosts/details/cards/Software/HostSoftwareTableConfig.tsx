@@ -4,7 +4,9 @@ import { CellProps, Column } from "react-table";
 import { cloneDeep } from "lodash";
 
 import {
+  IHostAppStoreApp,
   IHostSoftware,
+  IHostSoftwarePackage,
   SoftwareInstallStatus,
   formatSoftwareType,
 } from "interfaces/software";
@@ -53,14 +55,16 @@ const generateActions = ({
   isFleetdHost,
   softwareId,
   status,
-  hasSoftwareToInstall,
+  software_package,
+  app_store_app,
 }: {
   canInstall: boolean;
   installingSoftwareId: number | null;
   isFleetdHost: boolean;
   softwareId: number;
   status: SoftwareInstallStatus | null;
-  hasSoftwareToInstall?: boolean;
+  software_package: IHostSoftwarePackage | null;
+  app_store_app: IHostAppStoreApp | null;
 }) => {
   // this gives us a clean slate of the default actions so we can modify
   // the options.
@@ -73,6 +77,7 @@ const generateActions = ({
     throw new Error("Install action not found in default actions");
   }
 
+  const hasSoftwareToInstall = !!software_package || !!app_store_app;
   // remove install if there is no package to install
   if (!hasSoftwareToInstall || !canInstall) {
     actions.splice(indexInstallAction, 1);
@@ -202,7 +207,8 @@ export const generateSoftwareTableHeaders = ({
               installingSoftwareId,
               softwareId,
               status,
-              hasSoftwareToInstall: !!software_package || !!app_store_app,
+              software_package,
+              app_store_app,
             })}
             onChange={(action) => onSelectAction(original, action)}
           />
