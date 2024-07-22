@@ -8334,9 +8334,8 @@ func (s *integrationTestSuite) TestGetHostMaintenanceWindow() {
 		StartTime: startTime,
 		EndTime:   endTime,
 		Data:      []byte(`{}`),
-		// will replace with NULL - db method doesn't allow nil
-		TimeZone: "",
-		UUID:     uuid.New().String(),
+		TimeZone:  nil,
+		UUID:      uuid.New().String(),
 	}
 
 	dsEvent, err := s.ds.CreateOrUpdateCalendarEvent(ctx, testEvent.UUID, testEvent.Email, testEvent.StartTime, testEvent.EndTime,
@@ -8371,7 +8370,7 @@ func (s *integrationTestSuite) TestGetHostMaintenanceWindow() {
 
 	// update the timezone
 	_, err = s.ds.CreateOrUpdateCalendarEvent(ctx, testEvent.UUID, testEvent.Email, testEvent.StartTime, testEvent.EndTime, testEvent.Data,
-		timeZone, host.ID, fleet.CalendarWebhookStatusNone)
+		&timeZone, host.ID, fleet.CalendarWebhookStatusNone)
 	require.NoError(t, err)
 
 	time.Sleep(1 * time.Second)

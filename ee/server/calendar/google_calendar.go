@@ -280,7 +280,9 @@ func (c *GoogleCalendar) GetAndUpdateEvent(event *fleet.CalendarEvent, genBodyFn
 	if err != nil {
 		return nil, false, err
 	}
-	tzUpdated := c.location.String() != event.TimeZone
+	latestTzName := c.location.String()
+	// nil if cal event created before Fleet tracked timezone
+	tzUpdated := event.TimeZone == nil || (latestTzName != *event.TimeZone)
 
 	gEvent, err := c.config.API.GetEvent(details.ID, details.ETag)
 
@@ -291,7 +293,7 @@ func (c *GoogleCalendar) GetAndUpdateEvent(event *fleet.CalendarEvent, genBodyFn
 		if tzUpdated {
 			// this condition occurs when the event itself hasn't been updated, but the calendar timezone
 			// has been, so update the Fleet event's timezone
-			event.TimeZone = c.location.String()
+			event.TimeZone = &latestTzName
 			return event, true, nil
 		}
 		return event, false, nil
@@ -307,7 +309,7 @@ func (c *GoogleCalendar) GetAndUpdateEvent(event *fleet.CalendarEvent, genBodyFn
 			if tzUpdated {
 				// this condition occurs when the event itself hasn't been updated, but the calendar timezone
 				// has been, so just update the event's timezone
-				event.TimeZone = c.location.String()
+				event.TimeZone = &latestTzName
 				return event, true, nil
 			}
 			return event, false, nil
@@ -642,12 +644,12 @@ func (c *GoogleCalendar) googleEventToFleetEvent(startTime time.Time, endTime ti
 	resourceID string) (
 	*fleet.CalendarEvent, error,
 ) {
-
+	tzName := c.location.String()
 	fleetEvent := &fleet.CalendarEvent{}
 	fleetEvent.StartTime = startTime
 	fleetEvent.EndTime = endTime
 	fleetEvent.Email = c.currentUserEmail
-	fleetEvent.TimeZone = c.location.String()
+	fleetEvent.TimeZone = &tzName
 	fleetEvent.UUID = eventUUID
 	details := &eventDetails{
 		ID:         event.Id,
