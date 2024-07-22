@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -24,6 +25,26 @@ func (svc *Service) getVPPToken(ctx context.Context) (string, error) {
 	var vppTokenData fleet.VPPTokenData
 	if err := json.Unmarshal(configMap[fleet.MDMAssetVPPToken].Value, &vppTokenData); err != nil {
 		return "", ctxerr.Wrap(ctx, err, "unmarshaling VPP token data")
+	}
+
+	vppTokenRawBytes, err := base64.StdEncoding.DecodeString(vppTokenData.Token)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "decoding raw vpp token data")
+	}
+
+	var vppTokenRaw fleet.VPPTokenRaw
+
+	if err := json.Unmarshal(vppTokenRawBytes, &vppTokenRaw); err != nil {
+		return "", ctxerr.Wrap(ctx, err, "unmarshaling raw vpp token data")
+	}
+
+	exp, err := time.Parse("2006-01-02T15:04:05Z0700", vppTokenRaw.ExpDate)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "parsing vpp token expiration date")
+	}
+
+	if time.Now().After(exp) {
+		return "", ctxerr.Errorf(ctx, "vpp token expired on %s", exp.String())
 	}
 
 	return vppTokenData.Token, nil
