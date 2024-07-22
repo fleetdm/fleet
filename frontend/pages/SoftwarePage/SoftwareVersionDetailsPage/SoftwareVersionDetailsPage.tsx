@@ -31,6 +31,7 @@ import Card from "components/Card";
 import SoftwareDetailsSummary from "../components/SoftwareDetailsSummary";
 import SoftwareVulnerabilitiesTable from "../components/SoftwareVulnerabilitiesTable";
 import DetailsNoHosts from "../components/DetailsNoHosts";
+import { getTeamMessage } from "../helpers";
 
 const baseClass = "software-version-details-page";
 
@@ -63,7 +64,7 @@ const SoftwareVersionDetailsPage = ({
     location,
     router,
     includeAllTeams: true,
-    includeNoTeam: false,
+    includeNoTeam: true,
   });
 
   const {
@@ -134,9 +135,9 @@ const SoftwareVersionDetailsPage = ({
         {isSoftwareVersionError ? (
           <DetailsNoHosts
             header="Software not detected"
-            details={`No hosts ${
-              teamIdForApi ? "on this team " : ""
-            }have this software installed.`}
+            details={`No hosts ${getTeamMessage(
+              teamIdForApi
+            )}have this software installed.`}
           />
         ) : (
           <>

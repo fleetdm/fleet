@@ -169,9 +169,8 @@ const ManageHostsPage = ({
     includeAllTeams: true,
     includeNoTeam: true,
     overrideParamsOnTeamChange: {
-      // remove the software status filter when selecting all teams or no team
-      [HOSTS_QUERY_PARAMS.SOFTWARE_STATUS]: (newTeamId?: number) =>
-        !newTeamId || newTeamId < 1,
+      // remove the software status filter when selecting all teams
+      [HOSTS_QUERY_PARAMS.SOFTWARE_STATUS]: (newTeamId?: number) => !newTeamId,
     },
   });
 
@@ -1197,7 +1196,6 @@ const ManageHostsPage = ({
       isDisabled={isLoadingHosts || isLoadingHostsCount} // TODO: why?
       onChange={onTeamChange}
       includeNoTeams
-      isSandboxMode={isSandboxMode}
     />
   );
 
