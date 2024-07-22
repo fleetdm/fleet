@@ -11485,3 +11485,29 @@ func (s *integrationEnterpriseTestSuite) TestCalendarCallback() {
 	require.NoError(t, err)
 	assert.Empty(t, team1CalendarEvents)
 }
+
+func (s *integrationEnterpriseTestSuite) TestVPPAppsWithoutMDM() {
+	t := s.T()
+	ctx := context.Background()
+
+	// Create host
+	orbitHost := createOrbitEnrolledHost(t, "darwin", "nonmdm", s.ds)
+
+	// Create team and add host to team
+	var newTeamResp teamResponse
+	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{TeamPayload: fleet.TeamPayload{Name: ptr.String("Team 1")}}, http.StatusOK, &newTeamResp)
+	team := newTeamResp.Team
+
+	s.Do("POST", "/api/latest/fleet/hosts/transfer", &addHostsToTeamRequest{HostIDs: []uint{orbitHost.ID}, TeamID: &team.ID}, http.StatusOK)
+
+	// Add an app so that we don't get a not found error
+	app, err := s.ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+		Name:             "App " + t.Name(),
+		BundleIdentifier: "bid_" + t.Name(),
+		AdamID:           "adam_" + t.Name(),
+	}, &team.ID)
+	require.NoError(t, err)
+
+	r := s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/install/%d", orbitHost.ID, app.TitleID), &installSoftwareRequest{}, http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(r.Body), "Couldn't install. MDM is turned off. Please make sure that MDM is turned on to install App Store apps.")
+}

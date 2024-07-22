@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -16,6 +17,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/vpp"
 )
 
+// getVPPToken returns the base64 encoded VPP token, ready for use in requests to Apple's VPP API.
+// It returns an error if the token is expired.
 func (svc *Service) getVPPToken(ctx context.Context) (string, error) {
 	configMap, err := svc.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetVPPToken})
 	if err != nil {
@@ -44,7 +47,7 @@ func (svc *Service) getVPPToken(ctx context.Context) (string, error) {
 	}
 
 	if time.Now().After(exp) {
-		return "", ctxerr.Errorf(ctx, "vpp token expired on %s", exp.String())
+		return "", fleet.NewUserMessageError(errors.New("Couldn't install. VPP token expired."), http.StatusUnprocessableEntity)
 	}
 
 	return vppTokenData.Token, nil
