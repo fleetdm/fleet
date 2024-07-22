@@ -73,34 +73,6 @@ module.exports = {
       return new Error(`When attempting to create a Lead record using an exisitng Account record (ID: ${salesforceAccountId}), An error occured when retreiving the specified record. Error: ${err}`);
     });
     let salesforceAccountOwnerId = accountRecord.OwnerId;
-    // If the account record is owned by the integrations admin user and is not the account where unenriched contacts go, we'll round robin it and reassign it to an AE.
-    if(salesforceAccountOwnerId === '0054x00000735wDAAQ' && salesforceAccountId !== '0014x000025JC8DAAW') {
-      // Get all round robin users.
-      let roundRobinUsers = await salesforceConnection.sobject('User')
-      .find({
-        AE_Round_robin__c: true,// eslint-disable-line camelcase
-      });
-      // Get the user with the earliest round robin timestamp.
-      let userWithEarliestAssignTimeStamp = _.sortBy(roundRobinUsers, 'AE_Account_Assignment_round_robin__c')[0];
-
-      let today = new Date();
-      let nowOn = today.toISOString().replace('Z', '+0000');
-      // Update the salesforceAccountOwnerId value to be the ID of the next user in the round robin.
-      salesforceAccountOwnerId = userWithEarliestAssignTimeStamp.Id;
-      // Update this user to put them at the bottom of the round robin list.
-      await salesforceConnection.sobject('User')
-      .update({
-        Id: salesforceAccountOwnerId,
-        // eslint-disable-next-line camelcase
-        AE_Account_Assignment_round_robin__c: nowOn
-      });
-      // Reassign the account to the new owner.
-      await salesforceConnection.sobject('Account')
-      .update({
-        Id: salesforceAccountId,
-        OwnerId: salesforceAccountOwnerId
-      });
-    }
 
     let primaryBuyingSituationValuesByCodename = {
       'vm': 'Vulnerability management',
