@@ -124,6 +124,8 @@ Run `sudo apt remove fleet-osquery -y`
 Run `sudo rpm -e fleet-osquery-X.Y.Z.x86_64`
 
 <!--
+Mike T: In 2023 we made the decision to comment out the following questions because the FAQs had become a dumping ground for miscellaneous content that wasn't quite reference docs and wasn't quite committed learning docs (suitable for articles). We chose to hide the content rather than remove, or spend time trying to figure out better places in the docs, with the assumption that if it's important enough content, someone will circle back at some point to prioritize a better home.
+
 ## Using Fleet
 
 ### How can I switch to Fleet from Kolide Fleet?

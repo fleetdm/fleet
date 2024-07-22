@@ -31,6 +31,7 @@ SELECT
 	st.name,
 	st.source,
 	st.browser,
+	st.bundle_identifier,
 	COALESCE(SUM(sthc.hosts_count), 0) as hosts_count,
 	MAX(sthc.updated_at)  as counts_updated_at
 FROM software_titles st
@@ -200,6 +201,7 @@ SELECT
 	st.name,
 	st.source,
 	st.browser,
+	st.bundle_identifier,
 	MAX(COALESCE(sthc.hosts_count, 0)) as hosts_count,
 	MAX(COALESCE(sthc.updated_at, date('0001-01-01 00:00:00'))) as counts_updated_at,
 	si.filename as software_package,

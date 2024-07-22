@@ -67,7 +67,7 @@ LinkedIn post: https://www.linkedin.com/feed/update/urn:li:activity:719950989670
 ...
 
 
-## Patch Release (end of week / critical)
+## Patch Release (middle of sprint / critical)
 
 example
 ```

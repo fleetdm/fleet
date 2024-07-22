@@ -1113,7 +1113,7 @@ Modifies the Fleet's configuration with the supplied information.
   },
   "server_settings": {
     "server_url": "https://localhost:8080",
-    "enable_analytics": true, 
+    "enable_analytics": true,
     "live_query_disabled": false,
     "query_reports_disabled": false,
     "ai_features_disabled": false
@@ -1194,7 +1194,7 @@ Modifies the Fleet's configuration with the supplied information.
           "path": "path/to/profile3.xml",
           "labels": ["Label 1", "Label 2"]
         }
-      ]     
+      ]
     },
     "end_user_authentication": {
       "entity_id": "",
@@ -1340,6 +1340,7 @@ Modifies the Fleet's configuration with the supplied information.
 | live_query_disabled               | boolean | Whether the live query capabilities are disabled.                                                                                                                   |
 | query_reports_disabled            | boolean | Whether query report capabilities are disabled.                                                                                                                   |
 | ai_features_disabled              | boolean | Whether AI features are disabled. |
+| query_report_cap                  | integer | The maximum number of results to store per query report before the report is clipped. If increasing this cap, we recommend enabling reports for one query at time and monitoring your infrastructure. (Default: `1000`) |
 
 <br/>
 
@@ -3089,6 +3090,7 @@ If `hostname` is specified when there is more than one host with the same hostna
 | Name       | Type              | In   | Description                                                                   |
 | ---------- | ----------------- | ---- | ----------------------------------------------------------------------------- |
 | identifier | integer or string | path | **Required**. The host's `hardware_serial`, `uuid`, `osquery_host_id`, `hostname`, or `node_key` |
+| exclude_software | boolean | query | If `true`, the response will not include a list of installed software for the host. |
 
 #### Example
 
@@ -4185,6 +4187,7 @@ Retrieves information about the specified OS version.
       {
         "cve": "CVE-2022-30190",
         "details_link": "https://nvd.nist.gov/vuln/detail/CVE-2022-30190",
+        "created_at": "2024-07-01T00:15:00Z",
         "cvss_score": 7.8,// Available in Fleet Premium
         "epss_probability": 0.9729,// Available in Fleet Premium
         "cisa_known_exploit": false,// Available in Fleet Premium
@@ -4300,6 +4303,7 @@ OS vulnerability data is currently available for Windows and macOS. For other pl
       "id": 121,
       "name": "Google Chrome.app",
       "package_available_for_install": "GoogleChrome.pkg",
+      "self_service": true,
       "source": "apps",
       "status": "failed",
       "last_install": {
@@ -4307,7 +4311,7 @@ OS vulnerability data is currently available for Windows and macOS. For other pl
         "installed_at": "2024-05-15T15:23:57Z"
       },
       "installed_versions": [
-        { 
+        {
           "version": "121.0",
           "last_opened_at": "2024-04-01T23:03:07Z",
           "vulnerabilities": ["CVE-2023-1234","CVE-2023-4321","CVE-2023-7654"],
@@ -4319,6 +4323,7 @@ OS vulnerability data is currently available for Windows and macOS. For other pl
       "id": 134,
       "name": "Falcon.app",
       "package_available_for_install": "FalconSensor-6.44.pkg",
+      "self_service": false,
       "source": "",
       "status": null,
       "last_install": null,
@@ -4327,7 +4332,6 @@ OS vulnerability data is currently available for Windows and macOS. For other pl
     {
       "id": 147,
       "name": "Firefox.app",
-      "package_available_for_install": null,
       "source": "apps",
       "bundle_identifier": "org.mozilla.firefox",
       "status": null,
@@ -4339,7 +4343,7 @@ OS vulnerability data is currently available for Windows and macOS. For other pl
           "vulnerabilities": ["CVE-2023-1234"],
           "installed_paths": ["/Applications/Firefox.app"]
         },
-        { 
+        {
           "version": "119.0",
           "last_opened_at": "2024-04-01T23:03:07Z",
           "vulnerabilities": ["CVE-2023-4321","CVE-2023-7654"],
@@ -4731,7 +4735,7 @@ To wipe a macOS or Windows host, the host must have MDM turned on. To lock a Lin
 
 ### Add labels to host
 
-Adds manual labels to a host. 
+Adds manual labels to a host.
 
 `POST /api/v1/fleet/hosts/:id/labels`
 
@@ -7323,6 +7327,7 @@ Returns the query report specified by ID.
 ```json
 {
   "query_id": 31,
+  "report_clipped": false,
   "results": [
     {
       "host_id": 1,
@@ -8571,9 +8576,10 @@ Add a software package to install on macOS, Windows, and Linux (Ubuntu) hosts.
 | ----            | ------- | ---- | --------------------------------------------     |
 | software        | file    | form | **Required**. Installer package file. Supported packages are PKG, MSI, EXE, and DEB.   |
 | team_id         | integer | form | **Required**. The team ID. Adds a software package to the specified team. |
-| install_script  | string | form | Command that Fleet runs to install software. If not specified Fleet runs [default install command](#TODO-link-to-docs) for each package type. |
+| install_script  | string | form | Command that Fleet runs to install software. If not specified Fleet runs [default install command](https://github.com/fleetdm/fleet/tree/f71a1f183cc6736205510580c8366153ea083a8d/pkg/file/scripts) for each package type. |
 | pre_install_query  | string | form | Query that is pre-install condition. If the query doesn't return any result, Fleet won't proceed to install. |
 | post_install_script | string | form | The contents of the script to run after install. If the specified script fails (exit code non-zero) software install will be marked as failed and rolled back. |
+| self_service | boolean | form | Self-service software is optional and can be installed by the end user. |
 
 #### Example
 
@@ -8592,6 +8598,9 @@ Content-Type: multipart/form-data; boundary=------------------------d8c247122f59
 --------------------------d8c247122f594ba0
 Content-Disposition: form-data; name="team_id"
 1
+--------------------------d8c247122f594ba0
+Content-Disposition: form-data; name="self_service"
+true
 --------------------------d8c247122f594ba0
 Content-Disposition: form-data; name="install_script"
 sudo installer -pkg /temp/FalconSensor-6.44.pkg -target /
@@ -8625,8 +8634,8 @@ Download a software package.
 
 | Name            | Type    | In   | Description                                      |
 | ----            | ------- | ---- | --------------------------------------------     |
-| software_title_id              | integer | path | **Required**. The ID of the software title to download software package.|
-| team_id | integer | form | **Required**. The team ID. Downloads a software package added to the specified team. |
+| software_title_id   | integer | path | **Required**. The ID of the software title to download software package.|
+| team_id | integer | query | **Required**. The team ID. Downloads a software package added to the specified team. |
 | alt             | integer | query | **Required**. If specified and set to "media", downloads the specified software package. |
 
 #### Example
@@ -8657,7 +8666,7 @@ Delete a software package.
 
 | Name            | Type    | In   | Description                                      |
 | ----            | ------- | ---- | --------------------------------------------     |
-| software_title_id              | integer | path | **Required**. The ID of the software title for the software package to delete. |
+| software_title_id  | integer | path | **Required**. The ID of the software title for the software package to delete. |
 | team_id | integer | query | **Required**. The team ID. Deletes a software package added to the specified team. |
 
 #### Example
@@ -8678,7 +8687,7 @@ Get the results of a software installation.
 
 | Name            | Type    | In   | Description                                      |
 | ----            | ------- | ---- | --------------------------------------------     |
-| install_uuid | string | path | **Required**. The installation UUID of the software.|
+| install_uuid | string | path | **Required**. The software installation UUID.|
 
 #### Example
 
@@ -8721,10 +8730,11 @@ Get a list of all software.
 | team_id                 | integer | query | _Available in Fleet Premium_. Filters the software to only include the software installed on the hosts that are assigned to the specified team.                            |
 | vulnerable              | bool    | query | If true or 1, only list software that has detected vulnerabilities. Default is `false`.                                                                                    |
 | available_for_install   | bool    | query | If `true` or `1`, only list software that is available for install (added by the user). Default is `false`.                                                                |
+| self_service    | bool    | query | If `true` or `1`, only lists self-service software. Default is `false`.  |
 
 #### Example
 
-`GET /api/v1/fleet/software/titles`
+`GET /api/v1/fleet/software/titles?team_id=3`
 
 ##### Default response
 
@@ -8739,18 +8749,19 @@ Get a list of all software.
       "id": 12,
       "name": "Firefox.app",
       "software_package": "FirefoxInstall.pkg",
+      "self_service": true,
       "versions_count": 3,
       "source": "apps",
       "browser": "",
       "hosts_count": 48,
-      "versions": [ 
+      "versions": [
         {
           "id": 123,
           "version": "1.12",
           "vulnerabilities": ["CVE-2023-1234","CVE-2023-4321","CVE-2023-7654"]
-        }, 
+        },
         {
-          "id": 124, 
+          "id": 124,
           "version": "3.4",
           "vulnerabilities": ["CVE-2023-1234","CVE-2023-4321","CVE-2023-7654"]
         },
@@ -8759,12 +8770,13 @@ Get a list of all software.
           "version": "1.13",
           "vulnerabilities": ["CVE-2023-1234","CVE-2023-4321","CVE-2023-7654"]
         }
-      ]  
+      ]
     },
     {
       "id": 22,
       "name": "Google Chrome.app",
       "software_package": null,
+      "self_service": false,
       "versions_count": 5,
       "source": "apps",
       "browser": "",
@@ -8796,6 +8808,7 @@ Get a list of all software.
       "id": 32,
       "name": "1Password – Password Manager",
       "software_package": null,
+      "self_service": false,
       "versions_count": 1,
       "source": "chrome_extensions",
       "browser": "chrome",
@@ -8919,10 +8932,13 @@ Returns information about the specified software. By default, `versions` are sor
     "software_package": {
       "name": "FalconSensor-6.44.pkg",
       "version": "6.44",
+      "installer_id": 23,
+      "team_id": 3,
       "uploaded_at": "2024-04-01T14:22:58Z",
       "install_script": "sudo installer -pkg /temp/FalconSensor-6.44.pkg -target /",
       "pre_install_query": "SELECT 1 FROM macos_profiles WHERE uuid='c9f4f0d5-8426-4eb8-b61b-27c543c9d3db';",
       "post_install_script": "sudo /Applications/Falcon.app/Contents/Resources/falconctl license 0123456789ABCDEFGHIJKLMNOPQRSTUV-WX",
+      "self_service": true,
       "status": {
         "installed": 3,
         "pending": 1,
@@ -8932,7 +8948,7 @@ Returns information about the specified software. By default, `versions` are sor
     "source": "apps",
     "browser": "",
     "hosts_count": 48,
-    "versions": [ 
+    "versions": [
       {
         "id": 123,
         "version": "117.0",
@@ -8951,7 +8967,7 @@ Returns information about the specified software. By default, `versions` are sor
         "vulnerabilities": ["CVE-2023-7654"],
         "hosts_count": 4
       }
-    ]  
+    ]
   }
 }
 ```
@@ -8991,20 +9007,22 @@ Returns information about the specified software version.
       {
         "cve": "CVE-2023-4863",
         "details_link": "https://nvd.nist.gov/vuln/detail/CVE-2023-4863",
-        "cvss_score": 8.8,
-        "epss_probability": 0.4101,
-        "cisa_known_exploit": true,
-        "cve_published": "2023-09-12T15:15:00Z",
-        "resolved_in_version": ""
+        "created_at": "2024-07-01T00:15:00Z",
+        "cvss_score": 8.8, // Available in Fleet Premium
+        "epss_probability": 0.4101, // Available in Fleet Premium
+        "cisa_known_exploit": true, // Available in Fleet Premium
+        "cve_published": "2023-09-12T15:15:00Z", // Available in Fleet Premium
+        "resolved_in_version": "" // Available in Fleet Premium
       },
       {
         "cve": "CVE-2023-5169",
         "details_link": "https://nvd.nist.gov/vuln/detail/CVE-2023-5169",
-        "cvss_score": 6.5,
-        "epss_probability": 0.00073,
-        "cisa_known_exploit": false,
-        "cve_published": "2023-09-27T15:19:00Z",
-        "resolved_in_version": "118"
+        "created_at": "2024-07-01T00:15:00Z",
+        "cvss_score": 6.5, // Available in Fleet Premium
+        "epss_probability": 0.00073, // Available in Fleet Premium
+        "cisa_known_exploit": false, // Available in Fleet Premium
+        "cve_published": "2023-09-27T15:19:00Z", // Available in Fleet Premium
+        "resolved_in_version": "118" // Available in Fleet Premium
       }
     ]
   }

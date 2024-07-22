@@ -3,6 +3,7 @@ package fleet
 import (
 	"bufio"
 	"errors"
+	"fmt"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -151,9 +152,6 @@ type HostScriptRequestPayload struct {
 
 func (r HostScriptRequestPayload) ValidateParams(waitForResult time.Duration) error {
 	if r.ScriptContents == "" && r.ScriptID == nil && r.ScriptName == "" {
-		if waitForResult <= 0 {
-			return NewInvalidArgumentError("script", `Script contents must not be empty.`)
-		}
 		return NewInvalidArgumentError("script", `One of 'script_id', 'script_contents', or 'script_name' is required.`)
 	}
 
@@ -175,16 +173,6 @@ func (r HostScriptRequestPayload) ValidateParams(waitForResult time.Duration) er
 			return NewInvalidArgumentError("script_contents", `"Only one of 'script_contents' or 'team_id' is allowed.`)
 		}
 	}
-	//
-	// TODO: script_name and team_id are only allowed for synchronous requests; they probably should be allowed for asynchronous requests too, but we need to get a product decision on this
-	if waitForResult <= 0 {
-		switch {
-		case r.ScriptName != "":
-			return NewInvalidArgumentError("script_name", `Only synchronous script execution requests can use the 'script_name' parameter.`)
-		case r.TeamID > 0:
-			return NewInvalidArgumentError("team_id", `Only synchronous script execution requests can use the 'team_id' parameter.`)
-		}
-	}
 
 	return nil
 }
@@ -195,6 +183,7 @@ type HostScriptResultPayload struct {
 	Output      string `json:"output"`
 	Runtime     int    `json:"runtime"`
 	ExitCode    int    `json:"exit_code"`
+	Timeout     int    `json:"timeout"`
 }
 
 // HostScriptResult represents a script result that was requested to execute on
@@ -218,6 +207,9 @@ type HostScriptResult struct {
 	// host. It is -1 if it was received but the script did not terminate
 	// normally (same as how Go handles this: https://pkg.go.dev/os#ProcessState.ExitCode)
 	ExitCode *int64 `json:"exit_code" db:"exit_code"`
+	// Timeout is the maximum time in seconds that the script was allowed to run
+	// at the time of execution.
+	Timeout *int `json:"timeout" db:"timeout"`
 	// CreatedAt is the creation timestamp of the script execution request. It is
 	// not returned as part of the payloads, but is used to determine if the script
 	// is too old to still expect a response from the host.
@@ -266,7 +258,7 @@ func (hsr HostScriptResult) AuthzType() string {
 // for running a script synchronously (so that fleetctl can display it) and to
 // get the script results for an execution ID (e.g. when looking at the details
 // screen of a script execution activity in the website).
-func (hsr HostScriptResult) UserMessage(hostTimeout bool) string {
+func (hsr HostScriptResult) UserMessage(hostTimeout bool, hostTimeoutValue *int) string {
 	if hostTimeout {
 		return RunScriptHostTimeoutErrMsg
 	}
@@ -277,7 +269,7 @@ func (hsr HostScriptResult) UserMessage(hostTimeout bool) string {
 		}
 
 		if !hsr.SyncRequest {
-			return RunScriptAsyncScriptEnqueuedErrMsg
+			return RunScriptAsyncScriptEnqueuedMsg
 		}
 
 		return RunScriptAlreadyRunningErrMsg
@@ -285,12 +277,22 @@ func (hsr HostScriptResult) UserMessage(hostTimeout bool) string {
 
 	switch *hsr.ExitCode {
 	case -1:
-		return RunScriptScriptTimeoutErrMsg
+		return HostScriptTimeoutMessage(hostTimeoutValue)
 	case -2:
 		return RunScriptDisabledErrMsg
 	default:
 		return ""
 	}
+}
+
+func HostScriptTimeoutMessage(seconds *int) string {
+	var timeout int
+	if seconds == nil || *seconds == 0 {
+		timeout = int(scripts.MaxHostExecutionTime.Seconds())
+	} else {
+		timeout = *seconds
+	}
+	return fmt.Sprintf("Timeout. Fleet stopped the script after %d seconds to protect host performance.", timeout)
 }
 
 func (hsr HostScriptResult) HostTimeout(waitForResultTime time.Duration) bool {
