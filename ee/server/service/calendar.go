@@ -17,6 +17,10 @@ import (
 var asyncCalendarProcessing bool
 var asyncMutex sync.Mutex
 
+// RecentUpdateDuration is the duration during which we will ignore a calendar event callback if the event was just updated.
+// This variable is exposed to be modified by unit tests.
+var RecentUpdateDuration = -2 * time.Second
+
 func (svc *Service) CalendarWebhook(ctx context.Context, eventUUID string, channelID string, resourceState string) error {
 
 	// We don't want the sender to cancel the context since we want to make sure we process the webhook.
@@ -70,6 +74,14 @@ func (svc *Service) CalendarWebhook(ctx context.Context, eventUUID string, chann
 	if eventDetails.TeamID == nil {
 		// Should not happen
 		return fmt.Errorf("calendar event %s has no team ID", eventUUID)
+	}
+	now := time.Now()
+	if eventDetails.UpdatedAt.After(now.Add(RecentUpdateDuration)) {
+		// If the event was updated recently, we will ignore the callback.
+		// This is to avoid reading stale data from Google Calendar after we just updated the event.
+		// If this was a legitimate update, then it will be caught by the next cron job run (or the next callback).
+		svc.authz.SkipAuthorization(ctx)
+		return nil
 	}
 
 	localConfig := &calendar.Config{
