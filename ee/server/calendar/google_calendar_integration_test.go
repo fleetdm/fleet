@@ -71,7 +71,7 @@ func (s *googleCalendarIntegrationTestSuite) TestCreateGetDeleteEvent() {
 		return "Test event", true, nil
 	}
 	eventDate := time.Now().Add(48 * time.Hour)
-	event, err := gCal.CreateEvent(eventDate, genBodyFn, nil)
+	event, err := gCal.CreateEvent(eventDate, genBodyFn, fleet.CalendarCreateEventOpts{})
 	require.NoError(t, err)
 	assert.Equal(t, startHour, event.StartTime.Hour())
 	assert.Equal(t, 0, event.StartTime.Minute())
@@ -84,7 +84,7 @@ func (s *googleCalendarIntegrationTestSuite) TestCreateGetDeleteEvent() {
 	assert.NotEmpty(t, channelID)
 	assert.NotEmpty(t, resourceID)
 
-	eventRsp, updated, err := gCal.GetAndUpdateEvent(event, genBodyFn)
+	eventRsp, updated, err := gCal.GetAndUpdateEvent(event, genBodyFn, fleet.CalendarGetAndUpdateEventOpts{})
 	require.NoError(t, err)
 	assert.False(t, updated)
 	assert.Equal(t, event, eventRsp)
@@ -96,15 +96,15 @@ func (s *googleCalendarIntegrationTestSuite) TestCreateGetDeleteEvent() {
 	assert.NoError(t, err)
 
 	// Try to get deleted event
-	eventRsp, updated, err = gCal.GetAndUpdateEvent(event, genBodyFn)
+	eventRsp, updated, err = gCal.GetAndUpdateEvent(event, genBodyFn, fleet.CalendarGetAndUpdateEventOpts{})
 	require.NoError(t, err)
 	assert.True(t, updated)
 	assert.NotEqual(t, event.StartTime.UTC().Truncate(24*time.Hour), eventRsp.StartTime.UTC().Truncate(24*time.Hour))
 
-	opts := map[string]string{
-		"channelID":  channelID,
-		"resourceID": resourceID,
-		"eventUUID":  eventUUID,
+	opts := fleet.CalendarCreateEventOpts{
+		ChannelID:  channelID,
+		ResourceID: resourceID,
+		EventUUID:  eventUUID,
 	}
 	event, err = gCal.CreateEvent(eventDate, genBodyFn, opts)
 	require.NoError(t, err)
@@ -138,7 +138,7 @@ func (s *googleCalendarIntegrationTestSuite) TestFillUpCalendar() {
 		return "Test event", true, nil
 	}
 	eventDate := time.Now().Add(48 * time.Hour)
-	event, err := gCal.CreateEvent(eventDate, genBodyFn, nil)
+	event, err := gCal.CreateEvent(eventDate, genBodyFn, fleet.CalendarCreateEventOpts{})
 	require.NoError(t, err)
 	assert.Equal(t, startHour, event.StartTime.Hour())
 	assert.Equal(t, 0, event.StartTime.Minute())
@@ -148,7 +148,7 @@ func (s *googleCalendarIntegrationTestSuite) TestFillUpCalendar() {
 		if !(currentEventTime.Hour() == endHour-1 && currentEventTime.Minute() == 30) {
 			currentEventTime = currentEventTime.Add(30 * time.Minute)
 		}
-		event, err = gCal.CreateEvent(eventDate, genBodyFn, nil)
+		event, err = gCal.CreateEvent(eventDate, genBodyFn, fleet.CalendarCreateEventOpts{})
 		require.NoError(t, err)
 		assert.Equal(t, currentEventTime.UTC(), event.StartTime.UTC())
 	}

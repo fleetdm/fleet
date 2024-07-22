@@ -20,6 +20,14 @@ const (
 	LockKeyPrefix         = "calendar:lock:"
 	ReservedLockKeyPrefix = "calendar:reserved:"
 	QueueKey              = "calendar:queue"
+
+	// DistributedLockExpireMs is the time Redis will hold the lock before automatically releasing it.
+	// Our current max retry time for calendar API is 10 minutes, and multiple API calls (with their own retry timing) can be made during event processing.
+	// If a Fleet server gets the lock and is then shut down before releasing the lock, the next server may need to wait this long
+	// before getting the lock.
+	DistributedLockExpireMs = 20 * 60 * 1000
+	// ReserveLockExpireMs is used by cron job to guarantee that it gets the next lock.
+	ReserveLockExpireMs = 2 * DistributedLockExpireMs
 )
 
 type Config struct {

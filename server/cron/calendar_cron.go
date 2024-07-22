@@ -323,15 +323,15 @@ func processFailingHostExistingCalendarEvent(
 	// Try to acquire the lock. Lock is needed to ensure calendar callback is not processed for this event at the same time.
 	eventUUID := calendarEvent.UUID
 	lockValue := uuid.New().String()
-	lockAcquired, err := distributedLock.AcquireLock(ctx, calendar.LockKeyPrefix+eventUUID, lockValue, 0)
+	lockAcquired, err := distributedLock.AcquireLock(ctx, calendar.LockKeyPrefix+eventUUID, lockValue, calendar.DistributedLockExpireMs)
 	if err != nil {
 		return fmt.Errorf("acquire calendar lock: %w", err)
 	}
 	lockReserved := false
 	if !lockAcquired {
 		// Lock was not acquired. We reserve the lock and try to acquire it until we do.
-		var timeoutMs uint64 = 2 * 60 * 1000
-		lockAcquired, err = distributedLock.AcquireLock(ctx, calendar.ReservedLockKeyPrefix+eventUUID, lockValue, timeoutMs)
+		lockAcquired, err = distributedLock.AcquireLock(ctx, calendar.ReservedLockKeyPrefix+eventUUID, lockValue,
+			calendar.ReserveLockExpireMs)
 		if err != nil {
 			return fmt.Errorf("reserve calendar lock: %w", err)
 		}
@@ -344,12 +344,13 @@ func processFailingHostExistingCalendarEvent(
 		go func() {
 			for {
 				// Keep trying to get the lock.
-				lockAcquired, err = distributedLock.AcquireLock(ctx, calendar.LockKeyPrefix+eventUUID, lockValue, 0)
+				lockAcquired, err = distributedLock.AcquireLock(ctx, calendar.LockKeyPrefix+eventUUID, lockValue,
+					calendar.DistributedLockExpireMs)
 				if err != nil || lockAcquired {
 					done <- struct{}{}
 					return
 				}
-				time.Sleep(100 * time.Millisecond)
+				time.Sleep(200 * time.Millisecond)
 			}
 		}()
 		select {
@@ -358,7 +359,7 @@ func processFailingHostExistingCalendarEvent(
 			if err != nil {
 				return fmt.Errorf("try to acquire calendar lock: %w", err)
 			}
-		case <-time.After(time.Duration(timeoutMs) * time.Millisecond):
+		case <-time.After(time.Duration(calendar.ReserveLockExpireMs) * time.Millisecond):
 			// We couldn't acquire the lock in time.
 			return errors.New("could not acquire calendar lock in time")
 		}
@@ -395,6 +396,7 @@ func processFailingHostExistingCalendarEvent(
 			calendarEvent, func(conflict bool) (string, bool, error) {
 				return calendar.GenerateCalendarEventBody(ctx, ds, orgName, host, policyIDtoPolicy, conflict, logger), true, nil
 			},
+			fleet.CalendarGetAndUpdateEventOpts{UpdateTimezone: true},
 		)
 		if err != nil {
 			return fmt.Errorf("get event calendar on db: %w", err)
@@ -529,7 +531,7 @@ func attemptCreatingEventOnUserCalendar(
 		calendarEvent, err := userCalendar.CreateEvent(
 			preferredDate, func(conflict bool) (string, bool, error) {
 				return calendar.GenerateCalendarEventBody(ctx, ds, orgName, host, policyIDtoPolicy, conflict, logger), true, nil
-			}, nil,
+			}, fleet.CalendarCreateEventOpts{},
 		)
 		var dee fleet.DayEndedError
 		switch {

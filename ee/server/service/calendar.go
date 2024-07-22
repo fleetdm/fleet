@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -218,7 +219,7 @@ func (svc *Service) processCalendarEvent(ctx context.Context, eventDetails *flee
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "configure calendar")
 	}
-	event, updated, err := userCalendar.GetAndUpdateEvent(&eventDetails.CalendarEvent, genBodyFn)
+	event, updated, err := userCalendar.GetAndUpdateEvent(&eventDetails.CalendarEvent, genBodyFn, fleet.CalendarGetAndUpdateEventOpts{})
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "get and update event")
 	}
@@ -239,6 +240,7 @@ func (svc *Service) processCalendarEvent(ctx context.Context, eventDetails *flee
 
 	}
 	if stopChannel {
+		// The cron job could have already stopped the channel. For example, if calendar was disabled.
 		err = userCalendar.StopEventChannel(&eventDetails.CalendarEvent)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "stop event channel")
@@ -274,7 +276,8 @@ func (svc *Service) getCalendarLock(ctx context.Context, eventUUID string, addTo
 	if !reserved {
 		// Try to acquire the lock
 		lockValue = uuid.New().String()
-		lockAcquired, err = svc.distributedLock.AcquireLock(ctx, calendar.LockKeyPrefix+eventUUID, lockValue, 0)
+		lockAcquired, err = svc.distributedLock.AcquireLock(ctx, calendar.LockKeyPrefix+eventUUID, lockValue,
+			calendar.DistributedLockExpireMs)
 		if err != nil {
 			return "", false, ctxerr.Wrap(ctx, err, "acquire calendar lock")
 		}
@@ -293,15 +296,15 @@ func (svc *Service) getCalendarLock(ctx context.Context, eventUUID string, addTo
 		}
 
 		// Try to acquire the lock again in case it was released while we were adding the event to the queue.
-		lockAcquired, err = svc.distributedLock.AcquireLock(ctx, calendar.LockKeyPrefix+eventUUID, lockValue, 0)
+		lockAcquired, err = svc.distributedLock.AcquireLock(ctx, calendar.LockKeyPrefix+eventUUID, lockValue,
+			calendar.DistributedLockExpireMs)
 		if err != nil {
 			return "", false, ctxerr.Wrap(ctx, err, "acquire calendar lock again")
 		}
-
-		if !lockAcquired {
-			// We could not acquire the lock, so we are done here.
-			return "", reserved, nil
-		}
+	}
+	if !lockAcquired {
+		// We could not acquire the lock, so we are done here.
+		return "", reserved, nil
 	}
 	return lockValue, false, nil
 }
@@ -312,15 +315,24 @@ func (svc *Service) processCalendarAsync(ctx context.Context, eventIDs []string)
 		asyncCalendarProcessing = false
 		asyncMutex.Unlock()
 	}()
+	const minLoopTime = time.Second
+	runTime := minLoopTime
 	for {
 		if len(eventIDs) == 0 {
 			return
 		}
+		// We want to make sure we don't run this too often to reduce load on CPU/Redis, so we wait at least a second between runs.
+		if runTime < minLoopTime && runTime > 0 {
+			time.Sleep(minLoopTime - runTime)
+		}
+		start := svc.clock.Now()
 		for _, eventUUID := range eventIDs {
 			if ok := svc.processCalendarEventAsync(ctx, eventUUID); !ok {
 				return
 			}
 		}
+		end := svc.clock.Now()
+		runTime = end.Sub(start)
 
 		// Now we check whether there are any more events in the queue.
 		var err error
