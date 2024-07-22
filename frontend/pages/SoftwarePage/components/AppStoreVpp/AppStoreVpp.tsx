@@ -20,6 +20,7 @@ import { NotificationContext } from "context/notification";
 import { getErrorReason } from "interfaces/errors";
 import { buildQueryStringFromParams } from "utilities/url";
 import SoftwareIcon from "../icons/SoftwareIcon";
+import { getErrorMessage } from "./helpers";
 
 const baseClass = "app-store-vpp";
 
@@ -171,13 +172,7 @@ const AppStoreVpp = ({ teamId, router, onExit }: IAppStoreVppProps) => {
       });
       router.push(`${PATHS.SOFTWARE}?${queryParams}`);
     } catch (e) {
-      const reason = getErrorReason(e);
-      // TODO: update with pre-defined error messages we want to pass through from the API
-      if (reason.toLowerCase().includes("already")) {
-        renderFlash("error", reason);
-      } else {
-        renderFlash("error", "Couldn’t add software. Please try again.");
-      }
+      renderFlash("error", getErrorMessage(e));
     }
     onExit();
   };
