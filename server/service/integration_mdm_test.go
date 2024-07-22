@@ -9752,11 +9752,40 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 
 	getHostSw := getHostSoftwareResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", mdmHost.ID), nil, http.StatusOK, &getHostSw)
-	require.Len(t, getHostSw.Software, 2) // failed and successful
-	require.Equal(t, getHostSw.Software[0].Name, "App 1")
-	require.NotNil(t, getHostSw.Software[0].AppStoreApp)
-	require.Equal(t, getHostSw.Software[1].Name, "App 2")
-	require.NotNil(t, getHostSw.Software[1].AppStoreApp)
+	gotSW := getHostSw.Software
+	require.Len(t, gotSW, 2) // App 1 and App 2
+	got1, got2 := gotSW[0], gotSW[1]
+	require.Equal(t, got1.Name, "App 1")
+	require.NotNil(t, got1.AppStoreApp)
+	require.Equal(t, got1.AppStoreApp.AppStoreID, addedApp.AdamID)
+	require.Equal(t, got1.AppStoreApp.IconURL, ptr.String(addedApp.IconURL))
+	require.Empty(t, got1.AppStoreApp.Name) // Name is only present for installer packages
+	require.Equal(t, got1.AppStoreApp.Version, addedApp.LatestVersion)
+	require.NotNil(t, *got1.Status)
+	require.Equal(t, *got1.Status, fleet.SoftwareInstallerInstalled)
+	require.Equal(t, got2.Name, "App 2")
+	require.NotNil(t, *got2.Status)
+	require.Equal(t, *got2.Status, fleet.SoftwareInstallerFailed)
+	require.NotNil(t, got2.AppStoreApp)
+	require.Equal(t, got2.AppStoreApp.AppStoreID, errApp.AdamID)
+	require.Equal(t, got2.AppStoreApp.IconURL, ptr.String(errApp.IconURL))
+	require.Empty(t, got2.AppStoreApp.Name)
+	require.Equal(t, got2.AppStoreApp.Version, errApp.LatestVersion)
+
+	// Check with a query
+	getHostSw = getHostSoftwareResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", mdmHost.ID), nil, http.StatusOK, &getHostSw, "query", "App 1")
+	require.Len(t, getHostSw.Software, 1) // App 1 only
+	got1 = getHostSw.Software[0]
+	require.Equal(t, got1.Name, "App 1")
+	require.NotNil(t, got1.AppStoreApp)
+	require.NotNil(t, got1.AppStoreApp)
+	require.Equal(t, got1.AppStoreApp.AppStoreID, addedApp.AdamID)
+	require.Equal(t, got1.AppStoreApp.IconURL, ptr.String(addedApp.IconURL))
+	require.Empty(t, got1.AppStoreApp.Name)
+	require.Equal(t, got1.AppStoreApp.Version, addedApp.LatestVersion)
+	require.NotNil(t, *got1.Status)
+	require.Equal(t, *got1.Status, fleet.SoftwareInstallerInstalled)
 
 	// Delete VPP token and check that it's not appearing anymore
 	s.Do("DELETE", "/api/latest/fleet/mdm/apple/vpp_token", &deleteMDMAppleVPPTokenRequest{}, http.StatusNoContent)
