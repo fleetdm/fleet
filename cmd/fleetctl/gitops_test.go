@@ -741,7 +741,6 @@ team_settings:
 	assert.Empty(t, savedTeam.Config.MDM.MacOSSetup.BootstrapPackage.Value)
 	assert.False(t, savedTeam.Config.MDM.EnableDiskEncryption)
 	assert.Equal(t, filepath.Base(tmpFile.Name()), *savedTeam.Filename)
-
 }
 
 func TestBasicGlobalAndTeamGitOps(t *testing.T) {
@@ -1152,7 +1151,7 @@ func TestTeamVPPAppsGitOps(t *testing.T) {
 		{"testdata/gitops/team_vpp_valid_app.yml", "", time.Now().Add(24 * time.Hour)},
 		{"testdata/gitops/team_vpp_valid_empty.yml", "", time.Now().Add(24 * time.Hour)},
 		{"testdata/gitops/team_vpp_valid_empty.yml", "", time.Now().Add(-24 * time.Hour)},
-		{"testdata/gitops/team_vpp_valid_app.yml", "vpp token expired", time.Now().Add(-24 * time.Hour)},
+		{"testdata/gitops/team_vpp_valid_app.yml", "VPP token expired", time.Now().Add(-24 * time.Hour)},
 		{"testdata/gitops/team_vpp_invalid_app.yml", "app not available on vpp account", time.Now().Add(24 * time.Hour)},
 	}
 

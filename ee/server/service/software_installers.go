@@ -286,15 +286,6 @@ func (svc *Service) InstallSoftwareTitle(ctx context.Context, hostID uint, softw
 		return svc.installSoftwareTitleUsingInstaller(ctx, host, installer)
 	}
 
-	config, err := svc.ds.AppConfig(ctx)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "fetching config to check MDM status")
-	}
-
-	if !config.MDM.EnabledAndConfigured {
-		return fleet.NewUserMessageError(errors.New("Couldn't install. MDM is turned off. Please make sure that MDM is turned on to install App Store apps."), http.StatusUnprocessableEntity)
-	}
-
 	vppApp, err := svc.ds.GetVPPAppByTeamAndTitleID(ctx, host.TeamID, softwareTitleID, false)
 	if err != nil {
 		// if we couldn't find an installer or a VPP app, return a bad
@@ -324,6 +315,15 @@ func (svc *Service) installSoftwareFromVPP(ctx context.Context, host *fleet.Host
 				map[string]any{"host_id": host.ID, "team_id": host.TeamID, "title_id": vppApp.TitleID},
 			),
 		}
+	}
+
+	config, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "fetching config to check MDM status")
+	}
+
+	if !config.MDM.EnabledAndConfigured {
+		return fleet.NewUserMessageError(errors.New("Couldn't install. MDM is turned off. Please make sure that MDM is turned on to install App Store apps."), http.StatusUnprocessableEntity)
 	}
 
 	mdmConnected, err := svc.ds.IsHostConnectedToFleetMDM(ctx, host)
