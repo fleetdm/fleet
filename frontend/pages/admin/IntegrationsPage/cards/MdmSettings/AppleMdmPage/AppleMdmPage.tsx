@@ -65,7 +65,7 @@ const AppleMdmPage = ({ router }: { router: InjectedRouter }) => {
     toggleTurnOffMdmModal();
     try {
       await mdmAppleAPI.deleteApplePushCertificate();
-      renderFlash("success", "Apple MDM turned off successfully.");
+      renderFlash("success", "MDM turned off successfully.");
       router.push(PATHS.ADMIN_INTEGRATIONS_MDM);
     } catch (e) {
       renderFlash("error", "Couldn't turn off MDM. Please try again.");
