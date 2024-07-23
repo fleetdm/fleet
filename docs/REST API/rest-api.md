@@ -6287,7 +6287,6 @@ This endpoint returns the list of custom MDM commands that have been executed.
 | host_identifier           | string  | query | The host's `hostname`, `uuid`, or `hardware_serial`. |
 | request_type              | string  | query | The request type to filter commands by. |
 
-
 #### Example
 
 `GET /api/v1/fleet/commands?per_page=5`
