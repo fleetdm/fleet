@@ -9035,7 +9035,7 @@ Returns information about the specified software. By default, `versions` are sor
         "failed": 2,
       }
     },
-    "source": "apps",
+    "source": "apps", # ipad_apps,ios_apps
     "browser": "",
     "hosts_count": 48,
     "versions": [
