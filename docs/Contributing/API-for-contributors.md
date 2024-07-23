@@ -2601,14 +2601,14 @@ Lists the software installed on the current device.
         "name": "GoogleChrome.pkg"
         "version": "125.12.2"
         "self_service": true,
+     	 "last_install": {
+          "install_uuid": "8bbb8ac2-b254-4387-8cba-4d8a0407368b",
+      	  "installed_at": "2024-05-15T15:23:57Z"
+         },
       },
       "app_store_app": null,
       "source": "apps",
       "status": "failed",
-      "last_install": {
-        "install_uuid": "8bbb8ac2-b254-4387-8cba-4d8a0407368b",
-        "installed_at": "2024-05-15T15:23:57Z"
-      },
       "installed_versions": [
         { 
           "version": "121.0",
@@ -2625,7 +2625,6 @@ Lists the software installed on the current device.
       "app_store_app": null,
       "source": "apps",
       "status": null,
-      "last_install": null,
       "installed_versions": [
         { 
           "version": "125.6",
