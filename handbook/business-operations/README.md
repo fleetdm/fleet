@@ -350,7 +350,7 @@ To [change a team member's compensation](https://fleetdm.com/handbook/company/co
 ### Review Fleet's US company benefits
 
 Annually, around mid-year, Fleet will be prompted by Gusto to review company benefits. The goal is to keep changes minimal. Follow these steps:
-1. Log in to your Gusto admin account.
+1. Log in to your [Gusto admin account](https://gusto.com/).
 2. Navigate to "Benefits" and select "Renewal survey".
 3. Complete the survey questions, aiming for minimal changes.
 4. Approximately 2-3 months after survery completion, Gusto will suggest plans based on Fleet's responses. Choose plans with minimal changes.
