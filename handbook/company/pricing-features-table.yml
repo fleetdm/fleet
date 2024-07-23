@@ -784,7 +784,7 @@
   jamfProHasFeature: no
   jamfProtectHasFeature: no
 - industryName: Device inventory
-  description: The device inventory allows help desk technicians to view custom device data and to organize devices with Teams and Labels.
+  description: The device inventory allows help desk technicians to view custom device data.
   documentationUrl: https://fleetdm.com/securing/end-user-self-remediation#set-your-enforcement-standards
   moreInfoUrl: https://github.com/fleetdm/fleet/issues/14415
   tier: Free
@@ -1087,6 +1087,14 @@
   usualDepartment: IT
   productCategories: [Device management]
   pricingTableCategories: [Device management]
+- industryName: Targeted device scoping
+  description: Organize devices with Teams and Labels.
+  tier: Premium
+  jamfProHasFeature: yes
+  jamfProtectHasFeature: yes
+  usualDepartment: IT
+  productCategories: [Device management]
+  pricingTableCategories: [Device management]  
 - industryName: Application deployment
   description: Deploy applications and security agents on macOS, iOS/iPadOS, Linux, Windows, and Android (coming soon) devices. Additionally, install macOS and iOS/iPadOS apps from the App Store.
   tier: Premium
