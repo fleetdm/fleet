@@ -18,7 +18,9 @@ describe("AppleMdmCard", () => {
       />
     );
 
-    expect(screen.getByText("Turn on Apple MDM")).toBeInTheDocument();
+    expect(
+      screen.getByText("Turn on Apple (macOS, iOS, iPadOS) MDM")
+    ).toBeInTheDocument();
   });
 
   it("renders the show details state when there is appleAPNInfo", () => {

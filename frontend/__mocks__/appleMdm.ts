@@ -32,6 +32,7 @@ const DEFAULT_MDM_APPLE_VPP_APP_MOCK: IVppApp = {
   latest_version: "1.0",
   app_store_id: 1,
   added: false,
+  platform: "darwin",
 };
 
 export const createMockVppApp = (overrides?: Partial<IVppApp>): IVppApp => {
