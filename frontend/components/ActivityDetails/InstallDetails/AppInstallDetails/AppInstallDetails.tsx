@@ -1,10 +1,7 @@
 import React from "react";
 import { useQuery } from "react-query";
 
-import {
-  SoftwareInstallStatus,
-  getInstallStatusPredicate,
-} from "interfaces/software";
+import { SoftwareInstallStatus } from "interfaces/software";
 import mdmApi from "services/entities/mdm";
 
 import Modal from "components/Modal";
