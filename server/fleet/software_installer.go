@@ -307,11 +307,10 @@ func SofwareInstallerPlatformFromExtension(ext string) (string, error) {
 // host with installer information if a matching installer exists. This is the
 // payload returned by the "Get host's (device's) software" endpoints.
 type HostSoftwareWithInstaller struct {
-	ID     uint                     `json:"id" db:"id"`
-	Name   string                   `json:"name" db:"name"`
-	Source string                   `json:"source" db:"source"`
-	Status *SoftwareInstallerStatus `json:"status" db:"status"`
-	// LastInstall       *HostSoftwareInstall            `json:"last_install"`
+	ID                uint                            `json:"id" db:"id"`
+	Name              string                          `json:"name" db:"name"`
+	Source            string                          `json:"source" db:"source"`
+	Status            *SoftwareInstallerStatus        `json:"status" db:"status"`
 	InstalledVersions []*HostSoftwareInstalledVersion `json:"installed_versions"`
 
 	// SoftwarePackage provides software installer package information, it is
