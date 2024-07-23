@@ -8786,7 +8786,7 @@ Get a list of all software.
       },
       "app_store_app": null,
       "versions_count": 3,
-      "source": "apps", # ios,ipados
+      "source": "apps", # ios_apps,ipados_apps
       "browser": "",
       "hosts_count": 48,
       "versions": [
