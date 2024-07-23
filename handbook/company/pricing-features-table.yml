@@ -653,8 +653,8 @@
   pricingTableCategories: [Device management]
   waysToUse:
     - description: Send software vulnerability emails to end users to encourage self-remediation.
-- industryName: Automated enrollment
-  description: Automated enrollment for macOS, iOS/iPadOS (coming soon), Windows, and Android (coming soon) devices.
+- industryName: BYOD enrollment
+  description: BYOD enrollment for macOS, iOS/iPadOS (coming soon), Windows, and Android (coming soon) devices.
   documentationUrl: https://fleetdm.com/docs/using-fleet/mdm-migration-guide#migrate-manually-enrolled-hosts
   tier: Free
   jamfProHasFeature: yes
