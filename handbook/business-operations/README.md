@@ -348,6 +348,7 @@ To [change a team member's compensation](https://fleetdm.com/handbook/company/co
 > If the company decides on an additional equity grant as part of a compensation change, note the previous equity and new situation in detail in the "Notes" column of the equity plan. Update the "Grant started?" column to "todo" which adds it to the queue for the next time grants are processed (quarterly).
 
 ### Review Fleet's US company benefits
+
 Annually, around mid-year, Fleet will be prompted by Gusto to review company benefits. The goal is to keep changes minimal. Follow these steps:
 1. Log in to your Gusto admin account.
 2. Navigate to "Benefits" and select "Renewal survey".
