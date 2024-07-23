@@ -9113,6 +9113,8 @@ Returns information about the specified software version.
 
 ### Get available App Store apps
 
+> This is a beta endpoint and it's subject to changes. The beta endpoint isn't intended for use in production environments.
+
 Returns the list of App Store (VPP) apps purchased in Apple Business Manager. Apps that are already added to a team won't be returned.
 
 `GET /api/v1/fleet/software/app_store_apps`
@@ -9153,6 +9155,8 @@ Returns the list of App Store (VPP) apps purchased in Apple Business Manager. Ap
 ```
 
 ### Add App Store app
+
+> This is a beta endpoint and it's subject to changes. The beta endpoint isn't intended for use in production environments.
 
 _Available in Fleet Premium._
 
