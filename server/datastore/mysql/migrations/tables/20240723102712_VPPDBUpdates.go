@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20240701113709, Down_20240701113709)
+	MigrationClient.AddMigration(Up_20240723102712, Down_20240723102712)
 }
 
-func Up_20240701113709(tx *sql.Tx) error {
+func Up_20240723102712(tx *sql.Tx) error {
 	_, err := tx.Exec(`
 -- This table is the VPP equivalent of the "software_installers" table.
 -- This table is also used as a cache of the response from the "Get Assets"
@@ -99,6 +99,6 @@ CREATE TABLE host_vpp_software_installs (
 	return nil
 }
 
-func Down_20240701113709(tx *sql.Tx) error {
+func Down_20240723102712(tx *sql.Tx) error {
 	return nil
 }
