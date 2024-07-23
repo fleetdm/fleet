@@ -34,21 +34,18 @@ Before a routine customer call, the CSM prepares an agenda including the followi
 5. Provide updates to open feature requests (can be done monthly or quarterly)
 6. Provide updates to open bug reports
 
+
 ### Generate an expansion opportunity in Salesforce
-Customer Success Manager's (CSM's) are responsible for developing customer expansion opportunities that are not being worked on in conjunction with an Account Executive (AE). An AE will be assigned by the Chief Revenue Officer (CRO) for large scale expansion opportunities such as bringing on a new Fleet use case or bringing on a new group of hosts to an existing Fleet use case. CSM's manage expansion opportunities for things like host count increase for customer growth and price increases on renewals. Discuss examples of these scenarios with your manager to learn more.
 
-Take the steps below when creating an expansion opportunity in Salesforce:
+[Customer Success Managers (CSMs)](https://fleetdm.com/handbook/customer-success#team) are responsible for developing customer expansion opportunities that are not being worked on in conjunction with an Account Executive (AE). An AE may be assigned by the [Chief Revenue Officer (CRO)](https://fleetdm.com/handbook/sales#team) for large-scale expansion opportunities such as bringing on a new Fleet use case or bringing on a new group of hosts to an existing Fleet use case. CSMs manage expansion opportunities for things like host count increases for customer growth and price increases on renewals. Discuss examples of these scenarios with your manager to learn more. Moving forward, CSM's are responsible for keeping the stage, next steps, and date of next steps fields updated as the opportunity progresses through the sales cycle. Take the steps below when creating an expansion opportunity in Salesforce:
 
-1. Navigate to the customer account record in Salesforce.
-2. Scroll down to the section labeled "Upcoming renewal (± expansions)".
-3. Click the "New" button.
-4. Change the type of opportunity to "Expansion".
-5. Change the opportunity name to reflect the following naming structure: CustomerName_FleetProduct_Expansion_QuarterDue
+1. Navigate to the customer account record in [Salesforce](https://fleetdm.lightning.force.com/lightning/page/home).
+2. Scroll down to the "Upcoming renewal (± expansions)" table (in the "Customer" section) and click "New".
+3. Change the opportunity name to reflect the following naming structure: CustomerName_FleetProduct_Expansion_QuarterDue
     - Example: ABCTestCompany_FleetPremiumMDM_HostExpansion_Q12025
     - Example: ABCTestCompany_FleetPremium_PriceIncreaseExpansion_Q12025
-6. Fill out all the required fields.
-7. Press the "Save" button to complete the opportunity creation process.
-8. Moving forward, CSM's are responsible for keeping the stage, next steps, and date of next steps fields updated as the opportunity progresses through the sales cycle.
+4. Fill out all the required fields making sure to pick "Expansion" in the  "Type" dropdown menu and then click "Save".
+
 
 ### Create customer support issue
 Locate the relevant issue or create it if it doesn't already exist (to avoid duplication, be creative when searching GitHub for issues - it can often take a couple of tries with different keywords to find an existing issue). When creating a new issue, make sure the following:
