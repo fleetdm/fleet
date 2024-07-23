@@ -695,15 +695,8 @@
     - description: Progressively enhance from Nudge to DDM-based OS updates.
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/17295
     - description: Automatically update Windows after the end user reaches a deadline.
-- industryName: Native macOS update reminders
-  description: Send MDM commands to tell end users to update their OS.
-  moreInfoUrl: https://developer.apple.com/documentation/devicemanagement/schedule_an_os_update
-  tier: Free
-  jamfProHasFeature: yes
-  jamfProtectHasFeature: no
-  usualDepartment: IT
-  productCategories: [Device management]
-  pricingTableCategories: [Device management]    
+    - description: Send MDM commands to tell end users to update their OS.
+      moreInfoUrl: https://developer.apple.com/documentation/devicemanagement/schedule_an_os_update    
 - industryName: Send lock and wipe commands
   documentationUrl: https://fleetdm.com/docs/using-fleet/mdm-commands
   waysToUse:
