@@ -203,7 +203,7 @@ func TestGoogleCalendar_GetAndUpdateEvent(t *testing.T) {
 	const baseETag = "event-eTag"
 	const baseEventID = "event-id"
 	const baseResourceID = "resource-id"
-	const baseTzName = "America/New_York"
+	baseTzName := "America/New_York"
 	baseTzLocation, _ := time.LoadLocation(baseTzName)
 	mockAPI.GetEventFunc = func(id, eTag string) (*calendar.Event, error) {
 		assert.Equal(t, baseEventID, id)
@@ -228,7 +228,7 @@ func TestGoogleCalendar_GetAndUpdateEvent(t *testing.T) {
 		StartTime: eventStartTime,
 		EndTime:   time.Now().Add(time.Hour).In(baseTzLocation),
 		Data:      []byte(`{"ID":"` + baseEventID + `","ETag":"` + baseETag + `"}`),
-		TimeZone:  baseTzName,
+		TimeZone:  &baseTzName,
 	}
 
 	// ETag matches
@@ -525,7 +525,7 @@ func TestGoogleCalendar_CreateEvent(t *testing.T) {
 	assert.Equal(t, baseEventID, details.ID)
 	assert.Equal(t, channelUUID, details.ChannelID)
 	assert.Equal(t, baseResourceID, details.ResourceID)
-	assert.Equal(t, tzId, event.TimeZone)
+	assert.Equal(t, tzId, *event.TimeZone)
 
 	// Workday already ended
 	date = time.Now().Add(-48 * time.Hour)

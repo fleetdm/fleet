@@ -384,7 +384,7 @@ No later than the second month of every quarter, we check [Delaware divison of c
 ### Check finances for quirks
 Every quarter, we check Quickbooks Online (QBO) for discrepancies and follow up on quirks.
 1. Check to make sure [bookkeeping quirks](https://docs.google.com/spreadsheets/d/1nuUPMZb1z_lrbaQEcgjnxppnYv_GWOTTo4FMqLOlsWg/edit?usp=sharing) are all accounted for and resolved or in progress toward resolution.
-2. Check balance sheet and profit and loss statements (P&Ls) in QBO against the latest [monthly workbooks](https://drive.google.com/drive/folders/1ben-xJgL5MlMJhIl2OeQpDjbk-pF6eJM) in Google Drive.
+2. Check balance sheet and profit and loss statements (P&Ls) in QBO against the latest [monthly workbooks](https://drive.google.com/drive/folders/1ben-xJgL5MlMJhIl2OeQpDjbk-pF6eJM) in Google Drive. Ensure reports are in the "accural" accounting method.
 3. Reach out to Pilot with any differences or quirks, and ask them to resolve/provide clarity.  This often will need to happen over a call to review sycnhronously.
 4. Once quirks are resolved, note the day it was resolved in the spreadsheet.
 

@@ -236,7 +236,7 @@ The maximum amount of time, in seconds, a connection may be reused.
 
 ##### mysql_sql_mode
 
-Sets the connection `sql_mode`. See [MySQL Reference](https://dev.mysql.com/doc/refman/5.7/en/sql-mode.html) for more details.
+Sets the connection `sql_mode`. See [MySQL Reference](https://dev.mysql.com/doc/refman/8.0/en/sql-mode.html) for more details.
 This setting should not usually be used.
 
 - Default value: `""`
@@ -2247,7 +2247,7 @@ The IAM identity used in this context must be allowed to perform the following a
 AWS secret access key to use for S3 authentication.
 
 - Default value: none
-- Environment variable: `FLEET_S3_SECRET_ACCESS_KEY`
+- Environment variable: `FLEET_S3_SOFTWARE_INSTALLERS_SECRET_ACCESS_KEY`
 - Config file format:
   ```yaml
   s3:
