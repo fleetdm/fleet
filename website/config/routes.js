@@ -282,6 +282,16 @@ module.exports.routes = {
     }
   },
 
+  'GET /deals': {
+    action: 'view-deals',
+    locals: {
+      pageDescriptionForMeta: 'TODO',
+      hideFooterLinks: true,
+      hideStartCTA: true,
+      pageTitleForMeta: 'TODO',
+    }
+  },
+
   //  ╦  ╔═╗╔═╗╔═╗╔═╗╦ ╦  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗
   //  ║  ║╣ ║ ╦╠═╣║  ╚╦╝  ╠╦╝║╣  ║║║╠╦╝║╣ ║   ║ ╚═╗
   //  ╩═╝╚═╝╚═╝╩ ╩╚═╝ ╩   ╩╚═╚═╝═╩╝╩╩╚═╚═╝╚═╝ ╩ ╚═╝
@@ -594,4 +604,5 @@ module.exports.routes = {
   'POST /api/v1/deliver-talk-to-us-form-submission': { action: 'deliver-talk-to-us-form-submission' },
   'POST /api/v1/save-questionnaire-progress': { action: 'save-questionnaire-progress' },
   'POST /api/v1/account/update-start-cta-visibility': { action: 'account/update-start-cta-visibility' },
+  'POST /api/v1/deliver-deal-registration-submission': { action: 'deliver-deal-registration-submission' },
 };
