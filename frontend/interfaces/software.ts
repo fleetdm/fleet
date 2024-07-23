@@ -34,7 +34,7 @@ export interface ISoftware {
   name: string; // e.g., "Figma.app"
   version: string; // e.g., "2.1.11"
   bundle_identifier?: string | null; // e.g., "com.figma.Desktop"
-  source: string; // e.g., "apps"
+  source: string; // "apps" | "ipados" | "ios" | "programs" | ?
   generated_cpe: string;
   vulnerabilities: ISoftwareVulnerability[] | null;
   hosts_count?: number;
@@ -90,7 +90,7 @@ export interface ISoftwareTitle {
   id: number;
   name: string;
   versions_count: number;
-  source: string;
+  source: string; // ipados_apps | ios_apps | apps | ...
   hosts_count: number;
   versions: ISoftwareTitleVersion[] | null;
   software_package: ISoftwarePackage | null;
@@ -103,7 +103,7 @@ export interface ISoftwareTitleDetails {
   name: string;
   software_package: ISoftwarePackage | null;
   app_store_app: IAppStoreApp | null;
-  source: string;
+  source: string; // "apps" | "ios_apps" | "ipados_apps" | ?
   hosts_count: number;
   versions: ISoftwareTitleVersion[] | null;
   bundle_identifier?: string;
@@ -128,7 +128,7 @@ export interface ISoftwareVersion {
   name: string; // e.g., "Figma.app"
   version: string; // e.g., "2.1.11"
   bundle_identifier?: string; // e.g., "com.figma.Desktop"
-  source: string; // e.g., "apps"
+  source: string; // "apps" | "ipados_apps" | "ios_apps" | ?
   browser: string; // e.g., "chrome"
   release: string; // TODO: on software/verions/:id?
   vendor: string;
