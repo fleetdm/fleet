@@ -83,7 +83,6 @@ func main() {
 		fleet.MDMAssetABMKey,
 		fleet.MDMAssetABMToken,
 		fleet.MDMAssetSCEPChallenge,
-		fleet.MDMAssetVPPToken,
 	})
 	if err != nil && !errors.Is(err, mysql.ErrPartialResult) {
 		log.Fatal("retrieving assets from db:", err)
