@@ -240,6 +240,18 @@ without necessarily having a billing card.`
       defaultsTo: '2 - Aware'
     },
 
+    lastNurtureEmailSent: {
+      type: 'string',
+      description: 'The last automated nurture email that was sent to this user (if any)',
+      isIn: [
+        'none',
+        'stage-4',
+        'stage-5',
+        'stage-6',
+      ],
+      deafultsTo: 'none',
+    }
+
     //  ╔═╗╔╦╗╔╗ ╔═╗╔╦╗╔═╗
     //  ║╣ ║║║╠╩╗║╣  ║║╚═╗
     //  ╚═╝╩ ╩╚═╝╚═╝═╩╝╚═╝
