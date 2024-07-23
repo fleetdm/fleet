@@ -4276,7 +4276,7 @@ OS vulnerability data is currently available for Windows and macOS. For other pl
 
 ### Get host's software
 
-> The [new keys/values](https://github.com/fleetdm/fleet/pull/19245/files) added in the app management features are in Beta and may change. You can find the upcoming breaking changes [here](https://github.com/fleetdm/fleet/pull/19291).
+> The [new keys/values](https://github.com/fleetdm/fleet/pull/19245/files) added in the app management features are in beta and may change. You can find the upcoming breaking changes [here](https://github.com/fleetdm/fleet/pull/19291).
 
 `GET /api/v1/fleet/hosts/:id/software`
 
@@ -8658,7 +8658,7 @@ Body: <blob>
 
 ### Delete software
 
-> [This endpoint]((https://github.com/fleetdm/fleet/pull/19245/files)), added in the app management feature, is in Beta and may change. You can find the upcoming breaking changes [here](https://github.com/fleetdm/fleet/pull/19291).
+> [This endpoint]((https://github.com/fleetdm/fleet/pull/19245/files)), added in the app management feature, is in beta and may change. You can find the upcoming breaking changes [here](https://github.com/fleetdm/fleet/pull/19291).
 
 _Available in Fleet Premium._
 
@@ -8718,7 +8718,7 @@ Get the results of a software installation.
 
 ### List software
 
-> The [new keys/values](https://github.com/fleetdm/fleet/pull/19245/files) added in the app management feature are in Beta and may change. You can find the upcoming breaking changes [here](https://github.com/fleetdm/fleet/pull/19291).
+> The [new keys/values](https://github.com/fleetdm/fleet/pull/19245/files) added in the app management feature are in beta and may change. You can find the upcoming breaking changes [here](https://github.com/fleetdm/fleet/pull/19291).
 
 Get a list of all software.
 
@@ -8911,7 +8911,7 @@ Get a list of all software versions.
 
 ### Get software
 
-> The [new keys/values](https://github.com/fleetdm/fleet/pull/19245/files) added in the app management feature are in Beta and may change. You can find the upcoming breaking changes [here](https://github.com/fleetdm/fleet/pull/19291).
+> The [new keys/values](https://github.com/fleetdm/fleet/pull/19245/files) added in the app management feature are in beta and may change. You can find the upcoming breaking changes [here](https://github.com/fleetdm/fleet/pull/19291).
 
 Returns information about the specified software. By default, `versions` are sorted in descending order by the `hosts_count` field.
 
