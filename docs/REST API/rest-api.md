@@ -4276,6 +4276,8 @@ OS vulnerability data is currently available for Windows and macOS. For other pl
 
 ### Get host's software
 
+> This is a beta endpoint and it's subject to changes. The beta endpoint isn't intended for use in production environments.
+
 `GET /api/v1/fleet/hosts/:id/software`
 
 #### Parameters
@@ -8563,6 +8565,8 @@ Deletes the session specified by ID. When the user associated with the session n
 
 ### Add software
 
+> This is a beta endpoint and it's subject to changes. The beta endpoint isn't intended for use in production environments.
+
 _Available in Fleet Premium._
 
 Add a software package to install on macOS, Windows, and Linux (Ubuntu) hosts.
@@ -8624,6 +8628,8 @@ Content-Type: application/octet-stream
 
 ### Download software
 
+> This is a beta endpoint and it's subject to changes. The beta endpoint isn't intended for use in production environments.
+
 _Available in Fleet Premium._
 
 Download a software package.
@@ -8656,6 +8662,8 @@ Body: <blob>
 
 ### Delete software
 
+> This is a beta endpoint and it's subject to changes. The beta endpoint isn't intended for use in production environments.
+
 _Available in Fleet Premium._
 
 Delete a software package.
@@ -8678,6 +8686,8 @@ Delete a software package.
 `Status: 204`
 
 ### Get installation results
+
+> This is a beta endpoint and it's subject to changes. The beta endpoint isn't intended for use in production environments.
 
 _Available in Fleet Premium._
 
@@ -8713,6 +8723,8 @@ Get the results of a software installation.
 ```
 
 ### List software
+
+> This is a beta endpoint and it's subject to changes. The beta endpoint isn't intended for use in production environments.
 
 Get a list of all software.
 
@@ -8904,6 +8916,8 @@ Get a list of all software versions.
 ```
 
 ### Get software
+
+> This is a beta endpoint and it's subject to changes. The beta endpoint isn't intended for use in production environments.
 
 Returns information about the specified software. By default, `versions` are sorted in descending order by the `hosts_count` field.
 
