@@ -1,7 +1,7 @@
 <!-- DO NOT EDIT. This document is automatically generated. -->
 # Understanding host vitals
 
-Following is a summary of the detail queries hardcoded in Fleet used to populate the device details:
+The host vitals query collects the data displayed in the device inventory record for a host in Fleet.
 
 ## battery
 
