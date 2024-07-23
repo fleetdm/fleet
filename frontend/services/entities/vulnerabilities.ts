@@ -40,11 +40,50 @@ export interface IVulnerabilitiesResponse {
   };
 }
 
+// `GET /api/v1/fleet/vulnerabilities/:cve`
 export interface IVulnerabilityResponse {
   vulnerability: IVulnerability;
   os_versions: IVulnerabilityOSVersion[];
   software: IVulnerabilitySoftware[];
 }
+// "vulnerability": {
+//   "cve": "CVE-2022-30190",
+//   "created_at": "2022-06-01T00:15:00Z",
+//   "hosts_count": 1234,
+//   "hosts_count_updated_at": "2023-12-20T15:23:57Z",
+//   "details_link": "https://nvd.nist.gov/vuln/detail/CVE-2022-30190",
+//   "cvss_score": 7.8,// Available in Fleet Premium
+//   "epss_probability": 0.9729,// Available in Fleet Premium
+//   "cisa_known_exploit": false,// Available in Fleet Premium
+//   "cve_published": "2022-06-01T00:15:00Z",// Available in Fleet Premium
+//   "cve_description": "Microsoft Windows Support Diagnostic Tool (MSDT) Remote Code Execution Vulnerability.",// Available in Fleet Premium
+//   "os_versions" : [
+//     {
+//       "os_version_id": 6,
+//       "hosts_count": 200,
+//       "name": "iPadOS 17.0.1", #iOS 17.0.1,#macOS 14.1.2
+//       "name_only": "iPadOS", #iOS,macOS
+//       "version": "14.1.2",
+//       "resolved_in_version": "14.2",
+//       "generated_cpes": [
+//         "cpe:2.3:o:apple:macos:*:*:*:*:*:14.2:*:*",
+//         "cpe:2.3:o:apple:mac_os_x:*:*:*:*:*:14.2:*:*"
+//       ]
+//     }
+//   ],
+//   "software": [
+//     {
+//       "id": 2363,
+//       "name": "Docker Desktop",
+//       "version": "4.9.1",
+//       "source": "ipados", #ios,programs
+//       "browser": "",
+//       "generated_cpe": "cpe:2.3:a:docker:docker_desktop:4.9.1:*:*:*:*:windows:*:*",
+//       "hosts_count": 50,
+//       "resolved_in_version": "5.0.0"
+//     }
+//   ]
+// }
 
 export const getVulnerabilities = ({
   teamId,
