@@ -9820,6 +9820,15 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	installResp = installSoftwareResponse{}
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/install/%d", mdmHost.ID, errTitleID), &installSoftwareRequest{}, http.StatusAccepted, &installResp)
 
+	// Check if the host is listed as pending
+	var listResp listHostsResponse
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "software_status", "pending", "team_id", strconv.Itoa(int(team.ID)), "software_title_id", strconv.Itoa(int(errTitleID)))
+	require.Len(t, listResp.Hosts, 1)
+	require.Equal(t, listResp.Hosts[0].ID, mdmHost.ID)
+	var countResp countHostsResponse
+	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", "pending", "team_id", strconv.Itoa(int(team.ID)), "software_title_id", strconv.Itoa(int(errTitleID)))
+	require.Equal(t, 1, countResp.Count)
+
 	// Simulate failed installation on the host
 	cmd, err := mdmDevice.Idle()
 	var cmdUUID string
@@ -9834,6 +9843,14 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 			require.NoError(t, err)
 		}
 	}
+
+	listResp = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "software_status", "failed", "team_id", strconv.Itoa(int(team.ID)), "software_title_id", strconv.Itoa(int(errTitleID)))
+	require.Len(t, listResp.Hosts, 1)
+	require.Equal(t, listResp.Hosts[0].ID, mdmHost.ID)
+	countResp = countHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", "failed", "team_id", strconv.Itoa(int(team.ID)), "software_title_id", strconv.Itoa(int(errTitleID)))
+	require.Equal(t, 1, countResp.Count)
 
 	s.lastActivityMatches(
 		fleet.ActivityInstalledAppStoreApp{}.ActivityName(),
@@ -9852,6 +9869,10 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	// Trigger install to the host
 	installResp = installSoftwareResponse{}
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/install/%d", mdmHost.ID, titleID), &installSoftwareRequest{}, http.StatusAccepted, &installResp)
+	require.Equal(t, listResp.Hosts[0].ID, mdmHost.ID)
+	countResp = countHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", "pending", "team_id", strconv.Itoa(int(team.ID)), "software_title_id", strconv.Itoa(int(titleID)))
+	require.Equal(t, 1, countResp.Count)
 
 	// Simulate successful installation on the host
 	cmd, err = mdmDevice.Idle()
@@ -9866,6 +9887,13 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 			require.NoError(t, err)
 		}
 	}
+
+	listResp = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "software_status", "installed", "team_id", strconv.Itoa(int(team.ID)), "software_title_id", strconv.Itoa(int(titleID)))
+	require.Len(t, listResp.Hosts, 1)
+	countResp = countHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", "installed", "team_id", strconv.Itoa(int(team.ID)), "software_title_id", strconv.Itoa(int(titleID)))
+	require.Equal(t, 1, countResp.Count)
 
 	s.lastActivityMatches(
 		fleet.ActivityInstalledAppStoreApp{}.ActivityName(),
