@@ -717,7 +717,7 @@
   usualDepartment: IT
   productCategories: [Device management]
   pricingTableCategories: [Device management]
-- industryName: Application management
+- industryName: Application management (coming soon)
   description: Manage updates and patches for apps on macOS, Windows, and Linux computers.
   tier: Premium
   jamfProHasFeature: appleOnly
