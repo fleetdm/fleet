@@ -2987,3 +2987,43 @@ If both `team_id` and `team_name` parameters are included, this endpoint will re
 ##### Default response
 
 `Status: 204`
+
+ ### Run live script
+
+Run a live script and get results back (5 minute timeout). Live scripts only runs on the host if it has no other scripts running.
+
+`POST /api/v1/fleet/scripts/run/sync`
+
+#### Parameters
+
+| Name            | Type    | In   | Description                                      |
+| ----            | ------- | ---- | --------------------------------------------     |
+| host_id         | integer | body | **Required**. The host id to run the script on.  |
+| script_id       | integer | body | The ID of the existing saved script to run. Only one of either `script_id`, `script_name` or `script_contents` can be included in the request; omit this parameter if using `script_contents` or `script_name`.  |
+| script_contents | string  | body | The contents of the script to run. Only one of either `script_contents`, `script_id` or `script_name` can be included in the request; omit this parameter if using `script_id` or `script_name`. |
+| script_name       | string | body | The name of the existing saved script to run. Only one of either `script_name`, `script_id` or `script_contents` can be included in the request; omit this parameter if using `script_contents` or `script_id`.  |
+| team_id       | integer | body | ID of the team the saved script referenced by `script_name` belongs to. Default: `0` (hosts assigned to "No team") |
+
+
+> Note that if both `script_id` and `script_contents` are included in the request, this endpoint will respond with an error.
+
+#### Example
+
+`POST /api/v1/fleet/scripts/run/sync`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "host_id": 1227,
+  "execution_id": "e797d6c6-3aae-11ee-be56-0242ac120002",
+  "script_contents": "echo 'hello'",
+  "output": "hello",
+  "message": "",
+  "runtime": 1,
+  "host_timeout": false,
+  "exit_code": 0
+}
+```
