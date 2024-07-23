@@ -441,7 +441,7 @@ const HostDetailsPage = ({
     ? teams?.find((t) => t.id === host.team_id)?.features
     : config?.features;
 
-  const getOSUpdatesFromMDMConfig = (hostPlatform: string) => {
+  const getOSVersionRequirementFromMDMConfig = (hostPlatform: string) => {
     const mdmConfig = host?.team_id
       ? teams?.find((t) => t.id === host.team_id)?.mdm
       : config?.mdm;
@@ -811,7 +811,9 @@ const HostDetailsPage = ({
           onRefetchHost={onRefetchHost}
           renderActionDropdown={renderActionDropdown}
           osSettings={host?.mdm.os_settings}
-          osVersionRequirement={getOSUpdatesFromMDMConfig(host.platform)}
+          osVersionRequirement={getOSVersionRequirementFromMDMConfig(
+            host.platform
+          )}
           hostMdmDeviceStatus={hostMdmDeviceStatus}
         />
         <TabsWrapper className={`${baseClass}__tabs-wrapper`}>
