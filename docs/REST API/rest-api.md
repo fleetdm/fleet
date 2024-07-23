@@ -4276,7 +4276,7 @@ OS vulnerability data is currently available for Windows and macOS. For other pl
 
 ### Get host's software
 
-> This is a beta endpoint and it's subject to changes. The beta endpoint isn't intended for use in production environments.
+> The [new keys/values](https://github.com/fleetdm/fleet/pull/19245/files) added in the app management features are in Beta and may change. You can find the upcoming breaking changes [here](https://github.com/fleetdm/fleet/pull/19291).
 
 `GET /api/v1/fleet/hosts/:id/software`
 
@@ -8565,8 +8565,6 @@ Deletes the session specified by ID. When the user associated with the session n
 
 ### Add software
 
-> This is a beta endpoint and it's subject to changes. The beta endpoint isn't intended for use in production environments.
-
 _Available in Fleet Premium._
 
 Add a software package to install on macOS, Windows, and Linux (Ubuntu) hosts.
@@ -8628,8 +8626,6 @@ Content-Type: application/octet-stream
 
 ### Download software
 
-> This is a beta endpoint and it's subject to changes. The beta endpoint isn't intended for use in production environments.
-
 _Available in Fleet Premium._
 
 Download a software package.
@@ -8662,7 +8658,7 @@ Body: <blob>
 
 ### Delete software
 
-> This is a beta endpoint and it's subject to changes. The beta endpoint isn't intended for use in production environments.
+> [This endpoint]((https://github.com/fleetdm/fleet/pull/19245/files)), added in the app management feature, is in Beta and may change. You can find the upcoming breaking changes [here](https://github.com/fleetdm/fleet/pull/19291).
 
 _Available in Fleet Premium._
 
@@ -8686,8 +8682,6 @@ Delete a software package.
 `Status: 204`
 
 ### Get installation results
-
-> This is a beta endpoint and it's subject to changes. The beta endpoint isn't intended for use in production environments.
 
 _Available in Fleet Premium._
 
@@ -8724,7 +8718,7 @@ Get the results of a software installation.
 
 ### List software
 
-> This is a beta endpoint and it's subject to changes. The beta endpoint isn't intended for use in production environments.
+> The [new keys/values](https://github.com/fleetdm/fleet/pull/19245/files) added in the app management feature are in Beta and may change. You can find the upcoming breaking changes [here](https://github.com/fleetdm/fleet/pull/19291).
 
 Get a list of all software.
 
@@ -8917,7 +8911,7 @@ Get a list of all software versions.
 
 ### Get software
 
-> This is a beta endpoint and it's subject to changes. The beta endpoint isn't intended for use in production environments.
+> The [new keys/values](https://github.com/fleetdm/fleet/pull/19245/files) added in the app management feature are in Beta and may change. You can find the upcoming breaking changes [here](https://github.com/fleetdm/fleet/pull/19291).
 
 Returns information about the specified software. By default, `versions` are sorted in descending order by the `hosts_count` field.
 
