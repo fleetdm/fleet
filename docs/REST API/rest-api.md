@@ -6284,7 +6284,7 @@ This endpoint returns the list of custom MDM commands that have been executed.
 | per_page                  | integer | query | Results per page.                                                         |
 | order_key                 | string  | query | What to order results by. Can be any field listed in the `results` array example below. |
 | order_direction           | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`. |
-| host_identifier           | integer or string  | query | The host's `hardware_serial`, `uuid`, `osquery_host_id`, `hostname`, or `node_key` |
+| host_identifier           | string  | query | The host's `hostname`, `uuid`, or `hardware_serial`. |
 | request_type              | string  | query | The request type to filter commands by. |
 
 
