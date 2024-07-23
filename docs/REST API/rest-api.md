@@ -9082,8 +9082,45 @@ Retrieves a list of all CVEs affecting software and/or OS versions.
     "has_previous_results": false
   }
 }
+
+```
+##### Default response (no results, known vulnerability)
+
+The search query matches a vulnerability (CVE) that's in Fleet's vulnerability database but hasn't been found on any hosts yet. Learn more [here](../Using%20Fleet/Vulnerability-Processing.md).
+
+`Status: 200`
+
+```json
+{
+  "vulnerabilities": null,
+  "known_vulnerability": true,
+  "count": 0,
+  "counts_updated_at": "2024-02-02T16:40:37Z",
+  "meta": {
+    "has_next_results": false,
+    "has_previous_results": false
+  }
+}
 ```
 
+##### Default response (no results, unknown vulnerability)
+
+The search query includes a vulnerability (CVE) that's not in Fleet's vulnerability database.
+
+`Status: 200`
+
+```json
+{
+  "vulnerabilities": null,
+  "known_vulnerability": false,
+  "count": 0,
+  "counts_updated_at": "2024-02-02T16:40:37Z",
+  "meta": {
+    "has_next_results": false,
+    "has_previous_results": false
+  }
+}
+```
 
 ### Get vulnerability
 
