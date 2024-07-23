@@ -10,7 +10,6 @@ This handbook page details processes specific to working [with](#contact-us) and
 | Quality Assurance Engineer (QA) | <sup><sub> _See [🛩️ Product groups](https://fleetdm.com/handbook/company/product-groups#current-product-groups)_ </sup></sub>
 | Software Engineer               | <sup><sub> _See [🛩️ Product groups](https://fleetdm.com/handbook/company/product-groups#current-product-groups)_ </sup></sub>
 
-
 ## Contact us
 - To **make a request** of this department, [create an issue](https://fleetdm.com/handbook/company/product-groups#current-product-groups) and a team member will get back to you within one business day (If urgent, mention a [team member](#team) in the [#help-engineering](https://fleetdm.slack.com/archives/C019WG4GH0A) Slack channel.
   - Any Fleet team member can [view the kanban boards](https://fleetdm.com/handbook/company/product-groups#current-product-groups) for this department, including pending tasks and the status of new requests.
@@ -28,6 +27,23 @@ The metrics are:
 * Number of bugs closed this week
 
 Each week these are tracked and shared in the weekly KPI sheet by Luke Heath.
+
+### Write a feature guide 
+We write [guides](https://fleetdm.com/guides) for all new features. Feature guides are published before the feature is released so
+that our users understand how the feature is intended to work. A guide is a type of
+article, so the process for writing a guide and article is the same.
+
+1. Review and follow the [Fleet writing style guide](https://fleetdm.com/handbook/company/communications#writing).
+2. Open the [articles folder of our Google drive](https://drive.google.com/drive/folders/1T2Wm28w37wofbbHeedYaqODZTQqpp-Dz).
+3. Find the "Article: Guide Template". 
+4. Right-click the template file and choose "Make a copy". 
+5. Find the new "Copy of Article: Guide Template" file, right-click and select "rename". 
+6. Name the file "Article: [Guide] {feature name}"
+7. Open the template and insert your content into the provided template format. 
+8. Create a [new GitHub
+   issue](https://github.com/fleetdm/fleet/issues/new?assignees=spokanemac&labels=:help-it&title=New%20guide:)
+   with the guide title, and add the `:help-it` label. It will be processed and added to the website
+   by our [Community Advocate](https://fleetdm.com/handbook/engineering#team).
 
 ### Create an engineering-initiated story
 Engineering-initiated stories are types of user stories created by engineers to make technical changes to Fleet. Technical changes should improve the user experience or contributor experience. For example, optimizing SQL that improves the response time of an API endpoint improves user experience by reducing latency. A script that generates common boilerplate, or automated tests to cover important business logic, improves the quality of life for contributors, making them happier and more productive, resulting in faster delivery of features to our customers.
