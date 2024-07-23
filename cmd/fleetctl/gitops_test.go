@@ -41,7 +41,12 @@ func TestFilenameValidation(t *testing.T) {
 func TestBasicGlobalGitOps(t *testing.T) {
 	// Cannot run t.Parallel() because it sets environment variables
 
-	_, ds := runServerWithMockedDS(t)
+	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
+	_, ds := runServerWithMockedDS(
+		t, &service.TestServerOpts{
+			License: license,
+		},
+	)
 
 	ds.BatchSetMDMProfilesFunc = func(
 		ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile,
@@ -77,6 +82,15 @@ func TestBasicGlobalGitOps(t *testing.T) {
 		enrolledSecrets = secrets
 		return nil
 	}
+	ds.LabelIDsByNameFunc = func(ctx context.Context, labels []string) (map[string]uint, error) {
+		return map[string]uint{labels[0]: 1}, nil
+	}
+	ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error) {
+		return &fleet.MDMAppleDeclaration{}, nil
+	}
+	ds.NewJobFunc = func(ctx context.Context, job *fleet.Job) (*fleet.Job, error) {
+		return &fleet.Job{}, nil
+	}
 
 	tmpFile, err := os.CreateTemp(t.TempDir(), "*.yml")
 	require.NoError(t, err)
@@ -90,6 +104,12 @@ func TestBasicGlobalGitOps(t *testing.T) {
 	_, err = tmpFile.WriteString(
 		`
 controls:
+  ios_updates:
+    deadline: "2022-02-02"
+    minimum_version: "17.6"
+  ipados_updates:
+    deadline: "2023-03-03"
+    minimum_version: "18.0"
 queries:
 policies:
 agent_options:
@@ -222,8 +242,17 @@ func TestBasicTeamGitOps(t *testing.T) {
 		return team, nil
 	}
 	ds.LabelIDsByNameFunc = func(ctx context.Context, labels []string) (map[string]uint, error) {
-		require.ElementsMatch(t, labels, []string{fleet.BuiltinLabelMacOS14Plus})
-		return map[string]uint{fleet.BuiltinLabelMacOS14Plus: 1}, nil
+		require.Len(t, labels, 1)
+		switch labels[0] {
+		case fleet.BuiltinLabelMacOS14Plus:
+			return map[string]uint{fleet.BuiltinLabelMacOS14Plus: 1}, nil
+		case fleet.BuiltinLabelIOS:
+			return map[string]uint{fleet.BuiltinLabelIOS: 2}, nil
+		case fleet.BuiltinLabelIPadOS:
+			return map[string]uint{fleet.BuiltinLabelIPadOS: 3}, nil
+		default:
+			return nil, &notFoundError{}
+		}
 	}
 	ds.DeleteMDMAppleDeclarationByNameFunc = func(ctx context.Context, teamID *uint, name string) error {
 		return nil
@@ -231,10 +260,15 @@ func TestBasicTeamGitOps(t *testing.T) {
 	ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, teamID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
 		return nil
 	}
-
 	ds.ApplyEnrollSecretsFunc = func(ctx context.Context, teamID *uint, secrets []*fleet.EnrollSecret) error {
 		enrolledTeamSecrets = secrets
 		return nil
+	}
+	ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error) {
+		return &fleet.MDMAppleDeclaration{}, nil
+	}
+	ds.NewJobFunc = func(ctx context.Context, job *fleet.Job) (*fleet.Job, error) {
+		return &fleet.Job{}, nil
 	}
 
 	tmpFile, err := os.CreateTemp(t.TempDir(), "*.yml")
@@ -245,6 +279,12 @@ func TestBasicTeamGitOps(t *testing.T) {
 	_, err = tmpFile.WriteString(
 		`
 controls:
+  ios_updates:
+    deadline: "2024-10-10"
+    minimum_version: "18.0"
+  ipados_updates:
+    deadline: "2025-11-11"
+    minimum_version: "17.6"
 queries:
 policies:
 agent_options:
@@ -726,7 +766,6 @@ team_settings:
 	assert.Empty(t, savedTeam.Config.MDM.MacOSSetup.BootstrapPackage.Value)
 	assert.False(t, savedTeam.Config.MDM.EnableDiskEncryption)
 	assert.Equal(t, filepath.Base(tmpFile.Name()), *savedTeam.Filename)
-
 }
 
 func TestBasicGlobalAndTeamGitOps(t *testing.T) {
