@@ -37,6 +37,16 @@ func Up_20240717171504(tx *sql.Tx) error {
 		return fmt.Errorf("failed to create index cve_team_id_global_stats: %w", err)
 	}
 
+	stmt = `
+	UPDATE vulnerability_host_counts
+	SET global_stats = 1
+	WHERE team_id = 0
+	`
+	_, err = tx.Exec(stmt)
+	if err != nil {
+		return fmt.Errorf("failed to update global_stats for team_id = 0: %w", err)
+	}
+
 	return nil
 }
 
