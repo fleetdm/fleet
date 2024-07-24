@@ -9822,14 +9822,14 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 
 	// Simulate failed installation on the host
 	cmd, err := mdmDevice.Idle()
-	var cmdUUID string
+	var failedCmdUUID string
 	require.NoError(t, err)
 	for cmd != nil {
 		var fullCmd micromdm.CommandPayload
 		switch cmd.Command.RequestType {
 		case "InstallApplication":
 			require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
-			cmdUUID = cmd.CommandUUID
+			failedCmdUUID = cmd.CommandUUID
 			cmd, err = mdmDevice.Err(cmd.CommandUUID, []mdm.ErrorChain{{ErrorCode: 1234}})
 			require.NoError(t, err)
 		}
@@ -9843,7 +9843,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 			mdmHost.DisplayName(),
 			errApp.Name,
 			errApp.AdamID,
-			cmdUUID,
+			failedCmdUUID,
 			fleet.SoftwareInstallerFailed,
 		),
 		0,
@@ -9854,6 +9854,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/install/%d", mdmHost.ID, titleID), &installSoftwareRequest{}, http.StatusAccepted, &installResp)
 
 	// Simulate successful installation on the host
+	var cmdUUID string
 	cmd, err = mdmDevice.Idle()
 	require.NoError(t, err)
 	for cmd != nil {
@@ -9896,6 +9897,8 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	require.Equal(t, got1.AppStoreApp.Version, addedApp.LatestVersion)
 	require.NotNil(t, *got1.Status)
 	require.Equal(t, *got1.Status, fleet.SoftwareInstallerInstalled)
+	require.Equal(t, got1.AppStoreApp.LastInstall.CommandUUID, cmdUUID)
+	require.NotNil(t, got1.AppStoreApp.LastInstall.InstalledAt)
 	require.Equal(t, got2.Name, "App 2")
 	require.NotNil(t, *got2.Status)
 	require.Equal(t, *got2.Status, fleet.SoftwareInstallerFailed)
@@ -9904,6 +9907,8 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	require.Equal(t, got2.AppStoreApp.IconURL, ptr.String(errApp.IconURL))
 	require.Empty(t, got2.AppStoreApp.Name)
 	require.Equal(t, got2.AppStoreApp.Version, errApp.LatestVersion)
+	require.Equal(t, got2.AppStoreApp.LastInstall.CommandUUID, failedCmdUUID)
+	require.NotNil(t, got2.AppStoreApp.LastInstall.InstalledAt)
 
 	// Check with a query
 	getHostSw = getHostSoftwareResponse{}

@@ -339,8 +339,9 @@ type SoftwarePackageOrApp struct {
 // HostSoftwareInstall represents installation of software on a host from a
 // Fleet software installer.
 type HostSoftwareInstall struct {
-	InstallUUID string    `json:"install_uuid" db:"install_id"`
-	InstalledAt time.Time `json:"installed_at" db:"installed_at"`
+	InstallUUID string    `json:"install_uuid,omitempty"`
+	CommandUUID string    `json:"command_uuid,omitempty"`
+	InstalledAt time.Time `json:"installed_at"`
 }
 
 // HostSoftwareInstalledVersion represents a version of software installed on a

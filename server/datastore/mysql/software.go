@@ -2327,7 +2327,7 @@ AND EXISTS (SELECT 1 FROM software s JOIN software_cve scve ON scve.software_id 
 			// promote the last install info to the proper destination fields
 			if hs.LastInstallInstallUUID != nil && *hs.LastInstallInstallUUID != "" {
 				hs.AppStoreApp.LastInstall = &fleet.HostSoftwareInstall{
-					InstallUUID: *hs.LastInstallInstallUUID,
+					CommandUUID: *hs.LastInstallInstallUUID,
 				}
 				if hs.LastInstallInstalledAt != nil {
 					hs.AppStoreApp.LastInstall.InstalledAt = *hs.LastInstallInstalledAt
