@@ -4,7 +4,9 @@ parasails.registerPage('deals', {
   //  ╩╝╚╝╩ ╩ ╩╩ ╩╩═╝  ╚═╝ ╩ ╩ ╩ ╩ ╚═╝
   data: {
     // Form data
-    formData: { /* … */ },
+    formData: {
+      submittersOrganization: 'CDW',
+    },
 
     // For tracking client-side validation errors in our form.
     // > Has property set to `true` for each invalid property in `formData`.
@@ -14,16 +16,14 @@ parasails.registerPage('deals', {
     formRules: {
       submittersFirstName: { required: true },
       submittersLastName: { required: true },
-      submittersEmailAddress: { required: true },
+      submittersEmailAddress: { required: true, isEmail: true },
       submittersOrganization: { required: true },
       customersFirstName: { required: true },
       customersLastName: { required: true },
-      customersEmailAddress: { required: true },
+      customersEmailAddress: { required: true, isEmail: true },
       customersOrganization: { required: true },
-      customersCurrentMdm: { required: true },
       expectedDealSize: { required: true },
       expectedCloseDate: { required: true },
-      notes: { required: true },
     },
     // Syncing / loading state
     syncing: false,
@@ -54,6 +54,9 @@ parasails.registerPage('deals', {
       this.showSuccessMessage = false;
       this.cloudError = '';
       this.formErrors = {};
+      this.formData = {
+        submittersOrganization: 'CDW',
+      };
       await this.forceRender();
     },
 

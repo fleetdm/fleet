@@ -30,7 +30,7 @@
             </div>
             <div class="form-group">
               <label for="submitters-organization">Organization *</label>
-              <input class="form-control" id="submitters-organization" type="text"  :class="[formErrors.submittersOrganization ? 'is-invalid' : '']" v-model.trim="formData.submittersOrganization" @input="typeClearOneFormError('submittersOrganization')">
+              <input class="form-control" id="submitters-organization" type="text" disabled  :class="[formErrors.submittersOrganization ? 'is-invalid' : '']" v-model.trim="formData.submittersOrganization" @input="typeClearOneFormError('submittersOrganization')">
               <div class="invalid-feedback" v-if="formErrors.submittersOrganization">Please enter the name of your organization.</div>
             </div>
           </div>
@@ -69,9 +69,8 @@
           </div>
           <div purpose="form-section">
             <div class="form-group">
-              <label for="current-mdm">Current MDM provider *</label>
-              <input class="form-control" id="current-mdm"  :class="[formErrors.customersCurrentMdm ? 'is-invalid' : '']" v-model.trim="formData.customersCurrentMdm" @input="typeClearOneFormError('customersCurrentMdm')">
-              <div class="invalid-feedback" v-if="formErrors.customersCurrentMdm" focus-first>Please enter the name of the customer's current MDM provider</div>
+              <label for="current-mdm">Current MDM provider</label>
+              <input class="form-control" id="current-mdm" v-model.trim="formData.customersCurrentMdm" @input="typeClearOneFormError('customersCurrentMdm')">
             </div>
             <div class="form-group">
               <label for="other-mdm-evaluated">Other MDMs being evaluated</label>
@@ -99,9 +98,8 @@
               <div class="invalid-feedback" v-if="formErrors.expectedCloseDate" focus-first>Please provide an expected close date</div>
             </div>
             <div class="form-group">
-              <label for="notes">Notes *</label>
-              <textarea class="form-control" id="notes" type="textarea"  :class="[formErrors.notes ? 'is-invalid' : '']" v-model.trim="formData.notes" @input="typeClearOneFormError('notes')"></textarea>
-              <div class="invalid-feedback" v-if="formErrors.notes" focus-first>Please provide some more information about this deal.</div>
+              <label for="notes">Notes</label>
+              <textarea class="form-control" id="notes" type="textarea" v-model.trim="formData.notes" @input="typeClearOneFormError('notes')"></textarea>
             </div>
           </div>
           <cloud-error purpose="cloud-error" v-if="cloudError"></cloud-error>
