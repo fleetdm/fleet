@@ -235,7 +235,7 @@ Fleet uses skip-level 1:1 meetings as a recurring pulse check to encourage [valu
 3. Link the skip-level agenda in the calendar event description before saving.
 
 
-### Zoom
+## Zoom
 
 We use [Zoom](https://zoom.us) for virtual meetings at Fleet, and it is important that every team member feels comfortable hosting, joining, and scheduling Zoom meetings.
 By default, Zoom settings are the same for all Fleet team members, but you can change your personal settings on your [profile settings](https://zoom.us/profile/setting) page. 
@@ -269,6 +269,15 @@ Here are some tips for troubleshooting Gong:
 ### Excluding calls from being recorded
 
 For those with a Gong seat or scheduling a call with someone in attendance that has a Gong seat who does not wish for their Zoom call with an external party to record, make sure your calendar event title contains `[no shadows]`.  You can also read the [complete list of exclusion rules](https://docs.google.com/document/d/1OOxLajvqf-on5I8viN7k6aCzqEWS2B24_mE47OefutE/edit?usp=sharing).
+
+
+### Sharing a local Zoom recording 
+
+In some instances, you may need to record a call locally (i.e. save the recording on your computer and not in the cloud ☁️). You can use the following steps to upload the call recording:
+1. Log into [Zoom](https://zoom.us/recording) using SSO (Single-Sign-On) and go to "Recordings". 
+2. After the recording is finished processing (which sometimes can take a couple of hours), you will see the hotdog (or "overflow menu") menu appear. Select the call you want to share and use the hotdog menu to download all files.
+3. Rename the mp4 file to match the meeting name and prefix it with the date of the recording (e.g. "YYYY-MM-DD *Name of the calendar event*").
+4. Upload the mp4 recording to the [whiteboards folder](https://drive.google.com/drive/u/0/folders/1prO98fmB2WKzpubZ2-z0sju9dQ4ijpNE) in Google Drive.
 
 
 ## Levels of confidentiality
