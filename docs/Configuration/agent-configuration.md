@@ -452,11 +452,6 @@ The `script_execution_timeout` allows you to change the default script execution
 - Config file format:
   ```yaml
   agent_options:
-    config:
-      options:
-        distributed_interval: 3
-        distributed_tls_max_attempts: 3
-        logger_tls_period: 10
     script_execution_timeout: 600
   ```
 
