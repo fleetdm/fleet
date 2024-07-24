@@ -76,7 +76,7 @@ export interface IVulnerabilityResponse {
 //       "id": 2363,
 //       "name": "Docker Desktop",
 //       "version": "4.9.1",
-//       "source": "ipados", #ios,programs
+//       "source": "ipados_apps", # | ios_apps | programs | ...
 //       "browser": "",
 //       "generated_cpe": "cpe:2.3:a:docker:docker_desktop:4.9.1:*:*:*:*:windows:*:*",
 //       "hosts_count": 50,
