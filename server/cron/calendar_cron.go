@@ -473,7 +473,7 @@ func processFailingHostExistingCalendarEvent(
 	}
 	if now.After(updatedEvent.EndTime) {
 		return fmt.Errorf(
-			"unexpected event in the past: now=%s, start_time=%s, end_time=%s",
+			"unexpected event in the past: now=%s, start_time=%s, end_time=%s -- check calendar API quota usage and infrastructure load",
 			now, updatedEvent.StartTime, updatedEvent.EndTime,
 		)
 	}
