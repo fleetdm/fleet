@@ -8761,7 +8761,7 @@ func (s *integrationTestSuite) TestListVulnerabilities() {
 	require.False(t, resp.Meta.HasPreviousResults)
 	require.False(t, resp.Meta.HasNextResults)
 
-	// Test Team 1 Filter
+	// Team 1 Filter
 	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities", nil, http.StatusOK, &resp, "team_id", "1")
 	require.Len(s.T(), resp.Vulnerabilities, 0)
 
@@ -8788,9 +8788,17 @@ func (s *integrationTestSuite) TestListVulnerabilities() {
 		require.Empty(t, vuln.CVSSScore)
 	}
 
-	// Test Team 0 Filter
+	// No filter (global)
+	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities", nil, http.StatusOK, &resp)
+	require.Len(t, resp.Vulnerabilities, 3)
+	require.Equal(t, uint(3), resp.Count)
+	require.Equal(t, uint(1), resp.Vulnerabilities[0].HostsCount)
+	require.Equal(t, uint(1), resp.Vulnerabilities[1].HostsCount)
+	require.Equal(t, uint(1), resp.Vulnerabilities[2].HostsCount)
+
+	// Team 0 Filter
 	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities", nil, http.StatusOK, &resp, "team_id", "0")
-	require.Len(s.T(), resp.Vulnerabilities, 1)
+	require.Len(t, resp.Vulnerabilities, 1)
 	require.Equal(t, uint(1), resp.Count)
 	require.Equal(t, "CVE-2021-1246", resp.Vulnerabilities[0].CVE.CVE)
 	require.Equal(t, uint(1), resp.Vulnerabilities[0].HostsCount)
