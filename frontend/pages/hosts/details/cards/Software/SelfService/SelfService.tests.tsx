@@ -71,10 +71,6 @@ describe("SelfService", () => {
           createMockDeviceSoftware({
             name: "test-software",
             status: "installed",
-            last_install: {
-              install_uuid: "test-uuid",
-              installed_at: "2021-08-18T15:11:35Z",
-            },
           }),
         ],
       })

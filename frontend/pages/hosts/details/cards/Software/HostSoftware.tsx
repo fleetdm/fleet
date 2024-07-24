@@ -2,7 +2,6 @@ import React, { useCallback, useContext, useMemo, useState } from "react";
 import { InjectedRouter } from "react-router";
 import { useQuery } from "react-query";
 import { AxiosError } from "axios";
-import { trimEnd, upperFirst } from "lodash";
 
 import hostAPI, {
   IGetHostSoftwareResponse,
@@ -12,7 +11,6 @@ import deviceAPI, {
   IDeviceSoftwareQueryKey,
   IGetDeviceSoftwareResponse,
 } from "services/entities/device_user";
-import { getErrorReason } from "interfaces/errors";
 import { IHostSoftware, ISoftware } from "interfaces/software";
 import { DEFAULT_USE_QUERY_OPTIONS, SUPPORT_LINK } from "utilities/constants";
 import { NotificationContext } from "context/notification";
