@@ -62,6 +62,9 @@ const MainContent = ({
       config?.license.expiration || ""
     );
 
+    const isVppExpired = true;
+    const willVppExpireIn30Days = true;
+
     let banner: JSX.Element | null = null;
 
     if (isPremiumTier) {
@@ -73,10 +76,10 @@ const MainContent = ({
         banner = <AppleBMTermsMessage />;
       } else if (isFleetLicenseExpired) {
         banner = <LicenseExpirationBanner />;
+      } else if (isVppExpired) {
+        banner = <VppRenewalMessage expired={willVppExpireIn30Days} />;
       }
     }
-
-    banner = <VppRenewalMessage expired={false} />;
 
     if (banner) {
       return <div className={`${baseClass}__warning-banner`}>{banner}</div>;
