@@ -79,7 +79,7 @@ func NewService(
 		DeleteMDMAppleBootstrapPackage:    eeservice.DeleteMDMAppleBootstrapPackage,
 		MDMWindowsEnableOSUpdates:         eeservice.mdmWindowsEnableOSUpdates,
 		MDMWindowsDisableOSUpdates:        eeservice.mdmWindowsDisableOSUpdates,
-		MDMAppleEditedMacOSUpdates:        eeservice.mdmAppleEditedMacOSUpdates,
+		MDMAppleEditedAppleOSUpdates:      eeservice.mdmAppleEditedAppleOSUpdates,
 	})
 
 	return eeservice, nil

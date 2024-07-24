@@ -1239,6 +1239,32 @@ func (c *Client) DoGitOps(
 	if deadline, ok := macOSUpdates["deadline"]; !ok || deadline == nil {
 		macOSUpdates["deadline"] = ""
 	}
+	// Put in default values for ios_updates
+	if config.Controls.IOSUpdates != nil {
+		mdmAppConfig["ios_updates"] = config.Controls.IOSUpdates
+	} else {
+		mdmAppConfig["ios_updates"] = map[string]interface{}{}
+	}
+	iOSUpdates := mdmAppConfig["ios_updates"].(map[string]interface{})
+	if minimumVersion, ok := iOSUpdates["minimum_version"]; !ok || minimumVersion == nil {
+		iOSUpdates["minimum_version"] = ""
+	}
+	if deadline, ok := iOSUpdates["deadline"]; !ok || deadline == nil {
+		iOSUpdates["deadline"] = ""
+	}
+	// Put in default values for ipados_updates
+	if config.Controls.IPadOSUpdates != nil {
+		mdmAppConfig["ipados_updates"] = config.Controls.IPadOSUpdates
+	} else {
+		mdmAppConfig["ipados_updates"] = map[string]interface{}{}
+	}
+	iPadOSUpdates := mdmAppConfig["ipados_updates"].(map[string]interface{})
+	if minimumVersion, ok := iPadOSUpdates["minimum_version"]; !ok || minimumVersion == nil {
+		iPadOSUpdates["minimum_version"] = ""
+	}
+	if deadline, ok := iPadOSUpdates["deadline"]; !ok || deadline == nil {
+		iPadOSUpdates["deadline"] = ""
+	}
 	// Put in default values for macos_setup
 	if config.Controls.MacOSSetup != nil {
 		mdmAppConfig["macos_setup"] = config.Controls.MacOSSetup
