@@ -79,6 +79,3 @@ software:
     - url: https://zoom.us/client/latest/Zoom.pkg?archType=arm64
       pre_install_query: ../lib/macos-arm.queries.yml
       self_service: true
-    - url: https://zoom.us/client/latest/Zoom.pkg
-      pre_install_query: ../lib/macos-intel.queries.yml
-      self_service: true
