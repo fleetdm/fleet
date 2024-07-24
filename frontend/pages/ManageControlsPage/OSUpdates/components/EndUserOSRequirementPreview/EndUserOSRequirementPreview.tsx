@@ -76,6 +76,7 @@ const OSRequirementDescription = ({
       </>
     );
   }
+  return <></>;
 };
 
 type IOSRequirementImageProps = IOSRequirementDescriptionProps;
