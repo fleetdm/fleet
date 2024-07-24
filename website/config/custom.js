@@ -390,6 +390,8 @@ module.exports.custom = {
   // customerWorkspaceOneOauthSecret: '…',
   // customerMigrationWebhookSecret: '…',
 
+  // For nurture emails:
+  // contactEmailForNutureEmails: '…'
   //…
 
 };
