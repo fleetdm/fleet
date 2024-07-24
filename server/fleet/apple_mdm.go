@@ -863,8 +863,8 @@ type MDMAppleMachineInfo struct {
 const MDMAppleSoftwareUpdateRequiredCode = "com.apple.softwareupdate.required"
 
 type MDMAppleSoftwareUpdateRequiredDetails struct {
-	OSVersion    string `json:"os_version"`
-	BuildVersion string `json:"build_version"`
+	OSVersion    string `json:"OSVersion"`
+	BuildVersion string `json:"BuildVersion"`
 }
 
 type MDMAppleSoftwareUpdateRequired struct {
