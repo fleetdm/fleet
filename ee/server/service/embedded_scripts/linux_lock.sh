@@ -29,4 +29,15 @@ do
     fi
 done
 
+logged_in=$(users | tr ' ' '\n' | sort  | uniq)
+
+# Logout any non-passwd users
+for user in $logged_in; do
+    echo "Logging out $user"
+    pkill -KILL -u "$user"
+done
+
+# Create the pam_nologin file and provide an error message
+echo "Locked by Fleet" > /etc/nologin
+
 echo "All non-root users have been logged out and their accounts locked."
