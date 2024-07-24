@@ -91,11 +91,14 @@ type IInstallStatusCellProps = IHostSoftware;
 
 const InstallStatusCell = ({
   status,
-  last_install,
   software_package,
   app_store_app,
 }: IInstallStatusCellProps) => {
-  const lastInstalledAt = last_install?.installed_at;
+  // FIXME: Improve the way we handle polymophism of software_package and app_store_app
+  const lastInstalledAt =
+    software_package?.last_install?.installed_at ||
+    app_store_app?.last_install?.installed_at ||
+    "";
   const hasPackage = !!software_package;
   const hasAppStoreApp = !!app_store_app;
 

@@ -20,7 +20,6 @@ const DEFAULT_DEVICE_SOFTWARE_MOCK: IDeviceSoftware = {
   source: "apps",
   bundle_identifier: "com.app.mock",
   status: null,
-  last_install: null,
   installed_versions: null,
   software_package: createMockHostSoftwarePackage(),
   app_store_app: null,

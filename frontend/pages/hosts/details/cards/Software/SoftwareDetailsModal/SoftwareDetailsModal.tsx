@@ -3,10 +3,10 @@ import { Tab, TabList, TabPanel, Tabs } from "react-tabs";
 
 import {
   IHostSoftware,
-  IHostSoftwareWithLastInstall,
   ISoftwareInstallVersion,
   formatSoftwareType,
-  hasLastInstall,
+  hasHostSoftwareAppLastInstall,
+  hasHostSoftwarePackageLastInstall,
 } from "interfaces/software";
 
 import Modal from "components/Modal";
@@ -130,12 +130,40 @@ const SoftwareDetailsContent = ({
   );
 };
 
+const InstallDetailsContent = ({
+  hostDisplayName,
+  software,
+}: {
+  hostDisplayName: string;
+  software: IHostSoftware;
+}) => {
+  if (hasHostSoftwareAppLastInstall(software)) {
+    return (
+      <AppInstallDetails
+        command_uuid={software.app_store_app.last_install.command_uuid}
+        host_display_name={hostDisplayName}
+        software_title={software.name}
+        status={software.status || undefined} // FIXME: we have a type mismatch here; as a workaroud this will coerce null to undefined, which in turn defaults to "pending"
+      />
+    );
+  } else if (hasHostSoftwarePackageLastInstall(software)) {
+    return (
+      <SoftwareInstallDetails
+        installUuid={software.software_package.last_install.install_uuid}
+      />
+    );
+  }
+
+  // caller should ensure this nevers happen
+  return null;
+};
+
 const TabsContent = ({
   hostDisplayName,
   software,
 }: {
   hostDisplayName: string;
-  software: IHostSoftwareWithLastInstall;
+  software: IHostSoftware;
 }) => {
   return (
     <TabsWrapper>
@@ -148,20 +176,10 @@ const TabsContent = ({
           <SoftwareDetailsContent software={software} />
         </TabPanel>
         <TabPanel>
-          {software.app_store_app ? (
-            <AppInstallDetails
-              command_uuid={software.last_install.install_uuid}
-              host_display_name={hostDisplayName}
-              software_title={software.name}
-              status={
-                software.status || undefined // FIXME: we have a type mismatch here; as a workaroud this will coerce null to undefined, which in turn defaults to "pending"
-              }
-            />
-          ) : (
-            <SoftwareInstallDetails
-              installUuid={software.last_install.install_uuid || ""}
-            />
-          )}
+          <InstallDetailsContent
+            hostDisplayName={hostDisplayName}
+            software={software}
+          />
         </TabPanel>
       </Tabs>
     </TabsWrapper>
@@ -173,10 +191,13 @@ const SoftwareDetailsModal = ({
   software,
   onExit,
 }: ISoftwareDetailsModalProps) => {
+  const hasLastInstall =
+    hasHostSoftwarePackageLastInstall(software) ||
+    hasHostSoftwareAppLastInstall(software);
   return (
     <Modal title={software.name} className={baseClass} onExit={onExit}>
       <>
-        {!hasLastInstall(software) ? (
+        {!hasLastInstall ? (
           <SoftwareDetailsContent software={software} />
         ) : (
           <TabsContent hostDisplayName={hostDisplayName} software={software} />

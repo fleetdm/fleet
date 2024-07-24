@@ -235,6 +235,11 @@ export interface ISoftwareLastInstall {
   installed_at: string;
 }
 
+export interface IAppLastInstall {
+  command_uuid: string;
+  installed_at: string;
+}
+
 export interface ISoftwareInstallVersion {
   version: string;
   last_opened_at: string | null;
@@ -247,6 +252,7 @@ export interface IHostSoftwarePackage {
   self_service: boolean;
   icon_url: string;
   version: string;
+  last_install: ISoftwareLastInstall | null;
 }
 
 export interface IHostAppStoreApp {
@@ -254,6 +260,7 @@ export interface IHostAppStoreApp {
   self_service: boolean;
   icon_url: string;
   version: string;
+  last_install: IAppLastInstall | null;
 }
 
 export interface IHostSoftware {
@@ -264,7 +271,6 @@ export interface IHostSoftware {
   source: string;
   bundle_identifier?: string;
   status: SoftwareInstallStatus | null;
-  last_install: ISoftwareLastInstall | null;
   installed_versions: ISoftwareInstallVersion[] | null;
 }
 
@@ -292,12 +298,26 @@ export const INSTALL_STATUS_ICONS: Record<SoftwareInstallStatus, IconNames> = {
   failed: "error-outline",
 } as const;
 
-export type IHostSoftwareWithLastInstall = IHostSoftware & {
+type IHostSoftwarePackageWithLastInstall = IHostSoftwarePackage & {
   last_install: ISoftwareLastInstall;
 };
 
-export const hasLastInstall = (
+export const hasHostSoftwarePackageLastInstall = (
   software: IHostSoftware
-): software is IHostSoftwareWithLastInstall => {
-  return !!software.last_install;
+): software is IHostSoftware & {
+  software_package: IHostSoftwarePackageWithLastInstall;
+} => {
+  return !!software.software_package?.last_install;
+};
+
+type IHostAppWithLastInstall = IHostAppStoreApp & {
+  last_install: IAppLastInstall;
+};
+
+export const hasHostSoftwareAppLastInstall = (
+  software: IHostSoftware
+): software is IHostSoftware & {
+  app_store_app: IHostAppWithLastInstall;
+} => {
+  return !!software.app_store_app?.last_install;
 };

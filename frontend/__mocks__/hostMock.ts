@@ -145,6 +145,10 @@ const DEFAULT_HOST_SOFTWARE_PACKAGE_MOCK: IHostSoftwarePackage = {
   version: "1.0.0",
   self_service: false,
   icon_url: "https://example.com/icon.png",
+  last_install: {
+    install_uuid: "123-abc",
+    installed_at: "2022-01-01T12:00:00Z",
+  },
 };
 
 export const createMockHostSoftwarePackage = (
@@ -158,6 +162,7 @@ const DEFAULT_HOST_APP_STORE_APP_MOCK: IHostAppStoreApp = {
   version: "1.0.0",
   self_service: false,
   icon_url: "https://via.placeholder.com/512",
+  last_install: null,
 };
 
 export const createMockHostAppStoreApp = (
@@ -174,10 +179,6 @@ const DEFAULT_HOST_SOFTWARE_MOCK: IHostSoftware = {
   source: "apps",
   bundle_identifier: "com.test.mock",
   status: "installed",
-  last_install: {
-    install_uuid: "123-abc",
-    installed_at: "2022-01-01T12:00:00Z",
-  },
   installed_versions: [
     {
       version: "1.0.0",
