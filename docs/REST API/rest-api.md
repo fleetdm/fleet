@@ -9052,8 +9052,8 @@ Retrieves a list of all CVEs affecting software and/or OS versions.
 | order_direction | string | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`. |
 | query | string | query | Search query keywords. Searchable fields include `cve`. |
 | exploit | boolean | query | _Available in Fleet Premium_. If `true`, filters to only include vulnerabilities that have been actively exploited in the wild (`cisa_known_exploit: true`). Otherwise, includes vulnerabilities with any `cisa_known_exploit` value.  |
-
-
+| min_cvss_score | integer | query | _Available in Fleet Premium_. Filters to only include vulnerabilities with a CVSS version 3.x base score higher than what's specified.   |
+| max_cvss_score | integer | query | _Available in Fleet Premium_. Filters to only include vulnerabilities with a CVSS version 3.x base score lower than what's specified.   |
 
 ##### Default response
 
