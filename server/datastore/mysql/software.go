@@ -1379,12 +1379,42 @@ func (ds *Datastore) SoftwareByID(ctx context.Context, id uint, teamID *uint, in
 			goqu.On(goqu.I("s.id").Eq(goqu.I("scv.software_id"))),
 		)
 
-	// join only on software_id as we'll need counts for all teams
-	// to filter down to the team's the user has access to
-	if tmFilter != nil {
+	if tmFilter != nil && tmFilter.TeamID != nil && *tmFilter.TeamID != 0 {
 		q = q.LeftJoin(
 			goqu.I("software_host_counts").As("shc"),
-			goqu.On(goqu.I("s.id").Eq(goqu.I("shc.software_id"))),
+			goqu.On(
+				goqu.And(
+					goqu.I("s.id").Eq(goqu.I("shc.software_id")),
+					goqu.I("shc.team_id").Eq(*tmFilter.TeamID),
+					goqu.I("shc.global_stats").Eq(0),
+				),
+			),
+		)
+	}
+
+	if tmFilter != nil && tmFilter.TeamID == nil {
+		q = q.LeftJoin(
+			goqu.I("software_host_counts").As("shc"),
+			goqu.On(
+				goqu.And(
+					goqu.I("s.id").Eq(goqu.I("shc.software_id")),
+					goqu.I("shc.team_id").Eq(0),
+					goqu.I("shc.global_stats").Eq(1),
+				),
+			),
+		)
+	}
+
+	if tmFilter != nil && tmFilter.TeamID != nil && *tmFilter.TeamID == 0 {
+		q = q.LeftJoin(
+			goqu.I("software_host_counts").As("shc"),
+			goqu.On(
+				goqu.And(
+					goqu.I("s.id").Eq(goqu.I("shc.software_id")),
+					goqu.I("shc.team_id").Eq(0),
+					goqu.I("shc.global_stats").Eq(0),
+				),
+			),
 		)
 	}
 
