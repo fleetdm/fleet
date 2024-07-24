@@ -176,24 +176,20 @@ const AppleOSTargetForm = ({
     if (platform === "darwin") {
       return "The end user sees the window until their macOS is at or above this version.";
     }
-    if (platform === "ios") {
-      return "TODO: Need designed copy, example copy: The end user sees this warning until their iPhone is at or above this version.";
+    if (platform === "ios" || platform === "ipados") {
+      return "If the end user's host is below the minimum version, they see a notification in their Notification Center after the deadline. They can’t continue until the OS update is installed.";
     }
-    if (platform === "ipados") {
-      return "TODO: Need designed copy, example copy: The end user sees this warning until their iPad is at or above this version.";
-    }
+    return "";
   };
 
   const getDeadlineTooltip = (platform: ApplePlatform) => {
     if (platform === "darwin") {
       return "The end user can’t dismiss the window once they reach this deadline. Deadline is at 12:00 (Noon) Pacific Standard Time (GMT-8).";
     }
-    if (platform === "ios") {
-      return "TODO: Need designed copy, example copy: The end user can’t dismiss the window once they reach this deadline. Deadline is at 12:00 (Noon) Pacific Standard Time (GMT-8).";
+    if (platform === "ios" || platform === "ipados") {
+      return "Deadline is at 12:00 (Noon) Pacific Standard Time (GMT-8).";
     }
-    if (platform === "ipados") {
-      return "TODO: Need designed copy, example copy: The end user can’t dismiss the window once they reach this deadline. Deadline is at 12:00 (Noon) Pacific Standard Time (GMT-8).";
-    }
+    return "";
   };
 
   return (
