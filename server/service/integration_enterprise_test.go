@@ -10983,9 +10983,8 @@ func (s *integrationEnterpriseTestSuite) TestPKGSoftwareReconciliation() {
 }
 
 func (s *integrationEnterpriseTestSuite) TestCalendarCallback() {
-	t := s.T()
-	t.Skip("disabled calendar callbacks to address bugs")
 	ctx := context.Background()
+	t := s.T()
 	t.Cleanup(func() {
 		calendar.ClearMockEvents()
 		calendar.ClearMockChannels()
@@ -10995,6 +10994,12 @@ func (s *integrationEnterpriseTestSuite) TestCalendarCallback() {
 	t.Cleanup(func() {
 		err = s.ds.SaveAppConfig(ctx, currentAppCfg)
 		require.NoError(t, err)
+	})
+
+	origRecentUpdateDuration := commonCalendar.RecentCalendarUpdateDuration
+	commonCalendar.RecentCalendarUpdateDuration = 1 * time.Millisecond
+	t.Cleanup(func() {
+		commonCalendar.RecentCalendarUpdateDuration = origRecentUpdateDuration
 	})
 
 	team1, err := s.ds.NewTeam(ctx, &fleet.Team{
@@ -11241,8 +11246,9 @@ func (s *integrationEnterpriseTestSuite) TestCalendarCallback() {
 			time.Sleep(100 * time.Millisecond)
 			team1CalendarEvents, err = s.ds.ListCalendarEvents(ctx, &team1.ID)
 			require.NoError(t, err)
-			require.Len(t, team1CalendarEvents, 1)
-			if event.UUID != team1CalendarEvents[0].UUID {
+			// Event should be rescheduled on a future date/time
+			if len(team1CalendarEvents) == 1 && team1CalendarEvents[0].UUID == event.UUID &&
+				team1CalendarEvents[0].StartTime.After(event.StartTime) {
 				done <- struct{}{}
 				return
 			}
@@ -11392,7 +11398,20 @@ func (s *integrationEnterpriseTestSuite) TestCalendarCallback() {
 		},
 	), http.StatusOK, &distributedResp)
 
-	// Callback should still work, but only clear the callback channel. Event in DB will be deleted on the next cron run.
+	// We set a flag that event was updated recently. Callback shouldn't do anything since event was updated recently
+	_, err = distributedLock.AcquireLock(ctx, commonCalendar.RecentUpdateKeyPrefix+event.UUID, commonCalendar.RecentCalendarUpdateValue,
+		1000)
+	require.NoError(t, err)
+	_ = s.DoRawWithHeaders("POST", "/api/v1/fleet/calendar/webhook/"+eventRecreated.UUID, []byte(""), http.StatusOK,
+		map[string]string{
+			"X-Goog-Channel-Id":     details.ChannelID,
+			"X-Goog-Resource-State": "exists",
+		})
+	assert.Equal(t, 1, calendar.MockChannelsCount())
+
+	// Callback should work, but only clear the callback channel. Event in DB will be deleted on the next cron run.
+	_, err = distributedLock.ReleaseLock(ctx, commonCalendar.RecentUpdateKeyPrefix+event.UUID, commonCalendar.RecentCalendarUpdateValue)
+	require.NoError(t, err)
 	_ = s.DoRawWithHeaders("POST", "/api/v1/fleet/calendar/webhook/"+eventRecreated.UUID, []byte(""), http.StatusOK,
 		map[string]string{
 			"X-Goog-Channel-Id":     details.ChannelID,

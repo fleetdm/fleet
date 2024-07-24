@@ -36,10 +36,11 @@ const PREMIUM_ACTIVITIES = new Set([
 
 const getProfileMessageSuffix = (
   isPremiumTier: boolean,
-  platform: "darwin" | "windows",
+  platform: "apple" | "windows",
   teamName?: string | null
 ) => {
-  const platformDisplayName = platform === "darwin" ? "macOS" : "Windows";
+  const platformDisplayName =
+    platform === "apple" ? "macOS, iOS, and iPadOS" : "Windows";
   let messageSuffix = <>all {platformDisplayName} hosts</>;
   if (isPremiumTier) {
     messageSuffix = teamName ? (
@@ -345,7 +346,7 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
-  createMacOSProfile: (activity: IActivity, isPremiumTier: boolean) => {
+  createdAppleOSProfile: (activity: IActivity, isPremiumTier: boolean) => {
     const profileName = activity.details?.profile_name;
     return (
       <>
@@ -361,14 +362,14 @@ const TAGGED_TEMPLATES = {
         to{" "}
         {getProfileMessageSuffix(
           isPremiumTier,
-          "darwin",
+          "apple",
           activity.details?.team_name
         )}
         .
       </>
     );
   },
-  deleteMacOSProfile: (activity: IActivity, isPremiumTier: boolean) => {
+  deletedAppleOSProfile: (activity: IActivity, isPremiumTier: boolean) => {
     const profileName = activity.details?.profile_name;
     return (
       <>
@@ -384,28 +385,28 @@ const TAGGED_TEMPLATES = {
         from{" "}
         {getProfileMessageSuffix(
           isPremiumTier,
-          "darwin",
+          "apple",
           activity.details?.team_name
         )}
         .
       </>
     );
   },
-  editMacOSProfile: (activity: IActivity, isPremiumTier: boolean) => {
+  editedAppleOSProfile: (activity: IActivity, isPremiumTier: boolean) => {
     return (
       <>
         {" "}
         edited configuration profiles for{" "}
         {getProfileMessageSuffix(
           isPremiumTier,
-          "darwin",
+          "apple",
           activity.details?.team_name
         )}{" "}
         via fleetctl.
       </>
     );
   },
-  createWindowsProfile: (activity: IActivity, isPremiumTier: boolean) => {
+  createdWindowsProfile: (activity: IActivity, isPremiumTier: boolean) => {
     const profileName = activity.details?.profile_name;
     return (
       <>
@@ -428,7 +429,7 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
-  deleteWindowsProfile: (activity: IActivity, isPremiumTier: boolean) => {
+  deletedWindowsProfile: (activity: IActivity, isPremiumTier: boolean) => {
     const profileName = activity.details?.profile_name;
     return (
       <>
@@ -451,7 +452,7 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
-  editWindowsProfile: (activity: IActivity, isPremiumTier: boolean) => {
+  editedWindowsProfile: (activity: IActivity, isPremiumTier: boolean) => {
     return (
       <>
         {" "}
@@ -781,7 +782,7 @@ const TAGGED_TEMPLATES = {
         to{" "}
         {getProfileMessageSuffix(
           isPremiumTier,
-          "darwin",
+          "apple",
           activity.details?.team_name
         )}
         .
@@ -796,7 +797,7 @@ const TAGGED_TEMPLATES = {
         <b>{activity.details?.profile_name}</b> from{" "}
         {getProfileMessageSuffix(
           isPremiumTier,
-          "darwin",
+          "apple",
           activity.details?.team_name
         )}
         .
@@ -811,7 +812,7 @@ const TAGGED_TEMPLATES = {
         <b>{activity.details?.profile_name}</b> for{" "}
         {getProfileMessageSuffix(
           isPremiumTier,
-          "darwin",
+          "apple",
           activity.details?.team_name
         )}{" "}
         via fleetctl.
@@ -964,26 +965,27 @@ const getDetail = (
     case ActivityType.EditedMacosMinVersion: {
       return TAGGED_TEMPLATES.editedMacosMinVersion(activity);
     }
+
     case ActivityType.ReadHostDiskEncryptionKey: {
       return TAGGED_TEMPLATES.readHostDiskEncryptionKey(activity);
     }
-    case ActivityType.CreatedMacOSProfile: {
-      return TAGGED_TEMPLATES.createMacOSProfile(activity, isPremiumTier);
+    case ActivityType.CreatedAppleOSProfile: {
+      return TAGGED_TEMPLATES.createdAppleOSProfile(activity, isPremiumTier);
     }
-    case ActivityType.DeletedMacOSProfile: {
-      return TAGGED_TEMPLATES.deleteMacOSProfile(activity, isPremiumTier);
+    case ActivityType.DeletedAppleOSProfile: {
+      return TAGGED_TEMPLATES.deletedAppleOSProfile(activity, isPremiumTier);
     }
-    case ActivityType.EditedMacOSProfile: {
-      return TAGGED_TEMPLATES.editMacOSProfile(activity, isPremiumTier);
+    case ActivityType.EditedAppleOSProfile: {
+      return TAGGED_TEMPLATES.editedAppleOSProfile(activity, isPremiumTier);
     }
     case ActivityType.CreatedWindowsProfile: {
-      return TAGGED_TEMPLATES.createWindowsProfile(activity, isPremiumTier);
+      return TAGGED_TEMPLATES.createdWindowsProfile(activity, isPremiumTier);
     }
     case ActivityType.DeletedWindowsProfile: {
-      return TAGGED_TEMPLATES.deleteWindowsProfile(activity, isPremiumTier);
+      return TAGGED_TEMPLATES.deletedWindowsProfile(activity, isPremiumTier);
     }
     case ActivityType.EditedWindowsProfile: {
-      return TAGGED_TEMPLATES.editWindowsProfile(activity, isPremiumTier);
+      return TAGGED_TEMPLATES.editedWindowsProfile(activity, isPremiumTier);
     }
     // Note: Both "enabled_disk_encryption" and "enabled_macos_disk_encryption" display the same
     // message. The latter is deprecated in the API but it is retained here for backwards compatibility.
