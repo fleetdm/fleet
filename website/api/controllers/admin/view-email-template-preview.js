@@ -114,6 +114,12 @@ module.exports = {
         layout = 'layout-email';
         fakeData = {};
         break;
+      case 'email-nurture-stage-three':
+        layout = 'layout-nurture-email';
+        fakeData = {
+          firstName: 'Sage'
+        };
+        break;
       case 'email-nurture-stage-four':
         layout = 'layout-nurture-email';
         fakeData = {
@@ -121,12 +127,6 @@ module.exports = {
         };
         break;
       case 'email-nurture-stage-five':
-        layout = 'layout-nurture-email';
-        fakeData = {
-          firstName: 'Sage'
-        };
-        break;
-      case 'email-nurture-stage-six':
         layout = 'layout-nurture-email';
         fakeData = {
           firstName: 'Sage'
