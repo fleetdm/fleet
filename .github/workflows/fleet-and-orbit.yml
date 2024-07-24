@@ -63,7 +63,7 @@ jobs:
     strategy:
       matrix:
         go-version: ["${{ vars.GO_VERSION }}"]
-        mysql: ["mysql:5.7"]
+        mysql: ["mysql:8.0.36"]
     runs-on: ubuntu-latest
     needs: gen
     steps:
@@ -296,7 +296,7 @@ jobs:
 
       - name: Build Repository and run TUF server
         env:
-          SYSTEMS: "macos windows linux"
+          SYSTEMS: "macos windows linux linux-arm64"
           PKG_FLEET_URL: ${{ needs.gen.outputs.address }}
           PKG_TUF_URL: http://localhost:8081
           DEB_FLEET_URL: ${{ needs.gen.outputs.address }}
@@ -389,7 +389,7 @@ jobs:
 
       - name: Uninstall pkg
         run: |
-          ./orbit/tools/cleanup/cleanup_macos.sh
+          sudo ./orbit/tools/cleanup/cleanup_macos.sh
 
   orbit-ubuntu:
     timeout-minutes: 60

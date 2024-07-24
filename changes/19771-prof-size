@@ -1,1 +1,0 @@
-- Fixes an issue where profiles larger than 65KB were being truncated when stored on MySQL 8. 

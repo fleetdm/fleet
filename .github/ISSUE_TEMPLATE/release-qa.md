@@ -3,7 +3,7 @@ name:  Release QA
 about: Checklist of required tests prior to release
 title: 'Release QA:'
 labels: '#g-mdm,#g-endpoint-ops,:release'
-assignees: 'xpkoala,sabrinabuckets'
+assignees: 'xpkoala,pezhub'
 
 ---
 
@@ -129,15 +129,23 @@ Smoke tests are limited to core functionality and serve as a pre-release final r
 <tr><td>Setup experience</td><td>Verify macOS Setup experience</td><td>
 
 1. Configure End user authentication.
-2. Upload a Boostrap package.
+2. Upload a Bootstrap package.
 3. Enroll an ADE-eligible macOS host and verify successful authentication.
-4. Verify Boostrap package is delivered.
+4. Verify Bootstrap package is delivered.
 </td><td>pass/fail</td></tr>
 
 <tr><td>OS updates</td><td>Verify OS updates flow</td><td>
 
 1. Configure OS updates (macOS & Windows).
 2. Verify on-device that Nudge prompt appears (macOS). 
+</td><td>pass/fail</td></tr>
+
+
+<tr><td>Certificates Upload</td><td>APNs cert and ABM token renewal workflow</td><td>
+
+1. Renew APNs Certificate.
+2. Renew ABM Token.
+3. Ensure ADE host can enroll.
 </td><td>pass/fail</td></tr>
 
 <tr><td>Migration Test</td><td>Verify Fleet can migrate to the next version with no issues.</td><td>

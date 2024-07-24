@@ -2,16 +2,17 @@ package calendar
 
 import (
 	"context"
+	"net/http/httptest"
+	"os"
+	"testing"
+	"time"
+
 	"github.com/fleetdm/fleet/v4/ee/server/calendar/load_test"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	kitlog "github.com/go-kit/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	"net/http/httptest"
-	"os"
-	"testing"
-	"time"
 )
 
 type googleCalendarIntegrationTestSuite struct {
@@ -66,16 +67,24 @@ func (s *googleCalendarIntegrationTestSuite) TestCreateGetDeleteEvent() {
 	gCal := NewGoogleCalendar(config)
 	err := gCal.Configure(userEmail)
 	require.NoError(t, err)
-	genBodyFn := func(bool) string {
-		return "Test event"
+	genBodyFn := func(bool) (string, bool, error) {
+		return "Test event", true, nil
 	}
 	eventDate := time.Now().Add(48 * time.Hour)
-	event, err := gCal.CreateEvent(eventDate, genBodyFn)
+	event, err := gCal.CreateEvent(eventDate, genBodyFn, fleet.CalendarCreateEventOpts{})
 	require.NoError(t, err)
 	assert.Equal(t, startHour, event.StartTime.Hour())
 	assert.Equal(t, 0, event.StartTime.Minute())
+	details, err := gCal.unmarshalDetails(event)
+	require.NoError(t, err)
+	eventUUID := event.UUID
+	channelID := details.ChannelID
+	resourceID := details.ResourceID
+	assert.NotEmpty(t, eventUUID)
+	assert.NotEmpty(t, channelID)
+	assert.NotEmpty(t, resourceID)
 
-	eventRsp, updated, err := gCal.GetAndUpdateEvent(event, genBodyFn)
+	eventRsp, updated, err := gCal.GetAndUpdateEvent(event, genBodyFn, fleet.CalendarGetAndUpdateEventOpts{})
 	require.NoError(t, err)
 	assert.False(t, updated)
 	assert.Equal(t, event, eventRsp)
@@ -87,10 +96,25 @@ func (s *googleCalendarIntegrationTestSuite) TestCreateGetDeleteEvent() {
 	assert.NoError(t, err)
 
 	// Try to get deleted event
-	eventRsp, updated, err = gCal.GetAndUpdateEvent(event, genBodyFn)
+	eventRsp, updated, err = gCal.GetAndUpdateEvent(event, genBodyFn, fleet.CalendarGetAndUpdateEventOpts{})
 	require.NoError(t, err)
 	assert.True(t, updated)
 	assert.NotEqual(t, event.StartTime.UTC().Truncate(24*time.Hour), eventRsp.StartTime.UTC().Truncate(24*time.Hour))
+
+	opts := fleet.CalendarCreateEventOpts{
+		ChannelID:  channelID,
+		ResourceID: resourceID,
+		EventUUID:  eventUUID,
+	}
+	event, err = gCal.CreateEvent(eventDate, genBodyFn, opts)
+	require.NoError(t, err)
+	assert.Equal(t, startHour, event.StartTime.Hour())
+	assert.Equal(t, 0, event.StartTime.Minute())
+	details, err = gCal.unmarshalDetails(event)
+	require.NoError(t, err)
+	assert.Equal(t, channelID, details.ChannelID)
+	assert.Equal(t, resourceID, details.ResourceID)
+	assert.Equal(t, eventUUID, event.UUID)
 }
 
 func (s *googleCalendarIntegrationTestSuite) TestFillUpCalendar() {
@@ -110,11 +134,11 @@ func (s *googleCalendarIntegrationTestSuite) TestFillUpCalendar() {
 	gCal := NewGoogleCalendar(config)
 	err := gCal.Configure(userEmail)
 	require.NoError(t, err)
-	genBodyFn := func(bool) string {
-		return "Test event"
+	genBodyFn := func(bool) (string, bool, error) {
+		return "Test event", true, nil
 	}
 	eventDate := time.Now().Add(48 * time.Hour)
-	event, err := gCal.CreateEvent(eventDate, genBodyFn)
+	event, err := gCal.CreateEvent(eventDate, genBodyFn, fleet.CalendarCreateEventOpts{})
 	require.NoError(t, err)
 	assert.Equal(t, startHour, event.StartTime.Hour())
 	assert.Equal(t, 0, event.StartTime.Minute())
@@ -124,7 +148,7 @@ func (s *googleCalendarIntegrationTestSuite) TestFillUpCalendar() {
 		if !(currentEventTime.Hour() == endHour-1 && currentEventTime.Minute() == 30) {
 			currentEventTime = currentEventTime.Add(30 * time.Minute)
 		}
-		event, err = gCal.CreateEvent(eventDate, genBodyFn)
+		event, err = gCal.CreateEvent(eventDate, genBodyFn, fleet.CalendarCreateEventOpts{})
 		require.NoError(t, err)
 		assert.Equal(t, currentEventTime.UTC(), event.StartTime.UTC())
 	}

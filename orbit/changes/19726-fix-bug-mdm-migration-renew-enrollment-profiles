@@ -1,1 +1,0 @@
-* Fixed bug where MDM migration fails when attempting to renew enrollment profiles on macOS Sonoma devices.

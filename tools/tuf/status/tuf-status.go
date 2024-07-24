@@ -163,19 +163,22 @@ func byteCountSI(b int64) string {
 func channelVersionCommand() *cli.Command {
 	componentFileMap := map[string]map[string]string{
 		"orbit": {
-			"linux":   "orbit",
-			"macos":   "orbit",
-			"windows": "orbit.exe",
+			"linux":       "orbit",
+			"linux-arm64": "orbit",
+			"macos":       "orbit",
+			"windows":     "orbit.exe",
 		},
 		"desktop": {
-			"linux":   "desktop.tar.gz",
-			"macos":   "desktop.app.tar.gz",
-			"windows": "fleet-desktop.exe",
+			"linux":       "desktop.tar.gz",
+			"linux-arm64": "desktop.tar.gz",
+			"macos":       "desktop.app.tar.gz",
+			"windows":     "fleet-desktop.exe",
 		},
 		"osqueryd": {
-			"linux":     "osqueryd",
-			"macos-app": "osqueryd.app.tar.gz",
-			"windows":   "osqueryd.exe",
+			"linux":       "osqueryd",
+			"linux-arm64": "osqueryd",
+			"macos-app":   "osqueryd.app.tar.gz",
+			"windows":     "osqueryd.exe",
 		},
 		"nudge": {
 			"macos": "nudge.app.tar.gz",
@@ -305,7 +308,7 @@ func channelVersionCommand() *cli.Command {
 				fmt.Printf("%s\n", b)
 			} else if format == "markdown" {
 				table := tablewriter.NewWriter(os.Stdout)
-				table.SetHeader([]string{"Component\\OS", "macOS", "Linux", "Windows"})
+				table.SetHeader([]string{"Component\\OS", "macOS", "Linux", "Windows", "Linux (arm64)"})
 				table.SetAutoFormatHeaders(false)
 				table.SetCenterSeparator("|")
 				table.SetHeaderLine(true)
@@ -332,7 +335,7 @@ func channelVersionCommand() *cli.Command {
 				for _, component := range componentsInOrder {
 					oss := outputMap[component]
 					row := []string{component}
-					for _, os := range []string{"macos", "linux", "windows"} {
+					for _, os := range []string{"macos", "linux", "windows", "linux-arm64"} {
 						row = append(row, setIfEmpty(oss, os))
 					}
 					rows = append(rows, row)

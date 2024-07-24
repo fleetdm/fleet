@@ -51,6 +51,9 @@ import (
 	"gopkg.in/natefinch/lumberjack.v2"
 )
 
+// unusedFlagKeyword is used by the MSI installer to populate parameters, which cannot be empty
+const unusedFlagKeyword = "dummy"
+
 func main() {
 	app := cli.NewApp()
 	app.Name = "Orbit osquery"
@@ -368,7 +371,7 @@ func main() {
 			return fmt.Errorf("--host-identifier=%s is not supported, currently supported values are 'uuid' and 'instance'", hostIdentifier)
 		}
 
-		if email := c.String("end-user-email"); email != "" && !fleet.IsLooseEmail(email) {
+		if email := c.String("end-user-email"); email != "" && email != unusedFlagKeyword && !fleet.IsLooseEmail(email) {
 			return fmt.Errorf("the provided end-user email address %q is not a valid email address", email)
 		}
 
@@ -428,7 +431,11 @@ func main() {
 			case "windows":
 				opt.Targets["desktop"] = update.DesktopWindowsTarget
 			case "linux":
-				opt.Targets["desktop"] = update.DesktopLinuxTarget
+				if runtime.GOARCH == "arm64" {
+					opt.Targets["desktop"] = update.DesktopLinuxArm64Target
+				} else {
+					opt.Targets["desktop"] = update.DesktopLinuxTarget
+				}
 			default:
 				log.Fatal().Str("GOOS", runtime.GOOS).Msg("unsupported GOOS for desktop target")
 			}
@@ -456,10 +463,12 @@ func main() {
 		// Setting up the system service management early on the process lifetime
 		appDoneCh = make(chan struct{})
 
-		// Initializing service runner and system service manager
-		systemChecker := newSystemChecker()
-		g.Add(systemChecker.Execute, systemChecker.Interrupt)
-		go osservice.SetupServiceManagement(constant.SystemServiceName, systemChecker.svcInterruptCh, appDoneCh)
+		// Initializing windows service runner and system service manager.
+		if runtime.GOOS == "windows" {
+			systemChecker := newSystemChecker()
+			addSubsystem(&g, "system checker", systemChecker)
+			go osservice.SetupServiceManagement(constant.SystemServiceName, systemChecker.svcInterruptCh, appDoneCh)
+		}
 
 		// sofwareupdated is a macOS daemon that automatically updates Apple software.
 		if c.Bool("disable-kickstart-softwareupdated") && runtime.GOOS == "darwin" {
@@ -530,7 +539,7 @@ func main() {
 				return nil
 			}
 
-			g.Add(updateRunner.Execute, updateRunner.Interrupt)
+			addSubsystem(&g, "update runner", updateRunner)
 
 			// if getting any of the targets fails, keep on
 			// retrying, the `updater.Get` method has built-in backoff functionality.
@@ -626,34 +635,36 @@ func main() {
 			Platform:       osqueryHostInfo.Platform,
 		}
 
-		// Get the hardware UUID. We use a temporary osquery DB location in order to guarantee that
-		// we're getting true UUID, not a cached UUID. See
-		// https://github.com/fleetdm/fleet/issues/17934 and
-		// https://github.com/osquery/osquery/issues/7509 for more details.
+		if runtime.GOOS == "darwin" {
+			// Get the hardware UUID. We use a temporary osquery DB location in order to guarantee that
+			// we're getting true UUID, not a cached UUID. See
+			// https://github.com/fleetdm/fleet/issues/17934 and
+			// https://github.com/osquery/osquery/issues/7509 for more details.
 
-		tmpDBPath := filepath.Join(os.TempDir(), strings.Join([]string{uuid.NewString(), "tmp-db"}, "-"))
-		oi, err := getHostInfo(osquerydPath, tmpDBPath)
-		if err != nil {
-			return fmt.Errorf("get UUID from temp db: %w", err)
-		}
-
-		if err := os.RemoveAll(tmpDBPath); err != nil {
-			log.Info().Err(err).Msg("failed to remove temporary osquery db")
-		}
-
-		if oi.HardwareUUID != orbitHostInfo.HardwareUUID {
-			// Then we have moved to a new physical machine, so we should restart!
-			// Removing the osquery DB should trigger a re-enrollment when fleetd is restarted.
-			if err := os.RemoveAll(osqueryDB); err != nil {
-				return fmt.Errorf("removing old osquery.db: %w", err)
+			tmpDBPath := filepath.Join(os.TempDir(), strings.Join([]string{uuid.NewString(), "tmp-db"}, "-"))
+			oi, err := getHostInfo(osquerydPath, tmpDBPath)
+			if err != nil {
+				return fmt.Errorf("get UUID from temp db: %w", err)
 			}
 
-			// We can remove this because we want it to be regenerated during the re-enrollment.
-			if err := os.RemoveAll(filepath.Join(c.String("root-dir"), constant.OrbitNodeKeyFileName)); err != nil {
-				return fmt.Errorf("removing old orbit node key file: %w", err)
+			if err := os.RemoveAll(tmpDBPath); err != nil {
+				log.Info().Err(err).Msg("failed to remove temporary osquery db")
 			}
 
-			return errors.New("found a new hardware uuid, restarting")
+			if oi.HardwareUUID != orbitHostInfo.HardwareUUID {
+				// Then we have moved to a new physical machine, so we should restart!
+				// Removing the osquery DB should trigger a re-enrollment when fleetd is restarted.
+				if err := os.RemoveAll(osqueryDB); err != nil {
+					return fmt.Errorf("removing old osquery.db: %w", err)
+				}
+
+				// We can remove this because we want it to be regenerated during the re-enrollment.
+				if err := os.RemoveAll(filepath.Join(c.String("root-dir"), constant.OrbitNodeKeyFileName)); err != nil {
+					return fmt.Errorf("removing old orbit node key file: %w", err)
+				}
+
+				return errors.New("found a new hardware uuid, restarting")
+			}
 		}
 
 		// Only send osquery's `instance_id` if the user is running orbit with `--host-identifier=instance`.
@@ -707,8 +718,8 @@ func main() {
 				return fmt.Errorf("create TLS proxy: %w", err)
 			}
 
-			g.Add(
-				func() error {
+			addSubsystem(&g, "insecure proxy", &wrapSubsystem{
+				execute: func() error {
 					log.Info().
 						Str("addr", fmt.Sprintf("localhost:%d", proxy.Port)).
 						Str("target", c.String("fleet-url")).
@@ -716,12 +727,12 @@ func main() {
 					err := proxy.InsecureServeTLS()
 					return err
 				},
-				func(error) {
+				interrupt: func(err error) {
 					if err := proxy.Close(); err != nil {
 						log.Error().Err(err).Msg("close proxy")
 					}
 				},
-			)
+			})
 
 			// Directory to store proxy related assets
 			proxyDirectory := filepath.Join(c.String("root-dir"), "proxy")
@@ -845,7 +856,6 @@ func main() {
 			windowsMDMBitlockerCommandFrequency    = time.Hour
 		)
 
-		orbitClient.RegisterConfigReceiver(update.ApplyRenewEnrollmentProfileConfigFetcherMiddleware(orbitClient, renewEnrollmentProfileCommandFrequency, fleetURL))
 		scriptConfigReceiver, scriptsEnabledFn := update.ApplyRunScriptsConfigFetcherMiddleware(
 			c.Bool("enable-scripts"), orbitClient,
 		)
@@ -853,7 +863,9 @@ func main() {
 
 		switch runtime.GOOS {
 		case "darwin":
-			// add middleware to handle nudge installation and updates
+			orbitClient.RegisterConfigReceiver(update.ApplyRenewEnrollmentProfileConfigFetcherMiddleware(
+				orbitClient, renewEnrollmentProfileCommandFrequency, fleetURL,
+			))
 			const nudgeLaunchInterval = 30 * time.Minute
 			orbitClient.RegisterConfigReceiver(update.ApplyNudgeConfigReceiverMiddleware(update.NudgeConfigFetcherOptions{
 				UpdateRunner: updateRunner, RootDir: c.String("root-dir"), Interval: nudgeLaunchInterval,
@@ -865,10 +877,10 @@ func main() {
 			orbitClient.RegisterConfigReceiver(update.ApplyWindowsMDMBitlockerFetcherMiddleware(windowsMDMBitlockerCommandFrequency, orbitClient))
 		}
 
-		flagUpdateReciver := update.NewFlagReceiver(orbitClient.ReceiverUpdateCancelFunc, update.FlagUpdateOptions{
+		flagUpdateReceiver := update.NewFlagReceiver(orbitClient.TriggerOrbitRestart, update.FlagUpdateOptions{
 			RootDir: c.String("root-dir"),
 		})
-		orbitClient.RegisterConfigReceiver(flagUpdateReciver)
+		orbitClient.RegisterConfigReceiver(flagUpdateReceiver)
 
 		if !c.Bool("disable-updates") {
 			serverOverridesReceiver := newServerOverridesReceiver(
@@ -878,7 +890,7 @@ func main() {
 					DesktopPath:  desktopPath,
 				},
 				c.Bool("fleet-desktop"),
-				orbitClient.ReceiverUpdateCancelFunc,
+				orbitClient.TriggerOrbitRestart,
 			)
 
 			orbitClient.RegisterConfigReceiver(serverOverridesReceiver)
@@ -890,7 +902,7 @@ func main() {
 		if !c.Bool("disable-updates") || c.Bool("dev-mode") {
 			extRunner := update.NewExtensionConfigUpdateRunner(update.ExtensionUpdateOptions{
 				RootDir: c.String("root-dir"),
-			}, updateRunner, orbitClient.ReceiverUpdateCancelFunc)
+			}, updateRunner, orbitClient.TriggerOrbitRestart)
 
 			// call UpdateAction on the updateRunner after we have fetched extensions from Fleet
 			_, err := updateRunner.UpdateAction()
@@ -921,11 +933,26 @@ func main() {
 			orbitClient.RegisterConfigReceiver(extRunner)
 		}
 
+		// Run a early check of fleetd configuration to check if orbit needs to
+		// restart before proceeding to start the sub-systems.
+		//
+		// E.g. the administrator has updated the following agent options for this device:
+		//	- `update_channels`
+		//	- `extensions` were removed/unset
+		//	- `command_line_flags` (osquery startup flags)
 		if err := orbitClient.RunConfigReceivers(); err != nil {
 			log.Error().Msgf("failed initial config fetch: %s", err)
+		} else {
+			if orbitClient.RestartTriggered() {
+				log.Info().Msg("exiting after early config fetch")
+				return nil
+			}
 		}
 
-		g.Add(orbitClient.ExecuteConfigReceivers, orbitClient.InterruptConfigReceivers)
+		addSubsystem(&g, "config receivers", &wrapSubsystem{
+			execute:   orbitClient.ExecuteConfigReceivers,
+			interrupt: orbitClient.InterruptConfigReceivers,
+		})
 
 		var trw *token.ReadWriter
 		if c.Bool("fleet-desktop") {
@@ -1074,7 +1101,7 @@ func main() {
 		if err != nil {
 			return fmt.Errorf("create osquery runner: %w", err)
 		}
-		g.Add(r.Execute, r.Interrupt)
+		addSubsystem(&g, "osqueryd runner", r)
 
 		// rootDir string, addr string, rootCA string, insecureSkipVerify bool, enrollSecret, uuid string
 		checkerClient, err := service.NewOrbitClient(
@@ -1100,7 +1127,7 @@ func main() {
 		capabilitiesChecker := newCapabilitiesChecker(checkerClient)
 		// We populate the known capabilities so that the capability checker does not need to do the initial check on startup.
 		checkerClient.GetServerCapabilities().Copy(orbitClient.GetServerCapabilities())
-		g.Add(capabilitiesChecker.actor())
+		addSubsystem(&g, "capabilities checker", capabilitiesChecker)
 
 		var desktopVersion string
 		if c.Bool("fleet-desktop") {
@@ -1151,15 +1178,16 @@ func main() {
 				c.String("fleet-desktop-alternative-browser-host"),
 				opt.RootDirectory,
 			)
-			g.Add(desktopRunner.actor())
+			addSubsystem(&g, "desktop runner", desktopRunner)
 		}
 
 		// --end-user-email is only supported on Windows and Linux (for macOS it gets the
 		// email from the enrollment profile)
-		if (runtime.GOOS == "windows" || runtime.GOOS == "linux") && c.String("end-user-email") != "" {
+		endUserEmail := c.String("end-user-email")
+		if (runtime.GOOS == "windows" || runtime.GOOS == "linux") && endUserEmail != "" && endUserEmail != unusedFlagKeyword {
 			if orbitClient.GetServerCapabilities().Has(fleet.CapabilityEndUserEmail) {
 				log.Debug().Msg("sending end-user email to Fleet")
-				if err := orbitClient.SetOrUpdateDeviceMappingEmail(c.String("end-user-email")); err != nil {
+				if err := orbitClient.SetOrUpdateDeviceMappingEmail(endUserEmail); err != nil {
 					log.Error().Err(err).Msg("error sending end-user email to Fleet")
 				}
 			} else {
@@ -1195,7 +1223,11 @@ func main() {
 		// Install a signal handler
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
-		g.Add(signalHandler(ctx))
+		signalHandlerExecute, signalHandlerInterrupt := signalHandler(ctx)
+		addSubsystem(&g, "signal handler", &wrapSubsystem{
+			execute:   signalHandlerExecute,
+			interrupt: signalHandlerInterrupt,
+		})
 
 		go sigusrListener(c.String("root-dir"))
 
@@ -1302,7 +1334,7 @@ func getFleetdComponentPaths(
 
 func registerExtensionRunner(g *run.Group, extSockPath string, opts ...table.Opt) {
 	ext := table.NewRunner(extSockPath, opts...)
-	g.Add(ext.Execute, ext.Interrupt)
+	addSubsystem(g, "osqueryd extension runner", ext)
 }
 
 // desktopRunner runs the Fleet Desktop application.
@@ -1356,10 +1388,6 @@ func newDesktopRunner(
 	}
 }
 
-func (d *desktopRunner) actor() (func() error, func(error)) {
-	return d.execute, d.interrupt
-}
-
 // execute makes sure the fleet-desktop application is running.
 //
 // We have to support the scenario where the user closes its sessions (log out).
@@ -1369,7 +1397,7 @@ func (d *desktopRunner) actor() (func() error, func(error)) {
 // closes all its sessions).
 //
 // NOTE(lucas): This logic could be improved to detect if there's a valid session or not first.
-func (d *desktopRunner) execute() error {
+func (d *desktopRunner) Execute() error {
 	defer close(d.executeDoneCh)
 
 	log.Info().Msg("killing any pre-existing fleet-desktop instances")
@@ -1479,9 +1507,7 @@ func retry(d time.Duration, waitFirst bool, done chan struct{}, fn func() bool) 
 	}
 }
 
-func (d *desktopRunner) interrupt(err error) {
-	log.Debug().Err(err).Msg("interrupt desktopRunner")
-
+func (d *desktopRunner) Interrupt(err error) {
 	close(d.interruptCh) // Signal execute to return.
 	<-d.executeDoneCh    // Wait for execute to return.
 
@@ -1594,7 +1620,6 @@ func (s *serviceChecker) Execute() error {
 }
 
 func (s *serviceChecker) Interrupt(err error) {
-	log.Error().Err(err).Msg("interrupt serviceChecker")
 	close(s.localInterruptCh) // Signal execute to return.
 }
 
@@ -1616,15 +1641,11 @@ func newCapabilitiesChecker(client *service.OrbitClient) *capabilitiesChecker {
 	}
 }
 
-func (f *capabilitiesChecker) actor() (func() error, func(error)) {
-	return f.execute, f.interrupt
-}
-
 // execute will poll the server for capabilities and emit a stop signal to restart
 // Orbit if certain capabilities are enabled.
 //
 // You need to add an explicit check for each capability you want to watch for
-func (f *capabilitiesChecker) execute() error {
+func (f *capabilitiesChecker) Execute() error {
 	defer close(f.executeDoneCh)
 	capabilitiesCheckTicker := time.NewTicker(5 * time.Minute)
 
@@ -1668,8 +1689,7 @@ func (f *capabilitiesChecker) execute() error {
 	}
 }
 
-func (f *capabilitiesChecker) interrupt(err error) {
-	log.Debug().Err(err).Msg("interrupt capabilitiesChecker")
+func (f *capabilitiesChecker) Interrupt(err error) {
 	close(f.interruptCh) // Signal execute to return.
 	<-f.executeDoneCh    // Wait for execute to return.
 }
@@ -1696,11 +1716,11 @@ func writeSecret(enrollSecret string, orbitRoot string) error {
 
 // serverOverridesRunner is a oklog.Group runner that polls for configuration overrides from Fleet.
 type serverOverridesRunner struct {
-	rootDir           string
-	fallbackCfg       fallbackServerOverridesConfig
-	desktopEnabled    bool
-	cancel            chan struct{}
-	queueOrbitRestart context.CancelFunc
+	rootDir             string
+	fallbackCfg         fallbackServerOverridesConfig
+	desktopEnabled      bool
+	cancel              chan struct{}
+	triggerOrbitRestart func(reason string)
 }
 
 // newServerOverridesReveiver creates a runner for updating server overrides configuration with values fetched from Fleet.
@@ -1708,14 +1728,14 @@ func newServerOverridesReceiver(
 	rootDir string,
 	fallbackCfg fallbackServerOverridesConfig,
 	desktopEnabled bool,
-	queueOrbitRestart context.CancelFunc,
+	triggerOrbitRestart func(reason string),
 ) *serverOverridesRunner {
 	return &serverOverridesRunner{
-		rootDir:           rootDir,
-		fallbackCfg:       fallbackCfg,
-		desktopEnabled:    desktopEnabled,
-		cancel:            make(chan struct{}),
-		queueOrbitRestart: queueOrbitRestart,
+		rootDir:             rootDir,
+		fallbackCfg:         fallbackCfg,
+		desktopEnabled:      desktopEnabled,
+		cancel:              make(chan struct{}),
+		triggerOrbitRestart: triggerOrbitRestart,
 	}
 }
 
@@ -1735,7 +1755,7 @@ func (r *serverOverridesRunner) Run(orbitCfg *fleet.OrbitConfig) error {
 		if err := r.updateServerOverrides(orbitCfg); err != nil {
 			return err
 		}
-		r.queueOrbitRestart()
+		r.triggerOrbitRestart("server overrides updated")
 		return nil
 	}
 
@@ -1842,4 +1862,43 @@ func loadServerOverrides(rootDir string) (*serverOverridesConfig, error) {
 		return nil, err
 	}
 	return &cfg, nil
+}
+
+// subSystem is an interface that implements the methods needed for oklog/run.Group.
+type subSystem interface {
+	// Execute partially implements the interface needed for oklog/run.Group.Add.
+	Execute() error
+	// Interrupt partially implements the interface needed for oklog/run.Group.Add.
+	Interrupt(err error)
+}
+
+// addSubsystem adds a new subsystem to the oklog/run.Group.
+func addSubsystem(g *run.Group, name string, s subSystem) {
+	g.Add(
+		func() error {
+			log.Debug().Msgf("start %s", name)
+
+			return s.Execute()
+		}, func(err error) {
+			log.Info().Err(err).Msgf("interrupt %s", name)
+
+			s.Interrupt(err)
+		},
+	)
+}
+
+// wrapSubsystem wraps functions to implement the subSystem interface.
+type wrapSubsystem struct {
+	execute   func() error
+	interrupt func(err error)
+}
+
+// Execute partially implements subSystem.
+func (w *wrapSubsystem) Execute() error {
+	return w.execute()
+}
+
+// Interrupt partially implements subSystem.
+func (w *wrapSubsystem) Interrupt(err error) {
+	w.interrupt(err)
 }
