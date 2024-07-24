@@ -6,6 +6,7 @@ import { AppContext } from "context/app";
 
 import { IConfig } from "interfaces/config";
 import { ITeamConfig } from "interfaces/team";
+import { ApplePlatform } from "interfaces/platform";
 
 import configAPI from "services/entities/config";
 import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
@@ -19,11 +20,7 @@ import CurrentVersionSection from "./components/CurrentVersionSection";
 import TargetSection from "./components/TargetSection";
 import { parseOSUpdatesCurrentVersionsQueryParams } from "./components/CurrentVersionSection/CurrentVersionSection";
 
-export type OSUpdatesSupportedPlatform =
-  | "darwin"
-  | "windows"
-  | "iOS"
-  | "iPadOS";
+export type OSUpdatesSupportedPlatform = ApplePlatform | "windows";
 
 const baseClass = "os-updates";
 
@@ -106,8 +103,6 @@ const OSUpdates = ({ router, teamIdForApi, queryParams }: IOSUpdates) => {
   // If the user has not selected a platform yet, we default to the platform that
   // is enabled and configured.
   const selectedPlatform = selectedPlatformTab || getSelectedPlatform(config);
-
-  // TODO: Fix selecting platform tab which is showing the wrong tab if windows is missing
 
   return (
     <div className={baseClass}>

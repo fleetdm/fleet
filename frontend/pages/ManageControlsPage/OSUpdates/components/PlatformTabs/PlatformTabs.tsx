@@ -44,12 +44,9 @@ const PlatformTabs = ({
   // FIXME: This behaves unexpectedly when a user switches tabs or changes the teams dropdown while a form is
   // submitting.
 
-  const PLATFORM_BY_INDEX: OSUpdatesSupportedPlatform[] = [
-    "darwin",
-    "windows",
-    "iOS",
-    "iPadOS",
-  ];
+  const PLATFORM_BY_INDEX: OSUpdatesSupportedPlatform[] = isWindowsMdmEnabled
+    ? ["darwin", "windows", "ios", "ipados"]
+    : ["darwin", "ios", "ipados"];
 
   const onTabChange = (index: number) => {
     onSelectPlatform(PLATFORM_BY_INDEX[index]);

@@ -50,7 +50,7 @@ const OSRequirementDescription = ({
       </>
     );
   }
-  if (platform === "iOS") {
+  if (platform === "ios") {
     return (
       <>
         <h3>End user experience on iOS</h3>
@@ -63,7 +63,7 @@ const OSRequirementDescription = ({
       </>
     );
   }
-  if (platform === "iPadOS") {
+  if (platform === "ipados") {
     return (
       <>
         <h3>End user experience on iPadOS</h3>
@@ -89,10 +89,10 @@ const OSRequirementImage = ({ platform }: IOSRequirementImageProps) => {
     if (platform === "windows") {
       return WindowsUpdateScreenshot;
     }
-    if (platform === "iOS") {
+    if (platform === "ios") {
       return MacOSUpdateScreenshot; // TODO: waiting on screenshot
     }
-    if (platform === "iPadOS") {
+    if (platform === "ipados") {
       return MacOSUpdateScreenshot; // TODO: waiting on screenshot
     }
   };
