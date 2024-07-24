@@ -7,4 +7,4 @@
   min_osquery_version: ""
   observer_can_run: true
   platform: "darwin"
-  query: SELECT 1 FROM system_info WHERE cpu_type = "arm64e";;
+  query: SELECT 1 FROM system_info WHERE cpu_type = "arm64e";
