@@ -148,7 +148,13 @@ type MDM struct {
 	// backend, should be done only after careful analysis.
 	EnabledAndConfigured bool `json:"enabled_and_configured"`
 
-	MacOSUpdates   MacOSUpdates   `json:"macos_updates"`
+	// MacOSUpdates defines the OS update settings for macOS devices.
+	MacOSUpdates AppleOSUpdateSettings `json:"macos_updates"`
+	// IOSUpdates defines the OS update settings for iOS devices.
+	IOSUpdates AppleOSUpdateSettings `json:"ios_updates"`
+	// IPadOSUpdates defines the OS update settings for iPadOS devices.
+	IPadOSUpdates AppleOSUpdateSettings `json:"ipados_updates"`
+	// WindowsUpdates defines the OS update settings for Windows devices.
 	WindowsUpdates WindowsUpdates `json:"windows_updates"`
 
 	MacOSSettings         MacOSSettings            `json:"macos_settings"`
@@ -182,8 +188,9 @@ func (m MDM) AtLeastOnePlatformEnabledAndConfigured() bool {
 // format only (no prerelease or build metadata).
 var versionStringRegex = regexp.MustCompile(`^\d+(\.\d+)?(\.\d+)?$`)
 
-// MacOSUpdates is part of AppConfig and defines the macOS update settings.
-type MacOSUpdates struct {
+// AppleOSUpdateSettings is the common type that contains the settings
+// for OS updates on Apple devices.
+type AppleOSUpdateSettings struct {
 	// MinimumVersion is the required minimum operating system version.
 	MinimumVersion optjson.String `json:"minimum_version"`
 	// Deadline the required installation date for Nudge to enforce the required
@@ -192,12 +199,12 @@ type MacOSUpdates struct {
 }
 
 // Configured returns a boolean indicating if updates are configured
-func (m MacOSUpdates) Configured() bool {
+func (m AppleOSUpdateSettings) Configured() bool {
 	return m.Deadline.Value != "" &&
 		m.MinimumVersion.Value != ""
 }
 
-func (m MacOSUpdates) Validate() error {
+func (m AppleOSUpdateSettings) Validate() error {
 	// if no settings are provided it's okay to skip further validation
 	if m.MinimumVersion.Value == "" && m.Deadline.Value == "" {
 		// if one is set and empty, the other must be set and empty too, otherwise

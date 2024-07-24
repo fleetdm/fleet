@@ -1,0 +1,1 @@
+- iOS and iPadOS device details refetch can now be triggered with the existing `POST /api/latest/fleet/hosts/:id/refetch` endpoint.
