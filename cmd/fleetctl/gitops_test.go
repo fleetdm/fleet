@@ -38,7 +38,119 @@ func TestFilenameValidation(t *testing.T) {
 	assert.ErrorContains(t, err, "file name must be less than")
 }
 
-func TestBasicGlobalGitOps(t *testing.T) {
+func TestBasicGlobalFreeGitOps(t *testing.T) {
+	// Cannot run t.Parallel() because it sets environment variables
+
+	_, ds := runServerWithMockedDS(t)
+
+	ds.BatchSetMDMProfilesFunc = func(
+		ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile,
+		macDecls []*fleet.MDMAppleDeclaration,
+	) error {
+		return nil
+	}
+	ds.BulkSetPendingMDMHostProfilesFunc = func(
+		ctx context.Context, hostIDs []uint, teamIDs []uint, profileUUIDs []string, hostUUIDs []string,
+	) error {
+		return nil
+	}
+	ds.BatchSetScriptsFunc = func(ctx context.Context, tmID *uint, scripts []*fleet.Script) error { return nil }
+	ds.NewActivityFunc = func(
+		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
+	) error {
+		return nil
+	}
+	ds.ListGlobalPoliciesFunc = func(ctx context.Context, opts fleet.ListOptions) ([]*fleet.Policy, error) { return nil, nil }
+	ds.ListQueriesFunc = func(ctx context.Context, opts fleet.ListQueryOptions) ([]*fleet.Query, error) { return nil, nil }
+
+	// Mock appConfig
+	savedAppConfig := &fleet.AppConfig{}
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
+	ds.SaveAppConfigFunc = func(ctx context.Context, config *fleet.AppConfig) error {
+		savedAppConfig = config
+		return nil
+	}
+	var enrolledSecrets []*fleet.EnrollSecret
+	ds.ApplyEnrollSecretsFunc = func(ctx context.Context, teamID *uint, secrets []*fleet.EnrollSecret) error {
+		enrolledSecrets = secrets
+		return nil
+	}
+
+	tmpFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+
+	const (
+		fleetServerURL = "https://fleet.example.com"
+		orgName        = "GitOps Test"
+	)
+	t.Setenv("FLEET_SERVER_URL", fleetServerURL)
+
+	_, err = tmpFile.WriteString(
+		`
+controls:
+queries:
+policies:
+agent_options:
+org_settings:
+  server_settings:
+    server_url: $FLEET_SERVER_URL
+  org_info:
+    contact_url: https://example.com/contact
+    org_logo_url: ""
+    org_logo_url_light_background: ""
+    org_name: ${ORG_NAME}
+  secrets:
+`,
+	)
+	require.NoError(t, err)
+
+	// No file
+	var errWriter strings.Builder
+	_, err = runAppNoChecks([]string{"gitops", tmpFile.Name()})
+	require.Error(t, err)
+	assert.Equal(t, `Required flag "f" not set`, err.Error())
+
+	// Blank file
+	errWriter.Reset()
+	_, err = runAppNoChecks([]string{"gitops", "-f", ""})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "file name cannot be empty")
+
+	// Bad file
+	errWriter.Reset()
+	_, err = runAppNoChecks([]string{"gitops", "-f", "fileDoesNotExist.yml"})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "no such file or directory")
+
+	// Empty file
+	errWriter.Reset()
+	badFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = runAppNoChecks([]string{"gitops", "-f", badFile.Name()})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "errors occurred")
+
+	// DoGitOps error
+	t.Setenv("ORG_NAME", "")
+	_, err = runAppNoChecks([]string{"gitops", "-f", tmpFile.Name()})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "organization name must be present")
+
+	// Dry run
+	t.Setenv("ORG_NAME", orgName)
+	_ = runAppForTest(t, []string{"gitops", "-f", tmpFile.Name(), "--dry-run"})
+	assert.Equal(t, fleet.AppConfig{}, *savedAppConfig, "AppConfig should be empty")
+
+	// Real run
+	_ = runAppForTest(t, []string{"gitops", "-f", tmpFile.Name()})
+	assert.Equal(t, orgName, savedAppConfig.OrgInfo.OrgName)
+	assert.Equal(t, fleetServerURL, savedAppConfig.ServerSettings.ServerURL)
+	assert.Empty(t, enrolledSecrets)
+}
+
+func TestBasicGlobalPremiumGitOps(t *testing.T) {
 	// Cannot run t.Parallel() because it sets environment variables
 
 	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
@@ -97,7 +209,7 @@ func TestBasicGlobalGitOps(t *testing.T) {
 
 	const (
 		fleetServerURL = "https://fleet.example.com"
-		orgName        = "GitOps Test"
+		orgName        = "GitOps Premium Test"
 	)
 	t.Setenv("FLEET_SERVER_URL", fleetServerURL)
 
@@ -125,38 +237,6 @@ org_settings:
 `,
 	)
 	require.NoError(t, err)
-
-	// No file
-	var errWriter strings.Builder
-	_, err = runAppNoChecks([]string{"gitops", tmpFile.Name()})
-	require.Error(t, err)
-	assert.Equal(t, `Required flag "f" not set`, err.Error())
-
-	// Blank file
-	errWriter.Reset()
-	_, err = runAppNoChecks([]string{"gitops", "-f", ""})
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "file name cannot be empty")
-
-	// Bad file
-	errWriter.Reset()
-	_, err = runAppNoChecks([]string{"gitops", "-f", "fileDoesNotExist.yml"})
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "no such file or directory")
-
-	// Empty file
-	errWriter.Reset()
-	badFile, err := os.CreateTemp(t.TempDir(), "*.yml")
-	require.NoError(t, err)
-	_, err = runAppNoChecks([]string{"gitops", "-f", badFile.Name()})
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "errors occurred")
-
-	// DoGitOps error
-	t.Setenv("ORG_NAME", "")
-	_, err = runAppNoChecks([]string{"gitops", "-f", tmpFile.Name()})
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "organization name must be present")
 
 	// Dry run
 	t.Setenv("ORG_NAME", orgName)
