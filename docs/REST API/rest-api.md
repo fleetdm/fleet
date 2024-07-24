@@ -9298,7 +9298,7 @@ Retrieve details about a vulnerability and its affected software and OS versions
       "id": 2363,
       "name": "Docker Desktop",
       "version": "4.9.1",
-      "source": "programs", #ios,ipados
+      "source": "programs", #ios_apps,ipados_apps
       "browser": "",
       "generated_cpe": "cpe:2.3:a:docker:docker_desktop:4.9.1:*:*:*:*:windows:*:*",
       "hosts_count": 50,
