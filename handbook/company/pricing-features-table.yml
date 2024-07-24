@@ -123,12 +123,12 @@
 #  ║╣ ║║║╠╣ ║ ║╠╦╝║  ║╣    ║║║╚═╗╠╩╗  ║╣ ║║║║  ╠╦╝╚╦╝╠═╝ ║ ║║ ║║║║
 #  ╚═╝╝╚╝╚  ╚═╝╩╚═╚═╝╚═╝  ═╩╝╩╚═╝╩ ╩  ╚═╝╝╚╝╚═╝╩╚═ ╩ ╩   ╩ ╩╚═╝╝╚╝
 - industryName: Enforce disk encryption
-  documentationURL: https://fleetdm.com/docs/using-fleet/mdm-disk-encryption
+  description: Encrypt system drives on macOS and Windows computers, manage escrowed encryption keys, and report on disk encryption status (FileVault, BitLocker).
+  documentationUrl: https://fleetdm.com/docs/using-fleet/mdm-disk-encryption
   friendlyName: Ensure hard disks are encrypted
   productCategories: [Device management]
   pricingTableCategories: [Device management]
   usualDepartment: Security
-  description: Encrypt hard disks of macOS and Windows computers, manage escrowed encryption keys, and report on disk encryption status (FileVault, BitLocker).
   tier: Premium
   jamfProHasFeature: appleOnly
   jamfProtectHasFeature: no
@@ -222,35 +222,22 @@
 #  ╠═╣╠═╝╠═╝║  ║║  ╠═╣ ║ ║║ ║║║║   ║║║╣ ╠═╝║  ║ ║╚╦╝║║║║╣ ║║║ ║ 
 #  ╩ ╩╩  ╩  ╩═╝╩╚═╝╩ ╩ ╩ ╩╚═╝╝╚╝  ═╩╝╚═╝╩  ╩═╝╚═╝ ╩ ╩ ╩╚═╝╝╚╝ ╩ 
 - industryName: Application deployment
-  description: Deploy applications and security agents on macOS, iOS/iPadOS, Linux, Windows, and Android (coming soon) devices. Additionally, install macOS and iOS/iPadOS apps from the App Store.
+  description: Deploy applications and security agents on macOS, iOS/iPadOS, Linux, Windows, and Android (coming soon) devices. Additionally, install macOS and iOS/iPadOS apps from the App Store (coming soon).
   tier: Premium
   jamfProHasFeature: appleOnly
   jamfProtectHasFeature: no
   usualDepartment: IT
   productCategories: [Device management]
   pricingTableCategories: [Device management]
-#  
-#  ╦╔╗╔╔═╗╔╦╗╔═╗╦  ╦    ╔═╗╔═╗╔═╗╦  ╔═╗  ╔═╗╔═╗╔═╗  ╔═╗╔╦╗╔═╗╦═╗╔═╗  ╔═╗╔═╗╔═╗╔═╗                 
-#  ║║║║╚═╗ ║ ╠═╣║  ║    ╠═╣╠═╝╠═╝║  ║╣   ╠═╣╠═╝╠═╝  ╚═╗ ║ ║ ║╠╦╝║╣   ╠═╣╠═╝╠═╝╚═╗                 
-#  ╩╝╚╝╚═╝ ╩ ╩ ╩╩═╝╩═╝  ╩ ╩╩  ╩  ╩═╝╚═╝  ╩ ╩╩  ╩    ╚═╝ ╩ ╚═╝╩╚═╚═╝  ╩ ╩╩  ╩  ╚═╝                 
-#  ╔╦╗╦ ╦╦═╗╔═╗╦ ╦╔═╗╦ ╦  ╦  ╦╔═╗╦  ╦ ╦╔╦╗╔═╗  ╔═╗╦ ╦╦═╗╔═╗╦ ╦╔═╗╔═╗╦╔╗╔╔═╗  ╔═╗╦═╗╔═╗╔═╗╦═╗╔═╗╔╦╗
-#   ║ ╠═╣╠╦╝║ ║║ ║║ ╦╠═╣  ╚╗╔╝║ ║║  ║ ║║║║║╣   ╠═╝║ ║╠╦╝║  ╠═╣╠═╣╚═╗║║║║║ ╦  ╠═╝╠╦╝║ ║║ ╦╠╦╝╠═╣║║║
-#   ╩ ╩ ╩╩╚═╚═╝╚═╝╚═╝╩ ╩   ╚╝ ╚═╝╩═╝╚═╝╩ ╩╚═╝  ╩  ╚═╝╩╚═╚═╝╩ ╩╩ ╩╚═╝╩╝╚╝╚═╝  ╩  ╩╚═╚═╝╚═╝╩╚═╩ ╩╩ ╩                     
-- industryName: Install Apple App Store apps through Volume Purchasing Program (VPP).
-  description: Offer licenses for Photoshop and other App Sore apps for your end users.
-  tier: Premium
-  jamfProHasFeature: yes
-  jamfProtectHasFeature: no
-  comingSoonOn: 2024-08-11
-  waysToUse:
-    - description: macOS coming soon (2024-07-15). #customer-rosner
-      moreInfoUrl: https://github.com/fleetdm/fleet/issues/18867
-    - description: iOS/iPadOS coming soon (2024-08-11).
-      moreInfoUrl: https://github.com/fleetdm/fleet/issues/14899
-  usualDepartment: IT
-  productCategories: [Device management]
-  pricingTableCategories: [Device management]
   moreInfoUrl: https://github.com/fleetdm/fleet/issues/18867
+  waysToUse:
+   - description: Easily configure and install SentinelOne, Crowdstrike, and other security tools.
+     moreInfoUrl: https://github.com/fleetdm/fleet/issues/14921 
+   - description: Offer licenses for Photoshop and other App Sore apps for your end users.
+   - description: macOS coming soon (2024-07-15). #customer-rosner
+     moreInfoUrl: https://github.com/fleetdm/fleet/issues/18867
+   - description: iOS/iPadOS coming soon (2024-08-11).
+     moreInfoUrl: https://github.com/fleetdm/fleet/issues/14899
 #  
 #  ╔═╗╔═╗╦  ╔═╗  ╔═╗╔═╗╦═╗╦  ╦╦╔═╗╔═╗  ╔═╗╔═╗╔═╗╦  ╦╔═╗╔═╗╔╦╗╦╔═╗╔╗╔  ╦╔╗╔╔═╗╔╦╗╔═╗╦  ╦  ╔═╗╔╦╗╦╔═╗╔╗╔                                   
 #  ╚═╗║╣ ║  ╠╣   ╚═╗║╣ ╠╦╝╚╗╔╝║║  ║╣   ╠═╣╠═╝╠═╝║  ║║  ╠═╣ ║ ║║ ║║║║  ║║║║╚═╗ ║ ╠═╣║  ║  ╠═╣ ║ ║║ ║║║║                                   
