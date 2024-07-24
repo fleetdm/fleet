@@ -35,7 +35,6 @@ func TestVulnerabilities(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			t.Helper()
 			defer TruncateTables(t, ds)
 			c.fn(t, ds)
 		})
