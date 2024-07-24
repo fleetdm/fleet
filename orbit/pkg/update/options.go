@@ -122,4 +122,11 @@ var (
 		TargetFile:           "swiftDialog.app.tar.gz",
 		ExtractedExecSubPath: []string{"Dialog.app", "Contents", "MacOS", "Dialog"},
 	}
+
+	EscrowBuddyMacOSTarget = TargetInfo{
+		Platform:             "macos",
+		Channel:              "stable",
+		TargetFile:           "escrowBuddy.app.tar.gz",
+		ExtractedExecSubPath: []string{"TODO"},
+	}
 )
