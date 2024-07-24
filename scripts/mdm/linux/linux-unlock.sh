@@ -19,3 +19,6 @@ do
         fi
     fi
 done
+
+# Remove the pam_nologin file
+rm /etc/nologin
