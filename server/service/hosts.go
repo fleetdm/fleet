@@ -1039,7 +1039,6 @@ func (svc *Service) RefetchHost(ctx context.Context, id uint) error {
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "refetch host with MDM")
 		}
-		return nil
 	}
 
 	if err := svc.ds.UpdateHostRefetchRequested(ctx, id, true); err != nil {

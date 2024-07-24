@@ -9398,4 +9398,9 @@ func (s *integrationMDMTestSuite) TestRefetchIOSIPadOS() {
 	require.NoError(t, err)
 	require.NotNil(t, cmd)
 	assert.Equal(t, "DeviceInformation", cmd.Command.RequestType)
+
+	var hostResp getHostResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &hostResp)
+	assert.Equal(t, host.ID, hostResp.Host.ID)
+	assert.True(t, host.RefetchRequested)
 }

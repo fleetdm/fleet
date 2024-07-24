@@ -2752,6 +2752,7 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 		host.PrimaryMac = wifiMac
 		host.HardwareModel = productName
 		host.DetailUpdatedAt = time.Now()
+		host.RefetchRequested = false
 		if err := svc.ds.UpdateHost(r.Context, host); err != nil {
 			return nil, ctxerr.Wrap(r.Context, err, "failed to update host")
 		}
