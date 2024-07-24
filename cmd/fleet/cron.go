@@ -1305,28 +1305,7 @@ func newIPhoneIPadRefetcher(
 			}
 			logger.Log("msg", "sending commands to refetch", "count", len(uuids), "lookup-duration", time.Since(start))
 			commandUUID := fleet.RefetchCommandUUIDPrefix + uuid.NewString()
-			if err := commander.EnqueueCommand(ctx, uuids, fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-    <key>Command</key>
-    <dict>
-        <key>Queries</key>
-        <array>
-            <string>DeviceName</string>
-            <string>DeviceCapacity</string>
-            <string>AvailableDeviceCapacity</string>
-            <string>OSVersion</string>
-            <string>WiFiMAC</string>
-            <string>ProductName</string>
-        </array>
-        <key>RequestType</key>
-        <string>DeviceInformation</string>
-    </dict>
-    <key>CommandUUID</key>
-    <string>%s</string>
-</dict>
-</plist>`, commandUUID)); err != nil {
+			if err := commander.DeviceInformation(ctx, uuids, commandUUID); err != nil {
 				return ctxerr.Wrap(ctx, err, "send DeviceInformation commands to ios and ipados devices")
 			}
 			return nil

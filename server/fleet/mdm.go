@@ -723,3 +723,10 @@ type VPPTokenData struct {
 	// structure of `VPPTokenRaw`.
 	Token string `json:"token"`
 }
+type AppleDevice int
+
+const (
+	MacOS AppleDevice = iota
+	IOS
+	IPadOS
+)

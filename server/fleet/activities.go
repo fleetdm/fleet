@@ -54,6 +54,8 @@ var ActivityDetailsList = []ActivityDetails{
 	ActivityTypeMDMUnenrolled{},
 
 	ActivityTypeEditedMacOSMinVersion{},
+	ActivityTypeEditedIOSMinVersion{},
+	ActivityTypeEditedIPadOSMinVersion{},
 	ActivityTypeEditedWindowsUpdates{},
 
 	ActivityTypeReadHostDiskEncryptionKey{},
@@ -834,6 +836,56 @@ func (a ActivityTypeEditedWindowsUpdates) Documentation() (activity string, deta
   "team_name": "Workstations",
   "deadline_days": 5,
   "grace_period_days": 2
+}`
+}
+
+type ActivityTypeEditedIOSMinVersion struct {
+	TeamID         *uint   `json:"team_id"`
+	TeamName       *string `json:"team_name"`
+	MinimumVersion string  `json:"minimum_version"`
+	Deadline       string  `json:"deadline"`
+}
+
+func (a ActivityTypeEditedIOSMinVersion) ActivityName() string {
+	return "edited_ios_min_version"
+}
+
+func (a ActivityTypeEditedIOSMinVersion) Documentation() (activity string, details string, detailsExample string) {
+	return `Generated when the minimum required iOS version or deadline is modified.`,
+		`This activity contains the following fields:
+- "team_id": The ID of the team that the minimum iOS version applies to, ` + "`null`" + ` if it applies to devices that are not in a team.
+- "team_name": The name of the team that the minimum iOS version applies to, ` + "`null`" + ` if it applies to devices that are not in a team.
+- "minimum_version": The minimum iOS version required, empty if the requirement was removed.
+- "deadline": The deadline by which the minimum version requirement must be applied, empty if the requirement was removed.`, `{
+  "team_id": 3,
+  "team_name": "iPhones",
+  "minimum_version": "17.5.1",
+  "deadline": "2023-06-01"
+}`
+}
+
+type ActivityTypeEditedIPadOSMinVersion struct {
+	TeamID         *uint   `json:"team_id"`
+	TeamName       *string `json:"team_name"`
+	MinimumVersion string  `json:"minimum_version"`
+	Deadline       string  `json:"deadline"`
+}
+
+func (a ActivityTypeEditedIPadOSMinVersion) ActivityName() string {
+	return "edited_ipados_min_version"
+}
+
+func (a ActivityTypeEditedIPadOSMinVersion) Documentation() (activity string, details string, detailsExample string) {
+	return `Generated when the minimum required iPadOS version or deadline is modified.`,
+		`This activity contains the following fields:
+- "team_id": The ID of the team that the minimum iPadOS version applies to, ` + "`null`" + ` if it applies to devices that are not in a team.
+- "team_name": The name of the team that the minimum iPadOS version applies to, ` + "`null`" + ` if it applies to devices that are not in a team.
+- "minimum_version": The minimum iPadOS version required, empty if the requirement was removed.
+- "deadline": The deadline by which the minimum version requirement must be applied, empty if the requirement was removed.`, `{
+  "team_id": 3,
+  "team_name": "iPads",
+  "minimum_version": "17.5.1",
+  "deadline": "2023-06-01"
 }`
 }
 

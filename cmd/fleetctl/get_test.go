@@ -166,9 +166,17 @@ func TestGetTeams(t *testing.T) {
 								HostExpiryWindow:  15,
 							},
 							MDM: fleet.TeamMDM{
-								MacOSUpdates: fleet.MacOSUpdates{
+								MacOSUpdates: fleet.AppleOSUpdateSettings{
 									MinimumVersion: optjson.SetString("12.3.1"),
 									Deadline:       optjson.SetString("2021-12-14"),
+								},
+								IOSUpdates: fleet.AppleOSUpdateSettings{
+									MinimumVersion: optjson.SetString("17.5"),
+									Deadline:       optjson.SetString("2022-11-15"),
+								},
+								IPadOSUpdates: fleet.AppleOSUpdateSettings{
+									MinimumVersion: optjson.SetString("18.0"),
+									Deadline:       optjson.SetString("2023-01-01"),
 								},
 								WindowsUpdates: fleet.WindowsUpdates{
 									DeadlineDays:    optjson.SetInt(7),
@@ -2225,7 +2233,7 @@ func TestGetTeamsYAMLAndApply(t *testing.T) {
 				AdditionalQueries: &additionalQueries,
 			},
 			MDM: fleet.TeamMDM{
-				MacOSUpdates: fleet.MacOSUpdates{
+				MacOSUpdates: fleet.AppleOSUpdateSettings{
 					MinimumVersion: optjson.SetString("12.3.1"),
 					Deadline:       optjson.SetString("2021-12-14"),
 				},

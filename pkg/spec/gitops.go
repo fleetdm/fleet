@@ -22,6 +22,8 @@ type BaseItem struct {
 type Controls struct {
 	BaseItem
 	MacOSUpdates   interface{} `json:"macos_updates"`
+	IOSUpdates     interface{} `json:"ios_updates"`
+	IPadOSUpdates  interface{} `json:"ipados_updates"`
 	MacOSSettings  interface{} `json:"macos_settings"`
 	MacOSSetup     interface{} `json:"macos_setup"`
 	MacOSMigration interface{} `json:"macos_migration"`
