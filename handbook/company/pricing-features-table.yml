@@ -30,7 +30,9 @@
 #  ╔═╗╦═╗╔═╗╔═╗╔═╗   ╔═╗╦  ╔═╗╔╦╗╔═╗╔═╗╦═╗╔╦╗  ╔╦╗╔╦╗╔╦╗  ╔═╗╦ ╦╔═╗╔═╗╔═╗╦═╗╔╦╗
 #  ║  ╠╦╝║ ║╚═╗╚═╗───╠═╝║  ╠═╣ ║ ╠╣ ║ ║╠╦╝║║║  ║║║ ║║║║║  ╚═╗║ ║╠═╝╠═╝║ ║╠╦╝ ║ 
 #  ╚═╝╩╚═╚═╝╚═╝╚═╝   ╩  ╩═╝╩ ╩ ╩ ╚  ╚═╝╩╚═╩ ╩  ╩ ╩═╩╝╩ ╩  ╚═╝╚═╝╩  ╩  ╚═╝╩╚═ ╩ 
-- industryName: Cross-platform MDM support (macOS, Windows, Linux)
+- industryName: Cross-platform MDM support
+  description: macOS, Windows, and Linux.
+  documentationUrl: https://fleetdm.com/announcements/fleet-introduces-windows-mdm
   tier: Premium
   jamfProHasFeature: appleOnly
   jamfProtectHasFeature: no
@@ -42,10 +44,11 @@
 #  ║║║ ║║║║║  ║║║║║ ╦╠╦╝╠═╣ ║ ║║ ║║║║
 #  ╩ ╩═╩╝╩ ╩  ╩ ╩╩╚═╝╩╚═╩ ╩ ╩ ╩╚═╝╝╚╝
 - industryName: MDM migration #   « end-user initiated MDM migration, with interactive UI
+  description: Easily move your devices from your current MDM solution to Fleet.
   tier: Premium
   jamfProHasFeature: yes
   jamfProtectHasFeature: no
-  documentationUrl: https://fleetdm.com/docs/using-fleet/mdm-migration-guide#migrate-automatically-enrolled-dep-hosts
+  documentationUrl: https://fleetdm.com/docs/using-fleet/mdm-migration-guide
   usualDepartment: IT
   productCategories: [Device management]
   pricingTableCategories: [Device management]
@@ -76,7 +79,7 @@
 #  ╚═╝╚═╝╚═╝╩╚═  ╩ ╩╚═╝╚═╝╚═╝╚═╝╝╚╝ ╩   ╚═╝ ╩ ╝╚╝╚═╝
 - industryName: User account sync
   description: Sync user accounts via Okta, AD, or any IDP. 
-  documentationUrl:
+  documentationUrl: https://fleetdm.com/docs/using-fleet/mdm-macos-setup-experience
   productCategories: [Endpoint operations,Device management,Vulnerability management]
   pricingTableCategories: [Device management]
   usualDepartment: IT
@@ -91,7 +94,7 @@
 #  ╚═╝ ╩ ╚═╝═╩╝  ╚═╝╝╚╝╩╚═╚═╝╩═╝╩═╝╩ ╩╚═╝╝╚╝ ╩ 
 - industryName: BYOD enrollment
   description: BYOD enrollment for macOS, iOS/iPadOS (coming soon), Windows, and Android (coming soon) devices.
-  documentationUrl: https://fleetdm.com/docs/using-fleet/mdm-migration-guide#migrate-manually-enrolled-hosts
+  documentationUrl: https://fleetdm.com/guides/sysadmin-diaries-device-enrollment#byod-enrollment
   tier: Free
   jamfProHasFeature: yes
   jamfProtectHasFeature: no
@@ -106,8 +109,8 @@
 #   ║║║╣ ╚╗╔╝║║  ║╣   ║║║║╚╗╔╝║╣ ║║║ ║ ║ ║╠╦╝╚╦╝
 #  ═╩╝╚═╝ ╚╝ ╩╚═╝╚═╝  ╩╝╚╝ ╚╝ ╚═╝╝╚╝ ╩ ╚═╝╩╚═ ╩ 
 - industryName: Device inventory
-  description: The device inventory allows help desk technicians to view custom device data.
-  documentationUrl: https://fleetdm.com/securing/end-user-self-remediation#set-your-enforcement-standards
+  description: The device inventory allows admins to view device data.
+  documentationUrl: https://fleetdm.com/docs/using-fleet/understanding-host-vitals
   moreInfoUrl: https://github.com/fleetdm/fleet/issues/14415
   tier: Free
   jamfProHasFeature: yes
@@ -281,7 +284,7 @@
 #  ═╩╝╚═╝ ╚╝ ╩╚═╝╚═╝  ╩╚═╚═╝╩ ╩╚═╝═╩╝╩╩ ╩ ╩ ╩╚═╝╝╚╝
 - industryName: Device remediation
   description: Use Fleet Policies to detect the device state. Automate remediations for issues or allow users to remediate problems in self-service.
-  documentationUrl: https://fleetdm.com/docs/using-fleet/fleet-desktop
+  documentationUrl: https://fleetdm.com/securing/end-user-self-remediation # « NOTE: This link will change when auto-remediation is delivered.
   tier: Premium
   jamfProHasFeature: yes
   jamfProtectHasFeature: no
@@ -295,6 +298,7 @@
 #  ╚═╗║╣ ║║║ ║║  ║  ║ ║║  ╠╩╗  ╠═╣║║║ ║║  ║║║║╠═╝║╣   ║  ║ ║║║║║║║╠═╣║║║ ║║╚═╗
 #  ╚═╝╚═╝╝╚╝═╩╝  ╩═╝╚═╝╚═╝╩ ╩  ╩ ╩╝╚╝═╩╝  ╚╩╝╩╩  ╚═╝  ╚═╝╚═╝╩ ╩╩ ╩╩ ╩╝╚╝═╩╝╚═╝
 - industryName: Send lock and wipe commands
+  description: Secure your devices with remote lock and wipe commands if lost or stolen.
   documentationUrl: https://fleetdm.com/docs/using-fleet/mdm-commands
   waysToUse:
     - description: High-level remote lock for macOS, Windows, and Linux.
@@ -308,26 +312,15 @@
   productCategories: [Device management]
   pricingTableCategories: [Device management]
 #  
-#  ╔╦╗╦ ╦╦ ╔╦╗╦  ╔╦╗╔═╗╔╗╔╔═╗╔╗╔╔═╗╦ ╦
-#  ║║║║ ║║  ║ ║───║ ║╣ ║║║╠═╣║║║║  ╚╦╝
-#  ╩ ╩╚═╝╩═╝╩ ╩   ╩ ╚═╝╝╚╝╩ ╩╝╚╝╚═╝ ╩ 
-- industryName: Multi-tenancy
-  description: For managed service providers to use a single instance of Fleet for multiple customers.
-  documentationUrl: https://github.com/fleetdm/fleet/issues/9956 #customer-deebradel
-  productCategories: [Device management]
-  pricingTableCategories: [Deployment]
-  usualDepartment: IT
-  buzzwords: [OEM,Private label,House brand,Clear label,Multi-tenancy]
-  tier: Premium
-  comingSoonOn: 2024-08-26
-#  
 #  ╔═╗╔═╗╔═╗╦  ╔═╗  ╔╦╗╔═╗╔═╗╦  ╔═╗╦═╗╔═╗╔╦╗╦╦  ╦╔═╗  ╔╦╗╔═╗╦  ╦╦╔═╗╔═╗  ╔╦╗╔═╗╔╗╔╔═╗╔═╗╔═╗╔╦╗╔═╗╔╗╔╔╦╗  
 #  ╠═╣╠═╝╠═╝║  ║╣    ║║║╣ ║  ║  ╠═╣╠╦╝╠═╣ ║ ║╚╗╔╝║╣    ║║║╣ ╚╗╔╝║║  ║╣   ║║║╠═╣║║║╠═╣║ ╦║╣ ║║║║╣ ║║║ ║   
 #  ╩ ╩╩  ╩  ╩═╝╚═╝  ═╩╝╚═╝╚═╝╩═╝╩ ╩╩╚═╩ ╩ ╩ ╩ ╚╝ ╚═╝  ═╩╝╚═╝ ╚╝ ╩╚═╝╚═╝  ╩ ╩╩ ╩╝╚╝╩ ╩╚═╝╚═╝╩ ╩╚═╝╝╚╝ ╩   
 #  ╔═╗╦ ╦╔═╗╔═╗╔═╗╦═╗╔╦╗  ╔═╗╔═╗╦═╗  ╔═╗╔═╗╔╗╔╔═╗╦╔═╗╦ ╦╦═╗╔═╗╔╦╗╦╔═╗╔╗╔  ╔═╗╦═╗╔═╗╔═╗╦╦  ╔═╗╔═╗         
 #  ╚═╗║ ║╠═╝╠═╝║ ║╠╦╝ ║   ╠╣ ║ ║╠╦╝  ║  ║ ║║║║╠╣ ║║ ╦║ ║╠╦╝╠═╣ ║ ║║ ║║║║  ╠═╝╠╦╝║ ║╠╣ ║║  ║╣ ╚═╗         
 #  ╚═╝╚═╝╩  ╩  ╚═╝╩╚═ ╩   ╚  ╚═╝╩╚═  ╚═╝╚═╝╝╚╝╚  ╩╚═╝╚═╝╩╚═╩ ╩ ╩ ╩╚═╝╝╚╝  ╩  ╩╚═╚═╝╚  ╩╩═╝╚═╝╚═╝         
-- industryName: Apple Declarative Device Management (DDM) support for Configuration Profiles
+- industryName: Apple Declarative Device Management (DDM) support for configuration profiles
+  description: Use the latest device management protocol on your Apple devices.
+  documentationUrl: https://fleetdm.com/docs/using-fleet/mdm-os-updates#macos
   tier: Premium
   jamfProHasFeature: cloudOnly
   jamfProtectHasFeature: cloudOnly
@@ -340,23 +333,13 @@
 #   ╩ ╩ ╩╩╚═╚═╝╚═╝ ╩ ╚═╝═╩╝  ═╩╝╚═╝ ╚╝ ╩╚═╝╚═╝  ╚═╝╚═╝╚═╝╩  ╩╝╚╝╚═╝
 - industryName: Targeted device scoping
   description: Organize devices with Teams and Labels.
+  documentationUrl: https://fleetdm.com/guides/managing-labels-in-fleet
   tier: Premium
   jamfProHasFeature: yes
   jamfProtectHasFeature: yes
   usualDepartment: IT
   productCategories: [Device management]
   pricingTableCategories: [Device management] 
-#  
-#  ╔╦╗╦ ╦╔╗╔╦╔═╦  ╔═╗╔═╗╔╦╗╔═╗╔═╗╔╦╗╦╔╗ ╦╦  ╦╔╦╗╦ ╦    ╦╔╗╔╔╦╗╔═╗╔═╗╦═╗╔═╗╔╦╗╦╔═╗╔╗╔
-#  ║║║║ ║║║║╠╩╗║  ║  ║ ║║║║╠═╝╠═╣ ║ ║╠╩╗║║  ║ ║ ╚╦╝    ║║║║ ║ ║╣ ║ ╦╠╦╝╠═╣ ║ ║║ ║║║║
-#  ╩ ╩╚═╝╝╚╝╩ ╩╩  ╚═╝╚═╝╩ ╩╩  ╩ ╩ ╩ ╩╚═╝╩╩═╝╩ ╩  ╩     ╩╝╚╝ ╩ ╚═╝╚═╝╩╚═╩ ╩ ╩ ╩╚═╝╝╚╝
-- industryName: Munki compatibility / integration
-  tier: Premium
-  jamfProHasFeature: yes
-  jamfProtectHasFeature: yes
-  usualDepartment: IT
-  productCategories: [Device management]
-  pricingTableCategories: [Integrations]
 #
 #  ██╗   ██╗██╗   ██╗██╗     ███╗   ██╗███████╗██████╗  █████╗ ██████╗ ██╗██╗     ██╗████████╗██╗   ██╗    
 #  ██║   ██║██║   ██║██║     ████╗  ██║██╔════╝██╔══██╗██╔══██╗██╔══██╗██║██║     ██║╚══██╔══╝╚██╗ ██╔╝    
@@ -1359,6 +1342,19 @@
   tier: Premium
   jamfProHasFeature: yes
   jamfProtectHasFeature: yes
+#  
+#  ╔╦╗╦ ╦╦ ╔╦╗╦  ╔╦╗╔═╗╔╗╔╔═╗╔╗╔╔═╗╦ ╦
+#  ║║║║ ║║  ║ ║───║ ║╣ ║║║╠═╣║║║║  ╚╦╝
+#  ╩ ╩╚═╝╩═╝╩ ╩   ╩ ╚═╝╝╚╝╩ ╩╝╚╝╚═╝ ╩ 
+- industryName: Multi-tenancy
+  description: For managed service providers to use a single instance of Fleet for multiple customers.
+  documentationUrl: https://github.com/fleetdm/fleet/issues/9956 #customer-deebradel
+  productCategories: [Device management]
+  pricingTableCategories: [Deployment]
+  usualDepartment: IT
+  buzzwords: [OEM,Private label,House brand,Clear label,Multi-tenancy]
+  tier: Premium
+  comingSoonOn: 2024-08-26
 #
 #  ██╗███╗   ██╗████████╗███████╗ ██████╗ ██████╗  █████╗ ████████╗██╗ ██████╗ ███╗   ██╗███████╗
 #  ██║████╗  ██║╚══██╔══╝██╔════╝██╔════╝ ██╔══██╗██╔══██╗╚══██╔══╝██║██╔═══██╗████╗  ██║██╔════╝
@@ -1468,6 +1464,17 @@
     - description: (Torq) Build custom workflows that trigger in various situations.
     - description: (Custom IdP) Manage access to Fleet single sign-on (SSO) through any IdP (using SAML).
   buzzwords: [Vanta,Puppet,Custom IdP]
+#  
+#  ╔╦╗╦ ╦╔╗╔╦╔═╦  ╔═╗╔═╗╔╦╗╔═╗╔═╗╔╦╗╦╔╗ ╦╦  ╦╔╦╗╦ ╦   ╦╔╗╔╔╦╗╔═╗╔═╗╦═╗╔═╗╔╦╗╦╔═╗╔╗╔
+#  ║║║║ ║║║║╠╩╗║  ║  ║ ║║║║╠═╝╠═╣ ║ ║╠╩╗║║  ║ ║ ╚╦╝   ║║║║ ║ ║╣ ║ ╦╠╦╝╠═╣ ║ ║║ ║║║║
+#  ╩ ╩╚═╝╝╚╝╩ ╩╩  ╚═╝╚═╝╩ ╩╩  ╩ ╩ ╩ ╩╚═╝╩╩═╝╩ ╩  ╩    ╩╝╚╝ ╩ ╚═╝╚═╝╩╚═╩ ╩ ╩ ╩╚═╝╝╚╝
+- industryName: Munki compatibility / integration
+  tier: Premium
+  jamfProHasFeature: yes
+  jamfProtectHasFeature: yes
+  usualDepartment: IT
+  productCategories: [Device management]
+  pricingTableCategories: [Integrations]
 #  
 #  ╔╦╗╦═╗╦╔═╗╔═╗╔═╗╦═╗  ╔═╗  ╦ ╦╔═╗╦═╗╦╔═╔═╗╦  ╔═╗╦ ╦  ╔╗ ╔═╗╔═╗╔═╗╔╦╗  ╔═╗╔╗╔  ╔═╗  
 #   ║ ╠╦╝║║ ╦║ ╦║╣ ╠╦╝  ╠═╣  ║║║║ ║╠╦╝╠╩╗╠╣ ║  ║ ║║║║  ╠╩╗╠═╣╚═╗║╣  ║║  ║ ║║║║  ╠═╣  
