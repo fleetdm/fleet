@@ -33,7 +33,6 @@ import SoftwareDetailsSummary from "../components/SoftwareDetailsSummary";
 import SoftwareTitleDetailsTable from "./SoftwareTitleDetailsTable";
 import DetailsNoHosts from "../components/DetailsNoHosts";
 import SoftwarePackageCard from "./SoftwarePackageCard";
-import { getTeamMessage } from "../helpers";
 
 const baseClass = "software-title-details-page";
 
@@ -151,9 +150,7 @@ const SoftwareTitleDetailsPage = ({
         {isSoftwareTitleError ? (
           <DetailsNoHosts
             header="Software not detected"
-            details={`No hosts ${getTeamMessage(
-              teamIdForApi
-            )}have this software installed.`}
+            details="No hosts have this software installed."
           />
         ) : (
           <>
