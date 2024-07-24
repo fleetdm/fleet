@@ -76,10 +76,9 @@ queries:
     automations_enabled: false
     observer_can_run: true
 software:
-  packages:
     - url: https://zoom.us/client/latest/Zoom.pkg?archType=arm64
-      pre_install_query: SELECT 1 FROM system_info WHERE cpu_type = "arm64e";
+      pre_install_query: ../lib/macos-arm.queries.yml
       self_service: true
     - url: https://zoom.us/client/latest/Zoom.pkg
-      pre_install_query: SELECT 1 FROM system_info WHERE cpu_type = "x86_64h";
+      pre_install_query: ../lib/macos-intel.queries.yml
       self_service: true

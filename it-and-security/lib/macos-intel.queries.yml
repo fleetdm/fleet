@@ -1,0 +1,10 @@
+- name: Determine macOS cpu type as Intel
+  automations_enabled: false
+  description: Returns true if macOS cpu type is Intel.
+  discard_data: false
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  observer_can_run: true
+  platform: "darwin"
+  query: SELECT 1 FROM system_info WHERE cpu_type = "x86_64h";;
