@@ -339,7 +339,14 @@ type SoftwarePackageOrApp struct {
 // HostSoftwareInstall represents installation of software on a host from a
 // Fleet software installer.
 type HostSoftwareInstall struct {
-	InstallUUID string    `json:"install_uuid,omitempty"`
+	// InstallUUID is the the UUID of the script execution issued to install the related software. This
+	// field is only used if the install we're describing was for an uploaded software installer.
+	// Empty if the install was for an App Store app.
+	InstallUUID string `json:"install_uuid,omitempty"`
+
+	// CommandUUID is the UUID of the MDM command issued to install the related software. This field
+	// is only used if the install we're describing was for an App Store app.
+	// Empty if the install was for an uploaded software installer.
 	CommandUUID string    `json:"command_uuid,omitempty"`
 	InstalledAt time.Time `json:"installed_at"`
 }
