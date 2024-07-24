@@ -173,7 +173,7 @@ func (ds *Datastore) ListSoftwareTitles(
 	// (like a JSON) object for nested arrays.
 	getVersionsStmt, args, err := ds.selectSoftwareVersionsSQL(
 		titleIDs,
-		nil,
+		opt.TeamID,
 		tmFilter,
 		false,
 	)
@@ -342,7 +342,7 @@ SELECT
 	%s -- placeholder for optional host_counts
 	CONCAT('[', GROUP_CONCAT(JSON_QUOTE(scve.cve) SEPARATOR ','), ']') as vulnerabilities
 FROM software s
-LEFT JOIN software_host_counts shc ON shc.software_id = s.id
+LEFT JOIN software_host_counts shc ON shc.software_id = s.id AND %s
 LEFT JOIN software_cve scve ON shc.software_id = scve.software_id
 WHERE s.title_id IN (?)
 AND %s
@@ -354,7 +354,17 @@ GROUP BY s.id`
 		extraSelect = "MAX(shc.hosts_count) AS hosts_count,"
 	}
 
-	selectVersionsStmt = fmt.Sprintf(selectVersionsStmt, extraSelect, teamFilter)
+	countsJoin := "TRUE"
+	switch {
+	case teamID == nil:
+		countsJoin = "shc.team_id = 0 AND shc.global_stats = 1"
+	case *teamID == 0:
+		countsJoin = "shc.team_id = 0 AND shc.global_stats = 0"
+	case *teamID > 0:
+		countsJoin = fmt.Sprintf("shc.team_id = %d AND shc.global_stats = 0", *teamID)
+	}
+
+	selectVersionsStmt = fmt.Sprintf(selectVersionsStmt, extraSelect, countsJoin, teamFilter)
 
 	selectVersionsStmt, args, err := sqlx.In(selectVersionsStmt, titleIDs)
 	if err != nil {
