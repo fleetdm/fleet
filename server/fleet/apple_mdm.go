@@ -840,3 +840,41 @@ type MDMAppleDDMActivation struct {
 	ServerToken string                       `json:"ServerToken"`
 	Type        string                       `json:"Type"` // "com.apple.activation.simple"
 }
+
+// MDMAppleMachineInfo is a [device's information] sent as part of an MDM enrollment profile request
+//
+// [device's information]: https://developer.apple.com/documentation/devicemanagement/machineinfo
+type MDMAppleMachineInfo struct {
+	IMEI                        string `plist:"IMEI,omitempty"`
+	Language                    string `plist:"LANGUAGE,omitempty"`
+	MDMCanRequestSoftwareUpdate bool   `plist:"MDM_CAN_REQUEST_SOFTWARE_UPDATE"`
+	MEID                        string `plist:"MEID,omitempty"`
+	OSVersion                   string `plist:"OS_VERSION"`
+	PairingToken                string `plist:"PAIRING_TOKEN,omitempty"`
+	Product                     string `plist:"PRODUCT"`
+	Serial                      string `plist:"SERIAL"`
+	SoftwareUpdateDeviceID      string `plist:"SOFTWARE_UPDATE_DEVICE_ID,omitempty"`
+	SupplementalBuildVersion    string `plist:"SUPPLEMENTAL_BUILD_VERSION,omitempty"`
+	SupplementalOSVersionExtra  string `plist:"SUPPLEMENTAL_OS_VERSION_EXTRA,omitempty"`
+	UDID                        string `plist:"UDID"`
+	Version                     string `plist:"VERSION"`
+}
+
+const MDMAppleSoftwareUpdateRequiredCode = "com.apple.softwareupdate.required"
+
+type MDMAppleSoftwareUpdateRequiredDetails struct {
+	OSVersion    string `json:"os_version"`
+	BuildVersion string `json:"build_version"`
+}
+
+type MDMAppleSoftwareUpdateRequired struct {
+	Code    string                                `json:"code"`
+	Details MDMAppleSoftwareUpdateRequiredDetails `json:"details"`
+}
+
+func NewMDMAppleSoftwareUpdateRequired(settings AppleOSUpdateSettings) *MDMAppleSoftwareUpdateRequired {
+	return &MDMAppleSoftwareUpdateRequired{
+		Code:    MDMAppleSoftwareUpdateRequiredCode,
+		Details: MDMAppleSoftwareUpdateRequiredDetails{OSVersion: settings.MinimumVersion.Value},
+	}
+}
