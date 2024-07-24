@@ -13,26 +13,26 @@ func TestMacOSUpdatesValidate(t *testing.T) {
 	t.Run("valid", func(t *testing.T) {
 		cases := []struct {
 			name string
-			m    MacOSUpdates
+			m    AppleOSUpdateSettings
 		}{
-			{"empty", MacOSUpdates{}},
+			{"empty", AppleOSUpdateSettings{}},
 			{
 				"with full version",
-				MacOSUpdates{
+				AppleOSUpdateSettings{
 					MinimumVersion: optjson.SetString("10.15.0"),
 					Deadline:       optjson.SetString("2020-01-01"),
 				},
 			},
 			{
 				"without patch version",
-				MacOSUpdates{
+				AppleOSUpdateSettings{
 					MinimumVersion: optjson.SetString("10.15"),
 					Deadline:       optjson.SetString("2020-01-01"),
 				},
 			},
 			{
 				"only major version",
-				MacOSUpdates{
+				AppleOSUpdateSettings{
 					MinimumVersion: optjson.SetString("10"),
 					Deadline:       optjson.SetString("2020-01-01"),
 				},
@@ -49,25 +49,25 @@ func TestMacOSUpdatesValidate(t *testing.T) {
 	t.Run("invalid deadline", func(t *testing.T) {
 		cases := []struct {
 			name string
-			m    MacOSUpdates
+			m    AppleOSUpdateSettings
 		}{
 			{
 				"version but no deadline",
-				MacOSUpdates{
+				AppleOSUpdateSettings{
 					MinimumVersion: optjson.SetString("10.15.0"),
 					Deadline:       optjson.SetString(""),
 				},
 			},
 			{
 				"deadline with timestamp",
-				MacOSUpdates{
+				AppleOSUpdateSettings{
 					MinimumVersion: optjson.SetString("10.15.0"),
 					Deadline:       optjson.SetString("2020-01-01T00:00:00Z"),
 				},
 			},
 			{
 				"incomplete date",
-				MacOSUpdates{
+				AppleOSUpdateSettings{
 					MinimumVersion: optjson.SetString("10.15.0"),
 					Deadline:       optjson.SetString("2020-01"),
 				},
@@ -84,25 +84,25 @@ func TestMacOSUpdatesValidate(t *testing.T) {
 	t.Run("invalid version", func(t *testing.T) {
 		cases := []struct {
 			name string
-			m    MacOSUpdates
+			m    AppleOSUpdateSettings
 		}{
 			{
 				"deadline but no version",
-				MacOSUpdates{
+				AppleOSUpdateSettings{
 					MinimumVersion: optjson.SetString(""),
 					Deadline:       optjson.SetString("2020-01-01"),
 				},
 			},
 			{
 				"version with build info",
-				MacOSUpdates{
+				AppleOSUpdateSettings{
 					MinimumVersion: optjson.SetString("10.15.0 (19A583)"),
 					Deadline:       optjson.SetString("2020-01-01"),
 				},
 			},
 			{
 				"version with patch info",
-				MacOSUpdates{
+				AppleOSUpdateSettings{
 					MinimumVersion: optjson.SetString("10.15.0-patch1"),
 					Deadline:       optjson.SetString("2020-01-01"),
 				},
@@ -185,7 +185,7 @@ func TestMacOSUpdatesConfigured(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		m := MacOSUpdates{
+		m := AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString(tc.version),
 			Deadline:       optjson.SetString(tc.deadline),
 		}
@@ -266,10 +266,8 @@ func TestAppConfigDeprecatedFields(t *testing.T) {
 			diskEncryption, exists := mdm["enable_disk_encryption"]
 			require.True(t, exists)
 			require.EqualValues(t, c.wantDiskEncryption, diskEncryption)
-
 		})
 	}
-
 }
 
 func TestAtLeastOnePlatformEnabledAndConfigured(t *testing.T) {
