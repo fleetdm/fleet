@@ -11,6 +11,7 @@ import { AppContext } from "context/app";
 import LicenseExpirationBanner from "components/LicenseExpirationBanner";
 import ApplePNCertRenewalMessage from "components/MDM/ApplePNCertRenewalMessage";
 import AppleBMRenewalMessage from "components/MDM/AppleBMRenewalMessage";
+import VppRenewalMessage from "./banners/VppRenewalMessage";
 
 interface IMainContentProps {
   children: ReactNode;
@@ -61,25 +62,27 @@ const MainContent = ({
       config?.license.expiration || ""
     );
 
+    let banner: JSX.Element | null = null;
+
     if (isPremiumTier) {
       if (isApplePnsExpired || willApplePnsExpireIn30Days) {
-        return <ApplePNCertRenewalMessage expired={isApplePnsExpired} />;
-      }
-
-      if (isAppleBmExpired || willAppleBmExpireIn30Days) {
-        return <AppleBMRenewalMessage expired={isAppleBmExpired} />;
-      }
-
-      if (isAppleBmTermsExpired) {
-        return <AppleBMTermsMessage />;
-      }
-
-      if (isFleetLicenseExpired) {
-        return <LicenseExpirationBanner />;
+        banner = <ApplePNCertRenewalMessage expired={isApplePnsExpired} />;
+      } else if (isAppleBmExpired || willAppleBmExpireIn30Days) {
+        banner = <AppleBMRenewalMessage expired={isAppleBmExpired} />;
+      } else if (isAppleBmTermsExpired) {
+        banner = <AppleBMTermsMessage />;
+      } else if (isFleetLicenseExpired) {
+        banner = <LicenseExpirationBanner />;
       }
     }
 
-    return <></>;
+    banner = <VppRenewalMessage expired={false} />;
+
+    if (banner) {
+      return <div className={`${baseClass}__warning-banner`}>{banner}</div>;
+    }
+
+    return null;
   };
   return (
     <div className={classes}>
