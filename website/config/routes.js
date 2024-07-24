@@ -285,10 +285,10 @@ module.exports.routes = {
   'GET /deals': {
     action: 'view-deals',
     locals: {
-      pageDescriptionForMeta: 'TODO',
+      pageTitleForMeta: 'Deal registration',
+      pageDescriptionForMeta: 'Register an opportunity with a potential customer.',
       hideFooterLinks: true,
       hideStartCTA: true,
-      pageTitleForMeta: 'TODO',
     }
   },
 
