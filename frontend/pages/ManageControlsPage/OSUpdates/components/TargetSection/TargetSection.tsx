@@ -48,10 +48,8 @@ const getDefaultDeadline = ({
     currentTeamId === API_NO_TEAM_ID ? appConfig?.mdm : teamConfig?.mdm;
 
   if (osType === "darwin") return mdmData?.macos_updates.deadline ?? "";
-  // if (osType === "ios") return mdmData?.ios_updates.deadline ?? "";
-  // if (osType === "ipados") return mdmData?.ipados_updates.deadline ?? "";
-  if (osType === "ios") return "2024-10-3";
-  if (osType === "ipados") return "2024-07-30";
+  if (osType === "ios") return mdmData?.ios_updates.deadline ?? "";
+  if (osType === "ipados") return mdmData?.ipados_updates.deadline ?? "";
 
   return "";
 };
