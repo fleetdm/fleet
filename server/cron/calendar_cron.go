@@ -430,12 +430,8 @@ func processFailingHostExistingCalendarEvent(
 		}
 		// We could check the updated_at timestamp and avoid updating the event if it was updated recently.
 
-		updatedEvent, _, err = userCalendar.GetAndUpdateEvent(
-			calendarEvent, func(conflict bool) (string, bool, error) {
-				return calendar.GenerateCalendarEventBody(ctx, ds, orgName, host, policyIDtoPolicy, conflict, logger), true, nil)
-			},
-			fleet.CalendarGetAndUpdateEventOpts{UpdateTimezone: true},
-		)
+		updatedEvent, _, err = userCalendar.GetAndUpdateEvent(calendarEvent, genBodyFn,
+			fleet.CalendarGetAndUpdateEventOpts{UpdateTimezone: true})
 		if err != nil {
 			return fmt.Errorf("get event calendar on db: %w", err)
 		}
@@ -620,7 +616,6 @@ func attemptCreatingEventOnUserCalendar(
 		calendarEvent, err := userCalendar.CreateEvent(
 			preferredDate, func(conflict bool) (string, bool, error) {
 				var body string
-				body, generatedTag = calendar.GenerateCalendarEventBody(ctx, ds, orgName, host, policyIDtoPolicy, conflict, logger), true, nil)
 				body, generatedTag = calendar.GenerateCalendarEventBody(ctx, ds, orgName, host, policyIDtoPolicy, conflict, logger)
 				return body, true, nil
 			}, fleet.CalendarCreateEventOpts{},
