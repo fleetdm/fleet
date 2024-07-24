@@ -29,9 +29,8 @@ do
     fi
 done
 
-logged_in=$(users | tr ' ' '\n' | sort  | uniq)
-
 # Logout any non-passwd users
+logged_in=$(users | tr ' ' '\n' | sort  | uniq)
 for user in $logged_in; do
     [ "$user" = "root" ] && continue
     echo "Logging out $user"
