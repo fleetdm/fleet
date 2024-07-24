@@ -37,7 +37,7 @@ for user in $logged_in; do
     pkill -KILL -u "$user"
 done
 
-# Create the pam_nologin file and provide an error message
-echo "Locked by Fleet" > /etc/nologin
+# Create the pam_nologin file
+touch /etc/nologin
 
 echo "All non-root users have been logged out and their accounts locked."
