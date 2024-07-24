@@ -6833,6 +6833,7 @@ func (s *integrationTestSuite) TestListSoftwareAndSoftwareDetails() {
 	expectedTeamVersionsCount := 3
 
 	assertSoftwareDetails := func(expectedSoftware []fleet.Software, team string) {
+		t.Helper()
 		// this is just a basic sanity check of the software details endpoints and doesn't test all of the
 		// fields that may be present in the response (e.g., vulnerabilities)
 		for _, sw := range expectedSoftware {
@@ -6859,6 +6860,7 @@ func (s *integrationTestSuite) TestListSoftwareAndSoftwareDetails() {
 	}
 
 	assertResp := func(resp listSoftwareResponse, want []fleet.Software, ts time.Time, team string, counts ...int) {
+		t.Helper()
 		require.Len(t, resp.Software, len(want))
 		for i := range resp.Software {
 			wantID, gotID := want[i].ID, resp.Software[i].ID
@@ -7089,6 +7091,15 @@ func (s *integrationTestSuite) TestListSoftwareAndSoftwareDetails() {
 		"hosts_count", "order_direction", "desc", "team_id", teamStr,
 	)
 	assertVersionsResp(versResp, []fleet.Software{sws[17]}, hostsCountTs, teamStr, expectedTeamVersionsCount, 1)
+
+	// filter by no team, 2 by page
+	lsResp = listSoftwareResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software", nil, http.StatusOK, &lsResp, "per_page", "2", "page", "0", "order_key", "name",
+		"order_direction", "desc", "team_id", "0",
+	)
+	fmt.Printf("lsResp: %+v\n", lsResp)
+	assertResp(lsResp, []fleet.Software{sws[19], sws[18]}, hostsCountTs, "", 17, 17)
 
 	// Invalid software team -- admin gets a 404, team users get a 403
 	detailsResp := getSoftwareResponse{}
