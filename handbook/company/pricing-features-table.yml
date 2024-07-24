@@ -25,7 +25,18 @@
 #  ██║╚██╔╝██║██╔══██║██║╚██╗██║██╔══██║██║   ██║██╔══╝  ██║╚██╔╝██║██╔══╝  ██║╚██╗██║   ██║   
 #  ██║ ╚═╝ ██║██║  ██║██║ ╚████║██║  ██║╚██████╔╝███████╗██║ ╚═╝ ██║███████╗██║ ╚████║   ██║   
 #  ╚═╝     ╚═╝╚═╝  ╚═╝╚═╝  ╚═══╝╚═╝  ╚═╝ ╚═════╝ ╚══════╝╚═╝     ╚═╝╚══════╝╚═╝  ╚═══╝   ╚═╝   
-#       
+#
+#  
+#  ╔═╗╦═╗╔═╗╔═╗╔═╗   ╔═╗╦  ╔═╗╔╦╗╔═╗╔═╗╦═╗╔╦╗  ╔╦╗╔╦╗╔╦╗  ╔═╗╦ ╦╔═╗╔═╗╔═╗╦═╗╔╦╗
+#  ║  ╠╦╝║ ║╚═╗╚═╗───╠═╝║  ╠═╣ ║ ╠╣ ║ ║╠╦╝║║║  ║║║ ║║║║║  ╚═╗║ ║╠═╝╠═╝║ ║╠╦╝ ║ 
+#  ╚═╝╩╚═╚═╝╚═╝╚═╝   ╩  ╩═╝╩ ╩ ╩ ╚  ╚═╝╩╚═╩ ╩  ╩ ╩═╩╝╩ ╩  ╚═╝╚═╝╩  ╩  ╚═╝╩╚═ ╩ 
+- industryName: Cross-platform MDM support (macOS, Windows, Linux)
+  tier: Premium
+  jamfProHasFeature: appleOnly
+  jamfProtectHasFeature: no
+  usualDepartment: IT
+  productCategories: [Device management]
+  pricingTableCategories: [Device management]       
 #  
 #  ╔╦╗╔╦╗╔╦╗  ╔╦╗╦╔═╗╦═╗╔═╗╔╦╗╦╔═╗╔╗╔
 #  ║║║ ║║║║║  ║║║║║ ╦╠╦╝╠═╣ ║ ║║ ║║║║
@@ -346,17 +357,6 @@
   usualDepartment: IT
   productCategories: [Device management]
   pricingTableCategories: [Integrations]
-#  
-#  ╔═╗╦═╗╔═╗╔═╗╔═╗   ╔═╗╦  ╔═╗╔╦╗╔═╗╔═╗╦═╗╔╦╗  ╔╦╗╔╦╗╔╦╗  ╔═╗╦ ╦╔═╗╔═╗╔═╗╦═╗╔╦╗
-#  ║  ╠╦╝║ ║╚═╗╚═╗───╠═╝║  ╠═╣ ║ ╠╣ ║ ║╠╦╝║║║  ║║║ ║║║║║  ╚═╗║ ║╠═╝╠═╝║ ║╠╦╝ ║ 
-#  ╚═╝╩╚═╚═╝╚═╝╚═╝   ╩  ╩═╝╩ ╩ ╩ ╚  ╚═╝╩╚═╩ ╩  ╩ ╩═╩╝╩ ╩  ╚═╝╚═╝╩  ╩  ╚═╝╩╚═ ╩ 
-- industryName: Cross-platform MDM support (macOS, Windows, Linux)
-  tier: Premium
-  jamfProHasFeature: appleOnly
-  jamfProtectHasFeature: no
-  usualDepartment: IT
-  productCategories: [Device management]
-  pricingTableCategories: [Device management]
 #
 #  ██╗   ██╗██╗   ██╗██╗     ███╗   ██╗███████╗██████╗  █████╗ ██████╗ ██╗██╗     ██╗████████╗██╗   ██╗    
 #  ██║   ██║██║   ██║██║     ████╗  ██║██╔════╝██╔══██╗██╔══██╗██╔══██╗██║██║     ██║╚══██╔══╝╚██╗ ██╔╝    
