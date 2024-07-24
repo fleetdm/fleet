@@ -3258,7 +3258,7 @@ func ReconcileAppleProfiles(
 
 // scepCertRenewalThresholdDays defines the number of days before a SCEP
 // certificate must be renewed.
-const scepCertRenewalThresholdDays = 30
+const scepCertRenewalThresholdDays = 180
 
 // maxCertsRenewalPerRun specifies the maximum number of certificates to renew
 // in a single cron run.
@@ -3267,8 +3267,8 @@ const scepCertRenewalThresholdDays = 30
 // day, and we have room for 24,000 * scepCertRenewalThresholdDays total
 // renewals.
 //
-// For a default of 30 days as a threshold this gives us room for a fleet of
-// 720,000 devices expiring at the same time.
+// For a default of 180 days as a threshold this gives us room for a fleet of
+// ~4 million devices expiring at the same time.
 const maxCertsRenewalPerRun = 100
 
 func RenewSCEPCertificates(
