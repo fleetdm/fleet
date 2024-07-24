@@ -11876,6 +11876,11 @@ func (s *integrationEnterpriseTestSuite) TestCalendarEventBodyUpdate() {
 		err = s.ds.SaveAppConfig(ctx, currentAppCfg)
 		require.NoError(t, err)
 	})
+	origRecentUpdateDuration := commonCalendar.RecentCalendarUpdateDuration
+	commonCalendar.RecentCalendarUpdateDuration = 1 * time.Millisecond
+	t.Cleanup(func() {
+		commonCalendar.RecentCalendarUpdateDuration = origRecentUpdateDuration
+	})
 
 	team1, err := s.ds.NewTeam(ctx, &fleet.Team{
 		Name: "team1",
