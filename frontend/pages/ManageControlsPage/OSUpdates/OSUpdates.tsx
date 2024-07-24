@@ -13,7 +13,7 @@ import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 import Spinner from "components/Spinner";
 
-import NudgePreview from "./components/EndUserOSRequirementPreview";
+import EndUserOSRequirementPreview from "./components/EndUserOSRequirementPreview";
 import TurnOnMdmMessage from "../components/TurnOnMdmMessage/TurnOnMdmMessage";
 import CurrentVersionSection from "./components/CurrentVersionSection";
 import TargetSection from "./components/TargetSection";
@@ -107,6 +107,8 @@ const OSUpdates = ({ router, teamIdForApi, queryParams }: IOSUpdates) => {
   // is enabled and configured.
   const selectedPlatform = selectedPlatformTab || getSelectedPlatform(config);
 
+  // TODO: Fix selecting platform tab which is showing the wrong tab if windows is missing
+
   return (
     <div className={baseClass}>
       <p className={`${baseClass}__description`}>
@@ -135,7 +137,7 @@ const OSUpdates = ({ router, teamIdForApi, queryParams }: IOSUpdates) => {
           />
         </div>
         <div className={`${baseClass}__nudge-preview`}>
-          <NudgePreview platform={selectedPlatform} />
+          <EndUserOSRequirementPreview platform={selectedPlatform} />
         </div>
       </div>
     </div>

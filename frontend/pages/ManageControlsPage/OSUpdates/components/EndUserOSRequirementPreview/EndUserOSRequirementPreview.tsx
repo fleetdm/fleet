@@ -15,47 +15,91 @@ interface IOSRequirementDescriptionProps {
 const OSRequirementDescription = ({
   platform,
 }: IOSRequirementDescriptionProps) => {
-  return platform === "darwin" ? (
-    <>
-      <h3>End user experience on macOS</h3>
-      <p>
-        For macOS 14 and above, end users will see native macOS notifications
-        (DDM).
-      </p>
-      <p>Everyone else will see the Nudge window.</p>
-      <CustomLink
-        text="Learn more"
-        url="https://fleetdm.com/learn-more-about/os-updates"
-        newTab
-      />
-    </>
-  ) : (
-    <>
-      <h3>End user experience on Windows</h3>
-      <p>
-        When a Windows host becomes aware of a new update, end users are able to
-        defer restarts. Automatic restarts happen before 8am and after 5pm (end
-        user&apos;s local time). After the deadline, restarts are forced
-        regardless of active hours.
-      </p>
-      <CustomLink
-        text="Learn more about Windows updates in Fleet"
-        url="https://fleetdm.com/learn-more-about/os-updates"
-        newTab
-      />
-    </>
-  );
+  if (platform === "darwin") {
+    return (
+      <>
+        <h3>End user experience on macOS</h3>
+        <p>
+          For macOS 14 and above, end users will see native macOS notifications
+          (DDM).
+        </p>
+        <p>Everyone else will see the Nudge window.</p>
+        <CustomLink
+          text="Learn more"
+          url="https://fleetdm.com/learn-more-about/os-updates"
+          newTab
+        />
+      </>
+    );
+  }
+  if (platform === "windows") {
+    return (
+      <>
+        <h3>End user experience on Windows</h3>
+        <p>
+          When a Windows host becomes aware of a new update, end users are able
+          to defer restarts. Automatic restarts happen before 8am and after 5pm
+          (end user&apos;s local time). After the deadline, restarts are forced
+          regardless of active hours.
+        </p>
+        <CustomLink
+          text="Learn more about Windows updates in Fleet"
+          url="https://fleetdm.com/learn-more-about/os-updates"
+          newTab
+        />
+      </>
+    );
+  }
+  if (platform === "iOS") {
+    return (
+      <>
+        <h3>End user experience on iOS</h3>
+        <p>TODO: waiting on design</p>
+        <CustomLink
+          text="Learn more"
+          url="https://fleetdm.com/learn-more-about/os-updates"
+          newTab
+        />
+      </>
+    );
+  }
+  if (platform === "iPadOS") {
+    return (
+      <>
+        <h3>End user experience on iPadOS</h3>
+        <p>TODO: waiting on design</p>
+        <CustomLink
+          text="Learn more"
+          url="https://fleetdm.com/learn-more-about/os-updates"
+          newTab
+        />
+      </>
+    );
+  }
 };
 
 type IOSRequirementImageProps = IOSRequirementDescriptionProps;
 
 const OSRequirementImage = ({ platform }: IOSRequirementImageProps) => {
+  const getScreenshot = () => {
+    if (platform === "darwin") {
+      return MacOSUpdateScreenshot;
+    }
+    if (platform === "windows") {
+      return WindowsUpdateScreenshot;
+    }
+    if (platform === "iOS") {
+      return MacOSUpdateScreenshot; // TODO: waiting on screenshot
+    }
+    if (platform === "iPadOS") {
+      return MacOSUpdateScreenshot; // TODO: waiting on screenshot
+    }
+  };
+
   return (
     <img
       className={`${baseClass}__preview-img`}
-      src={
-        platform === "darwin" ? MacOSUpdateScreenshot : WindowsUpdateScreenshot
-      }
+      src={getScreenshot()}
       alt="OS update preview screenshot"
     />
   );
