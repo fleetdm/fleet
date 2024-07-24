@@ -8588,7 +8588,7 @@ Deletes the session specified by ID. When the user associated with the session n
 ## Software
 
 - [Add software package](#add-software)
-- [Download software package](#download-software)
+- [Download software available for install](#download-software-available-for-install)
 - [Delete software available for install](#delete-software-available-for-install)
 - [Get installation result](#get-installation-result)
 - [List software](#list-software)
