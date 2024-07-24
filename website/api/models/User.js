@@ -240,17 +240,26 @@ without necessarily having a billing card.`
       defaultsTo: '2 - Aware'
     },
 
-    lastNurtureEmailSent: {
-      type: 'string',
-      description: 'The last automated nurture email that was sent to this user (if any)',
-      isIn: [
-        'none',
-        'stage-4',
-        'stage-5',
-        'stage-6',
-      ],
-      deafultsTo: 'none',
-    }
+    psychologicalStageLastChangedAt: {
+      type: 'number',
+      description: 'A JS timestamp of when this user\'s psychological stage changed.',
+    },
+
+    stageThreeNurtureEmailSentAt: {
+      type: 'number',
+      description: 'A JS timestamp of when the stage 3 nurture email was sent to the user.'
+    },
+
+    stageFourNurtureEmailSentAt: {
+      type: 'number',
+      description: 'A JS timestamp of when the stage 4 nurture email was sent to the user.'
+    },
+
+    stageFiveNurtureEmailSentAt: {
+      type: 'number',
+      description: 'A JS timestamp of when the stage 5 nurture email was sent to the user.'
+    },
+
 
     //  ╔═╗╔╦╗╔╗ ╔═╗╔╦╗╔═╗
     //  ║╣ ║║║╠╩╗║╣  ║║╚═╗
