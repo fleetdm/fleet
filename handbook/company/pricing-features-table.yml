@@ -409,9 +409,9 @@
     - description: Run a targeted YARA scan with osquery as a lightweight approach to scan anything on a host filesystem, with minimal performance impact.  Unlike full system YARA scans which consume considerable CPU resources, an equivalent YARA scan targeted in Fleet can be 8x cheaper (CPU %).
       moreInfoUrl: https://www.tripwire.com/state-of-security/signature-socket-based-malware-detection-osquery-yara
 #
-#   ╦═╗╦╔═╗╦╔═   ╔╗ ╔═╗╔═╗╔═╗╔╦╗  ╦  ╦╦ ╦╦  ╔╗╔╔═╗╦═╗╔═╗╔╗ ╦╦  ╦╔╦╗╦ ╦  ╔╦╗╔═╗╔╗╔╔═╗╔═╗╔═╗╔╦╗╔═╗╔╗╔╔╦╗
-#   ╠╦╝║╚═╗╠╩╗───╠╩╗╠═╣╚═╗║╣  ║║  ╚╗╔╝║ ║║  ║║║║╣ ╠╦╝╠═╣╠╩╗║║  ║ ║ ╚╦╝  ║║║╠═╣║║║╠═╣║ ╦║╣ ║║║║╣ ║║║ ║ 
-#   ╩╚═╩╚═╝╩ ╩   ╚═╝╩ ╩╚═╝╚═╝═╩╝   ╚╝ ╚═╝╩═╝╝╚╝╚═╝╩╚═╩ ╩╚═╝╩╩═╝╩ ╩  ╩   ╩ ╩╩ ╩╝╚╝╩ ╩╚═╝╚═╝╩ ╩╚═╝╝╚╝ ╩
+#  ╔═╗╔═╗╔╗╔╔╦╗╦╔╗╔╦ ╦╔═╗╦ ╦╔═╗  ╔═╗╔═╗╔═╗╔╗╔╔╗╔╦╔╗╔╔═╗
+#  ║  ║ ║║║║ ║ ║║║║║ ║║ ║║ ║╚═╗  ╚═╗║  ╠═╣║║║║║║║║║║║ ╦
+#  ╚═╝╚═╝╝╚╝ ╩ ╩╝╚╝╚═╝╚═╝╚═╝╚═╝  ╚═╝╚═╝╩ ╩╝╚╝╝╚╝╩╝╚╝╚═╝
 - industryName: Continuous scanning
   friendlyName: Detect vulnerable software
   documentationUrl: https://fleetdm.com/vulnerability-management
