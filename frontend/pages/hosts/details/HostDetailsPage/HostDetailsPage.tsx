@@ -888,7 +888,6 @@ const HostDetailsPage = ({
                 pathname={location.pathname}
                 onShowSoftwareDetails={setSelectedSoftwareDetails}
                 hostTeamId={host.team_id || 0}
-                hostPlatform={host.platform}
               />
               {host?.platform === "darwin" && macadmins?.munki?.version && (
                 <MunkiIssuesCard
