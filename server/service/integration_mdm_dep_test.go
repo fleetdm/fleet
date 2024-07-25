@@ -176,6 +176,9 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseDeviceTest(t *testing.T, de
 	}
 	s.Do("PATCH", "/api/latest/fleet/setup_experience", json.RawMessage(jsonMustMarshal(t, payload)), http.StatusNoContent)
 
+	// enable FileVault
+	s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage([]byte(`{"mdm":{"macos_settings":{"enable_disk_encryption":true}}}`)), http.StatusOK)
+
 	// query all hosts - none yet
 	listHostsRes := listHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listHostsRes)
@@ -252,32 +255,35 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseDeviceTest(t *testing.T, de
 	cmd, err := mdmDevice.Idle()
 	require.NoError(t, err)
 	for cmd != nil {
-		// Can be useful for debugging
-		//switch cmd.Command.RequestType {
-		//case "InstallProfile":
-		//	fmt.Println(">>>> device received command: ", cmd.CommandUUID, cmd.Command.RequestType, string(cmd.Command.InstallProfile.Payload))
-		//case "InstallEnterpriseApplication":
-		//	if cmd.Command.InstallEnterpriseApplication.ManifestURL != nil {
-		//		fmt.Println(">>>> device received command: ", cmd.CommandUUID, cmd.Command.RequestType, *cmd.Command.InstallEnterpriseApplication.ManifestURL)
-		//	} else {
-		//		fmt.Println(">>>> device received command: ", cmd.CommandUUID, cmd.Command.RequestType)
-		//	}
-		//default:
-		//	fmt.Println(">>>> device received command: ", cmd.CommandUUID, cmd.Command.RequestType)
-		//}
+
 		var fullCmd micromdm.CommandPayload
 		require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
+
+		// Can be useful for debugging
+		// switch cmd.Command.RequestType {
+		// case "InstallProfile":
+		// 	fmt.Println(">>>> device received command: ", cmd.CommandUUID, cmd.Command.RequestType, string(fullCmd.Command.InstallProfile.Payload))
+		// case "InstallEnterpriseApplication":
+		// 	if fullCmd.Command.InstallEnterpriseApplication.ManifestURL != nil {
+		// 		fmt.Println(">>>> device received command: ", cmd.CommandUUID, cmd.Command.RequestType, *fullCmd.Command.InstallEnterpriseApplication.ManifestURL)
+		// 	} else {
+		// 		fmt.Println(">>>> device received command: ", cmd.CommandUUID, cmd.Command.RequestType)
+		// 	}
+		// default:
+		// 	fmt.Println(">>>> device received command: ", cmd.CommandUUID, cmd.Command.RequestType)
+		// }
+
 		cmds = append(cmds, &fullCmd)
 		cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
 		require.NoError(t, err)
 	}
 
 	// expected commands: install fleetd, install bootstrap, install CA, install profiles
-	// (custom one and fleetd configuration) (not expected: account
+	// (custom one, fleetd configuration, FileVault) (not expected: account
 	// configuration, since enrollment_reference not set)
-	require.Len(t, cmds, 5)
+	require.Len(t, cmds, 6)
 	var installProfileCount, installEnterpriseCount, otherCount int
-	var profileCustomSeen, profileFleetdSeen, profileFleetCASeen bool
+	var profileCustomSeen, profileFleetdSeen, profileFleetCASeen, profileFileVaultSeen bool
 	for _, cmd := range cmds {
 		switch cmd.Command.RequestType {
 		case "InstallProfile":
@@ -288,6 +294,9 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseDeviceTest(t *testing.T, de
 				profileFleetdSeen = true
 			} else if strings.Contains(string(cmd.Command.InstallProfile.Payload), fmt.Sprintf("<string>%s</string>", mobileconfig.FleetCARootConfigPayloadIdentifier)) {
 				profileFleetCASeen = true
+			} else if strings.Contains(string(cmd.Command.InstallProfile.Payload), fmt.Sprintf("<string>%s</string", mobileconfig.FleetFileVaultPayloadIdentifier)) &&
+				strings.Contains(string(cmd.Command.InstallProfile.Payload), "ForceEnableInSetupAssistant") {
+				profileFileVaultSeen = true
 			}
 
 		case "InstallEnterpriseApplication":
@@ -296,12 +305,13 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseDeviceTest(t *testing.T, de
 			otherCount++
 		}
 	}
-	require.Equal(t, 3, installProfileCount)
+	require.Equal(t, 4, installProfileCount)
 	require.Equal(t, 2, installEnterpriseCount)
 	require.Equal(t, 0, otherCount)
 	require.True(t, profileCustomSeen)
 	require.True(t, profileFleetdSeen)
 	require.True(t, profileFleetCASeen)
+	require.True(t, profileFileVaultSeen)
 
 	if enableReleaseManually {
 		// get the worker's pending job from the future, there should not be any
