@@ -31,6 +31,8 @@ func main() {
 	flagDBPass := flag.String("db-password", testPassword, "Password used to connect to the MySQL instance")
 	flagDBAddress := flag.String("db-address", testAddress, "Address used to connect to the MySQL instance")
 	flagDBName := flag.String("db-name", testDatabase, "Name of the database with the asset information in the MySQL instance")
+	flagWriteName := flag.String("name", "", "asset name to write")
+	flagWriteVal := flag.String("val", "", "asset value to write")
 	flag.Parse()
 
 	if *flagKey == "" {
@@ -74,6 +76,15 @@ func main() {
 	defer ds.Close()
 
 	ctx := context.Background()
+
+	if flagWriteName != nil && *flagWriteName != "" && flagWriteVal != nil && *flagWriteVal != "" {
+		err = ds.ReplaceMDMConfigAssets(ctx, []fleet.MDMConfigAsset{{Name: fleet.MDMAssetName(*flagWriteName), Value: []byte(*flagWriteVal)}})
+		if err != nil {
+			log.Fatal("writing asset to db: ", err)
+		}
+		return
+	}
+
 	assets, err := ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{
 		fleet.MDMAssetCACert,
 		fleet.MDMAssetCAKey,
@@ -96,7 +107,7 @@ func main() {
 		case strings.Contains(path, "_cert"):
 			path = path + ".crt"
 		}
-		if err := os.WriteFile(path, asset.Value, 0600); err != nil {
+		if err := os.WriteFile(path, asset.Value, 0o600); err != nil {
 			log.Fatal("writing asset:", err)
 		}
 
