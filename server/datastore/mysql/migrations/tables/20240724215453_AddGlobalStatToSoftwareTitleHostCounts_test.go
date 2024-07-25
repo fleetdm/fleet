@@ -13,10 +13,10 @@ func TestUp_20240724215453(t *testing.T) {
 
 	s1t1 := 10
 	s2t1 := 1
-	s1t2 := 20
-	s2t2 := 1
+	s1t2 := 15
+	s2t2 := 3
 	s1g := 40
-	s2g := 4
+	s2g := 0 // edge case where global count is incorrectly 0
 
 	// insert software 1 team 1 counts
 	_, err := db.Exec(stmt, 1, s1t1, 1)
@@ -78,5 +78,5 @@ func TestUp_20240724215453(t *testing.T) {
 	// software 2 global
 	assertHostCount(2, s2g, 0, true)
 	// software 2 no team
-	assertHostCount(2, s2g-s2t1-s2t2, 0, false)
+	assertHostCount(2, 0, 0, false) // edge case where global count should not be negative
 }

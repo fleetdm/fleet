@@ -36,7 +36,7 @@ func Up_20240724215453(tx *sql.Tx) error {
 		INSERT INTO software_titles_host_counts (software_title_id, hosts_count, team_id, global_stats)
 		SELECT
 			sthc1.software_title_id,
-			sthc1.hosts_count - COALESCE(SUM(sthc2.hosts_count), 0) AS hosts_count,
+			GREATEST(sthc1.hosts_count - COALESCE(SUM(sthc2.hosts_count), 0),0) AS hosts_count,
 			0 AS team_id,
 			0 AS global_stats
 		FROM
