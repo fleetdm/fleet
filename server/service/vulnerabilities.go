@@ -60,7 +60,7 @@ func listVulnerabilitiesEndpoint(ctx context.Context, req interface{}, svc fleet
 
 func (svc *Service) ListVulnerabilities(ctx context.Context, opt fleet.VulnListOptions) ([]fleet.VulnerabilityWithMetadata, *fleet.PaginationMetadata, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.AuthzSoftwareInventory{
-		TeamID: &opt.TeamID,
+		TeamID: opt.TeamID,
 	}, fleet.ActionRead); err != nil {
 		return nil, nil, err
 	}
@@ -91,7 +91,7 @@ func (svc *Service) ListVulnerabilities(ctx context.Context, opt fleet.VulnListO
 
 func (svc *Service) CountVulnerabilities(ctx context.Context, opts fleet.VulnListOptions) (uint, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.AuthzSoftwareInventory{
-		TeamID: &opts.TeamID,
+		TeamID: opts.TeamID,
 	}, fleet.ActionRead); err != nil {
 		return 0, err
 	}
