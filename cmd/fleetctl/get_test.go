@@ -692,10 +692,10 @@ func TestGetSoftwareTitles(t *testing.T) {
 apiVersion: "1"
 kind: software_title
 spec:
-- hosts_count: 2
+- app_store_app: null
+  hosts_count: 2
   id: 0
   name: foo
-  self_service: false
   software_package: null
   source: chrome_extensions
   versions:
@@ -713,10 +713,10 @@ spec:
     vulnerabilities:
     - cve-123-456-003
   versions_count: 3
-- hosts_count: 0
+- app_store_app: null
+  hosts_count: 0
   id: 0
   name: bar
-  self_service: false
   software_package: null
   source: deb_packages
   versions:
@@ -761,8 +761,8 @@ spec:
           ]
         }
       ],
-      "self_service": false,
-	  "software_package": null
+      "software_package": null,
+      "app_store_app": null
     },
     {
       "id": 0,
@@ -774,11 +774,11 @@ spec:
         {
           "id": 0,
           "version": "0.0.3",
-		  "vulnerabilities": null
+      "vulnerabilities": null
         }
       ],
-      "self_service": false,
-	  "software_package": null
+      "software_package": null,
+      "app_store_app": null
     }
   ]
 }

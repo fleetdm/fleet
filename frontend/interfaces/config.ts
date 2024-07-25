@@ -37,6 +37,9 @@ interface ICustomSetting {
 
 export interface IMdmConfig {
   enable_disk_encryption: boolean;
+  /** `enabled_and_configured` only tells us if Apples MDM has been enabled and
+  configured correctly. The naming is slightly confusing but at one point we
+  only supported apple mdm, so thats why it's name the way it is. */
   enabled_and_configured: boolean;
   apple_bm_default_team?: string;
   apple_bm_terms_expired: boolean;

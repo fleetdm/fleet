@@ -2604,18 +2604,5 @@ func (svc *Service) ListHostSoftware(ctx context.Context, hostID uint, opts flee
 	opts.IncludeAvailableForInstall = includeAvailableForInstall || opts.SelfServiceOnly
 
 	software, meta, err := svc.ds.ListHostSoftware(ctx, host, opts)
-	if includeAvailableForInstall {
-		// for the host software page, we don't want to return the package object,
-		// only the package name
-		for _, s := range software {
-			s.Package = nil
-		}
-	} else {
-		// for the device page, we don't want to return the package name, only the
-		// package object
-		for _, s := range software {
-			s.PackageAvailableForInstall = nil
-		}
-	}
 	return software, meta, ctxerr.Wrap(ctx, err, "list host software")
 }
