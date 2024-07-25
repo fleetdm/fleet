@@ -392,6 +392,10 @@ module.exports.custom = {
 
   // For nurture emails:
   // contactEmailForNutureEmails: '…'
+
+  // Deal registration form
+  // dealRegistrationContactEmailAddress: '…',
+
   //…
 
 };

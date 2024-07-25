@@ -2,6 +2,9 @@ package main
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -16,6 +19,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
+	"github.com/fleetdm/fleet/v4/server/mdm/apple/vpp"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/tokenpki"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	mdmmock "github.com/fleetdm/fleet/v4/server/mock/mdm"
@@ -38,7 +42,7 @@ func TestFilenameValidation(t *testing.T) {
 	assert.ErrorContains(t, err, "file name must be less than")
 }
 
-func TestBasicGlobalGitOps(t *testing.T) {
+func TestBasicGlobalFreeGitOps(t *testing.T) {
 	// Cannot run t.Parallel() because it sets environment variables
 
 	_, ds := runServerWithMockedDS(t)
@@ -150,6 +154,106 @@ org_settings:
 	assert.Empty(t, enrolledSecrets)
 }
 
+func TestBasicGlobalPremiumGitOps(t *testing.T) {
+	// Cannot run t.Parallel() because it sets environment variables
+
+	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
+	_, ds := runServerWithMockedDS(
+		t, &service.TestServerOpts{
+			License: license,
+		},
+	)
+
+	ds.BatchSetMDMProfilesFunc = func(
+		ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile,
+		macDecls []*fleet.MDMAppleDeclaration,
+	) error {
+		return nil
+	}
+	ds.BulkSetPendingMDMHostProfilesFunc = func(
+		ctx context.Context, hostIDs []uint, teamIDs []uint, profileUUIDs []string, hostUUIDs []string,
+	) error {
+		return nil
+	}
+	ds.BatchSetScriptsFunc = func(ctx context.Context, tmID *uint, scripts []*fleet.Script) error { return nil }
+	ds.NewActivityFunc = func(
+		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
+	) error {
+		return nil
+	}
+	ds.ListGlobalPoliciesFunc = func(ctx context.Context, opts fleet.ListOptions) ([]*fleet.Policy, error) { return nil, nil }
+	ds.ListQueriesFunc = func(ctx context.Context, opts fleet.ListQueryOptions) ([]*fleet.Query, error) { return nil, nil }
+
+	// Mock appConfig
+	savedAppConfig := &fleet.AppConfig{}
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
+	ds.SaveAppConfigFunc = func(ctx context.Context, config *fleet.AppConfig) error {
+		savedAppConfig = config
+		return nil
+	}
+	var enrolledSecrets []*fleet.EnrollSecret
+	ds.ApplyEnrollSecretsFunc = func(ctx context.Context, teamID *uint, secrets []*fleet.EnrollSecret) error {
+		enrolledSecrets = secrets
+		return nil
+	}
+	ds.LabelIDsByNameFunc = func(ctx context.Context, labels []string) (map[string]uint, error) {
+		return map[string]uint{labels[0]: 1}, nil
+	}
+	ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error) {
+		return &fleet.MDMAppleDeclaration{}, nil
+	}
+	ds.NewJobFunc = func(ctx context.Context, job *fleet.Job) (*fleet.Job, error) {
+		return &fleet.Job{}, nil
+	}
+
+	tmpFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+
+	const (
+		fleetServerURL = "https://fleet.example.com"
+		orgName        = "GitOps Premium Test"
+	)
+	t.Setenv("FLEET_SERVER_URL", fleetServerURL)
+
+	_, err = tmpFile.WriteString(
+		`
+controls:
+  ios_updates:
+    deadline: "2022-02-02"
+    minimum_version: "17.6"
+  ipados_updates:
+    deadline: "2023-03-03"
+    minimum_version: "18.0"
+queries:
+policies:
+agent_options:
+org_settings:
+  server_settings:
+    server_url: $FLEET_SERVER_URL
+  org_info:
+    contact_url: https://example.com/contact
+    org_logo_url: ""
+    org_logo_url_light_background: ""
+    org_name: ${ORG_NAME}
+  secrets:
+`,
+	)
+	require.NoError(t, err)
+
+	// Dry run
+	t.Setenv("ORG_NAME", orgName)
+	_ = runAppForTest(t, []string{"gitops", "-f", tmpFile.Name(), "--dry-run"})
+	assert.Equal(t, fleet.AppConfig{}, *savedAppConfig, "AppConfig should be empty")
+
+	// Real run
+	_ = runAppForTest(t, []string{"gitops", "-f", tmpFile.Name()})
+	assert.Equal(t, orgName, savedAppConfig.OrgInfo.OrgName)
+	assert.Equal(t, fleetServerURL, savedAppConfig.ServerSettings.ServerURL)
+	assert.Empty(t, enrolledSecrets)
+}
+
 func TestBasicTeamGitOps(t *testing.T) {
 	// Cannot run t.Parallel() because it sets environment variables
 	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
@@ -161,6 +265,12 @@ func TestBasicTeamGitOps(t *testing.T) {
 
 	const secret = "TestSecret"
 
+	ds.SetTeamVPPAppsFunc = func(ctx context.Context, teamID *uint, adamIDs []string) error {
+		return nil
+	}
+	ds.BatchInsertVPPAppsFunc = func(ctx context.Context, apps []*fleet.VPPApp) error {
+		return nil
+	}
 	ds.BatchSetScriptsFunc = func(ctx context.Context, tmID *uint, scripts []*fleet.Script) error { return nil }
 	ds.BatchSetMDMProfilesFunc = func(
 		ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile, macDecls []*fleet.MDMAppleDeclaration,
@@ -222,8 +332,17 @@ func TestBasicTeamGitOps(t *testing.T) {
 		return team, nil
 	}
 	ds.LabelIDsByNameFunc = func(ctx context.Context, labels []string) (map[string]uint, error) {
-		require.ElementsMatch(t, labels, []string{fleet.BuiltinLabelMacOS14Plus})
-		return map[string]uint{fleet.BuiltinLabelMacOS14Plus: 1}, nil
+		require.Len(t, labels, 1)
+		switch labels[0] {
+		case fleet.BuiltinLabelMacOS14Plus:
+			return map[string]uint{fleet.BuiltinLabelMacOS14Plus: 1}, nil
+		case fleet.BuiltinLabelIOS:
+			return map[string]uint{fleet.BuiltinLabelIOS: 2}, nil
+		case fleet.BuiltinLabelIPadOS:
+			return map[string]uint{fleet.BuiltinLabelIPadOS: 3}, nil
+		default:
+			return nil, &notFoundError{}
+		}
 	}
 	ds.DeleteMDMAppleDeclarationByNameFunc = func(ctx context.Context, teamID *uint, name string) error {
 		return nil
@@ -231,10 +350,15 @@ func TestBasicTeamGitOps(t *testing.T) {
 	ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, teamID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
 		return nil
 	}
-
 	ds.ApplyEnrollSecretsFunc = func(ctx context.Context, teamID *uint, secrets []*fleet.EnrollSecret) error {
 		enrolledTeamSecrets = secrets
 		return nil
+	}
+	ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error) {
+		return &fleet.MDMAppleDeclaration{}, nil
+	}
+	ds.NewJobFunc = func(ctx context.Context, job *fleet.Job) (*fleet.Job, error) {
+		return &fleet.Job{}, nil
 	}
 
 	tmpFile, err := os.CreateTemp(t.TempDir(), "*.yml")
@@ -245,6 +369,12 @@ func TestBasicTeamGitOps(t *testing.T) {
 	_, err = tmpFile.WriteString(
 		`
 controls:
+  ios_updates:
+    deadline: "2024-10-10"
+    minimum_version: "18.0"
+  ipados_updates:
+    deadline: "2025-11-11"
+    minimum_version: "17.6"
 queries:
 policies:
 agent_options:
@@ -627,7 +757,12 @@ func TestFullTeamGitOps(t *testing.T) {
 	ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, teamID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
 		return nil
 	}
-
+	ds.SetTeamVPPAppsFunc = func(ctx context.Context, teamID *uint, adamIDs []string) error {
+		return nil
+	}
+	ds.BatchInsertVPPAppsFunc = func(ctx context.Context, apps []*fleet.VPPApp) error {
+		return nil
+	}
 	ds.ApplyEnrollSecretsFunc = func(ctx context.Context, teamID *uint, secrets []*fleet.EnrollSecret) error {
 		enrolledSecrets = secrets
 		return nil
@@ -726,7 +861,6 @@ team_settings:
 	assert.Empty(t, savedTeam.Config.MDM.MacOSSetup.BootstrapPackage.Value)
 	assert.False(t, savedTeam.Config.MDM.EnableDiskEncryption)
 	assert.Equal(t, filepath.Base(tmpFile.Name()), *savedTeam.Filename)
-
 }
 
 func TestBasicGlobalAndTeamGitOps(t *testing.T) {
@@ -745,6 +879,13 @@ func TestBasicGlobalAndTeamGitOps(t *testing.T) {
 	}
 	ds.SaveAppConfigFunc = func(ctx context.Context, config *fleet.AppConfig) error {
 		savedAppConfig = config
+		return nil
+	}
+
+	ds.SetTeamVPPAppsFunc = func(ctx context.Context, teamID *uint, adamIDs []string) error {
+		return nil
+	}
+	ds.BatchInsertVPPAppsFunc = func(ctx context.Context, apps []*fleet.VPPApp) error {
 		return nil
 	}
 
@@ -1030,6 +1171,13 @@ func TestFullGlobalAndTeamGitOps(t *testing.T) {
 		}, nil
 	}
 
+	ds.SetTeamVPPAppsFunc = func(ctx context.Context, teamID *uint, adamIDs []string) error {
+		return nil
+	}
+	ds.BatchInsertVPPAppsFunc = func(ctx context.Context, apps []*fleet.VPPApp) error {
+		return nil
+	}
+
 	globalFile := "./testdata/gitops/global_config_no_paths.yml"
 	teamFile := "./testdata/gitops/team_config_no_paths.yml"
 
@@ -1072,11 +1220,18 @@ func TestTeamSofwareInstallersGitOps(t *testing.T) {
 		{"testdata/gitops/team_software_installer_install_not_found.yml", "no such file or directory"},
 		{"testdata/gitops/team_software_installer_post_install_not_found.yml", "no such file or directory"},
 		{"testdata/gitops/team_software_installer_no_url.yml", "software URL is required"},
-		{"testdata/gitops/team_software_installer_invalid_self_service_value.yml", "cannot unmarshal string into Go struct field TeamSpecSoftware.self_service of type bool"},
+		{"testdata/gitops/team_software_installer_invalid_self_service_value.yml", "cannot unmarshal string into Go struct field TeamSpecSoftware.packages of type bool"},
 	}
 	for _, c := range cases {
 		t.Run(filepath.Base(c.file), func(t *testing.T) {
-			setupFullGitOpsPremiumServer(t)
+			ds, _, _ := setupFullGitOpsPremiumServer(t)
+
+			ds.SetTeamVPPAppsFunc = func(ctx context.Context, teamID *uint, adamIDs []string) error {
+				return nil
+			}
+			ds.BatchInsertVPPAppsFunc = func(ctx context.Context, apps []*fleet.VPPApp) error {
+				return nil
+			}
 
 			_, err := runAppNoChecks([]string{"gitops", "-f", c.file})
 			if c.wantErr == "" {
@@ -1086,6 +1241,99 @@ func TestTeamSofwareInstallersGitOps(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestTeamVPPAppsGitOps(t *testing.T) {
+	config := &appleVPPConfigSrvConf{
+		Assets: []vpp.Asset{
+			{
+				AdamID:         "1",
+				PricingParam:   "STDQ",
+				AvailableCount: 12,
+			},
+			{
+				AdamID:         "2",
+				PricingParam:   "STDQ",
+				AvailableCount: 3,
+			},
+		},
+		SerialNumbers: []string{"123", "456"},
+	}
+
+	startVPPApplyServer(t, config)
+
+	cases := []struct {
+		file            string
+		wantErr         string
+		tokenExpiration time.Time
+	}{
+		{"testdata/gitops/team_vpp_valid_app.yml", "", time.Now().Add(24 * time.Hour)},
+		{"testdata/gitops/team_vpp_valid_app.yml", "", time.Now().Add(24 * time.Hour)},
+		{"testdata/gitops/team_vpp_valid_empty.yml", "", time.Now().Add(24 * time.Hour)},
+		{"testdata/gitops/team_vpp_valid_empty.yml", "", time.Now().Add(-24 * time.Hour)},
+		{"testdata/gitops/team_vpp_valid_app.yml", "VPP token expired", time.Now().Add(-24 * time.Hour)},
+		{"testdata/gitops/team_vpp_invalid_app.yml", "app not available on vpp account", time.Now().Add(24 * time.Hour)},
+	}
+
+	for _, c := range cases {
+		t.Run(filepath.Base(c.file), func(t *testing.T) {
+			ds, _, _ := setupFullGitOpsPremiumServer(t)
+			token, err := createVPPDataToken(c.tokenExpiration, "fleet", "ca")
+			require.NoError(t, err)
+
+			ds.SetTeamVPPAppsFunc = func(ctx context.Context, teamID *uint, adamIDs []string) error {
+				return nil
+			}
+			ds.BatchInsertVPPAppsFunc = func(ctx context.Context, apps []*fleet.VPPApp) error {
+				return nil
+			}
+
+			ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+				asset := map[fleet.MDMAssetName]fleet.MDMConfigAsset{
+					fleet.MDMAssetVPPToken: {
+						Name:  fleet.MDMAssetVPPToken,
+						Value: token,
+					},
+				}
+				return asset, nil
+			}
+
+			_, err = runAppNoChecks([]string{"gitops", "-f", c.file})
+			if c.wantErr == "" {
+				require.NoError(t, err)
+			} else {
+				require.ErrorContains(t, err, c.wantErr)
+			}
+		})
+	}
+}
+
+func createVPPDataToken(expiration time.Time, orgName, location string) ([]byte, error) {
+	var randBytes [32]byte
+	_, err := rand.Read(randBytes[:])
+	if err != nil {
+		return nil, fmt.Errorf("generating random bytes: %w", err)
+	}
+	token := base64.StdEncoding.EncodeToString(randBytes[:])
+	raw := fleet.VPPTokenRaw{
+		OrgName: orgName,
+		Token:   token,
+		ExpDate: expiration.Format("2006-01-02T15:04:05Z0700"),
+	}
+	rawJson, err := json.Marshal(raw)
+	if err != nil {
+		return nil, fmt.Errorf("marshalling vpp raw token: %w", err)
+	}
+
+	base64Token := base64.StdEncoding.EncodeToString(rawJson)
+
+	dataToken := fleet.VPPTokenData{Token: base64Token, Location: location}
+	dataTokenJson, err := json.Marshal(dataToken)
+	if err != nil {
+		return nil, fmt.Errorf("marshalling vpp data token: %w", err)
+	}
+
+	return dataTokenJson, nil
 }
 
 func TestCustomSettingsGitOps(t *testing.T) {
@@ -1123,6 +1371,12 @@ func TestCustomSettingsGitOps(t *testing.T) {
 					}
 				}
 				return ret, nil
+			}
+			ds.SetTeamVPPAppsFunc = func(ctx context.Context, teamID *uint, adamIDs []string) error {
+				return nil
+			}
+			ds.BatchInsertVPPAppsFunc = func(ctx context.Context, apps []*fleet.VPPApp) error {
+				return nil
 			}
 
 			_, err := runAppNoChecks([]string{"gitops", "-f", c.file})
@@ -1169,6 +1423,140 @@ func startSoftwareInstallerServer(t *testing.T) {
 	t.Setenv("SOFTWARE_INSTALLER_URL", srv.URL)
 }
 
+type appleVPPConfigSrvConf struct {
+	Assets        []vpp.Asset
+	SerialNumbers []string
+}
+
+func startVPPApplyServer(t *testing.T, config *appleVPPConfigSrvConf) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.Contains(r.URL.Path, "associate") {
+			var associations vpp.AssociateAssetsRequest
+
+			decoder := json.NewDecoder(r.Body)
+			if err := decoder.Decode(&associations); err != nil {
+				http.Error(w, "invalid request", http.StatusBadRequest)
+				return
+			}
+
+			if len(associations.Assets) == 0 {
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusBadRequest)
+				res := vpp.ErrorResponse{
+					ErrorNumber:  9718,
+					ErrorMessage: "This request doesn't contain an asset, which is a required argument. Change the request to provide an asset.",
+				}
+				if err := json.NewEncoder(w).Encode(res); err != nil {
+					panic(err)
+				}
+				return
+			}
+
+			if len(associations.SerialNumbers) == 0 {
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusBadRequest)
+				res := vpp.ErrorResponse{
+					ErrorNumber:  9719,
+					ErrorMessage: "Either clientUserIds or serialNumbers are required arguments. Change the request to provide assignable users and devices.",
+				}
+				if err := json.NewEncoder(w).Encode(res); err != nil {
+					panic(err)
+				}
+				return
+			}
+
+			var badAssets []vpp.Asset
+			for _, reqAsset := range associations.Assets {
+				var found bool
+				for _, goodAsset := range config.Assets {
+					if reqAsset == goodAsset {
+						found = true
+					}
+				}
+				if !found {
+					badAssets = append(badAssets, reqAsset)
+				}
+			}
+
+			var badSerials []string
+			for _, reqSerial := range associations.SerialNumbers {
+				var found bool
+				for _, goodSerial := range config.SerialNumbers {
+					if reqSerial == goodSerial {
+						found = true
+					}
+				}
+				if !found {
+					badSerials = append(badSerials, reqSerial)
+				}
+			}
+
+			if len(badAssets) != 0 || len(badSerials) != 0 {
+				errMsg := "error associating assets."
+				if len(badAssets) > 0 {
+					var badAdamIds []string
+					for _, asset := range badAssets {
+						badAdamIds = append(badAdamIds, asset.AdamID)
+					}
+					errMsg += fmt.Sprintf(" assets don't exist on account: %s.", strings.Join(badAdamIds, ", "))
+				}
+				if len(badSerials) > 0 {
+					errMsg += fmt.Sprintf(" bad serials: %s.", strings.Join(badSerials, ", "))
+				}
+				res := vpp.ErrorResponse{
+					ErrorInfo: vpp.ResponseErrorInfo{
+						Assets:        badAssets,
+						ClientUserIds: []string{"something"},
+						SerialNumbers: badSerials,
+					},
+					// Not sure what error should be returned on each
+					// error type
+					ErrorNumber:  1,
+					ErrorMessage: errMsg,
+				}
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusBadRequest)
+				if err := json.NewEncoder(w).Encode(res); err != nil {
+					panic(err)
+				}
+			}
+			return
+		}
+
+		if strings.Contains(r.URL.Path, "assets") {
+			// Then we're responding to GetAssets
+			w.Header().Set("Content-Type", "application/json")
+			encoder := json.NewEncoder(w)
+			err := encoder.Encode(map[string][]vpp.Asset{"assets": config.Assets})
+			if err != nil {
+				panic(err)
+			}
+			return
+		}
+
+		resp := []byte(`{"locationName": "Fleet Location One"}`)
+		if strings.Contains(r.URL.RawQuery, "invalidToken") {
+			// This replicates the response sent back from Apple's VPP endpoints when an invalid
+			// token is passed. For more details see:
+			// https://developer.apple.com/documentation/devicemanagement/app_and_book_management/app_and_book_management_legacy/interpreting_error_codes
+			// https://developer.apple.com/documentation/devicemanagement/client_config
+			// https://developer.apple.com/documentation/devicemanagement/errorresponse
+			// Note that the Apple server returns 200 in this case.
+			resp = []byte(`{"errorNumber": 9622,"errorMessage": "Invalid authentication token"}`)
+		}
+
+		if strings.Contains(r.URL.RawQuery, "serverError") {
+			resp = []byte(`{"errorNumber": 9603,"errorMessage": "Internal server error"}`)
+			w.WriteHeader(http.StatusInternalServerError)
+		}
+
+		_, _ = w.Write(resp)
+	}))
+
+	t.Setenv("FLEET_DEV_VPP_URL", srv.URL)
+	t.Cleanup(srv.Close)
+}
+
 func setupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig, **fleet.Team) {
 	testCert, testKey, err := apple_mdm.NewSCEPCACertKey()
 	require.NoError(t, err)
@@ -1201,6 +1589,12 @@ func setupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig,
 	ds.SaveAppConfigFunc = func(ctx context.Context, config *fleet.AppConfig) error {
 		appConfigCopy := *config
 		savedAppConfig = &appConfigCopy
+		return nil
+	}
+	ds.SetTeamVPPAppsFunc = func(ctx context.Context, teamID *uint, adamIDs []string) error {
+		return nil
+	}
+	ds.BatchInsertVPPAppsFunc = func(ctx context.Context, apps []*fleet.VPPApp) error {
 		return nil
 	}
 

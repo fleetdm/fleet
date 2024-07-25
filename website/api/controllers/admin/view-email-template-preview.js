@@ -132,6 +132,26 @@ module.exports = {
           firstName: 'Sage'
         };
         break;
+      case 'email-deal-registration':
+        layout = 'layout-email';
+        fakeData = {
+          submittersFirstName: 'Jane',
+          submittersLastName: 'Williamson',
+          submittersEmailAddress: 'jane@example.com',
+          submittersOrganization: 'Fake organization',
+          customersFirstName: 'Sage',
+          customersLastName: 'Scorpion',
+          customersEmailAddress: 'sage@example.com',
+          linkedinUrl: 'https://www.linkedin.com/in/sage-scorpion/',
+          customersOrganization: 'Fake organization 2',
+          customersCurrentMdm: 'Omnissa',
+          otherMdmEvaluated: 'Jamf protect',
+          preferredHosting: 'Managed cloud',
+          expectedDealSize: '$30,000',
+          expectedCloseDate: '09/28/2024',
+          notes: 'Fake organization 2 is looking for a managed cloud MDM solution with a name that ends with "eet"',
+        };
+        break;
       default:
         layout = 'layout-email-newsletter';
         fakeData = {

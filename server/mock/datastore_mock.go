@@ -15,6 +15,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 )
 
 var _ fleet.Datastore = (*DataStore)(nil)
@@ -426,6 +427,8 @@ type ListCVEsFunc func(ctx context.Context, maxAge time.Duration) ([]fleet.CVEMe
 type ListHostSoftwareFunc func(ctx context.Context, host *fleet.Host, opts fleet.HostSoftwareTitleListOptions) ([]*fleet.HostSoftwareWithInstaller, *fleet.PaginationMetadata, error)
 
 type SetHostSoftwareInstallResultFunc func(ctx context.Context, result *fleet.HostSoftwareInstallResultPayload) error
+
+type UploadedSoftwareExistsFunc func(ctx context.Context, bundleIdentifier string, teamID *uint) (bool, error)
 
 type GetHostOperatingSystemFunc func(ctx context.Context, hostID uint) (*fleet.OperatingSystem, error)
 
@@ -853,6 +856,8 @@ type GetAllMDMConfigAssetsHashesFunc func(ctx context.Context, assetNames []flee
 
 type DeleteMDMConfigAssetsByNameFunc func(ctx context.Context, assetNames []fleet.MDMAssetName) error
 
+type ReplaceMDMConfigAssetsFunc func(ctx context.Context, assets []fleet.MDMConfigAsset) error
+
 type WSTEPStoreCertificateFunc func(ctx context.Context, name string, crt *x509.Certificate) error
 
 type WSTEPNewSerialFunc func(ctx context.Context) (*big.Int, error)
@@ -975,9 +980,17 @@ type GetSoftwareInstallerMetadataByIDFunc func(ctx context.Context, id uint) (*f
 
 type GetSoftwareInstallerMetadataByTeamAndTitleIDFunc func(ctx context.Context, teamID *uint, titleID uint, withScriptContents bool) (*fleet.SoftwareInstaller, error)
 
+type GetVPPAppByTeamAndTitleIDFunc func(ctx context.Context, teamID *uint, titleID uint, withScriptContents bool) (*fleet.VPPApp, error)
+
+type GetVPPAppMetadataByTeamAndTitleIDFunc func(ctx context.Context, teamID *uint, titleID uint) (*fleet.VPPAppStoreApp, error)
+
 type DeleteSoftwareInstallerFunc func(ctx context.Context, id uint) error
 
+type DeleteVPPAppFromTeamFunc func(ctx context.Context, teamID *uint, adamID string) error
+
 type GetSummaryHostSoftwareInstallsFunc func(ctx context.Context, installerID uint) (*fleet.SoftwareInstallerStatusSummary, error)
+
+type GetSummaryHostVPPAppInstallsFunc func(ctx context.Context, teamID *uint, adamID string) (*fleet.VPPAppStatusSummary, error)
 
 type GetSoftwareInstallResultsFunc func(ctx context.Context, resultsUUID string) (*fleet.HostSoftwareInstallerResult, error)
 
@@ -986,6 +999,18 @@ type CleanupUnusedSoftwareInstallersFunc func(ctx context.Context, softwareInsta
 type BatchSetSoftwareInstallersFunc func(ctx context.Context, tmID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error
 
 type HasSelfServiceSoftwareInstallersFunc func(ctx context.Context, platform string, teamID *uint) (bool, error)
+
+type BatchInsertVPPAppsFunc func(ctx context.Context, apps []*fleet.VPPApp) error
+
+type GetAssignedVPPAppsFunc func(ctx context.Context, teamID *uint) (map[string]struct{}, error)
+
+type InsertVPPAppWithTeamFunc func(ctx context.Context, app *fleet.VPPApp, teamID *uint) (*fleet.VPPApp, error)
+
+type SetTeamVPPAppsFunc func(ctx context.Context, teamID *uint, adamIDs []string) error
+
+type InsertHostVPPSoftwareInstallFunc func(ctx context.Context, hostID uint, userID uint, adamID string, commandUUID string, associatedEventID string) error
+
+type GetPastActivityDataForVPPAppInstallFunc func(ctx context.Context, commandResults *mdm.CommandResults) (*fleet.User, *fleet.ActivityInstalledAppStoreApp, error)
 
 type DataStore struct {
 	HealthCheckFunc        HealthCheckFunc
@@ -1599,6 +1624,9 @@ type DataStore struct {
 
 	SetHostSoftwareInstallResultFunc        SetHostSoftwareInstallResultFunc
 	SetHostSoftwareInstallResultFuncInvoked bool
+
+	UploadedSoftwareExistsFunc        UploadedSoftwareExistsFunc
+	UploadedSoftwareExistsFuncInvoked bool
 
 	GetHostOperatingSystemFunc        GetHostOperatingSystemFunc
 	GetHostOperatingSystemFuncInvoked bool
@@ -2239,6 +2267,9 @@ type DataStore struct {
 	DeleteMDMConfigAssetsByNameFunc        DeleteMDMConfigAssetsByNameFunc
 	DeleteMDMConfigAssetsByNameFuncInvoked bool
 
+	ReplaceMDMConfigAssetsFunc        ReplaceMDMConfigAssetsFunc
+	ReplaceMDMConfigAssetsFuncInvoked bool
+
 	WSTEPStoreCertificateFunc        WSTEPStoreCertificateFunc
 	WSTEPStoreCertificateFuncInvoked bool
 
@@ -2422,11 +2453,23 @@ type DataStore struct {
 	GetSoftwareInstallerMetadataByTeamAndTitleIDFunc        GetSoftwareInstallerMetadataByTeamAndTitleIDFunc
 	GetSoftwareInstallerMetadataByTeamAndTitleIDFuncInvoked bool
 
+	GetVPPAppByTeamAndTitleIDFunc        GetVPPAppByTeamAndTitleIDFunc
+	GetVPPAppByTeamAndTitleIDFuncInvoked bool
+
+	GetVPPAppMetadataByTeamAndTitleIDFunc        GetVPPAppMetadataByTeamAndTitleIDFunc
+	GetVPPAppMetadataByTeamAndTitleIDFuncInvoked bool
+
 	DeleteSoftwareInstallerFunc        DeleteSoftwareInstallerFunc
 	DeleteSoftwareInstallerFuncInvoked bool
 
+	DeleteVPPAppFromTeamFunc        DeleteVPPAppFromTeamFunc
+	DeleteVPPAppFromTeamFuncInvoked bool
+
 	GetSummaryHostSoftwareInstallsFunc        GetSummaryHostSoftwareInstallsFunc
 	GetSummaryHostSoftwareInstallsFuncInvoked bool
+
+	GetSummaryHostVPPAppInstallsFunc        GetSummaryHostVPPAppInstallsFunc
+	GetSummaryHostVPPAppInstallsFuncInvoked bool
 
 	GetSoftwareInstallResultsFunc        GetSoftwareInstallResultsFunc
 	GetSoftwareInstallResultsFuncInvoked bool
@@ -2439,6 +2482,24 @@ type DataStore struct {
 
 	HasSelfServiceSoftwareInstallersFunc        HasSelfServiceSoftwareInstallersFunc
 	HasSelfServiceSoftwareInstallersFuncInvoked bool
+
+	BatchInsertVPPAppsFunc        BatchInsertVPPAppsFunc
+	BatchInsertVPPAppsFuncInvoked bool
+
+	GetAssignedVPPAppsFunc        GetAssignedVPPAppsFunc
+	GetAssignedVPPAppsFuncInvoked bool
+
+	InsertVPPAppWithTeamFunc        InsertVPPAppWithTeamFunc
+	InsertVPPAppWithTeamFuncInvoked bool
+
+	SetTeamVPPAppsFunc        SetTeamVPPAppsFunc
+	SetTeamVPPAppsFuncInvoked bool
+
+	InsertHostVPPSoftwareInstallFunc        InsertHostVPPSoftwareInstallFunc
+	InsertHostVPPSoftwareInstallFuncInvoked bool
+
+	GetPastActivityDataForVPPAppInstallFunc        GetPastActivityDataForVPPAppInstallFunc
+	GetPastActivityDataForVPPAppInstallFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -3052,11 +3113,11 @@ func (s *DataStore) GenerateHostStatusStatistics(ctx context.Context, filter fle
 	return s.GenerateHostStatusStatisticsFunc(ctx, filter, now, platform, lowDiskSpace)
 }
 
-func (s *DataStore) HostIDsByIdentifier(ctx context.Context, filter fleet.TeamFilter, hostIdentifiers []string) ([]uint, error) {
+func (s *DataStore) HostIDsByIdentifier(ctx context.Context, filter fleet.TeamFilter, hostnames []string) ([]uint, error) {
 	s.mu.Lock()
 	s.HostIDsByIdentifierFuncInvoked = true
 	s.mu.Unlock()
-	return s.HostIDsByIdentifierFunc(ctx, filter, hostIdentifiers)
+	return s.HostIDsByIdentifierFunc(ctx, filter, hostnames)
 }
 
 func (s *DataStore) HostIDsByOSID(ctx context.Context, osID uint, offset int, limit int) ([]uint, error) {
@@ -3869,6 +3930,13 @@ func (s *DataStore) SetHostSoftwareInstallResult(ctx context.Context, result *fl
 	s.SetHostSoftwareInstallResultFuncInvoked = true
 	s.mu.Unlock()
 	return s.SetHostSoftwareInstallResultFunc(ctx, result)
+}
+
+func (s *DataStore) UploadedSoftwareExists(ctx context.Context, bundleIdentifier string, teamID *uint) (bool, error) {
+	s.mu.Lock()
+	s.UploadedSoftwareExistsFuncInvoked = true
+	s.mu.Unlock()
+	return s.UploadedSoftwareExistsFunc(ctx, bundleIdentifier, teamID)
 }
 
 func (s *DataStore) GetHostOperatingSystem(ctx context.Context, hostID uint) (*fleet.OperatingSystem, error) {
@@ -5362,6 +5430,13 @@ func (s *DataStore) DeleteMDMConfigAssetsByName(ctx context.Context, assetNames 
 	return s.DeleteMDMConfigAssetsByNameFunc(ctx, assetNames)
 }
 
+func (s *DataStore) ReplaceMDMConfigAssets(ctx context.Context, assets []fleet.MDMConfigAsset) error {
+	s.mu.Lock()
+	s.ReplaceMDMConfigAssetsFuncInvoked = true
+	s.mu.Unlock()
+	return s.ReplaceMDMConfigAssetsFunc(ctx, assets)
+}
+
 func (s *DataStore) WSTEPStoreCertificate(ctx context.Context, name string, crt *x509.Certificate) error {
 	s.mu.Lock()
 	s.WSTEPStoreCertificateFuncInvoked = true
@@ -5789,6 +5864,20 @@ func (s *DataStore) GetSoftwareInstallerMetadataByTeamAndTitleID(ctx context.Con
 	return s.GetSoftwareInstallerMetadataByTeamAndTitleIDFunc(ctx, teamID, titleID, withScriptContents)
 }
 
+func (s *DataStore) GetVPPAppByTeamAndTitleID(ctx context.Context, teamID *uint, titleID uint, withScriptContents bool) (*fleet.VPPApp, error) {
+	s.mu.Lock()
+	s.GetVPPAppByTeamAndTitleIDFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetVPPAppByTeamAndTitleIDFunc(ctx, teamID, titleID, withScriptContents)
+}
+
+func (s *DataStore) GetVPPAppMetadataByTeamAndTitleID(ctx context.Context, teamID *uint, titleID uint) (*fleet.VPPAppStoreApp, error) {
+	s.mu.Lock()
+	s.GetVPPAppMetadataByTeamAndTitleIDFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetVPPAppMetadataByTeamAndTitleIDFunc(ctx, teamID, titleID)
+}
+
 func (s *DataStore) DeleteSoftwareInstaller(ctx context.Context, id uint) error {
 	s.mu.Lock()
 	s.DeleteSoftwareInstallerFuncInvoked = true
@@ -5796,11 +5885,25 @@ func (s *DataStore) DeleteSoftwareInstaller(ctx context.Context, id uint) error 
 	return s.DeleteSoftwareInstallerFunc(ctx, id)
 }
 
+func (s *DataStore) DeleteVPPAppFromTeam(ctx context.Context, teamID *uint, adamID string) error {
+	s.mu.Lock()
+	s.DeleteVPPAppFromTeamFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeleteVPPAppFromTeamFunc(ctx, teamID, adamID)
+}
+
 func (s *DataStore) GetSummaryHostSoftwareInstalls(ctx context.Context, installerID uint) (*fleet.SoftwareInstallerStatusSummary, error) {
 	s.mu.Lock()
 	s.GetSummaryHostSoftwareInstallsFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetSummaryHostSoftwareInstallsFunc(ctx, installerID)
+}
+
+func (s *DataStore) GetSummaryHostVPPAppInstalls(ctx context.Context, teamID *uint, adamID string) (*fleet.VPPAppStatusSummary, error) {
+	s.mu.Lock()
+	s.GetSummaryHostVPPAppInstallsFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetSummaryHostVPPAppInstallsFunc(ctx, teamID, adamID)
 }
 
 func (s *DataStore) GetSoftwareInstallResults(ctx context.Context, resultsUUID string) (*fleet.HostSoftwareInstallerResult, error) {
@@ -5829,4 +5932,46 @@ func (s *DataStore) HasSelfServiceSoftwareInstallers(ctx context.Context, platfo
 	s.HasSelfServiceSoftwareInstallersFuncInvoked = true
 	s.mu.Unlock()
 	return s.HasSelfServiceSoftwareInstallersFunc(ctx, platform, teamID)
+}
+
+func (s *DataStore) BatchInsertVPPApps(ctx context.Context, apps []*fleet.VPPApp) error {
+	s.mu.Lock()
+	s.BatchInsertVPPAppsFuncInvoked = true
+	s.mu.Unlock()
+	return s.BatchInsertVPPAppsFunc(ctx, apps)
+}
+
+func (s *DataStore) GetAssignedVPPApps(ctx context.Context, teamID *uint) (map[string]struct{}, error) {
+	s.mu.Lock()
+	s.GetAssignedVPPAppsFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetAssignedVPPAppsFunc(ctx, teamID)
+}
+
+func (s *DataStore) InsertVPPAppWithTeam(ctx context.Context, app *fleet.VPPApp, teamID *uint) (*fleet.VPPApp, error) {
+	s.mu.Lock()
+	s.InsertVPPAppWithTeamFuncInvoked = true
+	s.mu.Unlock()
+	return s.InsertVPPAppWithTeamFunc(ctx, app, teamID)
+}
+
+func (s *DataStore) SetTeamVPPApps(ctx context.Context, teamID *uint, adamIDs []string) error {
+	s.mu.Lock()
+	s.SetTeamVPPAppsFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetTeamVPPAppsFunc(ctx, teamID, adamIDs)
+}
+
+func (s *DataStore) InsertHostVPPSoftwareInstall(ctx context.Context, hostID uint, userID uint, adamID string, commandUUID string, associatedEventID string) error {
+	s.mu.Lock()
+	s.InsertHostVPPSoftwareInstallFuncInvoked = true
+	s.mu.Unlock()
+	return s.InsertHostVPPSoftwareInstallFunc(ctx, hostID, userID, adamID, commandUUID, associatedEventID)
+}
+
+func (s *DataStore) GetPastActivityDataForVPPAppInstall(ctx context.Context, commandResults *mdm.CommandResults) (*fleet.User, *fleet.ActivityInstalledAppStoreApp, error) {
+	s.mu.Lock()
+	s.GetPastActivityDataForVPPAppInstallFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetPastActivityDataForVPPAppInstallFunc(ctx, commandResults)
 }

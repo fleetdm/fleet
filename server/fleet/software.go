@@ -164,8 +164,18 @@ type SoftwareTitle struct {
 	// CountsUpdatedAt is the timestamp when the hosts count
 	// was last updated for that software title
 	CountsUpdatedAt *time.Time `json:"-" db:"counts_updated_at"`
+	// SoftwareInstallersCount is 0 or 1, indicating if the software title has an
+	// installer. This is an internal field for an optimization so that the extra
+	// queries to fetch installer information is done only if necessary.
+	SoftwareInstallersCount int `json:"-" db:"software_installers_count"`
+	// VPPAppsCount is 0 or 1, indicating if the software title has a VPP app.
+	// This is an internal field for an optimization so that the extra queries to
+	// fetch app information is done only if necessary.
+	VPPAppsCount int `json:"-" db:"vpp_apps_count"`
 	// SoftwarePackage is the software installer information for this title.
 	SoftwarePackage *SoftwareInstaller `json:"software_package" db:"-"`
+	// AppStoreApp is the VPP app information for this title.
+	AppStoreApp *VPPAppStoreApp `json:"app_store_app" db:"-"`
 	// BundleIdentifier is used by Apple installers to uniquely identify
 	// the software installed. It's surfaced in software_titles to match
 	// with existing software entries.
@@ -192,10 +202,14 @@ type SoftwareTitleListResult struct {
 	// CountsUpdatedAt is the timestamp when the hosts count
 	// was last updated for that software title
 	CountsUpdatedAt *time.Time `json:"-" db:"counts_updated_at"`
-	// SoftwarePackage is the filename of the installer for this software title.
-	SoftwarePackage *string `json:"software_package" db:"software_package"`
-	// SelfService indicates if the end user can initiate the installation
-	SelfService bool `json:"self_service" db:"self_service"`
+
+	// SoftwarePackage provides software installer package information, it is
+	// only present if a software installer is available for the software title.
+	SoftwarePackage *SoftwarePackageOrApp `json:"software_package"`
+
+	// AppStoreApp provides VPP app information, it is only present if a VPP app
+	// is available for the software title.
+	AppStoreApp *SoftwarePackageOrApp `json:"app_store_app"`
 	// BundleIdentifier is used by Apple installers to uniquely identify
 	// the software installed. It's surfaced in software_titles to match
 	// with existing software entries.
@@ -398,4 +412,8 @@ func SoftwareFromOsqueryRow(name, version, source, vendor, installedPath, releas
 		software.LastOpenedAt = &lastOpenedAtTime
 	}
 	return &software, nil
+}
+
+type VPPBatchPayload struct {
+	AppStoreID string `json:"app_store_id"`
 }

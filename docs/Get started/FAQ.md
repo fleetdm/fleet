@@ -10,11 +10,11 @@ Fleet is simple enough to [spin up for yourself](https://fleetdm.com/docs/deploy
 
 ## What is the easiest way to deploy Fleet?
 
-Fleet provides a standard [Terraform module](https://fleetdm.com/docs/deploy/deploy-on-aws-with-terraform) that deploys Fleet with best practices, along with [cloud cost calculators and reference architectures](https://fleetdm.com/docs/deploy/reference-architectures#cloud-providers) used by some of Fleet’s largest customers with tens and hundreds of thousands of hosts.  Fleet Premium customers can also opt for managed hosting provided by Fleet.  You can also deploy Fleet anywhere you want.
+Take a look at [Deploying Fleet](https://fleetdm.com/docs/deploy/deploy-fleet) for guides on Render or deploy for scale with AWS Terraform. You can also deploy Fleet anywhere you want.
 
-You can enroll servers and laptops using a simple installer or automatically deliver Fleet's agent (fleetd) using your existing tools, such as Chef, Terraform, Munki/autopkg, Ansible, Puppet, Jamf, Intune, etc.
+You can enroll servers and laptops using a simple installer or automatically deliver Fleet's agent (fleetd) using your existing tools, such as Chef, Terraform, Munki/autopkg, Ansible, Puppet, Jamf, Intune, etc. As of [Fleet v4.53.0](https://fleetdm.com/releases/fleet-4.53.0), when Fleet's MDM is enabled for MacOS, fleetd is installed as part of the bootstrap.
 
-By default, Fleet keeps fleetd up to date automatically.  For self-managed instances, Fleet provides a [migration runner](https://fleetdm.com/docs/deploy/upgrading-fleet#upgrading-fleet).
+By default, Fleet keeps fleetd up to date automatically.  For self-managed instances, Fleet provides a [Simple upgrade process](https://fleetdm.com/docs/deploy/upgrading-fleet#upgrading-fleet).
 
 ## What options do I have for access control?  What about auditing admin activity?
 
@@ -594,7 +594,7 @@ This could be caused by a mismatched connection limit between the Fleet server a
 
 ### Why am I receiving a database connection error when attempting to "prepare" the database?
 
-First, check if you have a version of MySQL installed that is at least 5.7. Then, make sure that you currently have a MySQL server running.
+First, check if you have a version of MySQL installed that is at least 8.0. Then, make sure that you currently have a MySQL server running.
 
 The next step is to make sure the credentials for the database match what is expected. Test your ability to connect to the database with `mysql -u<username> -h<hostname_or_ip> -P<port> -D<database_name> -p`.
 
@@ -614,7 +614,7 @@ Yes! Please sign up for the [Fleet Cloud Beta](https://kqphpqst851.typeform.com/
 
 ### What MySQL versions are supported?
 
-Fleet is tested with MySQL 5.7.21 and 8.0.28. Newer versions of MySQL 5.7 and MySQL 8 typically work well. AWS Aurora requires at least version 2.10.0. Please avoid using MariaDB or other MySQL variants that are not officially supported. Compatibility issues have been identified with MySQL variants, and these may not be addressed in future Fleet releases.
+Fleet is tested with MySQL 8.0.36. Newer versions of MySQL 8 typically work well. AWS Aurora requires at least version 2.10.0. Please avoid using MariaDB or other MySQL variants that are not officially supported. Compatibility issues have been identified with MySQL variants, and these may not be addressed in future Fleet releases.
 
 ### What are the MySQL user requirements?
 
@@ -677,7 +677,7 @@ If you would like to use Fleet's MDM features, the following endpoints need to b
 
 ### What is the minimum version of MySQL required by Fleet?
 
-Fleet requires at least MySQL version 5.7.
+Fleet requires at least MySQL version 8.0.
 
 ### How do I migrate from Fleet Free to Fleet Premium?
 

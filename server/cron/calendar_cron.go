@@ -323,15 +323,16 @@ func processFailingHostExistingCalendarEvent(
 	// Try to acquire the lock. Lock is needed to ensure calendar callback is not processed for this event at the same time.
 	eventUUID := calendarEvent.UUID
 	lockValue := uuid.New().String()
-	lockAcquired, err := distributedLock.AcquireLock(ctx, calendar.LockKeyPrefix+eventUUID, lockValue, 0)
+	lockAcquired, err := distributedLock.AcquireLock(ctx, calendar.LockKeyPrefix+eventUUID, lockValue, calendar.DistributedLockExpireMs)
 	if err != nil {
 		return fmt.Errorf("acquire calendar lock: %w", err)
 	}
+
 	lockReserved := false
 	if !lockAcquired {
 		// Lock was not acquired. We reserve the lock and try to acquire it until we do.
-		var timeoutMs uint64 = 2 * 60 * 1000
-		lockAcquired, err = distributedLock.AcquireLock(ctx, calendar.ReservedLockKeyPrefix+eventUUID, lockValue, timeoutMs)
+		lockAcquired, err = distributedLock.AcquireLock(ctx, calendar.ReservedLockKeyPrefix+eventUUID, lockValue,
+			calendar.ReserveLockExpireMs)
 		if err != nil {
 			return fmt.Errorf("reserve calendar lock: %w", err)
 		}
@@ -344,12 +345,13 @@ func processFailingHostExistingCalendarEvent(
 		go func() {
 			for {
 				// Keep trying to get the lock.
-				lockAcquired, err = distributedLock.AcquireLock(ctx, calendar.LockKeyPrefix+eventUUID, lockValue, 0)
+				lockAcquired, err = distributedLock.AcquireLock(ctx, calendar.LockKeyPrefix+eventUUID, lockValue,
+					calendar.DistributedLockExpireMs)
 				if err != nil || lockAcquired {
 					done <- struct{}{}
 					return
 				}
-				time.Sleep(100 * time.Millisecond)
+				time.Sleep(200 * time.Millisecond)
 			}
 		}()
 		select {
@@ -358,7 +360,7 @@ func processFailingHostExistingCalendarEvent(
 			if err != nil {
 				return fmt.Errorf("try to acquire calendar lock: %w", err)
 			}
-		case <-time.After(time.Duration(timeoutMs) * time.Millisecond):
+		case <-time.After(time.Duration(calendar.ReserveLockExpireMs) * time.Millisecond):
 			// We couldn't acquire the lock in time.
 			return errors.New("could not acquire calendar lock in time")
 		}
@@ -372,7 +374,7 @@ func processFailingHostExistingCalendarEvent(
 			}
 			if !ok {
 				// If the lock was not released, it will expire on its own.
-				level.Warn(logger).Log("msg", "Failed to release calendar reserve lock")
+				level.Error(logger).Log("msg", "Failed to release calendar reserve lock", "event uuid", eventUUID, "lockValue", lockValue)
 			}
 		}
 		ok, err := distributedLock.ReleaseLock(ctx, calendar.LockKeyPrefix+eventUUID, lockValue)
@@ -380,8 +382,8 @@ func processFailingHostExistingCalendarEvent(
 			level.Error(logger).Log("msg", "Failed to release calendar lock", "err", err)
 		}
 		if !ok {
-			// If the lock was not released, it will expire on its own.
-			level.Warn(logger).Log("msg", "Failed to release calendar lock")
+			// If the lock was not released, it will expire on its own. However, we should adjust expiration time or something else to make sure we don't get here.
+			level.Error(logger).Log("msg", "Failed to release calendar lock", "event uuid", eventUUID, "lockValue", lockValue)
 		}
 	}()
 
@@ -390,11 +392,23 @@ func processFailingHostExistingCalendarEvent(
 	now := time.Now()
 
 	if calendarConfig.AlwaysReloadEvent() || shouldReloadCalendarEvent(now, calendarEvent, hostCalendarEvent) {
-		var err error
+		// Refetch the event since it may have updated since we got the lock.
+		// We need the latest event data (ETag) to make sure that we get correct data from the calendar service.
+		calendarEvent, err = ds.GetCalendarEvent(ctx, calendarEvent.Email)
+		if err != nil {
+			if fleet.IsNotFound(err) {
+				// Event was deleted while we were processing it. It will be recreated if needed on the next cron run
+				return nil
+			}
+			return fmt.Errorf("get calendar event from db: %w", err)
+		}
+		// We could check the updated_at timestamp and avoid updating the event if it was updated recently.
+
 		updatedEvent, _, err = userCalendar.GetAndUpdateEvent(
 			calendarEvent, func(conflict bool) (string, bool, error) {
 				return calendar.GenerateCalendarEventBody(ctx, ds, orgName, host, policyIDtoPolicy, conflict, logger), true, nil
 			},
+			fleet.CalendarGetAndUpdateEventOpts{UpdateTimezone: true},
 		)
 		if err != nil {
 			return fmt.Errorf("get event calendar on db: %w", err)
@@ -417,6 +431,7 @@ func processFailingHostExistingCalendarEvent(
 		}
 
 		// Remove event from the queue so that we don't process this event again.
+		// If we just modified the event in the calendar, calendar will send a callback, and we don't need to process that callback.
 		err = distributedLock.RemoveFromSet(ctx, calendar.QueueKey, eventUUID)
 		if err != nil {
 			return fmt.Errorf("remove calendar event from queue: %w", err)
@@ -528,7 +543,7 @@ func attemptCreatingEventOnUserCalendar(
 		calendarEvent, err := userCalendar.CreateEvent(
 			preferredDate, func(conflict bool) (string, bool, error) {
 				return calendar.GenerateCalendarEventBody(ctx, ds, orgName, host, policyIDtoPolicy, conflict, logger), true, nil
-			},
+			}, fleet.CalendarCreateEventOpts{},
 		)
 		var dee fleet.DayEndedError
 		switch {
@@ -816,6 +831,10 @@ func deleteCalendarEvent(
 			if err := userCalendar.DeleteEvent(calendarEvent); err != nil {
 				return fmt.Errorf("delete calendar event: %w", err)
 			}
+		}
+		// Stop watching for calendar changes
+		if err := userCalendar.StopEventChannel(calendarEvent); err != nil {
+			return fmt.Errorf("stop event channel: %w", err)
 		}
 	}
 	if err := ds.DeleteCalendarEvent(ctx, calendarEvent.ID); err != nil {
