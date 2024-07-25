@@ -12,15 +12,13 @@ const baseClass = "vulnerabilities-cell";
 const generateCell = (
   vulnerabilities: ISoftwareVulnerability[] | string[] | null
 ) => {
-  if (vulnerabilities === null) {
-    return <TextCell value="---" grey italic />;
+  if (vulnerabilities === null || vulnerabilities.length === 0) {
+    return <TextCell value="---" grey />;
   }
 
   let text = "";
   let italicize = true;
-  if (vulnerabilities.length === 0) {
-    text = "---";
-  } else if (vulnerabilities.length === 1) {
+  if (vulnerabilities.length === 1) {
     italicize = false;
     text =
       typeof vulnerabilities[0] === "string"

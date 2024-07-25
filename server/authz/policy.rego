@@ -643,32 +643,32 @@ allow {
   action == read
 }
 
-# Global admins and maintainers can read any software installer.
+# Global admins and maintainers can read any installable entity (software installer or VPP app)
 allow {
-  object.type == "software_installer"
+  object.type == "installable_entity"
   subject.global_role == [admin, maintainer][_]
   action == read
 }
 
-# Global admins, maintainers, and gitops can write any software installer.
+# Global admins, maintainers, and gitops can write any installable entity (software installer or VPP app)
 allow {
-  object.type == "software_installer"
+  object.type == "installable_entity"
   subject.global_role == [admin, maintainer, gitops][_]
   action == write
 }
 
-# Team admins and maintainers can read any software installer in their teams.
+# Team admins and maintainers can read any installable entity (software installer or VPP app) in their teams.
 allow {
   not is_null(object.team_id)
-  object.type == "software_installer"
+  object.type == "installable_entity"
   team_role(subject, object.team_id) == [admin, maintainer][_]
   action == read
 }
 
-# Team admins, maintainers, and gitops can write any software installer in their teams.
+# Team admins, maintainers, and gitops can write any installable entity (software installer or VPP app) in their teams.
 allow {
   not is_null(object.team_id)
-  object.type == "software_installer"
+  object.type == "installable_entity"
   team_role(subject, object.team_id) == [admin, maintainer, gitops][_]
   action == write
 }

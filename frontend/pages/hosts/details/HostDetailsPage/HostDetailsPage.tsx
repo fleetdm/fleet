@@ -58,7 +58,11 @@ import TabsWrapper from "components/TabsWrapper";
 import MainContent from "components/MainContent";
 import BackLink from "components/BackLink";
 import ScriptDetailsModal from "pages/DashboardPage/cards/ActivityFeed/components/ScriptDetailsModal";
-import { SoftwareInstallDetailsModal } from "pages/SoftwarePage/components/SoftwareInstallDetails";
+import {
+  AppInstallDetailsModal,
+  IAppInstallDetails,
+} from "components/ActivityDetails/InstallDetails/AppInstallDetails/AppInstallDetails";
+import { SoftwareInstallDetailsModal } from "components/ActivityDetails/InstallDetails/SoftwareInstallDetails";
 
 import HostSummaryCard from "../cards/HostSummary";
 import AboutCard from "../cards/About";
@@ -169,6 +173,11 @@ const HostDetailsPage = ({
     null
   );
   const [softwareInstallUuid, setSoftwareInstallUuid] = useState("");
+  const [
+    appInstallDetails,
+    setAppInstallDetails,
+  ] = useState<IAppInstallDetails | null>(null);
+
   const [isUpdatingHost, setIsUpdatingHost] = useState(false);
   const [refetchStartTime, setRefetchStartTime] = useState<number | null>(null);
   const [showRefetchSpinner, setShowRefetchSpinner] = useState(false);
@@ -570,6 +579,9 @@ const HostDetailsPage = ({
         case "installed_software":
           setSoftwareInstallUuid(details?.install_uuid || "");
           break;
+        case "installed_app_store_app":
+          setAppInstallDetails({ ...details });
+          break;
         default: // do nothing
       }
     },
@@ -604,6 +616,10 @@ const HostDetailsPage = ({
 
   const onCancelSoftwareInstallDetailsModal = useCallback(() => {
     setSoftwareInstallUuid("");
+  }, []);
+
+  const onCancelAppInstallDetailsModal = useCallback(() => {
+    setAppInstallDetails(null);
   }, []);
 
   const onTransferHostSubmit = async (team: ITeam) => {
@@ -1014,6 +1030,12 @@ const HostDetailsPage = ({
             onCancel={onCancelSoftwareInstallDetailsModal}
           />
         )}
+        {!!appInstallDetails && (
+          <AppInstallDetailsModal
+            details={appInstallDetails}
+            onCancel={onCancelAppInstallDetailsModal}
+          />
+        )}
         {showLockHostModal && (
           <LockModal
             id={host.id}
@@ -1044,6 +1066,7 @@ const HostDetailsPage = ({
         )}
         {selectedSoftwareDetails && (
           <SoftwareDetailsModal
+            hostDisplayName={host.display_name}
             software={selectedSoftwareDetails}
             onExit={() => setSelectedSoftwareDetails(null)}
           />
