@@ -35,6 +35,14 @@ const validateDeadline = (value: string) => {
 const validateForm = (formData: IAppleOSTargetFormData) => {
   const errors: IAppleOSTargetFormErrors = {};
 
+  // Both fields may be cleared out and saved
+  if (
+    !validatePresence(formData.minOsVersion) &&
+    !validatePresence(formData.deadline)
+  ) {
+    return errors;
+  }
+
   if (!validatePresence(formData.minOsVersion)) {
     errors.minOsVersion = "The minimum version is required.";
   } else if (!validateMinVersion(formData.minOsVersion)) {

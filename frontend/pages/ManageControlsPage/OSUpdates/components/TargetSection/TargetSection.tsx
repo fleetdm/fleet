@@ -29,12 +29,8 @@ const getDefaultOSVersion = ({
     currentTeamId === API_NO_TEAM_ID ? appConfig?.mdm : teamConfig?.mdm;
 
   if (osType === "darwin") return mdmData?.macos_updates.minimum_version ?? "";
-  // if (osType === "ios") return mdmData?.ios_updates.minimum_version ?? "";
-  // if (osType === "ipados")
-  //   return mdmData?.ipados_updates.minimum_version ?? "";
-  if (osType === "ios") return "13.1.1";
-  if (osType === "ipados") return "14.1.3";
-
+  if (osType === "ios") return mdmData?.ios_updates.minimum_version ?? "";
+  if (osType === "ipados") return mdmData?.ipados_updates.minimum_version ?? "";
   return "";
 };
 
