@@ -76,7 +76,7 @@ queries:
     automations_enabled: false
     observer_can_run: true
 software:
-    - url: https://zoom.us/client/latest/Zoom.pkg?archType=arm64
-      pre_install_query: 
-        path: ../lib/macos-arm.queries.yml
-      self_service: true
+  - url: https://zoom.us/client/latest/Zoom.pkg?archType=arm64
+    pre_install_query: 
+      path: ../lib/macos-arm.queries.yml
+    self_service: true
