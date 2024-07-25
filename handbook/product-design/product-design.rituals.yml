@@ -66,9 +66,9 @@
   startedOn: "2024-02-27" 
   frequency: "Triweekly" 
 -
-  task: "🦢🗣 Apple MDM maturity review" # 2024-03-06 TODO: Link to responsibility or corresponding "how to" info e.g. https://fleetdm.com/handbook/company/product-groups#making-changes
+  task: "🦢🗣 Apple MDM maturity review"
   startedOn: "2024-07-29" 
   frequency: "Weekly" 
-  description: "Review stories in the "In review" column on the drafting board with the "~apple-mdm-maturity" label. Would this be usable for an IT admin and how does it compare to Jamf?" 
+  description: "Review stories in the “In review“ column on the drafting board with the “~apple-mdm-maturity“ label. Would this be usable for an IT admin and how does it compare to Jamf?" 
   moreInfoUrl: 
   dri: "noahtalerman"
