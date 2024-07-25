@@ -29,16 +29,6 @@
     labels: [ "#g-digital-experience" ] 
     repo: fleet
 - 
-  task: "Generate latest schema"
-  startedOn: "2024-02-19" 
-  frequency: "Weekly"
-  description: "After each sprint, generate the latest tables json file to incorporate any new schema documentation."
-  moreInfoUrl: https://fleetdm.com/handbook/company/product-groups#changes-to-tables-schema
-  dri: "eashaw"
-  autoIssue:   
-    labels: [ "#g-digital-experience" ]
-    repo: fleet
-- 
   task: "Check osquery Slack invitation"
   startedOn: "2023-11-10" 
   frequency: "Monthly"

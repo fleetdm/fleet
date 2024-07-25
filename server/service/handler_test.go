@@ -37,7 +37,7 @@ func TestAPIRoutesConflicts(t *testing.T) {
 	}
 	var cases []testCase
 
-	// build the test cases: for each route, generate a request designed to match
+	// Build the test cases: for each route, generate a request designed to match
 	// it, and override its handler to return a unique status code. If the
 	// request doesn't result in that status code, then some other route
 	// conflicts with it and took precedence - a route conflict. The route's name
