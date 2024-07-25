@@ -215,7 +215,7 @@
       moreInfoUrl: https://scalefusion.com/custom-scripting
     - description: Run scripts on online/offline hosts
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/15529
-    - description: Only maintainers and admins can run scripts. Coming soon (2024-09-15) #customer-faltona
+    - description: Only maintainers and admins can run scripts.
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/19055
 #  
 #  ╔═╗╔═╗╔═╗╦  ╦╔═╗╔═╗╔╦╗╦╔═╗╔╗╔  ╔╦╗╔═╗╔═╗╦  ╔═╗╦ ╦╔╦╗╔═╗╔╗╔╔╦╗
