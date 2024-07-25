@@ -2,7 +2,7 @@
 
 _Available in Fleet Premium_
 
-In Fleet you can enforce OS updates on your macOS and Windows hosts remotely.
+In Fleet you can enforce OS updates on your macOS, Windows, iOS, and iPadOS hosts remotely.
 
 ## Enforce OS updates
 
@@ -15,6 +15,10 @@ Fleet UI:
 2. To enforce OS updates for macOS, select **macOS** and set a **Minimum version** and **Deadline**.
 
 3. For Windows, select **Windows** and set a **Deadline** and **Grace period**.
+
+4. For iOS, select **iOS** and set a **Minimum version** and **Deadline**.
+
+5. For iPadOS, select **iPadOS** and set a **Minimum version** and **Deadline**.
 
 Fleet API: API documentation is [here](https://fleetdm.com/docs/rest-api/rest-api#modify-team).
 
@@ -50,7 +54,12 @@ If an end user was on vacation when the deadline passed, the end user is given a
 
 Fleet enforces OS updates for quality and feature updates. Read more about the types of Windows OS updates in the Microsoft documentation [here](https://learn.microsoft.com/en-us/windows/deployment/update/get-started-updates-channels-tools#types-of-updates).
 
+### iOS and iPadOS
+
+When a minimum version is enforced, end users will see a notification in their Notification Center after the deadline. They can’t continue until the OS update is installed.
+
 <meta name="pageOrderInSection" value="1503">
 <meta name="title" value="OS updates">
-<meta name="description" value="Learn how to manage OS updates on macOS and Windows devices.">
+<meta name="description" value="Learn how to manage OS updates on macOS, Windows, iOS, and iPadOS devices.">
 <meta name="navSection" value="Device management">
+
