@@ -188,7 +188,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		svc, err = eeservice.NewService(
 			svc,
 			ds,
-			kitlog.NewNopLogger(),
+			logger,
 			fleetConfig,
 			mailer,
 			c,

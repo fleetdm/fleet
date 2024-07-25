@@ -35,6 +35,14 @@
 					"minimum_version": null,
 					"deadline": null
 				},
+				"ios_updates": {
+					"minimum_version": null,
+					"deadline": null
+				},
+				"ipados_updates": {
+					"minimum_version": null,
+					"deadline": null
+				},
 				"windows_updates": {
 					"deadline_days": null,
 					"grace_period_days": null
@@ -109,6 +117,14 @@
 				"macos_updates": {
 					"minimum_version": "12.3.1",
 					"deadline": "2021-12-14"
+				},
+				"ios_updates": {
+					"minimum_version": "17.5",
+					"deadline": "2022-11-15"
+				},
+				"ipados_updates": {
+					"minimum_version": "18.0",
+					"deadline": "2023-01-01"
 				},
 				"windows_updates": {
 					"deadline_days": 7,

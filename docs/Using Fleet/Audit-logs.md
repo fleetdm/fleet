@@ -582,6 +582,48 @@ This activity contains the following fields:
 }
 ```
 
+## edited_ios_min_version
+
+Generated when the minimum required iOS version or deadline is modified.
+
+This activity contains the following fields:
+- "team_id": The ID of the team that the minimum iOS version applies to, `null` if it applies to devices that are not in a team.
+- "team_name": The name of the team that the minimum iOS version applies to, `null` if it applies to devices that are not in a team.
+- "minimum_version": The minimum iOS version required, empty if the requirement was removed.
+- "deadline": The deadline by which the minimum version requirement must be applied, empty if the requirement was removed.
+
+#### Example
+
+```json
+{
+  "team_id": 3,
+  "team_name": "iPhones",
+  "minimum_version": "17.5.1",
+  "deadline": "2023-06-01"
+}
+```
+
+## edited_ipados_min_version
+
+Generated when the minimum required iPadOS version or deadline is modified.
+
+This activity contains the following fields:
+- "team_id": The ID of the team that the minimum iPadOS version applies to, `null` if it applies to devices that are not in a team.
+- "team_name": The name of the team that the minimum iPadOS version applies to, `null` if it applies to devices that are not in a team.
+- "minimum_version": The minimum iPadOS version required, empty if the requirement was removed.
+- "deadline": The deadline by which the minimum version requirement must be applied, empty if the requirement was removed.
+
+#### Example
+
+```json
+{
+  "team_id": 3,
+  "team_name": "iPads",
+  "minimum_version": "17.5.1",
+  "deadline": "2023-06-01"
+}
+```
+
 ## edited_windows_updates
 
 Generated when the Windows OS updates deadline or grace period is modified.

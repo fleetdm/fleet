@@ -144,7 +144,14 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 		return nil, err
 	}
 
-	var macOSMinVersionUpdated, windowsUpdatesUpdated, macOSDiskEncryptionUpdated, macOSEnableEndUserAuthUpdated bool
+	var (
+		macOSMinVersionUpdated        bool
+		iOSMinVersionUpdated          bool
+		iPadOSMinVersionUpdated       bool
+		windowsUpdatesUpdated         bool
+		macOSDiskEncryptionUpdated    bool
+		macOSEnableEndUserAuthUpdated bool
+	)
 	if payload.MDM != nil {
 		if payload.MDM.MacOSUpdates != nil {
 			if err := payload.MDM.MacOSUpdates.Validate(); err != nil {
@@ -154,6 +161,26 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 				macOSMinVersionUpdated = team.Config.MDM.MacOSUpdates.MinimumVersion.Value != payload.MDM.MacOSUpdates.MinimumVersion.Value ||
 					team.Config.MDM.MacOSUpdates.Deadline.Value != payload.MDM.MacOSUpdates.Deadline.Value
 				team.Config.MDM.MacOSUpdates = *payload.MDM.MacOSUpdates
+			}
+		}
+		if payload.MDM.IOSUpdates != nil {
+			if err := payload.MDM.IOSUpdates.Validate(); err != nil {
+				return nil, fleet.NewInvalidArgumentError("ios_updates", err.Error())
+			}
+			if payload.MDM.IOSUpdates.MinimumVersion.Set || payload.MDM.IOSUpdates.Deadline.Set {
+				iOSMinVersionUpdated = team.Config.MDM.IOSUpdates.MinimumVersion.Value != payload.MDM.IOSUpdates.MinimumVersion.Value ||
+					team.Config.MDM.IOSUpdates.Deadline.Value != payload.MDM.IOSUpdates.Deadline.Value
+				team.Config.MDM.IOSUpdates = *payload.MDM.IOSUpdates
+			}
+		}
+		if payload.MDM.IPadOSUpdates != nil {
+			if err := payload.MDM.IPadOSUpdates.Validate(); err != nil {
+				return nil, fleet.NewInvalidArgumentError("ipados_updates", err.Error())
+			}
+			if payload.MDM.IPadOSUpdates.MinimumVersion.Set || payload.MDM.IPadOSUpdates.Deadline.Set {
+				iPadOSMinVersionUpdated = team.Config.MDM.IPadOSUpdates.MinimumVersion.Value != payload.MDM.IPadOSUpdates.MinimumVersion.Value ||
+					team.Config.MDM.IPadOSUpdates.Deadline.Value != payload.MDM.IPadOSUpdates.Deadline.Value
+				team.Config.MDM.IPadOSUpdates = *payload.MDM.IPadOSUpdates
 			}
 		}
 
@@ -249,8 +276,9 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 	if err != nil {
 		return nil, err
 	}
+
 	if macOSMinVersionUpdated {
-		if err := svc.mdmAppleEditedMacOSUpdates(ctx, &team.ID, team.Config.MDM.MacOSUpdates); err != nil {
+		if err := svc.mdmAppleEditedAppleOSUpdates(ctx, &team.ID, fleet.MacOS, team.Config.MDM.MacOSUpdates); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "update DDM profile on macOS updates change")
 		}
 
@@ -264,9 +292,46 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 				Deadline:       team.Config.MDM.MacOSUpdates.Deadline.Value,
 			},
 		); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "create activity for team macos min version edited")
+			return nil, ctxerr.Wrap(ctx, err, "create activity for team macOS min version edited")
 		}
 	}
+	if iOSMinVersionUpdated {
+		if err := svc.mdmAppleEditedAppleOSUpdates(ctx, &team.ID, fleet.IOS, team.Config.MDM.IOSUpdates); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "update DDM profile on iOS updates change")
+		}
+
+		if err := svc.NewActivity(
+			ctx,
+			authz.UserFromContext(ctx),
+			fleet.ActivityTypeEditedIOSMinVersion{
+				TeamID:         &team.ID,
+				TeamName:       &team.Name,
+				MinimumVersion: team.Config.MDM.IOSUpdates.MinimumVersion.Value,
+				Deadline:       team.Config.MDM.IOSUpdates.Deadline.Value,
+			},
+		); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "create activity for team iOS min version edited")
+		}
+	}
+	if iPadOSMinVersionUpdated {
+		if err := svc.mdmAppleEditedAppleOSUpdates(ctx, &team.ID, fleet.IPadOS, team.Config.MDM.IPadOSUpdates); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "update DDM profile on iPadOS updates change")
+		}
+
+		if err := svc.NewActivity(
+			ctx,
+			authz.UserFromContext(ctx),
+			fleet.ActivityTypeEditedIPadOSMinVersion{
+				TeamID:         &team.ID,
+				TeamName:       &team.Name,
+				MinimumVersion: team.Config.MDM.IPadOSUpdates.MinimumVersion.Value,
+				Deadline:       team.Config.MDM.IPadOSUpdates.Deadline.Value,
+			},
+		); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "create activity for team iPadOS min version edited")
+		}
+	}
+
 	if windowsUpdatesUpdated {
 		var deadline, grace *int
 		if team.Config.MDM.WindowsUpdates.DeadlineDays.Valid {
@@ -1079,6 +1144,16 @@ func (svc *Service) editTeamFromSpec(
 		team.Config.MDM.MacOSUpdates = spec.MDM.MacOSUpdates
 		mdmMacOSUpdatesEdited = true
 	}
+	var mdmIOSUpdatesEdited bool
+	if spec.MDM.IOSUpdates.Deadline.Set || spec.MDM.IOSUpdates.MinimumVersion.Set {
+		team.Config.MDM.IOSUpdates = spec.MDM.IOSUpdates
+		mdmIOSUpdatesEdited = true
+	}
+	var mdmIPadOSUpdatesEdited bool
+	if spec.MDM.IPadOSUpdates.Deadline.Set || spec.MDM.IPadOSUpdates.MinimumVersion.Set {
+		team.Config.MDM.IPadOSUpdates = spec.MDM.IPadOSUpdates
+		mdmIPadOSUpdatesEdited = true
+	}
 	if spec.MDM.WindowsUpdates.DeadlineDays.Set || spec.MDM.WindowsUpdates.GracePeriodDays.Set {
 		team.Config.MDM.WindowsUpdates = spec.MDM.WindowsUpdates
 	}
@@ -1292,7 +1367,17 @@ func (svc *Service) editTeamFromSpec(
 	}
 
 	if mdmMacOSUpdatesEdited {
-		if err := svc.mdmAppleEditedMacOSUpdates(ctx, &team.ID, team.Config.MDM.MacOSUpdates); err != nil {
+		if err := svc.mdmAppleEditedAppleOSUpdates(ctx, &team.ID, fleet.MacOS, team.Config.MDM.MacOSUpdates); err != nil {
+			return err
+		}
+	}
+	if mdmIOSUpdatesEdited {
+		if err := svc.mdmAppleEditedAppleOSUpdates(ctx, &team.ID, fleet.IOS, team.Config.MDM.IOSUpdates); err != nil {
+			return err
+		}
+	}
+	if mdmIPadOSUpdatesEdited {
+		if err := svc.mdmAppleEditedAppleOSUpdates(ctx, &team.ID, fleet.IPadOS, team.Config.MDM.IPadOSUpdates); err != nil {
 			return err
 		}
 	}
