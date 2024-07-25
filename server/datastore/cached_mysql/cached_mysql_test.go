@@ -559,7 +559,7 @@ func TestCachedTeamMDMConfig(t *testing.T) {
 
 	testMDMConfig := fleet.TeamMDM{
 		EnableDiskEncryption: true,
-		MacOSUpdates: fleet.MacOSUpdates{
+		MacOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("10.10.10"),
 			Deadline:       optjson.SetString("1992-03-01"),
 		},
@@ -618,7 +618,7 @@ func TestCachedTeamMDMConfig(t *testing.T) {
 
 	// saving a team updates config in cache
 	updateMDMConfig := fleet.TeamMDM{
-		MacOSUpdates: fleet.MacOSUpdates{
+		MacOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("13.13.13"),
 			Deadline:       optjson.SetString("2022-03-01"),
 		},

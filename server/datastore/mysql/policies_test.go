@@ -3651,11 +3651,11 @@ func testGetTeamHostsPolicyMemberships(t *testing.T, ds *Datastore) {
 	tZ := "America/Argentina/Buenos_Aires"
 	now := time.Now()
 	eventUUID1 := uuid.New().String()
-	_, err = ds.CreateOrUpdateCalendarEvent(ctx, eventUUID1, "foo@example.com", now, now.Add(30*time.Minute), []byte(`{"foo": "bar"}`), tZ,
+	_, err = ds.CreateOrUpdateCalendarEvent(ctx, eventUUID1, "foo@example.com", now, now.Add(30*time.Minute), []byte(`{"foo": "bar"}`), &tZ,
 		host1.ID, fleet.CalendarWebhookStatusPending)
 	require.NoError(t, err)
 	eventUUID2 := uuid.New().String()
-	_, err = ds.CreateOrUpdateCalendarEvent(ctx, eventUUID2, "bar@example.com", now, now.Add(30*time.Minute), []byte(`{"foo": "bar"}`), tZ,
+	_, err = ds.CreateOrUpdateCalendarEvent(ctx, eventUUID2, "bar@example.com", now, now.Add(30*time.Minute), []byte(`{"foo": "bar"}`), &tZ,
 		host6.ID, fleet.CalendarWebhookStatusPending)
 	require.NoError(t, err)
 
@@ -3737,12 +3737,12 @@ func testGetTeamHostsPolicyMemberships(t *testing.T, ds *Datastore) {
 	// Create a calendar event on host2 and host3.
 	//
 	now = time.Now()
-	_, err = ds.CreateOrUpdateCalendarEvent(ctx, eventUUID1, "foo@example.com", now, now.Add(30*time.Minute), []byte(`{"foo": "bar"}`), tZ,
+	_, err = ds.CreateOrUpdateCalendarEvent(ctx, eventUUID1, "foo@example.com", now, now.Add(30*time.Minute), []byte(`{"foo": "bar"}`), &tZ,
 		host2.ID, fleet.CalendarWebhookStatusPending)
 	require.NoError(t, err)
 	eventUUID3 := uuid.New().String()
 	calendarEventHost3, err := ds.CreateOrUpdateCalendarEvent(ctx, eventUUID3, "zoo@example.com", now, now.Add(30*time.Minute),
-		[]byte(`{"foo": "bar"}`), tZ, host3.ID, fleet.CalendarWebhookStatusPending)
+		[]byte(`{"foo": "bar"}`), &tZ, host3.ID, fleet.CalendarWebhookStatusPending)
 	require.NoError(t, err)
 
 	//

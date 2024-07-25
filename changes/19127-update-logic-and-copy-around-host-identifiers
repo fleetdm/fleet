@@ -1,2 +1,0 @@
-- Update `fleetctl query --hosts` to work with hostnames, host UUIDs, and/or hardware serial numbers.
-- Clarify various help and error texts around host identifiers.

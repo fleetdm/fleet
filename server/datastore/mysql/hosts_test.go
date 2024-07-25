@@ -7623,7 +7623,6 @@ func testHostsLoadHostByOrbitNodeKey(t *testing.T, ds *Datastore) {
 		// compare only the fields we care about
 		h.CreatedAt = returned.CreatedAt
 		h.UpdatedAt = returned.UpdatedAt
-		h.LastEnrolledAt = returned.LastEnrolledAt // FIXME: this seems to be flaky (off by one second) in CI so don't compare it
 		h.DEPAssignedToFleet = ptr.Bool(false)
 		assert.Equal(t, h, returned)
 	}
@@ -8259,7 +8258,9 @@ func testHostsEnrollOrbit(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		h2OrbitFetched, err := ds.Host(ctx, h2Orbit.ID)
 		require.NoError(t, err)
-		require.NotEqual(t, h1OsqueryFetched.LastEnrolledAt, h2OrbitFetched.LastEnrolledAt)
+		// orbit should not update last_enrolled_at if re-enrolling (because last_enrolled_at
+		// is to be set by osquery only).
+		require.Equal(t, h1OsqueryFetched.LastEnrolledAt, h2OrbitFetched.LastEnrolledAt)
 		time.Sleep(1 * time.Second) // to test the update of last_enrolled_at
 		h2Osquery, err := ds.EnrollHost(ctx, false, dupUUID, dupUUID, dupHWSerial, uuid.New().String(), nil, 0)
 		require.NoError(t, err)
@@ -9618,9 +9619,9 @@ func testListUpcomingHostMaintenanceWindows(t *testing.T, ds *Datastore) {
 	startTime := time.Now().UTC().Add(30 * time.Minute)
 	endTime := startTime.Add(30 * time.Minute)
 	calendarEvent, err := ds.CreateOrUpdateCalendarEvent(ctx, uuid.New().String(), "foo@example.com", startTime, endTime, []byte(`{}`),
-		timeZone, host.ID, fleet.CalendarWebhookStatusNone)
+		&timeZone, host.ID, fleet.CalendarWebhookStatusNone)
 	require.NoError(t, err)
-	require.Equal(t, calendarEvent.TimeZone, timeZone)
+	require.Equal(t, *calendarEvent.TimeZone, timeZone)
 
 	mWs, err = ds.ListUpcomingHostMaintenanceWindows(ctx, host.ID)
 	require.NoError(t, err)

@@ -182,8 +182,17 @@ func TestApplyTeamSpecs(t *testing.T) {
 	}
 
 	ds.LabelIDsByNameFunc = func(ctx context.Context, labels []string) (map[string]uint, error) {
-		require.ElementsMatch(t, labels, []string{fleet.BuiltinLabelMacOS14Plus})
-		return map[string]uint{fleet.BuiltinLabelMacOS14Plus: 1}, nil
+		require.Len(t, labels, 1)
+		switch labels[0] {
+		case fleet.BuiltinLabelMacOS14Plus:
+			return map[string]uint{fleet.BuiltinLabelMacOS14Plus: 1}, nil
+		case fleet.BuiltinLabelIOS:
+			return map[string]uint{fleet.BuiltinLabelIOS: 2}, nil
+		case fleet.BuiltinLabelIPadOS:
+			return map[string]uint{fleet.BuiltinLabelIPadOS: 3}, nil
+		default:
+			return nil, &notFoundError{}
+		}
 	}
 
 	ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error) {
@@ -222,7 +231,7 @@ spec:
 
 	newAgentOpts := json.RawMessage(`{"config":{"views":{"foo":"bar"}}}`)
 	newMDMSettings := fleet.TeamMDM{
-		MacOSUpdates: fleet.MacOSUpdates{
+		MacOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("12.3.1"),
 			Deadline:       optjson.SetString("2011-03-01"),
 		},
@@ -258,7 +267,7 @@ spec:
 `)
 	require.Equal(t, "[+] applied 1 teams\n", runAppForTest(t, []string{"apply", "-f", filename}))
 	newMDMSettings = fleet.TeamMDM{
-		MacOSUpdates: fleet.MacOSUpdates{
+		MacOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("12.3.1"),
 			Deadline:       optjson.SetString("2011-03-01"),
 		},
@@ -286,7 +295,7 @@ spec:
 `, mobileCfgPath))
 
 	newMDMSettings = fleet.TeamMDM{
-		MacOSUpdates: fleet.MacOSUpdates{
+		MacOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("12.3.1"),
 			Deadline:       optjson.SetString("2011-03-01"),
 		},
@@ -325,14 +334,28 @@ spec:
       macos_updates:
         minimum_version: 10.10.10
         deadline: 1992-03-01
+      ios_updates:
+        minimum_version: 11.11.11
+        deadline: 1993-04-02
+      ipados_updates:
+        minimum_version: 12.12.12
+        deadline: 1994-05-03
     secrets:
       - secret: BBB
 `)
 
 	newMDMSettings = fleet.TeamMDM{
-		MacOSUpdates: fleet.MacOSUpdates{
+		MacOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("10.10.10"),
 			Deadline:       optjson.SetString("1992-03-01"),
+		},
+		IOSUpdates: fleet.AppleOSUpdateSettings{
+			MinimumVersion: optjson.SetString("11.11.11"),
+			Deadline:       optjson.SetString("1993-04-02"),
+		},
+		IPadOSUpdates: fleet.AppleOSUpdateSettings{
+			MinimumVersion: optjson.SetString("12.12.12"),
+			Deadline:       optjson.SetString("1994-05-03"),
 		},
 		WindowsUpdates: fleet.WindowsUpdates{
 			DeadlineDays:    optjson.SetInt(5),
@@ -398,6 +421,12 @@ spec:
       macos_updates:
         minimum_version:
         deadline:
+      ios_updates:
+        minimum_version:
+        deadline:
+      ipados_updates:
+        minimum_version:
+        deadline:
       windows_updates:
         deadline_days:
         grace_period_days:
@@ -406,7 +435,15 @@ spec:
 `)
 
 	newMDMSettings = fleet.TeamMDM{
-		MacOSUpdates: fleet.MacOSUpdates{
+		MacOSUpdates: fleet.AppleOSUpdateSettings{
+			MinimumVersion: optjson.String{Set: true},
+			Deadline:       optjson.String{Set: true},
+		},
+		IOSUpdates: fleet.AppleOSUpdateSettings{
+			MinimumVersion: optjson.String{Set: true},
+			Deadline:       optjson.String{Set: true},
+		},
+		IPadOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.String{Set: true},
 			Deadline:       optjson.String{Set: true},
 		},
@@ -624,7 +661,7 @@ spec:
 	newMDMSettings := fleet.MDM{
 		AppleBMDefaultTeam:  "team1",
 		AppleBMTermsExpired: false,
-		MacOSUpdates: fleet.MacOSUpdates{
+		MacOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("12.1.1"),
 			Deadline:       optjson.SetString("2011-02-01"),
 		},
@@ -679,7 +716,7 @@ spec:
 	newMDMSettings = fleet.MDM{
 		AppleBMDefaultTeam:  "team1",
 		AppleBMTermsExpired: false,
-		MacOSUpdates: fleet.MacOSUpdates{
+		MacOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("12.1.1"),
 			Deadline:       optjson.SetString("2011-02-01"),
 		},
@@ -1315,7 +1352,7 @@ spec:
 			MacOSSetupAssistant:         optjson.SetString(emptySetupAsst),
 			EnableReleaseDeviceManually: optjson.SetBool(false),
 		},
-		MacOSUpdates: fleet.MacOSUpdates{
+		MacOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("10.10.10"),
 			Deadline:       optjson.SetString("2020-02-02"),
 		},
@@ -1358,7 +1395,7 @@ spec:
 			BootstrapPackage:            optjson.SetString(bootstrapURL),
 			EnableReleaseDeviceManually: optjson.SetBool(false),
 		},
-		MacOSUpdates: fleet.MacOSUpdates{
+		MacOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("10.10.10"),
 			Deadline:       optjson.SetString("2020-02-02"),
 		},
@@ -1409,7 +1446,7 @@ spec:
 		MacOSSettings: fleet.MacOSSettings{
 			CustomSettings: []fleet.MDMProfileSpec{{Path: mobileConfigPath}},
 		},
-		MacOSUpdates: fleet.MacOSUpdates{
+		MacOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("10.10.10"),
 			Deadline:       optjson.SetString("1992-03-01"),
 		},
@@ -1451,7 +1488,7 @@ spec:
 		MacOSSettings: fleet.MacOSSettings{
 			CustomSettings: []fleet.MDMProfileSpec{{Path: mobileConfigPath}},
 		},
-		MacOSUpdates: fleet.MacOSUpdates{
+		MacOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("10.10.10"),
 			Deadline:       optjson.SetString("1992-03-01"),
 		},
@@ -1488,7 +1525,7 @@ spec:
 		MacOSSettings: fleet.MacOSSettings{
 			CustomSettings: []fleet.MDMProfileSpec{{Path: mobileConfigPath}},
 		},
-		MacOSUpdates: fleet.MacOSUpdates{
+		MacOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("10.10.10"),
 			Deadline:       optjson.SetString("1992-03-01"),
 		},

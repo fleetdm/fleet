@@ -1,1 +1,0 @@
-When osquery returns a serial number of -1 (default value), we keep the existing serial number in the database.

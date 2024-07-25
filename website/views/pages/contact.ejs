@@ -81,9 +81,9 @@
             <div class="selectbox">
             <select class="form-control" id="primaryBuyingSituation" name="primaryBuyingSituation" :class="[formErrors.primaryBuyingSituation ? 'is-invalid' : '']" v-model="formData.primaryBuyingSituation">
               <option disabled hidden value="undefined">Choose an option</option>
+              <option value="mdm">Device management (MDM)</option>
               <option value="eo-security">Endpoint operations for security engineering</option>
               <option value="eo-it">Endpoint ops for identity engineers and IT admins</option>
-              <option value="mdm">Device management (MDM)</option>
               <option value="vm">Vulnerability management</option>
             </select>
             </div>

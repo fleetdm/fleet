@@ -343,7 +343,7 @@ func TestCalendarEventsMultipleHosts(t *testing.T) {
 		email string,
 		startTime, endTime time.Time,
 		data []byte,
-		timeZone string,
+		timeZone *string,
 		hostID uint,
 		webhookStatus fleet.CalendarWebhookStatus,
 	) (*fleet.CalendarEvent, error) {
@@ -633,7 +633,7 @@ func TestCalendarEvents1KHosts(t *testing.T) {
 		email string,
 		startTime, endTime time.Time,
 		data []byte,
-		timeZone string,
+		timeZone *string,
 		hostID uint,
 		webhookStatus fleet.CalendarWebhookStatus,
 	) (*fleet.CalendarEvent, error) {
@@ -923,7 +923,7 @@ func TestEventBody(t *testing.T) {
 		email string,
 		startTime, endTime time.Time,
 		data []byte,
-		timeZone string,
+		timeZone *string,
 		hostID uint,
 		webhookStatus fleet.CalendarWebhookStatus,
 	) (*fleet.CalendarEvent, error) {

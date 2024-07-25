@@ -771,6 +771,43 @@ func createHostThenEnrollMDM(ds fleet.Datastore, fleetServerURL string, t *testi
 	return fleetHost, mdmDevice
 }
 
+func (s *integrationMDMTestSuite) createAppleMobileHostThenEnrollMDM(platform string) (*fleet.Host, *mdmtest.TestAppleMDMClient) {
+	ctx := context.Background()
+	t := s.T()
+
+	// create a host with minimal information and the serial, no uuid/osquery id
+	// (as when created via DEP sync).
+	dbZeroTime := time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
+	serialNumber := mdmtest.RandSerialNumber()
+	fleetHost, err := s.ds.NewHost(ctx, &fleet.Host{
+		HardwareSerial:   serialNumber,
+		Platform:         platform,
+		LastEnrolledAt:   dbZeroTime,
+		DetailUpdatedAt:  dbZeroTime,
+		RefetchRequested: true,
+	})
+	require.NoError(t, err)
+	require.Equal(t, dbZeroTime, fleetHost.LastEnrolledAt)
+
+	// Perform the MDM enrollment.
+	mdmEnrollInfo := mdmtest.AppleEnrollInfo{
+		SCEPChallenge: s.scepChallenge,
+		SCEPURL:       s.server.URL + apple_mdm.SCEPPath,
+		MDMURL:        s.server.URL + apple_mdm.MDMPath,
+	}
+	model := "iPhone14,6"
+	if platform == "ipados" {
+		model = "iPad13,18"
+	}
+	mdmDevice := mdmtest.NewTestMDMClientAppleDirect(mdmEnrollInfo, model)
+	mdmDevice.SerialNumber = serialNumber
+	err = mdmDevice.Enroll()
+	require.NoError(t, err)
+
+	return fleetHost, mdmDevice
+
+}
+
 func createWindowsHostThenEnrollMDM(ds fleet.Datastore, fleetServerURL string, t *testing.T) (*fleet.Host, *mdmtest.TestWindowsMDMClient) {
 	host := createOrbitEnrolledHost(t, "windows", "h1", ds)
 	mdmDevice := mdmtest.NewTestMDMClientWindowsProgramatic(fleetServerURL, *host.OrbitNodeKey)
@@ -4593,7 +4630,7 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	require.Equal(t, lastSubmittedProfile.ConfigurationWebURL, lastSubmittedProfile.URL)
 
 	checkStoredIdPInfo := func(uuid, username, fullname, email string) {
-		acc, err := s.ds.GetMDMIdPAccountByAccountUUID(context.Background(), uuid)
+		acc, err := s.ds.GetMDMIdPAccountByUUID(context.Background(), uuid)
 		require.NoError(t, err)
 		require.Equal(t, username, acc.Username)
 		require.Equal(t, fullname, acc.Fullname)
@@ -4722,11 +4759,6 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	// test runs.
 	mdmDevice.EnrollInfo.MDMURL = strings.Replace(enrollURL, "https://localhost:8080", s.server.URL, 1)
 	mdmDevice.EnrollInfo.SCEPURL = strings.Replace(scepURL, "https://localhost:8080", s.server.URL, 1)
-
-	// associate the mdm idp account with the host uuid manually (we can't mock the Apple webview client
-	// deviceinfo header because it is signed with the Apple Root CA)
-	require.NoError(t, s.ds.AssociateMDMIdPAccount(context.Background(), user1EnrollRef, mdmDevice.UUID))
-
 	err = mdmDevice.Enroll()
 	require.NoError(t, err)
 
@@ -4754,22 +4786,13 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	require.Equal(t, "SSO User 1", fullAccCmd.Command.AccountConfiguration.PrimaryAccountFullName)
 	require.Equal(t, "sso_user", fullAccCmd.Command.AccountConfiguration.PrimaryAccountUserName)
 
-	// check that the host was created and get the host id and other details for the next steps
+	// report host details for the device
 	var hostResp getHostResponse
 	s.DoJSON("GET", "/api/v1/fleet/hosts/identifier/"+mdmDevice.UUID, nil, http.StatusOK, &hostResp)
 
-	// ensure that host_emails entry was created from mdm_idp_accounts
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		var email string
-		err := sqlx.GetContext(context.Background(), q, &email, `SELECT email FROM host_emails WHERE host_id = ? AND source = ?`, hostResp.Host.ID, fleet.DeviceMappingMDMIdpAccounts)
-		require.NoError(t, err)
-		require.Equal(t, "sso_user@example.com", email)
-		return nil
-	})
-
-	// get app config and host detail queries
 	ac, err := s.ds.AppConfig(context.Background())
 	require.NoError(t, err)
+
 	detailQueries := osquery_utils.GetDetailQueries(context.Background(), config.FleetConfig{}, ac, &ac.Features)
 
 	// simulate osquery reporting mdm information
@@ -5436,7 +5459,7 @@ func (s *integrationMDMTestSuite) TestOrbitConfigNudgeSettings() {
 
 	resp = orbitGetConfigResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *h.OrbitNodeKey)), http.StatusOK, &resp)
-	wantCfg, err := fleet.NewNudgeConfig(fleet.MacOSUpdates{Deadline: optjson.SetString("2022-01-04"), MinimumVersion: optjson.SetString("12.1.3")})
+	wantCfg, err := fleet.NewNudgeConfig(fleet.AppleOSUpdateSettings{Deadline: optjson.SetString("2022-01-04"), MinimumVersion: optjson.SetString("12.1.3")})
 	require.NoError(t, err)
 	require.Equal(t, wantCfg, resp.NudgeConfig)
 	require.Equal(t, wantCfg.OSVersionRequirements[0].RequiredInstallationDate.String(), "2022-01-04 04:00:00 +0000 UTC")
@@ -5464,7 +5487,7 @@ func (s *integrationMDMTestSuite) TestOrbitConfigNudgeSettings() {
 	var tmResp teamResponse
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
 		MDM: &fleet.TeamPayloadMDM{
-			MacOSUpdates: &fleet.MacOSUpdates{
+			MacOSUpdates: &fleet.AppleOSUpdateSettings{
 				Deadline:       optjson.SetString("1992-01-01"),
 				MinimumVersion: optjson.SetString("13.1.1"),
 			},
@@ -5474,7 +5497,7 @@ func (s *integrationMDMTestSuite) TestOrbitConfigNudgeSettings() {
 
 	resp = orbitGetConfigResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *h.OrbitNodeKey)), http.StatusOK, &resp)
-	wantCfg, err = fleet.NewNudgeConfig(fleet.MacOSUpdates{Deadline: optjson.SetString("1992-01-01"), MinimumVersion: optjson.SetString("13.1.1")})
+	wantCfg, err = fleet.NewNudgeConfig(fleet.AppleOSUpdateSettings{Deadline: optjson.SetString("1992-01-01"), MinimumVersion: optjson.SetString("13.1.1")})
 	require.NoError(t, err)
 	require.Equal(t, wantCfg, resp.NudgeConfig)
 	require.Equal(t, wantCfg.OSVersionRequirements[0].RequiredInstallationDate.String(), "1992-01-01 04:00:00 +0000 UTC")
@@ -5496,7 +5519,7 @@ func (s *integrationMDMTestSuite) TestOrbitConfigNudgeSettings() {
 
 	resp = orbitGetConfigResponse{}
 	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *h2.OrbitNodeKey)), http.StatusOK, &resp)
-	wantCfg, err = fleet.NewNudgeConfig(fleet.MacOSUpdates{Deadline: optjson.SetString("2022-01-04"), MinimumVersion: optjson.SetString("12.1.3")})
+	wantCfg, err = fleet.NewNudgeConfig(fleet.AppleOSUpdateSettings{Deadline: optjson.SetString("2022-01-04"), MinimumVersion: optjson.SetString("12.1.3")})
 	require.NoError(t, err)
 	require.Equal(t, wantCfg, resp.NudgeConfig)
 	require.Equal(t, wantCfg.OSVersionRequirements[0].RequiredInstallationDate.String(), "2022-01-04 04:00:00 +0000 UTC")
@@ -9231,7 +9254,6 @@ func (s *integrationMDMTestSuite) TestAPNsPushCron() {
 	err = SendPushesToPendingDevices(ctx, s.ds, s.mdmCommander, s.logger)
 	require.NoError(t, err)
 	require.Len(t, recordedPushes, 0)
-
 }
 
 func (s *integrationMDMTestSuite) TestMDMRequestWithoutCerts() {
@@ -9326,37 +9348,56 @@ func (s *integrationMDMTestSuite) TestInvalidCommandUUID() {
 
 func (s *integrationMDMTestSuite) TestEnrollAfterDEPSyncIOSIPadOS() {
 	t := s.T()
-	ctx := context.Background()
 
-	// create a host with minimal information and the serial, no uuid/osquery id
-	// (as when created via DEP sync).
-	dbZeroTime := time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
-	serialNumber := mdmtest.RandSerialNumber()
-	h, err := s.ds.NewHost(ctx, &fleet.Host{
-		HardwareSerial:   serialNumber,
-		Platform:         "ios",
-		LastEnrolledAt:   dbZeroTime,
-		DetailUpdatedAt:  dbZeroTime,
-		RefetchRequested: true,
-	})
-	require.NoError(t, err)
-	require.Equal(t, dbZeroTime, h.LastEnrolledAt)
-
-	// Perform the MDM enrollment.
-	mdmEnrollInfo := mdmtest.AppleEnrollInfo{
-		SCEPChallenge: s.scepChallenge,
-		SCEPURL:       s.server.URL + apple_mdm.SCEPPath,
-		MDMURL:        s.server.URL + apple_mdm.MDMPath,
-	}
-	mdmDevice := mdmtest.NewTestMDMClientAppleDirect(mdmEnrollInfo, "iPhone14,6")
-	mdmDevice.SerialNumber = serialNumber
-	err = mdmDevice.Enroll()
-	require.NoError(t, err)
+	h, _ := s.createAppleMobileHostThenEnrollMDM("ios")
 
 	// fetch the host, it will match the one created above
 	// (NOTE: cannot check the returned OrbitNodeKey, this field is not part of the response)
 	var hostResp getHostResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", h.ID), nil, http.StatusOK, &hostResp)
 	require.Equal(t, h.ID, hostResp.Host.ID)
-	require.NotEqual(t, dbZeroTime, hostResp.Host.LastEnrolledAt)
+	require.NotEqual(t, h.LastEnrolledAt, hostResp.Host.LastEnrolledAt)
+
+	h, _ = s.createAppleMobileHostThenEnrollMDM("ipados")
+
+	// fetch the host, it will match the one created above
+	// (NOTE: cannot check the returned OrbitNodeKey, this field is not part of the response)
+	hostResp = getHostResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", h.ID), nil, http.StatusOK, &hostResp)
+	require.Equal(t, h.ID, hostResp.Host.ID)
+	require.NotEqual(t, h.LastEnrolledAt, hostResp.Host.LastEnrolledAt)
+
+}
+
+func (s *integrationMDMTestSuite) TestRefetchIOSIPadOS() {
+	t := s.T()
+
+	// Try to refetch host that is not MDM enrolled
+	serialNumber := mdmtest.RandSerialNumber()
+	fleetHost, err := s.ds.NewHost(context.Background(), &fleet.Host{
+		HardwareSerial:   serialNumber,
+		Platform:         "ipados",
+		LastEnrolledAt:   time.Now(),
+		DetailUpdatedAt:  time.Now(),
+		RefetchRequested: true,
+	})
+	require.NoError(t, err)
+	r := s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/refetch", fleetHost.ID), nil, http.StatusUnprocessableEntity, "error",
+		"host is not enrolled in MDM")
+	assert.Contains(t, extractServerErrorText(r.Body), "Host does not have MDM turned on")
+
+	// Try to refetch an MDM enrolled host
+	host, mdmClient := s.createAppleMobileHostThenEnrollMDM("ios")
+	_ = s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/refetch", host.ID), nil, http.StatusOK)
+
+	// Check the MDM command
+	cmd, err := mdmClient.Idle()
+	require.NoError(t, err)
+	require.NotNil(t, cmd)
+	assert.Equal(t, "DeviceInformation", cmd.Command.RequestType)
+
+	var hostResp getHostResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &hostResp)
+	assert.Equal(t, host.ID, hostResp.Host.ID)
+	assert.True(t, host.RefetchRequested)
 }

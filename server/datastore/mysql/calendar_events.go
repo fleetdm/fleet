@@ -5,8 +5,9 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"github.com/google/uuid"
 	"time"
+
+	"github.com/google/uuid"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -22,7 +23,7 @@ func (ds *Datastore) CreateOrUpdateCalendarEvent(
 	startTime time.Time,
 	endTime time.Time,
 	data []byte,
-	timeZone string,
+	timeZone *string,
 	hostID uint,
 	webhookStatus fleet.CalendarWebhookStatus,
 ) (*fleet.CalendarEvent, error) {
@@ -153,7 +154,7 @@ func (ds *Datastore) GetCalendarEventDetailsByUUID(ctx context.Context, uuidStr 
 }
 
 func (ds *Datastore) UpdateCalendarEvent(ctx context.Context, calendarEventID uint, uuidStr string, startTime time.Time, endTime time.Time,
-	data []byte, timeZone string) error {
+	data []byte, timeZone *string) error {
 	UUID, err := uuid.Parse(uuidStr)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "invalid uuid")

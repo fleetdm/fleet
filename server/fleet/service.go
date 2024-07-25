@@ -34,7 +34,7 @@ type EnterpriseOverrides struct {
 	DeleteMDMAppleBootstrapPackage    func(ctx context.Context, teamID *uint) error
 	MDMWindowsEnableOSUpdates         func(ctx context.Context, teamID *uint, updates WindowsUpdates) error
 	MDMWindowsDisableOSUpdates        func(ctx context.Context, teamID *uint) error
-	MDMAppleEditedMacOSUpdates        func(ctx context.Context, teamID *uint, updates MacOSUpdates) error
+	MDMAppleEditedAppleOSUpdates      func(ctx context.Context, teamID *uint, appleDevice AppleDevice, updates AppleOSUpdateSettings) error
 }
 
 type OsqueryService interface {
@@ -749,7 +749,7 @@ type Service interface {
 	GetMDMAppleProfilesSummary(ctx context.Context, teamID *uint) (*MDMProfilesSummary, error)
 
 	// GetMDMAppleEnrollmentProfileByToken returns the Apple enrollment from its secret token.
-	GetMDMAppleEnrollmentProfileByToken(ctx context.Context, enrollmentToken string, enrollmentRef string, deviceinfo string) (profile []byte, err error)
+	GetMDMAppleEnrollmentProfileByToken(ctx context.Context, enrollmentToken string, enrollmentRef string) (profile []byte, err error)
 
 	// GetDeviceMDMAppleEnrollmentProfile loads the raw (PList-format) enrollment
 	// profile for the currently authenticated device.
