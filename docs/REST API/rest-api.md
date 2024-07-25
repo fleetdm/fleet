@@ -4587,9 +4587,9 @@ To unlock a Windows or Linux host, the host must have [scripts enabled](https://
 
 ### Wipe host
 
-Sends a command to wipe the specified macOS, Windows, or Linux host. The host is wiped once it comes online.
+Sends a command to wipe the specified macOS, iOS, iPadOS, Windows, or Linux host. The host is wiped once it comes online.
 
-To wipe a macOS or Windows host, the host must have MDM turned on. To lock a Linux host, the host must have [scripts enabled](https://fleetdm.com/docs/using-fleet/scripts).
+To wipe a macOS, iOS, iPadOS, or Windows host, the host must have MDM turned on. To lock a Linux host, the host must have [scripts enabled](https://fleetdm.com/docs/using-fleet/scripts).
 
 `POST /api/v1/fleet/hosts/:id/wipe`
 
