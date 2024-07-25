@@ -13,6 +13,7 @@ export interface IVppApp {
   latest_version: string;
   app_store_id: number;
   added: boolean;
+  platform: string; // "darwin" | "ios" | "ipados"
 }
 
 interface IGetVppAppsResponse {

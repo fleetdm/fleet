@@ -140,7 +140,7 @@ describe("Host Summary section", () => {
     });
   });
   describe("iOS and iPadOS data", () => {
-    it("for iOS, renders Team, Disk space, and Operating system data only and hides the refetch button", async () => {
+    it("for iOS, renders Team, Disk space, and Operating system data only", async () => {
       const render = createCustomRenderer({
         context: {
           app: {
@@ -181,15 +181,15 @@ describe("Host Summary section", () => {
       expect(
         screen.getByText("Operating system").nextElementSibling
       ).toHaveTextContent(osVersion);
+      expect(screen.queryByText("Refetch")).toBeInTheDocument();
 
-      expect(screen.queryByText("Refetch")).not.toBeInTheDocument();
       expect(screen.queryByText("Status")).not.toBeInTheDocument();
       expect(screen.queryByText("Memory")).not.toBeInTheDocument();
       expect(screen.queryByText("Processor type")).not.toBeInTheDocument();
       expect(screen.queryByText("Agent")).not.toBeInTheDocument();
       expect(screen.queryByText("Osquery")).not.toBeInTheDocument();
     });
-    it("for iPadOS, renders Team, Disk space, and Operating system data only and hides the refetch button", async () => {
+    it("for iPadOS, renders Team, Disk space, and Operating system data only", async () => {
       const render = createCustomRenderer({
         context: {
           app: {
@@ -230,8 +230,8 @@ describe("Host Summary section", () => {
       expect(
         screen.getByText("Operating system").nextElementSibling
       ).toHaveTextContent(osVersion);
+      expect(screen.queryByText("Refetch")).toBeInTheDocument();
 
-      expect(screen.queryByText("Refetch")).not.toBeInTheDocument();
       expect(screen.queryByText("Status")).not.toBeInTheDocument();
       expect(screen.queryByText("Memory")).not.toBeInTheDocument();
       expect(screen.queryByText("Processor type")).not.toBeInTheDocument();

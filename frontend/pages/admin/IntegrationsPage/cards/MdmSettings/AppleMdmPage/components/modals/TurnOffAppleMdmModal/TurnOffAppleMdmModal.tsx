@@ -4,17 +4,17 @@ import Button from "components/buttons/Button";
 
 import Modal from "components/Modal";
 
-const baseClass = "modal turn-off-mdm-modal";
+const baseClass = "modal turn-off-apple-mdm-modal";
 
-interface ITurnOffMacOsMdmModalProps {
+interface ITurnOffAppleMdmModalProps {
   onCancel: () => void;
   onConfirm: () => void;
 }
 
-const TurnOffMacOsMdmModal = ({
+const TurnOffAppleMdmModal = ({
   onConfirm,
   onCancel,
-}: ITurnOffMacOsMdmModalProps): JSX.Element => {
+}: ITurnOffAppleMdmModalProps): JSX.Element => {
   const [isDeleting, setIsDeleting] = useState(false);
 
   const onClickConfirm = useCallback(() => {
@@ -23,10 +23,11 @@ const TurnOffMacOsMdmModal = ({
   }, [onConfirm]);
 
   return (
-    <Modal title="Turn off macOS MDM" onExit={onCancel} className={baseClass}>
+    <Modal title="Turn off MDM" onExit={onCancel} className={baseClass}>
       <div className={baseClass}>
-        If you want to use MDM features again, you’ll have to upload a new APNs
-        certificate and all end users will have to turn MDM off and back on.
+        If you want to use MDM features again, you&apos;ll have to upload a new
+        APNs certificate and all end users will have to turn MDM off and back
+        on.
         <div className="modal-cta-wrap">
           <Button
             type="button"
@@ -50,4 +51,4 @@ const TurnOffMacOsMdmModal = ({
   );
 };
 
-export default TurnOffMacOsMdmModal;
+export default TurnOffAppleMdmModal;
