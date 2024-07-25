@@ -8761,7 +8761,7 @@ func (s *integrationTestSuite) TestListVulnerabilities() {
 	require.False(t, resp.Meta.HasPreviousResults)
 	require.False(t, resp.Meta.HasNextResults)
 
-	// Test Team Filter
+	// Team 1 Filter
 	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities", nil, http.StatusOK, &resp, "team_id", "1")
 	require.Len(s.T(), resp.Vulnerabilities, 0)
 
@@ -8787,6 +8787,31 @@ func (s *integrationTestSuite) TestListVulnerabilities() {
 		require.Equal(t, expectedVuln.DetailsLink, vuln.DetailsLink)
 		require.Empty(t, vuln.CVSSScore)
 	}
+
+	// No filter (global)
+	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities", nil, http.StatusOK, &resp)
+	require.Len(t, resp.Vulnerabilities, 3)
+	require.Equal(t, uint(3), resp.Count)
+	require.Equal(t, uint(1), resp.Vulnerabilities[0].HostsCount)
+	require.Equal(t, uint(1), resp.Vulnerabilities[1].HostsCount)
+	require.Equal(t, uint(1), resp.Vulnerabilities[2].HostsCount)
+
+	// Team 0 Filter
+	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities", nil, http.StatusOK, &resp, "team_id", "0")
+	require.Len(t, resp.Vulnerabilities, 1)
+	require.Equal(t, uint(1), resp.Count)
+	require.Equal(t, "CVE-2021-1246", resp.Vulnerabilities[0].CVE.CVE)
+	require.Equal(t, uint(1), resp.Vulnerabilities[0].HostsCount)
+
+	// move host1 back to global
+	err = s.ds.AddHostsToTeam(context.Background(), nil, []uint{host.ID})
+	require.NoError(t, err)
+
+	err = s.ds.UpdateVulnerabilityHostCounts(context.Background())
+	require.NoError(t, err)
+
+	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities", nil, http.StatusOK, &resp, "team_id", "0")
+	require.Len(t, resp.Vulnerabilities, 3)
 
 	var gResp getVulnerabilityResponse
 	// invalid cve
