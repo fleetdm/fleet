@@ -4392,41 +4392,20 @@ func decrypt(encrypted []byte, privateKey string) ([]byte, error) {
 
 	decrypted, err := aesGCM.Open(nil, nonce, ciphertext, nil)
 	if err != nil {
-		return nil, fmt.Errorf("generate nonce: %w", err)
+		return nil, fmt.Errorf("decrypting: %w", err)
 	}
 
 	return decrypted, nil
 }
 
 func (ds *Datastore) InsertMDMConfigAssets(ctx context.Context, assets []fleet.MDMConfigAsset) error {
-	stmt := `
-INSERT INTO mdm_config_assets
-  (name, value, md5_checksum)
-VALUES
-  %s`
-
-	var args []any
-	var insertVals strings.Builder
-
-	for _, a := range assets {
-		encryptedVal, err := encrypt(a.Value, ds.serverPrivateKey)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, fmt.Sprintf("encrypting mdm config asset %s", a.Name))
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		if err := insertMDMConfigAssets(ctx, tx, assets, ds.serverPrivateKey); err != nil {
+			return ctxerr.Wrap(ctx, err, "insert mdm config assets")
 		}
 
-		hexChecksum := md5ChecksumBytes(encryptedVal)
-		insertVals.WriteString(`(?, ?, UNHEX(?)),`)
-		args = append(args, a.Name, encryptedVal, hexChecksum)
-	}
-
-	stmt = fmt.Sprintf(stmt, strings.TrimSuffix(insertVals.String(), ","))
-
-	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		_, err := tx.ExecContext(ctx, stmt, args...)
-		return err
+		return nil
 	})
-
-	return ctxerr.Wrap(ctx, err, "writing mdm config assets to db")
 }
 
 func (ds *Datastore) GetAllMDMConfigAssetsByName(ctx context.Context, assetNames []fleet.MDMAssetName) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
@@ -4512,6 +4491,16 @@ WHERE name IN (?) AND deletion_uuid = ''`
 }
 
 func (ds *Datastore) DeleteMDMConfigAssetsByName(ctx context.Context, assetNames []fleet.MDMAssetName) error {
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		if err := softDeleteMDMConfigAssetsByName(ctx, tx, assetNames); err != nil {
+			return ctxerr.Wrap(ctx, err, "delete mdm config assets by name")
+		}
+
+		return nil
+	})
+}
+
+func softDeleteMDMConfigAssetsByName(ctx context.Context, tx sqlx.ExtContext, assetNames []fleet.MDMAssetName) error {
 	stmt := `
 UPDATE
     mdm_config_assets
@@ -4526,11 +4515,58 @@ WHERE
 
 	stmt, args, err := sqlx.In(stmt, deletionUUID, assetNames)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "sqlx.In DeleteMDMConfigAssetsByName")
+		return ctxerr.Wrap(ctx, err, "sqlx.In softDeleteMDMConfigAssetsByName")
 	}
 
-	_, err = ds.writer(ctx).ExecContext(ctx, stmt, args...)
+	_, err = tx.ExecContext(ctx, stmt, args...)
 	return ctxerr.Wrap(ctx, err, "deleting mdm config assets")
+}
+
+func insertMDMConfigAssets(ctx context.Context, tx sqlx.ExtContext, assets []fleet.MDMConfigAsset, privateKey string) error {
+	stmt := `
+INSERT INTO mdm_config_assets
+  (name, value, md5_checksum)
+VALUES
+  %s`
+
+	var args []any
+	var insertVals strings.Builder
+
+	for _, a := range assets {
+		encryptedVal, err := encrypt(a.Value, privateKey)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, fmt.Sprintf("encrypting mdm config asset %s", a.Name))
+		}
+
+		hexChecksum := md5ChecksumBytes(encryptedVal)
+		insertVals.WriteString(`(?, ?, UNHEX(?)),`)
+		args = append(args, a.Name, encryptedVal, hexChecksum)
+	}
+
+	stmt = fmt.Sprintf(stmt, strings.TrimSuffix(insertVals.String(), ","))
+
+	_, err := tx.ExecContext(ctx, stmt, args...)
+
+	return ctxerr.Wrap(ctx, err, "writing mdm config assets to db")
+}
+
+func (ds *Datastore) ReplaceMDMConfigAssets(ctx context.Context, assets []fleet.MDMConfigAsset) error {
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		var names []fleet.MDMAssetName
+		for _, a := range assets {
+			names = append(names, a.Name)
+		}
+
+		if err := softDeleteMDMConfigAssetsByName(ctx, tx, names); err != nil {
+			return ctxerr.Wrap(ctx, err, "upsert mdm config assets soft delete")
+		}
+
+		if err := insertMDMConfigAssets(ctx, tx, assets, ds.serverPrivateKey); err != nil {
+			return ctxerr.Wrap(ctx, err, "upsert mdm config assets insert")
+		}
+
+		return nil
+	})
 }
 
 // ListIOSAndIPadOSToRefetch returns the UUIDs of iPhones/iPads that should be refetched

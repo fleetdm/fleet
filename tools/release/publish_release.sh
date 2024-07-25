@@ -849,7 +849,7 @@ if [[ "$failed" == "false" ]]; then
         echo "DRYRUN: Would have switched back to branch $target_branch"
     fi
 
-    if [[ "$minor" == "false" ]]; then
+    if [[ "$dry_run" = "false" && "$minor" == "false" ]]; then
         # Cherry-pick from update-changelog-branch
         ch_commit=$(git log -n 1 --pretty=format:"%H" $update_changelog_branch)
         git cherry-pick $ch_commit

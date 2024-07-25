@@ -3,6 +3,7 @@ import { find, lowerCase, noop } from "lodash";
 import { formatDistanceToNowStrict } from "date-fns";
 
 import { ActivityType, IActivity, IActivityDetails } from "interfaces/activity";
+import { getInstallStatusPredicate } from "interfaces/software";
 import {
   addGravatarUrlToResource,
   formatScriptNameForActivityItem,
@@ -16,7 +17,6 @@ import Icon from "components/Icon";
 import ReactTooltip from "react-tooltip";
 import PremiumFeatureIconWithTooltip from "components/PremiumFeatureIconWithTooltip";
 import { COLORS } from "styles/var/colors";
-import { getSoftwareInstallStatusPredicate } from "pages/hosts/details/cards/Activity/ActivityItems/InstalledSoftwareActivityItem/InstalledSoftwareActivityItem";
 
 const baseClass = "activity-item";
 
@@ -36,19 +36,16 @@ const PREMIUM_ACTIVITIES = new Set([
 
 const getProfileMessageSuffix = (
   isPremiumTier: boolean,
-  platform: "apple" | "windows",
   teamName?: string | null
 ) => {
-  const platformDisplayName =
-    platform === "apple" ? "macOS, iOS, and iPadOS" : "Windows";
-  let messageSuffix = <>all {platformDisplayName} hosts</>;
+  let messageSuffix = <>hosts</>;
   if (isPremiumTier) {
     messageSuffix = teamName ? (
       <>
-        {platformDisplayName} hosts assigned to the <b>{teamName}</b> team
+        the <b>{teamName}</b> team
       </>
     ) : (
-      <>{platformDisplayName} hosts with no team</>
+      <>hosts with no team</>
     );
   }
   return messageSuffix;
@@ -307,7 +304,10 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
-  editedMacosMinVersion: (activity: IActivity) => {
+  editedAppleosMinVersion: (
+    activity: IActivity,
+    osType: "darwin" | "ios" | "ipados"
+  ) => {
     const editedActivity =
       activity.details?.minimum_version === "" ? "removed" : "updated";
 
@@ -359,12 +359,7 @@ const TAGGED_TEMPLATES = {
         ) : (
           <>a configuration profile</>
         )}{" "}
-        to{" "}
-        {getProfileMessageSuffix(
-          isPremiumTier,
-          "apple",
-          activity.details?.team_name
-        )}
+        to {getProfileMessageSuffix(isPremiumTier, activity.details?.team_name)}
         .
       </>
     );
@@ -383,12 +378,7 @@ const TAGGED_TEMPLATES = {
           <>a configuration profile</>
         )}{" "}
         from{" "}
-        {getProfileMessageSuffix(
-          isPremiumTier,
-          "apple",
-          activity.details?.team_name
-        )}
-        .
+        {getProfileMessageSuffix(isPremiumTier, activity.details?.team_name)}.
       </>
     );
   },
@@ -399,7 +389,6 @@ const TAGGED_TEMPLATES = {
         edited configuration profiles for{" "}
         {getProfileMessageSuffix(
           isPremiumTier,
-          "apple",
           activity.details?.team_name
         )}{" "}
         via fleetctl.
@@ -419,12 +408,7 @@ const TAGGED_TEMPLATES = {
         ) : (
           <>a configuration profile</>
         )}{" "}
-        to{" "}
-        {getProfileMessageSuffix(
-          isPremiumTier,
-          "windows",
-          activity.details?.team_name
-        )}
+        to {getProfileMessageSuffix(isPremiumTier, activity.details?.team_name)}
         .
       </>
     );
@@ -443,12 +427,7 @@ const TAGGED_TEMPLATES = {
           <>a configuration profile</>
         )}{" "}
         from{" "}
-        {getProfileMessageSuffix(
-          isPremiumTier,
-          "windows",
-          activity.details?.team_name
-        )}
-        .
+        {getProfileMessageSuffix(isPremiumTier, activity.details?.team_name)}.
       </>
     );
   },
@@ -459,7 +438,6 @@ const TAGGED_TEMPLATES = {
         edited configuration profiles for{" "}
         {getProfileMessageSuffix(
           isPremiumTier,
-          "windows",
           activity.details?.team_name
         )}{" "}
         via fleetctl.
@@ -779,12 +757,7 @@ const TAGGED_TEMPLATES = {
         added declaration (DDM) profile <b>
           {activity.details?.profile_name}
         </b>{" "}
-        to{" "}
-        {getProfileMessageSuffix(
-          isPremiumTier,
-          "apple",
-          activity.details?.team_name
-        )}
+        to {getProfileMessageSuffix(isPremiumTier, activity.details?.team_name)}
         .
       </>
     );
@@ -795,12 +768,7 @@ const TAGGED_TEMPLATES = {
         {" "}
         removed declaration (DDM) profile{" "}
         <b>{activity.details?.profile_name}</b> from{" "}
-        {getProfileMessageSuffix(
-          isPremiumTier,
-          "apple",
-          activity.details?.team_name
-        )}
-        .
+        {getProfileMessageSuffix(isPremiumTier, activity.details?.team_name)}.
       </>
     );
   },
@@ -810,11 +778,7 @@ const TAGGED_TEMPLATES = {
         {" "}
         edited declaration (DDM) profiles{" "}
         <b>{activity.details?.profile_name}</b> for{" "}
-        {getProfileMessageSuffix(
-          isPremiumTier,
-          "apple",
-          activity.details?.team_name
-        )}{" "}
+        {getProfileMessageSuffix(isPremiumTier, activity.details?.team_name)}{" "}
         via fleetctl.
       </>
     );
@@ -834,7 +798,7 @@ const TAGGED_TEMPLATES = {
       <>
         {" "}
         added <b>{activity.details?.software_title}</b> (
-        {activity.details?.software_package}) software to{" "}
+        {activity.details?.software_package}) to{" "}
         {activity.details?.team_name ? (
           <>
             {" "}
@@ -851,7 +815,7 @@ const TAGGED_TEMPLATES = {
       <>
         {" "}
         deleted <b>{activity.details?.software_title}</b> (
-        {activity.details?.software_package}) software from{" "}
+        {activity.details?.software_package}) from{" "}
         {activity.details?.team_name ? (
           <>
             {" "}
@@ -876,24 +840,74 @@ const TAGGED_TEMPLATES = {
       host_display_name: hostName,
       software_title: title,
       status,
-      install_uuid,
     } = details;
+
+    const showSoftwarePackage =
+      !!details.software_package &&
+      activity.type === ActivityType.InstalledSoftware;
 
     return (
       <>
         {" "}
-        {getSoftwareInstallStatusPredicate(status)} <b>{title}</b> software on{" "}
+        {getInstallStatusPredicate(status)} <b>{title}</b>
+        {showSoftwarePackage && ` (${details.software_package})`} on{" "}
         <b>{hostName}</b>.{" "}
         <Button
           className={`${baseClass}__show-query-link`}
           variant="text-link"
-          onClick={() =>
-            onDetailsClick?.(ActivityType.InstalledSoftware, { install_uuid })
-          }
+          onClick={() => onDetailsClick?.(activity.type, details)}
         >
           Show details{" "}
           <Icon className={`${baseClass}__show-query-icon`} name="eye" />
         </Button>
+      </>
+    );
+  },
+  enabledVpp: () => {
+    return (
+      <>
+        {" "}
+        enabled <b>Volume Purchasing Program (VPP)</b>.
+      </>
+    );
+  },
+  disabledVpp: () => {
+    return (
+      <>
+        {" "}
+        disabled <b>Volume Purchasing Program (VPP)</b>.
+      </>
+    );
+  },
+  addedAppStoreApp: (activity: IActivity) => {
+    return (
+      <>
+        {" "}
+        added <b>{activity.details?.software_title}</b> to{" "}
+        {activity.details?.team_name ? (
+          <>
+            {" "}
+            the <b>{activity.details?.team_name}</b> team.
+          </>
+        ) : (
+          "no team."
+        )}
+      </>
+    );
+  },
+  deletedAppStoreApp: (activity: IActivity) => {
+    return (
+      <>
+        {" "}
+        deleted <b>{activity.details?.software_title}</b> from{" "}
+        {activity.details?.team_name ? (
+          <>
+            {" "}
+            the <b>{activity.details?.team_name}</b> team.
+          </>
+        ) : (
+          "no team."
+        )}
       </>
     );
   },
@@ -963,7 +977,13 @@ const getDetail = (
       return TAGGED_TEMPLATES.mdmUnenrolled(activity);
     }
     case ActivityType.EditedMacosMinVersion: {
-      return TAGGED_TEMPLATES.editedMacosMinVersion(activity);
+      return TAGGED_TEMPLATES.editedAppleosMinVersion(activity, "darwin");
+    }
+    case ActivityType.EditedIosMinVersion: {
+      return TAGGED_TEMPLATES.editedAppleosMinVersion(activity, "ios");
+    }
+    case ActivityType.EditedIpadosMinVersion: {
+      return TAGGED_TEMPLATES.editedAppleosMinVersion(activity, "ipados");
     }
 
     case ActivityType.ReadHostDiskEncryptionKey: {
@@ -1079,6 +1099,21 @@ const getDetail = (
     }
     case ActivityType.InstalledSoftware: {
       return TAGGED_TEMPLATES.installedSoftware(activity, onDetailsClick);
+    }
+    case ActivityType.AddedAppStoreApp: {
+      return TAGGED_TEMPLATES.addedAppStoreApp(activity);
+    }
+    case ActivityType.DeletedAppStoreApp: {
+      return TAGGED_TEMPLATES.deletedAppStoreApp(activity);
+    }
+    case ActivityType.InstalledAppStoreApp: {
+      return TAGGED_TEMPLATES.installedSoftware(activity, onDetailsClick);
+    }
+    case ActivityType.EnabledVpp: {
+      return TAGGED_TEMPLATES.enabledVpp();
+    }
+    case ActivityType.DisabledVpp: {
+      return TAGGED_TEMPLATES.disabledVpp();
     }
 
     default: {

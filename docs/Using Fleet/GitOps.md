@@ -20,7 +20,7 @@ The following files are responsible for running the GitHub action. Most users do
 The following are the required keys in the `default.yml` and any `teams/team-name.yml` files:
 
 ```yaml
-name: # Only teams/team-name.yml
+name: # Only teams/team-name.yml. To edit a team's name, change `name` but don't change the filename.
 policies:
 queries:
 agent_options:

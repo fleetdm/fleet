@@ -4276,6 +4276,8 @@ OS vulnerability data is currently available for Windows and macOS. For other pl
 
 ### Get host's software
 
+> The **new keys/values added in the app management features are experimental** and may change. You can find the upcoming breaking changes [here](https://github.com/fleetdm/fleet/pull/19291/files#diff-7246bc304b15c8865ed8eaa205e9c244d0a0314e4bae60cf553dc06147c38b64L4304-L4311).
+
 `GET /api/v1/fleet/hosts/:id/software`
 
 #### Parameters
@@ -6284,6 +6286,8 @@ This endpoint returns the list of custom MDM commands that have been executed.
 | per_page                  | integer | query | Results per page.                                                         |
 | order_key                 | string  | query | What to order results by. Can be any field listed in the `results` array example below. |
 | order_direction           | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`. |
+| host_identifier           | string  | query | The host's `hostname`, `uuid`, or `hardware_serial`. |
+| request_type              | string  | query | The request type to filter commands by. |
 
 #### Example
 
@@ -8656,6 +8660,8 @@ Body: <blob>
 
 ### Delete software
 
+> This **endpoint, added in the app management feature, is experimental** may change. You can find the upcoming breaking changes [here](https://github.com/fleetdm/fleet/pull/19291/files#diff-7246bc304b15c8865ed8eaa205e9c244d0a0314e4bae60cf553dc06147c38b64L8661-R8698).
+
 _Available in Fleet Premium._
 
 Delete a software package.
@@ -8713,6 +8719,8 @@ Get the results of a software installation.
 ```
 
 ### List software
+
+> The **new keys/values added in the app management feature are experimental** and may change. You can find the upcoming breaking changes [here](https://github.com/fleetdm/fleet/pull/19291/files#diff-7246bc304b15c8865ed8eaa205e9c244d0a0314e4bae60cf553dc06147c38b64L8749-R8791).
 
 Get a list of all software.
 

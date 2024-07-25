@@ -84,7 +84,7 @@
       moreInfoUrl: https://scalefusion.com/custom-scripting
     - description: Run scripts on online/offline hosts
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/15529
-    - description: Only maintainers and admins can run scripts. Coming soon (2024-09-15) #customer-faltona
+    - description: Only maintainers and admins can run scripts.
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/19055
 #
 #  ╔═╗╦ ╦╔╦╗╔═╗╔╦╗╔═╗╔╦╗╦╔═╗  ╔═╗╔═╗╔═╗╔╦╗╦ ╦╦═╗╔═╗  ╔═╗╔═╗╔═╗╔═╗╔═╗╔═╗╔╦╗╔═╗╔╗╔╔╦╗
@@ -711,7 +711,7 @@
   usualDepartment: IT
   productCategories: [Device management]
   pricingTableCategories: [Device management]
-- industryName: Application management (coming soon)
+- industryName: Application management
   description: Manage updates and patches for apps on macOS, Windows, and Linux computers.
   tier: Premium
   jamfProHasFeature: appleOnly
