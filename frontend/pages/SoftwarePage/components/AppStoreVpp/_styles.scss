@@ -4,6 +4,7 @@
   &__list-container {
     border: 1px solid $ui-fleet-black-10;
     border-radius: $border-radius-medium;
+    margin-bottom: 16px;
   }
 
   &__list {
@@ -64,6 +65,13 @@
 
     p {
       margin: 0;
+    }
+  }
+
+  &__help-text {
+    @include help-text;
+    .custom-link {
+      font-size: $xx-small;
     }
   }
 }

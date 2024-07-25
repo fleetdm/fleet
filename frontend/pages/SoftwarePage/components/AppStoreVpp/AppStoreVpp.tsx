@@ -155,7 +155,8 @@ const AppStoreVpp = ({ teamId, router, onExit }: IAppStoreVppProps) => {
 
   const [isLoadingVppApps, errorVppApps, vppApps] = [
     false,
-    true,
+    null,
+    // [],
     [
       {
         app_store_id: "310633997",
@@ -233,7 +234,7 @@ const AppStoreVpp = ({ teamId, router, onExit }: IAppStoreVppProps) => {
     }
 
     if (errorVppInfo || errorVppApps) {
-      return <DataError className={`${baseClass}__error`} />;
+      return <DataError useNew className={`${baseClass}__error`} />;
     }
 
     return vppApps ? (
@@ -243,6 +244,11 @@ const AppStoreVpp = ({ teamId, router, onExit }: IAppStoreVppProps) => {
           selectedApp={selectedApp}
           onSelect={onSelectApp}
         />
+        <div className={`${baseClass}__help-text`}>
+          These apps were added in Apple Business Manager (ABM). To add more
+          apps, head to{" "}
+          <CustomLink url="https://business.apple.com" text="ABM" newTab />
+        </div>
       </>
     ) : null;
   };
