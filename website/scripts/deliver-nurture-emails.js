@@ -55,6 +55,7 @@ module.exports = {
           to: user.emailAddress,
           toName: `${user.firstName} ${user.lastName}`,
           subject: 'Was it any good?',
+          bcc: sails.config.custom.activityCaptureEmailForNutureEmails,
           from: sails.config.custom.contactEmailForNutureEmails,
         });
       }
@@ -77,6 +78,7 @@ module.exports = {
           to: user.emailAddress,
           toName: `${user.firstName} ${user.lastName}`,
           subject: 'Deploy open-source MDM',
+          bcc: sails.config.custom.activityCaptureEmailForNutureEmails,
           from: sails.config.custom.contactEmailForNutureEmails,
         });
       }
@@ -99,6 +101,7 @@ module.exports = {
           to: user.emailAddress,
           toName: `${user.firstName} ${user.lastName}`,
           subject: 'Update',
+          bcc: sails.config.custom.activityCaptureEmailForNutureEmails,
           from: sails.config.custom.contactEmailForNutureEmails,
         });
       }

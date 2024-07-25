@@ -391,7 +391,8 @@ module.exports.custom = {
   // customerMigrationWebhookSecret: '…',
 
   // For nurture emails:
-  // contactEmailForNutureEmails: '…'
+  // contactEmailForNutureEmails: '…',
+  // activityCaptureEmailForNutureEmails: '…',
 
   // Deal registration form
   // dealRegistrationContactEmailAddress: '…',
