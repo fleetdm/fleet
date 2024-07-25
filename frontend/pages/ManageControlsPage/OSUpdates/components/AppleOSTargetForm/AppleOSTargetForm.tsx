@@ -180,6 +180,16 @@ const AppleOSTargetForm = ({
     setDeadline(val);
   };
 
+  const getMinimumVersionPlaceholder = (platform: ApplePlatform) => {
+    if (platform === "darwin") {
+      return "13.0.1";
+    }
+    if (platform === "ios" || platform === "ipados") {
+      return "17.5.1";
+    }
+    return "";
+  };
+
   const getMinimumVersionTooltip = (platform: ApplePlatform) => {
     if (platform === "darwin") {
       return "The end user sees the window until their macOS is at or above this version.";
@@ -206,7 +216,7 @@ const AppleOSTargetForm = ({
         label="Minimum version"
         tooltip={getMinimumVersionTooltip(applePlatform)}
         helpText="Version number only (e.g., “13.0.1” not “Ventura 13” or “13.0.1 (22A400)”)"
-        placeholder="13.0.1"
+        placeholder={getMinimumVersionPlaceholder(applePlatform)}
         value={minOsVersion}
         error={minOsVersionError}
         onChange={handleMinVersionChange}
@@ -214,8 +224,8 @@ const AppleOSTargetForm = ({
       <InputField
         label="Deadline"
         tooltip={getDeadlineTooltip(applePlatform)}
-        helpText="YYYY-MM-DD format only (e.g., “2023-06-01”)."
-        placeholder="2023-06-01"
+        helpText="YYYY-MM-DD format only (e.g., “2024-07-01”)."
+        placeholder="2024-07-01"
         value={deadline}
         error={deadlineError}
         onChange={handleDeadlineChange}
