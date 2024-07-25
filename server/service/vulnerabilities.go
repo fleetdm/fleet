@@ -149,7 +149,7 @@ func (svc *Service) Vulnerability(ctx context.Context, cve string, teamID *uint,
 		return nil, err
 	}
 
-	if teamID != nil {
+	if teamID != nil && *teamID != 0 {
 		exists, err := svc.ds.TeamExists(ctx, *teamID)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "checking if team exists")
