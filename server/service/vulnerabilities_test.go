@@ -161,7 +161,7 @@ func TestVulnerabilitesAuth(t *testing.T) {
 			checkAuthErr(t, tc.shouldFailGlobalRead, err)
 
 			_, _, err = svc.ListVulnerabilities(ctx, fleet.VulnListOptions{
-				TeamID: 1,
+				TeamID: ptr.Uint(1),
 			})
 			checkAuthErr(t, tc.shouldFailTeamRead, err)
 
@@ -169,7 +169,7 @@ func TestVulnerabilitesAuth(t *testing.T) {
 			checkAuthErr(t, tc.shouldFailGlobalRead, err)
 
 			_, err = svc.CountVulnerabilities(ctx, fleet.VulnListOptions{
-				TeamID: 1,
+				TeamID: ptr.Uint(1),
 			})
 			checkAuthErr(t, tc.shouldFailTeamRead, err)
 
