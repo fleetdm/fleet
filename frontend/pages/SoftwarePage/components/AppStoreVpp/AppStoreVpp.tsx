@@ -32,7 +32,7 @@ const EnableVppCard = () => {
     <Card borderRadiusSize="medium">
       <div className={`${baseClass}__enable-vpp`}>
         <p className={`${baseClass}__enable-vpp-title`}>
-          <b>Volume Purchasing Program (VPP) isn’t enabled.</b>
+          <b>Volume Purchasing Program (VPP) isn&apos;t enabled</b>
         </p>
         <p className={`${baseClass}__enable-vpp-description`}>
           To add App Store apps, first enable VPP.
@@ -89,8 +89,9 @@ const VppAppList = ({ apps, selectedApp, onSelect }: IVppAppListProps) => {
             You don&apos;t have any App Store apps
           </p>
           <p className={`${baseClass}__no-software-description`}>
-            You must purchase apps in ABM. App Store apps that are already added
-            to this team are not listed.
+            Add apps in{" "}
+            <CustomLink url="https://business.apple.com" text="ABM" newTab />{" "}
+            Apps that are already added to this team are not listed.
           </p>
         </div>
       );
@@ -154,7 +155,7 @@ const AppStoreVpp = ({ teamId, router, onExit }: IAppStoreVppProps) => {
 
   const [isLoadingVppApps, errorVppApps, vppApps] = [
     false,
-    null,
+    true,
     [
       {
         app_store_id: "310633997",
@@ -236,19 +237,18 @@ const AppStoreVpp = ({ teamId, router, onExit }: IAppStoreVppProps) => {
     }
 
     return vppApps ? (
-      <VppAppList
-        apps={vppApps}
-        selectedApp={selectedApp}
-        onSelect={onSelectApp}
-      />
+      <>
+        <VppAppList
+          apps={vppApps}
+          selectedApp={selectedApp}
+          onSelect={onSelectApp}
+        />
+      </>
     ) : null;
   };
 
   return (
     <div className={baseClass}>
-      <p className={`${baseClass}__description`}>
-        Apple App Store apps purchased via Apple Business Manager.
-      </p>
       {renderContent()}
       <div className="modal-cta-wrap">
         <Button
