@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: query
 spec:
-  name: query_apple_silicon
+  name: query_apple_intel
   query: SELECT 1 FROM system_info WHERE cpu_type = "x86_64h";
 # - name: Determine macOS cpu type as Intel
 #   automations_enabled: false

@@ -80,7 +80,3 @@ software:
       pre_install_query: 
         path: ../lib/macos-arm.queries.yml
       self_service: true
-    - url: https://zoom.us/client/latest/Zoom.pkg
-      pre_install_query: 
-        path: ../lib/macos-intel.queries.yml
-      self_service: true
