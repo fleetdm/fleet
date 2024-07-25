@@ -53,7 +53,7 @@ func Up_20240717171504(tx *sql.Tx) error {
 	SELECT
 		vhc1.cve,
 		0 AS team_id,
-		vhc1.host_count - COALESCE(SUM(vhc2.host_count), 0) AS host_count,
+		GREATEST(vhc1.host_count - COALESCE(SUM(vhc2.host_count), 0), 0) AS host_count,
 		0 AS global_stats
 	FROM
 		vulnerability_host_counts vhc1
