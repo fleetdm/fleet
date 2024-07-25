@@ -390,6 +390,9 @@ module.exports.custom = {
   // customerWorkspaceOneOauthSecret: '…',
   // customerMigrationWebhookSecret: '…',
 
+  // Deal registration form
+  // dealRegistrationContactEmailAddress: '…',
+
   //…
 
 };

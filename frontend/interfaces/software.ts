@@ -1,5 +1,8 @@
 import { startCase } from "lodash";
 import PropTypes from "prop-types";
+
+import { IconNames } from "components/icons";
+
 import vulnerabilityInterface from "./vulnerability";
 
 export default PropTypes.shape({
@@ -58,6 +61,7 @@ export interface ISoftwarePackage {
   pre_install_query?: string;
   post_install_script?: string;
   self_service: boolean;
+  icon_url: string | null;
   status: {
     installed: number;
     pending: number;
@@ -65,28 +69,46 @@ export interface ISoftwarePackage {
   };
 }
 
-interface ISoftwareTitle {
+export const isSoftwarePackage = (
+  data: ISoftwarePackage | IAppStoreApp
+): data is ISoftwarePackage =>
+  (data as ISoftwarePackage).install_script !== undefined;
+
+export interface IAppStoreApp {
+  name: string;
+  app_store_id: number;
+  latest_version: string;
+  icon_url: string;
+  status: {
+    installed: number;
+    pending: number;
+    failed: number;
+  };
+}
+
+export interface ISoftwareTitle {
   id: number;
   name: string;
-  software_package: ISoftwarePackage | string | null;
   versions_count: number;
   source: string;
   hosts_count: number;
   versions: ISoftwareTitleVersion[] | null;
-  browser: string;
-  self_service?: boolean;
-}
-
-export interface ISoftwareTitleWithPackageName
-  extends Omit<ISoftwareTitle, "software_package" | "self-service"> {
-  software_package: string | null;
-  self_service: boolean;
-}
-
-export interface ISoftwareTitleWithPackageDetail
-  extends Omit<ISoftwareTitle, "software_package" | "self-service"> {
   software_package: ISoftwarePackage | null;
-  self_service?: never;
+  app_store_app: IAppStoreApp | null;
+  browser?: string;
+}
+
+export interface ISoftwareTitleDetails {
+  id: number;
+  name: string;
+  software_package: ISoftwarePackage | null;
+  app_store_app: IAppStoreApp | null;
+  source: string;
+  hosts_count: number;
+  versions: ISoftwareTitleVersion[] | null;
+  bundle_identifier?: string;
+  browser?: string;
+  versions_count?: number;
 }
 
 export interface ISoftwareVulnerability {
@@ -213,6 +235,11 @@ export interface ISoftwareLastInstall {
   installed_at: string;
 }
 
+export interface IAppLastInstall {
+  command_uuid: string;
+  installed_at: string;
+}
+
 export interface ISoftwareInstallVersion {
   version: string;
   last_opened_at: string | null;
@@ -220,24 +247,77 @@ export interface ISoftwareInstallVersion {
   installed_paths: string[];
 }
 
+export interface IHostSoftwarePackage {
+  name: string;
+  self_service: boolean;
+  icon_url: string;
+  version: string;
+  last_install: ISoftwareLastInstall | null;
+}
+
+export interface IHostAppStoreApp {
+  app_store_id: string;
+  self_service: boolean;
+  icon_url: string;
+  version: string;
+  last_install: IAppLastInstall | null;
+}
+
 export interface IHostSoftware {
   id: number;
   name: string;
-  package_available_for_install?: string | null;
-  self_service: boolean;
+  software_package: IHostSoftwarePackage | null;
+  app_store_app: IHostAppStoreApp | null;
   source: string;
   bundle_identifier?: string;
   status: SoftwareInstallStatus | null;
-  last_install: ISoftwareLastInstall | null;
   installed_versions: ISoftwareInstallVersion[] | null;
 }
 
-export type IDeviceSoftware = Omit<
-  IHostSoftware,
-  "package_available_for_install"
-> & {
-  package: {
-    name: string;
-    version: string;
-  };
+export type IDeviceSoftware = IHostSoftware;
+
+const INSTALL_STATUS_PREDICATES: Record<SoftwareInstallStatus, string> = {
+  failed: "failed to install",
+  installed: "installed",
+  pending: "told Fleet to install",
+} as const;
+
+export const getInstallStatusPredicate = (status: string | undefined) => {
+  if (!status) {
+    return INSTALL_STATUS_PREDICATES.pending;
+  }
+  return (
+    INSTALL_STATUS_PREDICATES[status.toLowerCase() as SoftwareInstallStatus] ||
+    INSTALL_STATUS_PREDICATES.pending
+  );
+};
+
+export const INSTALL_STATUS_ICONS: Record<SoftwareInstallStatus, IconNames> = {
+  pending: "pending-outline",
+  installed: "success-outline",
+  failed: "error-outline",
+} as const;
+
+type IHostSoftwarePackageWithLastInstall = IHostSoftwarePackage & {
+  last_install: ISoftwareLastInstall;
+};
+
+export const hasHostSoftwarePackageLastInstall = (
+  software: IHostSoftware
+): software is IHostSoftware & {
+  software_package: IHostSoftwarePackageWithLastInstall;
+} => {
+  return !!software.software_package?.last_install;
+};
+
+type IHostAppWithLastInstall = IHostAppStoreApp & {
+  last_install: IAppLastInstall;
+};
+
+export const hasHostSoftwareAppLastInstall = (
+  software: IHostSoftware
+): software is IHostSoftware & {
+  app_store_app: IHostAppWithLastInstall;
+} => {
+  return !!software.app_store_app?.last_install;
 };

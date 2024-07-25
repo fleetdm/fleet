@@ -6,15 +6,14 @@ import {
   ISoftwareResponse,
   ISoftwareCountResponse,
   ISoftwareVersion,
-  ISoftwareTitleWithPackageDetail,
-  ISoftwareTitleWithPackageName,
+  ISoftwareTitle,
+  ISoftwareTitleDetails,
 } from "interfaces/software";
 import {
   buildQueryStringFromParams,
   convertParamsToSnakeCase,
 } from "utilities/url";
-
-import { IAddSoftwareFormData } from "pages/SoftwarePage/components/AddSoftwareForm/AddSoftwareForm";
+import { IAddSoftwareFormData } from "pages/SoftwarePage/components/AddPackageForm/AddSoftwareForm";
 
 export interface ISoftwareApiParams {
   page?: number;
@@ -31,7 +30,7 @@ export interface ISoftwareApiParams {
 export interface ISoftwareTitlesResponse {
   counts_updated_at: string | null;
   count: number;
-  software_titles: ISoftwareTitleWithPackageName[];
+  software_titles: ISoftwareTitle[];
   meta: {
     has_next_results: boolean;
     has_previous_results: boolean;
@@ -49,7 +48,7 @@ export interface ISoftwareVersionsResponse {
 }
 
 export interface ISoftwareTitleResponse {
-  software_title: ISoftwareTitleWithPackageDetail;
+  software_title: ISoftwareTitleDetails;
 }
 
 export interface ISoftwareVersionResponse {
@@ -223,8 +222,10 @@ export default {
   },
 
   deleteSoftwarePackage: (softwareId: number, teamId: number) => {
-    const { SOFTWARE_PACKAGE } = endpoints;
-    const path = `${SOFTWARE_PACKAGE(softwareId)}?team_id=${teamId}`;
+    const { SOFTWARE_AVAILABLE_FOR_INSTALL } = endpoints;
+    const path = `${SOFTWARE_AVAILABLE_FOR_INSTALL(
+      softwareId
+    )}?team_id=${teamId}`;
     return sendRequest("DELETE", path);
   },
 

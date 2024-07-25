@@ -606,9 +606,9 @@ func (c *Client) ApplyGroup(
 			tmScriptsPayloads[k] = scriptPayloads
 		}
 
-		tmSoftware := extractTmSpecsSoftware(specs.Teams)
-		tmSoftwarePayloads := make(map[string][]fleet.SoftwareInstallerPayload, len(tmScripts))
-		for tmName, software := range tmSoftware {
+		tmSoftwarePackages := extractTmSpecsSoftwarePackages(specs.Teams)
+		tmSoftwarePackagesPayloads := make(map[string][]fleet.SoftwareInstallerPayload, len(tmScripts))
+		for tmName, software := range tmSoftwarePackages {
 			softwarePayloads := make([]fleet.SoftwareInstallerPayload, len(software))
 			for i, si := range software {
 				var qc string
@@ -663,7 +663,17 @@ func (c *Client) ApplyGroup(
 				}
 			}
 
-			tmSoftwarePayloads[tmName] = softwarePayloads
+			tmSoftwarePackagesPayloads[tmName] = softwarePayloads
+		}
+
+		tmSoftwareApps := extractTmSpecsSoftwareApps(specs.Teams)
+		tmSoftwareAppsPayloads := make(map[string][]fleet.VPPBatchPayload)
+		for tmName, apps := range tmSoftwareApps {
+			appPayloads := make([]fleet.VPPBatchPayload, 0, len(apps))
+			for _, app := range apps {
+				appPayloads = append(appPayloads, fleet.VPPBatchPayload{AppStoreID: app.AppStoreID})
+			}
+			tmSoftwareAppsPayloads[tmName] = appPayloads
 		}
 
 		// Next, apply the teams specs before saving the profiles, so that any
@@ -731,12 +741,21 @@ func (c *Client) ApplyGroup(
 				}
 			}
 		}
-		if len(tmSoftwarePayloads) > 0 {
-			for tmName, software := range tmSoftwarePayloads {
+		if len(tmSoftwarePackagesPayloads) > 0 {
+			for tmName, software := range tmSoftwarePackagesPayloads {
 				// For non-dry run, currentTeamName and tmName are the same
 				currentTeamName := getTeamName(tmName)
 				if err := c.ApplyTeamSoftwareInstallers(currentTeamName, software, opts.ApplySpecOptions); err != nil {
 					return nil, fmt.Errorf("applying software installers for team %q: %w", tmName, err)
+				}
+			}
+		}
+		if len(tmSoftwareAppsPayloads) > 0 {
+			for tmName, apps := range tmSoftwareAppsPayloads {
+				// For non-dry run, currentTeamName and tmName are the same
+				currentTeamName := getTeamName(tmName)
+				if err := c.ApplyTeamAppStoreAppsAssociation(currentTeamName, apps, opts.ApplySpecOptions); err != nil {
+					return nil, fmt.Errorf("applying app store apps for team: %q: %w", tmName, err)
 				}
 			}
 		}
@@ -995,8 +1014,8 @@ func extractTmSpecsMDMCustomSettings(tmSpecs []json.RawMessage) map[string]profi
 	return m
 }
 
-func extractTmSpecsSoftware(tmSpecs []json.RawMessage) map[string][]fleet.TeamSpecSoftware {
-	var m map[string][]fleet.TeamSpecSoftware
+func extractTmSpecsSoftwarePackages(tmSpecs []json.RawMessage) map[string][]fleet.TeamSpecSoftwarePackage {
+	var m map[string][]fleet.TeamSpecSoftwarePackage
 	for _, tm := range tmSpecs {
 		var spec struct {
 			Name     string          `json:"name"`
@@ -1009,19 +1028,57 @@ func extractTmSpecsSoftware(tmSpecs []json.RawMessage) map[string][]fleet.TeamSp
 		spec.Name = norm.NFC.String(spec.Name)
 		if spec.Name != "" && len(spec.Software) > 0 {
 			if m == nil {
-				m = make(map[string][]fleet.TeamSpecSoftware)
+				m = make(map[string][]fleet.TeamSpecSoftwarePackage)
 			}
-			var software []fleet.TeamSpecSoftware
+			var software fleet.TeamSpecSoftware
+			var packages []fleet.TeamSpecSoftwarePackage
 			if err := json.Unmarshal(spec.Software, &software); err != nil {
 				// ignore, will fail in apply team specs call
 				continue
 			}
-			if software == nil {
+			if !software.Packages.Valid {
 				// to be consistent with the AppConfig custom settings, set it to an
 				// empty slice if the provided custom settings are present but empty.
-				software = []fleet.TeamSpecSoftware{}
+				packages = []fleet.TeamSpecSoftwarePackage{}
+			} else {
+				packages = software.Packages.Value
 			}
-			m[spec.Name] = software
+			m[spec.Name] = packages
+		}
+	}
+	return m
+}
+
+func extractTmSpecsSoftwareApps(tmSpecs []json.RawMessage) map[string][]fleet.TeamSpecAppStoreApp {
+	var m map[string][]fleet.TeamSpecAppStoreApp
+	for _, tm := range tmSpecs {
+		var spec struct {
+			Name     string          `json:"name"`
+			Software json.RawMessage `json:"software"`
+		}
+		if err := json.Unmarshal(tm, &spec); err != nil {
+			// ignore, this will fail in the call to apply team specs
+			continue
+		}
+		spec.Name = norm.NFC.String(spec.Name)
+		if spec.Name != "" && len(spec.Software) > 0 {
+			if m == nil {
+				m = make(map[string][]fleet.TeamSpecAppStoreApp)
+			}
+			var software fleet.TeamSpecSoftware
+			var apps []fleet.TeamSpecAppStoreApp
+			if err := json.Unmarshal(spec.Software, &software); err != nil {
+				// ignore, will fail in apply team specs call
+				continue
+			}
+			if !software.AppStoreApps.Valid {
+				// to be consistent with the AppConfig custom settings, set it to an
+				// empty slice if the provided custom settings are present but empty.
+				apps = []fleet.TeamSpecAppStoreApp{}
+			} else {
+				apps = software.AppStoreApps.Value
+			}
+			m[spec.Name] = apps
 		}
 	}
 	return m
@@ -1178,7 +1235,9 @@ func (c *Client) DoGitOps(
 			team["features"] = features
 		}
 		team["scripts"] = scripts
-		team["software"] = config.Software
+		team["software"] = map[string]any{}
+		team["software"].(map[string]any)["app_store_apps"] = config.Software.AppStoreApps
+		team["software"].(map[string]any)["packages"] = config.Software.Packages
 		team["secrets"] = config.TeamSettings["secrets"]
 		team["webhook_settings"] = map[string]interface{}{}
 		clearHostStatusWebhook := true
