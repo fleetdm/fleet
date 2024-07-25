@@ -9715,6 +9715,16 @@ func (s *integrationMDMTestSuite) TestRefetchIOSIPadOS() {
 	}
 
 	const deviceName = "My iPhone"
+	expectedSoftware := []fleet.HostSoftwareEntry{
+		{
+			Software: fleet.Software{
+				BundleIdentifier: "com.evernote.iPhone.Evernote",
+				Name:             "Evernote",
+				Version:          "10.98.0",
+				Source:           "ios_apps",
+			},
+		},
+	}
 	for len(expectedCommands) > 0 {
 		switch cmd.Command.RequestType {
 		case "DeviceInformation":
@@ -9722,19 +9732,8 @@ func (s *integrationMDMTestSuite) TestRefetchIOSIPadOS() {
 			require.NoError(t, err)
 			delete(expectedCommands, "DeviceInformation")
 		case "InstalledApplicationList":
-			payload := map[string]any{
-				"Status":      "Acknowledged",
-				"UDID":        mdmClient.UUID,
-				"CommandUUID": cmd.CommandUUID,
-				"InstalledApplicationList": []map[string]interface{}{
-					{
-						"Name":         "Evernote",
-						"ShortVersion": "10.98.0",
-						"Identifier":   "com.evernote.iPhone.Evernote",
-					},
-				},
-			}
-			cmd, err = mdmClient.SendCustomPayload(payload)
+			cmd, err = mdmClient.AcknowledgeInstalledApplicationList(mdmClient.UUID, cmd.CommandUUID,
+				[]fleet.Software{expectedSoftware[0].Software})
 			require.NoError(t, err)
 			delete(expectedCommands, "InstalledApplicationList")
 		default:
@@ -9747,16 +9746,7 @@ func (s *integrationMDMTestSuite) TestRefetchIOSIPadOS() {
 	assert.Equal(t, host.ID, hostResp.Host.ID)
 	assert.False(t, hostResp.Host.RefetchRequested)
 	assert.Equal(t, deviceName, hostResp.Host.ComputerName)
-	expectedSoftware := []fleet.HostSoftwareEntry{
-		{
-			Software: fleet.Software{
-				BundleIdentifier: "com.evernote.iPhone.Evernote",
-				Name:             "Evernote",
-				Version:          "10.98.0",
-				Source:           "ios_apps",
-			},
-		},
-	}
+
 	for index := range hostResp.Host.Software {
 		hostResp.Host.Software[index].ID = 0
 	}
@@ -9782,13 +9772,7 @@ func (s *integrationMDMTestSuite) TestRefetchIOSIPadOS() {
 			require.NoError(t, err)
 			delete(expectedCommands, "DeviceInformation")
 		case "InstalledApplicationList":
-			payload := map[string]any{
-				"Status":                   "Acknowledged",
-				"UDID":                     mdmClient.UUID,
-				"CommandUUID":              cmd.CommandUUID,
-				"InstalledApplicationList": []map[string]interface{}{}, // empty
-			}
-			cmd, err = mdmClient.SendCustomPayload(payload)
+			cmd, err = mdmClient.AcknowledgeInstalledApplicationList(mdmClient.UUID, cmd.CommandUUID, []fleet.Software{})
 			require.NoError(t, err)
 			delete(expectedCommands, "InstalledApplicationList")
 		default:

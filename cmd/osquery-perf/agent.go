@@ -424,6 +424,27 @@ func (n *nodeKeyManager) Add(nodekey string) {
 	}
 }
 
+type mdmAgent struct {
+	agentIndex         int
+	MDMCheckInInterval time.Duration
+	model              string
+	serverAddress      string
+	softwareCount      softwareEntityCount
+	stats              *Stats
+	strings            map[string]string
+}
+
+// stats, model, *serverURL, *mdmSCEPChallenge, *mdmCheckInInterval
+
+func (a *mdmAgent) CachedString(key string) string {
+	if val, ok := a.strings[key]; ok {
+		return val
+	}
+	val := randomString(12)
+	a.strings[key] = val
+	return val
+}
+
 type agent struct {
 	agentIndex                    int
 	softwareCount                 softwareEntityCount
@@ -1510,6 +1531,53 @@ func (a *agent) softwareMacOS() []map[string]string {
 	return software
 }
 
+func (a *mdmAgent) softwareIOSandIPadOS(source string) []fleet.Software {
+	commonSoftware := make([]map[string]string, a.softwareCount.common)
+	for i := 0; i < len(commonSoftware); i++ {
+		commonSoftware[i] = map[string]string{
+			"name":              fmt.Sprintf("Common_%d", i),
+			"version":           "0.0.1",
+			"bundle_identifier": fmt.Sprintf("com.fleetdm.osquery-perf.common_%d", i),
+			"source":            source,
+		}
+	}
+	if a.softwareCount.commonSoftwareUninstallProb > 0.0 && rand.Float64() <= a.softwareCount.commonSoftwareUninstallProb {
+		rand.Shuffle(len(commonSoftware), func(i, j int) {
+			commonSoftware[i], commonSoftware[j] = commonSoftware[j], commonSoftware[i]
+		})
+		commonSoftware = commonSoftware[:a.softwareCount.common-a.softwareCount.commonSoftwareUninstallCount]
+	}
+	uniqueSoftware := make([]map[string]string, a.softwareCount.unique)
+	for i := 0; i < len(uniqueSoftware); i++ {
+		uniqueSoftware[i] = map[string]string{
+			"name":              fmt.Sprintf("Unique_%s_%d", a.CachedString("hostname"), i),
+			"version":           "1.1.1",
+			"bundle_identifier": fmt.Sprintf("com.fleetdm.osquery-perf.unique_%s_%d", a.CachedString("hostname"), i),
+			"source":            source,
+		}
+	}
+	if a.softwareCount.uniqueSoftwareUninstallProb > 0.0 && rand.Float64() <= a.softwareCount.uniqueSoftwareUninstallProb {
+		rand.Shuffle(len(uniqueSoftware), func(i, j int) {
+			uniqueSoftware[i], uniqueSoftware[j] = uniqueSoftware[j], uniqueSoftware[i]
+		})
+		uniqueSoftware = uniqueSoftware[:a.softwareCount.unique-a.softwareCount.uniqueSoftwareUninstallCount]
+	}
+	software := append(commonSoftware, uniqueSoftware...)
+	rand.Shuffle(len(software), func(i, j int) {
+		software[i], software[j] = software[j], software[i]
+	})
+	fleetSoftware := make([]fleet.Software, len(software))
+	for i, s := range software {
+		fleetSoftware[i] = fleet.Software{
+			Name:             s["name"],
+			Version:          s["version"],
+			BundleIdentifier: s["bundle_identifier"],
+			Source:           s["source"],
+		}
+	}
+	return fleetSoftware
+}
+
 func (a *agent) softwareVSCodeExtensions() []map[string]string {
 	commonVSCodeExtensionsSoftware := make([]map[string]string, a.softwareVSCodeExtensionsCount.common)
 	for i := 0; i < len(commonVSCodeExtensionsSoftware); i++ {
@@ -2160,48 +2228,57 @@ func (a *agent) submitLogs(results []resultLog) error {
 	return nil
 }
 
-func runAppleIDeviceMDMLoop(i int, stats *Stats, model string, serverURL string, mdmSCEPChallenge string, mdmCheckInInterval time.Duration) {
+func (a *mdmAgent) runAppleIDeviceMDMLoop(mdmSCEPChallenge string) {
 	udid := mdmtest.RandUDID()
 
 	mdmClient := mdmtest.NewTestMDMClientAppleDirect(mdmtest.AppleEnrollInfo{
 		SCEPChallenge: mdmSCEPChallenge,
-		SCEPURL:       serverURL + apple_mdm.SCEPPath,
-		MDMURL:        serverURL + apple_mdm.MDMPath,
-	}, model)
+		SCEPURL:       a.serverAddress + apple_mdm.SCEPPath,
+		MDMURL:        a.serverAddress + apple_mdm.MDMPath,
+	}, a.model)
 	mdmClient.UUID = udid
 	mdmClient.SerialNumber = mdmtest.RandSerialNumber()
-	deviceName := fmt.Sprintf("%s-%d", model, i)
-	productName := model
+	deviceName := fmt.Sprintf("%s-%d", a.model, a.agentIndex)
+	productName := a.model
+	softwareSource := "ios_apps"
+	if strings.HasPrefix(a.model, "iPad") {
+		softwareSource = "ipados_apps"
+	}
 
 	if err := mdmClient.Enroll(); err != nil {
-		log.Printf("%s MDM enroll failed: %s", model, err)
-		stats.IncrementMDMErrors()
+		log.Printf("%s MDM enroll failed: %s", a.model, err)
+		a.stats.IncrementMDMErrors()
 		return
 	}
 
-	stats.IncrementMDMEnrollments()
+	a.stats.IncrementMDMEnrollments()
 
-	mdmCheckInTicker := time.Tick(mdmCheckInInterval)
+	mdmCheckInTicker := time.Tick(a.MDMCheckInInterval)
 
 	for range mdmCheckInTicker {
 		mdmCommandPayload, err := mdmClient.Idle()
 		if err != nil {
-			log.Printf("MDM Idle request failed: %s: %s", model, err)
-			stats.IncrementMDMErrors()
+			log.Printf("MDM Idle request failed: %s: %s", a.model, err)
+			a.stats.IncrementMDMErrors()
 			continue
 		}
-		stats.IncrementMDMSessions()
+		a.stats.IncrementMDMSessions()
 
 		for mdmCommandPayload != nil {
-			stats.IncrementMDMCommandsReceived()
-			if mdmCommandPayload.Command.RequestType == "DeviceInformation" {
-				mdmCommandPayload, err = mdmClient.AcknowledgeDeviceInformation(udid, mdmCommandPayload.CommandUUID, deviceName, productName)
-			} else {
+			a.stats.IncrementMDMCommandsReceived()
+			switch mdmCommandPayload.Command.RequestType {
+			case "DeviceInformation":
+				mdmCommandPayload, err = mdmClient.AcknowledgeDeviceInformation(udid, mdmCommandPayload.CommandUUID, deviceName,
+					productName)
+			case "InstalledApplicationList":
+				software := a.softwareIOSandIPadOS(softwareSource)
+				mdmCommandPayload, err = mdmClient.AcknowledgeInstalledApplicationList(udid, mdmCommandPayload.CommandUUID, software)
+			default:
 				mdmCommandPayload, err = mdmClient.Acknowledge(mdmCommandPayload.CommandUUID)
 			}
 			if err != nil {
-				log.Printf("MDM Acknowledge request failed: %s: %s", model, err)
-				stats.IncrementMDMErrors()
+				log.Printf("MDM Acknowledge request failed: %s: %s", a.model, err)
+				a.stats.IncrementMDMErrors()
 				break
 			}
 		}
@@ -2416,7 +2493,25 @@ func main() {
 			if tmpl.Name() == "ipad_13.18.tmpl" {
 				model = "iPad 13,18"
 			}
-			go runAppleIDeviceMDMLoop(i, stats, model, *serverURL, *mdmSCEPChallenge, *mdmCheckInInterval)
+			mobileDevice := mdmAgent{
+				agentIndex:         i + 1,
+				MDMCheckInInterval: *mdmCheckInInterval,
+				model:              model,
+				serverAddress:      *serverURL,
+				softwareCount: softwareEntityCount{
+					entityCount: entityCount{
+						common: *commonSoftwareCount,
+						unique: *uniqueSoftwareCount,
+					},
+					vulnerable:                   *vulnerableSoftwareCount,
+					commonSoftwareUninstallCount: *commonSoftwareUninstallCount,
+					commonSoftwareUninstallProb:  *commonSoftwareUninstallProb,
+					uniqueSoftwareUninstallCount: *uniqueSoftwareUninstallCount,
+					uniqueSoftwareUninstallProb:  *uniqueSoftwareUninstallProb,
+				},
+				stats: stats,
+			}
+			go mobileDevice.runAppleIDeviceMDMLoop(*mdmSCEPChallenge)
 			time.Sleep(sleepTime)
 			continue
 		}
