@@ -71,8 +71,8 @@ const MainContent = ({
         banner = <AppleBMTermsMessage />;
       } else if (isFleetLicenseExpired) {
         banner = <LicenseExpirationBanner />;
-      } else if (isVppExpired) {
-        banner = <VppRenewalMessage expired={willVppExpireIn30Days} />;
+      } else if (isVppExpired || willVppExpireIn30Days) {
+        banner = <VppRenewalMessage expired={isVppExpired} />;
       }
     }
 

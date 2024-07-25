@@ -348,6 +348,13 @@ const reducer = (state: InitialStateType, action: IAction) => {
         apnsExpiry,
       };
     }
+    case ACTIONS.SET_VPP_EXPIRY: {
+      const { vppExpiry } = action;
+      return {
+        ...state,
+        vppExpiry,
+      };
+    }
     case ACTIONS.SET_SANDBOX_EXPIRY: {
       const { sandboxExpiry } = action;
       return {
