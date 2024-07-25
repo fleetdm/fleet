@@ -37,12 +37,12 @@ SELECT
 	COUNT(si.id) as software_installers_count,
 	COUNT(vat.adam_id) as vpp_apps_count
 FROM software_titles st
-LEFT JOIN software_titles_host_counts sthc ON sthc.software_title_id = st.id AND %s
+LEFT JOIN software_titles_host_counts sthc ON sthc.software_title_id = st.id
 LEFT JOIN software_installers si ON si.title_id = st.id AND si.global_or_team_id = ?
 LEFT JOIN vpp_apps vap ON vap.title_id = st.id
 LEFT JOIN vpp_apps_teams vat ON vat.global_or_team_id = ? AND vat.adam_id = vap.adam_id
 WHERE st.id = ? AND
-	(sthc.hosts_count > 0 OR vat.adam_id IS NOT NULL OR si.id IS NOT NULL)
+	((sthc.hosts_count > 0 AND %s) OR vat.adam_id IS NOT NULL OR si.id IS NOT NULL)
 GROUP BY
 	st.id,
 	st.name,
@@ -386,6 +386,7 @@ func (ds *Datastore) SyncHostsSoftwareTitles(ctx context.Context, updatedAt time
             SELECT
                 COUNT(DISTINCT hs.host_id),
                 0 as team_id,
+				1 as global_stats,
                 st.id as software_title_id
             FROM software_titles st
             JOIN software s ON s.title_id = st.id
@@ -396,6 +397,7 @@ func (ds *Datastore) SyncHostsSoftwareTitles(ctx context.Context, updatedAt time
             SELECT
                 COUNT(DISTINCT hs.host_id),
                 h.team_id,
+				0 as global_stats,
                 st.id as software_title_id
             FROM software_titles st
             JOIN software s ON s.title_id = st.id
@@ -404,16 +406,29 @@ func (ds *Datastore) SyncHostsSoftwareTitles(ctx context.Context, updatedAt time
             WHERE h.team_id IS NOT NULL AND hs.software_id > 0
             GROUP BY st.id, h.team_id`
 
+		noTeamCountsStmt = `
+			SELECT
+				COUNT(DISTINCT hs.host_id),
+				0 as team_id,
+				0 as global_stats,
+				st.id as software_title_id
+			FROM software_titles st
+			JOIN software s ON s.title_id = st.id
+			JOIN host_software hs ON hs.software_id = s.id
+			INNER JOIN hosts h ON hs.host_id = h.id
+			WHERE h.team_id IS NULL AND hs.software_id > 0
+			GROUP BY st.id`
+
 		insertStmt = `
             INSERT INTO software_titles_host_counts
-                (software_title_id, hosts_count, team_id, updated_at)
+                (software_title_id, hosts_count, team_id, global_stats, updated_at)
             VALUES
                 %s
             ON DUPLICATE KEY UPDATE
                 hosts_count = VALUES(hosts_count),
                 updated_at = VALUES(updated_at)`
 
-		valuesPart = `(?, ?, ?, ?),`
+		valuesPart = `(?, ?, ?, ?, ?),`
 
 		cleanupOrphanedStmt = `
             DELETE sthc
@@ -438,8 +453,8 @@ func (ds *Datastore) SyncHostsSoftwareTitles(ctx context.Context, updatedAt time
 	}
 
 	// next get a cursor for the global and team counts for each software
-	stmtLabel := []string{"global", "team"}
-	for i, countStmt := range []string{globalCountsStmt, teamCountsStmt} {
+	stmtLabel := []string{"global", "team", "no_team"}
+	for i, countStmt := range []string{globalCountsStmt, teamCountsStmt, noTeamCountsStmt} {
 		rows, err := ds.reader(ctx).QueryContext(ctx, countStmt)
 		if err != nil {
 			return ctxerr.Wrapf(ctx, err, "read %s counts from host_software", stmtLabel[i])
@@ -456,14 +471,15 @@ func (ds *Datastore) SyncHostsSoftwareTitles(ctx context.Context, updatedAt time
 			var (
 				count  int
 				teamID uint
+				gstats bool
 				sid    uint
 			)
 
-			if err := rows.Scan(&count, &teamID, &sid); err != nil {
+			if err := rows.Scan(&count, &teamID, &gstats, &sid); err != nil {
 				return ctxerr.Wrapf(ctx, err, "scan %s row into variables", stmtLabel[i])
 			}
 
-			args = append(args, sid, count, teamID, updatedAt)
+			args = append(args, sid, count, teamID, gstats, updatedAt)
 			batchCount++
 
 			if batchCount == batchSize {
