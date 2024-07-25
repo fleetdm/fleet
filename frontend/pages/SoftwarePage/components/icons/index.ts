@@ -6,7 +6,7 @@ import ChromeApp from "./ChromeApp";
 import Excel from "./Excel";
 import Extension from "./Extension";
 import Firefox from "./Firefox";
-import MacApp from "./MacApp";
+import AppleApp from "./AppleApp";
 import MacOS from "./MacOS";
 import Package from "./Package";
 import Safari from "./Safari";
@@ -65,7 +65,9 @@ const SOFTWARE_SOURCE_TO_ICON_MAP = {
   atom_packages: Package,
   python_packages: Package,
   homebrew_packages: Package,
-  apps: MacApp,
+  apps: AppleApp,
+  ios_apps: AppleApp,
+  ipados_apps: AppleApp,
   programs: WindowsApp,
   chrome_extensions: Extension,
   safari_extensions: Extension,

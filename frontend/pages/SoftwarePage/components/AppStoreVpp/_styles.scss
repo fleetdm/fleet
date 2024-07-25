@@ -4,7 +4,7 @@
   &__list-container {
     border: 1px solid $ui-fleet-black-10;
     border-radius: $border-radius-medium;
-    margin-bottom: 16px;
+    margin-bottom: $pad-medium;
   }
 
   &__list {
@@ -36,8 +36,11 @@
   }
 
   &__no-software {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-small;
+    align-items: center;
     padding: $pad-xxlarge 48px;
-    text-align: center;
     font-size: $x-small;
   }
 
@@ -47,7 +50,7 @@
   }
 
   &__no-software-description {
-    margin-top: $pad-small;
+    margin: 0;
     color: $ui-fleet-black-75;
   }
 

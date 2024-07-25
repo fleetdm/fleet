@@ -236,8 +236,6 @@ const HostSoftware = ({
 
   const data = isMyDevicePage ? deviceSoftwareRes : hostSoftwareRes;
 
-  // same logic as `getSoftwareFilterFromQueryParams`, different expectations of "true" vs
-  // true – TODO: reconcile
   const getHostSoftwareFilterFromQueryParams = () => {
     const { vulnerable, available_for_install } = queryParams;
     if (available_for_install) {

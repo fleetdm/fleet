@@ -80,41 +80,20 @@ interface IVppAppListProps {
   onSelect: (app: IVppApp) => void;
 }
 
-const VppAppList = ({ apps, selectedApp, onSelect }: IVppAppListProps) => {
-  const renderContent = () => {
-    if (apps.length === 0) {
-      return (
-        <div className={`${baseClass}__no-software`}>
-          <p className={`${baseClass}__no-software-title`}>
-            You don&apos;t have any App Store apps
-          </p>
-          <p className={`${baseClass}__no-software-description`}>
-            Add apps in{" "}
-            <CustomLink url="https://business.apple.com" text="ABM" newTab />{" "}
-            Apps that are already added to this team are not listed.
-          </p>
-        </div>
-      );
-    }
-
-    return (
-      <ul className={`${baseClass}__list`}>
-        {apps.map((app) => (
-          <VppAppListItem
-            key={app.app_store_id}
-            app={app}
-            selected={selectedApp?.app_store_id === app.app_store_id}
-            onSelect={onSelect}
-          />
-        ))}
-      </ul>
-    );
-  };
-
-  return (
-    <div className={`${baseClass}__list-container`}>{renderContent()}</div>
-  );
-};
+const VppAppList = ({ apps, selectedApp, onSelect }: IVppAppListProps) => (
+  <div className={`${baseClass}__list-container`}>
+    <ul className={`${baseClass}__list`}>
+      {apps.map((app) => (
+        <VppAppListItem
+          key={app.app_store_id}
+          app={app}
+          selected={selectedApp?.app_store_id === app.app_store_id}
+          onSelect={onSelect}
+        />
+      ))}
+    </ul>
+  </div>
+);
 
 interface IAppStoreVppProps {
   teamId: number;
@@ -141,55 +120,16 @@ const AppStoreVpp = ({ teamId, router, onExit }: IAppStoreVppProps) => {
     }
   );
 
-  // const {
-  //   data: vppApps,
-  //   isLoading: isLoadingVppApps,
-  //   error: errorVppApps,
-  // } = useQuery(["vppSoftware", teamId], () => mdmAppleAPI.getVppApps(teamId), {
-  //   ...DEFAULT_USE_QUERY_OPTIONS,
-  //   enabled: !!vppInfo,
-  //   staleTime: 30000,
-  //   select: (res) => res.app_store_apps,
-  // });
-  // TODO - restore real API call, remove fake data
-
-  const [isLoadingVppApps, errorVppApps, vppApps] = [
-    false,
-    null,
-    // [],
-    [
-      {
-        app_store_id: "310633997",
-        bundle_identifier: "net.whatsapp.WhatsApp",
-        icon_url:
-          "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/4b/83/b1/4b83b1d5-6c3c-2331-89b6-4ed1c5199d96/AppIconCatalystRelease-0-2x_U007euniversal-0-0-0-4-0-0-0-85-220-0.png/512x512bb.jpg",
-        name: "WhatsApp Messenger",
-        latest_version: "24.14.85",
-        platform: "darwin",
-        added: true,
-      },
-      {
-        app_store_id: "406056744",
-        bundle_identifier: "com.evernote.Evernote",
-        icon_url:
-          "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/e9/ef/50/e9ef50bc-395e-181d-acad-779dafb63df5/icon.png/512x512bb.png",
-        name: "Evernote",
-        latest_version: "10.97.1",
-        platform: "ios",
-        added: true,
-      },
-      {
-        app_store_id: "409183694",
-        bundle_identifier: "com.apple.iWork.Keynote",
-        icon_url:
-          "https://is1-ssl.mzstatic.com/image/thumb/Purple221/v4/f4/25/1f/f4251f60-e27a-6f05-daa7-9f3a63aac929/AppIcon-0-0-85-220-0-0-4-0-0-2x-0-0-0-0-0.png/512x512bb.png",
-        name: "Keynote",
-        latest_version: "14.1",
-        platform: "ipados",
-        added: true,
-      },
-    ] as IVppApp[],
-  ];
+  const {
+    data: vppApps,
+    isLoading: isLoadingVppApps,
+    error: errorVppApps,
+  } = useQuery(["vppSoftware", teamId], () => mdmAppleAPI.getVppApps(teamId), {
+    ...DEFAULT_USE_QUERY_OPTIONS,
+    enabled: !!vppInfo,
+    staleTime: 30000,
+    select: (res) => res.app_store_apps,
+  });
 
   const onSelectApp = (app: IVppApp) => {
     setIsSubmitDisabled(false);
@@ -237,20 +177,37 @@ const AppStoreVpp = ({ teamId, router, onExit }: IAppStoreVppProps) => {
       return <DataError useNew className={`${baseClass}__error`} />;
     }
 
-    return vppApps ? (
-      <>
-        <VppAppList
-          apps={vppApps}
-          selectedApp={selectedApp}
-          onSelect={onSelectApp}
-        />
-        <div className={`${baseClass}__help-text`}>
-          These apps were added in Apple Business Manager (ABM). To add more
-          apps, head to{" "}
-          <CustomLink url="https://business.apple.com" text="ABM" newTab />
-        </div>
-      </>
-    ) : null;
+    if (vppApps) {
+      if (vppApps.length === 0) {
+        return (
+          <div className={`${baseClass}__no-software`}>
+            <p className={`${baseClass}__no-software-title`}>
+              You don&apos;t have any App Store apps
+            </p>
+            <p className={`${baseClass}__no-software-description`}>
+              Add apps in{" "}
+              <CustomLink url="https://business.apple.com" text="ABM" newTab />{" "}
+              Apps that are already added to this team are not listed.
+            </p>
+          </div>
+        );
+      }
+      return (
+        <>
+          <VppAppList
+            apps={vppApps}
+            selectedApp={selectedApp}
+            onSelect={onSelectApp}
+          />
+          <div className={`${baseClass}__help-text`}>
+            These apps were added in Apple Business Manager (ABM). To add more
+            apps, head to{" "}
+            <CustomLink url="https://business.apple.com" text="ABM" newTab />
+          </div>
+        </>
+      );
+    }
+    return null;
   };
 
   return (
