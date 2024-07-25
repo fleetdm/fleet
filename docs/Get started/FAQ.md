@@ -10,11 +10,11 @@ Fleet is simple enough to [spin up for yourself](https://fleetdm.com/docs/deploy
 
 ## What is the easiest way to deploy Fleet?
 
-Fleet provides a standard [Terraform module](https://fleetdm.com/docs/deploy/deploy-on-aws-with-terraform) that deploys Fleet with best practices, along with [cloud cost calculators and reference architectures](https://fleetdm.com/docs/deploy/reference-architectures#cloud-providers) used by some of Fleet’s largest customers with tens and hundreds of thousands of hosts.  Fleet Premium customers can also opt for managed hosting provided by Fleet.  You can also deploy Fleet anywhere you want.
+Take a look at [Deploying Fleet](https://fleetdm.com/docs/deploy/deploy-fleet) for guides on Render or deploy for scale with AWS Terraform. You can also deploy Fleet anywhere you want.
 
-You can enroll servers and laptops using a simple installer or automatically deliver Fleet's agent (fleetd) using your existing tools, such as Chef, Terraform, Munki/autopkg, Ansible, Puppet, Jamf, Intune, etc.
+You can enroll servers and laptops using a simple installer or automatically deliver Fleet's agent (fleetd) using your existing tools, such as Chef, Terraform, Munki/autopkg, Ansible, Puppet, Jamf, Intune, etc. As of [Fleet v4.53.0](https://fleetdm.com/releases/fleet-4.53.0), when Fleet's MDM is enabled for MacOS, fleetd is installed as part of the bootstrap.
 
-By default, Fleet keeps fleetd up to date automatically.  For self-managed instances, Fleet provides a [migration runner](https://fleetdm.com/docs/deploy/upgrading-fleet#upgrading-fleet).
+By default, Fleet keeps fleetd up to date automatically.  For self-managed instances, Fleet provides a [Simple upgrade process](https://fleetdm.com/docs/deploy/upgrading-fleet#upgrading-fleet).
 
 ## What options do I have for access control?  What about auditing admin activity?
 
