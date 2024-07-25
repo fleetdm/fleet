@@ -6,7 +6,7 @@
     </div>
     <div class="d-flex flex-sm-row flex-column justify-content-between align-items-sm-center">
       <div purpose="article-details" class="d-flex flex-row align-items-center">
-      <span><js-timestamp format="billing" :at="thisPage.meta.publishedOn"></js-timestamp></span>
+      <span><js-timestamp format="billing" :at="thisPage.lastModifiedAt"></js-timestamp></span>
       <span class="px-2">|</span>
       <img style="height: 28px; width: 28px; border-radius: 100%;" alt="The author's GitHub profile picture" :src="'https://github.com/'+thisPage.meta.authorGitHubUsername+'.png?size=200'">
       <p class="pl-2 font-weight-bold"><%=thisPage.meta.authorFullName %></p>
