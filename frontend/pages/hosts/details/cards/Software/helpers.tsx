@@ -22,7 +22,8 @@ const createVPPTokenExpiredMessage = () => (
 const showAPIMessage = (message: string) => {
   return (
     message.includes("MDM is turned off") ||
-    message.includes("No available licenses")
+    message.includes("No available licenses") ||
+    message.includes("Software title is not available for install")
   );
 };
 
@@ -35,7 +36,7 @@ export const getErrorMessage = (e: unknown) => {
   } else if (reason.includes("can be installed only on")) {
     return createOnlyInstallableOnMacOSMessage(reason);
   } else if (reason.includes("VPP token expired")) {
-    createVPPTokenExpiredMessage();
+    return createVPPTokenExpiredMessage();
   } else if (showAPIMessage(reason)) {
     return reason;
   }
