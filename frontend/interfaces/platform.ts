@@ -1,23 +1,19 @@
-export type DisplayPlatform =
-  | "macOS"
-  | "Windows"
-  | "Linux"
-  | "ChromeOS"
-  | "iOS"
-  | "iPadOS";
+export const PLATFORM_DISPLAY_NAMES = {
+  darwin: "macOS",
+  windows: "Windows",
+  linux: "Linux",
+  chrome: "ChromeOS",
+  ios: "iOS",
+  ipados: "iPadOS",
+} as const;
 
-export type Platform =
-  | "darwin"
-  | "windows"
-  | "linux"
-  | "chrome"
-  | "ios"
-  | "ipados";
-
+export type Platform = keyof typeof PLATFORM_DISPLAY_NAMES;
+export type DisplayPlatform = typeof PLATFORM_DISPLAY_NAMES[keyof typeof PLATFORM_DISPLAY_NAMES];
 export type QueryableDisplayPlatform = Exclude<
   DisplayPlatform,
   "iOS" | "iPadOS"
 >;
+export type ApplePlatform = "darwin" | "ios" | "ipados";
 
 export type QueryablePlatform = Exclude<Platform, "ios" | "ipados">;
 

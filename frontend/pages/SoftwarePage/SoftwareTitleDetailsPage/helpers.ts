@@ -18,6 +18,7 @@ export const getPackageCardInfo = (softwareTitle: ISoftwareTitleDetails) => {
   return {
     softwarePackage: isSoftwarePackage(packageData) ? packageData : undefined,
     name: softwareTitle.name,
+    // TODO(jacob) confirm desired behavior for "version not present" with Noah
     version: isSoftwarePackage(packageData)
       ? packageData.version
       : packageData.latest_version,

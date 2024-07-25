@@ -17,8 +17,15 @@
   }
 
   &__list-item {
+    display: flex;
+    gap: $pad-medium;
+    align-items: center;
     padding: $pad-small $pad-medium;
     border-bottom: 1px solid $ui-fleet-black-10;
+
+    .app-platform {
+      color: $ui-fleet-black-50;
+    }
 
     &:last-child {
       border-bottom: none;
