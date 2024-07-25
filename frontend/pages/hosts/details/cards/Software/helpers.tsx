@@ -18,6 +18,14 @@ const createVPPTokenExpiredMessage = () => (
   </>
 );
 
+// determines if we want to show the API message as is to the user.
+const showAPIMessage = (message: string) => {
+  return (
+    message.includes("MDM is turned off") ||
+    message.includes("No available licenses")
+  );
+};
+
 // eslint-disable-next-line import/prefer-default-export
 export const getErrorMessage = (e: unknown) => {
   const reason = upperFirst(trimEnd(getErrorReason(e), "."));
@@ -28,7 +36,7 @@ export const getErrorMessage = (e: unknown) => {
     return createOnlyInstallableOnMacOSMessage(reason);
   } else if (reason.includes("VPP token expired")) {
     createVPPTokenExpiredMessage();
-  } else if (reason.includes("MDM is turned off")) {
+  } else if (showAPIMessage(reason)) {
     return reason;
   }
 
