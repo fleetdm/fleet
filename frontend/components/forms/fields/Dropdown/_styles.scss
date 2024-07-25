@@ -51,14 +51,15 @@
   &__option {
     display: flex;
     flex-direction: column;
-    gap: $pad-xsmall;
+    gap: $pad-small;
     width: 100%;
   }
 
   &__help-text {
     font-size: $xx-small;
     white-space: normal;
-    color: $ui-fleet-black-75;
+    color: $ui-fleet-black-50;
+    font-style: italic;
   }
 }
 
