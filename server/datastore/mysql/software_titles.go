@@ -15,7 +15,7 @@ import (
 func (ds *Datastore) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint, tmFilter fleet.TeamFilter) (*fleet.SoftwareTitle, error) {
 	var teamFilter string // used to filter software titles host counts by team
 	if teamID != nil {
-		teamFilter = fmt.Sprintf("sthc.team_id = %d", *teamID)
+		teamFilter = fmt.Sprintf("sthc.team_id = %d AND sthc.global_stats = 0", *teamID)
 	} else {
 		teamFilter = ds.whereFilterGlobalOrTeamIDByTeams(tmFilter, "sthc")
 	}
