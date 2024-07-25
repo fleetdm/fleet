@@ -13,45 +13,14 @@ export interface IVppApp {
   bundle_identifier: string;
   icon_url: string;
   latest_version: string;
-  // this is currently returned as a string, so updating here. Change to number from server?
   app_store_id: string;
   added: boolean;
   platform: ApplePlatform;
 }
 
-// `GET /api/v1/fleet/software/app_store_apps`
 export interface IGetVppAppsResponse {
   app_store_apps: IVppApp[];
 }
-
-// {
-//   "app_store_apps": [
-//     {
-//       "name": "Xcode",
-//       "icon_url": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/f1/65/1e/a4844ccd-486d-455f-bb31-67336fe46b14/AppIcon-1x_U007emarketing-0-7-0-85-220-0.png/512x512bb.jpg",
-//       "latest_version": "15.4",
-//       "app_store_id": 497799835,
-//       "added": true,
-//       "platform": "darwin"
-//     },
-//     {
-//       "name": "Logic Pro",
-//       "icon_url": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/f1/65/1e/a4844ccd-486d-455f-bb31-67336fe46b14/AppIcon-1x_U007emarketing-0-7-0-85-220-0.png/512x512bb.jpg",
-//       "latest_version": "2.04",
-//       "app_store_id": 634148309,
-//       "added": false,
-//       "platform": "ios"
-//     },
-//     {
-//       "name": "Logic Pro",
-//       "icon_url": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/f1/65/1e/a4844ccd-486d-455f-bb31-67336fe46b14/AppIcon-1x_U007emarketing-0-7-0-85-220-0.png/512x512bb.jpg",
-//       "latest_version": "2.04",
-//       "app_store_id": 634148309,
-//       "added": false,
-//       "platform": "ipados"
-//     },
-//   ]
-// }
 
 export default {
   getAppleAPNInfo: () => {
@@ -100,7 +69,6 @@ export default {
     return sendRequest("GET", path);
   },
 
-  // todo - revert appStoreId to number when server is updated?
   addVppApp: (teamId: number, appStoreId: string) => {
     const { MDM_APPLE_VPP_APPS } = endpoints;
     return sendRequest("POST", MDM_APPLE_VPP_APPS, {

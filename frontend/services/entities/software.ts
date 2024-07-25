@@ -27,7 +27,6 @@ export interface ISoftwareApiParams {
   teamId?: number;
 }
 
-// `GET /api/v1/fleet/software/titles`
 export interface ISoftwareTitlesResponse {
   counts_updated_at: string | null;
   count: number;
@@ -38,49 +37,6 @@ export interface ISoftwareTitlesResponse {
   };
 }
 
-// {
-//   "counts_updated_at": "2022-01-01 12:32:00",
-//   "count": 1,
-//   "software_titles": [
-//     {
-//       "id": 12,
-//       "name": "Firefox.app",
-//       "software_package": {
-//         "name": "FirefoxInsall.pkg",
-//         "version": "125.6",
-//         "self_service": true
-//       },
-//       "app_store_app": null,
-//       "versions_count": 3,
-//       "source": “ipados_apps", // | "ios_apps" | "apps"
-//       "browser": "",
-//       "hosts_count": 48,
-//       "versions": [
-//         {
-//           "id": 123,
-//           "version": "1.12",
-//           "vulnerabilities": ["CVE-2023-1234","CVE-2023-4321","CVE-2023-7654"]
-//         },
-//         {
-//           "id": 124,
-//           "version": "3.4",
-//           "vulnerabilities": ["CVE-2023-1234","CVE-2023-4321","CVE-2023-7654"]
-//         },
-//         {
-//           "id": 12
-//           "version": "1.13",
-//           "vulnerabilities": ["CVE-2023-1234","CVE-2023-4321","CVE-2023-7654"]
-//         }
-//       ]
-//     },
-//   ],
-//   meta: {
-//     has_next_results: false,
-//     has_previous_results: false,
-// };
-// }
-
-// `GET /api/v1/fleet/software/versions/12`
 export interface ISoftwareVersionsResponse {
   counts_updated_at: string | null;
   count: number;
@@ -90,130 +46,14 @@ export interface ISoftwareVersionsResponse {
     has_previous_results: boolean;
   };
 }
-// {
-//   "software": {
-//     "id": 425224,
-//     "name": "Firefox.app",
-//     "version": "117.0",
-//     "bundle_identifier": "org.mozilla.firefox",
-//     "source": "ipados_apps", # or `ios_apps`
-//     "browser": "",
-//     "generated_cpe": "cpe:2.3:a:mozilla:firefox:117.0:*:*:*:*:macos:*:*",
-//     "vulnerabilities": [
-//       {
-//         "cve": "CVE-2023-4863",
-//         "details_link": "https://nvd.nist.gov/vuln/detail/CVE-2023-4863",
-//         "created_at": "2024-07-01T00:15:00Z",
-//         "cvss_score": 8.8, // Available in Fleet Premium
-//         "epss_probability": 0.4101, // Available in Fleet Premium
-//         "cisa_known_exploit": true, // Available in Fleet Premium
-//         "cve_published": "2023-09-12T15:15:00Z", // Available in Fleet Premium
-//         "resolved_in_version": "" // Available in Fleet Premium
-//       },
-//       {
-//         "cve": "CVE-2023-5169",
-//         "details_link": "https://nvd.nist.gov/vuln/detail/CVE-2023-5169",
-//         "created_at": "2024-07-01T00:15:00Z",
-//         "cvss_score": 6.5, // Available in Fleet Premium
-//         "epss_probability": 0.00073, // Available in Fleet Premium
-//         "cisa_known_exploit": false, // Available in Fleet Premium
-//         "cve_published": "2023-09-27T15:19:00Z", // Available in Fleet Premium
-//         "resolved_in_version": "118" // Available in Fleet Premium
-//       }
-//     ]
-//   }
-// }
-
-// `GET /api/v1/fleet/software/titles/:id`
 
 export interface ISoftwareTitleResponse {
   software_title: ISoftwareTitleDetails;
 }
-// {
-//   "software_title": {
-//     "id": 12,
-//     "name": "Firefox.app",
-//     "bundle_identifier": "org.mozilla.firefox",
-//     "software_package": {
-//       "name": "FalconSensor-6.44.pkg",
-//       "version": "6.44",
-//       "installer_id": 23,
-//       "team_id": 3,
-//       "uploaded_at": "2024-04-01T14:22:58Z",
-//       "install_script": "sudo installer -pkg /temp/FalconSensor-6.44.pkg -target /",
-//       "pre_install_query": "SELECT 1 FROM macos_profiles WHERE uuid='c9f4f0d5-8426-4eb8-b61b-27c543c9d3db';",
-//       "post_install_script": "sudo /Applications/Falcon.app/Contents/Resources/falconctl license 0123456789ABCDEFGHIJKLMNOPQRSTUV-WX",
-//       "self_service": true,
-//       "status": {
-//         "installed": 3,
-//         "pending": 1,
-//         "failed": 2,
-//       }
-//     },
-//     "app_store_app": null,
-//     "source": "apps", #ios_apps,ipados_apps
-//     "browser": "",
-//     "hosts_count": 48,
-//     "versions": [
-//       {
-//         "id": 123,
-//         "version": "117.0",
-//         "vulnerabilities": ["CVE-2023-1234"],
-//         "hosts_count": 37
-//       },
-//       {
-//         "id": 124,
-//         "version": "116.0",
-//         "vulnerabilities": ["CVE-2023-4321"],
-//         "hosts_count": 7
-//       },
-//       {
-//         "id": 127,
-//         "version": "115.5",
-//         "vulnerabilities": ["CVE-2023-7654"],
-//         "hosts_count": 4
-//       }
-//     ]
-//   }
-// }
 
-// `GET /api/v1/fleet/software/versions/:id`
 export interface ISoftwareVersionResponse {
   software: ISoftwareVersion;
 }
-// {
-//   "software": {
-//     "id": 425224,
-//     "name": "Firefox.app",
-//     "version": "117.0",
-//     "bundle_identifier": "org.mozilla.firefox",
-//     "source": "ipados_apps", # or ios_apps
-//     "browser": "",
-//     "generated_cpe": "cpe:2.3:a:mozilla:firefox:117.0:*:*:*:*:macos:*:*",
-//     "vulnerabilities": [
-//       {
-//         "cve": "CVE-2023-4863",
-//         "details_link": "https://nvd.nist.gov/vuln/detail/CVE-2023-4863",
-//         "created_at": "2024-07-01T00:15:00Z",
-//         "cvss_score": 8.8, // Available in Fleet Premium
-//         "epss_probability": 0.4101, // Available in Fleet Premium
-//         "cisa_known_exploit": true, // Available in Fleet Premium
-//         "cve_published": "2023-09-12T15:15:00Z", // Available in Fleet Premium
-//         "resolved_in_version": "" // Available in Fleet Premium
-//       },
-//       {
-//         "cve": "CVE-2023-5169",
-//         "details_link": "https://nvd.nist.gov/vuln/detail/CVE-2023-5169",
-//         "created_at": "2024-07-01T00:15:00Z",
-//         "cvss_score": 6.5, // Available in Fleet Premium
-//         "epss_probability": 0.00073, // Available in Fleet Premium
-//         "cisa_known_exploit": false, // Available in Fleet Premium
-//         "cve_published": "2023-09-27T15:19:00Z", // Available in Fleet Premium
-//         "resolved_in_version": "118" // Available in Fleet Premium
-//       }
-//     ]
-//   }
-// }
 
 export interface ISoftwareVersionsQueryKey extends ISoftwareApiParams {
   scope: "software-versions";
