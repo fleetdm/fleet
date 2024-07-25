@@ -37,19 +37,12 @@
   moreInfoUrl: 
   dri: "noahtalerman"
 -
-  task: "🦢🗣 Design review (#g-mdm)"
+  task: "🦢🗣 Design review"
   startedOn: "2024-03-07" 
   frequency: "Daily" 
   description: "Contributors present wireframes (UI changes) that are “Ready for review”. Head of Product Design provides feedback on UI/CLI/API changes." 
   moreInfoUrl: "https://fleetdm.com/handbook/company/product-groups#design-reviews" 
-  dri: "marko-lisica"
--
-  task: "🦢🗣 Design review (#g-endpoint-ops)"
-  startedOn: "2024-03-07" 
-  frequency: "Daily" 
-  description: "Contributors present wireframes (UI changes) that are “Ready for review”. Head of Product Design provides feedback on UI/CLI/API changes." 
-  moreInfoUrl: "https://fleetdm.com/handbook/company/product-groups#design-reviews" 
-  dri: "rachaelshaw"
+  dri: "noahtalerman"
 -
   task: "🦢🔄 Product design sync"
   startedOn: "2023-07-11" 
