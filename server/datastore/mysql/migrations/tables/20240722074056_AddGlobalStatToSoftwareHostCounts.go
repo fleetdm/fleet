@@ -31,6 +31,27 @@ func Up_20240722074056(tx *sql.Tx) error {
 		return fmt.Errorf("update global_stats for team_id = 0: %w", err)
 	}
 
+	// Insert "no team" counts
+	stmt = `
+		INSERT INTO software_host_counts (software_id, hosts_count, team_id, global_stats)
+		SELECT
+			sthc1.software_id,
+			GREATEST(sthc1.hosts_count - COALESCE(SUM(sthc2.hosts_count), 0),0) AS hosts_count,
+			0 AS team_id,
+			0 AS global_stats
+		FROM
+			software_host_counts sthc1
+		LEFT JOIN
+			software_host_counts sthc2 ON sthc1.software_id = sthc2.software_id AND sthc2.team_id != 0 AND sthc2.global_stats = 0
+		WHERE
+			sthc1.team_id = 0 AND sthc1.global_stats = 1
+		GROUP BY
+			sthc1.software_id, sthc1.hosts_count
+	`
+	if _, err := tx.Exec(stmt); err != nil {
+		return fmt.Errorf("insert no team counts: %w", err)
+	}
+
 	return nil
 }
 
