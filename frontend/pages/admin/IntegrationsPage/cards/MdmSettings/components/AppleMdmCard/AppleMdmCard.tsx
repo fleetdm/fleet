@@ -54,7 +54,7 @@ interface IAppleMdmCardProps {
 }
 
 /**
- * This compoent is responsible for showing the correct UI for the Apple MDM card.
+ * This component is responsible for showing the correct UI for the Apple MDM card.
  * We pass in the appleAPNInfo and errorData from the MdmSettings component because
  * we need to make that API call higher up in the component tree to correctly show
  * loading states on the page.

@@ -90,7 +90,7 @@ export interface ISoftwareTitle {
   id: number;
   name: string;
   versions_count: number;
-  source: string; // ipados_apps | ios_apps | apps | ...
+  source: string; // "apps" | "ios_apps" | "ipados_apps" | ?
   hosts_count: number;
   versions: ISoftwareTitleVersion[] | null;
   software_package: ISoftwarePackage | null;
