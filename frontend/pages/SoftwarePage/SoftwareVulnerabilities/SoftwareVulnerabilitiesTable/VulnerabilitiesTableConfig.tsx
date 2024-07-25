@@ -108,8 +108,8 @@ const generateTableHeaders = (
           <TooltipWrapper
             tipContent={
               <>
-                The worst case impact across different environments (CVSS base
-                score).
+                The worst case impact across different environments (CVSS
+                version 3.x base score).
               </>
             }
           >
@@ -144,6 +144,7 @@ const generateTableHeaders = (
                 This data is reported by FIRST.org.
               </>
             }
+            fixedPositionStrategy
           >
             Probability of exploit
           </TooltipWrapper>

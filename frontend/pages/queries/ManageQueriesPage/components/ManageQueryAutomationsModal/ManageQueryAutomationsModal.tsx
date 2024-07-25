@@ -9,6 +9,7 @@ import QueryFrequencyIndicator from "components/QueryFrequencyIndicator/QueryFre
 import LogDestinationIndicator from "components/LogDestinationIndicator/LogDestinationIndicator";
 
 import { ISchedulableQuery } from "interfaces/schedulable_query";
+import TooltipTruncatedText from "components/TooltipTruncatedText";
 
 interface IManageQueryAutomationsModalProps {
   isUpdatingAutomations: boolean;
@@ -135,7 +136,7 @@ const ManageQueryAutomationsModal = ({
                           //   setErrors((errs) => omit(errs, "queryItems"));
                         }}
                       >
-                        {name}
+                        <TooltipTruncatedText value={name} />
                       </Checkbox>
                       <QueryFrequencyIndicator
                         frequency={interval}
@@ -179,7 +180,7 @@ const ManageQueryAutomationsModal = ({
         </InfoBanner>
         <Button
           type="button"
-          variant="inverse"
+          variant="text-link"
           onClick={togglePreviewDataModal}
           className={`${baseClass}__preview-data`}
         >

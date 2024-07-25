@@ -25,6 +25,19 @@ func Up_20240613172616(tx *sql.Tx) error {
 	if err != nil {
 		return fmt.Errorf("failed to create host_issues table: %w", err)
 	}
+
+	// Now, populate the table with failing_policies_counts
+	_, err = tx.Exec(
+		`INSERT INTO host_issues (host_id, failing_policies_count, total_issues_count)
+				SELECT pm.host_id, COALESCE(SUM(!pm.passes), 0), COALESCE(SUM(!pm.passes), 0)
+				FROM policy_membership pm
+    			WHERE pm.passes = 0
+				GROUP BY pm.host_id`,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to populate host_issues table: %w", err)
+	}
+
 	return nil
 }
 

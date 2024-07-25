@@ -44,8 +44,8 @@ controls:
     enable_end_user_authentication: true
     macos_setup_assistant: null
   macos_updates:
-    deadline: ""
-    minimum_version: ""
+    deadline: "2024-07-12"
+    minimum_version: "14.5"
   windows_settings:
     custom_settings: null
   windows_updates:
@@ -55,6 +55,7 @@ controls:
     - path: ../lib/collect-fleetd-logs.sh
     - path: ../lib/macos-see-automatic-enrollment-profile.sh
     - path: ../lib/macos-remove-old-nudge.sh
+    - path: ../lib/install-update-homebrew.sh
     - path: ../lib/windows-remove-fleetd.ps1
     - path: ../lib/windows-turn-off-mdm.ps1
 policies:
@@ -63,13 +64,6 @@ policies:
   - path: ../lib/linux-device-health.policies.yml
   - path: ../lib/macos-cis.policies.yml
   - path: ../lib/windows-cis.policies.yml
-  - name: macOS - Check if latest version
-    query: SELECT 1 FROM os_version WHERE major = '14' OR major = '15';
-    critical: false
-    description: Using an outdated macOS version risks exposure to security vulnerabilities and potential system instability.
-    resolution: We will update your macOS to the latest version.
-    platform: darwin
-    calendar_events_enabled: true  
 queries:
   - path: ../lib/collect-failed-login-attempts.queries.yml
   - path: ../lib/collect-usb-devices.queries.yml
@@ -81,4 +75,12 @@ queries:
     interval: 300
     automations_enabled: false
     observer_can_run: true
-
+software:
+    - url: https://zoom.us/client/latest/Zoom.pkg?archType=arm64
+      pre_install_query: 
+        path: ../lib/macos-arm.queries.yml
+      self_service: true
+    - url: https://zoom.us/client/latest/Zoom.pkg
+      pre_install_query: 
+        path: ../lib/macos-intel.queries.yml
+      self_service: true

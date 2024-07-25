@@ -28,6 +28,7 @@ type Service struct {
 	depService           *apple_mdm.DEPService
 	profileMatcher       fleet.ProfileMatcher
 	softwareInstallStore fleet.SoftwareInstallerStore
+	distributedLock      fleet.Lock
 }
 
 func NewService(
@@ -42,6 +43,7 @@ func NewService(
 	sso sso.SessionStore,
 	profileMatcher fleet.ProfileMatcher,
 	softwareInstallStore fleet.SoftwareInstallerStore,
+	distributedLock fleet.Lock,
 ) (*Service, error) {
 	authorizer, err := authz.NewAuthorizer()
 	if err != nil {
@@ -61,6 +63,7 @@ func NewService(
 		depService:           apple_mdm.NewDEPService(ds, depStorage, logger),
 		profileMatcher:       profileMatcher,
 		softwareInstallStore: softwareInstallStore,
+		distributedLock:      distributedLock,
 	}
 
 	// Override methods that can't be easily overriden via
@@ -76,7 +79,7 @@ func NewService(
 		DeleteMDMAppleBootstrapPackage:    eeservice.DeleteMDMAppleBootstrapPackage,
 		MDMWindowsEnableOSUpdates:         eeservice.mdmWindowsEnableOSUpdates,
 		MDMWindowsDisableOSUpdates:        eeservice.mdmWindowsDisableOSUpdates,
-		MDMAppleEditedMacOSUpdates:        eeservice.mdmAppleEditedMacOSUpdates,
+		MDMAppleEditedAppleOSUpdates:      eeservice.mdmAppleEditedAppleOSUpdates,
 	})
 
 	return eeservice, nil

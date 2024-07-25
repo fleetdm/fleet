@@ -1,1 +1,0 @@
-- Fixes issue where the MDM ingestion flow would fail if an invalid enrollment reference was passed.

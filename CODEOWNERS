@@ -38,8 +38,20 @@
 *.go @fleetdm/go
 go.sum @fleetdm/go
 go.mod @fleetdm/go
-/server/ @fleetdm/go
 /cmd/ @fleetdm/go
+/orbit/ @lucasmrod @getvictor @roperzh @gillespi314
+/server/ @fleetdm/go
+/server/service/handler.go @lucasmrod @getvictor @roperzh @gillespi314
+/server/mdm/ @roperzh @gillespi314 @lucasmrod @georgekarrv
+/server/worker/ @lucasmrod @getvictor @roperzh @gillespi314
+/server/vulnerabilities/ @lucasmrod @mostlikelee @getvictor
+/server/cron/ @getvictor @lucasmrod @roperzh @mostlikelee
+/ee/fleetd-chrome @lucasmrod @getvictor @RachelElysia
+/ee/vulnerability-dashboard @eashaw
+/ee/cis @sharon-fdm @lucasmrod @RachelElysia @jacobshandling
+/ee/server/calendar @lucasmrod @getvictor @jacobshandling
+/ee/server/service @roperzh @gillespi314 @lucasmrod @getvictor
+/scripts/mdm @roperzh @gillespi314 @jahzielv @dantecatalfamo
 
 ##############################################################################################
 # 🚀 React files and other files related to the core product frontend.
@@ -64,9 +76,9 @@ go.mod @fleetdm/go
 #
 # (see website/config/custom.js for DRIs of other paths not listed here)
 ##############################################################################################
-/docs                                           @rachaelshaw @lukeheath
-/docs/Using-Fleet/REST-API.md                   @rachaelshaw @lukeheath # « REST API reference documentation
-/docs/Contributing/API-for-contributors.md      @rachaelshaw @lukeheath # « Advanced / contributors-only API reference documentation
+/docs                                           @eashaw
+/docs/REST\ API/rest-api.md                     @lukeheath # « REST API reference documentation
+/docs/Contributing/API-for-contributors.md      @lukeheath # « Advanced / contributors-only API reference documentation
 /schema                                         @eashaw # « Data tables (osquery/fleetd schema) documentation
 /docs/Deploy/_kubernetes/ @dherder # « Kubernetes best practice
 ##############################################################################################

@@ -1,13 +1,14 @@
 import React from "react";
 import ReactTooltip from "react-tooltip";
 import classnames from "classnames";
-
+import { formatInTimeZone } from "date-fns-tz";
 import {
   IHostMdmProfile,
   BootstrapPackageStatus,
   isWindowsDiskEncryptionStatus,
 } from "interfaces/mdm";
-import { IOSSettings } from "interfaces/host";
+import { IOSSettings, IHostMaintenanceWindow } from "interfaces/host";
+import { IAppleDeviceUpdates } from "interfaces/config";
 import getHostStatusTooltipText from "pages/hosts/helpers";
 
 import TooltipWrapper from "components/TooltipWrapper";
@@ -15,12 +16,20 @@ import Button from "components/buttons/Button";
 import Icon from "components/Icon/Icon";
 import Card from "components/Card";
 import DataSet from "components/DataSet";
-import DiskSpaceGraph from "components/DiskSpaceGraph";
-import { HumanTimeDiffWithFleetLaunchCutoff } from "components/HumanTimeDiffWithDateTip";
-import PremiumFeatureIconWithTooltip from "components/PremiumFeatureIconWithTooltip";
-import { humanHostMemory, wrapFleetHelper } from "utilities/helpers";
-import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 import StatusIndicator from "components/StatusIndicator";
+import IssuesIndicator from "pages/hosts/components/IssuesIndicator";
+import DiskSpaceIndicator from "pages/hosts/components/DiskSpaceIndicator";
+import { HumanTimeDiffWithFleetLaunchCutoff } from "components/HumanTimeDiffWithDateTip";
+import {
+  humanHostMemory,
+  wrapFleetHelper,
+  removeOSPrefix,
+  compareVersions,
+} from "utilities/helpers";
+import {
+  DATE_FNS_FORMAT_STRINGS,
+  DEFAULT_EMPTY_CELL_VALUE,
+} from "utilities/constants";
 import { COLORS } from "styles/var/colors";
 
 import OSSettingsIndicator from "./OSSettingsIndicator";
@@ -107,7 +116,6 @@ interface IHostSummaryProps {
   summaryData: any; // TODO: create interfaces for this and use consistently across host pages and related helpers
   bootstrapPackageData?: IBootstrapPackageData;
   isPremiumTier?: boolean;
-  isSandboxMode?: boolean;
   toggleOSSettingsModal?: () => void;
   toggleBootstrapPackageModal?: () => void;
   hostMdmProfiles?: IHostMdmProfile[];
@@ -118,6 +126,7 @@ interface IHostSummaryProps {
   ) => void;
   renderActionDropdown: () => JSX.Element | null;
   deviceUser?: boolean;
+  osVersionRequirement?: IAppleDeviceUpdates;
   osSettings?: IOSSettings;
   hostMdmDeviceStatus?: HostMdmDeviceStatusUIState;
 }
@@ -164,11 +173,30 @@ const getHostDiskEncryptionTooltipMessage = (
   ];
 };
 
+const getOSVersionRequirementTooltipMessage = (
+  osVersion: string,
+  osVersionRequirement: IAppleDeviceUpdates
+) => {
+  const requirementMetTooltip = "Meets minimum version requirement.";
+  const requirementNotMetTooltip = (
+    <>
+      Does not meet minimum version requirement.
+      <br />
+      Deadline to update: {osVersionRequirement.deadline}
+    </>
+  );
+
+  const result = compareVersions(
+    removeOSPrefix(osVersion),
+    osVersionRequirement.minimum_version
+  );
+  return result < 0 ? requirementNotMetTooltip : requirementMetTooltip;
+};
+
 const HostSummary = ({
   summaryData,
   bootstrapPackageData,
   isPremiumTier,
-  isSandboxMode = false,
   toggleOSSettingsModal,
   toggleBootstrapPackageModal,
   hostMdmProfiles,
@@ -177,6 +205,7 @@ const HostSummary = ({
   onRefetchHost,
   renderActionDropdown,
   deviceUser,
+  osVersionRequirement,
   osSettings,
   hostMdmDeviceStatus,
 }: IHostSummaryProps): JSX.Element => {
@@ -190,30 +219,29 @@ const HostSummary = ({
   const isIosOrIpadosHost = platform === "ios" || platform === "ipados";
 
   const renderRefetch = () => {
-    if (isIosOrIpadosHost) {
-      return null;
-    }
-
     const isOnline = summaryData.status === "online";
     let isDisabled = false;
-    let tooltip: React.ReactNode = <></>;
+    let tooltip;
 
-    // deviceStatus can be `undefined` in the case of the MyDevice Page not sending
-    // this prop. When this is the case or when it is `unlocked`, we only take
-    // into account the host being online or offline for correctly render the
-    // refresh button. If we have a value for deviceStatus, we then need to also
-    // take it account for rendering the button.
-    if (
-      hostMdmDeviceStatus === undefined ||
-      hostMdmDeviceStatus === "unlocked"
-    ) {
-      isDisabled = !isOnline;
-      tooltip = !isOnline ? REFETCH_TOOLTIP_MESSAGES.offline : null;
-    } else {
-      isDisabled = true;
-      tooltip = !isOnline
-        ? REFETCH_TOOLTIP_MESSAGES.offline
-        : REFETCH_TOOLTIP_MESSAGES[hostMdmDeviceStatus];
+    // we don't have a concept of "online" for iPads and iPhones, so always enable refetch
+    if (!isIosOrIpadosHost) {
+      // deviceStatus can be `undefined` in the case of the MyDevice Page not sending
+      // this prop. When this is the case or when it is `unlocked`, we only take
+      // into account the host being online or offline for correctly render the
+      // refresh button. If we have a value for deviceStatus, we then need to also
+      // take it account for rendering the button.
+      if (
+        hostMdmDeviceStatus === undefined ||
+        hostMdmDeviceStatus === "unlocked"
+      ) {
+        isDisabled = !isOnline;
+        tooltip = !isOnline ? REFETCH_TOOLTIP_MESSAGES.offline : null;
+      } else {
+        isDisabled = true;
+        tooltip = !isOnline
+          ? REFETCH_TOOLTIP_MESSAGES.offline
+          : REFETCH_TOOLTIP_MESSAGES[hostMdmDeviceStatus];
+      }
     }
 
     return (
@@ -228,30 +256,16 @@ const HostSummary = ({
 
   const renderIssues = () => (
     <DataSet
-      title={<>Issues{isSandboxMode && <PremiumFeatureIconWithTooltip />}</>}
+      title="Issues"
       value={
-        <>
-          <span
-            className="host-issue tooltip tooltip__tooltip-icon"
-            data-tip
-            data-for="host-issue-count"
-            data-tip-disable={false}
-          >
-            <Icon name="error-outline" color="ui-fleet-black-50" />
-          </span>
-          <ReactTooltip
-            place="bottom"
-            effect="solid"
-            backgroundColor={COLORS["tooltip-bg"]}
-            id="host-issue-count"
-            data-html
-          >
-            <span className={`tooltip__tooltip-text`}>
-              Failing policies ({summaryData.issues.failing_policies_count})
-            </span>
-          </ReactTooltip>
-          <span>{summaryData.issues.total_issues_count}</span>
-        </>
+        <IssuesIndicator
+          totalIssuesCount={summaryData.issues.total_issues_count}
+          criticalVulnerabilitiesCount={
+            summaryData.issues.critical_vulnerabilities_count
+          }
+          failingPoliciesCount={summaryData.issues.failing_policies_count}
+          tooltipPosition="bottom"
+        />
       }
     />
   );
@@ -274,7 +288,7 @@ const HostSummary = ({
       <DataSet
         title="Disk space"
         value={
-          <DiskSpaceGraph
+          <DiskSpaceIndicator
             baseClass="info-flex"
             gigsDiskSpaceAvailable={summaryData.gigs_disk_space_available}
             percentDiskSpaceAvailable={summaryData.percent_disk_space_available}
@@ -325,6 +339,29 @@ const HostSummary = ({
     );
   };
 
+  const renderOperatingSystemSummary = () => {
+    // No tooltip if minimum version is not set, including all Windows, Linux, ChromeOS operating systems
+    return (
+      <DataSet
+        title="Operating system"
+        value={
+          osVersionRequirement?.minimum_version ? (
+            <TooltipWrapper
+              tipContent={getOSVersionRequirementTooltipMessage(
+                summaryData.os_version,
+                osVersionRequirement
+              )}
+            >
+              {summaryData.os_version}
+            </TooltipWrapper>
+          ) : (
+            summaryData.os_version
+          )
+        }
+      />
+    );
+  };
+
   const renderAgentSummary = () => {
     if (isChromeHost) {
       return <DataSet title="Agent" value={summaryData.osquery_version} />;
@@ -362,6 +399,44 @@ const HostSummary = ({
       );
     }
     return <DataSet title="Osquery" value={summaryData.osquery_version} />;
+  };
+
+  const renderMaintenanceWindow = ({
+    starts_at,
+    timezone,
+  }: IHostMaintenanceWindow) => {
+    const formattedStartsAt = formatInTimeZone(
+      starts_at,
+      // since startsAt is already localized and contains offset information, this 2nd parameter is
+      // logically redundant. It's included here to allow use of date-fns-tz.formatInTimeZone instead of date-fns.format, which
+      // allows us to format a UTC datetime without converting to the user-agent local time.
+      timezone || "UTC",
+      DATE_FNS_FORMAT_STRINGS.dateAtTime
+    );
+
+    const tip =
+      timezone && timezone !== "UTC" ? (
+        <>
+          End user&apos;s time zone:
+          <br />
+          (GMT{starts_at.slice(-6)}) {timezone.replace("_", " ")}
+        </>
+      ) : (
+        <>
+          End user&apos;s timezone unavailable.
+          <br />
+          Displaying in UTC.
+        </>
+      );
+
+    return (
+      <DataSet
+        title="Scheduled maintenance"
+        value={
+          <TooltipWrapper tipContent={tip}>{formattedStartsAt}</TooltipWrapper>
+        }
+      />
+    );
   };
 
   const renderSummary = () => {
@@ -403,13 +478,15 @@ const HostSummary = ({
             }
           />
         )}
-        {(summaryData.issues?.total_issues_count > 0 || isSandboxMode) &&
-          isPremiumTier &&
+        {summaryData.issues?.total_issues_count > 0 &&
           !isIosOrIpadosHost &&
           renderIssues()}
         {isPremiumTier && renderHostTeam()}
         {/* Rendering of OS Settings data */}
-        {(platform === "darwin" || platform === "windows") &&
+        {(platform === "darwin" ||
+          platform === "windows" ||
+          platform === "ios" ||
+          platform === "ipados") &&
           isPremiumTier &&
           isConnectedToFleetMdm && // show if 1 - host is enrolled in Fleet MDM, and
           hostMdmProfiles &&
@@ -446,8 +523,13 @@ const HostSummary = ({
         {!isIosOrIpadosHost && (
           <DataSet title="Processor type" value={summaryData.cpu_type} />
         )}
-        <DataSet title="Operating system" value={summaryData.os_version} />
+        {renderOperatingSystemSummary()}
         {!isIosOrIpadosHost && renderAgentSummary()}
+        {isPremiumTier &&
+          // TODO - refactor normalizeEmptyValues pattern
+          !!summaryData.maintenance_window &&
+          summaryData.maintenance_window !== "---" &&
+          renderMaintenanceWindow(summaryData.maintenance_window)}
       </Card>
     );
   };

@@ -18,6 +18,7 @@ func (svc *Service) GetHost(ctx context.Context, id uint, opts fleet.HostDetailO
 	// reuse GetHost, but include premium details
 	opts.IncludeCVEScores = true
 	opts.IncludePolicies = true
+	opts.IncludeCriticalVulnerabilitiesCount = true
 	return svc.Service.GetHost(ctx, id, opts)
 }
 

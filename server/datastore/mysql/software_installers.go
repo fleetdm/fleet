@@ -3,6 +3,7 @@ package mysql
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -70,8 +71,12 @@ func (ds *Datastore) GetSoftwareInstallDetails(ctx context.Context, executionId 
 }
 
 func (ds *Datastore) MatchOrCreateSoftwareInstaller(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) (uint, error) {
-	titleID, err := ds.getOrGenerateSoftwareInstallerTitleID(ctx, payload.Title, payload.Source)
+	titleID, err := ds.getOrGenerateSoftwareInstallerTitleID(ctx, payload)
 	if err != nil {
+		return 0, err
+	}
+
+	if err := ds.addSoftwareTitleToMatchingSoftware(ctx, titleID, payload); err != nil {
 		return 0, err
 	}
 
@@ -137,15 +142,27 @@ INSERT INTO software_installers (
 	return uint(id), nil
 }
 
-func (ds *Datastore) getOrGenerateSoftwareInstallerTitleID(ctx context.Context, name, source string) (uint, error) {
+func (ds *Datastore) getOrGenerateSoftwareInstallerTitleID(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) (uint, error) {
+	selectStmt := `SELECT id FROM software_titles WHERE name = ? AND source = ? AND browser = ''`
+	selectArgs := []any{payload.Title, payload.Source}
+	insertStmt := `INSERT INTO software_titles (name, source, browser) VALUES (?, ?, '')`
+	insertArgs := []any{payload.Title, payload.Source}
+
+	if payload.BundleIdentifier != "" {
+		selectStmt = `SELECT id FROM software_titles WHERE bundle_identifier = ?`
+		selectArgs = []any{payload.BundleIdentifier}
+		insertStmt = `INSERT INTO software_titles (name, source, bundle_identifier, browser) VALUES (?, ?, ?, '')`
+		insertArgs = append(insertArgs, payload.BundleIdentifier)
+	}
+
 	titleID, err := ds.optimisticGetOrInsert(ctx,
 		&parameterizedStmt{
-			Statement: `SELECT id FROM software_titles WHERE name = ? AND source = ? AND browser = ''`,
-			Args:      []interface{}{name, source},
+			Statement: selectStmt,
+			Args:      selectArgs,
 		},
 		&parameterizedStmt{
-			Statement: `INSERT INTO software_titles (name, source, browser) VALUES (?, ?, ?)`,
-			Args:      []interface{}{name, source, ""},
+			Statement: insertStmt,
+			Args:      insertArgs,
 		},
 	)
 	if err != nil {
@@ -153,6 +170,25 @@ func (ds *Datastore) getOrGenerateSoftwareInstallerTitleID(ctx context.Context, 
 	}
 
 	return titleID, nil
+}
+
+func (ds *Datastore) addSoftwareTitleToMatchingSoftware(ctx context.Context, titleID uint, payload *fleet.UploadSoftwareInstallerPayload) error {
+	whereClause := "WHERE (s.name, s.source, s.browser) = (?, ?, '')"
+	whereArgs := []any{payload.Title, payload.Source}
+	if payload.BundleIdentifier != "" {
+		whereClause = "WHERE s.bundle_identifier = ?"
+		whereArgs = []any{payload.BundleIdentifier}
+	}
+
+	args := make([]any, 0, len(whereArgs))
+	args = append(args, titleID)
+	args = append(args, whereArgs...)
+	updateSoftwareStmt := fmt.Sprintf(`
+		    UPDATE software s
+		    SET s.title_id = ?
+		    %s`, whereClause)
+	_, err := ds.writer(ctx).ExecContext(ctx, updateSoftwareStmt, args...)
+	return ctxerr.Wrap(ctx, err, "adding fk reference in software to software_titles")
 }
 
 func (ds *Datastore) GetSoftwareInstallerMetadataByID(ctx context.Context, id uint) (*fleet.SoftwareInstaller, error) {
@@ -212,7 +248,7 @@ SELECT
   %s
 FROM
   software_installers si
-  LEFT OUTER JOIN software_titles st ON st.id = si.title_id
+  JOIN software_titles st ON st.id = si.title_id
   %s
 WHERE
   si.title_id = ? AND si.global_or_team_id = ?`,
@@ -378,6 +414,39 @@ WHERE
 	}
 
 	return &dest, nil
+}
+
+func (ds *Datastore) vppAppJoin(adamID string, status fleet.SoftwareInstallerStatus) (string, []interface{}, error) {
+	stmt := fmt.Sprintf(`JOIN (
+SELECT
+	host_id
+FROM
+	host_vpp_software_installs hvsi
+LEFT OUTER JOIN
+	nano_command_results ncr ON ncr.command_uuid = hvsi.command_uuid
+WHERE
+	adam_id = :adam_id
+	AND hvsi.id IN(
+		SELECT
+			max(id) -- ensure we use only the most recent install attempt for each host
+			FROM host_vpp_software_installs
+		WHERE
+			adam_id = :adam_id
+		GROUP BY
+			host_id, adam_id)
+	AND (%s) = :status) hss ON hss.host_id = h.id
+`, vppAppHostStatusNamedQuery("hvsi", "ncr", ""))
+
+	return sqlx.Named(stmt, map[string]interface{}{
+		"status":                    status,
+		"adam_id":                   adamID,
+		"software_status_installed": fleet.SoftwareInstallerInstalled,
+		"software_status_failed":    fleet.SoftwareInstallerFailed,
+		"software_status_pending":   fleet.SoftwareInstallerPending,
+		"mdm_status_acknowledged":   fleet.MDMAppleStatusAcknowledged,
+		"mdm_status_error":          fleet.MDMAppleStatusError,
+		"mdm_status_format_error":   fleet.MDMAppleStatusCommandFormatError,
+	})
 }
 
 func (ds *Datastore) softwareInstallerJoin(installerID uint, status fleet.SoftwareInstallerStatus) (string, []interface{}, error) {
@@ -565,4 +634,22 @@ ON DUPLICATE KEY UPDATE
 		}
 		return nil
 	})
+}
+
+func (ds *Datastore) HasSelfServiceSoftwareInstallers(ctx context.Context, hostPlatform string, hostTeamID *uint) (bool, error) {
+	if fleet.IsLinux(hostPlatform) {
+		hostPlatform = "linux"
+	}
+	stmt := `SELECT 1 FROM software_installers WHERE self_service = 1 AND platform = ? AND global_or_team_id = ?`
+	var globalOrTeamID uint
+	if hostTeamID != nil {
+		globalOrTeamID = *hostTeamID
+	}
+	args := []interface{}{hostPlatform, globalOrTeamID}
+	var hasInstallers bool
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &hasInstallers, stmt, args...)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return false, ctxerr.Wrap(ctx, err, "check for self-service software installers")
+	}
+	return hasInstallers, nil
 }

@@ -8,7 +8,7 @@
     ],
     "evented": false,
     "cacheable": false,
-    "notes": "- The values in this OpenDirectory table are related to account creation.  In the past, it was fairly common to use OpenDirectory to have a home folder (`~`) on a server, and then log in and get that folder wherever they are.  (These days, this use case is more uncommon.)\n- To determine who is logged in to the Mac, or for example, to check the record name versus the computer's \"short name\", consider using the data in [the DSCL table](https://fleetdm.com/tables/dscl).",
+    "notes": "- The values in this OpenDirectory table are related to account creation.  In the past, it was fairly common to use OpenDirectory to have a home folder (`~`) on a server, and then log in and get that folder wherever they are.  (These days, this use case is more uncommon.)\n- To determine who is logged in to the Mac, or for example, to check the record name versus the computer's \"short name\", consider using the data in [the DSCL table](https://fleetdm.com/tables/dscl).\n- Many installers incorporate scripts due to actions that are handled by pre or post-scripts vs installer package payloads. These script actions aren't tracked in the \"bill of materials\" (.bom) file. So, don't blindly trust the \"bill of materials\" (.bom) file as the source of truth on what has or hasn't been installed.",
     "examples": "Query the creation date of user accounts. You could also query the date of the last failed login attempt or password change.\n\n```\nSELECT strftime('%Y-%m-%d %H:%M:%S',creation_time,'unixepoch') AS creationdate FROM account_policy_data;\n```\n\nSee each user's last password set date and number of failed logins since last successful login to detect any intrusion attempts.\n\n```\nSELECT u.username u.uid, strftime('%Y-%m-%dT%H:%M:%S', a.password_last_set_time, 'unixepoch') AS password_last_set_time, a.failed_login_count, strftime('%Y-%m-%dT%H:%M:%S', a.failed_login_timestamp, 'unixepoch') AS failed_login_timestamp FROM account_policy_data AS a CROSS JOIN users AS u USING (uid) ORDER BY password_last_set_time ASC;\n```",
     "columns": [
       {
@@ -26322,6 +26322,85 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/new/main/schema?filename=tables%2Fsystemd_units.yml&value=name%3A%20systemd_units%0Adescription%3A%20%7C-%20%23%20(required)%20string%20-%20The%20description%20for%20this%20table.%20Note%3A%20this%20field%20supports%20Markdown%0A%09%23%20Add%20description%20here%0Aexamples%3A%20%7C-%20%23%20(optional)%20string%20-%20An%20example%20query%20for%20this%20table.%20Note%3A%20This%20field%20supports%20Markdown%0A%09%23%20Add%20examples%20here%0Anotes%3A%20%7C-%20%23%20(optional)%20string%20-%20Notes%20about%20this%20table.%20Note%3A%20This%20field%20supports%20Markdown.%0A%09%23%20Add%20notes%20here%0Acolumns%3A%20%23%20(required)%0A%09-%20name%3A%20%23%20(required)%20string%20-%20The%20name%20of%20the%20column%0A%09%20%20description%3A%20%23%20(required)%20string%20-%20The%20column's%20description.%20Note%3A%20this%20field%20supports%20Markdown%0A%09%20%20type%3A%20%23%20(required)%20string%20-%20the%20column's%20data%20type%0A%09%20%20required%3A%20%23%20(required)%20boolean%20-%20whether%20or%20not%20this%20column%20is%20required%20to%20query%20this%20table."
   },
   {
+    "name": "tcc_access",
+    "platforms": [
+      "darwin"
+    ],
+    "description": "Information about macOS TCC database contents, for determining permissions granted to applications.",
+    "evented": false,
+    "columns": [
+      {
+        "name": "source",
+        "type": "text",
+        "description": "Either \"user\" or \"system\".",
+        "required": false
+      },
+      {
+        "name": "uid",
+        "type": "integer",
+        "description": "The local user the permissions are for.  `0` for the system (root) user.",
+        "required": false
+      },
+      {
+        "name": "service",
+        "type": "text",
+        "description": "The name of the TCC service.",
+        "required": false
+      },
+      {
+        "name": "client",
+        "type": "text",
+        "description": "The bundle identifier or absolute path to the program using the TCC service.",
+        "required": false
+      },
+      {
+        "name": "client_type",
+        "type": "integer",
+        "description": "Indicates whether client is a bundle identifier (0) or absolute path (1).",
+        "required": false
+      },
+      {
+        "name": "auth_value",
+        "type": "integer",
+        "description": "Indicates whether the access is: denied (0), unknown (1), allowed (2), or limited (3).",
+        "required": false
+      },
+      {
+        "name": "auth_reason",
+        "type": "integer",
+        "description": "TODO",
+        "required": false
+      },
+      {
+        "name": "last_modified",
+        "type": "bigint",
+        "description": "The last time the entry was modified, in epoch seconds.",
+        "required": false
+      },
+      {
+        "name": "policy_id",
+        "type": "integer",
+        "description": "The MDM policy that allows TCC access for the application.",
+        "required": false
+      },
+      {
+        "name": "indirect_object_identifier",
+        "type": "text",
+        "description": "For kTCCServiceAppleEvents, what the client is asking to interact with, or \"UNUSED\" when it doesn't apply. Absolute path or bundle identifier.",
+        "required": false
+      },
+      {
+        "name": "indirect_object_identifier_type",
+        "type": "integer",
+        "description": "Indicates whether indirect_object_identifier is a bundle identifier (0) or absolute path (1), if applicable.",
+        "required": false
+      }
+    ],
+    "notes": "- This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).\n- This table requires that Fleet's agent (fleetd) has Full Disk Access.",
+    "url": "https://fleetdm.com/tables/tcc_access",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/tcc_access.yml"
+  },
+  {
     "name": "temperature_sensors",
     "description": "Machine's temperature sensors.",
     "url": "https://fleetdm.com/tables/temperature_sensors",
@@ -29516,7 +29595,7 @@
     "name": "windows_updates",
     "description": "Returns information about Windows updates that are available for installation.",
     "evented": false,
-    "notes": "This table is not a core osquery table. It is included as part of fleetd, the osquery manager from Fleet. Code based on work by [Kolide](https://github.com/kolide/launcher).",
+    "notes": "- This table may not return any results while updates are being downloaded and installed.\n- This table is not a core osquery table. It is included as part of fleetd, the osquery manager from Fleet. Code based on work by [Kolide](https://github.com/kolide/launcher).",
     "platforms": [
       "windows"
     ],

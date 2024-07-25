@@ -17,6 +17,7 @@ export interface IEmptySoftwareTableProps {
   isNotDetectingSoftware?: boolean;
   /** isCollectingSoftware is only used on the Dashboard page with a TODO to revisit */
   isCollectingSoftware?: boolean;
+  isFilterVulnerable?: boolean;
 }
 
 const generateTypeText = (
@@ -33,11 +34,12 @@ const generateTypeText = (
 };
 
 const EmptySoftwareTable = ({
-  softwareFilter,
+  softwareFilter = "allSoftware",
   tableName = "software",
   isSoftwareDisabled,
   isNotDetectingSoftware,
   isCollectingSoftware,
+  isFilterVulnerable,
 }: IEmptySoftwareTableProps): JSX.Element => {
   const softwareTypeText = generateTypeText(tableName, softwareFilter);
 
@@ -46,7 +48,7 @@ const EmptySoftwareTable = ({
     info: `Expecting to see ${softwareTypeText}? Check back later.`,
   };
 
-  if (isNotDetectingSoftware) {
+  if (isNotDetectingSoftware && softwareFilter === "allSoftware") {
     emptySoftware.header = "No software detected";
   }
 

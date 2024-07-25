@@ -2,7 +2,9 @@
 
 ![Deploy Fleet on Ubuntu with Elastic](../website/assets/images/articles/deploy-fleet-on-ubuntu-with-elastic-1600x900@2x.png)
 
-[<img src="../website/assets/images/articles/deploy-fleet-on-ubuntu-with-elastic-internews_logo-256x237@2x.png" width="128" align="right"/>](https://internews.org/)_Today we wanted to feature [Josh](https://defensivedepth.com/), a member of our community. His work was sponsored by [Internews](https://internews.org/). If you are interested in contributing to the Fleet blog, feel free to [contact us](https://fleetdm.com/company/contact) or reach out to [@jdstrong](https://osquery.slack.com/team/U04MTPBAHQS) on the osquery slack._ 
+[<img src="../website/assets/images/articles/deploy-fleet-on-ubuntu-with-elastic-internews_logo-256x237@2x.png" style="width: 128px;"/>](https://internews.org/)
+
+_Today we wanted to feature [Josh](https://defensivedepth.com/), a member of our community. His work was sponsored by [Internews](https://internews.org/). If you are interested in contributing to the Fleet blog, feel free to [contact us](https://fleetdm.com/company/contact) or reach out to [@jdstrong](https://osquery.slack.com/team/U04MTPBAHQS) on the osquery slack._ 
 
 This guide provides a detailed walkthrough for setting up a small production environment of Fleet alongside Elastic components (Elasticsearch, Kibana, Filebeat). The setup integrates Filebeat to collect scheduled query results from Fleet and feed them into Elasticsearch, while Kibana will be utilized for data visualization and the creation of detections. Additionally, Nginx will serve as a reverse proxy for the Kibana and Fleet web interfaces and will segregate the web administration and agent data+control planes of Fleet for more fine-grained access control.
 

@@ -1,2 +1,0 @@
-* /api/latest/fleet/hosts now returns `critical_vulnerabilities_count` for premium users. This data is held in the new `host_issues` table. The failing policies total is updated in real-time, while the critical vulnerabilities total is updated every hour after vulnerabilities job.
-* /api/latest/fleet/hosts can be sorted by total_issues_count by specifying `order_key=issues` query parameter.

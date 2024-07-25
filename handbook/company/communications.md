@@ -1,18 +1,25 @@
 # Communications
 This page covers the things every team member needs to know to effectively contribute at Fleet.
 
+
 ## All hands
+
 Every month, Fleet holds a company-wide meeting called the "All hands". 
 
 All team members should attend the "All hands" every month.  "All hands" meetings are recorded, To see the evolution over time or catch up with the latest happenings, review [decks](https://drive.google.com/drive/folders/1cw_lL3_Xu9ZOXKGPghh8F4tc0ND9kQeY) and [recordings](https://us-65885.app.gong.io/conversations?workspace-id=9148397688380544352&callSearch=%7B%22search%22%3A%7B%22type%22%3A%22And%22%2C%22filters%22%3A%5B%7B%22type%22%3A%22CallTitle%22%2C%22phrase%22%3A%22all%20hands%22%7D%5D%7D%7D) from recent company-wide "All hands" meetings. Team members who cannot attend are expected to watch the recording within a few days. 
 
+
 ## Strategy
+
 You can read about the company's positioning and product strategy in ["🎐 Why Fleet?" (private google doc)](https://docs.google.com/document/d/1E0VU4AcB6UTVRd4JKD45Saxh9Gz-mkO3LnGSTBDLEZo/edit#).
 
+
 ### Competition
+
 We track competitors' capabilities and adjacent (or commonly integrated) products in Google doc [Competition](https://docs.google.com/document/d/1Bqdui6oQthdv5XtD5l7EZVB-duNRcqVRg7NVA4lCXeI/edit) (private Google doc).
 
 <img width="384" alt="image" src="https://github.com/fleetdm/fleet/assets/618009/680adba6-f5b7-4726-b2ea-73d0549a45eb">
+
 
 ## Directly responsible individuals (DRIs)
 
@@ -41,18 +48,20 @@ We track competitors' capabilities and adjacent (or commonly integrated) product
 | Feature prioritization               | <sup><sub>_See [🦢 Head of Product Design](https://fleetdm.com/handbook/product-design#team)_</sup></sub>
 | Intentionality of Fleet's interfaces | <sup><sub>_See [🦢 Head of Product Design](https://fleetdm.com/handbook/product-design#team)_</sup></sub>
 | Best practices for using Fleet       | <sup><sub>_See [🦢 Product Design team](https://fleetdm.com/handbook/product-design#team)_</sup></sub>
-| [API design](https://fleetdm.com/docs/rest-api/rest-api) | <sup><sub>_See [🦢 Rachael Shaw](https://fleetdm.com/handbook/product-design#team)_</sup></sub>
+| [API design](https://fleetdm.com/docs/rest-api/rest-api) | <sup><sub>_See [🚀 Chief Technology Officer](https://fleetdm.com/handbook/engineering#team)_</sup></sub>
 | Structure of the [docs](https://fleetdm.com/docs/get-started/why-fleet) | <sup><sub>_See [🌐 Head of Design](https://fleetdm.com/handbook/digital-experience#team)_</sup></sub>
 | Product introduction docs            | <sup><sub>_See [🛠️ CEO responsibilities](https://fleetdm.com/handbook/company/leadership#ceo-responsibilities)_</sup></sub>
 | Product deployment docs              | <sup><sub>_See [🚀 Chief Technology Officer](https://fleetdm.com/handbook/engineering#team)_</sup></sub>
 | Product usage docs                   | <sup><sub>_See [🦢 Head of Product Design](https://fleetdm.com/handbook/product-design#team)_</sup></sub>
-| Product reference docs               | <sup><sub>_See [🦢 Rachael Shaw](https://fleetdm.com/handbook/product-design#team)_</sup></sub>
+| Product reference docs               | <sup><sub>_See [🦢 Noah Talerman](https://fleetdm.com/handbook/product-design#team)_</sup></sub>
 | What goes in a release               | <sup><sub>_See [🚀 Chief Technology Officer](https://fleetdm.com/handbook/engineering#team)_ </sup></sub> 
 | Engineering output and architecture  | <sup><sub>_See [🚀 Chief Technology Officer](https://fleetdm.com/handbook/engineering#team)_ </sup></sub>
 | Product development                  | <sup><sub>_See [🛩️ Product groups](https://fleetdm.com/handbook/company/product-groups#current-product-groups)_ </sup></sub>
 
+
 ### Docs
-This page details processes related to maintaining and updating the [Fleet documentation](https://fleetdm.com/docs).
+
+This section details processes related to maintaining and updating the [Fleet documentation](https://fleetdm.com/docs).
 
 When someone asks a question in a public channel, it's safe to assume they aren't the only person looking for an answer. 
 
@@ -76,7 +85,9 @@ The docs are separated into four categories:
 - [Data tables](https://fleetdm.com/tables/account_policy_data)
 - [Built-in queries](https://fleetdm.com/queries)
 
+
 ## Fleetdm.com
+
 Any change to fleetdm.com follows the same process as [making changes](https://fleetdm.com/handbook/company/product-groups#making-changes) to the core product. To propose a change to Fleet's website [create a website request](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=%23g-digital-experience&projects=&template=website-request.md&title=Request%3A+__________________________) on the #g-digital-experience kanban board. 
 
 Before committing anything to code, we create wireframes (referred to as ["drafting"](https://fleetdm.com/handbook/company/product-groups#making-changes)) to illustrate all changes that affect the layout and structure of the user interface, design, or APIs of fleetdm.com. See [Why do we use a wireframe first approach](https://fleetdm.com/handbook/company/why-this-way#why-do-we-use-a-wireframe-first-approach) for more information. 
@@ -85,10 +96,12 @@ The [Digital Experience team](https://fleetdm.com/handbook/digital-experience#te
 
 
 ## Marketing programs
+
 Fleet's community programs are rooted in several areas; created to nurture communication between all current and future Fleet users through events, community support, [social media](#social-media), conversation-starting, [ads](#ads), video, and articles.
 
 
 ### Social media
+
 Fleet's largest asset is our user community, the people actually using Fleet. Public conversations on social media create valuable opportunities for contributors to answer technical questions and collect feedback.
 
 Fleet [does not self-promote](https://www.audible.com/pd/The-Impact-Equation-Audiobook/B00AR1VFBU).  (Great brands are [magnanimous](https://en.wikipedia.org/wiki/Magnanimity).) In fact, conversations are already happening in our social spaces that open up opportunities for Fleet to [engage with the community](https://fleetdm.com/handbook/demand#engage-with-the-community).
@@ -102,34 +115,46 @@ Here are some topics for social media posts:
 - Industry news about device management
 - Upcoming events, interviews, and podcasts
 
+
 #### Fleet on LinkedIn
+
 Original posts on LinkedIn by Fleet employees [can be promoted using the Fleet company page](https://fleetdm.com/handbook/demand#promote-a-post-on-linkedin). If you think your post would make sense in front of a bigger audience, [create an issue on the demand board](https://fleetdm.com/handbook/demand#contact-us) linking the team to your personal LinkedIn post (only original posts please, reposts and quotes of other posts can not be promoted). Include any context in the issue and keep an eye on your inbox, The Demand team will request permission to use the post in a promoted post.
 
 
 ### Ads
+
 Fleet uses advertising to spread awareness through a broader audience and foster greater engagement within user communities. The more people actively using Fleet, or contributing, the better Fleet will be.
 
 
 ### Events
+
 It's important for Fleet to engage at [events](https://docs.google.com/spreadsheets/d/1YQXAX2Q_WnGkAwMYjMbQpV3nbCj7gOBbv7Y0u4twxzQ/edit#gid=1931288160). This provides an opportunity to directly engage with potential users and contributors, build relationships, gather feedback, and create a stronger sense of community and trust.
 
+
 #### Event lead follow-up
+
 Eventgoers are expecting a timely follow-up from Fleet based on the conversations that they had at the event. It is up to Digital Marketing Manager to make sure this process is followed.
 
 1. Once a list of badge scans is available, Fleeties that attended the event are to add any follow up notes that note buying situation, amount of endpoints, level of interest, and general talking points.
 2. Within 3 business days of returning from the event, attendees will set up a debrief meeting with the demand team to discuss follow-up.
 3. Demand will determine appropriate follow-up to each potential lead, and sales will be notified of actions needed immediately following.
 
+
 ### Podcast
+
 Fleet has created the [ExpedITioners podcast](https://expeditioners.podbean.com/) to open discussions and help IT and security professionals get ahead of the curve and prepare themselves and their organizations for what lies ahead. 
 <!-- TODO: Find a way to link to the meetings section below and make it make sense-->
+
+
 ### Video
+
 Fleet uses YouTube to help keep the community up-to-date and informed. These videos facilitate community engagement, provide educational resources, and help share essential information about Fleet and the people using it. Meetings regularly uploaded to YouTube will have a "▶️" emoji prepended to the calendar event title (e.g. "▶️ ☁️🌈 Sprint demos!").  
 
 <img width="384" alt="image" src="https://github.com/fleetdm/fleet/assets/618009/29167232-652c-4c64-a37c-910cc781f2c1">
 
 
 ## Meetings
+
 - **Plan to join meetings on time.** At Fleet, we start on time and do not wait for folks to join.  As most of our meetings are conducted over zoom, please join with a working microphone and with your camera on whenever possible.  Being even a few minutes late can make a big difference and slow your meeting counterparts down. When in doubt, show up a couple of minutes early. 
 - **Turn on your camera.** This allows for more complete and intuitive verbal and non-verbal communication. Feel free to leave your camera on or turn it off when joining meetings with new participants you might not be familiar with yet. Turn your camera on when you lead or cohost a meeting, or when you present your work during a demo session.
   - **If you would prefer not to be on YouTube** when presenting on a meeting, you can prep your demo ahead of the meeting and communicate to your manager who will present for you.  It's always ok to do this.
@@ -139,18 +164,24 @@ Fleet uses YouTube to help keep the community up-to-date and informed. These vid
   - There is a designated notetaker during the meeting. 
   - All action items are tracked and assigned to the correct individuals. 
 
+
 ### Meeting agendas
+
 ["**No agenda, no attenda**."](https://about.gitlab.com/company/culture/all-remote/live-doc-meetings/#gitlab-meeting-best-practices) Every work-related meeting should have an editable agenda (e.g. edit access shared with all attendees) attached to the calendar invite. 
 - To create a meeting agenda please make a copy of [Fleet's meeting template](https://docs.google.com/document/d/1TaZ654gTwadWGDYhP3zuAzWe0eiY0s9NhaU9KLCokgw/copy).
 
 >Please do not use Google Calendar's automatic agenda/notes creation function, as it does not adhere to Fleet's preferred agenda format. If the automatic agenda doc has been created in error, edit the calendar invite to delete it from the meeting to avoid confusion.
 
+
 ### External meeting scheduling
+
 When scheduling external meetings, provide external participants with a
 [Calendly](https://calendly.com) link to schedule with the relevant internal participants. If you
 need a Calendly account, reach out to `#g-business-operations` via Slack.
 
+
 ### Internal meeting scheduling
+
 Fleet uses the Zoom add-on for Google Calendar to schedule meetings (exceptions are customers that are non-negotiably required to use a different tool) when we [create calendar events](https://support.google.com/calendar/answer/72143?hl=en&ref_topic=10510646&sjid=7187599067132459840-NA#zippy=%2Cclick-an-empty-time-in-your-calendar). 
 Our Zoom meetings are configured to let participants join before the host arrives, to make sure meetings start on time even if the host isn't there.
 
@@ -163,12 +194,13 @@ It is important to [set your working hours](https://support.google.com/calendar/
 - Many team members use the free tier of [reclaim.ai](https://reclaim.ai/) to synchronize personal event times (without event details) into their work calendars. 
 It is also common practice to block out time for focused work.
 
-In an all-remote company, "face time" matters. Remember: even if someone's calendar is open, they have other work to do. Help each other by batching up internal meetings can enable longer, uninterrupted stretches of deep work.
+In an all-remote company, "face time" matters. Remember: even if someone's calendar is open, they have other work to do. Help each other by batching up internal meetings which enables longer, uninterrupted stretches of deep work.
 
 <img width="384" alt="image" src="https://github.com/fleetdm/fleet/assets/618009/0f453745-9ddc-4ae7-853a-2a73e3d2aa1a">
 
 
 #### Schedule time with the CEO
+
 All invitations to meetings are welcomed, and quickly considering them is a top priority for the CEO.
 
 > Please do not add events to the CEO's calendar. **Events added directly to the CEO's calendar will be declined and removed.** Even if the CEO asks you to set up a meeting or add him to a call, please get scheduling help from the [Apprentice](https://www.fleetdm.com/handbook/digital-experience#team)).
@@ -179,11 +211,15 @@ To request time with the CEO, [submit an issue](https://github.com/fleetdm/confi
 - **Self-service scheduling:** Unlike other team members, who you can schedule with by simply dropping an event on their calendar unless requested directly from Mike, please do not directly schedule a meeting onto the CEO's calendar without using this process to confirm with the Apprentice first.
 - **Rescheduling:** All items on Mike's calendar are subject to change by the CEO to better serve the company.  Send last-minute changes or cancellations to Mike [via direct message (DM)](https://www.fleetdm.com/handbook/company/why-this-way#why-not-mention-the-ceo-in-slack-threads).
 
+
 ### Modifying an event organized by someone else
+
 To edit an event where someone else at Fleet is the organizer, you can first subscribe to their calendar in Google Calendar and then edit the event on their calendar.  Your edits will automatically apply to all attendees.
 This works because every Fleetie grants edit access to everyone else at Fleet as part of onboarding.
 
+
 ### Shared calendars
+
 Team calendars are the primary source for sprint rituals; they facilitate the execution of each sprint. 
 Looking to add, change, or remove a shared calendar? [Create an issue for the CEO](https://fleetdm.com/handbook/digital-experience#contact-us) and the appropriate DRI will reply with feedback.
 
@@ -199,7 +235,7 @@ Fleet uses skip-level 1:1 meetings as a recurring pulse check to encourage [valu
 3. Link the skip-level agenda in the calendar event description before saving.
 
 
-### Zoom
+## Zoom
 
 We use [Zoom](https://zoom.us) for virtual meetings at Fleet, and it is important that every team member feels comfortable hosting, joining, and scheduling Zoom meetings.
 By default, Zoom settings are the same for all Fleet team members, but you can change your personal settings on your [profile settings](https://zoom.us/profile/setting) page. 
@@ -229,17 +265,31 @@ Here are some tips for troubleshooting Gong:
 - To counter this, Nathan Holliday will periodically delete all recordings found in Zoom's storage without viewing them.
 - If you need help using Gong, please check out [Gong Academy](https://academy.gong.io/).
 
+
 ### Excluding calls from being recorded
+
 For those with a Gong seat or scheduling a call with someone in attendance that has a Gong seat who does not wish for their Zoom call with an external party to record, make sure your calendar event title contains `[no shadows]`.  You can also read the [complete list of exclusion rules](https://docs.google.com/document/d/1OOxLajvqf-on5I8viN7k6aCzqEWS2B24_mE47OefutE/edit?usp=sharing).
 
 
+### Sharing a local Zoom recording 
+
+In some instances, you may need to record a call locally (i.e. save the recording on your computer and not in the cloud ☁️). You can use the following steps to upload the call recording:
+1. Log into [Zoom](https://zoom.us/recording) using SSO (Single-Sign-On) and go to "Recordings". 
+2. After the recording is finished processing (which sometimes can take a couple of hours), you will see the hotdog (or "overflow menu") menu appear. Select the call you want to share and use the hotdog menu to download all files.
+3. Rename the mp4 file to match the meeting name and prefix it with the date of the recording (e.g. "YYYY-MM-DD *Name of the calendar event*").
+4. Upload the mp4 recording to the [whiteboards folder](https://drive.google.com/drive/u/0/folders/1prO98fmB2WKzpubZ2-z0sju9dQ4ijpNE) in Google Drive.
+
+
 ## Levels of confidentiality
+
 Fleet uses these levels to standardize a commitment to minimal esotericism across the company.  
 - **Public:**   _Share with anyone, anywhere in the world_
 - **Confidential:**  _Share only with team members who've signed an NDA, consulting agreement, or employment agreement_
 - **Classified:**  _Share only with founders of Fleet, business operations, and/or the people involved.  e.g., US social security numbers during hiring_
 
+
 ### Document titles
+
 Fleet uses these levels to standardize a commitment to minimal esotericism across the company. 
 - **"Public":** _(Available to public)_ 
 - _(Confidential - for Fleet eyes only)_     
@@ -247,13 +297,25 @@ Fleet uses these levels to standardize a commitment to minimal esotericism acros
 - **"¶¶":** _(Classified - CEO, Apprentice, and BizOps)_
 - **"¶¶¶":** _(CEO, Apprentice to the CEO, and board members)_
 
+## Google Drive
+
+Fleet uses Google Drive to keep files correctly bucketed and accessible for team members. When adding a file, you can: 
+- Check for existing files to avoid duplication.
+- Avoid breaking Google Drive links. In some cases, you can update files by using the "Manage versions" option (in the right-click menu) so that links continue to work.
+
+
 ## Email relays
+
 There are [several special email addresses](https://docs.google.com/document/d/1tE-NpNfw1icmU2MjYuBRib0VWBPVAdmq4NiCrpuI0F0/edit#) that automatically relay messages to the appropriate people in Fleet. Each email address meets a minimum response time ("Min RT"), expressed in business hours/days, and has a dedicated, directly responsible individual (DRI) who is responsible for reading and replying to emails sent to that address.
 
+
 ## Slack
+
 At Fleet, we do not send internal emails to each other. Instead, we prefer to use [Slack](https://www.linkedin.com/pulse/remote-work-how-set-boundaries-when-office-your-house-lora-vaughn/) to communicate with other folks who work at Fleet.
 
+
 ### Key Slack channels
+
 The following Slack channels are useful for every Fleetie:
 
 | Slack channel               | Purpose |
@@ -262,7 +324,9 @@ The following Slack channels are useful for every Fleetie:
 | `#thanks`                   | Say thank you.
 | `#random`                   | Be random.
 
+
 ### Slack channel prefixes
+
 - We have specific channels for various topics, but we also have more general channels for the teams at Fleet.
 We use these prefixes to organize the Fleet Slack:
  * ***g-***: for team/group channels *(Note: "g-" is short for "grupo" or "group")*.
@@ -271,13 +335,17 @@ We use these prefixes to organize the Fleet Slack:
  * ***at*** or ***fleet-at***: for customer channels.
  * ***2023-***: for temporary channels _(Note: specify the relevant year in four digits, like "YYYY-`)_
 
+
 ### Slack communications and best practices
+
 - We use [channels over DMs](https://fleetdm.com/handbook/company/why-this-way#why-group-slack-channels).
 - We use threads in Slack as much as possible. Threads help limit noise for other people following the channel and reduce notification overload.
 - We configure our [working hours in Slack](https://slack.com/help/articles/360025054173-Set-up-Slack-for-work-hours-) to make sure everyone knows when they can get in touch with others.
 - In consideration of our team, Fleet avoids using global tags in channels (i.e. @here, @channel, etc.) (What about polls? Good question, Fleeties are asked to post their poll in the channel and @mention the teammates they would like to hear from.)
 
+
 ### Create a GitHub issue from a Slack thread
+
 If you need to track content from a Slack channel (ie. #g-sales), you can automatically generate a github issue by selecting the `create-github-issue` emoji on the thread. This will automatically create an issue tagged with the #g-business-operations label. If you need the issue logged against a specific board, ensure that you have updated the label during issue creation.
 
 <img width="384" alt="image" src="https://github.com/fleetdm/fleet/assets/618009/97ce6caa-4b21-4cc2-8fcb-91aa03dfc6d6">
@@ -310,9 +378,12 @@ If you need to track content from a Slack channel (ie. #g-sales), you can automa
 
 
 ## GitHub
+
 Fleet uses GitHub as the [source of truth](https://fleetdm.com/handbook/company/why-this-way#why-do-we-use-one-repo) for the product and documentation. GitHub allows community members to interact with Fleet, [contribute and provide feedback](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/Committing-Changes.md#committing-changes).
 
+
 ### GitHub labels
+
 Fleet prefixes all GitHub labels with special characters or words to organize and categorize GitHub issues.
 
 | Prefix            | Label type  | Examples                            |
@@ -331,19 +402,56 @@ Labels with a `#g-` prefix refer to a kanban board. Since it is best practice to
 > - `bug-` Defect category. For example, `bug-enrollment`, `bug-profiles-sync`, `bug-policies`. This allows us to track the areas of the product producing the most bugs.
 > - `story` A user story.
 > -  `prospect-` A customer prospect.
-> - `P-` A [priority level](https://fleetdm.com/handbook/company/product-groups#high-priority-user-stories-and-bugs).
+> - `P-` A [priority level](https://fleetdm.com/handbook/company/communications#high-priority-user-stories-and-bugs).
 > - `Epic` Do not use. _(TODO: ZenHub automatically recreates this label when we group sub-tasks inside of a user story. Find a way to remove this. It is an artifact from Zenhub and not something we actually want to exist or use, as it is confusing.)_
 
+
 ### Process new requests
+
 Team members [process their department's kanban boards](https://fleetdm.com/handbook/company/why-this-way#why-lean-software-development) daily, prioritizing all new requests including issues and PRs within one business day.
 
 To process intake team members will:
 - Inspect each item in the "📨 New requests" column and understand the next steps needed to complete the task.
 - Indicate to the requestor when they can expect the task to be completed by placing each item in the appropriate column (e.g. Not yet, Planned, In progress) and estimate if necessary.
 - If the goal/user story is unclear, assign the issue to the requestor and at-mention them in an issue comment asking to clarify the intended action. 
-- If the task is to be backlogged (i.e. "Not yet"), place the issue in the "Not yet" column and at-mention the requestor in an issue comment. Explain why the task is unable to be prioritized and provide a tentative ETA on when the task will be completed.  
+- If the task is to be backlogged (i.e. "Not yet"), place the issue in the "Not yet" column and at-mention the requestor in an issue comment. Explain why the task is unable to be prioritized and provide a tentative ETA on when the task will be completed. 
+
+
+## High priority user stories and bugs
+
+All issues are treated as standard priority by default. Some issues are assigned a priority label to indicate the level of urgency.
+
+- Emergency: `P0`
+  - Examples: Customer outage, confirmed security vulnerability ([critical bug](https://fleetdm.com/handbook/company/product-groups#release-testing)), a new feature is needed to address an immediate Fleet emergency.
+  - Response: Immediately stop other work to swarm the issue. Work 24/7 in shifts until resolved.
+  - Impact: Significant impact. May void current sprint.
+
+- Critical: `P1`
+  - Examples: A supported workflow is broken ([critical bug](https://fleetdm.com/handbook/company/product-groups#release-testing)), a potential security vulnerability, a new feature is required to address an immediate critical Fleet need.
+  - Response: Issue brought to next standup for estimation and immediately brought into the sprint. Necessary team members are assigned as their top priority.
+  - Impact: High impact. Does not void sprint, but reduces overall velocity and requires deprioritizing other work.
+
+- Urgent: `P2`
+  - Examples: A supported workflow is not functioning as intended, a newly drafted feature has an associated urgent Fleet need.
+  - Response: Issue is prioritized at the top of the next sprint. If opporunity cost of waiting for the next sprint is too high, it may be considered for current sprint.
+  - Impact: Low to medium impact. If prioritized into current sprint, may reduce overall velocity and require deprioritizing other work.
+
+Any Fleetie can follow the process below to add a priority label to an issue.
+
+1. Add as much context as possible to the issue description and assign labels to help the team
+   understand the problem and what is driving the urgency. 
+2. Add the `P0`, `P1`, or `P2` label based on the urgency of the issue. 
+3. Comment on the GitHub issue explaining why the issue is a priority, and assign the issue to the
+   [DRI for what goes in a
+   release](https://fleetdm.com/handbook/company/communications#directly-responsible-individuals-dris).
+   For immediate action, follow up via Slack DM or by phone.
+4. The DRI for what goes in a release will review the issue to determine if it meets the criteria
+   for the assigned priority label. If so, they will assign the issue to the appropriate EM and PM. If not,
+   they will comment on the issue explaining why. 
+
 
 ### Estimation points
+
 Estimation points represent the effort required to complete a task. After accessing wireframes, we typically play planning poker, a gamified estimation technique, to determine the necessary story point value.
 
 We use the following story points to estimate website tasks:
@@ -353,11 +461,13 @@ We use the following story points to estimate website tasks:
 | 1  | 1 to 2 hours  |
 | 2  | 2 to 4 hours  |
 | 3  | 1 day         |
-| 5  | 1 to 2 days   |
+| 5  | 2 to 3 days   |
 | 8  | Up to a week  |
 | 13 | 1 to 2 weeks  |
 
+
 ### Making a pull request
+
 Our handbook and docs pages are written in Markdown and are editable from our website (via GitHub). Follow the instructions below to propose an edit to the handbook or docs.
 1. Click the _"Edit page"_ button from the relevant handbook or docs page on [fleetdm.com](https://www.fleetdm.com) (this will take you to the GitHub browser).
 2. Make your suggested edits in the GitHub.
@@ -371,12 +481,16 @@ Our handbook and docs pages are written in Markdown and are editable from our we
 
 > Note: Pages in the `./docs/Contributing/` folder and folders with a underscore prefix (e.g., `./docs/Deploy/_kubernetes/`) are not included in the documentation on the Fleet website.
 
+
 ### Merging changes
+
 When merging a PR to the master branch of the [Fleet repo](https://github.com/fleetdm/fleet), remember that whatever you merge gets deployed live immediately. Ensure that the appropriate quality checks have been completed before merging. [Learn about the website QA process](#quality).
 
 When merging changes to the [docs](https://fleetdm.com/docs), [handbook](https://fleetdm.com/handbook), and articles, make sure that the PR’s changes do not contain inappropriate content (goes without saying) or confidential information, and that the content represents our [brand](#brand) accordingly. When in doubt reach out to the product manager of the [website group](https://fleetdm.com/handbook/digital-experience) in the [#g-digital-experience](https://fleetdm.slack.com/archives/C058S8PFSK0) channel on Slack.
 
+
 ### Editing a merged pull requests 
+
 We approach editing retrospectively for pull requests (PRs) to handbook pages. Remember our goal above about moving quickly and reducing time to value for our contributors? We avoid the editor becoming a bottleneck for merging quickly by editing for typos and grammatical errors after-the-fact. Here's how to do it:
 
 1. Check that the previous day's edits are formatted correctly on the website (more on this in the note below.)
@@ -394,11 +508,14 @@ We approach editing retrospectively for pull requests (PRs) to handbook pages. R
 
 
 ### Linking to a location on GitHub
+
 When adding a link to any text in the docs, handbook, or website always be sure to use the canonical form of the URL (e.g. _"https//www.fleetdm.com/
 handbook/..."_).
 Navigate to the file's location on GitHub, and press "y" to transform the URL into its canonical form.
 
+
 #### Fixing a broken link
+
 For instance when a broken link is discovered on fleetdm.com, always check if the link is a relative link to a location outside of `/docs`.
 
 An example of a link that lives outside of `/docs` is:
@@ -411,6 +528,7 @@ If the link lives outside `/docs`, head to the file's location (in this case, [h
 
 
 ### Meta tags
+
 - **Page order:** The order we display documentation pages on fleetdm.com is determined by `pageOrderInSection` meta tags. These pages are sorted in their respective sections in **ascending** order by the `pageOrderInSection` value. Every Markdown file (except readme and faq pages) in the `docs/` folder must have a meta tag with a positive 'pageOrderInSection' value.
 
 We leave large gaps between values to make future changes easier. For example, the first page in the "Using Fleet" section of the docs has a `pageOrderInSection` value of 100, and the next page has a value of 200. The significant difference between values allows us to add, remove and reorder pages without changing the value of multiple pages at a time.
@@ -419,7 +537,9 @@ When adding or reordering a page, try to leave as much room between values as po
 
 - **Page description:** TODO: Document.
 
+
 ### Images
+
 Try to keep images in the docs at a minimum. Images can be a quick way to help users understand a concept or direct them towards a specific user interface(UI) element. Still, too many can make the documentation feel cluttered and more difficult to maintain.
 
 When adding images to the Fleet repo, follow these guidelines:
@@ -436,7 +556,9 @@ The images used in the docs live in `docs/images/`. Note that you must provide t
 
 > Note that the instructions above also apply to adding images in the Fleet handbook.
 
+
 ### Audit logs
+
 The [Audit logs doc page](https://fleetdm.com/docs/Using-Fleet/Audit-logs) has a page generator that is used to speed up doc writing when Fleet adds new activity types.
 
 - If you're making a copy change to an exiting activity type, edit the `activities.go` file [here](https://github.com/fleetdm/fleet/blob/main/server/fleet/activities.go).
@@ -445,7 +567,9 @@ The [Audit logs doc page](https://fleetdm.com/docs/Using-Fleet/Audit-logs) has a
 
 After making your changes, save them and run `make generate-doc`. This will generate a new `Audit-logs.md` file. Make sure you run the command in the top level folder of your cloned, Fleet repo.
 
+
 ## Figma
+
 We use Figma for virtually all our design work. This includes the Fleet product, our website, and our marketing collateral. 
 
 - **Fleet product:** All product design work is done in the [Fleet product](https://www.figma.com/files/project/17318630/%F0%9F%94%9C%F0%9F%93%A6-Fleet-EE%C2%AE-(product)?fuid=1234929285759903870) Figma project.  
@@ -457,7 +581,9 @@ See [📖Product#Working with Figma](https://fleetdm.com/handbook/product#workin
 **Marketing assets:** Product screenshots and artwork for social media, articles, and other marketing assets can be found in [Collateral](https://www.figma.com/files/project/20798819).
 
 
+
 ## Spending company money
+
 As we continue to expand our company policies, we use [GitLab's open expense policy](https://about.gitlab.com/handbook/spending-company-money/) as a guide for company spending.
 In brief, this means that as a Fleet team member, you may:
 * Spend company money like it is your own money.
@@ -465,9 +591,12 @@ In brief, this means that as a Fleet team member, you may:
 * Feel free to make purchases __in the company's interest__ without asking for permission beforehand (when in doubt, do __inform__ your manager prior to purchase or as soon as possible after the purchase).
 For more developed thoughts about __spending guidelines and limits__, please read [GitLab's open expense policy](https://about.gitlab.com/handbook/spending-company-money/).
 
+
 ### Brex
 
+
 #### Non-travel purchases that exceed a Brex cardholder's limit
+
 For non-travel purchases that would require an increase in the Brex cardholder's limit ($2,000 by default), please [make a request](https://fleetdm.com/handbook/business-operations#contact-us) with following information:
 - The nature of the purchase (i.e. SaaS subscription and what it's used for)
 - The cost of the purchase and whether it is a fixed or variable (i.e. use-based) cost.
@@ -478,7 +607,19 @@ For non-travel purchases that would require an increase in the Brex cardholder's
 
 <img width="384" alt="image" src="https://github.com/fleetdm/fleet/assets/618009/1890e56b-7b03-4340-97d4-a6590c7715a9">
 
+
+### SaaS tool purchases
+
+When procuring SaaS tools and services, analyze the purchase of these subscription services look for these way to help the company:
+- Get product demos whenever possible.  Does the product do what it's supposed to do in the way that it is supposed to do it?
+- Avoid extra features you don't need, and if they're there anyway, avoid using them.
+- Data portability: is it possible for Fleet to export it's data if we stop using it? Is it easy to pull that data in an understandable format?
+- Programability: Does it have a publicly documented legible REST API that requires at most a single API token?
+- Intentionality: The product fits into other tools and processes that Fleet uses today. Avoid [unintended consequences](https://en.wikipedia.org/wiki/Midas). The tool will change to fit the company, or we won't use it. 
+
+
 #### Reimbursements
+
 Fleet does not reimburse expenses. We provide all of our team members with Brex cards for making purchases for the company. For company expenses, **use your Brex card.**  If there was an extreme accident, [get help](https://fleetdm.com/handbook/business-operations#contact-us).
 
 <!-- 
@@ -489,7 +630,9 @@ Team members can request reimbursement through [Gusto]([https://app.gusto.com/ex
 Operations will review the expense and reach out to the team member if they have any questions. The reimbursement will be added to the team member's next payroll when an expense is approved.
 >Pilot handles reimbursements differently depending on if the international team member is classified as an employee or a contractor. If the reimbursement is for a contractor, Operations will need to add the expense reimbursement to an upcoming recurring payment or schedule the reimbursement as an off-cycle payment. If the reimbursement is for an employee, no other action is needed; Pilot will add the reimbursement to the team member's next payroll.  -->
 
+
 ### Individualized expenses
+
 Recurring expenses related to a particular team member, such as coworking fees, are called _individualized expenses_.  These expenses are still considered [non-personnel expenses](https://docs.google.com/spreadsheets/d/1X-brkmUK7_Rgp7aq42drNcUg8ZipzEiS153uKZSabWc/edit#gid=2112277278), with a few extra considerations:
 
 - Non-recurring (one-off) expenses such as an Uber ride from the airport are NOT considered "individualized".
@@ -501,7 +644,9 @@ Recurring expenses related to a particular team member, such as coworking fees, 
 
 For all new individualized expenses, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-business-operations&projects=&template=custom-request.md&title=Request%3A+_______________________) to notify the Business Operations department.  
 
+
 ### Accounts payable cards
+
 For recurring business expenses paid by credit card, there are four accounts payable (AP) cards that can be used based on the purpose:
 
 | Card title  | Purpose | Card owner |
@@ -515,11 +660,15 @@ For recurring business expenses paid by credit card, there are four accounts pay
 
 ## Travel
 
+
 ### Flights
+
 - Everyone at Fleet, including the CEO, uses the same [principles for booking flights](https://fleetdm.com/handbook/digital-experience#schedule-travel-for-the-ceo).
 - For example, feel free to book a direct flight if there is one that is less than double the price of the cheapest non-direct flight.
 
+
 ### Lodging
+
 - Choose a modest location with inexpensive lodging and [minimally-viable comfort](https://fleetdm.com/handbook/company/why-this-way#why-spend-less).
 - For events, check the event's website for travel & hotel accommodations and book as soon as the event is approved. As a general rule, do not spend more on lodging than the average listed hotel accommodations.
 - Avoid expensive neighborhoods and popular destination cities.
@@ -528,7 +677,9 @@ For recurring business expenses paid by credit card, there are four accounts pay
 - If the stay is longer than 4 nights and an Airbnb with a washing machine is not available, then dry cleaning can be purchased with your Brex card.
 - If you need to meet with a large group that won't fit in your hotel room or Airbnb (e.g. more than 5 people), [contact Business Operations](https://fleetdm.com/handbook/business-operations#contact-us) for their help approving and booking additional event space.
 
+
 ### Spending company money while traveling
+
 When attending a conference or traveling for Fleet, keep the following in mind:
 - **No reimbursements:** Use your company Brex card.  Reimbursements are time consuming, so Fleet does not do reimbursements for spending on personal credit cards.
 - **Food:** Be efficient and use your own credit card when it makes sense.  There is a $100 allowance per day for your own personal food and beverage on your company Brex card. _(There are many good reasons to make exceptions to this allowance, such as dinners with customers.  Before proceeding, please [request approval from the Head of Business Operations](https://fleetdm.com/handbook/business-operations#contact-us) to avoid complexities._
@@ -541,10 +692,14 @@ When attending a conference or traveling for Fleet, keep the following in mind:
   - The [price of your hotel or Airbnb](https://fletdm.com/handbook/comopany/communications#lodging) per night
   - The price of the admission fees (if attending a conference)
 
+
 ### Sales kickoffs
+
 From time to time, Fleet holds a sales kickoff (SKO) meeting.  This is a type of [offsite](https://fleetdm.com/handbook/company/communications#offsites).
 
+
 ### Offsites
+
 From time to time, Fleet organizes offsites to bring team members together in person.  This encourages trust and makes the company more productive.
 
 Offsites are:
@@ -568,23 +723,29 @@ After the plan for the offsite is approved at the e-group meeting (including par
   - The Head of Business Operations will confirm dates with all approved participants, then book all [lodging](#lodging) and coordinate any additional event space.  (Participants [book their own flights](https://fleetdm.com/handbook/company/communications#flights).)
   - _**Note:** If the plan needs to change again, after it is approved, [ask Apprentice to the CEO for help](https://fleetdm.com/handbook/digital-experience#contact-us)._
 
+
 ### Attending conferences
+
 When attending a conference for Fleet, treat it [like other travel for the company](https://fleetdm.com/handbook/company/communications#travel).
 
 <img width="384" alt="image" src="https://github.com/fleetdm/fleet/assets/618009/8c3eeeb4-f322-44cf-8405-4f94f10fde6d">
 
 
 ## SOC 2
+
 You can find a copy of Fleet's SOC 2 report in [Google Drive](https://drive.google.com/file/d/1B-Xb4ZVmZk7Fk0IA1eCr8tCVJ-cfipid/view?usp=drivesdk).  In its current form, this SOC 2 report is intended to be shared only with parties who have signed a non-disclosure agreement with Fleet.
 
 You can learn more about how Fleet approaches security in the [security handbook](https://fleetdm.com/handbook/security) or in [Fleet's trust report](https://fleetdm.com/trust).
 
 
 ## Vendor questionnaires 
+
 In responding to security questionnaires, Fleet endeavors to provide full transparency via our [security policies](https://fleetdm.com/handbook/security/security-policies#security-policies), [trust](https://trust.fleetdm.com/), and [application security](https://fleetdm.com/handbook/business-operations/application-security) documentation. In addition to this documentation, please refer to [the vendor questionnaires page](https://fleetdm.com/handbook/business-operations/vendor-questionnaires). [Contact the Sales department](https://fleetdm.com/handbook/sales#contact-us) to address any pending questionnaires.
 
+
 ## Getting a contract signed
-If a contract is ready for signature and requires no review or revision, the requestor logins into DocuSign using hello@ from the 1Password vault and routes the agreement to the CEO for signature. 
+
+If a contract is ready for signature and requires no review or revision, log into DocuSign (credentials in 1Password) and route the agreement to the CEO for signature. 
 
 When a contract is going to be routed for signature by someone outside of Fleet (i.e. the vendor or customer), the requestor is responsible for working with the other party to make sure the document gets routed to the CEO for signature.
 
@@ -592,9 +753,10 @@ The SLA for contract signature is **2 business days**. Please do not follow up o
 
 _**Note:** Signature open time for the CEO is not currently measured, to avoid the overhead of creating separate signature issues to measure open and close time. This may change as signature volume increases._
 
-> _**Note:** If a contract is ready for signature and requires no review or revision, the requestor logins into DocuSign using hello@ from the 1Password and routes the agreement to the CEO for signature._ 
+> _**Note:** If a contract is ready for signature and requires no review or revision, log into DocuSign (credentials in 1Password) and route the agreement to the CEO for signature._ 
 
 Please use [Fleet's billing email address](https://fleetdm.com/handbook/company/communications#email-relays) for all contracts, and never use individual emails except for signature.  If the page to sign includes any individual emails in the docusign contract, please remove it before routing to the CEO for signature.
+
 
 ## Getting a contract reviewed
 
@@ -616,10 +778,14 @@ When no further review or action is required for an agreement and the document i
 
 > **Note:** Please submit other legal questions and requests to [Business Operations department](https://fleetdm.com/handbook/business-operations#contact-us).
 
+
 ## Trust
+
 Fleet is successful because of our customers and community, and those relationships are built on trust.
 
+
 ### Security
+
 Security policies are best when they're alive, in context of how an organization operates.  Fleeties carry Yubikeys, and change control of policies and access control is driven primarily through GitOps and SSO.
 
 Here are a few different entry points for a tour of Fleet's security policies and best practices:
@@ -630,16 +796,22 @@ Here are a few different entry points for a tour of Fleet's security policies an
 5. [Hardware security keys](https://fleetdm.com/handbook/security#hardware-security-keys)
 6. More details about internal security processes at Fleet are located on [the Security page](https://fleetdm.com/handbook/business-operations/security).
 
+
 ## Benefits
+
 In this section, you can find information about Fleet's benefit strategies and decisions.
 
+
 ### Paid time off
+
 What matters most is your results, which are driven by your focus, your availability to collaborate, and the time and consideration you put into your work. Fleet offers all team members unlimited time off. Whether you're sick, you want to take a trip, you are eager for some time to relax, or you need to get some chores done around the house, any reason is a good reason.
 For team members working in jurisdictions that require certain mandatory sick leave or PTO policies, Fleet complies to the extent required by law.
 
 <img width="384" alt="image" src="https://github.com/fleetdm/fleet/assets/618009/dc417031-82fd-4348-b811-6a2e73a654a2">
 
+
 #### Holidays
+
 At Fleet, we have team members with various employment classifications in many different countries worldwide. Fleet is a US company, but we think you should choose the days you want to work and what days you are on holiday, rather than being locked into any particular nation or culture's expectation about when to take time off.
 When a team member joins Fleet, they pick one of the following holiday schedules:
  - **Traditional**: This is based on the country where you work. Non-US team members should let their managers know the dates of national holidays.
@@ -648,13 +820,16 @@ When a team member joins Fleet, they pick one of the following holiday schedules
 
 Either way, it's up to you to make sure that your responsibilities are covered, and that your team knows you're out of the office.
 
+
 #### New parent leave
+
 Fleet gives new parents six weeks of paid leave. After six weeks, if you don't feel ready to return yet, we'll set up a quick call to discuss and work together to come up with a plan to help you return to work gradually or when you're ready.
 
 <img width="384" alt="image" src="https://github.com/fleetdm/fleet/assets/618009/80808c80-8e39-4413-b87b-988014aa4348">
 
 
 #### Taking time off
+
 When you need to take time off, follow this process:
 - Let your manager and team know the days when you will be out by posting a message in your department Slack channel mentioning your manager, with when and how long.
 - Life happens and things come up.  But as soon as you know when you'll be out, let the company know.  (Extra notice helps!)
@@ -666,37 +841,53 @@ When you need to take time off, follow this process:
 
 
 ### Retirement contributions
+
 - **US based team members:** Starting August 2023, Fleet offers the ability for US based team members to contribute to a 401(k) retirement plan directly from their salary. Team members will be auto-enrolled in our plan with Guideline at a default 1% contribution unless they opt out or change their contribution amount within 30 days of commencement. Fleet currently does not match any contributions made by team members to 401(k) plans.
 - **Non-US team members**: Fleet meets the relevant country's retirement contribution requirements for team members outside the US.
 
+
 ### Coworking
+
 Your Brex card may be used for up to $500 USD per month in coworking costs. Please get prior approval by making a [custom request to the business operations team](https://fleetdm.com/handbook/business-operations#contact-us).
 
+
 ## Compensation
+
 Compensation at Fleet is determined by benchmarking using [Pave](https://pave.com). Annual raises are not guaranteed, instead we ensure teammates are compensated fairly based on the role, experience, location, and performance relative to benchmarks.
 
+
 ### Payroll dates
+
 US based Fleeties get paid on the last business day of the month. International teammates pay dates follow the same structure as US pay, unless there are in-country requirement that dictate a more frequent cadence.
 
 Variable compensation (i.e. commission) is reviewed and submitted for processing by RevOps by the 7th of each month for the previous month or quarter's contributions. US based Fleeties that receive variable compensation will be paid by the 10th. International Fleeties will be paid no later than the last day of the month for the previous month's or quarter’s contributions. 
 
+
 ### Workiversaries
+
 We're happy you've ventured a trip around the sun with Fleet- let's celebrate! The team will celebrate your tenure at the monthly "All Hands" meeting to highlight your dedication and contribution to Fleet, giving an opportunity for teammates to share their appreciation of your contribution!
 
+
 ### Compensation changes
+
 Fleet evaluates and (if relevant) updates compensation decisions yearly, shortly after the anniversary of a team member's start date. The Head of BizOps is responsible for the process to [update compensation](https://fleetdm.com/handbook/business-operations#updating-compensation)
 
+
 ### Relocating
+
 When Fleeties relocate, there are vendors that need to be notified of the change. Before relocating, please [let the company know in advance](https://fleetdm.com/handbook/business-operations#contact-us) by following the directions listed in the relevant issue template ("Moving").
 
 
 ## Team member onboarding
 
+
 ### Before the start date
 
 Fleet is open source and anyone can contribute at any time.  Before a core team member's start date, they are welcome to contribute, but not expected to.
 
+
 #### Recommendations for new teammates
+
 Welcome to Fleet!
 
 1. Understand the company
@@ -710,6 +901,7 @@ Welcome to Fleet!
 
 
 ### Training expectations
+
 It's [important](https://fleetdm.com/handbook/company/why-this-way#why-the-emphasis-on-training) that every team member at Fleet takes the time to get fully trained and onboarded. 
 When a new team member joins Fleet, we create an onboarding issue for them in the [fleetdm/confidential](https://github.com/fleetdm/confidential) repo using this [issue template](https://github.com/fleetdm/confidential/blob/main/.github/ISSUE_TEMPLATE/onboarding.md). 
 We want to make sure that the new team member will be able to complete every task in their issue. To make sure the new team member is successful in their onboarding, we customize their issue by commenting on any tasks they won't need to complete.
@@ -720,7 +912,9 @@ Expectations during onboarding:
 - The first 3 weekdays (excluding days off) for **every new team member** at Fleet is reserved for completing onboarding tasks from the checkboxes in their onboarding issue.  New team members **should not work on anything else during this time**, whether or not other tasks are stacking up or assigned.  It is OK, expected, and appreciated for new team members to **remind their manager and colleagues** of this [important](https://fleetdm.com/handbook/company/why-this-way#why-the-emphasis-on-training) responsibility.
 - Even after the first 3 days, during the rest of their first 2 weeks, completing onboarding tasks on time is a new team member's [highest priority](https://fleetdm.com/handbook/company/why-this-way#why-the-emphasis-on-training).
 
+
 ### Sightseeing tour
+
 During their first day at Fleet, new team members join a sightseeing tour call. During this call, the new team member will participate in an interactive tour of the seven main attractions in our all-remote company, including the primary tools used company-wide, what the human experience is like, and when/why we use them at Fleet.
 
 In this meeting, we'll take a look at:
@@ -736,7 +930,9 @@ In this meeting, we'll take a look at:
   - The walkie talkies (DMs).
   - The watering hole (#oooh-, #random, #news, #help-).
 
+
 ### Contributor experience training
+
 During their first week at Fleet, every new team member schedules a contributor experience training call. During this call, the new team member will share their screen, and their counterpart will:
 - make sure emails will get seen and responded to quickly.
 - make sure Slack messages will get seen and responded to quickly.
@@ -762,13 +958,17 @@ Make sure you know how to share a google doc into the folder for all fleeties to
 A high level overview of the Company values
 -->
 
+
 ### Onboarding retrospective
+
 At the end of their first two weeks of onboarding at Fleet, every new team member schedules an onboarding retro call.  Agenda: 
 > Welcome once again to the team! Please tell me about your first few weeks at Fleet. How did your onboarding/training go? What didn't you manage to get to? Anything you weren't sure how to do? Any feedback on how we can make the experience better for Fleet's next hire?
 
 Fleet prioritizes a [bias for action](https://fleetdm.com/handbook/company#ownership).  If possible, apply onboarding feedback to the handbook and issue templates in realtime, during this call.  This avoids backlogging tasks that may just get out of date before we get around to them anyway.
 
+
 ## Performance feedback
+
 At Fleet, performance feedback is a continuous process. We give feedback (particularly negative) as soon as possible. Managers at Fleet will provide performance feedback [during scheduled 1:1 meetings](https://fleetdm.com/handbook/company/leadership#performance-feedback), if not sooner.
 
 Feedback is how we improve. We encourage all Fleeties to share candid and helpful feedback with each other. We use the "4A" feedback pattern:
@@ -794,9 +994,12 @@ When _receiving_ feedback:
 
 
 ## Equipment
+
 Fleet provides laptops, YubiKey security keys, and software licenses for core team members to use while working at Fleet. 
 
+
 ### Requesting new equipment
+
 As soon as an offer is accepted, Business Operations will reach out to the new team member to start this process and will work with the new team member to get their equipment requested and shipped to them on time. From time to time, team members need to purchase additional equipment in the interest of the company.
 
 If you are in need of additional equipment for any reason, [open an IT support request](https://github.com/fleetdm/confidential/issues/new?assignees=spokanemac&labels=%3Ahelp-it&projects=&template=request-it-support.md&title=%F0%9F%92%BB+Request+IT+support). When possible, Fleet will pull from its warehouse of existing assets before spending [more money on new equipment](https://fleetdm.com/handbook/company/why-this-way#why-spend-less).
@@ -809,13 +1012,19 @@ If you are in need of additional equipment for any reason, [open an IT support r
 
 > If your Apple device is less than 3 years old, has normal battery condition, but is experiencing operating difficulties, you should first contact Apple support and troubleshoot performance issues before requesting a new device.
 
+
 ### Requesting IT support
+
 If you are in need of IT support to assist with a software or hardware issue, [open an IT support request](https://github.com/fleetdm/confidential/issues/new?assignees=spokanemac&labels=%3Ahelp-it&projects=&template=request-it-support.md&title=%F0%9F%92%BB+Request+IT+support). A Fleet IT team member will attempt to correct your issue remotely using Fleet, and will notify you if any action is needed on your part.
 
+
 ## Writing
+
 Learn how to communicate as Fleet with guidelines for tone of voice, our approach, grammar and mechanics, and more.
 
+
 ### Writing style
+
   - Infuse the core [values](https://fleetdm.com/handbook/company#values) into everything you write. 
   - Read and reread, then rewrite to make it shorter. Use links rather than explanations, short sentences. 
   - Get to where you feel like it’s really good, short, simple, and clear, hack away at any word that’s too confusing. 
@@ -832,6 +1041,7 @@ Learn how to communicate as Fleet with guidelines for tone of voice, our approac
 
 
 ### What would Mister Rogers say?
+
 [*Mister Rogers’ Neighborhood*](https://en.wikipedia.org/wiki/Mister_Rogers%27_Neighborhood) was one of the longest-running children’s TV series. That’s thanks to [Fred Rogers](https://en.wikipedia.org/wiki/Fred_Rogers)’ communication skills. He knew kids heard things differently than adults. So, he checked every line to avoid confusion and encourage positivity.
 
 Our audience is a little older. But just like the show, Mister Rogers’ method is appropriate for all ages. Here are some steps you can take to communicate like Mister Rogers:
@@ -855,6 +1065,7 @@ By Mister Rogersing our writing, we can encourage our readers to succeed by emph
 
 
 ### Grammarly
+
 All of our writers and editors have access to Grammarly, which comes with a handy set of tools, including:
 - **Style guide**, which helps us write consistently in the style of Fleet.
 - **Brand tones** to keep the tone of our messaging consistent with just the right amount of confidence, optimism, and joy.
@@ -863,7 +1074,9 @@ All of our writers and editors have access to Grammarly, which comes with a hand
 
 ### Using sentence case and capitalization
 
+
 #### Sentence case
+
 Fleet uses sentence case capitalization for all headings, subheadings, button text in the Fleet product, fleetdm.com, the documentation, the handbook, marketing material, direct emails, in Slack, and in every other conceivable situation.
 
 In sentence case, we write and capitalize words as if they were in sentences:
@@ -889,6 +1102,7 @@ As we use sentence case, only the first word is capitalized. But, if a word woul
 
 
 #### Capitalization and proper nouns
+
 - **Fleet:** When talking about Fleet the company, we stylize our name as either "Fleet" or "Fleet Device Management".
 - **Fleet the product:** We always say “Fleet” or “Fleet for osquery".  We _NEVER_ say "fleetDM" or "FleetDM" or "fleetdm".
 - **Team members:** [Core team members](https://fleetdm.com/handbook/company/leadership#who-isnt-a-consultant) are “fleeties".
@@ -898,10 +1112,12 @@ As we use sentence case, only the first word is capitalized. But, if a word woul
 
 
 #### Device vs endpoint
+
 - When talking about a users' computer, we prefer to use "device" over _endpoint._ Devices in this context can be a physical device or virtual instance that connect to and exchange information with a computer network. Examples of devices include mobile devices, desktop computers, laptop computers, virtual machines, and servers.
 
 
 ### Headings
+
 Headings help readers quickly scan content to find what they need and guide readers through your writing. Organize page content using clear headings specific to the topic they describe. 
 
 While our readers are more tech-savvy than most, we can’t expect them to recognize queries by SQL alone.  Avoid using code for headings. Instead, say what the code does and include code examples in the body of your document.
@@ -914,22 +1130,31 @@ Keep headings brief, organized, and in a logical order:
 
 Try to stay within three or four heading levels. Detailed documents may use more, but pages with a simpler structure are easier to read.
 
+
 #### Punctuation in headings
+
 Fleet headings do not use end punctuation unless the heading is a question:
 
 <blockquote purpose= "large-quote">Learn how to use osquery, nanoMDM, and Nudge to manage and monitor laptops and servers running Linux, Windows, ChromeOS, and macOS</blockquote>
 
 If the heading is a question, end the heading with a question mark.
 
+
 ### Grammar mechanics
 
+
 #### Contractions 
+
 They’re great! Don’t be afraid to use them. They’ll help your writing sound more approachable
 
+
 #### Ampersands 
+
 (&) Only use ampersands if they appear in a brand name, or if you’re quoting the title of an article from another source. Otherwise, write out “and”.
 
+
 #### Commas 
+
 When listing three or more things, use commas to separate the words. This is called a serial comma.
 
 ✅ **Do:** Fleet is for IT professionals, client platform engineers, and security practitioners.
@@ -938,7 +1163,9 @@ When listing three or more things, use commas to separate the words. This is cal
 
 Aside from the serial comma, use commas, as usual, to break up your sentences. If you’re unsure whether you need a comma, saying the sentence aloud can give you a clue. If you pause or take a breath, that’s when you probably need a comma.
 
+
 #### Hyphens
+
 ✅ **Do** use a hyphen to indicate a range:
 - Monday-Friday
 
@@ -950,7 +1177,9 @@ Aside from the serial comma, use commas, as usual, to break up your sentences. I
 - Fleet is released every three weeks.
 - Osquery is open source.
 
+
 #### Colons 
+
 Colons introduce one or more elements that add detail to the idea before the colon. 
 
 ✅ **Do** use a colon to introduce a list:
@@ -959,10 +1188,14 @@ Colons introduce one or more elements that add detail to the idea before the col
 ✅ **Do** use a colon to introduce a phrase (Only capitalize the first word following a colon if it’s a proper noun):
 - Introducing Sandbox: the fastest way to play with Fleet.
 
+
 #### Exclamation points 
+
 They’re fun! But too many can undermine your credibility!!!1! Please use them sparingly. Take context into consideration. And only use one at a time.
 
+
 #### Abbreviations and acronyms
+
 If there’s a chance your reader won’t recognize an abbreviation or acronym, spell it out the first time you mention it and specify the abbreviation in parentheses. 
 
 Then use the short version for all other references.
@@ -975,7 +1208,9 @@ If the abbreviation or acronym is well known, like API or HTML, use it instead (
 
 ### Numbers and times
 
+
 #### Numbers
+
 Spell out a number when it begins a sentence. Otherwise, use the numeral. 
 
 Sometimes numerals seem out of place. If an expression typically spells out the number, leave it as is:
@@ -987,7 +1222,9 @@ Numbers over 3 digits get commas:
 - 1,000
 - 150,000
 
+
 #### Times
+
 Use numerals and am or pm without a space in between:
 - 7am
 - 7:30pm
@@ -1006,23 +1243,31 @@ Spell out international time zones:
 - Central European Time
 - Japan Standard Time
 
+
 ### Emphasis
+
 - **Bold:** Use bold text to emphasize words or phrases. Just don’t overdo it. Too much bold text may make it hard to see what’s really important.
 
 - _Italics:_ Use italics when referencing UI elements (e.g., buttons and navigation labels):
   - On the settings page, go to *Organization Settings* and select *Fleet Desktop*.
 
+
 ### Lists
+
 Lists help readers scan content for essential information. They should be as concise and symmetrical as possible.
 If you find your list running long, or if each item contains several sentences, you may want to reconsider whether a list is the best approach.
 Use a numbered list if it follows a specific order or includes a set number of items. Otherwise, use bullet points.
 
+
 #### How to introduce a list 
+
 ✅ **Do** use a colon if you introduce a list with a complete sentence.
 
 ❌ **Don’t** use a colon if you start a list right after a heading.
 
+
 #### How to use end punctuation with list items
+
 End punctuation refers to punctuation marks that are used to end sentences, such as periods, question marks, and exclamation points.
 
 ✅ **Do** use end punctuation if your list items are complete sentences:
@@ -1039,10 +1284,14 @@ End punctuation refers to punctuation marks that are used to end sentences, such
 
 ❌ **Don’t** use commas or semicolons to end bullet points.
 
+
 #### How to capitalize list items
+
 ✅ **Do** use a capital letter at the beginning of every bullet point. The only exceptions are words that follow specific style guides (e.g., macOS).
 
+
 ### Web elements
+
 
 #### SQL statements
 
@@ -1055,7 +1304,9 @@ When adding SQL statements, all SQL reserved words should be uppercase, and all 
 
 Markdown is a simple formatting syntax used to write content on the web. In order to publish content like [docs](https://fleetdm.com/docs), [handbook entries](https://fleetdm.com/handbook), and [articles](https://fleetdm.com/articles), you must format your content in Markdown. 
 
+
 ### Headings
+
 Try to stay within three or four heading levels. Complicated documents may use more, but pages with a simpler structure are easier to read.
 | Markdown | Rendered heading |
 |:--------------------|:-----------------------------|
@@ -1064,7 +1315,9 @@ Try to stay within three or four heading levels. Complicated documents may use m
 | `### Heading 3` | <h3>Heading 3</h3> |
 | `#### Heading 4` | <h4>Heading 4</h4> |
 
+
 ### Emphasis
+
 | Markdown | Rendered text |
 |:--------------------|:-----------------------------|
 | `**Bold**` | <strong>Bold</strong> |
@@ -1072,7 +1325,9 @@ Try to stay within three or four heading levels. Complicated documents may use m
 | `***Bold italic***` | <em><strong>Bold italic</strong></em> |
 | `~~Strikethrough~~` | <s>Strikethrough</s> |
 
+
 ### Line breaks and new lines
+
 Any time you need to add a line break in Markdown, you should add a new line. It is vital to make sure paragraphs are separated by new lines. Otherwise, they will render as the same HTML element.
 
 For example, if you were adding this section:
@@ -1101,9 +1356,12 @@ line one
 
 line two
 
+
 ### Lists
 
+
 #### Ordered lists
+
 | Markdown | Rendered list |
 |:-------------|:-----------------------------|
 | <pre>1. Line one<br>2. Line two  <br>3. Line three<br>4. Line four</pre> | 1. Line one<br>2. Line two<br> 3. Line three<br>4. Line four |
@@ -1149,35 +1407,49 @@ To make sure that ordered lists increment correctly, you can indent the content 
 
 2. Item two
 
+
 #### Unordered lists
+
 | Markdown | Rendered list |
 |:-------------|:-----------------------------|
 | <pre>- Line one<br>- Line two  <br>- Line three<br>- Line four</pre> | - Line one<br>- Line two<br>- Line three<br>- Line four |
 | <pre>- Line one<br> - Indent one<br>- Line two<br>- Line three<br> - Indent one<br> - Indent two<br>- Line four</pre> | - Line one<br>&nbsp;- Indent one<br>- Line two<br>- Line three<br>&nbsp;- Indent one<br>&nbsp;- Indent two<br>- Line four |
 
+
 ### Links
+
 The Fleet website currently supports the following Markdown link types.
 
+
 #### Inline link
+
 It's a classic.
 - **Markdown:** `[This is an inline link](https://domain.com/example.md)`
 - **Rendered output:** [This is an inline link](https://domain.com/example.md)
 
+
 #### Link with a tooltip
+
 Adding a tooltip to your link is a great way to provide additional information.
 - **Markdown:** `[This is link with a tooltip](https://domain.com/example.md "You're awesome!")`
 - **Rendered output:** [This is link with a tooltip](https://domain.com/example.md "You're awesome!")
 
+
 ### URLs
+
 Add angle brackets "< >" around a URL to turn it into a link.
 - **Markdown:** `<https://fleetdm.com>`
 - **Rendered output:** <https://fleetdm.com>
 
+
 ### Emails
+
 To create a mailto link... oh wait, I'm not going to tell you.
 - ***Important: To avoid spam, we **NEVER** use mailto links.***
 
+
 ### Tables
+
 To create a table, start with the header by separating rows with pipes (" | ").
 Use dashes (at least 3) to separate the header, and add colons to align the text in the table columns.
 
@@ -1194,10 +1466,14 @@ Use dashes (at least 3) to separate the header, and add colons to align the text
 |:---|---:|:---:|
 | Left alignment | Right alignment | Center Alignment |
 
+
 ### Blockquotes
+
 To add a tip blockquote, start a line with ">" and end the blockquote with a blank newline.
 
+
 #### Tip blockquotes
+
 Tip blockquotes are the default blockquote style in our Markdown content.
 
 - **Markdown:**
@@ -1216,7 +1492,9 @@ This line is rendered inside of the tip blockquote.
 
 This line is rendered outside of the tip blockquote.
 
+
 #### Quote blockquotes
+
 To add a quote blockquote, add a `<blockquote>` HTML element with `purpose="quote"`.
 
 - **Markdown:**
@@ -1236,6 +1514,7 @@ This is a quote blockquote.
 
 Lines seperated by a blank newline will be rendered on a different line in the blockquote.
 </blockquote>
+
 
 #### Large quote blockquote
 
@@ -1258,6 +1537,7 @@ This is a large blockquote.
 
 You can use a large quote blockquote to reduce the font size and line height of the rendered text.
 </blockquote>
+
 
 #### Mermaid diagrams
 
@@ -1293,7 +1573,9 @@ graph TD;
 ```
 
 
+
 ## Commonly used terms
+
 This glossary provides definitions to commonly used terms within our space.
 
 | Term | Meaning | 
@@ -1361,6 +1643,7 @@ This glossary provides definitions to commonly used terms within our space.
 
 
 #### Stubs
+
 The following stubs are included only to make links backward compatible.
 
 ##### Website

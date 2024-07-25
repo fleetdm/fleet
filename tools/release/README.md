@@ -26,25 +26,26 @@ I recommend filtering by both the milestone you expect and also double check `no
 
 For example no tickets still in Ready / In Progress should be in the milestone we are about to release.
 
-## Main Release (end of sprint)
+## Minor Release (typically end of sprint)
 
 example
 ```
 # Build release candidate and changelogs and QA ticket
-./tools/release/publish_release.sh -a
+./tools/release/publish_release.sh -m
+
 # Do QA until ready to release
 
 # - QA is passed on all teams and ready for release
 # - Merge changelog and versions update PR into main
 # - git pull main locally with the changelog as the latest commit
 
-# Tag main
-./tools/release/publish_release.sh -ag
+# Tag minor
+./tools/release/publish_release.sh -mg
 
 # - Wait for build to run
 
-# Publish main
-./tools/release/publish_release.sh -auq
+# Publish minor
+./tools/release/publish_release.sh -muq
 
 # - Wait for publish process to complete.
 # - Merge release article and wait for website to build.
@@ -53,9 +54,9 @@ example
 # - Go update osquery-slack version
 
 # Announce release
-# Change $current_version to the current version that was just released
-# For example, ./tools/release/publish_release.sh -anu -v 4.50.0
-./tools/release/publish_release.sh -anu -v {current_version}
+# Change {current_version} to the current version that was just released
+# For example, ./tools/release/publish_release.sh -mnu -v 4.50.0
+./tools/release/publish_release.sh -mnu -v {current_version}
 ```
 
 ...
@@ -66,7 +67,7 @@ LinkedIn post: https://www.linkedin.com/feed/update/urn:li:activity:719950989670
 ...
 
 
-## Patch Release (end of week / critical)
+## Patch Release (middle of sprint / critical)
 
 example
 ```

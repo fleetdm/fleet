@@ -1,1 +1,0 @@
-* Use a "soft-delete" approach when deleting a host so that its script execution details are still available for the activities feed.

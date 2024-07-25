@@ -36,11 +36,19 @@ func buildNFPM(opt Options, pkger nfpm.Packager) (string, error) {
 		return "", fmt.Errorf("create orbit dir: %w", err)
 	}
 
+	if opt.Architecture != ArchAmd64 && opt.Architecture != ArchArm64 {
+		return "", fmt.Errorf("Invalid architecture: %s", opt.Architecture)
+	}
+
 	// Initialize autoupdate metadata
 	updateOpt := update.DefaultOptions
 
 	updateOpt.RootDirectory = orbitRoot
-	updateOpt.Targets = update.LinuxTargets
+	if opt.Architecture == ArchArm64 {
+		updateOpt.Targets = update.LinuxArm64Targets
+	} else {
+		updateOpt.Targets = update.LinuxTargets
+	}
 	updateOpt.ServerCertificatePath = opt.UpdateTLSServerCertificate
 
 	if opt.UpdateTLSClientCertificate != "" {
@@ -52,7 +60,11 @@ func buildNFPM(opt Options, pkger nfpm.Packager) (string, error) {
 	}
 
 	if opt.Desktop {
-		updateOpt.Targets["desktop"] = update.DesktopLinuxTarget
+		if opt.Architecture == ArchArm64 {
+			updateOpt.Targets["desktop"] = update.DesktopLinuxArm64Target
+		} else {
+			updateOpt.Targets["desktop"] = update.DesktopLinuxTarget
+		}
 		// Override default channel with the provided value.
 		updateOpt.Targets.SetTargetChannel("desktop", opt.DesktopChannel)
 	}
@@ -157,7 +169,7 @@ func buildNFPM(opt Options, pkger nfpm.Packager) (string, error) {
 		},
 		// Symlink current into /opt/orbit/bin/orbit/orbit
 		&files.Content{
-			Source:      "/opt/orbit/bin/orbit/linux/" + opt.OrbitChannel + "/orbit",
+			Source:      "/opt/orbit/bin/orbit/" + updateOpt.Targets["orbit"].Platform + "/" + opt.OrbitChannel + "/orbit",
 			Destination: "/opt/orbit/bin/orbit/orbit",
 			Type:        "symlink",
 			FileInfo: &files.ContentFileInfo{
@@ -214,7 +226,7 @@ func buildNFPM(opt Options, pkger nfpm.Packager) (string, error) {
 		Name:        "fleet-osquery",
 		Version:     opt.Version,
 		Description: "Fleet osquery -- runtime and autoupdater",
-		Arch:        "amd64",
+		Arch:        opt.Architecture,
 		Maintainer:  "Fleet Device Management",
 		Vendor:      "Fleet Device Management",
 		License:     "https://github.com/fleetdm/fleet/blob/main/LICENSE",
@@ -311,6 +323,7 @@ ORBIT_FLEET_DESKTOP_ALTERNATIVE_BROWSER_HOST={{ .FleetDesktopAlternativeBrowserH
 {{ if .EnableScripts }}ORBIT_ENABLE_SCRIPTS=true{{ end }}
 {{ if and (ne .HostIdentifier "") (ne .HostIdentifier "uuid") }}ORBIT_HOST_IDENTIFIER={{.HostIdentifier}}{{ end }}
 {{ if .OsqueryDB }}ORBIT_OSQUERY_DB={{.OsqueryDB}}{{ end }}
+{{ if .EndUserEmail }}ORBIT_END_USER_EMAIL={{.EndUserEmail}}{{ end }}
 `))
 
 func writeEnvFile(opt Options, rootPath string) error {

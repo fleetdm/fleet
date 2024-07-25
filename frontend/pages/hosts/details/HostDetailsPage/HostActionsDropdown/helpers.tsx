@@ -226,18 +226,11 @@ const canRunScript = ({
   hostPlatform,
   isGlobalAdmin,
   isGlobalMaintainer,
-  isGlobalObserver,
   isTeamAdmin,
   isTeamMaintainer,
-  isTeamObserver,
 }: IHostActionConfigOptions) => {
   return (
-    (isGlobalAdmin ||
-      isGlobalMaintainer ||
-      isGlobalObserver ||
-      isTeamAdmin ||
-      isTeamMaintainer ||
-      isTeamObserver) &&
+    (isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer) &&
     isScriptSupportedPlatform(hostPlatform)
   );
 };

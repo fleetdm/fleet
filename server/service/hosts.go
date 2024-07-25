@@ -6,6 +6,7 @@ import (
 	"crypto/tls"
 	"encoding/csv"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -30,6 +31,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/worker"
 	"github.com/go-kit/log/level"
 	"github.com/gocarina/gocsv"
+	"github.com/google/uuid"
 )
 
 // HostDetailResponse is the response struct that contains the full host information
@@ -192,10 +194,17 @@ func (svc *Service) ListHosts(ctx context.Context, opt fleet.HostListOptions) ([
 		return nil, err
 	}
 
-	if !opt.DisableFailingPolicies && !premiumLicense {
+	// If issues are enabled, we need to remove the critical vulnerabilities count for non-premium license.
+	// If issues are disabled, we need to explicitly set the critical vulnerabilities count to 0 for premium license.
+	if !opt.DisableIssues && !premiumLicense {
 		// Remove critical vulnerabilities count if not premium license
 		for _, host := range hosts {
 			host.HostIssues.CriticalVulnerabilitiesCount = nil
+		}
+	} else if opt.DisableIssues && premiumLicense {
+		var zero uint64
+		for _, host := range hosts {
+			host.HostIssues.CriticalVulnerabilitiesCount = &zero
 		}
 	}
 
@@ -331,7 +340,7 @@ func (svc *Service) DeleteHosts(ctx context.Context, ids []uint, filter *map[str
 	if opts == nil {
 		opts = &fleet.HostListOptions{}
 	}
-	opts.DisableFailingPolicies = true // don't check policies for hosts that are about to be deleted
+	opts.DisableIssues = true // don't check policies for hosts that are about to be deleted
 	hostIDs, _, hosts, err := svc.hostIDsAndNamesFromFilters(ctx, *opts, lid)
 	if err != nil {
 		return err
@@ -532,6 +541,9 @@ func (svc *Service) GetHost(ctx context.Context, id uint, opts fleet.HostDetailO
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get host")
 	}
+	if !opts.IncludeCriticalVulnerabilitiesCount {
+		host.HostIssues.CriticalVulnerabilitiesCount = nil
+	}
 
 	if !alreadyAuthd {
 		// Authorize again with team loaded now that we have team_id
@@ -671,7 +683,8 @@ func (svc *Service) GetHostSummary(ctx context.Context, teamID *uint, platform *
 ////////////////////////////////////////////////////////////////////////////////
 
 type hostByIdentifierRequest struct {
-	Identifier string `url:"identifier"`
+	Identifier      string `url:"identifier"`
+	ExcludeSoftware bool   `query:"exclude_software,optional"`
 }
 
 func hostByIdentifierEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
@@ -679,6 +692,7 @@ func hostByIdentifierEndpoint(ctx context.Context, request interface{}, svc flee
 	opts := fleet.HostDetailOptions{
 		IncludeCVEScores: false,
 		IncludePolicies:  true, // intentionally true to preserve existing behavior
+		ExcludeSoftware:  req.ExcludeSoftware,
 	}
 	host, err := svc.HostByIdentifier(ctx, req.Identifier, opts)
 	if err != nil {
@@ -982,7 +996,9 @@ type refetchHostResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r refetchHostResponse) error() error { return r.Err }
+func (r refetchHostResponse) error() error {
+	return r.Err
+}
 
 func refetchHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*refetchHostRequest)
@@ -994,12 +1010,15 @@ func refetchHostEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 }
 
 func (svc *Service) RefetchHost(ctx context.Context, id uint) error {
+	var host *fleet.Host
+	// iOS and iPadOS refetch are not authenticated with device token because these devices do not have Fleet Desktop
 	if !svc.authz.IsAuthenticatedWith(ctx, authzctx.AuthnDeviceToken) {
-		if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+		var err error
+		if err = svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
 			return err
 		}
 
-		host, err := svc.ds.HostLite(ctx, id)
+		host, err = svc.ds.HostLite(ctx, id)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "find host for refetch")
 		}
@@ -1011,10 +1030,39 @@ func (svc *Service) RefetchHost(ctx context.Context, id uint) error {
 		}
 	}
 
+	if host != nil && (host.Platform == "ios" || host.Platform == "ipados") {
+		err := svc.verifyMDMConfiguredAndConnected(ctx, host)
+		if err != nil {
+			return err
+		}
+		err = svc.mdmAppleCommander.DeviceInformation(ctx, []string{host.UUID}, fleet.RefetchCommandUUIDPrefix+uuid.NewString())
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "refetch host with MDM")
+		}
+	}
+
 	if err := svc.ds.UpdateHostRefetchRequested(ctx, id, true); err != nil {
 		return ctxerr.Wrap(ctx, err, "save host")
 	}
 
+	return nil
+}
+
+func (svc *Service) verifyMDMConfiguredAndConnected(ctx context.Context, host *fleet.Host) error {
+	if err := svc.VerifyMDMAppleConfigured(ctx); err != nil {
+		if errors.Is(err, fleet.ErrMDMNotConfigured) {
+			err = fleet.NewInvalidArgumentError("id", fleet.AppleMDMNotConfiguredMessage).WithStatus(http.StatusBadRequest)
+		}
+		return ctxerr.Wrap(ctx, err, "check macOS MDM enabled")
+	}
+	connected, err := svc.ds.IsHostConnectedToFleetMDM(ctx, host)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "checking if host is connected to Fleet")
+	}
+	if !connected {
+		return ctxerr.Wrap(ctx,
+			fleet.NewInvalidArgumentError("id", "Host does not have MDM turned on."))
+	}
 	return nil
 }
 
@@ -1038,6 +1086,26 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 	bats, err := svc.ds.ListHostBatteries(ctx, host.ID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get batteries for host")
+	}
+
+	mws, err := svc.ds.ListUpcomingHostMaintenanceWindows(ctx, host.ID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "list upcoming host maintenance windows")
+	}
+	// we are only interested in the next maintenance window. There should only be one for now, anyway.
+	var nextMw *fleet.HostMaintenanceWindow
+	if len(mws) > 0 {
+		nextMw = mws[0]
+	}
+
+	// nil TimeZone is okay
+	if nextMw != nil && nextMw.TimeZone != nil {
+		// return the start time in the local timezone of the host's associated google calendar user
+		gCalLoc, err := time.LoadLocation(*nextMw.TimeZone)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "list upcoming host maintenance windows - invalid google calendar timezone")
+		}
+		nextMw.StartsAt = nextMw.StartsAt.In(gCalLoc)
 	}
 
 	// Due to a known osquery issue with M1 Macs, we are ignoring the stored value in the db
@@ -1086,7 +1154,7 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 				// we include disk encryption status only for premium so initialize it to default struct
 				host.MDM.OSSettings.DiskEncryption = fleet.HostMDMDiskEncryption{}
 				// ensure host mdm info is loaded (we don't know if our caller populated it)
-				err := svc.ensureHostMDMInfo(ctx, host)
+				_, err := svc.ds.GetHostMDM(ctx, host.ID)
 				switch {
 				case err != nil && fleet.IsNotFound(err):
 					// assume host is unmanaged, log for debugging, and move on
@@ -1181,27 +1249,14 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 	}
 
 	host.Policies = policies
-	return &fleet.HostDetail{
-		Host:      *host,
-		Labels:    labels,
-		Packs:     packs,
-		Batteries: &bats,
-	}, nil
-}
 
-func (svc *Service) ensureHostMDMInfo(ctx context.Context, host *fleet.Host) error {
-	if host.MDMInfo == nil {
-		mdmInfo, err := svc.ds.GetHostMDM(ctx, host.ID)
-		if err != nil {
-			return err
-		}
-		host.MDMInfo = mdmInfo
-	}
-	if host.MDMInfo == nil {
-		// this should not happen, but just in case
-		return ctxerr.New(ctx, fmt.Sprintf("nil mdm info for host %d", host.ID))
-	}
-	return nil
+	return &fleet.HostDetail{
+		Host:              *host,
+		Labels:            labels,
+		Packs:             packs,
+		Batteries:         &bats,
+		MaintenanceWindow: nextMw,
+	}, nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -1309,7 +1364,7 @@ func (svc *Service) hostIDsAndNamesFromFilters(ctx context.Context, opt fleet.Ho
 	if lid != nil {
 		hosts, err = svc.ds.ListHostsInLabel(ctx, filter, *lid, opt)
 	} else {
-		opt.DisableFailingPolicies = true // intentionally ignore failing policies
+		opt.DisableIssues = true // intentionally ignore failing policies
 		hosts, err = svc.ds.ListHosts(ctx, filter, opt)
 	}
 	if err != nil {
@@ -1893,12 +1948,15 @@ func (svc *Service) OSVersions(ctx context.Context, teamID *uint, platform *stri
 		if err := svc.authz.Authorize(ctx, &fleet.AuthzSoftwareInventory{TeamID: teamID}, fleet.ActionRead); err != nil {
 			return nil, count, nil, err
 		}
-		exists, err := svc.ds.TeamExists(ctx, *teamID)
-		if err != nil {
-			return nil, count, nil, ctxerr.Wrap(ctx, err, "checking if team exists")
-		} else if !exists {
-			return nil, count, nil, fleet.NewInvalidArgumentError("team_id", fmt.Sprintf("team %d does not exist", *teamID)).
-				WithStatus(http.StatusNotFound)
+
+		if *teamID != 0 {
+			exists, err := svc.ds.TeamExists(ctx, *teamID)
+			if err != nil {
+				return nil, count, nil, ctxerr.Wrap(ctx, err, "checking if team exists")
+			} else if !exists {
+				return nil, count, nil, fleet.NewInvalidArgumentError("team_id", fmt.Sprintf("team %d does not exist", *teamID)).
+					WithStatus(http.StatusNotFound)
+			}
 		}
 	}
 
@@ -2546,18 +2604,5 @@ func (svc *Service) ListHostSoftware(ctx context.Context, hostID uint, opts flee
 	opts.IncludeAvailableForInstall = includeAvailableForInstall || opts.SelfServiceOnly
 
 	software, meta, err := svc.ds.ListHostSoftware(ctx, host, opts)
-	if includeAvailableForInstall {
-		// for the host software page, we don't want to return the package object,
-		// only the package name
-		for _, s := range software {
-			s.Package = nil
-		}
-	} else {
-		// for the device page, we don't want to return the package name, only the
-		// package object
-		for _, s := range software {
-			s.PackageAvailableForInstall = nil
-		}
-	}
 	return software, meta, ctxerr.Wrap(ctx, err, "list host software")
 }

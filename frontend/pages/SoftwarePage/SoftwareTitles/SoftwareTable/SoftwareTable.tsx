@@ -19,10 +19,7 @@ import {
   ISoftwareTitlesResponse,
   ISoftwareVersionsResponse,
 } from "services/entities/software";
-import {
-  ISoftwareTitleWithPackageName,
-  ISoftwareVersion,
-} from "interfaces/software";
+import { ISoftwareTitle, ISoftwareVersion } from "interfaces/software";
 
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
@@ -163,10 +160,7 @@ const SoftwareTable = ({
     [determineQueryParamChange, generateNewQueryParams, router, currentPath]
   );
 
-  let tableData:
-    | ISoftwareTitleWithPackageName[]
-    | ISoftwareVersion[]
-    | undefined;
+  let tableData: ISoftwareTitle[] | ISoftwareVersion[] | undefined;
   let generateTableConfig: ITableConfigGenerator;
 
   if (data === undefined) {
@@ -270,7 +264,13 @@ const SoftwareTable = ({
         {tableData && data?.counts_updated_at && (
           <LastUpdatedText
             lastUpdatedAt={data.counts_updated_at}
-            whatToRetrieve="software"
+            customTooltipText={
+              <>
+                The last time software data was <br />
+                updated, including vulnerabilities <br />
+                and host counts.
+              </>
+            }
           />
         )}
       </>
@@ -279,7 +279,12 @@ const SoftwareTable = ({
 
   const renderCustomFilters = () => {
     // Hide filters if no software is detected with no filters present
-    if (query === "" && !showVersions && softwareFilter === "allSoftware")
+    if (
+      query === "" &&
+      !showVersions &&
+      softwareFilter === "allSoftware" &&
+      data?.count === 0
+    )
       return <></>;
 
     const options = showVersions

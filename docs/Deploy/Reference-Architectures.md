@@ -26,7 +26,7 @@ Fleet currently has three infrastructure dependencies: MySQL, Redis, and a TLS c
 Fleet uses MySQL extensively as its main database. Many cloud providers (such as [AWS](https://aws.amazon.com/rds/mysql/) and [GCP](https://cloud.google.com/sql/)) host reliable MySQL services which you may consider for this purpose. A well-supported MySQL [Docker image](https://hub.docker.com/_/mysql/) also exists if you would rather run MySQL in a container. 
 For more information on how to configure the `fleet` binary to use the correct MySQL instance, see the [Configuration](https://fleetdm.com/docs/deploying/configuration) document.
 
-Fleet requires at least MySQL version 5.7, and is tested using the InnoDB storage engine. 
+Fleet requires at least MySQL version 8.0, and is tested using the InnoDB storage engine. 
 
 There are many "drop-in replacements" for MySQL available. If you'd like to experiment with some bleeding-edge technology and use Fleet with one of these alternative database servers, we think that's awesome! Please be aware they are not officially supported and that it is very important to set up a dev environment to thoroughly test new releases. 
 
@@ -161,30 +161,30 @@ assume On-Demand pricing (savings are available through Reserved Instances). Cal
 #### AWS
 
 ##### Example configuration breakpoints
-###### [Up to 1000 hosts](https://calculator.aws/#/estimate?id=ae7d7ddec64bb979f3f6611d23616b1dff0e8dbd)
+###### [Up to 1000 hosts](https://calculator.aws/#/estimate?id=7a821fc049a0ecc6ead22b6720246e55498be50e)
 
 | Fleet instances | CPU Units     | RAM |
 | --------------- | ------------- | --- |
 | 1 Fargate task  | 512 CPU Units | 4GB |
 
-| Dependencies | Version                 | Instance type |
-| ------------ | ----------------------- | ------------- |
-| Redis        | 6                       | t4g.small     |
-| MySQL        | 8.0.mysql_aurora.3.04.2 | db.t4g.medium |
+| Dependencies | Version                 | Instance type | Nodes |
+| ------------ | ----------------------- | ------------- | ----- |
+| Redis        | 6                       | t4g.small     | 3     |
+| MySQL        | 8.0.mysql_aurora.3.04.2 | db.t4g.medium | 2     |
 
-###### [Up to 25000 hosts](https://calculator.aws/#/estimate?id=4a3e3168275967d1e79a3d1fcfedc5b17d67a271)
+###### [Up to 25000 hosts](https://calculator.aws/#/estimate?id=d735758715f059118dbce8dc42f3ff2410adc621)
 
 | Fleet instances | CPU Units      | RAM |
 | --------------- | -------------- | --- |
 | 10 Fargate task | 1024 CPU Units | 4GB |
 
-| Dependencies | Version                 | Instance type |
-| ------------ | ----------------------- | ------------- |
-| Redis        | 6                       | m6g.large     |
-| MySQL        | 8.0.mysql_aurora.3.04.2 | db.r6g.large  |
+| Dependencies | Version                 | Instance type | Nodes |
+| ------------ | ----------------------- | ------------- | ----- |
+| Redis        | 6                       | m6g.large     | 3     |
+| MySQL        | 8.0.mysql_aurora.3.04.2 | db.r6g.large  | 2     |
 
 
-###### [Up to 150000 hosts](https://calculator.aws/#/estimate?id=1d8fdd63f01e71027e9d898ed05f4a07299a7000)
+###### [Up to 150000 hosts](https://calculator.aws/#/estimate?id=689fea65efff361ee070b15044a01224b8d26621)
 
 | Fleet instances | CPU Units      | RAM |
 | --------------- | -------------- | --- |
@@ -193,9 +193,9 @@ assume On-Demand pricing (savings are available through Reserved Instances). Cal
 | Dependencies | Version                 | Instance type  | Nodes |
 | ------------ | ----------------------- | -------------- | ----- |
 | Redis        | 6                       | m6g.large      | 3     |
-| MySQL        | 8.0.mysql_aurora.3.04.2 | db.r6g.4xlarge | 1     |
+| MySQL        | 8.0.mysql_aurora.3.04.2 | db.r6g.4xlarge | 2     |
 
-###### [Up to 300000 hosts](https://calculator.aws/#/estimate?id=f3da0597a172c6a0a3683023e2700a6df6d42c0b)
+###### [Up to 300000 hosts](https://calculator.aws/#/estimate?id=19b667fde567df0d64d9fae632d4885d7fdc726a)
 
 | Fleet instances | CPU Units      | RAM |
 | --------------- | -------------- | --- |
@@ -277,7 +277,7 @@ The following permissions are the minimum required to apply AWS terraform resour
 GCP reference architecture can be found in [the Fleet repository](https://github.com/fleetdm/fleet/tree/main/infrastructure/dogfood/terraform/gcp). This configuration includes:
 
 - Cloud Run (Fleet backend)
-- Cloud SQL MySQL 5.7 (Fleet database)
+- Cloud SQL MySQL 8.0 (Fleet database)
 - Memorystore Redis (Fleet cache & live query orchestrator)
 
 GCP support for add/install software and file carve features is coming soon. Get [commmunity support](https://chat.osquery.io/c/fleet).

@@ -115,3 +115,14 @@ policies:
     description: This policy should always fail.
     resolution: There is no resolution for this policy.
     query: SELECT 1 FROM osquery_info WHERE start_time < 0;
+software:
+  packages:
+    - url: ${SOFTWARE_INSTALLER_URL}/ruby.deb
+      install_script:
+        path: lib/install_ruby.sh
+      pre_install_query:
+        path: lib/query_ruby.yml
+      post_install_script:
+        path: lib/post_install_ruby.sh
+    - url: ${SOFTWARE_INSTALLER_URL}/other.deb
+      self_service: true

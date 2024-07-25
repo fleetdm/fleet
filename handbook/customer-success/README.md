@@ -24,6 +24,26 @@ Occasionally, we will need to track public issues for customers and prospects wh
 1. The team member creating the issue will choose an appropriate minor planet name from this [Minor planets page](https://minorplanetcenter.net//iau/lists/MPNames.html) (alphabetical).
 2. Create a label in the fleetdm/fleet and fleetdm/confidential repos which can be attached to current and future issues for the customer or prospect. As part of the label description in the fleetdm/confidential repo, add the customer or prospect name. This way, we maintain a confidential mapping of codename to customer or prospect.
 
+### Prepare for routine customer meeting
+
+Before a routine customer call, the CSM prepares an agenda including the following items:
+1. Customer and Fleet expected attendees
+2. Release notes for the latest version of Fleet
+3. Update notes for which version of Fleet the customer is running (if self-hosted)
+4. Follow ups to the agenda from the previous call or Slack
+5. Provide updates to open feature requests (can be done monthly or quarterly)
+6. Provide updates to open bug reports
+
+### Conduct a quarterly business review (QBR)
+Business reviews are conducted quarterly or bi-annually to ensure initial success criteria completion, ongoing adoption, alignment on goals, and delivery of value as a vendor. Use the meeting to assess customer priorities for the coming year, review performance metrics, address any challenges and showcase value in upcoming and unutilized features.
+1. Work with your champion to schedule the business review at a time thier stakeholders are available (typically 90 days after kickoff and again, 90 days before renewal).
+2. Collect usage metrics from the [usage data report](https://docs.google.com/spreadsheets/d/1Mh7Vf4kJL8b5TWlHxcX7mYwaakZMg_ZGNLY3kl1VI-c/edit?gid=0#gid=0) (internal Fleet document) and the following:
+    - Optionally schedule a health check with day to day admins prior to the QBR to better understand how the product is being used and which features have been adopted.
+    - Have a support engineer collect data on open and closed bugs from the previous quarter and highlight any P0 or P1 incidents along with a summary of the postmortem (search Unthread and GitHub for issues tagged with the customer codename and ':bug').
+    - Summarize status updates for open feature requests and highlight delivered feature requests.
+    - For managed cloud customers, reach out to #help-infrastructure to collect information on cloud uptime and any outages or alarms.
+    - Provide one slide with information on the latest Fleet release and any upcoming big ticket features which can be found on the product board and current release board for #g-mdm and #g-endpoint-ops
+3. After the business review, save the presentation as a PDF and share it with your customer.
 
 ### Create customer support issue
 Locate the relevant issue or create it if it doesn't already exist (to avoid duplication, be creative when searching GitHub for issues - it can often take a couple of tries with different keywords to find an existing issue). When creating a new issue, make sure the following:

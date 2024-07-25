@@ -11,6 +11,7 @@ import (
 	"strconv"
 
 	"github.com/docker/go-units"
+	authzctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
@@ -382,6 +383,51 @@ func submitSelfServiceSoftwareInstall(ctx context.Context, request interface{}, 
 }
 
 func (svc *Service) SelfServiceInstallSoftwareTitle(ctx context.Context, host *fleet.Host, softwareTitleID uint) error {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return fleet.ErrMissingLicense
+}
+
+func (svc *Service) HasSelfServiceSoftwareInstallers(ctx context.Context, host *fleet.Host) (bool, error) {
+	alreadyAuthenticated := svc.authz.IsAuthenticatedWith(ctx, authzctx.AuthnDeviceToken)
+	if !alreadyAuthenticated {
+		if err := svc.authz.Authorize(ctx, host, fleet.ActionRead); err != nil {
+			return false, err
+		}
+	}
+
+	return svc.ds.HasSelfServiceSoftwareInstallers(ctx, host.Platform, host.TeamID)
+}
+
+//////////////////////////////////////////////////////////////////////////////
+// VPP App Store Apps Batch Install
+//////////////////////////////////////////////////////////////////////////////
+
+type batchAssociateAppStoreAppsRequest struct {
+	TeamName string                  `json:"-" query:"team_name"`
+	DryRun   bool                    `json:"-" query:"dry_run,optional"`
+	Apps     []fleet.VPPBatchPayload `json:"app_store_apps"`
+}
+
+type batchAssociateAppStoreAppsResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r batchAssociateAppStoreAppsResponse) error() error { return r.Err }
+
+func (r batchAssociateAppStoreAppsResponse) Status() int { return http.StatusNoContent }
+
+func batchAssociateAppStoreAppsEndpoint(ctx context.Context, request any, svc fleet.Service) (errorer, error) {
+	req := request.(*batchAssociateAppStoreAppsRequest)
+	if err := svc.BatchAssociateVPPApps(ctx, req.TeamName, req.Apps, req.DryRun); err != nil {
+		return batchAssociateAppStoreAppsResponse{Err: err}, nil
+	}
+	return batchAssociateAppStoreAppsResponse{}, nil
+}
+
+func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, payloads []fleet.VPPBatchPayload, dryRun bool) error {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)

@@ -921,7 +921,7 @@ describe("Host Actions Dropdown", () => {
       expect(screen.queryByText("Wipe")).not.toBeInTheDocument();
     });
 
-    it("does not renders when a macOS host but does not have Fleet macOS mdm enabled and configured", async () => {
+    it("does not render for a macOS host if Fleet Apple MDM is not enabled and configured", async () => {
       const render = createCustomRenderer({
         context: {
           app: {
@@ -1130,6 +1130,60 @@ describe("Host Actions Dropdown", () => {
           hostMdmEnrollmentStatus={null}
           hostMdmDeviceStatus={"unlocked"}
           hostScriptsEnabled={false}
+        />
+      );
+
+      await user.click(screen.getByText("Actions"));
+
+      expect(screen.queryByText("Run script")).not.toBeInTheDocument();
+    });
+    it("does not render the Run script action for global observers/+", async () => {
+      // Global observer
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isGlobalObserver: true,
+            currentUser: createMockUser(),
+          },
+        },
+      });
+      const { user } = render(
+        <HostActionsDropdown
+          hostTeamId={null}
+          onSelect={noop}
+          hostStatus="offline"
+          isConnectedToFleetMdm
+          hostPlatform="windows"
+          hostMdmEnrollmentStatus={null}
+          hostMdmDeviceStatus="unlocked"
+          hostScriptsEnabled
+        />
+      );
+
+      await user.click(screen.getByText("Actions"));
+
+      expect(screen.queryByText("Run script")).not.toBeInTheDocument();
+    });
+    it("does not render the Run script action for team observers/+", async () => {
+      // team observer
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isTeamObserver: true,
+            currentUser: createMockUser(),
+          },
+        },
+      });
+      const { user } = render(
+        <HostActionsDropdown
+          hostTeamId={1}
+          onSelect={noop}
+          hostStatus="offline"
+          isConnectedToFleetMdm
+          hostPlatform="windows"
+          hostMdmEnrollmentStatus={null}
+          hostMdmDeviceStatus="unlocked"
+          hostScriptsEnabled
         />
       );
 

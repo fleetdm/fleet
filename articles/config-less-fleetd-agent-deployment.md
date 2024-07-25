@@ -64,12 +64,20 @@ fleetctl package --type=pkg --use-system-configuration --fleet-desktop
 
 ## For Windows:
 
-1. Download the Base MSI installer from [https://download.fleetdm.com/fleetd-base.msi](https://download.fleetdm.com/fleetd-base.msi) (once installed, `fleetd` and `fleet-desktop` will be upgraded to the latest)
+1. Download the Base MSI installer from [https://download.fleetdm.com/stable/fleetd-base.msi](https://download.fleetdm.com/stable/fleetd-base.msi) (once installed, `fleetd` and `fleet-desktop` will be upgraded to the latest)
 
 2. Install fleet on Windows boxes by passing the `FLEET_URL` and `FLEET_SECRET` properties to the MSI installer:
 
 ```xml
 msiexec /i fleetd-base.msi FLEET_URL="<target_url>" FLEET_SECRET="<secret_to_use>"
+```
+
+Also, you can optionally pass `ENABLE_SCRIPTS`, `END_USER_EMAIL`, and `FLEET_DESKTOP` to the installer.
+
+For example, this command would install fleetd with script execution enabled, custom human-device mapping set, and Fleet Desktop enabled:
+
+```xml
+msiexec /i fleetd-base.msi ENABLE_SCRIPTS=true END_USER_EMAIL="user@example.com" FLEET_DESKTOP=true FLEET_URL="<target_url>" FLEET_SECRET="<secret_to_use>"
 ```
 
 These steps are a flexible alternative to deploying Fleet's agent across macOS and Windows platforms. This method, focused on separating the configuration from the `fleetd` package, empowers you with more control and simplifies the management of your device enrollments.

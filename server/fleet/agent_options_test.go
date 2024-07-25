@@ -28,6 +28,10 @@ func TestValidateAgentOptions(t *testing.T) {
 			}
 		}}`, true, `unknown field "foo"`},
 
+		{"valid script timeout", `{"script_execution_timeout": 600}`, true, ""},
+
+		{"invalid script timeout", `{"script_execution_timeout": 3601}`, true, `script_execution_timeout' value exceeds limit. Maximum value is 3600`},
+
 		{"overrides.platform is null", `{"overrides": {
 			"platforms": {
 				"darwin": null

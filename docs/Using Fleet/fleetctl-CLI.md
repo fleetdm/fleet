@@ -128,6 +128,14 @@ To create your new API-only user, use `fleetctl user create`:
 fleetctl user create --name "API User" --email api@example.com --password temp@pass123 --api-only
 ```
 
+You'll then receive an API token:
+
+```sh
+Success! The API token for your new user is: <TOKEN>
+```
+
+> If you need to retrieve this user's token again in the future, you can do so via the [log in API](https://fleetdm.com/docs/rest-api/rest-api#log-in).
+
 #### Permissions
 
 An API-only user can be given the same permissions as a regular user. The default access level is **Observer**. You can specify what level of access the new user should have using the `--global-role` flag:
@@ -146,35 +154,6 @@ fleetctl user create --name "API User" --email api@example.com --password temp@p
 
 To change roles of a current user, log into the Fleet UI as an admin and navigate to **Settings > Users**.
 > Suggestion: To disable/enable a user's access to the UI (converting a regular user to an API-only user or vice versa), create a new user.
-
-### Get API token for API-only user
-
-To get the API key of an API-only user, you need to call the [login API](https://fleetdm.com/docs/rest-api/rest-api#log-in) with the credentials supplied during user creation.
-
-```sh
-curl --location --request POST 'https://fleet.example.com/api/v1/fleet/login' \
---header 'Content-Type: application/json' \
---data-raw '{
-    "email": "api@example.com",
-    "password": "foobar12345"
-}'
-```
-
-The [Log in API](https://fleetdm.com/docs/using-fleet/rest-api#log-in) will return a response similar to the one below with the API token included that will not expire.
-
-```json
-{
-    "user": {
-        "id": 82,
-        "name": "API User",
-        "email": "api@example.com",
-        "global_role": "observer",
-        "api_only": true
-    },
-    "available_teams": [],
-    "token": "foo_token"
-}
-```
 
 ### Switching users
 

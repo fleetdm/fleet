@@ -179,6 +179,7 @@ const RunQueryPage = ({
       setTargetedLabels,
       setTargetedTeams,
       setTargetsTotalCount,
+      isObserverCanRunQuery: storedQuery?.observer_can_run,
     };
 
     const step2Props = {

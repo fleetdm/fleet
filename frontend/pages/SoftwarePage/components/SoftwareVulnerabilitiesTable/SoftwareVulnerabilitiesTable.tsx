@@ -14,6 +14,7 @@ import { ISoftwareVulnerability } from "interfaces/software";
 import { GITHUB_NEW_ISSUE_LINK } from "utilities/constants";
 import { buildQueryStringFromParams } from "utilities/url";
 import TableContainer from "components/TableContainer";
+import TableCount from "components/TableContainer/TableCount";
 import EmptyTable from "components/EmptyTable";
 import CustomLink from "components/CustomLink";
 
@@ -90,6 +91,11 @@ const SoftwareVulnerabilitiesTable = ({
     () => generateTableConfig(Boolean(isPremiumTier), router, teamIdForApi),
     [isPremiumTier]
   );
+
+  const renderVulnerabilitiesCount = () => (
+    <TableCount name="items" count={data?.length} />
+  );
+
   return (
     <div className={classNames}>
       <TableContainer
@@ -107,6 +113,7 @@ const SoftwareVulnerabilitiesTable = ({
         disableMultiRowSelect
         onSelectSingleRow={handleRowSelect}
         disableTableHeader={data.length === 0}
+        renderCount={renderVulnerabilitiesCount}
       />
     </div>
   );

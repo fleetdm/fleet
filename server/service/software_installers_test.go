@@ -33,10 +33,10 @@ func TestSoftwareInstallersAuth(t *testing.T) {
 		{"global admin team", test.UserAdmin, ptr.Uint(1), false, false},
 		{"global maintainer no team", test.UserMaintainer, nil, false, false},
 		{"global maintainer team", test.UserMaintainer, ptr.Uint(1), false, false},
-		{"global observer no team", test.UserObserver, nil, false, true},
-		{"global observer team", test.UserObserver, ptr.Uint(1), false, true},
-		{"global observer+ no team", test.UserObserverPlus, nil, false, true},
-		{"global observer+ team", test.UserObserverPlus, ptr.Uint(1), false, true},
+		{"global observer no team", test.UserObserver, nil, true, true},
+		{"global observer team", test.UserObserver, ptr.Uint(1), true, true},
+		{"global observer+ no team", test.UserObserverPlus, nil, true, true},
+		{"global observer+ team", test.UserObserverPlus, ptr.Uint(1), true, true},
 		{"global gitops no team", test.UserGitOps, nil, true, false},
 		{"global gitops team", test.UserGitOps, ptr.Uint(1), true, false},
 		{"team admin no team", test.UserTeamAdminTeam1, nil, true, true},
@@ -46,10 +46,10 @@ func TestSoftwareInstallersAuth(t *testing.T) {
 		{"team maintainer team", test.UserTeamMaintainerTeam1, ptr.Uint(1), false, false},
 		{"team maintainer other team", test.UserTeamMaintainerTeam2, ptr.Uint(1), true, true},
 		{"team observer no team", test.UserTeamObserverTeam1, nil, true, true},
-		{"team observer team", test.UserTeamObserverTeam1, ptr.Uint(1), false, true},
+		{"team observer team", test.UserTeamObserverTeam1, ptr.Uint(1), true, true},
 		{"team observer other team", test.UserTeamObserverTeam2, ptr.Uint(1), true, true},
 		{"team observer+ no team", test.UserTeamObserverPlusTeam1, nil, true, true},
-		{"team observer+ team", test.UserTeamObserverPlusTeam1, ptr.Uint(1), false, true},
+		{"team observer+ team", test.UserTeamObserverPlusTeam1, ptr.Uint(1), true, true},
 		{"team observer+ other team", test.UserTeamObserverPlusTeam2, ptr.Uint(1), true, true},
 		{"team gitops no team", test.UserTeamGitOpsTeam1, nil, true, true},
 		{"team gitops team", test.UserTeamGitOpsTeam1, ptr.Uint(1), true, false},
@@ -85,6 +85,14 @@ func TestSoftwareInstallersAuth(t *testing.T) {
 				return nil, nil
 			}
 
+			ds.TeamExistsFunc = func(ctx context.Context, teamID uint) (bool, error) {
+				return false, nil
+			}
+
+			ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+				return map[fleet.MDMAssetName]fleet.MDMConfigAsset{}, nil
+			}
+
 			_, err := svc.DownloadSoftwareInstaller(ctx, 1, tt.teamID)
 			if tt.teamID == nil {
 				require.Error(t, err)
@@ -97,6 +105,26 @@ func TestSoftwareInstallersAuth(t *testing.T) {
 				require.Error(t, err)
 			} else {
 				checkAuthErr(t, tt.shouldFailWrite, err)
+			}
+
+			// Note: these calls always return an error because they're attempting to unmarshal a
+			// non-existent VPP token.
+			_, err = svc.GetAppStoreApps(ctx, tt.teamID)
+			if tt.teamID == nil {
+				require.Error(t, err)
+			} else {
+				if tt.shouldFailRead {
+					checkAuthErr(t, true, err)
+				}
+			}
+
+			err = svc.AddAppStoreApp(ctx, tt.teamID, "123")
+			if tt.teamID == nil {
+				require.Error(t, err)
+			} else {
+				if tt.shouldFailWrite {
+					checkAuthErr(t, true, err)
+				}
 			}
 
 			// TODO: configure test with mock software installer store and add tests to check upload auth
