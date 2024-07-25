@@ -191,30 +191,29 @@ const HostSummary = ({
   const isIosOrIpadosHost = platform === "ios" || platform === "ipados";
 
   const renderRefetch = () => {
-    if (isIosOrIpadosHost) {
-      return null;
-    }
-
     const isOnline = summaryData.status === "online";
     let isDisabled = false;
-    let tooltip: React.ReactNode = <></>;
+    let tooltip;
 
-    // deviceStatus can be `undefined` in the case of the MyDevice Page not sending
-    // this prop. When this is the case or when it is `unlocked`, we only take
-    // into account the host being online or offline for correctly render the
-    // refresh button. If we have a value for deviceStatus, we then need to also
-    // take it account for rendering the button.
-    if (
-      hostMdmDeviceStatus === undefined ||
-      hostMdmDeviceStatus === "unlocked"
-    ) {
-      isDisabled = !isOnline;
-      tooltip = !isOnline ? REFETCH_TOOLTIP_MESSAGES.offline : null;
-    } else {
-      isDisabled = true;
-      tooltip = !isOnline
-        ? REFETCH_TOOLTIP_MESSAGES.offline
-        : REFETCH_TOOLTIP_MESSAGES[hostMdmDeviceStatus];
+    // we don't have a concept of "online" for iPads and iPhones, so always enable refetch
+    if (!isIosOrIpadosHost) {
+      // deviceStatus can be `undefined` in the case of the MyDevice Page not sending
+      // this prop. When this is the case or when it is `unlocked`, we only take
+      // into account the host being online or offline for correctly render the
+      // refresh button. If we have a value for deviceStatus, we then need to also
+      // take it account for rendering the button.
+      if (
+        hostMdmDeviceStatus === undefined ||
+        hostMdmDeviceStatus === "unlocked"
+      ) {
+        isDisabled = !isOnline;
+        tooltip = !isOnline ? REFETCH_TOOLTIP_MESSAGES.offline : null;
+      } else {
+        isDisabled = true;
+        tooltip = !isOnline
+          ? REFETCH_TOOLTIP_MESSAGES.offline
+          : REFETCH_TOOLTIP_MESSAGES[hostMdmDeviceStatus];
+      }
     }
 
     return (
