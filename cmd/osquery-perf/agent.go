@@ -2509,7 +2509,8 @@ func main() {
 					uniqueSoftwareUninstallCount: *uniqueSoftwareUninstallCount,
 					uniqueSoftwareUninstallProb:  *uniqueSoftwareUninstallProb,
 				},
-				stats: stats,
+				stats:   stats,
+				strings: make(map[string]string),
 			}
 			go mobileDevice.runAppleIDeviceMDMLoop(*mdmSCEPChallenge)
 			time.Sleep(sleepTime)
