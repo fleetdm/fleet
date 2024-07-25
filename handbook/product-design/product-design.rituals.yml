@@ -64,7 +64,9 @@
 -
   task: "Pre-sprint prioritization" # 2024-03-06 TODO: Link to responsibility or corresponding "how to" info e.g. https://fleetdm.com/handbook/company/product-groups#making-changes
   startedOn: "2024-02-27" 
-  frequency: "Triweekly" 
+  frequency: "Triweekly"
+  description: "Discuss what stories weren't completed in the previous sprint. Record the number of stories in KPIs. Align on priorities for upcoming sprint."
+  dri: "noahtalerman"
 -
   task: "🦢🗣 Apple MDM maturity review"
   startedOn: "2024-07-29" 
