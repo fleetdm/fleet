@@ -9033,6 +9033,7 @@ Returns information about the specified software. By default, `versions` are sor
       "app_store_id": 1091189122,
       "latest_version": "2.04",
       "icon_url": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/f1/65/1e/a4844ccd-486d-455f-bb31-67336fe46b14/AppIcon-1x_U007emarketing-0-7-0-85-220-0.png/512x512bb.jpg",
+      "self_service": true,
       "status": {
         "installed": 3,
         "pending": 1,
@@ -9164,6 +9165,7 @@ Add App Store (VPP) app purchased in Apple Business Manager.
 | ---- | ---- | -- | ----------- |
 | app_store_id   | integer | body | **Required.** The ID of App Store app. |
 | team_id       | integer | body | **Required**. The team ID. Adds VPP software to the specified team.  |
+| self_service | boolean | body | Self-service software is optional and can be installed by the end user. |
 
 #### Example
 
@@ -9174,7 +9176,8 @@ Add App Store (VPP) app purchased in Apple Business Manager.
 ```json
 {
   "app_store_id": 497799835,
-  "team_id": 2
+  "team_id": 2,
+  "self_service": true
 }
 ```
 
