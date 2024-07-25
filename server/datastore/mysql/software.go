@@ -1379,42 +1379,12 @@ func (ds *Datastore) SoftwareByID(ctx context.Context, id uint, teamID *uint, in
 			goqu.On(goqu.I("s.id").Eq(goqu.I("scv.software_id"))),
 		)
 
-	if tmFilter != nil && tmFilter.TeamID != nil && *tmFilter.TeamID != 0 {
+	// join only on software_id as we'll need counts for all teams
+	// to filter down to the team's the user has access to
+	if tmFilter != nil {
 		q = q.LeftJoin(
 			goqu.I("software_host_counts").As("shc"),
-			goqu.On(
-				goqu.And(
-					goqu.I("s.id").Eq(goqu.I("shc.software_id")),
-					goqu.I("shc.team_id").Eq(*tmFilter.TeamID),
-					goqu.I("shc.global_stats").Eq(0),
-				),
-			),
-		)
-	}
-
-	if tmFilter != nil && tmFilter.TeamID == nil {
-		q = q.LeftJoin(
-			goqu.I("software_host_counts").As("shc"),
-			goqu.On(
-				goqu.And(
-					goqu.I("s.id").Eq(goqu.I("shc.software_id")),
-					goqu.I("shc.team_id").Eq(0),
-					goqu.I("shc.global_stats").Eq(1),
-				),
-			),
-		)
-	}
-
-	if tmFilter != nil && tmFilter.TeamID != nil && *tmFilter.TeamID == 0 {
-		q = q.LeftJoin(
-			goqu.I("software_host_counts").As("shc"),
-			goqu.On(
-				goqu.And(
-					goqu.I("s.id").Eq(goqu.I("shc.software_id")),
-					goqu.I("shc.team_id").Eq(0),
-					goqu.I("shc.global_stats").Eq(0),
-				),
-			),
+			goqu.On(goqu.I("s.id").Eq(goqu.I("shc.software_id"))),
 		)
 	}
 
@@ -1443,20 +1413,22 @@ func (ds *Datastore) SoftwareByID(ctx context.Context, id uint, teamID *uint, in
 		// However, it is possible that the software was deleted from all hosts after the last host count update.
 		q = q.Where(
 			goqu.L(
-				"EXISTS (SELECT 1 FROM software_host_counts WHERE software_id = ? AND team_id = ? AND hosts_count > 0)", id, *teamID,
+				"EXISTS (SELECT 1 FROM software_host_counts WHERE software_id = ? AND team_id = ? AND hosts_count > 0 AND global_stats = 0)", id, *teamID,
 			),
 		)
 	}
 
 	// filter by teams
 	if tmFilter != nil {
-		q = q.Where(goqu.L(ds.whereFilterGlobalOrTeamIDByTeams(*tmFilter, "shc")))
+		q = q.Where(goqu.L(ds.whereFilterGlobalOrTeamIDByTeamsWithSqlFilter(*tmFilter, "shc.team_id = 0 AND shc.global_stats = 1", "shc.team_id")))
 	}
 
 	sql, args, err := q.ToSQL()
 	if err != nil {
 		return nil, err
 	}
+
+	fmt.Println(sql, args)
 
 	var results []softwareCVE
 	err = sqlx.SelectContext(ctx, ds.reader(ctx), &results, sql, args...)
