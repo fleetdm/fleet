@@ -4569,7 +4569,7 @@ LIMIT 500
 }
 
 func (ds *Datastore) GetMDMAppleOSUpdatesSettingsByHostSerial(ctx context.Context, serial string) (*fleet.AppleOSUpdateSettings, error) {
-	stmt := `SELECT team_id, platform FROM hosts h JOIN host_dep_assignments hdep ON h.id = host_id WHERE h.id = hardware_serial = ? AND deleted_at IS NULL`
+	stmt := `SELECT team_id, platform FROM hosts h JOIN host_dep_assignments hdep ON h.id = host_id WHERE hardware_serial = ? AND deleted_at IS NULL`
 	var dest struct {
 		TeamID   *uint  `db:"team_id"`
 		Platform string `db:"platform"`

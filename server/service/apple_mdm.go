@@ -1444,8 +1444,8 @@ func (svc *Service) CheckMDMAppleEnrollmentWithMinimumOSVersion(ctx context.Cont
 		return nil, nil
 	}
 
-	// NOTE: Under the hood, the datastore is using the host_dep_assignments table to look up the
-	// host id by serial number. It uses the host id to get the team id and platform from the
+	// NOTE: Under the hood, the datastore is joining host_dep_assignments to the hosts table to
+	// look up DEP hosts by serial number. It grabs the team id and platform from the
 	// hosts table. Then it uses the team id to get either the global config or team config.
 	// Finally, it uses the platform to get os updates settings from the config for
 	// one of ios, ipados, or darwin, as applicable. There's a lot of assumptions going on here, not
