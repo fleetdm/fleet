@@ -1,0 +1,66 @@
+.app-store-vpp {
+  margin-top: $pad-large;
+
+  &__description {
+    margin: $pad-medium 0;
+  }
+
+  &__list-container {
+    border: 1px solid $ui-fleet-black-10;
+    border-radius: $border-radius-medium;
+  }
+
+  &__list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  &__list-item {
+    padding: $pad-small $pad-medium;
+    border-bottom: 1px solid $ui-fleet-black-10;
+
+    &:last-child {
+      border-bottom: none;
+    }
+  }
+
+  &__app-info {
+    display: flex;
+    align-items: center;
+    gap: $pad-small;
+  }
+
+  &__no-software {
+    padding: $pad-xxlarge 48px;
+    text-align: center;
+    font-size: $x-small;
+  }
+
+  &__no-software-title {
+    font-weight: $bold;
+    margin: 0;
+  }
+
+  &__no-software-description {
+    margin-top: $pad-small;
+    color: $ui-fleet-black-75;
+  }
+
+  &__error {
+    margin: $pad-xxlarge 0;
+  }
+
+  &__enable-vpp {
+    display: flex;
+    flex-direction: column;
+    min-height: 149px;
+    align-items: center;
+    justify-content: center;
+    gap: $pad-small;
+
+    p {
+      margin: 0;
+    }
+  }
+}

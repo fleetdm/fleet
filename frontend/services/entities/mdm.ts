@@ -3,6 +3,7 @@ import { createMockMdmProfile } from "__mocks__/mdmMock";
 import {
   DiskEncryptionStatus,
   IHostMdmProfile,
+  IMdmCommandResult,
   IMdmProfile,
   MdmProfileStatus,
 } from "interfaces/mdm";
@@ -65,6 +66,20 @@ export interface IAppleSetupEnrollmentProfileResponse {
   uploaded_at: string;
   // enrollment profile is an object with keys found here https://developer.apple.com/documentation/devicemanagement/profile.
   enrollment_profile: Record<string, unknown>;
+}
+
+export interface IMDMSSOParams {
+  dep_device_info: string;
+}
+
+export interface IMDMAppleEnrollmentProfileParams {
+  token: string;
+  ref?: string;
+  dep_device_info?: string;
+}
+
+export interface IGetMdmCommandResultsResponse {
+  results: IMdmCommandResult[];
 }
 
 const mdmService = {
@@ -312,6 +327,13 @@ const mdmService = {
       { team_id: teamId }
     )}`;
     return sendRequest("DELETE", path);
+  },
+  getCommandResults: (
+    command_uuid: string
+  ): Promise<IGetMdmCommandResultsResponse> => {
+    const { COMMANDS_RESULTS: MDM_COMMANDS_RESULTS } = endpoints;
+    const url = `${MDM_COMMANDS_RESULTS}?command_uuid=${command_uuid}`;
+    return sendRequest("GET", url);
   },
 };
 

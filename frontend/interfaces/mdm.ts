@@ -160,3 +160,22 @@ export enum BootstrapPackageStatus {
   PENDING = "pending",
   FAILED = "failed",
 }
+
+/**
+ * IMdmCommandResult is the shape of an mdm command result object
+ * returned by the Fleet API.
+ */
+export interface IMdmCommandResult {
+  host_uuid: string;
+  command_uuid: string;
+  /** Status is the status of the command. It can be one of Acknowledged, Error, or NotNow for
+	// Apple, or 200, 400, etc for Windows.  */
+  status: string;
+  updated_at: string;
+  request_type: string;
+  hostname: string;
+  /** Payload is a base64-encoded string containing the MDM command request */
+  payload: string;
+  /** Result is a base64-enconded string containing the MDM command response */
+  result: string;
+}
