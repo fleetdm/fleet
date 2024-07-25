@@ -500,6 +500,10 @@ func (c *TestAppleMDMClient) AcknowledgeDeviceInformation(udid, cmdUUID, deviceN
 	return c.sendAndDecodeCommandResponse(payload)
 }
 
+func (c *TestAppleMDMClient) SendCustomPayload(payload map[string]interface{}) (*mdm.Command, error) {
+	return c.sendAndDecodeCommandResponse(payload)
+}
+
 func (c *TestAppleMDMClient) GetBootstrapToken() ([]byte, error) {
 	payload := map[string]any{
 		"MessageType":  "GetBootstrapToken",

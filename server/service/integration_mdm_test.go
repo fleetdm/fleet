@@ -9694,20 +9694,114 @@ func (s *integrationMDMTestSuite) TestRefetchIOSIPadOS() {
 		"host is not enrolled in MDM")
 	assert.Contains(t, extractServerErrorText(r.Body), "Host does not have MDM turned on")
 
-	// Try to refetch an MDM enrolled host
+	// Enroll host
 	host, mdmClient := s.createAppleMobileHostThenEnrollMDM("ios")
-	_ = s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/refetch", host.ID), nil, http.StatusOK)
 
-	// Check the MDM command
-	cmd, err := mdmClient.Idle()
-	require.NoError(t, err)
-	require.NotNil(t, cmd)
-	assert.Equal(t, "DeviceInformation", cmd.Command.RequestType)
+	// Refetch host
+	_ = s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/refetch", host.ID), nil, http.StatusOK)
 
 	var hostResp getHostResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &hostResp)
 	assert.Equal(t, host.ID, hostResp.Host.ID)
-	assert.True(t, host.RefetchRequested)
+	assert.True(t, hostResp.Host.RefetchRequested)
+
+	// Check the MDM commands and send response
+	cmd, err := mdmClient.Idle()
+	require.NoError(t, err)
+	require.NotNil(t, cmd)
+	expectedCommands := map[string]struct{}{
+		"DeviceInformation":        {},
+		"InstalledApplicationList": {},
+	}
+
+	const deviceName = "My iPhone"
+	for len(expectedCommands) > 0 {
+		switch cmd.Command.RequestType {
+		case "DeviceInformation":
+			cmd, err = mdmClient.AcknowledgeDeviceInformation(mdmClient.UUID, cmd.CommandUUID, deviceName, "iPhone SE")
+			require.NoError(t, err)
+			delete(expectedCommands, "DeviceInformation")
+		case "InstalledApplicationList":
+			payload := map[string]any{
+				"Status":      "Acknowledged",
+				"UDID":        mdmClient.UUID,
+				"CommandUUID": cmd.CommandUUID,
+				"InstalledApplicationList": []map[string]interface{}{
+					{
+						"Name":         "Evernote",
+						"ShortVersion": "10.98.0",
+						"Identifier":   "com.evernote.iPhone.Evernote",
+					},
+				},
+			}
+			cmd, err = mdmClient.SendCustomPayload(payload)
+			require.NoError(t, err)
+			delete(expectedCommands, "InstalledApplicationList")
+		default:
+			t.Fatalf("Unexpected command: %s", cmd.Command.RequestType)
+		}
+	}
+
+	hostResp = getHostResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &hostResp)
+	assert.Equal(t, host.ID, hostResp.Host.ID)
+	assert.False(t, hostResp.Host.RefetchRequested)
+	assert.Equal(t, deviceName, hostResp.Host.ComputerName)
+	expectedSoftware := []fleet.HostSoftwareEntry{
+		{
+			Software: fleet.Software{
+				BundleIdentifier: "com.evernote.iPhone.Evernote",
+				Name:             "Evernote",
+				Version:          "10.98.0",
+				Source:           "ios_apps",
+			},
+		},
+	}
+	for index := range hostResp.Host.Software {
+		hostResp.Host.Software[index].ID = 0
+	}
+	assert.ElementsMatch(t, expectedSoftware, hostResp.Host.Software)
+
+	// Test that software was deleted
+	_ = s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/refetch", host.ID), nil, http.StatusOK)
+
+	// Check the MDM commands and send response
+	cmd, err = mdmClient.Idle()
+	require.NoError(t, err)
+	require.NotNil(t, cmd)
+	expectedCommands = map[string]struct{}{
+		"DeviceInformation":        {},
+		"InstalledApplicationList": {},
+	}
+
+	const deviceNameRenamed = "My new iPhone"
+	for len(expectedCommands) > 0 {
+		switch cmd.Command.RequestType {
+		case "DeviceInformation":
+			cmd, err = mdmClient.AcknowledgeDeviceInformation(mdmClient.UUID, cmd.CommandUUID, deviceNameRenamed, "iPhone SE")
+			require.NoError(t, err)
+			delete(expectedCommands, "DeviceInformation")
+		case "InstalledApplicationList":
+			payload := map[string]any{
+				"Status":                   "Acknowledged",
+				"UDID":                     mdmClient.UUID,
+				"CommandUUID":              cmd.CommandUUID,
+				"InstalledApplicationList": []map[string]interface{}{}, // empty
+			}
+			cmd, err = mdmClient.SendCustomPayload(payload)
+			require.NoError(t, err)
+			delete(expectedCommands, "InstalledApplicationList")
+		default:
+			t.Fatalf("Unexpected command: %s", cmd.Command.RequestType)
+		}
+	}
+
+	hostResp = getHostResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &hostResp)
+	assert.Equal(t, host.ID, hostResp.Host.ID)
+	assert.False(t, hostResp.Host.RefetchRequested)
+	assert.Equal(t, deviceNameRenamed, hostResp.Host.ComputerName)
+	assert.Empty(t, hostResp.Host.Software)
 }
 
 func (s *integrationMDMTestSuite) TestVPPApps() {

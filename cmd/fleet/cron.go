@@ -1305,7 +1305,11 @@ func newIPhoneIPadRefetcher(
 			}
 			logger.Log("msg", "sending commands to refetch", "count", len(uuids), "lookup-duration", time.Since(start))
 			commandUUID := fleet.RefetchCommandUUIDPrefix + uuid.NewString()
-			if err := commander.DeviceInformation(ctx, uuids, commandUUID); err != nil {
+			err = commander.InstalledApplicationList(ctx, uuids, fleet.RefetchAppsCommandUUIDPrefix+commandUUID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "send InstalledApplicationList commands to ios and ipados devices")
+			}
+			if err := commander.DeviceInformation(ctx, uuids, fleet.RefetchCommandUUIDPrefix+commandUUID); err != nil {
 				return ctxerr.Wrap(ctx, err, "send DeviceInformation commands to ios and ipados devices")
 			}
 			return nil

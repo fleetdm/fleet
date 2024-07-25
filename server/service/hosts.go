@@ -1030,19 +1030,24 @@ func (svc *Service) RefetchHost(ctx context.Context, id uint) error {
 		}
 	}
 
+	if err := svc.ds.UpdateHostRefetchRequested(ctx, id, true); err != nil {
+		return ctxerr.Wrap(ctx, err, "save host")
+	}
+
 	if host != nil && (host.Platform == "ios" || host.Platform == "ipados") {
 		err := svc.verifyMDMConfiguredAndConnected(ctx, host)
 		if err != nil {
 			return err
 		}
-		err = svc.mdmAppleCommander.DeviceInformation(ctx, []string{host.UUID}, fleet.RefetchCommandUUIDPrefix+uuid.NewString())
+		cmdUUID := uuid.NewString()
+		err = svc.mdmAppleCommander.DeviceInformation(ctx, []string{host.UUID}, fleet.RefetchCommandUUIDPrefix+cmdUUID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "refetch host with MDM")
 		}
-	}
-
-	if err := svc.ds.UpdateHostRefetchRequested(ctx, id, true); err != nil {
-		return ctxerr.Wrap(ctx, err, "save host")
+		err = svc.mdmAppleCommander.InstalledApplicationList(ctx, []string{host.UUID}, fleet.RefetchAppsCommandUUIDPrefix+cmdUUID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "refetch apps with MDM")
+		}
 	}
 
 	return nil
