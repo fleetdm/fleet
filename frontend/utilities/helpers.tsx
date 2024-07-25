@@ -104,6 +104,37 @@ export const createHostsByPolicyPath = (
   })}`;
 };
 
+/** Removes Apple OS Prefix from host.os_version. */
+export const removeOSPrefix = (version: string): string => {
+  return version.replace(/^(macOS |iOS |iPadOS )/i, "");
+};
+
+/** Returns 1 if first version is newer, -1 if first version is older, and 0 if equal  */
+export const compareVersions = (version1: string, version2: string) => {
+  const v1Parts = version1.split(".").map(Number);
+  const v2Parts = version2.split(".").map(Number);
+
+  const maxLength = Math.max(v1Parts.length, v2Parts.length);
+
+  // Create a new array with a length of maxLength, mapping each index to a comparison result
+  return (
+    Array.from({ length: maxLength }, (_, index) => {
+      // Retrieve the corresponding parts from v1Parts and v2Parts, defaulting to 0
+      const v1Part = v1Parts[index] || 0;
+      const v2Part = v2Parts[index] || 0;
+
+      // Compare the current parts and return -1, 1, or 0 based on the result
+      if (v1Part < v2Part) return -1;
+      if (v1Part > v2Part) return 1;
+      return 0;
+    })
+      // Use Array.find to return the first non-equal version number in the comparison array
+      .find((result) => result !== 0) ||
+    // If no difference is found, return 0 to indicate equal versions
+    0
+  );
+};
+
 const labelSlug = (label: ILabel): string => {
   const { id, name } = label;
 
@@ -978,6 +1009,8 @@ export function getCustomDropdownOptions(
 
 export default {
   addGravatarUrlToResource,
+  removeOSPrefix,
+  compareVersions,
   createHostsByPolicyPath,
   formatConfigDataForServer,
   formatLabelResponse,

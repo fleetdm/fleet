@@ -82,6 +82,12 @@ export const HOST_LINUX_PLATFORMS = [
 
 export const HOST_APPLE_PLATFORMS = ["darwin", "ios", "ipados"] as const;
 
+export type HostPlatform =
+  | typeof HOST_LINUX_PLATFORMS[number]
+  | typeof HOST_APPLE_PLATFORMS[number]
+  | "windows"
+  | "chrome";
+
 /**
  * Checks if the provided platform is a Linux-like OS. We can recieve many
  * different types of host platforms so we need a check that will cover all
