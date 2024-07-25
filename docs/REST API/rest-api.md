@@ -3030,6 +3030,10 @@ Returns the information of the specified host.
         "coordinates": [40.6799, -74.0028]
       }
     },
+    "maintenance_window": {
+      "starts_at": "2024-06-18T13:27:18−04:00",
+      "timezone": "America/New_York"
+    },
     "mdm": {
       "encryption_key_available": false,
       "enrollment_status": null,
