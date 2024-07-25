@@ -8587,9 +8587,9 @@ Deletes the session specified by ID. When the user associated with the session n
 
 ## Software
 
-- [Add software package](#add-software)
-- [Download software available for install](#download-software-available-for-install)
-- [Delete software available for install](#delete-software-available-for-install)
+- [Add package](#add-package)
+- [Download package](#download-package)
+- [Delete package or App Store app](#delete-package-or-app-store-app)
 - [Get installation result](#get-installation-result)
 - [List software](#list-software)
 - [List software versions](#list-software-versions)
@@ -8598,7 +8598,7 @@ Deletes the session specified by ID. When the user associated with the session n
 - [Get available App Store apps](#get-available-app-store-apps)
 - [Add App Store app](#add-app-store-app)
 
-### Add software package
+### Add package
 
 _Available in Fleet Premium._
 
@@ -8659,7 +8659,7 @@ Content-Type: application/octet-stream
 `Status: 200`
 
 
-### Download software available for install
+### Download package
 
 _Available in Fleet Premium._
 
@@ -8689,7 +8689,7 @@ Content-Length: <length>
 Body: <blob>
 ```
 
-### Delete software available for install
+### Delete package or App Store app
 
 _Available in Fleet Premium._
 
