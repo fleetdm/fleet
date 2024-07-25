@@ -37,12 +37,12 @@ const VppCard = ({ isAppleMdmOn, isVppOn, router }: IVppCardProps) => {
       <div>
         <h3>Volume Purchasing Program (VPP)</h3>
         <p>
-          To enable Volume Purchasing Program (VPP) for macOS devices, first
-          turn on macOS MDM.
+          To enable Volume Purchasing Program (VPP), first turn on Apple (macOS,
+          iOS, iPadOS) MDM.
         </p>
       </div>
       <Button onClick={nagivateToMdm} variant="text-link">
-        Turn on macOS MDM
+        Turn on MDM
       </Button>
     </div>
   );
