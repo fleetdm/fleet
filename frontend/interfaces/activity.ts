@@ -77,6 +77,11 @@ export enum ActivityType {
   AddedSoftware = "added_software",
   DeletedSoftware = "deleted_software",
   InstalledSoftware = "installed_software",
+  EnabledVpp = "enabled_vpp",
+  DisabledVpp = "disabled_vpp",
+  AddedAppStoreApp = "added_app_store_app",
+  DeletedAppStoreApp = "deleted_app_store_app",
+  InstalledAppStoreApp = "installed_app_store_app",
 }
 
 // This is a subset of ActivityType that are shown only for the host past activities
@@ -84,12 +89,14 @@ export type IHostPastActivityType =
   | ActivityType.RanScript
   | ActivityType.LockedHost
   | ActivityType.UnlockedHost
-  | ActivityType.InstalledSoftware;
+  | ActivityType.InstalledSoftware
+  | ActivityType.InstalledAppStoreApp;
 
 // This is a subset of ActivityType that are shown only for the host upcoming activities
 export type IHostUpcomingActivityType =
   | ActivityType.RanScript
-  | ActivityType.InstalledSoftware;
+  | ActivityType.InstalledSoftware
+  | ActivityType.InstalledAppStoreApp;
 
 export interface IActivity {
   created_at: string;
@@ -156,4 +163,6 @@ export interface IActivityDetails {
   status?: string;
   install_uuid?: string;
   self_service?: boolean;
+  command_uuid?: string;
+  app_store_id?: number;
 }

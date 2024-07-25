@@ -36,7 +36,6 @@ spec:
         macos_setup_assistant:
     scripts: null
     secrets: null
-    software: null
     webhook_settings:
       host_status_webhook: null
     name: team1
@@ -86,7 +85,6 @@ spec:
         enable_release_device_manually: false
         macos_setup_assistant:
     scripts: null
-    software: null
     webhook_settings:
       host_status_webhook: null
     name: team2
