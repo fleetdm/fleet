@@ -78,5 +78,5 @@ queries:
 software:
   - url: https://zoom.us/client/latest/Zoom.pkg?archType=arm64
     pre_install_query: 
-      path: ../lib/macos-arm.queries.yml
+      path: ../lib/macos-check-if-apple-silicon.queries.yml
     self_service: true
