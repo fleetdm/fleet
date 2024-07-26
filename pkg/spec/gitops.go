@@ -22,6 +22,8 @@ type BaseItem struct {
 type Controls struct {
 	BaseItem
 	MacOSUpdates   interface{} `json:"macos_updates"`
+	IOSUpdates     interface{} `json:"ios_updates"`
+	IPadOSUpdates  interface{} `json:"ipados_updates"`
 	MacOSSettings  interface{} `json:"macos_settings"`
 	MacOSSetup     interface{} `json:"macos_setup"`
 	MacOSMigration interface{} `json:"macos_migration"`
@@ -55,7 +57,12 @@ type GitOps struct {
 	Policies     []*fleet.PolicySpec
 	Queries      []*fleet.QuerySpec
 	// Software is only allowed on teams, not on global config.
-	Software []*fleet.TeamSpecSoftware
+	Software GitOpsSoftware
+}
+
+type GitOpsSoftware struct {
+	Packages     []*fleet.TeamSpecSoftwarePackage
+	AppStoreApps []*fleet.TeamSpecAppStoreApp
 }
 
 // GitOpsFromFile parses a GitOps yaml file.
@@ -517,20 +524,33 @@ func parseQueries(top map[string]json.RawMessage, result *GitOps, baseDir string
 }
 
 func parseSoftware(softwareRaw json.RawMessage, result *GitOps, baseDir string, multiError *multierror.Error) *multierror.Error {
-	var softwareInstallers []fleet.TeamSpecSoftware
+	var software fleet.TeamSpecSoftware
 	if len(softwareRaw) > 0 {
-		if err := json.Unmarshal(softwareRaw, &softwareInstallers); err != nil {
-			return multierror.Append(multiError, fmt.Errorf("failed to unmarshal software: %v", err))
+		if err := json.Unmarshal(softwareRaw, &software); err != nil {
+			return multierror.Append(multiError, fmt.Errorf("failed to unmarshall software: %v", err))
 		}
 	}
-	for _, item := range softwareInstallers {
-		item := item
-		if item.URL == "" {
-			multiError = multierror.Append(multiError, errors.New("software URL is required"))
-			continue
+	if software.AppStoreApps.Set {
+		for _, item := range software.AppStoreApps.Value {
+			item := item
+			if item.AppStoreID == "" {
+				multiError = multierror.Append(multiError, errors.New("software app store id required"))
+				continue
+			}
+			result.Software.AppStoreApps = append(result.Software.AppStoreApps, &item)
 		}
-		result.Software = append(result.Software, &item)
 	}
+	if software.Packages.Set {
+		for _, item := range software.Packages.Value {
+			item := item
+			if item.URL == "" {
+				multiError = multierror.Append(multiError, errors.New("software URL is required"))
+				continue
+			}
+			result.Software.Packages = append(result.Software.Packages, &item)
+		}
+	}
+
 	return multiError
 }
 

@@ -35,10 +35,15 @@ export enum ActivityType {
   MdmEnrolled = "mdm_enrolled",
   MdmUnenrolled = "mdm_unenrolled",
   EditedMacosMinVersion = "edited_macos_min_version",
+  EditedIosMinVersion = "edited_ios_min_version",
+  EditedIpadosMinVersion = "edited_ipados_min_version",
   ReadHostDiskEncryptionKey = "read_host_disk_encryption_key",
-  CreatedMacOSProfile = "created_macos_profile",
-  DeletedMacOSProfile = "deleted_macos_profile",
-  EditedMacOSProfile = "edited_macos_profile",
+  /** Note: BE not renamed (yet) from macOS even though activity is also used for iOS and iPadOS */
+  CreatedAppleOSProfile = "created_macos_profile",
+  /** Note: BE not renamed (yet) from macOS even though activity is also used for iOS and iPadOS */
+  DeletedAppleOSProfile = "deleted_macos_profile",
+  /** Note: BE not renamed (yet) from macOS even though activity is also used for iOS and iPadOS */
+  EditedAppleOSProfile = "edited_macos_profile",
   CreatedWindowsProfile = "created_windows_profile",
   DeletedWindowsProfile = "deleted_windows_profile",
   EditedWindowsProfile = "edited_windows_profile",
@@ -74,6 +79,11 @@ export enum ActivityType {
   AddedSoftware = "added_software",
   DeletedSoftware = "deleted_software",
   InstalledSoftware = "installed_software",
+  EnabledVpp = "enabled_vpp",
+  DisabledVpp = "disabled_vpp",
+  AddedAppStoreApp = "added_app_store_app",
+  DeletedAppStoreApp = "deleted_app_store_app",
+  InstalledAppStoreApp = "installed_app_store_app",
 }
 
 // This is a subset of ActivityType that are shown only for the host past activities
@@ -81,12 +91,14 @@ export type IHostPastActivityType =
   | ActivityType.RanScript
   | ActivityType.LockedHost
   | ActivityType.UnlockedHost
-  | ActivityType.InstalledSoftware;
+  | ActivityType.InstalledSoftware
+  | ActivityType.InstalledAppStoreApp;
 
 // This is a subset of ActivityType that are shown only for the host upcoming activities
 export type IHostUpcomingActivityType =
   | ActivityType.RanScript
-  | ActivityType.InstalledSoftware;
+  | ActivityType.InstalledSoftware
+  | ActivityType.InstalledAppStoreApp;
 
 export interface IActivity {
   created_at: string;
@@ -153,4 +165,6 @@ export interface IActivityDetails {
   status?: string;
   install_uuid?: string;
   self_service?: boolean;
+  command_uuid?: string;
+  app_store_id?: number;
 }

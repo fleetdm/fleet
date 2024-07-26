@@ -532,7 +532,7 @@ func TestGetOrCreatePreassignTeam(t *testing.T) {
 		spec := &fleet.TeamSpec{
 			Name: "new team spec",
 			MDM: fleet.TeamSpecMDM{
-				MacOSUpdates: fleet.MacOSUpdates{
+				MacOSUpdates: fleet.AppleOSUpdateSettings{
 					MinimumVersion: optjson.SetString("12.0"),
 					Deadline:       optjson.SetString("2024-01-01"),
 				},

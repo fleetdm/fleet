@@ -631,6 +631,8 @@ const (
 	// MDMAssetSCEPChallenge defines the shared secret used to issue SCEP
 	// certificatges to Apple devices.
 	MDMAssetSCEPChallenge MDMAssetName = "scep_challenge"
+	// MDMAssetVPPToken is the name of the token used by MDM to authenticate to Apple's VPP service.
+	MDMAssetVPPToken MDMAssetName = "vpp_token"
 )
 
 type MDMConfigAsset struct {
@@ -695,3 +697,36 @@ func FilterMacOSOnlyProfilesFromIOSIPadOS(profiles []*MDMAppleProfilePayload) []
 
 // RefetchCommandUUIDPrefix is the prefix used for MDM commands used to refetch information from iOS/iPadOS devices.
 const RefetchCommandUUIDPrefix = "REFETCH-"
+
+// VPPTokenInfo is the representation of the VPP token that we send out via API.
+type VPPTokenInfo struct {
+	OrgName   string `json:"org_name"`
+	RenewDate string `json:"renew_date"`
+	Location  string `json:"location"`
+}
+
+// VPPTokenRaw is the representation of the decoded JSON object that is downloaded from ABM.
+type VPPTokenRaw struct {
+	OrgName string `json:"orgName"`
+	Token   string `json:"token"`
+	ExpDate string `json:"expDate"`
+}
+
+// VPPTokenData is the VPP data we store in the DB.
+type VPPTokenData struct {
+	// Location comes from an Apple API:
+	// https://developer.apple.com/documentation/devicemanagement/client_config. It is the name of
+	// the "library" of apps in ABM that is associated with this VPP token.
+	Location string `json:"location"`
+
+	// Token is the token that is downloaded from ABM. It is a base64 encoded JSON object with the
+	// structure of `VPPTokenRaw`.
+	Token string `json:"token"`
+}
+type AppleDevice int
+
+const (
+	MacOS AppleDevice = iota
+	IOS
+	IPadOS
+)

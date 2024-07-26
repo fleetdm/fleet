@@ -235,7 +235,7 @@ Fleet uses skip-level 1:1 meetings as a recurring pulse check to encourage [valu
 3. Link the skip-level agenda in the calendar event description before saving.
 
 
-### Zoom
+## Zoom
 
 We use [Zoom](https://zoom.us) for virtual meetings at Fleet, and it is important that every team member feels comfortable hosting, joining, and scheduling Zoom meetings.
 By default, Zoom settings are the same for all Fleet team members, but you can change your personal settings on your [profile settings](https://zoom.us/profile/setting) page. 
@@ -269,6 +269,15 @@ Here are some tips for troubleshooting Gong:
 ### Excluding calls from being recorded
 
 For those with a Gong seat or scheduling a call with someone in attendance that has a Gong seat who does not wish for their Zoom call with an external party to record, make sure your calendar event title contains `[no shadows]`.  You can also read the [complete list of exclusion rules](https://docs.google.com/document/d/1OOxLajvqf-on5I8viN7k6aCzqEWS2B24_mE47OefutE/edit?usp=sharing).
+
+
+### Sharing a local Zoom recording 
+
+In some instances, you may need to record a call locally (i.e. save the recording on your computer and not in the cloud ☁️). You can use the following steps to upload the call recording:
+1. Log into [Zoom](https://zoom.us/recording) using SSO (Single-Sign-On) and go to "Recordings". 
+2. After the recording is finished processing (which sometimes can take a couple of hours), you will see the hotdog (or "overflow menu") menu appear. Select the call you want to share and use the hotdog menu to download all files.
+3. Rename the mp4 file to match the meeting name and prefix it with the date of the recording (e.g. "YYYY-MM-DD *Name of the calendar event*").
+4. Upload the mp4 recording to the [whiteboards folder](https://drive.google.com/drive/u/0/folders/1prO98fmB2WKzpubZ2-z0sju9dQ4ijpNE) in Google Drive.
 
 
 ## Levels of confidentiality
@@ -599,6 +608,16 @@ For non-travel purchases that would require an increase in the Brex cardholder's
 <img width="384" alt="image" src="https://github.com/fleetdm/fleet/assets/618009/1890e56b-7b03-4340-97d4-a6590c7715a9">
 
 
+### SaaS tool purchases
+
+When procuring SaaS tools and services, analyze the purchase of these subscription services look for these way to help the company:
+- Get product demos whenever possible.  Does the product do what it's supposed to do in the way that it is supposed to do it?
+- Avoid extra features you don't need, and if they're there anyway, avoid using them.
+- Data portability: is it possible for Fleet to export it's data if we stop using it? Is it easy to pull that data in an understandable format?
+- Programability: Does it have a publicly documented legible REST API that requires at most a single API token?
+- Intentionality: The product fits into other tools and processes that Fleet uses today. Avoid [unintended consequences](https://en.wikipedia.org/wiki/Midas). The tool will change to fit the company, or we won't use it. 
+
+
 #### Reimbursements
 
 Fleet does not reimburse expenses. We provide all of our team members with Brex cards for making purchases for the company. For company expenses, **use your Brex card.**  If there was an extreme accident, [get help](https://fleetdm.com/handbook/business-operations#contact-us).
@@ -726,7 +745,7 @@ In responding to security questionnaires, Fleet endeavors to provide full transp
 
 ## Getting a contract signed
 
-If a contract is ready for signature and requires no review or revision, the requestor logins into DocuSign using hello@ from the 1Password vault and routes the agreement to the CEO for signature. 
+If a contract is ready for signature and requires no review or revision, log into DocuSign (credentials in 1Password) and route the agreement to the CEO for signature. 
 
 When a contract is going to be routed for signature by someone outside of Fleet (i.e. the vendor or customer), the requestor is responsible for working with the other party to make sure the document gets routed to the CEO for signature.
 
@@ -734,7 +753,7 @@ The SLA for contract signature is **2 business days**. Please do not follow up o
 
 _**Note:** Signature open time for the CEO is not currently measured, to avoid the overhead of creating separate signature issues to measure open and close time. This may change as signature volume increases._
 
-> _**Note:** If a contract is ready for signature and requires no review or revision, the requestor logins into DocuSign using hello@ from the 1Password and routes the agreement to the CEO for signature._ 
+> _**Note:** If a contract is ready for signature and requires no review or revision, log into DocuSign (credentials in 1Password) and route the agreement to the CEO for signature._ 
 
 Please use [Fleet's billing email address](https://fleetdm.com/handbook/company/communications#email-relays) for all contracts, and never use individual emails except for signature.  If the page to sign includes any individual emails in the docusign contract, please remove it before routing to the CEO for signature.
 

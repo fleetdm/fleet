@@ -2752,6 +2752,7 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 		host.PrimaryMac = wifiMac
 		host.HardwareModel = productName
 		host.DetailUpdatedAt = time.Now()
+		host.RefetchRequested = false
 		if err := svc.ds.UpdateHost(r.Context, host); err != nil {
 			return nil, ctxerr.Wrap(r.Context, err, "failed to update host")
 		}
@@ -2805,10 +2806,28 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 		// set "pending-install" profiles to "verifying" or "failed"
 		// depending on the status of the DeviceManagement command
 		status := mdmAppleDeliveryStatusFromCommandStatus(cmdResult.Status)
-		detail := fmt.Sprintf("%s. Make sure the host is on macOS 13 or higher.", apple_mdm.FmtErrorChain(cmdResult.ErrorChain))
+		detail := fmt.Sprintf("%s. Make sure the host is on macOS 13+, iOS 17+, iPadOS 17+.", apple_mdm.FmtErrorChain(cmdResult.ErrorChain))
 		err := svc.ds.MDMAppleSetPendingDeclarationsAs(r.Context, cmdResult.UDID, status, detail)
 		return nil, ctxerr.Wrap(r.Context, err, "update declaration status on DeclarativeManagement ack")
+	case "InstallApplication":
+		// Create an activity for installing only if we're in a terminal state
+		if cmdResult.Status == fleet.MDMAppleStatusAcknowledged ||
+			cmdResult.Status == fleet.MDMAppleStatusError ||
+			cmdResult.Status == fleet.MDMAppleStatusCommandFormatError {
+			user, act, err := svc.ds.GetPastActivityDataForVPPAppInstall(r.Context, cmdResult)
+			if err != nil {
+				if fleet.IsNotFound(err) {
+					// Then this isn't a VPP install, so no activity generated
+					return nil, nil
+				}
 
+				return nil, ctxerr.Wrap(r.Context, err, "fetching data for installed app store app activity")
+			}
+
+			if err := newActivity(r.Context, user, act, svc.ds, svc.logger); err != nil {
+				return nil, ctxerr.Wrap(r.Context, err, "creating activity for installed app store app")
+			}
+		}
 	}
 
 	return nil, nil
@@ -3258,7 +3277,7 @@ func ReconcileAppleProfiles(
 
 // scepCertRenewalThresholdDays defines the number of days before a SCEP
 // certificate must be renewed.
-const scepCertRenewalThresholdDays = 30
+const scepCertRenewalThresholdDays = 180
 
 // maxCertsRenewalPerRun specifies the maximum number of certificates to renew
 // in a single cron run.
@@ -3267,8 +3286,8 @@ const scepCertRenewalThresholdDays = 30
 // day, and we have room for 24,000 * scepCertRenewalThresholdDays total
 // renewals.
 //
-// For a default of 30 days as a threshold this gives us room for a fleet of
-// 720,000 devices expiring at the same time.
+// For a default of 180 days as a threshold this gives us room for a fleet of
+// ~4 million devices expiring at the same time.
 const maxCertsRenewalPerRun = 100
 
 func RenewSCEPCertificates(

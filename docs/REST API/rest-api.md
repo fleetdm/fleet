@@ -3030,6 +3030,10 @@ Returns the information of the specified host.
         "coordinates": [40.6799, -74.0028]
       }
     },
+    "maintenance_window": {
+      "starts_at": "2024-06-18T13:27:18−04:00",
+      "timezone": "America/New_York"
+    },
     "mdm": {
       "encryption_key_available": false,
       "enrollment_status": null,
@@ -4276,6 +4280,8 @@ OS vulnerability data is currently available for Windows and macOS. For other pl
 
 ### Get host's software
 
+> The **new keys/values added in the app management features are experimental** and may change. You can find the upcoming breaking changes [here](https://github.com/fleetdm/fleet/pull/19291/files#diff-7246bc304b15c8865ed8eaa205e9c244d0a0314e4bae60cf553dc06147c38b64L4304-L4311).
+
 `GET /api/v1/fleet/hosts/:id/software`
 
 #### Parameters
@@ -4585,9 +4591,9 @@ To unlock a Windows or Linux host, the host must have [scripts enabled](https://
 
 ### Wipe host
 
-Sends a command to wipe the specified macOS, Windows, or Linux host. The host is wiped once it comes online.
+Sends a command to wipe the specified macOS, iOS, iPadOS, Windows, or Linux host. The host is wiped once it comes online.
 
-To wipe a macOS or Windows host, the host must have MDM turned on. To lock a Linux host, the host must have [scripts enabled](https://fleetdm.com/docs/using-fleet/scripts).
+To wipe a macOS, iOS, iPadOS, or Windows host, the host must have MDM turned on. To lock a Linux host, the host must have [scripts enabled](https://fleetdm.com/docs/using-fleet/scripts).
 
 `POST /api/v1/fleet/hosts/:id/wipe`
 
@@ -6284,6 +6290,8 @@ This endpoint returns the list of custom MDM commands that have been executed.
 | per_page                  | integer | query | Results per page.                                                         |
 | order_key                 | string  | query | What to order results by. Can be any field listed in the `results` array example below. |
 | order_direction           | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`. |
+| host_identifier           | string  | query | The host's `hostname`, `uuid`, or `hardware_serial`. |
+| request_type              | string  | query | The request type to filter commands by. |
 
 #### Example
 
@@ -8212,7 +8220,6 @@ This allows you to easily configure scheduled queries that will impact a whole t
 
 - [Run script](#run-script)
 - [Get script result](#get-script-result)
-- [Run live script](#run-live-script)
 - [Add script](#add-script)
 - [Delete script](#delete-script)
 - [List scripts](#list-scripts)
@@ -8287,46 +8294,6 @@ Gets the result of a script that was executed.
 ```
 
 > Note: `exit_code` can be `null` if Fleet hasn't heard back from the host yet.
-
-### Run live script
-
-Run a live script and get results back (5 minute timeout). Live scripts only runs on the host if it has no other scripts running.
-
-`POST /api/v1/fleet/scripts/run/sync`
-
-#### Parameters
-
-| Name            | Type    | In   | Description                                      |
-| ----            | ------- | ---- | --------------------------------------------     |
-| host_id         | integer | body | **Required**. The host id to run the script on.  |
-| script_id       | integer | body | The ID of the existing saved script to run. Only one of either `script_id`, `script_name` or `script_contents` can be included in the request; omit this parameter if using `script_contents` or `script_name`.  |
-| script_contents | string  | body | The contents of the script to run. Only one of either `script_contents`, `script_id` or `script_name` can be included in the request; omit this parameter if using `script_id` or `script_name`. |
-| script_name       | string | body | The name of the existing saved script to run. Only one of either `script_name`, `script_id` or `script_contents` can be included in the request; omit this parameter if using `script_contents` or `script_id`.  |
-| team_id       | integer | body | ID of the team the saved script referenced by `script_name` belongs to. Default: `0` (hosts assigned to "No team") |
-
-
-> Note that if both `script_id` and `script_contents` are included in the request, this endpoint will respond with an error.
-
-#### Example
-
-`POST /api/v1/fleet/scripts/run/sync`
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "host_id": 1227,
-  "execution_id": "e797d6c6-3aae-11ee-be56-0242ac120002",
-  "script_contents": "echo 'hello'",
-  "output": "hello",
-  "message": "",
-  "runtime": 1,
-  "host_timeout": false,
-  "exit_code": 0
-}
-```
 
 ### Add script
 
@@ -8656,6 +8623,8 @@ Body: <blob>
 
 ### Delete software
 
+> This **endpoint, added in the app management feature, is experimental** may change. You can find the upcoming breaking changes [here](https://github.com/fleetdm/fleet/pull/19291/files#diff-7246bc304b15c8865ed8eaa205e9c244d0a0314e4bae60cf553dc06147c38b64L8661-R8698).
+
 _Available in Fleet Premium._
 
 Delete a software package.
@@ -8713,6 +8682,8 @@ Get the results of a software installation.
 ```
 
 ### List software
+
+> The **new keys/values added in the app management feature are experimental** and may change. You can find the upcoming breaking changes [here](https://github.com/fleetdm/fleet/pull/19291/files#diff-7246bc304b15c8865ed8eaa205e9c244d0a0314e4bae60cf553dc06147c38b64L8749-R8791).
 
 Get a list of all software.
 

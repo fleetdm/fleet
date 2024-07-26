@@ -12,6 +12,13 @@
     labels: [ "#g-digital-experience" ] # label to be applied to issue
     repo: fleet
 - 
+  task: "Regenerate messaging framework"
+  startedOn: "2024-07-15"
+  frequency: "Quarterly"
+  description: "Run through the entire website in `?utm_content=clear` mode and build a fresh outline of the headings to make sure they all still make sense."
+  moreInfoUrl: ""
+  dri: "mike-j-thomas"
+- 
   task: "Check production dependencies of fleetdm.com"
   startedOn: "2023-11-10" 
   frequency: "Weekly"
@@ -20,16 +27,6 @@
   dri: "eashaw"
   autoIssue:  
     labels: [ "#g-digital-experience" ] 
-    repo: fleet
-- 
-  task: "Generate latest schema"
-  startedOn: "2024-02-19" 
-  frequency: "Weekly"
-  description: "After each sprint, generate the latest tables json file to incorporate any new schema documentation."
-  moreInfoUrl: https://fleetdm.com/handbook/company/product-groups#changes-to-tables-schema
-  dri: "eashaw"
-  autoIssue:   
-    labels: [ "#g-digital-experience" ]
     repo: fleet
 - 
   task: "Check osquery Slack invitation"
@@ -155,16 +152,6 @@
   description: "Prevent connections from slipping through the cracks"
   moreInfoUrl: "https://fleetdm.com/handbook/digital-experience#check-linkedin-for-unread-messages"
   dri: "sampfluger88"
--
-  task: "Add funds to coresignal account"
-  startedOn: "2023-09-25"
-  frequency: "Monthly"
-  description: "Top up coresignal account once per month: https://dashboard.coresignal.com/pricing-plans"
-  moreInfoUrl: "https://dashboard.coresignal.com/pricing-plans"
-  dri: "SFriendLee"
-  autoIssue:  
-    labels: [ "#g-digital-experience" ] 
-    repo: "confidential" 
 -
   task: "Downgrade unused license seats" 
   startedOn: "2024-03-31" 
