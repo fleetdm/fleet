@@ -36,7 +36,6 @@
   tier: Premium
   jamfProHasFeature: appleOnly
   jamfProtectHasFeature: no
-  isStable: yes
   usualDepartment: IT
   productCategories: [Device management]
   pricingTableCategories: [Device management]       
@@ -49,7 +48,6 @@
   tier: Premium
   jamfProHasFeature: yes
   jamfProtectHasFeature: no
-  isStable: yes
   documentationUrl: https://fleetdm.com/docs/using-fleet/mdm-migration-guide
   usualDepartment: IT
   productCategories: [Device management]
@@ -64,7 +62,6 @@
   tier: Premium
   jamfProHasFeature: appleOnly
   jamfProtectHasFeature: no
-  isStable: yes
   usualDepartment: IT
   productCategories: [Device management]
   pricingTableCategories: [Device management]
@@ -89,7 +86,6 @@
   tier: Premium
   jamfProHasFeature: yes
   jamfProtectHasFeature: yes
-  isStable: yes
   waysToUse:
     - description: Automatically set admin access to Fleet based on your IDP
 #  
@@ -102,7 +98,7 @@
   tier: Free
   jamfProHasFeature: yes
   jamfProtectHasFeature: no
-  isStable: no
+  isExperimental: yes
   usualDepartment: IT
   productCategories: [Device management]
   pricingTableCategories: [Device management]
@@ -120,7 +116,6 @@
   tier: Free
   jamfProHasFeature: yes
   jamfProtectHasFeature: yes
-  isStable: yes
   usualDepartment: IT
   productCategories: [Endpoint operations,Device management]
   pricingTableCategories: [Device management] 
@@ -138,7 +133,6 @@
   tier: Premium
   jamfProHasFeature: appleOnly
   jamfProtectHasFeature: no
-  isStable: yes
   waysToUse:
     - description: Report on disk encryption status
     - description: Encrypt hard disks on macOS with FileVault
@@ -154,7 +148,6 @@
   tier: Premium
   jamfProHasFeature: yes
   jamfProtectHasFeature: no
-  isStable: yes
   usualDepartment: IT
   productCategories: [Device management,Vulnerability management]
   pricingTableCategories: [Device management]
@@ -174,7 +167,6 @@
   tier: Free
   jamfProHasFeature: yes
   jamfProtectHasFeature: no
-  isStable: yes
   waysToUse:
     - description: Deploy configuration profiles on macOS and Windows and verify that they're installed.
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/13281
@@ -202,7 +194,6 @@
   tier: Free
   jamfProHasFeature: yes
   jamfProtectHasFeature: no
-  isStable: yes
   dri: mikermcneil
   usualDepartment: IT
   productCategories: [Endpoint operations,Device management]
@@ -236,7 +227,7 @@
   tier: Premium
   jamfProHasFeature: appleOnly
   jamfProtectHasFeature: no
-  isStable: no
+  isExperimental: yes
   usualDepartment: IT
   productCategories: [Device management]
   pricingTableCategories: [Device management]
@@ -258,7 +249,7 @@
   tier: Premium
   jamfProHasFeature: yes
   jamfProtectHasFeature: no
-  isStable: no
+  isExperimental: yes
   usualDepartment: IT
   productCategories: [Device management]
   pricingTableCategories: [Device management]
@@ -272,7 +263,7 @@
   tier: Premium
   jamfProHasFeature: appleOnly
   jamfProtectHasFeature: no
-  isStable: no
+  isExperimental: yes
   comingSoonOn: 2024-07-15
   usualDepartment: IT
   productCategories: [Device management]
@@ -288,7 +279,6 @@
   tier: Premium
   jamfProHasFeature: yes
   jamfProtectHasFeature: no
-  isStable: yes
   usualDepartment: IT
   productCategories: [Device management, Vulnerability management]
   pricingTableCategories: [Device management]
@@ -309,7 +299,6 @@
   tier: Premium
   jamfProHasFeature: appleOnly
   jamfProtectHasFeature: no
-  isStable: yes
   usualDepartment: IT
   productCategories: [Device management]
   pricingTableCategories: [Device management]
@@ -326,7 +315,6 @@
   tier: Premium
   jamfProHasFeature: cloudOnly
   jamfProtectHasFeature: cloudOnly
-  isStable: yes
   usualDepartment: IT
   productCategories: [Device management]
   pricingTableCategories: [Device management]
@@ -340,7 +328,6 @@
   tier: Premium
   jamfProHasFeature: yes
   jamfProtectHasFeature: yes
-  isStable: yes
   usualDepartment: IT
   productCategories: [Device management]
   pricingTableCategories: [Device management] 
@@ -370,7 +357,6 @@
   tier: Free
   jamfProHasFeature: no
   jamfProtectHasFeature: yes
-  isStable: yes
   dri: mikermcneil
   usualDepartment: Security
   productCategories: [Endpoint operations,Vulnerability management]
@@ -409,7 +395,6 @@
   tier: Free
   jamfProHasFeature: no
   jamfProtectHasFeature: yes
-  isStable: yes
   buzzwords: [Stakeholder-specific vulnerability categorization (SSVC),Continuous scanning,Continuous vulnerability scanning,Risk-based vulnerability management]
   waysToUse:
     - description: 'Use an SSVC decision tree model to prioritize relevant vulnerabilities into four possible decisions: "Track", "Track*", "Attend", and "Act".'
@@ -437,7 +422,6 @@
   tier: Premium
   jamfProHasFeature: no
   jamfProtectHasFeature: yes
-  isStable: yes
   demos:
     - description: See a list of all vulnerabilities across your hosts.
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/15919
@@ -453,7 +437,6 @@
   tier: Premium
   jamfProHasFeature: no
   jamfProtectHasFeature: yes
-  isStable: yes
   usualDepartment: Security
   productCategories: [Vulnerability management]
   pricingTableCategories: [Vulnerability management]
@@ -476,7 +459,6 @@
   tier: Premium
   jamfProHasFeature: no
   jamfProtectHasFeature: yes
-  isStable: yes
   usualDepartment: Security
   productCategories: [Vulnerability management]
   pricingTableCategories: [Vulnerability management]
@@ -495,7 +477,7 @@
   documentationUrl:
   tier: Premium
   comingSoonOn: 2024-06-30
-  isStable: no
+  isExperimental: yes
   usualDepartment: Security
   productCategories: [Vulnerability management]
   pricingTableCategories: [Vulnerability management]
@@ -526,7 +508,6 @@
   tier: Free
   jamfProHasFeature: no
   jamfProtectHasFeature: yes
-  isStable: yes
   productCategories: [Device management,Endpoint operations]
   pricingTableCategories: [Endpoint operations]
   usualDepartment: IT
@@ -564,7 +545,6 @@
   tier: Free
   jamfProHasFeature: no
   jamfProtectHasFeature: yes
-  isStable: yes
   productCategories: [Endpoint operations]
   pricingTableCategories: [Endpoint operations]
   dri: mikermcneil
@@ -609,7 +589,6 @@
   tier: Free
   jamfProHasFeature: yes
   jamfProtectHasFeature: yes
-  isStable: yes
   productCategories: [Endpoint operations]
   pricingTableCategories: [Endpoint operations]
   usualDepartment: IT
@@ -645,7 +624,6 @@
   tier: Free
   jamfProHasFeature: no
   jamfProtectHasFeature: yes
-  isStable: yes
   usualDepartment: Security
   productCategories: [Endpoint operations]
   pricingTableCategories: [Endpoint operations]
@@ -672,7 +650,6 @@
   tier: Free
   jamfProHasFeature: no
   jamfProtectHasFeature: no
-  isStable: yes
   productCategories: [Endpoint operations]
   pricingTableCategories: [Endpoint operations]
 #
@@ -687,7 +664,6 @@
   tier: Free # Either "Free" or "Premium"
   jamfProHasFeature: no
   jamfProtectHasFeature: yes
-  isStable: yes
   usualDepartment: Security # or omit if there isn't a particular departmental leaning we've noticed
   productCategories: [Endpoint operations] # or omit if this isn't associated with a single product category
   pricingTableCategories: [Endpoint operations]
@@ -718,7 +694,7 @@
   tier: Premium
   jamfProHasFeature: no
   jamfProtectHasFeature: no
-  isStable: no
+  isExperimental: yes
   productCategories: [Endpoint operations]
   pricingTableCategories: [Endpoint operations]
 #
@@ -732,7 +708,6 @@
   tier: Free
   jamfProHasFeature: no
   jamfProtectHasFeature: yes
-  isStable: yes
   dri: mikermcneil
   usualDepartment: Security
   productCategories: [Endpoint operations]
@@ -754,7 +729,6 @@
   tier: Free
   jamfProHasFeature: no
   jamfProtectHasFeature: yes
-  isStable: yes
   dri: mikermcneil
   usualDepartment: Security
   productCategories: [Endpoint operations]
@@ -776,7 +750,6 @@
   tier: Free
   jamfProHasFeature: yes
   jamfProtectHasFeature: yes
-  isStable: yes
   dri: mikermcneil
   usualDepartment: Security
   productCategories: [Endpoint operations]
@@ -798,7 +771,7 @@
   tier: Free
   jamfProHasFeature: yes
   jamfProtectHasFeature: yes
-  isStable: no
+  isExperimental: yes
   dri: mikermcneil
   usualDepartment: Security
   productCategories: [Endpoint operations]
@@ -826,7 +799,6 @@
   tier: Free
   jamfProHasFeature: yes
   jamfProtectHasFeature: no
-  isStable: yes
   productCategories: [Endpoint operations]
   pricingTableCategories: [Endpoint operations]
   usualDepartment: IT
@@ -838,7 +810,6 @@
   tier: Free
   jamfProHasFeature: yes
   jamfProtectHasFeature: no
-  isStable: yes
   productCategories: [Endpoint operations]
   pricingTableCategories: [Endpoint operations]
   usualDepartment: IT
@@ -860,7 +831,6 @@
   tier: Free
   jamfProHasFeature: no
   jamfProtectHasFeature: no
-  isStable: yes
   productCategories: [Endpoint operations]
   pricingTableCategories: [Endpoint operations]
   usualDepartment: IT
@@ -875,7 +845,6 @@
   tier: Free
   jamfProHasFeature: no
   jamfProtectHasFeature: no
-  isStable: yes
   productCategories: [Endpoint operations]
   pricingTableCategories: [Endpoint operations]
   usualDepartment: Security
@@ -892,7 +861,6 @@
   tier: Free
   jamfProHasFeature: yes
   jamfProtectHasFeature: yes
-  isStable: yes
 #  
 #  ╔═╗╔═╗╔═╗╔╦╗╦ ╦╔═╗╦═╗╔═╗  ╦╔╗╔╦  ╦╔═╗╔╗╔╔╦╗╔═╗╦═╗╦ ╦
 #  ╚═╗║ ║╠╣  ║ ║║║╠═╣╠╦╝║╣   ║║║║╚╗╔╝║╣ ║║║ ║ ║ ║╠╦╝╚╦╝
@@ -902,7 +870,6 @@
   tier: Free
   jamfProHasFeature: yes
   jamfProtectHasFeature: no
-  isStable: yes
   productCategories: [Endpoint operations,Device management,Vulnerability management]
   pricingTableCategories: [Endpoint operations]
   waysToUse:
@@ -922,7 +889,6 @@
   tier: Free
   jamfProHasFeature: yes
   jamfProtectHasFeature: no
-  isStable: yes
   waysToUse:
     - description: Implement hardware and infrastructure inventory recommendations from the SANS 20 / CIS 18.
       moreInfoUrl: https://docs.google.com/document/d/1E6EQMMqrsRc6Z3YsR6Q33OaF9eAa8zLNaz4K2YzFdyo/edit#heading=h.7en766pueek4
@@ -938,7 +904,6 @@
   tier: Free
   jamfProHasFeature: yes
   jamfProtectHasFeature: yes
-  isStable: yes
 #  
 #  ╔╗ ╦═╗╔═╗╦ ╦╔═╗╔═╗  ╦╔╗╔╔═╗╔╦╗╔═╗╦  ╦  ╔═╗╔╦╗  ╔═╗╔═╗╔═╗╔╦╗╦ ╦╔═╗╦═╗╔═╗  ╔═╗╔═╗╔═╗╦╔═╔═╗╔═╗╔═╗╔═╗
 #  ╠╩╗╠╦╝║ ║║║║╚═╗║╣   ║║║║╚═╗ ║ ╠═╣║  ║  ║╣  ║║  ╚═╗║ ║╠╣  ║ ║║║╠═╣╠╦╝║╣   ╠═╝╠═╣║  ╠╩╗╠═╣║ ╦║╣ ╚═╗
@@ -950,7 +915,6 @@
   tier: Free
   jamfProHasFeature: yes
   jamfProtectHasFeature: no
-  isStable: yes
 #  
 #  ╔╦╗╦ ╦╔═╗   ╔═╗╔═╗╔═╗╔╦╗╔═╗╦═╗  ╔═╗╦ ╦╔╦╗╦ ╦╔═╗╔╗╔╔╦╗╦╔═╗╔═╗╔╦╗╦╔═╗╔╗╔
 #   ║ ║║║║ ║───╠╣ ╠═╣║   ║ ║ ║╠╦╝  ╠═╣║ ║ ║ ╠═╣║╣ ║║║ ║ ║║  ╠═╣ ║ ║║ ║║║║
@@ -963,7 +927,7 @@
   tier: Free
   jamfProHasFeature: yes
   jamfProtectHasFeature: yes
-  isStable: no
+  isExperimental: yes
   waysToUse:
     - description: Enforce two-factor authentication when logging in to Fleet for added security.
   comingSoonOn: 2024-12-31 #customer-rosner
@@ -978,7 +942,7 @@
   moreInfoUrl: https://github.com/fleetdm/fleet/issues/15671
   productCategories: [Endpoint operations,Device management,Vulnerability management]
   pricingTableCategories: [Endpoint operations]
-  isStable: no
+  isExperimental: yes
   usualDepartment: IT
   tier: Premium
   comingSoonOn: 2024-12-31 #customer-rosner
@@ -996,7 +960,6 @@
   tier: Free
   jamfProHasFeature: yes
   jamfProtectHasFeature: yes
-  isStable: yes
 # 
 #  ╦  ╔═╗╔╗ ╔═╗╦  ╔═╗  ╔═╗╔═╗ ╦    ╔╦╗╦═╗╦╦  ╦╔═╗╔╗╔
 #  ║  ╠═╣╠╩╗║╣ ║  ╚═╗  ╚═╗║═╬╗║─────║║╠╦╝║╚╗╔╝║╣ ║║║
@@ -1010,7 +973,6 @@
   tier: Free
   jamfProHasFeature: no
   jamfProtectHasFeature: no
-  isStable: yes
 #  
 #  ╦  ╦╔═╗╦═╗╔═╗╦╔═╗╔╗╔╔═╗╔╗ ╦  ╔═╗  ╔═╗ ╦ ╦╔═╗╦═╗╦╔═╗╔═╗  ╔═╗╔╗╔╔╦╗  ╔═╗╔═╗╔╗╔╔═╗╦╔═╗  
 #  ╚╗╔╝║╣ ╠╦╝╚═╗║║ ║║║║╠═╣╠╩╗║  ║╣   ║═╬╗║ ║║╣ ╠╦╝║║╣ ╚═╗  ╠═╣║║║ ║║  ║  ║ ║║║║╠╣ ║║ ╦  
@@ -1023,7 +985,6 @@
   tier: Free
   jamfProHasFeature: no
   jamfProtectHasFeature: no
-  isStable: yes
   productCategories: [Endpoint operations,Device management,Vulnerability management]
   pricingTableCategories: [Endpoint operations]
   usualDepartment: IT
@@ -1036,7 +997,6 @@
 #  ╚═╝╚═╝╚═╝╩  ╚═╝   ╩ ╩╚═╩ ╩╝╚╝╚═╝╩  ╩ ╩╩╚═╚═╝╝╚╝╚═╝ ╩ 
 - industryName: Scope transparency
   tier: Free
-  isStable: yes
   documentationUrl: https://fleetdm.com/transparency
   productCategories: [Endpoint operations]
   pricingTableCategories: [Endpoint operations]
@@ -1052,7 +1012,6 @@
   tier: Free
   jamfProHasFeature: yes
   jamfProtectHasFeature: yes
-  isStable: yes
 #  
 #  ╔═╗╦ ╦╔╦╗╦╔╦╗  ╦  ╔═╗╔═╗  ╔═╗╔═╗  ╔═╗╔═╗╔╦╗╦╦  ╦╦╔╦╗╦ ╦
 #  ╠═╣║ ║ ║║║ ║   ║  ║ ║║ ╦  ║ ║╠╣   ╠═╣║   ║ ║╚╗╔╝║ ║ ╚╦╝
@@ -1064,7 +1023,6 @@
   tier: Premium
   jamfProHasFeature: yes
   jamfProtectHasFeature: yes
-  isStable: yes
   usualDepartment: Security
   waysToUse:
     - description: Export activity of Fleet admins to your SIEM or data lake
@@ -1079,7 +1037,6 @@
   tier: Free
   jamfProHasFeature: yes
   jamfProtectHasFeature: yes
-  isStable: yes
 #  
 #  ╔═╗ ╦ ╦╔═╗╦═╗╦ ╦  ╔═╗╔═╗╦═╗╔═╗╔═╗╦═╗╔╦╗╔═╗╔╗╔╔═╗╔═╗  ╔╦╗╔═╗╔╗╔╦╔╦╗╔═╗╦═╗╦╔╗╔╔═╗
 #  ║═╬╗║ ║║╣ ╠╦╝╚╦╝  ╠═╝║╣ ╠╦╝╠╣ ║ ║╠╦╝║║║╠═╣║║║║  ║╣   ║║║║ ║║║║║ ║ ║ ║╠╦╝║║║║║ ╦
@@ -1089,7 +1046,6 @@
   tier: Free
   jamfProHasFeature: no
   jamfProtectHasFeature: no
-  isStable: yes
   productCategories: [Endpoint operations]
   pricingTableCategories: [Endpoint operations]
   demos:
@@ -1116,7 +1072,6 @@
   tier: Free
   jamfProHasFeature: yes
   jamfProtectHasFeature: yes
-  isStable: yes
 #  
 #  ╔═╗╦  ╔═╗═╗ ╦╦╔╗ ╦  ╔═╗  ╦  ╔═╗╔═╗  ╔╦╗╔═╗╔═╗╔╦╗╦╔╗╔╔═╗╔╦╗╦╔═╗╔╗╔╔═╗
 #  ╠╣ ║  ║╣ ╔╩╦╝║╠╩╗║  ║╣   ║  ║ ║║ ╦   ║║║╣ ╚═╗ ║ ║║║║╠═╣ ║ ║║ ║║║║╚═╗
@@ -1126,7 +1081,6 @@
   tier: Free
   jamfProHasFeature: yes
   jamfProtectHasFeature: yes
-  isStable: yes
   usualDepartment: Security
   productCategories: [Endpoint operations]
   pricingTableCategories: [Endpoint operations]
@@ -1140,7 +1094,6 @@
   tier: Free
   jamfProHasFeature: no
   jamfProtectHasFeature: no
-  isStable: yes
   usualDepartment: Security
   productCategories: [Endpoint operations]
   pricingTableCategories: [Endpoint operations]
@@ -1154,7 +1107,6 @@
   tier: Premium
   jamfProHasFeature: yes
   jamfProtectHasFeature: no
-  isStable: yes
   productCategories: [Endpoint operations, Device management]
   pricingTableCategories: [Endpoint operations]
   usualDepartment: IT
@@ -1169,7 +1121,6 @@
   tier: Premium
   jamfProHasFeature: no
   jamfProtectHasFeature: no
-  isStable: yes
   productCategories: [Endpoint operations]
   pricingTableCategories: [Endpoint operations]
   usualDepartment: Security
@@ -1183,7 +1134,6 @@
   tier: Premium
   jamfProHasFeature: no
   jamfProtectHasFeature: no
-  isStable: yes
   productCategories: [Endpoint operations]
   pricingTableCategories: [Endpoint operations]
   usualDepartment: IT
@@ -1199,7 +1149,6 @@
   tier: Premium
   jamfProHasFeature: no
   jamfProtectHasFeature: no
-  isStable: yes
   productCategories: [Endpoint operations]
   pricingTableCategories: [Endpoint operations]
   usualDepartment: IT
@@ -1214,7 +1163,6 @@
   tier: Premium
   jamfProHasFeature: yes
   jamfProtectHasFeature: yes
-  isStable: yes
   productCategories: [Endpoint operations,Device management,Vulnerability management]
   pricingTableCategories: [Endpoint operations]
   waysToUse:
@@ -1234,7 +1182,6 @@
   tier: Premium
   jamfProHasFeature: yes
   jamfProtectHasFeature: yes
-  isStable: yes
 #  
 #   ╦╦ ╦╔═╗╔╦╗  ╦╔╗╔  ╔╦╗╦╔╦╗╔═╗  ╔═╗╦═╗╔═╗╦  ╦╦╔═╗╦╔═╗╔╗╔╦╔╗╔╔═╗
 #   ║║ ║╚═╗ ║───║║║║───║ ║║║║║╣   ╠═╝╠╦╝║ ║╚╗╔╝║╚═╗║║ ║║║║║║║║║ ╦
@@ -1247,7 +1194,6 @@
   tier: Premium
   jamfProHasFeature: yes
   jamfProtectHasFeature: no
-  isStable: yes
 #  
 #  ╦═╗╔═╗╦  ╔═╗  ╔╗ ╔═╗╔═╗╔═╗╔╦╗  ╔═╗╔═╗╔═╗╔═╗╔═╗╔═╗  ╔═╗╔═╗╔╗╔╔╦╗╦═╗╔═╗╦  
 #  ╠╦╝║ ║║  ║╣───╠╩╗╠═╣╚═╗║╣  ║║  ╠═╣║  ║  ║╣ ╚═╗╚═╗  ║  ║ ║║║║ ║ ╠╦╝║ ║║  
@@ -1260,7 +1206,6 @@
   tier: Premium
   jamfProHasFeature: yes
   jamfProtectHasFeature: yes
-  isStable: yes
 #  
 #  ╔═╗╔═╗╦  ╦╔═╗╦ ╦  ╔═╗╔═╗╔═╗╦═╗╦╔╗╔╔═╗
 #  ╠═╝║ ║║  ║║  ╚╦╝  ╚═╗║  ║ ║╠╦╝║║║║║ ╦
@@ -1274,7 +1219,6 @@
   tier: Premium
   jamfProHasFeature: no
   jamfProtectHasFeature: no
-  isStable: yes
   waysToUse:
     - description: Block access to corporate apps if your end users are failing a specific number of critical policies.
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/16206
@@ -1353,7 +1297,6 @@
   tier: Free
   jamfProHasFeature: yes
   jamfProtectHasFeature: yes
-  isStable: yes
   demos:
     description: A top savings and investment company wanted workflows and automation so that one bad actor can't brick their fleet.  This way, they have to make a pull request first.
     quote: I don't want one bad actor to brick my fleet.  I want them to make a pull request first.
@@ -1371,7 +1314,6 @@
   tier: Free
   jamfProHasFeature: yes
   jamfProtectHasFeature: no
-  isStable: yes
   buzzwords: [Self-hosted]
 #  
 #  ╔╦╗╔═╗╔═╗╦  ╔═╗╦ ╦╔╦╗╔═╗╔╗╔╔╦╗  ╔╦╗╔═╗╔═╗╦  ╔═╗  ╔╦╗╔═╗╦═╗╦═╗╔═╗╔═╗╔═╗╦═╗╔╦╗   ╦ ╦╔═╗╦  ╔╦╗
@@ -1383,7 +1325,6 @@
   tier: Free
   jamfProHasFeature: no
   jamfProtectHasFeature: no
-  isStable: yes
   productCategories: [Endpoint operations]
   pricingTableCategories: [Deployment]
 #  
@@ -1397,7 +1338,6 @@
   tier: Premium
   jamfProHasFeature: yes
   jamfProtectHasFeature: yes
-  isStable: yes
 #  
 #  ╔╦╗╦ ╦╦ ╔╦╗╦  ╔╦╗╔═╗╔╗╔╔═╗╔╗╔╔═╗╦ ╦
 #  ║║║║ ║║  ║ ║───║ ║╣ ║║║╠═╣║║║║  ╚╦╝
@@ -1407,7 +1347,7 @@
   documentationUrl: https://github.com/fleetdm/fleet/issues/9956 #customer-deebradel
   productCategories: [Device management]
   pricingTableCategories: [Deployment]
-  isStable: no
+  isExperimental: yes
   usualDepartment: IT
   buzzwords: [OEM,Private label,House brand,Clear label,Multi-tenancy]
   tier: Premium
@@ -1435,7 +1375,6 @@
   tier: Free
   jamfProHasFeature: yes
   jamfProtectHasFeature: yes
-  isStable: yes
   dri: rachaelshaw
 #
 #  ╦ ╦╔═╗╔╗ ╦ ╦╔═╗╔═╗╦╔═╔═╗
@@ -1450,7 +1389,6 @@
   tier: Free
   jamfProHasFeature: yes
   jamfProtectHasFeature: yes
-  isStable: yes
 #
 #  ╔╦╗╔═╗╔═╗╔═╗  ╔═╗╦ ╦╔╦╗╔═╗╔╦╗╔═╗╔╦╗╦╔═╗╔╗╔╔═╗
 #   ║║║╣ ║╣ ╠═╝  ╠═╣║ ║ ║ ║ ║║║║╠═╣ ║ ║║ ║║║║╚═╗
@@ -1463,7 +1401,7 @@
   pricingTableCategories: [Integrations]
   comingSoonOn: 2024-06-30
   tier: Free
-  isStable: no
+  isExperimental: yes
   buzzwords: [Automated remediation,Auto-remediation,Self-healing]
   waysToUse:
     - description: Use policy automations to automatically remediate issues and mitigate vulnerabilities.
@@ -1485,7 +1423,6 @@
   tier: Free
   jamfProHasFeature: yes
   jamfProtectHasFeature: yes
-  isStable: yes
   waysToUse:
     - description: (ActiveDirectory) Know who opened your computer and check their device posture before you let them log into anything.
     - description: (Ansible) Easily issue MDM commands and standardize data across operating systems.
@@ -1516,7 +1453,6 @@
   description: Plug Fleet into other frameworks and tools.
   productCategories: [Endpoint operations,Device management,Vulnerability management]
   pricingTableCategories: [Integrations]
-  isStable: yes
   usualDepartment: IT
   moreInfoUrl: https://fleetdm.com/integrations
   tier: Premium
@@ -1534,7 +1470,6 @@
   tier: Premium
   jamfProHasFeature: yes
   jamfProtectHasFeature: yes
-  isStable: yes
   usualDepartment: IT
   productCategories: [Device management]
   pricingTableCategories: [Integrations]
@@ -1553,5 +1488,4 @@
   tier: Free
   jamfProHasFeature: yes
   jamfProtectHasFeature: no
-  isStable: yes
   
