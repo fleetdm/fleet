@@ -5,7 +5,6 @@ import { AxiosError } from "axios";
 
 import PATHS from "router/paths";
 import mdmAppleAPI, {
-  IGetVppAppsResponse,
   IGetVppInfoResponse,
   IVppApp,
 } from "services/entities/mdm_apple";
@@ -174,7 +173,7 @@ const AppStoreVpp = ({ teamId, router, onExit }: IAppStoreVppProps) => {
     }
 
     if (errorVppInfo || errorVppApps) {
-      return <DataError useNew className={`${baseClass}__error`} />;
+      return <DataError className={`${baseClass}__error`} />;
     }
 
     if (vppApps) {
