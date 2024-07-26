@@ -393,6 +393,7 @@ module.exports.custom = {
   // For nurture emails:
   // contactEmailForNutureEmails: '…',
   // activityCaptureEmailForNutureEmails: '…',
+  // contactNameForNurtureEmails: '…',
 
   // Deal registration form
   // dealRegistrationContactEmailAddress: '…',

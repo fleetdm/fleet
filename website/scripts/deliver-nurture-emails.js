@@ -18,11 +18,11 @@ module.exports = {
     let sixWeeksAgoAt = nowAt - (1000 * 60 * 60 * 24 * 7 * 6);
     // Find user records that are over an hour old that were created after July 22nd.
     let usersWithMdmBuyingSituation = await User.find({
+      primaryBuyingSituation: 'mdm',
       createdAt: {
         '>=': nurtureCampaignStartedAt,
         '<=': oneHourAgoAt,
       },
-      primaryBuyingSituation: 'mdm',
     });
 
     // Only send emails to stage 3 users who have not received a nurture email for this stage, and that have been stage 3 for at least one day.
@@ -58,6 +58,8 @@ module.exports = {
           subject: 'Was it any good?',
           bcc: [sails.config.custom.activityCaptureEmailForNutureEmails],
           from: sails.config.custom.contactEmailForNutureEmails,
+          fromName: sails.config.custom.contactNameForNurtureEmails,
+          ensureAck: true,
         });
       }
     }
@@ -82,6 +84,8 @@ module.exports = {
           subject: 'Deploy open-source MDM',
           bcc: [sails.config.custom.activityCaptureEmailForNutureEmails],
           from: sails.config.custom.contactEmailForNutureEmails,
+          fromName: sails.config.custom.contactNameForNurtureEmails,
+          ensureAck: true,
         });
       }
     }
@@ -106,6 +110,8 @@ module.exports = {
           subject: 'Update',
           bcc: [sails.config.custom.activityCaptureEmailForNutureEmails],
           from: sails.config.custom.contactEmailForNutureEmails,
+          fromName: sails.config.custom.contactNameForNurtureEmails,
+          ensureAck: true,
         });
       }
     }
@@ -114,9 +120,6 @@ module.exports = {
     .set({
       stageFiveNurtureEmailSentAt: nowAt,
     });
-
-    // Pause for 10 seconds to allow for all of the emails to be sent. (The sendTemplateEmail helper is called with await, but it queues a background action to send the emails)
-    await sails.helpers.flow.pause(10000);
 
   }
 
