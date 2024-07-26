@@ -12,8 +12,6 @@ The Volume Purchasing Program is an Apple initiative that allows organizations t
 * **Streamlined deployment:** Use Fleet to automate the installation and configuration of purchased apps on enrolled devices.
 
 By integrating VPP with Fleet, organizations can seamlessly add apps to their software library and deploy them across macOS hosts, ensuring that all devices have the necessary applications installed efficiently and effectively.
-
-
 ## Prerequisites
 
 
