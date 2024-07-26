@@ -1,4 +1,4 @@
-# Enhancing K-12 cybersecurity with fcc funds and fleet
+# Enhancing K-12 cybersecurity with FCC funds and Fleet
 
 ![Enhancing K-12 cybersecurity with fcc funds and fleet](../website/assets/images/articles/enhancing-k-12-cybersecurity-with-fcc-funds-and-fleet-1600x900@2x.png)
 
