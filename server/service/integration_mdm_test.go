@@ -971,7 +971,7 @@ func (s *integrationMDMTestSuite) createAppleMobileHostThenEnrollMDM(platform st
 		HardwareSerial:   serialNumber,
 		Platform:         platform,
 		LastEnrolledAt:   dbZeroTime,
-		DetailUpdatedAt:  dbZeroTime,
+		DetailUpdatedAt:  time.Now(), // so that we don't trigger a cron detail update
 		RefetchRequested: true,
 	})
 	require.NoError(t, err)
@@ -2595,6 +2595,11 @@ func (s *integrationMDMTestSuite) TestFleetdConfiguration() {
 func (s *integrationMDMTestSuite) TestEnqueueMDMCommand() {
 	ctx := context.Background()
 	t := s.T()
+
+	// list commands should return all the commands we sent
+	var listCmdResp0 listMDMAppleCommandsResponse
+	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/commands", nil, http.StatusOK, &listCmdResp0)
+	require.Empty(t, listCmdResp0.Results)
 
 	// Create host enrolled via osquery, but not enrolled in MDM.
 	unenrolledHost := createHostAndDeviceToken(t, s.ds, "unused")
@@ -9675,6 +9680,11 @@ func (s *integrationMDMTestSuite) TestEnrollAfterDEPSyncIOSIPadOS() {
 	require.Equal(t, h.ID, hostResp.Host.ID)
 	require.NotEqual(t, h.LastEnrolledAt, hostResp.Host.LastEnrolledAt)
 
+	// list commands returns empty set -- no MDM commands should be queued at this point
+	var listCmdResp listMDMAppleCommandsResponse
+	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/commands", nil, http.StatusOK, &listCmdResp)
+	require.Empty(t, listCmdResp.Results)
+
 }
 
 func (s *integrationMDMTestSuite) TestRefetchIOSIPadOS() {
@@ -9699,6 +9709,8 @@ func (s *integrationMDMTestSuite) TestRefetchIOSIPadOS() {
 
 	// Refetch host
 	_ = s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/refetch", host.ID), nil, http.StatusOK)
+	const commandsSentPerRefetch = 2
+	commandsSent := commandsSentPerRefetch
 
 	var hostResp getHostResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &hostResp)
@@ -9709,10 +9721,6 @@ func (s *integrationMDMTestSuite) TestRefetchIOSIPadOS() {
 	cmd, err := mdmClient.Idle()
 	require.NoError(t, err)
 	require.NotNil(t, cmd)
-	expectedCommands := map[string]struct{}{
-		"DeviceInformation":        {},
-		"InstalledApplicationList": {},
-	}
 
 	const deviceName = "My iPhone"
 	expectedSoftware := []fleet.HostSoftwareEntry{
@@ -9725,21 +9733,13 @@ func (s *integrationMDMTestSuite) TestRefetchIOSIPadOS() {
 			},
 		},
 	}
-	for len(expectedCommands) > 0 {
-		switch cmd.Command.RequestType {
-		case "DeviceInformation":
-			cmd, err = mdmClient.AcknowledgeDeviceInformation(mdmClient.UUID, cmd.CommandUUID, deviceName, "iPhone SE")
-			require.NoError(t, err)
-			delete(expectedCommands, "DeviceInformation")
-		case "InstalledApplicationList":
-			cmd, err = mdmClient.AcknowledgeInstalledApplicationList(mdmClient.UUID, cmd.CommandUUID,
-				[]fleet.Software{expectedSoftware[0].Software})
-			require.NoError(t, err)
-			delete(expectedCommands, "InstalledApplicationList")
-		default:
-			t.Fatalf("Unexpected command: %s", cmd.Command.RequestType)
-		}
-	}
+	require.Equal(t, "InstalledApplicationList", cmd.Command.RequestType)
+	cmd, err = mdmClient.AcknowledgeInstalledApplicationList(mdmClient.UUID, cmd.CommandUUID,
+		[]fleet.Software{expectedSoftware[0].Software})
+	require.NoError(t, err)
+	require.Equal(t, "DeviceInformation", cmd.Command.RequestType)
+	cmd, err = mdmClient.AcknowledgeDeviceInformation(mdmClient.UUID, cmd.CommandUUID, deviceName, "iPhone SE")
+	require.NoError(t, err)
 
 	hostResp = getHostResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &hostResp)
@@ -9757,6 +9757,7 @@ func (s *integrationMDMTestSuite) TestRefetchIOSIPadOS() {
 
 	// Refetch host
 	_ = s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/refetch", hostIPad.ID), nil, http.StatusOK)
+	commandsSent += commandsSentPerRefetch
 
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hostIPad.ID), nil, http.StatusOK, &hostResp)
 	assert.Equal(t, hostIPad.ID, hostResp.Host.ID)
@@ -9766,10 +9767,6 @@ func (s *integrationMDMTestSuite) TestRefetchIOSIPadOS() {
 	cmd, err = mdmClientIPad.Idle()
 	require.NoError(t, err)
 	require.NotNil(t, cmd)
-	expectedCommands = map[string]struct{}{
-		"DeviceInformation":        {},
-		"InstalledApplicationList": {},
-	}
 
 	const deviceNameIPad = "My iPad"
 	expectedSoftware = []fleet.HostSoftwareEntry{
@@ -9782,21 +9779,14 @@ func (s *integrationMDMTestSuite) TestRefetchIOSIPadOS() {
 			},
 		},
 	}
-	for len(expectedCommands) > 0 {
-		switch cmd.Command.RequestType {
-		case "DeviceInformation":
-			cmd, err = mdmClientIPad.AcknowledgeDeviceInformation(mdmClientIPad.UUID, cmd.CommandUUID, deviceNameIPad, "iPad 10")
-			require.NoError(t, err)
-			delete(expectedCommands, "DeviceInformation")
-		case "InstalledApplicationList":
-			cmd, err = mdmClientIPad.AcknowledgeInstalledApplicationList(mdmClientIPad.UUID, cmd.CommandUUID,
-				[]fleet.Software{expectedSoftware[0].Software})
-			require.NoError(t, err)
-			delete(expectedCommands, "InstalledApplicationList")
-		default:
-			t.Fatalf("Unexpected command: %s", cmd.Command.RequestType)
-		}
-	}
+	require.Equal(t, "InstalledApplicationList", cmd.Command.RequestType)
+	cmd, err = mdmClientIPad.AcknowledgeInstalledApplicationList(mdmClientIPad.UUID, cmd.CommandUUID,
+		[]fleet.Software{expectedSoftware[0].Software})
+	require.NoError(t, err)
+	require.Equal(t, "DeviceInformation", cmd.Command.RequestType)
+	cmd, err = mdmClientIPad.AcknowledgeDeviceInformation(mdmClientIPad.UUID, cmd.CommandUUID, deviceNameIPad, "iPad 10")
+	require.NoError(t, err)
+	require.Nil(t, cmd)
 
 	hostResp = getHostResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hostIPad.ID), nil, http.StatusOK, &hostResp)
@@ -9862,31 +9852,20 @@ func (s *integrationMDMTestSuite) TestRefetchIOSIPadOS() {
 
 	// Test that software was deleted from device
 	_ = s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/refetch", host.ID), nil, http.StatusOK)
+	commandsSent += commandsSentPerRefetch
 
 	// Check the MDM commands and send response
 	cmd, err = mdmClient.Idle()
 	require.NoError(t, err)
 	require.NotNil(t, cmd)
-	expectedCommands = map[string]struct{}{
-		"DeviceInformation":        {},
-		"InstalledApplicationList": {},
-	}
-
+	require.Equal(t, "InstalledApplicationList", cmd.Command.RequestType)
+	cmd, err = mdmClient.AcknowledgeInstalledApplicationList(mdmClient.UUID, cmd.CommandUUID, []fleet.Software{})
+	require.NoError(t, err)
+	require.Equal(t, "DeviceInformation", cmd.Command.RequestType)
 	const deviceNameRenamed = "My new iPhone"
-	for len(expectedCommands) > 0 {
-		switch cmd.Command.RequestType {
-		case "DeviceInformation":
-			cmd, err = mdmClient.AcknowledgeDeviceInformation(mdmClient.UUID, cmd.CommandUUID, deviceNameRenamed, "iPhone SE")
-			require.NoError(t, err)
-			delete(expectedCommands, "DeviceInformation")
-		case "InstalledApplicationList":
-			cmd, err = mdmClient.AcknowledgeInstalledApplicationList(mdmClient.UUID, cmd.CommandUUID, []fleet.Software{})
-			require.NoError(t, err)
-			delete(expectedCommands, "InstalledApplicationList")
-		default:
-			t.Fatalf("Unexpected command: %s", cmd.Command.RequestType)
-		}
-	}
+	cmd, err = mdmClient.AcknowledgeDeviceInformation(mdmClient.UUID, cmd.CommandUUID, deviceNameRenamed, "iPhone SE")
+	require.NoError(t, err)
+	require.Nil(t, cmd)
 
 	hostResp = getHostResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &hostResp)
@@ -9894,6 +9873,12 @@ func (s *integrationMDMTestSuite) TestRefetchIOSIPadOS() {
 	assert.False(t, hostResp.Host.RefetchRequested)
 	assert.Equal(t, deviceNameRenamed, hostResp.Host.ComputerName)
 	assert.Empty(t, hostResp.Host.Software)
+
+	// list commands should return all the commands we sent
+	var listCmdResp listMDMAppleCommandsResponse
+	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/commands", nil, http.StatusOK, &listCmdResp)
+	require.Len(t, listCmdResp.Results, commandsSent)
+
 }
 
 func (s *integrationMDMTestSuite) TestVPPApps() {

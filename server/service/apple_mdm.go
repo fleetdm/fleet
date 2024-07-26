@@ -2872,7 +2872,11 @@ func unmarshalAppList(ctx context.Context, response []byte, source string) ([]fl
 		return nil, ctxerr.Wrap(ctx, err, "failed to unmarshal installed application list command result")
 	}
 
-	truncateString := func(str string, length int) string {
+	truncateString := func(item interface{}, length int) string {
+		str, ok := item.(string)
+		if !ok {
+			return ""
+		}
 		runes := []rune(str)
 		if len(runes) > length {
 			return string(runes[:length])
@@ -2883,9 +2887,9 @@ func unmarshalAppList(ctx context.Context, response []byte, source string) ([]fl
 	var software []fleet.Software
 	for _, app := range appsResponse.InstalledApplicationList {
 		software = append(software, fleet.Software{
-			Name:             truncateString(app["Name"].(string), fleet.SoftwareNameMaxLength),
-			Version:          truncateString(app["ShortVersion"].(string), fleet.SoftwareVersionMaxLength),
-			BundleIdentifier: truncateString(app["Identifier"].(string), fleet.SoftwareBundleIdentifierMaxLength),
+			Name:             truncateString(app["Name"], fleet.SoftwareNameMaxLength),
+			Version:          truncateString(app["ShortVersion"], fleet.SoftwareVersionMaxLength),
+			BundleIdentifier: truncateString(app["Identifier"], fleet.SoftwareBundleIdentifierMaxLength),
 			Source:           source,
 		})
 	}
