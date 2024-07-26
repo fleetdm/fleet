@@ -13,9 +13,6 @@ The Volume Purchasing Program is an Apple initiative that allows organizations t
 
 By integrating VPP with Fleet, organizations can seamlessly add apps to their software library and deploy them across macOS hosts, ensuring that all devices have the necessary applications installed efficiently and effectively.
 ## Prerequisites
-
-
-
 * **MDM features**: to use the VPP integration, you must first enable MDM features in Fleet. See the [MDM setup guide](https://fleetdm.com/docs/using-fleet/mdm-setup) for instructions on enabling MDM features.
 * **Teams**: Apps can only be added to a specific Team. You can manage teams by selecting your avatar in the top navigation and then **Settings > Teams**.
 
