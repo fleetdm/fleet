@@ -36,10 +36,6 @@ article, so the process for writing a guide and article is the same.
 
 1. Review and follow the [Fleet writing style guide](https://fleetdm.com/handbook/company/communications#writing).
 2. Make a copy of the ["Article: Guide Template"](https://docs.google.com/document/d/1OPcDouyfyFPg3ScrN4bo6ol8vMfMa3P9-BIfbnEdcg4/copy) and rename "Article: [Guide] {feature name}".
-3. Find the "Article: Guide Template". 
-4. Right-click the template file and choose "Make a copy". 
-5. Find the new "Copy of Article: Guide Template" file, right-click and select "rename". 
-6. Name the file "Article: [Guide] {feature name}"
 7. Open the template and insert your content into the provided template format. 
 8. Create a [new GitHub
    issue](https://github.com/fleetdm/fleet/issues/new?assignees=spokanemac&labels=:help-it&title=New%20guide:)
