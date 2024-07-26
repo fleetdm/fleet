@@ -635,18 +635,18 @@
           window.history.replaceState({}, '', queryParameterLessUrl);// https://caniuse.com/mdn-api_history_replacestate
         }
       });
-      // Adding hover events to header dropdown menus
-      // $(function(){
-      //   $('[purpose=dropdown-button]').hover(
-      //     function() {
-      //       $(this).children('.dropdown-menu').addClass('show');
-      //       $(this).children('.dropdown-toggle').attr('aria-expanded', true);
-      //     },
-      //     function() {
-      //     $(this).children('.dropdown-menu').removeClass('show');
-      //     $(this).children('.dropdown-toggle').attr('aria-expanded', false);
-      //   });
-      // });
+      // Adding hover events to header dropdown menus.
+      $(function(){
+        $('[purpose=dropdown-button]').hover(
+          function() {
+            $(this).children('.dropdown-menu').addClass('show');
+            $(this).children('.dropdown-toggle').attr('aria-expanded', true);
+          },
+          function() {
+          $(this).children('.dropdown-menu').removeClass('show');
+          $(this).children('.dropdown-toggle').attr('aria-expanded', false);
+        });
+      });
     </script>
   </body>
 </html>
