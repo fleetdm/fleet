@@ -1011,7 +1011,8 @@ func refetchHostEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 
 func (svc *Service) RefetchHost(ctx context.Context, id uint) error {
 	var host *fleet.Host
-	// iOS and iPadOS refetch are not authenticated with device token because these devices do not have Fleet Desktop
+	// iOS and iPadOS refetch are not authenticated with device token because these devices do not have Fleet Desktop,
+	// so we don't handle that case
 	if !svc.authz.IsAuthenticatedWith(ctx, authzctx.AuthnDeviceToken) {
 		var err error
 		if err = svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
