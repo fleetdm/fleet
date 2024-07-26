@@ -66,7 +66,6 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
     setEnrollSecret,
     setABMExpiry,
     setAPNsExpiry,
-    setVppExpiry,
     setSandboxExpiry,
     setNoSandboxHosts,
   } = useContext(AppContext);
@@ -111,12 +110,6 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
             setAPNsExpiry(apnsInfo.renew_date);
           } catch (error) {
             console.error(error);
-          }
-          try {
-            const vppInfo = await mdmAppleAPI.getVppInfo();
-            setVppExpiry(vppInfo.renew_date);
-          } catch (e) {
-            console.log(e);
           }
         }
       }

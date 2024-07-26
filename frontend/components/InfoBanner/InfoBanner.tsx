@@ -87,11 +87,7 @@ const InfoBanner = ({
     );
   }
 
-  return (
-    <div className={wrapperClasses} role="status">
-      {content}
-    </div>
-  );
+  return <div className={wrapperClasses}>{content}</div>;
 };
 
 export default InfoBanner;
