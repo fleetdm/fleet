@@ -12,7 +12,7 @@ module.exports = {
     sails.log('Running custom shell script... (`sails run deliver-nurture-emails`)');
 
     let nowAt = Date.now();
-    let nurtureCampaignStartedAt = new Date('06-22-2024').getTime();
+    let nurtureCampaignStartedAt = new Date('07-22-2024').getTime();
     let oneHourAgoAt = nowAt - (1000 * 60 * 60);
     let oneDayAgoAt = nowAt - (1000 * 60 * 60);
     let sixWeeksAgoAt = nowAt - (1000 * 60 * 60 * 24 * 7 * 6);
