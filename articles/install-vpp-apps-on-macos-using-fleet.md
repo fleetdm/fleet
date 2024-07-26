@@ -20,8 +20,6 @@ By integrating VPP with Fleet, organizations can seamlessly add apps to their so
 1. **Navigate to the VPP integration settings page**: Click your avatar on the far right of the main navigation menu, and then **Settings > Integrations > "Volume Purchasing Program (VPP)."**
 
 2. **Add your VPP token**: Follow the directions on that page to get your VPP token from Apple Business Manager, and then click the "Upload" button at the bottom to upload it to Fleet.
-
-
 ### Purchasing apps
 
 To add apps to Fleet, you must first purchase them through Apple Business Manager, even if they are free. This ensures that all apps are appropriately licensed and available for distribution via the Volume Purchasing Program (VPP). For detailed instructions on selecting and buying content, please refer to Apple’s documentation on [purchasing apps through Apple Business Manager](https://support.apple.com/guide/apple-business-manager/select-and-buy-content-axmc21817890/web).
