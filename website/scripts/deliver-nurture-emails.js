@@ -4,7 +4,7 @@ module.exports = {
   friendlyName: 'Deliver nurture emails',
 
 
-  description: '',
+  description: 'Sends nurture emails to users who have been at psychological stage 3 & 4 for more than a day, and users who have been stage five for six weeks.',
 
 
   fn: async function () {
@@ -12,31 +12,32 @@ module.exports = {
     sails.log('Running custom shell script... (`sails run deliver-nurture-emails`)');
 
     let nowAt = Date.now();
-    let nurtureCampaignStartedAt= new Date('07-22-2024').getTime();
+    let nurtureCampaignStartedAt = new Date('06-22-2024').getTime();
     let oneHourAgoAt = nowAt - (1000 * 60 * 60);
     let oneDayAgoAt = nowAt - (1000 * 60 * 60);
     let sixWeeksAgoAt = nowAt - (1000 * 60 * 60 * 24 * 7 * 6);
-    // Find user records created after July 22nd, and older than an hour ago.
-    let users = await User.find({
+    // Find user records that are over an hour old that were created after July 22nd.
+    let usersWithMdmBuyingSituation = await User.find({
       createdAt: {
         '>=': nurtureCampaignStartedAt,
         '<=': oneHourAgoAt,
       },
+      primaryBuyingSituation: 'mdm',
     });
 
-    let usersWithMdmBuyingSituation = _.filter(users, (user)=>{
-      return user.primaryBuyingSituation === 'mdm';
-    });
-
-
+    // Only send emails to stage 3 users who have not received a nurture email for this stage, and that have been stage 3 for at least one day.
     let stageThreeMdmFocusedUsersWhoHaveNotReceivedAnEmail = _.filter(usersWithMdmBuyingSituation, (user)=>{
       return user.stageThreeNurtureEmailSentAt === 0
       && user.psychologicalStage === '3 - Intrigued';
     });
+
+    // Only send emails to stage 4 users who have not received a a nurture email for this stage, and that have been stage 4 for at least one day.
     let stageFourMdmFocusedUsersWhoHaveNotReceivedAnEmail = _.filter(usersWithMdmBuyingSituation, (user)=>{
       return user.stageFourNurtureEmailSentAt === 0
       && user.psychologicalStage === '4 - Has use case';
     });
+
+    // Only send emails to stage 5 users who have not received a nurture email for this stage, and that have been stage 5 for at least six weeks.
     let stageFiveMdmFocusedUsersWhoHaveNotReceivedAnEmail = _.filter(usersWithMdmBuyingSituation, (user)=>{
       return user.stageFiveNurtureEmailSentAt === 0
       && user.psychologicalStage === '5 - Personally confident';
@@ -60,6 +61,7 @@ module.exports = {
         });
       }
     }
+
     await User.update({id: {in: _.pluck(stageThreeMdmFocusedUsersWhoHaveNotReceivedAnEmail, 'id')}})
     .set({
       stageThreeNurtureEmailSentAt: nowAt,
@@ -83,6 +85,7 @@ module.exports = {
         });
       }
     }
+
     await User.update({id: {in: _.pluck(stageFourMdmFocusedUsersWhoHaveNotReceivedAnEmail, 'id')}})
     .set({
       stageFourNurtureEmailSentAt: nowAt,
@@ -106,10 +109,12 @@ module.exports = {
         });
       }
     }
+
     await User.update({id: {in: _.pluck(stageFiveMdmFocusedUsersWhoHaveNotReceivedAnEmail, 'id')}})
     .set({
       stageFiveNurtureEmailSentAt: nowAt,
     });
+
     // Pause for 10 seconds to allow for all of the emails to be sent. (The sendTemplateEmail helper is called with await, but it queues a background action to send the emails)
     await sails.helpers.flow.pause(10000);
 
