@@ -2,6 +2,7 @@ import React from "react";
 
 import { API_NO_TEAM_ID, ITeamConfig } from "interfaces/team";
 import { IConfig } from "interfaces/config";
+import { ApplePlatform } from "interfaces/platform";
 
 import SectionHeader from "components/SectionHeader";
 import Spinner from "components/Spinner";
@@ -13,7 +14,7 @@ import { OSUpdatesSupportedPlatform } from "../../OSUpdates";
 const baseClass = "os-updates-target-section";
 
 type GetDefaultFnParams = {
-  osType?: "darwin" | "ios" | "ipados";
+  osType?: ApplePlatform;
   currentTeamId: number;
   appConfig: IConfig;
   teamConfig?: ITeamConfig;
@@ -28,10 +29,16 @@ const getDefaultOSVersion = ({
   const mdmData =
     currentTeamId === API_NO_TEAM_ID ? appConfig?.mdm : teamConfig?.mdm;
 
-  if (osType === "darwin") return mdmData?.macos_updates.minimum_version ?? "";
-  if (osType === "ios") return mdmData?.ios_updates.minimum_version ?? "";
-  if (osType === "ipados") return mdmData?.ipados_updates.minimum_version ?? "";
-  return "";
+  switch (osType) {
+    case "darwin":
+      return mdmData?.macos_updates.minimum_version ?? "";
+    case "ios":
+      return mdmData?.ios_updates.minimum_version ?? "";
+    case "ipados":
+      return mdmData?.ipados_updates.minimum_version ?? "";
+    default:
+      return "";
+  }
 };
 
 const getDefaultDeadline = ({
@@ -43,11 +50,16 @@ const getDefaultDeadline = ({
   const mdmData =
     currentTeamId === API_NO_TEAM_ID ? appConfig?.mdm : teamConfig?.mdm;
 
-  if (osType === "darwin") return mdmData?.macos_updates.deadline ?? "";
-  if (osType === "ios") return mdmData?.ios_updates.deadline ?? "";
-  if (osType === "ipados") return mdmData?.ipados_updates.deadline ?? "";
-
-  return "";
+  switch (osType) {
+    case "darwin":
+      return mdmData?.macos_updates.deadline ?? "";
+    case "ios":
+      return mdmData?.ios_updates.deadline ?? "";
+    case "ipados":
+      return mdmData?.ipados_updates.deadline ?? "";
+    default:
+      return "";
+  }
 };
 
 const getDefaultWindowsDeadlineDays = ({

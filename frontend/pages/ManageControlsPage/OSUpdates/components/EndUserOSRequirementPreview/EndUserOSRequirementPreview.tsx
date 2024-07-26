@@ -6,6 +6,8 @@ import { OSUpdatesSupportedPlatform } from "../../OSUpdates";
 
 import MacOSUpdateScreenshot from "../../../../../../assets/images/macos-updates-preview.png";
 import WindowsUpdateScreenshot from "../../../../../../assets/images/windows-nudge-screenshot.png";
+import IOSUpdateScreenshot from "../../../../../../assets/images/ios-updates-preview.png";
+import IPadOSUpdateScreenshot from "../../../../../../assets/images/ipados-updates-preview.png";
 
 const baseClass = "os-requirement-preview";
 
@@ -15,85 +17,72 @@ interface IOSRequirementDescriptionProps {
 const OSRequirementDescription = ({
   platform,
 }: IOSRequirementDescriptionProps) => {
-  if (platform === "darwin") {
-    return (
-      <>
-        <h3>End user experience on macOS</h3>
-        <p>
-          For macOS 14 and above, end users will see native macOS notifications
-          (DDM).
-        </p>
-        <p>Everyone else will see the Nudge window.</p>
-        <CustomLink
-          text="Learn more"
-          url="https://fleetdm.com/learn-more-about/os-updates"
-          newTab
-        />
-      </>
-    );
+  switch (platform) {
+    case "darwin":
+      return (
+        <>
+          <h3>End user experience on macOS</h3>
+          <p>
+            For macOS 14 and above, end users will see native macOS
+            notifications (DDM).
+          </p>
+          <p>Everyone else will see the Nudge window.</p>
+          <CustomLink
+            text="Learn more"
+            url="https://fleetdm.com/learn-more-about/os-updates"
+            newTab
+          />
+        </>
+      );
+    case "windows":
+      return (
+        <>
+          <h3>End user experience on Windows</h3>
+          <p>
+            When a Windows host becomes aware of a new update, end users are
+            able to defer restarts. Automatic restarts happen before 8am and
+            after 5pm (end user&apos;s local time). After the deadline, restarts
+            are forced regardless of active hours.
+          </p>
+          <CustomLink
+            text="Learn more about Windows updates in Fleet"
+            url="https://fleetdm.com/learn-more-about/os-updates"
+            newTab
+          />
+        </>
+      );
+    case "ios":
+      return (
+        <>
+          <h3>End user experience on iOS</h3>
+        </>
+      );
+    case "ipados":
+      return (
+        <>
+          <h3>End user experience on iPadOS</h3>
+        </>
+      );
+    default:
+      <></>;
   }
-  if (platform === "windows") {
-    return (
-      <>
-        <h3>End user experience on Windows</h3>
-        <p>
-          When a Windows host becomes aware of a new update, end users are able
-          to defer restarts. Automatic restarts happen before 8am and after 5pm
-          (end user&apos;s local time). After the deadline, restarts are forced
-          regardless of active hours.
-        </p>
-        <CustomLink
-          text="Learn more about Windows updates in Fleet"
-          url="https://fleetdm.com/learn-more-about/os-updates"
-          newTab
-        />
-      </>
-    );
-  }
-  if (platform === "ios") {
-    return (
-      <>
-        <h3>End user experience on iOS</h3>
-        <p>TODO: waiting on design</p>
-        <CustomLink
-          text="Learn more"
-          url="https://fleetdm.com/learn-more-about/os-updates"
-          newTab
-        />
-      </>
-    );
-  }
-  if (platform === "ipados") {
-    return (
-      <>
-        <h3>End user experience on iPadOS</h3>
-        <p>TODO: waiting on design</p>
-        <CustomLink
-          text="Learn more"
-          url="https://fleetdm.com/learn-more-about/os-updates"
-          newTab
-        />
-      </>
-    );
-  }
-  return <></>;
 };
 
 type IOSRequirementImageProps = IOSRequirementDescriptionProps;
 
 const OSRequirementImage = ({ platform }: IOSRequirementImageProps) => {
   const getScreenshot = () => {
-    if (platform === "darwin") {
-      return MacOSUpdateScreenshot;
-    }
-    if (platform === "windows") {
-      return WindowsUpdateScreenshot;
-    }
-    if (platform === "ios") {
-      return MacOSUpdateScreenshot; // TODO: waiting on screenshot
-    }
-    if (platform === "ipados") {
-      return MacOSUpdateScreenshot; // TODO: waiting on screenshot
+    switch (platform) {
+      case "darwin":
+        return MacOSUpdateScreenshot;
+      case "windows":
+        return WindowsUpdateScreenshot;
+      case "ios":
+        return IOSUpdateScreenshot;
+      case "ipados":
+        return IPadOSUpdateScreenshot;
+      default:
+        MacOSUpdateScreenshot;
     }
   };
 
