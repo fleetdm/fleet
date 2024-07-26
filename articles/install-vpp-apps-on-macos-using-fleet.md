@@ -15,9 +15,6 @@ By integrating VPP with Fleet, organizations can seamlessly add apps to their so
 ## Prerequisites
 * **MDM features**: to use the VPP integration, you must first enable MDM features in Fleet. See the [MDM setup guide](https://fleetdm.com/docs/using-fleet/mdm-setup) for instructions on enabling MDM features.
 * **Teams**: Apps can only be added to a specific Team. You can manage teams by selecting your avatar in the top navigation and then **Settings > Teams**.
-
-
-
 ### Accessing the VPP configuration
 
 1. **Navigate to the VPP integration settings page**: Click your avatar on the far right of the main navigation menu, and then **Settings > Integrations > "Volume Purchasing Program (VPP)."**
