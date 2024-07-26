@@ -37,10 +37,8 @@ article, so the process for writing a guide and article is the same.
 1. Review and follow the [Fleet writing style guide](https://fleetdm.com/handbook/company/communications#writing).
 2. Make a copy of the ["Article: Guide Template"](https://docs.google.com/document/d/1OPcDouyfyFPg3ScrN4bo6ol8vMfMa3P9-BIfbnEdcg4/copy) and rename "Article: [Guide] {feature name}".
 7. Open the template and insert your content into the provided template format. 
-8. Create a [new GitHub
-   issue](https://github.com/fleetdm/fleet/issues/new?assignees=spokanemac&labels=:help-it&title=New%20guide:)
-   with the guide title, and add the `:help-it` label. It will be processed and added to the website
-   by our [Community Advocate](https://fleetdm.com/handbook/engineering#team).
+4. Create a [new GitHub issue](https://github.com/fleetdm/fleet/issues/new?assignees=spokanemac&labels=:help-it&title=New%20guide:) with the guide title, and add the `:help-it` label. It will be processed and added to the website by our [Community Advocate](https://fleetdm.com/handbook/engineering#team).
+
 
 ### Create an engineering-initiated story
 Engineering-initiated stories are types of user stories created by engineers to make technical changes to Fleet. Technical changes should improve the user experience or contributor experience. For example, optimizing SQL that improves the response time of an API endpoint improves user experience by reducing latency. A script that generates common boilerplate, or automated tests to cover important business logic, improves the quality of life for contributors, making them happier and more productive, resulting in faster delivery of features to our customers.
