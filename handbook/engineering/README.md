@@ -29,6 +29,7 @@ The metrics are:
 Each week these are tracked and shared in the weekly KPI sheet by Luke Heath.
 
 ### Write a feature guide 
+
 We write [guides](https://fleetdm.com/guides) for all new features. Feature guides are published before the feature is released so
 that our users understand how the feature is intended to work. A guide is a type of
 article, so the process for writing a guide and article is the same.
