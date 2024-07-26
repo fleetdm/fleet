@@ -6,9 +6,6 @@
 Fleet supports the ability to add Apple App Store applications to your software library using the Volume Purchasing Program (VPP) and then install those apps on macOS hosts. This guide will walk you through using this feature to add apps from your Apple Business Manager account to Fleet and install those apps on your macOS hosts.
 
 The Volume Purchasing Program is an Apple initiative that allows organizations to purchase and distribute apps and books in bulk. This program is particularly beneficial for organizations that need to deploy multiple apps to many devices. Key benefits of VPP include:
-
-
-
 * **Bulk purchasing:** Purchase multiple licenses for an app in one transaction, often with volume discounts.
 * **Centralized management:** Manage and distribute purchased apps from a central location.
 * **Licensing flexibility:** Reassign app licenses as needed, ensuring efficient use of resources.
