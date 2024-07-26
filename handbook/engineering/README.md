@@ -35,7 +35,7 @@ that our users understand how the feature is intended to work. A guide is a type
 article, so the process for writing a guide and article is the same.
 
 1. Review and follow the [Fleet writing style guide](https://fleetdm.com/handbook/company/communications#writing).
-2. Open the [articles folder of our Google drive](https://drive.google.com/drive/folders/1T2Wm28w37wofbbHeedYaqODZTQqpp-Dz).
+2. Make a copy of the ["Article: Guide Template"](https://docs.google.com/document/d/1OPcDouyfyFPg3ScrN4bo6ol8vMfMa3P9-BIfbnEdcg4/copy) and rename "Article: [Guide] {feature name}".
 3. Find the "Article: Guide Template". 
 4. Right-click the template file and choose "Make a copy". 
 5. Find the new "Copy of Article: Guide Template" file, right-click and select "rename". 
