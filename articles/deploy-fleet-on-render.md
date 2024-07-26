@@ -31,7 +31,9 @@ The Fleet server and user interface are packaged into a Docker image and hosted 
 
 ## Setup Fleet and enroll hosts
 
-The first time you access your Fleet instance you will be prompted with a setup page where you can enter your name, email, and password. Do not use the default password. Set a strong, unique password during the setup process. Run through those steps to reach the Fleet dashboard.
+The first time you access your Fleet instance, you will be prompted with a setup page where you can enter your name, email, and password. Run through those steps to reach the Fleet dashboard.
+
+> Set a strong and unique password instead of the default password during the setup process. 
 
 You’ll find the enroll-secret after clicking “Add hosts”. This is a special secret the host will need to register to your Fleet instance. Once you have the enroll-secret you can use `fleetctl` to generate Fleet's agent (fleetd), which makes installing and updating osquery super simple.
 
