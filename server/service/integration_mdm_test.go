@@ -9752,7 +9752,115 @@ func (s *integrationMDMTestSuite) TestRefetchIOSIPadOS() {
 	}
 	assert.ElementsMatch(t, expectedSoftware, hostResp.Host.Software)
 
-	// Test that software was deleted
+	// Install the same app for iPadOS
+	hostIPad, mdmClientIPad := s.createAppleMobileHostThenEnrollMDM("ipados")
+
+	// Refetch host
+	_ = s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/refetch", hostIPad.ID), nil, http.StatusOK)
+
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hostIPad.ID), nil, http.StatusOK, &hostResp)
+	assert.Equal(t, hostIPad.ID, hostResp.Host.ID)
+	assert.True(t, hostResp.Host.RefetchRequested)
+
+	// Check the MDM commands and send response
+	cmd, err = mdmClientIPad.Idle()
+	require.NoError(t, err)
+	require.NotNil(t, cmd)
+	expectedCommands = map[string]struct{}{
+		"DeviceInformation":        {},
+		"InstalledApplicationList": {},
+	}
+
+	const deviceNameIPad = "My iPad"
+	expectedSoftware = []fleet.HostSoftwareEntry{
+		{
+			Software: fleet.Software{
+				BundleIdentifier: "com.evernote.iPhone.Evernote",
+				Name:             "Evernote",
+				Version:          "10.98.0",
+				Source:           "ipados_apps",
+			},
+		},
+	}
+	for len(expectedCommands) > 0 {
+		switch cmd.Command.RequestType {
+		case "DeviceInformation":
+			cmd, err = mdmClientIPad.AcknowledgeDeviceInformation(mdmClientIPad.UUID, cmd.CommandUUID, deviceNameIPad, "iPad 10")
+			require.NoError(t, err)
+			delete(expectedCommands, "DeviceInformation")
+		case "InstalledApplicationList":
+			cmd, err = mdmClientIPad.AcknowledgeInstalledApplicationList(mdmClientIPad.UUID, cmd.CommandUUID,
+				[]fleet.Software{expectedSoftware[0].Software})
+			require.NoError(t, err)
+			delete(expectedCommands, "InstalledApplicationList")
+		default:
+			t.Fatalf("Unexpected command: %s", cmd.Command.RequestType)
+		}
+	}
+
+	hostResp = getHostResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hostIPad.ID), nil, http.StatusOK, &hostResp)
+	assert.Equal(t, hostIPad.ID, hostResp.Host.ID)
+	assert.False(t, hostResp.Host.RefetchRequested)
+	assert.Equal(t, deviceNameIPad, hostResp.Host.ComputerName)
+
+	for index := range hostResp.Host.Software {
+		hostResp.Host.Software[index].ID = 0
+	}
+	assert.ElementsMatch(t, expectedSoftware, hostResp.Host.Software)
+
+	hostsCountTs := time.Now().UTC()
+	require.NoError(t, s.ds.SyncHostsSoftware(context.Background(), hostsCountTs))
+	ctx := context.Background()
+	require.NoError(t, s.ds.SyncHostsSoftwareTitles(ctx, hostsCountTs))
+
+	// Check that we have the correct software titles
+	var resp listSoftwareTitlesResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles"), nil, http.StatusOK, &resp, "query", "Evernote")
+	expectedTitles := []fleet.SoftwareTitleListResult{
+		{
+			BundleIdentifier: ptr.String("com.evernote.iPhone.Evernote"),
+			Name:             "Evernote",
+			Source:           "ios_apps",
+			HostsCount:       1,
+			VersionsCount:    1,
+		},
+		{
+			BundleIdentifier: ptr.String("com.evernote.iPhone.Evernote"),
+			Name:             "Evernote",
+			Source:           "ipados_apps",
+			HostsCount:       1,
+			VersionsCount:    1,
+		},
+	}
+	require.Len(t, resp.SoftwareTitles, 2)
+	// Cleaning up the response to make it easier to compare using ElementsMatch
+	for index := range resp.SoftwareTitles {
+		resp.SoftwareTitles[index].ID = 0
+		assert.Len(t, resp.SoftwareTitles[index].Versions, 1)
+		resp.SoftwareTitles[index].Versions = nil
+	}
+	assert.ElementsMatch(t, expectedTitles, resp.SoftwareTitles)
+
+	// Delete from software titles table and make sure titles are recreated
+	mysql.ExecAdhocSQL(s.T(), s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(context.Background(), "DELETE FROM software_titles")
+		return err
+	})
+	hostsCountTs = time.Now().UTC()
+	require.NoError(t, s.ds.ReconcileSoftwareTitles(ctx))
+	require.NoError(t, s.ds.SyncHostsSoftwareTitles(ctx, hostsCountTs))
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles"), nil, http.StatusOK, &resp, "query", "Evernote")
+	require.Len(t, resp.SoftwareTitles, 2)
+	// Cleaning up the response to make it easier to compare using ElementsMatch
+	for index := range resp.SoftwareTitles {
+		resp.SoftwareTitles[index].ID = 0
+		assert.Len(t, resp.SoftwareTitles[index].Versions, 1)
+		resp.SoftwareTitles[index].Versions = nil
+	}
+	assert.ElementsMatch(t, expectedTitles, resp.SoftwareTitles)
+
+	// Test that software was deleted from device
 	_ = s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/refetch", host.ID), nil, http.StatusOK)
 
 	// Check the MDM commands and send response

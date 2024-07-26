@@ -1040,13 +1040,14 @@ func (svc *Service) RefetchHost(ctx context.Context, id uint) error {
 			return err
 		}
 		cmdUUID := uuid.NewString()
-		err = svc.mdmAppleCommander.DeviceInformation(ctx, []string{host.UUID}, fleet.RefetchCommandUUIDPrefix+cmdUUID)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "refetch host with MDM")
-		}
 		err = svc.mdmAppleCommander.InstalledApplicationList(ctx, []string{host.UUID}, fleet.RefetchAppsCommandUUIDPrefix+cmdUUID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "refetch apps with MDM")
+		}
+		// DeviceInformation is last because the refetch response clears the refetch_requested flag
+		err = svc.mdmAppleCommander.DeviceInformation(ctx, []string{host.UUID}, fleet.RefetchCommandUUIDPrefix+cmdUUID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "refetch host with MDM")
 		}
 	}
 

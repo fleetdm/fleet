@@ -16,7 +16,7 @@ func Up_20240725182118(tx *sql.Tx) error {
 
 	_, err := tx.Exec(`
 		ALTER TABLE software_titles 
-		ADD COLUMN additional_identifier INT UNSIGNED GENERATED ALWAYS AS 
+		ADD COLUMN additional_identifier TINYINT UNSIGNED GENERATED ALWAYS AS 
 			(CASE
 				WHEN source = 'ios_apps' then 1
 				WHEN source = 'ipados_apps' then 2

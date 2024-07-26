@@ -1309,6 +1309,7 @@ func newIPhoneIPadRefetcher(
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "send InstalledApplicationList commands to ios and ipados devices")
 			}
+			// DeviceInformation is last because the refetch response clears the refetch_requested flag
 			if err := commander.DeviceInformation(ctx, uuids, fleet.RefetchCommandUUIDPrefix+commandUUID); err != nil {
 				return ctxerr.Wrap(ctx, err, "send DeviceInformation commands to ios and ipados devices")
 			}
