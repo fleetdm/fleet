@@ -15,7 +15,7 @@ import SectionHeader from "components/SectionHeader";
 
 import EndUserMigrationSection from "./components/EndUserMigrationSection/EndUserMigrationSection";
 import WindowsMdmCard from "./components/WindowsMdmCard/WindowsMdmCard";
-import MacOSMdmCard from "./components/MacOSMdmCard/MacOSMdmCard";
+import AppleMdmCard from "./components/AppleMdmCard/AppleMdmCard";
 
 const baseClass = "mdm-settings";
 
@@ -49,8 +49,8 @@ const MdmSettings = ({ router }: IMdmSettingsProps) => {
     }
   );
 
-  const navigateToMacOSMdm = () => {
-    router.push(PATHS.ADMIN_INTEGRATIONS_MDM_MAC);
+  const navigateToAppleMdm = () => {
+    router.push(PATHS.ADMIN_INTEGRATIONS_MDM_APPLE);
   };
 
   const navigateToWindowsMdm = () => {
@@ -65,11 +65,11 @@ const MdmSettings = ({ router }: IMdmSettingsProps) => {
           <Spinner />
         ) : (
           <div className={`${baseClass}__section ${baseClass}__mdm-section`}>
-            <MacOSMdmCard
+            <AppleMdmCard
               appleAPNInfo={appleAPNInfo}
               errorData={errorMdmApple}
-              turnOnMacOSMdm={navigateToMacOSMdm}
-              viewDetails={navigateToMacOSMdm}
+              turnOnAppleMdm={navigateToAppleMdm}
+              viewDetails={navigateToAppleMdm}
             />
             <WindowsMdmCard
               turnOnWindowsMdm={navigateToWindowsMdm}

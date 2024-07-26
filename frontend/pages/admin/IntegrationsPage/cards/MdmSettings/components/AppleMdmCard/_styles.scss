@@ -1,11 +1,11 @@
-.mac-os-mdm-card {
+.apple-mdm-card {
   font-size: $x-small;
 
   p {
     margin: 0;
   }
 
-  &__turn-on-mac-os,
+  &__turn-on-apple-mdm,
   &__turn-off-mac-os {
     display: flex;
     justify-content: space-between;
@@ -22,7 +22,7 @@
     }
   }
 
-  &__turn-on-mac-os {
+  &__turn-on-apple-mdm {
     h3 {
       font-size: $x-small;
       font-weight: $bold;

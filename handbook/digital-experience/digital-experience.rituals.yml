@@ -153,16 +153,6 @@
   moreInfoUrl: "https://fleetdm.com/handbook/digital-experience#check-linkedin-for-unread-messages"
   dri: "sampfluger88"
 -
-  task: "Add funds to coresignal account"
-  startedOn: "2023-09-25"
-  frequency: "Monthly"
-  description: "Top up coresignal account once per month: https://dashboard.coresignal.com/pricing-plans"
-  moreInfoUrl: "https://dashboard.coresignal.com/pricing-plans"
-  dri: "SFriendLee"
-  autoIssue:  
-    labels: [ "#g-digital-experience" ] 
-    repo: "confidential" 
--
   task: "Downgrade unused license seats" 
   startedOn: "2024-03-31" 
   frequency: "Quarterly"
