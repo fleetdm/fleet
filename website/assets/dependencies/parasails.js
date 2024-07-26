@@ -1137,41 +1137,7 @@
   };//ƒ
 
 
-  parasails.showInvisibleElementsWhenPageIsFullyRendered = function() {
-    $('[data-hide-until-rendered]').removeClass('invisible');
-  }
 
-  parasails.cleanUpUTMParameters = function() {
-    if (window.location.search && window.location.search.includes('utm_content')) {
-      let queryParameterLessUrl = window.location.protocol + '//' + window.location.host + window.location.pathname + window.location.hash;
-      window.history.replaceState({}, '', queryParameterLessUrl);// https://caniuse.com/mdn-api_history_replacestate
-    }
-  }
-  // Hide or show an element with purpose=
-  parasails.scrollHideOrShowElement = function() {
-    var lastScrollTop = 0;
-    var elementToHide = document.querySelector('[hide-when-scrolled]');
-    let alwaysVisibleWhenShownElement = document.querySelector('[always-visible-when-shown]');
-    $(window).scroll(()=>{
-      if(!elementToHide || !alwaysVisibleWhenShownElement){
-        return;
-      }
-      let isAlwaysVisibleElementShown = [...alwaysVisibleWhenShownElement.classList].includes('show');
-      if(isAlwaysVisibleElementShown) {
-        return;
-      }
-      let scrollTop = window.pageYOffset || document.documentElement.scrollTop;
-      if(scrollTop > lastScrollTop && scrollTop > window.innerHeight * 1.5) {
-        // If the user scrolls 1.5x the height of their browser window, hide the page header.
-        elementToHide.classList.add('translate-y-0');
-        lastScrollTop = scrollTop;
-      } else if(scrollTop < lastScrollTop - 60) {
-        // If the user scrolls 60 pixels upwards on the screen, we'll show the page header
-        elementToHide.classList.remove('translate-y-0');
-        lastScrollTop = scrollTop;
-      }
-    });
-  }
   /**
    * parasails.utils
    *
