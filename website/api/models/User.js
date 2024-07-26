@@ -243,6 +243,7 @@ without necessarily having a billing card.`
     psychologicalStageLastChangedAt: {
       type: 'number',
       description: 'A JS timestamp of when this user\'s psychological stage changed.',
+      extendedDescription: 'Used when deciding whether or not to send a nuture email to this user',
     },
 
     stageThreeNurtureEmailSentAt: {
