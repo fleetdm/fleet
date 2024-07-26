@@ -110,7 +110,10 @@ func main() {
 	// Execute subcommands
 	switch os.Args[1] {
 	case "import":
-		importCmd.Parse(os.Args[2:])
+		if err := importCmd.Parse(os.Args[2:]); err != nil {
+			log.Fatal("parsing import flags", err)
+		}
+
 		ds := setupDS(flagKey, flagDBUser, flagDBPass, flagDBAddress, flagDBName)
 		defer ds.Close()
 
@@ -139,7 +142,10 @@ func main() {
 		}
 		return
 	case "export":
-		exportCmd.Parse(os.Args[2:])
+		if err := exportCmd.Parse(os.Args[2:]); err != nil {
+			log.Fatal("parsing export flags", err)
+		}
+
 		ds := setupDS(flagKey, flagDBUser, flagDBPass, flagDBAddress, flagDBName)
 		defer ds.Close()
 
