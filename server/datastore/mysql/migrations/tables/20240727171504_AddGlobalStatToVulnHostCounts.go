@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20240717171504, Down_20240717171504)
+	MigrationClient.AddMigration(Up_20240727171504, Down_20240727171504)
 }
 
-func Up_20240717171504(tx *sql.Tx) error {
+func Up_20240727171504(tx *sql.Tx) error {
 	stmt := `
 	ALTER TABLE vulnerability_host_counts
 	ADD COLUMN global_stats tinyint(1) NOT NULL DEFAULT 0
@@ -72,6 +72,6 @@ func Up_20240717171504(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20240717171504(tx *sql.Tx) error {
+func Down_20240727171504(tx *sql.Tx) error {
 	return nil
 }
