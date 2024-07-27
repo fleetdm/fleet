@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20240727074056(t *testing.T) {
+func TestUp_20240722074056(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	stmt := "INSERT INTO `software_host_counts` (`software_id`, `hosts_count`, `team_id`) VALUES (?, ?, ?)"
