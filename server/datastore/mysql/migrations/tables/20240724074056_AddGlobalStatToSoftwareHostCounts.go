@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20240722074056, Down_20240722074056)
+	MigrationClient.AddMigration(Up_20240724074056, Down_20240724074056)
 }
 
-func Up_20240722074056(tx *sql.Tx) error {
+func Up_20240724074056(tx *sql.Tx) error {
 	stmt := `
 		ALTER TABLE software_host_counts
 		ADD COLUMN global_stats tinyint unsigned NOT NULL DEFAULT '0',
@@ -55,6 +55,6 @@ func Up_20240722074056(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20240722074056(tx *sql.Tx) error {
+func Down_20240724074056(tx *sql.Tx) error {
 	return nil
 }
