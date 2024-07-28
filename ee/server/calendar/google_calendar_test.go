@@ -220,7 +220,7 @@ func TestGoogleCalendar_GetAndUpdateEvent(t *testing.T) {
 	mockAPI.GetSettingFunc = func(name string) (*calendar.Setting, error) {
 		return &calendar.Setting{Value: baseTzName}, nil
 	}
-	genBodyFn := func(bool) (string, bool, error) {
+	var genBodyFn fleet.CalendarGenBodyFn = func(bool) (string, bool, error) {
 		t.Error("genBodyFn should not be called")
 		return "event-body", false, nil
 	}

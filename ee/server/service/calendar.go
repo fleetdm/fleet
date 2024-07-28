@@ -164,7 +164,7 @@ func (svc *Service) processCalendarEvent(ctx context.Context, eventDetails *flee
 	var generatedTag string
 	// This flag indicates that calendar event should no longer exist, and we can stop watching it.
 	stopChannel := false
-	genBodyFn := func(conflict bool) (body string, ok bool, err error) {
+	var genBodyFn fleet.CalendarGenBodyFn = func(conflict bool) (body string, ok bool, err error) {
 
 		// This function is called when a new event is being created.
 		var team *fleet.Team

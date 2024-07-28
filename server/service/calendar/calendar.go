@@ -54,6 +54,7 @@ type Config struct {
 type PolicyLiteWithMeta struct {
 	fleet.PolicyLite
 	Tag string
+	mu  sync.Mutex
 }
 
 func CreateUserCalendarFromConfig(ctx context.Context, config *Config, logger kitlog.Logger) fleet.UserCalendar {
@@ -123,6 +124,8 @@ func getCalendarEventDescriptionAndResolution(ctx context.Context, ds fleet.Data
 		} else {
 			description = policyDescription
 			resolution = strings.TrimSpace(*policy.Resolution)
+			policy.mu.Lock() // To make sure only one policy is reading/writing to the tag at a time.
+			defer policy.mu.Unlock()
 			if policy.Tag == "" {
 				// Calculate a unique signature for the event body, which we will use to check if the event body has changed.
 				policy.Tag = fmt.Sprintf("%x", sha256.Sum256([]byte(policy.Description+*policy.Resolution)))

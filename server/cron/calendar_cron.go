@@ -396,7 +396,7 @@ func processFailingHostExistingCalendarEvent(
 
 	// Function to generate calendar event body.
 	var generatedTag string
-	genBodyFn := func(conflict bool) (string, bool, error) {
+	var genBodyFn fleet.CalendarGenBodyFn = func(conflict bool) (string, bool, error) {
 		var body string
 		body, generatedTag = calendar.GenerateCalendarEventBody(ctx, ds, orgName, host, policyIDtoPolicy, conflict, logger)
 		return body, true, nil

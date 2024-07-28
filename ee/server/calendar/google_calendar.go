@@ -274,7 +274,7 @@ func (c *GoogleCalendar) Configure(userEmail string) error {
 }
 
 func (c *GoogleCalendar) UpdateEventBody(event *fleet.CalendarEvent,
-	genBodyFn func(conflict bool) (body string, ok bool, err error)) error {
+	genBodyFn fleet.CalendarGenBodyFn) error {
 	details, err := c.unmarshalDetails(event)
 	if err != nil {
 		return err
@@ -300,7 +300,7 @@ func (c *GoogleCalendar) UpdateEventBody(event *fleet.CalendarEvent,
 	return nil
 }
 
-func (c *GoogleCalendar) GetAndUpdateEvent(event *fleet.CalendarEvent, genBodyFn func(conflict bool) (body string, updated bool, err error),
+func (c *GoogleCalendar) GetAndUpdateEvent(event *fleet.CalendarEvent, genBodyFn fleet.CalendarGenBodyFn,
 	opts fleet.CalendarGetAndUpdateEventOpts) (
 	*fleet.CalendarEvent, bool, error,
 ) {
@@ -515,7 +515,7 @@ func (c *GoogleCalendar) unmarshalDetails(event *fleet.CalendarEvent) (*eventDet
 }
 
 func (c *GoogleCalendar) CreateEvent(dayOfEvent time.Time,
-	genBodyFn func(conflict bool) (body string, ok bool, err error),
+	genBodyFn fleet.CalendarGenBodyFn,
 	opts fleet.CalendarCreateEventOpts) (*fleet.CalendarEvent, error) {
 	return c.createEvent(dayOfEvent, genBodyFn, time.Now, opts)
 }
@@ -523,7 +523,7 @@ func (c *GoogleCalendar) CreateEvent(dayOfEvent time.Time,
 // createEvent creates a new event on the calendar on the given date. timeNow is a function that returns the current time.
 // timeNow can be overwritten for testing
 func (c *GoogleCalendar) createEvent(
-	dayOfEvent time.Time, genBodyFn func(conflict bool) (body string, ok bool, err error), timeNow func() time.Time,
+	dayOfEvent time.Time, genBodyFn fleet.CalendarGenBodyFn, timeNow func() time.Time,
 	opts fleet.CalendarCreateEventOpts,
 ) (*fleet.CalendarEvent, error) {
 	var err error
