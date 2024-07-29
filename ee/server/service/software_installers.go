@@ -479,7 +479,6 @@ func (svc *Service) GetSoftwareInstallResults(ctx context.Context, resultUUID st
 			}
 			svc.authz.SkipAuthorization(ctx)
 			return nil, ctxerr.Wrap(ctx, err, "get host lite")
-
 		}
 		// Team specific auth check
 		if err := svc.authz.Authorize(ctx, &fleet.HostSoftwareInstallerResultAuthz{HostTeamID: host.TeamID}, fleet.ActionRead); err != nil {
