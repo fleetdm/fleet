@@ -64,13 +64,11 @@ const OSRequirementDescription = ({
         </>
       );
     default:
-      <></>;
+      return <></>;
   }
 };
 
-type IOSRequirementImageProps = IOSRequirementDescriptionProps;
-
-const OSRequirementImage = ({ platform }: IOSRequirementImageProps) => {
+const OSRequirementImage = ({ platform }: IOSRequirementDescriptionProps) => {
   const getScreenshot = () => {
     switch (platform) {
       case "darwin":
@@ -95,13 +93,9 @@ const OSRequirementImage = ({ platform }: IOSRequirementImageProps) => {
   );
 };
 
-interface IEndUserOSRequirementPreviewProps {
-  platform: OSUpdatesSupportedPlatform;
-}
-
 const EndUserOSRequirementPreview = ({
   platform,
-}: IEndUserOSRequirementPreviewProps) => {
+}: IOSRequirementDescriptionProps) => {
   // FIXME: on slow connection the image loads after the text which looks weird and can cause a
   // mismatch between the text and the image when switching between platforms. We should load the
   // image first and then the text.

@@ -58,6 +58,12 @@ const validateForm = (formData: IAppleOSTargetFormData) => {
   return errors;
 };
 
+const APPLE_PLATFORMS_TO_CONFIG_FIELDS = {
+  darwin: "macos_updates",
+  ios: "ios_updates",
+  ipados: "ipados_updates",
+};
+
 interface IAppleUpdatesMdmConfigData {
   mdm: {
     macos_updates?: {
@@ -75,34 +81,14 @@ interface IAppleUpdatesMdmConfigData {
   };
 }
 
-const createMdmConfigData = (
+const createAppleOSUpdatesData = (
   applePlatform: ApplePlatform,
   minOsVersion: string,
   deadline: string
 ): IAppleUpdatesMdmConfigData => {
-  if (applePlatform === "darwin") {
-    return {
-      mdm: {
-        macos_updates: {
-          minimum_version: minOsVersion,
-          deadline,
-        },
-      },
-    };
-  }
-  if (applePlatform === "ios") {
-    return {
-      mdm: {
-        ios_updates: {
-          minimum_version: minOsVersion,
-          deadline,
-        },
-      },
-    };
-  }
   return {
     mdm: {
-      ipados_updates: {
+      [APPLE_PLATFORMS_TO_CONFIG_FIELDS[applePlatform]]: {
         minimum_version: minOsVersion,
         deadline,
       },
@@ -151,7 +137,7 @@ const AppleOSTargetForm = ({
 
     if (isEmpty(errors)) {
       setIsSaving(true);
-      const updateData = createMdmConfigData(
+      const updateData = createAppleOSUpdatesData(
         applePlatform,
         minOsVersion,
         deadline
@@ -181,33 +167,39 @@ const AppleOSTargetForm = ({
   };
 
   const getMinimumVersionPlaceholder = (platform: ApplePlatform) => {
-    if (platform === "darwin") {
-      return "13.0.1";
+    switch (platform) {
+      case "darwin":
+        return "13.0.1";
+      case "ios":
+      case "ipados":
+        return "17.5.1";
+      default:
+        return "";
     }
-    if (platform === "ios" || platform === "ipados") {
-      return "17.5.1";
-    }
-    return "";
   };
 
   const getMinimumVersionTooltip = (platform: ApplePlatform) => {
-    if (platform === "darwin") {
-      return "The end user sees the window until their macOS is at or above this version.";
+    switch (platform) {
+      case "darwin":
+        return "The end user sees the window until their macOS is at or above this version.";
+      case "ios":
+      case "ipados":
+        return "If the end user's host is below the minimum version, they see a notification in their Notification Center after the deadline. They can’t continue until the OS update is installed.";
+      default:
+        return "";
     }
-    if (platform === "ios" || platform === "ipados") {
-      return "If the end user's host is below the minimum version, they see a notification in their Notification Center after the deadline. They can’t continue until the OS update is installed.";
-    }
-    return "";
   };
 
   const getDeadlineTooltip = (platform: ApplePlatform) => {
-    if (platform === "darwin") {
-      return "The end user can’t dismiss the window once they reach this deadline. Deadline is at 12:00 (Noon) Pacific Standard Time (GMT-8).";
+    switch (platform) {
+      case "darwin":
+        return "The end user can't dismiss the window once they reach this deadline. Deadline is at 12:00 (Noon) Pacific Standard Time (GMT-8).";
+      case "ios":
+      case "ipados":
+        return "Deadline is at 12:00 (Noon) Pacific Standard Time (GMT-8).";
+      default:
+        return "";
     }
-    if (platform === "ios" || platform === "ipados") {
-      return "Deadline is at 12:00 (Noon) Pacific Standard Time (GMT-8).";
-    }
-    return "";
   };
 
   return (
