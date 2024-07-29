@@ -11,12 +11,12 @@ import IPadOSUpdateScreenshot from "../../../../../../assets/images/ipados-updat
 
 const baseClass = "os-requirement-preview";
 
-interface IOSRequirementDescriptionProps {
+interface IEndUserOSRequirementPreviewProps {
   platform: OSUpdatesSupportedPlatform;
 }
 const OSRequirementDescription = ({
   platform,
-}: IOSRequirementDescriptionProps) => {
+}: IEndUserOSRequirementPreviewProps) => {
   switch (platform) {
     case "darwin":
       return (
@@ -68,7 +68,9 @@ const OSRequirementDescription = ({
   }
 };
 
-const OSRequirementImage = ({ platform }: IOSRequirementDescriptionProps) => {
+const OSRequirementImage = ({
+  platform,
+}: IEndUserOSRequirementPreviewProps) => {
   const getScreenshot = () => {
     switch (platform) {
       case "darwin":
@@ -95,7 +97,7 @@ const OSRequirementImage = ({ platform }: IOSRequirementDescriptionProps) => {
 
 const EndUserOSRequirementPreview = ({
   platform,
-}: IOSRequirementDescriptionProps) => {
+}: IEndUserOSRequirementPreviewProps) => {
   // FIXME: on slow connection the image loads after the text which looks weird and can cause a
   // mismatch between the text and the image when switching between platforms. We should load the
   // image first and then the text.
