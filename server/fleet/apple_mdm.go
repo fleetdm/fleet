@@ -842,9 +842,9 @@ type MDMAppleDDMActivation struct {
 	Type        string                       `json:"Type"` // "com.apple.activation.simple"
 }
 
-// MDMAppleMachineInfo is a [device's information] sent as part of an MDM enrollment profile request
+// MDMAppleMachineInfo is a [device's information][1] sent as part of an MDM enrollment profile request
 //
-// [device's information]: https://developer.apple.com/documentation/devicemanagement/machineinfo
+// [1]: https://developer.apple.com/documentation/devicemanagement/machineinfo
 type MDMAppleMachineInfo struct {
 	IMEI                        string `plist:"IMEI,omitempty"`
 	Language                    string `plist:"LANGUAGE,omitempty"`
@@ -861,15 +861,27 @@ type MDMAppleMachineInfo struct {
 	Version                     string `plist:"VERSION"`
 }
 
+// MDMAppleSoftwareUpdateRequiredCode is the [code][1] specified by Apple to indicate that the device
+// needs to perform a software update before enrollment and setup can proceed.
+//
+// [1]: https://developer.apple.com/documentation/devicemanagement/errorcodesoftwareupdaterequired
 const MDMAppleSoftwareUpdateRequiredCode = "com.apple.softwareupdate.required"
 
+// MDMAppleSoftwareUpdateRequiredDetails is the [details][1] specified by Apple for the
+// required software update.
+//
+// [1]: https://developer.apple.com/documentation/devicemanagement/errorcodesoftwareupdaterequired/details
 type MDMAppleSoftwareUpdateRequiredDetails struct {
 	OSVersion    string `json:"OSVersion"`
 	BuildVersion string `json:"BuildVersion"`
 }
 
+// MDMAppleSoftwareUpdateRequired is the [error response][1] specified by Apple to indicate that the device
+// needs to perform a software update before enrollment and setup can proceed.
+//
+// [1]: https://developer.apple.com/documentation/devicemanagement/errorcodesoftwareupdaterequired
 type MDMAppleSoftwareUpdateRequired struct {
-	Code    string                                `json:"code"`
+	Code    string                                `json:"code"` // "com.apple.softwareupdate.required"
 	Details MDMAppleSoftwareUpdateRequiredDetails `json:"details"`
 }
 
