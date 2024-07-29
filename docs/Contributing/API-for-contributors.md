@@ -11,9 +11,9 @@
 - [Scripts](#scripts)
 - [Software](#software)
 
-This document includes the internal Fleet API routes that are helpful when developing or contributing to Fleet.
+> These endpoints are used by the Fleet UI, Fleet Desktop, and `fleetctl` clients and frequently change to reflect current functionality.
 
-These endpoints are used by the Fleet UI, Fleet Desktop, and `fleetctl` clients and will frequently change to reflect current functionality.
+This document includes the internal Fleet API routes that are helpful when developing or contributing to Fleet.
 
 If you are interested in gathering information from Fleet in a production environment, please see the [public Fleet REST API documentation](https://fleetdm.com/docs/using-fleet/rest-api).
 
