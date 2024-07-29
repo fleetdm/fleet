@@ -14,7 +14,7 @@ module.exports = {
     let nowAt = Date.now();
     let nurtureCampaignStartedAt = new Date('07-22-2024').getTime();
     let oneHourAgoAt = nowAt - (1000 * 60 * 60);
-    let oneDayAgoAt = nowAt - (1000 * 60 * 60);
+    let oneDayAgoAt = nowAt - (1000 * 60 * 60 * 24);
     let sixWeeksAgoAt = nowAt - (1000 * 60 * 60 * 24 * 7 * 6);
     // Find user records that are over an hour old that were created after July 22nd.
     let usersWithMdmBuyingSituation = await User.find({
@@ -44,7 +44,7 @@ module.exports = {
     });
 
     for(let user of stageThreeMdmFocusedUsersWhoHaveNotReceivedAnEmail) {
-      if(user.psychologicalStageLastChangedAt < oneDayAgoAt) {
+      if(user.psychologicalStageLastChangedAt > oneDayAgoAt) {
         continue;
       } else {
         await sails.helpers.sendTemplateEmail.with({
@@ -70,7 +70,7 @@ module.exports = {
     });
 
     for(let user of stageFourMdmFocusedUsersWhoHaveNotReceivedAnEmail) {
-      if(user.psychologicalStageLastChangedAt < oneDayAgoAt) {
+      if(user.psychologicalStageLastChangedAt > oneDayAgoAt) {
         continue;
       } else {
         await sails.helpers.sendTemplateEmail.with({
@@ -96,7 +96,7 @@ module.exports = {
     });
 
     for(let user of stageFiveMdmFocusedUsersWhoHaveNotReceivedAnEmail) {
-      if(user.psychologicalStageLastChangedAt < sixWeeksAgoAt) {
+      if(user.psychologicalStageLastChangedAt > sixWeeksAgoAt) {
         continue;
       } else {
         await sails.helpers.sendTemplateEmail.with({
