@@ -4,7 +4,9 @@ import { CellProps, Column } from "react-table";
 import { cloneDeep } from "lodash";
 
 import {
+  IHostAppStoreApp,
   IHostSoftware,
+  IHostSoftwarePackage,
   SoftwareInstallStatus,
   formatSoftwareType,
 } from "interfaces/software";
@@ -53,14 +55,16 @@ const generateActions = ({
   isFleetdHost,
   softwareId,
   status,
-  packageToInstall,
+  software_package,
+  app_store_app,
 }: {
   canInstall: boolean;
   installingSoftwareId: number | null;
   isFleetdHost: boolean;
   softwareId: number;
   status: SoftwareInstallStatus | null;
-  packageToInstall?: string | null;
+  software_package: IHostSoftwarePackage | null;
+  app_store_app: IHostAppStoreApp | null;
 }) => {
   // this gives us a clean slate of the default actions so we can modify
   // the options.
@@ -73,8 +77,9 @@ const generateActions = ({
     throw new Error("Install action not found in default actions");
   }
 
+  const hasSoftwareToInstall = !!software_package || !!app_store_app;
   // remove install if there is no package to install
-  if (!packageToInstall || !canInstall) {
+  if (!hasSoftwareToInstall || !canInstall) {
     actions.splice(indexInstallAction, 1);
     return actions;
   }
@@ -123,7 +128,7 @@ export const generateSoftwareTableHeaders = ({
       accessor: "name",
       disableSortBy: false,
       Cell: (cellProps: ITableStringCellProps) => {
-        const { id, name, source } = cellProps.row.original;
+        const { id, name, source, app_store_app } = cellProps.row.original;
 
         const softwareTitleDetailsPath = PATHS.SOFTWARE_TITLE_DETAILS(
           id.toString().concat(`?team_id=${teamId}`)
@@ -133,6 +138,7 @@ export const generateSoftwareTableHeaders = ({
           <SoftwareNameCell
             name={name}
             source={source}
+            iconUrl={app_store_app?.icon_url}
             path={softwareTitleDetailsPath}
             router={router}
           />
@@ -188,8 +194,10 @@ export const generateSoftwareTableHeaders = ({
         const {
           id: softwareId,
           status,
-          package_available_for_install: packageToInstall,
+          software_package,
+          app_store_app,
         } = original;
+
         return (
           <DropdownCell
             placeholder="Actions"
@@ -199,7 +207,8 @@ export const generateSoftwareTableHeaders = ({
               installingSoftwareId,
               softwareId,
               status,
-              packageToInstall,
+              software_package,
+              app_store_app,
             })}
             onChange={(action) => onSelectAction(original, action)}
           />

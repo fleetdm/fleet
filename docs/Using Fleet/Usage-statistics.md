@@ -28,6 +28,12 @@ Below is the JSON payload that is sent to Fleet Device Management Inc:
   "numWeeklyActiveUsers": 999,
   "numWeeklyPolicyViolationDaysActual": 999,
   "numWeeklyPolicyViolationDaysPossible": 999,
+  "numSoftwareVersions": 999,
+  "numHostSoftwares": 999,
+  "numSoftwareTitles": 999,
+  "numHostSoftwareInstalledPaths": 999,
+  "numSoftwareCPEs": 999,
+  "numSoftwareCVEs": 999,
   "hostsEnrolledByOperatingSystem": {
     "darwin": [
       {

@@ -347,6 +347,15 @@ To [change a team member's compensation](https://fleetdm.com/handbook/company/co
 
 > If the company decides on an additional equity grant as part of a compensation change, note the previous equity and new situation in detail in the "Notes" column of the equity plan. Update the "Grant started?" column to "todo" which adds it to the queue for the next time grants are processed (quarterly).
 
+### Review Fleet's US company benefits
+
+Annually, around mid-year, Fleet will be prompted by Gusto to review company benefits. The goal is to keep changes minimal. Follow these steps:
+1. Log in to your [Gusto admin account](https://gusto.com/).
+2. Navigate to "Benefits" and select "Renewal survey".
+3. Complete the survey questions, aiming for minimal changes.
+4. Approximately 2-3 months after survery completion, Gusto will suggest plans based on Fleet's responses. Choose plans with minimal changes.
+5. Gusto will offer these plans to employees during open enrollment, with new coverage starting 3-4 weeks afterward.
+   
 
 ### Process monthly accounting
 Create a [new montly accounting issue](https://github.com/fleetdm/confidential/issues/new/choose) for the current month and year named "Closing out YYYY-MM" in GitHub and complete all of the tasks in the issue. (This uses the [monthly accounting issue template](https://github.com/fleetdm/confidential/blob/main/.github/ISSUE_TEMPLATE/5-monthly-accounting.md).

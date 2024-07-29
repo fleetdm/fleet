@@ -160,7 +160,6 @@ func testListPendingSoftwareInstalls(t *testing.T, ds *Datastore) {
 	require.Equal(t, installerID3, exec2.InstallerID)
 	require.Equal(t, "SELECT 3", exec2.PreInstallCondition)
 	require.True(t, exec2.SelfService)
-
 }
 
 func testSoftwareInstallRequests(t *testing.T, ds *Datastore) {

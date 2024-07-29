@@ -103,6 +103,14 @@
 				"minimum_version": null,
 				"deadline": null
 			},
+			"ios_updates": {
+				"minimum_version": null,
+				"deadline": null
+			},
+			"ipados_updates": {
+				"minimum_version": null,
+				"deadline": null
+			},
 			"windows_updates": {
 				"deadline_days": 7,
 				"grace_period_days": 3
