@@ -458,7 +458,7 @@ func (svc *Service) GetSoftwareInstallResults(ctx context.Context, resultUUID st
 	res, err := svc.ds.GetSoftwareInstallResults(ctx, resultUUID)
 	if err != nil {
 		if fleet.IsNotFound(err) {
-			if err := svc.authz.Authorize(ctx, &fleet.HostSoftwareInstallerResult{}, fleet.ActionRead); err != nil {
+			if err := svc.authz.Authorize(ctx, &fleet.HostSoftwareInstallerResultAuthz{}, fleet.ActionRead); err != nil {
 				return nil, err
 			}
 		}
