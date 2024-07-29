@@ -284,6 +284,10 @@ VALUES
 	var globalOrTmID uint
 	if teamID != nil {
 		globalOrTmID = *teamID
+
+		if *teamID == 0 {
+			teamID = nil
+		}
 	}
 
 	_, err := tx.ExecContext(ctx, stmt, adamID, globalOrTmID, teamID)

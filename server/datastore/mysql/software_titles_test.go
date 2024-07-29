@@ -618,6 +618,10 @@ func testTeamFilterSoftwareTitles(t *testing.T, ds *Datastore) {
 	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{Name: "vpp2", BundleIdentifier: "com.app.vpp2", AdamID: "adam_vpp_app_2"}, &team2.ID)
 	require.NoError(t, err)
 
+	// create a VPP app for team0
+	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{Name: "vpp3", BundleIdentifier: "com.app.vpp3", AdamID: "adam_vpp_app_3"}, ptr.Uint(0))
+	require.NoError(t, err)
+
 	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
 	require.NoError(t, ds.ReconcileSoftwareTitles(ctx))
 	require.NoError(t, ds.SyncHostsSoftwareTitles(ctx, time.Now()))
@@ -632,8 +636,8 @@ func testTeamFilterSoftwareTitles(t *testing.T, ds *Datastore) {
 	// this request for no team, but other titles do because software titles are
 	// not associated with a team.
 	require.NoError(t, err)
-	require.Len(t, titles, 2)
-	require.Equal(t, 2, count)
+	require.Len(t, titles, 3)
+	require.Equal(t, 3, count)
 	require.Equal(t, "bar", titles[0].Name)
 	require.Equal(t, "deb_packages", titles[0].Source)
 	require.Equal(t, "foo", titles[1].Name)
@@ -646,6 +650,9 @@ func testTeamFilterSoftwareTitles(t *testing.T, ds *Datastore) {
 	assert.Equal(t, uint(2), titles[1].HostsCount)
 	require.Nil(t, titles[1].SoftwarePackage)
 	require.Nil(t, titles[1].AppStoreApp)
+	require.Equal(t, uint(0), titles[2].VersionsCount)
+	require.Nil(t, titles[2].SoftwarePackage)
+	require.Equal(t, "vpp3", titles[2].Name)
 
 	title, err := ds.SoftwareTitleByID(context.Background(), titles[0].ID, nil, globalTeamFilter)
 	require.NoError(t, err)
