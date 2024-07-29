@@ -1,3 +1,0 @@
-s3:
-  software_intallers_bucket: myinstallers
-  software_intallers_endpoint_url: http://localhost:9000
