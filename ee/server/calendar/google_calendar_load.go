@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	kitlog "github.com/go-kit/log"
@@ -121,6 +122,10 @@ func (lowLevelAPI *GoogleCalendarLoadAPI) CreateEvent(event *calendar.Event) (*c
 		return nil, err
 	}
 	return &rspEvent, nil
+}
+
+func (lowLevelAPI *GoogleCalendarLoadAPI) UpdateEvent(event *calendar.Event) (*calendar.Event, error) {
+	return nil, errors.New("GoogleCalendarLoadAPI.UpdateEvent is not implemented")
 }
 
 func (lowLevelAPI *GoogleCalendarLoadAPI) GetEvent(id, _ string) (*calendar.Event, error) {

@@ -1,6 +1,6 @@
-# Enhancing K-12 cybersecurity with fcc funds and fleet
+# Enhancing K-12 cybersecurity with FCC funds and Fleet
 
-![Enhancing K-12 cybersecurity with fcc funds and fleet](../website/assets/images/articles/enhancing-k-12-cybersecurity-with-fcc-funds-and-fleet-1600x900@2x.png)
+![Enhancing K-12 cybersecurity with FCC funds and Fleet](../website/assets/images/articles/enhancing-k-12-cybersecurity-with-fcc-funds-and-fleet-1600x900@2x.png)
 
 The digital landscape in K-12 education is evolving rapidly, and with this transformation comes the critical need to safeguard school networks and data. The new [Federal Communications Commission (FCC) schools and libraries cybersecurity pilot program](https://www.fcc.gov/cybersecurity-pilot-program) offers a significant opportunity for schools to enhance their cybersecurity infrastructure. One of the most effective ways to utilize these funds is by investing in Fleet, an open-source endpoint visibility platform designed to improve endpoint protection, identity protection and authentication, and monitoring, detection, and response.
 
@@ -9,7 +9,7 @@ The digital landscape in K-12 education is evolving rapidly, and with this trans
 
 Did you know that [K-12 schools are now the top target for ransomware attacks](https://www.forbes.com/sites/frederickhess/2023/09/20/the-top-target-for-ransomware-its-now-k-12-schools/)? This startling reality is impacting educational institutions nationwide. Imagine a typical school day disrupted by a malicious cyber attack, compromising sensitive student and staff data. This is not just a hypothetical scenario; it’s happening more frequently than ever before. 
 
-For instance, in a recent incident covered by[ NPR](https://www.npr.org/2024/03/11/1236995412/cybersecurity-hackers-schools-ransomware), a school district in Toledo, Ohio, was paralyzed by a ransomware attack that locked teachers out of their computers and halted online classes for over a week. This real-world example underscores the urgency of bolstering cybersecurity measures. That's why the FCC's new cybersecurity pilot program couldn't have arrived sooner.
+For instance, in a recent incident covered by [NPR](https://www.npr.org/2024/03/11/1236995412/cybersecurity-hackers-schools-ransomware), a school district in Toledo, Ohio, was paralyzed by a ransomware attack that locked teachers out of their computers and halted online classes for over a week. This real-world example underscores the urgency of bolstering cybersecurity measures. That's why the FCC's new cybersecurity pilot program couldn't have arrived sooner.
 
 
 ## Endpoint protection
@@ -29,7 +29,7 @@ Effective cybersecurity is about prevention and the ability to monitor, detect, 
 
 ## Applying
 
-Eligible schools, libraries, and consortia should follow a two-part application process to apply for the FCC Schools and Libraries Cybersecurity Pilot Program, which will be opened by the FCC this Fall, 2024. First, applicants submit general information and details about the proposed cybersecurity project. Second, selected participants provide more detailed cybersecurity information. The FCC will announce selected participants via a public notice, who will then proceed with competitive bidding and reimbursement requests. For detailed instructions, visit the[ FCC Cybersecurity Pilot Program page](https://www.fcc.gov/cybersecurity-pilot-program).
+Eligible schools, libraries, and consortia should follow a two-part application process to apply for the FCC Schools and Libraries Cybersecurity Pilot Program, which will be opened by the FCC this Fall, 2024. First, applicants submit general information and details about the proposed cybersecurity project. Second, selected participants provide more detailed cybersecurity information. The FCC will announce selected participants via a public notice, who will then proceed with competitive bidding and reimbursement requests. For detailed instructions, visit the [FCC Cybersecurity Pilot Program page](https://www.fcc.gov/cybersecurity-pilot-program).
 
 
 ## Conclusion
@@ -44,5 +44,5 @@ The FCC Schools and Libraries Cybersecurity Pilot Program is a game-changer for 
 <meta name="authorFullName" value="Alex Mitchell">
 <meta name="authorGitHubUsername" value="alexmitchelliii">
 <meta name="publishedOn" value="2024-07-25">
-<meta name="articleTitle" value="Enhancing K-12 cybersecurity with fcc funds and fleet">
+<meta name="articleTitle" value="Enhancing K-12 cybersecurity with FCC funds and Fleet">
 <meta name="articleImageUrl" value="../website/assets/images/articles/enhancing-k-12-cybersecurity-with-fcc-funds-and-fleet-1600x900@2x.png">
