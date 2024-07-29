@@ -260,7 +260,7 @@
   tier: Premium
   jamfProHasFeature: appleOnly
   jamfProtectHasFeature: no
-  comingSoonOn: 2024-07-15
+  comingSoonOn: 2024-08-25
   usualDepartment: IT
   productCategories: [Device management]
   pricingTableCategories: [Device management]
@@ -472,7 +472,7 @@
 - industryName: Asset discovery
   documentationUrl:
   tier: Premium
-  comingSoonOn: 2024-06-30
+  comingSoonOn: 2025-06-30
   usualDepartment: Security
   productCategories: [Vulnerability management]
   pricingTableCategories: [Vulnerability management]
@@ -1302,13 +1302,13 @@
 #  ╩ ╩╚═╝╩═╝╩ ╩   ╩ ╚═╝╝╚╝╩ ╩╝╚╝╚═╝ ╩ 
 - industryName: Multi-tenancy
   description: For managed service providers to use a single instance of Fleet for multiple customers.
-  documentationUrl: https://github.com/fleetdm/fleet/issues/9956 #customer-deebradel
+  documentationUrl: https://github.com/fleetdm/fleet/issues/9956
   productCategories: [Device management]
   pricingTableCategories: [Deployment]
   usualDepartment: IT
   buzzwords: [OEM,Private label,House brand,Clear label,Multi-tenancy]
   tier: Premium
-  comingSoonOn: 2024-08-26
+  comingSoonOn: 2024-08-26 #customer-deebradel
 #
 #  ██╗███╗   ██╗████████╗███████╗ ██████╗ ██████╗  █████╗ ████████╗██╗ ██████╗ ███╗   ██╗███████╗
 #  ██║████╗  ██║╚══██╔══╝██╔════╝██╔════╝ ██╔══██╗██╔══██╗╚══██╔══╝██║██╔═══██╗████╗  ██║██╔════╝
@@ -1404,7 +1404,7 @@
   description: Fire off webhooks or run scripts on hosts when certain things happen in Fleet.
   productCategories: [Endpoint operations,Device management,Vulnerability management]
   pricingTableCategories: [Integrations]
-  comingSoonOn: 2024-06-30
+  comingSoonOn: 2024-12-31
   tier: Free
   buzzwords: [Automated remediation,Auto-remediation,Self-healing]
   waysToUse:
