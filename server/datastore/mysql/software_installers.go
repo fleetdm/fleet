@@ -596,7 +596,7 @@ ON DUPLICATE KEY UPDATE
 		}
 
 		for _, installer := range installers {
-			isRes, err := insertScriptContents(ctx, installer.InstallScript, tx)
+			isRes, err := insertScriptContents(ctx, tx, installer.InstallScript)
 			if err != nil {
 				return ctxerr.Wrapf(ctx, err, "inserting install script contents for software installer with name %q", installer.Filename)
 			}
@@ -604,7 +604,7 @@ ON DUPLICATE KEY UPDATE
 
 			var postInstallScriptID *int64
 			if installer.PostInstallScript != "" {
-				pisRes, err := insertScriptContents(ctx, installer.PostInstallScript, tx)
+				pisRes, err := insertScriptContents(ctx, tx, installer.PostInstallScript)
 				if err != nil {
 					return ctxerr.Wrapf(ctx, err, "inserting post-install script contents for software installer with name %q", installer.Filename)
 				}
