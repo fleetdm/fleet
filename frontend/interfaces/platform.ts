@@ -24,6 +24,9 @@ export const SUPPORTED_PLATFORMS: QueryablePlatform[] = [
   "chrome",
 ];
 
+// TODO - add "iOS" and "iPadOS" once we support them
+export const VULN_SUPPORTED_PLATFORMS: Platform[] = ["darwin", "windows"];
+
 export type SelectedPlatform = QueryablePlatform | "all";
 
 export type SelectedPlatformString =
