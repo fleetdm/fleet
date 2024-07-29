@@ -1,24 +1,16 @@
+export type AppleDisplayPlatform = "macOS" | "iOS" | "iPadOS";
 export type DisplayPlatform =
-  | "macOS"
+  | AppleDisplayPlatform
   | "Windows"
   | "Linux"
-  | "ChromeOS"
-  | "iOS"
-  | "iPadOS";
-
-export type Platform =
-  | "darwin"
-  | "windows"
-  | "linux"
-  | "chrome"
-  | "ios"
-  | "ipados";
-
+  | "ChromeOS";
 export type QueryableDisplayPlatform = Exclude<
   DisplayPlatform,
   "iOS" | "iPadOS"
 >;
 
+export type ApplePlatform = "darwin" | "ios" | "ipados";
+export type Platform = ApplePlatform | "windows" | "linux" | "chrome";
 export type QueryablePlatform = Exclude<Platform, "ios" | "ipados">;
 
 export const SUPPORTED_PLATFORMS: QueryablePlatform[] = [
