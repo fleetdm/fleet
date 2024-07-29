@@ -4334,6 +4334,10 @@ func (s *integrationEnterpriseTestSuite) TestOSVersions() {
 	require.NoError(t, s.ds.UpdateOSVersions(context.Background()))
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/os_versions"), nil, http.StatusOK, &osVersionsResp, "team_id", "0")
 	require.Len(t, osVersionsResp.OSVersions, 1)
+	osVersionResp = getOSVersionResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/os_versions/%d", osinfo.OSVersionID), nil, http.StatusOK, &osVersionResp, "team_id", "0")
+	require.Equal(t, &expectedOSVersion, osVersionResp.OSVersion)
+	require.Equal(t, 1, osVersionResp.OSVersion.HostsCount)
 }
 
 func (s *integrationEnterpriseTestSuite) TestMDMNotConfiguredEndpoints() {
