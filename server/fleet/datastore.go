@@ -1295,6 +1295,10 @@ type Datastore interface {
 	// the provided value.
 	MDMAppleSetPendingDeclarationsAs(ctx context.Context, hostUUID string, status *MDMDeliveryStatus, detail string) error
 
+	// GetMDMAppleOSUpdatesSettingsByHostSerial returns applicable Apple OS update settings (if any)
+	// for the host with the given serial number. The host must be DEP assigned to Fleet.
+	GetMDMAppleOSUpdatesSettingsByHostSerial(ctx context.Context, hostSerial string) (*AppleOSUpdateSettings, error)
+
 	// InsertMDMConfigAssets inserts MDM related config assets, such as SCEP and APNS certs and keys.
 	InsertMDMConfigAssets(ctx context.Context, assets []MDMConfigAsset) error
 

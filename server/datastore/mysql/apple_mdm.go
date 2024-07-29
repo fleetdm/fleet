@@ -4706,3 +4706,61 @@ LIMIT 500
 
 	return deviceUUIDs, nil
 }
+
+func (ds *Datastore) GetMDMAppleOSUpdatesSettingsByHostSerial(ctx context.Context, serial string) (*fleet.AppleOSUpdateSettings, error) {
+	stmt := `
+SELECT 
+	team_id, platform 
+FROM 
+	hosts h 
+JOIN 
+	host_dep_assignments hdep ON h.id = host_id 
+WHERE 
+	hardware_serial = ? AND deleted_at IS NULL 
+LIMIT 1`
+
+	var dest struct {
+		TeamID   *uint  `db:"team_id"`
+		Platform string `db:"platform"`
+	}
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &dest, stmt, serial); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting team id for host")
+	}
+
+	var settings fleet.AppleOSUpdateSettings
+	if dest.TeamID == nil {
+		// use the global settings
+		ac, err := ds.AppConfig(ctx)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "getting app config for os update settings")
+		}
+		switch dest.Platform {
+		case "ios":
+			settings = ac.MDM.IOSUpdates
+		case "ipados":
+			settings = ac.MDM.IPadOSUpdates
+		case "darwin":
+			settings = ac.MDM.MacOSUpdates
+		default:
+			return nil, ctxerr.New(ctx, fmt.Sprintf("unsupported platform %s", dest.Platform))
+		}
+	} else {
+		// use the team settings
+		tm, err := ds.TeamWithoutExtras(ctx, *dest.TeamID)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "getting team os update settings")
+		}
+		switch dest.Platform {
+		case "ios":
+			settings = tm.Config.MDM.IOSUpdates
+		case "ipados":
+			settings = tm.Config.MDM.IPadOSUpdates
+		case "darwin":
+			settings = tm.Config.MDM.MacOSUpdates
+		default:
+			return nil, ctxerr.New(ctx, fmt.Sprintf("unsupported platform %s", dest.Platform))
+		}
+	}
+
+	return &settings, nil
+}
