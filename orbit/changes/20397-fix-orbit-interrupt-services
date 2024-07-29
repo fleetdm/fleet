@@ -1,2 +1,0 @@
-* Fixed a startup bug by performing an early restart of orbit if an agent options setting has changed.
-* Implemented a small refactor of orbit subsystems.

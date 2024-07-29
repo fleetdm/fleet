@@ -2791,6 +2791,18 @@ Returns the count of all hosts organized by status. `online_count` includes all 
       "name": "All Linux",
       "description": "All Linux distributions",
       "label_type": "builtin"
+    },
+    {
+      "id": 13,
+      "name": "iOS",
+      "description": "All iOS hosts",
+      "label_type": "builtin"
+    },
+    {
+      "id": 14,
+      "name": "iPadOS",
+      "description": "All iPadOS hosts",
+      "label_type": "builtin"
     }
   ],
   "platforms": [
@@ -2800,6 +2812,14 @@ Returns the count of all hosts organized by status. `online_count` includes all 
     },
     {
       "platform": "darwin",
+      "hosts_count": 1234
+    },
+    {
+      "platform": "ios",
+      "hosts_count": 1234
+    },
+    {
+      "platform": "ipados",
       "hosts_count": 1234
     },
     {
