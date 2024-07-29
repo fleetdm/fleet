@@ -68,7 +68,11 @@ const VppAppListItem = ({ app, selected, onSelect }: IVppAppListItemProps) => {
         name="vppApp"
         onChange={() => onSelect(app)}
       />
-      <div className="app-platform">{PLATFORM_DISPLAY_NAMES[app.platform]}</div>
+      {app.platform && (
+        <div className="app-platform">
+          {PLATFORM_DISPLAY_NAMES[app.platform]}
+        </div>
+      )}
     </li>
   );
 };
