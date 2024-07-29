@@ -49,6 +49,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/groob/plist"
 	micromdm "github.com/micromdm/micromdm/mdm/mdm"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.mozilla.org/pkcs7"
 )
@@ -3286,6 +3287,90 @@ func TestMDMCommandAndReportResultsIOSIPadOSRefetch(t *testing.T) {
 	require.True(t, ds.HostByIdentifierFuncInvoked)
 	require.True(t, ds.SetOrUpdateHostDisksSpaceFuncInvoked)
 	require.True(t, ds.UpdateHostOperatingSystemFuncInvoked)
+}
+
+func TestUnmarshalAppList(t *testing.T) {
+	ctx := context.Background()
+	noApps := []byte(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CommandUUID</key>
+	<string>c05c1a68-4127-4fde-b0da-965cbd63f88f</string>
+	<key>InstalledApplicationList</key>
+	<array/>
+	<key>Status</key>
+	<string>Acknowledged</string>
+	<key>UDID</key>
+	<string>00008030-000E6D623CD2202E</string>
+</dict>
+</plist>`)
+	software, err := unmarshalAppList(ctx, noApps, "ipados_apps")
+	require.NoError(t, err)
+	assert.Empty(t, software)
+
+	apps := []byte(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CommandUUID</key>
+	<string>21ed54fc-0e6d-4fe3-8c4f-feca0c548ce1</string>
+	<key>InstalledApplicationList</key>
+	<array>
+		<dict>
+			<key>Identifier</key>
+			<string>com.google.ios.youtube</string>
+			<key>Name</key>
+			<string>YouTube</string>
+			<key>ShortVersion</key>
+			<string>19.29.1</string>
+		</dict>
+		<dict>
+			<key>Identifier</key>
+			<string>com.evernote.iPhone.Evernote</string>
+			<key>Name</key>
+			<string>Evernote</string>
+			<key>ShortVersion</key>
+			<string>10.98.0</string>
+		</dict>
+		<dict>
+			<key>Identifier</key>
+			<string>com.netflix.Netflix</string>
+			<key>Name</key>
+			<string>Netflix</string>
+			<key>ShortVersion</key>
+			<string>16.41.0</string>
+		</dict>
+	</array>
+	<key>Status</key>
+	<string>Acknowledged</string>
+	<key>UDID</key>
+	<string>00008101-001514810EA3A01E</string>
+</dict>
+</plist>`)
+	expectedSoftware := []fleet.Software{
+		{
+			Name:             "YouTube",
+			Version:          "19.29.1",
+			Source:           "ios_apps",
+			BundleIdentifier: "com.google.ios.youtube",
+		},
+		{
+			Name:             "Evernote",
+			Version:          "10.98.0",
+			Source:           "ios_apps",
+			BundleIdentifier: "com.evernote.iPhone.Evernote",
+		},
+		{
+			Name:             "Netflix",
+			Version:          "16.41.0",
+			Source:           "ios_apps",
+			BundleIdentifier: "com.netflix.Netflix",
+		},
+	}
+	software, err = unmarshalAppList(ctx, apps, "ios_apps")
+	require.NoError(t, err)
+	assert.ElementsMatch(t, expectedSoftware, software)
 }
 
 func TestCheckMDMAppleEnrollmentWithMinimumOSVersion(t *testing.T) {

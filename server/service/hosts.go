@@ -1011,7 +1011,8 @@ func refetchHostEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 
 func (svc *Service) RefetchHost(ctx context.Context, id uint) error {
 	var host *fleet.Host
-	// iOS and iPadOS refetch are not authenticated with device token because these devices do not have Fleet Desktop
+	// iOS and iPadOS refetch are not authenticated with device token because these devices do not have Fleet Desktop,
+	// so we don't handle that case
 	if !svc.authz.IsAuthenticatedWith(ctx, authzctx.AuthnDeviceToken) {
 		var err error
 		if err = svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
@@ -1030,19 +1031,25 @@ func (svc *Service) RefetchHost(ctx context.Context, id uint) error {
 		}
 	}
 
+	if err := svc.ds.UpdateHostRefetchRequested(ctx, id, true); err != nil {
+		return ctxerr.Wrap(ctx, err, "save host")
+	}
+
 	if host != nil && (host.Platform == "ios" || host.Platform == "ipados") {
 		err := svc.verifyMDMConfiguredAndConnected(ctx, host)
 		if err != nil {
 			return err
 		}
-		err = svc.mdmAppleCommander.DeviceInformation(ctx, []string{host.UUID}, fleet.RefetchCommandUUIDPrefix+uuid.NewString())
+		cmdUUID := uuid.NewString()
+		err = svc.mdmAppleCommander.InstalledApplicationList(ctx, []string{host.UUID}, fleet.RefetchAppsCommandUUIDPrefix+cmdUUID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "refetch apps with MDM")
+		}
+		// DeviceInformation is last because the refetch response clears the refetch_requested flag
+		err = svc.mdmAppleCommander.DeviceInformation(ctx, []string{host.UUID}, fleet.RefetchCommandUUIDPrefix+cmdUUID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "refetch host with MDM")
 		}
-	}
-
-	if err := svc.ds.UpdateHostRefetchRequested(ctx, id, true); err != nil {
-		return ctxerr.Wrap(ctx, err, "save host")
 	}
 
 	return nil
