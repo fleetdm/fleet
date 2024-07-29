@@ -376,9 +376,9 @@ func (ds *Datastore) GetSummaryHostSoftwareInstalls(ctx context.Context, install
 
 	stmt := fmt.Sprintf(`
 SELECT
-	COALESCE(SUM( IF(status = :software_status_pending, 1, 0)), 0) AS pending,
-	COALESCE(SUM( IF(status = :software_status_failed, 1, 0)), 0) AS failed,
-	COALESCE(SUM( IF(status = :software_status_installed, 1, 0)), 0) AS installed
+	COALESCE(SUM( IF(status = :software_status_pending AND host_deleted_at IS NULL, 1, 0)), 0) AS pending,
+	COALESCE(SUM( IF(status = :software_status_failed AND host_deleted_at IS NULL, 1, 0)), 0) AS failed,
+	COALESCE(SUM( IF(status = :software_status_installed AND host_deleted_at IS NULL, 1, 0)), 0) AS installed
 FROM (
 SELECT
 	software_installer_id,
