@@ -40,7 +40,7 @@ const STATUS_CONFIG: Record<SoftwareInstallStatus, IStatusDisplayConfig> = {
     displayText: "Failed",
     tooltip: ({ lastInstalledAt = "" }) => (
       <>
-        Software failed to install
+        Software failed to install 
         {lastInstalledAt ? `(${dateAgo(lastInstalledAt)})` : ""}. Select{" "}
         <b>Retry</b> to install again, or contact your IT department.
       </>
