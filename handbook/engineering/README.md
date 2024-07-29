@@ -30,9 +30,7 @@ Each week these are tracked and shared in the weekly KPI sheet by Luke Heath.
 
 ### Write a feature guide 
 
-We write [guides](https://fleetdm.com/guides) for all new features. Feature guides are published before the feature is released so
-that our users understand how the feature is intended to work. A guide is a type of
-article, so the process for writing a guide and article is the same.
+We write [guides](https://fleetdm.com/guides) for all new features. Feature guides are published before the feature is released so that our users understand how the feature is intended to work. A guide is a type of article, so the process for writing a guide and article is the same.
 
 1. Review and follow the [Fleet writing style guide](https://fleetdm.com/handbook/company/communications#writing).
 2. Make a copy of the ["Article: Guide Template"](https://docs.google.com/document/d/1OPcDouyfyFPg3ScrN4bo6ol8vMfMa3P9-BIfbnEdcg4/copy) and rename "Article: [Guide] {feature name}".
