@@ -641,8 +641,8 @@
 #  ╔═╗╦   ╔═╗╔═╗╔╗╔╔═╗╦═╗╔═╗╔╦╗╔═╗╔╦╗  ╔╦╗╔═╗╔═╗╔═╗╦═╗╦╔═╗╔╦╗╦╔═╗╔╗╔╔═╗
 #  ╠═╣║───║ ╦║╣ ║║║║╣ ╠╦╝╠═╣ ║ ║╣  ║║   ║║║╣ ╚═╗║  ╠╦╝║╠═╝ ║ ║║ ║║║║╚═╗
 #  ╩ ╩╩   ╚═╝╚═╝╝╚╝╚═╝╩╚═╩ ╩ ╩ ╚═╝═╩╝  ═╩╝╚═╝╚═╝╚═╝╩╚═╩╩   ╩ ╩╚═╝╝╚╝╚═╝
-- industryName: AI-generated descriptions
-  description: Use AI to explain why your security policies matter.
+- industryName: AI-generated descriptions (optional)
+  description: Optionally use AI to explain why your security policies matter.
   documentationUrl: https://github.com/fleetdm/fleet/issues/18187
   tier: Free
   jamfProHasFeature: no
@@ -788,9 +788,9 @@
 #  ╔═╗╔═╗╔═╗╔╗╔╔╦╗  ╔═╗╦ ╦╔╦╗╔═╗   ╦ ╦╔═╗╔╦╗╔═╗╔╦╗╔═╗
 #  ╠═╣║ ╦║╣ ║║║ ║   ╠═╣║ ║ ║ ║ ║───║ ║╠═╝ ║║╠═╣ ║ ║╣
 #  ╩ ╩╚═╝╚═╝╝╚╝ ╩   ╩ ╩╚═╝ ╩ ╚═╝   ╚═╝╩  ═╩╝╩ ╩ ╩ ╚═╝
-- industryName: Agent auto-update
+- industryName: Agent auto-update (optional)
   friendlyName: Keep agents and extensions up to date
-  descrption: Keep agents and extensions up to date by loading code from Fleet's free update registry.
+  description: Optionally keep agents and extensions up to date automatically using Fleet's free update registry, powered by The Update Framework (TUF).
   documentationUrl: https://fleetdm.com/docs/using-fleet/enroll-hosts
   tier: Free
   jamfProHasFeature: yes
@@ -844,19 +844,21 @@
   productCategories: [Endpoint operations]
   pricingTableCategories: [Endpoint operations]
   usualDepartment: Security
-#
-#  ╔═╗╔═╗╔╦╗╔╦╗╔═╗╔╗╔╔╦╗  ╦  ╦╔╗╔╔═╗  ╔╦╗╔═╗╔═╗╦    ┌─  ╔═╗╦  ╦  ─┐
-#  ║  ║ ║║║║║║║╠═╣║║║ ║║  ║  ║║║║║╣    ║ ║ ║║ ║║    │   ║  ║  ║   │
-#  ╚═╝╚═╝╩ ╩╩ ╩╩ ╩╝╚╝═╩╝  ╩═╝╩╝╚╝╚═╝   ╩ ╚═╝╚═╝╩═╝  └─  ╚═╝╩═╝╩  ─┘
-- industryName: Command line tool (CLI)
-  friendlyName: fleetctl
-  documentationUrl: https://fleetdm.com/docs/using-fleet/fleetctl-cli
+#  
+#  ╔╦╗╦═╗╦╔═╗╔═╗╔═╗╦═╗  ╔═╗  ╦ ╦╔═╗╦═╗╦╔═╔═╗╦  ╔═╗╦ ╦  ╔╗ ╔═╗╔═╗╔═╗╔╦╗  ╔═╗╔╗╔  ╔═╗  
+#   ║ ╠╦╝║║ ╦║ ╦║╣ ╠╦╝  ╠═╣  ║║║║ ║╠╦╝╠╩╗╠╣ ║  ║ ║║║║  ╠╩╗╠═╣╚═╗║╣  ║║  ║ ║║║║  ╠═╣  
+#   ╩ ╩╚═╩╚═╝╚═╝╚═╝╩╚═  ╩ ╩  ╚╩╝╚═╝╩╚═╩ ╩╚  ╩═╝╚═╝╚╩╝  ╚═╝╩ ╩╚═╝╚═╝═╩╝  ╚═╝╝╚╝  ╩ ╩  
+#  ╔═╗╔═╗╦╦  ╦╔╗╔╔═╗  ╔═╗╔═╗╦  ╦╔═╗╦ ╦                                               
+#  ╠╣ ╠═╣║║  ║║║║║ ╦  ╠═╝║ ║║  ║║  ╚╦╝                                               
+#  ╚  ╩ ╩╩╩═╝╩╝╚╝╚═╝  ╩  ╚═╝╩═╝╩╚═╝ ╩                                                
+- industryName: Trigger a workflow based on a failing policy
+  documentationUrl: https://fleetdm.com/docs/using-fleet/automations#policy-automations
   productCategories: [Endpoint operations,Device management]
   pricingTableCategories: [Endpoint operations]
   usualDepartment: IT
   tier: Free
   jamfProHasFeature: yes
-  jamfProtectHasFeature: yes
+  jamfProtectHasFeature: no
 #  
 #  ╔═╗╔═╗╔═╗╔╦╗╦ ╦╔═╗╦═╗╔═╗  ╦╔╗╔╦  ╦╔═╗╔╗╔╔╦╗╔═╗╦═╗╦ ╦
 #  ╚═╗║ ║╠╣  ║ ║║║╠═╣╠╦╝║╣   ║║║║╚╗╔╝║╣ ║║║ ║ ║ ║╠╦╝╚╦╝
@@ -995,18 +997,6 @@
   productCategories: [Endpoint operations]
   pricingTableCategories: [Endpoint operations]
 #  
-#  ╔═╗╦╔╗╔╔═╗╦  ╔═╗  ╔═╗╦╔═╗╔╗╔  ╔═╗╔╗╔
-#  ╚═╗║║║║║ ╦║  ║╣   ╚═╗║║ ╦║║║  ║ ║║║║
-#  ╚═╝╩╝╚╝╚═╝╩═╝╚═╝  ╚═╝╩╚═╝╝╚╝  ╚═╝╝╚╝
-- industryName: Single sign on (SSO, SAML)
-  documentationUrl: https://fleetdm.com/docs/deploy/single-sign-on-sso#single-sign-on-sso
-  productCategories: [Endpoint operations,Device management,Vulnerability management]
-  pricingTableCategories: [Endpoint operations]
-  usualDepartment: IT
-  tier: Free
-  jamfProHasFeature: yes
-  jamfProtectHasFeature: yes
-#  
 #  ╔═╗╦ ╦╔╦╗╦╔╦╗  ╦  ╔═╗╔═╗  ╔═╗╔═╗  ╔═╗╔═╗╔╦╗╦╦  ╦╦╔╦╗╦ ╦
 #  ╠═╣║ ║ ║║║ ║   ║  ║ ║║ ╦  ║ ║╠╣   ╠═╣║   ║ ║╚╗╔╝║ ║ ╚╦╝
 #  ╩ ╩╚═╝═╩╝╩ ╩   ╩═╝╚═╝╚═╝  ╚═╝╚    ╩ ╩╚═╝ ╩ ╩ ╚╝ ╩ ╩  ╩ 
@@ -1020,17 +1010,6 @@
   usualDepartment: Security
   waysToUse:
     - description: Export activity of Fleet admins to your SIEM or data lake
-#  
-#  ╔═╗╦═╗╔═╗╔╗╔╔╦╗  ╔═╗╔═╗╦   ╔═╗╔╗╔╦ ╦ ╦  ╔═╗╔═╗╔═╗╔═╗╔═╗╔═╗
-#  ║ ╦╠╦╝╠═╣║║║ ║   ╠═╣╠═╝║───║ ║║║║║ ╚╦╝  ╠═╣║  ║  ║╣ ╚═╗╚═╗
-#  ╚═╝╩╚═╩ ╩╝╚╝ ╩   ╩ ╩╩  ╩   ╚═╝╝╚╝╩═╝╩   ╩ ╩╚═╝╚═╝╚═╝╚═╝╚═╝
-- industryName: Grant API-only access
-  documentationUrl: https://fleetdm.com/docs/using-fleet/fleetctl-cli#using-fleetctl-with-an-api-only-user
-  productCategories: [Endpoint operations]
-  pricingTableCategories: [Endpoint operations]
-  tier: Free
-  jamfProHasFeature: yes
-  jamfProtectHasFeature: yes
 #  
 #  ╔═╗ ╦ ╦╔═╗╦═╗╦ ╦  ╔═╗╔═╗╦═╗╔═╗╔═╗╦═╗╔╦╗╔═╗╔╗╔╔═╗╔═╗  ╔╦╗╔═╗╔╗╔╦╔╦╗╔═╗╦═╗╦╔╗╔╔═╗
 #  ║═╬╗║ ║║╣ ╠╦╝╚╦╝  ╠═╝║╣ ╠╦╝╠╣ ║ ║╠╦╝║║║╠═╣║║║║  ║╣   ║║║║ ║║║║║ ║ ║ ║╠╦╝║║║║║ ╦
@@ -1176,18 +1155,6 @@
   tier: Premium
   jamfProHasFeature: yes
   jamfProtectHasFeature: yes
-#  
-#   ╦╦ ╦╔═╗╔╦╗  ╦╔╗╔  ╔╦╗╦╔╦╗╔═╗  ╔═╗╦═╗╔═╗╦  ╦╦╔═╗╦╔═╗╔╗╔╦╔╗╔╔═╗
-#   ║║ ║╚═╗ ║───║║║║───║ ║║║║║╣   ╠═╝╠╦╝║ ║╚╗╔╝║╚═╗║║ ║║║║║║║║║ ╦
-#  ╚╝╚═╝╚═╝ ╩   ╩╝╚╝   ╩ ╩╩ ╩╚═╝  ╩  ╩╚═╚═╝ ╚╝ ╩╚═╝╩╚═╝╝╚╝╩╝╚╝╚═╝
-- industryName: Just-in-time (JIT) provisioning
-  documentationUrl: https://fleetdm.com/docs/deploy/single-sign-on-sso#just-in-time-jit-user-provisioning
-  productCategories: [Endpoint operations,Device management,Vulnerability management]
-  pricingTableCategories: [Endpoint operations]
-  usualDepartment: IT
-  tier: Premium
-  jamfProHasFeature: yes
-  jamfProtectHasFeature: no
 #  
 #  ╦═╗╔═╗╦  ╔═╗  ╔╗ ╔═╗╔═╗╔═╗╔╦╗  ╔═╗╔═╗╔═╗╔═╗╔═╗╔═╗  ╔═╗╔═╗╔╗╔╔╦╗╦═╗╔═╗╦  
 #  ╠╦╝║ ║║  ║╣───╠╩╗╠═╣╚═╗║╣  ║║  ╠═╣║  ║  ║╣ ╚═╗╚═╗  ║  ║ ║║║║ ║ ╠╦╝║ ║║  
@@ -1383,6 +1350,54 @@
   jamfProHasFeature: yes
   jamfProtectHasFeature: yes
 #
+#  ╔═╗╔═╗╔╦╗╔╦╗╔═╗╔╗╔╔╦╗  ╦  ╦╔╗╔╔═╗  ╔╦╗╔═╗╔═╗╦    ┌─  ╔═╗╦  ╦  ─┐
+#  ║  ║ ║║║║║║║╠═╣║║║ ║║  ║  ║║║║║╣    ║ ║ ║║ ║║    │   ║  ║  ║   │
+#  ╚═╝╚═╝╩ ╩╩ ╩╩ ╩╝╚╝═╩╝  ╩═╝╩╝╚╝╚═╝   ╩ ╚═╝╚═╝╩═╝  └─  ╚═╝╩═╝╩  ─┘
+- industryName: Command line tool (CLI)
+  friendlyName: fleetctl
+  documentationUrl: https://fleetdm.com/docs/using-fleet/fleetctl-cli
+  productCategories: [Endpoint operations,Device management]
+  pricingTableCategories: [Integrations]
+  usualDepartment: IT
+  tier: Free
+  jamfProHasFeature: yes
+  jamfProtectHasFeature: yes
+#  
+#  ╔═╗╦═╗╔═╗╔╗╔╔╦╗  ╔═╗╔═╗╦   ╔═╗╔╗╔╦ ╦ ╦  ╔═╗╔═╗╔═╗╔═╗╔═╗╔═╗
+#  ║ ╦╠╦╝╠═╣║║║ ║   ╠═╣╠═╝║───║ ║║║║║ ╚╦╝  ╠═╣║  ║  ║╣ ╚═╗╚═╗
+#  ╚═╝╩╚═╩ ╩╝╚╝ ╩   ╩ ╩╩  ╩   ╚═╝╝╚╝╩═╝╩   ╩ ╩╚═╝╚═╝╚═╝╚═╝╚═╝
+- industryName: Grant API-only access
+  documentationUrl: https://fleetdm.com/docs/using-fleet/fleetctl-cli#using-fleetctl-with-an-api-only-user
+  productCategories: [Endpoint operations]
+  pricingTableCategories: [Integrations]
+  tier: Free
+  jamfProHasFeature: yes
+  jamfProtectHasFeature: yes
+#  
+#  ╔═╗╦╔╗╔╔═╗╦  ╔═╗  ╔═╗╦╔═╗╔╗╔  ╔═╗╔╗╔
+#  ╚═╗║║║║║ ╦║  ║╣   ╚═╗║║ ╦║║║  ║ ║║║║
+#  ╚═╝╩╝╚╝╚═╝╩═╝╚═╝  ╚═╝╩╚═╝╝╚╝  ╚═╝╝╚╝
+- industryName: Single sign on (SSO, SAML)
+  documentationUrl: https://fleetdm.com/docs/deploy/single-sign-on-sso#single-sign-on-sso
+  productCategories: [Endpoint operations,Device management,Vulnerability management]
+  pricingTableCategories: [Integrations]
+  usualDepartment: IT
+  tier: Free
+  jamfProHasFeature: yes
+  jamfProtectHasFeature: yes
+#  
+#   ╦╦ ╦╔═╗╔╦╗  ╦╔╗╔  ╔╦╗╦╔╦╗╔═╗  ╔═╗╦═╗╔═╗╦  ╦╦╔═╗╦╔═╗╔╗╔╦╔╗╔╔═╗
+#   ║║ ║╚═╗ ║───║║║║───║ ║║║║║╣   ╠═╝╠╦╝║ ║╚╗╔╝║╚═╗║║ ║║║║║║║║║ ╦
+#  ╚╝╚═╝╚═╝ ╩   ╩╝╚╝   ╩ ╩╩ ╩╚═╝  ╩  ╩╚═╚═╝ ╚╝ ╩╚═╝╩╚═╝╝╚╝╩╝╚╝╚═╝
+- industryName: Just-in-time (JIT) provisioning
+  documentationUrl: https://fleetdm.com/docs/deploy/single-sign-on-sso#just-in-time-jit-user-provisioning
+  productCategories: [Endpoint operations,Device management,Vulnerability management]
+  pricingTableCategories: [Integrations]
+  usualDepartment: IT
+  tier: Premium
+  jamfProHasFeature: yes
+  jamfProtectHasFeature: no
+#
 #  ╔╦╗╔═╗╔═╗╔═╗  ╔═╗╦ ╦╔╦╗╔═╗╔╦╗╔═╗╔╦╗╦╔═╗╔╗╔╔═╗
 #   ║║║╣ ║╣ ╠═╝  ╠═╣║ ║ ║ ║ ║║║║╠═╣ ║ ║║ ║║║║╚═╗
 #  ═╩╝╚═╝╚═╝╩    ╩ ╩╚═╝ ╩ ╚═╝╩ ╩╩ ╩ ╩ ╩╚═╝╝╚╝╚═╝
@@ -1455,17 +1470,17 @@
     - description: (Custom IdP) Manage access to Fleet single sign-on (SSO) through any IdP (using SAML).
   buzzwords: [Vanta,Puppet,Custom IdP]
 #  
-#  ╔╦╗╦ ╦╔╗╔╦╔═╦  ╔═╗╔═╗╔╦╗╔═╗╔═╗╔╦╗╦╔╗ ╦╦  ╦╔╦╗╦ ╦   ╦╔╗╔╔╦╗╔═╗╔═╗╦═╗╔═╗╔╦╗╦╔═╗╔╗╔
-#  ║║║║ ║║║║╠╩╗║  ║  ║ ║║║║╠═╝╠═╣ ║ ║╠╩╗║║  ║ ║ ╚╦╝   ║║║║ ║ ║╣ ║ ╦╠╦╝╠═╣ ║ ║║ ║║║║
-#  ╩ ╩╚═╝╝╚╝╩ ╩╩  ╚═╝╚═╝╩ ╩╩  ╩ ╩ ╩ ╩╚═╝╩╩═╝╩ ╩  ╩    ╩╝╚╝ ╩ ╚═╝╚═╝╩╚═╩ ╩ ╩ ╩╚═╝╝╚╝
-- industryName: Munki compatibility / integration
+#  ╔╦╗╦ ╦╔╗╔╦╔═╦  ╔═╗╔═╗╔╦╗╔═╗╔═╗╔╦╗╦╔╗ ╦╦  ╦╔╦╗╦ ╦ 
+#  ║║║║ ║║║║╠╩╗║  ║  ║ ║║║║╠═╝╠═╣ ║ ║╠╩╗║║  ║ ║ ╚╦╝ 
+#  ╩ ╩╚═╝╝╚╝╩ ╩╩  ╚═╝╚═╝╩ ╩╩  ╩ ╩ ╩ ╩╚═╝╩╩═╝╩ ╩  ╩  
+- industryName: Munki compatibility + visibility
   tier: Premium
   jamfProHasFeature: yes
   jamfProtectHasFeature: yes
   usualDepartment: IT
   productCategories: [Device management]
   pricingTableCategories: [Integrations]
-#  
+#
 #  ╔╦╗╦═╗╦╔═╗╔═╗╔═╗╦═╗  ╔═╗  ╦ ╦╔═╗╦═╗╦╔═╔═╗╦  ╔═╗╦ ╦  ╔╗ ╔═╗╔═╗╔═╗╔╦╗  ╔═╗╔╗╔  ╔═╗  
 #   ║ ╠╦╝║║ ╦║ ╦║╣ ╠╦╝  ╠═╣  ║║║║ ║╠╦╝╠╩╗╠╣ ║  ║ ║║║║  ╠╩╗╠═╣╚═╗║╣  ║║  ║ ║║║║  ╠═╣  
 #   ╩ ╩╚═╩╚═╝╚═╝╚═╝╩╚═  ╩ ╩  ╚╩╝╚═╝╩╚═╩ ╩╚  ╩═╝╚═╝╚╩╝  ╚═╝╩ ╩╚═╝╚═╝═╩╝  ╚═╝╝╚╝  ╩ ╩  
@@ -1480,4 +1495,3 @@
   tier: Free
   jamfProHasFeature: yes
   jamfProtectHasFeature: no
-  

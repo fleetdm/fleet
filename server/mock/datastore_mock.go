@@ -848,6 +848,8 @@ type MDMAppleStoreDDMStatusReportFunc func(ctx context.Context, hostUUID string,
 
 type MDMAppleSetPendingDeclarationsAsFunc func(ctx context.Context, hostUUID string, status *fleet.MDMDeliveryStatus, detail string) error
 
+type GetMDMAppleOSUpdatesSettingsByHostSerialFunc func(ctx context.Context, hostSerial string) (*fleet.AppleOSUpdateSettings, error)
+
 type InsertMDMConfigAssetsFunc func(ctx context.Context, assets []fleet.MDMConfigAsset) error
 
 type GetAllMDMConfigAssetsByNameFunc func(ctx context.Context, assetNames []fleet.MDMAssetName) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error)
@@ -1004,9 +1006,9 @@ type BatchInsertVPPAppsFunc func(ctx context.Context, apps []*fleet.VPPApp) erro
 
 type GetAssignedVPPAppsFunc func(ctx context.Context, teamID *uint) (map[string]struct{}, error)
 
-type InsertVPPAppWithTeamFunc func(ctx context.Context, app *fleet.VPPApp, teamID *uint) (*fleet.VPPApp, error)
-
 type SetTeamVPPAppsFunc func(ctx context.Context, teamID *uint, adamIDs []string) error
+
+type InsertVPPAppWithTeamFunc func(ctx context.Context, app *fleet.VPPApp, teamID *uint) (*fleet.VPPApp, error)
 
 type InsertHostVPPSoftwareInstallFunc func(ctx context.Context, hostID uint, userID uint, adamID string, commandUUID string, associatedEventID string) error
 
@@ -2255,6 +2257,9 @@ type DataStore struct {
 	MDMAppleSetPendingDeclarationsAsFunc        MDMAppleSetPendingDeclarationsAsFunc
 	MDMAppleSetPendingDeclarationsAsFuncInvoked bool
 
+	GetMDMAppleOSUpdatesSettingsByHostSerialFunc        GetMDMAppleOSUpdatesSettingsByHostSerialFunc
+	GetMDMAppleOSUpdatesSettingsByHostSerialFuncInvoked bool
+
 	InsertMDMConfigAssetsFunc        InsertMDMConfigAssetsFunc
 	InsertMDMConfigAssetsFuncInvoked bool
 
@@ -2489,11 +2494,11 @@ type DataStore struct {
 	GetAssignedVPPAppsFunc        GetAssignedVPPAppsFunc
 	GetAssignedVPPAppsFuncInvoked bool
 
-	InsertVPPAppWithTeamFunc        InsertVPPAppWithTeamFunc
-	InsertVPPAppWithTeamFuncInvoked bool
-
 	SetTeamVPPAppsFunc        SetTeamVPPAppsFunc
 	SetTeamVPPAppsFuncInvoked bool
+
+	InsertVPPAppWithTeamFunc        InsertVPPAppWithTeamFunc
+	InsertVPPAppWithTeamFuncInvoked bool
 
 	InsertHostVPPSoftwareInstallFunc        InsertHostVPPSoftwareInstallFunc
 	InsertHostVPPSoftwareInstallFuncInvoked bool
@@ -5402,6 +5407,13 @@ func (s *DataStore) MDMAppleSetPendingDeclarationsAs(ctx context.Context, hostUU
 	return s.MDMAppleSetPendingDeclarationsAsFunc(ctx, hostUUID, status, detail)
 }
 
+func (s *DataStore) GetMDMAppleOSUpdatesSettingsByHostSerial(ctx context.Context, hostSerial string) (*fleet.AppleOSUpdateSettings, error) {
+	s.mu.Lock()
+	s.GetMDMAppleOSUpdatesSettingsByHostSerialFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetMDMAppleOSUpdatesSettingsByHostSerialFunc(ctx, hostSerial)
+}
+
 func (s *DataStore) InsertMDMConfigAssets(ctx context.Context, assets []fleet.MDMConfigAsset) error {
 	s.mu.Lock()
 	s.InsertMDMConfigAssetsFuncInvoked = true
@@ -5948,18 +5960,18 @@ func (s *DataStore) GetAssignedVPPApps(ctx context.Context, teamID *uint) (map[s
 	return s.GetAssignedVPPAppsFunc(ctx, teamID)
 }
 
-func (s *DataStore) InsertVPPAppWithTeam(ctx context.Context, app *fleet.VPPApp, teamID *uint) (*fleet.VPPApp, error) {
-	s.mu.Lock()
-	s.InsertVPPAppWithTeamFuncInvoked = true
-	s.mu.Unlock()
-	return s.InsertVPPAppWithTeamFunc(ctx, app, teamID)
-}
-
 func (s *DataStore) SetTeamVPPApps(ctx context.Context, teamID *uint, adamIDs []string) error {
 	s.mu.Lock()
 	s.SetTeamVPPAppsFuncInvoked = true
 	s.mu.Unlock()
 	return s.SetTeamVPPAppsFunc(ctx, teamID, adamIDs)
+}
+
+func (s *DataStore) InsertVPPAppWithTeam(ctx context.Context, app *fleet.VPPApp, teamID *uint) (*fleet.VPPApp, error) {
+	s.mu.Lock()
+	s.InsertVPPAppWithTeamFuncInvoked = true
+	s.mu.Unlock()
+	return s.InsertVPPAppWithTeamFunc(ctx, app, teamID)
 }
 
 func (s *DataStore) InsertHostVPPSoftwareInstall(ctx context.Context, hostID uint, userID uint, adamID string, commandUUID string, associatedEventID string) error {

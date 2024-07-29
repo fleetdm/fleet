@@ -1282,6 +1282,13 @@ type parameterizedStmt struct {
 //
 // The read statement must only SELECT the id column.
 func (ds *Datastore) optimisticGetOrInsert(ctx context.Context, readStmt, insertStmt *parameterizedStmt) (id uint, err error) {
+	return ds.optimisticGetOrInsertWithWriter(ctx, ds.writer(ctx), readStmt, insertStmt)
+}
+
+// optimisticGetOrInsertWithWriter is the same as optimisticGetOrInsert but it
+// uses the provided writer to perform the insert or second read operations.
+// This makes it possible to use this from inside a transaction.
+func (ds *Datastore) optimisticGetOrInsertWithWriter(ctx context.Context, writer sqlx.ExtContext, readStmt, insertStmt *parameterizedStmt) (id uint, err error) { //nolint: gocritic // it's ok in this case to use ds.reader even if we receive an ExtContext
 	readID := func(q sqlx.QueryerContext) (uint, error) {
 		var id uint
 		err := sqlx.GetContext(ctx, q, &id, readStmt.Statement, readStmt.Args...)
@@ -1293,12 +1300,12 @@ func (ds *Datastore) optimisticGetOrInsert(ctx context.Context, readStmt, insert
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			// this does not exist yet, try to insert it
-			res, err := ds.writer(ctx).ExecContext(ctx, insertStmt.Statement, insertStmt.Args...)
+			res, err := writer.ExecContext(ctx, insertStmt.Statement, insertStmt.Args...)
 			if err != nil {
 				if IsDuplicate(err) {
 					// it might've been created between the select and the insert, read
 					// again this time from the primary database connection.
-					id, err := readID(ds.writer(ctx))
+					id, err := readID(writer)
 					if err != nil {
 						return 0, ctxerr.Wrap(ctx, err, "get id from writer")
 					}
