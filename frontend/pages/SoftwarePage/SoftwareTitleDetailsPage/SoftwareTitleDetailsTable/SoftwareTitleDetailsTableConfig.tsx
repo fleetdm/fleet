@@ -94,7 +94,7 @@ const generateSoftwareTitleDetailsTableConfig = ({
       accessor: "vulnerabilities",
       Cell: (cellProps: IVulnCellProps): JSX.Element => {
         if (isIPadOSOrIOSApp) {
-          return <TextCell value="Not supported" grey italic />;
+          return <TextCell value="Not supported" grey />;
         }
         return <VulnerabilitiesCell vulnerabilities={cellProps.cell.value} />;
         // TODO: tooltip
