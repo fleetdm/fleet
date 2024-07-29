@@ -33,9 +33,6 @@ func GetInstallScript(extension string) string {
 	}
 }
 
-//go:embed scripts/remove_exe.ps1
-var removeExeScript string
-
 //go:embed scripts/remove_pkg.sh
 var removePkgScript string
 
@@ -55,8 +52,6 @@ func GetRemoveScript(extension string) string {
 		return removeDebScript
 	case "pkg":
 		return removePkgScript
-	case "exe":
-		return removeExeScript
 	default:
 		return ""
 	}
