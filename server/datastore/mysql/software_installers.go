@@ -332,19 +332,17 @@ SELECT
 	hsi.post_install_script_output,
 	hsi.install_script_output,
 	hsi.host_id AS host_id,
-	h.computer_name AS host_display_name,
 	st.name AS software_title,
 	st.id AS software_title_id,
 	COALESCE(%s, '') AS status,
 	si.filename AS software_package,
-	h.team_id AS host_team_id,
 	hsi.user_id AS user_id,
 	hsi.post_install_script_exit_code,
 	hsi.install_script_exit_code,
-    hsi.self_service
+    hsi.self_service,
+    hsi.host_deleted_at
 FROM
 	host_software_installs hsi
-	JOIN hosts h ON h.id = hsi.host_id
 	JOIN software_installers si ON si.id = hsi.software_installer_id
 	JOIN software_titles st ON si.title_id = st.id
 WHERE
