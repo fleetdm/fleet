@@ -137,14 +137,14 @@
   startedOn: "2023-07-29"
   frequency: "Daily"
   description: "Filter all action items from CEO's GitHub notifications"
-  dri: "sampfluger88"
+  dri: "SFriendLee"
 -
   task: "Check LinkedIn for unread messages"
   startedOn: "2023-09-25"
   frequency: "Daily"
   description: "Prevent connections from slipping through the cracks"
   moreInfoUrl: "https://fleetdm.com/handbook/digital-experience#check-linkedin-for-unread-messages"
-  dri: "sampfluger88"
+  dri: "SFriendLee"
 -
   task: "Downgrade unused license seats" 
   startedOn: "2024-03-31" 
