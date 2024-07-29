@@ -44,7 +44,7 @@ module.exports = {
     });
 
     for(let user of stageThreeMdmFocusedUsersWhoHaveNotReceivedAnEmail) {
-      if(user.psychologicalStageLastChangedAt > oneDayAgoAt) {
+      if(user.psychologicalStageLastChangedAt < oneDayAgoAt) {
         continue;
       } else {
         await sails.helpers.sendTemplateEmail.with({
@@ -70,7 +70,7 @@ module.exports = {
     });
 
     for(let user of stageFourMdmFocusedUsersWhoHaveNotReceivedAnEmail) {
-      if(user.psychologicalStageLastChangedAt > oneDayAgoAt) {
+      if(user.psychologicalStageLastChangedAt < oneDayAgoAt) {
         continue;
       } else {
         await sails.helpers.sendTemplateEmail.with({
@@ -96,7 +96,7 @@ module.exports = {
     });
 
     for(let user of stageFiveMdmFocusedUsersWhoHaveNotReceivedAnEmail) {
-      if(user.psychologicalStageLastChangedAt > sixWeeksAgoAt) {
+      if(user.psychologicalStageLastChangedAt < sixWeeksAgoAt) {
         continue;
       } else {
         await sails.helpers.sendTemplateEmail.with({
