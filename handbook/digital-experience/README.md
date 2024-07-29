@@ -440,7 +440,7 @@ You can also grab a copy of the [original slides](https://fleetdm.com/handbook/c
 ### Process and backup Sid agenda
 Every two weeks, our CEO Mike has a meeting with Sid Sijbrandij. The CEO uses dedicated (blocked, recurring) time to prepare for this meeting earlier in the week.
 1. 30 minutes After each meeting [archive the "💻 Sid : Mike(Fleet)" agenda](https://fleetdm.com/handbook/digital-experience#archive-a-document), moving it to the [(¶¶) Sid archive](https://drive.google.com/drive/folders/1izVfIBt2nr4APlkm36E6DJg1k1PDjmae) folder in Google Drive.
-2. **In the backup copy**, assign all Fleet TODOs to the correct DRI.   
+2. **In the backup copy**, create Google Doc comments assigning all Fleet TODOs to the correct DRI.   
 3. In the ¶¶¶¶🦿🌪️CEO Roundup doc, update the URL in `Sam: FYI: Agenda from last time:` [LINK](link).
 
 
