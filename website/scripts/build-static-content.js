@@ -804,7 +804,14 @@ module.exports = {
         let pricingTableFeatures = YAML.parse(yaml, {prettyErrors: true});
         let VALID_PRODUCT_CATEGORIES = ['Endpoint operations', 'Device management', 'Vulnerability management'];
         let VALID_PRICING_TABLE_CATEGORIES = ['Support', 'Deployment', 'Integrations', 'Endpoint operations', 'Device management', 'Vulnerability management'];
+        let VALID_PRICING_TABLE_KEYS = ['industryName', 'description', 'documentationUrl', 'tier', 'jamfProHasFeature', 'jamfProtectHasFeature', 'usualDepartment', 'productCategories', 'pricingTableCategories', 'waysToUse', 'buzzwords', 'demos', 'dri', 'friendlyName', 'moreInfoUrl', 'comingSoonOn', 'screenshotSrc'];
         for(let feature of pricingTableFeatures){
+          // Throw an error if a feature contains an unrecognized key.
+          for(let key of _.keys(feature)){
+            if(!VALID_PRICING_TABLE_KEYS.includes(key)){
+              throw new Error(`Unrecognized key. Could not build pricing table config from pricing-features-table.yml. The ${feature.industryName} feature contains an unrecognized key (${key}). To resolve, remove this key and try running this script again.`)
+            }
+          }
           if(feature.name) {// Compatibility check
             throw new Error(`Could not build pricing table config from pricing-features-table.yml. A feature has a "name" (${feature.name}) which is no longer supported. To resolve, add a "industryName" to this feature: ${feature}`);
           }
