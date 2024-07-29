@@ -809,7 +809,7 @@ module.exports = {
           // Throw an error if a feature contains an unrecognized key.
           for(let key of _.keys(feature)){
             if(!VALID_PRICING_TABLE_KEYS.includes(key)){
-              throw new Error(`Unrecognized key. Could not build pricing table config from pricing-features-table.yml. The ${feature.industryName} feature contains an unrecognized key (${key}). To resolve, remove this key and try running this script again.`);
+              throw new Error(`Unrecognized key. Could not build pricing table config from pricing-features-table.yml. The ${feature.industryName} feature contains an unrecognized key (${key}). To resolve, fix any typos or remove this key and try running this script again.`);
             }
           }
           if(feature.name) {// Compatibility check
