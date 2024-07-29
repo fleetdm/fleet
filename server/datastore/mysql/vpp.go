@@ -288,6 +288,13 @@ VALUES
 	}
 
 	_, err := tx.ExecContext(ctx, stmt, adamID, globalOrTmID, teamID)
+	if IsDuplicate(err) {
+		err = &existsError{
+			Identifier:   adamID,
+			TeamID:       teamID,
+			ResourceType: "VPPAppAdamID",
+		}
+	}
 
 	return ctxerr.Wrap(ctx, err, "writing vpp app team mapping to db")
 }
