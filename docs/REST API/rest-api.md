@@ -9172,6 +9172,7 @@ Add App Store (VPP) app purchased in Apple Business Manager.
 | ---- | ---- | -- | ----------- |
 | app_store_id   | integer | body | **Required.** The ID of App Store app. |
 | team_id       | integer | body | **Required**. The team ID. Adds VPP software to the specified team.  |
+| platform | string | body | The platform of the app (`darwin`, `ios`, or `ipados`). Default is `darwin`. |
 
 #### Example
 
