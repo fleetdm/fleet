@@ -52,6 +52,7 @@ func testSoftwareSyncHostsSoftwareTitles(t *testing.T, ds *Datastore) {
 	// this check ensures that the total number of rows in
 	// software_title_host_counts matches the expected value.
 	checkTableTotalCount := func(want int) {
+		t.Helper()
 		var tableCount int
 		err := ds.writer(context.Background()).Get(&tableCount, "SELECT COUNT(*) FROM software_titles_host_counts")
 		require.NoError(t, err)
@@ -87,7 +88,7 @@ func testSoftwareSyncHostsSoftwareTitles(t *testing.T, ds *Datastore) {
 		{Name: "bar", HostsCount: 1},
 	}
 	cmpNameVersionCount(want, globalCounts)
-	checkTableTotalCount(2)
+	checkTableTotalCount(4)
 
 	// update host2, remove "bar" software
 	software2 = []fleet.Software{
@@ -105,7 +106,7 @@ func testSoftwareSyncHostsSoftwareTitles(t *testing.T, ds *Datastore) {
 		{Name: "foo", HostsCount: 2},
 	}
 	cmpNameVersionCount(want, globalCounts)
-	checkTableTotalCount(1)
+	checkTableTotalCount(2)
 
 	// create a software title entry without any host and any counts
 	_, err = ds.writer(ctx).ExecContext(ctx, `INSERT INTO software_titles (name, source) VALUES ('baz', 'testing')`)
@@ -150,7 +151,7 @@ func testSoftwareSyncHostsSoftwareTitles(t *testing.T, ds *Datastore) {
 		{Name: "foo", HostsCount: 2},
 	}
 	cmpNameVersionCount(want, globalCounts)
-	checkTableTotalCount(1)
+	checkTableTotalCount(2)
 
 	team1Opts := fleet.SoftwareTitleListOptions{
 		TeamID:      ptr.Uint(team1.ID),
@@ -159,7 +160,7 @@ func testSoftwareSyncHostsSoftwareTitles(t *testing.T, ds *Datastore) {
 	team1Counts := listSoftwareTitlesCheckCount(t, ds, 0, 0, team1Opts)
 	want = []fleet.SoftwareTitleListResult{}
 	cmpNameVersionCount(want, team1Counts)
-	checkTableTotalCount(1)
+	checkTableTotalCount(2)
 
 	// after a call to Calculate, the global counts are updated and the team counts appear
 	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
@@ -180,7 +181,7 @@ func testSoftwareSyncHostsSoftwareTitles(t *testing.T, ds *Datastore) {
 	cmpNameVersionCount(want, team1Counts)
 
 	// composite pk (software_title_id, team_id), so we expect more rows
-	checkTableTotalCount(5)
+	checkTableTotalCount(6)
 
 	team2Opts := fleet.SoftwareTitleListOptions{
 		TeamID:      ptr.Uint(team2.ID),
@@ -222,7 +223,7 @@ func testSoftwareSyncHostsSoftwareTitles(t *testing.T, ds *Datastore) {
 	}
 	cmpNameVersionCount(want, team2Counts)
 
-	checkTableTotalCount(3)
+	checkTableTotalCount(4)
 
 	// update host4 (team2), remove all software
 	software4 = []fleet.Software{}
@@ -254,7 +255,7 @@ func testSoftwareSyncHostsSoftwareTitles(t *testing.T, ds *Datastore) {
 	cmpNameVersionCount(want, team1Counts)
 
 	listSoftwareTitlesCheckCount(t, ds, 0, 0, team2Opts)
-	checkTableTotalCount(2)
+	checkTableTotalCount(3)
 }
 
 func testOrderSoftwareTitles(t *testing.T, ds *Datastore) {

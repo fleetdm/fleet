@@ -192,11 +192,14 @@ func (ds *Datastore) SoftwareByCVE(ctx context.Context, cve string, teamID *uint
 		`
 	args = append(args, cve)
 
-	if teamID != nil {
-		selectStmt += " AND shc.team_id = ?"
+	switch {
+	case teamID != nil && *teamID > 0:
+		selectStmt += " AND shc.team_id = ? AND shc.global_stats = 0"
 		args = append(args, *teamID)
-	} else {
-		selectStmt += " AND shc.team_id = 0"
+	case teamID != nil && *teamID == 0:
+		selectStmt += " AND shc.team_id = 0 AND shc.global_stats = 0"
+	case teamID == nil:
+		selectStmt += " AND shc.team_id = 0 AND shc.global_stats = 1"
 	}
 
 	err = sqlx.SelectContext(ctx, ds.reader(ctx), &vs, selectStmt, args...)

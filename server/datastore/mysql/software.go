@@ -935,12 +935,31 @@ func selectSoftwareSQL(opts fleet.SoftwareListOptions) (string, []interface{}, e
 			GroupByAppend(
 				"shc.hosts_count",
 				"shc.updated_at",
+				"shc.global_stats",
+				"shc.team_id",
 			)
 
-		if opts.TeamID != nil {
-			ds = ds.Where(goqu.I("shc.team_id").Eq(opts.TeamID))
+		if opts.TeamID == nil {
+			ds = ds.Where(
+				goqu.And(
+					goqu.I("shc.team_id").Eq(0),
+					goqu.I("shc.global_stats").Eq(1),
+				),
+			)
+		} else if *opts.TeamID == 0 {
+			ds = ds.Where(
+				goqu.And(
+					goqu.I("shc.team_id").Eq(0),
+					goqu.I("shc.global_stats").Eq(0),
+				),
+			)
 		} else {
-			ds = ds.Where(goqu.I("shc.team_id").Eq(0))
+			ds = ds.Where(
+				goqu.And(
+					goqu.I("shc.team_id").Eq(*opts.TeamID),
+					goqu.I("shc.global_stats").Eq(0),
+				),
+			)
 		}
 	}
 
@@ -1360,6 +1379,8 @@ func (ds *Datastore) SoftwareByID(ctx context.Context, id uint, teamID *uint, in
 			goqu.On(goqu.I("s.id").Eq(goqu.I("scv.software_id"))),
 		)
 
+	// join only on software_id as we'll need counts for all teams
+	// to filter down to the team's the user has access to
 	if tmFilter != nil {
 		q = q.LeftJoin(
 			goqu.I("software_host_counts").As("shc"),
@@ -1392,7 +1413,7 @@ func (ds *Datastore) SoftwareByID(ctx context.Context, id uint, teamID *uint, in
 		// However, it is possible that the software was deleted from all hosts after the last host count update.
 		q = q.Where(
 			goqu.L(
-				"EXISTS (SELECT 1 FROM software_host_counts WHERE software_id = ? AND team_id = ? AND hosts_count > 0)", id, *teamID,
+				"EXISTS (SELECT 1 FROM software_host_counts WHERE software_id = ? AND team_id = ? AND hosts_count > 0 AND global_stats = 0)", id, *teamID,
 			),
 		)
 	}
@@ -1406,6 +1427,8 @@ func (ds *Datastore) SoftwareByID(ctx context.Context, id uint, teamID *uint, in
 	if err != nil {
 		return nil, err
 	}
+
+	fmt.Println(sql, args)
 
 	var results []softwareCVE
 	err = sqlx.SelectContext(ctx, ds.reader(ctx), &results, sql, args...)
@@ -1461,29 +1484,37 @@ func (ds *Datastore) SyncHostsSoftware(ctx context.Context, updatedAt time.Time)
 		// team_id is added to the select list to have the same structure as
 		// the teamCountsStmt, making it easier to use a common implementation
 		globalCountsStmt = `
-      SELECT count(*), 0 as team_id, software_id
+      SELECT count(*), 0 as team_id, software_id, 1 as global_stats
       FROM host_software
       WHERE software_id > ? AND software_id <= ?
       GROUP BY software_id`
 
 		teamCountsStmt = `
-      SELECT count(*), h.team_id, hs.software_id
+      SELECT count(*), h.team_id, hs.software_id, 0 as global_stats
       FROM host_software hs
       INNER JOIN hosts h
       ON hs.host_id = h.id
       WHERE h.team_id IS NOT NULL AND hs.software_id > ? AND hs.software_id <= ?
       GROUP BY hs.software_id, h.team_id`
 
+		noTeamCountsStmt = `
+      SELECT count(*), 0 as team_id, software_id, 0 as global_stats
+      FROM host_software hs
+      INNER JOIN hosts h
+      ON hs.host_id = h.id
+      WHERE h.team_id IS NULL AND hs.software_id > ? AND hs.software_id <= ?
+      GROUP BY hs.software_id`
+
 		insertStmt = `
       INSERT INTO software_host_counts
-        (software_id, hosts_count, team_id, updated_at)
+        (software_id, hosts_count, team_id, global_stats, updated_at)
       VALUES
         %s
       ON DUPLICATE KEY UPDATE
         hosts_count = VALUES(hosts_count),
         updated_at = VALUES(updated_at)`
 
-		valuesPart = `(?, ?, ?, ?),`
+		valuesPart = `(?, ?, ?, ?, ?),`
 
 		// We must ensure that software is not in host_software table before deleting it.
 		// This prevents a race condition where a host just added the software, but it is not part of software_host_counts yet.
@@ -1541,8 +1572,8 @@ func (ds *Datastore) SyncHostsSoftware(ctx context.Context, updatedAt time.Time)
 	for minSoftwareID, maxSoftwareID := minMax.Min-1, minMax.Min-1+countHostSoftwareBatchSize; minSoftwareID < minMax.Max; minSoftwareID, maxSoftwareID = maxSoftwareID, maxSoftwareID+countHostSoftwareBatchSize {
 
 		// next get a cursor for the global and team counts for each software
-		stmtLabel := []string{"global", "team"}
-		for i, countStmt := range []string{globalCountsStmt, teamCountsStmt} {
+		stmtLabel := []string{"global", "team", "noteam"}
+		for i, countStmt := range []string{globalCountsStmt, teamCountsStmt, noTeamCountsStmt} {
 			rows, err := db.QueryContext(ctx, countStmt, minSoftwareID, maxSoftwareID)
 			if err != nil {
 				return ctxerr.Wrapf(ctx, err, "read %s counts from host_software", stmtLabel[i])
@@ -1557,16 +1588,17 @@ func (ds *Datastore) SyncHostsSoftware(ctx context.Context, updatedAt time.Time)
 			args := make([]interface{}, 0, batchSize*4)
 			for rows.Next() {
 				var (
-					count  int
-					teamID uint
-					sid    uint
+					count        int
+					teamID       uint
+					sid          uint
+					global_stats bool
 				)
 
-				if err := rows.Scan(&count, &teamID, &sid); err != nil {
+				if err := rows.Scan(&count, &teamID, &sid, &global_stats); err != nil {
 					return ctxerr.Wrapf(ctx, err, "scan %s row into variables", stmtLabel[i])
 				}
 
-				args = append(args, sid, count, teamID, updatedAt)
+				args = append(args, sid, count, teamID, global_stats, updatedAt)
 				batchCount++
 
 				if batchCount == batchSize {

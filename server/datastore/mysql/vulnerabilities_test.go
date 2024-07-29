@@ -950,7 +950,7 @@ func testSoftwareByCVE(t *testing.T, ds *Datastore) {
 		Name:              "Chrome",
 		Version:           "1.0.0",
 		Source:            "programs",
-		HostsCount:        5,
+		HostsCount:        6,
 		GenerateCPE:       "cpe:2.3:a:google:chrome:1.0.0:*:*:*:*:*:*:*:*",
 		ResolvedInVersion: ptr.String("1.0.0"),
 	}
@@ -968,6 +968,13 @@ func testSoftwareByCVE(t *testing.T, ds *Datastore) {
 	// team 2
 	expected.HostsCount = 1
 	software, _, err = ds.SoftwareByCVE(context.Background(), "CVE-2020-1234", ptr.Uint(2))
+	require.NoError(t, err)
+	require.Len(t, software, 1)
+	require.Equal(t, expected, software[0])
+
+	// team 0
+	expected.HostsCount = 1
+	software, _, err = ds.SoftwareByCVE(context.Background(), "CVE-2020-1234", ptr.Uint(0))
 	require.NoError(t, err)
 	require.Len(t, software, 1)
 	require.Equal(t, expected, software[0])
@@ -1050,11 +1057,13 @@ func seedVulnerabilities(t *testing.T, ds *Datastore) {
 	// 4 macOS hosts in no team
 	// 1 macOS host in team 2
 
-	// add software to 5 windows hosts
+	// add software to 6 windows hosts
 	// affects:
 	// 5 global windows hosts
 	// 4 windows hosts in team 1
 	// 1 windows host in team 2
+	// 1 host in no team
+
 	for i := 0; i < 5; i++ {
 		_, err = ds.UpdateHostSoftware(context.Background(), hostids[i], []fleet.Software{
 			{
@@ -1065,6 +1074,16 @@ func seedVulnerabilities(t *testing.T, ds *Datastore) {
 		})
 		require.NoError(t, err)
 	}
+
+	// add software to 1 windows host in no team
+	_, err = ds.UpdateHostSoftware(context.Background(), hostids[7], []fleet.Software{
+		{
+			Name:    "Chrome",
+			Version: "1.0.0",
+			Source:  "programs",
+		},
+	})
+	require.NoError(t, err)
 
 	_, err = ds.UpsertSoftwareCPEs(context.Background(), []fleet.SoftwareCPE{
 		{
