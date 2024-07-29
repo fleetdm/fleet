@@ -612,7 +612,10 @@ const HostDetailsPage = ({
 
   const onCancelScriptDetailsModal = useCallback(() => {
     setScriptDetailsId("");
-  }, []);
+    // refetch activities to make sure they up-to-date with what was displayed in the modal
+    refetchPastActivities();
+    refetchUpcomingActivities();
+  }, [refetchPastActivities, refetchUpcomingActivities]);
 
   const onCancelSoftwareInstallDetailsModal = useCallback(() => {
     setSoftwareInstallUuid("");
@@ -963,15 +966,17 @@ const HostDetailsPage = ({
             hostsTeamId={host?.team_id}
           />
         )}
-        {showRunScriptModal && (
-          <RunScriptModal
-            host={host}
-            currentUser={currentUser}
-            scriptDetailsId={scriptDetailsId}
-            setScriptDetailsId={setScriptDetailsId}
-            onClose={onCloseRunScriptModal}
-          />
-        )}
+        {showRunScriptModal &&
+          // force run script modal to unmount when script details modal is shown;
+          // it will be remounted when script details modal is closed
+          !scriptDetailsId && (
+            <RunScriptModal
+              host={host}
+              currentUser={currentUser}
+              setScriptDetailsId={setScriptDetailsId}
+              onClose={onCloseRunScriptModal}
+            />
+          )}
         {!!host && showTransferHostModal && (
           <TransferHostModal
             onCancel={() => setShowTransferHostModal(false)}
