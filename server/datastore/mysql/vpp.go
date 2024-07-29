@@ -331,7 +331,8 @@ func (ds *Datastore) getOrInsertSoftwareTitleForVPPApp(ctx context.Context, tx s
 		insertArgs = append(insertArgs, app.BundleIdentifier)
 	}
 
-	titleID, err := ds.optimisticGetOrInsert(ctx,
+	titleID, err := ds.optimisticGetOrInsertWithWriter(ctx,
+		tx,
 		&parameterizedStmt{
 			Statement: selectStmt,
 			Args:      selectArgs,
