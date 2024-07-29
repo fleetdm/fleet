@@ -16,6 +16,10 @@ Fleet UI:
 
 3. For Windows, select **Windows** and set a **Deadline** and **Grace period**.
 
+For Apple devices (iOS 17.0+, iPadOS 17.0+, and macOS 14.0+) that use Automated Device Enrollment
+(ADE), the specified minimum version is enforced during ADE before device setup and enrollment can
+proceed (the specified deadline does not apply during ADE).
+
 Fleet API: API documentation is [here](https://fleetdm.com/docs/rest-api/rest-api#modify-team).
 
 ## End user experience
