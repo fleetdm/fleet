@@ -8117,9 +8117,7 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 	require.Equal(t, "bar", barTitle.Name)
 
 	// valid title with vulnerabilities
-	stResp = getSoftwareTitleResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", barTitle.ID), getSoftwareTitleRequest{}, http.StatusOK, &stResp)
-	softwareTitlesMatch([]fleet.SoftwareTitle{
+	expected := []fleet.SoftwareTitle{
 		{
 			Name:          "bar",
 			Source:        "apps",
@@ -8133,7 +8131,17 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 				},
 			},
 		},
-	}, []fleet.SoftwareTitle{*stResp.SoftwareTitle})
+	}
+	// Global
+	stResp = getSoftwareTitleResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", barTitle.ID), getSoftwareTitleRequest{}, http.StatusOK, &stResp)
+	softwareTitlesMatch(expected, []fleet.SoftwareTitle{*stResp.SoftwareTitle})
+
+	// No Team
+	stResp = getSoftwareTitleResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", barTitle.ID), getSoftwareTitleRequest{}, http.StatusOK, &stResp,
+		"team_id", "0")
+	softwareTitlesMatch(expected, []fleet.SoftwareTitle{*stResp.SoftwareTitle})
 
 	// invalid title for team
 	stResp = getSoftwareTitleResponse{}
@@ -8141,6 +8149,12 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 		"GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", barTitle.ID), getSoftwareTitleRequest{}, http.StatusNotFound, &stResp,
 		"team_id", fmt.Sprintf("%d", team1.ID),
 	)
+
+	// invalid title for no team
+	stResp = getSoftwareTitleResponse{}
+	s.DoJSON(
+		"GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", soft1.ID), getSoftwareTitleRequest{}, http.StatusNotFound, &stResp,
+		"team_id", "0")
 
 	// add bar tmHost
 	software = []fleet.Software{
