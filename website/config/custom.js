@@ -390,6 +390,14 @@ module.exports.custom = {
   // customerWorkspaceOneOauthSecret: '…',
   // customerMigrationWebhookSecret: '…',
 
+  // For nurture emails:
+  // contactEmailForNutureEmails: '…',
+  // activityCaptureEmailForNutureEmails: '…',
+  // contactNameForNurtureEmails: '…',
+
+  // Deal registration form
+  // dealRegistrationContactEmailAddress: '…',
+
   //…
 
 };

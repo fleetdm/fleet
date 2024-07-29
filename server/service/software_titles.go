@@ -175,19 +175,37 @@ func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint
 		return nil, ctxerr.Wrap(ctx, err, "get license")
 	}
 	if license.IsPremium() {
-		// add software installer data
-		meta, err := svc.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, teamID, id, true)
-		if err != nil && !fleet.IsNotFound(err) {
-			return nil, ctxerr.Wrap(ctx, err, "get software installer metadata")
-		}
-		if meta != nil {
-			summary, err := svc.ds.GetSummaryHostSoftwareInstalls(ctx, meta.InstallerID)
-			if err != nil {
-				return nil, ctxerr.Wrap(ctx, err, "get software installer status summary")
+		// add software installer data if needed
+		if software.SoftwareInstallersCount > 0 {
+			meta, err := svc.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, teamID, id, true)
+			if err != nil && !fleet.IsNotFound(err) {
+				return nil, ctxerr.Wrap(ctx, err, "get software installer metadata")
 			}
-			meta.Status = summary
+			if meta != nil {
+				summary, err := svc.ds.GetSummaryHostSoftwareInstalls(ctx, meta.InstallerID)
+				if err != nil {
+					return nil, ctxerr.Wrap(ctx, err, "get software installer status summary")
+				}
+				meta.Status = summary
+			}
+			software.SoftwarePackage = meta
 		}
-		software.SoftwarePackage = meta
+
+		// add VPP app data if needed
+		if software.VPPAppsCount > 0 {
+			meta, err := svc.ds.GetVPPAppMetadataByTeamAndTitleID(ctx, teamID, id)
+			if err != nil && !fleet.IsNotFound(err) {
+				return nil, ctxerr.Wrap(ctx, err, "get VPP app metadata")
+			}
+			if meta != nil {
+				summary, err := svc.ds.GetSummaryHostVPPAppInstalls(ctx, teamID, meta.AppStoreID)
+				if err != nil {
+					return nil, ctxerr.Wrap(ctx, err, "get VPP app status summary")
+				}
+				meta.Status = summary
+			}
+			software.AppStoreApp = meta
+		}
 	}
 
 	return software, nil

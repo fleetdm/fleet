@@ -240,6 +240,28 @@ without necessarily having a billing card.`
       defaultsTo: '2 - Aware'
     },
 
+    psychologicalStageLastChangedAt: {
+      type: 'number',
+      description: 'A JS timestamp of when this user\'s psychological stage changed.',
+      extendedDescription: 'Used when deciding whether or not to send a nuture email to this user',
+    },
+
+    stageThreeNurtureEmailSentAt: {
+      type: 'number',
+      description: 'A JS timestamp of when the stage 3 nurture email was sent to the user.'
+    },
+
+    stageFourNurtureEmailSentAt: {
+      type: 'number',
+      description: 'A JS timestamp of when the stage 4 nurture email was sent to the user.'
+    },
+
+    stageFiveNurtureEmailSentAt: {
+      type: 'number',
+      description: 'A JS timestamp of when the stage 5 nurture email was sent to the user.'
+    },
+
+
     //  ╔═╗╔╦╗╔╗ ╔═╗╔╦╗╔═╗
     //  ║╣ ║║║╠╩╗║╣  ║║╚═╗
     //  ╚═╝╩ ╩╚═╝╚═╝═╩╝╚═╝

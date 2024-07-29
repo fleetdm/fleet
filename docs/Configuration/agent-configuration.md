@@ -128,14 +128,11 @@ Just like the other `agent_options` above, remove the dashed lines (`--`) for Fl
 Here is an example of using the `command_line_flags` key:
 
 ```yaml
-apiVersion: v1
-kind: config
-spec:
-  agent_options:
-    command_line_flags: # requires Fleet's agent (fleetd)
-      verbose: true
-      disable_watchdog: false
-      logger_path: /path/to/logger
+agent_options:
+  command_line_flags: # requires Fleet's agent (fleetd)
+    verbose: true
+    disable_watchdog: false
+    logger_path: /path/to/logger
 ```
 
 Note that the `command_line_flags` key does not support the `overrides` key, which is documented below.
@@ -182,20 +179,17 @@ The `extensions` key inside of `agent_options` allows you to remotely manage and
 
 This is best illustrated with an example. Here is an example of using the `extensions` key:
 ```yaml
-apiVersion: v1
-kind: config
-spec:
-  agent_options:
-    extensions: # requires Fleet's agent (fleetd)
-      hello_world_macos:
-        channel: 'stable'
-        platform: 'macos'
-      hello_world_linux:
-        channel: 'stable'
-        platform: 'linux'
-      hello_world_windows:
-        channel: 'stable'
-        platform: 'windows'
+agent_options:
+  extensions: # requires Fleet's agent (fleetd)
+    hello_world_macos:
+      channel: 'stable'
+      platform: 'macos'
+    hello_world_linux:
+      channel: 'stable'
+      platform: 'linux'
+    hello_world_windows:
+      channel: 'stable'
+      platform: 'windows'
 ```
 
 In the above example, we are configuring our `hello_world` extensions for all the supported operating systems. We do this by creating `hello_world_{macos|linux|windows}` subkeys under `extensions`, and then specifying the `channel` and `platform` keys for each extension entry.
@@ -248,25 +242,22 @@ The label names in the list:
 
 Example:
 ```yaml
-apiVersion: v1
-kind: config
-spec:
-  agent_options:
-    extensions: # requires Fleet's agent (fleetd)
-      hello_world_macos:
-        channel: 'stable'
-        platform: 'macos'
-        labels:
-          - Zoom installed
-      hello_world_linux:
-        channel: 'stable'
-        platform: 'linux'
-        labels:
-          - Ubuntu Linux
-          - Zoom installed
-      hello_world_windows:
-        channel: 'stable'
-        platform: 'windows'
+agent_options:
+  extensions: # requires Fleet's agent (fleetd)
+    hello_world_macos:
+      channel: 'stable'
+      platform: 'macos'
+      labels:
+        - Zoom installed
+    hello_world_linux:
+      channel: 'stable'
+      platform: 'linux'
+      labels:
+        - Ubuntu Linux
+        - Zoom installed
+    hello_world_windows:
+      channel: 'stable'
+      platform: 'windows'
 ```
 In the above example:
 - the `hello_world_macos` extension is deployed to macOS hosts that are members of the 'Zoom installed' label.
@@ -280,24 +271,18 @@ Users can configure fleetd component TUF auto-update channels from Fleet's agent
 
 Examples:
 ```yaml
-apiVersion: v1
-kind: config
-spec:
-  agent_options:
-    update_channels: # requires Fleet's agent (fleetd)
-      orbit: stable
-      osqueryd: '5.10.2'
-      desktop: edge
+agent_options:
+  update_channels: # requires Fleet's agent (fleetd)
+    orbit: stable
+    osqueryd: '5.10.2'
+    desktop: edge
 ```
 ```yaml
-apiVersion: v1
-kind: config
-spec:
-  agent_options:
-    update_channels: # requires Fleet's agent (fleetd)
-      orbit: edge
-      osqueryd: '5.10.2'
-      # in this configuration `desktop` is assumed to be "stable"
+agent_options:
+  update_channels: # requires Fleet's agent (fleetd)
+    orbit: edge
+    osqueryd: '5.10.2'
+    # in this configuration `desktop` is assumed to be "stable"
 ```
 
 - If a configured channel doesn't exist in the TUF repository, then fleetd will log errors on the hosts and will not auto-update the component/s until the channel is changed to a valid value in Fleet's `update_channels` configuration or until the user pushes the component to the channel (which effectively creates the channel).
@@ -331,7 +316,6 @@ agent_options:
       options: ~
       decorators: ~
       yara: ~
-    overrides: ~
 
 ```
 
@@ -351,7 +335,6 @@ agent_options:
         distributed_tls_max_attempts: 3
         logger_tls_endpoint: /api/osquery/log
         logger_tls_period: 10
-      decorators: ~
 ```
 ### Decorators
 
@@ -380,27 +363,21 @@ You can use Fleet to configure the `yara` and `yara_events` osquery tables. Fore
 The following is an example Fleet configuration file with YARA configuration. The values are taken from an example config supplied in the above link to the osquery documentation.
 
 ```yaml
----
-apiVersion: v1
-kind: config
-spec:
-  agent_options:
-    config:
-      # ...
-      yara:
-        file_paths:
-          system_binaries:
-          - sig_group_1
-          tmp:
-          - sig_group_1
-          - sig_group_2
-        signatures:
-          sig_group_1:
-          - /Users/wxs/sigs/foo.sig
-          - /Users/wxs/sigs/bar.sig
-          sig_group_2:
-          - /Users/wxs/sigs/baz.sig
-    overrides: {}
+agent_options:
+  config:
+    yara:
+      file_paths:
+        system_binaries:
+        - sig_group_1
+        tmp:
+        - sig_group_1
+        - sig_group_2
+      signatures:
+        sig_group_1:
+        - /Users/wxs/sigs/foo.sig
+        - /Users/wxs/sigs/bar.sig
+        sig_group_2:
+        - /Users/wxs/sigs/baz.sig
 ```
 
 ## Overrides
@@ -413,11 +390,6 @@ In the example file below, all Darwin and Ubuntu hosts will **only** receive the
 
 ```yaml
 agent_options:
-  config:
-    options:
-      distributed_interval: 3
-      distributed_tls_max_attempts: 3
-      logger_tls_period: 10
   overrides:
     # Note configs in overrides take precedence over the default config defined
     # under the config key above. Hosts receive overrides based on the platform
@@ -441,6 +413,20 @@ agent_options:
           etc:
             - /etc/%%
 ```
+
+## Script execution timeout
+
+The `script_execution_timeout` allows you to change the default script execution timeout.
+
+- Optional setting (integer)
+- Default value: 300
+- Maximum value: 3600
+- Config file format:
+  ```yaml
+  agent_options:
+    script_execution_timeout: 600
+  ```
+
 ## Auto table construction
 
 You can use Fleet to query local SQLite databases as tables. For more information on creating ATC configuration from a SQLite database, check out the [Automatic Table Construction section](https://osquery.readthedocs.io/en/stable/deployment/configuration/#automatic-table-construction) of the osquery documentation.
@@ -448,28 +434,25 @@ You can use Fleet to query local SQLite databases as tables. For more informatio
 If you already know what your ATC configuration needs to look like, you can add it to an options config file:
 
 ```yaml
-apiVersion: v1
-kind: config
-spec:
-  agent_options:
-    config:
-      options:
-        # ...
-    overrides:
-      platforms:
-        darwin:
-          auto_table_construction:
-            tcc_system_entries:
-              # This query and columns are restricted for compatability.  Open TCC.db with sqlite on
-              # your endpoints to expand this out.
-              query: "SELECT service, client, last_modified FROM access"
-              # Note that TCC.db requires fleetd to have full-disk access, ensure that endpoints have 
-              # this enabled.
-              path: "/Library/Application Support/com.apple.TCC/TCC.db"
-              columns:
-                - "service"
-                - "client"
-                - "last_modified"
+agent_options:
+  config:
+    options:
+      # ...
+  overrides:
+    platforms:
+      darwin:
+        auto_table_construction:
+          tcc_system_entries:
+            # This query and columns are restricted for compatability.  Open TCC.db with sqlite on
+            # your endpoints to expand this out.
+            query: "SELECT service, client, last_modified FROM access"
+            # Note that TCC.db requires fleetd to have full-disk access, ensure that endpoints have 
+            # this enabled.
+            path: "/Library/Application Support/com.apple.TCC/TCC.db"
+            columns:
+              - "service"
+              - "client"
+              - "last_modified"
 ```
 
 If you're editing this directly from the UI consider copying and pasting the following at the end of your agent configuration block:

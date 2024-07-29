@@ -1,0 +1,27 @@
+<% /* Note: This is injected into `views/layouts/layout-email.ejs` */ %>
+<h2>New deal registration</h2>
+
+<div style="margin-bottom: 48px">
+  <h3>Submitter information</h3>
+  <p style="margin-bottom: 25px;"><strong>Name:</strong> <%= submittersFirstName %> <%= submittersLastName %></p>
+  <p style="margin-bottom: 25px;"><strong>Email address:</strong> <%= submittersEmailAddress %></p>
+  <p><strong>Organization:</strong> <%= submittersOrganization %></p>
+</div>
+<hr>
+<div style="margin-bottom: 48px">
+  <h3>Customer information</h3>
+  <p style="margin-bottom: 25px;"><strong>Name:</strong> <%= customersFirstName %> <%= customersLastName %></p>
+  <p style="margin-bottom: 25px;"><strong>Email address:</strong> <%= customersEmailAddress %></p>
+  <p style="margin-bottom: 25px;"><strong>LinkedIn URL:</strong> <%= linkedinUrl %></p>
+  <p><strong>Organization:</strong> <%= customersOrganization %></p>
+</div>
+<hr>
+<div style="margin-bottom: 48px">
+  <h3>Deal information</h3>
+  <p style="margin-bottom: 25px;"><strong>Customer's current MDM solution:</strong> <%= customersCurrentMdm %></p>
+  <p style="margin-bottom: 25px;"><strong>Other MDMs being evaluated:</strong> <%= otherMdmEvaluated %></p>
+  <p style="margin-bottom: 25px;"><strong>Preferred hosting:</strong> <%= preferredHosting %></p>
+  <p style="margin-bottom: 25px;"><strong>Expected deal size:</strong> <%= expectedDealSize %></p>
+  <p style="margin-bottom: 25px;"><strong>Expected close date:</strong> <%= expectedCloseDate %></p>
+  <p style="margin-bottom: 25px;"><strong>Notes:</strong> <%= notes %></p>
+</div>

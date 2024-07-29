@@ -248,7 +248,7 @@ SELECT
   %s
 FROM
   software_installers si
-  LEFT OUTER JOIN software_titles st ON st.id = si.title_id
+  JOIN software_titles st ON st.id = si.title_id
   %s
 WHERE
   si.title_id = ? AND si.global_or_team_id = ?`,
@@ -416,6 +416,39 @@ WHERE
 	return &dest, nil
 }
 
+func (ds *Datastore) vppAppJoin(adamID string, status fleet.SoftwareInstallerStatus) (string, []interface{}, error) {
+	stmt := fmt.Sprintf(`JOIN (
+SELECT
+	host_id
+FROM
+	host_vpp_software_installs hvsi
+LEFT OUTER JOIN
+	nano_command_results ncr ON ncr.command_uuid = hvsi.command_uuid
+WHERE
+	adam_id = :adam_id
+	AND hvsi.id IN(
+		SELECT
+			max(id) -- ensure we use only the most recent install attempt for each host
+			FROM host_vpp_software_installs
+		WHERE
+			adam_id = :adam_id
+		GROUP BY
+			host_id, adam_id)
+	AND (%s) = :status) hss ON hss.host_id = h.id
+`, vppAppHostStatusNamedQuery("hvsi", "ncr", ""))
+
+	return sqlx.Named(stmt, map[string]interface{}{
+		"status":                    status,
+		"adam_id":                   adamID,
+		"software_status_installed": fleet.SoftwareInstallerInstalled,
+		"software_status_failed":    fleet.SoftwareInstallerFailed,
+		"software_status_pending":   fleet.SoftwareInstallerPending,
+		"mdm_status_acknowledged":   fleet.MDMAppleStatusAcknowledged,
+		"mdm_status_error":          fleet.MDMAppleStatusError,
+		"mdm_status_format_error":   fleet.MDMAppleStatusCommandFormatError,
+	})
+}
+
 func (ds *Datastore) softwareInstallerJoin(installerID uint, status fleet.SoftwareInstallerStatus) (string, []interface{}, error) {
 	stmt := fmt.Sprintf(`JOIN (
 SELECT
@@ -563,7 +596,7 @@ ON DUPLICATE KEY UPDATE
 		}
 
 		for _, installer := range installers {
-			isRes, err := insertScriptContents(ctx, installer.InstallScript, tx)
+			isRes, err := insertScriptContents(ctx, tx, installer.InstallScript)
 			if err != nil {
 				return ctxerr.Wrapf(ctx, err, "inserting install script contents for software installer with name %q", installer.Filename)
 			}
@@ -571,7 +604,7 @@ ON DUPLICATE KEY UPDATE
 
 			var postInstallScriptID *int64
 			if installer.PostInstallScript != "" {
-				pisRes, err := insertScriptContents(ctx, installer.PostInstallScript, tx)
+				pisRes, err := insertScriptContents(ctx, tx, installer.PostInstallScript)
 				if err != nil {
 					return ctxerr.Wrapf(ctx, err, "inserting post-install script contents for software installer with name %q", installer.Filename)
 				}

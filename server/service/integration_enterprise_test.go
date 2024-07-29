@@ -48,6 +48,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	googleCalendar "google.golang.org/api/calendar/v3"
 )
 
 func TestIntegrationsEnterprise(t *testing.T) {
@@ -7702,7 +7703,6 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 				{Version: "0.0.1", Vulnerabilities: nil},
 				{Version: "0.0.3", Vulnerabilities: nil},
 			},
-			SelfService: false,
 		},
 		{
 			Name:          "bar",
@@ -7712,7 +7712,6 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 			Versions: []fleet.SoftwareVersion{
 				{Version: "0.0.4", Vulnerabilities: &fleet.SliceString{"cve-123-123-132"}},
 			},
-			SelfService: false,
 		},
 	}, resp.SoftwareTitles)
 
@@ -8219,7 +8218,6 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 
 	require.Len(t, resp.SoftwareTitles, 1)
 	require.NotNil(t, resp.SoftwareTitles[0].SoftwarePackage)
-	require.Equal(t, "ruby.deb", *resp.SoftwareTitles[0].SoftwarePackage)
 
 	// Upload an installer for the same software but different arch to a different team
 	payloadRubyTm2 := &fleet.UploadSoftwareInstallerPayload{
@@ -8240,7 +8238,6 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 	)
 	require.Len(t, resp.SoftwareTitles, 1)
 	require.NotNil(t, resp.SoftwareTitles[0].SoftwarePackage)
-	require.Equal(t, "ruby.deb", *resp.SoftwareTitles[0].SoftwarePackage)
 
 	// software installer not returned with self-service only (not marked as such)
 	resp = listSoftwareTitlesResponse{}
@@ -8258,8 +8255,8 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 		"self_service", "1", "query", "ruby", "team_id", fmt.Sprint(team1.ID))
 	require.Len(t, resp.SoftwareTitles, 1)
 	require.NotNil(t, resp.SoftwareTitles[0].SoftwarePackage)
-	require.Equal(t, "ruby.deb", *resp.SoftwareTitles[0].SoftwarePackage)
-	require.True(t, *&resp.SoftwareTitles[0].SelfService)
+	require.NotNil(t, resp.SoftwareTitles[0].SoftwarePackage.SelfService)
+	require.True(t, *resp.SoftwareTitles[0].SoftwarePackage.SelfService)
 
 	// no team but self-service returns the emacs software (technically impossible via the UI)
 	resp = listSoftwareTitlesResponse{}
@@ -8272,8 +8269,8 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 
 	require.Len(t, resp.SoftwareTitles, 1)
 	require.NotNil(t, resp.SoftwareTitles[0].SoftwarePackage)
-	require.Equal(t, "emacs.deb", *resp.SoftwareTitles[0].SoftwarePackage)
-	require.True(t, *&resp.SoftwareTitles[0].SelfService)
+	require.NotNil(t, resp.SoftwareTitles[0].SoftwarePackage.SelfService)
+	require.True(t, *resp.SoftwareTitles[0].SoftwarePackage.SelfService)
 
 	emacsPath := fmt.Sprintf("/api/latest/fleet/software/titles/%d", resp.SoftwareTitles[0].ID)
 	respTitle := getSoftwareTitleResponse{}
@@ -9596,12 +9593,10 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 	require.Equal(t, getHostSw.Software[1].Name, "foo")
 	require.Len(t, getHostSw.Software[1].InstalledVersions, 2)
 	// no package information as there is no installer
-	require.Nil(t, getHostSw.Software[0].SelfService)
-	require.Nil(t, getHostSw.Software[0].Package)
-	require.Nil(t, getHostSw.Software[0].PackageAvailableForInstall)
-	require.Nil(t, getHostSw.Software[1].SelfService)
-	require.Nil(t, getHostSw.Software[1].Package)
-	require.Nil(t, getHostSw.Software[1].PackageAvailableForInstall)
+	require.Nil(t, getHostSw.Software[0].SoftwarePackage)
+	require.Nil(t, getHostSw.Software[0].AppStoreApp)
+	require.Nil(t, getHostSw.Software[1].SoftwarePackage)
+	require.Nil(t, getHostSw.Software[1].AppStoreApp)
 
 	// Add vulnerabilities to software to check query param filtering
 	_, err = s.ds.InsertSoftwareVulnerability(ctx, fleet.SoftwareVulnerability{SoftwareID: barSoftwareID, CVE: "CVE-bar-1234"}, fleet.NVDSource)
@@ -9614,9 +9609,8 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 	require.Len(t, getHostSw.Software, 1)
 	require.NoError(t, err)
 	require.Equal(t, "bar", getHostSw.Software[0].Name)
-	require.Nil(t, getHostSw.Software[0].SelfService)
-	require.Nil(t, getHostSw.Software[0].Package)
-	require.Nil(t, getHostSw.Software[0].PackageAvailableForInstall)
+	require.Nil(t, getHostSw.Software[0].SoftwarePackage)
+	require.Nil(t, getHostSw.Software[0].AppStoreApp)
 	require.Len(t, getHostSw.Software[0].InstalledVersions, 1)
 	require.Len(t, getHostSw.Software[0].InstalledVersions[0].Vulnerabilities, 2)
 	require.Equal(t, getHostSw.Software[0].InstalledVersions[0].Vulnerabilities, []string{"CVE-bar-1234", "CVE-bar-5678"})
@@ -9630,12 +9624,10 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 	require.Equal(t, getDeviceSw.Software[1].Name, "foo")
 	require.Len(t, getDeviceSw.Software[1].InstalledVersions, 2)
 	// no package information as there is no installer
-	require.Nil(t, getDeviceSw.Software[0].SelfService)
-	require.Nil(t, getDeviceSw.Software[0].Package)
-	require.Nil(t, getDeviceSw.Software[0].PackageAvailableForInstall)
-	require.Nil(t, getDeviceSw.Software[1].SelfService)
-	require.Nil(t, getDeviceSw.Software[1].Package)
-	require.Nil(t, getDeviceSw.Software[1].PackageAvailableForInstall)
+	require.Nil(t, getDeviceSw.Software[0].SoftwarePackage)
+	require.Nil(t, getDeviceSw.Software[0].AppStoreApp)
+	require.Nil(t, getDeviceSw.Software[1].SoftwarePackage)
+	require.Nil(t, getDeviceSw.Software[1].AppStoreApp)
 
 	// create a software installer, not installed on the host
 	payload := &fleet.UploadSoftwareInstallerPayload{
@@ -9657,18 +9649,16 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host.ID), nil, http.StatusOK, &getHostSw)
 	require.Len(t, getHostSw.Software, 3) // foo, bar and ruby.deb
 	require.Equal(t, getHostSw.Software[0].Name, "bar")
-	require.Nil(t, getHostSw.Software[0].PackageAvailableForInstall)
 	require.Equal(t, getHostSw.Software[1].Name, "foo")
-	require.Nil(t, getHostSw.Software[1].PackageAvailableForInstall)
 	require.Equal(t, getHostSw.Software[2].Name, "ruby")
 	require.Len(t, getHostSw.Software[1].InstalledVersions, 2)
-	require.NotNil(t, getHostSw.Software[2].PackageAvailableForInstall)
-	require.Equal(t, "ruby.deb", *getHostSw.Software[2].PackageAvailableForInstall)
-	require.NotNil(t, getHostSw.Software[2].SelfService)
-	require.True(t, *getHostSw.Software[2].SelfService)
+	require.Nil(t, getHostSw.Software[2].AppStoreApp)
+	require.NotNil(t, getHostSw.Software[2].SoftwarePackage)
+	require.Equal(t, "ruby.deb", getHostSw.Software[2].SoftwarePackage.Name)
+	require.Equal(t, payload.Version, getHostSw.Software[2].SoftwarePackage.Version)
+	require.NotNil(t, getHostSw.Software[2].SoftwarePackage.SelfService)
+	require.True(t, *getHostSw.Software[2].SoftwarePackage.SelfService)
 	require.Nil(t, getHostSw.Software[2].Status)
-	// package object is not returned for user-authenticated endpoint
-	require.Nil(t, getHostSw.Software[2].Package)
 
 	// only the installer is returned for self-service only
 	getHostSw = getHostSoftwareResponse{}
@@ -9685,8 +9675,6 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 	require.Equal(t, getDeviceSw.Software[0].Name, "bar")
 	require.Equal(t, getDeviceSw.Software[1].Name, "foo")
 	require.Len(t, getDeviceSw.Software[1].InstalledVersions, 2)
-	require.Nil(t, getDeviceSw.Software[0].PackageAvailableForInstall)
-	require.Nil(t, getDeviceSw.Software[1].PackageAvailableForInstall)
 
 	// but it gets returned for self-service only
 	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/software?self_service=1", nil, http.StatusOK)
@@ -9695,14 +9683,12 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 	require.NoError(t, err)
 	require.Len(t, getDeviceSw.Software, 1)
 	require.Equal(t, getDeviceSw.Software[0].Name, "ruby")
-	// package available for install is not returned for device-authenticated
-	require.Nil(t, getDeviceSw.Software[0].PackageAvailableForInstall)
-	// but package object is
-	require.NotNil(t, getDeviceSw.Software[0].Package)
-	require.NotNil(t, getDeviceSw.Software[0].SelfService)
-	require.True(t, *getDeviceSw.Software[0].SelfService)
-	require.Equal(t, payload.Filename, getDeviceSw.Software[0].Package.Name)
-	require.Equal(t, payload.Version, getDeviceSw.Software[0].Package.Version)
+	require.Nil(t, getDeviceSw.Software[0].AppStoreApp)
+	require.NotNil(t, getDeviceSw.Software[0].SoftwarePackage)
+	require.NotNil(t, getDeviceSw.Software[0].SoftwarePackage.SelfService)
+	require.True(t, *getDeviceSw.Software[0].SoftwarePackage.SelfService)
+	require.Equal(t, payload.Filename, getDeviceSw.Software[0].SoftwarePackage.Name)
+	require.Equal(t, payload.Version, getDeviceSw.Software[0].SoftwarePackage.Version)
 
 	// request installation on the host
 	var installResp installSoftwareResponse
@@ -9717,13 +9703,12 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 	require.Equal(t, getHostSw.Software[1].Name, "foo")
 	require.Equal(t, getHostSw.Software[2].Name, "ruby")
 	require.Len(t, getHostSw.Software[1].InstalledVersions, 2)
-	require.NotNil(t, getHostSw.Software[2].PackageAvailableForInstall)
-	require.Equal(t, "ruby.deb", *getHostSw.Software[2].PackageAvailableForInstall)
+	require.NotNil(t, getHostSw.Software[2].SoftwarePackage)
+	require.Equal(t, "ruby.deb", getHostSw.Software[2].SoftwarePackage.Name)
 	require.NotNil(t, getHostSw.Software[2].Status)
 	require.Equal(t, fleet.SoftwareInstallerPending, *getHostSw.Software[2].Status)
-	require.NotNil(t, getHostSw.Software[2].SelfService)
-	require.True(t, *getHostSw.Software[2].SelfService)
-	require.Nil(t, getHostSw.Software[2].Package)
+	require.NotNil(t, getHostSw.Software[2].SoftwarePackage.SelfService)
+	require.True(t, *getHostSw.Software[2].SoftwarePackage.SelfService)
 
 	// still returned with self-service filter
 	getHostSw = getHostSoftwareResponse{}
@@ -9741,12 +9726,12 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 	require.Equal(t, getDeviceSw.Software[1].Name, "foo")
 	require.Equal(t, getDeviceSw.Software[2].Name, "ruby")
 	require.Len(t, getDeviceSw.Software[1].InstalledVersions, 2)
-	require.Nil(t, getDeviceSw.Software[2].PackageAvailableForInstall)
 	require.NotNil(t, getDeviceSw.Software[2].Status)
 	require.Equal(t, fleet.SoftwareInstallerPending, *getDeviceSw.Software[2].Status)
-	require.NotNil(t, getDeviceSw.Software[2].SelfService)
-	require.True(t, *getDeviceSw.Software[2].SelfService)
-	require.NotNil(t, getDeviceSw.Software[2].Package)
+	require.NotNil(t, getDeviceSw.Software[2].SoftwarePackage)
+	require.Nil(t, getDeviceSw.Software[2].AppStoreApp)
+	require.NotNil(t, getDeviceSw.Software[2].SoftwarePackage.SelfService)
+	require.True(t, *getDeviceSw.Software[2].SoftwarePackage.SelfService)
 
 	// still returned for self-service only too
 	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/software?self_service=1", nil, http.StatusOK)
@@ -9755,10 +9740,10 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 	require.NoError(t, err)
 	require.Len(t, getDeviceSw.Software, 1)
 	require.Equal(t, getDeviceSw.Software[0].Name, "ruby")
-	require.NotNil(t, getDeviceSw.Software[0].SelfService)
-	require.True(t, *getDeviceSw.Software[0].SelfService)
-	require.NotNil(t, getDeviceSw.Software[0].Package)
-	require.Nil(t, getDeviceSw.Software[0].PackageAvailableForInstall)
+	require.NotNil(t, getDeviceSw.Software[0].SoftwarePackage)
+	require.NotNil(t, getDeviceSw.Software[0].SoftwarePackage.SelfService)
+	require.True(t, *getDeviceSw.Software[0].SoftwarePackage.SelfService)
+	require.Nil(t, getDeviceSw.Software[0].AppStoreApp)
 
 	// test with a query
 	getHostSw = getHostSoftwareResponse{}
@@ -9902,10 +9887,10 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 		}, http.StatusUnauthorized)
 
 		// download the installer
-		s.Do("GET", fmt.Sprintf("/api/latest/fleet/software/%d/package?alt=media", titleID), nil, http.StatusBadRequest)
+		s.Do("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package?alt=media", titleID), nil, http.StatusBadRequest)
 
 		// delete the installer
-		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/%d/package", titleID), nil, http.StatusBadRequest)
+		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleID), nil, http.StatusBadRequest)
 	})
 
 	t.Run("create team software installer", func(t *testing.T) {
@@ -9941,7 +9926,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 		s.uploadSoftwareInstaller(payload, http.StatusConflict, "already exists")
 
 		// download the installer
-		r := s.Do("GET", fmt.Sprintf("/api/latest/fleet/software/%d/package?alt=media", titleID), nil, http.StatusOK, "team_id", fmt.Sprintf("%d", *payload.TeamID))
+		r := s.Do("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package?alt=media", titleID), nil, http.StatusOK, "team_id", fmt.Sprintf("%d", *payload.TeamID))
 		checkDownloadResponse(t, r, payload.Filename)
 
 		// create an orbit host that is not in the team
@@ -9972,13 +9957,13 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 		checkDownloadResponse(t, r, payload.Filename)
 
 		// delete the installer
-		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/%d/package", titleID), nil, http.StatusNoContent, "team_id", fmt.Sprintf("%d", *payload.TeamID))
+		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleID), nil, http.StatusNoContent, "team_id", fmt.Sprintf("%d", *payload.TeamID))
 
 		// check activity
 		s.lastActivityOfTypeMatches(fleet.ActivityTypeDeletedSoftware{}.ActivityName(), fmt.Sprintf(`{"software_title": "ruby", "software_package": "ruby.deb", "team_name": "%s", "team_id": %d, "self_service": true}`, createTeamResp.Team.Name, createTeamResp.Team.ID), 0)
 
 		// download the installer, not found anymore
-		s.Do("GET", fmt.Sprintf("/api/latest/fleet/software/%d/package?alt=media", titleID), nil, http.StatusNotFound, "team_id", fmt.Sprintf("%d", *payload.TeamID))
+		s.Do("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package?alt=media", titleID), nil, http.StatusNotFound, "team_id", fmt.Sprintf("%d", *payload.TeamID))
 	})
 }
 
@@ -10003,30 +9988,40 @@ func (s *integrationEnterpriseTestSuite) TestApplyTeamsSoftwareConfig() {
 		"specs": []any{
 			map[string]any{
 				"name": teamName,
-				"software": []map[string]any{
-					{
-						"url":          "http://foo.com",
-						"self_service": true,
-						"install_script": map[string]string{
-							"path": "./foo/install-script.sh",
+				"software": map[string]any{
+					"packages": []map[string]any{
+						{
+							"url":          "http://foo.com",
+							"self_service": true,
+							"install_script": map[string]string{
+								"path": "./foo/install-script.sh",
+							},
+							"post_install_script": map[string]string{
+								"path": "./foo/post-install-script.sh",
+							},
+							"pre_install_query": map[string]string{
+								"path": "./foo/query.yaml",
+							},
 						},
-						"post_install_script": map[string]string{
-							"path": "./foo/post-install-script.sh",
-						},
-						"pre_install_query": map[string]string{
-							"path": "./foo/query.yaml",
+						{
+							"url": "http://bar.com",
+							"install_script": map[string]string{
+								"path": "./bar/install-script.sh",
+							},
+							"post_install_script": map[string]string{
+								"path": "./bar/post-install-script.sh",
+							},
+							"pre_install_query": map[string]string{
+								"path": "./bar/query.yaml",
+							},
 						},
 					},
-					{
-						"url": "http://bar.com",
-						"install_script": map[string]string{
-							"path": "./bar/install-script.sh",
+					"app_store_apps": []map[string]any{
+						{
+							"app_store_id": "1234",
 						},
-						"post_install_script": map[string]string{
-							"path": "./bar/post-install-script.sh",
-						},
-						"pre_install_query": map[string]string{
-							"path": "./bar/query.yaml",
+						{
+							"app_store_id": "5678",
 						},
 					},
 				},
@@ -10035,7 +10030,7 @@ func (s *integrationEnterpriseTestSuite) TestApplyTeamsSoftwareConfig() {
 	}
 	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
 
-	wantSoftware := []fleet.TeamSpecSoftware{
+	wantSoftwarePackages := []fleet.TeamSpecSoftwarePackage{
 		{
 			URL:               "http://foo.com",
 			SelfService:       true,
@@ -10051,11 +10046,19 @@ func (s *integrationEnterpriseTestSuite) TestApplyTeamsSoftwareConfig() {
 			PreInstallQuery:   fleet.TeamSpecSoftwareAsset{Path: "./bar/query.yaml"},
 		},
 	}
+	wantAppStoreApps := []fleet.TeamSpecAppStoreApp{
+		{
+			AppStoreID: "1234",
+		},
+		{
+			AppStoreID: "5678",
+		},
+	}
 
 	// retrieving the team returns the software
 	var teamResp getTeamResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
-	require.Equal(t, wantSoftware, teamResp.Team.Config.Software.Value)
+	require.Equal(t, wantSoftwarePackages, teamResp.Team.Config.Software.Packages.Value)
 
 	// apply without custom software specified, should not replace existing software
 	teamSpecs = map[string]any{
@@ -10068,24 +10071,44 @@ func (s *integrationEnterpriseTestSuite) TestApplyTeamsSoftwareConfig() {
 	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
 	teamResp = getTeamResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
-	require.Equal(t, wantSoftware, teamResp.Team.Config.Software.Value)
+	require.Equal(t, wantSoftwarePackages, teamResp.Team.Config.Software.Packages.Value)
+	require.Equal(t, wantAppStoreApps, teamResp.Team.Config.Software.AppStoreApps.Value)
 
 	// apply with explicitly empty custom software would clear the existing
 	// software, but dry-run
 	teamSpecs = map[string]any{
 		"specs": []any{
 			map[string]any{
-				"name":     teamName,
-				"software": nil,
+				"name": teamName,
+				"software": map[string]any{
+					"packages": nil,
+				},
 			},
 		},
 	}
 	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK, "dry_run", "true")
 	teamResp = getTeamResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
-	require.Equal(t, wantSoftware, teamResp.Team.Config.Software.Value)
+	require.Equal(t, wantSoftwarePackages, teamResp.Team.Config.Software.Packages.Value)
 
-	// apply with explicitly empty software clears the existing software
+	// apply with explicitly empty custom app store apps would clear the existing
+	// software, but dry-run
+	teamSpecs = map[string]any{
+		"specs": []any{
+			map[string]any{
+				"name": teamName,
+				"software": map[string]any{
+					"app_store_apps": nil,
+				},
+			},
+		},
+	}
+	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK, "dry_run", "true")
+	teamResp = getTeamResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
+	require.Equal(t, wantAppStoreApps, teamResp.Team.Config.Software.AppStoreApps.Value)
+
+	// apply with empty top-level software field, should not clear packages
 	teamSpecs = map[string]any{
 		"specs": []any{
 			map[string]any{
@@ -10097,7 +10120,42 @@ func (s *integrationEnterpriseTestSuite) TestApplyTeamsSoftwareConfig() {
 	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
 	teamResp = getTeamResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
-	require.Empty(t, teamResp.Team.Config.Software.Value)
+	require.Equal(t, wantSoftwarePackages, teamResp.Team.Config.Software.Packages.Value)
+	require.Equal(t, wantAppStoreApps, teamResp.Team.Config.Software.AppStoreApps.Value)
+
+	// apply with explicitly empty software packages clears the existing software, but not apps
+	teamSpecs = map[string]any{
+		"specs": []any{
+			map[string]any{
+				"name": teamName,
+				"software": map[string]any{
+					"packages": nil,
+				},
+			},
+		},
+	}
+	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
+	teamResp = getTeamResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
+	require.Empty(t, teamResp.Team.Config.Software.Packages.Value)
+	require.Equal(t, wantAppStoreApps, teamResp.Team.Config.Software.AppStoreApps.Value)
+
+	// apply with explicitly empty software apps clears the existing apps
+	teamSpecs = map[string]any{
+		"specs": []any{
+			map[string]any{
+				"name": teamName,
+				"software": map[string]any{
+					"app_store_apps": nil,
+				},
+			},
+		},
+	}
+	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
+	teamResp = getTeamResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
+	require.Empty(t, teamResp.Team.Config.Software.Packages.Value)
+	require.Empty(t, teamResp.Team.Config.Software.AppStoreApps.Value)
 
 	// patch with an invalid array returns an error
 	teamSpecs = map[string]any{
@@ -10111,7 +10169,21 @@ func (s *integrationEnterpriseTestSuite) TestApplyTeamsSoftwareConfig() {
 	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusBadRequest)
 	teamResp = getTeamResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
-	require.Empty(t, teamResp.Team.Config.Software.Value)
+	require.Empty(t, teamResp.Team.Config.Software.Packages.Value)
+
+	// patch with an invalid array returns an error
+	teamSpecs = map[string]any{
+		"specs": []any{
+			map[string]any{
+				"name":           teamName,
+				"app_store_apps": []any{"foo", 1},
+			},
+		},
+	}
+	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusBadRequest)
+	teamResp = getTeamResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
+	require.Empty(t, teamResp.Team.Config.Software.AppStoreApps.Value)
 }
 
 func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
@@ -10184,7 +10256,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
 	s.Do("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusNoContent, "team_name", tm.Name)
 	newTitlesResp = listSoftwareTitlesResponse{}
 	s.DoJSON("GET", "/api/v1/fleet/software/titles", nil, http.StatusOK, &newTitlesResp, "available_for_install", "true", "team_id", strconv.Itoa(int(tm.ID)))
-	titlesResp.SoftwareTitles[0].SelfService = true
+	titlesResp.SoftwareTitles[0].SoftwarePackage.SelfService = ptr.Bool(true)
 	require.Equal(t, titlesResp, newTitlesResp)
 
 	// empty payload cleans the software items
@@ -10346,10 +10418,11 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerHostRequests() {
 	getHostSoftwareResp := getHostSoftwareResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", h.ID), nil, http.StatusOK, &getHostSoftwareResp)
 	require.Len(t, getHostSoftwareResp.Software, 1)
-	require.NotNil(t, getHostSoftwareResp.Software[0].LastInstall)
+	require.NotNil(t, getHostSoftwareResp.Software[0].SoftwarePackage)
+	require.NotNil(t, getHostSoftwareResp.Software[0].SoftwarePackage.LastInstall)
 	require.NotNil(t, getHostSoftwareResp.Software[0].Status)
 	require.Equal(t, fleet.SoftwareInstallerPending, *getHostSoftwareResp.Software[0].Status)
-	installUUID := getHostSoftwareResp.Software[0].LastInstall.InstallUUID
+	installUUID := getHostSoftwareResp.Software[0].SoftwarePackage.LastInstall.InstallUUID
 
 	gsirr := getSoftwareInstallResultsResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/install/results/%s", installUUID), nil, http.StatusOK, &gsirr)
@@ -10370,7 +10443,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerHostRequests() {
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/install/%d", h2.ID, titleID), nil, http.StatusAccepted, &resp)
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", h2.ID), nil, http.StatusOK, &getHostSoftwareResp)
 	require.Len(t, getHostSoftwareResp.Software, 1)
-	installUUID2 := getHostSoftwareResp.Software[0].LastInstall.InstallUUID
+	installUUID2 := getHostSoftwareResp.Software[0].SoftwarePackage.LastInstall.InstallUUID
 	s.Do("POST", "/api/fleet/orbit/software_install/result", json.RawMessage(fmt.Sprintf(`{
 			"orbit_node_key": %q,
 			"install_uuid": %q,
@@ -10382,7 +10455,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerHostRequests() {
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/install/%d", h3.ID, titleID), nil, http.StatusAccepted, &resp)
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", h3.ID), nil, http.StatusOK, &getHostSoftwareResp)
 	require.Len(t, getHostSoftwareResp.Software, 1)
-	installUUID3 := getHostSoftwareResp.Software[0].LastInstall.InstallUUID
+	installUUID3 := getHostSoftwareResp.Software[0].SoftwarePackage.LastInstall.InstallUUID
 	s.Do("POST", "/api/fleet/orbit/software_install/result", json.RawMessage(fmt.Sprintf(`{
 			"orbit_node_key": %q,
 			"install_uuid": %q,
@@ -10394,7 +10467,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerHostRequests() {
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/install/%d", h4.ID, titleID), nil, http.StatusAccepted, &resp)
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", h4.ID), nil, http.StatusOK, &getHostSoftwareResp)
 	require.Len(t, getHostSoftwareResp.Software, 1)
-	installUUID4a := getHostSoftwareResp.Software[0].LastInstall.InstallUUID
+	installUUID4a := getHostSoftwareResp.Software[0].SoftwarePackage.LastInstall.InstallUUID
 	s.Do("POST", "/api/fleet/orbit/software_install/result", json.RawMessage(fmt.Sprintf(`{
 			"orbit_node_key": %q,
 			"install_uuid": %q,
@@ -10404,7 +10477,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerHostRequests() {
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/install/%d", h4.ID, titleID), nil, http.StatusAccepted, &resp)
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", h4.ID), nil, http.StatusOK, &getHostSoftwareResp)
 	require.Len(t, getHostSoftwareResp.Software, 1)
-	installUUID4b := getHostSoftwareResp.Software[0].LastInstall.InstallUUID
+	installUUID4b := getHostSoftwareResp.Software[0].SoftwarePackage.LastInstall.InstallUUID
 	_ = installUUID4b
 
 	// status is reflected in software title response
@@ -11087,7 +11160,6 @@ func (s *integrationEnterpriseTestSuite) TestPKGNewSoftwareTitleFlow() {
 	)
 	require.Len(t, resp.SoftwareTitles, 1)
 	require.NotNil(t, resp.SoftwareTitles[0].SoftwarePackage)
-	require.Equal(t, "dummy_installer.pkg", *resp.SoftwareTitles[0].SoftwarePackage)
 
 	software := []fleet.Software{
 		{Name: "foo", Version: "0.0.1", Source: "homebrew"},
@@ -11789,4 +11861,334 @@ func (s *integrationEnterpriseTestSuite) TestCalendarCallback() {
 	team1CalendarEvents, err = s.ds.ListCalendarEvents(ctx, &team1.ID)
 	require.NoError(t, err)
 	assert.Empty(t, team1CalendarEvents)
+}
+
+func (s *integrationEnterpriseTestSuite) TestCalendarEventBodyUpdate() {
+	ctx := context.Background()
+	t := s.T()
+	t.Cleanup(func() {
+		calendar.ClearMockEvents()
+		calendar.ClearMockChannels()
+	})
+	currentAppCfg, err := s.ds.AppConfig(ctx)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		err = s.ds.SaveAppConfig(ctx, currentAppCfg)
+		require.NoError(t, err)
+	})
+	origRecentUpdateDuration := commonCalendar.RecentCalendarUpdateDuration
+	commonCalendar.RecentCalendarUpdateDuration = 1 * time.Millisecond
+	t.Cleanup(func() {
+		commonCalendar.RecentCalendarUpdateDuration = origRecentUpdateDuration
+	})
+
+	team1, err := s.ds.NewTeam(ctx, &fleet.Team{
+		Name: "team1",
+	})
+	require.NoError(t, err)
+
+	newHost := func(name string, teamID *uint) *fleet.Host {
+		h, err := s.ds.NewHost(ctx, &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now().Add(-1 * time.Minute),
+			OsqueryHostID:   ptr.String(t.Name() + name),
+			NodeKey:         ptr.String(t.Name() + name),
+			UUID:            uuid.New().String(),
+			Hostname:        fmt.Sprintf("%s.%s.local", name, t.Name()),
+			Platform:        "darwin",
+			TeamID:          teamID,
+		})
+		require.NoError(t, err)
+		return h
+	}
+
+	host1Team1 := newHost("host1", &team1.ID)
+	host2Team1 := newHost("host2", &team1.ID)
+	_ = newHost("host5", nil) // global host
+
+	team1Policy1Calendar, err := s.ds.NewTeamPolicy(
+		ctx, team1.ID, nil, fleet.PolicyPayload{
+			Name:                  "team1Policy1Calendar",
+			Query:                 "SELECT 1;",
+			CalendarEventsEnabled: true,
+			Description:           "team1Policy1CalendarDescription",
+			Resolution:            "team1Policy1CalendarResolution",
+		},
+	)
+	require.NoError(t, err)
+	team1Policy2Calendar, err := s.ds.NewTeamPolicy(
+		ctx, team1.ID, nil, fleet.PolicyPayload{
+			Name:                  "team1Policy2Calendar",
+			Query:                 "SELECT 2;",
+			CalendarEventsEnabled: true,
+			Description:           "team1Policy2CalendarDescription",
+			Resolution:            "team1Policy2CalendarResolution",
+		},
+	)
+	require.NoError(t, err)
+	globalPolicy, err := s.ds.NewGlobalPolicy(
+		ctx, nil, fleet.PolicyPayload{
+			Name:                  "globalPolicy",
+			Query:                 "SELECT 5;",
+			CalendarEventsEnabled: false,
+			Description:           "globalPolicyDescription",
+			Resolution:            "globalPolicyResolution",
+		},
+	)
+	require.NoError(t, err)
+
+	genDistributedReqWithPolicyResults := func(host *fleet.Host, policyResults map[uint]*bool) submitDistributedQueryResultsRequestShim {
+		var (
+			results  = make(map[string]json.RawMessage)
+			statuses = make(map[string]interface{})
+			messages = make(map[string]string)
+		)
+		for policyID, policyResult := range policyResults {
+			distributedQueryName := hostPolicyQueryPrefix + fmt.Sprint(policyID)
+			switch {
+			case policyResult == nil:
+				results[distributedQueryName] = json.RawMessage(`[]`)
+				statuses[distributedQueryName] = 1
+				messages[distributedQueryName] = "policy failed execution"
+			case *policyResult:
+				results[distributedQueryName] = json.RawMessage(`[{"1": "1"}]`)
+				statuses[distributedQueryName] = 0
+			case !*policyResult:
+				results[distributedQueryName] = json.RawMessage(`[]`)
+				statuses[distributedQueryName] = 0
+			}
+		}
+		return submitDistributedQueryResultsRequestShim{
+			NodeKey:  *host.NodeKey,
+			Results:  results,
+			Statuses: statuses,
+			Messages: messages,
+			Stats:    map[string]*fleet.Stats{},
+		}
+	}
+
+	// host1Team1 is failing a calendar policy and not a non-calendar policy (no results for global).
+	distributedResp := submitDistributedQueryResultsResponse{}
+	s.DoJSON("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
+		host1Team1,
+		map[uint]*bool{
+			team1Policy1Calendar.ID: ptr.Bool(false),
+			team1Policy2Calendar.ID: ptr.Bool(true),
+			globalPolicy.ID:         nil,
+		},
+	), http.StatusOK, &distributedResp)
+
+	// host2Team1 is passing the calendar policy but not the non-calendar policy (no results for global).
+	s.DoJSON("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
+		host2Team1,
+		map[uint]*bool{
+			team1Policy1Calendar.ID: ptr.Bool(true),
+			team1Policy2Calendar.ID: ptr.Bool(false),
+			globalPolicy.ID:         nil,
+		},
+	), http.StatusOK, &distributedResp)
+
+	// Set global configuration for the calendar feature.
+	appCfg, err := s.ds.AppConfig(ctx)
+	require.NoError(t, err)
+	appCfg.Integrations.GoogleCalendar = []*fleet.GoogleCalendarIntegration{
+		{
+			Domain: "example.com",
+			ApiKey: map[string]string{
+				fleet.GoogleCalendarEmail: calendar.MockEmail,
+			},
+		},
+	}
+	err = s.ds.SaveAppConfig(ctx, appCfg)
+	require.NoError(t, err)
+	time.Sleep(2 * time.Second) // Wait 2 seconds for the app config cache to clear.
+
+	team1.Config.Integrations.GoogleCalendar = &fleet.TeamGoogleCalendarIntegration{
+		Enable:     true,
+		WebhookURL: "https://example.com",
+	}
+	team1, err = s.ds.SaveTeam(ctx, team1)
+	require.NoError(t, err)
+
+	// Add email mapping for host1Team1
+	const user1Email = "user1@example.com"
+	err = s.ds.ReplaceHostDeviceMapping(ctx, host1Team1.ID, []*fleet.HostDeviceMapping{
+		{
+			HostID: host1Team1.ID,
+			Email:  user1Email,
+			Source: "google_chrome_profiles",
+		},
+	}, "google_chrome_profiles")
+	require.NoError(t, err)
+	assert.Equal(t, 0, calendar.MockChannelsCount())
+
+	// Trigger the calendar cron, global feature enabled, team1 enabled
+	// and host1Team1 has a domain email associated.
+	triggerAndWait(ctx, t, s.ds, s.calendarSchedule, 5*time.Second)
+
+	// An event should be generated for host1Team1
+	team1CalendarEvents, err := s.ds.ListCalendarEvents(ctx, &team1.ID)
+	require.NoError(t, err)
+	require.Len(t, team1CalendarEvents, 1)
+	event := team1CalendarEvents[0]
+	require.NotZero(t, event.ID)
+	require.Equal(t, user1Email, event.Email)
+	require.NotZero(t, event.StartTime)
+	require.NotZero(t, event.EndTime)
+	require.NotEmpty(t, event.UUID)
+	assert.Equal(t, 1, calendar.MockChannelsCount())
+
+	getEvents := func() []*googleCalendar.Event {
+		calEvents := calendar.ListGoogleMockEvents()
+		calEventValues := make([]*googleCalendar.Event, 0, len(calEvents))
+		for _, v := range calEvents {
+			calEventValues = append(calEventValues, v)
+		}
+		return calEventValues
+	}
+
+	calEvents := getEvents()
+	require.Len(t, calEvents, 1)
+	assert.Contains(t, calEvents[0].Description, team1Policy1Calendar.Description)
+	assert.Contains(t, calEvents[0].Description, *team1Policy1Calendar.Resolution)
+
+	// Remove resolution from policy
+	team1Policy1Calendar.Resolution = nil
+	require.NoError(t, s.ds.SavePolicy(ctx, team1Policy1Calendar, false, false))
+	triggerAndWait(ctx, t, s.ds, s.calendarSchedule, 5*time.Second)
+
+	calEvents = getEvents()
+	require.Len(t, calEvents, 1)
+	assert.Contains(t, calEvents[0].Description, fleet.CalendarDefaultDescription)
+	assert.Contains(t, calEvents[0].Description, fleet.CalendarDefaultResolution)
+
+	// Put resolution back
+	team1Policy1Calendar.Resolution = ptr.String("putResolutionBack")
+	require.NoError(t, s.ds.SavePolicy(ctx, team1Policy1Calendar, false, false))
+	triggerAndWait(ctx, t, s.ds, s.calendarSchedule, 5*time.Second)
+
+	calEvents = getEvents()
+	require.Len(t, calEvents, 1)
+	assert.Contains(t, calEvents[0].Description, team1Policy1Calendar.Description)
+	assert.Contains(t, calEvents[0].Description, *team1Policy1Calendar.Resolution)
+
+	// Change resolution
+	team1Policy1Calendar.Resolution = ptr.String("changeResolution")
+	require.NoError(t, s.ds.SavePolicy(ctx, team1Policy1Calendar, false, false))
+	triggerAndWait(ctx, t, s.ds, s.calendarSchedule, 5*time.Second)
+
+	calEvents = getEvents()
+	require.Len(t, calEvents, 1)
+	assert.Contains(t, calEvents[0].Description, team1Policy1Calendar.Description)
+	assert.Contains(t, calEvents[0].Description, *team1Policy1Calendar.Resolution)
+
+	// Cause another policy to fail
+	s.DoJSON("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
+		host1Team1,
+		map[uint]*bool{
+			team1Policy1Calendar.ID: ptr.Bool(false),
+			team1Policy2Calendar.ID: ptr.Bool(false),
+			globalPolicy.ID:         nil,
+		},
+	), http.StatusOK, &distributedResp)
+	triggerAndWait(ctx, t, s.ds, s.calendarSchedule, 5*time.Second)
+
+	calEvents = getEvents()
+	require.Len(t, calEvents, 1)
+	assert.Contains(t, calEvents[0].Description, fleet.CalendarDefaultDescription)
+	assert.Contains(t, calEvents[0].Description, fleet.CalendarDefaultResolution)
+
+	// Cause the other policy to pass
+	s.DoJSON("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
+		host1Team1,
+		map[uint]*bool{
+			team1Policy1Calendar.ID: ptr.Bool(false),
+			team1Policy2Calendar.ID: ptr.Bool(true),
+			globalPolicy.ID:         nil,
+		},
+	), http.StatusOK, &distributedResp)
+	triggerAndWait(ctx, t, s.ds, s.calendarSchedule, 5*time.Second)
+
+	calEvents = getEvents()
+	require.Len(t, calEvents, 1)
+	assert.Contains(t, calEvents[0].Description, team1Policy1Calendar.Description)
+	assert.Contains(t, calEvents[0].Description, *team1Policy1Calendar.Resolution)
+
+	// Get channel ID
+	type eventDetails struct {
+		ChannelID string `json:"channel_id"`
+	}
+	var details eventDetails
+	err = json.Unmarshal(event.Data, &details)
+	require.NoError(t, err)
+
+	// Delete the event on the calendar
+	calendar.ClearMockEvents()
+
+	// Send a regular callback
+	_ = s.DoRawWithHeaders("POST", "/api/v1/fleet/calendar/webhook/"+event.UUID, []byte(""), http.StatusOK, map[string]string{
+		"X-Goog-Channel-Id":     details.ChannelID,
+		"X-Goog-Resource-State": "exists",
+	})
+
+	// Make sure event body is correct after event was recreated
+	calEvents = getEvents()
+	require.Len(t, calEvents, 1)
+	assert.Contains(t, calEvents[0].Description, team1Policy1Calendar.Description)
+	assert.Contains(t, calEvents[0].Description, *team1Policy1Calendar.Resolution)
+
+	// Get the new event
+	team1CalendarEvents, err = s.ds.ListCalendarEvents(ctx, &team1.ID)
+	require.NoError(t, err)
+	require.Len(t, team1CalendarEvents, 1)
+	event = team1CalendarEvents[0]
+	err = json.Unmarshal(event.Data, &details)
+	require.NoError(t, err)
+
+	// Remove description from policy
+	team1Policy1Calendar.Description = " "
+	require.NoError(t, s.ds.SavePolicy(ctx, team1Policy1Calendar, false, false))
+	// Delete the event on the calendar
+	calendar.ClearMockEvents()
+
+	// Send a regular callback
+	_ = s.DoRawWithHeaders("POST", "/api/v1/fleet/calendar/webhook/"+event.UUID, []byte(""), http.StatusOK, map[string]string{
+		"X-Goog-Channel-Id":     details.ChannelID,
+		"X-Goog-Resource-State": "exists",
+	})
+
+	// Make sure event body is correct after event was recreated
+	calEvents = getEvents()
+	require.Len(t, calEvents, 1)
+	assert.Contains(t, calEvents[0].Description, fleet.CalendarDefaultDescription)
+	assert.Contains(t, calEvents[0].Description, fleet.CalendarDefaultResolution)
+
+}
+
+func (s *integrationEnterpriseTestSuite) TestVPPAppsWithoutMDM() {
+	t := s.T()
+	ctx := context.Background()
+
+	// Create host
+	orbitHost := createOrbitEnrolledHost(t, "darwin", "nonmdm", s.ds)
+
+	// Create team and add host to team
+	var newTeamResp teamResponse
+	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{TeamPayload: fleet.TeamPayload{Name: ptr.String("Team 1")}}, http.StatusOK, &newTeamResp)
+	team := newTeamResp.Team
+
+	s.Do("POST", "/api/latest/fleet/hosts/transfer", &addHostsToTeamRequest{HostIDs: []uint{orbitHost.ID}, TeamID: &team.ID}, http.StatusOK)
+
+	// Add an app so that we don't get a not found error
+	app, err := s.ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+		Name:             "App " + t.Name(),
+		BundleIdentifier: "bid_" + t.Name(),
+		AdamID:           "adam_" + t.Name(),
+	}, &team.ID)
+	require.NoError(t, err)
+
+	r := s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/install/%d", orbitHost.ID, app.TitleID), &installSoftwareRequest{}, http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(r.Body), "Couldn't install. MDM is turned off. Please make sure that MDM is turned on to install App Store apps.")
 }
