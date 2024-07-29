@@ -98,7 +98,6 @@
   tier: Free
   jamfProHasFeature: yes
   jamfProtectHasFeature: no
-  isExperimental: yes
   usualDepartment: IT
   productCategories: [Device management]
   pricingTableCategories: [Device management]
@@ -263,7 +262,6 @@
   tier: Premium
   jamfProHasFeature: appleOnly
   jamfProtectHasFeature: no
-  isExperimental: yes
   comingSoonOn: 2024-07-15
   usualDepartment: IT
   productCategories: [Device management]
@@ -477,7 +475,6 @@
   documentationUrl:
   tier: Premium
   comingSoonOn: 2024-06-30
-  isExperimental: yes
   usualDepartment: Security
   productCategories: [Vulnerability management]
   pricingTableCategories: [Vulnerability management]
@@ -771,7 +768,6 @@
   tier: Free
   jamfProHasFeature: yes
   jamfProtectHasFeature: yes
-  isExperimental: yes
   dri: mikermcneil
   usualDepartment: Security
   productCategories: [Endpoint operations]
@@ -927,7 +923,6 @@
   tier: Free
   jamfProHasFeature: yes
   jamfProtectHasFeature: yes
-  isExperimental: yes
   waysToUse:
     - description: Enforce two-factor authentication when logging in to Fleet for added security.
   comingSoonOn: 2024-12-31 #customer-rosner
@@ -942,7 +937,6 @@
   moreInfoUrl: https://github.com/fleetdm/fleet/issues/15671
   productCategories: [Endpoint operations,Device management,Vulnerability management]
   pricingTableCategories: [Endpoint operations]
-  isExperimental: yes
   usualDepartment: IT
   tier: Premium
   comingSoonOn: 2024-12-31 #customer-rosner
@@ -1347,7 +1341,6 @@
   documentationUrl: https://github.com/fleetdm/fleet/issues/9956 #customer-deebradel
   productCategories: [Device management]
   pricingTableCategories: [Deployment]
-  isExperimental: yes
   usualDepartment: IT
   buzzwords: [OEM,Private label,House brand,Clear label,Multi-tenancy]
   tier: Premium
@@ -1401,7 +1394,6 @@
   pricingTableCategories: [Integrations]
   comingSoonOn: 2024-06-30
   tier: Free
-  isExperimental: yes
   buzzwords: [Automated remediation,Auto-remediation,Self-healing]
   waysToUse:
     - description: Use policy automations to automatically remediate issues and mitigate vulnerabilities.
