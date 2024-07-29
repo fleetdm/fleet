@@ -28,7 +28,7 @@ AND
     h.id IS NULL
 `)
 	if err != nil {
-		return fmt.Errorf("failed to update host_software_installs.host_deleted_at for hosts that no longer exist")
+		return fmt.Errorf("failed to update host_software_installs.host_deleted_at for hosts that no longer exist: %w", err)
 	}
 	return nil
 }
