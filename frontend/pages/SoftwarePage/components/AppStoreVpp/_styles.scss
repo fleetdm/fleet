@@ -1,13 +1,10 @@
 .app-store-vpp {
   margin-top: $pad-large;
 
-  &__description {
-    margin: $pad-medium 0;
-  }
-
   &__list-container {
     border: 1px solid $ui-fleet-black-10;
     border-radius: $border-radius-medium;
+    margin-bottom: $pad-medium;
   }
 
   &__list {
@@ -17,8 +14,15 @@
   }
 
   &__list-item {
+    display: flex;
+    gap: $pad-medium;
+    align-items: center;
     padding: $pad-small $pad-medium;
     border-bottom: 1px solid $ui-fleet-black-10;
+
+    .app-platform {
+      color: $ui-fleet-black-50;
+    }
 
     &:last-child {
       border-bottom: none;
@@ -32,8 +36,11 @@
   }
 
   &__no-software {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-small;
+    align-items: center;
     padding: $pad-xxlarge 48px;
-    text-align: center;
     font-size: $x-small;
   }
 
@@ -43,7 +50,7 @@
   }
 
   &__no-software-description {
-    margin-top: $pad-small;
+    margin: 0;
     color: $ui-fleet-black-75;
   }
 
@@ -61,6 +68,13 @@
 
     p {
       margin: 0;
+    }
+  }
+
+  &__help-text {
+    @include help-text;
+    .custom-link {
+      font-size: $xx-small;
     }
   }
 }

@@ -4,7 +4,10 @@ import { formatDistanceToNowStrict } from "date-fns";
 
 import { ActivityType, IActivity, IActivityDetails } from "interfaces/activity";
 import { getInstallStatusPredicate } from "interfaces/software";
-import { AppleDisplayPlatform } from "interfaces/platform";
+import {
+  AppleDisplayPlatform,
+  PLATFORM_DISPLAY_NAMES,
+} from "interfaces/platform";
 
 import {
   addGravatarUrlToResource,
@@ -882,10 +885,13 @@ const TAGGED_TEMPLATES = {
     );
   },
   addedAppStoreApp: (activity: IActivity) => {
+    const { software_title: swTitle, platform: swPlatform } =
+      activity.details || {};
     return (
       <>
         {" "}
-        added <b>{activity.details?.software_title}</b> to{" "}
+        added <b>{swTitle}</b>{" "}
+        {swPlatform ? `(${PLATFORM_DISPLAY_NAMES[swPlatform]}) ` : ""}to{" "}
         {activity.details?.team_name ? (
           <>
             {" "}
@@ -898,10 +904,13 @@ const TAGGED_TEMPLATES = {
     );
   },
   deletedAppStoreApp: (activity: IActivity) => {
+    const { software_title: swTitle, platform: swPlatform } =
+      activity.details || {};
     return (
       <>
         {" "}
-        deleted <b>{activity.details?.software_title}</b> from{" "}
+        deleted <b>{swTitle}</b>{" "}
+        {swPlatform ? `(${PLATFORM_DISPLAY_NAMES[swPlatform]}) ` : ""}from{" "}
         {activity.details?.team_name ? (
           <>
             {" "}

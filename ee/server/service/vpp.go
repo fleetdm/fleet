@@ -206,7 +206,7 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, adamID str
 	}
 
 	var teamName string
-	if teamID != nil {
+	if teamID != nil && *teamID != 0 {
 		tm, err := svc.ds.Team(ctx, *teamID)
 		if fleet.IsNotFound(err) {
 			return fleet.NewInvalidArgumentError("team_id", fmt.Sprintf("team %d does not exist", *teamID)).

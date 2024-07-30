@@ -1,10 +1,6 @@
-import React, { FC, useContext, useEffect, useState } from "react";
-import { AxiosResponse } from "axios";
-import {
-  QueryClient,
-  QueryClientProvider,
-  QueryClientProviderProps,
-} from "react-query";
+import React, { useContext, useEffect, useState } from "react";
+import { AxiosError, AxiosResponse } from "axios";
+import { useQuery } from "react-query";
 
 import page_titles from "router/page_titles";
 import TableProvider from "context/table";
@@ -18,7 +14,9 @@ import useDeepEffect from "hooks/useDeepEffect";
 import usersAPI from "services/entities/users";
 import configAPI from "services/entities/config";
 import hostCountAPI from "services/entities/host_count";
-import mdmAppleBMAPI from "services/entities/mdm_apple_bm";
+import mdmAppleBMAPI, {
+  IGetAppleBMInfoResponse,
+} from "services/entities/mdm_apple_bm";
 import mdmAppleAPI from "services/entities/mdm_apple";
 
 import { ErrorBoundary } from "react-error-boundary";
@@ -30,6 +28,7 @@ import Fleet404 from "pages/errors/Fleet404";
 import Fleet500 from "pages/errors/Fleet500";
 import Spinner from "components/Spinner";
 import { QueryParams } from "utilities/url";
+import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 
 interface IAppProps {
   children: JSX.Element;
@@ -41,18 +40,9 @@ interface IAppProps {
   };
 }
 
-// We create a CustomQueryClientProvider that takes the same props as the original
-// QueryClientProvider but adds the children prop as a ReactNode. This children
-// prop is not required explicitly in React 18. We do it this way to avoid
-// having to update the react-query package version and typings for now.
-// When we upgrade React Query we should be able to remove this.
-type ICustomQueryClientProviderProps = React.PropsWithChildren<QueryClientProviderProps>;
-const CustomQueryClientProvider: FC<ICustomQueryClientProviderProps> = QueryClientProvider;
-
 const baseClass = "app";
 
 const App = ({ children, location }: IAppProps): JSX.Element => {
-  const queryClient = new QueryClient();
   const {
     config,
     currentUser,
@@ -73,6 +63,48 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
 
   const [isLoading, setIsLoading] = useState(false);
 
+  // We will do a series of API calls to get the data that we need to display
+  // warnings to the user about various token expirations.
+
+  // Get the Apple Business Manager token expiration date
+  useQuery<IGetAppleBMInfoResponse, AxiosError>(
+    ["abm"],
+    () => mdmAppleBMAPI.getAppleBMInfo(),
+    {
+      ...DEFAULT_USE_QUERY_OPTIONS,
+      enabled: !!isGlobalAdmin && !!config?.mdm.apple_bm_enabled_and_configured,
+      onSuccess: (data) => {
+        setABMExpiry(data.renew_date);
+      },
+      onError: (err) => {
+        // we need to catch and check for a 400 status code because the
+        // API behaves this way when the token is already expired or invalid.
+        if (err.status === 400) {
+          const GUARANTEED_PAST_DATE = "2000-01-01T01:00:00Z";
+          setABMExpiry(GUARANTEED_PAST_DATE);
+        }
+      },
+    }
+  );
+
+  // Get the Apple Push Notification token expiration date
+  useQuery(["apns"], () => mdmAppleAPI.getAppleAPNInfo(), {
+    ...DEFAULT_USE_QUERY_OPTIONS,
+    enabled: !!isGlobalAdmin && !!config?.mdm.enabled_and_configured,
+    onSuccess: (data) => {
+      setAPNsExpiry(data.renew_date);
+    },
+  });
+
+  // Get the Apple Push VPP token expiration date
+  useQuery(["vppToken"], () => mdmAppleAPI.getVppInfo(), {
+    ...DEFAULT_USE_QUERY_OPTIONS,
+    enabled: !!isGlobalAdmin && !!config?.mdm.enabled_and_configured,
+    onSuccess: (data) => {
+      setVppExpiry(data.renew_date);
+    },
+  });
+
   const fetchConfig = async () => {
     try {
       const configResponse = await configAPI.loadAll();
@@ -83,44 +115,6 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
         const noSandboxHosts = hostCount.count === 0;
         setNoSandboxHosts(noSandboxHosts);
       }
-
-      // These endpoints 403 for non-global admins
-      if (isGlobalAdmin) {
-        if (configResponse.mdm.apple_bm_enabled_and_configured) {
-          // FIXME: we need to catch and check for a 400 status code because the
-          // API behaves this way when the token is already expired or invalid.
-          //
-          // This is a quick fix to not completely break the UI, but it doesn't
-          // allow us to show ABM information when the token is expired so it
-          // should be fixed upstream.
-          try {
-            const abmInfo = await mdmAppleBMAPI.getAppleBMInfo();
-            setABMExpiry(abmInfo.renew_date);
-          } catch (error) {
-            console.error(error);
-            const abmError = error as AxiosResponse;
-            if (abmError.status === 400) {
-              const pastDate = "2024-06-03T17:28:44Z";
-              setABMExpiry(pastDate);
-            }
-          }
-        }
-        if (configResponse.mdm.enabled_and_configured) {
-          try {
-            const apnsInfo = await mdmAppleAPI.getAppleAPNInfo();
-            setAPNsExpiry(apnsInfo.renew_date);
-          } catch (error) {
-            console.error(error);
-          }
-          try {
-            const vppInfo = await mdmAppleAPI.getVppInfo();
-            setVppExpiry(vppInfo.renew_date);
-          } catch (e) {
-            console.log(e);
-          }
-        }
-      }
-
       setConfig(configResponse);
     } catch (error) {
       console.error(error);
@@ -226,22 +220,20 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
   return isLoading ? (
     <Spinner />
   ) : (
-    <CustomQueryClientProvider client={queryClient}>
-      <TableProvider>
-        <QueryProvider>
-          <PolicyProvider>
-            <NotificationProvider>
-              <ErrorBoundary
-                fallbackRender={renderErrorOverlay}
-                resetKeys={[location?.pathname]}
-              >
-                <div className={baseClass}>{children}</div>
-              </ErrorBoundary>
-            </NotificationProvider>
-          </PolicyProvider>
-        </QueryProvider>
-      </TableProvider>
-    </CustomQueryClientProvider>
+    <TableProvider>
+      <QueryProvider>
+        <PolicyProvider>
+          <NotificationProvider>
+            <ErrorBoundary
+              fallbackRender={renderErrorOverlay}
+              resetKeys={[location?.pathname]}
+            >
+              <div className={baseClass}>{children}</div>
+            </ErrorBoundary>
+          </NotificationProvider>
+        </PolicyProvider>
+      </QueryProvider>
+    </TableProvider>
   );
 };
 

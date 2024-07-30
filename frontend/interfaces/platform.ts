@@ -1,16 +1,25 @@
-export type AppleDisplayPlatform = "macOS" | "iOS" | "iPadOS";
-export type DisplayPlatform =
-  | AppleDisplayPlatform
-  | "Windows"
-  | "Linux"
-  | "ChromeOS";
+export const APPLE_PLATFORM_DISPLAY_NAMES = {
+  darwin: "macOS",
+  ios: "iOS",
+  ipados: "iPadOS",
+} as const;
+
+export type ApplePlatform = keyof typeof APPLE_PLATFORM_DISPLAY_NAMES;
+export type AppleDisplayPlatform = typeof APPLE_PLATFORM_DISPLAY_NAMES[keyof typeof APPLE_PLATFORM_DISPLAY_NAMES];
+
+export const PLATFORM_DISPLAY_NAMES = {
+  windows: "Windows",
+  linux: "Linux",
+  chrome: "ChromeOS",
+  ...APPLE_PLATFORM_DISPLAY_NAMES,
+} as const;
+
+export type Platform = keyof typeof PLATFORM_DISPLAY_NAMES;
+export type DisplayPlatform = typeof PLATFORM_DISPLAY_NAMES[keyof typeof PLATFORM_DISPLAY_NAMES];
 export type QueryableDisplayPlatform = Exclude<
   DisplayPlatform,
   "iOS" | "iPadOS"
 >;
-
-export type ApplePlatform = "darwin" | "ios" | "ipados";
-export type Platform = ApplePlatform | "windows" | "linux" | "chrome";
 export type QueryablePlatform = Exclude<Platform, "ios" | "ipados">;
 
 export const SUPPORTED_PLATFORMS: QueryablePlatform[] = [
@@ -19,6 +28,9 @@ export const SUPPORTED_PLATFORMS: QueryablePlatform[] = [
   "linux",
   "chrome",
 ];
+
+// TODO - add "iOS" and "iPadOS" once we support them
+export const VULN_SUPPORTED_PLATFORMS: Platform[] = ["darwin", "windows"];
 
 export type SelectedPlatform = QueryablePlatform | "all";
 

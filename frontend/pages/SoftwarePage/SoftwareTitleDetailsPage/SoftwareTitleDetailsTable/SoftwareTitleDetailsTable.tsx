@@ -44,6 +44,7 @@ interface ISoftwareTitleDetailsTableProps {
   data: ISoftwareTitleVersion[];
   isLoading: boolean;
   teamIdForApi?: number;
+  isIPadOSOrIOSApp: boolean;
 }
 
 interface IRowProps extends Row {
@@ -57,6 +58,7 @@ const SoftwareTitleDetailsTable = ({
   data,
   isLoading,
   teamIdForApi,
+  isIPadOSOrIOSApp,
 }: ISoftwareTitleDetailsTableProps) => {
   const handleRowSelect = (row: IRowProps) => {
     const hostsBySoftwareParams = {
@@ -74,8 +76,12 @@ const SoftwareTitleDetailsTable = ({
 
   const softwareTableHeaders = useMemo(
     () =>
-      generateSoftwareTitleDetailsTableConfig({ router, teamId: teamIdForApi }),
-    [router, teamIdForApi]
+      generateSoftwareTitleDetailsTableConfig({
+        router,
+        teamId: teamIdForApi,
+        isIPadOSOrIOSApp,
+      }),
+    [router, teamIdForApi, isIPadOSOrIOSApp]
   );
 
   const renderVersionsCount = () => (
