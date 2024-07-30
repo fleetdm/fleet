@@ -1,6 +1,7 @@
 # Engineering
 This handbook page details processes specific to working [with](#contact-us) and [within](#responsibilities) this department.
 
+
 ## Team
 | Role                            | Contributor(s)           |
 |:--------------------------------|:-----------------------------------------------------------------------------------------------------------|
@@ -10,13 +11,16 @@ This handbook page details processes specific to working [with](#contact-us) and
 | Quality Assurance Engineer (QA) | <sup><sub> _See [🛩️ Product groups](https://fleetdm.com/handbook/company/product-groups#current-product-groups)_ </sup></sub>
 | Software Engineer               | <sup><sub> _See [🛩️ Product groups](https://fleetdm.com/handbook/company/product-groups#current-product-groups)_ </sup></sub>
 
+
 ## Contact us
 - To **make a request** of this department, [create an issue](https://fleetdm.com/handbook/company/product-groups#current-product-groups) and a team member will get back to you within one business day (If urgent, mention a [team member](#team) in the [#help-engineering](https://fleetdm.slack.com/archives/C019WG4GH0A) Slack channel.
   - Any Fleet team member can [view the kanban boards](https://fleetdm.com/handbook/company/product-groups#current-product-groups) for this department, including pending tasks and the status of new requests.
   - Please **use issue comments and GitHub mentions** to communicate follow-ups or answer questions related to your request.
 
+
 ## Responsibilities
 The 🚀 Engineering department at Fleet is directly responsible for writing and maintaining the [code](https://github.com/fleetdm/fleet) for Fleet's core product and infrastructure.
+
 
 ### Record engineering KPIs
 We track the success of this process by observing the throughput of issues through the system and identifying where buildups (and therefore bottlenecks) are occurring.
@@ -28,8 +32,8 @@ The metrics are:
 
 Each week these are tracked and shared in the weekly KPI sheet by Luke Heath.
 
-### Write a feature guide 
 
+### Write a feature guide 
 We write [guides](https://fleetdm.com/guides) for all new features. Feature guides are published before the feature is released so that our users understand how the feature is intended to work. A guide is a type of article, so the process for writing a guide and article is the same.
 
 1. Review and follow the [Fleet writing style guide](https://fleetdm.com/handbook/company/communications#writing).
@@ -39,7 +43,12 @@ We write [guides](https://fleetdm.com/guides) for all new features. Feature guid
 
 
 ### Create an engineering-initiated story
-Engineering-initiated stories are types of user stories created by engineers to make technical changes to Fleet. Technical changes should improve the user experience or contributor experience. For example, optimizing SQL that improves the response time of an API endpoint improves user experience by reducing latency. A script that generates common boilerplate, or automated tests to cover important business logic, improves the quality of life for contributors, making them happier and more productive, resulting in faster delivery of features to our customers.
+Engineering-initiated stories are types of user stories created by engineers to make technical
+changes to Fleet. Technical changes should improve the user experience or contributor experience.
+For example, optimizing SQL that improves the response time of an API endpoint improves user
+experience by reducing latency. A script that generates common boilerplate, or automated tests to
+cover important business logic, improves the quality of life for contributors, making them happier
+and more productive, resulting in faster delivery of features to our customers.
 
 It is important to frame engineering-initiated user stories the same way we frame all user stories. Stay focused on how this technical change will drive value for our users.
 
@@ -53,44 +62,42 @@ If there are no product changes, and the DRI decides to prioritize the story, th
 
 > We prefer the term engineering-initiated stories over technical debt because the user story format helps keep us focused on our users and contributors.
 
+
 ### Fix a bug
 All bug fix pull requests should have a mention back to the issue they resolve with #<ticket_number> in the description or even in a comment. Please do not use any [automated words](https://docs.github.com/en/issues/tracking-your-work-with-issues/linking-a-pull-request-to-an-issue#linking-a-pull-request-to-an-issue-using-a-keyword) since we don't want the tickets auto-closing when PR's are merged. 
 If the bug is labeled `~unreleased bug`, branch off and put your PR into `main`. These issues can be closed as soon as they complete QA.
 
 If the bug is labeled `~released bug`, branch off and put your PR into `main`. After merging checkout the latest tag, for example `git checkout fleet-v4.48.2`, then `git fetch; git cherry-pick <commit>`. If the cherry-pick fails with a conflict call out in the ticket how to resolve or if it is sufficiently complicated call out this fix is not suited for the patch release process and should only be included in the end of sprint release. This approach makes sure the bug fix is not built on top of unreleased feature code, which can cause merge conflicts during patch releases. 
 
-### Begin a merge freeze
-To ensure release quality, Fleet has a freeze period for testing beginning the Tuesday before the release at 11:00 AM Pacific. Effective at the start of the freeze period, a release candidate branch is created and frozen at `minor-fleet-v4.x.x` and no additional feature work is merged without approval.
 
-Bugs are exempt from the release freeze period.
+### Create a release candidate
+All minor releases go through the release candidate process before thay are published. A release candidate for the next minor release is created on the Tuesday before the release at 11:00 AM Pacific. A release candidate branch is created at `minor-fleet-v4.x.x` and no additional feature work is merged without EM and QA approval.
 
-Before beginning the freeze, create the release candidate branch. [Run the first step](https://github.com/fleetdm/fleet/tree/main/tools/release#minor-release-typically-end-of-sprint) of the minor release section of the Fleet releases script to create the release candidate branch, the release QA issue, and announce the release candidate in Slack. 
+All bug fixes that are merged into `main` after the release candidate is created are merged into the release candidate by the engineer responsible for the fix.
 
-After creating the release candidate branch, open the [repo settings on Merge Freeze](https://app.mergefreeze.com/installations/3704/branches/6847/edit) and populate the "Protected branch name" field with the name of the release candidate branch. Then, [open the repo on Merge Freeze](https://www.mergefreeze.com/installations/3704/branches/6847) and click the "Freeze now" button. This will freeze the selected release candidate branch and require any PRs to be manually unfrozen before merging. PRs may be manually unfrozen in Merge Freeze using the PR number.
+[Run the first step](https://github.com/fleetdm/fleet/tree/main/tools/release#minor-release-typically-end-of-sprint) of the minor release section of the Fleet releases script to create the release candidate branch, the release QA issue, and announce the release candidate in Slack.
 
-> Any Fleetie can [unfreeze PRs on Merge Freeze](https://www.mergefreeze.com/installations/3704/branches) if the PR contains documentation changes or bug fixes only. If the PR contains other changes, please confirm with your manager before unfreezing.
 
-### Deploy the release candidate to QA Wolf during merge freeze
-During merge freeze, deploy the release candidate to our QA Wolf instance every morning instead of `main` to ensure that any new bugs reported by QA Wolf are in the upcoming release and need to be fixed before publishing the release.
+### Deploy the release candidate to QA Wolf
+During the release candidate period, the relese candidate is deployed to our QA Wolf instance every morning instead of `main` to ensure that any new bugs reported by QA Wolf are in the upcoming release and need to be fixed before publishing the release.
 
 Open the [confidential repo environment variables](https://github.com/fleetdm/confidential/settings/variables/actions) page and update the `QAWOLF_DEPLOY_TAG` repository variable with the name of the release candidate branch. 
 
-### Merge a pull request during the freeze period
-We merge bug fixes, documentation changes, and website updates during the freeze period, but we do not merge other code changes. This minimizes code churn and helps ensure a stable release. To merge a bug fix, you must first unfreeze the PR in [Merge Freeze](https://app.mergefreeze.com/installations/3704/branches), and click the "Unfreeze 1 pull request" text link. 
+
+### Merge bug fixes into the release candidate
+Only merge bug fixes during the release candidate period to minimize code churn and help ensure a stable release. To merge a bug fix into the release candidate, it should first be merged into `main`. Then, `git checkout` the release candidate branch and create a new local branch. Next, `git cherry-pick` your commit from `main` into your new local branch, then create a pull request from your new branch to the release candidate. This process ensures your bug fix is included in `main` for future releases, as well as the release candidate branch for the pending release.
 
 > To allow a stable release test, the final 24 hours before release is a deep freeze when only bugs with the `~release-blocker` or `~unreleased-bug` labels are merged.
 
-If there is partially merged feature work when freeze begins, the previously merged code must be reverted. If there is an exceptional, business-critical need to merge feature work during freeze, as determined by the [release ritual DRI](#rituals), the following exception process may be followed:
+If there is partially merged feature work when the release candidate is created, the previously merged code must be reverted. If there is an exceptional, business-critical need to merge feature work into the release candidate, as determined by the [release ritual DRI](#rituals), the release candidate feature merge exception process can be followed.
 
-1. The engineer requesting the feature work merge exception during freeze notifies their Engineering Manager. 
-2. The Engineering Manager notifies the QA lead for the product group and the [release ritual DRI](https://fleetdm.com/handbook/engineering#rituals). 
-3. The Engineering Manager, QA lead, and [release ritual DRI](#rituals) must all approve the feature work PR before it is unfrozen and merged.
+### Request release candidate feature merge exception
+1. Notify product group EM that feature work will not merge into `main` before the release candidate is cut, and requires a feature merge exception.
+2. EM notifies QA lead for the product group and the [release ritual DRI](https://fleetdm.com/handbook/engineering#rituals).
+3. EM, QA lead, and [release ritual DRI](#rituals) must all approve the feature work PR before it is merged into the release candidate branch.
 
-> This exception process should be avoided whenever possible. Any feature work merged during freeze will likely result in a significant release delay.
+> This exception process should be avoided whenever possible. Any feature work merged into the release candidate will likely result in a significant release delay.
 
-### Merge a bug fix during the freeze period
-To merge a bug fix into the release candidate during freeze, it should first be merged into `main`. Then, `git checkout` the release candidate branch and create a new branch. Next, `git cherry-pick` your
-commit from `main` into your new branch, then create a pull request from your new branch to the release candidate. This process ensures your bug fix is included in `main` for future releases, as well as the release candidate branch for the next release.
 
 ### Confirm latest versions of dependencies
 Before kicking off release QA, confirm that we are using the latest versions of dependencies we want to keep up-to-date with each release. Currently, those dependencies are:
@@ -133,11 +140,14 @@ If an announcement is found for either data source that may impact data feed ava
 
 If code changes are found for any `fleetd` components, create a new release QA issue to update `fleetd`. Delete the top section for Fleet core, and retain the bottom section for `fleetd`. Populate the necessary version changes for each `fleetd` component.
 
+
 ### Indicate your product group is release-ready
-Once a product group completes its QA process during the freeze period, its QA lead moves the smoke testing ticket to the "Ready for release" column on their ZenHub board. They then notify the release ritual DRI by tagging them in a comment, indicating that their group is prepared for release. The release ritual DRI starts the [release process](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/Releasing-Fleet.md) after all QA leads have made these updates and confirmed their readiness for release.
+Once a product group completes its QA process during the release candidate period, its QA lead moves the smoke testing ticket to the "Ready for release" column on their ZenHub board. They then notify the release ritual DRI by tagging them in a comment, indicating that their group is prepared for release. The release ritual DRI starts the [release process](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/Releasing-Fleet.md) after all QA leads have made these updates and confirmed their readiness for release.
+
 
 ### Prepare Fleet release
 Documentation on completing the release process can be found [here](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/Releasing-Fleet.md).
+
 
 ### Deploy a new release to dogfood
 After each Fleet release, the new release is deployed to Fleet's "dogfood" (internal) instance.
@@ -153,6 +163,7 @@ How to deploy a new release to dogfood:
 > Note that this action will not handle down migrations. Always deploy a newer version than is currently deployed.
 >
 > Note that "fleetdm/fleet:main" is not a image name, instead use the commit hash in place of "main".
+
 
 ### Conclude current milestone 
 Immediately after publishing a new release, we close out the associated GitHub issues and milestones. 
@@ -175,14 +186,14 @@ Immediately after publishing a new release, we close out the associated GitHub i
 
 10. **Create next milestone**: Create a new milestone for the next versioned release, `4.x.x-tentative`.
 
-11. **Remove the freeze**: [Open the repo in Merge Freeze](https://app.mergefreeze.com/installations/3704/branches/6847) and click the "Unfreeze" button. 
+11. Announce that the release milestone has been closed in #help-engineering.
 
-12. Announce that `main` is unfrozen and the milestone has been closed in #help-engineering.
+12. Visit the [confidential repo variables](https://github.com/fleetdm/confidential/settings/variables/actions) page and update the `QAWOLF_DEPLOY_TAG` repository variable to `main` so that the latest code is deployed to QA Wolf every morning.
 
-13. Visit the [confidential repo variables](https://github.com/fleetdm/confidential/settings/variables/actions) page and update the `QAWOLF_DEPLOY_TAG` repository variable to `main` so that the latest code is deployed to QA Wolf every morning.
 
 ### Update the Fleet releases calendar
 The [Fleet releases Google calendar](https://calendar.google.com/calendar/embed?src=c_v7943deqn1uns488a65v2d94bs%40group.calendar.google.com&ctz=America%2FChicago) is kept up-to-date by the [release ritual DRI](https://fleetdm.com/handbook/engineering#rituals). Any change to targeted release dates is reflected on this calendar.
+
 
 ### Secure company-issued equipment for a team member
 As soon as an offer is accepted, Fleet provides laptops and YubiKey security keys for core team members to use while working at Fleet. The IT engineer will work with the new team member to get their equipment requested and shipped to them on time.
@@ -202,8 +213,10 @@ As soon as an offer is accepted, Fleet provides laptops and YubiKey security key
 
 - Include delivery tracking information when closing the support request so the new employee can be notified.
 
+
 ### Register a domain for Fleet
 Domain name registrations are handled through Namecheap. Access is managed via 1Password.
+
 
 ### Fix a laptop that's not checking in
 It is [possible for end users to remove launch agents](https://github.com/fleetdm/confidential/issues/6088) (this is true not just for osquery, but for anything). 
@@ -211,6 +224,7 @@ It is [possible for end users to remove launch agents](https://github.com/fleetd
 If the host has MDM turned on, use the `fleetctl mdm run-command` CLI command to push the XML file located at https://github.com/fleetdm/fleet/blob/main/it-and-security/lib/macos-send-fleetd.xml to the device, which will reinstall fleetd.
 
 If the host doesn't have MDM turned on or isn't enrolled to dogfood, it is beyond our ability to control remotely.
+
 
 ### Enroll a macOS host in dogfood
 When a device is purchased using the Apple eCommerce store, the device is automatically enrolled in Apple Business Manager (ABM) and assigned to the correct server to ensure the device is in dogfood.
@@ -229,12 +243,15 @@ On occasion there will be a need to manually enroll a macOS host in dogfood. Thi
   - Once complete, follow instructions to reset disk encryption key.
 - Disk encryption key will now be stored in Fleet dogfood, which signifies that the device is now enrolled in dogfood.
 
+
 ### Enroll a Windows or Ubuntu Linux device in dogfood
 To enroll a windows or Ubuntu Linux device in dogfood, instruct the user to install fleetd for their platform from internal shared drive folder [here](https://drive.google.com/drive/folders/1-hMwk4P7NRzCU5kDxkEcOo8Sluuaux1h?usp=drive_link).
 Once the user has installed fleetd, verify the device is correctly enrolled by confirming the device encryption key is in dogfood.
 
+
 ### Enroll a ChromeOS device in dogfood
 ChromeOS devices are automatically enrolled in dogfood after the IT admin sets up automatic enrollment. This is done in dogfood by following the steps found in the dialog popup when selecting "Add hosts > ChromeOS" from the dogfood Hosts page.
+
 
 ### Lock a macOS host in dogfood using fleetctl CLI tool
 - Download the lock command XML file from Google Drive [here](https://drive.google.com/file/d/1o6vJ1fHilRtBmyKAj0I5URiKn77qe4gS/view?usp=drive_link).
@@ -251,6 +268,7 @@ ChromeOS devices are automatically enrolled in dogfood after the IT admin sets u
   - Get disk encryption key from Fleet dogfood (using the action menu from the individual host page).
   - Enter disk encryption key on laptop. This should prompt you to create a new password.
 - You will then be logged into the default device profile, and can complete any needed actions (wipe, recover data).
+
 
 ### Book an event
 Fleet's Client Platform Engineer & Community Advocate is responsible for booking events that Fleet has chosen to attend and/or sponsor. To book an event, complete the steps in each event issue. Contact the [🫧 Digital Marketing Manager](https://fleetdm.com/handbook/demand#team) as needed with any questions or blockers to booking an event.
@@ -269,8 +287,8 @@ Article creation begins with creation of an issue using the "Article request" te
 Check the "📃 Planned articles" column in [#g-demand board](https://app.zenhub.com/workspaces/g-demand-64e6c8e2d35c7f001a457b7f/board) and continue to work through steps in each event's issue.
 -->
 
-### Order SWAG
 
+### Order SWAG
 **To order T-shirts:**
 
   - Check [Postal](https://app.postal.io/items/postals) first and see if the warehouse has enough shirts.
@@ -300,12 +318,14 @@ Check the "📃 Planned articles" column in [#g-demand board](https://app.zenhub
     - [Sharpie Fine Point Markers](https://www.everythingbranded.com/product/sharpie-fine-point-332908)
     - [Custom sticky note pads](https://www.everythingbranded.com/product/custom-sticky-notes-585601) (design is in the StickerMule [brand kit](https://www.stickermule.com/studio/brand-kits))
 
+
 ### Review another product group's pull request
 Some code paths require pull request review from multiple product groups to confirm there are no
 unintended side effects of the change for another product group. All code paths defined in
 [CODEOWNERS](https://github.com/fleetdm/fleet/blob/main/CODEOWNERS) that are assigned to individual
 engineers across multiple product groups must be approved by one engineer from each product group
 before merging.
+
 
 ### Review a community pull request
 If you're assigned a community pull request for review, it is important to keep things moving for the contributor. The goal is to not go more than one business day without following up with the contributor.
@@ -334,6 +354,7 @@ For PRs that will not be merged:
 - Thank the contributor for their effort and explain why the changes won't be merged.
 - Close the PR.
 
+
 ### Merge a community pull request
 When merging a pull request from a community contributor:
 
@@ -343,8 +364,10 @@ When merging a pull request from a community contributor:
 - Thank and congratulate the contributor.
 - Share the merged PR with the team in the #help-promote channel of Fleet Slack to be publicized on social media. Those who contribute to Fleet and are recognized for their contributions often become great champions for the project.
 
+
 ### Close a stale community issue
 If a community member opens an issue that we can't reproduce leave a comment asking the author for more context. After one week with no reply, close the issue with a comment letting them know they are welcome to re-open it with any updates.
+
 
 ### Schedule developer on-call workload
 Engineering managers are asked to be aware of the [on-call rotation](https://docs.google.com/document/d/1FNQdu23wc1S9Yo6x5k04uxT2RwT77CIMzLLeEI2U7JA/edit#) and schedule a light workload for engineers while they are on-call. While it varies week to week considerably, the on-call responsibilities can sometimes take up a substantial portion of the engineer's time.
@@ -361,6 +384,7 @@ Some ideas:
 - Create a blog post (or other content) for fleetdm.com.
 - Try out an experimental refactor. 
 
+
 ### Edit a DNS record
 We use Cloudflare to manage the DNS records of fleetdm.com and our other domains. To make DNS changes in Cloudflare:
 1. Log into your Cloudflare account and select the "Fleet" account.
@@ -369,6 +393,7 @@ We use Cloudflare to manage the DNS records of fleetdm.com and our other domains
 
 > If you need access to Fleet's Cloudflare account, please ask the [DRI](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) [Luke Heath](https://fleetdm.com/handbook/engineering#team) in Slack for an invitation.
 
+
 ### Assume developer on-call alias
 The on-call developer is responsible for: 
 - Knowing [the on-call rotation](https://fleetdm.com/handbook/company/product-groups#the-developer-on-call-rotation).
@@ -376,13 +401,15 @@ The on-call developer is responsible for:
 - [Escalating community questions and issues](https://fleetdm.com/handbook/company/product-groups#escalations).
 - Successfully [transferring the on-call persona to the next developer](https://fleetdm.com/handbook/company/product-groups#changing-of-the-guard).
 
+
 ### Notify stakeholders when a user story is pushed to the next release
-[User stories](https://fleetdm.com/handbook/company/product-groups#scrum-items) are intended to be completed in a single sprint. When a user story selected for a release has not merged into `main` by the time the [merge freeze](https://fleetdm.com/handbook/engineering#begin-a-merge-freeze) begins, it is the product group EM's responsibility to notify stakeholders:
+[User stories](https://fleetdm.com/handbook/company/product-groups#scrum-items) are intended to be completed in a single sprint. When a user story selected for a release has not merged into `main` by the time the release candidate is created, it is the product group EM's responsibility to notify stakeholders:
 
 1. Add the `~pushed` label to the user story.
 2. Update the user story's milestone to the next minor version milestone.
 3. Comment on the GitHub issue and at-mention the PM and anyone listed in the requester field.
 4. If `customer-` labels are applied to the user story, at-mention the [VP of Customer Success](https://fleetdm.com/handbook/customer-success#team).
+
 
 ### Run Fleet locally for QA purposes
 To try Fleet locally for QA purposes, run `fleetctl preview`, which defaults to running the latest stable release.
@@ -394,6 +421,7 @@ To start a preview without starting the simulated hosts, use the `--no-hosts` fl
 For each bug found, please use the [bug report template](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=bug%2C%3Areproduce&template=bug-report.md&title=) to create a new bug report issue.
 
 For unreleased bugs in an active sprint, a new bug is created with the `~unreleased bug` label. The `:release` label and associated product group label is added, and the engineer responsible for the feature is assigned. If QA is unsure who the bug should be assigned to, it is assigned to the EM. Fixing the bug becomes part of the story.
+
 
 ### Accept new Apple developer account terms
 Engineering is responsible for managing third-party accounts required to support engineering infrastructure. We use the official Fleet Apple developer account to notarize installers we generate for Apple devices. Whenever Apple releases new terms of service, we are unable to notarize new packages until the new terms are accepted.
@@ -410,8 +438,8 @@ When this occurs, we will begin receiving the following error message when attem
 
 5. Accept the new terms of service.
 
-### Interview a developer candidate
 
+### Interview a developer candidate
 Ensure the interview process follows these steps in order. This process must follow [creating a new position](https://fleetdm.com/handbook/company/leadership#creating-a-new-position) through [receiving job applications](https://fleetdm.com/handbook/company/leadership#receiving-job-applications). Once the position is approved manage this process per candidate in a [hiring pipeline](https://drive.google.com/drive/folders/1dLZaor9dQmAxcxyU6prm-MWNd-C-U8_1?usp=drive_link)
 
 1. **Reach out**: Send an email or LinkedIn message introducing yourself. Include the URL for the position, your Calendly URL, and invite the candidate to schedule a 30-minute introduction call.
@@ -423,6 +451,7 @@ Ensure the interview process follows these steps in order. This process must fol
 7. **Schedule CTO interview**: Send the candidate a calendly link for 30m talk with our CTO @lukeheath.
 
 If the candidate passes all of these steps then continue with [hiring a new team member](https://fleetdm.com/handbook/company/leadership#hiring-a-new-team-member).
+
 
 ### Renew MDM certificate signing request (CSR) 
 The certificate signing request (CSR) certificate expires every year. It needs to be renewed prior to expiring. This is notified to the team by the MDM calendar event [IMPORTANT: Renew MDM CSR certificate](https://calendar.google.com/calendar/u/0/r/eventedit/MmdqNTY4dG9nbWZycnNxbDBzYjQ5dGplM2FfMjAyNDA5MDlUMTczMDAwWiBjXzMyMjM3NjgyZGRlOThlMzI4MjVhNTY1ZDEyZjk0MDEyNmNjMWI0ZDljYjZjNjgyYzQ2MjcxZGY0N2UzNjM5NDZAZw)
@@ -444,6 +473,7 @@ Steps to renew the certificate:
 10. Verify by logging into a normal apple account (not billing@...) and Generate a new Push Certificate following our [setup MDM](https://fleetdm.com/docs/using-fleet/mdm-setup) steps and verify the Expiration date is 1 year from today.
 11. Adjust calendar event to be between 2-4 weeks before the next expiration.
 
+
 ### Perform an incident postmortem
 Conduct a postmortem meetings for every service or feature outage and every critical bug, whether it's a customer's environment or on fleetdm.com.
 
@@ -453,6 +483,7 @@ Conduct a postmortem meetings for every service or feature outage and every crit
 4. Assign each action item an owner that who is responsible for creating a Github issue promptly and working with with the relevant PM/EM to prioritize.
 
 [Example Finished Document](https://docs.google.com/document/d/1YnETKhH9R7STAY-PaFnPy2qxhNht2EAFfkv-kyEwebQ/edit?usp=share_link)
+
 
 ### Process incoming equipment
 Upon receiving any device, follow these steps to process incoming equipment.
@@ -466,6 +497,7 @@ Upon receiving any device, follow these steps to process incoming equipment.
 9. Follow the prompts to activate the device and reinstall the appropriate version of macOS.
 > If you are prevented from completing the steps above, create a ["💻 IT support issue](https://github.com/fleetdm/confidential/issues/new?assignees=%40spokanemac&labels=%3Ahelp-it&projects=&template=request-it-support.md&title=%F0%9F%92%BB+Request+IT+support) for IT, for the device to be scheduled for troubleshooting and remediation. Please note in the issue where you encountered blockers to completing the steps.
 
+
 ### Ship approved equipment
 Once the Business Operations department approves inventory to be shipped from Fleet IT, follow these step to ship the equipment.
 1. Compare the equipment request issue with the ["Company equipment" spreadsheet](https://docs.google.com/spreadsheets/d/1hFlymLlRWIaWeVh14IRz03yE-ytBLfUaqVz0VVmmoGI/edit#gid=0) and verify physical inventory.
@@ -476,8 +508,10 @@ Once the Business Operations department approves inventory to be shipped from Fl
 6. Ship via FedEx to the address listed in the equipment request.
 7. Add a comment to the equipment request issue, at-mentioning the requestor with the FedEx tracking info and close the issue.
 
+
 ## Rituals
 <rituals :rituals="rituals['handbook/engineering/engineering.rituals.yml']"></rituals>
+
 
 #### Stubs
 The following stubs are included only to make links backward compatible.
@@ -545,6 +579,12 @@ Please see [handbook/engineering#accept-new-apple-developer-account-terms](https
 
 ##### Merging during the freeze period
 Please see [handbook/engineering#merge-a-pull-request-during-the-freeze-period](https://fleetdm.com/handbook/engineering#merge-a-pull-request-during-the-freeze-period)
+
+##### Merge a pull request during the freeze period
+Please see [merge-bug-fixes-into-the-release-candidate](https://fleetdm.com/handbook/engineering#merge-bug-fixes-into-the-release-candidate)
+
+##### Begin a merge freeze
+Please see [handbook/engineering#create-a-release-candidate](https://fleetdm.com/handbook/engineering#create-a-release-candidate)
 
 ##### Scrum boards
 Please see [handbook//product-groups#current-product-groups](https://fleetdm.com/handbook/engineering#contact-us)
