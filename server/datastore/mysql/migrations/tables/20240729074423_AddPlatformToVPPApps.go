@@ -23,7 +23,7 @@ func Up_20240729074423(tx *sql.Tx) error {
 		return fmt.Errorf("adding platform to vpp_apps: %w", err)
 	}
 
-	_, err = tx.Exec(`UPDATE vpp_apps SET platform = ?`, fleet.MacOSPlatform)
+	_, err = tx.Exec(`UPDATE vpp_apps SET platform = ?, updated_at = updated_at`, fleet.MacOSPlatform)
 	if err != nil {
 		return fmt.Errorf("updating platform in vpp_apps: %w", err)
 	}

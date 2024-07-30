@@ -139,16 +139,19 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 	}
 
 	if !dryRun {
-		apps, err := getVPPAppsMetadata(ctx, vppAppIDs)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "refreshing VPP app metadata")
-		}
-		if len(apps) == 0 {
-			return fleet.NewInvalidArgumentError("app_store_apps", "no valid apps found matching the provided app store IDs and platforms")
-		}
+		if len(vppAppIDs) > 0 {
+			apps, err := getVPPAppsMetadata(ctx, vppAppIDs)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "refreshing VPP app metadata")
+			}
+			if len(apps) == 0 {
+				return fleet.NewInvalidArgumentError("app_store_apps",
+					"no valid apps found matching the provided app store IDs and platforms")
+			}
 
-		if err := svc.ds.BatchInsertVPPApps(ctx, apps); err != nil {
-			return ctxerr.Wrap(ctx, err, "inserting vpp app metadata")
+			if err := svc.ds.BatchInsertVPPApps(ctx, apps); err != nil {
+				return ctxerr.Wrap(ctx, err, "inserting vpp app metadata")
+			}
 		}
 
 		if err := svc.ds.SetTeamVPPApps(ctx, &team.ID, vppAppIDs); err != nil {
