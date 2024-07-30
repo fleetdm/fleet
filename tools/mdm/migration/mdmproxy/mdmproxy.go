@@ -91,6 +91,14 @@ func (m *mdmProxy) handleProxy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Send all micromdm repo requests to the existing server
+	if strings.HasPrefix(r.URL.Path, "/repo") {
+		log.Printf("%s %s -> Existing (Repo)", r.Method, r.URL.String())
+		m.existingProxy.ServeHTTP(w, r)
+		return
+
+	}
+
 	// Read the body of the request
 	body, err := io.ReadAll(r.Body)
 	_ = r.Body.Close()
