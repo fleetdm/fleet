@@ -34,7 +34,7 @@ We write [guides](https://fleetdm.com/guides) for all new features. Feature guid
 
 1. Review and follow the [Fleet writing style guide](https://fleetdm.com/handbook/company/communications#writing).
 2. Make a copy of the ["Article: Guide Template"](https://docs.google.com/document/d/1OPcDouyfyFPg3ScrN4bo6ol8vMfMa3P9-BIfbnEdcg4/copy) and rename "Article: [Guide] {feature name}".
-3. Open the template and insert your content into the provided template format. 
+3. Open the template and insert your [drafted content](https://fleetdm.com/handbook/company/product-groups#defining-done) into the provided template format. 
 4. Create a [new GitHub issue](https://github.com/fleetdm/fleet/issues/new?assignees=spokanemac&labels=:help-it&title=New%20guide:) with the guide title, and add the `:help-it` label. It will be processed and added to the website by our [Community Advocate](https://fleetdm.com/handbook/engineering#team).
 
 
