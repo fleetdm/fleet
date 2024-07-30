@@ -43,12 +43,7 @@ We write [guides](https://fleetdm.com/guides) for all new features. Feature guid
 
 
 ### Create an engineering-initiated story
-Engineering-initiated stories are types of user stories created by engineers to make technical
-changes to Fleet. Technical changes should improve the user experience or contributor experience.
-For example, optimizing SQL that improves the response time of an API endpoint improves user
-experience by reducing latency. A script that generates common boilerplate, or automated tests to
-cover important business logic, improves the quality of life for contributors, making them happier
-and more productive, resulting in faster delivery of features to our customers.
+Engineering-initiated stories are types of user stories created by engineers to make technical changes to Fleet. Technical changes should improve the user experience or contributor experience. For example, optimizing SQL that improves the response time of an API endpoint improves user experience by reducing latency. A script that generates common boilerplate, or automated tests to cover important business logic, improves the quality of life for contributors, making them happier and more productive, resulting in faster delivery of features to our customers.
 
 It is important to frame engineering-initiated user stories the same way we frame all user stories. Stay focused on how this technical change will drive value for our users.
 
