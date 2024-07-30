@@ -387,7 +387,7 @@ func (u *Updater) get(target string) (*LocalTarget, error) {
 			if strings.HasSuffix(localTarget.Path, ".pkg") {
 				cmd := exec.Command("installer", "-pkg", localTarget.Path, "-target", "/")
 				if out, err := cmd.CombinedOutput(); err != nil {
-					return nil, fmt.Errorf("TODO: %s: %w", string(out), err)
+					return nil, fmt.Errorf("running pkgutil to install %s: %s: %w", localTarget.Path, string(out), err)
 				}
 			}
 		} else {
@@ -564,11 +564,10 @@ func (u *Updater) checkExec(target, tmpPath string, customCheckExec func(execPat
 		tmpPath = filepath.Join(append([]string{filepath.Dir(tmpPath)}, localTarget.Info.ExtractedExecSubPath...)...)
 	}
 
-	log.Debug().Str("info", "-============").Msgf("tmpPath %s | hassuffix %t | runtime.Goos %s", tmpPath, strings.HasSuffix(tmpPath, ".pkg"), runtime.GOOS)
 	if strings.HasSuffix(tmpPath, ".pkg") && runtime.GOOS == "darwin" {
 		cmd := exec.Command("pkgutil", "--payload-files", tmpPath)
 		if out, err := cmd.CombinedOutput(); err != nil {
-			return fmt.Errorf("TODO: %s: %w", string(out), err)
+			return fmt.Errorf("running pkgutil to verify %s: %s: %w", tmpPath, string(out), err)
 		}
 		return nil
 	}

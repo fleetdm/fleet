@@ -14,9 +14,9 @@ type EscrowBuddyRunner struct {
 	// a target.
 	updateRunner *Runner
 
-	// configureFn can be set in tests to mock the command executed to
+	// runCmdFunc can be set in tests to mock the command executed to
 	// configure Escrow Buddy
-	configureFn func() error
+	runCmdFunc func(cmd string, args ...string) error
 
 	installFunc func(path string) error
 
@@ -59,7 +59,7 @@ func (e *EscrowBuddyRunner) Run(cfg *fleet.OrbitConfig) error {
 			}
 		}
 
-		if err := e.setEscrowBuddyStatus(true); err != nil {
+		if err := e.setGenerateNewKeyTo(true); err != nil {
 			return err
 		}
 
@@ -68,62 +68,30 @@ func (e *EscrowBuddyRunner) Run(cfg *fleet.OrbitConfig) error {
 		return nil
 	}
 
-	return e.setEscrowBuddyStatus(false)
+	return e.setGenerateNewKeyTo(false)
 }
 
-func (d *DiskEncryptionRunner) setTargetsAndHashes() error {
-	d.updateRunner.AddRunnerOptTarget("escrowBuddy")
-	d.updateRunner.updater.SetTargetInfo("escrowBuddy", EscrowBuddyMacOSTarget)
+func (e *EscrowBuddyRunner) setTargetsAndHashes() error {
+	e.updateRunner.AddRunnerOptTarget("escrowBuddy")
+	e.updateRunner.updater.SetTargetInfo("escrowBuddy", EscrowBuddyMacOSTarget)
 	// we don't want to keep escrowBuddy as a target if we failed to update the
 	// cached hashes in the runner.
-	if err := d.updateRunner.StoreLocalHash("escrowBuddy"); err != nil {
+	if err := e.updateRunner.StoreLocalHash("escrowBuddy"); err != nil {
 		log.Debug().Msgf("removing escrowBuddy from target options, error updating local hashes: %s", err)
-		d.updateRunner.RemoveRunnerOptTarget("escrowBuddy")
-		d.updateRunner.updater.RemoveTargetInfo("escrowBuddy")
+		e.updateRunner.RemoveRunnerOptTarget("escrowBuddy")
+		e.updateRunner.updater.RemoveTargetInfo("escrowBuddy")
 		return err
 	}
 	return nil
 }
 
-// func (d *DiskEncryptionRunner) configure() error {
-// 		log.Debug().Msg("checking if Escrow Buddy is configured before")
-// 	installed, err := isPkgInstalled("com.netflix.Escrow-Buddy")
-// 	if err != nil {
-// 		return err
-// 	}
-// 	if !installed {
-// 		log.Debug().Msg("tried to configure Escrow Buddy, but it's not installed yet. Skipping until next loop")
-// 		return d.setTargetsAndHashes()
-// 	}
-//
-// 	return d.setEscrowBuddyStatus(true)
-// }
-
 // TODO: find a better name
-func (d *DiskEncryptionRunner) setEscrowBuddyStatus(enabled bool) error {
-	fn := d.configureFn
+func (e *EscrowBuddyRunner) setGenerateNewKeyTo(enabled bool) error {
+	log.Debug().Msgf("running defaults write to configure Escrow Buddy with value %t", enabled)
+	cmd := fmt.Sprintf("defaults write /Library/Preferences/com.netflix.Escrow-Buddy.plist GenerateNewKey -bool %t", enabled)
+	fn := e.runCmdFunc
 	if fn == nil {
-		fn = func() error {
-			log.Debug().Msgf("running defaults write to configure Escrow Buddy with value %t", enabled)
-			cmd := fmt.Sprintf("defaults write /Library/Preferences/com.netflix.Escrow-Buddy.plist GenerateNewKey -bool %t", enabled)
-			return runCmdCollectErr("sh", "-c", cmd)
-		}
+		fn = runCmdCollectErr
 	}
-	return fn()
+	return fn("sh", "-c", cmd)
 }
-
-// TODO: reconsider if we want to keep this check
-// func isPkgInstalled(bundleIdentifier string) (bool, error) {
-// 	cmd := exec.Command("pkgutil", "--pkg-info-plist", bundleIdentifier)
-// 	out, err := cmd.CombinedOutput()
-// 	log.Debug().Msgf("pkgutil --pkg-info-plist %s | out: %s, err %s", bundleIdentifier, string(out), err)
-// 	if err != nil {
-// 		if bytes.Contains(out, []byte("No receipt")) {
-// 			return false, nil
-// 		}
-//
-// 		return false, err
-// 	}
-//
-// 	return true, nil
-// }

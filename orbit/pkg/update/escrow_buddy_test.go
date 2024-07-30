@@ -15,7 +15,7 @@ func mockConfigFn() func() error {
 func TestDiskEncryptionMiddlewareNotificationOff(t *testing.T) {
 	cfg := &fleet.OrbitConfig{}
 	cfg.Notifications.RotateDiskEncryptionKey = true
-	r := ApplyDiskEncryptionRunnerMiddleware(nil, 1*time.Second)
+	r := ApplyEscrowBuddyRunnerMiddleware(nil, 1*time.Second)
 	err := r.Run(cfg)
 	require.NoError(t, err)
 }
@@ -23,7 +23,7 @@ func TestDiskEncryptionMiddlewareNotificationOff(t *testing.T) {
 func TestDiskEncryptionUpdatesDisabled(t *testing.T) {
 	cfg := &fleet.OrbitConfig{}
 	cfg.Notifications.RotateDiskEncryptionKey = true
-	r := ApplyDiskEncryptionRunnerMiddleware(nil, 1*time.Second)
+	r := ApplyEscrowBuddyRunnerMiddleware(nil, 1*time.Second)
 	err := r.Run(cfg)
 	require.NoError(t, err)
 }
