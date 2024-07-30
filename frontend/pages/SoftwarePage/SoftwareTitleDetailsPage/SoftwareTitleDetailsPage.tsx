@@ -73,7 +73,7 @@ const SoftwareTitleDetailsPage = ({
     location,
     router,
     includeAllTeams: true,
-    includeNoTeam: false,
+    includeNoTeam: true,
   });
 
   const {
@@ -110,7 +110,7 @@ const SoftwareTitleDetailsPage = ({
       return;
     }
     // redirect to software titles page if no versions are available
-    if (teamIdForApi && teamIdForApi > 0) {
+    if (teamIdForApi) {
       router.push(paths.SOFTWARE_TITLES.concat(`?team_id=${teamIdForApi}`));
     } else {
       router.push(paths.SOFTWARE_TITLES);
@@ -163,9 +163,7 @@ const SoftwareTitleDetailsPage = ({
       return (
         <DetailsNoHosts
           header="Software not detected"
-          details={`No hosts ${
-            teamIdForApi ? "on this team " : ""
-          }have this software installed.`}
+          details="No hosts have this software installed."
         />
       );
     }

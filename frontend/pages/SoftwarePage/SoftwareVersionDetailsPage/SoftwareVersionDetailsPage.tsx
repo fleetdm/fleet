@@ -64,7 +64,7 @@ const SoftwareVersionDetailsPage = ({
     location,
     router,
     includeAllTeams: true,
-    includeNoTeam: false,
+    includeNoTeam: true,
   });
 
   const {
@@ -151,9 +151,7 @@ const SoftwareVersionDetailsPage = ({
         {isSoftwareVersionError ? (
           <DetailsNoHosts
             header="Software not detected"
-            details={`No hosts ${
-              teamIdForApi ? "on this team " : ""
-            }have this software installed.`}
+            details="No hosts have this software installed."
           />
         ) : (
           <>

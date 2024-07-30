@@ -264,7 +264,7 @@ SELECT
 FROM software_titles st
 LEFT JOIN software_installers si ON si.title_id = st.id AND si.global_or_team_id = ?
 LEFT JOIN vpp_apps vap ON vap.title_id = st.id
-LEFT JOIN vpp_apps_teams vat ON vat.global_or_team_id = ? AND vat.adam_id = vap.adam_id
+LEFT JOIN vpp_apps_teams vat ON vat.global_or_team_id = ? AND vat.adam_id = vap.adam_id AND vat.platform = vap.platform
 LEFT JOIN software_titles_host_counts sthc ON sthc.software_title_id = st.id AND sthc.team_id = ?
 -- placeholder for JOIN on software/software_cve
 %s

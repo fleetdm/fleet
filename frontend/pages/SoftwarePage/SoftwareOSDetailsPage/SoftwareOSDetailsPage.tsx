@@ -68,7 +68,7 @@ const SoftwareOSDetailsPage = ({
     location,
     router,
     includeAllTeams: true,
-    includeNoTeam: false,
+    includeNoTeam: true,
   });
 
   const {
@@ -157,9 +157,7 @@ const SoftwareOSDetailsPage = ({
         {isOsVersionError ? (
           <DetailsNoHosts
             header="OS not detected"
-            details={`No hosts ${
-              teamIdForApi ? "on this team " : ""
-            }have this OS installed.`}
+            details="No hosts have this OS installed."
           />
         ) : (
           <>
