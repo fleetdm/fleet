@@ -1180,11 +1180,11 @@ Modifies the Fleet's configuration with the supplied information.
       "custom_settings": [
         {
           "path": "path/to/profile1.mobileconfig",
-          "labels": ["Label 1", "Label 2"]
+          "labels_exclude_any": ["Label 1", "Label 2"]
         },
         {
           "path": "path/to/profile2.json",
-          "labels": ["Label 3", "Label 4"]
+          "labels_include_all": ["Label 3", "Label 4"]
         },
       ]
     },
@@ -1192,7 +1192,7 @@ Modifies the Fleet's configuration with the supplied information.
       "custom_settings": [
         {
           "path": "path/to/profile3.xml",
-          "labels": ["Label 1", "Label 2"]
+          "labels_exclude_any": ["Label 1", "Label 2"]
         }
       ]
     },
@@ -1680,7 +1680,7 @@ _Available in Fleet Premium._
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | apple_bm_default_team             | string  | _Available in Fleet Premium._ The default team to use with Apple Business Manager. |
 | windows_enabled_and_configured    | boolean | Enables Windows MDM support. |
-| enable_disk_encryption            | boolean | _Available in Fleet Premium._ Hosts that belong to no team and are enrolled into Fleet's MDM will have disk encryption enabled if set to true. |
+| enable_disk_encryption            | boolean | _Available in Fleet Premium._ Hosts that belong to no team will have disk encryption enabled if set to true. |
 | macos_updates         | object  | See [`mdm.macos_updates`](#mdm-macos-updates). |
 | macos_migration         | object  | See [`mdm.macos_migration`](#mdm-macos-migration). |
 | macos_setup         | object  | See [`mdm.macos_setup`](#mdm-macos-setup). |
@@ -1697,8 +1697,8 @@ _Available in Fleet Premium._
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| minimum_version                   | string  | Hosts that belong to no team and are enrolled into Fleet's MDM will be nudged until their macOS is at or above this version. |
-| deadline                          | string  | Hosts that belong to no team and are enrolled into Fleet's MDM won't be able to dismiss the Nudge window once this deadline is past. |
+| minimum_version                   | string  | Hosts that belong to no team will be nudged until their macOS is at or above this version. |
+| deadline                          | string  | Hosts that belong to no team won't be able to dismiss the Nudge window once this deadline is past. |
 
 <br/>
 
@@ -1710,8 +1710,8 @@ _Available in Fleet Premium._
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| deadline_days                     | integer | Hosts that belong to no team and are enrolled into Fleet's MDM will have this number of days before updates are installed on Windows. |
-| grace_period_days                 | integer | Hosts that belong to no team and are enrolled into Fleet's MDM will have this number of days before Windows restarts to install updates. |
+| deadline_days                     | integer | Hosts that belong to no team will have this number of days before updates are installed on Windows. |
+| grace_period_days                 | integer | Hosts that belong to no team will have this number of days before Windows restarts to install updates. |
 
 <br/>
 
@@ -1747,7 +1747,7 @@ _Available in Fleet Premium._
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| custom_settings                   | list    | macOS hosts that belong to no team, and are members of specified labels will have custom profiles applied. |
+| custom_settings                   | list    | macOS hosts that belong to no team will have custom profiles applied. |
 
 <br/>
 
@@ -1757,7 +1757,7 @@ _Available in Fleet Premium._
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| custom_settings                   | list    | Windows hosts that belong to no team, and are members of specified labels will have custom profiles applied. |
+| custom_settings                   | list    | Windows hosts that belong to no team will have custom profiles applied. |
 
 <br/>
 
@@ -2791,6 +2791,18 @@ Returns the count of all hosts organized by status. `online_count` includes all 
       "name": "All Linux",
       "description": "All Linux distributions",
       "label_type": "builtin"
+    },
+    {
+      "id": 13,
+      "name": "iOS",
+      "description": "All iOS hosts",
+      "label_type": "builtin"
+    },
+    {
+      "id": 14,
+      "name": "iPadOS",
+      "description": "All iPadOS hosts",
+      "label_type": "builtin"
     }
   ],
   "platforms": [
@@ -2800,6 +2812,14 @@ Returns the count of all hosts organized by status. `online_count` includes all 
     },
     {
       "platform": "darwin",
+      "hosts_count": 1234
+    },
+    {
+      "platform": "ios",
+      "hosts_count": 1234
+    },
+    {
+      "platform": "ipados",
       "hosts_count": 1234
     },
     {
@@ -3029,6 +3049,10 @@ Returns the information of the specified host.
         "type": "point",
         "coordinates": [40.6799, -74.0028]
       }
+    },
+    "maintenance_window": {
+      "starts_at": "2024-06-18T13:27:18−04:00",
+      "timezone": "America/New_York"
     },
     "mdm": {
       "encryption_key_available": false,
@@ -4587,9 +4611,9 @@ To unlock a Windows or Linux host, the host must have [scripts enabled](https://
 
 ### Wipe host
 
-Sends a command to wipe the specified macOS, Windows, or Linux host. The host is wiped once it comes online.
+Sends a command to wipe the specified macOS, iOS, iPadOS, Windows, or Linux host. The host is wiped once it comes online.
 
-To wipe a macOS or Windows host, the host must have MDM turned on. To lock a Linux host, the host must have [scripts enabled](https://fleetdm.com/docs/using-fleet/scripts).
+To wipe a macOS, iOS, iPadOS, or Windows host, the host must have MDM turned on. To lock a Linux host, the host must have [scripts enabled](https://fleetdm.com/docs/using-fleet/scripts).
 
 `POST /api/v1/fleet/hosts/:id/wipe`
 
@@ -5369,8 +5393,8 @@ Add a configuration profile to enforce custom settings on macOS and Windows host
 | ------------------------- | -------- | ---- | ------------------------------------------------------------------------------------------------------------- |
 | profile                   | file     | form | **Required.** The .mobileconfig and JSON for macOS or XML for Windows file containing the profile. |
 | team_id                   | string   | form | _Available in Fleet Premium_. The team ID for the profile. If specified, the profile is applied to only hosts that are assigned to the specified team. If not specified, the profile is applied to only to hosts that are not assigned to any team. |
-| labels                    | array     | form | _Available in Fleet Premium_. An array of labels to filter hosts in a team (or no team) that should get a profile. |
-
+| labels_include_all        | array     | form | _Available in Fleet Premium_. Profile will only be applied to hosts that have all of these labels. |
+| labels_exclude_any | array | form | _Available in Fleet Premium_. Profile will be applied to hosts that don’t have any of these labels. |
 
 #### Example
 
@@ -5395,11 +5419,11 @@ Content-Disposition: form-data; name="team_id"
 
 1
 --------------------------f02md47480und42y
-Content-Disposition: form-data; name="labels"
+Content-Disposition: form-data; name="labels_include_all"
 
 Label name 1
 --------------------------f02md47480und42y
-Content-Disposition: form-data; name="labels"
+Content-Disposition: form-data; name="labels_include_all"
 
 Label name 2
 --------------------------f02md47480und42y
@@ -5485,7 +5509,7 @@ List all configuration profiles for macOS and Windows hosts enrolled to Fleet's 
       "created_at": "2023-03-31T00:00:00Z",
       "updated_at": "2023-03-31T00:00:00Z",
       "checksum": "dGVzdAo=",
-      "labels": [
+      "labels_exclude_any": [
        {
         "name": "Label name 1"
        }
@@ -5499,14 +5523,14 @@ List all configuration profiles for macOS and Windows hosts enrolled to Fleet's 
       "created_at": "2023-04-31T00:00:00Z",
       "updated_at": "2023-04-31T00:00:00Z",
       "checksum": "aCLemVr)",
-      "labels": [
-       {
-         "name": "Label name 1",
-         "broken": true
-       },
-       {
-         "name": "Label name 2"
-       }
+      "labels_include_all": [
+        {
+          "name": "Label name 1",
+          "broken": true
+        },
+        {
+          "name": "Label name 2"
+        }
       ]
     }
   ],
@@ -5550,7 +5574,7 @@ If one or more assigned labels are deleted the profile is considered broken (`br
   "created_at": "2023-03-31T00:00:00Z",
   "updated_at": "2023-03-31T00:00:00Z",
   "checksum": "dGVzdAo=",
-  "labels": [
+  "labels_include_all": [
     {
       "name": "Label name 1",
       "broken": true
@@ -6286,6 +6310,8 @@ This endpoint returns the list of custom MDM commands that have been executed.
 | per_page                  | integer | query | Results per page.                                                         |
 | order_key                 | string  | query | What to order results by. Can be any field listed in the `results` array example below. |
 | order_direction           | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`. |
+| host_identifier           | string  | query | The host's `hostname`, `uuid`, or `hardware_serial`. |
+| request_type              | string  | query | The request type to filter commands by. |
 
 #### Example
 
@@ -8214,7 +8240,6 @@ This allows you to easily configure scheduled queries that will impact a whole t
 
 - [Run script](#run-script)
 - [Get script result](#get-script-result)
-- [Run live script](#run-live-script)
 - [Add script](#add-script)
 - [Delete script](#delete-script)
 - [List scripts](#list-scripts)
@@ -8289,46 +8314,6 @@ Gets the result of a script that was executed.
 ```
 
 > Note: `exit_code` can be `null` if Fleet hasn't heard back from the host yet.
-
-### Run live script
-
-Run a live script and get results back (5 minute timeout). Live scripts only runs on the host if it has no other scripts running.
-
-`POST /api/v1/fleet/scripts/run/sync`
-
-#### Parameters
-
-| Name            | Type    | In   | Description                                      |
-| ----            | ------- | ---- | --------------------------------------------     |
-| host_id         | integer | body | **Required**. The host id to run the script on.  |
-| script_id       | integer | body | The ID of the existing saved script to run. Only one of either `script_id`, `script_name` or `script_contents` can be included in the request; omit this parameter if using `script_contents` or `script_name`.  |
-| script_contents | string  | body | The contents of the script to run. Only one of either `script_contents`, `script_id` or `script_name` can be included in the request; omit this parameter if using `script_id` or `script_name`. |
-| script_name       | string | body | The name of the existing saved script to run. Only one of either `script_name`, `script_id` or `script_contents` can be included in the request; omit this parameter if using `script_contents` or `script_id`.  |
-| team_id       | integer | body | ID of the team the saved script referenced by `script_name` belongs to. Default: `0` (hosts assigned to "No team") |
-
-
-> Note that if both `script_id` and `script_contents` are included in the request, this endpoint will respond with an error.
-
-#### Example
-
-`POST /api/v1/fleet/scripts/run/sync`
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "host_id": 1227,
-  "execution_id": "e797d6c6-3aae-11ee-be56-0242ac120002",
-  "script_contents": "echo 'hello'",
-  "output": "hello",
-  "message": "",
-  "runtime": 1,
-  "host_timeout": false,
-  "exit_code": 0
-}
-```
 
 ### Add script
 

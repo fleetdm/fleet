@@ -29,4 +29,15 @@ do
     fi
 done
 
+# Logout any non-passwd users
+logged_in=$(users | tr ' ' '\n' | sort  | uniq)
+for user in $logged_in; do
+    [ "$user" = "root" ] && continue
+    echo "Logging out $user"
+    pkill -KILL -u "$user"
+done
+
+# Create the pam_nologin file
+touch /etc/nologin
+
 echo "All non-root users have been logged out and their accounts locked."

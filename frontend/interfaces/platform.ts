@@ -1,24 +1,16 @@
+export type AppleDisplayPlatform = "macOS" | "iOS" | "iPadOS";
 export type DisplayPlatform =
-  | "macOS"
+  | AppleDisplayPlatform
   | "Windows"
   | "Linux"
-  | "ChromeOS"
-  | "iOS"
-  | "iPadOS";
-
-export type Platform =
-  | "darwin"
-  | "windows"
-  | "linux"
-  | "chrome"
-  | "ios"
-  | "ipados";
-
+  | "ChromeOS";
 export type QueryableDisplayPlatform = Exclude<
   DisplayPlatform,
   "iOS" | "iPadOS"
 >;
 
+export type ApplePlatform = "darwin" | "ios" | "ipados";
+export type Platform = ApplePlatform | "windows" | "linux" | "chrome";
 export type QueryablePlatform = Exclude<Platform, "ios" | "ipados">;
 
 export const SUPPORTED_PLATFORMS: QueryablePlatform[] = [
@@ -81,6 +73,12 @@ export const HOST_LINUX_PLATFORMS = [
 ] as const;
 
 export const HOST_APPLE_PLATFORMS = ["darwin", "ios", "ipados"] as const;
+
+export type HostPlatform =
+  | typeof HOST_LINUX_PLATFORMS[number]
+  | typeof HOST_APPLE_PLATFORMS[number]
+  | "windows"
+  | "chrome";
 
 /**
  * Checks if the provided platform is a Linux-like OS. We can recieve many

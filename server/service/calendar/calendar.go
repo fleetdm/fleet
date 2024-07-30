@@ -4,6 +4,7 @@ package calendar
 
 import (
 	"context"
+	"crypto/sha256"
 	"fmt"
 	"strconv"
 	"strings"
@@ -22,6 +23,7 @@ const (
 	ReservedLockKeyPrefix = "calendar:reserved:"
 	RecentUpdateKeyPrefix = "calendar:recent_update:"
 	QueueKey              = "calendar:queue"
+	DefaultEventBodyTag   = "default"
 
 	// DistributedLockExpireMs is the time Redis will hold the lock before automatically releasing it.
 	// Our current max retry time for calendar API is 10 minutes, and multiple API calls (with their own retry timing) can be made during event processing.
@@ -48,6 +50,13 @@ type Config struct {
 	ServerURL string
 }
 
+// PolicyLiteWithMeta is a wrapper around fleet.PolicyLite that includes a tag for policy's description/resolution.
+type PolicyLiteWithMeta struct {
+	fleet.PolicyLite
+	Tag string
+	mu  sync.Mutex
+}
+
 func CreateUserCalendarFromConfig(ctx context.Context, config *Config, logger kitlog.Logger) fleet.UserCalendar {
 	googleCalendarConfig := calendar.GoogleCalendarConfig{
 		Context:           ctx,
@@ -60,12 +69,12 @@ func CreateUserCalendarFromConfig(ctx context.Context, config *Config, logger ki
 
 func GenerateCalendarEventBody(ctx context.Context, ds fleet.Datastore, orgName string, host fleet.HostPolicyMembershipData,
 	policyIDtoPolicy *sync.Map, conflict bool, logger kitlog.Logger,
-) string {
-	description, resolution := getCalendarEventDescriptionAndResolution(ctx, ds, orgName, host, policyIDtoPolicy, logger)
+) (body string, tag string) {
+	description, resolution, tag := getCalendarEventDescriptionAndResolution(ctx, ds, orgName, host, policyIDtoPolicy, logger)
 
 	conflictStr := ""
 	if conflict {
-		conflictStr = "because there was no remaining availability "
+		conflictStr = fleet.CalendarEventConflictText
 	}
 	return fmt.Sprintf(`%s %s %s(%s).
 
@@ -76,47 +85,57 @@ Please leave your device on and connected to power.
 
 <b>What we'll do</b>
 %s
-`, orgName, fleet.CalendarBodyStaticHeader, conflictStr, host.HostDisplayName, description, resolution)
+`, orgName, fleet.CalendarBodyStaticHeader, conflictStr, host.HostDisplayName, description, resolution), tag
 }
 
 func getCalendarEventDescriptionAndResolution(ctx context.Context, ds fleet.Datastore, orgName string, host fleet.HostPolicyMembershipData,
 	policyIDtoPolicy *sync.Map, logger kitlog.Logger,
-) (string, string) {
+) (description string, resolution string, tag string) {
 	getDefaultDescription := func() string {
 		return fmt.Sprintf(`%s %s`, orgName, fleet.CalendarDefaultDescription)
 	}
 
-	var description, resolution string
 	policyIDs := strings.Split(host.FailingPolicyIDs, ",")
 	if len(policyIDs) == 1 && policyIDs[0] != "" {
-		var policy *fleet.PolicyLite
+		var policy *PolicyLiteWithMeta
 		policyAny, ok := policyIDtoPolicy.Load(policyIDs[0])
 		if !ok {
 			id, err := strconv.ParseUint(policyIDs[0], 10, 64)
 			if err != nil {
 				level.Error(logger).Log("msg", "parse policy id", "err", err)
-				return getDefaultDescription(), fleet.CalendarDefaultResolution
+				return getDefaultDescription(), fleet.CalendarDefaultResolution, DefaultEventBodyTag
 			}
-			policy, err = ds.PolicyLite(ctx, uint(id))
+			policyLite, err := ds.PolicyLite(ctx, uint(id))
 			if err != nil {
 				level.Error(logger).Log("msg", "get policy", "err", err)
-				return getDefaultDescription(), fleet.CalendarDefaultResolution
+				return getDefaultDescription(), fleet.CalendarDefaultResolution, DefaultEventBodyTag
 			}
+			policy = new(PolicyLiteWithMeta)
+			policy.PolicyLite = *policyLite
 			policyIDtoPolicy.Store(policyIDs[0], policy)
 		} else {
-			policy = policyAny.(*fleet.PolicyLite)
+			policy = policyAny.(*PolicyLiteWithMeta)
 		}
 		policyDescription := strings.TrimSpace(policy.Description)
 		if policyDescription == "" || policy.Resolution == nil || strings.TrimSpace(*policy.Resolution) == "" {
 			description = getDefaultDescription()
 			resolution = fleet.CalendarDefaultResolution
+			tag = DefaultEventBodyTag
 		} else {
 			description = policyDescription
 			resolution = strings.TrimSpace(*policy.Resolution)
+			policy.mu.Lock() // To make sure only one policy is reading/writing to the tag at a time.
+			defer policy.mu.Unlock()
+			if policy.Tag == "" {
+				// Calculate a unique signature for the event body, which we will use to check if the event body has changed.
+				policy.Tag = fmt.Sprintf("%x", sha256.Sum256([]byte(policy.Description+*policy.Resolution)))
+			}
+			tag = policy.Tag
 		}
 	} else {
 		description = getDefaultDescription()
 		resolution = fleet.CalendarDefaultResolution
+		tag = DefaultEventBodyTag
 	}
-	return description, resolution
+	return description, resolution, tag
 }
