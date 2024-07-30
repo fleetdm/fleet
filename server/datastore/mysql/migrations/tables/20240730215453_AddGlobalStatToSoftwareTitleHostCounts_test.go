@@ -6,10 +6,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20240724074056(t *testing.T) {
+func TestUp_20240730215453(t *testing.T) {
 	db := applyUpToPrev(t)
 
-	stmt := "INSERT INTO `software_host_counts` (`software_id`, `hosts_count`, `team_id`) VALUES (?, ?, ?)"
+	stmt := "INSERT INTO `software_titles_host_counts` (`software_title_id`, `hosts_count`, `team_id`) VALUES (?, ?, ?)"
 
 	s1t1 := 10
 	s2t1 := 1
@@ -46,14 +46,14 @@ func TestUp_20240724074056(t *testing.T) {
 
 	// Ensure the data is still there
 	var result struct {
-		SoftwareID  uint `db:"software_id"`
+		SoftwareID  uint `db:"software_title_id"`
 		HostsCount  int  `db:"hosts_count"`
 		TeamID      uint `db:"team_id"`
 		GlobalStats bool `db:"global_stats"`
 	}
 	assertHostCount := func(softwareID, hostsCount int, teamID uint, globalStats bool) {
 		t.Helper()
-		res := db.QueryRow("SELECT `software_id`, `hosts_count`, `team_id`, `global_stats` FROM `software_host_counts` WHERE `software_id` = ? AND `team_id` = ? AND global_stats = ?", softwareID, teamID, globalStats)
+		res := db.QueryRow("SELECT `software_title_id`, `hosts_count`, `team_id`, `global_stats` FROM `software_titles_host_counts` WHERE `software_title_id` = ? AND `team_id` = ? AND global_stats = ?", softwareID, teamID, globalStats)
 		err = res.Scan(&result.SoftwareID, &result.HostsCount, &result.TeamID, &result.GlobalStats)
 		require.NoError(t, err)
 		require.Equal(t, softwareID, int(result.SoftwareID))
@@ -78,5 +78,5 @@ func TestUp_20240724074056(t *testing.T) {
 	// software 2 global
 	assertHostCount(2, s2g, 0, true)
 	// software 2 no team
-	assertHostCount(2, 0, 0, false) // edge case where there should be no negative counts
+	assertHostCount(2, 0, 0, false) // edge case where global count should not be negative
 }
