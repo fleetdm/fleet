@@ -58,6 +58,10 @@ const generateSoftwareTitleDetailsTableConfig = ({
       disableSortBy: true,
       accessor: "version",
       Cell: (cellProps: IVersionCellProps): JSX.Element => {
+        if (!cellProps.cell.value) {
+          // renders desired empty state
+          return <TextCell />;
+        }
         const { id } = cellProps.row.original;
         const teamQueryParam = buildQueryStringFromParams({ team_id: teamId });
         const softwareVersionDetailsPath = `${PATHS.SOFTWARE_VERSION_DETAILS(

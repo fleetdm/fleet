@@ -115,9 +115,8 @@ const SoftwareVersionDetailsPage = ({
 
   const renderVulnTable = (swVersion: ISoftwareVersion) => {
     if (["ios_apps", "ipados_apps"].includes(swVersion.source)) {
-      const supportInterestText =
-        swVersion.source === "ios_apps" ? "iOS" : "iPadOS";
-      return <VulnsNotSupported supportInterestText={supportInterestText} />;
+      const platformText = swVersion.source === "ios_apps" ? "iOS" : "iPadOS";
+      return <VulnsNotSupported platformText={platformText} />;
     }
     return (
       <SoftwareVulnerabilitiesTable

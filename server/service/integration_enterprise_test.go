@@ -12248,7 +12248,10 @@ func (s *integrationEnterpriseTestSuite) TestVPPAppsWithoutMDM() {
 	app, err := s.ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
 		Name:             "App " + t.Name(),
 		BundleIdentifier: "bid_" + t.Name(),
-		AdamID:           "adam_" + t.Name(),
+		VPPAppID: fleet.VPPAppID{
+			AdamID:   "adam_" + t.Name(),
+			Platform: fleet.MacOSPlatform,
+		},
 	}, &team.ID)
 	require.NoError(t, err)
 
