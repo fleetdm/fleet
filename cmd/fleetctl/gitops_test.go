@@ -1252,26 +1252,20 @@ func TestNoTeamSoftwareInstallersGitOps(t *testing.T) {
 		file    string
 		wantErr string
 	}{
+		{"testdata/gitops/no_team_software_installer_not_found.yml", "Please make sure that URLs are publicy accessible to the internet."},
+		{"testdata/gitops/no_team_software_installer_unsupported.yml", "The file should be .pkg, .msi, .exe or .deb."},
+		{"testdata/gitops/no_team_software_installer_too_large.yml", "The maximum file size is 500 MB"},
 		{"testdata/gitops/no_team_software_installer_valid.yml", ""},
+		{"testdata/gitops/no_team_software_installer_pre_condition_multiple_queries.yml", "should have only one query."},
+		{"testdata/gitops/no_team_software_installer_pre_condition_not_found.yml", "no such file or directory"},
+		{"testdata/gitops/no_team_software_installer_install_not_found.yml", "no such file or directory"},
+		{"testdata/gitops/no_team_software_installer_post_install_not_found.yml", "no such file or directory"},
+		{"testdata/gitops/no_team_software_installer_no_url.yml", "software URL is required"},
+		{"testdata/gitops/no_team_software_installer_invalid_self_service_value.yml", "cannot unmarshal string into Go struct field SoftwareSpec.packages of type bool"},
 	}
 	for _, c := range cases {
 		t.Run(filepath.Base(c.file), func(t *testing.T) {
-			ds, _, _ := setupFullGitOpsPremiumServer(t)
-
-			ds.SetTeamVPPAppsFunc = func(ctx context.Context, teamID *uint, adamIDs []string) error {
-				return nil
-			}
-			ds.BatchInsertVPPAppsFunc = func(ctx context.Context, apps []*fleet.VPPApp) error {
-				return nil
-			}
-
-			ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, teamID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
-				return nil
-			}
-
-			ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
-				return nil, nil
-			}
+			setupFullGitOpsPremiumServer(t)
 
 			t.Setenv("APPLE_BM_DEFAULT_TEAM", "")
 			_, err := runAppNoChecks([]string{"gitops", "-f", c.file})
