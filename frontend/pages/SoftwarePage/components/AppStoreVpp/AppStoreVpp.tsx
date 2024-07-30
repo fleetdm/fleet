@@ -46,6 +46,21 @@ const EnableVppCard = () => {
   );
 };
 
+const NoVppAppsCard = () => (
+  <Card borderRadiusSize="medium">
+    <div className={`${baseClass}__no-software`}>
+      <p className={`${baseClass}__no-software-title`}>
+        You don&apos;t have any App Store apps
+      </p>
+      <p className={`${baseClass}__no-software-description`}>
+        Add apps in{" "}
+        <CustomLink url="https://business.apple.com" text="ABM" newTab /> Apps
+        that are already added to this team are not listed.
+      </p>
+    </div>
+  </Card>
+);
+
 interface IVppAppListItemProps {
   app: IVppApp;
   selected: boolean;
@@ -182,18 +197,7 @@ const AppStoreVpp = ({ teamId, router, onExit }: IAppStoreVppProps) => {
 
     if (vppApps) {
       if (vppApps.length === 0) {
-        return (
-          <div className={`${baseClass}__no-software`}>
-            <p className={`${baseClass}__no-software-title`}>
-              You don&apos;t have any App Store apps
-            </p>
-            <p className={`${baseClass}__no-software-description`}>
-              Add apps in{" "}
-              <CustomLink url="https://business.apple.com" text="ABM" newTab />{" "}
-              Apps that are already added to this team are not listed.
-            </p>
-          </div>
-        );
+        return <NoVppAppsCard />;
       }
       return (
         <>
