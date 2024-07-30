@@ -618,8 +618,6 @@ type SetHostsDiskEncryptionKeyStatusFunc func(ctx context.Context, hostIDs []uin
 
 type GetHostDiskEncryptionKeyFunc func(ctx context.Context, hostID uint) (*fleet.HostDiskEncryptionKey, error)
 
-type SetDiskEncryptionResetStatusFunc func(ctx context.Context, hostID uint, status bool) error
-
 type GetHostCertAssociationsToExpireFunc func(ctx context.Context, expiryDays int, limit int) ([]fleet.SCEPIdentityAssociation, error)
 
 type SetCommandForPendingSCEPRenewalFunc func(ctx context.Context, assocs []fleet.SCEPIdentityAssociation, cmdUUID string) error
@@ -1004,9 +1002,9 @@ type BatchInsertVPPAppsFunc func(ctx context.Context, apps []*fleet.VPPApp) erro
 
 type GetAssignedVPPAppsFunc func(ctx context.Context, teamID *uint) (map[string]struct{}, error)
 
-type InsertVPPAppWithTeamFunc func(ctx context.Context, app *fleet.VPPApp, teamID *uint) (*fleet.VPPApp, error)
-
 type SetTeamVPPAppsFunc func(ctx context.Context, teamID *uint, adamIDs []string) error
+
+type InsertVPPAppWithTeamFunc func(ctx context.Context, app *fleet.VPPApp, teamID *uint) (*fleet.VPPApp, error)
 
 type InsertHostVPPSoftwareInstallFunc func(ctx context.Context, hostID uint, userID uint, adamID string, commandUUID string, associatedEventID string) error
 
@@ -1910,9 +1908,6 @@ type DataStore struct {
 	GetHostDiskEncryptionKeyFunc        GetHostDiskEncryptionKeyFunc
 	GetHostDiskEncryptionKeyFuncInvoked bool
 
-	SetDiskEncryptionResetStatusFunc        SetDiskEncryptionResetStatusFunc
-	SetDiskEncryptionResetStatusFuncInvoked bool
-
 	GetHostCertAssociationsToExpireFunc        GetHostCertAssociationsToExpireFunc
 	GetHostCertAssociationsToExpireFuncInvoked bool
 
@@ -2489,11 +2484,11 @@ type DataStore struct {
 	GetAssignedVPPAppsFunc        GetAssignedVPPAppsFunc
 	GetAssignedVPPAppsFuncInvoked bool
 
-	InsertVPPAppWithTeamFunc        InsertVPPAppWithTeamFunc
-	InsertVPPAppWithTeamFuncInvoked bool
-
 	SetTeamVPPAppsFunc        SetTeamVPPAppsFunc
 	SetTeamVPPAppsFuncInvoked bool
+
+	InsertVPPAppWithTeamFunc        InsertVPPAppWithTeamFunc
+	InsertVPPAppWithTeamFuncInvoked bool
 
 	InsertHostVPPSoftwareInstallFunc        InsertHostVPPSoftwareInstallFunc
 	InsertHostVPPSoftwareInstallFuncInvoked bool
@@ -4597,13 +4592,6 @@ func (s *DataStore) GetHostDiskEncryptionKey(ctx context.Context, hostID uint) (
 	return s.GetHostDiskEncryptionKeyFunc(ctx, hostID)
 }
 
-func (s *DataStore) SetDiskEncryptionResetStatus(ctx context.Context, hostID uint, status bool) error {
-	s.mu.Lock()
-	s.SetDiskEncryptionResetStatusFuncInvoked = true
-	s.mu.Unlock()
-	return s.SetDiskEncryptionResetStatusFunc(ctx, hostID, status)
-}
-
 func (s *DataStore) GetHostCertAssociationsToExpire(ctx context.Context, expiryDays int, limit int) ([]fleet.SCEPIdentityAssociation, error) {
 	s.mu.Lock()
 	s.GetHostCertAssociationsToExpireFuncInvoked = true
@@ -5948,18 +5936,18 @@ func (s *DataStore) GetAssignedVPPApps(ctx context.Context, teamID *uint) (map[s
 	return s.GetAssignedVPPAppsFunc(ctx, teamID)
 }
 
-func (s *DataStore) InsertVPPAppWithTeam(ctx context.Context, app *fleet.VPPApp, teamID *uint) (*fleet.VPPApp, error) {
-	s.mu.Lock()
-	s.InsertVPPAppWithTeamFuncInvoked = true
-	s.mu.Unlock()
-	return s.InsertVPPAppWithTeamFunc(ctx, app, teamID)
-}
-
 func (s *DataStore) SetTeamVPPApps(ctx context.Context, teamID *uint, adamIDs []string) error {
 	s.mu.Lock()
 	s.SetTeamVPPAppsFuncInvoked = true
 	s.mu.Unlock()
 	return s.SetTeamVPPAppsFunc(ctx, teamID, adamIDs)
+}
+
+func (s *DataStore) InsertVPPAppWithTeam(ctx context.Context, app *fleet.VPPApp, teamID *uint) (*fleet.VPPApp, error) {
+	s.mu.Lock()
+	s.InsertVPPAppWithTeamFuncInvoked = true
+	s.mu.Unlock()
+	return s.InsertVPPAppWithTeamFunc(ctx, app, teamID)
 }
 
 func (s *DataStore) InsertHostVPPSoftwareInstall(ctx context.Context, hostID uint, userID uint, adamID string, commandUUID string, associatedEventID string) error {

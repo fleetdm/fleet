@@ -928,8 +928,6 @@ type Service interface {
 	// for all hosts that are already marked as failing.
 	ResetAutomation(ctx context.Context, teamIDs, policyIDs []uint) error
 
-	RequestEncryptionKeyRotation(ctx context.Context, hostID uint) error
-
 	///////////////////////////////////////////////////////////////////////////////
 	// Windows MDM
 

@@ -124,9 +124,8 @@ var (
 	}
 
 	EscrowBuddyMacOSTarget = TargetInfo{
-		Platform:             "macos",
-		Channel:              "stable",
-		TargetFile:           "escrowBuddy.app.tar.gz",
-		ExtractedExecSubPath: []string{"TODO"},
+		Platform:   "macos",
+		Channel:    "stable",
+		TargetFile: "escrowBuddy.pkg",
 	}
 )

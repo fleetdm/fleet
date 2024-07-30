@@ -137,7 +137,7 @@ func TestHostDetailsMDMAppleDiskEncryption(t *testing.T) {
 				OperationType: fleet.MDMOperationTypeInstall,
 			},
 			fleet.DiskEncryptionActionRequired,
-			fleet.ActionRequiredLogOut,
+			fleet.ActionRequiredRotateKey,
 			&fleet.MDMDeliveryPending,
 		},
 		{
