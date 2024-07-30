@@ -118,10 +118,10 @@ const SoftwareOSDetailsPage = ({
       // TODO - detangle platform typing here
       !VULN_SUPPORTED_PLATFORMS.includes(osVersionDetails.platform as Platform)
     ) {
-      const supportInterestText = isLinuxLike(osVersionDetails.platform)
+      const platformText = isLinuxLike(osVersionDetails.platform)
         ? "Linux"
         : PLATFORM_DISPLAY_NAMES[osVersionDetails.platform];
-      return <VulnsNotSupported supportInterestText={supportInterestText} />;
+      return <VulnsNotSupported platformText={platformText} />;
     }
 
     return (
