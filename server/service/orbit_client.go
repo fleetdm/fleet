@@ -317,7 +317,6 @@ func (oc *OrbitClient) GetConfig() (*fleet.OrbitConfig, error) {
 			}
 			return nil
 		}, retry.WithInterval(configRetryOnNetworkError))
-		log.Debug().Msgf("received orbit config: %+v", resp)
 		oc.configCache.config = &resp
 		oc.configCache.err = err
 		oc.configCache.lastUpdated = now

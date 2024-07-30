@@ -18,8 +18,6 @@ type EscrowBuddyRunner struct {
 	// configure Escrow Buddy
 	runCmdFunc func(cmd string, args ...string) error
 
-	installFunc func(path string) error
-
 	cmdMu    sync.Mutex
 	lastRun  time.Time
 	interval time.Duration
@@ -30,26 +28,26 @@ func ApplyEscrowBuddyRunnerMiddleware(runner *Runner, interval time.Duration) fl
 }
 
 func (e *EscrowBuddyRunner) Run(cfg *fleet.OrbitConfig) error {
-	log.Debug().Msgf("running disk encryption fetcher middleware, notification: %t", cfg.Notifications.RotateDiskEncryptionKey)
+	log.Debug().Msgf("running escrow buddy middleware, notification: %t", cfg.Notifications.RotateDiskEncryptionKey)
 
 	if e.updateRunner == nil {
-		log.Debug().Msg("DiskEncryptionRunner received nil UpdateRunner, this probably indicates that updates are turned off. Skipping any actions related to Disk encryption")
+		log.Debug().Msg("escrow buddy received nil UpdateRunner, this probably indicates that updates are turned off. Skipping any actions related to Disk encryption")
 		return nil
 	}
 
 	if !e.cmdMu.TryLock() {
-		log.Debug().Msg("a previous instance of DiskEncryptionRunner is currently running, returning early")
+		log.Debug().Msg("a previous instance of EscrowBuddyRunner is currently running, returning early")
 		return nil
 	}
 
 	defer e.cmdMu.Unlock()
 	if time.Since(e.lastRun) < e.interval {
-		log.Debug().Msgf("last run (%v) of DiskEncryptionRunner is less than the configured interval (%v), returning early", e.lastRun, e.interval)
+		log.Debug().Msgf("last run (%v) of EscrowBuddyRunner is less than the configured interval (%v), returning early", e.lastRun, e.interval)
 		return nil
 	}
 
+	updaterHasTarget := e.updateRunner.HasRunnerOptTarget("escrowBuddy")
 	if cfg.Notifications.RotateDiskEncryptionKey {
-		updaterHasTarget := e.updateRunner.HasRunnerOptTarget("escrowBuddy")
 		runnerHasLocalHash := e.updateRunner.HasLocalHash("escrowBuddy")
 		if !updaterHasTarget || !runnerHasLocalHash {
 			log.Info().Msg("refreshing the update runner config with Escrow Buddy targets and hashes")
@@ -68,7 +66,11 @@ func (e *EscrowBuddyRunner) Run(cfg *fleet.OrbitConfig) error {
 		return nil
 	}
 
-	return e.setGenerateNewKeyTo(false)
+	if updaterHasTarget {
+		return e.setGenerateNewKeyTo(false)
+	}
+
+	return nil
 }
 
 func (e *EscrowBuddyRunner) setTargetsAndHashes() error {
@@ -85,7 +87,6 @@ func (e *EscrowBuddyRunner) setTargetsAndHashes() error {
 	return nil
 }
 
-// TODO: find a better name
 func (e *EscrowBuddyRunner) setGenerateNewKeyTo(enabled bool) error {
 	log.Debug().Msgf("running defaults write to configure Escrow Buddy with value %t", enabled)
 	cmd := fmt.Sprintf("defaults write /Library/Preferences/com.netflix.Escrow-Buddy.plist GenerateNewKey -bool %t", enabled)
