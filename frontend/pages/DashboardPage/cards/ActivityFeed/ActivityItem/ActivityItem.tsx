@@ -4,6 +4,7 @@ import { formatDistanceToNowStrict } from "date-fns";
 
 import { ActivityType, IActivity, IActivityDetails } from "interfaces/activity";
 import { getInstallStatusPredicate } from "interfaces/software";
+import { PLATFORM_DISPLAY_NAMES } from "interfaces/platform";
 import {
   addGravatarUrlToResource,
   formatScriptNameForActivityItem,
@@ -877,10 +878,13 @@ const TAGGED_TEMPLATES = {
     );
   },
   addedAppStoreApp: (activity: IActivity) => {
+    const { software_title: swTitle, platform: swPlatform } =
+      activity.details || {};
     return (
       <>
         {" "}
-        added <b>{activity.details?.software_title}</b> to{" "}
+        added <b>{swTitle}</b>{" "}
+        {swPlatform ? `(${PLATFORM_DISPLAY_NAMES[swPlatform]}) ` : ""}to{" "}
         {activity.details?.team_name ? (
           <>
             {" "}
