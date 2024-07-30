@@ -28,7 +28,7 @@ interface INoVulnsDetectedProps {
 }
 
 interface IVulnsNotSupportedProps {
-  supportInterestText?: DisplayPlatform;
+  platformText?: DisplayPlatform;
 }
 
 const NoVulnsDetected = ({ itemName }: INoVulnsDetectedProps): JSX.Element => {
@@ -50,14 +50,13 @@ const NoVulnsDetected = ({ itemName }: INoVulnsDetectedProps): JSX.Element => {
 };
 
 export const VulnsNotSupported = ({
-  supportInterestText,
+  platformText,
 }: IVulnsNotSupportedProps) => (
   <EmptyTable
     header="Vulnerabilities are not supported for this type of host"
     info={
       <>
-        Interested in vulnerabilities in{" "}
-        {supportInterestText ?? "this platform"}?{" "}
+        Interested in vulnerabilities in {platformText ?? "this platform"}?{" "}
         <CustomLink url={CONTACT_FLEET_LINK} text="Let us know" newTab />
       </>
     }
