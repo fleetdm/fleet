@@ -2101,18 +2101,6 @@ AND EXISTS (SELECT 1 FROM software s JOIN software_cve scve ON scve.software_id 
 		`
 	}
 
-	// // The source filter is needed for VPP apps because host_vpp_software_installs table does not have a platform column.
-	// platform := host.FleetPlatform()
-	// sourceFilter := ""
-	// switch fleet.AppleDevicePlatform(platform) {
-	// case fleet.IOSPlatform:
-	// 	sourceFilter = " AND st.source = 'ios_apps' "
-	// case fleet.IPadOSPlatform:
-	// 	sourceFilter = " AND st.source = 'ipados_apps' "
-	// case fleet.MacOSPlatform:
-	// 	sourceFilter = " AND st.source IS NOT IN ('ios_apps', 'ipados_apps') "
-	// }
-
 	// this statement lists only the software that is reported as installed on
 	// the host or has been attempted to be installed on the host.
 	stmtInstalled := fmt.Sprintf(`

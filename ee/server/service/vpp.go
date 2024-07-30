@@ -152,6 +152,13 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 			if err := svc.ds.BatchInsertVPPApps(ctx, apps); err != nil {
 				return ctxerr.Wrap(ctx, err, "inserting vpp app metadata")
 			}
+			// Filter out the apps with invalid platforms
+			if len(apps) != len(vppAppIDs) {
+				vppAppIDs = make([]fleet.VPPAppID, 0, len(apps))
+				for _, app := range apps {
+					vppAppIDs = append(vppAppIDs, app.VPPAppID)
+				}
+			}
 		}
 
 		if err := svc.ds.SetTeamVPPApps(ctx, &team.ID, vppAppIDs); err != nil {

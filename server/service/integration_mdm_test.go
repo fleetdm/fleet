@@ -9619,7 +9619,7 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 	assoc, err = s.ds.GetAssignedVPPApps(ctx, &tmGood.ID)
 	require.NoError(t, err)
 	require.Len(t, assoc, 1)
-	require.Contains(t, assoc, s.appleVPPConfigSrvConfig.Assets[0].AdamID)
+	assert.Contains(t, assoc, fleet.VPPAppID{AdamID: s.appleVPPConfigSrvConfig.Assets[0].AdamID, Platform: fleet.MacOSPlatform})
 
 	// Associating one good and one bad app
 	s.Do("POST",
@@ -9646,9 +9646,11 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 	)
 	assoc, err = s.ds.GetAssignedVPPApps(ctx, &tmGood.ID)
 	require.NoError(t, err)
-	require.Len(t, assoc, 2)
-	require.Contains(t, assoc, s.appleVPPConfigSrvConfig.Assets[0].AdamID)
-	require.Contains(t, assoc, s.appleVPPConfigSrvConfig.Assets[1].AdamID)
+	require.Len(t, assoc, 4)
+	assert.Contains(t, assoc, fleet.VPPAppID{AdamID: s.appleVPPConfigSrvConfig.Assets[0].AdamID, Platform: fleet.MacOSPlatform})
+	assert.Contains(t, assoc, fleet.VPPAppID{AdamID: s.appleVPPConfigSrvConfig.Assets[1].AdamID, Platform: fleet.IOSPlatform})
+	assert.Contains(t, assoc, fleet.VPPAppID{AdamID: s.appleVPPConfigSrvConfig.Assets[1].AdamID, Platform: fleet.IPadOSPlatform})
+	assert.Contains(t, assoc, fleet.VPPAppID{AdamID: s.appleVPPConfigSrvConfig.Assets[1].AdamID, Platform: fleet.MacOSPlatform})
 
 	// Associate an app with a team with no team members
 	s.Do("POST", batchURL, batchAssociateAppStoreAppsRequest{Apps: []fleet.VPPBatchPayload{{AppStoreID: s.appleVPPConfigSrvConfig.Assets[0].AdamID}}}, http.StatusNoContent, "team_name", tmEmpty.Name)
@@ -10379,7 +10381,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 			require.Len(t, getHostSw.Software, 1+install.extraAvailable)
 			var foundInstalledApp bool
 			for index := range getHostSw.Software {
-				got1 = gotSW[index]
+				got1 = getHostSw.Software[index]
 				if got1.Status != nil {
 					require.Equal(t, got1.Name, app.Name)
 					require.NotNil(t, got1.AppStoreApp)
