@@ -10,15 +10,16 @@ import teamsAPI from "services/entities/teams";
 import InputField from "components/forms/fields/InputField";
 import Button from "components/buttons/Button";
 import validatePresence from "components/forms/validators/validate_presence";
+import { ApplePlatform } from "interfaces/platform";
 
-const baseClass = "mac-os-target-form";
+const baseClass = "apple-os-target-form";
 
-interface IMacOSTargetFormData {
+interface IAppleOSTargetFormData {
   minOsVersion: string;
   deadline: string;
 }
 
-interface IMacOSTargetFormErrors {
+interface IAppleOSTargetFormErrors {
   minOsVersion?: string;
   deadline?: string;
 }
@@ -31,8 +32,16 @@ const validateDeadline = (value: string) => {
   return /^\d{4}-(0[1-9]|1[012])-(0[1-9]|[12][0-9]|3[01])$/.test(value);
 };
 
-const validateForm = (formData: IMacOSTargetFormData) => {
-  const errors: IMacOSTargetFormErrors = {};
+const validateForm = (formData: IAppleOSTargetFormData) => {
+  const errors: IAppleOSTargetFormErrors = {};
+
+  // Both fields may be cleared out and saved
+  if (
+    !validatePresence(formData.minOsVersion) &&
+    !validatePresence(formData.deadline)
+  ) {
+    return errors;
+  }
 
   if (!validatePresence(formData.minOsVersion)) {
     errors.minOsVersion = "The minimum version is required.";
@@ -49,22 +58,37 @@ const validateForm = (formData: IMacOSTargetFormData) => {
   return errors;
 };
 
-interface IMacMdmConfigData {
+const APPLE_PLATFORMS_TO_CONFIG_FIELDS = {
+  darwin: "macos_updates",
+  ios: "ios_updates",
+  ipados: "ipados_updates",
+};
+
+interface IAppleUpdatesMdmConfigData {
   mdm: {
-    macos_updates: {
+    macos_updates?: {
+      minimum_version: string;
+      deadline: string;
+    };
+    ipados_updates?: {
+      minimum_version: string;
+      deadline: string;
+    };
+    ios_updates?: {
       minimum_version: string;
       deadline: string;
     };
   };
 }
 
-const createMdmConfigData = (
+const createAppleOSUpdatesData = (
+  applePlatform: ApplePlatform,
   minOsVersion: string,
   deadline: string
-): IMacMdmConfigData => {
+): IAppleUpdatesMdmConfigData => {
   return {
     mdm: {
-      macos_updates: {
+      [APPLE_PLATFORMS_TO_CONFIG_FIELDS[applePlatform]]: {
         minimum_version: minOsVersion,
         deadline,
       },
@@ -72,21 +96,23 @@ const createMdmConfigData = (
   };
 };
 
-interface IMacOSTargetFormProps {
+interface IAppleOSTargetFormProps {
   currentTeamId: number;
+  applePlatform: ApplePlatform;
   defaultMinOsVersion: string;
   defaultDeadline: string;
   refetchAppConfig: () => void;
   refetchTeamConfig: () => void;
 }
 
-const MacOSTargetForm = ({
+const AppleOSTargetForm = ({
   currentTeamId,
+  applePlatform,
   defaultMinOsVersion,
   defaultDeadline,
   refetchAppConfig,
   refetchTeamConfig,
-}: IMacOSTargetFormProps) => {
+}: IAppleOSTargetFormProps) => {
   const { renderFlash } = useContext(NotificationContext);
 
   const [isSaving, setIsSaving] = useState(false);
@@ -111,7 +137,11 @@ const MacOSTargetForm = ({
 
     if (isEmpty(errors)) {
       setIsSaving(true);
-      const updateData = createMdmConfigData(minOsVersion, deadline);
+      const updateData = createAppleOSUpdatesData(
+        applePlatform,
+        minOsVersion,
+        deadline
+      );
       try {
         currentTeamId === APP_CONTEXT_NO_TEAM_ID
           ? await configAPI.update(updateData)
@@ -136,22 +166,58 @@ const MacOSTargetForm = ({
     setDeadline(val);
   };
 
+  const getMinimumVersionPlaceholder = (platform: ApplePlatform) => {
+    switch (platform) {
+      case "darwin":
+        return "13.0.1";
+      case "ios":
+      case "ipados":
+        return "17.5.1";
+      default:
+        return "";
+    }
+  };
+
+  const getMinimumVersionTooltip = (platform: ApplePlatform) => {
+    switch (platform) {
+      case "darwin":
+        return "The end user sees the window until their macOS is at or above this version.";
+      case "ios":
+      case "ipados":
+        return "If the end user's host is below the minimum version, they see a notification in their Notification Center after the deadline. They can’t continue until the OS update is installed.";
+      default:
+        return "";
+    }
+  };
+
+  const getDeadlineTooltip = (platform: ApplePlatform) => {
+    switch (platform) {
+      case "darwin":
+        return "The end user can't dismiss the window once they reach this deadline. Deadline is at 12:00 (Noon) Pacific Standard Time (GMT-8).";
+      case "ios":
+      case "ipados":
+        return "Deadline is at 12:00 (Noon) Pacific Standard Time (GMT-8).";
+      default:
+        return "";
+    }
+  };
+
   return (
     <form className={baseClass} onSubmit={handleSubmit}>
       <InputField
         label="Minimum version"
-        tooltip="The end user sees the window until their macOS is at or above this version."
+        tooltip={getMinimumVersionTooltip(applePlatform)}
         helpText="Version number only (e.g., “13.0.1” not “Ventura 13” or “13.0.1 (22A400)”)"
-        placeholder="13.0.1"
+        placeholder={getMinimumVersionPlaceholder(applePlatform)}
         value={minOsVersion}
         error={minOsVersionError}
         onChange={handleMinVersionChange}
       />
       <InputField
         label="Deadline"
-        tooltip="The end user can’t dismiss the window once they reach this deadline. Deadline is at 12:00 (Noon) Pacific Standard Time (GMT-8)."
-        helpText="YYYY-MM-DD format only (e.g., “2023-06-01”)."
-        placeholder="2023-06-01"
+        tooltip={getDeadlineTooltip(applePlatform)}
+        helpText="YYYY-MM-DD format only (e.g., “2024-07-01”)."
+        placeholder="2024-07-01"
         value={deadline}
         error={deadlineError}
         onChange={handleDeadlineChange}
@@ -163,4 +229,4 @@ const MacOSTargetForm = ({
   );
 };
 
-export default MacOSTargetForm;
+export default AppleOSTargetForm;

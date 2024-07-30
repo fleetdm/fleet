@@ -20,6 +20,7 @@ const TEST_PROPS: ISoftwareSelfServiceProps = {
     order_direction: "asc",
     per_page: 10,
     vulnerable: true,
+    available_for_install: false,
   },
   router: createMockRouter(),
 };
@@ -93,6 +94,7 @@ describe("SelfService", () => {
           order_direction: "asc",
           per_page: 10,
           vulnerable: true,
+          available_for_install: false,
         }}
         router={createMockRouter()}
       />
