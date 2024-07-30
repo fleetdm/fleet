@@ -320,44 +320,47 @@ const HostSummary = ({
   };
 
   const renderOperatingSystemSummary = () => {
-    const renderOSVersion = () => {
-      // No tooltip if minimum version is not set, including all Windows, Linux, ChromeOS operating systems
-      if (!osVersionRequirement?.minimum_version) {
-        return summaryData.os_version;
-      }
-
-      const osVersionWithoutPrefix = removeOSPrefix(summaryData.os_version);
-      const osVersionRequirementMet =
-        compareVersions(
-          osVersionWithoutPrefix,
-          osVersionRequirement.minimum_version
-        ) >= 0;
-
+    // No tooltip if minimum version is not set, including all Windows, Linux, ChromeOS operating systems
+    if (!osVersionRequirement?.minimum_version) {
       return (
-        <>
-          {!osVersionRequirementMet && (
-            <Icon name="error-outline" color="ui-fleet-black-75" />
-          )}
-          <TooltipWrapper
-            tipContent={
-              osVersionRequirementMet ? (
-                "Meets minimum version requirement."
-              ) : (
-                <>
-                  Does not meet minimum version requirement.
-                  <br />
-                  Deadline to update: {osVersionRequirement.deadline}
-                </>
-              )
-            }
-          >
-            {summaryData.os_version}
-          </TooltipWrapper>
-        </>
+        <DataSet title="Operating system" value={summaryData.os_version} />
       );
-    };
+    }
 
-    return <DataSet title="Operating system" value={renderOSVersion()} />;
+    const osVersionWithoutPrefix = removeOSPrefix(summaryData.os_version);
+    const osVersionRequirementMet =
+      compareVersions(
+        osVersionWithoutPrefix,
+        osVersionRequirement.minimum_version
+      ) >= 0;
+
+    return (
+      <DataSet
+        title="Operating system"
+        value={
+          <>
+            {!osVersionRequirementMet && (
+              <Icon name="error-outline" color="ui-fleet-black-75" />
+            )}
+            <TooltipWrapper
+              tipContent={
+                osVersionRequirementMet ? (
+                  "Meets minimum version requirement."
+                ) : (
+                  <>
+                    Does not meet minimum version requirement.
+                    <br />
+                    Deadline to update: {osVersionRequirement.deadline}
+                  </>
+                )
+              }
+            >
+              {summaryData.os_version}
+            </TooltipWrapper>
+          </>
+        }
+      />
+    );
   };
 
   const renderAgentSummary = () => {
