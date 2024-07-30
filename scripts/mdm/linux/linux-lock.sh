@@ -42,7 +42,7 @@ echo "Locked by administrator" > /etc/nologin
 
 # Disable systemd-user-sessions, a service that deletes /etc/nologin
 if [ -f /usr/lib/systemd/system/systemd-user-sessions.service ]; then
-    sed -i '/^Exec/s/=/=true #/' /usr/lib/systemd/system/systemd-user-sessions.service
+    systemctl mask systemd-user-sessions
     systemctl daemon-reload
 fi
 
