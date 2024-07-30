@@ -1,5 +1,6 @@
 {
 	"profile_name": "Fleet's example automatic enrollment profile",
+	"ForceEnableInSetupAssistant": true,
 	"allow_pairing": true,
 	"is_mdm_removable": true,
 	"org_magic": "1",
