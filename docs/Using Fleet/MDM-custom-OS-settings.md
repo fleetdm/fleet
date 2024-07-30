@@ -1,6 +1,6 @@
 # Custom OS settings
 
-In Fleet you can enforce OS settings on your macOS and Windows hosts using configuration profiles.
+In Fleet you can enforce OS settings on your your macOS, iOS, iPadOS, and Windows hosts using configuration profiles.
 
 ## Enforce OS settings
 

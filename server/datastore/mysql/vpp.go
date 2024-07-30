@@ -256,7 +256,8 @@ ON DUPLICATE KEY UPDATE
 	updated_at = CURRENT_TIMESTAMP,
 	latest_version = VALUES(latest_version),
 	icon_url = VALUES(icon_url),
-	name = VALUES(name)
+	name = VALUES(name),
+	title_id = VALUES(title_id)
 	`
 	var args []any
 	var insertVals strings.Builder
@@ -287,6 +288,13 @@ VALUES
 	}
 
 	_, err := tx.ExecContext(ctx, stmt, adamID, globalOrTmID, teamID)
+	if IsDuplicate(err) {
+		err = &existsError{
+			Identifier:   adamID,
+			TeamID:       teamID,
+			ResourceType: "VPPAppAdamID",
+		}
+	}
 
 	return ctxerr.Wrap(ctx, err, "writing vpp app team mapping to db")
 }
@@ -330,7 +338,8 @@ func (ds *Datastore) getOrInsertSoftwareTitleForVPPApp(ctx context.Context, tx s
 		insertArgs = append(insertArgs, app.BundleIdentifier)
 	}
 
-	titleID, err := ds.optimisticGetOrInsert(ctx,
+	titleID, err := ds.optimisticGetOrInsertWithWriter(ctx,
+		tx,
 		&parameterizedStmt{
 			Statement: selectStmt,
 			Args:      selectArgs,

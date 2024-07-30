@@ -8,6 +8,7 @@ import {
   isWindowsDiskEncryptionStatus,
 } from "interfaces/mdm";
 import { IOSSettings, IHostMaintenanceWindow } from "interfaces/host";
+import { IAppleDeviceUpdates } from "interfaces/config";
 import getHostStatusTooltipText from "pages/hosts/helpers";
 
 import TooltipWrapper from "components/TooltipWrapper";
@@ -19,7 +20,12 @@ import StatusIndicator from "components/StatusIndicator";
 import IssuesIndicator from "pages/hosts/components/IssuesIndicator";
 import DiskSpaceIndicator from "pages/hosts/components/DiskSpaceIndicator";
 import { HumanTimeDiffWithFleetLaunchCutoff } from "components/HumanTimeDiffWithDateTip";
-import { humanHostMemory, wrapFleetHelper } from "utilities/helpers";
+import {
+  humanHostMemory,
+  wrapFleetHelper,
+  removeOSPrefix,
+  compareVersions,
+} from "utilities/helpers";
 import {
   DATE_FNS_FORMAT_STRINGS,
   DEFAULT_EMPTY_CELL_VALUE,
@@ -120,6 +126,7 @@ interface IHostSummaryProps {
   ) => void;
   renderActionDropdown: () => JSX.Element | null;
   deviceUser?: boolean;
+  osVersionRequirement?: IAppleDeviceUpdates;
   osSettings?: IOSSettings;
   hostMdmDeviceStatus?: HostMdmDeviceStatusUIState;
 }
@@ -166,6 +173,26 @@ const getHostDiskEncryptionTooltipMessage = (
   ];
 };
 
+const getOSVersionRequirementTooltipMessage = (
+  osVersion: string,
+  osVersionRequirement: IAppleDeviceUpdates
+) => {
+  const requirementMetTooltip = "Meets minimum version requirement.";
+  const requirementNotMetTooltip = (
+    <>
+      Does not meet minimum version requirement.
+      <br />
+      Deadline to update: {osVersionRequirement.deadline}
+    </>
+  );
+
+  const result = compareVersions(
+    removeOSPrefix(osVersion),
+    osVersionRequirement.minimum_version
+  );
+  return result < 0 ? requirementNotMetTooltip : requirementMetTooltip;
+};
+
 const HostSummary = ({
   summaryData,
   bootstrapPackageData,
@@ -178,6 +205,7 @@ const HostSummary = ({
   onRefetchHost,
   renderActionDropdown,
   deviceUser,
+  osVersionRequirement,
   osSettings,
   hostMdmDeviceStatus,
 }: IHostSummaryProps): JSX.Element => {
@@ -306,6 +334,29 @@ const HostSummary = ({
           <TooltipWrapper tipContent={tooltipMessage}>
             {statusText}
           </TooltipWrapper>
+        }
+      />
+    );
+  };
+
+  const renderOperatingSystemSummary = () => {
+    // No tooltip if minimum version is not set, including all Windows, Linux, ChromeOS operating systems
+    return (
+      <DataSet
+        title="Operating system"
+        value={
+          osVersionRequirement?.minimum_version ? (
+            <TooltipWrapper
+              tipContent={getOSVersionRequirementTooltipMessage(
+                summaryData.os_version,
+                osVersionRequirement
+              )}
+            >
+              {summaryData.os_version}
+            </TooltipWrapper>
+          ) : (
+            summaryData.os_version
+          )
         }
       />
     );
@@ -472,7 +523,7 @@ const HostSummary = ({
         {!isIosOrIpadosHost && (
           <DataSet title="Processor type" value={summaryData.cpu_type} />
         )}
-        <DataSet title="Operating system" value={summaryData.os_version} />
+        {renderOperatingSystemSummary()}
         {!isIosOrIpadosHost && renderAgentSummary()}
         {isPremiumTier &&
           // TODO - refactor normalizeEmptyValues pattern

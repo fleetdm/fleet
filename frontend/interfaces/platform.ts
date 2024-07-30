@@ -1,10 +1,17 @@
-export const PLATFORM_DISPLAY_NAMES = {
+export const APPLE_PLATFORM_DISPLAY_NAMES = {
   darwin: "macOS",
+  ios: "iOS",
+  ipados: "iPadOS",
+} as const;
+
+export type ApplePlatform = keyof typeof APPLE_PLATFORM_DISPLAY_NAMES;
+export type AppleDisplayPlatform = typeof APPLE_PLATFORM_DISPLAY_NAMES[keyof typeof APPLE_PLATFORM_DISPLAY_NAMES];
+
+export const PLATFORM_DISPLAY_NAMES = {
   windows: "Windows",
   linux: "Linux",
   chrome: "ChromeOS",
-  ios: "iOS",
-  ipados: "iPadOS",
+  ...APPLE_PLATFORM_DISPLAY_NAMES,
 } as const;
 
 export type Platform = keyof typeof PLATFORM_DISPLAY_NAMES;
@@ -13,8 +20,6 @@ export type QueryableDisplayPlatform = Exclude<
   DisplayPlatform,
   "iOS" | "iPadOS"
 >;
-export type ApplePlatform = "darwin" | "ios" | "ipados";
-
 export type QueryablePlatform = Exclude<Platform, "ios" | "ipados">;
 
 export const SUPPORTED_PLATFORMS: QueryablePlatform[] = [
@@ -80,6 +85,12 @@ export const HOST_LINUX_PLATFORMS = [
 ] as const;
 
 export const HOST_APPLE_PLATFORMS = ["darwin", "ios", "ipados"] as const;
+
+export type HostPlatform =
+  | typeof HOST_LINUX_PLATFORMS[number]
+  | typeof HOST_APPLE_PLATFORMS[number]
+  | "windows"
+  | "chrome";
 
 /**
  * Checks if the provided platform is a Linux-like OS. We can recieve many
