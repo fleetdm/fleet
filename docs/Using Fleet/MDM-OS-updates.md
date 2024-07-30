@@ -16,10 +16,6 @@ Fleet UI:
 
 3. For Windows, select **Windows** and set a **Deadline** and **Grace period**.
 
-For Apple devices (iOS 17.0+, iPadOS 17.0+, and macOS 14.0+) that use Automated Device Enrollment
-(ADE), the specified minimum version is enforced during ADE before device setup and enrollment can
-proceed (the specified deadline does not apply during ADE).
-
 Fleet API: API documentation is [here](https://fleetdm.com/docs/rest-api/rest-api#modify-team).
 
 ## End user experience
@@ -29,6 +25,10 @@ Fleet API: API documentation is [here](https://fleetdm.com/docs/rest-api/rest-ap
 When a minimum version is enforced, the end users see a native macOS notification (DDM) once per day. Users can choose to update ahead of the deadline or schedule it for that night. 24 hours before the deadline, the notification appears hourly and ignores Do Not Disturb. One hour before the deadline, the notification appears every 30 minutes, and then every 10 minutes.   
 
 If the host was turned off when the deadline passed, the update will be scheduled an hour after it’s turned on.
+
+For Apple hosts (iOS 17.0+, iPadOS 17.0+, and macOS 14.0+) that use Automated Device Enrollment
+(ADE), the specified minimum version is enforced during ADE before device setup and enrollment can
+proceed.
 
 ### macOS (below version 14.0)
 
