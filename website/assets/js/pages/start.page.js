@@ -87,6 +87,10 @@ parasails.registerPage('start', {
     if(this.primaryBuyingSituation && _.isEmpty(this.formData['what-are-you-using-fleet-for'])){
       this.formData['what-are-you-using-fleet-for'] = {primaryBuyingSituation: this.primaryBuyingSituation};
     }
+    if(window.location.hash && window.location.hash === '#signup') {
+      analytics.track('fleet_website__sign_up');
+      window.location.hash = '';
+    }
   },
   mounted: async function() {
     //…

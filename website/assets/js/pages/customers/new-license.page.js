@@ -39,7 +39,10 @@ parasails.registerPage('new-license', {
   //  ║  ║╠╣ ║╣ ║  ╚╦╝║  ║  ║╣
   //  ╩═╝╩╚  ╚═╝╚═╝ ╩ ╚═╝╩═╝╚═╝
   beforeMount: function() {
-    //…
+    if(window.location.hash && window.location.hash === '#signup') {
+      analytics.track('fleet_website__sign_up');
+      window.location.hash = '';
+    }
   },
   mounted: async function() {
 
