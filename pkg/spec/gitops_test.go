@@ -336,20 +336,20 @@ func TestMixingGlobalAndTeamConfig(t *testing.T) {
 	config := getGlobalConfig(nil)
 	config += "name: TeamName\n"
 	_, err := gitOpsFromString(t, config)
-	assert.ErrorContains(t, err, "'org_settings' cannot be used with 'name', 'team_settings' or 'software'")
+	assert.ErrorContains(t, err, "'org_settings' cannot be used with 'name', 'team_settings'")
 
 	// Mixing org_settings and team_settings
 	config = getGlobalConfig(nil)
 	config += "team_settings:\n  secrets: []\n"
 	_, err = gitOpsFromString(t, config)
-	assert.ErrorContains(t, err, "'org_settings' cannot be used with 'name', 'team_settings' or 'software'")
+	assert.ErrorContains(t, err, "'org_settings' cannot be used with 'name', 'team_settings'")
 
 	// Mixing org_settings and team name and team_settings
 	config = getGlobalConfig(nil)
 	config += "name: TeamName\n"
 	config += "team_settings:\n  secrets: []\n"
 	_, err = gitOpsFromString(t, config)
-	assert.ErrorContains(t, err, "'org_settings' cannot be used with 'name', 'team_settings' or 'software'")
+	assert.ErrorContains(t, err, "'org_settings' cannot be used with 'name', 'team_settings'")
 }
 
 func TestInvalidGitOpsYaml(t *testing.T) {
