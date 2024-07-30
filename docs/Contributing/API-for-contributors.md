@@ -1523,7 +1523,7 @@ If the `name` is not already associated with an existing team, this API route cr
         ],
         "app_store_apps": [
           {
-            "app_store_id": 12464567,
+            "app_store_id": "12464567",
           }
         ]
       }  
