@@ -653,7 +653,7 @@ type Service interface {
 
 	GetAppStoreApps(ctx context.Context, teamID *uint) ([]*VPPApp, error)
 
-	AddAppStoreApp(ctx context.Context, teamID *uint, adamID string) error
+	AddAppStoreApp(ctx context.Context, teamID *uint, appID VPPAppID) error
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// Vulnerabilities
