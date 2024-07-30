@@ -9,10 +9,6 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-func mockConfigFn() func() error {
-	return nil
-}
-
 func TestEscrowBuddy(t *testing.T) {
 	testingSuite := new(escrowBuddyTestSuite)
 	testingSuite.s = &testingSuite.Suite
