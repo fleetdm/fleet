@@ -1083,9 +1083,6 @@ module.exports = {
             let allExistingLabelsInSpecifiedRepo = [];
             let pageOfResultsReturned = 0;
             // Get all the labels in the specified repo.
-            if(repo = 'classified'){
-              continue;
-            }
             await sails.helpers.flow.until(async ()=>{
               let pageOfLabels = await sails.helpers.http.get.with({
                 url: `https://api.github.com/repos/fleetdm/${repo}/labels?per_page=100&page=${pageOfResultsReturned}`,
