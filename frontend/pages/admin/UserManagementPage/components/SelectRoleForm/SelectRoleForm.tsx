@@ -1,7 +1,6 @@
 import React, { useState, useContext } from "react";
 
 import { ITeam } from "interfaces/team";
-import { IRole } from "interfaces/role";
 import { UserRole } from "interfaces/user";
 // ignore TS error for now until these are rewritten in ts.
 // @ts-ignore
@@ -17,8 +16,6 @@ interface ISelectRoleFormProps {
   label: string | string[];
   isApiOnly?: boolean;
 }
-
-const baseClass = "select-role-form";
 
 const generateSelectedTeamData = (
   allTeams: ITeam[],
@@ -66,21 +63,14 @@ const SelectRoleForm = ({
   };
 
   return (
-    <div className={baseClass}>
-      <div className={`${baseClass}__select-role`}>
-        <Dropdown
-          label={label}
-          value={selectedRole}
-          className={`${baseClass}__role-dropdown`}
-          options={roleOptions({ isPremiumTier, isApiOnly })}
-          searchable={false}
-          onChange={(newRoleValue: UserRole) =>
-            updateSelectedRole(newRoleValue)
-          }
-          testId={`${name}-checkbox`}
-        />
-      </div>
-    </div>
+    <Dropdown
+      label={label}
+      value={selectedRole}
+      options={roleOptions({ isPremiumTier, isApiOnly })}
+      searchable={false}
+      onChange={(newRoleValue: UserRole) => updateSelectedRole(newRoleValue)}
+      testId={`${name}-checkbox`}
+    />
   );
 };
 

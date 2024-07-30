@@ -35,16 +35,16 @@ const platformSubNav: IPlatformSubNav[] = [
     type: "msi",
   },
   {
-    name: "Linux (RPM)",
-    type: "rpm",
-  },
-  {
-    name: "Linux (deb)",
+    name: "Linux",
     type: "deb",
   },
   {
     name: "ChromeOS",
     type: "chromeos",
+  },
+  {
+    name: "iOS & iPadOS",
+    type: "ios-ipados",
   },
   {
     name: "Advanced",
@@ -220,8 +220,10 @@ const PlatformWrapper = ({
     return packageType === "advanced"
       ? `fleetctl package --type=YOUR_TYPE --fleet-url=${config?.server_settings.server_url} --enroll-secret=${enrollSecret} --fleet-certificate=PATH_TO_YOUR_CERTIFICATE/fleet.pem`
       : `fleetctl package --type=${packageType} ${
-          includeFleetDesktop ? "--fleet-desktop " : ""
-        }--fleet-url=${
+          config && !config.server_settings.scripts_disabled
+            ? "--enable-scripts "
+            : ""
+        }${includeFleetDesktop ? "--fleet-desktop " : ""}--fleet-url=${
           config?.server_settings.server_url
         } --enroll-secret=${enrollSecret}`;
   };
@@ -249,25 +251,7 @@ const PlatformWrapper = ({
 
     return (
       <>
-        {packageType === "plain-osquery" ? (
-          <>
-            <p className={`${baseClass}__advanced--heading`}>
-              With{" "}
-              <a
-                href="https://www.osquery.io/downloads"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                osquery
-              </a>{" "}
-              installed:
-            </p>
-            <p className={`${baseClass}__advanced--text`}>
-              Run osquery from the directory containing the above files (may
-              require sudo or Run as Administrator privileges):
-            </p>
-          </>
-        ) : (
+        {packageType !== "plain-osquery" && (
           <span className={`${baseClass}__cta`}>
             Run this command with the{" "}
             <a
@@ -281,21 +265,19 @@ const PlatformWrapper = ({
             installed:
           </span>
         )}{" "}
-        <span className={`${baseClass}__name`}>
-          <span className="buttons">
-            <Button
-              variant="unstyled"
-              className={`${baseClass}__installer-copy-icon`}
-              onClick={onCopyInstaller}
-            >
-              <Icon name="copy" />
-            </Button>
-            {copyMessage[packageType] && (
-              <span
-                className={`${baseClass}__copy-message`}
-              >{`${copyMessage[packageType]} `}</span>
-            )}
-          </span>
+        <span className="buttons">
+          <Button
+            variant="unstyled"
+            className={`${baseClass}__installer-copy-icon`}
+            onClick={onCopyInstaller}
+          >
+            <Icon name="copy" />
+          </Button>
+          {copyMessage[packageType] && (
+            <span
+              className={`${baseClass}__copy-message`}
+            >{`${copyMessage[packageType]} `}</span>
+          )}
         </span>
       </>
     );
@@ -358,117 +340,151 @@ const PlatformWrapper = ({
 
     if (packageType === "chromeos") {
       return (
-        <div className={baseClass}>
-          <div className={`${baseClass}__chromeos`}>
-            <div className={`${baseClass}__chromeos--add-extension`}>
-              <p className={`${baseClass}__chromeos--heading`}>
-                In Google Admin:
-              </p>
-              <p>
-                Add the extension for the relevant users & browsers using the
-                information below.
-              </p>
-              <InfoBanner className={`${baseClass}__chromeos--instructions`}>
-                For a step-by-step guide, see the documentation page for{" "}
-                <CustomLink
-                  url="https://fleetdm.com/docs/using-fleet/adding-hosts#enroll-chromebooks"
-                  text="adding hosts"
-                  newTab
-                  multiline
-                />
-              </InfoBanner>
-              <div className={`${baseClass}__chromeos--installer`}>
-                <InputField
-                  disabled
-                  inputWrapperClass={`${baseClass}__installer-input ${baseClass}__chromeos-extension-id`}
-                  name="Extension ID"
-                  label={renderChromeOSLabel(
-                    "Extension ID",
-                    CHROME_OS_INFO.extensionId
-                  )}
-                  value={CHROME_OS_INFO.extensionId}
-                />
-                <InputField
-                  disabled
-                  inputWrapperClass={`${baseClass}__installer-input ${baseClass}__chromeos-url`}
-                  name="Installation URL"
-                  label={renderChromeOSLabel(
-                    "Installation URL",
-                    CHROME_OS_INFO.installationUrl
-                  )}
-                  value={CHROME_OS_INFO.installationUrl}
-                />
-                <InputField
-                  disabled
-                  inputWrapperClass={`${baseClass}__installer-input ${baseClass}__chromeos-policy-for-extension`}
-                  name="Policy for extension"
-                  label={renderChromeOSLabel(
-                    "Policy for extension",
-                    CHROME_OS_INFO.policyForExtension
-                  )}
-                  type="textarea"
-                  value={CHROME_OS_INFO.policyForExtension}
-                />
-              </div>
-            </div>
+        <>
+          <div className={`${baseClass}__chromeos--info`}>
+            <p className={`${baseClass}__chromeos--heading`}>
+              In Google Admin:
+            </p>
+            <p>
+              Add the extension for the relevant users & browsers using the
+              information below.
+            </p>
+            <InfoBanner className={`${baseClass}__chromeos--instructions`}>
+              For a step-by-step guide, see the documentation page for{" "}
+              <CustomLink
+                url="https://fleetdm.com/docs/using-fleet/adding-hosts#enroll-chromebooks"
+                text="adding hosts"
+                newTab
+                multiline
+              />
+            </InfoBanner>
           </div>
+          <InputField
+            readOnly
+            inputWrapperClass={`${baseClass}__installer-input ${baseClass}__chromeos-extension-id`}
+            name="Extension ID"
+            label={renderChromeOSLabel(
+              "Extension ID",
+              CHROME_OS_INFO.extensionId
+            )}
+            value={CHROME_OS_INFO.extensionId}
+          />
+          <InputField
+            readOnly
+            inputWrapperClass={`${baseClass}__installer-input ${baseClass}__chromeos-url`}
+            name="Installation URL"
+            label={renderChromeOSLabel(
+              "Installation URL",
+              CHROME_OS_INFO.installationUrl
+            )}
+            value={CHROME_OS_INFO.installationUrl}
+          />
+          <InputField
+            readOnly
+            inputWrapperClass={`${baseClass}__installer-input ${baseClass}__chromeos-policy-for-extension`}
+            name="Policy for extension"
+            label={renderChromeOSLabel(
+              "Policy for extension",
+              CHROME_OS_INFO.policyForExtension
+            )}
+            type="textarea"
+            value={CHROME_OS_INFO.policyForExtension}
+          />
+        </>
+      );
+    }
+
+    if (packageType === "ios-ipados") {
+      return (
+        <div className={`${baseClass}__ios-ipados--info`}>
+          <p>
+            Enroll iPhones and iPads by adding them to Fleet in Apple Business
+            Manager (ABM).{" "}
+            <CustomLink
+              url="https://fleetdm.com/learn-more-about/setup-abm"
+              text="Learn more"
+              newTab
+            />
+          </p>
         </div>
       );
     }
+
     if (packageType === "advanced") {
       return (
-        <div className={baseClass}>
-          <div className={`${baseClass}__advanced`}>
-            {renderFleetCertificateBlock("tooltip")}
-            <div className={`${baseClass}__advanced--installer`}>
-              <InputField
-                disabled
-                inputWrapperClass={`${baseClass}__installer-input ${baseClass}__installer-input-${packageType}`}
-                name="installer"
-                label={renderLabel(
-                  packageType,
-                  renderInstallerString(packageType)
-                )}
-                type="textarea"
-                value={renderInstallerString(packageType)}
-              />
-              <p className={`${baseClass}__advanced--instructions`}>
-                Distribute your package to add hosts to Fleet.
-              </p>
-              <InfoBanner className={`${baseClass}__chrome--instructions`}>
-                This works for macOS, Windows, and Linux hosts. To add
-                Chromebooks,{" "}
-                <Button
-                  variant="text-link"
-                  onClick={() => setSelectedTabIndex(4)}
-                >
-                  click here
-                </Button>
-                .
-              </InfoBanner>
-            </div>
-            <RevealButton
-              className={baseClass}
-              isShowing={showPlainOsquery}
-              hideText={"Plain osquery"}
-              showText={"Plain osquery"}
-              caretPosition={"after"}
-              onClick={() => setShowPlainOsquery((prev) => !prev)}
+        <>
+          {renderFleetCertificateBlock("tooltip")}
+          <div className={`${baseClass}__advanced--installer`}>
+            <InputField
+              readOnly
+              inputWrapperClass={`${baseClass}__installer-input ${baseClass}__installer-input-${packageType}`}
+              name="installer"
+              label={renderLabel(
+                packageType,
+                renderInstallerString(packageType)
+              )}
+              type="textarea"
+              value={renderInstallerString(packageType)}
+              helpText="Distribute your package to add hosts to Fleet."
             />
-            {showPlainOsquery && (
-              <>
-                <div className={`${baseClass}__advanced--enroll-secrets`}>
-                  <p className={`${baseClass}__advanced--heading`}>
-                    Download your enroll secret:
-                  </p>
-                  <p>
-                    Osquery uses an enroll secret to authenticate with the Fleet
-                    server.
-                    <br />
-                    <Button
-                      variant="text-icon"
-                      onClick={onDownloadEnrollSecret}
-                    >
+          </div>
+          <div>
+            <InfoBanner className={`${baseClass}__chrome--instructions`}>
+              This works for macOS, Windows, and Linux hosts. To add
+              Chromebooks,{" "}
+              <Button
+                variant="text-link"
+                onClick={() => setSelectedTabIndex(4)}
+              >
+                click here
+              </Button>
+              .
+            </InfoBanner>
+          </div>
+          <RevealButton
+            className={baseClass}
+            isShowing={showPlainOsquery}
+            hideText="Plain osquery"
+            showText="Plain osquery"
+            caretPosition="after"
+            onClick={() => setShowPlainOsquery((prev) => !prev)}
+          />
+          {showPlainOsquery && (
+            <>
+              <div className={`${baseClass}__advanced--enroll-secrets`}>
+                <p className={`${baseClass}__advanced--heading`}>
+                  Download your enroll secret:
+                </p>
+                <p>
+                  Osquery uses an enroll secret to authenticate with the Fleet
+                  server.
+                  <br />
+                  <Button variant="text-icon" onClick={onDownloadEnrollSecret}>
+                    Download
+                    <Icon
+                      name="download"
+                      color="core-fleet-blue"
+                      size="small"
+                    />
+                  </Button>
+                </p>
+              </div>
+              {renderFleetCertificateBlock("plain")}
+              <div className={`${baseClass}__advanced--flagfile`}>
+                <p className={`${baseClass}__advanced--heading`}>
+                  Download your flagfile:
+                </p>
+                <p>
+                  If using the enroll secret and server certificate downloaded
+                  above, use the generated flagfile. In some configurations,
+                  modifications may need to be made.
+                  <br />
+                  {fetchCertificateError ? (
+                    <span className={`${baseClass}__error`}>
+                      {fetchCertificateError}
+                    </span>
+                  ) : (
+                    <Button variant="text-icon" onClick={onDownloadFlagfile}>
                       Download
                       <Icon
                         name="download"
@@ -476,51 +492,40 @@ const PlatformWrapper = ({
                         size="small"
                       />
                     </Button>
-                  </p>
-                </div>
-                {renderFleetCertificateBlock("plain")}
-                <div className={`${baseClass}__advanced--flagfile`}>
-                  <p className={`${baseClass}__advanced--heading`}>
-                    Download your flagfile:
-                  </p>
-                  <p>
-                    If using the enroll secret and server certificate downloaded
-                    above, use the generated flagfile. In some configurations,
-                    modifications may need to be made.
-                    <br />
-                    {fetchCertificateError ? (
-                      <span className={`${baseClass}__error`}>
-                        {fetchCertificateError}
-                      </span>
-                    ) : (
-                      <Button variant="text-icon" onClick={onDownloadFlagfile}>
-                        Download
-                        <Icon
-                          name="download"
-                          color="core-fleet-blue"
-                          size="small"
-                        />
-                      </Button>
-                    )}
-                  </p>
-                </div>
-                <div className={`${baseClass}__advanced--osqueryd`}>
-                  <InputField
-                    disabled
-                    inputWrapperClass={`${baseClass}__run-osquery-input`}
-                    name="run-osquery"
-                    label={renderLabel(
-                      "plain-osquery",
-                      "osqueryd --flagfile=flagfile.txt --verbose"
-                    )}
-                    type={"text"}
-                    value={"osqueryd --flagfile=flagfile.txt --verbose"}
-                  />
-                </div>
-              </>
-            )}
-          </div>
-        </div>
+                  )}
+                </p>
+              </div>
+              <div className={`${baseClass}__advanced--osqueryd`}>
+                <p className={`${baseClass}__advanced--heading`}>
+                  With{" "}
+                  <a
+                    href="https://www.osquery.io/downloads"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    osquery
+                  </a>{" "}
+                  installed:
+                </p>
+                <p className={`${baseClass}__advanced--text`}>
+                  Run osquery from the directory containing the above files (may
+                  require sudo or Run as Administrator privileges):
+                </p>
+                <InputField
+                  readOnly
+                  inputWrapperClass={`${baseClass}__run-osquery-input`}
+                  name="run-osquery"
+                  label={renderLabel(
+                    "plain-osquery",
+                    "osqueryd --flagfile=flagfile.txt --verbose"
+                  )}
+                  type="text"
+                  value="osqueryd --flagfile=flagfile.txt --verbose"
+                />
+              </div>
+            </>
+          )}
+        </>
       );
     }
 
@@ -545,14 +550,18 @@ const PlatformWrapper = ({
           </Checkbox>
         )}
         <InputField
-          disabled
+          readOnly
           inputWrapperClass={`${baseClass}__installer-input ${baseClass}__installer-input-${packageType}`}
           name="installer"
           label={renderLabel(packageType, renderInstallerString(packageType))}
-          type={"textarea"}
+          type="textarea"
           value={renderInstallerString(packageType)}
+          helpText={`Distribute your package to add hosts to Fleet.${
+            packageType === "deb"
+              ? " For CentOS, Red Hat, and Fedora Linux, use --type=rpm."
+              : ""
+          }`}
         />
-        <span>Distribute your package to add hosts to Fleet.</span>
       </>
     );
   };
@@ -580,7 +589,9 @@ const PlatformWrapper = ({
             // so we add a hidden pseudo element with the same text string
             return (
               <TabPanel className={`${baseClass}__info`} key={navItem.type}>
-                {renderTab(navItem.type)}
+                <div className={`${baseClass} form`}>
+                  {renderTab(navItem.type)}
+                </div>
               </TabPanel>
             );
           })}

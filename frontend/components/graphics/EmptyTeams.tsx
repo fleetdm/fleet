@@ -8,12 +8,12 @@ const EmptyTeams = () => {
       height="150"
       fill="none"
     >
-      <g clipPath="url(#a)">
+      <g clipPath="url(#emptyteams_clippath)">
         <path
           fill="#F1F0FF"
           d="M162.5 150c41.421 0 75-33.579 75-75s-33.579-75-75-75-75 33.579-75 75 33.579 75 75 75Z"
         />
-        <g filter="url(#b)">
+        <g filter="url(#emptyteams_filter)">
           <path
             fill="#fff"
             d="M313 35H9a8 8 0 0 0-8 8v64a8 8 0 0 0 8 8h304a8 8 0 0 0 8-8V43a8 8 0 0 0-8-8Z"
@@ -53,11 +53,11 @@ const EmptyTeams = () => {
         />
       </g>
       <defs>
-        <clipPath id="a">
+        <clipPath id="emptyteams_clippath">
           <path fill="#fff" d="M0 0h322v150H0z" />
         </clipPath>
         <filter
-          id="b"
+          id="emptyteams_filter"
           width={328}
           height={92}
           x={-3}

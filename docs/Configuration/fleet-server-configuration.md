@@ -1,46 +1,18 @@
 # Fleet server configuration
 
-## Configuring the Fleet binary
+Fleet server configuration options update the internals of the Fleet server (MySQL database, Redis, etc.). Modifying these options requires restarting your Fleet server.
 
-For information on how to run the `fleet` binary, find detailed usage information by running `fleet --help`. This document is a more detailed version of the data presented in the help output text. If you prefer to use a CLI instead of a web browser, we hope  you like the binary interface of the Fleet application!
+Only self-managed users and customers can modify this configuration. If you're a managed-cloud customer, please reach out to Fleet about modifying the configuration.
 
-### High-level configuration overview
+You can specify configuration options in the following formats:
 
-In order to get the most out of running the Fleet server, it is helpful to establish a mutual understanding of what the desired architecture looks like and what it's trying to accomplish.
+1. YAML file
+2. Environment variables
+3. Command-line flags
 
-Your Fleet server's two main purposes are:
+All duration-based settings accept valid time units of `s`, `m`, `h`.
 
-- To serve as your [osquery TLS server](https://osquery.readthedocs.io/en/stable/deployment/remote/)
-- To serve the Fleet web UI, which allows you to manage osquery configuration, query hosts, etc.
-
-The Fleet server allows you to persist configuration, manage users, etc. Thus, it needs a database. Fleet uses MySQL and requires you to supply configurations to connect to a MySQL server. It is also possible to configure your connection to a MySQL replica in addition to the primary. This is for reading only. Fleet also uses Redis to perform more high-speed data access action throughout the applications lifecycle (for example, distributed query result ingestion). Thus, Fleet also requires that you supply Redis connection configurations.
-
-Fleet can scale to hundreds of thousands of devices with a single Redis instance and is also compatible with Redis Cluster. Fleet does not support Redis Sentinel.
-
-Since Fleet is a web application, when you run it there are other configurations that must be defined, such as:
-
-- The TLS certificates that Fleet should use to terminate TLS.
-
-When deploying Fleet, mitigate DoS attacks as you would when deploying any app.
-
-Since Fleet is an osquery TLS server, you are also able to define configurations that can customize your experience there, such as:
-
-- The destination of the osquery status and result logs on the local filesystem
-- Various details about the refresh/check-in intervals for your hosts
-
-### Options
-
-#### How do you specify options?
-
-You can specify options in the order of precedence via
-
-1. a configuration file (in YAML format)
-2. environment variables
-3. command-line flags
-
-For example, all of the following ways of launching Fleet are equivalent:
-
-##### 1. Using a YAML config file
+## YAML file
 
 ```sh
 echo '
@@ -61,9 +33,7 @@ logging:
 fleet serve --config /tmp/fleet.yml
 ```
 
-For more information on using YAML configuration files with fleet, please see the [configuration files](https://fleetdm.com/docs/using-fleet/configuration-files) documentation.
-
-##### 2. Using only environment variables
+## Environment variables
 
 ```sh
 FLEET_MYSQL_ADDRESS=127.0.0.1:3306 \
@@ -77,7 +47,7 @@ FLEET_LOGGING_JSON=true \
 /usr/bin/fleet serve
 ```
 
-##### 3. Using only CLI flags
+## Command-line flags
 
 ```sh
 /usr/bin/fleet serve \
@@ -92,25 +62,7 @@ FLEET_LOGGING_JSON=true \
 ```
 
 
-### What are the options?
-
-Note that all option names can be converted consistently from flag name to environment variable and visa-versa. For example, the `--mysql_address` flag would be the `FLEET_MYSQL_ADDRESS`. Further, specifying the `mysql_address` option in the config would follow the pattern:
-
-```yaml
-mysql:
-  address: 127.0.0.1:3306
-```
-
-And `mysql_read_replica_address` would be:
-
-```yaml
-mysql_read_replica:
-  address: 127.0.0.1:3307
-```
-
-Basically, just capitalize the option and prepend `FLEET_` to it to get the environment variable. The conversion works the same the opposite way.
-
-All duration-based settings accept valid time units of `s`, `m`, `h`.
+## Configuration options
 
 #### MySQL
 
@@ -250,6 +202,14 @@ The maximum open connections to the database.
     max_open_conns: 50
   ```
 
+- Note: Fleet server uses SQL prepared statements, and the default setting of MySQL DB server's [max_prepared_stmt_count](https://dev.mysql.com/doc/refman/8.0/en/server-system-variables.html#sysvar_max_prepared_stmt_count)
+  may need to be adjusted for large deployments. This setting should be greater than or equal to:
+```
+FLEET_MYSQL_MAX_OPEN_CONNS * (max number of fleet servers) * 4
+```
+
+> Fleet uses 3 prepared statements for authentication (used by Fleet API) + each database connection can be using 1 additional prepared statement.
+
 ##### mysql_max_idle_conns
 
 The maximum idle connections to the database. This value should be equal to or less than `mysql_max_open_conns`.
@@ -276,7 +236,7 @@ The maximum amount of time, in seconds, a connection may be reused.
 
 ##### mysql_sql_mode
 
-Sets the connection `sql_mode`. See [MySQL Reference](https://dev.mysql.com/doc/refman/5.7/en/sql-mode.html) for more details.
+Sets the connection `sql_mode`. See [MySQL Reference](https://dev.mysql.com/doc/refman/8.0/en/sql-mode.html) for more details.
 This setting should not usually be used.
 
 - Default value: `""`
@@ -562,8 +522,7 @@ The maximum time a Redis connection may stay idle. A value of 0 means no limit.
 ##### redis_conn_wait_timeout
 
 The maximum time to wait for a Redis connection if the max_open_conns
-limit is reached. A value of 0 means no wait. This is ignored if Redis is not
-running in cluster mode.
+limit is reached. A value of 0 means no wait.
 
 - Default value: 0
 - Environment variable: `FLEET_REDIS_CONN_WAIT_TIMEOUT`
@@ -705,8 +664,8 @@ Turning off keepalives has helped reduce outstanding TCP connections in some dep
 ##### server_websockets_allow_unsafe_origin
 
 Controls the servers websocket origin check. If your Fleet server is behind a reverse proxy,
-the Origin header may not reflect the client's true origin. In this case, you might need to 
-disable the origin header (by setting this configuration to `true`) 
+the Origin header may not reflect the client's true origin. In this case, you might need to
+disable the origin header (by setting this configuration to `true`)
 check or configure your reverse proxy to forward the correct Origin header.
 
 Setting to true will disable the origin check.
@@ -717,6 +676,20 @@ Setting to true will disable the origin check.
   ```yaml
   server:
     websockets_allow_unsafe_origin: true
+  ```
+
+##### server_private_key
+
+This key is required for enabling macOS MDM features in Fleet. If you are using the `FLEET_APPLE_APNS_*` and `FLEET_APPLE_SCEP_*` variables, Fleet will automatically encrypt the values of those variables using `FLEET_SERVER_PRIVATE_KEY` and save them in the database when you restart after updating.
+
+The key must be at least 32 bytes long. Run `openssl rand -base64 32` in the Terminal app to generate one on macOS.
+
+- Default value: ""
+- Environment variable: FLEET_SERVER_PRIVATE_KEY
+- Config file format:
+  ```yaml
+  server:
+    private_key: 72414F4A688151F75D032F5CDA095FC4
   ```
 
 ##### Example YAML
@@ -747,6 +720,12 @@ The bcrypt cost to use when hashing user passwords.
 ##### auth_salt_key_size
 
 The key size of the salt which is generated when hashing user passwords.
+
+> Note: Fleet uses the `bcrypt` hashing algorithm for hashing passwords, which has a [72 character
+> input limit](https://en.wikipedia.org/wiki/Bcrypt#Maximum_password_length). This means that the
+> plaintext password (i.e. the password input by the user) length + the value of
+> `auth_salt_key_size` cannot exceed 72. In the default case, the max length of a plaintext password
+> is 48 (72 - 24).
 
 - Default value: `24`
 - Environment variable: `FLEET_AUTH_SALT_KEY_SIZE`
@@ -792,7 +771,9 @@ How long invite tokens should be valid for.
 
 ##### app_enable_scheduled_query_stats
 
-Determines whether Fleet gets scheduled query statistics from hosts or not.
+Determines whether Fleet collects performance impact statistics for scheduled queries.
+
+If set to `false`, stats are still collected for live queries.
 
 - Default value: `true`
 - Environment variable: `FLEET_APP_ENABLE_SCHEDULED_QUERY_STATS`
@@ -930,7 +911,7 @@ This flag can be used to control load on the database in scenarios in which many
 
 ##### osquery_label_update_interval
 
-The interval at which Fleet will ask osquery agents to update their results for label queries.
+The interval at which Fleet will ask Fleet's agent (fleetd) to update results for label queries.
 
 Setting this to a higher value can reduce baseline load on the Fleet server in larger deployments.
 
@@ -948,7 +929,7 @@ Valid time units are `s`, `m`, `h`.
 
 ##### osquery_policy_update_interval
 
-The interval at which Fleet will ask osquery agents to update their results for policy queries.
+The interval at which Fleet will ask Fleet's agent (fleetd) to update results for policy queries.
 
 Setting this to a higher value can reduce baseline load on the Fleet server in larger deployments.
 
@@ -966,7 +947,7 @@ Valid time units are `s`, `m`, `h`.
 
 ##### osquery_detail_update_interval
 
-The interval at which Fleet will ask osquery agents to update host details (such as uptime, hostname, network interfaces, etc.)
+The interval at which Fleet will ask Fleet's agent (fleetd) to update host details (such as uptime, hostname, network interfaces, etc.)
 
 Setting this to a higher value can reduce baseline load on the Fleet server in larger deployments.
 
@@ -1049,7 +1030,7 @@ It can be set to a single boolean value ("true" or "false"), which controls all 
     enable_async_host_processing: true
   ```
 
- > Fleet tested this option for `policy_membership=true` in [this issue](https://github.com/fleetdm/fleet/issues/12697) and found that it does not impact the performance or behavior of the app.
+> Fleet tested this option for `policy_membership=true` in [this issue](https://github.com/fleetdm/fleet/issues/12697) and found that it does not impact the performance or behavior of the app.
 
 ##### osquery_async_host_collect_interval
 
@@ -1185,9 +1166,9 @@ osquery:
   status_log_plugin: firehose
   result_log_plugin: firehose
 ```
-#### External Activity Audit Logging
+#### External activity audit logging
 
-> Applies only to Fleet Premium. Acitivity information is available for all Fleet instances using the [Activities API](https://fleetdm.com/docs/using-fleet/rest-api#activities).
+> Applies only to Fleet Premium. Activity information is available for all Fleet instances using the [Activities API](https://fleetdm.com/docs/using-fleet/rest-api#activities).
 
 Stream Fleet user activities to logs using Fleet's logging plugins. The audit events are logged in an asynchronous fashion. It can take up to 5 minutes for an event to be logged.
 
@@ -1480,6 +1461,23 @@ AWS STS role ARN to use for Firehose authentication.
     sts_assume_role_arn: arn:aws:iam::1234567890:role/firehose-role
   ```
 
+##### firehose_sts_external_id
+
+This flag only has effect if one of the following is true:
+- `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `firehose`.
+- `activity_audit_log_plugin` is set to `firehose` and `activity_enable_audit_log` is set to `true`.
+
+AWS STS External ID to use for Firehose authentication. This is typically used in 
+conjunction with an STS role ARN to ensure that only the intended AWS account can assume the role.
+
+- Default value: none
+- Environment variable: `FLEET_FIREHOSE_STS_EXTERNAL_ID`
+- Config file format:
+  ```yaml
+  firehose:
+    sts_external_id: your_unique_id
+  ```
+
 ##### firehose_status_stream
 
 This flag only has effect if `osquery_status_log_plugin` is set to `firehose`.
@@ -1552,6 +1550,7 @@ firehose:
   access_key_id: AKIAIOSFODNN7EXAMPLE
   secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
   sts_assume_role_arn: arn:aws:iam::1234567890:role/firehose-role
+  sts_external_id: your_unique_id
   status_stream: osquery_status
   result_stream: osquery_result
 ```
@@ -1627,6 +1626,23 @@ AWS STS role ARN to use for Kinesis authentication.
     sts_assume_role_arn: arn:aws:iam::1234567890:role/kinesis-role
   ```
 
+##### kinesis_sts_external_id
+
+This flag only has effect if one of the following is true:
+- `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `kinesis`.
+- `activity_audit_log_plugin` is set to `kinesis` and `activity_enable_audit_log` is set to `true`.
+
+AWS STS External ID to use for Kinesis authentication. This is typically used in
+conjunction with an STS role ARN to ensure that only the intended AWS account can assume the role.
+
+- Default value: none
+- Environment variable: `FLEET_KINESIS_STS_EXTERNAL_ID`
+- Config file format:
+  ```yaml
+  kinesis:
+    sts_external_id: your_unique_id
+  ```
+
 ##### kinesis_status_stream
 
 This flag only has effect if `osquery_status_log_plugin` is set to `kinesis`.
@@ -1698,6 +1714,7 @@ kinesis:
   access_key_id: AKIAIOSFODNN7EXAMPLE
   secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
   sts_assume_role_arn: arn:aws:iam::1234567890:role/firehose-role
+  sts_external_id: your_unique_id
   status_stream: osquery_status
   result_stream: osquery_result
 ```
@@ -1771,6 +1788,23 @@ AWS STS role ARN to use for Lambda authentication.
   ```yaml
   lambda:
     sts_assume_role_arn: arn:aws:iam::1234567890:role/lambda-role
+  ```
+
+##### lambda_sts_external_id
+
+This flag only has effect if one of the following is true:
+- `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `lambda`.
+- `activity_audit_log_plugin` is set to `lambda` and `activity_enable_audit_log` is set to `true`.
+
+AWS STS External ID to use for Lambda authentication. This is typically used in
+conjunction with an STS role ARN to ensure that only the intended AWS account can assume the role.
+
+- Default value: none
+- Environment variable: `FLEET_LAMBDA_STS_EXTERNAL_ID`
+- Config file format:
+  ```yaml
+  lambda:
+    sts_external_id: your_unique_id
   ```
 
 ##### lambda_status_function
@@ -1940,9 +1974,7 @@ pubsub:
   project: my-gcp-project
   result_topic: osquery_result
   status_topic: osquery_status
-  sts_assume_role_arn: arn:aws:iam::1234567890:role/firehose-role
-  status_function: statusFunction
-  result_function: resultFunction
+  add_attributes: true
 ```
 
 #### Kafka REST Proxy logging
@@ -2135,6 +2167,22 @@ AWS STS role ARN to use for SES authentication.
     sts_assume_role_arn: arn:aws:iam::1234567890:role/ses-role
   ```
 
+##### ses_sts_external_id
+
+This flag only has effect if `email.backend` or `FLEET_EMAIL_BACKEND` is set to `ses`.
+
+AWS STS External ID to use for SES authentication. This is typically used in
+conjunction with an STS role ARN to ensure that only the intended AWS account can assume the role.
+
+
+- Default value: none
+- Environment variable: `FLEET_SES_STS_EXTERNAL_ID`
+- Config file format:
+  ```yaml
+  ses:
+    sts_external_id: your_unique_id
+  ```
+
 ##### ses_source_arn
 
 This flag only has effect if `email.backend` or `FLEET_EMAIL_BACKEND` is set to `ses`. This configuration **is
@@ -2151,35 +2199,33 @@ for the email address specified in the Source parameter of SendRawEmail.
     sts_assume_role_arn: arn:aws:iam::1234567890:role/ses-role
   ```
 
-#### S3 file carving backend
+#### S3
 
-##### s3_bucket
+##### s3_software_installers_bucket
 
-Name of the S3 bucket to use to store file carves.
+Name of the S3 bucket for storing software.
 
 - Default value: none
-- Environment variable: `FLEET_S3_BUCKET`
+- Environment variable: `FLEET_S3_SOFTWARE_INSTALLERS_BUCKET`
 - Config file format:
   ```yaml
   s3:
-    bucket: some-carve-bucket
+    software_intallers_bucket: some-bucket
   ```
 
-##### s3_prefix
+##### s3_software_installers_prefix
 
-Prefix to prepend to carve objects.
-
-All carve objects will also be prefixed by date and hour (UTC), making the resulting keys look like: `<prefix><year>/<month>/<day>/<hour>/<carve-name>`.
+Prefix to prepend to software.
 
 - Default value: none
-- Environment variable: `FLEET_S3_PREFIX`
+- Environment variable: `FLEET_S3_SOFTWARE_INSTALLERS_PREFIX`
 - Config file format:
   ```yaml
   s3:
-    prefix: carves-go-here/
+    software_intallers_prefix: prefix-here/
   ```
 
-##### s3_access_key_id
+##### s3_software_installers_access_key_id
 
 AWS access key ID to use for S3 authentication.
 
@@ -2189,63 +2235,64 @@ If `s3_access_key_id` and `s3_secret_access_key` are omitted, Fleet will try to 
 The IAM identity used in this context must be allowed to perform the following actions on the bucket: `s3:PutObject`, `s3:GetObject`, `s3:ListMultipartUploadParts`, `s3:ListBucket`, `s3:GetBucketLocation`.
 
 - Default value: none
-- Environment variable: `FLEET_S3_ACCESS_KEY_ID`
+- Environment variable: `FLEET_S3_SOFTWARE_INSTALLERS_ACCESS_KEY_ID`
 - Config file format:
   ```yaml
   s3:
-    access_key_id: AKIAIOSFODNN7EXAMPLE
+    software_intallers_access_key_id: AKIAIOSFODNN7EXAMPLE
   ```
 
-##### s3_secret_access_key
+##### s3_software_installers_secret_access_key
 
 AWS secret access key to use for S3 authentication.
 
 - Default value: none
-- Environment variable: `FLEET_S3_SECRET_ACCESS_KEY`
+- Environment variable: `FLEET_S3_SOFTWARE_INSTALLERS_SECRET_ACCESS_KEY`
 - Config file format:
   ```yaml
   s3:
-    secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+    software_intallers_secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
   ```
 
-##### s3_sts_assume_role_arn
+##### s3_software_installers_sts_assume_role_arn
 
 AWS STS role ARN to use for S3 authentication.
 
 - Default value: none
-- Environment variable: `FLEET_S3_STS_ASSUME_ROLE_ARN`
+- Environment variable: `FLEET_S3_SOFTWARE_INSTALLERS_STS_ASSUME_ROLE_ARN`
 - Config file format:
   ```yaml
   s3:
-    sts_assume_role_arn: arn:aws:iam::1234567890:role/some-s3-role
+    software_intallers_sts_assume_role_arn: arn:aws:iam::1234567890:role/some-s3-role
   ```
 
-##### s3_endpoint_url
+##### s3_software_installers_sts_external_id
+
+AWS STS External ID to use for S3 authentication. This is typically used in
+conjunction with an STS role ARN to ensure that only the intended AWS account can assume the role.
+
+- Default value: none
+- Environment variable: `FLEET_S3_SOFTWARE_INSTALLERS_STS_EXTERNAL_ID`
+- Config file format:
+  ```yaml
+  s3:
+   software_intallers_sts_external_id: your_unique_id
+  ```
+
+##### s3_software_installers_endpoint_url
 
 AWS S3 Endpoint URL. Override when using a different S3 compatible object storage backend (such as Minio),
 or running s3 locally with localstack. Leave this blank to use the default S3 service endpoint.
 
 - Default value: none
-- Environment variable: `FLEET_S3_ENDPOINT_URL`
+- Environment variable: `FLEET_S3_SOFTWARE_INSTALLERS_ENDPOINT_URL`
 - Config file format:
   ```yaml
   s3:
-    endpoint_url: http://localhost:9000
+    software_intallers_endpoint_url: http://localhost:9000
   ```
 
-##### s3_disable_ssl
-
-AWS S3 Disable SSL. Useful for local testing.
-
-- Default value: false
-- Environment variable: `FLEET_S3_DISABLE_SSL`
-- Config file format:
-  ```yaml
-  s3:
-    disable_ssl: false
-  ```
-
-##### s3_force_s3_path_style
+##### s3_software_installers_force_s3_path_style
 
 AWS S3 Force S3 Path Style. Set this to `true` to force the request to use path-style addressing,
 i.e., `http://s3.amazonaws.com/BUCKET/KEY`. By default, the S3 client
@@ -2255,37 +2302,137 @@ will use virtual hosted bucket addressing when possible
 See [here](http://docs.aws.amazon.com/AmazonS3/latest/dev/VirtualHosting.html) for details.
 
 - Default value: false
-- Environment variable: `FLEET_S3_FORCE_S3_PATH_STYLE`
+- Environment variable: `FLEET_S3_SOFTWARE_INSTALLERS_FORCE_S3_PATH_STYLE`
 - Config file format:
   ```yaml
   s3:
-    force_s3_path_style: false
+    software_intallers_force_s3_path_style: false
   ```
 
-##### s3_region
+##### s3_software_installers_region
 
 AWS S3 Region. Leave blank to enable region discovery.
 
 Minio users must set this to any nonempty value (eg. `minio`), as Minio does not support region discovery.
 
 - Default value:
-- Environment variable: `FLEET_S3_REGION`
+- Environment variable: `FLEET_S3_SOFTWARE_INSTALLERS_REGION`
 - Config file format:
   ```yaml
   s3:
-    region: us-east-1
+    software_intallers_region: us-east-1
+  ```
+
+##### s3_carves_bucket
+
+Name of the S3 bucket for file carves.
+
+- Default value: none
+- Environment variable: `FLEET_S3_CARVES_BUCKET`
+- Config file format:
+  ```yaml
+  s3:
+     carves_bucket: some-bucket
+  ```
+
+##### s3_carves_prefix
+
+All carve objects will also be prefixed by date and hour (UTC), making the resulting keys look like: `<prefix><year>/<month>/<day>/<hour>/<carve-name>`.
+
+- Default value: none
+- Environment variable: `FLEET_S3_CARVES_PREFIX`
+- Config file format:
+  ```yaml
+  s3:
+     carves_prefix: prefix-here/
+  ```
+
+##### s3_carves_access_key_id
+
+- Default value: none
+- Environment variable: `FLEET_S3_CARVES_ACCESS_KEY_ID`
+- Config file format:
+  ```yaml
+  s3:
+    carves_access_key_id: AKIAIOSFODNN7EXAMPLE
+  ```
+
+##### s3_carves_secret_access_key
+
+- Default value: none
+- Environment variable: `FLEET_S3_CARVES_SECRET_ACCESS_KEY`
+- Config file format:
+  ```yaml
+  s3:
+     carves_secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+  ```
+
+##### s3_carves_sts_assume_role_arn
+
+- Default value: none
+- Environment variable: `FLEET_S3_CARVES_STS_ASSUME_ROLE_ARN`
+- Config file format:
+  ```yaml
+  s3:
+     carves_sts_assume_role_arn: arn:aws:iam::1234567890:role/some-s3-role
+  ```
+
+##### s3_carves_sts_external_id
+
+- Default value: none
+- Environment variable: `FLEET_S3_CARVES_STS_EXTERNAL_ID`
+- Config file format:
+  ```yaml
+  s3:
+     carves_sts_external_id: your_unique_id
+  ```
+
+##### s3_carves_endpoint_url
+
+- Default value: none
+- Environment variable: `FLEET_S3_CARVES_ENDPOINT_URL`
+- Config file format:
+  ```yaml
+  s3:
+     carves_endpoint_url: http://localhost:9000
+  ```
+
+##### s3_carves_force_s3_path_style
+
+- Default value: false
+- Environment variable: `FLEET_S3_CARVES_FORCE_S3_PATH_STYLE`
+- Config file format:
+  ```yaml
+  s3:
+     carves_force_s3_path_style: false
+  ```
+
+##### s3_carves_region
+
+- Default value:
+- Environment variable: `FLEET_S3_CARVES_REGION`
+- Config file format:
+  ```yaml
+  s3:
+    carves_region: us-east-1
   ```
 
 ##### Example YAML
 
 ```yaml
 s3:
-  bucket: some-carve-bucket
-  prefix: carves-go-here/
-  access_key_id: AKIAIOSFODNN7EXAMPLE
-  secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
-  sts_assume_role_arn: arn:aws:iam::1234567890:role/some-s3-role
-  region: us-east-1
+  software_installers_bucket: software-installers-bucket
+  software_installers_prefix: prefix-here/
+  software_installers_access_key_id: AKIAIOSFODNN7EXAMPLE
+  software_installers_secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+  software_installers_sts_assume_role_arn: arn:aws:iam::1234567890:role/some-s3-role
+  software_installers_region: us-east-1
+  carves_bucket: carves-bucket
+  carves_prefix: prefix-here/
+  carves_access_key_id: AKIAIOSFODNN7EXAMPLE
+  carves_secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+  carves_sts_assume_role_arn: arn:aws:iam::1234567890:role/some-s3-role
+  carves_region: us-east-1
 ```
 
 #### Upgrades
@@ -2308,7 +2455,7 @@ If set then `fleet serve` will run even if there are database migrations missing
 
 The path specified needs to exist and Fleet needs to be able to read and write to and from it. This is the only mandatory configuration needed for vulnerability processing to work.
 
-When `current_instance_checks` is set to `auto` (the default), Fleet instances will try to create the `databases_path` if it doesn't exist.
+When `disable_schedule` is set to `false` (the default), Fleet instances will try to create the `databases_path` if it doesn't exist.
 
 - Default value: `/tmp/vulndbs`
 - Environment variable: `FLEET_VULNERABILITIES_DATABASES_PATH`
@@ -2378,21 +2525,11 @@ When not defined, Fleet downloads CVE information from the nvd.nist.gov host usi
     cve_feed_prefix_url: ""
   ```
 
-##### current_instance_checks
-
-When running multiple instances of the Fleet server, by default, one of them dynamically takes the lead in vulnerability processing. This lead can change over time. Some Fleet users want to be able to define which deployment is doing this checking. If you wish to do this, you'll need to deploy your Fleet instances with this set explicitly to no and one of them set to yes.
-
-- Default value: `auto`
-- Environment variable: `FLEET_VULNERABILITIES_CURRENT_INSTANCE_CHECKS`
-- Config file format:
-  ```yaml
-  vulnerabilities:
-    current_instance_checks: yes
-  ```
-
 ##### disable_schedule
 
-To externally manage running vulnerability processing set the value to `true` and then run `fleet vuln_processing` using external
+When running multiple instances of the Fleet server, by default, one of them dynamically takes the lead in vulnerability processing. This lead can change over time. Some Fleet users want to be able to define which deployment is doing this checking. If you wish to do this, you'll need to deploy your Fleet instances with this set explicitly to `true` and one of them set to `false`.
+
+Similarly, to externally manage running vulnerability processing, set the value to `true` for all Fleet instances and then run `fleet vuln_processing` using external
 tools like crontab.
 
 - Default value: `false`
@@ -2520,8 +2657,8 @@ If set, then `Fleet serve` will capture errors and panics and push them to Sentr
 This is the username to use for HTTP Basic Auth on the `/metrics` endpoint.
 
 If `basic_auth.username` is not set, then:
-  - If `basic_auth.disable` is not set then the Prometheus `/metrics` endpoint is disabled.
-  - If `basic_auth.disable` is set then the Prometheus `/metrics` endpoint is enabled but without HTTP Basic Auth.
+- If `basic_auth.disable` is not set then the Prometheus `/metrics` endpoint is disabled.
+- If `basic_auth.disable` is set then the Prometheus `/metrics` endpoint is enabled but without HTTP Basic Auth.
 
 - Default value: `""`
 - Environment variable: `FLEET_PROMETHEUS_BASIC_AUTH_USERNAME`
@@ -2537,8 +2674,8 @@ If `basic_auth.username` is not set, then:
 This is the password to use for HTTP Basic Auth on the `/metrics` endpoint.
 
 If `basic_auth.password` is not set, then:
-  - If `basic_auth.disable` is not set then the Prometheus `/metrics` endpoint is disabled.
-  - If `basic_auth.disable` is set then the Prometheus `/metrics` endpoint is enabled but without HTTP Basic Auth.
+- If `basic_auth.disable` is not set then the Prometheus `/metrics` endpoint is disabled.
+- If `basic_auth.disable` is set then the Prometheus `/metrics` endpoint is enabled but without HTTP Basic Auth.
 
 - Default value: `""`
 - Environment variable: `FLEET_PROMETHEUS_BASIC_AUTH_PASSWORD`
@@ -2564,7 +2701,9 @@ If both `basic_auth.username` and `basic_auth.password` are set, then this setti
       disable: true
   ```
 
-#### Packaging
+<!-- #### Packaging
+
+Fleet Sandbox no longer exists. Fleet might use this later to enable one-click, downloaded agents (fleetd) (noahtalerman 2024-06-26)
 
 These configurations control how Fleet interacts with the
 packaging server (coming soon).  These features are currently only intended to be used within
@@ -2596,7 +2735,7 @@ stored in your database.
 
 ##### packaging_s3_bucket
 
-This is the name of the S3 bucket to store pre-built Fleetd installers.
+This is the name of the S3 bucket to store pre-built Fleet agent (fleetd) installers.
 
 - Default value: ""
 - Environment variable: `FLEET_PACKAGING_S3_BUCKET`
@@ -2665,6 +2804,20 @@ This is the AWS STS role ARN for S3 authentication.
       sts_assume_role_arn: arn:aws:iam::1234567890:role/some-s3-role
   ```
 
+##### packaging_s3_sts_external_id
+
+AWS STS External ID to use for S3 authentication. This is typically used in
+conjunction with an STS role ARN to ensure that only the intended AWS account can assume the role.
+
+- Default value: ""
+- Environment variable: `FLEET_PACKAGING_S3_STS_EXTERNAL_ID`
+- Config file format:
+  ```yaml
+  packaging:
+    s3:
+      sts_external_id: your_unique_id
+  ```
+
 ##### packaging_s3_endpoint_url
 
 This is the AWS S3 Endpoint URL. Override when using a different S3 compatible object storage backend (such as Minio)
@@ -2723,7 +2876,7 @@ Minio users must set this to any non-empty value (e.g., `minio`), as Minio does 
   packaging:
     s3:
       region: us-east-1
-  ```
+  ``` -->
 
 ##### Example YAML
 
@@ -2740,89 +2893,9 @@ packaging:
 
 ## Mobile device management (MDM)
 
-> MDM features require some endpoints to be publicly accessible. For more details, see the guide, [Which API endpoints to expose to the public internet?](https://fleetdm.com/guides/what-api-endpoints-to-expose-to-the-public-internet)
+> The [`server_private_key` configuration option](#server_private_key) is required for macOS MDM features.
 
-This section is a reference for the configuration required to turn on MDM features in production.
-
-If you're a Fleet contributor and you'd like to turn on MDM features in a local environment, see the guided instructions [here](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/Testing-and-local-development.md#mdm-setup-and-testing).
-
-##### mdm.apple_apns_cert_bytes
-
-The content of the Apple Push Notification service (APNs) certificate. An X.509 certificate, PEM-encoded. Typically generated via `fleetctl generate mdm-apple`.
-
-- Default value: ""
-- Environment variable: `FLEET_MDM_APPLE_APNS_CERT_BYTES`
-- Config file format:
-  ```yaml
-  mdm:
-    apple_apns_cert_bytes: |
-      -----BEGIN CERTIFICATE-----
-      ... PEM-encoded content ...
-      -----END CERTIFICATE-----
-  ```
-
-##### mdm.apple_apns_key_bytes
-
-The content of the PEM-encoded private key for the Apple Push Notification service (APNs). Typically generated via `fleetctl generate mdm-apple`.
-
-- Default value: ""
-- Environment variable: `FLEET_MDM_APPLE_APNS_KEY_BYTES`
-- Config file format:
-  ```yaml
-  mdm:
-    apple_apns_key_bytes: |
-      -----BEGIN RSA PRIVATE KEY-----
-      ... PEM-encoded content ...
-      -----END RSA PRIVATE KEY-----
-  ```
-
-##### mdm.apple_scep_cert_bytes
-
-The content of the Simple Certificate Enrollment Protocol (SCEP) certificate. An X.509 certificate, PEM-encoded. Typically generated via `fleetctl generate mdm-apple`.
-
-- Default value: ""
-- Environment variable: `FLEET_MDM_APPLE_SCEP_CERT_BYTES`
-- Config file format:
-  ```yaml
-  mdm:
-    apple_scep_cert_bytes: |
-      -----BEGIN CERTIFICATE-----
-      ... PEM-encoded content ...
-      -----END CERTIFICATE-----
-  ```
-
-The SCEP certificate/key pair [generated by Fleet](../Using%20Fleet/MDM-setup.md#step-1-generate-the-required-files) expires every 10 years. It's recommended to never change these unless they were compromised. 
-
-If your certificate/key pair was compromised and you change the pair, the disk encryption keys will no longer be viewable on all macOS hosts' **Host details** page until you turn disk encryption off and back on and the keys are [reset by the end user](../Using%20Fleet/MDM-migration-guide.md#how-to-turn-on-disk-encryption).
-
-##### mdm.apple_scep_key_bytes
-
-The content of the PEM-encoded private key for the Simple Certificate Enrollment Protocol (SCEP). Typically generated via `fleetctl generate mdm-apple`.
-
-- Default value: ""
-- Environment variable: `FLEET_MDM_APPLE_SCEP_KEY_BYTES`
-- Config file format:
-  ```yaml
-  mdm:
-    apple_scep_key_bytes: |
-      -----BEGIN RSA PRIVATE KEY-----
-      ... PEM-encoded content ...
-      -----END RSA PRIVATE KEY-----
-  ```
-
-##### mdm.apple_scep_challenge
-
-An alphanumeric secret for the Simple Certificate Enrollment Protocol (SCEP). Define a unique, static secret 32 characters in length and only include alphanumeric characters.
-
-> SCEP is commonly applied to a number of certificate use cases. Notably, Mobile Device Management (MDM) systems like Microsoft Intune and Apple MDM use SCEP for PKI certificate enrollment.
-
-- Default value: ""
-- Environment variable: `FLEET_MDM_APPLE_SCEP_CHALLENGE`
-- Config file format:
-  ```yaml
-  mdm:
-    apple_scep_challenge: scepchallenge
-  ```
+> The Apple Push Notification service (APNs), Simple Certificate Enrollment Protocol (SCEP), and Apple Business Manager (ABM) [certificate and key configuration](https://github.com/fleetdm/fleet/blob/fleet-v4.51.0/docs/Contributing/Configuration-for-contributors.md#mobile-device-management-mdm) are deprecated as of Fleet 4.51. They are maintained for backwards compatibility. Please upload your APNs certificate and ABM token. Learn how [here](https://fleetdm.com/docs/using-fleet/mdm-setup).
 
 ##### mdm.apple_scep_signer_validity_days
 
@@ -2848,51 +2921,6 @@ The number of days allowed to renew SCEP certificates.
     apple_scep_signer_allow_renewal_days: 30
   ```
 
-##### mdm.apple_bm_server_token_bytes
-
-This is the content of the Apple Business Manager encrypted server token downloaded from Apple Business Manager.
-
-- Default value: ""
-- Environment variable: `FLEET_MDM_APPLE_BM_SERVER_TOKEN_BYTES`
-- Config file format:
-  ```yaml
-  mdm:
-    apple_bm_server_token_bytes: |
-      Content-Type: application/pkcs7-mime; name="smime.p7m"; smime-type=enveloped-data
-      Content-Transfer-Encoding: base64
-      ... rest of content ...
-  ```
-
-##### mdm.apple_bm_cert_bytes
-
-This is the content of the Apple Business Manager certificate. The certificate is a PEM-encoded X.509 certificate that's typically generated via `fleetctl generate mdm-apple-bm`.
-
-- Default value: ""
-- Environment variable: `FLEET_MDM_APPLE_BM_CERT_BYTES`
-- Config file format:
-  ```yaml
-  mdm:
-    apple_bm_cert_bytes: |
-      -----BEGIN CERTIFICATE-----
-      ... PEM-encoded content ...
-      -----END CERTIFICATE-----
-  ```
-
-##### mdm.apple_bm_key_bytes
-
-This is the content of the PEM-encoded private key for the Apple Business Manager. It's typically generated via `fleetctl generate mdm-apple-bm`.
-
-- Default value: ""
-- Environment variable: `FLEET_MDM_APPLE_BM_KEY_BYTES`
-- Config file format:
-  ```yaml
-  mdm:
-    apple_bm_key_bytes: |
-      -----BEGIN RSA PRIVATE KEY-----
-      ... PEM-encoded content ...
-      -----END RSA PRIVATE KEY-----
-  ```
-
 ##### mdm.apple_dep_sync_periodicity
 
 The duration between DEP device syncing (fetching and setting of DEP profiles). Only relevant if Apple Business Manager (ABM) is configured.
@@ -2905,12 +2933,11 @@ The duration between DEP device syncing (fetching and setting of DEP profiles). 
     apple_dep_sync_periodicity: 10m
   ```
 ##### mdm.windows_wstep_identity_cert_bytes
-> Windows MDM features are not ready for production and are currently in development. These features are disabled by default.
 
 The content of the Windows WSTEP identity certificate. An X.509 certificate, PEM-encoded.
 - Default value: ""
 - Environment variable: `FLEET_MDM_WINDOWS_WSTEP_IDENTITY_CERT_BYTES`
-- Config file format: 
+- Config file format:
   ```
   mdm:
    windows_wstep_identity_cert_bytes: |
@@ -2922,12 +2949,11 @@ The content of the Windows WSTEP identity certificate. An X.509 certificate, PEM
 If your WSTEP certificate/key pair was compromised and you change the pair, the disk encryption keys will no longer be viewable on all macOS hosts' **Host details** page until you turn disk encryption off and back on.
 
 ##### mdm.windows_wstep_identity_key_bytes
-> Windows MDM features are not ready for production and are currently in development. These features are disabled by default.
 
 The content of the Windows WSTEP identity key. An RSA private key, PEM-encoded.
 - Default value: ""
-- Environment variable: `FLEET_MDM_WINDOWS_WSTEP_IDENTITY_KEY_BYTES` 
-- Config file format:  
+- Environment variable: `FLEET_MDM_WINDOWS_WSTEP_IDENTITY_KEY_BYTES`
+- Config file format:
   ```
   mdm:
     windows_wstep_identity_key_bytes: |

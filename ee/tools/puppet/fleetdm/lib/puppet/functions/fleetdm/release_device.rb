@@ -29,7 +29,7 @@ Puppet::Functions.create_function(:"fleetdm::release_device") do
       </plist>
     COMMAND_TEMPLATE
 
-    env = closure_scope['server_facts']['environment']
+    env = closure_scope['environment']
     client = Puppet::Util::FleetClient.instance
     response = client.send_mdm_command(uuid, command_xml, env)
 

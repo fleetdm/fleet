@@ -1,39 +1,11 @@
 <!-- DO NOT EDIT. This document is automatically generated. -->
 # Audit logs
 
-Fleet logs the following information for administrative activities (in JSON):
+Fleet logs activities.
 
-- `created_at`: Timestamp of the event.
-- `id`: Unique ID of the generated event in Fleet.
-- `actor_full_name`: Author user name (missing if the user was deleted).
-- `actor_id`: Unique ID of the author in Fleet (missing if the user was deleted).
-- `actor_gravatar`: Gravatar URL of the author (missing if the user was deleted).
-- `actor_email`: E-mail of the author (missing if the user was deleted).
-- `type`: Type of the activity (see all types below).
-- `details`: Specific details depending on the type of activity (see details for each activity type below).
+To see activities in Fleet, select the Fleet icon in the top navigation and see the **Activity** section.
 
-Example:
-```json
-{
-	"created_at": "2022-12-20T14:54:17Z",
-	"id": 6,
-	"actor_full_name": "Gandalf",
-	"actor_id": 2,
-	"actor_gravatar": "foo@example.com",
-	"actor_email": "foo@example.com",
-	"type": "edited_saved_query",
-	"details":{
-		"query_id": 42,
-		"query_name": "Some query name"
-	}
-}
-```
-
-You can automatically send these logs to your log destination. Learn how to configure this [here](https://fleetdm.com/docs/configuration/fleet-server-configuration#external-activity-audit-logging).
-
-To view activities in the UI, click the Fleet icon in the top navigation bar and locate the **Activity** section.
-
-Following is a summary of the types of administrative activities logged by Fleet:
+This page includes a list of activities.
 
 ## created_pack
 
@@ -280,7 +252,7 @@ This activity contains the following fields:
 ```json
 {
 	"team_id": 123,
-	"team_name": "foo"
+	"team_name": "Workstations"
 }
 ```
 
@@ -297,7 +269,7 @@ This activity contains the following fields:
 ```json
 {
 	"team_id": 123,
-	"team_name": "foo"
+	"team_name": "Workstations"
 }
 ```
 
@@ -357,7 +329,7 @@ This activity contains the following fields:
 ```json
 {
 	"team_id": 123,
-	"team_name": "foo",
+	"team_name": "Workstations",
 	"global": false
 }
 ```
@@ -610,6 +582,69 @@ This activity contains the following fields:
 }
 ```
 
+## edited_ios_min_version
+
+Generated when the minimum required iOS version or deadline is modified.
+
+This activity contains the following fields:
+- "team_id": The ID of the team that the minimum iOS version applies to, `null` if it applies to devices that are not in a team.
+- "team_name": The name of the team that the minimum iOS version applies to, `null` if it applies to devices that are not in a team.
+- "minimum_version": The minimum iOS version required, empty if the requirement was removed.
+- "deadline": The deadline by which the minimum version requirement must be applied, empty if the requirement was removed.
+
+#### Example
+
+```json
+{
+  "team_id": 3,
+  "team_name": "iPhones",
+  "minimum_version": "17.5.1",
+  "deadline": "2023-06-01"
+}
+```
+
+## edited_ipados_min_version
+
+Generated when the minimum required iPadOS version or deadline is modified.
+
+This activity contains the following fields:
+- "team_id": The ID of the team that the minimum iPadOS version applies to, `null` if it applies to devices that are not in a team.
+- "team_name": The name of the team that the minimum iPadOS version applies to, `null` if it applies to devices that are not in a team.
+- "minimum_version": The minimum iPadOS version required, empty if the requirement was removed.
+- "deadline": The deadline by which the minimum version requirement must be applied, empty if the requirement was removed.
+
+#### Example
+
+```json
+{
+  "team_id": 3,
+  "team_name": "iPads",
+  "minimum_version": "17.5.1",
+  "deadline": "2023-06-01"
+}
+```
+
+## edited_windows_updates
+
+Generated when the Windows OS updates deadline or grace period is modified.
+
+This activity contains the following fields:
+- "team_id": The ID of the team that the Windows OS updates settings applies to, `null` if it applies to devices that are not in a team.
+- "team_name": The name of the team that the Windows OS updates settings applies to, `null` if it applies to devices that are not in a team.
+- "deadline_days": The number of days before updates are installed, `null` if the requirement was removed.
+- "grace_period_days": The number of days after the deadline before the host is forced to restart, `null` if the requirement was removed.
+
+#### Example
+
+```json
+{
+  "team_id": 3,
+  "team_name": "Workstations",
+  "deadline_days": 5,
+  "grace_period_days": 2
+}
+```
+
 ## read_host_disk_encryption_key
 
 Generated when a user reads the disk encryption key for a host.
@@ -832,13 +867,13 @@ This activity contains the following fields:
 
 ## enabled_windows_mdm
 
-Windows MDM features are not ready for production and are currently in development. These features are disabled by default. Generated when a user turns on MDM features for all Windows hosts (servers excluded).
+Generated when a user turns on MDM features for all Windows hosts (servers excluded).
 
 This activity does not contain any detail fields.
 
 ## disabled_windows_mdm
 
-Windows MDM features are not ready for production and are currently in development. These features are disabled by default. Generated when a user turns off MDM features for all Windows hosts.
+Generated when a user turns off MDM features for all Windows hosts.
 
 This activity does not contain any detail fields.
 
@@ -850,6 +885,7 @@ This activity contains the following fields:
 - "host_id": ID of the host.
 - "host_display_name": Display name of the host.
 - "script_execution_id": Execution ID of the script run.
+- "script_name": Name of the script (empty if it was an anonymous script).
 - "async": Whether the script was executed asynchronously.
 
 #### Example
@@ -858,6 +894,7 @@ This activity contains the following fields:
 {
   "host_id": 1,
   "host_display_name": "Anna's MacBook Pro",
+  "script_name": "set-timezones.sh",
   "script_execution_id": "d6cffa75-b5b5-41ef-9230-15073c8a88cf",
   "async": false
 }
@@ -918,7 +955,7 @@ This activity contains the following fields:
 }
 ```
 
-### Type `created_windows_profile`
+## created_windows_profile
 
 Generated when a user adds a new Windows profile to a team (or no team).
 
@@ -937,7 +974,7 @@ This activity contains the following fields:
 }
 ```
 
-### Type `deleted_windows_profile`
+## deleted_windows_profile
 
 Generated when a user deletes a Windows profile from a team (or no team).
 
@@ -956,7 +993,7 @@ This activity contains the following fields:
 }
 ```
 
-### Type `edited_windows_profile`
+## edited_windows_profile
 
 Generated when a user edits the Windows profiles of a team (or no team) via the fleetctl CLI.
 
@@ -970,6 +1007,289 @@ This activity contains the following fields:
 {
   "team_id": 123,
   "team_name": "Workstations"
+}
+```
+
+## locked_host
+
+Generated when a user sends a request to lock a host.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+- "view_pin": Whether lock PIN was viewed (for Apple devices).
+
+#### Example
+
+```json
+{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro",
+  "view_pin": true
+}
+```
+
+## unlocked_host
+
+Generated when a user sends a request to unlock a host.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+- "host_platform": Platform of the host.
+
+#### Example
+
+```json
+{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro",
+  "host_platform": "darwin"
+}
+```
+
+## wiped_host
+
+Generated when a user sends a request to wipe a host.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+
+#### Example
+
+```json
+{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro"
+}
+```
+
+## created_declaration_profile
+
+Generated when a user adds a new macOS declaration to a team (or no team).
+
+This activity contains the following fields:
+- "profile_name": Name of the declaration.
+- "identifier": Identifier of the declaration.
+- "team_id": The ID of the team that the declaration applies to, `null` if it applies to devices that are not in a team.
+- "team_name": The name of the team that the declaration applies to, `null` if it applies to devices that are not in a team.
+
+#### Example
+
+```json
+{
+  "profile_name": "Passcode requirements",
+  "profile_identifier": "com.my.declaration",
+  "team_id": 123,
+  "team_name": "Workstations"
+}
+```
+
+## deleted_declaration_profile
+
+Generated when a user removes a macOS declaration from a team (or no team).
+
+This activity contains the following fields:
+- "profile_name": Name of the declaration.
+- "identifier": Identifier of the declaration.
+- "team_id": The ID of the team that the declaration applies to, `null` if it applies to devices that are not in a team.
+- "team_name": The name of the team that the declaration applies to, `null` if it applies to devices that are not in a team.
+
+#### Example
+
+```json
+{
+  "profile_name": "Passcode requirements",
+  "profile_identifier": "com.my.declaration",
+  "team_id": 123,
+  "team_name": "Workstations"
+}
+```
+
+## edited_declaration_profile
+
+Generated when a user edits the macOS declarations of a team (or no team) via the fleetctl CLI.
+
+This activity contains the following fields:
+- "team_id": The ID of the team that the declarations apply to, `null` if they apply to devices that are not in a team.
+- "team_name": The name of the team that the declarations apply to, `null` if they apply to devices that are not in a team.
+
+#### Example
+
+```json
+{
+  "team_id": 123,
+  "team_name": "Workstations"
+}
+```
+
+## resent_configuration_profile
+
+Generated when a user resends an MDM configuration profile to a host.
+
+This activity contains the following fields:
+- "host_id": The ID of the host.
+- "host_display_name": The display name of the host.
+- "profile_name": The name of the configuration profile.
+
+#### Example
+
+```json
+{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro",
+  "profile_name": "Passcode requirements"
+}
+```
+
+## installed_software
+
+Generated when a software is installed on a host.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+- "install_uuid": ID of the software installation.
+- "self_service": Whether the installation was initiated by the end user.
+- "software_title": Name of the software.
+- "software_package": Filename of the installer.
+- "status": Status of the software installation.
+
+#### Example
+
+```json
+{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro",
+  "software_title": "Falcon.app",
+  "software_package": "FalconSensor-6.44.pkg",
+  "self_service": true,
+  "install_uuid": "d6cffa75-b5b5-41ef-9230-15073c8a88cf",
+  "status": "pending"
+}
+```
+
+## added_software
+
+Generated when a software installer is uploaded to Fleet.
+
+This activity contains the following fields:
+- "software_title": Name of the software.
+- "software_package": Filename of the installer.
+- "team_name": Name of the team to which this software was added. `null` if it was added to no team." +
+- "team_id": The ID of the team to which this software was added. `null` if it was added to no team.
+- "self_service": Whether the software is available for installation by the end user.
+
+#### Example
+
+```json
+{
+  "software_title": "Falcon.app",
+  "software_package": "FalconSensor-6.44.pkg",
+  "team_name": "Workstations",
+  "team_id": 123,
+  "self_service": true
+}
+```
+
+## deleted_software
+
+Generated when a software installer is deleted from Fleet.
+
+This activity contains the following fields:
+- "software_title": Name of the software.
+- "software_package": Filename of the installer.
+- "team_name": Name of the team to which this software was added. `null` if it was added to no team.
+- "team_id": The ID of the team to which this software was added. `null` if it was added to no team.
+- "self_service": Whether the software was available for installation by the end user.
+
+#### Example
+
+```json
+{
+  "software_title": "Falcon.app",
+  "software_package": "FalconSensor-6.44.pkg",
+  "team_name": "Workstations",
+  "team_id": 123,
+  "self_service": true
+}
+```
+
+## enabled_vpp
+
+Generated when the VPP feature is enabled in Fleet.
+
+
+
+## disabled_vpp
+
+Generated when the VPP feature is disabled in Fleet.
+
+
+
+## added_app_store_app
+
+Generated when an App Store app is added to Fleet.
+
+This activity contains the following fields:
+- "software_title": Name of the App Store app.
+- "app_store_id": ID of the app on the Apple App Store.
+- "team_name": Name of the team to which this App Store app was added, or `null` if it was added to no team.
+- "team_id": ID of the team to which this App Store app was added, or `null`if it was added to no team.
+
+#### Example
+
+```json
+{
+  "software_title": "Logic Pro",
+  "app_store_id": "1234567",
+  "team_name": "Workstations",
+  "team_id": 1
+}
+```
+
+## deleted_app_store_app
+
+Generated when an App Store app is deleted from Fleet.
+
+This activity contains the following fields:
+- "software_title": Name of the App Store app.
+- "app_store_id": ID of the app on the Apple App Store.
+- "team_name": Name of the team from which this App Store app was deleted, or `null` if it was deleted from no team.
+- "team_id": ID of the team from which this App Store app was deleted, or `null`if it was deleted from no team.
+
+#### Example
+
+```json
+{
+  "software_title": "Logic Pro",
+  "app_store_id": "1234567",
+  "team_name": "Workstations",
+  "team_id": 1
+}
+```
+
+## installed_app_store_app
+
+Generated when an App Store app is installed on a device.
+
+This activity contains the following fields:
+- host_id: ID of the host on which the app was installed.
+- host_display_name: Display name of the host.
+- software_title: Name of the App Store app.
+- app_store_id: ID of the app on the Apple App Store.
+- command_uuid: UUID of the MDM command used to install the app.
+
+#### Example
+
+```json
+{
+  "host_id": 42,
+  "host_display_name": "Anna's MacBook Pro",
+  "software_title": "Logic Pro",
+  "app_store_id": "1234567",
+  "command_uuid": "98765432-1234-1234-1234-1234567890ab"
 }
 ```
 

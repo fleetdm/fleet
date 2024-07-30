@@ -12,12 +12,14 @@ interface IDropdownCellProps {
   options: IDropdownOption[];
   placeholder: string;
   onChange: (value: string) => void;
+  disabled?: boolean;
 }
 
 const DropdownCell = ({
   options,
   placeholder,
   onChange,
+  disabled,
 }: IDropdownCellProps): JSX.Element => {
   return (
     <div className={baseClass}>
@@ -26,6 +28,7 @@ const DropdownCell = ({
         placeholder={placeholder}
         searchable={false}
         options={options}
+        disabled={disabled ?? false}
       />
     </div>
   );

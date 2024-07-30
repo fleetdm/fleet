@@ -1,11 +1,11 @@
-import React, { Children } from "react";
+import React from "react";
 import { render, screen } from "@testing-library/react";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 
-import { SupportedPlatform } from "interfaces/platform";
+import { QueryablePlatform } from "interfaces/platform";
 import PlatformCell from "./PlatformCell";
 
-const PLATFORMS: SupportedPlatform[] = ["windows", "darwin", "linux", "chrome"];
+const PLATFORMS: QueryablePlatform[] = ["windows", "darwin", "linux", "chrome"];
 
 describe("Platform cell", () => {
   it("renders platform icons in correct order", () => {

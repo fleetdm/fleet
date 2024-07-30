@@ -1,8 +1,7 @@
 .registration-breadcrumbs {
   display: flex;
   justify-content: space-between;
-  align-content: center;
-  width: 600px;
+  width: 652px;
   height: 125px;
   margin: 38px auto 0;
 
@@ -12,7 +11,7 @@
 
   &__page {
     text-align: center;
-    width: 156px;
+    min-width: 156px;
     font-size: $small;
     font-weight: $regular;
     color: $core-white;
@@ -21,18 +20,29 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
+    width: 100%;
 
+    // line after breadcrumb
     &::before {
       content: "";
       position: absolute;
-      width: 197px;
+      width: 88.5%;
       height: 2px;
       background-color: $core-vibrant-blue;
-      bottom: 46px;
-      left: 90px;
+      bottom: 36%;
+      left: 121px;
+
+      // Firefox-specific
+      @-moz-document url-prefix() {
+        bottom: 38.2%;
+      }
 
       @include breakpoint(tablet) {
-        bottom: 21px;
+        bottom: 26.5%;
+        // Firefox-specific
+        @-moz-document url-prefix() {
+          bottom: 30%;
+        }
       }
     }
 
@@ -61,7 +71,6 @@
 
     &--active {
       font-weight: $bold;
-      color: $core-white;
     }
 
     &--1 {
@@ -87,7 +96,7 @@
 
       &.registration-breadcrumbs__page--complete {
         &::before {
-          background-color: $core-white;
+          background: $core-white;
           background-size: auto;
           z-index: 2;
         }

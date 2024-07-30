@@ -113,35 +113,33 @@ const SelectedTeamsForm = ({
   );
 
   return (
-    <div className={baseClass}>
-      <div className={`${baseClass}__team-select-items`}>
-        {teamsFormList.map((teamItem) => {
-          const { isChecked, name, role, id } = teamItem;
-          return (
-            <div key={id} className={`${baseClass}__team-item`}>
-              <Checkbox
-                value={isChecked}
-                name={name}
-                onChange={(newValue: boolean) =>
-                  updateSelectedTeams(teamItem.id, newValue)
-                }
-              >
-                {name}
-              </Checkbox>
-              <Dropdown
-                value={role}
-                className={`${baseClass}__role-dropdown`}
-                options={roleOptions({ isPremiumTier: true, isApiOnly })}
-                searchable={false}
-                onChange={(newValue: UserRole) =>
-                  updateSelectedTeams(teamItem.id, newValue)
-                }
-                testId={`${name}-checkbox`}
-              />
-            </div>
-          );
-        })}
-      </div>
+    <div className={`${baseClass} form`}>
+      {teamsFormList.map((teamItem) => {
+        const { isChecked, name, role, id } = teamItem;
+        return (
+          <div key={id} className={`${baseClass}__team-item`}>
+            <Checkbox
+              value={isChecked}
+              name={name}
+              onChange={(newValue: boolean) =>
+                updateSelectedTeams(teamItem.id, newValue)
+              }
+            >
+              {name}
+            </Checkbox>
+            <Dropdown
+              value={role}
+              className={`${baseClass}__role-dropdown`}
+              options={roleOptions({ isPremiumTier: true, isApiOnly })}
+              searchable={false}
+              onChange={(newValue: UserRole) =>
+                updateSelectedTeams(teamItem.id, newValue)
+              }
+              testId={`${name}-checkbox`}
+            />
+          </div>
+        );
+      })}
     </div>
   );
 };

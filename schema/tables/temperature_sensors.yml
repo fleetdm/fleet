@@ -1,9 +1,7 @@
 name: temperature_sensors
-examples: >-
+examples: |-
   Identify systems with CPU temperature sensors above or equal to 90c.
 
   ```
-
-  SELECT name, celsius FROM temperature_sensors WHERE name LIKE 'CPU%' AND celsius>='90';
-
+  SELECT name, celsius FROM temperature_sensors WHERE name LIKE 'CPU%' AND celsius >='90';
   ```

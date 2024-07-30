@@ -5,11 +5,11 @@ import { pick } from "lodash";
 
 import { buildQueryStringFromParams } from "utilities/url";
 import { IEnrollSecret } from "interfaces/enroll_secret";
-import { IIntegrations } from "interfaces/integration";
+import { ITeamIntegrations } from "interfaces/integration";
 import {
   API_NO_TEAM_ID,
-  INewMembersBody,
-  IRemoveMembersBody,
+  INewTeamUsersBody,
+  IRemoveTeamUserBody,
   ITeamConfig,
   ITeamWebhookSettings,
 } from "interfaces/team";
@@ -39,9 +39,17 @@ export interface ITeamFormData {
 export interface IUpdateTeamFormData {
   name: string;
   webhook_settings: Partial<ITeamWebhookSettings>;
-  integrations: IIntegrations;
+  integrations: ITeamIntegrations;
   mdm: {
     macos_updates?: {
+      minimum_version: string;
+      deadline: string;
+    };
+    ios_updates?: {
+      minimum_version: string;
+      deadline: string;
+    };
+    ipados_updates?: {
       minimum_version: string;
       deadline: string;
     };
@@ -49,6 +57,10 @@ export interface IUpdateTeamFormData {
       deadline_days: number;
       grace_period_days: number;
     };
+  };
+  host_expiry_settings: {
+    host_expiry_enabled: boolean;
+    host_expiry_window: number; // days
   };
 }
 
@@ -91,7 +103,13 @@ export default {
     return sendRequest("GET", path);
   },
   update: (
-    { name, webhook_settings, integrations, mdm }: Partial<IUpdateTeamFormData>,
+    {
+      name,
+      webhook_settings,
+      integrations,
+      mdm,
+      host_expiry_settings,
+    }: Partial<IUpdateTeamFormData>,
     teamId?: number
   ): Promise<ITeamConfig> => {
     if (typeof teamId === "undefined") {
@@ -108,7 +126,7 @@ export default {
       requestBody.webhook_settings = webhook_settings;
     }
     if (integrations) {
-      const { jira, zendesk } = integrations;
+      const { jira, zendesk, google_calendar } = integrations;
       const teamIntegrationProps = [
         "enable_failing_policies",
         "group_id",
@@ -118,15 +136,29 @@ export default {
       requestBody.integrations = {
         jira: jira?.map((j) => pick(j, teamIntegrationProps)),
         zendesk: zendesk?.map((z) => pick(z, teamIntegrationProps)),
+        google_calendar,
       };
     }
     if (mdm) {
       requestBody.mdm = mdm;
     }
+    if (host_expiry_settings) {
+      requestBody.host_expiry_settings = host_expiry_settings;
+    }
 
     return sendRequest("PATCH", path, requestBody);
   },
-  addMembers: (teamId: number | undefined, newMembers: INewMembersBody) => {
+
+  /**
+   * updates the team config. This can take any partial data that is in the team config.
+   */
+  updateConfig: (data: any, teamId: number): Promise<ITeamConfig> => {
+    const { TEAMS } = endpoints;
+    const path = `${TEAMS}/${teamId}`;
+    return sendRequest("PATCH", path, data);
+  },
+
+  addUsers: (teamId: number | undefined, newUsers: INewTeamUsersBody) => {
     if (!teamId || teamId <= API_NO_TEAM_ID) {
       return Promise.reject(
         new Error(
@@ -134,14 +166,14 @@ export default {
         )
       );
     }
-    const { TEAMS_MEMBERS } = endpoints;
-    const path = TEAMS_MEMBERS(teamId);
+    const { TEAM_USERS } = endpoints;
+    const path = TEAM_USERS(teamId);
 
-    return sendRequest("PATCH", path, newMembers);
+    return sendRequest("PATCH", path, newUsers);
   },
-  removeMembers: (
+  removeUsers: (
     teamId: number | undefined,
-    removeMembers: IRemoveMembersBody
+    removeUsers: IRemoveTeamUserBody
   ) => {
     if (!teamId || teamId <= API_NO_TEAM_ID) {
       return Promise.reject(
@@ -150,10 +182,10 @@ export default {
         )
       );
     }
-    const { TEAMS_MEMBERS } = endpoints;
-    const path = TEAMS_MEMBERS(teamId);
+    const { TEAM_USERS } = endpoints;
+    const path = TEAM_USERS(teamId);
 
-    return sendRequest("DELETE", path, removeMembers);
+    return sendRequest("DELETE", path, removeUsers);
   },
   transferHosts: (teamId: number, hostIds: number[]) => {
     const { TEAMS_TRANSFER_HOSTS } = endpoints;

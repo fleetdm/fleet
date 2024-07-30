@@ -20,7 +20,7 @@ func TestUp_20231024174135(t *testing.T) {
 		query_id, host_id, osquery_version, error, last_fetched, data
 	) VALUES (?, ?, ?, ?, ?, ?)`
 
-	hostID := insertHost(t, db)
+	hostID := insertHost(t, db, nil)
 	osqueryVersion := "5.9.1"
 	lastFetched := time.Now().UTC()
 

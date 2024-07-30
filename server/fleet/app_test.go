@@ -13,26 +13,26 @@ func TestMacOSUpdatesValidate(t *testing.T) {
 	t.Run("valid", func(t *testing.T) {
 		cases := []struct {
 			name string
-			m    MacOSUpdates
+			m    AppleOSUpdateSettings
 		}{
-			{"empty", MacOSUpdates{}},
+			{"empty", AppleOSUpdateSettings{}},
 			{
 				"with full version",
-				MacOSUpdates{
+				AppleOSUpdateSettings{
 					MinimumVersion: optjson.SetString("10.15.0"),
 					Deadline:       optjson.SetString("2020-01-01"),
 				},
 			},
 			{
 				"without patch version",
-				MacOSUpdates{
+				AppleOSUpdateSettings{
 					MinimumVersion: optjson.SetString("10.15"),
 					Deadline:       optjson.SetString("2020-01-01"),
 				},
 			},
 			{
 				"only major version",
-				MacOSUpdates{
+				AppleOSUpdateSettings{
 					MinimumVersion: optjson.SetString("10"),
 					Deadline:       optjson.SetString("2020-01-01"),
 				},
@@ -49,25 +49,25 @@ func TestMacOSUpdatesValidate(t *testing.T) {
 	t.Run("invalid deadline", func(t *testing.T) {
 		cases := []struct {
 			name string
-			m    MacOSUpdates
+			m    AppleOSUpdateSettings
 		}{
 			{
 				"version but no deadline",
-				MacOSUpdates{
+				AppleOSUpdateSettings{
 					MinimumVersion: optjson.SetString("10.15.0"),
 					Deadline:       optjson.SetString(""),
 				},
 			},
 			{
 				"deadline with timestamp",
-				MacOSUpdates{
+				AppleOSUpdateSettings{
 					MinimumVersion: optjson.SetString("10.15.0"),
 					Deadline:       optjson.SetString("2020-01-01T00:00:00Z"),
 				},
 			},
 			{
 				"incomplete date",
-				MacOSUpdates{
+				AppleOSUpdateSettings{
 					MinimumVersion: optjson.SetString("10.15.0"),
 					Deadline:       optjson.SetString("2020-01"),
 				},
@@ -84,25 +84,25 @@ func TestMacOSUpdatesValidate(t *testing.T) {
 	t.Run("invalid version", func(t *testing.T) {
 		cases := []struct {
 			name string
-			m    MacOSUpdates
+			m    AppleOSUpdateSettings
 		}{
 			{
 				"deadline but no version",
-				MacOSUpdates{
+				AppleOSUpdateSettings{
 					MinimumVersion: optjson.SetString(""),
 					Deadline:       optjson.SetString("2020-01-01"),
 				},
 			},
 			{
 				"version with build info",
-				MacOSUpdates{
+				AppleOSUpdateSettings{
 					MinimumVersion: optjson.SetString("10.15.0 (19A583)"),
 					Deadline:       optjson.SetString("2020-01-01"),
 				},
 			},
 			{
 				"version with patch info",
-				MacOSUpdates{
+				AppleOSUpdateSettings{
 					MinimumVersion: optjson.SetString("10.15.0-patch1"),
 					Deadline:       optjson.SetString("2020-01-01"),
 				},
@@ -171,63 +171,25 @@ func TestWindowsUpdatesEqual(t *testing.T) {
 	}
 }
 
-func TestWIndowsUpdatesEnabledForHost(t *testing.T) {
-	hostWithRequirements := &Host{
-		OsqueryHostID: ptr.String("notempty"),
-		Platform:      "windows",
-		MDMInfo: &HostMDM{
-			IsServer: false,
-			Enrolled: true,
-			Name:     WellKnownMDMFleet,
-		},
-	}
-	cases := []struct {
-		w    WindowsUpdates
-		host *Host
-		want bool
-	}{
-		{WindowsUpdates{}, &Host{}, false},
-		{WindowsUpdates{DeadlineDays: optjson.Int{Set: true, Valid: false}, GracePeriodDays: optjson.Int{Set: true, Valid: false}}, hostWithRequirements, false},
-		{WindowsUpdates{DeadlineDays: optjson.Int{Set: true, Valid: true}, GracePeriodDays: optjson.Int{Set: true, Valid: false}}, hostWithRequirements, false},
-		{WindowsUpdates{DeadlineDays: optjson.Int{Set: true, Valid: true}, GracePeriodDays: optjson.Int{Set: true, Valid: true}}, hostWithRequirements, true},
-		{WindowsUpdates{DeadlineDays: optjson.SetInt(1), GracePeriodDays: optjson.SetInt(2)}, &Host{}, false},
-		{WindowsUpdates{DeadlineDays: optjson.SetInt(1), GracePeriodDays: optjson.SetInt(2)}, hostWithRequirements, true},
-	}
-
-	for _, tc := range cases {
-		require.Equal(t, tc.want, tc.w.EnabledForHost(tc.host))
-	}
-}
-
-func TestMacOSUpdatesEnabledForHost(t *testing.T) {
-	hostWithRequirements := &Host{
-		OsqueryHostID: ptr.String("notempty"),
-		MDMInfo: &HostMDM{
-			IsServer: false,
-			Enrolled: true,
-			Name:     WellKnownMDMFleet,
-		},
-	}
+func TestMacOSUpdatesConfigured(t *testing.T) {
 	cases := []struct {
 		version  string
 		deadline string
-		host     *Host
 		out      bool
 	}{
-		{"", "", &Host{}, false},
-		{"", "", hostWithRequirements, false},
-		{"12.3", "", hostWithRequirements, false},
-		{"", "12-03-2022", hostWithRequirements, false},
-		{"12.3", "12-03-2022", &Host{}, false},
-		{"12.3", "12-03-2022", hostWithRequirements, true},
+		{"", "", false},
+		{"", "", false},
+		{"12.3", "", false},
+		{"", "12-03-2022", false},
+		{"12.3", "12-03-2022", true},
 	}
 
 	for _, tc := range cases {
-		m := MacOSUpdates{
+		m := AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString(tc.version),
 			Deadline:       optjson.SetString(tc.deadline),
 		}
-		require.Equal(t, tc.out, m.EnabledForHost(tc.host))
+		require.Equal(t, tc.out, m.Configured())
 	}
 }
 
@@ -304,10 +266,8 @@ func TestAppConfigDeprecatedFields(t *testing.T) {
 			diskEncryption, exists := mdm["enable_disk_encryption"]
 			require.True(t, exists)
 			require.EqualValues(t, c.wantDiskEncryption, diskEncryption)
-
 		})
 	}
-
 }
 
 func TestAtLeastOnePlatformEnabledAndConfigured(t *testing.T) {
@@ -315,75 +275,36 @@ func TestAtLeastOnePlatformEnabledAndConfigured(t *testing.T) {
 		name                        string
 		macOSEnabledAndConfigured   bool
 		windowsEnabledAndConfigured bool
-		isMDMFeatureFlagEnabled     bool
 		expectedResult              bool
 	}{
 		{
-			name:                        "None enabled, feature flag disabled",
+			name:                        "None enabled",
 			macOSEnabledAndConfigured:   false,
 			windowsEnabledAndConfigured: false,
-			isMDMFeatureFlagEnabled:     false,
 			expectedResult:              false,
 		},
 		{
-			name:                        "MacOS enabled, feature flag disabled",
+			name:                        "MacOS enabled",
 			macOSEnabledAndConfigured:   true,
 			windowsEnabledAndConfigured: false,
-			isMDMFeatureFlagEnabled:     false,
 			expectedResult:              true,
 		},
 		{
-			name:                        "Windows enabled, feature flag disabled",
-			macOSEnabledAndConfigured:   false,
-			windowsEnabledAndConfigured: true,
-			isMDMFeatureFlagEnabled:     false,
-			expectedResult:              false,
-		},
-		{
-			name:                        "Both enabled, feature flag disabled",
+			name:                        "Both enabled",
 			macOSEnabledAndConfigured:   true,
 			windowsEnabledAndConfigured: true,
-			isMDMFeatureFlagEnabled:     false,
 			expectedResult:              true,
 		},
 		{
-			name:                        "None enabled, feature flag enabled",
-			macOSEnabledAndConfigured:   false,
-			windowsEnabledAndConfigured: false,
-			isMDMFeatureFlagEnabled:     true,
-			expectedResult:              false,
-		},
-		{
-			name:                        "MacOS enabled, feature flag enabled",
-			macOSEnabledAndConfigured:   true,
-			windowsEnabledAndConfigured: false,
-			isMDMFeatureFlagEnabled:     true,
-			expectedResult:              true,
-		},
-		{
-			name:                        "Windows enabled, feature flag enabled",
+			name:                        "Windows enabled",
 			macOSEnabledAndConfigured:   false,
 			windowsEnabledAndConfigured: true,
-			isMDMFeatureFlagEnabled:     true,
-			expectedResult:              true,
-		},
-		{
-			name:                        "Both enabled, feature flag enabled",
-			macOSEnabledAndConfigured:   true,
-			windowsEnabledAndConfigured: true,
-			isMDMFeatureFlagEnabled:     true,
 			expectedResult:              true,
 		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			if test.isMDMFeatureFlagEnabled {
-				t.Setenv("FLEET_DEV_MDM_ENABLED", "1")
-			} else {
-				t.Setenv("FLEET_DEV_MDM_ENABLED", "0")
-			}
-
 			mdm := MDM{
 				EnabledAndConfigured:        test.macOSEnabledAndConfigured,
 				WindowsEnabledAndConfigured: test.windowsEnabledAndConfigured,

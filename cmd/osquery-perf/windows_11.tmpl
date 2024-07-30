@@ -3,14 +3,14 @@
     "enroll_secret": "{{ .EnrollSecret  }}",
     "host_details": {
         "os_version": {
-          "build":"22000",
+          "build":"22621",
           "major":"10",
           "minor":"0",
           "name":"Microsoft Windows 11 Enterprise",
           "patch":"",
           "platform":"windows",
           "platform_like":"windows",
-          "version":"10.0.22000"
+          "version":"10.0.22621.2715"
         },
         "osquery_info": {
           "build_distro": "10",
@@ -44,7 +44,7 @@
           "cpu_subtype": "-1",
           "cpu_type": "x86_64",
           "hardware_model": "Surface Laptop 2",
-          "hardware_serial": "{{ .SerialNumber }}",
+          "hardware_serial": "{{ .GetSerialNumber }}",
           "hardware_vendor": "Microsoft Corporation",
           "hardware_version": "-1",
           "hostname": "{{ .CachedString "hostname" }}",
@@ -70,11 +70,11 @@
 [
   {
     "name":"Microsoft Windows 11 Enterprise",
-    "version":"10.0.22000",
+    "version":"10.0.22621.2715",
     "major":"10",
     "minor":"0",
     "patch":"",
-    "build":"22000",
+    "build":"22621",
     "platform":"windows",
     "platform_like":"windows",
     "codename":"Microsoft Windows 11 Enterprise",
@@ -87,8 +87,8 @@
 [
   {
     "name":"Microsoft Windows 11 Enterprise",
-    "display_version":"21H2",
-    "release_id":"2009"
+    "display_version":"22H2",
+    "version": "10.0.22621.2715"
   }
 ]
 {{- end }}
@@ -96,11 +96,11 @@
 [
   {
     "name":"Microsoft Windows 11 Enterprise",
+    "display_version":"22H2",
     "platform":"windows",
     "arch":"x86_64",
-    "kernel_version":"10.0.22000.1098",
-    "display_version":"21H2",
-    "release_id":"2009"
+    "kernel_version":"10.0.22621.2715",
+    "version":"10.0.22621"
   }
 ]
 {{- end }}
@@ -150,7 +150,7 @@
     "cpu_subtype": "-1",
     "cpu_type": "x86_64",
     "hardware_model": "Surface Laptop 2",
-    "hardware_serial": "{{ .SerialNumber }}",
+    "hardware_serial": "{{ .GetSerialNumber }}",
     "hardware_vendor": "Microsoft Corporation",
     "hardware_version": "-1",
     "local_hostname": "{{ .CachedString "hostname" }}",

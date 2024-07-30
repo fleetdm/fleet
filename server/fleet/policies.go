@@ -3,6 +3,7 @@ package fleet
 import (
 	"errors"
 	"strings"
+	"time"
 )
 
 // PolicyPayload holds data for policy creation.
@@ -29,6 +30,8 @@ type PolicyPayload struct {
 	//
 	// Empty string targets all platforms.
 	Platform string
+	// CalendarEventsEnabled indicates whether calendar events are enabled for the policy. Only applies to team policies.
+	CalendarEventsEnabled bool
 }
 
 var (
@@ -106,6 +109,8 @@ type ModifyPolicyPayload struct {
 	Platform *string `json:"platform"`
 	// Critical marks the policy as high impact.
 	Critical *bool `json:"critical" premium:"true"`
+	// CalendarEventsEnabled indicates whether calendar events are enabled for the policy. Only applies to team policies.
+	CalendarEventsEnabled *bool `json:"calendar_events_enabled" premium:"true"`
 }
 
 // Verify verifies the policy payload is valid.
@@ -158,6 +163,8 @@ type PolicyData struct {
 	// Empty string targets all platforms.
 	Platform string `json:"platform" db:"platforms"`
 
+	CalendarEventsEnabled bool `json:"calendar_events_enabled" db:"calendar_events_enabled"`
+
 	UpdateCreateTimestamps
 }
 
@@ -168,7 +175,22 @@ type Policy struct {
 	// PassingHostCount is the number of hosts this policy passes on.
 	PassingHostCount uint `json:"passing_host_count" db:"passing_host_count"`
 	// FailingHostCount is the number of hosts this policy fails on.
-	FailingHostCount uint `json:"failing_host_count" db:"failing_host_count"`
+	FailingHostCount   uint       `json:"failing_host_count" db:"failing_host_count"`
+	HostCountUpdatedAt *time.Time `json:"host_count_updated_at" db:"host_count_updated_at"`
+}
+
+type PolicyCalendarData struct {
+	ID   uint   `db:"id" json:"id"`
+	Name string `db:"name" json:"name"`
+}
+
+// PolicyLite is a stripped down version of the policy.
+type PolicyLite struct {
+	ID uint `db:"id"`
+	// Description describes the policy.
+	Description string `db:"description"`
+	// Resolution describes how to solve a failing policy.
+	Resolution *string `db:"resolution"`
 }
 
 func (p Policy) AuthzType() string {
@@ -210,6 +232,8 @@ type PolicySpec struct {
 	//
 	// Empty string targets all platforms.
 	Platform string `json:"platform,omitempty"`
+	// CalendarEventsEnabled indicates whether calendar events are enabled for the policy. Only applies to team policies.
+	CalendarEventsEnabled bool `json:"calendar_events_enabled"`
 }
 
 // Verify verifies the policy data is valid.
@@ -226,14 +250,18 @@ func (p PolicySpec) Verify() error {
 	return nil
 }
 
-// return first duplicate name of policies or empty string if no duplicates found
+// FirstDuplicatePolicySpecName returns first duplicate name of policies (in a team) or empty string if no duplicates found
 func FirstDuplicatePolicySpecName(specs []*PolicySpec) string {
-	names := make(map[string]struct{})
+	teams := make(map[string]map[string]struct{})
 	for _, spec := range specs {
-		if _, ok := names[spec.Name]; ok {
-			return spec.Name
+		if team, ok := teams[spec.Team]; ok {
+			if _, ok = team[spec.Name]; ok {
+				return spec.Name
+			}
+			team[spec.Name] = struct{}{}
+		} else {
+			teams[spec.Team] = map[string]struct{}{spec.Name: {}}
 		}
-		names[spec.Name] = struct{}{}
 	}
 	return ""
 }

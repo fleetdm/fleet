@@ -19,7 +19,7 @@ import globalPoliciesAPI from "services/entities/global_policies";
 import teamPoliciesAPI from "services/entities/team_policies";
 import hostAPI from "services/entities/hosts";
 import statusAPI from "services/entities/status";
-import { LIVE_POLICY_STEPS } from "utilities/constants";
+import { DOCUMENT_TITLE_SUFFIX, LIVE_POLICY_STEPS } from "utilities/constants";
 
 import QuerySidePanel from "components/side_panels/QuerySidePanel";
 import QueryEditor from "pages/policies/PolicyPage/screens/QueryEditor";
@@ -52,6 +52,7 @@ const PolicyPage = ({
   const policyId = paramsPolicyId ? parseInt(paramsPolicyId, 10) : null; // TODO(sarah): What should happen if this doesn't parse (e.g. the string is "foo")?
   const handlePageError = useErrorHandler();
   const {
+    isOnGlobalTeam,
     isGlobalAdmin,
     isGlobalMaintainer,
     isAnyTeamMaintainerOrTeamAdmin,
@@ -147,7 +148,7 @@ const PolicyPage = ({
     error: storedPolicyError,
   } = useQuery<IStoredPolicyResponse, Error, IPolicy>(
     ["policy", policyId],
-    () => globalPoliciesAPI.load(policyId as number), // Note: Team members have access to policies through global API
+    () => globalPoliciesAPI.load(policyId as number), // Note: Team users have access to policies through global API
     {
       enabled: isRouteOk && !!policyId, // Note: this justifies the number type assertions above
       refetchOnWindowFocus: false,
@@ -186,6 +187,24 @@ const PolicyPage = ({
     }
   );
 
+  /** Pesky bug affecting team level users:
+   - Navigating to policies/:id immediately defaults the user to the first team they're on
+  with the most permissions, in the URL bar because of useTeamIdParam
+  even if the policies/:id entity has a team attached to it
+  Hacky fix:
+   - Push entity's team id to url for team level users
+  */
+  if (
+    !isOnGlobalTeam &&
+    !isStoredPolicyLoading &&
+    storedPolicy?.team_id &&
+    !(storedPolicy?.team_id?.toString() === location.query.team_id)
+  ) {
+    router.push(
+      `${location.pathname}?team_id=${storedPolicy?.team_id?.toString()}`
+    );
+  }
+
   const { mutateAsync: createPolicy } = useMutation(
     (formData: IPolicyFormData) => {
       return formData.team_id
@@ -206,8 +225,12 @@ const PolicyPage = ({
 
   // Updates title that shows up on browser tabs
   useEffect(() => {
-    // e.g., Policy details | Antivirus healthy (Linux) | Fleet for osquery
-    document.title = `Policy details | ${storedPolicy?.name} | Fleet for osquery`;
+    // e.g., Antivirus healthy (Linux) | Policies | Fleet
+    if (storedPolicy?.name) {
+      document.title = `${storedPolicy.name} | Policies | ${DOCUMENT_TITLE_SUFFIX}`;
+    } else {
+      document.title = `Policies | ${DOCUMENT_TITLE_SUFFIX}`;
+    }
   }, [location.pathname, storedPolicy?.name]);
 
   useEffect(() => {
@@ -282,6 +305,7 @@ const PolicyPage = ({
       setTargetedLabels,
       setTargetedTeams,
       setTargetsTotalCount,
+      isLivePolicy: true,
     };
 
     const step3Opts = {

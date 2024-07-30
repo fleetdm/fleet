@@ -19,10 +19,13 @@ const (
 	DesktopAppExecName = "fleet-desktop"
 	// OrbitNodeKeyFileName is the filename on disk where we write the orbit node key to
 	OrbitNodeKeyFileName = "secret-orbit-node-key.txt"
-	// OrbitEnrollMaxRetries is the max retries when doing an enroll request
-	OrbitEnrollMaxRetries = 3
-	// OrbitEnrollRetrySleep is the time duration to sleep between retries
-	OrbitEnrollRetrySleep = 5 * time.Second
+	// OrbitEnrollMaxRetries is the max number of retries when doing an enroll request.
+	// We set it to 6 to allow the retry backoff to take effect.
+	OrbitEnrollMaxRetries = 6
+	// OrbitEnrollBackoffMultiplier is the multiplier to use for backing off between enroll retries.
+	OrbitEnrollBackoffMultiplier = 2
+	// OrbitEnrollRetrySleep is the duration to sleep between enroll retries.
+	OrbitEnrollRetrySleep = 10 * time.Second
 	// OsquerydName is the name of osqueryd binary
 	// We use osqueryd as name to properly identify the process when listing
 	// running processes/tasks.
@@ -49,4 +52,7 @@ const (
 	UpdateTLSClientKeyFileName = "update_client.key"
 	// SilenceEnrollLogErrorEnvVer is an environment variable name for disabling enroll log errors
 	SilenceEnrollLogErrorEnvVar = "FLEETD_SILENCE_ENROLL_ERROR"
+	// ServerOverridesFileName is the name of the file in the root directory
+	// that specifies the override configuration fetched from the server.
+	ServerOverridesFileName = "server-overrides.json"
 )

@@ -124,40 +124,35 @@ const LoginForm = ({
 
   return (
     <form onSubmit={onFormSubmit} className={loginFormClass}>
-      <div className={`${baseClass}__container`}>
-        {baseError && <div className="form__base-error">{baseError}</div>}
-        <InputFieldWithIcon
-          error={errors.email}
-          autofocus
-          label="Email"
-          placeholder="Email"
-          value={formData.email}
-          onChange={onInputChange("email")}
-        />
-        <InputFieldWithIcon
-          error={errors.password}
-          label="Password"
-          placeholder="Password"
-          type="password"
-          value={formData.password}
-          onChange={onInputChange("password")}
-        />
-        <div className={`${baseClass}__forgot-wrap`}>
-          <Link
-            className={`${baseClass}__forgot-link`}
-            to={paths.FORGOT_PASSWORD}
-          >
-            Forgot password?
-          </Link>
-        </div>
-        <Button
-          className={`${baseClass}__submit-btn button button--brand`}
-          type="submit"
+      {baseError && <div className="form__base-error">{baseError}</div>}
+      <InputFieldWithIcon
+        error={errors.email}
+        autofocus
+        label="Email"
+        placeholder="Email"
+        value={formData.email}
+        onChange={onInputChange("email")}
+      />
+      <InputFieldWithIcon
+        error={errors.password}
+        label="Password"
+        placeholder="Password"
+        type="password"
+        value={formData.password}
+        onChange={onInputChange("password")}
+      />
+      <div className={`${baseClass}__forgot-wrap`}>
+        <Link
+          className={`${baseClass}__forgot-link`}
+          to={paths.FORGOT_PASSWORD}
         >
-          Login
-        </Button>
-        {ssoEnabled && renderSingleSignOnButton()}
+          Forgot password?
+        </Link>
       </div>
+      <Button className={`login-btn button button--brand`} type="submit">
+        Login
+      </Button>
+      {ssoEnabled && renderSingleSignOnButton()}
     </form>
   );
 };

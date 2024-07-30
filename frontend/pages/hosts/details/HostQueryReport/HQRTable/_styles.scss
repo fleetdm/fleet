@@ -1,0 +1,39 @@
+.hqr-table {
+  gap: $pad-medium;
+
+  .last-fetched {
+    font-weight: initial;
+    @include grey-text;
+  }
+
+  &__results-cta {
+    display: flex;
+    gap: $pad-medium;
+  }
+
+  &__query-info {
+    margin-top: $pad-xsmall;
+    display: flex;
+    flex-direction: column;
+    gap: 0.8rem;
+
+    h2 {
+      font-size: $medium;
+      font-weight: $bold;
+      margin: 0;
+    }
+    h3 {
+      font-size: $x-small;
+      font-weight: $regular;
+      margin: 0;
+    }
+  }
+
+  .data-table {
+    overflow-x: scroll;
+  }
+
+  .empty-table__container {
+    margin: $pad-large auto 48px;
+  }
+}

@@ -42,6 +42,54 @@ type Pack struct {
 	Teams    []Target `json:"teams"`
 	// TeamIDs holds the ID of the teams this pack should target.
 	TeamIDs []uint `json:"team_ids"`
+
+	/////////////////////////////////////////////////////////////////
+	// WARNING: If you add to this struct make sure it's taken into
+	// account in the Clone implementation of Pack!
+	/////////////////////////////////////////////////////////////////
+}
+
+// Clone implements cloner for Pack.
+func (p *Pack) Clone() (Cloner, error) {
+	return p.Copy(), nil
+}
+
+// Copy returns a deep copy of the Pack.
+func (p *Pack) Copy() *Pack {
+	if p == nil {
+		return nil
+	}
+
+	var clone Pack
+	clone = *p
+	if p.Type != nil {
+		clone.Type = ptr.String(*p.Type)
+	}
+	if p.Labels != nil {
+		clone.Labels = make([]Target, len(p.Labels))
+		copy(clone.Labels, p.Labels)
+	}
+	if p.LabelIDs != nil {
+		clone.LabelIDs = make([]uint, len(p.LabelIDs))
+		copy(clone.LabelIDs, p.LabelIDs)
+	}
+	if p.Hosts != nil {
+		clone.Hosts = make([]Target, len(p.Hosts))
+		copy(clone.Hosts, p.Hosts)
+	}
+	if p.HostIDs != nil {
+		clone.HostIDs = make([]uint, len(p.HostIDs))
+		copy(clone.HostIDs, p.HostIDs)
+	}
+	if p.Teams != nil {
+		clone.Teams = make([]Target, len(p.Teams))
+		copy(clone.Teams, p.Teams)
+	}
+	if p.TeamIDs != nil {
+		clone.TeamIDs = make([]uint, len(p.TeamIDs))
+		copy(clone.TeamIDs, p.TeamIDs)
+	}
+	return &clone
 }
 
 // isTeamPack returns true if the pack is a pack specifically made for a team.

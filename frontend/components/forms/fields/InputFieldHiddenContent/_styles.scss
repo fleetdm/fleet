@@ -1,13 +1,6 @@
 .input-field-hidden-content {
-  &__secret {
-    display: flex;
-    align-items: center;
-    margin-bottom: $pad-medium;
-  }
-
-  .form-field {
-    margin-bottom: 0;
-  }
+  display: flex;
+  align-items: center;
 
   &__secret-input {
     .form-field__label {
@@ -23,7 +16,7 @@
     .input-field {
       padding-right: 16%;
 
-      &--disabled {
+      &--read-only {
         letter-spacing: 0;
       }
 
@@ -33,33 +26,23 @@
     }
   }
 
-  &__copy-message {
-    position: absolute;
-    right: 65px;
-    background-color: $ui-light-grey;
-    border: solid 1px #e2e4ea;
-    border-radius: 10px;
-    padding: 2px 6px;
+  &__action-overlay {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    position: relative;
+    width: 0;
+    left: -16px;
   }
 
-  .buttons {
+  &__input-buttons {
     display: flex;
     align-items: center;
-    position: absolute;
-    right: 16px;
-    top: 12px;
-    height: 16px;
-
-    span {
-      font-weight: $regular;
-    }
+    gap: 12px;
+    padding-left: 10px;
   }
 
-  &__show-secret-icon,
-  &__copy-secret-icon,
-  &__edit-secret-icon,
-  &__delete-secret-icon {
-    padding: 0 $pad-small;
-    margin-left: $pad-xsmall;
+  &__copy-message {
+    @include copy-message;
   }
 }

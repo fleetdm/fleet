@@ -47,7 +47,7 @@ func (svc Service) GetTeamScheduledQueries(ctx context.Context, teamID uint, opt
 	if teamID != 0 {
 		teamID_ = &teamID
 	}
-	queries, err := svc.ListQueries(ctx, opts, teamID_, ptr.Bool(true))
+	queries, err := svc.ListQueries(ctx, opts, teamID_, ptr.Bool(true), false)
 	if err != nil {
 		return nil, err
 	}

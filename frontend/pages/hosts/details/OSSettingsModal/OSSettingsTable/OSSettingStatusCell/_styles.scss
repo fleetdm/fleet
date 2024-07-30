@@ -1,4 +1,4 @@
-.os-setting-status-cell {
+.os-settings-status-cell {
   display: flex;
   gap: 4px;
 
@@ -14,5 +14,9 @@
 
   .__react_component_tooltip {
     white-space: normal;
+  }
+
+  &__status-text {
+    @include ellipse-text;
   }
 }

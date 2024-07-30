@@ -3,6 +3,7 @@ import { InjectedRouter } from "react-router/lib/Router";
 
 import globalPoliciesAPI from "services/entities/global_policies";
 import teamPoliciesAPI from "services/entities/team_policies";
+import autofillAPI, { IAutofillPolicy } from "services/entities/autofill";
 import { AppContext } from "context/app";
 import { PolicyContext } from "context/policy";
 import { NotificationContext } from "context/notification";
@@ -64,6 +65,8 @@ const QueryEditor = ({
     lastEditedQueryCritical,
     lastEditedQueryPlatform,
     policyTeamId,
+    setLastEditedQueryDescription,
+    setLastEditedQueryResolution,
   } = useContext(PolicyContext);
 
   useEffect(() => {
@@ -79,6 +82,68 @@ const QueryEditor = ({
   const [backendValidators, setBackendValidators] = useState<{
     [key: string]: string;
   }>({});
+  const [
+    policyAutofillData,
+    setPolicyAutofillData,
+  ] = useState<IAutofillPolicy | null>(null);
+  const [policyAutofillErrors, setPolicyAutofillErrors] = useState<any>({});
+  const [
+    isFetchingAutofillDescription,
+    setIsFetchingAutofillDescription,
+  ] = useState(false);
+  const [
+    isFetchingAutofillResolution,
+    setIsFetchingAutofillResolution,
+  ] = useState(false);
+
+  const onClickAutofillDescription = async () => {
+    // When AI autofill data exists already, fill out section clicked with data
+    if (policyAutofillData) {
+      setLastEditedQueryDescription(policyAutofillData.description);
+    } else {
+      // Show thinking state and fetch data from API
+      setIsFetchingAutofillDescription(true);
+
+      try {
+        const autofillResponse = await autofillAPI.getPolicyInterpretationFromSQL(
+          lastEditedQueryBody
+        );
+
+        setPolicyAutofillData(autofillResponse);
+        // Only fill out section that was clicked to be fetched
+        setLastEditedQueryDescription(autofillResponse.description);
+      } catch (error) {
+        console.log(error);
+        renderFlash("error", "Couldn't autofill policy data.");
+        setPolicyAutofillErrors(error);
+      }
+      setIsFetchingAutofillDescription(false);
+    }
+  };
+
+  const onClickAutofillResolution = async () => {
+    // When AI autofill data exists already, fill out section clicked with data
+    if (policyAutofillData) {
+      setLastEditedQueryResolution(policyAutofillData.resolution);
+    } else {
+      // Show thinking state and fetch data from API
+      setIsFetchingAutofillResolution(true);
+
+      try {
+        const autofillResponse = await autofillAPI.getPolicyInterpretationFromSQL(
+          lastEditedQueryBody
+        );
+        setPolicyAutofillData(autofillResponse);
+        // Only fill out section that was clicked to be fetched
+        setLastEditedQueryResolution(autofillResponse.resolution);
+      } catch (error) {
+        console.log(error);
+        renderFlash("error", "Couldn't autofill policy data.");
+        setPolicyAutofillErrors(error);
+      }
+      setIsFetchingAutofillResolution(false);
+    }
+  };
 
   const onCreatePolicy = debounce(async (formData: IPolicyFormData) => {
     if (policyTeamId) {
@@ -195,10 +260,13 @@ const QueryEditor = ({
         onOpenSchemaSidebar={onOpenSchemaSidebar}
         renderLiveQueryWarning={renderLiveQueryWarning}
         backendValidators={backendValidators}
-        isTeamAdmin={isTeamAdmin}
-        isTeamMaintainer={isTeamMaintainer}
         isTeamObserver={isTeamObserver}
         isUpdatingPolicy={isUpdatingPolicy}
+        isFetchingAutofillDescription={isFetchingAutofillDescription}
+        isFetchingAutofillResolution={isFetchingAutofillResolution}
+        onClickAutofillDescription={onClickAutofillDescription}
+        onClickAutofillResolution={onClickAutofillResolution}
+        resetAiAutofillData={() => setPolicyAutofillData(null)}
       />
     </div>
   );

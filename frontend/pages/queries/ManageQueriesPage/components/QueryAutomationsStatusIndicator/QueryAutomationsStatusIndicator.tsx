@@ -36,7 +36,7 @@ const QueryAutomationsStatusIndicator = ({
     <StatusIndicator
       value={status}
       tooltip={tooltip}
-      customIndicatorType={"query-automations"}
+      customIndicatorType="query-automations"
     />
   );
 };

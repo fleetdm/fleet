@@ -8,10 +8,17 @@ type OsqueryDistributedQueryResults map[string][]map[string]string
 // failure)
 type OsqueryStatus int
 
+// Stats contains the performance statistics about the execution of a specific osquery query.
+type Stats struct {
+	WallTimeMs uint64 `json:"wall_time_ms"`
+	UserTime   uint64 `json:"user_time"`
+	SystemTime uint64 `json:"system_time"`
+	Memory     uint64 `json:"memory"`
+}
+
 const (
 	// StatusOK is the success code returned by osquery
-	StatusOK           OsqueryStatus = 0
-	MaxQueryReportRows int           = 1000
+	StatusOK OsqueryStatus = 0
 )
 
 // QueryContent is the format of a query stanza in an osquery configuration.

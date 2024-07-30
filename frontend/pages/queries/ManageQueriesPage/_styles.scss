@@ -39,13 +39,6 @@
   &__description {
     margin: 0 0 $pad-xxlarge;
 
-    h2 {
-      text-transform: uppercase;
-      color: $core-fleet-black;
-      font-weight: $regular;
-      font-size: $small;
-    }
-
     p {
       color: $ui-fleet-black-75;
       margin: 0;
@@ -98,11 +91,13 @@
     .data-table-block {
       .data-table {
         &__wrapper {
-          overflow-x: scroll;
+          overflow-x: auto;
           overflow-y: hidden;
         }
         &__table {
           thead {
+            // maintain height when select header is removed
+            height: 52.3833px;
             .name__header {
               width: auto;
             }
@@ -138,24 +133,39 @@
               .query-name-cell {
                 display: flex; // required for inline icon
                 gap: $pad-xsmall;
-
-                .children-wrapper {
+                text-decoration: none;
+                align-items: center;
+                &:hover {
                   .query-name-text {
-                    text-overflow: ellipsis;
-                    overflow: hidden;
+                    text-decoration: underline;
+                  }
+                }
+
+                .query-name-text {
+                  text-overflow: ellipsis;
+                  overflow: hidden;
+                }
+
+                .inherited-badge {
+                  overflow: initial;
+                }
+                .observer-can-run-badge {
+                  @include tooltip5-arrow-styles;
+
+                  .react-tooltip {
+                    @include tooltip-text;
+                    font-style: normal;
+                    text-align: center;
                   }
                 }
               }
-              .query-icon {
+              .observer-can-run-query-icon {
                 display: block;
               }
 
               .children-wrapper {
                 display: flex;
                 gap: $pad-xsmall;
-              }
-              .observer-can-run-tooltip {
-                font-weight: $regular;
               }
             }
 
@@ -190,6 +200,18 @@
           }
         }
       }
+    }
+    .empty-table {
+      &__additional-info {
+        * {
+          font-size: $xx-small;
+        }
+      }
+    }
+  }
+  .reveal-button {
+    .component__tooltip-wrapper__underline {
+      position: initial;
     }
   }
 }

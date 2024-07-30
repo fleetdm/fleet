@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/cryptoutil"
 	"github.com/jmoiron/sqlx"
-	"github.com/micromdm/nanomdm/cryptoutil"
 	"github.com/stretchr/testify/require"
 )
 

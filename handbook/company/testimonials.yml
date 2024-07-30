@@ -1,0 +1,191 @@
+# -
+#   quote: - required
+#   quoteAuthorName: required
+#   quoteAuthorJobTitle: required
+#   quoteLinkUrl: required
+#   quoteAuthorProfileImageFilename: required
+#   quoteImageFilename: 
+#   youtubeVideoUrl: 
+#.  productCategories: [Endpoint operations, Vulnerability management, Device management]
+#
+# TODO figure out what to do with this other quote that both Austin and Dre :+1:'d: "Fleet lets us be more actionable with fewer people. It helps us to filter out the noise better than we could with the other big name products we replaced."
+-
+  quote: Yes Sir. Great tools for the everyday open-source geeks 💯
+  quoteAuthorName: Alvaro Gutierrez
+  quoteAuthorProfileImageFilename: testimonial-authour-alvaro-gutierrez-100x100@2x.png
+  quoteLinkUrl: https://www.linkedin.com/in/aantoniogutierrez/
+  quoteAuthorJobTitle: Technology Evangelist
+  productCategories: [Endpoint operations]
+-
+  quote: Fleet / osquery are some of my favorite open source detection tooling.
+  quoteAuthorName: Joe Pistone
+  quoteAuthorProfileImageFilename: testimonial-author-joe-pistone-100x100@2x.png
+  quoteLinkUrl: https://www.linkedin.com/in/josephpistone/
+  quoteAuthorJobTitle: Manager, Security Operations
+  productCategories: [Endpoint operations]
+-
+  quote: I had to answer some really complex questions for a compliance audit, and I was able to do it in about 15 minutes by munging some data together via a few queries into a csv. It took me longer to remember how to use `xsv` than to actually put together the report. If you aren't using osquery in your environment, you should be.
+  quoteAuthorName: Charles Zaffery
+  quoteAuthorProfileImageFilename: testimonial-author-charles-zaffery-48x48@2x.png
+  quoteLinkUrl: https://www.linkedin.com/in/charleszaffery/
+  quoteAuthorJobTitle: Principle Computer Janitor
+  productCategories: [Vulnerability management]
+-
+  quote: The visibility down into the assets covered by the agent is phenomenal. Fleet has become the central source for a lot of things.
+  quoteAuthorName: Andre Shields
+  quoteAuthorProfileImageFilename: testimonial-author-andre-shields-48x48@2x.png
+  quoteLinkUrl: https://www.linkedin.com/in/andre-shields/
+  quoteAuthorJobTitle: Staff Cybersecurity Engineer, Vulnerability Management
+  youtubeVideoUrl: https://www.youtube.com/watch?v=siXy9aanOu4
+  productCategories: [Endpoint operations, Vulnerability management]
+-
+  quote: I love the steady and consistent delivery of features that help teams work how they want to work, not how your product dictates they work. 
+  quoteImageFilename: social-proof-logo-atlassian-192x32@2x.png
+  quoteLinkUrl: https://www.linkedin.com/in/danielgrzelak/
+  quoteAuthorName: Dan Grzelak
+  quoteAuthorProfileImageFilename: testimonial-author-daniel-grzelak-48x48@2x.png
+  quoteAuthorJobTitle: Security Chief of Staff
+  productCategories: [Endpoint operations, Vulnerability management, Device management]
+-
+  quote: We can build it exactly the way we want it. Which is just not possible on other platforms.
+  quoteAuthorName: Austin Anderson
+  quoteAuthorProfileImageFilename: testimonial-author-austin-anderson-48x48@2x.png
+  quoteAuthorJobTitle: Cybersecurity team senior manager
+  quoteLinkUrl: https://www.linkedin.com/in/austin-anderson-73172185/
+  youtubeVideoUrl: https://www.youtube.com/watch?v=G5Ry_vQPaYc
+  productCategories: [Endpoint operations, Vulnerability management]
+-
+  quote: Exciting. This is a team that listens to feedback.
+  quoteImageFilename: social-proof-logo-uber-71x32@2x.png
+  quoteLinkUrl: https://www.linkedin.com/in/eriknicolasgomez/
+  quoteAuthorName: Erik Gomez
+  quoteAuthorProfileImageFilename: testimonial-author-erik-gomez-48x48@2x.png
+  quoteAuthorJobTitle: Staff Client Platform Engineer
+  productCategories: [Endpoint operations, Device management]
+-
+  quote: Context is king for device data, and Fleet provides a way to surface that information to our other teams and partners.
+  quoteAuthorName: Nick Fohs
+  quoteAuthorProfileImageFilename: testimonial-author-nick-fohs-24x24@2x.png
+  quoteLinkUrl: https://www.linkedin.com/in/nickfohs/
+  quoteAuthorJobTitle: Systems and infrastructure manager
+  youtubeVideoUrl: https://www.youtube.com/watch?v=fs5ULAR4e4A
+  productCategories: [Endpoint operations, Device management, Vulnerability management]
+-
+  quote: Keeping up with the latest issues in endpoint security is a never-ending task, because engineers have to regularly ensure every laptop and server is still sufficiently patched and securely configured. The problem is, software vendors release new versions all the time, and no matter how much you lock it down, end users find ways to change things.
+  quoteImageFilename: social-proof-logo-lyft-47x32@2x.png
+  quoteLinkUrl: https://www.linkedin.com/in/nwaisman/
+  quoteAuthorName: Nico Waisman
+  quoteAuthorProfileImageFilename: testimonial-author-nico-waisman-48x48@2x.png
+  quoteAuthorJobTitle: CISO of Lyft
+  productCategories: [Endpoint operations, Vulnerability management]
+-
+  quote: Having the freedom to take full advantage of the product is one of the reasons why I always support open-source products with a commercially-backed company, like Fleet.
+  quoteImageFilename: social-proof-logo-lyft-47x32@2x.png
+  quoteLinkUrl: https://www.linkedin.com/posts/nwaisman_movingtofleet-activity-7156319785981509632-bk_W
+  quoteAuthorName: Nico Waisman
+  quoteAuthorProfileImageFilename: testimonial-author-nico-waisman-48x48@2x.png
+  quoteAuthorJobTitle: CISO of Lyft
+  productCategories: [Device management] # « explanation: https://github.com/fleetdm/fleet/blob/f412b1f02fb6d6f36bdc0776252fff72fc0fc2ea/website/views/pages/device-management.ejs#L32
+-
+  quote: Fleet has been highly effective for our needs. We appreciate your team for always being so open to hearing our feedback.
+  quoteAuthorName: Kenny Botelho
+  quoteAuthorProfileImageFilename: testimonial-author-kenny-botelho-48x48@2x.png
+  quoteAuthorJobTitle: Client Platform IT Engineer / Leader
+  quoteLinkUrl: https://www.linkedin.com/in/kennybotelho/
+  productCategories: [Endpoint operations, Device management]
+-
+  quote: Mad props to how easy making a deploy pkg of the agent was. I wish everyone made stuff that easy.
+  quoteImageFilename: social-proof-logo-stripe-67x32@2x.png
+  quoteAuthorName: Wes Whetstone
+  quoteAuthorProfileImageFilename: testimonial-author-wes-whetstone-48x48@2x.png
+  quoteLinkUrl: https://www.linkedin.com/in/jckwhet/
+  quoteAuthorJobTitle: Staff CPE at Stripe
+  productCategories: [Endpoint operations, Device management]
+-
+  quote: Fleet’s come a long way - to now being the top open-source osquery manager.
+  quoteImageFilename: social-proof-logo-atlassian-192x32@2x.png
+  quoteLinkUrl: https://www.linkedin.com/in/bshak/
+  quoteAuthorName: Brendan Shaklovitz
+  quoteAuthorProfileImageFilename: testimonial-author-brendan-shaklovitz-48x48@2x.png
+  quoteAuthorJobTitle: Senior SRE
+  productCategories: [Endpoint operations]
+-
+  quote: It’s great to see the new release of Fleet containing some really cool new features that make osquery much more usable in practical environments. I’m really impressed with the work that Zach Wasserman and the crew are doing at Fleet.
+  quoteImageFilename: social-proof-logo-osquery-124x32@2x.png
+  quoteLinkUrl: https://www.linkedin.com/in/marpaia/
+  quoteAuthorName: Mike Arpaia
+  quoteAuthorProfileImageFilename: testimonial-author-mike-arpaia-48x48@2x.png
+  quoteAuthorJobTitle: Creator of osquery
+  productCategories: [Endpoint operations]
+-
+  quote: Osquery is one of the best tools out there and Fleet makes it even better. Highly recommend it if you want to monitor, detect and investigate threats on a scale and also for infra/sys admin. I have used it on 15k servers and it’s really scalable.
+  quoteImageFilename: social-proof-logo-salesforce-48x32@2x.png
+  quoteLinkUrl: https://www.linkedin.com/in/anelshaer/
+  quoteAuthorName: Ahmed Elshaer
+  quoteAuthorProfileImageFilename: testimonial-author-ahmed-elshaer-48x48@2x.png
+  quoteAuthorJobTitle: DFIR, Blue Teaming, SecOps
+  productCategories: [Endpoint operations]
+-
+  quote: With the power of osquery, you need a scalable & resilient platform to manage your workloads. Fleet is the "just right" open-source, enterprise grade solution.
+  quoteImageFilename: social-proof-logo-comcast-91x32@2x.png
+  quoteLinkUrl: https://www.linkedin.com/in/abubakar-yousafzai-b7213659/
+  quoteAuthorName:  Abubakar Yousafzai
+  quoteAuthorProfileImageFilename: testimonial-author-abubakar-yousafzai-48x48@2x.png
+  quoteAuthorJobTitle: Security Software Development & Engineering
+  productCategories: [Endpoint operations]
+-
+  quote: One of the best teams out there to go work for and help shape security platforms.
+  quoteImageFilename: social-proof-logo-deloitte-130x32@2x.png
+  quoteLinkUrl: https://www.linkedin.com/in/neondhruv/
+  quoteAuthorName: Dhruv Majumdar
+  quoteAuthorProfileImageFilename: testimonial-author-dhruv-majumdar-48x48@2x.png
+  quoteAuthorJobTitle: Director Of Cyber Risk & Advisory
+  productCategories: [Vulnerability management, Endpoint operations]
+-
+  quote: When we look at vendors, we look for ones that are very receptive to feedback, where you’re just part of the family, I guess. Fleet’s really good at that.
+  quoteImageFilename: logo-deputy-118x28@2x.png
+  quoteAuthorName: Harrison Ravazzolo
+  quoteAuthorProfileImageFilename: testimonial-author-harrison-ravazzolo-48x48@2x.png
+  quoteLinkUrl: https://www.linkedin.com/in/harrison-ravazzolo/
+  quoteAuthorJobTitle: Lead platform and identity engineer
+  youtubeVideoUrl: https://www.youtube.com/watch?v=5W0q5yQE3R0
+  productCategories: [Endpoint operations]
+-
+  quote: Fleet has such a huge amount of use cases. My goal was to get telemetry on endpoints, but then our IR team, our TBM team, and multiple other folks in security started heavily utilizing the system in ways I didn’t expect. It spread so naturally, even our corporate and infrastructure teams want to run it.
+  quoteAuthorName: Charles Zaffery
+  quoteLinkUrl: https://www.linkedin.com/in/charleszaffery/
+  quoteAuthorJobTitle: Principle computer janitor
+  quoteAuthorProfileImageFilename: testimonial-author-charles-zaffery-48x48@2x.png
+  youtubeVideoUrl: https://www.youtube.com/watch?v=nRbZJflWqCo
+  productCategories: [Endpoint operations]
+-
+  quote: I don't want one bad actor to brick my fleet, I want them to make a pull request first.
+  quoteAuthorName: Matt Carr
+  quoteAuthorJobTitle: CPE manager
+  quoteAuthorProfileImageFilename: testimonial-author-matt-carr-48x48@2x.png
+  quoteLinkUrl: https://www.linkedin.com/in/mathewcarr/
+  productCategories: [Device management]
+-
+  quote: I wanted an easy way to control osquery configurations, and I wanted to stream data as fast as possible into Snowflake. No other solution jumped out to solve those things except for Fleet.
+  quoteAuthorName: Tom Larkin
+  quoteAuthorJobTitle: IT Engineering Manager
+  quoteAuthorProfileImageFilename: testimonial-author-tom-larkin-48x48@2x.png
+  quoteLinkUrl: https://www.linkedin.com/in/thlarkin/
+  youtubeVideoUrl: https://www.youtube.com/watch?v=nkjg_hNe86Q
+  productCategories: [Endpoint operations]
+-
+  quote: Something I really appreciate about working with you guys is that it doesn't feel like I'm talking to a vendor. It actually feels like I'm talking to my team, and I really appreciate it.
+  quoteImageFilename: social-proof-logo-deloitte-130x32@2x.png
+  quoteLinkUrl: https://www.linkedin.com/in/cmajumdar/
+  quoteAuthorName: Chandra Majumdar
+  quoteAuthorProfileImageFilename: testimonial-author-chandra-majumdar-48x48@2x.png
+  quoteAuthorJobTitle: Partner - Cyber and Strategic Risk
+  productCategories: [Vulnerability management, Endpoint operations]
+-
+  quote: This is not just production osquery, but actually a way bigger opportunity than even something like Airwatch or Jamf.
+  quoteImageFilename: logo-flock-safety-907x132@2x.png
+  quoteLinkUrl: https://www.linkedin.com/in/mrerictan/
+  quoteAuthorName: Eric Tan
+  quoteAuthorProfileImageFilename: testimonial-author-eric-tan-99x99@2x.png
+  quoteAuthorJobTitle: CIO & Chief Security Officer at Flock Safety
+  productCategories: [Device management, Endpoint operations]

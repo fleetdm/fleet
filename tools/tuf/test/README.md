@@ -9,9 +9,12 @@ Scripts in this directory aim to ease the testing of Orbit and the [TUF](https:/
 1. The script is executed on a macOS host.
 2. Fleet server also running on the same macOS host.
 3. All VMs (and the macOS host itself) are configured to resolve `host.docker.internal` to the macOS host IP (by modifying their `hosts` file).
+4. The hosts are running on the same GOARCH as the macOS host. If not, you can set the `GOARCH` environment variable to compile for the desired architecture. For example: `GOARCH=amd64`
 
 > PS: We use `host.docker.internal` because the testing certificate `./tools/osquery/fleet.crt`
 > has such hostname (and `localhost`) defined as SANs.
+
+> PPS: Make sure you set the macOSX deployment target to the lowest macOS version you intend to support. See [Troubleshooting](#troubleshooting) for more details.
 
 # Run
 
@@ -28,11 +31,14 @@ MSI_FLEET_URL=https://host.docker.internal:8080 \
 MSI_TUF_URL=http://host.docker.internal:8081 \
 GENERATE_PKG=1 \
 GENERATE_DEB=1 \
+GENERATE_DEB_ARM64=1 \
 GENERATE_RPM=1 \
+GENERATE_RPM_ARM64=1 \
 GENERATE_MSI=1 \
 ENROLL_SECRET=6/EzU/+jPkxfTamWnRv1+IJsO4T9Etju \
 FLEET_DESKTOP=1 \
 USE_FLEET_SERVER_CERTIFICATE=1 \
+DEBUG=1 \
 ./tools/tuf/test/main.sh
 ```
 
@@ -52,6 +58,14 @@ LINUX_TEST_EXTENSIONS="./tools/test_extensions/hello_world/linux/hello_world_lin
 ./tools/tuf/test/main.sh
 ```
 
+To build for a specific architecture, you can pass the `GOARCH` environment variable:
+``` shell
+[...]
+GOARCH=arm64 # defaults to amd64
+[...]
+./tools/tuf/test/main.sh
+```
+
 # Add new updates
 
 To add new updates (osqueryd or orbit), use `push_target.sh`.
@@ -65,6 +79,19 @@ GOOS=windows GOARCH=amd64 go build -o orbit-windows.exe ./orbit/cmd/orbit
 ./tools/tuf/test/push_target.sh windows orbit orbit-windows.exe 43
 ```
 
+If the script was executed on a macOS host, the Orbit binary will be an universal binary. To push updates you can do:
+
+```sh
+# Compile a universal binary of Orbit:
+CGO_ENABLED=1 \
+ORBIT_VERSION=42 \
+ORBIT_BINARY_PATH="orbit-macos" \
+go run ./orbit/tools/build/build.go
+
+# Push the compiled Orbit as a new version
+./tools/tuf/test/push_target.sh macos orbit orbit-macos 43
+```
+
 E.g. to add a new version of `osqueryd` for macOS:
 ```sh
 # Generate osqueryd app bundle.
@@ -73,6 +100,7 @@ make osqueryd-app-tar-gz version=5.5.1 out-path=.
 # Push the osqueryd target as a new version
 ./tools/tuf/test/push_target.sh macos-app osqueryd osqueryd.app.tar.gz 5.5.1
 ```
+NOTE: Contributors on macOS with Apple silicon ran into issues running osqueryd downloaded from GitHub. Until this issue is root caused, the workaround is to download osqueryd from [Fleet's TUF](https://tuf.fleetctl.com/).
 
 E.g. to add a new version of `desktop` for macOS:
 ```sh
@@ -81,4 +109,20 @@ make desktop-app-tar-gz
 
 # Push the desktop target as a new version
 ./tools/tuf/test/push_target.sh macos desktop desktop.app.tar.gz 43
+```
+
+### Troubleshooting
+
+#### Fleet Desktop Startup Issue on macOS
+
+When running Fleet Desktop on an older macOS version than it was compiled on, Orbit may not launch it due to an error:
+
+```
+_LSOpenURLsWithCompletionHandler() failed with error -10825
+```
+
+Solution: Set the `MACOSX_DEPLOYMENT_TARGET` environment variable to the lowest macOS version you intend to support:
+
+```
+export MACOSX_DEPLOYMENT_TARGET=13 # replace '13' with your target macOS version
 ```

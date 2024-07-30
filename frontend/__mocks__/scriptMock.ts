@@ -1,8 +1,5 @@
-import {
-  IHostScript,
-  IScript,
-  IScriptResultResponse,
-} from "services/entities/scripts";
+import { IScriptResultResponse } from "services/entities/scripts";
+import { IScript, IHostScript } from "interfaces/script";
 
 const DEFAULT_SCRIPT_MOCK: IScript = {
   id: 1,
@@ -26,6 +23,7 @@ const DEFAULT_SCRIPT_RESULT_MOCK: IScriptResultResponse = {
   message: "",
   runtime: 0,
   host_timeout: false,
+  script_id: 1,
 };
 
 export const createMockScriptResult = (

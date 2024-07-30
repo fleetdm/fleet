@@ -4,8 +4,13 @@
   border-radius: $border-radius;
   border: 1px solid $ui-fleet-black-10;
   padding: $pad-xxlarge;
-  max-width: 640px;
   flex-grow: 1;
+
+  h3 {
+    font-size: $small;
+    margin: 0;
+    font-weight: normal;
+  }
 
   &__preview-img {
     margin-top: $pad-xxlarge;
@@ -13,9 +18,5 @@
     display: block;
     max-width: 540px;
     margin: 40px auto 0;
-  }
-
-  @media (max-width: $break-md) {
-    max-width: none;
   }
 }

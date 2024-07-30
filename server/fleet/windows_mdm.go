@@ -5,6 +5,7 @@ import (
 	"encoding/xml"
 	"errors"
 	"fmt"
+	"io"
 	"strings"
 	"time"
 
@@ -29,12 +30,16 @@ type MDMWindowsBitLockerSummary struct {
 
 // MDMWindowsConfigProfile represents a Windows MDM profile in Fleet.
 type MDMWindowsConfigProfile struct {
-	ProfileUUID string    `db:"profile_uuid" json:"profile_uuid"`
-	TeamID      *uint     `db:"team_id" json:"team_id"`
-	Name        string    `db:"name" json:"name"`
-	SyncML      []byte    `db:"syncml" json:"-"`
-	CreatedAt   time.Time `db:"created_at" json:"created_at"`
-	UpdatedAt   time.Time `db:"updated_at" json:"updated_at"`
+	// ProfileUUID is the unique identifier of the configuration profile in
+	// Fleet. For Windows profiles, it is the letter "w" followed by a uuid.
+	ProfileUUID      string                      `db:"profile_uuid" json:"profile_uuid"`
+	TeamID           *uint                       `db:"team_id" json:"team_id"`
+	Name             string                      `db:"name" json:"name"`
+	SyncML           []byte                      `db:"syncml" json:"-"`
+	LabelsIncludeAll []ConfigurationProfileLabel `db:"-" json:"labels_include_all,omitempty"`
+	LabelsExcludeAny []ConfigurationProfileLabel `db:"-" json:"labels_exclude_any,omitempty"`
+	CreatedAt        time.Time                   `db:"created_at" json:"created_at"`
+	UploadedAt       time.Time                   `db:"uploaded_at" json:"updated_at"` // NOTE: JSON field is still `updated_at` for historical reasons, would be an API breaking change
 }
 
 // ValidateUserProvided ensures that the SyncML content in the profile is valid
@@ -43,7 +48,15 @@ type MDMWindowsConfigProfile struct {
 // It checks that all top-level elements are <Replace> and none of the <LocURI>
 // elements within <Target> are reserved URIs.
 //
+// It also performs basic checks for XML well-formedness as defined in the [W3C
+// Recommendation section 2.8][1], as required by the [MS-MDM spec][2].
+//
+// Note that we only need to check for well-formedness, but validation is not required.
+//
 // Returns an error if these conditions are not met.
+//
+// [1]: http://www.w3.org/TR/2006/REC-xml-20060816
+// [2]: https://winprotocoldoc.blob.core.windows.net/productionwindowsarchives/MS-MDM/%5bMS-MDM%5d.pdf
 func (m *MDMWindowsConfigProfile) ValidateUserProvided() error {
 	if len(bytes.TrimSpace(m.SyncML)) == 0 {
 		return errors.New("The file should include valid XML.")
@@ -53,42 +66,64 @@ func (m *MDMWindowsConfigProfile) ValidateUserProvided() error {
 		return fmt.Errorf("Profile name %q is not allowed.", m.Name)
 	}
 
-	var validator struct {
-		SyncBody
-		NonProtocolElements []interface{} `xml:",any,omitempty"`
-	}
-	wrappedProfile := fmt.Sprintf("<SyncBody>%s</SyncBody>", m.SyncML)
-	if err := xml.Unmarshal([]byte(wrappedProfile), &validator); err != nil {
-		return fmt.Errorf("The file should include valid XML: %w", err)
-	}
+	dec := xml.NewDecoder(bytes.NewReader(m.SyncML))
+	// use strict mode to check for a variety of common mistakes like
+	// unclosed tags, etc.
+	dec.Strict = true
 
-	// might be valid XML, but start with something other than <Replace>
-	if mdm.GetRawProfilePlatform(m.SyncML) != "windows" {
-		return errors.New("Only <Replace> supported as a top level element. Make sure you don't have other top level elements.")
-	}
+	// keep track of certain elements to perform Fleet-validations.
+	//
+	// NOTE: since we're only checking for well-formedness
+	// we don't need to validate the required nesting
+	// structure (Target>Item>LocURI) so we don't need to track all the tags.
+	var inValidNode bool
+	var inLocURI bool
 
-	if len(validator.Add) != 0 ||
-		len(validator.Alert) != 0 ||
-		len(validator.Atomic) != 0 ||
-		len(validator.Delete) != 0 ||
-		len(validator.Exec) != 0 ||
-		len(validator.Get) != 0 ||
-		len(validator.Results) != 0 ||
-		len(validator.Status) != 0 ||
-		len(validator.NonProtocolElements) != 0 {
-		return errors.New("Only <Replace> supported as a top level element. Make sure you don't have other top level elements.")
-	}
+	for {
+		tok, err := dec.Token()
+		if err != nil {
+			if err != io.EOF {
+				return fmt.Errorf("The file should include valid XML: %w", err)
+			}
+			// EOF means no more tokens to process
+			break
+		}
 
-	for _, cmd := range validator.Replace {
-		for _, item := range cmd.Items {
-			// intentionally skipping any further validation if we
-			// don't get a target per product decision.
-			if item.Target == nil {
-				continue
+		switch t := tok.(type) {
+		// no processing instructions allowed (<?target inst?>)
+		// see #16316 for details
+		case xml.ProcInst:
+			return errors.New("The file should include valid XML: processing instructions are not allowed.")
+
+		case xml.StartElement:
+			switch t.Name.Local {
+			case "Replace", "Add":
+				inValidNode = true
+			case "LocURI":
+				if !inValidNode {
+					return errors.New("Windows configuration profiles can only have <Replace> or <Add> top level elements.")
+				}
+				inLocURI = true
+
+			default:
+				if !inValidNode {
+					return errors.New("Windows configuration profiles can only have <Replace> or <Add> top level elements.")
+				}
 			}
 
-			if err := validateFleetProvidedLocURI(*item.Target); err != nil {
-				return err
+		case xml.EndElement:
+			switch t.Name.Local {
+			case "Replace", "Add":
+				inValidNode = false
+			case "LocURI":
+				inLocURI = false
+			}
+
+		case xml.CharData:
+			if inLocURI {
+				if err := validateFleetProvidedLocURI(string(t)); err != nil {
+					return err
+				}
 			}
 		}
 	}

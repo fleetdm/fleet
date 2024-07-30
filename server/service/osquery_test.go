@@ -3,10 +3,13 @@ package service
 import (
 	"bytes"
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"net/http"
+	"os"
 	"reflect"
 	"sort"
 	"strconv"
@@ -32,8 +35,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service/async"
 	"github.com/fleetdm/fleet/v4/server/service/osquery_utils"
 	"github.com/fleetdm/fleet/v4/server/service/redis_policy_set"
-	"github.com/go-kit/kit/log"
-	"github.com/go-kit/kit/log/level"
+	"github.com/go-kit/log"
+	"github.com/go-kit/log/level"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -256,7 +259,10 @@ var allDetailQueries = osquery_utils.GetDetailQueries(
 	context.Background(),
 	config.FleetConfig{Vulnerabilities: config.VulnerabilitiesConfig{DisableWinOSVulnerabilities: true}},
 	nil,
-	&fleet.Features{EnableHostUsers: true},
+	&fleet.Features{
+		EnableHostUsers:         true,
+		EnableSoftwareInventory: true,
+	},
 )
 
 func expectedDetailQueriesForPlatform(platform string) map[string]osquery_utils.DetailQuery {
@@ -531,15 +537,31 @@ func TestSubmitStatusLogs(t *testing.T) {
 	assert.Equal(t, status, testLogger.logs)
 }
 
-func TestSubmitResultLogs(t *testing.T) {
+func TestSubmitResultLogsToLogDestination(t *testing.T) {
 	ds := new(mock.Store)
-	svc, ctx := newTestService(t, ds, nil, nil)
+	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{Logger: log.NewJSONLogger(os.Stdout)})
 
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil
 	}
 	ds.QueryByNameFunc = func(ctx context.Context, teamID *uint, name string) (*fleet.Query, error) {
 		switch {
+		case teamID != nil && *teamID == 1:
+			return &fleet.Query{
+				ID:                 4242,
+				Name:               name,
+				AutomationsEnabled: true,
+				TeamID:             ptr.Uint(1),
+				Logging:            fleet.LoggingSnapshot,
+			}, nil
+		case teamID != nil && *teamID == 2:
+			return &fleet.Query{
+				ID:                 4343,
+				Name:               name,
+				AutomationsEnabled: true,
+				TeamID:             ptr.Uint(2),
+				Logging:            fleet.LoggingSnapshot,
+			}, nil
 		case teamID == nil && (name == "time" || name == "system_info" || name == "encrypted" || name == "hosts"):
 			return &fleet.Query{
 				Name:               name,
@@ -559,6 +581,13 @@ func TestSubmitResultLogs(t *testing.T) {
 		case teamID == nil && name == "query_should_be_saved_and_submitted":
 			return &fleet.Query{
 				ID:                 123,
+				Name:               name,
+				AutomationsEnabled: true,
+				Logging:            fleet.LoggingSnapshot,
+			}, nil
+		case teamID == nil && name == "query_should_be_saved_and_submitted_with_custom_pack_delimiter":
+			return &fleet.Query{
+				ID:                 1234,
 				Name:               name,
 				AutomationsEnabled: true,
 				Logging:            fleet.LoggingSnapshot,
@@ -584,25 +613,30 @@ func TestSubmitResultLogs(t *testing.T) {
 	ds.ResultCountForQueryFunc = func(ctx context.Context, queryID uint) (int, error) {
 		return 0, nil
 	}
-	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow) error {
+	teamQueryResultsStored := false
+	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows int) error {
 		if len(rows) == 0 {
 			return nil
 		}
 		switch {
+		case rows[0].QueryID == 4242:
+			t.Fatal("should not happen, as query 4242 is a team query and host is global")
+		case rows[0].QueryID == 4343:
+			teamQueryResultsStored = true
 		case rows[0].QueryID == 123:
 			require.Len(t, rows, 1)
 			require.Equal(t, uint(999), rows[0].HostID)
 			require.NotZero(t, rows[0].LastFetched)
-			require.JSONEq(t, `{"hour":"20","minutes":"8"}`, string(rows[0].Data))
+			require.JSONEq(t, `{"hour":"20","minutes":"8"}`, string(*rows[0].Data))
 		case rows[0].QueryID == 444:
 			require.Len(t, rows, 2)
 			require.Equal(t, uint(999), rows[0].HostID)
 			require.NotZero(t, rows[0].LastFetched)
-			require.JSONEq(t, `{"hour":"20","minutes":"8"}`, string(rows[0].Data))
+			require.JSONEq(t, `{"hour":"20","minutes":"8"}`, string(*rows[0].Data))
 			require.Equal(t, uint(999), rows[1].HostID)
 			require.Equal(t, uint(444), rows[1].QueryID)
 			require.NotZero(t, rows[1].LastFetched)
-			require.JSONEq(t, `{"hour":"21","minutes":"9"}`, string(rows[1].Data))
+			require.JSONEq(t, `{"hour":"21","minutes":"9"}`, string(*rows[1].Data))
 		}
 		return nil
 	}
@@ -614,60 +648,93 @@ func TestSubmitResultLogs(t *testing.T) {
 	serv.osqueryLogWriter = &OsqueryLogger{Result: testLogger}
 
 	validLogResults := []string{
-		`{"name":"pack/Global/system_info","hostIdentifier":"some_uuid","calendarTime":"Fri Sep 30 17:55:15 2016 UTC","unixTime":"1475258115","decorations":{"host_uuid":"some_uuid","username":"zwass"},"columns":{"cpu_brand":"Intel(R) Core(TM) i7-4770HQ CPU @ 2.20GHz","hostname":"hostimus","physical_memory":"17179869184"},"action":"added"}`,
+		`{"name":"pack/Global/system_info","hostIdentifier":"some_uuid","calendarTime":"Fri Sep 30 17:55:15 2016 UTC","unixTime":1475258115,"decorations":{"host_uuid":"some_uuid","username":"zwass"},"columns":{"cpu_brand":"Intel(R) Core(TM) i7-4770HQ CPU @ 2.20GHz","hostname":"hostimus","physical_memory":"17179869184"},"action":"added"}`,
 
-		`{"name":"pack/SomePack/encrypted","hostIdentifier":"some_uuid","calendarTime":"Fri Sep 30 21:19:15 2016 UTC","unixTime":"1475270355","decorations":{"host_uuid":"4740D59F-699E-5B29-960B-979AAF9BBEEB","username":"zwass"},"columns":{"encrypted":"1","name":"\/dev\/disk1","type":"AES-XTS","uid":"","user_uuid":"","uuid":"some_uuid"},"action":"added"}`,
-		`{"name":"pack/SomePack/encrypted","hostIdentifier":"some_uuid","calendarTime":"Fri Sep 30 21:19:14 2016 UTC","unixTime":"1475270354","decorations":{"host_uuid":"4740D59F-699E-5B29-960B-979AAF9BBEEB","username":"zwass"},"columns":{"encrypted":"1","name":"\/dev\/disk1","type":"AES-XTS","uid":"","user_uuid":"","uuid":"some_uuid"},"action":"added"}`,
+		`{"name":"pack/SomePack/encrypted","hostIdentifier":"some_uuid","calendarTime":"Fri Sep 30 21:19:15 2016 UTC","unixTime":1475270355,"decorations":{"host_uuid":"4740D59F-699E-5B29-960B-979AAF9BBEEB","username":"zwass"},"columns":{"encrypted":"1","name":"\/dev\/disk1","type":"AES-XTS","uid":"","user_uuid":"","uuid":"some_uuid"},"action":"added"}`,
+		`{"name":"pack/SomePack/encrypted","hostIdentifier":"some_uuid","calendarTime":"Fri Sep 30 21:19:14 2016 UTC","unixTime":1475270354,"decorations":{"host_uuid":"4740D59F-699E-5B29-960B-979AAF9BBEEB","username":"zwass"},"columns":{"encrypted":"1","name":"\/dev\/disk1","type":"AES-XTS","uid":"","user_uuid":"","uuid":"some_uuid"},"action":"added"}`,
 
 		// These results belong to the same query but have 1 second difference.
 		`{"snapshot":[{"hour":"20","minutes":"8"}],"action":"snapshot","name":"pack/Global/time","hostIdentifier":"1379f59d98f4","calendarTime":"Tue Jan 10 20:08:51 2017 UTC","unixTime":1484078931,"decorations":{"host_uuid":"EB714C9D-C1F8-A436-B6DA-3F853C5502EA"}}`,
 		`{"snapshot":[{"hour":"20","minutes":"8"}],"action":"snapshot","name":"pack/Global/time","hostIdentifier":"1379f59d98f4","calendarTime":"Tue Jan 10 20:08:50 2017 UTC","unixTime":1484078930,"decorations":{"host_uuid":"EB714C9D-C1F8-A436-B6DA-3F853C5502EA"}}`,
 		`{"snapshot":[{"hour":"20","minutes":"8"}],"action":"snapshot","name":"pack/Global/time","hostIdentifier":"1379f59d98f4","calendarTime":"Tue Jan 10 20:08:52 2017 UTC","unixTime":1484078932,"decorations":{"host_uuid":"EB714C9D-C1F8-A436-B6DA-3F853C5502EA"}}`,
 
-		`{"diffResults":{"removed":[{"address":"127.0.0.1","hostnames":"kl.groob.io"}],"added":""},"name":"pack\/team-1/hosts","hostIdentifier":"FA01680E-98CA-5557-8F59-7716ECFEE964","calendarTime":"Sun Nov 19 00:02:08 2017 UTC","unixTime":"1511049728","epoch":"0","counter":"10","decorations":{"host_uuid":"FA01680E-98CA-5557-8F59-7716ECFEE964","hostname":"kl.groob.io"}}`,
+		`{"diffResults":{"removed":[{"address":"127.0.0.1","hostnames":"kl.groob.io"}],"added":""},"name":"pack\/team-1/hosts","hostIdentifier":"FA01680E-98CA-5557-8F59-7716ECFEE964","calendarTime":"Sun Nov 19 00:02:08 2017 UTC","unixTime":1511049728,"epoch":"0","counter":"10","decorations":{"host_uuid":"FA01680E-98CA-5557-8F59-7716ECFEE964","hostname":"kl.groob.io"}}`,
 
 		`{"snapshot":[{"hour":"20","minutes":"8"}],"action":"snapshot","name":"pack/Global/query_should_be_saved_and_submitted","hostIdentifier":"1379f59d98f4","calendarTime":"Tue Jan 10 20:08:51 2017 UTC","unixTime":1484078931,"decorations":{"host_uuid":"EB714C9D-C1F8-A436-B6DA-3F853C5502EA"}}`,
+		`{"snapshot":[{"hour":"20","minutes":"8"}],"action":"snapshot","name":"pack_Global_query_should_be_saved_and_submitted_with_custom_pack_delimiter","hostIdentifier":"1379f59d98f4","calendarTime":"Tue Jan 10 20:08:52 2017 UTC","unixTime":1484078932,"decorations":{"host_uuid":"EB714C9D-C1F8-A436-B6DA-3F853C5502EA"}}`,
 
-		//`{"snapshot":[],"action":"snapshot","name":"pack/Global/query_no_rows","hostIdentifier":"1379f59d98f4","calendarTime":"Tue Jan 10 20:08:51 2017 UTC","unixTime":1484078931,"decorations":{"host_uuid":"EB714C9D-C1F8-A436-B6DA-3F853C5502EA"}}`,
+		// Fleet doesn't know of this query, so this result should be streamed as is (This is to support streaming results for osquery nodes that are configured outside of Fleet, e.g. `--config_plugin=filesystem`).
+		`{"snapshot":[{"hour":"20","minutes":"8"}],"action":"snapshot","name":"pack/Global/doesntexist","hostIdentifier":"1379f59d98f4","calendarTime":"Tue Jan 10 20:08:51 2017 UTC","unixTime":1484078931,"decorations":{"host_uuid":"EB714C9D-C1F8-A436-B6DA-3F853C5502EA"}}`,
+
+		// If a global query belongs to a 2017/legacy pack, it should be automated even if the global query has automations turned off.
+		`{"snapshot":[{"hour":"20","minutes":"8"}],"action":"snapshot","name":"pack/Some Pack Name/query_not_automated","hostIdentifier":"1379f59d98f4","calendarTime":"Tue Jan 10 20:08:51 2017 UTC","unixTime":1484078931,"decorations":{"host_uuid":"EB714C9D-C1F8-A436-B6DA-3F853C5502EA"}}`,
+
+		// The "name" field has invalid format, so this result will be streamed as is (This is to support streaming results for osquery nodes that are configured outside of Fleet, e.g. `--config_plugin=filesystem`).
+		`{"name":"com.foo.bar","hostIdentifier":"52eb420a-2085-438a-abf0-5670e97588e2","calendarTime":"Thu Dec  7 15:15:20 2023 UTC","unixTime":1701962120,"epoch":0,"counter":0,"numerics":false,"columns":{"foo": "bar"},"action":"snapshot"}`,
+		`{"snapshot":[{"hour":"20","minutes":"8"}],"action":"snapshot","name":"some_name","hostIdentifier":"1379f59d98f4","calendarTime":"Tue Jan 10 20:08:51 2017 UTC","unixTime":1484078931,"decorations":{"host_uuid":"EB714C9D-C1F8-A436-B6DA-3F853C5502EA"}}`,
+		`{"snapshot":[{"hour":"20","minutes":"8"}],"action":"snapshot","name":"pack/team-foo/bar","hostIdentifier":"1379f59d98f4","calendarTime":"Tue Jan 10 20:08:51 2017 UTC","unixTime":1484078931,"decorations":{"host_uuid":"EB714C9D-C1F8-A436-B6DA-3F853C5502EA"}}`,
+		`{"snapshot":[{"hour":"20","minutes":"8"}],"action":"snapshot","name":"pack/team-","hostIdentifier":"1379f59d98f4","calendarTime":"Tue Jan 10 20:08:51 2017 UTC","unixTime":1484078931,"decorations":{"host_uuid":"EB714C9D-C1F8-A436-B6DA-3F853C5502EA"}}`,
+		`{"snapshot":[{"hour":"20","minutes":"8"}],"action":"snapshot","name":"pack/PackName","hostIdentifier":"1379f59d98f4","calendarTime":"Tue Jan 10 20:08:51 2017 UTC","unixTime":1484078931,"decorations":{"host_uuid":"EB714C9D-C1F8-A436-B6DA-3F853C5502EA"}}`,
+
+		// Query results of a query that belongs to a different team than the host's team (can happen when host is transferred from one team to another or no team).
+		`{"snapshot":[{"hour":"20","minutes":"8"}],"action":"snapshot","name":"pack/team-1/Foobar","hostIdentifier":"1379f59d98f4","calendarTime":"Tue Jan 10 20:08:51 2017 UTC","unixTime":1484078931,"decorations":{"host_uuid":"EB714C9D-C1F8-A436-B6DA-3F853C5502EA"}}`,
 	}
 	logJSON := fmt.Sprintf("[%s]", strings.Join(validLogResults, ","))
 
 	resultWithInvalidJSON := []byte("foobar:\n\t123")
+	resultWithInvalidJSONLong := []byte("foobar:\n\t1233333333333333333333333333333333333333333333333333333333")
 	// The "name" field will be empty, so this result will be ignored.
 	resultWithoutName := []byte(`{"unknown":{"foo": [] }}`)
-	// The "name" field has invalid format, so this result will be ignored.
-	resultWithInvalidNameFmt1 := []byte(`{"snapshot":[{"hour":"20","minutes":"8"}],"action":"snapshot","name":"pack/team-foo/bar","hostIdentifier":"1379f59d98f4","calendarTime":"Tue Jan 10 20:08:51 2017 UTC","unixTime":"1484078931","decorations":{"host_uuid":"EB714C9D-C1F8-A436-B6DA-3F853C5502EA"}}`)
-	resultWithInvalidNameFmt2 := []byte(`{"snapshot":[{"hour":"20","minutes":"8"}],"action":"snapshot","name":"pack/team-","hostIdentifier":"1379f59d98f4","calendarTime":"Tue Jan 10 20:08:51 2017 UTC","unixTime":"1484078931","decorations":{"host_uuid":"EB714C9D-C1F8-A436-B6DA-3F853C5502EA"}}`)
-	resultWithInvalidNameFmt3 := []byte(`{"snapshot":[{"hour":"20","minutes":"8"}],"action":"snapshot","name":"pack/PackName","hostIdentifier":"1379f59d98f4","calendarTime":"Tue Jan 10 20:08:51 2017 UTC","unixTime":"1484078931","decorations":{"host_uuid":"EB714C9D-C1F8-A436-B6DA-3F853C5502EA"}}`)
-	// The query doesn't exist, so this result will be ignored.
-	resultWithQueryDoesNotExist := []byte(`{"snapshot":[{"hour":"20","minutes":"8"}],"action":"snapshot","name":"pack/Global/doesntexist","hostIdentifier":"1379f59d98f4","calendarTime":"Tue Jan 10 20:08:51 2017 UTC","unixTime":"1484078931","decorations":{"host_uuid":"EB714C9D-C1F8-A436-B6DA-3F853C5502EA"}}`)
 	// The query was configured with automations disabled, so this result will be ignored.
-	resultWithQueryNotAutomated := []byte(`{"snapshot":[{"hour":"20","minutes":"8"}],"action":"snapshot","name":"pack/Global/query_not_automated","hostIdentifier":"1379f59d98f4","calendarTime":"Tue Jan 10 20:08:51 2017 UTC","unixTime":"1484078931","decorations":{"host_uuid":"EB714C9D-C1F8-A436-B6DA-3F853C5502EA"}}`)
+	resultWithQueryNotAutomated := []byte(`{"snapshot":[{"hour":"20","minutes":"8"}],"action":"snapshot","name":"pack/Global/query_not_automated","hostIdentifier":"1379f59d98f4","calendarTime":"Tue Jan 10 20:08:51 2017 UTC","unixTime":1484078931,"decorations":{"host_uuid":"EB714C9D-C1F8-A436-B6DA-3F853C5502EA"}}`)
 	// The query is supposed to be saved but with automations disabled (and has two columns).
 	resultWithQuerySavedNotAutomated := []byte(`{"snapshot":[{"hour":"20","minutes":"8"},{"hour":"21","minutes":"9"}],"action":"snapshot","name":"pack/Global/query_should_be_saved_but_not_submitted","hostIdentifier":"1379f59d98f4","calendarTime":"Tue Jan 10 20:08:51 2017 UTC","unixTime":1484078931,"decorations":{"host_uuid":"EB714C9D-C1F8-A436-B6DA-3F853C5502EA"}}`)
 
-	var results []json.RawMessage
-	err := json.Unmarshal([]byte(logJSON), &results)
+	var validResults []json.RawMessage
+	err := json.Unmarshal([]byte(logJSON), &validResults)
 	require.NoError(t, err)
 
 	host := fleet.Host{
-		ID: 999,
+		ID:     999,
+		TeamID: nil, // Global host.
 	}
 	ctx = hostctx.NewContext(ctx, &host)
-	// Submit valid and invalid log results mixed.
-	err = serv.SubmitResultLogs(ctx, append(append(results[:3],
-		resultWithInvalidJSON,
-		resultWithoutName,
-		resultWithInvalidNameFmt1,
-		resultWithInvalidNameFmt2,
-		resultWithInvalidNameFmt3,
-		resultWithQueryDoesNotExist,
-		resultWithQueryNotAutomated,
-		resultWithQuerySavedNotAutomated,
-	), results[3:]...))
+
+	// Submit valid, invalid and to-be-ignored log results mixed.
+	validAndInvalidResults := make([]json.RawMessage, 0, len(validResults)+5)
+	for i, result := range validResults {
+		validAndInvalidResults = append(validAndInvalidResults, result)
+		if i == 2 {
+			validAndInvalidResults = append(validAndInvalidResults,
+				resultWithInvalidJSON, resultWithInvalidJSONLong,
+				resultWithoutName, resultWithQueryNotAutomated,
+				resultWithQuerySavedNotAutomated,
+			)
+		}
+	}
+	err = serv.SubmitResultLogs(ctx, validAndInvalidResults)
 	require.NoError(t, err)
 
-	assert.Equal(t, results, testLogger.logs)
+	assert.Equal(t, validResults, testLogger.logs)
+
+	//
+	// Run a similar test but now with a team host.
+	//
+	host = fleet.Host{
+		ID:     999,
+		TeamID: ptr.Uint(2),
+	}
+	ctx = hostctx.NewContext(ctx, &host)
+	results := []json.RawMessage{
+		// This query should be ignored.
+		json.RawMessage(`{"snapshot":[{"hour":"20","minutes":"8"}],"action":"snapshot","name":"pack/team-1/Foobar","hostIdentifier":"1379f59d98f4","calendarTime":"Tue Jan 10 20:08:51 2017 UTC","unixTime":1484078931,"decorations":{"host_uuid":"EB714C9D-C1F8-A436-B6DA-3F853C5502EA"}}`),
+		// This query should be stored.
+		json.RawMessage(`{"snapshot":[{"hour":"20","minutes":"8"}],"action":"snapshot","name":"pack/team-2/Zoobar","hostIdentifier":"1379f59d98f4","calendarTime":"Tue Jan 10 20:08:51 2017 UTC","unixTime":1484078931,"decorations":{"host_uuid":"EB714C9D-C1F8-A436-B6DA-3F853C5502EA"}}`),
+	}
+	err = serv.SubmitResultLogs(ctx, results)
+	require.NoError(t, err)
+
+	require.True(t, teamQueryResultsStored)
 }
 
 func TestSaveResultLogsToQueryReports(t *testing.T) {
@@ -684,32 +751,12 @@ func TestSaveResultLogsToQueryReports(t *testing.T) {
 		{
 			QueryName:     "pack/Global/Uptime",
 			OsqueryHostID: "1379f59d98f4",
-			Snapshot: []json.RawMessage{
-				json.RawMessage(`{"hour":"20","minutes":"8"}`),
+			Snapshot: []*json.RawMessage{
+				ptr.RawMessage(json.RawMessage(`{"hour":"20","minutes":"8"}`)),
 			},
 			UnixTime: 1484078931,
 		},
 	}
-
-	queriesDBData := map[string]*fleet.Query{
-		"pack/Global/Uptime": {
-			ID:          1,
-			DiscardData: false,
-			Logging:     fleet.LoggingSnapshot,
-		},
-	}
-
-	// Result not saved if result is not a snapshot
-	notSnapshotResult := []*fleet.ScheduledQueryResult{
-		{
-			QueryName:     "pack/Global/Uptime",
-			OsqueryHostID: "1379f59d98f4",
-			Snapshot:      []json.RawMessage{},
-			UnixTime:      1484078931,
-		},
-	}
-	serv.saveResultLogsToQueryReports(ctx, notSnapshotResult, queriesDBData)
-	assert.False(t, ds.OverwriteQueryResultRowsFuncInvoked)
 
 	// Results not saved if DiscardData is true in Query
 	discardDataFalse := map[string]*fleet.Query{
@@ -719,7 +766,7 @@ func TestSaveResultLogsToQueryReports(t *testing.T) {
 			Logging:     fleet.LoggingSnapshot,
 		},
 	}
-	serv.saveResultLogsToQueryReports(ctx, results, discardDataFalse)
+	serv.saveResultLogsToQueryReports(ctx, results, discardDataFalse, fleet.DefaultMaxQueryReportRows)
 	assert.False(t, ds.OverwriteQueryResultRowsFuncInvoked)
 
 	// Happy Path: Results saved
@@ -730,14 +777,170 @@ func TestSaveResultLogsToQueryReports(t *testing.T) {
 			Logging:     fleet.LoggingSnapshot,
 		},
 	}
-	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow) error {
+	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows int) error {
 		return nil
 	}
 	ds.ResultCountForQueryFunc = func(ctx context.Context, queryID uint) (int, error) {
 		return 0, nil
 	}
-	serv.saveResultLogsToQueryReports(ctx, results, discardDataTrue)
+	serv.saveResultLogsToQueryReports(ctx, results, discardDataTrue, fleet.DefaultMaxQueryReportRows)
 	require.True(t, ds.OverwriteQueryResultRowsFuncInvoked)
+}
+
+func TestSubmitResultLogsToQueryResultsWithEmptySnapShot(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil)
+
+	host := fleet.Host{
+		ID: 999,
+	}
+	ctx = hostctx.NewContext(ctx, &host)
+
+	logs := []string{
+		`{"snapshot":[],"action":"snapshot","name":"pack/Global/query_no_rows","hostIdentifier":"1379f59d98f4","calendarTime":"Tue Jan 10 20:08:51 2017 UTC","unixTime":1484078931,"decorations":{"host_uuid":"EB714C9D-C1F8-A436-B6DA-3F853C5502EA"}}`,
+	}
+
+	logJSON := fmt.Sprintf("[%s]", strings.Join(logs, ","))
+	var results []json.RawMessage
+	err := json.Unmarshal([]byte(logJSON), &results)
+	require.NoError(t, err)
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{
+			ServerSettings: fleet.ServerSettings{
+				QueryReportsDisabled: false,
+			},
+		}, nil
+	}
+
+	ds.QueryByNameFunc = func(ctx context.Context, teamID *uint, name string) (*fleet.Query, error) {
+		return &fleet.Query{
+			ID:          1,
+			DiscardData: false,
+			Logging:     fleet.LoggingSnapshot,
+		}, nil
+	}
+
+	ds.ResultCountForQueryFunc = func(ctx context.Context, queryID uint) (int, error) {
+		return 0, nil
+	}
+
+	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows int) error {
+		require.Len(t, rows, 1)
+		require.Equal(t, uint(999), rows[0].HostID)
+		require.NotZero(t, rows[0].LastFetched)
+		require.Nil(t, rows[0].Data)
+		return nil
+	}
+
+	err = svc.SubmitResultLogs(ctx, results)
+	require.NoError(t, err)
+	assert.True(t, ds.OverwriteQueryResultRowsFuncInvoked)
+}
+
+func TestSubmitResultLogsToQueryResultsDoesNotCountNullDataRows(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil)
+
+	host := fleet.Host{
+		ID: 999,
+	}
+	ctx = hostctx.NewContext(ctx, &host)
+
+	logs := []string{
+		`{"snapshot":[],"action":"snapshot","name":"pack/Global/query_no_rows","hostIdentifier":"1379f59d98f4","calendarTime":"Tue Jan 10 20:08:51 2017 UTC","unixTime":1484078931,"decorations":{"host_uuid":"EB714C9D-C1F8-A436-B6DA-3F853C5502EA"}}`,
+	}
+
+	logJSON := fmt.Sprintf("[%s]", strings.Join(logs, ","))
+	var results []json.RawMessage
+	err := json.Unmarshal([]byte(logJSON), &results)
+	require.NoError(t, err)
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{
+			ServerSettings: fleet.ServerSettings{
+				QueryReportsDisabled: false,
+			},
+		}, nil
+	}
+
+	ds.QueryByNameFunc = func(ctx context.Context, teamID *uint, name string) (*fleet.Query, error) {
+		return &fleet.Query{
+			ID:          1,
+			DiscardData: false,
+			Logging:     fleet.LoggingSnapshot,
+		}, nil
+	}
+
+	ds.ResultCountForQueryFunc = func(ctx context.Context, queryID uint) (int, error) {
+		return 0, nil
+	}
+
+	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows int) error {
+		require.Len(t, rows, 1)
+		require.Equal(t, uint(999), rows[0].HostID)
+		require.NotZero(t, rows[0].LastFetched)
+		require.Nil(t, rows[0].Data)
+		return nil
+	}
+
+	err = svc.SubmitResultLogs(ctx, results)
+	require.NoError(t, err)
+	assert.True(t, ds.OverwriteQueryResultRowsFuncInvoked)
+}
+
+type failingLogger struct{}
+
+func (n *failingLogger) Write(context.Context, []json.RawMessage) error {
+	return errors.New("some error")
+}
+
+func TestSubmitResultLogsFail(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil)
+
+	host := fleet.Host{
+		ID: 999,
+	}
+	ctx = hostctx.NewContext(ctx, &host)
+
+	// Hack to get at the service internals and modify the writer
+	serv := ((svc.(validationMiddleware)).Service).(*Service)
+
+	testLogger := &failingLogger{}
+	serv.osqueryLogWriter = &OsqueryLogger{Result: testLogger}
+
+	logs := []string{
+		`{"name":"pack/Global/system_info","hostIdentifier":"some_uuid","calendarTime":"Fri Sep 30 17:55:15 2016 UTC","unixTime":1475258115,"decorations":{"host_uuid":"some_uuid","username":"zwass"},"columns":{"cpu_brand":"Intel(R) Core(TM) i7-4770HQ CPU @ 2.20GHz","hostname":"hostimus","physical_memory":"17179869184"},"action":"added"}`,
+	}
+
+	logJSON := fmt.Sprintf("[%s]", strings.Join(logs, ","))
+	var results []json.RawMessage
+	err := json.Unmarshal([]byte(logJSON), &results)
+	require.NoError(t, err)
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
+	ds.QueryByNameFunc = func(ctx context.Context, teamID *uint, name string) (*fleet.Query, error) {
+		return &fleet.Query{
+			ID:                 1,
+			DiscardData:        false,
+			AutomationsEnabled: true,
+			Name:               name,
+		}, nil
+	}
+	ds.ResultCountForQueryFunc = func(ctx context.Context, queryID uint) (int, error) {
+		return 0, nil
+	}
+	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows int) error {
+		return nil
+	}
+
+	// Expect an error when unable to write to logging destination.
+	err = svc.SubmitResultLogs(ctx, results)
+	require.Error(t, err)
+	assert.Equal(t, http.StatusRequestEntityTooLarge, err.(*osqueryError).Status())
 }
 
 func TestGetQueryNameAndTeamIDFromResult(t *testing.T) {
@@ -747,20 +950,47 @@ func TestGetQueryNameAndTeamIDFromResult(t *testing.T) {
 		expectedName string
 		hasErr       bool
 	}{
-		{"pack/Global/Query Name", nil, "Query Name", false},
-		{"pack/team-1/Query Name", ptr.Uint(1), "Query Name", false},
-		{"pack/team-12345/Another Query", ptr.Uint(12345), "Another Query", false},
-		{"pack/PackName/Query", nil, "Query", false}, // Legacy Pack support
-		{"pack/team-foo/Query", nil, "", true},
-		{"pack/Global/QueryWith/Slash", nil, "QueryWith/Slash", false},
+		{"pack/Global/Query Name", nil, "Query Name", false},                       // valid global query
+		{"pack/team-1/Query Name", ptr.Uint(1), "Query Name", false},               // valid team query
+		{"pack/team-12345/Another Query", ptr.Uint(12345), "Another Query", false}, // valid team query
+		{"pack/team-foo/Query", nil, "", true},                                     // missing team ID
+		{"pack/Global/QueryWith/Slash", nil, "QueryWith/Slash", false},             // query name contains forward slash
+		{"packGlobalGlobalGlobalGlobal", nil, "Global", false},                     // pack_delimiter=Global
+		{"packXGlobalGlobalXGlobalQueryWith/Slash", nil, "QueryWith/Slash", false}, // pack_delimiter=XGlobal
+		{"pack//Global//QueryWith/Slash", nil, "QueryWith/Slash", false},           // pack_delimiter=//
 		{"pack/team-1/QueryWith/Slash", ptr.Uint(1), "QueryWith/Slash", false},
-		{"pack/PackName/QueryWith/Slash", nil, "QueryWith/Slash", false}, // Legacy Pack support
+		{"pack_team-1_QueryWith/Slash", ptr.Uint(1), "QueryWith/Slash", false},
+		{"packFOOBARteam-1FOOBARQueryWith/Slash", ptr.Uint(1), "QueryWith/Slash", false},   // pack_delimiter=FOOBAR
+		{"pack123😁123team-1123😁123QueryWith/Slash", ptr.Uint(1), "QueryWith/Slash", false}, // pack_delimiter=123😁123
+		{"pack(foo)team-1(foo)fo(o)bar", ptr.Uint(1), "fo(o)bar", false},                   // pack_delimiter=(foo)
+		{"packteam-1team-1team-1team-1", ptr.Uint(1), "team-1", false},                     // pack_delimiter=team-1
+		{"pack/Global/GlobalInQueryName", nil, "GlobalInQueryName", false},                 // query name contains Global
+		{"pack/team-1/team-1InQueryName", ptr.Uint(1), "team-1InQueryName", false},         // query name contains team-1
+
 		{"InvalidString", nil, "", true},
 		{"Invalid/Query", nil, "", true},
+		{"pac", nil, "", true},
+		{"pack", nil, "", true},
+		{"pack/", nil, "", true},
+		{"pack/Global", nil, "", true},
+		{"pack/Global/", nil, "", true},
+		{"pack/team/foo", nil, "", true},
+		{"pack/team-123", nil, "", true},
+		{"pack/team-/foo", nil, "", true},
+		{"pack/team-123/", nil, "", true},
+
+		// Legacy 2017 packs should fail the parsing as they are separate
+		// from global or team queries.
+		{"pack/PackName/Query", nil, "", true},
+		{"pack/PackName/QueryWith/Slash", nil, "", true},
+		{"packFOOBARPackNameFOOBARQueryWith/Slash", nil, "", true}, // pack_delimiter=FOOBAR
 	}
 
 	for _, tt := range tests {
+		tt := tt
 		t.Run(tt.input, func(t *testing.T) {
+			t.Parallel()
+
 			id, str, err := getQueryNameAndTeamIDFromResult(tt.input)
 			assert.Equal(t, tt.expectedID, id)
 			assert.Equal(t, tt.expectedName, str)
@@ -820,15 +1050,18 @@ func TestGetMostRecentResults(t *testing.T) {
 }
 
 func verifyDiscovery(t *testing.T, queries, discovery map[string]string) {
+	t.Helper()
 	assert.Equal(t, len(queries), len(discovery))
 	// discoveryUsed holds the queries where we know use the distributed discovery feature.
 	discoveryUsed := map[string]struct{}{
-		hostDetailQueryPrefix + "google_chrome_profiles": {},
-		hostDetailQueryPrefix + "mdm":                    {},
-		hostDetailQueryPrefix + "munki_info":             {},
-		hostDetailQueryPrefix + "windows_update_history": {},
-		hostDetailQueryPrefix + "kubequery_info":         {},
-		hostDetailQueryPrefix + "orbit_info":             {},
+		hostDetailQueryPrefix + "google_chrome_profiles":     {},
+		hostDetailQueryPrefix + "mdm":                        {},
+		hostDetailQueryPrefix + "munki_info":                 {},
+		hostDetailQueryPrefix + "windows_update_history":     {},
+		hostDetailQueryPrefix + "kubequery_info":             {},
+		hostDetailQueryPrefix + "orbit_info":                 {},
+		hostDetailQueryPrefix + "software_vscode_extensions": {},
+		hostDetailQueryPrefix + "software_macos_firefox":     {},
 	}
 	for name := range queries {
 		require.NotEmpty(t, discovery[name])
@@ -845,7 +1078,11 @@ func TestHostDetailQueries(t *testing.T) {
 	ds := new(mock.Store)
 	additional := json.RawMessage(`{"foobar": "select foo", "bim": "bam"}`)
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{Features: fleet.Features{AdditionalQueries: &additional, EnableHostUsers: true}}, nil
+		return &fleet.AppConfig{Features: fleet.Features{
+			AdditionalQueries:       &additional,
+			EnableHostUsers:         true,
+			EnableSoftwareInventory: true,
+		}}, nil
 	}
 
 	mockClock := clock.NewMockClock()
@@ -1068,6 +1305,46 @@ func TestGetDistributedQueriesMissingHost(t *testing.T) {
 	assert.Contains(t, err.Error(), "missing host")
 }
 
+func TestGetDistributedQueriesEmptyQuery(t *testing.T) {
+	mockClock := clock.NewMockClock()
+	ds := new(mock.Store)
+	lq := live_query_mock.New(t)
+	svc, ctx := newTestServiceWithClock(t, ds, nil, lq, mockClock)
+
+	host := &fleet.Host{
+		Platform: "darwin",
+	}
+
+	ds.LabelQueriesForHostFunc = func(ctx context.Context, host *fleet.Host) (map[string]string, error) {
+		return map[string]string{"empty_label_query": ""}, nil
+	}
+	ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+		return host, nil
+	}
+	ds.UpdateHostFunc = func(ctx context.Context, gotHost *fleet.Host) error {
+		return nil
+	}
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{Features: fleet.Features{EnableHostUsers: true}}, nil
+	}
+	ds.PolicyQueriesForHostFunc = func(ctx context.Context, host *fleet.Host) (map[string]string, error) {
+		return map[string]string{"empty_policy_query": ""}, nil
+	}
+
+	lq.On("QueriesForHost", uint(0)).Return(map[string]string{"empty_live_query": ""}, nil)
+
+	ctx = hostctx.NewContext(ctx, host)
+	queries, discovery, _, err := svc.GetDistributedQueries(ctx)
+	require.NoError(t, err)
+	require.NotEmpty(t, queries)
+	for n, q := range queries {
+		require.NotEmpty(t, q, n)
+	}
+	for n, q := range discovery {
+		require.NotEmpty(t, q, n)
+	}
+}
+
 func TestLabelQueries(t *testing.T) {
 	mockClock := clock.NewMockClock()
 	ds := new(mock.Store)
@@ -1089,7 +1366,10 @@ func TestLabelQueries(t *testing.T) {
 		return nil
 	}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{Features: fleet.Features{EnableHostUsers: true}}, nil
+		return &fleet.AppConfig{Features: fleet.Features{
+			EnableHostUsers:         true,
+			EnableSoftwareInventory: true,
+		}}, nil
 	}
 	ds.PolicyQueriesForHostFunc = func(ctx context.Context, host *fleet.Host) (map[string]string, error) {
 		return map[string]string{}, nil
@@ -1153,6 +1433,7 @@ func TestLabelQueries(t *testing.T) {
 		},
 		map[string]fleet.OsqueryStatus{},
 		map[string]string{},
+		map[string]*fleet.Stats{},
 	)
 	require.NoError(t, err)
 	host.LabelUpdatedAt = mockClock.Now()
@@ -1172,6 +1453,7 @@ func TestLabelQueries(t *testing.T) {
 		},
 		map[string]fleet.OsqueryStatus{},
 		map[string]string{},
+		map[string]*fleet.Stats{},
 	)
 	require.NoError(t, err)
 	host.LabelUpdatedAt = mockClock.Now()
@@ -1209,6 +1491,7 @@ func TestLabelQueries(t *testing.T) {
 		},
 		map[string]fleet.OsqueryStatus{},
 		map[string]string{},
+		map[string]*fleet.Stats{},
 	)
 	require.NoError(t, err)
 	host.LabelUpdatedAt = mockClock.Now()
@@ -1243,7 +1526,10 @@ func TestDetailQueriesWithEmptyStrings(t *testing.T) {
 	ctx = hostctx.NewContext(ctx, host)
 
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{Features: fleet.Features{EnableHostUsers: true}}, nil
+		return &fleet.AppConfig{Features: fleet.Features{
+			EnableHostUsers:         true,
+			EnableSoftwareInventory: true,
+		}}, nil
 	}
 	ds.LabelQueriesForHostFunc = func(context.Context, *fleet.Host) (map[string]string, error) {
 		return map[string]string{}, nil
@@ -1314,7 +1600,7 @@ func TestDetailQueriesWithEmptyStrings(t *testing.T) {
       "cpu_subtype": "Intel x86-64h Haswell",
       "cpu_type": "x86_64h",
       "hardware_model": "MacBookPro11,4",
-      "hardware_serial": "ABCDEFGH",
+      "hardware_serial": "NEW_HW_SERIAL",
       "hardware_vendor": "Apple Inc.",
       "hardware_version": "1.0",
       "hostname": "computer.local",
@@ -1369,7 +1655,9 @@ func TestDetailQueriesWithEmptyStrings(t *testing.T) {
 	}
 
 	// Verify that results are ingested properly
-	require.NoError(t, svc.SubmitDistributedQueryResults(ctx, results, map[string]fleet.OsqueryStatus{}, map[string]string{}))
+	require.NoError(
+		t, svc.SubmitDistributedQueryResults(ctx, results, map[string]fleet.OsqueryStatus{}, map[string]string{}, map[string]*fleet.Stats{}),
+	)
 
 	// osquery_info
 	assert.Equal(t, "darwin", gotHost.Platform)
@@ -1379,6 +1667,7 @@ func TestDetailQueriesWithEmptyStrings(t *testing.T) {
 	assert.Equal(t, int64(17179869184), gotHost.Memory)
 	assert.Equal(t, "computer.local", gotHost.Hostname)
 	assert.Equal(t, "uuid", gotHost.UUID)
+	assert.Equal(t, "NEW_HW_SERIAL", gotHost.HardwareSerial)
 
 	// os_version
 	assert.Equal(t, "Mac OS X 10.10.6", gotHost.OSVersion)
@@ -1423,15 +1712,19 @@ func TestDetailQueries(t *testing.T) {
 	svc, ctx := newTestServiceWithClock(t, ds, nil, lq, mockClock)
 
 	host := &fleet.Host{
-		ID:       1,
-		Platform: "linux",
+		ID:             1,
+		Platform:       "linux",
+		HardwareSerial: "HW_SERIAL",
 	}
 	ctx = hostctx.NewContext(ctx, host)
 
 	lq.On("QueriesForHost", host.ID).Return(map[string]string{}, nil)
 
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{Features: fleet.Features{EnableHostUsers: true, EnableSoftwareInventory: true}}, nil
+		return &fleet.AppConfig{Features: fleet.Features{
+			EnableHostUsers:         true,
+			EnableSoftwareInventory: true,
+		}}, nil
 	}
 	ds.LabelQueriesForHostFunc = func(context.Context, *fleet.Host) (map[string]string, error) {
 		return map[string]string{}, nil
@@ -1439,18 +1732,23 @@ func TestDetailQueries(t *testing.T) {
 	ds.PolicyQueriesForHostFunc = func(ctx context.Context, host *fleet.Host) (map[string]string, error) {
 		return map[string]string{}, nil
 	}
-	ds.SetOrUpdateMDMDataFunc = func(ctx context.Context, hostID uint, isServer, enrolled bool, serverURL string, installedFromDep bool, name string) error {
+	ds.SetOrUpdateMDMDataFunc = func(ctx context.Context, hostID uint, isServer, enrolled bool, serverURL string, installedFromDep bool, name string, fleetEnrollmentRef string) error {
 		require.True(t, enrolled)
 		require.False(t, installedFromDep)
 		require.Equal(t, "hi.com", serverURL)
+		require.Empty(t, fleetEnrollmentRef)
 		return nil
 	}
 	ds.SetOrUpdateMunkiInfoFunc = func(ctx context.Context, hostID uint, version string, errs, warns []string) error {
 		require.Equal(t, "3.4.5", version)
 		return nil
 	}
-	ds.SetOrUpdateHostOrbitInfoFunc = func(ctx context.Context, hostID uint, version string) error {
+	ds.SetOrUpdateHostOrbitInfoFunc = func(
+		ctx context.Context, hostID uint, version string, desktopVersion sql.NullString, scriptsEnabled sql.NullBool,
+	) error {
 		require.Equal(t, "42", version)
+		require.Equal(t, sql.NullString{String: "1.2.3", Valid: true}, desktopVersion)
+		require.Equal(t, sql.NullBool{Bool: true, Valid: true}, scriptsEnabled)
 		return nil
 	}
 	ds.SetOrUpdateDeviceAuthTokenFunc = func(ctx context.Context, hostID uint, authToken string) error {
@@ -1458,9 +1756,10 @@ func TestDetailQueries(t *testing.T) {
 		require.Equal(t, "foo", authToken)
 		return nil
 	}
-	ds.SetOrUpdateHostDisksSpaceFunc = func(ctx context.Context, hostID uint, gigsAvailable, percentAvailable float64) error {
+	ds.SetOrUpdateHostDisksSpaceFunc = func(ctx context.Context, hostID uint, gigsAvailable, percentAvailable, gigsTotal float64) error {
 		require.Equal(t, 277.0, gigsAvailable)
 		require.Equal(t, 56.0, percentAvailable)
+		require.Equal(t, 500.1, gigsTotal)
 		return nil
 	}
 	ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
@@ -1474,8 +1773,8 @@ func TestDetailQueries(t *testing.T) {
 	// queries)
 	queries, discovery, acc, err := svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
-	// +1 for software inventory, +1 for fleet_no_policies_wildcard
-	if expected := expectedDetailQueriesForPlatform(host.Platform); !assert.Equal(t, len(expected)+1+1, len(queries)) {
+	// +1 for fleet_no_policies_wildcard
+	if expected := expectedDetailQueriesForPlatform(host.Platform); !assert.Equal(t, len(expected)+1, len(queries)) {
 		// this is just to print the diff between the expected and actual query
 		// keys when the count assertion fails, to help debugging - they are not
 		// expected to match.
@@ -1538,7 +1837,7 @@ func TestDetailQueries(t *testing.T) {
         "cpu_subtype": "Intel x86-64h Haswell",
         "cpu_type": "x86_64h",
         "hardware_model": "MacBookPro11,4",
-        "hardware_serial": "ABCDEFGH",
+        "hardware_serial": "-1",
         "hardware_vendor": "Apple Inc.",
         "hardware_version": "1.0",
         "hostname": "computer.local",
@@ -1604,7 +1903,8 @@ func TestDetailQueries(t *testing.T) {
 "fleet_detail_query_disk_space_unix": [
 	{
 		"percent_disk_space_available": "56",
-		"gigs_disk_space_available": "277.0"
+		"gigs_disk_space_available": "277.0",
+		"gigs_total_disk_space": "500.1"
 	}
 ],
 "fleet_detail_query_mdm": [
@@ -1621,7 +1921,9 @@ func TestDetailQueries(t *testing.T) {
 ],
 "fleet_detail_query_orbit_info": [
 	{
-		"version": "42"
+		"version": "42",
+		"desktop_version": "1.2.3",
+		"scripts_enabled": "1"
 	}
 ]
 }
@@ -1658,7 +1960,9 @@ func TestDetailQueries(t *testing.T) {
 	}
 
 	// Verify that results are ingested properly
-	require.NoError(t, svc.SubmitDistributedQueryResults(ctx, results, map[string]fleet.OsqueryStatus{}, map[string]string{}))
+	require.NoError(
+		t, svc.SubmitDistributedQueryResults(ctx, results, map[string]fleet.OsqueryStatus{}, map[string]string{}, map[string]*fleet.Stats{}),
+	)
 	require.NotNil(t, gotHost)
 
 	require.True(t, ds.SetOrUpdateMDMDataFuncInvoked)
@@ -1673,6 +1977,8 @@ func TestDetailQueries(t *testing.T) {
 	assert.Equal(t, int64(17179869184), gotHost.Memory)
 	assert.Equal(t, "computer.local", gotHost.Hostname)
 	assert.Equal(t, "uuid", gotHost.UUID)
+	// The hardware serial should not have updated because return value was -1. See: https://github.com/fleetdm/fleet/issues/19789
+	assert.Equal(t, "HW_SERIAL", gotHost.HardwareSerial)
 
 	// os_version
 	assert.Equal(t, "Mac OS X 10.10.6", gotHost.OSVersion)
@@ -1736,8 +2042,8 @@ func TestDetailQueries(t *testing.T) {
 
 	queries, discovery, acc, err = svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
-	// +1 software inventory, +1 fleet_no_policies_wildcard query
-	require.Equal(t, len(expectedDetailQueriesForPlatform(host.Platform))+1+1, len(queries), distQueriesMapKeys(queries))
+	// +1 fleet_no_policies_wildcard query
+	require.Equal(t, len(expectedDetailQueriesForPlatform(host.Platform))+1, len(queries), distQueriesMapKeys(queries))
 	verifyDiscovery(t, queries, discovery)
 	assert.Zero(t, acc)
 }
@@ -1866,13 +2172,9 @@ func TestNewDistributedQueryCampaign(t *testing.T) {
 		},
 	})
 	q := "select year, month, day, hour, minutes, seconds from time"
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
-		return nil
-	}
 	campaign, err := svc.NewDistributedQueryCampaign(viewerCtx, q, nil, fleet.HostTargets{HostIDs: []uint{2}, LabelIDs: []uint{1}})
 	require.NoError(t, err)
 	assert.Equal(t, gotQuery.ID, gotCampaign.QueryID)
-	assert.True(t, ds.NewActivityFuncInvoked)
 	assert.Equal(t, []*fleet.DistributedQueryCampaignTarget{
 		{
 			Type:                       fleet.TargetHost,
@@ -1920,7 +2222,10 @@ func TestDistributedQueryResults(t *testing.T) {
 		return nil
 	}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{Features: fleet.Features{EnableHostUsers: true}}, nil
+		return &fleet.AppConfig{Features: fleet.Features{
+			EnableHostUsers:         true,
+			EnableSoftwareInventory: true,
+		}}, nil
 	}
 
 	hostCtx := hostctx.NewContext(ctx, host)
@@ -1961,6 +2266,12 @@ func TestDistributedQueryResults(t *testing.T) {
 	results := map[string][]map[string]string{
 		queryKey: expectedRows,
 	}
+	expectedStats := fleet.Stats{
+		UserTime: uint64(1),
+	}
+	stats := map[string]*fleet.Stats{
+		queryKey: &expectedStats,
+	}
 
 	// TODO use service method
 	readChan, err := rs.ReadChannel(context.Background(), *campaign)
@@ -1981,6 +2292,7 @@ func TestDistributedQueryResults(t *testing.T) {
 				assert.Equal(t, host.ID, res.Host.ID)
 				assert.Equal(t, host.Hostname, res.Host.Hostname)
 				assert.Equal(t, host.DisplayName(), res.Host.DisplayName)
+				assert.Equal(t, &expectedStats, res.Stats)
 			} else {
 				t.Error("Wrong result type")
 			}
@@ -2000,8 +2312,12 @@ func TestDistributedQueryResults(t *testing.T) {
 	// this test.
 	time.Sleep(10 * time.Millisecond)
 
-	err = svc.SubmitDistributedQueryResults(hostCtx, results, map[string]fleet.OsqueryStatus{}, map[string]string{})
+	err = svc.SubmitDistributedQueryResults(
+		hostCtx, results, map[string]fleet.OsqueryStatus{}, map[string]string{}, stats,
+	)
 	require.NoError(t, err)
+	// Sleep to ensure checks in the goroutine are actually done.
+	time.Sleep(10 * time.Millisecond)
 }
 
 func TestIngestDistributedQueryParseIdError(t *testing.T) {
@@ -2018,7 +2334,7 @@ func TestIngestDistributedQueryParseIdError(t *testing.T) {
 	}
 
 	host := fleet.Host{ID: 1}
-	err := svc.ingestDistributedQuery(context.Background(), host, "bad_name", []map[string]string{}, "")
+	err := svc.ingestDistributedQuery(context.Background(), host, "bad_name", []map[string]string{}, "", nil)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "unable to parse campaign")
 }
@@ -2044,7 +2360,7 @@ func TestIngestDistributedQueryOrphanedCampaignLoadError(t *testing.T) {
 
 	host := fleet.Host{ID: 1}
 
-	err := svc.ingestDistributedQuery(context.Background(), host, "fleet_distributed_query_42", []map[string]string{}, "")
+	err := svc.ingestDistributedQuery(context.Background(), host, "fleet_distributed_query_42", []map[string]string{}, "", nil)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "loading orphaned campaign")
 }
@@ -2077,7 +2393,7 @@ func TestIngestDistributedQueryOrphanedCampaignWaitListener(t *testing.T) {
 
 	host := fleet.Host{ID: 1}
 
-	err := svc.ingestDistributedQuery(context.Background(), host, "fleet_distributed_query_42", []map[string]string{}, "")
+	err := svc.ingestDistributedQuery(context.Background(), host, "fleet_distributed_query_42", []map[string]string{}, "", nil)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "campaignID=42 waiting for listener")
 }
@@ -2113,7 +2429,7 @@ func TestIngestDistributedQueryOrphanedCloseError(t *testing.T) {
 
 	host := fleet.Host{ID: 1}
 
-	err := svc.ingestDistributedQuery(context.Background(), host, "fleet_distributed_query_42", []map[string]string{}, "")
+	err := svc.ingestDistributedQuery(context.Background(), host, "fleet_distributed_query_42", []map[string]string{}, "", nil)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "closing orphaned campaign")
 }
@@ -2150,7 +2466,7 @@ func TestIngestDistributedQueryOrphanedStopError(t *testing.T) {
 
 	host := fleet.Host{ID: 1}
 
-	err := svc.ingestDistributedQuery(context.Background(), host, "fleet_distributed_query_42", []map[string]string{}, "")
+	err := svc.ingestDistributedQuery(context.Background(), host, "fleet_distributed_query_42", []map[string]string{}, "", nil)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "stopping orphaned campaign")
 }
@@ -2187,7 +2503,7 @@ func TestIngestDistributedQueryOrphanedStop(t *testing.T) {
 
 	host := fleet.Host{ID: 1}
 
-	err := svc.ingestDistributedQuery(context.Background(), host, "fleet_distributed_query_42", []map[string]string{}, "")
+	err := svc.ingestDistributedQuery(context.Background(), host, "fleet_distributed_query_42", []map[string]string{}, "", nil)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "campaignID=42 stopped")
 	lq.AssertExpectations(t)
@@ -2218,7 +2534,7 @@ func TestIngestDistributedQueryRecordCompletionError(t *testing.T) {
 	}()
 	time.Sleep(10 * time.Millisecond)
 
-	err := svc.ingestDistributedQuery(context.Background(), host, "fleet_distributed_query_42", []map[string]string{}, "")
+	err := svc.ingestDistributedQuery(context.Background(), host, "fleet_distributed_query_42", []map[string]string{}, "", nil)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "record query completion")
 	lq.AssertExpectations(t)
@@ -2249,7 +2565,7 @@ func TestIngestDistributedQuery(t *testing.T) {
 	}()
 	time.Sleep(10 * time.Millisecond)
 
-	err := svc.ingestDistributedQuery(context.Background(), host, "fleet_distributed_query_42", []map[string]string{}, "")
+	err := svc.ingestDistributedQuery(context.Background(), host, "fleet_distributed_query_42", []map[string]string{}, "", nil)
 	require.NoError(t, err)
 	lq.AssertExpectations(t)
 }
@@ -2565,6 +2881,7 @@ func TestDistributedQueriesLogsManyErrors(t *testing.T) {
 		},
 		map[string]fleet.OsqueryStatus{},
 		map[string]string{},
+		map[string]*fleet.Stats{},
 	)
 	require.NoError(t, err)
 
@@ -2606,6 +2923,7 @@ func TestDistributedQueriesReloadsHostIfDetailsAreIn(t *testing.T) {
 		},
 		map[string]fleet.OsqueryStatus{},
 		map[string]string{},
+		map[string]*fleet.Stats{},
 	)
 	require.NoError(t, err)
 	assert.True(t, ds.UpdateHostFuncInvoked)
@@ -2642,7 +2960,9 @@ func TestObserversCanOnlyRunDistributedCampaigns(t *testing.T) {
 	})
 
 	q := "select year, month, day, hour, minutes, seconds from time"
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+	ds.NewActivityFunc = func(
+		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
+	) error {
 		return nil
 	}
 	_, err := svc.NewDistributedQueryCampaign(viewerCtx, q, nil, fleet.HostTargets{HostIDs: []uint{2}, LabelIDs: []uint{1}})
@@ -2676,7 +2996,9 @@ func TestObserversCanOnlyRunDistributedCampaigns(t *testing.T) {
 	ds.HostIDsInTargetsFunc = func(ctx context.Context, filter fleet.TeamFilter, targets fleet.HostTargets) ([]uint, error) {
 		return []uint{1, 3, 5}, nil
 	}
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+	ds.NewActivityFunc = func(
+		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
+	) error {
 		return nil
 	}
 	lq.On("RunQuery", "21", "select 1;", []uint{1, 3, 5}).Return(nil)
@@ -2716,7 +3038,9 @@ func TestTeamMaintainerCanRunNewDistributedCampaigns(t *testing.T) {
 	})
 
 	q := "select year, month, day, hour, minutes, seconds from time"
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+	ds.NewActivityFunc = func(
+		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
+	) error {
 		return nil
 	}
 	// var gotQuery *fleet.Query
@@ -2734,7 +3058,9 @@ func TestTeamMaintainerCanRunNewDistributedCampaigns(t *testing.T) {
 	ds.HostIDsInTargetsFunc = func(ctx context.Context, filter fleet.TeamFilter, targets fleet.HostTargets) ([]uint, error) {
 		return []uint{1, 3, 5}, nil
 	}
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+	ds.NewActivityFunc = func(
+		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
+	) error {
 		return nil
 	}
 	lq.On("RunQuery", "0", "select year, month, day, hour, minutes, seconds from time", []uint{1, 3, 5}).Return(nil)
@@ -2763,7 +3089,10 @@ func TestPolicyQueries(t *testing.T) {
 		return nil
 	}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{Features: fleet.Features{EnableHostUsers: true}}, nil
+		return &fleet.AppConfig{Features: fleet.Features{
+			EnableHostUsers:         true,
+			EnableSoftwareInventory: true,
+		}}, nil
 	}
 
 	lq.On("QueriesForHost", uint(0)).Return(map[string]string{}, nil)
@@ -2818,6 +3147,7 @@ func TestPolicyQueries(t *testing.T) {
 			hostPolicyQueryPrefix + "2": 1,
 		},
 		map[string]string{},
+		map[string]*fleet.Stats{},
 	)
 	require.NoError(t, err)
 	require.Len(t, recordedResults, 2)
@@ -2867,6 +3197,7 @@ func TestPolicyQueries(t *testing.T) {
 			hostPolicyQueryPrefix + "2": 1,
 		},
 		map[string]string{},
+		map[string]*fleet.Stats{},
 	)
 	require.NoError(t, err)
 	require.Len(t, recordedResults, 2)
@@ -2905,6 +3236,7 @@ func TestPolicyQueries(t *testing.T) {
 			hostPolicyQueryPrefix + "2": 1,
 		},
 		map[string]string{},
+		map[string]*fleet.Stats{},
 	)
 	require.NoError(t, err)
 	require.NotNil(t, recordedResults[1])
@@ -2957,7 +3289,8 @@ func TestPolicyWebhooks(t *testing.T) {
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{
 			Features: fleet.Features{
-				EnableHostUsers: true,
+				EnableHostUsers:         true,
+				EnableSoftwareInventory: true,
 			},
 			WebhookSettings: fleet.WebhookSettings{
 				FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{
@@ -3026,6 +3359,7 @@ func TestPolicyWebhooks(t *testing.T) {
 			hostPolicyQueryPrefix + "2": 1, // didn't execute
 		},
 		map[string]string{},
+		map[string]*fleet.Stats{},
 	)
 	require.NoError(t, err)
 	require.Len(t, recordedResults, 3)
@@ -3129,6 +3463,7 @@ func TestPolicyWebhooks(t *testing.T) {
 			hostPolicyQueryPrefix + "2": 1, // didn't execute
 		},
 		map[string]string{},
+		map[string]*fleet.Stats{},
 	)
 	require.NoError(t, err)
 	require.Len(t, recordedResults, 3)
@@ -3173,6 +3508,7 @@ func TestPolicyWebhooks(t *testing.T) {
 		},
 		map[string]fleet.OsqueryStatus{},
 		map[string]string{},
+		map[string]*fleet.Stats{},
 	)
 	require.NoError(t, err)
 	require.Len(t, recordedResults, 3)
@@ -3222,7 +3558,10 @@ func TestLiveQueriesFailing(t *testing.T) {
 		return host, nil
 	}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{Features: fleet.Features{EnableHostUsers: true}}, nil
+		return &fleet.AppConfig{Features: fleet.Features{
+			EnableHostUsers:         true,
+			EnableSoftwareInventory: true,
+		}}, nil
 	}
 	ds.PolicyQueriesForHostFunc = func(ctx context.Context, host *fleet.Host) (map[string]string, error) {
 		return map[string]string{}, nil
@@ -3258,4 +3597,349 @@ func osqueryMapKeys(m map[string]osquery_utils.DetailQuery) []string {
 	}
 	sort.Strings(keys)
 	return keys
+}
+
+func TestPreProcessSoftwareResults(t *testing.T) {
+	foobarApp := map[string]string{
+		"name":              "Foobar.app",
+		"version":           "1.2.3",
+		"type":              "Application (macOS)",
+		"bundle_identifier": "com.zoobar.foobar",
+		"extension_id":      "",
+		"browser":           "",
+		"source":            "apps",
+		"vendor":            "",
+		"last_opened_at":    "0",
+		"installed_path":    "/some/path",
+	}
+	zoobarApp := map[string]string{
+		"name":              "Zoobar.app",
+		"version":           "3.2.1",
+		"type":              "Application (macOS)",
+		"bundle_identifier": "com.acme.zoobar",
+		"extension_id":      "",
+		"browser":           "",
+		"source":            "apps",
+		"vendor":            "",
+		"last_opened_at":    "0",
+		"installed_path":    "/some/other/path",
+	}
+	foobarVSCodeExtension := map[string]string{
+		"name":              "vendor-x.foobar",
+		"version":           "2024.2.1",
+		"type":              "IDE extension (VS Code)",
+		"bundle_identifier": "",
+		"extension_id":      "",
+		"browser":           "",
+		"source":            "vscode_extensions",
+		"vendor":            "VendorX",
+		"last_opened_at":    "",
+		"installed_path":    "/some/foobar/path",
+	}
+	zoobarVSCodeExtension := map[string]string{
+		"name":              "vendor-x.zoobar",
+		"version":           "2023.2.1",
+		"type":              "IDE extension (VS Code)",
+		"bundle_identifier": "",
+		"extension_id":      "",
+		"browser":           "",
+		"source":            "vscode_extensions",
+		"vendor":            "VendorX",
+		"last_opened_at":    "",
+		"installed_path":    "/some/zoobar/path",
+	}
+	someRow := map[string]string{
+		"1": "1",
+	}
+	appToOverride := map[string]string{
+		"name":              "OverrideMe.app",
+		"version":           "1.2.3",
+		"type":              "Application (macOS)",
+		"bundle_identifier": "com.zoobar.overrideme",
+		"extension_id":      "",
+		"browser":           "",
+		"source":            "apps",
+		"vendor":            "OverrideMe",
+		"last_opened_at":    "0",
+		"installed_path":    "/some/override/path",
+	}
+
+	appThatOverrides := map[string]string{
+		"name":              "OverrideMeSuccess.app",
+		"version":           "1.2.3",
+		"type":              "Application (macOS)",
+		"bundle_identifier": "com.zoobar.overrideme",
+		"extension_id":      "",
+		"browser":           "",
+		"source":            "apps",
+		"vendor":            "OverrideMe",
+		"last_opened_at":    "0",
+		"installed_path":    "/some/override/path",
+	}
+
+	for _, tc := range []struct {
+		name string
+
+		resultsIn  fleet.OsqueryDistributedQueryResults
+		statusesIn map[string]fleet.OsqueryStatus
+		messagesIn map[string]string
+		overrides  map[string]osquery_utils.DetailQuery
+
+		resultsOut fleet.OsqueryDistributedQueryResults
+	}{
+		{
+			name: "software query works and there are vs code extensions in extra",
+
+			statusesIn: map[string]fleet.OsqueryStatus{
+				hostDetailQueryPrefix + "other_detail_query":         fleet.StatusOK,
+				hostDetailQueryPrefix + "software_macos":             fleet.StatusOK,
+				hostDetailQueryPrefix + "software_vscode_extensions": fleet.StatusOK,
+			},
+			resultsIn: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "other_detail_query": []map[string]string{
+					someRow,
+				},
+				hostDetailQueryPrefix + "software_macos": []map[string]string{
+					foobarApp,
+					zoobarApp,
+				},
+				hostDetailQueryPrefix + "software_vscode_extensions": []map[string]string{
+					foobarVSCodeExtension,
+					zoobarVSCodeExtension,
+				},
+			},
+
+			resultsOut: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "other_detail_query": []map[string]string{
+					someRow,
+				},
+				hostDetailQueryPrefix + "software_macos": []map[string]string{
+					foobarApp,
+					zoobarApp,
+					foobarVSCodeExtension,
+					zoobarVSCodeExtension,
+				},
+			},
+		},
+		{
+			name: "software query and extra works and there are no vscode extensions",
+
+			statusesIn: map[string]fleet.OsqueryStatus{
+				hostDetailQueryPrefix + "other_detail_query":         fleet.StatusOK,
+				hostDetailQueryPrefix + "software_macos":             fleet.StatusOK,
+				hostDetailQueryPrefix + "software_vscode_extensions": fleet.StatusOK,
+			},
+			resultsIn: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "other_detail_query": []map[string]string{
+					someRow,
+				},
+				hostDetailQueryPrefix + "software_macos": []map[string]string{
+					foobarApp,
+					zoobarApp,
+				},
+				hostDetailQueryPrefix + "software_vscode_extensions": []map[string]string{},
+			},
+
+			resultsOut: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "other_detail_query": []map[string]string{
+					someRow,
+				},
+				hostDetailQueryPrefix + "software_macos": []map[string]string{
+					foobarApp,
+					zoobarApp,
+				},
+			},
+		},
+		{
+			name: "software query works and the software extra status and results are not returned",
+
+			statusesIn: map[string]fleet.OsqueryStatus{
+				hostDetailQueryPrefix + "other_detail_query": fleet.StatusOK,
+				hostDetailQueryPrefix + "software_macos":     fleet.StatusOK,
+			},
+			resultsIn: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "other_detail_query": []map[string]string{
+					someRow,
+				},
+				hostDetailQueryPrefix + "software_macos": []map[string]string{
+					foobarApp,
+					zoobarApp,
+				},
+			},
+
+			resultsOut: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "other_detail_query": []map[string]string{
+					someRow,
+				},
+				hostDetailQueryPrefix + "software_macos": []map[string]string{
+					foobarApp,
+					zoobarApp,
+				},
+			},
+		},
+		{
+			name: "software doesn't return status or results but the software extra does",
+
+			statusesIn: map[string]fleet.OsqueryStatus{
+				hostDetailQueryPrefix + "software_vscode_extensions": fleet.StatusOK,
+			},
+			resultsIn: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_vscode_extensions": []map[string]string{
+					foobarVSCodeExtension,
+					zoobarVSCodeExtension,
+				},
+			},
+
+			resultsOut: fleet.OsqueryDistributedQueryResults{},
+		},
+		{
+			name: "software query works, but vscode_extensions table doesn't exist",
+
+			statusesIn: map[string]fleet.OsqueryStatus{
+				hostDetailQueryPrefix + "software_macos":             fleet.StatusOK,
+				hostDetailQueryPrefix + "software_vscode_extensions": fleet.OsqueryStatus(1),
+			},
+			resultsIn: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_macos": []map[string]string{
+					foobarApp,
+					zoobarApp,
+				},
+				hostDetailQueryPrefix + "software_vscode_extensions": []map[string]string{},
+			},
+
+			resultsOut: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_macos": []map[string]string{
+					foobarApp,
+					zoobarApp,
+				},
+			},
+		},
+		{
+			name: "software query fails, vscode_extensions table returns results",
+
+			statusesIn: map[string]fleet.OsqueryStatus{
+				hostDetailQueryPrefix + "software_macos":             fleet.OsqueryStatus(1),
+				hostDetailQueryPrefix + "software_vscode_extensions": fleet.StatusOK,
+			},
+			resultsIn: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_macos": []map[string]string{},
+				hostDetailQueryPrefix + "software_vscode_extensions": []map[string]string{
+					foobarVSCodeExtension,
+					zoobarVSCodeExtension,
+				},
+			},
+
+			resultsOut: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_macos": []map[string]string{},
+			},
+		},
+		{
+			name: "software query fails, software extra query also fails",
+
+			statusesIn: map[string]fleet.OsqueryStatus{
+				hostDetailQueryPrefix + "software_macos":             fleet.OsqueryStatus(1),
+				hostDetailQueryPrefix + "software_vscode_extensions": fleet.OsqueryStatus(1),
+			},
+			resultsIn: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_macos":             []map[string]string{},
+				hostDetailQueryPrefix + "software_vscode_extensions": []map[string]string{},
+			},
+
+			resultsOut: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_macos": []map[string]string{},
+			},
+		},
+		{
+			name: "software inventory turned off",
+
+			statusesIn: map[string]fleet.OsqueryStatus{
+				hostDetailQueryPrefix + "other_detail_query": fleet.StatusOK,
+			},
+			resultsIn: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "other_detail_query": []map[string]string{
+					someRow,
+				},
+			},
+
+			resultsOut: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "other_detail_query": []map[string]string{
+					someRow,
+				},
+			},
+		},
+		{
+			name: "override works",
+
+			statusesIn: map[string]fleet.OsqueryStatus{
+				hostDetailQueryPrefix + "software_macos":      fleet.StatusOK,
+				hostDetailQueryPrefix + "software_overrideMe": fleet.StatusOK,
+			},
+			resultsIn: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_macos": []map[string]string{
+					appToOverride,
+					foobarApp,
+				},
+				hostDetailQueryPrefix + "software_overrideMe": []map[string]string{
+					appThatOverrides,
+				},
+			},
+
+			resultsOut: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "software_macos": []map[string]string{
+					foobarApp,
+					appThatOverrides,
+				},
+			},
+			overrides: map[string]osquery_utils.DetailQuery{
+				"overrideMe": {
+					SoftwareOverrideMatch: func(row map[string]string) bool {
+						return row["name"] == "OverrideMe.app"
+					},
+				},
+			},
+		},
+	} {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			preProcessSoftwareResults(1, &tc.resultsIn, &tc.statusesIn, &tc.messagesIn, tc.overrides, log.NewNopLogger())
+			require.Equal(t, tc.resultsOut, tc.resultsIn)
+		})
+	}
+}
+
+func TestDetailQueriesLinuxDistros(t *testing.T) {
+	for _, linuxPlatform := range fleet.HostLinuxOSs {
+		m := expectedDetailQueriesForPlatform(linuxPlatform)
+		require.Contains(t, m, "users")
+		require.Contains(t, m, "network_interface_unix")
+		require.Contains(t, m, "disk_space_unix")
+		require.Contains(t, m, "os_unix_like")
+		require.Contains(t, m, "orbit_info")
+		require.Contains(t, m, "disk_encryption_linux")
+		require.Contains(t, m, "software_vscode_extensions")
+		require.Contains(t, m, "software_linux")
+	}
+}
+
+// Benchmark function
+func BenchmarkFindPackDelimiterStringCommon(b *testing.B) {
+	// Input data for benchmarking
+	input := "pack/Global/Foo"
+
+	// Run the benchmark
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		findPackDelimiterString(input)
+	}
+}
+
+func BenchmarkFindPackDelimiterStringTeamPack(b *testing.B) {
+	// Input data for benchmarking
+	input := "packGlobalGlobalGlobalGlobal" // global pack delimiter, global team, query name global
+
+	// Run the benchmark
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		findPackDelimiterString(input)
+	}
 }

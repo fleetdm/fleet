@@ -41,7 +41,8 @@ const REGEX_DETAIL_PAGES = {
   QUERIES_NEW: /\/queries\/new/i,
   POLICY_EDIT: /\/policies\/\d+/i,
   POLICY_NEW: /\/policies\/new/i,
-  SOFTWARE_DETAILS: /\/software\/\d+/i,
+  SOFTWARE_TITLES_DETAILS: /\/software\/titles\/\d+/i,
+  SOFTWARE_VERSIONS_DETAILS: /\/software\/versions\/\d+/i,
 };
 
 const REGEX_GLOBAL_PAGES = {
@@ -95,7 +96,6 @@ const SiteTopNav = ({
     isGlobalMaintainer,
     isAnyTeamMaintainer,
     isNoAccess,
-    isMdmEnabledAndConfigured, // TODO: confirm
     isSandboxMode,
   } = useContext(AppContext);
 
@@ -145,24 +145,31 @@ const SiteTopNav = ({
     }
 
     if (active && !isActiveDetailPage) {
-      // TODO: confirm link should be noop and find best pattern (one that doesn't dispatch a
+      const path = navItem.alwaysToPathname
+        ? navItem.location.pathname
+        : currentPath;
+
+      const includeTeamId = (activePath: string) => {
+        if (currentQueryParams.team_id) {
+          return `${path}?team_id=${currentQueryParams.team_id}`;
+        }
+        return activePath;
+      };
+
+      // Clicking an active link returns user to default page
+      // Resetting all filters except team ID
+      // TODO: Find best pattern(one that doesn't dispatch a
       // replace to the same url, which triggers a re-render)
       return (
         <li className={navItemClasses} key={`nav-item-${name}`}>
-          <Link
-            className={`${navItemBaseClass}__link`}
-            to={currentPath.concat(search).concat(hash)}
-          >
+          <a className={`${navItemBaseClass}__link`} href={includeTeamId(path)}>
             <span
               className={`${navItemBaseClass}__name`}
               data-text={navItem.name}
             >
               {name}
             </span>
-          </Link>
-          {/* <div className={`${navItemBaseClass}__link`}>
-            <span className={`${navItemBaseClass}__name`}>{name}</span>
-          </div> */}
+          </a>
         </li>
       );
     }

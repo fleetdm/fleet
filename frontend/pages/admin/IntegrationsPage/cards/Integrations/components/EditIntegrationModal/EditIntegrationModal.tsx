@@ -4,7 +4,7 @@ import Modal from "components/Modal";
 import Spinner from "components/Spinner";
 import {
   IIntegration,
-  IIntegrations,
+  IZendeskJiraIntegrations,
   IIntegrationTableData,
 } from "interfaces/integration";
 import IntegrationForm from "../IntegrationForm";
@@ -15,7 +15,7 @@ interface IEditIntegrationModalProps {
   onCancel: () => void;
   onSubmit: (jiraIntegrationSubmitData: IIntegration[]) => void;
   backendValidators: { [key: string]: string };
-  integrations: IIntegrations;
+  integrations: IZendeskJiraIntegrations;
   integrationEditing?: IIntegrationTableData;
   testingConnection: boolean;
 }
@@ -37,7 +37,7 @@ const EditIntegrationModal = ({
   }, [backendValidators]);
 
   return (
-    <Modal title={"Edit integration"} onExit={onCancel} className={baseClass}>
+    <Modal title="Edit integration" onExit={onCancel} className={baseClass}>
       {testingConnection ? (
         <div className={`${baseClass}__testing-connection`}>
           <b>Testing connection</b>

@@ -86,8 +86,8 @@ const RegistrationPage = ({ router }: IRegistrationPageProps) => {
         className={`${baseClass}__logo`}
       />
       <Breadcrumbs
-        onClick={onSetPage}
-        page={page}
+        currentPage={page}
+        onSetPage={onSetPage}
         pageProgress={pageProgress}
       />
       <RegistrationForm

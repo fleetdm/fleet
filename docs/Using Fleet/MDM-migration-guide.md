@@ -5,7 +5,7 @@ This section provides instructions for migrating your hosts away from your old M
 ## Requirements
 
 1. A [deployed Fleet instance](../Deploying/Introduction.md)
-2. [Fleet connected to Apple](./mdm-macos-setup.md)
+2. [Fleet connected to Apple](./mdm-setup.md)
 
 ## Migrate manually enrolled hosts
 
@@ -46,7 +46,7 @@ To migrate automatically enrolled hosts, we will do the following steps:
 
 ### Step 1: prepare to migrate hosts
 
-1. Connect Fleet to Apple Business Manager (ABM). Learn how [here](./mdm-macos-setup.md#apple-business-manager-abm).
+1. Connect Fleet to Apple Business Manager (ABM). Learn how [here](./mdm-setup.md#apple-business-manager-abm).
 2. [Enroll](./Adding-hosts.md) your hosts to Fleet with [Fleetd and Fleet Desktop](https://fleetdm.com/docs/using-fleet/adding-hosts#including-fleet-desktop) 
 3. Ensure your end users have access to an admin account on their Mac. End users won't be able to migrate on their own if they have a standard account.
 4. Migrate your hosts to Fleet in ABM:
@@ -195,18 +195,6 @@ If a host under the old MDM solution has Activation Lock enabled, we recommend a
 This is because if the Activation Lock is enabled, you will need the Activation Lock bypass code to successfully wipe and reuse the Mac.
 
 However, Activation Lock bypass codes can only be retrieved from the Mac up to 30 days after the device is enrolled. This means that when migrating from your old MDM solution, it’s likely that you’ll be unable to retrieve the Activation Lock bypass code.
-
-## Migrating settings
-
-To enforce the same settings on your macOS hosts in Fleet as you did using your old MDM solution, you can migrate these settings to Fleet to reduce manual work.
-
-If your old MDM solution enforces FileVault, follow [these instructions](./MDM-disk-encryption.md) to enforce FileVault (disk encryption) using Fleet.
-
-For all other settings: 
-1. Check if your old MDM solution is able to export settings as .mobileconfig files. If it does, download these files. 
-    * If it does not export settings, you will need to re-create the configuration profiles. Learn how to do that [here](./MDM-custom-macOS-settings.md#step-1-create-a-configuration-profile)
-2. Create [teams](https://fleetdm.com/docs/using-fleet/teams) according to the needs of your organization
-3. Follow the instructions to add configuration profiles to Fleet [here](./MDM-custom-macOS-settings.md#step-2-upload-configuration-profile-to-fleet).
    
 ### How to turn on disk encryption
 

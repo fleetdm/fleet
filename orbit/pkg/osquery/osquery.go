@@ -25,9 +25,11 @@ type Runner struct {
 	proc        *process.Process
 	cmd         *exec.Cmd
 	dataPath    string
-	cancelMu    sync.Mutex
-	cancel      func()
 	singleQuery bool
+
+	ctxMu  sync.Mutex // protects the ctx and cancel
+	ctx    context.Context
+	cancel func()
 }
 
 type Option func(*Runner) error
@@ -102,34 +104,19 @@ func WithShell() func(*Runner) error {
 	}
 }
 
-func WithDataPath(path string) Option {
+// WithDataPath configures the dataPath in the *Runner and
+// sets the --pidfile and --extensions_socket paths
+// to the osqueryd invocation.
+func WithDataPath(dataPath, extensionPathPostfix string) Option {
 	return func(r *Runner) error {
-		r.dataPath = path
+		r.dataPath = dataPath
 
-		if err := secure.MkdirAll(path, constant.DefaultDirMode); err != nil {
+		if err := secure.MkdirAll(dataPath, constant.DefaultDirMode); err != nil {
 			return fmt.Errorf("initialize osquery data path: %w", err)
 		}
 
 		r.cmd.Args = append(r.cmd.Args,
-			"--pidfile="+filepath.Join(path, "osquery.pid"),
-			"--database_path="+filepath.Join(path, "osquery.db"),
-			"--extensions_socket="+r.ExtensionSocketPath(),
-		)
-		return nil
-	}
-}
-
-func WithDataPathAndExtensionPathPostfix(path string, extensionPathPostfix string) Option {
-	return func(r *Runner) error {
-		r.dataPath = path
-
-		if err := secure.MkdirAll(path, constant.DefaultDirMode); err != nil {
-			return fmt.Errorf("initialize osquery data path: %w", err)
-		}
-
-		r.cmd.Args = append(r.cmd.Args,
-			"--pidfile="+filepath.Join(path, "osquery.pid"),
-			"--database_path="+filepath.Join(path, "osquery.db"),
+			"--pidfile="+filepath.Join(dataPath, constant.OsqueryPidfile),
 			"--extensions_socket="+r.ExtensionSocketPath()+extensionPathPostfix,
 		)
 		return nil
@@ -179,9 +166,7 @@ func (r *Runner) Execute() error {
 			return fmt.Errorf("start osqueryd shell: %w", err)
 		}
 	} else {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
-		r.setCancel(cancel)
+		ctx, _ := r.getContextAndCancel()
 
 		if err := r.proc.Start(); err != nil {
 			return fmt.Errorf("start osqueryd: %w", err)
@@ -197,8 +182,7 @@ func (r *Runner) Execute() error {
 
 // Runner interrupts the running osquery process.
 func (r *Runner) Interrupt(err error) {
-	log.Error().Err(err).Msg("interrupt osquery")
-	if cancel := r.getCancel(); cancel != nil {
+	if _, cancel := r.getContextAndCancel(); cancel != nil {
 		cancel()
 	}
 }
@@ -214,16 +198,15 @@ func (r *Runner) ExtensionSocketPath() string {
 	return filepath.Join(r.dataPath, extensionSocketName)
 }
 
-func (r *Runner) setCancel(c func()) {
-	r.cancelMu.Lock()
-	defer r.cancelMu.Unlock()
+func (r *Runner) getContextAndCancel() (context.Context, func()) {
+	r.ctxMu.Lock()
+	defer r.ctxMu.Unlock()
 
-	r.cancel = c
-}
-
-func (r *Runner) getCancel() func() {
-	r.cancelMu.Lock()
-	defer r.cancelMu.Unlock()
-
-	return r.cancel
+	if r.ctx != nil {
+		return r.ctx, r.cancel
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	r.ctx = ctx
+	r.cancel = cancel
+	return r.ctx, r.cancel
 }

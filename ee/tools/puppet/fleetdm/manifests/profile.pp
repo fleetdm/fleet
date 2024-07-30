@@ -47,13 +47,13 @@ define fleetdm::profile (
     $changed = $response['resource_changed']
 
     if $err != '' {
-      notify { "error pre-setting profile ${name} as ${ensure}: ${err}":
+      notify { "error pre-setting fleetdm::profile ${name} as ${ensure}: ${err}":
         loglevel => 'err',
       }
     } elsif $changed {
       # NOTE: sending a notification also marks the
       # 'fleetdm::profile' as changed in the reports.
-      notify { "successfully pre-set profile ${name} as ${ensure}": }
+      notify { "successfully pre-set fleetdm::profile ${name} as ${ensure}": }
     }
   }
 }

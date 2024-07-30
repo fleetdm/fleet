@@ -14,6 +14,9 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
+// TODO(mna): those methods are unused except for an internal tool, remove or
+// migrate to new endpoints (those apple-specific endpoints are deprecated)?
+
 func (c *Client) DeleteProfile(profileID uint) error {
 	verb, path := "DELETE", "/api/latest/fleet/mdm/apple/profiles/"+strconv.FormatUint(uint64(profileID), 10)
 	var responseBody deleteMDMAppleConfigProfileResponse

@@ -1,13 +1,8 @@
+import { ILabelSummary } from "./label";
+
 export interface IHostSummaryPlatforms {
   platform: string;
   hosts_count: number;
-}
-
-export interface IHostSummaryLabel {
-  id: number;
-  name: string;
-  description: string;
-  label_type: "regular" | "builtin";
 }
 
 export interface IHostSummary {
@@ -20,5 +15,5 @@ export interface IHostSummary {
   new_count: number;
   missing_30_days_count?: number; // premium feature
   low_disk_space_count?: number; // premium feature
-  builtin_labels: IHostSummaryLabel[];
+  builtin_labels: ILabelSummary[];
 }

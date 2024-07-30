@@ -61,7 +61,7 @@ the account verification message.)`,
       type: 'string',
       isIn: ['Buy a license', 'Try Fleet'],
       defaultsTo: 'Buy a license',
-    }
+    },
 
   },
 
@@ -84,6 +84,11 @@ the account verification message.)`,
       description: 'The provided email address is already in use.',
     },
 
+    invalidEmailDomain: {
+      description: 'This email address is on a denylist of domains and cannot be used to signup for a fleetdm.com account.',
+      responseType: 'badRequest'
+    },
+
 
   },
 
@@ -91,11 +96,16 @@ the account verification message.)`,
     // Note: in Oct. 2023, the Fleet Sandbox related code was removed from this action. For more details, see https://github.com/fleetdm/fleet/pull/14638/files
 
     var newEmailAddress = emailAddress.toLowerCase();
-
     // Checking if a user with this email address exists in our database before we send a request to the cloud provisioner.
     if(await User.findOne({emailAddress: newEmailAddress})) {
       throw 'emailAlreadyInUse';
     }
+    // Check the user's email address and return an 'invalidEmailDomain' response if the domain is in the sails.config.custom.bannedEmailDomainsForWebsiteSubmissions array.
+    let emailDomain = newEmailAddress.split('@')[1];
+    if(_.includes(sails.config.custom.bannedEmailDomainsForWebsiteSubmissions, emailDomain)){
+      throw 'invalidEmailDomain';
+    }
+
 
     if (!sails.config.custom.enableBillingFeatures) {
       throw new Error('The Stripe configuration variables (sails.config.custom.stripePublishableKey and sails.config.custom.stripeSecret) are missing!');
@@ -128,8 +138,24 @@ the account verification message.)`,
     .intercept({name: 'UsageError'}, 'invalid')
     .fetch();
 
+
+    sails.helpers.salesforce.updateOrCreateContactAndAccount.with({
+      emailAddress: newEmailAddress,
+      firstName: firstName,
+      lastName: lastName,
+      organization: organization,
+      leadSource: 'Website - Sign up'
+    }).exec((err)=>{
+      if(err){
+        sails.log.warn(`Background task failed: When a user (email: ${newEmailAddress} signed up for a fleetdm.com account, a Contact and Account record could not be created/updated in the CRM.`, err);
+      }
+      return;
+    });
+
+
     // Store the user's new id in their session.
     this.req.session.userId = newUserRecord.id;
+
 
     if (sails.config.custom.verifyEmailAddresses) {
       // Send "confirm account" email

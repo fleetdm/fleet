@@ -34,7 +34,10 @@ module.exports = {
           grant_type: 'refresh_token',// eslint-disable-line camelcase
         },
         headers: { accept: 'application/json' }
-      }).tolerate((err)=>{
+      })
+      .retry({raw:{statusCode: 503}})// Retry requests that respond with "503: Service temporarily unavailable"
+      .retry({raw:{statusCode: 504}})// Retry requests that respond with "504: Endpoint request timed out"
+      .tolerate((err)=>{
         // If an error occurs while sending a request to Vanta, we'll add the error to the errorReportById object, with this connections ID set as the key.
         errorReportById[connectionIdAsString] = new Error(`Could not refresh the token for Vanta connection (id: ${connectionIdAsString}). Full error: ${err}`);
       });
@@ -54,14 +57,21 @@ module.exports = {
       //  ╠╣ │  ├┤ ├┤  │   │ │└─┐├┤ ├┬┘└─┐
       //  ╚  ┴─┘└─┘└─┘ ┴   └─┘└─┘└─┘┴└─└─┘
       // Request user data from the Fleet instance to send to Vanta.
-      let responseFromUserEndpoint = await sails.helpers.http.get(
-        updatedRecord.fleetInstanceUrl + '/api/v1/fleet/users',
-        {},
-        {'Authorization': 'Bearer '+updatedRecord.fleetApiKey }
-      )
-      .tolerate((err)=>{// If an error occurs while sending a request to the Fleet instance, we'll add the error to the errorReportById object, with this connections ID set as the key.
-        errorReportById[connectionIdAsString] = new Error(`When sending a request to the /users endpoint of a Fleet instance for a VantaConnection (id: ${connectionIdAsString}), the Fleet instance returned an Error: ${err}`);
-      });
+      // Note: this request is in a try-catch block so we can handle errors sent from the retry() method
+      let responseFromUserEndpoint;
+      try {
+        responseFromUserEndpoint = await sails.helpers.http.get(
+          updatedRecord.fleetInstanceUrl + '/api/v1/fleet/users',
+          {},
+          {'Authorization': 'Bearer '+updatedRecord.fleetApiKey }
+        )
+        .retry()
+        .tolerate((err)=>{// If an error occurs while sending a request to the Fleet instance, we'll add the error to the errorReportById object, with this connections ID set as the key.
+          errorReportById[connectionIdAsString] = new Error(`When sending a request to the /users endpoint of a Fleet instance for a VantaConnection (id: ${connectionIdAsString}), the Fleet instance returned an Error: ${util.inspect(err.raw)}`);
+        });
+      } catch(error) {
+        errorReportById[connectionIdAsString] = new Error(`When sending a request to the /users endpoint of a Fleet instance for a VantaConnection (id: ${connectionIdAsString}), the Fleet instance returned an Error: ${util.inspect(error.raw)}`);
+      }
 
       if(errorReportById[connectionIdAsString]){// If there was an error with the previous request, bail early for this Vanta connection.
         return;
@@ -127,14 +137,15 @@ module.exports = {
           `${updatedRecord.fleetInstanceUrl}/api/v1/fleet/hosts?per_page=${numberOfHostsPerRequest}&page=${pageNumberForPossiblePaginatedResults}`,
           {},
           {'Authorization': 'bearer '+updatedRecord.fleetApiKey},
-        );
+        )
+        .retry();
         // Add the results to the allHostsOnThisFleetInstance array.
         allHostsOnThisFleetInstance = allHostsOnThisFleetInstance.concat(getHostsResponse.hosts);
         // Increment the page of results we're requesting.
         pageNumberForPossiblePaginatedResults++;
         // If we recieved less results than we requested, we've reached the last page of the results.
         return getHostsResponse.hosts.length !== numberOfHostsPerRequest;
-      }, 10000)
+      }, 30000)
       .tolerate(()=>{// If an error occurs while sending a request to the Fleet instance, we'll add the error to the errorReportById object, with this connections ID set as the key.
         errorReportById[connectionIdAsString] = new Error(`When requesting all hosts from a Fleet instance for a VantaConnection (id: ${connectionIdAsString}), the Fleet instance did not respond with all of it's hosts in the set amount of time.`);
       });
@@ -196,7 +207,7 @@ module.exports = {
         )
         .retry()
         .intercept((err)=>{// If an error occurs while sending a request to the Fleet instance, we'll throw an error.
-          return new Error(`When sending a request to the Fleet instance's /hosts/${host.id} endpoint for a Vanta connection (id: ${connectionIdAsString}), an error occurred: ${err}`);
+          return new Error(`When sending a request to the Fleet instance's /hosts/${host.id} endpoint for a Vanta connection (id: ${connectionIdAsString}), an error occurred: ${util.inspect(err.raw)}`);
         });
 
         if(!detailedInformationAboutThisHost.host) {
@@ -218,19 +229,18 @@ module.exports = {
         const softwareList = detailedInformationAboutThisHost.host.software;
         if (softwareList) {
           for (let software of softwareList) {
-            let softwareToAdd = {};
-            if (software.source === 'firefox_addons') {
-              softwareToAdd.name = software.name;
-              softwareToAdd.browser = 'FIREFOX';
+            let softwareToAdd = {
+              name: software.name,
+            };
+            if(software.source === 'firefox_addons' || software.source === 'chrome_extensions') {
+              softwareToAdd.browser = software.source.toUpperCase().split('_')[0];// Get the uppercased first word of the software source, this will either be CHROME or FIREFOX.
               softwareToAdd.extensionId = software.name + ' ' + software.version;// Set the extensionId to be the software's name and the software version.
+              if(software.extension_id !== undefined && software.extension_id !== null) {// If the Fleet instance reported an extension_id for the extension, we'll use that value.
+                softwareToAdd.extensionId = software.extension_id;
+              }
               macOsHostToSyncWithVanta.browserExtensions.push(softwareToAdd);
-            } else if (software.source === 'chrome_extensions') {
-              softwareToAdd.name = software.name;
-              softwareToAdd.extensionId = software.name + ' ' + software.version;
-              softwareToAdd.browser = 'CHROME';
-              macOsHostToSyncWithVanta.browserExtensions.push(softwareToAdd);
-            } else if (software.source === 'apps') {
-              softwareToAdd.name = software.name + ' ' + software.version;
+            } else if(software.source === 'apps'){
+              softwareToAdd.name += ' '+software.version;// Add the version to the software name
               softwareToAdd.bundleId = software.bundle_identifier ? software.bundle_identifier : ' '; // If the software is missing a bundle identifier, we'll set it to a blank string.
               macOsHostToSyncWithVanta.applications.push(softwareToAdd);
             }
@@ -285,7 +295,7 @@ module.exports = {
         )
         .retry()
         .intercept((err)=>{// If an error occurs while sending a request to the Fleet instance, we'll throw an error.
-          return new Error(`When sending a request to the Fleet instance's /hosts/${host.id} endpoint for a Vanta connection (id: ${connectionIdAsString}), an error occurred: ${err}`);
+          return new Error(`When sending a request to the Fleet instance's /hosts/${host.id} endpoint for a Vanta connection (id: ${connectionIdAsString}), an error occurred: ${util.inspect(err.raw)}`);
         });
 
         if(!detailedInformationAboutThisHost.host){
@@ -306,19 +316,17 @@ module.exports = {
         const softwareList = detailedInformationAboutThisHost.host.software;
         if (softwareList) {
           for (let software of softwareList) {
-            let softwareToAdd = {};
-            if (software.source === 'firefox_addons') {
-              softwareToAdd.name = software.name;
-              softwareToAdd.browser = 'FIREFOX';
+            let softwareToAdd = {
+              name: software.name,
+            };
+            if (software.source === 'firefox_addons' || software.source === 'chrome_extensions') {
+              softwareToAdd.browser = software.source.toUpperCase().split('_')[0];// Get the uppercased first word of the software source, this will either be CHROME or FIREFOX.
               softwareToAdd.extensionId = software.name + ' ' + software.version;// Set the extensionId to be the software's name and the software version.
-              windowsHostToSyncWithVanta.browserExtensions.push(softwareToAdd);
-            } else if (software.source === 'chrome_extensions') {
-              softwareToAdd.name = software.name;
-              softwareToAdd.extensionId = software.name + ' ' + software.version;
-              softwareToAdd.browser = 'CHROME';
+              if(software.extension_id !== undefined && software.extension_id !== null) {// If the Fleet instance reported an extension_id for this extension, we'll use that value.
+                softwareToAdd.extensionId = software.extension_id;
+              }
               windowsHostToSyncWithVanta.browserExtensions.push(softwareToAdd);
             } else if (software.source === 'programs') {
-              softwareToAdd.name = software.name;
               windowsHostToSyncWithVanta.programs.push(softwareToAdd);
             }
           }
@@ -353,7 +361,7 @@ module.exports = {
         })
         .retry();
       } catch(error) {
-        errorReportById[connectionIdAsString] = new Error(`vantaError: When sending a PUT request to the Vanta's '/user_account/sync_all' endpoint for a Vanta connection (id: ${connectionIdAsString}), an error occurred: ${error.stack}`);
+        errorReportById[connectionIdAsString] = new Error(`vantaError: When sending a PUT request to the Vanta's '/user_account/sync_all' endpoint for a Vanta connection (id: ${connectionIdAsString}), an error occurred: ${util.inspect(error.raw)}`);
       }
 
       if(errorReportById[connectionIdAsString]){// If an error occured in the previous request, we'll bail early for this connection.
@@ -381,7 +389,7 @@ module.exports = {
         })
         .retry();
       } catch (error) {
-        errorReportById[connectionIdAsString] = new Error(`vantaError: When sending a PUT request to the Vanta's '/macos_user_computer/sync_all' endpoint for a Vanta connection (id: ${connectionIdAsString}), an error occurred: ${error.stack}`);
+        errorReportById[connectionIdAsString] = new Error(`vantaError: When sending a PUT request to the Vanta's '/macos_user_computer/sync_all' endpoint for a Vanta connection (id: ${connectionIdAsString}), an error occurred: ${util.inspect(error.raw)}`);
       }
 
       if(errorReportById[connectionIdAsString]){// If an error occured in the previous request, we'll bail early for this connection.
@@ -409,7 +417,7 @@ module.exports = {
         })
         .retry();
       } catch (error) {
-        errorReportById[connectionIdAsString] = new Error(`vantaError: When sending a PUT request to the Vanta's '/macos_user_computer/sync_all' endpoint for a Vanta connection (id: ${connectionIdAsString}), an error occurred: ${error.stack}`);
+        errorReportById[connectionIdAsString] = new Error(`vantaError: When sending a PUT request to the Vanta's '/macos_user_computer/sync_all' endpoint for a Vanta connection (id: ${connectionIdAsString}), an error occurred: ${util.inspect(error.raw)}`);
       }
 
       if(errorReportById[connectionIdAsString]){// If an error occured in the previous request, we'll bail early for this connection.
@@ -428,7 +436,7 @@ module.exports = {
       } else {
         // If an error was logged for a VantaConnection, log the error, and increment the numberOfLoggedErrors
         numberOfLoggedErrors++;
-        sails.log.warn('An error occurred while syncing the vanta connection for VantaCustomer with id '+connectionIdAsString+'. Logged error:\n'+errorReportById[connectionIdAsString]);
+        sails.log.warn('p1: An error occurred while syncing the vanta connection for VantaCustomer with id '+connectionIdAsString+'. Logged error:\n'+errorReportById[connectionIdAsString]);
       }
     }//∞
 

@@ -6,8 +6,8 @@ export default PropTypes.shape({
   id: PropTypes.oneOfType([PropTypes.number]),
   name: PropTypes.string,
   query: PropTypes.string,
-  label_type: PropTypes.string,
-  label_membership_type: PropTypes.string,
+  label_type: PropTypes.oneOf(["regular", "builtin"]),
+  label_membership_type: PropTypes.oneOf(["dynamic", "manual"]),
   hosts_count: PropTypes.number,
   display_text: PropTypes.string,
   count: PropTypes.number, // seems to be a repeat of hosts_count issue #1618
@@ -30,20 +30,13 @@ export interface ILabel extends ILabelSummary {
   uuid?: string;
   query: string;
   label_membership_type: LabelMembershipType;
-  hosts_count: number;
+  host_count?: number; // returned for built-in labels but not custom labels
   display_text: string;
   count: number; // seems to be a repeat of hosts_count issue #1618
   host_ids: number[] | null;
   type?: "custom" | "platform" | "status" | "all";
   slug?: string; // e.g., "labels/13" | "online"
   target_type?: string; // e.g., "labels"
-  platform: string;
-}
-
-export interface ILabelFormData {
-  name: string;
-  query: string;
-  description: string;
   platform: string;
 }
 

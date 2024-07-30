@@ -14,7 +14,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/externalsvc"
-	kitlog "github.com/go-kit/kit/log"
+	kitlog "github.com/go-kit/log"
 	zendesk "github.com/nukosuke/go-zendesk/zendesk"
 	"github.com/stretchr/testify/require"
 )

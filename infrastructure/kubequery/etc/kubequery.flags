@@ -1,0 +1,2 @@
+--disable_events_staging=true
+--schedule_splay_percent=50

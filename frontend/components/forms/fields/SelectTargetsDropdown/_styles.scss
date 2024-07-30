@@ -1,11 +1,9 @@
 .target-select {
-  margin-bottom: $pad-small;
-
   &__label {
     font-size: $x-small;
     color: $core-fleet-black;
     display: block;
-    margin: $pad-xxlarge 0 $pad-xsmall;
+    margin: 0;
     text-align: right;
 
     &--error {

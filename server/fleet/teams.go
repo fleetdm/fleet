@@ -19,12 +19,13 @@ const (
 )
 
 type TeamPayload struct {
-	Name            *string              `json:"name"`
-	Description     *string              `json:"description"`
-	Secrets         []*EnrollSecret      `json:"secrets"`
-	WebhookSettings *TeamWebhookSettings `json:"webhook_settings"`
-	Integrations    *TeamIntegrations    `json:"integrations"`
-	MDM             *TeamPayloadMDM      `json:"mdm"`
+	Name               *string              `json:"name"`
+	Description        *string              `json:"description"`
+	Secrets            []*EnrollSecret      `json:"secrets"`
+	WebhookSettings    *TeamWebhookSettings `json:"webhook_settings"`
+	Integrations       *TeamIntegrations    `json:"integrations"`
+	MDM                *TeamPayloadMDM      `json:"mdm"`
+	HostExpirySettings *HostExpirySettings  `json:"host_expiry_settings"`
 	// Note AgentOptions must be set by a separate endpoint.
 }
 
@@ -32,12 +33,18 @@ type TeamPayload struct {
 // need to be able which part of the MDM config was provided in the request,
 // so the fields are pointers to structs.
 type TeamPayloadMDM struct {
-	EnableDiskEncryption optjson.Bool     `json:"enable_disk_encryption"`
-	MacOSUpdates         *MacOSUpdates    `json:"macos_updates"`
-	WindowsUpdates       *WindowsUpdates  `json:"windows_updates"`
-	MacOSSettings        *MacOSSettings   `json:"macos_settings"`
-	MacOSSetup           *MacOSSetup      `json:"macos_setup"`
-	WindowsSettings      *WindowsSettings `json:"windows_settings"`
+	EnableDiskEncryption optjson.Bool `json:"enable_disk_encryption"`
+
+	// MacOSUpdates defines the OS update settings for macOS devices.
+	MacOSUpdates *AppleOSUpdateSettings `json:"macos_updates"`
+	// IOSUpdates defines the OS update settings for iOS devices.
+	IOSUpdates *AppleOSUpdateSettings `json:"ios_updates"`
+	// IPadOSUpdates defines the OS update settings for iPadOS devices.
+	IPadOSUpdates *AppleOSUpdateSettings `json:"ipados_updates"`
+	// WindowsUpdates defines the OS update settings for Windows devices.
+	WindowsUpdates *WindowsUpdates `json:"windows_updates"`
+
+	MacOSSetup *MacOSSetup `json:"macos_setup"`
 }
 
 // Team is the data representation for the "Team" concept (group of hosts and
@@ -46,7 +53,8 @@ type Team struct {
 	// Directly in DB
 
 	// ID is the database ID.
-	ID uint `json:"id" db:"id"`
+	ID       uint    `json:"id" db:"id"`
+	Filename *string `json:"gitops_filename,omitempty" db:"filename"`
 	// CreatedAt is the timestamp of the label creation.
 	CreatedAt time.Time `json:"created_at" db:"created_at"`
 	// Name is the human friendly name of the team.
@@ -119,6 +127,9 @@ func (t *Team) UnmarshalJSON(b []byte) error {
 		return err
 	}
 
+	if !x.MDM.MacOSSetup.EnableReleaseDeviceManually.Valid {
+		x.MDM.MacOSSetup.EnableReleaseDeviceManually = optjson.SetBool(false)
+	}
 	*t = Team{
 		ID:          x.ID,
 		CreatedAt:   x.CreatedAt,
@@ -137,24 +148,51 @@ func (t *Team) UnmarshalJSON(b []byte) error {
 
 type TeamConfig struct {
 	// AgentOptions is the options for osquery and Orbit.
-	AgentOptions    *json.RawMessage      `json:"agent_options,omitempty"`
-	WebhookSettings TeamWebhookSettings   `json:"webhook_settings"`
-	Integrations    TeamIntegrations      `json:"integrations"`
-	Features        Features              `json:"features"`
-	MDM             TeamMDM               `json:"mdm"`
-	Scripts         optjson.Slice[string] `json:"scripts,omitempty"`
+	AgentOptions       *json.RawMessage      `json:"agent_options,omitempty"`
+	HostExpirySettings HostExpirySettings    `json:"host_expiry_settings"`
+	WebhookSettings    TeamWebhookSettings   `json:"webhook_settings"`
+	Integrations       TeamIntegrations      `json:"integrations"`
+	Features           Features              `json:"features"`
+	MDM                TeamMDM               `json:"mdm"`
+	Scripts            optjson.Slice[string] `json:"scripts,omitempty"`
+	Software           *TeamSpecSoftware     `json:"software,omitempty"`
 }
 
 type TeamWebhookSettings struct {
+	// HostStatusWebhook can be nil to match the TeamSpec webhook settings
+	HostStatusWebhook      *HostStatusWebhookSettings     `json:"host_status_webhook"`
 	FailingPoliciesWebhook FailingPoliciesWebhookSettings `json:"failing_policies_webhook"`
 }
 
+type TeamSpecSoftwareAsset struct {
+	Path string `json:"path"`
+}
+
+type TeamSpecSoftware struct {
+	Packages     optjson.Slice[TeamSpecSoftwarePackage] `json:"packages,omitempty"`
+	AppStoreApps optjson.Slice[TeamSpecAppStoreApp]     `json:"app_store_apps,omitempty"`
+}
+
+type TeamSpecAppStoreApp struct {
+	AppStoreID string `json:"app_store_id"`
+}
+
+type TeamSpecSoftwarePackage struct {
+	URL               string                `json:"url"`
+	SelfService       bool                  `json:"self_service"`
+	PreInstallQuery   TeamSpecSoftwareAsset `json:"pre_install_query"`
+	InstallScript     TeamSpecSoftwareAsset `json:"install_script"`
+	PostInstallScript TeamSpecSoftwareAsset `json:"post_install_script"`
+}
+
 type TeamMDM struct {
-	EnableDiskEncryption bool           `json:"enable_disk_encryption"`
-	MacOSUpdates         MacOSUpdates   `json:"macos_updates"`
-	WindowsUpdates       WindowsUpdates `json:"windows_updates"`
-	MacOSSettings        MacOSSettings  `json:"macos_settings"`
-	MacOSSetup           MacOSSetup     `json:"macos_setup"`
+	EnableDiskEncryption bool                  `json:"enable_disk_encryption"`
+	MacOSUpdates         AppleOSUpdateSettings `json:"macos_updates"`
+	IOSUpdates           AppleOSUpdateSettings `json:"ios_updates"`
+	IPadOSUpdates        AppleOSUpdateSettings `json:"ipados_updates"`
+	WindowsUpdates       WindowsUpdates        `json:"windows_updates"`
+	MacOSSettings        MacOSSettings         `json:"macos_settings"`
+	MacOSSetup           MacOSSetup            `json:"macos_setup"`
 
 	WindowsSettings WindowsSettings `json:"windows_settings"`
 	// NOTE: TeamSpecMDM must be kept in sync with TeamMDM.
@@ -166,7 +204,7 @@ type TeamMDM struct {
 }
 
 // Clone implements cloner for TeamMDM.
-func (t *TeamMDM) Clone() (interface{}, error) {
+func (t *TeamMDM) Clone() (Cloner, error) {
 	return t.Copy(), nil
 }
 
@@ -184,15 +222,19 @@ func (t *TeamMDM) Copy() *TeamMDM {
 	// pointers/slices/maps).
 
 	if t.MacOSSettings.CustomSettings != nil {
-		clone.MacOSSettings.CustomSettings = make([]string, len(t.MacOSSettings.CustomSettings))
-		copy(clone.MacOSSettings.CustomSettings, t.MacOSSettings.CustomSettings)
+		clone.MacOSSettings.CustomSettings = make([]MDMProfileSpec, len(t.MacOSSettings.CustomSettings))
+		for i, mps := range t.MacOSSettings.CustomSettings {
+			clone.MacOSSettings.CustomSettings[i] = *mps.Copy()
+		}
 	}
 	if t.MacOSSettings.DeprecatedEnableDiskEncryption != nil {
 		clone.MacOSSettings.DeprecatedEnableDiskEncryption = ptr.Bool(*t.MacOSSettings.DeprecatedEnableDiskEncryption)
 	}
 	if t.WindowsSettings.CustomSettings.Set {
-		windowsSettings := make([]string, len(t.WindowsSettings.CustomSettings.Value))
-		copy(windowsSettings, t.WindowsSettings.CustomSettings.Value)
+		windowsSettings := make([]MDMProfileSpec, len(t.WindowsSettings.CustomSettings.Value))
+		for i, mps := range t.WindowsSettings.CustomSettings.Value {
+			windowsSettings[i] = *mps.Copy()
+		}
 		clone.WindowsSettings.CustomSettings = optjson.SetSlice(windowsSettings)
 	}
 	return &clone
@@ -201,7 +243,13 @@ func (t *TeamMDM) Copy() *TeamMDM {
 type TeamSpecMDM struct {
 	EnableDiskEncryption optjson.Bool `json:"enable_disk_encryption"`
 
-	MacOSUpdates   MacOSUpdates   `json:"macos_updates"`
+	// MacOSUpdates defines the OS update settings for macOS devices.
+	MacOSUpdates AppleOSUpdateSettings `json:"macos_updates"`
+	// IOSUpdates defines the OS update settings for iOS devices.
+	IOSUpdates AppleOSUpdateSettings `json:"ios_updates"`
+	// IPadOSUpdates defines the OS update settings for iPadOS devices.
+	IPadOSUpdates AppleOSUpdateSettings `json:"ipados_updates"`
+	// WindowsUpdates defines the OS update settings for Windows devices.
 	WindowsUpdates WindowsUpdates `json:"windows_updates"`
 
 	// A map is used for the macos settings so that we can easily detect if its
@@ -233,6 +281,10 @@ func (t *TeamConfig) Scan(val interface{}) error {
 
 // Value implements the sql.Valuer interface
 func (t TeamConfig) Value() (driver.Value, error) {
+	// force-save as the default `false` value if not set
+	if !t.MDM.MacOSSetup.EnableReleaseDeviceManually.Valid {
+		t.MDM.MacOSSetup.EnableReleaseDeviceManually = optjson.SetBool(false)
+	}
 	return json.Marshal(t)
 }
 
@@ -379,7 +431,8 @@ const (
 )
 
 type TeamSpec struct {
-	Name string `json:"name"`
+	Name     string  `json:"name"`
+	Filename *string `json:"gitops_filename,omitempty"`
 
 	// We need to distinguish between the agent_options key being present but
 	// "empty" or being absent, as we leave the existing agent options unmodified
@@ -389,12 +442,31 @@ type TeamSpec struct {
 	// If the agent_options key is present but empty in the YAML, will be set to
 	// "null" (JSON null). Otherwise, if the key is present and set, it will be
 	// set to the agent options JSON object.
-	AgentOptions json.RawMessage `json:"agent_options,omitempty"` // marshals as "null" if omitempty is not set
+	AgentOptions       json.RawMessage         `json:"agent_options,omitempty"` // marshals as "null" if omitempty is not set
+	HostExpirySettings *HostExpirySettings     `json:"host_expiry_settings,omitempty"`
+	Secrets            *[]EnrollSecret         `json:"secrets,omitempty"`
+	Features           *json.RawMessage        `json:"features"`
+	MDM                TeamSpecMDM             `json:"mdm"`
+	Scripts            optjson.Slice[string]   `json:"scripts"`
+	WebhookSettings    TeamSpecWebhookSettings `json:"webhook_settings"`
+	Integrations       TeamSpecIntegrations    `json:"integrations"`
+	Software           *TeamSpecSoftware       `json:"software,omitempty"`
+}
 
-	Secrets  []EnrollSecret        `json:"secrets,omitempty"`
-	Features *json.RawMessage      `json:"features"`
-	MDM      TeamSpecMDM           `json:"mdm"`
-	Scripts  optjson.Slice[string] `json:"scripts"`
+type TeamSpecWebhookSettings struct {
+	HostStatusWebhook *HostStatusWebhookSettings `json:"host_status_webhook"`
+}
+
+// TeamSpecIntegrations contains the configuration for external services'
+// integrations for a specific team.
+type TeamSpecIntegrations struct {
+	// If value is nil, we don't want to change the existing value.
+	GoogleCalendar *TeamGoogleCalendarIntegration `json:"google_calendar"`
+}
+
+// TeamSpecsDryRunAssumptions holds the assumptions that are made when applying team specs in dry-run mode.
+type TeamSpecsDryRunAssumptions struct {
+	WindowsEnabledAndConfigured optjson.Bool `json:"windows_enabled_and_configured,omitempty"`
 }
 
 // TeamSpecFromTeam returns a TeamSpec constructed from the given Team.
@@ -424,11 +496,25 @@ func TeamSpecFromTeam(t *Team) (*TeamSpec, error) {
 	mdmSpec.MacOSSetup = t.Config.MDM.MacOSSetup
 	mdmSpec.EnableDiskEncryption = optjson.SetBool(t.Config.MDM.EnableDiskEncryption)
 	mdmSpec.WindowsSettings = t.Config.MDM.WindowsSettings
+
+	var webhookSettings TeamSpecWebhookSettings
+	if t.Config.WebhookSettings.HostStatusWebhook != nil {
+		webhookSettings.HostStatusWebhook = t.Config.WebhookSettings.HostStatusWebhook
+	}
+
+	var integrations TeamSpecIntegrations
+	if t.Config.Integrations.GoogleCalendar != nil {
+		integrations.GoogleCalendar = t.Config.Integrations.GoogleCalendar
+	}
+
 	return &TeamSpec{
-		Name:         t.Name,
-		AgentOptions: agentOptions,
-		Features:     &featuresJSON,
-		Secrets:      secrets,
-		MDM:          mdmSpec,
+		Name:               t.Name,
+		AgentOptions:       agentOptions,
+		Features:           &featuresJSON,
+		Secrets:            &secrets,
+		MDM:                mdmSpec,
+		HostExpirySettings: &t.Config.HostExpirySettings,
+		WebhookSettings:    webhookSettings,
+		Integrations:       integrations,
 	}, nil
 }

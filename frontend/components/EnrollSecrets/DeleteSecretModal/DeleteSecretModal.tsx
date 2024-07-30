@@ -36,34 +36,19 @@ const DeleteSecretModal = ({
     <Modal
       onExit={toggleDeleteSecretModal}
       onEnter={onDeleteSecret}
-      title={"Delete secret"}
+      title="Delete secret"
       className={baseClass}
     >
       <div className={baseClass}>
         <div className={`${baseClass}__description`}>
+          <p>Hosts can no longer enroll using this secret.</p>
           <p>
-            This action will delete the secret used to enroll hosts to{" "}
-            <b>{renderTeam()?.name}</b>.
-          </p>
-          <p>
-            Any hosts that attempt to enroll to Fleet using this secret will be
-            unable to enroll.
-          </p>
-          <p>
-            Any enrolled hosts using this secret will not receive updates
-            through Orbit including updates to agent options and command line
-            flags.
-          </p>
-          <p>
-            Follow this guide to{" "}
             <CustomLink
-              url="https://fleetdm.com/docs/using-fleet/configuration-files#rotate-enroll-secrets"
-              text="rotate enroll secrets"
+              url="https://fleetdm.com/learn-more-about/rotating-enroll-secrets"
+              text="Learn about rotating enroll secrets"
               newTab
             />
-            .
           </p>
-          <p>You cannot undo this action.</p>
         </div>
         <div className="modal-cta-wrap">
           <Button

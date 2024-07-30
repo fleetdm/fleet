@@ -1,0 +1,203 @@
+openapi: 3.0.0
+info:
+  version: 0.1.0
+  title: NanoMDM API
+paths:
+  /v1/pushcert:
+    put:
+      description: Upload APNs certificate and private key.
+      security:
+        - basicAuth: []
+      requestBody:
+        description: The request body includes the APNs certificate and private key in PEM-encoded format concatenated together *without* any wrapping or container formats like JSON. The private key must *not* be encrypted.
+        required: true
+        content:
+          text/plain:
+            schema:
+              type: string
+            example: |-
+              -----BEGIN CERTIFICATE-----
+              MIIFdjCCBF6gAwIBAgIIZ7SjAeWsGIwwDQYJKoZIhvcNAQELBQAwgYwxQDA+BgNV
+              [..snip..]
+              lL5jy74l8Za59w==
+              -----END CERTIFICATE-----
+              -----BEGIN RSA PRIVATE KEY-----
+              MIIEogIBAAKCAQEAyfyVbzvN3t0RZgemV2YNGByPjIC3nAyMeabAg/xh/RlqS1uY
+              [..snip..]
+              ThmdpyJ76efnVCpgta/av0LZ6S9914MJpw2ff6H2Ou3y54Jy/94=
+              -----END RSA PRIVATE KEY-----
+      responses:
+        '200':
+          description: The "topic" (UID attribute) from the uploaded APNs certificate is returned or any errors that occured with the upload and storage.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                  topic:
+                    type: string
+                    description: The "topic" (UID attribute) from the uploaded APNs certificate.
+                    example: 'com.apple.mgmt.External.e3b8ceac-1f18-2c8e-8a63-dd17d99435d9'
+        '401':
+           $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          description: Error reading HTTP body from request
+  /v1/push/{id*}:
+    get:
+      description: Send APNs push notifications to MDM enrollments
+      security:
+        - basicAuth: []
+      responses:
+        '200':
+          $ref: '#/components/responses/APIResultOK'
+        '207':
+          $ref: '#/components/responses/APIResultSomeFailed'
+        '500':
+          $ref: '#/components/responses/APIResultAllFailed'
+        '401':
+           $ref: '#/components/responses/UnauthorizedError'
+      parameters:
+        - $ref: '#/components/parameters/idParam'
+  /v1/enqueue/{id*}:
+    put:
+      description: Enqueue MDM commands to MDM enrollments and (optionally) send APNs push notifications
+      security:
+        - basicAuth: []
+      requestBody:
+        description: The request body is an XML-encoded MDM command plist.
+        required: true
+        content:
+          text/plain:
+            # Apple plists can't cleanly be represented in OpenAPI specification so we have to fake the Content-Type as text/plain.
+            schema:
+              type: string
+            example: |-
+              <?xml version="1.0" encoding="UTF-8"?>
+              <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+              <plist version="1.0">
+              <dict>
+                <key>Command</key>
+                <dict>
+                  <key>RequestType</key>
+                  <string>ProfileList</string>
+                </dict>
+                <key>CommandUUID</key>
+                <string>fedd659e-fc3c-4e35-8bb1-c8f51ae542a5</string>
+              </dict>
+              </plist>
+      responses:
+        '200':
+          $ref: '#/components/responses/APIResultOK'
+        '207':
+          $ref: '#/components/responses/APIResultSomeFailed'
+        '400':
+          description: Error decoding MDM command plist.
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          description:  One of two modes. One mode is an error reading HTTP body from request (which will return no content nor content-type). Otherwise all enqueue requests failed. Returns JSON API response object including errors.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIResult'
+      parameters:
+        - $ref: '#/components/parameters/idParam'
+        - in: query
+          name: nopush
+          schema:
+            type: string
+            example: '1'
+  /version:
+    get:
+      description: Returns the running NanoMDM version
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema: 
+                type: object
+                properties: 
+                  version:
+                    type: string
+                example:
+                  version: "v0.1.0"
+components:
+  parameters:
+    idParam:
+      name: id*
+      in: path
+      description: Enrollment ID(s) of device- or user-channel enrollments. Typically a UUID-looking identifier.
+      required: true
+      explode: true
+      style: simple
+      schema:
+        type: array
+        items:
+          type: string
+        minItems: 1
+        example: ['299BD49-1A0C-422C-B285-2E4FF087C673', 'E2E4A8EB-45EE-488D-B9D7-4CC3B1C40699']
+  securitySchemes:
+    basicAuth:
+      type: http
+      scheme: basic
+  responses:
+    UnauthorizedError:
+      description: API key is missing or invalid.
+      headers:
+        WWW-Authenticate:
+          schema:
+            type: string
+    APIResultOK:
+      description: All requests succeeded. Returns JSON API response object.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/APIResult'
+    APIResultSomeFailed:
+      description: Some requests succeeded and some failed. Returns JSON API response object including errors.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/APIResult'
+    APIResultAllFailed:
+      description:  All requests failed. Returns JSON API response object including errors.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/APIResult'
+  schemas:
+    APIResult:
+      type: object
+      description: foo
+      properties:
+        no_push:
+          type: boolean
+          default: false
+        push_error:
+          type: string
+        command_error:
+          type: string
+        command_uuid:
+          type: string
+          example: 'c7fc0872-f22f-4823-8ae0-f3d0174fb48a'
+          format: uuid
+        request_type:
+          type: string
+        status:
+          type: object
+          properties:
+            $id:
+              type: object
+              properties:
+                push_error:
+                  type: string
+                push_result:
+                  type: string
+                  format: uuid
+                  example: '6E14E52F-7F07-42C7-8367-4D81441DC85F'
+                  description: Push UUID from Apple Push Notification service servers.
+                command_error:
+                  type: string

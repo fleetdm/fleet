@@ -108,11 +108,18 @@ parasails.registerPage('basic-documentation', {
 
     // Handle hashes in urls when coming from an external page.
     if(window.location.hash){
-      let possibleHashToScrollTo = _.trimLeft(window.location.hash, '#');
-      let hashToScrollTo = document.getElementById(possibleHashToScrollTo);
+      // If a hash was provided, we'll remove the # and any query parameters from it. (e.g., #create-an-api-only-user?utm_medium=fleetui&utm_campaign=get-api-token » create-an-api-only-user)
+      // Note: Hash links for headings in markdown content will never have a '?' beacause they are removed when convereted to kebab-case, so we can safely strip everything after one if a url contains a query parameter.
+      let possibleHashToScrollTo = _.trimLeft(window.location.hash.split('?')[0], '#');
+      let elementWithMatchingId = document.getElementById(possibleHashToScrollTo);
       // If the hash matches a header's ID, we'll scroll to that section.
-      if(hashToScrollTo){
-        hashToScrollTo.scrollIntoView();
+      if(elementWithMatchingId){
+        // Get the distance of the specified element, and reduce it by 90 so the section is not hidden by the page header.
+        let amountToScroll = elementWithMatchingId.offsetTop - 90;
+        window.scrollTo({
+          top: amountToScroll,
+          left: 0,
+        });
       }
     }
 
@@ -177,6 +184,12 @@ parasails.registerPage('basic-documentation', {
       });
     })();
 
+    // Set counters for items in ordered lists to be the value of their "start" attribute.
+    document.querySelectorAll('ol[start]').forEach((ol)=> {
+      let startValue = parseInt(ol.getAttribute('start'), 10) - 1;
+      ol.style.counterReset = 'custom-counter ' + startValue;
+    });
+
     // Adding event handlers to the links nested in headings on the page, allowing users to copy links by clicking on the link icon next to the heading.
     let headingsOnThisPage = $('#body-content').find(':header');
     for(let key in Object.values(headingsOnThisPage)){
@@ -209,13 +222,18 @@ parasails.registerPage('basic-documentation', {
   //  ╩╝╚╝ ╩ ╚═╝╩╚═╩ ╩╚═╝ ╩ ╩╚═╝╝╚╝╚═╝
   methods: {
 
-    clickOpenChatWidget: function() {
-      if(window.HubSpotConversations && window.HubSpotConversations.widget){
-        window.HubSpotConversations.widget.open();
+    clickSwagRequestCTA: function () {
+      if(typeof gtag !== 'undefined') {
+        gtag('event','fleet_website__swag_request');
       }
+      if(typeof window.lintrk !== 'undefined') {
+        window.lintrk('track', { conversion_id: 18587105 });// eslint-disable-line camelcase
+      }
+      this.goto('https://kqphpqst851.typeform.com/to/ZfA3sOu0');
     },
+
     clickCTA: function (slug) {
-      window.location = slug;
+      this.goto(slug);
     },
 
     isCurrentSection: function (section) {
@@ -240,7 +258,6 @@ parasails.registerPage('basic-documentation', {
     findAndSortNavSectionsByUrl: function (url='') {
       let NAV_SECTION_ORDER_BY_DOCS_SLUG = {
         'using-fleet':['The basics', 'Device management', 'Vuln management', 'Security compliance', 'Osquery management', 'Dig deeper'],
-        'deploy':['Uncategorized','TBD','Deployment guides'],
       };
       let slug = _.last(url.split(/\//));
       //

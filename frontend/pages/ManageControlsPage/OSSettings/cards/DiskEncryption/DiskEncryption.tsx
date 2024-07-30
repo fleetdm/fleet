@@ -106,11 +106,7 @@ const DiskEncryption = ({
       return "If turned on, hosts' disk encryption keys will be stored in Fleet. ";
     }
 
-    const isWindowsFeatureFlagEnabled = config?.mdm_enabled ?? false;
-    const dynamicText = isWindowsFeatureFlagEnabled
-      ? " and “BitLocker” on Windows"
-      : "";
-    return `Also known as “FileVault” on macOS${dynamicText}. If turned on, hosts' disk encryption keys will be stored in Fleet. `;
+    return `Also known as “FileVault” on macOS and “BitLocker” on Windows. If turned on, hosts' disk encryption keys will be stored in Fleet. `;
   };
 
   return (
@@ -134,7 +130,7 @@ const DiskEncryption = ({
                 value={diskEncryptionEnabled}
                 className={`${baseClass}__checkbox`}
               >
-                On
+                Turn on disk encryption
               </Checkbox>
               <p>
                 {createDescriptionText()}

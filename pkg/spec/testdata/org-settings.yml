@@ -1,0 +1,88 @@
+server_settings:
+  debug_host_ids:
+    - 10728
+  deferred_save_host: false
+  enable_analytics: true
+  live_query_disabled: false
+  query_report_cap: 2000
+  query_reports_disabled: false
+  scripts_disabled: false
+  server_url: https://fleet.example.com
+org_info:
+  contact_url: https://fleetdm.com/company/contact
+  org_logo_url: ""
+  org_logo_url_light_background: ""
+  org_name: $ORG_NAME
+smtp_settings:
+  authentication_method: authmethod_plain
+  authentication_type: authtype_username_password
+  configured: false
+  domain: ""
+  enable_smtp: false
+  enable_ssl_tls: true
+  enable_start_tls: true
+  password: ""
+  port: 587
+  sender_address: ""
+  server: ""
+  user_name: ""
+  verify_ssl_certs: true
+sso_settings:
+  enable_jit_provisioning: false
+  enable_jit_role_sync: false
+  enable_sso: true
+  enable_sso_idp_login: false
+  entity_id: https://saml.example.com/entityid
+  idp_image_url: ""
+  idp_name: MockSAML
+  issuer_uri: ""
+  metadata: ""
+  metadata_url: https://mocksaml.com/api/saml/metadata
+integrations:
+  jira:
+    - api_token: JIRA_TOKEN
+      enable_failing_policies: true
+      enable_software_vulnerabilities: false
+      project_key: JIR
+      url: https://fleetdm.atlassian.net
+      username: reed@fleetdm.com
+  zendesk: []
+mdm:
+  apple_bm_default_team: ""
+  end_user_authentication:
+    entity_id: ""
+    idp_name: ""
+    issuer_uri: ""
+    metadata: ""
+    metadata_url: ""
+webhook_settings:
+  failing_policies_webhook:
+    destination_url: https://host.docker.internal:8080/bozo
+    enable_failing_policies_webhook: false
+    host_batch_size: 0
+    policy_ids: []
+  host_status_webhook:
+    days_count: 0
+    destination_url: ""
+    enable_host_status_webhook: false
+    host_percentage: 0
+  interval: 24h0m0s
+  vulnerabilities_webhook:
+    destination_url: ""
+    enable_vulnerabilities_webhook: false
+    host_batch_size: 0
+fleet_desktop: # Applies to Fleet Premium only
+  transparency_url: https://fleetdm.com/transparency
+host_expiry_settings: # Applies to all teams
+  host_expiry_enabled: false
+activity_expiry_settings:
+  activity_expiry_enabled: true
+  activity_expiry_window: 30
+features: # Features added to all teams
+  enable_host_users: true
+  enable_software_inventory: true
+vulnerability_settings:
+  databases_path: ""
+secrets: # These secrets are used to enroll hosts to the "All teams" team
+  - secret: SampleSecret123
+  - secret: ABC

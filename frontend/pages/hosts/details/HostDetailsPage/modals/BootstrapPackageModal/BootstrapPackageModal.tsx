@@ -18,7 +18,7 @@ const BootstrapPackageModal = ({
 }: IBootstrapPackageModalProps) => {
   return (
     <Modal
-      title={"Bootstrap package"}
+      title="Bootstrap package"
       onExit={onClose}
       onEnter={onClose}
       className={baseClass}

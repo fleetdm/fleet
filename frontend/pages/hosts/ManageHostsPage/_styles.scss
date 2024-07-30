@@ -132,9 +132,7 @@
     }
 
     // table header content responsive styles
-    // NOTE: 1150px is a custom breakpoint to deal with responsiveness of the
-    // table controls. 990px doesnt work for us in this case.
-    @media (max-width: 1150px) {
+    @media (max-width: $table-controls-break) {
       &__header {
         flex-direction: column;
       }
@@ -216,7 +214,8 @@
               .device_mapping__cell,
               .mdm_enrollment_status__cell,
               .mdm_server_url__cell,
-              .public_ip__cell {
+              .public_ip__cell,
+              .issues__cell {
                 .text-cell {
                   display: inline;
                 }
@@ -238,7 +237,7 @@
   &__status_dropdown {
     width: 175px;
 
-    @media (min-width: 1150px) {
+    @media (min-width: $table-controls-break) {
       width: 190px;
     }
 
@@ -275,14 +274,6 @@
   }
 
   &__export-btn {
-    margin-left: $pad-medium;
-
-    img {
-      width: 13px;
-      height: 13px;
-      margin-left: 8px;
-      position: relative;
-      top: -2px;
-    }
+    margin-left: $pad-xsmall;
   }
 }

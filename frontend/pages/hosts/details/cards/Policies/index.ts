@@ -1,1 +1,1 @@
-export { default } from "./Policies";
+export { default } from "./HostPolicies";

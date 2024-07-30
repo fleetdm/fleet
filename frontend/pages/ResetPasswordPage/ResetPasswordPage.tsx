@@ -83,7 +83,7 @@ const ResetPasswordPage = ({ location, router }: IResetPasswordPageProps) => {
     <AuthenticationFormWrapper>
       <StackedWhiteBoxes
         router={router}
-        leadText="Create a new password. Your new password must include 12 characters, at least 1 number (e.g. 0 - 9), and at least 1 symbol (e.g. &*#)"
+        leadText="Create a new password. Your new password must include 12-48 characters, at least 1 number (e.g. 0 - 9), and at least 1 symbol (e.g. &*#)"
       >
         <ResetPasswordForm handleSubmit={onSubmit} serverErrors={errors} />
       </StackedWhiteBoxes>

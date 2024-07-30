@@ -1,4 +1,4 @@
-.section--policies {
+.policies-card {
   .info-banner {
     margin-bottom: 1rem;
   }
@@ -22,7 +22,7 @@
       tbody {
         tr {
           .name__cell {
-            max-width: 0; // sets ellipses
+            max-width: 0; // sets ellipsis
           }
 
           .policy-link {
@@ -36,7 +36,7 @@
             }
           }
           .policy-info {
-            width: 100%; // sets ellipses
+            width: 100%; // sets ellipsis
             justify-content: left;
 
             .policy-info-text {

@@ -1,10 +1,9 @@
 # Scripts
 
-_Available in Fleet Premium_
-
 In Fleet you can execute a custom script to remediate an issue on your macOS, Windows, and Linux hosts.
 
-Shell scripts are supported on macOS and Linux. All scripts will run in the host's (root) default shell (`/bin/sh`). Other interpreters are not supported yet.
+Shell scripts are supported on macOS and Linux. By default, shell scripts will run in the host's (root) shell (`/bin/sh`). We also support `/bin/zsh` interpreter.
+Note: To run in `/bin/zsh`, create `.sh` file (only supported extension) and add an interpreter at the first line.
 
 PowerShell scripts are supported on Windows. Other types of scripts are not supported yet.
 
@@ -22,12 +21,6 @@ If you don't use MDM features, to enable scripts, we'll deploy a fleetd agent wi
 
 Learn more about generating a fleetd agent and deploying it [here](./enroll-hosts.md).
 
-### Security considerations
-
-Script execution can only be enabled by someone with root access to the host.
-
-Turning MDM on for a macOS host or pushing a new fleetd agent qualify as root access.
-
 ## Execute a script
 
 You can execute a script in the Fleet UI, with Fleet API, or with the fleetctl command-line interface (CLI).
@@ -36,13 +29,15 @@ Fleet UI:
 
 1. In Fleet, head to the **Controls > Scripts** tab and upload your script.
 
-2. Head to the Hosts page and select the host you want to run the script on.
+2. Head to the **Hosts** page and select the host you want to run the script on.
 
-3. On your target host's host details page, select the Scripts tab and select Actions to run the script.
+3. On your target host's host details page, select the **Actions** dropdown and select **Run Script** to view the **Run Script** menu.
+   
+4. In the **Run Script** menu, select the **Actions** dropdown for the script you'd like to execute and choose the **Run** option.
 
-> Currently, you can only run scripts on macOS and Windows hosts in the Fleet UI. To run a script on a Linux host, use the Fleet API or fleetctl CLI.
+Scripts run from the Fleet UI will run the next time your host checks in with Fleet. You can view the status of the script execution as well as the output in the target host's activity feed.
 
-Fleet API: API documentation is [here](https://fleetdm.com/docs/rest-api/rest-api#run-script]
+Fleet API: API documentation is [here](https://fleetdm.com/docs/rest-api/rest-api#run-script)
 
 fleetctl CLI:
 

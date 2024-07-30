@@ -1,12 +1,11 @@
 import React from "react";
 import { render, screen, fireEvent } from "@testing-library/react";
-import { renderWithSetup } from "test/test-utils";
 
 import RevealButton from "./RevealButton";
 
 const SHOW_TEXT = "Show advanced options";
 const HIDE_TEXT = "Hide advanced options";
-const TOOLTIP_HTML = "Customize logging type and platforms";
+const TOOLTIP_CONTENT = "Customize logging type and platforms";
 
 describe("Reveal button", () => {
   it("renders show text", async () => {
@@ -51,7 +50,7 @@ describe("Reveal button", () => {
         isShowing={false}
         hideText={HIDE_TEXT}
         showText={SHOW_TEXT}
-        caretPosition={"before"}
+        caretPosition="before"
       />
     );
 
@@ -65,7 +64,7 @@ describe("Reveal button", () => {
         isShowing={false}
         hideText={HIDE_TEXT}
         showText={SHOW_TEXT}
-        caretPosition={"after"}
+        caretPosition="after"
       />
     );
 
@@ -75,18 +74,18 @@ describe("Reveal button", () => {
   });
 
   it("renders tooltip on hover if provided", async () => {
-    const { user } = renderWithSetup(
+    render(
       <RevealButton
         isShowing={false}
         hideText={HIDE_TEXT}
         showText={SHOW_TEXT}
-        caretPosition={"before"}
-        tooltipHtml={TOOLTIP_HTML}
+        caretPosition="before"
+        tooltipContent={TOOLTIP_CONTENT}
       />
     );
 
     await fireEvent.mouseEnter(screen.getByText(SHOW_TEXT));
 
-    expect(screen.getByText(TOOLTIP_HTML)).toBeInTheDocument();
+    expect(screen.getByText(TOOLTIP_CONTENT)).toBeInTheDocument();
   });
 });

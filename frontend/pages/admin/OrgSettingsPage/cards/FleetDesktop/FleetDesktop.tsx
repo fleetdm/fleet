@@ -1,20 +1,26 @@
 import React, { useState } from "react";
 
-import { IConfig, IConfigFormData } from "interfaces/config";
+import { IConfig } from "interfaces/config";
 
 import Button from "components/buttons/Button";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import validUrl from "components/forms/validators/valid_url";
+import SectionHeader from "components/SectionHeader";
 
 import CustomLink from "components/CustomLink";
 import {
   DEFAULT_TRANSPARENCY_URL,
   IAppConfigFormProps,
   IFormField,
-  IAppConfigFormErrors,
 } from "../constants";
 
+interface IFleetDesktopFormData {
+  transparencyUrl: string;
+}
+interface IFleetDesktopFormErrors {
+  transparency_url?: string | null;
+}
 const baseClass = "app-config-form";
 
 const FleetDesktop = ({
@@ -23,16 +29,14 @@ const FleetDesktop = ({
   isPremiumTier,
   isUpdatingSettings,
 }: IAppConfigFormProps): JSX.Element => {
-  const [formData, setFormData] = useState<
-    Pick<IConfigFormData, "transparencyUrl">
-  >({
+  const [formData, setFormData] = useState<IFleetDesktopFormData>({
     transparencyUrl:
       appConfig.fleet_desktop?.transparency_url || DEFAULT_TRANSPARENCY_URL,
   });
 
-  const [formErrors, setFormErrors] = useState<IAppConfigFormErrors>({});
+  const [formErrors, setFormErrors] = useState<IFleetDesktopFormErrors>({});
 
-  const handleInputChange = ({ value }: IFormField) => {
+  const onInputChange = ({ value }: IFormField) => {
     setFormData({ transparencyUrl: value.toString() });
     setFormErrors({});
   };
@@ -40,7 +44,7 @@ const FleetDesktop = ({
   const validateForm = () => {
     const { transparencyUrl } = formData;
 
-    const errors: IAppConfigFormErrors = {};
+    const errors: IFleetDesktopFormErrors = {};
     if (transparencyUrl && !validUrl({ url: transparencyUrl })) {
       errors.transparency_url = `${transparencyUrl} is not a valid URL`;
     }
@@ -51,7 +55,7 @@ const FleetDesktop = ({
   const onFormSubmit = (evt: React.MouseEvent<HTMLFormElement>) => {
     evt.preventDefault();
 
-    const formDataForAPI: Pick<IConfig, "fleet_desktop"> = {
+    const formDataForAPI = {
       fleet_desktop: {
         transparency_url: formData.transparencyUrl,
       },
@@ -65,44 +69,46 @@ const FleetDesktop = ({
   }
 
   return (
-    <form className={baseClass} onSubmit={onFormSubmit} autoComplete="off">
+    <div className={baseClass}>
       <div className={`${baseClass}__section`}>
-        <h2>Fleet Desktop</h2>
-        <div className={`${baseClass}__inputs`}>
+        <SectionHeader title="Fleet Desktop" />
+        <form onSubmit={onFormSubmit} autoComplete="off">
           <InputField
             label="Custom transparency URL"
-            onChange={handleInputChange}
+            onChange={onInputChange}
             name="transparency_url"
             value={formData.transparencyUrl}
             parseTarget
             onBlur={validateForm}
             error={formErrors.transparency_url}
             placeholder="https://fleetdm.com/transparency"
+            helpText={
+              <>
+                When an end user clicks “Transparency” in the Fleet Desktop
+                menu, by default they are taken to{" "}
+                <CustomLink
+                  url="https://fleetdm.com/transparency"
+                  text="https://fleetdm.com/transparency"
+                  newTab
+                  multiline
+                />{" "}
+                . You can override the URL to take them to a resource of your
+                choice.
+              </>
+            }
           />
-          <p className={`${baseClass}__component-details`}>
-            When an end user clicks “Transparency” in the Fleet Desktop menu, by
-            default they are taken to{" "}
-            <CustomLink
-              url="https://fleetdm.com/transparency"
-              text="https://fleetdm.com/transparency"
-              newTab
-              multiline
-            />{" "}
-            . You can override the URL to take them to a resource of your
-            choice.
-          </p>
-        </div>
+          <Button
+            type="submit"
+            variant="brand"
+            disabled={Object.keys(formErrors).length > 0}
+            className="button-wrap"
+            isLoading={isUpdatingSettings}
+          >
+            Save
+          </Button>
+        </form>
       </div>
-      <Button
-        type="submit"
-        variant="brand"
-        disabled={Object.keys(formErrors).length > 0}
-        className="save-loading"
-        isLoading={isUpdatingSettings}
-      >
-        Save
-      </Button>
-    </form>
+    </div>
   );
 };
 

@@ -1,5 +1,9 @@
 import { IHostMdmData } from "interfaces/host";
-import { IMdmSolution, IMdmProfile } from "interfaces/mdm";
+import {
+  IMdmSolution,
+  IMdmProfile,
+  IMdmSummaryMdmSolution,
+} from "interfaces/mdm";
 
 const DEFAULT_MDM_SOLUTION_MOCK: IMdmSolution = {
   id: 1,
@@ -14,8 +18,21 @@ export const createMockMdmSolution = (
   return { ...DEFAULT_MDM_SOLUTION_MOCK, ...overrides };
 };
 
+const DEFAULT_HOST_SUMMARY_MDM_SOLUTION_MOCK: IMdmSummaryMdmSolution = {
+  id: 1,
+  name: "MDM Solution",
+  server_url: "http://mdmsolution.com",
+  hosts_count: 5,
+};
+
+export const createMockMdmSummaryMdmSolution = (
+  overrides?: Partial<IMdmSummaryMdmSolution>
+): IMdmSummaryMdmSolution => {
+  return { ...DEFAULT_HOST_SUMMARY_MDM_SOLUTION_MOCK, ...overrides };
+};
+
 const DEFAULT_MDM_PROFILE_DATA: IMdmProfile = {
-  profile_id: 1,
+  profile_uuid: "123-abc",
   team_id: 0,
   name: "Test Profile",
   platform: "darwin",
@@ -53,6 +70,8 @@ const DEFAULT_HOST_MDM_DATA: IHostMdmData = {
     details: "",
     bootstrap_package_name: "",
   },
+  device_status: "unlocked",
+  pending_action: "",
 };
 
 export const createMockHostMdmData = (

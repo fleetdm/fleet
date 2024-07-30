@@ -1,7 +1,6 @@
 import React, { useContext, useState, useEffect } from "react";
 import { useQuery } from "react-query";
 import { useErrorHandler } from "react-error-boundary";
-import { InjectedRouter } from "react-router";
 import yaml from "js-yaml";
 import { constructErrorString, agentOptionsToYaml } from "utilities/yaml";
 import { EMPTY_AGENT_OPTIONS } from "utilities/constants";
@@ -21,23 +20,14 @@ import Spinner from "components/Spinner";
 import CustomLink from "components/CustomLink";
 // @ts-ignore
 import YamlAce from "components/YamlAce";
+import { ITeamSubnavProps } from "interfaces/team_subnav";
 
 const baseClass = "agent-options";
-
-interface IAgentOptionsPageProps {
-  location: {
-    pathname: string;
-    search: string;
-    hash?: string;
-    query: { team_id?: string };
-  };
-  router: InjectedRouter;
-}
 
 const AgentOptionsPage = ({
   location,
   router,
-}: IAgentOptionsPageProps): JSX.Element => {
+}: ITeamSubnavProps): JSX.Element => {
   const { renderFlash } = useContext(NotificationContext);
 
   const { isRouteOk, teamIdForApi } = useTeamIdParam({
@@ -120,21 +110,21 @@ const AgentOptionsPage = ({
       })
       .catch((response: { data: IApiError }) => {
         console.error(response);
-
+        const reason = response.data.errors[0].reason;
         const agentOptionsInvalid =
-          response.data.errors[0].reason.includes("unsupported key provided") ||
-          response.data.errors[0].reason.includes("invalid value type");
+          reason.includes("unsupported key provided") ||
+          reason.includes("invalid value type");
 
         return renderFlash(
           "error",
           <>
-            Could not update {teamName} team agent options.{" "}
-            {response.data.errors[0].reason}
+            Couldn&apos;t update {teamName} team agent options:
+            {reason}
             {agentOptionsInvalid && (
               <>
                 <br />
-                If you’re not using the latest osquery, use the fleetctl apply
-                --force command to override validation.
+                If you&apos;re not using the latest osquery, use the fleetctl
+                apply --force command to override validation.
               </>
             )}
           </>
@@ -152,11 +142,12 @@ const AgentOptionsPage = ({
   return (
     <div className={`${baseClass}`}>
       <p className={`${baseClass}__page-description`}>
-        Agent options configure the osquery agent. When you update agent
-        options, they will be applied the next time a host checks in to Fleet.
+        Agent options configure Fleet&apos;s agent (fleetd). When you update
+        agent options, they will be applied the next time a host checks in to
+        Fleet.
         <br />
         <CustomLink
-          url="https://fleetdm.com/docs/configuration/configuration-files#team-agent-options"
+          url="https://fleetdm.com/learn-more-about/agent-options"
           text="Learn more about agent options"
           newTab
           multiline
@@ -165,33 +156,29 @@ const AgentOptionsPage = ({
       {isFetchingTeamOptions ? (
         <Spinner />
       ) : (
-        <div className={`${baseClass}__form-wrapper`}>
-          <form
-            className={`${baseClass}__form`}
-            onSubmit={onFormSubmit}
-            autoComplete="off"
+        <form
+          className={`${baseClass}__form`}
+          onSubmit={onFormSubmit}
+          autoComplete="off"
+        >
+          <YamlAce
+            wrapperClassName={`${baseClass}__text-editor-wrapper`}
+            onChange={handleAgentOptionsChange}
+            name="agentOptions"
+            value={agentOptions}
+            parseTarget
+            error={formErrors.agent_options}
+            label="YAML"
+          />
+          <Button
+            type="submit"
+            variant="brand"
+            className="save-loading"
+            isLoading={isUpdatingAgentOptions}
           >
-            <div className={`${baseClass}__btn-wrap`}>
-              <p>YAML</p>
-              <Button
-                type="submit"
-                variant="brand"
-                className="save-loading"
-                isLoading={isUpdatingAgentOptions}
-              >
-                Save options
-              </Button>
-            </div>
-            <YamlAce
-              wrapperClassName={`${baseClass}__text-editor-wrapper`}
-              onChange={handleAgentOptionsChange}
-              name="agentOptions"
-              value={agentOptions}
-              parseTarget
-              error={formErrors.agent_options}
-            />
-          </form>
-        </div>
+            Save
+          </Button>
+        </form>
       )}
     </div>
   );

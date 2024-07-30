@@ -6,11 +6,11 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
-//go:generate mockimpl -o datastore_mock.go "s *DataStore" "fleet.Datastore"
-//go:generate mockimpl -o datastore_installers.go "s *InstallerStore" "fleet.InstallerStore"
-//go:generate mockimpl -o nanomdm/storage.go "s *Storage" "github.com/micromdm/nanomdm/storage.AllStorage"
-//go:generate mockimpl -o nanodep/storage.go "s *Storage" "github.com/micromdm/nanodep/storage.AllStorage"
-//go:generate mockimpl -o scep/depot.go "d *Depot" "depot.Depot"
+//go:generate go run ./mockimpl/impl.go -o datastore_mock.go "s *DataStore" "fleet.Datastore"
+//go:generate go run ./mockimpl/impl.go -o datastore_installers.go "s *InstallerStore" "fleet.InstallerStore"
+//go:generate go run ./mockimpl/impl.go -o nanodep/storage.go "s *Storage" "github.com/fleetdm/fleet/v4/server/mdm/nanodep/storage.AllDEPStorage"
+//go:generate go run ./mockimpl/impl.go -o mdm/datastore_mdm_mock.go "fs *MDMAppleStore" "fleet.MDMAppleStore"
+//go:generate go run ./mockimpl/impl.go -o scep/depot.go "d *Depot" "depot.Depot"
 
 var _ fleet.Datastore = (*Store)(nil)
 

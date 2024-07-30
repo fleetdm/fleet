@@ -3,6 +3,7 @@
     display: flex;
     flex-direction: row;
     gap: $pad-xsmall;
+    color: $ui-fleet-black-75;
   }
 
   &__list-item-details {
@@ -15,5 +16,25 @@
   &__action-button {
     width: 40px;
     height: 40px;
+  }
+
+  .list-item__actions-wrap {
+    display: flex;
+  }
+
+  .list-item__labels {
+    display: flex;
+    gap: $pad-small;
+
+    &--count {
+      align-self: center;
+      color: $ui-fleet-black-75;
+    }
+  }
+
+  &:hover {
+    .list-item__labels {
+      display: none;
+    }
   }
 }

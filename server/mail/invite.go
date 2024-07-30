@@ -3,6 +3,7 @@ package mail
 import (
 	"bytes"
 	"html/template"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -11,13 +12,15 @@ import (
 // InviteMailer is used to build an email template for the invite email.
 type InviteMailer struct {
 	*fleet.Invite
-	BaseURL   template.URL
-	AssetURL  template.URL
-	InvitedBy string
-	OrgName   string
+	BaseURL     template.URL
+	AssetURL    template.URL
+	InvitedBy   string
+	OrgName     string
+	CurrentYear int
 }
 
 func (i *InviteMailer) Message() ([]byte, error) {
+	i.CurrentYear = time.Now().Year()
 	t, err := server.GetTemplate("server/mail/templates/invite_token.html", "email_template")
 	if err != nil {
 		return nil, err

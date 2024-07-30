@@ -85,7 +85,7 @@ func targetSQLCondAndArgs(targets fleet.HostTargets) (sql string, args []interfa
 		AND
 		/* A team filter was not specified OR if it was specified then the host must be a
 		 * member of one of the teams. */
-		(? /* !teamsSpecified */ OR team_id IN (? /* queryTeamIDs */))
+		(? /* !teamsSpecified */ OR team_id IN (? /* queryTeamIDs */) %s)
 	)
 )`
 
@@ -102,14 +102,19 @@ func targetSQLCondAndArgs(targets fleet.HostTargets) (sql string, args []interfa
 		queryHostIDs = append(queryHostIDs, int(id))
 	}
 	queryTeamIDs := []int{-1}
+	extraTeamIDCondition := ""
 	for _, id := range targets.TeamIDs {
+		if id == 0 {
+			extraTeamIDCondition = "OR team_id IS NULL"
+			continue
+		}
 		queryTeamIDs = append(queryTeamIDs, int(id))
 	}
 
 	labelsSpecified := len(queryLabelIDs) > 1
-	teamsSpecified := len(queryTeamIDs) > 1
+	teamsSpecified := len(queryTeamIDs) > 1 || extraTeamIDCondition != ""
 
-	return queryTargetLogicCondition, []interface{}{
+	return fmt.Sprintf(queryTargetLogicCondition, extraTeamIDCondition), []interface{}{
 		queryHostIDs,
 		queryLabelIDs,
 		labelsSpecified, teamsSpecified,

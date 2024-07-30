@@ -61,7 +61,7 @@ spec:
   name: Get installed Linux software
   platform: linux
   description: Get all software installed on a Linux computer, including browser plugins and installed packages. Note that this does not include other running processes in the processes table.
-  query: SELECT name AS name, version AS version, 'Package (APT)' AS type, 'apt_sources' AS source FROM apt_sources UNION SELECT name AS name, version AS version, 'Package (deb)' AS type, 'deb_packages' AS source FROM deb_packages UNION SELECT package AS name, version AS version, 'Package (Portage)' AS type, 'portage_packages' AS source FROM portage_packages UNION SELECT name AS name, version AS version, 'Package (RPM)' AS type, 'rpm_packages' AS source FROM rpm_packages UNION SELECT name AS name, '' AS version, 'Package (YUM)' AS type, 'yum_sources' AS source FROM yum_sources UNION SELECT name AS name, version AS version, 'Package (NPM)' AS type, 'npm_packages' AS source FROM npm_packages UNION SELECT name AS name, version AS version, 'Package (Atom)' AS type, 'atom_packages' AS source FROM atom_packages UNION SELECT name AS name, version AS version, 'Package (Python)' AS type, 'python_packages' AS source FROM python_packages;
+  query: SELECT name AS name, version AS version, 'Package (APT)' AS type, 'apt_sources' AS source FROM apt_sources UNION SELECT name AS name, version AS version, 'Package (deb)' AS type, 'deb_packages' AS source FROM deb_packages UNION SELECT package AS name, version AS version, 'Package (Portage)' AS type, 'portage_packages' AS source FROM portage_packages UNION SELECT name AS name, version AS version, 'Package (RPM)' AS type, 'rpm_packages' AS source FROM rpm_packages UNION SELECT name AS name, '' AS version, 'Package (YUM)' AS type, 'yum_sources' AS source FROM yum_sources UNION SELECT name AS name, version AS version, 'Package (NPM)' AS type, 'npm_packages' AS source FROM npm_packages UNION SELECT name AS name, version AS version, 'Package (Python)' AS type, 'python_packages' AS source FROM python_packages;
   purpose: Informational
   tags: inventory, built-in
   contributors: zwass
@@ -94,7 +94,7 @@ spec:
   name: Get installed Windows software
   platform: windows
   description: Get all software installed on a Windows computer, including programs, browser plugins, and installed packages. Note that this does not include other running processes in the processes table.
-  query: SELECT name AS name, version AS version, 'Program (Windows)' AS type, 'programs' AS source FROM programs UNION SELECT name AS name, version AS version, 'Package (Python)' AS type, 'python_packages' AS source FROM python_packages UNION SELECT name AS name, version AS version, 'Browser plugin (IE)' AS type, 'ie_extensions' AS source FROM ie_extensions UNION SELECT name AS name, version AS version, 'Browser plugin (Chrome)' AS type, 'chrome_extensions' AS source FROM chrome_extensions UNION SELECT name AS name, version AS version, 'Browser plugin (Firefox)' AS type, 'firefox_addons' AS source FROM firefox_addons UNION SELECT name AS name, version AS version, 'Package (Chocolatey)' AS type, 'chocolatey_packages' AS source FROM chocolatey_packages UNION SELECT name AS name, version AS version, 'Package (Atom)' AS type, 'atom_packages' AS source FROM atom_packages;
+  query: SELECT name AS name, version AS version, 'Program (Windows)' AS type, 'programs' AS source FROM programs UNION SELECT name AS name, version AS version, 'Package (Python)' AS type, 'python_packages' AS source FROM python_packages UNION SELECT name AS name, version AS version, 'Browser plugin (IE)' AS type, 'ie_extensions' AS source FROM ie_extensions UNION SELECT name AS name, version AS version, 'Browser plugin (Chrome)' AS type, 'chrome_extensions' AS source FROM chrome_extensions UNION SELECT name AS name, version AS version, 'Browser plugin (Firefox)' AS type, 'firefox_addons' AS source FROM firefox_addons UNION SELECT name AS name, version AS version, 'Package (Chocolatey)' AS type, 'chocolatey_packages' AS source FROM chocolatey_packages;
   purpose: Informational
   tags: inventory, built-in
   contributors: zwass
@@ -879,13 +879,13 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: No 1Password emergency kit stored on desktop or in downloads (macOS)
-  query: SELECT EXISTS(SELECT 1 FROM file WHERE filename like '%Emergency Kit%.pdf' AND (path LIKE '/Users/%%/Downloads/%%' OR path LIKE '/Users/%%/Desktop/%%')) as does_1p_ek_exist;
-  description: "Looks for PDF files with file names typically used by 1Password for emergency recovery kits."
+  name: No 1Password emergency kit stored in desktop, documents, or downloads folders (macOS)
+  query: SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM file WHERE filename LIKE '%Emergency Kit%.pdf' AND (path LIKE '/Users/%/Desktop/%' OR path LIKE '/Users/%/Documents/%' OR path LIKE '/Users/%/Downloads/%' OR path LIKE '/Users/Shared/%'));
+  description: "Looks for PDF files with file names typically used by 1Password for emergency recovery kits. To protect the performance of your devices, the search is one level deep and limited to the Desktop, Documents, Downloads, and Shared folders."
   resolution: "Delete 1Password emergency kits from your computer, and empty the trash. 1Password emergency kits should only be printed and stored in a physically secure location."
   platform: darwin
   tags: compliance, built-in
-  contributors: GuillaumeRoss
+  contributors: nonpunctual
 ---
 apiVersion: v1
 kind: query
@@ -1050,20 +1050,21 @@ apiVersion: v1
 kind: query
 spec:
   name: Get a list of Visual Studio Code extensions
-  platform: darwin
-  description: Get a list of installed VS Code extensions. Requires [fleetd](https://fleetdm.com/docs/using-fleet/fleetd).
+  platform: darwin, linux, windows
+  description: Get a list of installed VS Code extensions (requires osquery > 5.11.0).
   query: |
-    SELECT  split(user_path, '/', 1) as username,
-        json_extract(value, '$.identifier.id') as id,
-        json_extract(value, '$.identifier.uuid') as uuid,
-        json_extract(value, '$.location.path') as path,
-        json_extract(value, '$.version') as version,
-        json_extract(value, '$.metadata.publisherDisplayName') as publisher_display_name
-        FROM (
-          SELECT file_lines.path as user_path, value
-          FROM file_lines, json_each(line)
-          WHERE file_lines.path LIKE '/Users/%/.vscode/extensions/extensions.json'
-        );
+    SELECT u.username, vs.* FROM users u CROSS JOIN vscode_extensions vs USING (uid);
   purpose: Informational
   tags: inventory
   contributors: lucasmrod,sharon-fdm,zwass
+---
+apiVersion: v1
+kind: query
+spec:
+  name: List osquery table names
+  platform: darwin, linux, windows
+  description: List all table names in the schema of the currently installed version of osquery
+  query: SELECT DISTINCT name FROM osquery_registry;
+  purpose: Informational
+  tags: fleet, osquery, table, schema
+  contributors: nonpunctual

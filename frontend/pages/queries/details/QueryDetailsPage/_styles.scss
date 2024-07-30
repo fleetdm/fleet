@@ -8,6 +8,7 @@
     display: flex;
     justify-content: space-between;
     margin-top: $pad-small;
+    gap: $pad-medium;
 
     .name-description {
       display: flex;
@@ -19,7 +20,7 @@
   &__action-button-container {
     display: flex;
     justify-content: flex-end;
-    min-width: 266px;
+    min-width: max-content;
     gap: $pad-medium;
   }
 

@@ -20,9 +20,9 @@ openssl genrsa 2048 > client-ca.key
 openssl req -new -x509 -nodes -days 1000 -key client-ca.key > client-ca.crt
 
 # Generate a client certificate signing request
-openssl req -newkey rsa:2048 -days 1000 -nodes -keyout client.key > client.req
+openssl req -newkey rsa:2048 -days 398 -nodes -keyout client.key > client.req
 
 # Have the CA sign the client certificate request and output the client certificate.
-openssl x509 -req -in client.req -days 1000 -CA client-ca.crt -CAkey client-ca.key -set_serial 01 > client.crt
+openssl x509 -req -in client.req -days 398 -CA client-ca.crt -CAkey client-ca.key -set_serial 01 > client.crt
 
 rm client.req

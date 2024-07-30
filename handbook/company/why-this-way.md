@@ -8,6 +8,9 @@ Any past decision is open to questioning in a future iteration, as long as you a
 
 Here are some of Fleet's decisions about the best way to work, and the reasoning for them.
 
+<img width="384" alt="image" src="https://github.com/fleetdm/fleet/assets/618009/234d3072-96eb-43b7-8b9e-b97af17ef72e">
+
+
 ## Why open source?
 Fleet's source code, website, documentation, company handbook, and internal tools are [public](https://github.com/fleetdm/fleet) and accessible to everyone, including engineers, executives, and end users. (Even [paid features](https://fleetdm.com/pricing) are source-available.)
 
@@ -45,12 +48,17 @@ There are three reasons for visiting [the docs](https://fleetdm.com/docs):
 - **Committed learning**: "I've decided to learn this. I need a curriculum to get me there; with content that makes it as easy as possible, surface-level as possible. I want to learn how Fleet works and how to do all the things."
 - **Quick reference**: "Is this thing broken or am I using it right? How do I use this?" Whether they just stumbled in from a search engine, an on-site search, or through the Fleet website navigation, visitors interested in quick reference are interested in getting to the correct answer quickly.  Quick referencers search for REST API pages, the config surface of the Fleet server, agent options, how to build YAML for `fleetctl apply`, the built-in MDM profiles, the table schema, the built-in queries, reference architectures and cost calculators for deploying your own Fleet instance.
 
+> Currently, Fleet only adds new "Quick reference" content to the [docs](https://fleetdm.com/docs). New "Committed learning" docs should be written as [articles](https://fleetdm.com/articles). Why? The docs surface area is large and Fleet iterates on features more quickly than we can update extensive how-tos. We've learned that users are more forgiving when articles are out-of-date. But, reference documentation always needs to be correct.
+
 Everyone [can contribute](https://fleetdm.com/handbook/company#openness) to Fleet's documentation.  Here are a few principles to keep in mind:
  
 - **🚪 Start simple.** It's easier to learn when you aren't overwhelmed.  Good documentation pages and sections start _prescriptive, brief, and clear_; ideally with a short example.  You can always hedge and caveat further down the page. This makes the docs more [accessible and outsider-friendly](https://fleetdm.com/handbook/company#purpose).  For example, notice how [this page gets more complicated as you scroll down](https://sailsjs.com/documentation/reference/blueprint-api/destroy), or how [both](https://sailsjs.com/documentation/concepts/models-and-orm/model-settings#?schema) of [these sections](https://sailsjs.com/documentation/concepts/models-and-orm/model-settings#?seldomused-settings) start simple, with caveats pushed down to the end. 
+- **🪟 Write it once.** Deduplicate content more than you think you need to. Use links instead. Decorate relevant bits of text, don’t put full URLs. Think of SEO: the link text matters.
+- **🚪 Don’t break links.** Whenever practical, maintain a path to documentation. Even if it's an [outdated rough draft](https://kevin.burke.dev/kevin/dont-use-sails-or-waterline/).
+- **🔌 Document the rough bits.** Just do it at the bottom of the page/section so that most people can skip over it, but the quick referencer who really needs it can find it. Docs are the requirements. If it doesn’t work as documented, it’s a bug.
+- **🪟 Some people read the docs as text on GitHub.** It’s a small audience and we can’t afford to optimize for this use case. But it’s worth remembering. For example, someone from Iran needed help from Mike in 2013 to access content from sailsjs.com unencrypted when https:// was banned in her country.
 
 <!-- 🔌🚪🪟 -->
-
 
 ## Why the emphasis on training?
 Investing in people and providing generous, prioritized training, especially up front, helps contributors understand what is going on at Fleet. By making training a prerequisite at Fleet, we can:
@@ -59,10 +67,10 @@ Investing in people and providing generous, prioritized training, especially up 
 
 Here are a few examples of how Fleet prioritizes training:
 - the first 3 days at the company for every new team member are reserved for working on the tasks and training in their onboarding issue.
-- during the first 2 weeks at the company, every new fleetie joins a **daily 1:1 meeting** with their manager to check in and see how they're doing, and if they have any questions or blockers.  If the manager is not available for this meeting, the CEO (pending availability) or Charlie will join this short daily meeting with them instead.
+- during the first 2 weeks at the company, every new fleetie joins a **daily 1:1 meeting** with their manager to check in and see how they're doing, and if they have any questions or blockers.  If the manager is not available for this meeting, the CEO (pending availability) or the Head of Business Operations will join this short daily meeting with them instead.
 - In their first few days, every new fleetie joins:
-  - hands-on contributor experience training session with Charlie where they share their screen, check the configuration of their tools, complete any remaining setup, and discuss best practices.
-  - a short sightseeing tour with Charlie and (pending availability) Fleet's CEO to show them around and welcome them to the company.
+  - hands-on contributor experience training session with the Head of Business Operations where they share their screen, check the configuration of their tools, complete any remaining setup, and discuss best practices.
+  - a short sightseeing tour with the Head of Business Operations and (pending availability) Fleet's CEO to show them around and welcome them to the company.
 
 
 ## Why direct responsibility?
@@ -117,6 +125,9 @@ The only exceptions are:
    - _Confidential:_ [`fleetdm/confidential`](https://github.com/fleetdm/confidential)
    - _Classified (¶¶):_ [`fleetdm/classified`](https://github.com/fleetdm/classified)
 3. **GitHub Actions:** Since GitHub requires GitHub Actions to live in dedicated repositories in order to submit them to the marketplace, Fleet uses a separate repo for publishing [GitHub Actions designed for other people to deploy and use (and/or fork)](https://github.com/fleetdm/fleet-mdm-gitops).
+4. **Software vulnerabilities:** Since GitHub only allows one latest release per repository, we currently maintain two repositories to host our CVE/CPE database releases: 
+  - _vulnerabilities:_ [`fleetdm/vulnerabilities`](https://github.com/fleetdm/vulnerabilities)
+  - _nvd:_ [`fleetdm/nvd`](https://github.com/fleetdm/nvd)
 
 
 Besides the exceptions above, Fleet does not use any other repositories.  Other GitHub repositories in `fleetdm` should be archived and made private.
@@ -131,7 +142,7 @@ Besides the exceptions above, Fleet does not use any other repositories.  Other 
 ## Why not continuously generate REST API reference docs from javadoc-style code comments?
 Here are a few of the drawbacks that we have experienced when generating docs via tools like Swagger or OpenAPI, and some of the advantages of doing it by hand with Markdown.
 
-- Markdown gives us more control over how the docs are compiled, what annotations we can include, and how we present the information to the end-user. 
+- Markdown gives us more control over how the docs are compiled, what annotations we can include, and how we [present the information to the end-user](https://x.com/wesleytodd/status/1769810305448616185?s=46&t=4_cwTxqV5IXDLBvCm8KI6Q). 
 - Markdown is more accessible. Anyone can edit Fleet's docs directly from our website without needing coding experience. 
 - A single Markdown file reduces the amount of surface area to manage that comes from spreading code comments across multiple files throughout the codebase. (see ["Why do we use one repo?"](#why-do-we-use-one-repo)).
 - Autogenerated docs can become just as outdated as handmade docs, except since they are siloed, they require more skills to edit.
@@ -247,7 +258,7 @@ For example, here is the [philosophy behind Fleet's bug report template](https:/
 
 
 ## Why don't we sell like everyone else?
-Many companies encourage salespeople to "spray and pray" email blasts, and to do whatever it takes to close deals.  This can sometimes be temporarily effective.  But Fleet takes a [🟠longer-term](https://fleetdm.com/handbook/company#ownership) approach:
+Many companies encourage salespeople to ["spray and pray"](https://www.linkedin.com/posts/amstech_the-rampant-abuse-of-linkedin-connections-activity-7178412289413246978-Ci0I?utm_source=share&utm_medium=member_ios) email blasts, and to do whatever it takes to close deals.  This can sometimes be temporarily effective.  But Fleet takes a [🟠longer-term](https://fleetdm.com/handbook/company#ownership) approach:
 - **No spam.**  Fleet is deliberate and thoughtful in the way we do outreach, whether that's for community-building, education, or [🧊 conversation-starting](https://github.com/fleetdm/confidential/blob/main/cold-outbound-strategy.md).
 - **Be a helper.**  We focus on [🔴being helpers](https://fleetdm.com/handbook/company#empathy).  Always be depositing value.  This is how we create a virtuous cycle. (That doesn't mean sharing a random article; it means genuinely hearing, doing whatever it takes to fully understand, and offering only advice or links that we would actually want.)  We are genuinely curious and desperate to help, because creating real value for people is the way we win.
 - **Engineers first.** We always talk to engineers first, and learn how it's going.  Security and IT engineers are the people closest to the work, and the people best positioned to know what their organizations need.
@@ -360,7 +371,7 @@ I held on as long as I could.  But due to volume, in late 2022, I made the decis
 
 Keep in mind I am often in meetings all day, and may not be able to reply promptly.
   
-When in doubt, you can look at my calendar and join whatever meeting I'm in.  If none of that works, and there is an emergency where you need my immediate attention, get help from Zach Wasserman.
+When in doubt, you can look at my calendar and join whatever meeting I'm in.  If none of that works, and there is an emergency where you need my immediate attention, get help from [Sam Pfluger](https://fleetdm.com/handbook/digital-experience#team).
 Thank you so much!" 🙇
 </blockquote> 
 

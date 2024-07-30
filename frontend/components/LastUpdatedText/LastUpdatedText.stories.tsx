@@ -16,7 +16,7 @@ type Story = StoryObj<typeof LastUpdatedText>;
 
 export const Basic: Story = {};
 
-export const withLastUpdatedAt: Story = {
+export const WithLastUpdatedAt: Story = {
   args: {
     lastUpdatedAt: "2021-01-01T00:00:00Z",
   },

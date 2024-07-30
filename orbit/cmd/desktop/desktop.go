@@ -11,6 +11,7 @@ import (
 
 	"fyne.io/systray"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/go-paniclog"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/profiles"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/token"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update"
@@ -58,7 +59,15 @@ func setupRunners() {
 }
 
 func main() {
+	// Orbits uses --version to get the fleet-desktop version. Logs do not need to be set up when running this.
+	if len(os.Args) > 1 && os.Args[1] == "--version" {
+		// Must work with update.GetVersion
+		fmt.Println("fleet-desktop", version)
+		return
+	}
+
 	setupLogs()
+	setupStderr()
 
 	// Our TUF provided targets must support launching with "--help".
 	if len(os.Args) > 1 && os.Args[1] == "--help" {
@@ -101,24 +110,10 @@ func main() {
 		log.Info().Msg("ready")
 
 		systray.SetTooltip("Fleet Desktop")
+
 		// Default to dark theme icon because this seems to be a better fit on Linux (Ubuntu at
 		// least). On macOS this is used as a template icon anyway.
 		systray.SetTemplateIcon(iconDark, iconDark)
-
-		// Theme detection is currently only on Windows. On macOS we use template icons (which
-		// automatically change), and on Linux we don't handle it yet (Ubuntu doesn't seem to change
-		// systray colors in the default configuration when toggling light/dark).
-		if runtime.GOOS == "windows" {
-			// Set the initial theme, and watch for theme changes.
-			theme, err := getSystemTheme()
-			if err != nil {
-				log.Error().Err(err).Msg("get system theme")
-			}
-			iconManager := newIconManager(theme)
-			go func() {
-				watchSystemTheme(iconManager)
-			}()
-		}
 
 		// Add a disabled menu item with the current version
 		versionItem := systray.AddMenuItem(fmt.Sprintf("Fleet Desktop v%s", version), "")
@@ -135,6 +130,11 @@ func main() {
 
 		transparencyItem := systray.AddMenuItem("Transparency", "")
 		transparencyItem.Disable()
+		systray.AddSeparator()
+
+		selfServiceItem := systray.AddMenuItem("Self-service", "")
+		selfServiceItem.Disable()
+		selfServiceItem.Hide()
 
 		tokenReader := token.Reader{Path: identifierPath}
 		if _, err := tokenReader.Read(); err != nil {
@@ -180,6 +180,8 @@ func main() {
 			myDeviceItem.SetTitle("Connecting...")
 			myDeviceItem.Disable()
 			transparencyItem.Disable()
+			selfServiceItem.Disable()
+			selfServiceItem.Hide()
 			migrateMDMItem.Disable()
 			migrateMDMItem.Hide()
 		}
@@ -203,6 +205,9 @@ func main() {
 						myDeviceItem.SetTitle("My device")
 						myDeviceItem.Enable()
 						transparencyItem.Enable()
+						// Hide Self-Service for Free tier
+						selfServiceItem.Disable()
+						selfServiceItem.Hide()
 						return
 					}
 
@@ -297,8 +302,17 @@ func main() {
 					<-checkToken()
 					continue
 				default:
-					log.Error().Err(err).Msg("get failing policies")
+					log.Error().Err(err).Msg("get desktop summary")
 					continue
+				}
+
+				// Check for null for backward compatibility with an old Fleet server
+				if sum.SelfService != nil && !*sum.SelfService {
+					selfServiceItem.Disable()
+					selfServiceItem.Hide()
+				} else {
+					selfServiceItem.Enable()
+					selfServiceItem.Show()
 				}
 
 				failingPolicies := 0
@@ -395,6 +409,11 @@ func main() {
 					if err := open.Browser(openURL); err != nil {
 						log.Error().Err(err).Str("url", openURL).Msg("open browser transparency")
 					}
+				case <-selfServiceItem.ClickedCh:
+					openURL := client.BrowserSelfServiceURL(tokenReader.GetCached())
+					if err := open.Browser(openURL); err != nil {
+						log.Error().Err(err).Str("url", openURL).Msg("open browser self-service")
+					}
 				case <-migrateMDMItem.ClickedCh:
 					if err := mdmMigrator.Show(); err != nil {
 						go reportError(err, nil)
@@ -420,12 +439,15 @@ type mdmMigrationHandler struct {
 }
 
 func (m *mdmMigrationHandler) NotifyRemote() error {
-	log.Debug().Msg("sending request to trigger mdm migration webhook")
+	log.Info().Msg("sending request to trigger mdm migration webhook")
+
+	// TODO: Revisit if/when we should hide the migration menu item depending on the
+	// result of the client request.
 	if err := m.client.MigrateMDM(m.tokenReader.GetCached()); err != nil {
 		log.Error().Err(err).Msg("triggering migration webhook")
 		return fmt.Errorf("on migration start: %w", err)
 	}
-	log.Debug().Msg("successfully sent request to trigger mdm migration webhook")
+	log.Info().Msg("successfully sent request to trigger mdm migration webhook")
 	return nil
 }
 
@@ -438,14 +460,12 @@ func (m *mdmMigrationHandler) ShowInstructions() error {
 	return nil
 }
 
-// setupLogs configures our logging system to write logs to rolling files and
-// stderr, if for some reason we can't write a log file the logs are still
-// printed to stderr.
+// setupLogs configures our logging system to write logs to rolling files, if for some
+// reason we can't write a log file the logs are still printed to stderr.
 func setupLogs() {
-	stderrOut := zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.RFC3339Nano, NoColor: true}
-
 	dir, err := logDir()
 	if err != nil {
+		stderrOut := zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.RFC3339Nano, NoColor: true}
 		log.Logger = log.Output(stderrOut)
 		log.Error().Err(err).Msg("find directory for logs")
 		return
@@ -454,6 +474,7 @@ func setupLogs() {
 	dir = filepath.Join(dir, "Fleet")
 
 	if err := os.MkdirAll(dir, 0o755); err != nil {
+		stderrOut := zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.RFC3339Nano, NoColor: true}
 		log.Logger = log.Output(stderrOut)
 		log.Error().Err(err).Msg("make directories for log files")
 		return
@@ -466,10 +487,40 @@ func setupLogs() {
 		MaxAge:     28, // days
 	}
 
-	log.Logger = log.Output(zerolog.MultiLevelWriter(
-		zerolog.ConsoleWriter{Out: logFile, TimeFormat: time.RFC3339Nano, NoColor: true},
-		stderrOut,
-	))
+	consoleWriter := zerolog.ConsoleWriter{Out: logFile, TimeFormat: time.RFC3339Nano, NoColor: true}
+	log.Logger = log.Output(consoleWriter)
+}
+
+// setupStderr redirects stderr output to a file.
+func setupStderr() {
+	dir, err := logDir()
+	if err != nil {
+		log.Error().Err(err).Msg("find directory for stderr")
+		return
+	}
+
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		log.Error().Err(err).Msg("make directories for stderr")
+		return
+	}
+
+	stderrFile, err := os.OpenFile(filepath.Join(dir, "Fleet", "fleet-desktop.err"), os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o666)
+	if err != nil {
+		log.Error().Err(err).Msg("create file to redirect stderr")
+		return
+	}
+	defer stderrFile.Close()
+
+	if _, err := stderrFile.Write([]byte(time.Now().UTC().Format("2006-01-02T15-04-05") + "\n")); err != nil {
+		log.Error().Err(err).Msg("write to stderr file")
+	}
+
+	// We need to use this method to properly capture golang's panic stderr output.
+	// Just setting os.Stderr to a file doesn't work (Go's runtime is probably using os.Stderr
+	// very early).
+	if _, err := paniclog.RedirectStderr(stderrFile); err != nil {
+		log.Error().Err(err).Msg("redirect stderr to file")
+	}
 }
 
 // logDir returns the default root directory to use for application-level logs.
@@ -511,30 +562,4 @@ func logDir() (string, error) {
 	}
 
 	return dir, nil
-}
-
-type iconManager struct {
-	theme theme
-}
-
-func newIconManager(theme theme) *iconManager {
-	m := &iconManager{
-		theme: theme,
-	}
-	m.UpdateTheme(theme)
-	return m
-}
-
-func (m *iconManager) UpdateTheme(theme theme) {
-	m.theme = theme
-	switch theme {
-	case themeDark:
-		systray.SetIcon(iconDark)
-	case themeLight:
-		systray.SetIcon(iconLight)
-	case themeUnknown:
-		log.Debug().Msg("theme unknown, using dark theme")
-	default:
-		log.Error().Str("theme", string(theme)).Msg("tried to set invalid theme")
-	}
 }

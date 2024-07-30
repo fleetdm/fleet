@@ -1,7 +1,6 @@
 import React, { useState, useCallback, useContext, useMemo } from "react";
 import { InjectedRouter } from "react-router";
 import { useQuery } from "react-query";
-import memoize from "memoize-one";
 
 import paths from "router/paths";
 import { IApiError } from "interfaces/errors";
@@ -19,6 +18,7 @@ import invitesAPI from "services/entities/invites";
 import { DEFAULT_CREATE_USER_ERRORS } from "utilities/constants";
 import TableContainer from "components/TableContainer";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
+import TableCount from "components/TableContainer/TableCount";
 import TableDataError from "components/DataError";
 import EmptyTable from "components/EmptyTable";
 import { generateTableHeaders, combineDataSets } from "./UsersTableConfig";
@@ -28,6 +28,13 @@ import ResetSessionsModal from "../ResetSessionsModal";
 import { NewUserType } from "../UserForm/UserForm";
 import CreateUserModal from "../CreateUserModal";
 import EditUserModal from "../EditUserModal";
+
+const EmptyUsersTable = () => (
+  <EmptyTable
+    header="No users match the current criteria"
+    info="Expecting to see users? Try again in a few seconds as the system catches up."
+  />
+);
 
 interface IUsersTableProps {
   router: InjectedRouter; // v3
@@ -95,6 +102,10 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
     }
   );
 
+  // TODO: Cleanup useCallbacks, add missing dependencies, use state setter functions, e.g.,
+  // `setShowCreateUserModal((prevState) => !prevState)`, instead of including state
+  // variables as dependencies for toggles, etc.
+
   // TOGGLE MODALS
 
   const toggleCreateUserModal = useCallback(() => {
@@ -141,40 +152,54 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
 
   // FUNCTIONS
 
-  const combineUsersAndInvites = useCallback(
-    (usersData, invitesData, currentUserId) => {
-      return combineDataSets(usersData, invitesData, currentUserId);
+  const goToAccountPage = useCallback(() => {
+    const { ACCOUNT } = paths;
+    router.push(ACCOUNT);
+  }, [router]);
+
+  const onActionSelect = useCallback(
+    (value: string, user: IUser | IInvite) => {
+      switch (value) {
+        case "edit":
+          toggleEditUserModal(user);
+          break;
+        case "delete":
+          toggleDeleteUserModal(user);
+          break;
+        case "passwordReset":
+          toggleResetPasswordUserModal(user);
+          break;
+        case "resetSessions":
+          toggleResetSessionsUserModal(user);
+          break;
+        case "editMyAccount":
+          goToAccountPage();
+          break;
+        default:
+          return null;
+      }
+      return null;
     },
-    []
+    [
+      toggleEditUserModal,
+      toggleDeleteUserModal,
+      toggleResetPasswordUserModal,
+      toggleResetSessionsUserModal,
+      goToAccountPage,
+    ]
   );
 
-  const goToUserSettingsPage = () => {
-    const { USER_SETTINGS } = paths;
-    router.push(USER_SETTINGS);
-  };
+  const onTableQueryChange = useCallback(
+    (queryData: ITableQueryData) => {
+      const { searchQuery } = queryData;
 
-  const onActionSelect = (value: string, user: IUser | IInvite) => {
-    switch (value) {
-      case "edit":
-        toggleEditUserModal(user);
-        break;
-      case "delete":
-        toggleDeleteUserModal(user);
-        break;
-      case "passwordReset":
-        toggleResetPasswordUserModal(user);
-        break;
-      case "resetSessions":
-        toggleResetSessionsUserModal(user);
-        break;
-      case "editMyAccount":
-        goToUserSettingsPage();
-        break;
-      default:
-        return null;
-    }
-    return null;
-  };
+      setQuerySearchText(searchQuery);
+
+      refetchUsers();
+      refetchInvites();
+    },
+    [refetchUsers, refetchInvites]
+  );
 
   const getUser = (type: string, id: number) => {
     let userData;
@@ -201,9 +226,12 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
       invitesAPI
         .create(requestData)
         .then(() => {
+          const senderAddressMessage = config?.smtp_settings?.sender_address
+            ? ` from ${config?.smtp_settings?.sender_address}`
+            : "";
           renderFlash(
             "success",
-            `An invitation email was sent from ${config?.smtp_settings.sender_address} to ${formData.email}.`
+            `An invitation email was sent${senderAddressMessage} to ${formData.email}.`
           );
           toggleCreateUserModal();
           refetchInvites();
@@ -218,6 +246,12 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
           ) {
             setCreateUserErrors({
               password: "Password must meet the criteria below",
+            });
+          } else if (
+            userErrors.data.errors?.[0].reason.includes("password too long")
+          ) {
+            setCreateUserErrors({
+              password: "Password is over the character limit.",
             });
           } else {
             renderFlash("error", "Could not create user. Please try again.");
@@ -251,6 +285,12 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
             setCreateUserErrors({
               password: "Password must meet the criteria below",
             });
+          } else if (
+            userErrors.data.errors?.[0].reason.includes("password too long")
+          ) {
+            setCreateUserErrors({
+              password: "Password is over the character limit.",
+            });
           } else {
             renderFlash("error", "Could not create user. Please try again.");
           }
@@ -266,7 +306,10 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
 
     let userUpdatedFlashMessage = `Successfully edited ${formData.name}`;
     if (userData?.email !== formData.email) {
-      userUpdatedFlashMessage += `: A confirmation email was sent from ${config?.smtp_settings.sender_address} to ${formData.email}`;
+      const senderAddressMessage = config?.smtp_settings?.sender_address
+        ? ` from ${config?.smtp_settings?.sender_address}`
+        : "";
+      userUpdatedFlashMessage += `: A confirmation email was sent${senderAddressMessage} to ${formData.email}`;
     }
     const userUpdatedEmailError =
       "A user with this email address already exists";
@@ -427,7 +470,7 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
         onSubmit={onEditUser}
         availableTeams={teams || []}
         isPremiumTier={isPremiumTier || false}
-        smtpConfigured={config?.smtp_settings.configured || false}
+        smtpConfigured={config?.smtp_settings?.configured || false}
         sesConfigured={config?.email?.backend === "ses" || false}
         canUseSso={config?.sso_settings.enable_sso || false}
         isSsoEnabled={userData?.sso_enabled}
@@ -447,10 +490,10 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
         onCancel={toggleCreateUserModal}
         onSubmit={onCreateUserSubmit}
         availableTeams={teams || []}
-        defaultGlobalRole={"observer"}
+        defaultGlobalRole="observer"
         defaultTeams={[]}
         isPremiumTier={isPremiumTier || false}
-        smtpConfigured={config?.smtp_settings.configured || false}
+        smtpConfigured={config?.smtp_settings?.configured || false}
         sesConfigured={config?.email?.backend === "ses" || false}
         canUseSso={config?.sso_settings.enable_sso || false}
         isUpdatingUsers={isUpdatingUsers}
@@ -490,9 +533,9 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
     );
   };
 
-  const tableHeaders = generateTableHeaders(
-    onActionSelect,
-    isPremiumTier || false
+  const tableHeaders = useMemo(
+    () => generateTableHeaders(onActionSelect, isPremiumTier || false),
+    [onActionSelect, isPremiumTier]
   );
 
   const loadingTableData =
@@ -502,72 +545,47 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
 
   const tableData = useMemo(
     () =>
-      !loadingTableData && !tableDataError
-        ? combineUsersAndInvites(users, invites, currentUser?.id)
+      !loadingTableData &&
+      !tableDataError &&
+      users &&
+      invites &&
+      currentUser?.id
+        ? combineDataSets(users, invites, currentUser.id)
         : [],
-    [
-      loadingTableData,
-      tableDataError,
-      users,
-      invites,
-      currentUser?.id,
-      combineUsersAndInvites,
-    ]
+    [loadingTableData, tableDataError, users, invites, currentUser?.id]
   );
 
-  const renderTable = useCallback(() => {
-    // NOTE: this is called once on the initial rendering. The initial render of
-    // the TableContainer child component calls this handler.
-    const onTableQueryChange = (queryData: ITableQueryData) => {
-      const { searchQuery } = queryData;
-
-      setQuerySearchText(searchQuery);
-
-      refetchUsers();
-      refetchInvites();
-    };
-
-    const emptyState = {
-      header: "No users match the current criteria.",
-      info:
-        "Expecting to see users? Try again in a few seconds as the system catches up.",
-    };
-
-    return (
-      <TableContainer
-        columns={tableHeaders}
-        data={tableData}
-        isLoading={loadingTableData}
-        defaultSortHeader={"name"}
-        defaultSortDirection={"asc"}
-        inputPlaceHolder={"Search by name or email"}
-        actionButton={{
-          name: "create user",
-          buttonText: "Create user",
-          onActionButtonClick: toggleCreateUserModal,
-        }}
-        onQueryChange={onTableQueryChange}
-        resultsTitle={"users"}
-        emptyComponent={() => EmptyTable(emptyState)}
-        searchable
-        showMarkAllPages={false}
-        isAllPagesSelected={false}
-        isClientSidePagination
-      />
-    );
-  }, [
-    tableHeaders,
-    tableData,
-    loadingTableData,
-    toggleCreateUserModal,
-    refetchUsers,
-    refetchInvites,
-  ]);
+  const renderUsersCount = useCallback(() => {
+    return <TableCount name="users" count={users?.length} />;
+  }, [users?.length]);
 
   return (
     <>
-      {/* TODO: find a way to move these controls into the table component */}
-      {tableDataError ? <TableDataError /> : renderTable()}
+      {tableDataError ? (
+        <TableDataError />
+      ) : (
+        <TableContainer
+          columnConfigs={tableHeaders}
+          data={tableData}
+          isLoading={loadingTableData}
+          defaultSortHeader="name"
+          defaultSortDirection="asc"
+          inputPlaceHolder="Search by name or email"
+          actionButton={{
+            name: "create user",
+            buttonText: "Create user",
+            onActionButtonClick: toggleCreateUserModal,
+          }}
+          onQueryChange={onTableQueryChange}
+          resultsTitle={"users"}
+          emptyComponent={EmptyUsersTable}
+          searchable
+          showMarkAllPages={false}
+          isAllPagesSelected={false}
+          isClientSidePagination
+          renderCount={renderUsersCount}
+        />
+      )}
       {showCreateUserModal && renderCreateUserModal()}
       {showEditUserModal && renderEditUserModal()}
       {showDeleteUserModal && renderDeleteUserModal()}

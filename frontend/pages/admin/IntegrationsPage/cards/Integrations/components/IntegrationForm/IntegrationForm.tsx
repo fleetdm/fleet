@@ -5,7 +5,7 @@ import {
   IIntegrationFormData,
   IIntegrationTableData,
   IIntegration,
-  IIntegrations,
+  IZendeskJiraIntegrations,
   IIntegrationType,
 } from "interfaces/integration";
 
@@ -15,6 +15,7 @@ import InputField from "components/forms/fields/InputField";
 import validUrl from "components/forms/validators/valid_url";
 
 import Spinner from "components/Spinner";
+import { COLORS } from "styles/var/colors";
 
 const baseClass = "integration-form";
 
@@ -25,7 +26,7 @@ interface IIntegrationFormProps {
     integrationDestination: string
   ) => void;
   integrationEditing?: IIntegrationTableData;
-  integrations: IIntegrations;
+  integrations: IZendeskJiraIntegrations;
   integrationEditingUrl?: string;
   integrationEditingUsername?: string;
   integrationEditingEmail?: string;
@@ -88,7 +89,7 @@ const IntegrationForm = ({
   const validateForm = () => {
     let error = null;
 
-    if (url && !validUrl({ url, protocol: "https" })) {
+    if (url && !validUrl({ url, protocols: ["https"] })) {
       error = `${url} is not a valid HTTPS URL`;
     }
 
@@ -274,7 +275,7 @@ const IntegrationForm = ({
                     formData.apiToken === "" ||
                     formData.groupId === 0)
               }
-              className={"tooltip"}
+              className="tooltip"
             >
               <Button
                 type="submit"
@@ -300,7 +301,7 @@ const IntegrationForm = ({
               className={`add-integration-tooltip`}
               place="bottom"
               effect="solid"
-              backgroundColor="#3e4771"
+              backgroundColor={COLORS["tooltip-bg"]}
               id="add-integration-button"
               data-html
             >

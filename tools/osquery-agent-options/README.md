@@ -1,10 +1,12 @@
 # osquery-agent-options
 
-This directory contains a script (a Go command) that generates the struct needed to unmarshal the Agent Options' `options` values that the current version of osquery supports. It extracts this information from `osqueryd --help` to identify which osquery command-line flags can be set via the options and which are only for the command-line (i.e. require a restart), and running a query in `osqueryi` to get the data type of those options.
+This directory contains a script (a Go command) that generates the struct needed to unmarshal the Agent Options' `options` values that the current version of osquery supports. It extracts this information from `osqueryd --help` to identify which osquery command-line flags can be set via the options and which are only for the command-line (i.e. require a restart), and running a query in `osqueryi` (`osqueryd -S`) to get the data type of those options.
 
-It prints the resulting Go code to stdout (the `osqueryOptions` and the `osqueryCommandLineFlags` structs), you can just copy it and insert it in the proper location in the source code to replace the existing struct (in `server/fleet/agent_options.go`).
+It writes the resulting Go code to stdout (the `osqueryOptions` and the `osqueryCommandLineFlags` structs) to a file provided as argument.
 
-Note that the latest version of osquery should be installed for this tool to work properly (`osqueryd` and `osqueryi` must be in your $PATH).
+This command only supports macOS.
+
+Whenever there's a new version of osquery, just update the variable `osqueryVersion`.
 
 ## OS-specific flags
 
@@ -15,7 +17,7 @@ It can be hard to even know what OS-specific flags exist, because of the fact th
 ```
 # ag is the Silver Searcher, a grep alternative, but it should work with grep too, maybe
 # with some small adjustments to the flags.
-$ ag --nofilename -o 'FLAGS_[a-z0-9_]+' | sort | uniq | cut -d _ --complement -f 1
+$ ag --nofilename -o 'FLAGS_[a-z0-9_]+' ./osquery/ ./plugins/ | sort | uniq | gcut -d _ --complement -f 1
 ```
 
 This finds all flags defined in the osquery codebase (assuming all flags are built the same way). It is then possible to run a diff of this list with the list from the `osqueryi` query (e.g. `osqueryi --list 'select name from osquery_flags;'`), and the missing ones are _possibly/likely_ OS-specific. It's not an automatable task, as some judgement and manual code inspection may be necessary (some flags may be just in a test file, there may be some false-positives like `FLAGS_start` and `FLAGS_end` that are only sentinel values, the code line may be commented-out, etc.), but at least it gives a list of potential such flags.

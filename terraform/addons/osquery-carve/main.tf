@@ -9,11 +9,6 @@ resource "aws_s3_bucket" "main" { #tfsec:ignore:aws-s3-encryption-customer-key:e
   bucket = var.osquery_carve_s3_bucket.name
 }
 
-resource "aws_s3_bucket_acl" "main" {
-  bucket = aws_s3_bucket.main.bucket
-  acl    = "private"
-}
-
 resource "aws_s3_bucket_lifecycle_configuration" "main" {
   bucket = aws_s3_bucket.main.bucket
   rule {

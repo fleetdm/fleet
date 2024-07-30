@@ -14,16 +14,17 @@ describe("QueryReport", () => {
           {
             host_id: 1,
             host_name: "host1",
-            last_fetched: "2021-01-01",
+            last_fetched: "2020-01-01",
             columns: { col1: "value1", col2: "value2" },
           },
           {
             host_id: 2,
             host_name: "host2",
-            last_fetched: "2021-01-01",
+            last_fetched: "2020-01-01",
             columns: { col1: "value3", col2: "value4" },
           },
         ],
+        report_clipped: false,
       },
     ];
     render(<QueryReport {...{ isClipped, queryReport }} />);
@@ -56,6 +57,7 @@ describe("QueryReport", () => {
             },
           },
         ],
+        report_clipped: false,
       },
     ];
     render(<QueryReport {...{ isClipped, queryReport }} />);
@@ -83,6 +85,7 @@ describe("QueryReport", () => {
             columns: { col1: "value1", col2: "value2" },
           },
         ],
+        report_clipped: true,
       },
     ];
     render(<QueryReport {...{ isClipped, queryReport }} />);

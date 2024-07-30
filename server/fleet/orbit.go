@@ -33,13 +33,41 @@ type OrbitConfigNotifications struct {
 	// EnforceBitLockerEncryption is sent as true if Windows MDM is
 	// enabled and the device should encrypt its disk volumes with BitLocker.
 	EnforceBitLockerEncryption bool `json:"enforce_bitlocker_encryption,omitempty"`
+
+	// PendingSoftwareInstallerIDs contains a list of software install_ids queued for installation
+	PendingSoftwareInstallerIDs []string `json:"pending_software_installer_ids,omitempty"`
 }
 
 type OrbitConfig struct {
-	Flags         json.RawMessage          `json:"command_line_startup_flags,omitempty"`
-	Extensions    json.RawMessage          `json:"extensions,omitempty"`
-	NudgeConfig   *NudgeConfig             `json:"nudge_config,omitempty"`
-	Notifications OrbitConfigNotifications `json:"notifications,omitempty"`
+	ScriptExeTimeout int                      `json:"script_execution_timeout,omitempty"`
+	Flags            json.RawMessage          `json:"command_line_startup_flags,omitempty"`
+	Extensions       json.RawMessage          `json:"extensions,omitempty"`
+	NudgeConfig      *NudgeConfig             `json:"nudge_config,omitempty"`
+	Notifications    OrbitConfigNotifications `json:"notifications,omitempty"`
+	// UpdateChannels contains the TUF channels to use on fleetd components.
+	//
+	// If UpdateChannels is nil it means the server isn't using/setting this feature.
+	UpdateChannels *OrbitUpdateChannels `json:"update_channels,omitempty"`
+}
+
+type OrbitConfigReceiver interface {
+	Run(*OrbitConfig) error
+}
+
+type OrbitConfigReceiverFunc func(cfg *OrbitConfig) error
+
+func (f OrbitConfigReceiverFunc) Run(cfg *OrbitConfig) error {
+	return f(cfg)
+}
+
+// OrbitUpdateChannels hold the update channels that can be configured in fleetd agents.
+type OrbitUpdateChannels struct {
+	// Orbit holds the orbit channel.
+	Orbit string `json:"orbit"`
+	// Osqueryd holds the osqueryd channel.
+	Osqueryd string `json:"osqueryd"`
+	// Desktop holds the Fleet Desktop channel.
+	Desktop string `json:"desktop"`
 }
 
 // OrbitHostInfo holds device information used during Orbit enroll.
@@ -53,6 +81,12 @@ type OrbitHostInfo struct {
 	Hostname string
 	// Platform is the device's platform as defined by osquery.
 	Platform string
+	// OsqueryIdentifier holds the identifier that osqueryd will use in its enrollment.
+	// This is mainly used for scenarios where hosts have duplicate hardware UUID (e.g. VMs)
+	// and a different identifier is used for each host (e.g. osquery's "instance" flag).
+	//
+	// If not set, then the HardwareUUID is used/set as the osquery identifier.
+	OsqueryIdentifier string
 }
 
 // ExtensionInfo holds the data of a osquery extension to apply to an Orbit client.

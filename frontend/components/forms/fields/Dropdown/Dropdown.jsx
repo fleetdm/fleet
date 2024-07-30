@@ -7,6 +7,7 @@ import Select from "react-select";
 import dropdownOptionInterface from "interfaces/dropdownOption";
 import FormField from "components/forms/FormField";
 import Icon from "components/Icon";
+import DropdownOptionTooltipWrapper from "./DropdownOptionTooltipWrapper";
 
 const baseClass = "dropdown";
 
@@ -37,6 +38,11 @@ class Dropdown extends Component {
     autoFocus: PropTypes.bool,
     /** Includes styled filter icon */
     tableFilterDropdown: PropTypes.bool,
+    helpText: PropTypes.oneOfType([
+      PropTypes.string,
+      PropTypes.arrayOf(PropTypes.string),
+      PropTypes.object,
+    ]),
   };
 
   static defaultProps = {
@@ -104,6 +110,20 @@ class Dropdown extends Component {
   };
 
   renderOption = (option) => {
+    if (option.tooltipContent) {
+      return (
+        <DropdownOptionTooltipWrapper tipContent={option.tooltipContent}>
+          <div className={`${baseClass}__option`}>
+            {option.label}
+            {option.helpText && (
+              <span className={`${baseClass}__help-text`}>
+                {option.helpText}
+              </span>
+            )}
+          </div>
+        </DropdownOptionTooltipWrapper>
+      );
+    }
     return (
       <div className={`${baseClass}__option`}>
         {option.label}
@@ -163,7 +183,7 @@ class Dropdown extends Component {
     } = this.props;
 
     const formFieldProps = pick(this.props, [
-      "hint",
+      "helpText",
       "label",
       "error",
       "name",

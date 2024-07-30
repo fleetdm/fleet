@@ -11,9 +11,11 @@ import { IMdmApple } from "interfaces/mdm";
 import PATHS from "router/paths";
 
 import Spinner from "components/Spinner";
+import SectionHeader from "components/SectionHeader";
+
 import EndUserMigrationSection from "./components/EndUserMigrationSection/EndUserMigrationSection";
 import WindowsMdmCard from "./components/WindowsMdmCard/WindowsMdmCard";
-import MacOSMdmCard from "./components/MacOSMdmCard/MacOSMdmCard";
+import AppleMdmCard from "./components/AppleMdmCard/AppleMdmCard";
 
 const baseClass = "mdm-settings";
 
@@ -35,14 +37,20 @@ const MdmSettings = ({ router }: IMdmSettingsProps) => {
     ["appleAPNInfo"],
     () => mdmAppleAPI.getAppleAPNInfo(),
     {
-      retry: (tries, error) => error.status !== 404 && tries <= 3,
-      enabled: config?.mdm.enabled_and_configured,
+      retry: (tries, error) =>
+        error.status !== 404 && error.status !== 400 && tries <= 3,
+      // TODO: There is a potential race condition here immediately after MDM is turned off. This
+      // component gets remounted and stale config data is used to determine it this API call is
+      // enabled, resulting in a 400 response. The race really should  be fixed higher up the chain where
+      // we're fetching and setting the config, but for now we'll just assume that any 400 response
+      // means that MDM is not enabled and we'll show the "Turn on MDM" button.
+      enabled: !!config?.mdm.enabled_and_configured,
       staleTime: 5000,
     }
   );
 
-  const navigateToMacOSMdm = () => {
-    router.push(PATHS.ADMIN_INTEGRATIONS_MDM_MAC);
+  const navigateToAppleMdm = () => {
+    router.push(PATHS.ADMIN_INTEGRATIONS_MDM_APPLE);
   };
 
   const navigateToWindowsMdm = () => {
@@ -51,26 +59,23 @@ const MdmSettings = ({ router }: IMdmSettingsProps) => {
 
   return (
     <div className={baseClass}>
-      <div className={`${baseClass}__section ${baseClass}__mdm-section`}>
-        <h2>Mobile device management (MDM)</h2>
+      <div className={`${baseClass}__section`}>
+        <SectionHeader title="Mobile device management (MDM)" />
         {isLoadingMdmApple ? (
           <Spinner />
         ) : (
-          <>
-            <MacOSMdmCard
+          <div className={`${baseClass}__section ${baseClass}__mdm-section`}>
+            <AppleMdmCard
               appleAPNInfo={appleAPNInfo}
               errorData={errorMdmApple}
-              turnOnMacOSMdm={navigateToMacOSMdm}
-              viewDetails={navigateToMacOSMdm}
+              turnOnAppleMdm={navigateToAppleMdm}
+              viewDetails={navigateToAppleMdm}
             />
-            {/* TODO: remove conditional rendering when windows MDM is released. */}
-            {config?.mdm_enabled && (
-              <WindowsMdmCard
-                turnOnWindowsMdm={navigateToWindowsMdm}
-                editWindowsMdm={navigateToWindowsMdm}
-              />
-            )}
-          </>
+            <WindowsMdmCard
+              turnOnWindowsMdm={navigateToWindowsMdm}
+              editWindowsMdm={navigateToWindowsMdm}
+            />
+          </div>
         )}
       </div>
       {isPremiumTier && appleAPNInfo && (

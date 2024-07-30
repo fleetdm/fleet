@@ -1,7 +1,6 @@
-import React, { useContext } from "react";
+import React from "react";
 import { useQuery } from "react-query";
 
-import { AppContext } from "context/app";
 import mdmAPI, { IDiskEncryptionSummaryResponse } from "services/entities/mdm";
 
 import TableContainer from "components/TableContainer";
@@ -20,8 +19,6 @@ interface IDiskEncryptionTableProps {
 }
 
 const DiskEncryptionTable = ({ currentTeamId }: IDiskEncryptionTableProps) => {
-  const { config } = useContext(AppContext);
-
   const {
     data: diskEncryptionStatusData,
     error: diskEncryptionStatusError,
@@ -34,15 +31,8 @@ const DiskEncryptionTable = ({ currentTeamId }: IDiskEncryptionTableProps) => {
     }
   );
 
-  // TODO: WINDOWS FEATURE FLAG: remove this when windows feature flag is removed.
-  // this is used to conditianlly show "View all hosts" link in table cells.
-  const windowsFeatureFlagEnabled = config?.mdm_enabled ?? false;
-  const tableHeaders = generateTableHeaders(windowsFeatureFlagEnabled);
-  const tableData = generateTableData(
-    windowsFeatureFlagEnabled,
-    diskEncryptionStatusData,
-    currentTeamId
-  );
+  const tableHeaders = generateTableHeaders();
+  const tableData = generateTableData(diskEncryptionStatusData, currentTeamId);
 
   if (diskEncryptionStatusError) {
     return <DataError />;
@@ -53,7 +43,7 @@ const DiskEncryptionTable = ({ currentTeamId }: IDiskEncryptionTableProps) => {
   return (
     <div className={baseClass}>
       <TableContainer
-        columns={tableHeaders}
+        columnConfigs={tableHeaders}
         data={tableData}
         resultsTitle="" // TODO: make optional
         isLoading={false}
@@ -65,7 +55,7 @@ const DiskEncryptionTable = ({ currentTeamId }: IDiskEncryptionTableProps) => {
         disableCount
         emptyComponent={() => (
           <EmptyTable
-            header="No Disk Encryption Status"
+            header="No disk encryption status"
             info="Expecting to status data? Try again in a few seconds as the system
               catches up."
           />

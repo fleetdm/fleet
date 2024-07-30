@@ -3,31 +3,18 @@
 // definitions for the selection row for some reason when we dont really need it.
 import React from "react";
 
-import {
-  CellProps,
-  Column,
-  ColumnInstance,
-  ColumnInterface,
-  HeaderProps,
-  TableInstance,
-} from "react-table";
+import { CellProps, Column, HeaderProps } from "react-table";
 
 import DefaultColumnFilter from "components/TableContainer/DataTable/DefaultColumnFilter";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
-import { internallyTruncateText } from "utilities/helpers";
+import {
+  getSortTypeFromColumnType,
+  getUniqueColumnNamesFromRows,
+  internallyTruncateText,
+} from "utilities/helpers";
+import { IQueryTableColumn } from "interfaces/osquery_table";
 
-type IHeaderProps = HeaderProps<TableInstance> & {
-  column: ColumnInstance & IDataColumn;
-};
-
-type ICellProps = CellProps<TableInstance>;
-
-interface IDataColumn extends ColumnInterface {
-  title?: string;
-  accessor: string;
-}
-
-const _unshiftHostname = (columns: IDataColumn[]) => {
+const _unshiftHostname = <T extends object>(columns: Column<T>[]) => {
   const newHeaders = [...columns];
   const displayNameIndex = columns.findIndex(
     (h) => h.id === "host_display_name"
@@ -36,7 +23,7 @@ const _unshiftHostname = (columns: IDataColumn[]) => {
     // remove hostname header from headers
     const [displayNameHeader] = newHeaders.splice(displayNameIndex, 1);
     // reformat title and insert at start of headers array
-    newHeaders.unshift({ ...displayNameHeader, title: "Host" });
+    newHeaders.unshift({ ...displayNameHeader, id: "Host" });
   }
   // TODO: Remove after v5 when host_hostname is removed rom API response.
   const hostNameIndex = columns.findIndex((h) => h.id === "host_hostname");
@@ -47,34 +34,24 @@ const _unshiftHostname = (columns: IDataColumn[]) => {
   return newHeaders;
 };
 
-const generateColumnConfigsFromRows = (
+const generateColumnConfigsFromRows = <T extends Record<keyof T, unknown>>(
   // TODO - narrow typing down this entire chain of logic
   // typed as any[] to accomodate loose typing of websocket API
-  results: any[] // {col:val, ...} for each row of query results
-): Column[] => {
-  const uniqueColumnNames = Array.from(
-    results.reduce(
-      (accOuter, row) =>
-        Object.keys(row).reduce(
-          (accInner, colNameInRow) => accInner.add(colNameInRow),
-          accOuter
-        ),
-      new Set() // Set prevents listing duplicate headers
-    )
-  );
-
-  const columnsConfigs = uniqueColumnNames.map((colName) => {
+  results: T[], // {col:val, ...} for each row of query results
+  tableColumns?: IQueryTableColumn[] | []
+): Column<T>[] => {
+  const uniqueColumnNames = getUniqueColumnNamesFromRows(results);
+  const columnsConfigs = uniqueColumnNames.map<Column<T>>((colName) => {
     return {
       id: colName as string,
-      title: colName as string,
-      Header: (headerProps: IHeaderProps) => (
+      Header: (headerProps: HeaderProps<T>) => (
         <HeaderCell
-          value={headerProps.column.title || headerProps.column.id}
+          value={headerProps.column.id}
           isSortedDesc={headerProps.column.isSortedDesc}
         />
       ),
-      accessor: colName as string,
-      Cell: (cellProps: ICellProps) => {
+      accessor: (data) => data[colName],
+      Cell: (cellProps: CellProps<T>) => {
         const val = cellProps?.cell?.value;
         return !!val?.length && val.length > 300
           ? internallyTruncateText(val)
@@ -82,6 +59,7 @@ const generateColumnConfigsFromRows = (
       },
       Filter: DefaultColumnFilter,
       disableSortBy: false,
+      sortType: getSortTypeFromColumnType(colName, tableColumns),
     };
   });
   return _unshiftHostname(columnsConfigs);

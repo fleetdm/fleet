@@ -56,6 +56,15 @@ var windowsWixTemplate = template.Must(template.New("").Option("missingkey=error
 
     <Property Id="FLEET_URL" Value="{{ if .FleetURL }}{{ .FleetURL }}{{ end }}"/>
     <Property Id="FLEET_SECRET" Value="dummy"/>
+    <Property Id="ENABLE_SCRIPTS" Value="{{ if .EnableScripts }}True{{ else }}False{{ end }}"/>
+	<Property Id="FLEET_DESKTOP" Value="{{ if .Desktop }}True{{ else }}False{{ end }}"/>
+	{{ $endUserEmailArg := "" }}
+    {{ if .EnableEndUserEmailProperty }}
+		<Property Id="END_USER_EMAIL" Value="{{ if .EndUserEmail }}{{ .EndUserEmail }}{{ else }}dummy{{end}}"/>
+		{{ $endUserEmailArg = " --end-user-email=\"[END_USER_EMAIL]\"" }}
+    {{ else if .EndUserEmail }}
+		{{ $endUserEmailArg = printf " --end-user-email \"%s\"" .EndUserEmail }}
+    {{ end }}
 
     <MediaTemplate EmbedCab="yes" />
 
@@ -99,7 +108,7 @@ var windowsWixTemplate = template.Must(template.New("").Option("missingkey=error
                   Start="auto"
                   Type="ownProcess"
                   Description="This service runs Fleet's osquery runtime and autoupdater (Orbit)."
-                  Arguments='--root-dir "[ORBITROOT]." --log-file "[System64Folder]config\systemprofile\AppData\Local\FleetDM\Orbit\Logs\orbit-osquery.log" --fleet-url "[FLEET_URL]"{{ if .FleetCertificate }} --fleet-certificate "[ORBITROOT]fleet.pem"{{ end }}{{ if .EnrollSecret }} --enroll-secret-path "[ORBITROOT]secret.txt"{{ end }}{{if .Insecure }} --insecure{{ end }}{{ if .Debug }} --debug{{ end }}{{ if .UpdateURL }} --update-url "{{ .UpdateURL }}"{{ end }}{{ if .UpdateTLSServerCertificate }} --update-tls-certificate "[ORBITROOT]update.pem"{{ end }}{{ if .DisableUpdates }} --disable-updates{{ end }}{{ if .Desktop }} --fleet-desktop --desktop-channel {{ .DesktopChannel }}{{ if .FleetDesktopAlternativeBrowserHost }} --fleet-desktop-alternative-browser-host {{ .FleetDesktopAlternativeBrowserHost }}{{ end }}{{ end }} --orbit-channel "{{ .OrbitChannel }}" --osqueryd-channel "{{ .OsquerydChannel }}" {{ if .EnableScripts }} --enable-scripts{{ end }}'
+                  Arguments='--root-dir "[ORBITROOT]." --log-file "[System64Folder]config\systemprofile\AppData\Local\FleetDM\Orbit\Logs\orbit-osquery.log" --fleet-url "[FLEET_URL]"{{ if .FleetCertificate }} --fleet-certificate "[ORBITROOT]fleet.pem"{{ end }}{{ if .EnrollSecret }} --enroll-secret-path "[ORBITROOT]secret.txt"{{ end }}{{if .Insecure }} --insecure{{ end }}{{ if .Debug }} --debug{{ end }}{{ if .UpdateURL }} --update-url "{{ .UpdateURL }}"{{ end }}{{ if .UpdateTLSServerCertificate }} --update-tls-certificate "[ORBITROOT]update.pem"{{ end }}{{ if .DisableUpdates }} --disable-updates{{ end }} --fleet-desktop="[FLEET_DESKTOP]" --desktop-channel {{ .DesktopChannel }}{{ if .FleetDesktopAlternativeBrowserHost }} --fleet-desktop-alternative-browser-host {{ .FleetDesktopAlternativeBrowserHost }}{{ end }} --orbit-channel "{{ .OrbitChannel }}" --osqueryd-channel "{{ .OsquerydChannel }}" --enable-scripts="[ENABLE_SCRIPTS]" {{ if and (ne .HostIdentifier "") (ne .HostIdentifier "uuid") }}--host-identifier={{ .HostIdentifier }}{{ end }}{{ $endUserEmailArg }}{{ if .OsqueryDB }} --osquery-db="{{ .OsqueryDB }}"{{ end }}'
                 >
                   <util:ServiceConfig
                     FirstFailureActionType="restart"
@@ -157,7 +166,7 @@ var windowsWixTemplate = template.Must(template.New("").Option("missingkey=error
                   DllEntry="WixQuietExec64"
                   Execute="deferred"
                   Return="check"
-                  Impersonate="no" />                    
+                  Impersonate="no" />
 
    <SetProperty Id="CA_WaitOrbit"
                  Before ="CA_WaitOrbit"
@@ -265,7 +274,7 @@ var windowsPSInstallerUtils = template.Must(template.New("").Option("missingkey=
   [switch] $uninstallOsquery = $false,
   [switch] $uninstallOrbit = $false,
   [switch] $stopOrbit = $false,
-  [string] $updateSecret = "",  
+  [string] $updateSecret = "",
   [switch] $help = $false
 )
 
@@ -464,8 +473,8 @@ public class RegistryUtils
 
 Add-Type -TypeDefinition $code -Language CSharp
 
-function Test-Administrator  
-{  
+function Test-Administrator
+{
     [OutputType([bool])]
     param()
     process {
@@ -476,7 +485,7 @@ function Test-Administrator
 
 function Do-Help {
   $programName = (Get-Item $PSCommandPath ).Name
-  
+
   Write-Host "Usage: $programName (-uninstallOsquery|-uninstallOrbit|-stopOrbit|-updateSecret|-help)" -foregroundcolor Yellow
   Write-Host ""
   Write-Host "  Only one of the following options can be used. Using multiple will result in "
@@ -484,9 +493,9 @@ function Do-Help {
   Write-Host "    -uninstallOsquery         Uninstall Osquery"
   Write-Host "    -uninstallOrbit           Uninstall Orbit"
   Write-Host "    -stopOrbit                Stop Orbit"
-  Write-Host "    -updateSecret <secret>    Update Orbit secret"  
+  Write-Host "    -updateSecret <secret>    Update Orbit secret"
   Write-Host "    -help                     Shows this help screen"
-  
+
   Exit 1
 }
 
@@ -510,10 +519,10 @@ function Resolve-Error-Detailed($ErrorRecord = $Error[0]) {
 function Stop-Osquery {
 
   $kServiceName = "osqueryd"
-  
+
   # Stop Service
-  Stop-Service -Name $kServiceName -ErrorAction "Continue" 
-  Start-Sleep -Milliseconds 1000 
+  Stop-Service -Name $kServiceName -ErrorAction "Continue"
+  Start-Sleep -Milliseconds 1000
 
   # Ensure that no process left running
   Get-Process -Name $kServiceName -ErrorAction "SilentlyContinue" | Stop-Process -Force
@@ -539,11 +548,11 @@ function Update-OrbitSecret {
   # Ensuring secret file is not empty
   if (-not ([string]::IsNullOrEmpty($updateSecret)) -and ($updateSecret -ne "dummy"))
   {
-    Write-Host "Updating secret"    
-    $targetSecretFile = $Env:Programfiles + "\\Orbit\\secret.txt"    
+    Write-Host "Updating secret"
+    $targetSecretFile = $Env:Programfiles + "\\Orbit\\secret.txt"
     Set-Content -NoNewline -Path $targetSecretFile -Value $updateSecret
 
-    Start-Sleep -Milliseconds 1000    
+    Start-Sleep -Milliseconds 1000
   }
 }
 
@@ -568,11 +577,11 @@ function Force-Remove-Orbit {
 
     #Remove HKLM registry entries
     Get-ChildItem "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall" -Recurse  -ErrorAction "SilentlyContinue" |  Where-Object {($_.ValueCount -gt 0)} | ForEach-Object {
-      
+
       # Filter for osquery entries
-      $properties = Get-ItemProperty $_.PSPath  -ErrorAction "SilentlyContinue" |  Where-Object {($_.DisplayName -eq "Fleet osquery")}     
+      $properties = Get-ItemProperty -LiteralPath $_.PSPath  -ErrorAction "SilentlyContinue" |  Where-Object {($_.DisplayName -eq "Fleet osquery")}
       if ($properties) {
-      
+
         #Remove Registry Entries
         $regKey = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\" + $_.PSChildName
 
@@ -582,14 +591,14 @@ function Force-Remove-Orbit {
       }
     }
   }
-  catch { 
+  catch {
     Write-Host "There was a problem running Force-Remove-Orbit" -ForegroundColor Red
     Write-Host "====================================="
     Write-Host "$(Resolve-Error-Detailed)"
     Write-Host "====================================="
     return $false
   }
-  
+
   return $true
 }
 
@@ -610,28 +619,28 @@ function Force-Remove-Osquery {
 
     #Remove HKLM registry entries and disk footprint
     Get-ChildItem "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall" -Recurse -ErrorAction "SilentlyContinue" |  Where-Object {($_.ValueCount -gt 0)} | ForEach-Object {
-      
+
       # Filter for osquery entries
-      $properties = Get-ItemProperty $_.PSPath -ErrorAction "SilentlyContinue" |  Where-Object {($_.DisplayName -eq "osquery")}     
+      $properties = Get-ItemProperty -LiteralPath $_.PSPath -ErrorAction "SilentlyContinue" |  Where-Object {($_.DisplayName -eq "osquery")}
       if ($properties) {
 
-        #Remove files from osquery location 
+        #Remove files from osquery location
         if ($properties.InstallLocation){
           Remove-Item -LiteralPath $properties.InstallLocation -Force -Recurse -ErrorAction "SilentlyContinue"
         }
-        
+
         #Remove Registry Entries
         $regKey = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\" + $_.PSChildName
         Get-Item $regKey -ErrorAction "SilentlyContinue" | Remove-Item -Force -ErrorAction "SilentlyContinue"
 
         return
       }
-    }   
+    }
 
     #Remove user entries if present
     [RegistryUtils]::RemoveOsqueryInstallationFromUserHives()
   }
-  catch { 
+  catch {
     Write-Host "There was a problem running Force-Remove-Osquery" -ForegroundColor Red
     Write-Host "====================================="
     Write-Host "$(Resolve-Error-Detailed)"
@@ -657,40 +666,40 @@ function Graceful-Product-Uninstall($productName) {
     } elseif ($productName -eq "osquery") {
       Stop-Osquery
     }
-  
+
     # Grabbing the location of msiexec.exe
     $targetBinPath = Resolve-Path "$env:windir\system32\msiexec.exe"
     if (!(Test-Path $targetBinPath)) {
       Write-Host "msiexec.exe cannot be located." -foregroundcolor Yellow
       return $false
     }
-  
+
     # Creating a COM instance of the WindowsInstaller.Installer COM object
     $Installer = New-Object -ComObject WindowsInstaller.Installer
     if (!$Installer) {
       Write-Host "There was a problem retrieving the installed packages." -foregroundcolor Yellow
       return $false
     }
-  
+
     # Enumerating the installed packages
     $ProductEnumFlag = 7 #installed packaged enumeration flag
-    $InstallerProducts = $Installer.ProductsEx("", "", $ProductEnumFlag); 
+    $InstallerProducts = $Installer.ProductsEx("", "", $ProductEnumFlag);
     if (!$InstallerProducts) {
       Write-Host "Installed packages cannot be retrieved." -foregroundcolor Yellow
       return $false
     }
-  
+
     # Iterating over the installed packages results and checking for osquery package
     ForEach ($Product in $InstallerProducts) {
-  
+
         $ProductCode = $null
         $VersionString = $null
         $ProductPath = $null
-  
+
         $ProductCode = $Product.ProductCode()
         $VersionString = $Product.InstallProperty("VersionString")
         $ProductPath = $Product.InstallProperty("ProductName")
-  
+
         if ($ProductPath -like $productName) {
           Write-Host "Graceful uninstall of $ProductPath version $VersionString."  -foregroundcolor Cyan
           $InstallProcess = Start-Process $targetBinPath -ArgumentList "/quiet /x $ProductCode" -PassThru -Verb RunAs -Wait
@@ -703,12 +712,12 @@ function Graceful-Product-Uninstall($productName) {
         }
     }
   }
-  catch { 
+  catch {
     Write-Host "There was a problem running Graceful-Product-Uninstall" -ForegroundColor Red
     Write-Host "====================================="
     Write-Host "$(Resolve-Error-Detailed)"
     Write-Host "====================================="
-  }    
+  }
 
   return $false
 }
@@ -727,30 +736,30 @@ function Main {
     if ($help) {
       Do-Help
       Exit -1
-    } 
-      
+    }
+
     if ($uninstallOsquery) {
       Write-Host "About to uninstall Osquery." -foregroundcolor Yellow
-   
+
       #if (Graceful-Product-Uninstall("osquery")) {
       if ($false) {
         Force-Remove-Osquery #best effort action to ensure cleanup after graceful uninstall
         Write-Host "Osquery was gracefully uninstalled." -foregroundcolor Cyan
         Exit 0
 
-      } else {       
+      } else {
         if (Force-Remove-Osquery) {
           Write-Host "Osquery was uninstalled." -foregroundcolor Cyan
           Exit 0
         } else {
           Write-Host "There was a problem uninstalling Osquery" -foregroundcolor Cyan
           Exit -1
-        }          
+        }
       }
-      
+
     } elseif ($uninstallOrbit) {
       Write-Host "About to uninstall Orbit." -foregroundcolor Yellow
-    
+
       #if (Graceful-Product-Uninstall("Fleet osquery")) {
       if ($false) {
         Force-Remove-Orbit #best effort action to ensure cleanup after graceful uninstall
@@ -764,7 +773,7 @@ function Main {
         } else {
           Write-Host "There was a problem uninstalling Orbit" -foregroundcolor Cyan
           Exit -1
-        }  
+        }
       }
 
     } elseif ($stopOrbit) {
@@ -782,14 +791,14 @@ function Main {
 
       Write-Host "Orbit secret update was called." -foregroundcolor Cyan
       Exit 0
-      
+
     } else {
       Write-Host "Invalid option selected: please see -help for usage details." -foregroundcolor Red
       Do-Help
       Exit -1
     }
   } catch {
-    Write-Host "There was a problem running installer entry point logic" -ForegroundColor Red    
+    Write-Host "There was a problem running installer entry point logic" -ForegroundColor Red
     Write-Host "====================================="
     Write-Host "$(Resolve-Error-Detailed)"
     Write-Host "====================================="

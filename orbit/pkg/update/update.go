@@ -15,12 +15,14 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/build"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/platform"
 	"github.com/fleetdm/fleet/v4/pkg/certificate"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
+	"github.com/fleetdm/fleet/v4/pkg/retry"
 	"github.com/fleetdm/fleet/v4/pkg/secure"
 	"github.com/rs/zerolog/log"
 	"github.com/theupdateframework/go-tuf/client"
@@ -40,9 +42,10 @@ const (
 // Updater supports updating plain executables and
 // .tar.gz compressed executables.
 type Updater struct {
-	opt    Options
-	client *client.Client
-	mu     sync.Mutex
+	opt     Options
+	client  *client.Client
+	retryer *retry.LimitedWithCooldown
+	mu      sync.Mutex
 }
 
 // Options are the options that can be provided when creating an Updater.
@@ -171,6 +174,9 @@ func NewUpdater(opt Options) (*Updater, error) {
 	updater := &Updater{
 		opt:    opt,
 		client: tufClient,
+		// per product spec, retry up to three consecutive times, then
+		// wait 24 hours to try again.
+		retryer: retry.NewLimitedWithCooldown(3, 24*time.Hour),
 	}
 
 	if err := updater.initializeDirectories(); err != nil {
@@ -315,6 +321,37 @@ func (u *Updater) Targets() (data.TargetFiles, error) {
 
 // Get downloads (if it doesn't exist) a target and returns its local information.
 func (u *Updater) Get(target string) (*LocalTarget, error) {
+	meta, err := u.Lookup(target)
+	if err != nil {
+		return nil, err
+	}
+
+	// use the specific target hash as the key for retries. This allows new
+	// updates to the TUF server to be downloaded immediately without
+	// having to wait the cooldown.
+	key := target
+	if _, metaHash, err := selectHashFunction(meta); err == nil {
+		key = fmt.Sprintf("%x", metaHash)
+	}
+
+	var localTarget *LocalTarget
+	err = u.retryer.Do(key, func() error {
+		var err error
+		localTarget, err = u.get(target)
+		return err
+	})
+	if err != nil {
+		var rErr *retry.ExcessRetriesError
+		if errors.As(err, &rErr) {
+			return nil, fmt.Errorf("skipped getting target: %w", err)
+		}
+
+		return nil, fmt.Errorf("getting target: %w", err)
+	}
+	return localTarget, nil
+}
+
+func (u *Updater) get(target string) (*LocalTarget, error) {
 	if target == "" {
 		return nil, errors.New("target is required")
 	}
@@ -456,8 +493,25 @@ func goosFromPlatform(platform string) (string, error) {
 		return "darwin", nil
 	case "windows", "linux":
 		return platform, nil
+	case "linux-arm64":
+		return "linux", nil
 	default:
 		return "", fmt.Errorf("unknown platform: %s", platform)
+	}
+}
+
+func goarchFromPlatform(platform string) ([]string, error) {
+	switch platform {
+	case "macos", "macos-app":
+		return []string{"amd64", "arm64"}, nil
+	case "windows":
+		return []string{"amd64"}, nil
+	case "linux":
+		return []string{"amd64"}, nil
+	case "linux-arm64":
+		return []string{"arm64"}, nil
+	default:
+		return nil, fmt.Errorf("unknown platform: %s", platform)
 	}
 }
 
@@ -475,6 +529,23 @@ func (u *Updater) checkExec(target, tmpPath string, customCheckExec func(execPat
 		// Nothing to do, we can't check the executable if running cross-platform.
 		// This generally happens when generating a package from a different platform
 		// than the target package (e.g. generating an MSI package from macOS).
+		return nil
+	}
+
+	platformGOARCH, err := goarchFromPlatform(localTarget.Info.Platform)
+	if err != nil {
+		return err
+	}
+	var containsArch bool
+	for _, arch := range platformGOARCH {
+		if arch == runtime.GOARCH {
+			containsArch = true
+		}
+	}
+	if !containsArch && strings.HasSuffix(os.Args[0], "fleetctl") {
+		// Nothing to do, we can't reliably execute a
+		// cross-architecture binary. This happens when cross-building
+		// packages
 		return nil
 	}
 

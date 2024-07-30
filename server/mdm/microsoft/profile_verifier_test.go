@@ -53,7 +53,6 @@ func TestLoopHostMDMLocURIs(t *testing.T) {
 		},
 		got,
 	)
-
 }
 
 func TestHashLocURI(t *testing.T) {
@@ -244,7 +243,7 @@ func TestVerifyHostMDMProfilesHappyPaths(t *testing.T) {
 				ref := HashLocURI(p.Name, p.LocURI)
 				msg.AppendCommand(fleet.MDMRaw, fleet.SyncMLCmd{
 					XMLName: xml.Name{Local: fleet.CmdStatus},
-					CmdID:   uuid.NewString(),
+					CmdID:   fleet.CmdID{Value: uuid.NewString()},
 					CmdRef:  &ref,
 					Data:    ptr.String(p.Status),
 				})
@@ -254,10 +253,10 @@ func TestVerifyHostMDMProfilesHappyPaths(t *testing.T) {
 				if p.Status != "200" || p.Data != "" {
 					msg.AppendCommand(fleet.MDMRaw, fleet.SyncMLCmd{
 						XMLName: xml.Name{Local: fleet.CmdResults},
-						CmdID:   uuid.NewString(),
+						CmdID:   fleet.CmdID{Value: uuid.NewString()},
 						CmdRef:  &ref,
 						Items: []fleet.CmdItem{
-							{Target: ptr.String(p.LocURI), Data: ptr.String(p.Data)},
+							{Target: ptr.String(p.LocURI), Data: &fleet.RawXmlData{Content: p.Data}},
 						},
 					})
 				}

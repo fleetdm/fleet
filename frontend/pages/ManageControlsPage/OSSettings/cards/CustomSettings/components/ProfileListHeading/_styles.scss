@@ -1,11 +1,24 @@
 .profile-list-heading {
   display: flex;
+  align-items: center;
   justify-content: space-between;
   font-size: $x-small;
   font-weight: $bold;
 
+  &__profile-name-heading {
+    align-content: center;
+  }
+
+  &__icon-wrap {
+    display: flex;
+    align-items: center;
+    gap: $pad-small;
+  }
+
   &__actions-heading {
-    text-align: right;
-    margin-right: 40px; // align with left side of buttons below it
+    margin: -$pad-medium 0; // Remove vertical padding of button increasing container height
+  }
+  &__add-button {
+    vertical-align: middle;
   }
 }

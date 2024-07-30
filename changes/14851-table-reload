@@ -1,2 +1,0 @@
-- Fixes a bug where opening a modal on the Users page would cause the table to reset to the first
-  page of users.

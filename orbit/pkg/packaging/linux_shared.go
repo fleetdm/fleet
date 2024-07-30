@@ -15,6 +15,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/secure"
 	"github.com/goreleaser/nfpm/v2"
 	"github.com/goreleaser/nfpm/v2/files"
+	"github.com/goreleaser/nfpm/v2/rpm"
 	"github.com/rs/zerolog/log"
 )
 
@@ -35,11 +36,19 @@ func buildNFPM(opt Options, pkger nfpm.Packager) (string, error) {
 		return "", fmt.Errorf("create orbit dir: %w", err)
 	}
 
+	if opt.Architecture != ArchAmd64 && opt.Architecture != ArchArm64 {
+		return "", fmt.Errorf("Invalid architecture: %s", opt.Architecture)
+	}
+
 	// Initialize autoupdate metadata
 	updateOpt := update.DefaultOptions
 
 	updateOpt.RootDirectory = orbitRoot
-	updateOpt.Targets = update.LinuxTargets
+	if opt.Architecture == ArchArm64 {
+		updateOpt.Targets = update.LinuxArm64Targets
+	} else {
+		updateOpt.Targets = update.LinuxTargets
+	}
 	updateOpt.ServerCertificatePath = opt.UpdateTLSServerCertificate
 
 	if opt.UpdateTLSClientCertificate != "" {
@@ -51,7 +60,11 @@ func buildNFPM(opt Options, pkger nfpm.Packager) (string, error) {
 	}
 
 	if opt.Desktop {
-		updateOpt.Targets["desktop"] = update.DesktopLinuxTarget
+		if opt.Architecture == ArchArm64 {
+			updateOpt.Targets["desktop"] = update.DesktopLinuxArm64Target
+		} else {
+			updateOpt.Targets["desktop"] = update.DesktopLinuxTarget
+		}
 		// Override default channel with the provided value.
 		updateOpt.Targets.SetTargetChannel("desktop", opt.DesktopChannel)
 	}
@@ -85,6 +98,8 @@ func buildNFPM(opt Options, pkger nfpm.Packager) (string, error) {
 
 	// Write files
 
+	_, isRPM := pkger.(*rpm.RPM)
+
 	if err := writeSystemdUnit(opt, rootDir); err != nil {
 		return "", fmt.Errorf("write systemd unit: %w", err)
 	}
@@ -110,8 +125,15 @@ func buildNFPM(opt Options, pkger nfpm.Packager) (string, error) {
 		return "", fmt.Errorf("write preremove script: %w", err)
 	}
 	postRemovePath := filepath.Join(tmpDir, "postremove.sh")
-	if err := writePostRemove(opt, postRemovePath); err != nil {
+	if err := writePostRemove(postRemovePath); err != nil {
 		return "", fmt.Errorf("write postremove script: %w", err)
+	}
+	var postTransPath string
+	if isRPM {
+		postTransPath = filepath.Join(tmpDir, "posttrans.sh")
+		if err := writeRPMPostTrans(opt, postTransPath); err != nil {
+			return "", fmt.Errorf("write RPM posttrans script: %w", err)
+		}
 	}
 
 	if opt.FleetCertificate != "" {
@@ -147,7 +169,7 @@ func buildNFPM(opt Options, pkger nfpm.Packager) (string, error) {
 		},
 		// Symlink current into /opt/orbit/bin/orbit/orbit
 		&files.Content{
-			Source:      "/opt/orbit/bin/orbit/linux/" + opt.OrbitChannel + "/orbit",
+			Source:      "/opt/orbit/bin/orbit/" + updateOpt.Targets["orbit"].Platform + "/" + opt.OrbitChannel + "/orbit",
 			Destination: "/opt/orbit/bin/orbit/orbit",
 			Type:        "symlink",
 			FileInfo: &files.ContentFileInfo{
@@ -194,12 +216,17 @@ func buildNFPM(opt Options, pkger nfpm.Packager) (string, error) {
 		log.Debug().Interface("file", c).Msg("added file")
 	}
 
+	rpmInfo := nfpm.RPM{}
+	if _, ok := pkger.(*rpm.RPM); ok {
+		rpmInfo.Scripts.PostTrans = postTransPath
+	}
+
 	// Build package
 	info := &nfpm.Info{
 		Name:        "fleet-osquery",
 		Version:     opt.Version,
 		Description: "Fleet osquery -- runtime and autoupdater",
-		Arch:        "amd64",
+		Arch:        opt.Architecture,
 		Maintainer:  "Fleet Device Management",
 		Vendor:      "Fleet Device Management",
 		License:     "https://github.com/fleetdm/fleet/blob/main/LICENSE",
@@ -211,6 +238,7 @@ func buildNFPM(opt Options, pkger nfpm.Packager) (string, error) {
 				PreRemove:   preRemovePath,
 				PostRemove:  postRemovePath,
 			},
+			RPM: rpmInfo,
 		},
 	}
 	filename := pkger.ConventionalFileName(info)
@@ -293,6 +321,9 @@ ORBIT_FLEET_DESKTOP_ALTERNATIVE_BROWSER_HOST={{ .FleetDesktopAlternativeBrowserH
 {{ if .EnrollSecret }}ORBIT_ENROLL_SECRET={{.EnrollSecret}}{{ end }}
 {{ if .Debug }}ORBIT_DEBUG=true{{ end }}
 {{ if .EnableScripts }}ORBIT_ENABLE_SCRIPTS=true{{ end }}
+{{ if and (ne .HostIdentifier "") (ne .HostIdentifier "uuid") }}ORBIT_HOST_IDENTIFIER={{.HostIdentifier}}{{ end }}
+{{ if .OsqueryDB }}ORBIT_OSQUERY_DB={{.OsqueryDB}}{{ end }}
+{{ if .EndUserEmail }}ORBIT_END_USER_EMAIL={{.EndUserEmail}}{{ end }}
 `))
 
 func writeEnvFile(opt Options, rootPath string) error {
@@ -365,7 +396,7 @@ pkill fleet-desktop || true
 	return nil
 }
 
-func writePostRemove(opt Options, path string) error {
+func writePostRemove(path string) error {
 	if err := os.WriteFile(path, []byte(`#!/bin/sh
 
 # For RPM during uninstall, $1 is 0
@@ -377,5 +408,41 @@ fi
 		return fmt.Errorf("write file: %w", err)
 	}
 
+	return nil
+}
+
+// postTransTemplate contains the template for RPM posttrans scriptlet (used when upgrading).
+// See https://docs.fedoraproject.org/en-US/packaging-guidelines/Scriptlets/.
+//
+// We cannot rely on "$1" because it's always "0" for RPM < 4.12
+// (see https://github.com/rpm-software-management/rpm/commit/ab069ec876639d46d12dd76dad54fd8fb762e43d)
+// thus we check if orbit service is enabled, and if not we enable it (because posttrans
+// will run both on "install" and "upgrade").
+var postTransTemplate = template.Must(template.New("posttrans").Parse(`#!/bin/sh
+
+# Exit on error
+set -e
+
+if ! systemctl is-enabled orbit >/dev/null 2>&1; then
+	# If we have a systemd, daemon-reload away now
+	if command -v systemctl >/dev/null 2>&1; then
+		systemctl daemon-reload >/dev/null 2>&1
+{{ if .StartService -}}
+		systemctl restart orbit.service 2>&1
+		systemctl enable orbit.service 2>&1
+{{- end}}
+	fi
+fi
+`))
+
+// writeRPMPostTrans sets the posttrans scriptlets necessary to support RPM upgrades.
+func writeRPMPostTrans(opt Options, path string) error {
+	var contents bytes.Buffer
+	if err := postTransTemplate.Execute(&contents, opt); err != nil {
+		return fmt.Errorf("execute template: %w", err)
+	}
+	if err := os.WriteFile(path, contents.Bytes(), constant.DefaultFileMode); err != nil {
+		return fmt.Errorf("write file: %w", err)
+	}
 	return nil
 }

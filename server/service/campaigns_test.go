@@ -5,8 +5,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
-
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
@@ -30,6 +28,14 @@ func (nopLiveQuery) QueriesForHost(hostID uint) (map[string]string, error) {
 
 func (nopLiveQuery) QueryCompletedByHost(name string, hostID uint) error {
 	return nil
+}
+
+func (nopLiveQuery) CleanupInactiveQueries(ctx context.Context, inactiveCampaignIDs []uint) error {
+	return nil
+}
+
+func (q nopLiveQuery) LoadActiveQueryNames() ([]string, error) {
+	return nil, nil
 }
 
 func TestLiveQueryAuth(t *testing.T) {
@@ -76,26 +82,14 @@ func TestLiveQueryAuth(t *testing.T) {
 	ds.HostIDsInTargetsFunc = func(ctx context.Context, filters fleet.TeamFilter, targets fleet.HostTargets) ([]uint, error) {
 		return []uint{1}, nil
 	}
-	ds.HostIDsByNameFunc = func(ctx context.Context, filter fleet.TeamFilter, names []string) ([]uint, error) {
+	ds.HostIDsByIdentifierFunc = func(ctx context.Context, filter fleet.TeamFilter, identifiers []string) ([]uint, error) {
 		return nil, nil
 	}
-	ds.LabelIDsByNameFunc = func(ctx context.Context, names []string) ([]uint, error) {
+	ds.LabelIDsByNameFunc = func(ctx context.Context, names []string) (map[string]uint, error) {
 		return nil, nil
 	}
 	ds.CountHostsInTargetsFunc = func(ctx context.Context, filters fleet.TeamFilter, targets fleet.HostTargets, now time.Time) (fleet.TargetMetrics, error) {
 		return fleet.TargetMetrics{}, nil
-	}
-	var queryName, querySQL string
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
-		act := activity.(fleet.ActivityTypeLiveQuery)
-		name := act.QueryName
-		if name == nil {
-			queryName = ""
-		} else {
-			queryName = *name
-		}
-		querySQL = act.QuerySQL
-		return nil
 	}
 	ds.QueryFunc = func(ctx context.Context, id uint) (*fleet.Query, error) {
 		if id == 1 {
@@ -218,36 +212,26 @@ func TestLiveQueryAuth(t *testing.T) {
 			}
 			_, err := svc.NewDistributedQueryCampaign(ctx, query1ObsCanRun.Query, nil, fleet.HostTargets{TeamIDs: tms})
 			checkAuthErr(t, tt.shouldFailRunNew, err)
-			checkActivity := func(t testing.TB, err error, expectName, expectSQL string) {
-				if err != nil {
-					return
-				}
-				require.Equal(t, expectName, queryName)
-				require.Equal(t, expectSQL, querySQL)
-			}
-			checkActivity(t, err, "", query1ObsCanRun.Query)
 
 			if tt.teamID != nil {
 				tms = []uint{*tt.teamID}
 			}
 			_, err = svc.NewDistributedQueryCampaign(ctx, query1ObsCanRun.Query, ptr.Uint(query1ObsCanRun.ID), fleet.HostTargets{TeamIDs: tms})
 			checkAuthErr(t, tt.shouldFailRunObsCan, err)
-			checkActivity(t, err, query1ObsCanRun.Name, query1ObsCanRun.Query)
 
 			_, err = svc.NewDistributedQueryCampaign(ctx, query2ObsCannotRun.Query, ptr.Uint(query2ObsCannotRun.ID), fleet.HostTargets{TeamIDs: tms})
 			checkAuthErr(t, tt.shouldFailRunObsCannot, err)
-			checkActivity(t, err, query2ObsCannotRun.Name, query2ObsCannotRun.Query)
 
 			// tests with a team target cannot run the "ByNames" calls, as there's no way
 			// to pass a team target with this call.
 			if tt.teamID == nil {
-				_, err = svc.NewDistributedQueryCampaignByNames(ctx, query1ObsCanRun.Query, nil, nil, nil)
+				_, err = svc.NewDistributedQueryCampaignByIdentifiers(ctx, query1ObsCanRun.Query, nil, nil, nil)
 				checkAuthErr(t, tt.shouldFailRunNew, err)
 
-				_, err = svc.NewDistributedQueryCampaignByNames(ctx, query1ObsCanRun.Query, ptr.Uint(query1ObsCanRun.ID), nil, nil)
+				_, err = svc.NewDistributedQueryCampaignByIdentifiers(ctx, query1ObsCanRun.Query, ptr.Uint(query1ObsCanRun.ID), nil, nil)
 				checkAuthErr(t, tt.shouldFailRunObsCan, err)
 
-				_, err = svc.NewDistributedQueryCampaignByNames(ctx, query2ObsCannotRun.Query, ptr.Uint(query2ObsCannotRun.ID), nil, nil)
+				_, err = svc.NewDistributedQueryCampaignByIdentifiers(ctx, query2ObsCannotRun.Query, ptr.Uint(query2ObsCannotRun.ID), nil, nil)
 				checkAuthErr(t, tt.shouldFailRunObsCannot, err)
 			}
 		})

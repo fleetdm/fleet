@@ -52,10 +52,14 @@ func (c *Client) DeleteTeam(teamID uint) error {
 
 // ApplyTeams sends the list of Teams to be applied to the
 // Fleet instance.
-func (c *Client) ApplyTeams(specs []json.RawMessage, opts fleet.ApplySpecOptions) (map[string]uint, error) {
+func (c *Client) ApplyTeams(specs []json.RawMessage, opts fleet.ApplyTeamSpecOptions) (map[string]uint, error) {
 	verb, path := "POST", "/api/latest/fleet/spec/teams"
 	var responseBody applyTeamSpecsResponse
-	err := c.authenticatedRequestWithQuery(map[string]interface{}{"specs": specs}, verb, path, &responseBody, opts.RawQuery())
+	params := map[string]interface{}{"specs": specs}
+	if opts.DryRun && opts.DryRunAssumptions != nil {
+		params["dry_run_assumptions"] = opts.DryRunAssumptions
+	}
+	err := c.authenticatedRequestWithQuery(params, verb, path, &responseBody, opts.RawQuery())
 	if err != nil {
 		return nil, err
 	}
@@ -64,23 +68,17 @@ func (c *Client) ApplyTeams(specs []json.RawMessage, opts fleet.ApplySpecOptions
 
 // ApplyTeamProfiles sends the list of profiles to be applied for the specified
 // team.
-func (c *Client) ApplyTeamProfiles(tmName string, profiles map[string][]byte, opts fleet.ApplySpecOptions) error {
+func (c *Client) ApplyTeamProfiles(tmName string, profiles []fleet.MDMProfileBatchPayload, opts fleet.ApplyTeamSpecOptions) error {
 	verb, path := "POST", "/api/latest/fleet/mdm/profiles/batch"
 	query, err := url.ParseQuery(opts.RawQuery())
 	if err != nil {
 		return err
 	}
 	query.Add("team_name", tmName)
+	if opts.DryRunAssumptions != nil && opts.DryRunAssumptions.WindowsEnabledAndConfigured.Valid {
+		query.Add("assume_enabled", strconv.FormatBool(opts.DryRunAssumptions.WindowsEnabledAndConfigured.Value))
+	}
 	return c.authenticatedRequestWithQuery(map[string]interface{}{"profiles": profiles}, verb, path, nil, query.Encode())
-}
-
-// ApplyPolicies sends the list of Policies to be applied to the
-// Fleet instance.
-func (c *Client) ApplyPolicies(specs []*fleet.PolicySpec) error {
-	req := applyPolicySpecsRequest{Specs: specs}
-	verb, path := "POST", "/api/latest/fleet/spec/policies"
-	var responseBody applyPolicySpecsResponse
-	return c.authenticatedRequest(req, verb, path, &responseBody)
 }
 
 // ApplyTeamScripts sends the list of scripts to be applied for the specified
@@ -93,4 +91,24 @@ func (c *Client) ApplyTeamScripts(tmName string, scripts []fleet.ScriptPayload, 
 	}
 	query.Add("team_name", tmName)
 	return c.authenticatedRequestWithQuery(map[string]interface{}{"scripts": scripts}, verb, path, nil, query.Encode())
+}
+
+func (c *Client) ApplyTeamSoftwareInstallers(tmName string, softwareInstallers []fleet.SoftwareInstallerPayload, opts fleet.ApplySpecOptions) error {
+	verb, path := "POST", "/api/latest/fleet/software/batch"
+	query, err := url.ParseQuery(opts.RawQuery())
+	if err != nil {
+		return err
+	}
+	query.Add("team_name", tmName)
+	return c.authenticatedRequestWithQuery(map[string]interface{}{"software": softwareInstallers}, verb, path, nil, query.Encode())
+}
+
+func (c *Client) ApplyTeamAppStoreAppsAssociation(tmName string, vppBatchPayload []fleet.VPPBatchPayload, opts fleet.ApplySpecOptions) error {
+	verb, path := "POST", "/api/latest/fleet/software/app_store_apps/batch"
+	query, err := url.ParseQuery(opts.RawQuery())
+	if err != nil {
+		return err
+	}
+	query.Add("team_name", tmName)
+	return c.authenticatedRequestWithQuery(map[string]interface{}{"app_store_apps": vppBatchPayload}, verb, path, nil, query.Encode())
 }

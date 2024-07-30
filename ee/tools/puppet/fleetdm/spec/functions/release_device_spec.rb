@@ -1,22 +1,32 @@
 # frozen_string_literal: true
 
 require 'spec_helper'
-require 'puppet/util/fleet_client'
+require_relative '../../lib/puppet/util/fleet_client.rb'
 
 describe 'fleetdm::release_device' do
   let(:fleet_client_mock) { instance_double('Puppet::Util::FleetClient') }
   let(:device_uuid) { 'device-uuid' }
+  let(:rspec_puppet_env) { 'rp_env' }
 
   before(:each) do
-    fleet_client_class = class_spy('Puppet::Util::FleetClient')
-    stub_const('Puppet::Util::FleetClient', fleet_client_class)
-    allow(fleet_client_class).to receive(:instance) { fleet_client_mock }
+    allow(Puppet::Util::FleetClient).to receive(:instance).and_return(fleet_client_mock)
   end
 
-  it { is_expected.to run.with_params(nil).and_raise_error(StandardError) }
+  on_supported_os.each do |os, os_facts|
+    context "on #{os}" do
+      let(:facts) { os_facts.merge({}) }
 
-  it 'performs an API call to Fleet' do
-    expect(fleet_client_mock).to receive(:send_mdm_command).with(device_uuid, %r{DeviceConfigured}).and_return({ 'error' => '' })
-    is_expected.to run.with_params(device_uuid)
+      it { is_expected.to run.with_params(nil).and_raise_error(StandardError) }
+
+      it 'performs an API call to Fleet' do
+        expect(fleet_client_mock).to receive(:send_mdm_command) { |device_uuid_param, command_param, environment_param|
+          expect(device_uuid_param).to eq(device_uuid)
+          expect(command_param).to include('DeviceConfigured')
+          expect(environment_param).to eq(rspec_puppet_env)
+        }.and_return({ 'error' => '' })
+
+        is_expected.to run.with_params(device_uuid)
+      end
+    end
   end
 end

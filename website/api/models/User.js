@@ -202,6 +202,66 @@ without necessarily having a billing card.`
       defaultsTo: false
     },
 
+    primaryBuyingSituation: {
+      type: 'string',
+      description: 'The primary buying situation the user selected when they signed up.',
+      extendedDescription: 'User records created before 2024-03-14 will have this attribute set to ""',
+      isIn: [
+        'eo-security',
+        'eo-it',
+        'mdm',
+        'vm',
+      ]
+    },
+
+    lastSubmittedGetStartedQuestionnaireStep: {
+      type: 'string',
+      description: 'The last step the user reached in the get started form.',
+      defaultsTo: 'start',
+    },
+
+    getStartedQuestionnaireAnswers: {
+      type: 'json',
+      description: 'This answers the user provided when they filled out the get started form.',
+      defaultsTo: {},
+    },
+
+    psychologicalStage: {
+      type: 'string',
+      description: 'This user\'s psychological stage based on the answers to the get started questionnaire.',
+      isIn: [
+        '1 - Unaware',
+        '2 - Aware',
+        '3 - Intrigued',
+        '4 - Has use case',
+        '5 - Personally confident',
+        '6 - Has team buy-in'
+      ],
+      defaultsTo: '2 - Aware'
+    },
+
+    psychologicalStageLastChangedAt: {
+      type: 'number',
+      description: 'A JS timestamp of when this user\'s psychological stage changed.',
+      extendedDescription: 'Used when deciding whether or not to send a nuture email to this user',
+    },
+
+    stageThreeNurtureEmailSentAt: {
+      type: 'number',
+      description: 'A JS timestamp of when the stage 3 nurture email was sent to the user.'
+    },
+
+    stageFourNurtureEmailSentAt: {
+      type: 'number',
+      description: 'A JS timestamp of when the stage 4 nurture email was sent to the user.'
+    },
+
+    stageFiveNurtureEmailSentAt: {
+      type: 'number',
+      description: 'A JS timestamp of when the stage 5 nurture email was sent to the user.'
+    },
+
+
     //  ╔═╗╔╦╗╔╗ ╔═╗╔╦╗╔═╗
     //  ║╣ ║║║╠╩╗║╣  ║║╚═╗
     //  ╚═╝╩ ╩╚═╝╚═╝═╩╝╚═╝

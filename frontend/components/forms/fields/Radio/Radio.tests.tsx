@@ -10,9 +10,9 @@ describe("Radio - component", () => {
     render(
       <Radio
         checked
-        label={"Radio Label"}
-        value={"radioValue"}
-        id={"test-radio"}
+        label="Radio Label"
+        value="radioValue"
+        id="test-radio"
         onChange={noop}
       />
     );
@@ -27,9 +27,9 @@ describe("Radio - component", () => {
 
     render(
       <Radio
-        label={"Radio Label"}
-        value={"radioValue"}
-        id={"test-radio"}
+        label="Radio Label"
+        value="radioValue"
+        id="test-radio"
         onChange={changeHandlerSpy}
       />
     );
@@ -45,9 +45,9 @@ describe("Radio - component", () => {
     render(
       <Radio
         checked
-        label={"Radio Label"}
-        value={"radioValue"}
-        id={"test-radio"}
+        label="Radio Label"
+        value="radioValue"
+        id="test-radio"
         onChange={noop}
       />
     );
@@ -60,11 +60,11 @@ describe("Radio - component", () => {
     render(
       <Radio
         disabled
-        label={"Radio Label"}
-        value={"radioValue"}
-        id={"test-radio"}
+        label="Radio Label"
+        value="radioValue"
+        id="test-radio"
         onChange={noop}
-        testId={"radio-input"}
+        testId="radio-input"
       />
     );
 
@@ -80,11 +80,11 @@ describe("Radio - component", () => {
     render(
       <Radio
         disabled
-        label={"Radio Label"}
-        value={"radioValue"}
-        id={"test-radio"}
+        label="Radio Label"
+        value="radioValue"
+        id="test-radio"
         onChange={noop}
-        tooltip={"A Test Radio Tooltip"}
+        tooltip="A Test Radio Tooltip"
       />
     );
 
@@ -97,9 +97,9 @@ describe("Radio - component", () => {
     render(
       <Radio
         disabled
-        label={"Radio Label"}
-        value={"radioValue"}
-        id={"test-radio"}
+        label="Radio Label"
+        value="radioValue"
+        id="test-radio"
         onChange={noop}
         className="radio-button"
         testId="radio-input"

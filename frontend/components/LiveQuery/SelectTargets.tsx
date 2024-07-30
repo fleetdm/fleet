@@ -23,6 +23,7 @@ import targetsAPI, {
 } from "services/entities/targets";
 import teamsAPI, { ILoadTeamsResponse } from "services/entities/teams";
 import { formatSelectedTargetsForApi } from "utilities/helpers";
+import permissions from "utilities/permissions";
 
 import PageError from "components/DataError";
 import TargetsInput from "components/LiveQuery/TargetsInput";
@@ -30,6 +31,7 @@ import Button from "components/buttons/Button";
 import Spinner from "components/Spinner";
 import TooltipWrapper from "components/TooltipWrapper";
 import Icon from "components/Icon";
+import { generateTableHeaders } from "./TargetsInput/TargetsInputHostsTableConfig";
 
 interface ITargetPillSelectorProps {
   entity: ISelectLabel | ISelectTeam;
@@ -55,6 +57,8 @@ interface ISelectTargetsProps {
   setTargetedLabels: React.Dispatch<React.SetStateAction<ILabel[]>>;
   setTargetedTeams: React.Dispatch<React.SetStateAction<ITeam[]>>;
   setTargetsTotalCount: React.Dispatch<React.SetStateAction<number>>;
+  isLivePolicy?: boolean;
+  isObserverCanRunQuery?: boolean;
 }
 
 interface ILabelsByType {
@@ -74,6 +78,11 @@ const DEBOUNCE_DELAY = 500;
 const STALE_TIME = 60000;
 
 const isLabel = (entity: ISelectTargetsEntity) => "label_type" in entity;
+const isBuiltInLabel = (
+  entity: ISelectTargetsEntity
+): entity is ISelectLabel & { label_type: "builtin" } => {
+  return "label_type" in entity && entity.label_type === "builtin";
+};
 const isAllHosts = (entity: ISelectTargetsEntity) =>
   "label_type" in entity &&
   entity.name === "All Hosts" &&
@@ -100,16 +109,22 @@ const TargetPillSelector = ({
   onClick,
 }: ITargetPillSelectorProps): JSX.Element => {
   const displayText = () => {
-    switch (entity.name) {
-      case "All Hosts":
-        return "All hosts";
-      case "All Linux":
-        return "Linux";
-      case "chrome":
-        return "ChromeOS";
-      default:
-        return entity.name || "Missing display name"; // TODO
+    if (isBuiltInLabel(entity)) {
+      switch (entity.name) {
+        case "All Hosts":
+          return "All hosts";
+        case "All Linux":
+          return "Linux";
+        case "chrome":
+          return "ChromeOS";
+        case "MS Windows":
+          return "Windows";
+        default:
+          return entity.name || "Missing display name"; // TODO
+      }
     }
+
+    return entity.name || "Missing display name"; // TODO
   };
 
   return (
@@ -120,7 +135,6 @@ const TargetPillSelector = ({
     >
       <Icon name={isSelected ? "check" : "plus"} />
       <span className="selector-name">{displayText()}</span>
-      {/* <span className="selector-count">{entity.count}</span> */}
     </button>
   );
 };
@@ -139,8 +153,10 @@ const SelectTargets = ({
   setTargetedLabels,
   setTargetedTeams,
   setTargetsTotalCount,
+  isLivePolicy,
+  isObserverCanRunQuery,
 }: ISelectTargetsProps): JSX.Element => {
-  const { isPremiumTier } = useContext(AppContext);
+  const { isPremiumTier, isOnGlobalTeam, currentUser } = useContext(AppContext);
 
   const [labels, setLabels] = useState<ILabelsByType | null>(null);
   const [inputTabIndex, setInputTabIndex] = useState<number | null>(null);
@@ -306,9 +322,8 @@ const SelectTargets = ({
       : setTargetedTeams(newTargets as ITeam[]);
   };
 
-  const handleRowSelect = (row: Row) => {
-    const selectedHost = row.original as IHost;
-    setTargetedHosts((prevHosts) => prevHosts.concat(selectedHost));
+  const handleRowSelect = (row: Row<IHost>) => {
+    setTargetedHosts((prevHosts) => prevHosts.concat(row.original));
     setSearchText("");
 
     // If "all hosts" is already selected when using host target picker, deselect "all hosts"
@@ -317,8 +332,8 @@ const SelectTargets = ({
     }
   };
 
-  const handleRowRemove = (row: Row) => {
-    const removedHost = row.original as IHost;
+  const handleRowRemove = (row: Row<IHost>) => {
+    const removedHost = row.original;
     setTargetedHosts((prevHosts) =>
       prevHosts.filter((h) => h.id !== removedHost.id)
     );
@@ -358,7 +373,7 @@ const SelectTargets = ({
       return (
         <>
           <Spinner
-            size={"x-small"}
+            size="x-small"
             includeContainer={false}
             centered={false}
             className={`${baseClass}__count-spinner`}
@@ -395,7 +410,8 @@ const SelectTargets = ({
 
     return (
       <>
-        <b>{total}</b>&nbsp;host{total > 1 ? `s` : ``} targeted&nbsp; (
+        <b>{total.toLocaleString()}</b>&nbsp;host
+        {total > 1 || total === 0 ? `s` : ``} targeted&nbsp; (
         {onlinePercentage()}
         %&nbsp;
         <TooltipWrapper
@@ -416,7 +432,7 @@ const SelectTargets = ({
 
   if (isLoadingLabels || (isPremiumTier && isLoadingTeams)) {
     return (
-      <div className={`${baseClass}__wrapper body-wrap`}>
+      <div className={`${baseClass}__wrapper`}>
         <h1>Select targets</h1>
         <div className={`${baseClass}__page-loading`}>
           <Spinner />
@@ -427,12 +443,40 @@ const SelectTargets = ({
 
   if (errorLabels || errorTeams) {
     return (
-      <div className={`${baseClass}__wrapper body-wrap`}>
+      <div className={`${baseClass}__wrapper`}>
         <h1>Select targets</h1>
         <PageError />
       </div>
     );
   }
+
+  const resultsTableConfig = generateTableHeaders();
+  const selectedHostsTableConfig = generateTableHeaders(handleRowRemove);
+
+  // Filter out observer teams that break live query/policy API
+  const filterTeamObserverTeams = () => {
+    // API blocks live policy if a team level user is able to select the team they are an observer on
+    if (isLivePolicy) {
+      return (
+        teams?.filter(
+          (team) =>
+            !permissions.isTeamObserver(currentUser, team.id) ||
+            permissions.isTeamObserverPlus(currentUser, team.id)
+        ) || []
+      );
+    }
+
+    // API blocks live query if a team level user is able to select the team they are an observer on
+    // AND the query does not have observer can run enabled
+    return (
+      teams?.filter(
+        (team) =>
+          !permissions.isTeamObserver(currentUser, team.id) ||
+          permissions.isTeamObserverPlus(currentUser, team.id) ||
+          isObserverCanRunQuery
+      ) || []
+    );
+  };
 
   return (
     <div className={`${baseClass}__wrapper`}>
@@ -442,11 +486,20 @@ const SelectTargets = ({
           renderTargetEntityList("", labels.allHosts)}
         {!!labels?.platforms?.length &&
           renderTargetEntityList("Platforms", labels.platforms)}
-        {!!teams?.length && renderTargetEntityList("Teams", teams)}
+        {!!teams?.length &&
+          (isOnGlobalTeam
+            ? renderTargetEntityList("Teams", [
+                { id: 0, name: "No team" },
+                ...teams,
+              ])
+            : renderTargetEntityList("Teams", filterTeamObserverTeams()))}
         {!!labels?.other?.length &&
           renderTargetEntityList("Labels", labels.other)}
       </div>
       <TargetsInput
+        autofocus
+        searchResultsTableConfig={resultsTableConfig}
+        selectedHostsTableConifg={selectedHostsTableConfig}
         tabIndex={inputTabIndex || 0}
         searchText={searchText}
         searchResults={searchResults || []}
@@ -455,7 +508,7 @@ const SelectTargets = ({
         hasFetchError={!!errorSearchResults}
         setSearchText={setSearchText}
         handleRowSelect={handleRowSelect}
-        handleRowRemove={handleRowRemove}
+        disablePagination
       />
       <div className={`${baseClass}__targets-button-wrap`}>
         <Button

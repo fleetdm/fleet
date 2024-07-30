@@ -7,7 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
@@ -157,30 +156,17 @@ func (svc *Service) NewDistributedQueryCampaign(ctx context.Context, queryString
 		}
 	}
 
-	err = svc.liveQueryStore.RunQuery(strconv.Itoa(int(campaign.ID)), queryString, hostIDs)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "run query")
-	}
-
+	// Metrics are used for total hosts targeted for the activity feed.
 	campaign.Metrics, err = svc.ds.CountHostsInTargets(ctx, filter, targets, time.Now())
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "counting hosts")
 	}
 
-	activityData := fleet.ActivityTypeLiveQuery{
-		TargetsCount: campaign.Metrics.TotalHosts,
-		QuerySQL:     query.Query,
+	err = svc.liveQueryStore.RunQuery(strconv.Itoa(int(campaign.ID)), queryString, hostIDs)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "run query")
 	}
-	if queryID != nil {
-		activityData.QueryName = &query.Name
-	}
-	if err := svc.ds.NewActivity(
-		ctx,
-		authz.UserFromContext(ctx),
-		activityData,
-	); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "create activity for campaign creation")
-	}
+
 	return campaign, nil
 }
 
@@ -188,41 +174,47 @@ func (svc *Service) NewDistributedQueryCampaign(ctx context.Context, queryString
 // Create Distributed Query Campaign By Names
 ////////////////////////////////////////////////////////////////////////////////
 
-type createDistributedQueryCampaignByNamesRequest struct {
-	QuerySQL string                                 `json:"query"`
-	QueryID  *uint                                  `json:"query_id"`
-	Selected distributedQueryCampaignTargetsByNames `json:"selected"`
+type createDistributedQueryCampaignByIdentifierRequest struct {
+	QuerySQL string                                       `json:"query"`
+	QueryID  *uint                                        `json:"query_id"`
+	Selected distributedQueryCampaignTargetsByIdentifiers `json:"selected"`
 }
 
-type distributedQueryCampaignTargetsByNames struct {
+type distributedQueryCampaignTargetsByIdentifiers struct {
 	Labels []string `json:"labels"`
-	Hosts  []string `json:"hosts"`
+	// list of hostnames, UUIDs, and/or hardware serials
+	Hosts []string `json:"hosts"`
 }
 
-func createDistributedQueryCampaignByNamesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
-	req := request.(*createDistributedQueryCampaignByNamesRequest)
-	campaign, err := svc.NewDistributedQueryCampaignByNames(ctx, req.QuerySQL, req.QueryID, req.Selected.Hosts, req.Selected.Labels)
+func createDistributedQueryCampaignByIdentifierEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*createDistributedQueryCampaignByIdentifierRequest)
+	campaign, err := svc.NewDistributedQueryCampaignByIdentifiers(ctx, req.QuerySQL, req.QueryID, req.Selected.Hosts, req.Selected.Labels)
 	if err != nil {
 		return createDistributedQueryCampaignResponse{Err: err}, nil
 	}
 	return createDistributedQueryCampaignResponse{Campaign: campaign}, nil
 }
 
-func (svc *Service) NewDistributedQueryCampaignByNames(ctx context.Context, queryString string, queryID *uint, hosts []string, labels []string) (*fleet.DistributedQueryCampaign, error) {
+func (svc *Service) NewDistributedQueryCampaignByIdentifiers(ctx context.Context, queryString string, queryID *uint, hostIdentifiers []string, labels []string) (*fleet.DistributedQueryCampaign, error) {
 	vc, ok := viewer.FromContext(ctx)
 	if !ok {
 		return nil, fleet.ErrNoContext
 	}
 	filter := fleet.TeamFilter{User: vc.User, IncludeObserver: true}
 
-	hostIDs, err := svc.ds.HostIDsByName(ctx, filter, hosts)
+	hostIDs, err := svc.ds.HostIDsByIdentifier(ctx, filter, hostIdentifiers)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "finding host IDs")
 	}
 
-	labelIDs, err := svc.ds.LabelIDsByName(ctx, labels)
+	labelMap, err := svc.ds.LabelIDsByName(ctx, labels)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "finding label IDs")
+	}
+
+	var labelIDs []uint
+	for _, labelID := range labelMap {
+		labelIDs = append(labelIDs, labelID)
 	}
 
 	targets := fleet.HostTargets{HostIDs: hostIDs, LabelIDs: labelIDs}

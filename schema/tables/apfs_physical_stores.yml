@@ -10,7 +10,7 @@ columns:
   - name: container_designated_physical_store
     type: text
     required: false
-    description: |
+    description: |-
       The disk displayed as the backing store of the container. There may be multiple,
       use `apfs_physical_stores` to see all actual physical stores
   - name: container_reference
@@ -41,5 +41,5 @@ columns:
     type: bigint
     required: false
     description: The size of the physical store in byptes
-notes: This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).
+notes: This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).
 evented: false

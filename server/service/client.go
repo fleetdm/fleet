@@ -13,6 +13,8 @@ import (
 	"strings"
 	"time"
 
+	"golang.org/x/text/unicode/norm"
+
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/pkg/spec"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -20,6 +22,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	kithttp "github.com/go-kit/kit/transport/http"
 )
+
+const batchSize = 100
 
 // Client is used to consume Fleet APIs from Go code
 type Client struct {
@@ -168,6 +172,24 @@ func (c *Client) AuthenticatedDo(verb, path, rawQuery string, params interface{}
 	return c.doContextWithHeaders(context.Background(), verb, path, rawQuery, params, headers)
 }
 
+func (c *Client) AuthenticatedDoCustomHeaders(verb, path, rawQuery string, params interface{}, customHeaders map[string]string) (*http.Response, error) {
+	if c.token == "" {
+		return nil, errors.New("authentication token is empty")
+	}
+
+	headers := map[string]string{
+		"Content-Type":  "application/json",
+		"Accept":        "application/json",
+		"Authorization": fmt.Sprintf("Bearer %s", c.token),
+	}
+
+	for key, value := range customHeaders {
+		headers[key] = value
+	}
+
+	return c.doContextWithHeaders(context.Background(), verb, path, rawQuery, params, headers)
+}
+
 func (c *Client) SetToken(t string) {
 	c.token = t
 }
@@ -279,34 +301,90 @@ func (c *Client) runAppConfigChecks(fn func(ac *fleet.EnrichedAppConfig) error) 
 	return fn(appCfg)
 }
 
-// getProfilesContents takes file paths and creates a map of profile contents
-// keyed by the name of the profile (the file name on Windows,
-// PayloadDisplayName on macOS)
-func getProfilesContents(baseDir string, paths []string) (map[string][]byte, error) {
-	files := resolveApplyRelativePaths(baseDir, paths)
-	fileContents := make(map[string][]byte, len(files))
-	for _, f := range files {
-		b, err := os.ReadFile(f)
-		if err != nil {
-			return nil, fmt.Errorf("applying fleet config: %w", err)
-		}
+// getProfilesContents takes file paths and creates a slice of profile payloads
+// ready to batch-apply.
+func getProfilesContents(baseDir string, macProfiles []fleet.MDMProfileSpec, windowsProfiles []fleet.MDMProfileSpec, expandEnv bool) ([]fleet.MDMProfileBatchPayload, error) {
+	// map to check for duplicate names across all profiles
+	extByName := make(map[string]string, len(macProfiles))
+	result := make([]fleet.MDMProfileBatchPayload, 0, len(macProfiles))
 
-		// by default, use the file name. macOS profiles use their PayloadDisplayName
-		name := strings.TrimSuffix(filepath.Base(f), filepath.Ext(f))
-		if mdm.GetRawProfilePlatform(b) == "darwin" {
-			mc, err := fleet.NewMDMAppleConfigProfile(b, nil)
+	// iterate over the profiles for each platform
+	for platform, profiles := range map[string][]fleet.MDMProfileSpec{
+		"macos":   macProfiles,
+		"windows": windowsProfiles,
+	} {
+		for _, profile := range profiles {
+			filePath := resolveApplyRelativePath(baseDir, profile.Path)
+			fileContents, err := os.ReadFile(filePath)
 			if err != nil {
-				return nil, fmt.Errorf("applying fleet config: %w", err)
+				return nil, fmt.Errorf("applying custom settings: %w", err)
 			}
-			name = strings.TrimSpace(mc.Name)
-		}
-		if _, isDuplicate := fileContents[name]; isDuplicate {
-			return nil, errors.New("Couldn't edit windows_settings.custom_settings. More than one configuration profile have the same name (Windows .xml file name or macOS PayloadDisplayName).")
-		}
-		fileContents[name] = b
-	}
 
-	return fileContents, nil
+			if expandEnv {
+				fileContents, err = spec.ExpandEnvBytes(fileContents)
+				if err != nil {
+					return nil, fmt.Errorf("expanding environment on file %q: %w", profile.Path, err)
+				}
+			}
+
+			ext := filepath.Ext(filePath)
+			// by default, use the file name (for macOS mobileconfig profiles, we'll switch to
+			// their PayloadDisplayName when we parse the profile below)
+			name := strings.TrimSuffix(filepath.Base(filePath), ext)
+			// for validation errors, we want to include the platform and file name in the error message
+			prefixErrMsg := fmt.Sprintf("Couldn't edit %s_settings.custom_settings (%s%s)", platform, name, ext)
+
+			// validate macOS profiles
+			if platform == "macos" {
+				switch ext {
+				case ".mobileconfig", ".xml": // allowing .xml for backwards compatibility
+					mc, err := fleet.NewMDMAppleConfigProfile(fileContents, nil)
+					if err != nil {
+						errForMsg := errors.Unwrap(err)
+						if errForMsg == nil {
+							errForMsg = err
+						}
+						return nil, fmt.Errorf("%s: %w", prefixErrMsg, errForMsg)
+					}
+					name = strings.TrimSpace(mc.Name)
+				case ".json":
+					if mdm.GetRawProfilePlatform(fileContents) != "darwin" {
+						return nil, fmt.Errorf("%s: %s", prefixErrMsg, "Declaration profiles should include valid JSON.")
+					}
+				default:
+					return nil, fmt.Errorf("%s: %s", prefixErrMsg, "macOS configuration profiles must be .mobileconfig or .json files.")
+				}
+			}
+
+			// validate windows profiles
+			if platform == "windows" {
+				switch ext {
+				case ".xml":
+					if mdm.GetRawProfilePlatform(fileContents) != "windows" {
+						return nil, fmt.Errorf("%s: %s", prefixErrMsg, "Windows configuration profiles can only have <Replace> or <Add> top level elements")
+					}
+				default:
+					return nil, fmt.Errorf("%s: %s", prefixErrMsg, "Windows configuration profiles must be .xml files.")
+				}
+			}
+
+			// check for duplicate names across all profiles
+			if e, isDuplicate := extByName[name]; isDuplicate {
+				return nil, errors.New(fmtDuplicateNameErrMsg(name, e, ext))
+			}
+			extByName[name] = ext
+
+			result = append(result, fleet.MDMProfileBatchPayload{
+				Name:             name,
+				Contents:         fileContents,
+				Labels:           profile.Labels,
+				LabelsIncludeAll: profile.LabelsIncludeAll,
+				LabelsExcludeAny: profile.LabelsExcludeAny,
+			})
+
+		}
+	}
+	return result, nil
 }
 
 // ApplyGroup applies the given spec group to Fleet.
@@ -315,8 +393,8 @@ func (c *Client) ApplyGroup(
 	specs *spec.Group,
 	baseDir string,
 	logf func(format string, args ...interface{}),
-	opts fleet.ApplySpecOptions,
-) error {
+	opts fleet.ApplyClientSpecOptions,
+) (map[string]uint, error) {
 	logfn := func(format string, args ...interface{}) {
 		if logf != nil {
 			logf(format, args...)
@@ -329,7 +407,7 @@ func (c *Client) ApplyGroup(
 			logfn("[!] ignoring queries, dry run mode only supported for 'config' and 'team' specs\n")
 		} else {
 			if err := c.ApplyQueries(specs.Queries); err != nil {
-				return fmt.Errorf("applying queries: %w", err)
+				return nil, fmt.Errorf("applying queries: %w", err)
 			}
 			logfn("[+] applied %d queries\n", len(specs.Queries))
 		}
@@ -340,7 +418,7 @@ func (c *Client) ApplyGroup(
 			logfn("[!] ignoring labels, dry run mode only supported for 'config' and 'team' specs\n")
 		} else {
 			if err := c.ApplyLabels(specs.Labels); err != nil {
-				return fmt.Errorf("applying labels: %w", err)
+				return nil, fmt.Errorf("applying labels: %w", err)
 			}
 			logfn("[+] applied %d labels\n", len(specs.Labels))
 		}
@@ -352,7 +430,9 @@ func (c *Client) ApplyGroup(
 		} else {
 			// Policy names must be unique, return error if duplicate policy names are found
 			if policyName := fleet.FirstDuplicatePolicySpecName(specs.Policies); policyName != "" {
-				return fmt.Errorf("applying policies: policy names must be globally unique. Please correct policy %q and try again.", policyName)
+				return nil, fmt.Errorf(
+					"applying policies: policy names must be unique. Please correct policy %q and try again.", policyName,
+				)
 			}
 
 			// If set, override the team in all the policies.
@@ -362,7 +442,7 @@ func (c *Client) ApplyGroup(
 				}
 			}
 			if err := c.ApplyPolicies(specs.Policies); err != nil {
-				return fmt.Errorf("applying policies: %w", err)
+				return nil, fmt.Errorf("applying policies: %w", err)
 			}
 			logfn("[+] applied %d policies\n", len(specs.Policies))
 		}
@@ -373,7 +453,7 @@ func (c *Client) ApplyGroup(
 			logfn("[!] ignoring packs, dry run mode only supported for 'config' and 'team' specs\n")
 		} else {
 			if err := c.ApplyPacks(specs.Packs); err != nil {
-				return fmt.Errorf("applying packs: %w", err)
+				return nil, fmt.Errorf("applying packs: %w", err)
 			}
 			logfn("[+] applied %d packs\n", len(specs.Packs))
 		}
@@ -382,38 +462,55 @@ func (c *Client) ApplyGroup(
 	if specs.AppConfig != nil {
 		windowsCustomSettings := extractAppCfgWindowsCustomSettings(specs.AppConfig)
 		macosCustomSettings := extractAppCfgMacOSCustomSettings(specs.AppConfig)
-		allCustomSettings := append(macosCustomSettings, windowsCustomSettings...)
 
-		if len(allCustomSettings) > 0 {
-			fileContents, err := getProfilesContents(baseDir, allCustomSettings)
+		// if there is no custom setting but the windows and mac settings are
+		// non-nil, this means that we want to clear the existing custom settings,
+		// so we still go on with calling the batch-apply endpoint.
+		//
+		// TODO(mna): shouldn't that be an || instead of && ? I.e. if there are no
+		// custom settings but windows is present and empty (but mac is absent),
+		// shouldn't that clear the windows ones?
+		if (windowsCustomSettings != nil && macosCustomSettings != nil) || len(windowsCustomSettings)+len(macosCustomSettings) > 0 {
+			fileContents, err := getProfilesContents(baseDir, macosCustomSettings, windowsCustomSettings, opts.ExpandEnvConfigProfiles)
 			if err != nil {
-				return err
+				return nil, err
 			}
-			if err := c.ApplyNoTeamProfiles(fileContents, opts); err != nil {
-				return fmt.Errorf("applying custom settings: %w", err)
+			// Figure out if MDM should be enabled.
+			assumeEnabled := false
+			// This cast is safe because we've already checked AppConfig when extracting custom settings
+			mdmConfigMap, ok := specs.AppConfig.(map[string]interface{})["mdm"].(map[string]interface{})
+			if ok {
+				mdmEnabled, ok := mdmConfigMap["windows_enabled_and_configured"]
+				if ok {
+					assumeEnabled, ok = mdmEnabled.(bool)
+					assumeEnabled = ok && assumeEnabled
+				}
+			}
+			if err := c.ApplyNoTeamProfiles(fileContents, opts.ApplySpecOptions, assumeEnabled); err != nil {
+				return nil, fmt.Errorf("applying custom settings: %w", err)
 			}
 		}
 		if macosSetup := extractAppCfgMacOSSetup(specs.AppConfig); macosSetup != nil {
 			if macosSetup.BootstrapPackage.Value != "" {
 				pkg, err := c.ValidateBootstrapPackageFromURL(macosSetup.BootstrapPackage.Value)
 				if err != nil {
-					return fmt.Errorf("applying fleet config: %w", err)
+					return nil, fmt.Errorf("applying fleet config: %w", err)
 				}
 
 				if !opts.DryRun {
 					if err := c.EnsureBootstrapPackage(pkg, uint(0)); err != nil {
-						return fmt.Errorf("applying fleet config: %w", err)
+						return nil, fmt.Errorf("applying fleet config: %w", err)
 					}
 				}
 			}
 			if macosSetup.MacOSSetupAssistant.Value != "" {
 				content, err := c.validateMacOSSetupAssistant(resolveApplyRelativePath(baseDir, macosSetup.MacOSSetupAssistant.Value))
 				if err != nil {
-					return fmt.Errorf("applying fleet config: %w", err)
+					return nil, fmt.Errorf("applying fleet config: %w", err)
 				}
 				if !opts.DryRun {
 					if err := c.uploadMacOSSetupAssistant(content, nil, macosSetup.MacOSSetupAssistant.Value); err != nil {
-						return fmt.Errorf("applying fleet config: %w", err)
+						return nil, fmt.Errorf("applying fleet config: %w", err)
 					}
 				}
 			}
@@ -424,19 +521,19 @@ func (c *Client) ApplyGroup(
 			for i, f := range files {
 				b, err := os.ReadFile(f)
 				if err != nil {
-					return fmt.Errorf("applying fleet config: %w", err)
+					return nil, fmt.Errorf("applying fleet config: %w", err)
 				}
 				scriptPayloads[i] = fleet.ScriptPayload{
 					ScriptContents: b,
 					Name:           filepath.Base(f),
 				}
 			}
-			if err := c.ApplyNoTeamScripts(scriptPayloads, opts); err != nil {
-				return fmt.Errorf("applying custom settings: %w", err)
+			if err := c.ApplyNoTeamScripts(scriptPayloads, opts.ApplySpecOptions); err != nil {
+				return nil, fmt.Errorf("applying custom settings: %w", err)
 			}
 		}
-		if err := c.ApplyAppConfig(specs.AppConfig, opts); err != nil {
-			return fmt.Errorf("applying fleet config: %w", err)
+		if err := c.ApplyAppConfig(specs.AppConfig, opts.ApplySpecOptions); err != nil {
+			return nil, fmt.Errorf("applying fleet config: %w", err)
 		}
 		if opts.DryRun {
 			logfn("[+] would've applied fleet config\n")
@@ -446,26 +543,27 @@ func (c *Client) ApplyGroup(
 	}
 
 	if specs.EnrollSecret != nil {
+		if err := c.ApplyEnrollSecretSpec(specs.EnrollSecret, opts.ApplySpecOptions); err != nil {
+			return nil, fmt.Errorf("applying enroll secrets: %w", err)
+		}
 		if opts.DryRun {
-			logfn("[!] ignoring enroll secrets, dry run mode only supported for 'config' and 'team' specs\n")
+			logfn("[+] would've applied enroll secrets\n")
 		} else {
-			if err := c.ApplyEnrollSecretSpec(specs.EnrollSecret); err != nil {
-				return fmt.Errorf("applying enroll secrets: %w", err)
-			}
 			logfn("[+] applied enroll secrets\n")
 		}
 	}
 
+	var teamIDsByName map[string]uint
 	if len(specs.Teams) > 0 {
 		// extract the teams' custom settings and resolve the files immediately, so
 		// that any non-existing file error is found before applying the specs.
 		tmMDMSettings := extractTmSpecsMDMCustomSettings(specs.Teams)
 
-		tmFileContents := make(map[string]map[string][]byte, len(tmMDMSettings))
-		for k, paths := range tmMDMSettings {
-			fileContents, err := getProfilesContents(baseDir, paths)
+		tmFileContents := make(map[string][]fleet.MDMProfileBatchPayload, len(tmMDMSettings))
+		for k, profileSpecs := range tmMDMSettings {
+			fileContents, err := getProfilesContents(baseDir, profileSpecs.macos, profileSpecs.windows, opts.ExpandEnvConfigProfiles)
 			if err != nil {
-				return err
+				return nil, fmt.Errorf("Team %s: %w", k, err) // TODO: consider adding team name to improve error messages generally for other parts of the config because multiple team configs can be processed at once
 			}
 			tmFileContents[k] = fileContents
 		}
@@ -477,14 +575,14 @@ func (c *Client) ApplyGroup(
 			if setup.BootstrapPackage.Value != "" {
 				bp, err := c.ValidateBootstrapPackageFromURL(setup.BootstrapPackage.Value)
 				if err != nil {
-					return fmt.Errorf("applying teams: %w", err)
+					return nil, fmt.Errorf("applying teams: %w", err)
 				}
 				tmBootstrapPackages[k] = bp
 			}
 			if setup.MacOSSetupAssistant.Value != "" {
 				b, err := c.validateMacOSSetupAssistant(resolveApplyRelativePath(baseDir, setup.MacOSSetupAssistant.Value))
 				if err != nil {
-					return fmt.Errorf("applying teams: %w", err)
+					return nil, fmt.Errorf("applying teams: %w", err)
 				}
 				tmMacSetupAssistants[k] = b
 			}
@@ -498,7 +596,7 @@ func (c *Client) ApplyGroup(
 			for i, f := range files {
 				b, err := os.ReadFile(f)
 				if err != nil {
-					return fmt.Errorf("applying fleet config: %w", err)
+					return nil, fmt.Errorf("applying fleet config: %w", err)
 				}
 				scriptPayloads[i] = fleet.ScriptPayload{
 					ScriptContents: b,
@@ -508,17 +606,115 @@ func (c *Client) ApplyGroup(
 			tmScriptsPayloads[k] = scriptPayloads
 		}
 
+		tmSoftwarePackages := extractTmSpecsSoftwarePackages(specs.Teams)
+		tmSoftwarePackagesPayloads := make(map[string][]fleet.SoftwareInstallerPayload, len(tmScripts))
+		for tmName, software := range tmSoftwarePackages {
+			softwarePayloads := make([]fleet.SoftwareInstallerPayload, len(software))
+			for i, si := range software {
+				var qc string
+				var err error
+				if si.PreInstallQuery.Path != "" {
+					queryFile := resolveApplyRelativePath(baseDir, si.PreInstallQuery.Path)
+					rawSpec, err := os.ReadFile(queryFile)
+					if err != nil {
+						return nil, fmt.Errorf("reading pre-install query: %w", err)
+					}
+
+					group, err := spec.GroupFromBytes(rawSpec)
+					if err != nil {
+						return nil, fmt.Errorf("Couldn't edit software (%s). Unable to parse pre-install query YAML file %s: %w", si.URL, queryFile, err)
+					}
+
+					if len(group.Queries) > 1 {
+						return nil, fmt.Errorf("Couldn't edit software (%s). Pre-install query YAML file %s should have only one query.", si.URL, queryFile)
+					}
+
+					if len(group.Queries) == 0 {
+						return nil, fmt.Errorf("Couldn't edit software (%s). Pre-install query YAML file %s doesn't have a query defined.", si.URL, queryFile)
+					}
+
+					qc = group.Queries[0].Query
+				}
+
+				var ic []byte
+				if si.InstallScript.Path != "" {
+					installScriptFile := resolveApplyRelativePath(baseDir, si.InstallScript.Path)
+					ic, err = os.ReadFile(installScriptFile)
+					if err != nil {
+						return nil, fmt.Errorf("Couldn't edit software (%s). Unable to read install script file %s: %w", si.URL, si.InstallScript.Path, err)
+					}
+				}
+
+				var pc []byte
+				if si.PostInstallScript.Path != "" {
+					postInstallScriptFile := resolveApplyRelativePath(baseDir, si.PostInstallScript.Path)
+					pc, err = os.ReadFile(postInstallScriptFile)
+					if err != nil {
+						return nil, fmt.Errorf("Couldn't edit software (%s). Unable to read post-install script file %s: %w", si.URL, si.PostInstallScript.Path, err)
+					}
+				}
+
+				softwarePayloads[i] = fleet.SoftwareInstallerPayload{
+					URL:               si.URL,
+					SelfService:       si.SelfService,
+					PreInstallQuery:   qc,
+					InstallScript:     string(ic),
+					PostInstallScript: string(pc),
+				}
+			}
+
+			tmSoftwarePackagesPayloads[tmName] = softwarePayloads
+		}
+
+		tmSoftwareApps := extractTmSpecsSoftwareApps(specs.Teams)
+		tmSoftwareAppsPayloads := make(map[string][]fleet.VPPBatchPayload)
+		for tmName, apps := range tmSoftwareApps {
+			appPayloads := make([]fleet.VPPBatchPayload, 0, len(apps))
+			for _, app := range apps {
+				appPayloads = append(appPayloads, fleet.VPPBatchPayload{AppStoreID: app.AppStoreID})
+			}
+			tmSoftwareAppsPayloads[tmName] = appPayloads
+		}
+
 		// Next, apply the teams specs before saving the profiles, so that any
 		// non-existing team gets created.
-		teamIDsByName, err := c.ApplyTeams(specs.Teams, opts)
+		var err error
+		teamOpts := fleet.ApplyTeamSpecOptions{
+			ApplySpecOptions:  opts.ApplySpecOptions,
+			DryRunAssumptions: specs.TeamsDryRunAssumptions,
+		}
+		// In dry-run, the team names returned are the old team names (when team name is modified via gitops)
+		teamIDsByName, err = c.ApplyTeams(specs.Teams, teamOpts)
 		if err != nil {
-			return fmt.Errorf("applying teams: %w", err)
+			return nil, fmt.Errorf("applying teams: %w", err)
+		}
+
+		// When using GitOps, the team name could change, so we need to check for that
+		getTeamName := func(teamName string) string {
+			return teamName
+		}
+		if len(specs.Teams) == 1 && len(teamIDsByName) == 1 {
+			for key := range teamIDsByName {
+				if key != extractTeamName(specs.Teams[0]) {
+					getTeamName = func(teamName string) string {
+						return key
+					}
+				}
+			}
 		}
 
 		if len(tmFileContents) > 0 {
 			for tmName, profs := range tmFileContents {
-				if err := c.ApplyTeamProfiles(tmName, profs, opts); err != nil {
-					return fmt.Errorf("applying custom settings for team %q: %w", tmName, err)
+				// For non-dry run, currentTeamName and tmName are the same
+				currentTeamName := getTeamName(tmName)
+				teamID, ok := teamIDsByName[currentTeamName]
+				if opts.DryRun && (teamID == 0 || !ok) {
+					logfn("[+] would've applied MDM profiles for new team %s\n", tmName)
+				} else {
+					logfn("[+] applying MDM profiles for team %s\n", tmName)
+					if err := c.ApplyTeamProfiles(currentTeamName, profs, teamOpts); err != nil {
+						return nil, fmt.Errorf("applying custom settings for team %q: %w", tmName, err)
+					}
 				}
 			}
 		}
@@ -526,20 +722,40 @@ func (c *Client) ApplyGroup(
 			for tmName, tmID := range teamIDsByName {
 				if bp, ok := tmBootstrapPackages[tmName]; ok {
 					if err := c.EnsureBootstrapPackage(bp, tmID); err != nil {
-						return fmt.Errorf("uploading bootstrap package for team %q: %w", tmName, err)
+						return nil, fmt.Errorf("uploading bootstrap package for team %q: %w", tmName, err)
 					}
 				}
 				if b, ok := tmMacSetupAssistants[tmName]; ok {
 					if err := c.uploadMacOSSetupAssistant(b, &tmID, tmMacSetup[tmName].MacOSSetupAssistant.Value); err != nil {
-						return fmt.Errorf("uploading macOS setup assistant for team %q: %w", tmName, err)
+						return nil, fmt.Errorf("uploading macOS setup assistant for team %q: %w", tmName, err)
 					}
 				}
 			}
 		}
 		if len(tmScriptsPayloads) > 0 {
 			for tmName, scripts := range tmScriptsPayloads {
-				if err := c.ApplyTeamScripts(tmName, scripts, opts); err != nil {
-					return fmt.Errorf("applying scripts for team %q: %w", tmName, err)
+				// For non-dry run, currentTeamName and tmName are the same
+				currentTeamName := getTeamName(tmName)
+				if err := c.ApplyTeamScripts(currentTeamName, scripts, opts.ApplySpecOptions); err != nil {
+					return nil, fmt.Errorf("applying scripts for team %q: %w", tmName, err)
+				}
+			}
+		}
+		if len(tmSoftwarePackagesPayloads) > 0 {
+			for tmName, software := range tmSoftwarePackagesPayloads {
+				// For non-dry run, currentTeamName and tmName are the same
+				currentTeamName := getTeamName(tmName)
+				if err := c.ApplyTeamSoftwareInstallers(currentTeamName, software, opts.ApplySpecOptions); err != nil {
+					return nil, fmt.Errorf("applying software installers for team %q: %w", tmName, err)
+				}
+			}
+		}
+		if len(tmSoftwareAppsPayloads) > 0 {
+			for tmName, apps := range tmSoftwareAppsPayloads {
+				// For non-dry run, currentTeamName and tmName are the same
+				currentTeamName := getTeamName(tmName)
+				if err := c.ApplyTeamAppStoreAppsAssociation(currentTeamName, apps, opts.ApplySpecOptions); err != nil {
+					return nil, fmt.Errorf("applying app store apps for team: %q: %w", tmName, err)
 				}
 			}
 		}
@@ -555,12 +771,12 @@ func (c *Client) ApplyGroup(
 			logfn("[!] ignoring user roles, dry run mode only supported for 'config' and 'team' specs\n")
 		} else {
 			if err := c.ApplyUsersRoleSecretSpec(specs.UsersRoles); err != nil {
-				return fmt.Errorf("applying user roles: %w", err)
+				return nil, fmt.Errorf("applying user roles: %w", err)
 			}
 			logfn("[+] applied user roles\n")
 		}
 	}
-	return nil
+	return teamIDsByName, nil
 }
 
 func extractAppCfgMacOSSetup(appCfg any) *fleet.MacOSSetup {
@@ -606,7 +822,7 @@ func resolveApplyRelativePaths(baseDir string, paths []string) []string {
 	return resolved
 }
 
-func extractAppCfgMacOSCustomSettings(appCfg interface{}) []string {
+func extractAppCfgCustomSettings(appCfg interface{}, platformKey string) []fleet.MDMProfileSpec {
 	asMap, ok := appCfg.(map[string]interface{})
 	if !ok {
 		return nil
@@ -615,7 +831,7 @@ func extractAppCfgMacOSCustomSettings(appCfg interface{}) []string {
 	if !ok {
 		return nil
 	}
-	mos, ok := mmdm["macos_settings"].(map[string]interface{})
+	mos, ok := mmdm[platformKey].(map[string]interface{})
 	if !ok || mos == nil {
 		return nil
 	}
@@ -630,54 +846,55 @@ func extractAppCfgMacOSCustomSettings(appCfg interface{}) []string {
 	if !ok || csAny == nil {
 		// return a non-nil, empty slice instead, so the caller knows that the
 		// custom_settings key was actually provided.
-		return []string{}
+		return []fleet.MDMProfileSpec{}
 	}
 
-	csStrings := make([]string, 0, len(csAny))
+	extractLabelField := func(parentMap map[string]interface{}, fieldName string) []string {
+		var ret []string
+		if labels, ok := parentMap[fieldName].([]interface{}); ok {
+			for _, label := range labels {
+				if strLabel, ok := label.(string); ok {
+					ret = append(ret, strLabel)
+				}
+			}
+		}
+		return ret
+	}
+
+	csSpecs := make([]fleet.MDMProfileSpec, 0, len(csAny))
 	for _, v := range csAny {
-		s, _ := v.(string)
-		if s != "" {
-			csStrings = append(csStrings, s)
+		if m, ok := v.(map[string]interface{}); ok {
+			var profSpec fleet.MDMProfileSpec
+
+			// extract the Path field
+			if path, ok := m["path"].(string); ok {
+				profSpec.Path = path
+			}
+
+			// at this stage we extract and return all supported label fields, the
+			// validations are done later on in the Fleet API endpoint.
+			profSpec.Labels = extractLabelField(m, "labels")
+			profSpec.LabelsIncludeAll = extractLabelField(m, "labels_include_all")
+			profSpec.LabelsExcludeAny = extractLabelField(m, "labels_exclude_any")
+
+			if profSpec.Path != "" {
+				csSpecs = append(csSpecs, profSpec)
+			}
+		} else if m, ok := v.(string); ok { // for backwards compatibility with the old way to define profiles
+			if m != "" {
+				csSpecs = append(csSpecs, fleet.MDMProfileSpec{Path: m})
+			}
 		}
 	}
-	return csStrings
+	return csSpecs
 }
 
-func extractAppCfgWindowsCustomSettings(appCfg interface{}) []string {
-	asMap, ok := appCfg.(map[string]interface{})
-	if !ok {
-		return nil
-	}
-	mmdm, ok := asMap["mdm"].(map[string]interface{})
-	if !ok {
-		return nil
-	}
-	mos, ok := mmdm["windows_settings"].(map[string]interface{})
-	if !ok || mos == nil {
-		return nil
-	}
+func extractAppCfgMacOSCustomSettings(appCfg interface{}) []fleet.MDMProfileSpec {
+	return extractAppCfgCustomSettings(appCfg, "macos_settings")
+}
 
-	cs, ok := mos["custom_settings"]
-	if !ok {
-		// custom settings is not present
-		return nil
-	}
-
-	csAny, ok := cs.([]interface{})
-	if !ok || csAny == nil {
-		// return a non-nil, empty slice instead, so the caller knows that the
-		// custom_settings key was actually provided.
-		return []string{}
-	}
-
-	csStrings := make([]string, 0, len(csAny))
-	for _, v := range csAny {
-		s, _ := v.(string)
-		if s != "" {
-			csStrings = append(csStrings, s)
-		}
-	}
-	return csStrings
+func extractAppCfgWindowsCustomSettings(appCfg interface{}) []fleet.MDMProfileSpec {
+	return extractAppCfgCustomSettings(appCfg, "windows_settings")
 }
 
 func extractAppCfgScripts(appCfg interface{}) []string {
@@ -709,9 +926,24 @@ func extractAppCfgScripts(appCfg interface{}) []string {
 	return scriptsStrings
 }
 
+type profileSpecsByPlatform struct {
+	macos   []fleet.MDMProfileSpec
+	windows []fleet.MDMProfileSpec
+}
+
+func extractTeamName(tmSpec json.RawMessage) string {
+	var s struct {
+		Name string `json:"name"`
+	}
+	if err := json.Unmarshal(tmSpec, &s); err != nil {
+		return ""
+	}
+	return norm.NFC.String(s.Name)
+}
+
 // returns the custom macOS and Windows settings keyed by team name.
-func extractTmSpecsMDMCustomSettings(tmSpecs []json.RawMessage) map[string][]string {
-	var m map[string][]string
+func extractTmSpecsMDMCustomSettings(tmSpecs []json.RawMessage) map[string]profileSpecsByPlatform {
+	var m map[string]profileSpecsByPlatform
 	for _, tm := range tmSpecs {
 		var spec struct {
 			Name string `json:"name"`
@@ -728,16 +960,17 @@ func extractTmSpecsMDMCustomSettings(tmSpecs []json.RawMessage) map[string][]str
 			// ignore, this will fail in the call to apply team specs
 			continue
 		}
+		spec.Name = norm.NFC.String(spec.Name)
 		if spec.Name != "" {
-			var macOSSettings []string
-			var windowsSettings []string
+			var macOSSettings []fleet.MDMProfileSpec
+			var windowsSettings []fleet.MDMProfileSpec
 
 			// to keep existing bahavior, if any of the custom
 			// settings is provided, make the map a non-nil map
 			if len(spec.MDM.MacOSSettings.CustomSettings) > 0 ||
 				len(spec.MDM.WindowsSettings.CustomSettings) > 0 {
 				if m == nil {
-					m = make(map[string][]string)
+					m = make(map[string]profileSpecsByPlatform)
 				}
 			}
 
@@ -749,7 +982,7 @@ func extractTmSpecsMDMCustomSettings(tmSpecs []json.RawMessage) map[string][]str
 				if macOSSettings == nil {
 					// to be consistent with the AppConfig custom settings, set it to an
 					// empty slice if the provided custom settings are present but empty.
-					macOSSettings = []string{}
+					macOSSettings = []fleet.MDMProfileSpec{}
 				}
 			}
 			if len(spec.MDM.WindowsSettings.CustomSettings) > 0 {
@@ -760,13 +993,92 @@ func extractTmSpecsMDMCustomSettings(tmSpecs []json.RawMessage) map[string][]str
 				if windowsSettings == nil {
 					// to be consistent with the AppConfig custom settings, set it to an
 					// empty slice if the provided custom settings are present but empty.
-					windowsSettings = []string{}
+					windowsSettings = []fleet.MDMProfileSpec{}
 				}
 			}
 
-			if macOSSettings != nil || windowsSettings != nil {
-				m[spec.Name] = append(macOSSettings, windowsSettings...)
+			// TODO: validate equal names here and API?
+			var result profileSpecsByPlatform
+			if macOSSettings != nil {
+				result.macos = macOSSettings
 			}
+			if windowsSettings != nil {
+				result.windows = windowsSettings
+			}
+
+			if macOSSettings != nil || windowsSettings != nil {
+				m[spec.Name] = result
+			}
+		}
+	}
+	return m
+}
+
+func extractTmSpecsSoftwarePackages(tmSpecs []json.RawMessage) map[string][]fleet.TeamSpecSoftwarePackage {
+	var m map[string][]fleet.TeamSpecSoftwarePackage
+	for _, tm := range tmSpecs {
+		var spec struct {
+			Name     string          `json:"name"`
+			Software json.RawMessage `json:"software"`
+		}
+		if err := json.Unmarshal(tm, &spec); err != nil {
+			// ignore, this will fail in the call to apply team specs
+			continue
+		}
+		spec.Name = norm.NFC.String(spec.Name)
+		if spec.Name != "" && len(spec.Software) > 0 {
+			if m == nil {
+				m = make(map[string][]fleet.TeamSpecSoftwarePackage)
+			}
+			var software fleet.TeamSpecSoftware
+			var packages []fleet.TeamSpecSoftwarePackage
+			if err := json.Unmarshal(spec.Software, &software); err != nil {
+				// ignore, will fail in apply team specs call
+				continue
+			}
+			if !software.Packages.Valid {
+				// to be consistent with the AppConfig custom settings, set it to an
+				// empty slice if the provided custom settings are present but empty.
+				packages = []fleet.TeamSpecSoftwarePackage{}
+			} else {
+				packages = software.Packages.Value
+			}
+			m[spec.Name] = packages
+		}
+	}
+	return m
+}
+
+func extractTmSpecsSoftwareApps(tmSpecs []json.RawMessage) map[string][]fleet.TeamSpecAppStoreApp {
+	var m map[string][]fleet.TeamSpecAppStoreApp
+	for _, tm := range tmSpecs {
+		var spec struct {
+			Name     string          `json:"name"`
+			Software json.RawMessage `json:"software"`
+		}
+		if err := json.Unmarshal(tm, &spec); err != nil {
+			// ignore, this will fail in the call to apply team specs
+			continue
+		}
+		spec.Name = norm.NFC.String(spec.Name)
+		if spec.Name != "" && len(spec.Software) > 0 {
+			if m == nil {
+				m = make(map[string][]fleet.TeamSpecAppStoreApp)
+			}
+			var software fleet.TeamSpecSoftware
+			var apps []fleet.TeamSpecAppStoreApp
+			if err := json.Unmarshal(spec.Software, &software); err != nil {
+				// ignore, will fail in apply team specs call
+				continue
+			}
+			if !software.AppStoreApps.Valid {
+				// to be consistent with the AppConfig custom settings, set it to an
+				// empty slice if the provided custom settings are present but empty.
+				apps = []fleet.TeamSpecAppStoreApp{}
+			} else {
+				apps = software.AppStoreApps.Value
+			}
+			m[spec.Name] = apps
 		}
 	}
 	return m
@@ -783,6 +1095,7 @@ func extractTmSpecsScripts(tmSpecs []json.RawMessage) map[string][]string {
 			// ignore, this will fail in the call to apply team specs
 			continue
 		}
+		spec.Name = norm.NFC.String(spec.Name)
 		if spec.Name != "" && len(spec.Scripts) > 0 {
 			if m == nil {
 				m = make(map[string][]string)
@@ -817,6 +1130,7 @@ func extractTmSpecsMacOSSetup(tmSpecs []json.RawMessage) map[string]*fleet.MacOS
 			// ignore, this will fail in the call to apply team specs
 			continue
 		}
+		spec.Name = norm.NFC.String(spec.Name)
 		if spec.Name != "" {
 			if m == nil {
 				m = make(map[string]*fleet.MacOSSetup)
@@ -825,4 +1139,434 @@ func extractTmSpecsMacOSSetup(tmSpecs []json.RawMessage) map[string]*fleet.MacOS
 		}
 	}
 	return m
+}
+
+// DoGitOps applies the GitOps config to Fleet.
+func (c *Client) DoGitOps(
+	ctx context.Context,
+	config *spec.GitOps,
+	fullFilename string,
+	logf func(format string, args ...interface{}),
+	dryRun bool,
+	teamDryRunAssumptions *fleet.TeamSpecsDryRunAssumptions,
+	appConfig *fleet.EnrichedAppConfig,
+) (*fleet.TeamSpecsDryRunAssumptions, error) {
+	baseDir := filepath.Dir(fullFilename)
+	filename := filepath.Base(fullFilename)
+	var teamAssumptions *fleet.TeamSpecsDryRunAssumptions
+	var err error
+	logFn := func(format string, args ...interface{}) {
+		if logf != nil {
+			logf(format, args...)
+		}
+	}
+	group := spec.Group{}
+	scripts := make([]interface{}, len(config.Controls.Scripts))
+	for i, script := range config.Controls.Scripts {
+		scripts[i] = *script.Path
+	}
+	var mdmAppConfig map[string]interface{}
+	var team map[string]interface{}
+	if config.TeamName == nil {
+		group.AppConfig = config.OrgSettings
+		group.EnrollSecret = &fleet.EnrollSecretSpec{Secrets: config.OrgSettings["secrets"].([]*fleet.EnrollSecret)}
+		group.AppConfig.(map[string]interface{})["agent_options"] = config.AgentOptions
+		delete(config.OrgSettings, "secrets") // secrets are applied separately in Client.ApplyGroup
+
+		// Integrations
+		var integrations interface{}
+		var ok bool
+		if integrations, ok = group.AppConfig.(map[string]interface{})["integrations"]; !ok || integrations == nil {
+			integrations = map[string]interface{}{}
+			group.AppConfig.(map[string]interface{})["integrations"] = integrations
+		}
+		if jira, ok := integrations.(map[string]interface{})["jira"]; !ok || jira == nil {
+			integrations.(map[string]interface{})["jira"] = []interface{}{}
+		}
+		if zendesk, ok := integrations.(map[string]interface{})["zendesk"]; !ok || zendesk == nil {
+			integrations.(map[string]interface{})["zendesk"] = []interface{}{}
+		}
+		if googleCal, ok := integrations.(map[string]interface{})["google_calendar"]; !ok || googleCal == nil {
+			integrations.(map[string]interface{})["google_calendar"] = []interface{}{}
+		}
+
+		// Ensure mdm config exists
+		mdmConfig, ok := group.AppConfig.(map[string]interface{})["mdm"]
+		if !ok || mdmConfig == nil {
+			mdmConfig = map[string]interface{}{}
+			group.AppConfig.(map[string]interface{})["mdm"] = mdmConfig
+		}
+		mdmAppConfig, ok = mdmConfig.(map[string]interface{})
+		if !ok {
+			return nil, errors.New("org_settings.mdm config is not a map")
+		}
+
+		// Put in default values for macos_migration
+		if config.Controls.MacOSMigration != nil {
+			mdmAppConfig["macos_migration"] = config.Controls.MacOSMigration
+		} else {
+			mdmAppConfig["macos_migration"] = map[string]interface{}{}
+		}
+		macOSMigration := mdmAppConfig["macos_migration"].(map[string]interface{})
+		if enable, ok := macOSMigration["enable"]; !ok || enable == nil {
+			macOSMigration["enable"] = false
+		}
+		// Put in default values for windows_enabled_and_configured
+		mdmAppConfig["windows_enabled_and_configured"] = config.Controls.WindowsEnabledAndConfigured
+		if config.Controls.WindowsEnabledAndConfigured != nil {
+			mdmAppConfig["windows_enabled_and_configured"] = config.Controls.WindowsEnabledAndConfigured
+		} else {
+			mdmAppConfig["windows_enabled_and_configured"] = false
+		}
+		if windowsEnabledAndConfiguredAssumption, ok := mdmAppConfig["windows_enabled_and_configured"].(bool); ok {
+			teamAssumptions = &fleet.TeamSpecsDryRunAssumptions{
+				WindowsEnabledAndConfigured: optjson.SetBool(windowsEnabledAndConfiguredAssumption),
+			}
+		}
+		group.AppConfig.(map[string]interface{})["scripts"] = scripts
+	} else {
+		team = make(map[string]interface{})
+		team["name"] = *config.TeamName
+		team["agent_options"] = config.AgentOptions
+		if hostExpirySettings, ok := config.TeamSettings["host_expiry_settings"]; ok {
+			team["host_expiry_settings"] = hostExpirySettings
+		}
+		if features, ok := config.TeamSettings["features"]; ok {
+			team["features"] = features
+		}
+		team["scripts"] = scripts
+		team["software"] = map[string]any{}
+		team["software"].(map[string]any)["app_store_apps"] = config.Software.AppStoreApps
+		team["software"].(map[string]any)["packages"] = config.Software.Packages
+		team["secrets"] = config.TeamSettings["secrets"]
+		team["webhook_settings"] = map[string]interface{}{}
+		clearHostStatusWebhook := true
+		if webhookSettings, ok := config.TeamSettings["webhook_settings"]; ok {
+			if hostStatusWebhook, ok := webhookSettings.(map[string]interface{})["host_status_webhook"]; ok {
+				clearHostStatusWebhook = false
+				team["webhook_settings"].(map[string]interface{})["host_status_webhook"] = hostStatusWebhook
+			}
+		}
+		if clearHostStatusWebhook {
+			// Clear out any existing host_status_webhook settings
+			team["webhook_settings"].(map[string]interface{})["host_status_webhook"] = map[string]interface{}{}
+		}
+		// Integrations
+		var integrations interface{}
+		var ok bool
+		if integrations, ok = config.TeamSettings["integrations"]; !ok || integrations == nil {
+			integrations = map[string]interface{}{}
+		}
+		team["integrations"] = integrations
+		_, ok = integrations.(map[string]interface{})
+		if !ok {
+			return nil, errors.New("team_settings.integrations config is not a map")
+		}
+		if googleCal, ok := integrations.(map[string]interface{})["google_calendar"]; !ok || googleCal == nil {
+			integrations.(map[string]interface{})["google_calendar"] = map[string]interface{}{}
+		} else {
+			_, ok = googleCal.(map[string]interface{})
+			if !ok {
+				return nil, errors.New("team_settings.integrations.google_calendar config is not a map")
+			}
+		}
+
+		team["mdm"] = map[string]interface{}{}
+		mdmAppConfig = team["mdm"].(map[string]interface{})
+	}
+	// Common controls settings between org and team settings
+	// Put in default values for macos_settings
+	if config.Controls.MacOSSettings != nil {
+		mdmAppConfig["macos_settings"] = config.Controls.MacOSSettings
+	} else {
+		mdmAppConfig["macos_settings"] = map[string]interface{}{}
+	}
+	macOSSettings := mdmAppConfig["macos_settings"].(map[string]interface{})
+	if customSettings, ok := macOSSettings["custom_settings"]; !ok || customSettings == nil {
+		macOSSettings["custom_settings"] = []interface{}{}
+	}
+	// Put in default values for macos_updates
+	if config.Controls.MacOSUpdates != nil {
+		mdmAppConfig["macos_updates"] = config.Controls.MacOSUpdates
+	} else {
+		mdmAppConfig["macos_updates"] = map[string]interface{}{}
+	}
+	macOSUpdates := mdmAppConfig["macos_updates"].(map[string]interface{})
+	if minimumVersion, ok := macOSUpdates["minimum_version"]; !ok || minimumVersion == nil {
+		macOSUpdates["minimum_version"] = ""
+	}
+	if deadline, ok := macOSUpdates["deadline"]; !ok || deadline == nil {
+		macOSUpdates["deadline"] = ""
+	}
+	// Put in default values for ios_updates
+	if config.Controls.IOSUpdates != nil {
+		mdmAppConfig["ios_updates"] = config.Controls.IOSUpdates
+	} else {
+		mdmAppConfig["ios_updates"] = map[string]interface{}{}
+	}
+	iOSUpdates := mdmAppConfig["ios_updates"].(map[string]interface{})
+	if minimumVersion, ok := iOSUpdates["minimum_version"]; !ok || minimumVersion == nil {
+		iOSUpdates["minimum_version"] = ""
+	}
+	if deadline, ok := iOSUpdates["deadline"]; !ok || deadline == nil {
+		iOSUpdates["deadline"] = ""
+	}
+	// Put in default values for ipados_updates
+	if config.Controls.IPadOSUpdates != nil {
+		mdmAppConfig["ipados_updates"] = config.Controls.IPadOSUpdates
+	} else {
+		mdmAppConfig["ipados_updates"] = map[string]interface{}{}
+	}
+	iPadOSUpdates := mdmAppConfig["ipados_updates"].(map[string]interface{})
+	if minimumVersion, ok := iPadOSUpdates["minimum_version"]; !ok || minimumVersion == nil {
+		iPadOSUpdates["minimum_version"] = ""
+	}
+	if deadline, ok := iPadOSUpdates["deadline"]; !ok || deadline == nil {
+		iPadOSUpdates["deadline"] = ""
+	}
+	// Put in default values for macos_setup
+	if config.Controls.MacOSSetup != nil {
+		mdmAppConfig["macos_setup"] = config.Controls.MacOSSetup
+	} else {
+		mdmAppConfig["macos_setup"] = map[string]interface{}{}
+	}
+	macOSSetup := mdmAppConfig["macos_setup"].(map[string]interface{})
+	if bootstrapPackage, ok := macOSSetup["bootstrap_package"]; !ok || bootstrapPackage == nil {
+		macOSSetup["bootstrap_package"] = ""
+	}
+	if enableEndUserAuthentication, ok := macOSSetup["enable_end_user_authentication"]; !ok || enableEndUserAuthentication == nil {
+		macOSSetup["enable_end_user_authentication"] = false
+	}
+	if macOSSetupAssistant, ok := macOSSetup["macos_setup_assistant"]; !ok || macOSSetupAssistant == nil {
+		macOSSetup["macos_setup_assistant"] = ""
+	}
+	// Put in default values for windows_settings
+	if config.Controls.WindowsSettings != nil {
+		mdmAppConfig["windows_settings"] = config.Controls.WindowsSettings
+	} else {
+		mdmAppConfig["windows_settings"] = map[string]interface{}{}
+	}
+	windowsSettings := mdmAppConfig["windows_settings"].(map[string]interface{})
+	if customSettings, ok := windowsSettings["custom_settings"]; !ok || customSettings == nil {
+		windowsSettings["custom_settings"] = []interface{}{}
+	}
+	// Put in default values for windows_updates
+	if config.Controls.WindowsUpdates != nil {
+		mdmAppConfig["windows_updates"] = config.Controls.WindowsUpdates
+	} else {
+		mdmAppConfig["windows_updates"] = map[string]interface{}{}
+	}
+	if appConfig.License.IsPremium() {
+		windowsUpdates := mdmAppConfig["windows_updates"].(map[string]interface{})
+		if deadlineDays, ok := windowsUpdates["deadline_days"]; !ok || deadlineDays == nil {
+			windowsUpdates["deadline_days"] = nil
+		}
+		if gracePeriodDays, ok := windowsUpdates["grace_period_days"]; !ok || gracePeriodDays == nil {
+			windowsUpdates["grace_period_days"] = nil
+		}
+	}
+	// Put in default value for enable_disk_encryption
+	if config.Controls.EnableDiskEncryption != nil {
+		mdmAppConfig["enable_disk_encryption"] = config.Controls.EnableDiskEncryption
+	} else {
+		mdmAppConfig["enable_disk_encryption"] = false
+	}
+	if config.TeamName != nil {
+		team["gitops_filename"] = filename
+		rawTeam, err := json.Marshal(team)
+		if err != nil {
+			return nil, fmt.Errorf("error marshalling team spec: %w", err)
+		}
+		group.Teams = []json.RawMessage{rawTeam}
+		group.TeamsDryRunAssumptions = teamDryRunAssumptions
+	}
+
+	// Apply org settings, scripts, enroll secrets, and controls
+	teamIDsByName, err := c.ApplyGroup(ctx, &group, baseDir, logf, fleet.ApplyClientSpecOptions{
+		ApplySpecOptions: fleet.ApplySpecOptions{
+			DryRun: dryRun,
+		},
+		ExpandEnvConfigProfiles: true,
+	})
+	if err != nil {
+		return nil, err
+	}
+	if config.TeamName != nil {
+		if len(teamIDsByName) != 1 {
+			return nil, fmt.Errorf("expected 1 team spec to be applied, got %d", len(teamIDsByName))
+		}
+		teamID, ok := teamIDsByName[*config.TeamName]
+		if ok && teamID == 0 {
+			if dryRun {
+				logFn("[+] would've added any policies/queries to new team %s\n", *config.TeamName)
+				return nil, nil
+			}
+			return nil, fmt.Errorf("team %s not created", *config.TeamName)
+		}
+		for _, teamID = range teamIDsByName {
+			config.TeamID = &teamID
+		}
+	}
+
+	err = c.doGitOpsPolicies(config, logFn, dryRun)
+	if err != nil {
+		return nil, err
+	}
+
+	err = c.doGitOpsQueries(config, logFn, dryRun)
+	if err != nil {
+		return nil, err
+	}
+
+	return teamAssumptions, nil
+}
+
+func (c *Client) doGitOpsPolicies(config *spec.GitOps, logFn func(format string, args ...interface{}), dryRun bool) error {
+	// Get the ids and names of current policies to figure out which ones to delete
+	policies, err := c.GetPolicies(config.TeamID)
+	if err != nil {
+		return fmt.Errorf("error getting current policies: %w", err)
+	}
+	if len(config.Policies) > 0 {
+		numPolicies := len(config.Policies)
+		logFn("[+] syncing %d policies\n", numPolicies)
+		if !dryRun {
+			totalApplied := 0
+			for i := 0; i < len(config.Policies); i += batchSize {
+				end := i + batchSize
+				if end > len(config.Policies) {
+					end = len(config.Policies)
+				}
+				totalApplied += end - i
+				// Note: We are reusing the spec flow here for adding/updating policies, instead of creating a new flow for GitOps.
+				if err := c.ApplyPolicies(config.Policies[i:end]); err != nil {
+					return fmt.Errorf("error applying policies: %w", err)
+				}
+				logFn("[+] synced %d policies\n", totalApplied)
+			}
+		}
+	}
+	var policiesToDelete []uint
+	for _, oldItem := range policies {
+		found := false
+		for _, newItem := range config.Policies {
+			if oldItem.Name == newItem.Name {
+				found = true
+				break
+			}
+		}
+		if !found {
+			policiesToDelete = append(policiesToDelete, oldItem.ID)
+			fmt.Printf("[-] deleting policy %s\n", oldItem.Name)
+		}
+	}
+	if len(policiesToDelete) > 0 {
+		logFn("[-] deleting %d policies\n", len(policiesToDelete))
+		if !dryRun {
+			totalDeleted := 0
+			for i := 0; i < len(policiesToDelete); i += batchSize {
+				end := i + batchSize
+				if end > len(policiesToDelete) {
+					end = len(policiesToDelete)
+				}
+				totalDeleted += end - i
+				if err := c.DeletePolicies(config.TeamID, policiesToDelete[i:end]); err != nil {
+					return fmt.Errorf("error deleting policies: %w", err)
+				}
+				logFn("[-] deleted %d policies\n", totalDeleted)
+			}
+		}
+	}
+	return nil
+}
+
+func (c *Client) doGitOpsQueries(config *spec.GitOps, logFn func(format string, args ...interface{}), dryRun bool) error {
+	batchSize := 100
+	// Get the ids and names of current queries to figure out which ones to delete
+	queries, err := c.GetQueries(config.TeamID, nil)
+	if err != nil {
+		return fmt.Errorf("error getting current queries: %w", err)
+	}
+	if len(config.Queries) > 0 {
+		numQueries := len(config.Queries)
+		logFn("[+] syncing %d queries\n", numQueries)
+		if !dryRun {
+			appliedCount := 0
+			for i := 0; i < len(config.Queries); i += batchSize {
+				end := i + batchSize
+				if end > len(config.Queries) {
+					end = len(config.Queries)
+				}
+				appliedCount += end - i
+				// Note: We are reusing the spec flow here for adding/updating queries, instead of creating a new flow for GitOps.
+				if err := c.ApplyQueries(config.Queries[i:end]); err != nil {
+					return fmt.Errorf("error applying queries: %w", err)
+				}
+				logFn("[+] synced %d queries\n", appliedCount)
+			}
+		}
+	}
+	var queriesToDelete []uint
+	for _, oldQuery := range queries {
+		found := false
+		for _, newQuery := range config.Queries {
+			if oldQuery.Name == newQuery.Name {
+				found = true
+				break
+			}
+		}
+		if !found {
+			queriesToDelete = append(queriesToDelete, oldQuery.ID)
+			fmt.Printf("[-] deleting query %s\n", oldQuery.Name)
+		}
+	}
+	if len(queriesToDelete) > 0 {
+		logFn("[-] deleting %d queries\n", len(queriesToDelete))
+		if !dryRun {
+			deleteCount := 0
+			for i := 0; i < len(queriesToDelete); i += batchSize {
+				end := i + batchSize
+				if end > len(queriesToDelete) {
+					end = len(queriesToDelete)
+				}
+				deleteCount += end - i
+				if err := c.DeleteQueries(queriesToDelete[i:end]); err != nil {
+					return fmt.Errorf("error deleting queries: %w", err)
+				}
+				logFn("[-] deleted %d queries\n", deleteCount)
+			}
+		}
+	}
+	return nil
+}
+
+func (c *Client) GetGitOpsSecrets(
+	config *spec.GitOps,
+) []string {
+	if config.TeamName == nil {
+		orgSecrets, ok := config.OrgSettings["secrets"]
+		if ok {
+			secrets, ok := orgSecrets.([]*fleet.EnrollSecret)
+			if ok {
+				secretValues := make([]string, 0, len(secrets))
+				for _, secret := range secrets {
+					secretValues = append(secretValues, secret.Secret)
+				}
+				return secretValues
+			}
+		}
+	} else {
+		teamSecrets, ok := config.TeamSettings["secrets"]
+		if ok {
+			secrets, ok := teamSecrets.([]*fleet.EnrollSecret)
+			if ok {
+				secretValues := make([]string, 0, len(secrets))
+				for _, secret := range secrets {
+					secretValues = append(secretValues, secret.Secret)
+				}
+				return secretValues
+			}
+		}
+	}
+	return nil
 }

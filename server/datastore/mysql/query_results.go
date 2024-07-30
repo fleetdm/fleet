@@ -2,6 +2,7 @@ package mysql
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -12,7 +13,7 @@ import (
 // OverwriteQueryResultRows overwrites the query result rows for a given query and host
 // in a single transaction, ensuring that the number of rows for the given query
 // does not exceed the maximum allowed
-func (ds *Datastore) OverwriteQueryResultRows(ctx context.Context, rows []*fleet.ScheduledQueryResultRow) (err error) {
+func (ds *Datastore) OverwriteQueryResultRows(ctx context.Context, rows []*fleet.ScheduledQueryResultRow, maxQueryReportRows int) (err error) {
 	if len(rows) == 0 {
 		return nil
 	}
@@ -24,15 +25,13 @@ func (ds *Datastore) OverwriteQueryResultRows(ctx context.Context, rows []*fleet
 
 		// Count how many rows are already in the database for the given queryID
 		var countExisting int
-		countStmt := `
-		SELECT COUNT(*) FROM query_results WHERE query_id = ?
-	`
+		countStmt := `SELECT COUNT(*) FROM query_results WHERE query_id = ? AND data IS NOT NULL`
 		err = sqlx.GetContext(ctx, tx, &countExisting, countStmt, queryID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "counting existing query results")
 		}
 
-		if countExisting >= fleet.MaxQueryReportRows {
+		if countExisting >= maxQueryReportRows {
 			// do not delete any rows if we are already at the limit
 			return nil
 		}
@@ -54,7 +53,7 @@ func (ds *Datastore) OverwriteQueryResultRows(ctx context.Context, rows []*fleet
 
 		// Calculate how many new rows can be added given the maximum limit
 		netRowsAfterDeletion := countExisting - int(countDeleted)
-		allowedNewRows := fleet.MaxQueryReportRows - netRowsAfterDeletion
+		allowedNewRows := maxQueryReportRows - netRowsAfterDeletion
 		if allowedNewRows == 0 {
 			return nil
 		}
@@ -89,14 +88,16 @@ func (ds *Datastore) OverwriteQueryResultRows(ctx context.Context, rows []*fleet
 
 // TODO(lucas): Any chance we can store hostname in the query_results table?
 // (to avoid having to left join hosts).
-func (ds *Datastore) QueryResultRows(ctx context.Context, queryID uint) ([]*fleet.ScheduledQueryResultRow, error) {
-	selectStmt := `
+// QueryResultRows returns the query result rows for a given query
+func (ds *Datastore) QueryResultRows(ctx context.Context, queryID uint, filter fleet.TeamFilter) ([]*fleet.ScheduledQueryResultRow, error) {
+	selectStmt := fmt.Sprintf(`
 		SELECT qr.query_id, qr.host_id, qr.last_fetched, qr.data,
 			h.hostname, h.computer_name, h.hardware_model, h.hardware_serial
 			FROM query_results qr
 			LEFT JOIN hosts h ON (qr.host_id=h.id)
-			WHERE query_id = ?
-		`
+			WHERE query_id = ? AND data IS NOT NULL AND %s
+		`, ds.whereFilterHostsByTeams(filter, "h"))
+
 	results := []*fleet.ScheduledQueryResultRow{}
 	err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, selectStmt, queryID)
 	if err != nil {
@@ -106,9 +107,11 @@ func (ds *Datastore) QueryResultRows(ctx context.Context, queryID uint) ([]*flee
 	return results, nil
 }
 
+// ResultCountForQuery counts the query report rows for a given query
+// excluding rows with null data
 func (ds *Datastore) ResultCountForQuery(ctx context.Context, queryID uint) (int, error) {
 	var count int
-	err := sqlx.GetContext(ctx, ds.reader(ctx), &count, `SELECT COUNT(*) FROM query_results WHERE query_id = ?`, queryID)
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &count, `SELECT COUNT(*) FROM query_results WHERE query_id = ? AND data IS NOT NULL`, queryID)
 	if err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "counting query results for query")
 	}
@@ -116,12 +119,43 @@ func (ds *Datastore) ResultCountForQuery(ctx context.Context, queryID uint) (int
 	return count, nil
 }
 
+// ResultCountForQueryAndHost counts the query report rows for a given query and host
+// excluding rows with null data
 func (ds *Datastore) ResultCountForQueryAndHost(ctx context.Context, queryID, hostID uint) (int, error) {
 	var count int
-	err := sqlx.GetContext(ctx, ds.reader(ctx), &count, `SELECT COUNT(*) FROM query_results WHERE query_id = ? AND host_id = ?`, queryID, hostID)
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &count, `SELECT COUNT(*) FROM query_results WHERE query_id = ? AND host_id = ? AND data IS NOT NULL`, queryID, hostID)
 	if err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "counting query results for query and host")
 	}
 
 	return count, nil
+}
+
+// QueryResultRowsForHost returns the query result rows for a given query and host
+// including rows with null data
+func (ds *Datastore) QueryResultRowsForHost(ctx context.Context, queryID, hostID uint) ([]*fleet.ScheduledQueryResultRow, error) {
+	selectStmt := `
+               SELECT query_id, host_id, last_fetched, data FROM query_results
+                       WHERE query_id = ? AND host_id = ?
+               `
+	results := []*fleet.ScheduledQueryResultRow{}
+	err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, selectStmt, queryID, hostID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "selecting query result rows for host")
+	}
+
+	return results, nil
+}
+
+func (ds *Datastore) CleanupDiscardedQueryResults(ctx context.Context) error {
+	deleteStmt := `
+		DELETE FROM query_results 
+		WHERE query_id IN 
+			(SELECT id FROM queries WHERE discard_data = true)
+		`
+	_, err := ds.writer(ctx).ExecContext(ctx, deleteStmt)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "cleaning up discarded query results")
+	}
+	return nil
 }

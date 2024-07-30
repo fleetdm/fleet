@@ -1,9 +1,11 @@
 .confirm-invite-page {
-  margin: 2.5rem auto;
   background-color: $core-white;
   border-radius: 10px;
   width: 436px;
   padding: $pad-xxlarge;
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
 
   &__form-section-description {
     h2 {
@@ -29,31 +31,24 @@
   }
 
   &__lead-wrapper {
-    border-radius: $border-radius;
-    box-sizing: border-box;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
   }
 
   &__lead-text {
     font-size: $medium;
-    font-weight: $regular;
-    margin: 0 0 6px;
-    text-align: center;
+    margin: 0;
   }
 
   &__sub-lead-text {
     font-size: $x-small;
-    font-weight: $regular;
-    text-align: center;
     margin: 0;
   }
 
-  .confirm-invite-button-wrap {
-    display: flex;
-    justify-content: center;
-    margin-top: $pad-xxlarge;
-
-    .button {
-      width: 160px;
-    }
+  .confirm-invite-button {
+    align-self: center;
+    width: 160px;
   }
 }

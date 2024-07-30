@@ -1,9 +1,7 @@
 name: ulimit_info
-examples: >-
+examples: |-
   Check the stack size limit
   
   ```
-  
   SELECT * FROM ulimit_info WHERE type='stack';
-  
   ```

@@ -3,7 +3,7 @@ name: goreleaser
 on:
   push:
     tags:
-      - 'fleet-*'
+      - "fleet-*"
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
@@ -25,6 +25,11 @@ jobs:
     permissions:
       contents: write
     steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        with:
+          egress-policy: audit
+
       - name: Checkout
         uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
         with:
@@ -41,21 +46,46 @@ jobs:
         with:
           go-version: ${{ vars.GO_VERSION }}
 
+      # Set the Node.js version
+      - name: Set up Node.js ${{ vars.NODE_VERSION }}
+        uses: actions/setup-node@5e21ff4d9bc1a8cf6de233a3057d20ec6b3fb69d # v3.8.1
+        with:
+          node-version: ${{ vars.NODE_VERSION }}
+
       - name: Install JS Dependencies
         run: make deps-js
 
       - name: Install Go Dependencies
         run: make deps-go
 
+      - name: Install macOS signing + notarization tools
+        run: |
+          pushd /tmp
+          readonly version="0.27.0"
+          readonly codesign_package="apple-codesign-${version}-x86_64-unknown-linux-musl.tar.gz"
+          curl -O -L "https://github.com/indygreg/apple-platform-rs/releases/download/apple-codesign%2F${version}/${codesign_package}"
+          curl -O -L "https://github.com/indygreg/apple-platform-rs/releases/download/apple-codesign%2F${version}/${codesign_package}.sha256"
+          echo "$(cat $codesign_package.sha256)  $codesign_package" | sha256sum --quiet --strict --check -
+          tar --extract --strip-components 1 --file "$codesign_package"
+          mkdir -p $HOME/.bin
+          mv rcodesign $HOME/.bin/
+          echo "$HOME/.bin" >> $GITHUB_PATH
+          popd
+
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@f82d6c1c344bcacabba2c841718984797f664a6b
         with:
           distribution: goreleaser-pro
-          version: latest
+          version: "~> 1"
           args: release --rm-dist -f .goreleaser.yml
         env:
           GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          APPLE_APPLICATION_CERTIFICATE: ${{ secrets.APPLE_APPLICATION_CERTIFICATE }}
+          APPLE_APPLICATION_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_APPLICATION_CERTIFICATE_PASSWORD }}
+          APPLE_APP_STORE_CONNECT_KEY: ${{ secrets.APPLE_APP_STORE_CONNECT_KEY }}
+          APPLE_APP_STORE_CONNECT_KEY_ID: ${{ secrets.APPLE_APP_STORE_CONNECT_KEY_ID }}
+          APPLE_APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APPLE_APP_STORE_CONNECT_ISSUER_ID }}
 
       - name: Get tag
         run: |

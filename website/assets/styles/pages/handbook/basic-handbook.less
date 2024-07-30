@@ -102,11 +102,21 @@
   }
 
   [purpose='breadcrumbs'] {
+    [purpose='page-breadcrumbs'] {
+      max-width: 100%;
+      overflow: hidden;
+    }
+
     padding-bottom: 16px;
     padding-top: 16px;
     p, a, strong {
       font-size: 12px;
       line-height: 18px;
+    }
+    [purpose='current-page-breadcrumb'] {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
     a {
       text-decoration: none;
@@ -251,9 +261,45 @@
       }
     }
     ol {
-      padding-left: 16px;
-      li {
-        padding-bottom: 16px;
+      counter-reset: custom-counter;
+      list-style-type: none;
+      padding-inline-start: 0px;
+      padding: 0;
+      margin-top: 16px;
+      margin-bottom: 20px;
+      ul > li {
+        text-indent: 0px;
+        margin-left: 0px;
+      }
+      > li {
+        counter-increment: custom-counter;
+        margin-left: 36px;
+        text-indent: -36px;
+        padding-left: 0px;
+        margin-bottom: 16px;
+        code:not(.nohighlight):not(.mermaid) {
+          display: inline;
+        }
+        p {
+          display: inline;
+          margin-bottom: 0px;
+        }
+        blockquote {
+          text-indent: 0px;
+        }
+      }
+      > li::before {
+        content: counter(custom-counter);
+        background-color: #E2E4EA;
+        width: 24px;
+        font-size: 13px;
+        display: inline-block;
+        border-radius: 50%;
+        margin-right: 10px;
+        padding: 2px 4px;
+        text-align: center;
+        line-height: 20px;
+        text-indent: 0px;
       }
     }
     img {
@@ -287,6 +333,7 @@
       font-family: @code-font;
       display: inline-block;
       svg {
+        max-width: 100%;
         max-height: 600px;
       }
     }
@@ -588,6 +635,12 @@
   @media (max-width: 576px) {
     [purpose='handbook-template'] {
       padding: 0px 24px;
+    }
+    [purpose='content'] {
+      h1 {
+        font-size: 28px;
+        line-height: 120%;
+      }
     }
   }
 

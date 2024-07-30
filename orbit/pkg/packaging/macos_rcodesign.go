@@ -16,7 +16,7 @@ func rSign(pkgPath, cert string) error {
 	defer os.Remove(pemPath)
 	err := os.WriteFile(pemPath, []byte(cert), 0o600)
 	if err != nil {
-		return fmt.Errorf("writing cert data: %e", err)
+		return fmt.Errorf("writing cert data: %s", err)
 	}
 
 	return retry.Do(func() error {
@@ -41,7 +41,7 @@ func rNotarizeStaple(pkg, apiKeyID, apiKeyIssuer, apiKeyContent string) error {
 	path, err := writeAPIKeys(apiKeyIssuer, apiKeyID, apiKeyContent)
 	defer os.Remove(path)
 	if err != nil {
-		return fmt.Errorf("writing API keys: %e", err)
+		return fmt.Errorf("writing API keys: %s", err)
 	}
 
 	return retry.Do(func() error {
@@ -66,19 +66,19 @@ func rNotarizeStaple(pkg, apiKeyID, apiKeyIssuer, apiKeyContent string) error {
 func writeAPIKeys(issuer, id, content string) (string, error) {
 	homedir, err := os.UserHomeDir()
 	if err != nil {
-		return "", fmt.Errorf("finding home dir: %e", err)
+		return "", fmt.Errorf("finding home dir: %s", err)
 	}
 
 	// The underliying tools (rcodesign and Transporter) expect to find a
 	// certificate key in this path.
 	path := filepath.Join(homedir, ".appstoreconnect", "private_keys")
 	if err = secure.MkdirAll(path, 0o600); err != nil {
-		return "", fmt.Errorf("finding home dir: %e", err)
+		return "", fmt.Errorf("finding home dir: %s", err)
 	}
 
 	keyPath := filepath.Join(path, fmt.Sprintf("AuthKey_%s.p8", id))
 	if err = os.WriteFile(keyPath, []byte(content), 0o600); err != nil {
-		return "", fmt.Errorf("writing api key contents: %e", err)
+		return "", fmt.Errorf("writing api key contents: %s", err)
 	}
 
 	return keyPath, nil

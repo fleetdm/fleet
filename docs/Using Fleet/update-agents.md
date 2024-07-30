@@ -1,6 +1,6 @@
 # Self-managed agent updates 
 
-[Fleetd](https://fleetdm.com/docs/using-fleet/fleetd) will periodically check the public Fleet update repository and update Orbit, Fleet Desktop, and/or osquery 
+The fleetd agent will periodically check the public Fleet update repository and update Orbit, Fleet Desktop, and/or osquery 
 if it detects a later version.
 
 To override this behavior, users can set a channel for each component or disable updates altogether. Visit [Adding Hosts](https://fleetdm.com/docs/using-fleet/adding-hosts#fleet-desktop) to learn more.
@@ -128,16 +128,16 @@ Record the root key metadata with a copy of the repository:
 fleetctl updates roots
 ```
 
-This output is _not sensitive_ and will be shared in agent deployments to verify the contents of updates and metadata. Provide the JSON output in the `--update-roots` flag of the [Fleetd packager](https://fleetdm.com/docs/using-fleet/fleetd):
+This output is _not sensitive_ and will be shared in agent deployments to verify the contents of updates and metadata. Provide the JSON output in the `--update-roots` flag of the fleetd agent.
 
-### Packaging with Fleetd
+### Packaging with fleetd
 
-See the [Fleetd docs](https://fleetdm.com/docs/using-fleet/fleetd) for more details
-
-You can use `fleetctl package` to generate installer packages of Fleetd (Fleet's bundle of agents that includes a bootstrapped osquery wrapper) to integrate with your Fleet instance.
+You can use `fleetctl package` to generate Fleet's agent (fleetd) to integrate with your Fleet instance.
 
 For example running `fleetctl package --type deb --fleet-url=<fleet url> --enroll-secret=<enroll secret>` will build a `.deb` installer with everything needed
 to communicate with your fleet instance.
+
+See the [Enroll hosts docs](https://fleetdm.com/docs/using-fleet/enroll-hosts) for instructions on generating the fleetd agent.
 
 ### Key rotation
 

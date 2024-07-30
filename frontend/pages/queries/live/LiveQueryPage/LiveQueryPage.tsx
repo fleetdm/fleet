@@ -3,13 +3,13 @@ import { useQuery } from "react-query";
 import { useErrorHandler } from "react-error-boundary";
 import { InjectedRouter, Params } from "react-router/lib/Router";
 import PATHS from "router/paths";
+import useTeamIdParam from "hooks/useTeamIdParam";
 
 import { AppContext } from "context/app";
 import { QueryContext } from "context/query";
-import { LIVE_QUERY_STEPS, DEFAULT_QUERY } from "utilities/constants";
+import { LIVE_QUERY_STEPS, DOCUMENT_TITLE_SUFFIX } from "utilities/constants";
 import queryAPI from "services/entities/queries";
 import hostAPI from "services/entities/hosts";
-import statusAPI from "services/entities/status";
 import { IHost, IHostResponse } from "interfaces/host";
 import { ILabel } from "interfaces/label";
 import { ITeam } from "interfaces/team";
@@ -22,14 +22,13 @@ import MainContent from "components/MainContent";
 import SelectTargets from "components/LiveQuery/SelectTargets";
 
 import RunQuery from "pages/queries/live/screens/RunQuery";
-import useTeamIdParam from "hooks/useTeamIdParam";
 
 interface IRunQueryPageProps {
   router: InjectedRouter;
   params: Params;
   location: {
     pathname: string;
-    query: { host_ids: string; team_id?: string };
+    query: { host_id: string; team_id?: string };
     search: string;
   };
 }
@@ -42,10 +41,8 @@ const RunQueryPage = ({
   location,
 }: IRunQueryPageProps): JSX.Element => {
   const queryId = paramsQueryId ? parseInt(paramsQueryId, 10) : null;
-  const {
-    currentTeamName: teamNameForQuery,
-    teamIdForApi: apiTeamIdForQuery,
-  } = useTeamIdParam({
+
+  const { currentTeamId } = useTeamIdParam({
     location,
     router,
     includeAllTeams: true,
@@ -53,15 +50,9 @@ const RunQueryPage = ({
   });
 
   const handlePageError = useErrorHandler();
+  const { config } = useContext(AppContext);
   const {
-    isGlobalAdmin,
-    isGlobalMaintainer,
-    isAnyTeamMaintainerOrTeamAdmin,
-    isObserverPlus,
-    isAnyTeamObserverPlus,
-    config,
-  } = useContext(AppContext);
-  const {
+    editingExistingQuery,
     selectedQueryTargets,
     setSelectedQueryTargets,
     selectedQueryTargetsByType,
@@ -89,15 +80,14 @@ const RunQueryPage = ({
     selectedQueryTargetsByType.teams
   );
   const [targetsTotalCount, setTargetsTotalCount] = useState(0);
-  const [isLiveQueryRunnable, setIsLiveQueryRunnable] = useState(true);
 
   const disabledLiveQuery = config?.server_settings.live_query_disabled;
 
   // Reroute users out of live flow when live queries are globally disabled
   if (disabledLiveQuery) {
     queryId
-      ? router.push(PATHS.QUERY(queryId))
-      : router.push(PATHS.NEW_QUERY());
+      ? router.push(PATHS.QUERY_DETAILS(queryId, currentTeamId))
+      : router.push(PATHS.NEW_QUERY(currentTeamId));
   }
 
   // disabled on page load so we can control the number of renders
@@ -107,7 +97,7 @@ const RunQueryPage = ({
     Error,
     ISchedulableQuery
   >(["query", queryId], () => queryAPI.load(queryId as number), {
-    enabled: !!queryId,
+    enabled: !!queryId && !editingExistingQuery,
     refetchOnWindowFocus: false,
     select: (data) => data.query,
     onSuccess: (returnedQuery) => {
@@ -127,9 +117,9 @@ const RunQueryPage = ({
   useQuery<IHostResponse, Error, IHost>(
     "hostFromURL",
     () =>
-      hostAPI.loadHostDetails(parseInt(location.query.host_ids as string, 10)),
+      hostAPI.loadHostDetails(parseInt(location.query.host_id as string, 10)),
     {
-      enabled: !!location.query.host_ids && !queryParamHostsAdded,
+      enabled: !!location.query.host_id && !queryParamHostsAdded,
       select: (data: IHostResponse) => data.host,
       onSuccess: (host) => {
         setTargetedHosts((prevHosts) =>
@@ -147,16 +137,6 @@ const RunQueryPage = ({
     }
   );
 
-  const detectIsFleetQueryRunnable = () => {
-    statusAPI.live_query().catch(() => {
-      setIsLiveQueryRunnable(false);
-    });
-  };
-
-  useEffect(() => {
-    detectIsFleetQueryRunnable();
-  }, [queryId]);
-
   useEffect(() => {
     setSelectedQueryTargetsByType({
       hosts: targetedHosts,
@@ -167,15 +147,19 @@ const RunQueryPage = ({
 
   // Updates title that shows up on browser tabs
   useEffect(() => {
-    // e.g., Run live query | Discover TLS certificates | Fleet for osquery
-    document.title = `Run live query | ${storedQuery?.name} | Fleet for osquery`;
+    // e.g., Run Discover TLS certificates | Queries | Fleet
+    if (storedQuery?.name) {
+      document.title = `Run ${storedQuery.name} | Queries | ${DOCUMENT_TITLE_SUFFIX}`;
+    } else {
+      document.title = `Queries | ${DOCUMENT_TITLE_SUFFIX}`;
+    }
   }, [location.pathname, storedQuery?.name]);
 
   const goToQueryEditor = useCallback(
     () =>
       queryId
-        ? router.push(PATHS.EDIT_QUERY(queryId))
-        : router.push(PATHS.NEW_QUERY()),
+        ? router.push(PATHS.EDIT_QUERY(queryId, currentTeamId))
+        : router.push(PATHS.NEW_QUERY(currentTeamId)),
     []
   );
 
@@ -195,6 +179,7 @@ const RunQueryPage = ({
       setTargetedLabels,
       setTargetedTeams,
       setTargetsTotalCount,
+      isObserverCanRunQuery: storedQuery?.observer_can_run,
     };
 
     const step2Props = {

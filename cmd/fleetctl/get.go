@@ -8,7 +8,9 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/beevik/etree"
@@ -343,7 +345,7 @@ func queryToTableRow(query fleet.Query, teamName string) []string {
 
 func printInheritedQueriesMsg(client *service.Client, teamID *uint) error {
 	if teamID != nil {
-		globalQueries, err := client.GetQueries(nil)
+		globalQueries, err := client.GetQueries(nil, nil)
 		if err != nil {
 			return fmt.Errorf("could not list global queries: %w", err)
 		}
@@ -370,7 +372,7 @@ func getQueriesCommand() *cli.Command {
 	return &cli.Command{
 		Name:    "queries",
 		Aliases: []string{"query", "q"},
-		Usage:   "List information about one or more queries",
+		Usage:   "List information about queries",
 		Flags: []cli.Flag{
 			&cli.UintFlag{
 				Name:  teamFlagName,
@@ -410,7 +412,7 @@ func getQueriesCommand() *cli.Command {
 
 			// if name wasn't provided, list either all global queries or all team queries...
 			if name == "" {
-				queries, err := client.GetQueries(teamID)
+				queries, err := client.GetQueries(teamID, nil)
 				if err != nil {
 					return fmt.Errorf("could not list queries: %w", err)
 				}
@@ -559,7 +561,7 @@ func getPacksCommand() *cli.Command {
 				}
 
 				// Get global queries (teamID==nil), because 2017 packs reference global queries.
-				queries, err := client.GetQueries(nil)
+				queries, err := client.GetQueries(nil, nil)
 				if err != nil {
 					return fmt.Errorf("could not list queries: %w", err)
 				}
@@ -650,7 +652,7 @@ func getLabelsCommand() *cli.Command {
 	return &cli.Command{
 		Name:    "labels",
 		Aliases: []string{"label", "l"},
-		Usage:   "List information about one or more labels",
+		Usage:   "List information about labels",
 		Flags: []cli.Flag{
 			jsonFlag(),
 			yamlFlag(),
@@ -792,7 +794,7 @@ func getHostsCommand() *cli.Command {
 	return &cli.Command{
 		Name:    "hosts",
 		Aliases: []string{"host", "h"},
-		Usage:   "List information about one or more hosts",
+		Usage:   "List information about hosts",
 		Flags: []cli.Flag{
 			&cli.UintFlag{
 				Name:     "team",
@@ -842,9 +844,7 @@ func getHostsCommand() *cli.Command {
 					}
 
 					if c.Bool("mdm") {
-						// hosts enrolled (automatic or manual) in Fleet's MDM server
-						query.Set("mdm_name", fleet.WellKnownMDMFleet)
-						query.Set("mdm_enrollment_status", string(fleet.MDMEnrollStatusEnrolled))
+						query.Set("connected_to_fleet", "true")
 					}
 					if c.Bool("mdm-pending") {
 						// hosts pending enrollment in Fleet's MDM server
@@ -1194,14 +1194,19 @@ func getTeamsCommand() *cli.Command {
 			// Default to printing as table
 			data := [][]string{}
 
+			sort.Slice(teams, func(i, j int) bool {
+				return teams[i].Name < teams[j].Name
+			})
+
 			for _, team := range teams {
 				data = append(data, []string{
 					team.Name,
+					strconv.Itoa(int(team.ID)),
 					fmt.Sprintf("%d", team.HostCount),
 					fmt.Sprintf("%d", team.UserCount),
 				})
 			}
-			columns := []string{"Team name", "Host count", "User count"}
+			columns := []string{"Team name", "Team ID", "Host count", "User count"}
 			printTable(c, columns, data)
 
 			return nil
@@ -1213,11 +1218,15 @@ func getSoftwareCommand() *cli.Command {
 	return &cli.Command{
 		Name:    "software",
 		Aliases: []string{"s"},
-		Usage:   "List software",
+		Usage:   "List software titles",
 		Flags: []cli.Flag{
 			&cli.UintFlag{
 				Name:  teamFlagName,
 				Usage: "Only list software of hosts that belong to the specified team",
+			},
+			&cli.BoolFlag{
+				Name:  "versions",
+				Usage: "List all software versions",
 			},
 			jsonFlag(),
 			yamlFlag(),
@@ -1242,47 +1251,102 @@ func getSoftwareCommand() *cli.Command {
 				query.Set("team_id", strconv.FormatUint(uint64(teamID), 10))
 			}
 
-			software, err := client.ListSoftware(query.Encode())
-			if err != nil {
-				return fmt.Errorf("could not list software: %w", err)
+			if c.Bool("versions") {
+				return printSoftwareVersions(c, client, query)
 			}
-
-			if len(software) == 0 {
-				log(c, "No software found")
-				return nil
-			}
-
-			if c.Bool(jsonFlagName) || c.Bool(yamlFlagName) {
-				spec := specGeneric{
-					Kind:    "software",
-					Version: "1",
-					Spec:    software,
-				}
-				err = printSpec(c, spec)
-				if err != nil {
-					return err
-				}
-				return nil
-			}
-
-			// Default to printing as table
-			data := [][]string{}
-
-			for _, s := range software {
-				data = append(data, []string{
-					s.Name,
-					s.Version,
-					s.Source,
-					s.GenerateCPE,
-					fmt.Sprint(len(s.Vulnerabilities)),
-				})
-			}
-			columns := []string{"Name", "Version", "Source", "CPE", "# of CVEs"}
-			printTable(c, columns, data)
-
-			return nil
+			return printSoftwareTitles(c, client, query)
 		},
 	}
+}
+
+func printSoftwareVersions(c *cli.Context, client *service.Client, query url.Values) error {
+	software, err := client.ListSoftwareVersions(query.Encode())
+	if err != nil {
+		return fmt.Errorf("could not list software versions: %w", err)
+	}
+
+	if len(software) == 0 {
+		log(c, "No software versions found")
+		return nil
+	}
+
+	if c.Bool(jsonFlagName) || c.Bool(yamlFlagName) {
+		spec := specGeneric{
+			Kind:    "software",
+			Version: "1",
+			Spec:    software,
+		}
+		err = printSpec(c, spec)
+		if err != nil {
+			return err
+		}
+		return nil
+	}
+
+	// Default to printing as table
+	data := [][]string{}
+
+	for _, s := range software {
+		data = append(data, []string{
+			s.Name,
+			s.Version,
+			s.Source,
+			fmt.Sprintf("%d vulnerabilities", len(s.Vulnerabilities)),
+			fmt.Sprint(s.HostsCount),
+		})
+	}
+	columns := []string{"Name", "Version", "Type", "Vulnerabilities", "Hosts"}
+	printTable(c, columns, data)
+	return nil
+}
+
+func printSoftwareTitles(c *cli.Context, client *service.Client, query url.Values) error {
+	software, err := client.ListSoftwareTitles(query.Encode())
+	if err != nil {
+		return fmt.Errorf("could not list software titles: %w", err)
+	}
+
+	if len(software) == 0 {
+		log(c, "No software titles found")
+		return nil
+	}
+
+	if c.Bool(jsonFlagName) || c.Bool(yamlFlagName) {
+		spec := specGeneric{
+			Kind:    "software_title",
+			Version: "1",
+			Spec:    software,
+		}
+		err = printSpec(c, spec)
+		if err != nil {
+			return err
+		}
+		return nil
+	}
+
+	// Default to printing as table
+	data := [][]string{}
+
+	for _, s := range software {
+		vulns := make(map[string]bool)
+		for _, ver := range s.Versions {
+			if ver.Vulnerabilities != nil {
+				for _, vuln := range *ver.Vulnerabilities {
+					vulns[vuln] = true
+				}
+			}
+		}
+		data = append(data, []string{
+			s.Name,
+			fmt.Sprintf("%d versions", s.VersionsCount),
+			s.Source,
+			fmt.Sprintf("%d vulnerabilities", len(vulns)),
+			fmt.Sprint(s.HostsCount),
+		})
+	}
+	columns := []string{"Name", "Versions", "Type", "Vulnerabilities", "Hosts"}
+	printTable(c, columns, data)
+	return nil
 }
 
 func getMDMAppleCommand() *cli.Command {
@@ -1323,10 +1387,10 @@ func getMDMAppleCommand() *cli.Command {
 			warnDate := time.Now().Add(expirationWarning)
 			if mdm.RenewDate.Before(time.Now()) {
 				// certificate is expired, print an error
-				color.New(color.FgRed).Fprintln(c.App.Writer, "\nERROR: Your Apple Push Notification service (APNs) certificate is expired. MDM features are turned off. To renew your APNs certificate, follow these instructions: https://fleetdm.com/docs/using-fleet/mdm-macos-setup#apple-push-notification-service-apns")
+				color.New(color.FgRed).Fprintln(c.App.Writer, "\nERROR: Your Apple Push Notification service (APNs) certificate is expired. MDM features are turned off. To renew your APNs certificate, follow these instructions: https://fleetdm.com/learn-more-about/renew-apns")
 			} else if mdm.RenewDate.Before(warnDate) {
 				// certificate will soon expire, print a warning
-				color.New(color.FgYellow).Fprintln(c.App.Writer, "\nWARNING: Your Apple Push Notification service (APNs) certificate is less than 30 days from expiration. If it expires, MDM features will be turned off. To renew your APNs certificate, follow these instructions: https://fleetdm.com/docs/using-fleet/mdm-macos-setup#renewing-apns")
+				color.New(color.FgYellow).Fprintln(c.App.Writer, "\nWARNING: Your Apple Push Notification service (APNs) certificate is less than 30 days from expiration. If it expires, MDM features will be turned off. To renew your APNs certificate, follow these instructions: https://fleetdm.com/learn-more-about/renew-apns")
 			}
 
 			return nil
@@ -1438,20 +1502,34 @@ func getMDMCommandResultsCommand() *cli.Command {
 				// unformatted command
 				if err != nil {
 					if getDebug(c) {
-						log(c, fmt.Sprintf("error formatting command: %s\n", err))
+						log(c, fmt.Sprintf("error formatting command result: %s\n", err))
 					}
 					formattedResult = r.Result
+				}
+				formattedPayload, err := formatXML(r.Payload)
+				// if we get an error, just log it and use the
+				// unformatted payload
+				if err != nil {
+					if getDebug(c) {
+						log(c, fmt.Sprintf("error formatting command payload: %s\n", err))
+					}
+					formattedPayload = r.Payload
+				}
+				reqType := r.RequestType
+				if len(reqType) == 0 {
+					reqType = "InstallProfile"
 				}
 				data = append(data, []string{
 					r.CommandUUID,
 					r.UpdatedAt.Format(time.RFC3339),
-					r.RequestType,
+					reqType,
 					r.Status,
 					r.Hostname,
+					string(formattedPayload),
 					string(formattedResult),
 				})
 			}
-			columns := []string{"ID", "TIME", "TYPE", "STATUS", "HOSTNAME", "RESULTS"}
+			columns := []string{"ID", "TIME", "TYPE", "STATUS", "HOSTNAME", "PAYLOAD", "RESULTS"}
 			printTableWithXML(c, columns, data)
 
 			return nil
@@ -1468,6 +1546,8 @@ func getMDMCommandsCommand() *cli.Command {
 			configFlag(),
 			contextFlag(),
 			debugFlag(),
+			byHostIdentifier(),
+			byMDMCommandRequestType(),
 		},
 		Action: func(c *cli.Context) error {
 			client, err := clientFromCLI(c)
@@ -1480,11 +1560,21 @@ func getMDMCommandsCommand() *cli.Command {
 				return err
 			}
 
-			results, err := client.MDMListCommands()
+			opts := fleet.MDMCommandListOptions{
+				Filters: fleet.MDMCommandFilters{
+					HostIdentifier: c.String("host"),
+					RequestType:    c.String("type"),
+				},
+			}
+
+			results, err := client.MDMListCommands(opts)
 			if err != nil {
+				if strings.Contains(err.Error(), fleet.HostIdentiferNotFound) {
+					return errors.New(fleet.HostIdentiferNotFound)
+				}
 				return err
 			}
-			if len(results) == 0 {
+			if len(results) == 0 && opts.Filters.HostIdentifier == "" && opts.Filters.RequestType == "" {
 				log(c, "You haven't run any MDM commands. Run MDM commands with the `fleetctl mdm run-command` command.\n")
 				return nil
 			}
@@ -1492,15 +1582,20 @@ func getMDMCommandsCommand() *cli.Command {
 			// print the results as a table
 			data := [][]string{}
 			for _, r := range results {
+				reqType := r.RequestType
+				if len(reqType) == 0 {
+					reqType = "InstallProfile"
+				}
 				data = append(data, []string{
 					r.CommandUUID,
 					r.UpdatedAt.Format(time.RFC3339),
-					r.RequestType,
+					reqType,
 					r.Status,
 					r.Hostname,
 				})
 			}
-			columns := []string{"ID", "TIME", "TYPE", "STATUS", "HOSTNAME"}
+			columns := []string{"UUID", "TIME", "TYPE", "STATUS", "HOSTNAME"}
+			fmt.Fprintf(c.App.Writer, "\nThe list of %d most recent commands:\n\n", len(results))
 			printTable(c, columns, data)
 
 			return nil

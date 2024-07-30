@@ -24,7 +24,7 @@ function useActionCallback(
   callbackFn: (targetIds: number[]) => void | undefined
 ) {
   return useCallback(
-    (targetIds) => {
+    (targetIds: any) => {
       callbackFn(targetIds);
     },
     [callbackFn]

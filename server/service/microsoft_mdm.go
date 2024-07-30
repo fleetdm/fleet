@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/x509"
+	"database/sql"
 	"encoding/base64"
 	"encoding/json"
 	"encoding/xml"
@@ -19,13 +20,15 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/fleetdbase"
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	mdmlifecycle "github.com/fleetdm/fleet/v4/server/mdm/lifecycle"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
-	kitlog "github.com/go-kit/kit/log"
+	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 
 	mdm_types "github.com/fleetdm/fleet/v4/server/fleet"
@@ -612,6 +615,14 @@ func NewCertStoreProvisioningData(enrollmentType string, identityFingerprint str
 	return certStore
 }
 
+// IsEligibleForWindowsMDMEnrollment returns true if the host can be enrolled
+// in Fleet's Windows MDM (if it was enabled).
+func IsEligibleForWindowsMDMEnrollment(host *fleet.Host, mdmInfo *fleet.HostMDM) bool {
+	return host.FleetPlatform() == "windows" &&
+		host.IsOsqueryEnrolled() &&
+		(mdmInfo == nil || (!mdmInfo.IsServer && !mdmInfo.Enrolled))
+}
+
 // NewApplicationProvisioningData returns a new ApplicationProvisioningData Characteristic
 // The Application Provisioning configuration is used for bootstrapping a device with an OMA DM account
 // The paramenters here maps to the W7 application CSP
@@ -680,14 +691,37 @@ func NewDMClientProvisioningData() mdm_types.Characteristic {
 			newCharacteristic(syncml.DocProvisioningAppProviderID,
 				[]mdm_types.Param{}, []mdm_types.Characteristic{
 					newCharacteristic("Poll", []mdm_types.Param{
-						newParm("NumberOfFirstRetries", syncml.DmClientCSPNumberOfFirstRetries, syncml.DmClientIntType),
-						newParm("IntervalForFirstSetOfRetries", syncml.DmClientCSPIntervalForFirstSetOfRetries, syncml.DmClientIntType),
-						newParm("NumberOfSecondRetries", syncml.DmClientCSPNumberOfSecondRetries, syncml.DmClientIntType),
-						newParm("IntervalForSecondSetOfRetries", syncml.DmClientCSPIntervalForSecondSetOfRetries, syncml.DmClientIntType),
-						newParm("NumberOfRemainingScheduledRetries", syncml.DmClientCSPNumberOfRemainingScheduledRetries, syncml.DmClientIntType),
-						newParm("IntervalForRemainingScheduledRetries", syncml.DmClientCSPIntervalForRemainingScheduledRetries, syncml.DmClientIntType),
-						newParm("PollOnLogin", syncml.DmClientCSPPollOnLogin, syncml.DmClientBoolType),
-						newParm("AllUsersPollOnFirstLogin", syncml.DmClientCSPPollOnLogin, syncml.DmClientBoolType),
+						// AllUsersPollOnFirstLogin - enabled
+						// https://learn.microsoft.com/en-us/windows/client-management/mdm/dmclient-csp#deviceproviderprovideridpollalluserspollonfirstlogin
+						newParm("AllUsersPollOnFirstLogin", "true", syncml.DmClientBoolType),
+
+						// PollOnLogin - enabled
+						// https://learn.microsoft.com/en-us/windows/client-management/mdm/dmclient-csp#deviceproviderprovideridpollpollonlogin
+						newParm("PollOnLogin", "true", syncml.DmClientBoolType),
+
+						// NumberOfFirstRetries - 0 (meaning repeat infinitely, Second and Remaining retries will not be used)
+						// https://learn.microsoft.com/en-us/windows/client-management/mdm/dmclient-csp#deviceproviderprovideridpollnumberoffirstretries
+						//
+						// Note that the docs do mention:
+						//
+						//   The total time for first set of retries shouldn't be more than
+						//   a few hours. The server shouldn't set NumberOfFirstRetries to
+						//   be 0. RemainingScheduledRetries is used for the long run
+						//   device polling schedule.
+						//
+						// but we really want to keep polling regularly at short intervals
+						// and it seems like the way to do it (and they do support infinite
+						// retries, so...).
+						newParm("NumberOfFirstRetries", "0", syncml.DmClientIntType),
+						// IntervalForFirstSetOfRetries - 1 minute (we can't go lower than that)
+						// https://learn.microsoft.com/en-us/windows/client-management/mdm/dmclient-csp#deviceproviderprovideridpollintervalforfirstsetofretries
+						newParm("IntervalForFirstSetOfRetries", "1", syncml.DmClientIntType),
+
+						// Second and Remaining retries are disabled (0).
+						newParm("NumberOfSecondRetries", "0", syncml.DmClientIntType),
+						newParm("IntervalForSecondSetOfRetries", "0", syncml.DmClientIntType),
+						newParm("NumberOfRemainingScheduledRetries", "0", syncml.DmClientIntType),
+						newParm("IntervalForRemainingScheduledRetries", "0", syncml.DmClientIntType),
 					}, nil),
 				}),
 		}),
@@ -936,8 +970,13 @@ func (svc *Service) authBinarySecurityToken(ctx context.Context, authToken *flee
 				return "", "", fmt.Errorf("host data cannot be found %v", err)
 			}
 
+			mdmInfo, err := svc.ds.GetHostMDM(ctx, host.ID)
+			if err != nil && !errors.Is(err, sql.ErrNoRows) {
+				return "", "", errors.New("unable to retrieve host mdm info")
+			}
+
 			// This ensures that only hosts that are eligible for Windows enrollment can be enrolled
-			if !host.IsEligibleForWindowsMDMEnrollment() {
+			if !IsEligibleForWindowsMDMEnrollment(host, mdmInfo) {
 				return "", "", errors.New("host is not elegible for Windows MDM enrollment")
 			}
 
@@ -1251,7 +1290,23 @@ func (svc *Service) isFleetdPresentOnDevice(ctx context.Context, deviceID string
 	// If user identity is a MS-MDM UPN it means that the device was enrolled through user-driven flow
 	// This means that fleetd might not be installed
 	if isValidUPN(enrolledDevice.MDMEnrollUserID) {
-		return false, nil
+		var isPresent bool
+		if enrolledDevice.HostUUID != "" {
+			host, err := svc.ds.HostLiteByIdentifier(ctx, enrolledDevice.HostUUID)
+			if err != nil && !fleet.IsNotFound(err) {
+				return false, ctxerr.Wrap(ctx, err, "get host lite by identifier")
+			}
+			if host != nil {
+				orbitInfo, err := svc.ds.GetHostOrbitInfo(ctx, host.ID)
+				if err != nil && !fleet.IsNotFound(err) {
+					return false, ctxerr.Wrap(ctx, err, "get host orbit info")
+				}
+				if orbitInfo != nil {
+					isPresent = orbitInfo.Version != ""
+				}
+			}
+		}
+		return isPresent, nil
 	}
 
 	// TODO: Add check here to determine if MDM DeviceID is connected with Smbios UUID present on
@@ -1269,6 +1324,15 @@ func (svc *Service) enqueueInstallFleetdCommand(ctx context.Context, deviceID st
 
 	if len(secrets) == 0 {
 		level.Warn(svc.logger).Log("msg", "unable to find a global enroll secret to install fleetd")
+		return nil
+	}
+
+	// it's okay to skip the installation if we're not able to retrieve the
+	// metadata, we don't want to completely error the SyncML transaction
+	// and we'll try again the next time the host checks in
+	fleetdMetadata, err := fleetdbase.GetMetadata()
+	if err != nil {
+		level.Warn(svc.logger).Log("msg", "unable to get fleetd-base metadata")
 		return nil
 	}
 
@@ -1306,14 +1370,14 @@ func (svc *Service) enqueueInstallFleetdCommand(ctx context.Context, deviceID st
 			<Product Version="1.0.0.0">
 				<Download>
 					<ContentURLList>
-						<ContentURL>https://download.fleetdm.com/fleetd-base.msi</ContentURL>
+						<ContentURL>` + fleetdMetadata.MSIURL + `</ContentURL>
 					</ContentURLList>
 				</Download>
 				<Validation>
-					<FileHash>9F89C57D1B34800480B38BD96186106EB6418A82B137A0D56694BF6FFA4DDF1A</FileHash>
+					<FileHash>` + fleetdMetadata.MSISha256 + `</FileHash>
 				</Validation>
 				<Enforcement>
-					<CommandLine>/quiet FLEET_URL="` + fleetURL + `" FLEET_SECRET="` + globalEnrollSecret + `"</CommandLine>
+					<CommandLine>/quiet FLEET_URL="` + fleetURL + `" FLEET_SECRET="` + globalEnrollSecret + `" ENABLE_SCRIPTS="True"</CommandLine>
 					<TimeOut>10</TimeOut>
 					<RetryCount>1</RetryCount>
 					<RetryInterval>5</RetryInterval>
@@ -1454,7 +1518,7 @@ func (svc *Service) processIncomingMDMCmds(ctx context.Context, deviceID string,
 		}
 
 		// CmdStatusOK is returned for the rest of the operations
-		responseCmds = append(responseCmds, NewSyncMLCmdStatus(reqMessageID, protoCMD.Cmd.CmdID, protoCMD.Verb, syncml.CmdStatusOK))
+		responseCmds = append(responseCmds, NewSyncMLCmdStatus(reqMessageID, protoCMD.Cmd.CmdID.Value, protoCMD.Verb, syncml.CmdStatusOK))
 	}
 
 	return responseCmds, nil
@@ -1723,10 +1787,25 @@ func (svc *Service) storeWindowsMDMEnrolledDevice(ctx context.Context, userID st
 		return err
 	}
 
-	err = svc.ds.NewActivity(ctx, nil, &fleet.ActivityTypeMDMEnrolled{
-		HostDisplayName: reqDeviceName,
-		MDMPlatform:     fleet.MDMPlatformMicrosoft,
-	})
+	// TODO: azure enrollments come with an empty uuid, I haven't figured
+	// out a good way to identify the device.
+	if hostUUID != "" {
+		mdmLifecycle := mdmlifecycle.New(svc.ds, svc.logger)
+		err = mdmLifecycle.Do(ctx, mdmlifecycle.HostOptions{
+			Action:   mdmlifecycle.HostActionTurnOn,
+			Platform: "windows",
+			UUID:     hostUUID,
+		})
+		if err != nil {
+			return err
+		}
+	}
+
+	err = svc.NewActivity(
+		ctx, nil, &fleet.ActivityTypeMDMEnrolled{
+			HostDisplayName: reqDeviceName,
+			MDMPlatform:     fleet.MDMPlatformMicrosoft,
+		})
 	if err != nil {
 		// only logging, the device is enrolled at this point, and we
 		// wouldn't want to fail the request because there was a problem
@@ -1848,6 +1927,7 @@ func newSyncMLItem(cmdSource *string, cmdTarget *string, cmdDataType *string, cm
 	var metaFormat *mdm_types.MetaAttr
 	var metaType *mdm_types.MetaAttr
 	var meta *mdm_types.Meta
+	var data *mdm_types.RawXmlData
 
 	if cmdDataFormat != nil && len(*cmdDataFormat) > 0 {
 		metaFormat = &mdm_types.MetaAttr{
@@ -1870,9 +1950,15 @@ func newSyncMLItem(cmdSource *string, cmdTarget *string, cmdDataType *string, cm
 		}
 	}
 
+	if cmdDataValue != nil {
+		data = &mdm_types.RawXmlData{
+			Content: *cmdDataValue,
+		}
+	}
+
 	return &mdm_types.CmdItem{
 		Meta:   meta,
-		Data:   cmdDataValue,
+		Data:   data,
 		Target: cmdTarget,
 		Source: cmdSource,
 	}
@@ -2048,7 +2134,9 @@ func NewSyncMLCmdStatus(msgRef string, cmdRef string, cmdOrig string, statusCode
 		Cmd:     &cmdOrig,
 		Data:    &statusCode,
 		Items:   nil,
-		CmdID:   uuid.NewString(),
+		CmdID: mdm_types.CmdID{
+			Value: uuid.NewString(),
+		},
 	}
 }
 
@@ -2098,7 +2186,7 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger ki
 	// with the new status, operation_type, etc.
 	hostProfiles := make([]*fleet.MDMWindowsBulkUpsertHostProfilePayload, 0, len(toInstall))
 
-	// install are maps from profileID -> command uuid and host
+	// install are maps from profileUUID -> command uuid and host
 	// UUIDs as the underlying MDM services are optimized to send one command to
 	// multiple hosts at the same time. Note that the same command uuid is used
 	// for all hosts in a given install/remove target operation.
@@ -2129,7 +2217,7 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger ki
 			OperationType: fleet.MDMOperationTypeInstall,
 			Status:        &fleet.MDMDeliveryPending,
 		})
-		level.Debug(logger).Log("msg", "installing profile", "profile_id", p.ProfileUUID, "host_id", p.HostUUID, "name", p.ProfileName)
+		level.Debug(logger).Log("msg", "installing profile", "profile_uuid", p.ProfileUUID, "host_id", p.HostUUID, "name", p.ProfileName)
 	}
 
 	// Grab the contents of all the profiles we need to install
@@ -2142,16 +2230,16 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger ki
 		return ctxerr.Wrap(ctx, err, "get profile contents")
 	}
 
-	for profID, target := range installTargets {
-		p, ok := profileContents[profID]
+	for profUUID, target := range installTargets {
+		p, ok := profileContents[profUUID]
 		if !ok {
 			// this should never happen
-			return ctxerr.Wrap(ctx, err, "inserting commands for hosts")
+			return ctxerr.Wrapf(ctx, err, "missing profile content for profile %s", profUUID)
 		}
 
 		command, err := buildCommandFromProfileBytes(p, target.cmdUUID)
 		if err != nil {
-			level.Info(logger).Log("err", err, "profile_id", profID)
+			level.Info(logger).Log("err", err, "profile_uuid", profUUID)
 			continue
 		}
 		if err := ds.MDMWindowsInsertCommandForHosts(ctx, target.hostUUIDs, command); err != nil {
@@ -2183,10 +2271,24 @@ func buildCommandFromProfileBytes(profileBytes []byte, commandUUID string) (*fle
 		return nil, fmt.Errorf("unmarshalling profile: %w", err)
 	}
 	// set the CmdID for the <Atomic> command
-	cmd.CmdID = commandUUID
+	cmd.CmdID = mdm_types.CmdID{
+		Value:               commandUUID,
+		IncludeFleetComment: true,
+	}
 	// generate a CmdID for any nested <Replace>
 	for i := range cmd.ReplaceCommands {
-		cmd.ReplaceCommands[i].CmdID = uuid.NewString()
+		cmd.ReplaceCommands[i].CmdID = mdm_types.CmdID{
+			Value:               uuid.NewString(),
+			IncludeFleetComment: true,
+		}
+	}
+
+	// generate a CmdID for any nested <Add>
+	for i := range cmd.AddCommands {
+		cmd.AddCommands[i].CmdID = mdm_types.CmdID{
+			Value:               uuid.NewString(),
+			IncludeFleetComment: true,
+		}
 	}
 
 	rawCommand, err := xml.Marshal(cmd)

@@ -62,7 +62,7 @@ const generateTableHeaders = (
       Cell: (cellProps: ICellProps) => (
         <LinkCell
           value={cellProps.cell.value}
-          path={PATHS.TEAM_DETAILS_MEMBERS(cellProps.row.original.id)}
+          path={PATHS.TEAM_DETAILS_USERS(cellProps.row.original.id)}
         />
       ),
     },
@@ -77,8 +77,8 @@ const generateTableHeaders = (
       ),
     },
     {
-      title: "Members",
-      Header: "Members",
+      title: "Users",
+      Header: "Users",
       disableSortBy: true,
       accessor: "user_count",
       Cell: (cellProps: ICellProps) => (
@@ -107,9 +107,9 @@ const generateTableHeaders = (
 const generateActionDropdownOptions = (): IDropdownOption[] => {
   return [
     {
-      label: "Edit",
+      label: "Rename",
       disabled: false,
-      value: "edit",
+      value: "rename",
     },
     {
       label: "Delete",

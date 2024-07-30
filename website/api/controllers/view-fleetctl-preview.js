@@ -6,6 +6,13 @@ module.exports = {
 
   description: 'Display "fleetctl preview" page.',
 
+  inputs: {
+    start: {
+      type: 'boolean',
+      description: 'A boolean flag that will hide the "next steps" buttons on the page if set to true',
+      defaultsTo: false,
+    }
+  },
 
   exits: {
 
@@ -21,14 +28,10 @@ module.exports = {
   },
 
 
-  fn: async function () {
+  fn: async function ({start}) {
 
-    // Note: This page bypasses the 'is-logged-in' policy so we can redirect not-logged-in users to the /try-fleet/login page,
-    if(!this.req.me){
-      throw {redirect: '/try-fleet/login' };
-    }
     // Respond with view.
-    return {};
+    return {hideNextStepsButtons: start};
 
   }
 

@@ -59,7 +59,7 @@ const ForgotPasswordPage = ({ router }: IForgotPasswordPage) => {
             <br />
             You can find more information on resetting passwords at the{" "}
             <CustomLink
-              url="https://fleetdm.com/docs/using-fleet/fleetctl-cli#using-fleetctl-with-an-api-only-user?utm_medium=fleetui&utm_campaign=get-api-token"
+              url="https://fleetdm.com/docs/using-fleet/fleetctl-cli?utm_medium=fleetui&utm_campaign=get-api-token#using-fleetctl-with-an-api-only-user"
               text="Password reset FAQ"
               newTab
             />
@@ -69,17 +69,11 @@ const ForgotPasswordPage = ({ router }: IForgotPasswordPage) => {
     }
 
     return (
-      <>
-        <p>
-          Enter your email below to receive an email with instructions to reset
-          your password.
-        </p>
-        <ForgotPasswordForm
-          handleSubmit={handleSubmit}
-          onChangeFunc={() => setErrors({})}
-          serverErrors={errors}
-        />
-      </>
+      <ForgotPasswordForm
+        handleSubmit={handleSubmit}
+        onChangeFunc={() => setErrors({})}
+        serverErrors={errors}
+      />
     );
   };
 

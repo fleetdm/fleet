@@ -1,9 +1,7 @@
 name: docker_images
-examples: >-
+examples: |-
   See how much storage is used by Docker images. Requires Docker to be running.
 
   ```
-
   SELECT ROUND(SUM(size_bytes * 10e-10),2) as gigabytes_of_images FROM docker_images; 
-
   ```

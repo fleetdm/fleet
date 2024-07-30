@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext } from "react";
+import React, { useEffect, useContext } from "react";
 import { InjectedRouter } from "react-router";
 
 import paths from "router/paths";

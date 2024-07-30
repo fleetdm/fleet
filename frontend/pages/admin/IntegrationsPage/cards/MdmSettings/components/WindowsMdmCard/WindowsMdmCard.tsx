@@ -19,7 +19,9 @@ const TurnOnWindowsMdm = ({ onClickTurnOn }: ITurnOnWindowsMdmProps) => {
         <h3>Turn on Windows MDM</h3>
         <p>Turn MDM on for Windows hosts with fleetd.</p>
       </div>
-      <Button onClick={onClickTurnOn}>Turn on</Button>
+      <Button variant="brand" onClick={onClickTurnOn}>
+        Turn on
+      </Button>
     </div>
   );
 };

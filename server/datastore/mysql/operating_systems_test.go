@@ -3,6 +3,7 @@ package mysql
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"sync"
 	"testing"
@@ -34,8 +35,30 @@ func TestListOperatingSystems(t *testing.T) {
 		osByID[os.ID] = os
 	}
 	for _, os := range osByID {
-		require.Equal(t, os, seedByID[os.ID])
+		require.Equal(t, seedByID[os.ID], os)
 	}
+}
+
+func TestListOperatingSystemsForPlatform(t *testing.T) {
+	ctx := context.Background()
+	ds := CreateMySQLDS(t)
+
+	// no os records
+	list, err := ds.ListOperatingSystemsForPlatform(ctx, "windows")
+	require.NoError(t, err)
+	require.Len(t, list, 0)
+
+	// with os records
+	seedByID := seedOperatingSystems(t, ds)
+	list, err = ds.ListOperatingSystemsForPlatform(ctx, "windows")
+	require.NoError(t, err)
+	require.Len(t, list, 1)
+	require.Equal(t, seedByID[list[0].ID], list[0])
+
+	// OS does not exist
+	list, err = ds.ListOperatingSystemsForPlatform(ctx, "foo")
+	require.NoError(t, err)
+	require.Len(t, list, 0)
 }
 
 func TestUpdateHostOperatingSystem(t *testing.T) {
@@ -65,9 +88,25 @@ func TestUpdateHostOperatingSystem(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, list, 1)
 	require.Equal(t, true, isSameOS(t, testOS, list[0]))
+	require.Equal(t, uint(1), list[0].OSVersionID)
 	storedOS, err := getHostOperatingSystemDB(ctx, ds.writer(ctx), testHostID)
 	require.NoError(t, err)
 	require.Equal(t, true, isSameOS(t, testOS, *storedOS))
+
+	// insert a host with a different architecture os
+	testHostID2 := uint(43)
+	testOSarm := testOS
+	testOSarm.Arch = "arm64"
+	err = ds.UpdateHostOperatingSystem(ctx, testHostID2, testOSarm)
+	require.NoError(t, err)
+	list, err = ds.ListOperatingSystems(ctx)
+	require.NoError(t, err)
+	require.Len(t, list, 2)
+	// os version id is the same for both architectures
+	require.Equal(t, true, isSameOS(t, testOS, list[0]))
+	require.Equal(t, uint(1), list[0].OSVersionID)
+	require.Equal(t, true, isSameOS(t, testOSarm, list[1]))
+	require.Equal(t, uint(1), list[1].OSVersionID)
 
 	// new version creates a new os record
 	testNewVersion := testOS
@@ -76,18 +115,19 @@ func TestUpdateHostOperatingSystem(t *testing.T) {
 	require.NoError(t, err)
 	list, err = ds.ListOperatingSystems(ctx)
 	require.NoError(t, err)
-	require.Len(t, list, 2)
+	require.Len(t, list, 3)
+	require.Equal(t, uint(2), list[2].OSVersionID) // new version has new os version id
 	storedOS, err = getHostOperatingSystemDB(ctx, ds.writer(ctx), testHostID)
 	require.NoError(t, err)
 	require.Equal(t, true, isSameOS(t, testNewVersion, *storedOS))
 
 	// new host with existing os
-	testNewHostID := uint(43)
+	testNewHostID := uint(44)
 	err = ds.UpdateHostOperatingSystem(ctx, testNewHostID, testOS)
 	require.NoError(t, err)
 	list, err = ds.ListOperatingSystems(ctx)
 	require.NoError(t, err)
-	require.Len(t, list, 2)
+	require.Len(t, list, 3)
 	storedOS, err = getHostOperatingSystemDB(ctx, ds.writer(ctx), testNewHostID)
 	require.NoError(t, err)
 	require.Equal(t, true, isSameOS(t, testOS, *storedOS))
@@ -97,7 +137,7 @@ func TestUpdateHostOperatingSystem(t *testing.T) {
 	require.NoError(t, err)
 	list, err = ds.ListOperatingSystems(ctx)
 	require.NoError(t, err)
-	require.Len(t, list, 2)
+	require.Len(t, list, 3)
 	storedOS, err = getHostOperatingSystemDB(ctx, ds.writer(ctx), testNewHostID)
 	require.NoError(t, err)
 	require.Equal(t, true, isSameOS(t, testOS, *storedOS))
@@ -256,10 +296,17 @@ func TestGetHostOperatingSystem(t *testing.T) {
 	_, err = getHostOperatingSystemDB(ctx, ds.writer(ctx), testHostID)
 	require.ErrorIs(t, err, sql.ErrNoRows)
 
+	_, err = ds.GetHostOperatingSystem(ctx, testHostID)
+	require.ErrorIs(t, err, sql.ErrNoRows)
+
 	// insert test host and os id
 	err = upsertHostOperatingSystemDB(ctx, ds.writer(ctx), testHostID, osList[0].ID)
 	require.NoError(t, err)
 	os, err := getHostOperatingSystemDB(ctx, ds.writer(ctx), testHostID)
+	require.NoError(t, err)
+	require.Equal(t, osList[0], *os)
+
+	os, err = ds.GetHostOperatingSystem(ctx, testHostID)
 	require.NoError(t, err)
 	require.Equal(t, osList[0], *os)
 
@@ -270,10 +317,18 @@ func TestGetHostOperatingSystem(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, osList[1], *os)
 
+	os, err = ds.GetHostOperatingSystem(ctx, testHostID)
+	require.NoError(t, err)
+	require.Equal(t, osList[1], *os)
+
 	// no change
 	err = upsertHostOperatingSystemDB(ctx, ds.writer(ctx), testHostID, osList[1].ID)
 	require.NoError(t, err)
 	os, err = getHostOperatingSystemDB(ctx, ds.writer(ctx), testHostID)
+	require.NoError(t, err)
+	require.Equal(t, osList[1], *os)
+
+	os, err = ds.GetHostOperatingSystem(ctx, testHostID)
 	require.NoError(t, err)
 	require.Equal(t, osList[1], *os)
 }
@@ -313,7 +368,7 @@ func TestCleanupHostOperatingSystems(t *testing.T) {
 	assertDeletedHostOS := func(expectDeletedIDs []uint) {
 		for _, h := range testHosts {
 			os, err := getHostOperatingSystemDB(ctx, ds.writer(ctx), h.ID)
-			if err == sql.ErrNoRows {
+			if errors.Is(err, sql.ErrNoRows) {
 				require.Contains(t, expectDeletedIDs, h.ID)
 				return
 			}
@@ -380,11 +435,13 @@ func TestCleanupHostOperatingSystems(t *testing.T) {
 func seedOperatingSystems(t *testing.T, ds *Datastore) map[uint]fleet.OperatingSystem {
 	osSeeds := []fleet.OperatingSystem{
 		{
-			Name:          "Microsoft Windows 11 Enterprise Evaluation",
-			Version:       "21H2",
-			Arch:          "64-bit",
-			KernelVersion: "10.0.22000.795",
-			Platform:      "windows",
+			Name:           "Microsoft Windows 11 Enterprise Evaluation",
+			Version:        "10.0.22000.795",
+			Arch:           "64-bit",
+			KernelVersion:  "10.0.22000.795",
+			Platform:       "windows",
+			DisplayVersion: "21H2",
+			OSVersionID:    1,
 		},
 		{
 			Name:          "macOS",
@@ -392,6 +449,7 @@ func seedOperatingSystems(t *testing.T, ds *Datastore) map[uint]fleet.OperatingS
 			Arch:          "x86_64",
 			KernelVersion: "21.4.0",
 			Platform:      "darwin",
+			OSVersionID:   2,
 		},
 		{
 			Name:          "Ubuntu",
@@ -399,6 +457,7 @@ func seedOperatingSystems(t *testing.T, ds *Datastore) map[uint]fleet.OperatingS
 			Arch:          "x86_64",
 			KernelVersion: "5.10.76-linuxkit",
 			Platform:      "ubuntu",
+			OSVersionID:   3,
 		},
 		{
 			Name:          "Debian GNU/Linux",
@@ -406,6 +465,7 @@ func seedOperatingSystems(t *testing.T, ds *Datastore) map[uint]fleet.OperatingS
 			Arch:          "x86_64",
 			KernelVersion: "5.10.76-linuxkit",
 			Platform:      "debian",
+			OSVersionID:   4,
 		},
 		{
 			Name:          "CentOS Linux",
@@ -413,6 +473,7 @@ func seedOperatingSystems(t *testing.T, ds *Datastore) map[uint]fleet.OperatingS
 			Arch:          "x86_64",
 			KernelVersion: "5.10.76-linuxkit",
 			Platform:      "rhel",
+			OSVersionID:   5,
 		},
 	}
 	storedById := make(map[uint]fleet.OperatingSystem)
@@ -426,5 +487,5 @@ func seedOperatingSystems(t *testing.T, ds *Datastore) map[uint]fleet.OperatingS
 }
 
 func isSameOS(t *testing.T, os1 fleet.OperatingSystem, os2 fleet.OperatingSystem) bool {
-	return assert.ElementsMatch(t, []string{os1.Name, os1.Version, os1.Arch, os1.KernelVersion}, []string{os2.Name, os2.Version, os2.Arch, os2.KernelVersion})
+	return assert.ElementsMatch(t, []string{os1.Name, os1.Version, os1.Arch, os1.KernelVersion, os1.Platform}, []string{os2.Name, os2.Version, os2.Arch, os2.KernelVersion, os2.Platform})
 }

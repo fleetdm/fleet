@@ -11,7 +11,8 @@ const (
 	// These are just example keys generated locally with openssl. They are intentionally published
 	// and should never be used in production.
 	exampleKeyPassphrase = "password"
-	exampleKeyPEM        = `-----BEGIN RSA PRIVATE KEY-----
+	// #nosec G101
+	exampleKeyPEM = `-----BEGIN RSA PRIVATE KEY-----
 Proc-Type: 4,ENCRYPTED
 DEK-Info: DES-EDE3-CBC,5F4D77F29A9E2675
 

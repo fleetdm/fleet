@@ -68,7 +68,7 @@ You can run the installer using your package manager. Double click on the instal
 For DEB, run:
 
 ```
-sudo apt install fleet-osquery.deb
+sudo apt install ./fleet-osquery.deb
 ```
 
 For RPM, run:

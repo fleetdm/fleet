@@ -1,0 +1,16 @@
+- name: 😊 Failing policy
+  platform: linux
+  description: This policy should always fail.
+  resolution: There is no resolution for this policy.
+  query: SELECT 1 FROM osquery_info WHERE start_time < 0;
+- name: Passing policy
+  platform: linux,windows,darwin,chrome
+  description: This policy should always pass.
+  resolution: There is no resolution for this policy.
+  query: SELECT 1;
+- name: No root logins (macOS, Linux)
+  platform: linux,darwin
+  query: SELECT 1 WHERE NOT EXISTS (SELECT * FROM last
+    WHERE username = "root"
+    AND time > (( SELECT unix_time FROM time ) - 3600 ))
+  critical: true

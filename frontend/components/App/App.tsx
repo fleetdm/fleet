@@ -1,6 +1,10 @@
-import React, { useContext, useEffect, useState } from "react";
+import React, { FC, useContext, useEffect, useState } from "react";
 import { AxiosResponse } from "axios";
-import { QueryClient, QueryClientProvider } from "react-query";
+import {
+  QueryClient,
+  QueryClientProvider,
+  QueryClientProviderProps,
+} from "react-query";
 
 import page_titles from "router/page_titles";
 import TableProvider from "context/table";
@@ -14,6 +18,8 @@ import useDeepEffect from "hooks/useDeepEffect";
 import usersAPI from "services/entities/users";
 import configAPI from "services/entities/config";
 import hostCountAPI from "services/entities/host_count";
+import mdmAppleBMAPI from "services/entities/mdm_apple_bm";
+import mdmAppleAPI from "services/entities/mdm_apple";
 
 import { ErrorBoundary } from "react-error-boundary";
 // @ts-ignore
@@ -35,6 +41,14 @@ interface IAppProps {
   };
 }
 
+// We create a CustomQueryClientProvider that takes the same props as the original
+// QueryClientProvider but adds the children prop as a ReactNode. This children
+// prop is not required explicitly in React 18. We do it this way to avoid
+// having to update the react-query package version and typings for now.
+// When we upgrade React Query we should be able to remove this.
+type ICustomQueryClientProviderProps = React.PropsWithChildren<QueryClientProviderProps>;
+const CustomQueryClientProvider: FC<ICustomQueryClientProviderProps> = QueryClientProvider;
+
 const baseClass = "app";
 
 const App = ({ children, location }: IAppProps): JSX.Element => {
@@ -42,6 +56,7 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
   const {
     config,
     currentUser,
+    isGlobalAdmin,
     isGlobalObserver,
     isOnlyObserver,
     isAnyTeamMaintainerOrTeamAdmin,
@@ -49,6 +64,9 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
     setCurrentUser,
     setConfig,
     setEnrollSecret,
+    setABMExpiry,
+    setAPNsExpiry,
+    setVppExpiry,
     setSandboxExpiry,
     setNoSandboxHosts,
   } = useContext(AppContext);
@@ -65,6 +83,44 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
         const noSandboxHosts = hostCount.count === 0;
         setNoSandboxHosts(noSandboxHosts);
       }
+
+      // These endpoints 403 for non-global admins
+      if (isGlobalAdmin) {
+        if (configResponse.mdm.apple_bm_enabled_and_configured) {
+          // FIXME: we need to catch and check for a 400 status code because the
+          // API behaves this way when the token is already expired or invalid.
+          //
+          // This is a quick fix to not completely break the UI, but it doesn't
+          // allow us to show ABM information when the token is expired so it
+          // should be fixed upstream.
+          try {
+            const abmInfo = await mdmAppleBMAPI.getAppleBMInfo();
+            setABMExpiry(abmInfo.renew_date);
+          } catch (error) {
+            console.error(error);
+            const abmError = error as AxiosResponse;
+            if (abmError.status === 400) {
+              const pastDate = "2024-06-03T17:28:44Z";
+              setABMExpiry(pastDate);
+            }
+          }
+        }
+        if (configResponse.mdm.enabled_and_configured) {
+          try {
+            const apnsInfo = await mdmAppleAPI.getAppleAPNInfo();
+            setAPNsExpiry(apnsInfo.renew_date);
+          } catch (error) {
+            console.error(error);
+          }
+          try {
+            const vppInfo = await mdmAppleAPI.getVppInfo();
+            setVppExpiry(vppInfo.renew_date);
+          } catch (e) {
+            console.log(e);
+          }
+        }
+      }
+
       setConfig(configResponse);
     } catch (error) {
       console.error(error);
@@ -113,17 +169,10 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
   // Updates title that shows up on browser tabs
   useEffect(() => {
     // Also applies title to subpaths such as settings/organization/webaddress
+    // TODO - handle different kinds of paths from PATHS - string, function w/params
     const curTitle = page_titles.find((item) =>
       location?.pathname.includes(item.path)
     );
-
-    // Override Controls page title if MDM not configured
-    if (
-      !config?.mdm.enabled_and_configured &&
-      curTitle?.path === "/controls/os-updates"
-    ) {
-      curTitle.title = "Manage OS hosts | Fleet for osquery";
-    }
 
     if (curTitle && curTitle.title) {
       document.title = curTitle.title;
@@ -177,7 +226,7 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
   return isLoading ? (
     <Spinner />
   ) : (
-    <QueryClientProvider client={queryClient}>
+    <CustomQueryClientProvider client={queryClient}>
       <TableProvider>
         <QueryProvider>
           <PolicyProvider>
@@ -192,7 +241,7 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
           </PolicyProvider>
         </QueryProvider>
       </TableProvider>
-    </QueryClientProvider>
+    </CustomQueryClientProvider>
   );
 };
 

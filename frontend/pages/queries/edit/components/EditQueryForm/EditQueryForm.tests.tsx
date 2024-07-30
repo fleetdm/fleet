@@ -62,7 +62,7 @@ describe("EditQueryForm - component", () => {
         router={mockRouter}
         queryIdForEdit={1}
         apiTeamIdForQuery={1}
-        teamNameForQuery={"Apples"}
+        teamNameForQuery="Apples"
         showOpenSchemaActionText
         storedQuery={createMockQuery({ name: "" })} // empty name
         isStoredQueryLoading={false}
@@ -127,7 +127,7 @@ describe("EditQueryForm - component", () => {
         router={mockRouter}
         queryIdForEdit={1}
         apiTeamIdForQuery={1}
-        teamNameForQuery={"Apples"}
+        teamNameForQuery="Apples"
         showOpenSchemaActionText
         storedQuery={createMockQuery({ name: "Mock query" })}
         isStoredQueryLoading={false}

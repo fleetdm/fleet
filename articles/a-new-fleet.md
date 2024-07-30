@@ -38,7 +38,7 @@ Thank you to Jason Meller and Mike Arpaia for the vision to release our work on 
 
 I have thoroughly enjoyed working with Fleet and the community since the inception of the project in 2017. Here’s to years more progress!
 
-Zach Wasserman — CTO, Fleet
+Zach Wasserman — Cofounder, Fleet
 
 <meta name="category" value="announcements">
 <meta name="authorGitHubUsername" value="zwass">

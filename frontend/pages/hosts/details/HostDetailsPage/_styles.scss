@@ -1,33 +1,63 @@
 .host-details {
-  background-color: $ui-off-white;
-
-  &__wrapper {
-    display: grid;
-    gap: 1rem;
-  }
-
-  .component__tabs-wrapper {
+  &__tabs-wrapper {
     .react-tabs__tab {
       display: inline-flex;
       flex-direction: row;
     }
   }
 
-  .col-2 {
-    display: flex;
-    flex-direction: row;
+  // grid layout styles for the host details page
+  &__details-panel {
+    display: grid;
+    gap: $pad-medium;
   }
 
-  .section.osquery {
-    margin-right: $pad-small;
+  @media screen and (min-width: $break-md) {
+    &__details-panel.react-tabs__tab-panel--selected {
+      // Must be selected to show grid
+      grid-template-columns: 1fr 1fr;
+      grid-template-areas:
+        "about about"
+        "activity agent-options"
+        "activity labels"
+        "users users";
+      grid-auto-flow: column;
+    }
+
+    // Note: CSS for labels card spans the whole grid for iOS and iPadOS
+    // because activity card is missing
+    &__details-panel--ios-grid.react-tabs__tab-panel--selected {
+      // Must be selected to show grid
+      grid-template-columns: 1fr;
+      grid-template-areas:
+        "about"
+        "labels";
+      grid-auto-flow: column;
+    }
+
+    .about-card {
+      grid-area: about;
+    }
+
+    .activity-card {
+      grid-area: activity;
+    }
+
+    .agent-options-card {
+      grid-area: agent-options;
+    }
+
+    .labels-card {
+      grid-area: labels;
+    }
+
+    .users-card {
+      grid-area: users;
+    }
   }
 
-  .section.labels {
-    margin-left: $pad-small;
-  }
-
-  .about,
-  .osquery {
+  .about-card,
+  .agent-options-card {
     .info {
       &__item {
         &--about {
@@ -49,6 +79,11 @@
       }
     }
   }
+
+  .munki-issues-card {
+    margin-top: $pad-medium;
+  }
+
   .button img {
     transform: scale(0.5);
   }

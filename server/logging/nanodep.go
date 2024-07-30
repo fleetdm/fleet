@@ -1,9 +1,9 @@
 package logging
 
 import (
-	kitlog "github.com/go-kit/kit/log"
+	nanodep_log "github.com/fleetdm/fleet/v4/server/mdm/nanodep/log"
+	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
-	nanodep_log "github.com/micromdm/nanodep/log"
 )
 
 // NanoDEPLogger is a logger adapter for nanodep.

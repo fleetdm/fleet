@@ -2,8 +2,8 @@ import VirtualDatabase from "../db";
 
 describe("screenlock", () => {
   test("success", async () => {
-    chrome.idle.getAutoLockDelay = jest.fn(() => Promise.resolve(600));
-    chrome.idle.queryState = jest.fn(() => Promise.resolve("active"));
+    chrome.idle.getAutoLockDelay = jest.fn((callback) => callback(600));
+    chrome.idle.queryState = jest.fn((_, callback) => callback("active"));
 
     const db = await VirtualDatabase.init();
 
@@ -14,6 +14,7 @@ describe("screenlock", () => {
           idle_state: "active",
         },
       ],
+      warnings: null,
     });
   });
 });

@@ -1,0 +1,57 @@
+.host-queries-card {
+  .table-container__header {
+    display: none;
+  }
+  .data-table-block {
+    .data-table__table {
+      thead {
+        .query_name__header {
+          width: $col-lg;
+        }
+        .last_fetched__header {
+          display: table-cell;
+        }
+        @media (max-width: $break-md) {
+          .last_fetched__header {
+            display: none;
+            width: 0;
+          }
+        }
+      }
+      tbody {
+        tr {
+          .query_name__cell {
+            width: $col-lg;
+          }
+          .last_fetched__cell {
+            display: table-cell;
+          }
+          .performance-cell {
+            @include cell-with-link;
+            &__link-icon {
+              display: none;
+              width: 0;
+            }
+          }
+
+          &:hover {
+            .report-updated-cell__link-text {
+              opacity: 1;
+            }
+          }
+          @media (max-width: $break-md) {
+            .last_fetched__cell {
+              display: none;
+              width: 0;
+            }
+            .performance-cell__link-icon {
+              display: inline-flex;
+              align-self: center;
+              width: initial;
+            }
+          }
+        }
+      }
+    }
+  }
+}

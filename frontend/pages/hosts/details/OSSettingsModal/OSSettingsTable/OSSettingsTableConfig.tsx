@@ -1,24 +1,21 @@
-import TextCell from "components/TableContainer/DataTable/TextCell";
 import React from "react";
+import { Column } from "react-table";
 
+import { IStringCellProps } from "interfaces/datatable_config";
 import { IHostMdmData } from "interfaces/host";
 import {
   FLEET_FILEVAULT_PROFILE_DISPLAY_NAME,
   // FLEET_FILEVAULT_PROFILE_IDENTIFIER,
   IHostMdmProfile,
+  MdmDDMProfileStatus,
   MdmProfileStatus,
   isWindowsDiskEncryptionStatus,
 } from "interfaces/mdm";
-import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
+
 import TooltipTruncatedTextCell from "components/TableContainer/DataTable/TooltipTruncatedTextCell";
 import OSSettingStatusCell from "./OSSettingStatusCell";
 import { generateWinDiskEncryptionProfile } from "../../helpers";
-
-export interface ITableRowOsSettings extends Omit<IHostMdmProfile, "status"> {
-  status: OsSettingsTableStatusValue;
-}
-
-export type OsSettingsTableStatusValue = MdmProfileStatus | "action_required";
+import OSSettingsErrorCell from "./OSSettingsErrorCell";
 
 export const isMdmProfileStatus = (
   status: string
@@ -26,80 +23,74 @@ export const isMdmProfileStatus = (
   return status !== "action_required";
 };
 
-interface IHeaderProps {
-  column: {
-    title: string;
-    isSortedDesc: boolean;
-  };
+export interface IHostMdmProfileWithAddedStatus
+  extends Omit<IHostMdmProfile, "status"> {
+  status: OsSettingsTableStatusValue;
 }
 
-interface ICellProps {
-  cell: {
-    value: string;
-  };
-  row: {
-    original: ITableRowOsSettings;
-  };
-}
+type ITableColumnConfig = Column<IHostMdmProfileWithAddedStatus>;
+type ITableStringCellProps = IStringCellProps<IHostMdmProfileWithAddedStatus>;
 
-interface IDataColumn {
-  Header: ((props: IHeaderProps) => JSX.Element) | string;
-  Cell: (props: ICellProps) => JSX.Element;
-  id?: string;
-  title?: string;
-  accessor?: string;
-  disableHidden?: boolean;
-  disableSortBy?: boolean;
-  sortType?: string;
-}
+/** Non DDM profiles can have an `action_required` as a profile status.  DDM
+ * Profiles will never have this status.
+ */
+export type INonDDMProfileStatus = MdmProfileStatus | "action_required";
 
-const tableHeaders: IDataColumn[] = [
-  {
-    title: "Name",
-    Header: "Name",
-    disableSortBy: true,
-    accessor: "name",
-    Cell: (cellProps: ICellProps): JSX.Element => (
-      <TextCell value={cellProps.cell.value} />
-    ),
-  },
-  {
-    title: "Status",
-    Header: "Status",
-    disableSortBy: true,
-    accessor: "statusText",
-    Cell: (cellProps: ICellProps) => {
-      return (
-        <OSSettingStatusCell
-          status={cellProps.row.original.status}
-          operationType={cellProps.row.original.operation_type}
-          profileName={cellProps.row.original.name}
-        />
-      );
+export type OsSettingsTableStatusValue =
+  | MdmDDMProfileStatus
+  | INonDDMProfileStatus;
+
+const generateTableConfig = (
+  hostId: number,
+  canResendProfiles: boolean,
+  onProfileResent?: () => void
+): ITableColumnConfig[] => {
+  return [
+    {
+      Header: "Name",
+      disableSortBy: true,
+      accessor: "name",
+      Cell: (cellProps: ITableStringCellProps) => {
+        return (
+          <TooltipTruncatedTextCell
+            value={cellProps.cell.value}
+            className="os-settings-name-cell"
+          />
+        );
+      },
     },
-  },
-  {
-    title: "Error",
-    Header: "Error",
-    disableSortBy: true,
-    accessor: "detail",
-    Cell: (cellProps: ICellProps): JSX.Element => {
-      const profile = cellProps.row.original;
-      return (
-        <TooltipTruncatedTextCell
-          tooltipBreakOnWord
-          value={
-            (profile.status === "failed" && profile.detail) ||
-            DEFAULT_EMPTY_CELL_VALUE
-          }
-        />
-      );
+    {
+      Header: "Status",
+      disableSortBy: true,
+      accessor: "status",
+      Cell: (cellProps: ITableStringCellProps) => {
+        return (
+          <OSSettingStatusCell
+            status={cellProps.row.original.status}
+            operationType={cellProps.row.original.operation_type}
+            profileName={cellProps.row.original.name}
+          />
+        );
+      },
     },
-  },
-];
+    {
+      Header: "Error",
+      disableSortBy: true,
+      accessor: "detail",
+      Cell: (cellProps: ITableStringCellProps) => (
+        <OSSettingsErrorCell
+          canResendProfiles={canResendProfiles}
+          hostId={hostId}
+          profile={cellProps.row.original}
+          onProfileResent={onProfileResent}
+        />
+      ),
+    },
+  ];
+};
 
 const makeWindowsRows = ({ profiles, os_settings }: IHostMdmData) => {
-  const rows: ITableRowOsSettings[] = [];
+  const rows: IHostMdmProfileWithAddedStatus[] = [];
 
   if (profiles) {
     rows.push(...profiles);
@@ -124,15 +115,12 @@ const makeWindowsRows = ({ profiles, os_settings }: IHostMdmData) => {
   return rows;
 };
 
-const makeDarwinRows = ({
-  profiles,
-  macos_settings,
-}: IHostMdmData): ITableRowOsSettings[] | null => {
+const makeDarwinRows = ({ profiles, macos_settings }: IHostMdmData) => {
   if (!profiles) {
     return null;
   }
 
-  let rows: ITableRowOsSettings[] = profiles;
+  let rows: IHostMdmProfileWithAddedStatus[] = profiles;
   if (macos_settings?.disk_encryption === "action_required") {
     rows = profiles.map((p) => {
       // TODO: this is a brittle check for the filevault profile
@@ -149,21 +137,21 @@ const makeDarwinRows = ({
 };
 
 export const generateTableData = (
-  hostMDMData?: IHostMdmData,
-  platform?: string
+  hostMDMData: IHostMdmData,
+  platform: string
 ) => {
-  if (!platform || !hostMDMData) {
-    return null;
-  }
-
   switch (platform) {
     case "windows":
       return makeWindowsRows(hostMDMData);
     case "darwin":
       return makeDarwinRows(hostMDMData);
+    case "ios":
+      return hostMDMData.profiles;
+    case "ipados":
+      return hostMDMData.profiles;
     default:
       return null;
   }
 };
 
-export default tableHeaders;
+export default generateTableConfig;

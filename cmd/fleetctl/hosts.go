@@ -31,12 +31,12 @@ func transferCommand() *cli.Command {
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:     teamFlagName,
-				Usage:    "Team name hosts will be transferred to",
+				Usage:    "Team name hosts will be transferred to. Use '' for No team",
 				Required: true,
 			},
 			&cli.StringSliceFlag{
 				Name:  hostsFlagName,
-				Usage: "Comma separated hostnames to transfer",
+				Usage: "Comma-separated hostnames to transfer",
 			},
 			&cli.StringFlag{
 				Name:  labelFlagName,

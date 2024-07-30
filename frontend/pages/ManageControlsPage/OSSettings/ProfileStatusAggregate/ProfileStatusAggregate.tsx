@@ -80,6 +80,7 @@ const ProfileStatusAggregate = ({
 
     return (
       <ProfileStatusCount
+        key={value}
         statusIcon={iconName}
         statusValue={value}
         teamId={teamId}

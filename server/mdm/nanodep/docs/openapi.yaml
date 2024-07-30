@@ -1,0 +1,287 @@
+openapi: 3.0.0
+info:
+  version: 0.1.0
+  title: NanoDEP depserver API
+servers:
+  - url: http://[::1]:9001/
+paths:
+  /version:
+    get:
+      description: Returns the running NanoDEP depserver version
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema: 
+                type: object
+                properties: 
+                  version:
+                    type: string
+                    example: "v0.1.0"
+  /v1/assigner/{name}:
+    get:
+      description: Return the assigner profile UUID for the given DEP name.
+      security:
+        - basicAuth: []
+      responses:
+        '200':
+          description: Assigner profile UUID corresponding to the DEP name.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssignerProfileUUID'
+        '401':
+           $ref: '#/components/responses/UnauthorizedError'
+        '400':
+           $ref: '#/components/responses/BadRequest'
+        '500':
+           $ref: '#/components/responses/JSONAPIError'
+    put:
+      description: Assign a profile UUID for assignment for the given DEP name.
+      security:
+        - basicAuth: []
+      responses:
+        '200':
+          description: The store assigner profile UUID corresponding to the DEP name.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssignerProfileUUID'
+        '401':
+           $ref: '#/components/responses/UnauthorizedError'
+        '400':
+           $ref: '#/components/responses/BadRequest'
+        '500':
+           $ref: '#/components/responses/JSONAPIError'
+    parameters:
+      - $ref: '#/components/parameters/depName'
+      - in: query
+        name: profile_uuid
+        required: true
+        schema:
+          type: string
+          example: "48E4F9B0DB9B76F1"
+  /v1/config/{name}:
+    get:
+      description: Return the config for the given DEP name.
+      security:
+        - basicAuth: []
+      responses:
+        '200':
+          description: Config corresponding to the DEP name.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Config'
+        '401':
+           $ref: '#/components/responses/UnauthorizedError'
+        '400':
+           $ref: '#/components/responses/BadRequest'
+        '500':
+           $ref: '#/components/responses/JSONAPIError'
+    put:
+      description: Set the config for the given DEP name.
+      security:
+        - basicAuth: []
+      requestBody:
+        description: Config for the given DEP name.
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Config'
+      responses:
+        '200':
+          description: Config corresponding to the DEP name.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Config'
+        '401':
+           $ref: '#/components/responses/UnauthorizedError'
+        '400':
+           $ref: '#/components/responses/BadRequest'
+        '500':
+           $ref: '#/components/responses/JSONAPIError'
+    parameters:
+      - $ref: '#/components/parameters/depName'
+  /v1/tokens/{name}:
+    get:
+      description: Return the DEP OAuth1 tokens for the given DEP name.
+      security:
+        - basicAuth: []
+      responses:
+        '200':
+          description: The DEP OAuth1 tokens for the given DEP name.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OAuth1Tokens'
+        '401':
+           $ref: '#/components/responses/UnauthorizedError'
+        '400':
+           $ref: '#/components/responses/BadRequest'
+        '500':
+           $ref: '#/components/responses/JSONAPIError'
+    put:
+      description: Upload and store DEP OAuth1 tokens for the given DEP Name.
+      security:
+        - basicAuth: []
+      externalDocs:
+        description: Apple documentation describing the decrypted DEP server OAuth1 tokens.
+        url: https://developer.apple.com/documentation/devicemanagement/device_assignment/authenticating_with_a_device_enrollment_program_dep_server/examining_server_tokens
+      requestBody:
+        description: OAuth1 tokens.
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OAuth1Tokens'
+      responses:
+        '200':
+          description: The parsed and stored OAuth1 tokens are returned.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OAuth1Tokens'
+        '401':
+           $ref: '#/components/responses/UnauthorizedError'
+        '400':
+           $ref: '#/components/responses/BadRequest'
+        '500':
+           $ref: '#/components/responses/JSONAPIError'
+    parameters:
+      - $ref: '#/components/parameters/depName'
+  /v1/tokenpki/{name}:
+    get:
+      description: Generate and store a new X.509 certificate and RSA private key (keypair) for exchanging the encrypted DEP OAuth1 tokens via the Apple ABM/ASM/BE portal. Each request generates a new (and overwrites the existing) keypair. The certificate is returned.
+      security:
+        - basicAuth: []
+      responses:
+        '200':
+          description: X.509 certificate of the keypair used to encrypted the OAuth1 tokens.
+          headers:
+            Content-Disposition:
+              schema:
+                type: string
+              description: Suggested filename of (attachment) of certificate.
+          content:
+            application/x-pem-file:
+              schema:
+                type: string
+              example: |-
+                -----BEGIN CERTIFICATE-----
+                MIIFdjCCBF6gAwIBAgIIZ7SjAeWsGIwwDQYJKoZIhvcNAQELBQAwgYwxQDA+BgNV
+                [..snip..]
+                lL5jy74l8Za59w==
+                -----END CERTIFICATE-----
+        '401':
+           $ref: '#/components/responses/UnauthorizedError'
+        '400':
+           $ref: '#/components/responses/BadRequest'
+        '500':
+           $ref: '#/components/responses/JSONAPIError'
+    put:
+      description: Decrypt the OAuth1 tokens from the Apple ABM/ASM/BE portal and store them.
+      security:
+        - basicAuth: []
+      requestBody:
+        description: The contents of the .p7m file that Apple provides on the ABM/ASM/BE portal after you've uploaded the public key certificate.
+        required: true
+        content:
+          application/pkcs7-mime:
+            schema:
+              type: string
+            example: |-
+              Content-Type: application/pkcs7-mime; name="smime.p7m"; smime-type=enveloped-data
+              Content-Transfer-Encoding: base64
+              Content-Disposition: attachment; filename="smime.p7m"
+              Content-Description: S/MIME Encrypted Message
+              
+              MIAGCSqGSIb3DQEHA6CAMIACAQAxggE1MIIBMQIBADAZMBQxEjAQBgNVBAMTCWRlcHNlcnZlcgIB
+              [..snip..]
+              ZZ4DvF5PZOQGA9R6pW0/L29ixfg8H8hPkXoJ7AkYI09sf4DMTzaesQAAAAAAAAAAAAA=
+      responses:
+        '200':
+          description: Newly decrypted OAuth1 tokens corresponding to the DEP name.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OAuth1Tokens'
+        '401':
+           $ref: '#/components/responses/UnauthorizedError'
+        '400':
+           $ref: '#/components/responses/BadRequest'
+        '500':
+           $ref: '#/components/responses/JSONAPIError'
+    parameters:
+      - $ref: '#/components/parameters/depName'
+components:
+  parameters:
+    depName:
+      name: name
+      in: path
+      description: Name of DEP server instance
+      required: true
+      style: simple
+      schema:
+        type: string
+        example: 'mymdmserver'
+  securitySchemes:
+    basicAuth:
+      type: http
+      scheme: basic
+  responses:
+    UnauthorizedError:
+      description: API key is missing or invalid.
+      headers:
+        WWW-Authenticate:
+          schema:
+            type: string
+    BadRequest:
+      description: There was a problem with the supplied request. The request was in an incorrect format or other request data error.
+    JSONAPIError:
+      description: An error occured on this endpoint.
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+                example: "it was sunny outside"
+  schemas:
+    AssignerProfileUUID:
+      type: object
+      properties:
+        profile_uuid:
+          type: string
+          example: "48E4F9B0DB9B76F1"
+    Config:
+      type: object
+      properties:
+        base_url:
+          type: string
+          format: url
+          example: "http://127.0.0.1:8080/"
+          description: The base URL of the Apple Device Assignment Services server to call out to. Typically only overridden when talking to another DEP server such as the `depsim` simulator.
+    OAuth1Tokens:
+      type: object
+      properties:
+        consumer_key:
+          type: string
+          example: "CK_48dd68d198350f51258e885ce9a5c37ab7f98543c4a697323d75682a6c10a32501cb247e3db08105db868f73f2c972bdb6ae77112aea803b9219eb52689d42e6"
+        consumer_secret:
+          type: string
+          example: "CS_34c7b2b531a600d99a0e4edcf4a78ded79b86ef318118c2f5bcfee1b011108c32d5302df801adbe29d446eb78f02b13144e323eb9aad51c79f01e50cb45c3a68"
+        access_token:
+          type: string
+          example: "AT_927696831c59ba510cfe4ec1a69e5267c19881257d4bca2906a99d0785b785a6f6fdeb09774954fdd5e2d0ad952e3af52c6d8d2f21c924ba0caf4a031c158b89"
+        access_secret:
+          type: string
+          example: "AS_c31afd7a09691d83548489336e8ff1cb11b82b6bca13f793344496a556b1f4972eaff4dde6deb5ac9cf076fdfa97ec97699c34d515947b9cf9ed31c99dded6ba"
+        access_token_expiry:
+          type: string
+          format: date-time
+          example: "2023-06-01T05:59:16Z"

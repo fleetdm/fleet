@@ -18,7 +18,7 @@ const DeletePolicyModal = ({
 }: IDeletePolicyModalProps): JSX.Element => {
   return (
     <Modal
-      title={"Delete policies"}
+      title="Delete policies"
       onExit={onCancel}
       onEnter={onSubmit}
       className={baseClass}

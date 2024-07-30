@@ -3,6 +3,7 @@ import ReactTooltip from "react-tooltip";
 import { IconNames } from "components/icons";
 import Icon from "components/Icon";
 import Button from "components/buttons/Button";
+import { COLORS } from "styles/var/colors";
 
 const baseClass = "profile-status-indicator";
 
@@ -43,7 +44,7 @@ const ProfileStatusIndicator = ({
           <ReactTooltip
             place={tooltip.position ?? "bottom"}
             effect="solid"
-            backgroundColor="#3e4771"
+            backgroundColor={COLORS["tooltip-bg"]}
             id={`${indicatorText}-tooltip`}
             data-html
           >
@@ -81,7 +82,7 @@ const ProfileStatusIndicator = ({
           <ReactTooltip
             place={tooltip.position ?? "bottom"}
             effect="solid"
-            backgroundColor="#3e4771"
+            backgroundColor={COLORS["tooltip-bg"]}
             id={`${indicatorText}-tooltip`}
             data-html
           >

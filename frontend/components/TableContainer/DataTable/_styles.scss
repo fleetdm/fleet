@@ -211,6 +211,10 @@ $shadow-transition-width: 10px;
         max-width: 500px;
         word-wrap: break-word;
 
+        &.linkToFilteredHosts__cell {
+          text-align: right;
+        }
+
         &.selection__cell {
           width: 0px;
           padding: 0 $pad-medium;
@@ -272,12 +276,14 @@ $shadow-transition-width: 10px;
           min-width: 100%;
           text-align: left;
         }
-        .grey-cell {
-          color: $ui-fleet-black-50;
+        .italic-cell {
           font-style: italic;
           .__react_component_tooltip {
             font-style: normal;
           }
+        }
+        .grey-cell {
+          color: $ui-fleet-black-50;
         }
       }
 
@@ -319,7 +325,7 @@ $shadow-transition-width: 10px;
           font-size: 0.6rem;
           font-weight: $bold;
           position: relative;
-          top: -2px;
+          top: -1px;
         }
       }
 
@@ -330,7 +336,7 @@ $shadow-transition-width: 10px;
           font-size: 0.6rem;
           font-weight: $bold;
           position: relative;
-          top: -2px;
+          top: -1px;
         }
       }
     }

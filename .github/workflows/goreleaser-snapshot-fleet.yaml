@@ -3,18 +3,18 @@ name: Docker publish
 on:
   push:
     branches:
-      - 'main'
-      - 'prepare-*'
-      - 'patch-*'
+      - "main"
+      - "minor-*"
+      - "patch-*"
     paths-ignore:
-      - 'handbook/**'
-      - 'website/**'
-      - 'mdm-profiles/**'
+      - "handbook/**"
+      - "website/**"
+      - "mdm-profiles/**"
   pull_request:
     paths-ignore:
-      - 'handbook/**'
-      - 'website/**'
-      - 'mdm-profiles/**'
+      - "handbook/**"
+      - "website/**"
+      - "mdm-profiles/**"
   workflow_dispatch: # Manual
 
 # This allows a subsequently queued workflow run to interrupt previous runs
@@ -40,6 +40,11 @@ jobs:
     runs-on: ubuntu-20.04
     environment: Docker Hub
     steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        with:
+          egress-policy: audit
+
       - name: Checkout
         uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
 
@@ -54,6 +59,12 @@ jobs:
         with:
           go-version: ${{ vars.GO_VERSION }}
 
+      # Set the Node.js version
+      - name: Set up Node.js ${{ vars.NODE_VERSION }}
+        uses: actions/setup-node@5e21ff4d9bc1a8cf6de233a3057d20ec6b3fb69d # v3.8.1
+        with:
+          node-version: ${{ vars.NODE_VERSION }}
+
       - name: Install Dependencies
         run: make deps
 
@@ -61,7 +72,7 @@ jobs:
         uses: goreleaser/goreleaser-action@f82d6c1c344bcacabba2c841718984797f664a6b
         with:
           distribution: goreleaser-pro
-          version: latest
+          version: "~> 1"
           args: release --snapshot --rm-dist -f .goreleaser-snapshot.yml
         env:
           GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}

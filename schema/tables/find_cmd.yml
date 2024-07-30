@@ -6,24 +6,22 @@ columns:
   - name: directory
     type: text
     required: true
-    description: |
+    description: |-
       The directory passed to find as first argument.
   - name: type
     type: text
     required: false
-    description: |
+    description: |-
       Sets the value of the `-type` flag.
   - name: perm
     type: text
     required: false
-    description: |
+    description: |-
       Sets the value of the `-perm` flag.
   - name: path
     type: text
     required: false
-    description: |
+    description: |-
       Contains the found paths.
-notes: |
-  This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet.
-  Fleetd installers can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).
+notes: This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).
 evented: false

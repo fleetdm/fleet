@@ -269,7 +269,7 @@ func TestTeamMDMCopy(t *testing.T) {
 	t.Run("copy value fields", func(t *testing.T) {
 		tm := &TeamMDM{
 			EnableDiskEncryption: true,
-			MacOSUpdates: MacOSUpdates{
+			MacOSUpdates: AppleOSUpdateSettings{
 				MinimumVersion: optjson.SetString("10.15.4"),
 				Deadline:       optjson.SetString("2020-01-01"),
 			},
@@ -288,7 +288,7 @@ func TestTeamMDMCopy(t *testing.T) {
 	t.Run("copy MacOSSettings", func(t *testing.T) {
 		tm := &TeamMDM{
 			MacOSSettings: MacOSSettings{
-				CustomSettings:                 []string{"a", "b"},
+				CustomSettings:                 []MDMProfileSpec{{Path: "a"}, {Path: "b"}},
 				DeprecatedEnableDiskEncryption: ptr.Bool(false),
 			},
 		}

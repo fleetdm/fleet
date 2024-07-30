@@ -69,12 +69,12 @@ const Munki = ({
                 <TableDataError card />
               ) : (
                 <TableContainer
-                  columns={tableHeaders}
+                  columnConfigs={tableHeaders}
                   data={munkiIssuesData || []}
                   isLoading={isMacAdminsFetching}
                   defaultSortHeader={DEFAULT_SORT_HEADER}
                   defaultSortDirection={DEFAULT_SORT_DIRECTION}
-                  resultsTitle={"Munki"}
+                  resultsTitle="Munki"
                   emptyComponent={() => (
                     <EmptyTable
                       header="No Munki issues detected"
@@ -96,12 +96,12 @@ const Munki = ({
                 <TableDataError card />
               ) : (
                 <TableContainer
-                  columns={munkiVersionsTableHeaders}
+                  columnConfigs={munkiVersionsTableHeaders}
                   data={munkiVersionsData || []}
                   isLoading={isMacAdminsFetching}
                   defaultSortHeader={DEFAULT_SORT_HEADER}
                   defaultSortDirection={DEFAULT_SORT_DIRECTION}
-                  resultsTitle={"Munki"}
+                  resultsTitle="Munki"
                   emptyComponent={() => (
                     <EmptyTable
                       header="Unable to detect Munki versions"
@@ -109,8 +109,8 @@ const Munki = ({
                         <>
                           To see Munki versions, deploy&nbsp;
                           <CustomLink
-                            url="https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer"
-                            text="Fleet's osquery installer"
+                            url="https://fleetdm.com/learn-more-about/fleetd"
+                            text="Fleet's agent (fleetd)"
                             newTab
                           />
                           .

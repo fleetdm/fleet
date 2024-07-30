@@ -161,7 +161,48 @@ module.exports = {
   },
 
   targets: {
-    './': ['action'],// << Use underlying default generator
+    './:newActionRelPath': {
+      exec: function(scope, done){
+        return generateFile({
+          rootPath: scope.rootPath,
+          force: scope.force,
+          contents:
+`module.exports = {
+
+
+  friendlyName: 'View ${scope.stem.replace(/\-/gim, ' ')}',
+
+
+  description: 'Display "${_.capitalize(scope.stem.replace(/\-/gim, ' '))}" page.',
+
+
+  exits: {
+
+    success: {
+      viewTemplatePath: '${scope.newViewRelPath}'
+    },
+    badConfig: { responseType: 'badConfig' },
+  },
+
+
+  fn: async function () {
+    if (!_.isObject(sails.config.builtStaticContent) || !_.isArray(sails.config.builtStaticContent.testimonials) || !sails.config.builtStaticContent.compiledPagePartialsAppPath) {
+      throw {badConfig: 'builtStaticContent.testimonials'};
+    }
+    // Get testimonials for the <scrolalble-tweets> component.
+    let testimonialsForScrollableTweets = sails.config.builtStaticContent.testimonials;
+    // Respond with view.
+    return {
+      testimonialsForScrollableTweets,
+    };
+
+  }
+
+
+};`
+        }, done);
+      }
+    },
     './:newViewRelPath': {
       exec: function(scope, done){
         return generateFile({
@@ -178,8 +219,8 @@ module.exports = {
         <h1>${_.capitalize(scope.stem.replace(/\-/gim, ' '))}</h1>
         <p>Vitae architecto reiciendis in temporibus consequatur doloremque reprehenderit perferendis? Eaque quod voluptates earum corporis, quo labore reprehenderit libero sint.</p>
         <div purpose="button-row" class="d-flex flex-sm-row flex-column justify-content-center align-items-center">
-          <a purpose="cta-button" href="/try-fleet/register?tryitnow">Try Fleet today</a>
-          <a @click="clickOpenChatWidget()" purpose="animated-arrow-button-red">Talk to an expert</a>
+          <a purpose="cta-button" href="/register">Start now</a>
+          <animated-arrow-button href="/contact">Talk to us</animated-arrow-button>
         </div>
       </div>
     </div>
@@ -233,8 +274,8 @@ module.exports = {
     </div>
 
     <div purpose="button-row" style="margin-top: 60px;" class="d-flex flex-sm-row flex-column justify-content-center align-items-center mx-auto">
-      <a purpose="cta-button" href="/try-fleet/register?tryitnow">Try Fleet today</a>
-      <a @click="clickOpenChatWidget()" purpose="animated-arrow-button-red">Talk to an expert</a>
+      <a purpose="cta-button" href="/register">Start now</a>
+      <animated-arrow-button href="/contact">Talk to us</animated-arrow-button>
     </div>
 
   </div>
@@ -248,15 +289,15 @@ module.exports = {
       </div>
     </div>
 
-    <scrollable-tweets></scrollable-tweets>
+    <scrollable-tweets :testimonials="testimonialsForScrollableTweets"></scrollable-tweets>
     <div purpose="page-container" class="pb-0 container">
 
       <div purpose="bottom-cta" class="text-center">
         <h4>Open-source device management</h4>
         <h1>Lighter than air</h1>
         <div purpose="button-row" style="margin-top: 60px;" class="d-flex flex-sm-row flex-column justify-content-center align-items-center mx-auto">
-          <a purpose="cta-button" href="/try-fleet/register?tryitnow">Try it out</a>
-          <a @click="clickOpenChatWidget()" purpose="animated-arrow-button-red">Talk to an expert</a>
+          <a purpose="cta-button" href="/register">Start now</a>
+          <animated-arrow-button href="/contact">Talk to us</animated-arrow-button>
         </div>
       </div>
     </div>

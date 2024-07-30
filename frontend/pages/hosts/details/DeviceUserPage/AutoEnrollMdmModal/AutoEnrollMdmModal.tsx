@@ -2,16 +2,27 @@ import React from "react";
 
 import Button from "components/buttons/Button";
 import Modal from "components/Modal";
+import { IDeviceUserResponse } from "interfaces/host";
 
 interface IAutoEnrollMdmModalProps {
+  host: IDeviceUserResponse["host"];
   onCancel: () => void;
 }
 
 const baseClass = "auto-enroll-mdm-modal";
 
 const AutoEnrollMdmModal = ({
+  host: { platform, os_version },
   onCancel,
 }: IAutoEnrollMdmModalProps): JSX.Element => {
+  let isMacOsSonomaOrLater = false;
+  if (platform === "darwin" && os_version.startsWith("macOS ")) {
+    const [major] = os_version
+      .replace("macOS ", "")
+      .split(".")
+      .map((s) => parseInt(s, 10));
+    isMacOsSonomaOrLater = major >= 14;
+  }
   return (
     <Modal
       title="Turn on MDM"
@@ -25,13 +36,21 @@ const AutoEnrollMdmModal = ({
         </p>
         <ol>
           <li>
-            Open your Mac’s notification center by selecting the date and time
-            in the top right corner of your screen.
+            From the Apple menu in the top left corner of your screen, select{" "}
+            <b>System Settings</b> or <b>System Preferences</b>.
           </li>
           <li>
-            Select the <b>Device Enrollment</b> notification. This will open{" "}
-            <b>System Settings</b> or <b>System Preferences</b>. Select{" "}
-            <b>Allow</b>.
+            {isMacOsSonomaOrLater ? (
+              <>
+                In the sidebar menu, select <b>Enroll in Remote Management</b>,
+                and select <b>Enroll</b>.
+              </>
+            ) : (
+              <>
+                In the search bar, type “Profiles.” Select <b>Profiles</b>, find
+                and select <b>Enrollment Profile</b>, and select <b>Install</b>.
+              </>
+            )}
           </li>
           <li>
             Enter your password, and select <b>Enroll</b>.

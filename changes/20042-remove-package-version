@@ -1,0 +1,1 @@
+In `fleetctl package` command, removed the `--version` flag. The version of the package can be controlled by `--orbit-channel` flag.

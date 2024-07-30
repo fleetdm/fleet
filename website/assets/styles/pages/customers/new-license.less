@@ -25,6 +25,52 @@
   input[type='number'] {
     -moz-appearance: textfield;
   }
+
+  [purpose='self-hosted-checkbox'] {
+    [purpose='self-hosted-note'] {
+      font-size: 14px;
+      line-height: 150%;
+      margin-bottom: 0px;
+      margin-botom: 24px;
+    }
+    input {
+      display: none;
+    }
+    input + label {
+      position: relative;
+      padding-left: 24px;
+      cursor: pointer;
+    }
+    input + label::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 2px;
+      width: 16px;
+      height: 16px;
+      background-color: #fff;
+      border: 2px solid #192147;
+      border-radius: 4px;
+    }
+    input:checked + label::before {
+      background-color: #192147;
+    }
+    input:checked + label::after {
+      content: url('/images/icon-checkmark-white-10x9@2x.png');
+      position: absolute;
+      left: -1px;
+      top: 2px;
+      transform: scale(0.5);
+      width: 16px;
+      height: 16px;
+    }
+    label.is-invalid::before {
+      border: 2px solid #FF5C83;
+    }
+    label.is-invalid + .invalid-feedback {
+      display: block;
+    }
+  }
   [purpose='quote-input'] {
     max-width: 200px;
   }
@@ -40,20 +86,24 @@
   [purpose='customer-portal-form'] {
     max-width: 560px;
     border-radius: 16px;
-    padding: 30px;
+    padding: 32px;
     label {
       font-weight: 700;
       margin-bottom: 4px;
     }
     .form-control {
-      height: 40px;
+      height: 48px;
       border-radius: 6px;
+      display: flex;
+      align-items: center;
     }
     .card-body {
       padding: 2em;
     }
   }
-
+  .card {
+    border-radius: 16px;
+  }
   [purpose='submit-button'] {
 
     margin-left: auto;
@@ -69,7 +119,7 @@
       margin-left: auto;
       margin-right: auto;
       font-size: 16px;
-      line-height: 20px;
+      line-height: 16px;
       text-align: center;
       font-weight: 700;
     }

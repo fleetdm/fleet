@@ -15,16 +15,18 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
+	nanodep_client "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	kitlog "github.com/go-kit/kit/log"
-	nanodep_client "github.com/micromdm/nanodep/client"
-	"github.com/micromdm/nanodep/godep"
+	kitlog "github.com/go-kit/log"
 	"github.com/stretchr/testify/require"
 )
 
 func TestMacosSetupAssistant(t *testing.T) {
 	ctx := context.Background()
 	ds := mysql.CreateMySQLDS(t)
+	// call TruncateTables immediately as some DB migrations may create jobs
+	mysql.TruncateTables(t, ds)
 
 	// create a couple hosts for no team, team 1 and team 2 (none for team 3)
 	hosts := make([]*fleet.Host, 6)
@@ -58,16 +60,10 @@ func TestMacosSetupAssistant(t *testing.T) {
 	err = ds.AddHostsToTeam(ctx, &tm2.ID, []uint{hosts[4].ID, hosts[5].ID})
 	require.NoError(t, err)
 
-	var testBMToken = nanodep_client.OAuth1Tokens{
-		ConsumerKey:       "test_consumer",
-		ConsumerSecret:    "test_secret",
-		AccessToken:       "test_access_token",
-		AccessSecret:      "test_access_secret",
-		AccessTokenExpiry: time.Date(2999, 1, 1, 0, 0, 0, 0, time.UTC),
-	}
+	mysql.SetTestABMAssets(t, ds)
 
 	logger := kitlog.NewNopLogger()
-	depStorage, err := ds.NewMDMAppleDEPStorage(testBMToken)
+	depStorage, err := ds.NewMDMAppleDEPStorage()
 	require.NoError(t, err)
 	macosJob := &MacosSetupAssistant{
 		Datastore:  ds,
@@ -76,7 +72,7 @@ func TestMacosSetupAssistant(t *testing.T) {
 		DEPClient:  apple_mdm.NewDEPClient(depStorage, ds, logger),
 	}
 
-	const defaultProfileName = "FleetDM default enrollment profile"
+	const defaultProfileName = "Fleet default enrollment profile"
 
 	// track the profile assigned to each device
 	serialsToProfile := map[string]string{
@@ -140,7 +136,7 @@ func TestMacosSetupAssistant(t *testing.T) {
 		err = w.ProcessJobs(ctx)
 		require.NoError(t, err)
 		// no remaining jobs to process
-		pending, err := ds.GetQueuedJobs(ctx, 10)
+		pending, err := ds.GetQueuedJobs(ctx, 10, time.Time{})
 		require.NoError(t, err)
 		require.Empty(t, pending)
 	}
@@ -155,7 +151,7 @@ func TestMacosSetupAssistant(t *testing.T) {
 	start := time.Now().Truncate(time.Second)
 
 	// enqueue a regenerate all and process the jobs
-	err = QueueMacosSetupAssistantJob(ctx, ds, logger, MacosSetupAssistantUpdateAllProfiles, nil)
+	_, err = QueueMacosSetupAssistantJob(ctx, ds, logger, MacosSetupAssistantUpdateAllProfiles, nil)
 	require.NoError(t, err)
 	runCheckDone()
 
@@ -188,7 +184,7 @@ func TestMacosSetupAssistant(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.NotZero(t, tm1Asst.ID)
-	err = QueueMacosSetupAssistantJob(ctx, ds, logger, MacosSetupAssistantProfileChanged, &tm1.ID)
+	_, err = QueueMacosSetupAssistantJob(ctx, ds, logger, MacosSetupAssistantProfileChanged, &tm1.ID)
 	require.NoError(t, err)
 	runCheckDone()
 
@@ -219,7 +215,7 @@ func TestMacosSetupAssistant(t *testing.T) {
 	tm2, err = ds.SaveTeam(ctx, tm2)
 	require.NoError(t, err)
 
-	err = QueueMacosSetupAssistantJob(ctx, ds, logger, MacosSetupAssistantUpdateProfile, &tm2.ID)
+	_, err = QueueMacosSetupAssistantJob(ctx, ds, logger, MacosSetupAssistantUpdateProfile, &tm2.ID)
 	require.NoError(t, err)
 	runCheckDone()
 
@@ -249,11 +245,11 @@ func TestMacosSetupAssistant(t *testing.T) {
 	require.NotZero(t, tm3Asst.ID)
 	err = ds.DeleteMDMAppleSetupAssistant(ctx, &tm1.ID)
 	require.NoError(t, err)
-	err = QueueMacosSetupAssistantJob(ctx, ds, logger, MacosSetupAssistantProfileChanged, &tm2.ID)
+	_, err = QueueMacosSetupAssistantJob(ctx, ds, logger, MacosSetupAssistantProfileChanged, &tm2.ID)
 	require.NoError(t, err)
-	err = QueueMacosSetupAssistantJob(ctx, ds, logger, MacosSetupAssistantProfileChanged, &tm3.ID)
+	_, err = QueueMacosSetupAssistantJob(ctx, ds, logger, MacosSetupAssistantProfileChanged, &tm3.ID)
 	require.NoError(t, err)
-	err = QueueMacosSetupAssistantJob(ctx, ds, logger, MacosSetupAssistantProfileDeleted, &tm1.ID)
+	_, err = QueueMacosSetupAssistantJob(ctx, ds, logger, MacosSetupAssistantProfileDeleted, &tm1.ID)
 	require.NoError(t, err)
 	runCheckDone()
 
@@ -271,7 +267,7 @@ func TestMacosSetupAssistant(t *testing.T) {
 	tm2, err = ds.SaveTeam(ctx, tm2)
 	require.NoError(t, err)
 
-	err = QueueMacosSetupAssistantJob(ctx, ds, logger, MacosSetupAssistantUpdateProfile, &tm2.ID)
+	_, err = QueueMacosSetupAssistantJob(ctx, ds, logger, MacosSetupAssistantUpdateProfile, &tm2.ID)
 	require.NoError(t, err)
 	runCheckDone()
 
@@ -290,9 +286,9 @@ func TestMacosSetupAssistant(t *testing.T) {
 	err = ds.DeleteTeam(ctx, tm2.ID)
 	require.NoError(t, err)
 
-	err = QueueMacosSetupAssistantJob(ctx, ds, logger, MacosSetupAssistantHostsTransferred, &tm3.ID, "serial-2", "serial-4")
+	_, err = QueueMacosSetupAssistantJob(ctx, ds, logger, MacosSetupAssistantHostsTransferred, &tm3.ID, "serial-2", "serial-4")
 	require.NoError(t, err)
-	err = QueueMacosSetupAssistantJob(ctx, ds, logger, MacosSetupAssistantTeamDeleted, nil, "serial-5") // hosts[5] was in team 2
+	_, err = QueueMacosSetupAssistantJob(ctx, ds, logger, MacosSetupAssistantTeamDeleted, nil, "serial-5") // hosts[5] was in team 2
 	require.NoError(t, err)
 	runCheckDone()
 
@@ -314,7 +310,7 @@ func TestMacosSetupAssistant(t *testing.T) {
 	require.NoError(t, err)
 	require.NotZero(t, noTmAsst.ID)
 
-	err = QueueMacosSetupAssistantJob(ctx, ds, logger, MacosSetupAssistantProfileChanged, nil)
+	_, err = QueueMacosSetupAssistantJob(ctx, ds, logger, MacosSetupAssistantProfileChanged, nil)
 	require.NoError(t, err)
 	runCheckDone()
 
@@ -331,7 +327,7 @@ func TestMacosSetupAssistant(t *testing.T) {
 	reset := time.Now().Truncate(time.Second)
 	time.Sleep(time.Second)
 
-	err = QueueMacosSetupAssistantJob(ctx, ds, logger, MacosSetupAssistantUpdateAllProfiles, nil)
+	_, err = QueueMacosSetupAssistantJob(ctx, ds, logger, MacosSetupAssistantUpdateAllProfiles, nil)
 	require.NoError(t, err)
 	runCheckDone()
 

@@ -1,0 +1,119 @@
+volumes:
+  data01:
+    driver: local
+
+networks:
+  fleet-preview:
+    name: fleet-preview
+
+services:
+  mysql01:
+    image: mysql:8.0.36
+    platform: linux/x86_64
+    volumes:
+      - .:/data
+    command: mysqld --datadir=/tmp/data --event-scheduler=ON
+    environment:
+      MYSQL_ROOT_PASSWORD: toor
+      MYSQL_DATABASE: fleet
+      MYSQL_USER: fleet
+      MYSQL_PASSWORD: fleet
+    ports:
+      - "3308:3306"
+    networks:
+      - fleet-preview
+
+  redis01:
+    image: redis:6
+    networks:
+      - fleet-preview
+
+  # Normal Fleet server running TLS with a self-signed cert to handle the
+  # osquery connections.
+  fleet01:
+    image: fleetdm/fleet:${FLEET_VERSION:-latest}
+    platform: linux/x86_64
+    command: sh -c "/usr/bin/fleet prepare db --no-prompt && /usr/bin/fleet serve"
+    environment:
+      FLEET_MYSQL_ADDRESS: mysql01:3306
+      FLEET_MYSQL_DATABASE: fleet
+      FLEET_MYSQL_USERNAME: fleet
+      FLEET_MYSQL_PASSWORD: fleet
+      FLEET_REDIS_ADDRESS: redis01:6379
+      FLEET_SERVER_ADDRESS: 0.0.0.0:8412
+      FLEET_SERVER_CERT: /fleet/osquery/fleet.crt
+      FLEET_SERVER_KEY: /fleet/osquery/fleet.key
+      FLEET_LOGGING_JSON: 'true'
+      FLEET_OSQUERY_STATUS_LOG_PLUGIN: filesystem
+      FLEET_FILESYSTEM_STATUS_LOG_FILE: /logs/osqueryd.status.log
+      FLEET_OSQUERY_RESULT_LOG_PLUGIN: filesystem
+      FLEET_FILESYSTEM_RESULT_LOG_FILE: /logs/osqueryd.results.log
+      FLEET_BETA_SOFTWARE_INVENTORY: 1
+      FLEET_LICENSE_KEY: ${FLEET_LICENSE_KEY}
+      FLEET_OSQUERY_LABEL_UPDATE_INTERVAL: 1m
+      FLEET_VULNERABILITIES_CURRENT_INSTANCE_CHECKS: "yes"
+      FLEET_VULNERABILITIES_DATABASES_PATH: /vulndb
+      FLEET_VULNERABILITIES_PERIODICITY: 5m
+      FLEET_LOGGING_DEBUG: 'true'
+      FLEET_SERVER_PRIVATE_KEY: ${FLEET_SERVER_PRIVATE_KEY}
+      # This can be configured for testing purposes but otherwise uses the
+      # typical default of provided.
+      FLEET_OSQUERY_HOST_IDENTIFIER: ${FLEET_OSQUERY_HOST_IDENTIFIER:-provided}
+    depends_on:
+      - mysql01
+      - redis01
+    volumes:
+      - .:/fleet/
+      - ./logs:/logs
+      - ./vulndb:/vulndb
+      - ./config:/config
+    ports:
+      - "8412:8412"
+    networks:
+      fleet-preview:
+        aliases:
+          # Kind of a funny hack, this allows host.docker.internal to point
+          # to the Fleet server on Linux hosts where host.docker.internal is not
+          # yet added as a host by default in Docker.
+          - host.docker.internal
+          # Another strange hack, this allows the UI Fleet server to see
+          # this server as though it were on localhost, thereby allowing it to
+          # download the TLS certificate.
+          - localhost
+
+  # Run another Fleet server listening over plain HTTP bound to port 1337.
+  # This is expected to receive UI requests only and not connections from
+  # agents.
+  fleet02:
+    image: fleetdm/fleet:${FLEET_VERSION:-latest}
+    platform: linux/x86_64
+    command: sh -c "/usr/bin/fleet prepare db --no-prompt && /usr/bin/fleet serve"
+    environment:
+      FLEET_MYSQL_ADDRESS: mysql01:3306
+      FLEET_MYSQL_DATABASE: fleet
+      FLEET_MYSQL_USERNAME: fleet
+      FLEET_MYSQL_PASSWORD: fleet
+      FLEET_REDIS_ADDRESS: redis01:6379
+      FLEET_SERVER_ADDRESS: 0.0.0.0:1337
+      FLEET_SERVER_TLS: "false"
+      FLEET_LOGGING_JSON: "true"
+      FLEET_SESSION_DURATION: 720h
+      FLEET_OSQUERY_STATUS_LOG_PLUGIN: stdout
+      FLEET_OSQUERY_RESULT_LOG_PLUGIN: stdout
+      FLEET_BETA_SOFTWARE_INVENTORY: 1
+      FLEET_LICENSE_KEY: ${FLEET_LICENSE_KEY}
+      FLEET_OSQUERY_LABEL_UPDATE_INTERVAL: 1m
+      FLEET_VULNERABILITIES_CURRENT_INSTANCE_CHECKS: "no"
+      FLEET_SERVER_PRIVATE_KEY: ${FLEET_SERVER_PRIVATE_KEY}
+      # This can be configured for testing purposes but otherwise uses the
+      # typical default of provided.
+      FLEET_OSQUERY_HOST_IDENTIFIER: ${FLEET_OSQUERY_HOST_IDENTIFIER:-provided}
+    depends_on:
+      - mysql01
+      - redis01
+    volumes:
+      - ./config:/config
+    ports:
+      - "1337:1337"
+    networks:
+      - fleet-preview

@@ -13,7 +13,9 @@ module "byo-db" {
       address = "${module.redis.endpoint}:${module.redis.port}"
     }
     networking = {
-      subnets = var.vpc_config.networking.subnets
+      subnets         = var.vpc_config.networking.subnets
+      security_groups = var.fleet_config.networking.security_groups
+      ingress_sources = var.fleet_config.networking.ingress_sources
     }
   })
   ecs_cluster      = var.ecs_cluster
@@ -61,6 +63,8 @@ module "rds" {
   database_name                   = "fleet"
   skip_final_snapshot             = true
   snapshot_identifier             = var.rds_config.snapshot_identifier
+
+  preferred_maintenance_window = var.rds_config.preferred_maintenance_window
 
   cluster_tags = var.rds_config.cluster_tags
 }

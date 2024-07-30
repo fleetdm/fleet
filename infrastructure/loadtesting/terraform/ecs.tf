@@ -125,20 +125,24 @@ resource "aws_ecs_task_definition" "backend" {
           {
             name      = "FLEET_LICENSE_KEY"
             valueFrom = data.aws_secretsmanager_secret.license.arn
+          },
+          {
+            name      = "FLEET_SERVER_PRIVATE_KEY"
+            valueFrom = aws_secretsmanager_secret.fleet_server_private_key.arn
           }
         ]
         environment = concat([
           {
             name  = "FLEET_MYSQL_USERNAME"
-            value = module.aurora_mysql.rds_cluster_master_username
+            value = module.aurora_mysql.cluster_master_username
           },
           {
             name  = "FLEET_MYSQL_DATABASE"
-            value = module.aurora_mysql.rds_cluster_database_name
+            value = module.aurora_mysql.cluster_database_name
           },
           {
             name  = "FLEET_MYSQL_ADDRESS"
-            value = "${module.aurora_mysql.rds_cluster_endpoint}:3306"
+            value = "${module.aurora_mysql.cluster_endpoint}:3306"
           },
           {
             name  = "FLEET_MYSQL_MAX_OPEN_CONNS"
@@ -146,15 +150,15 @@ resource "aws_ecs_task_definition" "backend" {
           },
           {
             name  = "FLEET_MYSQL_READ_REPLICA_USERNAME"
-            value = module.aurora_mysql.rds_cluster_master_username
+            value = module.aurora_mysql.cluster_master_username
           },
           {
             name  = "FLEET_MYSQL_READ_REPLICA_DATABASE"
-            value = module.aurora_mysql.rds_cluster_database_name
+            value = module.aurora_mysql.cluster_database_name
           },
           {
             name  = "FLEET_MYSQL_READ_REPLICA_ADDRESS"
-            value = "${module.aurora_mysql.rds_cluster_reader_endpoint}:3306"
+            value = "${module.aurora_mysql.cluster_reader_endpoint}:3306"
           },
           {
             name  = "FLEET_MYSQL_READ_REPLICA_MAX_OPEN_CONNS"
@@ -261,15 +265,15 @@ resource "aws_ecs_task_definition" "migration" {
           },
           {
             name  = "FLEET_MYSQL_USERNAME"
-            value = module.aurora_mysql.rds_cluster_master_username
+            value = module.aurora_mysql.cluster_master_username
           },
           {
             name  = "FLEET_MYSQL_DATABASE"
-            value = module.aurora_mysql.rds_cluster_database_name
+            value = module.aurora_mysql.cluster_database_name
           },
           {
             name  = "FLEET_MYSQL_ADDRESS"
-            value = "${module.aurora_mysql.rds_cluster_endpoint}:3306"
+            value = "${module.aurora_mysql.cluster_endpoint}:3306"
           },
           {
             name  = "FLEET_REDIS_ADDRESS"
@@ -321,3 +325,22 @@ resource "aws_appautoscaling_policy" "ecs_policy_cpu" {
     target_value = 90
   }
 }
+
+resource "random_password" "fleet_server_private_key" {
+  length  = 32
+  special = true
+} 
+    
+resource "aws_secretsmanager_secret" "fleet_server_private_key" { 
+  name = "${terraform.workspace}-fleet-server-private-key"
+
+  recovery_window_in_days = "0"
+  lifecycle {
+    create_before_destroy = true
+  }
+} 
+  
+resource "aws_secretsmanager_secret_version" "fleet_server_private_key" {
+  secret_id     = aws_secretsmanager_secret.fleet_server_private_key.id
+  secret_string = random_password.fleet_server_private_key.result
+} 

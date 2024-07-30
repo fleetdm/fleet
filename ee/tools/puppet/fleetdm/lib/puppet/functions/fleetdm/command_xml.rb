@@ -14,7 +14,7 @@ Puppet::Functions.create_function(:"fleetdm::command_xml") do
   end
 
   def command_xml(uuid, xml_data)
-    env = closure_scope['server_facts']['environment']
+    env = closure_scope['environment']
     client = Puppet::Util::FleetClient.instance
     response = client.send_mdm_command(uuid, xml_data, env)
 

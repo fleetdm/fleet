@@ -3,47 +3,22 @@
 .platform-wrapper {
   padding: 0; // different to pad sticky subnav properly
 
+  .component__tabs-wrapper {
+    // negate problematic sticky positioning
+    position: initial;
+    .react-tabs {
+      &__tab-list {
+        margin: 0 0 $pad-large;
+      }
+    }
+  }
+
   h1 {
     margin-bottom: $pad-small;
   }
 
   p {
-    margin-top: 0;
-  }
-
-  .body-wrap {
-    padding: 0;
-  }
-
-  &__info {
-    margin-top: $pad-medium;
-  }
-
-  &__cta {
-    font-weight: $bold;
-    padding-top: $pad-xsmall;
     margin: 0;
-  }
-
-  .fleet-checkbox {
-    display: flex;
-    align-items: center;
-  }
-
-  .form-field {
-    &--checkbox {
-      margin-bottom: $pad-medium;
-    }
-
-    &__label {
-      position: relative;
-      font-size: $x-small;
-      font-weight: $bold;
-    }
-
-    &--textarea {
-      margin-bottom: $pad-xsmall;
-    }
   }
 
   .input-field {
@@ -51,15 +26,14 @@
       min-height: 88px;
     }
 
-    &__textarea,
-    &--disabled {
+    &__textarea {
       font-family: "SourceCodePro", $monospace;
       font-weight: $bold;
       font-size: 13px;
       color: $core-fleet-blue;
       line-height: 20px;
-      margin-bottom: 0;
-      padding: 12px $pad-large 12px $pad-medium;
+      line-break: anywhere;
+      padding: 12px $pad-xlarge 12px $pad-medium;
     }
   }
 
@@ -76,12 +50,7 @@
   }
 
   &__copy-message {
-    font-weight: $regular;
-    vertical-align: top;
-    background-color: $ui-light-grey;
-    border: solid 1px #e2e4ea;
-    border-radius: 10px;
-    padding: 2px 6px;
+    @include copy-message;
   }
 
   .buttons {
@@ -89,9 +58,10 @@
     flex-direction: row-reverse;
     align-items: center;
     position: relative;
-    top: 38px;
-    margin-right: $pad-medium;
-    height: 12px;
+    top: 28px;
+    right: 12px;
+    // prevent this element from affecting the parent label's height
+    height: 0;
     gap: $pad-small;
 
     a {
@@ -102,12 +72,6 @@
     img {
       width: 16px;
       height: 16px;
-    }
-  }
-
-  &__run-osquery-input {
-    .buttons {
-      top: 34px;
     }
   }
 
@@ -128,33 +92,15 @@
     }
   }
 
-  &__advanced {
-    padding-top: 6px;
-    .reveal-button {
-      margin: 8px 0;
-    }
-  }
-
   &__advanced--heading,
   &__chromeos--heading {
     font-weight: $bold;
-    margin-bottom: $pad-small;
   }
 
-  &__advanced--text {
-    font-weight: normal;
-  }
-
-  &__chromeos--instructions,
-  &__advanced--instructions {
-    margin-bottom: $pad-medium;
-  }
-
-  &__chromeos-extension-id,
-  &__chromeos-url {
-    .buttons {
-      top: 34px;
-    }
+  &__chromeos--info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
   }
 
   &__chromeos-policy-for-extension {
@@ -170,9 +116,6 @@
   }
 
   &__copy-message {
-    background-color: $ui-light-grey;
-    border: solid 1px #e2e4ea;
-    border-radius: 10px;
-    padding: 2px 6px;
+    @include copy-message;
   }
 }

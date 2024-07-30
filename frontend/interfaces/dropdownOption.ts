@@ -1,3 +1,4 @@
+import { ReactNode } from "react";
 import PropTypes from "prop-types";
 
 export default PropTypes.shape({
@@ -7,8 +8,10 @@ export default PropTypes.shape({
 });
 
 export interface IDropdownOption {
-  disabled: boolean;
+  disabled?: boolean;
   label: string | JSX.Element;
   value: string | number;
+  helpText?: ReactNode;
   premiumOnly?: boolean;
+  tooltipContent?: string | JSX.Element;
 }

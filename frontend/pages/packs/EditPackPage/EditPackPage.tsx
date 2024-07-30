@@ -223,7 +223,7 @@ const EditPacksPage = ({
 
   return (
     <MainContent className={baseClass}>
-      <div className={`${baseClass}__wrapper`}>
+      <>
         <div className={`${baseClass}__header-links`}>
           <BackLink text="Back to packs" path={PATHS.MANAGE_PACKS} />
         </div>
@@ -263,7 +263,7 @@ const EditPacksPage = ({
             isUpdatingPack={isUpdatingPack}
           />
         )}
-      </div>
+      </>
     </MainContent>
   );
 };

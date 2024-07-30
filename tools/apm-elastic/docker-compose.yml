@@ -1,0 +1,45 @@
+# From https://gist.github.com/sarriaroman/98289f3a1ae1cf46a801c89f2990c8fa
+
+# This docker-compose file will set up Elastic APM, Kibana and Elasticsearch containers
+# and the apm-server.yml configuration file ensures that APM can talk to Kibana. Once
+# the servers are up and running you should be able to browse http://localhost:5601
+# and see Kibana running.
+# In order to set up the APM dashboards, you will need to run the `./apm-server -setup`
+# command on the running apm-server container:
+# $ docker-compose up -d
+#   Starting elasticsearch_1 ... done
+#   Starting kibana_1 ... done
+#   Starting apm-server_1 ... done
+# $ docker-compose exec apm-server ./apm-server setup
+#   Loaded index template
+#   Loaded dashboards
+#
+# You should now be able to browse http://localhost:5601 and see the APM dashboards in Kibana.
+version: "3"
+services:
+    elasticsearch:
+      image: docker.elastic.co/elasticsearch/elasticsearch:7.8.0
+      ports:
+        - "9200:9200"
+        - "9300:9300"
+      environment:
+        - discovery.type=single-node
+    kibana:
+      image: docker.elastic.co/kibana/kibana:7.8.0
+      ports:
+        - "5601:5601"
+      links:
+        - elasticsearch
+      depends_on:
+        - elasticsearch
+    apm-server:
+      image: docker.elastic.co/apm/apm-server:7.8.0
+      ports:
+        - "8200:8200"
+      volumes:
+        - ./.apm-server.yml:/usr/share/apm-server/apm-server.yml
+      depends_on:
+        - elasticsearch
+      links:
+        - elasticsearch
+        - kibana

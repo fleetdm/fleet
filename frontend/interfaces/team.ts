@@ -1,7 +1,11 @@
 import PropTypes from "prop-types";
-import { IConfigFeatures, IWebhookSettings } from "./config";
+import {
+  IAppleDeviceUpdates,
+  IConfigFeatures,
+  IWebhookSettings,
+} from "./config";
 import enrollSecretInterface, { IEnrollSecret } from "./enroll_secret";
-import { IIntegrations } from "./integration";
+import { ITeamIntegrations } from "./integration";
 import { UserRole } from "./user";
 
 export default PropTypes.shape({
@@ -45,10 +49,9 @@ export interface ITeam extends ITeamSummary {
   role?: UserRole; // role value is included when the team is in the context of a user
   mdm?: {
     enable_disk_encryption: boolean;
-    macos_updates: {
-      minimum_version: string | null;
-      deadline: string | null;
-    };
+    macos_updates: IAppleDeviceUpdates;
+    ios_updates: IAppleDeviceUpdates;
+    ipados_updates: IAppleDeviceUpdates;
     macos_settings: {
       custom_settings: null; // TODO: types?
       enable_disk_encryption: boolean;
@@ -56,12 +59,17 @@ export interface ITeam extends ITeamSummary {
     macos_setup: {
       bootstrap_package: string | null;
       enable_end_user_authentication: boolean;
-      macos_setup_assistant: string | null; // TODO: types?
+      macos_setup_assistant: string | null;
+      enable_release_device_manually: boolean | null;
     };
     windows_updates: {
       deadline_days: number | null;
       grace_period_days: number | null;
     };
+  };
+  host_expiry_settings?: {
+    host_expiry_enabled: boolean;
+    host_expiry_window: number; // days
   };
 }
 
@@ -70,7 +78,7 @@ export interface ITeam extends ITeamSummary {
  */
 export type ITeamWebhookSettings = Pick<
   IWebhookSettings,
-  "vulnerabilities_webhook" | "failing_policies_webhook"
+  "vulnerabilities_webhook" | "failing_policies_webhook" | "host_status_webhook"
 >;
 
 /**
@@ -78,7 +86,7 @@ export type ITeamWebhookSettings = Pick<
  */
 export interface ITeamAutomationsConfig {
   webhook_settings: ITeamWebhookSettings;
-  integrations: IIntegrations;
+  integrations: ITeamIntegrations;
 }
 
 /**
@@ -87,20 +95,20 @@ export interface ITeamAutomationsConfig {
 export type ITeamConfig = ITeam & ITeamAutomationsConfig;
 
 /**
- * The shape of a new member to add to a team
+ * The shape of a new user to add to a team
  */
-export interface INewMember {
+export interface INewTeamUser {
   id: number;
   role: UserRole;
 }
 
 /**
- * The shape of the body expected from the API when adding new members to teams
+ * The shape of the body expected from the API when adding new users to teams
  */
-export interface INewMembersBody {
-  users: INewMember[];
+export interface INewTeamUsersBody {
+  users: INewTeamUser[];
 }
-export interface IRemoveMembersBody {
+export interface IRemoveTeamUserBody {
   users: { id?: number }[];
 }
 interface INewTeamSecret {

@@ -27,12 +27,12 @@ builds:
       - -trimpath
     ldflags:
       - -extldflags "-static"
-      - -X github.com/kolide/kit/version.appName={{ .ArtifactName }}
-      - -X github.com/kolide/kit/version.version={{ .Version }}
-      - -X github.com/kolide/kit/version.branch={{ .Branch }}
-      - -X github.com/kolide/kit/version.revision={{ .FullCommit }}
-      - -X github.com/kolide/kit/version.buildDate={{ time "2006-01-02" }}
-      - -X github.com/kolide/kit/version.buildUser={{ .Env.USER }}
+      - -X github.com/fleetdm/fleet/v4/server/version.appName={{ .ArtifactName }}
+      - -X github.com/fleetdm/fleet/v4/server/version.version={{ .Version }}
+      - -X github.com/fleetdm/fleet/v4/server/version.branch={{ .Branch }}
+      - -X github.com/fleetdm/fleet/v4/server/version.revision={{ .FullCommit }}
+      - -X github.com/fleetdm/fleet/v4/server/version.buildDate={{ time "2006-01-02" }}
+      - -X github.com/fleetdm/fleet/v4/server/version.buildUser={{ .Env.USER }}
 
   - id: fleetctl
     dir: ./cmd/fleetctl/
@@ -40,7 +40,6 @@ builds:
     env:
       - CGO_ENABLED=0
     goos:
-      - darwin
       - linux
       - windows
     goarch:
@@ -48,12 +47,41 @@ builds:
     flags:
       - -trimpath
     ldflags:
-      - -X github.com/kolide/kit/version.appName={{ .ArtifactName }}
-      - -X github.com/kolide/kit/version.version={{ .Version }}
-      - -X github.com/kolide/kit/version.branch={{ .Branch }}
-      - -X github.com/kolide/kit/version.revision={{ .FullCommit }}
-      - -X github.com/kolide/kit/version.buildDate={{ time "2006-01-02" }}
-      - -X github.com/kolide/kit/version.buildUser={{ .Env.USER }}
+      - -X github.com/fleetdm/fleet/v4/server/version.appName={{ .ArtifactName }}
+      - -X github.com/fleetdm/fleet/v4/server/version.version={{ .Version }}
+      - -X github.com/fleetdm/fleet/v4/server/version.branch={{ .Branch }}
+      - -X github.com/fleetdm/fleet/v4/server/version.revision={{ .FullCommit }}
+      - -X github.com/fleetdm/fleet/v4/server/version.buildDate={{ time "2006-01-02" }}
+      - -X github.com/fleetdm/fleet/v4/server/version.buildUser={{ .Env.USER }}
+
+  - id: fleetctl-macos
+    dir: ./cmd/fleetctl/
+    binary: fleetctl
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    flags:
+      - -trimpath
+    ldflags:
+      - -X github.com/fleetdm/fleet/v4/server/version.appName={{ .ArtifactName }}
+      - -X github.com/fleetdm/fleet/v4/server/version.version={{ .Version }}
+      - -X github.com/fleetdm/fleet/v4/server/version.branch={{ .Branch }}
+      - -X github.com/fleetdm/fleet/v4/server/version.revision={{ .FullCommit }}
+      - -X github.com/fleetdm/fleet/v4/server/version.buildDate={{ time "2006-01-02" }}
+      - -X github.com/fleetdm/fleet/v4/server/version.buildUser={{ .Env.USER }}
+
+universal_binaries:
+  - id: fleetctl # resulting binary id
+    ids: [fleetctl-macos] # source binaries
+    replace: true
+    name_template: fleetctl # resulting binary name
+    hooks:
+      post:
+        - sh -c "FLEETCTL_BINARY_PATH={{ .Path }} ./tools/sign-fleetctl/main.sh"
 
 archives:
   - id: fleet

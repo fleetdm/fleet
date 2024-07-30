@@ -22,8 +22,8 @@ describe("DataTable - component", () => {
       <DataTable
         columns={columns}
         data={data}
-        sortHeader={"name"}
-        sortDirection={"desc"}
+        sortHeader="name"
+        sortDirection="desc"
         isLoading={false}
         onSort={noop}
         showMarkAllPages={false}
@@ -64,8 +64,8 @@ describe("DataTable - component", () => {
           { name: "foo user", address: "biz address" },
           { name: "bar user", address: "daz address" },
         ]}
-        sortHeader={"name"}
-        sortDirection={"desc"}
+        sortHeader="name"
+        sortDirection="desc"
         isLoading={false}
         onSort={noop}
         showMarkAllPages={false}
@@ -90,8 +90,8 @@ describe("DataTable - component", () => {
           { name: "foo user", address: "biz address" },
           { name: "bar user", address: "daz address" },
         ]}
-        sortHeader={"address"}
-        sortDirection={"desc"}
+        sortHeader="address"
+        sortDirection="desc"
         isLoading={false}
         onSort={noop}
         showMarkAllPages={false}
@@ -124,8 +124,8 @@ describe("DataTable - component", () => {
       <DataTable
         columns={columns}
         data={[{ name: "foo user" }, { name: "bar user" }]}
-        sortHeader={"name"}
-        sortDirection={"desc"}
+        sortHeader="name"
+        sortDirection="desc"
         isLoading={false}
         onSort={noop}
         showMarkAllPages={false}
@@ -147,8 +147,8 @@ describe("DataTable - component", () => {
       <DataTable
         columns={columns}
         data={[{ name: "foo user" }, { name: "bar user" }]}
-        sortHeader={"name"}
-        sortDirection={"asc"}
+        sortHeader="name"
+        sortDirection="asc"
         isLoading={false}
         onSort={noop}
         showMarkAllPages={false}

@@ -54,9 +54,6 @@
       height: 38px; // Fixes overlap with .Select outline
     }
   }
-  .results-count {
-    height: 40px; // Match height of search/filters
-  }
 
   &__results-count {
     display: flex;
@@ -66,6 +63,7 @@
     color: $core-fleet-black;
     margin: 0;
     height: 40px;
+    gap: 12px;
 
     .count-error {
       color: $ui-error;
@@ -157,6 +155,23 @@
 
     .icon {
       vertical-align: sub;
+    }
+  }
+  .linkToFilteredHosts__header {
+    width: 120px;
+  }
+
+  // This hides View all host link unless the row is hovered
+  tr {
+    .row-hover-link {
+      opacity: 0;
+      transition: 250ms;
+      text-overflow: none;
+    }
+    &:hover {
+      .row-hover-link {
+        opacity: 1;
+      }
     }
   }
 }

@@ -2,9 +2,14 @@ package mysql
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"fmt"
+	"math"
+	"math/rand"
 	"sort"
 	"testing"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -28,11 +33,11 @@ func TestQueries(t *testing.T) {
 		{"List", testQueriesList},
 		{"LoadPacksForQueries", testQueriesLoadPacksForQueries},
 		{"DuplicateNew", testQueriesDuplicateNew},
-		{"ListFiltersObservers", testQueriesListFiltersObservers},
 		{"ObserverCanRunQuery", testObserverCanRunQuery},
 		{"ListQueriesFiltersByTeamID", testListQueriesFiltersByTeamID},
 		{"ListQueriesFiltersByIsScheduled", testListQueriesFiltersByIsScheduled},
 		{"ListScheduledQueriesForAgents", testListScheduledQueriesForAgents},
+		{"IsSavedQuery", testIsSavedQuery},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -162,6 +167,7 @@ func testQueriesApply(t *testing.T, ds *Datastore) {
 func testQueriesDelete(t *testing.T, ds *Datastore) {
 	user := test.NewUser(t, ds, "Zach", "zwass@fleet.co", true)
 
+	hostID := uint(1)
 	query := &fleet.Query{
 		Name:     "foo",
 		Query:    "bar",
@@ -172,6 +178,27 @@ func testQueriesDelete(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.NotNil(t, query)
 	assert.NotEqual(t, query.ID, 0)
+	lastExecuted := time.Now().Add(-time.Hour).Round(time.Second) // TIMESTAMP precision is seconds by default in MySQL
+	err = ds.UpdateLiveQueryStats(
+		context.Background(), query.ID, []*fleet.LiveQueryStats{
+			{
+				HostID:       hostID,
+				Executions:   1,
+				LastExecuted: lastExecuted,
+			},
+		},
+	)
+	require.NoError(t, err)
+	// Check that the stats were saved correctly
+	stats, err := ds.GetLiveQueryStats(context.Background(), query.ID, []uint{hostID})
+	require.NoError(t, err)
+	require.Len(t, stats, 1)
+	assert.Equal(t, hostID, stats[0].HostID)
+	assert.Equal(t, uint64(1), stats[0].Executions)
+	assert.Equal(t, lastExecuted.UTC(), stats[0].LastExecuted.UTC())
+
+	err = ds.CalculateAggregatedPerfStatsPercentiles(context.Background(), fleet.AggregatedStatsTypeScheduledQuery, query.ID)
+	require.NoError(t, err)
 
 	err = ds.DeleteQuery(context.Background(), query.TeamID, query.Name)
 	require.NoError(t, err)
@@ -180,6 +207,28 @@ func testQueriesDelete(t *testing.T, ds *Datastore) {
 	_, err = ds.Query(context.Background(), query.ID)
 	require.Error(t, err)
 	require.True(t, fleet.IsNotFound(err))
+
+	// Ensure stats were deleted.
+	// The actual delete occurs asynchronously, so we for-loop.
+	statsGone := make(chan bool)
+	go func() {
+		for {
+			stats, err := ds.GetLiveQueryStats(context.Background(), query.ID, []uint{hostID})
+			require.NoError(t, err)
+			if len(stats) == 0 {
+				_, err = GetAggregatedStats(context.Background(), ds, fleet.AggregatedStatsTypeScheduledQuery, query.ID)
+				if errors.Is(err, sql.ErrNoRows) {
+					statsGone <- true
+					break
+				}
+			}
+		}
+	}()
+	select {
+	case <-statsGone:
+	case <-time.After(10 * time.Second):
+		t.Error("Timeout: stats not deleted for testQueriesDelete")
+	}
 }
 
 func testQueriesGetByName(t *testing.T, ds *Datastore) {
@@ -230,6 +279,35 @@ func testQueriesDeleteMany(t *testing.T, ds *Datastore) {
 	require.Nil(t, err)
 	assert.Len(t, queries, 4)
 
+	// Add query stats
+	hostIDs := []uint{10, 20}
+	err = ds.UpdateLiveQueryStats(
+		context.Background(), q1.ID, []*fleet.LiveQueryStats{
+			{
+				HostID:     hostIDs[0],
+				Executions: 1,
+			},
+			{
+				HostID:     hostIDs[1],
+				Executions: 1,
+			},
+		},
+	)
+	require.NoError(t, err)
+	err = ds.UpdateLiveQueryStats(
+		context.Background(), q3.ID, []*fleet.LiveQueryStats{
+			{
+				HostID:     hostIDs[0],
+				Executions: 1,
+			},
+		},
+	)
+	require.NoError(t, err)
+	err = ds.CalculateAggregatedPerfStatsPercentiles(context.Background(), fleet.AggregatedStatsTypeScheduledQuery, q1.ID)
+	require.NoError(t, err)
+	err = ds.CalculateAggregatedPerfStatsPercentiles(context.Background(), fleet.AggregatedStatsTypeScheduledQuery, q3.ID)
+	require.NoError(t, err)
+
 	deleted, err := ds.DeleteQueries(context.Background(), []uint{q1.ID, q3.ID})
 	require.Nil(t, err)
 	assert.Equal(t, uint(2), deleted)
@@ -237,6 +315,32 @@ func testQueriesDeleteMany(t *testing.T, ds *Datastore) {
 	queries, err = ds.ListQueries(context.Background(), fleet.ListQueryOptions{})
 	require.Nil(t, err)
 	assert.Len(t, queries, 2)
+	// Ensure stats were deleted.
+	// The actual delete occurs asynchronously, so we for-loop.
+	statsGone := make(chan bool)
+	go func() {
+		for {
+			stats, err := ds.GetLiveQueryStats(context.Background(), q1.ID, hostIDs)
+			require.NoError(t, err)
+			if len(stats) == 0 {
+				_, err = GetAggregatedStats(context.Background(), ds, fleet.AggregatedStatsTypeScheduledQuery, q1.ID)
+				if errors.Is(err, sql.ErrNoRows) {
+					statsGone <- true
+					break
+				}
+			}
+		}
+	}()
+	select {
+	case <-statsGone:
+	case <-time.After(10 * time.Second):
+		t.Error("Timeout: stats not deleted for testQueriesDeleteMany")
+	}
+	stats, err := ds.GetLiveQueryStats(context.Background(), q3.ID, hostIDs)
+	require.NoError(t, err)
+	require.Equal(t, 0, len(stats))
+	_, err = GetAggregatedStats(context.Background(), ds, fleet.AggregatedStatsTypeScheduledQuery, q3.ID)
+	require.ErrorIs(t, err, sql.ErrNoRows)
 
 	deleted, err = ds.DeleteQueries(context.Background(), []uint{q2.ID})
 	require.Nil(t, err)
@@ -285,7 +389,7 @@ func testQueriesSave(t *testing.T, ds *Datastore) {
 	query.Logging = fleet.LoggingDifferential
 	query.DiscardData = true
 
-	err = ds.SaveQuery(context.Background(), query, true)
+	err = ds.SaveQuery(context.Background(), query, true, false)
 	require.NoError(t, err)
 
 	actual, err := ds.Query(context.Background(), query.ID)
@@ -297,6 +401,50 @@ func testQueriesSave(t *testing.T, ds *Datastore) {
 	require.Equal(t, "baz", actual.Query)
 	require.Equal(t, "Zach", actual.AuthorName)
 	require.Equal(t, "zwass@fleet.co", actual.AuthorEmail)
+
+	// Now save again and delete old stats.
+	// First we create stats which will be deleted.
+	const hostID = 1
+	err = ds.UpdateLiveQueryStats(
+		context.Background(), query.ID, []*fleet.LiveQueryStats{
+			{
+				HostID:     hostID,
+				Executions: 1,
+			},
+		},
+	)
+	require.NoError(t, err)
+	err = ds.CalculateAggregatedPerfStatsPercentiles(context.Background(), fleet.AggregatedStatsTypeScheduledQuery, query.ID)
+	require.NoError(t, err)
+	// Update/save query.
+	query.Query = "baz2"
+	err = ds.SaveQuery(context.Background(), query, true, true)
+	require.NoError(t, err)
+	// Ensure stats were deleted.
+	// The actual delete occurs asynchronously, so we for-loop.
+	aggStatsGone := make(chan bool)
+	go func() {
+		for {
+			actual, err = ds.Query(context.Background(), query.ID)
+			require.NoError(t, err)
+			require.NotNil(t, actual)
+			if actual.AggregatedStats.TotalExecutions == nil {
+				aggStatsGone <- true
+				break
+			}
+		}
+	}()
+	select {
+	case <-aggStatsGone:
+	case <-time.After(10 * time.Second):
+		t.Error("Timeout: aggregated stats not deleted for query")
+	}
+	test.QueriesMatch(t, query, actual)
+	stats, err := ds.GetLiveQueryStats(context.Background(), query.ID, []uint{hostID})
+	require.NoError(t, err)
+	require.Equal(t, 0, len(stats))
+	_, err = GetAggregatedStats(context.Background(), ds, fleet.AggregatedStatsTypeScheduledQuery, query.ID)
+	require.ErrorIs(t, err, sql.ErrNoRows)
 }
 
 func testQueriesList(t *testing.T, ds *Datastore) {
@@ -304,12 +452,13 @@ func testQueriesList(t *testing.T, ds *Datastore) {
 
 	for i := 0; i < 10; i++ {
 		_, err := ds.NewQuery(context.Background(), &fleet.Query{
-			Name:        fmt.Sprintf("name%02d", i),
-			Query:       fmt.Sprintf("query%02d", i),
-			Saved:       true,
-			AuthorID:    &user.ID,
-			DiscardData: true,
-			Logging:     fleet.LoggingSnapshot,
+			Name:           fmt.Sprintf("name%02d", i),
+			Query:          fmt.Sprintf("query%02d", i),
+			Saved:          true,
+			AuthorID:       &user.ID,
+			DiscardData:    true,
+			ObserverCanRun: rand.Intn(2) == 0, //nolint:gosec
+			Logging:        fleet.LoggingSnapshot,
 		})
 		require.Nil(t, err)
 	}
@@ -336,7 +485,8 @@ func testQueriesList(t *testing.T, ds *Datastore) {
 
 	_, err = ds.writer(context.Background()).Exec(
 		`INSERT INTO aggregated_stats(id,global_stats,type,json_value) VALUES (?,?,?,?)`,
-		idWithAgg, false, aggregatedStatsTypeScheduledQuery, `{"user_time_p50": 10.5777, "user_time_p95": 111.7308, "system_time_p50": 0.6936, "system_time_p95": 95.8654, "total_executions": 5038}`,
+		idWithAgg, false, fleet.AggregatedStatsTypeScheduledQuery,
+		`{"user_time_p50": 10.5777, "user_time_p95": 111.7308, "system_time_p50": 0.6936, "system_time_p95": 95.8654, "total_executions": 5038}`,
 	)
 	require.NoError(t, err)
 
@@ -524,43 +674,6 @@ func testQueriesDuplicateNew(t *testing.T, ds *Datastore) {
 	require.Contains(t, err.Error(), "already exists")
 }
 
-func testQueriesListFiltersObservers(t *testing.T, ds *Datastore) {
-	_, err := ds.NewQuery(context.Background(), &fleet.Query{
-		Name:    "query1",
-		Query:   "select 1;",
-		Saved:   true,
-		Logging: fleet.LoggingSnapshot,
-	})
-	require.NoError(t, err)
-	_, err = ds.NewQuery(context.Background(), &fleet.Query{
-		Name:    "query2",
-		Query:   "select 1;",
-		Saved:   true,
-		Logging: fleet.LoggingSnapshot,
-	})
-	require.NoError(t, err)
-	query3, err := ds.NewQuery(context.Background(), &fleet.Query{
-		Name:           "query3",
-		Query:          "select 1;",
-		Saved:          true,
-		ObserverCanRun: true,
-		Logging:        fleet.LoggingSnapshot,
-	})
-	require.NoError(t, err)
-
-	queries, err := ds.ListQueries(context.Background(), fleet.ListQueryOptions{})
-	require.NoError(t, err)
-	require.Len(t, queries, 3)
-
-	queries, err = ds.ListQueries(
-		context.Background(),
-		fleet.ListQueryOptions{OnlyObserverCanRun: true, ListOptions: fleet.ListOptions{PerPage: 1}},
-	)
-	require.NoError(t, err)
-	require.Len(t, queries, 1)
-	require.Equal(t, query3.ID, queries[0].ID)
-}
-
 func testObserverCanRunQuery(t *testing.T, ds *Datastore) {
 	_, err := ds.NewQuery(context.Background(), &fleet.Query{
 		Name:           "canRunTrue",
@@ -661,6 +774,27 @@ func testListQueriesFiltersByTeamID(t *testing.T, ds *Datastore) {
 	)
 	require.NoError(t, err)
 	test.QueryElementsMatch(t, queries, []*fleet.Query{teamQ1, teamQ2, teamQ3})
+
+	// test merge inherited
+	queries, err = ds.ListQueries(
+		context.Background(),
+		fleet.ListQueryOptions{
+			TeamID:         &team.ID,
+			MergeInherited: true,
+		},
+	)
+	require.NoError(t, err)
+	test.QueryElementsMatch(t, queries, []*fleet.Query{globalQ1, globalQ2, globalQ3, teamQ1, teamQ2, teamQ3})
+
+	// merge inherited ignored for global queries
+	queries, err = ds.ListQueries(
+		context.Background(),
+		fleet.ListQueryOptions{
+			MergeInherited: true,
+		},
+	)
+	require.NoError(t, err)
+	test.QueryElementsMatch(t, queries, []*fleet.Query{globalQ1, globalQ2, globalQ3})
 }
 
 func testListQueriesFiltersByIsScheduled(t *testing.T, ds *Datastore) {
@@ -971,4 +1105,40 @@ func testListScheduledQueriesForAgents(t *testing.T, ds *Datastore) {
 		})
 		test.QueryElementsMatch(t, result, []*fleet.Query{q14, q15, q16, q17}, i)
 	}
+}
+
+func testIsSavedQuery(t *testing.T, ds *Datastore) {
+	user := test.NewUser(t, ds, "Zach", "zwass@fleet.co", true)
+
+	// NOT saved query
+	query := &fleet.Query{
+		Name:     "foo",
+		Query:    "bar",
+		AuthorID: &user.ID,
+		Logging:  fleet.LoggingSnapshot,
+		Saved:    false,
+	}
+	query, err := ds.NewQuery(context.Background(), query)
+	require.NoError(t, err)
+	isSaved, err := ds.IsSavedQuery(context.Background(), query.ID)
+	require.NoError(t, err)
+	assert.False(t, isSaved)
+
+	// Saved query
+	query = &fleet.Query{
+		Name:     "foo2",
+		Query:    "bar",
+		AuthorID: &user.ID,
+		Logging:  fleet.LoggingSnapshot,
+		Saved:    true,
+	}
+	query, err = ds.NewQuery(context.Background(), query)
+	require.NoError(t, err)
+	isSaved, err = ds.IsSavedQuery(context.Background(), query.ID)
+	require.NoError(t, err)
+	assert.True(t, isSaved)
+
+	// error case
+	_, err = ds.IsSavedQuery(context.Background(), math.MaxUint)
+	require.Error(t, err)
 }

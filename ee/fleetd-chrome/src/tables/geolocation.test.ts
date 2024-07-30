@@ -54,6 +54,7 @@ describe("geolocation", () => {
           region: "British Columbia",
         },
       ],
+      warnings: null,
     });
   });
 
@@ -77,6 +78,7 @@ describe("geolocation", () => {
           region: null,
         },
       ],
+      warnings: null,
     });
   });
 

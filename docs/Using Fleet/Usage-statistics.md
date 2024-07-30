@@ -21,9 +21,19 @@ Below is the JSON payload that is sent to Fleet Device Management Inc:
   "vulnDetectionEnabled": true,
   "systemUsersEnabled": true,
   "hostsStatusWebHookEnabled": true,
+  "mdmMacOsEnabled": true,
+  "hostExpiryEnabled": true,
+  "mdmWindowsEnabled": false,
+  "liveQueryDisabled": false,
   "numWeeklyActiveUsers": 999,
   "numWeeklyPolicyViolationDaysActual": 999,
   "numWeeklyPolicyViolationDaysPossible": 999,
+  "numSoftwareVersions": 999,
+  "numHostSoftwares": 999,
+  "numSoftwareTitles": 999,
+  "numHostSoftwareInstalledPaths": 999,
+  "numSoftwareCPEs": 999,
+  "numSoftwareCVEs": 999,
   "hostsEnrolledByOperatingSystem": {
     "darwin": [
       {
@@ -123,8 +133,6 @@ To disable usage statistics:
 2. Scroll to the "Usage statistics" section.
 
 3. Uncheck the "Enable usage statistics" checkbox and then select "Update settings."
-
-Usage statistics can also be disabled via [configuration files](https://fleetdm.com/docs/configuration/configuration-files#server-settings-enable-analytics).
 
 <meta name="pageOrderInSection" value="1100">
 <meta name="description" value="Learn about Fleet's usage statistics and what information is collected.">

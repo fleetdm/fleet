@@ -11,6 +11,7 @@ import { IUser, UserRole } from "interfaces/user";
 import { IDropdownOption } from "interfaces/dropdownOption";
 import { generateRole, generateTeam, greyCell } from "utilities/helpers";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
+import { COLORS } from "styles/var/colors";
 import DropdownCell from "../../../../../components/TableContainer/DataTable/DropdownCell";
 
 interface IHeaderProps {
@@ -98,7 +99,7 @@ const generateTableHeaders = (
                     type="dark"
                     effect="solid"
                     id={`api-only-tooltip-${cellProps.row.original.id}`}
-                    backgroundColor="#3e4771"
+                    backgroundColor={COLORS["tooltip-bg"]}
                     clickable
                     delayHide={200} // need delay set to hover using clickable
                   >
@@ -131,7 +132,6 @@ const generateTableHeaders = (
         if (cellProps.cell.value === "GitOps") {
           return (
             <TooltipWrapper
-              position="top-start"
               tipContent={
                 <>
                   The GitOps role is only available on the command-line
@@ -149,7 +149,6 @@ const generateTableHeaders = (
         if (cellProps.cell.value === "Observer+") {
           return (
             <TooltipWrapper
-              position="top-start"
               tipContent={
                 <>
                   Users with the Observer+ role have access to all of
@@ -164,10 +163,12 @@ const generateTableHeaders = (
             </TooltipWrapper>
           );
         }
+        const greyAndItalic = greyCell(cellProps.cell.value);
         return (
           <TextCell
             value={cellProps.cell.value}
-            greyed={greyCell(cellProps.cell.value)}
+            grey={greyAndItalic}
+            italic={greyAndItalic}
           />
         );
       },
@@ -205,13 +206,13 @@ const generateTableHeaders = (
           onChange={(value: string) =>
             actionSelectHandler(value, cellProps.row.original)
           }
-          placeholder={"Actions"}
+          placeholder="Actions"
         />
       ),
     },
   ];
 
-  // Add Teams tab for premium tier only
+  // Add Teams column for premium tier
   if (isPremiumTier) {
     tableHeaders.splice(2, 0, {
       title: "Teams",
@@ -219,10 +220,7 @@ const generateTableHeaders = (
       accessor: "teams",
       disableSortBy: true,
       Cell: (cellProps: ICellProps) => (
-        <TextCell
-          value={cellProps.cell.value}
-          greyed={greyCell(cellProps.cell.value)}
-        />
+        <TextCell value={cellProps.cell.value} />
       ),
     });
   }

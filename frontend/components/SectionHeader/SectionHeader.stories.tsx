@@ -22,7 +22,7 @@ export const WithSubTitle: Story = {
     subTitle: (
       <LastUpdatedText
         lastUpdatedAt={new Date().toISOString()}
-        whatToRetrieve={"operating systems"}
+        whatToRetrieve="operating systems"
       />
     ),
   },

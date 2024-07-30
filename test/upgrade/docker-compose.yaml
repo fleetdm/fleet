@@ -1,7 +1,7 @@
 services:
   mysql:
     platform: ${FLEET_MYSQL_PLATFORM:-linux/x86_64}
-    image: mysql:5.7
+    image: mysql:8.0.36
     environment:
       MYSQL_ROOT_PASSWORD: toor
       MYSQL_DATABASE: fleet
@@ -58,7 +58,7 @@ services:
     image: fleetdm/fleet:${FLEET_VERSION_B:-latest}
 
   osquery:
-    image: "osquery/osquery:4.6.0-ubuntu20.04"
+    image: "osquery/osquery:4.7.0-ubuntu20.04"
     volumes:
       - ./fleet.crt:/etc/osquery/fleet.crt
       - ./osquery.flags:/etc/osquery/osquery.flags

@@ -44,7 +44,8 @@ oug6edBNpdhp8r2/4t6n3AouK0/zG2naAlmXV0JoFuEvy2bX0BbbbPg+v4WNZIsC
 )
 
 func TestDebugConnectionCommand(t *testing.T) {
-	t.Run("without certificate", func(t *testing.T) {
+	t.Run("without certificate, plain http server", func(t *testing.T) {
+		// Plain HTTP server
 		_, ds := runServerWithMockedDS(t)
 
 		ds.VerifyEnrollSecretFunc = func(ctx context.Context, secret string) (*fleet.EnrollSecret, error) {
@@ -148,7 +149,7 @@ func TestDebugCheckAPIEndpoint(t *testing.T) {
 		case res.code == 0:
 			panic(res.body)
 		case res.code < 0:
-			time.Sleep(timeout + time.Millisecond)
+			time.Sleep(timeout + timeout/10)
 			res.code = -res.code
 		}
 		w.WriteHeader(res.code)

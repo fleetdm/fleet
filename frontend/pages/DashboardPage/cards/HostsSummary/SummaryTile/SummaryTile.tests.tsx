@@ -1,7 +1,6 @@
 import React from "react";
 
 import { fireEvent, render, screen } from "@testing-library/react";
-import { renderWithSetup } from "test/test-utils";
 import paths from "router/paths";
 import SummaryTile from "./SummaryTile";
 
@@ -14,10 +13,9 @@ describe("SummaryTile - component", () => {
         count={200}
         isLoading={false}
         showUI={false} // tested
-        title={"Windows hosts"}
-        iconName={"windows"}
-        circledIcon
-        tooltip={"Hosts on any Windows device"}
+        title="Windows hosts"
+        iconName="windows"
+        tooltip="Hosts on any Windows device"
         path={paths.MANAGE_HOSTS_LABEL(10)}
       />
     );
@@ -33,10 +31,9 @@ describe("SummaryTile - component", () => {
         count={200}
         isLoading // tested
         showUI
-        title={"Windows hosts"}
-        iconName={"windows"}
-        circledIcon
-        tooltip={"Hosts on any Windows device"}
+        title="Windows hosts"
+        iconName="windows"
+        tooltip="Hosts on any Windows device"
         path={paths.MANAGE_HOSTS_LABEL(10)}
       />
     );
@@ -53,10 +50,9 @@ describe("SummaryTile - component", () => {
         count={200} // tested
         isLoading={false}
         showUI
-        title={"Windows hosts"} // tested
-        iconName={"windows"} // tested
-        circledIcon
-        tooltip={"Hosts on any Windows device"}
+        title="Windows hosts" // tested
+        iconName="windows" // tested
+        tooltip="Hosts on any Windows device"
         path={paths.MANAGE_HOSTS_LABEL(10)}
       />
     );
@@ -76,9 +72,8 @@ describe("SummaryTile - component", () => {
         count={200}
         isLoading={false}
         showUI
-        title={"Windows hosts"}
-        iconName={"windows"}
-        circledIcon
+        title="Windows hosts"
+        iconName="windows"
         path={paths.MANAGE_HOSTS_LABEL(10)}
       />
     );
@@ -89,15 +84,14 @@ describe("SummaryTile - component", () => {
   });
 
   it("renders tooltip on title hover", async () => {
-    const { user } = renderWithSetup(
+    render(
       <SummaryTile
         count={200}
         isLoading={false}
         showUI
-        title={"Windows hosts"}
-        iconName={"windows"}
-        circledIcon
-        tooltip={"Hosts on any Windows device"} // tested
+        title="Windows hosts"
+        iconName="windows"
+        tooltip="Hosts on any Windows device" // tested
         path={paths.MANAGE_HOSTS_LABEL(10)}
       />
     );

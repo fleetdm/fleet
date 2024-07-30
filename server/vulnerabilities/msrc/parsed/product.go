@@ -1,9 +1,12 @@
 package parsed
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"strings"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
@@ -12,12 +15,62 @@ import (
 // (if any) and its version (if any).
 type Product string
 
+type Products map[string]Product
+
+var ErrNoMatch = errors.New("no product matches")
+
+func (p Products) GetMatchForOS(ctx context.Context, os fleet.OperatingSystem) (string, error) {
+	var dvMatch, noDvMatch string
+
+	for pID, product := range p {
+		normalizedOS := NewProductFromOS(os)
+		if product.Name() != normalizedOS.Name() {
+			continue
+		}
+
+		archMatch := product.Arch() == "all" || normalizedOS.Arch() == "all" || product.Arch() == normalizedOS.Arch()
+		if !archMatch {
+			continue
+		}
+
+		if product.HasDisplayVersion() && os.DisplayVersion != "" && strings.Index(string(product), os.DisplayVersion) != -1 {
+			dvMatch = pID
+			break
+		}
+
+		// If os.DisplayVersion is empty, we need to confirm that the product
+		// matches the correct build number. This is necessary to avoid false
+		// positives when vulnerability scans have run before the host has been
+		// updated after an upgrade to fleet v4.44.0 or later
+		if !product.HasDisplayVersion() {
+			var build string
+			parts := strings.Split(os.KernelVersion, ".")
+			if len(parts) > 3 {
+				build = parts[2]
+			}
+			if build == "22000" || build == "10240" {
+				noDvMatch = pID
+			}
+		}
+	}
+
+	if dvMatch == "" && noDvMatch == "" {
+		return "", ctxerr.Wrap(ctx, ErrNoMatch)
+	}
+
+	if dvMatch == "" {
+		return noDvMatch, nil
+	}
+
+	return dvMatch, nil
+}
+
 func NewProductFromFullName(fullName string) Product {
 	return Product(fullName)
 }
 
 func NewProductFromOS(os fleet.OperatingSystem) Product {
-	return Product(fmt.Sprintf("%s %s for %s", os.Name, os.Version, os.Arch))
+	return Product(fmt.Sprintf("%s for %s", os.Name, os.Arch))
 }
 
 // Arch returns the archicture for the current Microsoft product, if none can
@@ -28,6 +81,9 @@ func NewProductFromOS(os fleet.OperatingSystem) Product {
 func (p Product) Arch() string {
 	val := string(p)
 	switch {
+	case strings.Index(val, "ARM 64-bit") != -1 ||
+		strings.Index(val, "ARM64") != -1:
+		return "arm64"
 	case strings.Index(val, "x64") != -1 ||
 		strings.Index(val, "64-bit") != -1 ||
 		strings.Index(val, "x86_64") != -1:
@@ -35,13 +91,27 @@ func (p Product) Arch() string {
 	case strings.Index(val, "32-bit") != -1 ||
 		strings.Index(val, "x86") != -1:
 		return "32-bit"
-	case strings.Index(val, "ARM64") != -1:
-		return "arm64"
 	case strings.Index(val, "Itanium-Based") != -1:
 		return "itanium"
 	default:
 		return "all"
 	}
+}
+
+// HasDisplayVersion returns true if the current Microsoft product
+// has a display version in the name.
+// Display Version refers to the version of the product that is
+// displayed to the user: eg. 22H2
+// Year/Half refers to the year and half of the year that the product
+// was released: eg. 2nd Half of 2022
+func (p Product) HasDisplayVersion() bool {
+	keywords := []string{"version", "edition"}
+	for _, k := range keywords {
+		if strings.Index(strings.ToLower(string(p)), k) != -1 {
+			return true
+		}
+	}
+	return false
 }
 
 // Name returns the name for the current Microsoft product, if none can

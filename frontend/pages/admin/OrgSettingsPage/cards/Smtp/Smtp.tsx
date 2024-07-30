@@ -11,14 +11,34 @@ import InputField from "components/forms/fields/InputField";
 import validEmail from "components/forms/validators/valid_email";
 import EmptyTable from "components/EmptyTable";
 import CustomLink from "components/CustomLink";
+import SectionHeader from "components/SectionHeader";
 
 import {
   IAppConfigFormProps,
   IFormField,
-  IAppConfigFormErrors,
   authMethodOptions,
   authTypeOptions,
 } from "../constants";
+
+interface ISmtpConfigFormData {
+  enableSMTP: boolean;
+  smtpSenderAddress: string;
+  smtpServer: string;
+  smtpPort?: number;
+  smtpEnableSSLTLS: boolean;
+  smtpAuthenticationType: string;
+  smtpUsername: string;
+  smtpPassword: string;
+  smtpAuthenticationMethod: string;
+}
+
+interface ISmtpConfigFormErrors {
+  sender_address?: string | null;
+  server?: string | null;
+  server_port?: string | null;
+  user_name?: string | null;
+  password?: string | null;
+}
 
 const baseClass = "app-config-form";
 
@@ -29,17 +49,17 @@ const Smtp = ({
 }: IAppConfigFormProps): JSX.Element => {
   const { isPremiumTier } = useContext(AppContext);
 
-  const [formData, setFormData] = useState<any>({
-    enableSMTP: appConfig.smtp_settings.enable_smtp || false,
-    smtpSenderAddress: appConfig.smtp_settings.sender_address || "",
-    smtpServer: appConfig.smtp_settings.server || "",
-    smtpPort: appConfig.smtp_settings.port,
-    smtpEnableSSLTLS: appConfig.smtp_settings.enable_ssl_tls || false,
-    smtpAuthenticationType: appConfig.smtp_settings.authentication_type || "",
-    smtpUsername: appConfig.smtp_settings.user_name || "",
-    smtpPassword: appConfig.smtp_settings.password || "",
+  const [formData, setFormData] = useState<ISmtpConfigFormData>({
+    enableSMTP: appConfig.smtp_settings?.enable_smtp || false,
+    smtpSenderAddress: appConfig.smtp_settings?.sender_address || "",
+    smtpServer: appConfig.smtp_settings?.server || "",
+    smtpPort: appConfig.smtp_settings?.port,
+    smtpEnableSSLTLS: appConfig.smtp_settings?.enable_ssl_tls || false,
+    smtpAuthenticationType: appConfig.smtp_settings?.authentication_type || "",
+    smtpUsername: appConfig.smtp_settings?.user_name || "",
+    smtpPassword: appConfig.smtp_settings?.password || "",
     smtpAuthenticationMethod:
-      appConfig.smtp_settings.authentication_method || "",
+      appConfig.smtp_settings?.authentication_method || "",
   });
 
   const {
@@ -54,16 +74,16 @@ const Smtp = ({
     smtpAuthenticationMethod,
   } = formData;
 
-  const [formErrors, setFormErrors] = useState<IAppConfigFormErrors>({});
+  const [formErrors, setFormErrors] = useState<ISmtpConfigFormErrors>({});
 
   const sesConfigured = appConfig.email?.backend === "ses" || false;
 
-  const handleInputChange = ({ name, value }: IFormField) => {
+  const onInputChange = ({ name, value }: IFormField) => {
     setFormData({ ...formData, [name]: value });
   };
 
   const validateForm = () => {
-    const errors: IAppConfigFormErrors = {};
+    const errors: ISmtpConfigFormErrors = {};
 
     if (enableSMTP) {
       if (!smtpSenderAddress) {
@@ -115,9 +135,6 @@ const Smtp = ({
         password: smtpPassword,
         enable_ssl_tls: smtpEnableSSLTLS,
         authentication_method: smtpAuthenticationMethod,
-        domain: appConfig.smtp_settings.domain || "",
-        verify_ssl_certs: appConfig.smtp_settings.verify_ssl_certs || false,
-        enable_start_tls: appConfig.smtp_settings.enable_start_tls,
       },
     };
 
@@ -130,10 +147,10 @@ const Smtp = ({
     }
 
     return (
-      <div className={`${baseClass}__smtp-section`}>
+      <>
         <InputField
           label="SMTP username"
-          onChange={handleInputChange}
+          onChange={onInputChange}
           name="smtpUsername"
           value={smtpUsername}
           parseTarget
@@ -144,7 +161,7 @@ const Smtp = ({
         <InputField
           label="SMTP password"
           type="password"
-          onChange={handleInputChange}
+          onChange={onInputChange}
           name="smtpPassword"
           value={smtpPassword}
           parseTarget
@@ -156,12 +173,12 @@ const Smtp = ({
           label="Auth method"
           options={authMethodOptions}
           placeholder=""
-          onChange={handleInputChange}
+          onChange={onInputChange}
           name="smtpAuthenticationMethod"
           value={smtpAuthenticationMethod}
           parseTarget
         />
-      </div>
+      </>
     );
   };
 
@@ -186,33 +203,29 @@ const Smtp = ({
 
   const renderSmtpForm = () => {
     return (
-      <>
-        <div className={`${baseClass}__inputs`}>
-          <Checkbox
-            onChange={handleInputChange}
-            name="enableSMTP"
-            value={enableSMTP}
-            parseTarget
-          >
-            Enable SMTP
-          </Checkbox>
-        </div>
-        <div className={`${baseClass}__inputs`}>
-          <InputField
-            label="Sender address"
-            onChange={handleInputChange}
-            name="smtpSenderAddress"
-            value={smtpSenderAddress}
-            parseTarget
-            onBlur={validateForm}
-            error={formErrors.sender_address}
-            tooltip="The sender address for emails from Fleet."
-          />
-        </div>
-        <div className={`${baseClass}__inputs ${baseClass}__inputs--smtp`}>
+      <form onSubmit={onFormSubmit} autoComplete="off">
+        <Checkbox
+          onChange={onInputChange}
+          name="enableSMTP"
+          value={enableSMTP}
+          parseTarget
+        >
+          Enable SMTP
+        </Checkbox>
+        <InputField
+          label="Sender address"
+          onChange={onInputChange}
+          name="smtpSenderAddress"
+          value={smtpSenderAddress}
+          parseTarget
+          onBlur={validateForm}
+          error={formErrors.sender_address}
+          tooltip="The sender address for emails from Fleet."
+        />
+        <div className="smtp-server-inputs">
           <InputField
             label="SMTP server"
-            onChange={handleInputChange}
+            onChange={onInputChange}
             name="smtpServer"
             value={smtpServer}
             parseTarget
@@ -223,88 +236,85 @@ const Smtp = ({
           <InputField
             label="&nbsp;"
             type="number"
-            onChange={handleInputChange}
+            onChange={onInputChange}
             name="smtpPort"
             value={smtpPort}
             parseTarget
             onBlur={validateForm}
             error={formErrors.server_port}
           />
-          <Checkbox
-            onChange={handleInputChange}
-            name="smtpEnableSSLTLS"
-            value={smtpEnableSSLTLS}
-            parseTarget
-          >
-            Use SSL/TLS to connect (recommended)
-          </Checkbox>
         </div>
-        <div className={`${baseClass}__inputs`}>
-          <Dropdown
-            label="Authentication type"
-            options={authTypeOptions}
-            onChange={handleInputChange}
-            name="smtpAuthenticationType"
-            value={smtpAuthenticationType}
-            parseTarget
-            tooltip={
-              <>
-                <p>
-                  If your mail server requires authentication, you need to
-                  specify the authentication type here.
-                </p>
-                <p>
-                  <strong>No Authentication</strong> - Select this if your SMTP
-                  is open.
-                </p>
-                <p>
-                  <strong>Username & Password</strong> - Select this if your
-                  SMTP server requires authentication with a username and
-                  password.
-                </p>
-              </>
-            }
-          />
-          {renderSmtpSection()}
-        </div>
-      </>
-    );
-  };
-  return (
-    <form className={baseClass} onSubmit={onFormSubmit} autoComplete="off">
-      <div className={`${baseClass}__section`}>
-        <h2 className={"smtp-status"}>
-          SMTP options{" "}
-          {!sesConfigured && (
-            <small
-              className={`smtp-options smtp-options--${
-                appConfig.smtp_settings.configured
-                  ? "configured"
-                  : "notconfigured"
-              }`}
-            >
-              <em>
-                {appConfig.smtp_settings.configured
-                  ? "CONFIGURED"
-                  : "NOT CONFIGURED"}
-              </em>
-            </small>
-          )}
-        </h2>
-        {sesConfigured ? renderSesEnabled() : renderSmtpForm()}
-      </div>
-      {!sesConfigured && (
+        <Checkbox
+          onChange={onInputChange}
+          name="smtpEnableSSLTLS"
+          value={smtpEnableSSLTLS}
+          parseTarget
+        >
+          Use SSL/TLS to connect (recommended)
+        </Checkbox>
+        <Dropdown
+          label="Authentication type"
+          options={authTypeOptions}
+          onChange={onInputChange}
+          name="smtpAuthenticationType"
+          value={smtpAuthenticationType}
+          parseTarget
+          tooltip={
+            <>
+              If your mail server requires authentication, you need to specify
+              the authentication type here.
+              <br />
+              <br />
+              <strong>No Authentication</strong> - Select this if your SMTP is
+              open.
+              <br />
+              <br />
+              <strong>Username & Password</strong> - Select this if your SMTP
+              server requires authentication with a username and password.
+            </>
+          }
+        />
+        {renderSmtpSection()}
         <Button
           type="submit"
           variant="brand"
           disabled={Object.keys(formErrors).length > 0}
-          className="save-loading"
+          className="button-wrap"
           isLoading={isUpdatingSettings}
         >
           Save
         </Button>
-      )}
-    </form>
+      </form>
+    );
+  };
+  return (
+    <div className={baseClass}>
+      <div className={`${baseClass}__section`}>
+        <SectionHeader
+          title="SMTP options"
+          details={
+            !sesConfigured ? (
+              <small
+                className={`smtp-options smtp-options--${
+                  appConfig.smtp_settings?.configured
+                    ? "configured"
+                    : "notconfigured"
+                }`}
+              >
+                <em>
+                  {appConfig.smtp_settings?.configured
+                    ? "CONFIGURED"
+                    : "NOT CONFIGURED"}
+                </em>
+              </small>
+            ) : (
+              <></>
+            )
+          }
+        />
+        {sesConfigured ? renderSesEnabled() : renderSmtpForm()}
+      </div>
+    </div>
   );
 };
 

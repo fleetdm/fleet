@@ -1,0 +1,3 @@
+BuildVersion	13G36
+OSVersion	9.3.5
+ProductName	iPad2,5

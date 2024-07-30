@@ -1,8 +1,13 @@
 // border radius
+$border-radius-small: 3px;
 $border-radius: 4px;
-$border-radius-large: 6px;
+$border-radius-medium: 6px;
+$border-radius-large: 8px;
 $border-radius-xlarge: 10px;
 $border-radius-xxlarge: 16px;
 
 // box shadow
 $box-shadow: 0px 3px 0px rgba(226, 228, 234, 0.4);
+
+// dimensions
+$settings-form-max-width: 754px;

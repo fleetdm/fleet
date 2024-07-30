@@ -1,0 +1,15 @@
+.unlock-modal {
+  p {
+    margin: 0;
+  }
+
+  &__modal-content {
+    display: grid;
+    gap: $pad-large;
+  }
+
+  &__pin {
+    display: flex;
+    flex-direction: column;
+  }
+}

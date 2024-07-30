@@ -14,7 +14,7 @@ columns:
   - name: vg_FreeSpace
     type: bigint
     required: false
-    description: |
+    description: |-
       Amount of space, in bytes, in the volume group that have not been allocated by any logical volume
   - name: vg_FusionDrive
     type: integer
@@ -76,5 +76,5 @@ columns:
     type: integer
     required: false
     description: Whether a password is currently required to unlock the volume
-notes: This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).
+notes: This table is not a core osquery table. It is included as part of Fleet's agent ([fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd)).
 evented: false

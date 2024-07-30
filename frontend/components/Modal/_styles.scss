@@ -3,10 +3,17 @@
     @include position(fixed, 0 0 0 0);
     background-color: rgba($core-fleet-black, 0.4);
     z-index: 101;
-    overflow: scroll;
+    overflow: auto;
     display: flex;
     justify-content: center;
     animation: fade-in 150ms ease-out;
+  }
+
+  &__hidden {
+    visibility: hidden;
+    .fleet-checkbox__tick:after {
+      visibility: hidden;
+    }
   }
 
   &__content {
@@ -23,10 +30,17 @@
       }
     }
 
+    form .modal-cta-wrap,
+    .form .modal-cta-wrap {
+      // compensate for form gap to maintain consistent 32px spacing on top of modal ctas
+      margin-top: $pad-small;
+    }
+
     .modal-cta-wrap {
+      align-self: flex-end;
       display: flex;
       flex-direction: row-reverse;
-      margin-top: $pad-large;
+      margin-top: $pad-xlarge;
       gap: $pad-medium;
     }
   }

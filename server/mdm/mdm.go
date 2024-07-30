@@ -30,13 +30,17 @@ func DecryptBase64CMS(p7Base64 string, cert *x509.Certificate, key crypto.Privat
 	return p7.Decrypt(cert, key)
 }
 
+func prefixMatches(val []byte, prefix string) bool {
+	return len(val) >= len(prefix) &&
+		bytes.EqualFold([]byte(prefix), val[:len(prefix)])
+}
+
 // GetRawProfilePlatform identifies the platform type of a profile bytes by
 // examining its initial content:
 //
-//   - Returns "darwin" if the profile starts with "<?xml", typical of Darwin
+//   - Returns "darwin" if the profile starts with "<?xml", typical of Apple
 //     platform profiles.
-//   - Returns "windows" if the profile begins with "<replace", as we only accept
-//     replaces directives for profiles.
+//   - Returns "windows" if the profile begins with "<replace" or "<add",
 //   - Returns an empty string for profiles that are either unrecognized or
 //     empty.
 func GetRawProfilePlatform(profile []byte) string {
@@ -46,37 +50,99 @@ func GetRawProfilePlatform(profile []byte) string {
 		return ""
 	}
 
-	darwinPrefix := []byte("<?xml")
-	if len(trimmedProfile) >= len(darwinPrefix) && bytes.EqualFold(darwinPrefix, trimmedProfile[:len(darwinPrefix)]) {
+	if prefixMatches(trimmedProfile, "<?xml") || prefixMatches(trimmedProfile, `{`) {
 		return "darwin"
 	}
 
-	windowsPrefix := []byte("<replace")
-	if len(trimmedProfile) >= len(windowsPrefix) && bytes.EqualFold(windowsPrefix, trimmedProfile[:len(windowsPrefix)]) {
+	if prefixMatches(trimmedProfile, "<replace") || prefixMatches(trimmedProfile, "<add") {
 		return "windows"
 	}
 
 	return ""
 }
 
-const (
+// GuessProfileExtension determines the likely file extension of a profile
+// based on its content.
+//
+// It returns a string representing the determined file extension ("xml",
+// "json", or "") based on the profile's content.
+func GuessProfileExtension(profile []byte) string {
+	trimmedProfile := bytes.TrimSpace(profile)
 
+	switch {
+	case prefixMatches(trimmedProfile, "<?xml"),
+		prefixMatches(trimmedProfile, "<replace"),
+		prefixMatches(trimmedProfile, "<add"):
+		return "xml"
+	case prefixMatches(trimmedProfile, "{"):
+		return "json"
+	default:
+		return ""
+	}
+}
+
+const (
 	// FleetdConfigProfileName is the value for the PayloadDisplayName used by
 	// fleetd to read configuration values from the system.
 	FleetdConfigProfileName = "Fleetd configuration"
 
+	// FleetCAConfigProfileName is the value for the PayloadDisplayName used by
+	// fleetd to read configuration values from the system.
+	FleetCAConfigProfileName = "Fleet root certificate authority (CA)"
+
 	// FleetdFileVaultProfileName is the value for the PayloadDisplayName used
 	// by Fleet to configure FileVault and FileVault Escrow.
-	FleetFileVaultProfileName        = "Disk encryption"
+	FleetFileVaultProfileName = "Disk encryption"
+
+	// FleetWindowsOSUpdatesProfileName is the name of the profile used by Fleet
+	// to configure Windows OS updates.
 	FleetWindowsOSUpdatesProfileName = "Windows OS Updates"
+
+	// FleetMacOSUpdatesProfileName is the name of the DDM profile used by Fleet
+	// to configure macOS OS updates.
+	FleetMacOSUpdatesProfileName = "Fleet macOS OS Updates"
+
+	// FleetIOSUpdatesProfileName is the name of the DDM profile used by Fleet
+	// to configure iOS OS updates.
+	FleetIOSUpdatesProfileName = "Fleet iOS OS Updates"
+
+	// FleetIPadOSUpdatesProfileName is the name of the DDM profile used by Fleet
+	// to configure iPadOS OS updates.
+	FleetIPadOSUpdatesProfileName = "Fleet iPadOS OS Updates"
 )
 
-// FleetReservedProfileNames returns a map of PayloadDisplayName strings
-// that are reserved by Fleet.
+// FleetReservedProfileNames returns a map of PayloadDisplayName or profile
+// name strings that are reserved by Fleet.
 func FleetReservedProfileNames() map[string]struct{} {
 	return map[string]struct{}{
 		FleetdConfigProfileName:          {},
 		FleetFileVaultProfileName:        {},
 		FleetWindowsOSUpdatesProfileName: {},
+		FleetMacOSUpdatesProfileName:     {},
+		FleetIOSUpdatesProfileName:       {},
+		FleetIPadOSUpdatesProfileName:    {},
+		FleetCAConfigProfileName:         {},
+	}
+}
+
+// ListFleetReservedWindowsProfileNames returns a list of PayloadDisplayName strings
+// that are reserved by Fleet for Windows.
+func ListFleetReservedWindowsProfileNames() []string {
+	return []string{FleetWindowsOSUpdatesProfileName}
+}
+
+// ListFleetReservedMacOSProfileNames returns a list of PayloadDisplayName strings
+// that are reserved by Fleet for macOS.
+func ListFleetReservedMacOSProfileNames() []string {
+	return []string{FleetFileVaultProfileName, FleetdConfigProfileName, FleetCAConfigProfileName}
+}
+
+// ListFleetReservedMacOSDeclarationNames returns a list of declaration names
+// that are reserved by Fleet for Apple DDM declarations.
+func ListFleetReservedMacOSDeclarationNames() []string {
+	return []string{
+		FleetMacOSUpdatesProfileName,
+		FleetIOSUpdatesProfileName,
+		FleetIPadOSUpdatesProfileName,
 	}
 }

@@ -18,6 +18,9 @@ import { ITarget } from "interfaces/target";
 
 import QueryResults from "../../edit/components/QueryResults";
 
+const RESPONSE_COUNT_ZERO = { results: 0, errors: 0 } as const;
+const CAMPAIGN_LIMIT = 250000;
+
 interface IRunQueryProps {
   storedQuery: IQuery | undefined;
   selectedTargets: ITarget[];
@@ -39,20 +42,25 @@ const RunQuery = ({
   const { renderFlash } = useContext(NotificationContext);
 
   const [isQueryFinished, setIsQueryFinished] = useState(false);
+  const [isQueryClipped, setIsQueryClipped] = useState(false);
   const [campaignState, setCampaignState] = useState<ICampaignState>(
     DEFAULT_CAMPAIGN_STATE
   );
+
+  const isStoredQueryEdited = storedQuery?.query !== lastEditedQueryBody;
 
   const ws = useRef(null);
   const runQueryInterval = useRef<any>(null);
   const globalSocket = useRef<any>(null);
   const previousSocketData = useRef<any>(null);
+  const responseCount = useRef({ ...RESPONSE_COUNT_ZERO });
 
   const removeSocket = () => {
     if (globalSocket.current) {
       globalSocket.current.close();
       globalSocket.current = null;
       previousSocketData.current = null;
+      responseCount.current = RESPONSE_COUNT_ZERO;
     }
   };
 
@@ -128,12 +136,21 @@ const RunQuery = ({
           ...campaignHelpers.updateCampaignState(socketData)(prevCampaignState),
         };
       });
+      responseCount.current.results += socketData?.data?.rows?.length ?? 0;
+      responseCount.current.errors += socketData?.data?.error ? 1 : 0;
 
       if (
         socketData.type === "status" &&
         socketData.data.status === "finished"
       ) {
         return teardownDistributedQuery();
+      }
+      if (
+        responseCount.current.results + responseCount.current.errors >=
+        CAMPAIGN_LIMIT
+      ) {
+        teardownDistributedQuery();
+        setIsQueryClipped(true);
       }
     };
   };
@@ -153,8 +170,6 @@ const RunQuery = ({
     destroyCampaign();
 
     try {
-      const isStoredQueryEdited = storedQuery?.query !== lastEditedQueryBody;
-
       const returnedCampaign = await queryAPI.run({
         query: lastEditedQueryBody,
         queryId: isStoredQueryEdited ? null : queryId, // we treat edited SQL as a new query
@@ -204,6 +219,7 @@ const RunQuery = ({
       onRunQuery={onRunQuery}
       onStopQuery={onStopQuery}
       isQueryFinished={isQueryFinished}
+      isQueryClipped={isQueryClipped}
       setSelectedTargets={setSelectedTargets}
       goToQueryEditor={goToQueryEditor}
       queryName={storedQuery?.name}

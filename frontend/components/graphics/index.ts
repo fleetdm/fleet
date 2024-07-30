@@ -1,6 +1,6 @@
 import EmptyQueries from "./EmptyQueries";
 import EmptyIntegrations from "./EmptyIntegrations";
-import EmptyMembers from "./EmptyMembers";
+import EmptyUsers from "./EmptyUsers";
 import EmptyPolicies from "./EmptyPolicies";
 import EmptySoftware from "./EmptySoftware";
 import FileConfigurationProfile from "./FileConfigurationProfile";
@@ -12,6 +12,7 @@ import FilePdf from "./FilePdf";
 import FilePkg from "./FilePkg";
 import FileP7m from "./FileP7m";
 import FilePem from "./FilePem";
+import FileVpp from "./FileVpp";
 import EmptyHosts from "./EmptyHosts";
 import EmptyTeams from "./EmptyTeams";
 import EmptyPacks from "./EmptyPacks";
@@ -22,7 +23,7 @@ export const GRAPHIC_MAP = {
   // Empty state graphics
   "empty-queries": EmptyQueries,
   "empty-integrations": EmptyIntegrations,
-  "empty-members": EmptyMembers,
+  "empty-users": EmptyUsers,
   "empty-policies": EmptyPolicies,
   "empty-software": EmptySoftware,
   "empty-hosts": EmptyHosts,
@@ -39,6 +40,7 @@ export const GRAPHIC_MAP = {
   "file-pkg": FilePkg,
   "file-p7m": FileP7m,
   "file-pem": FilePem,
+  "file-vpp": FileVpp,
   // Other graphics
   "collecting-results": CollectingResults,
 };

@@ -1,4 +1,9 @@
 .component__tooltip-wrapper {
+
+  &.show-arrow {
+    @include tooltip5-arrow-styles;
+  }
+
   display: inline-flex;
 
   &__element {
@@ -7,29 +12,27 @@
   }
 
   &__underline {
-    position: relative;
     width: fit-content;
-    // compensate for bottom border and padding to maintain centering
-    top: 2px;
     border-bottom: 1px dashed $ui-fleet-black-50;
-    padding-bottom: 1px;
   }
 
   &__tip-text {
-    width: max-content;
-    max-width: 360px;
-    padding: 6px;
-    color: $core-white;
-    background-color: $tooltip-bg;
-    font-weight: $regular;
-    font-size: $xx-small;
-    border-radius: 4px;
-    box-sizing: border-box;
-    z-index: 99; // not more than the site nav
-    line-height: 1.375;
-    white-space: initial;
-    p {
-      margin: 0;
+    @include tooltip-text;
+  }
+}
+
+// for firefox we need to slightly shift the tooltip text to fit in line with the
+// other text next to the tooltip. This is because firefox renders the layout
+// slightly differently than webkit and edge, which makes it appear higher
+// than text next to it.
+// TODO: investigate more to see if there is a solution that will work
+// cross browser.
+@-moz-document url-prefix() {
+  .component__tooltip-wrapper {
+    &__underline {
+      position: relative;
+      top: 2px;
+      padding-bottom: 1px;
     }
   }
 }

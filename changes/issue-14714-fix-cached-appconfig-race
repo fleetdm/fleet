@@ -1,1 +1,0 @@
-* Fixed an edge-case where the caching of data could lead to some organization settings changes being lost when running with multiple Fleet instances.

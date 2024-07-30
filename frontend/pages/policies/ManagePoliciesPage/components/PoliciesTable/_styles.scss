@@ -13,8 +13,8 @@
       }
       &.passing_host_count__header,
       &.failing_host_count__header {
-        .status-header-text {
-          margin-left: 10px;
+        .passing-column-header {
+          gap: 10px;
         }
       }
     }
@@ -24,10 +24,6 @@
     display: flex;
     justify-content: center;
   }
-}
-
-.has-not-run {
-  width: 20px;
 }
 
 .no-team-policy {

@@ -7,14 +7,14 @@ import { AppContext } from "context/app";
 import PATHS from "router/paths";
 import scriptAPI, {
   IListScriptsQueryKey,
-  IScript,
   IScriptsResponse,
 } from "services/entities/scripts";
+import { IScript } from "interfaces/script";
 
 import CustomLink from "components/CustomLink";
 import Spinner from "components/Spinner";
 import DataError from "components/DataError";
-import PremiumFeatureMessage from "components/PremiumFeatureMessage";
+import InfoBanner from "components/InfoBanner";
 import ScriptListHeading from "./components/ScriptListHeading";
 import ScriptListItem from "./components/ScriptListItem";
 import ScriptListPagination from "./components/ScriptListPagination";
@@ -33,7 +33,6 @@ interface IScriptsProps {
 }
 
 const Scripts = ({ router, currentPage, teamIdForApi }: IScriptsProps) => {
-  const { isPremiumTier } = useContext(AppContext);
   const [showDeleteScriptModal, setShowDeleteScriptModal] = useState(false);
 
   const selectedScript = useRef<IScript | null>(null);
@@ -75,14 +74,8 @@ const Scripts = ({ router, currentPage, teamIdForApi }: IScriptsProps) => {
     router.push(path.concat(`&page=${currentPage + 1}`));
   }, [router, path, currentPage]);
 
-  // The user is not a premium tier, so show the premium feature message.
-  if (!isPremiumTier) {
-    return (
-      <PremiumFeatureMessage
-        className={`${baseClass}__premium-feature-message`}
-      />
-    );
-  }
+  const { config } = useContext(AppContext);
+  if (!config) return null;
 
   const onClickDelete = (script: IScript) => {
     selectedScript.current = script;
@@ -120,6 +113,7 @@ const Scripts = ({ router, currentPage, teamIdForApi }: IScriptsProps) => {
     return (
       <>
         <UploadList
+          keyAttribute="id"
           listItems={scripts || []}
           HeadingComponent={ScriptListHeading}
           ListItemComponent={({ listItem }) => (
@@ -136,17 +130,28 @@ const Scripts = ({ router, currentPage, teamIdForApi }: IScriptsProps) => {
     );
   };
 
+  const renderScriptsDisabledBanner = () => (
+    <InfoBanner color="yellow">
+      <div>
+        <b>Running scripts is disabled in organization settings.</b> You can
+        still manage your library of macOS and Windows scripts below.
+      </div>
+    </InfoBanner>
+  );
+
   return (
     <div className={baseClass}>
       <p className={`${baseClass}__description`}>
-        Upload scripts to change configuration and remediate issues on macOS and
-        Windows hosts. You can run scripts on individual hosts.{" "}
+        Upload scripts to remediate issues on macOS, Windows, and Linux hosts.
+        You can run scripts on individual hosts.{" "}
         <CustomLink
           text="Learn more"
           url="https://fleetdm.com/docs/using-fleet/scripts"
           newTab
         />
       </p>
+
+      {config.server_settings.scripts_disabled && renderScriptsDisabledBanner()}
       {renderScriptsList()}
       <ScriptUploader currentTeamId={teamIdForApi} onUpload={onUploadScript} />
       {showDeleteScriptModal && selectedScript.current && (

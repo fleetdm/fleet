@@ -48,8 +48,6 @@ You already have a lot of raw data to sift through in your data lake, especially
 
 Fleet 4.26.0 reduces the number of calls you have to make to pull software data with the REST API. Each time a host has software added, updated, or deleted, a `host_software_updated_at` timestamp gets updated for that host. The `host_software_updated_at` timestamp is exposed through the API. This lets you send the latest software data to your data lake, so you can avoid drowning in outdated information.
 
-<call-to-action preset="mdm-beta"></call-to-action>
-
 ## Fleet MDM
 **MDM features are not ready for production and are currently in development. These features are disabled by default.**
 

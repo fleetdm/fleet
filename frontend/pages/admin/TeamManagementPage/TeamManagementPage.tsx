@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useContext } from "react";
+import React, { useState, useCallback, useContext, useMemo } from "react";
 import { useQuery } from "react-query";
 import { useErrorHandler } from "react-error-boundary";
 
@@ -6,24 +6,23 @@ import { NotificationContext } from "context/notification";
 import { AppContext } from "context/app";
 import { ITeam } from "interfaces/team";
 import { IApiError } from "interfaces/errors";
-import { IEmptyTableProps } from "interfaces/empty_table";
 import usersAPI, { IGetMeResponse } from "services/entities/users";
 import teamsAPI, {
   ILoadTeamsResponse,
   ITeamFormData,
 } from "services/entities/teams";
 
-import Button from "components/buttons/Button";
 import TableContainer from "components/TableContainer";
 import TableDataError from "components/DataError";
-import EmptyTable from "components/EmptyTable";
-import CustomLink from "components/CustomLink";
+import TableCount from "components/TableContainer/TableCount";
 import SandboxGate from "components/Sandbox/SandboxGate";
 import SandboxMessage from "components/Sandbox/SandboxMessage";
 
 import CreateTeamModal from "./components/CreateTeamModal";
 import DeleteTeamModal from "./components/DeleteTeamModal";
-import EditTeamModal from "./components/EditTeamModal";
+import RenameTeamModal from "./components/RenameTeamModal";
+import EmptyTeamsTable from "./components/EmptyTeamsTable";
+
 import { generateTableHeaders, generateDataSet } from "./TeamTableConfig";
 
 const baseClass = "team-management";
@@ -40,9 +39,8 @@ const TeamManagementPage = (): JSX.Element => {
   const [isUpdatingTeams, setIsUpdatingTeams] = useState(false);
   const [showCreateTeamModal, setShowCreateTeamModal] = useState(false);
   const [showDeleteTeamModal, setShowDeleteTeamModal] = useState(false);
-  const [showEditTeamModal, setShowEditTeamModal] = useState(false);
+  const [showRenameTeamModal, setShowRenameTeamModal] = useState(false);
   const [teamEditing, setTeamEditing] = useState<ITeam>();
-  const [searchString, setSearchString] = useState("");
   const [backendValidators, setBackendValidators] = useState<{
     [key: string]: string;
   }>({});
@@ -70,6 +68,10 @@ const TeamManagementPage = (): JSX.Element => {
     }
   );
 
+  // TODO: Cleanup useCallbacks, add missing dependencies, use state setter functions, e.g.,
+  // `setShowCreateTeamModal((prevState) => !prevState)`, instead of including state
+  // variables as dependencies for toggles, etc.
+
   const toggleCreateTeamModal = useCallback(() => {
     setShowCreateTeamModal(!showCreateTeamModal);
     setBackendValidators({});
@@ -83,33 +85,18 @@ const TeamManagementPage = (): JSX.Element => {
     [showDeleteTeamModal, setShowDeleteTeamModal, setTeamEditing]
   );
 
-  const toggleEditTeamModal = useCallback(
+  const toggleRenameTeamModal = useCallback(
     (team?: ITeam) => {
-      setShowEditTeamModal(!showEditTeamModal);
+      setShowRenameTeamModal(!showRenameTeamModal);
       setBackendValidators({});
       team ? setTeamEditing(team) : setTeamEditing(undefined);
     },
     [
-      showEditTeamModal,
-      setShowEditTeamModal,
+      showRenameTeamModal,
+      setShowRenameTeamModal,
       setTeamEditing,
       setBackendValidators,
     ]
-  );
-
-  const onQueryChange = useCallback(
-    (queryData) => {
-      if (teams) {
-        setSearchString(queryData.searchQuery);
-        const { pageIndex, pageSize, searchQuery } = queryData;
-        teamsAPI.loadAll({
-          page: pageIndex,
-          perPage: pageSize,
-          globalFilter: searchQuery,
-        });
-      }
-    },
-    [setSearchString]
   );
 
   const onCreateSubmit = useCallback(
@@ -138,7 +125,7 @@ const TeamManagementPage = (): JSX.Element => {
           setIsUpdatingTeams(false);
         });
     },
-    [toggleCreateTeamModal]
+    [toggleCreateTeamModal, refetchMe, refetchTeams, renderFlash]
   );
 
   const onDeleteSubmit = useCallback(() => {
@@ -165,12 +152,20 @@ const TeamManagementPage = (): JSX.Element => {
           toggleDeleteTeamModal();
         });
     }
-  }, [teamEditing, toggleDeleteTeamModal]);
+  }, [
+    currentTeam,
+    teamEditing,
+    refetchMe,
+    refetchTeams,
+    renderFlash,
+    setCurrentTeam,
+    toggleDeleteTeamModal,
+  ]);
 
-  const onEditSubmit = useCallback(
+  const onRenameSubmit = useCallback(
     (formData: ITeamFormData) => {
       if (formData.name === teamEditing?.name) {
-        toggleEditTeamModal();
+        toggleRenameTeamModal();
       } else if (teamEditing) {
         setIsUpdatingTeams(true);
         teamsAPI
@@ -181,7 +176,7 @@ const TeamManagementPage = (): JSX.Element => {
               `Successfully updated team name to ${formData.name}.`
             );
             setBackendValidators({});
-            toggleEditTeamModal();
+            toggleRenameTeamModal();
             refetchTeams();
           })
           .catch((updateError: { data: IApiError }) => {
@@ -193,7 +188,7 @@ const TeamManagementPage = (): JSX.Element => {
             } else {
               renderFlash(
                 "error",
-                `Could not edit ${teamEditing.name}. Please try again.`
+                `Could not rename ${teamEditing.name}. Please try again.`
               );
             }
           })
@@ -202,57 +197,41 @@ const TeamManagementPage = (): JSX.Element => {
           });
       }
     },
-    [teamEditing, toggleEditTeamModal]
+    [teamEditing, toggleRenameTeamModal, refetchTeams, renderFlash]
   );
 
-  const onActionSelection = (action: string, team: ITeam): void => {
-    switch (action) {
-      case "edit":
-        toggleEditTeamModal(team);
-        break;
-      case "delete":
-        toggleDeleteTeamModal(team);
-        break;
-      default:
+  const onActionSelection = useCallback(
+    (action: string, team: ITeam): void => {
+      switch (action) {
+        case "rename":
+          toggleRenameTeamModal(team);
+          break;
+        case "delete":
+          toggleDeleteTeamModal(team);
+          break;
+        default:
+      }
+    },
+    [toggleRenameTeamModal, toggleDeleteTeamModal]
+  );
+
+  const tableHeaders = useMemo(() => generateTableHeaders(onActionSelection), [
+    onActionSelection,
+  ]);
+  const tableData = useMemo(() => (teams ? generateDataSet(teams) : []), [
+    teams,
+  ]);
+
+  const renderTeamCount = useCallback(() => {
+    if (teams?.length === 0) {
+      return <></>;
     }
-  };
 
-  const emptyState = () => {
-    const emptyTeams: IEmptyTableProps = {
-      graphicName: "empty-teams",
-      header: "Set up team permissions",
-      info:
-        "Keep your organization organized and efficient by ensuring every user has the correct access to the right hosts.",
-      additionalInfo: (
-        <>
-          {" "}
-          Want to learn more?&nbsp;
-          <CustomLink
-            url="https://fleetdm.com/docs/using-fleet/teams"
-            text="Read about teams"
-            newTab
-          />
-        </>
-      ),
-      primaryButton: (
-        <Button
-          variant="brand"
-          className={`${noTeamsClass}__create-button`}
-          onClick={toggleCreateTeamModal}
-        >
-          Create team
-        </Button>
-      ),
-    };
-
-    return emptyTeams;
-  };
-
-  const tableHeaders = generateTableHeaders(onActionSelection);
-  const tableData = teams ? generateDataSet(teams) : [];
+    return <TableCount name="teams" count={teams?.length} />;
+  }, [teams]);
 
   return (
-    <div className={`${baseClass} body-wrap`}>
+    <div className={`${baseClass}`}>
       <p className={`${baseClass}__page-description`}>
         Create, customize, and remove teams from Fleet.
       </p>
@@ -270,34 +249,29 @@ const TeamManagementPage = (): JSX.Element => {
           <TableDataError />
         ) : (
           <TableContainer
-            columns={tableHeaders}
+            columnConfigs={tableHeaders}
             data={tableData}
             isLoading={isFetchingTeams}
             defaultSortHeader={"name"}
             defaultSortDirection={"asc"}
-            inputPlaceHolder={"Search"}
             actionButton={{
               name: "create team",
               buttonText: "Create team",
               variant: "brand",
               onActionButtonClick: toggleCreateTeamModal,
-              hideButton: teams && teams.length === 0 && searchString === "",
+              hideButton: teams && teams.length === 0,
             }}
-            onQueryChange={onQueryChange}
             resultsTitle={"teams"}
-            emptyComponent={() =>
-              EmptyTable({
-                graphicName: "empty-teams",
-                header: emptyState().header,
-                info: emptyState().info,
-                additionalInfo: emptyState().additionalInfo,
-                primaryButton: emptyState().primaryButton,
-              })
-            }
+            emptyComponent={() => (
+              <EmptyTeamsTable
+                className={noTeamsClass}
+                onActionButtonClick={toggleCreateTeamModal}
+              />
+            )}
             showMarkAllPages={false}
             isAllPagesSelected={false}
-            searchable={teams && teams.length > 0 && searchString !== ""}
             isClientSidePagination
+            renderCount={renderTeamCount}
           />
         )}
         {showCreateTeamModal && (
@@ -316,10 +290,10 @@ const TeamManagementPage = (): JSX.Element => {
             isUpdatingTeams={isUpdatingTeams}
           />
         )}
-        {showEditTeamModal && (
-          <EditTeamModal
-            onCancel={toggleEditTeamModal}
-            onSubmit={onEditSubmit}
+        {showRenameTeamModal && (
+          <RenameTeamModal
+            onCancel={toggleRenameTeamModal}
+            onSubmit={onRenameSubmit}
             defaultName={teamEditing?.name || ""}
             backendValidators={backendValidators}
             isUpdatingTeams={isUpdatingTeams}

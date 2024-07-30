@@ -45,11 +45,6 @@ const FilePdf = () => {
           rx={1.75}
         />
       </g>
-      <defs>
-        <clipPath id="a">
-          <path fill="#fff" d="M0 0h34v40H0z" />
-        </clipPath>
-      </defs>
     </svg>
   );
 };

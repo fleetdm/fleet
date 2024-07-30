@@ -12,6 +12,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
+	"github.com/fleetdm/fleet/v4/pkg/retry"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -32,13 +33,12 @@ func (s *nudgeTestSuite) TestUpdatesDisabled() {
 	t := s.T()
 	var err error
 	cfg := &fleet.OrbitConfig{}
-	cfg.NudgeConfig, err = fleet.NewNudgeConfig(fleet.MacOSUpdates{MinimumVersion: optjson.SetString("11"), Deadline: optjson.SetString("2022-01-04")})
+	cfg.NudgeConfig, err = fleet.NewNudgeConfig(fleet.AppleOSUpdateSettings{MinimumVersion: optjson.SetString("11"), Deadline: optjson.SetString("2022-01-04")})
 	require.NoError(t, err)
 	runNudgeFn := func(execPath, configPath string) error {
 		return nil
 	}
-	var f OrbitConfigFetcher = &dummyConfigFetcher{cfg: cfg}
-	f = ApplyNudgeConfigFetcherMiddleware(f, NudgeConfigFetcherOptions{
+	r := ApplyNudgeConfigReceiverMiddleware(NudgeConfigFetcherOptions{
 		UpdateRunner: nil,
 		RootDir:      t.TempDir(),
 		Interval:     time.Minute,
@@ -46,17 +46,17 @@ func (s *nudgeTestSuite) TestUpdatesDisabled() {
 	})
 
 	// we used to get a panic if updates were disabled (see #11980)
-	gotCfg, err := f.GetConfig()
+	err = r.Run(cfg)
 	require.NoError(t, err)
-	require.Equal(t, cfg, gotCfg)
 }
 
 func (s *nudgeTestSuite) TestNudgeConfigFetcherAddNudge() {
 	t := s.T()
 	tmpDir := t.TempDir()
 	updater := &Updater{
-		client: s.client,
-		opt:    Options{Targets: make(map[string]TargetInfo), RootDirectory: tmpDir},
+		client:  s.client,
+		opt:     Options{Targets: make(map[string]TargetInfo), RootDirectory: tmpDir},
+		retryer: retry.NewLimitedWithCooldown(3, 1*time.Second),
 	}
 	runner := &Runner{updater: updater, localHashes: make(map[string][]byte)}
 	interval := time.Second
@@ -80,8 +80,7 @@ func (s *nudgeTestSuite) TestNudgeConfigFetcherAddNudge() {
 		return nil
 	}
 
-	var f OrbitConfigFetcher = &dummyConfigFetcher{cfg: cfg}
-	f = ApplyNudgeConfigFetcherMiddleware(f, NudgeConfigFetcherOptions{
+	r := ApplyNudgeConfigReceiverMiddleware(NudgeConfigFetcherOptions{
 		UpdateRunner: runner,
 		RootDir:      tmpDir,
 		Interval:     interval,
@@ -91,20 +90,18 @@ func (s *nudgeTestSuite) TestNudgeConfigFetcherAddNudge() {
 
 	// nudge is not added to targets if nudge config is not present
 	cfg.NudgeConfig = nil
-	gotCfg, err := f.GetConfig()
+	err := r.Run(cfg)
 	require.NoError(t, err)
-	require.Equal(t, cfg, gotCfg)
 	targets := runner.updater.opt.Targets
 	require.Len(t, targets, 0)
 
 	// set the config
-	cfg.NudgeConfig, err = fleet.NewNudgeConfig(fleet.MacOSUpdates{MinimumVersion: optjson.SetString("11"), Deadline: optjson.SetString("2022-01-04")})
+	cfg.NudgeConfig, err = fleet.NewNudgeConfig(fleet.AppleOSUpdateSettings{MinimumVersion: optjson.SetString("11"), Deadline: optjson.SetString("2022-01-04")})
 	require.NoError(t, err)
 
 	// there's an error when the remote repo doesn't have the target yet
-	gotCfg, err = f.GetConfig()
+	err = r.Run(cfg)
 	require.ErrorContains(t, err, "tuf: file not found")
-	require.Equal(t, cfg, gotCfg)
 
 	// add nuge to the remote
 	s.addRemoteTarget(nudgePath)
@@ -112,9 +109,8 @@ func (s *nudgeTestSuite) TestNudgeConfigFetcherAddNudge() {
 	// nothing happens if a nil runner is provided
 
 	// nudge is added to targets when nudge config is present
-	gotCfg, err = f.GetConfig()
+	err = r.Run(cfg)
 	require.NoError(t, err)
-	require.Equal(t, cfg, gotCfg)
 	targets = runner.updater.opt.Targets
 	require.Len(t, targets, 1)
 	ti, ok := targets["nudge"]
@@ -134,9 +130,8 @@ func (s *nudgeTestSuite) TestNudgeConfigFetcherAddNudge() {
 	require.True(t, updated)
 
 	// doesn't re-update after an update
-	gotCfg, err = f.GetConfig()
+	err = r.Run(cfg)
 	require.NoError(t, err)
-	require.Equal(t, cfg, gotCfg)
 	updated, err = runner.UpdateAction()
 	require.NoError(t, err)
 	require.False(t, updated)
@@ -147,9 +142,8 @@ func (s *nudgeTestSuite) TestNudgeConfigFetcherAddNudge() {
 	require.NotEmpty(t, b)
 
 	// a config is created on the next run after install
-	gotCfg, err = f.GetConfig()
+	err = r.Run(cfg)
 	require.NoError(t, err)
-	require.Equal(t, cfg, gotCfg)
 	configBytes, err := os.ReadFile(configPath)
 	require.NoError(t, err)
 	var savedConfig fleet.NudgeConfig
@@ -159,9 +153,8 @@ func (s *nudgeTestSuite) TestNudgeConfigFetcherAddNudge() {
 
 	// config on disk changes if the config from the server changes
 	cfg.NudgeConfig.OSVersionRequirements[0].RequiredMinimumOSVersion = "13.1.1"
-	gotCfg, err = f.GetConfig()
+	err = r.Run(cfg)
 	require.NoError(t, err)
-	require.Equal(t, cfg, gotCfg)
 	configBytes, err = os.ReadFile(configPath)
 	require.NoError(t, err)
 	savedConfig = fleet.NudgeConfig{}
@@ -172,9 +165,8 @@ func (s *nudgeTestSuite) TestNudgeConfigFetcherAddNudge() {
 	// config permissions are always validated and set to the right value
 	err = os.Chmod(configPath, constant.DefaultFileMode)
 	require.NoError(t, err)
-	gotCfg, err = f.GetConfig()
+	err = r.Run(cfg)
 	require.NoError(t, err)
-	require.Equal(t, cfg, gotCfg)
 	fileInfo, err := os.Stat(configPath)
 	require.NoError(t, err)
 	require.Equal(t, fileInfo.Mode(), nudgeConfigFileMode)
@@ -201,7 +193,7 @@ func (s *nudgeTestSuite) TestNudgeConfigFetcherAddNudge() {
 	// nudge launches successfully
 	time.Sleep(1 * time.Second)
 	execCmd = mockExecCommand(t, "mock stdout", "", wantCmd, wantArgs...)
-	_, err = f.GetConfig()
+	err = r.Run(cfg)
 	require.NoError(t, err)
 	require.Equal(t, "mock stdout", execOut)
 	require.True(t, runNudgeFnInvoked)
@@ -213,7 +205,7 @@ func (s *nudgeTestSuite) TestNudgeConfigFetcherAddNudge() {
 	execCmd = func(command string, args ...string) *exec.Cmd {
 		return exec.Command("non-existent-command")
 	}
-	_, err = f.GetConfig()
+	err = r.Run(cfg)
 	require.ErrorContains(t, err, "exec: \"non-existent-command\": executable file not found in")
 	require.Empty(t, execOut)
 	require.True(t, runNudgeFnInvoked)
@@ -222,7 +214,7 @@ func (s *nudgeTestSuite) TestNudgeConfigFetcherAddNudge() {
 	// nudge launches successfully
 	time.Sleep(1 * time.Second)
 	execCmd = mockExecCommand(t, "mock stdout", "", wantCmd, wantArgs...)
-	_, err = f.GetConfig()
+	err = r.Run(cfg)
 	require.NoError(t, err)
 	require.Equal(t, "mock stdout", execOut)
 	require.True(t, runNudgeFnInvoked)
@@ -232,7 +224,7 @@ func (s *nudgeTestSuite) TestNudgeConfigFetcherAddNudge() {
 	// nudge fails to launch, stderr is captured and logged
 	time.Sleep(1 * time.Second)
 	execCmd = mockExecCommand(t, "", "mock stderr", wantCmd, wantArgs...)
-	_, err = f.GetConfig()
+	err = r.Run(cfg)
 	require.ErrorContains(t, err, "exit status 1: mock stderr")
 	require.Empty(t, execOut)
 	require.True(t, runNudgeFnInvoked)
@@ -240,17 +232,17 @@ func (s *nudgeTestSuite) TestNudgeConfigFetcherAddNudge() {
 
 	// after launch error, nudge will not launch again
 	time.Sleep(1 * time.Second)
-	_, err = f.GetConfig()
+	err = r.Run(cfg)
 	require.NoError(t, err)
 	require.Empty(t, execOut)
 	require.False(t, runNudgeFnInvoked)
 	time.Sleep(1 * time.Second)
-	_, err = f.GetConfig()
+	err = r.Run(cfg)
 	require.NoError(t, err)
 	require.Empty(t, execOut)
 	require.False(t, runNudgeFnInvoked)
 	time.Sleep(1 * time.Second)
-	_, err = f.GetConfig()
+	err = r.Run(cfg)
 	require.NoError(t, err)
 	require.NoError(t, err)
 	require.Empty(t, execOut)
@@ -258,9 +250,8 @@ func (s *nudgeTestSuite) TestNudgeConfigFetcherAddNudge() {
 
 	// nudge is removed from targets when the config is not present
 	cfg.NudgeConfig = nil
-	gotCfg, err = f.GetConfig()
+	err = r.Run(cfg)
 	require.NoError(t, err)
-	require.Equal(t, cfg, gotCfg)
 	targets = runner.updater.opt.Targets
 	require.Empty(t, targets)
 	ti, ok = targets["nudge"]

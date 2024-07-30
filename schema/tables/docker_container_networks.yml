@@ -1,9 +1,7 @@
 name: docker_container_networks
-examples: >-
+examples: |-
   List the IP address of Docker containers.
 
   ```
-
   SELECT dn.ip_address, dc.name FROM docker_container_networks dn JOIN docker_containers dc ON dn.id=dc.id;
-
   ```

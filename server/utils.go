@@ -37,6 +37,22 @@ func httpSuccessStatus(statusCode int) bool {
 	return statusCode >= 200 && statusCode <= 299
 }
 
+// errWithStatus is an error with a particular status code.
+type errWithStatus struct {
+	err        string
+	statusCode int
+}
+
+// Error implements the error interface
+func (e *errWithStatus) Error() string {
+	return e.err
+}
+
+// StatusCode implements the StatusCoder interface for returning custom status codes.
+func (e *errWithStatus) StatusCode() int {
+	return e.statusCode
+}
+
 func PostJSONWithTimeout(ctx context.Context, url string, v interface{}) error {
 	jsonBytes, err := json.Marshal(v)
 	if err != nil {
@@ -59,7 +75,7 @@ func PostJSONWithTimeout(ctx context.Context, url string, v interface{}) error {
 
 	if !httpSuccessStatus(resp.StatusCode) {
 		body, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("error posting to %s: %d. %s", MaskSecretURLParams(url), resp.StatusCode, string(body))
+		return &errWithStatus{err: fmt.Sprintf("error posting to %s: %d. %s", MaskSecretURLParams(url), resp.StatusCode, string(body)), statusCode: resp.StatusCode}
 	}
 
 	return nil
@@ -149,8 +165,8 @@ func Base64DecodePaddingAgnostic(s string) ([]byte, error) {
 // RemoveDuplicatesFromSlice returns a slice with all the duplicates removed from the input slice.
 func RemoveDuplicatesFromSlice[T comparable](slice []T) []T {
 	// We are using the allKeys map as a set here
-	allKeys := make(map[T]struct{})
-	var list []T
+	allKeys := make(map[T]struct{}, len(slice))
+	list := make([]T, 0, len(slice))
 
 	for _, i := range slice {
 		if _, exists := allKeys[i]; !exists {
@@ -159,30 +175,4 @@ func RemoveDuplicatesFromSlice[T comparable](slice []T) []T {
 		}
 	}
 	return list
-}
-
-// SliceStringsMatch checks if two slices contain the same string elements,
-// regardless of order.
-func SliceStringsMatch(a, b []string) bool {
-	if len(a) != len(b) {
-		return false
-	}
-
-	// create a map to count occurrences of elements in a
-	elementCount := make(map[string]int, len(a))
-	for _, item := range a {
-		elementCount[item]++
-	}
-
-	// decrease the count for each element in b
-	for _, item := range b {
-		elementCount[item]--
-		if elementCount[item] < 0 {
-			// if the count goes below zero, b has an element not
-			// in a or more occurrences of it than a
-			return false
-		}
-	}
-
-	return true
 }

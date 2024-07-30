@@ -1,0 +1,3 @@
+BuildVersion	16G2136
+OSVersion	10.12.6
+ProductName	iMac14,2

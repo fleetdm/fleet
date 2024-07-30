@@ -30,13 +30,9 @@ data "aws_iam_policy_document" "firehose_policy" {
   statement {
     effect  = "Allow"
     actions = ["logs:PutLogEvents"]
-    resources = concat([
-      "arn:aws:logs:${data.aws_region.current.id}:${data.aws_caller_identity.current.account_id}:log-group:/aws/kinesisfirehose/${var.firehose_results_name}:*",
-      "arn:aws:logs:${data.aws_region.current.id}:${data.aws_caller_identity.current.account_id}:log-group:/aws/kinesisfirehose/${var.firehose_status_name}:*",
-      ],
-      var.firehose_status_name == "" ? [] : [
-        "arn:aws:logs:${data.aws_region.current.id}:${data.aws_caller_identity.current.account_id}:log-group:/aws/kinesisfirehose/${var.firehose_audit_name}:*"
-    ])
+    resources = [
+      for name in keys(var.log_destinations) : "arn:aws:logs:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:log-group:/aws/kinesisfirehose/${var.log_destinations[name].name}:*"
+    ]
   }
 
   statement {
@@ -63,52 +59,32 @@ resource "aws_iam_role_policy_attachment" "firehose" {
   role       = aws_iam_role.firehose.name
 }
 
-resource "aws_kms_key" "firehose" {
-  enable_key_rotation = true
+resource "aws_kms_key" "firehose_key" {
+  count       = var.server_side_encryption_enabled && length(var.kms_key_arn) == 0 ? 1 : 0
+  description = "KMS key for encrypting Firehose data."
 }
 
-resource "aws_kinesis_firehose_delivery_stream" "osquery_results" {
-  name        = var.firehose_results_name
-  destination = "s3"
+resource "aws_kinesis_firehose_delivery_stream" "fleet_log_destinations" {
+  for_each    = var.log_destinations
+  name        = each.value.name
+  destination = "extended_s3"
 
-  server_side_encryption {
-    key_arn = aws_kms_key.firehose.arn
+  dynamic "server_side_encryption" {
+    for_each = var.server_side_encryption_enabled ? [1] : []
+    content {
+      enabled  = var.server_side_encryption_enabled
+      key_arn  = length(var.kms_key_arn) > 0 ? var.kms_key_arn : aws_kms_key.firehose_key[0].arn
+      key_type = "CUSTOMER_MANAGED_CMK"
+    }
   }
 
-  s3_configuration {
-    prefix     = var.results_prefix
-    role_arn   = aws_iam_role.firehose.arn
-    bucket_arn = aws_s3_bucket.destination.arn
-  }
-}
-
-resource "aws_kinesis_firehose_delivery_stream" "osquery_status" {
-  name        = var.firehose_status_name
-  destination = "s3"
-
-  server_side_encryption {
-    key_arn = aws_kms_key.firehose.arn
-  }
-
-  s3_configuration {
-    prefix     = var.status_prefix
-    role_arn   = aws_iam_role.firehose.arn
-    bucket_arn = aws_s3_bucket.destination.arn
-  }
-}
-
-resource "aws_kinesis_firehose_delivery_stream" "fleet_audit" {
-  count       = length(var.firehose_audit_name) > 0 ? 1 : 0
-  name        = var.firehose_audit_name
-  destination = "s3"
-
-  server_side_encryption {
-    key_arn = aws_kms_key.firehose.arn
-  }
-
-  s3_configuration {
-    prefix     = var.audit_prefix
-    role_arn   = aws_iam_role.firehose.arn
-    bucket_arn = aws_s3_bucket.destination.arn
+  extended_s3_configuration {
+    bucket_arn          = aws_s3_bucket.destination.arn
+    role_arn            = aws_iam_role.firehose.arn
+    prefix              = each.value.prefix
+    error_output_prefix = each.value.error_output_prefix
+    buffering_size      = each.value.buffering_size
+    buffering_interval  = each.value.buffering_interval
+    compression_format  = each.value.compression_format
   }
 }

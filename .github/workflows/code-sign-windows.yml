@@ -1,0 +1,97 @@
+name: Code sign Windows binaries with DigiCert KeyLocker KSP
+
+on:
+  workflow_call:
+    inputs:
+      filename:
+        description: 'The name of the file to sign'
+        required: true
+        type: string
+      download_name:
+        description: 'The name of the artifact to download'
+        required: false
+        default: 'unsigned-windows'
+        type: string
+      upload_name:
+        description: 'The name of the artifact to upload'
+        required: false
+        default: 'signed-windows'
+        type: string
+    secrets:
+      DIGICERT_KEYLOCKER_CERTIFICATE:
+        required: true
+      DIGICERT_KEYLOCKER_PASSWORD:
+        required: true
+      DIGICERT_KEYLOCKER_HOST_URL:
+        required: true
+      DIGICERT_API_KEY:
+        required: true
+      DIGICERT_KEYLOCKER_CERTIFICATE_FINGERPRINT:
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  code-sign-windows:
+    runs-on: windows-2022
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        with:
+          egress-policy: audit
+
+      - name: Download unsigned artifact
+        uses: actions/download-artifact@9c19ed7fe5d278cd354c7dfd5d3b88589c7e2395 # v4.1.6
+        with:
+          name: ${{ inputs.download_name }}
+
+      - name: Setup certificate
+        run: |
+          echo "${{ secrets.DIGICERT_KEYLOCKER_CERTIFICATE }}" | base64 --decode > /d/Certificate_pkcs12.p12
+          openssl pkcs12 -in /d/Certificate_pkcs12.p12 -nodes -passin pass:${{ secrets.DIGICERT_KEYLOCKER_PASSWORD }} | openssl x509 -noout -subject
+        shell: bash
+
+      - name: Set variables
+        id: variables
+        run: |
+          echo "SM_HOST=${{ secrets.DIGICERT_KEYLOCKER_HOST_URL }}" >> "$GITHUB_ENV"
+          echo "SM_API_KEY=${{ secrets.DIGICERT_API_KEY }}" >> "$GITHUB_ENV"
+          echo "SM_CLIENT_CERT_FILE=D:\\Certificate_pkcs12.p12" >> "$GITHUB_ENV"
+          echo "SM_CLIENT_CERT_PASSWORD=${{ secrets.DIGICERT_KEYLOCKER_PASSWORD }}" >> "$GITHUB_ENV"
+          echo "C:\Program Files (x86)\Windows Kits\10\App Certification Kit" >> $GITHUB_PATH
+          echo "C:\Program Files (x86)\Microsoft SDKs\Windows\v10.0A\bin\NETFX 4.8 Tools" >> $GITHUB_PATH
+          echo "C:\Program Files\DigiCert\DigiCert Keylocker Tools" >> $GITHUB_PATH
+        shell: bash
+
+      - name: Download Keylocker KSP on windows
+        run: |
+          curl https://one.digicert.com/signingmanager/api-ui/v1/releases/Keylockertools-windows-x64.msi/download -H "x-api-key:%SM_API_KEY%" --fail-with-body -o Keylockertools-windows-x64.msi
+        shell: cmd
+
+      - name: Install Keylocker KSP on windows
+        run: |
+          msiexec /i Keylockertools-windows-x64.msi /quiet /qn
+          smksp_registrar.exe list
+          smctl.exe keypair ls
+          C:\Windows\System32\certutil.exe -csp "DigiCert Signing Manager KSP" -key -user
+        shell: cmd
+
+      - name: Certificates Sync
+        run: |
+          smctl windows certsync
+        shell: cmd
+
+      - name: Sign using Windows signtool
+        # Debug logs are at: %USERPROFILE%\.signingmanager\logs\smksp.log
+        run: |
+          signtool.exe sign /v /debug /sha1 ${{ secrets.DIGICERT_KEYLOCKER_CERTIFICATE_FINGERPRINT }} /tr http://timestamp.digicert.com /td SHA256 /fd SHA256 ${{ inputs.filename }}
+          copy unsigned.exe signed.exe
+          signtool.exe verify /v /pa ${{ inputs.filename }}
+        shell: cmd
+
+      - name: Upload signed artifact
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # 4.3.3
+        with:
+          name: ${{ inputs.upload_name }}
+          path: ${{ inputs.filename }}

@@ -28,6 +28,7 @@
     padding: 4px 8px;
     display: inline;
     max-width: min-content;
+    cursor: pointer;
     color: @core-fleet-black-75;
     text-decoration: none;
     font-size: 14px;
@@ -46,6 +47,30 @@
       background-color: rgba(25, 33, 71, 0.1);
     }
   }
+  [purpose='rss-button'].copied::after {
+    content: 'Link copied';
+    display: flex;
+    font-weight: 400;
+    position: relative;
+    top: 0px;
+    height: 0px;
+    font-size: 14px;
+    color: @core-vibrant-blue;
+    animation-name: copiedText;
+    animation-duration: 4s;
+    animation-fill-mode: forwards;
+  }
+
+  @keyframes copiedText {
+    0% {opacity: 0;}
+    20% {opacity: 100;}
+    30% {opacity: 80;}
+    50% {opacity: 60;}
+    70% {opacity: 40;}
+    80% {opacity: 20;}
+    100% {opacity: 0;}
+  }
+
   [purpose='edit-button'] {
     margin-left: 24px;
     img {
@@ -180,6 +205,65 @@
     [purpose='checklist-item']::marker {
       display: none;
     }
+    ul {
+      list-style-type: disc;
+      padding-left: 16px;
+    }
+    li {
+      line-height: 24px;
+      padding-bottom: 16px;
+      p { // Making sure our list items stay a consistent size if the contents get wrapped in a <p> tag coverted from Markdown.
+        margin-bottom: 0;
+      }
+      ol, ul { // adding padding to nested lists
+        padding-top: 16px;
+        li:last-child { // removing the padding from the last item of nested lists
+          padding-bottom: 0px;
+        }
+      }
+    }
+    ol {
+      counter-reset: custom-counter;
+      list-style-type: none;
+      padding-inline-start: 0px;
+      padding: 0;
+      margin-top: 16px;
+      margin-bottom: 20px;
+      ul > li {
+        text-indent: 0px;
+        margin-left: 0px;
+      }
+      > li {
+        counter-increment: custom-counter;
+        margin-left: 36px;
+        text-indent: -36px;
+        padding-left: 0px;
+        margin-bottom: 16px;
+        code:not(.nohighlight):not(.mermaid) {
+          display: inline;
+        }
+        p {
+          display: inline;
+          margin-bottom: 0px;
+        }
+        blockquote {
+          text-indent: 0px;
+        }
+      }
+      > li::before {
+        content: counter(custom-counter);
+        background-color: #E2E4EA;
+        width: 24px;
+        font-size: 13px;
+        display: inline-block;
+        border-radius: 50%;
+        margin-right: 10px;
+        padding: 2px 4px;
+        text-align: center;
+        line-height: 20px;
+        text-indent: 0px;
+      }
+    }
     a > code:not(.hljs):not(.nohighlight):not(.mermaid) {
       color: inherit;
       text-decoration: inherit;
@@ -225,7 +309,7 @@
       }
     }
     blockquote {
-      margin: 24px 0 32px 32px;
+      margin: 24px 0 32px 40px;
       display: block;
       position: relative;
     }
@@ -233,6 +317,11 @@
       font-style: italic;
       line-height: 36px;
       font-size: 24px;
+      max-width: 640px;
+
+      p {
+        margin-top: 8px;
+      }
     }
     [purpose='large-quote'] {
       font-style: italic;
@@ -245,8 +334,8 @@
       background-size: 22px 18px;
       display: block;
       position: relative;
-      top: 16px;
-      left: -32px;
+      top: 24px;
+      left: -40px;
       width: 22px;
       height: 18px;
     }
@@ -313,10 +402,13 @@
     }
   }
   [purpose='bottom-cta'] {
-    padding-bottom: 80px;
+    padding-bottom: 40px;
+    h3 {
+      margin-bottom: 24px;
+    }
     [purpose='next-steps-button'] {
-      padding: 16px 24px;
-      line-height: 24px;
+      padding: 16px 32px;
+      line-height: 21px;
       font-size: 16px;
       img {
         height: 24px;
@@ -357,6 +449,16 @@
         margin-bottom: 16px;
       }
     }
+
+  }
+  @media (max-width: 576px) {
+    [purpose='bottom-cta'] {
+      [purpose='next-steps-button'] {
+        width: 100%;
+        margin-bottom: 32px;
+      }
+    }
+
   }
 
   @media (max-width: 375px) {

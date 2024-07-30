@@ -21,13 +21,18 @@
     border-color: $core-vibrant-blue;
   }
 
-  &:hover {
+  &:hover &:not(.input-field--read-only) {
     box-shadow: none;
     border: 1px solid $core-vibrant-blue;
   }
 
   &--disabled {
     color: $ui-fleet-black-50;
+
+    .form-field__label,
+    .form-field__help-text {
+      color: $ui-fleet-black-50;
+    }
   }
 
   &--error {
@@ -66,7 +71,7 @@
     margin-bottom: $pad-medium;
   }
 
-  &__hint {
+  &__help-text {
     font-size: $x-small;
     font-weight: $regular;
     line-height: 1.57;
@@ -82,14 +87,13 @@
   }
 
   &__copy-wrapper {
-    position: relative
+    position: relative;
   }
 
   &__input-container.copy-enabled {
     display: flex;
     align-items: center;
     gap: $pad-medium;
-
   }
 
   &__copied-confirmation {

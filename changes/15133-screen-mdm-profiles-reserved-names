@@ -1,1 +1,0 @@
-- Added validation to disallow custom MDM profiles that contain certain names reserved by Fleet.

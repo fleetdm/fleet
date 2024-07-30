@@ -1,22 +1,64 @@
-import { snakeCase, reduce } from "lodash";
+import { AxiosResponse } from "axios";
 
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
 import {
   ISoftwareResponse,
   ISoftwareCountResponse,
-  IGetSoftwareByIdResponse,
+  ISoftwareVersion,
+  ISoftwareTitle,
+  ISoftwareTitleDetails,
 } from "interfaces/software";
-import { buildQueryStringFromParams, QueryParams } from "utilities/url";
+import {
+  buildQueryStringFromParams,
+  convertParamsToSnakeCase,
+} from "utilities/url";
+import { IAddSoftwareFormData } from "pages/SoftwarePage/components/AddPackageForm/AddSoftwareForm";
 
-interface ISoftwareApiParams {
+export interface ISoftwareApiParams {
   page?: number;
   perPage?: number;
   orderKey?: string;
   orderDirection?: "asc" | "desc";
   query?: string;
   vulnerable?: boolean;
+  availableForInstall?: boolean;
+  selfService?: boolean;
   teamId?: number;
+}
+
+export interface ISoftwareTitlesResponse {
+  counts_updated_at: string | null;
+  count: number;
+  software_titles: ISoftwareTitle[];
+  meta: {
+    has_next_results: boolean;
+    has_previous_results: boolean;
+  };
+}
+
+export interface ISoftwareVersionsResponse {
+  counts_updated_at: string | null;
+  count: number;
+  software: ISoftwareVersion[];
+  meta: {
+    has_next_results: boolean;
+    has_previous_results: boolean;
+  };
+}
+
+export interface ISoftwareTitleResponse {
+  software_title: ISoftwareTitleDetails;
+}
+export interface ISoftwareVersionResponse {
+  software: ISoftwareVersion;
+}
+export interface ISoftwareVersionsQueryKey extends ISoftwareApiParams {
+  scope: "software-versions";
+}
+
+export interface ISoftwareTitlesQueryKey extends ISoftwareApiParams {
+  scope: "software-titles";
 }
 
 export interface ISoftwareQueryKey extends ISoftwareApiParams {
@@ -28,19 +70,28 @@ export interface ISoftwareCountQueryKey
   scope: "softwareCount";
 }
 
+export interface IGetSoftwareTitleQueryParams {
+  softwareId: number;
+  teamId?: number;
+}
+
+export interface IGetSoftwareTitleQueryKey
+  extends IGetSoftwareTitleQueryParams {
+  scope: "softwareById";
+}
+
+export interface IGetSoftwareVersionQueryParams {
+  versionId: number;
+  teamId?: number;
+}
+
+export interface IGetSoftwareVersionQueryKey
+  extends IGetSoftwareVersionQueryParams {
+  scope: "softwareVersion";
+}
+
 const ORDER_KEY = "name";
 const ORDER_DIRECTION = "asc";
-
-const convertParamsToSnakeCase = (params: ISoftwareApiParams) => {
-  return reduce<typeof params, QueryParams>(
-    params,
-    (result, val, key) => {
-      result[snakeCase(key)] = val;
-      return result;
-    },
-    {}
-  );
-};
 
 export default {
   load: async ({
@@ -50,8 +101,12 @@ export default {
     orderDirection: orderDir = ORDER_DIRECTION,
     query,
     vulnerable,
+    // availableForInstall, // TODO: Is this supported for the versions endpoint?
     teamId,
-  }: ISoftwareApiParams): Promise<ISoftwareResponse> => {
+  }: Omit<
+    ISoftwareApiParams,
+    "availableForInstall" | "selfService"
+  >): Promise<ISoftwareResponse> => {
     const { SOFTWARE } = endpoints;
     const queryParams = {
       page,
@@ -61,6 +116,7 @@ export default {
       teamId,
       query,
       vulnerable,
+      // availableForInstall,
     };
 
     const snakeCaseParams = convertParamsToSnakeCase(queryParams);
@@ -95,12 +151,104 @@ export default {
     return sendRequest("GET", path.concat(`?${queryString}`));
   },
 
-  getSoftwareById: async (
-    softwareId: string
-  ): Promise<IGetSoftwareByIdResponse> => {
-    const { SOFTWARE } = endpoints;
-    const path = `${SOFTWARE}/${softwareId}`;
+  getSoftwareTitles: (
+    params: ISoftwareApiParams
+  ): Promise<ISoftwareTitlesResponse> => {
+    const { SOFTWARE_TITLES } = endpoints;
+    const snakeCaseParams = convertParamsToSnakeCase(params);
+    const queryString = buildQueryStringFromParams(snakeCaseParams);
+    const path = `${SOFTWARE_TITLES}?${queryString}`;
+    return sendRequest("GET", path);
+  },
 
+  getSoftwareTitle: ({
+    softwareId,
+    teamId,
+  }: IGetSoftwareTitleQueryParams): Promise<ISoftwareTitleResponse> => {
+    const endpoint = endpoints.SOFTWARE_TITLE(softwareId);
+    const path = teamId ? `${endpoint}?team_id=${teamId}` : endpoint;
+    return sendRequest("GET", path);
+  },
+
+  getSoftwareVersions: (params: ISoftwareApiParams) => {
+    const { SOFTWARE_VERSIONS } = endpoints;
+    const snakeCaseParams = convertParamsToSnakeCase(params);
+    const queryString = buildQueryStringFromParams(snakeCaseParams);
+    const path = `${SOFTWARE_VERSIONS}?${queryString}`;
+    return sendRequest("GET", path);
+  },
+
+  getSoftwareVersion: ({
+    versionId,
+    teamId,
+  }: IGetSoftwareVersionQueryParams) => {
+    const endpoint = endpoints.SOFTWARE_VERSION(versionId);
+    const path = teamId ? `${endpoint}?team_id=${teamId}` : endpoint;
+
+    return sendRequest("GET", path);
+  },
+
+  addSoftwarePackage: (
+    data: IAddSoftwareFormData,
+    teamId?: number,
+    timeout?: number
+  ) => {
+    const { SOFTWARE_PACKAGE_ADD } = endpoints;
+
+    if (!data.software) {
+      throw new Error("Software package is required");
+    }
+
+    const formData = new FormData();
+    formData.append("software", data.software);
+    formData.append("self_service", data.selfService.toString());
+    data.installScript && formData.append("install_script", data.installScript);
+    data.preInstallCondition &&
+      formData.append("pre_install_query", data.preInstallCondition);
+    data.postInstallScript &&
+      formData.append("post_install_script", data.postInstallScript);
+    teamId && formData.append("team_id", teamId.toString());
+
+    return sendRequest(
+      "POST",
+      SOFTWARE_PACKAGE_ADD,
+      formData,
+      undefined,
+      timeout,
+      true
+    );
+  },
+
+  deleteSoftwarePackage: (softwareId: number, teamId: number) => {
+    const { SOFTWARE_AVAILABLE_FOR_INSTALL } = endpoints;
+    const path = `${SOFTWARE_AVAILABLE_FOR_INSTALL(
+      softwareId
+    )}?team_id=${teamId}`;
+    return sendRequest("DELETE", path);
+  },
+
+  downloadSoftwarePackage: (
+    softwareTitleId: number,
+    teamId: number
+  ): Promise<AxiosResponse> => {
+    const path = `${endpoints.SOFTWARE_PACKAGE(
+      softwareTitleId
+    )}?${buildQueryStringFromParams({ alt: "media", team_id: teamId })}`;
+
+    return sendRequest(
+      "GET",
+      path,
+      undefined,
+      "blob",
+      undefined,
+      undefined,
+      true // return raw response
+    );
+  },
+
+  getSoftwareInstallResult: (installUuid: string) => {
+    const { SOFTWARE_INSTALL_RESULTS } = endpoints;
+    const path = SOFTWARE_INSTALL_RESULTS(installUuid);
     return sendRequest("GET", path);
   },
 };

@@ -22,7 +22,7 @@ describe("Integrations Page", () => {
     const render = createCustomRenderer({
       withBackendMock: true,
       context: {
-        app: { isMdmEnabledAndConfigured: true },
+        app: { isMacMdmEnabledAndConfigured: true },
       },
     });
 

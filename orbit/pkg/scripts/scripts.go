@@ -9,15 +9,13 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-	"strings"
 	"time"
 	"unicode/utf8"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/rs/zerolog/log"
 )
-
-const scriptExecTimeout = 30 * time.Second
 
 // Client defines the methods required for the API requests to the server. The
 // fleet.OrbitClient type satisfies this interface.
@@ -32,6 +30,7 @@ type Client interface {
 type Runner struct {
 	Client                 Client
 	ScriptExecutionEnabled bool
+	ScriptExecutionTimeout time.Duration
 
 	// tempDirFn is the function to call to get the temporary directory to use,
 	// inside of which the script-specific subdirectories will be created. If nil,
@@ -41,7 +40,7 @@ type Runner struct {
 	// execCmdFn can be set for tests to mock actual execution of the script. If
 	// nil, execCmd will be used, which has a different implementation on Windows
 	// and non-Windows platforms.
-	execCmdFn func(ctx context.Context, scriptPath string) ([]byte, int, error)
+	execCmdFn func(ctx context.Context, scriptPath string, env []string) ([]byte, int, error)
 
 	// can be set for tests to replace os.RemoveAll, which is called to remove
 	// the script's temporary directory after execution.
@@ -60,34 +59,27 @@ func (r *Runner) Run(execIDs []string) error {
 			continue
 		}
 
-		if err := r.runOne(execID); err != nil {
+		script, err := r.Client.GetHostScript(execID)
+		if err != nil {
+			errs = append(errs, fmt.Errorf("get host script: %w", err))
+			// Stop here since we want to preserve the order in which scripts are queued.
+			break
+		}
+
+		log.Debug().Msgf("running script %v", execID)
+		if err := r.runOne(script); err != nil {
 			errs = append(errs, err)
 		}
 	}
 
 	if len(errs) > 0 {
-		// NOTE: when we upgrade to Go1.20, we can use errors.Join, but for now we
-		// just concatenate the error messages in a single error that will be logged
-		// by orbit.
-		var sb strings.Builder
-		for i, e := range errs {
-			if i > 0 {
-				sb.WriteString("\n")
-			}
-			sb.WriteString(e.Error())
-		}
-		return errors.New(sb.String())
+		return errors.Join(errs...)
 	}
 	return nil
 }
 
-func (r *Runner) runOne(execID string) (finalErr error) {
+func (r *Runner) runOne(script *fleet.HostScriptResult) (finalErr error) {
 	const maxOutputRuneLen = 10000
-
-	script, err := r.Client.GetHostScript(execID)
-	if err != nil {
-		return fmt.Errorf("get host script: %w", err)
-	}
 
 	if script.ExitCode != nil {
 		// already a result stored for this execution, skip, it shouldn't be sent
@@ -95,7 +87,7 @@ func (r *Runner) runOne(execID string) (finalErr error) {
 		return nil
 	}
 
-	runDir, err := r.createRunDir(execID)
+	runDir, err := r.createRunDir(script.ExecutionID)
 	if err != nil {
 		return fmt.Errorf("create run directory: %w", err)
 	}
@@ -113,26 +105,26 @@ func (r *Runner) runOne(execID string) (finalErr error) {
 		}()
 	}
 
-	ext := ".sh"
+	var ext string
 	if runtime.GOOS == "windows" {
 		ext = ".ps1"
 	}
 	scriptFile := filepath.Join(runDir, "script"+ext)
-	// the file does not need the executable bit set, it will be executed as
-	// argument to powershell or /bin/sh.
 	if err := os.WriteFile(scriptFile, []byte(script.ScriptContents), constant.DefaultFileMode); err != nil {
 		return fmt.Errorf("write script file: %w", err)
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), scriptExecTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), r.ScriptExecutionTimeout)
 	defer cancel()
 
 	execCmdFn := r.execCmdFn
 	if execCmdFn == nil {
-		execCmdFn = execCmd
+		execCmdFn = ExecCmd
 	}
 	start := time.Now()
-	output, exitCode, execErr := execCmdFn(ctx, scriptFile)
+	log.Debug().Msgf("starting script execution of %v with timeout of %v", script.ExecutionID, r.ScriptExecutionTimeout)
+	output, exitCode, execErr := execCmdFn(ctx, scriptFile, nil)
+	log.Debug().Msgf("after script execution of %v", script.ExecutionID)
 	duration := time.Since(start)
 
 	// report the output or the error
@@ -148,10 +140,11 @@ func (r *Runner) runOne(execID string) (finalErr error) {
 	}
 
 	err = r.Client.SaveHostScriptResult(&fleet.HostScriptResultPayload{
-		ExecutionID: execID,
+		ExecutionID: script.ExecutionID,
 		Output:      string(output),
 		Runtime:     int(duration.Seconds()),
 		ExitCode:    exitCode,
+		Timeout:     int(r.ScriptExecutionTimeout.Seconds()),
 	})
 	if err != nil {
 		return fmt.Errorf("save script result: %w", err)

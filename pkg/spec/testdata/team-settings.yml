@@ -1,0 +1,14 @@
+secrets:
+  - secret: "SampleSecret123"
+  - secret: "ABC"
+webhook_settings:
+  failing_policies_webhook:
+    enable_failing_policies_webhook: $ENABLE_FAILING_POLICIES_WEBHOOK
+    destination_url: https://example.tines.com/webhook
+    policy_ids: [1, 2, 3, 4, 5, 6 ,7, 8, 9]
+features:
+  enable_host_users: true
+  enable_software_inventory: true
+host_expiry_settings:
+  host_expiry_enabled: true
+  host_expiry_window: 30

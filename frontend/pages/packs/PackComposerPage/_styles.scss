@@ -1,4 +1,5 @@
 .pack-composer {
+  @include page;
   &__pack-form {
     background-color: $core-white;
     border-radius: 3px;

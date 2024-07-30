@@ -2,7 +2,7 @@
 
 
 
--
+ -
   task: "Prioritize for next sprint" # Title that will actually show in rituals table
   startedOn: "2023-09-04" # Needs to align with frequency e.g. if frequency is every thrid Thursday startedOn === any third thursday
   frequency: "Triweekly" # must be supported by
@@ -11,7 +11,25 @@
   dri: "alexmitchelliii" # DRI for ritual (assignee if autoIssue) (TODO display GitHub proflie pic instead of name or title)
   autoIssue:   # Enables automation of GitHub issues
     labels: [ "#g-sales" ] # label to be applied to issue
--
+    repo: "confidential"
+ -
+  task: "g-sales standup" # Title that will actually show in rituals table
+  startedOn: "2023-09-04" # Needs to align with frequency e.g. if frequency is every thrid Thursday startedOn === any third thursday
+  frequency: "Daily" # must be supported by
+  description: "Review progress on priorities for Sprint. Discuss previous day accomplishments, goals for today and any blockers." # example of a longer thing: description: "[Prioritizing next sprint](https://fleetdm.com/handbook/company/communication)"
+  moreInfoUrl: "https://fleetdm.com/handbook/company/why-this-way#why-make-work-visible" #URL used to highlight "description:" test in table
+  dri: "alexmitchelliii" # DRI for ritual (assignee if autoIssue) (TODO display GitHub proflie pic instead of name or title)
+ -
+  task: "Opportunity pipeline review" # Title that will actually show in rituals table
+  startedOn: "2023-09-04" # Needs to align with frequency e.g. if frequency is every thrid Thursday startedOn === any third thursday
+  frequency: "Weekly" # must be supported by
+  description: "Review status of sales opportunities and discuss next steps." # example of a longer thing: description: "[Prioritizing next sprint](https://fleetdm.com/handbook/company/communication)"
+  moreInfoUrl: "https://fleetdm.com/handbook/customers#review-rep-activity" #URL used to highlight "description:" test in table
+  dri: "alexmitchelliii" # DRI for ritual (assignee if autoIssue) (TODO display GitHub proflie pic instead of name or title)
+  autoIssue:   # Enables automation of GitHub issues
+    labels: [ "#g-sales" ] # label to be applied to issue
+    repo: "confidential"
+ -
   task: "Review rep activity"
   startedOn: "2023-09-18"
   frequency: "Monthly"

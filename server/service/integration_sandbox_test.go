@@ -6,11 +6,13 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"os"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/s3"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	kitlog "github.com/go-kit/log"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
@@ -32,7 +34,11 @@ func (s *integrationSandboxTestSuite) SetupSuite() {
 	cfg.Server.SandboxEnabled = true
 
 	is := s3.SetupTestInstallerStore(t, "integration-tests", "")
-	users, server := RunServerForTestsWithDS(t, s.ds, &TestServerOpts{FleetConfig: &cfg, Is: is})
+	opts := &TestServerOpts{FleetConfig: &cfg, Is: is}
+	if os.Getenv("FLEET_INTEGRATION_TESTS_DISABLE_LOG") != "" {
+		opts.Logger = kitlog.NewNopLogger()
+	}
+	users, server := RunServerForTestsWithDS(t, s.ds, opts)
 	s.server = server
 	s.users = users
 	s.token = s.getTestAdminToken()

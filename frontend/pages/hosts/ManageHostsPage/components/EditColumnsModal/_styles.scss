@@ -1,7 +1,7 @@
 .edit-columns-modal {
   &__column-headers {
     display: grid;
-    grid-template-columns: 1fr 1fr ;
-    grid-column-gap: $pad-medium;
+    grid-template-columns: 1fr 1fr;
+    gap: $pad-medium;
   }
 }

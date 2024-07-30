@@ -93,8 +93,15 @@
       width: 100%;
       overflow: auto;
     }
+
+    .delete__cell {
+      text-align: center;
+    }
   }
-  .input-icon-field__icon {
-    top: 34px; // Override styling to include label header
+
+  // override the default styles for the spinner.
+  // TODO: set better default styles for the spinner
+  .loading-spinner.centered {
+    margin: 1rem auto;
   }
 }

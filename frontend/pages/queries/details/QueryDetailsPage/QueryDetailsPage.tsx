@@ -17,6 +17,13 @@ import { IQueryReport } from "interfaces/query_report";
 
 import queryAPI from "services/entities/queries";
 import queryReportAPI, { ISortOption } from "services/entities/query_report";
+import {
+  isGlobalObserver,
+  isTeamObserver,
+} from "utilities/permissions/permissions";
+import { DOCUMENT_TITLE_SUFFIX, SUPPORT_LINK } from "utilities/constants";
+import { buildQueryStringFromParams } from "utilities/url";
+import useTeamIdParam from "hooks/useTeamIdParam";
 
 import Spinner from "components/Spinner/Spinner";
 import Button from "components/buttons/Button";
@@ -28,13 +35,13 @@ import DataError from "components/DataError/DataError";
 import LogDestinationIndicator from "components/LogDestinationIndicator/LogDestinationIndicator";
 import CustomLink from "components/CustomLink";
 import InfoBanner from "components/InfoBanner";
+import ShowQueryModal from "components/modals/ShowQueryModal";
 import QueryReport from "../components/QueryReport/QueryReport";
 import NoResults from "../components/NoResults/NoResults";
 
 import {
   DEFAULT_SORT_HEADER,
   DEFAULT_SORT_DIRECTION,
-  QUERY_REPORT_RESULTS_LIMIT,
 } from "./QueryDetailsPageConfig";
 
 interface IQueryDetailsPageProps {
@@ -55,10 +62,17 @@ const QueryDetailsPage = ({
   location,
 }: IQueryDetailsPageProps): JSX.Element => {
   const queryId = parseInt(paramsQueryId, 10);
+  if (isNaN(queryId)) {
+    router.push(PATHS.MANAGE_QUERIES);
+  }
   const queryParams = location.query;
-  const teamId = location.query.team_id
-    ? parseInt(location.query.team_id, 10)
-    : undefined;
+
+  const { currentTeamId } = useTeamIdParam({
+    location,
+    router,
+    includeAllTeams: true,
+    includeNoTeam: false,
+  });
 
   // Functions to avoid race conditions
   const serverSortBy: ISortOption[] = (() => {
@@ -72,20 +86,21 @@ const QueryDetailsPage = ({
 
   const handlePageError = useErrorHandler();
   const {
+    currentUser,
     isGlobalAdmin,
     isGlobalMaintainer,
     isTeamMaintainerOrTeamAdmin,
     isObserverPlus,
-    isAnyTeamObserverPlus,
     config,
     filteredQueriesPath,
     availableTeams,
     setCurrentTeam,
-    currentTeam,
+    isOnGlobalTeam,
   } = useContext(AppContext);
   const {
     lastEditedQueryName,
     lastEditedQueryDescription,
+    lastEditedQueryBody,
     lastEditedQueryObserverCanRun,
     lastEditedQueryDiscardData,
     lastEditedQueryLoggingType,
@@ -101,9 +116,7 @@ const QueryDetailsPage = ({
     setLastEditedQueryDiscardData,
   } = useContext(QueryContext);
 
-  // Title that shows up on browser tabs (e.g., Query details | Discover TLS certificates | Fleet for osquery)
-  document.title = `Query details | ${lastEditedQueryName} | Fleet for osquery`;
-
+  const [showQueryModal, setShowQueryModal] = useState(false);
   const [disabledCachingGlobally, setDisabledCachingGlobally] = useState(true);
 
   useEffect(() => {
@@ -141,6 +154,24 @@ const QueryDetailsPage = ({
     }
   );
 
+  /** Pesky bug affecting team level users:
+   - Navigating to queries/:id immediately defaults the user to the first team they're on
+  with the most permissions, in the URL bar because of useTeamIdParam
+  even if the queries/:id entity has a team attached to it
+  Hacky fix:
+   - Push entity's team id to url for team level users
+  */
+  if (
+    !isOnGlobalTeam &&
+    !isStoredQueryLoading &&
+    storedQuery?.team_id &&
+    !(storedQuery?.team_id?.toString() === location.query.team_id)
+  ) {
+    router.push(
+      `${location.pathname}?team_id=${storedQuery?.team_id?.toString()}`
+    );
+  }
+
   const {
     isLoading: isQueryReportLoading,
     data: queryReport,
@@ -169,19 +200,47 @@ const QueryDetailsPage = ({
     }
   }, [storedQuery]);
 
+  // Updates title that shows up on browser tabs
+  useEffect(() => {
+    // e.g., Discover TLS certificates | Queries | Fleet
+    if (storedQuery?.name) {
+      document.title = `${storedQuery.name} | Queries | ${DOCUMENT_TITLE_SUFFIX}`;
+    } else {
+      document.title = `Queries | ${DOCUMENT_TITLE_SUFFIX}`;
+    }
+  }, [location.pathname, storedQuery?.name]);
+
+  const onShowQueryModal = () => {
+    setShowQueryModal(!showQueryModal);
+  };
+
   const isLoading = isStoredQueryLoading || isQueryReportLoading;
   const isApiError = storedQueryError || queryReportError;
-  const isClipped =
-    (queryReport?.results?.length ?? 0) >= QUERY_REPORT_RESULTS_LIMIT;
-  const disabledLiveQuery = config?.server_settings.live_query_disabled;
+  const isClipped = queryReport?.report_clipped;
+  const isLiveQueryDisabled = config?.server_settings.live_query_disabled;
 
   const renderHeader = () => {
+    // Team admins/maintainers can only edit queries assigned to a team
     const canEditQuery =
-      isGlobalAdmin || isGlobalMaintainer || isTeamMaintainerOrTeamAdmin;
+      isGlobalAdmin ||
+      isGlobalMaintainer ||
+      (isTeamMaintainerOrTeamAdmin && storedQuery?.team_id);
+
+    const canLiveQuery =
+      lastEditedQueryObserverCanRun ||
+      isObserverPlus ||
+      isGlobalAdmin ||
+      isGlobalMaintainer ||
+      isTeamMaintainerOrTeamAdmin;
 
     // Function instead of constant eliminates race condition with filteredQueriesPath
     const backToQueriesPath = () => {
-      return filteredQueriesPath || PATHS.MANAGE_QUERIES;
+      return (
+        filteredQueriesPath ||
+        `${PATHS.MANAGE_QUERIES}?${buildQueryStringFromParams({
+          team_id: currentTeamId,
+        })}`
+      );
     };
 
     return (
@@ -201,10 +260,18 @@ const QueryDetailsPage = ({
                 </p>
               </div>
               <div className={`${baseClass}__action-button-container`}>
+                <Button
+                  className={`${baseClass}__show-query-btn`}
+                  onClick={onShowQueryModal}
+                  variant="text-icon"
+                >
+                  Show query
+                </Button>
                 {canEditQuery && (
                   <Button
                     onClick={() => {
-                      queryId && router.push(PATHS.EDIT_QUERY(queryId, teamId));
+                      queryId &&
+                        router.push(PATHS.EDIT_QUERY(queryId, currentTeamId));
                     }}
                     className={`${baseClass}__manage-automations button`}
                     variant="brand"
@@ -212,26 +279,26 @@ const QueryDetailsPage = ({
                     Edit query
                   </Button>
                 )}
-                {(lastEditedQueryObserverCanRun ||
-                  isObserverPlus ||
-                  isAnyTeamObserverPlus ||
-                  canEditQuery) && (
+                {canLiveQuery && (
                   <div
-                    className={`${baseClass}__button-wrap ${baseClass}__button-wrap--new-query`}
+                    className={`button-wrap ${baseClass}__button-wrap--new-query`}
                   >
                     <div
                       data-tip
                       data-for="live-query-button"
                       // Tooltip shows when live queries are globally disabled
-                      data-tip-disable={!disabledLiveQuery}
+                      data-tip-disable={!isLiveQueryDisabled}
                     >
                       <Button
                         className={`${baseClass}__run`}
                         variant="blue-green"
                         onClick={() => {
-                          queryId && router.push(PATHS.LIVE_QUERY(queryId));
+                          queryId &&
+                            router.push(
+                              PATHS.LIVE_QUERY(queryId, currentTeamId)
+                            );
                         }}
-                        disabled={disabledLiveQuery}
+                        disabled={isLiveQueryDisabled}
                       >
                         Live query
                       </Button>
@@ -288,18 +355,19 @@ const QueryDetailsPage = ({
   const renderClippedBanner = () => (
     <InfoBanner
       color="yellow"
-      cta={
-        <CustomLink
-          url="https://www.fleetdm.com/support"
-          text="Get help"
-          newTab
-        />
-      }
+      cta={<CustomLink url={SUPPORT_LINK} text="Get help" newTab />}
     >
       <div>
         <b>Report clipped.</b> A sample of this query&apos;s results is included
-        below. You can still use query automations to complete this report in
-        your log destination.
+        below.
+        {
+          // Exclude below message for global and team observers/observer+s
+          !(
+            (currentUser && isGlobalObserver(currentUser)) ||
+            isTeamObserver(currentUser, currentTeamId ?? null)
+          ) &&
+            " You can still use query automations to complete this report in your log destination."
+        }
       </div>
     </InfoBanner>
   );
@@ -321,7 +389,7 @@ const QueryDetailsPage = ({
     }
 
     // Empty state with varying messages explaining why there's no results
-    if (emptyCache) {
+    if (emptyCache || lastEditedQueryDiscardData) {
       return (
         <NoResults
           queryInterval={storedQuery?.interval}
@@ -342,6 +410,12 @@ const QueryDetailsPage = ({
         {renderHeader()}
         {isClipped && renderClippedBanner()}
         {renderReport()}
+        {showQueryModal && (
+          <ShowQueryModal
+            query={lastEditedQueryBody}
+            onCancel={onShowQueryModal}
+          />
+        )}
       </div>
     </MainContent>
   );

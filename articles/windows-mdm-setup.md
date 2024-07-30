@@ -2,58 +2,37 @@
 
 ![Windows MDM setup](../website/assets/images/articles/windows-mdm-fleet-1600x900@2x.png)
 
-## Overview
+To control OS settings, updates, and more on Windows hosts follow the manual enrollment instructions.
 
-> Windows MDM features are not ready for production and are currently in development. These features are disabled by default.
+To use automatic enrollment (aka zero-touch) features on Windows, follow instructions to connect Fleet to Microsoft Azure Active Directory (aka Microsoft Entra). You can further customize zero-touch with Windows Autopilot.
 
-Turning on Windows MDM features requires configuring Fleet with a certificate and key. This guide will walk you through how to upload these to Fleet and turn on Windows MDM.
+## Manual enrollment
 
-Automatic enrollment allows Windows workstations to automatically enroll to Fleet when they are first set up. Automatic enrollment requires Microsoft Azure Active Directory (aka Microsoft Entra). This guide will walk you through how to connect Azure AD to Fleet. 
-
-With Fleet connected to Azure AD, the end user will see Microsoft's default setup experience. You can further customize the initial setup with Windows Autopilot, which is similar to Apple's Automated Device Enrollment (DEP). Autopilot requires a Microsoft Intune license. This guide will also walk you through how to customize the intitial setup with Autopilot.
-
-## Requirements
-To use Fleet's Windows MDM features you need to have:
-- A [deployed Fleet instance](https://fleetdm.com/docs/deploy/introduction).
-- A Fleet user with the admin role.
-
-## Turning on Windows MDM
+### Step 1: Generate your certificate and key
 
 Fleet uses a certificate and key pair to authenticate and manage interactions between Fleet and Windows host.
 
-This section will show you how to:
-1. Generate your certificate and key
-2. Configure Fleet with your certificate and key
-3. Turn on Windows MDM in Fleet
+How to generate a certificate and key:
 
-### Step 1: generate your certificate and key
+1. With [OpenSSL](https://www.openssl.org/) installed, open your Terminal (macOS) or PowerShell (Windows) and run the following command to create a key: `openssl genrsa --traditional -out fleet-mdm-win-wstep.key 4096`.
 
-If you're already using Fleet's macOS MDM features, you already have a certificate and key. These are your SCEP certificate and SCEP private key you used when turning on macOS MDM.
+2. Create a certificate: `openssl req -x509 -new -nodes -key fleet-mdm-win-wstep.key -sha256 -days 3652 -out fleet-mdm-win-wstep.crt -subj '/CN=Fleet Root CA/C=US/O=Fleet.'`.
 
-If you're not using macOS MDM features, run the following command to download three files and send an email to you with an attached CSR file.
+> Note: The default `openssl` binary installed on macOS is actually `LibreSSL`, which doesn't support the `--traditional` flag. To successfully generate these files, make sure you're using `OpenSSL` and not `LibreSSL`. You can check what your `openssl` command points to by running `openssl version`.
 
-```
-fleetctl generate mdm-apple --email <email> --org <org> 
-```
 
-Save the SCEP certificate and SCEP key. These are your certificate and key. You can ignore the downloaded APNs key and the APNs CSR that was sent to your email.
+### Step 2: Configure Fleet with your certificate and key
 
-### Step 2: configure Fleet with your certificate and key
-
-1. In your Fleet server configuration, set the contents of the certificate and key in the following environment variables:
+In your Fleet server configuration, set the contents of the certificate and key in the following environment variables:
 
 > Note: Any environment variable that ends in `_BYTES` expects the file's actual content to be passed in, not a path to the file. If you want to pass in a file path, remove the `_BYTES` suffix from the environment variable.
 
 - [FLEET_MDM_WINDOWS_WSTEP_IDENTITY_CERT_BYTES](https://fleetdm.com/docs/deploying/configuration#mdm-windows-wstep-identity-cert-bytes)
 - [FLEET_MDM_WINDOWS_WSTEP_IDENTITY_KEY_BYTES](https://fleetdm.com/docs/deploying/configuration#mdm-windows-wstep-identity-key-bytes)
 
-2. Set the `FLEET_DEV_MDM_ENABLED` environment variable to `1`.
+Restart the Fleet server.
 
-3. Restart the Fleet server.
-
-### Step 3: Turn on Windows MDM in Fleet
-
-Fleet UI:
+### Step 3: Turn on Windows MDM
 
 1. Head to the **Settings > Integrations > Mobile device management (MDM) enrollment** page.
 
@@ -61,40 +40,49 @@ Fleet UI:
 
 3. Select **Turn on**.
 
-fleetctl CLI:
+### Step 4: Test manual enrollment
 
-1. Create `fleet-config.yaml` file or add to your existing `config` YAML file:
+With Windows MDM turned on, enroll a Windows host to Fleet by installing [Fleet's agent (fleetd)](https://fleetdm.com/docs/using-fleet/enroll-hosts).
 
-```yaml
-apiVersion: v1
-kind: config
-spec:
-  mdm:
-    windows_enabled_and_configured: true
-  ...
-```
+## Automatic enrollment
 
-2. Run the fleetctl `apply -f fleet-config.yml` command to turn on Windows MDM.
+> Available in Fleet Premium
 
-3. Confirm that Windows MDM is turned on by running `fleetctl get config`.
+To automatically enroll Windows workstations when they’re first unboxed and set up by your end users, we will connect Fleet to Microsoft Azure Active Directory (Azure AD).
 
-## Microsoft Azure Active Directory (AD)
+After you connect Fleet to Azure AD, you can customize the Windows setup experience with [Windows Autopilot](https://learn.microsoft.com/en-us/autopilot/windows-autopilot).
 
-> Available in Fleet Premium or Ultimate
+In order to connect Fleet to Azure AD, the IT admin (you) needs a Microsoft Enterprise Mobility + Security E3 license. 
 
-By connecting Fleet to Azure AD, Windows workstations can automatically enroll to Fleet when they’re first unboxed and set up by your end user.
+Each end user who automatically enrolls needs a Microsoft Intune license.
 
-This section will guide you through how to:
+### Step 1: Buy Microsoft licenses
 
-1. Connect Fleet to Azure AD
+1. Sign in to [Microsoft 365 admin center](https://admin.microsoft.com/).
 
-2. Test automatic enrollment
+2. In the left-side bar select **Marketplace**.
 
-### Step 1: connect Fleet to Azure AD
+3. On the **Marketplace** page, select **All products** and in the search bar below **All products** enter "Enterprise Mobility + Security E3".
+
+4. Find **Enterprise Mobility + Security E3** and select **Details**
+
+5. On the **Enterprise Mobility + Security E3** page, select **Buy** and follow instructions to purchase the license. 
+
+6. Find and buy an Intune license.
+
+7. Sign in to [Azure portal](https://portal.azure.com).
+
+8. At the top of the page search "Users" and select **Users**.
+
+9. Select or create a test user and select **Licenses**.
+
+10. Select **+ Assignments** and assign yourself the **Enterprise Mobility + Security E3**. Assign the test user the Intune licnese.
+
+### Step 2: Connect Fleet to Azure AD
 
 For instructions on how to connect Fleet to Azure AD, in the Fleet UI, select the avatar on the right side of the top navigation and select **Settings > Integrations > Automatic enrollment**. Then, next to **Windows automatic enrollment** select **Details**.
 
-### Step 2: test automatic enrollment
+### Step 3: Test automatic enrollment
 
 Testing automatic enrollment requires creating a test user in Azure AD and a freshly wiped or new Windows workstation.
 
@@ -114,47 +102,9 @@ Testing automatic enrollment requires creating a test user in Azure AD and a fre
 
 8. On the **My device** page, below **My device** confirm that your workstation has a **Status** of "Online."
 
-## Window Autopilot
+## Windows Autopilot
 
-> Available in Fleet Premium or Ultimate
-
-After you connect Fleet to Azure AD, you can customize the Windows setup experience with [Windows Autopilot](https://learn.microsoft.com/en-us/autopilot/windows-autopilot).
-
-This section will guide you through how to:
-
-1. Buy a Microsoft Intune license. Microsoft requires this for Autopilot.
-
-2. Create an Autopilot profile in Intune
-
-3. Register a test workstation with Autopilot
-
-4. Upload your organization's logo that end users will see during setup
-
-5. Test Autopilot
-
-### Step 1: buy a Microsoft Intune license
-
-Autopilot requires at least one Intune license to edit the Autopilot profile.
-
-1. Sign in to [Microsoft 365 admin center](https://admin.microsoft.com/).
-
-2. In the left-side bar select **Marketplace**.
-
-3. On the **Marketplace** page, select **All products** and in the search bar below **All products** enter "Intune".
-
-4. Find **Microsoft Intune Plan 1 Device** and select **Details**
-
-5. On the **Microsoft Intune Plan 1 Device** page, select **Buy** and follow instructions to purchase the license. 
-
-6. Sign in to [Azure portal](https://portal.azure.com).
-
-7. At the top of the page search "Users" and select **Users**.
-
-8. Select or create your Intune admin user and select **Licenses**.
-
-9. Select **+ Assignments** and assign the **Microsoft Intune Plan 1 Device** to this user.
-
-### Step 2: create an Autopilot profile
+### Step 1: Create an Autopilot profile
 
 1. Sign in to [Microsoft Intune](https://endpoint.microsoft.com/) using the Intune admin user from step 1.
 
@@ -162,7 +112,7 @@ Autopilot requires at least one Intune license to edit the Autopilot profile.
 
 3. Select **+ Create profile > Windows PC** and follow steps to create an Autopilot profile. On the **Assignments** step, select **+ Add all devices**.
 
-### Step 3: register a test workstation
+### Step 2: Register a test workstation
 
 1. Open your test workstation and follow these [Microsoft instructions](https://learn.microsoft.com/en-us/autopilot/add-devices#desktop-hash-export) to export your workstations's device hash as a CSV. The CSV should look something like `DeviceHash_DESKTOP-2V08FUI.csv`
 
@@ -172,7 +122,7 @@ Autopilot requires at least one Intune license to edit the Autopilot profile.
 
 4. After Intune finishes the import, refresh the **Windows Autopilot devices** page several times to confirm that your workstation is registered with Autopilot.
 
-### Step 4: upload your organization's logo
+### Step 3: Upload your organization's logo
 
 1. Navigate to [Azure portal](https://portal.azure.com).
 
@@ -184,7 +134,7 @@ Autopilot requires at least one Intune license to edit the Autopilot profile.
 
 5. In the bottom bar, select **Review + Save** and then **Save**.
 
-### Step 5: test Autopilot
+### Step 4: Test Autopilot
 
 1. Wipe your test workstation.
 

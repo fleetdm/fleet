@@ -15,7 +15,7 @@ type CapabilityMap map[Capability]struct{}
 // mu is used to allow for safe access to the capability map.
 var mu sync.Mutex
 
-// PopulateFromString populates the CapabilityMap from a comma separated string.
+// PopulateFromString populates the CapabilityMap from a comma-separated string.
 // Example: "foo,bar,baz" => {"foo": struct{}, "bar": struct{}, "baz": struct{}}
 func (c *CapabilityMap) PopulateFromString(s string) {
 	mu.Lock()
@@ -31,7 +31,7 @@ func (c *CapabilityMap) PopulateFromString(s string) {
 	}
 }
 
-// String returns a comma separated string with the capabilities in the map.
+// String returns a comma-separated string with the capabilities in the map.
 // Example: {"foo": struct{}, "bar": struct{}, "baz": struct{}} => "foo,bar,baz"
 func (c *CapabilityMap) String() string {
 	mu.Lock()
@@ -53,6 +53,15 @@ func (c CapabilityMap) Has(capability Capability) bool {
 	return ok
 }
 
+// Copy copies the capabilities from another map to this map.
+func (c CapabilityMap) Copy(from CapabilityMap) {
+	mu.Lock()
+	defer mu.Unlock()
+	for capability := range from {
+		c[capability] = struct{}{}
+	}
+}
+
 // The following are the capabilities that Fleet supports. These can be used by
 // the Fleet server, Orbit or Fleet Desktop to communicate that a given feature
 // is supported.
@@ -66,12 +75,16 @@ const (
 	// periodic rotation of device tokens
 	CapabilityTokenRotation  Capability = "token_rotation"
 	CapabilityErrorReporting Capability = "error_reporting"
+	// CapabilityEndUserEmail denotes the ability of the server to support
+	// receiving the end-user email from orbit.
+	CapabilityEndUserEmail Capability = "end_user_email"
 )
 
 func GetServerOrbitCapabilities() CapabilityMap {
 	return CapabilityMap{
 		CapabilityOrbitEndpoints: {},
 		CapabilityTokenRotation:  {},
+		CapabilityEndUserEmail:   {},
 	}
 }
 

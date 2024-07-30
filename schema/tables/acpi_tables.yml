@@ -1,10 +1,10 @@
 name: acpi_tables
 hidden: true
-# description: >- # (required) string - The description for this table. Note: this field supports markdown
+# description: |- # (required) string - The description for this table. Note: this field supports markdown
 #   # Add description here
-# examples: >- # (optional) string - An example query for this table. Note: This field supports markdown
+# examples: |- # (optional) string - An example query for this table. Note: This field supports markdown
 #   # Add examples here
-# notes: >- # (optional) string - Notes about this table. Note: This field supports markdown.
+# notes: |- # (optional) string - Notes about this table. Note: This field supports markdown.
 #   # Add notes here
 # columns: # (required)
 #   - name: # (required) string - The name of the column

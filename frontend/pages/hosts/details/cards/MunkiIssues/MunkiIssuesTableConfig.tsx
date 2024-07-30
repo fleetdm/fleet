@@ -1,7 +1,7 @@
 import React from "react";
 import { capitalize } from "lodash";
 
-import formatDistanceToNowStrict from "date-fns/formatDistanceToNowStrict";
+import { formatDistanceToNowStrict } from "date-fns";
 import { abbreviateTimeUnits } from "utilities/helpers";
 
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
@@ -46,10 +46,6 @@ interface IDataColumn {
   filter?: string; // one of the enumerated `filterTypes` for react-table
   // (see https://github.com/tannerlinsley/react-table/blob/master/src/filterTypes.js)
   // or one of the custom `filterTypes` defined for the `useTable` instance (see `DataTable`)
-}
-
-interface IMunkiIssueTableData extends IMunkiIssue {
-  time: string;
 }
 
 // NOTE: cellProps come from react-table

@@ -13,6 +13,7 @@ import input.subject
 read := "read"
 list := "list"
 write := "write"
+write_host_label := "write_host_label"
 
 # User specific actions
 write_role := "write_role"
@@ -22,6 +23,11 @@ change_password := "change_password"
 run := "run"
 # Action used on object "query" used for running "new" live queries.
 run_new := "run_new"
+
+# Selective prefixes over actions mean that they can be allowed in specific
+# cases for roles that usually aren't allowed to perform them.
+selective_read := "selective_read"
+selective_list := "selective_list"
 
 # Roles
 admin := "admin"
@@ -45,10 +51,10 @@ team_role(subject, team_id) = role {
 # Global config
 ##
 
-# Global admin, maintainer, observer_plus and observer can read global config.
+# Global admin, gitops, maintainer, observer_plus and observer can read global config.
 allow {
   object.type == "app_config"
-  subject.global_role == [admin, maintainer, observer_plus, observer][_]
+  subject.global_role == [admin, gitops, maintainer, observer_plus, observer][_]
   action == read
 }
 
@@ -211,47 +217,83 @@ allow {
 # Hosts
 ##
 
+# allowed_read_roles evaulates which roles are allowed for read based on the given action.
+allowed_read_roles(action, base_roles, extra_roles) = result {
+	action == selective_read
+	result := base_roles | extra_roles
+} else = result {
+	action == read
+	result := base_roles
+} else = result {
+	result := null
+}
+
+# allowed_list_roles evaulates which roles are allowed for list based on the given action.
+allowed_list_roles(action, base_roles, extra_roles) = result {
+	action == "selective_list"
+	result := base_roles | extra_roles
+} else = result {
+	action == "list"
+	result := base_roles
+} else = result {
+	result := null
+}
+
 # Global admins, maintainers, observer_plus and observers can list hosts.
 allow {
-  object.type == "host"
-  subject.global_role == [admin, maintainer, observer_plus, observer][_]
-  action == list
+	object.type == "host"
+	base_roles := {admin, maintainer, observer_plus, observer}
+	extra_roles := {gitops}
+	allowed_list_roles(action, base_roles, extra_roles)[_] == subject.global_role
 }
 
-# Team admins, maintainers, observer_plus and observers can list hosts.
+# Team admins, maintainers, observer_plus and observers can list and selective_list hosts.
+# Gitops can selective_list hosts
 allow {
 	object.type == "host"
-  # If role is admin, maintainer, observer_plus or observer on any team.
-  team_role(subject, subject.teams[_].id) == [admin, maintainer, observer_plus, observer][_]
-	action == list
+	# If role is admin, maintainer, observer_plus or observer on any team.
+	base_roles := {admin, maintainer, observer_plus, observer}
+	# Or gitops for selective reads
+	extra_roles := {gitops}
+	allowed_list_roles(action, base_roles, extra_roles)[_] == team_role(subject, subject.teams[_].id)
 }
 
-# Allow read/write for global admin/maintainer.
+# Allow read for global admin/maintainer, selective_read for gitops.
 allow {
 	object.type == "host"
-  subject.global_role == [admin, maintainer][_]
-	action == [read, write][_]
+	base_roles := {admin, maintainer}
+	extra_roles := {gitops}
+	allowed_read_roles(action, base_roles, extra_roles)[_] == subject.global_role
 }
 
-# Global gitops can write hosts.
+# Global gitops, admin and mantainers can write hosts.
 allow {
 	object.type == "host"
-  subject.global_role == gitops
+	subject.global_role == [admin, maintainer, gitops][_]
 	action == write
 }
 
-# Allow read for global observer and observer_plus.
+# Global admin, mantainers and gitops can write labels to hosts.
 allow {
 	object.type == "host"
-	subject.global_role == [observer, observer_plus][_]
-	action == read
+	subject.global_role == [admin, maintainer, gitops][_]
+	action == write_host_label
 }
 
-# Allow read for matching team admin/maintainer/observer/observer_plus.
+# Allow read for global observer and observer_plus, selective_read for gitops.
 allow {
 	object.type == "host"
-	team_role(subject, object.team_id) == [admin, maintainer, observer, observer_plus][_]
-	action == read
+	base_roles := {observer_plus, observer}
+	extra_roles := {gitops}
+	allowed_read_roles(action, base_roles, extra_roles)[_] == subject.global_role
+}
+
+# Allow read for matching team admin/maintainer/observer/observer_plus, selective read for gitops.
+allow {
+	object.type == "host"
+	base_roles := {admin, maintainer, observer, observer_plus}
+	extra_roles := {gitops}
+	allowed_read_roles(action, base_roles, extra_roles)[_] == team_role(subject, object.team_id)
 }
 
 # Team admins and maintainers can write to hosts of their own team
@@ -259,6 +301,28 @@ allow {
 	object.type == "host"
 	team_role(subject, object.team_id) == [admin, maintainer][_]
 	action == write
+}
+
+# Team admins, maintainers and gitops can write labels to hosts of their own team.
+allow {
+	object.type == "host"
+	team_role(subject, object.team_id) == [admin, maintainer, gitops][_]
+	action == write_host_label
+}
+
+# Allow read for host health for global admin/maintainer, team admins, observer.
+allow {
+	object.type == "host_health"
+  subject.global_role == [admin, maintainer, observer][_]
+	action == read
+}
+
+
+# Allow read for host health for team admin/maintainer, team admins, observer.
+allow {
+  object.type == "host_health"
+  team_role(subject, object.team_id) == [admin, maintainer, observer][_]
+  action == read
 }
 
 ##
@@ -298,10 +362,10 @@ allow {
   action == write
 }
 
-# Global admins, maintainers, observer_plus and observers can read queries.
+# Global admins, maintainers, gitops, observer_plus and observers can read queries.
 allow {
   object.type == "query"
-  subject.global_role == [admin, maintainer, observer_plus, observer][_]
+  subject.global_role == [admin, maintainer, gitops, observer_plus, observer][_]
   action == read
 }
 
@@ -313,11 +377,11 @@ allow {
   action == write
 }
 
-# Team admins, maintainers, observer_plus and observers can read queries for their teams.
+# Team admins, maintainers, gitops, observer_plus and observers can read queries for their teams.
 allow {
   object.type == "query"
   not is_null(object.team_id)
-  team_role(subject, object.team_id) == [admin, maintainer, observer_plus, observer][_]
+  team_role(subject, object.team_id) == [admin, maintainer, gitops, observer_plus, observer][_]
   action == read
 }
 
@@ -522,18 +586,11 @@ allow {
 # Policies
 ##
 
-# Global admins and maintainers can read and write policies.
+# Global admins, maintainers, and gitops can read and write policies.
 allow {
   object.type == "policy"
-  subject.global_role == [admin, maintainer][_]
+  subject.global_role == [admin, maintainer, gitops][_]
   action == [read, write][_]
-}
-
-# Global gitops can write policies.
-allow {
-  object.type == "policy"
-  subject.global_role == gitops
-  action == write
 }
 
 # Global observer and observer_plus can read any policies.
@@ -543,20 +600,12 @@ allow {
   action == read
 }
 
-# Team admin and maintainers can read and write policies for their teams.
+# Team admin, maintainers, and gitops can read and write policies for their teams.
 allow {
   not is_null(object.team_id)
   object.type == "policy"
-  team_role(subject, object.team_id) == [admin, maintainer][_]
+  team_role(subject, object.team_id) == [admin, maintainer, gitops][_]
   action == [read, write][_]
-}
-
-# Team gitops can write policies for their teams.
-allow {
-  not is_null(object.team_id)
-  object.type == "policy"
-  team_role(subject, object.team_id) == gitops
-  action == write
 }
 
 # Team admin, maintainers, observers and observers_plus can read global policies
@@ -594,40 +643,94 @@ allow {
   action == read
 }
 
+# Global admins and maintainers can read any installable entity (software installer or VPP app)
+allow {
+  object.type == "installable_entity"
+  subject.global_role == [admin, maintainer][_]
+  action == read
+}
+
+# Global admins, maintainers, and gitops can write any installable entity (software installer or VPP app)
+allow {
+  object.type == "installable_entity"
+  subject.global_role == [admin, maintainer, gitops][_]
+  action == write
+}
+
+# Team admins and maintainers can read any installable entity (software installer or VPP app) in their teams.
+allow {
+  not is_null(object.team_id)
+  object.type == "installable_entity"
+  team_role(subject, object.team_id) == [admin, maintainer][_]
+  action == read
+}
+
+# Team admins, maintainers, and gitops can write any installable entity (software installer or VPP app) in their teams.
+allow {
+  not is_null(object.team_id)
+  object.type == "installable_entity"
+  team_role(subject, object.team_id) == [admin, maintainer, gitops][_]
+  action == write
+}
+
+##
+# Host software installs
+##
+
+# Global admins and maintainers can write (install) software on hosts (not
+# gitops as this is not something that relates to fleetctl apply).
+allow {
+  object.type == "host_software_installer_result"
+  subject.global_role == [admin, maintainer][_]
+  action == write
+}
+
+# Team admin and maintainers can write (install) software on hosts for their
+# teams (not gitops as this is not something that relates to fleetctl apply).
+allow {
+  object.type == "host_software_installer_result"
+  not is_null(object.host_team_id)
+  team_role(subject, object.host_team_id) == [admin, maintainer][_]
+  action == write
+}
+
+
+# Global admins and maintainers can read software install results on hosts (not
+# gitops as this is not something that relates to fleetctl apply).
+allow {
+  object.type == "host_software_installer_result"
+  subject.global_role == [admin, maintainer, observer, observer_plus][_]
+  action == read
+}
+
+# Team admin and maintainers can read software install results on hosts for their
+# teams (not gitops as this is not something that relates to fleetctl apply).
+allow {
+  object.type == "host_software_installer_result"
+  not is_null(object.host_team_id)
+  team_role(subject, object.host_team_id) == [admin, maintainer, observer, observer_plus][_]
+  action == read
+}
+
+
 ##
 # Apple and Windows MDM
 ##
 
-# Global admins and maintainers can read and write MDM config profiles.
+# Global admins, maintainers and gitops can read and write MDM config profiles.
 allow {
   object.type == "mdm_config_profile"
-  subject.global_role == [admin, maintainer][_]
+  subject.global_role == [admin, maintainer, gitops][_]
   action == [read, write][_]
 }
 
-# Global gitops can write MDM config profiles.
-allow {
-  object.type == "mdm_config_profile"
-  subject.global_role == gitops
-  action == write
-}
-
-# Team admins and maintainers can read and write MDM config profiles on their teams.
+# Team admins, maintainers and gitops can read and write MDM config profiles on their teams.
 allow {
   not is_null(object.team_id)
   object.team_id != 0
   object.type == "mdm_config_profile"
-  team_role(subject, object.team_id) == [admin, maintainer][_]
+  team_role(subject, object.team_id) == [admin, maintainer, gitops][_]
   action == [read, write][_]
-}
-
-# Team gitops can write MDM config profiles on their teams.
-allow {
-  not is_null(object.team_id)
-  object.team_id != 0
-  object.type == "mdm_config_profile"
-  team_role(subject, object.team_id) == gitops
-  action == write
 }
 
 # Global admins can read and write MDM apple information.
@@ -793,6 +896,13 @@ allow {
   action == write
 }
 
+# Any logged in user can read the manual enrollment profile data.
+allow {
+	object.type == "mdm_apple_manual_enrollment_profile"
+	not is_null(subject)
+	action == read
+}
+
 ##
 # Cron schedules
 ##
@@ -819,22 +929,11 @@ allow {
 # Host Script Result (script execution and output)
 ##
 
-# Global admins and maintainers can write (execute) anonymous scripts (not
+# Global admins and maintainers can write (execute) scripts (not
 # gitops as this is not something that relates to fleetctl apply).
 allow {
   object.type == "host_script_result"
-  is_null(object.script_id)
   subject.global_role == [admin, maintainer][_]
-  action == write
-}
-
-# Global admins, maintainers, observer_plus and observers can write (execute)
-# saved scripts (not gitops as this is not something that relates to fleetctl
-# apply).
-allow {
-  object.type == "host_script_result"
-  not is_null(object.script_id)
-  subject.global_role == [admin, maintainer, observer, observer_plus][_]
   action == write
 }
 
@@ -845,24 +944,12 @@ allow {
   action == read
 }
 
-# Team admin and maintainers can write (execute) anonymous scripts for their
+# Team admin and maintainers can write (execute) scripts for their
 # teams (not gitops as this is not something that relates to fleetctl apply).
 allow {
   object.type == "host_script_result"
-  is_null(object.script_id)
   not is_null(object.team_id)
   team_role(subject, object.team_id) == [admin, maintainer][_]
-  action == write
-}
-
-# Team admins, maintainers, observer_plus and observers can write (execute)
-# saved scripts for their teams (not gitops as this is not something that
-# relates to fleetctl apply).
-allow {
-  object.type == "host_script_result"
-  not is_null(object.script_id)
-  not is_null(object.team_id)
-  team_role(subject, object.team_id) == [admin, maintainer, observer_plus, observer][_]
   action == write
 }
 
@@ -878,10 +965,10 @@ allow {
 # Scripts (saved script)
 ##
 
-# Global admins and maintainers can write (upload) saved scripts.
+# Global admins, maintainers, and gitops can write (upload) saved scripts.
 allow {
   object.type == "script"
-  subject.global_role == [admin, maintainer][_]
+  subject.global_role == [admin, maintainer, gitops][_]
   action == write
 }
 
@@ -892,11 +979,11 @@ allow {
   action == read
 }
 
-# Team admin and maintainers can write (upload) saved scripts for their teams.
+# Team admin, maintainers, and gitops can write (upload) saved scripts for their teams.
 allow {
   object.type == "script"
   not is_null(object.team_id)
-  team_role(subject, object.team_id) == [admin, maintainer][_]
+  team_role(subject, object.team_id) == [admin, maintainer, gitops][_]
   action == write
 }
 

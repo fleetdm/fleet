@@ -2,6 +2,8 @@ package mysql
 
 import (
 	"context"
+	"database/sql"
+	"encoding/hex"
 	"fmt"
 	"math/rand"
 	"sort"
@@ -12,11 +14,14 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/oval"
+	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/exp/slices"
+	"golang.org/x/sync/errgroup"
 )
 
 func TestSoftware(t *testing.T) {
@@ -39,6 +44,7 @@ func TestSoftware(t *testing.T) {
 		{"HostsByCVE", testHostsByCVE},
 		{"HostVulnSummariesBySoftwareIDs", testHostVulnSummariesBySoftwareIDs},
 		{"UpdateHostSoftware", testUpdateHostSoftware},
+		{"UpdateHostSoftwareDeadlock", testUpdateHostSoftwareDeadlock},
 		{"UpdateHostSoftwareUpdatesSoftware", testUpdateHostSoftwareUpdatesSoftware},
 		{"ListSoftwareByHostIDShort", testListSoftwareByHostIDShort},
 		{"ListSoftwareVulnerabilitiesByHostIDsSource", testListSoftwareVulnerabilitiesByHostIDsSource},
@@ -46,6 +52,7 @@ func TestSoftware(t *testing.T) {
 		{"ListCVEs", testListCVEs},
 		{"ListSoftwareForVulnDetection", testListSoftwareForVulnDetection},
 		{"AllSoftwareIterator", testAllSoftwareIterator},
+		{"AllSoftwareIteratorForCustomLinuxImages", testSoftwareIteratorForLinuxKernelCustomImages},
 		{"UpsertSoftwareCPEs", testUpsertSoftwareCPEs},
 		{"DeleteOutOfDateVulnerabilities", testDeleteOutOfDateVulnerabilities},
 		{"DeleteSoftwareCPEs", testDeleteSoftwareCPEs},
@@ -55,6 +62,9 @@ func TestSoftware(t *testing.T) {
 		{"hostSoftwareInstalledPathsDelta", testHostSoftwareInstalledPathsDelta},
 		{"deleteHostSoftwareInstalledPaths", testDeleteHostSoftwareInstalledPaths},
 		{"insertHostSoftwareInstalledPaths", testInsertHostSoftwareInstalledPaths},
+		{"VerifySoftwareChecksum", testVerifySoftwareChecksum},
+		{"ListHostSoftware", testListHostSoftware},
+		{"SetHostSoftwareInstallResult", testSetHostSoftwareInstallResult},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -96,7 +106,7 @@ func testSoftwareSaveHost(t *testing.T, ds *Datastore) {
 	host1Software := getHostSoftware(host1)
 	test.ElementsMatchSkipIDAndHostCount(t, software1, host1Software)
 
-	soft1ByID, err := ds.SoftwareByID(context.Background(), host1.HostSoftware.Software[0].ID, false)
+	soft1ByID, err := ds.SoftwareByID(context.Background(), host1.HostSoftware.Software[0].ID, nil, false, nil)
 	require.NoError(t, err)
 	require.NotNil(t, soft1ByID)
 	assert.Equal(t, host1Software[0], *soft1ByID)
@@ -216,9 +226,15 @@ func testSoftwareHostDuplicates(t *testing.T, ds *Datastore) {
 	soft2Key := sw.ToUniqueStr()
 	incoming[soft2Key] = *sw
 
+	incomingByChecksum, existingSoftware, existingTitlesForNewSoftware, err := ds.getExistingSoftware(
+		context.Background(), make(map[string]fleet.Software), incoming,
+	)
+	require.NoError(t, err)
 	tx, err := ds.writer(context.Background()).Beginx()
 	require.NoError(t, err)
-	_, err = insertNewInstalledHostSoftwareDB(context.Background(), tx, host1.ID, make(map[string]fleet.Software), incoming)
+	_, err = ds.insertNewInstalledHostSoftwareDB(
+		context.Background(), tx, host1.ID, incomingByChecksum, existingSoftware, existingTitlesForNewSoftware,
+	)
 	require.NoError(t, err)
 	require.NoError(t, tx.Commit())
 
@@ -239,9 +255,15 @@ func testSoftwareHostDuplicates(t *testing.T, ds *Datastore) {
 	soft3Key := sw.ToUniqueStr()
 	incoming[soft3Key] = *sw
 
+	incomingByChecksum, existingSoftware, existingTitlesForNewSoftware, err = ds.getExistingSoftware(
+		context.Background(), make(map[string]fleet.Software), incoming,
+	)
+	require.NoError(t, err)
 	tx, err = ds.writer(context.Background()).Beginx()
 	require.NoError(t, err)
-	_, err = insertNewInstalledHostSoftwareDB(context.Background(), tx, host1.ID, make(map[string]fleet.Software), incoming)
+	_, err = ds.insertNewInstalledHostSoftwareDB(
+		context.Background(), tx, host1.ID, incomingByChecksum, existingSoftware, existingTitlesForNewSoftware,
+	)
 	require.NoError(t, err)
 	require.NoError(t, tx.Commit())
 
@@ -287,20 +309,25 @@ func testSoftwareLoadVulnerabilities(t *testing.T, ds *Datastore) {
 	}
 	require.NoError(t, ds.LoadHostSoftware(context.Background(), host, false))
 
-	softByID, err := ds.SoftwareByID(context.Background(), host.HostSoftware.Software[0].ID, false)
+	softByID, err := ds.SoftwareByID(context.Background(), host.HostSoftware.Software[0].ID, nil, false, nil)
 	require.NoError(t, err)
 	require.NotNil(t, softByID)
 	require.Len(t, softByID.Vulnerabilities, 2)
+	assert.GreaterOrEqual(t, softByID.Vulnerabilities[0].CreatedAt, time.Now().Add(-time.Minute))
 
 	assert.Equal(t, "somecpe", host.Software[0].GenerateCPE)
 	require.Len(t, host.Software[0].Vulnerabilities, 2)
+
+	sort.Slice(host.Software[0].Vulnerabilities, func(i, j int) bool {
+		return host.Software[0].Vulnerabilities[i].CVE < host.Software[0].Vulnerabilities[j].CVE
+	})
+
 	assert.Equal(t, "CVE-2022-0001", host.Software[0].Vulnerabilities[0].CVE)
 	assert.Equal(t,
 		"https://nvd.nist.gov/vuln/detail/CVE-2022-0001", host.Software[0].Vulnerabilities[0].DetailsLink)
 	assert.Equal(t, "CVE-2022-0002", host.Software[0].Vulnerabilities[1].CVE)
 	assert.Equal(t,
 		"https://nvd.nist.gov/vuln/detail/CVE-2022-0002", host.Software[0].Vulnerabilities[1].DetailsLink)
-
 	assert.Equal(t, "someothercpewithoutvulns", host.Software[1].GenerateCPE)
 	require.Len(t, host.Software[1].Vulnerabilities, 0)
 }
@@ -415,15 +442,33 @@ func testSoftwareNothingChanged(t *testing.T, ds *Datastore) {
 			[]fleet.Software{{Name: "A", Version: "1.0", Source: "ASD", LastOpenedAt: ptr.Time(time.Now())}},
 			true,
 		},
+		{
+			"identical with duplicates incoming",
+			[]fleet.Software{{Name: "A", Version: "1.0", Source: "ASD"}},
+			[]fleet.Software{{Name: "A", Version: "1.0", Source: "ASD"}, {Name: "A", Version: "1.0", Source: "ASD"}},
+			true,
+		},
+		{
+			"identical with duplicates incoming and insignificantly changed last open",
+			[]fleet.Software{{Name: "A", Version: "1.0", Source: "ASD", LastOpenedAt: ptr.Time(time.Now().Add(-time.Second))}},
+			[]fleet.Software{
+				{Name: "A", Version: "1.0", Source: "ASD"},
+				{Name: "A", Version: "1.0", Source: "ASD", LastOpenedAt: ptr.Time(time.Now().Add(-time.Hour))},
+				{Name: "A", Version: "1.0", Source: "ASD", LastOpenedAt: ptr.Time(time.Now())},
+			},
+			true,
+		},
 	}
 	for _, c := range cases {
 		t.Run(c.desc, func(t *testing.T) {
-			got := nothingChanged(c.current, c.incoming, defaultMinLastOpenedAtDiff)
+			current, incoming, got := nothingChanged(c.current, c.incoming, defaultMinLastOpenedAtDiff)
 			if c.want {
-				require.True(t, got)
+				assert.True(t, got)
+				assert.Equal(t, len(current), len(incoming))
 			} else {
-				require.False(t, got)
+				assert.False(t, got)
 			}
+			assert.Equal(t, len(c.current), len(current))
 		})
 	}
 }
@@ -506,8 +551,8 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 	host3 := test.NewHost(t, ds, "host3", "", "host3key", "host3uuid", time.Now())
 
 	software1 := []fleet.Software{
-		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
 		{Name: "foo", Version: "0.0.3", Source: "chrome_extensions"},
+		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
 	}
 	software2 := []fleet.Software{
 		{Name: "foo", Version: "v0.0.2", Source: "chrome_extensions"},
@@ -548,9 +593,9 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 	})
 
 	vulns := []fleet.SoftwareVulnerability{
-		{SoftwareID: host1.Software[0].ID, CVE: "CVE-2022-0001", ResolvedInVersion: "2.0.0"},
-		{SoftwareID: host1.Software[0].ID, CVE: "CVE-2022-0002", ResolvedInVersion: "2.0.0"},
-		{SoftwareID: host3.Software[0].ID, CVE: "CVE-2022-0003", ResolvedInVersion: "2.0.0"},
+		{SoftwareID: host1.Software[0].ID, CVE: "CVE-2022-0001", ResolvedInVersion: ptr.String("2.0.0")},
+		{SoftwareID: host1.Software[0].ID, CVE: "CVE-2022-0002", ResolvedInVersion: ptr.String("2.0.0")},
+		{SoftwareID: host3.Software[0].ID, CVE: "CVE-2022-0003", ResolvedInVersion: ptr.String("2.0.0")},
 	}
 
 	for _, v := range vulns {
@@ -655,9 +700,10 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 	t.Run("paginates", func(t *testing.T) {
 		opts := fleet.SoftwareListOptions{
 			ListOptions: fleet.ListOptions{
-				Page:     1,
-				PerPage:  1,
-				OrderKey: "version",
+				Page:            1,
+				PerPage:         1,
+				OrderKey:        "version",
+				IncludeMetadata: true,
 			},
 			IncludeCVEScores: true,
 		}
@@ -691,25 +737,29 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 		software := listSoftwareCheckCount(t, ds, 2, 2, opts, true)
 		expected := []fleet.Software{foo001, foo003}
 		test.ElementsMatchSkipID(t, software, expected)
-	})
 
-	t.Run("filters by team and paginates", func(t *testing.T) {
-		team1, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team1-" + t.Name()})
-		require.NoError(t, err)
-		require.NoError(t, ds.AddHostsToTeam(context.Background(), &team1.ID, []uint{host1.ID}))
-
-		require.NoError(t, ds.SyncHostsSoftware(context.Background(), time.Now()))
-
-		opts := fleet.SoftwareListOptions{
-			ListOptions: fleet.ListOptions{
-				PerPage:  1,
-				Page:     1,
-				OrderKey: "id",
-			},
-			TeamID: &team1.ID,
+		// Now that we have the software, we can test pagination.
+		// Figure out which software has the highest ID.
+		targetSoftware := software[0]
+		if targetSoftware.ID < software[1].ID {
+			targetSoftware = software[1]
 		}
-		software := listSoftwareCheckCount(t, ds, 1, 2, opts, true)
-		expected := []fleet.Software{foo003}
+		expected = []fleet.Software{foo001}
+		if targetSoftware.Name == "foo" && targetSoftware.Version == "0.0.3" {
+			expected = []fleet.Software{foo003}
+		}
+
+		opts = fleet.SoftwareListOptions{
+			ListOptions: fleet.ListOptions{
+				PerPage:         1,
+				Page:            1, // 2nd item, since 1st item is on page 0
+				OrderKey:        "id",
+				IncludeMetadata: true,
+			},
+			TeamID:           &team1.ID,
+			IncludeCVEScores: true,
+		}
+		software = listSoftwareCheckCount(t, ds, 1, 2, opts, true)
 		test.ElementsMatchSkipID(t, software, expected)
 	})
 
@@ -880,16 +930,38 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 }
 
 func listSoftwareCheckCount(t *testing.T, ds *Datastore, expectedListCount int, expectedFullCount int, opts fleet.SoftwareListOptions, returnSorted bool) []fleet.Software {
-	software, err := ds.ListSoftware(context.Background(), opts)
+	software, meta, err := ds.ListSoftware(context.Background(), opts)
 	require.NoError(t, err)
 	require.Len(t, software, expectedListCount)
 	count, err := ds.CountSoftware(context.Background(), opts)
 	require.NoError(t, err)
 	require.Equal(t, expectedFullCount, count)
-	for _, s := range software {
+
+	if opts.ListOptions.IncludeMetadata {
+		require.NotNil(t, meta)
+		if expectedListCount == expectedFullCount {
+			require.False(t, meta.HasPreviousResults)
+			require.True(t, meta.HasNextResults)
+		}
+		if expectedFullCount > expectedListCount {
+			shouldHavePrevious := opts.ListOptions.Page > 0
+			require.Equal(t, shouldHavePrevious, meta.HasPreviousResults)
+
+			shouldHaveNext := uint(expectedFullCount) > (opts.ListOptions.Page+1)*opts.ListOptions.PerPage // page is 0-indexed
+			require.Equal(t, shouldHaveNext, meta.HasNextResults)
+		}
+	} else {
+		require.Nil(t, meta)
+	}
+
+	for i, s := range software {
 		sort.Slice(s.Vulnerabilities, func(i, j int) bool {
 			return s.Vulnerabilities[i].CVE < s.Vulnerabilities[j].CVE
 		})
+		for i2, v := range s.Vulnerabilities {
+			require.Greater(t, v.CreatedAt, time.Now().Add(-time.Hour)) // assert non-zero
+			software[i].Vulnerabilities[i2].CreatedAt = time.Time{}     // zero out for comparison
+		}
 	}
 
 	if returnSorted {
@@ -901,6 +973,17 @@ func listSoftwareCheckCount(t *testing.T, ds *Datastore, expectedListCount int, 
 }
 
 func testSoftwareSyncHostsSoftware(t *testing.T, ds *Datastore) {
+	countHostSoftwareBatchSizeOrig := countHostSoftwareBatchSize
+	softwareInsertBatchSizeOrig := softwareInsertBatchSize
+	t.Cleanup(
+		func() {
+			countHostSoftwareBatchSize = countHostSoftwareBatchSizeOrig
+			softwareInsertBatchSize = softwareInsertBatchSizeOrig
+		},
+	)
+	countHostSoftwareBatchSize = 2
+	softwareInsertBatchSize = 2
+
 	ctx := context.Background()
 
 	cmpNameVersionCount := func(want, got []fleet.Software) {
@@ -921,9 +1004,21 @@ func testSoftwareSyncHostsSoftware(t *testing.T, ds *Datastore) {
 		require.Equal(t, want, tableCount)
 	}
 
+	host0 := test.NewHost(t, ds, "host0", "", "host0key", "host0uuid", time.Now())
 	host1 := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
 	host2 := test.NewHost(t, ds, "host2", "", "host2key", "host2uuid", time.Now())
+	hostTemp := test.NewHost(t, ds, "hostTemp", "", "hostTempKey", "hostTempUuid", time.Now())
 
+	// Get counts without any software.
+	globalOpts := fleet.SoftwareListOptions{
+		WithHostCounts: true, ListOptions: fleet.ListOptions{OrderKey: "hosts_count", OrderDirection: fleet.OrderDescending},
+	}
+	_ = listSoftwareCheckCount(t, ds, 0, 0, globalOpts, false)
+
+	software0 := []fleet.Software{
+		{Name: "abc", Version: "0.0.1", Source: "apps"},
+		{Name: "def", Version: "0.0.1", Source: "apps"},
+	}
 	software1 := []fleet.Software{
 		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
 		{Name: "foo", Version: "0.0.3", Source: "chrome_extensions"},
@@ -933,17 +1028,33 @@ func testSoftwareSyncHostsSoftware(t *testing.T, ds *Datastore) {
 		{Name: "foo", Version: "0.0.3", Source: "chrome_extensions"},
 		{Name: "bar", Version: "0.0.3", Source: "deb_packages"},
 	}
+	softwareTemp := make([]fleet.Software, 0, 10)
+	for i := 0; i < 10; i++ {
+		softwareTemp = append(
+			softwareTemp, fleet.Software{Name: fmt.Sprintf("foo%d", i), Version: fmt.Sprintf("%d.0.1", i), Source: "deb_packages"},
+		)
+	}
 
-	_, err := ds.UpdateHostSoftware(ctx, host1.ID, software1)
+	_, err := ds.UpdateHostSoftware(ctx, host0.ID, software0)
+	require.NoError(t, err)
+	_, err = ds.UpdateHostSoftware(ctx, host1.ID, software1)
+	require.NoError(t, err)
+	_, err = ds.UpdateHostSoftware(ctx, hostTemp.ID, softwareTemp)
 	require.NoError(t, err)
 	_, err = ds.UpdateHostSoftware(ctx, host2.ID, software2)
 	require.NoError(t, err)
 
 	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
 
-	globalOpts := fleet.SoftwareListOptions{WithHostCounts: true, ListOptions: fleet.ListOptions{OrderKey: "hosts_count", OrderDirection: fleet.OrderDescending}}
-	globalCounts := listSoftwareCheckCount(t, ds, 4, 4, globalOpts, false)
+	_ = listSoftwareCheckCount(t, ds, 16, 16, globalOpts, false)
+	checkTableTotalCount(16)
 
+	// Now, delete 2 hosts. Software with the lowest ID is removed, and there should be a chunk with missing software IDs from the deleted hostTemp software.
+	require.NoError(t, ds.DeleteHost(ctx, host0.ID))
+	require.NoError(t, ds.DeleteHost(ctx, hostTemp.ID))
+
+	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
+	globalCounts := listSoftwareCheckCount(t, ds, 4, 4, globalOpts, false)
 	want := []fleet.Software{
 		{Name: "foo", Version: "0.0.3", HostsCount: 2},
 		{Name: "foo", Version: "0.0.1", HostsCount: 1},
@@ -972,7 +1083,7 @@ func testSoftwareSyncHostsSoftware(t *testing.T, ds *Datastore) {
 	checkTableTotalCount(3)
 
 	// create a software entry without any host and any counts
-	_, err = ds.writer(ctx).ExecContext(ctx, `INSERT INTO software (name, version, source) VALUES ('baz', '0.0.1', 'testing')`)
+	_, err = ds.writer(ctx).ExecContext(ctx, fmt.Sprintf(`INSERT INTO software (name, version, source, checksum) VALUES ('baz', '0.0.1', 'testing', %s)`, softwareChecksumComputedColumn("")))
 	require.NoError(t, err)
 
 	// listing does not return the new software entry
@@ -1025,6 +1136,10 @@ func testSoftwareSyncHostsSoftware(t *testing.T, ds *Datastore) {
 	want = []fleet.Software{}
 	cmpNameVersionCount(want, team1Counts)
 	checkTableTotalCount(3)
+	require.NoError(t, ds.LoadHostSoftware(context.Background(), host1, false))
+	nilSoftware, err := ds.SoftwareByID(context.Background(), host1.HostSoftware.Software[0].ID, &team1.ID, false, nil)
+	assert.Nil(t, nilSoftware)
+	assert.ErrorIs(t, err, sql.ErrNoRows)
 
 	// after a call to Calculate, the global counts are updated and the team counts appear
 	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
@@ -1047,6 +1162,12 @@ func testSoftwareSyncHostsSoftware(t *testing.T, ds *Datastore) {
 
 	// composite pk (software_id, team_id), so we expect more rows
 	checkTableTotalCount(8)
+
+	soft1ByID, err := ds.SoftwareByID(context.Background(), host1.HostSoftware.Software[0].ID, &team1.ID, false, nil)
+	require.NoError(t, err)
+	soft2ByID, err := ds.SoftwareByID(context.Background(), host1.HostSoftware.Software[1].ID, &team1.ID, false, nil)
+	require.NoError(t, err)
+	test.ElementsMatchSkipIDAndHostCount(t, software1, []fleet.Software{*soft1ByID, *soft2ByID})
 
 	team2Opts := fleet.SoftwareListOptions{WithHostCounts: true, TeamID: ptr.Uint(team2.ID), ListOptions: fleet.ListOptions{OrderKey: "hosts_count", OrderDirection: fleet.OrderDescending}}
 	team2Counts := listSoftwareCheckCount(t, ds, 2, 2, team2Opts, false)
@@ -1114,6 +1235,33 @@ func testSoftwareSyncHostsSoftware(t *testing.T, ds *Datastore) {
 
 	listSoftwareCheckCount(t, ds, 0, 0, team2Opts, false)
 	checkTableTotalCount(5)
+}
+
+// softwareChecksumComputedColumn computes the checksum for a software entry
+// The calculation must match the one in computeRawChecksum
+func softwareChecksumComputedColumn(tableAlias string) string {
+	if tableAlias != "" && !strings.HasSuffix(tableAlias, ".") {
+		tableAlias += "."
+	}
+
+	// concatenate with separator \x00
+	return fmt.Sprintf(
+		` UNHEX(
+		MD5(
+			CONCAT_WS(CHAR(0),
+				%sname,
+				%[1]sversion,
+				%[1]ssource,
+				COALESCE(%[1]sbundle_identifier, ''),
+				`+"%[1]s`release`"+`,
+				%[1]sarch,
+				%[1]svendor,
+				%[1]sbrowser,
+				%[1]sextension_id
+			)
+		)
+	) `, tableAlias,
+	)
 }
 
 func insertVulnSoftwareForTest(t *testing.T, ds *Datastore) {
@@ -1370,7 +1518,7 @@ func testHostVulnSummariesBySoftwareIDs(t *testing.T, ds *Datastore) {
 
 	insertVulnSoftwareForTest(t, ds)
 
-	allSoftware, err := ds.ListSoftware(ctx, fleet.SoftwareListOptions{})
+	allSoftware, _, err := ds.ListSoftware(ctx, fleet.SoftwareListOptions{})
 	require.NoError(t, err)
 
 	var fooRpm fleet.Software
@@ -1514,15 +1662,23 @@ func testUpdateHostSoftwareUpdatesSoftware(t *testing.T, ds *Datastore) {
 	require.NotZero(t, barSoftwareID)
 	require.NotZero(t, baz2SoftwareID)
 
+	// "baz2" is still present in the database, even though no hosts are using it, until ds.SyncHostsSoftware is executed.
+	soft, err := ds.SoftwareByID(ctx, baz2SoftwareID, nil, false, nil)
+	require.NoError(t, err)
+	assert.Equal(t, "baz2", soft.Name)
+	assert.Zero(t, soft.HostsCount)
+
 	// "new" is not returned until ds.SyncHostsSoftware is executed.
-	// "baz2" is gone from the software list.
+	// "bar" and "baz2" are gone from host_software, but will not be deleted until ds.SyncHostsSoftware is executed.
 	// "baz" still has the wrong count because ds.SyncHostsSoftware hasn't run yet.
 	//
 	// So... counts are "off" until ds.SyncHostsSoftware is run.
-	software = listSoftwareCheckCount(t, ds, 2, 2, opts, false)
+	software = listSoftwareCheckCount(t, ds, 4, 4, opts, false)
 	expectedSoftware = []fleet.Software{
 		{Name: "foo", Version: "0.0.1", HostsCount: 2},
 		{Name: "baz", Version: "0.0.3", HostsCount: 2},
+		{Name: "bar", Version: "0.0.2", HostsCount: 2},
+		{Name: "baz2", Version: "0.0.3", HostsCount: 1},
 	}
 	cmpNameVersionCount(expectedSoftware, software)
 
@@ -1553,6 +1709,13 @@ func testUpdateHostSoftwareUpdatesSoftware(t *testing.T, ds *Datastore) {
 
 func testUpdateHostSoftware(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
+	softwareInsertBatchSizeOrig := softwareInsertBatchSize
+	t.Cleanup(
+		func() {
+			softwareInsertBatchSize = softwareInsertBatchSizeOrig
+		},
+	)
+	softwareInsertBatchSize = 2
 
 	now := time.Now()
 	lastYear := now.Add(-365 * 24 * time.Hour)
@@ -1592,6 +1755,16 @@ func testUpdateHostSoftware(t *testing.T, ds *Datastore) {
 			want := expect[i]
 			require.Equal(t, want.name, sw.Name)
 
+			var titleID uint
+			require.NoError(
+				t, ds.writer(ctx).GetContext(
+					ctx, &titleID,
+					`SELECT s.title_id FROM software s INNER JOIN software_titles st ON (s.name = st.name AND s.source = st.source AND s.browser = st.browser) WHERE st.id = ?`,
+					sw.ID,
+				),
+			)
+			assert.NotZero(t, titleID)
+
 			if want.ts.IsZero() {
 				require.Nil(t, sw.LastOpenedAt)
 			} else {
@@ -1602,7 +1775,7 @@ func testUpdateHostSoftware(t *testing.T, ds *Datastore) {
 
 	// set the initial software list
 	sw := []fleet.Software{
-		{Name: "foo", Version: "0.0.1", Source: "test", GenerateCPE: "cpe_foo"},
+		{Name: "foo", Version: "0.0.1", Source: "test", GenerateCPE: "cpe_foo", Browser: "chrome"},
 		{Name: "bar", Version: "0.0.2", Source: "test", GenerateCPE: "cpe_bar", LastOpenedAt: &lastYear},
 		{Name: "baz", Version: "0.0.3", Source: "test", GenerateCPE: "cpe_baz", LastOpenedAt: &now},
 	}
@@ -1632,6 +1805,17 @@ func testUpdateHostSoftware(t *testing.T, ds *Datastore) {
 	_, err = ds.UpdateHostSoftware(ctx, host.ID, sw)
 	require.NoError(t, err)
 	validateSoftware(tup{"bar", lastYear}, tup{"baz", future}, tup{"qux", future})
+
+	// more changes: all software receives a date further in the future, so all should be updated
+	farFuture := now.Add(4 * 24 * time.Hour)
+	sw = []fleet.Software{
+		{Name: "bar", Version: "0.0.2", Source: "test", GenerateCPE: "cpe_bar", LastOpenedAt: &farFuture},
+		{Name: "baz", Version: "0.0.3", Source: "test", GenerateCPE: "cpe_baz", LastOpenedAt: &farFuture},
+		{Name: "qux", Version: "0.0.4", Source: "test", GenerateCPE: "cpe_qux", LastOpenedAt: &farFuture},
+	}
+	_, err = ds.UpdateHostSoftware(ctx, host.ID, sw)
+	require.NoError(t, err)
+	validateSoftware(tup{"bar", farFuture}, tup{"baz", farFuture}, tup{"qux", farFuture})
 }
 
 func testListSoftwareByHostIDShort(t *testing.T, ds *Datastore) {
@@ -1839,19 +2023,31 @@ func testInsertSoftwareVulnerability(t *testing.T, ds *Datastore) {
 		vuln := fleet.SoftwareVulnerability{
 			SoftwareID:        host.Software[0].ID,
 			CVE:               "cve-3",
-			ResolvedInVersion: "1.2.3",
+			ResolvedInVersion: ptr.String("1.2.3"),
 		}
 
 		inserted, err := ds.InsertSoftwareVulnerability(ctx, vuln, fleet.UbuntuOVALSource)
 		require.NoError(t, err)
 		require.True(t, inserted)
 
+		// vulnerability with no ResolvedInVersion
+		vuln = fleet.SoftwareVulnerability{
+			SoftwareID: host.Software[0].ID,
+			CVE:        "cve-4",
+		}
+
+		inserted, err = ds.InsertSoftwareVulnerability(ctx, vuln, fleet.UbuntuOVALSource)
+		require.NoError(t, err)
+		require.True(t, inserted)
+
 		storedVulns, err := ds.ListSoftwareVulnerabilitiesByHostIDsSource(ctx, []uint{host.ID}, fleet.UbuntuOVALSource)
 		require.NoError(t, err)
 
-		require.Len(t, storedVulns[host.ID], 1)
+		require.Len(t, storedVulns[host.ID], 2)
 		require.Equal(t, "cve-3", storedVulns[host.ID][0].CVE)
-		require.Equal(t, "1.2.3", storedVulns[host.ID][0].ResolvedInVersion)
+		require.Equal(t, "1.2.3", *storedVulns[host.ID][0].ResolvedInVersion)
+		require.Equal(t, "cve-4", storedVulns[host.ID][1].CVE)
+		require.Nil(t, storedVulns[host.ID][1].ResolvedInVersion)
 	})
 }
 
@@ -1907,7 +2103,8 @@ func testListSoftwareForVulnDetection(t *testing.T, ds *Datastore) {
 		// Load software again so that CPE data is included.
 		require.NoError(t, ds.LoadHostSoftware(ctx, host, false))
 
-		result, err := ds.ListSoftwareForVulnDetection(ctx, host.ID)
+		filter := fleet.VulnSoftwareFilter{HostID: &host.ID}
+		result, err := ds.ListSoftwareForVulnDetection(ctx, filter)
 		require.NoError(t, err)
 
 		sort.Slice(host.Software, func(i, j int) bool { return host.Software[i].ID < host.Software[j].ID })
@@ -1923,6 +2120,22 @@ func testListSoftwareForVulnDetection(t *testing.T, ds *Datastore) {
 			require.Equal(t, host.Software[i].Arch, result[i].Arch)
 			require.Equal(t, host.Software[i].GenerateCPE, result[i].GenerateCPE)
 		}
+
+		// test name filter
+		filter = fleet.VulnSoftwareFilter{Name: "fo"} // LIKE match
+		result, err = ds.ListSoftwareForVulnDetection(ctx, filter)
+		require.NoError(t, err)
+		require.Len(t, result, 1)
+		require.Equal(t, "foo", result[0].Name)
+
+		// test source filter
+		filter = fleet.VulnSoftwareFilter{Source: "deb_packages"}
+		result, err = ds.ListSoftwareForVulnDetection(ctx, filter)
+		sort.Slice(result, func(i, j int) bool { return result[i].Name < result[j].Name })
+		require.NoError(t, err)
+		require.Len(t, result, 2)
+		require.Equal(t, "baz", result[0].Name)
+		require.Equal(t, "biz", result[1].Name)
 	})
 }
 
@@ -1953,7 +2166,6 @@ func testSoftwareByIDNoDuplicatedVulns(t *testing.T, ds *Datastore) {
 		require.NoError(t, ds.LoadHostSoftware(ctx, hostB, false))
 
 		// Add one vulnerability to each software
-		var vulns []fleet.SoftwareVulnerability
 		for i, s := range hostA.Software {
 			inserted, err := ds.InsertSoftwareVulnerability(ctx, fleet.SoftwareVulnerability{
 				SoftwareID: s.ID,
@@ -1961,11 +2173,10 @@ func testSoftwareByIDNoDuplicatedVulns(t *testing.T, ds *Datastore) {
 			}, fleet.UbuntuOVALSource)
 			require.NoError(t, err)
 			require.True(t, inserted)
-			vulns = append(vulns)
 		}
 
 		for _, s := range hostA.Software {
-			result, err := ds.SoftwareByID(ctx, s.ID, true)
+			result, err := ds.SoftwareByID(ctx, s.ID, nil, true, nil)
 			require.NoError(t, err)
 			require.Len(t, result.Vulnerabilities, 1)
 		}
@@ -1976,6 +2187,9 @@ func testSoftwareByIDIncludesCVEPublishedDate(t *testing.T, ds *Datastore) {
 	t.Run("software.vulnerabilities includes the published date", func(t *testing.T) {
 		ctx := context.Background()
 		host := test.NewHost(t, ds, "hostA", "", "hostAkey", "hostAuuid", time.Now())
+		team1, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team1"})
+		require.NoError(t, err)
+		require.NoError(t, ds.AddHostsToTeam(context.Background(), &team1.ID, []uint{host.ID}))
 		now := time.Now().UTC().Truncate(time.Second)
 
 		testCases := []struct {
@@ -2001,9 +2215,10 @@ func testSoftwareByIDIncludesCVEPublishedDate(t *testing.T, ds *Datastore) {
 				Source:  "apps",
 			})
 		}
-		_, err := ds.UpdateHostSoftware(ctx, host.ID, software)
+		_, err = ds.UpdateHostSoftware(ctx, host.ID, software)
 		require.NoError(t, err)
 		require.NoError(t, ds.LoadHostSoftware(ctx, host, false))
+		require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
 
 		// Add vulnerabilities and CVEMeta
 		var meta []fleet.CVEMeta
@@ -2053,47 +2268,49 @@ func testSoftwareByIDIncludesCVEPublishedDate(t *testing.T, ds *Datastore) {
 			}
 			require.NotEqual(t, -1, idx, "software not found")
 
-			// Test that scores are not included if includeCVEScores = false
-			withoutScores, err := ds.SoftwareByID(ctx, host.Software[idx].ID, false)
-			require.NoError(t, err)
-			if tC.hasVuln {
-				require.Len(t, withoutScores.Vulnerabilities, 1)
-				require.Equal(t, fmt.Sprintf("cve-%s", tC.name), withoutScores.Vulnerabilities[0].CVE)
+			for _, teamID := range []*uint{nil, &team1.ID} {
+				// Test that scores are not included if includeCVEScores = false
+				withoutScores, err := ds.SoftwareByID(ctx, host.Software[idx].ID, teamID, false, nil)
+				require.NoError(t, err)
+				if tC.hasVuln {
+					require.Len(t, withoutScores.Vulnerabilities, 1)
+					require.Equal(t, fmt.Sprintf("cve-%s", tC.name), withoutScores.Vulnerabilities[0].CVE)
 
-				require.Nil(t, withoutScores.Vulnerabilities[0].CVSSScore)
-				require.Nil(t, withoutScores.Vulnerabilities[0].EPSSProbability)
-				require.Nil(t, withoutScores.Vulnerabilities[0].CISAKnownExploit)
-			} else {
-				require.Empty(t, withoutScores.Vulnerabilities)
-			}
-
-			withScores, err := ds.SoftwareByID(ctx, host.Software[idx].ID, true)
-			require.NoError(t, err)
-			if tC.hasVuln {
-				require.Len(t, withScores.Vulnerabilities, 1)
-				require.Equal(t, fmt.Sprintf("cve-%s", tC.name), withoutScores.Vulnerabilities[0].CVE)
-
-				if tC.hasMeta {
-					require.NotNil(t, withScores.Vulnerabilities[0].CVSSScore)
-					require.NotNil(t, *withScores.Vulnerabilities[0].CVSSScore)
-					require.Equal(t, **withScores.Vulnerabilities[0].CVSSScore, 5.4)
-
-					require.NotNil(t, withScores.Vulnerabilities[0].EPSSProbability)
-					require.NotNil(t, *withScores.Vulnerabilities[0].EPSSProbability)
-					require.Equal(t, **withScores.Vulnerabilities[0].EPSSProbability, 0.5)
-
-					require.NotNil(t, withScores.Vulnerabilities[0].CISAKnownExploit)
-					require.NotNil(t, *withScores.Vulnerabilities[0].CISAKnownExploit)
-					require.Equal(t, **withScores.Vulnerabilities[0].CISAKnownExploit, true)
-
-					if tC.hasPublishedDate {
-						require.NotNil(t, withScores.Vulnerabilities[0].CVEPublished)
-						require.NotNil(t, *withScores.Vulnerabilities[0].CVEPublished)
-						require.Equal(t, (**withScores.Vulnerabilities[0].CVEPublished), now)
-					}
+					require.Nil(t, withoutScores.Vulnerabilities[0].CVSSScore)
+					require.Nil(t, withoutScores.Vulnerabilities[0].EPSSProbability)
+					require.Nil(t, withoutScores.Vulnerabilities[0].CISAKnownExploit)
+				} else {
+					require.Empty(t, withoutScores.Vulnerabilities)
 				}
-			} else {
-				require.Empty(t, withoutScores.Vulnerabilities)
+
+				withScores, err := ds.SoftwareByID(ctx, host.Software[idx].ID, teamID, true, nil)
+				require.NoError(t, err)
+				if tC.hasVuln {
+					require.Len(t, withScores.Vulnerabilities, 1)
+					require.Equal(t, fmt.Sprintf("cve-%s", tC.name), withoutScores.Vulnerabilities[0].CVE)
+
+					if tC.hasMeta {
+						require.NotNil(t, withScores.Vulnerabilities[0].CVSSScore)
+						require.NotNil(t, *withScores.Vulnerabilities[0].CVSSScore)
+						require.Equal(t, **withScores.Vulnerabilities[0].CVSSScore, 5.4)
+
+						require.NotNil(t, withScores.Vulnerabilities[0].EPSSProbability)
+						require.NotNil(t, *withScores.Vulnerabilities[0].EPSSProbability)
+						require.Equal(t, **withScores.Vulnerabilities[0].EPSSProbability, 0.5)
+
+						require.NotNil(t, withScores.Vulnerabilities[0].CISAKnownExploit)
+						require.NotNil(t, *withScores.Vulnerabilities[0].CISAKnownExploit)
+						require.Equal(t, **withScores.Vulnerabilities[0].CISAKnownExploit, true)
+
+						if tC.hasPublishedDate {
+							require.NotNil(t, withScores.Vulnerabilities[0].CVEPublished)
+							require.NotNil(t, *withScores.Vulnerabilities[0].CVEPublished)
+							require.Equal(t, (**withScores.Vulnerabilities[0].CVEPublished), now)
+						}
+					}
+				} else {
+					require.Empty(t, withoutScores.Vulnerabilities)
+				}
 			}
 		}
 	})
@@ -2105,9 +2322,12 @@ func testAllSoftwareIterator(t *testing.T, ds *Datastore) {
 	software := []fleet.Software{
 		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
 		{Name: "foo", Version: "0.0.3", Source: "chrome_extensions"},
+		{Name: "foobar", Version: "0.0.1", Source: "chrome_extensions"},
+		{Name: "bar", Version: "0.0.3", Source: "chrome_extensions"},
 		{Name: "foo", Version: "v0.0.2", Source: "apps"},
 		{Name: "foo", Version: "0.0.3", Source: "apps"},
 		{Name: "bar", Version: "0.0.3", Source: "deb_packages"},
+		{Name: "baz", Version: "0.0.3", Source: "deb_packages"},
 	}
 	_, err := ds.UpdateHostSoftware(context.Background(), host.ID, software)
 	require.NoError(t, err)
@@ -2132,10 +2352,12 @@ func testAllSoftwareIterator(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	testCases := []struct {
+		name     string
 		q        fleet.SoftwareIterQueryOptions
 		expected []fleet.Software
 	}{
 		{
+			name: "include apps source",
 			expected: []fleet.Software{
 				{Name: "foo", Version: "v0.0.2", Source: "apps", GenerateCPE: "cpe:foo_app_v2"},
 				{Name: "foo", Version: "0.0.3", Source: "apps"},
@@ -2143,45 +2365,113 @@ func testAllSoftwareIterator(t *testing.T, ds *Datastore) {
 			q: fleet.SoftwareIterQueryOptions{IncludedSources: []string{"apps"}},
 		},
 		{
+			name: "exclude apps source",
 			expected: []fleet.Software{
 				{Name: "foo", Version: "0.0.1", Source: "chrome_extensions", GenerateCPE: "cpe:foo_ce_v1"},
 				{Name: "foo", Version: "0.0.3", Source: "chrome_extensions"},
+				{Name: "bar", Version: "0.0.3", Source: "chrome_extensions"},
+				{Name: "foobar", Version: "0.0.1", Source: "chrome_extensions"},
 				{Name: "bar", Version: "0.0.3", Source: "deb_packages", GenerateCPE: "cpe:bar_v3"},
+				{Name: "baz", Version: "0.0.3", Source: "deb_packages"},
 			},
 			q: fleet.SoftwareIterQueryOptions{ExcludedSources: []string{"apps"}},
 		},
 		{
-			expected: []fleet.Software{
-				{Name: "foo", Version: "v0.0.2", Source: "apps", GenerateCPE: "cpe:foo_app_v2"},
-				{Name: "foo", Version: "0.0.3", Source: "apps"},
-			},
-			q: fleet.SoftwareIterQueryOptions{IncludedSources: []string{"apps"}},
-		},
-		{
+			name: "no filter",
 			expected: []fleet.Software{
 				{Name: "foo", Version: "0.0.1", Source: "chrome_extensions", GenerateCPE: "cpe:foo_ce_v1"},
 				{Name: "foo", Version: "v0.0.2", Source: "apps", GenerateCPE: "cpe:foo_app_v2"},
 				{Name: "foo", Version: "0.0.3", Source: "apps"},
 				{Name: "foo", Version: "0.0.3", Source: "chrome_extensions"},
+				{Name: "bar", Version: "0.0.3", Source: "chrome_extensions"},
+				{Name: "foobar", Version: "0.0.1", Source: "chrome_extensions"},
+				{Name: "baz", Version: "0.0.3", Source: "deb_packages"},
 				{Name: "bar", Version: "0.0.3", Source: "deb_packages", GenerateCPE: "cpe:bar_v3"},
 			},
 			q: fleet.SoftwareIterQueryOptions{},
 		},
+		{
+			name: "partial name filter includes deb_packages",
+			expected: []fleet.Software{
+				{Name: "bar", Version: "0.0.3", Source: "deb_packages", GenerateCPE: "cpe:bar_v3"},
+			},
+			q: fleet.SoftwareIterQueryOptions{NameMatch: `ba[r|f]`, IncludedSources: []string{"deb_packages"}},
+		},
+		{
+			name: "name filter includes chrome_extensions",
+			expected: []fleet.Software{
+				{Name: "foo", Version: "0.0.1", Source: "chrome_extensions", GenerateCPE: "cpe:foo_ce_v1"},
+				{Name: "foo", Version: "0.0.3", Source: "chrome_extensions"},
+				{Name: "foobar", Version: "0.0.1", Source: "chrome_extensions"},
+			},
+			q: fleet.SoftwareIterQueryOptions{NameMatch: "foo\\.*", IncludedSources: []string{"chrome_extensions"}},
+		},
+		{
+			name: "name filter and not name filter",
+			expected: []fleet.Software{
+				{Name: "foo", Version: "0.0.1", Source: "chrome_extensions", GenerateCPE: "cpe:foo_ce_v1"},
+				{Name: "foo", Version: "0.0.3", Source: "chrome_extensions"},
+			},
+			q: fleet.SoftwareIterQueryOptions{NameMatch: "foo\\.*", NameExclude: "bar$", IncludedSources: []string{"chrome_extensions"}},
+		},
 	}
 
 	for _, tC := range testCases {
-		var actual []fleet.Software
+		t.Run(tC.name, func(t *testing.T) {
+			var actual []fleet.Software
 
-		iter, err := ds.AllSoftwareIterator(context.Background(), tC.q)
-		require.NoError(t, err)
-		for iter.Next() {
-			software, err := iter.Value()
+			iter, err := ds.AllSoftwareIterator(context.Background(), tC.q)
 			require.NoError(t, err)
-			actual = append(actual, *software)
-		}
-		iter.Close()
-		test.ElementsMatchSkipID(t, tC.expected, actual)
+			for iter.Next() {
+				software, err := iter.Value()
+				require.NoError(t, err)
+				actual = append(actual, *software)
+			}
+			iter.Close()
+			test.ElementsMatchSkipID(t, tC.expected, actual)
+		})
 	}
+}
+
+func testSoftwareIteratorForLinuxKernelCustomImages(t *testing.T, ds *Datastore) {
+	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
+
+	software := []fleet.Software{
+		{Name: "linux-image-5.4.0-42-generic", Version: "5.4.0-42.46", Source: "deb_packages"},
+		{Name: "linux-image-6.5.0-42-generic", Version: "6.5.0-100.27", Source: "deb_packages"},
+		{Name: "linux-image-5.4.0-42-custom", Version: "5.4.0-42.46", Source: "deb_packages"},
+		{Name: "linux-image-6.5.0-42-1234-foo", Version: "6.5.0-100.27", Source: "deb_packages"},
+		{Name: "linux-image-generic", Version: "1.0.0", Source: "deb_packages"},
+		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
+		{Name: "bar", Version: "0.0.3", Source: "deb_packages"},
+	}
+
+	_, err := ds.UpdateHostSoftware(context.Background(), host.ID, software)
+	require.NoError(t, err)
+	require.NoError(t, ds.LoadHostSoftware(context.Background(), host, false))
+
+	expected := []fleet.Software{
+		{Name: "linux-image-5.4.0-42-custom", Version: "5.4.0-42.46", Source: "deb_packages"},
+		{Name: "linux-image-6.5.0-42-1234-foo", Version: "6.5.0-100.27", Source: "deb_packages"},
+	}
+
+	opts := fleet.SoftwareIterQueryOptions{
+		NameMatch:       nvd.LinuxImageRegex,
+		NameExclude:     nvd.BuildLinuxExclusionRegex(),
+		IncludedSources: []string{"deb_packages"},
+	}
+
+	iterator, err := ds.AllSoftwareIterator(context.Background(), opts)
+	require.NoError(t, err)
+
+	var actual []fleet.Software
+	for iterator.Next() {
+		software, err := iterator.Value()
+		require.NoError(t, err)
+		actual = append(actual, *software)
+	}
+	iterator.Close()
+	test.ElementsMatchSkipID(t, expected, actual)
 }
 
 func testUpsertSoftwareCPEs(t *testing.T, ds *Datastore) {
@@ -2266,7 +2556,7 @@ func testDeleteOutOfDateVulnerabilities(t *testing.T, ds *Datastore) {
 	err = ds.DeleteOutOfDateVulnerabilities(ctx, fleet.NVDSource, 2*time.Hour)
 	require.NoError(t, err)
 
-	storedSoftware, err := ds.SoftwareByID(ctx, host.Software[0].ID, false)
+	storedSoftware, err := ds.SoftwareByID(ctx, host.Software[0].ID, nil, false, nil)
 	require.NoError(t, err)
 	require.Equal(t, 1, len(storedSoftware.Vulnerabilities))
 	require.Equal(t, "CVE-2023-001", storedSoftware.Vulnerabilities[0].CVE)
@@ -2317,7 +2607,7 @@ func testDeleteSoftwareCPEs(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		test.ElementsMatchSkipID(t, cpes[1:], storedCPEs)
 
-		storedSoftware, err := ds.SoftwareByID(ctx, cpes[0].SoftwareID, false)
+		storedSoftware, err := ds.SoftwareByID(ctx, cpes[0].SoftwareID, nil, false, nil)
 		require.NoError(t, err)
 		require.Empty(t, storedSoftware.GenerateCPE)
 	})
@@ -2577,4 +2867,1114 @@ func testInsertHostSoftwareInstalledPaths(t *testing.T, ds *Datastore) {
 	require.NoError(t, sqlx.SelectContext(ctx, ds.reader(ctx), &actual, `SELECT host_id, software_id, installed_path FROM host_software_installed_paths`))
 
 	require.ElementsMatch(t, actual, toInsert)
+}
+
+func TestReconcileSoftwareTitles(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	ctx := context.Background()
+
+	host1 := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
+	host2 := test.NewHost(t, ds, "host2", "", "host2key", "host2uuid", time.Now())
+	host3 := test.NewHost(t, ds, "host3", "", "host3key", "host3uuid", time.Now())
+
+	expectedSoftware := []fleet.Software{
+		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions", Browser: "chrome"},
+		{Name: "foo", Version: "v0.0.2", Source: "chrome_extensions"},
+		{Name: "foo", Version: "0.0.3", Source: "chrome_extensions"},
+		{Name: "bar", Version: "0.0.3", Source: "deb_packages"},
+		{Name: "baz", Version: "0.0.1", Source: "deb_packages"},
+	}
+	expectedTitlesByNSB := map[string]fleet.SoftwareTitle{}
+	for _, s := range expectedSoftware {
+		expectedTitlesByNSB[s.Name+s.Source+s.Browser] = fleet.SoftwareTitle{
+			Name:    s.Name,
+			Source:  s.Source,
+			Browser: s.Browser,
+		}
+	}
+
+	software1 := []fleet.Software{expectedSoftware[0], expectedSoftware[2]}
+	software2 := []fleet.Software{expectedSoftware[1], expectedSoftware[2], expectedSoftware[3]}
+	software3 := []fleet.Software{expectedSoftware[4]}
+
+	_, err := ds.UpdateHostSoftware(ctx, host1.ID, software1)
+	require.NoError(t, err)
+	_, err = ds.UpdateHostSoftware(ctx, host2.ID, software2)
+	require.NoError(t, err)
+	_, err = ds.UpdateHostSoftware(ctx, host3.ID, software3)
+	require.NoError(t, err)
+
+	getSoftware := func() ([]fleet.Software, error) {
+		var sw []fleet.Software
+		err := ds.writer(ctx).SelectContext(ctx, &sw, `SELECT
+			id, name, version, bundle_identifier, source, extension_id, browser, `+"`release`"+`, vendor, arch, title_id
+		FROM software ORDER BY name, source, browser, version`)
+		if err != nil {
+			return nil, err
+		}
+		return sw, nil
+	}
+
+	getTitles := func() ([]fleet.SoftwareTitle, error) {
+		var swt []fleet.SoftwareTitle
+		err := ds.writer(ctx).SelectContext(ctx, &swt, `SELECT id, name, source, browser FROM software_titles ORDER BY name, source, browser`)
+		if err != nil {
+			return nil, err
+		}
+		return swt, nil
+	}
+
+	assertSoftware := func(t *testing.T, wantSoftware []fleet.Software) {
+		gotSoftware, err := getSoftware()
+		require.NoError(t, err)
+		require.Len(t, gotSoftware, len(wantSoftware))
+
+		byNSBV := map[string]fleet.Software{}
+		for _, s := range wantSoftware {
+			byNSBV[s.Name+s.Source+s.Browser+s.Version] = s
+		}
+
+		for _, r := range gotSoftware {
+			_, ok := byNSBV[r.Name+r.Source+r.Browser+r.Version]
+			require.True(t, ok)
+
+			assert.NotNil(t, r.TitleID)
+			swt, ok := expectedTitlesByNSB[r.Name+r.Source+r.Browser]
+			require.True(t, ok)
+			assert.Equal(t, swt.ID, *r.TitleID)
+			assert.Equal(t, swt.Name, r.Name)
+			assert.Equal(t, swt.Source, r.Source)
+			assert.Equal(t, swt.Browser, r.Browser)
+		}
+	}
+
+	assertTitles := func(t *testing.T, gotTitles []fleet.SoftwareTitle, expectMissing []string) {
+		for _, r := range gotTitles {
+			if len(expectMissing) > 0 {
+				require.NotContains(t, expectMissing, r.Name)
+			}
+			e, ok := expectedTitlesByNSB[r.Name+r.Source+r.Browser]
+			require.True(t, ok)
+			require.Equal(t, e.ID, r.ID)
+			require.Equal(t, e.Name, r.Name)
+			require.Equal(t, e.Source, r.Source)
+			require.Equal(t, e.Browser, r.Browser)
+		}
+	}
+
+	swTitles, err := getTitles()
+	require.NoError(t, err)
+	for _, swt := range swTitles {
+		if _, ok := expectedTitlesByNSB[swt.Name+swt.Source+swt.Browser]; ok {
+			expectedTitlesByNSB[swt.Name+swt.Source+swt.Browser] = swt
+		}
+	}
+
+	assertSoftware(t, expectedSoftware)
+
+	// reconcile software titles
+	require.NoError(t, ds.ReconcileSoftwareTitles(ctx))
+	swt, err := getTitles()
+	require.NoError(t, err)
+	require.Len(t, swt, 4)
+
+	require.Equal(t, swt[0].Name, "bar")
+	require.Equal(t, swt[0].Source, "deb_packages")
+	require.Equal(t, swt[0].Browser, "")
+	expectedTitlesByNSB[swt[0].Name+swt[0].Source+swt[0].Browser] = swt[0]
+
+	require.Equal(t, swt[1].Name, "baz")
+	require.Equal(t, swt[1].Source, "deb_packages")
+	require.Equal(t, swt[1].Browser, "")
+	expectedTitlesByNSB[swt[1].Name+swt[1].Source+swt[1].Browser] = swt[1]
+
+	require.Equal(t, swt[2].Name, "foo")
+	require.Equal(t, swt[2].Source, "chrome_extensions")
+	require.Equal(t, swt[2].Browser, "")
+	expectedTitlesByNSB[swt[2].Name+swt[2].Source+swt[2].Browser] = swt[2]
+
+	require.Equal(t, swt[3].Name, "foo")
+	require.Equal(t, swt[3].Source, "chrome_extensions")
+	require.Equal(t, swt[3].Browser, "chrome")
+	expectedTitlesByNSB[swt[3].Name+swt[3].Source+swt[3].Browser] = swt[3]
+
+	// Double check software and titles
+	assertSoftware(t, expectedSoftware)
+
+	// remove the bar software title from host 2
+	_, err = ds.UpdateHostSoftware(context.Background(), host2.ID, software2[:2])
+	require.NoError(t, err)
+	// SyncHostsSoftware will remove the above software item from the software table
+	require.NoError(t, ds.SyncHostsSoftware(context.Background(), time.Now()))
+	assertSoftware(t, []fleet.Software{expectedSoftware[0], expectedSoftware[1], expectedSoftware[2], expectedSoftware[4]})
+
+	// bar is no longer associated with any host so the title should be deleted
+	require.NoError(t, ds.ReconcileSoftwareTitles(context.Background()))
+	gotTitles, err := getTitles()
+	require.NoError(t, err)
+	require.Len(t, gotTitles, 3)
+	assertTitles(t, gotTitles, []string{"bar"})
+
+	// add bar to host 3
+	_, err = ds.UpdateHostSoftware(context.Background(), host3.ID, []fleet.Software{expectedSoftware[3], expectedSoftware[4]})
+	require.NoError(t, err)
+	require.NoError(t, ds.SyncHostsSoftware(context.Background(), time.Now()))
+	gotTitles, err = getTitles()
+	require.NoError(t, err)
+	require.Len(t, gotTitles, 4)
+
+	// bar was added back to software titles with a new ID
+	require.Equal(t, "bar", gotTitles[0].Name)
+	require.Equal(t, "deb_packages", gotTitles[0].Source)
+	require.NotEqual(t, expectedTitlesByNSB[gotTitles[0].Name+gotTitles[0].Source], gotTitles[0].ID)
+	expectedTitlesByNSB[gotTitles[0].Name+gotTitles[0].Source] = gotTitles[0]
+	assertTitles(t, gotTitles, nil)
+	assertSoftware(t, expectedSoftware)
+
+	// add a new version of foo to host 3
+	expectedSoftware = append(expectedSoftware, fleet.Software{Name: "foo", Version: "0.0.4", Source: "chrome_extensions"})
+	_, err = ds.UpdateHostSoftware(ctx, host3.ID, expectedSoftware[3:])
+	require.NoError(t, err)
+	gotTitles, err = getTitles()
+	require.NoError(t, err)
+	require.Len(t, gotTitles, 4)
+	assertTitles(t, gotTitles, nil)
+	assertSoftware(t, expectedSoftware)
+
+	// add a new source of foo to host 3
+	expectedSoftware = append(expectedSoftware, fleet.Software{Name: "foo", Version: "0.0.4", Source: "rpm_packages"})
+	_, err = ds.UpdateHostSoftware(ctx, host3.ID, expectedSoftware[3:])
+	require.NoError(t, err)
+
+	// new source of foo results in a new software title entry
+	gotTitles, err = getTitles()
+	require.NoError(t, err)
+	require.Len(t, gotTitles, 5)
+	require.Equal(t, "foo", gotTitles[4].Name)
+	require.Equal(t, "rpm_packages", gotTitles[4].Source)
+	require.Equal(t, "", gotTitles[4].Browser)
+	expectedTitlesByNSB[gotTitles[4].Name+gotTitles[4].Source+gotTitles[4].Browser] = gotTitles[4]
+	assertTitles(t, gotTitles, nil)
+	assertSoftware(t, expectedSoftware)
+}
+
+func testUpdateHostSoftwareDeadlock(t *testing.T, ds *Datastore) {
+	// To increase chance of deadlock increase these numbers.
+	// We are keeping them low to not cause CI issues ("too many connections" errors
+	// due to concurrent tests).
+	const (
+		hostCount   = 10
+		updateCount = 10
+	)
+	ctx := context.Background()
+	var hosts []*fleet.Host
+	for i := 1; i <= hostCount; i++ {
+		h, err := ds.NewHost(ctx, &fleet.Host{
+			ID:              uint(i),
+			OsqueryHostID:   ptr.String(fmt.Sprintf("id-%d", i)),
+			NodeKey:         ptr.String(fmt.Sprintf("key-%d", i)),
+			Platform:        "linux",
+			Hostname:        fmt.Sprintf("host-%d", i),
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now(),
+		})
+		require.NoError(t, err)
+		hosts = append(hosts, h)
+	}
+	var g errgroup.Group
+	for _, h := range hosts {
+		hostID := h.ID
+		g.Go(func() error {
+			for i := 0; i < updateCount; i++ {
+				software := []fleet.Software{
+					{Name: "foo", Version: "0.0.1", Source: "test", GenerateCPE: "cpe_foo"},
+					{Name: "bar", Version: "0.0.2", Source: "test", GenerateCPE: "cpe_bar"},
+					{Name: "baz", Version: "0.0.3", Source: "test", GenerateCPE: "cpe_baz"},
+				}
+				removeIdx := rand.Intn(len(software))
+				software = append(software[:removeIdx], software[removeIdx+1:]...)
+				if _, err := ds.UpdateHostSoftware(ctx, hostID, software); err != nil {
+					return err
+				}
+				time.Sleep(10 * time.Millisecond)
+			}
+			return nil
+		})
+	}
+
+	err := g.Wait()
+	require.NoError(t, err)
+}
+
+func testVerifySoftwareChecksum(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
+
+	software := []fleet.Software{
+		{Name: "foo", Version: "0.0.1", Source: "test"},
+		{Name: "foo", Version: "0.0.1", Source: "test", Browser: "firefox"},
+		{Name: "foo", Version: "0.0.1", Source: "test", ExtensionID: "ext"},
+		{Name: "foo", Version: "0.0.2", Source: "test"},
+	}
+
+	_, err := ds.UpdateHostSoftware(ctx, host.ID, software)
+	require.NoError(t, err)
+
+	checksums := make([]string, len(software))
+	for i, sw := range software {
+		checksum, err := computeRawChecksum(sw)
+		require.NoError(t, err)
+		checksums[i] = hex.EncodeToString(checksum)
+	}
+	for i, cs := range checksums {
+		var got fleet.Software
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &got,
+				`SELECT name, version, source, bundle_identifier, `+"`release`"+`, arch, vendor, browser, extension_id FROM software WHERE checksum = UNHEX(?)`, cs)
+		})
+		require.Equal(t, software[i], got)
+	}
+}
+
+func testListHostSoftware(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now(), test.WithPlatform("darwin"))
+	nanoEnroll(t, ds, host, false)
+	otherHost := test.NewHost(t, ds, "host2", "", "host2key", "host2uuid", time.Now(), test.WithPlatform("linux"))
+	opts := fleet.HostSoftwareTitleListOptions{ListOptions: fleet.ListOptions{PerPage: 10, IncludeMetadata: true, OrderKey: "name", TestSecondaryOrderKey: "source"}}
+
+	user, err := ds.NewUser(ctx, &fleet.User{
+		Password:   []byte("p4ssw0rd.123"),
+		Name:       "user1",
+		Email:      "user1@example.com",
+		GlobalRole: ptr.String(fleet.RoleAdmin),
+	})
+	require.NoError(t, err)
+
+	expectStatus := func(s fleet.SoftwareInstallerStatus) *fleet.SoftwareInstallerStatus {
+		return &s
+	}
+
+	// no software yet
+	sw, meta, err := ds.ListHostSoftware(ctx, host, opts)
+	require.NoError(t, err)
+	require.Empty(t, sw)
+	require.Equal(t, &fleet.PaginationMetadata{}, meta)
+
+	// works with available software too
+	opts.IncludeAvailableForInstall = true
+	sw, meta, err = ds.ListHostSoftware(ctx, host, opts)
+	require.NoError(t, err)
+	require.Empty(t, sw)
+	require.Equal(t, &fleet.PaginationMetadata{}, meta)
+
+	// self-service only works too
+	opts.SelfServiceOnly = true
+	opts.IncludeAvailableForInstall = true
+	sw, meta, err = ds.ListHostSoftware(ctx, host, opts)
+	require.NoError(t, err)
+	require.Empty(t, sw)
+	require.Equal(t, &fleet.PaginationMetadata{}, meta)
+
+	opts.IncludeAvailableForInstall = false
+	sw, meta, err = ds.ListHostSoftware(ctx, host, opts)
+	require.NoError(t, err)
+	require.Empty(t, sw)
+	require.Equal(t, &fleet.PaginationMetadata{}, meta)
+
+	// add software to the host
+	software := []fleet.Software{
+		{Name: "a", Version: "0.0.1", Source: "chrome_extensions"},
+		{Name: "a", Version: "0.0.2", Source: "deb_packages"}, // different source, so different title than a-chrome
+		{Name: "b", Version: "0.0.3", Source: "apps"},
+		{Name: "c", Version: "0.0.4", Source: "deb_packages"},
+		{Name: "c", Version: "0.0.5", Source: "deb_packages"},
+		{Name: "d", Version: "0.0.6", Source: "deb_packages"},
+	}
+	byNSV := map[string]fleet.Software{}
+	for _, s := range software {
+		byNSV[s.Name+s.Source+s.Version] = s
+	}
+
+	mutationResults, err := ds.UpdateHostSoftware(ctx, host.ID, software)
+	require.NoError(t, err)
+	require.Len(t, mutationResults.Inserted, len(software))
+	for _, m := range mutationResults.Inserted {
+		s, ok := byNSV[m.Name+m.Source+m.Version]
+		require.True(t, ok)
+		require.Equal(t, m.Name, s.Name, "name")
+		require.Equal(t, m.Version, s.Version, "version")
+		require.Equal(t, m.Source, s.Source, "source")
+		require.Zero(t, s.ID) // not set in the map yet
+		require.NotZero(t, m.ID)
+		s.ID = m.ID
+		byNSV[s.Name+s.Source+s.Version] = s
+
+	}
+
+	require.NoError(t, ds.LoadHostSoftware(ctx, host, false))
+	require.Equal(t, len(host.Software), len(software))
+	for _, hs := range host.Software {
+		s, ok := byNSV[hs.Name+hs.Source+hs.Version]
+		require.True(t, ok)
+		require.Equal(t, hs.Name, s.Name, "name")
+		require.Equal(t, hs.Version, s.Version, "version")
+		require.Equal(t, hs.Source, s.Source, "source")
+		require.Equal(t, hs.ID, s.ID)
+	}
+
+	// add other software to the other host, won't be returned
+	otherSoftware := []fleet.Software{
+		{Name: "a", Version: "0.0.7", Source: "chrome_extensions"},
+		{Name: "f", Version: "0.0.8", Source: "chrome_extensions"},
+	}
+	_, err = ds.UpdateHostSoftware(ctx, otherHost.ID, otherSoftware)
+	require.NoError(t, err)
+
+	// shorthand keys for expected software
+	a1 := software[0].Name + software[0].Source + software[0].Version
+	a2 := software[1].Name + software[1].Source + software[1].Version
+	b := software[2].Name + software[2].Source + software[2].Version
+	c1 := software[3].Name + software[3].Source + software[3].Version
+	c2 := software[4].Name + software[4].Source + software[4].Version
+	d := software[5].Name + software[5].Source + software[5].Version
+
+	// add some vulnerabilities and installed paths
+	vulns := []fleet.SoftwareVulnerability{
+		{SoftwareID: byNSV[a1].ID, CVE: "CVE-a-0001"},
+		{SoftwareID: byNSV[a1].ID, CVE: "CVE-a-0002"},
+		{SoftwareID: byNSV[a1].ID, CVE: "CVE-a-0003"},
+		{SoftwareID: byNSV[b].ID, CVE: "CVE-b-0001"},
+	}
+	for _, v := range vulns {
+		_, err = ds.InsertSoftwareVulnerability(ctx, v, fleet.NVDSource)
+		require.NoError(t, err)
+	}
+
+	swPaths := map[string]struct{}{}
+	installPaths := make([]string, 0, len(software))
+	for _, s := range software {
+		path := fmt.Sprintf("/some/path/%s", s.Name)
+		key := fmt.Sprintf("%s%s%s", path, fleet.SoftwareFieldSeparator, s.ToUniqueStr())
+		swPaths[key] = struct{}{}
+		installPaths = append(installPaths, path)
+	}
+	err = ds.UpdateHostSoftwareInstalledPaths(ctx, host.ID, swPaths, mutationResults)
+	require.NoError(t, err)
+
+	err = ds.ReconcileSoftwareTitles(ctx)
+	require.NoError(t, err)
+
+	expected := map[string]fleet.HostSoftwareWithInstaller{
+		byNSV[a1].Name + byNSV[a1].Source: {Name: byNSV[a1].Name, Source: byNSV[a1].Source, InstalledVersions: []*fleet.HostSoftwareInstalledVersion{
+			{Version: byNSV[a1].Version, Vulnerabilities: []string{vulns[0].CVE, vulns[1].CVE, vulns[2].CVE}, InstalledPaths: []string{installPaths[0]}},
+		}},
+		// a1 and a2 are different software titles because they have different sources
+		byNSV[a2].Name + byNSV[a2].Source: {Name: byNSV[a2].Name, Source: byNSV[a2].Source, InstalledVersions: []*fleet.HostSoftwareInstalledVersion{
+			{Version: byNSV[a2].Version, InstalledPaths: []string{installPaths[1]}},
+		}},
+		byNSV[b].Name + byNSV[b].Source: {Name: byNSV[b].Name, Source: byNSV[b].Source, InstalledVersions: []*fleet.HostSoftwareInstalledVersion{
+			{Version: byNSV[b].Version, Vulnerabilities: []string{vulns[3].CVE}, InstalledPaths: []string{installPaths[2]}},
+		}},
+		// c1 and c2 are the same software title because they have the same name and source
+		byNSV[c1].Name + byNSV[c1].Source: {Name: byNSV[c1].Name, Source: byNSV[c1].Source, InstalledVersions: []*fleet.HostSoftwareInstalledVersion{
+			{Version: byNSV[c1].Version, InstalledPaths: []string{installPaths[3]}},
+			{Version: byNSV[c2].Version, InstalledPaths: []string{installPaths[4]}},
+		}},
+		byNSV[d].Name + byNSV[d].Source: {Name: byNSV[d].Name, Source: byNSV[d].Source, InstalledVersions: []*fleet.HostSoftwareInstalledVersion{
+			{Version: byNSV[d].Version, InstalledPaths: []string{installPaths[5]}},
+		}},
+	}
+
+	compareResults := func(expected map[string]fleet.HostSoftwareWithInstaller, got []*fleet.HostSoftwareWithInstaller, expectAsc bool, expectOmitted ...string) {
+		require.Len(t, got, len(expected)-len(expectOmitted))
+		prev := ""
+		for _, g := range got {
+			e, ok := expected[g.Name+g.Source]
+			require.True(t, ok)
+			require.Equal(t, e.Name, g.Name)
+			require.Equal(t, e.Source, g.Source)
+			if e.SoftwarePackage != nil {
+				require.Equal(t, e.SoftwarePackage.SelfService, g.SoftwarePackage.SelfService)
+				require.Equal(t, e.SoftwarePackage.IconURL, g.SoftwarePackage.IconURL)
+				require.Equal(t, e.SoftwarePackage.AppStoreID, g.SoftwarePackage.AppStoreID)
+				require.Equal(t, e.SoftwarePackage.Name, g.SoftwarePackage.Name)
+				require.Equal(t, e.SoftwarePackage.Version, g.SoftwarePackage.Version)
+				if e.SoftwarePackage.LastInstall != nil {
+					require.Equal(t, e.SoftwarePackage.LastInstall.CommandUUID, g.SoftwarePackage.LastInstall.CommandUUID)
+					require.Equal(t, e.SoftwarePackage.LastInstall.InstallUUID, g.SoftwarePackage.LastInstall.InstallUUID)
+					require.NotNil(t, g.SoftwarePackage.LastInstall.InstalledAt)
+				}
+			}
+
+			if e.AppStoreApp != nil {
+				require.Equal(t, e.AppStoreApp.SelfService, g.AppStoreApp.SelfService)
+				require.Equal(t, e.AppStoreApp.IconURL, g.AppStoreApp.IconURL)
+				require.Equal(t, e.AppStoreApp.AppStoreID, g.AppStoreApp.AppStoreID)
+				require.Equal(t, e.AppStoreApp.Name, g.AppStoreApp.Name)
+				require.Equal(t, e.AppStoreApp.Version, g.AppStoreApp.Version)
+				if e.AppStoreApp.LastInstall != nil {
+					require.Equal(t, e.AppStoreApp.LastInstall.InstallUUID, g.AppStoreApp.LastInstall.InstallUUID)
+					require.Equal(t, e.AppStoreApp.LastInstall.CommandUUID, g.AppStoreApp.LastInstall.CommandUUID)
+					require.NotNil(t, g.AppStoreApp.LastInstall.InstalledAt)
+				}
+			}
+			// require.Equal(t, e.SoftwarePackage, g.SoftwarePackage)
+			// require.Equal(t, e.AppStoreApp, g.AppStoreApp)
+			require.Len(t, g.InstalledVersions, len(e.InstalledVersions))
+			if len(e.InstalledVersions) > 0 {
+				byVers := make(map[string]fleet.HostSoftwareInstalledVersion, len(e.InstalledVersions))
+				for _, v := range e.InstalledVersions {
+					byVers[v.Version] = *v
+				}
+				for _, v := range g.InstalledVersions {
+					ev, ok := byVers[v.Version]
+					require.True(t, ok)
+					require.Equal(t, ev.Version, v.Version)
+					require.ElementsMatch(t, ev.InstalledPaths, v.InstalledPaths)
+					require.ElementsMatch(t, ev.Vulnerabilities, v.Vulnerabilities)
+				}
+			}
+			if prev != "" {
+				if expectAsc {
+					require.Greater(t, g.Name+g.Source, prev)
+				} else {
+					require.Less(t, g.Name+g.Source, prev)
+				}
+			}
+			prev = g.Name + g.Source
+		}
+	}
+
+	// it now returns the software with vulnerabilities and installed paths
+	opts.SelfServiceOnly = false
+	opts.IncludeAvailableForInstall = false
+	sw, meta, err = ds.ListHostSoftware(ctx, host, opts)
+	require.NoError(t, err)
+	require.Equal(t, &fleet.PaginationMetadata{TotalResults: 5}, meta)
+	compareResults(expected, sw, true)
+
+	opts.VulnerableOnly = true
+	sw, meta, err = ds.ListHostSoftware(ctx, host, opts)
+	require.NoError(t, err)
+	require.Equal(t, &fleet.PaginationMetadata{TotalResults: 2}, meta)
+	compareResults(expected, sw, true, byNSV[a2].Name+byNSV[a2].Source, byNSV[c1].Name+byNSV[c1].Source, byNSV[d].Name+byNSV[d].Source)
+	opts.VulnerableOnly = false
+
+	// create some Fleet installers and map them to a software title,
+	// including one for a team
+	tm, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+
+	var swi1Pending, swi2Installed, swi3Failed, swi4Available, swi5Tm uint
+	var otherHostI1UUID, otherHostI2UUID string
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		// keep title id of software B, will use it to associate an installer with it
+		var swbTitleID uint
+		err := sqlx.GetContext(ctx, q, &swbTitleID, `SELECT id FROM software_titles WHERE name = 'b' AND source = 'apps'`)
+		if err != nil {
+			return err
+		}
+
+		// create the install script content (same for all installers, doesn't matter)
+		installScript := `echo 'foo'`
+		res, err := q.ExecContext(ctx, `INSERT INTO script_contents (md5_checksum, contents) VALUES (UNHEX(md5(?)), ?)`, installScript, installScript)
+		if err != nil {
+			return err
+		}
+		scriptContentID, _ := res.LastInsertId()
+
+		// create software titles for all but swi1Pending (will be linked to
+		// existing software title b)
+		var titleIDs []uint
+		for i := 0; i < 4; i++ {
+			res, err := q.ExecContext(ctx, `INSERT INTO software_titles (name, source) VALUES (?, 'apps')`, fmt.Sprintf("i%d", i))
+			if err != nil {
+				return err
+			}
+			id, _ := res.LastInsertId()
+			titleIDs = append(titleIDs, uint(id))
+		}
+
+		var swiIDs []uint
+		for i := 0; i < 5; i++ {
+			var (
+				titleID        uint
+				teamID         *uint
+				globalOrTeamID uint
+			)
+			if i == 0 {
+				titleID = swbTitleID
+			} else {
+				titleID = titleIDs[i-1]
+			}
+			if i == 4 {
+				teamID = &tm.ID
+				globalOrTeamID = tm.ID
+			}
+			res, err := q.ExecContext(ctx, `
+						INSERT INTO software_installers
+							(team_id, global_or_team_id, title_id, filename, version, install_script_content_id, storage_id, platform, self_service)
+						VALUES
+							(?, ?, ?, ?, ?, ?, unhex(?), ?, ?)`,
+				teamID, globalOrTeamID, titleID, fmt.Sprintf("installer-%d.pkg", i), fmt.Sprintf("v%d.0.0", i), scriptContentID, hex.EncodeToString([]byte("test")), "darwin", i < 2)
+			if err != nil {
+				return err
+			}
+			id, _ := res.LastInsertId()
+			swiIDs = append(swiIDs, uint(id))
+		}
+		// sw1Pending and swi2Installed are self-service installers
+		swi1Pending, swi2Installed, swi3Failed, swi4Available, swi5Tm = swiIDs[0], swiIDs[1], swiIDs[2], swiIDs[3], swiIDs[4]
+
+		// create the results for the host
+
+		// swi1 is pending (all results are NULL)
+		_, err = q.ExecContext(ctx, `
+							INSERT INTO host_software_installs (execution_id, host_id, software_installer_id) VALUES (?, ?, ?)`,
+			"uuid1", host.ID, swi1Pending)
+		if err != nil {
+			return err
+		}
+
+		// swi2 is installed
+		_, err = q.ExecContext(ctx, `
+							INSERT INTO host_software_installs (execution_id, host_id, software_installer_id, pre_install_query_output, install_script_exit_code, post_install_script_exit_code)
+							VALUES (?, ?, ?, ?, ?, ?)`,
+			"uuid2", host.ID, swi2Installed, "ok", 0, 0)
+		if err != nil {
+			return err
+		}
+
+		// swi3 is failed, also add an install request on the other host
+		_, err = q.ExecContext(ctx, `
+							INSERT INTO host_software_installs (execution_id, host_id, software_installer_id, pre_install_query_output, install_script_exit_code)
+							VALUES (?, ?, ?, ?, ?)`,
+			"uuid3", host.ID, swi3Failed, "ok", 1)
+		if err != nil {
+			return err
+		}
+		otherHostI1UUID = uuid.NewString()
+		_, err = q.ExecContext(ctx, `
+							INSERT INTO host_software_installs (execution_id, host_id, software_installer_id) VALUES (?, ?, ?)`,
+			otherHostI1UUID, otherHost.ID, swi3Failed)
+		if err != nil {
+			return err
+		}
+
+		// swi4 is available (no install request), but add a pending request on the other host
+		otherHostI2UUID = uuid.NewString()
+		_, err = q.ExecContext(ctx, `
+							INSERT INTO host_software_installs (execution_id, host_id, software_installer_id) VALUES (?, ?, ?)`,
+			otherHostI2UUID, otherHost.ID, swi4Available)
+		if err != nil {
+			return err
+		}
+
+		// swi5 is for another team
+		_ = swi5Tm
+
+		// add another installer for a different platform, should be always omitted
+		res, err = q.ExecContext(ctx, `INSERT INTO software_titles (name, source) VALUES ('windows-title', 'programs')`)
+		if err != nil {
+			return err
+		}
+		lid, _ := res.LastInsertId()
+		_, err = q.ExecContext(ctx, `
+						INSERT INTO software_installers
+							(team_id, global_or_team_id, title_id, filename, version, install_script_content_id, storage_id, platform)
+						VALUES
+							(?, ?, ?, ?, ?, ?, unhex(?), ?)`,
+			nil, 0, lid, "windows-installer-6.msi", "v6.0.0", scriptContentID, hex.EncodeToString([]byte("test")), "windows")
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+
+	// swi1Pending uses software title id of "b"
+	expected[byNSV[b].Name+byNSV[b].Source] = fleet.HostSoftwareWithInstaller{
+		Name:            "b",
+		Source:          "apps",
+		Status:          expectStatus(fleet.SoftwareInstallerPending),
+		SoftwarePackage: &fleet.SoftwarePackageOrApp{Name: "installer-0.pkg", Version: "v0.0.0", SelfService: ptr.Bool(true), LastInstall: &fleet.HostSoftwareInstall{InstallUUID: "uuid1"}},
+		InstalledVersions: []*fleet.HostSoftwareInstalledVersion{
+			{Version: byNSV[b].Version, Vulnerabilities: []string{vulns[3].CVE}, InstalledPaths: []string{installPaths[2]}},
+		},
+	}
+	i0 := fleet.HostSoftwareWithInstaller{
+		Name:            "i0",
+		Source:          "apps",
+		Status:          expectStatus(fleet.SoftwareInstallerInstalled),
+		SoftwarePackage: &fleet.SoftwarePackageOrApp{Name: "installer-1.pkg", Version: "v1.0.0", SelfService: ptr.Bool(true), LastInstall: &fleet.HostSoftwareInstall{InstallUUID: "uuid2"}},
+	}
+	expected[i0.Name+i0.Source] = i0
+
+	i1 := fleet.HostSoftwareWithInstaller{
+		Name:            "i1",
+		Source:          "apps",
+		Status:          expectStatus(fleet.SoftwareInstallerFailed),
+		SoftwarePackage: &fleet.SoftwarePackageOrApp{Name: "installer-2.pkg", Version: "v2.0.0", SelfService: ptr.Bool(false), LastInstall: &fleet.HostSoftwareInstall{InstallUUID: "uuid3"}},
+	}
+	expected[i1.Name+i1.Source] = i1
+
+	// request without available software
+	opts.IncludeAvailableForInstall = false
+	sw, meta, err = ds.ListHostSoftware(ctx, host, opts)
+	require.NoError(t, err)
+	require.Equal(t, &fleet.PaginationMetadata{TotalResults: 7}, meta)
+	compareResults(expected, sw, true)
+
+	// request with available software
+	i2 := fleet.HostSoftwareWithInstaller{
+		Name:            "i2",
+		Source:          "apps",
+		Status:          nil,
+		SoftwarePackage: &fleet.SoftwarePackageOrApp{Name: "installer-3.pkg", Version: "v3.0.0", SelfService: ptr.Bool(false)},
+	}
+	expected[i2.Name+i2.Source] = i2
+
+	i3 := fleet.HostSoftwareWithInstaller{
+		Name:            "i3",
+		Source:          "apps",
+		Status:          nil,
+		SoftwarePackage: &fleet.SoftwarePackageOrApp{Name: "installer-4.pkg", Version: "v4.0.0", SelfService: ptr.Bool(false)},
+	}
+	expected[i3.Name+i3.Source] = i3
+
+	opts.IncludeAvailableForInstall = true
+	opts.ListOptions.PerPage = 20
+	sw, meta, err = ds.ListHostSoftware(ctx, host, opts)
+	require.NoError(t, err)
+	require.Equal(t, &fleet.PaginationMetadata{TotalResults: 8}, meta)
+	compareResults(expected, sw, true, i3.Name+i3.Source)
+
+	// request in descending order
+	opts.ListOptions.OrderDirection = fleet.OrderDescending
+	opts.ListOptions.TestSecondaryOrderDirection = fleet.OrderDescending
+	opts.IncludeAvailableForInstall = false
+	sw, meta, err = ds.ListHostSoftware(ctx, host, opts)
+	require.NoError(t, err)
+	require.Equal(t, &fleet.PaginationMetadata{TotalResults: 7}, meta)
+	compareResults(expected, sw, false, i2.Name+i2.Source, i3.Name+i3.Source)
+	opts.ListOptions.OrderDirection = fleet.OrderAscending
+	opts.ListOptions.TestSecondaryOrderDirection = fleet.OrderAscending
+
+	// record a new install request for i1, this time as pending, and mark install request for b (swi1) as failed
+	time.Sleep(time.Second) // ensure the timestamp is later
+	err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
+		HostID:                host.ID,
+		InstallUUID:           "uuid1",
+		InstallScriptExitCode: ptr.Int(2),
+	})
+	require.NoError(t, err)
+
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		// swi3 has a new install request pending
+		_, err = q.ExecContext(ctx, `
+							INSERT INTO host_software_installs (execution_id, host_id, software_installer_id)
+							VALUES (?, ?, ?)`,
+			"uuid4", host.ID, swi3Failed)
+		if err != nil {
+			return err
+		}
+		return nil
+	})
+
+	expected[byNSV[b].Name+byNSV[b].Source] = fleet.HostSoftwareWithInstaller{
+		Name:            "b",
+		Source:          "apps",
+		Status:          expectStatus(fleet.SoftwareInstallerFailed),
+		SoftwarePackage: &fleet.SoftwarePackageOrApp{Name: "installer-0.pkg", Version: "v0.0.0", SelfService: ptr.Bool(true), LastInstall: &fleet.HostSoftwareInstall{InstallUUID: "uuid1"}},
+		InstalledVersions: []*fleet.HostSoftwareInstalledVersion{
+			{Version: byNSV[b].Version, Vulnerabilities: []string{vulns[3].CVE}, InstalledPaths: []string{installPaths[2]}},
+		},
+	}
+	expected[i1.Name+i1.Source] = fleet.HostSoftwareWithInstaller{
+		Name:            "i1",
+		Source:          "apps",
+		Status:          expectStatus(fleet.SoftwareInstallerPending),
+		SoftwarePackage: &fleet.SoftwarePackageOrApp{Name: "installer-2.pkg", Version: "v2.0.0", SelfService: ptr.Bool(false), LastInstall: &fleet.HostSoftwareInstall{InstallUUID: "uuid4"}},
+	}
+
+	// request without available software
+	opts.IncludeAvailableForInstall = false
+	sw, meta, err = ds.ListHostSoftware(ctx, host, opts)
+	require.NoError(t, err)
+	require.Equal(t, &fleet.PaginationMetadata{TotalResults: 7}, meta)
+	compareResults(expected, sw, true, i2.Name+i2.Source, i3.Name+i3.Source)
+
+	// request with available software)
+	opts.IncludeAvailableForInstall = true
+	sw, meta, err = ds.ListHostSoftware(ctx, host, opts)
+	require.NoError(t, err)
+	require.Equal(t, &fleet.PaginationMetadata{TotalResults: 8}, meta)
+	compareResults(expected, sw, true, i3.Name+i3.Source)
+
+	// create a new host in the team, with no software
+	tmHost := test.NewHost(t, ds, "host3", "", "host3key", "host3uuid", time.Now(), test.WithPlatform("darwin"))
+	nanoEnroll(t, ds, tmHost, false)
+	err = ds.AddHostsToTeam(ctx, &tm.ID, []uint{tmHost.ID})
+	require.NoError(t, err)
+	tmHost.TeamID = &tm.ID
+
+	// no installed software for this host
+	opts.IncludeAvailableForInstall = false
+	sw, meta, err = ds.ListHostSoftware(ctx, tmHost, opts)
+	require.NoError(t, err)
+	require.Empty(t, sw)
+	require.Equal(t, &fleet.PaginationMetadata{}, meta)
+
+	// sees the available installer in its team
+	opts.IncludeAvailableForInstall = true
+	sw, meta, err = ds.ListHostSoftware(ctx, tmHost, opts)
+	require.NoError(t, err)
+	require.Equal(t, &fleet.PaginationMetadata{TotalResults: 1}, meta)
+	compareResults(map[string]fleet.HostSoftwareWithInstaller{
+		i3.Name + i3.Source: expected[i3.Name+i3.Source],
+	}, sw, true)
+
+	// test with a search query (searches on name), with and without available software
+	opts.ListOptions.MatchQuery = "a"
+	opts.IncludeAvailableForInstall = false
+	sw, _, err = ds.ListHostSoftware(ctx, host, opts)
+	require.NoError(t, err)
+	compareResults(map[string]fleet.HostSoftwareWithInstaller{
+		byNSV[a1].Name + byNSV[a1].Source: expected[byNSV[a1].Name+byNSV[a1].Source],
+		byNSV[a2].Name + byNSV[a2].Source: expected[byNSV[a2].Name+byNSV[a2].Source],
+	}, sw, true)
+	opts.IncludeAvailableForInstall = true
+	sw, _, err = ds.ListHostSoftware(ctx, host, opts)
+	require.NoError(t, err)
+	compareResults(map[string]fleet.HostSoftwareWithInstaller{
+		byNSV[a1].Name + byNSV[a1].Source: expected[byNSV[a1].Name+byNSV[a1].Source],
+		byNSV[a2].Name + byNSV[a2].Source: expected[byNSV[a2].Name+byNSV[a2].Source],
+	}, sw, true)
+
+	opts.ListOptions.MatchQuery = "zz"
+	opts.IncludeAvailableForInstall = false
+	sw, _, err = ds.ListHostSoftware(ctx, host, opts)
+	require.NoError(t, err)
+	require.Empty(t, sw)
+	opts.IncludeAvailableForInstall = true
+	sw, _, err = ds.ListHostSoftware(ctx, host, opts)
+	require.NoError(t, err)
+	require.Empty(t, sw)
+
+	// add VPP apps, one for both no team and team, and two for no-team only.
+	va1, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{AdamID: "adam_vpp_1", Name: "vpp1", BundleIdentifier: "com.app.vpp1"}, nil)
+	require.NoError(t, err)
+	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{AdamID: "adam_vpp_1", Name: "vpp1", BundleIdentifier: "com.app.vpp1"}, &tm.ID)
+	require.NoError(t, err)
+	vpp1 := va1.AdamID
+	va2, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{AdamID: "adam_vpp_2", Name: "vpp2", BundleIdentifier: "com.app.vpp2"}, nil)
+	require.NoError(t, err)
+	va3, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{AdamID: "adam_vpp_3", Name: "vpp3", BundleIdentifier: "com.app.vpp3"}, nil)
+	require.NoError(t, err)
+	vpp2, vpp3 := va2.AdamID, va3.AdamID
+
+	// create an installation request for vpp1 and vpp2, leaving vpp3 as
+	// available only
+	vpp1CmdUUID := createVPPAppInstallRequest(t, ds, host, vpp1, user.ID)
+	vpp2CmdUUID := createVPPAppInstallRequest(t, ds, host, vpp2, user.ID)
+	// make vpp1 install a success, while vpp2 has its initial request as failed
+	// and a subsequent request as pending.
+	createVPPAppInstallResult(t, ds, host, vpp1CmdUUID, fleet.MDMAppleStatusAcknowledged)
+	createVPPAppInstallResult(t, ds, host, vpp2CmdUUID, fleet.MDMAppleStatusError)
+	time.Sleep(time.Second) // ensure a different created_at timestamp
+	vpp2bCmdUUID := createVPPAppInstallRequest(t, ds, host, vpp2, user.ID)
+	require.NotEmpty(t, vpp2bCmdUUID)
+	// add an install request for the team host on vpp1, should not impact
+	// main host
+	vpp1TmCmdUUID := createVPPAppInstallRequest(t, ds, tmHost, vpp1, user.ID)
+	require.NotEmpty(t, vpp1TmCmdUUID)
+
+	expected["vpp1apps"] = fleet.HostSoftwareWithInstaller{
+		Name:        "vpp1",
+		Source:      "apps",
+		Status:      expectStatus(fleet.SoftwareInstallerInstalled),
+		AppStoreApp: &fleet.SoftwarePackageOrApp{AppStoreID: vpp1, LastInstall: &fleet.HostSoftwareInstall{CommandUUID: vpp1CmdUUID}},
+	}
+	expected["vpp2apps"] = fleet.HostSoftwareWithInstaller{
+		Name:        "vpp2",
+		Source:      "apps",
+		Status:      expectStatus(fleet.SoftwareInstallerPending),
+		AppStoreApp: &fleet.SoftwarePackageOrApp{AppStoreID: vpp2, LastInstall: &fleet.HostSoftwareInstall{CommandUUID: vpp2bCmdUUID}},
+	}
+
+	opts.IncludeAvailableForInstall = false
+	opts.ListOptions.MatchQuery = ""
+	sw, meta, err = ds.ListHostSoftware(ctx, host, opts)
+	require.NoError(t, err)
+	require.Equal(t, &fleet.PaginationMetadata{TotalResults: 9}, meta)
+	compareResults(expected, sw, true, i3.Name+i3.Source, i2.Name+i2.Source) // i3 is for team, i2 is available (excluded)
+
+	expected["vpp3apps"] = fleet.HostSoftwareWithInstaller{
+		Name:        "vpp3",
+		Source:      "apps",
+		Status:      nil,
+		AppStoreApp: &fleet.SoftwarePackageOrApp{AppStoreID: vpp3},
+	}
+	opts.IncludeAvailableForInstall = true
+	opts.ListOptions.PerPage = 20
+	sw, meta, err = ds.ListHostSoftware(ctx, host, opts)
+	require.NoError(t, err)
+	require.Equal(t, &fleet.PaginationMetadata{TotalResults: 11}, meta)
+	compareResults(expected, sw, true, i3.Name+i3.Source) // i3 is for team
+
+	// team host sees available i3 and pending vpp1
+	opts.IncludeAvailableForInstall = true
+	sw, meta, err = ds.ListHostSoftware(ctx, tmHost, opts)
+	require.NoError(t, err)
+	require.Equal(t, &fleet.PaginationMetadata{TotalResults: 2}, meta)
+	compareResults(map[string]fleet.HostSoftwareWithInstaller{
+		i3.Name + i3.Source: expected[i3.Name+i3.Source],
+		"vpp1apps": {
+			Name:        "vpp1",
+			Source:      "apps",
+			Status:      expectStatus(fleet.SoftwareInstallerPending),
+			AppStoreApp: &fleet.SoftwarePackageOrApp{AppStoreID: vpp1, LastInstall: &fleet.HostSoftwareInstall{CommandUUID: vpp1TmCmdUUID}},
+		},
+	}, sw, true)
+
+	// other host does not see available VPP apps because it is a linux host
+	opts.IncludeAvailableForInstall = true
+	sw, meta, err = ds.ListHostSoftware(ctx, otherHost, opts)
+	require.NoError(t, err)
+	require.Equal(t, &fleet.PaginationMetadata{TotalResults: 4}, meta)
+
+	expectedOther := map[string]fleet.HostSoftwareWithInstaller{
+		otherSoftware[0].Name + otherSoftware[0].Source: {Name: otherSoftware[0].Name, Source: otherSoftware[0].Source, InstalledVersions: []*fleet.HostSoftwareInstalledVersion{
+			{Version: otherSoftware[0].Version},
+		}},
+		otherSoftware[1].Name + otherSoftware[1].Source: {Name: otherSoftware[1].Name, Source: otherSoftware[1].Source, InstalledVersions: []*fleet.HostSoftwareInstalledVersion{
+			{Version: otherSoftware[1].Version},
+		}},
+		"i1apps": {
+			Name:            "i1",
+			Source:          "apps",
+			Status:          expectStatus(fleet.SoftwareInstallerPending),
+			SoftwarePackage: &fleet.SoftwarePackageOrApp{Name: "installer-2.pkg", Version: "v2.0.0", SelfService: ptr.Bool(false), LastInstall: &fleet.HostSoftwareInstall{InstallUUID: otherHostI1UUID}},
+		},
+		"i2apps": {
+			Name:            "i2",
+			Source:          "apps",
+			Status:          expectStatus(fleet.SoftwareInstallerPending),
+			SoftwarePackage: &fleet.SoftwarePackageOrApp{Name: "installer-3.pkg", Version: "v3.0.0", SelfService: ptr.Bool(false), LastInstall: &fleet.HostSoftwareInstall{InstallUUID: otherHostI2UUID}},
+		},
+	}
+	compareResults(expectedOther, sw, true)
+
+	// test the pagination
+	cases := []struct {
+		opts      fleet.HostSoftwareTitleListOptions
+		wantNames []string
+		wantMeta  *fleet.PaginationMetadata
+	}{
+		{
+			opts:      fleet.HostSoftwareTitleListOptions{ListOptions: fleet.ListOptions{PerPage: 3}, IncludeAvailableForInstall: false},
+			wantNames: []string{byNSV[a1].Name, byNSV[a2].Name, byNSV[b].Name},
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: true, HasPreviousResults: false, TotalResults: 9},
+		},
+		{
+			opts:      fleet.HostSoftwareTitleListOptions{ListOptions: fleet.ListOptions{Page: 1, PerPage: 3}, IncludeAvailableForInstall: false},
+			wantNames: []string{byNSV[c1].Name, byNSV[d].Name, i0.Name},
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: true, HasPreviousResults: true, TotalResults: 9},
+		},
+		{
+			opts:      fleet.HostSoftwareTitleListOptions{ListOptions: fleet.ListOptions{Page: 2, PerPage: 3}, IncludeAvailableForInstall: false},
+			wantNames: []string{i1.Name, "vpp1", "vpp2"},
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true, TotalResults: 9},
+		},
+		{
+			opts:      fleet.HostSoftwareTitleListOptions{ListOptions: fleet.ListOptions{Page: 3, PerPage: 3}, IncludeAvailableForInstall: false},
+			wantNames: []string{},
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true, TotalResults: 9},
+		},
+		{
+			opts:      fleet.HostSoftwareTitleListOptions{ListOptions: fleet.ListOptions{PerPage: 4}, IncludeAvailableForInstall: true},
+			wantNames: []string{byNSV[a1].Name, byNSV[a2].Name, byNSV[b].Name, byNSV[c1].Name},
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: true, HasPreviousResults: false, TotalResults: 11},
+		},
+		{
+			opts:      fleet.HostSoftwareTitleListOptions{ListOptions: fleet.ListOptions{Page: 1, PerPage: 4}, IncludeAvailableForInstall: true},
+			wantNames: []string{byNSV[d].Name, i0.Name, i1.Name, i2.Name},
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: true, HasPreviousResults: true, TotalResults: 11},
+		},
+		{
+			opts:      fleet.HostSoftwareTitleListOptions{ListOptions: fleet.ListOptions{Page: 2, PerPage: 4}, IncludeAvailableForInstall: true},
+			wantNames: []string{"vpp1", "vpp2", "vpp3"},
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true, TotalResults: 11},
+		},
+		{
+			opts:      fleet.HostSoftwareTitleListOptions{ListOptions: fleet.ListOptions{PerPage: 2}, IncludeAvailableForInstall: true, SelfServiceOnly: true},
+			wantNames: []string{byNSV[b].Name, i0.Name},
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: false, TotalResults: 2},
+		},
+		{
+			opts:      fleet.HostSoftwareTitleListOptions{ListOptions: fleet.ListOptions{Page: 1, PerPage: 2}, IncludeAvailableForInstall: true, SelfServiceOnly: true},
+			wantNames: []string{},
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true, TotalResults: 2},
+		},
+	}
+	for _, c := range cases {
+		t.Run(fmt.Sprintf("%#v", c.opts), func(t *testing.T) {
+			// always include metadata
+			c.opts.ListOptions.IncludeMetadata = true
+			c.opts.ListOptions.OrderKey = "name"
+			c.opts.ListOptions.TestSecondaryOrderKey = "source"
+
+			sw, meta, err := ds.ListHostSoftware(ctx, host, c.opts)
+			require.NoError(t, err)
+
+			require.Equal(t, len(c.wantNames), len(sw))
+			require.Equal(t, c.wantMeta, meta)
+
+			names := make([]string, 0, len(sw))
+			for _, s := range sw {
+				names = append(names, s.Name)
+			}
+			require.Equal(t, c.wantNames, names)
+		})
+	}
+}
+
+func testSetHostSoftwareInstallResult(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
+
+	// create a software installer and some host install requests
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		installScript := `echo 'foo'`
+		res, err := q.ExecContext(ctx, `INSERT INTO script_contents (md5_checksum, contents) VALUES (UNHEX(md5(?)), ?)`, installScript, installScript)
+		if err != nil {
+			return err
+		}
+		scriptContentID, _ := res.LastInsertId()
+
+		res, err = q.ExecContext(ctx, `INSERT INTO software_titles (name, source) VALUES ('foo', 'apps')`)
+		if err != nil {
+			return err
+		}
+		titleID, _ := res.LastInsertId()
+
+		res, err = q.ExecContext(ctx, `
+			INSERT INTO software_installers
+				(title_id, filename, version, install_script_content_id, storage_id)
+			VALUES
+				(?, ?, ?, ?, unhex(?))`,
+			titleID, "installer.pkg", "v1.0.0", scriptContentID, hex.EncodeToString([]byte("test")))
+		if err != nil {
+			return err
+		}
+		id, _ := res.LastInsertId()
+
+		// create some install requests for the host
+		for i := 0; i < 3; i++ {
+			_, err = q.ExecContext(ctx, `
+			INSERT INTO host_software_installs (execution_id, host_id, software_installer_id) VALUES (?, ?, ?)`,
+				fmt.Sprintf("uuid%d", i), host.ID, id)
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+
+	checkResults := func(want *fleet.HostSoftwareInstallResultPayload) {
+		type result struct {
+			HostID                    uint    `db:"host_id"`
+			InstallUUID               string  `db:"execution_id"`
+			PreInstallConditionOutput *string `db:"pre_install_query_output"`
+			InstallScriptExitCode     *int    `db:"install_script_exit_code"`
+			InstallScriptOutput       *string `db:"install_script_output"`
+			PostInstallScriptExitCode *int    `db:"post_install_script_exit_code"`
+			PostInstallScriptOutput   *string `db:"post_install_script_output"`
+		}
+		var got result
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &got,
+				`SELECT
+					host_id,
+					execution_id,
+					pre_install_query_output,
+					install_script_exit_code,
+					install_script_output,
+					post_install_script_exit_code,
+					post_install_script_output
+				FROM
+					host_software_installs
+				WHERE execution_id = ?`, want.InstallUUID)
+		})
+		assert.Equal(t, want.HostID, got.HostID)
+		assert.Equal(t, want.InstallUUID, got.InstallUUID)
+		if want.PreInstallConditionOutput == nil {
+			assert.Nil(t, got.PreInstallConditionOutput)
+		} else {
+			assert.NotNil(t, got.PreInstallConditionOutput)
+			assert.Equal(t, *want.PreInstallConditionOutput, *got.PreInstallConditionOutput)
+		}
+		assert.Equal(t, want.InstallScriptExitCode, got.InstallScriptExitCode)
+		if want.InstallScriptOutput == nil {
+			assert.Nil(t, got.InstallScriptOutput)
+		} else {
+			assert.NotNil(t, got.InstallScriptOutput)
+			assert.EqualValues(t, want.InstallScriptOutput, got.InstallScriptOutput)
+		}
+		assert.Equal(t, want.PostInstallScriptExitCode, got.PostInstallScriptExitCode)
+		if want.PostInstallScriptOutput == nil {
+			assert.Nil(t, got.PostInstallScriptOutput)
+		} else {
+			assert.NotNil(t, got.PostInstallScriptOutput)
+			assert.EqualValues(t, want.InstallScriptOutput, got.InstallScriptOutput)
+		}
+	}
+
+	// set a result with all fields provided
+	want := &fleet.HostSoftwareInstallResultPayload{
+		HostID:                    host.ID,
+		InstallUUID:               "uuid0",
+		PreInstallConditionOutput: ptr.String("1"),
+		InstallScriptExitCode:     ptr.Int(0),
+		InstallScriptOutput:       ptr.String("ok"),
+		PostInstallScriptExitCode: ptr.Int(0),
+		PostInstallScriptOutput:   ptr.String("ok"),
+	}
+	err := ds.SetHostSoftwareInstallResult(ctx, want)
+	require.NoError(t, err)
+	checkResults(want)
+
+	// set a result with only the pre-condition that failed
+	want = &fleet.HostSoftwareInstallResultPayload{
+		HostID:                    host.ID,
+		InstallUUID:               "uuid1",
+		PreInstallConditionOutput: ptr.String(""),
+	}
+	err = ds.SetHostSoftwareInstallResult(ctx, want)
+	require.NoError(t, err)
+	checkResults(want)
+
+	// set a result with only the install that failed
+	want = &fleet.HostSoftwareInstallResultPayload{
+		HostID:                host.ID,
+		InstallUUID:           "uuid2",
+		InstallScriptExitCode: ptr.Int(1),
+		InstallScriptOutput:   ptr.String("fail"),
+	}
+	err = ds.SetHostSoftwareInstallResult(ctx, want)
+	require.NoError(t, err)
+	checkResults(want)
+
+	// set a result for a non-existing uuid
+	err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
+		HostID:                host.ID,
+		InstallUUID:           "uuid-no-such",
+		InstallScriptExitCode: ptr.Int(0),
+		InstallScriptOutput:   ptr.String("ok"),
+	})
+	require.Error(t, err)
+	require.True(t, fleet.IsNotFound(err))
 }

@@ -1,9 +1,33 @@
 .show-query-modal {
+  display: flex;
+  flex-direction: column;
+  gap: $pad-large;
+
   .yaml-ace {
     min-height: 0;
   }
 
   .yaml-ace__label {
     height: 0;
+  }
+
+  &__performance-impact {
+    display: flex;
+    align-items: center;
+    gap: $pad-small;
+
+    .data-table__pill {
+      font-size: $xxx-small;
+      font-weight: $bold;
+      padding: 6px 12px;
+
+      .__react_component_tooltip {
+        @include tooltip-text;
+      }
+    }
+  }
+
+  .modal-cta-wrap {
+    margin-top: initial;
   }
 }

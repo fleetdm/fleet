@@ -1,0 +1,72 @@
+name: Run fleetd-chrome tests
+
+on:
+  push:
+    branches:
+      - main
+      - patch-*
+      - prepare-*
+  pull_request:
+    paths:
+      - ee/fleetd-chrome/**
+
+# This allows a subsequently queued workflow run to interrupt previous runs
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id}}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    # fail-fast using bash -eo pipefail. See https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#exit-codes-and-error-action-preference
+    shell: bash
+
+permissions:
+  contents: read
+
+jobs:
+  test-fleetd-chrome:
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout Code
+        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+
+      - name: JS Dependency Cache
+        id: js-cache
+        uses: actions/cache@69d9d449aced6a2ede0bc19182fadc3a0a42d2b0 # v2
+        with:
+          path: |
+            **/node_modules
+          key: ${{ runner.os }}-modules-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-modules-
+
+      - name: Install JS Dependencies
+        if: steps.js-cache.outputs.cache-hit != 'true'
+        working-directory: ./ee/fleetd-chrome
+        run: npm install --no-save
+
+      - name: Build JS
+        working-directory: ./ee/fleetd-chrome
+        run: |
+          echo -e 'FLEET_URL="url"\nFLEET_ENROLL_SECRET="secret"' > .env
+          npm run build
+
+      - name: Run JS Tests
+        working-directory: ./ee/fleetd-chrome
+        run: |
+          npm test
+
+      - name: Upload to Codecov
+        uses: codecov/codecov-action@d9f34f8cd5cb3b3eb79b3e4b5dae3a16df499a70 # v3.1.1
+        with:
+          directory: ./ee/fleetd-chrome/coverage
+          flags: fleetd-chrome

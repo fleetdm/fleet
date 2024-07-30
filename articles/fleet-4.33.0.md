@@ -32,7 +32,7 @@ of compliant devices. This reflects our commitment to creating user-friendly sys
 empathy we share for our users' experience and their need for efficient, straightforward tools.
 
 Learn more about [Fleet's "Verified"
-status](https://fleetdm.com/docs/using-fleet/mdm-disk-encryption#step-3-confirm-disk-encryption-is-enforced-and-fleet-is-storing-the-disk-encryption-key).
+status](https://fleetdm.com/docs/using-fleet/mdm-disk-encryption#disk-encryption-status).
 
 
 ![Verified Status](../website/assets/images/articles/fleet-4.33.0-verified-status-1425x821@2x.png)

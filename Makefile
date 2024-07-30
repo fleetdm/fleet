@@ -1,4 +1,4 @@
-.PHONY: build clean clean-assets e2e-reset-db e2e-serve e2e-setup changelog db-reset db-backup db-restore
+.PHONY: build clean clean-assets e2e-reset-db e2e-serve e2e-setup changelog db-reset db-backup db-restore check-go-cloner update-go-cloner
 
 export GO111MODULE=on
 
@@ -54,14 +54,14 @@ ifdef CIRCLE_TAG
 	DOCKER_IMAGE_TAG = ${CIRCLE_TAG}
 endif
 
-KIT_VERSION = "\
-	-X github.com/kolide/kit/version.appName=${APP_NAME} \
-	-X github.com/kolide/kit/version.version=${VERSION} \
-	-X github.com/kolide/kit/version.branch=${BRANCH} \
-	-X github.com/kolide/kit/version.revision=${REVISION} \
-	-X github.com/kolide/kit/version.buildDate=${NOW} \
-	-X github.com/kolide/kit/version.buildUser=${USER} \
-	-X github.com/kolide/kit/version.goVersion=${GOVERSION}"
+LDFLAGS_VERSION = "\
+	-X github.com/fleetdm/fleet/v4/server/version.appName=${APP_NAME} \
+	-X github.com/fleetdm/fleet/v4/server/version.version=${VERSION} \
+	-X github.com/fleetdm/fleet/v4/server/version.branch=${BRANCH} \
+	-X github.com/fleetdm/fleet/v4/server/version.revision=${REVISION} \
+	-X github.com/fleetdm/fleet/v4/server/version.buildDate=${NOW} \
+	-X github.com/fleetdm/fleet/v4/server/version.buildUser=${USER} \
+	-X github.com/fleetdm/fleet/v4/server/version.goVersion=${GOVERSION}"
 
 all: build
 
@@ -113,7 +113,7 @@ help:
 build: fleet fleetctl
 
 fleet: .prefix .pre-build .pre-fleet
-	CGO_ENABLED=1 go build -race=${GO_BUILD_RACE_ENABLED_VAR} -tags full,fts5,netgo -o build/${OUTPUT} -ldflags ${KIT_VERSION} ./cmd/fleet
+	CGO_ENABLED=1 go build -race=${GO_BUILD_RACE_ENABLED_VAR} -tags full,fts5,netgo -o build/${OUTPUT} -ldflags ${LDFLAGS_VERSION} ./cmd/fleet
 
 fleet-dev: GO_BUILD_RACE_ENABLED_VAR=true
 fleet-dev: fleet
@@ -121,7 +121,7 @@ fleet-dev: fleet
 fleetctl: .prefix .pre-build .pre-fleetctl
 	# Race requires cgo
 	$(eval CGO_ENABLED := $(shell [[ "${GO_BUILD_RACE_ENABLED_VAR}" = "true" ]] && echo 1 || echo 0))
-	CGO_ENABLED=${CGO_ENABLED} go build -race=${GO_BUILD_RACE_ENABLED_VAR} -o build/fleetctl -ldflags ${KIT_VERSION} ./cmd/fleetctl
+	CGO_ENABLED=${CGO_ENABLED} go build -race=${GO_BUILD_RACE_ENABLED_VAR} -o build/fleetctl -ldflags ${LDFLAGS_VERSION} ./cmd/fleetctl
 
 fleetctl-dev: GO_BUILD_RACE_ENABLED_VAR=true
 fleetctl-dev: fleetctl
@@ -130,7 +130,7 @@ lint-js:
 	yarn lint
 
 lint-go:
-	golangci-lint run --skip-dirs ./node_modules --timeout 10m
+	golangci-lint run --skip-dirs ./node_modules --timeout 15m
 
 lint: lint-go lint-js
 
@@ -144,7 +144,7 @@ analyze-go:
 	go test -tags full,fts5,netgo -race -cover ./...
 
 test-js:
-	npm test
+	yarn test
 
 test: lint test-go test-js
 
@@ -173,7 +173,6 @@ generate-dev: .prefix
 	NODE_ENV=development yarn run webpack --progress --watch
 
 generate-mock: .prefix
-	go install github.com/fleetdm/mockimpl@ecbb3041eabfc9e046a3f2e414e32c28254b75b2
 	go generate github.com/fleetdm/fleet/v4/server/mock github.com/fleetdm/fleet/v4/server/mock/mockresult github.com/fleetdm/fleet/v4/server/service/mock
 
 generate-doc: .prefix
@@ -188,8 +187,18 @@ deps-js:
 deps-go:
 	go mod download
 
+# check that the generated files in tools/cloner-check/generated_files match
+# the current version of the cloneable structures.
+check-go-cloner:
+	go run ./tools/cloner-check/main.go --check
+
+# update the files in tools/cloner-check/generated_files with the current
+# version of the cloneable structures.
+update-go-cloner:
+	go run ./tools/cloner-check/main.go --update
+
 migration:
-	go run github.com/fleetdm/goose/cmd/goose -dir server/datastore/mysql/migrations/tables create $(name)
+	go run ./server/goose/cmd/goose -dir server/datastore/mysql/migrations/tables create $(name)
 	gofmt -w server/datastore/mysql/migrations/tables/*_$(name)*.go
 
 clean: clean-assets
@@ -218,14 +227,14 @@ fleetctl-docker: xp-fleetctl
 	mkdir -p build/binary-bundle/darwin
 
 xp-fleet: .pre-binary-bundle .pre-fleet generate
-	CGO_ENABLED=1 GOOS=linux go build -tags full,fts5,netgo -trimpath -o build/binary-bundle/linux/fleet -ldflags ${KIT_VERSION} ./cmd/fleet
-	CGO_ENABLED=1 GOOS=darwin go build -tags full,fts5,netgo -trimpath -o build/binary-bundle/darwin/fleet -ldflags ${KIT_VERSION} ./cmd/fleet
-	CGO_ENABLED=1 GOOS=windows go build -tags full,fts5,netgo -trimpath -o build/binary-bundle/windows/fleet.exe -ldflags ${KIT_VERSION} ./cmd/fleet
+	CGO_ENABLED=1 GOOS=linux go build -tags full,fts5,netgo -trimpath -o build/binary-bundle/linux/fleet -ldflags ${LDFLAGS_VERSION} ./cmd/fleet
+	CGO_ENABLED=1 GOOS=darwin go build -tags full,fts5,netgo -trimpath -o build/binary-bundle/darwin/fleet -ldflags ${LDFLAGS_VERSION} ./cmd/fleet
+	CGO_ENABLED=1 GOOS=windows go build -tags full,fts5,netgo -trimpath -o build/binary-bundle/windows/fleet.exe -ldflags ${LDFLAGS_VERSION} ./cmd/fleet
 
 xp-fleetctl: .pre-binary-bundle .pre-fleetctl generate-go
-	CGO_ENABLED=0 GOOS=linux go build -trimpath -o build/binary-bundle/linux/fleetctl -ldflags ${KIT_VERSION} ./cmd/fleetctl
-	CGO_ENABLED=0 GOOS=darwin go build -trimpath -o build/binary-bundle/darwin/fleetctl -ldflags ${KIT_VERSION} ./cmd/fleetctl
-	CGO_ENABLED=0 GOOS=windows go build -trimpath -o build/binary-bundle/windows/fleetctl.exe -ldflags ${KIT_VERSION} ./cmd/fleetctl
+	CGO_ENABLED=0 GOOS=linux go build -trimpath -o build/binary-bundle/linux/fleetctl -ldflags ${LDFLAGS_VERSION} ./cmd/fleetctl
+	CGO_ENABLED=0 GOOS=darwin go build -trimpath -o build/binary-bundle/darwin/fleetctl -ldflags ${LDFLAGS_VERSION} ./cmd/fleetctl
+	CGO_ENABLED=0 GOOS=windows go build -trimpath -o build/binary-bundle/windows/fleetctl.exe -ldflags ${LDFLAGS_VERSION} ./cmd/fleetctl
 
 binary-bundle: xp-fleet xp-fleetctl
 	cd build/binary-bundle && zip -r fleet.zip darwin/ linux/ windows/
@@ -240,13 +249,15 @@ fleetd-tables-windows:
 	GOOS=windows GOARCH=amd64 go build -o fleetd_tables_windows.exe ./orbit/cmd/fleetd_tables
 fleetd-tables-linux:
 	GOOS=linux GOARCH=amd64 go build -o fleetd_tables_linux.ext ./orbit/cmd/fleetd_tables
+fleetd-tables-linux-arm64:
+	GOOS=linux GOARCH=arm64 go build -o fleetd_tables_linux_arm64.ext ./orbit/cmd/fleetd_tables
 fleetd-tables-darwin:
 	GOOS=darwin GOARCH=amd64 go build -o fleetd_tables_darwin.ext ./orbit/cmd/fleetd_tables
 fleetd-tables-darwin_arm:
 	GOOS=darwin GOARCH=arm64 CGO_ENABLED=1 go build -o fleetd_tables_darwin_arm.ext ./orbit/cmd/fleetd_tables
 fleetd-tables-darwin-universal: fleetd-tables-darwin fleetd-tables-darwin_arm
 	lipo -create fleetd_tables_darwin.ext fleetd_tables_darwin_arm.ext -output fleetd_tables_darwin_universal.ext
-fleetd-tables-all: fleetd-tables-windows fleetd-tables-linux fleetd-tables-darwin-universal
+fleetd-tables-all: fleetd-tables-windows fleetd-tables-linux fleetd-tables-darwin-universal fleetd-tables-linux-arm64
 fleetd-tables-clean:
 	rm -f fleetd_tables_windows.exe fleetd_tables_linux.ext fleetd_tables_darwin.ext fleetd_tables_darwin_arm.ext fleetd_tables_darwin_universal.ext
 
@@ -263,8 +274,8 @@ endif
 
 binary-arch: .pre-binary-arch .pre-binary-bundle .pre-fleet
 	mkdir -p build/binary-bundle/${GOARCH}-${GOOS}
-	CGO_ENABLED=1 GOARCH=${GOARCH} GOOS=${GOOS} go build -tags full,fts5,netgo -o build/binary-bundle/${GOARCH}-${GOOS}/fleet -ldflags ${KIT_VERSION} ./cmd/fleet
-	CGO_ENABLED=0 GOARCH=${GOARCH} GOOS=${GOOS} go build -tags full,fts5,netgo -o build/binary-bundle/${GOARCH}-${GOOS}/fleetctl -ldflags ${KIT_VERSION} ./cmd/fleetctl
+	CGO_ENABLED=1 GOARCH=${GOARCH} GOOS=${GOOS} go build -tags full,fts5,netgo -o build/binary-bundle/${GOARCH}-${GOOS}/fleet -ldflags ${LDFLAGS_VERSION} ./cmd/fleet
+	CGO_ENABLED=0 GOARCH=${GOARCH} GOOS=${GOOS} go build -tags full,fts5,netgo -o build/binary-bundle/${GOARCH}-${GOOS}/fleetctl -ldflags ${LDFLAGS_VERSION} ./cmd/fleetctl
 	cd build/binary-bundle/${GOARCH}-${GOOS} && tar -czf fleetctl-${GOARCH}-${GOOS}.tar.gz fleetctl fleet
 
 
@@ -309,9 +320,26 @@ changelog:
 	sh -c "git rm changes/*"
 
 changelog-orbit:
-	sh -c "find orbit/changes -type file | grep -v .keep | xargs -I {} sh -c 'grep \"\S\" {}; echo' > new-CHANGELOG.md"
+	$(eval TODAY_DATE := $(shell date "+%b %d, %Y"))
+	@echo -e "## Orbit $(version) ($(TODAY_DATE))\n" > new-CHANGELOG.md
+	sh -c "find orbit/changes -type file | grep -v .keep | xargs -I {} sh -c 'grep \"\S\" {} | sed -E "s/^-/*/"; echo' >> new-CHANGELOG.md"
 	sh -c "cat new-CHANGELOG.md orbit/CHANGELOG.md > tmp-CHANGELOG.md && rm new-CHANGELOG.md && mv tmp-CHANGELOG.md orbit/CHANGELOG.md"
 	sh -c "git rm orbit/changes/*"
+
+changelog-chrome:
+	$(eval TODAY_DATE := $(shell date "+%b %d, %Y"))
+	@echo -e "## fleetd-chrome $(version) ($(TODAY_DATE))\n" > new-CHANGELOG.md
+	sh -c "find ee/fleetd-chrome/changes -type file | grep -v .keep | xargs -I {} sh -c 'grep \"\S\" {}; echo' >> new-CHANGELOG.md"
+	sh -c "cat new-CHANGELOG.md ee/fleetd-chrome/CHANGELOG.md > tmp-CHANGELOG.md && rm new-CHANGELOG.md && mv tmp-CHANGELOG.md ee/fleetd-chrome/CHANGELOG.md"
+	sh -c "git rm ee/fleetd-chrome/changes/*"
+
+# Updates the documentation for the currently released versions of fleetd components in Fleet's TUF.
+fleetd-tuf:
+	sh -c 'echo "<!-- DO NOT EDIT. This document is automatically generated by running \`make fleetd-tuf\`. -->\n# tuf.fleetctl.com\n\nFollowing are the currently deployed versions of fleetd components on the \`stable\` and \`edge\` channel.\n" > orbit/TUF.md'
+	sh -c 'echo "## \`stable\`\n" >> orbit/TUF.md'
+	sh -c 'go run tools/tuf/status/tuf-status.go channel-version -channel stable -format markdown >> orbit/TUF.md'
+	sh -c 'echo "\n## \`edge\`\n" >> orbit/TUF.md'
+	sh -c 'go run tools/tuf/status/tuf-status.go channel-version -channel edge -format markdown >> orbit/TUF.md'
 
 ###
 # Development DB commands
@@ -377,7 +405,7 @@ ifneq ($(shell uname), Darwin)
 	@exit 1
 endif
 	# locking the version of swiftDialog to 2.2.1-4591 as newer versions
-	# migth have layout issues.
+	# might have layout issues.
 ifneq ($(version), 2.2.1)
 	@echo "Version is locked at 2.1.0, see comments in Makefile target for details"
 	@exit 1
@@ -439,6 +467,21 @@ desktop-linux:
 		tar czf desktop.tar.gz fleet-desktop && \
 		rm -r fleet-desktop"
 
+# Build desktop executable for Linux ARM.
+#
+# Usage:
+# FLEET_DESKTOP_VERSION=0.0.1 make desktop-linux-arm64
+#
+# Output: desktop.tar.gz
+desktop-linux-arm64:
+	docker build -f Dockerfile-desktop-linux -t desktop-linux-builder .
+	docker run --rm -v $(shell pwd):/output desktop-linux-builder /bin/bash -c "\
+		mkdir /output/fleet-desktop && \
+		GOARCH=arm64 go build -o /output/fleet-desktop/fleet-desktop -ldflags "-X=main.version=$(FLEET_DESKTOP_VERSION)" /usr/src/fleet/orbit/cmd/desktop && \
+		cd /output && \
+		tar czf desktop.tar.gz fleet-desktop && \
+		rm -r fleet-desktop"
+
 # Build orbit executable for Windows.
 # This generates orbit executable for Windows that includes versioninfo binary properties
 # These properties can be displayed when right-click on the binary in Windows Explorer.
@@ -461,10 +504,11 @@ db-replica-setup:
 	$(eval MYSQL_REPLICATION_USER := replicator)
 	$(eval MYSQL_REPLICATION_PASSWORD := rotacilper)
 	MYSQL_PWD=toor mysql --host 127.0.0.1 --port 3309 -uroot -AN -e "stop slave; reset slave all;"
-	MYSQL_PWD=toor mysql --host 127.0.0.1 --port 3308 -uroot -AN -e "drop user if exists '$(MYSQL_REPLICATION_USER)'; create user '$(MYSQL_REPLICATION_USER)'@'%'; grant replication slave on *.* to '$(MYSQL_REPLICATION_USER)'@'%' identified by '$(MYSQL_REPLICATION_PASSWORD)'; flush privileges;"
+	MYSQL_PWD=toor mysql --host 127.0.0.1 --port 3308 -uroot -AN -e "drop user if exists '$(MYSQL_REPLICATION_USER)'; create user '$(MYSQL_REPLICATION_USER)'@'%' identified by '$(MYSQL_REPLICATION_PASSWORD)'; grant replication slave on *.* to '$(MYSQL_REPLICATION_USER)'@'%'; flush privileges;"
 	$(eval MAIN_POSITION := $(shell MYSQL_PWD=toor mysql --host 127.0.0.1 --port 3308 -uroot -e 'show master status \G' | grep Position | grep -o '[0-9]*'))
 	$(eval MAIN_FILE := $(shell MYSQL_PWD=toor mysql --host 127.0.0.1 --port 3308 -uroot -e 'show master status \G' | grep File | sed -n -e 's/^.*: //p'))
-	MYSQL_PWD=toor mysql --host 127.0.0.1 --port 3309 -uroot -AN -e "change master to master_host='mysql_main',master_user='$(MYSQL_REPLICATION_USER)',master_password='$(MYSQL_REPLICATION_PASSWORD)',master_log_file='$(MAIN_FILE)',master_log_pos=$(MAIN_POSITION);"
+	MYSQL_PWD=toor mysql --host 127.0.0.1 --port 3309 -uroot -AN -e "change master to master_port=3306,master_host='mysql_main',master_user='$(MYSQL_REPLICATION_USER)',master_password='$(MYSQL_REPLICATION_PASSWORD)',master_log_file='$(MAIN_FILE)',master_log_pos=$(MAIN_POSITION);"
+	if [ "${FLEET_MYSQL_IMAGE}" == "mysql:8.0" ]; then MYSQL_PWD=toor mysql --host 127.0.0.1 --port 3309 -uroot -AN -e "change master to get_master_public_key=1;"; fi
 	MYSQL_PWD=toor mysql --host 127.0.0.1 --port 3309 -uroot -AN -e "change master to master_delay=1;"
 	MYSQL_PWD=toor mysql --host 127.0.0.1 --port 3309 -uroot -AN -e "start slave;"
 

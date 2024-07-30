@@ -1,0 +1,162 @@
+.software-table {
+  &__vuln_dropdown {
+    .Select-menu-outer {
+      width: 250px;
+      max-height: 310px;
+
+      .Select-menu {
+        max-height: none;
+      }
+    }
+
+    .Select-value {
+      padding-left: $pad-medium;
+      padding-right: $pad-medium;
+    }
+
+    .dropdown__custom-value-label {
+      width: 155px; // Override 105px for longer text options
+    }
+  }
+
+  &__filter-controls {
+    display: flex;
+    align-items: center;
+    gap: $pad-medium;
+  }
+
+  // Fix dropdown form bug
+  &__version-slider {
+    width: 210px;
+  }
+
+  .table-container {
+    &__header {
+      flex-direction: column-reverse; // Search bar on top
+
+      @media (min-width: $table-controls-break) {
+        flex-direction: row;
+      }
+    }
+
+    &__header-left {
+      flex-direction: row; // Filter dropdown aligned with count
+
+      .controls {
+        .form-field--dropdown {
+          margin: 0;
+        }
+      }
+    }
+
+    &__search-input,
+    &__search {
+      width: 100%; // Search bar across entire table
+
+      .input-icon-field__input {
+        width: 100%;
+      }
+
+      @media (min-width: $table-controls-break) {
+        width: auto;
+
+        .input-icon-field__input {
+          width: 375px;
+        }
+      }
+    }
+
+    &__data-table-block {
+      .data-table-block {
+        .data-table__table {
+          // for showing and hiding "view all hosts" link on hover
+          tr {
+            .software-link {
+              opacity: 0;
+              transition: opacity 250ms;
+            }
+
+            &:hover {
+              .software-link {
+                opacity: 1;
+              }
+            }
+          }
+
+          thead {
+            .name__header {
+              width: $col-md;
+            }
+
+            .hosts_count__header {
+              width: auto;
+              border-right: 0;
+            }
+
+            @media (min-width: $break-lg) {
+              // expand the width of version header at larger screen sizes
+              .versions__header {
+                width: $col-md;
+              }
+            }
+          }
+
+          tbody {
+            .name__cell {
+              max-width: $col-md;
+
+              // Tooltip does not get cut off
+              .children-wrapper {
+                overflow: initial;
+              }
+
+              // ellipsis for software name
+              .software-name {
+                overflow: hidden;
+                text-overflow: ellipsis;
+              }
+            }
+
+            .hosts_count__cell {
+              .hosts-cell__wrapper {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+
+                .hosts-cell__link {
+                  display: flex;
+                  white-space: nowrap;
+                }
+              }
+            }
+
+            @media (min-width: $break-sm) {
+              .name__cell {
+                max-width: $col-lg;
+              }
+            }
+
+            @media (min-width: $break-lg) {
+              .versions__cell {
+                width: $col-md;
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // needed to handle overflow of the table data on small screens
+  .data-table {
+    &__wrapper {
+      overflow-x: auto;
+    }
+  }
+  .view-all-hosts {
+    &__cell {
+      display: flex;
+      justify-content: flex-end;
+    }
+  }
+}

@@ -1,0 +1,53 @@
+.software-os-table {
+  .hosts-cell__wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .os-hosts-link {
+    opacity: 0;
+    transition: 250ms;
+  }
+
+  tr:hover {
+    .os-hosts-link {
+      opacity: 1;
+    }
+  }
+
+  .table-container {
+    &__data-table-block {
+      .data-table-block {
+        .data-table {
+          &__wrapper {
+            overflow-x: auto;
+          }
+          &__table {
+            tbody {
+              .name_only__cell {
+                max-width: $col-md;
+
+                // Tooltip does not get cut off
+                .children-wrapper {
+                  overflow: initial;
+                }
+
+                // ellipsis for software name
+                .software-name {
+                  overflow: hidden;
+                  text-overflow: ellipsis;
+                }
+              }
+              .link-cell {
+                display: flex;
+                align-items: center;
+                gap: $pad-small;
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

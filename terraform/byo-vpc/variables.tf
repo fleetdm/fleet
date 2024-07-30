@@ -10,7 +10,7 @@ variable "vpc_config" {
 variable "rds_config" {
   type = object({
     name                            = optional(string, "fleet")
-    engine_version                  = optional(string, "8.0.mysql_aurora.3.02.2")
+    engine_version                  = optional(string, "8.0.mysql_aurora.3.04.2")
     instance_class                  = optional(string, "db.t4g.large")
     subnets                         = optional(list(string), [])
     allowed_security_groups         = optional(list(string), [])
@@ -25,10 +25,11 @@ variable "rds_config" {
     master_username                 = optional(string, "fleet")
     snapshot_identifier             = optional(string)
     cluster_tags                    = optional(map(string), {})
+    preferred_maintenance_window    = optional(string, "thu:23:00-fri:00:00")
   })
   default = {
     name                            = "fleet"
-    engine_version                  = "8.0.mysql_aurora.3.02.2"
+    engine_version                  = "8.0.mysql_aurora.3.04.2"
     instance_class                  = "db.t4g.large"
     subnets                         = []
     allowed_security_groups         = []
@@ -43,6 +44,7 @@ variable "rds_config" {
     master_username                 = "fleet"
     snapshot_identifier             = null
     cluster_tags                    = {}
+    preferred_maintenance_window    = "thu:23:00-fri:00:00"
   }
   description = "The config for the terraform-aws-modules/rds-aurora/aws module"
   nullable    = false
@@ -163,9 +165,12 @@ variable "ecs_cluster" {
 
 variable "fleet_config" {
   type = object({
+    task_mem                     = optional(number, null)
+    task_cpu                     = optional(number, null)
     mem                          = optional(number, 4096)
     cpu                          = optional(number, 512)
-    image                        = optional(string, "fleetdm/fleet:v4.41.0")
+    pid_mode                     = optional(string, null)
+    image                        = optional(string, "fleetdm/fleet:v4.54.1")
     family                       = optional(string, "fleet")
     sidecars                     = optional(list(any), [])
     depends_on                   = optional(list(any), [])
@@ -178,6 +183,8 @@ variable "fleet_config" {
     security_groups              = optional(list(string), null)
     security_group_name          = optional(string, "fleet")
     iam_role_arn                 = optional(string, null)
+    repository_credentials       = optional(string, "")
+    private_key_secret_name      = optional(string, "fleet-server-private-key")
     service = optional(object({
       name = optional(string, "fleet")
       }), {
@@ -222,11 +229,28 @@ variable "fleet_config" {
     })
     extra_load_balancers = optional(list(any), [])
     networking = optional(object({
-      subnets         = list(string)
+      subnets         = optional(list(string), null)
       security_groups = optional(list(string), null)
+      ingress_sources = optional(object({
+        cidr_blocks      = optional(list(string), [])
+        ipv6_cidr_blocks = optional(list(string), [])
+        security_groups  = optional(list(string), [])
+        prefix_list_ids  = optional(list(string), [])
+        }), {
+        cidr_blocks      = []
+        ipv6_cidr_blocks = []
+        security_groups  = []
+        prefix_list_ids  = []
+      })
       }), {
       subnets         = null
       security_groups = null
+      ingress_sources = {
+        cidr_blocks      = []
+        ipv6_cidr_blocks = []
+        security_groups  = []
+        prefix_list_ids  = []
+      }
     })
     autoscaling = optional(object({
       max_capacity                 = optional(number, 5)
@@ -257,11 +281,25 @@ variable "fleet_config" {
       }), {
       name = "fleetdm-execution-role"
     })
+    software_installers = optional(object({
+      create_bucket    = optional(bool, true)
+      bucket_name      = optional(string, null)
+      bucket_prefix    = optional(string, "fleet-software-installers-")
+      s3_object_prefix = optional(string, "")
+      }), {
+      create_bucket    = true
+      bucket_name      = null
+      bucket_prefix    = "fleet-software-installers-"
+      s3_object_prefix = ""
+    })
   })
   default = {
+    task_mem                     = null
+    task_cpu                     = null
     mem                          = 512
     cpu                          = 256
-    image                        = "fleetdm/fleet:v4.31.1"
+    pid_mode                     = null
+    image                        = "fleetdm/fleet:v4.54.1"
     family                       = "fleet"
     sidecars                     = []
     depends_on                   = []
@@ -274,6 +312,8 @@ variable "fleet_config" {
     security_groups              = null
     security_group_name          = "fleet"
     iam_role_arn                 = null
+    repository_credentials       = ""
+    private_key_secret_name      = "fleet-server-private-key"
     service = {
       name = "fleet"
     }
@@ -302,6 +342,12 @@ variable "fleet_config" {
     networking = {
       subnets         = null
       security_groups = null
+      ingress_sources = {
+        cidr_blocks      = []
+        ipv6_cidr_blocks = []
+        security_groups  = []
+        prefix_list_ids  = []
+      }
     }
     autoscaling = {
       max_capacity                 = 5
@@ -318,6 +364,12 @@ variable "fleet_config" {
         name        = "fleet-execution-role"
         policy_name = "fleet-iam-policy-execution"
       }
+    }
+    software_installers = {
+      create_bucket    = true
+      bucket_name      = null
+      bucket_prefix    = "fleet-software-installers-"
+      s3_object_prefix = ""
     }
   }
   description = "The configuration object for Fleet itself. Fields that default to null will have their respective resources created if not specified."

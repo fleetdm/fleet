@@ -1,78 +1,11 @@
 # Scaling Fleet
 
-Nowadays, Fleet, as a Go server, scales horizontally very well. It’s not very CPU or memory intensive. In terms of load in infrastructure, from highest to lowest are: MySQL, Redis, and Fleet.
-
-In general, we should burn a bit of CPU or memory on the Fleet side if it allows us to reduce the load on MySQL or Redis.
-
-In many, caching helps, but given that we are not doing load balancing based on host id (i.e., make sure that the same host ends up in the same Fleet server). This goes only so far. Caching host-specific data is not done because round-robin LB means all Fleet instances end up circling the total list of hosts.
-
-### How to prevent most of this
-
-The best way we’ve got so far to prevent any scaling issues is to load test things. **Every new feature must have its corresponding osquery-perf implementation as part of the PR, and it should be tested at a reasonable scale for the feature**.
-
-Besides that, you should consider the answer(s) to the following question: how can I know that the feature I’m working on is working and performing well enough? Add any logs, metrics, or anything that will help us debug and understand what’s happening when things unavoidably go wrong or take longer than anticipated.
-
-**HOWEVER** (and forgive this Captain Obvious comment): do NOT optimize before you KNOW you have to. Don’t hesitate to take an extra day on your feature/bug work to load test things properly.
-
-## What have we learned so far?
-
 This is a document that evolves and will likely always be incomplete. If you feel like something is missing, either add it or bring it up in any way you consider.
 
-## Connecting to Dogfood MySQL & Redis
-
-### Prerequisites
-
-1. Setup [VPN](https://github.com/fleetdm/confidential/blob/main/vpn/README.md)
-2. Configure [SSO](https://github.com/fleetdm/confidential/tree/main/infrastructure/sso#how-to-use-sso)
-
-### Connecting
-
-#### MySQL
-
-Get the database host:
-```shell
-DB_HOST=$(aws rds describe-db-clusters --filter Name=db-cluster-id,Values=fleet-dogfood --query "DBClusters[0].Endpoint" --output=text)
-```
-
-Get the database user:
-```shell
-DB_USER=$(aws rds describe-db-clusters --filter Name=db-cluster-id,Values=fleet-dogfood --query "DBClusters[0].MasterUsername" --output=text)
-```
-
-Get the database password:
-```shell
-DB_PASSWORD=$(aws secretsmanager get-secret-value --secret-id fleet-dogfood-database-password --query "SecretString" --output=text)
-```
-
-Connect:
-```shell
-mysql -h"${DB_HOST}" -u"${DB_USER}" -p"${DB_PASSWORD}"
-```
-
-#### Redis
-
-Get the Redis Host:
-```shell
-REDIS_HOST=$(aws elasticache describe-replication-groups --replication-group-id fleetdm-redis --query "ReplicationGroups[0].NodeGroups[0].PrimaryEndpoint.Address" --output=text)
-```
-
-Connect:
-```shell
-redis-cli -h "${REDIS_HOST}"
-```
-
-## Foreign keys and locking
-
-Among the first things you learn in database data modeling is: that if one table references a row in another, that reference should be a foreign key. This provides a lot of assurances and makes coding basic things much simpler.
-
-However, this database feature doesn’t come without a cost. The one to focus on here is locking, and here’s a great summary of the issue: https://www.percona.com/blog/2006/12/12/innodb-locking-and-foreign-keys/
-
-The TLDR is: understand very well how a table will be used. If we do bulk inserts/updates, InnoDB might lock more than you anticipate and cause issues. This is not an argument to not do bulk inserts/updates, but to be very careful when you add a foreign key.
-
-In particular, host_id is a foreign key we’ve been skipping in all the new additional host data tables, which is not something that comes for free, as with that, [we have to keep the data consistent by hand with cleanups](https://github.com/fleetdm/fleet/blob/71a237042a9c39a45bc8f9c76465e5ff6039eba9/server/datastore/mysql/hosts.go#L444).
-
-### In this section
-
+### What have we learned so far?
+- [How Fleet scales](#how-fleet-scales)
+- [How to prevent most of this](#how-to-prevent-most-of-this)
+- [Foreign keys and locking](#foreign-keys-and-locking)
 - [Insert on duplicate update](#insert-on-duplicate-update)
 - [Host extra data and JOINs](#host-extra-data-and-joins)
 - [What DB tables matter more when thinking about performance?](#what-db-tables-matter-more-when-thinking-about-performance)
@@ -82,14 +15,41 @@ In particular, host_id is a foreign key we’ve been skipping in all the new add
 - [Counts and aggregated data](#counts-and-aggregated-data)
 - [Caching data such as app config](#caching-data-such-as-app-config)
 - [Redis SCAN](#redis-scan)
-- [Fleet docs](#fleet-docs)
-- [Community support](#community-support)
+- [Connecting to Dogfood MySQL & Redis](#connecting-to-dogfood-mysql--redis)
+
+### How Fleet scales
+
+Nowadays, Fleet, as a Go server, scales horizontally very well. It’s not very CPU or memory intensive. In terms of load in infrastructure, from highest to lowest are: MySQL, Redis, and Fleet.
+
+In general, we should burn a bit of CPU or memory on the Fleet side if it allows us to reduce the load on MySQL or Redis.
+
+In many cases, caching helps, but given that we are not doing load balancing based on host id (i.e., make sure that the same host ends up in the same Fleet server). This goes only so far. Caching host-specific data is not done because round-robin LB means all Fleet instances end up circling the total list of hosts.
+
+### How to prevent most of this
+
+The best way we’ve got so far to prevent any scaling issues is to load test things. **Every new feature must have its corresponding osquery-perf implementation as part of the PR, and it should be tested at a reasonable scale for the feature**.
+
+Besides that, you should consider the answer(s) to the following question: how can I know that the feature I’m working on is working and performing well enough? Add any logs, metrics, or anything that will help us debug and understand what’s happening when things unavoidably go wrong or take longer than anticipated.
+
+**HOWEVER** (and forgive this Captain Obvious comment): do NOT optimize before you KNOW you have to. Don’t hesitate to take an extra day on your feature/bug work to load test things properly.
+
+### Foreign keys and locking
+
+Among the first things you learn in database data modeling is: that if one table references a row in another, that reference should be a foreign key. This provides a lot of assurances and makes coding basic things much simpler.
+
+However, this database feature doesn’t come without a cost. The one to focus on here is locking, and here’s a great summary of the issue: https://www.percona.com/blog/2006/12/12/innodb-locking-and-foreign-keys/
+
+The TLDR is: understand very well how a table will be used. If we do bulk inserts/updates, InnoDB might lock more than you anticipate and cause issues. This is not an argument to not do bulk inserts/updates, but to be very careful when you add a foreign key.
+
+In particular, host_id is a foreign key we’ve been skipping in all the new additional host data tables, which is not something that comes for free, as with that, [we have to keep the data consistent by hand with cleanups](https://github.com/fleetdm/fleet/blob/71a237042a9c39a45bc8f9c76465e5ff6039eba9/server/datastore/mysql/hosts.go#L444).
 
 ### Insert on duplicate update
 
 It’s very important to understand how a table will be used. If rows are inserted once and then updated many times, an easy reflex is to do an `INSERT … ON DUPLICATE KEY UPDATE`. While technically correct, it will be more performant to try to do an update, and if it fails because there are no rows, then do an insert for the row. This means that it’ll fail once, and then it’ll update without issues, while on the `INSERT … ON DUPLICATE KEY UPDATE`, it will try to insert, and 99% of the time, it will go into the `ON DUPLICATE KEY UPDATE`.
 
 This approach has a caveat. It introduces a race condition between the `UPDATE` and the `INSERT` where another `INSERT` might happen in between the two, making the second `INSERT` fail. With the right constraints (and depending on the details of the problem), this is not a big problem. Alternatively, the `INSERT` could be one with an `ON DUPLICATE KEY UPDATE` at the end to recover from this scenario.
+
+When using transactions, the above `INSERT` race condition may [cause a deadlock](https://victoronsoftware.com/posts/mysql-upsert-deadlock/). The simplest solution is to retry the failing transaction. However, another solution may be needed if such deadlocks happen too often.
 
 This is subtle, but an insert will update indexes, check constraints, etc. At the same time, an update might sometimes not do any of that, depending on what is being updated.
 
@@ -173,7 +133,55 @@ Another place to cache things would be Redis. The improvement here is that all i
 
 ### Redis SCAN
 
-Redis has solved many scaling problems in general, but it’s not devoid of scaling problems of its own. In particular, we learned that the SCAN command scans the whole key space before it does the filtering. This can be very slow, depending on the state of the system. If Redis is slow, a lot suffers from it.
+Redis has solved many scaling problems in general, but it’s not devoid of scaling problems of its
+own. In particular, we learned that the SCAN command scans the whole key space before it does the
+filtering. This can be very slow, depending on the state of the system. If Redis is slow, a lot
+suffers from it.
+
+### Connecting to Dogfood MySQL & Redis
+
+When investigating performance issues, it can be helpful to connect directly to the MySQL and Redis
+instances to run queries and inspect data. Below are instructions for connecting to the Dogfood
+MySQL and Redis instances.
+
+#### Prerequisites
+
+1. Setup [VPN](https://github.com/fleetdm/confidential/blob/main/vpn/README.md)
+2. Configure [SSO](https://github.com/fleetdm/confidential/tree/main/infrastructure/sso#how-to-use-sso)
+
+#### MySQL
+
+Get the database host:
+```shell
+DB_HOST=$(aws rds describe-db-clusters --filter Name=db-cluster-id,Values=fleet-dogfood --query "DBClusters[0].Endpoint" --output=text)
+```
+
+Get the database user:
+```shell
+DB_USER=$(aws rds describe-db-clusters --filter Name=db-cluster-id,Values=fleet-dogfood --query "DBClusters[0].MasterUsername" --output=text)
+```
+
+Get the database password:
+```shell
+DB_PASSWORD=$(aws secretsmanager get-secret-value --secret-id fleet-dogfood-database-password --query "SecretString" --output=text)
+```
+
+Connect:
+```shell
+mysql -h"${DB_HOST}" -u"${DB_USER}" -p"${DB_PASSWORD}"
+```
+
+#### Redis
+
+Get the Redis Host:
+```shell
+REDIS_HOST=$(aws elasticache describe-replication-groups --replication-group-id fleetdm-redis --query "ReplicationGroups[0].NodeGroups[0].PrimaryEndpoint.Address" --output=text)
+```
+
+Connect:
+```shell
+redis-cli -h "${REDIS_HOST}"
+```
 
 <meta name="maintainedBy" value="lukeheath">
 <meta name="title" value="Scaling Fleet">

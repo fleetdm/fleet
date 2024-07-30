@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/fleetdm/fleet/v4/pkg/spec"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -61,6 +62,16 @@ func applyCommand() *cli.Command {
 			if err != nil {
 				return err
 			}
+
+			// Check if the file has a .yml or .yaml extension
+			ext := strings.ToLower(filepath.Ext(flFilename))
+			if ext == "" {
+				return errors.New("Missing file extension: only .yml or .yaml files can be applied")
+			}
+			if ext != ".yml" && ext != ".yaml" {
+				return fmt.Errorf("Invalid file extension %s: only .yml or .yaml files can be applied", ext)
+			}
+
 			specs, err := spec.GroupFromBytes(b)
 			if err != nil {
 				return err
@@ -69,15 +80,17 @@ func applyCommand() *cli.Command {
 				fmt.Fprintf(c.App.Writer, format, a...)
 			}
 
-			opts := fleet.ApplySpecOptions{
-				Force:  flForce,
-				DryRun: flDryRun,
+			opts := fleet.ApplyClientSpecOptions{
+				ApplySpecOptions: fleet.ApplySpecOptions{
+					Force:  flForce,
+					DryRun: flDryRun,
+				},
 			}
 			if policiesTeamName := c.String("policies-team"); policiesTeamName != "" {
 				opts.TeamForPolicies = policiesTeamName
 			}
 			baseDir := filepath.Dir(flFilename)
-			err = fleetClient.ApplyGroup(c.Context, specs, baseDir, logf, opts)
+			_, err = fleetClient.ApplyGroup(c.Context, specs, baseDir, logf, opts)
 			if err != nil {
 				return err
 			}

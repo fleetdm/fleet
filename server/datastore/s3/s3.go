@@ -23,7 +23,7 @@ type s3store struct {
 }
 
 // newS3store initializes an S3 Datastore
-func newS3store(config config.S3Config) (*s3store, error) {
+func newS3store(config config.S3ConfigInternal) (*s3store, error) {
 	conf := &aws.Config{}
 
 	// Use default auth provire if no static credentials were provided
@@ -49,8 +49,11 @@ func newS3store(config config.S3Config) (*s3store, error) {
 
 	// Assume role if configured
 	if config.StsAssumeRoleArn != "" {
-		stscreds.NewCredentials(sess, config.StsAssumeRoleArn)
-		creds := stscreds.NewCredentials(sess, config.StsAssumeRoleArn)
+		creds := stscreds.NewCredentials(sess, config.StsAssumeRoleArn, func(provider *stscreds.AssumeRoleProvider) {
+			if config.StsExternalID != "" {
+				provider.ExternalID = &config.StsExternalID
+			}
+		})
 		conf.Credentials = creds
 		sess, err = session.NewSession(conf)
 		if err != nil {

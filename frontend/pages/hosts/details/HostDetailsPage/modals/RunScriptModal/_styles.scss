@@ -1,0 +1,39 @@
+.run-script-modal {
+  box-sizing: border-box;
+  width: 811px;
+
+  &__modal-content {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-xlarge;
+
+    .empty-table__container {
+      max-width: none;
+      margin: 0 0 20px 0;
+      align-self: center;
+    }
+  }
+
+  .modal-cta-wrap {
+    margin: $pad-xsmall 0 0 0;
+  }
+
+  &__loading {
+    .modal__header,
+    .modal-cta-wrap {
+      opacity: 0.6;
+    }
+  }
+
+  // style a basic span that doesn't use the dropdown component (which relies on react-select
+  // and makes it difficult for us to style the disabled tooltip underline on the placeholder text.
+  .run-script-action--disabled {
+    cursor: pointer;
+    color: $ui-fleet-black-50;
+    display: flex;
+    padding: 5px;
+    justify-content: center;
+    align-items: center;
+    gap: 9px;
+  }
+}

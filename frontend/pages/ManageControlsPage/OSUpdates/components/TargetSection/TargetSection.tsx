@@ -1,129 +1,126 @@
-import React, { useContext } from "react";
-import { useQuery } from "react-query";
+import React from "react";
 
-import {
-  API_NO_TEAM_ID,
-  APP_CONTEXT_NO_TEAM_ID,
-  ITeamConfig,
-} from "interfaces/team";
+import { API_NO_TEAM_ID, ITeamConfig } from "interfaces/team";
 import { IConfig } from "interfaces/config";
-import { AppContext } from "context/app";
-import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
 
-import Spinner from "components/Spinner";
 import SectionHeader from "components/SectionHeader";
+import Spinner from "components/Spinner";
 
 import MacOSTargetForm from "../MacOSTargetForm";
 import WindowsTargetForm from "../WindowsTargetForm";
-import PlatformsAccordion from "../PlatformsAccordion";
+import PlatformTabs from "../PlatformTabs";
 import { OSUpdatesSupportedPlatform } from "../../OSUpdates";
 
 const baseClass = "os-updates-target-section";
 
-const getDefaultMacOSVersion = (
-  currentTeam: number,
-  appConfig: IConfig,
-  teamConfig?: ITeamConfig
-) => {
-  return currentTeam === API_NO_TEAM_ID
+type GetDefaultFnParams = {
+  currentTeamId: number;
+  appConfig: IConfig;
+  teamConfig?: ITeamConfig;
+};
+
+const getDefaultMacOSVersion = ({
+  currentTeamId,
+  appConfig,
+  teamConfig,
+}: GetDefaultFnParams) => {
+  return currentTeamId === API_NO_TEAM_ID
     ? appConfig?.mdm.macos_updates.minimum_version ?? ""
     : teamConfig?.mdm?.macos_updates.minimum_version ?? "";
 };
 
-const getDefaultMacOSDeadline = (
-  currentTeam: number,
-  appConfig: IConfig,
-  teamConfig?: ITeamConfig
-) => {
-  return currentTeam === API_NO_TEAM_ID
+const getDefaultMacOSDeadline = ({
+  currentTeamId,
+  appConfig,
+  teamConfig,
+}: GetDefaultFnParams) => {
+  return currentTeamId === API_NO_TEAM_ID
     ? appConfig?.mdm.macos_updates.deadline || ""
     : teamConfig?.mdm?.macos_updates.deadline || "";
 };
 
-const getDefaultWindowsDeadlineDays = (
-  currentTeam: number,
-  appConfig: IConfig,
-  teamConfig?: ITeamConfig
-) => {
-  return currentTeam === API_NO_TEAM_ID
+const getDefaultWindowsDeadlineDays = ({
+  currentTeamId,
+  appConfig,
+  teamConfig,
+}: GetDefaultFnParams) => {
+  return currentTeamId === API_NO_TEAM_ID
     ? appConfig.mdm.windows_updates.deadline_days?.toString() ?? ""
     : teamConfig?.mdm?.windows_updates.deadline_days?.toString() ?? "";
 };
 
-const getDefaultWindowsGracePeriodDays = (
-  currentTeam: number,
-  appConfig: IConfig,
-  teamConfig?: ITeamConfig
-) => {
-  return currentTeam === API_NO_TEAM_ID
+const getDefaultWindowsGracePeriodDays = ({
+  currentTeamId,
+  appConfig,
+  teamConfig,
+}: GetDefaultFnParams) => {
+  return currentTeamId === API_NO_TEAM_ID
     ? appConfig.mdm.windows_updates.grace_period_days?.toString() ?? ""
     : teamConfig?.mdm?.windows_updates.grace_period_days?.toString() ?? "";
 };
 
 interface ITargetSectionProps {
+  appConfig: IConfig;
   currentTeamId: number;
-  onSelectAccordionItem: (platform: OSUpdatesSupportedPlatform) => void;
+  isFetching: boolean;
+  selectedPlatform: OSUpdatesSupportedPlatform;
+  teamConfig?: ITeamConfig;
+  onSelectPlatform: (platform: OSUpdatesSupportedPlatform) => void;
+  refetchAppConfig: () => void;
+  refetchTeamConfig: () => void;
 }
 
 const TargetSection = ({
+  appConfig,
   currentTeamId,
-  onSelectAccordionItem,
+  isFetching,
+  selectedPlatform,
+  teamConfig,
+  onSelectPlatform,
+  refetchAppConfig,
+  refetchTeamConfig,
 }: ITargetSectionProps) => {
-  const { config } = useContext(AppContext);
-
-  // We make the call at this component as multiple children components need
-  // this data.
-  const { data: teamData, isLoading: isLoadingTeam, isError } = useQuery<
-    ILoadTeamResponse,
-    Error,
-    ITeamConfig
-  >(["team-config", currentTeamId], () => teamsAPI.load(currentTeamId), {
-    refetchOnWindowFocus: false,
-    enabled: currentTeamId > APP_CONTEXT_NO_TEAM_ID,
-    select: (data) => data.team,
-  });
-
-  if (!config) return null;
-
-  const isMacMdmEnabled = config.mdm.enabled_and_configured;
-  const isWindowsMdmEnabled = config.mdm.windows_enabled_and_configured;
-
-  // Loading state rendering
-  if (isLoadingTeam) {
+  if (isFetching) {
     return <Spinner />;
   }
 
-  const defaultMacOSVersion = getDefaultMacOSVersion(
+  const isMacMdmEnabled = appConfig.mdm.enabled_and_configured;
+  const isWindowsMdmEnabled = appConfig.mdm.windows_enabled_and_configured;
+
+  const defaultMacOSVersion = getDefaultMacOSVersion({
     currentTeamId,
-    config,
-    teamData
-  );
-  const defaultMacOSDeadline = getDefaultMacOSDeadline(
+    appConfig,
+    teamConfig,
+  });
+  const defaultMacOSDeadline = getDefaultMacOSDeadline({
     currentTeamId,
-    config,
-    teamData
-  );
-  const defaultWindowsDeadlineDays = getDefaultWindowsDeadlineDays(
+    appConfig,
+    teamConfig,
+  });
+  const defaultWindowsDeadlineDays = getDefaultWindowsDeadlineDays({
     currentTeamId,
-    config,
-    teamData
-  );
-  const defaultWindowsGracePeriodDays = getDefaultWindowsGracePeriodDays(
+    appConfig,
+    teamConfig,
+  });
+  const defaultWindowsGracePeriodDays = getDefaultWindowsGracePeriodDays({
     currentTeamId,
-    config,
-    teamData
-  );
+    appConfig,
+    teamConfig,
+  });
 
   const renderTargetForms = () => {
     if (isMacMdmEnabled && isWindowsMdmEnabled) {
       return (
-        <PlatformsAccordion
+        <PlatformTabs
           currentTeamId={currentTeamId}
           defaultMacOSVersion={defaultMacOSVersion}
           defaultMacOSDeadline={defaultMacOSDeadline}
           defaultWindowsDeadlineDays={defaultWindowsDeadlineDays}
           defaultWindowsGracePeriodDays={defaultWindowsGracePeriodDays}
-          onSelectAccordionItem={onSelectAccordionItem}
+          selectedPlatform={selectedPlatform}
+          onSelectPlatform={onSelectPlatform}
+          refetchAppConfig={refetchAppConfig}
+          refetchTeamConfig={refetchTeamConfig}
         />
       );
     } else if (isMacMdmEnabled) {
@@ -132,6 +129,8 @@ const TargetSection = ({
           currentTeamId={currentTeamId}
           defaultMinOsVersion={defaultMacOSVersion}
           defaultDeadline={defaultMacOSDeadline}
+          refetchAppConfig={refetchAppConfig}
+          refetchTeamConfig={refetchTeamConfig}
         />
       );
     }
@@ -140,13 +139,15 @@ const TargetSection = ({
         currentTeamId={currentTeamId}
         defaultDeadlineDays={defaultWindowsDeadlineDays}
         defaultGracePeriodDays={defaultWindowsGracePeriodDays}
+        refetchAppConfig={refetchAppConfig}
+        refetchTeamConfig={refetchTeamConfig}
       />
     );
   };
 
   return (
     <div className={baseClass}>
-      <SectionHeader title="Target" />
+      <SectionHeader title="Target" className={`${baseClass}__header`} />
       {renderTargetForms()}
     </div>
   );
