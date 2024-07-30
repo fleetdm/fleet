@@ -74,7 +74,7 @@ All bug fixes that are merged into `main` after the release candidate is created
 
 
 ### Deploy the release candidate to QA Wolf
-During the release candidate period, the relese candidate is deployed to our QA Wolf instance every morning instead of `main` to ensure that any new bugs reported by QA Wolf are in the upcoming release and need to be fixed before publishing the release.
+During the release candidate period, the release candidate is deployed to our QA Wolf instance every morning instead of `main` to ensure that any new bugs reported by QA Wolf are in the upcoming release and need to be fixed before publishing the release.
 
 Open the [confidential repo environment variables](https://github.com/fleetdm/confidential/settings/variables/actions) page and update the `QAWOLF_DEPLOY_TAG` repository variable with the name of the release candidate branch. 
 
@@ -84,10 +84,10 @@ Only merge bug fixes during the release candidate period to minimize code churn 
 
 > To allow a stable release test, the final 24 hours before release is a deep freeze when only bugs with the `~release-blocker` or `~unreleased-bug` labels are merged.
 
-If there is partially merged feature work when the release candidate is created, the previously merged code must be reverted. If there is an exceptional, business-critical need to merge feature work into the release candidate, as determined by the [release ritual DRI](#rituals), the release candidate feature merge exception process can be followed.
+If there is partially merged feature work when the release candidate is created, the previously merged code must be reverted. If there is an exceptional, business-critical need to merge feature work into the release candidate, as determined by the [release ritual DRI](#rituals), the release candidate [feature merge exception process](https://fleetdm.com/handbook/engineering#request-release-candidate-feature-merge-exception) may be followed.
 
 ### Request release candidate feature merge exception
-1. Notify product group EM that feature work will not merge into `main` before the release candidate is cut, and requires a feature merge exception.
+1. Notify product group EM that feature work will not merge into `main` before the release candidate is cut and requires a feature merge exception.
 2. EM notifies QA lead for the product group and the [release ritual DRI](https://fleetdm.com/handbook/engineering#rituals).
 3. EM, QA lead, and [release ritual DRI](#rituals) must all approve the feature work PR before it is merged into the release candidate branch.
 
@@ -574,6 +574,9 @@ Please see [handbook/engineering#accept-new-apple-developer-account-terms](https
 
 ##### Merging during the freeze period
 Please see [handbook/engineering#merge-a-pull-request-during-the-freeze-period](https://fleetdm.com/handbook/engineering#merge-a-pull-request-during-the-freeze-period)
+
+##### Merge a bug fix during the freeze period
+Please see [merge-bug-fixes-into-the-release-candidate](https://fleetdm.com/handbook/engineering#merge-bug-fixes-into-the-release-candidate)
 
 ##### Merge a pull request during the freeze period
 Please see [merge-bug-fixes-into-the-release-candidate](https://fleetdm.com/handbook/engineering#merge-bug-fixes-into-the-release-candidate)
