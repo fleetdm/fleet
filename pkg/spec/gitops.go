@@ -61,7 +61,7 @@ type GitOps struct {
 }
 
 type GitOpsSoftware struct {
-	Packages     []*fleet.TeamSpecSoftwarePackage
+	Packages     []*fleet.SoftwarePackageSpec
 	AppStoreApps []*fleet.TeamSpecAppStoreApp
 }
 
@@ -96,18 +96,17 @@ func GitOpsFromFile(filePath, baseDir string) (*GitOps, error) {
 	// Figure out if this is an org or team settings file
 	teamRaw, teamOk := top["name"]
 	teamSettingsRaw, teamSettingsOk := top["team_settings"]
-	teamSoftware, teamSoftwareOk := top["software"]
+	software, softwareOk := top["software"]
 	orgSettingsRaw, orgOk := top["org_settings"]
 	if orgOk {
-		if teamOk || teamSettingsOk || teamSoftwareOk {
-			multiError = multierror.Append(multiError, errors.New("'org_settings' cannot be used with 'name', 'team_settings' or 'software'"))
+		if teamOk || teamSettingsOk {
+			multiError = multierror.Append(multiError, errors.New("'org_settings' cannot be used with 'name', 'team_settings'"))
 		} else {
 			multiError = parseOrgSettings(orgSettingsRaw, result, baseDir, multiError)
 		}
 	} else if teamOk && teamSettingsOk {
 		multiError = parseName(teamRaw, result, multiError)
 		multiError = parseTeamSettings(teamSettingsRaw, result, baseDir, multiError)
-		multiError = parseSoftware(teamSoftware, result, baseDir, multiError)
 	} else {
 		multiError = multierror.Append(multiError, errors.New("either 'org_settings' or 'name' and 'team_settings' is required"))
 	}
@@ -117,6 +116,10 @@ func GitOpsFromFile(filePath, baseDir string) (*GitOps, error) {
 	multiError = parseAgentOptions(top, result, baseDir, multiError)
 	multiError = parsePolicies(top, result, baseDir, multiError)
 	multiError = parseQueries(top, result, baseDir, multiError)
+
+	if softwareOk {
+		multiError = parseSoftware(software, result, baseDir, multiError)
+	}
 
 	return result, multiError.ErrorOrNil()
 }
@@ -524,10 +527,10 @@ func parseQueries(top map[string]json.RawMessage, result *GitOps, baseDir string
 }
 
 func parseSoftware(softwareRaw json.RawMessage, result *GitOps, baseDir string, multiError *multierror.Error) *multierror.Error {
-	var software fleet.TeamSpecSoftware
+	var software fleet.SoftwareSpec
 	if len(softwareRaw) > 0 {
 		if err := json.Unmarshal(softwareRaw, &software); err != nil {
-			return multierror.Append(multiError, fmt.Errorf("failed to unmarshall software: %v", err))
+			return multierror.Append(multiError, fmt.Errorf("failed to unmarshall softwarespec: %v", err))
 		}
 	}
 	if software.AppStoreApps.Set {

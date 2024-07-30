@@ -571,25 +571,24 @@ func (svc *Service) addMetadataToSoftwarePayload(ctx context.Context, payload *f
 const maxInstallerSizeBytes int64 = 1024 * 1024 * 500
 
 func (svc *Service) BatchSetSoftwareInstallers(ctx context.Context, tmName string, payloads []fleet.SoftwareInstallerPayload, dryRun bool) error {
-	if tmName == "" {
-		svc.authz.SkipAuthorization(ctx) // so that the error message is not replaced by "forbidden"
-		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("team_name", "must not be empty"))
-	}
-
 	if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionRead); err != nil {
 		return err
 	}
 
-	tm, err := svc.ds.TeamByName(ctx, tmName)
-	if err != nil {
-		// If this is a dry run, the team may not have been created yet
-		if dryRun && fleet.IsNotFound(err) {
-			return nil
+	var teamID *uint
+	if tmName != "" {
+		tm, err := svc.ds.TeamByName(ctx, tmName)
+		if err != nil {
+			// If this is a dry run, the team may not have been created yet
+			if dryRun && fleet.IsNotFound(err) {
+				return nil
+			}
+			return err
 		}
-		return err
+		teamID = &tm.ID
 	}
 
-	if err := svc.authz.Authorize(ctx, &fleet.SoftwareInstaller{TeamID: &tm.ID}, fleet.ActionWrite); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.SoftwareInstaller{TeamID: teamID}, fleet.ActionWrite); err != nil {
 		return ctxerr.Wrap(ctx, err, "validating authorization")
 	}
 
@@ -663,7 +662,7 @@ func (svc *Service) BatchSetSoftwareInstallers(ctx context.Context, tmName strin
 			}
 
 			installer := &fleet.UploadSoftwareInstallerPayload{
-				TeamID:            &tm.ID,
+				TeamID:            teamID,
 				InstallScript:     p.InstallScript,
 				PreInstallQuery:   p.PreInstallQuery,
 				PostInstallScript: p.PostInstallScript,
@@ -723,7 +722,7 @@ func (svc *Service) BatchSetSoftwareInstallers(ctx context.Context, tmName strin
 		}
 	}
 
-	if err := svc.ds.BatchSetSoftwareInstallers(ctx, &tm.ID, installers); err != nil {
+	if err := svc.ds.BatchSetSoftwareInstallers(ctx, teamID, installers); err != nil {
 		return ctxerr.Wrap(ctx, err, "batch set software installers")
 	}
 
