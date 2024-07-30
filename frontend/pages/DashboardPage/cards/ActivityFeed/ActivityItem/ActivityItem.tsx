@@ -897,10 +897,13 @@ const TAGGED_TEMPLATES = {
     );
   },
   deletedAppStoreApp: (activity: IActivity) => {
+    const { software_title: swTitle, platform: swPlatform } =
+      activity.details || {};
     return (
       <>
         {" "}
-        deleted <b>{activity.details?.software_title}</b> from{" "}
+        deleted <b>{swTitle}</b>{" "}
+        {swPlatform ? `(${PLATFORM_DISPLAY_NAMES[swPlatform]}) ` : ""}from{" "}
         {activity.details?.team_name ? (
           <>
             {" "}
