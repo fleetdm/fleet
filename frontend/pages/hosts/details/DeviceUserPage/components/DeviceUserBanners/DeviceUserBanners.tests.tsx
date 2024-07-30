@@ -6,8 +6,7 @@ import DeviceUserBanners from "./DeviceUserBanners";
 
 describe("Device User Banners", () => {
   const turnOnMdmExpcetedText = /Mobile device management \(MDM\) is off\./;
-  const logoutDiskEncryptExpectedText = /Disk encryption: Log out of your device or restart to turn on disk encryption\./;
-  const resetKeyDiskEncryptExpcetedText = /Disk encryption: Reset your disk encryption key\./;
+  const resetKeyDiskEncryptExpcetedText = /Disk encryption: Log out of your device or restart it to safeguard your data in case your device is lost or stolen\./;
 
   it("renders the turn on mdm banner correctly", () => {
     render(
@@ -56,7 +55,9 @@ describe("Device User Banners", () => {
     );
 
     expect(screen.queryByText(turnOnMdmExpcetedText)).not.toBeInTheDocument();
-    expect(screen.getByText(logoutDiskEncryptExpectedText)).toBeInTheDocument();
+    expect(
+      screen.getByText(resetKeyDiskEncryptExpcetedText)
+    ).toBeInTheDocument();
     expect(
       screen.queryByText(resetKeyDiskEncryptExpcetedText)
     ).not.toBeInTheDocument();
@@ -78,7 +79,7 @@ describe("Device User Banners", () => {
 
     expect(screen.queryByText(turnOnMdmExpcetedText)).not.toBeInTheDocument();
     expect(
-      screen.queryByText(logoutDiskEncryptExpectedText)
+      screen.queryByText(resetKeyDiskEncryptExpcetedText)
     ).not.toBeInTheDocument();
     expect(
       screen.queryByText(resetKeyDiskEncryptExpcetedText)
