@@ -56,10 +56,24 @@ Before a routine customer call, the CSM prepares an agenda including the followi
 4. Fill out all the required fields making sure to pick "Expansion" in the  "Type" dropdown menu and then click "Save".
 
 
+### Conduct a health check
+
+Health checks are conducted quarterly or bi-annually, in preparation for a quarterly business review. The purpose of a health check is to understand what features and functionality the customer is currently using in Fleet. This information will be used to provide guidance to the customer during their QBR. For more information around QBRs, please see the section below, titled "Conduct a quarterly business review".
+
+1. Work with your champion to schedule the health check at a time when their Fleet admins and daily users are available.
+2. During the meeting, your customer should share their screen and walk through their day to day use of Fleet.
+3. Ask the customer questions about the features they are using.
+    - Understand the "why" behind their use cases for Fleet
+    - Try not to provide guidance directly on this call
+4. Take notes, and record the meeting if possible.
+5. Review your notes after the meeting, and find areas of improvement that you can highlight to help your partner more thoroughly utilize Fleet.
+6. Add this information to your QBR deck.
+
+
 ### Conduct a quarterly business review (QBR)
 
 Business reviews are conducted quarterly or bi-annually to ensure initial success criteria completion, ongoing adoption, alignment on goals, and delivery of value as a vendor. Use the meeting to assess customer priorities for the coming year, review performance metrics, address any challenges and showcase value in upcoming and unutilized features.
-1. Work with your champion to schedule the business review at a time thier stakeholders are available (typically 90 days after kickoff and again, 90 days before renewal).
+1. Work with your champion to schedule the business review at a time their stakeholders are available (typically 90 days after kickoff and again, 90 days before renewal).
 2. Collect usage metrics from the [usage data report](https://docs.google.com/spreadsheets/d/1Mh7Vf4kJL8b5TWlHxcX7mYwaakZMg_ZGNLY3kl1VI-c/edit?gid=0#gid=0) (internal Fleet document) and the following:
     - Optionally schedule a health check with day to day admins prior to the QBR to better understand how the product is being used and which features have been adopted.
     - Have a support engineer collect data on open and closed bugs from the previous quarter and highlight any P0 or P1 incidents along with a summary of the postmortem (search Unthread and GitHub for issues tagged with the customer codename and ':bug').
