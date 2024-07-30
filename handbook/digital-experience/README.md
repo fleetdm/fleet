@@ -1,7 +1,10 @@
 # Digital Experience 
+
 This page details processes specific to working [with](#contact-us) and [within](#responsibilities) this department.
 
+
 ## Team
+
 | Role                            | Contributor(s)
 |:--------------------------------|:----------------------------------------------------------------------|
 | Head of Digital Experience      | [Sam Pfluger](https://www.linkedin.com/in/sampfluger88/) _([@sampfluger88](https://github.com/sampfluger88))_ 
@@ -19,11 +22,14 @@ This page details processes specific to working [with](#contact-us) and [within]
 
 
 ## Responsibilities
+
 The Digital Experience department is directly responsible for the framework, content design, and technology behind Fleet's remote work culture, including fleetdm.com, the handbook, issue templates, UI style guides, internal tooling, Zapier flows, Docusign templates, key spreadsheets, and project management processes. 
 
 > _**Note:** If a user story involves only changes to fleetdm.com, without changing the core product, then that user story is prioritized, drafted, implemented, and shipped by the [Digital Experience](https://fleetdm.com/handbook/digital-experience) department.  Otherwise, if the story **also** involves changes to the core product **as well as** fleetdm.com, then that user story is prioritized, drafted, implemented, and shipped by [the other relevant product group](https://fleetdm.com/handbook/company/product-groups#current-product-groups), and not by `#g-digital-experience`._
 
+
 ### QA a change to fleetdm.com
+
 Each PR to the website is manually checked for quality and tested before going live on fleetdm.com. To test any change to fleetdm.com
 
 1. Write clear step-by-step instructions to confirm that the change to the fleetdm.com functions as expected and doesn't break any possible automation. These steps should be simple and clear enough for anybody to follow.
@@ -34,6 +40,7 @@ Each PR to the website is manually checked for quality and tested before going l
 
 
 ### Update the host count of a premium subscription
+
 When a self-service license dispenser customer reaches out to upgrade a license via the contact form, a member of the [Demand department](https://fleetdm.com/handbook/demand) will create a confidential issue detailing the request and add it to the new requests column of Ditigal Experience kanban board. A member of this team will then log into Stripe using the shared login, and upgrade the customer's subscription.
 
 To update the host count on a user's subscription:
@@ -46,7 +53,9 @@ To update the host count on a user's subscription:
 6. Select "Update subscription" to send the user an updated invoice for their subscription. Once the customer pays their new invoice, the Fleet website will update the user's subscription and generate a new Fleet Premium license with an updated host count.
 7. Let the person who created the request know what actions were taken so they can communicate them to the customer.
 
+
 ### Test fleetdm.com locally 
+
 When making changes to the Fleet website, you can test your changes by running the website locally. To do this, you'll need the following:
 
 - A local copy of the [Fleet repo](https://github.com/fleetdm/fleet).
@@ -78,10 +87,12 @@ Once you have the above follow these steps:
 
 
 ### Check production dependencies of fleetdm.com
+
 Every week, we run `npm audit --only=prod` to check for vulnerabilities on the production dependencies of fleetdm.com. Once we have a solution to configure GitHub's Dependabot to ignore devDependencies, this manual process can be replaced with Dependabot.
 
 
 ### Respond to a 5xx error on fleetdm.com
+
 Production systems can fail for various reasons, and it can be frustrating to users when they do, and customer experience is significant to Fleet. In the event of system failure, Fleet will:
 - investigate the problem to determine the root cause.
 - identify affected users.
@@ -92,6 +103,7 @@ Production systems can fail for various reasons, and it can be frustrating to us
 
 
 ### Check browser compatibility for fleetdm.com
+
 A browser compatibility check of [fleetdm.com](https://fleetdm.com/) should be carried out monthly to verify that the website looks and functions as expected across all [supported browsers](https://fleetdm.com/docs/using-fleet/supported-browsers).
 
 - We use [BrowserStack](https://www.browserstack.com/users/sign_in) (logins can be found in [1Password](https://start.1password.com/open/i?a=N3F7LHAKQ5G3JPFPX234EC4ZDQ&v=3ycqkai6naxhqsylmsos6vairu&i=nwnxrrbpcwkuzaazh3rywzoh6e&h=fleetdevicemanagement.1password.com)) for our cross-browser checks.
@@ -101,6 +113,7 @@ A browser compatibility check of [fleetdm.com](https://fleetdm.com/) should be c
 
 
 ### Export an image for fleetdm.com
+
 In Figma:
 1. Select the layers you want to export.
 2. Confirm export settings and naming convention:
@@ -112,6 +125,7 @@ In Figma:
 
 
 ### Generate a new landing page
+
 Experimental pages are short-lived, temporary landing pages intended for a small audience. All experiments and landing pages need to go through the standard [drafting process](https://fleetdm.com/handbook/company/product-groups#making-changes) before they are created.
 
 Website experiments and landing pages live behind `/imagine` url. Which is hidden from the sitemap and intended to be linked to from ads and marketing campaigns. Design experiments (flyers, swag, etc.) should be limited to small audiences (less than 500 people) to avoid damaging the brand or confusing our customers. In general, experiments that are of a design nature should be targeted at prospects and random users, never targeted at our customers.
@@ -149,6 +163,7 @@ To generate a new page, you'll need:
 
 
 ### Restart Algolia manually
+
 At least once every hour, an Algolia crawler reindexes the Fleet website's content. If an error occurs while the website is being indexed, Algolia will block our crawler and respond to requests with this message: `"This action cannot be executed on a blocked crawler"`.
 
 When this happens, you'll need to manually start the crawler in the [Algolia crawler dashboard](https://crawler.algolia.com/admin/) to unblock it. 
@@ -158,6 +173,7 @@ No further action is needed if the crawler successfully reindexes the Fleet webs
 
 
 ### Re-run the "Deploy Fleet Website" action
+
 If the action fails, please complete the following steps:
 1. Head to the fleetdm-website app in the [Heroku dashboard](https://heroku.com) and select the "Activity" tab.
 2. Select "Roll back to here" on the second to most recent deploy.
@@ -165,6 +181,7 @@ If the action fails, please complete the following steps:
 
 
 ### Communicate Fleet's potential energy to stakeholders
+
 On the first business day of every month, the Head of Digital Experience will send an update to the stakeholders of Fleet using the following steps:
 1. Copy the following template into an outgoing email with the subject line: "[Investor update] Fleet, YYYY-MM".
 
@@ -182,12 +199,6 @@ Mike and the Fleet team
 
 2. Address the email to the executive team's Gmail.
 3. Using the [🌧️🦉 Investors + advisors](https://docs.google.com/spreadsheets/d/15knBE2-PrQ1Ad-QcIk0mxCN-xFsATKK9hcifqrm0qFQ/edit#gid=1068113636) spreadsheet, bcc the correct individuals and send the email.
-
-
-### Refresh event calendar
-Fleet's public relations firm is directly responsible for the accuracy of event locations, attendance dates, and CFP deadlines in the event strategy workbook.  At the end of every quarter, the PR firm updates every event in the ["Event strategy workbook"](https://docs.google.com/spreadsheets/d/1YQXAX2Q_WnGkAwMYjMbQpV3nbCj7gOBbv7Y0u4twxzQ/edit) (private Google doc) by following these steps:
-1. Visit the latest website for each event.
-2. Update the workbook with the latest location, dates, and CFP deadlines from the website.
 
 
 ### Grant role-specific license to a team member
@@ -234,6 +245,7 @@ Here are the steps we take to grant appropriate Salesforce licenses to a new hir
 
 
 ### Schedule press release
+
 Fleet will occasionally release information to the press regarding upcoming initiatives before updating the functionality of the core product. This process sUse the following steps to schedule a press release:  
 
 1. Add context for the next press release to the [e-group agenda](https://docs.google.com/document/d/13fjq3T0bZGOUah9cqHVxngckv0EB2R24A3gfl5cH7eo/edit) as a "DISCUSS:" to be reviewed by Fleet's executive team for alignment and finalization of date.
@@ -247,12 +259,15 @@ Fleet will occasionally release information to the press regarding upcoming init
 
 
 ### Process the help-being-ceo Slack channel
+
 The Apprentice will perform the following steps to process all communication from the CEO in the [help-being-ceo Slack channel](https://fleetdm.slack.com/archives/C03U703J0G5).
 1. As soon as the message is received in the channel, add the "`:eyes:` (👀)" emoji to the Slack message to signify that you have seen and understood the task or question.
 2. Start a Slack thread to add any context or let the stakeholders know the status of the task. 
 3. After each task is completed, apply the "`:white_check_mark:`" (✅) to the slack message.
 
+
 ### Archive a document
+
 Follow these steps to archive any document:
 1. Create a copy of the document prefixed with the date using the format "`YYYY-MM-DD` Backup of `DOCUMENT_NAME`" (e.g. "2024-03-22 Backup of 🪂🗞️ Customer voice").
 2. Be sure to "Share it with the same people", "Copy comments and suggestions", and "Include resolved comments and suggestions" as shown below.
@@ -265,6 +280,7 @@ Follow these steps to archive any document:
 
 
 ### Schedule CEO interview
+
 From time to time, you will need to schedule an interview between a candidate and the CEO:
 1. [Make a copy of the "¶¶ CEO interview template"](https://docs.google.com/document/d/1yARlH6iZY-cP9cQbmL3z6TbMy-Ii7lO64RbuolpWQzI/copy) (private Google doc)
 2. Change file name and heading of doc to `¶¶ CANDIDATE_NAME (CANDIDATE_TITLE) <> Mike McNeil, CEO final interview (YYYY-MM-DD)`
@@ -274,6 +290,7 @@ From time to time, you will need to schedule an interview between a candidate an
 
 
 ### Program the CEO to do something
+
 1. If necessary or if unsure, immediately direct message the CEO on Slack to clarify priority level, timing, and level of effort.  (For example, whether to schedule 30m or 60m to complete in full, or 30m planning as an iterative step.)
 2. If there is not room on the calendar to schedule this soon enough with both Mike and Sam as needed (erring on the side of sooner), then either immediately direct message the CEO with a backup plan, or if it can obviously wait, then discuss at the next roundup.
 3. Create a calendar event with a Zoom meeting for the CEO and Apprentice.  Keep the title short.  For the description, keep it very brief and use this template:
@@ -288,6 +305,7 @@ Agenda:
 ```
 
 ### Obtain a signature from the CEO
+
 When an agreement is routed to the CEO for signature, the [Apprentice](https://fleetdm.com/handbook/digital-experience#team) is responsible for obtaining a signature from the CEO using the following steps:
 1. Drag the email to the ["🔏 SAM: Signature wanted"](https://mail.google.com/mail/u/0/#label/SAM%3A+Signature+wanted) label making sure to mark the email as unread.
 2. A Business Operations Engineer will at-mention the Apprentice in a legal review issue, letting them know the contract is good to go. After that, move the email to the "[✍️ MIKE: Ready to sign](https://mail.google.com/mail/u/0/#label/%E2%9C%8D%EF%B8%8F+MIKE%3A+Ready+to+sign)" label
@@ -298,6 +316,7 @@ When an agreement is routed to the CEO for signature, the [Apprentice](https://f
 
 
 ### Prepare for CEO office minutes 
+
 Before the start of the meeting, the Apprentice will prepare the "CEO office minutes" meeting [agenda](https://docs.google.com/document/d/12cd0N8KvHkfJxYlo7ggdisrvqw4MCErDoIzLjmBIdj4/edit) such that the following is true:
 1. All agenda items are prefixed with a date of when the item will be covered and name of the person requesting to discuss the issue.
 2. All team members with an agenda item have added themselves **and their manager** to the correct calendar event. If the team member or manager hasn't been added to the calendar event before the meeting begins, the agenda item is de-prioritized in favor of others with representatives in attendance. 
@@ -307,6 +326,7 @@ Before the start of the meeting, the Apprentice will prepare the "CEO office min
 
 
 ### Process the CEO's calendar
+
 Time management for the CEO is essential.  The Apprentice processes the CEO's calendar multiple times per day.
 
 - **Clear any unexpected new events or double-bookings.** Look for any new double-bookings, invites that haven't been accepted, or other events you don't recognize.
@@ -336,19 +356,23 @@ Time management for the CEO is essential.  The Apprentice processes the CEO's ca
 
 
 ### Process the CEO's inbox
+
 - The Apprentice is [responsible](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) for [processing all email traffic](https://docs.google.com/document/d/1gH3IRRgptrqSYzBFy-77g98JROTL8wqrazJIMkp-Gb4/edit#heading=h.i7mkhr6m123r) prior to CEO review to reduce the scope of Mike's inbox to only include necessary and actionable communication.
  -  Marking spam emails as read (same for emails Mike doesn't actually need to read).
  -  Escalate actionable sales communication and update Mike directly.
  -  Ensure all calendar invites have the necessary documents included.
  -  Forward any emails from customers about paying Fleet to the Buisness Operations department using [Fleet's billing email](https://docs.google.com/document/d/1tE-NpNfw1icmU2MjYuBRib0VWBPVAdmq4NiCrpuI0F0/edit#heading=h.wqalwz1je6rq).
 
+
 ### Document performance feedback
+
 Every Friday at 5PM a [Business Operations team member](https://fleetdm.com/handbook/business-operations#team) will look for missing data in the [KPIs spreadsheet](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0). 
 1. If KPIs are not reported on time, the BizOps Engineer will notify the Apprentice to the CEO and the DRI.
 2. The Apprentice will update the "performance management" section of the appropriate individual's 1:1 doc so that the CEO can address during the next 1:1 meeting with the DRI.
 
 
 ### Send the weekly update
+
 We like to be open about milestones and announcements. Every Friday, e-group members [report their KPIs for the week](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit) by 5:00pm U.S. CT. Every Friday at 6PM, the Apprentice will post a short update in [#general](https://fleetdm.slack.com/archives/C019FNQPA23) including:
     - A link to view KPIs
     - Who was on-call that week
@@ -369,6 +393,7 @@ We like to be open about milestones and announcements. Every Friday, e-group mem
 
 
 ### Troubleshoot signature automation
+
 We use Zapier to automate how completed DocuSign envelopes are formatted and stored. This process ensures we store signed documents in the correct folder and that filenames are formatted consistently. 
 When the final signature is added to an envelope in DocuSign, it is marked as completed and sent to Zapier, where it goes through these steps:
 1. Zapier sends the following information about the DocuSign envelope to our Hydroplane webhook:
@@ -388,6 +413,7 @@ When the final signature is added to an envelope in DocuSign, it is marked as co
 
 
 ### Schedule travel for the CEO
+
 The Apprentice schedules all travel arrangements for the CEO including flights, hotel, and reservations if needed. CEO traveling preferences in descending order of importance are:
   - Direct flight whenever possible  (as long as the cost of the direct flight is ≤2x the cost of a reasonable non-direct flight)
   - Select a non-middle seat, whenever possible
@@ -399,6 +425,7 @@ The Apprentice schedules all travel arrangements for the CEO including flights, 
 
 
 ### Prepare for the All hands
+
 - **Every month** the Apprentice will do the prep work for the monthly "✌️ All hands 🖐👋🤲👏🙌🤘" call.
   -  In the ["👋 All hands" folder](https://drive.google.com/drive/folders/1cw_lL3_Xu9ZOXKGPghh8F4tc0ND9kQeY?usp=sharing), create a new folder using "yyyy-mm - All hands".
   - Update "End of the quarter" slides to reflect the current countdown.
@@ -416,6 +443,7 @@ The day before the All hands, Mike will prepare slides that reflect the CEO visi
 
 
 #### Share recording of all hands meeting
+
 The Apprentice will post a link to the All hands Gong recording and slide deck in Slack.
 
 Template to use:
@@ -438,19 +466,22 @@ You can also grab a copy of the [original slides](https://fleetdm.com/handbook/c
 
 
 ### Process and backup Sid agenda
+
 Every two weeks, our CEO Mike has a meeting with Sid Sijbrandij. The CEO uses dedicated (blocked, recurring) time to prepare for this meeting earlier in the week.
 1. 30 minutes After each meeting [archive the "💻 Sid : Mike(Fleet)" agenda](https://fleetdm.com/handbook/digital-experience#archive-a-document), moving it to the [(¶¶) Sid archive](https://drive.google.com/drive/folders/1izVfIBt2nr4APlkm36E6DJg1k1PDjmae) folder in Google Drive.
-2. **In the backup copy**, leave Google Doc comments assigning all Fleet TODOs to the correct DRI.   
+2. **In the backup copy**, create Google Doc comments assigning all Fleet TODOs to the correct DRI.   
 3. In the ¶¶¶¶🦿🌪️CEO Roundup doc, update the URL in `Sam: FYI: Agenda from last time:` [LINK](link).
 
 
 ### Process and backup E-group agenda 
+
 Follow these steps to process and backup the E-group agenda: 
 1. [Archive the E-group agenda](https://fleetdm.com/handbook/digital-experience#archive-a-document) after each meeting, moving it to the ["¶¶ E-group archive"](https://drive.google.com/drive/u/0/folders/1IsSGMgbt4pDcP8gSnLj8Z8NGY7_6UTt6) folder in Google Drive.
 2. **In the backup copy**, leave Google Doc comments assigning all TODOs to the correct DRI.  
 3. If the "All hands" meeting has happened today remove any spotlights covered in the current "All hands" presentation.
 
 ### Check LinkedIn for new activity 
+
 Once a day the Apprentice will check LinkedIn for unread messages and pending connect request. 
 
   1. Log into the CEO's [LinkedIn](https://www.linkedin.com/search/results/all/?sid=s2%3A) and bring up the messaging window.
@@ -463,6 +494,7 @@ To check for pending connect requests, perform the following steps:
 
 
 ### Unroll a Slack thread
+
 From time to time the CEO will ask the Apprentice to unroll a Slack thread into a well-named whiteboard Google doc for safekeeping and future searching. 
   1. Start with a new doc.
   2. Name the file with "yyyy-mm-dd - topic" (something empathetic and easy to find).
@@ -472,6 +504,7 @@ From time to time the CEO will ask the Apprentice to unroll a Slack thread into 
 
 
 ### Delete an accidental meeting recording
+
 It's not enough to just "delete" a recording of a meeting in Gong.  Instead, use these steps:
 
 - Wait for at least 30 minutes after the meeting has ended to ensure the recording and transcript exist and can be deleted.

@@ -48,6 +48,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	googleCalendar "google.golang.org/api/calendar/v3"
 )
 
 func TestIntegrationsEnterprise(t *testing.T) {
@@ -4334,6 +4335,10 @@ func (s *integrationEnterpriseTestSuite) TestOSVersions() {
 	require.NoError(t, s.ds.UpdateOSVersions(context.Background()))
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/os_versions"), nil, http.StatusOK, &osVersionsResp, "team_id", "0")
 	require.Len(t, osVersionsResp.OSVersions, 1)
+	osVersionResp = getOSVersionResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/os_versions/%d", osinfo.OSVersionID), nil, http.StatusOK, &osVersionResp, "team_id", "0")
+	require.Equal(t, &expectedOSVersion, osVersionResp.OSVersion)
+	require.Equal(t, 1, osVersionResp.OSVersion.HostsCount)
 }
 
 func (s *integrationEnterpriseTestSuite) TestMDMNotConfiguredEndpoints() {
@@ -8062,6 +8067,21 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 	fooTitle := resp.SoftwareTitles[0]
 	require.Equal(t, "foo", fooTitle.Name)
 
+	// find the ID of "baz" (team 1)
+	resp = listSoftwareTitlesResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/titles",
+		listSoftwareTitlesRequest{},
+		http.StatusOK, &resp,
+		"query", "baz",
+		"team_id", fmt.Sprintf("%d", team1.ID),
+	)
+	require.Equal(t, 1, resp.Count)
+	require.Len(t, resp.SoftwareTitles, 1)
+	require.NotEmpty(t, resp.CountsUpdatedAt)
+	bazTitle := resp.SoftwareTitles[0]
+	require.Equal(t, "baz", bazTitle.Name)
+
 	// non-existent id is a 404
 	var stResp getSoftwareTitleResponse
 	s.DoJSON("GET", "/api/latest/fleet/software/titles/999", getSoftwareTitleRequest{}, http.StatusNotFound, &stResp)
@@ -8116,9 +8136,7 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 	require.Equal(t, "bar", barTitle.Name)
 
 	// valid title with vulnerabilities
-	stResp = getSoftwareTitleResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", barTitle.ID), getSoftwareTitleRequest{}, http.StatusOK, &stResp)
-	softwareTitlesMatch([]fleet.SoftwareTitle{
+	expected := []fleet.SoftwareTitle{
 		{
 			Name:          "bar",
 			Source:        "apps",
@@ -8132,7 +8150,17 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 				},
 			},
 		},
-	}, []fleet.SoftwareTitle{*stResp.SoftwareTitle})
+	}
+	// Global
+	stResp = getSoftwareTitleResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", barTitle.ID), getSoftwareTitleRequest{}, http.StatusOK, &stResp)
+	softwareTitlesMatch(expected, []fleet.SoftwareTitle{*stResp.SoftwareTitle})
+
+	// No Team
+	stResp = getSoftwareTitleResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", barTitle.ID), getSoftwareTitleRequest{}, http.StatusOK, &stResp,
+		"team_id", "0")
+	softwareTitlesMatch(expected, []fleet.SoftwareTitle{*stResp.SoftwareTitle})
 
 	// invalid title for team
 	stResp = getSoftwareTitleResponse{}
@@ -8140,6 +8168,12 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 		"GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", barTitle.ID), getSoftwareTitleRequest{}, http.StatusNotFound, &stResp,
 		"team_id", fmt.Sprintf("%d", team1.ID),
 	)
+
+	// invalid title for no team
+	stResp = getSoftwareTitleResponse{}
+	s.DoJSON(
+		"GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", bazTitle.ID), getSoftwareTitleRequest{}, http.StatusNotFound, &stResp,
+		"team_id", "0")
 
 	// add bar tmHost
 	software = []fleet.Software{
@@ -8206,6 +8240,14 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 	}
 	s.uploadSoftwareInstaller(payloadEmacs, http.StatusOK, "")
 
+	payloadVim := &fleet.UploadSoftwareInstallerPayload{
+		InstallScript: "install",
+		Filename:      "vim.deb",
+		SelfService:   true,
+		TeamID:        ptr.Uint(0),
+	}
+	s.uploadSoftwareInstaller(payloadVim, http.StatusOK, "")
+
 	resp = listSoftwareTitlesResponse{}
 	s.DoJSON(
 		"GET", "/api/latest/fleet/software/titles",
@@ -8266,10 +8308,31 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 		"self_service", "true",
 	)
 
-	require.Len(t, resp.SoftwareTitles, 1)
+	require.Len(t, resp.SoftwareTitles, 2)
 	require.NotNil(t, resp.SoftwareTitles[0].SoftwarePackage)
 	require.NotNil(t, resp.SoftwareTitles[0].SoftwarePackage.SelfService)
 	require.True(t, *resp.SoftwareTitles[0].SoftwarePackage.SelfService)
+	require.NotNil(t, resp.SoftwareTitles[1].SoftwarePackage)
+	require.NotNil(t, resp.SoftwareTitles[1].SoftwarePackage.SelfService)
+	require.True(t, *resp.SoftwareTitles[1].SoftwarePackage.SelfService)
+
+	// team 0 returns the emacs software
+	resp = listSoftwareTitlesResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/titles",
+		listSoftwareTitlesRequest{},
+		http.StatusOK, &resp,
+		"self_service", "true",
+		"team_id", "0",
+	)
+
+	require.Len(t, resp.SoftwareTitles, 2)
+	require.NotNil(t, resp.SoftwareTitles[0].SoftwarePackage)
+	require.NotNil(t, resp.SoftwareTitles[0].SoftwarePackage.SelfService)
+	require.True(t, *resp.SoftwareTitles[0].SoftwarePackage.SelfService)
+	require.NotNil(t, resp.SoftwareTitles[1].SoftwarePackage)
+	require.NotNil(t, resp.SoftwareTitles[1].SoftwarePackage.SelfService)
+	require.True(t, *resp.SoftwareTitles[1].SoftwarePackage.SelfService)
 
 	emacsPath := fmt.Sprintf("/api/latest/fleet/software/titles/%d", resp.SoftwareTitles[0].ID)
 	respTitle := getSoftwareTitleResponse{}
@@ -10875,6 +10938,7 @@ func (s *integrationEnterpriseTestSuite) TestHostScriptSoftDelete() {
 
 func (s *integrationEnterpriseTestSuite) uploadSoftwareInstaller(payload *fleet.UploadSoftwareInstallerPayload, expectedStatus int, expectedError string) {
 	t := s.T()
+	t.Helper()
 	openFile := func(name string) *os.File {
 		f, err := os.Open(filepath.Join("testdata", "software-installers", name))
 		require.NoError(t, err)
@@ -11860,6 +11924,310 @@ func (s *integrationEnterpriseTestSuite) TestCalendarCallback() {
 	team1CalendarEvents, err = s.ds.ListCalendarEvents(ctx, &team1.ID)
 	require.NoError(t, err)
 	assert.Empty(t, team1CalendarEvents)
+}
+
+func (s *integrationEnterpriseTestSuite) TestCalendarEventBodyUpdate() {
+	ctx := context.Background()
+	t := s.T()
+	t.Cleanup(func() {
+		calendar.ClearMockEvents()
+		calendar.ClearMockChannels()
+	})
+	currentAppCfg, err := s.ds.AppConfig(ctx)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		err = s.ds.SaveAppConfig(ctx, currentAppCfg)
+		require.NoError(t, err)
+	})
+	origRecentUpdateDuration := commonCalendar.RecentCalendarUpdateDuration
+	commonCalendar.RecentCalendarUpdateDuration = 1 * time.Millisecond
+	t.Cleanup(func() {
+		commonCalendar.RecentCalendarUpdateDuration = origRecentUpdateDuration
+	})
+
+	team1, err := s.ds.NewTeam(ctx, &fleet.Team{
+		Name: "team1",
+	})
+	require.NoError(t, err)
+
+	newHost := func(name string, teamID *uint) *fleet.Host {
+		h, err := s.ds.NewHost(ctx, &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now().Add(-1 * time.Minute),
+			OsqueryHostID:   ptr.String(t.Name() + name),
+			NodeKey:         ptr.String(t.Name() + name),
+			UUID:            uuid.New().String(),
+			Hostname:        fmt.Sprintf("%s.%s.local", name, t.Name()),
+			Platform:        "darwin",
+			TeamID:          teamID,
+		})
+		require.NoError(t, err)
+		return h
+	}
+
+	host1Team1 := newHost("host1", &team1.ID)
+	host2Team1 := newHost("host2", &team1.ID)
+	_ = newHost("host5", nil) // global host
+
+	team1Policy1Calendar, err := s.ds.NewTeamPolicy(
+		ctx, team1.ID, nil, fleet.PolicyPayload{
+			Name:                  "team1Policy1Calendar",
+			Query:                 "SELECT 1;",
+			CalendarEventsEnabled: true,
+			Description:           "team1Policy1CalendarDescription",
+			Resolution:            "team1Policy1CalendarResolution",
+		},
+	)
+	require.NoError(t, err)
+	team1Policy2Calendar, err := s.ds.NewTeamPolicy(
+		ctx, team1.ID, nil, fleet.PolicyPayload{
+			Name:                  "team1Policy2Calendar",
+			Query:                 "SELECT 2;",
+			CalendarEventsEnabled: true,
+			Description:           "team1Policy2CalendarDescription",
+			Resolution:            "team1Policy2CalendarResolution",
+		},
+	)
+	require.NoError(t, err)
+	globalPolicy, err := s.ds.NewGlobalPolicy(
+		ctx, nil, fleet.PolicyPayload{
+			Name:                  "globalPolicy",
+			Query:                 "SELECT 5;",
+			CalendarEventsEnabled: false,
+			Description:           "globalPolicyDescription",
+			Resolution:            "globalPolicyResolution",
+		},
+	)
+	require.NoError(t, err)
+
+	genDistributedReqWithPolicyResults := func(host *fleet.Host, policyResults map[uint]*bool) submitDistributedQueryResultsRequestShim {
+		var (
+			results  = make(map[string]json.RawMessage)
+			statuses = make(map[string]interface{})
+			messages = make(map[string]string)
+		)
+		for policyID, policyResult := range policyResults {
+			distributedQueryName := hostPolicyQueryPrefix + fmt.Sprint(policyID)
+			switch {
+			case policyResult == nil:
+				results[distributedQueryName] = json.RawMessage(`[]`)
+				statuses[distributedQueryName] = 1
+				messages[distributedQueryName] = "policy failed execution"
+			case *policyResult:
+				results[distributedQueryName] = json.RawMessage(`[{"1": "1"}]`)
+				statuses[distributedQueryName] = 0
+			case !*policyResult:
+				results[distributedQueryName] = json.RawMessage(`[]`)
+				statuses[distributedQueryName] = 0
+			}
+		}
+		return submitDistributedQueryResultsRequestShim{
+			NodeKey:  *host.NodeKey,
+			Results:  results,
+			Statuses: statuses,
+			Messages: messages,
+			Stats:    map[string]*fleet.Stats{},
+		}
+	}
+
+	// host1Team1 is failing a calendar policy and not a non-calendar policy (no results for global).
+	distributedResp := submitDistributedQueryResultsResponse{}
+	s.DoJSON("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
+		host1Team1,
+		map[uint]*bool{
+			team1Policy1Calendar.ID: ptr.Bool(false),
+			team1Policy2Calendar.ID: ptr.Bool(true),
+			globalPolicy.ID:         nil,
+		},
+	), http.StatusOK, &distributedResp)
+
+	// host2Team1 is passing the calendar policy but not the non-calendar policy (no results for global).
+	s.DoJSON("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
+		host2Team1,
+		map[uint]*bool{
+			team1Policy1Calendar.ID: ptr.Bool(true),
+			team1Policy2Calendar.ID: ptr.Bool(false),
+			globalPolicy.ID:         nil,
+		},
+	), http.StatusOK, &distributedResp)
+
+	// Set global configuration for the calendar feature.
+	appCfg, err := s.ds.AppConfig(ctx)
+	require.NoError(t, err)
+	appCfg.Integrations.GoogleCalendar = []*fleet.GoogleCalendarIntegration{
+		{
+			Domain: "example.com",
+			ApiKey: map[string]string{
+				fleet.GoogleCalendarEmail: calendar.MockEmail,
+			},
+		},
+	}
+	err = s.ds.SaveAppConfig(ctx, appCfg)
+	require.NoError(t, err)
+	time.Sleep(2 * time.Second) // Wait 2 seconds for the app config cache to clear.
+
+	team1.Config.Integrations.GoogleCalendar = &fleet.TeamGoogleCalendarIntegration{
+		Enable:     true,
+		WebhookURL: "https://example.com",
+	}
+	team1, err = s.ds.SaveTeam(ctx, team1)
+	require.NoError(t, err)
+
+	// Add email mapping for host1Team1
+	const user1Email = "user1@example.com"
+	err = s.ds.ReplaceHostDeviceMapping(ctx, host1Team1.ID, []*fleet.HostDeviceMapping{
+		{
+			HostID: host1Team1.ID,
+			Email:  user1Email,
+			Source: "google_chrome_profiles",
+		},
+	}, "google_chrome_profiles")
+	require.NoError(t, err)
+	assert.Equal(t, 0, calendar.MockChannelsCount())
+
+	// Trigger the calendar cron, global feature enabled, team1 enabled
+	// and host1Team1 has a domain email associated.
+	triggerAndWait(ctx, t, s.ds, s.calendarSchedule, 5*time.Second)
+
+	// An event should be generated for host1Team1
+	team1CalendarEvents, err := s.ds.ListCalendarEvents(ctx, &team1.ID)
+	require.NoError(t, err)
+	require.Len(t, team1CalendarEvents, 1)
+	event := team1CalendarEvents[0]
+	require.NotZero(t, event.ID)
+	require.Equal(t, user1Email, event.Email)
+	require.NotZero(t, event.StartTime)
+	require.NotZero(t, event.EndTime)
+	require.NotEmpty(t, event.UUID)
+	assert.Equal(t, 1, calendar.MockChannelsCount())
+
+	getEvents := func() []*googleCalendar.Event {
+		calEvents := calendar.ListGoogleMockEvents()
+		calEventValues := make([]*googleCalendar.Event, 0, len(calEvents))
+		for _, v := range calEvents {
+			calEventValues = append(calEventValues, v)
+		}
+		return calEventValues
+	}
+
+	calEvents := getEvents()
+	require.Len(t, calEvents, 1)
+	assert.Contains(t, calEvents[0].Description, team1Policy1Calendar.Description)
+	assert.Contains(t, calEvents[0].Description, *team1Policy1Calendar.Resolution)
+
+	// Remove resolution from policy
+	team1Policy1Calendar.Resolution = nil
+	require.NoError(t, s.ds.SavePolicy(ctx, team1Policy1Calendar, false, false))
+	triggerAndWait(ctx, t, s.ds, s.calendarSchedule, 5*time.Second)
+
+	calEvents = getEvents()
+	require.Len(t, calEvents, 1)
+	assert.Contains(t, calEvents[0].Description, fleet.CalendarDefaultDescription)
+	assert.Contains(t, calEvents[0].Description, fleet.CalendarDefaultResolution)
+
+	// Put resolution back
+	team1Policy1Calendar.Resolution = ptr.String("putResolutionBack")
+	require.NoError(t, s.ds.SavePolicy(ctx, team1Policy1Calendar, false, false))
+	triggerAndWait(ctx, t, s.ds, s.calendarSchedule, 5*time.Second)
+
+	calEvents = getEvents()
+	require.Len(t, calEvents, 1)
+	assert.Contains(t, calEvents[0].Description, team1Policy1Calendar.Description)
+	assert.Contains(t, calEvents[0].Description, *team1Policy1Calendar.Resolution)
+
+	// Change resolution
+	team1Policy1Calendar.Resolution = ptr.String("changeResolution")
+	require.NoError(t, s.ds.SavePolicy(ctx, team1Policy1Calendar, false, false))
+	triggerAndWait(ctx, t, s.ds, s.calendarSchedule, 5*time.Second)
+
+	calEvents = getEvents()
+	require.Len(t, calEvents, 1)
+	assert.Contains(t, calEvents[0].Description, team1Policy1Calendar.Description)
+	assert.Contains(t, calEvents[0].Description, *team1Policy1Calendar.Resolution)
+
+	// Cause another policy to fail
+	s.DoJSON("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
+		host1Team1,
+		map[uint]*bool{
+			team1Policy1Calendar.ID: ptr.Bool(false),
+			team1Policy2Calendar.ID: ptr.Bool(false),
+			globalPolicy.ID:         nil,
+		},
+	), http.StatusOK, &distributedResp)
+	triggerAndWait(ctx, t, s.ds, s.calendarSchedule, 5*time.Second)
+
+	calEvents = getEvents()
+	require.Len(t, calEvents, 1)
+	assert.Contains(t, calEvents[0].Description, fleet.CalendarDefaultDescription)
+	assert.Contains(t, calEvents[0].Description, fleet.CalendarDefaultResolution)
+
+	// Cause the other policy to pass
+	s.DoJSON("POST", "/api/osquery/distributed/write", genDistributedReqWithPolicyResults(
+		host1Team1,
+		map[uint]*bool{
+			team1Policy1Calendar.ID: ptr.Bool(false),
+			team1Policy2Calendar.ID: ptr.Bool(true),
+			globalPolicy.ID:         nil,
+		},
+	), http.StatusOK, &distributedResp)
+	triggerAndWait(ctx, t, s.ds, s.calendarSchedule, 5*time.Second)
+
+	calEvents = getEvents()
+	require.Len(t, calEvents, 1)
+	assert.Contains(t, calEvents[0].Description, team1Policy1Calendar.Description)
+	assert.Contains(t, calEvents[0].Description, *team1Policy1Calendar.Resolution)
+
+	// Get channel ID
+	type eventDetails struct {
+		ChannelID string `json:"channel_id"`
+	}
+	var details eventDetails
+	err = json.Unmarshal(event.Data, &details)
+	require.NoError(t, err)
+
+	// Delete the event on the calendar
+	calendar.ClearMockEvents()
+
+	// Send a regular callback
+	_ = s.DoRawWithHeaders("POST", "/api/v1/fleet/calendar/webhook/"+event.UUID, []byte(""), http.StatusOK, map[string]string{
+		"X-Goog-Channel-Id":     details.ChannelID,
+		"X-Goog-Resource-State": "exists",
+	})
+
+	// Make sure event body is correct after event was recreated
+	calEvents = getEvents()
+	require.Len(t, calEvents, 1)
+	assert.Contains(t, calEvents[0].Description, team1Policy1Calendar.Description)
+	assert.Contains(t, calEvents[0].Description, *team1Policy1Calendar.Resolution)
+
+	// Get the new event
+	team1CalendarEvents, err = s.ds.ListCalendarEvents(ctx, &team1.ID)
+	require.NoError(t, err)
+	require.Len(t, team1CalendarEvents, 1)
+	event = team1CalendarEvents[0]
+	err = json.Unmarshal(event.Data, &details)
+	require.NoError(t, err)
+
+	// Remove description from policy
+	team1Policy1Calendar.Description = " "
+	require.NoError(t, s.ds.SavePolicy(ctx, team1Policy1Calendar, false, false))
+	// Delete the event on the calendar
+	calendar.ClearMockEvents()
+
+	// Send a regular callback
+	_ = s.DoRawWithHeaders("POST", "/api/v1/fleet/calendar/webhook/"+event.UUID, []byte(""), http.StatusOK, map[string]string{
+		"X-Goog-Channel-Id":     details.ChannelID,
+		"X-Goog-Resource-State": "exists",
+	})
+
+	// Make sure event body is correct after event was recreated
+	calEvents = getEvents()
+	require.Len(t, calEvents, 1)
+	assert.Contains(t, calEvents[0].Description, fleet.CalendarDefaultDescription)
+	assert.Contains(t, calEvents[0].Description, fleet.CalendarDefaultResolution)
+
 }
 
 func (s *integrationEnterpriseTestSuite) TestVPPAppsWithoutMDM() {

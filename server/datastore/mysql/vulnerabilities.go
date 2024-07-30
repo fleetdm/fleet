@@ -71,12 +71,12 @@ func (ds *Datastore) Vulnerability(ctx context.Context, cve string, teamID *uint
 	args = append(args, cve, cve)
 
 	if teamID != nil {
-		eeSelectStmt += " AND vhc.team_id = ?"
-		freeSelectStmt += " AND vhc.team_id = ?"
+		eeSelectStmt += " AND vhc.team_id = ? AND vhc.global_stats = 0"
+		freeSelectStmt += " AND vhc.team_id = ? AND vhc.global_stats = 0"
 		args = append(args, *teamID)
 	} else {
-		eeSelectStmt += " AND vhc.team_id = 0"
-		freeSelectStmt += " AND vhc.team_id = 0"
+		eeSelectStmt += " AND vhc.team_id = 0 AND vhc.global_stats = 1"
+		freeSelectStmt += " AND vhc.team_id = 0 AND vhc.global_stats = 1"
 	}
 
 	var selectStmt string
@@ -192,11 +192,14 @@ func (ds *Datastore) SoftwareByCVE(ctx context.Context, cve string, teamID *uint
 		`
 	args = append(args, cve)
 
-	if teamID != nil {
-		selectStmt += " AND shc.team_id = ?"
+	switch {
+	case teamID != nil && *teamID > 0:
+		selectStmt += " AND shc.team_id = ? AND shc.global_stats = 0"
 		args = append(args, *teamID)
-	} else {
-		selectStmt += " AND shc.team_id = 0"
+	case teamID != nil && *teamID == 0:
+		selectStmt += " AND shc.team_id = 0 AND shc.global_stats = 0"
+	case teamID == nil:
+		selectStmt += " AND shc.team_id = 0 AND shc.global_stats = 1"
 	}
 
 	err = sqlx.SelectContext(ctx, ds.reader(ctx), &vs, selectStmt, args...)
@@ -259,11 +262,11 @@ func (ds *Datastore) ListVulnerabilities(ctx context.Context, opt fleet.VulnList
 
 	// Prepare arguments for the query
 	var args []interface{}
-	if opt.TeamID == 0 {
-		selectStmt += " AND vhc.team_id = 0"
+	if opt.TeamID == nil {
+		selectStmt += " AND vhc.global_stats = 1"
 	} else {
-		selectStmt += " AND vhc.team_id = ?"
-		args = append(args, opt.TeamID)
+		selectStmt += " AND vhc.global_stats = 0 AND vhc.team_id = ?"
+		args = append(args, *opt.TeamID)
 	}
 
 	if opt.KnownExploit {
@@ -313,10 +316,10 @@ func (ds *Datastore) CountVulnerabilities(ctx context.Context, opt fleet.VulnLis
 		WHERE vhc.host_count > 0
 	`
 	var args []interface{}
-	if opt.TeamID == 0 {
-		selectStmt = selectStmt + " AND vhc.team_id = 0"
+	if opt.TeamID == nil {
+		selectStmt = selectStmt + " AND global_stats = 1"
 	} else {
-		selectStmt = selectStmt + " AND vhc.team_id = ?"
+		selectStmt = selectStmt + " AND global_stats = 0 AND vhc.team_id = ?"
 		args = append(args, opt.TeamID)
 	}
 
@@ -344,7 +347,7 @@ func (ds *Datastore) UpdateVulnerabilityHostCounts(ctx context.Context) error {
 	}
 
 	globalSelectStmt := `
-		SELECT 0 as team_id, cve, COUNT(*) AS host_count
+		SELECT 0 as team_id, 1 as global_stats, cve, COUNT(*) AS host_count
 		FROM (
 			SELECT sc.cve, hs.host_id
 			FROM software_cve sc
@@ -370,7 +373,7 @@ func (ds *Datastore) UpdateVulnerabilityHostCounts(ctx context.Context) error {
 	}
 
 	teamSelectStmt := `
-		SELECT h.team_id, combined_results.cve, COUNT(*) AS host_count
+		SELECT h.team_id, 0 as global_stats, combined_results.cve, COUNT(*) AS host_count
 		FROM (
 			SELECT hs.host_id, sc.cve
 			FROM software_cve sc
@@ -397,6 +400,34 @@ func (ds *Datastore) UpdateVulnerabilityHostCounts(ctx context.Context) error {
 		return ctxerr.Wrap(ctx, err, "inserting team vulnerability host counts")
 	}
 
+	noTeamSelectStmt := `
+		SELECT 0 as team_id, 0 as global_stats, cve, COUNT(*) AS host_count
+		FROM (
+			SELECT hs.host_id, sc.cve
+			FROM software_cve sc
+			INNER JOIN host_software hs ON sc.software_id = hs.software_id
+
+			UNION
+
+			SELECT hos.host_id, osv.cve
+			FROM operating_system_vulnerabilities osv
+			INNER JOIN host_operating_system hos ON hos.os_id = osv.operating_system_id
+		) AS combined_results
+		INNER JOIN hosts h ON combined_results.host_id = h.id
+		WHERE h.team_id IS NULL
+		GROUP BY cve
+	`
+
+	noTeamHostCounts, err := ds.fetchHostCounts(ctx, noTeamSelectStmt)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "fetching team vulnerability host counts")
+	}
+
+	err = ds.batchInsertHostCounts(ctx, noTeamHostCounts)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "inserting team vulnerability host counts")
+	}
+
 	err = ds.cleanupVulnerabilityHostCounts(ctx)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "cleaning up vulnerability host counts")
@@ -406,9 +437,10 @@ func (ds *Datastore) UpdateVulnerabilityHostCounts(ctx context.Context) error {
 }
 
 type hostCount struct {
-	TeamID    uint   `db:"team_id"`
-	CVE       string `db:"cve"`
-	HostCount uint   `db:"host_count"`
+	TeamID      uint   `db:"team_id"`
+	CVE         string `db:"cve"`
+	HostCount   uint   `db:"host_count"`
+	GlobalStats bool   `db:"global_stats"`
 }
 
 func (ds *Datastore) cleanupVulnerabilityHostCounts(ctx context.Context) error {
@@ -434,7 +466,7 @@ func (ds *Datastore) batchInsertHostCounts(ctx context.Context, counts []hostCou
 		return nil
 	}
 
-	insertStmt := "INSERT INTO vulnerability_host_counts (team_id, cve, host_count) VALUES "
+	insertStmt := "INSERT INTO vulnerability_host_counts (team_id, cve, host_count, global_stats) VALUES "
 	var insertArgs []interface{}
 
 	chunkSize := 100
@@ -446,8 +478,8 @@ func (ds *Datastore) batchInsertHostCounts(ctx context.Context, counts []hostCou
 
 		valueStrings := make([]string, 0, chunkSize)
 		for _, count := range counts[i:end] {
-			valueStrings = append(valueStrings, "(?, ?, ?)")
-			insertArgs = append(insertArgs, count.TeamID, count.CVE, count.HostCount)
+			valueStrings = append(valueStrings, "(?, ?, ?, ?)")
+			insertArgs = append(insertArgs, count.TeamID, count.CVE, count.HostCount, count.GlobalStats)
 		}
 
 		insertStmt += strings.Join(valueStrings, ", ")
@@ -458,7 +490,7 @@ func (ds *Datastore) batchInsertHostCounts(ctx context.Context, counts []hostCou
 			return fmt.Errorf("inserting host counts: %w", err)
 		}
 
-		insertStmt = "INSERT INTO vulnerability_host_counts (team_id, cve, host_count) VALUES "
+		insertStmt = "INSERT INTO vulnerability_host_counts (team_id, cve, host_count, global_stats) VALUES "
 		insertArgs = nil
 	}
 

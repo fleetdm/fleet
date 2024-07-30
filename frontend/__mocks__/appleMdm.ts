@@ -28,9 +28,10 @@ export const createMockVppInfo = (
 
 const DEFAULT_MDM_APPLE_VPP_APP_MOCK: IVppApp = {
   name: "Test App",
+  bundle_identifier: "com.test.app",
   icon_url: "https://via.placeholder.com/512",
   latest_version: "1.0",
-  app_store_id: 1,
+  app_store_id: "1",
   added: false,
   platform: "darwin",
 };

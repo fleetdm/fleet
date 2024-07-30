@@ -239,19 +239,12 @@ spec:
       macos_settings:
         custom_settings:
           - path: '/path/to/profile1.mobileconfig'
-            labels:
-              - Label name 1
           - path: '/path/to/profile2.mobileconfig'
           - path: '/path/to/profile3.mobileconfig'
-            labels:
-              - Label name 2
-              - Label name 3
         enable_disk_encryption: true
       windows_settings:
         custom_settings:
           - path: '/path/to/profile4.xml'
-            labels:
-              - Label name 4
           - path: '/path/to/profile5.xml'
     scripts:
         - path/to/script1.sh
@@ -463,19 +456,12 @@ spec:
     macos_settings:
       custom_settings:
         - path: '/path/to/profile1.mobileconfig'
-          labels:
-            - Label name 1
         - path: '/path/to/profile2.mobileconfig'
         - path: '/path/to/profile3.mobileconfig'
-          labels:
-            - Label name 2
-            - Label name 3
       enable_disk_encryption: true
     windows_settings:
       custom_settings:
         - path: '/path/to/profile4.xml'
-          labels:
-            - Label name 4
         - path: '/path/to/profile5.xml'
 ```
 

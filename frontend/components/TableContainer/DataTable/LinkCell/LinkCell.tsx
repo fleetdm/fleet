@@ -4,9 +4,10 @@ import React from "react";
 import { Link } from "react-router";
 import classnames from "classnames";
 import TooltipWrapper from "components/TooltipWrapper";
+import TextCell from "../TextCell";
 
 interface ILinkCellProps {
-  value: string | JSX.Element;
+  value?: string | JSX.Element;
   path: string;
   className?: string;
   customOnClick?: (e: React.MouseEvent) => void;
@@ -25,6 +26,10 @@ const LinkCell = ({
   title,
   tooltipContent,
 }: ILinkCellProps): JSX.Element => {
+  // text cell with no value renders desired empty cell
+  if (!value) {
+    return <TextCell />;
+  }
   const cellClasses = classnames(baseClass, className);
 
   const onClick = (e: React.MouseEvent): void => {

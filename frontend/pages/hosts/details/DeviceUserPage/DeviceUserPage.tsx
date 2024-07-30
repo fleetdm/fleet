@@ -428,7 +428,6 @@ const DeviceUserPage = ({
                       queryParams={parseHostSoftwareQueryParams(location.query)}
                       isMyDevicePage
                       hostTeamId={host.team_id || 0}
-                      hostPlatform={host?.platform || ""}
                       isSoftwareEnabled={isSoftwareEnabled}
                     />
                   </TabPanel>

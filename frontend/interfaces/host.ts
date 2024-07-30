@@ -180,8 +180,8 @@ export interface IHostMdmData {
 }
 
 export interface IHostMaintenanceWindow {
-  starts_at: string;
-  timezone: string | null;
+  starts_at: string; // e.g. "2024-06-18T13:27:18−07:00"
+  timezone: string | null; // e.g. "America/Los_Angeles"
 }
 
 export interface IMunkiIssue {
