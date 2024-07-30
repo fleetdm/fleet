@@ -143,6 +143,11 @@ const generateTableHeaders = (
       Header: "Vulnerabilities",
       disableSortBy: true,
       Cell: (cellProps: IVulnerabilitiesCellProps) => {
+        if (
+          ["ios_apps", "ipados_apps"].includes(cellProps.row.original.source)
+        ) {
+          return <TextCell value="Not supported" grey />;
+        }
         const vulnerabilities = getVulnerabilities(
           cellProps.row.original.versions ?? []
         );
