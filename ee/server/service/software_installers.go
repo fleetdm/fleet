@@ -61,7 +61,7 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 	// TODO: QA what breaks when you have a software title with no versions?
 
 	var teamName *string
-	if payload.TeamID != nil {
+	if payload.TeamID != nil && *payload.TeamID != 0 {
 		t, err := svc.ds.Team(ctx, *payload.TeamID)
 		if err != nil {
 			return err
@@ -84,8 +84,8 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 }
 
 func (svc *Service) DeleteSoftwareInstaller(ctx context.Context, titleID uint, teamID *uint) error {
-	if teamID == nil || *teamID == 0 {
-		return fleet.NewInvalidArgumentError("team_id", "is required and can't be zero")
+	if teamID == nil {
+		return fleet.NewInvalidArgumentError("team_id", "is required")
 	}
 
 	// we authorize with SoftwareInstaller here, but it uses the same AuthzType
@@ -187,8 +187,8 @@ func (svc *Service) GetSoftwareInstallerMetadata(ctx context.Context, titleID ui
 }
 
 func (svc *Service) DownloadSoftwareInstaller(ctx context.Context, titleID uint, teamID *uint) (*fleet.DownloadSoftwareInstallerPayload, error) {
-	if teamID == nil || *teamID == 0 {
-		return nil, fleet.NewInvalidArgumentError("team_id", "is required and can't be zero")
+	if teamID == nil {
+		return nil, fleet.NewInvalidArgumentError("team_id", "is required")
 	}
 
 	meta, err := svc.GetSoftwareInstallerMetadata(ctx, titleID, teamID)

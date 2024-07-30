@@ -52,6 +52,7 @@ func testSoftwareSyncHostsSoftwareTitles(t *testing.T, ds *Datastore) {
 	// this check ensures that the total number of rows in
 	// software_title_host_counts matches the expected value.
 	checkTableTotalCount := func(want int) {
+		t.Helper()
 		var tableCount int
 		err := ds.writer(context.Background()).Get(&tableCount, "SELECT COUNT(*) FROM software_titles_host_counts")
 		require.NoError(t, err)
@@ -87,7 +88,7 @@ func testSoftwareSyncHostsSoftwareTitles(t *testing.T, ds *Datastore) {
 		{Name: "bar", HostsCount: 1},
 	}
 	cmpNameVersionCount(want, globalCounts)
-	checkTableTotalCount(2)
+	checkTableTotalCount(4)
 
 	// update host2, remove "bar" software
 	software2 = []fleet.Software{
@@ -105,7 +106,7 @@ func testSoftwareSyncHostsSoftwareTitles(t *testing.T, ds *Datastore) {
 		{Name: "foo", HostsCount: 2},
 	}
 	cmpNameVersionCount(want, globalCounts)
-	checkTableTotalCount(1)
+	checkTableTotalCount(2)
 
 	// create a software title entry without any host and any counts
 	_, err = ds.writer(ctx).ExecContext(ctx, `INSERT INTO software_titles (name, source) VALUES ('baz', 'testing')`)
@@ -150,7 +151,7 @@ func testSoftwareSyncHostsSoftwareTitles(t *testing.T, ds *Datastore) {
 		{Name: "foo", HostsCount: 2},
 	}
 	cmpNameVersionCount(want, globalCounts)
-	checkTableTotalCount(1)
+	checkTableTotalCount(2)
 
 	team1Opts := fleet.SoftwareTitleListOptions{
 		TeamID:      ptr.Uint(team1.ID),
@@ -159,7 +160,7 @@ func testSoftwareSyncHostsSoftwareTitles(t *testing.T, ds *Datastore) {
 	team1Counts := listSoftwareTitlesCheckCount(t, ds, 0, 0, team1Opts)
 	want = []fleet.SoftwareTitleListResult{}
 	cmpNameVersionCount(want, team1Counts)
-	checkTableTotalCount(1)
+	checkTableTotalCount(2)
 
 	// after a call to Calculate, the global counts are updated and the team counts appear
 	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
@@ -180,7 +181,7 @@ func testSoftwareSyncHostsSoftwareTitles(t *testing.T, ds *Datastore) {
 	cmpNameVersionCount(want, team1Counts)
 
 	// composite pk (software_title_id, team_id), so we expect more rows
-	checkTableTotalCount(5)
+	checkTableTotalCount(6)
 
 	team2Opts := fleet.SoftwareTitleListOptions{
 		TeamID:      ptr.Uint(team2.ID),
@@ -222,7 +223,7 @@ func testSoftwareSyncHostsSoftwareTitles(t *testing.T, ds *Datastore) {
 	}
 	cmpNameVersionCount(want, team2Counts)
 
-	checkTableTotalCount(3)
+	checkTableTotalCount(4)
 
 	// update host4 (team2), remove all software
 	software4 = []fleet.Software{}
@@ -254,7 +255,7 @@ func testSoftwareSyncHostsSoftwareTitles(t *testing.T, ds *Datastore) {
 	cmpNameVersionCount(want, team1Counts)
 
 	listSoftwareTitlesCheckCount(t, ds, 0, 0, team2Opts)
-	checkTableTotalCount(2)
+	checkTableTotalCount(3)
 }
 
 func testOrderSoftwareTitles(t *testing.T, ds *Datastore) {
@@ -617,6 +618,10 @@ func testTeamFilterSoftwareTitles(t *testing.T, ds *Datastore) {
 	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{Name: "vpp2", BundleIdentifier: "com.app.vpp2", AdamID: "adam_vpp_app_2"}, &team2.ID)
 	require.NoError(t, err)
 
+	// create a VPP app for No Team
+	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{Name: "vpp3", BundleIdentifier: "com.app.vpp3", AdamID: "adam_vpp_app_3"}, ptr.Uint(0))
+	require.NoError(t, err)
+
 	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
 	require.NoError(t, ds.ReconcileSoftwareTitles(ctx))
 	require.NoError(t, ds.SyncHostsSoftwareTitles(ctx, time.Now()))
@@ -631,8 +636,8 @@ func testTeamFilterSoftwareTitles(t *testing.T, ds *Datastore) {
 	// this request for no team, but other titles do because software titles are
 	// not associated with a team.
 	require.NoError(t, err)
-	require.Len(t, titles, 2)
-	require.Equal(t, 2, count)
+	require.Len(t, titles, 3)
+	require.Equal(t, 3, count)
 	require.Equal(t, "bar", titles[0].Name)
 	require.Equal(t, "deb_packages", titles[0].Source)
 	require.Equal(t, "foo", titles[1].Name)
@@ -645,6 +650,9 @@ func testTeamFilterSoftwareTitles(t *testing.T, ds *Datastore) {
 	assert.Equal(t, uint(2), titles[1].HostsCount)
 	require.Nil(t, titles[1].SoftwarePackage)
 	require.Nil(t, titles[1].AppStoreApp)
+	require.Equal(t, uint(0), titles[2].VersionsCount)
+	require.Nil(t, titles[2].SoftwarePackage)
+	require.Equal(t, "vpp3", titles[2].Name)
 
 	title, err := ds.SoftwareTitleByID(context.Background(), titles[0].ID, nil, globalTeamFilter)
 	require.NoError(t, err)

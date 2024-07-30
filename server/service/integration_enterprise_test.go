@@ -4335,6 +4335,10 @@ func (s *integrationEnterpriseTestSuite) TestOSVersions() {
 	require.NoError(t, s.ds.UpdateOSVersions(context.Background()))
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/os_versions"), nil, http.StatusOK, &osVersionsResp, "team_id", "0")
 	require.Len(t, osVersionsResp.OSVersions, 1)
+	osVersionResp = getOSVersionResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/os_versions/%d", osinfo.OSVersionID), nil, http.StatusOK, &osVersionResp, "team_id", "0")
+	require.Equal(t, &expectedOSVersion, osVersionResp.OSVersion)
+	require.Equal(t, 1, osVersionResp.OSVersion.HostsCount)
 }
 
 func (s *integrationEnterpriseTestSuite) TestMDMNotConfiguredEndpoints() {
@@ -8063,6 +8067,21 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 	fooTitle := resp.SoftwareTitles[0]
 	require.Equal(t, "foo", fooTitle.Name)
 
+	// find the ID of "baz" (team 1)
+	resp = listSoftwareTitlesResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/titles",
+		listSoftwareTitlesRequest{},
+		http.StatusOK, &resp,
+		"query", "baz",
+		"team_id", fmt.Sprintf("%d", team1.ID),
+	)
+	require.Equal(t, 1, resp.Count)
+	require.Len(t, resp.SoftwareTitles, 1)
+	require.NotEmpty(t, resp.CountsUpdatedAt)
+	bazTitle := resp.SoftwareTitles[0]
+	require.Equal(t, "baz", bazTitle.Name)
+
 	// non-existent id is a 404
 	var stResp getSoftwareTitleResponse
 	s.DoJSON("GET", "/api/latest/fleet/software/titles/999", getSoftwareTitleRequest{}, http.StatusNotFound, &stResp)
@@ -8117,9 +8136,7 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 	require.Equal(t, "bar", barTitle.Name)
 
 	// valid title with vulnerabilities
-	stResp = getSoftwareTitleResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", barTitle.ID), getSoftwareTitleRequest{}, http.StatusOK, &stResp)
-	softwareTitlesMatch([]fleet.SoftwareTitle{
+	expected := []fleet.SoftwareTitle{
 		{
 			Name:          "bar",
 			Source:        "apps",
@@ -8133,7 +8150,17 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 				},
 			},
 		},
-	}, []fleet.SoftwareTitle{*stResp.SoftwareTitle})
+	}
+	// Global
+	stResp = getSoftwareTitleResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", barTitle.ID), getSoftwareTitleRequest{}, http.StatusOK, &stResp)
+	softwareTitlesMatch(expected, []fleet.SoftwareTitle{*stResp.SoftwareTitle})
+
+	// No Team
+	stResp = getSoftwareTitleResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", barTitle.ID), getSoftwareTitleRequest{}, http.StatusOK, &stResp,
+		"team_id", "0")
+	softwareTitlesMatch(expected, []fleet.SoftwareTitle{*stResp.SoftwareTitle})
 
 	// invalid title for team
 	stResp = getSoftwareTitleResponse{}
@@ -8141,6 +8168,12 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 		"GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", barTitle.ID), getSoftwareTitleRequest{}, http.StatusNotFound, &stResp,
 		"team_id", fmt.Sprintf("%d", team1.ID),
 	)
+
+	// invalid title for no team
+	stResp = getSoftwareTitleResponse{}
+	s.DoJSON(
+		"GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", bazTitle.ID), getSoftwareTitleRequest{}, http.StatusNotFound, &stResp,
+		"team_id", "0")
 
 	// add bar tmHost
 	software = []fleet.Software{
@@ -8207,6 +8240,14 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 	}
 	s.uploadSoftwareInstaller(payloadEmacs, http.StatusOK, "")
 
+	payloadVim := &fleet.UploadSoftwareInstallerPayload{
+		InstallScript: "install",
+		Filename:      "vim.deb",
+		SelfService:   true,
+		TeamID:        ptr.Uint(0),
+	}
+	s.uploadSoftwareInstaller(payloadVim, http.StatusOK, "")
+
 	resp = listSoftwareTitlesResponse{}
 	s.DoJSON(
 		"GET", "/api/latest/fleet/software/titles",
@@ -8267,10 +8308,31 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 		"self_service", "true",
 	)
 
-	require.Len(t, resp.SoftwareTitles, 1)
+	require.Len(t, resp.SoftwareTitles, 2)
 	require.NotNil(t, resp.SoftwareTitles[0].SoftwarePackage)
 	require.NotNil(t, resp.SoftwareTitles[0].SoftwarePackage.SelfService)
 	require.True(t, *resp.SoftwareTitles[0].SoftwarePackage.SelfService)
+	require.NotNil(t, resp.SoftwareTitles[1].SoftwarePackage)
+	require.NotNil(t, resp.SoftwareTitles[1].SoftwarePackage.SelfService)
+	require.True(t, *resp.SoftwareTitles[1].SoftwarePackage.SelfService)
+
+	// team 0 returns the emacs software
+	resp = listSoftwareTitlesResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/titles",
+		listSoftwareTitlesRequest{},
+		http.StatusOK, &resp,
+		"self_service", "true",
+		"team_id", "0",
+	)
+
+	require.Len(t, resp.SoftwareTitles, 2)
+	require.NotNil(t, resp.SoftwareTitles[0].SoftwarePackage)
+	require.NotNil(t, resp.SoftwareTitles[0].SoftwarePackage.SelfService)
+	require.True(t, *resp.SoftwareTitles[0].SoftwarePackage.SelfService)
+	require.NotNil(t, resp.SoftwareTitles[1].SoftwarePackage)
+	require.NotNil(t, resp.SoftwareTitles[1].SoftwarePackage.SelfService)
+	require.True(t, *resp.SoftwareTitles[1].SoftwarePackage.SelfService)
 
 	emacsPath := fmt.Sprintf("/api/latest/fleet/software/titles/%d", resp.SoftwareTitles[0].ID)
 	respTitle := getSoftwareTitleResponse{}
@@ -10876,6 +10938,7 @@ func (s *integrationEnterpriseTestSuite) TestHostScriptSoftDelete() {
 
 func (s *integrationEnterpriseTestSuite) uploadSoftwareInstaller(payload *fleet.UploadSoftwareInstallerPayload, expectedStatus int, expectedError string) {
 	t := s.T()
+	t.Helper()
 	openFile := func(name string) *os.File {
 		f, err := os.Open(filepath.Join("testdata", "software-installers", name))
 		require.NoError(t, err)
