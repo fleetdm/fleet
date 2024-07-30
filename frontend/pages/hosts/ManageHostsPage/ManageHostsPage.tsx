@@ -122,7 +122,6 @@ interface IManageHostsProps {
 }
 
 const CSV_HOSTS_TITLE = "Hosts";
-const PAGE_SIZE = 50;
 const baseClass = "manage-hosts";
 
 const ManageHostsPage = ({
@@ -406,8 +405,8 @@ const ManageHostsPage = ({
         osName,
         osVersion,
         vulnerability,
-        page: tableQueryData ? tableQueryData.pageIndex : 0,
-        perPage: tableQueryData ? tableQueryData.pageSize : PAGE_SIZE,
+        page: tableQueryData ? tableQueryData.pageIndex : DEFAULT_PAGE_INDEX,
+        perPage: tableQueryData ? tableQueryData.pageSize : DEFAULT_PAGE_SIZE,
         device_mapping: true,
         osSettings: osSettingsStatus,
         diskEncryptionStatus,
@@ -551,7 +550,8 @@ const ManageHostsPage = ({
   const isLastPage =
     tableQueryData &&
     !!hostsCount &&
-    PAGE_SIZE * tableQueryData.pageIndex + (hostsData?.hosts?.length || 0) >=
+    DEFAULT_PAGE_SIZE * tableQueryData.pageIndex +
+      (hostsData?.hosts?.length || 0) >=
       hostsCount;
 
   const handleLabelChange = ({ slug, id: newLabelId }: ILabel): boolean => {
@@ -1578,7 +1578,7 @@ const ManageHostsPage = ({
         }
         defaultPageIndex={page || DEFAULT_PAGE_INDEX}
         defaultSearchQuery={searchQuery}
-        pageSize={PAGE_SIZE}
+        pageSize={DEFAULT_PAGE_SIZE}
         additionalQueries={JSON.stringify(selectedFilters)}
         inputPlaceHolder={HOSTS_SEARCH_BOX_PLACEHOLDER}
         actionButton={{

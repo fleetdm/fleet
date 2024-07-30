@@ -55,7 +55,7 @@ export const LABEL_SLUG_PREFIX = "labels/";
 
 export const DEFAULT_SORT_HEADER = "display_name";
 export const DEFAULT_SORT_DIRECTION = "asc";
-export const DEFAULT_PAGE_SIZE = 20;
+export const DEFAULT_PAGE_SIZE = 50;
 export const DEFAULT_PAGE_INDEX = 0;
 
 export const getHostSelectStatuses = (isSandboxMode = false) => {
