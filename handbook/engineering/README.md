@@ -66,7 +66,7 @@ If the bug is labeled `~released bug`, branch off and put your PR into `main`. A
 
 
 ### Create a release candidate
-All minor releases go through the release candidate process before thay are published. A release candidate for the next minor release is created on the Tuesday before the release at 11:00 AM Pacific. A release candidate branch is created at `minor-fleet-v4.x.x` and no additional feature work is merged without EM and QA approval.
+All minor releases go through the release candidate process before they are published. A release candidate for the next minor release is created on the Tuesday before the release at 11:00 AM Pacific. A release candidate branch is created at `minor-fleet-v4.x.x` and no additional feature work is merged without EM and QA approval.
 
 All bug fixes that are merged into `main` after the release candidate is created are merged into the release candidate by the engineer responsible for the fix.
 
