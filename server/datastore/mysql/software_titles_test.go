@@ -316,7 +316,8 @@ func testOrderSoftwareTitles(t *testing.T, ds *Datastore) {
 	_, err = ds.InsertSoftwareInstallRequest(ctx, host1.ID, installer2, false)
 	require.NoError(t, err)
 	// create a VPP app not installed anywhere
-	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{Name: "vpp1", BundleIdentifier: "com.app.vpp1", AdamID: "adam_vpp_app_1"}, nil)
+	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{Name: "vpp1", BundleIdentifier: "com.app.vpp1",
+		VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_1", Platform: fleet.IPadOSPlatform}}, nil)
 	require.NoError(t, err)
 
 	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
@@ -379,7 +380,7 @@ func testOrderSoftwareTitles(t *testing.T, ds *Datastore) {
 	require.Nil(t, titles[i].AppStoreApp)
 	i++
 	require.Equal(t, "vpp1", titles[i].Name)
-	require.Equal(t, "apps", titles[i].Source)
+	assert.Equal(t, "ipados_apps", titles[i].Source)
 	require.Nil(t, titles[i].SoftwarePackage)
 	require.NotNil(t, titles[i].AppStoreApp)
 
@@ -398,7 +399,7 @@ func testOrderSoftwareTitles(t *testing.T, ds *Datastore) {
 	require.Equal(t, "apps", titles[i].Source)
 	i++
 	require.Equal(t, "vpp1", titles[i].Name)
-	require.Equal(t, "apps", titles[i].Source)
+	assert.Equal(t, "ipados_apps", titles[i].Source)
 	i++
 	require.Equal(t, "bar", titles[i].Name)
 	require.Equal(t, "apps", titles[i].Source)
@@ -461,7 +462,7 @@ func testOrderSoftwareTitles(t *testing.T, ds *Datastore) {
 	require.Equal(t, "apps", titles[i].Source)
 	i++
 	require.Equal(t, "vpp1", titles[i].Name)
-	require.Equal(t, "apps", titles[i].Source)
+	assert.Equal(t, "ipados_apps", titles[i].Source)
 
 	// primary sort is "name DESC", followed by "host_count DESC, source ASC, browser ASC"
 	titles, _, _, err = ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{ListOptions: fleet.ListOptions{
@@ -472,7 +473,7 @@ func testOrderSoftwareTitles(t *testing.T, ds *Datastore) {
 	require.Len(t, titles, 10)
 	i = 0
 	require.Equal(t, "vpp1", titles[i].Name)
-	require.Equal(t, "apps", titles[i].Source)
+	assert.Equal(t, "ipados_apps", titles[i].Source)
 	i++
 	require.Equal(t, "installer2", titles[i].Name)
 	require.Equal(t, "apps", titles[i].Source)
@@ -615,11 +616,13 @@ func testTeamFilterSoftwareTitles(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.NotZero(t, installer2)
 	// create a VPP app for team2
-	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{Name: "vpp2", BundleIdentifier: "com.app.vpp2", AdamID: "adam_vpp_app_2"}, &team2.ID)
+	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{Name: "vpp2", BundleIdentifier: "com.app.vpp2",
+		VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_2", Platform: fleet.IOSPlatform}}, &team2.ID)
 	require.NoError(t, err)
 
 	// create a VPP app for No Team
-	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{Name: "vpp3", BundleIdentifier: "com.app.vpp3", AdamID: "adam_vpp_app_3"}, ptr.Uint(0))
+	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{Name: "vpp3", BundleIdentifier: "com.app.vpp3",
+		VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_3", Platform: fleet.MacOSPlatform}}, ptr.Uint(0))
 	require.NoError(t, err)
 
 	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
@@ -742,7 +745,7 @@ func testTeamFilterSoftwareTitles(t *testing.T, ds *Datastore) {
 	require.Equal(t, "installer2", titles[2].Name)
 	require.Equal(t, "apps", titles[2].Source)
 	require.Equal(t, "vpp2", titles[3].Name)
-	require.Equal(t, "apps", titles[3].Source)
+	assert.Equal(t, "ios_apps", titles[3].Source)
 	require.Equal(t, uint(1), titles[0].VersionsCount)
 	require.Equal(t, uint(1), titles[1].VersionsCount)
 	require.Equal(t, uint(0), titles[2].VersionsCount)
@@ -805,7 +808,8 @@ func testListSoftwareTitlesInstallersOnly(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.NotZero(t, installer2)
 	// create a VPP app not installed on a host
-	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{Name: "vpp1", BundleIdentifier: "com.app,vpp1", AdamID: "adam_vpp_app_1"}, nil)
+	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{Name: "vpp1", BundleIdentifier: "com.app,vpp1",
+		VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_1", Platform: fleet.MacOSPlatform}}, nil)
 	require.NoError(t, err)
 
 	titles, counts, _, err := ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{ListOptions: fleet.ListOptions{
@@ -873,7 +877,7 @@ func testListSoftwareTitlesInstallersOnly(t *testing.T, ds *Datastore) {
 func testListSoftwareTitlesAvailableForInstallFilter(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
-	// create a couple software installers
+	// create a 2 software installers
 	installer1, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 		Title:         "installer1",
 		Source:        "apps",
@@ -891,10 +895,18 @@ func testListSoftwareTitlesAvailableForInstallFilter(t *testing.T, ds *Datastore
 	require.NoError(t, err)
 	require.NotZero(t, installer2)
 
-	// create a couple VPP apps
-	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{Name: "vpp1", BundleIdentifier: "com.example.vpp1", AdamID: "adam_vpp_app_1"}, nil)
+	// create a 4 VPP apps
+	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{Name: "vpp1", BundleIdentifier: "com.example.vpp1",
+		VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_1", Platform: fleet.MacOSPlatform}}, nil)
 	require.NoError(t, err)
-	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{Name: "vpp2", BundleIdentifier: "com.example.vpp2", AdamID: "adam_vpp_app_2"}, nil)
+	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{Name: "vpp2", BundleIdentifier: "com.example.vpp2",
+		VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_2", Platform: fleet.IPadOSPlatform}}, nil)
+	require.NoError(t, err)
+	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{Name: "vpp2", BundleIdentifier: "com.example.vpp2",
+		VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_2", Platform: fleet.MacOSPlatform}}, nil)
+	require.NoError(t, err)
+	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{Name: "vpp2", BundleIdentifier: "com.example.vpp2",
+		VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_2", Platform: fleet.IOSPlatform}}, nil)
 	require.NoError(t, err)
 
 	host := test.NewHost(t, ds, "host", "", "hostkey", "hostuuid", time.Now())
@@ -921,13 +933,26 @@ func testListSoftwareTitlesAvailableForInstallFilter(t *testing.T, ds *Datastore
 		fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}},
 	)
 	require.NoError(t, err)
-	require.EqualValues(t, 6, counts)
-	require.Len(t, titles, 6)
-	names := make([]string, 0, len(titles))
-	for _, title := range titles {
-		names = append(names, title.Name)
+	assert.EqualValues(t, 8, counts)
+	assert.Len(t, titles, 8)
+	type nameSource struct {
+		name   string
+		source string
 	}
-	require.ElementsMatch(t, []string{"bar", "foo", "installer1", "installer2", "vpp1", "vpp2"}, names)
+	names := make([]nameSource, 0, len(titles))
+	for _, title := range titles {
+		names = append(names, nameSource{name: title.Name, source: title.Source})
+	}
+	assert.ElementsMatch(t, []nameSource{
+		{name: "bar", source: "deb_packages"},
+		{name: "foo", source: "chrome_extensions"},
+		{name: "installer1", source: "apps"},
+		{name: "installer2", source: "apps"},
+		{name: "vpp1", source: "apps"},
+		{name: "vpp2", source: "ios_apps"},
+		{name: "vpp2", source: "ipados_apps"},
+		{name: "vpp2", source: "apps"},
+	}, names)
 
 	// with filter returns only available for install
 	titles, counts, _, err = ds.ListSoftwareTitles(
@@ -942,14 +967,21 @@ func testListSoftwareTitlesAvailableForInstallFilter(t *testing.T, ds *Datastore
 		fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}},
 	)
 	require.NoError(t, err)
-	require.EqualValues(t, 4, counts)
-	require.Len(t, titles, 4)
+	require.EqualValues(t, 6, counts)
+	require.Len(t, titles, 6)
 
-	names = make([]string, 0, len(titles))
+	names = make([]nameSource, 0, len(titles))
 	for _, title := range titles {
-		names = append(names, title.Name)
+		names = append(names, nameSource{name: title.Name, source: title.Source})
 	}
-	require.ElementsMatch(t, []string{"installer1", "installer2", "vpp1", "vpp2"}, names)
+	assert.ElementsMatch(t, []nameSource{
+		{name: "installer1", source: "apps"},
+		{name: "installer2", source: "apps"},
+		{name: "vpp1", source: "apps"},
+		{name: "vpp2", source: "ios_apps"},
+		{name: "vpp2", source: "ipados_apps"},
+		{name: "vpp2", source: "apps"},
+	}, names)
 }
 
 func testUploadedSoftwareExists(t *testing.T, ds *Datastore) {

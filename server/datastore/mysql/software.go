@@ -2159,6 +2159,8 @@ AND EXISTS (SELECT 1 FROM software s JOIN software_cve scve ON scve.software_id 
 			) OR
 			-- or software install has been attempted on host (via installer or VPP app)
 			hsi.host_id IS NOT NULL OR hvsi.host_id IS NOT NULL )
+			-- make sure VPP platform matches
+			AND (vap.platform IS NULL OR vap.platform = :host_platform)
 			%s
 			%s
 `, softwareInstallerHostStatusNamedQuery("hsi", ""), vppAppHostStatusNamedQuery("hvsi", "ncr", ""), onlySelfServiceClause, onlyVulnerableClause)
@@ -2191,7 +2193,7 @@ AND EXISTS (SELECT 1 FROM software s JOIN software_cve scve ON scve.software_id 
 			-- include VPP apps only if the host is on a supported platform
 			vpp_apps vap ON st.id = vap.title_id AND :host_platform IN (:vpp_apps_platforms)
 		LEFT OUTER JOIN
-			vpp_apps_teams vat ON vap.adam_id = vat.adam_id AND vat.global_or_team_id = :global_or_team_id
+			vpp_apps_teams vat ON vap.adam_id = vat.adam_id AND vap.platform = vat.platform AND vat.global_or_team_id = :global_or_team_id
 		WHERE
 			-- software is not installed on host (but is available in host's team)
 			NOT EXISTS (
@@ -2222,7 +2224,7 @@ AND EXISTS (SELECT 1 FROM software s JOIN software_cve scve ON scve.software_id 
 					hvsi.adam_id = vat.adam_id
 			) AND
 			-- either the software installer or the vpp app exists for the host's team
-			( si.id IS NOT NULL OR vat.adam_id IS NOT NULL )
+			( si.id IS NOT NULL OR vat.platform = :host_platform )
 			%s
 `, onlySelfServiceClause)
 
@@ -2251,6 +2253,7 @@ AND EXISTS (SELECT 1 FROM software s JOIN software_cve scve ON scve.software_id 
 	}
 	namedArgs := map[string]any{
 		"host_id":                   host.ID,
+		"host_platform":             host.FleetPlatform(),
 		"software_status_failed":    fleet.SoftwareInstallerFailed,
 		"software_status_pending":   fleet.SoftwareInstallerPending,
 		"software_status_installed": fleet.SoftwareInstallerInstalled,
@@ -2262,8 +2265,7 @@ AND EXISTS (SELECT 1 FROM software s JOIN software_cve scve ON scve.software_id 
 
 	stmt := stmtInstalled
 	if opts.IncludeAvailableForInstall && !opts.VulnerableOnly {
-		namedArgs["host_platform"] = host.FleetPlatform()
-		namedArgs["vpp_apps_platforms"] = []string{"darwin"} // for now, only macOS, not iOS/iPadOS
+		namedArgs["vpp_apps_platforms"] = []fleet.AppleDevicePlatform{fleet.IOSPlatform, fleet.IPadOSPlatform, fleet.MacOSPlatform}
 		if fleet.IsLinux(host.Platform) {
 			namedArgs["host_compatible_platforms"] = fleet.HostLinuxOSs
 		} else {

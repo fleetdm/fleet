@@ -731,3 +731,11 @@ const (
 	IOS
 	IPadOS
 )
+
+type AppleDevicePlatform string
+
+const (
+	MacOSPlatform  AppleDevicePlatform = "darwin"
+	IOSPlatform    AppleDevicePlatform = "ios"
+	IPadOSPlatform AppleDevicePlatform = "ipados"
+)
