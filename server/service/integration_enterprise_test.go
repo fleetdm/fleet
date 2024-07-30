@@ -10092,7 +10092,7 @@ func (s *integrationEnterpriseTestSuite) TestApplyTeamsSoftwareConfig() {
 	}
 	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
 
-	wantSoftwarePackages := []fleet.TeamSpecSoftwarePackage{
+	wantSoftwarePackages := []fleet.SoftwarePackageSpec{
 		{
 			URL:               "http://foo.com",
 			SelfService:       true,

@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
@@ -334,6 +335,19 @@ type SoftwarePackageOrApp struct {
 	SelfService *bool                `json:"self_service,omitempty"`
 	IconURL     *string              `json:"icon_url"`
 	LastInstall *HostSoftwareInstall `json:"last_install"`
+}
+
+type SoftwarePackageSpec struct {
+	URL               string                `json:"url"`
+	SelfService       bool                  `json:"self_service"`
+	PreInstallQuery   TeamSpecSoftwareAsset `json:"pre_install_query"`
+	InstallScript     TeamSpecSoftwareAsset `json:"install_script"`
+	PostInstallScript TeamSpecSoftwareAsset `json:"post_install_script"`
+}
+
+type SoftwareSpec struct {
+	Packages     optjson.Slice[SoftwarePackageSpec] `json:"packages,omitempty"`
+	AppStoreApps optjson.Slice[TeamSpecAppStoreApp] `json:"app_store_apps,omitempty"`
 }
 
 // HostSoftwareInstall represents installation of software on a host from a

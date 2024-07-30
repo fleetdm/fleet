@@ -36,7 +36,7 @@ const (
 	orgName        = "GitOps Test"
 )
 
-func TestFilenameValidation(t *testing.T) {
+func TestFilenameGitOpsValidation(t *testing.T) {
 	filename := strings.Repeat("a", filenameMaxLength+1)
 	_, err := runAppNoChecks([]string{"gitops", "-f", filename})
 	assert.ErrorContains(t, err, "file name must be less than")
@@ -238,6 +238,7 @@ org_settings:
     org_logo_url_light_background: ""
     org_name: ${ORG_NAME}
   secrets:
+software:
 `,
 	)
 	require.NoError(t, err)
@@ -538,6 +539,7 @@ func TestFullGlobalGitOps(t *testing.T) {
 	t.Setenv("FLEET_SERVER_URL", fleetServerURL)
 	t.Setenv("ORG_NAME", orgName)
 	t.Setenv("APPLE_BM_DEFAULT_TEAM", teamName)
+	t.Setenv("SOFTWARE_INSTALLER_URL", fleetServerURL)
 	file := "./testdata/gitops/global_config_no_paths.yml"
 
 	// Dry run should fail because Apple BM Default Team does not exist and premium license is not set
@@ -1220,7 +1222,7 @@ func TestTeamSofwareInstallersGitOps(t *testing.T) {
 		{"testdata/gitops/team_software_installer_install_not_found.yml", "no such file or directory"},
 		{"testdata/gitops/team_software_installer_post_install_not_found.yml", "no such file or directory"},
 		{"testdata/gitops/team_software_installer_no_url.yml", "software URL is required"},
-		{"testdata/gitops/team_software_installer_invalid_self_service_value.yml", "cannot unmarshal string into Go struct field TeamSpecSoftware.packages of type bool"},
+		{"testdata/gitops/team_software_installer_invalid_self_service_value.yml", "cannot unmarshal string into Go struct field SoftwareSpec.packages of type bool"},
 	}
 	for _, c := range cases {
 		t.Run(filepath.Base(c.file), func(t *testing.T) {
@@ -1239,6 +1241,47 @@ func TestTeamSofwareInstallersGitOps(t *testing.T) {
 			} else {
 				require.ErrorContains(t, err, c.wantErr)
 			}
+		})
+	}
+}
+
+func TestNoTeamSoftwareInstallersGitOps(t *testing.T) {
+	startSoftwareInstallerServer(t)
+
+	cases := []struct {
+		file    string
+		wantErr string
+	}{
+		{"testdata/gitops/no_team_software_installer_valid.yml", ""},
+	}
+	for _, c := range cases {
+		t.Run(filepath.Base(c.file), func(t *testing.T) {
+			ds, _, _ := setupFullGitOpsPremiumServer(t)
+
+			ds.SetTeamVPPAppsFunc = func(ctx context.Context, teamID *uint, adamIDs []string) error {
+				return nil
+			}
+			ds.BatchInsertVPPAppsFunc = func(ctx context.Context, apps []*fleet.VPPApp) error {
+				return nil
+			}
+
+			ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, teamID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
+				return nil
+			}
+
+			ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
+				return nil, nil
+			}
+
+			t.Setenv("APPLE_BM_DEFAULT_TEAM", "")
+			_, err := runAppNoChecks([]string{"gitops", "-f", c.file})
+			if c.wantErr == "" {
+				require.NoError(t, err)
+			} else {
+				require.ErrorContains(t, err, c.wantErr)
+			}
+
+			// require.True(t, ds.BatchSetSoftwareInstallersFuncInvoked)
 		})
 	}
 }
