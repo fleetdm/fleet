@@ -31,6 +31,7 @@ import Card from "components/Card";
 import SoftwareDetailsSummary from "../components/SoftwareDetailsSummary";
 import SoftwareVulnerabilitiesTable from "../components/SoftwareVulnerabilitiesTable";
 import DetailsNoHosts from "../components/DetailsNoHosts";
+import { VulnsNotSupported } from "../components/SoftwareVulnerabilitiesTable/SoftwareVulnerabilitiesTable";
 
 const baseClass = "software-version-details-page";
 
@@ -112,6 +113,23 @@ const SoftwareVersionDetailsPage = ({
     [handleTeamChange]
   );
 
+  const renderVulnTable = (swVersion: ISoftwareVersion) => {
+    if (["ios_apps", "ipados_apps"].includes(swVersion.source)) {
+      const supportInterestText =
+        swVersion.source === "ios_apps" ? "iOS" : "iPadOS";
+      return <VulnsNotSupported supportInterestText={supportInterestText} />;
+    }
+    return (
+      <SoftwareVulnerabilitiesTable
+        data={swVersion.vulnerabilities ?? []}
+        itemName="software item"
+        isLoading={isSoftwareVersionLoading}
+        router={router}
+        teamIdForApi={teamIdForApi}
+      />
+    );
+  };
+
   const renderContent = () => {
     if (isSoftwareVersionLoading) {
       return <Spinner />;
@@ -157,13 +175,7 @@ const SoftwareVersionDetailsPage = ({
               className={`${baseClass}__vulnerabilities-section`}
             >
               <h2 className="section__header">Vulnerabilities</h2>
-              <SoftwareVulnerabilitiesTable
-                data={softwareVersion.vulnerabilities ?? []}
-                itemName="software item"
-                isLoading={isSoftwareVersionLoading}
-                router={router}
-                teamIdForApi={teamIdForApi}
-              />
+              {renderVulnTable(softwareVersion)}
             </Card>
           </>
         )}

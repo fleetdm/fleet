@@ -50,9 +50,11 @@ export interface ISoftwareVersionsResponse {
 export interface ISoftwareTitleResponse {
   software_title: ISoftwareTitleDetails;
 }
+
 export interface ISoftwareVersionResponse {
   software: ISoftwareVersion;
 }
+
 export interface ISoftwareVersionsQueryKey extends ISoftwareApiParams {
   scope: "software-versions";
 }

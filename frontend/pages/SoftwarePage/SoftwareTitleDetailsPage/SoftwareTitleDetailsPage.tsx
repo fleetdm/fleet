@@ -202,6 +202,9 @@ const SoftwareTitleDetailsPage = ({
               data={softwareTitle.versions ?? []}
               isLoading={isSoftwareTitleLoading}
               teamIdForApi={teamIdForApi}
+              isIPadOSOrIOSApp={["ios_apps", "ipados_apps"].includes(
+                softwareTitle.source
+              )}
             />
           </Card>
         </>

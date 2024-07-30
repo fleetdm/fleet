@@ -17,6 +17,7 @@ import VulnerabilitiesCell from "../../components/VulnerabilitiesCell";
 interface ISoftwareTitleDetailsTableConfigProps {
   router: InjectedRouter;
   teamId?: number;
+  isIPadOSOrIOSApp: boolean;
 }
 interface ICellProps {
   cell: {
@@ -48,6 +49,7 @@ interface IVulnCellProps extends ICellProps {
 const generateSoftwareTitleDetailsTableConfig = ({
   router,
   teamId,
+  isIPadOSOrIOSApp,
 }: ISoftwareTitleDetailsTableConfigProps) => {
   const tableHeaders = [
     {
@@ -90,10 +92,13 @@ const generateSoftwareTitleDetailsTableConfig = ({
       // With the versions data, we can sum up the vulnerabilities to get the
       // total number of vulnerabilities for the software title
       accessor: "vulnerabilities",
-      Cell: (cellProps: IVulnCellProps): JSX.Element => (
-        <VulnerabilitiesCell vulnerabilities={cellProps.cell.value} />
+      Cell: (cellProps: IVulnCellProps): JSX.Element => {
+        if (isIPadOSOrIOSApp) {
+          return <TextCell value="Not supported" grey />;
+        }
+        return <VulnerabilitiesCell vulnerabilities={cellProps.cell.value} />;
         // TODO: tooltip
-      ),
+      },
     },
     {
       title: "Hosts",

@@ -1,7 +1,7 @@
 /**
-software/versions/:id > Vulnerabilities table
-software/os/:id > Vulnerabilities table
-*/
+ software/versions/:id > Vulnerabilities table
+ software/os/:id > Vulnerabilities table
+ */
 
 import React, { useContext, useMemo } from "react";
 import classnames from "classnames";
@@ -11,7 +11,8 @@ import PATHS from "router/paths";
 
 import { AppContext } from "context/app";
 import { ISoftwareVulnerability } from "interfaces/software";
-import { GITHUB_NEW_ISSUE_LINK } from "utilities/constants";
+import { CONTACT_FLEET_LINK, GITHUB_NEW_ISSUE_LINK } from "utilities/constants";
+import { DisplayPlatform } from "interfaces/platform";
 import { buildQueryStringFromParams } from "utilities/url";
 import TableContainer from "components/TableContainer";
 import TableCount from "components/TableContainer/TableCount";
@@ -24,6 +25,10 @@ const baseClass = "software-vulnerabilities-table";
 
 interface INoVulnsDetectedProps {
   itemName: string;
+}
+
+interface IVulnsNotSupportedProps {
+  supportInterestText?: DisplayPlatform;
 }
 
 const NoVulnsDetected = ({ itemName }: INoVulnsDetectedProps): JSX.Element => {
@@ -43,6 +48,21 @@ const NoVulnsDetected = ({ itemName }: INoVulnsDetectedProps): JSX.Element => {
     />
   );
 };
+
+export const VulnsNotSupported = ({
+  supportInterestText,
+}: IVulnsNotSupportedProps) => (
+  <EmptyTable
+    header="Vulnerabilities are not supported for this type of host"
+    info={
+      <>
+        Interested in vulnerabilities in{" "}
+        {supportInterestText ?? "this platform"}?{" "}
+        <CustomLink url={CONTACT_FLEET_LINK} text="Let us know" newTab />
+      </>
+    }
+  />
+);
 
 interface ISoftwareVulnerabilitiesTableProps {
   data: ISoftwareVulnerability[];
