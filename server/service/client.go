@@ -621,9 +621,14 @@ func (c *Client) ApplyGroup(
 						return nil, fmt.Errorf("reading pre-install query: %w", err)
 					}
 
+					rawSpecExpanded, err := spec.ExpandEnvBytes(rawSpec)
+					if err != nil {
+						return nil, fmt.Errorf("Cou;dn't exit software (%s). Unable to expand environment variable in YAML file %s: %w", si.URL, queryFile, err)
+					}
+
 					var querySpecs []fleet.QuerySpec
-					if err := yaml.Unmarshal(rawSpec, &querySpecs); err != nil {
-						return nil, fmt.Errorf("Couldn't edit software (%s), Unable to parse pre-install query YAML file %s: %w", si.URL, queryFile, err)
+					if err := yaml.Unmarshal(rawSpecExpanded, &querySpecs); err != nil {
+						return nil, fmt.Errorf("Couldn't edit software (%s). Unable to parse pre-install query YAML file %s: %w", si.URL, queryFile, err)
 					}
 
 					if len(querySpecs) > 1 {
