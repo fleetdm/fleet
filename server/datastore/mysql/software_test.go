@@ -68,6 +68,7 @@ func TestSoftware(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
+			t.Helper()
 			defer TruncateTables(t, ds)
 			c.fn(t, ds)
 		})
@@ -3182,7 +3183,15 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 	require.Empty(t, sw)
 	require.Equal(t, &fleet.PaginationMetadata{}, meta)
 
+	// available for install only works too
+	opts.AvailableForInstall = true
+	sw, meta, err = ds.ListHostSoftware(ctx, host, opts)
+	require.NoError(t, err)
+	assert.Empty(t, sw)
+	assert.Equal(t, &fleet.PaginationMetadata{}, meta)
+
 	// self-service only works too
+	opts.AvailableForInstall = false
 	opts.SelfServiceOnly = true
 	opts.IncludeAvailableForInstall = true
 	sw, meta, err = ds.ListHostSoftware(ctx, host, opts)
@@ -3375,6 +3384,14 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 	compareResults(expected, sw, true, byNSV[a2].Name+byNSV[a2].Source, byNSV[c1].Name+byNSV[c1].Source, byNSV[d].Name+byNSV[d].Source)
 	opts.VulnerableOnly = false
 
+	// No software that is available for install
+	opts.AvailableForInstall = true
+	sw, meta, err = ds.ListHostSoftware(ctx, host, opts)
+	require.NoError(t, err)
+	assert.Empty(t, sw)
+	assert.Equal(t, &fleet.PaginationMetadata{}, meta)
+	opts.AvailableForInstall = false
+
 	// create some Fleet installers and map them to a software title,
 	// including one for a team
 	tm, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
@@ -3564,6 +3581,16 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 	require.Equal(t, &fleet.PaginationMetadata{TotalResults: 8}, meta)
 	compareResults(expected, sw, true, i3.Name+i3.Source)
 
+	// request with available software only
+	expectedAvailableOnly := map[string]fleet.HostSoftwareWithInstaller{}
+	expectedAvailableOnly[i2.Name+i2.Source] = i2
+	opts.AvailableForInstall = true
+	sw, meta, err = ds.ListHostSoftware(ctx, host, opts)
+	require.NoError(t, err)
+	assert.Equal(t, &fleet.PaginationMetadata{TotalResults: 1}, meta)
+	compareResults(expectedAvailableOnly, sw, true)
+	opts.AvailableForInstall = false
+
 	// request in descending order
 	opts.ListOptions.OrderDirection = fleet.OrderDescending
 	opts.ListOptions.TestSecondaryOrderDirection = fleet.OrderDescending
@@ -3742,12 +3769,21 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 		Status:      nil,
 		AppStoreApp: &fleet.SoftwarePackageOrApp{AppStoreID: vpp3},
 	}
+	expectedAvailableOnly["vpp3apps"] = expected["vpp3apps"]
 	opts.IncludeAvailableForInstall = true
 	opts.ListOptions.PerPage = 20
 	sw, meta, err = ds.ListHostSoftware(ctx, host, opts)
 	require.NoError(t, err)
 	require.Equal(t, &fleet.PaginationMetadata{TotalResults: 11}, meta)
 	compareResults(expected, sw, true, i3.Name+i3.Source) // i3 is for team
+
+	// Available for install only
+	opts.AvailableForInstall = true
+	sw, meta, err = ds.ListHostSoftware(ctx, host, opts)
+	require.NoError(t, err)
+	assert.Equal(t, &fleet.PaginationMetadata{TotalResults: 2}, meta)
+	compareResults(expectedAvailableOnly, sw, true)
+	opts.AvailableForInstall = false
 
 	// team host sees available i3 and pending vpp1
 	opts.IncludeAvailableForInstall = true
