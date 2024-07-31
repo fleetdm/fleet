@@ -1,0 +1,10 @@
+{
+    "Type": "com.apple.configuration.softwareupdate.enforcement.specific",
+    "Identifier": "com.fleetdm.config.swu",
+    "Payload": {
+        "TargetOSVersion": "14.6",
+        "TargetBuildVersion": "",
+        "TargetLocalDateTime": "2024-08-12T16:50:00",
+        "DetailsURL": "https://fleetdm.com/handbook/business-operations/security#enabling-automatic-updates"
+    }
+}

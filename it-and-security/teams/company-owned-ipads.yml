@@ -11,6 +11,9 @@ team_settings:
       enable_calendar_events: false
 agent_options:
 controls:
+  ipados_updates:
+    deadline: "2024-08-12"
+    minimum_version: "17.6"
   macos_settings:
     custom_settings:
   scripts:
