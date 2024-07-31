@@ -90,6 +90,12 @@ export const AppInstallDetails = ({
     subordinate = status === "pending" ? " when it comes online" : "";
   }
 
+  const formattedHost = host_display_name ? (
+    <b>{host_display_name}</b>
+  ) : (
+    "the host"
+  );
+
   const showCommandResponse = isStatusNotNow || status !== "pending";
 
   return (
@@ -98,8 +104,7 @@ export const AppInstallDetails = ({
         <div className={`${baseClass}__status-message`}>
           {!!iconName && <Icon name={iconName} />}
           <span>
-            Fleet {predicate} <b>{software_title}</b> on{" "}
-            <b>{host_display_name}</b>
+            Fleet {predicate} <b>{software_title}</b> on {formattedHost}
             {subordinate}.
           </span>
         </div>
@@ -111,7 +116,7 @@ export const AppInstallDetails = ({
         </div>
         {showCommandResponse && (
           <div className={`${baseClass}__script-output`}>
-            The response from <b>{host_display_name}</b>:
+            The response from {formattedHost}:
             <Textarea className={`${baseClass}__output-textarea`}>
               {result.result}
             </Textarea>

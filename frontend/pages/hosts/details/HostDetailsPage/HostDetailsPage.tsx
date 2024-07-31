@@ -62,7 +62,10 @@ import {
   AppInstallDetailsModal,
   IAppInstallDetails,
 } from "components/ActivityDetails/InstallDetails/AppInstallDetails/AppInstallDetails";
-import { SoftwareInstallDetailsModal } from "components/ActivityDetails/InstallDetails/SoftwareInstallDetails";
+import {
+  SoftwareInstallDetailsModal,
+  IPackageInstallDetails,
+} from "components/ActivityDetails/InstallDetails/SoftwareInstallDetails/SoftwareInstallDetails";
 
 import HostSummaryCard from "../cards/HostSummary";
 import AboutCard from "../cards/About";
@@ -172,7 +175,10 @@ const HostDetailsPage = ({
   const [selectedPolicy, setSelectedPolicy] = useState<IHostPolicy | null>(
     null
   );
-  const [softwareInstallUuid, setSoftwareInstallUuid] = useState("");
+  const [
+    packageInstallDetails,
+    setPackageInstallDetails,
+  ] = useState<IPackageInstallDetails | null>(null);
   const [
     appInstallDetails,
     setAppInstallDetails,
@@ -577,7 +583,7 @@ const HostDetailsPage = ({
           setScriptDetailsId(details?.script_execution_id || "");
           break;
         case "installed_software":
-          setSoftwareInstallUuid(details?.install_uuid || "");
+          setPackageInstallDetails({ ...details });
           break;
         case "installed_app_store_app":
           setAppInstallDetails({ ...details });
@@ -618,7 +624,7 @@ const HostDetailsPage = ({
   }, [refetchPastActivities, refetchUpcomingActivities]);
 
   const onCancelSoftwareInstallDetailsModal = useCallback(() => {
-    setSoftwareInstallUuid("");
+    setPackageInstallDetails(null);
   }, []);
 
   const onCancelAppInstallDetailsModal = useCallback(() => {
@@ -1026,9 +1032,9 @@ const HostDetailsPage = ({
             onCancel={onCancelScriptDetailsModal}
           />
         )}
-        {!!softwareInstallUuid && (
+        {!!packageInstallDetails && (
           <SoftwareInstallDetailsModal
-            installUuid={softwareInstallUuid}
+            details={packageInstallDetails}
             onCancel={onCancelSoftwareInstallDetailsModal}
           />
         )}
