@@ -379,7 +379,23 @@ If you need to track content from a Slack channel (ie. #g-sales), you can automa
 
 ## GitHub
 
-Fleet uses GitHub as the [source of truth](https://fleetdm.com/handbook/company/why-this-way#why-do-we-use-one-repo) for the product and documentation. GitHub allows community members to interact with Fleet, [contribute and provide feedback](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/Committing-Changes.md#committing-changes).
+Fleet uses GitHub as the [source of truth](https://fleetdm.com/handbook/company/why-this-way#why-do-we-use-one-repo) for the product and documentation. GitHub allows community members to interact with Fleet, [contribute and provide feedback](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/Committing-Changes.md#committing-changes). Fleet uses shared kanban boards to keep work visible and easy to track. Remove any [sprint](https://fleetdm.com/handbook/company/product-groups#sprints) filters when viewing a [departmental kanban board](https://fleetdm.com/handbook/company#org-chart).
+
+
+### Estimation points
+
+Estimation points represent the effort required to complete a task. After accessing wireframes, we typically play planning poker, a gamified estimation technique, to determine the necessary story point value.
+
+We use the following story points to estimate website tasks:
+
+| Story point | Time |
+|:---|:--------------|
+| 1  | 1 to 2 hours  |
+| 2  | 2 to 4 hours  |
+| 3  | 1 day         |
+| 5  | 2 to 3 days   |
+| 8  | Up to a week  |
+| 13 | 1 to 2 weeks  |
 
 
 ### GitHub labels
@@ -448,22 +464,6 @@ Any Fleetie can follow the process below to add a priority label to an issue.
 4. The DRI for what goes in a release will review the issue to determine if it meets the criteria
    for the assigned priority label. If so, they will assign the issue to the appropriate EM and PM. If not,
    they will comment on the issue explaining why. 
-
-
-### Estimation points
-
-Estimation points represent the effort required to complete a task. After accessing wireframes, we typically play planning poker, a gamified estimation technique, to determine the necessary story point value.
-
-We use the following story points to estimate website tasks:
-
-| Story point | Time |
-|:---|:--------------|
-| 1  | 1 to 2 hours  |
-| 2  | 2 to 4 hours  |
-| 3  | 1 day         |
-| 5  | 2 to 3 days   |
-| 8  | Up to a week  |
-| 13 | 1 to 2 weeks  |
 
 
 ### Making a pull request
