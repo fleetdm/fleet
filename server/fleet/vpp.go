@@ -2,13 +2,18 @@ package fleet
 
 import "time"
 
-// VPPApp represents a VPP (Volume Purchase Program) application,
-// this is used by Apple MDM to manage applications via Apple
-// Bussines Manager.
-type VPPApp struct {
+type VPPAppID struct {
 	// AdamID is a unique identifier assigned to each app in
 	// the App Store, this value is managed by Apple.
-	AdamID string `db:"adam_id" json:"app_store_id"`
+	AdamID   string              `db:"adam_id" json:"app_store_id"`
+	Platform AppleDevicePlatform `db:"platform" json:"platform"`
+}
+
+// VPPApp represents a VPP (Volume Purchase Program) application,
+// this is used by Apple MDM to manage applications via Apple
+// Business Manager.
+type VPPApp struct {
+	VPPAppID
 	// BundleIdentifier is the unique bundle identifier of the
 	// Application.
 	BundleIdentifier string `db:"bundle_identifier" json:"bundle_identifier"`
@@ -33,7 +38,7 @@ func (v *VPPApp) AuthzType() string {
 // VPPAppStoreApp contains the field required by the get software title
 // endpoint to represent an App Store app (VPP app).
 type VPPAppStoreApp struct {
-	AppStoreID    string               `db:"adam_id" json:"app_store_id"`
+	VPPAppID
 	Name          string               `db:"name" json:"name"`
 	LatestVersion string               `db:"latest_version" json:"latest_version"`
 	IconURL       *string              `db:"icon_url" json:"icon_url"`

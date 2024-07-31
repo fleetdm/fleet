@@ -1235,6 +1235,7 @@ Generated when an App Store app is added to Fleet.
 This activity contains the following fields:
 - "software_title": Name of the App Store app.
 - "app_store_id": ID of the app on the Apple App Store.
+- "platform": Platform of the app (`darwin`, `ios`, or `ipados`).
 - "team_name": Name of the team to which this App Store app was added, or `null` if it was added to no team.
 - "team_id": ID of the team to which this App Store app was added, or `null`if it was added to no team.
 
@@ -1244,6 +1245,7 @@ This activity contains the following fields:
 {
   "software_title": "Logic Pro",
   "app_store_id": "1234567",
+  "platform": "darwin",
   "team_name": "Workstations",
   "team_id": 1
 }
@@ -1256,6 +1258,7 @@ Generated when an App Store app is deleted from Fleet.
 This activity contains the following fields:
 - "software_title": Name of the App Store app.
 - "app_store_id": ID of the app on the Apple App Store.
+- "platform": Platform of the app (`darwin`, `ios`, or `ipados`).
 - "team_name": Name of the team from which this App Store app was deleted, or `null` if it was deleted from no team.
 - "team_id": ID of the team from which this App Store app was deleted, or `null`if it was deleted from no team.
 
@@ -1265,6 +1268,7 @@ This activity contains the following fields:
 {
   "software_title": "Logic Pro",
   "app_store_id": "1234567",
+  "platform": "darwin",
   "team_name": "Workstations",
   "team_id": 1
 }

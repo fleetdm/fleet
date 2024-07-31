@@ -149,7 +149,8 @@ const InstallDetailsContent = ({
   } else if (hasHostSoftwarePackageLastInstall(software)) {
     return (
       <SoftwareInstallDetails
-        installUuid={software.software_package.last_install.install_uuid}
+        install_uuid={software.software_package.last_install.install_uuid}
+        host_display_name={hostDisplayName}
       />
     );
   }
