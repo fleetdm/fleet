@@ -78,8 +78,8 @@ const generateActions = ({
   }
 
   const hasSoftwareToInstall = !!software_package || !!app_store_app;
-  // remove install if there is no package to install
-  if (!hasSoftwareToInstall || !canInstall) {
+  // remove install if there is no package to install or if the software is already installed
+  if (!hasSoftwareToInstall || !canInstall || status === "installed") {
     actions.splice(indexInstallAction, 1);
     return actions;
   }
