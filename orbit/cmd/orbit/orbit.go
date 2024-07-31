@@ -871,7 +871,7 @@ func main() {
 				UpdateRunner: updateRunner, RootDir: c.String("root-dir"), Interval: nudgeLaunchInterval,
 			}))
 			if orbitClient.GetServerCapabilities().Has(fleet.CapabilityEscrowBuddy) {
-				orbitClient.RegisterConfigReceiver(update.ApplyEscrowBuddyRunnerMiddleware(updateRunner, 5*time.Minute))
+				orbitClient.RegisterConfigReceiver(update.NewEscrowBuddyRunner(updateRunner, 5*time.Minute))
 			} else {
 				orbitClient.RegisterConfigReceiver(update.ApplyDiskEncryptionRunnerMiddleware())
 			}

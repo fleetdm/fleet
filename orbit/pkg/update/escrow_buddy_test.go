@@ -24,7 +24,7 @@ func (s *escrowBuddyTestSuite) TestUpdatesDisabled() {
 	t := s.T()
 	cfg := &fleet.OrbitConfig{}
 	cfg.Notifications.RotateDiskEncryptionKey = true
-	r := ApplyEscrowBuddyRunnerMiddleware(nil, time.Second)
+	r := NewEscrowBuddyRunner(nil, time.Second)
 	err := r.Run(cfg)
 	require.NoError(t, err)
 }
