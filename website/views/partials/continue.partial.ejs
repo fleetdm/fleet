@@ -19,7 +19,7 @@
           <p>Let’s get you set up!</p>
         <% } %>
         <div>
-          <a purpose="continue-button" class="start-cta-continue-button" href="/start">
+          <a purpose="continue-button" class="start-cta-continue-button">
             Continue
             <svg purpose="animated-arrow" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12">
               <path purpose="arrow-line" d="M1 6H9" stroke-width="2" stroke-linecap="round"/>
@@ -53,6 +53,10 @@
       // Toggle 'collapsed' on banner body when it is clicked (if it has the class)
       $('[purpose="banner-body"]').click((event)=> {
         if(window.innerWidth < 991) {// If the mobile version of the CTA is visible, the entire body is a clickable link.
+          if(typeof gtag !== 'undefined') {
+            let eventName = 'fleet_website__click_continue_stage_'+SAILS_LOCALS.me.psychologicalStage[0];
+            gtag('event', eventName);
+          }
           window.location = '/start';
         } else {
           let $el = $(event.currentTarget);
@@ -62,6 +66,15 @@
           }
         }
       });//œ
+      // Toggle 'collapsed' on banner body when it is clicked (if it has the class)
+      $('[purpose="continue-button"]').click((event)=> {
+        let eventName = 'fleet_website__click_continue_stage_'+SAILS_LOCALS.me.psychologicalStage[0];
+        if(typeof gtag !== 'undefined') {
+          gtag('event', eventName);
+        }
+        window.location = '/start';
+      });//œ
+
 
       if(SAILS_LOCALS.isHomepage){
         // If this is on the Fleet homepage, remove the invisible class after the user scrolls the height of their viewport.
