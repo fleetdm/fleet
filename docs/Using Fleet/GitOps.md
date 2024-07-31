@@ -309,7 +309,7 @@ software:
       self_service: true
     - url: https://github.com/organinzation/repository/package-2.msi
   app_store_apps:
-   - app_store_id: 1091189122
+   - app_store_id: '1091189122'
 ```
 
 #### packages
