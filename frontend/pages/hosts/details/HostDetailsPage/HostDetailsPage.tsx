@@ -62,7 +62,10 @@ import {
   AppInstallDetailsModal,
   IAppInstallDetails,
 } from "components/ActivityDetails/InstallDetails/AppInstallDetails/AppInstallDetails";
-import { SoftwareInstallDetailsModal } from "components/ActivityDetails/InstallDetails/SoftwareInstallDetails";
+import {
+  SoftwareInstallDetailsModal,
+  IPackageInstallDetails,
+} from "components/ActivityDetails/InstallDetails/SoftwareInstallDetails/SoftwareInstallDetails";
 
 import HostSummaryCard from "../cards/HostSummary";
 import AboutCard from "../cards/About";
@@ -172,7 +175,10 @@ const HostDetailsPage = ({
   const [selectedPolicy, setSelectedPolicy] = useState<IHostPolicy | null>(
     null
   );
-  const [softwareInstallUuid, setSoftwareInstallUuid] = useState("");
+  const [
+    packageInstallDetails,
+    setPackageInstallDetails,
+  ] = useState<IPackageInstallDetails | null>(null);
   const [
     appInstallDetails,
     setAppInstallDetails,
@@ -577,7 +583,7 @@ const HostDetailsPage = ({
           setScriptDetailsId(details?.script_execution_id || "");
           break;
         case "installed_software":
-          setSoftwareInstallUuid(details?.install_uuid || "");
+          setPackageInstallDetails({ ...details });
           break;
         case "installed_app_store_app":
           setAppInstallDetails({ ...details });
@@ -618,7 +624,7 @@ const HostDetailsPage = ({
   }, [refetchPastActivities, refetchUpcomingActivities]);
 
   const onCancelSoftwareInstallDetailsModal = useCallback(() => {
-    setSoftwareInstallUuid("");
+    setPackageInstallDetails(null);
   }, []);
 
   const onCancelAppInstallDetailsModal = useCallback(() => {
@@ -854,31 +860,29 @@ const HostDetailsPage = ({
                 munki={macadmins?.munki}
                 mdm={mdm}
               />
-              {!isIosOrIpadosHost && (
-                <ActivityCard
-                  activeTab={activeActivityTab}
-                  activities={
-                    activeActivityTab === "past"
-                      ? pastActivities
-                      : upcomingActivities
-                  }
-                  isLoading={
-                    activeActivityTab === "past"
-                      ? pastActivitiesIsFetching
-                      : upcomingActivitiesIsFetching
-                  }
-                  isError={
-                    activeActivityTab === "past"
-                      ? pastActivitiesIsError
-                      : upcomingActivitiesIsError
-                  }
-                  upcomingCount={upcomingActivities?.count || 0}
-                  onChangeTab={onChangeActivityTab}
-                  onNextPage={() => setActivityPage(activityPage + 1)}
-                  onPreviousPage={() => setActivityPage(activityPage - 1)}
-                  onShowDetails={onShowActivityDetails}
-                />
-              )}
+              <ActivityCard
+                activeTab={activeActivityTab}
+                activities={
+                  activeActivityTab === "past"
+                    ? pastActivities
+                    : upcomingActivities
+                }
+                isLoading={
+                  activeActivityTab === "past"
+                    ? pastActivitiesIsFetching
+                    : upcomingActivitiesIsFetching
+                }
+                isError={
+                  activeActivityTab === "past"
+                    ? pastActivitiesIsError
+                    : upcomingActivitiesIsError
+                }
+                upcomingCount={upcomingActivities?.count || 0}
+                onChangeTab={onChangeActivityTab}
+                onNextPage={() => setActivityPage(activityPage + 1)}
+                onPreviousPage={() => setActivityPage(activityPage - 1)}
+                onShowDetails={onShowActivityDetails}
+              />
               {!isIosOrIpadosHost && (
                 <AgentOptionsCard
                   osqueryData={osqueryData}
@@ -911,7 +915,6 @@ const HostDetailsPage = ({
                 pathname={location.pathname}
                 onShowSoftwareDetails={setSelectedSoftwareDetails}
                 hostTeamId={host.team_id || 0}
-                hostPlatform={host.platform}
               />
               {host?.platform === "darwin" && macadmins?.munki?.version && (
                 <MunkiIssuesCard
@@ -1029,9 +1032,9 @@ const HostDetailsPage = ({
             onCancel={onCancelScriptDetailsModal}
           />
         )}
-        {!!softwareInstallUuid && (
+        {!!packageInstallDetails && (
           <SoftwareInstallDetailsModal
-            installUuid={softwareInstallUuid}
+            details={packageInstallDetails}
             onCancel={onCancelSoftwareInstallDetailsModal}
           />
         )}

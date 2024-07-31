@@ -37,7 +37,10 @@ const ActivityFeed = ({
   const [pageIndex, setPageIndex] = useState(0);
   const [showShowQueryModal, setShowShowQueryModal] = useState(false);
   const [showScriptDetailsModal, setShowScriptDetailsModal] = useState(false);
-  const [installedSoftwareUuid, setInstalledSoftwareUuid] = useState("");
+  const [
+    packageInstallDetails,
+    setPackageInstallDetails,
+  ] = useState<IActivityDetails | null>(null);
   const [
     appInstallDetails,
     setAppInstallDetails,
@@ -88,7 +91,6 @@ const ActivityFeed = ({
     activityType: ActivityType,
     details: IActivityDetails
   ) => {
-    console.log("activityType", activityType);
     switch (activityType) {
       case ActivityType.LiveQuery:
         queryShown.current = details.query_sql ?? "";
@@ -102,10 +104,10 @@ const ActivityFeed = ({
         setShowScriptDetailsModal(true);
         break;
       case ActivityType.InstalledSoftware:
-        setInstalledSoftwareUuid(details.install_uuid ?? "");
+        setPackageInstallDetails({ ...details });
         break;
       case ActivityType.InstalledAppStoreApp:
-        setAppInstallDetails(details);
+        setAppInstallDetails({ ...details });
         break;
       default:
         break;
@@ -197,10 +199,10 @@ const ActivityFeed = ({
           onCancel={() => setShowScriptDetailsModal(false)}
         />
       )}
-      {installedSoftwareUuid && (
+      {packageInstallDetails && (
         <SoftwareInstallDetailsModal
-          installUuid={installedSoftwareUuid}
-          onCancel={() => setInstalledSoftwareUuid("")}
+          details={packageInstallDetails}
+          onCancel={() => setPackageInstallDetails(null)}
         />
       )}
       {appInstallDetails && (
