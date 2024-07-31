@@ -419,6 +419,10 @@ type MDMHostData struct {
 	// Name is the name of the MDM solution for the host.
 	Name string `json:"name" db:"name" csv:"-"`
 
+	// EncryptionKeyAvailable indicates if Fleet was able to retrieve and
+	// decode an encryption key for the host.
+	EncryptionKeyAvailable bool `json:"encryption_key_available" db:"-" csv:"-"`
+
 	// this is set to nil if the key exists but decryptable is NULL in the db, 1
 	// if decryptable, 0 if non-decryptable and -1 if no disk encryption key row
 	// exists for this host. Used internally to determine the disk_encryption

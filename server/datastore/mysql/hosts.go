@@ -2221,6 +2221,11 @@ func (ds *Datastore) LoadHostByNodeKey(ctx context.Context, nodeKey string) (*fl
 	}
 }
 
+type hostWithEncryptionKeys struct {
+	fleet.Host
+	EncryptionKeyAvailable *bool `db:"encryption_key_available"`
+}
+
 // LoadHostByOrbitNodeKey loads the whole host identified by the node key.
 // If the node key is invalid it returns a NotFoundError.
 func (ds *Datastore) LoadHostByOrbitNodeKey(ctx context.Context, nodeKey string) (*fleet.Host, error) {
@@ -2268,6 +2273,7 @@ func (ds *Datastore) LoadHostByOrbitNodeKey(ctx context.Context, nodeKey string)
       h.orbit_node_key,
       IF(hdep.host_id AND ISNULL(hdep.deleted_at), true, false) AS dep_assigned_to_fleet,
       hd.encrypted as disk_encryption_enabled,
+      COALESCE(hdek.decryptable, false) as encryption_key_available,
       t.name as team_name
     FROM
       hosts h
@@ -2275,6 +2281,10 @@ func (ds *Datastore) LoadHostByOrbitNodeKey(ctx context.Context, nodeKey string)
       host_dep_assignments hdep
     ON
       hdep.host_id = h.id AND hdep.deleted_at IS NULL
+    LEFT OUTER JOIN
+      host_disk_encryption_keys hdek
+    ON
+      hdek.host_id = h.id
     LEFT OUTER JOIN
       host_disks hd
     ON
@@ -2286,9 +2296,15 @@ func (ds *Datastore) LoadHostByOrbitNodeKey(ctx context.Context, nodeKey string)
     WHERE
       h.orbit_node_key = ?`
 
-	var host fleet.Host
-	switch err := ds.getContextTryStmt(ctx, &host, query, nodeKey); {
+	var hostWithEnc hostWithEncryptionKeys
+	switch err := ds.getContextTryStmt(ctx, &hostWithEnc, query, nodeKey); {
 	case err == nil:
+		host := hostWithEnc.Host
+		if hostWithEnc.EncryptionKeyAvailable != nil {
+			host.MDM = fleet.MDMHostData{
+				EncryptionKeyAvailable: *hostWithEnc.EncryptionKeyAvailable,
+			}
+		}
 		return &host, nil
 	case errors.Is(err, sql.ErrNoRows):
 		return nil, ctxerr.Wrap(ctx, notFound("Host"))
