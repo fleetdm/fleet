@@ -8566,6 +8566,7 @@ Add a software package to install on macOS, Windows, and Linux (Ubuntu) hosts.
 | install_script  | string | form | Command that Fleet runs to install software. If not specified Fleet runs [default install command](https://github.com/fleetdm/fleet/tree/f71a1f183cc6736205510580c8366153ea083a8d/pkg/file/scripts) for each package type. |
 | pre_install_query  | string | form | Query that is pre-install condition. If the query doesn't return any result, Fleet won't proceed to install. |
 | post_install_script | string | form | The contents of the script to run after install. If the specified script fails (exit code non-zero) software install will be marked as failed and rolled back. |
+| install | string | form | Install method. Options are `manual` (use Install software to install on each host manually) and `automatic` installed to each host on the team. Default is `manual` |
 | self_service | boolean | form | Self-service software is optional and can be installed by the end user. |
 
 #### Example
