@@ -2,13 +2,13 @@
 
 ## The Fleet binary
 
-The Fleet application contains two single static binaries which provide web based administration, REST API, and CLI interface to Fleet.
+The Fleet application contains two single static binaries which provide web based administration, REST API, and [CLI interface](https://fleetdm.com/docs/using-fleet/fleetctl-cli) to Fleet.
 
 The `fleet` binary contains:
-- The Fleet TLS web server (no external webserver is required but it supports a proxy if desired)
+- The [Fleet TLS web server](https://fleetdm.com/docs/configuration/fleet-server-configuration) (no external webserver is required but it supports a proxy if desired)
 - The Fleet web interface
 - The Fleet application management [REST API](https://fleetdm.com/docs/using-fleet/rest-api)
-- The Fleet osquery API endpoints
+- The [Fleet osquery API endpoints](https://fleetdm.com/docs/rest-api/rest-api) which enables FleetDM's functionality powered by osquery
 
 The `fleetctl` binary is the CLI interface which allows management of your deployment, scriptable live queries, and easy integration into your existing logging, alerting, reporting, and management infrastructure.
 
