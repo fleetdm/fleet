@@ -432,7 +432,8 @@ func (svc *Service) setDiskEncryptionNotifications(
 	case "windows":
 		isServer := mdmInfo != nil && mdmInfo.IsServer
 		needsEncryption := host.DiskEncryptionEnabled != nil && !*host.DiskEncryptionEnabled
-		encryptedWithoutKey := host.DiskEncryptionEnabled != nil && *host.DiskEncryptionEnabled && encryptionKey != nil
+		keyWasDecrypted := encryptionKey != nil && encryptionKey.Decryptable != nil && *encryptionKey.Decryptable
+		encryptedWithoutKey := host.DiskEncryptionEnabled != nil && *host.DiskEncryptionEnabled && !keyWasDecrypted
 		notifs.EnforceBitLockerEncryption = !isServer &&
 			mdmInfo != nil &&
 			(needsEncryption || encryptedWithoutKey)
