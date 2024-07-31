@@ -1286,8 +1286,6 @@ func TestNoTeamSoftwareInstallersGitOps(t *testing.T) {
 			} else {
 				require.ErrorContains(t, err, c.wantErr)
 			}
-
-			// require.True(t, ds.BatchSetSoftwareInstallersFuncInvoked)
 		})
 	}
 }

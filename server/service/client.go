@@ -394,6 +394,7 @@ func (c *Client) ApplyGroup(
 	specs *spec.Group,
 	baseDir string,
 	logf func(format string, args ...interface{}),
+	appconfig *fleet.EnrichedAppConfig,
 	opts fleet.ApplyClientSpecOptions,
 ) (map[string]uint, error) {
 	logfn := func(format string, args ...interface{}) {
@@ -554,7 +555,9 @@ func (c *Client) ApplyGroup(
 		}
 	}
 
-	if len(specs.Software) > 0 {
+	// Apply "no team" software installers.  Running every time to support
+	// removal of software installers on an empty config.
+	if appconfig.License.IsPremium() {
 		packages := make([]fleet.SoftwarePackageSpec, 0, len(specs.Software))
 		for _, software := range specs.Software {
 			if software != nil {
@@ -567,6 +570,12 @@ func (c *Client) ApplyGroup(
 		}
 		if err := c.ApplyNoTeamSoftwareInstallers(payload, opts.ApplySpecOptions); err != nil {
 			return nil, fmt.Errorf("applying software installers: %w", err)
+		}
+
+		if opts.DryRun {
+			logfn("[+] would've applied no team software installers\n")
+		} else {
+			logfn("[+] applied no team software installers\n")
 		}
 	}
 
@@ -1440,7 +1449,7 @@ func (c *Client) DoGitOps(
 	}
 
 	// Apply org settings, scripts, enroll secrets, and controls
-	teamIDsByName, err := c.ApplyGroup(ctx, &group, baseDir, logf, fleet.ApplyClientSpecOptions{
+	teamIDsByName, err := c.ApplyGroup(ctx, &group, baseDir, logf, appConfig, fleet.ApplyClientSpecOptions{
 		ApplySpecOptions: fleet.ApplySpecOptions{
 			DryRun: dryRun,
 		},
