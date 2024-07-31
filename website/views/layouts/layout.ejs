@@ -637,16 +637,6 @@
           window.history.replaceState({}, '', queryParameterLessUrl);// https://caniuse.com/mdn-api_history_replacestate
         }
       });
-      if(typeof SAILS_LOCALS.me !== 'undefined' && typeof analytics !== 'undefined') {
-        analytics.identify(SAILS_LOCALS.me.id, {
-          email: SAILS_LOCALS.me.emailAddress,
-          firstName: SAILS_LOCALS.me.firstName,
-          lastName: SAILS_LOCALS.me.lastName,
-          company: SAILS_LOCALS.me.organization,
-          primaryBuyingSituation: SAILS_LOCALS.me.primaryBuyingSituation,
-          psychologicalStage: SAILS_LOCALS.me.psychologicalStage,
-        });
-      }
 
       // Adding hover events to header dropdown menus.
       $(function(){
