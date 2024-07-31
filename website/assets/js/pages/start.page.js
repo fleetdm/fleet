@@ -90,7 +90,7 @@ parasails.registerPage('start', {
     if(window.location.hash) {
       if(typeof analytics !== 'undefined') {
         if(window.location.hash === '#signup') {
-          analytics.indentify(this.me.id, {
+          analytics.identify(this.me.id, {
             email: this.me.emailAddress,
             firstName: this.me.firstName,
             lastName: this.me.lastName,
@@ -100,7 +100,7 @@ parasails.registerPage('start', {
           });
           analytics.track('fleet_website__sign_up');
         } else if(window.location.hash === '#login') {
-          analytics.indentify(this.me.id, {
+          analytics.identify(this.me.id, {
             email: this.me.emailAddress,
             firstName: this.me.firstName,
             lastName: this.me.lastName,
