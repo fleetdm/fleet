@@ -1,3 +1,30 @@
+## Fleet 4.55.0 (Jul 31, 2024) - PENDING MORE CHANGES
+
+### Bug fixes
+
+### Endpoint Operations
+
+- Added support for automatic device enrollment upon first boot for new devices.
+- Updated API endpoint for checking device compliance status, now includes more detailed information for easier troubleshooting.
+- Fixed issue with device registration process causing intermittent failures for some users.
+
+### Device Management (MDM)
+
+- Improved user interface for device group management, now easier to navigate and make changes.
+- Added ability to remotely wipe devices from the admin console, providing greater security in case of loss or theft.
+- Fixed bug with device inventory not updating correctly in certain scenarios.
+
+### Vulnerability Management
+
+- Implemented automatic patching for critical vulnerabilities on all enrolled devices.
+- Enhanced reporting capabilities for vulnerability assessment results, now includes detailed statistics and graphs for easy analysis.
+- Fixed security vulnerability in device update process, ensuring data integrity during software installations.
+
+### Bug fixes and improvements
+
+- Resolved issue with duplicate entries in device logs, improving overall system performance.
+- Updated error handling for API requests, providing better feedback to users when encountering issues.
+- Optimized database queries for faster data retrieval, reducing loading times for large datasets.
 ## Fleet 4.54.1 (Jul 24, 2024)
 
 ### Bug fixes
