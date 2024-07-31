@@ -385,6 +385,7 @@ agent_options:
 name: ${TEST_TEAM_NAME}
 team_settings:
   secrets: ${TEST_SECRET}
+software:
 `,
 	)
 	require.NoError(t, err)
@@ -839,6 +840,7 @@ agent_options:
 name: ${TEST_TEAM_NAME}
 team_settings:
   secrets: [{"secret":"${TEST_SECRET}"}]
+software:
 `,
 	)
 	require.NoError(t, err)
@@ -1016,6 +1018,7 @@ org_settings:
     org_logo_url_light_background: ""
     org_name: ${ORG_NAME}
   secrets: [{"secret":"globalSecret"}]
+software:
 `,
 	)
 	require.NoError(t, err)
@@ -1035,6 +1038,7 @@ agent_options:
 name: ${TEST_TEAM_NAME}
 team_settings:
   secrets: [{"secret":"${TEST_SECRET}"}]
+software:
 `,
 	)
 	require.NoError(t, err)
@@ -1050,6 +1054,7 @@ agent_options:
 name: ${TEST_TEAM_NAME}
 team_settings:
   secrets: [{"secret":"${TEST_SECRET}"},{"secret":"globalSecret"}]
+software:
 `,
 	)
 	require.NoError(t, err)

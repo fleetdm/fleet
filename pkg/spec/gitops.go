@@ -66,7 +66,7 @@ type GitOpsSoftware struct {
 }
 
 // GitOpsFromFile parses a GitOps yaml file.
-func GitOpsFromFile(filePath, baseDir string) (*GitOps, error) {
+func GitOpsFromFile(filePath, baseDir string, appConfig *fleet.EnrichedAppConfig) (*GitOps, error) {
 	b, err := os.ReadFile(filePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read file: %s: %w", filePath, err)
@@ -96,7 +96,6 @@ func GitOpsFromFile(filePath, baseDir string) (*GitOps, error) {
 	// Figure out if this is an org or team settings file
 	teamRaw, teamOk := top["name"]
 	teamSettingsRaw, teamSettingsOk := top["team_settings"]
-	software, softwareOk := top["software"]
 	orgSettingsRaw, orgOk := top["org_settings"]
 	if orgOk {
 		if teamOk || teamSettingsOk {
@@ -117,8 +116,8 @@ func GitOpsFromFile(filePath, baseDir string) (*GitOps, error) {
 	multiError = parsePolicies(top, result, baseDir, multiError)
 	multiError = parseQueries(top, result, baseDir, multiError)
 
-	if softwareOk {
-		multiError = parseSoftware(software, result, baseDir, multiError)
+	if appConfig != nil && appConfig.License.IsPremium() {
+		multiError = parseSoftware(top, result, baseDir, multiError)
 	}
 
 	return result, multiError.ErrorOrNil()
@@ -526,7 +525,11 @@ func parseQueries(top map[string]json.RawMessage, result *GitOps, baseDir string
 	return multiError
 }
 
-func parseSoftware(softwareRaw json.RawMessage, result *GitOps, baseDir string, multiError *multierror.Error) *multierror.Error {
+func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir string, multiError *multierror.Error) *multierror.Error {
+	softwareRaw, ok := top["software"]
+	if !ok {
+		return multierror.Append(multiError, errors.New("'software' is required"))
+	}
 	var software fleet.SoftwareSpec
 	if len(softwareRaw) > 0 {
 		if err := json.Unmarshal(softwareRaw, &software); err != nil {

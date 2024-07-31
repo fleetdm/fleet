@@ -53,7 +53,7 @@ func createTempFile(t *testing.T, pattern, contents string) (filePath string, ba
 
 func gitOpsFromString(t *testing.T, s string) (*GitOps, error) {
 	path, basePath := createTempFile(t, "", s)
-	return GitOpsFromFile(path, basePath)
+	return GitOpsFromFile(path, basePath, nil)
 }
 
 func TestValidGitOpsYaml(t *testing.T) {
@@ -108,7 +108,7 @@ func TestValidGitOpsYaml(t *testing.T) {
 					t.Parallel()
 				}
 
-				gitops, err := GitOpsFromFile(test.filePath, "./testdata")
+				gitops, err := GitOpsFromFile(test.filePath, "./testdata", nil)
 				require.NoError(t, err)
 
 				if test.isTeam {
@@ -696,7 +696,7 @@ func TestGitOpsPaths(t *testing.T) {
 				err = os.WriteFile(mainTmpFile.Name(), []byte(config), 0o644)
 				require.NoError(t, err)
 
-				_, err = GitOpsFromFile(mainTmpFile.Name(), dir)
+				_, err = GitOpsFromFile(mainTmpFile.Name(), dir, nil)
 				assert.NoError(t, err)
 
 				// Test a bad path
@@ -709,7 +709,7 @@ func TestGitOpsPaths(t *testing.T) {
 				err = os.WriteFile(mainTmpFile.Name(), []byte(config), 0o644)
 				require.NoError(t, err)
 
-				_, err = GitOpsFromFile(mainTmpFile.Name(), dir)
+				_, err = GitOpsFromFile(mainTmpFile.Name(), dir, nil)
 				assert.ErrorContains(t, err, "no such file or directory")
 
 				// Test a bad file -- cannot be unmarshalled
@@ -744,7 +744,7 @@ func TestGitOpsPaths(t *testing.T) {
 				}
 				err = os.WriteFile(mainTmpFile.Name(), []byte(config), 0o644)
 				require.NoError(t, err)
-				_, err = GitOpsFromFile(mainTmpFile.Name(), dir)
+				_, err = GitOpsFromFile(mainTmpFile.Name(), dir, nil)
 				assert.ErrorContains(t, err, "nested paths are not supported")
 			},
 		)

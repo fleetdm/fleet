@@ -187,3 +187,4 @@ org_settings:
   secrets: # These secrets are used to enroll hosts to the "All teams" team
     - secret: SampleSecret123
     - secret: ABC
+software:
