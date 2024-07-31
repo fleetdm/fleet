@@ -50,6 +50,9 @@ func ExtractPEMetadata(r io.Reader) (*InstallerMetadata, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error parsing PE version resources: %w", err)
 	}
+	for k, vv := range v {
+		fmt.Println(k, vv)
+	}
 	return &InstallerMetadata{
 		Name:    strings.TrimSpace(v["ProductName"]),
 		Version: strings.TrimSpace(v["ProductVersion"]),
