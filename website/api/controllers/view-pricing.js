@@ -51,13 +51,13 @@ module.exports = {
       let featuresInThisCategory = _.filter(pricingTableFeatures, (feature)=>{
         return _.contains(feature.pricingTableCategories, category) && (feature.usualDepartment === 'Security' || feature.usualDepartment === undefined);
       });
-      // Build a dictionary containing the category name, and all features in the category, sorting premium features to the bottom of the list.
-      let allFeaturesInThisCategory = {
+      // Build a dictionary containing the category name, and all features in the category
+      let allSecurityFeaturesInThisCategory = {
         categoryName: category,
         features: featuresInThisCategory,
       };
       // Add the dictionaries to the arrays that we'll use to build the features table.
-      pricingTableForSecurity.push(allFeaturesInThisCategory);
+      pricingTableForSecurity.push(allSecurityFeaturesInThisCategory);
     }
 
 
@@ -70,12 +70,12 @@ module.exports = {
         return _.contains(feature.pricingTableCategories, category) && (feature.usualDepartment === 'IT' || feature.usualDepartment === undefined);
       });
       // Build a dictionary containing the category name, and all features in the category, sorting premium features to the bottom of the list.
-      let allFeaturesInThisCategory = {
+      let allItFeaturesInThisCategory = {
         categoryName: category,
         features: featuresInThisCategory,
       };
       // Add the dictionaries to the arrays that we'll use to build the features table.
-      pricingTableForIt.push(allFeaturesInThisCategory);
+      pricingTableForIt.push(allItFeaturesInThisCategory);
     }
 
 
