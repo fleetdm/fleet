@@ -804,7 +804,7 @@ module.exports = {
         let pricingTableFeatures = YAML.parse(yaml, {prettyErrors: true});
         let VALID_PRODUCT_CATEGORIES = ['Endpoint operations', 'Device management', 'Vulnerability management'];
         let VALID_PRICING_TABLE_CATEGORIES = ['Support', 'Deployment', 'Integrations', 'Endpoint operations', 'Device management', 'Vulnerability management'];
-        let VALID_PRICING_TABLE_KEYS = ['industryName', 'description', 'documentationUrl', 'tier', 'jamfProHasFeature', 'jamfProtectHasFeature', 'usualDepartment', 'productCategories', 'pricingTableCategories', 'waysToUse', 'buzzwords', 'demos', 'dri', 'friendlyName', 'moreInfoUrl', 'comingSoonOn', 'screenshotSrc'];
+        let VALID_PRICING_TABLE_KEYS = ['industryName', 'description', 'documentationUrl', 'tier', 'jamfProHasFeature', 'jamfProtectHasFeature', 'usualDepartment', 'productCategories', 'pricingTableCategories', 'waysToUse', 'buzzwords', 'demos', 'dri', 'friendlyName', 'moreInfoUrl', 'comingSoonOn', 'screenshotSrc', 'isExperimental'];
         for(let feature of pricingTableFeatures){
           // Throw an error if a feature contains an unrecognized key.
           for(let key of _.keys(feature)){
