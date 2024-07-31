@@ -160,7 +160,11 @@ const AppStoreVpp = ({ teamId, router, onExit }: IAppStoreVppProps) => {
     }
 
     try {
-      await mdmAppleAPI.addVppApp(teamId, selectedApp.app_store_id);
+      await mdmAppleAPI.addVppApp(
+        teamId,
+        selectedApp.app_store_id,
+        selectedApp.platform
+      );
       renderFlash(
         "success",
         <>
