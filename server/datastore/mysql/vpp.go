@@ -17,12 +17,13 @@ func (ds *Datastore) GetVPPAppMetadataByTeamAndTitleID(ctx context.Context, team
 	const query = `
 SELECT
 	vap.adam_id,
+	vap.platform,
 	vap.name,
 	vap.latest_version,
 	NULLIF(vap.icon_url, '') AS icon_url
 FROM
 	vpp_apps vap
-	INNER JOIN vpp_apps_teams vat ON vat.adam_id = vap.adam_id
+	INNER JOIN vpp_apps_teams vat ON vat.adam_id = vap.adam_id AND vat.platform = vap.platform
 WHERE
 	vap.title_id = ? AND
 	vat.global_or_team_id = ?`
@@ -149,18 +150,18 @@ func (ds *Datastore) BatchInsertVPPApps(ctx context.Context, apps []*fleet.VPPAp
 	})
 }
 
-func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, adamIDs []string) error {
+func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, appIDs []fleet.VPPAppID) error {
 	existingApps, err := ds.GetAssignedVPPApps(ctx, teamID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "SetTeamVPPApps getting list of existing apps")
 	}
 
-	var missingApps []string
-	var toRemoveApps []string
+	var missingApps []fleet.VPPAppID
+	var toRemoveApps []fleet.VPPAppID
 
 	for existingApp := range existingApps {
 		var found bool
-		for _, adamID := range adamIDs {
+		for _, adamID := range appIDs {
 			if adamID == existingApp {
 				found = true
 			}
@@ -170,7 +171,7 @@ func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, adamIDs [
 		}
 	}
 
-	for _, adamID := range adamIDs {
+	for _, adamID := range appIDs {
 		if _, ok := existingApps[adamID]; !ok {
 			missingApps = append(missingApps, adamID)
 		}
@@ -206,7 +207,7 @@ func (ds *Datastore) InsertVPPAppWithTeam(ctx context.Context, app *fleet.VPPApp
 			return ctxerr.Wrap(ctx, err, "InsertVPPAppWithTeam insertVPPApps transaction")
 		}
 
-		if err := insertVPPAppTeams(ctx, tx, app.AdamID, teamID); err != nil {
+		if err := insertVPPAppTeams(ctx, tx, app.VPPAppID, teamID); err != nil {
 			return ctxerr.Wrap(ctx, err, "InsertVPPAppWithTeam insertVPPAppTeams transaction")
 		}
 
@@ -219,10 +220,10 @@ func (ds *Datastore) InsertVPPAppWithTeam(ctx context.Context, app *fleet.VPPApp
 	return app, nil
 }
 
-func (ds *Datastore) GetAssignedVPPApps(ctx context.Context, teamID *uint) (map[string]struct{}, error) {
+func (ds *Datastore) GetAssignedVPPApps(ctx context.Context, teamID *uint) (map[fleet.VPPAppID]struct{}, error) {
 	stmt := `
 SELECT
-	adam_id
+	adam_id, platform
 FROM
 	vpp_apps_teams vat
 WHERE
@@ -233,12 +234,12 @@ WHERE
 		tmID = *teamID
 	}
 
-	var results []string
+	var results []fleet.VPPAppID
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, stmt, tmID); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get assigned VPP apps")
 	}
 
-	appSet := make(map[string]struct{})
+	appSet := make(map[fleet.VPPAppID]struct{})
 	for _, r := range results {
 		appSet[r] = struct{}{}
 	}
@@ -249,21 +250,22 @@ WHERE
 func insertVPPApps(ctx context.Context, tx sqlx.ExtContext, apps []*fleet.VPPApp) error {
 	stmt := `
 INSERT INTO vpp_apps
-	(adam_id, bundle_identifier, icon_url, name, latest_version, title_id)
+	(adam_id, bundle_identifier, icon_url, name, latest_version, title_id, platform)
 VALUES
 %s
 ON DUPLICATE KEY UPDATE
 	updated_at = CURRENT_TIMESTAMP,
 	latest_version = VALUES(latest_version),
 	icon_url = VALUES(icon_url),
-	name = VALUES(name)
+	name = VALUES(name),
+	title_id = VALUES(title_id)
 	`
 	var args []any
 	var insertVals strings.Builder
 
 	for _, a := range apps {
-		insertVals.WriteString(`(?, ?, ?, ?, ?, ?),`)
-		args = append(args, a.AdamID, a.BundleIdentifier, a.IconURL, a.Name, a.LatestVersion, a.TitleID)
+		insertVals.WriteString(`(?, ?, ?, ?, ?, ?, ?),`)
+		args = append(args, a.AdamID, a.BundleIdentifier, a.IconURL, a.Name, a.LatestVersion, a.TitleID, a.Platform)
 	}
 
 	stmt = fmt.Sprintf(stmt, strings.TrimSuffix(insertVals.String(), ","))
@@ -273,25 +275,36 @@ ON DUPLICATE KEY UPDATE
 	return ctxerr.Wrap(ctx, err, "insert VPP apps")
 }
 
-func insertVPPAppTeams(ctx context.Context, tx sqlx.ExtContext, adamID string, teamID *uint) error {
+func insertVPPAppTeams(ctx context.Context, tx sqlx.ExtContext, appID fleet.VPPAppID, teamID *uint) error {
 	stmt := `
 INSERT INTO vpp_apps_teams
-	(adam_id, global_or_team_id, team_id)
+	(adam_id, global_or_team_id, team_id, platform)
 VALUES
-	(?, ?, ?)
+	(?, ?, ?, ?)
 	`
 
 	var globalOrTmID uint
 	if teamID != nil {
 		globalOrTmID = *teamID
+
+		if *teamID == 0 {
+			teamID = nil
+		}
 	}
 
-	_, err := tx.ExecContext(ctx, stmt, adamID, globalOrTmID, teamID)
+	_, err := tx.ExecContext(ctx, stmt, appID.AdamID, globalOrTmID, teamID, appID.Platform)
+	if IsDuplicate(err) {
+		err = &existsError{
+			Identifier:   fmt.Sprintf("%s %s", appID.AdamID, appID.Platform),
+			TeamID:       teamID,
+			ResourceType: "VPPAppID",
+		}
+	}
 
 	return ctxerr.Wrap(ctx, err, "writing vpp app team mapping to db")
 }
 
-func removeVPPAppTeams(ctx context.Context, tx sqlx.ExtContext, adamID string, teamID *uint) error {
+func removeVPPAppTeams(ctx context.Context, tx sqlx.ExtContext, appID fleet.VPPAppID, teamID *uint) error {
 	stmt := `
 DELETE FROM
   vpp_apps_teams
@@ -299,8 +312,10 @@ WHERE
   adam_id = ?
 AND
   team_id = ?
+AND
+  platform = ?
 `
-	_, err := tx.ExecContext(ctx, stmt, adamID, teamID)
+	_, err := tx.ExecContext(ctx, stmt, appID.AdamID, teamID, appID.Platform)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "deleting vpp app from team")
 	}
@@ -312,7 +327,15 @@ func (ds *Datastore) getOrInsertSoftwareTitleForVPPApp(ctx context.Context, tx s
 	// NOTE: it was decided to populate "apps" as the source for VPP apps for now, TBD
 	// if this needs to change to better map to how software titles are reported
 	// back by osquery. Since it may change, we're using a variable for the source.
-	const source = "apps"
+	var source string
+	switch app.Platform {
+	case fleet.IOSPlatform:
+		source = "ios_apps"
+	case fleet.IPadOSPlatform:
+		source = "ipados_apps"
+	default:
+		source = "apps"
+	}
 
 	selectStmt := `SELECT id FROM software_titles WHERE name = ? AND source = ? AND browser = ''`
 	selectArgs := []any{app.Name, source}
@@ -324,13 +347,20 @@ func (ds *Datastore) getOrInsertSoftwareTitleForVPPApp(ctx context.Context, tx s
 		// identifier. It's possible for the select to return nothing
 		// but for the insert to fail if an app with the same name but
 		// no bundle identifier exists in the DB.
-		selectStmt = `SELECT id FROM software_titles WHERE bundle_identifier = ?`
-		selectArgs = []any{app.BundleIdentifier}
+		switch source {
+		case "ios_apps", "ipados_apps":
+			selectStmt = `SELECT id FROM software_titles WHERE bundle_identifier = ? AND source = ?`
+			selectArgs = []any{app.BundleIdentifier, source}
+		default:
+			selectStmt = `SELECT id FROM software_titles WHERE bundle_identifier = ? AND source NOT IN ('ios_apps', 'ipados_apps')`
+			selectArgs = []any{app.BundleIdentifier}
+		}
 		insertStmt = `INSERT INTO software_titles (name, source, bundle_identifier, browser) VALUES (?, ?, ?, '')`
 		insertArgs = append(insertArgs, app.BundleIdentifier)
 	}
 
-	titleID, err := ds.optimisticGetOrInsert(ctx,
+	titleID, err := ds.optimisticGetOrInsertWithWriter(ctx,
+		tx,
 		&parameterizedStmt{
 			Statement: selectStmt,
 			Args:      selectArgs,
@@ -347,21 +377,22 @@ func (ds *Datastore) getOrInsertSoftwareTitleForVPPApp(ctx context.Context, tx s
 	return titleID, nil
 }
 
-func (ds *Datastore) DeleteVPPAppFromTeam(ctx context.Context, teamID *uint, adamID string) error {
-	const stmt = `DELETE FROM vpp_apps_teams WHERE global_or_team_id = ? AND adam_id = ?`
+func (ds *Datastore) DeleteVPPAppFromTeam(ctx context.Context, teamID *uint, appID fleet.VPPAppID) error {
+	const stmt = `DELETE FROM vpp_apps_teams WHERE global_or_team_id = ? AND adam_id = ? AND platform = ?`
 
 	var globalOrTeamID uint
 	if teamID != nil {
 		globalOrTeamID = *teamID
 	}
-	res, err := ds.writer(ctx).ExecContext(ctx, stmt, globalOrTeamID, adamID)
+	res, err := ds.writer(ctx).ExecContext(ctx, stmt, globalOrTeamID, appID.AdamID, appID.Platform)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "delete VPP app from team")
 	}
 
 	rows, _ := res.RowsAffected()
 	if rows == 0 {
-		return notFound("VPPApp").WithMessage(fmt.Sprintf("adam id %s for team id %d", adamID, globalOrTeamID))
+		return notFound("VPPApp").WithMessage(fmt.Sprintf("adam id %s platform %s for team id %d", appID.AdamID, appID.Platform,
+			globalOrTeamID))
 	}
 	return nil
 }
@@ -374,10 +405,11 @@ SELECT
   va.icon_url,
   va.name,
   va.title_id,
+  va.platform,
   va.created_at,
   va.updated_at
 FROM vpp_apps va
-JOIN vpp_apps_teams vat ON va.adam_id = vat.adam_id
+JOIN vpp_apps_teams vat ON va.adam_id = vat.adam_id AND va.platform = vat.platform
 WHERE vat.global_or_team_id = ? AND va.title_id = ?
   `
 

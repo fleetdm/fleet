@@ -763,6 +763,17 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 		test.ElementsMatchSkipID(t, software, expected)
 	})
 
+	t.Run("filters by no team (team 0)", func(t *testing.T) {
+		opts := fleet.SoftwareListOptions{
+			TeamID:           ptr.Uint(0),
+			IncludeCVEScores: true,
+		}
+
+		software := listSoftwareCheckCount(t, ds, 4, 4, opts, true)
+		expected := []fleet.Software{bar003, baz001, foo002, foo003}
+		test.ElementsMatchSkipID(t, software, expected)
+	})
+
 	t.Run("filters vulnerable software", func(t *testing.T) {
 		opts := fleet.SoftwareListOptions{
 			ListOptions: fleet.ListOptions{
@@ -930,6 +941,7 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 }
 
 func listSoftwareCheckCount(t *testing.T, ds *Datastore, expectedListCount int, expectedFullCount int, opts fleet.SoftwareListOptions, returnSorted bool) []fleet.Software {
+	t.Helper()
 	software, meta, err := ds.ListSoftware(context.Background(), opts)
 	require.NoError(t, err)
 	require.Len(t, software, expectedListCount)
@@ -1047,7 +1059,7 @@ func testSoftwareSyncHostsSoftware(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
 
 	_ = listSoftwareCheckCount(t, ds, 16, 16, globalOpts, false)
-	checkTableTotalCount(16)
+	checkTableTotalCount(32)
 
 	// Now, delete 2 hosts. Software with the lowest ID is removed, and there should be a chunk with missing software IDs from the deleted hostTemp software.
 	require.NoError(t, ds.DeleteHost(ctx, host0.ID))
@@ -1062,7 +1074,7 @@ func testSoftwareSyncHostsSoftware(t *testing.T, ds *Datastore) {
 		{Name: "bar", Version: "0.0.3", HostsCount: 1},
 	}
 	cmpNameVersionCount(want, globalCounts)
-	checkTableTotalCount(4)
+	checkTableTotalCount(8)
 
 	// update host2, remove "bar" software
 	software2 = []fleet.Software{
@@ -1080,7 +1092,7 @@ func testSoftwareSyncHostsSoftware(t *testing.T, ds *Datastore) {
 		{Name: "foo", Version: "v0.0.2", HostsCount: 1},
 	}
 	cmpNameVersionCount(want, globalCounts)
-	checkTableTotalCount(3)
+	checkTableTotalCount(6)
 
 	// create a software entry without any host and any counts
 	_, err = ds.writer(ctx).ExecContext(ctx, fmt.Sprintf(`INSERT INTO software (name, version, source, checksum) VALUES ('baz', '0.0.1', 'testing', %s)`, softwareChecksumComputedColumn("")))
@@ -1129,13 +1141,13 @@ func testSoftwareSyncHostsSoftware(t *testing.T, ds *Datastore) {
 		{Name: "foo", Version: "v0.0.2", HostsCount: 1},
 	}
 	cmpNameVersionCount(want, globalCounts)
-	checkTableTotalCount(3)
+	checkTableTotalCount(6)
 
 	team1Opts := fleet.SoftwareListOptions{WithHostCounts: true, TeamID: ptr.Uint(team1.ID), ListOptions: fleet.ListOptions{OrderKey: "hosts_count", OrderDirection: fleet.OrderDescending}}
 	team1Counts := listSoftwareCheckCount(t, ds, 0, 0, team1Opts, false)
 	want = []fleet.Software{}
 	cmpNameVersionCount(want, team1Counts)
-	checkTableTotalCount(3)
+	checkTableTotalCount(6)
 	require.NoError(t, ds.LoadHostSoftware(context.Background(), host1, false))
 	nilSoftware, err := ds.SoftwareByID(context.Background(), host1.HostSoftware.Software[0].ID, &team1.ID, false, nil)
 	assert.Nil(t, nilSoftware)
@@ -1160,8 +1172,8 @@ func testSoftwareSyncHostsSoftware(t *testing.T, ds *Datastore) {
 	}
 	cmpNameVersionCount(want, team1Counts)
 
-	// composite pk (software_id, team_id), so we expect more rows
-	checkTableTotalCount(8)
+	// composite pk (software_id, team_id, global_stats), so we expect more rows
+	checkTableTotalCount(11)
 
 	soft1ByID, err := ds.SoftwareByID(context.Background(), host1.HostSoftware.Software[0].ID, &team1.ID, false, nil)
 	require.NoError(t, err)
@@ -1207,7 +1219,7 @@ func testSoftwareSyncHostsSoftware(t *testing.T, ds *Datastore) {
 	}
 	cmpNameVersionCount(want, team2Counts)
 
-	checkTableTotalCount(6)
+	checkTableTotalCount(9)
 
 	// update host4 (team2), remove all software and delete team
 	software4 = []fleet.Software{}
@@ -1234,7 +1246,7 @@ func testSoftwareSyncHostsSoftware(t *testing.T, ds *Datastore) {
 	cmpNameVersionCount(want, team1Counts)
 
 	listSoftwareCheckCount(t, ds, 0, 0, team2Opts, false)
-	checkTableTotalCount(5)
+	checkTableTotalCount(8)
 }
 
 // softwareChecksumComputedColumn computes the checksum for a software entry
@@ -3665,14 +3677,26 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 	require.Empty(t, sw)
 
 	// add VPP apps, one for both no team and team, and two for no-team only.
-	va1, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{AdamID: "adam_vpp_1", Name: "vpp1", BundleIdentifier: "com.app.vpp1"}, nil)
+	va1, err := ds.InsertVPPAppWithTeam(ctx,
+		&fleet.VPPApp{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_1", Platform: fleet.MacOSPlatform}, Name: "vpp1",
+			BundleIdentifier: "com.app.vpp1"}, nil)
 	require.NoError(t, err)
-	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{AdamID: "adam_vpp_1", Name: "vpp1", BundleIdentifier: "com.app.vpp1"}, &tm.ID)
+	_, err = ds.InsertVPPAppWithTeam(ctx,
+		&fleet.VPPApp{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_1", Platform: fleet.IOSPlatform}, Name: "vpp1",
+			BundleIdentifier: "com.app.vpp1"}, nil)
+	require.NoError(t, err)
+	_, err = ds.InsertVPPAppWithTeam(ctx,
+		&fleet.VPPApp{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_1", Platform: fleet.MacOSPlatform}, Name: "vpp1",
+			BundleIdentifier: "com.app.vpp1"}, &tm.ID)
 	require.NoError(t, err)
 	vpp1 := va1.AdamID
-	va2, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{AdamID: "adam_vpp_2", Name: "vpp2", BundleIdentifier: "com.app.vpp2"}, nil)
+	va2, err := ds.InsertVPPAppWithTeam(ctx,
+		&fleet.VPPApp{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_2", Platform: fleet.MacOSPlatform}, Name: "vpp2",
+			BundleIdentifier: "com.app.vpp2"}, nil)
 	require.NoError(t, err)
-	va3, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{AdamID: "adam_vpp_3", Name: "vpp3", BundleIdentifier: "com.app.vpp3"}, nil)
+	va3, err := ds.InsertVPPAppWithTeam(ctx,
+		&fleet.VPPApp{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_3", Platform: fleet.MacOSPlatform}, Name: "vpp3",
+			BundleIdentifier: "com.app.vpp3"}, nil)
 	require.NoError(t, err)
 	vpp2, vpp3 := va2.AdamID, va3.AdamID
 

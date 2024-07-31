@@ -116,6 +116,7 @@ module.exports = {
     //  - nothing » No change (Stage ??)
 
     let psychologicalStage = userRecord.psychologicalStage;
+    let psychologicalStageLastChangedAt = userRecord.psychologicalStageLastChangedAt;
     // Get the value of the submitted formData, we do this so we only need to check one variable, instead of (formData.attribute === 'foo');
     let valueFromFormData = _.values(formData)[0];
     if(currentStep === 'start') {
@@ -211,6 +212,8 @@ module.exports = {
 
     // Only update CRM records if the user's psychological stage changes.
     if(psychologicalStage !== userRecord.psychologicalStage) {
+      // Update the psychologicalStageLastChangedAt timestamp if the user's psychological stage
+      psychologicalStageLastChangedAt = Date.now();
       sails.helpers.salesforce.updateOrCreateContactAndAccount.with({
         emailAddress: this.req.me.emailAddress,
         firstName: this.req.me.firstName,
@@ -236,7 +239,8 @@ module.exports = {
     .set({
       getStartedQuestionnaireAnswers: questionnaireProgress,
       lastSubmittedGetStartedQuestionnaireStep: currentStep,
-      psychologicalStage
+      psychologicalStage,
+      psychologicalStageLastChangedAt,
     });
     // Return the JSON dictionary of form data submitted by this user.
     return getStartedProgress;

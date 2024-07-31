@@ -653,7 +653,7 @@ type Service interface {
 
 	GetAppStoreApps(ctx context.Context, teamID *uint) ([]*VPPApp, error)
 
-	AddAppStoreApp(ctx context.Context, teamID *uint, adamID string) error
+	AddAppStoreApp(ctx context.Context, teamID *uint, appID VPPAppID) error
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// Vulnerabilities
@@ -917,6 +917,9 @@ type Service interface {
 	TriggerMigrateMDMDevice(ctx context.Context, host *Host) error
 
 	GetMDMManualEnrollmentProfile(ctx context.Context) ([]byte, error)
+
+	// CheckMDMAppleEnrollmentWithMinimumOSVersion checks if the minimum OS version is met for a MDM enrollment
+	CheckMDMAppleEnrollmentWithMinimumOSVersion(ctx context.Context, m *MDMAppleMachineInfo) (*MDMAppleSoftwareUpdateRequired, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// CronSchedulesService

@@ -697,6 +697,7 @@ func FilterMacOSOnlyProfilesFromIOSIPadOS(profiles []*MDMAppleProfilePayload) []
 
 // RefetchCommandUUIDPrefix is the prefix used for MDM commands used to refetch information from iOS/iPadOS devices.
 const RefetchCommandUUIDPrefix = "REFETCH-"
+const RefetchAppsCommandUUIDPrefix = "REFETCH-APPS-"
 
 // VPPTokenInfo is the representation of the VPP token that we send out via API.
 type VPPTokenInfo struct {
@@ -729,4 +730,12 @@ const (
 	MacOS AppleDevice = iota
 	IOS
 	IPadOS
+)
+
+type AppleDevicePlatform string
+
+const (
+	MacOSPlatform  AppleDevicePlatform = "darwin"
+	IOSPlatform    AppleDevicePlatform = "ios"
+	IPadOSPlatform AppleDevicePlatform = "ipados"
 )

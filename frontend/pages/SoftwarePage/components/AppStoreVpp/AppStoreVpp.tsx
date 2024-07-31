@@ -10,6 +10,8 @@ import mdmAppleAPI, {
 } from "services/entities/mdm_apple";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 
+import { PLATFORM_DISPLAY_NAMES } from "interfaces/platform";
+
 import Card from "components/Card";
 import CustomLink from "components/CustomLink";
 import Spinner from "components/Spinner";
@@ -29,7 +31,7 @@ const EnableVppCard = () => {
     <Card borderRadiusSize="medium">
       <div className={`${baseClass}__enable-vpp`}>
         <p className={`${baseClass}__enable-vpp-title`}>
-          <b>Volume Purchasing Program (VPP) isn’t enabled.</b>
+          <b>Volume Purchasing Program (VPP) isn&apos;t enabled</b>
         </p>
         <p className={`${baseClass}__enable-vpp-description`}>
           To add App Store apps, first enable VPP.
@@ -43,6 +45,21 @@ const EnableVppCard = () => {
     </Card>
   );
 };
+
+const NoVppAppsCard = () => (
+  <Card borderRadiusSize="medium">
+    <div className={`${baseClass}__no-software`}>
+      <p className={`${baseClass}__no-software-title`}>
+        You don&apos;t have any App Store apps
+      </p>
+      <p className={`${baseClass}__no-software-description`}>
+        Add apps in{" "}
+        <CustomLink url="https://business.apple.com" text="ABM" newTab /> Apps
+        that are already added to this team are not listed.
+      </p>
+    </div>
+  </Card>
+);
 
 interface IVppAppListItemProps {
   app: IVppApp;
@@ -66,6 +83,11 @@ const VppAppListItem = ({ app, selected, onSelect }: IVppAppListItemProps) => {
         name="vppApp"
         onChange={() => onSelect(app)}
       />
+      {app.platform && (
+        <div className="app-platform">
+          {PLATFORM_DISPLAY_NAMES[app.platform]}
+        </div>
+      )}
     </li>
   );
 };
@@ -76,40 +98,20 @@ interface IVppAppListProps {
   onSelect: (app: IVppApp) => void;
 }
 
-const VppAppList = ({ apps, selectedApp, onSelect }: IVppAppListProps) => {
-  const renderContent = () => {
-    if (apps.length === 0) {
-      return (
-        <div className={`${baseClass}__no-software`}>
-          <p className={`${baseClass}__no-software-title`}>
-            You don&apos;t have any App Store apps
-          </p>
-          <p className={`${baseClass}__no-software-description`}>
-            You must purchase apps in ABM. App Store apps that are already added
-            to this team are not listed.
-          </p>
-        </div>
-      );
-    }
-
-    return (
-      <ul className={`${baseClass}__list`}>
-        {apps.map((app) => (
-          <VppAppListItem
-            key={app.app_store_id}
-            app={app}
-            selected={selectedApp?.app_store_id === app.app_store_id}
-            onSelect={onSelect}
-          />
-        ))}
-      </ul>
-    );
-  };
-
-  return (
-    <div className={`${baseClass}__list-container`}>{renderContent()}</div>
-  );
-};
+const VppAppList = ({ apps, selectedApp, onSelect }: IVppAppListProps) => (
+  <div className={`${baseClass}__list-container`}>
+    <ul className={`${baseClass}__list`}>
+      {apps.map((app) => (
+        <VppAppListItem
+          key={app.app_store_id}
+          app={app}
+          selected={selectedApp?.app_store_id === app.app_store_id}
+          onSelect={onSelect}
+        />
+      ))}
+    </ul>
+  </div>
+);
 
 interface IAppStoreVppProps {
   teamId: number;
@@ -193,20 +195,30 @@ const AppStoreVpp = ({ teamId, router, onExit }: IAppStoreVppProps) => {
       return <DataError className={`${baseClass}__error`} />;
     }
 
-    return vppApps ? (
-      <VppAppList
-        apps={vppApps}
-        selectedApp={selectedApp}
-        onSelect={onSelectApp}
-      />
-    ) : null;
+    if (vppApps) {
+      if (vppApps.length === 0) {
+        return <NoVppAppsCard />;
+      }
+      return (
+        <>
+          <VppAppList
+            apps={vppApps}
+            selectedApp={selectedApp}
+            onSelect={onSelectApp}
+          />
+          <div className={`${baseClass}__help-text`}>
+            These apps were added in Apple Business Manager (ABM). To add more
+            apps, head to{" "}
+            <CustomLink url="https://business.apple.com" text="ABM" newTab />
+          </div>
+        </>
+      );
+    }
+    return null;
   };
 
   return (
     <div className={baseClass}>
-      <p className={`${baseClass}__description`}>
-        Apple App Store apps purchased via Apple Business Manager.
-      </p>
       {renderContent()}
       <div className="modal-cta-wrap">
         <Button

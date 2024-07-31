@@ -142,8 +142,8 @@ type VulnListOptions struct {
 	ListOptions      ListOptions `url:"list_options"`
 	IsEE             bool
 	ValidSortColumns []string
-	TeamID           uint `query:"team_id,optional"`
-	KnownExploit     bool `query:"exploit,optional"`
+	TeamID           *uint `query:"team_id,optional"`
+	KnownExploit     bool  `query:"exploit,optional"`
 }
 
 func (opt VulnListOptions) HasValidSortColumn() bool {

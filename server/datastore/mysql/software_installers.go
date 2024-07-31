@@ -73,30 +73,35 @@ func (ds *Datastore) GetSoftwareInstallDetails(ctx context.Context, executionId 
 func (ds *Datastore) MatchOrCreateSoftwareInstaller(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) (uint, error) {
 	titleID, err := ds.getOrGenerateSoftwareInstallerTitleID(ctx, payload)
 	if err != nil {
-		return 0, err
+		return 0, ctxerr.Wrap(ctx, err, "get or generate software installer title ID")
 	}
 
 	if err := ds.addSoftwareTitleToMatchingSoftware(ctx, titleID, payload); err != nil {
-		return 0, err
+		return 0, ctxerr.Wrap(ctx, err, "add software title to matching software")
 	}
 
 	installScriptID, err := ds.getOrGenerateScriptContentsID(ctx, payload.InstallScript)
 	if err != nil {
-		return 0, err
+		return 0, ctxerr.Wrap(ctx, err, "get or generate install script contents ID")
 	}
 
 	var postInstallScriptID *uint
 	if payload.PostInstallScript != "" {
 		sid, err := ds.getOrGenerateScriptContentsID(ctx, payload.PostInstallScript)
 		if err != nil {
-			return 0, err
+			return 0, ctxerr.Wrap(ctx, err, "get or generate post-install script contents ID")
 		}
 		postInstallScriptID = &sid
 	}
 
-	var tid uint
+	var tid *uint
+	var globalOrTeamID uint
 	if payload.TeamID != nil {
-		tid = *payload.TeamID
+		globalOrTeamID = *payload.TeamID
+
+		if *payload.TeamID > 0 {
+			tid = payload.TeamID
+		}
 	}
 
 	stmt := `
@@ -115,8 +120,8 @@ INSERT INTO software_installers (
 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 
 	args := []interface{}{
-		payload.TeamID,
 		tid,
+		globalOrTeamID,
 		titleID,
 		payload.StorageID,
 		payload.Filename,
@@ -596,7 +601,7 @@ ON DUPLICATE KEY UPDATE
 		}
 
 		for _, installer := range installers {
-			isRes, err := insertScriptContents(ctx, installer.InstallScript, tx)
+			isRes, err := insertScriptContents(ctx, tx, installer.InstallScript)
 			if err != nil {
 				return ctxerr.Wrapf(ctx, err, "inserting install script contents for software installer with name %q", installer.Filename)
 			}
@@ -604,7 +609,7 @@ ON DUPLICATE KEY UPDATE
 
 			var postInstallScriptID *int64
 			if installer.PostInstallScript != "" {
-				pisRes, err := insertScriptContents(ctx, installer.PostInstallScript, tx)
+				pisRes, err := insertScriptContents(ctx, tx, installer.PostInstallScript)
 				if err != nil {
 					return ctxerr.Wrapf(ctx, err, "inserting post-install script contents for software installer with name %q", installer.Filename)
 				}
