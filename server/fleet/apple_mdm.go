@@ -888,6 +888,6 @@ type MDMAppleSoftwareUpdateRequired struct {
 func NewMDMAppleSoftwareUpdateRequired(settings AppleOSUpdateSettings) *MDMAppleSoftwareUpdateRequired {
 	return &MDMAppleSoftwareUpdateRequired{
 		Code:    MDMAppleSoftwareUpdateRequiredCode,
-		Details: MDMAppleSoftwareUpdateRequiredDetails{OSVersion: "14.6", BuildVersion: "23G80"},
+		Details: MDMAppleSoftwareUpdateRequiredDetails{OSVersion: "14.5", BuildVersion: "23F79"},
 	}
 }
