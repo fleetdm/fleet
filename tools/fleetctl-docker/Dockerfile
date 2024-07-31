@@ -14,7 +14,7 @@ RUN apt-get update \
   && dpkg --add-architecture i386 \
   && apt update \
   && apt upgrade -y \
-  && apt install -y --no-install-recommends ca-certificates cpio libxml2 wine wine32 libgtk-3-0 libssl1.1 \
+  && apt install -y --no-install-recommends ca-certificates cpio libxml2 wine wine32 libgtk-3-0 \
   && rm -rf /var/lib/apt/lists/* 
 
 # copy macOS dependencies
