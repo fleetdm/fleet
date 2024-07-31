@@ -116,7 +116,6 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
     isTeamAdmin,
     isTeamMaintainer,
     isPremiumTier,
-    isSandboxMode,
   } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
 
@@ -164,7 +163,7 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
     location,
     router,
     includeAllTeams: true,
-    includeNoTeam: false,
+    includeNoTeam: true,
   });
 
   // softwareConfig is either the global config or the team config of the
@@ -308,7 +307,6 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
             currentTeamId={currentTeamId}
             userTeams={userTeams}
             onTeamChange={onTeamChange}
-            isSandboxMode={isSandboxMode}
           />
         )}
       </>

@@ -1,3 +1,4 @@
+import { ApplePlatform } from "interfaces/platform";
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
 
@@ -9,14 +10,15 @@ export interface IGetVppInfoResponse {
 
 export interface IVppApp {
   name: string;
+  bundle_identifier: string;
   icon_url: string;
   latest_version: string;
-  app_store_id: number; // FIXME: This seems to be coming back as a string but we're not seeing TS errors because there's an implicit any cast
+  app_store_id: string;
   added: boolean;
-  platform: string; // "darwin" | "ios" | "ipados"
+  platform: ApplePlatform;
 }
 
-interface IGetVppAppsResponse {
+export interface IGetVppAppsResponse {
   app_store_apps: IVppApp[];
 }
 
@@ -67,10 +69,7 @@ export default {
     return sendRequest("GET", path);
   },
 
-  addVppApp: (teamId: number, appStoreId: number) => {
-    // FIXME: API seems to expect app_store_id to be a string but we're not seeing TS errors because
-    // there's an implicit any cast on getVppApps response that is being fed into the appStoreId
-    // param (so it's being treated as a number even though it is really a string being passed in here)
+  addVppApp: (teamId: number, appStoreId: string) => {
     const { MDM_APPLE_VPP_APPS } = endpoints;
     return sendRequest("POST", MDM_APPLE_VPP_APPS, {
       app_store_id: appStoreId,

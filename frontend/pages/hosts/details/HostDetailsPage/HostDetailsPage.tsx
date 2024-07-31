@@ -854,31 +854,29 @@ const HostDetailsPage = ({
                 munki={macadmins?.munki}
                 mdm={mdm}
               />
-              {!isIosOrIpadosHost && (
-                <ActivityCard
-                  activeTab={activeActivityTab}
-                  activities={
-                    activeActivityTab === "past"
-                      ? pastActivities
-                      : upcomingActivities
-                  }
-                  isLoading={
-                    activeActivityTab === "past"
-                      ? pastActivitiesIsFetching
-                      : upcomingActivitiesIsFetching
-                  }
-                  isError={
-                    activeActivityTab === "past"
-                      ? pastActivitiesIsError
-                      : upcomingActivitiesIsError
-                  }
-                  upcomingCount={upcomingActivities?.count || 0}
-                  onChangeTab={onChangeActivityTab}
-                  onNextPage={() => setActivityPage(activityPage + 1)}
-                  onPreviousPage={() => setActivityPage(activityPage - 1)}
-                  onShowDetails={onShowActivityDetails}
-                />
-              )}
+              <ActivityCard
+                activeTab={activeActivityTab}
+                activities={
+                  activeActivityTab === "past"
+                    ? pastActivities
+                    : upcomingActivities
+                }
+                isLoading={
+                  activeActivityTab === "past"
+                    ? pastActivitiesIsFetching
+                    : upcomingActivitiesIsFetching
+                }
+                isError={
+                  activeActivityTab === "past"
+                    ? pastActivitiesIsError
+                    : upcomingActivitiesIsError
+                }
+                upcomingCount={upcomingActivities?.count || 0}
+                onChangeTab={onChangeActivityTab}
+                onNextPage={() => setActivityPage(activityPage + 1)}
+                onPreviousPage={() => setActivityPage(activityPage - 1)}
+                onShowDetails={onShowActivityDetails}
+              />
               {!isIosOrIpadosHost && (
                 <AgentOptionsCard
                   osqueryData={osqueryData}
@@ -911,7 +909,6 @@ const HostDetailsPage = ({
                 pathname={location.pathname}
                 onShowSoftwareDetails={setSelectedSoftwareDetails}
                 hostTeamId={host.team_id || 0}
-                hostPlatform={host.platform}
               />
               {host?.platform === "darwin" && macadmins?.munki?.version && (
                 <MunkiIssuesCard

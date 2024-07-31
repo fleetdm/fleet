@@ -85,7 +85,6 @@ const ManagePolicyPage = ({
     isOnGlobalTeam,
     isFreeTier,
     isPremiumTier,
-    isSandboxMode,
     setConfig,
     setFilteredPoliciesPath,
     filteredPoliciesPath,
@@ -748,7 +747,6 @@ const ManagePolicyPage = ({
                       currentUserTeams={userTeams || []}
                       selectedTeamId={currentTeamId}
                       onChange={onTeamChange}
-                      isSandboxMode={isSandboxMode}
                     />
                   )}
                 {isPremiumTier &&

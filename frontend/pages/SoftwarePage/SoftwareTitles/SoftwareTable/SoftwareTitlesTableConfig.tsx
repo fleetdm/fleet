@@ -2,13 +2,7 @@ import React from "react";
 import { CellProps, Column } from "react-table";
 import { InjectedRouter } from "react-router";
 
-import {
-  IAppStoreApp,
-  ISoftware,
-  ISoftwarePackage,
-  ISoftwareTitle,
-  formatSoftwareType,
-} from "interfaces/software";
+import { ISoftwareTitle, formatSoftwareType } from "interfaces/software";
 import PATHS from "router/paths";
 
 import { buildQueryStringFromParams } from "utilities/url";
@@ -124,19 +118,19 @@ const generateTableHeaders = (
       sortType: "caseInsensitive",
     },
     {
-      Header: "Type",
-      disableSortBy: true,
-      accessor: "source",
-      Cell: (cellProps: ITableStringCellProps) => (
-        <TextCell value={formatSoftwareType(cellProps.row.original)} />
-      ),
-    },
-    {
       Header: "Version",
       disableSortBy: true,
       accessor: "versions",
       Cell: (cellProps: IVersionsCellProps) => (
         <VersionCell versions={cellProps.cell.value} />
+      ),
+    },
+    {
+      Header: "Type",
+      disableSortBy: true,
+      accessor: "source",
+      Cell: (cellProps: ITableStringCellProps) => (
+        <TextCell value={formatSoftwareType(cellProps.row.original)} />
       ),
     },
     // the "vulnerabilities" accessor is used but the data is actually coming
@@ -149,6 +143,11 @@ const generateTableHeaders = (
       Header: "Vulnerabilities",
       disableSortBy: true,
       Cell: (cellProps: IVulnerabilitiesCellProps) => {
+        if (
+          ["ios_apps", "ipados_apps"].includes(cellProps.row.original.source)
+        ) {
+          return <TextCell value="Not supported" grey />;
+        }
         const vulnerabilities = getVulnerabilities(
           cellProps.row.original.versions ?? []
         );

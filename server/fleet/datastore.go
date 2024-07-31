@@ -1570,7 +1570,7 @@ type Datastore interface {
 
 	// DeleteVPPAppFromTeam deletes the VPP app corresponding to the adamID from
 	// the provided team.
-	DeleteVPPAppFromTeam(ctx context.Context, teamID *uint, adamID string) error
+	DeleteVPPAppFromTeam(ctx context.Context, teamID *uint, appID VPPAppID) error
 
 	// GetSummaryHostSoftwareInstalls returns the software install summary for
 	// the given software installer id.
@@ -1593,8 +1593,8 @@ type Datastore interface {
 	HasSelfServiceSoftwareInstallers(ctx context.Context, platform string, teamID *uint) (bool, error)
 
 	BatchInsertVPPApps(ctx context.Context, apps []*VPPApp) error
-	GetAssignedVPPApps(ctx context.Context, teamID *uint) (map[string]struct{}, error)
-	SetTeamVPPApps(ctx context.Context, teamID *uint, adamIDs []string) error
+	GetAssignedVPPApps(ctx context.Context, teamID *uint) (map[VPPAppID]struct{}, error)
+	SetTeamVPPApps(ctx context.Context, teamID *uint, appIDs []VPPAppID) error
 	InsertVPPAppWithTeam(ctx context.Context, app *VPPApp, teamID *uint) (*VPPApp, error)
 
 	InsertHostVPPSoftwareInstall(ctx context.Context, hostID, userID uint, adamID, commandUUID, associatedEventID string) error
