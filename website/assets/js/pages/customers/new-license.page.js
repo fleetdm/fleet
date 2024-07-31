@@ -39,8 +39,29 @@ parasails.registerPage('new-license', {
   //  ║  ║╠╣ ║╣ ║  ╚╦╝║  ║  ║╣
   //  ╩═╝╩╚  ╚═╝╚═╝ ╩ ╚═╝╩═╝╚═╝
   beforeMount: function() {
-    if(window.location.hash && window.location.hash === '#signup') {
-      analytics.track('fleet_website__sign_up');
+    if(window.location.hash) {
+      if(typeof analytics !== 'undefined') {
+        if(window.location.hash === '#signup') {
+          analytics.indentify(this.me.id, {
+            email: this.me.emailAddress,
+            firstName: this.me.firstName,
+            lastName: this.me.lastName,
+            company: this.me.organization,
+            primaryBuyingSituation: this.me.primaryBuyingSituation,
+            psychologicalStage: this.me.psychologicalStage,
+          });
+          analytics.track('fleet_website__sign_up');
+        } else if(window.location.hash === '#login') {
+          analytics.indentify(this.me.id, {
+            email: this.me.emailAddress,
+            firstName: this.me.firstName,
+            lastName: this.me.lastName,
+            company: this.me.organization,
+            primaryBuyingSituation: this.me.primaryBuyingSituation,
+            psychologicalStage: this.me.psychologicalStage,
+          });
+        }
+      }
       window.location.hash = '';
     }
   },

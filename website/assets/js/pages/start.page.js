@@ -87,9 +87,28 @@ parasails.registerPage('start', {
     if(this.primaryBuyingSituation && _.isEmpty(this.formData['what-are-you-using-fleet-for'])){
       this.formData['what-are-you-using-fleet-for'] = {primaryBuyingSituation: this.primaryBuyingSituation};
     }
-    if(window.location.hash && window.location.hash === '#signup') {
-      if(typeof analytics !== 'undefined'){
-        analytics.track('fleet_website__sign_up');
+    if(window.location.hash) {
+      if(typeof analytics !== 'undefined') {
+        if(window.location.hash === '#signup') {
+          analytics.indentify(this.me.id, {
+            email: this.me.emailAddress,
+            firstName: this.me.firstName,
+            lastName: this.me.lastName,
+            company: this.me.organization,
+            primaryBuyingSituation: this.me.primaryBuyingSituation,
+            psychologicalStage: this.me.psychologicalStage,
+          });
+          analytics.track('fleet_website__sign_up');
+        } else if(window.location.hash === '#login') {
+          analytics.indentify(this.me.id, {
+            email: this.me.emailAddress,
+            firstName: this.me.firstName,
+            lastName: this.me.lastName,
+            company: this.me.organization,
+            primaryBuyingSituation: this.me.primaryBuyingSituation,
+            psychologicalStage: this.me.psychologicalStage,
+          });
+        }
       }
       window.location.hash = '';
     }
