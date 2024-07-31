@@ -846,8 +846,6 @@ type MDMAppleStoreDDMStatusReportFunc func(ctx context.Context, hostUUID string,
 
 type MDMAppleSetPendingDeclarationsAsFunc func(ctx context.Context, hostUUID string, status *fleet.MDMDeliveryStatus, detail string) error
 
-type GetMDMAppleOSUpdatesSettingsByHostSerialFunc func(ctx context.Context, hostSerial string) (*fleet.AppleOSUpdateSettings, error)
-
 type InsertMDMConfigAssetsFunc func(ctx context.Context, assets []fleet.MDMConfigAsset) error
 
 type GetAllMDMConfigAssetsByNameFunc func(ctx context.Context, assetNames []fleet.MDMAssetName) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error)
@@ -2251,9 +2249,6 @@ type DataStore struct {
 
 	MDMAppleSetPendingDeclarationsAsFunc        MDMAppleSetPendingDeclarationsAsFunc
 	MDMAppleSetPendingDeclarationsAsFuncInvoked bool
-
-	GetMDMAppleOSUpdatesSettingsByHostSerialFunc        GetMDMAppleOSUpdatesSettingsByHostSerialFunc
-	GetMDMAppleOSUpdatesSettingsByHostSerialFuncInvoked bool
 
 	InsertMDMConfigAssetsFunc        InsertMDMConfigAssetsFunc
 	InsertMDMConfigAssetsFuncInvoked bool
@@ -5393,13 +5388,6 @@ func (s *DataStore) MDMAppleSetPendingDeclarationsAs(ctx context.Context, hostUU
 	s.MDMAppleSetPendingDeclarationsAsFuncInvoked = true
 	s.mu.Unlock()
 	return s.MDMAppleSetPendingDeclarationsAsFunc(ctx, hostUUID, status, detail)
-}
-
-func (s *DataStore) GetMDMAppleOSUpdatesSettingsByHostSerial(ctx context.Context, hostSerial string) (*fleet.AppleOSUpdateSettings, error) {
-	s.mu.Lock()
-	s.GetMDMAppleOSUpdatesSettingsByHostSerialFuncInvoked = true
-	s.mu.Unlock()
-	return s.GetMDMAppleOSUpdatesSettingsByHostSerialFunc(ctx, hostSerial)
 }
 
 func (s *DataStore) InsertMDMConfigAssets(ctx context.Context, assets []fleet.MDMConfigAsset) error {
