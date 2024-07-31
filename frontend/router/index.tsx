@@ -1,4 +1,9 @@
-import React from "react";
+import React, { FC } from "react";
+import {
+  QueryClient,
+  QueryClientProvider,
+  QueryClientProviderProps,
+} from "react-query";
 import {
   browserHistory,
   IndexRedirect,
@@ -88,19 +93,35 @@ import AuthAnyMaintainerAdminObserverPlusRoutes from "./components/AuthAnyMainta
 import PremiumRoutes from "./components/PremiumRoutes";
 import ExcludeInSandboxRoutes from "./components/ExcludeInSandboxRoutes";
 
+// We create a CustomQueryClientProvider that takes the same props as the original
+// QueryClientProvider but adds the children prop as a ReactNode. This children
+// prop is now required explicitly in React 18. We do it this way to avoid
+// having to update the react-query package version and typings for now.
+// When we upgrade React Query we should be able to remove this.
+type ICustomQueryClientProviderProps = React.PropsWithChildren<QueryClientProviderProps>;
+const CustomQueryClientProvider: FC<ICustomQueryClientProviderProps> = QueryClientProvider;
+
 interface IAppWrapperProps {
   children: JSX.Element;
   location?: any;
 }
 
-// App.tsx needs the context for user and config
-const AppWrapper = ({ children, location }: IAppWrapperProps) => (
-  <AppProvider>
-    <RoutingProvider>
-      <App location={location}>{children}</App>
-    </RoutingProvider>
-  </AppProvider>
-);
+// App.tsx needs the context for user and config. We also wrap the application
+// component in the required query client priovider for react-query. This
+// will allow us to use react-query hooks in the application component.
+const AppWrapper = ({ children, location }: IAppWrapperProps) => {
+  const queryClient = new QueryClient();
+  return (
+    <AppProvider>
+      <RoutingProvider>
+        <CustomQueryClientProvider client={queryClient}>
+          <App location={location}>{children}</App>
+        </CustomQueryClientProvider>
+      </RoutingProvider>
+    </AppProvider>
+  );
+};
+
 const routes = (
   <Router history={browserHistory}>
     <Route path={PATHS.ROOT} component={AppWrapper}>
