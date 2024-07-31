@@ -29,7 +29,7 @@ module.exports = {
 
     let pricingTable = [];
 
-    let pricingTableCategories = ['Deployment', 'Device management', 'Endpoint operations', 'Vulnerability management', 'Integrations', 'Support'];
+    let pricingTableCategories = ['Deployment', 'Configuration', 'Devices', 'Integrations', 'Support'];
     for(let category of pricingTableCategories) {
       // Get all the features in that have a pricingTableFeatures array that contains this category.
       let featuresInThisCategory = _.filter(pricingTableFeatures, (feature)=>{
@@ -47,7 +47,7 @@ module.exports = {
     let pricingTableForSecurity = _.filter(pricingTable, (category)=>{
       return category.categoryName !== 'Device management' && (category.usualDepartment === 'Security' || category.usualDepartment === undefined);
     });
-    let categoryOrderForSecurityPricingTable = ['Support', 'Deployment', 'Integrations', 'Endpoint operations', 'Vulnerability management'];
+    let categoryOrderForSecurityPricingTable = ['Deployment', 'Configuration', 'Devices', 'Integrations', 'Support'];
     // Sort the security-focused pricing table from the order of the elements in the categoryOrderForSecurityPricingTable array.
     pricingTableForSecurity.sort((a, b)=>{
       // If there is a category that is not in the list above, sort it to the end of the list.
@@ -63,7 +63,7 @@ module.exports = {
     let pricingTableForIt = _.filter(pricingTable, (category)=>{
       return category.categoryName !== 'Vulnerability management' && (category.usualDepartment === 'Security' || category.usualDepartment === undefined);
     });
-    let categoryOrderForITPricingTable = [ 'Deployment','Device management', 'Endpoint operations', 'Integrations', 'Support'];
+    let categoryOrderForITPricingTable = [ 'Deployment', 'Configuration', 'Devices', 'Integrations', 'Support'];
     // Sort the IT-focused pricing table from the order of the elements in the categoryOrderForITPricingTable array.
     pricingTableForIt.sort((a, b)=>{
       // If there is a category that is not in the list above, sort it to the end of the list.
