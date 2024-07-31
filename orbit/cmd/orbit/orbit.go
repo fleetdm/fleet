@@ -870,7 +870,11 @@ func main() {
 			orbitClient.RegisterConfigReceiver(update.ApplyNudgeConfigReceiverMiddleware(update.NudgeConfigFetcherOptions{
 				UpdateRunner: updateRunner, RootDir: c.String("root-dir"), Interval: nudgeLaunchInterval,
 			}))
-			orbitClient.RegisterConfigReceiver(update.ApplyDiskEncryptionRunnerMiddleware())
+			if orbitClient.GetServerCapabilities().Has(fleet.CapabilityEscrowBuddy) {
+				orbitClient.RegisterConfigReceiver(update.NewEscrowBuddyRunner(updateRunner, 5*time.Minute))
+			} else {
+				orbitClient.RegisterConfigReceiver(update.ApplyDiskEncryptionRunnerMiddleware())
+			}
 			orbitClient.RegisterConfigReceiver(update.ApplySwiftDialogDownloaderMiddleware(updateRunner))
 		case "windows":
 			orbitClient.RegisterConfigReceiver(update.ApplyWindowsMDMEnrollmentFetcherMiddleware(windowsMDMEnrollmentCommandFrequency, orbitHostInfo.HardwareUUID, orbitClient))

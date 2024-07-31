@@ -92,7 +92,8 @@ const getOSVersion = ({
   teamId,
 }: IGetOsVersionOptions): Promise<IOSVersionResponse> => {
   const endpoint = endpoints.OS_VERSION(os_version_id);
-  const path = teamId ? `${endpoint}?team_id=${teamId}` : endpoint;
+  const queryString = buildQueryStringFromParams({ team_id: teamId });
+  const path = teamId !== undefined ? `${endpoint}?${queryString}` : endpoint;
 
   return sendRequest("GET", path);
 };

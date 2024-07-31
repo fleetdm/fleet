@@ -6,8 +6,16 @@ export interface IAppleBusinessManagerTokenFormData {
   token: File | null;
 }
 
+export interface IGetAppleBMInfoResponse {
+  apple_id: string;
+  default_team: string;
+  mdm_server_url: string;
+  org_name: string;
+  renew_date: string;
+}
+
 export default {
-  getAppleBMInfo: () => {
+  getAppleBMInfo: (): Promise<IGetAppleBMInfoResponse> => {
     const { MDM_APPLE_BM } = endpoints;
     const path = MDM_APPLE_BM;
     return sendRequest("GET", path);

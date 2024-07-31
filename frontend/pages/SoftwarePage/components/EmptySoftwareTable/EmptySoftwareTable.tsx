@@ -17,7 +17,6 @@ export interface IEmptySoftwareTableProps {
   isNotDetectingSoftware?: boolean;
   /** isCollectingSoftware is only used on the Dashboard page with a TODO to revisit */
   isCollectingSoftware?: boolean;
-  isFilterVulnerable?: boolean;
 }
 
 const generateTypeText = (
@@ -39,7 +38,6 @@ const EmptySoftwareTable = ({
   isSoftwareDisabled,
   isNotDetectingSoftware,
   isCollectingSoftware,
-  isFilterVulnerable,
 }: IEmptySoftwareTableProps): JSX.Element => {
   const softwareTypeText = generateTypeText(tableName, softwareFilter);
 

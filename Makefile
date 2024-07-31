@@ -424,6 +424,14 @@ endif
 	tar czf $(out-path)/swiftDialog.app.tar.gz -C $(TMP_DIR)/swiftDialog_pkg_payload_expanded/Library/Application\ Support/Dialog/ Dialog.app
 	rm -rf $(TMP_DIR)
 
+# Generate escrowBuddy.pkg bundle from the Escrow Buddy repo.
+#
+# Usage:
+# make escrow-buddy-pkg version=1.0.0 out-path=.
+escrow-buddy-pkg:
+	curl -L https://github.com/macadmins/escrow-buddy/releases/download/v$(version)/Escrow.Buddy-$(version).pkg --output $(out-path)/escrowBuddy.pkg
+
+
 # Build and generate desktop.app.tar.gz bundle.
 #
 # Usage:
