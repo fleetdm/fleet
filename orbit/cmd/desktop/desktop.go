@@ -285,7 +285,7 @@ func main() {
 		// tray icon accordingly
 		go func() {
 			<-deviceEnabledChan
-			tic := time.NewTicker(5 * time.Minute)
+			tic := time.NewTicker(10 * time.Second)
 			defer tic.Stop()
 
 			for {
@@ -342,6 +342,7 @@ func main() {
 				myDeviceItem.Enable()
 
 				shouldRunMigrator := sum.Notifications.NeedsMDMMigration || sum.Notifications.RenewEnrollmentProfile
+				log.Debug().Bool("shouldRunMigrator", shouldRunMigrator).Msg("JVE_LOG: checking if we should run migrator")
 
 				if runtime.GOOS == "darwin" && shouldRunMigrator && mdmMigrator.CanRun() {
 					enrolled, enrollURL, err := profiles.IsEnrolledInMDM()
@@ -358,7 +359,9 @@ func main() {
 						log.Error().Err(err).Msg("comparing MDM server URLs")
 						continue
 					}
+					log.Debug().Msg("JVE_LOG: checking if enrolled in fleet")
 					if !enrolledIntoFleet {
+						log.Debug().Msg("JVE_LOG: not enrolled in fleet")
 						// isUnmanaged captures two important bits of information:
 						//
 						// - The notification coming from the server, which is based on information that's
@@ -390,6 +393,7 @@ func main() {
 						}
 					}
 				} else {
+					log.Debug().Bool("canRun", mdmMigrator.CanRun()).Msg("JVE_LOG: disabling menu item")
 					migrateMDMItem.Disable()
 					migrateMDMItem.Hide()
 				}

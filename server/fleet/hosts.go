@@ -1231,6 +1231,13 @@ func IsEligibleForDEPMigration(host *Host, mdmInfo *HostMDM, isConnectedToFleetM
 		(!isConnectedToFleetMDM || mdmInfo.Name != WellKnownMDMFleet)
 }
 
+// TODO(JVE): should this just be the only check (i.e. remove the above func)? If so, any host that
+// is MDM enrolled (DEP or manual) to an MDM other than Fleet will be migration eligible, which I
+// think is the goal of this story. But we should double check the repercussions of that.
+func IsEligibleForManualMigration(host *Host, mdmInfo *HostMDM, isConnectedToFleetMDM bool) bool {
+	return host.IsOsqueryEnrolled() && mdmInfo.Enrolled && (!isConnectedToFleetMDM || mdmInfo.Name != WellKnownMDMFleet)
+}
+
 // IsEligibleForBitLockerEncryption checks if the host needs to enforce disk
 // encryption using Fleet MDM features.
 func IsEligibleForBitLockerEncryption(h *Host, mdmInfo *HostMDM, isConnectedToFleetMDM bool) bool {

@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-const DELAY = 10 * time.Second // adjust this to simulate slow webhook response
+const DELAY = 1 * time.Second // adjust this to simulate slow webhook response
 
 func main() {
 	http.HandleFunc("/", func(writer http.ResponseWriter, request *http.Request) {

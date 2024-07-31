@@ -381,10 +381,23 @@ func (m *swiftDialogMDMMigrator) renderMigration() error {
 			m.baseDialog.Exit()
 		}
 
-		log.Info().Msg("showing instructions")
-		if err := m.handler.ShowInstructions(); err != nil {
+		// TODO(JVE): I think this is where we have to show the Remote Management modal instead
+		log.Debug().Msg("checking manual enrollment status")
+		manual, err := profiles.IsManuallyEnrolledInMDM()
+		if err != nil {
 			return err
 		}
+
+		if manual {
+			log.Debug().Msg("host is manually enrolled")
+			log.Info().Msg("showing instructions")
+			if err := m.handler.ShowInstructions(); err != nil {
+				return err
+			}
+		} else {
+			log.Debug().Msg("host is DEP enrolled")
+		}
+
 	}
 
 	return nil
