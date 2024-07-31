@@ -1,3 +1,4 @@
+import { Platform } from "./platform";
 import { IPolicy } from "./policy";
 import { IQuery } from "./query";
 import { ISchedulableQueryStats } from "./schedulable_query";
@@ -162,6 +163,7 @@ export interface IActivityDetails {
   stats?: ISchedulableQueryStats;
   software_title?: string;
   software_package?: string;
+  platform?: Platform; // software platform
   status?: string;
   install_uuid?: string;
   self_service?: boolean;
