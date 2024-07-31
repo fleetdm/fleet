@@ -230,7 +230,7 @@ parasails.registerPage('basic-documentation', {
         window.lintrk('track', { conversion_id: 18587105 });// eslint-disable-line camelcase
       }
       if(typeof analytics !== 'undefined'){
-        analytics.track('fleet_website__contact_forms');
+        analytics.track('fleet_website__swag_request');
       }
       this.goto('https://kqphpqst851.typeform.com/to/ZfA3sOu0');
     },
