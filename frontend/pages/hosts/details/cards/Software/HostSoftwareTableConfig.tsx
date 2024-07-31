@@ -52,7 +52,7 @@ type IVulnerabilitiesCellProps = IInstalledVersionsCellProps;
 const generateActions = ({
   canInstall,
   installingSoftwareId,
-  isFleetdHost,
+  isValidVppHost,
   softwareId,
   status,
   software_package,
@@ -60,7 +60,7 @@ const generateActions = ({
 }: {
   canInstall: boolean;
   installingSoftwareId: number | null;
-  isFleetdHost: boolean;
+  isValidVppHost: boolean;
   softwareId: number;
   status: SoftwareInstallStatus | null;
   software_package: IHostSoftwarePackage | null;
@@ -84,8 +84,8 @@ const generateActions = ({
     return actions;
   }
 
-  // disable install option if not a fleetd host
-  if (!isFleetdHost) {
+  // disable install option if not a fleetd, iPad, or iOS host
+  if (!isValidVppHost) {
     actions[indexInstallAction].disabled = true;
     actions[indexInstallAction].tooltipContent =
       "To install software on this host, deploy the fleetd agent with --enable-scripts and refetch host vitals.";
@@ -104,7 +104,7 @@ const generateActions = ({
 interface ISoftwareTableHeadersProps {
   canInstall: boolean;
   installingSoftwareId: number | null;
-  isFleetdHost: boolean;
+  isValidVppHost: boolean;
   router: InjectedRouter;
   teamId: number;
   onSelectAction: (software: IHostSoftware, action: string) => void;
@@ -115,7 +115,7 @@ interface ISoftwareTableHeadersProps {
 export const generateSoftwareTableHeaders = ({
   canInstall,
   installingSoftwareId,
-  isFleetdHost,
+  isValidVppHost,
   router,
   teamId,
   onSelectAction,
@@ -203,7 +203,7 @@ export const generateSoftwareTableHeaders = ({
             placeholder="Actions"
             options={generateActions({
               canInstall,
-              isFleetdHost,
+              isValidVppHost,
               installingSoftwareId,
               softwareId,
               status,

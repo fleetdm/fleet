@@ -908,7 +908,10 @@ const HostDetailsPage = ({
               <SoftwareCard
                 id={host.id}
                 softwareUpdatedAt={host.software_updated_at}
-                isFleetdHost={!!host.orbit_version}
+                isValidVppHost={
+                  !!host.orbit_version ||
+                  ["ipados", "ios"].includes(host.platform)
+                }
                 isSoftwareEnabled={featuresConfig?.enable_software_inventory}
                 router={router}
                 queryParams={parseHostSoftwareQueryParams(location.query)}

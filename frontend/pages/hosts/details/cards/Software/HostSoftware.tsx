@@ -35,7 +35,7 @@ interface IHostSoftwareProps {
   /** This is the host id or the device token */
   id: number | string;
   softwareUpdatedAt?: string;
-  isFleetdHost: boolean;
+  isValidVppHost: boolean;
   router: InjectedRouter;
   queryParams: ReturnType<typeof parseHostSoftwareQueryParams>;
   pathname: string;
@@ -83,7 +83,7 @@ export const parseHostSoftwareQueryParams = (queryParams: {
 const HostSoftware = ({
   id,
   softwareUpdatedAt,
-  isFleetdHost,
+  isValidVppHost,
   router,
   queryParams,
   pathname,
@@ -216,7 +216,7 @@ const HostSoftware = ({
           canInstall: canInstallSoftware,
           onSelectAction,
           teamId: hostTeamId,
-          isFleetdHost,
+          isValidVppHost,
         });
   }, [
     isMyDevicePage,
@@ -225,7 +225,7 @@ const HostSoftware = ({
     canInstallSoftware,
     onSelectAction,
     hostTeamId,
-    isFleetdHost,
+    isValidVppHost,
   ]);
 
   const isLoading = isMyDevicePage
