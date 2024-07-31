@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"golang.org/x/text/unicode/norm"
+	"gopkg.in/yaml.v2"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/pkg/spec"
@@ -620,20 +621,20 @@ func (c *Client) ApplyGroup(
 						return nil, fmt.Errorf("reading pre-install query: %w", err)
 					}
 
-					group, err := spec.GroupFromBytes(rawSpec)
-					if err != nil {
-						return nil, fmt.Errorf("Couldn't edit software (%s). Unable to parse pre-install query YAML file %s: %w", si.URL, queryFile, err)
+					var querySpecs []fleet.QuerySpec
+					if err := yaml.Unmarshal(rawSpec, &querySpecs); err != nil {
+						return nil, fmt.Errorf("Couldn't edit software (%s), Unable to parse pre-install query YAML file %s: %w", si.URL, queryFile, err)
 					}
 
-					if len(group.Queries) > 1 {
+					if len(querySpecs) > 1 {
 						return nil, fmt.Errorf("Couldn't edit software (%s). Pre-install query YAML file %s should have only one query.", si.URL, queryFile)
 					}
 
-					if len(group.Queries) == 0 {
+					if len(querySpecs) == 0 {
 						return nil, fmt.Errorf("Couldn't edit software (%s). Pre-install query YAML file %s doesn't have a query defined.", si.URL, queryFile)
 					}
 
-					qc = group.Queries[0].Query
+					qc = querySpecs[0].Query
 				}
 
 				var ic []byte
