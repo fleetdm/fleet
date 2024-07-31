@@ -242,22 +242,14 @@ func (r *Runner) installSoftware(ctx context.Context, installID string) (*fleet.
 			log.Info().Msgf("installation of %s failed, attempting rollback. Exit code: %d, error: %s", installerPath, postExitCode, postErr)
 			ext := filepath.Ext(installerPath)
 			ext = strings.TrimPrefix(ext, ".")
+			uninstallScript := file.GetRemoveScript(ext)
+			uninstallOutput, uninstallExitCode, uninstallErr := r.runInstallerScript(ctx, uninstallScript, installerPath, "rollback-script")
+			log.Info().Msgf(
+				"rollback staus: exit code: %d, error: %s, output: %s",
+				uninstallExitCode, uninstallErr, uninstallOutput,
+			)
 
-			// maintaining old behavior that returned error is nil if removal
-			// succeeded (or there is no removal, as can now be the case)
-			postErr = nil
-			if uninstallScript := file.GetRemoveScript(ext); uninstallScript != "" {
-				uninstallOutput, uninstallExitCode, uninstallErr := r.runInstallerScript(ctx, uninstallScript, installerPath, "rollback-script")
-				log.Info().Msgf(
-					"rollback status: exit code: %d, error: %s, output: %s",
-					uninstallExitCode, uninstallErr, uninstallOutput,
-				)
-				postErr = uninstallErr
-			} else {
-				log.Info().Msgf("no rollback script available")
-			}
-
-			return payload, postErr
+			return payload, uninstallErr
 		}
 	}
 
