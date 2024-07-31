@@ -908,9 +908,8 @@ const HostDetailsPage = ({
               <SoftwareCard
                 id={host.id}
                 softwareUpdatedAt={host.software_updated_at}
-                isValidVppHost={
-                  !!host.orbit_version ||
-                  ["ipados", "ios"].includes(host.platform)
+                hostCanInstallSoftware={
+                  !!host.orbit_version || isIosOrIpadosHost
                 }
                 isSoftwareEnabled={featuresConfig?.enable_software_inventory}
                 router={router}
