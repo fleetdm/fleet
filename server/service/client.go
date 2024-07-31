@@ -626,17 +626,17 @@ func (c *Client) ApplyGroup(
 						return nil, fmt.Errorf("Couldn't exit software (%s). Unable to expand environment variable in YAML file %s: %w", si.URL, queryFile, err)
 					}
 
-					var top map[string]interface{}
+					var top any
 
 					if err := yaml.Unmarshal(rawSpecExpanded, &top); err != nil {
 						return nil, fmt.Errorf("Couldn't exit software (%s). Unable to expand environment variable in YAML file %s: %w", si.URL, queryFile, err)
 					}
 
-					if _, ok := top["spec"]; ok {
+					if _, ok := top.(map[any]any); ok {
 						// Old apply format
 						group, err := spec.GroupFromBytes(rawSpecExpanded)
 						if err != nil {
-							return nil, fmt.Errorf("Couldn't edit software (%s). Unable to parse pre-install query YAML file %s: %w", si.URL, queryFile, err)
+							return nil, fmt.Errorf("Couldn't edit software (%s). Unable to parse pre-install apply format query YAML file %s: %w", si.URL, queryFile, err)
 						}
 
 						if len(group.Queries) > 1 {
