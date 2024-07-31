@@ -4283,6 +4283,7 @@ OS vulnerability data is currently available for Windows and macOS. For other pl
 | ---- | ------- | ---- | ---------------------------- |
 | id   | integer | path | **Required**. The host's ID. |
 | query   | string | query | Search query keywords. Searchable fields include `name`. |
+| available_for_install | boolean | query | If `true` or `1`, only list software that is available for install (added by the user). Default is `false`.  
 | page | integer | query | Page number of the results to fetch.|
 | per_page | integer | query | Results per page.|
 
