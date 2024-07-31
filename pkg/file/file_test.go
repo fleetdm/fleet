@@ -121,8 +121,8 @@ func TestExtractInstallerMetadata(t *testing.T) {
 		}
 		t.Run(dent.Name(), func(t *testing.T) {
 			parts := strings.Split(strings.TrimSuffix(dent.Name(), filepath.Ext(dent.Name())), "$")
-			if len(parts) < 3 {
-				t.Fatalf("invalid filename, expected at least 3 sections, got %d: %s", len(parts), dent.Name())
+			if len(parts) < 4 {
+				t.Fatalf("invalid filename, expected at least 4 sections, got %d: %s", len(parts), dent.Name())
 			}
 			wantName, wantVersion, wantHash, wantBundleIdentifier := parts[0], parts[1], parts[2], parts[3]
 			wantExtension := strings.TrimPrefix(filepath.Ext(dent.Name()), ".")
