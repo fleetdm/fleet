@@ -16,6 +16,7 @@ For reference, here are the build configuration files:
 - [Goreleaser github workflow](../.github/workflows/goreleaser-orbit.yml)
 - Goreleaser configuration file for each platform:
     - [goreleaser-linux.yml](./goreleaser-linux.yml)
+    - [goreleaser-linux-arm64.yml](./goreleaser-linux-arm64.yml)
     - [goreleaser-macos.yml](./goreleaser-macos.yml)
     - [goreleaser-windows.yml](./goreleaser-windows.yml)
 

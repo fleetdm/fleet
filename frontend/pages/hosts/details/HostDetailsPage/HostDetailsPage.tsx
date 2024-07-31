@@ -58,7 +58,14 @@ import TabsWrapper from "components/TabsWrapper";
 import MainContent from "components/MainContent";
 import BackLink from "components/BackLink";
 import ScriptDetailsModal from "pages/DashboardPage/cards/ActivityFeed/components/ScriptDetailsModal";
-import { SoftwareInstallDetailsModal } from "pages/SoftwarePage/components/SoftwareInstallDetails";
+import {
+  AppInstallDetailsModal,
+  IAppInstallDetails,
+} from "components/ActivityDetails/InstallDetails/AppInstallDetails/AppInstallDetails";
+import {
+  SoftwareInstallDetailsModal,
+  IPackageInstallDetails,
+} from "components/ActivityDetails/InstallDetails/SoftwareInstallDetails/SoftwareInstallDetails";
 
 import HostSummaryCard from "../cards/HostSummary";
 import AboutCard from "../cards/About";
@@ -168,7 +175,15 @@ const HostDetailsPage = ({
   const [selectedPolicy, setSelectedPolicy] = useState<IHostPolicy | null>(
     null
   );
-  const [softwareInstallUuid, setSoftwareInstallUuid] = useState("");
+  const [
+    packageInstallDetails,
+    setPackageInstallDetails,
+  ] = useState<IPackageInstallDetails | null>(null);
+  const [
+    appInstallDetails,
+    setAppInstallDetails,
+  ] = useState<IAppInstallDetails | null>(null);
+
   const [isUpdatingHost, setIsUpdatingHost] = useState(false);
   const [refetchStartTime, setRefetchStartTime] = useState<number | null>(null);
   const [showRefetchSpinner, setShowRefetchSpinner] = useState(false);
@@ -441,6 +456,23 @@ const HostDetailsPage = ({
     ? teams?.find((t) => t.id === host.team_id)?.features
     : config?.features;
 
+  const getOSVersionRequirementFromMDMConfig = (hostPlatform: string) => {
+    const mdmConfig = host?.team_id
+      ? teams?.find((t) => t.id === host.team_id)?.mdm
+      : config?.mdm;
+
+    switch (hostPlatform) {
+      case "darwin":
+        return mdmConfig?.macos_updates;
+      case "ipados":
+        return mdmConfig?.ipados_updates;
+      case "ios":
+        return mdmConfig?.ios_updates;
+      default:
+        null;
+    }
+  };
+
   useEffect(() => {
     setUsersState(() => {
       return (
@@ -551,7 +583,10 @@ const HostDetailsPage = ({
           setScriptDetailsId(details?.script_execution_id || "");
           break;
         case "installed_software":
-          setSoftwareInstallUuid(details?.install_uuid || "");
+          setPackageInstallDetails({ ...details });
+          break;
+        case "installed_app_store_app":
+          setAppInstallDetails({ ...details });
           break;
         default: // do nothing
       }
@@ -583,10 +618,17 @@ const HostDetailsPage = ({
 
   const onCancelScriptDetailsModal = useCallback(() => {
     setScriptDetailsId("");
-  }, []);
+    // refetch activities to make sure they up-to-date with what was displayed in the modal
+    refetchPastActivities();
+    refetchUpcomingActivities();
+  }, [refetchPastActivities, refetchUpcomingActivities]);
 
   const onCancelSoftwareInstallDetailsModal = useCallback(() => {
-    setSoftwareInstallUuid("");
+    setPackageInstallDetails(null);
+  }, []);
+
+  const onCancelAppInstallDetailsModal = useCallback(() => {
+    setAppInstallDetails(null);
   }, []);
 
   const onTransferHostSubmit = async (team: ITeam) => {
@@ -794,6 +836,9 @@ const HostDetailsPage = ({
           onRefetchHost={onRefetchHost}
           renderActionDropdown={renderActionDropdown}
           osSettings={host?.mdm.os_settings}
+          osVersionRequirement={getOSVersionRequirementFromMDMConfig(
+            host.platform
+          )}
           hostMdmDeviceStatus={hostMdmDeviceStatus}
         />
         <TabsWrapper className={`${baseClass}__tabs-wrapper`}>
@@ -815,31 +860,29 @@ const HostDetailsPage = ({
                 munki={macadmins?.munki}
                 mdm={mdm}
               />
-              {!isIosOrIpadosHost && (
-                <ActivityCard
-                  activeTab={activeActivityTab}
-                  activities={
-                    activeActivityTab === "past"
-                      ? pastActivities
-                      : upcomingActivities
-                  }
-                  isLoading={
-                    activeActivityTab === "past"
-                      ? pastActivitiesIsFetching
-                      : upcomingActivitiesIsFetching
-                  }
-                  isError={
-                    activeActivityTab === "past"
-                      ? pastActivitiesIsError
-                      : upcomingActivitiesIsError
-                  }
-                  upcomingCount={upcomingActivities?.count || 0}
-                  onChangeTab={onChangeActivityTab}
-                  onNextPage={() => setActivityPage(activityPage + 1)}
-                  onPreviousPage={() => setActivityPage(activityPage - 1)}
-                  onShowDetails={onShowActivityDetails}
-                />
-              )}
+              <ActivityCard
+                activeTab={activeActivityTab}
+                activities={
+                  activeActivityTab === "past"
+                    ? pastActivities
+                    : upcomingActivities
+                }
+                isLoading={
+                  activeActivityTab === "past"
+                    ? pastActivitiesIsFetching
+                    : upcomingActivitiesIsFetching
+                }
+                isError={
+                  activeActivityTab === "past"
+                    ? pastActivitiesIsError
+                    : upcomingActivitiesIsError
+                }
+                upcomingCount={upcomingActivities?.count || 0}
+                onChangeTab={onChangeActivityTab}
+                onNextPage={() => setActivityPage(activityPage + 1)}
+                onPreviousPage={() => setActivityPage(activityPage - 1)}
+                onShowDetails={onShowActivityDetails}
+              />
               {!isIosOrIpadosHost && (
                 <AgentOptionsCard
                   osqueryData={osqueryData}
@@ -872,7 +915,6 @@ const HostDetailsPage = ({
                 pathname={location.pathname}
                 onShowSoftwareDetails={setSelectedSoftwareDetails}
                 hostTeamId={host.team_id || 0}
-                hostPlatform={host.platform}
               />
               {host?.platform === "darwin" && macadmins?.munki?.version && (
                 <MunkiIssuesCard
@@ -927,15 +969,17 @@ const HostDetailsPage = ({
             hostsTeamId={host?.team_id}
           />
         )}
-        {showRunScriptModal && (
-          <RunScriptModal
-            host={host}
-            currentUser={currentUser}
-            scriptDetailsId={scriptDetailsId}
-            setScriptDetailsId={setScriptDetailsId}
-            onClose={onCloseRunScriptModal}
-          />
-        )}
+        {showRunScriptModal &&
+          // force run script modal to unmount when script details modal is shown;
+          // it will be remounted when script details modal is closed
+          !scriptDetailsId && (
+            <RunScriptModal
+              host={host}
+              currentUser={currentUser}
+              setScriptDetailsId={setScriptDetailsId}
+              onClose={onCloseRunScriptModal}
+            />
+          )}
         {!!host && showTransferHostModal && (
           <TransferHostModal
             onCancel={() => setShowTransferHostModal(false)}
@@ -988,10 +1032,16 @@ const HostDetailsPage = ({
             onCancel={onCancelScriptDetailsModal}
           />
         )}
-        {!!softwareInstallUuid && (
+        {!!packageInstallDetails && (
           <SoftwareInstallDetailsModal
-            installUuid={softwareInstallUuid}
+            details={packageInstallDetails}
             onCancel={onCancelSoftwareInstallDetailsModal}
+          />
+        )}
+        {!!appInstallDetails && (
+          <AppInstallDetailsModal
+            details={appInstallDetails}
+            onCancel={onCancelAppInstallDetailsModal}
           />
         )}
         {showLockHostModal && (
@@ -1024,6 +1074,7 @@ const HostDetailsPage = ({
         )}
         {selectedSoftwareDetails && (
           <SoftwareDetailsModal
+            hostDisplayName={host.display_name}
             software={selectedSoftwareDetails}
             onExit={() => setSelectedSoftwareDetails(null)}
           />

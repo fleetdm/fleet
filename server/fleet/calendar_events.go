@@ -1,6 +1,10 @@
 package fleet
 
-import "time"
+import (
+	"encoding/json"
+	"fmt"
+	"time"
+)
 
 type CalendarEvent struct {
 	ID        uint      `db:"id"`
@@ -9,9 +13,40 @@ type CalendarEvent struct {
 	StartTime time.Time `db:"start_time"`
 	EndTime   time.Time `db:"end_time"`
 	Data      []byte    `db:"event"`
-	TimeZone  string    `db:"timezone"`
+	TimeZone  *string   `db:"timezone"` // Only nil when event existed before addition of timezone column
 
 	UpdateCreateTimestamps
+}
+
+func (ce *CalendarEvent) GetBodyTag() string {
+	type details struct {
+		BodyTag string `json:"body_tag"`
+	}
+	var d details
+	err := json.Unmarshal(ce.Data, &d)
+	if err != nil {
+		return ""
+	}
+	return d.BodyTag
+}
+
+func (ce *CalendarEvent) SaveBodyTag(bodyTag string) error {
+	var result map[string]any
+	if len(ce.Data) > 0 {
+		err := json.Unmarshal(ce.Data, &result)
+		if err != nil {
+			return fmt.Errorf("could not unmarshal event data: %w", err)
+		}
+	} else {
+		result = make(map[string]any, 1)
+	}
+	result["body_tag"] = bodyTag
+	data, err := json.Marshal(result)
+	if err != nil {
+		return fmt.Errorf("could not marshal event data: %w", err)
+	}
+	ce.Data = data
+	return nil
 }
 
 type CalendarEventDetails struct {

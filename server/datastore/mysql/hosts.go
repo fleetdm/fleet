@@ -1038,17 +1038,31 @@ func (ds *Datastore) applyHostFilters(
 		// software (version) ID filter is mutually exclusive with software title ID
 		// so we're reusing the same filter to avoid adding unnecessary conditions.
 		if opt.SoftwareStatusFilter != nil {
-			// get the installer id
 			meta, err := ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, opt.TeamFilter, *opt.SoftwareTitleIDFilter, false)
-			if err != nil {
+			switch {
+			case fleet.IsNotFound(err):
+				vppApp, err := ds.GetVPPAppByTeamAndTitleID(ctx, opt.TeamFilter, *opt.SoftwareTitleIDFilter, false)
+				if err != nil {
+					return "", nil, ctxerr.Wrap(ctx, err, "get vpp app by team and title id")
+				}
+				vppAppJoin, vppAppParams, err := ds.vppAppJoin(vppApp.AdamID, *opt.SoftwareStatusFilter)
+				if err != nil {
+					return "", nil, ctxerr.Wrap(ctx, err, "vpp app join")
+				}
+				softwareStatusJoin = vppAppJoin
+				joinParams = append(joinParams, vppAppParams...)
+
+			case err != nil:
 				return "", nil, ctxerr.Wrap(ctx, err, "get software installer metadata by team and title id")
+			default:
+				installerJoin, installerParams, err := ds.softwareInstallerJoin(meta.InstallerID, *opt.SoftwareStatusFilter)
+				if err != nil {
+					return "", nil, ctxerr.Wrap(ctx, err, "software installer join")
+				}
+				softwareStatusJoin = installerJoin
+				joinParams = append(joinParams, installerParams...)
+
 			}
-			installerJoin, installerParams, err := ds.softwareInstallerJoin(meta.InstallerID, *opt.SoftwareStatusFilter)
-			if err != nil {
-				return "", nil, ctxerr.Wrap(ctx, err, "software installer join")
-			}
-			softwareStatusJoin = installerJoin
-			joinParams = append(joinParams, installerParams...)
 		} else {
 			softwareFilter = "EXISTS (SELECT 1 FROM host_software hs INNER JOIN software sw ON hs.software_id = sw.id WHERE hs.host_id = h.id AND sw.title_id = ?)"
 			whereParams = append(whereParams, *opt.SoftwareTitleIDFilter)
@@ -1874,7 +1888,6 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, isMDMEnabled bool, hostInf
         uuid = COALESCE(NULLIF(uuid, ''), ?),
         osquery_host_id = COALESCE(NULLIF(osquery_host_id, ''), ?),
         hardware_serial = COALESCE(NULLIF(hardware_serial, ''), ?),
-		last_enrolled_at = NOW(),
         team_id = ?
       WHERE id = ?`
 			_, err := tx.ExecContext(ctx, sqlUpdate,
@@ -3629,78 +3642,19 @@ func (ds *Datastore) SetOrUpdateMDMData(
 	)
 }
 
-func (ds *Datastore) SetOrUpdateHostEmailsFromMDMIdPAccountsByLegacyEnrollRef(
+func (ds *Datastore) SetOrUpdateHostEmailsFromMdmIdpAccounts(
 	ctx context.Context,
 	hostID uint,
 	fleetEnrollmentRef string,
 ) error {
-	if fleetEnrollmentRef == "" {
-		return ctxerr.New(ctx, "missing fleet enroll ref to upsert host emails with mdm idp account")
-	}
-
 	var email *string
-	idp, err := ds.GetMDMIdPAccountByLegacyEnrollRef(ctx, fleetEnrollmentRef)
-	if err != nil {
-		return err
+	if fleetEnrollmentRef != "" {
+		idp, err := ds.GetMDMIdPAccountByUUID(ctx, fleetEnrollmentRef)
+		if err != nil {
+			return err
+		}
+		email = &idp.Email
 	}
-	email = &idp.Email
-
-	return ds.updateOrInsert(
-		ctx,
-		`UPDATE host_emails SET email = ? WHERE host_id = ? AND source = ?`,
-		`INSERT INTO host_emails (email, host_id, source) VALUES (?, ?, ?)`,
-		email, hostID, fleet.DeviceMappingMDMIdpAccounts,
-	)
-}
-
-func (ds *Datastore) SetOrUpdateHostEmailsFromMDMIdPAccountsByHostUUID(
-	ctx context.Context,
-	hostUUID string,
-) error {
-	if hostUUID == "" {
-		return ctxerr.New(ctx, "missing host uuid to upsert host emails with mdm idp account")
-	}
-
-	var hid uint
-	var email string
-	host, err := ds.HostLiteByIdentifier(ctx, hostUUID)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "getting host by identifier to upsert host emails with mdm idp account")
-	}
-	hid = host.ID
-
-	idp, err := ds.GetMDMIdPAccountByHostUUID(ctx, hostUUID)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "getting idp account by host uuid to upsert host emails with mdm idp account")
-	}
-	email = idp.Email
-
-	return ds.updateOrInsert(
-		ctx,
-		`UPDATE host_emails SET email = ? WHERE host_id = ? AND source = ?`,
-		`INSERT INTO host_emails (email, host_id, source) VALUES (?, ?, ?)`,
-		email, hid, fleet.DeviceMappingMDMIdpAccounts,
-	)
-}
-
-func (ds *Datastore) SetOrUpdateEmailsFromMDMIdPAccountsByHostID(
-	ctx context.Context,
-	hostID uint,
-	hostUUID string,
-) error {
-	if hostID == 0 {
-		return ctxerr.New(ctx, "missing host id to upsert host emails with mdm idp account")
-	}
-	if hostUUID == "" {
-		return ctxerr.New(ctx, "missing host uuid to upsert host emails with mdm idp account")
-	}
-
-	var email string
-	idp, err := ds.GetMDMIdPAccountByHostUUID(ctx, hostUUID)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "getting idp account by host uuid to upsert host emails with mdm idp account")
-	}
-	email = idp.Email
 
 	return ds.updateOrInsert(
 		ctx,
@@ -5194,8 +5148,8 @@ func (ds *Datastore) loadHostLite(ctx context.Context, id *uint, identifier *str
     SELECT
       h.id,
       h.team_id,
-      COALESCE(h.osquery_host_id, '') AS osquery_host_id,
-      COALESCE(h.node_key, '') AS node_key,
+      h.osquery_host_id,
+      h.node_key,
       h.hostname,
       h.uuid,
       h.hardware_serial,
