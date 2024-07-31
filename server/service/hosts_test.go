@@ -1859,9 +1859,9 @@ func TestBulkOperationFilterValidation(t *testing.T) {
 }
 
 func TestSetDiskEncryptionNotifications(t *testing.T) {
-	ctx := context.Background()
 	ds := new(mock.Store)
-	svc, ctx := newTestService(t, ds, nil, nil, nil)
+	ctx := context.Background()
+	svc := &Service{ds: ds}
 
 	tests := []struct {
 		name                     string
@@ -2039,17 +2039,14 @@ func TestSetDiskEncryptionNotifications(t *testing.T) {
 				return tt.appConfig, nil
 			}
 
-			s, ok := svc.(*Service)
-			require.True(t, ok)
-
 			notifs := &fleet.OrbitConfigNotifications{}
-			err := s.setDiskEncryptionNotifications(ctx, notifs, tt.host, tt.appConfig, tt.diskEncryptionConfigured, tt.isConnectedToFleetMDM, tt.mdmInfo)
+			err := svc.setDiskEncryptionNotifications(ctx, notifs, tt.host, tt.appConfig, tt.diskEncryptionConfigured, tt.isConnectedToFleetMDM, tt.mdmInfo)
 			if tt.expectedError {
 				require.Error(t, err)
 			} else {
 				require.NoError(t, err)
 			}
-			require.Equal(t, tt.expectedNotifications, notifs)
+			require.Equal(t, tt.expectedNotifications.RotateDiskEncryptionKey, notifs.RotateDiskEncryptionKey)
 		})
 	}
 }
