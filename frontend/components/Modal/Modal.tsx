@@ -61,26 +61,22 @@ const Modal = ({
     }
   }, [onEnter]);
 
-  const modalContainerClassName = classnames(
-    `${baseClass}__modal_container`,
+  const backgroundClasses = classnames(`${baseClass}__background`, {
+    [`${baseClass}__hidden`]: isHidden,
+  });
+
+  const modalContainerClasses = classnames(
     className,
-    { [`${baseClass}__modal_container__medium`]: width === "medium" },
-    { [`${baseClass}__modal_container__large`]: width === "large" },
-    { [`${baseClass}__modal_container__xlarge`]: width === "xlarge" },
-    { [`${baseClass}__modal_container__auto`]: width === "auto" }
+    `${baseClass}__modal_container`,
+    `${baseClass}__modal_container__${width}`,
+    {
+      [`${className}__loading`]: isLoading,
+    }
   );
 
   return (
-    <div
-      className={`${baseClass}__background ${
-        isHidden ? `${baseClass}__hidden` : ""
-      }`}
-    >
-      <div
-        className={`${modalContainerClassName} ${
-          isLoading ? `${className}__loading` : ""
-        }`}
-      >
+    <div className={backgroundClasses}>
+      <div className={modalContainerClasses}>
         <div className={`${baseClass}__header`}>
           <span>{title}</span>
           <div className={`${baseClass}__ex`}>
