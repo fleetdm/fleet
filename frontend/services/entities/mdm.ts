@@ -83,10 +83,6 @@ export interface IGetMdmCommandResultsResponse {
 }
 
 const mdmService = {
-  resetEncryptionKey: (token: string) => {
-    const { DEVICE_USER_RESET_ENCRYPTION_KEY } = endpoints;
-    return sendRequest("POST", DEVICE_USER_RESET_ENCRYPTION_KEY(token));
-  },
   unenrollHostFromMdm: (hostId: number, timeout?: number) => {
     const { HOST_MDM_UNENROLL } = endpoints;
     return sendRequest(
