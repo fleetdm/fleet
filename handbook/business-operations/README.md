@@ -488,18 +488,17 @@ When reviewing subscription agreements on customer paper or when a customer has 
 ### Tech stack admins
 | Role | Google Workspace | Slack | GitHub owner | Gusto | Pilot | Plane | 1Password |
 |:----------------------|------------------:|------------------:|------------------:|------------------:|------------------:|------------------:|------------------:|
-| CEO | ✅ Super admin | ✅ Primary workspace owner | ✅ | ✅ Primary admin | ❌ | ✅ Owner | ✅ Owner |
-| CTO | ❌ | ❌ | ✅ | ❌ | ❌ | ❌ | ❌ |
-| Head of BizOps | ✅ Super admin | ✅ Owner | ✅ | ✅ Admin | ❌ | ✅ Admin | ✅ |
-| BizOps engineer | ✅ Super admin| ✅ Admin/owner | ✅ | ✅ Admin | ❌ | ✅ Admin | ✅ |
-| Head of Digital Experience | ✅ | ✅ Owner | ✅ | ❌ | ❌ | ✅ |
-| Apprentice | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| CEO | ✅ Super admin | ✅ Primary workspace owner | ✅ | ✅ Primary admin | ✅ | ✅ Owner | ✅ Owner |
+| CTO | ❌ | ❌ | ✅ | ❌ | ✅ | ❌ | ❌ |
+| Head of BizOps | ✅ Super admin | ✅ Owner | ✅ | ✅ Admin | ✅ | ✅ Admin | ✅ |
+| BizOps engineer | ✅ Super admin| ✅ Admin/owner | ✅ | ✅ Admin | ✅ | ✅ Admin | ✅ |
+| Head of Digital Experience | ✅ Super admin| ✅ Owner | ✅ | ✅ | ❌ | ✅ |
+| Apprentice | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ |
 | Digital Experience SE | ✅ Super admin | ✅ Admin | ❌ | ❌ | ❌ | ❌ | ✅ |
 | Head of Product Design | ❌ | ✅ Admin | ❌ | ❌ | ❌ | ❌ | ❌ |
 | VP of CX | ❌ | ✅ Owner | ❌ | ❌ | ❌ | ❌ | ❌ |
 | CX senior suppoert engineer | ❌ | ✅ Admin | ❌ | ❌ | ❌ | ❌ | ❌ |
 | Client platform engineer & community advocate | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
-| Classified vault | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ |
 | Pilot bookkeeper | ❌ | ❌ | ❌ | ✅ Admin  | ❌ | ✅ Admin | ❌ |
 
 
