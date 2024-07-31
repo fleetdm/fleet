@@ -623,23 +623,48 @@ func (c *Client) ApplyGroup(
 
 					rawSpecExpanded, err := spec.ExpandEnvBytes(rawSpec)
 					if err != nil {
-						return nil, fmt.Errorf("Cou;dn't exit software (%s). Unable to expand environment variable in YAML file %s: %w", si.URL, queryFile, err)
+						return nil, fmt.Errorf("Couldn't exit software (%s). Unable to expand environment variable in YAML file %s: %w", si.URL, queryFile, err)
 					}
 
-					var querySpecs []fleet.QuerySpec
-					if err := yaml.Unmarshal(rawSpecExpanded, &querySpecs); err != nil {
-						return nil, fmt.Errorf("Couldn't edit software (%s). Unable to parse pre-install query YAML file %s: %w", si.URL, queryFile, err)
+					var top map[string]interface{}
+
+					if err := yaml.Unmarshal(rawSpecExpanded, &top); err != nil {
+						return nil, fmt.Errorf("Couldn't exit software (%s). Unable to expand environment variable in YAML file %s: %w", si.URL, queryFile, err)
 					}
 
-					if len(querySpecs) > 1 {
-						return nil, fmt.Errorf("Couldn't edit software (%s). Pre-install query YAML file %s should have only one query.", si.URL, queryFile)
-					}
+					if _, ok := top["spec"]; ok {
+						// Old apply format
+						group, err := spec.GroupFromBytes(rawSpecExpanded)
+						if err != nil {
+							return nil, fmt.Errorf("Couldn't edit software (%s). Unable to parse pre-install query YAML file %s: %w", si.URL, queryFile, err)
+						}
 
-					if len(querySpecs) == 0 {
-						return nil, fmt.Errorf("Couldn't edit software (%s). Pre-install query YAML file %s doesn't have a query defined.", si.URL, queryFile)
-					}
+						if len(group.Queries) > 1 {
+							return nil, fmt.Errorf("Couldn't edit software (%s). Pre-install query YAML file %s should have only one query.", si.URL, queryFile)
+						}
 
-					qc = querySpecs[0].Query
+						if len(group.Queries) == 0 {
+							return nil, fmt.Errorf("Couldn't edit software (%s). Pre-install query YAML file %s doesn't have a query defined.", si.URL, queryFile)
+						}
+
+						qc = group.Queries[0].Query
+					} else {
+						// Gitops format
+						var querySpecs []fleet.QuerySpec
+						if err := yaml.Unmarshal(rawSpecExpanded, &querySpecs); err != nil {
+							return nil, fmt.Errorf("Couldn't edit software (%s). Unable to parse pre-install query YAML file %s: %w", si.URL, queryFile, err)
+						}
+
+						if len(querySpecs) > 1 {
+							return nil, fmt.Errorf("Couldn't edit software (%s). Pre-install query YAML file %s should have only one query.", si.URL, queryFile)
+						}
+
+						if len(querySpecs) == 0 {
+							return nil, fmt.Errorf("Couldn't edit software (%s). Pre-install query YAML file %s doesn't have a query defined.", si.URL, queryFile)
+						}
+
+						qc = querySpecs[0].Query
+					}
 				}
 
 				var ic []byte
