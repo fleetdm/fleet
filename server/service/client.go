@@ -573,7 +573,7 @@ func (c *Client) ApplyGroup(
 		}
 
 		if opts.DryRun {
-			logfn("[+] would've applied no team software installers\n")
+			logfn("[+] would've applied 'No Team' software installers\n")
 		} else {
 			logfn("[+] applied no team software installers\n")
 		}
