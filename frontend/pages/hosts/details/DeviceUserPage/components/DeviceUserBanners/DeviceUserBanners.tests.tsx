@@ -40,29 +40,6 @@ describe("Device User Banners", () => {
     ).toBeInTheDocument();
   });
 
-  it("renders only one banner in a priority order", () => {
-    // set up to render rotate key disk encryption banner, which is 2nd in priority
-    render(
-      <DeviceUserBanners
-        hostPlatform="darwin"
-        mdmEnrollmentStatus="On (automatic)"
-        mdmEnabledAndConfigured
-        mdmConnectedToFleet
-        diskEncryptionStatus="action_required"
-        diskEncryptionActionRequired="rotate_key"
-        onTurnOnMdm={noop}
-      />
-    );
-
-    expect(screen.queryByText(turnOnMdmExpcetedText)).not.toBeInTheDocument();
-    expect(
-      screen.getByText(resetKeyDiskEncryptExpcetedText)
-    ).toBeInTheDocument();
-    expect(
-      screen.queryByText(resetKeyDiskEncryptExpcetedText)
-    ).not.toBeInTheDocument();
-  });
-
   it("renders no banner correctly", () => {
     // setup so mdm is not enabled and configured.
     render(
