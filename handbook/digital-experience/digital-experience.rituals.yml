@@ -19,6 +19,13 @@
   moreInfoUrl: ""
   dri: "mike-j-thomas"
 - 
+  task: "Check brand fronts are up to date"
+  startedOn: "2024-08-01"
+  frequency: "Quarterly"
+  description: "Check all brand fronts for consistancy and update as needed with the current product pitch and graphics."
+  moreInfoUrl: "https://fleetdm.com/handbook/digital-experience#check-brand-fronts-are-up-to-date"
+  dri: "SFriendLee"  
+- 
   task: "Check production dependencies of fleetdm.com"
   startedOn: "2023-11-10" 
   frequency: "Weekly"
