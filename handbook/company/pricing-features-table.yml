@@ -12,10 +12,9 @@
 #   jamfProHasFeature: Whether or not Jamf Pro has this (or a comparable) feature. Supported values: "yes", "no" or "appleOnly" (currently not used by Fleet website UI)
 #   jamfProtectHasFeature: Whether or not Jamf Protext has this (or a comparable) feature. Supported values: "yes", "no" or "appleOnly" (currently not used by Fleet website UI)
 #
+#                                                                                                                                                                                                                                                                                                                             
 #
-#
-#
-#  ██████╗ ███████╗██████╗ ██╗      ██████╗ ██╗   ██╗███╗   ███╗███████╗███╗   ██╗████████╗
+#  ██████╗ ███████╗██████╗ ██╗      ██████╗ ██╗   ██╗███╗   ███╗███████╗███╗   ██╗████████╗ 
 #  ██╔══██╗██╔════╝██╔══██╗██║     ██╔═══██╗╚██╗ ██╔╝████╗ ████║██╔════╝████╗  ██║╚══██╔══╝
 #  ██║  ██║█████╗  ██████╔╝██║     ██║   ██║ ╚████╔╝ ██╔████╔██║█████╗  ██╔██╗ ██║   ██║   
 #  ██║  ██║██╔══╝  ██╔═══╝ ██║     ██║   ██║  ╚██╔╝  ██║╚██╔╝██║██╔══╝  ██║╚██╗██║   ██║   
@@ -73,6 +72,15 @@
   buzzwords: [OEM,Private label,House brand,Clear label,Multi-tenancy]
   tier: Premium
   comingSoonOn: 2024-08-26 #customer-deebradel 
+#
+#
+#   ██████╗ ██████╗ ███╗   ██╗███████╗██╗ ██████╗ ██╗   ██╗██████╗  █████╗ ████████╗██╗ ██████╗ ███╗   ██╗
+#  ██╔════╝██╔═══██╗████╗  ██║██╔════╝██║██╔════╝ ██║   ██║██╔══██╗██╔══██╗╚══██╔══╝██║██╔═══██╗████╗  ██║
+#  ██║     ██║   ██║██╔██╗ ██║█████╗  ██║██║  ███╗██║   ██║██████╔╝███████║   ██║   ██║██║   ██║██╔██╗ ██║
+#  ██║     ██║   ██║██║╚██╗██║██╔══╝  ██║██║   ██║██║   ██║██╔══██╗██╔══██║   ██║   ██║██║   ██║██║╚██╗██║
+#  ╚██████╗╚██████╔╝██║ ╚████║██║     ██║╚██████╔╝╚██████╔╝██║  ██║██║  ██║   ██║   ██║╚██████╔╝██║ ╚████║
+#   ╚═════╝ ╚═════╝ ╚═╝  ╚═══╝╚═╝     ╚═╝ ╚═════╝  ╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝   ╚═╝   ╚═╝ ╚═════╝ ╚═╝  ╚═══╝
+#
 #
 #  ╔═╗╦═╗╦╦  ╦╔═╗╔╦╗╔═╗  ╦ ╦╔═╗╔╦╗╔═╗╔╦╗╔═╗  ╦═╗╔═╗╔═╗╦╔═╗╔╦╗╦═╗╦ ╦
 #  ╠═╝╠╦╝║╚╗╔╝╠═╣ ║ ║╣   ║ ║╠═╝ ║║╠═╣ ║ ║╣   ╠╦╝║╣ ║ ╦║╚═╗ ║ ╠╦╝╚╦╝
@@ -527,6 +535,7 @@
   tier: Premium
   jamfProHasFeature: appleOnly
   jamfProtectHasFeature: no
+  isExperimental: yes
   usualDepartment: IT
   productCategories: [Device management]
   pricingTableCategories: [Devices]
@@ -548,6 +557,7 @@
   tier: Premium
   jamfProHasFeature: yes
   jamfProtectHasFeature: no
+  isExperimental: yes
   usualDepartment: IT
   productCategories: [Device management]
   pricingTableCategories: [Devices]
@@ -634,6 +644,7 @@
   tier: Premium
   jamfProHasFeature: no
   jamfProtectHasFeature: no
+  isExperimental: yes
   productCategories: [Device management, Endpoint operations]
   pricingTableCategories: [Devices]
 #  
@@ -723,9 +734,9 @@
   pricingTableCategories: [Devices]
   usualDepartment: IT
 # 
-  ╦═╗╔═╗╔╦╗╔═╗╔╦╗╔═╗  ╔═╗╔═╗╔╦╗╔╦╗╦╔╗╔╔═╗╔═╗
-  ╠╦╝║╣ ║║║║ ║ ║ ║╣   ╚═╗║╣  ║  ║ ║║║║║ ╦╚═╗
-  ╩╚═╚═╝╩ ╩╚═╝ ╩ ╚═╝  ╚═╝╚═╝ ╩  ╩ ╩╝╚╝╚═╝╚═╝
+#  ╦═╗╔═╗╔╦╗╔═╗╔╦╗╔═╗  ╔═╗╔═╗╔╦╗╔╦╗╦╔╗╔╔═╗╔═╗
+#  ╠╦╝║╣ ║║║║ ║ ║ ║╣   ╚═╗║╣  ║  ║ ║║║║║ ╦╚═╗
+#  ╩╚═╚═╝╩ ╩╚═╝ ╩ ╚═╝  ╚═╝╚═╝ ╩  ╩ ╩╝╚╝╚═╝╚═╝
 - industryName: Remote settings
   description: Configure agent options remotely, over the air.  (Includes osquery config, and osquery startup flags.).
   documentationUrl: https://fleetdm.com/docs/configuration/agent-configuration
@@ -1225,8 +1236,22 @@
   tier: Premium
   jamfProHasFeature: no
   jamfProtectHasFeature: no
-
+#
 # 
+#
+#
+#
+#
+#
+#
+#   █████╗ ██████╗  ██████╗██╗  ██╗██╗██╗   ██╗███████╗
+#  ██╔══██╗██╔══██╗██╔════╝██║  ██║██║██║   ██║██╔════╝
+#  ███████║██████╔╝██║     ███████║██║██║   ██║█████╗  
+#  ██╔══██║██╔══██╗██║     ██╔══██║██║╚██╗ ██╔╝██╔══╝  
+#  ██║  ██║██║  ██║╚██████╗██║  ██║██║ ╚████╔╝ ███████╗
+#  ╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝╚═╝  ╚═══╝  ╚══════╝
+#
+#
 # #  ╔╦╗╔═╗╔╦╗╔═╗╔═╗╔╦╗╦╔═╗╔╗╔  ╔═╗╔╗╔╔═╗╦╔╗╔╔═╗╔═╗╦═╗╦╔╗╔╔═╗
 # #   ║║║╣  ║ ║╣ ║   ║ ║║ ║║║║  ║╣ ║║║║ ╦║║║║║╣ ║╣ ╠╦╝║║║║║ ╦
 # #  ═╩╝╚═╝ ╩ ╚═╝╚═╝ ╩ ╩╚═╝╝╚╝  ╚═╝╝╚╝╚═╝╩╝╚╝╚═╝╚═╝╩╚═╩╝╚╝╚═╝
@@ -1469,16 +1494,16 @@
 # 
 #
 #   CONSOLIDATED WITH "POLICIES"
-# #  ╔╦╗╦═╗╦╔═╗╔═╗╔═╗╦═╗  ╔═╗  ╦ ╦╔═╗╦═╗╦╔═╔═╗╦  ╔═╗╦ ╦  ╔╗ ╔═╗╔═╗╔═╗╔╦╗  ╔═╗╔╗╔  ╔═╗  
-# #   ║ ╠╦╝║║ ╦║ ╦║╣ ╠╦╝  ╠═╣  ║║║║ ║╠╦╝╠╩╗╠╣ ║  ║ ║║║║  ╠╩╗╠═╣╚═╗║╣  ║║  ║ ║║║║  ╠═╣  
-# #   ╩ ╩╚═╩╚═╝╚═╝╚═╝╩╚═  ╩ ╩  ╚╩╝╚═╝╩╚═╩ ╩╚  ╩═╝╚═╝╚╩╝  ╚═╝╩ ╩╚═╝╚═╝═╩╝  ╚═╝╝╚╝  ╩ ╩  
-# #  ╔═╗╔═╗╦╦  ╦╔╗╔╔═╗  ╔═╗╔═╗╦  ╦╔═╗╦ ╦                                               
-# #  ╠╣ ╠═╣║║  ║║║║║ ╦  ╠═╝║ ║║  ║║  ╚╦╝                                               
-# #  ╚  ╩ ╩╩╩═╝╩╝╚╝╚═╝  ╩  ╚═╝╩═╝╩╚═╝ ╩                                                
+#  ╔╦╗╦═╗╦╔═╗╔═╗╔═╗╦═╗  ╔═╗  ╦ ╦╔═╗╦═╗╦╔═╔═╗╦  ╔═╗╦ ╦  ╔╗ ╔═╗╔═╗╔═╗╔╦╗  ╔═╗╔╗╔  ╔═╗  
+#   ║ ╠╦╝║║ ╦║ ╦║╣ ╠╦╝  ╠═╣  ║║║║ ║╠╦╝╠╩╗╠╣ ║  ║ ║║║║  ╠╩╗╠═╣╚═╗║╣  ║║  ║ ║║║║  ╠═╣  
+#   ╩ ╩╚═╩╚═╝╚═╝╚═╝╩╚═  ╩ ╩  ╚╩╝╚═╝╩╚═╩ ╩╚  ╩═╝╚═╝╚╩╝  ╚═╝╩ ╩╚═╝╚═╝═╩╝  ╚═╝╝╚╝  ╩ ╩  
+#  ╔═╗╔═╗╦╦  ╦╔╗╔╔═╗  ╔═╗╔═╗╦  ╦╔═╗╦ ╦                                               
+#  ╠╣ ╠═╣║║  ║║║║║ ╦  ╠═╝║ ║║  ║║  ╚╦╝                                               
+#  ╚  ╩ ╩╩╩═╝╩╝╚╝╚═╝  ╩  ╚═╝╩═╝╩╚═╝ ╩                                                
 # - industryName: Trigger a workflow based on a failing policy
 #   documentationUrl: https://fleetdm.com/docs/using-fleet/automations#policy-automations
 #   productCategories: [Endpoint operations,Device management]
-#   pricingTableCategories: [Devices]
+#   pricingTableCategories: [Integrations]
 #   usualDepartment: IT
 #   tier: Free
 #   jamfProHasFeature: yes
