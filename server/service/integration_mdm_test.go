@@ -10307,6 +10307,21 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 				strconv.Itoa(int(team.ID)), "software_title_id", strconv.Itoa(int(titleID)))
 			require.Equal(t, 1, countResp.Count)
 
+			// Get pending activity
+			var hostActivitiesResp listHostUpcomingActivitiesResponse
+			s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming", installHost.ID),
+				nil, http.StatusOK, &hostActivitiesResp)
+			activitiesToString := func(activities []*fleet.Activity) []string {
+				var res []string
+				for _, activity := range activities {
+					res = append(res, fmt.Sprintf("%+v", activity))
+				}
+				return res
+			}
+			require.Len(t, hostActivitiesResp.Activities, 1, "got activities: %v", activitiesToString(hostActivitiesResp.Activities))
+			assert.Equal(t, hostActivitiesResp.Activities[0].Type, fleet.ActivityInstalledAppStoreApp{}.ActivityName())
+			assert.EqualValues(t, 1, hostActivitiesResp.Count)
+
 			// Simulate successful installation on the host
 			cmd, err = mdmClient.Idle()
 			require.NoError(t, err)
