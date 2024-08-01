@@ -37,12 +37,14 @@ interface IAddSoftwareModalProps {
   teamId: number;
   router: InjectedRouter;
   onExit: () => void;
+  setAddedVppAppToken: (token: string) => void;
 }
 
 const AddSoftwareModal = ({
   teamId,
   router,
   onExit,
+  setAddedVppAppToken,
 }: IAddSoftwareModalProps) => {
   return (
     <Modal
@@ -65,7 +67,12 @@ const AddSoftwareModal = ({
                 <AddPackage teamId={teamId} router={router} onExit={onExit} />
               </TabPanel>
               <TabPanel>
-                <AppStoreVpp teamId={teamId} router={router} onExit={onExit} />
+                <AppStoreVpp
+                  teamId={teamId}
+                  router={router}
+                  onExit={onExit}
+                  setAddedVppAppToken={setAddedVppAppToken}
+                />
               </TabPanel>
             </Tabs>
           </TabsWrapper>

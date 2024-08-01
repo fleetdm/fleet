@@ -60,6 +60,7 @@ export interface ISoftwareVersionsQueryKey extends ISoftwareApiParams {
 }
 
 export interface ISoftwareTitlesQueryKey extends ISoftwareApiParams {
+  addedVppAppToken: string | null;
   scope: "software-titles";
 }
 
