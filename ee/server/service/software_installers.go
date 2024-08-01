@@ -425,7 +425,7 @@ func (svc *Service) installSoftwareFromVPP(ctx context.Context, host *fleet.Host
 		return ctxerr.Wrapf(ctx, err, "sending command to install VPP %s application to host with serial %s", vppApp.AdamID, host.HardwareSerial)
 	}
 
-	err = svc.ds.InsertHostVPPSoftwareInstall(ctx, host.ID, user.ID, vppApp.AdamID, cmdUUID, eventID)
+	err = svc.ds.InsertHostVPPSoftwareInstall(ctx, host.ID, user.ID, vppApp.VPPAppID, cmdUUID, eventID)
 	if err != nil {
 		return ctxerr.Wrapf(ctx, err, "inserting host vpp software install for host with serial %s and app with adamID %s", host.HardwareSerial, vppApp.AdamID)
 	}

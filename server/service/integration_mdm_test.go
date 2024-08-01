@@ -10290,7 +10290,6 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 			extraAvailable: 1},
 	}
 
-	expectedInstalls := 1
 	for name, install := range installs {
 		t.Run(name, func(t *testing.T) {
 
@@ -10339,12 +10338,11 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 			listResp = listHostsResponse{}
 			s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "software_status", "installed", "team_id",
 				strconv.Itoa(int(team.ID)), "software_title_id", strconv.Itoa(int(titleID)))
-			assert.Len(t, listResp.Hosts, expectedInstalls)
+			assert.Len(t, listResp.Hosts, 1)
 			countResp = countHostsResponse{}
 			s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", "installed", "team_id",
 				strconv.Itoa(int(team.ID)), "software_title_id", strconv.Itoa(int(titleID)))
-			assert.Equal(t, expectedInstalls, countResp.Count)
-			expectedInstalls++
+			assert.Equal(t, 1, countResp.Count)
 
 			s.lastActivityMatches(
 				fleet.ActivityInstalledAppStoreApp{}.ActivityName(),
