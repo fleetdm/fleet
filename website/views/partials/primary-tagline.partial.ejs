@@ -1,1 +1,7 @@
-<%= typeof primaryBuyingSituation !== 'undefined' ? (primaryBuyingSituation === 'vm' ? 'Focus on vulnerabilities, not vendors' : primaryBuyingSituation === 'eo-security' ? 'Light in every corner' : primaryBuyingSituation === 'eo-it' ? 'Untangle your endpoints' : 'Open-source device management for everyone') : 'Open-source device management for everyone' %>
+<%=
+  typeof primaryBuyingSituation === 'undefined' ? 'Open-source device management for everyone' // Default (no buying situation)
+  : primaryBuyingSituation === 'vm' ? 'Focus on vulnerabilities, not vendors' // vm
+  : primaryBuyingSituation === 'eo-security' ? 'Light in every corner'// eo-security
+  : primaryBuyingSituation === 'eo-it' ? 'Untangle your endpoints' : // eo-it
+  'Open-source device management for everyone'// mdm
+%>
