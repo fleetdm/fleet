@@ -388,7 +388,7 @@ func main() {
 
 						// if the device is unmanaged or we're in force mode and the device needs
 						// migration, enable aggressive mode.
-						if isUnmanaged || forceModeEnabled {
+						if isUnmanaged || forceModeEnabled || migrateFile {
 							log.Info().Msg("MDM device is unmanaged or force mode enabled, automatically showing dialog")
 							if err := mdmMigrator.ShowInterval(); err != nil {
 								go reportError(err, nil)

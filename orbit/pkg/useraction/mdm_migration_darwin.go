@@ -352,6 +352,7 @@ func (m *swiftDialogMDMMigrator) renderMigration() error {
 		}
 
 		var migrateFile bool
+		// TODO(JVE): check that it was a manual migration in file
 		if _, err = os.Stat("/tmp/migration_required"); err != nil {
 			if errors.Is(err, os.ErrNotExist) {
 				log.Debug().Msg("migrate file not found")
@@ -364,12 +365,13 @@ func (m *swiftDialogMDMMigrator) renderMigration() error {
 
 		if migrateFile {
 			// The migration file only exists if we successfully hit the webhook
-			log.Debug().Bool("manual", manual).Bool("migrateFile", migrateFile).Msg("trying to open my device page")
 			log.Info().Msg("showing instructions")
+
 			if err := m.handler.ShowInstructions(); err != nil {
 				return err
 			}
-			m.baseDialog.Exit()
+			log.Debug().Bool("manual", manual).Bool("migrateFile", migrateFile).Msg("opened my device page, returning from renderMigration")
+			return nil
 		}
 
 		if !m.props.IsUnmanaged {
@@ -413,9 +415,11 @@ func (m *swiftDialogMDMMigrator) renderMigration() error {
 				log.Error().Err(err).Msg("writing migration file")
 			}
 
-			log.Info().Msg("showing instructions after unenrollment")
-			if err := m.handler.ShowInstructions(); err != nil {
-				return err
+			if manual {
+				log.Info().Msg("showing instructions after unenrollment")
+				if err := m.handler.ShowInstructions(); err != nil {
+					return err
+				}
 			}
 
 			// close the spinner
