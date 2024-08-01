@@ -385,6 +385,8 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
           showExploitedVulnerabilitiesOnly,
           softwareFilter,
           resetPageIndex,
+          toggleAddSoftwareModal,
+          showAddSoftwareModal,
         })}
       </div>
     );
@@ -417,13 +419,6 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
             softwareVulnerabilityWebhookEnabled={isVulnWebhookEnabled}
             currentDestinationUrl={vulnWebhookSettings?.destination_url || ""}
             recentVulnerabilityMaxAge={recentVulnerabilityMaxAge}
-          />
-        )}
-        {showAddSoftwareModal && (
-          <AddSoftwareModal
-            teamId={currentTeamId ?? 0}
-            router={router}
-            onExit={toggleAddSoftwareModal}
           />
         )}
       </div>

@@ -8,6 +8,8 @@ import mdmAppleAPI, {
   IGetVppInfoResponse,
   IVppApp,
 } from "services/entities/mdm_apple";
+
+import { sleep } from "utilities/helpers";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 
 import { PLATFORM_DISPLAY_NAMES } from "interfaces/platform";
@@ -130,9 +132,15 @@ interface IAppStoreVppProps {
   teamId: number;
   router: InjectedRouter;
   onExit: () => void;
+  refetchSoftwareTitles: () => void;
 }
 
-const AppStoreVpp = ({ teamId, router, onExit }: IAppStoreVppProps) => {
+const AppStoreVpp = ({
+  teamId,
+  router,
+  onExit,
+  refetchSoftwareTitles,
+}: IAppStoreVppProps) => {
   const { renderFlash } = useContext(NotificationContext);
   const [isSubmitDisabled, setIsSubmitDisabled] = useState(true);
   const [selectedApp, setSelectedApp] = useState<IVppApp | null>(null);
@@ -189,6 +197,7 @@ const AppStoreVpp = ({ teamId, router, onExit }: IAppStoreVppProps) => {
         team_id: teamId,
         available_for_install: true,
       });
+      refetchSoftwareTitles();
       router.push(`${PATHS.SOFTWARE}?${queryParams}`);
     } catch (e) {
       renderFlash("error", getErrorMessage(e));

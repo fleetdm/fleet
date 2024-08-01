@@ -23,6 +23,7 @@ import {
   ISoftwareDropdownFilterVal,
   getSoftwareFilterForQueryKey,
 } from "./SoftwareTable/helpers";
+import AddSoftwareModal from "../components/AddSoftwareModal";
 
 const baseClass = "software-titles";
 
@@ -43,6 +44,8 @@ interface ISoftwareTitlesProps {
   currentPage: number;
   teamId?: number;
   resetPageIndex: boolean;
+  toggleAddSoftwareModal: () => void;
+  showAddSoftwareModal: boolean;
 }
 
 const SoftwareTitles = ({
@@ -56,6 +59,8 @@ const SoftwareTitles = ({
   currentPage,
   teamId,
   resetPageIndex,
+  toggleAddSoftwareModal,
+  showAddSoftwareModal,
 }: ISoftwareTitlesProps) => {
   const showVersions = location.pathname === PATHS.SOFTWARE_VERSIONS;
 
@@ -65,6 +70,7 @@ const SoftwareTitles = ({
     isFetching: isTitlesFetching,
     isLoading: isTitlesLoading,
     isError: isTitlesError,
+    refetch: refetchTitles,
   } = useQuery<
     ISoftwareTitlesResponse,
     Error,
@@ -148,6 +154,14 @@ const SoftwareTitles = ({
         isLoading={isTitlesFetching || isVersionsFetching}
         resetPageIndex={resetPageIndex}
       />
+      {showAddSoftwareModal && (
+        <AddSoftwareModal
+          teamId={teamId ?? 0}
+          router={router}
+          onExit={toggleAddSoftwareModal}
+          refetchSoftwareTitles={refetchTitles}
+        />
+      )}
     </div>
   );
 };

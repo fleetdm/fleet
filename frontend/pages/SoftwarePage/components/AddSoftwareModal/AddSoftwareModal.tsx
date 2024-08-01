@@ -37,12 +37,14 @@ interface IAddSoftwareModalProps {
   teamId: number;
   router: InjectedRouter;
   onExit: () => void;
+  refetchSoftwareTitles: () => void;
 }
 
 const AddSoftwareModal = ({
   teamId,
   router,
   onExit,
+  refetchSoftwareTitles,
 }: IAddSoftwareModalProps) => {
   return (
     <Modal
@@ -65,7 +67,12 @@ const AddSoftwareModal = ({
                 <AddPackage teamId={teamId} router={router} onExit={onExit} />
               </TabPanel>
               <TabPanel>
-                <AppStoreVpp teamId={teamId} router={router} onExit={onExit} />
+                <AppStoreVpp
+                  teamId={teamId}
+                  router={router}
+                  onExit={onExit}
+                  refetchSoftwareTitles={refetchSoftwareTitles}
+                />
               </TabPanel>
             </Tabs>
           </TabsWrapper>
