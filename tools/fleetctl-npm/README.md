@@ -8,4 +8,4 @@ From the command line, install `fleetctl` with `npm install -g fleetctl`.
 
 ## Usage
 
-See the [fleetctl documentation](https://fleetdm.com/docs/using-fleet/fleetctl-CLI) or `fleetctl --help` for usage instructions. 
+See the [fleetctl documentation](https://fleetdm.com/docs/using-fleet/fleetctl-cli) or `fleetctl --help` for usage instructions. 
