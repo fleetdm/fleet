@@ -61,7 +61,7 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 	// TODO: QA what breaks when you have a software title with no versions?
 
 	var teamName *string
-	if payload.TeamID != nil {
+	if payload.TeamID != nil && *payload.TeamID != 0 {
 		t, err := svc.ds.Team(ctx, *payload.TeamID)
 		if err != nil {
 			return err
@@ -84,8 +84,8 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 }
 
 func (svc *Service) DeleteSoftwareInstaller(ctx context.Context, titleID uint, teamID *uint) error {
-	if teamID == nil || *teamID == 0 {
-		return fleet.NewInvalidArgumentError("team_id", "is required and can't be zero")
+	if teamID == nil {
+		return fleet.NewInvalidArgumentError("team_id", "is required")
 	}
 
 	// we authorize with SoftwareInstaller here, but it uses the same AuthzType
@@ -116,7 +116,7 @@ func (svc *Service) deleteVPPApp(ctx context.Context, teamID *uint, meta *fleet.
 		return fleet.ErrNoContext
 	}
 
-	if err := svc.ds.DeleteVPPAppFromTeam(ctx, teamID, meta.AppStoreID); err != nil {
+	if err := svc.ds.DeleteVPPAppFromTeam(ctx, teamID, meta.VPPAppID); err != nil {
 		return ctxerr.Wrap(ctx, err, "deleting VPP app")
 	}
 
@@ -130,10 +130,11 @@ func (svc *Service) deleteVPPApp(ctx context.Context, teamID *uint, meta *fleet.
 	}
 
 	if err := svc.NewActivity(ctx, vc.User, fleet.ActivityDeletedAppStoreApp{
-		AppStoreID:    meta.AppStoreID,
+		AppStoreID:    meta.AdamID,
 		SoftwareTitle: meta.Name,
 		TeamName:      teamName,
 		TeamID:        teamID,
+		Platform:      meta.Platform,
 	}); err != nil {
 		return ctxerr.Wrap(ctx, err, "creating activity for deleted VPP app")
 	}
@@ -187,8 +188,8 @@ func (svc *Service) GetSoftwareInstallerMetadata(ctx context.Context, titleID ui
 }
 
 func (svc *Service) DownloadSoftwareInstaller(ctx context.Context, titleID uint, teamID *uint) (*fleet.DownloadSoftwareInstallerPayload, error) {
-	if teamID == nil || *teamID == 0 {
-		return nil, fleet.NewInvalidArgumentError("team_id", "is required and can't be zero")
+	if teamID == nil {
+		return nil, fleet.NewInvalidArgumentError("team_id", "is required")
 	}
 
 	meta, err := svc.GetSoftwareInstallerMetadata(ctx, titleID, teamID)
@@ -261,7 +262,10 @@ func (svc *Service) InstallSoftwareTitle(ctx context.Context, hostID uint, softw
 		return ctxerr.Wrap(ctx, err, "get host")
 	}
 
-	if host.OrbitNodeKey == nil || *host.OrbitNodeKey == "" {
+	platform := host.FleetPlatform()
+	mobileAppleDevice := fleet.AppleDevicePlatform(platform) == fleet.IOSPlatform || fleet.AppleDevicePlatform(platform) == fleet.IPadOSPlatform
+
+	if !mobileAppleDevice && (host.OrbitNodeKey == nil || *host.OrbitNodeKey == "") {
 		// fleetd is required to install software so if the host is
 		// enrolled via plain osquery we return an error
 		svc.authz.SkipAuthorization(ctx)
@@ -273,17 +277,19 @@ func (svc *Service) InstallSoftwareTitle(ctx context.Context, hostID uint, softw
 		return err
 	}
 
-	installer, err := svc.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, host.TeamID, softwareTitleID, false)
-	if err != nil {
-		if !fleet.IsNotFound(err) {
-			return ctxerr.Wrap(ctx, err, "finding software installer for title")
+	if !mobileAppleDevice {
+		installer, err := svc.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, host.TeamID, softwareTitleID, false)
+		if err != nil {
+			if !fleet.IsNotFound(err) {
+				return ctxerr.Wrap(ctx, err, "finding software installer for title")
+			}
+			installer = nil
 		}
-		installer = nil
-	}
 
-	// if we found an installer, use that
-	if installer != nil {
-		return svc.installSoftwareTitleUsingInstaller(ctx, host, installer)
+		// if we found an installer, use that
+		if installer != nil {
+			return svc.installSoftwareTitleUsingInstaller(ctx, host, installer)
+		}
 	}
 
 	vppApp, err := svc.ds.GetVPPAppByTeamAndTitleID(ctx, host.TeamID, softwareTitleID, false)
@@ -303,13 +309,13 @@ func (svc *Service) InstallSoftwareTitle(ctx context.Context, hostID uint, softw
 		return ctxerr.Wrap(ctx, err, "finding VPP app for title")
 	}
 
-	return svc.installSoftwareFromVPP(ctx, host, vppApp)
+	return svc.installSoftwareFromVPP(ctx, host, vppApp, mobileAppleDevice || fleet.AppleDevicePlatform(platform) == fleet.MacOSPlatform)
 }
 
-func (svc *Service) installSoftwareFromVPP(ctx context.Context, host *fleet.Host, vppApp *fleet.VPPApp) error {
-	if host.FleetPlatform() != "darwin" {
+func (svc *Service) installSoftwareFromVPP(ctx context.Context, host *fleet.Host, vppApp *fleet.VPPApp, appleDevice bool) error {
+	if !appleDevice {
 		return &fleet.BadRequestError{
-			Message: "VPP apps can only be installed only on macOS hosts.",
+			Message: "VPP apps can only be installed only on Apple hosts.",
 			InternalErr: ctxerr.NewWithData(
 				ctx, "invalid host platform for requested installer",
 				map[string]any{"host_id": host.ID, "team_id": host.TeamID, "title_id": vppApp.TitleID},

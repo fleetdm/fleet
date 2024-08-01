@@ -7625,7 +7625,6 @@ func testHostsLoadHostByOrbitNodeKey(t *testing.T, ds *Datastore) {
 
 		// the returned host by LoadHostByOrbitNodeKey will have the orbit key stored
 		h.OrbitNodeKey = &orbitKey
-		h.DiskEncryptionResetRequested = ptr.Bool(false)
 		returned, err := ds.LoadHostByOrbitNodeKey(ctx, orbitKey)
 		require.NoError(t, err)
 
@@ -7705,8 +7704,8 @@ func testHostsLoadHostByOrbitNodeKey(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	loadFleet, err = ds.LoadHostByOrbitNodeKey(ctx, *hFleet.OrbitNodeKey)
 	require.NoError(t, err)
-	require.True(t, loadFleet.MDM.EncryptionKeyAvailable)
 	require.NoError(t, err)
+	require.True(t, loadFleet.MDM.EncryptionKeyAvailable)
 	require.NotNil(t, loadFleet.DiskEncryptionEnabled)
 	require.True(t, *loadFleet.DiskEncryptionEnabled)
 
@@ -8370,8 +8369,8 @@ func testHostsEncryptionKeyRawDecryption(t *testing.T, ds *Datastore) {
 	// no disk encryption key information
 	got, err := ds.Host(ctx, host.ID)
 	require.NoError(t, err)
-	require.False(t, got.MDM.EncryptionKeyAvailable)
 	require.NotNil(t, got.MDM.TestGetRawDecryptable())
+	require.False(t, got.MDM.EncryptionKeyAvailable)
 	require.Equal(t, -1, *got.MDM.TestGetRawDecryptable())
 
 	// create the encryption key row, but unknown decryptable
@@ -8389,8 +8388,8 @@ func testHostsEncryptionKeyRawDecryption(t *testing.T, ds *Datastore) {
 
 	got, err = ds.Host(ctx, host.ID)
 	require.NoError(t, err)
-	require.False(t, got.MDM.EncryptionKeyAvailable)
 	require.NotNil(t, got.MDM.TestGetRawDecryptable())
+	require.False(t, got.MDM.EncryptionKeyAvailable)
 	require.Equal(t, 0, *got.MDM.TestGetRawDecryptable())
 
 	// mark the key as decryptable
@@ -8399,8 +8398,8 @@ func testHostsEncryptionKeyRawDecryption(t *testing.T, ds *Datastore) {
 
 	got, err = ds.Host(ctx, host.ID)
 	require.NoError(t, err)
-	require.True(t, got.MDM.EncryptionKeyAvailable)
 	require.NotNil(t, got.MDM.TestGetRawDecryptable())
+	require.True(t, got.MDM.EncryptionKeyAvailable)
 	require.Equal(t, 1, *got.MDM.TestGetRawDecryptable())
 }
 

@@ -883,8 +883,6 @@ type Datastore interface {
 	// GetHostDiskEncryptionKey returns the encryption key information for a given host
 	GetHostDiskEncryptionKey(ctx context.Context, hostID uint) (*HostDiskEncryptionKey, error)
 
-	SetDiskEncryptionResetStatus(ctx context.Context, hostID uint, status bool) error
-
 	// GetHostCertAssociationsToExpire retrieves host certificate
 	// associations that are close to expire and don't have a renewal in
 	// progress based on the provided arguments.
@@ -1288,10 +1286,6 @@ type Datastore interface {
 	// the provided value.
 	MDMAppleSetPendingDeclarationsAs(ctx context.Context, hostUUID string, status *MDMDeliveryStatus, detail string) error
 
-	// GetMDMAppleOSUpdatesSettingsByHostSerial returns applicable Apple OS update settings (if any)
-	// for the host with the given serial number. The host must be DEP assigned to Fleet.
-	GetMDMAppleOSUpdatesSettingsByHostSerial(ctx context.Context, hostSerial string) (*AppleOSUpdateSettings, error)
-
 	// InsertMDMConfigAssets inserts MDM related config assets, such as SCEP and APNS certs and keys.
 	InsertMDMConfigAssets(ctx context.Context, assets []MDMConfigAsset) error
 
@@ -1570,7 +1564,7 @@ type Datastore interface {
 
 	// DeleteVPPAppFromTeam deletes the VPP app corresponding to the adamID from
 	// the provided team.
-	DeleteVPPAppFromTeam(ctx context.Context, teamID *uint, adamID string) error
+	DeleteVPPAppFromTeam(ctx context.Context, teamID *uint, appID VPPAppID) error
 
 	// GetSummaryHostSoftwareInstalls returns the software install summary for
 	// the given software installer id.
@@ -1593,8 +1587,8 @@ type Datastore interface {
 	HasSelfServiceSoftwareInstallers(ctx context.Context, platform string, teamID *uint) (bool, error)
 
 	BatchInsertVPPApps(ctx context.Context, apps []*VPPApp) error
-	GetAssignedVPPApps(ctx context.Context, teamID *uint) (map[string]struct{}, error)
-	SetTeamVPPApps(ctx context.Context, teamID *uint, adamIDs []string) error
+	GetAssignedVPPApps(ctx context.Context, teamID *uint) (map[VPPAppID]struct{}, error)
+	SetTeamVPPApps(ctx context.Context, teamID *uint, appIDs []VPPAppID) error
 	InsertVPPAppWithTeam(ctx context.Context, app *VPPApp, teamID *uint) (*VPPApp, error)
 
 	InsertHostVPPSoftwareInstall(ctx context.Context, hostID, userID uint, adamID, commandUUID, associatedEventID string) error

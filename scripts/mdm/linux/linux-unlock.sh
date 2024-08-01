@@ -21,4 +21,11 @@ do
 done
 
 # Remove the pam_nologin file
-rm /etc/nologin
+[ -f /etc/nologin ] && rm /etc/nologin
+
+# Enable systemd-user-sessions, a service that deletes /etc/nologin
+if [ -f /usr/lib/systemd/system/systemd-user-sessions.service ]; then
+    systemctl unmask systemd-user-sessions
+    systemctl daemon-reload
+    /usr/lib/systemd/systemd-user-sessions start
+fi

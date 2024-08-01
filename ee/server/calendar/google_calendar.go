@@ -144,6 +144,9 @@ func adjustEmail(email string) string {
 func (lowLevelAPI *GoogleCalendarLowLevelAPI) GetSetting(name string) (*calendar.Setting, error) {
 	result, err := lowLevelAPI.withRetry(
 		func() (any, error) {
+			if lowLevelAPI.service == nil || lowLevelAPI.service.Settings == nil {
+				return nil, errors.New("calendar service or settings not initialized")
+			}
 			return lowLevelAPI.service.Settings.Get(name).Do()
 		},
 	)
@@ -153,6 +156,9 @@ func (lowLevelAPI *GoogleCalendarLowLevelAPI) GetSetting(name string) (*calendar
 func (lowLevelAPI *GoogleCalendarLowLevelAPI) CreateEvent(event *calendar.Event) (*calendar.Event, error) {
 	result, err := lowLevelAPI.withRetry(
 		func() (any, error) {
+			if lowLevelAPI.service == nil || lowLevelAPI.service.Events == nil {
+				return nil, errors.New("calendar service or events not initialized (CreateEvent)")
+			}
 			return lowLevelAPI.service.Events.Insert(calendarID, event).Do()
 		},
 	)
@@ -162,6 +168,9 @@ func (lowLevelAPI *GoogleCalendarLowLevelAPI) CreateEvent(event *calendar.Event)
 func (lowLevelAPI *GoogleCalendarLowLevelAPI) UpdateEvent(event *calendar.Event) (*calendar.Event, error) {
 	result, err := lowLevelAPI.withRetry(
 		func() (any, error) {
+			if lowLevelAPI.service == nil || lowLevelAPI.service.Events == nil {
+				return nil, errors.New("calendar service or events not initialized (UpdateEvent)")
+			}
 			return lowLevelAPI.service.Events.Update(calendarID, event.Id, event).Do()
 		},
 	)
@@ -171,6 +180,9 @@ func (lowLevelAPI *GoogleCalendarLowLevelAPI) UpdateEvent(event *calendar.Event)
 func (lowLevelAPI *GoogleCalendarLowLevelAPI) GetEvent(id, eTag string) (*calendar.Event, error) {
 	result, err := lowLevelAPI.withRetry(
 		func() (any, error) {
+			if lowLevelAPI.service == nil || lowLevelAPI.service.Events == nil {
+				return nil, errors.New("calendar service or events not initialized (GetEvent)")
+			}
 			return lowLevelAPI.service.Events.Get(calendarID, id).IfNoneMatch(eTag).Do()
 		},
 	)
@@ -180,6 +192,9 @@ func (lowLevelAPI *GoogleCalendarLowLevelAPI) GetEvent(id, eTag string) (*calend
 func (lowLevelAPI *GoogleCalendarLowLevelAPI) ListEvents(timeMin, timeMax string) (*calendar.Events, error) {
 	result, err := lowLevelAPI.withRetry(
 		func() (any, error) {
+			if lowLevelAPI.service == nil || lowLevelAPI.service.Events == nil {
+				return nil, errors.New("calendar service or events not initialized (ListEvents)")
+			}
 			// Default maximum number of events returned is 250, which should be sufficient for most calendars.
 			return lowLevelAPI.service.Events.List(calendarID).
 				EventTypes("default").
@@ -197,6 +212,9 @@ func (lowLevelAPI *GoogleCalendarLowLevelAPI) ListEvents(timeMin, timeMax string
 func (lowLevelAPI *GoogleCalendarLowLevelAPI) DeleteEvent(id string) error {
 	_, err := lowLevelAPI.withRetry(
 		func() (any, error) {
+			if lowLevelAPI.service == nil || lowLevelAPI.service.Events == nil {
+				return nil, errors.New("calendar service or events not initialized (DeleteEvent)")
+			}
 			return nil, lowLevelAPI.service.Events.Delete(calendarID, id).Do()
 		},
 	)
@@ -206,6 +224,9 @@ func (lowLevelAPI *GoogleCalendarLowLevelAPI) DeleteEvent(id string) error {
 func (lowLevelAPI *GoogleCalendarLowLevelAPI) Watch(eventUUID string, channelID string, ttl uint64) (resourceID string, err error) {
 	resp, err := lowLevelAPI.withRetry(
 		func() (any, error) {
+			if lowLevelAPI.service == nil || lowLevelAPI.service.Events == nil {
+				return nil, errors.New("calendar service or events not initialized (Watch)")
+			}
 			return lowLevelAPI.service.Events.Watch(calendarID, &calendar.Channel{
 				Id:   channelID, // channelID is also used for authentication -- it should be a random value
 				Type: "web_hook",
@@ -226,6 +247,9 @@ func (lowLevelAPI *GoogleCalendarLowLevelAPI) Watch(eventUUID string, channelID 
 func (lowLevelAPI *GoogleCalendarLowLevelAPI) Stop(channelID string, resourceID string) error {
 	_, err := lowLevelAPI.withRetry(
 		func() (any, error) {
+			if lowLevelAPI.service == nil || lowLevelAPI.service.Channels == nil {
+				return nil, errors.New("calendar service or channels not initialized (Stop)")
+			}
 			return nil, lowLevelAPI.service.Channels.Stop(&calendar.Channel{
 				Id:         channelID,
 				ResourceId: resourceID,

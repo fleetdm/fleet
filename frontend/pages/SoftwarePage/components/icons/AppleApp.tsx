@@ -2,7 +2,7 @@ import React from "react";
 
 import type { SVGProps } from "react";
 
-const MacApp = (props: SVGProps<SVGSVGElement>) => (
+const AppleApp = (props: SVGProps<SVGSVGElement>) => (
   <svg xmlns="http://www.w3.org/2000/svg" fill="none" {...props}>
     <path fill="#515774" d="M0 0h32v32H0z" />
     <path
@@ -13,4 +13,4 @@ const MacApp = (props: SVGProps<SVGSVGElement>) => (
     />
   </svg>
 );
-export default MacApp;
+export default AppleApp;

@@ -6833,6 +6833,7 @@ func (s *integrationTestSuite) TestListSoftwareAndSoftwareDetails() {
 	expectedTeamVersionsCount := 3
 
 	assertSoftwareDetails := func(expectedSoftware []fleet.Software, team string) {
+		t.Helper()
 		// this is just a basic sanity check of the software details endpoints and doesn't test all of the
 		// fields that may be present in the response (e.g., vulnerabilities)
 		for _, sw := range expectedSoftware {
@@ -6859,6 +6860,7 @@ func (s *integrationTestSuite) TestListSoftwareAndSoftwareDetails() {
 	}
 
 	assertResp := func(resp listSoftwareResponse, want []fleet.Software, ts time.Time, team string, counts ...int) {
+		t.Helper()
 		require.Len(t, resp.Software, len(want))
 		for i := range resp.Software {
 			wantID, gotID := want[i].ID, resp.Software[i].ID
@@ -7089,6 +7091,15 @@ func (s *integrationTestSuite) TestListSoftwareAndSoftwareDetails() {
 		"hosts_count", "order_direction", "desc", "team_id", teamStr,
 	)
 	assertVersionsResp(versResp, []fleet.Software{sws[17]}, hostsCountTs, teamStr, expectedTeamVersionsCount, 1)
+
+	// filter by no team, 2 by page
+	lsResp = listSoftwareResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software", nil, http.StatusOK, &lsResp, "per_page", "2", "page", "0", "order_key", "name",
+		"order_direction", "desc", "team_id", "0",
+	)
+	fmt.Printf("lsResp: %+v\n", lsResp)
+	assertResp(lsResp, []fleet.Software{sws[19], sws[18]}, hostsCountTs, "", 17, 17)
 
 	// Invalid software team -- admin gets a 404, team users get a 403
 	detailsResp := getSoftwareResponse{}
@@ -8761,7 +8772,7 @@ func (s *integrationTestSuite) TestListVulnerabilities() {
 	require.False(t, resp.Meta.HasPreviousResults)
 	require.False(t, resp.Meta.HasNextResults)
 
-	// Test Team Filter
+	// Team 1 Filter
 	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities", nil, http.StatusOK, &resp, "team_id", "1")
 	require.Len(s.T(), resp.Vulnerabilities, 0)
 
@@ -8788,12 +8799,36 @@ func (s *integrationTestSuite) TestListVulnerabilities() {
 		require.Empty(t, vuln.CVSSScore)
 	}
 
+	// No filter (global)
+	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities", nil, http.StatusOK, &resp)
+	require.Len(t, resp.Vulnerabilities, 3)
+	require.Equal(t, uint(3), resp.Count)
+	require.Equal(t, uint(1), resp.Vulnerabilities[0].HostsCount)
+	require.Equal(t, uint(1), resp.Vulnerabilities[1].HostsCount)
+	require.Equal(t, uint(1), resp.Vulnerabilities[2].HostsCount)
+
+	// Team 0 Filter
+	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities", nil, http.StatusOK, &resp, "team_id", "0")
+	require.Len(t, resp.Vulnerabilities, 1)
+	require.Equal(t, uint(1), resp.Count)
+	require.Equal(t, "CVE-2021-1246", resp.Vulnerabilities[0].CVE.CVE)
+	require.Equal(t, uint(1), resp.Vulnerabilities[0].HostsCount)
+
+	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities", nil, http.StatusOK, &resp, "team_id", "0")
+	require.Len(t, resp.Vulnerabilities, 1)
+
 	var gResp getVulnerabilityResponse
 	// invalid cve
 	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities/foobar", nil, http.StatusNotFound, &gResp)
 
 	// Valid CVE but not in team scope
 	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities/CVE-2021-1246", nil, http.StatusNotFound, &gResp, "team_id", fmt.Sprintf("%d", team.ID))
+
+	// Valid CVE in "no team" scope
+	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities/CVE-2021-1246", nil, http.StatusOK, &gResp, "team_id", "0")
+
+	// Valid CVD not in "no team" scope
+	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities/CVE-2021-1234", nil, http.StatusNotFound, &gResp, "team_id", "0")
 
 	// Invalid TeamID
 	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities/CVE-2021-1234", nil, http.StatusForbidden, &gResp, "team_id", "100")

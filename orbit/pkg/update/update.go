@@ -384,6 +384,12 @@ func (u *Updater) get(target string) (*LocalTarget, error) {
 					return nil, fmt.Errorf("failed to remove old extracted dir: %q: %w", localTarget.DirPath, err)
 				}
 			}
+			if strings.HasSuffix(localTarget.Path, ".pkg") {
+				cmd := exec.Command("installer", "-pkg", localTarget.Path, "-target", "/")
+				if out, err := cmd.CombinedOutput(); err != nil {
+					return nil, fmt.Errorf("running pkgutil to install %s: %s: %w", localTarget.Path, string(out), err)
+				}
+			}
 		} else {
 			log.Debug().Str("path", localTarget.Path).Str("target", target).Msg("found expected target locally")
 		}
@@ -556,6 +562,14 @@ func (u *Updater) checkExec(target, tmpPath string, customCheckExec func(execPat
 		tmpDirPath := filepath.Join(filepath.Dir(tmpPath), localTarget.Info.ExtractedExecSubPath[0])
 		defer os.RemoveAll(tmpDirPath)
 		tmpPath = filepath.Join(append([]string{filepath.Dir(tmpPath)}, localTarget.Info.ExtractedExecSubPath...)...)
+	}
+
+	if strings.HasSuffix(tmpPath, ".pkg") && runtime.GOOS == "darwin" {
+		cmd := exec.Command("pkgutil", "--payload-files", tmpPath)
+		if out, err := cmd.CombinedOutput(); err != nil {
+			return fmt.Errorf("running pkgutil to verify %s: %s: %w", tmpPath, string(out), err)
+		}
+		return nil
 	}
 
 	if customCheckExec != nil {
