@@ -1215,7 +1215,9 @@ func TestTeamSofwareInstallersGitOps(t *testing.T) {
 		{"testdata/gitops/team_software_installer_unsupported.yml", "The file should be .pkg, .msi, .exe or .deb."},
 		{"testdata/gitops/team_software_installer_too_large.yml", "The maximum file size is 500 MB"},
 		{"testdata/gitops/team_software_installer_valid.yml", ""},
+		{"testdata/gitops/team_software_installer_valid_apply.yml", ""},
 		{"testdata/gitops/team_software_installer_pre_condition_multiple_queries.yml", "should have only one query."},
+		{"testdata/gitops/team_software_installer_pre_condition_multiple_queries_apply.yml", "should have only one query."},
 		{"testdata/gitops/team_software_installer_pre_condition_not_found.yml", "no such file or directory"},
 		{"testdata/gitops/team_software_installer_install_not_found.yml", "no such file or directory"},
 		{"testdata/gitops/team_software_installer_post_install_not_found.yml", "no such file or directory"},
@@ -1224,14 +1226,7 @@ func TestTeamSofwareInstallersGitOps(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(filepath.Base(c.file), func(t *testing.T) {
-			ds, _, _ := setupFullGitOpsPremiumServer(t)
-
-			ds.SetTeamVPPAppsFunc = func(ctx context.Context, teamID *uint, adamIDs []fleet.VPPAppID) error {
-				return nil
-			}
-			ds.BatchInsertVPPAppsFunc = func(ctx context.Context, apps []*fleet.VPPApp) error {
-				return nil
-			}
+			setupFullGitOpsPremiumServer(t)
 
 			_, err := runAppNoChecks([]string{"gitops", "-f", c.file})
 			if c.wantErr == "" {
@@ -1241,6 +1236,23 @@ func TestTeamSofwareInstallersGitOps(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestTeamSoftwareInstallersGitopsQueryEnv(t *testing.T) {
+	startSoftwareInstallerServer(t)
+	ds, _, _ := setupFullGitOpsPremiumServer(t)
+
+	t.Setenv("QUERY_VAR", "IT_WORKS")
+
+	ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, tmID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
+		if installers[0].PreInstallQuery != "select IT_WORKS" {
+			return fmt.Errorf("Missing env var, got %s", installers[0].PreInstallQuery)
+		}
+		return nil
+	}
+
+	_, err := runAppNoChecks([]string{"gitops", "-f", "testdata/gitops/team_software_installer_valid_env_query.yml"})
+	require.NoError(t, err)
 }
 
 func TestTeamVPPAppsGitOps(t *testing.T) {
