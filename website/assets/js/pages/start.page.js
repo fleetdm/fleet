@@ -85,7 +85,9 @@ parasails.registerPage('start', {
     }
     // If this user has not completed the 'what are you using fleet for' step, and has a primaryBuyingSituation set by an ad. prefill the formData for this step.
     if(this.primaryBuyingSituation && _.isEmpty(this.formData['what-are-you-using-fleet-for'])){
-      this.formData['what-are-you-using-fleet-for'] = {primaryBuyingSituation: this.primaryBuyingSituation};
+      if(this.primaryBuyingSituation !== 'vm') {
+        this.formData['what-are-you-using-fleet-for'] = {primaryBuyingSituation: this.primaryBuyingSituation};
+      }
     }
     if(window.location.hash) {
       if(typeof analytics !== 'undefined') {
