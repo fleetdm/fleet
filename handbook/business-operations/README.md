@@ -490,15 +490,15 @@ When reviewing subscription agreements on customer paper or when a customer has 
 |:----------------------|------------------:|------------------:|------------------:|------------------:|------------------:|------------------:|------------------:|
 | CEO | ✅ Super admin | ✅ Primary workspace owner | ✅ | ✅ Primary admin | ✅ | ✅ Owner | ✅ Owner |
 | CTO | ❌ | ❌ | ✅ | ❌ | ✅ | ❌ | ❌ |
-| Head of BizOps | ✅ Super admin | ✅ Owner | ✅ | ✅ Admin | ✅ | ✅ Admin | ✅ |
-| BizOps engineer | ✅ Super admin| ✅ Admin/owner | ✅ | ✅ Admin | ✅ | ✅ Admin | ✅ |
-| Head of Digital Experience | ✅ Super admin| ✅ Owner | ✅ | ❌ | ✅ | ❌ | ✅ |
+| Head of BizOps | ✅ Super admin | ✅ Owner | ✅ | ✅ Admin | ✅ | ✅ Admin | ✅ Admin |
+| BizOps engineer | ✅ Super admin| ✅ Admin/owner | ✅ | ✅ Admin | ✅ | ✅ Admin | ✅ Admin|
+| Head of Digital Experience | ✅ Super admin| ✅ Owner | ✅ | ❌ | ✅ | ❌ | ✅ Admin|
 | Apprentice | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ |
-| Digital Experience SE | ✅ Super admin | ✅ Admin | ❌ | ❌ | ❌ | ❌ | ✅ |
+| Digital Experience SE | ✅ Super admin | ✅ Admin | ❌ | ❌ | ❌ | ❌ | ✅ Admin|
 | Head of Product Design | ❌ | ✅ Admin | ❌ | ❌ | ❌ | ❌ | ❌ |
 | VP of CX | ❌ | ✅ Owner | ❌ | ❌ | ❌ | ❌ | ❌ |
 | CX senior suppoert engineer | ❌ | ✅ Admin | ❌ | ❌ | ❌ | ❌ | ❌ |
-| Client platform engineer & community advocate | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
+| Client platform engineer & community advocate | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ Admin|
 | Pilot bookkeeper | ❌ | ❌ | ❌ | ✅ Admin  | ❌ | ✅ Admin | ❌ |
 
 
