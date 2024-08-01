@@ -883,8 +883,6 @@ type Datastore interface {
 	// GetHostDiskEncryptionKey returns the encryption key information for a given host
 	GetHostDiskEncryptionKey(ctx context.Context, hostID uint) (*HostDiskEncryptionKey, error)
 
-	SetDiskEncryptionResetStatus(ctx context.Context, hostID uint, status bool) error
-
 	// GetHostCertAssociationsToExpire retrieves host certificate
 	// associations that are close to expire and don't have a renewal in
 	// progress based on the provided arguments.
@@ -1287,10 +1285,6 @@ type Datastore interface {
 	// declarations for a host to be ("verifying", status), where status is
 	// the provided value.
 	MDMAppleSetPendingDeclarationsAs(ctx context.Context, hostUUID string, status *MDMDeliveryStatus, detail string) error
-
-	// GetMDMAppleOSUpdatesSettingsByHostSerial returns applicable Apple OS update settings (if any)
-	// for the host with the given serial number. The host must be DEP assigned to Fleet.
-	GetMDMAppleOSUpdatesSettingsByHostSerial(ctx context.Context, hostSerial string) (*AppleOSUpdateSettings, error)
 
 	// InsertMDMConfigAssets inserts MDM related config assets, such as SCEP and APNS certs and keys.
 	InsertMDMConfigAssets(ctx context.Context, assets []MDMConfigAsset) error

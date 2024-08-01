@@ -13,7 +13,6 @@ import Spinner from "components/Spinner/Spinner";
 import { IMdmCommandResult } from "interfaces/mdm";
 import { IActivityDetails } from "interfaces/activity";
 
-import { IconNames } from "components/icons";
 import {
   getInstallDetailsStatusPredicate,
   INSTALL_DETAILS_STATUS_ICONS,
@@ -46,7 +45,10 @@ export const AppInstallDetails = ({
       return mdmApi.getCommandResults(command_uuid).then((response) => {
         const results = response.results?.[0];
         if (!results) {
-          return Promise.reject(new Error("No data returned"));
+          // FIXME: It's currently possible that the command results API response is empty for pending
+          // commands. As a temporary workaround to handle this case, we'll ignore the empty response and
+          // display some minimal pending UI. This should be removed once the API response is fixed.
+          return {} as IMdmCommandResult;
         }
         return {
           ...results,
@@ -66,27 +68,28 @@ export const AppInstallDetails = ({
   } else if (isError) {
     return <DataError description="Close this modal and try again." />;
   } else if (!result) {
-    // FIXME: Find a better solution for this.
-    return <DataError description="No data returned." />;
+    // FIXME: It's currently possible that the command results API response is empty for pending
+    // commands. As a temporary workaround to handle this case, we'll ignore the empty response and
+    // display some minimal pending UI. This should be updated once the API response is fixed.
   }
+
+  const displayStatus = (status as SoftwareInstallStatus) || "pending";
+  const iconName = INSTALL_DETAILS_STATUS_ICONS[displayStatus];
 
   // Note: We need to reconcile status values from two different sources. From props, we
   // get the status from the activity item details (which can be "failed", "pending", or
   // "installed"). From the command results API response, we also receive the raw status
   // from the MDM protocol, e.g., "NotNow" or "Acknowledged". We need to display some special
   // messaging for the "NotNow" status, which otherwise would be treated as "pending".
-  const isStatusNotNow = result.status === "NotNow";
-  let iconName: IconNames;
+  const isStatusNotNow = result?.status === "NotNow";
   let predicate: string;
   let subordinate: string;
   if (isStatusNotNow) {
-    iconName = INSTALL_DETAILS_STATUS_ICONS.pending;
     predicate = "tried to install";
     subordinate =
       " but couldn’t because the host was locked or was running on battery power while in Power Nap. Fleet will try again";
   } else {
-    iconName = INSTALL_DETAILS_STATUS_ICONS[status as SoftwareInstallStatus];
-    predicate = getInstallDetailsStatusPredicate(status);
+    predicate = getInstallDetailsStatusPredicate(displayStatus);
     subordinate = status === "pending" ? " when it comes online" : "";
   }
 
@@ -96,7 +99,9 @@ export const AppInstallDetails = ({
     "the host"
   );
 
-  const showCommandResponse = isStatusNotNow || status !== "pending";
+  const showCommandPayload = !!result?.payload;
+  const showCommandResponse =
+    !!result?.result && (isStatusNotNow || status !== "pending");
 
   return (
     <>
@@ -108,12 +113,14 @@ export const AppInstallDetails = ({
             {subordinate}.
           </span>
         </div>
-        <div className={`${baseClass}__script-output`}>
-          Request payload:
-          <Textarea className={`${baseClass}__output-textarea`}>
-            {result.payload}
-          </Textarea>
-        </div>
+        {showCommandPayload && (
+          <div className={`${baseClass}__script-output`}>
+            Request payload:
+            <Textarea className={`${baseClass}__output-textarea`}>
+              {result.payload}
+            </Textarea>
+          </div>
+        )}
         {showCommandResponse && (
           <div className={`${baseClass}__script-output`}>
             The response from {formattedHost}:

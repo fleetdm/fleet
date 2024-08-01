@@ -1729,7 +1729,7 @@ func (s *integrationMDMTestSuite) TestMDMAppleHostDiskEncryption() {
 	require.NotNil(t, getHostResp.Host.MDM.MacOSSettings.DiskEncryption)
 	require.Equal(t, fleet.DiskEncryptionActionRequired, *getHostResp.Host.MDM.MacOSSettings.DiskEncryption)
 	require.NotNil(t, getHostResp.Host.MDM.MacOSSettings.ActionRequired)
-	require.Equal(t, fleet.ActionRequiredLogOut, *getHostResp.Host.MDM.MacOSSettings.ActionRequired)
+	require.Equal(t, fleet.ActionRequiredRotateKey, *getHostResp.Host.MDM.MacOSSettings.ActionRequired)
 	require.NotNil(t, getHostResp.Host.MDM.OSSettings)
 	require.NotNil(t, getHostResp.Host.MDM.OSSettings.DiskEncryption.Status)
 	require.Equal(t, fleet.DiskEncryptionActionRequired, *getHostResp.Host.MDM.OSSettings.DiskEncryption.Status)
@@ -2519,36 +2519,6 @@ func (s *integrationMDMTestSuite) TestEnrollOrbitAfterDEPSync() {
 	got, err = s.ds.LoadHostByNodeKey(ctx, osqueryResp.NodeKey)
 	require.NoError(t, err)
 	require.Equal(t, h.ID, got.ID)
-}
-
-func (s *integrationMDMTestSuite) TestDiskEncryptionRotation() {
-	t := s.T()
-	h := createOrbitEnrolledHost(t, "darwin", "h", s.ds)
-
-	// false by default
-	resp := orbitGetConfigResponse{}
-	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *h.OrbitNodeKey)), http.StatusOK, &resp)
-	require.False(t, resp.Notifications.RotateDiskEncryptionKey)
-
-	// create an auth token for h
-	token := "much_valid"
-	mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
-		_, err := db.ExecContext(context.Background(), `INSERT INTO host_device_auth (host_id, token) VALUES (?, ?)`, h.ID, token)
-		return err
-	})
-
-	tokRes := s.DoRawNoAuth("POST", "/api/latest/fleet/device/"+token+"/rotate_encryption_key", nil, http.StatusOK)
-	tokRes.Body.Close()
-
-	// true after the POST request
-	resp = orbitGetConfigResponse{}
-	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *h.OrbitNodeKey)), http.StatusOK, &resp)
-	require.True(t, resp.Notifications.RotateDiskEncryptionKey)
-
-	// false on following requests
-	resp = orbitGetConfigResponse{}
-	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *h.OrbitNodeKey)), http.StatusOK, &resp)
-	require.False(t, resp.Notifications.RotateDiskEncryptionKey)
 }
 
 func (s *integrationMDMTestSuite) TestFleetdConfiguration() {

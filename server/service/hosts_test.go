@@ -137,7 +137,7 @@ func TestHostDetailsMDMAppleDiskEncryption(t *testing.T) {
 				OperationType: fleet.MDMOperationTypeInstall,
 			},
 			fleet.DiskEncryptionActionRequired,
-			fleet.ActionRequiredLogOut,
+			fleet.ActionRequiredRotateKey,
 			&fleet.MDMDeliveryPending,
 		},
 		{
@@ -1854,6 +1854,199 @@ func TestBulkOperationFilterValidation(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			checkErr(t, svc.AddHostsToTeamByFilter(viewerCtx, nil, tt.filters), tt.has400Err)
 			checkErr(t, svc.DeleteHosts(viewerCtx, nil, tt.filters), tt.has400Err)
+		})
+	}
+}
+
+func TestSetDiskEncryptionNotifications(t *testing.T) {
+	ds := new(mock.Store)
+	ctx := context.Background()
+	svc := &Service{ds: ds}
+
+	tests := []struct {
+		name                     string
+		host                     *fleet.Host
+		appConfig                *fleet.AppConfig
+		diskEncryptionConfigured bool
+		isConnectedToFleetMDM    bool
+		mdmInfo                  *fleet.HostMDM
+		getHostDiskEncryptionKey func(context.Context, uint) (*fleet.HostDiskEncryptionKey, error)
+		expectedNotifications    *fleet.OrbitConfigNotifications
+		expectedError            bool
+	}{
+		{
+			name: "no MDM configured",
+			host: &fleet.Host{ID: 1, Platform: "darwin"},
+			appConfig: &fleet.AppConfig{
+				MDM: fleet.MDM{EnabledAndConfigured: false},
+			},
+			diskEncryptionConfigured: true,
+			isConnectedToFleetMDM:    true,
+			mdmInfo:                  nil,
+			getHostDiskEncryptionKey: nil,
+			expectedNotifications:    &fleet.OrbitConfigNotifications{},
+			expectedError:            false,
+		},
+		{
+			name: "not connected to Fleet MDM",
+			host: &fleet.Host{ID: 1, Platform: "darwin"},
+			appConfig: &fleet.AppConfig{
+				MDM: fleet.MDM{EnabledAndConfigured: true},
+			},
+			diskEncryptionConfigured: true,
+			isConnectedToFleetMDM:    false,
+			mdmInfo:                  nil,
+			getHostDiskEncryptionKey: nil,
+			expectedNotifications:    &fleet.OrbitConfigNotifications{},
+			expectedError:            false,
+		},
+		{
+			name: "host not enrolled in osquery",
+			host: &fleet.Host{ID: 1, Platform: "darwin", OsqueryHostID: nil},
+			appConfig: &fleet.AppConfig{
+				MDM: fleet.MDM{EnabledAndConfigured: true},
+			},
+			diskEncryptionConfigured: true,
+			isConnectedToFleetMDM:    true,
+			mdmInfo:                  nil,
+			getHostDiskEncryptionKey: nil,
+			expectedNotifications:    &fleet.OrbitConfigNotifications{},
+			expectedError:            false,
+		},
+		{
+			name: "disk encryption not configured",
+			host: &fleet.Host{ID: 1, Platform: "darwin"},
+			appConfig: &fleet.AppConfig{
+				MDM: fleet.MDM{EnabledAndConfigured: true},
+			},
+			diskEncryptionConfigured: false,
+			isConnectedToFleetMDM:    true,
+			mdmInfo:                  nil,
+			getHostDiskEncryptionKey: nil,
+			expectedNotifications:    &fleet.OrbitConfigNotifications{},
+			expectedError:            false,
+		},
+		{
+			name: "darwin with decryptable key",
+			host: &fleet.Host{ID: 1, Platform: "darwin"},
+			appConfig: &fleet.AppConfig{
+				MDM: fleet.MDM{EnabledAndConfigured: true},
+			},
+			diskEncryptionConfigured: true,
+			isConnectedToFleetMDM:    true,
+			mdmInfo:                  nil,
+			getHostDiskEncryptionKey: func(ctx context.Context, id uint) (*fleet.HostDiskEncryptionKey, error) {
+				return &fleet.HostDiskEncryptionKey{Decryptable: ptr.Bool(true)}, nil
+			},
+			expectedNotifications: &fleet.OrbitConfigNotifications{
+				RotateDiskEncryptionKey: false,
+			},
+			expectedError: false,
+		},
+		{
+			name: "windows server with no encryption needed",
+			host: &fleet.Host{ID: 1, Platform: "windows", DiskEncryptionEnabled: ptr.Bool(true)},
+			appConfig: &fleet.AppConfig{
+				MDM: fleet.MDM{EnabledAndConfigured: true},
+			},
+			diskEncryptionConfigured: true,
+			isConnectedToFleetMDM:    true,
+			mdmInfo:                  &fleet.HostMDM{IsServer: true},
+			getHostDiskEncryptionKey: func(ctx context.Context, id uint) (*fleet.HostDiskEncryptionKey, error) {
+				return nil, newNotFoundError()
+			},
+			expectedNotifications: &fleet.OrbitConfigNotifications{
+				EnforceBitLockerEncryption: false,
+			},
+			expectedError: false,
+		},
+		{
+			name: "windows with encryption enabled but key missing",
+			host: &fleet.Host{ID: 1, Platform: "windows", DiskEncryptionEnabled: ptr.Bool(true)},
+			appConfig: &fleet.AppConfig{
+				MDM: fleet.MDM{EnabledAndConfigured: true},
+			},
+			diskEncryptionConfigured: true,
+			isConnectedToFleetMDM:    true,
+			mdmInfo:                  &fleet.HostMDM{IsServer: false},
+			getHostDiskEncryptionKey: func(ctx context.Context, id uint) (*fleet.HostDiskEncryptionKey, error) {
+				return nil, newNotFoundError()
+			},
+			expectedNotifications: &fleet.OrbitConfigNotifications{
+				EnforceBitLockerEncryption: true,
+			},
+			expectedError: false,
+		},
+		{
+			name: "darwin with missing encryption key",
+			host: &fleet.Host{ID: 1, Platform: "darwin"},
+			appConfig: &fleet.AppConfig{
+				MDM: fleet.MDM{EnabledAndConfigured: true},
+			},
+			diskEncryptionConfigured: true,
+			isConnectedToFleetMDM:    true,
+			mdmInfo:                  nil,
+			getHostDiskEncryptionKey: func(ctx context.Context, id uint) (*fleet.HostDiskEncryptionKey, error) {
+				return nil, newNotFoundError()
+			},
+			expectedNotifications: &fleet.OrbitConfigNotifications{
+				RotateDiskEncryptionKey: false,
+			},
+			expectedError: false,
+		},
+		{
+			name: "windows with encryption key and not decryptable",
+			host: &fleet.Host{ID: 1, Platform: "windows", DiskEncryptionEnabled: ptr.Bool(true)},
+			appConfig: &fleet.AppConfig{
+				MDM: fleet.MDM{EnabledAndConfigured: true},
+			},
+			diskEncryptionConfigured: true,
+			isConnectedToFleetMDM:    true,
+			mdmInfo:                  &fleet.HostMDM{IsServer: false},
+			getHostDiskEncryptionKey: func(ctx context.Context, id uint) (*fleet.HostDiskEncryptionKey, error) {
+				return &fleet.HostDiskEncryptionKey{Decryptable: ptr.Bool(false)}, nil
+			},
+			expectedNotifications: &fleet.OrbitConfigNotifications{
+				EnforceBitLockerEncryption: true,
+			},
+			expectedError: false,
+		},
+		{
+			name: "windows with enforce BitLocker",
+			host: &fleet.Host{ID: 1, Platform: "windows", DiskEncryptionEnabled: ptr.Bool(false)},
+			appConfig: &fleet.AppConfig{
+				MDM: fleet.MDM{EnabledAndConfigured: true},
+			},
+			diskEncryptionConfigured: true,
+			isConnectedToFleetMDM:    true,
+			mdmInfo:                  &fleet.HostMDM{IsServer: false},
+			getHostDiskEncryptionKey: func(ctx context.Context, id uint) (*fleet.HostDiskEncryptionKey, error) {
+				return nil, newNotFoundError()
+			},
+			expectedNotifications: &fleet.OrbitConfigNotifications{
+				EnforceBitLockerEncryption: true,
+			},
+			expectedError: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.getHostDiskEncryptionKey != nil {
+				ds.GetHostDiskEncryptionKeyFunc = tt.getHostDiskEncryptionKey
+			}
+			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+				return tt.appConfig, nil
+			}
+
+			notifs := &fleet.OrbitConfigNotifications{}
+			err := svc.setDiskEncryptionNotifications(ctx, notifs, tt.host, tt.appConfig, tt.diskEncryptionConfigured, tt.isConnectedToFleetMDM, tt.mdmInfo)
+			if tt.expectedError {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
+			require.Equal(t, tt.expectedNotifications.RotateDiskEncryptionKey, notifs.RotateDiskEncryptionKey)
 		})
 	}
 }
