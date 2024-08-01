@@ -1235,7 +1235,7 @@ func IsEligibleForDEPMigration(host *Host, mdmInfo *HostMDM, isConnectedToFleetM
 // is MDM enrolled (DEP or manual) to an MDM other than Fleet will be migration eligible, which I
 // think is the goal of this story. But we should double check the repercussions of that.
 func IsEligibleForManualMigration(host *Host, mdmInfo *HostMDM, isConnectedToFleetMDM bool) bool {
-	return host.IsOsqueryEnrolled() && mdmInfo.Enrolled && (!isConnectedToFleetMDM || mdmInfo.Name != WellKnownMDMFleet)
+	return host.IsOsqueryEnrolled() && mdmInfo != nil && mdmInfo.Enrolled && (!isConnectedToFleetMDM || mdmInfo.Name != WellKnownMDMFleet)
 }
 
 // IsEligibleForBitLockerEncryption checks if the host needs to enforce disk

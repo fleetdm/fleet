@@ -342,6 +342,36 @@ func (m *swiftDialogMDMMigrator) renderMigration() error {
 			return nil
 		}
 
+		// If we have the migration file and this is a manual migration, we should just send the
+		// user straight to the My device page
+
+		log.Debug().Msg("checking manual enrollment status")
+		manual, err := profiles.IsManuallyEnrolledInMDM()
+		if err != nil {
+			return err
+		}
+
+		var migrateFile bool
+		if _, err = os.Stat("/tmp/migration_required"); err != nil {
+			if errors.Is(err, os.ErrNotExist) {
+				log.Debug().Msg("migrate file not found")
+			}
+			log.Err(err).Msg("stating migration file")
+		}
+		if err == nil {
+			migrateFile = true
+		}
+
+		if migrateFile {
+			// The migration file only exists if we successfully hit the webhook
+			log.Debug().Bool("manual", manual).Bool("migrateFile", migrateFile).Msg("trying to open my device page")
+			log.Info().Msg("showing instructions")
+			if err := m.handler.ShowInstructions(); err != nil {
+				return err
+			}
+			m.baseDialog.Exit()
+		}
+
 		if !m.props.IsUnmanaged {
 			// show the loading spinner
 			m.renderLoadingSpinner()
@@ -374,6 +404,20 @@ func (m *swiftDialogMDMMigrator) renderMigration() error {
 				}
 			}
 
+			// TODO(JVE): only write if it doesn't exist
+			var typ []byte
+			if manual {
+				typ = []byte("manual")
+			}
+			if err := os.WriteFile("/tmp/migration_required", typ, 0o644); err != nil {
+				log.Error().Err(err).Msg("writing migration file")
+			}
+
+			log.Info().Msg("showing instructions after unenrollment")
+			if err := m.handler.ShowInstructions(); err != nil {
+				return err
+			}
+
 			// close the spinner
 			// TODO: maybe it's better to use
 			// https://github.com/bartreardon/swiftDialog/wiki/Updating-Dialog-with-new-content
@@ -382,21 +426,21 @@ func (m *swiftDialogMDMMigrator) renderMigration() error {
 		}
 
 		// TODO(JVE): I think this is where we have to show the Remote Management modal instead
-		log.Debug().Msg("checking manual enrollment status")
-		manual, err := profiles.IsManuallyEnrolledInMDM()
-		if err != nil {
-			return err
-		}
+		// log.Debug().Msg("checking manual enrollment status")
+		// manual, err = profiles.IsManuallyEnrolledInMDM()
+		// if err != nil {
+		// 	return err
+		// }
 
-		if manual {
-			log.Debug().Msg("host is manually enrolled")
-			log.Info().Msg("showing instructions")
-			if err := m.handler.ShowInstructions(); err != nil {
-				return err
-			}
-		} else {
-			log.Debug().Msg("host is DEP enrolled")
-		}
+		// if manual {
+		// 	log.Debug().Msg("host is manually enrolled")
+		// 	log.Info().Msg("showing instructions")
+		// 	if err := m.handler.ShowInstructions(); err != nil {
+		// 		return err
+		// 	}
+		// } else {
+		// 	log.Debug().Msg("host is DEP enrolled")
+		// }
 
 	}
 
@@ -467,7 +511,7 @@ func (m *swiftDialogMDMMigrator) getMessageAndFlags() (*bytes.Buffer, []string, 
 		&message,
 		m.props,
 	); err != nil {
-		return nil, nil, fmt.Errorf("executing migrqation template: %w", err)
+		return nil, nil, fmt.Errorf("executing migration template: %w", err)
 	}
 
 	flags := []string{

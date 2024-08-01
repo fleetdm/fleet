@@ -143,11 +143,10 @@ func (svc *Service) GetFleetDesktopSummary(ctx context.Context) (fleet.DesktopSu
 			sum.Notifications.RenewEnrollmentProfile = true
 		}
 
-		if fleet.IsEligibleForDEPMigration(host, mdmInfo, connected) {
+		if fleet.IsEligibleForDEPMigration(host, mdmInfo, connected) || fleet.IsEligibleForManualMigration(host, mdmInfo, connected) {
 			sum.Notifications.NeedsMDMMigration = true
 		}
 
-		sum.Notifications.NeedsMDMMigration = true
 	}
 
 	// organization information

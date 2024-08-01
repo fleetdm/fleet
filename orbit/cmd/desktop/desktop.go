@@ -341,8 +341,12 @@ func main() {
 				}
 				myDeviceItem.Enable()
 
-				shouldRunMigrator := sum.Notifications.NeedsMDMMigration || sum.Notifications.RenewEnrollmentProfile
-				log.Debug().Bool("shouldRunMigrator", shouldRunMigrator).Msg("JVE_LOG: checking if we should run migrator")
+				// Check our file to see if we should migrate
+				migrateFile := doesMigrationFileExist(err)
+				// if we have the file, but we're enrolled to Fleet, then we need to remove the file
+				// and not run the migrator as we're already in Fleet
+				shouldRunMigrator := sum.Notifications.NeedsMDMMigration || sum.Notifications.RenewEnrollmentProfile || migrateFile
+				log.Debug().Bool("shouldRunMigrator", shouldRunMigrator).Bool("migrateFile", migrateFile).Bool("needsMDMMigration", sum.Notifications.NeedsMDMMigration).Msg("JVE_LOG: checking if we should run migrator")
 
 				if runtime.GOOS == "darwin" && shouldRunMigrator && mdmMigrator.CanRun() {
 					enrolled, enrollURL, err := profiles.IsEnrolledInMDM()
@@ -391,11 +395,17 @@ func main() {
 								log.Error().Err(err).Msg("showing MDM migration dialog at interval")
 							}
 						}
+					} else {
+						// we've already migrated, so remove the file
+						if err := os.Remove("/tmp/migration_required"); err != nil {
+							log.Debug().Err(err).Msg("removing migration file")
+						}
 					}
 				} else {
 					log.Debug().Bool("canRun", mdmMigrator.CanRun()).Msg("JVE_LOG: disabling menu item")
 					migrateMDMItem.Disable()
 					migrateMDMItem.Hide()
+					log.Debug().Bool("canRun", mdmMigrator.CanRun()).Msg("JVE_LOG: removed migration file")
 				}
 			}
 		}()
@@ -435,6 +445,20 @@ func main() {
 	}
 
 	systray.Run(onReady, onExit)
+}
+
+func doesMigrationFileExist(err error) bool {
+	var migrateFile bool
+	if _, err := os.Stat("/tmp/migration_required"); err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			log.Debug().Msg("migrate file not found")
+		}
+		log.Err(err).Msg("stating migration file")
+	}
+	if err == nil {
+		migrateFile = true
+	}
+	return migrateFile
 }
 
 type mdmMigrationHandler struct {
