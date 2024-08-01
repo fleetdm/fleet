@@ -489,7 +489,7 @@ When reviewing subscription agreements on customer paper or when a customer has 
 | Role | Google Workspace | Slack | GitHub | Gusto | Pilot | Plane | 1Password |
 |:----------------------|------------------:|------------------:|------------------:|------------------:|------------------:|------------------:|------------------:|
 | CEO | ✅ Super admin | ✅ Primary workspace owner | ✅ Owner | ✅ Primary admin | ✅ Admin| ✅ Owner | ✅ Owner |
-| CTO | ❌ | ❌ | ✅ Owner | ❌ | ✅ | ❌ | ❌ |
+| CTO | ❌ | ❌ | ✅ Owner | ❌ | ✅ Admin | ❌ | ❌ |
 | Head of BizOps | ✅ Super admin | ✅ Owner | ✅ Owner| ✅ Admin | ✅ Admin| ✅ Admin | ✅ Admin |
 | BizOps engineer | ✅ Super admin| ✅ Admin/owner | ✅ Owner| ✅ Admin | ✅ Admin| ✅ Admin | ✅ Admin|
 | Head of Digital Experience | ✅ Super admin| ✅ Owner | ✅ Owner| ❌ | ✅ Admin| ❌ | ✅ Admin|
