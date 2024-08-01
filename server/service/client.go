@@ -557,7 +557,7 @@ func (c *Client) ApplyGroup(
 
 	// Apply "no team" software installers.  Running every time to support
 	// removal of software installers on an empty config.
-	if appconfig != nil && appconfig.License.IsPremium() {
+	if len(specs.Teams) == 0 && appconfig != nil && appconfig.License.IsPremium() {
 		packages := make([]fleet.SoftwarePackageSpec, 0, len(specs.Software))
 		for _, software := range specs.Software {
 			if software != nil {
