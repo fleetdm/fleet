@@ -491,7 +491,7 @@ When reviewing subscription agreements on customer paper or when a customer has 
 | CEO | ✅&nbsp;Super&nbsp;admin | ✅&nbsp;Primary workspace owner | ✅&nbsp;Owner | ✅&nbsp;Primary admin | ✅&nbsp;Admin| ✅&nbsp;Owner | ✅ Owner |
 | CTO | ❌ | ❌ | ✅ Owner | ❌ | ✅ Admin | ❌ | ❌ |
 | Head of BizOps | ✅ Super admin | ✅ Owner | ✅ Owner| ✅ Admin | ✅ Admin| ✅ Admin | ✅ Admin |
-| BizOps engineer | ✅ Super admin| ✅&nbsp;Admin/owner | ✅ Owner| ✅ Admin | ✅ Admin| ✅ Admin | ✅ Admin|
+| BizOps engineer | ✅ Super admin| ✅ Owner | ✅ Owner| ✅ Admin | ✅ Admin| ✅ Admin | ✅ Admin|
 | Head of Digital&nbsp;Experience | ✅ Super admin| ✅ Owner | ✅ Owner| ❌ | ✅ Admin| ❌ | ✅ Admin|
 | Apprentice | ❌ | ❌ | ❌ | ❌ | ✅ Admin| ❌ | ❌ |
 | Digital&nbsp;Experience Engineer | ✅ Super admin | ✅ Admin | ❌ | ❌ | ❌ | ❌ | ✅ Admin|
