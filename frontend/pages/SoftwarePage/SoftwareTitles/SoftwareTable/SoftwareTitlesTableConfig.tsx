@@ -76,11 +76,13 @@ const getSoftwareNameCellData = (
     iconUrl = app_store_app.icon_url;
   }
 
+  const isAllTeams = teamId === undefined;
+
   return {
     name: softwareTitle.name,
     source: softwareTitle.source,
     path: softwareTitleDetailsPath,
-    hasPackage: hasPackage && !!teamId,
+    hasPackage: hasPackage && !isAllTeams,
     isSelfService,
     iconUrl,
   };
