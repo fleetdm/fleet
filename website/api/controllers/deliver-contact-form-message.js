@@ -71,6 +71,19 @@ module.exports = {
       `Name: ${firstName + ' ' + lastName}, Email: ${emailAddress}, Message: ${message ? message : 'No message.'}`
     });
 
+    await sails.helpers.sendTemplateEmail.with({
+      to: sails.config.custom.fromEmailAddress,
+      subject: 'New contact form message',
+      layout: false,
+      template: 'email-contact-form',
+      templateData: {
+        emailAddress,
+        firstName,
+        lastName,
+        message,
+      },
+    });
+
     sails.helpers.salesforce.updateOrCreateContactAndAccount.with({
       emailAddress: emailAddress,
       firstName: firstName,
