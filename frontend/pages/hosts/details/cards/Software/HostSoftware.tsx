@@ -35,7 +35,7 @@ interface IHostSoftwareProps {
   /** This is the host id or the device token */
   id: number | string;
   softwareUpdatedAt?: string;
-  isFleetdHost: boolean;
+  hostCanInstallSoftware: boolean;
   router: InjectedRouter;
   queryParams: ReturnType<typeof parseHostSoftwareQueryParams>;
   pathname: string;
@@ -83,7 +83,7 @@ export const parseHostSoftwareQueryParams = (queryParams: {
 const HostSoftware = ({
   id,
   softwareUpdatedAt,
-  isFleetdHost,
+  hostCanInstallSoftware,
   router,
   queryParams,
   pathname,
@@ -169,7 +169,7 @@ const HostSoftware = ({
     [isMyDevicePage, refetchDeviceSoftware, refetchHostSoftware]
   );
 
-  const canInstallSoftware = Boolean(
+  const userHasSWInstallPermission = Boolean(
     isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer
   );
 
@@ -213,19 +213,19 @@ const HostSoftware = ({
       : generateHostSoftwareTableConfig({
           router,
           installingSoftwareId,
-          canInstall: canInstallSoftware,
+          userHasSWInstallPermission,
           onSelectAction,
           teamId: hostTeamId,
-          isFleetdHost,
+          hostCanInstallSoftware,
         });
   }, [
     isMyDevicePage,
     router,
     installingSoftwareId,
-    canInstallSoftware,
+    userHasSWInstallPermission,
     onSelectAction,
     hostTeamId,
-    isFleetdHost,
+    hostCanInstallSoftware,
   ]);
 
   const isLoading = isMyDevicePage
