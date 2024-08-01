@@ -189,7 +189,6 @@ jobs:
               $_.FullName
           }
 
-          $signtoolBinPath = "${{ steps.signtool_path.outputs.SIGNTOOL }}"
           Get-ChildItem ${{ steps.build_paths.outputs.BINARY_arm64 }} -Recurse -Filter "*.exe" | Foreach-Object {
             echo $_.FullName
             & $signtoolBinPath sign `
@@ -227,7 +226,7 @@ jobs:
         working-directory: ${{ steps.build_paths.outputs.BINARY_x86_64 }}
         shell: powershell
         run: |
-          $signtoolBinPath = "${{ steps.signtool_path.outputs.SIGNTOOL }}"
+          $signtoolBinPath = "signtool.exe"
           Get-ChildItem . -Recurse -Filter "*.msi" | Foreach-Object {
             echo $_.FullName
             & $signtoolBinPath sign `
