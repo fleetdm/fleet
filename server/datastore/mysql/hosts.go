@@ -1045,7 +1045,7 @@ func (ds *Datastore) applyHostFilters(
 				if err != nil {
 					return "", nil, ctxerr.Wrap(ctx, err, "get vpp app by team and title id")
 				}
-				vppAppJoin, vppAppParams, err := ds.vppAppJoin(vppApp.AdamID, *opt.SoftwareStatusFilter)
+				vppAppJoin, vppAppParams, err := ds.vppAppJoin(vppApp.VPPAppID, *opt.SoftwareStatusFilter)
 				if err != nil {
 					return "", nil, ctxerr.Wrap(ctx, err, "vpp app join")
 				}
