@@ -151,7 +151,9 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
   const [showPreviewTicketModal, setShowPreviewTicketModal] = useState(false);
   const [showAddSoftwareModal, setShowAddSoftwareModal] = useState(false);
   const [resetPageIndex, setResetPageIndex] = useState<boolean>(false);
-  const [addedVppAppToken, setAddedVppAppToken] = useState<string | null>(null);
+  const [addedSoftwareToken, setAddedSoftwareToken] = useState<string | null>(
+    null
+  );
 
   const {
     currentTeamId,
@@ -386,7 +388,7 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
           showExploitedVulnerabilitiesOnly,
           softwareFilter,
           resetPageIndex,
-          addedVppAppToken,
+          addedSoftwareToken,
         })}
       </div>
     );
@@ -426,7 +428,7 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
             teamId={currentTeamId ?? 0}
             router={router}
             onExit={toggleAddSoftwareModal}
-            setAddedVppAppToken={setAddedVppAppToken}
+            setAddedSoftwareToken={setAddedSoftwareToken}
           />
         )}
       </div>

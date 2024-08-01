@@ -56,11 +56,14 @@ export interface ISoftwareVersionResponse {
 }
 
 export interface ISoftwareVersionsQueryKey extends ISoftwareApiParams {
+  // used to trigger software refetches from sibling pages
+  addedSoftwareToken: string | null;
   scope: "software-versions";
 }
 
 export interface ISoftwareTitlesQueryKey extends ISoftwareApiParams {
-  addedVppAppToken: string | null;
+  // used to trigger software refetches from sibling pages
+  addedSoftwareToken: string | null;
   scope: "software-titles";
 }
 

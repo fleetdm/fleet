@@ -43,7 +43,7 @@ interface ISoftwareTitlesProps {
   currentPage: number;
   teamId?: number;
   resetPageIndex: boolean;
-  addedVppAppToken: string | null;
+  addedSoftwareToken: string | null;
 }
 
 const SoftwareTitles = ({
@@ -57,7 +57,7 @@ const SoftwareTitles = ({
   currentPage,
   teamId,
   resetPageIndex,
-  addedVppAppToken,
+  addedSoftwareToken,
 }: ISoftwareTitlesProps) => {
   const showVersions = location.pathname === PATHS.SOFTWARE_VERSIONS;
 
@@ -82,7 +82,7 @@ const SoftwareTitles = ({
         orderDirection,
         orderKey,
         teamId,
-        addedVppAppToken,
+        addedSoftwareToken,
         ...getSoftwareFilterForQueryKey(softwareFilter),
       },
     ],
@@ -116,6 +116,7 @@ const SoftwareTitles = ({
         orderKey,
         teamId,
         vulnerable: softwareFilter === "vulnerableSoftware",
+        addedSoftwareToken,
       },
     ],
     ({ queryKey: [queryKey] }) =>
