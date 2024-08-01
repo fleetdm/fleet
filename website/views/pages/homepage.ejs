@@ -6,8 +6,8 @@
         <div class="d-flex flex-row justify-content-center align-items-start">
           <%/* Hero text */%>
           <div purpose="hero-text"  class="d-flex flex-column justify-content-center">
-            <h1><%- partial('../partials/primary-tagline.partial.ejs') %></h1>
-            <p>Replace the sprawl with <%= primaryBuyingSituation === 'vm'? 'secure, open-source reporting that works the way you want' : primaryBuyingSituation === 'eo-security'? 'universal, open-source endpoint visibility' : 'secure, open-source device management that works the way you want' %>.</p>
+            <h1 class="mx-auto <%= primaryBuyingSituation%>"><%- partial('../partials/primary-tagline.partial.ejs') %></h1>
+            <p>Replace the sprawl with <%= primaryBuyingSituation === 'vm'? 'secure, open-source reporting that works the way you want' : primaryBuyingSituation === 'eo-security'? 'universal, open-source endpoint visibility' : 'a modern device management platform that works the way you want' %>.</p>
             <div purpose="button-row" class="d-flex flex-sm-row flex-column justify-content-center align-items-center">
               <a purpose="cta-button" href="<%= primaryBuyingSituation === 'mdm' ? '/device-management' : primaryBuyingSituation === 'vm' ? '/vulnerability-management' : primaryBuyingSituation === 'eo-security' ? '/endpoint-ops' : primaryBuyingSituation === 'eo-it' ? '/endpoint-ops' : '/device-management' %>">Learn how</a>
               <animated-arrow-button href="/contact">Talk to us</animated-arrow-button>

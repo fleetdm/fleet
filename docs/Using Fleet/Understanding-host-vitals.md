@@ -504,7 +504,7 @@ SELECT
   '' AS arch,
   '' AS installed_path
 FROM deb_packages
-WHERE status = 'install ok installed'
+WHERE status LIKE '% ok installed'
 UNION
 SELECT
   package AS name,
