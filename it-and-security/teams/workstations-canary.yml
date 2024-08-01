@@ -88,6 +88,7 @@ controls:
       - path: ../lib/configuration-profiles/macos-secure-terminal-keyboard.mobileconfig
       - path: ../lib/configuration-profiles/macos-disable-update-notifications.mobileconfig
       - path: ../lib/configuration-profiles/passcode-settings-ddm.json
+      - path: ../lib/configuration-profiles/macos-ddm-swu.json
   macos_setup:
     bootstrap_package: ""
     enable_end_user_authentication: true
