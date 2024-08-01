@@ -28,7 +28,7 @@ Fleet's agent (fleetd) generated for MacOS by `fleetctl package` does not includ
 > Ubuntu 24.04 comes with Wayland enabled by default. To use X11 instead of Wayland you can set
 > `WaylandEnable=false` in `/etc/gdm3/custom.conf` and reboot.
 
-> Fedora, CentOS 8 and 9 require a [gnome extension](https://extensions.gnome.org/extension/615/appindicator-support/) and Google Chrome set to the default browser for Fleet Desktop.
+> Fedora, CentOS 8 and 9 require a [gnome extension](https://extensions.gnome.org/extension/615/appindicator-support/) and Google Chrome for Fleet Desktop.
 
 > The `fleetctl package` command is not supported on DISA-STIG distribution.
 
