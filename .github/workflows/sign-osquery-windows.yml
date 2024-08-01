@@ -285,7 +285,6 @@ jobs:
           ls ${{ steps.build_paths.outputs.BINARY_arm64 }}
 
       - name: Upload the packages to GitHub
-        if: github.event.inputs.upload_github == 'yes'
         env:
           GITHUB_TOKEN: ${{secrets.OSQUERY_RELEASE_PAT}}
         shell: powershell
