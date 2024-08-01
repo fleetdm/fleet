@@ -1,0 +1,258 @@
+name: Temporary codesigning for Windows osquery
+
+
+env:
+  RELEASE_TAG: 5.13.0
+
+jobs:
+  codesign_windows:
+    name: Sign the Windows packages
+    timeout-minutes: 10
+    runs-on: windows-2022
+    steps:
+      - name: Input summary
+        run: |
+          echo "Tag: $RELEASE_TAG"
+
+      - name: Clone the osquery-codesign repository
+        uses: actions/checkout@v3
+        with:
+          repository: osquery/osquery-codesign
+          token: ${{ secrets.OSQUERY_RELEASE_PAT }}
+          submodules: true
+          fetch-depth: 0
+
+      - name: Select the newest signtool binary
+        id: signtool_path
+        shell: powershell
+        run: |
+          # We want to list all the Windows SDK versions, sort them and select the newest one
+          $base_path = "${env:ProgramFiles(x86)}\Windows Kits\10\bin\"
+          $latest_windows_sdk = ((Get-ChildItem -Directory $base_path).Name | Select-String 10 | % { $_.Line } | Sort-Object -Descending)[0]
+
+          if(-not $latest_windows_sdk) {
+              throw "No Windows SDK found!"
+          }
+
+          $signtool = $base_path + $latest_windows_sdk + "\x64\signtool.exe"
+
+          if(-not(Test-Path -Path $signtool -PathType Leaf)) {
+              throw "Cannot find signtool binary at $signtool"
+          }
+
+          echo "::set-output name=SIGNTOOL::$signtool"
+
+      - name: Select the osquery-packaging version
+        shell: bash
+        run: |
+          osquery_packaging_commit_id=$(scripts/get_osquery_packaging_commit_id.py $RELEASE_TAG)
+          echo "The tag was originally packaged with the following osquery-packaging commit: ${osquery_packaging_commit_id}"
+
+          if [[ "${{ github.event.inputs.osquery_packaging_override }}" != "" ]] ; then
+            osquery_packaging_commit_id="${{ github.event.inputs.osquery_packaging_override }}"
+            echo "Overriding the osquery-packaging commit id with: ${osquery_packaging_commit_id}"
+          fi
+
+          cd osquery-packaging
+
+          git reset --hard ${osquery_packaging_commit_id}
+          git clean -ffdx
+
+      - name: Setup the build paths
+        shell: powershell
+        id: build_paths
+        run: |
+          $rel_build_path_x86_64 = "build_x86_64"
+          $rel_build_path_arm64 = "build_arm64"
+          $rel_packaging_path = "osquery-packaging"
+
+          New-Item -ItemType Directory -Force -Path $rel_build_path_x86_64
+          New-Item -ItemType Directory -Force -Path $rel_build_path_arm64
+
+          $base_dir = (Get-Item .).FullName
+
+          echo "::set-output name=SOURCE::$base_dir"
+          echo "::set-output name=BINARY_x86_64::$base_dir\$rel_build_path_x86_64"
+          echo "::set-output name=BINARY_arm64::$base_dir\$rel_build_path_arm64"
+          echo "::set-output name=PACKAGING::$base_dir\$rel_packaging_path"
+
+      - name: Initialize the Python 3 installation
+        uses: actions/setup-python@v2
+        with:
+          python-version: "3.x"
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install requests
+
+      - name: Download the CI artifacts
+        env:
+          GITHUB_TOKEN: ${{secrets.OSQUERY_RELEASE_PAT}}
+        shell: powershell
+        run: |
+          Set-Location -Path ${{ steps.build_paths.outputs.BINARY_x86_64 }} -Passthru
+          python ${{ steps.build_paths.outputs.SOURCE }}\scripts\download_artifact.py `
+            $RELEASE_TAG `
+            windows64_unsigned_release_package_data
+          7z x windows64_unsigned_release_package_data.zip
+          7z x windows_package_data.zip
+          Get-ChildItem . -Recurse
+
+          Set-Location -Path ${{ steps.build_paths.outputs.BINARY_arm64 }} -Passthru
+          python ${{ steps.build_paths.outputs.SOURCE }}\scripts\download_artifact.py `
+            $RELEASE_TAG `
+            windowsarm64_unsigned_release_package_data
+
+          7z x windowsarm64_unsigned_release_package_data.zip
+          7z x windows_package_data.zip
+          Get-ChildItem . -Recurse
+
+      # TODO: Remove me with 5.0.0 release.
+      - name: Install osquery.png
+        shell: powershell
+        run: |
+          Copy-Item ${{ steps.build_paths.outputs.SOURCE }}\config\windows\osquery.png `
+            -Destination ${{ steps.build_paths.outputs.BINARY_x86_64 }}\package_data\control\
+
+          Copy-Item ${{ steps.build_paths.outputs.SOURCE }}\config\windows\osquery.png `
+            -Destination ${{ steps.build_paths.outputs.BINARY_arm64 }}\package_data\control\
+
+      - name: Setup codesigning certificate
+        working-directory: ${{ steps.build_paths.outputs.BINARY_x86_64 }}
+        shell: powershell
+        run: |
+          New-Item -ItemType directory -Path certificate
+          Set-Content -Path certificate\certificate.txt -Value '${{ secrets.WIN_CODE_CERT_B64 }}'
+          certutil -decode certificate\certificate.txt certificate.p12
+
+      - name: Sign the osqueryi/osqueryd binaries
+        working-directory: ${{ steps.build_paths.outputs.BINARY_x86_64 }}
+        shell: powershell
+        run: |
+          $signtoolBinPath = "${{ steps.signtool_path.outputs.SIGNTOOL }}"
+          Get-ChildItem ${{ steps.build_paths.outputs.BINARY_x86_64 }} -Recurse -Filter "*.exe" | Foreach-Object {
+            echo $_.FullName
+            & $signtoolBinPath sign `
+              /f ".\certificate.p12" `
+              /p "${{secrets.WIN_CODE_CERT_PASSWORD}}" `
+              /tr "http://timestamp.digicert.com" `
+              /td sha256 `
+              /fd sha256 `
+              $_.FullName
+          }
+
+          $signtoolBinPath = "${{ steps.signtool_path.outputs.SIGNTOOL }}"
+          Get-ChildItem ${{ steps.build_paths.outputs.BINARY_arm64 }} -Recurse -Filter "*.exe" | Foreach-Object {
+            echo $_.FullName
+            & $signtoolBinPath sign `
+              /f ".\certificate.p12" `
+              /p "${{secrets.WIN_CODE_CERT_PASSWORD}}" `
+              /tr "http://timestamp.digicert.com" `
+              /td sha256 `
+              /fd sha256 `
+              $_.FullName
+          }
+
+      # TODO: Add support to generate Arm64 MSI package
+      - name: Generate the MSI package
+        working-directory: ${{ steps.build_paths.outputs.BINARY_x86_64 }}
+        shell: cmd
+        run: |
+          call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
+
+          cmake -DCMAKE_BUILD_TYPE=Release ^
+            -DCPACK_GENERATOR=WIX ^
+            -DOSQUERY_PACKAGE_VERSION=$RELEASE_TAG ^
+            -DOSQUERY_DATA_PATH=package_data ^
+            -DOSQUERY_BITNESS=64 ^
+            ${{ steps.build_paths.outputs.PACKAGING }}
+
+          if %errorlevel% neq 0 exit /b %errorlevel%
+
+          cmake --build . ^
+            --config Release ^
+            --target package
+
+          if %errorlevel% neq 0 exit /b %errorlevel%
+
+      # TODO: Add support to sign Arm64 MSI package
+      - name: Sign the MSI package
+        working-directory: ${{ steps.build_paths.outputs.BINARY_x86_64 }}
+        shell: powershell
+        run: |
+          $signtoolBinPath = "${{ steps.signtool_path.outputs.SIGNTOOL }}"
+          Get-ChildItem . -Recurse -Filter "*.msi" | Foreach-Object {
+            echo $_.FullName
+            & $signtoolBinPath sign `
+              /f .\certificate.p12 `
+              /p "${{secrets.WIN_CODE_CERT_PASSWORD}}" `
+              /tr "http://timestamp.digicert.com" `
+              /td sha256 `
+              /fd sha256 `
+              $_.FullName
+          }
+
+      # TODO: Add support to generate Arm64 NUPKG package
+      - name: Generate the NUPKG package
+        working-directory: ${{ steps.build_paths.outputs.BINARY_x86_64 }}
+        shell: cmd
+        run: |
+          call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
+
+          cmake -DCMAKE_BUILD_TYPE=Release ^
+            -DCPACK_GENERATOR=NuGet ^
+            -DOSQUERY_PACKAGE_VERSION=$RELEASE_TAG ^
+            -DOSQUERY_DATA_PATH=package_data ^
+            -DOSQUERY_BITNESS=64 ^
+            ${{ steps.build_paths.outputs.PACKAGING }}
+
+          if %errorlevel% neq 0 exit /b %errorlevel%
+
+          cmake --build . ^
+            --config Release ^
+            --target package
+
+          if %errorlevel% neq 0 exit /b %errorlevel%
+
+
+      - name: Generate the zip packages
+        shell: powershell
+        run: |
+            Set-Location -Path ${{ steps.build_paths.outputs.BINARY_x86_64 }} -Passthru
+            Rename-Item -Path "package_data" -NewName "osquery-$RELEASE_TAG.windows_x86_64"
+            7z a -tzip -mx=5 "osquery-$RELEASE_TAG.windows_x86_64.zip" "osquery-$RELEASE_TAG.windows_x86_64"
+
+            Set-Location -Path ${{ steps.build_paths.outputs.BINARY_arm64 }} -Passthru
+            Rename-Item -Path "package_data" -NewName "osquery-$RELEASE_TAG.windows_arm64"
+            7z a -tzip -mx=5 "osquery-$RELEASE_TAG.windows_arm64.zip" "osquery-$RELEASE_TAG.windows_arm64"
+
+      - name: Clean up the Windows code signing certificate
+        if: always()
+        working-directory: ${{ steps.build_paths.outputs.BINARY_x86_64 }}
+        shell: powershell
+        run: |
+          Remove-Item -Force certificate.p12
+
+      - name: List Files
+        run: |
+          ls ${{ steps.build_paths.outputs.BINARY_x86_64 }}
+
+          ls ${{ steps.build_paths.outputs.BINARY_arm64 }}
+
+      - name: Upload the packages to GitHub
+        if: github.event.inputs.upload_github == 'yes'
+        env:
+          GITHUB_TOKEN: ${{secrets.OSQUERY_RELEASE_PAT}}
+        shell: powershell
+        run: |
+
+          Set-Location -Path ${{ steps.build_paths.outputs.BINARY_x86_64 }} -Passthru
+
+          gh release upload --repo osquery/osquery $RELEASE_TAG ${{ github.event.inputs.clobber == 'yes' && '--clobber' || '' }} `
+            osquery-$RELEASE_TAG.msi `
+            osquery.$RELEASE_TAG.nupkg `
+            osquery-$RELEASE_TAG.windows_x86_64.zip
+
+          Set-Location -Path ${{ steps.build_paths.outputs.BINARY_arm64 }} -Passthru
+          gh release upload --repo osquery/osquery $RELEASE_TAG ${{ github.event.inputs.clobber == 'yes' && '--clobber' || '' }} `
+            osquery-$RELEASE_TAG.windows_arm64.zip
