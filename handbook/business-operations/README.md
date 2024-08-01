@@ -486,14 +486,14 @@ When reviewing subscription agreements on customer paper or when a customer has 
 - Check the KPI sheet at 5pm US central time to ensure all departments have updated their KPIs on time.  If any departments are delinquent, notify the department head and let the [Apprentice](https://fleetdm.com/handbook/digital-experience#team) know so they can put it on the agenda for their next one-on-one with the CEO.
 
 ### Tech stack admins
-| Role | Google Workspace | Slack | GitHub owner | Gusto | Pilot | Plane | 1Password |
+| Role | Google Workspace | Slack | GitHub | Gusto | Pilot | Plane | 1Password |
 |:----------------------|------------------:|------------------:|------------------:|------------------:|------------------:|------------------:|------------------:|
-| CEO | ✅ Super admin | ✅ Primary workspace owner | ✅ | ✅ Primary admin | ✅ | ✅ Owner | ✅ Owner |
-| CTO | ❌ | ❌ | ✅ | ❌ | ✅ | ❌ | ❌ |
-| Head of BizOps | ✅ Super admin | ✅ Owner | ✅ | ✅ Admin | ✅ | ✅ Admin | ✅ Admin |
-| BizOps engineer | ✅ Super admin| ✅ Admin/owner | ✅ | ✅ Admin | ✅ | ✅ Admin | ✅ Admin|
-| Head of Digital Experience | ✅ Super admin| ✅ Owner | ✅ | ❌ | ✅ | ❌ | ✅ Admin|
-| Apprentice | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ | ❌ |
+| CEO | ✅ Super admin | ✅ Primary workspace owner | ✅ Owner | ✅ Primary admin | ✅ Admin| ✅ Owner | ✅ Owner |
+| CTO | ❌ | ❌ | ✅ Owner | ❌ | ✅ | ❌ | ❌ |
+| Head of BizOps | ✅ Super admin | ✅ Owner | ✅ Owner| ✅ Admin | ✅ Admin| ✅ Admin | ✅ Admin |
+| BizOps engineer | ✅ Super admin| ✅ Admin/owner | ✅ Owner| ✅ Admin | ✅ Admin| ✅ Admin | ✅ Admin|
+| Head of Digital Experience | ✅ Super admin| ✅ Owner | ✅ Owner| ❌ | ✅ Admin| ❌ | ✅ Admin|
+| Apprentice | ❌ | ❌ | ❌ | ❌ | ✅ Admin| ❌ | ❌ |
 | Digital Experience SE | ✅ Super admin | ✅ Admin | ❌ | ❌ | ❌ | ❌ | ✅ Admin|
 | Head of Product Design | ❌ | ✅ Admin | ❌ | ❌ | ❌ | ❌ | ❌ |
 | VP of CX | ❌ | ✅ Owner | ❌ | ❌ | ❌ | ❌ | ❌ |
