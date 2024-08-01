@@ -79,8 +79,7 @@ const HostDetailsBanners = ({
         {showDiskEncryptionUserActionRequired && (
           <InfoBanner color="yellow">
             Disk encryption: Requires action from the end user. Ask the end user
-            to follow <b>Disk encryption</b> instructions on their{" "}
-            <b>My device</b> page.
+            to log out of their device or restart it.
           </InfoBanner>
         )}
       </div>

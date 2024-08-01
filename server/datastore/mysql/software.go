@@ -2264,14 +2264,20 @@ AND EXISTS (SELECT 1 FROM software s JOIN software_cve scve ON scve.software_id 
 	}
 
 	stmt := stmtInstalled
-	if opts.IncludeAvailableForInstall && !opts.VulnerableOnly {
+	if opts.AvailableForInstall || (opts.IncludeAvailableForInstall && !opts.VulnerableOnly) {
 		namedArgs["vpp_apps_platforms"] = []fleet.AppleDevicePlatform{fleet.IOSPlatform, fleet.IPadOSPlatform, fleet.MacOSPlatform}
 		if fleet.IsLinux(host.Platform) {
 			namedArgs["host_compatible_platforms"] = fleet.HostLinuxOSs
 		} else {
 			namedArgs["host_compatible_platforms"] = []string{host.FleetPlatform()}
 		}
-		stmt += ` UNION ` + stmtAvailable
+		if opts.AvailableForInstall {
+			// Only available for install software
+			stmt = stmtAvailable
+		} else {
+			// All software, including available for install
+			stmt += ` UNION ` + stmtAvailable
+		}
 	}
 
 	// must resolve the named bindings here, before adding the searchLike which
