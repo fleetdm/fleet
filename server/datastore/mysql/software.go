@@ -2129,7 +2129,7 @@ AND EXISTS (SELECT 1 FROM software s JOIN software_cve scve ON scve.software_id 
 		LEFT OUTER JOIN
 			vpp_apps vap ON st.id = vap.title_id
 		LEFT OUTER JOIN
-			host_vpp_software_installs hvsi ON vap.adam_id = hvsi.adam_id AND hvsi.host_id = :host_id
+			host_vpp_software_installs hvsi ON vap.adam_id = hvsi.adam_id AND vap.platform = hvsi.platform AND hvsi.host_id = :host_id
 		LEFT OUTER JOIN
 			nano_command_results ncr ON ncr.command_uuid = hvsi.command_uuid
 		WHERE
@@ -2143,7 +2143,7 @@ AND EXISTS (SELECT 1 FROM software s JOIN software_cve scve ON scve.software_id 
 			( hvsi.id IS NULL OR hvsi.id = (
 				SELECT hvsi2.id
 				FROM host_vpp_software_installs hvsi2
-				WHERE hvsi2.host_id = hvsi.host_id AND hvsi2.adam_id = hvsi.adam_id
+				WHERE hvsi2.host_id = hvsi.host_id AND hvsi2.adam_id = hvsi.adam_id AND hvsi2.platform = hvsi.platform
 				ORDER BY hvsi2.created_at DESC
 				LIMIT 1 ) ) AND
 			-- software is installed on host
@@ -2159,8 +2159,6 @@ AND EXISTS (SELECT 1 FROM software s JOIN software_cve scve ON scve.software_id 
 			) OR
 			-- or software install has been attempted on host (via installer or VPP app)
 			hsi.host_id IS NOT NULL OR hvsi.host_id IS NOT NULL )
-			-- make sure VPP platform matches
-			AND (vap.platform IS NULL OR vap.platform = :host_platform)
 			%s
 			%s
 `, softwareInstallerHostStatusNamedQuery("hsi", ""), vppAppHostStatusNamedQuery("hvsi", "ncr", ""), onlySelfServiceClause, onlyVulnerableClause)
