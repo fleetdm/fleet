@@ -3,7 +3,6 @@
     font-weight: 800;
     font-size: 48px;
     line-height: 120%;
-    max-width: 640px;
   }
   h3 {
     font-weight: 800;
@@ -61,7 +60,11 @@
     min-width: 540px;
     text-align: center;
     h1 {
+      max-width: 640px;
       margin-bottom: 16px;
+      &.vm {
+        max-width: unset;
+      }
     }
     p {
       margin-bottom: 32px;
@@ -963,6 +966,11 @@
     [purpose='hero-text'] {
       min-width: unset;
       text-align: center;
+      h1 {
+        &.vm {
+          max-width: 500px;
+        }
+      }
       p {
         max-width: 550px;
         margin-right: auto;
