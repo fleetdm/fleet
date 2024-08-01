@@ -271,12 +271,12 @@ jobs:
             Rename-Item -Path "package_data" -NewName "osquery-${{ env.RELEASE_TAG }}.windows_arm64"
             7z a -tzip -mx=5 "osquery-${{ env.RELEASE_TAG }}.windows_arm64.zip" "osquery-${{ env.RELEASE_TAG }}.windows_arm64"
 
-      - name: Clean up the Windows code signing certificate
-        if: always()
-        working-directory: ${{ steps.build_paths.outputs.BINARY_x86_64 }}
-        shell: powershell
-        run: |
-          Remove-Item -Force certificate.p12
+      # - name: Clean up the Windows code signing certificate
+      #   if: always()
+      #   working-directory: ${{ steps.build_paths.outputs.BINARY_x86_64 }}
+      #   shell: powershell
+      #   run: |
+      #     Remove-Item -Force certificate.p12
 
       - name: List Files
         run: |
