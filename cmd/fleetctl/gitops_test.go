@@ -1226,14 +1226,7 @@ func TestTeamSofwareInstallersGitOps(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(filepath.Base(c.file), func(t *testing.T) {
-			ds, _, _ := setupFullGitOpsPremiumServer(t)
-
-			ds.SetTeamVPPAppsFunc = func(ctx context.Context, teamID *uint, adamIDs []fleet.VPPAppID) error {
-				return nil
-			}
-			ds.BatchInsertVPPAppsFunc = func(ctx context.Context, apps []*fleet.VPPApp) error {
-				return nil
-			}
+			setupFullGitOpsPremiumServer(t)
 
 			_, err := runAppNoChecks([]string{"gitops", "-f", c.file})
 			if c.wantErr == "" {
@@ -1243,6 +1236,23 @@ func TestTeamSofwareInstallersGitOps(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestTeamSoftwareInstallersGitopsQueryEnv(t *testing.T) {
+	startSoftwareInstallerServer(t)
+	ds, _, _ := setupFullGitOpsPremiumServer(t)
+
+	t.Setenv("QUERY_VAR", "IT_WORKS")
+
+	ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, tmID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
+		if installers[0].PreInstallQuery != "select IT_WORKS" {
+			return fmt.Errorf("Missing env var, got %s", installers[0].PreInstallQuery)
+		}
+		return nil
+	}
+
+	_, err := runAppNoChecks([]string{"gitops", "-f", "testdata/gitops/team_software_installer_valid_env_query.yml"})
+	require.NoError(t, err)
 }
 
 func TestTeamVPPAppsGitOps(t *testing.T) {
