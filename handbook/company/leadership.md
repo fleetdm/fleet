@@ -381,7 +381,7 @@ Now what happens?  🔦 Business Operations will then follow the steps in the "H
 
 
 ## Creating 30-60-90 day plans 
-At Fleet, every new hire receives a [30-60-90 day plan](https://docs.google.com/document/d/1EztmPBuMFXbVoy4ZToXcxasNO38ooOh8Gh5hPXFvJhI/edit#heading=h.c05hd0ovw6qb) from their manager, outlining role objectives and success metrics for the first 90 days and beyond. These plans are reviewed weekly in 1:1 meetings during the first three months of employment, ensuring continuous support and alignment with company goals. 
+Before a new hire starts at Fleet, managers create a 30-60-90 day plan outlining key role objectives. These plans are reviewed weekly in 1:1 meetings during the first three months of employment, ensuring continuous support and alignment with company goals. <!-- TODO link to communications section once PR is merged -->
 To create a 30-60-90 day plan for a new teammate: 
 1. **Create a copy of the template:** Navigate to the [templates folder](https://drive.google.com/drive/u/0/folders/1J1Za1DcumsezNKTq_fhyOAc_C2UV3pl4) and create a copy of the 30-60-90 days template. Rename the copied file using the naming convention `[start date] - 30-60-90 day plan - [teammate full name]` and move it to the [30-60-90 day plan folder](https://drive.google.com/drive/u/0/folders/1QWiAbgBFuuofT_3M8oIoBsbEBmubQAj7) in Google Drive.
 2. **Fill out the 30-60-90 day plan:** Follow the prompts in the template to fill out the 30-60-90 day plan for the new teammate before they start.
