@@ -420,7 +420,7 @@ WHERE
 	return &dest, nil
 }
 
-func (ds *Datastore) vppAppJoin(adamID string, status fleet.SoftwareInstallerStatus) (string, []interface{}, error) {
+func (ds *Datastore) vppAppJoin(appID fleet.VPPAppID, status fleet.SoftwareInstallerStatus) (string, []interface{}, error) {
 	stmt := fmt.Sprintf(`JOIN (
 SELECT
 	host_id
@@ -429,13 +429,13 @@ FROM
 LEFT OUTER JOIN
 	nano_command_results ncr ON ncr.command_uuid = hvsi.command_uuid
 WHERE
-	adam_id = :adam_id
+	adam_id = :adam_id AND platform = :platform
 	AND hvsi.id IN(
 		SELECT
 			max(id) -- ensure we use only the most recent install attempt for each host
 			FROM host_vpp_software_installs
 		WHERE
-			adam_id = :adam_id
+			adam_id = :adam_id AND platform = :platform
 		GROUP BY
 			host_id, adam_id)
 	AND (%s) = :status) hss ON hss.host_id = h.id
@@ -443,7 +443,8 @@ WHERE
 
 	return sqlx.Named(stmt, map[string]interface{}{
 		"status":                    status,
-		"adam_id":                   adamID,
+		"adam_id":                   appID.AdamID,
+		"platform":                  appID.Platform,
 		"software_status_installed": fleet.SoftwareInstallerInstalled,
 		"software_status_failed":    fleet.SoftwareInstallerFailed,
 		"software_status_pending":   fleet.SoftwareInstallerPending,
