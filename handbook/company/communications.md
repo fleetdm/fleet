@@ -911,8 +911,6 @@ Expectations during onboarding:
 - Onboarding time (all checkboxes checked) is a KPI for the business operations team.  Our goal is 14 days or less.
 - The first 3 weekdays (excluding days off) for **every new team member** at Fleet is reserved for completing onboarding tasks from the checkboxes in their onboarding issue.  New team members **should not work on anything else during this time**, whether or not other tasks are stacking up or assigned.  It is OK, expected, and appreciated for new team members to **remind their manager and colleagues** of this [important](https://fleetdm.com/handbook/company/why-this-way#why-the-emphasis-on-training) responsibility.
 - Even after the first 3 days, during the rest of their first 2 weeks, completing onboarding tasks on time is a new team member's [highest priority](https://fleetdm.com/handbook/company/why-this-way#why-the-emphasis-on-training).
-- Managers set expectations for continued success at Fleet through a 30-60-90 day plan. This plan is reviewed weekly during manager 1:1 meetings for the first three months of employment.
-<!---TODO add link to 30-60-90 day plan after PR for process has been approved--->
 
 
 ### Sightseeing tour
