@@ -398,7 +398,7 @@ WHERE
 			FROM host_software_installs
 		WHERE
 			software_installer_id = :installer_id
-            AND host_deleted_at IS NULL
+			AND host_deleted_at IS NULL
 		GROUP BY
 			host_id)) s`, softwareInstallerHostStatusNamedQuery("hsi", "status"))
 
