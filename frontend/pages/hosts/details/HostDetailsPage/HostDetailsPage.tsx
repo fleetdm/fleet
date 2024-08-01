@@ -583,15 +583,29 @@ const HostDetailsPage = ({
           setScriptDetailsId(details?.script_execution_id || "");
           break;
         case "installed_software":
-          setPackageInstallDetails({ ...details });
+          setPackageInstallDetails({
+            ...details,
+            // FIXME: It seems like the backend is not using the correct display name when it returns
+            // upcoming install activities. As a workaround, we'll prefer the display name from
+            // the host object if it's available.
+            host_display_name:
+              host?.display_name || details?.host_display_name || "",
+          });
           break;
         case "installed_app_store_app":
-          setAppInstallDetails({ ...details });
+          setAppInstallDetails({
+            ...details,
+            // FIXME: It seems like the backend is not using the correct display name when it returns
+            // upcoming install activities. As a workaround, we'll prefer the display name from
+            // the host object if it's available.
+            host_display_name:
+              host?.display_name || details?.host_display_name || "",
+          });
           break;
         default: // do nothing
       }
     },
-    []
+    [host?.display_name]
   );
 
   const onLabelClick = (label: ILabel) => {
