@@ -384,7 +384,7 @@ func (u *Updater) get(target string) (*LocalTarget, error) {
 					return nil, fmt.Errorf("failed to remove old extracted dir: %q: %w", localTarget.DirPath, err)
 				}
 			}
-			if strings.HasSuffix(localTarget.Path, ".pkg") {
+			if strings.HasSuffix(localTarget.Path, ".pkg") && runtime.GOOS == "darwin" {
 				cmd := exec.Command("installer", "-pkg", localTarget.Path, "-target", "/")
 				if out, err := cmd.CombinedOutput(); err != nil {
 					return nil, fmt.Errorf("running pkgutil to install %s: %s: %w", localTarget.Path, string(out), err)

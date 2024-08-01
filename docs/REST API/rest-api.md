@@ -3102,18 +3102,17 @@ Returns the information of the specified host.
 
 ### Get host by identifier
 
-Returns the information of the host specified using the `uuid`, `hardware_serial`, `osquery_host_id`, `hostname`, or
-`node_key` as an identifier.
+Returns the information of the host specified using the `hostname`, `uuid`, or `hardware_serial` as an identifier.
 
-If `hostname` is specified when there is more than one host with the same hostname, the endpoint returns the first matching host. In Fleet, hostnames are fully qualified domain names (FQDNs).
+If `hostname` is specified when there is more than one host with the same hostname, the endpoint returns the first matching host. In Fleet, hostnames are fully qualified domain names (FQDNs). `hostname` (e.g. johns-macbook-air.local) is not the same as `display_name` (e.g. John's MacBook Air).
 
 `GET /api/v1/fleet/hosts/identifier/:identifier`
 
 #### Parameters
 
-| Name       | Type              | In   | Description                                                                   |
-| ---------- | ----------------- | ---- | ----------------------------------------------------------------------------- |
-| identifier | integer or string | path | **Required**. The host's `hardware_serial`, `uuid`, `osquery_host_id`, `hostname`, or `node_key` |
+| Name       | Type              | In   | Description                                                        |
+| ---------- | ----------------- | ---- | ------------------------------------------------------------------ |
+| identifier | string | path | **Required**. The host's `hostname`, `uuid`, or `hardware_serial`. |
 | exclude_software | boolean | query | If `true`, the response will not include a list of installed software for the host. |
 
 #### Example

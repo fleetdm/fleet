@@ -12,7 +12,7 @@ Fleet supports the [latest version of osquery](https://github.com/osquery/osquer
 
 ## CLI
 
-> You must have `fleetctl` installed. [Learn how to install `fleetctl`](https://fleetdm.com/fleetctl-preview).
+> You must have `fleetctl` installed. [Learn how to install `fleetctl`](https://fleetdm.com/docs/using-fleet/fleetctl-cli#installing-fleetctl).
 
 The `fleetctl package` command is used to generate Fleet's agent (fleetd).
 
