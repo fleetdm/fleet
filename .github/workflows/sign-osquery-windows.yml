@@ -1,5 +1,7 @@
 name: Temporary codesigning for Windows osquery
 
+on:
+  pull_request:
 
 env:
   RELEASE_TAG: 5.13.0
