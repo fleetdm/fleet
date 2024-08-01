@@ -628,6 +628,7 @@ start_ver_tag=fleet-$start_version
 
 if [[ "$minor" == "true" ]]; then
     echo "Minor release from $start_version to $next_ver"
+    start_ver_tag="main"
 else
     echo "Patch release from $start_version to $next_ver"
 fi
