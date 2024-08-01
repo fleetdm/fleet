@@ -4,22 +4,15 @@
 
 Fleet’s self-service software feature empowers end users by allowing them to independently install approved software packages from a curated list through the Fleet Desktop “My device” page. This not only reduces the administrative burden on IT teams but also enhances user productivity and satisfaction. In this guide, we will walk you through the process of uploading, editing, and managing self-service software packages in Fleet, enabling seamless software distribution and management.
 
-
 ## Prerequisites
-
-
 
 * Fleet Premium is required for software self-service.
 
 > Software packages can be added to a specific team or to the "No team" category. The "No team" category is the default assignment for hosts that are not part of any specific team.
 
-
 ## Step-by-Step Instructions
 
-
 ### Adding a self-service software package
-
-
 
 1. **Navigate to the Software page:** Click “Software” in the main navigation menu.
 2. **Select a team:** Click the dropdown in the upper left corner of the page and click on the team to which you want to add the software package.
@@ -31,10 +24,7 @@ Fleet’s self-service software feature empowers end users by allowing them to i
 6. **Make the software package self-service**: Check the “Self-service” checkbox to mark the software package as self-service.
 7. **Finish the upload**: Click the “Add software” button to finish the upload process.
 
-
 ### Editing a self-service software package
-
-
 
 1. **Navigate to the software details page for the software package**: Click “Software” in the main navigation menu.
 2. **Select a team:** Click the dropdown in the upper left corner of the page and click on the team to which you added the software package.
@@ -42,10 +32,7 @@ Fleet’s self-service software feature empowers end users by allowing them to i
 4. **Open the details page**: Click on the software package’s name. 
 5. **Open the actions dropdown**: Click on the “Actions” dropdown on the far right of the page. From here, you can download the software package, delete the software package, or click “Advanced options” to see the options you configured when adding the software package. 
 
-
 ### Downloading a self-service software package
-
-
 
 1. **Navigate to the software details page for the software package:** Click “Software” in the main navigation menu.
 2. **Select a team:** Click the dropdown in the upper left corner of the page and click on the team to which you added the software package.
@@ -54,10 +41,7 @@ Fleet’s self-service software feature empowers end users by allowing them to i
 * **Option 1:** Click on the down-arrow next to the software package name in the list of self-service software packages to start an immediate download.
 * **Option 2:** Click on the software package’s name to open the details page. Click on the “Actions” dropdown on the far right of the page, and then click on “Download” to download the software package to your computer.
 
-
 ### Deleting a self-service software package
-
-
 
 1. **Navigate to the software details page for the software package:** Click “Software” in the main navigation menu.
 2. **Select a team:** Click the dropdown in the upper left corner of the page and click on the team to which you added the software package.
@@ -66,28 +50,22 @@ Fleet’s self-service software feature empowers end users by allowing them to i
 5. **Open the actions dropdown:** Click on the “Actions” dropdown on the far right of the page.
 6. **Delete the software package:** Click on “Delete” to remove the software package from Fleet. Confirm the deletion if prompted.
 
-
 ### Installing self-service software packages
 
 To install the self-service software package on the host:
 
-
-
 1. **Navigate to the “Self-service” tab**: Click on the Fleet Desktop icon in the OS menu bar. Click “Self-service”. This will point your default web browser to the list of self-service software packages in the “My device” page.
 2. **Install the self-service software package**: Click the “Install” button for the software package you want to install.
-
 
 ### Using the REST API for self-service software packages
 
 Fleet provides a REST API for managing software packages, including self-service software packages.  Learn more about Fleet's [REST API](https://fleetdm.com/docs/rest-api/rest-api#software).
-
 
 ### Managing self-service software packages with GitOps
 
 To manage self-service software packages using Fleet's best practice GitOps, check out the `software` key in the [GitOps reference documentation](https://fleetdm.com/docs/using-fleet/gitops#software).
 
 > Note: with GitOps enabled, software packages uploaded using the web UI will not persist.
-
 
 ## Conclusion
 
