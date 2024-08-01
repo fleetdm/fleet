@@ -69,11 +69,12 @@ export default {
     return sendRequest("GET", path);
   },
 
-  addVppApp: (teamId: number, appStoreId: string) => {
+  addVppApp: (teamId: number, appStoreId: string, platform: ApplePlatform) => {
     const { MDM_APPLE_VPP_APPS } = endpoints;
     return sendRequest("POST", MDM_APPLE_VPP_APPS, {
       app_store_id: appStoreId,
       team_id: teamId,
+      platform,
     });
   },
 };
