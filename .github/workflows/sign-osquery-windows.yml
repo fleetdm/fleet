@@ -71,25 +71,25 @@ jobs:
           submodules: true
           fetch-depth: 0
 
-      - name: Select the newest signtool binary
-        id: signtool_path
-        shell: powershell
-        run: |
-          # We want to list all the Windows SDK versions, sort them and select the newest one
-          $base_path = "${env:ProgramFiles(x86)}\Windows Kits\10\bin\"
-          $latest_windows_sdk = ((Get-ChildItem -Directory $base_path).Name | Select-String 10 | % { $_.Line } | Sort-Object -Descending)[0]
+      # - name: Select the newest signtool binary
+      #   id: signtool_path
+      #   shell: powershell
+      #   run: |
+      #     # We want to list all the Windows SDK versions, sort them and select the newest one
+      #     $base_path = "${env:ProgramFiles(x86)}\Windows Kits\10\bin\"
+      #     $latest_windows_sdk = ((Get-ChildItem -Directory $base_path).Name | Select-String 10 | % { $_.Line } | Sort-Object -Descending)[0]
 
-          if(-not $latest_windows_sdk) {
-              throw "No Windows SDK found!"
-          }
+      #     if(-not $latest_windows_sdk) {
+      #         throw "No Windows SDK found!"
+      #     }
 
-          $signtool = $base_path + $latest_windows_sdk + "\x64\signtool.exe"
+      #     $signtool = $base_path + $latest_windows_sdk + "\x64\signtool.exe"
 
-          if(-not(Test-Path -Path $signtool -PathType Leaf)) {
-              throw "Cannot find signtool binary at $signtool"
-          }
+      #     if(-not(Test-Path -Path $signtool -PathType Leaf)) {
+      #         throw "Cannot find signtool binary at $signtool"
+      #     }
 
-          echo "::set-output name=SIGNTOOL::$signtool"
+      #     echo "::set-output name=SIGNTOOL::$signtool"
 
       - name: Select the osquery-packaging version
         shell: bash
@@ -166,24 +166,23 @@ jobs:
           Copy-Item ${{ steps.build_paths.outputs.SOURCE }}\config\windows\osquery.png `
             -Destination ${{ steps.build_paths.outputs.BINARY_arm64 }}\package_data\control\
 
-      - name: Setup codesigning certificate
-        working-directory: ${{ steps.build_paths.outputs.BINARY_x86_64 }}
-        shell: powershell
-        run: |
-          New-Item -ItemType directory -Path certificate
-          Set-Content -Path certificate\certificate.txt -Value '${{ secrets.WIN_CODE_CERT_B64 }}'
-          certutil -decode certificate\certificate.txt certificate.p12
+      # - name: Setup codesigning certificate
+      #   working-directory: ${{ steps.build_paths.outputs.BINARY_x86_64 }}
+      #   shell: powershell
+      #   run: |
+      #     New-Item -ItemType directory -Path certificate
+      #     Set-Content -Path certificate\certificate.txt -Value '${{ secrets.WIN_CODE_CERT_B64 }}'
+      #     certutil -decode certificate\certificate.txt certificate.p12
 
       - name: Sign the osqueryi/osqueryd binaries
         working-directory: ${{ steps.build_paths.outputs.BINARY_x86_64 }}
         shell: powershell
         run: |
-          $signtoolBinPath = "${{ steps.signtool_path.outputs.SIGNTOOL }}"
+          $signtoolBinPath = "signtool.exe"
           Get-ChildItem ${{ steps.build_paths.outputs.BINARY_x86_64 }} -Recurse -Filter "*.exe" | Foreach-Object {
             echo $_.FullName
             & $signtoolBinPath sign `
-              /f ".\certificate.p12" `
-              /p "${{secrets.WIN_CODE_CERT_PASSWORD}}" `
+              /sha1 ${{ secrets.DIGICERT_KEYLOCKER_CERTIFICATE_FINGERPRINT }} `
               /tr "http://timestamp.digicert.com" `
               /td sha256 `
               /fd sha256 `
@@ -194,8 +193,7 @@ jobs:
           Get-ChildItem ${{ steps.build_paths.outputs.BINARY_arm64 }} -Recurse -Filter "*.exe" | Foreach-Object {
             echo $_.FullName
             & $signtoolBinPath sign `
-              /f ".\certificate.p12" `
-              /p "${{secrets.WIN_CODE_CERT_PASSWORD}}" `
+              /sha1 ${{ secrets.DIGICERT_KEYLOCKER_CERTIFICATE_FINGERPRINT }} `
               /tr "http://timestamp.digicert.com" `
               /td sha256 `
               /fd sha256 `
@@ -233,8 +231,7 @@ jobs:
           Get-ChildItem . -Recurse -Filter "*.msi" | Foreach-Object {
             echo $_.FullName
             & $signtoolBinPath sign `
-              /f .\certificate.p12 `
-              /p "${{secrets.WIN_CODE_CERT_PASSWORD}}" `
+              /sha1 ${{ secrets.DIGICERT_KEYLOCKER_CERTIFICATE_FINGERPRINT }} `
               /tr "http://timestamp.digicert.com" `
               /td sha256 `
               /fd sha256 `
