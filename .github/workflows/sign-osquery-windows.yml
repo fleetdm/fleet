@@ -14,7 +14,7 @@ jobs:
     steps:
       - name: Input summary
         run: |
-          echo "Tag: $RELEASE_TAG"
+          echo "Tag: ${{ env.RELEASE_TAG }}"
 
       - name: Clone the osquery-codesign repository
         uses: actions/checkout@v3
@@ -47,7 +47,7 @@ jobs:
       - name: Select the osquery-packaging version
         shell: bash
         run: |
-          osquery_packaging_commit_id=$(scripts/get_osquery_packaging_commit_id.py $RELEASE_TAG)
+          osquery_packaging_commit_id=$(scripts/get_osquery_packaging_commit_id.py ${{ env.RELEASE_TAG }})
           echo "The tag was originally packaged with the following osquery-packaging commit: ${osquery_packaging_commit_id}"
 
           if [[ "${{ github.event.inputs.osquery_packaging_override }}" != "" ]] ; then
@@ -94,7 +94,7 @@ jobs:
         run: |
           Set-Location -Path ${{ steps.build_paths.outputs.BINARY_x86_64 }} -Passthru
           python ${{ steps.build_paths.outputs.SOURCE }}\scripts\download_artifact.py `
-            $RELEASE_TAG `
+            ${{ env.RELEASE_TAG }} `
             windows64_unsigned_release_package_data
           7z x windows64_unsigned_release_package_data.zip
           7z x windows_package_data.zip
@@ -102,7 +102,7 @@ jobs:
 
           Set-Location -Path ${{ steps.build_paths.outputs.BINARY_arm64 }} -Passthru
           python ${{ steps.build_paths.outputs.SOURCE }}\scripts\download_artifact.py `
-            $RELEASE_TAG `
+            ${{ env.RELEASE_TAG }} `
             windowsarm64_unsigned_release_package_data
 
           7z x windowsarm64_unsigned_release_package_data.zip
@@ -164,7 +164,7 @@ jobs:
 
           cmake -DCMAKE_BUILD_TYPE=Release ^
             -DCPACK_GENERATOR=WIX ^
-            -DOSQUERY_PACKAGE_VERSION=$RELEASE_TAG ^
+            -DOSQUERY_PACKAGE_VERSION=${{ env.RELEASE_TAG }} ^
             -DOSQUERY_DATA_PATH=package_data ^
             -DOSQUERY_BITNESS=64 ^
             ${{ steps.build_paths.outputs.PACKAGING }}
@@ -203,7 +203,7 @@ jobs:
 
           cmake -DCMAKE_BUILD_TYPE=Release ^
             -DCPACK_GENERATOR=NuGet ^
-            -DOSQUERY_PACKAGE_VERSION=$RELEASE_TAG ^
+            -DOSQUERY_PACKAGE_VERSION=${{ env.RELEASE_TAG }} ^
             -DOSQUERY_DATA_PATH=package_data ^
             -DOSQUERY_BITNESS=64 ^
             ${{ steps.build_paths.outputs.PACKAGING }}
@@ -221,12 +221,12 @@ jobs:
         shell: powershell
         run: |
             Set-Location -Path ${{ steps.build_paths.outputs.BINARY_x86_64 }} -Passthru
-            Rename-Item -Path "package_data" -NewName "osquery-$RELEASE_TAG.windows_x86_64"
-            7z a -tzip -mx=5 "osquery-$RELEASE_TAG.windows_x86_64.zip" "osquery-$RELEASE_TAG.windows_x86_64"
+            Rename-Item -Path "package_data" -NewName "osquery-${{ env.RELEASE_TAG }}.windows_x86_64"
+            7z a -tzip -mx=5 "osquery-${{ env.RELEASE_TAG }}.windows_x86_64.zip" "osquery-${{ env.RELEASE_TAG }}.windows_x86_64"
 
             Set-Location -Path ${{ steps.build_paths.outputs.BINARY_arm64 }} -Passthru
-            Rename-Item -Path "package_data" -NewName "osquery-$RELEASE_TAG.windows_arm64"
-            7z a -tzip -mx=5 "osquery-$RELEASE_TAG.windows_arm64.zip" "osquery-$RELEASE_TAG.windows_arm64"
+            Rename-Item -Path "package_data" -NewName "osquery-${{ env.RELEASE_TAG }}.windows_arm64"
+            7z a -tzip -mx=5 "osquery-${{ env.RELEASE_TAG }}.windows_arm64.zip" "osquery-${{ env.RELEASE_TAG }}.windows_arm64"
 
       - name: Clean up the Windows code signing certificate
         if: always()
@@ -250,11 +250,11 @@ jobs:
 
           Set-Location -Path ${{ steps.build_paths.outputs.BINARY_x86_64 }} -Passthru
 
-          gh release upload --repo osquery/osquery $RELEASE_TAG ${{ github.event.inputs.clobber == 'yes' && '--clobber' || '' }} `
-            osquery-$RELEASE_TAG.msi `
-            osquery.$RELEASE_TAG.nupkg `
-            osquery-$RELEASE_TAG.windows_x86_64.zip
+          gh release upload --repo osquery/osquery ${{ env.RELEASE_TAG }} ${{ github.event.inputs.clobber == 'yes' && '--clobber' || '' }} `
+            osquery-${{ env.RELEASE_TAG }}.msi `
+            osquery.${{ env.RELEASE_TAG }}.nupkg `
+            osquery-${{ env.RELEASE_TAG }}.windows_x86_64.zip
 
           Set-Location -Path ${{ steps.build_paths.outputs.BINARY_arm64 }} -Passthru
-          gh release upload --repo osquery/osquery $RELEASE_TAG ${{ github.event.inputs.clobber == 'yes' && '--clobber' || '' }} `
-            osquery-$RELEASE_TAG.windows_arm64.zip
+          gh release upload --repo osquery/osquery ${{ env.RELEASE_TAG }} ${{ github.event.inputs.clobber == 'yes' && '--clobber' || '' }} `
+            osquery-${{ env.RELEASE_TAG }}.windows_arm64.zip
