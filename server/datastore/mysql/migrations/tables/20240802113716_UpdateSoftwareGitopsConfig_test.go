@@ -176,12 +176,16 @@ func TestUp_20240802113716(t *testing.T) {
 	require.True(t, team.Config.Software.Packages.Valid)
 	require.Len(t, team.Config.Software.Packages.Value, 1)
 
+	require.False(t, team.Config.Software.AppStoreApps.Set)
+	require.False(t, team.Config.Software.AppStoreApps.Valid)
+	require.Len(t, team.Config.Software.AppStoreApps.Value, 0)
+
 	require.NoError(t, db.Get(&team, "SELECT id, config FROM teams WHERE id = ?", tid2))
 
 	// Team with an empty array originally should have JSON null set for packages
 	require.NotNil(t, team.Config.Software)
 	require.True(t, team.Config.Software.Packages.Set)
-	require.False(t, team.Config.Software.Packages.Valid)
+	require.True(t, team.Config.Software.Packages.Valid)
 	require.Len(t, team.Config.Software.Packages.Value, 0)
 
 	require.False(t, team.Config.Software.AppStoreApps.Set)

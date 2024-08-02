@@ -37,12 +37,8 @@ func Up_20240802113716(tx *sql.Tx) error {
 		rt := reflect.TypeOf(config["software"])
 		if rt.Kind() == reflect.Slice {
 			// then we have an older config without the new fields
-			if d, ok := softwareData.([]any); ok {
-				if len(d) == 0 {
-					softwareData = nil
-				}
-			}
-
+			// Note: we are setting the new key to be whatever the old key was (if it was null, then
+			// it's set to null, if it was empty array, then it's set to empty array)
 			config["software"] = map[string]any{"packages": softwareData}
 			b, err := json.Marshal(config)
 			if err != nil {
