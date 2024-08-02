@@ -321,8 +321,7 @@ Requests are weighed by:
 
 ### After the feature is accepted
 After the 🎁🗣 Feature Fest meeting, the Feature prioritization DRI  will clear the Feature Fest board as follows:
-**Prioritized features:** Remove `feature fest` label, add `:product` label, and move the issue to the "Ready" column in the drafting board. The request will then be assigned to a [Product Designer](https://fleetdm.com/handbook/company/product-groups#current-product-groups) during the "Design sprint kick-off
-" ritual.
+**Prioritized features:** Remove `feature fest` label, add `:product` label, and move the issue to the "Ready" column in the drafting board. The request will then be assigned to a [Product Designer](https://fleetdm.com/handbook/company/product-groups#current-product-groups) during the "Design sprint kick-off" ritual.
 **Put to the side features:** Remove `feature fest` label and notify the requestor.
 
 > The product team's commitment to the requester is that a prioritized feature will be delivered within 6 weeks or the requester will be notified within 1 business day of the decision to de-prioritize the feature. 
