@@ -27,7 +27,15 @@ const createOptionGroup = (
 /** Will create the custom label group options and handles when no labels have been created yet or
  * will filter by the desired search query */
 const createCustomLabelOptions = (labels: ILabel[], query: string) => {
-  const customLabels = labels.filter((label) => label.label_type === "regular");
+  const customLabels = labels
+    .filter((label) => label.label_type === "regular")
+    .sort((a, b) => {
+      // Found this technique here
+      // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/localeCompare
+      return a.name.localeCompare(b.name, undefined, {
+        sensitivity: "base",
+      });
+    });
 
   let customLabelGroupOptions: ILabel[] | IEmptyOption[];
   if (customLabels.length === 0) {
