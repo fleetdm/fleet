@@ -149,6 +149,8 @@ class InputField extends Component {
       });
     };
 
+    // TODO: Include onBlur/onFocus for textarea?
+
     if (type === "textarea") {
       return (
         <FormField
