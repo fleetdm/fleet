@@ -73,7 +73,7 @@ When adding a policy (**Policies** tab > Top right corner **Add policy** > **cre
 
 The description and resolution fields can be AI-generated based on the SQL on the policy.
 
-The admin may press **Autofill** again to regenerate or edit the text manually. Learn more about [Fleet’s AI-assisted policy descriptions and resolutions](https://fleetdm.com/guides/fleet-ai-assisted-policy-descriptions-and-resolutions).
+The admin may press **Autofill** one time to regenerate or edit the text manually. Learn more about [Fleet’s AI-assisted policy descriptions and resolutions](https://fleetdm.com/guides/fleet-ai-assisted-policy-descriptions-and-resolutions).
 
 These fields will appear in the details of the scheduled event.
 
