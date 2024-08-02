@@ -15,7 +15,7 @@ export interface ILicense {
   organization: string;
 }
 
-interface IEndUserAuthentication {
+export interface IEndUserAuthentication {
   entity_id: string;
   idp_name: string;
   issuer_uri: string;

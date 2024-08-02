@@ -7,91 +7,33 @@ import InputField from "components/forms/fields/InputField";
 import CustomLink from "components/CustomLink/CustomLink";
 import Button from "components/buttons/Button/Button";
 import SectionHeader from "components/SectionHeader";
-import validateUrl from "components/forms/validators/valid_url";
 import { NotificationContext } from "context/notification";
 import { AppContext } from "context/app";
 import { expandErrorReasonRequired } from "interfaces/errors";
 import { AxiosResponse } from "axios";
 import TooltipWrapper from "components/TooltipWrapper";
+import {
+  IFormDataIdp,
+  IFormErrorsIdp,
+  newFormDataIdp,
+  validateFormDataIdp,
+} from "./helpers";
 
 const baseClass = "idp-section";
-
-type IIdpFormData = {
-  idpName: string;
-  entityId: string;
-  metadataUrl?: string;
-  metadata?: string;
-};
-
-type FormName = keyof IIdpFormData;
-
-// TODO: backend is not validating all of these rules AFAICT
-
-const ERROR_CONFIGS = {
-  idpName: {
-    isValid: (data: IIdpFormData) => data.idpName !== "",
-    message: "Identity provider name is required.",
-  },
-  entityId: {
-    isValid: (data: IIdpFormData) => data.entityId.length >= 5,
-    message: "Entity ID must be 5 or more characters.",
-  },
-  metadataUrl: {
-    isValid: (data: IIdpFormData) =>
-      !data.metadataUrl || validateUrl({ url: data.metadataUrl }),
-    message: "Metadata URL must be a valid URL.",
-  },
-  metadataOrMetadataUrl: {
-    isValid: (data: IIdpFormData) => !!data.metadata || !!data.metadataUrl,
-    message: "Metadata or Metadata URL is required.",
-  },
-} as const;
-
-type FormError = keyof typeof ERROR_CONFIGS;
-
-type FormErrors = Partial<Record<FormError, string>>;
-
-const isEmptyFormData = (data: IIdpFormData) => {
-  const values = Object.values(data);
-  return !values.length || values.every((v) => v === "");
-};
-
-const validateForm = (data: IIdpFormData): FormErrors | null => {
-  let formErrors: FormErrors | null = null;
-  if (isEmptyFormData(data)) {
-    // TODO: confirm whether we want to allow user to save an empty form or if should be treated
-    // as a form error (what happens is they have enabled end user auth for the team (which located in another
-    // part of the UI) and then try to delete the idp settings here?)
-    return formErrors;
-  }
-  Object.entries(ERROR_CONFIGS).forEach(([k, v]) => {
-    if (!v.isValid(data)) {
-      if (!formErrors) {
-        formErrors = { [k as FormError]: v.message };
-      } else {
-        formErrors[k as FormError] = v.message;
-      }
-    }
-  });
-  return formErrors;
-};
 
 const IdpSection = () => {
   const { config } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
-  const [formData, setFormData] = useState<IIdpFormData>({
-    idpName: config?.mdm.end_user_authentication?.idp_name || "",
-    entityId: config?.mdm.end_user_authentication?.entity_id || "",
-    metadataUrl: config?.mdm.end_user_authentication?.metadata_url || "",
-    metadata: config?.mdm.end_user_authentication?.metadata || "",
-  });
-  const [formErrors, setFormErrors] = useState<FormErrors | null>(null);
+  const [formData, setFormData] = useState(
+    newFormDataIdp(config?.mdm?.end_user_authentication)
+  );
+  const [formErrors, setFormErrors] = useState<IFormErrorsIdp | null>(null);
 
   const onInputChange = useCallback(
-    ({ name, value }: { name: FormName; value: string }) => {
+    ({ name, value }: { name: keyof IFormDataIdp; value: string }) => {
       const newData = { ...formData, [name]: value };
       setFormData(newData);
-      setFormErrors(validateForm(newData));
+      setFormErrors(validateFormDataIdp(newData));
     },
     [formData]
   );
@@ -99,7 +41,7 @@ const IdpSection = () => {
   const onSubmit = useCallback(
     async (e: React.FormEvent<SubmitEvent>) => {
       e.preventDefault();
-      const newErrors = validateForm(formData);
+      const newErrors = validateFormDataIdp(formData);
       if (newErrors) {
         setFormErrors(newErrors);
         return;
@@ -109,10 +51,7 @@ const IdpSection = () => {
         await configAPI.update({
           mdm: {
             end_user_authentication: {
-              idp_name: formData.idpName,
-              entity_id: formData.entityId,
-              metadata_url: formData.metadataUrl,
-              metadata: formData.metadata,
+              ...formData,
             },
           },
         });
@@ -148,19 +87,19 @@ const IdpSection = () => {
         <InputField
           label="Identity provider name"
           onChange={onInputChange}
-          name="idpName"
-          value={formData.idpName}
+          name="idp_name"
+          value={formData.idp_name}
           parseTarget
-          error={formErrors?.idpName}
+          error={formErrors?.idp_name}
           tooltip="A required human friendly name for the identity provider that will provide single sign-on authentication."
         />
         <InputField
           label="Entity ID"
           onChange={onInputChange}
-          name="entityId"
-          value={formData.entityId}
+          name="entity_id"
+          value={formData.entity_id}
           parseTarget
-          error={formErrors?.entityId}
+          error={formErrors?.entity_id}
           tooltip="The required entity ID is a URI that you use to identify Fleet when configuring the identity provider."
         />
         <InputField
@@ -172,10 +111,10 @@ const IdpSection = () => {
             </>
           }
           onChange={onInputChange}
-          name="metadataUrl"
-          value={formData.metadataUrl}
+          name="metadata_url"
+          value={formData.metadata_url}
           parseTarget
-          error={formErrors?.metadataOrMetadataUrl || formErrors?.metadataUrl}
+          error={formErrors?.metadata_url}
           tooltip="Metadata URL provided by the identity provider."
         />
         <InputField
@@ -185,7 +124,7 @@ const IdpSection = () => {
           name="metadata"
           value={formData.metadata}
           parseTarget
-          error={formErrors?.metadataOrMetadataUrl}
+          error={formErrors?.metadata}
           tooltip="Metadata XML provided by the identity provider."
         />
         <TooltipWrapper
