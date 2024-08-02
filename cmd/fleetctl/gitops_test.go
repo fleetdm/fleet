@@ -1298,6 +1298,23 @@ func TestNoTeamSoftwareInstallersGitOps(t *testing.T) {
 	}
 }
 
+func TestTeamSoftwareInstallersGitopsQueryEnv(t *testing.T) {
+	startSoftwareInstallerServer(t)
+	ds, _, _ := setupFullGitOpsPremiumServer(t)
+
+	t.Setenv("QUERY_VAR", "IT_WORKS")
+
+	ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, tmID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
+		if installers[0].PreInstallQuery != "select IT_WORKS" {
+			return fmt.Errorf("Missing env var, got %s", installers[0].PreInstallQuery)
+		}
+		return nil
+	}
+
+	_, err := runAppNoChecks([]string{"gitops", "-f", "testdata/gitops/team_software_installer_valid_env_query.yml"})
+	require.NoError(t, err)
+}
+
 func TestTeamVPPAppsGitOps(t *testing.T) {
 	config := &appleVPPConfigSrvConf{
 		Assets: []vpp.Asset{
