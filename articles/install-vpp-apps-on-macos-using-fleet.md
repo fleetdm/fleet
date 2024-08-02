@@ -1,9 +1,9 @@
-# Install App Store apps (VPP) on macOS using Fleet
+# Install App Store apps (VPP) on macOS, iOS, and iPadOS using Fleet
 
 ![Install VPP apps on macOS using Fleet](../website/assets/images/articles/install-vpp-apps-on-macos-using-fleet-1600x900@2x.png)
 
 
-Fleet supports the ability to add Apple App Store applications to your software library using the Volume Purchasing Program (VPP) and then install those apps on macOS hosts. This guide will walk you through using this feature to add apps from your Apple Business Manager account to Fleet and install those apps on your macOS hosts.
+Fleet supports the ability to add Apple App Store applications to your software library using the Volume Purchasing Program (VPP) and then install those apps on macOS, iOS, or iPadOS hosts. This guide will walk you through using this feature to add apps from your Apple Business Manager account to Fleet and install those apps on your hosts.
 
 The Volume Purchasing Program is an Apple initiative that allows organizations to purchase and distribute apps and books in bulk. This program is particularly beneficial for organizations that need to deploy multiple apps to many devices. Key benefits of VPP include:
 * **Bulk purchasing**: Purchase multiple licenses for an app in one transaction, often with volume discounts.
@@ -11,11 +11,11 @@ The Volume Purchasing Program is an Apple initiative that allows organizations t
 * **Licensing flexibility**: Reassign app licenses as needed, ensuring efficient use of resources.
 * **Streamlined deployment**: Use Fleet to automate the installation and configuration of purchased apps on enrolled devices.
 
-By integrating VPP with Fleet, organizations can seamlessly add apps to their software library and deploy them across macOS hosts, ensuring that all devices have the necessary applications installed efficiently and effectively.
+By integrating VPP with Fleet, organizations can seamlessly add apps to their software library and deploy them across macOS, iOS, and iPadOS hosts, ensuring that all devices have the necessary applications installed efficiently and effectively.
 
 ## Prerequisites
 * **MDM features**: to use the VPP integration, you must first enable MDM features in Fleet. See the [MDM setup guide](https://fleetdm.com/docs/using-fleet/mdm-setup) for instructions on enabling MDM features.
-* **Teams**: Apps can only be added to a specific Team. You can manage teams by selecting your avatar in the top navigation and then **Settings > Teams**.
+* **Teams**: Apps can only be added to a specific Team. You can manage teams by selecting your avatar in the top navigation and then **Settings > Teams**. (Note: Apps can also be added to the 'No Team' team, which contains hosts not assigned to any other team.)
 
 ## Accessing the VPP configuration
 
@@ -49,15 +49,15 @@ To add apps to Fleet, you must first purchase them through Apple Business Manage
 
 4. **Remove the app**: Click on the "Actions" dropdown on the right side of the page. Click "Delete," then click "Delete" on the confirmation modal. Deleting an app will not uninstall the app from the hosts on which it was previously installed.
 
-## Installing apps on macOS hosts
+## Installing apps on macOS, iOS, and iPadOS hosts
 
-1. **Add a macOS host to the relevant team.**
+1. **Add the host to the relevant team.**
 
 2. **Go to the host's detail page**: Click the "Hosts" tab in the main navigation menu. Filter the hosts by the team, and click the host's name to see its details page.
 
-3. **Find the app**: Click the "Software" tab on the host details page. Search for the software you added in the software table's search bar.
+3. **Find the app**: Click the "Software" tab on the host details page. Search for the software you added in the software table's search bar. Instead of searching, you can also filter software by clicking the **All software** dropdown and selecting **Available for install.**
 
-4. **Install the app**: Click the "Actions" dropdown on the far right of the app's entry in the table. Click "Install" to trigger an install. This action will send an MDM command to the host instructing it to install the app.
+4. **Install the app**: Click the "Actions" dropdown on the far right of the app's entry in the table. Click "Install" to trigger an install. This action will send an MDM command to the host instructing it to install the app. If the host is offline, the upcoming install will show up in the **Details** -> **Activity** -> **Upcoming** tab of this page. After the app is installed and the host details are refetched, the app will show up as **Installed** in the **Software** tab.
 
 ## Managing apps with GitOps
 
@@ -69,7 +69,7 @@ Fleet also provides a REST API for managing apps programmatically. You can add, 
 
 ## Conclusion
 
-This feature extends Fleet's capabilities for managing macOS hosts. Whether you manage your hosts' software via uploaded installers or via the App Store VPP integration, Fleet provides you with the tools you need to manage macOS hosts effectively.
+This feature extends Fleet's capabilities for managing macOS, iOS, and iPadOS hosts. Whether you manage your hosts' software via uploaded installers or via the App Store VPP integration, Fleet provides you with the tools you need to manage your hosts effectively.
 
 <meta name="articleTitle" value="Install VPP apps on macOS using Fleet">
 <meta name="authorFullName" value="Jahziel Villasana-Espinoza">
@@ -77,4 +77,4 @@ This feature extends Fleet's capabilities for managing macOS hosts. Whether you 
 <meta name="category" value="guides">
 <meta name="publishedOn" value="2024-07-18">
 <meta name="articleImageUrl" value="../website/assets/images/articles/install-vpp-apps-on-macos-using-fleet-1600x900@2x.png">
-<meta name="description" value="This guide will walk you through installing VPP apps on macOS using Fleet.">
+<meta name="description" value="This guide will walk you through installing VPP apps on macOS, iOS, and iPadOS using Fleet.">
