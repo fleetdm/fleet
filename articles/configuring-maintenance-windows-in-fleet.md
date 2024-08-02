@@ -38,13 +38,13 @@ Follow the instructions found on this page.
 
 Video: [How to configure the Google Calendar API in Fleet](https://www.youtube.com/watch?v=CpbzJNrM2LY). (2m)
 
-### Creating a webhook
+### Handling Fleet's webhook
 
 An external webhook mechanism should be defined to be run as the mitigation plan for failing policies on hosts.
 
 Please refer to the [Building webhook flows with Fleet and Tines](https://fleetdm.com/guides/building-webhook-flows-with-fleet-and-tines) guide to learn more about building webhooks using Tines.
 
-At the end of this operation, you should have a webhook to be used by the Fleet server.
+At the end of this operation, you should have a webhook handler to be used with the Fleet server.
 
 ### Configuring a Policy to run the Webhook if failing (Admin)
 
@@ -52,7 +52,7 @@ At the end of this operation, you should have a webhook to be used by the Fleet 
 2. On the top left dropdown, select a team if needed.
 3. On the top right, click **Manage automations** → **Calendar events**.
 4. On the top left corner of the newly opened modal, click **Enable**.
-5. Paste the webhook you have in the box named: **Resolution webhook URL**
+5. Paste the webhook URL you have in the box named: **Resolution webhook URL**
 6. Select one or more desired policies (click the checkbox next to it)
 
 Video: [Setting a webhook for failing policies in Fleet](https://www.youtube.com/watch?v=evMB6zC8jso). (3m)
@@ -71,7 +71,7 @@ When adding a policy (**Policies** tab > Top right corner **Add policy** > **cre
 
 ![Save policy dialog with Antivirus healthy for Linux with example AI-generated description and resolution.](../website/assets/images/articles/configuring-maintenance-windows-in-fleet-651x782@2x.png "Save policy dialog")
 
-The description and resolution fields will be AI-generated based on the SQL on the policy.
+The description and resolution fields can be AI-generated based on the SQL on the policy.
 
 The admin may press **Autofill** again to regenerate or edit the text manually. Learn more about [Fleet’s AI-assisted policy descriptions and resolutions](https://fleetdm.com/guides/fleet-ai-assisted-policy-descriptions-and-resolutions).
 
