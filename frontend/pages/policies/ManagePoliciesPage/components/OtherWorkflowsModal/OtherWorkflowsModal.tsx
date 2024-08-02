@@ -367,6 +367,7 @@ const OtherWorkflowsModal = ({
       title="Other workflows"
       className={baseClass}
       width="large"
+      isContentDisabled={isUpdating}
     >
       <div className={`${baseClass} form`}>
         <Slider

@@ -130,9 +130,15 @@ interface IAppStoreVppProps {
   teamId: number;
   router: InjectedRouter;
   onExit: () => void;
+  setAddedSoftwareToken: (token: string) => void;
 }
 
-const AppStoreVpp = ({ teamId, router, onExit }: IAppStoreVppProps) => {
+const AppStoreVpp = ({
+  teamId,
+  router,
+  onExit,
+  setAddedSoftwareToken,
+}: IAppStoreVppProps) => {
   const { renderFlash } = useContext(NotificationContext);
   const [isSubmitDisabled, setIsSubmitDisabled] = useState(true);
   const [selectedApp, setSelectedApp] = useState<IVppApp | null>(null);
@@ -189,6 +195,8 @@ const AppStoreVpp = ({ teamId, router, onExit }: IAppStoreVppProps) => {
         team_id: teamId,
         available_for_install: true,
       });
+      // any unique string - triggers SW refetch
+      setAddedSoftwareToken(`${Date.now()}`);
       router.push(`${PATHS.SOFTWARE}?${queryParams}`);
     } catch (e) {
       renderFlash("error", getErrorMessage(e));
