@@ -299,7 +299,7 @@ Requests are weighed from top to bottom while prioritizing attendee requests. Th
 ### How feature requests are evaluated
 Digestion of these new product ideas (requests) happens at the **🎁🗣 Feature Fest** meeting.
 
-Before the **🎁🗣 Feature Fest** meeting, the Customer renewals DRI goes through the "Inbox" column and removes customer requests that are not a high priority for the business. Stakeholders will be notified by the Customer renewals DRI.
+Before the **🎁🗣 Feature Fest** meeting, the [Customer renewals DRI](https://fleetdm.com/handbook/company/communications#directly-responsible-individuals-dris) goes through the "Inbox" column and removes customer requests that are not a high priority for the business. Stakeholders will be notified by the Customer renewals DRI.
 
 All community and contributor requests (non-customer) are left in the inbox. A high priority customer request may be a request that's blocking a customer from getting their job done or a request that's critical for customer renewal.
 
