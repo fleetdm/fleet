@@ -112,7 +112,7 @@ type MDMAppleInstaller struct {
 	// Installer is the actual installer contents.
 	Installer []byte `json:"-" db:"installer"`
 	// URLToken is a random token used for authentication to protect access to installers.
-	// Applications deployede via InstallEnterpriseApplication must be publicly accessible,
+	// Applications deployed via InstallEnterpriseApplication must be publicly accessible,
 	// this hard to guess token provides some protection.
 	URLToken string `json:"url_token" db:"url_token"`
 	// URL is the full URL where the installer is served.
