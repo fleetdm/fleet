@@ -20,6 +20,11 @@ export const newFormDataIdp = (
   };
 };
 
+const isEmptyFormData = (data: IFormDataIdp) => {
+  const values = Object.values(data);
+  return !values.length || values.every((v) => v === "");
+};
+
 const errorIdpName = (data: IFormDataIdp) => {
   if (!data.idp_name) {
     return "Identity provider name must be present.";
@@ -54,7 +59,7 @@ const errorMetadata = (data: IFormDataIdp) => {
   return "";
 };
 
-export const ERROR_CONFIGS = {
+const validators = {
   idp_name: errorIdpName,
   entity_id: errorEntityId,
   metadata_url: errorMetadataUrl,
@@ -62,11 +67,6 @@ export const ERROR_CONFIGS = {
 } as const;
 
 export type IFormErrorsIdp = Partial<Record<keyof IFormDataIdp, string>>;
-
-const isEmptyFormData = (data: IFormDataIdp) => {
-  const values = Object.values(data);
-  return !values.length || values.every((v) => v === "");
-};
 
 export const validateFormDataIdp = (
   data: IFormDataIdp
@@ -78,13 +78,13 @@ export const validateFormDataIdp = (
     // part of the UI) and then try to delete the idp settings here?)
     return formErrors;
   }
-  Object.entries(ERROR_CONFIGS).forEach(([name, checkErr]) => {
-    const err = checkErr(data);
+  Object.entries(validators).forEach(([k, v]) => {
+    const err = v(data);
     if (err) {
       if (!formErrors) {
-        formErrors = { [name as keyof IFormDataIdp]: err };
+        formErrors = { [k as keyof IFormDataIdp]: err };
       } else {
-        formErrors[name as keyof IFormDataIdp] = err;
+        formErrors[k as keyof IFormDataIdp] = err;
       }
     }
   });
