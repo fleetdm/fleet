@@ -10,8 +10,7 @@ When a policy fails, it may indicate a potential security risk or non-compliance
 Some of these policies may be very important, and an admin might decide to act promptly upon a failure to mitigate the issue on the affected hosts. This approach ensures that maintenance activities are performed at a convenient time for the user, minimizing disruptions to their workflow. For more context on the importance and functionality of maintenance windows, refer to our blog post: [Fleet in your calendar: introducing maintenance windows](https://fleetdm.com/announcements/fleet-in-your-calendar-introducing-maintenance-windows).
 
 ## How does it work?
-
-* When a specified policy fails, a predefined mitigation webhook is triggered. 
+ 
 * When a policy fails on a specific host, a Google Calendar event is set for the user owning the host.
 * The maintenance window is scheduled for next Tuesday in an available slot between 9 am and 5 pm local time.
 * The event will have a description of why it is necessary and what will be done.
@@ -103,8 +102,8 @@ Implementing scheduled mitigations not only enhances operational efficiency but 
 
 
 <meta name="articleTitle" value="Configuring maintenance windows in Fleet">
-<meta name="authorFullName" value="Victor Lyuboslavsky">
-<meta name="authorGitHubUsername" value="getvictor">
+<meta name="authorFullName" value="Sharon Katz">
+<meta name="authorGitHubUsername" value="sharon-fdm">
 <meta name="category" value="guides">
 <meta name="publishedOn" value="2024-08-05">
 <meta name="articleImageUrl" value="../website/assets/images/articles/configuring-maintenance-windows-in-fleet-1600x900@2x.jpg">
