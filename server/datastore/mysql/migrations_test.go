@@ -64,7 +64,7 @@ func TestMigrations(t *testing.T) {
 
 	// Dump schema to dumpfile
 	cmd := exec.Command(
-		"docker-compose", "exec", "-T", "mysql_test",
+		"docker", "compose", "exec", "-T", "mysql_test",
 		// Command run inside container
 		"mysqldump", "-u"+testUsername, "-p"+testPassword, "TestMigrations", "--compact", "--skip-comments",
 	)

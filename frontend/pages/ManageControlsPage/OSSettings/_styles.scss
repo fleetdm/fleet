@@ -12,11 +12,15 @@
   &__side-nav {
     .side-nav__nav-list {
       top: 0;
-      padding-right: 40px;
     }
   }
 
   .side-nav__card-container > .custom-settings {
     max-width: none;
+  }
+  @media (max-width: 1120px) {
+    .side-nav__nav-list {
+      padding-right: 0;
+    }
   }
 }

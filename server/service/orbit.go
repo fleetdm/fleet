@@ -10,6 +10,7 @@ import (
 	"net/url"
 
 	"github.com/fleetdm/fleet/v4/server"
+	"github.com/fleetdm/fleet/v4/server/contexts/capabilities"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
@@ -428,6 +429,17 @@ func (svc *Service) setDiskEncryptionNotifications(
 
 	switch host.FleetPlatform() {
 	case "darwin":
+		mp, ok := capabilities.FromContext(ctx)
+		if !ok {
+			level.Debug(svc.logger).Log("msg", "no capabilities in context, skipping disk encryption notification")
+			return nil
+		}
+
+		if !mp.Has(fleet.CapabilityEscrowBuddy) {
+			level.Debug(svc.logger).Log("msg", "host doesn't support Escrow Buddy, skipping disk encryption notification", "host_uuid", host.UUID)
+			return nil
+		}
+
 		notifs.RotateDiskEncryptionKey = encryptionKey != nil && encryptionKey.Decryptable != nil && !*encryptionKey.Decryptable
 	case "windows":
 		isServer := mdmInfo != nil && mdmInfo.IsServer
