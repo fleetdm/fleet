@@ -19,6 +19,7 @@ module.exports = {
     // Find user records that are over an hour old that were created after July 22nd.
     let usersWithMdmBuyingSituation = await User.find({
       primaryBuyingSituation: 'mdm',
+      subscribedToNurtureEmails: true,
       createdAt: {
         '>=': nurtureCampaignStartedAt,
         '<=': oneHourAgoAt,
