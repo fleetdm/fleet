@@ -415,7 +415,7 @@ const DeviceUserPage = ({
                     <SoftwareCard
                       id={deviceAuthToken}
                       softwareUpdatedAt={host.software_updated_at}
-                      hostCanInstallSoftware={!!host.orbit_version}
+                      isFleetdHost={!!host.orbit_version}
                       router={router}
                       pathname={location.pathname}
                       queryParams={parseHostSoftwareQueryParams(location.query)}

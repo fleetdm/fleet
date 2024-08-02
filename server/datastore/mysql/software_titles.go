@@ -40,7 +40,7 @@ FROM software_titles st
 LEFT JOIN software_titles_host_counts sthc ON sthc.software_title_id = st.id
 LEFT JOIN software_installers si ON si.title_id = st.id AND si.global_or_team_id = ?
 LEFT JOIN vpp_apps vap ON vap.title_id = st.id
-LEFT JOIN vpp_apps_teams vat ON vat.global_or_team_id = ? AND vat.adam_id = vap.adam_id AND vat.platform = vap.platform
+LEFT JOIN vpp_apps_teams vat ON vat.global_or_team_id = ? AND vat.adam_id = vap.adam_id
 WHERE st.id = ? AND
 	((sthc.hosts_count > 0 AND %s) OR vat.adam_id IS NOT NULL OR si.id IS NOT NULL)
 GROUP BY

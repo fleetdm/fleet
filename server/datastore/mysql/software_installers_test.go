@@ -328,6 +328,7 @@ func testGetSoftwareInstallResult(t *testing.T, ds *Datastore) {
 			require.Equal(t, tc.expectedStatus, res.Status)
 			require.Equal(t, swFilename, res.SoftwarePackage)
 			require.Equal(t, host.ID, res.HostID)
+			require.Equal(t, host.DisplayName(), res.HostDisplayName)
 			require.Equal(t, tc.preInstallQueryOutput, res.PreInstallQueryOutput)
 			require.Equal(t, tc.postInstallScriptOutput, res.PostInstallScriptOutput)
 			require.Equal(t, tc.installScriptOutput, res.Output)

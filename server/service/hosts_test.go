@@ -1876,7 +1876,7 @@ func TestSetDiskEncryptionNotifications(t *testing.T) {
 	}{
 		{
 			name: "no MDM configured",
-			host: &fleet.Host{ID: 1, Platform: "darwin", OsqueryHostID: ptr.String("foo")},
+			host: &fleet.Host{ID: 1, Platform: "darwin"},
 			appConfig: &fleet.AppConfig{
 				MDM: fleet.MDM{EnabledAndConfigured: false},
 			},
@@ -1889,7 +1889,7 @@ func TestSetDiskEncryptionNotifications(t *testing.T) {
 		},
 		{
 			name: "not connected to Fleet MDM",
-			host: &fleet.Host{ID: 1, Platform: "darwin", OsqueryHostID: ptr.String("foo")},
+			host: &fleet.Host{ID: 1, Platform: "darwin"},
 			appConfig: &fleet.AppConfig{
 				MDM: fleet.MDM{EnabledAndConfigured: true},
 			},
@@ -1915,7 +1915,7 @@ func TestSetDiskEncryptionNotifications(t *testing.T) {
 		},
 		{
 			name: "disk encryption not configured",
-			host: &fleet.Host{ID: 1, Platform: "darwin", OsqueryHostID: ptr.String("foo")},
+			host: &fleet.Host{ID: 1, Platform: "darwin"},
 			appConfig: &fleet.AppConfig{
 				MDM: fleet.MDM{EnabledAndConfigured: true},
 			},
@@ -1928,7 +1928,7 @@ func TestSetDiskEncryptionNotifications(t *testing.T) {
 		},
 		{
 			name: "darwin with decryptable key",
-			host: &fleet.Host{ID: 1, Platform: "darwin", OsqueryHostID: ptr.String("foo")},
+			host: &fleet.Host{ID: 1, Platform: "darwin"},
 			appConfig: &fleet.AppConfig{
 				MDM: fleet.MDM{EnabledAndConfigured: true},
 			},
@@ -1944,25 +1944,8 @@ func TestSetDiskEncryptionNotifications(t *testing.T) {
 			expectedError: false,
 		},
 		{
-			name: "darwin needs rotation",
-			host: &fleet.Host{ID: 1, Platform: "darwin", OsqueryHostID: ptr.String("foo")},
-			appConfig: &fleet.AppConfig{
-				MDM: fleet.MDM{EnabledAndConfigured: true},
-			},
-			diskEncryptionConfigured: true,
-			isConnectedToFleetMDM:    true,
-			mdmInfo:                  nil,
-			getHostDiskEncryptionKey: func(ctx context.Context, id uint) (*fleet.HostDiskEncryptionKey, error) {
-				return &fleet.HostDiskEncryptionKey{Decryptable: ptr.Bool(false)}, nil
-			},
-			expectedNotifications: &fleet.OrbitConfigNotifications{
-				RotateDiskEncryptionKey: true,
-			},
-			expectedError: false,
-		},
-		{
 			name: "windows server with no encryption needed",
-			host: &fleet.Host{ID: 1, Platform: "windows", DiskEncryptionEnabled: ptr.Bool(true), OsqueryHostID: ptr.String("foo")},
+			host: &fleet.Host{ID: 1, Platform: "windows", DiskEncryptionEnabled: ptr.Bool(true)},
 			appConfig: &fleet.AppConfig{
 				MDM: fleet.MDM{EnabledAndConfigured: true},
 			},
@@ -1979,7 +1962,7 @@ func TestSetDiskEncryptionNotifications(t *testing.T) {
 		},
 		{
 			name: "windows with encryption enabled but key missing",
-			host: &fleet.Host{ID: 1, Platform: "windows", DiskEncryptionEnabled: ptr.Bool(true), OsqueryHostID: ptr.String("foo")},
+			host: &fleet.Host{ID: 1, Platform: "windows", DiskEncryptionEnabled: ptr.Bool(true)},
 			appConfig: &fleet.AppConfig{
 				MDM: fleet.MDM{EnabledAndConfigured: true},
 			},
@@ -1996,7 +1979,7 @@ func TestSetDiskEncryptionNotifications(t *testing.T) {
 		},
 		{
 			name: "darwin with missing encryption key",
-			host: &fleet.Host{ID: 1, Platform: "darwin", OsqueryHostID: ptr.String("foo")},
+			host: &fleet.Host{ID: 1, Platform: "darwin"},
 			appConfig: &fleet.AppConfig{
 				MDM: fleet.MDM{EnabledAndConfigured: true},
 			},
@@ -2013,7 +1996,7 @@ func TestSetDiskEncryptionNotifications(t *testing.T) {
 		},
 		{
 			name: "windows with encryption key and not decryptable",
-			host: &fleet.Host{ID: 1, Platform: "windows", DiskEncryptionEnabled: ptr.Bool(true), OsqueryHostID: ptr.String("foo")},
+			host: &fleet.Host{ID: 1, Platform: "windows", DiskEncryptionEnabled: ptr.Bool(true)},
 			appConfig: &fleet.AppConfig{
 				MDM: fleet.MDM{EnabledAndConfigured: true},
 			},
@@ -2030,7 +2013,7 @@ func TestSetDiskEncryptionNotifications(t *testing.T) {
 		},
 		{
 			name: "windows with enforce BitLocker",
-			host: &fleet.Host{ID: 1, Platform: "windows", DiskEncryptionEnabled: ptr.Bool(false), OsqueryHostID: ptr.String("foo")},
+			host: &fleet.Host{ID: 1, Platform: "windows", DiskEncryptionEnabled: ptr.Bool(false)},
 			appConfig: &fleet.AppConfig{
 				MDM: fleet.MDM{EnabledAndConfigured: true},
 			},

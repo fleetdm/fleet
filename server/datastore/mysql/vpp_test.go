@@ -188,15 +188,15 @@ func testVPPAppStatus(t *testing.T, ds *Datastore) {
 	va1, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{Name: "vpp1", BundleIdentifier: "com.app.vpp1",
 		VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_1", Platform: fleet.MacOSPlatform}}, nil)
 	require.NoError(t, err)
-	vpp1 := va1.VPPAppID
+	vpp1 := va1.AdamID
 	va2, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{Name: "vpp2", BundleIdentifier: "com.app.vpp2",
 		VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_2", Platform: fleet.MacOSPlatform}}, &team1.ID)
 	require.NoError(t, err)
-	vpp2 := va2.VPPAppID
+	vpp2 := va2.AdamID
 	va3, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{Name: "vpp3", BundleIdentifier: "com.app.vpp3",
 		VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_3", Platform: fleet.MacOSPlatform}}, nil)
 	require.NoError(t, err)
-	vpp3 := va3.VPPAppID
+	vpp3 := va3.AdamID
 	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{Name: "vpp3", BundleIdentifier: "com.app.vpp3",
 		VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_3", Platform: fleet.MacOSPlatform}}, &team1.ID)
 	require.NoError(t, err)
@@ -251,7 +251,7 @@ func testVPPAppStatus(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// simulate an install request of vpp1 on h1
-	cmd1 := createVPPAppInstallRequest(t, ds, h1, vpp1.AdamID, user.ID)
+	cmd1 := createVPPAppInstallRequest(t, ds, h1, vpp1, user.ID)
 
 	summary, err = ds.GetSummaryHostVPPAppInstalls(ctx, nil, vpp1)
 	require.NoError(t, err)
@@ -266,8 +266,8 @@ func testVPPAppStatus(t *testing.T, ds *Datastore) {
 
 	// create a new request for h1 that supercedes the failed on, and a request
 	// for h2 with a successful result.
-	cmd2 := createVPPAppInstallRequest(t, ds, h1, vpp1.AdamID, user.ID)
-	cmd3 := createVPPAppInstallRequest(t, ds, h2, vpp1.AdamID, user.ID)
+	cmd2 := createVPPAppInstallRequest(t, ds, h1, vpp1, user.ID)
+	cmd3 := createVPPAppInstallRequest(t, ds, h2, vpp1, user.ID)
 	createVPPAppInstallResult(t, ds, h2, cmd3, fleet.MDMAppleStatusAcknowledged)
 
 	actUser, act, err := ds.GetPastActivityDataForVPPAppInstall(ctx, &mdm.CommandResults{CommandUUID: cmd3})
@@ -293,7 +293,7 @@ func testVPPAppStatus(t *testing.T, ds *Datastore) {
 	require.Equal(t, &fleet.VPPAppStatusSummary{Pending: 0, Failed: 0, Installed: 0}, summary)
 
 	// simulate a successful request for team app vpp2 on h3
-	cmd4 := createVPPAppInstallRequest(t, ds, h3, vpp2.AdamID, user.ID)
+	cmd4 := createVPPAppInstallRequest(t, ds, h3, vpp2, user.ID)
 	createVPPAppInstallResult(t, ds, h3, cmd4, fleet.MDMAppleStatusAcknowledged)
 
 	summary, err = ds.GetSummaryHostVPPAppInstalls(ctx, &team1.ID, vpp2)
@@ -302,11 +302,11 @@ func testVPPAppStatus(t *testing.T, ds *Datastore) {
 
 	// simulate a successful, failed and pending request for app vpp3 on team
 	// (h3) and no team (h1, h2)
-	cmd5 := createVPPAppInstallRequest(t, ds, h3, vpp3.AdamID, user.ID)
+	cmd5 := createVPPAppInstallRequest(t, ds, h3, vpp3, user.ID)
 	createVPPAppInstallResult(t, ds, h3, cmd5, fleet.MDMAppleStatusAcknowledged)
-	cmd6 := createVPPAppInstallRequest(t, ds, h1, vpp3.AdamID, user.ID)
+	cmd6 := createVPPAppInstallRequest(t, ds, h1, vpp3, user.ID)
 	createVPPAppInstallResult(t, ds, h1, cmd6, fleet.MDMAppleStatusCommandFormatError)
-	createVPPAppInstallRequest(t, ds, h2, vpp3.AdamID, user.ID)
+	createVPPAppInstallRequest(t, ds, h2, vpp3, user.ID)
 
 	// for no team, it sees the failed and pending counts
 	summary, err = ds.GetSummaryHostVPPAppInstalls(ctx, nil, vpp3)
@@ -330,9 +330,8 @@ func createVPPAppInstallRequest(t *testing.T, ds *Datastore, host *fleet.Host, a
 	require.NoError(t, err)
 
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(ctx,
-			`INSERT INTO host_vpp_software_installs (host_id, adam_id, platform, command_uuid, user_id) VALUES (?, ?, ?, ?, ?)`,
-			host.ID, adamID, host.Platform, cmdUUID, userID)
+		_, err := q.ExecContext(ctx, `INSERT INTO host_vpp_software_installs (host_id, adam_id, command_uuid, user_id) VALUES (?, ?, ?, ?)`,
+			host.ID, adamID, cmdUUID, userID)
 		return err
 	})
 	return cmdUUID
@@ -402,10 +401,10 @@ func testVPPApps(t *testing.T, ds *Datastore) {
 		GlobalRole: ptr.String(fleet.RoleAdmin),
 	})
 	require.NoError(t, err)
-	err = ds.InsertHostVPPSoftwareInstall(ctx, 1, u.ID, app1.VPPAppID, "a", "b")
+	err = ds.InsertHostVPPSoftwareInstall(ctx, 1, u.ID, app1.AdamID, "a", "b")
 	require.NoError(t, err)
 
-	err = ds.InsertHostVPPSoftwareInstall(ctx, 2, u.ID, app2.VPPAppID, "c", "d")
+	err = ds.InsertHostVPPSoftwareInstall(ctx, 2, u.ID, app2.AdamID, "c", "d")
 	require.NoError(t, err)
 
 	var results []struct {

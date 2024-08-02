@@ -628,8 +628,6 @@ start_ver_tag=fleet-$start_version
 
 if [[ "$minor" == "true" ]]; then
     echo "Minor release from $start_version to $next_ver"
-    # For scheduled minor releases, we want to branch off of main
-    start_ver_tag="main"
 else
     echo "Patch release from $start_version to $next_ver"
 fi
@@ -701,7 +699,7 @@ if [ "$cherry_pick_resolved" = "false" ]; then
         git checkout $start_ver_tag
         git pull origin $start_ver_tag
     else
-        echo "DRYRUN: Would have checked out starting at $start_ver_tag"
+        echo "DRYRUN: Would have checked out starting tag $start_ver_tag"
     fi
 
     local_exists=$(git branch | $GREP_CMD $target_branch)
@@ -732,7 +730,7 @@ if [ "$cherry_pick_resolved" = "false" ]; then
         prs_for_issue=$(gh api repos/fleetdm/fleet/issues/$issue/timeline --paginate | jq -r '.[]' | $GREP_CMD "fleetdm/fleet/" | $GREP_CMD -oP "pulls\/\K(?:\d+)")
         echo -n "https://github.com/fleetdm/fleet/issues/$issue"
         if [[ "$prs_for_issue" == "" ]]; then
-            echo -n " - No PRs found, please verify they are not missing in the issue."
+            echo -n " NO PR's found, please verify they are not missing in the issue, if no PR's were required for this ticket please reconsider adding it to this release."
         fi
         for val in $prs_for_issue; do
             echo -n " $val"

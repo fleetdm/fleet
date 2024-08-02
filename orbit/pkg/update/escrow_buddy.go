@@ -43,7 +43,7 @@ func (e *EscrowBuddyRunner) Run(cfg *fleet.OrbitConfig) error {
 	log.Debug().Msgf("EscrowBuddyRunner: notification: %t", cfg.Notifications.RotateDiskEncryptionKey)
 
 	if e.updateRunner == nil {
-		log.Info().Msg("EscrowBuddyRunner: received nil UpdateRunner, this probably indicates that updates are turned off. Skipping any actions related to Disk encryption")
+		log.Debug().Msg("EscrowBuddyRunner: received nil UpdateRunner, this probably indicates that updates are turned off. Skipping any actions related to Disk encryption")
 		return nil
 	}
 

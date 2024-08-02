@@ -428,7 +428,7 @@ func (svc *Service) setDiskEncryptionNotifications(
 
 	switch host.FleetPlatform() {
 	case "darwin":
-		notifs.RotateDiskEncryptionKey = encryptionKey != nil && encryptionKey.Decryptable != nil && !*encryptionKey.Decryptable
+		notifs.RotateDiskEncryptionKey = encryptionKey.Decryptable != nil && !*encryptionKey.Decryptable
 	case "windows":
 		isServer := mdmInfo != nil && mdmInfo.IsServer
 		needsEncryption := host.DiskEncryptionEnabled != nil && !*host.DiskEncryptionEnabled

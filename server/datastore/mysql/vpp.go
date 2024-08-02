@@ -45,8 +45,7 @@ WHERE
 	return &app, nil
 }
 
-func (ds *Datastore) GetSummaryHostVPPAppInstalls(ctx context.Context, teamID *uint, appID fleet.VPPAppID) (*fleet.VPPAppStatusSummary,
-	error) {
+func (ds *Datastore) GetSummaryHostVPPAppInstalls(ctx context.Context, teamID *uint, adamID string) (*fleet.VPPAppStatusSummary, error) {
 	var dest fleet.VPPAppStatusSummary
 
 	stmt := fmt.Sprintf(`
@@ -64,7 +63,7 @@ INNER JOIN
 LEFT OUTER JOIN
 	nano_command_results ncr ON ncr.id = h.uuid AND ncr.command_uuid = hvsi.command_uuid
 WHERE
-	hvsi.adam_id = :adam_id AND hvsi.platform = :platform AND
+	hvsi.adam_id = :adam_id AND
 	(h.team_id = :team_id OR (h.team_id IS NULL AND :team_id = 0)) AND
 	hvsi.id IN (
 		SELECT
@@ -72,7 +71,7 @@ WHERE
 		FROM
 			host_vpp_software_installs hvsi2
 		WHERE
-			hvsi2.adam_id = :adam_id AND hvsi2.platform = :platform
+			hvsi2.adam_id = :adam_id
 		GROUP BY
 			hvsi2.host_id
 	)
@@ -84,8 +83,7 @@ WHERE
 	}
 
 	query, args, err := sqlx.Named(stmt, map[string]interface{}{
-		"adam_id":                   appID.AdamID,
-		"platform":                  appID.Platform,
+		"adam_id":                   adamID,
 		"team_id":                   tmID,
 		"mdm_status_acknowledged":   fleet.MDMAppleStatusAcknowledged,
 		"mdm_status_error":          fleet.MDMAppleStatusError,
@@ -432,17 +430,15 @@ WHERE vat.global_or_team_id = ? AND va.title_id = ?
 	return &dest, nil
 }
 
-func (ds *Datastore) InsertHostVPPSoftwareInstall(ctx context.Context, hostID, userID uint, appID fleet.VPPAppID,
-	commandUUID, associatedEventID string) error {
+func (ds *Datastore) InsertHostVPPSoftwareInstall(ctx context.Context, hostID, userID uint, adamID, commandUUID, associatedEventID string) error {
 	stmt := `
 INSERT INTO host_vpp_software_installs
-  (host_id, adam_id, platform, command_uuid, user_id, associated_event_id)
+  (host_id, adam_id, command_uuid, user_id, associated_event_id)
 VALUES
-  (?,?,?,?,?,?)
+  (?,?,?,?,?)
 	`
 
-	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, hostID, appID.AdamID, appID.Platform, commandUUID, userID,
-		associatedEventID); err != nil {
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, hostID, adamID, commandUUID, userID, associatedEventID); err != nil {
 		return ctxerr.Wrap(ctx, err, "insert into host_vpp_software_installs")
 	}
 
