@@ -14,11 +14,24 @@
     max-width: 120px;
   }
 
-  @media (max-width: 1120px) {
-    .view-hosts-link {
-      span {
-        display: none;
+}
+
+@media (max-width: 1120px) {
+  .view-hosts-link {
+    span {
+      display: none;
+    }
+  }
+  .linkToFilteredHosts {
+    &__header {
+      width: 0;
+      .column-header {
+        width: 0;
       }
     }
+    &__cell {
+      width: min-content;
+    }
+
   }
 }
