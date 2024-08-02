@@ -1376,1082 +1376,1082 @@ func (s *integrationMDMTestSuite) TestMDMAppleUnenroll() {
 	require.Equal(t, "", hostResp.Host.MDM.Name)
 }
 
-func (s *integrationMDMTestSuite) TestMDMDiskEncryptionSettingBackwardsCompat() {
-	t := s.T()
-
-	acResp := appConfigResponse{}
-	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-		"mdm": { "enable_disk_encryption": false }
-  }`), http.StatusOK, &acResp)
-	assert.False(t, acResp.MDM.EnableDiskEncryption.Value)
-
-	// new config takes precedence over old config
-	acResp = appConfigResponse{}
-	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-	  "mdm": { "enable_disk_encryption": false, "macos_settings": {"enable_disk_encryption": true} }
-  }`), http.StatusOK, &acResp)
-	assert.False(t, acResp.MDM.EnableDiskEncryption.Value)
-
-	s.assertConfigProfilesByIdentifier(nil, mobileconfig.FleetFileVaultPayloadIdentifier, false)
-
-	// if new config is not present, old config is applied
-	acResp = appConfigResponse{}
-	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-	  "mdm": { "macos_settings": {"enable_disk_encryption": true} }
-  }`), http.StatusOK, &acResp)
-	assert.True(t, acResp.MDM.EnableDiskEncryption.Value)
-	s.assertConfigProfilesByIdentifier(nil, mobileconfig.FleetFileVaultPayloadIdentifier, true)
-
-	// new config takes precedence over old config again
-	acResp = appConfigResponse{}
-	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-	  "mdm": { "enable_disk_encryption": false, "macos_settings": {"enable_disk_encryption": true} }
-  }`), http.StatusOK, &acResp)
-	assert.False(t, acResp.MDM.EnableDiskEncryption.Value)
-	s.assertConfigProfilesByIdentifier(nil, mobileconfig.FleetFileVaultPayloadIdentifier, false)
-
-	// unrelated change doesn't affect the disk encryption setting
-	acResp = appConfigResponse{}
-	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-	  "mdm": { "macos_settings": {"custom_settings": ["test.mobileconfig"]} }
-  }`), http.StatusOK, &acResp)
-	assert.False(t, acResp.MDM.EnableDiskEncryption.Value)
-
-	// Same tests, but for teams
-	team, err := s.ds.NewTeam(context.Background(), &fleet.Team{
-		Name:        "team1_" + t.Name(),
-		Description: "desc team1_" + t.Name(),
-	})
-	require.NoError(t, err)
-
-	checkTeamDiskEncryption := func(wantSetting bool) {
-		var teamResp getTeamResponse
-		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
-		require.Equal(t, wantSetting, teamResp.Team.Config.MDM.EnableDiskEncryption)
-	}
-
-	// after creation, disk encryption is off
-	checkTeamDiskEncryption(false)
-
-	// new config takes precedence over old config
-	teamSpecs := applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
-		Name: team.Name,
-		MDM: fleet.TeamSpecMDM{
-			EnableDiskEncryption: optjson.SetBool(false),
-			MacOSSettings:        map[string]interface{}{"enable_disk_encryption": true},
-		},
-	}}}
-	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
-	checkTeamDiskEncryption(false)
-	s.assertConfigProfilesByIdentifier(ptr.Uint(team.ID), mobileconfig.FleetFileVaultPayloadIdentifier, false)
-
-	// if new config is not present, old config is applied
-	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
-		Name: team.Name,
-		MDM: fleet.TeamSpecMDM{
-			MacOSSettings: map[string]interface{}{"enable_disk_encryption": true},
-		},
-	}}}
-	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
-	checkTeamDiskEncryption(true)
-	s.assertConfigProfilesByIdentifier(ptr.Uint(team.ID), mobileconfig.FleetFileVaultPayloadIdentifier, true)
-
-	// new config takes precedence over old config again
-	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
-		Name: team.Name,
-		MDM: fleet.TeamSpecMDM{
-			EnableDiskEncryption: optjson.SetBool(false),
-			MacOSSettings:        map[string]interface{}{"enable_disk_encryption": true},
-		},
-	}}}
-	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
-	checkTeamDiskEncryption(false)
-	s.assertConfigProfilesByIdentifier(ptr.Uint(team.ID), mobileconfig.FleetFileVaultPayloadIdentifier, false)
-
-	// unrelated change doesn't affect the disk encryption setting
-	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
-		Name: team.Name,
-		MDM: fleet.TeamSpecMDM{
-			EnableDiskEncryption: optjson.SetBool(false),
-			MacOSSettings:        map[string]interface{}{"custom_settings": []interface{}{"A", "B"}},
-		},
-	}}}
-	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
-	checkTeamDiskEncryption(false)
-	s.assertConfigProfilesByIdentifier(ptr.Uint(team.ID), mobileconfig.FleetFileVaultPayloadIdentifier, false)
-}
-
-func (s *integrationMDMTestSuite) TestDiskEncryptionSharedSetting() {
-	t := s.T()
-
-	// create a team
-	teamName := t.Name()
-	team := &fleet.Team{
-		Name:        teamName,
-		Description: "desc " + teamName,
-	}
-	var createTeamResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", team, http.StatusOK, &createTeamResp)
-	require.NotZero(t, createTeamResp.Team.ID)
-
-	setMDMEnabled := func(macMDM, windowsMDM bool) {
-		appConf, err := s.ds.AppConfig(context.Background())
-		require.NoError(s.T(), err)
-		appConf.MDM.WindowsEnabledAndConfigured = windowsMDM
-		appConf.MDM.EnabledAndConfigured = macMDM
-		err = s.ds.SaveAppConfig(context.Background(), appConf)
-		require.NoError(s.T(), err)
-	}
-
-	// before doing any modifications, grab the current values and make
-	// sure they're set to the same ones on cleanup to not interfere with
-	// other tests.
-	origAppConf, err := s.ds.AppConfig(context.Background())
-	require.NoError(s.T(), err)
-	t.Cleanup(func() {
-		err := s.ds.SaveAppConfig(context.Background(), origAppConf)
-		require.NoError(s.T(), err)
-	})
-
-	checkConfigSetErrors := func() {
-		// try to set app config
-		res := s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-		"mdm": { "enable_disk_encryption": true }
-  }`), http.StatusUnprocessableEntity)
-		errMsg := extractServerErrorText(res.Body)
-		require.Contains(t, errMsg, "Couldn't edit enable_disk_encryption. Neither macOS MDM nor Windows is turned on. Visit https://fleetdm.com/docs/using-fleet to learn how to turn on MDM.")
-
-		// try to create a new team using specs
-		teamSpecs := map[string]any{
-			"specs": []any{
-				map[string]any{
-					"name": teamName + uuid.NewString(),
-					"mdm": map[string]any{
-						"enable_disk_encryption": true,
-					},
-				},
-			},
-		}
-		res = s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusUnprocessableEntity)
-		errMsg = extractServerErrorText(res.Body)
-		require.Contains(t, errMsg, "Couldn't edit enable_disk_encryption. Neither macOS MDM nor Windows is turned on. Visit https://fleetdm.com/docs/using-fleet to learn how to turn on MDM.")
-
-		// try to edit the existing team using specs
-		teamSpecs = map[string]any{
-			"specs": []any{
-				map[string]any{
-					"name": teamName,
-					"mdm": map[string]any{
-						"enable_disk_encryption": true,
-					},
-				},
-			},
-		}
-		res = s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusUnprocessableEntity)
-		errMsg = extractServerErrorText(res.Body)
-		require.Contains(t, errMsg, "Couldn't edit enable_disk_encryption. Neither macOS MDM nor Windows is turned on. Visit https://fleetdm.com/docs/using-fleet to learn how to turn on MDM.")
-	}
-
-	checkConfigSetSucceeds := func() {
-		res := s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-		"mdm": { "enable_disk_encryption": true }
-  }`), http.StatusOK)
-		errMsg := extractServerErrorText(res.Body)
-		require.Empty(t, errMsg)
-
-		// try to create a new team using specs
-		teamSpecs := map[string]any{
-			"specs": []any{
-				map[string]any{
-					"name": teamName + uuid.NewString(),
-					"mdm": map[string]any{
-						"enable_disk_encryption": true,
-					},
-				},
-			},
-		}
-		res = s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
-		errMsg = extractServerErrorText(res.Body)
-		require.Empty(t, errMsg)
-
-		// edit the existing team using specs
-		teamSpecs = map[string]any{
-			"specs": []any{
-				map[string]any{
-					"name": teamName,
-					"mdm": map[string]any{
-						"enable_disk_encryption": true,
-					},
-				},
-			},
-		}
-		res = s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
-		errMsg = extractServerErrorText(res.Body)
-		require.Empty(t, errMsg)
-
-		// always try to set the value to `false` so we start fresh
-		s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-		"mdm": { "enable_disk_encryption": false }
-  }`), http.StatusOK)
-		teamSpecs = map[string]any{
-			"specs": []any{
-				map[string]any{
-					"name": teamName,
-					"mdm": map[string]any{
-						"enable_disk_encryption": false,
-					},
-				},
-			},
-		}
-		s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
-	}
-
-	// disable both windows and mac mdm
-	// we should get an error
-	setMDMEnabled(false, false)
-	checkConfigSetErrors()
-
-	// enable windows mdm, no errors
-	setMDMEnabled(false, true)
-	checkConfigSetSucceeds()
-
-	// enable mac mdm, no errors
-	setMDMEnabled(true, true)
-	checkConfigSetSucceeds()
-
-	// only macos mdm enabled, no errors
-	setMDMEnabled(true, false)
-	checkConfigSetSucceeds()
-}
-
-func (s *integrationMDMTestSuite) TestMDMAppleHostDiskEncryption() {
-	t := s.T()
-	ctx := context.Background()
-
-	// create a host
-	host, err := s.ds.NewHost(ctx, &fleet.Host{
-		DetailUpdatedAt: time.Now(),
-		LabelUpdatedAt:  time.Now(),
-		PolicyUpdatedAt: time.Now(),
-		SeenTime:        time.Now().Add(-1 * time.Minute),
-		OsqueryHostID:   ptr.String(t.Name()),
-		NodeKey:         ptr.String(t.Name()),
-		UUID:            uuid.New().String(),
-		Hostname:        fmt.Sprintf("%sfoo.local", t.Name()),
-		Platform:        "darwin",
-	})
-	require.NoError(t, err)
-
-	// install a filevault profile for that host
-
-	acResp := appConfigResponse{}
-	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-		"mdm": { "enable_disk_encryption": true }
-  }`), http.StatusOK, &acResp)
-	assert.True(t, acResp.MDM.EnableDiskEncryption.Value)
-	fileVaultProf := s.assertConfigProfilesByIdentifier(nil, mobileconfig.FleetFileVaultPayloadIdentifier, true)
-	hostCmdUUID := uuid.New().String()
-	err = s.ds.BulkUpsertMDMAppleHostProfiles(ctx, []*fleet.MDMAppleBulkUpsertHostProfilePayload{
-		{
-			ProfileUUID:       fileVaultProf.ProfileUUID,
-			ProfileIdentifier: fileVaultProf.Identifier,
-			HostUUID:          host.UUID,
-			CommandUUID:       hostCmdUUID,
-			OperationType:     fleet.MDMOperationTypeInstall,
-			Status:            &fleet.MDMDeliveryPending,
-			Checksum:          []byte("csum"),
-		},
-	})
-	require.NoError(t, err)
-
-	t.Cleanup(func() {
-		err := s.ds.UpdateOrDeleteHostMDMAppleProfile(ctx, &fleet.HostMDMAppleProfile{
-			HostUUID:      host.UUID,
-			CommandUUID:   hostCmdUUID,
-			ProfileUUID:   fileVaultProf.ProfileUUID,
-			Status:        &fleet.MDMDeliveryVerifying,
-			OperationType: fleet.MDMOperationTypeRemove,
-		})
-		require.NoError(t, err)
-		// not an error if the profile does not exist
-		_ = s.ds.DeleteMDMAppleConfigProfile(ctx, fileVaultProf.ProfileUUID)
-	})
-
-	// get that host - it should
-	// report "enforcing" disk encryption
-	getHostResp := getHostResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
-	require.NotNil(t, getHostResp.Host.MDM.MacOSSettings.DiskEncryption)
-	require.Equal(t, fleet.DiskEncryptionEnforcing, *getHostResp.Host.MDM.MacOSSettings.DiskEncryption)
-	require.Nil(t, getHostResp.Host.MDM.MacOSSettings.ActionRequired)
-	require.NotNil(t, getHostResp.Host.MDM.OSSettings)
-	require.NotNil(t, getHostResp.Host.MDM.OSSettings.DiskEncryption.Status)
-	require.Equal(t, fleet.DiskEncryptionEnforcing, *getHostResp.Host.MDM.OSSettings.DiskEncryption.Status)
-	require.Equal(t, "", getHostResp.Host.MDM.OSSettings.DiskEncryption.Detail)
-
-	// report a profile install error
-	err = s.ds.UpdateOrDeleteHostMDMAppleProfile(ctx, &fleet.HostMDMAppleProfile{
-		HostUUID:      host.UUID,
-		CommandUUID:   hostCmdUUID,
-		ProfileUUID:   fileVaultProf.ProfileUUID,
-		Status:        &fleet.MDMDeliveryFailed,
-		OperationType: fleet.MDMOperationTypeInstall,
-		Detail:        "test error",
-	})
-	require.NoError(t, err)
-
-	// get that host - it should report "failed" disk encryption and include the error message detail
-	getHostResp = getHostResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
-	require.NotNil(t, getHostResp.Host.MDM.MacOSSettings.DiskEncryption)
-	require.Equal(t, fleet.DiskEncryptionFailed, *getHostResp.Host.MDM.MacOSSettings.DiskEncryption)
-	require.Nil(t, getHostResp.Host.MDM.MacOSSettings.ActionRequired)
-	require.NotNil(t, getHostResp.Host.MDM.OSSettings)
-	require.NotNil(t, getHostResp.Host.MDM.OSSettings.DiskEncryption.Status)
-	require.Equal(t, fleet.DiskEncryptionFailed, *getHostResp.Host.MDM.OSSettings.DiskEncryption.Status)
-	require.Equal(t, "test error", getHostResp.Host.MDM.OSSettings.DiskEncryption.Detail)
-
-	// report that the profile was installed and verified
-	err = s.ds.UpdateOrDeleteHostMDMAppleProfile(ctx, &fleet.HostMDMAppleProfile{
-		HostUUID:      host.UUID,
-		CommandUUID:   hostCmdUUID,
-		ProfileUUID:   fileVaultProf.ProfileUUID,
-		Status:        &fleet.MDMDeliveryVerified,
-		OperationType: fleet.MDMOperationTypeInstall,
-		Detail:        "",
-	})
-	require.NoError(t, err)
-
-	// get that host - it has no encryption key at this point, so it should
-	// report "action_required" disk encryption and "log_out" action.
-	getHostResp = getHostResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
-	require.NotNil(t, getHostResp.Host.MDM.MacOSSettings.DiskEncryption)
-	require.Equal(t, fleet.DiskEncryptionActionRequired, *getHostResp.Host.MDM.MacOSSettings.DiskEncryption)
-	require.NotNil(t, getHostResp.Host.MDM.MacOSSettings.ActionRequired)
-	require.Equal(t, fleet.ActionRequiredRotateKey, *getHostResp.Host.MDM.MacOSSettings.ActionRequired)
-	require.NotNil(t, getHostResp.Host.MDM.OSSettings)
-	require.NotNil(t, getHostResp.Host.MDM.OSSettings.DiskEncryption.Status)
-	require.Equal(t, fleet.DiskEncryptionActionRequired, *getHostResp.Host.MDM.OSSettings.DiskEncryption.Status)
-	require.Equal(t, "", getHostResp.Host.MDM.OSSettings.DiskEncryption.Detail)
-
-	// add an encryption key for the host
-	assets, err := s.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{
-		fleet.MDMAssetCACert,
-	})
-	require.NoError(t, err)
-
-	block, _ := pem.Decode(assets[fleet.MDMAssetCACert].Value)
-	require.NotNil(t, block)
-
-	parsed, err := x509.ParseCertificate(block.Bytes)
-	require.NoError(t, err)
-	recoveryKey := "AAA-BBB-CCC"
-	encryptedKey, err := pkcs7.Encrypt([]byte(recoveryKey), []*x509.Certificate{parsed})
-	require.NoError(t, err)
-	base64EncryptedKey := base64.StdEncoding.EncodeToString(encryptedKey)
-
-	err = s.ds.SetOrUpdateHostDiskEncryptionKey(ctx, host.ID, base64EncryptedKey, "", nil)
-	require.NoError(t, err)
-
-	// get that host - it has an encryption key with unknown decryptability, so
-	// it should report "verifying" disk encryption.
-	getHostResp = getHostResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
-	require.NotNil(t, getHostResp.Host.MDM.MacOSSettings.DiskEncryption)
-	require.Equal(t, fleet.DiskEncryptionVerifying, *getHostResp.Host.MDM.MacOSSettings.DiskEncryption)
-	require.Nil(t, getHostResp.Host.MDM.MacOSSettings.ActionRequired)
-	require.NotNil(t, getHostResp.Host.MDM.OSSettings)
-	require.NotNil(t, getHostResp.Host.MDM.OSSettings.DiskEncryption.Status)
-	require.Equal(t, fleet.DiskEncryptionVerifying, *getHostResp.Host.MDM.OSSettings.DiskEncryption.Status)
-	require.Equal(t, "", getHostResp.Host.MDM.OSSettings.DiskEncryption.Detail)
-
-	// request with no token
-	res := s.DoRawNoAuth("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/encryption_key", host.ID), nil, http.StatusUnauthorized)
-	res.Body.Close()
-
-	// encryption key not processed yet
-	resp := getHostEncryptionKeyResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/encryption_key", host.ID), nil, http.StatusNotFound, &resp)
-
-	// unable to decrypt encryption key
-	err = s.ds.SetHostsDiskEncryptionKeyStatus(ctx, []uint{host.ID}, false, time.Now())
-	require.NoError(t, err)
-	resp = getHostEncryptionKeyResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/encryption_key", host.ID), nil, http.StatusNotFound, &resp)
-
-	// get that host - it has an encryption key that is un-decryptable, so it
-	// should report "action_required" disk encryption and "rotate_key" action.
-	getHostResp = getHostResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
-	require.NotNil(t, getHostResp.Host.MDM.MacOSSettings.DiskEncryption)
-	require.Equal(t, fleet.DiskEncryptionActionRequired, *getHostResp.Host.MDM.MacOSSettings.DiskEncryption)
-	require.NotNil(t, getHostResp.Host.MDM.MacOSSettings.ActionRequired)
-	require.Equal(t, fleet.ActionRequiredRotateKey, *getHostResp.Host.MDM.MacOSSettings.ActionRequired)
-	require.NotNil(t, getHostResp.Host.MDM.OSSettings)
-	require.NotNil(t, getHostResp.Host.MDM.OSSettings.DiskEncryption.Status)
-	require.Equal(t, fleet.DiskEncryptionActionRequired, *getHostResp.Host.MDM.OSSettings.DiskEncryption.Status)
-	require.Equal(t, "", getHostResp.Host.MDM.OSSettings.DiskEncryption.Detail)
-
-	// no activities created so far
-	activities := listActivitiesResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &activities)
-	found := false
-	for _, activity := range activities.Activities {
-		if activity.Type == "read_host_disk_encryption_key" {
-			found = true
-		}
-	}
-	require.False(t, found)
-
-	// decryptable key
-	checkDecryptableKey := func(u fleet.User) {
-		err = s.ds.SetHostsDiskEncryptionKeyStatus(ctx, []uint{host.ID}, true, time.Now())
-		require.NoError(t, err)
-		resp = getHostEncryptionKeyResponse{}
-		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/encryption_key", host.ID), nil, http.StatusOK, &resp)
-		require.Equal(t, recoveryKey, resp.EncryptionKey.DecryptedValue)
-
-		// use the admin token to get the activities
-		currToken := s.token
-		defer func() { s.token = currToken }()
-		s.token = s.getTestAdminToken()
-		s.lastActivityMatches(
-			"read_host_disk_encryption_key",
-			fmt.Sprintf(`{"host_display_name": "%s", "host_id": %d}`, host.DisplayName(), host.ID),
-			0,
-		)
-	}
-
-	team, err := s.ds.NewTeam(context.Background(), &fleet.Team{
-		ID:          4827,
-		Name:        "team1_" + t.Name(),
-		Description: "desc team1_" + t.Name(),
-	})
-	require.NoError(t, err)
-
-	// enable disk encryption on the team so the key is not deleted when the host is added
-	teamSpecs := applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
-		Name: "team1_" + t.Name(),
-		MDM: fleet.TeamSpecMDM{
-			EnableDiskEncryption: optjson.SetBool(true),
-		},
-	}}}
-	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
-
-	// we're about to mess up with the token, make sure to set it to the
-	// default value when the test ends
-	currToken := s.token
-	t.Cleanup(func() { s.token = currToken })
-
-	// admins are able to see the host encryption key
-	s.token = s.getTestAdminToken()
-	checkDecryptableKey(s.users["admin1@example.com"])
-
-	// get that host - it has an encryption key that is decryptable, so it
-	// should report "verified" disk encryption.
-	getHostResp = getHostResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
-	require.NotNil(t, getHostResp.Host.MDM.MacOSSettings.DiskEncryption)
-	require.Equal(t, fleet.DiskEncryptionVerified, *getHostResp.Host.MDM.MacOSSettings.DiskEncryption)
-	require.Nil(t, getHostResp.Host.MDM.MacOSSettings.ActionRequired)
-	require.NotNil(t, getHostResp.Host.MDM.OSSettings)
-	require.NotNil(t, getHostResp.Host.MDM.OSSettings.DiskEncryption.Status)
-	require.Equal(t, fleet.DiskEncryptionVerified, *getHostResp.Host.MDM.OSSettings.DiskEncryption.Status)
-	require.Equal(t, "", getHostResp.Host.MDM.OSSettings.DiskEncryption.Detail)
-
-	// maintainers are able to see the token
-	u := s.users["user1@example.com"]
-	s.token = s.getTestToken(u.Email, test.GoodPassword)
-	checkDecryptableKey(u)
-
-	// observers are able to see the token
-	u = s.users["user2@example.com"]
-	s.token = s.getTestToken(u.Email, test.GoodPassword)
-	checkDecryptableKey(u)
-
-	// add the host to a team
-	err = s.ds.AddHostsToTeam(ctx, &team.ID, []uint{host.ID})
-	require.NoError(t, err)
-
-	// admins are still able to see the token
-	s.token = s.getTestAdminToken()
-	checkDecryptableKey(s.users["admin1@example.com"])
-
-	// maintainers are still able to see the token
-	u = s.users["user1@example.com"]
-	s.token = s.getTestToken(u.Email, test.GoodPassword)
-	checkDecryptableKey(u)
-
-	// observers are still able to see the token
-	u = s.users["user2@example.com"]
-	s.token = s.getTestToken(u.Email, test.GoodPassword)
-	checkDecryptableKey(u)
-
-	// add a team member
-	u = fleet.User{
-		Name:       "test team user",
-		Email:      "user1+team@example.com",
-		GlobalRole: nil,
-		Teams: []fleet.UserTeam{
-			{
-				Team: *team,
-				Role: fleet.RoleMaintainer,
-			},
-		},
-	}
-	require.NoError(t, u.SetPassword(test.GoodPassword, 10, 10))
-	_, err = s.ds.NewUser(ctx, &u)
-	require.NoError(t, err)
-
-	// members are able to see the token
-	s.token = s.getTestToken(u.Email, test.GoodPassword)
-	checkDecryptableKey(u)
-
-	// create a separate team
-	team2, err := s.ds.NewTeam(context.Background(), &fleet.Team{
-		ID:          4828,
-		Name:        "team2_" + t.Name(),
-		Description: "desc team2_" + t.Name(),
-	})
-	require.NoError(t, err)
-	// add a team member
-	u = fleet.User{
-		Name:       "test team user",
-		Email:      "user1+team2@example.com",
-		GlobalRole: nil,
-		Teams: []fleet.UserTeam{
-			{
-				Team: *team2,
-				Role: fleet.RoleMaintainer,
-			},
-		},
-	}
-	require.NoError(t, u.SetPassword(test.GoodPassword, 10, 10))
-	_, err = s.ds.NewUser(ctx, &u)
-	require.NoError(t, err)
-
-	// non-members aren't able to see the token
-	s.token = s.getTestToken(u.Email, test.GoodPassword)
-	resp = getHostEncryptionKeyResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/encryption_key", host.ID), nil, http.StatusForbidden, &resp)
-}
-
-func (s *integrationMDMTestSuite) TestWindowsMDMGetEncryptionKey() {
-	t := s.T()
-	ctx := context.Background()
-
-	// create a host and enroll it in Fleet
-	host := createOrbitEnrolledHost(t, "windows", "h1", s.ds)
-	err := s.ds.SetOrUpdateMDMData(ctx, host.ID, false, true, s.server.URL, false, fleet.WellKnownMDMFleet, "")
-	require.NoError(t, err)
-
-	// request encryption key with no auth token
-	res := s.DoRawNoAuth("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/encryption_key", host.ID), nil, http.StatusUnauthorized)
-	res.Body.Close()
-
-	// no encryption key
-	resp := getHostEncryptionKeyResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/encryption_key", host.ID), nil, http.StatusNotFound, &resp)
-
-	// invalid host id
-	resp = getHostEncryptionKeyResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/encryption_key", host.ID+999), nil, http.StatusNotFound, &resp)
-
-	// add an encryption key for the host
-	cert, _, _, err := s.fleetCfg.MDM.MicrosoftWSTEP()
-	require.NoError(t, err)
-	recoveryKey := "AAA-BBB-CCC"
-	encryptedKey, err := microsoft_mdm.Encrypt(recoveryKey, cert.Leaf)
-	require.NoError(t, err)
-
-	err = s.ds.SetOrUpdateHostDiskEncryptionKey(ctx, host.ID, encryptedKey, "", ptr.Bool(true))
-	require.NoError(t, err)
-
-	resp = getHostEncryptionKeyResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/encryption_key", host.ID), nil, http.StatusOK, &resp)
-	require.Equal(t, host.ID, resp.HostID)
-	require.Equal(t, recoveryKey, resp.EncryptionKey.DecryptedValue)
-	s.lastActivityOfTypeMatches(fleet.ActivityTypeReadHostDiskEncryptionKey{}.ActivityName(),
-		fmt.Sprintf(`{"host_display_name": "%s", "host_id": %d}`, host.DisplayName(), host.ID), 0)
-
-	// update the key to blank with a client error
-	err = s.ds.SetOrUpdateHostDiskEncryptionKey(ctx, host.ID, "", "failed", nil)
-	require.NoError(t, err)
-
-	resp = getHostEncryptionKeyResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/encryption_key", host.ID), nil, http.StatusNotFound, &resp)
-}
-
-func (s *integrationMDMTestSuite) TestAppConfigMDMAppleDiskEncryption() {
-	t := s.T()
-
-	// set the macos disk encryption field
-	acResp := appConfigResponse{}
-	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-		"mdm": { "enable_disk_encryption": true }
-  }`), http.StatusOK, &acResp)
-	assert.True(t, acResp.MDM.EnableDiskEncryption.Value)
-	enabledDiskActID := s.lastActivityMatches(fleet.ActivityTypeEnabledMacosDiskEncryption{}.ActivityName(),
-		`{"team_id": null, "team_name": null}`, 0)
-
-	// will have generated the macos config profile
-	s.assertConfigProfilesByIdentifier(nil, mobileconfig.FleetFileVaultPayloadIdentifier, true)
-
-	// check that they are returned by a GET /config
-	acResp = appConfigResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
-	assert.True(t, acResp.MDM.EnableDiskEncryption.Value)
-
-	// patch without specifying the macos disk encryption and an unrelated field,
-	// should not alter it
-	acResp = appConfigResponse{}
-	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-                     "mdm": { "macos_settings": {"custom_settings": [{"path": "a"}]} }
-		}`), http.StatusOK, &acResp)
-	assert.True(t, acResp.MDM.EnableDiskEncryption.Value)
-	assert.Equal(t, []fleet.MDMProfileSpec{{Path: "a"}}, acResp.MDM.MacOSSettings.CustomSettings)
-	s.lastActivityMatches(fleet.ActivityTypeEnabledMacosDiskEncryption{}.ActivityName(),
-		``, enabledDiskActID)
-
-	// patch with false, would reset it but this is a dry-run
-	acResp = appConfigResponse{}
-	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-				"mdm": { "enable_disk_encryption": false }
-		  }`), http.StatusOK, &acResp, "dry_run", "true")
-	assert.True(t, acResp.MDM.EnableDiskEncryption.Value)
-	assert.Equal(t, []fleet.MDMProfileSpec{{Path: "a"}}, acResp.MDM.MacOSSettings.CustomSettings)
-	s.lastActivityMatches(fleet.ActivityTypeEnabledMacosDiskEncryption{}.ActivityName(),
-		``, enabledDiskActID)
-
-	// patch with false, resets it
-	acResp = appConfigResponse{}
-	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-	    "mdm": { "enable_disk_encryption": false, "macos_settings": { "custom_settings": [{"path":"b"}] } }
-		  }`), http.StatusOK, &acResp)
-	assert.False(t, acResp.MDM.EnableDiskEncryption.Value)
-	assert.Equal(t, []fleet.MDMProfileSpec{{Path: "b"}}, acResp.MDM.MacOSSettings.CustomSettings)
-	s.lastActivityMatches(fleet.ActivityTypeDisabledMacosDiskEncryption{}.ActivityName(),
-		`{"team_id": null, "team_name": null}`, 0)
-
-	// will have deleted the macos config profile
-	s.assertConfigProfilesByIdentifier(nil, mobileconfig.FleetFileVaultPayloadIdentifier, false)
-
-	// use the MDM disk encryption endpoint to set it to true
-	s.Do("POST", "/api/latest/fleet/disk_encryption",
-		updateMDMDiskEncryptionRequest{EnableDiskEncryption: true}, http.StatusNoContent)
-	enabledDiskActID = s.lastActivityMatches(fleet.ActivityTypeEnabledMacosDiskEncryption{}.ActivityName(),
-		`{"team_id": null, "team_name": null}`, 0)
-
-	// will have created the macos config profile
-	s.assertConfigProfilesByIdentifier(nil, mobileconfig.FleetFileVaultPayloadIdentifier, true)
-
-	acResp = appConfigResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
-	assert.True(t, acResp.MDM.EnableDiskEncryption.Value)
-	assert.Equal(t, []fleet.MDMProfileSpec{{Path: "b"}}, acResp.MDM.MacOSSettings.CustomSettings)
-
-	// call update endpoint with no changes
-	s.Do("PATCH", "/api/latest/fleet/mdm/apple/settings",
-		fleet.MDMAppleSettingsPayload{}, http.StatusNoContent)
-	s.lastActivityMatches(fleet.ActivityTypeEnabledMacosDiskEncryption{}.ActivityName(),
-		``, enabledDiskActID)
-
-	// the macos config profile still exists
-	s.assertConfigProfilesByIdentifier(nil, mobileconfig.FleetFileVaultPayloadIdentifier, true)
-
-	acResp = appConfigResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
-	assert.True(t, acResp.MDM.EnableDiskEncryption.Value)
-	assert.Equal(t, []fleet.MDMProfileSpec{{Path: "b"}}, acResp.MDM.MacOSSettings.CustomSettings)
-
-	// mdm/apple/settings works for windows as well as it's being used by
-	// clients (UI) this way
-	appConf, err := s.ds.AppConfig(context.Background())
-	require.NoError(s.T(), err)
-	appConf.MDM.EnabledAndConfigured = false
-	appConf.MDM.WindowsEnabledAndConfigured = true
-	err = s.ds.SaveAppConfig(context.Background(), appConf)
-	require.NoError(s.T(), err)
-	defer func() {
-		appConf, err := s.ds.AppConfig(context.Background())
-		require.NoError(s.T(), err)
-		appConf.MDM.EnabledAndConfigured = true
-		appConf.MDM.WindowsEnabledAndConfigured = true
-		err = s.ds.SaveAppConfig(context.Background(), appConf)
-		require.NoError(s.T(), err)
-	}()
-
-	// flip and verify the value
-	s.Do("POST", "/api/latest/fleet/disk_encryption",
-		updateMDMDiskEncryptionRequest{EnableDiskEncryption: false}, http.StatusNoContent)
-	acResp = appConfigResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
-	assert.False(t, acResp.MDM.EnableDiskEncryption.Value)
-
-	s.Do("POST", "/api/latest/fleet/disk_encryption",
-		updateMDMDiskEncryptionRequest{EnableDiskEncryption: true}, http.StatusNoContent)
-	acResp = appConfigResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
-	assert.True(t, acResp.MDM.EnableDiskEncryption.Value)
-}
-
-func (s *integrationMDMTestSuite) TestMDMAppleDiskEncryptionAggregate() {
-	t := s.T()
-	ctx := context.Background()
-
-	// no hosts with any disk encryption status's
-	expectedNoTeamDiskEncryptionSummary := fleet.MDMDiskEncryptionSummary{}
-	s.checkMDMDiskEncryptionSummaries(t, nil, expectedNoTeamDiskEncryptionSummary, true)
-	expectedNoTeamProfilesSummary := fleet.MDMProfilesSummary{}
-	s.checkMDMProfilesSummaries(t, nil, expectedNoTeamProfilesSummary, &expectedNoTeamProfilesSummary)
-
-	// 10 new hosts
-	var hosts []*fleet.Host
-	for i := 0; i < 10; i++ {
-		h, err := s.ds.NewHost(ctx, &fleet.Host{
-			DetailUpdatedAt: time.Now(),
-			LabelUpdatedAt:  time.Now(),
-			PolicyUpdatedAt: time.Now(),
-			SeenTime:        time.Now().Add(-1 * time.Minute),
-			OsqueryHostID:   ptr.String(fmt.Sprintf("%s-%d", t.Name(), i)),
-			NodeKey:         ptr.String(fmt.Sprintf("%s-%d", t.Name(), i)),
-			UUID:            fmt.Sprintf("%d-%s", i, uuid.New().String()),
-			Hostname:        fmt.Sprintf("%sfoo.local", t.Name()),
-			Platform:        "darwin",
-		})
-		require.NoError(t, err)
-		hosts = append(hosts, h)
-	}
-
-	// no team tests ====
-
-	// new filevault profile with no team
-	prof, err := fleet.NewMDMAppleConfigProfile(mobileconfigForTest("filevault-1", mobileconfig.FleetFileVaultPayloadIdentifier), ptr.Uint(0))
-	require.NoError(t, err)
-
-	// generates a disk encryption aggregate value based on the arguments passed in
-	generateAggregateValue := func(
-		hosts []*fleet.Host,
-		operationType fleet.MDMOperationType,
-		status *fleet.MDMDeliveryStatus,
-		decryptable bool,
-	) {
-		for _, host := range hosts {
-			hostCmdUUID := uuid.New().String()
-			err := s.ds.BulkUpsertMDMAppleHostProfiles(ctx, []*fleet.MDMAppleBulkUpsertHostProfilePayload{
-				{
-					ProfileUUID:       prof.ProfileUUID,
-					ProfileIdentifier: prof.Identifier,
-					HostUUID:          host.UUID,
-					CommandUUID:       hostCmdUUID,
-					OperationType:     operationType,
-					Status:            status,
-					Checksum:          []byte("csum"),
-				},
-			})
-			require.NoError(t, err)
-			oneMinuteAfterThreshold := time.Now().Add(+1 * time.Minute)
-			err = s.ds.SetOrUpdateHostDiskEncryptionKey(ctx, host.ID, "test-key", "", nil)
-			require.NoError(t, err)
-			err = s.ds.SetHostsDiskEncryptionKeyStatus(ctx, []uint{host.ID}, decryptable, oneMinuteAfterThreshold)
-			require.NoError(t, err)
-		}
-	}
-
-	// hosts 1,2 have disk encryption "applied" status
-	generateAggregateValue(hosts[0:2], fleet.MDMOperationTypeInstall, &fleet.MDMDeliveryVerifying, true)
-	expectedNoTeamDiskEncryptionSummary.Verifying.MacOS = 2
-	s.checkMDMDiskEncryptionSummaries(t, nil, expectedNoTeamDiskEncryptionSummary, true)
-	expectedNoTeamProfilesSummary.Verifying = 2
-	s.checkMDMProfilesSummaries(t, nil, expectedNoTeamProfilesSummary, &expectedNoTeamProfilesSummary)
-
-	// hosts 3,4 have disk encryption "action required" status
-	generateAggregateValue(hosts[2:4], fleet.MDMOperationTypeInstall, &fleet.MDMDeliveryVerifying, false)
-	expectedNoTeamDiskEncryptionSummary.ActionRequired.MacOS = 2
-	s.checkMDMDiskEncryptionSummaries(t, nil, expectedNoTeamDiskEncryptionSummary, true)
-	expectedNoTeamProfilesSummary.Pending = 2
-	s.checkMDMProfilesSummaries(t, nil, expectedNoTeamProfilesSummary, &expectedNoTeamProfilesSummary)
-
-	// hosts 5,6 have disk encryption "enforcing" status
-
-	// host profiles status are `pending`
-	generateAggregateValue(hosts[4:6], fleet.MDMOperationTypeInstall, &fleet.MDMDeliveryPending, true)
-	expectedNoTeamDiskEncryptionSummary.Enforcing.MacOS = 2
-	s.checkMDMDiskEncryptionSummaries(t, nil, expectedNoTeamDiskEncryptionSummary, true)
-	expectedNoTeamProfilesSummary.Pending = 4
-	s.checkMDMProfilesSummaries(t, nil, expectedNoTeamProfilesSummary, &expectedNoTeamProfilesSummary)
-
-	// host profiles status dont exist
-	generateAggregateValue(hosts[4:6], fleet.MDMOperationTypeInstall, nil, true)
-	s.checkMDMDiskEncryptionSummaries(t, nil, expectedNoTeamDiskEncryptionSummary, true)               // no change
-	s.checkMDMProfilesSummaries(t, nil, expectedNoTeamProfilesSummary, &expectedNoTeamProfilesSummary) // no change
-
-	// host profile is applied but decryptable key does not exist
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(
-			context.Background(),
-			"UPDATE host_disk_encryption_keys SET decryptable = NULL WHERE host_id IN (?, ?)",
-			hosts[5].ID,
-			hosts[6].ID,
-		)
-		require.NoError(t, err)
-		return err
-	})
-	s.checkMDMDiskEncryptionSummaries(t, nil, expectedNoTeamDiskEncryptionSummary, true)               // no change
-	s.checkMDMProfilesSummaries(t, nil, expectedNoTeamProfilesSummary, &expectedNoTeamProfilesSummary) // no change
-
-	// hosts 7,8 have disk encryption "failed" status
-	generateAggregateValue(hosts[6:8], fleet.MDMOperationTypeInstall, &fleet.MDMDeliveryFailed, true)
-	expectedNoTeamDiskEncryptionSummary.Failed.MacOS = 2
-	s.checkMDMDiskEncryptionSummaries(t, nil, expectedNoTeamDiskEncryptionSummary, true)
-	expectedNoTeamProfilesSummary.Failed = 2
-	s.checkMDMProfilesSummaries(t, nil, expectedNoTeamProfilesSummary, &expectedNoTeamProfilesSummary)
-
-	// hosts 9,10 have disk encryption "removing enforcement" status
-	generateAggregateValue(hosts[8:10], fleet.MDMOperationTypeRemove, &fleet.MDMDeliveryPending, true)
-	expectedNoTeamDiskEncryptionSummary.RemovingEnforcement.MacOS = 2
-	s.checkMDMDiskEncryptionSummaries(t, nil, expectedNoTeamDiskEncryptionSummary, true)
-	expectedNoTeamProfilesSummary.Pending = 6
-	s.checkMDMProfilesSummaries(t, nil, expectedNoTeamProfilesSummary, &expectedNoTeamProfilesSummary)
-
-	// team tests ====
-
-	// host 1,2 added to team 1
-	tm, _ := s.ds.NewTeam(ctx, &fleet.Team{Name: "team-1"})
-	err = s.ds.AddHostsToTeam(ctx, &tm.ID, []uint{hosts[0].ID, hosts[1].ID})
-	require.NoError(t, err)
-
-	// new filevault profile for team 1
-	prof, err = fleet.NewMDMAppleConfigProfile(mobileconfigForTest("filevault-1", mobileconfig.FleetFileVaultPayloadIdentifier), ptr.Uint(1))
-	require.NoError(t, err)
-	prof.TeamID = &tm.ID
-	require.NoError(t, err)
-
-	// filtering by the "team_id" query param
-	generateAggregateValue(hosts[0:2], fleet.MDMOperationTypeInstall, &fleet.MDMDeliveryVerifying, true)
-
-	var expectedTeamDiskEncryptionSummary fleet.MDMDiskEncryptionSummary
-	expectedTeamDiskEncryptionSummary.Verifying.MacOS = 2
-	s.checkMDMDiskEncryptionSummaries(t, &tm.ID, expectedTeamDiskEncryptionSummary, true)
-
-	expectedNoTeamDiskEncryptionSummary.Verifying.MacOS = 0 // now 0 because hosts 1,2 were added to team 1
-	s.checkMDMDiskEncryptionSummaries(t, nil, expectedNoTeamDiskEncryptionSummary, true)
-
-	expectedTeamProfilesSummary := fleet.MDMProfilesSummary{Verifying: 2}
-	s.checkMDMProfilesSummaries(t, &tm.ID, expectedTeamProfilesSummary, &expectedTeamProfilesSummary)
-
-	expectedNoTeamProfilesSummary = fleet.MDMProfilesSummary{
-		Verifying: 0, // now 0 because hosts 1,2 were added to team 1
-		Pending:   6,
-		Failed:    2,
-	}
-	s.checkMDMProfilesSummaries(t, nil, expectedNoTeamProfilesSummary, &expectedNoTeamProfilesSummary)
-
-	// verified status for host 1
-	require.NoError(t, apple_mdm.VerifyHostMDMProfiles(ctx, s.ds, hosts[0], map[string]*fleet.HostMacOSProfile{prof.Identifier: {Identifier: prof.Identifier, DisplayName: prof.Name, InstallDate: time.Now()}}))
-	// TODO: Why is there no change to the verification status of host 1 reflected in the summaries?
-	s.checkMDMDiskEncryptionSummaries(t, &tm.ID, expectedTeamDiskEncryptionSummary, true)              // no change
-	s.checkMDMDiskEncryptionSummaries(t, nil, expectedNoTeamDiskEncryptionSummary, true)               // no change
-	s.checkMDMProfilesSummaries(t, &tm.ID, expectedTeamProfilesSummary, &expectedTeamProfilesSummary)  // no change
-	s.checkMDMProfilesSummaries(t, nil, expectedNoTeamProfilesSummary, &expectedNoTeamProfilesSummary) // no change
-}
-
-func (s *integrationMDMTestSuite) TestTeamsMDMAppleDiskEncryption() {
-	t := s.T()
-
-	// create a team through the service so it initializes the agent ops
-	teamName := t.Name() + "team1"
-	team := &fleet.Team{
-		Name:        teamName,
-		Description: "desc team1",
-	}
-	var createTeamResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", team, http.StatusOK, &createTeamResp)
-	require.NotZero(t, createTeamResp.Team.ID)
-	team = createTeamResp.Team
-
-	// no macos config profile yet
-	s.assertConfigProfilesByIdentifier(ptr.Uint(team.ID), mobileconfig.FleetFileVaultPayloadIdentifier, false)
-
-	// apply with disk encryption
-	teamSpecs := applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
-		Name: teamName,
-		MDM: fleet.TeamSpecMDM{
-			EnableDiskEncryption: optjson.SetBool(true),
-		},
-	}}}
-	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
-	lastDiskActID := s.lastActivityOfTypeMatches(fleet.ActivityTypeEnabledMacosDiskEncryption{}.ActivityName(),
-		fmt.Sprintf(`{"team_id": %d, "team_name": %q}`, team.ID, teamName), 0)
-
-	// macos config profile created
-	s.assertConfigProfilesByIdentifier(ptr.Uint(team.ID), mobileconfig.FleetFileVaultPayloadIdentifier, true)
-
-	// retrieving the team returns the disk encryption setting
-	var teamResp getTeamResponse
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
-	require.True(t, teamResp.Team.Config.MDM.EnableDiskEncryption)
-
-	// apply with invalid disk encryption value should fail
-	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
-		Name: teamName,
-		MDM: fleet.TeamSpecMDM{
-			MacOSSettings: map[string]interface{}{"enable_disk_encryption": 123},
-		},
-	}}}
-	res := s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusBadRequest)
-	errMsg := extractServerErrorText(res.Body)
-	assert.Contains(t, errMsg, `invalid value type at 'macos_settings.enable_disk_encryption': expected bool but got float64`)
-
-	// apply an empty set of batch profiles to the team
-	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: nil},
-		http.StatusUnprocessableEntity, "team_id", strconv.Itoa(int(team.ID)), "team_name", team.Name)
-
-	// the configuration profile is still there
-	s.assertConfigProfilesByIdentifier(ptr.Uint(team.ID), mobileconfig.FleetFileVaultPayloadIdentifier, true)
-
-	// apply without disk encryption settings specified and unrelated field,
-	// should not replace existing disk encryption
-	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
-		Name: teamName,
-		MDM: fleet.TeamSpecMDM{
-			MacOSSettings: map[string]interface{}{
-				"custom_settings": []map[string]interface{}{
-					{"path": "a"},
-				},
-			},
-		},
-	}}}
-	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
-	teamResp = getTeamResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
-	require.True(t, teamResp.Team.Config.MDM.EnableDiskEncryption)
-	require.Equal(t, []fleet.MDMProfileSpec{{Path: "a"}}, teamResp.Team.Config.MDM.MacOSSettings.CustomSettings)
-	s.lastActivityOfTypeMatches(fleet.ActivityTypeEnabledMacosDiskEncryption{}.ActivityName(),
-		``, lastDiskActID)
-
-	// apply with false would clear the existing setting, but dry-run
-	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
-		Name: teamName,
-		MDM: fleet.TeamSpecMDM{
-			EnableDiskEncryption: optjson.SetBool(false),
-		},
-	}}}
-	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK, "dry_run", "true")
-	teamResp = getTeamResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
-	require.True(t, teamResp.Team.Config.MDM.EnableDiskEncryption)
-	s.lastActivityOfTypeMatches(fleet.ActivityTypeEnabledMacosDiskEncryption{}.ActivityName(),
-		``, lastDiskActID)
-
-	// apply with false clears the existing setting
-	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
-		Name: teamName,
-		MDM: fleet.TeamSpecMDM{
-			MacOSSettings: map[string]interface{}{"enable_disk_encryption": false},
-		},
-	}}}
-	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
-	teamResp = getTeamResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
-	require.False(t, teamResp.Team.Config.MDM.EnableDiskEncryption)
-	s.lastActivityOfTypeMatches(fleet.ActivityTypeDisabledMacosDiskEncryption{}.ActivityName(),
-		fmt.Sprintf(`{"team_id": %d, "team_name": %q}`, team.ID, teamName), 0)
-
-	// macos config profile deleted
-	s.assertConfigProfilesByIdentifier(ptr.Uint(team.ID), mobileconfig.FleetFileVaultPayloadIdentifier, false)
-
-	// modify team's disk encryption via ModifyTeam endpoint
-	var modResp teamResponse
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
-		MDM: &fleet.TeamPayloadMDM{
-			EnableDiskEncryption: optjson.SetBool(true),
-		},
-	}, http.StatusOK, &modResp)
-	require.True(t, modResp.Team.Config.MDM.EnableDiskEncryption)
-	s.lastActivityOfTypeMatches(fleet.ActivityTypeEnabledMacosDiskEncryption{}.ActivityName(),
-		fmt.Sprintf(`{"team_id": %d, "team_name": %q}`, team.ID, teamName), 0)
-
-	// macos config profile created
-	s.assertConfigProfilesByIdentifier(ptr.Uint(team.ID), mobileconfig.FleetFileVaultPayloadIdentifier, true)
-
-	// modify team's disk encryption and description via ModifyTeam endpoint
-	modResp = teamResponse{}
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
-		Description: ptr.String("foobar"),
-		MDM: &fleet.TeamPayloadMDM{
-			EnableDiskEncryption: optjson.SetBool(false),
-		},
-	}, http.StatusOK, &modResp)
-	require.False(t, modResp.Team.Config.MDM.EnableDiskEncryption)
-	require.Equal(t, "foobar", modResp.Team.Description)
-	s.lastActivityOfTypeMatches(fleet.ActivityTypeDisabledMacosDiskEncryption{}.ActivityName(),
-		fmt.Sprintf(`{"team_id": %d, "team_name": %q}`, team.ID, teamName), 0)
-
-	// macos config profile deleted
-	s.assertConfigProfilesByIdentifier(ptr.Uint(team.ID), mobileconfig.FleetFileVaultPayloadIdentifier, false)
-
-	// use the MDM settings endpoint to set it to true
-	s.Do("POST", "/api/latest/fleet/disk_encryption",
-		updateMDMDiskEncryptionRequest{TeamID: ptr.Uint(team.ID), EnableDiskEncryption: true}, http.StatusNoContent)
-	lastDiskActID = s.lastActivityOfTypeMatches(fleet.ActivityTypeEnabledMacosDiskEncryption{}.ActivityName(),
-		fmt.Sprintf(`{"team_id": %d, "team_name": %q}`, team.ID, teamName), 0)
-
-	// macos config profile created
-	s.assertConfigProfilesByIdentifier(ptr.Uint(team.ID), mobileconfig.FleetFileVaultPayloadIdentifier, true)
-
-	teamResp = getTeamResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
-	require.True(t, teamResp.Team.Config.MDM.EnableDiskEncryption)
-
-	// use the MDM settings endpoint with no changes
-	s.Do("PATCH", "/api/latest/fleet/mdm/apple/settings",
-		fleet.MDMAppleSettingsPayload{TeamID: ptr.Uint(team.ID)}, http.StatusNoContent)
-	s.lastActivityOfTypeMatches(fleet.ActivityTypeEnabledMacosDiskEncryption{}.ActivityName(),
-		``, lastDiskActID)
-
-	// macos config profile still exists
-	s.assertConfigProfilesByIdentifier(ptr.Uint(team.ID), mobileconfig.FleetFileVaultPayloadIdentifier, true)
-
-	teamResp = getTeamResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
-	require.True(t, teamResp.Team.Config.MDM.EnableDiskEncryption)
-
-	// use the MDM settings endpoint with an unknown team id
-	s.Do("POST", "/api/latest/fleet/disk_encryption",
-		updateMDMDiskEncryptionRequest{TeamID: ptr.Uint(9999), EnableDiskEncryption: true}, http.StatusNotFound)
-
-	// mdm/apple/settings works for windows as well as it's being used by
-	// clients (UI) this way
-	appConf, err := s.ds.AppConfig(context.Background())
-	require.NoError(s.T(), err)
-	appConf.MDM.EnabledAndConfigured = false
-	appConf.MDM.WindowsEnabledAndConfigured = true
-	err = s.ds.SaveAppConfig(context.Background(), appConf)
-	require.NoError(s.T(), err)
-	defer func() {
-		appConf, err := s.ds.AppConfig(context.Background())
-		require.NoError(s.T(), err)
-		appConf.MDM.EnabledAndConfigured = true
-		appConf.MDM.WindowsEnabledAndConfigured = true
-		err = s.ds.SaveAppConfig(context.Background(), appConf)
-		require.NoError(s.T(), err)
-	}()
-
-	// flip and verify the value
-	s.Do("POST", "/api/latest/fleet/disk_encryption",
-		updateMDMDiskEncryptionRequest{TeamID: ptr.Uint(team.ID), EnableDiskEncryption: false}, http.StatusNoContent)
-	teamResp = getTeamResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
-	require.False(t, teamResp.Team.Config.MDM.EnableDiskEncryption)
-
-	s.Do("POST", "/api/latest/fleet/disk_encryption",
-		updateMDMDiskEncryptionRequest{TeamID: ptr.Uint(team.ID), EnableDiskEncryption: true}, http.StatusNoContent)
-	teamResp = getTeamResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
-	require.True(t, teamResp.Team.Config.MDM.EnableDiskEncryption)
-}
+//func (s *integrationMDMTestSuite) TestMDMDiskEncryptionSettingBackwardsCompat() {
+//	t := s.T()
+//
+//	acResp := appConfigResponse{}
+//	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+//		"mdm": { "enable_disk_encryption": false }
+//  }`), http.StatusOK, &acResp)
+//	assert.False(t, acResp.MDM.EnableDiskEncryption.Value)
+//
+//	// new config takes precedence over old config
+//	acResp = appConfigResponse{}
+//	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+//	  "mdm": { "enable_disk_encryption": false, "macos_settings": {"enable_disk_encryption": true} }
+//  }`), http.StatusOK, &acResp)
+//	assert.False(t, acResp.MDM.EnableDiskEncryption.Value)
+//
+//	s.assertConfigProfilesByIdentifier(nil, mobileconfig.FleetFileVaultPayloadIdentifier, false)
+//
+//	// if new config is not present, old config is applied
+//	acResp = appConfigResponse{}
+//	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+//	  "mdm": { "macos_settings": {"enable_disk_encryption": true} }
+//  }`), http.StatusOK, &acResp)
+//	assert.True(t, acResp.MDM.EnableDiskEncryption.Value)
+//	s.assertConfigProfilesByIdentifier(nil, mobileconfig.FleetFileVaultPayloadIdentifier, true)
+//
+//	// new config takes precedence over old config again
+//	acResp = appConfigResponse{}
+//	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+//	  "mdm": { "enable_disk_encryption": false, "macos_settings": {"enable_disk_encryption": true} }
+//  }`), http.StatusOK, &acResp)
+//	assert.False(t, acResp.MDM.EnableDiskEncryption.Value)
+//	s.assertConfigProfilesByIdentifier(nil, mobileconfig.FleetFileVaultPayloadIdentifier, false)
+//
+//	// unrelated change doesn't affect the disk encryption setting
+//	acResp = appConfigResponse{}
+//	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+//	  "mdm": { "macos_settings": {"custom_settings": ["test.mobileconfig"]} }
+//  }`), http.StatusOK, &acResp)
+//	assert.False(t, acResp.MDM.EnableDiskEncryption.Value)
+//
+//	// Same tests, but for teams
+//	team, err := s.ds.NewTeam(context.Background(), &fleet.Team{
+//		Name:        "team1_" + t.Name(),
+//		Description: "desc team1_" + t.Name(),
+//	})
+//	require.NoError(t, err)
+//
+//	checkTeamDiskEncryption := func(wantSetting bool) {
+//		var teamResp getTeamResponse
+//		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
+//		require.Equal(t, wantSetting, teamResp.Team.Config.MDM.EnableDiskEncryption)
+//	}
+//
+//	// after creation, disk encryption is off
+//	checkTeamDiskEncryption(false)
+//
+//	// new config takes precedence over old config
+//	teamSpecs := applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
+//		Name: team.Name,
+//		MDM: fleet.TeamSpecMDM{
+//			EnableDiskEncryption: optjson.SetBool(false),
+//			MacOSSettings:        map[string]interface{}{"enable_disk_encryption": true},
+//		},
+//	}}}
+//	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
+//	checkTeamDiskEncryption(false)
+//	s.assertConfigProfilesByIdentifier(ptr.Uint(team.ID), mobileconfig.FleetFileVaultPayloadIdentifier, false)
+//
+//	// if new config is not present, old config is applied
+//	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
+//		Name: team.Name,
+//		MDM: fleet.TeamSpecMDM{
+//			MacOSSettings: map[string]interface{}{"enable_disk_encryption": true},
+//		},
+//	}}}
+//	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
+//	checkTeamDiskEncryption(true)
+//	s.assertConfigProfilesByIdentifier(ptr.Uint(team.ID), mobileconfig.FleetFileVaultPayloadIdentifier, true)
+//
+//	// new config takes precedence over old config again
+//	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
+//		Name: team.Name,
+//		MDM: fleet.TeamSpecMDM{
+//			EnableDiskEncryption: optjson.SetBool(false),
+//			MacOSSettings:        map[string]interface{}{"enable_disk_encryption": true},
+//		},
+//	}}}
+//	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
+//	checkTeamDiskEncryption(false)
+//	s.assertConfigProfilesByIdentifier(ptr.Uint(team.ID), mobileconfig.FleetFileVaultPayloadIdentifier, false)
+//
+//	// unrelated change doesn't affect the disk encryption setting
+//	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
+//		Name: team.Name,
+//		MDM: fleet.TeamSpecMDM{
+//			EnableDiskEncryption: optjson.SetBool(false),
+//			MacOSSettings:        map[string]interface{}{"custom_settings": []interface{}{"A", "B"}},
+//		},
+//	}}}
+//	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
+//	checkTeamDiskEncryption(false)
+//	s.assertConfigProfilesByIdentifier(ptr.Uint(team.ID), mobileconfig.FleetFileVaultPayloadIdentifier, false)
+//}
+//
+//func (s *integrationMDMTestSuite) TestDiskEncryptionSharedSetting() {
+//	t := s.T()
+//
+//	// create a team
+//	teamName := t.Name()
+//	team := &fleet.Team{
+//		Name:        teamName,
+//		Description: "desc " + teamName,
+//	}
+//	var createTeamResp teamResponse
+//	s.DoJSON("POST", "/api/latest/fleet/teams", team, http.StatusOK, &createTeamResp)
+//	require.NotZero(t, createTeamResp.Team.ID)
+//
+//	setMDMEnabled := func(macMDM, windowsMDM bool) {
+//		appConf, err := s.ds.AppConfig(context.Background())
+//		require.NoError(s.T(), err)
+//		appConf.MDM.WindowsEnabledAndConfigured = windowsMDM
+//		appConf.MDM.EnabledAndConfigured = macMDM
+//		err = s.ds.SaveAppConfig(context.Background(), appConf)
+//		require.NoError(s.T(), err)
+//	}
+//
+//	// before doing any modifications, grab the current values and make
+//	// sure they're set to the same ones on cleanup to not interfere with
+//	// other tests.
+//	origAppConf, err := s.ds.AppConfig(context.Background())
+//	require.NoError(s.T(), err)
+//	t.Cleanup(func() {
+//		err := s.ds.SaveAppConfig(context.Background(), origAppConf)
+//		require.NoError(s.T(), err)
+//	})
+//
+//	checkConfigSetErrors := func() {
+//		// try to set app config
+//		res := s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+//		"mdm": { "enable_disk_encryption": true }
+//  }`), http.StatusUnprocessableEntity)
+//		errMsg := extractServerErrorText(res.Body)
+//		require.Contains(t, errMsg, "Couldn't edit enable_disk_encryption. Neither macOS MDM nor Windows is turned on. Visit https://fleetdm.com/docs/using-fleet to learn how to turn on MDM.")
+//
+//		// try to create a new team using specs
+//		teamSpecs := map[string]any{
+//			"specs": []any{
+//				map[string]any{
+//					"name": teamName + uuid.NewString(),
+//					"mdm": map[string]any{
+//						"enable_disk_encryption": true,
+//					},
+//				},
+//			},
+//		}
+//		res = s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusUnprocessableEntity)
+//		errMsg = extractServerErrorText(res.Body)
+//		require.Contains(t, errMsg, "Couldn't edit enable_disk_encryption. Neither macOS MDM nor Windows is turned on. Visit https://fleetdm.com/docs/using-fleet to learn how to turn on MDM.")
+//
+//		// try to edit the existing team using specs
+//		teamSpecs = map[string]any{
+//			"specs": []any{
+//				map[string]any{
+//					"name": teamName,
+//					"mdm": map[string]any{
+//						"enable_disk_encryption": true,
+//					},
+//				},
+//			},
+//		}
+//		res = s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusUnprocessableEntity)
+//		errMsg = extractServerErrorText(res.Body)
+//		require.Contains(t, errMsg, "Couldn't edit enable_disk_encryption. Neither macOS MDM nor Windows is turned on. Visit https://fleetdm.com/docs/using-fleet to learn how to turn on MDM.")
+//	}
+//
+//	checkConfigSetSucceeds := func() {
+//		res := s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+//		"mdm": { "enable_disk_encryption": true }
+//  }`), http.StatusOK)
+//		errMsg := extractServerErrorText(res.Body)
+//		require.Empty(t, errMsg)
+//
+//		// try to create a new team using specs
+//		teamSpecs := map[string]any{
+//			"specs": []any{
+//				map[string]any{
+//					"name": teamName + uuid.NewString(),
+//					"mdm": map[string]any{
+//						"enable_disk_encryption": true,
+//					},
+//				},
+//			},
+//		}
+//		res = s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
+//		errMsg = extractServerErrorText(res.Body)
+//		require.Empty(t, errMsg)
+//
+//		// edit the existing team using specs
+//		teamSpecs = map[string]any{
+//			"specs": []any{
+//				map[string]any{
+//					"name": teamName,
+//					"mdm": map[string]any{
+//						"enable_disk_encryption": true,
+//					},
+//				},
+//			},
+//		}
+//		res = s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
+//		errMsg = extractServerErrorText(res.Body)
+//		require.Empty(t, errMsg)
+//
+//		// always try to set the value to `false` so we start fresh
+//		s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+//		"mdm": { "enable_disk_encryption": false }
+//  }`), http.StatusOK)
+//		teamSpecs = map[string]any{
+//			"specs": []any{
+//				map[string]any{
+//					"name": teamName,
+//					"mdm": map[string]any{
+//						"enable_disk_encryption": false,
+//					},
+//				},
+//			},
+//		}
+//		s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
+//	}
+//
+//	// disable both windows and mac mdm
+//	// we should get an error
+//	setMDMEnabled(false, false)
+//	checkConfigSetErrors()
+//
+//	// enable windows mdm, no errors
+//	setMDMEnabled(false, true)
+//	checkConfigSetSucceeds()
+//
+//	// enable mac mdm, no errors
+//	setMDMEnabled(true, true)
+//	checkConfigSetSucceeds()
+//
+//	// only macos mdm enabled, no errors
+//	setMDMEnabled(true, false)
+//	checkConfigSetSucceeds()
+//}
+//
+//func (s *integrationMDMTestSuite) TestMDMAppleHostDiskEncryption() {
+//	t := s.T()
+//	ctx := context.Background()
+//
+//	// create a host
+//	host, err := s.ds.NewHost(ctx, &fleet.Host{
+//		DetailUpdatedAt: time.Now(),
+//		LabelUpdatedAt:  time.Now(),
+//		PolicyUpdatedAt: time.Now(),
+//		SeenTime:        time.Now().Add(-1 * time.Minute),
+//		OsqueryHostID:   ptr.String(t.Name()),
+//		NodeKey:         ptr.String(t.Name()),
+//		UUID:            uuid.New().String(),
+//		Hostname:        fmt.Sprintf("%sfoo.local", t.Name()),
+//		Platform:        "darwin",
+//	})
+//	require.NoError(t, err)
+//
+//	// install a filevault profile for that host
+//
+//	acResp := appConfigResponse{}
+//	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+//		"mdm": { "enable_disk_encryption": true }
+//  }`), http.StatusOK, &acResp)
+//	assert.True(t, acResp.MDM.EnableDiskEncryption.Value)
+//	fileVaultProf := s.assertConfigProfilesByIdentifier(nil, mobileconfig.FleetFileVaultPayloadIdentifier, true)
+//	hostCmdUUID := uuid.New().String()
+//	err = s.ds.BulkUpsertMDMAppleHostProfiles(ctx, []*fleet.MDMAppleBulkUpsertHostProfilePayload{
+//		{
+//			ProfileUUID:       fileVaultProf.ProfileUUID,
+//			ProfileIdentifier: fileVaultProf.Identifier,
+//			HostUUID:          host.UUID,
+//			CommandUUID:       hostCmdUUID,
+//			OperationType:     fleet.MDMOperationTypeInstall,
+//			Status:            &fleet.MDMDeliveryPending,
+//			Checksum:          []byte("csum"),
+//		},
+//	})
+//	require.NoError(t, err)
+//
+//	t.Cleanup(func() {
+//		err := s.ds.UpdateOrDeleteHostMDMAppleProfile(ctx, &fleet.HostMDMAppleProfile{
+//			HostUUID:      host.UUID,
+//			CommandUUID:   hostCmdUUID,
+//			ProfileUUID:   fileVaultProf.ProfileUUID,
+//			Status:        &fleet.MDMDeliveryVerifying,
+//			OperationType: fleet.MDMOperationTypeRemove,
+//		})
+//		require.NoError(t, err)
+//		// not an error if the profile does not exist
+//		_ = s.ds.DeleteMDMAppleConfigProfile(ctx, fileVaultProf.ProfileUUID)
+//	})
+//
+//	// get that host - it should
+//	// report "enforcing" disk encryption
+//	getHostResp := getHostResponse{}
+//	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
+//	require.NotNil(t, getHostResp.Host.MDM.MacOSSettings.DiskEncryption)
+//	require.Equal(t, fleet.DiskEncryptionEnforcing, *getHostResp.Host.MDM.MacOSSettings.DiskEncryption)
+//	require.Nil(t, getHostResp.Host.MDM.MacOSSettings.ActionRequired)
+//	require.NotNil(t, getHostResp.Host.MDM.OSSettings)
+//	require.NotNil(t, getHostResp.Host.MDM.OSSettings.DiskEncryption.Status)
+//	require.Equal(t, fleet.DiskEncryptionEnforcing, *getHostResp.Host.MDM.OSSettings.DiskEncryption.Status)
+//	require.Equal(t, "", getHostResp.Host.MDM.OSSettings.DiskEncryption.Detail)
+//
+//	// report a profile install error
+//	err = s.ds.UpdateOrDeleteHostMDMAppleProfile(ctx, &fleet.HostMDMAppleProfile{
+//		HostUUID:      host.UUID,
+//		CommandUUID:   hostCmdUUID,
+//		ProfileUUID:   fileVaultProf.ProfileUUID,
+//		Status:        &fleet.MDMDeliveryFailed,
+//		OperationType: fleet.MDMOperationTypeInstall,
+//		Detail:        "test error",
+//	})
+//	require.NoError(t, err)
+//
+//	// get that host - it should report "failed" disk encryption and include the error message detail
+//	getHostResp = getHostResponse{}
+//	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
+//	require.NotNil(t, getHostResp.Host.MDM.MacOSSettings.DiskEncryption)
+//	require.Equal(t, fleet.DiskEncryptionFailed, *getHostResp.Host.MDM.MacOSSettings.DiskEncryption)
+//	require.Nil(t, getHostResp.Host.MDM.MacOSSettings.ActionRequired)
+//	require.NotNil(t, getHostResp.Host.MDM.OSSettings)
+//	require.NotNil(t, getHostResp.Host.MDM.OSSettings.DiskEncryption.Status)
+//	require.Equal(t, fleet.DiskEncryptionFailed, *getHostResp.Host.MDM.OSSettings.DiskEncryption.Status)
+//	require.Equal(t, "test error", getHostResp.Host.MDM.OSSettings.DiskEncryption.Detail)
+//
+//	// report that the profile was installed and verified
+//	err = s.ds.UpdateOrDeleteHostMDMAppleProfile(ctx, &fleet.HostMDMAppleProfile{
+//		HostUUID:      host.UUID,
+//		CommandUUID:   hostCmdUUID,
+//		ProfileUUID:   fileVaultProf.ProfileUUID,
+//		Status:        &fleet.MDMDeliveryVerified,
+//		OperationType: fleet.MDMOperationTypeInstall,
+//		Detail:        "",
+//	})
+//	require.NoError(t, err)
+//
+//	// get that host - it has no encryption key at this point, so it should
+//	// report "action_required" disk encryption and "log_out" action.
+//	getHostResp = getHostResponse{}
+//	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
+//	require.NotNil(t, getHostResp.Host.MDM.MacOSSettings.DiskEncryption)
+//	require.Equal(t, fleet.DiskEncryptionActionRequired, *getHostResp.Host.MDM.MacOSSettings.DiskEncryption)
+//	require.NotNil(t, getHostResp.Host.MDM.MacOSSettings.ActionRequired)
+//	require.Equal(t, fleet.ActionRequiredRotateKey, *getHostResp.Host.MDM.MacOSSettings.ActionRequired)
+//	require.NotNil(t, getHostResp.Host.MDM.OSSettings)
+//	require.NotNil(t, getHostResp.Host.MDM.OSSettings.DiskEncryption.Status)
+//	require.Equal(t, fleet.DiskEncryptionActionRequired, *getHostResp.Host.MDM.OSSettings.DiskEncryption.Status)
+//	require.Equal(t, "", getHostResp.Host.MDM.OSSettings.DiskEncryption.Detail)
+//
+//	// add an encryption key for the host
+//	assets, err := s.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{
+//		fleet.MDMAssetCACert,
+//	})
+//	require.NoError(t, err)
+//
+//	block, _ := pem.Decode(assets[fleet.MDMAssetCACert].Value)
+//	require.NotNil(t, block)
+//
+//	parsed, err := x509.ParseCertificate(block.Bytes)
+//	require.NoError(t, err)
+//	recoveryKey := "AAA-BBB-CCC"
+//	encryptedKey, err := pkcs7.Encrypt([]byte(recoveryKey), []*x509.Certificate{parsed})
+//	require.NoError(t, err)
+//	base64EncryptedKey := base64.StdEncoding.EncodeToString(encryptedKey)
+//
+//	err = s.ds.SetOrUpdateHostDiskEncryptionKey(ctx, host.ID, base64EncryptedKey, "", nil)
+//	require.NoError(t, err)
+//
+//	// get that host - it has an encryption key with unknown decryptability, so
+//	// it should report "verifying" disk encryption.
+//	getHostResp = getHostResponse{}
+//	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
+//	require.NotNil(t, getHostResp.Host.MDM.MacOSSettings.DiskEncryption)
+//	require.Equal(t, fleet.DiskEncryptionVerifying, *getHostResp.Host.MDM.MacOSSettings.DiskEncryption)
+//	require.Nil(t, getHostResp.Host.MDM.MacOSSettings.ActionRequired)
+//	require.NotNil(t, getHostResp.Host.MDM.OSSettings)
+//	require.NotNil(t, getHostResp.Host.MDM.OSSettings.DiskEncryption.Status)
+//	require.Equal(t, fleet.DiskEncryptionVerifying, *getHostResp.Host.MDM.OSSettings.DiskEncryption.Status)
+//	require.Equal(t, "", getHostResp.Host.MDM.OSSettings.DiskEncryption.Detail)
+//
+//	// request with no token
+//	res := s.DoRawNoAuth("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/encryption_key", host.ID), nil, http.StatusUnauthorized)
+//	res.Body.Close()
+//
+//	// encryption key not processed yet
+//	resp := getHostEncryptionKeyResponse{}
+//	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/encryption_key", host.ID), nil, http.StatusNotFound, &resp)
+//
+//	// unable to decrypt encryption key
+//	err = s.ds.SetHostsDiskEncryptionKeyStatus(ctx, []uint{host.ID}, false, time.Now())
+//	require.NoError(t, err)
+//	resp = getHostEncryptionKeyResponse{}
+//	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/encryption_key", host.ID), nil, http.StatusNotFound, &resp)
+//
+//	// get that host - it has an encryption key that is un-decryptable, so it
+//	// should report "action_required" disk encryption and "rotate_key" action.
+//	getHostResp = getHostResponse{}
+//	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
+//	require.NotNil(t, getHostResp.Host.MDM.MacOSSettings.DiskEncryption)
+//	require.Equal(t, fleet.DiskEncryptionActionRequired, *getHostResp.Host.MDM.MacOSSettings.DiskEncryption)
+//	require.NotNil(t, getHostResp.Host.MDM.MacOSSettings.ActionRequired)
+//	require.Equal(t, fleet.ActionRequiredRotateKey, *getHostResp.Host.MDM.MacOSSettings.ActionRequired)
+//	require.NotNil(t, getHostResp.Host.MDM.OSSettings)
+//	require.NotNil(t, getHostResp.Host.MDM.OSSettings.DiskEncryption.Status)
+//	require.Equal(t, fleet.DiskEncryptionActionRequired, *getHostResp.Host.MDM.OSSettings.DiskEncryption.Status)
+//	require.Equal(t, "", getHostResp.Host.MDM.OSSettings.DiskEncryption.Detail)
+//
+//	// no activities created so far
+//	activities := listActivitiesResponse{}
+//	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &activities)
+//	found := false
+//	for _, activity := range activities.Activities {
+//		if activity.Type == "read_host_disk_encryption_key" {
+//			found = true
+//		}
+//	}
+//	require.False(t, found)
+//
+//	// decryptable key
+//	checkDecryptableKey := func(u fleet.User) {
+//		err = s.ds.SetHostsDiskEncryptionKeyStatus(ctx, []uint{host.ID}, true, time.Now())
+//		require.NoError(t, err)
+//		resp = getHostEncryptionKeyResponse{}
+//		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/encryption_key", host.ID), nil, http.StatusOK, &resp)
+//		require.Equal(t, recoveryKey, resp.EncryptionKey.DecryptedValue)
+//
+//		// use the admin token to get the activities
+//		currToken := s.token
+//		defer func() { s.token = currToken }()
+//		s.token = s.getTestAdminToken()
+//		s.lastActivityMatches(
+//			"read_host_disk_encryption_key",
+//			fmt.Sprintf(`{"host_display_name": "%s", "host_id": %d}`, host.DisplayName(), host.ID),
+//			0,
+//		)
+//	}
+//
+//	team, err := s.ds.NewTeam(context.Background(), &fleet.Team{
+//		ID:          4827,
+//		Name:        "team1_" + t.Name(),
+//		Description: "desc team1_" + t.Name(),
+//	})
+//	require.NoError(t, err)
+//
+//	// enable disk encryption on the team so the key is not deleted when the host is added
+//	teamSpecs := applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
+//		Name: "team1_" + t.Name(),
+//		MDM: fleet.TeamSpecMDM{
+//			EnableDiskEncryption: optjson.SetBool(true),
+//		},
+//	}}}
+//	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
+//
+//	// we're about to mess up with the token, make sure to set it to the
+//	// default value when the test ends
+//	currToken := s.token
+//	t.Cleanup(func() { s.token = currToken })
+//
+//	// admins are able to see the host encryption key
+//	s.token = s.getTestAdminToken()
+//	checkDecryptableKey(s.users["admin1@example.com"])
+//
+//	// get that host - it has an encryption key that is decryptable, so it
+//	// should report "verified" disk encryption.
+//	getHostResp = getHostResponse{}
+//	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
+//	require.NotNil(t, getHostResp.Host.MDM.MacOSSettings.DiskEncryption)
+//	require.Equal(t, fleet.DiskEncryptionVerified, *getHostResp.Host.MDM.MacOSSettings.DiskEncryption)
+//	require.Nil(t, getHostResp.Host.MDM.MacOSSettings.ActionRequired)
+//	require.NotNil(t, getHostResp.Host.MDM.OSSettings)
+//	require.NotNil(t, getHostResp.Host.MDM.OSSettings.DiskEncryption.Status)
+//	require.Equal(t, fleet.DiskEncryptionVerified, *getHostResp.Host.MDM.OSSettings.DiskEncryption.Status)
+//	require.Equal(t, "", getHostResp.Host.MDM.OSSettings.DiskEncryption.Detail)
+//
+//	// maintainers are able to see the token
+//	u := s.users["user1@example.com"]
+//	s.token = s.getTestToken(u.Email, test.GoodPassword)
+//	checkDecryptableKey(u)
+//
+//	// observers are able to see the token
+//	u = s.users["user2@example.com"]
+//	s.token = s.getTestToken(u.Email, test.GoodPassword)
+//	checkDecryptableKey(u)
+//
+//	// add the host to a team
+//	err = s.ds.AddHostsToTeam(ctx, &team.ID, []uint{host.ID})
+//	require.NoError(t, err)
+//
+//	// admins are still able to see the token
+//	s.token = s.getTestAdminToken()
+//	checkDecryptableKey(s.users["admin1@example.com"])
+//
+//	// maintainers are still able to see the token
+//	u = s.users["user1@example.com"]
+//	s.token = s.getTestToken(u.Email, test.GoodPassword)
+//	checkDecryptableKey(u)
+//
+//	// observers are still able to see the token
+//	u = s.users["user2@example.com"]
+//	s.token = s.getTestToken(u.Email, test.GoodPassword)
+//	checkDecryptableKey(u)
+//
+//	// add a team member
+//	u = fleet.User{
+//		Name:       "test team user",
+//		Email:      "user1+team@example.com",
+//		GlobalRole: nil,
+//		Teams: []fleet.UserTeam{
+//			{
+//				Team: *team,
+//				Role: fleet.RoleMaintainer,
+//			},
+//		},
+//	}
+//	require.NoError(t, u.SetPassword(test.GoodPassword, 10, 10))
+//	_, err = s.ds.NewUser(ctx, &u)
+//	require.NoError(t, err)
+//
+//	// members are able to see the token
+//	s.token = s.getTestToken(u.Email, test.GoodPassword)
+//	checkDecryptableKey(u)
+//
+//	// create a separate team
+//	team2, err := s.ds.NewTeam(context.Background(), &fleet.Team{
+//		ID:          4828,
+//		Name:        "team2_" + t.Name(),
+//		Description: "desc team2_" + t.Name(),
+//	})
+//	require.NoError(t, err)
+//	// add a team member
+//	u = fleet.User{
+//		Name:       "test team user",
+//		Email:      "user1+team2@example.com",
+//		GlobalRole: nil,
+//		Teams: []fleet.UserTeam{
+//			{
+//				Team: *team2,
+//				Role: fleet.RoleMaintainer,
+//			},
+//		},
+//	}
+//	require.NoError(t, u.SetPassword(test.GoodPassword, 10, 10))
+//	_, err = s.ds.NewUser(ctx, &u)
+//	require.NoError(t, err)
+//
+//	// non-members aren't able to see the token
+//	s.token = s.getTestToken(u.Email, test.GoodPassword)
+//	resp = getHostEncryptionKeyResponse{}
+//	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/encryption_key", host.ID), nil, http.StatusForbidden, &resp)
+//}
+//
+//func (s *integrationMDMTestSuite) TestWindowsMDMGetEncryptionKey() {
+//	t := s.T()
+//	ctx := context.Background()
+//
+//	// create a host and enroll it in Fleet
+//	host := createOrbitEnrolledHost(t, "windows", "h1", s.ds)
+//	err := s.ds.SetOrUpdateMDMData(ctx, host.ID, false, true, s.server.URL, false, fleet.WellKnownMDMFleet, "")
+//	require.NoError(t, err)
+//
+//	// request encryption key with no auth token
+//	res := s.DoRawNoAuth("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/encryption_key", host.ID), nil, http.StatusUnauthorized)
+//	res.Body.Close()
+//
+//	// no encryption key
+//	resp := getHostEncryptionKeyResponse{}
+//	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/encryption_key", host.ID), nil, http.StatusNotFound, &resp)
+//
+//	// invalid host id
+//	resp = getHostEncryptionKeyResponse{}
+//	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/encryption_key", host.ID+999), nil, http.StatusNotFound, &resp)
+//
+//	// add an encryption key for the host
+//	cert, _, _, err := s.fleetCfg.MDM.MicrosoftWSTEP()
+//	require.NoError(t, err)
+//	recoveryKey := "AAA-BBB-CCC"
+//	encryptedKey, err := microsoft_mdm.Encrypt(recoveryKey, cert.Leaf)
+//	require.NoError(t, err)
+//
+//	err = s.ds.SetOrUpdateHostDiskEncryptionKey(ctx, host.ID, encryptedKey, "", ptr.Bool(true))
+//	require.NoError(t, err)
+//
+//	resp = getHostEncryptionKeyResponse{}
+//	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/encryption_key", host.ID), nil, http.StatusOK, &resp)
+//	require.Equal(t, host.ID, resp.HostID)
+//	require.Equal(t, recoveryKey, resp.EncryptionKey.DecryptedValue)
+//	s.lastActivityOfTypeMatches(fleet.ActivityTypeReadHostDiskEncryptionKey{}.ActivityName(),
+//		fmt.Sprintf(`{"host_display_name": "%s", "host_id": %d}`, host.DisplayName(), host.ID), 0)
+//
+//	// update the key to blank with a client error
+//	err = s.ds.SetOrUpdateHostDiskEncryptionKey(ctx, host.ID, "", "failed", nil)
+//	require.NoError(t, err)
+//
+//	resp = getHostEncryptionKeyResponse{}
+//	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/encryption_key", host.ID), nil, http.StatusNotFound, &resp)
+//}
+//
+//func (s *integrationMDMTestSuite) TestAppConfigMDMAppleDiskEncryption() {
+//	t := s.T()
+//
+//	// set the macos disk encryption field
+//	acResp := appConfigResponse{}
+//	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+//		"mdm": { "enable_disk_encryption": true }
+//  }`), http.StatusOK, &acResp)
+//	assert.True(t, acResp.MDM.EnableDiskEncryption.Value)
+//	enabledDiskActID := s.lastActivityMatches(fleet.ActivityTypeEnabledMacosDiskEncryption{}.ActivityName(),
+//		`{"team_id": null, "team_name": null}`, 0)
+//
+//	// will have generated the macos config profile
+//	s.assertConfigProfilesByIdentifier(nil, mobileconfig.FleetFileVaultPayloadIdentifier, true)
+//
+//	// check that they are returned by a GET /config
+//	acResp = appConfigResponse{}
+//	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+//	assert.True(t, acResp.MDM.EnableDiskEncryption.Value)
+//
+//	// patch without specifying the macos disk encryption and an unrelated field,
+//	// should not alter it
+//	acResp = appConfigResponse{}
+//	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+//                     "mdm": { "macos_settings": {"custom_settings": [{"path": "a"}]} }
+//		}`), http.StatusOK, &acResp)
+//	assert.True(t, acResp.MDM.EnableDiskEncryption.Value)
+//	assert.Equal(t, []fleet.MDMProfileSpec{{Path: "a"}}, acResp.MDM.MacOSSettings.CustomSettings)
+//	s.lastActivityMatches(fleet.ActivityTypeEnabledMacosDiskEncryption{}.ActivityName(),
+//		``, enabledDiskActID)
+//
+//	// patch with false, would reset it but this is a dry-run
+//	acResp = appConfigResponse{}
+//	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+//				"mdm": { "enable_disk_encryption": false }
+//		  }`), http.StatusOK, &acResp, "dry_run", "true")
+//	assert.True(t, acResp.MDM.EnableDiskEncryption.Value)
+//	assert.Equal(t, []fleet.MDMProfileSpec{{Path: "a"}}, acResp.MDM.MacOSSettings.CustomSettings)
+//	s.lastActivityMatches(fleet.ActivityTypeEnabledMacosDiskEncryption{}.ActivityName(),
+//		``, enabledDiskActID)
+//
+//	// patch with false, resets it
+//	acResp = appConfigResponse{}
+//	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+//	    "mdm": { "enable_disk_encryption": false, "macos_settings": { "custom_settings": [{"path":"b"}] } }
+//		  }`), http.StatusOK, &acResp)
+//	assert.False(t, acResp.MDM.EnableDiskEncryption.Value)
+//	assert.Equal(t, []fleet.MDMProfileSpec{{Path: "b"}}, acResp.MDM.MacOSSettings.CustomSettings)
+//	s.lastActivityMatches(fleet.ActivityTypeDisabledMacosDiskEncryption{}.ActivityName(),
+//		`{"team_id": null, "team_name": null}`, 0)
+//
+//	// will have deleted the macos config profile
+//	s.assertConfigProfilesByIdentifier(nil, mobileconfig.FleetFileVaultPayloadIdentifier, false)
+//
+//	// use the MDM disk encryption endpoint to set it to true
+//	s.Do("POST", "/api/latest/fleet/disk_encryption",
+//		updateMDMDiskEncryptionRequest{EnableDiskEncryption: true}, http.StatusNoContent)
+//	enabledDiskActID = s.lastActivityMatches(fleet.ActivityTypeEnabledMacosDiskEncryption{}.ActivityName(),
+//		`{"team_id": null, "team_name": null}`, 0)
+//
+//	// will have created the macos config profile
+//	s.assertConfigProfilesByIdentifier(nil, mobileconfig.FleetFileVaultPayloadIdentifier, true)
+//
+//	acResp = appConfigResponse{}
+//	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+//	assert.True(t, acResp.MDM.EnableDiskEncryption.Value)
+//	assert.Equal(t, []fleet.MDMProfileSpec{{Path: "b"}}, acResp.MDM.MacOSSettings.CustomSettings)
+//
+//	// call update endpoint with no changes
+//	s.Do("PATCH", "/api/latest/fleet/mdm/apple/settings",
+//		fleet.MDMAppleSettingsPayload{}, http.StatusNoContent)
+//	s.lastActivityMatches(fleet.ActivityTypeEnabledMacosDiskEncryption{}.ActivityName(),
+//		``, enabledDiskActID)
+//
+//	// the macos config profile still exists
+//	s.assertConfigProfilesByIdentifier(nil, mobileconfig.FleetFileVaultPayloadIdentifier, true)
+//
+//	acResp = appConfigResponse{}
+//	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+//	assert.True(t, acResp.MDM.EnableDiskEncryption.Value)
+//	assert.Equal(t, []fleet.MDMProfileSpec{{Path: "b"}}, acResp.MDM.MacOSSettings.CustomSettings)
+//
+//	// mdm/apple/settings works for windows as well as it's being used by
+//	// clients (UI) this way
+//	appConf, err := s.ds.AppConfig(context.Background())
+//	require.NoError(s.T(), err)
+//	appConf.MDM.EnabledAndConfigured = false
+//	appConf.MDM.WindowsEnabledAndConfigured = true
+//	err = s.ds.SaveAppConfig(context.Background(), appConf)
+//	require.NoError(s.T(), err)
+//	defer func() {
+//		appConf, err := s.ds.AppConfig(context.Background())
+//		require.NoError(s.T(), err)
+//		appConf.MDM.EnabledAndConfigured = true
+//		appConf.MDM.WindowsEnabledAndConfigured = true
+//		err = s.ds.SaveAppConfig(context.Background(), appConf)
+//		require.NoError(s.T(), err)
+//	}()
+//
+//	// flip and verify the value
+//	s.Do("POST", "/api/latest/fleet/disk_encryption",
+//		updateMDMDiskEncryptionRequest{EnableDiskEncryption: false}, http.StatusNoContent)
+//	acResp = appConfigResponse{}
+//	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+//	assert.False(t, acResp.MDM.EnableDiskEncryption.Value)
+//
+//	s.Do("POST", "/api/latest/fleet/disk_encryption",
+//		updateMDMDiskEncryptionRequest{EnableDiskEncryption: true}, http.StatusNoContent)
+//	acResp = appConfigResponse{}
+//	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+//	assert.True(t, acResp.MDM.EnableDiskEncryption.Value)
+//}
+//
+//func (s *integrationMDMTestSuite) TestMDMAppleDiskEncryptionAggregate() {
+//	t := s.T()
+//	ctx := context.Background()
+//
+//	// no hosts with any disk encryption status's
+//	expectedNoTeamDiskEncryptionSummary := fleet.MDMDiskEncryptionSummary{}
+//	s.checkMDMDiskEncryptionSummaries(t, nil, expectedNoTeamDiskEncryptionSummary, true)
+//	expectedNoTeamProfilesSummary := fleet.MDMProfilesSummary{}
+//	s.checkMDMProfilesSummaries(t, nil, expectedNoTeamProfilesSummary, &expectedNoTeamProfilesSummary)
+//
+//	// 10 new hosts
+//	var hosts []*fleet.Host
+//	for i := 0; i < 10; i++ {
+//		h, err := s.ds.NewHost(ctx, &fleet.Host{
+//			DetailUpdatedAt: time.Now(),
+//			LabelUpdatedAt:  time.Now(),
+//			PolicyUpdatedAt: time.Now(),
+//			SeenTime:        time.Now().Add(-1 * time.Minute),
+//			OsqueryHostID:   ptr.String(fmt.Sprintf("%s-%d", t.Name(), i)),
+//			NodeKey:         ptr.String(fmt.Sprintf("%s-%d", t.Name(), i)),
+//			UUID:            fmt.Sprintf("%d-%s", i, uuid.New().String()),
+//			Hostname:        fmt.Sprintf("%sfoo.local", t.Name()),
+//			Platform:        "darwin",
+//		})
+//		require.NoError(t, err)
+//		hosts = append(hosts, h)
+//	}
+//
+//	// no team tests ====
+//
+//	// new filevault profile with no team
+//	prof, err := fleet.NewMDMAppleConfigProfile(mobileconfigForTest("filevault-1", mobileconfig.FleetFileVaultPayloadIdentifier), ptr.Uint(0))
+//	require.NoError(t, err)
+//
+//	// generates a disk encryption aggregate value based on the arguments passed in
+//	generateAggregateValue := func(
+//		hosts []*fleet.Host,
+//		operationType fleet.MDMOperationType,
+//		status *fleet.MDMDeliveryStatus,
+//		decryptable bool,
+//	) {
+//		for _, host := range hosts {
+//			hostCmdUUID := uuid.New().String()
+//			err := s.ds.BulkUpsertMDMAppleHostProfiles(ctx, []*fleet.MDMAppleBulkUpsertHostProfilePayload{
+//				{
+//					ProfileUUID:       prof.ProfileUUID,
+//					ProfileIdentifier: prof.Identifier,
+//					HostUUID:          host.UUID,
+//					CommandUUID:       hostCmdUUID,
+//					OperationType:     operationType,
+//					Status:            status,
+//					Checksum:          []byte("csum"),
+//				},
+//			})
+//			require.NoError(t, err)
+//			oneMinuteAfterThreshold := time.Now().Add(+1 * time.Minute)
+//			err = s.ds.SetOrUpdateHostDiskEncryptionKey(ctx, host.ID, "test-key", "", nil)
+//			require.NoError(t, err)
+//			err = s.ds.SetHostsDiskEncryptionKeyStatus(ctx, []uint{host.ID}, decryptable, oneMinuteAfterThreshold)
+//			require.NoError(t, err)
+//		}
+//	}
+//
+//	// hosts 1,2 have disk encryption "applied" status
+//	generateAggregateValue(hosts[0:2], fleet.MDMOperationTypeInstall, &fleet.MDMDeliveryVerifying, true)
+//	expectedNoTeamDiskEncryptionSummary.Verifying.MacOS = 2
+//	s.checkMDMDiskEncryptionSummaries(t, nil, expectedNoTeamDiskEncryptionSummary, true)
+//	expectedNoTeamProfilesSummary.Verifying = 2
+//	s.checkMDMProfilesSummaries(t, nil, expectedNoTeamProfilesSummary, &expectedNoTeamProfilesSummary)
+//
+//	// hosts 3,4 have disk encryption "action required" status
+//	generateAggregateValue(hosts[2:4], fleet.MDMOperationTypeInstall, &fleet.MDMDeliveryVerifying, false)
+//	expectedNoTeamDiskEncryptionSummary.ActionRequired.MacOS = 2
+//	s.checkMDMDiskEncryptionSummaries(t, nil, expectedNoTeamDiskEncryptionSummary, true)
+//	expectedNoTeamProfilesSummary.Pending = 2
+//	s.checkMDMProfilesSummaries(t, nil, expectedNoTeamProfilesSummary, &expectedNoTeamProfilesSummary)
+//
+//	// hosts 5,6 have disk encryption "enforcing" status
+//
+//	// host profiles status are `pending`
+//	generateAggregateValue(hosts[4:6], fleet.MDMOperationTypeInstall, &fleet.MDMDeliveryPending, true)
+//	expectedNoTeamDiskEncryptionSummary.Enforcing.MacOS = 2
+//	s.checkMDMDiskEncryptionSummaries(t, nil, expectedNoTeamDiskEncryptionSummary, true)
+//	expectedNoTeamProfilesSummary.Pending = 4
+//	s.checkMDMProfilesSummaries(t, nil, expectedNoTeamProfilesSummary, &expectedNoTeamProfilesSummary)
+//
+//	// host profiles status dont exist
+//	generateAggregateValue(hosts[4:6], fleet.MDMOperationTypeInstall, nil, true)
+//	s.checkMDMDiskEncryptionSummaries(t, nil, expectedNoTeamDiskEncryptionSummary, true)               // no change
+//	s.checkMDMProfilesSummaries(t, nil, expectedNoTeamProfilesSummary, &expectedNoTeamProfilesSummary) // no change
+//
+//	// host profile is applied but decryptable key does not exist
+//	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+//		_, err := q.ExecContext(
+//			context.Background(),
+//			"UPDATE host_disk_encryption_keys SET decryptable = NULL WHERE host_id IN (?, ?)",
+//			hosts[5].ID,
+//			hosts[6].ID,
+//		)
+//		require.NoError(t, err)
+//		return err
+//	})
+//	s.checkMDMDiskEncryptionSummaries(t, nil, expectedNoTeamDiskEncryptionSummary, true)               // no change
+//	s.checkMDMProfilesSummaries(t, nil, expectedNoTeamProfilesSummary, &expectedNoTeamProfilesSummary) // no change
+//
+//	// hosts 7,8 have disk encryption "failed" status
+//	generateAggregateValue(hosts[6:8], fleet.MDMOperationTypeInstall, &fleet.MDMDeliveryFailed, true)
+//	expectedNoTeamDiskEncryptionSummary.Failed.MacOS = 2
+//	s.checkMDMDiskEncryptionSummaries(t, nil, expectedNoTeamDiskEncryptionSummary, true)
+//	expectedNoTeamProfilesSummary.Failed = 2
+//	s.checkMDMProfilesSummaries(t, nil, expectedNoTeamProfilesSummary, &expectedNoTeamProfilesSummary)
+//
+//	// hosts 9,10 have disk encryption "removing enforcement" status
+//	generateAggregateValue(hosts[8:10], fleet.MDMOperationTypeRemove, &fleet.MDMDeliveryPending, true)
+//	expectedNoTeamDiskEncryptionSummary.RemovingEnforcement.MacOS = 2
+//	s.checkMDMDiskEncryptionSummaries(t, nil, expectedNoTeamDiskEncryptionSummary, true)
+//	expectedNoTeamProfilesSummary.Pending = 6
+//	s.checkMDMProfilesSummaries(t, nil, expectedNoTeamProfilesSummary, &expectedNoTeamProfilesSummary)
+//
+//	// team tests ====
+//
+//	// host 1,2 added to team 1
+//	tm, _ := s.ds.NewTeam(ctx, &fleet.Team{Name: "team-1"})
+//	err = s.ds.AddHostsToTeam(ctx, &tm.ID, []uint{hosts[0].ID, hosts[1].ID})
+//	require.NoError(t, err)
+//
+//	// new filevault profile for team 1
+//	prof, err = fleet.NewMDMAppleConfigProfile(mobileconfigForTest("filevault-1", mobileconfig.FleetFileVaultPayloadIdentifier), ptr.Uint(1))
+//	require.NoError(t, err)
+//	prof.TeamID = &tm.ID
+//	require.NoError(t, err)
+//
+//	// filtering by the "team_id" query param
+//	generateAggregateValue(hosts[0:2], fleet.MDMOperationTypeInstall, &fleet.MDMDeliveryVerifying, true)
+//
+//	var expectedTeamDiskEncryptionSummary fleet.MDMDiskEncryptionSummary
+//	expectedTeamDiskEncryptionSummary.Verifying.MacOS = 2
+//	s.checkMDMDiskEncryptionSummaries(t, &tm.ID, expectedTeamDiskEncryptionSummary, true)
+//
+//	expectedNoTeamDiskEncryptionSummary.Verifying.MacOS = 0 // now 0 because hosts 1,2 were added to team 1
+//	s.checkMDMDiskEncryptionSummaries(t, nil, expectedNoTeamDiskEncryptionSummary, true)
+//
+//	expectedTeamProfilesSummary := fleet.MDMProfilesSummary{Verifying: 2}
+//	s.checkMDMProfilesSummaries(t, &tm.ID, expectedTeamProfilesSummary, &expectedTeamProfilesSummary)
+//
+//	expectedNoTeamProfilesSummary = fleet.MDMProfilesSummary{
+//		Verifying: 0, // now 0 because hosts 1,2 were added to team 1
+//		Pending:   6,
+//		Failed:    2,
+//	}
+//	s.checkMDMProfilesSummaries(t, nil, expectedNoTeamProfilesSummary, &expectedNoTeamProfilesSummary)
+//
+//	// verified status for host 1
+//	require.NoError(t, apple_mdm.VerifyHostMDMProfiles(ctx, s.ds, hosts[0], map[string]*fleet.HostMacOSProfile{prof.Identifier: {Identifier: prof.Identifier, DisplayName: prof.Name, InstallDate: time.Now()}}))
+//	// TODO: Why is there no change to the verification status of host 1 reflected in the summaries?
+//	s.checkMDMDiskEncryptionSummaries(t, &tm.ID, expectedTeamDiskEncryptionSummary, true)              // no change
+//	s.checkMDMDiskEncryptionSummaries(t, nil, expectedNoTeamDiskEncryptionSummary, true)               // no change
+//	s.checkMDMProfilesSummaries(t, &tm.ID, expectedTeamProfilesSummary, &expectedTeamProfilesSummary)  // no change
+//	s.checkMDMProfilesSummaries(t, nil, expectedNoTeamProfilesSummary, &expectedNoTeamProfilesSummary) // no change
+//}
+//
+//func (s *integrationMDMTestSuite) TestTeamsMDMAppleDiskEncryption() {
+//	t := s.T()
+//
+//	// create a team through the service so it initializes the agent ops
+//	teamName := t.Name() + "team1"
+//	team := &fleet.Team{
+//		Name:        teamName,
+//		Description: "desc team1",
+//	}
+//	var createTeamResp teamResponse
+//	s.DoJSON("POST", "/api/latest/fleet/teams", team, http.StatusOK, &createTeamResp)
+//	require.NotZero(t, createTeamResp.Team.ID)
+//	team = createTeamResp.Team
+//
+//	// no macos config profile yet
+//	s.assertConfigProfilesByIdentifier(ptr.Uint(team.ID), mobileconfig.FleetFileVaultPayloadIdentifier, false)
+//
+//	// apply with disk encryption
+//	teamSpecs := applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
+//		Name: teamName,
+//		MDM: fleet.TeamSpecMDM{
+//			EnableDiskEncryption: optjson.SetBool(true),
+//		},
+//	}}}
+//	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
+//	lastDiskActID := s.lastActivityOfTypeMatches(fleet.ActivityTypeEnabledMacosDiskEncryption{}.ActivityName(),
+//		fmt.Sprintf(`{"team_id": %d, "team_name": %q}`, team.ID, teamName), 0)
+//
+//	// macos config profile created
+//	s.assertConfigProfilesByIdentifier(ptr.Uint(team.ID), mobileconfig.FleetFileVaultPayloadIdentifier, true)
+//
+//	// retrieving the team returns the disk encryption setting
+//	var teamResp getTeamResponse
+//	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
+//	require.True(t, teamResp.Team.Config.MDM.EnableDiskEncryption)
+//
+//	// apply with invalid disk encryption value should fail
+//	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
+//		Name: teamName,
+//		MDM: fleet.TeamSpecMDM{
+//			MacOSSettings: map[string]interface{}{"enable_disk_encryption": 123},
+//		},
+//	}}}
+//	res := s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusBadRequest)
+//	errMsg := extractServerErrorText(res.Body)
+//	assert.Contains(t, errMsg, `invalid value type at 'macos_settings.enable_disk_encryption': expected bool but got float64`)
+//
+//	// apply an empty set of batch profiles to the team
+//	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: nil},
+//		http.StatusUnprocessableEntity, "team_id", strconv.Itoa(int(team.ID)), "team_name", team.Name)
+//
+//	// the configuration profile is still there
+//	s.assertConfigProfilesByIdentifier(ptr.Uint(team.ID), mobileconfig.FleetFileVaultPayloadIdentifier, true)
+//
+//	// apply without disk encryption settings specified and unrelated field,
+//	// should not replace existing disk encryption
+//	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
+//		Name: teamName,
+//		MDM: fleet.TeamSpecMDM{
+//			MacOSSettings: map[string]interface{}{
+//				"custom_settings": []map[string]interface{}{
+//					{"path": "a"},
+//				},
+//			},
+//		},
+//	}}}
+//	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
+//	teamResp = getTeamResponse{}
+//	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
+//	require.True(t, teamResp.Team.Config.MDM.EnableDiskEncryption)
+//	require.Equal(t, []fleet.MDMProfileSpec{{Path: "a"}}, teamResp.Team.Config.MDM.MacOSSettings.CustomSettings)
+//	s.lastActivityOfTypeMatches(fleet.ActivityTypeEnabledMacosDiskEncryption{}.ActivityName(),
+//		``, lastDiskActID)
+//
+//	// apply with false would clear the existing setting, but dry-run
+//	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
+//		Name: teamName,
+//		MDM: fleet.TeamSpecMDM{
+//			EnableDiskEncryption: optjson.SetBool(false),
+//		},
+//	}}}
+//	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK, "dry_run", "true")
+//	teamResp = getTeamResponse{}
+//	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
+//	require.True(t, teamResp.Team.Config.MDM.EnableDiskEncryption)
+//	s.lastActivityOfTypeMatches(fleet.ActivityTypeEnabledMacosDiskEncryption{}.ActivityName(),
+//		``, lastDiskActID)
+//
+//	// apply with false clears the existing setting
+//	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
+//		Name: teamName,
+//		MDM: fleet.TeamSpecMDM{
+//			MacOSSettings: map[string]interface{}{"enable_disk_encryption": false},
+//		},
+//	}}}
+//	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
+//	teamResp = getTeamResponse{}
+//	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
+//	require.False(t, teamResp.Team.Config.MDM.EnableDiskEncryption)
+//	s.lastActivityOfTypeMatches(fleet.ActivityTypeDisabledMacosDiskEncryption{}.ActivityName(),
+//		fmt.Sprintf(`{"team_id": %d, "team_name": %q}`, team.ID, teamName), 0)
+//
+//	// macos config profile deleted
+//	s.assertConfigProfilesByIdentifier(ptr.Uint(team.ID), mobileconfig.FleetFileVaultPayloadIdentifier, false)
+//
+//	// modify team's disk encryption via ModifyTeam endpoint
+//	var modResp teamResponse
+//	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
+//		MDM: &fleet.TeamPayloadMDM{
+//			EnableDiskEncryption: optjson.SetBool(true),
+//		},
+//	}, http.StatusOK, &modResp)
+//	require.True(t, modResp.Team.Config.MDM.EnableDiskEncryption)
+//	s.lastActivityOfTypeMatches(fleet.ActivityTypeEnabledMacosDiskEncryption{}.ActivityName(),
+//		fmt.Sprintf(`{"team_id": %d, "team_name": %q}`, team.ID, teamName), 0)
+//
+//	// macos config profile created
+//	s.assertConfigProfilesByIdentifier(ptr.Uint(team.ID), mobileconfig.FleetFileVaultPayloadIdentifier, true)
+//
+//	// modify team's disk encryption and description via ModifyTeam endpoint
+//	modResp = teamResponse{}
+//	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{
+//		Description: ptr.String("foobar"),
+//		MDM: &fleet.TeamPayloadMDM{
+//			EnableDiskEncryption: optjson.SetBool(false),
+//		},
+//	}, http.StatusOK, &modResp)
+//	require.False(t, modResp.Team.Config.MDM.EnableDiskEncryption)
+//	require.Equal(t, "foobar", modResp.Team.Description)
+//	s.lastActivityOfTypeMatches(fleet.ActivityTypeDisabledMacosDiskEncryption{}.ActivityName(),
+//		fmt.Sprintf(`{"team_id": %d, "team_name": %q}`, team.ID, teamName), 0)
+//
+//	// macos config profile deleted
+//	s.assertConfigProfilesByIdentifier(ptr.Uint(team.ID), mobileconfig.FleetFileVaultPayloadIdentifier, false)
+//
+//	// use the MDM settings endpoint to set it to true
+//	s.Do("POST", "/api/latest/fleet/disk_encryption",
+//		updateMDMDiskEncryptionRequest{TeamID: ptr.Uint(team.ID), EnableDiskEncryption: true}, http.StatusNoContent)
+//	lastDiskActID = s.lastActivityOfTypeMatches(fleet.ActivityTypeEnabledMacosDiskEncryption{}.ActivityName(),
+//		fmt.Sprintf(`{"team_id": %d, "team_name": %q}`, team.ID, teamName), 0)
+//
+//	// macos config profile created
+//	s.assertConfigProfilesByIdentifier(ptr.Uint(team.ID), mobileconfig.FleetFileVaultPayloadIdentifier, true)
+//
+//	teamResp = getTeamResponse{}
+//	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
+//	require.True(t, teamResp.Team.Config.MDM.EnableDiskEncryption)
+//
+//	// use the MDM settings endpoint with no changes
+//	s.Do("PATCH", "/api/latest/fleet/mdm/apple/settings",
+//		fleet.MDMAppleSettingsPayload{TeamID: ptr.Uint(team.ID)}, http.StatusNoContent)
+//	s.lastActivityOfTypeMatches(fleet.ActivityTypeEnabledMacosDiskEncryption{}.ActivityName(),
+//		``, lastDiskActID)
+//
+//	// macos config profile still exists
+//	s.assertConfigProfilesByIdentifier(ptr.Uint(team.ID), mobileconfig.FleetFileVaultPayloadIdentifier, true)
+//
+//	teamResp = getTeamResponse{}
+//	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
+//	require.True(t, teamResp.Team.Config.MDM.EnableDiskEncryption)
+//
+//	// use the MDM settings endpoint with an unknown team id
+//	s.Do("POST", "/api/latest/fleet/disk_encryption",
+//		updateMDMDiskEncryptionRequest{TeamID: ptr.Uint(9999), EnableDiskEncryption: true}, http.StatusNotFound)
+//
+//	// mdm/apple/settings works for windows as well as it's being used by
+//	// clients (UI) this way
+//	appConf, err := s.ds.AppConfig(context.Background())
+//	require.NoError(s.T(), err)
+//	appConf.MDM.EnabledAndConfigured = false
+//	appConf.MDM.WindowsEnabledAndConfigured = true
+//	err = s.ds.SaveAppConfig(context.Background(), appConf)
+//	require.NoError(s.T(), err)
+//	defer func() {
+//		appConf, err := s.ds.AppConfig(context.Background())
+//		require.NoError(s.T(), err)
+//		appConf.MDM.EnabledAndConfigured = true
+//		appConf.MDM.WindowsEnabledAndConfigured = true
+//		err = s.ds.SaveAppConfig(context.Background(), appConf)
+//		require.NoError(s.T(), err)
+//	}()
+//
+//	// flip and verify the value
+//	s.Do("POST", "/api/latest/fleet/disk_encryption",
+//		updateMDMDiskEncryptionRequest{TeamID: ptr.Uint(team.ID), EnableDiskEncryption: false}, http.StatusNoContent)
+//	teamResp = getTeamResponse{}
+//	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
+//	require.False(t, teamResp.Team.Config.MDM.EnableDiskEncryption)
+//
+//	s.Do("POST", "/api/latest/fleet/disk_encryption",
+//		updateMDMDiskEncryptionRequest{TeamID: ptr.Uint(team.ID), EnableDiskEncryption: true}, http.StatusNoContent)
+//	teamResp = getTeamResponse{}
+//	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
+//	require.True(t, teamResp.Team.Config.MDM.EnableDiskEncryption)
+//}
 
 func (s *integrationMDMTestSuite) TestEnrollOrbitAfterDEPSync() {
 	t := s.T()
@@ -6819,114 +6819,114 @@ func (s *integrationMDMTestSuite) TestUpdateMDMWindowsEnrollmentsHostUUID() {
 	require.Equal(t, hostUUID, gotDevice.HostUUID)
 }
 
-func (s *integrationMDMTestSuite) TestBitLockerEnforcementNotifications() {
-	t := s.T()
-	ctx := context.Background()
-	windowsHost := createOrbitEnrolledHost(t, "windows", t.Name(), s.ds)
-
-	checkNotification := func(want bool) {
-		resp := orbitGetConfigResponse{}
-		s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *windowsHost.OrbitNodeKey)), http.StatusOK, &resp)
-		require.Equal(t, want, resp.Notifications.EnforceBitLockerEncryption)
-	}
-
-	// notification is false by default
-	checkNotification(false)
-
-	// enroll the host into Fleet MDM
-	encodedBinToken, err := fleet.GetEncodedBinarySecurityToken(fleet.WindowsMDMProgrammaticEnrollmentType, *windowsHost.OrbitNodeKey)
-	require.NoError(t, err)
-	requestBytes, err := s.newSecurityTokenMsg(encodedBinToken, true, false)
-	require.NoError(t, err)
-	s.DoRaw("POST", microsoft_mdm.MDE2EnrollPath, requestBytes, http.StatusOK)
-
-	// simulate osquery checking in and updating this info
-	// TODO: should we automatically fill these fields on MDM enrollment?
-	require.NoError(t, s.ds.SetOrUpdateMDMData(context.Background(), windowsHost.ID, false, true, "https://example.com", true, fleet.WellKnownMDMFleet, ""))
-
-	// notification is still false
-	checkNotification(false)
-
-	// configure disk encryption for the global team
-	acResp := appConfigResponse{}
-	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{ "mdm": { "macos_settings": { "enable_disk_encryption": true } } }`), http.StatusOK, &acResp)
-	assert.True(t, acResp.MDM.EnableDiskEncryption.Value)
-
-	// host still doesn't get the notification because we don't have disk
-	// encryption information yet.
-	checkNotification(false)
-
-	// host has disk encryption off, gets the notification
-	require.NoError(t, s.ds.SetOrUpdateHostDisksEncryption(context.Background(), windowsHost.ID, false))
-	checkNotification(true)
-
-	// host has disk encryption on, we don't have disk encryption info. Gets the notification
-	require.NoError(t, s.ds.SetOrUpdateHostDisksEncryption(context.Background(), windowsHost.ID, true))
-	checkNotification(true)
-
-	// host has disk encryption on, we don't know if the key is decriptable. Gets the notification
-	err = s.ds.SetOrUpdateHostDiskEncryptionKey(ctx, windowsHost.ID, "test-key", "", nil)
-	require.NoError(t, err)
-	checkNotification(true)
-
-	// host has disk encryption on, the key is not decryptable by fleet. Gets the notification
-	err = s.ds.SetHostsDiskEncryptionKeyStatus(ctx, []uint{windowsHost.ID}, false, time.Now())
-	require.NoError(t, err)
-	checkNotification(true)
-
-	// host has disk encryption on, the disk was encrypted by fleet. Doesn't get the notification
-	err = s.ds.SetHostsDiskEncryptionKeyStatus(ctx, []uint{windowsHost.ID}, true, time.Now())
-	require.NoError(t, err)
-	checkNotification(false)
-
-	// create a new team
-	tm, err := s.ds.NewTeam(context.Background(), &fleet.Team{
-		Name:        t.Name(),
-		Description: "desc",
-	})
-	require.NoError(t, err)
-	// add the host to the team
-	err = s.ds.AddHostsToTeam(context.Background(), &tm.ID, []uint{windowsHost.ID})
-	require.NoError(t, err)
-
-	// notification is false now since the team doesn't have disk encryption enabled
-	checkNotification(false)
-
-	// enable disk encryption on the team
-	teamSpecs := applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
-		Name: tm.Name,
-		MDM: fleet.TeamSpecMDM{
-			EnableDiskEncryption: optjson.SetBool(true),
-		},
-	}}}
-	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
-
-	// host gets the notification
-	checkNotification(true)
-
-	// host has disk encryption off, gets the notification
-	require.NoError(t, s.ds.SetOrUpdateHostDisksEncryption(context.Background(), windowsHost.ID, false))
-	checkNotification(true)
-
-	// host has disk encryption on, we don't have disk encryption info. Gets the notification
-	require.NoError(t, s.ds.SetOrUpdateHostDisksEncryption(context.Background(), windowsHost.ID, true))
-	checkNotification(true)
-
-	// host has disk encryption on, we don't know if the key is decriptable. Gets the notification
-	err = s.ds.SetOrUpdateHostDiskEncryptionKey(ctx, windowsHost.ID, "test-key", "", nil)
-	require.NoError(t, err)
-	checkNotification(true)
-
-	// host has disk encryption on, the key is not decryptable by fleet. Gets the notification
-	err = s.ds.SetHostsDiskEncryptionKeyStatus(ctx, []uint{windowsHost.ID}, false, time.Now())
-	require.NoError(t, err)
-	checkNotification(true)
-
-	// host has disk encryption on, the disk was encrypted by fleet. Doesn't get the notification
-	err = s.ds.SetHostsDiskEncryptionKeyStatus(ctx, []uint{windowsHost.ID}, true, time.Now())
-	require.NoError(t, err)
-	checkNotification(false)
-}
+//func (s *integrationMDMTestSuite) TestBitLockerEnforcementNotifications() {
+//	t := s.T()
+//	ctx := context.Background()
+//	windowsHost := createOrbitEnrolledHost(t, "windows", t.Name(), s.ds)
+//
+//	checkNotification := func(want bool) {
+//		resp := orbitGetConfigResponse{}
+//		s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *windowsHost.OrbitNodeKey)), http.StatusOK, &resp)
+//		require.Equal(t, want, resp.Notifications.EnforceBitLockerEncryption)
+//	}
+//
+//	// notification is false by default
+//	checkNotification(false)
+//
+//	// enroll the host into Fleet MDM
+//	encodedBinToken, err := fleet.GetEncodedBinarySecurityToken(fleet.WindowsMDMProgrammaticEnrollmentType, *windowsHost.OrbitNodeKey)
+//	require.NoError(t, err)
+//	requestBytes, err := s.newSecurityTokenMsg(encodedBinToken, true, false)
+//	require.NoError(t, err)
+//	s.DoRaw("POST", microsoft_mdm.MDE2EnrollPath, requestBytes, http.StatusOK)
+//
+//	// simulate osquery checking in and updating this info
+//	// TODO: should we automatically fill these fields on MDM enrollment?
+//	require.NoError(t, s.ds.SetOrUpdateMDMData(context.Background(), windowsHost.ID, false, true, "https://example.com", true, fleet.WellKnownMDMFleet, ""))
+//
+//	// notification is still false
+//	checkNotification(false)
+//
+//	// configure disk encryption for the global team
+//	acResp := appConfigResponse{}
+//	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{ "mdm": { "macos_settings": { "enable_disk_encryption": true } } }`), http.StatusOK, &acResp)
+//	assert.True(t, acResp.MDM.EnableDiskEncryption.Value)
+//
+//	// host still doesn't get the notification because we don't have disk
+//	// encryption information yet.
+//	checkNotification(false)
+//
+//	// host has disk encryption off, gets the notification
+//	require.NoError(t, s.ds.SetOrUpdateHostDisksEncryption(context.Background(), windowsHost.ID, false))
+//	checkNotification(true)
+//
+//	// host has disk encryption on, we don't have disk encryption info. Gets the notification
+//	require.NoError(t, s.ds.SetOrUpdateHostDisksEncryption(context.Background(), windowsHost.ID, true))
+//	checkNotification(true)
+//
+//	// host has disk encryption on, we don't know if the key is decriptable. Gets the notification
+//	err = s.ds.SetOrUpdateHostDiskEncryptionKey(ctx, windowsHost.ID, "test-key", "", nil)
+//	require.NoError(t, err)
+//	checkNotification(true)
+//
+//	// host has disk encryption on, the key is not decryptable by fleet. Gets the notification
+//	err = s.ds.SetHostsDiskEncryptionKeyStatus(ctx, []uint{windowsHost.ID}, false, time.Now())
+//	require.NoError(t, err)
+//	checkNotification(true)
+//
+//	// host has disk encryption on, the disk was encrypted by fleet. Doesn't get the notification
+//	err = s.ds.SetHostsDiskEncryptionKeyStatus(ctx, []uint{windowsHost.ID}, true, time.Now())
+//	require.NoError(t, err)
+//	checkNotification(false)
+//
+//	// create a new team
+//	tm, err := s.ds.NewTeam(context.Background(), &fleet.Team{
+//		Name:        t.Name(),
+//		Description: "desc",
+//	})
+//	require.NoError(t, err)
+//	// add the host to the team
+//	err = s.ds.AddHostsToTeam(context.Background(), &tm.ID, []uint{windowsHost.ID})
+//	require.NoError(t, err)
+//
+//	// notification is false now since the team doesn't have disk encryption enabled
+//	checkNotification(false)
+//
+//	// enable disk encryption on the team
+//	teamSpecs := applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
+//		Name: tm.Name,
+//		MDM: fleet.TeamSpecMDM{
+//			EnableDiskEncryption: optjson.SetBool(true),
+//		},
+//	}}}
+//	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
+//
+//	// host gets the notification
+//	checkNotification(true)
+//
+//	// host has disk encryption off, gets the notification
+//	require.NoError(t, s.ds.SetOrUpdateHostDisksEncryption(context.Background(), windowsHost.ID, false))
+//	checkNotification(true)
+//
+//	// host has disk encryption on, we don't have disk encryption info. Gets the notification
+//	require.NoError(t, s.ds.SetOrUpdateHostDisksEncryption(context.Background(), windowsHost.ID, true))
+//	checkNotification(true)
+//
+//	// host has disk encryption on, we don't know if the key is decriptable. Gets the notification
+//	err = s.ds.SetOrUpdateHostDiskEncryptionKey(ctx, windowsHost.ID, "test-key", "", nil)
+//	require.NoError(t, err)
+//	checkNotification(true)
+//
+//	// host has disk encryption on, the key is not decryptable by fleet. Gets the notification
+//	err = s.ds.SetHostsDiskEncryptionKeyStatus(ctx, []uint{windowsHost.ID}, false, time.Now())
+//	require.NoError(t, err)
+//	checkNotification(true)
+//
+//	// host has disk encryption on, the disk was encrypted by fleet. Doesn't get the notification
+//	err = s.ds.SetHostsDiskEncryptionKeyStatus(ctx, []uint{windowsHost.ID}, true, time.Now())
+//	require.NoError(t, err)
+//	checkNotification(false)
+//}
 
 func (s *integrationMDMTestSuite) TestHostDiskEncryptionKey() {
 	t := s.T()
@@ -8878,33 +8878,33 @@ func (s *integrationMDMTestSuite) TestMDMDiskEncryptionIssue16636() {
 	s.assertConfigProfilesByIdentifier(nil, mobileconfig.FleetFileVaultPayloadIdentifier, false)
 }
 
-func (s *integrationMDMTestSuite) TestIsServerBitlockerStatus() {
-	t := s.T()
-	ctx := context.Background()
-
-	// create a server host that is not enrolled in MDM
-	host := createOrbitEnrolledHost(t, "windows", "server-host", s.ds)
-	require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, host.ID, true, false, "", false, "", ""))
-
-	acResp := appConfigResponse{}
-	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-		"mdm": { "enable_disk_encryption": true }
-  }`), http.StatusOK, &acResp)
-	assert.True(t, acResp.MDM.EnableDiskEncryption.Value)
-
-	var hr getHostResponse
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &hr)
-	require.Nil(t, hr.Host.MDM.OSSettings.DiskEncryption.Status)
-
-	// create a non-server host that is enrolled in MDM
-	host2 := createOrbitEnrolledHost(t, "windows", "non-server-host", s.ds)
-	require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, host2.ID, false, true, "http://example.com", false, fleet.WellKnownMDMFleet, ""))
-
-	hr = getHostResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host2.ID), nil, http.StatusOK, &hr)
-	require.NotNil(t, hr.Host.MDM.OSSettings.DiskEncryption.Status)
-	require.Equal(t, fleet.DiskEncryptionEnforcing, *hr.Host.MDM.OSSettings.DiskEncryption.Status)
-}
+//func (s *integrationMDMTestSuite) TestIsServerBitlockerStatus() {
+//	t := s.T()
+//	ctx := context.Background()
+//
+//	// create a server host that is not enrolled in MDM
+//	host := createOrbitEnrolledHost(t, "windows", "server-host", s.ds)
+//	require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, host.ID, true, false, "", false, "", ""))
+//
+//	acResp := appConfigResponse{}
+//	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+//		"mdm": { "enable_disk_encryption": true }
+//  }`), http.StatusOK, &acResp)
+//	assert.True(t, acResp.MDM.EnableDiskEncryption.Value)
+//
+//	var hr getHostResponse
+//	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &hr)
+//	require.Nil(t, hr.Host.MDM.OSSettings.DiskEncryption.Status)
+//
+//	// create a non-server host that is enrolled in MDM
+//	host2 := createOrbitEnrolledHost(t, "windows", "non-server-host", s.ds)
+//	require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, host2.ID, false, true, "http://example.com", false, fleet.WellKnownMDMFleet, ""))
+//
+//	hr = getHostResponse{}
+//	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host2.ID), nil, http.StatusOK, &hr)
+//	require.NotNil(t, hr.Host.MDM.OSSettings.DiskEncryption.Status)
+//	require.Equal(t, fleet.DiskEncryptionEnforcing, *hr.Host.MDM.OSSettings.DiskEncryption.Status)
+//}
 
 func (s *integrationMDMTestSuite) TestRemoveFailedProfiles() {
 	t := s.T()
