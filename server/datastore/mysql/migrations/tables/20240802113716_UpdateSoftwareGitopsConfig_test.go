@@ -184,7 +184,7 @@ func TestUp_20240802113716(t *testing.T) {
 	require.False(t, team.Config.Software.Packages.Valid)
 	require.Len(t, team.Config.Software.Packages.Value, 0)
 
-	require.True(t, team.Config.Software.AppStoreApps.Set)
+	require.False(t, team.Config.Software.AppStoreApps.Set)
 	require.False(t, team.Config.Software.AppStoreApps.Valid)
 	require.Len(t, team.Config.Software.AppStoreApps.Value, 0)
 }
