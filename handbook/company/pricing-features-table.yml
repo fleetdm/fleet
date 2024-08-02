@@ -550,7 +550,7 @@
      moreInfoUrl: https://github.com/fleetdm/fleet/issues/14899
 #  
 #  ╔═╗╔═╗╦  ╔═╗  ╔═╗╔═╗╦═╗╦  ╦╦╔═╗╔═╗  ╔═╗╔═╗╔═╗╦  ╦╔═╗╔═╗╔╦╗╦╔═╗╔╗╔  ╦╔╗╔╔═╗╔╦╗╔═╗╦  ╦  ╔═╗╔╦╗╦╔═╗╔╗╔                                   
-#  ╚═╗║╣ ║  ╠╣   ╚═╗║╣ ╠╦╝╚╗╔╝║║  ║╣   ╠═╣╠═╝╠═╝║  ║║  ╠═╣ ║ ║║ ║║║║  ║║║║╚═╗ ║ ╠═╣║  ║  ╠═╣ ║ ║║ ║║║║                                   
+#  ╚═╗║╣ ║  ╠╣───╚═╗║╣ ╠╦╝╚╗╔╝║║  ║╣   ╠═╣╠═╝╠═╝║  ║║  ╠═╣ ║ ║║ ║║║║  ║║║║╚═╗ ║ ╠═╣║  ║  ╠═╣ ║ ║║ ║║║║                                   
 #  ╚═╝╚═╝╩═╝╚    ╚═╝╚═╝╩╚═ ╚╝ ╩╚═╝╚═╝  ╩ ╩╩  ╩  ╩═╝╩╚═╝╩ ╩ ╩ ╩╚═╝╝╚╝  ╩╝╚╝╚═╝ ╩ ╩ ╩╩═╝╩═╝╩ ╩ ╩ ╩╚═╝╝╚╝                                   
 - industryName: Self-service application installation
   description: Allow end users to install apps through Fleet Desktop for macOS, Linux, and Windows.
@@ -795,9 +795,9 @@
     - description: Trigger a workflow based on a failing policy
       moreInfoUrl: https://fleetdm.com/docs/using-fleet/automations#policy-automations
 #
-#  ╔═╗╦╔╦╗
-#  ╠╣ ║║║║
-#  ╚  ╩╩ ╩
+#  ╔═╗╦╦  ╔═╗  ╦╔╗╔╔╦╗╔═╗╔═╗╦═╗╦╔╦╗╦ ╦  ╔╦╗╔═╗╔╗╔╦╔╦╗╔═╗╦═╗╦╔╗╔╔═╗
+#  ╠╣ ║║  ║╣   ║║║║ ║ ║╣ ║ ╦╠╦╝║ ║ ╚╦╝  ║║║║ ║║║║║ ║ ║ ║╠╦╝║║║║║ ╦
+#  ╚  ╩╩═╝╚═╝  ╩╝╚╝ ╩ ╚═╝╚═╝╩╚═╩ ╩  ╩   ╩ ╩╚═╝╝╚╝╩ ╩ ╚═╝╩╚═╩╝╚╝╚═╝
 - industryName: File integrity monitoring (FIM) # Short industry phrase
   friendlyName: Detect changes to critical files # Short, Fleet one-liner for the feature, written in the imperative mood.  (If easy to do, base this off of the words that an actual customer is saying.)
   description: Specify files to monitor for changes or deletions, then log those events to your SIEM or data lake, including key information such as filepath and checksum. # Clear Mr. Rogers description
@@ -1123,16 +1123,16 @@
   jamfProHasFeature: yes
   jamfProtectHasFeature: no
 #
-#  ╦╔╗╔╔╦╗╔═╗╔═╗╦═╗╔═╗╔╦╗╦╔═╗╔╗╔╔═╗
-#  ║║║║ ║ ║╣ ║ ╦╠╦╝╠═╣ ║ ║║ ║║║║╚═╗
-#  ╩╝╚╝ ╩ ╚═╝╚═╝╩╚═╩ ╩ ╩ ╩╚═╝╝╚╝╚═╝
-- industryName: 3rd party automation
+#  ╔╦╗╦ ╦╦╦═╗╔╦╗   ╔═╗╔═╗╦═╗╔╦╗╦ ╦  ╔═╗╦ ╦╔╦╗╔═╗╔╦╗╔═╗╔╦╗╦╔═╗╔╗╔
+#   ║ ╠═╣║╠╦╝ ║║───╠═╝╠═╣╠╦╝ ║ ╚╦╝  ╠═╣║ ║ ║ ║ ║║║║╠═╣ ║ ║║ ║║║║
+#   ╩ ╩ ╩╩╩╚══╩╝   ╩  ╩ ╩╩╚═ ╩  ╩   ╩ ╩╚═╝ ╩ ╚═╝╩ ╩╩ ╩ ╩ ╩╚═╝╝╚╝
+- industryName: Third-party automation
   friendlyName: Borrow off-the-shelf tactics from the community
   documentationUrl: https://fleetdm.com/integrations
   productCategories: [Endpoint operations,Device management,Vulnerability management]
   pricingTableCategories: [Integrations]
   usualDepartment: IT
-  description: Tines, Snowflake, Terraform, Chronicle, Jira, Zendesk, etc
+  description: Plug Fleet into other frameworks and tools like Tines, Snowflake, Terraform, Chronicle, Jira, Zendesk, etc
   moreInfoUrl: https://fleetdm.com/integrations
   tier: Free
   jamfProHasFeature: yes
@@ -1158,13 +1158,13 @@
     - description: (Jira) Automatically create Jira tickets in various situations, including exporting vulnerabilities to Jira and syncing tickets.
   buzzwords: [Snowflake,Okta,Tines,Splunk,Elastic,AWS,ActiveDirectory,Ansible,GitHub,GitLab,Chronicle,Google Cloud,Munki,Vanta,Chef,Zendesk,Jira]
 #
-#  ╔═╗╦═╗╔═╗╔╦╗╦╦ ╦╔╦╗  ╦╔╗╔╔╦╗╔═╗╔═╗╦═╗╔═╗╔╦╗╦╔═╗╔╗╔╔═╗
-#  ╠═╝╠╦╝║╣ ║║║║║ ║║║║  ║║║║ ║ ║╣ ║ ╦╠╦╝╠═╣ ║ ║║ ║║║║╚═╗
-#  ╩  ╩╚═╚═╝╩ ╩╩╚═╝╩ ╩  ╩╝╚╝ ╩ ╚═╝╚═╝╩╚═╩ ╩ ╩ ╩╚═╝╝╚╝╚═╝
-- industryName: Premium integrations (Puppet, Vanta, etc)
+#  ╔╦╗╦ ╦╦╦═╗╔╦╗   ╔═╗╔═╗╦═╗╔╦╗╦ ╦  ╔═╗╦═╗╔═╗╦ ╦╔═╗╔═╗╔╦╗╦═╗╔═╗╔╦╗╦╔═╗╔╗╔
+#   ║ ╠═╣║╠╦╝ ║║───╠═╝╠═╣╠╦╝ ║ ╚╦╝  ║ ║╠╦╝║  ╠═╣║╣ ╚═╗ ║ ╠╦╝╠═╣ ║ ║║ ║║║║
+#   ╩ ╩ ╩╩╩╚══╩╝   ╩  ╩ ╩╩╚═ ╩  ╩   ╚═╝╩╚═╚═╝╩ ╩╚═╝╚═╝ ╩ ╩╚═╩ ╩ ╩ ╩╚═╝╝╚╝
+- industryName: Third-party orchestration
   friendlyName: Borrow off-the-shelf tactics from legendary brands
   documentationUrl: https://fleetdm.com/integrations
-  description: Plug Fleet into other frameworks and tools.
+  description: Plug Fleet into other frameworks and tools like Puppet, Vanta, etc.
   productCategories: [Endpoint operations,Device management,Vulnerability management]
   pricingTableCategories: [Integrations]
   usualDepartment: IT
