@@ -168,7 +168,7 @@ func TestUp_20240802113716(t *testing.T) {
 	applyNext(t, db)
 
 	var team fleet.Team
-	db.Get(&team, "SELECT id, config FROM teams WHERE id = ?", tid1)
+	require.NoError(t, db.Get(&team, "SELECT id, config FROM teams WHERE id = ?", tid1))
 
 	// Team with a package should see it in the new field
 	require.NotNil(t, team.Config.Software)
@@ -176,7 +176,7 @@ func TestUp_20240802113716(t *testing.T) {
 	require.True(t, team.Config.Software.Packages.Valid)
 	require.Len(t, team.Config.Software.Packages.Value, 1)
 
-	db.Get(&team, "SELECT id, config FROM teams WHERE id = ?", tid2)
+	require.NoError(t, db.Get(&team, "SELECT id, config FROM teams WHERE id = ?", tid2))
 
 	// Team with an empty array originally should have JSON null set for packages
 	require.NotNil(t, team.Config.Software)
