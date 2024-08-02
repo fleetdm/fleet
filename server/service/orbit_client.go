@@ -146,7 +146,7 @@ func NewOrbitClient(
 	orbitHostInfo fleet.OrbitHostInfo,
 	onGetConfigErrFns *OnGetConfigErrFuncs,
 ) (*OrbitClient, error) {
-	orbitCapabilities := fleet.CapabilityMap{}
+	orbitCapabilities := fleet.GetOrbitClientCapabilities()
 	bc, err := newBaseClient(addr, insecureSkipVerify, rootCA, "", fleetClientCert, orbitCapabilities)
 	if err != nil {
 		return nil, err

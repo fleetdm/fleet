@@ -1624,6 +1624,42 @@ func (s *integrationMDMTestSuite) TestDiskEncryptionSharedSetting() {
 	checkConfigSetSucceeds()
 }
 
+func (s *integrationMDMTestSuite) TestEscrowBuddyBackwardsCompat() {
+	t := s.T()
+	ctx := context.Background()
+
+	// create a host
+	host, _ := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	orbitKey := setOrbitEnrollment(t, host, s.ds)
+	host.OrbitNodeKey = &orbitKey
+
+	// install a filevault profile for that host
+	acResp := appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"mdm": { "enable_disk_encryption": true }
+  }`), http.StatusOK, &acResp)
+	assert.True(t, acResp.MDM.EnableDiskEncryption.Value)
+
+	// set the status as non-decryptable so a notification should be sent
+	err := s.ds.SetOrUpdateHostDiskEncryptionKey(ctx, host.ID, "", "", ptr.Bool(false))
+	require.NoError(t, err)
+
+	// notification is false because the escrow buddy capability is not set
+	orbitConfigResp := orbitGetConfigResponse{}
+	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host.OrbitNodeKey)), http.StatusOK, &orbitConfigResp)
+	require.False(t, orbitConfigResp.Notifications.RotateDiskEncryptionKey)
+
+	// send the request again, this time with the right header
+	orbitConfigResp = orbitGetConfigResponse{}
+	res := s.DoRawWithHeaders("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host.OrbitNodeKey)), http.StatusOK, map[string]string{
+		"Authorization":          fmt.Sprintf("Bearer %s", s.token),
+		fleet.CapabilitiesHeader: string(fleet.CapabilityEscrowBuddy),
+	})
+	err = json.NewDecoder(res.Body).Decode(&orbitConfigResp)
+	require.NoError(t, err)
+	require.True(t, orbitConfigResp.Notifications.RotateDiskEncryptionKey)
+}
+
 func (s *integrationMDMTestSuite) TestMDMAppleHostDiskEncryption() {
 	t := s.T()
 	ctx := context.Background()
