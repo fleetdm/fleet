@@ -9,6 +9,11 @@
     border-right: none;
   }
 
+  .linkToFilteredHosts__header {
+    width: auto;
+    max-width: 120px;
+  }
+
   @media (max-width: 1120px) {
     .view-hosts-link {
       span {
