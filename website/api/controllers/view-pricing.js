@@ -61,7 +61,7 @@ module.exports = {
     }
 
 
-    let categoryOrderForITPricingTable = [ 'Deployment', 'Configuration', 'Devices', 'Integrations', 'Support'];
+    let categoryOrderForITPricingTable = ['Deployment', 'Configuration', 'Devices', 'Integrations', 'Support'];
     let pricingTableForIt = [];
     // Sort the IT-focused pricing table from the order of the elements in the categoryOrderForITPricingTable array.
     for(let category of categoryOrderForITPricingTable) {

@@ -32,20 +32,7 @@
   tier: Premium
   jamfProHasFeature: yes
   jamfProtectHasFeature: yes
-#  
-#  ╔╦╗╔═╗╔═╗╦  ╔═╗╦ ╦╔╦╗╔═╗╔╗╔╔╦╗  ╔╦╗╔═╗╔═╗╦  ╔═╗
-#   ║║║╣ ╠═╝║  ║ ║╚╦╝║║║║╣ ║║║ ║    ║ ║ ║║ ║║  ╚═╗
-#  ═╩╝╚═╝╩  ╩═╝╚═╝ ╩ ╩ ╩╚═╝╝╚╝ ╩    ╩ ╚═╝╚═╝╩═╝╚═╝
-- industryName: Deployment tools 
-  description: Pre-built Terraform modules and Helm charts to help you get up and running. 
-  documentationUrl: https://fleetdm.com/docs/deploy/introduction
-  usualDepartment: IT
-  tier: Free
-  jamfProHasFeature: no
-  jamfProtectHasFeature: no
-  productCategories: [Endpoint operations]
-  pricingTableCategories: [Deployment]
-#  
+# 
 #  ╔═╗╔═╗╦  ╔═╗  ╦ ╦╔═╗╔═╗╔╦╗╔═╗╔╦╗
 #  ╚═╗║╣ ║  ╠╣───╠═╣║ ║╚═╗ ║ ║╣  ║║
 #  ╚═╝╚═╝╩═╝╚    ╩ ╩╚═╝╚═╝ ╩ ╚═╝═╩╝
@@ -72,6 +59,19 @@
   buzzwords: [OEM,Private label,House brand,Clear label,Multi-tenancy]
   tier: Premium
   comingSoonOn: 2024-08-26 #customer-deebradel 
+#  
+#  ╔╦╗╔═╗╔═╗╦  ╔═╗╦ ╦╔╦╗╔═╗╔╗╔╔╦╗  ╔╦╗╔═╗╔═╗╦  ╔═╗
+#   ║║║╣ ╠═╝║  ║ ║╚╦╝║║║║╣ ║║║ ║    ║ ║ ║║ ║║  ╚═╗
+#  ═╩╝╚═╝╩  ╩═╝╚═╝ ╩ ╩ ╩╚═╝╝╚╝ ╩    ╩ ╚═╝╚═╝╩═╝╚═╝
+- industryName: Deployment tools 
+  description: Pre-built Terraform modules and Helm charts to help you get up and running. 
+  documentationUrl: https://fleetdm.com/docs/deploy/introduction
+  usualDepartment: IT
+  tier: Free
+  jamfProHasFeature: no
+  jamfProtectHasFeature: no
+  productCategories: [Endpoint operations]
+  pricingTableCategories: [Deployment] 
 #
 #
 #   ██████╗ ██████╗ ███╗   ██╗███████╗██╗ ██████╗ ██╗   ██╗██████╗  █████╗ ████████╗██╗ ██████╗ ███╗   ██╗
