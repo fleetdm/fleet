@@ -156,8 +156,6 @@ type HostSoftwareInstallerResult struct {
 	SoftwarePackage string `json:"software_package" db:"software_package"`
 	// HostID is the ID of the host.
 	HostID uint `json:"host_id" db:"host_id"`
-	// HostDisplayName is the display name of the host.
-	HostDisplayName string `json:"host_display_name" db:"host_display_name"`
 	// Status is the status of the software installer package on the host.
 	Status SoftwareInstallerStatus `json:"status" db:"status"`
 	// Detail is the detail of the software installer package on the host. TODO: does this field
@@ -173,9 +171,6 @@ type HostSoftwareInstallerResult struct {
 	CreatedAt time.Time `json:"created_at" db:"created_at"`
 	// UpdatedAt is the time the software installer request was last updated.
 	UpdatedAt *time.Time `json:"updated_at" db:"updated_at"`
-	// HostTeamID is the team ID of the host on which this software install was attempted. This
-	// field is not sent in the response, it is only used for internal authorization.
-	HostTeamID *uint `json:"-" db:"host_team_id"`
 	// UserID is the user ID that requested the software installation on that host.
 	UserID *uint `json:"-" db:"user_id"`
 	// InstallScriptExitCode is used internally to determine the output displayed to the user.
@@ -185,6 +180,9 @@ type HostSoftwareInstallerResult struct {
 	// SelfService indicates that the installation was queued by the
 	// end user and not an administrator
 	SelfService bool `json:"self_service" db:"self_service"`
+	// HostDeletedAt indicates if the data is associated with a
+	// deleted host
+	HostDeletedAt *time.Time `json:"-" db:"host_deleted_at"`
 }
 
 const (

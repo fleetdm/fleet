@@ -6,8 +6,8 @@
         <div class="d-flex flex-row justify-content-center align-items-start">
           <%/* Hero text */%>
           <div purpose="hero-text"  class="d-flex flex-column justify-content-center">
-            <h1><%- partial('../partials/primary-tagline.partial.ejs') %></h1>
-            <p>Replace the sprawl with <%= primaryBuyingSituation === 'vm'? 'secure, open-source reporting that works the way you want' : primaryBuyingSituation === 'eo-security'? 'universal, open-source endpoint visibility' : 'secure, open-source device management that works the way you want' %>.</p>
+            <h1 class="mx-auto <%= primaryBuyingSituation%>"><%- partial('../partials/primary-tagline.partial.ejs') %></h1>
+            <p>Replace the sprawl with <%= primaryBuyingSituation === 'vm'? 'secure, open-source reporting that works the way you want' : primaryBuyingSituation === 'eo-security'? 'universal, open-source endpoint visibility' : 'a modern device management platform that works the way you want' %>.</p>
             <div purpose="button-row" class="d-flex flex-sm-row flex-column justify-content-center align-items-center">
               <a purpose="cta-button" href="<%= primaryBuyingSituation === 'mdm' ? '/device-management' : primaryBuyingSituation === 'vm' ? '/vulnerability-management' : primaryBuyingSituation === 'eo-security' ? '/endpoint-ops' : primaryBuyingSituation === 'eo-it' ? '/endpoint-ops' : '/device-management' %>">Learn how</a>
               <animated-arrow-button href="/contact">Talk to us</animated-arrow-button>
@@ -27,9 +27,9 @@
     <% if(!primaryBuyingSituation){ %>
       <div purpose="category-switch" class="d-flex flex-md-row flex-column justify-content-center mx-auto">
         <div purpose="category-switch-option" :class="[selectedCategory === 'mdm' ? 'selected' : '']" @click="selectedCategory = 'mdm'">Device management</div>
-        <div purpose="category-switch-option" :class="[['eo-it', 'eo-security'].includes(selectedCategory) ? 'selected' : '']" @click="selectedCategory = 'endpoint-operations'">Endpoint ops</div>
-        <div purpose="category-switch-option" :class="[selectedCategory === 'vulnerability-management' ? 'selected' : '']" @click="selectedCategory = 'vm'">Vuln<span class="d-inline d-md-none d-lg-inline">erability</span> management</div>
-        <div purpose="category-tier-switch" :class="[['eo-it', 'eo-security', 'endpoint-operations'].includes(selectedCategory) ? 'eo-selected' : selectedCategory === 'vm' ? 'vm-selected' : selectedCategory === 'mdm' ? 'mdm-selected' : 'mdm-selected']"></div>
+        <div purpose="category-switch-option" :class="[selectedCategory === 'eo-it' ? 'selected' : '']" @click="selectedCategory = 'eo-it'">IT engineering</div>
+        <div purpose="category-switch-option" :class="[selectedCategory === 'eo-security' ? 'selected' : '']" @click="selectedCategory = 'eo-security'">Security engineering</div>
+        <div purpose="category-tier-switch" :class="[selectedCategory === 'eo-it' ? 'it-selected' : selectedCategory === 'eo-security' ? 'security-selected' : selectedCategory === 'mdm' ? 'mdm-selected' : 'mdm-selected']"></div>
       </div>
       <%/* Device management block */%>
       <div purpose="platform-block" class="d-flex flex-md-row flex-column justify-content-md-between mx-auto align-items-center" :class="[selectedCategory === 'mdm' ? 'visible' : '']" v-if="selectedCategory === 'mdm'">
@@ -49,38 +49,38 @@
         </div>
       </div>
 
-      <%/* Endpoint ops block */%>
-      <div purpose="platform-block" :class="[selectedCategory === 'endpoint-operations' ? 'visible' : '']"  class="d-flex flex-md-row flex-column justify-content-md-between mx-auto align-items-center" v-if="selectedCategory === 'endpoint-operations'">
+      <%/* IT engineering block */%>
+      <div purpose="platform-block" :class="[selectedCategory === 'eo-it' ? 'visible' : '']"  class="d-flex flex-md-row flex-column justify-content-md-between mx-auto align-items-center" v-if="selectedCategory === 'eo-it'">
         <div purpose="endpoint-ops-image" class="left">
           <img alt="Endpoint ops" src="/images/endpoint-operations-hero-image-380x380@2x.png">
         </div>
         <div purpose="category-text-block" class="d-flex flex-column">
-          <strong>Pulse check anything</strong>
-          <p>Use a live connection to every endpoint to simplify audit, compliance, and reporting from workstations to data centers.</p>
+          <strong>Automate anything</strong>
+          <p>Remotely run scripts and prompts to complete tasks on every kind of computer, including Linux.</p>
           <strong>Ship data to any platform</strong>
           <p>Ship logs to any platform like Splunk, Snowflake, or <a href="/docs/using-fleet/log-destinations">any streaming infrastructure</a> like AWS Kinesis and Apache Kafka.</p>
           <strong>Osquery on easy mode</strong>
           <p>Use "read-only" mode or enable remote scripting to automate anything on every operating system, including Linux.</p>
           <div>
-            <a purpose="category-button" class="text-nowrap btn btn-primary" href="/endpoint-ops">Start with endpoint ops</a>
+            <a purpose="category-button" class="text-nowrap btn btn-primary" href="/endpoint-ops?utm_content=eo-it">Start with IT engineering</a>
           </div>
         </div>
       </div>
 
-      <%/* Vulnerability management block */%>
-      <div purpose="platform-block" :class="[selectedCategory === 'vm' ? 'visible' : '']" class="d-flex flex-md-row flex-column justify-content-md-between mx-auto align-items-center" v-if="selectedCategory === 'vm'">
+      <%/* Security engineering block */%>
+      <div purpose="platform-block" :class="[selectedCategory === 'eo-security' ? 'visible' : '']" class="d-flex flex-md-row flex-column justify-content-md-between mx-auto align-items-center" v-if="selectedCategory === 'eo-security'">
         <div purpose="vuln-management-image" class="left">
           <img  alt="An orb being scanned for vulnerabilities" src="/images/vulnerability-management-hero-image-345x380@2x.png">
         </div>
         <div purpose="category-text-block" class="d-flex flex-column">
-          <strong>Report what matters</strong>
-          <p>Let's face it, most built-in graphs leave you wanting more. Report MTTR and any other custom metrics exactly the way you want to using fresh data from real computers.</p>
-          <strong>Deep context from the environment</strong>
-          <p>Fleet gives you data down to the chip level on every endpoint to help you make sense of which vulnerabilities to prioritize.</p>
-          <strong>Untangle your security stack</strong>
-          <p>Use open data and APIs to connect your vulnerability solution with osquery, the agent you might already have deployed.</p>
+          <strong>Osquery on easy mode</strong>
+          <p>Use "read-only" mode or enable remote scripting to automate anything on every operating system, including Linux.</p>
+          <strong>Pulse check anything</strong>
+          <p>Use a live connection to every endpoint to simplify audit, compliance, and reporting from workstations to data centers.</p>
+          <strong>Ship data to any platform</strong>
+          <p>Ship logs to any platform like Splunk, Snowflake, or <a href="/docs/using-fleet/log-destinations">any streaming infrastructure</a> like AWS Kinesis and Apache Kafka.</p>
           <div>
-            <a purpose="category-button" class="text-nowrap btn btn-primary" href="/vulnerability-management">Start with vuln management</a>
+            <a purpose="category-button" class="text-nowrap btn btn-primary" href="/endpoint-ops?utm_content=eo-security">Start with security engineering</a>
           </div>
         </div>
       </div>
@@ -104,11 +104,11 @@
          <% } %>
          <div purpose="platform-block" class="d-flex flex-md-row flex-column-reverse justify-content-md-between mx-auto align-items-center">
            <div purpose="category-text-block" class="d-flex flex-column personalized">
-             <h4>Endpoint ops</h4>
+             <h4><%= primaryBuyingSituation==='eo-security'? 'Security engineering' : 'IT engineering'%></h4>
              <h2><%= primaryBuyingSituation==='eo-security'? 'Instrument your endpoints' : 'Understand your computers'%></h2>
              <p>A <%= primaryBuyingSituation==='eo-security'? 'lightweight' : 'quick-fast' %> way to gather <%= primaryBuyingSituation==='vm'? 'patch level and custom reports across all your computing devices, even in OT and production environments' : primaryBuyingSituation==='eo-security'? 'deep context and custom telemetry across all your endpoints, even servers' : primaryBuyingSituation==='mdm'||primaryBuyingSituation==='eo-it'? 'compliance and inventory data across all your devices' : 'device data across all your computers' %>. Pulse check or automate anything on any platform.</p>
              <div>
-               <animated-arrow-button href="/endpoint-ops">Start with endpoint ops</animated-arrow-button>
+               <animated-arrow-button href="/endpoint-ops<%= primaryBuyingSituation==='eo-security' ? '?utm_content=eo-security' : '?utm_content=eo-it'%>">Start with <%= primaryBuyingSituation==='eo-security' ? 'security engineering' : 'IT engineering'%></animated-arrow-button>
              </div>
            </div>
            <div purpose="endpoint-ops-image" class="right">
@@ -171,11 +171,11 @@
              <img alt="Endpoint ops" src="/images/endpoint-operations-hero-image-380x380@2x.png">
            </div>
            <div purpose="category-text-block" class="d-flex flex-column personalized">
-             <h4>Endpoint ops</h4>
-             <h2><%= primaryBuyingSituation==='eo-security'? 'Instrument your endpoints' : 'Understand your computers'%></h2>
-             <p>A <%= primaryBuyingSituation==='eo-security'? 'lightweight' : 'quick-fast' %> way to gather <%= primaryBuyingSituation==='vm'? 'patch level and custom reports across all your computing devices, even in OT and production environments' : primaryBuyingSituation==='eo-security'? 'deep context and custom telemetry across all your endpoints, even servers' : primaryBuyingSituation==='mdm'||primaryBuyingSituation==='eo-it'? 'compliance and inventory data across all your devices' : 'device data across all your computers' %>. Pulse check or automate anything on any platform.</p>
+             <h4><%= primaryBuyingSituation==='mdm' ? 'IT engineering' : 'Security engineering'%></h4>
+             <h2><%= primaryBuyingSituation==='vm'? 'Instrument your endpoints' : 'Understand your computers'%></h2>
+             <p>A <%= primaryBuyingSituation==='vm'? 'lightweight' : 'quick-fast' %> way to gather <%= primaryBuyingSituation==='vm'? 'patch level and custom reports across all your computing devices, even in OT and production environments' : primaryBuyingSituation==='vm'? 'deep context and custom telemetry across all your endpoints, even servers' : primaryBuyingSituation==='mdm'||primaryBuyingSituation==='eo-it'? 'compliance and inventory data across all your devices' : 'device data across all your computers' %>. Pulse check or automate anything on any platform.</p>
              <div>
-               <animated-arrow-button href="/endpoint-ops">Start with endpoint ops</animated-arrow-button>
+               <animated-arrow-button href="/endpoint-ops<%= primaryBuyingSituation==='mdm' ? '?utm_content=eo-it' : '?utm_content=eo-security'%>">Start with <%= primaryBuyingSituation==='mdm' ? 'IT engineering' : 'security engineering'%></animated-arrow-button>
              </div>
            </div>
          </div>
@@ -373,7 +373,7 @@
     <div purpose="homepage-content" class="container">
       <div class="text-center" purpose="bottom-cta">
         <h4>For teams with lots of computing devices</h4>
-        <h1><%- partial('../partials/primary-tagline.partial.ejs') %></h1>
+        <h1 class="mx-auto <%= primaryBuyingSituation%>"><%- partial('../partials/primary-tagline.partial.ejs') %></h1>
         <div purpose="button-row" style="margin-top: 40px;" class="d-flex flex-sm-row flex-column justify-content-center align-items-center mx-auto">
           <a purpose="cta-button" href="/register">Start now</a>
           <animated-arrow-button href="/contact">Talk to us</animated-arrow-button>
