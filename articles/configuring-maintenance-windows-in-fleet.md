@@ -34,7 +34,7 @@ To access these steps, click the top right **User logo** > **Settings** page > *
 
 Follow the instructions found on this page.
 
-> Please note that the Fleet server will use APIs provided by Google Calendar. Some additional load should be expected on the server. Make sure to have enough quota. (This can be adjusted later per need)
+> Please note that the Fleet server will use APIs provided by Google Calendar. Some additional load should be expected on the server. Make sure to have enough quota and set an alert when API load hits your quota. (This can be adjusted later per need)
 
 Video: [How to configure the Google Calendar API in Fleet](https://www.youtube.com/watch?v=CpbzJNrM2LY). (2m)
 
