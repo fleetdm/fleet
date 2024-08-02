@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"crypto/x509"
+	"encoding/base64"
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
@@ -772,7 +773,7 @@ func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 	require.NoError(t, err)
 
 	// set the env var, and run the cron
-	t.Setenv("FLEET_SILENT_MIGRATION_ENROLLMENT_PROFILE", "<foo></foo>")
+	t.Setenv("FLEET_SILENT_MIGRATION_ENROLLMENT_PROFILE", base64.StdEncoding.EncodeToString([]byte("<foo></foo>")))
 	err = RenewSCEPCertificates(ctx, logger, s.ds, &fleetCfg, s.mdmCommander)
 	require.NoError(t, err)
 	checkRenewCertCommand(migratedDevice, "", "<foo></foo>")
