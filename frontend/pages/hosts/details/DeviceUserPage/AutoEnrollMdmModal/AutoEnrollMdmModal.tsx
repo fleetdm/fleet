@@ -23,6 +23,7 @@ const AutoEnrollMdmModal = ({
       .map((s) => parseInt(s, 10));
     isMacOsSonomaOrLater = major >= 14;
   }
+
   return (
     <Modal
       title="Turn on MDM"
@@ -37,7 +38,7 @@ const AutoEnrollMdmModal = ({
         <ol>
           <li>
             From the Apple menu in the top left corner of your screen, select{" "}
-            <b>System Settings</b> or <b>System Preferences</b>.
+            <b>System Settings</b>.
           </li>
           <li>
             {isMacOsSonomaOrLater ? (
@@ -48,7 +49,8 @@ const AutoEnrollMdmModal = ({
             ) : (
               <>
                 In the search bar, type “Profiles.” Select <b>Profiles</b>, find
-                and select <b>Enrollment Profile</b>, and select <b>Install</b>.
+                and double-click the <b>[Organization name] enrollment</b>{" "}
+                profile.
               </>
             )}
           </li>
@@ -56,8 +58,8 @@ const AutoEnrollMdmModal = ({
             Enter your password, and select <b>Enroll</b>.
           </li>
           <li>
-            Close this window and select <b>Refetch</b> on your My device page
-            to tell your organization that MDM is on.
+            Select <b>Done</b> to close this window and select <b>Refetch</b> on
+            your My Device page to tell your organization that MDM is on.
           </li>
         </ol>
         <div className="modal-cta-wrap">
