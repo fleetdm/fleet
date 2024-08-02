@@ -2,6 +2,7 @@ package fleet
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 )
@@ -32,7 +33,7 @@ func (ce *CalendarEvent) GetBodyTag() string {
 
 func (ce *CalendarEvent) SaveDataItems(keysAndValues ...string) error {
 	if len(keysAndValues)%2 != 0 {
-		return fmt.Errorf("SaveDataItem requires an even number of arguments")
+		return errors.New("SaveDataItem requires an even number of arguments")
 	}
 	var result map[string]any
 	if len(ce.Data) > 0 {
