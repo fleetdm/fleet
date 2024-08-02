@@ -300,19 +300,19 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 			}
 		}
 
-		err = svc.setDiskEncryptionNotifications(
-			ctx,
-			&notifs,
-			host,
-			appConfig,
-			mdmConfig.EnableDiskEncryption,
-			isConnectedToFleetMDM,
-			mdmInfo,
-		)
-		if err != nil {
-			return fleet.OrbitConfig{}, ctxerr.Wrap(ctx, err, "setting team disk encryption notifications")
-		}
-
+		//		err = svc.setDiskEncryptionNotifications(
+		//			ctx,
+		//			&notifs,
+		//			host,
+		//			appConfig,
+		//			mdmConfig.EnableDiskEncryption,
+		//			isConnectedToFleetMDM,
+		//			mdmInfo,
+		//		)
+		//		if err != nil {
+		//			return fleet.OrbitConfig{}, ctxerr.Wrap(ctx, err, "setting team disk encryption notifications")
+		//		}
+		//
 		var updateChannels *fleet.OrbitUpdateChannels
 		if len(opts.UpdateChannels) > 0 {
 			var uc fleet.OrbitUpdateChannels
@@ -370,18 +370,18 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 		}
 	}
 
-	err = svc.setDiskEncryptionNotifications(
-		ctx,
-		&notifs,
-		host,
-		appConfig,
-		appConfig.MDM.EnableDiskEncryption.Value,
-		isConnectedToFleetMDM,
-		mdmInfo,
-	)
-	if err != nil {
-		return fleet.OrbitConfig{}, ctxerr.Wrap(ctx, err, "setting no-team disk encryption notifications")
-	}
+	//	err = svc.setDiskEncryptionNotifications(
+	//		ctx,
+	//		&notifs,
+	//		host,
+	//		appConfig,
+	//		appConfig.MDM.EnableDiskEncryption.Value,
+	//		isConnectedToFleetMDM,
+	//		mdmInfo,
+	//	)
+	//	if err != nil {
+	//		return fleet.OrbitConfig{}, ctxerr.Wrap(ctx, err, "setting no-team disk encryption notifications")
+	//	}
 
 	var updateChannels *fleet.OrbitUpdateChannels
 	if len(opts.UpdateChannels) > 0 {
