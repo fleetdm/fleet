@@ -723,8 +723,8 @@
 #  ║  ║ ║╚═╗ ║ ║ ║║║║   ║ ╠═╣╠╩╗║  ║╣ ╚═╗
 #  ╚═╝╚═╝╚═╝ ╩ ╚═╝╩ ╩   ╩ ╩ ╩╚═╝╩═╝╚═╝╚═╝
 - industryName: Custom tables
-  friendlyName: Create your own osquery tables, extensions and automatic table configurations or disable existing tables to maintain PII or privacy.
-  description: Install osquery extensions over the air. #  (GitOptional)
+  friendlyName: Add tables to osquery with extensions
+  description: Create your own osquery tables, extensions & automatic table configurations or disable existing tables to maintain PII or privacy.
   documentationUrl: https://fleetdm.com/docs/configuration/agent-configuration#extensions
   moreInfoUrl: https://github.com/trailofbits/osquery-extensions/blob/3df2b72ad78549e25344c79dbc9bce6808c4d92a/README.md#extensions
   tier: Premium
@@ -996,7 +996,8 @@
 #  ╦  ╦╦ ╦╦  ╔╗╔╔═╗╦═╗╔═╗╔╗ ╦╦  ╦╔╦╗╦ ╦  ╔═╗╔═╗╔═╗╦═╗╔═╗╔═╗       ╔═╗╔═╗╔═╗╔═╗  ╔═╗╔╗╔╔╦╗  ╔═╗╦  ╦╔═╗╔═╗
 #  ╚╗╔╝║ ║║  ║║║║╣ ╠╦╝╠═╣╠╩╗║║  ║ ║ ╚╦╝  ╚═╗║  ║ ║╠╦╝║╣ ╚═╗  ───  ║╣ ╠═╝╚═╗╚═╗  ╠═╣║║║ ║║  ║  ╚╗╔╝╚═╗╚═╗
 #   ╚╝ ╚═╝╩═╝╝╚╝╚═╝╩╚═╩ ╩╚═╝╩╩═╝╩ ╩  ╩   ╚═╝╚═╝╚═╝╩╚═╚═╝╚═╝       ╚═╝╩  ╚═╝╚═╝  ╩ ╩╝╚╝═╩╝  ╚═╝ ╚╝ ╚═╝╚═╝
-- industryName: Vulnerability scores (EPSS and CVSS) 
+- industryName: Vulnerability scores
+  documentation: EPSS and CVSS
   documentationUrl: https://fleetdm.com/vulnerability-management
   tier: Premium
   jamfProHasFeature: no
@@ -1018,7 +1019,8 @@
 #  ╔═╗╦╔═╗╔═╗  ╦╔═╔═╗╦  ╦╔═╗
 #  ║  ║╚═╗╠═╣  ╠╩╗║╣ ╚╗╔╝╚═╗
 #  ╚═╝╩╚═╝╩ ╩  ╩ ╩╚═╝ ╚╝ ╚═╝
-- industryName: CISA KEVs (known exploited vulnerabilities)
+- industryName: CISA KEVs
+  description: Known exploited vulnerabilities
   documentationUrl: https://fleetdm.com/vulnerability-management
   tier: Premium
   jamfProHasFeature: no
@@ -1088,6 +1090,7 @@
 #  ║ ╦╠╦╝╠═╣║║║ ║   ╠═╣╠═╝║───║ ║║║║║ ╚╦╝  ╠═╣║  ║  ║╣ ╚═╗╚═╗
 #  ╚═╝╩╚═╩ ╩╝╚╝ ╩   ╩ ╩╩  ╩   ╚═╝╝╚╝╩═╝╩   ╩ ╩╚═╝╚═╝╚═╝╚═╝╚═╝
 - industryName: Grant API-only access
+  description: Grant API-only access to accounts exclusively for automation.
   documentationUrl: https://fleetdm.com/docs/using-fleet/fleetctl-cli#using-fleetctl-with-an-api-only-user
   productCategories: [Endpoint operations]
   pricingTableCategories: [Integrations]
@@ -1098,7 +1101,8 @@
 #  ╔═╗╦╔╗╔╔═╗╦  ╔═╗  ╔═╗╦╔═╗╔╗╔  ╔═╗╔╗╔
 #  ╚═╗║║║║║ ╦║  ║╣   ╚═╗║║ ╦║║║  ║ ║║║║
 #  ╚═╝╩╝╚╝╚═╝╩═╝╚═╝  ╚═╝╩╚═╝╝╚╝  ╚═╝╝╚╝
-- industryName: Single sign on (SSO, SAML)
+- industryName: Single sign on
+  description: SSO, SAML
   documentationUrl: https://fleetdm.com/docs/deploy/single-sign-on-sso#single-sign-on-sso
   productCategories: [Endpoint operations,Device management,Vulnerability management]
   pricingTableCategories: [Integrations]
@@ -1122,13 +1126,13 @@
 #  ╦╔╗╔╔╦╗╔═╗╔═╗╦═╗╔═╗╔╦╗╦╔═╗╔╗╔╔═╗
 #  ║║║║ ║ ║╣ ║ ╦╠╦╝╠═╣ ║ ║║ ║║║║╚═╗
 #  ╩╝╚╝ ╩ ╚═╝╚═╝╩╚═╩ ╩ ╩ ╩╚═╝╝╚╝╚═╝
-- industryName: Integrations (Tines, Snowflake, Terraform, Chronicle, Jira, Zendesk, etc)
+- industryName: 3rd party automation
   friendlyName: Borrow off-the-shelf tactics from the community
   documentationUrl: https://fleetdm.com/integrations
   productCategories: [Endpoint operations,Device management,Vulnerability management]
   pricingTableCategories: [Integrations]
   usualDepartment: IT
-  description:
+  description: Tines, Snowflake, Terraform, Chronicle, Jira, Zendesk, etc
   moreInfoUrl: https://fleetdm.com/integrations
   tier: Free
   jamfProHasFeature: yes
