@@ -555,30 +555,6 @@ func (c *Client) ApplyGroup(
 		}
 	}
 
-	// Apply "no team" software installers.  Running every time to support
-	// removal of software installers on an empty config.
-	if len(specs.Teams) == 0 && len(specs.Software) > 0 && appconfig != nil && appconfig.License.IsPremium() {
-		packages := make([]fleet.SoftwarePackageSpec, 0, len(specs.Software))
-		for _, software := range specs.Software {
-			if software != nil {
-				packages = append(packages, *software)
-			}
-		}
-		payload, err := buildSoftwarePackagesPayload(baseDir, packages)
-		if err != nil {
-			return nil, fmt.Errorf("applying software installers: %w", err)
-		}
-		if err := c.ApplyNoTeamSoftwareInstallers(payload, opts.ApplySpecOptions); err != nil {
-			return nil, fmt.Errorf("applying software installers: %w", err)
-		}
-
-		if opts.DryRun {
-			logfn("[+] would've applied 'No Team' software installers\n")
-		} else {
-			logfn("[+] applied 'No Team' software installers\n")
-		}
-	}
-
 	var teamIDsByName map[string]uint
 	if len(specs.Teams) > 0 {
 		// extract the teams' custom settings and resolve the files immediately, so
@@ -1485,7 +1461,37 @@ func (c *Client) DoGitOps(
 		return nil, err
 	}
 
+	err = c.doGitOpsNoTeamSoftware(group, baseDir, appConfig, logFn, dryRun)
+	if err != nil {
+		return nil, err
+	}
+
 	return teamAssumptions, nil
+}
+
+func (c *Client) doGitOpsNoTeamSoftware(specs spec.Group, baseDir string, appconfig *fleet.EnrichedAppConfig, logFn func(format string, args ...interface{}), dryRun bool) error {
+	if len(specs.Teams) == 0 && appconfig != nil && appconfig.License.IsPremium() {
+		packages := make([]fleet.SoftwarePackageSpec, 0, len(specs.Software))
+		for _, software := range specs.Software {
+			if software != nil {
+				packages = append(packages, *software)
+			}
+		}
+		payload, err := buildSoftwarePackagesPayload(baseDir, packages)
+		if err != nil {
+			return fmt.Errorf("applying software installers: %w", err)
+		}
+		if err := c.ApplyNoTeamSoftwareInstallers(payload, fleet.ApplySpecOptions{DryRun: dryRun}); err != nil {
+			return fmt.Errorf("applying software installers: %w", err)
+		}
+
+		if dryRun {
+			logFn("[+] would've applied 'No Team' software installers\n")
+		} else {
+			logFn("[+] applied 'No Team' software installers\n")
+		}
+	}
+	return nil
 }
 
 func (c *Client) doGitOpsPolicies(config *spec.GitOps, logFn func(format string, args ...interface{}), dryRun bool) error {
