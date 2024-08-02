@@ -380,7 +380,7 @@ Once the new team member replies and accepts their offer in writing, 🔦 Head o
 Now what happens?  🔦 Business Operations will then follow the steps in the "Hiring" issue, which includes reaching out to the new team member within 1 business day from a separate email thread to get additional information as needed, prepare their agreement, add them to the company's payroll system, and get their new laptop and hardware security keys ordered so that everything is ready for them to start on their first day.
 
 
-## Creating 30-60-90 day plans 
+### Creating 30-60-90 day plans 
 Before a new hire starts at Fleet, managers create a 30-60-90 day plan outlining key role objectives. These plans are reviewed weekly in 1:1 meetings during the first three months of employment, ensuring continuous support and alignment with company goals. 
 To create a 30-60-90 day plan for a new teammate: 
 1. Create a copy of the [30-60-90 day plan template](https://docs.google.com/document/d/1EztmPBuMFXbVoy4ZToXcxasNO38ooOh8Gh5hPXFvJhI/copy) and rename the copied file using the naming convention `[start date] - 30-60-90 day plan - [teammate full name]` and move it to the [30-60-90 day plan folder](https://drive.google.com/drive/u/0/folders/1QWiAbgBFuuofT_3M8oIoBsbEBmubQAj7) in Google Drive.
