@@ -35,14 +35,14 @@ func Up_20240802113716(tx *sql.Tx) error {
 		}
 		softwareData, ok := config["software"]
 		if !ok {
-		    continue
+			continue
 		}
 
 		rt := reflect.TypeOf(config["software"])
 		if rt == nil {
-		    continue
+			continue
 		}
-		    
+
 		if rt.Kind() == reflect.Slice {
 			// then we have an older config without the new fields
 			// Note: we are setting the new key to be whatever the old key was (if it was null, then
