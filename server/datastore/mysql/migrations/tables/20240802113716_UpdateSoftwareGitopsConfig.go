@@ -34,6 +34,10 @@ func Up_20240802113716(tx *sql.Tx) error {
 			return fmt.Errorf("unmarshal team config: %w", err)
 		}
 		softwareData := config["software"]
+		if softwareData == nil {
+			continue
+		}
+
 		rt := reflect.TypeOf(config["software"])
 		if rt.Kind() == reflect.Slice {
 			// then we have an older config without the new fields
