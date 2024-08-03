@@ -111,7 +111,7 @@ jobs:
           done
 
       - name: Start Infra Dependencies
-        run: FLEET_MYSQL_IMAGE=${{ matrix.mysql }} docker-compose up -d mysql redis &
+        run: FLEET_MYSQL_IMAGE=${{ matrix.mysql }} docker compose up -d mysql redis &
 
       - name: Install JS Dependencies
         run: make deps-js

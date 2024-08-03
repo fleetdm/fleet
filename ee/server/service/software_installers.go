@@ -20,6 +20,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/vpp"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/go-kit/log/level"
 	"github.com/google/uuid"
 	"golang.org/x/sync/errgroup"
@@ -121,7 +122,7 @@ func (svc *Service) deleteVPPApp(ctx context.Context, teamID *uint, meta *fleet.
 	}
 
 	var teamName *string
-	if teamID != nil {
+	if teamID != nil && *teamID != 0 {
 		t, err := svc.ds.Team(ctx, *teamID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "getting team name for deleted VPP app")
@@ -161,11 +162,19 @@ func (svc *Service) deleteSoftwareInstaller(ctx context.Context, meta *fleet.Sof
 		teamName = &t.Name
 	}
 
+	var teamID *uint
+	switch {
+	case meta.TeamID == nil:
+		teamID = ptr.Uint(0)
+	case meta.TeamID != nil:
+		teamID = meta.TeamID
+	}
+
 	if err := svc.NewActivity(ctx, vc.User, fleet.ActivityTypeDeletedSoftware{
 		SoftwareTitle:   meta.SoftwareTitle,
 		SoftwarePackage: meta.Name,
 		TeamName:        teamName,
-		TeamID:          meta.TeamID,
+		TeamID:          teamID,
 		SelfService:     meta.SelfService,
 	}); err != nil {
 		return ctxerr.Wrap(ctx, err, "creating activity for deleted software")

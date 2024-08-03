@@ -3504,6 +3504,7 @@ This is the API route used by the **My device** page in Fleet desktop to display
       ]
     }
   },
+  "self_service": true,
   "org_logo_url": "https://example.com/logo.jpg",
   "license": {
     "tier": "free",

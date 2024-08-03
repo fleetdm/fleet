@@ -16,7 +16,7 @@ module.exports = {
   fn: async function ({ dry, githubAccessToken }) {
     let path = require('path');
     let YAML = require('yaml');
-
+    let util = require('util');
     // FUTURE: If we ever need to gather source files from other places or branches, etc, see git history of this file circa 2021-05-19 for an example of a different strategy we might use to do that.
     let topLvlRepoPath = path.resolve(sails.config.appPath, '../');
 
@@ -390,11 +390,29 @@ module.exports = {
               }//ﬁ
 
               // Get last modified timestamp using git, and represent it as a JS timestamp.
-              // > Inspired by https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/compile-markdown-tree-from-remote-git-repo.js#L265-L273
-              let lastModifiedAt = (new Date((await sails.helpers.process.executeCommand.with({
-                command: `git log -1 --format="%ai" '${path.relative(topLvlRepoPath, pageSourcePath)}'`,
-                dir: topLvlRepoPath,
-              })).stdout)).getTime();
+              let lastModifiedAt;
+              if(!githubAccessToken) {
+                lastModifiedAt = Date.now();
+              } else {
+                let responseData = await sails.helpers.http.get.with({// [?]: https://docs.github.com/en/rest/commits/commits?apiVersion=2022-11-28#list-commits
+                  url: 'https://api.github.com/repos/fleetdm/fleet/commits',
+                  data: {
+                    path: path.join(sectionRepoPath, pageRelSourcePath),
+                    page: 1,
+                    per_page: 1,//eslint-disable-line camelcase
+                  },
+                  headers: baseHeadersForGithubRequests,
+                }).intercept((err)=>{
+                  return new Error(`When getting the commit history for ${path.join(sectionRepoPath, pageRelSourcePath)} to get a lastModifiedAt timestamp, an error occured.`, err);
+                });
+                // The value we'll use for the lastModifiedAt timestamp will be date value of the `commiter` property of the `commit` we got in the API response from github.
+                let mostRecentCommitToOsquerySchema = responseData[0];
+                if(!mostRecentCommitToOsquerySchema.commit || !mostRecentCommitToOsquerySchema.commit.committer) {
+                  // Throw an error if the the response from GitHub is missing a commit or commiter.
+                  throw new Error(`When getting the commit history for ${path.join(sectionRepoPath, pageRelSourcePath)} to get a lastModifiedAt timestamp, the response from the GitHub API did not include information about the most recent commit. Response from GitHub: ${util.inspect(responseData, {depth:null})}`);
+                }
+                lastModifiedAt = (new Date(mostRecentCommitToOsquerySchema.commit.committer.date)).getTime(); // Convert the UTC timestamp from GitHub to a JS timestamp.
+              }
 
               // Determine display title (human-readable title) to use for this page.
               let pageTitle;
@@ -560,11 +578,30 @@ module.exports = {
         let RELATIVE_PATH_TO_OPEN_POSITIONS_YML_IN_FLEET_REPO = 'handbook/company/open-positions.yml';
 
         // Get last modified timestamp using git, and represent it as a JS timestamp.
-        // > Inspired by https://github.com/uncletammy/doc-templater/blob/2969726b598b39aa78648c5379e4d9503b65685e/lib/compile-markdown-tree-from-remote-git-repo.js#L265-L273
-        let lastModifiedAt = (new Date((await sails.helpers.process.executeCommand.with({
-          command: `git log -1 --format="%ai" '${path.join(topLvlRepoPath, RELATIVE_PATH_TO_OPEN_POSITIONS_YML_IN_FLEET_REPO)}'`,
-          dir: topLvlRepoPath,
-        })).stdout)).getTime();
+        let lastModifiedAt;
+        if(!githubAccessToken) {
+          lastModifiedAt = Date.now();
+        } else {
+          // If we're including a lastModifiedAt value for schema tables, we'll send a request to the GitHub API to get a timestamp of when the last commit
+          let responseData = await sails.helpers.http.get.with({// [?]: https://docs.github.com/en/rest/commits/commits?apiVersion=2022-11-28#list-commits
+            url: 'https://api.github.com/repos/fleetdm/fleet/commits',
+            data: {
+              path: RELATIVE_PATH_TO_OPEN_POSITIONS_YML_IN_FLEET_REPO,
+              page: 1,
+              per_page: 1,//eslint-disable-line camelcase
+            },
+            headers: baseHeadersForGithubRequests,
+          }).intercept((err)=>{
+            return new Error(`When getting the commit history for the open positions YAML to get a lastModifiedAt timestamp, an error occured.`, err);
+          });
+          // The value we'll use for the lastModifiedAt timestamp will be date value of the `commiter` property of the `commit` we got in the API response from github.
+          let mostRecentCommitToOsquerySchema = responseData[0];
+          if(!mostRecentCommitToOsquerySchema.commit || !mostRecentCommitToOsquerySchema.commit.committer) {
+            // Throw an error if the the response from GitHub is missing a commit or commiter.
+            throw new Error(`When trying to get a lastModifiedAt timestamp for the open positions YAML, the response from the GitHub API did not include information about the most recent commit. Response from GitHub: ${util.inspect(responseData, {depth:null})}`);
+          }
+          lastModifiedAt = (new Date(mostRecentCommitToOsquerySchema.commit.committer.date)).getTime(); // Convert the UTC timestamp from GitHub to a JS timestamp.
+        }
 
         let openPositionsYaml = await sails.helpers.fs.read(path.join(topLvlRepoPath, RELATIVE_PATH_TO_OPEN_POSITIONS_YML_IN_FLEET_REPO)).intercept('doesNotExist', (err)=>new Error(`Could not find open positions YAML file at "${RELATIVE_PATH_TO_OPEN_POSITIONS_YML_IN_FLEET_REPO}".  Was it accidentally moved?  Raw error: `+err.message));
         let openPositionsToCreatePartialsFor = YAML.parse(openPositionsYaml, {prettyErrors: true});
@@ -673,7 +710,12 @@ module.exports = {
 
         }
         // After we build the Markdown pages, we'll merge the osquery schema with the Fleet schema overrides, then create EJS partials for each table in the merged schema.
-        let expandedTables = await sails.helpers.getExtendedOsquerySchema.with({includeLastModifiedAtValue: true});
+        let expandedTables;
+        if(githubAccessToken){
+          expandedTables = await sails.helpers.getExtendedOsquerySchema.with({includeLastModifiedAtValue: true, githubAccessToken,});
+        } else {
+          expandedTables = await sails.helpers.getExtendedOsquerySchema();
+        }
 
         // Once we have our merged schema, we'll create ejs partials for each table.
         for(let table of expandedTables) {
@@ -804,7 +846,14 @@ module.exports = {
         let pricingTableFeatures = YAML.parse(yaml, {prettyErrors: true});
         let VALID_PRODUCT_CATEGORIES = ['Endpoint operations', 'Device management', 'Vulnerability management'];
         let VALID_PRICING_TABLE_CATEGORIES = ['Support', 'Deployment', 'Integrations', 'Endpoint operations', 'Device management', 'Vulnerability management'];
+        let VALID_PRICING_TABLE_KEYS = ['industryName', 'description', 'documentationUrl', 'tier', 'jamfProHasFeature', 'jamfProtectHasFeature', 'usualDepartment', 'productCategories', 'pricingTableCategories', 'waysToUse', 'buzzwords', 'demos', 'dri', 'friendlyName', 'moreInfoUrl', 'comingSoonOn', 'screenshotSrc', 'isExperimental'];
         for(let feature of pricingTableFeatures){
+          // Throw an error if a feature contains an unrecognized key.
+          for(let key of _.keys(feature)){
+            if(!VALID_PRICING_TABLE_KEYS.includes(key)){
+              throw new Error(`Unrecognized key. Could not build pricing table config from pricing-features-table.yml. The "${feature.industryName}" feature contains an unrecognized key (${key}). To resolve, fix any typos or remove this key and try running this script again.`);
+            }
+          }
           if(feature.name) {// Compatibility check
             throw new Error(`Could not build pricing table config from pricing-features-table.yml. A feature has a "name" (${feature.name}) which is no longer supported. To resolve, add a "industryName" to this feature: ${feature}`);
           }
@@ -1091,7 +1140,6 @@ module.exports = {
         }
       });
     }
-
   }
 
 
