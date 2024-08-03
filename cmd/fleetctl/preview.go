@@ -74,7 +74,7 @@ func (d dockerCompose) Command(arg ...string) *exec.Cmd {
 
 func newDockerCompose() (dockerCompose, error) {
 	// first, check if `docker compose` is available
-	if err := exec.Command("docker compose").Run(); err == nil {
+	if err := exec.Command("docker", "compose").Run(); err == nil {
 		return dockerCompose{dockerComposeV2}, nil
 	}
 

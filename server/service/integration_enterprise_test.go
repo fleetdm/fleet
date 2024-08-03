@@ -9892,7 +9892,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 		meta, err := s.ds.GetSoftwareInstallerMetadataByID(context.Background(), id)
 		require.NoError(t, err)
 
-		if payload.TeamID != nil {
+		if payload.TeamID != nil && *payload.TeamID > 0 {
 			require.Equal(t, *payload.TeamID, *meta.TeamID)
 		} else {
 			require.Nil(t, meta.TeamID)
@@ -9951,8 +9951,11 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 		// download the installer
 		s.Do("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package?alt=media", titleID), nil, http.StatusBadRequest)
 
-		// delete the installer
+		// delete the installer from nil team fails
 		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleID), nil, http.StatusBadRequest)
+
+		// delete from team 0 succeeds
+		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleID), nil, http.StatusNoContent, "team_id", "0")
 	})
 
 	t.Run("create team software installer", func(t *testing.T) {
@@ -10026,6 +10029,72 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 
 		// download the installer, not found anymore
 		s.Do("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package?alt=media", titleID), nil, http.StatusNotFound, "team_id", fmt.Sprintf("%d", *payload.TeamID))
+	})
+
+	t.Run("create team 0 software installer", func(t *testing.T) {
+		payload := &fleet.UploadSoftwareInstallerPayload{
+			TeamID:            ptr.Uint(0),
+			InstallScript:     "another install script",
+			PreInstallQuery:   "another pre install query",
+			PostInstallScript: "another post install script",
+			Filename:          "ruby.deb",
+			// additional fields below are pre-populated so we can re-use the payload later for the test assertions
+			Title:       "ruby",
+			Version:     "1:2.5.1",
+			Source:      "deb_packages",
+			StorageID:   "df06d9ce9e2090d9cb2e8cd1f4d7754a803dc452bf93e3204e3acd3b95508628",
+			Platform:    "linux",
+			SelfService: true,
+		}
+		s.uploadSoftwareInstaller(payload, http.StatusOK, "")
+
+		// check the software installer
+		installerID, titleID := checkSoftwareInstaller(t, payload)
+
+		// check activity
+		s.lastActivityOfTypeMatches(fleet.ActivityTypeAddedSoftware{}.ActivityName(), fmt.Sprintf(`{"software_title": "ruby", "software_package": "ruby.deb", "team_name": null, "team_id": 0, "self_service": true}`), 0)
+
+		// upload again fails
+		s.uploadSoftwareInstaller(payload, http.StatusConflict, "already exists")
+
+		// download the installer
+		r := s.Do("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package?alt=media", titleID), nil, http.StatusOK, "team_id", fmt.Sprintf("%d", 0))
+		checkDownloadResponse(t, r, payload.Filename)
+
+		// create an orbit host that is not in the team
+		hostNotInTeam := createOrbitEnrolledHost(t, "windows", "orbit-host-no-team", s.ds)
+		// downloading installer still works because we allow it explicitly
+		s.Do("POST", "/api/fleet/orbit/software_install/package?alt=media", orbitDownloadSoftwareInstallerRequest{
+			InstallerID:  installerID,
+			OrbitNodeKey: *hostNotInTeam.OrbitNodeKey,
+		}, http.StatusOK)
+
+		// create an orbit host, assign to team
+		hostInTeam := createOrbitEnrolledHost(t, "windows", "orbit-host-team", s.ds)
+
+		// requesting download with alt != media fails
+		r = s.Do("POST", "/api/fleet/orbit/software_install/package?alt=FOOBAR", orbitDownloadSoftwareInstallerRequest{
+			InstallerID:  installerID,
+			OrbitNodeKey: *hostInTeam.OrbitNodeKey,
+		}, http.StatusBadRequest)
+		errMsg := extractServerErrorText(r.Body)
+		require.Contains(t, errMsg, "only alt=media is supported")
+
+		// valid download
+		r = s.Do("POST", "/api/fleet/orbit/software_install/package?alt=media", orbitDownloadSoftwareInstallerRequest{
+			InstallerID:  installerID,
+			OrbitNodeKey: *hostInTeam.OrbitNodeKey,
+		}, http.StatusOK)
+		checkDownloadResponse(t, r, payload.Filename)
+
+		// delete the installer
+		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleID), nil, http.StatusNoContent, "team_id", "0")
+
+		// check activity
+		s.lastActivityOfTypeMatches(fleet.ActivityTypeDeletedSoftware{}.ActivityName(), fmt.Sprintf(`{"software_title": "ruby", "software_package": "ruby.deb", "team_name": null, "team_id": 0, "self_service": true}`), 0)
+
+		// download the installer, not found anymore
+		s.Do("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package?alt=media", titleID), nil, http.StatusNotFound, "team_id", fmt.Sprintf("%d", 0))
 	})
 }
 

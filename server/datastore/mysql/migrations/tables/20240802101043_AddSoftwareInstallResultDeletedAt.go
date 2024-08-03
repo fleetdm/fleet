@@ -6,10 +6,11 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20240729120947, Down_20240729120947)
+	MigrationClient.AddMigration(Up_20240802101043, Down_20240802101043)
 }
 
-func Up_20240729120947(tx *sql.Tx) error {
+// This is a new copy of a previous out-of-order migration
+func Up_20240802101043(tx *sql.Tx) error {
 	_, err := tx.Exec("ALTER TABLE host_software_installs ADD COLUMN host_deleted_at timestamp NULL DEFAULT NULL")
 	if err != nil {
 		return fmt.Errorf("failed to create host_deleted_at column on host_software_installs table: %w", err)
@@ -33,6 +34,6 @@ AND
 	return nil
 }
 
-func Down_20240729120947(tx *sql.Tx) error {
+func Down_20240802101043(tx *sql.Tx) error {
 	return nil
 }
