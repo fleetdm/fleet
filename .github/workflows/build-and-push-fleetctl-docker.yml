@@ -5,7 +5,7 @@ on:
   workflow_dispatch:
     inputs:
       image_tag:
-        description: 'Docker image tag'
+        description: "Docker image tag"
         required: true
         type: string
 
@@ -53,6 +53,16 @@ jobs:
 
       - name: Build fleetdm/fleetctl
         run: make fleetctl-docker
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@0.20.0
+        with:
+          image-ref: "fleetdm/fleetctl"
+          format: "table"
+          exit-code: "1"
+          ignore-unfixed: true
+          vuln-type: "os,library"
+          severity: "CRITICAL"
 
       - name: Push to Docker
         run: |
