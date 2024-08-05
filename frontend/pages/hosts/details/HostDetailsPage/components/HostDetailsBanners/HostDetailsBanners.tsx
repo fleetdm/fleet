@@ -71,9 +71,9 @@ const HostDetailsBanners = ({
       <div className={baseClass}>
         {showTurnOnMdmInfoBanner && (
           <InfoBanner color="yellow">
-            To change settings and install software, ask the end user to follow
-            the <strong>Turn on MDM</strong> instructions on their{" "}
-            <strong>My device</strong> page.
+            To enforce settings, OS updates, disk encryption, and more, ask the
+            end user to follow the <strong>Turn on MDM</strong> instructions on
+            their <strong>My device</strong> page.
           </InfoBanner>
         )}
         {showDiskEncryptionUserActionRequired && (
