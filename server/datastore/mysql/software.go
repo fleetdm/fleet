@@ -640,7 +640,7 @@ func (ds *Datastore) insertNewInstalledHostSoftwareDB(
 				      UPDATE software s
 				      JOIN software_titles st
 				      ON s.bundle_identifier = st.bundle_identifier AND
-				          IF(s.source IN ('ios_apps', 'ipados_apps'), s.source = st.source, 1)
+				          IF(s.source IN ('apps', 'ios_apps', 'ipados_apps'), s.source = st.source, 1)
 				      SET s.title_id = st.id
 				      WHERE s.title_id IS NULL
 				      OR s.title_id != st.id
