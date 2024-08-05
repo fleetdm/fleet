@@ -429,6 +429,7 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
             router={router}
             onExit={toggleAddSoftwareModal}
             setAddedSoftwareToken={setAddedSoftwareToken}
+            isFreeTier={isFreeTier}
           />
         )}
       </div>
