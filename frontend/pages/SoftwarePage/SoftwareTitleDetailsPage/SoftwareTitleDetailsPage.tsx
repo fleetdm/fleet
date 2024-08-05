@@ -76,6 +76,19 @@ const SoftwareTitleDetailsPage = ({
     includeNoTeam: true,
   });
 
+  // export interface ISoftwareTitleDetails {
+  //   id: number;
+  //   name: string;
+  //   software_package: ISoftwarePackage | null;
+  //   app_store_app: IAppStoreApp | null;
+  //   source: string; // "apps" | "ios_apps" | "ipados_apps" | ?
+  //   hosts_count: number;
+  //   versions: ISoftwareTitleVersion[] | null;
+  //   bundle_identifier?: string;
+  //   browser?: string;
+  //   versions_count?: number;
+  // }
+
   const {
     data: softwareTitle,
     isLoading: isSoftwareTitleLoading,
@@ -101,8 +114,8 @@ const SoftwareTitleDetailsPage = ({
     }
   );
 
-  const hasSoftwarePackage = !!softwareTitle?.software_package;
-  const hasAppStoreApp = !!softwareTitle?.app_store_app;
+  const isAvailableForInstall =
+    !!softwareTitle?.software_package || !!softwareTitle?.app_store_app;
 
   const onDeleteInstaller = useCallback(() => {
     if (softwareTitle?.versions?.length) {
@@ -132,7 +145,7 @@ const SoftwareTitleDetailsPage = ({
     const showPackageCard =
       currentTeamId !== APP_CONTEXT_ALL_TEAMS_ID &&
       hasPermission &&
-      (hasSoftwarePackage || hasAppStoreApp);
+      isAvailableForInstall;
 
     if (showPackageCard) {
       const packageCardData = getPackageCardInfo(title);
@@ -203,6 +216,7 @@ const SoftwareTitleDetailsPage = ({
               isIPadOSOrIOSApp={["ios_apps", "ipados_apps"].includes(
                 softwareTitle.source
               )}
+              isAvailableForInstall={isAvailableForInstall}
             />
           </Card>
         </>
