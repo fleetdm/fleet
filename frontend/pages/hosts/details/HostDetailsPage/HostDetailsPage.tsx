@@ -53,6 +53,8 @@ import {
   HOST_OSQUERY_DATA,
 } from "utilities/constants";
 
+import { Platform } from "interfaces/platform";
+
 import Spinner from "components/Spinner";
 import TabsWrapper from "components/TabsWrapper";
 import MainContent from "components/MainContent";
@@ -921,6 +923,7 @@ const HostDetailsPage = ({
             <TabPanel>
               <SoftwareCard
                 id={host.id}
+                platform={host.platform as Platform} // TODO - typing
                 softwareUpdatedAt={host.software_updated_at}
                 hostCanInstallSoftware={
                   !!host.orbit_version || isIosOrIpadosHost
