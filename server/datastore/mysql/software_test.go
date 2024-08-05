@@ -4355,6 +4355,7 @@ func testListHostSoftwareInstallThenTransferTeam(t *testing.T, ds *Datastore) {
 
 	err = ds.AddHostsToTeam(ctx, &team1.ID, []uint{host.ID})
 	require.NoError(t, err)
+	host.TeamID = &team1.ID
 
 	// add a single "externally-installed" software for that host
 	software := []fleet.Software{
@@ -4372,6 +4373,7 @@ func testListHostSoftwareInstallThenTransferTeam(t *testing.T, ds *Datastore) {
 		Title:         "file1",
 		Version:       "1.0",
 		Source:        "apps",
+		TeamID:        &team1.ID,
 	})
 	require.NoError(t, err)
 
@@ -4422,20 +4424,25 @@ func testListHostSoftwareInstallThenTransferTeam(t *testing.T, ds *Datastore) {
 	// move host to team 2
 	err = ds.AddHostsToTeam(ctx, &team2.ID, []uint{host.ID})
 	require.NoError(t, err)
+	host.TeamID = &team2.ID
 
 	// listing the host's software (including available for install) should now
 	// only list "a" and "file1" (because they are actually installed) and not
-	// link them to the installer/VPP app.
-	sw, meta, err = ds.ListHostSoftware(ctx, host, opts)
-	require.NoError(t, err)
-	require.Len(t, sw, 2)
-	require.EqualValues(t, 2, meta.TotalResults)
-	require.Equal(t, sw[0].Name, "a")
-	require.Nil(t, sw[0].AppStoreApp)
-	require.Nil(t, sw[0].SoftwarePackage)
-	require.Equal(t, sw[1].Name, "file1")
-	require.Nil(t, sw[1].AppStoreApp)
-	require.Nil(t, sw[1].SoftwarePackage)
+	// link them to the installer/VPP app. With and without available software
+	// should result in the same rows (no available software in that new team).
+	for _, b := range []bool{true, false} {
+		opts.IncludeAvailableForInstall = b
+		sw, meta, err = ds.ListHostSoftware(ctx, host, opts)
+		require.NoError(t, err)
+		require.Len(t, sw, 2)
+		require.EqualValues(t, 2, meta.TotalResults)
+		require.Equal(t, sw[0].Name, "a")
+		require.Nil(t, sw[0].AppStoreApp)
+		require.Nil(t, sw[0].SoftwarePackage)
+		require.Equal(t, sw[1].Name, "file1")
+		require.Nil(t, sw[1].AppStoreApp)
+		require.Nil(t, sw[1].SoftwarePackage)
+	}
 }
 
 func testListHostSoftwareInstallThenDeleteInstallers(t *testing.T, ds *Datastore) {
@@ -4453,6 +4460,7 @@ func testListHostSoftwareInstallThenDeleteInstallers(t *testing.T, ds *Datastore
 
 	err = ds.AddHostsToTeam(ctx, &team1.ID, []uint{host.ID})
 	require.NoError(t, err)
+	host.TeamID = &team1.ID
 
 	// add a single "externally-installed" software for that host
 	software := []fleet.Software{
@@ -4470,6 +4478,7 @@ func testListHostSoftwareInstallThenDeleteInstallers(t *testing.T, ds *Datastore
 		Title:         "file1",
 		Version:       "1.0",
 		Source:        "apps",
+		TeamID:        &team1.ID,
 	})
 	require.NoError(t, err)
 
@@ -4525,15 +4534,19 @@ func testListHostSoftwareInstallThenDeleteInstallers(t *testing.T, ds *Datastore
 
 	// listing the host's software (including available for install) should now
 	// only list "a" and "vpp1" (because they are actually installed) and not
-	// link them to the installer/VPP app.
-	sw, meta, err = ds.ListHostSoftware(ctx, host, opts)
-	require.NoError(t, err)
-	require.Len(t, sw, 2)
-	require.EqualValues(t, 2, meta.TotalResults)
-	require.Equal(t, sw[0].Name, "a")
-	require.Nil(t, sw[0].AppStoreApp)
-	require.Nil(t, sw[0].SoftwarePackage)
-	require.Equal(t, sw[1].Name, "vpp1")
-	require.Nil(t, sw[1].AppStoreApp)
-	require.Nil(t, sw[1].SoftwarePackage)
+	// link them to the installer/VPP app. With and without available software
+	// should result in the same rows (no available software anymore).
+	for _, b := range []bool{true, false} {
+		opts.IncludeAvailableForInstall = b
+		sw, meta, err = ds.ListHostSoftware(ctx, host, opts)
+		require.NoError(t, err)
+		require.Len(t, sw, 2)
+		require.EqualValues(t, 2, meta.TotalResults)
+		require.Equal(t, sw[0].Name, "a")
+		require.Nil(t, sw[0].AppStoreApp)
+		require.Nil(t, sw[0].SoftwarePackage)
+		require.Equal(t, sw[1].Name, "vpp1")
+		require.Nil(t, sw[1].AppStoreApp)
+		require.Nil(t, sw[1].SoftwarePackage)
+	}
 }

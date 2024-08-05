@@ -2113,7 +2113,7 @@ AND EXISTS (SELECT 1 FROM software s JOIN software_cve scve ON scve.software_id 
 			si.version as package_version,
 			-- in a future iteration, will be supported for VPP apps
 			NULL as vpp_app_self_service,
-			vap.adam_id as vpp_app_adam_id,
+			vat.adam_id as vpp_app_adam_id,
 			vap.latest_version as vpp_app_version,
 			NULLIF(vap.icon_url, '') as vpp_app_icon_url,
 			COALESCE(hsi.created_at, hvsi.created_at) as last_install_installed_at,
@@ -2123,13 +2123,15 @@ AND EXISTS (SELECT 1 FROM software s JOIN software_cve scve ON scve.software_id 
 		FROM
 			software_titles st
 		LEFT OUTER JOIN
-			software_installers si ON st.id = si.title_id
+			software_installers si ON st.id = si.title_id AND si.global_or_team_id = :global_or_team_id
 		LEFT OUTER JOIN
 			host_software_installs hsi ON si.id = hsi.software_installer_id AND hsi.host_id = :host_id
 		LEFT OUTER JOIN
-			vpp_apps vap ON st.id = vap.title_id
+			vpp_apps vap ON st.id = vap.title_id AND vap.platform = :host_platform
 		LEFT OUTER JOIN
-			host_vpp_software_installs hvsi ON vap.adam_id = hvsi.adam_id AND vap.platform = hvsi.platform AND hvsi.host_id = :host_id
+			vpp_apps_teams vat ON vap.adam_id = vat.adam_id AND vap.platform = vat.platform AND vat.global_or_team_id = :global_or_team_id
+		LEFT OUTER JOIN
+			host_vpp_software_installs hvsi ON vat.adam_id = hvsi.adam_id AND hvsi.host_id = :host_id
 		LEFT OUTER JOIN
 			nano_command_results ncr ON ncr.command_uuid = hvsi.command_uuid
 		WHERE
