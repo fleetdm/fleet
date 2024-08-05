@@ -66,7 +66,7 @@ module.exports = {
         await salesforceConnection.sobject('Contact')
         .update({
           Id: salesforceContactId,
-          HasOptedOutOfEmail: true,
+          Unsubscribed_from_email_contact__c: true,// eslint-disable-line camelcase
         });
       }
     }
