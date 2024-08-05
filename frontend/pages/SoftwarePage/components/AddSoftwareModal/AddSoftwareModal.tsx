@@ -53,7 +53,7 @@ const AddSoftwareModal = ({
     if (isFreeTier) {
       return (
         <>
-          <PremiumFeatureMessage alignLeft />{" "}
+          <PremiumFeatureMessage alignment="left" />{" "}
           <div className="modal-cta-wrap">
             <Button variant="brand" onClick={onExit}>
               Done
