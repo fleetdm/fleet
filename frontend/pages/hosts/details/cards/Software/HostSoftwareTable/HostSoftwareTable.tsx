@@ -8,6 +8,12 @@ import { QueryParams } from "utilities/url";
 
 import { ISoftwareDropdownFilterVal } from "pages/SoftwarePage/SoftwareTitles/SoftwareTable/helpers";
 
+import {
+  ApplePlatform,
+  APPLE_PLATFORM_DISPLAY_NAMES,
+  Platform,
+} from "interfaces/platform";
+
 import TableContainer from "components/TableContainer";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
 // @ts-ignore
@@ -15,6 +21,7 @@ import Dropdown from "components/forms/fields/Dropdown";
 
 import EmptySoftwareTable from "pages/SoftwarePage/components/EmptySoftwareTable";
 import TableCount from "components/TableContainer/TableCount";
+import { VulnsNotSupported } from "pages/SoftwarePage/components/SoftwareVulnerabilitiesTable/SoftwareVulnerabilitiesTable";
 
 const DEFAULT_PAGE_SIZE = 20;
 
@@ -45,6 +52,7 @@ export const DROPDOWN_OPTIONS = [
 interface IHostSoftwareTableProps {
   tableConfig: any; // TODO: type
   data?: IGetHostSoftwareResponse | IGetDeviceSoftwareResponse;
+  platform: Platform;
   isLoading: boolean;
   router: InjectedRouter;
   sortHeader: string;
@@ -60,6 +68,7 @@ interface IHostSoftwareTableProps {
 const HostSoftwareTable = ({
   tableConfig,
   data,
+  platform,
   isLoading,
   router,
   sortHeader,
@@ -167,7 +176,7 @@ const HostSoftwareTable = ({
     [determineQueryParamChange, pagePath, generateNewQueryParams, router]
   );
 
-  const count = data?.count || data?.software.length || 0;
+  const count = data?.count || data?.software?.length || 0;
   const isSoftwareNotDetected = count === 0 && searchQuery === "";
 
   const memoizedSoftwareCount = useCallback(() => {
@@ -179,8 +188,17 @@ const HostSoftwareTable = ({
   }, [count, isSoftwareNotDetected]);
 
   const memoizedEmptyComponent = useCallback(() => {
-    return <EmptySoftwareTable isNotDetectingSoftware={searchQuery === ""} />;
-  }, [searchQuery]);
+    const vulnFilterAndNotSupported =
+      ["ios", "ipados"].includes(platform) &&
+      hostSoftwareFilter === "vulnerableSoftware";
+    return vulnFilterAndNotSupported ? (
+      <VulnsNotSupported
+        platformText={APPLE_PLATFORM_DISPLAY_NAMES[platform as ApplePlatform]}
+      />
+    ) : (
+      <EmptySoftwareTable isNotDetectingSoftware={searchQuery === ""} />
+    );
+  }, [hostSoftwareFilter, platform, searchQuery]);
 
   return (
     <div className={baseClass}>
