@@ -8643,7 +8643,7 @@ Body: <blob>
 
 ### Delete software
 
-> This **endpoint, added in the app management feature, is experimental** may change. You can find the upcoming breaking changes [here](https://github.com/fleetdm/fleet/pull/19291/files#diff-7246bc304b15c8865ed8eaa205e9c244d0a0314e4bae60cf553dc06147c38b64L8661-R8698).
+> This **endpoint is experimental** and may change. You can find the upcoming breaking changes [here](https://github.com/fleetdm/fleet/pull/19291/files#diff-7246bc304b15c8865ed8eaa205e9c244d0a0314e4bae60cf553dc06147c38b64L8661-R8698).
 
 _Available in Fleet Premium._
 
