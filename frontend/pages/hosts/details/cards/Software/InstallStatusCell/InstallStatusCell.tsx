@@ -38,8 +38,9 @@ export const INSTALL_STATUS_DISPLAY_OPTIONS: Record<
     displayText: "Installed",
     tooltip: ({ lastInstalledAt: lastInstall }) => (
       <>
-        Fleet installed software on these hosts. (
-        {dateAgo(lastInstall as string)})
+        Fleet installed software on this host
+        {dateAgo(lastInstall as string)}). Currently, if the software is
+        deleted, the “Installed” status won’t be updated.
       </>
     ),
   },
