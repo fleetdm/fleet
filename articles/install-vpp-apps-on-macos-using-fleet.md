@@ -57,7 +57,23 @@ To add apps to Fleet, you must first purchase them through Apple Business Manage
 
 3. **Find the app**: Click the "Software" tab on the host details page. Search for the software you added in the software table's search bar. Instead of searching, you can also filter software by clicking the **All software** dropdown and selecting **Available for install.**
 
-4. **Install the app**: Click the "Actions" dropdown on the far right of the app's entry in the table. Click "Install" to trigger an install. This action will send an MDM command to the host instructing it to install the app. If the host is offline, the upcoming install will show up in the **Details** -> **Activity** -> **Upcoming** tab of this page. After the app is installed and the host details are refetched, the app will show up as **Installed** in the **Software** tab.
+4. **Install the app**: Click the "Actions" dropdown on the far right of the app's entry in the
+   table. Click "Install" to trigger an install. This action will send an MDM command to the host
+   instructing it to install the app. If the host is offline, the upcoming install will show up in
+   the **Details** -> **Activity** -> **Upcoming** tab of this page. After the app is installed and
+   the host details are refetched, the app will show up as **Installed** in the **Software** tab.
+
+## Renewing an expired or expiring VPP token
+
+When your uploaded VPP token has expired or is within 30 days of expiring, you will see a warning
+banner at the top of page reminding you to renew your token. You can do this with the following steps:
+
+1. **Navigate to the VPP integration details page**: Click your avatar on the far right of the main
+   navigation menu, and then **Settings > Integrations > "Volume Purchasing Program (VPP)."** Then
+   click on the **Edit** button to go to the VPP integration details page.
+
+2. **Upload a new VPP token:** Click on the **Renew token** button and follow the instructions to
+   upload a new .vpptoken file. Click the **Renew token** button when you have selected the new token.
 
 ## Managing apps with GitOps
 
@@ -65,7 +81,7 @@ To manage App Store apps using Fleet's best practice GitOps, check out the `soft
 
 ## REST API
 
-Fleet also provides a REST API for managing apps programmatically. You can add, install, and delete apps via this API and manage your organization’s VPP token. Learn more about Fleet's [REST API](https://fleetdm.com/docs/rest-api/rest-api). 
+Fleet also provides a REST API for managing apps programmatically. You can add, install, and delete apps via this API and manage your organization’s VPP token. Learn more about Fleet's [REST API](https://fleetdm.com/docs/rest-api/rest-api).
 
 ## Conclusion
 
