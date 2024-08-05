@@ -55,4 +55,8 @@ const (
 	// ServerOverridesFileName is the name of the file in the root directory
 	// that specifies the override configuration fetched from the server.
 	ServerOverridesFileName = "server-overrides.json"
+	// MigrationFileName is the name of the file used by fleetd to determine if the host is
+	// partially through an MDM migration.
+	// TODO(JVE): can this be put in the orbit root dir? will fleet desktop be allowed to edit it?
+	MigrationFileName = "/tmp/mdm_migration.txt"
 )

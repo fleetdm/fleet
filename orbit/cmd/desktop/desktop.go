@@ -397,7 +397,7 @@ func main() {
 						}
 					} else {
 						// we've already migrated, so remove the file
-						if err := os.Remove("/tmp/migration_required"); err != nil {
+						if err := os.Remove(constant.MigrationFileName); err != nil {
 							log.Debug().Err(err).Msg("removing migration file")
 						}
 					}
@@ -449,7 +449,7 @@ func main() {
 
 func doesMigrationFileExist() bool {
 	var migrateFile bool
-	_, err := os.Stat("/tmp/migration_required")
+	_, err := os.Stat(constant.MigrationFileName)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			log.Debug().Msg("migrate file not found")
