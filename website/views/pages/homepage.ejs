@@ -384,6 +384,9 @@
   </div>
   <%/* Cloud city banner */%>
   <parallax-city></parallax-city>
+  <modal v-if="modal === 'unsubscribed'" @close="closeModal()">
+    <p class="mb-0">Your email preferences have been updated.</p>
+  </modal>
   <modal purpose="video-modal" v-if="modal === 'austin-anderson'" @close="closeModal()">
     <iframe width="560" height="315" src="https://www.youtube.com/embed/G5Ry_vQPaYc?si=vv0AfRe30yssWWRM&amp;rel=0" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
   </modal>

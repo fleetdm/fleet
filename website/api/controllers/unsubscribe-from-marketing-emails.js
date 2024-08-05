@@ -71,7 +71,7 @@ module.exports = {
     //   }
     // }
     // All done.
-    return this.res.redirect('/?showUnsubscribeMessage');
+    return this.res.redirect('/#unsubscribed');
 
   }
 
