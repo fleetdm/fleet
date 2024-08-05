@@ -157,7 +157,7 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
 
   const {
     currentTeamId,
-    isAnyTeamSelected,
+    isAllTeamsSelected,
     isRouteOk,
     teamIdForApi,
     userTeams,
@@ -318,7 +318,7 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
 
   const renderPageActions = () => {
     const canManageAutomations =
-      isGlobalAdmin && (!isPremiumTier || !isAnyTeamSelected);
+      isGlobalAdmin && (!isPremiumTier || isAllTeamsSelected);
 
     const canAddSoftware =
       isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
@@ -349,7 +349,7 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
     return (
       <p>
         Manage software and search for installed software, OS and
-        vulnerabilities {isAnyTeamSelected ? "on this team" : "for all hosts"}.
+        vulnerabilities {isAllTeamsSelected ? "for all hosts" : "on this team"}.
       </p>
     );
   };
