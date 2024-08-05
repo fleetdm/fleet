@@ -370,8 +370,10 @@ func (m *swiftDialogMDMMigrator) renderMigration() error {
 			if err := m.handler.ShowInstructions(); err != nil {
 				return err
 			}
-			log.Debug().Bool("manual", manual).Str("migrationType", migrationType).Msg("opened my device page, returning from renderMigration")
+			log.Debug().Bool("manual", manual).Str("migrationType", migrationType).Msg("JVE_LOG: opened my device page, returning from renderMigration")
 			return nil
+		case "ade":
+			log.Debug().Msg("JVE_LOG: TODO")
 
 		default:
 		}
