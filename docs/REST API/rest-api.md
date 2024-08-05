@@ -1163,7 +1163,7 @@ Modifies the Fleet's configuration with the supplied information.
   },
   "mdm": {
     "apple_bm_default_team": "",
-    "apple_bm_terms_expired": false,
+    "apple_bm_terms_expired": false, # set to true is there's one or more Apple Business Manager connections w/ terms expired
     "apple_bm_enabled_and_configured": false, # set to true is there's one or more Apple Business Manager connections
     "enabled_and_configured": false,
     "windows_enabled_and_configured": false,
@@ -6349,7 +6349,8 @@ This endpoint returns the list of custom MDM commands that have been executed.
 ## Integrations
 
 - [Get Apple Push Notification service (APNs)](#get-apple-push-notification-service-apns)
-- [List Apple Business Manager (ABM) connections](#get-apple-business-manager-abm)
+- [List Apple Business Manager (ABM) connections](#list-apple-business-manager-abm-connections)
+- [List Volume Purchasing Program (VPP) connections](#list-volume-purchasing-program-vpp-connections)
 
 ### Get Apple Push Notification service (APNs)
 
@@ -6401,6 +6402,7 @@ None.
     "org_name": "Fleet Device Management Inc.",
     "mdm_server_url": "https://example.com/mdm/apple/mdm",
     "renew_date": "2023-11-29T00:00:00Z",
+    "terms_expired": false,
     "macos_team": "💻 Workstations",
     "ios_team": "📱🏢 Company-owned iPhones",
     "ipados_team": "🔳🏢 Company-owned iPads"
@@ -6432,6 +6434,7 @@ None.
     "org_name": "Fleet Device Management Inc.",
     "location": "https://example.com/mdm/apple/mdm",
     "renew_date": "2023-11-29T00:00:00Z",
+    "terms_expired": false,
     "teams": [
       "💻 Workstations",
       "💻🐣 Workstations (canary)",
