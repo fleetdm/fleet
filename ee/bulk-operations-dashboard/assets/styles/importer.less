@@ -1,0 +1,42 @@
+/**
+ * importer.less
+ *
+ * By default, new Sails projects are configured to compile this file
+ * from LESS to CSS.  Unlike CSS files, LESS files are not compiled and
+ * included automatically unless they are imported below.
+ *
+ * For more information see:
+ *   https://sailsjs.com/anatomy/assets/styles/importer-less
+ */
+
+// Mixins and variables  (LESS mixins/variables only, no global selectors)
+@import 'mixins-and-variables/index.less';
+
+// Overall layout  (contains global selectors)
+@import 'bootstrap-overrides.less';
+@import 'layout.less';
+
+// Per-component styles
+@import 'components/stripe-card-element.component.less';
+@import 'components/ajax-button.component.less';
+@import 'components/modal.component.less';
+@import 'components/cloud-error.component.less';
+
+// Per-page styles
+@import 'pages/homepage.less';
+@import 'pages/dashboard/welcome.less';
+@import 'pages/entrance/signup.less';
+@import 'pages/entrance/confirmed-email.less';
+@import 'pages/entrance/login.less';
+@import 'pages/entrance/forgot-password.less';
+@import 'pages/entrance/new-password.less';
+@import 'pages/account/account-overview.less';
+@import 'pages/account/edit-password.less';
+@import 'pages/account/edit-profile.less';
+@import 'pages/legal/terms.less';
+@import 'pages/legal/privacy.less';
+@import 'pages/faq.less';
+@import 'pages/contact.less';
+@import 'pages/404.less';
+@import 'pages/500.less';
+@import 'pages/498.less';
