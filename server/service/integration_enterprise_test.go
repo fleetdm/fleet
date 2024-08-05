@@ -11728,11 +11728,15 @@ func (s *integrationEnterpriseTestSuite) TestCalendarCallback() {
 	require.NotZero(t, event.StartTime)
 	require.NotZero(t, event.EndTime)
 	require.NotEmpty(t, event.UUID)
+	bodyTag := event.GetBodyTag()
+	assert.NotEmpty(t, bodyTag)
 	assert.Equal(t, 1, calendar.MockChannelsCount())
 
 	// Get channel ID
 	type eventDetails struct {
 		ChannelID string `json:"channel_id"`
+		BodyTag   string `json:"body_tag"`
+		ETag      string `json:"etag"`
 	}
 	var details eventDetails
 	err = json.Unmarshal(event.Data, &details)
@@ -11855,6 +11859,8 @@ func (s *integrationEnterpriseTestSuite) TestCalendarCallback() {
 
 	err = json.Unmarshal(eventRecreated.Data, &details)
 	require.NoError(t, err)
+	assert.NotEmpty(t, details.BodyTag)
+	bodyTag = details.BodyTag
 
 	// New event callback should work
 	_ = s.DoRawWithHeaders("POST", "/api/v1/fleet/calendar/webhook/"+eventRecreated.UUID, []byte(""), http.StatusOK,
@@ -11891,6 +11897,30 @@ func (s *integrationEnterpriseTestSuite) TestCalendarCallback() {
 	assert.Greater(t, eventUpdated.StartTime, eventRecreated.StartTime)
 	assert.Equal(t, eventRecreated.EndTime, eventUpdated.EndTime)
 	assert.Equal(t, 1, calendar.MockChannelsCount())
+	assert.Equal(t, bodyTag, eventRecreated.GetBodyTag())
+
+	// Change the body contents of event.
+	events = calendar.ListGoogleMockEvents()
+	require.Len(t, events, 1)
+	eTag := "description change etag"
+	for _, e := range events {
+		e.Etag = eTag
+		e.Description = "new description"
+	}
+	// New event callback should cause Etag to update but Body tag to remain the same
+	_ = s.DoRawWithHeaders("POST", "/api/v1/fleet/calendar/webhook/"+eventRecreated.UUID, []byte(""), http.StatusOK,
+		map[string]string{
+			"X-Goog-Channel-Id":     details.ChannelID,
+			"X-Goog-Resource-State": "exists",
+		})
+	team1CalendarEvents, err = s.ds.ListCalendarEvents(ctx, &team1.ID)
+	require.NoError(t, err)
+	require.Len(t, team1CalendarEvents, 1)
+	eventDescUpdated := team1CalendarEvents[0]
+	err = json.Unmarshal(eventDescUpdated.Data, &details)
+	require.NoError(t, err)
+	assert.Equal(t, bodyTag, details.BodyTag)
+	assert.Equal(t, eTag, details.ETag)
 
 	// Update the time of the event again
 	events = calendar.ListGoogleMockEvents()
@@ -11900,6 +11930,7 @@ func (s *integrationEnterpriseTestSuite) TestCalendarCallback() {
 		require.NoError(t, err)
 		newStartTime := st.Add(5 * time.Minute).Format(time.RFC3339)
 		e.Start.DateTime = newStartTime
+		e.Etag = e.Etag + "1"
 	}
 
 	// Grab the lock
@@ -11950,6 +11981,9 @@ func (s *integrationEnterpriseTestSuite) TestCalendarCallback() {
 			require.NoError(t, err)
 			if len(team1CalendarEvents) == 1 && team1CalendarEvents[0].UUID == event.UUID &&
 				team1CalendarEvents[0].StartTime.After(event.StartTime) {
+				err = json.Unmarshal(team1CalendarEvents[0].Data, &details)
+				require.NoError(t, err)
+				assert.NotEqual(t, eTag, details.ETag, "ETag should have updated")
 				done <- struct{}{}
 				return
 			}
