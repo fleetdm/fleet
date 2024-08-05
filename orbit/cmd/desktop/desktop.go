@@ -342,7 +342,7 @@ func main() {
 				myDeviceItem.Enable()
 
 				// Check our file to see if we should migrate
-				migrateFile := doesMigrationFileExist(err)
+				migrateFile := doesMigrationFileExist()
 				// if we have the file, but we're enrolled to Fleet, then we need to remove the file
 				// and not run the migrator as we're already in Fleet
 				shouldRunMigrator := sum.Notifications.NeedsMDMMigration || sum.Notifications.RenewEnrollmentProfile || migrateFile
@@ -447,9 +447,10 @@ func main() {
 	systray.Run(onReady, onExit)
 }
 
-func doesMigrationFileExist(err error) bool {
+func doesMigrationFileExist() bool {
 	var migrateFile bool
-	if _, err := os.Stat("/tmp/migration_required"); err != nil {
+	_, err := os.Stat("/tmp/migration_required")
+	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			log.Debug().Msg("migrate file not found")
 		}

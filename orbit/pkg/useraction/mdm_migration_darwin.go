@@ -351,27 +351,29 @@ func (m *swiftDialogMDMMigrator) renderMigration() error {
 			return err
 		}
 
-		var migrateFile bool
 		// TODO(JVE): check that it was a manual migration in file
-		if _, err = os.Stat("/tmp/migration_required"); err != nil {
+		mt, err := os.ReadFile("/tmp/migration_required")
+		if err != nil {
 			if errors.Is(err, os.ErrNotExist) {
 				log.Debug().Msg("migrate file not found")
 			}
 			log.Err(err).Msg("stating migration file")
 		}
-		if err == nil {
-			migrateFile = true
-		}
 
-		if migrateFile {
+		migrationType := string(mt)
+
+		switch migrationType {
+		case "manual":
 			// The migration file only exists if we successfully hit the webhook
 			log.Info().Msg("showing instructions")
 
 			if err := m.handler.ShowInstructions(); err != nil {
 				return err
 			}
-			log.Debug().Bool("manual", manual).Bool("migrateFile", migrateFile).Msg("opened my device page, returning from renderMigration")
+			log.Debug().Bool("manual", manual).Str("migrationType", migrationType).Msg("opened my device page, returning from renderMigration")
 			return nil
+
+		default:
 		}
 
 		if !m.props.IsUnmanaged {
@@ -428,23 +430,6 @@ func (m *swiftDialogMDMMigrator) renderMigration() error {
 			// instead? it uses a file as IPC
 			m.baseDialog.Exit()
 		}
-
-		// TODO(JVE): I think this is where we have to show the Remote Management modal instead
-		// log.Debug().Msg("checking manual enrollment status")
-		// manual, err = profiles.IsManuallyEnrolledInMDM()
-		// if err != nil {
-		// 	return err
-		// }
-
-		// if manual {
-		// 	log.Debug().Msg("host is manually enrolled")
-		// 	log.Info().Msg("showing instructions")
-		// 	if err := m.handler.ShowInstructions(); err != nil {
-		// 		return err
-		// 	}
-		// } else {
-		// 	log.Debug().Msg("host is DEP enrolled")
-		// }
 
 	}
 
