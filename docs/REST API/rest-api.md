@@ -1164,7 +1164,7 @@ Modifies the Fleet's configuration with the supplied information.
   "mdm": {
     "apple_bm_default_team": "",
     "apple_bm_terms_expired": false,
-    "apple_bm_enabled_and_configured": false,
+    "apple_bm_enabled_and_configured": false, # set to true is there's one or more Apple Business Manager connections
     "enabled_and_configured": false,
     "windows_enabled_and_configured": false,
     "enable_disk_encryption": true,
