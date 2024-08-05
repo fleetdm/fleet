@@ -181,9 +181,10 @@ func NewMDMMigrator(path string, frequency time.Duration, handler MDMMigratorHan
 // the underlying mechanism for user action.
 type swiftDialogMDMMigrator struct {
 	*baseDialog
-	props     MDMMigratorProps
-	frequency time.Duration
-	handler   MDMMigratorHandler
+	props       MDMMigratorProps
+	frequency   time.Duration
+	frequencyMu sync.RWMutex
+	handler     MDMMigratorHandler
 
 	// ensures only one dialog is open at a time, protects access to
 	// lastShown
@@ -505,5 +506,7 @@ func (m *swiftDialogMDMMigrator) getMacOSMajorVersion() (int, error) {
 
 // SetMigrationFrequency sets the frequency at which the migrator runs.
 func (m *swiftDialogMDMMigrator) SetMigrationFrequency(f time.Duration) {
+	m.frequencyMu.Lock()
 	m.frequency = f
+	m.frequencyMu.Unlock()
 }
