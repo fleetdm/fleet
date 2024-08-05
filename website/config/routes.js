@@ -529,6 +529,8 @@ module.exports.routes = {
   'GET /learn-more-about/host-identifiers': '/docs/rest-api/rest-api#get-host-by-identifier',
   'GET /learn-more-about/uninstall-fleetd': '/docs/using-fleet/faq#how-can-i-uninstall-fleetd',
   'GET /learn-more-about/vulnerability-processing': '/docs/using-fleet/vulnerability-processing',
+  'GET /learn-more-about/apple-business-manager-api': '/docs/rest-api/rest-api#list-apple-business-manager-abm-connections',
+  'GET /learn-more-about/apple-business-manager-gitops': '/docs/using-fleet/gitops#apple-business-manager',
 
   // Sitemap
   // =============================================================================================================
