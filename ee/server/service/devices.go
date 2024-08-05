@@ -17,10 +17,6 @@ func (svc *Service) ListDevicePolicies(ctx context.Context, host *fleet.Host) ([
 	return svc.ds.ListPoliciesForHost(ctx, host)
 }
 
-func (svc *Service) RequestEncryptionKeyRotation(ctx context.Context, hostID uint) error {
-	return svc.ds.SetDiskEncryptionResetStatus(ctx, hostID, true)
-}
-
 const refetchMDMUnenrollCriticalQueryDuration = 3 * time.Minute
 
 // TriggerMigrateMDMDevice triggers the webhook associated with the MDM

@@ -28,8 +28,7 @@ SYSTEMS=${SYSTEMS:-macos linux linux-arm64 windows}
 echo "Generating packages for $SYSTEMS"
 
 NUDGE_VERSION=stable
-SWIFT_DIALOG_MACOS_APP_VERSION=2.2.1
-SWIFT_DIALOG_MACOS_APP_BUILD_VERSION=4591
+ESCROW_BUDDY_PKG_VERSION=1.0.0
 
 if [[ -z "$OSQUERY_VERSION" ]]; then
     OSQUERY_VERSION=5.12.2
@@ -167,6 +166,20 @@ for system in $SYSTEMS; do
             --version 42.0.0 -t 42.0 -t 42 -t stable
         rm swiftDialog.app.tar.gz
     fi
+
+    # Add Escrow Buddy on macos (if enabled).
+    if [[ $system == "macos" && -n "$ESCROW_BUDDY" ]]; then
+	make escrow-buddy-pkg version=$ESCROW_BUDDY_PKG_VERSION out-path=.
+
+        ./build/fleetctl updates add \
+            --path $TUF_PATH \
+            --target escrowBuddy.pkg \
+            --platform macos \
+            --name escrowBuddy \
+            --version 42.0.0 -t 42.0 -t 42 -t stable
+        rm escrowBuddy.pkg
+    fi
+
 
     # Add Fleet Desktop application on windows (if enabled).
     if [[ $system == "windows" && -n "$FLEET_DESKTOP" ]]; then
