@@ -21,10 +21,6 @@ module.exports = {
       description: 'The provided email address could not be matched to a Fleet user account',
       responseType: 'badRequest',
     },
-    userAlreadyUnsubscribed: {
-      description: 'The provided email address is already unsubscribed to marketing emails',
-      responseType: 'success',
-    },
     success: {
       description: 'The user has opted out of markering emails',
     }
@@ -38,41 +34,44 @@ module.exports = {
     if(!userRecord){
       throw 'userNotFound';
     }
+    // Update the user record for this email address to set their nurture email timestamps to 1
+    // so they are excluded them from future runs of the deliver-nurture-emails script.
+    // FUTURE: update the user model to have a subscribedToNurtureEmails attribute.
+    await User.updateOne({emailAddress: emailAddress}).set({
+      stageThreeNurtureEmailSentAt: 1,
+      stageFourNurtureEmailSentAt: 1,
+      stageFiveNurtureEmailSentAt: 1,
+    });
 
-    if(!userRecord.subscribedToNurtureEmails){
-      throw 'userAlreadyUnsubscribed';
-    }
+    // FUTURE: update the users contact record in salesforce to indicate that they do not want to receive automated marketing emails. (If we update the stage, it might be changed by an action the user takes on the website)
+    // if(sails.config.environment === 'production'){
+    //   require('assert')(sails.config.custom.salesforceIntegrationUsername);
+    //   require('assert')(sails.config.custom.salesforceIntegrationPasskey);
 
-    await User.updateOne({emailAddress: emailAddress}).set({subscribedToNurtureEmails: false});
+    //   // Log in to Salesforce.
+    //   let jsforce = require('jsforce');
+    //   let salesforceConnection = new jsforce.Connection({
+    //     loginUrl : 'https://fleetdm.my.salesforce.com'
+    //   });
+    //   await salesforceConnection.login(sails.config.custom.salesforceIntegrationUsername, sails.config.custom.salesforceIntegrationPasskey);
 
-    if(sails.config.environment === 'production'){
-      require('assert')(sails.config.custom.salesforceIntegrationUsername);
-      require('assert')(sails.config.custom.salesforceIntegrationPasskey);
+    //   let existingContactRecord = await salesforceConnection.sobject('Contact')
+    //   .findOne({
+    //     Email:  emailAddress,
+    //   });
 
-      // Log in to Salesforce.
-      let jsforce = require('jsforce');
-      let salesforceConnection = new jsforce.Connection({
-        loginUrl : 'https://fleetdm.my.salesforce.com'
-      });
-      await salesforceConnection.login(sails.config.custom.salesforceIntegrationUsername, sails.config.custom.salesforceIntegrationPasskey);
-
-      let existingContactRecord = await salesforceConnection.sobject('Contact')
-      .findOne({
-        Email:  emailAddress,
-      });
-
-      if(existingContactRecord) {
-        //If we found an existing contact record in salesforce, update its status to be "Do not contact"
-        let salesforceContactId = existingContactRecord.Id;
-        await salesforceConnection.sobject('Contact')
-        .update({
-          Id: salesforceContactId,
-          Stage__c: 'Do not contact',// eslint-disable-line camelcase
-        });
-      }
-    }
+    //   if(existingContactRecord) {
+    //     //If we found an existing contact record in salesforce, update its status to be "Do not contact"
+    //     let salesforceContactId = existingContactRecord.Id;
+    //     await salesforceConnection.sobject('Contact')
+    //     .update({
+    //       Id: salesforceContactId,
+    //       Stage__c: 'Do not contact',// eslint-disable-line camelcase
+    //     });
+    //   }
+    // }
     // All done.
-    return;
+    return this.res.redirect('/?showUnsubscribeMessage');
 
   }
 

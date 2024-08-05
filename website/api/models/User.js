@@ -261,12 +261,6 @@ without necessarily having a billing card.`
       description: 'A JS timestamp of when the stage 5 nurture email was sent to the user.'
     },
 
-    subscribedToNurtureEmails: {
-      type: 'boolean',
-      description: 'Wheter or not this user will be sent marketing/nurture emails.',
-      defaultsTo: true,
-    },
-
     //  ╔═╗╔╦╗╔╗ ╔═╗╔╦╗╔═╗
     //  ║╣ ║║║╠╩╗║╣  ║║╚═╗
     //  ╚═╝╩ ╩╚═╝╚═╝═╩╝╚═╝
