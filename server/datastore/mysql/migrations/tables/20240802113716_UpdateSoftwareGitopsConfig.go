@@ -33,8 +33,16 @@ func Up_20240802113716(tx *sql.Tx) error {
 		if err := json.Unmarshal(r.Config, &config); err != nil {
 			return fmt.Errorf("unmarshal team config: %w", err)
 		}
-		softwareData := config["software"]
+		softwareData, ok := config["software"]
+		if !ok {
+			continue
+		}
+
 		rt := reflect.TypeOf(config["software"])
+		if rt == nil {
+			continue
+		}
+
 		if rt.Kind() == reflect.Slice {
 			// then we have an older config without the new fields
 			// Note: we are setting the new key to be whatever the old key was (if it was null, then
