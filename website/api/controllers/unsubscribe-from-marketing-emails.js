@@ -43,34 +43,34 @@ module.exports = {
       stageFiveNurtureEmailSentAt: 1,
     });
 
-    // FUTURE: update the users contact record in salesforce to indicate that they do not want to receive automated marketing emails. (If we update the stage, it might be changed by an action the user takes on the website)
-    // if(sails.config.environment === 'production'){
-    //   require('assert')(sails.config.custom.salesforceIntegrationUsername);
-    //   require('assert')(sails.config.custom.salesforceIntegrationPasskey);
+    // Update the contact record in salesforce for this email address to indicate that they have opted out of marketing emails.
+    if(sails.config.environment === 'production'){
+      require('assert')(sails.config.custom.salesforceIntegrationUsername);
+      require('assert')(sails.config.custom.salesforceIntegrationPasskey);
 
-    //   // Log in to Salesforce.
-    //   let jsforce = require('jsforce');
-    //   let salesforceConnection = new jsforce.Connection({
-    //     loginUrl : 'https://fleetdm.my.salesforce.com'
-    //   });
-    //   await salesforceConnection.login(sails.config.custom.salesforceIntegrationUsername, sails.config.custom.salesforceIntegrationPasskey);
+      // Log in to Salesforce.
+      let jsforce = require('jsforce');
+      let salesforceConnection = new jsforce.Connection({
+        loginUrl : 'https://fleetdm.my.salesforce.com'
+      });
+      await salesforceConnection.login(sails.config.custom.salesforceIntegrationUsername, sails.config.custom.salesforceIntegrationPasskey);
 
-    //   let existingContactRecord = await salesforceConnection.sobject('Contact')
-    //   .findOne({
-    //     Email:  emailAddress,
-    //   });
+      let existingContactRecord = await salesforceConnection.sobject('Contact')
+      .findOne({
+        Email:  emailAddress,
+      });
 
-    //   if(existingContactRecord) {
-    //     //If we found an existing contact record in salesforce, update its status to be "Do not contact"
-    //     let salesforceContactId = existingContactRecord.Id;
-    //     await salesforceConnection.sobject('Contact')
-    //     .update({
-    //       Id: salesforceContactId,
-    //       Stage__c: 'Do not contact',// eslint-disable-line camelcase
-    //     });
-    //   }
-    // }
-    // All done.
+      if(existingContactRecord) {
+        //If we found an existing contact record in salesforce, update its status to be "Do not contact"
+        let salesforceContactId = existingContactRecord.Id;
+        await salesforceConnection.sobject('Contact')
+        .update({
+          Id: salesforceContactId,
+          HasOptedOutOfEmail: true,
+        });
+      }
+    }
+    // Redirect the user to the homepage with a #unsubscribe hash link.
     return this.res.redirect('/#unsubscribed');
 
   }
