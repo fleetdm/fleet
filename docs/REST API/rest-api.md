@@ -6349,7 +6349,7 @@ This endpoint returns the list of custom MDM commands that have been executed.
 ## Integrations
 
 - [Get Apple Push Notification service (APNs)](#get-apple-push-notification-service-apns)
-- [Get Apple Business Manager (ABM)](#get-apple-business-manager-abm)
+- [List Apple Business Manager (ABM) connections](#get-apple-business-manager-abm)
 
 ### Get Apple Push Notification service (APNs)
 
@@ -6376,11 +6376,11 @@ None.
 }
 ```
 
-### Get Apple Business Manager (ABM)
+### List Apple Business Manager (ABM) connections
 
 _Available in Fleet Premium_
 
-`GET /api/v1/fleet/abm`
+`GET /api/v1/fleet/apple_business_manager`
 
 #### Parameters
 
@@ -6388,20 +6388,58 @@ None.
 
 #### Example
 
-`GET /api/v1/fleet/abm`
+`GET /api/v1/fleet/apple_business_manager`
 
 ##### Default response
 
 `Status: 200`
 
 ```json
-{
-  "apple_id": "apple@example.com",
-  "org_name": "Fleet Device Management",
-  "mdm_server_url": "https://example.com/mdm/apple/mdm",
-  "renew_date": "2023-11-29T00:00:00Z",
-  "default_team": ""
-}
+[
+  {
+    "apple_id": "apple@example.com",
+    "org_name": "Fleet Device Management Inc.",
+    "mdm_server_url": "https://example.com/mdm/apple/mdm",
+    "renew_date": "2023-11-29T00:00:00Z",
+    "macos_team": "💻 Workstations",
+    "ios_team": "📱🏢 Company-owned iPhones",
+    "ipados_team": "🔳🏢 Company-owned iPads"
+  }
+]
+```
+
+### List Volume Purchasing Program (VPP) connections
+
+_Available in Fleet Premium_
+
+`GET /api/v1/fleet/volume_purchasing_program`
+
+#### Parameters
+
+None.
+
+#### Example
+
+`GET /api/v1/fleet/volume_purchasing_program`
+
+##### Default response
+
+`Status: 200`
+
+```json
+[
+  {
+    "org_name": "Fleet Device Management Inc.",
+    "location": "https://example.com/mdm/apple/mdm",
+    "renew_date": "2023-11-29T00:00:00Z",
+    "teams": [
+      "💻 Workstations",
+      "💻🐣 Workstations (canary)",
+      "📱🏢 Company-owned iPhones",
+      "🔳🏢 Company-owned iPads"
+    ],
+  }
+]
 ```
 
 ---
