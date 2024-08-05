@@ -97,3 +97,4 @@ org_settings:
     databases_path: ""
   secrets: 
     - secret: ABC
+software:
