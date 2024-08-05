@@ -334,7 +334,7 @@ const SoftwareTable = ({
           <EmptySoftwareTable
             softwareFilter={softwareFilter}
             isSoftwareDisabled={!isSoftwareEnabled}
-            isNotDetectingSoftware={query === ""}
+            noSearchQuery={query === ""}
           />
         )}
         defaultSortHeader={orderKey}
