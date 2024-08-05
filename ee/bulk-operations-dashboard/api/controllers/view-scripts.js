@@ -1,16 +1,16 @@
 module.exports = {
 
 
-  friendlyName: 'View faq',
+  friendlyName: 'View scripts',
 
 
-  description: 'Display "FAQ" page.',
+  description: 'Display "Scripts" page.',
 
 
   exits: {
 
     success: {
-      viewTemplatePath: 'pages/faq'
+      viewTemplatePath: 'pages/scripts'
     }
 
   },

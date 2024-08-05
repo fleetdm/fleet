@@ -100,6 +100,11 @@ module.exports.custom = {
   * Any other custom config this Sails app should use during development.    *
   *                                                                          *
   ***************************************************************************/
-  // …
+  // The base URL of your Fleet instance.
+  fleetBaseUrl: 'https://dogfood.fleetdm.com',
+
+  // The API token of a Fleet API-only user for your Fleet instance.
+  // [?] Here's how you get one: https://fleetdm.com/docs/using-fleet/fleetctl-cli#get-the-api-token-of-an-api-only-user
+  // fleetApiToken: 'asdfasdfasdfasdf',
 
 };
