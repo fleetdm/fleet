@@ -67,5 +67,7 @@ A collection of guides to help you get up and running with Fleet.
 - [Generate process trees with osquery](https://fleetdm.com/guides/generate-process-trees-with-osquery)
 
 
+<a style="text-decoration: none;" href="https://fleetdm.com/guides"><animated-arrow-button>See all guides</animated-arrow-button></a>
+
 <meta name="description" value="Links to deployment tutorials and guides for using Fleet.">
 <meta name="pageOrderInSection" value="300">

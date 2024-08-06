@@ -27,8 +27,6 @@ const STATUS_CONFIG: Record<SoftwareInstallStatus, IStatusDisplayConfig> = {
     tooltip: ({ lastInstalledAt }) => (
       <>
         Software installed successfully ({dateAgo(lastInstalledAt as string)}).
-        Currently, if the software is uninstalled, the &quot;Installed&quot;
-        status won&apos;t be updated.
       </>
     ),
   },
@@ -43,7 +41,7 @@ const STATUS_CONFIG: Record<SoftwareInstallStatus, IStatusDisplayConfig> = {
     tooltip: ({ lastInstalledAt = "" }) => (
       <>
         Software failed to install
-        {lastInstalledAt ? `(${dateAgo(lastInstalledAt)})` : ""}. Select{" "}
+        {lastInstalledAt ? ` (${dateAgo(lastInstalledAt)})` : ""}. Select{" "}
         <b>Retry</b> to install again, or contact your IT department.
       </>
     ),

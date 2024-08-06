@@ -76,7 +76,7 @@ const SoftwareName = ({ name }: ISoftwareNameProps) => {
 interface IStatusDisplayOption {
   displayName: string;
   iconName: "success" | "pending-outline" | "error";
-  tooltip: React.ReactNode;
+  tooltip: string;
 }
 
 const STATUS_DISPLAY_OPTIONS: Record<
@@ -86,12 +86,7 @@ const STATUS_DISPLAY_OPTIONS: Record<
   installed: {
     displayName: "Installed",
     iconName: "success",
-    tooltip: (
-      <>
-        Fleet installed software on these hosts. Currently, if the software is
-        uninstalled, the &quot;Installed&quot; status won&apos;t be updated.
-      </>
-    ),
+    tooltip: "Fleet installed software on these hosts.",
   },
   pending: {
     displayName: "Pending",

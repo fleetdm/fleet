@@ -1,7 +1,7 @@
 # MDM addon
 
 Notice: Previous versions of this module referred to `dep`, but to reduce confusion that has been replaces with `abm`
-to mach the change to the newer Apple Busines Manager.  For each key/value pair below, the key names have been changed
+to mach the change to the newer Apple Business Manager.  For each key/value pair below, the key names have been changed
 from previous version to match the name of the env var for easier usability.  Older unused env vars were also removed
 for simplification.  This includes removing the need for `extra_environment_variables` completely.
 

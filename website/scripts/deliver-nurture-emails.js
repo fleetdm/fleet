@@ -52,7 +52,8 @@ module.exports = {
           template: 'email-nurture-stage-three',
           layout: 'layout-nurture-email',
           templateData: {
-            firstName: user.firstName
+            firstName: user.firstName,
+            emailAddress: user.emailAddress
           },
           to: user.emailAddress,
           toName: `${user.firstName} ${user.lastName}`,
@@ -80,7 +81,8 @@ module.exports = {
           template: 'email-nurture-stage-four',
           layout: 'layout-nurture-email',
           templateData: {
-            firstName: user.firstName
+            firstName: user.firstName,
+            emailAddress: user.emailAddress
           },
           to: user.emailAddress,
           toName: `${user.firstName} ${user.lastName}`,
@@ -109,7 +111,8 @@ module.exports = {
           template: 'email-nurture-stage-five',
           layout: 'layout-nurture-email',
           templateData: {
-            firstName: user.firstName
+            firstName: user.firstName,
+            emailAddress: user.emailAddress
           },
           to: user.emailAddress,
           toName: `${user.firstName} ${user.lastName}`,
