@@ -6381,7 +6381,7 @@ None.
 
 _Available in Fleet Premium_
 
-`GET /api/v1/fleet/abm/tokens`
+`GET /api/v1/fleet/abm_tokens`
 
 #### Parameters
 
@@ -6389,7 +6389,7 @@ None.
 
 #### Example
 
-`GET /api/v1/fleet/abm/tokens`
+`GET /api/v1/fleet/abm_tokens`
 
 ##### Default response
 
@@ -6414,7 +6414,7 @@ None.
 
 _Available in Fleet Premium_
 
-`GET /api/v1/fleet/vpp/tokens`
+`GET /api/v1/fleet/vpp_tokens`
 
 #### Parameters
 
@@ -6422,7 +6422,7 @@ None.
 
 #### Example
 
-`GET /api/v1/fleet/vpp/tokens`
+`GET /api/v1/fleet/vpp_tokens`
 
 ##### Default response
 
