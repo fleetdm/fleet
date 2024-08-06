@@ -379,7 +379,7 @@ If you need to track content from a Slack channel (ie. #g-sales), you can automa
 
 ## GitHub
 
-Fleet uses GitHub as the [source of truth](https://fleetdm.com/handbook/company/why-this-way#why-do-we-use-one-repo) for the product and documentation. GitHub allows community members to interact with Fleet, [contribute and provide feedback](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/Committing-Changes.md#committing-changes). Fleet uses shared kanban boards to keep work visible and easy to track. Remove any [sprint](https://fleetdm.com/handbook/company/product-groups#sprints) filters when viewing a [departmental kanban board](https://fleetdm.com/handbook/company#org-chart).
+Fleet uses GitHub as the [source of truth](https://fleetdm.com/handbook/company/why-this-way#why-do-we-use-one-repo) for the product and documentation. GitHub allows community members to interact with Fleet, [contribute and provide feedback](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/Committing-Changes.md#committing-changes).
 
 
 ### GitHub labels
