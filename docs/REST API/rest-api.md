@@ -3562,6 +3562,10 @@ Flags the host details, labels and policies to be refetched the next time the ho
 
 ### Transfer hosts to a team
 
+> Currently, trasnferring host's isn't supported if you have more than one [Apple Business Manager (ABM) token](#list-apple-business-manager-abm-tokens).
+
+<!-- Return the following error if there are more than one ABM tokens: Currently, transferring host's isn't supported if you have more than one ABM token. -->
+
 _Available in Fleet Premium_
 
 `POST /api/v1/fleet/hosts/transfer`
@@ -3592,6 +3596,10 @@ _Available in Fleet Premium_
 
 
 ### Transfer hosts to a team by filter
+
+> Currently, trasnferring host's isn't supported if you have more than one [Apple Business Manager (ABM) token](#list-apple-business-manager-abm-tokens).
+
+<!-- Return the following error if there are more than one ABM tokens: Currently, transferring host's isn't supported if you have more than one ABM token. -->
 
 _Available in Fleet Premium_
 
