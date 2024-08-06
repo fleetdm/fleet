@@ -280,7 +280,7 @@ If the bug finder is not a Fleetie (e.g., a member of the community), then whoev
 
 Once raised, product design confirms whether or not it's critical and defines expected behavior. When outside of working hours for the product design team or if no one from product design responds within 1 hour, then fall back to the #help-p1 channel.
 
-Once the critical bug is confirmed, a [priority label](https://fleetdm.com/handbook/company/product-groups#high-priority-user-stories-and-bugs) is applied and the priority response process begins. Customer Success notifies impacted customers and the community if community features are impacted. If Customer Success is not available, the on-call engineer or infrastructure on-call engineer is responsible for this. If a quick fix workaround exists, that should be communicated as well for those who are already upgraded.
+Once the critical bug is confirmed, a [priority label](https://fleetdm.com/handbook/company/communications#high-priority-user-stories-and-bugs) is applied and the priority response process begins. Customer Success notifies impacted customers and the community if community features are impacted. If Customer Success is not available, the on-call engineer or infrastructure on-call engineer is responsible for this. If a quick fix workaround exists, that should be communicated as well for those who are already upgraded.
 
 The relevant release page on GitHub is updated to indicate that the release contains a critical bug, as shown on the [fleet-v4.45.0 release page](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.45.0).
 
@@ -410,28 +410,6 @@ Fleet [always prioritizes bugs](https://fleetdm.com/handbook/product#prioritizin
 
 #### Awaiting QA
 Bugs will be verified as fixed by QA when they are placed in the "Awaiting QA" column of the relevant product group's sprint board. If the bug is verified as fixed, it is moved to the "Ready for release" column of the sprint board. Otherwise, the remaining issues are noted in a comment, and it is moved back to the "In progress" column of the sprint board.
-
-## High priority user stories and bugs
-All issues are treated as standard priority by default. Some issues are assigned a priority label to indicate the level of urgency.
-
-- Emergency: `P0`
-  - Examples: Customer outage, confirmed security vulnerability ([critical bug](https://fleetdm.com/handbook/company/product-groups#release-testing)), a new feature is needed to address an immediate Fleet emergency.
-  - Response: Immediately stop other work to swarm the issue. Work 24/7 in shifts until resolved.
-  - Impact: Significant impact. May void current sprint.
-
-- Critical: `P1`
-  - Examples: A supported workflow is broken ([critical bug](https://fleetdm.com/handbook/company/product-groups#release-testing)), a potential security vulnerability, a new feature is required to address an immediate critical Fleet need.
-  - Response: Issue brought to next standup for estimation and immediately brought into the sprint. Necessary team members are assigned as their top priority.
-  - Impact: High impact. Does not void sprint, but reduces overall velocity and requires deprioritizing other work.
-
-- Urgent: `P2`
-  - Examples: A supported workflow is not functioning as intended, a newly drafted feature has an associated urgent Fleet need.
-  - Response: Issue is prioritized at the top of the next sprint. If opporunity cost of waiting for the next sprint is too high, it may be considered for current sprint.
-  - Impact: Low to medium impact. If prioritized into current sprint, may reduce overall velocity and require deprioritizing other work.
-
-Add as much context as possible to the issue description and assign labels to help the team understand the problem and what is driving the urgency. All issues with a `P0`, `P1`, or `P2` label should be assigned to the [DRI for what goes in a release](https://fleetdm.com/handbook/company/communications#directly-responsible-individuals-dris). For immediate action, follow up on Slack or by phone.
-
-Once the release DRI is aware of the issue, they will adjust the labels as needed and assign to the PM and EM of the appropriate product group. If they disagree with the priority label applied to the issue, they will contact the requestor to discuss further.
 
 ## How to reach the developer on-call
 Oncall engineers do not need to actively monitor Slack channels, except when called in by the Community or Customer teams. Members of those teams are instructed to `@oncall` in `#help-engineering` to get the attention of the on-call engineer to continue discussing any issues that come up. In some cases, the Community or Customer representative will continue to communicate with the requestor. In others, the on-call engineer will communicate directly (team members should use their judgment and discuss on a case-by-case basis how to best communicate with community members and customers).
@@ -729,11 +707,13 @@ Thus, to ensure consistency, completeness, and secure development practices, no 
 The following stubs are included only to make links backward compatible
 
 ##### Endpoint ops group
-Please see [handbook/company/product-groups#endpoint-ops-group](https://fleetdm.com/handbook/company/product-groups#endpoint-ops-group)
+Please see [handbook/company/product-groups/endpoint-ops-group](https://fleetdm.com/handbook/company/product-groups#endpoint-ops-group)
 
 ##### Air guitar
 Please see [handbook/company/initiate-an-air-guitar-session](https://fleetdm.com/handbook/company/product-groups#initiate-an-air-guitar-session)
 
+##### High priority user stories and bugs
+Please see [handbook/company/communications/high-priority-user-stories-and-bugs](https://fleetdm.com/handbook/company/communications#high-priority-user-stories-and-bugs)
 
 <meta name="maintainedBy" value="mikermcneil">
 <meta name="title" value="🛩️ Product groups">
