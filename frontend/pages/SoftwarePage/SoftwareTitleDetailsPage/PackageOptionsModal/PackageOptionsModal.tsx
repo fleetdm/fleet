@@ -6,21 +6,21 @@ import FleetAce from "components/FleetAce";
 import CustomLink from "components/CustomLink";
 import Editor from "components/Editor";
 
-const baseClass = "advanced-options-modal";
+const baseClass = "package-options-modal";
 
-interface IAdvancedOptionsModalProps {
+interface IPackageOptionsModal {
   installScript: string;
   preInstallQuery?: string;
   postInstallScript?: string;
   onExit: () => void;
 }
 
-const AdvancedOptionsModal = ({
+const PackageOptionsModal = ({
   installScript,
   preInstallQuery,
   postInstallScript,
   onExit,
-}: IAdvancedOptionsModalProps) => {
+}: IPackageOptionsModal) => {
   return (
     <Modal className={baseClass} title="Advanced Options" onExit={onExit}>
       <>
@@ -86,4 +86,4 @@ const AdvancedOptionsModal = ({
   );
 };
 
-export default AdvancedOptionsModal;
+export default PackageOptionsModal;

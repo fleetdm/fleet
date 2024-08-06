@@ -8,8 +8,8 @@ export const SOFTWARE_PACAKGE_DROPDOWN_OPTIONS = [
     value: "delete",
   },
   {
-    label: "Advanced options",
-    value: "advanced",
+    label: "Show options",
+    value: "options",
   },
 ] as const;
 

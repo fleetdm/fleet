@@ -197,6 +197,7 @@ const SoftwareTitleDetailsPage = ({
             borderRadiusSize="xxlarge"
             includeShadow
             className={`${baseClass}__versions-section`}
+            paddingSize="xxlarge"
           >
             <h2>Versions</h2>
             <SoftwareTitleDetailsTable

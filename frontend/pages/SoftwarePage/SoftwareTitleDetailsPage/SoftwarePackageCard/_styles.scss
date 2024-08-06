@@ -1,7 +1,7 @@
 .software-package-card {
   display: flex;
   flex-direction: column;
-  gap: $pad-medium;
+  gap: $pad-large;
 
   &__header {
     display: flex;
@@ -63,7 +63,7 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: $pad-xsmall;
+    gap: $pad-small;
   }
 
   &__status-count {
@@ -108,16 +108,5 @@
     display: flex;
     justify-content: center;
     width: 44px;
-  }
-
-  @media (max-width: $break-md) {
-    align-items: flex-start;
-
-    &__main-content {
-      display: flex;
-      flex-direction: column;
-      align-items: flex-start;
-      gap: $pad-large;
-    }
   }
 }

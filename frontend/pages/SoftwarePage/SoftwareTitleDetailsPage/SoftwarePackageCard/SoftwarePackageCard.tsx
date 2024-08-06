@@ -21,13 +21,12 @@ import Dropdown from "components/forms/fields/Dropdown";
 import Card from "components/Card";
 import Graphic from "components/Graphic";
 import TooltipWrapper from "components/TooltipWrapper";
-import DataSet from "components/DataSet";
 import Icon from "components/Icon";
 
 import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
 
 import DeleteSoftwareModal from "../DeleteSoftwareModal";
-import AdvancedOptionsModal from "../AdvancedOptionsModal";
+import PackageOptionsModal from "../PackageOptionsModal";
 import {
   APP_STORE_APP_DROPDOWN_OPTIONS,
   SOFTWARE_PACAKGE_DROPDOWN_OPTIONS,
@@ -146,11 +145,9 @@ const PackageStatusCount = ({
         <Icon name={displayData.iconName} />
         <span>{displayData.displayName}</span>
       </TooltipWrapper>
-      <div>
-        <a className={`${baseClass}__status-count`} href={linkUrl}>
-          {count} hosts
-        </a>
-      </div>
+      <a className={`${baseClass}__status-count`} href={linkUrl}>
+        {count} hosts
+      </a>
     </div>
   );
 };
@@ -159,14 +156,14 @@ interface IActionsDropdownProps {
   isSoftwarePackage: boolean;
   onDownloadClick: () => void;
   onDeleteClick: () => void;
-  onAdvancedOptionsClick: () => void;
+  onOptionsClick: () => void;
 }
 
 const ActionsDropdown = ({
   isSoftwarePackage,
   onDownloadClick,
   onDeleteClick,
-  onAdvancedOptionsClick,
+  onOptionsClick,
 }: IActionsDropdownProps) => {
   const onSelect = (value: string) => {
     switch (value) {
@@ -176,8 +173,8 @@ const ActionsDropdown = ({
       case "delete":
         onDeleteClick();
         break;
-      case "advanced":
-        onAdvancedOptionsClick();
+      case "options":
+        onOptionsClick();
         break;
       default:
       // noop
@@ -240,13 +237,11 @@ const SoftwarePackageCard = ({
   } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
 
-  const [showAdvancedOptionsModal, setShowAdvancedOptionsModal] = useState(
-    false
-  );
+  const [showOptionsModal, setShowOptionsModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
 
-  const onAdvancedOptionsClick = () => {
-    setShowAdvancedOptionsModal(true);
+  const onOptionsClick = () => {
+    setShowOptionsModal(true);
   };
 
   const onDeleteClick = () => {
@@ -316,7 +311,12 @@ const SoftwarePackageCard = ({
     isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
 
   return (
-    <Card borderRadiusSize="xxlarge" includeShadow className={baseClass}>
+    <Card
+      borderRadiusSize="xxlarge"
+      includeShadow
+      className={baseClass}
+      paddingSize="xxlarge"
+    >
       <div className={`${baseClass}__header`}>
         <div className={`${baseClass}__main-content`}>
           {/* TODO: main-info could be a seperate component as its reused on a couple
@@ -345,7 +345,7 @@ const SoftwarePackageCard = ({
               isSoftwarePackage={!!softwarePackage}
               onDownloadClick={onDownloadClick}
               onDeleteClick={onDeleteClick}
-              onAdvancedOptionsClick={onAdvancedOptionsClick}
+              onOptionsClick={onOptionsClick}
             />
           )}
         </div>
@@ -382,12 +382,12 @@ const SoftwarePackageCard = ({
           teamId={teamId}
         />
       </div>
-      {showAdvancedOptionsModal && (
-        <AdvancedOptionsModal
+      {showOptionsModal && (
+        <PackageOptionsModal
           installScript={softwarePackage?.install_script ?? ""}
           preInstallQuery={softwarePackage?.pre_install_query}
           postInstallScript={softwarePackage?.post_install_script}
-          onExit={() => setShowAdvancedOptionsModal(false)}
+          onExit={() => setShowOptionsModal(false)}
         />
       )}
       {showDeleteModal && (
