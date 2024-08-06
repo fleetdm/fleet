@@ -1102,7 +1102,7 @@
 #  ╚╗╔╝╠═╣╠╦╝║╠═╣╠╩╗║  ║╣   ╠═╣║ ╦║╣ ║║║ ║   ╚╗╔╝║╣ ╠╦╝╚═╗║║ ║║║║╚═╗
 #   ╚╝ ╩ ╩╩╚═╩╩ ╩╚═╝╩═╝╚═╝  ╩ ╩╚═╝╚═╝╝╚╝ ╩    ╚╝ ╚═╝╩╚═╚═╝╩╚═╝╝╚╝╚═╝
 - industryName: Variable agent versions
-  descrption: Manage agents remotely by setting different versions per-baseline.
+  description: Manage agents remotely by setting different versions per-baseline.
   documentationUrl: https://fleetdm.com/docs/configuration/agent-configuration#configure-fleetd-update-channels
   tier: Premium
   jamfProHasFeature: no

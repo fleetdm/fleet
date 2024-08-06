@@ -150,7 +150,7 @@ In some cases adding a read replica can increase database performance for specif
 
 #### Traffic load balancing
 Load balancing enables distributing request traffic over many instances of the backend application. Using AWS Application
-Load Balancer can also [offload SSL termination](https://docs.aws.amazon.com/elasticloadbalancing/latest/application/create-https-listener.html), freeing Fleet to spend the majority of it's allocated compute dedicated 
+Load Balancer can also [offload SSL termination](https://docs.aws.amazon.com/elasticloadbalancing/latest/application/create-https-listener.html), freeing Fleet to spend the majority of its allocated compute dedicated 
 to its core functionality. More details about ALB can be found [here](https://docs.aws.amazon.com/elasticloadbalancing/latest/application/introduction.html).
 
 _**Note if using [terraform reference architecture](https://github.com/fleetdm/fleet/tree/main/infrastructure/dogfood/terraform/aws#terraform) all configurations can dynamically scale based on load(cpu/memory) and all configurations

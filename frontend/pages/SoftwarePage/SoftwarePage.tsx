@@ -348,7 +348,7 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
   const renderHeaderDescription = () => {
     return (
       <p>
-        Manage software and search for installed software, OS and
+        Manage software and search for installed software, OS, and
         vulnerabilities {isAllTeamsSelected ? "for all hosts" : "on this team"}.
       </p>
     );
@@ -429,6 +429,7 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
             router={router}
             onExit={toggleAddSoftwareModal}
             setAddedSoftwareToken={setAddedSoftwareToken}
+            isFreeTier={isFreeTier}
           />
         )}
       </div>
