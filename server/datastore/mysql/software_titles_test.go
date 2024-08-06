@@ -28,6 +28,7 @@ func TestSoftwareTitles(t *testing.T) {
 		{"TeamFilterSoftwareTitles", testTeamFilterSoftwareTitles},
 		{"ListSoftwareTitlesInstallersOnly", testListSoftwareTitlesInstallersOnly},
 		{"ListSoftwareTitlesAvailableForInstallFilter", testListSoftwareTitlesAvailableForInstallFilter},
+		{"ListSoftwareTitlesAllTeams", testListSoftwareTitlesAllTeams},
 		{"UploadedSoftwareExists", testUploadedSoftwareExists},
 	}
 	for _, c := range cases {
@@ -942,7 +943,7 @@ func testListSoftwareTitlesInstallersOnly(t *testing.T, ds *Datastore) {
 func testListSoftwareTitlesAvailableForInstallFilter(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
-	// create a 2 software installers
+	// create 2 software installers
 	installer1, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 		Title:         "installer1",
 		Source:        "apps",
@@ -1056,6 +1057,191 @@ func testListSoftwareTitlesAvailableForInstallFilter(t *testing.T, ds *Datastore
 		{name: "vpp2", source: "ios_apps"},
 		{name: "vpp2", source: "ipados_apps"},
 		{name: "vpp2", source: "apps"},
+	}, names)
+}
+
+func testListSoftwareTitlesAllTeams(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "team2"})
+	require.NoError(t, err)
+
+	// Create a macOS software foobar installer on "No team".
+	macOSInstallerNoTeam, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		Title:            "foobar",
+		BundleIdentifier: "com.foo.bar",
+		Source:           "apps",
+		InstallScript:    "echo",
+		Filename:         "foobar.pkg",
+		TeamID:           nil,
+	})
+	require.NoError(t, err)
+
+	// Create an iOS Canva installer on "team1".
+	require.NotZero(t, macOSInstallerNoTeam)
+	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+		Name: "Canva", BundleIdentifier: "com.example.canva",
+		VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_canva", Platform: fleet.IOSPlatform},
+	}, &team1.ID)
+	require.NoError(t, err)
+
+	// Create a macOS Canva installer on "team1".
+	require.NotZero(t, macOSInstallerNoTeam)
+	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+		Name: "Canva", BundleIdentifier: "com.example.canva",
+		VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_canva", Platform: fleet.MacOSPlatform},
+	}, &team1.ID)
+	require.NoError(t, err)
+
+	// Create an iPadOS Canva installer on "team2".
+	require.NotZero(t, macOSInstallerNoTeam)
+	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+		Name: "Canva", BundleIdentifier: "com.example.canva",
+		VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_canva", Platform: fleet.IPadOSPlatform},
+	}, &team2.ID)
+	require.NoError(t, err)
+
+	// Add a macOS host on "No team" with some software.
+	host := test.NewHost(t, ds, "host", "", "hostkey", "hostuuid", time.Now())
+	software := []fleet.Software{
+		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
+		{Name: "foo", Version: "0.0.3", Source: "chrome_extensions"},
+		{Name: "bar", Version: "0.0.3", Source: "deb_packages"},
+	}
+	_, err = ds.UpdateHostSoftware(ctx, host.ID, software)
+	require.NoError(t, err)
+
+	// Simulate vulnerabilities cron
+	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
+	require.NoError(t, ds.ReconcileSoftwareTitles(ctx))
+	require.NoError(t, ds.SyncHostsSoftwareTitles(ctx, time.Now()))
+
+	// List software titles for "All teams", should only return the host software titles
+	// and no installers/VPP-apps because none is installed yet.
+	titles, counts, _, err := ds.ListSoftwareTitles(
+		ctx,
+		fleet.SoftwareTitleListOptions{
+			ListOptions: fleet.ListOptions{
+				OrderKey:       "name",
+				OrderDirection: fleet.OrderAscending,
+			},
+			TeamID: nil,
+		},
+		fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}},
+	)
+	require.NoError(t, err)
+	assert.EqualValues(t, 2, counts)
+	assert.Len(t, titles, 2)
+	type nameSource struct {
+		name   string
+		source string
+	}
+	names := make([]nameSource, 0, len(titles))
+	for _, title := range titles {
+		names = append(names, nameSource{name: title.Name, source: title.Source})
+	}
+	assert.ElementsMatch(t, []nameSource{
+		{name: "bar", source: "deb_packages"},
+		{name: "foo", source: "chrome_extensions"},
+	}, names)
+
+	// List software for "No team". Should list the host's software + the macOS installer.
+	titles, counts, _, err = ds.ListSoftwareTitles(
+		ctx,
+		fleet.SoftwareTitleListOptions{
+			ListOptions: fleet.ListOptions{
+				OrderKey:       "name",
+				OrderDirection: fleet.OrderAscending,
+			},
+			TeamID: ptr.Uint(0),
+		},
+		fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}},
+	)
+	require.NoError(t, err)
+	assert.EqualValues(t, 3, counts)
+	assert.Len(t, titles, 3)
+	names = make([]nameSource, 0, len(titles))
+	for _, title := range titles {
+		names = append(names, nameSource{name: title.Name, source: title.Source})
+	}
+	assert.ElementsMatch(t, []nameSource{
+		{name: "bar", source: "deb_packages"},
+		{name: "foo", source: "chrome_extensions"},
+		{name: "foobar", source: "apps"},
+	}, names)
+
+	// List software for "team1". Should list Canva for iOS and macOS.
+	titles, counts, _, err = ds.ListSoftwareTitles(
+		ctx,
+		fleet.SoftwareTitleListOptions{
+			ListOptions: fleet.ListOptions{
+				OrderKey:       "name",
+				OrderDirection: fleet.OrderAscending,
+			},
+			TeamID: &team1.ID,
+		},
+		fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}},
+	)
+	require.NoError(t, err)
+	assert.EqualValues(t, 2, counts)
+	assert.Len(t, titles, 2)
+	names = make([]nameSource, 0, len(titles))
+	for _, title := range titles {
+		names = append(names, nameSource{name: title.Name, source: title.Source})
+	}
+	assert.ElementsMatch(t, []nameSource{
+		{name: "Canva", source: "ios_apps"},
+		{name: "Canva", source: "apps"},
+	}, names)
+
+	// List software for "team2". Should list Canva for iPadOS.
+	titles, counts, _, err = ds.ListSoftwareTitles(
+		ctx,
+		fleet.SoftwareTitleListOptions{
+			ListOptions: fleet.ListOptions{
+				OrderKey:       "name",
+				OrderDirection: fleet.OrderAscending,
+			},
+			TeamID: &team2.ID,
+		},
+		fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}},
+	)
+	require.NoError(t, err)
+	assert.EqualValues(t, 1, counts)
+	assert.Len(t, titles, 1)
+	names = make([]nameSource, 0, len(titles))
+	for _, title := range titles {
+		names = append(names, nameSource{name: title.Name, source: title.Source})
+	}
+	assert.ElementsMatch(t, []nameSource{
+		{name: "Canva", source: "ipados_apps"},
+	}, names)
+
+	// List software available for install on "No team". Should list "foobar" package only.
+	titles, counts, _, err = ds.ListSoftwareTitles(
+		ctx,
+		fleet.SoftwareTitleListOptions{
+			ListOptions: fleet.ListOptions{
+				OrderKey:       "name",
+				OrderDirection: fleet.OrderAscending,
+			},
+			AvailableForInstall: true,
+			TeamID:              ptr.Uint(0),
+		},
+		fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}},
+	)
+	require.NoError(t, err)
+	require.EqualValues(t, 1, counts)
+	require.Len(t, titles, 1)
+
+	names = make([]nameSource, 0, len(titles))
+	for _, title := range titles {
+		names = append(names, nameSource{name: title.Name, source: title.Source})
+	}
+	assert.ElementsMatch(t, []nameSource{
+		{name: "foobar", source: "apps"},
 	}, names)
 }
 
