@@ -281,14 +281,18 @@ Follow these steps to archive any document:
 
 ### Schedule CEO interview
 
-From time to time, you will need to schedule an interview between a candidate and the CEO:
-1. [Make a copy of the "¶¶ CEO interview template"](https://docs.google.com/document/d/1yARlH6iZY-cP9cQbmL3z6TbMy-Ii7lO64RbuolpWQzI/copy) (private Google doc)
-2. Move the document to the "[🕵️ ¶±¶ Reference checks & hiring data](https://drive.google.com/drive/folders/1VgKT6_VrQ9zYMnDOwJGE1mT1WrrMFqJw?usp=drive_link)" folder in Google Drive. 
-3. Change file name and heading of doc to `¶¶ CANDIDATE_NAME (CANDIDATE_TITLE) <> Mike McNeil, CEO final interview (YYYY-MM-DD)`
-   - Click the share button and share access with the CEO.
+Use the following steps to schedule an interview between a candidate and the CEO:
+1. Reach out to the candidate via email to find a time when the CEO and the canidate are both available.
+   > This entire process takes an hour for the CEO. A 30 minute interview followed by a 30 minute "¶¶ Postgame". Be sure to offer times that accommodate for this.
+3. [Make a copy of the "¶¶ CEO interview template"](https://docs.google.com/document/d/1yARlH6iZY-cP9cQbmL3z6TbMy-Ii7lO64RbuolpWQzI/copy) (private Google doc).
+4. Move the document to the "[🕵️ ¶±¶ Reference checks & hiring data](https://drive.google.com/drive/folders/1VgKT6_VrQ9zYMnDOwJGE1mT1WrrMFqJw?usp=drive_link)" folder in Google Drive. 
+5. Change file name and heading of doc to `¶¶ CANDIDATE_NAME (CANDIDATE_TITLE) <> Mike McNeil, CEO final interview (YYYY-MM-DD)`.
    - Add candidate's personal email in the "👥" (attendees) section at the top of the doc.
    - Add candidate's [LinkedIn url](https://www.linkedin.com/search/results/all/?keywords=people) on the first bullet for Mike.
-4. Set the Google Calendar description of the calendar event to: `Agenda: URL_FOR_NEW_COPY_OF_FINAL_INTERVIEW_DOC`
+6. Create a Google Calendar event at a time when the CEO and the canidate are both available.
+   - Create a Google Calendar event matching the title of the interview doc.
+   - Add the interveiw doc to the calendar event desription as the agenda (i.e. `Agenda: INTERVIEW_DOC_FULL_URL`) and save the calendar event.
+7. Schedule a 30 minute "¶¶ Postgame" working session for the CEO to evaluate the candidate and give his recommendation.
 
 
 ### Program the CEO to do something
