@@ -283,7 +283,8 @@ Follow these steps to archive any document:
 
 From time to time, you will need to schedule an interview between a candidate and the CEO:
 1. [Make a copy of the "¶¶ CEO interview template"](https://docs.google.com/document/d/1yARlH6iZY-cP9cQbmL3z6TbMy-Ii7lO64RbuolpWQzI/copy) (private Google doc)
-2. Change file name and heading of doc to `¶¶ CANDIDATE_NAME (CANDIDATE_TITLE) <> Mike McNeil, CEO final interview (YYYY-MM-DD)`
+2. Move the document to the "[🕵️ ¶±¶ Reference checks & hiring data](https://drive.google.com/drive/folders/1VgKT6_VrQ9zYMnDOwJGE1mT1WrrMFqJw?usp=drive_link)" folder in Google Drive. 
+3. Change file name and heading of doc to `¶¶ CANDIDATE_NAME (CANDIDATE_TITLE) <> Mike McNeil, CEO final interview (YYYY-MM-DD)`
    - Click the share button and share access with the CEO.
    - Add candidate's personal email in the "👥" (attendees) section at the top of the doc.
    - Add candidate's [LinkedIn url](https://www.linkedin.com/search/results/all/?keywords=people) on the first bullet for Mike.
