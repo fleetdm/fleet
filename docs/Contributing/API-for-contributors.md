@@ -531,9 +531,15 @@ The MDM endpoints exist to support the related command-line interface sub-comman
 - [Generate Apple Business Manager public key (ADE)](#generate-apple-business-manager-public-key-ade)
 - [Request Certificate Signing Request (CSR)](#request-certificate-signing-request-csr)
 - [Upload APNS certificate](#upload-apns-certificate)
-- [Upload ABM Token](#upload-abm-token)
+- [Add ABM token](#add-abm-token)
 - [Turn off Apple MDM](#turn-off-apple-mdm)
-- [Disable automatic enrollment (ADE)](#disable-automatic-enrollment-ade)
+- [Update ABM token's teams](#update-abm-tokens-teams) 
+- [Renew ABM token](#renew-abm-token)
+- [Delete ABM token](#delete-abm-token)
+- [Add VPP token](#add-VPP-token)
+- [Update VPP token's teams](#udpate-vpp-tokens-teams) 
+- [Renew VPP token](#renew-vpp-token)
+- [Delete VPP token](#delete-vpp-token)
 - [Batch-apply MDM custom settings](#batch-apply-mdm-custom-settings)
 - [Initiate SSO during DEP enrollment](#initiate-sso-during-dep-enrollment)
 - [Complete SSO during DEP enrollment](#complete-sso-during-dep-enrollment)
@@ -617,9 +623,9 @@ Content-Type: application/octet-stream
 
 `Status: 200`
 
-### Upload ABM Token
+### Add ABM token
 
-`POST /api/v1/fleet/mdm/apple/abm_token`
+`POST /api/v1/fleet/abm_tokens`
 
 #### Parameters
 
@@ -629,7 +635,7 @@ Content-Type: application/octet-stream
 
 #### Example
 
-`POST /api/v1/fleet/mdm/apple/abm_token`
+`POST /api/v1/fleet/abm_tokens`
 
 ##### Request header
 
@@ -650,11 +656,9 @@ Content-Type: application/octet-stream
 --------------------------f02md47480und42y
 ```
 
-
 ##### Default response
 
 `Status: 200`
-
 
 ### Turn off Apple MDM
 
@@ -668,19 +672,212 @@ Content-Type: application/octet-stream
 
 `Status: 204`
 
+### Update ABM token's teams
 
-### Disable automatic enrollment (ADE)
+`PATCH /api/v1/fleet/abm_tokens/:id/teams`
 
-`DELETE /api/v1/fleet/mdm/apple/abm_token`
+#### Parameters
+
+| Name | Type | In | Description |
+| ---- | ---- | -- | ----------- |
+| id | integer | path | *Required* The ABM token's ID |
+| macos_team_id | integer | body | macOS hosts are automatically added to this team in Fleet when they appear in Apple Business Manager. If not specified, defaults to "No team" |
+| ios_team_id | integer | body | iOS hosts are automatically added to this team in Fleet when they appear in Apple Business Manager. If not specified, defaults to "No team" |
+| ipados_team_id | integer | body | iPadOS hosts are automatically added to this team in Fleet when they appear in Apple Business Manager. If not specified, defaults to "No team" |
 
 #### Example
 
-`DELETE /api/v1/fleet/mdm/apple/abm_token`
+`PATCH /api/v1/fleet/abm_tokens/1/teams`
+
+##### Request body
+
+```json
+{
+  "macos_team_id": 1,
+  "ios_team_id": 2,
+  "ipados_team_id": 3,
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{}
+```
+
+### Renew ABM token
+
+`PATCH /api/v1/fleet/abm_tokens/:id/renew`
+
+#### Parameters
+
+| Name | Type | In | Description |
+| ---- | ---- | -- | ----------- |
+| id | integer | path | *Required* The ABM token's ID |
+
+#### Example
+
+`PATCH /api/v1/fleet/abm_tokens/1/renew`
+
+##### Request header
+
+```http
+Content-Length: 850
+Content-Type: multipart/form-data; boundary=------------------------f02md47480und42y
+```
+
+##### Request body
+
+```http
+--------------------------f02md47480und42y
+Content-Disposition: form-data; name="token"; filename="server_token_abm.p7m"
+Content-Type: application/octet-stream
+
+<TOKEN_DATA>
+
+--------------------------f02md47480und42y
+```
+
+##### Default response
+
+`Status: 200`
+
+### Delete ABM token
+
+`DELETE /api/v1/fleet/abm_tokens/:id`
+
+#### Parameters
+
+| Name | Type | In | Description |
+| ---- | ---- | -- | ----------- |
+| id | integer | path | *Required* The ABM token's ID |
+
+#### Example
+
+`DELETE /api/v1/fleet/abm_tokens/1`
 
 ##### Default response
 
 `Status: 204`
 
+### Add VPP token
+
+`POST /api/v1/fleet/vpp_tokens`
+
+#### Parameters
+
+| Name | Type | In | Description |
+| ---- | ---- | -- | ----------- |
+| token | file | form | *Required* The file containing the content token (.vpptoken) from Apple Business Manager |
+
+#### Example
+
+`POST /api/v1/fleet/vpp_tokens`
+
+##### Request header
+
+```http
+Content-Length: 850
+Content-Type: multipart/form-data; boundary=------------------------f02md47480und42y
+```
+
+##### Request body
+
+```http
+--------------------------f02md47480und42y
+Content-Disposition: form-data; name="token"; filename="sToken_for_Acme.vpptoken"
+Content-Type: application/octet-stream
+<TOKEN_DATA>
+--------------------------f02md47480und42y
+```
+
+##### Default response
+
+`Status: 200`
+
+### Update VPP token's teams
+
+`PATCH /api/v1/fleet/vpp_tokens/:id/teams`
+
+#### Parameters
+
+| Name | Type | In | Description |
+| ---- | ---- | -- | ----------- |
+| id | integer | path | *Required* The ABM token's ID |
+| team_ids | list | body | If you choose specific teams, App Store apps in this VPP account will only be available to install on hosts in these teams. If not specified, defaults to all teams. |
+
+#### Example
+
+`PATCH /api/v1/fleet/vpp_tokens/1/teams`
+
+##### Request body
+
+```json
+{
+  "team_ids": [1, 2, 3]
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{}
+```
+
+### Renew VPP token
+
+`PATCH /api/v1/fleet/vpp_tokens/renew/:id`
+
+#### Parameters
+
+| Name | Type | In | Description |
+| ---- | ---- | -- | ----------- |
+| id | integer | path | *Required* The VPP token's ID |
+
+##### Request header
+
+```http
+Content-Length: 850
+Content-Type: multipart/form-data; boundary=------------------------f02md47480und42y
+```
+
+##### Request body
+
+```http
+--------------------------f02md47480und42y
+Content-Disposition: form-data; name="token"; filename="sToken_for_Acme.vpptoken"
+Content-Type: application/octet-stream
+
+<TOKEN_DATA>
+
+--------------------------f02md47480und42y
+```
+
+##### Default response
+
+`Status: 200`
+
+### Delete VPP token
+
+`DELETE /api/v1/fleet/vpp_token/:id`
+
+#### Parameters
+
+| Name | Type | In | Description |
+| ---- | ---- | -- | ----------- |
+| id | integer | path | *Required* The VPP token's ID |
+
+#### Example
+
+`DELETE /api/v1/fleet/vpp_token/1`
+
+##### Default response
+
+`Status: 204`
 
 ### Batch-apply MDM custom settings
 
