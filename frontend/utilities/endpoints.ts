@@ -31,9 +31,6 @@ export default {
     `/${API_VERSION}/fleet/device/${token}/software`,
   DEVICE_SOFTWARE_INSTALL: (token: string, softwareTitleId: number) =>
     `/${API_VERSION}/fleet/device/${token}/software/install/${softwareTitleId}`,
-  DEVICE_USER_RESET_ENCRYPTION_KEY: (token: string): string => {
-    return `/${API_VERSION}/fleet/device/${token}/rotate_encryption_key`;
-  },
   DEVICE_USER_MDM_ENROLLMENT_PROFILE: (token: string): string => {
     return `/${API_VERSION}/fleet/device/${token}/mdm/apple/manual_enrollment_profile`;
   },

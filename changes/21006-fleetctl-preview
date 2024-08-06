@@ -1,0 +1,1 @@
+* Fixed a bug in `fleetctl preview` that was causing it to fail if Docker was installed without support for the deprecated `docker-compose` CLI
