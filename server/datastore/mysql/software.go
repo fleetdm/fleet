@@ -2101,6 +2101,21 @@ AND EXISTS (SELECT 1 FROM software s JOIN software_cve scve ON scve.software_id 
 		`
 	}
 
+	var softwareIsInstalledOnHostClause string
+	if !opts.OnlyAvailableForInstall {
+		softwareIsInstalledOnHostClause = `
+			EXISTS (
+				SELECT 1
+				FROM
+					host_software hs
+				INNER JOIN
+					software s ON hs.software_id = s.id
+				WHERE
+					hs.host_id = :host_id AND
+					s.title_id = st.id
+			) OR `
+	}
+
 	// this statement lists only the software that is reported as installed on
 	// the host or has been attempted to be installed on the host.
 	stmtInstalled := fmt.Sprintf(`
@@ -2133,7 +2148,7 @@ AND EXISTS (SELECT 1 FROM software s JOIN software_cve scve ON scve.software_id 
 		LEFT OUTER JOIN
 			nano_command_results ncr ON ncr.command_uuid = hvsi.command_uuid
 		WHERE
-			-- use the latest install only
+			-- use the latest install attempt only
 			( hsi.id IS NULL OR hsi.id = (
 				SELECT hsi2.id
 				FROM host_software_installs hsi2
@@ -2146,22 +2161,15 @@ AND EXISTS (SELECT 1 FROM software s JOIN software_cve scve ON scve.software_id 
 				WHERE hvsi2.host_id = hvsi.host_id AND hvsi2.adam_id = hvsi.adam_id AND hvsi2.platform = hvsi.platform
 				ORDER BY hvsi2.created_at DESC
 				LIMIT 1 ) ) AND
-			-- software is installed on host
-			( EXISTS (
-				SELECT 1
-				FROM
-					host_software hs
-				INNER JOIN
-					software s ON hs.software_id = s.id
-				WHERE
-					hs.host_id = :host_id AND
-					s.title_id = st.id
-			) OR
-			-- or software install has been attempted on host (via installer or VPP app)
-			hsi.host_id IS NOT NULL OR hvsi.host_id IS NOT NULL )
+
+			-- software is installed on host or software install has been attempted
+			-- on host (via installer or VPP app). If only available for install is
+			-- requested, then the software installed on host clause is empty.
+			( %s hsi.host_id IS NOT NULL OR hvsi.host_id IS NOT NULL )
 			%s
 			%s
-`, softwareInstallerHostStatusNamedQuery("hsi", ""), vppAppHostStatusNamedQuery("hvsi", "ncr", ""), onlySelfServiceClause, onlyVulnerableClause)
+`, softwareInstallerHostStatusNamedQuery("hsi", ""), vppAppHostStatusNamedQuery("hvsi", "ncr", ""),
+		softwareIsInstalledOnHostClause, onlySelfServiceClause, onlyVulnerableClause)
 
 	// this statement lists only the software that has never been installed nor
 	// attempted to be installed on the host, but that is available to be
@@ -2262,20 +2270,14 @@ AND EXISTS (SELECT 1 FROM software s JOIN software_cve scve ON scve.software_id 
 	}
 
 	stmt := stmtInstalled
-	if opts.AvailableForInstall || (opts.IncludeAvailableForInstall && !opts.VulnerableOnly) {
+	if opts.OnlyAvailableForInstall || (opts.IncludeAvailableForInstall && !opts.VulnerableOnly) {
 		namedArgs["vpp_apps_platforms"] = []fleet.AppleDevicePlatform{fleet.IOSPlatform, fleet.IPadOSPlatform, fleet.MacOSPlatform}
 		if fleet.IsLinux(host.Platform) {
 			namedArgs["host_compatible_platforms"] = fleet.HostLinuxOSs
 		} else {
 			namedArgs["host_compatible_platforms"] = []string{host.FleetPlatform()}
 		}
-		if opts.AvailableForInstall {
-			// Only available for install software
-			stmt = stmtAvailable
-		} else {
-			// All software, including available for install
-			stmt += ` UNION ` + stmtAvailable
-		}
+		stmt += ` UNION ` + stmtAvailable
 	}
 
 	// must resolve the named bindings here, before adding the searchLike which
