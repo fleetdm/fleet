@@ -288,11 +288,13 @@ GROUP BY st.id, package_self_service, package_name, package_version, vpp_app_sel
 	countsJoin := "TRUE"
 	softwareInstallersJoinCond := "TRUE"
 	vppAppsTeamsJoinCond := "TRUE"
-	notExcludeVPPAppsAndSoftwareInstallers := "TRUE"
+	includeVPPAppsAndSoftwareInstallers := "TRUE"
 	switch {
 	case opt.TeamID == nil:
 		countsJoin = "sthc.team_id = 0 AND sthc.global_stats = 1"
-		notExcludeVPPAppsAndSoftwareInstallers = "FALSE"
+		// When opt.TeamID is nil (aka "All teams") we do not include VPP-apps/installers
+		// that are not installed on any host.
+		includeVPPAppsAndSoftwareInstallers = "FALSE"
 	case *opt.TeamID == 0:
 		countsJoin = "sthc.team_id = 0 AND sthc.global_stats = 0"
 		softwareInstallersJoinCond = fmt.Sprintf("si.global_or_team_id = %d", *opt.TeamID)
@@ -328,7 +330,7 @@ GROUP BY st.id, package_self_service, package_name, package_version, vpp_app_sel
 	// default to "a software installer or VPP app exists", and see next condition.
 	defaultFilter := fmt.Sprintf(`
 		((si.id IS NOT NULL OR vat.adam_id IS NOT NULL) AND %s)
-	`, notExcludeVPPAppsAndSoftwareInstallers)
+	`, includeVPPAppsAndSoftwareInstallers)
 
 	// add software installed for hosts if any of this is true:
 	//
