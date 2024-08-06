@@ -76,19 +76,6 @@ const SoftwareTitleDetailsPage = ({
     includeNoTeam: true,
   });
 
-  // export interface ISoftwareTitleDetails {
-  //   id: number;
-  //   name: string;
-  //   software_package: ISoftwarePackage | null;
-  //   app_store_app: IAppStoreApp | null;
-  //   source: string; // "apps" | "ios_apps" | "ipados_apps" | ?
-  //   hosts_count: number;
-  //   versions: ISoftwareTitleVersion[] | null;
-  //   bundle_identifier?: string;
-  //   browser?: string;
-  //   versions_count?: number;
-  // }
-
   const {
     data: softwareTitle,
     isLoading: isSoftwareTitleLoading,
