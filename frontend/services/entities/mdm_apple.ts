@@ -18,6 +18,13 @@ export interface IVppApp {
   platform: ApplePlatform;
 }
 
+interface IAddVppAppPostBody {
+  app_store_id: string;
+  team_id: number;
+  platform: ApplePlatform;
+  self_service?: boolean;
+}
+
 export interface IGetVppAppsResponse {
   app_store_apps: IVppApp[];
 }
@@ -69,12 +76,23 @@ export default {
     return sendRequest("GET", path);
   },
 
-  addVppApp: (teamId: number, appStoreId: string, platform: ApplePlatform) => {
+  addVppApp: (
+    teamId: number,
+    appStoreId: string,
+    platform: ApplePlatform,
+    isSelfService: boolean
+  ) => {
     const { MDM_APPLE_VPP_APPS } = endpoints;
-    return sendRequest("POST", MDM_APPLE_VPP_APPS, {
+    const postBody: IAddVppAppPostBody = {
       app_store_id: appStoreId,
       team_id: teamId,
       platform,
-    });
+    };
+
+    if (isSelfService) {
+      postBody.self_service = isSelfService;
+    }
+
+    return sendRequest("POST", MDM_APPLE_VPP_APPS, postBody);
   },
 };
