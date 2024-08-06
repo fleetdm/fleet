@@ -1,6 +1,5 @@
-name: Build and push fleetdm/fleetctl Docker image
+name: Build fleetdm/fleetctl and check docker image for vulnerabilities
 
-# Manually trigger this workflow for now
 on:
   workflow_dispatch:
     inputs:
@@ -8,6 +7,8 @@ on:
         description: "Docker image tag"
         required: true
         type: string
+  schedule:
+    - cron: "0 6 * * *"
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
@@ -23,7 +24,7 @@ permissions:
   contents: read
 
 jobs:
-  docker-push:
+  build-and-check:
     runs-on: ubuntu-latest
     environment: Docker Hub
     permissions:
@@ -63,18 +64,3 @@ jobs:
           ignore-unfixed: true
           vuln-type: "os,library"
           severity: "CRITICAL"
-
-      - name: Push to Docker
-        run: |
-          docker tag fleetdm/fleetctl fleetdm/fleetctl:${{ inputs.image_tag }}
-          docker push fleetdm/fleetctl:${{ inputs.image_tag }}
-
-      - name: Push To quay.io
-        id: push-to-quay
-        uses: redhat-actions/push-to-registry@9986a6552bc4571882a4a67e016b17361412b4df # v2.7.1
-        with:
-          image: fleetdm/fleetctl
-          tags: ${{ inputs.image_tag }}
-          registry: quay.io/
-          username: fleetdm+fleetreleaser
-          password: ${{ secrets.QUAY_REGISTRY_PASSWORD }}
