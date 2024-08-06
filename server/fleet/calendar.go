@@ -42,8 +42,8 @@ type UserCalendar interface {
 	GetAndUpdateEvent(event *CalendarEvent, genBodyFn CalendarGenBodyFn,
 		opts CalendarGetAndUpdateEventOpts) (updatedEvent *CalendarEvent,
 		updated bool, err error)
-	// UpdateEventBody updates the body of the calendar event.
-	UpdateEventBody(event *CalendarEvent, genBodyFn CalendarGenBodyFn) error
+	// UpdateEventBody updates the body of the calendar event and returns new ETag
+	UpdateEventBody(event *CalendarEvent, genBodyFn CalendarGenBodyFn) (string, error)
 	// DeleteEvent deletes the event with the given ID.
 	DeleteEvent(event *CalendarEvent) error
 	// StopEventChannel stops the event's callback channel.
