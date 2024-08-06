@@ -155,7 +155,7 @@ type TeamConfig struct {
 	Features           Features              `json:"features"`
 	MDM                TeamMDM               `json:"mdm"`
 	Scripts            optjson.Slice[string] `json:"scripts,omitempty"`
-	Software           *TeamSpecSoftware     `json:"software,omitempty"`
+	Software           *SoftwareSpec         `json:"software,omitempty"`
 }
 
 type TeamWebhookSettings struct {
@@ -168,21 +168,8 @@ type TeamSpecSoftwareAsset struct {
 	Path string `json:"path"`
 }
 
-type TeamSpecSoftware struct {
-	Packages     optjson.Slice[TeamSpecSoftwarePackage] `json:"packages,omitempty"`
-	AppStoreApps optjson.Slice[TeamSpecAppStoreApp]     `json:"app_store_apps,omitempty"`
-}
-
 type TeamSpecAppStoreApp struct {
 	AppStoreID string `json:"app_store_id"`
-}
-
-type TeamSpecSoftwarePackage struct {
-	URL               string                `json:"url"`
-	SelfService       bool                  `json:"self_service"`
-	PreInstallQuery   TeamSpecSoftwareAsset `json:"pre_install_query"`
-	InstallScript     TeamSpecSoftwareAsset `json:"install_script"`
-	PostInstallScript TeamSpecSoftwareAsset `json:"post_install_script"`
 }
 
 type TeamMDM struct {
@@ -450,7 +437,7 @@ type TeamSpec struct {
 	Scripts            optjson.Slice[string]   `json:"scripts"`
 	WebhookSettings    TeamSpecWebhookSettings `json:"webhook_settings"`
 	Integrations       TeamSpecIntegrations    `json:"integrations"`
-	Software           *TeamSpecSoftware       `json:"software,omitempty"`
+	Software           *SoftwareSpec           `json:"software,omitempty"`
 }
 
 type TeamSpecWebhookSettings struct {
