@@ -2966,6 +2966,9 @@ func (ds *Datastore) InsertMDMAppleBootstrapPackage(ctx context.Context, bp *fle
 	  VALUES (?, ?, ?, ?, ?)
 	`
 
+	// TODO(mna): inserting (Put operation) a bootstrap package is one of the
+	// operations that need to be supported by the S3 storage interface. It will
+	// use the sha256 value to build the target S3 key.
 	_, err := ds.writer(ctx).ExecContext(ctx, stmt, bp.TeamID, bp.Name, bp.Sha256, bp.Bytes, bp.Token)
 	if err != nil {
 		if IsDuplicate(err) {
@@ -2985,6 +2988,9 @@ func (ds *Datastore) CopyDefaultMDMAppleBootstrapPackage(ctx context.Context, ac
 		return ctxerr.New(ctx, "team id must not be zero")
 	}
 
+	// TODO(mna): if stored in S3, nice thing is that nothing needs to happen on
+	// S3 for a copy of the bootstrap package as the bytes are the same and the
+	// stored contents is the same.
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		// Copy the bytes for the default bootstrap package to the specified team
 		insertStmt := `
@@ -3029,6 +3035,9 @@ WHERE id = ?
 }
 
 func (ds *Datastore) DeleteMDMAppleBootstrapPackage(ctx context.Context, teamID uint) error {
+	// TODO(mna): delete is one of the operations that must be supported by the
+	// S3 storage. In this case it would need to read the sha256 value first,
+	// then delete the corresponding key on S3, then delete the DB row.
 	stmt := "DELETE FROM mdm_apple_bootstrap_packages WHERE team_id = ?"
 	res, err := ds.writer(ctx).ExecContext(ctx, stmt, teamID)
 	if err != nil {
@@ -3043,6 +3052,9 @@ func (ds *Datastore) DeleteMDMAppleBootstrapPackage(ctx context.Context, teamID 
 }
 
 func (ds *Datastore) GetMDMAppleBootstrapPackageBytes(ctx context.Context, token string) (*fleet.MDMAppleBootstrapPackage, error) {
+	// TODO(mna): Get is one of the operations that must be supported by the S3
+	// storage interface. The SELECT here would grab the name and sha256 in this
+	// case, using the hash to know which S3 key to retrieve.
 	stmt := "SELECT name, bytes FROM mdm_apple_bootstrap_packages WHERE token = ?"
 	var bp fleet.MDMAppleBootstrapPackage
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &bp, stmt, token); err != nil {
@@ -3142,6 +3154,8 @@ WHERE
 }
 
 func (ds *Datastore) GetMDMAppleBootstrapPackageMeta(ctx context.Context, teamID uint) (*fleet.MDMAppleBootstrapPackage, error) {
+	// TODO(mna): this shouldn't require any change, metadata is still all stored
+	// in the DB.
 	stmt := "SELECT team_id, name, sha256, token, created_at, updated_at FROM mdm_apple_bootstrap_packages WHERE team_id = ?"
 	var bp fleet.MDMAppleBootstrapPackage
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &bp, stmt, teamID); err != nil {

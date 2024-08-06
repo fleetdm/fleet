@@ -20,6 +20,11 @@ type SoftwareInstallerStore interface {
 	Get(ctx context.Context, installerID string) (io.ReadCloser, int64, error)
 	Put(ctx context.Context, installerID string, content io.ReadSeeker) error
 	Exists(ctx context.Context, installerID string) (bool, error)
+	// TODO(mna): maybe a Cleanup operation for the bootstrap S3 storage too, and
+	// a cron job to remove unused bootstrap packages? (those without an entry in
+	// the DB). Clarify when exactly a bootstrap package is downloaded, maybe it
+	// can be used post-team-delete if the URL is stored in a profile or
+	// something?
 	Cleanup(ctx context.Context, usedInstallerIDs []string) (int, error)
 }
 
