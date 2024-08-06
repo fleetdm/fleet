@@ -138,6 +138,19 @@ Besides the exceptions above, Fleet does not use any other repositories.  Other 
 > _**Tip:** In addition to the built-in search available for the public handbook on fleetdm.com, you can also [search any public AND non-public content, including issue templates, at the same time](https://github.com/search?q=org%3Afleetdm+path%3A.github%2FISSUE_TEMPLATE+path%3Ahandbook%2F+path%3Adocs%2F+foo&type=code)._
 
 
+## Why do we limit infrastructure? 
+Our infrastructure is simple to prioritize [results](https://fleetdm.com/handbook/company#results), spend less, avoid preemptive structure, choose "boring" solutions, and reuse system whenever possible. Adding infrastructure slows us down by adding complexity and surface area to maintain.
+
+All new infrastructure at Fleet is first approved by the E-group. Currently approved infrastructure dependencies when deploying Fleet are maintained in the [references architecture documentation](https://fleetdm.com/docs/deploy/reference-architectures).
+
+Additional services:
+
+1. HTTP server at [fleetdm.com](https://fleetdm.com/).
+- When a public HTTP server is required to broker information, [Digital Experience](https://fleetdm.com/handbook/digital-experience) adds the functionality to the existing fleetdm.com HTTP server.
+
+2. Terraform submodules in monorepo for [AWS](https://github.com/fleetdm/fleet/tree/main/infrastructure/dogfood/terraform/aws) and [GCP](https://github.com/fleetdm/fleet/tree/main/infrastructure/dogfood/terraform/gcp).
+-  Submodules provided by Fleet to enable configuration of services required to securely scale Fleet to tens of thousands of hosts. These services require privleged access to cloud resources, and their composition and configuration is unique for ecah deployment.
+
 
 ## Why not continuously generate REST API reference docs from javadoc-style code comments?
 Here are a few of the drawbacks that we have experienced when generating docs via tools like Swagger or OpenAPI, and some of the advantages of doing it by hand with Markdown.
