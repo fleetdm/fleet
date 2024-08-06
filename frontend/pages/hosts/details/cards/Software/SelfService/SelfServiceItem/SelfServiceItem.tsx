@@ -27,6 +27,8 @@ const STATUS_CONFIG: Record<SoftwareInstallStatus, IStatusDisplayConfig> = {
     tooltip: ({ lastInstalledAt }) => (
       <>
         Software installed successfully ({dateAgo(lastInstalledAt as string)}).
+        Currently, if the software is uninstalled, the &quot;Installed&quot;
+        status won&apos;t be updated.
       </>
     ),
   },
