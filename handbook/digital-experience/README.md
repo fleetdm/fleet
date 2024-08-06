@@ -288,7 +288,7 @@ From time to time, you will need to schedule an interview between a candidate an
    - Click the share button and share access with the CEO.
    - Add candidate's personal email in the "👥" (attendees) section at the top of the doc.
    - Add candidate's [LinkedIn url](https://www.linkedin.com/search/results/all/?keywords=people) on the first bullet for Mike.
-3. Set the Google Calendar description of the calendar event to: `Agenda: URL_FOR_NEW_COPY_OF_FINAL_INTERVIEW_DOC`
+4. Set the Google Calendar description of the calendar event to: `Agenda: URL_FOR_NEW_COPY_OF_FINAL_INTERVIEW_DOC`
 
 
 ### Program the CEO to do something
