@@ -6398,6 +6398,7 @@ None.
 ```json
 [
   {
+    "id": 1,
     "apple_id": "apple@example.com",
     "org_name": "Fleet Device Management Inc.",
     "mdm_server_url": "https://example.com/mdm/apple/mdm",
@@ -6431,6 +6432,7 @@ None.
 ```json
 [
   {
+    "id": 1,
     "org_name": "Fleet Device Management Inc.",
     "location": "https://example.com/mdm/apple/mdm",
     "renew_date": "2023-11-29T00:00:00Z",
