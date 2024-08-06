@@ -7,7 +7,7 @@ import { NotificationContext } from "context/notification";
 import { IApiError } from "interfaces/errors";
 import { ILabelSummary } from "interfaces/label";
 
-import labelsAPI from "services/entities/labels";
+import labelsAPI, { getCustomLabels } from "services/entities/labels";
 import mdmAPI from "services/entities/mdm";
 
 // @ts-ignore
@@ -250,10 +250,7 @@ const AddProfileModal = ({
     isError: isErrorLabels,
   } = useQuery<ILabelSummary[], Error>(
     ["custom_labels"],
-    () =>
-      labelsAPI
-        .summary()
-        .then((res) => res.labels.filter((l) => l.label_type !== "builtin")),
+    () => labelsAPI.summary().then((res) => getCustomLabels(res.labels)),
 
     {
       enabled: isPremiumTier,
