@@ -21,9 +21,20 @@ import { IStatusDisplayConfig } from "../../InstallStatusCell/InstallStatusCell"
 const baseClass = "self-service-item";
 
 const STATUS_CONFIG: Record<SoftwareInstallStatus, IStatusDisplayConfig> = {
-  installed: {
+  verified: {
     iconName: "success",
-    displayText: "Installed",
+    displayText: "Verified",
+    tooltip: ({ lastInstalledAt }) => (
+      <>
+        Software installed successfully ({dateAgo(lastInstalledAt as string)}).
+        Currently, if the software is uninstalled, the &quot;Installed&quot;
+        status won&apos;t be updated.
+      </>
+    ),
+  },
+  verifying: {
+    iconName: "success-outline",
+    displayText: "Verifying",
     tooltip: ({ lastInstalledAt }) => (
       <>
         Software installed successfully ({dateAgo(lastInstalledAt as string)}).
@@ -36,6 +47,11 @@ const STATUS_CONFIG: Record<SoftwareInstallStatus, IStatusDisplayConfig> = {
     iconName: "pending-outline",
     displayText: "Install in progress...",
     tooltip: () => "Software installation in progress...",
+  },
+  blocked: {
+    iconName: "pending-outline", // TODO
+    displayText: "TODO SelfServieItem.tsx", // TODO
+    tooltip: () => "", // TODO
   },
   failed: {
     iconName: "error",
@@ -130,7 +146,7 @@ const getInstallButtonText = (status: SoftwareInstallStatus | null) => {
       return "Install";
     case "failed":
       return "Retry";
-    case "installed":
+    case "verified":
       return "Reinstall";
     default:
       // we don't show a button for pending installs

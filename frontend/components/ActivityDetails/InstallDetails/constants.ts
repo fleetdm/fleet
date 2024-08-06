@@ -6,7 +6,9 @@ export const INSTALL_DETAILS_STATUS_ICONS: Record<
   IconNames
 > = {
   pending: "pending-outline",
-  installed: "success-outline",
+  verified: "success-outline",
+  verifying: "success", // TODO,
+  blocked: "success", // TODO
   failed: "error-outline",
 } as const;
 
@@ -15,7 +17,9 @@ const INSTALL_DETAILS_STATUS_PREDICATES: Record<
   string
 > = {
   pending: "is installing or will install",
-  installed: "installed",
+  verified: "verified", // TODO
+  verifying: "is verifying", // TODO
+  blocked: "is blocked", // TODO
   failed: "failed to install",
 } as const;
 

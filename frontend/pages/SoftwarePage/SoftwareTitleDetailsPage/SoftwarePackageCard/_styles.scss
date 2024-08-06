@@ -1,8 +1,13 @@
 .software-package-card {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  flex-direction: column;
   gap: $pad-medium;
+
+  &__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
 
   &__main-content {
     display: flex;
@@ -34,11 +39,29 @@
 
   &__package-statuses {
     display: flex;
-    gap: $pad-xxlarge;
+    align-items: flex-start;
+    align-self: stretch;
+    border-radius: 6px;
+    border: 1px solid $ui-fleet-black-10;
   }
 
-  &__status-title {
+  &__status {
     display: flex;
+    flex-direction: column;
+    padding: 16px 24px;
+    justify-content: center;
+    align-items: center;
+    flex: 1 0 0;
+    border-right: 1px solid var(--UI-Fleet-Black-10, #e2e4ea);
+
+    &:last-child {
+      border-right: none;
+    }
+  }
+
+  &__status-title > div {
+    display: flex;
+    flex-direction: column;
     align-items: center;
     gap: $pad-xsmall;
   }

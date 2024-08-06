@@ -178,7 +178,7 @@ const DEFAULT_HOST_SOFTWARE_MOCK: IHostSoftware = {
   app_store_app: null,
   source: "apps",
   bundle_identifier: "com.test.mock",
-  status: "installed",
+  status: "verified", // TODO
   installed_versions: [
     {
       version: "1.0.0",

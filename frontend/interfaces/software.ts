@@ -102,6 +102,7 @@ export interface ISoftwareTitle {
   software_package: ISoftwarePackage | null;
   app_store_app: IAppStoreApp | null;
   browser?: string;
+  counts_updated_at?: string;
 }
 
 export interface ISoftwareTitleDetails {
@@ -198,7 +199,9 @@ export const formatSoftwareType = ({
  */
 export const SOFTWARE_INSTALL_STATUSES = [
   "failed",
-  "installed",
+  "verifying",
+  "verified",
+  "blocked",
   "pending",
 ] as const;
 
@@ -286,7 +289,9 @@ export type IDeviceSoftware = IHostSoftware;
 
 const INSTALL_STATUS_PREDICATES: Record<SoftwareInstallStatus, string> = {
   failed: "failed to install",
-  installed: "installed",
+  verified: "installed TODO", // TODO
+  verifying: "TODO", // TODO
+  blocked: "TODO", // TODO
   pending: "told Fleet to install",
 } as const;
 
@@ -302,7 +307,9 @@ export const getInstallStatusPredicate = (status: string | undefined) => {
 
 export const INSTALL_STATUS_ICONS: Record<SoftwareInstallStatus, IconNames> = {
   pending: "pending-outline",
-  installed: "success-outline",
+  verified: "success-outline", // TODO
+  verifying: "success", // TODO
+  blocked: "success", // TODO
   failed: "error-outline",
 } as const;
 

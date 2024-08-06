@@ -75,7 +75,7 @@ const SoftwareName = ({ name }: ISoftwareNameProps) => {
 
 interface IStatusDisplayOption {
   displayName: string;
-  iconName: "success" | "pending-outline" | "error";
+  iconName: "success" | "success-outline" | "pending-outline" | "error"; // TODO
   tooltip: React.ReactNode;
 }
 
@@ -83,8 +83,8 @@ const STATUS_DISPLAY_OPTIONS: Record<
   SoftwareInstallStatus,
   IStatusDisplayOption
 > = {
-  installed: {
-    displayName: "Installed",
+  verified: {
+    displayName: "Verified",
     iconName: "success",
     tooltip: (
       <>
@@ -93,10 +93,20 @@ const STATUS_DISPLAY_OPTIONS: Record<
       </>
     ),
   },
+  verifying: {
+    displayName: "Verifying",
+    iconName: "success-outline", // TODO
+    tooltip: "TODO", // TODO
+  },
   pending: {
     displayName: "Pending",
     iconName: "pending-outline",
     tooltip: "Fleet will install software when these hosts come online.",
+  },
+  blocked: {
+    displayName: "Blocked",
+    iconName: "pending-outline", // TODO
+    tooltip: "TODO", // TODO
   },
   failed: {
     displayName: "Failed",
@@ -125,26 +135,23 @@ const PackageStatusCount = ({
     team_id: teamId,
   })}`;
   return (
-    <DataSet
-      title={
-        <TooltipWrapper
-          position="top"
-          tipContent={displayData.tooltip}
-          underline={false}
-          showArrow
-        >
-          <div className={`${baseClass}__status-title`}>
-            <Icon name={displayData.iconName} />
-            <span>{displayData.displayName}</span>
-          </div>
-        </TooltipWrapper>
-      }
-      value={
+    <div className={`${baseClass}__status`}>
+      <TooltipWrapper
+        position="top"
+        tipContent={displayData.tooltip}
+        underline={false}
+        showArrow
+        className={`${baseClass}__status-title`}
+      >
+        <Icon name={displayData.iconName} />
+        <span>{displayData.displayName}</span>
+      </TooltipWrapper>
+      <div>
         <a className={`${baseClass}__status-count`} href={linkUrl}>
           {count} hosts
         </a>
-      }
-    />
+      </div>
+    </div>
   );
 };
 
@@ -310,56 +317,70 @@ const SoftwarePackageCard = ({
 
   return (
     <Card borderRadiusSize="xxlarge" includeShadow className={baseClass}>
-      <div className={`${baseClass}__main-content`}>
-        {/* TODO: main-info could be a seperate component as its reused on a couple
+      <div className={`${baseClass}__header`}>
+        <div className={`${baseClass}__main-content`}>
+          {/* TODO: main-info could be a seperate component as its reused on a couple
         pages already. Come back and pull this into a component */}
-        <div className={`${baseClass}__main-info`}>
-          {renderIcon()}
-          <div className={`${baseClass}__info`}>
-            <SoftwareName name={name} />
-            <span className={`${baseClass}__details`}>{renderDetails()}</span>
+          <div className={`${baseClass}__main-info`}>
+            {renderIcon()}
+            <div className={`${baseClass}__info`}>
+              <SoftwareName name={name} />
+              <span className={`${baseClass}__details`}>{renderDetails()}</span>
+            </div>
           </div>
         </div>
-        <div className={`${baseClass}__package-statuses`}>
-          <PackageStatusCount
-            softwareId={softwareId}
-            status="installed"
-            count={status.installed}
-            teamId={teamId}
-          />
-          <PackageStatusCount
-            softwareId={softwareId}
-            status="pending"
-            count={status.pending}
-            teamId={teamId}
-          />
-          <PackageStatusCount
-            softwareId={softwareId}
-            status="failed"
-            count={status.failed}
-            teamId={teamId}
-          />
+        <div className={`${baseClass}__actions-wrapper`}>
+          {isSelfService && (
+            <div className={`${baseClass}__self-service-badge`}>
+              <Icon
+                name="install-self-service"
+                size="small"
+                color="ui-fleet-black-75"
+              />
+              Self-service
+            </div>
+          )}
+          {showActions && (
+            <ActionsDropdown
+              isSoftwarePackage={!!softwarePackage}
+              onDownloadClick={onDownloadClick}
+              onDeleteClick={onDeleteClick}
+              onAdvancedOptionsClick={onAdvancedOptionsClick}
+            />
+          )}
         </div>
       </div>
-      <div className={`${baseClass}__actions-wrapper`}>
-        {isSelfService && (
-          <div className={`${baseClass}__self-service-badge`}>
-            <Icon
-              name="install-self-service"
-              size="small"
-              color="ui-fleet-black-75"
-            />
-            Self-service
-          </div>
-        )}
-        {showActions && (
-          <ActionsDropdown
-            isSoftwarePackage={!!softwarePackage}
-            onDownloadClick={onDownloadClick}
-            onDeleteClick={onDeleteClick}
-            onAdvancedOptionsClick={onAdvancedOptionsClick}
-          />
-        )}
+      <div className={`${baseClass}__package-statuses`}>
+        <PackageStatusCount
+          softwareId={softwareId}
+          status="verified"
+          count={status.installed}
+          teamId={teamId}
+        />
+        <PackageStatusCount
+          softwareId={softwareId}
+          status="verifying"
+          count={status.installed} // TODO
+          teamId={teamId}
+        />
+        <PackageStatusCount
+          softwareId={softwareId}
+          status="pending"
+          count={status.pending}
+          teamId={teamId}
+        />
+        <PackageStatusCount
+          softwareId={softwareId}
+          status="blocked"
+          count={status.installed} // TODO
+          teamId={teamId}
+        />
+        <PackageStatusCount
+          softwareId={softwareId}
+          status="failed"
+          count={status.failed}
+          teamId={teamId}
+        />
       </div>
       {showAdvancedOptionsModal && (
         <AdvancedOptionsModal
