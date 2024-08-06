@@ -3556,7 +3556,7 @@ Flags the host details, labels and policies to be refetched the next time the ho
 
 > Currently, trasnferring host's isn't supported if you have more than one [Apple Business Manager (ABM) token](#list-apple-business-manager-abm-tokens).
 
-<!-- Return the following error if there are more than one ABM tokens: Currently, transferring host's isn't supported if you have more than one ABM token. -->
+<!-- Return the following error if there are more than one ABM tokens: Currently, transferring hosts isn't supported if you have more than one ABM token. -->
 
 _Available in Fleet Premium_
 
@@ -3591,7 +3591,7 @@ _Available in Fleet Premium_
 
 > Currently, trasnferring host's isn't supported if you have more than one [Apple Business Manager (ABM) token](#list-apple-business-manager-abm-tokens).
 
-<!-- Return the following error if there are more than one ABM tokens: Currently, transferring host's isn't supported if you have more than one ABM token. -->
+<!-- Return the following error if there are more than one ABM tokens: Currently, transferring hosts isn't supported if you have more than one ABM token. -->
 
 _Available in Fleet Premium_
 
