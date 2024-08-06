@@ -6377,11 +6377,11 @@ None.
 }
 ```
 
-### List Apple Business Manager (ABM) connections
+### List Apple Business Manager (ABM) tokens
 
 _Available in Fleet Premium_
 
-`GET /api/v1/fleet/apple_business_manager`
+`GET /api/v1/fleet/abm/tokens`
 
 #### Parameters
 
@@ -6389,7 +6389,7 @@ None.
 
 #### Example
 
-`GET /api/v1/fleet/apple_business_manager`
+`GET /api/v1/fleet/abm/tokens`
 
 ##### Default response
 
@@ -6410,11 +6410,11 @@ None.
 ]
 ```
 
-### List Volume Purchasing Program (VPP) connections
+### List Volume Purchasing Program (VPP) tokens
 
 _Available in Fleet Premium_
 
-`GET /api/v1/fleet/volume_purchasing_program`
+`GET /api/v1/fleet/vpp/tokens`
 
 #### Parameters
 
@@ -6422,7 +6422,7 @@ None.
 
 #### Example
 
-`GET /api/v1/fleet/volume_purchasing_program`
+`GET /api/v1/fleet/vpp/tokens`
 
 ##### Default response
 
