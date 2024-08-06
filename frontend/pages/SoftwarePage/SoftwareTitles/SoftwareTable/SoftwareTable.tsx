@@ -179,12 +179,8 @@ const SoftwareTable = ({
     return generateTableConfig(router, teamId);
   }, [generateTableConfig, data, router, teamId]);
 
-  // determines if a user be able to search in the table
-  const searchable =
-    isSoftwareEnabled &&
-    ((tableData && tableData.length > 0) ||
-      query !== "" ||
-      softwareFilter !== "allSoftware");
+  // determines if a user should be able to search in the table
+  const searchable = isSoftwareEnabled;
 
   const handleShowVersionsToggle = () => {
     const queryParams: Record<string, string | number | undefined> = {
@@ -338,7 +334,7 @@ const SoftwareTable = ({
           <EmptySoftwareTable
             softwareFilter={softwareFilter}
             isSoftwareDisabled={!isSoftwareEnabled}
-            isNotDetectingSoftware={query === ""}
+            noSearchQuery={query === ""}
           />
         )}
         defaultSortHeader={orderKey}
