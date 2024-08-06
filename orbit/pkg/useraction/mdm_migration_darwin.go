@@ -502,3 +502,10 @@ func (m *swiftDialogMDMMigrator) getMacOSMajorVersion() (int, error) {
 	}
 	return major, nil
 }
+
+// SetMigrationFrequency sets the frequency at which the migrator runs.
+func (m *swiftDialogMDMMigrator) SetMigrationFrequency(f time.Duration) {
+	m.lastShownMu.Lock()
+	m.frequency = f
+	m.lastShownMu.Unlock()
+}
