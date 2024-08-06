@@ -139,7 +139,7 @@ Besides the exceptions above, Fleet does not use any other repositories.  Other 
 
 
 ## Why do we limit infrastructure? 
-Our infrastructure is simple to prioritize [results](https://fleetdm.com/handbook/company#results), spend less, avoid preemptive structure, choose "boring" solutions, and reuse system whenever possible. Adding infrastructure slows us down by adding complexity and surface area to maintain.
+Our infrastructure is simple to prioritize [results](https://fleetdm.com/handbook/company#results), spend less, avoid preemptive structure, choose "boring" solutions, and reuse systems whenever possible. Adding infrastructure slows us down by adding complexity and surface area to maintain.
 
 All new infrastructure at Fleet is first approved by the E-group. Currently approved infrastructure dependencies when deploying Fleet are maintained in the [references architecture documentation](https://fleetdm.com/docs/deploy/reference-architectures).
 
