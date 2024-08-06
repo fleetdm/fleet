@@ -878,9 +878,6 @@ None.
     "additional_queries": null
   },
   "mdm": {
-    "apple_bm_default_team": "",
-    "apple_bm_terms_expired": false,
-    "enabled_and_configured": true,
     "windows_enabled_and_configured": true,
     "enable_disk_encryption": true,
     "macos_updates": {
@@ -1162,9 +1159,6 @@ Modifies the Fleet's configuration with the supplied information.
     "expiration": "0001-01-01T00:00:00Z"
   },
   "mdm": {
-    "apple_bm_default_team": "",
-    "apple_bm_terms_expired": false, # set to true is there's one or more Apple Business Manager connections w/ terms expired
-    "apple_bm_enabled_and_configured": false, # set to true is there's one or more Apple Business Manager connections
     "enabled_and_configured": false,
     "windows_enabled_and_configured": false,
     "enable_disk_encryption": true,
@@ -1678,7 +1672,6 @@ _Available in Fleet Premium._
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| apple_bm_default_team             | string  | _Available in Fleet Premium._ The default team to use with Apple Business Manager. |
 | windows_enabled_and_configured    | boolean | Enables Windows MDM support. |
 | enable_disk_encryption            | boolean | _Available in Fleet Premium._ Hosts that belong to no team will have disk encryption enabled if set to true. |
 | macos_updates         | object  | See [`mdm.macos_updates`](#mdm-macos-updates). |
@@ -1766,7 +1759,6 @@ _Available in Fleet Premium._
 ```json
 {
   "mdm": {
-    "apple_bm_default_team": "",
     "windows_enabled_and_configured": false,
     "enable_disk_encryption": true,
     "macos_updates": {
