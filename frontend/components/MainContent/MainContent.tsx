@@ -37,12 +37,9 @@ const MainContent = ({
     config,
     isPremiumTier,
     noSandboxHosts,
-    isApplePnsExpired,
-    isAppleBmExpired,
-    isVppExpired,
-    willAppleBmExpire,
-    willApplePnsExpire,
-    willVppExpire,
+    apnsExpiry = "",
+    abmExpiry = "",
+    vppExpiry = "",
   } = useContext(AppContext);
 
   const sandboxExpiryTime =
@@ -52,22 +49,29 @@ const MainContent = ({
 
   const renderAppWideBanner = () => {
     const isAppleBmTermsExpired = config?.mdm?.apple_bm_terms_expired;
+    const isApplePnsExpired = hasLicenseExpired(apnsExpiry);
+    const willApplePnsExpireIn30Days = willExpireWithinXDays(apnsExpiry, 30);
+    const isAppleBmExpired = hasLicenseExpired(abmExpiry); // NOTE: See Rachel's related FIXME added to App.tsx in https://github.com/fleetdm/fleet/pull/19571
+    const willAppleBmExpireIn30Days = willExpireWithinXDays(abmExpiry, 30);
     const isFleetLicenseExpired = hasLicenseExpired(
       config?.license.expiration || ""
     );
 
+    const isVppExpired = hasLicenseExpired(vppExpiry);
+    const willVppExpireIn30Days = willExpireWithinXDays(vppExpiry, 30);
+
     let banner: JSX.Element | null = null;
 
     if (isPremiumTier) {
-      if (isApplePnsExpired || willApplePnsExpire) {
+      if (isApplePnsExpired || willApplePnsExpireIn30Days) {
         banner = <ApplePNCertRenewalMessage expired={isApplePnsExpired} />;
-      } else if (isAppleBmExpired || willAppleBmExpire) {
+      } else if (isAppleBmExpired || willAppleBmExpireIn30Days) {
         banner = <AppleBMRenewalMessage expired={isAppleBmExpired} />;
       } else if (isAppleBmTermsExpired) {
         banner = <AppleBMTermsMessage />;
       } else if (isFleetLicenseExpired) {
         banner = <LicenseExpirationBanner />;
-      } else if (isVppExpired || willVppExpire) {
+      } else if (isVppExpired || willVppExpireIn30Days) {
         banner = <VppRenewalMessage expired={isVppExpired} />;
       }
     }

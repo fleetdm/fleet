@@ -46,7 +46,7 @@ jobs:
 
     - name: Start Infra Dependencies
       # Use & to background this
-      run: docker compose up -d mysql_test &
+      run: docker-compose up -d mysql_test &
 
     - name: Verify test schema changes
       run: |

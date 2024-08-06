@@ -21,15 +21,9 @@ interface IAddPackageProps {
   teamId: number;
   router: InjectedRouter;
   onExit: () => void;
-  setAddedSoftwareToken: (token: string) => void;
 }
 
-const AddPackage = ({
-  teamId,
-  router,
-  onExit,
-  setAddedSoftwareToken,
-}: IAddPackageProps) => {
+const AddPackage = ({ teamId, router, onExit }: IAddPackageProps) => {
   const { renderFlash } = useContext(NotificationContext);
   const [isUploading, setIsUploading] = useState(false);
 
@@ -92,8 +86,7 @@ const AddPackage = ({
       } else {
         newQueryParams.available_for_install = true;
       }
-      // any unique string - triggers SW refetch
-      setAddedSoftwareToken(`${Date.now()}`);
+
       router.push(
         `${PATHS.SOFTWARE_TITLES}?${buildQueryStringFromParams(newQueryParams)}`
       );

@@ -186,9 +186,6 @@ func channelVersionCommand() *cli.Command {
 		"swiftDialog": {
 			"macos": "swiftDialog.app.tar.gz",
 		},
-		"escrowBuddy": {
-			"macos": "escrowBuddy.pkg",
-		},
 	}
 	var (
 		channel    string
@@ -211,7 +208,7 @@ func channelVersionCommand() *cli.Command {
 			&cli.StringSliceFlag{
 				Name:        "components",
 				EnvVars:     []string{"TUF_STATUS_COMPONENTS"},
-				Value:       cli.NewStringSlice("orbit", "desktop", "osqueryd", "nudge", "swiftDialog", "escrowBuddy"),
+				Value:       cli.NewStringSlice("orbit", "desktop", "osqueryd", "nudge", "swiftDialog"),
 				Destination: &components,
 				Usage:       "List of components",
 			},
@@ -327,7 +324,7 @@ func channelVersionCommand() *cli.Command {
 					Right:  true,
 				})
 				var rows [][]string
-				componentsInOrder := []string{"orbit", "desktop", "osqueryd", "nudge", "swiftDialog", "escrowBuddy"}
+				componentsInOrder := []string{"orbit", "desktop", "osqueryd", "nudge", "swiftDialog"}
 				setIfEmpty := func(m map[string]string, k string) string {
 					v := m[k]
 					if v == "" {

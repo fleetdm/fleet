@@ -296,21 +296,33 @@ To make a feature request or advocate for a feature request from a customer or c
 
 Requests are weighed from top to bottom while prioritizing attendee requests. This means that if the individual that added a feature request is not in attendance, the feature request will be discussed towards the end of the call if there's time.
 
+To be acceptable for consideration, a request must:
+- Have a clear proposed change
+- Have a well-articulated underlying user need
+- Specify the requestor (either internal stakeholder or customer or community user)
+
+To help the product team, other pieces of information can be optionally included:
+- How would they solve the problem without any changes if pressed?
+- How does this change fit into the requester's overall usage of Fleet?
+- What other potential changes to the product have you considered?
+
+To ensure your request appears on the ["Feature Fest" board](https://app.zenhub.com/workspaces/-feature-fest-651b2962605ba29209324c57/board):
+- Add the `~feature fest` label to your issue
+- Add the relevant customer label (if applicable) 
+
+To maximize your chances of having a feature accepted, requesters can visit the [🗣 Product office hours](#rituals) meeting to get feedback on requests prior to being accepted. 
+
 ### How feature requests are evaluated
 Digestion of these new product ideas (requests) happens at the **🎁🗣 Feature Fest** meeting.
 
-Before the **🎁🗣 Feature Fest** meeting, the [Customer renewals DRI](https://fleetdm.com/handbook/company/communications#directly-responsible-individuals-dris) goes through the "Inbox" column and removes customer requests that are not a high priority for the business. Stakeholders will be notified by the Customer renewals DRI.
+At the **🎁🗣 Feature Fest** meeting, the DRI (Head of Product) weighs all requests on the board. When the team weighs a request, it is immediately prioritized or put to the side.
 
-All community and contributor requests (non-customer) are left in the inbox. A high priority customer request may be a request that's blocking a customer from getting their job done or a request that's critical for customer renewal.
+Product Managers prioritize all potential product improvements worked on by Fleeties. Anyone (Fleeties, customers, and community members) are invited to suggest improvements.
 
-Before the meeting, the Feature prioritization DRI adds requests from Fleet's roadmap that are planned for the next design sprint. The quarterly roadmap is in the [OKRs spreadsheet](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit?gid=0#gid=0).
-
-At the **🎁🗣 Feature Fest** meeting, the Feature prioritization DRI weighs all requests in the inbox. When the team weighs a request, it is immediately prioritized or put to the side (not prioritized).
-
-- A _request is prioritized_ when the Feature prioritization DRI decides it is a priority.
+- A _request is prioritized_ when the DRI decides it is a priority. When this happens, the team sets the request to be estimated within five business days.
 - A _request is put to the side_ when the business perceives competing priorities as more pressing in the immediate moment.
 
-If a feature is not prioritized during a 🎁🗣 Feature Fest meeting, it only means the feature has been rejected _at that time_. Requestors will be notified by the Feature prioritization DRI, and they can resubmit their request at a future meeting.
+If a feature is not prioritized during a 🎁🗣 Feature Fest meeting, it only means the feature has been rejected _at that time_. Requestors will be notified by the Head of Product, and they can resubmit their request at a future meeting.
 
 Requests are weighed by:
 - The completeness of the request (see [making a request](#making-a-request))
@@ -319,10 +331,16 @@ Requests are weighed by:
 - How well the request fits within Fleet's product vision and roadmap
 - Whether the feature seems like it can be designed, estimated, and developed in 6 weeks, given its individual complexity and when combined with other work already accepted
 
+### Customer feature requests 
+The product team's goal is to prioritize 16 customer feature requests at Feature Fest, then take them from settled to shipped. The customer success team is responsible for providing the Head of Product a live count during the Feature Fest meeting. Product Operations is responsible for monitoring this KPI and raising alarms throughout the design and engineering sprints. 
+> Customer stories should be estimated at 1-3 points each to count as 1 request. If a feature request spans across multiple customers, it will be counted as the number of customers involved. 
+
 ### After the feature is accepted
-After the 🎁🗣 Feature Fest meeting, the Feature prioritization DRI  will clear the Feature Fest board as follows:
-**Prioritized features:** Remove `feature fest` label, add `:product` label, and move the issue to the "Ready" column in the drafting board. The request will then be assigned to a [Product Designer](https://fleetdm.com/handbook/company/product-groups#current-product-groups) during the "Design sprint kick-off" ritual.
-**Put to the side features:** Remove `feature fest` label and notify the requestor.
+After the 🎁🗣 Feature Fest meeting, Product Operations will clear the Feature Fest board as follows:
+**Prioritized features:** Remove `feature fest` label, add `:product` label, and assign the group Product Manager. 
+**Put to the side features:** Remove `feature fest` label and close the issue.
+
+Group Product Managers will then develop user stories for the prioritized features. 
 
 > The product team's commitment to the requester is that a prioritized feature will be delivered within 6 weeks or the requester will be notified within 1 business day of the decision to de-prioritize the feature. 
 

@@ -50,17 +50,17 @@ type IVulnerabilitiesCellProps = IInstalledVersionsCellProps;
 // type IActionsCellProps = CellProps<IHostSoftware, IHostSoftware["id"]>;
 
 const generateActions = ({
-  userHasSWInstallPermission,
-  hostCanInstallSoftware,
+  canInstall,
   installingSoftwareId,
+  isFleetdHost,
   softwareId,
   status,
   software_package,
   app_store_app,
 }: {
-  userHasSWInstallPermission: boolean;
-  hostCanInstallSoftware: boolean;
+  canInstall: boolean;
   installingSoftwareId: number | null;
+  isFleetdHost: boolean;
   softwareId: number;
   status: SoftwareInstallStatus | null;
   software_package: IHostSoftwarePackage | null;
@@ -78,18 +78,14 @@ const generateActions = ({
   }
 
   const hasSoftwareToInstall = !!software_package || !!app_store_app;
-  // remove install if there is no package to install or if the software is already installed
-  if (
-    !hasSoftwareToInstall ||
-    !userHasSWInstallPermission ||
-    status === "installed"
-  ) {
+  // remove install if there is no package to install
+  if (!hasSoftwareToInstall || !canInstall) {
     actions.splice(indexInstallAction, 1);
     return actions;
   }
 
-  // disable install option if not a fleetd, iPad, or iOS host
-  if (!hostCanInstallSoftware) {
+  // disable install option if not a fleetd host
+  if (!isFleetdHost) {
     actions[indexInstallAction].disabled = true;
     actions[indexInstallAction].tooltipContent =
       "To install software on this host, deploy the fleetd agent with --enable-scripts and refetch host vitals.";
@@ -106,9 +102,9 @@ const generateActions = ({
 };
 
 interface ISoftwareTableHeadersProps {
-  userHasSWInstallPermission: boolean;
-  hostCanInstallSoftware: boolean;
+  canInstall: boolean;
   installingSoftwareId: number | null;
+  isFleetdHost: boolean;
   router: InjectedRouter;
   teamId: number;
   onSelectAction: (software: IHostSoftware, action: string) => void;
@@ -117,9 +113,9 @@ interface ISoftwareTableHeadersProps {
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
 export const generateSoftwareTableHeaders = ({
-  userHasSWInstallPermission,
-  hostCanInstallSoftware,
+  canInstall,
   installingSoftwareId,
+  isFleetdHost,
   router,
   teamId,
   onSelectAction,
@@ -206,8 +202,8 @@ export const generateSoftwareTableHeaders = ({
           <DropdownCell
             placeholder="Actions"
             options={generateActions({
-              userHasSWInstallPermission,
-              hostCanInstallSoftware,
+              canInstall,
+              isFleetdHost,
               installingSoftwareId,
               softwareId,
               status,

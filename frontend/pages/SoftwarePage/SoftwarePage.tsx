@@ -151,13 +151,10 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
   const [showPreviewTicketModal, setShowPreviewTicketModal] = useState(false);
   const [showAddSoftwareModal, setShowAddSoftwareModal] = useState(false);
   const [resetPageIndex, setResetPageIndex] = useState<boolean>(false);
-  const [addedSoftwareToken, setAddedSoftwareToken] = useState<string | null>(
-    null
-  );
 
   const {
     currentTeamId,
-    isAllTeamsSelected,
+    isAnyTeamSelected,
     isRouteOk,
     teamIdForApi,
     userTeams,
@@ -318,7 +315,7 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
 
   const renderPageActions = () => {
     const canManageAutomations =
-      isGlobalAdmin && (!isPremiumTier || isAllTeamsSelected);
+      isGlobalAdmin && (!isPremiumTier || !isAnyTeamSelected);
 
     const canAddSoftware =
       isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
@@ -348,8 +345,8 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
   const renderHeaderDescription = () => {
     return (
       <p>
-        Manage software and search for installed software, OS, and
-        vulnerabilities {isAllTeamsSelected ? "for all hosts" : "on this team"}.
+        Manage software and search for installed software, OS and
+        vulnerabilities {isAnyTeamSelected ? "on this team" : "for all hosts"}.
       </p>
     );
   };
@@ -388,7 +385,6 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
           showExploitedVulnerabilitiesOnly,
           softwareFilter,
           resetPageIndex,
-          addedSoftwareToken,
         })}
       </div>
     );
@@ -428,7 +424,6 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
             teamId={currentTeamId ?? 0}
             router={router}
             onExit={toggleAddSoftwareModal}
-            setAddedSoftwareToken={setAddedSoftwareToken}
           />
         )}
       </div>

@@ -1,6 +1,5 @@
 import React from "react";
 import { getErrorReason } from "interfaces/errors";
-import { IVppApp } from "services/entities/mdm_apple";
 
 const ADD_SOFTWARE_ERROR_PREFIX = "Couldn’t add software.";
 const DEFAULT_ERROR_MESSAGE = `${ADD_SOFTWARE_ERROR_PREFIX} Please try again.`;
@@ -41,6 +40,3 @@ export const getErrorMessage = (e: unknown) => {
   }
   return DEFAULT_ERROR_MESSAGE;
 };
-
-export const getUniqueAppId = (app: IVppApp) =>
-  `${app.app_store_id}_${app.platform}`;

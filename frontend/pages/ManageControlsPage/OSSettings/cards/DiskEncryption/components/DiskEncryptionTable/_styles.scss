@@ -9,29 +9,11 @@
     border-right: none;
   }
 
-  .linkToFilteredHosts__header {
-    width: auto;
-    max-width: 120px;
-  }
-
-}
-
-@media (max-width: 1120px) {
-  .view-hosts-link {
-    span {
-      display: none;
-    }
-  }
-  .linkToFilteredHosts {
-    &__header {
-      width: 0;
-      .column-header {
-        width: 0;
+  @media (max-width: 1120px) {
+    .view-hosts-link {
+      span {
+        display: none;
       }
     }
-    &__cell {
-      width: min-content;
-    }
-
   }
 }

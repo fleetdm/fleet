@@ -176,7 +176,6 @@ contexts:
 		fmt.Sprintf(
 			`
 controls:
-software:
 queries:
 policies:
 agent_options:
@@ -231,4 +230,5 @@ team_settings:
 	for _, fileName := range teamFileNames {
 		_ = runAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", fileName})
 	}
+
 }

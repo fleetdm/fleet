@@ -56,7 +56,6 @@ const REGEX_GLOBAL_PAGES = {
 
 const REGEX_EXCLUDE_NO_TEAM_PAGES = {
   MANAGE_POLICIES: /\/policies\/manage/i,
-  MANAGE_QUERIES: /\/queries\/manage/i,
 };
 
 const testDetailPage = (path: string, re: RegExp) => {
@@ -97,6 +96,7 @@ const SiteTopNav = ({
     isGlobalMaintainer,
     isAnyTeamMaintainer,
     isNoAccess,
+    isSandboxMode,
   } = useContext(AppContext);
 
   const isActiveDetailPage = isDetailPage(currentPath);
@@ -187,7 +187,7 @@ const SiteTopNav = ({
           <LinkWithContext
             className={`${navItemBaseClass}__link`}
             withParams={withParams}
-            currentQueryParams={{ team_id: currentQueryParams.team_id }}
+            currentQueryParams={currentQueryParams}
             to={navItem.location.pathname}
           >
             <span
@@ -220,7 +220,8 @@ const SiteTopNav = ({
     isAnyTeamAdmin,
     isAnyTeamMaintainer,
     isGlobalMaintainer,
-    isNoAccess
+    isNoAccess,
+    isSandboxMode
   );
 
   const renderNavItems = () => {
@@ -237,6 +238,7 @@ const SiteTopNav = ({
           currentUser={currentUser}
           isAnyTeamAdmin={isAnyTeamAdmin}
           isGlobalAdmin={isGlobalAdmin}
+          isSandboxMode={isSandboxMode}
         />
       </div>
     );

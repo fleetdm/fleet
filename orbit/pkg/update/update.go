@@ -384,11 +384,6 @@ func (u *Updater) get(target string) (*LocalTarget, error) {
 					return nil, fmt.Errorf("failed to remove old extracted dir: %q: %w", localTarget.DirPath, err)
 				}
 			}
-			if strings.HasSuffix(localTarget.Path, ".pkg") && runtime.GOOS == "darwin" {
-				if err := installPKG(localTarget.Path); err != nil {
-					return nil, fmt.Errorf("updating pkg: %w", err)
-				}
-			}
 		} else {
 			log.Debug().Str("path", localTarget.Path).Str("target", target).Msg("found expected target locally")
 		}
@@ -396,11 +391,6 @@ func (u *Updater) get(target string) (*LocalTarget, error) {
 		log.Debug().Err(err).Msg("stat file")
 		if err := u.download(target, repoPath, localTarget.Path, localTarget.Info.CustomCheckExec); err != nil {
 			return nil, fmt.Errorf("download %q: %w", repoPath, err)
-		}
-		if strings.HasSuffix(localTarget.Path, ".pkg") && runtime.GOOS == "darwin" {
-			if err := installPKG(localTarget.Path); err != nil {
-				return nil, fmt.Errorf("installing pkg for the first time: %w", err)
-			}
 		}
 	default:
 		return nil, fmt.Errorf("stat %q: %w", localTarget.Path, err)
@@ -568,14 +558,6 @@ func (u *Updater) checkExec(target, tmpPath string, customCheckExec func(execPat
 		tmpPath = filepath.Join(append([]string{filepath.Dir(tmpPath)}, localTarget.Info.ExtractedExecSubPath...)...)
 	}
 
-	if strings.HasSuffix(tmpPath, ".pkg") && runtime.GOOS == "darwin" {
-		cmd := exec.Command("pkgutil", "--payload-files", tmpPath)
-		if out, err := cmd.CombinedOutput(); err != nil {
-			return fmt.Errorf("running pkgutil to verify %s: %s: %w", tmpPath, string(out), err)
-		}
-		return nil
-	}
-
 	if customCheckExec != nil {
 		if err := customCheckExec(tmpPath); err != nil {
 			return fmt.Errorf("custom exec new version failed: %w", err)
@@ -649,14 +631,6 @@ func extractTarGz(path string) error {
 			return fmt.Errorf("unknown flag type %q: %d", header.Name, header.Typeflag)
 		}
 	}
-}
-
-func installPKG(path string) error {
-	cmd := exec.Command("installer", "-pkg", path, "-target", "/")
-	if out, err := cmd.CombinedOutput(); err != nil {
-		return fmt.Errorf("running pkgutil to install %s: %s: %w", path, string(out), err)
-	}
-	return nil
 }
 
 func (u *Updater) initializeDirectories() error {

@@ -53,7 +53,7 @@ func createTempFile(t *testing.T, pattern, contents string) (filePath string, ba
 
 func gitOpsFromString(t *testing.T, s string) (*GitOps, error) {
 	path, basePath := createTempFile(t, "", s)
-	return GitOpsFromFile(path, basePath, nil)
+	return GitOpsFromFile(path, basePath)
 }
 
 func TestValidGitOpsYaml(t *testing.T) {
@@ -108,7 +108,7 @@ func TestValidGitOpsYaml(t *testing.T) {
 					t.Parallel()
 				}
 
-				gitops, err := GitOpsFromFile(test.filePath, "./testdata", nil)
+				gitops, err := GitOpsFromFile(test.filePath, "./testdata")
 				require.NoError(t, err)
 
 				if test.isTeam {
@@ -336,20 +336,20 @@ func TestMixingGlobalAndTeamConfig(t *testing.T) {
 	config := getGlobalConfig(nil)
 	config += "name: TeamName\n"
 	_, err := gitOpsFromString(t, config)
-	assert.ErrorContains(t, err, "'org_settings' cannot be used with 'name', 'team_settings'")
+	assert.ErrorContains(t, err, "'org_settings' cannot be used with 'name', 'team_settings' or 'software'")
 
 	// Mixing org_settings and team_settings
 	config = getGlobalConfig(nil)
 	config += "team_settings:\n  secrets: []\n"
 	_, err = gitOpsFromString(t, config)
-	assert.ErrorContains(t, err, "'org_settings' cannot be used with 'name', 'team_settings'")
+	assert.ErrorContains(t, err, "'org_settings' cannot be used with 'name', 'team_settings' or 'software'")
 
 	// Mixing org_settings and team name and team_settings
 	config = getGlobalConfig(nil)
 	config += "name: TeamName\n"
 	config += "team_settings:\n  secrets: []\n"
 	_, err = gitOpsFromString(t, config)
-	assert.ErrorContains(t, err, "'org_settings' cannot be used with 'name', 'team_settings'")
+	assert.ErrorContains(t, err, "'org_settings' cannot be used with 'name', 'team_settings' or 'software'")
 }
 
 func TestInvalidGitOpsYaml(t *testing.T) {
@@ -696,7 +696,7 @@ func TestGitOpsPaths(t *testing.T) {
 				err = os.WriteFile(mainTmpFile.Name(), []byte(config), 0o644)
 				require.NoError(t, err)
 
-				_, err = GitOpsFromFile(mainTmpFile.Name(), dir, nil)
+				_, err = GitOpsFromFile(mainTmpFile.Name(), dir)
 				assert.NoError(t, err)
 
 				// Test a bad path
@@ -709,7 +709,7 @@ func TestGitOpsPaths(t *testing.T) {
 				err = os.WriteFile(mainTmpFile.Name(), []byte(config), 0o644)
 				require.NoError(t, err)
 
-				_, err = GitOpsFromFile(mainTmpFile.Name(), dir, nil)
+				_, err = GitOpsFromFile(mainTmpFile.Name(), dir)
 				assert.ErrorContains(t, err, "no such file or directory")
 
 				// Test a bad file -- cannot be unmarshalled
@@ -744,7 +744,7 @@ func TestGitOpsPaths(t *testing.T) {
 				}
 				err = os.WriteFile(mainTmpFile.Name(), []byte(config), 0o644)
 				require.NoError(t, err)
-				_, err = GitOpsFromFile(mainTmpFile.Name(), dir, nil)
+				_, err = GitOpsFromFile(mainTmpFile.Name(), dir)
 				assert.ErrorContains(t, err, "nested paths are not supported")
 			},
 		)

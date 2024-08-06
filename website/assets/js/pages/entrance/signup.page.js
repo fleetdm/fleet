@@ -26,7 +26,7 @@ parasails.registerPage('signup', {
     showFullForm: false,
     // For redirecting users coming from the "Get your license" link to the license dispenser.
     loginSlug: '/login',
-    pageToRedirectToAfterRegistration: '/start#signup',
+    pageToRedirectToAfterRegistration: '/start',
     primaryBuyingSituation: undefined
   },
 
@@ -37,7 +37,7 @@ parasails.registerPage('signup', {
     // If we're redirecting this user to the license dispenser after they sign up, modify the link to the login page and the pageToRedirectToAfterRegistration
     if(window.location.hash && window.location.hash === '#purchaseLicense'){
       this.loginSlug = '/login#purchaseLicense';
-      this.pageToRedirectToAfterRegistration = '/new-license#signup';
+      this.pageToRedirectToAfterRegistration = '/new-license';
       window.location.hash = '';
     }
   },

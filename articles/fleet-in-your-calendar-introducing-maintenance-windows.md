@@ -1,7 +1,5 @@
 # Fleet in your calendar: introducing maintenance windows 
 
-> Unlike other Fleet features which take advantage of declarative device management (DDM), the approach described in this article still uses traditional MDM commands.  (More to come.)
-
 ![Fleet in your calendar: introducing maintenance windows](../website/assets/images/articles/fleet-in-your-calendar-introducing-maintenance-windows-cover-900x450@2x.png)
 
 Fleet is excited to announce the release of "maintenance windows", a new feature in Fleet v4.48 that helps make sure OS updates occur during times that disrupt your users the least. Now, just like any good colleague, when Fleet needs some of your time, it puts it on your calendar. This approach avoids interrupting your key activities or important meetings, whether in the office, on the road, or working remotely.

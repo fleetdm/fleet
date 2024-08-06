@@ -18,11 +18,6 @@ export interface IModalProps {
   isHidden?: boolean;
   /**    isLoading can be set true to enable targeting elements by loading state */
   isLoading?: boolean;
-  /** isContentDisabled can be set to true to display the modal content as disabled.
-   * At the moment this will place an overlay over the modal content and make it
-   * unclickable.
-   */
-  isContentDisabled?: boolean;
   className?: string;
 }
 
@@ -34,7 +29,6 @@ const Modal = ({
   width = "medium",
   isHidden = false,
   isLoading = false,
-  isContentDisabled = false,
   className,
 }: IModalProps): JSX.Element => {
   useEffect(() => {
@@ -67,30 +61,26 @@ const Modal = ({
     }
   }, [onEnter]);
 
-  const backgroundClasses = classnames(`${baseClass}__background`, {
-    [`${baseClass}__hidden`]: isHidden,
-  });
-
-  const modalContainerClasses = classnames(
-    className,
+  const modalContainerClassName = classnames(
     `${baseClass}__modal_container`,
-    `${baseClass}__modal_container__${width}`,
-    {
-      [`${className}__loading`]: isLoading,
-    }
+    className,
+    { [`${baseClass}__modal_container__medium`]: width === "medium" },
+    { [`${baseClass}__modal_container__large`]: width === "large" },
+    { [`${baseClass}__modal_container__xlarge`]: width === "xlarge" },
+    { [`${baseClass}__modal_container__auto`]: width === "auto" }
   );
 
-  const contentWrapperClasses = classnames(`${baseClass}__content-wrapper`, {
-    [`${baseClass}__content-wrapper-disabled`]: isContentDisabled,
-  });
-
-  const contentClasses = classnames(`${baseClass}__content`, {
-    [`${baseClass}__content-disabled`]: isContentDisabled,
-  });
-
   return (
-    <div className={backgroundClasses}>
-      <div className={modalContainerClasses}>
+    <div
+      className={`${baseClass}__background ${
+        isHidden ? `${baseClass}__hidden` : ""
+      }`}
+    >
+      <div
+        className={`${modalContainerClassName} ${
+          isLoading ? `${className}__loading` : ""
+        }`}
+      >
         <div className={`${baseClass}__header`}>
           <span>{title}</span>
           <div className={`${baseClass}__ex`}>
@@ -99,13 +89,7 @@ const Modal = ({
             </Button>
           </div>
         </div>
-
-        <div className={contentWrapperClasses}>
-          {isContentDisabled && (
-            <div className={`${baseClass}__disabled-overlay`} />
-          )}
-          <div className={contentClasses}>{children}</div>
-        </div>
+        <div className={`${baseClass}__content`}>{children}</div>
       </div>
     </div>
   );

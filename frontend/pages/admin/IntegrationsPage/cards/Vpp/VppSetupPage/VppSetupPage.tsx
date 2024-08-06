@@ -4,7 +4,6 @@ import { useQuery } from "react-query";
 import { AxiosError } from "axios";
 
 import PATHS from "router/paths";
-import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
 import { getErrorReason } from "interfaces/errors";
 import mdmAppleAPI, { IGetVppInfoResponse } from "services/entities/mdm_apple";
@@ -122,7 +121,6 @@ interface IVppSetupPageProps {
 const VppSetupPage = ({ router }: IVppSetupPageProps) => {
   const [showDisableModal, setShowDisableModal] = useState(false);
   const [showRenewModal, setShowRenewModal] = useState(false);
-  const { setVppExpiry } = useContext(AppContext);
 
   const {
     data: vppData,
@@ -136,9 +134,6 @@ const VppSetupPage = ({ router }: IVppSetupPageProps) => {
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
       retry: false,
-      onSuccess: (data) => {
-        setVppExpiry(data.renew_date);
-      },
     }
   );
 

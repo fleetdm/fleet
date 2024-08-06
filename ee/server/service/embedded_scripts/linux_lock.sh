@@ -38,12 +38,6 @@ for user in $logged_in; do
 done
 
 # Create the pam_nologin file
-echo "Locked by administrator" > /etc/nologin
-
-# Disable systemd-user-sessions, a service that deletes /etc/nologin
-if [ -f /usr/lib/systemd/system/systemd-user-sessions.service ]; then
-    systemctl mask systemd-user-sessions
-    systemctl daemon-reload
-fi
+touch /etc/nologin
 
 echo "All non-root users have been logged out and their accounts locked."

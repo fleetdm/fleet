@@ -6,6 +6,7 @@ module.exports = {
 
   description: 'Display "Transparency" page.',
 
+
   exits: {
 
     success: {
@@ -16,8 +17,9 @@ module.exports = {
 
 
   fn: async function () {
+
     // Respond with view.
-    return {showSecureframeBanner: this.req.param('utm_content') === 'secureframe'};
+    return {};
 
   }
 

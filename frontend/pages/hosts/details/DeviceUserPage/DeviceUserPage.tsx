@@ -42,6 +42,7 @@ import PolicyDetailsModal from "../cards/Policies/HostPoliciesTable/PolicyDetail
 import AutoEnrollMdmModal from "./AutoEnrollMdmModal";
 import ManualEnrollMdmModal from "./ManualEnrollMdmModal";
 import OSSettingsModal from "../OSSettingsModal";
+import ResetKeyModal from "./ResetKeyModal";
 import BootstrapPackageModal from "../HostDetailsPage/modals/BootstrapPackageModal";
 import { parseHostSoftwareQueryParams } from "../cards/Software/HostSoftware";
 import SelfService from "../cards/Software/SelfService";
@@ -89,6 +90,7 @@ const DeviceUserPage = ({
   const [isPremiumTier, setIsPremiumTier] = useState(false);
   const [showInfoModal, setShowInfoModal] = useState(false);
   const [showEnrollMdmModal, setShowEnrollMdmModal] = useState(false);
+  const [showResetKeyModal, setShowResetKeyModal] = useState(false);
   const [refetchStartTime, setRefetchStartTime] = useState<number | null>(null);
   const [showRefetchSpinner, setShowRefetchSpinner] = useState(false);
   const [orgLogoURL, setOrgLogoURL] = useState("");
@@ -246,6 +248,10 @@ const DeviceUserPage = ({
     setShowEnrollMdmModal(!showEnrollMdmModal);
   }, [showEnrollMdmModal, setShowEnrollMdmModal]);
 
+  const toggleResetKeyModal = useCallback(() => {
+    setShowResetKeyModal(!showResetKeyModal);
+  }, [showResetKeyModal, setShowResetKeyModal]);
+
   const togglePolicyDetailsModal = useCallback(
     (policy: IHostPolicy) => {
       setShowPolicyDetailsModal(!showPolicyDetailsModal);
@@ -355,6 +361,7 @@ const DeviceUserPage = ({
                 host.mdm.macos_settings?.action_required ?? null
               }
               onTurnOnMdm={toggleEnrollMdmModal}
+              onResetKey={toggleResetKeyModal}
             />
             <HostSummaryCard
               summaryData={summaryData}
@@ -415,7 +422,7 @@ const DeviceUserPage = ({
                     <SoftwareCard
                       id={deviceAuthToken}
                       softwareUpdatedAt={host.software_updated_at}
-                      hostCanInstallSoftware={!!host.orbit_version}
+                      isFleetdHost={!!host.orbit_version}
                       router={router}
                       pathname={location.pathname}
                       queryParams={parseHostSoftwareQueryParams(location.query)}
@@ -441,6 +448,12 @@ const DeviceUserPage = ({
             </TabsWrapper>
             {showInfoModal && <InfoModal onCancel={toggleInfoModal} />}
             {showEnrollMdmModal && renderEnrollMdmModal()}
+            {showResetKeyModal && (
+              <ResetKeyModal
+                onClose={toggleResetKeyModal}
+                deviceAuthToken={deviceAuthToken}
+              />
+            )}
           </div>
         )}
         {!!host && showPolicyDetailsModal && (

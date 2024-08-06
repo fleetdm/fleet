@@ -405,8 +405,8 @@ const ManageHostsPage = ({
         osName,
         osVersion,
         vulnerability,
-        page: tableQueryData ? tableQueryData.pageIndex : DEFAULT_PAGE_INDEX,
-        perPage: tableQueryData ? tableQueryData.pageSize : DEFAULT_PAGE_SIZE,
+        page: tableQueryData ? tableQueryData.pageIndex : 0,
+        perPage: tableQueryData ? tableQueryData.pageSize : 50,
         device_mapping: true,
         osSettings: osSettingsStatus,
         diskEncryptionStatus,
@@ -1578,7 +1578,7 @@ const ManageHostsPage = ({
         }
         defaultPageIndex={page || DEFAULT_PAGE_INDEX}
         defaultSearchQuery={searchQuery}
-        pageSize={DEFAULT_PAGE_SIZE}
+        pageSize={50}
         additionalQueries={JSON.stringify(selectedFilters)}
         inputPlaceHolder={HOSTS_SEARCH_BOX_PLACEHOLDER}
         actionButton={{

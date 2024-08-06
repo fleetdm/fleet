@@ -12,10 +12,6 @@ parasails.registerPage('homepage', {
   //  ╩═╝╩╚  ╚═╝╚═╝ ╩ ╚═╝╩═╝╚═╝
   beforeMount: function() {
     //…
-    if(window.location.hash === '#unsubscribed'){
-      this.modal = 'unsubscribed';
-      window.location.hash = '';
-    }
   },
   mounted: async function() {
     //…

@@ -270,8 +270,6 @@ func updatesAddFunc(c *cli.Context) error {
 			dstPath += ".exe"
 		case strings.HasSuffix(target, ".app.tar.gz"):
 			dstPath += ".app.tar.gz"
-		case strings.HasSuffix(target, ".pkg"):
-			dstPath += ".pkg"
 		// osquery extensions require the .ext suffix
 		case strings.HasSuffix(target, ".ext"):
 			dstPath += ".ext"

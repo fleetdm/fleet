@@ -11,7 +11,6 @@ import {
 import { IUser } from "interfaces/user";
 import permissions from "utilities/permissions";
 import sort from "utilities/sort";
-import { hasLicenseExpired, willExpireWithinXDays } from "utilities/helpers";
 
 enum ACTIONS {
   SET_AVAILABLE_TEAMS = "SET_AVAILABLE_TEAMS",
@@ -145,12 +144,6 @@ type InitialStateType = {
   isOnlyObserver?: boolean;
   isObserverPlus?: boolean;
   isNoAccess?: boolean;
-  isAppleBmExpired: boolean;
-  isApplePnsExpired: boolean;
-  isVppExpired: boolean;
-  willAppleBmExpire: boolean;
-  willApplePnsExpire: boolean;
-  willVppExpire: boolean;
   abmExpiry?: string;
   apnsExpiry?: string;
   vppExpiry?: string;
@@ -213,12 +206,6 @@ export const initialState = {
   filteredSoftwarePath: undefined,
   filteredQueriesPath: undefined,
   filteredPoliciesPath: undefined,
-  isAppleBmExpired: false,
-  isApplePnsExpired: false,
-  isVppExpired: false,
-  willAppleBmExpire: false,
-  willApplePnsExpire: false,
-  willVppExpire: false,
   setAvailableTeams: () => null,
   setCurrentUser: () => null,
   setCurrentTeam: () => null,
@@ -352,8 +339,6 @@ const reducer = (state: InitialStateType, action: IAction) => {
       return {
         ...state,
         abmExpiry,
-        isAppleBmExpired: hasLicenseExpired(abmExpiry),
-        willAppleBmExpire: willExpireWithinXDays(abmExpiry, 30),
       };
     }
     case ACTIONS.SET_APNS_EXPIRY: {
@@ -361,8 +346,6 @@ const reducer = (state: InitialStateType, action: IAction) => {
       return {
         ...state,
         apnsExpiry,
-        isApplePnsExpired: hasLicenseExpired(apnsExpiry),
-        willApplePnsExpire: willExpireWithinXDays(apnsExpiry, 30),
       };
     }
     case ACTIONS.SET_VPP_EXPIRY: {
@@ -370,8 +353,6 @@ const reducer = (state: InitialStateType, action: IAction) => {
       return {
         ...state,
         vppExpiry,
-        isVppExpired: hasLicenseExpired(vppExpiry),
-        willVppExpire: willExpireWithinXDays(vppExpiry, 30),
       };
     }
     case ACTIONS.SET_SANDBOX_EXPIRY: {
@@ -437,12 +418,6 @@ const AppProvider = ({ children }: Props): JSX.Element => {
     abmExpiry: state.abmExpiry,
     apnsExpiry: state.apnsExpiry,
     vppExpiry: state.vppExpiry,
-    isAppleBmExpired: state.isAppleBmExpired,
-    isApplePnsExpired: state.isApplePnsExpired,
-    isVppExpired: state.isVppExpired,
-    willAppleBmExpire: state.willAppleBmExpire,
-    willApplePnsExpire: state.willApplePnsExpire,
-    willVppExpire: state.willVppExpire,
     noSandboxHosts: state.noSandboxHosts,
     filteredHostsPath: state.filteredHostsPath,
     filteredSoftwarePath: state.filteredSoftwarePath,

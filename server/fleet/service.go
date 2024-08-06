@@ -918,6 +918,9 @@ type Service interface {
 
 	GetMDMManualEnrollmentProfile(ctx context.Context) ([]byte, error)
 
+	// CheckMDMAppleEnrollmentWithMinimumOSVersion checks if the minimum OS version is met for a MDM enrollment
+	CheckMDMAppleEnrollmentWithMinimumOSVersion(ctx context.Context, m *MDMAppleMachineInfo) (*MDMAppleSoftwareUpdateRequired, error)
+
 	///////////////////////////////////////////////////////////////////////////////
 	// CronSchedulesService
 
@@ -927,6 +930,8 @@ type Service interface {
 	// ResetAutomation sets the policies and all policies of the listed teams to fire again
 	// for all hosts that are already marked as failing.
 	ResetAutomation(ctx context.Context, teamIDs, policyIDs []uint) error
+
+	RequestEncryptionKeyRotation(ctx context.Context, hostID uint) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Windows MDM

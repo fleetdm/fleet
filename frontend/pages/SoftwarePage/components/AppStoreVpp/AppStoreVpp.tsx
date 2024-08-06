@@ -22,7 +22,7 @@ import { NotificationContext } from "context/notification";
 import { getErrorReason } from "interfaces/errors";
 import { buildQueryStringFromParams } from "utilities/url";
 import SoftwareIcon from "../icons/SoftwareIcon";
-import { getErrorMessage, getUniqueAppId } from "./helpers";
+import { getErrorMessage } from "./helpers";
 
 const baseClass = "app-store-vpp";
 
@@ -64,16 +64,10 @@ const NoVppAppsCard = () => (
 interface IVppAppListItemProps {
   app: IVppApp;
   selected: boolean;
-  uniqueAppId: string;
   onSelect: (software: IVppApp) => void;
 }
 
-const VppAppListItem = ({
-  app,
-  selected,
-  uniqueAppId,
-  onSelect,
-}: IVppAppListItemProps) => {
+const VppAppListItem = ({ app, selected, onSelect }: IVppAppListItemProps) => {
   return (
     <li className={`${baseClass}__list-item`}>
       <Radio
@@ -83,9 +77,9 @@ const VppAppListItem = ({
             <span>{app.name}</span>
           </div>
         }
-        id={`vppApp-${uniqueAppId}`}
+        id={`vppApp-${app.app_store_id}`}
         checked={selected}
-        value={uniqueAppId}
+        value={app.app_store_id.toString()}
         name="vppApp"
         onChange={() => onSelect(app)}
       />
@@ -104,41 +98,28 @@ interface IVppAppListProps {
   onSelect: (app: IVppApp) => void;
 }
 
-const VppAppList = ({ apps, selectedApp, onSelect }: IVppAppListProps) => {
-  const uniqueSelectedAppId = selectedApp ? getUniqueAppId(selectedApp) : null;
-  return (
-    <div className={`${baseClass}__list-container`}>
-      <ul className={`${baseClass}__list`}>
-        {apps.map((app) => {
-          const uniqueAppId = getUniqueAppId(app);
-          return (
-            <VppAppListItem
-              key={uniqueAppId}
-              app={app}
-              selected={uniqueSelectedAppId === uniqueAppId}
-              uniqueAppId={uniqueAppId}
-              onSelect={onSelect}
-            />
-          );
-        })}
-      </ul>
-    </div>
-  );
-};
+const VppAppList = ({ apps, selectedApp, onSelect }: IVppAppListProps) => (
+  <div className={`${baseClass}__list-container`}>
+    <ul className={`${baseClass}__list`}>
+      {apps.map((app) => (
+        <VppAppListItem
+          key={app.app_store_id}
+          app={app}
+          selected={selectedApp?.app_store_id === app.app_store_id}
+          onSelect={onSelect}
+        />
+      ))}
+    </ul>
+  </div>
+);
 
 interface IAppStoreVppProps {
   teamId: number;
   router: InjectedRouter;
   onExit: () => void;
-  setAddedSoftwareToken: (token: string) => void;
 }
 
-const AppStoreVpp = ({
-  teamId,
-  router,
-  onExit,
-  setAddedSoftwareToken,
-}: IAppStoreVppProps) => {
+const AppStoreVpp = ({ teamId, router, onExit }: IAppStoreVppProps) => {
   const { renderFlash } = useContext(NotificationContext);
   const [isSubmitDisabled, setIsSubmitDisabled] = useState(true);
   const [selectedApp, setSelectedApp] = useState<IVppApp | null>(null);
@@ -179,11 +160,7 @@ const AppStoreVpp = ({
     }
 
     try {
-      await mdmAppleAPI.addVppApp(
-        teamId,
-        selectedApp.app_store_id,
-        selectedApp.platform
-      );
+      await mdmAppleAPI.addVppApp(teamId, selectedApp.app_store_id);
       renderFlash(
         "success",
         <>
@@ -195,8 +172,6 @@ const AppStoreVpp = ({
         team_id: teamId,
         available_for_install: true,
       });
-      // any unique string - triggers SW refetch
-      setAddedSoftwareToken(`${Date.now()}`);
       router.push(`${PATHS.SOFTWARE}?${queryParams}`);
     } catch (e) {
       renderFlash("error", getErrorMessage(e));

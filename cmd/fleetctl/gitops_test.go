@@ -36,7 +36,7 @@ const (
 	orgName        = "GitOps Test"
 )
 
-func TestFilenameGitOpsValidation(t *testing.T) {
+func TestFilenameValidation(t *testing.T) {
 	filename := strings.Repeat("a", filenameMaxLength+1)
 	_, err := runAppNoChecks([]string{"gitops", "-f", filename})
 	assert.ErrorContains(t, err, "file name must be less than")
@@ -207,9 +207,6 @@ func TestBasicGlobalPremiumGitOps(t *testing.T) {
 	ds.NewJobFunc = func(ctx context.Context, job *fleet.Job) (*fleet.Job, error) {
 		return &fleet.Job{}, nil
 	}
-	ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, teamID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
-		return nil
-	}
 
 	tmpFile, err := os.CreateTemp(t.TempDir(), "*.yml")
 	require.NoError(t, err)
@@ -241,7 +238,6 @@ org_settings:
     org_logo_url_light_background: ""
     org_name: ${ORG_NAME}
   secrets:
-software:
 `,
 	)
 	require.NoError(t, err)
@@ -385,7 +381,6 @@ agent_options:
 name: ${TEST_TEAM_NAME}
 team_settings:
   secrets: ${TEST_SECRET}
-software:
 `,
 	)
 	require.NoError(t, err)
@@ -543,7 +538,6 @@ func TestFullGlobalGitOps(t *testing.T) {
 	t.Setenv("FLEET_SERVER_URL", fleetServerURL)
 	t.Setenv("ORG_NAME", orgName)
 	t.Setenv("APPLE_BM_DEFAULT_TEAM", teamName)
-	t.Setenv("SOFTWARE_INSTALLER_URL", fleetServerURL)
 	file := "./testdata/gitops/global_config_no_paths.yml"
 
 	// Dry run should fail because Apple BM Default Team does not exist and premium license is not set
@@ -840,7 +834,6 @@ agent_options:
 name: ${TEST_TEAM_NAME}
 team_settings:
   secrets: [{"secret":"${TEST_SECRET}"}]
-software:
 `,
 	)
 	require.NoError(t, err)
@@ -1018,7 +1011,6 @@ org_settings:
     org_logo_url_light_background: ""
     org_name: ${ORG_NAME}
   secrets: [{"secret":"globalSecret"}]
-software:
 `,
 	)
 	require.NoError(t, err)
@@ -1038,7 +1030,6 @@ agent_options:
 name: ${TEST_TEAM_NAME}
 team_settings:
   secrets: [{"secret":"${TEST_SECRET}"}]
-software:
 `,
 	)
 	require.NoError(t, err)
@@ -1054,7 +1045,6 @@ agent_options:
 name: ${TEST_TEAM_NAME}
 team_settings:
   secrets: [{"secret":"${TEST_SECRET}"},{"secret":"globalSecret"}]
-software:
 `,
 	)
 	require.NoError(t, err)
@@ -1225,69 +1215,24 @@ func TestTeamSofwareInstallersGitOps(t *testing.T) {
 		{"testdata/gitops/team_software_installer_unsupported.yml", "The file should be .pkg, .msi, .exe or .deb."},
 		{"testdata/gitops/team_software_installer_too_large.yml", "The maximum file size is 500 MB"},
 		{"testdata/gitops/team_software_installer_valid.yml", ""},
-		{"testdata/gitops/team_software_installer_valid_apply.yml", ""},
 		{"testdata/gitops/team_software_installer_pre_condition_multiple_queries.yml", "should have only one query."},
-		{"testdata/gitops/team_software_installer_pre_condition_multiple_queries_apply.yml", "should have only one query."},
 		{"testdata/gitops/team_software_installer_pre_condition_not_found.yml", "no such file or directory"},
 		{"testdata/gitops/team_software_installer_install_not_found.yml", "no such file or directory"},
 		{"testdata/gitops/team_software_installer_post_install_not_found.yml", "no such file or directory"},
 		{"testdata/gitops/team_software_installer_no_url.yml", "software URL is required"},
-		{"testdata/gitops/team_software_installer_invalid_self_service_value.yml", "cannot unmarshal string into Go struct field SoftwareSpec.packages of type bool"},
+		{"testdata/gitops/team_software_installer_invalid_self_service_value.yml", "cannot unmarshal string into Go struct field TeamSpecSoftware.packages of type bool"},
 	}
 	for _, c := range cases {
 		t.Run(filepath.Base(c.file), func(t *testing.T) {
-			setupFullGitOpsPremiumServer(t)
+			ds, _, _ := setupFullGitOpsPremiumServer(t)
 
-			_, err := runAppNoChecks([]string{"gitops", "-f", c.file})
-			if c.wantErr == "" {
-				require.NoError(t, err)
-			} else {
-				require.ErrorContains(t, err, c.wantErr)
+			ds.SetTeamVPPAppsFunc = func(ctx context.Context, teamID *uint, adamIDs []fleet.VPPAppID) error {
+				return nil
 			}
-		})
-	}
-}
+			ds.BatchInsertVPPAppsFunc = func(ctx context.Context, apps []*fleet.VPPApp) error {
+				return nil
+			}
 
-func TestTeamSoftwareInstallersGitopsQueryEnv(t *testing.T) {
-	startSoftwareInstallerServer(t)
-	ds, _, _ := setupFullGitOpsPremiumServer(t)
-
-	t.Setenv("QUERY_VAR", "IT_WORKS")
-
-	ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, tmID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
-		if installers[0].PreInstallQuery != "select IT_WORKS" {
-			return fmt.Errorf("Missing env var, got %s", installers[0].PreInstallQuery)
-		}
-		return nil
-	}
-
-	_, err := runAppNoChecks([]string{"gitops", "-f", "testdata/gitops/team_software_installer_valid_env_query.yml"})
-	require.NoError(t, err)
-}
-
-func TestNoTeamSoftwareInstallersGitOps(t *testing.T) {
-	startSoftwareInstallerServer(t)
-
-	cases := []struct {
-		file    string
-		wantErr string
-	}{
-		{"testdata/gitops/no_team_software_installer_not_found.yml", "Please make sure that URLs are publicy accessible to the internet."},
-		{"testdata/gitops/no_team_software_installer_unsupported.yml", "The file should be .pkg, .msi, .exe or .deb."},
-		{"testdata/gitops/no_team_software_installer_too_large.yml", "The maximum file size is 500 MB"},
-		{"testdata/gitops/no_team_software_installer_valid.yml", ""},
-		{"testdata/gitops/no_team_software_installer_pre_condition_multiple_queries.yml", "should have only one query."},
-		{"testdata/gitops/no_team_software_installer_pre_condition_not_found.yml", "no such file or directory"},
-		{"testdata/gitops/no_team_software_installer_install_not_found.yml", "no such file or directory"},
-		{"testdata/gitops/no_team_software_installer_post_install_not_found.yml", "no such file or directory"},
-		{"testdata/gitops/no_team_software_installer_no_url.yml", "software URL is required"},
-		{"testdata/gitops/no_team_software_installer_invalid_self_service_value.yml", "cannot unmarshal string into Go struct field SoftwareSpec.packages of type bool"},
-	}
-	for _, c := range cases {
-		t.Run(filepath.Base(c.file), func(t *testing.T) {
-			setupFullGitOpsPremiumServer(t)
-
-			t.Setenv("APPLE_BM_DEFAULT_TEAM", "")
 			_, err := runAppNoChecks([]string{"gitops", "-f", c.file})
 			if c.wantErr == "" {
 				require.NoError(t, err)

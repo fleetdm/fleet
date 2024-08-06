@@ -12,7 +12,6 @@ import deviceAPI, {
   IGetDeviceSoftwareResponse,
 } from "services/entities/device_user";
 import { IHostSoftware, ISoftware } from "interfaces/software";
-import { Platform } from "interfaces/platform";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import { NotificationContext } from "context/notification";
 import { AppContext } from "context/app";
@@ -35,10 +34,8 @@ export interface ITableSoftware extends Omit<ISoftware, "vulnerabilities"> {
 interface IHostSoftwareProps {
   /** This is the host id or the device token */
   id: number | string;
-  /** The host's platform. Only used for the host details page, so can be omited on the Device User Page. */
-  platform?: Platform;
   softwareUpdatedAt?: string;
-  hostCanInstallSoftware: boolean;
+  isFleetdHost: boolean;
   router: InjectedRouter;
   queryParams: ReturnType<typeof parseHostSoftwareQueryParams>;
   pathname: string;
@@ -85,9 +82,8 @@ export const parseHostSoftwareQueryParams = (queryParams: {
 
 const HostSoftware = ({
   id,
-  platform,
   softwareUpdatedAt,
-  hostCanInstallSoftware,
+  isFleetdHost,
   router,
   queryParams,
   pathname,
@@ -97,8 +93,6 @@ const HostSoftware = ({
   isMyDevicePage = false,
 }: IHostSoftwareProps) => {
   const { renderFlash } = useContext(NotificationContext);
-  const vulnFilterAndNotSupported =
-    ["ios", "ipados"].includes(platform ?? "") && queryParams.vulnerable;
   const {
     isGlobalAdmin,
     isGlobalMaintainer,
@@ -135,8 +129,7 @@ const HostSoftware = ({
     },
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
-      enabled:
-        isSoftwareEnabled && !isMyDevicePage && !vulnFilterAndNotSupported,
+      enabled: isSoftwareEnabled && !isMyDevicePage, // if disabled, we'll always show a generic "No software detected" message
       keepPreviousData: true,
       staleTime: 7000,
     }
@@ -165,7 +158,7 @@ const HostSoftware = ({
     ({ queryKey }) => deviceAPI.getDeviceSoftware(queryKey[0]),
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
-      enabled: isSoftwareEnabled && isMyDevicePage, // if disabled, we'll always show a generic "No software detected" message. No DUP for iPad/iPhone
+      enabled: isSoftwareEnabled && isMyDevicePage, // if disabled, we'll always show a generic "No software detected" message
       keepPreviousData: true,
       staleTime: 7000,
     }
@@ -176,7 +169,7 @@ const HostSoftware = ({
     [isMyDevicePage, refetchDeviceSoftware, refetchHostSoftware]
   );
 
-  const userHasSWInstallPermission = Boolean(
+  const canInstallSoftware = Boolean(
     isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer
   );
 
@@ -220,19 +213,19 @@ const HostSoftware = ({
       : generateHostSoftwareTableConfig({
           router,
           installingSoftwareId,
-          userHasSWInstallPermission,
+          canInstall: canInstallSoftware,
           onSelectAction,
           teamId: hostTeamId,
-          hostCanInstallSoftware,
+          isFleetdHost,
         });
   }, [
     isMyDevicePage,
     router,
     installingSoftwareId,
-    userHasSWInstallPermission,
+    canInstallSoftware,
     onSelectAction,
     hostTeamId,
-    hostCanInstallSoftware,
+    isFleetdHost,
   ]);
 
   const isLoading = isMyDevicePage
@@ -258,10 +251,7 @@ const HostSoftware = ({
     if (isLoading) {
       return <Spinner />;
     }
-    // will never be the case - to handle `platform` typing discrepancy with DeviceUserPage
-    if (!platform) {
-      return null;
-    }
+
     return (
       <>
         {isError && <DataError />}
@@ -270,20 +260,7 @@ const HostSoftware = ({
             isLoading={
               isMyDevicePage ? deviceSoftwareFetching : hostSoftwareFetching
             }
-            // this could be cleaner, however, we are going to revert this commit anyway once vulns are
-            // supported for iPad/iPhone, by the end of next sprint
-            data={
-              vulnFilterAndNotSupported
-                ? ({
-                    count: 0,
-                    meta: {
-                      has_next_results: false,
-                      has_previous_results: false,
-                    },
-                  } as IGetHostSoftwareResponse)
-                : data
-            } // eshould be mpty for iPad/iPhone since API call is disabled, but to be sure to trigger empty state
-            platform={platform}
+            data={data}
             router={router}
             tableConfig={tableConfig}
             sortHeader={queryParams.order_key}

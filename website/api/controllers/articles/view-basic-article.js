@@ -52,7 +52,7 @@ module.exports = {
     // Note: Leaving title and description as `undefined` in our view means we'll default to the generic title and description set in layout.ejs.
     let pageTitleForMeta;
     if(thisPage.meta.articleTitle) {
-      pageTitleForMeta = thisPage.meta.articleTitle;
+      pageTitleForMeta = thisPage.meta.articleTitle + ' | Fleet';
     }//ﬁ
     let pageDescriptionForMeta;
     if(thisPage.meta.description){

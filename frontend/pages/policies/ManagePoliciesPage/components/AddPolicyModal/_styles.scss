@@ -1,23 +1,15 @@
 .add-policy-modal {
   height: 90%;
   overflow: hidden;
-
-  // we have to reach into the modal component classes to style the content
-  // correctly. This is because this modal always has a fixed height and
-  // the content is scrollable.
-  .modal__content-wrapper {
-    height: 95%;
-  }
+  min-height: 460px;
+  max-height: fit-content;
 
   .modal__content {
-    height: 100%;
+    height: 90%;
+    overflow: scroll;
     display: flex;
     flex-direction: column;
     gap: $pad-large;
-  }
-
-  &__policy-selection {
-    overflow-y: auto;
   }
 
   .Select-multi-value-wrapper {

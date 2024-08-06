@@ -90,7 +90,7 @@ func gitopsCommand() *cli.Command {
 			secrets := make(map[string]struct{})
 			for _, flFilename := range flFilenames.Value() {
 				baseDir := filepath.Dir(flFilename)
-				config, err := spec.GitOpsFromFile(flFilename, baseDir, appConfig)
+				config, err := spec.GitOpsFromFile(flFilename, baseDir)
 				if err != nil {
 					return err
 				}

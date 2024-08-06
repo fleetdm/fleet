@@ -248,18 +248,19 @@ without necessarily having a billing card.`
 
     stageThreeNurtureEmailSentAt: {
       type: 'number',
-      description: 'A JS timestamp of when the stage 3 nurture email was sent to the user, or 1 if the user is unsubscribed from automated emails.',
+      description: 'A JS timestamp of when the stage 3 nurture email was sent to the user.'
     },
 
     stageFourNurtureEmailSentAt: {
       type: 'number',
-      description: 'A JS timestamp of when the stage 4 nurture email was sent to the user, or 1 if the user is unsubscribed from automated emails.',
+      description: 'A JS timestamp of when the stage 4 nurture email was sent to the user.'
     },
 
     stageFiveNurtureEmailSentAt: {
       type: 'number',
-      description: 'A JS timestamp of when the stage 5 nurture email was sent to the user, or 1 if the user is unsubscribed from automated emails.',
+      description: 'A JS timestamp of when the stage 5 nurture email was sent to the user.'
     },
+
 
     //  ╔═╗╔╦╗╔╗ ╔═╗╔╦╗╔═╗
     //  ║╣ ║║║╠╩╗║╣  ║║╚═╗

@@ -53,8 +53,6 @@ import {
   HOST_OSQUERY_DATA,
 } from "utilities/constants";
 
-import { Platform } from "interfaces/platform";
-
 import Spinner from "components/Spinner";
 import TabsWrapper from "components/TabsWrapper";
 import MainContent from "components/MainContent";
@@ -64,10 +62,7 @@ import {
   AppInstallDetailsModal,
   IAppInstallDetails,
 } from "components/ActivityDetails/InstallDetails/AppInstallDetails/AppInstallDetails";
-import {
-  SoftwareInstallDetailsModal,
-  IPackageInstallDetails,
-} from "components/ActivityDetails/InstallDetails/SoftwareInstallDetails/SoftwareInstallDetails";
+import { SoftwareInstallDetailsModal } from "components/ActivityDetails/InstallDetails/SoftwareInstallDetails";
 
 import HostSummaryCard from "../cards/HostSummary";
 import AboutCard from "../cards/About";
@@ -177,10 +172,7 @@ const HostDetailsPage = ({
   const [selectedPolicy, setSelectedPolicy] = useState<IHostPolicy | null>(
     null
   );
-  const [
-    packageInstallDetails,
-    setPackageInstallDetails,
-  ] = useState<IPackageInstallDetails | null>(null);
+  const [softwareInstallUuid, setSoftwareInstallUuid] = useState("");
   const [
     appInstallDetails,
     setAppInstallDetails,
@@ -585,29 +577,15 @@ const HostDetailsPage = ({
           setScriptDetailsId(details?.script_execution_id || "");
           break;
         case "installed_software":
-          setPackageInstallDetails({
-            ...details,
-            // FIXME: It seems like the backend is not using the correct display name when it returns
-            // upcoming install activities. As a workaround, we'll prefer the display name from
-            // the host object if it's available.
-            host_display_name:
-              host?.display_name || details?.host_display_name || "",
-          });
+          setSoftwareInstallUuid(details?.install_uuid || "");
           break;
         case "installed_app_store_app":
-          setAppInstallDetails({
-            ...details,
-            // FIXME: It seems like the backend is not using the correct display name when it returns
-            // upcoming install activities. As a workaround, we'll prefer the display name from
-            // the host object if it's available.
-            host_display_name:
-              host?.display_name || details?.host_display_name || "",
-          });
+          setAppInstallDetails({ ...details });
           break;
         default: // do nothing
       }
     },
-    [host?.display_name]
+    []
   );
 
   const onLabelClick = (label: ILabel) => {
@@ -640,7 +618,7 @@ const HostDetailsPage = ({
   }, [refetchPastActivities, refetchUpcomingActivities]);
 
   const onCancelSoftwareInstallDetailsModal = useCallback(() => {
-    setPackageInstallDetails(null);
+    setSoftwareInstallUuid("");
   }, []);
 
   const onCancelAppInstallDetailsModal = useCallback(() => {
@@ -923,11 +901,8 @@ const HostDetailsPage = ({
             <TabPanel>
               <SoftwareCard
                 id={host.id}
-                platform={host.platform as Platform} // TODO - typing
                 softwareUpdatedAt={host.software_updated_at}
-                hostCanInstallSoftware={
-                  !!host.orbit_version || isIosOrIpadosHost
-                }
+                isFleetdHost={!!host.orbit_version}
                 isSoftwareEnabled={featuresConfig?.enable_software_inventory}
                 router={router}
                 queryParams={parseHostSoftwareQueryParams(location.query)}
@@ -1051,9 +1026,9 @@ const HostDetailsPage = ({
             onCancel={onCancelScriptDetailsModal}
           />
         )}
-        {!!packageInstallDetails && (
+        {!!softwareInstallUuid && (
           <SoftwareInstallDetailsModal
-            details={packageInstallDetails}
+            installUuid={softwareInstallUuid}
             onCancel={onCancelSoftwareInstallDetailsModal}
           />
         )}

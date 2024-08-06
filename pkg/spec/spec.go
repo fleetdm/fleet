@@ -26,7 +26,6 @@ type Group struct {
 	Packs    []*fleet.PackSpec
 	Labels   []*fleet.LabelSpec
 	Policies []*fleet.PolicySpec
-	Software []*fleet.SoftwarePackageSpec
 	// This needs to be interface{} to allow for the patch logic. Otherwise we send a request that looks to the
 	// server like the user explicitly set the zero values.
 	AppConfig              interface{}

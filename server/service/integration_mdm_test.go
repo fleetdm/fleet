@@ -1624,42 +1624,6 @@ func (s *integrationMDMTestSuite) TestDiskEncryptionSharedSetting() {
 	checkConfigSetSucceeds()
 }
 
-func (s *integrationMDMTestSuite) TestEscrowBuddyBackwardsCompat() {
-	t := s.T()
-	ctx := context.Background()
-
-	// create a host
-	host, _ := createHostThenEnrollMDM(s.ds, s.server.URL, t)
-	orbitKey := setOrbitEnrollment(t, host, s.ds)
-	host.OrbitNodeKey = &orbitKey
-
-	// install a filevault profile for that host
-	acResp := appConfigResponse{}
-	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-		"mdm": { "enable_disk_encryption": true }
-  }`), http.StatusOK, &acResp)
-	assert.True(t, acResp.MDM.EnableDiskEncryption.Value)
-
-	// set the status as non-decryptable so a notification should be sent
-	err := s.ds.SetOrUpdateHostDiskEncryptionKey(ctx, host.ID, "", "", ptr.Bool(false))
-	require.NoError(t, err)
-
-	// notification is false because the escrow buddy capability is not set
-	orbitConfigResp := orbitGetConfigResponse{}
-	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host.OrbitNodeKey)), http.StatusOK, &orbitConfigResp)
-	require.False(t, orbitConfigResp.Notifications.RotateDiskEncryptionKey)
-
-	// send the request again, this time with the right header
-	orbitConfigResp = orbitGetConfigResponse{}
-	res := s.DoRawWithHeaders("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host.OrbitNodeKey)), http.StatusOK, map[string]string{
-		"Authorization":          fmt.Sprintf("Bearer %s", s.token),
-		fleet.CapabilitiesHeader: string(fleet.CapabilityEscrowBuddy),
-	})
-	err = json.NewDecoder(res.Body).Decode(&orbitConfigResp)
-	require.NoError(t, err)
-	require.True(t, orbitConfigResp.Notifications.RotateDiskEncryptionKey)
-}
-
 func (s *integrationMDMTestSuite) TestMDMAppleHostDiskEncryption() {
 	t := s.T()
 	ctx := context.Background()
@@ -1765,7 +1729,7 @@ func (s *integrationMDMTestSuite) TestMDMAppleHostDiskEncryption() {
 	require.NotNil(t, getHostResp.Host.MDM.MacOSSettings.DiskEncryption)
 	require.Equal(t, fleet.DiskEncryptionActionRequired, *getHostResp.Host.MDM.MacOSSettings.DiskEncryption)
 	require.NotNil(t, getHostResp.Host.MDM.MacOSSettings.ActionRequired)
-	require.Equal(t, fleet.ActionRequiredRotateKey, *getHostResp.Host.MDM.MacOSSettings.ActionRequired)
+	require.Equal(t, fleet.ActionRequiredLogOut, *getHostResp.Host.MDM.MacOSSettings.ActionRequired)
 	require.NotNil(t, getHostResp.Host.MDM.OSSettings)
 	require.NotNil(t, getHostResp.Host.MDM.OSSettings.DiskEncryption.Status)
 	require.Equal(t, fleet.DiskEncryptionActionRequired, *getHostResp.Host.MDM.OSSettings.DiskEncryption.Status)
@@ -2555,6 +2519,36 @@ func (s *integrationMDMTestSuite) TestEnrollOrbitAfterDEPSync() {
 	got, err = s.ds.LoadHostByNodeKey(ctx, osqueryResp.NodeKey)
 	require.NoError(t, err)
 	require.Equal(t, h.ID, got.ID)
+}
+
+func (s *integrationMDMTestSuite) TestDiskEncryptionRotation() {
+	t := s.T()
+	h := createOrbitEnrolledHost(t, "darwin", "h", s.ds)
+
+	// false by default
+	resp := orbitGetConfigResponse{}
+	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *h.OrbitNodeKey)), http.StatusOK, &resp)
+	require.False(t, resp.Notifications.RotateDiskEncryptionKey)
+
+	// create an auth token for h
+	token := "much_valid"
+	mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+		_, err := db.ExecContext(context.Background(), `INSERT INTO host_device_auth (host_id, token) VALUES (?, ?)`, h.ID, token)
+		return err
+	})
+
+	tokRes := s.DoRawNoAuth("POST", "/api/latest/fleet/device/"+token+"/rotate_encryption_key", nil, http.StatusOK)
+	tokRes.Body.Close()
+
+	// true after the POST request
+	resp = orbitGetConfigResponse{}
+	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *h.OrbitNodeKey)), http.StatusOK, &resp)
+	require.True(t, resp.Notifications.RotateDiskEncryptionKey)
+
+	// false on following requests
+	resp = orbitGetConfigResponse{}
+	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *h.OrbitNodeKey)), http.StatusOK, &resp)
+	require.False(t, resp.Notifications.RotateDiskEncryptionKey)
 }
 
 func (s *integrationMDMTestSuite) TestFleetdConfiguration() {
@@ -10326,6 +10320,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 			extraAvailable: 1},
 	}
 
+	expectedInstalls := 1
 	for name, install := range installs {
 		t.Run(name, func(t *testing.T) {
 
@@ -10341,21 +10336,6 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 			s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", "pending", "team_id",
 				strconv.Itoa(int(team.ID)), "software_title_id", strconv.Itoa(int(titleID)))
 			require.Equal(t, 1, countResp.Count)
-
-			// Get pending activity
-			var hostActivitiesResp listHostUpcomingActivitiesResponse
-			s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming", installHost.ID),
-				nil, http.StatusOK, &hostActivitiesResp)
-			activitiesToString := func(activities []*fleet.Activity) []string {
-				var res []string
-				for _, activity := range activities {
-					res = append(res, fmt.Sprintf("%+v", activity))
-				}
-				return res
-			}
-			require.Len(t, hostActivitiesResp.Activities, 1, "got activities: %v", activitiesToString(hostActivitiesResp.Activities))
-			assert.Equal(t, hostActivitiesResp.Activities[0].Type, fleet.ActivityInstalledAppStoreApp{}.ActivityName())
-			assert.EqualValues(t, 1, hostActivitiesResp.Count)
 
 			// Simulate successful installation on the host
 			cmd, err = mdmClient.Idle()
@@ -10374,11 +10354,12 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 			listResp = listHostsResponse{}
 			s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "software_status", "installed", "team_id",
 				strconv.Itoa(int(team.ID)), "software_title_id", strconv.Itoa(int(titleID)))
-			assert.Len(t, listResp.Hosts, 1)
+			assert.Len(t, listResp.Hosts, expectedInstalls)
 			countResp = countHostsResponse{}
 			s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", "installed", "team_id",
 				strconv.Itoa(int(team.ID)), "software_title_id", strconv.Itoa(int(titleID)))
-			assert.Equal(t, 1, countResp.Count)
+			assert.Equal(t, expectedInstalls, countResp.Count)
+			expectedInstalls++
 
 			s.lastActivityMatches(
 				fleet.ActivityInstalledAppStoreApp{}.ActivityName(),

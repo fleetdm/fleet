@@ -69,7 +69,7 @@ module.exports = {
       compiledPagePartialsAppPath: sails.config.builtStaticContent.compiledPagePartialsAppPath,
       pageTitleForMeta: (
         thisPage.title !== 'Readme.md' ? thisPage.title + ' | Fleet documentation'// « custom meta title for this page, if provided in markdown
-        : 'Documentation' // « otherwise we're on the landing page for this section of the site, so we'll follow the title format of other top-level pages
+        : 'Documentation | Fleet' // « otherwise we're on the landing page for this section of the site, so we'll follow the title format of other top-level pages
       ),
       pageDescriptionForMeta: (
         thisPage.meta.description ? thisPage.meta.description // « custom meta description for this page, if provided in markdown

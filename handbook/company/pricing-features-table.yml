@@ -226,7 +226,6 @@
   tier: Premium
   jamfProHasFeature: appleOnly
   jamfProtectHasFeature: no
-  isExperimental: yes
   usualDepartment: IT
   productCategories: [Device management]
   pricingTableCategories: [Device management]
@@ -248,7 +247,6 @@
   tier: Premium
   jamfProHasFeature: yes
   jamfProtectHasFeature: no
-  isExperimental: yes
   usualDepartment: IT
   productCategories: [Device management]
   pricingTableCategories: [Device management]
@@ -691,7 +689,6 @@
   tier: Premium
   jamfProHasFeature: no
   jamfProtectHasFeature: no
-  isExperimental: yes
   productCategories: [Endpoint operations]
   pricingTableCategories: [Endpoint operations]
 #
@@ -1102,7 +1099,7 @@
 #  ╚╗╔╝╠═╣╠╦╝║╠═╣╠╩╗║  ║╣   ╠═╣║ ╦║╣ ║║║ ║   ╚╗╔╝║╣ ╠╦╝╚═╗║║ ║║║║╚═╗
 #   ╚╝ ╩ ╩╩╚═╩╩ ╩╚═╝╩═╝╚═╝  ╩ ╩╚═╝╚═╝╝╚╝ ╩    ╚╝ ╚═╝╩╚═╚═╝╩╚═╝╝╚╝╚═╝
 - industryName: Variable agent versions
-  description: Manage agents remotely by setting different versions per-baseline.
+  descrption: Manage agents remotely by setting different versions per-baseline.
   documentationUrl: https://fleetdm.com/docs/configuration/agent-configuration#configure-fleetd-update-channels
   tier: Premium
   jamfProHasFeature: no
@@ -1480,18 +1477,3 @@
   usualDepartment: IT
   productCategories: [Device management]
   pricingTableCategories: [Integrations]
-#
-#  ╔╦╗╦═╗╦╔═╗╔═╗╔═╗╦═╗  ╔═╗  ╦ ╦╔═╗╦═╗╦╔═╔═╗╦  ╔═╗╦ ╦  ╔╗ ╔═╗╔═╗╔═╗╔╦╗  ╔═╗╔╗╔  ╔═╗  
-#   ║ ╠╦╝║║ ╦║ ╦║╣ ╠╦╝  ╠═╣  ║║║║ ║╠╦╝╠╩╗╠╣ ║  ║ ║║║║  ╠╩╗╠═╣╚═╗║╣  ║║  ║ ║║║║  ╠═╣  
-#   ╩ ╩╚═╩╚═╝╚═╝╚═╝╩╚═  ╩ ╩  ╚╩╝╚═╝╩╚═╩ ╩╚  ╩═╝╚═╝╚╩╝  ╚═╝╩ ╩╚═╝╚═╝═╩╝  ╚═╝╝╚╝  ╩ ╩  
-#  ╔═╗╔═╗╦╦  ╦╔╗╔╔═╗  ╔═╗╔═╗╦  ╦╔═╗╦ ╦                                               
-#  ╠╣ ╠═╣║║  ║║║║║ ╦  ╠═╝║ ║║  ║║  ╚╦╝                                               
-#  ╚  ╩ ╩╩╩═╝╩╝╚╝╚═╝  ╩  ╚═╝╩═╝╩╚═╝ ╩                                                
-- industryName: Trigger a workflow based on a failing policy
-  documentationUrl: https://fleetdm.com/docs/using-fleet/automations#policy-automations
-  productCategories: [Endpoint operations,Device management]
-  pricingTableCategories: [Integrations]
-  usualDepartment: IT
-  tier: Free
-  jamfProHasFeature: yes
-  jamfProtectHasFeature: no

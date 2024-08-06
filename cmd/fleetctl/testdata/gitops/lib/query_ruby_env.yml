@@ -1,2 +1,0 @@
-- name: query_ruby
-  query: select ${QUERY_VAR}

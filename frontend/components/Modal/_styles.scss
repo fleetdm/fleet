@@ -16,7 +16,7 @@
     }
   }
 
-  &__content-wrapper {
+  &__content {
     margin-top: $pad-large;
     font-size: $x-small;
 
@@ -99,22 +99,5 @@
     &__auto {
       width: auto;
     }
-  }
-
-  // these styles are for the modal content when it is disabled
-  &__content-wrapper-disabled {
-    position: relative;
-  }
-
-  &__content-disabled {
-    transition: opacity 150ms ease-in-out;
-    opacity: 0.5; // this adds a disabled effect to the modal content
-  }
-
-  &__disabled-overlay {
-    position: absolute;
-    height: 100%;
-    width: 100%;
-    z-index: 1000;
   }
 }

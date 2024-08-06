@@ -396,7 +396,6 @@ func processFailingHostExistingCalendarEvent(
 
 	// Function to generate calendar event body.
 	var generatedTag string
-	var newETag string
 	var genBodyFn fleet.CalendarGenBodyFn = func(conflict bool) (string, bool, error) {
 		var body string
 		body, generatedTag = calendar.GenerateCalendarEventBody(ctx, ds, orgName, host, policyIDtoPolicy, conflict, logger)
@@ -410,7 +409,7 @@ func processFailingHostExistingCalendarEvent(
 		updatedBodyTag := getBodyTag(ctx, ds, host, policyIDtoPolicy, logger)
 
 		if currentBodyTag != updatedBodyTag && updatedBodyTag != "" {
-			newETag, err = userCalendar.UpdateEventBody(calendarEvent, genBodyFn)
+			err = userCalendar.UpdateEventBody(calendarEvent, genBodyFn)
 			if err != nil {
 				return fmt.Errorf("update event body: %w", err)
 			}
@@ -441,8 +440,8 @@ func processFailingHostExistingCalendarEvent(
 	}
 
 	if updated {
-		if generatedTag != "" && newETag != "" {
-			err = updatedEvent.SaveDataItems("body_tag", generatedTag, "etag", newETag)
+		if generatedTag != "" {
+			err = updatedEvent.SaveBodyTag(generatedTag)
 			if err != nil {
 				return fmt.Errorf("save calendar event body tag: %w", err)
 			}
@@ -624,7 +623,7 @@ func attemptCreatingEventOnUserCalendar(
 		var dee fleet.DayEndedError
 		switch {
 		case err == nil:
-			err = calendarEvent.SaveDataItems("body_tag", generatedTag)
+			err = calendarEvent.SaveBodyTag(generatedTag)
 			if err != nil {
 				return nil, err
 			}

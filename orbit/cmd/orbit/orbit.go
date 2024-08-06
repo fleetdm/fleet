@@ -870,6 +870,7 @@ func main() {
 			orbitClient.RegisterConfigReceiver(update.ApplyNudgeConfigReceiverMiddleware(update.NudgeConfigFetcherOptions{
 				UpdateRunner: updateRunner, RootDir: c.String("root-dir"), Interval: nudgeLaunchInterval,
 			}))
+			orbitClient.RegisterConfigReceiver(update.ApplyDiskEncryptionRunnerMiddleware())
 			orbitClient.RegisterConfigReceiver(update.ApplySwiftDialogDownloaderMiddleware(updateRunner))
 		case "windows":
 			orbitClient.RegisterConfigReceiver(update.ApplyWindowsMDMEnrollmentFetcherMiddleware(windowsMDMEnrollmentCommandFrequency, orbitHostInfo.HardwareUUID, orbitClient))
@@ -1218,15 +1219,6 @@ func main() {
 
 		softwareRunner := installer.NewRunner(orbitClient, r.ExtensionSocketPath(), scriptsEnabledFn)
 		orbitClient.RegisterConfigReceiver(softwareRunner)
-
-		if runtime.GOOS == "darwin" {
-			log.Info().Msgf("orbitClient.GetServerCapabilities() %+v", orbitClient.GetServerCapabilities())
-			if orbitClient.GetServerCapabilities().Has(fleet.CapabilityEscrowBuddy) {
-				orbitClient.RegisterConfigReceiver(update.NewEscrowBuddyRunner(updateRunner, 5*time.Minute))
-			} else {
-				orbitClient.RegisterConfigReceiver(update.ApplyDiskEncryptionRunnerMiddleware())
-			}
-		}
 
 		// Install a signal handler
 		ctx, cancel := context.WithCancel(context.Background())
