@@ -1,3 +1,7 @@
+## Orbit 1.30.0 (Aug 05, 2024)
+
+* Use Escrow Buddy to rotate FileVault keys on macOS
+
 ## Orbit 1.29.0 (Jul 24, 2024)
 
 * Fixed a startup bug by performing an early restart of orbit if an agent options setting has changed.

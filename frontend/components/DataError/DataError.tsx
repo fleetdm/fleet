@@ -15,7 +15,7 @@ interface IDataErrorProps {
   children?: React.ReactNode;
   card?: boolean;
   className?: string;
-  // flag to use the updated DataError design
+  /** Flag to use the updated DataError design */
   useNew?: boolean;
 }
 
