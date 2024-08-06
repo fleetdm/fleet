@@ -145,11 +145,9 @@ All new infrastructure at Fleet is first approved by the E-group. Currently appr
 
 Additional services:
 
-1. HTTP server at [fleetdm.com](https://fleetdm.com/).
-- When a public HTTP server is required to broker information, [Digital Experience](https://fleetdm.com/handbook/digital-experience) adds the functionality to the existing fleetdm.com HTTP server.
+1. **HTTP server at [fleetdm.com](https://fleetdm.com/)**. When a public HTTP server is required to broker information, [Digital Experience](https://fleetdm.com/handbook/digital-experience) adds the functionality to the existing fleetdm.com HTTP server.
 
-2. Terraform submodules in monorepo for [AWS](https://github.com/fleetdm/fleet/tree/main/infrastructure/dogfood/terraform/aws) and [GCP](https://github.com/fleetdm/fleet/tree/main/infrastructure/dogfood/terraform/gcp).
--  Submodules provided by Fleet to enable configuration of services required to securely scale Fleet to tens of thousands of hosts. These services require privleged access to cloud resources, and their composition and configuration is unique for ecah deployment.
+2. **Terraform submodules in monorepo for [AWS](https://github.com/fleetdm/fleet/tree/main/infrastructure/dogfood/terraform/aws) and [GCP](https://github.com/fleetdm/fleet/tree/main/infrastructure/dogfood/terraform/gcp)**. Submodules provided by Fleet to enable configuration of services required to securely scale Fleet to tens of thousands of hosts. These services require privleged access to cloud resources, and their composition and configuration is unique for ecah deployment.
 
 
 ## Why not continuously generate REST API reference docs from javadoc-style code comments?
