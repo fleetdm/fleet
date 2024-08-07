@@ -214,7 +214,7 @@ func main() {
 
 		flagDir, err = filepath.Abs(flagDir)
 		if err != nil {
-			log.Fatal("abs path: %s", err)
+			log.Fatalf("abs path: %s", err)
 		}
 
 		fmt.Printf(`You can set the following on your Fleet configuration:
