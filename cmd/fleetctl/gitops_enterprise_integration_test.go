@@ -23,7 +23,7 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-func TestEnterpriseIntegrationsGitops(t *testing.T) {
+func TestIntegrationsEnterpriseGitops(t *testing.T) {
 	testingSuite := new(enterpriseIntegrationGitopsTestSuite)
 	testingSuite.suite = &testingSuite.Suite
 	suite.Run(t, testingSuite)
