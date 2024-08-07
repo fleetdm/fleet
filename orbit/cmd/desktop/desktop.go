@@ -357,7 +357,6 @@ func main() {
 				// if we have the file, but we're enrolled to Fleet, then we need to remove the file
 				// and not run the migrator as we're already in Fleet
 				shouldRunMigrator := sum.Notifications.NeedsMDMMigration || sum.Notifications.RenewEnrollmentProfile || migrationInProgress
-				log.Debug().Bool("shouldRunMigrator", shouldRunMigrator).Bool("migrateFile", migrationInProgress).Bool("needsMDMMigration", sum.Notifications.NeedsMDMMigration).Msg("JVE_LOG: checking if we should run migrator")
 
 				if runtime.GOOS == "darwin" && shouldRunMigrator && mdmMigrator.CanRun() {
 					enrolled, enrollURL, err := profiles.IsEnrolledInMDM()
@@ -374,9 +373,7 @@ func main() {
 						log.Error().Err(err).Msg("comparing MDM server URLs")
 						continue
 					}
-					log.Debug().Msg("JVE_LOG: checking if enrolled in fleet")
 					if !enrolledIntoFleet {
-						log.Debug().Msg("JVE_LOG: not enrolled in fleet")
 						// isUnmanaged captures two important bits of information:
 						//
 						// - The notification coming from the server, which is based on information that's
@@ -413,10 +410,8 @@ func main() {
 						}
 					}
 				} else {
-					log.Debug().Bool("canRun", mdmMigrator.CanRun()).Msg("JVE_LOG: disabling menu item")
 					migrateMDMItem.Disable()
 					migrateMDMItem.Hide()
-					log.Debug().Bool("canRun", mdmMigrator.CanRun()).Msg("JVE_LOG: removed migration file")
 				}
 			}
 		}()
@@ -456,21 +451,6 @@ func main() {
 	}
 
 	systray.Run(onReady, onExit)
-}
-
-func doesMigrationFileExist() bool {
-	var migrateFile bool
-	_, err := os.Stat(constant.MigrationFileName)
-	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			log.Debug().Msg("migrate file not found")
-		}
-		log.Err(err).Msg("stating migration file")
-	}
-	if err == nil {
-		migrateFile = true
-	}
-	return migrateFile
 }
 
 type mdmMigrationHandler struct {

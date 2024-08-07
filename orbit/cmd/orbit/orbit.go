@@ -1370,8 +1370,7 @@ type desktopRunner struct {
 	// interruptCh is closed when interrupt is triggered.
 	interruptCh chan struct{} //
 	// executeDoneCh is closed when execute returns.
-	executeDoneCh     chan struct{}
-	migrationFilePath string
+	executeDoneCh chan struct{}
 }
 
 func newDesktopRunner(

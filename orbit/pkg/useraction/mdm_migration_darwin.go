@@ -381,13 +381,9 @@ func (m *swiftDialogMDMMigrator) renderMigration() error {
 			if err := m.handler.ShowInstructions(); err != nil {
 				return err
 			}
-			log.Debug().Bool("manual", isManual).Str("migrationType", migrationType).Msg("JVE_LOG: opened my device page, returning from renderMigration")
 			return nil
 		case constant.MDMMigrationTypeADE:
-			log.Debug().Msg("JVE_LOG: TODO")
-
 		default:
-			log.Debug().Msg("JVE_LOG: no migration file found")
 		}
 
 		if !m.props.IsUnmanaged {
