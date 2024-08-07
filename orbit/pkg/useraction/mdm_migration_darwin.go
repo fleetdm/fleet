@@ -14,6 +14,7 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/migration"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/profiles"
 	"github.com/fleetdm/fleet/v4/pkg/file"
@@ -340,10 +341,18 @@ func (m *swiftDialogMDMMigrator) waitForUnenrollment() error {
 func (m *swiftDialogMDMMigrator) renderMigration() error {
 	// TODO(JVE): should this be passed as a prop?
 	log.Debug().Msg("checking manual enrollment status")
-	isManual, err := profiles.IsManuallyEnrolledInMDM()
+	manualProfileCheck, err := profiles.IsManuallyEnrolledInMDM()
 	if err != nil {
 		return err
 	}
+
+	// Check if we're in a manual migration.
+	migrationType, err := m.mrw.GetMigrationType()
+	if err != nil {
+		log.Error().Err(err).Msg("getting migration type")
+	}
+
+	isManual := manualProfileCheck || migrationType == constant.MDMMigrationTypeManual
 
 	message, flags, err := m.getMessageAndFlags(isManual)
 	if err != nil {
@@ -364,13 +373,8 @@ func (m *swiftDialogMDMMigrator) renderMigration() error {
 		// If we have the migration file and this is a manual migration, we should just send the
 		// user straight to the My device page
 
-		migrationType, err := m.mrw.GetMigrationType()
-		if err != nil {
-			log.Error().Err(err).Msg("getting migration type")
-		}
-
 		switch migrationType {
-		case "manual":
+		case constant.MDMMigrationTypeManual:
 			// The migration file only exists if we successfully hit the webhook
 			log.Info().Msg("showing instructions")
 
@@ -379,7 +383,7 @@ func (m *swiftDialogMDMMigrator) renderMigration() error {
 			}
 			log.Debug().Bool("manual", isManual).Str("migrationType", migrationType).Msg("JVE_LOG: opened my device page, returning from renderMigration")
 			return nil
-		case "ade":
+		case constant.MDMMigrationTypeADE:
 			log.Debug().Msg("JVE_LOG: TODO")
 
 		default:
@@ -418,7 +422,7 @@ func (m *swiftDialogMDMMigrator) renderMigration() error {
 				}
 			}
 
-			if err := m.mrw.SetMigrationFile("manual"); err != nil {
+			if err := m.mrw.SetMigrationFile(constant.MDMMigrationTypeManual); err != nil {
 				log.Error().Err(err).Msg("set migration file")
 			}
 
