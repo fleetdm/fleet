@@ -96,6 +96,9 @@ func (s *commonFileStore) Cleanup(ctx context.Context, usedFileIDs []string) (in
 		return 0, ctxerr.Wrapf(ctx, err, "listing %s in S3 store", s.fileLabel)
 	}
 
+	// TODO(mna): there is an inherent risk that we could delete files that were
+	// added between the query to list used IDs and now. We could minimize that
+	// risk by checking that the S3 file is older than a few seconds.
 	var toDeleteKeys []*s3.ObjectIdentifier
 	for _, item := range page.Contents {
 		if item.Key == nil {

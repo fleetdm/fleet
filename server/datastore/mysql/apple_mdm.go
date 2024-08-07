@@ -3126,6 +3126,7 @@ func (ds *Datastore) GetMDMAppleBootstrapPackageBytes(ctx context.Context, token
 
 		// TODO: optimize memory usage by supporting a streaming approach
 		// throughout the API (we have a similar issue with software installers).
+		// Currently we load everything in memory and those can be quite big.
 		bp.Bytes, err = io.ReadAll(rc)
 		if err != nil {
 			return nil, ctxerr.Wrapf(ctx, err, "reading bootstrap package %s from S3", pkgID)
@@ -3233,6 +3234,27 @@ func (ds *Datastore) GetMDMAppleBootstrapPackageMeta(ctx context.Context, teamID
 		return nil, ctxerr.Wrap(ctx, err, "get bootstrap package meta")
 	}
 	return &bp, nil
+}
+
+func (ds *Datastore) CleanupUnusedBootstrapPackages(ctx context.Context, pkgStore fleet.MDMBootstrapPackageStore) error {
+	if pkgStore == nil {
+		// no-op in this case, possible if not running with a Premium license or
+		// configured S3 storage
+		return nil
+	}
+
+	// get the list of bootstrap package hashes that are in use
+	var shaIDs [][]byte
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &shaIDs, `SELECT DISTINCT sha256 FROM mdm_apple_bootstrap_packages`); err != nil {
+		return ctxerr.Wrap(ctx, err, "get list of bootstrap packages in use")
+	}
+	var pkgIDs []string
+	for _, sha := range shaIDs {
+		pkgIDs = append(pkgIDs, hex.EncodeToString(sha))
+	}
+
+	_, err := pkgStore.Cleanup(ctx, pkgIDs)
+	return ctxerr.Wrap(ctx, err, "cleanup unused bootstrap packages")
 }
 
 func (ds *Datastore) CleanupDiskEncryptionKeysOnTeamChange(ctx context.Context, hostIDs []uint, newTeamID *uint) error {

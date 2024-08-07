@@ -16,6 +16,10 @@ func NewBootstrapPackageStore(config config.S3Config) (*BootstrapPackageStore, e
 		return nil, err
 	}
 	return &BootstrapPackageStore{
-		&commonFileStore{s3store: s3store, pathPrefix: bootstrapPackagePrefix},
+		&commonFileStore{
+			s3store:    s3store,
+			pathPrefix: bootstrapPackagePrefix,
+			fileLabel:  "bootstrap package",
+		},
 	}, nil
 }

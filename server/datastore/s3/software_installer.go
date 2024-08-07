@@ -17,6 +17,10 @@ func NewSoftwareInstallerStore(config config.S3Config) (*SoftwareInstallerStore,
 		return nil, err
 	}
 	return &SoftwareInstallerStore{
-		&commonFileStore{s3store: s3store, pathPrefix: softwareInstallersPrefix},
+		&commonFileStore{
+			s3store:    s3store,
+			pathPrefix: softwareInstallersPrefix,
+			fileLabel:  "software installer",
+		},
 	}, nil
 }

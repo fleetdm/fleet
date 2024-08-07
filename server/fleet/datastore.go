@@ -1205,6 +1205,10 @@ type Datastore interface {
 	// bootstrap package in a host.
 	RecordHostBootstrapPackage(ctx context.Context, commandUUID string, hostUUID string) error
 
+	// CleanupUnusedBootstrapPackages will remove bootstrap packages that have no
+	// references to them from the mdm_apple_bootstrap_packages table.
+	CleanupUnusedBootstrapPackages(ctx context.Context, pkgStore MDMBootstrapPackageStore) error
+
 	// GetHostMDMMacOSSetup returns the MDM macOS setup information for the specified host id.
 	GetHostMDMMacOSSetup(ctx context.Context, hostID uint) (*HostMDMMacOSSetup, error)
 

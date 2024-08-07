@@ -885,7 +885,9 @@ func newCleanupsAndAggregationSchedule(
 		schedule.WithJob("cleanup_unused_software_installers", func(ctx context.Context) error {
 			return ds.CleanupUnusedSoftwareInstallers(ctx, softwareInstallStore)
 		}),
-		// TODO(mna): cleanup job for bootstrap packages...
+		schedule.WithJob("cleanup_unused_bootstrap_packages", func(ctx context.Context) error {
+			return ds.CleanupUnusedBootstrapPackages(ctx, bootstrapPackageStore)
+		}),
 	)
 
 	return s, nil
