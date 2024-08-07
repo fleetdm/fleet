@@ -2,9 +2,13 @@
 
 package useraction
 
-import "time"
+import (
+	"time"
 
-func NewMDMMigrator(path string, frequency time.Duration, handler MDMMigratorHandler) MDMMigrator {
+	"github.com/fleetdm/fleet/v4/orbit/pkg/migration"
+)
+
+func NewMDMMigrator(path string, frequency time.Duration, handler MDMMigratorHandler, mrw *migration.ReadWriter) MDMMigrator {
 	return &NoopMDMMigrator{}
 }
 

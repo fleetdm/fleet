@@ -222,6 +222,7 @@ func TestIsEligibleForDEPMigration(t *testing.T) {
 		depProfileResponse      DEPAssignProfileResponseStatus
 		enrolledInThirdPartyMDM bool
 		expected                bool
+		expectedManual          bool
 	}{
 		{
 			name:                    "Eligible for DEP migration",
@@ -230,6 +231,7 @@ func TestIsEligibleForDEPMigration(t *testing.T) {
 			depProfileResponse:      DEPAssignProfileResponseSuccess,
 			enrolledInThirdPartyMDM: true,
 			expected:                true,
+			expectedManual:          false,
 		},
 		{
 			name:                    "Not eligible - osqueryHostID nil",
@@ -238,6 +240,7 @@ func TestIsEligibleForDEPMigration(t *testing.T) {
 			depProfileResponse:      DEPAssignProfileResponseSuccess,
 			enrolledInThirdPartyMDM: true,
 			expected:                false,
+			expectedManual:          false,
 		},
 		{
 			name:                    "Not eligible - not DEP assigned to Fleet",
@@ -246,6 +249,7 @@ func TestIsEligibleForDEPMigration(t *testing.T) {
 			depProfileResponse:      DEPAssignProfileResponseSuccess,
 			enrolledInThirdPartyMDM: true,
 			expected:                false,
+			expectedManual:          false,
 		},
 		{
 			name:                    "Not eligible - not enrolled in third-party MDM",
@@ -254,6 +258,7 @@ func TestIsEligibleForDEPMigration(t *testing.T) {
 			depProfileResponse:      DEPAssignProfileResponseSuccess,
 			enrolledInThirdPartyMDM: false,
 			expected:                false,
+			expectedManual:          false,
 		},
 		{
 			name:                    "Not eligible - not DEP assigned and DEP profile failed",
@@ -262,6 +267,7 @@ func TestIsEligibleForDEPMigration(t *testing.T) {
 			depProfileResponse:      DEPAssignProfileResponseNotAccessible,
 			enrolledInThirdPartyMDM: true,
 			expected:                false,
+			expectedManual:          true,
 		},
 		{
 			name:                    "Not eligible - DEP assigned and DEP profile failed",
@@ -270,6 +276,7 @@ func TestIsEligibleForDEPMigration(t *testing.T) {
 			depProfileResponse:      DEPAssignProfileResponseFailed,
 			enrolledInThirdPartyMDM: true,
 			expected:                false,
+			expectedManual:          false,
 		},
 		{
 			name:                    "Not eligible - DEP assigned but not response yet",
@@ -278,6 +285,7 @@ func TestIsEligibleForDEPMigration(t *testing.T) {
 			depProfileResponse:      "",
 			enrolledInThirdPartyMDM: true,
 			expected:                false,
+			expectedManual:          false,
 		},
 		{
 			name:                    "Not eligible - DEP assigned but not accessible",
@@ -286,6 +294,16 @@ func TestIsEligibleForDEPMigration(t *testing.T) {
 			depProfileResponse:      DEPAssignProfileResponseNotAccessible,
 			enrolledInThirdPartyMDM: true,
 			expected:                false,
+			expectedManual:          false,
+		},
+		{
+			name:                    "Manual migration eligible - enrolled in 3rd party, but not DEP",
+			osqueryHostID:           ptr.String("some-id"),
+			depAssignedToFleet:      ptr.Bool(false),
+			depProfileResponse:      "",
+			enrolledInThirdPartyMDM: true,
+			expected:                false,
+			expectedManual:          true,
 		},
 	}
 
@@ -303,6 +321,7 @@ func TestIsEligibleForDEPMigration(t *testing.T) {
 			}
 
 			require.Equal(t, tc.expected, IsEligibleForDEPMigration(host, mdmInfo, false))
+			require.Equal(t, tc.expectedManual, IsEligibleForManualMigration(host, mdmInfo, false))
 		})
 	}
 }
