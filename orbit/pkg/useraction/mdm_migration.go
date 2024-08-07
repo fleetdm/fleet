@@ -19,7 +19,10 @@ type MDMMigrator interface {
 	ShowInterval() error
 	// Exit tries to stop any processes started by the migrator.
 	Exit()
+	// MigrationFileExists checks if the MDM migration file exists. If the file exists, then an MDM
+	// migration was started but hasn't completed.
 	MigrationFileExists() (bool, error)
+	// RemoveMigrationFile removes the migration file once the MDM migration is complete.
 	RemoveMigrationFile() error
 }
 
