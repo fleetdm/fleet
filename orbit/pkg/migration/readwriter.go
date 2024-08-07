@@ -4,17 +4,20 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 )
 
 type ReadWriter struct {
-	*Reader
+	Path     string
+	FileName string
 }
 
-func NewReadWriter(path string) *ReadWriter {
+func NewReadWriter(path, filename string) *ReadWriter {
 	return &ReadWriter{
-		Reader: &Reader{Path: path},
+		Path:     path,
+		FileName: filepath.Join(path, filename),
 	}
 }
 
@@ -27,7 +30,10 @@ func (rw *ReadWriter) SetMigrationFile(typ string) error {
 			return fmt.Errorf("loading migration file, chmod %q: %w", rw.Path, err)
 		}
 	case errors.Is(err, os.ErrNotExist):
-		if err := os.WriteFile(rw.Path, []byte(typ), constant.DefaultWorldReadableFileMode); err != nil {
+		if err := os.MkdirAll(rw.Path, constant.DefaultDirMode); err != nil {
+			return fmt.Errorf("creating directory for migration file: %w", err)
+		}
+		if err := os.WriteFile(rw.FileName, []byte(typ), constant.DefaultWorldReadableFileMode); err != nil {
 			return fmt.Errorf("writing migration file: %w", err)
 		}
 
@@ -38,7 +44,7 @@ func (rw *ReadWriter) SetMigrationFile(typ string) error {
 }
 
 func (rw *ReadWriter) RemoveFile() error {
-	if err := os.Remove(rw.Path); err != nil {
+	if err := os.Remove(rw.FileName); err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			// that's ok, noop
 			return nil
@@ -50,6 +56,52 @@ func (rw *ReadWriter) RemoveFile() error {
 	return nil
 }
 
+func (rw *ReadWriter) GetMigrationType() (string, error) {
+	data, err := rw.read()
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return "", nil
+		}
+	}
+
+	return data, nil
+}
+
+func (rw *ReadWriter) FileExists() (bool, error) {
+	_, err := os.Stat(rw.FileName)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return false, nil
+		}
+
+		return false, err
+	}
+
+	return true, nil
+}
+
+func (rw *ReadWriter) DirExists() (bool, error) {
+	_, err := os.Stat(rw.FileName)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return false, nil
+		}
+
+		return false, err
+	}
+
+	return true, nil
+}
+
+func (rw *ReadWriter) read() (string, error) {
+	data, err := os.ReadFile(rw.FileName)
+	if err != nil {
+		return "", err
+	}
+
+	return string(data), nil
+}
+
 func (rw *ReadWriter) setChmod() error {
-	return os.Chmod(rw.Path, constant.DefaultWorldReadableFileMode)
+	return os.Chmod(rw.FileName, constant.DefaultWorldReadableFileMode)
 }

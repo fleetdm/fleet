@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"path"
 	"path/filepath"
 	"runtime"
 	"time"
@@ -253,7 +252,7 @@ func main() {
 			if err != nil {
 				log.Fatal().Err(err).Msg("failed to get user's home directory")
 			}
-			mrw := migration.NewReadWriter(path.Join(homedir, "Library", constant.MigrationFileName))
+			mrw := migration.NewReadWriter(filepath.Join(homedir, "Library/Caches/com.fleetdm.orbit"), constant.MigrationFileName)
 			_, swiftDialogPath, _ := update.LocalTargetPaths(
 				tufUpdateRoot,
 				"swiftDialog",
