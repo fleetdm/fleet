@@ -105,8 +105,10 @@ const DEFAULT_APP_STORE_APP_MOCK: IAppStoreApp = {
   icon_url: "https://via.placeholder.com/512",
   latest_version: "1.2.3",
   status: {
-    installed: 1,
+    verified: 1,
+    verifying: 4,
     pending: 2,
+    blocked: 0,
     failed: 3,
   },
 };
@@ -164,8 +166,10 @@ const DEFAULT_SOFTWARE_PACKAGE_MOCK: ISoftwarePackage = {
   self_service: false,
   icon_url: null,
   status: {
-    installed: 1,
+    verified: 1,
+    verifying: 4,
     pending: 2,
+    blocked: 0,
     failed: 3,
   },
   install_type: "manual",

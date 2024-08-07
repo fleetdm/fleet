@@ -85,32 +85,51 @@ const STATUS_DISPLAY_OPTIONS: Record<
   verified: {
     displayName: "Verified",
     iconName: "success",
-    tooltip: (
-      <>
-        Fleet installed software on these hosts. Currently, if the software is
-        uninstalled, the &quot;Installed&quot; status won&apos;t be updated.
-      </>
-    ),
+    tooltip: <>Software is installed on these hosts. Fleet verified.</>,
   },
   verifying: {
     displayName: "Verifying",
     iconName: "success-outline", // TODO
-    tooltip: "TODO", // TODO
+    tooltip: (
+      <>
+        Software is installed on these hosts (install script exited with
+        <br /> exit code: 0). Fleet is verifying.
+      </>
+    ),
   },
   pending: {
     displayName: "Pending",
     iconName: "pending-outline",
-    tooltip: "Fleet will install software when these hosts come online.",
+    tooltip: (
+      <>
+        Checking if the software is missing or an older version is
+        <br />
+        installed. If it is, Fleet is installing or will install when the host
+        <br />
+        comes online.
+      </>
+    ),
   },
   blocked: {
     displayName: "Blocked",
     iconName: "pending-outline", // TODO
-    tooltip: "TODO", // TODO
+    tooltip: (
+      <>
+        Pre-install condition wasn&apos;t met.
+        <br /> The query didn&apos;t return results.
+      </>
+      // TODO If the software is a manual install show this copy instead: "Fleet is installing or will install when the host comes online."
+    ),
   },
   failed: {
     displayName: "Failed",
     iconName: "error",
-    tooltip: "Fleet failed to install software on these hosts.",
+    tooltip: (
+      <>
+        These hosts failed to install software.
+        <br /> Click on a host to view error(s).
+      </>
+    ),
   },
 };
 
