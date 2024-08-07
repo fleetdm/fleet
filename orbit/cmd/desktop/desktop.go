@@ -283,13 +283,16 @@ func main() {
 
 		// poll the server to check the policy status of the host and update the
 		// tray icon accordingly
+		const checkInterval = 5 * time.Minute
+		tic := time.NewTicker(checkInterval)
+		defer tic.Stop()
 		go func() {
 			<-deviceEnabledChan
-			tic := time.NewTicker(5 * time.Minute)
-			defer tic.Stop()
 
 			for {
 				<-tic.C
+				// Reset the ticker to the intended interval, in case we reset it to 1ms
+				tic.Reset(checkInterval)
 				sum, err := client.DesktopSummary(tokenReader.GetCached())
 				switch {
 				case err == nil:
@@ -306,7 +309,7 @@ func main() {
 					continue
 				}
 
-				refreshBubble(sum.DesktopSummary, selfServiceItem, myDeviceItem)
+				refreshMenuItems(sum.DesktopSummary, selfServiceItem, myDeviceItem)
 				myDeviceItem.Enable()
 
 				shouldRunMigrator := sum.Notifications.NeedsMDMMigration || sum.Notifications.RenewEnrollmentProfile
@@ -372,23 +375,8 @@ func main() {
 					if err := open.Browser(openURL); err != nil {
 						log.Error().Err(err).Str("url", openURL).Msg("open browser my device")
 					}
-					// Also refresh the device status
-					sum, err := client.DesktopSummary(tokenReader.GetCached())
-					switch {
-					case err == nil:
-						// OK
-					case errors.Is(err, service.ErrMissingLicense):
-						myDeviceItem.SetTitle("My device")
-						continue
-					case errors.Is(err, service.ErrUnauthenticated):
-						disableTray()
-						<-checkToken()
-						continue
-					default:
-						log.Error().Err(err).Msg("get desktop summary")
-						continue
-					}
-					refreshBubble(sum.DesktopSummary, selfServiceItem, myDeviceItem)
+					// Also refresh the device status by forcing the polling ticker to fire
+					tic.Reset(1 * time.Millisecond)
 				case <-transparencyItem.ClickedCh:
 					openURL := client.BrowserTransparencyURL(tokenReader.GetCached())
 					if err := open.Browser(openURL); err != nil {
@@ -399,23 +387,8 @@ func main() {
 					if err := open.Browser(openURL); err != nil {
 						log.Error().Err(err).Str("url", openURL).Msg("open browser self-service")
 					}
-					// Also refresh the device status
-					sum, err := client.DesktopSummary(tokenReader.GetCached())
-					switch {
-					case err == nil:
-						// OK
-					case errors.Is(err, service.ErrMissingLicense):
-						myDeviceItem.SetTitle("My device")
-						continue
-					case errors.Is(err, service.ErrUnauthenticated):
-						disableTray()
-						<-checkToken()
-						continue
-					default:
-						log.Error().Err(err).Msg("get desktop summary")
-						continue
-					}
-					refreshBubble(sum.DesktopSummary, selfServiceItem, myDeviceItem)
+					// Also refresh the device status by forcing the polling ticker to fire
+					tic.Reset(1 * time.Millisecond)
 				case <-migrateMDMItem.ClickedCh:
 					if err := mdmMigrator.Show(); err != nil {
 						go reportError(err, nil)
@@ -435,7 +408,7 @@ func main() {
 	systray.Run(onReady, onExit)
 }
 
-func refreshBubble(sum fleet.DesktopSummary, selfServiceItem *systray.MenuItem, myDeviceItem *systray.MenuItem) {
+func refreshMenuItems(sum fleet.DesktopSummary, selfServiceItem *systray.MenuItem, myDeviceItem *systray.MenuItem) {
 	// Check for null for backward compatibility with an old Fleet server
 	if sum.SelfService != nil && !*sum.SelfService {
 		selfServiceItem.Disable()
