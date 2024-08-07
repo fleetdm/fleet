@@ -68,6 +68,15 @@ Select **Start** and Remote Management window will appear soon:` +
 	"After you start, this window will popup every 15-20 minutes until you finish.",
 ))
 
+// TODO(JVE): remove the temporary URL below
+var mdmManualMigrationTemplate = template.Must(template.New("mdmManualMigrationTemplate").Parse(`
+## Migrate to Fleet
+
+Select **Start** and My device page will appear soon:` +
+	"\n\n![Image showing MDM migration notification](https://jve-images-snicket.ngrok.app/manual-start.png)\n\n" +
+	"After you start, this window will popup every 15 minutes until you finish.",
+))
+
 var errorTemplate = template.Must(template.New("").Parse(`
 ### Something's gone wrong.
 
@@ -329,7 +338,14 @@ func (m *swiftDialogMDMMigrator) waitForUnenrollment() error {
 }
 
 func (m *swiftDialogMDMMigrator) renderMigration() error {
-	message, flags, err := m.getMessageAndFlags()
+	// TODO(JVE): should this be passed as a prop?
+	log.Debug().Msg("checking manual enrollment status")
+	isManual, err := profiles.IsManuallyEnrolledInMDM()
+	if err != nil {
+		return err
+	}
+
+	message, flags, err := m.getMessageAndFlags(isManual)
 	if err != nil {
 		return fmt.Errorf("getting mdm migrator message: %w", err)
 	}
@@ -348,22 +364,6 @@ func (m *swiftDialogMDMMigrator) renderMigration() error {
 		// If we have the migration file and this is a manual migration, we should just send the
 		// user straight to the My device page
 
-		log.Debug().Msg("checking manual enrollment status")
-		manual, err := profiles.IsManuallyEnrolledInMDM()
-		if err != nil {
-			return err
-		}
-
-		// TODO(JVE): check that it was a manual migration in file
-		// mt, err := os.ReadFile("/tmp/migration_required")
-		// if err != nil {
-		// 	if errors.Is(err, os.ErrNotExist) {
-		// 		log.Debug().Msg("migrate file not found")
-		// 	}
-		// 	log.Err(err).Msg("stating migration file")
-		// }
-
-		// migrationType := string(mt)
 		migrationType, err := m.mrw.GetMigrationType()
 		if err != nil {
 			log.Error().Err(err).Msg("getting migration type")
@@ -377,7 +377,7 @@ func (m *swiftDialogMDMMigrator) renderMigration() error {
 			if err := m.handler.ShowInstructions(); err != nil {
 				return err
 			}
-			log.Debug().Bool("manual", manual).Str("migrationType", migrationType).Msg("JVE_LOG: opened my device page, returning from renderMigration")
+			log.Debug().Bool("manual", isManual).Str("migrationType", migrationType).Msg("JVE_LOG: opened my device page, returning from renderMigration")
 			return nil
 		case "ade":
 			log.Debug().Msg("JVE_LOG: TODO")
@@ -418,19 +418,11 @@ func (m *swiftDialogMDMMigrator) renderMigration() error {
 				}
 			}
 
-			// TODO(JVE): only write if it doesn't exist
-			// var typ []byte
-			// if manual {
-			// 	typ = []byte("manual")
-			// }
-			// if err := os.WriteFile("/tmp/migration_required", typ, 0o644); err != nil {
-			// 	log.Error().Err(err).Msg("writing migration file")
-			// }
 			if err := m.mrw.SetMigrationFile("manual"); err != nil {
 				log.Error().Err(err).Msg("set migration file")
 			}
 
-			if manual {
+			if isManual {
 				log.Info().Msg("showing instructions after unenrollment")
 				if err := m.handler.ShowInstructions(); err != nil {
 					return err
@@ -494,7 +486,7 @@ func (m *swiftDialogMDMMigrator) SetProps(props MDMMigratorProps) {
 	m.props = props
 }
 
-func (m *swiftDialogMDMMigrator) getMessageAndFlags() (*bytes.Buffer, []string, error) {
+func (m *swiftDialogMDMMigrator) getMessageAndFlags(isManual bool) (*bytes.Buffer, []string, error) {
 	vers, err := m.getMacOSMajorVersion()
 	if err != nil {
 		// log error for debugging and continue with default template
@@ -502,6 +494,10 @@ func (m *swiftDialogMDMMigrator) getMessageAndFlags() (*bytes.Buffer, []string, 
 	}
 
 	tmpl := mdmMigrationTemplate
+	if isManual {
+		tmpl = mdmManualMigrationTemplate
+	}
+
 	height := "669"
 	if vers != 0 && vers < 14 {
 		height = "440"
