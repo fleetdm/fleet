@@ -5022,8 +5022,8 @@ func amountHostsByOsqueryVersionDB(ctx context.Context, db sqlx.QueryerContext) 
 	return counts, nil
 }
 
-func numHostsFleetDesktopEnabledDB(ctx context.Context, db sqlx.QueryerContext) (uint, error) {
-	var count uint
+func numHostsFleetDesktopEnabledDB(ctx context.Context, db sqlx.QueryerContext) (int, error) {
+	var count int
 	const stmt = `
 		SELECT osquery_version, count(*) as num_hosts
 		FROM hosts
