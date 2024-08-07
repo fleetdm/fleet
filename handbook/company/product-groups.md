@@ -310,7 +310,7 @@ Before the **🎁🗣 Feature Fest** meeting, the [Customer renewals DRI](https:
 
 All community and contributor requests (non-customer) are left in the inbox. A high priority customer request may be a request that's blocking a customer from getting their job done or a request that's critical for customer renewal.
 
-Before the meeting, the Feature prioritization DRI adds requests from Fleet's roadmap that are planned for the next design sprint. The quarterly roadmap is in the [OKRs spreadsheet](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit?gid=0#gid=0).
+Before the meeting, the Feature prioritization DRI adds requests from Fleet's roadmap that are planned for the next design sprint. The quarterly roadmap is in the [OKRs spreadsheet](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit?gid=1846478041#gid=1846478041&range=393:419).
 
 At the **🎁🗣 Feature Fest** meeting, the Feature prioritization DRI weighs all requests in the inbox. When the team weighs a request, it is immediately prioritized or put to the side (not prioritized).
 
