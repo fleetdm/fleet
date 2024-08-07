@@ -20,6 +20,7 @@ SELECT
 	vap.platform,
 	vap.name,
 	vap.latest_version,
+    vat.self_service,
 	NULLIF(vap.icon_url, '') AS icon_url
 FROM
 	vpp_apps vap
@@ -225,7 +226,7 @@ func (ds *Datastore) InsertVPPAppWithTeam(ctx context.Context, app *fleet.VPPApp
 func (ds *Datastore) GetAssignedVPPApps(ctx context.Context, teamID *uint) (map[fleet.VPPAppID]struct{}, error) {
 	stmt := `
 SELECT
-	adam_id, platform
+	adam_id, platform, self_service
 FROM
 	vpp_apps_teams vat
 WHERE

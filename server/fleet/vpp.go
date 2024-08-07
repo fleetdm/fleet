@@ -22,6 +22,9 @@ type VPPApp struct {
 	IconURL string `db:"icon_url" json:"icon_url"`
 	// Name is the user-facing name of this app.
 	Name string `db:"name" json:"name"`
+	// SelfService specifies if an app installation can be initiated
+	// by the user
+	SelfService bool `db:"self_service" json:"self_service"`
 	// LatestVersion is the latest version of this app.
 	LatestVersion string `db:"latest_version" json:"latest_version"`
 	TeamID        *uint  `db:"-" json:"-"`
@@ -44,6 +47,7 @@ type VPPAppStoreApp struct {
 	LatestVersion string               `db:"latest_version" json:"latest_version"`
 	IconURL       *string              `db:"icon_url" json:"icon_url"`
 	Status        *VPPAppStatusSummary `db:"-" json:"status"`
+	SelfService   bool                 `db:"self_service" json:"self_service"`
 }
 
 // VPPAppStatusSummary represents aggregated status metrics for a VPP app.
