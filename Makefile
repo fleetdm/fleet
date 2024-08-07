@@ -221,6 +221,9 @@ docker-push-release: docker-build-release
 fleetctl-docker: xp-fleetctl
 	docker build -t fleetdm/fleetctl --platform=linux/amd64 -f tools/fleetctl-docker/Dockerfile .
 
+bomutils-docker:
+	cd tools/bomutils-docker && docker build -t fleetdm/bomutils --platform=linux/amd64 -f Dockerfile .
+
 .pre-binary-bundle:
 	rm -rf build/binary-bundle
 	mkdir -p build/binary-bundle/linux

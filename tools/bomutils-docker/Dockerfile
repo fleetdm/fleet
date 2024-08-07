@@ -1,13 +1,13 @@
 FROM debian:stable-slim@sha256:0f116858482fd8222b4f7e9b4cdc9a054051e67fbb8a57bc22651f0d56b45ad8 AS builder
 
 RUN apt-get update
-RUN apt-get install -y build-essential autoconf libxml2-dev libssl-dev zlib1g-dev curl
+RUN apt-get install -y build-essential autoconf libxml2-dev libssl-dev zlib1g-dev curl git
 
-# Install bomutils
-RUN curl -L https://github.com/hogliux/bomutils/archive/0.2.tar.gz > bomutils.tar.gz && \
-    echo "fb1f4ae37045eaa034ddd921ef6e16fb961e95f0364e5d76c9867bc8b92eb8a4  bomutils.tar.gz" | sha256sum --check && \
-    tar -xzf bomutils.tar.gz
-RUN cd bomutils-0.2 && make && make install
+# Build bomutils
+RUN git clone -b master \
+    --depth=1 --no-tags --progress \
+    --no-recurse-submodules https://github.com/hogliux/bomutils.git && \
+    cd bomutils && make && make install
 
 # Install xar
 RUN curl -L https://github.com/mackyle/xar/archive/refs/tags/xar-1.6.1.tar.gz > xar.tar.gz && \
