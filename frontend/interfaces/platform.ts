@@ -109,6 +109,5 @@ export const isAppleDevice = (platform: string) => {
   );
 };
 
-// TODO - improve all platform types to be Platform
-export const isIPadOrIPhone = (platform: string | Platform) =>
+export const isIPadOrIPhone = (platform: string | HostPlatform) =>
   ["ios", "ipados"].includes(platform);

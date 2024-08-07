@@ -11,8 +11,8 @@ import { ISoftwareDropdownFilterVal } from "pages/SoftwarePage/SoftwareTitles/So
 import {
   ApplePlatform,
   APPLE_PLATFORM_DISPLAY_NAMES,
+  HostPlatform,
   isIPadOrIPhone,
-  Platform,
 } from "interfaces/platform";
 
 import TableContainer from "components/TableContainer";
@@ -53,7 +53,7 @@ export const DROPDOWN_OPTIONS = [
 interface IHostSoftwareTableProps {
   tableConfig: any; // TODO: type
   data?: IGetHostSoftwareResponse | IGetDeviceSoftwareResponse;
-  platform: Platform;
+  platform: HostPlatform;
   isLoading: boolean;
   router: InjectedRouter;
   sortHeader: string;
