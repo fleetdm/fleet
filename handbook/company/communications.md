@@ -1217,6 +1217,7 @@ Sometimes numerals seem out of place. If an expression typically spells out the 
 - First impression
 - Third-party integration
 - All-in-one platform
+
 Numbers over 3 digits get commas:
 - 999
 - 1,000
