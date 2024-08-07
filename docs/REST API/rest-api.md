@@ -8901,6 +8901,8 @@ Get a list of all software versions.
 
 ### Get software
 
+> The **new keys/values added in the app management features are experimental** and may change. You can find the upcoming breaking changes [here](https://github.com/fleetdm/fleet/pull/20872/files#diff-7246bc304b15c8865ed8eaa205e9c244d0a0314e4bae60cf553dc06147c38b64R8953-R8958).
+
 Returns information about the specified software. By default, `versions` are sorted in descending order by the `hosts_count` field.
 
 `GET /api/v1/fleet/software/titles/:id`
