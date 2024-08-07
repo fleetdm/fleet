@@ -196,7 +196,7 @@ const HostSoftwareTable = ({
         platformText={APPLE_PLATFORM_DISPLAY_NAMES[platform as ApplePlatform]}
       />
     ) : (
-      <EmptySoftwareTable isNotDetectingSoftware={searchQuery === ""} />
+      <EmptySoftwareTable noSearchQuery={searchQuery === ""} />
     );
   }, [hostSoftwareFilter, platform, searchQuery]);
 

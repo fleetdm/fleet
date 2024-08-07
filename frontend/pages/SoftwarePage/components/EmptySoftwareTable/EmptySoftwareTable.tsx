@@ -13,8 +13,8 @@ export interface IEmptySoftwareTableProps {
   /** tableName is displayed in the search empty state */
   tableName?: string;
   isSoftwareDisabled?: boolean;
-  /** isNotDetectingSoftware renders empty states when no search string is present */
-  isNotDetectingSoftware?: boolean;
+  /** noSearchQuery is true when there is no search string filtering the results */
+  noSearchQuery?: boolean;
   /** isCollectingSoftware is only used on the Dashboard page with a TODO to revisit */
   isCollectingSoftware?: boolean;
 }
@@ -36,7 +36,7 @@ const EmptySoftwareTable = ({
   softwareFilter = "allSoftware",
   tableName = "software",
   isSoftwareDisabled,
-  isNotDetectingSoftware,
+  noSearchQuery,
   isCollectingSoftware,
 }: IEmptySoftwareTableProps): JSX.Element => {
   const softwareTypeText = generateTypeText(tableName, softwareFilter);
@@ -46,7 +46,7 @@ const EmptySoftwareTable = ({
     info: `Expecting to see ${softwareTypeText}? Check back later.`,
   };
 
-  if (isNotDetectingSoftware && softwareFilter === "allSoftware") {
+  if (noSearchQuery && softwareFilter === "allSoftware") {
     emptySoftware.header = "No software detected";
   }
 
