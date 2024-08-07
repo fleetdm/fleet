@@ -1006,7 +1006,7 @@ type SetTeamVPPAppsFunc func(ctx context.Context, teamID *uint, appIDs []fleet.V
 
 type InsertVPPAppWithTeamFunc func(ctx context.Context, app *fleet.VPPApp, teamID *uint) (*fleet.VPPApp, error)
 
-type InsertHostVPPSoftwareInstallFunc func(ctx context.Context, hostID uint, userID uint, appID fleet.VPPAppID, commandUUID string, associatedEventID string) error
+type InsertHostVPPSoftwareInstallFunc func(ctx context.Context, hostID uint, userID uint, appID fleet.VPPAppID, commandUUID string, associatedEventID string, selfService bool) error
 
 type GetPastActivityDataForVPPAppInstallFunc func(ctx context.Context, commandResults *mdm.CommandResults) (*fleet.User, *fleet.ActivityInstalledAppStoreApp, error)
 
@@ -5950,11 +5950,11 @@ func (s *DataStore) InsertVPPAppWithTeam(ctx context.Context, app *fleet.VPPApp,
 	return s.InsertVPPAppWithTeamFunc(ctx, app, teamID)
 }
 
-func (s *DataStore) InsertHostVPPSoftwareInstall(ctx context.Context, hostID uint, userID uint, appID fleet.VPPAppID, commandUUID string, associatedEventID string) error {
+func (s *DataStore) InsertHostVPPSoftwareInstall(ctx context.Context, hostID uint, userID uint, appID fleet.VPPAppID, commandUUID string, associatedEventID string, selfService bool) error {
 	s.mu.Lock()
 	s.InsertHostVPPSoftwareInstallFuncInvoked = true
 	s.mu.Unlock()
-	return s.InsertHostVPPSoftwareInstallFunc(ctx, hostID, userID, appID, commandUUID, associatedEventID)
+	return s.InsertHostVPPSoftwareInstallFunc(ctx, hostID, userID, appID, commandUUID, associatedEventID, selfService)
 }
 
 func (s *DataStore) GetPastActivityDataForVPPAppInstall(ctx context.Context, commandResults *mdm.CommandResults) (*fleet.User, *fleet.ActivityInstalledAppStoreApp, error) {
