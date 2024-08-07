@@ -20,7 +20,7 @@ SELECT
 	vap.platform,
 	vap.name,
 	vap.latest_version,
-    vat.self_service,
+	vat.self_service,
 	NULLIF(vap.icon_url, '') AS icon_url
 FROM
 	vpp_apps vap
