@@ -8568,8 +8568,8 @@ Add a software package to install on macOS, Windows, and Linux (Ubuntu) hosts.
 | post_install_script | string | form | The contents of the script to run after install. If the specified script fails (exit code non-zero) software install will be marked as failed and rolled back. |
 | install | string | form | Install method. Options are `manual` (use Install software to install on each host manually) and `automatic` installed to each host on the team. Default is `manual` |
 | self_service | boolean | form | Self-service software is optional and can be installed by the end user. |
-| labels_include_any | array | form | _Available in Fleet Premium._ Software will only be installed/available for install on hosts that have any of these labels. |
-| labels_exclude_any | array | form | _Available in Fleet Premium._ Software will only be installed/available for install on hosts that don't have any of these labels. |
+| labels_include_any | array | form | _Available in Fleet Premium._ Software will only be installed/available for install on hosts that have any of these labels. Only one of either `labels_include_any` or `labels_exclude_any` can be included in the request. |
+| labels_exclude_any | array | form | _Available in Fleet Premium._ Software will only be installed/available for install on hosts that don't have any of these labels. Only one of either `labels_include_any` or `labels_exclude_any` can be included in the request. |
 
 
 #### Example
