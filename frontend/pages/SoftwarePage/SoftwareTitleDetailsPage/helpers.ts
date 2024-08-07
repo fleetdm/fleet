@@ -25,8 +25,6 @@ export const getPackageCardInfo = (softwareTitle: ISoftwareTitleDetails) => {
         : packageData.latest_version) || DEFAULT_EMPTY_CELL_VALUE,
     uploadedAt: isSoftwarePackage(packageData) ? packageData.uploaded_at : "",
     status: packageData.status,
-    isSelfService: isSoftwarePackage(packageData)
-      ? packageData.self_service
-      : false,
+    isSelfService: packageData.self_service,
   };
 };
