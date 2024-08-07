@@ -443,7 +443,8 @@ func TranslateSoftwareToCPE(
 	nonOvalIterator, err := ds.AllSoftwareIterator(
 		ctx,
 		fleet.SoftwareIterQueryOptions{
-			ExcludedSources: oval.SupportedSoftwareSources,
+			// Also exclude iOS and iPadOS apps until we enable vulnerabilities support for them.
+			ExcludedSources: append(oval.SupportedSoftwareSources, "ios_apps", "ipados_apps"),
 		},
 	)
 	if err != nil {
