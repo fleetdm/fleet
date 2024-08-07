@@ -409,10 +409,10 @@ func testVPPApps(t *testing.T, ds *Datastore) {
 		GlobalRole: ptr.String(fleet.RoleAdmin),
 	})
 	require.NoError(t, err)
-	err = ds.InsertHostVPPSoftwareInstall(ctx, 1, u.ID, app1.VPPAppID, "a", "b")
+	err = ds.InsertHostVPPSoftwareInstall(ctx, 1, u.ID, app1.VPPAppID, "a", "b", false)
 	require.NoError(t, err)
 
-	err = ds.InsertHostVPPSoftwareInstall(ctx, 2, u.ID, app2.VPPAppID, "c", "d")
+	err = ds.InsertHostVPPSoftwareInstall(ctx, 2, u.ID, app2.VPPAppID, "c", "d", false)
 	require.NoError(t, err)
 
 	var results []struct {
