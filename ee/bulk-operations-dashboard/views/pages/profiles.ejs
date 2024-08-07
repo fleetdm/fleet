@@ -1,7 +1,124 @@
 <div id="profiles" v-cloak>
 
-
-  <p>{{profileConfiguration}}</p>
-
+  <div class="container-fluid p-4">
+    <div class="d-flex flex-column">
+      <div class="pb-0 pb-sm-4 d-flex flex-row justify-content-between">
+        <div>
+        <h3 purpose="page-heading" @click="clickChangeTeamFilter(9)">Configuration profiles</h3>
+        </div>
+        <div class="d-flex flex-row align-items-center">
+          <p class="mb-0 mr-2">Team:</p>
+          <select class="custom-select team-select mr-3" v-model="teamFilter" @change="changeTeamFilter()">
+            <option :value="undefined" selected>All teams</option>
+            <option v-for="team of teams" :value="team.fleetApid">{{team.name}}</option>
+          </select>
+        </div>
+      </div>
+    </div>
+<!--     <div class="d-flex flex-sm-row flex-column justify-content-sm-between">
+      <div class="d-flex flex-md-row flex-column justify-content-start align-items-md-center">
+      <select class="custom-select team-select mr-3" v-model="teamApid" @change="changeFilteredTeam()">
+        <option value="undefined" selected>All teams</option>
+        <option v-for="option of teamsToDisplay" :value="option.id">{{option.name}}</option>
+      </select>
+      <a class="mt-md-0 mt-3 btn btn-inline btn-sm btn-primary mr-sm-3 mr-0" @click="clickOpenExportModal()">Export</a>
+      </div>
+      <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between pt-3 pt-sm-0">
+        <div>
+          <label class="mb-md-0 mb-3 text-nowrap mr-2">CVSS score is between</label>
+        </div>
+        <div class="d-flex flex-row align-items-center justify-content-start">
+          <select class="custom-select mr-2" v-model="minSeverity" @change="changeMinSeverity()">
+            <option v-if="!_.includes(severityFilterOptions, minSeverity)" :value="minSeverity" >{{minSeverity}}</option>
+            <option v-for="option of severityFilterOptions" :value="option">{{option}}</option>
+          </select>
+          <label class="mb-0">and</label>
+          <select class="custom-select ml-2" v-model="maxSeverity" @change="changeMaxSeverity()">
+            <option v-if="!_.includes(severityFilterOptions, maxSeverity)" :value="maxSeverity">{{maxSeverity}}</option>
+            <option v-for="option of severityFilterOptions" :value="option">{{option}}</option>
+          </select>
+        </div>
+      </div>
+    </div> -->
+    <p>Profiles</p>
+    <div class="mb-4 border rounded table-responsive">
+      <table class="table my-0">
+        <thead>
+          <tr>
+            <th class="sortable" :class="sortDirection === 'ASC' ? 'ascending' : sortDirection === 'DESC' ? 'descending' : ''" @click="clickChangeSortDirection()">
+              <div style="cursor: pointer;" class="d-flex flex-row align-items-center">
+                <small><strong>Name</strong></small>
+                <div class="sort-arrows">
+                  <span class="ascending-arrow"></span>
+                  <span class="descending-arrow"></span>
+                </div>
+              </div>
+            </th>
+            <th>
+              <small><strong>Platform</strong></small>
+            </th>
+            <th v-if="!selectedTeam.name">
+              <span><small><strong>Team</strong></small></span>
+            </th>
+            <th>
+              <span><small><strong>Upload date</strong></small></span>
+            </th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="profile in profilesToDisplay" :key="profile.name">
+            <td class="name-column">{{profile.name}}</td>
+            <td>{{platformFriendlyNames[profile.platform]}}</td>
+            <td v-if="!selectedTeam.name">
+              <a class="affected-teams-link" v-if="profile.teams && profile.teams.length > 0">
+                <span class="truncated-affected-teams" v-if="profile.teams.length > 1">
+                  {{profile.teams.length}} teams
+                  <div class="teams-tooltip">
+                    <p v-for="team in profile.teams" @click="clickChangeTeamFilter(team.fleetApid)">{{team.teamName}}</p>
+                  </div>
+                </span>
+                <span v-else @click="clickChangeTeamFilter(profile.teams[0].fleetApid)">
+                  {{profile.teams[0].teamName}}
+                </span>
+              </a>
+            </td>
+            <td>
+              <js-timestamp :at="profile.createdAt" format="calendar"></js-timestamp>
+            </td>
+            <td>
+              <div class="d-flex flex-row align-items-start justify-content-end">
+                <img style="height: 21px; margin-right: 24px;" alt="download" src="/images/download-16x16@2x.png" @click="clickDownloadProfile(profile)">
+                <img style="height: 21px; margin-right: 24px;" alt="edit" src="/images/edit-pencil-16x21@2x.png" @click="clickOpenEditModal(profile)">
+                <img style="height: 21px" alt="delete" src="/images/delete-16x21@2x.png" @click="clickOpenDeleteModal(profile)">
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div v-if="false">
+      <h2 class="px-3 text-center mx-auto pt-5">No profiles matching the selected filters were found.</h2>
+    </div>
+<!--     <nav aria-label="vulnerability pages" v-if="!cloudError && pages.length > 1">
+      <ul class="pagination justify-content-end">
+        <li class="page-item" :class="currentPageIndex === 0? 'disabled' : ''">
+          <a aria-label="Previous" class="page-link" @click="clickPageButton(currentPageIndex-1)"><i class="left-arrow"></i><span class="d-none d-md-inline">&nbsp;&nbsp;Previous</span></a>
+        </li>
+        <li class="page-item" :class="currentPageIndex+1 === page? 'active' : ''" v-for="page of pages">
+          <a class="page-link disabled" v-if="page === '...'">{{page}}</a>
+          <a class="page-link" @click="clickPageButton(page-1)" v-else>{{page}}</a>
+        </li>
+        <li class="page-item" :class="currentPageIndex === pages.indexOf(pages[pages.length-1])? 'disabled' : ''">
+          <a aria-label="Next" class="page-link" @click="clickPageButton(currentPageIndex+1)"><span class="d-none d-md-inline">Next&nbsp;&nbsp;</span><i class="right-arrow"></i></a>
+        </li>
+      </ul>
+    </nav> -->
+  </div>
+  <h1>For development</h1>
+  <h3>profiles</h3>
+  <p v-for="profile in profiles">{{profile}}</p>
+  <h3>team</h3>
+  <p v-for="team in teams">{{team}}</p>
 </div>
 <%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>

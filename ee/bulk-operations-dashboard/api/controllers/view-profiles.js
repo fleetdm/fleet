@@ -32,6 +32,14 @@ module.exports = {
     let allTeams = teamsResponseData.teams;
 
     let teamApids = _.pluck(allTeams, 'id');
+    let teams = [];
+    let teamsInformation = [];
+    for(let team of allTeams) {
+      teams.push({
+        fleetApid: team.id,
+        name: team.name,
+      });
+    }
 
     // console.log(teamApids);
     let allProfiles = [];
@@ -67,29 +75,36 @@ module.exports = {
 
     let profileConfiguration = [];
 
-    let allProfilesByName = _.groupBy(allProfiles, 'name');
-    console.log(allProfilesByName)
+    let allProfilesByIdentifier = _.groupBy(allProfiles, 'identifier');
 
-    for(let profileUuid in allProfilesByName) {
-      let teamsForThisProfile = _.pluck(allProfilesByName[profileUuid], 'team_id');
-      console.log(teamsForThisProfile);
-      let profile = allProfilesByName[profileUuid][0];// Grab the first profile returned in the api repsonse to build our profile configuration.
+    for(let profileIdentifier in allProfilesByIdentifier) {
+      let teamIdsForThisProfile = _.pluck(allProfilesByIdentifier[profileIdentifier], 'team_id');
+      let teamsForThisProfile = [];
+      // console.log(teamsForThisProfile);
+      // let platforms = _.uniq(_.pluck(allProfilesByIdentifier[profileIdentifier], 'platform'));
+      for(let profile of allProfilesByIdentifier[profileIdentifier]){
+        let informationAboutThisProfile = {
+          uuid: profile.profile_uuid,
+          fleetApid: profile.team_id,
+          teamName: _.find(allTeams, {id: profile.team_id}).name,
+        }
+        teamsForThisProfile.push(informationAboutThisProfile);
+      }
+      let profile = allProfilesByIdentifier[profileIdentifier][0];// Grab the first profile returned in the api repsonse to build our profile configuration.
       let profileInformation = {
         name: profile.name,
+        identifier: profileIdentifier,
         platform: profile.platform,
         createdAt: new Date(profile.created_at).getTime(),
-        uuid: profileUuid,
-        teams: teamsForThisProfile,
+        teams: teamsForThisProfile
       }
       profileConfiguration.push(profileInformation)
     }
+    profileConfiguration = _.sortByOrder(profileConfiguration, 'name', 'asc');
 
-    // console.log(profileConfiguration);
-
-
-
+    console.log(profileConfiguration);
     // Respond with view.
-    return {profileConfiguration};
+    return {profiles: profileConfiguration, teams};
 
   }
 
