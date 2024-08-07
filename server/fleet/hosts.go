@@ -1223,9 +1223,14 @@ func IsEligibleForDEPMigration(host *Host, mdmInfo *HostMDM, isConnectedToFleetM
 		(!isConnectedToFleetMDM || mdmInfo.Name != WellKnownMDMFleet)
 }
 
-// TODO(JVE): should this just be the only check (i.e. remove the above func)? If so, any host that
-// is MDM enrolled (DEP or manual) to an MDM other than Fleet will be migration eligible, which I
-// think is the goal of this story. But we should double check the repercussions of that.
+// IsEligibleForManualMigration returns true if the host is manually enrolled into a 3rd party MDM
+// and is able to migrate to Fleet.
 func IsEligibleForManualMigration(host *Host, mdmInfo *HostMDM, isConnectedToFleetMDM bool) bool {
-	return host.IsOsqueryEnrolled() && !host.IsDEPAssignedToFleet() && mdmInfo != nil && !mdmInfo.HasJSONProfileAssigned() && mdmInfo.Enrolled && (!isConnectedToFleetMDM || mdmInfo.Name != WellKnownMDMFleet)
+	return host.IsOsqueryEnrolled() &&
+		!host.IsDEPAssignedToFleet() &&
+		mdmInfo != nil &&
+		!mdmInfo.InstalledFromDep &&
+		!mdmInfo.HasJSONProfileAssigned() &&
+		mdmInfo.Enrolled &&
+		(!isConnectedToFleetMDM || mdmInfo.Name != WellKnownMDMFleet)
 }
