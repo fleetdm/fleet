@@ -114,6 +114,12 @@ func main() {
 			log.Fatal("parsing import flags", err)
 		}
 
+		if len(flagKey) > 32 {
+			// We truncate to 32 bytes because AES-256 requires a 32 byte (256 bit) PK, but some
+			// infra setups generate keys that are longer than 32 bytes.
+			flagKey = flagKey[:32]
+		}
+
 		ds := setupDS(flagKey, flagDBUser, flagDBPass, flagDBAddress, flagDBName)
 		defer ds.Close()
 
@@ -146,13 +152,19 @@ func main() {
 			log.Fatal("parsing export flags", err)
 		}
 
-		ds := setupDS(flagKey, flagDBUser, flagDBPass, flagDBAddress, flagDBName)
-		defer ds.Close()
-
 		// Check required flags
 		if flagKey == "" {
 			log.Fatal("-key flag is required")
 		}
+
+		if len(flagKey) > 32 {
+			// We truncate to 32 bytes because AES-256 requires a 32 byte (256 bit) PK, but some
+			// infra setups generate keys that are longer than 32 bytes.
+			flagKey = flagKey[:32]
+		}
+
+		ds := setupDS(flagKey, flagDBUser, flagDBPass, flagDBAddress, flagDBName)
+		defer ds.Close()
 
 		if flagDir != "" {
 			if err := os.MkdirAll(flagDir, os.ModePerm); err != nil {
@@ -199,6 +211,22 @@ func main() {
 
 			log.Printf("wrote %s in %s", asset.Name, path)
 		}
+
+		flagDir, err = filepath.Abs(flagDir)
+		if err != nil {
+			log.Fatal("abs path: %s", err)
+		}
+
+		fmt.Printf(`You can set the following on your Fleet configuration:
+export FLEET_MDM_APPLE_APNS_CERT=%[1]s/apns_cert.crt
+export FLEET_MDM_APPLE_APNS_KEY=%[1]s/apns_key.key
+export FLEET_MDM_APPLE_SCEP_CERT=%[1]s/ca_cert.crt
+export FLEET_MDM_APPLE_SCEP_KEY=%[1]s/ca_key.key
+export FLEET_MDM_APPLE_SCEP_CHALLENGE=$(cat %[1]s/scep_challenge)
+export FLEET_MDM_APPLE_BM_SERVER_TOKEN=%[1]s/abm_token
+export FLEET_MDM_APPLE_BM_CERT=%[1]s/abm_cert.crt
+export FLEET_MDM_APPLE_BM_KEY=%[1]s/abm_key.key
+`, flagDir)
 	default:
 		log.Fatalf("invalid subcommand %s, valid subcommands: import, export", os.Args[1])
 	}
