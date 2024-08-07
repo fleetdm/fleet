@@ -159,7 +159,7 @@ func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, appIDs []
 		return ctxerr.Wrap(ctx, err, "SetTeamVPPApps getting list of existing apps")
 	}
 
-	var missingApps []fleet.VPPAppID
+	var toAddApps []fleet.VPPAppID
 	var toRemoveApps []fleet.VPPAppID
 
 	for existingApp := range existingApps {
@@ -176,12 +176,12 @@ func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, appIDs []
 
 	for _, adamID := range appIDs {
 		if _, ok := existingApps[adamID]; !ok {
-			missingApps = append(missingApps, adamID)
+			toAddApps = append(toAddApps, adamID)
 		}
 	}
 
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		for _, toAdd := range missingApps {
+		for _, toAdd := range toAddApps {
 			if err := insertVPPAppTeams(ctx, tx, toAdd, teamID); err != nil {
 				return ctxerr.Wrap(ctx, err, "SetTeamVPPApps inserting vpp app into team")
 			}
@@ -284,6 +284,7 @@ INSERT INTO vpp_apps_teams
 	(adam_id, global_or_team_id, team_id, platform, self_service)
 VALUES
 	(?, ?, ?, ?, ?)
+ON DUPLICATE KEY UPDATE self_service = VALUES(self_service)
 	`
 
 	var globalOrTmID uint
