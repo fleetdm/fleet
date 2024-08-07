@@ -5022,6 +5022,20 @@ func amountHostsByOsqueryVersionDB(ctx context.Context, db sqlx.QueryerContext) 
 	return counts, nil
 }
 
+func numHostsFleetDesktopEnabledDB(ctx context.Context, db sqlx.QueryerContext) (uint, error) {
+	var count uint
+	const stmt = `
+		SELECT osquery_version, count(*) as num_hosts
+		FROM hosts
+		GROUP BY osquery_version
+  	`
+	if err := sqlx.SelectContext(ctx, db, &count, stmt); err != nil {
+		return 0, err
+	}
+
+	return count, nil
+}
+
 func (ds *Datastore) GetMatchingHostSerials(ctx context.Context, serials []string) (map[string]*fleet.Host, error) {
 	result := map[string]*fleet.Host{}
 	if len(serials) == 0 {
