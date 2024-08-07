@@ -100,7 +100,7 @@ func (ds *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Du
 		}
 		numHostsFleetDesktopEnabled, err := numHostsFleetDesktopEnabledDB(ctx, ds.reader(ctx))
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "amount hosts by osquery version")
+			return ctxerr.Wrap(ctx, err, "number of hosts with Fleet desktop installed")
 		}
 
 		stats.NumHostsEnrolled = amountEnrolledHosts
