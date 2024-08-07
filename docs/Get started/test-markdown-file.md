@@ -1,0 +1,1 @@
+Testing if adding a new file will make the test fail
