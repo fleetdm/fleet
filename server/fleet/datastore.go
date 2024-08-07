@@ -1183,19 +1183,22 @@ type Datastore interface {
 	// to any team).
 	GetMDMAppleFileVaultSummary(ctx context.Context, teamID *uint) (*MDMAppleFileVaultSummary, error)
 
-	// InsertMDMAppleBootstrapPackage insterts a new bootstrap package in the database
-	InsertMDMAppleBootstrapPackage(ctx context.Context, bp *MDMAppleBootstrapPackage) error
+	// InsertMDMAppleBootstrapPackage insterts a new bootstrap package in the
+	// database (or S3 if configured).
+	InsertMDMAppleBootstrapPackage(ctx context.Context, bp *MDMAppleBootstrapPackage, pkgStore MDMBootstrapPackageStore) error
 	// CopyMDMAppleBootstrapPackage copies the bootstrap package specified in the app config (if any)
 	// specified team (and a new token is assigned). It also updates the team config with the default bootstrap package URL.
 	CopyDefaultMDMAppleBootstrapPackage(ctx context.Context, ac *AppConfig, toTeamID uint) error
-	// DeleteMDMAppleBootstrapPackage deletes the bootstrap package for the given team id
-	DeleteMDMAppleBootstrapPackage(ctx context.Context, teamID uint) error
-	// GetMDMAppleBootstrapPackageMeta returns metadata about the bootstrap package for a team
+	// DeleteMDMAppleBootstrapPackage deletes the bootstrap package for the given team id.
+	DeleteMDMAppleBootstrapPackage(ctx context.Context, teamID uint, pkgStore MDMBootstrapPackageStore) error
+	// GetMDMAppleBootstrapPackageMeta returns metadata about the bootstrap
+	// package for a team.
 	GetMDMAppleBootstrapPackageMeta(ctx context.Context, teamID uint) (*MDMAppleBootstrapPackage, error)
-	// GetMDMAppleBootstrapPackageBytes returns the bytes of a bootstrap package with the given token
-	GetMDMAppleBootstrapPackageBytes(ctx context.Context, token string) (*MDMAppleBootstrapPackage, error)
-	// GetMDMAppleBootstrapPackageSummary returns an aggregated summary of
-	// the status of the bootstrap package for hosts in a team.
+	// GetMDMAppleBootstrapPackageBytes returns the bytes of a bootstrap package
+	// with the given token.
+	GetMDMAppleBootstrapPackageBytes(ctx context.Context, token string, pkgStore MDMBootstrapPackageStore) (*MDMAppleBootstrapPackage, error)
+	// GetMDMAppleBootstrapPackageSummary returns an aggregated summary of the
+	// status of the bootstrap package for hosts in a team.
 	GetMDMAppleBootstrapPackageSummary(ctx context.Context, teamID uint) (*MDMAppleBootstrapPackageSummary, error)
 
 	// RecordHostBootstrapPackage records a command used to install a

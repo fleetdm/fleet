@@ -7,6 +7,7 @@ import (
 	"crypto/cipher"
 	"crypto/rand"
 	"database/sql"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -2960,24 +2961,74 @@ func (ds *Datastore) BulkUpsertMDMAppleConfigProfiles(ctx context.Context, paylo
 	return nil
 }
 
-func (ds *Datastore) InsertMDMAppleBootstrapPackage(ctx context.Context, bp *fleet.MDMAppleBootstrapPackage) error {
-	stmt := `
-          INSERT INTO mdm_apple_bootstrap_packages (team_id, name, sha256, bytes, token)
-	  VALUES (?, ?, ?, ?, ?)
-	`
-
-	// TODO(mna): inserting (Put operation) a bootstrap package is one of the
-	// operations that need to be supported by the S3 storage interface. It will
-	// use the sha256 value to build the target S3 key.
-	_, err := ds.writer(ctx).ExecContext(ctx, stmt, bp.TeamID, bp.Name, bp.Sha256, bp.Bytes, bp.Token)
-	if err != nil {
-		if IsDuplicate(err) {
-			return ctxerr.Wrap(ctx, alreadyExists("BootstrapPackage", fmt.Sprintf("for team %d", bp.TeamID)))
+func isMDMAppleBootstrapPackageInDB(ctx context.Context, q sqlx.QueryerContext, teamID uint) (isInDB, existsForTeam bool, err error) {
+	const stmt = `SELECT COALESCE(LENGTH(bytes), 0) FROM mdm_apple_bootstrap_packages WHERE team_id = ?`
+	var pkgLen int
+	if err := sqlx.GetContext(ctx, q, &pkgLen, stmt, teamID); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return false, false, nil
 		}
-		return ctxerr.Wrap(ctx, err, "create bootstrap package")
+		return false, false, ctxerr.Wrapf(ctx, err, "check for bootstrap package content in database for team %d", teamID)
+	}
+	return pkgLen > 0, true, nil
+}
+
+func (ds *Datastore) InsertMDMAppleBootstrapPackage(ctx context.Context, bp *fleet.MDMAppleBootstrapPackage, pkgStore fleet.MDMBootstrapPackageStore) error {
+	const insStmt = `INSERT INTO mdm_apple_bootstrap_packages (team_id, name, sha256, bytes, token) VALUES (?, ?, ?, ?, ?)`
+	execInsert := func(args ...any) error {
+		if _, err := ds.writer(ctx).ExecContext(ctx, insStmt, args...); err != nil {
+			if IsDuplicate(err) {
+				return ctxerr.Wrap(ctx, alreadyExists("BootstrapPackage", fmt.Sprintf("for team %d", bp.TeamID)))
+			}
+			return ctxerr.Wrap(ctx, err, "create bootstrap package")
+		}
+		return nil
 	}
 
-	return nil
+	if pkgStore == nil {
+		// no S3 storage configured, insert the metadata and the content in the DB
+		return execInsert(bp.TeamID, bp.Name, bp.Sha256, bp.Bytes, bp.Token)
+	}
+
+	// using disctinct storages for content and metadata introduces an
+	// intractable problem: the operation cannot be atomic (all succeed or all
+	// fail together), so what we do instead is to minimize the risk of data
+	// inconsistency:
+	//
+	//   1. check if the row exists in the DB, if so fail immediately with a
+	//   duplicate error (which would happen at the INSERT stage anyway
+	//   otherwise).
+	//   2. if it does not exist in the DB, check if the package is already on
+	//   S3, to avoid a costly upload if it is.
+	//   3. if it is not already on S3, upload the package - if this fails,
+	//   return and the DB was not touched and data is still consistent.
+	//   4. after upload, insert the metadata in the DB - if this fails, the
+	//   only possible inconsistency is an unused package stored on S3, which a
+	//   cron job will eventually cleanup.
+	//   5. if everything succeeds, data is consistent and the S3 package
+	//   cannot be used before it is uploaded (since the DB row is inserted
+	//   after upload).
+	_, existsInDB, err := isMDMAppleBootstrapPackageInDB(ctx, ds.writer(ctx), bp.TeamID)
+	if err != nil {
+		return err
+	}
+	if existsInDB {
+		return ctxerr.Wrap(ctx, alreadyExists("BootstrapPackage", fmt.Sprintf("for team %d", bp.TeamID)))
+	}
+
+	pkgID := hex.EncodeToString(bp.Sha256)
+	ok, err := pkgStore.Exists(ctx, pkgID)
+	if err != nil {
+		return ctxerr.Wrapf(ctx, err, "check if bootstrap package %s already exists", pkgID)
+	}
+	if !ok {
+		if err := pkgStore.Put(ctx, pkgID, bytes.NewReader(bp.Bytes)); err != nil {
+			return ctxerr.Wrapf(ctx, err, "upload bootstrap package %s to S3", pkgID)
+		}
+	}
+
+	// insert in the DB with a NULL bytes content (to indicate it is on S3)
+	return execInsert(bp.TeamID, bp.Name, bp.Sha256, nil, bp.Token)
 }
 
 func (ds *Datastore) CopyDefaultMDMAppleBootstrapPackage(ctx context.Context, ac *fleet.AppConfig, toTeamID uint) error {
@@ -2988,9 +3039,9 @@ func (ds *Datastore) CopyDefaultMDMAppleBootstrapPackage(ctx context.Context, ac
 		return ctxerr.New(ctx, "team id must not be zero")
 	}
 
-	// TODO(mna): if stored in S3, nice thing is that nothing needs to happen on
-	// S3 for a copy of the bootstrap package as the bytes are the same and the
-	// stored contents is the same.
+	// NOTE: if the bootstrap package is stored in S3, nothing needs to happen on
+	// S3 for a copy of it since the bytes are the same and the stored contents
+	// is the same (the sha256 is copied, so it points to the same file on S3).
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		// Copy the bytes for the default bootstrap package to the specified team
 		insertStmt := `
@@ -3034,7 +3085,7 @@ WHERE id = ?
 	})
 }
 
-func (ds *Datastore) DeleteMDMAppleBootstrapPackage(ctx context.Context, teamID uint) error {
+func (ds *Datastore) DeleteMDMAppleBootstrapPackage(ctx context.Context, teamID uint, pkgStore fleet.MDMBootstrapPackageStore) error {
 	// TODO(mna): delete is one of the operations that must be supported by the
 	// S3 storage. In this case it would need to read the sha256 value first,
 	// then delete the corresponding key on S3, then delete the DB row.
@@ -3051,7 +3102,7 @@ func (ds *Datastore) DeleteMDMAppleBootstrapPackage(ctx context.Context, teamID 
 	return nil
 }
 
-func (ds *Datastore) GetMDMAppleBootstrapPackageBytes(ctx context.Context, token string) (*fleet.MDMAppleBootstrapPackage, error) {
+func (ds *Datastore) GetMDMAppleBootstrapPackageBytes(ctx context.Context, token string, pkgStore fleet.MDMBootstrapPackageStore) (*fleet.MDMAppleBootstrapPackage, error) {
 	// TODO(mna): Get is one of the operations that must be supported by the S3
 	// storage interface. The SELECT here would grab the name and sha256 in this
 	// case, using the hash to know which S3 key to retrieve.

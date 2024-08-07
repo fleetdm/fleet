@@ -7110,7 +7110,7 @@ func (s *integrationMDMTestSuite) TestMDMEnabledAndConfigured() {
 		}
 
 		// cleanup any residual bootstrap package
-		_ = s.ds.DeleteMDMAppleBootstrapPackage(ctx, tmID)
+		_ = s.ds.DeleteMDMAppleBootstrapPackage(ctx, tmID, nil)
 
 		// add new bootstrap package
 		require.NoError(t, s.ds.InsertMDMAppleBootstrapPackage(ctx, &fleet.MDMAppleBootstrapPackage{
@@ -7119,7 +7119,7 @@ func (s *integrationMDMTestSuite) TestMDMEnabledAndConfigured() {
 			Token:  uuid.New().String(),
 			Bytes:  []byte("foo"),
 			Sha256: []byte("foo-sha256"),
-		}))
+		}, nil))
 
 		// add new setup assistant
 		_, err := s.ds.SetOrUpdateMDMAppleSetupAssistant(ctx, &fleet.MDMAppleSetupAssistant{

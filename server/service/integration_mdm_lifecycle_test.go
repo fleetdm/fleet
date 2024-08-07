@@ -557,7 +557,7 @@ func (s *integrationMDMTestSuite) setupLifecycleSettings() {
 	t := s.T()
 	ctx := context.Background()
 	// add bootstrap package
-	_ = s.ds.DeleteMDMAppleBootstrapPackage(ctx, 0)
+	_ = s.ds.DeleteMDMAppleBootstrapPackage(ctx, 0, nil)
 	bp, err := os.ReadFile(filepath.Join("testdata", "bootstrap-packages", "signed.pkg"))
 	require.NoError(t, err)
 	s.uploadBootstrapPackage(

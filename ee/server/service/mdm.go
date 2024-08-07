@@ -367,7 +367,7 @@ func (svc *Service) MDMAppleUploadBootstrapPackage(ctx context.Context, name str
 		Sha256: hash.Sum(nil),
 		Bytes:  pkgBuf.Bytes(),
 	}
-	if err := svc.ds.InsertMDMAppleBootstrapPackage(ctx, bp); err != nil {
+	if err := svc.ds.InsertMDMAppleBootstrapPackage(ctx, bp, svc.bootstrapPackageStore); err != nil {
 		return err
 	}
 
@@ -385,7 +385,7 @@ func (svc *Service) GetMDMAppleBootstrapPackageBytes(ctx context.Context, token 
 	// skipauth: bootstrap packages are gated by token
 	svc.authz.SkipAuthorization(ctx)
 
-	pkg, err := svc.ds.GetMDMAppleBootstrapPackageBytes(ctx, token)
+	pkg, err := svc.ds.GetMDMAppleBootstrapPackageBytes(ctx, token, svc.bootstrapPackageStore)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
 	}
@@ -435,7 +435,7 @@ func (svc *Service) DeleteMDMAppleBootstrapPackage(ctx context.Context, teamID *
 		return ctxerr.Wrap(ctx, err, "fetching bootstrap package metadata")
 	}
 
-	if err := svc.ds.DeleteMDMAppleBootstrapPackage(ctx, tmID); err != nil {
+	if err := svc.ds.DeleteMDMAppleBootstrapPackage(ctx, tmID, svc.bootstrapPackageStore); err != nil {
 		return ctxerr.Wrap(ctx, err, "deleting bootstrap package")
 	}
 

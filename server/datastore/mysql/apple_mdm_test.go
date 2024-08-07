@@ -3140,7 +3140,7 @@ func testMDMAppleBootstrapPackageCRUD(t *testing.T, ds *Datastore) {
 	var nfe fleet.NotFoundError
 	var aerr fleet.AlreadyExistsError
 
-	err := ds.InsertMDMAppleBootstrapPackage(ctx, &fleet.MDMAppleBootstrapPackage{})
+	err := ds.InsertMDMAppleBootstrapPackage(ctx, &fleet.MDMAppleBootstrapPackage{}, nil)
 	require.Error(t, err)
 
 	bp1 := &fleet.MDMAppleBootstrapPackage{
@@ -3150,10 +3150,10 @@ func testMDMAppleBootstrapPackageCRUD(t *testing.T, ds *Datastore) {
 		Bytes:  []byte("content"),
 		Token:  uuid.New().String(),
 	}
-	err = ds.InsertMDMAppleBootstrapPackage(ctx, bp1)
+	err = ds.InsertMDMAppleBootstrapPackage(ctx, bp1, nil)
 	require.NoError(t, err)
 
-	err = ds.InsertMDMAppleBootstrapPackage(ctx, bp1)
+	err = ds.InsertMDMAppleBootstrapPackage(ctx, bp1, nil)
 	require.ErrorAs(t, err, &aerr)
 
 	bp2 := &fleet.MDMAppleBootstrapPackage{
@@ -3163,7 +3163,7 @@ func testMDMAppleBootstrapPackageCRUD(t *testing.T, ds *Datastore) {
 		Bytes:  []byte("content"),
 		Token:  uuid.New().String(),
 	}
-	err = ds.InsertMDMAppleBootstrapPackage(ctx, bp2)
+	err = ds.InsertMDMAppleBootstrapPackage(ctx, bp2, nil)
 	require.NoError(t, err)
 
 	meta, err := ds.GetMDMAppleBootstrapPackageMeta(ctx, 0)
@@ -3177,22 +3177,22 @@ func testMDMAppleBootstrapPackageCRUD(t *testing.T, ds *Datastore) {
 	require.ErrorAs(t, err, &nfe)
 	require.Nil(t, meta)
 
-	bytes, err := ds.GetMDMAppleBootstrapPackageBytes(ctx, bp1.Token)
+	bytes, err := ds.GetMDMAppleBootstrapPackageBytes(ctx, bp1.Token, nil)
 	require.NoError(t, err)
 	require.Equal(t, bp1.Bytes, bytes.Bytes)
 
-	bytes, err = ds.GetMDMAppleBootstrapPackageBytes(ctx, "fake")
+	bytes, err = ds.GetMDMAppleBootstrapPackageBytes(ctx, "fake", nil)
 	require.ErrorAs(t, err, &nfe)
 	require.Nil(t, bytes)
 
-	err = ds.DeleteMDMAppleBootstrapPackage(ctx, 0)
+	err = ds.DeleteMDMAppleBootstrapPackage(ctx, 0, nil)
 	require.NoError(t, err)
 
 	meta, err = ds.GetMDMAppleBootstrapPackageMeta(ctx, 0)
 	require.ErrorAs(t, err, &nfe)
 	require.Nil(t, meta)
 
-	err = ds.DeleteMDMAppleBootstrapPackage(ctx, 0)
+	err = ds.DeleteMDMAppleBootstrapPackage(ctx, 0, nil)
 	require.ErrorAs(t, err, &nfe)
 	require.Nil(t, meta)
 }
@@ -4061,7 +4061,7 @@ func TestCopyDefaultMDMAppleBootstrapPackage(t *testing.T) {
 		Bytes:  []byte("content"),
 		Token:  uuid.New().String(),
 	}
-	err = ds.InsertMDMAppleBootstrapPackage(ctx, defaultBP)
+	err = ds.InsertMDMAppleBootstrapPackage(ctx, defaultBP, nil)
 	require.NoError(t, err)
 	checkStoredBP(noTeamID, nil, false, defaultBP)   // default bootstrap package is stored
 	checkStoredBP(teamID, sql.ErrNoRows, false, nil) // no bootstrap package yet for team
@@ -4078,7 +4078,7 @@ func TestCopyDefaultMDMAppleBootstrapPackage(t *testing.T) {
 	checkStoredBP(teamID, nil, true, defaultBP)    // copied default bootstrap package
 
 	// delete and update the default bootstrap package
-	err = ds.DeleteMDMAppleBootstrapPackage(ctx, noTeamID)
+	err = ds.DeleteMDMAppleBootstrapPackage(ctx, noTeamID, nil)
 	require.NoError(t, err)
 	checkStoredBP(noTeamID, sql.ErrNoRows, false, nil) // deleted
 	checkStoredBP(teamID, nil, true, defaultBP)        // still exists
@@ -4091,7 +4091,7 @@ func TestCopyDefaultMDMAppleBootstrapPackage(t *testing.T) {
 		Bytes:  []byte("new content"),
 		Token:  uuid.New().String(),
 	}
-	err = ds.InsertMDMAppleBootstrapPackage(ctx, defaultBP2)
+	err = ds.InsertMDMAppleBootstrapPackage(ctx, defaultBP2, nil)
 	require.NoError(t, err)
 	checkStoredBP(noTeamID, nil, false, defaultBP2)
 	// set bootstrap package url in app config
@@ -4109,7 +4109,7 @@ func TestCopyDefaultMDMAppleBootstrapPackage(t *testing.T) {
 	checkTeamConfig(teamID, "")
 
 	// delete the team bootstrap package
-	err = ds.DeleteMDMAppleBootstrapPackage(ctx, teamID)
+	err = ds.DeleteMDMAppleBootstrapPackage(ctx, teamID, nil)
 	require.NoError(t, err)
 	checkStoredBP(teamID, sql.ErrNoRows, false, nil)
 	checkTeamConfig(teamID, "")
@@ -4129,7 +4129,7 @@ func TestCopyDefaultMDMAppleBootstrapPackage(t *testing.T) {
 	// test some edge cases
 
 	// delete the team bootstrap package doesn't affect the team config
-	err = ds.DeleteMDMAppleBootstrapPackage(ctx, teamID)
+	err = ds.DeleteMDMAppleBootstrapPackage(ctx, teamID, nil)
 	require.NoError(t, err)
 	checkStoredBP(teamID, sql.ErrNoRows, false, nil)
 	checkTeamConfig(teamID, "https://example.com/bootstrap.pkg")
@@ -4511,7 +4511,7 @@ func testMDMAppleResetEnrollment(t *testing.T, ds *Datastore) {
 		Sha256: sha256.New().Sum(nil),
 		Bytes:  []byte("content"),
 		Token:  uuid.New().String(),
-	})
+	}, nil)
 	require.NoError(t, err)
 	err = ds.RecordHostBootstrapPackage(ctx, "command-uuid", host.UUID)
 	require.NoError(t, err)
