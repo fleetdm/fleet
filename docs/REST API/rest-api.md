@@ -8942,8 +8942,14 @@ Returns information about the specified software. By default, `versions` are sor
       "post_install_script": "sudo /Applications/Falcon.app/Contents/Resources/falconctl license 0123456789ABCDEFGHIJKLMNOPQRSTUV-WX",
       "self_service": true,
       "labels_exclude_any": [
-        "Label name 1",
-        "Label name 2"
+        {
+          "name": "Label name 1",
+          "id": 1
+        },
+        {
+          "name": "Label name 2",
+          "id": 2
+        }
       ],
       "status": {
         "verified": 5,
