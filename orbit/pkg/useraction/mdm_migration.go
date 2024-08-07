@@ -19,6 +19,8 @@ type MDMMigrator interface {
 	ShowInterval() error
 	// Exit tries to stop any processes started by the migrator.
 	Exit()
+	MigrationFileExists() (bool, error)
+	RemoveMigrationFile() error
 }
 
 // MDMMigratorProps are props required to display the dialog. It's akin to the

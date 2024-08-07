@@ -14,6 +14,7 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/orbit/pkg/migration"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/profiles"
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/retry"
@@ -166,7 +167,7 @@ func (b *baseDialog) render(flags ...string) (chan swiftDialogExitCode, chan err
 }
 
 // NewMDMMigrator creates a new  swiftDialogMDMMigrator with the right internal state.
-func NewMDMMigrator(path string, frequency time.Duration, handler MDMMigratorHandler) MDMMigrator {
+func NewMDMMigrator(path string, frequency time.Duration, handler MDMMigratorHandler, mrw *migration.ReadWriter) MDMMigrator {
 	return &swiftDialogMDMMigrator{
 		handler:                   handler,
 		baseDialog:                newBaseDialog(path),
@@ -174,6 +175,7 @@ func NewMDMMigrator(path string, frequency time.Duration, handler MDMMigratorHan
 		unenrollmentRetryInterval: defaultUnenrollmentRetryInterval,
 		// set a buffer size of 1 to allow one Show without blocking
 		showCh: make(chan struct{}, 1),
+		mrw:    mrw,
 	}
 }
 
@@ -198,6 +200,7 @@ type swiftDialogMDMMigrator struct {
 	// the enrollment status of the host
 	testEnrollmentCheckStatusFn func() (bool, string, error)
 	unenrollmentRetryInterval   time.Duration
+	mrw                         *migration.ReadWriter
 }
 
 /**
@@ -352,15 +355,19 @@ func (m *swiftDialogMDMMigrator) renderMigration() error {
 		}
 
 		// TODO(JVE): check that it was a manual migration in file
-		mt, err := os.ReadFile("/tmp/migration_required")
-		if err != nil {
-			if errors.Is(err, os.ErrNotExist) {
-				log.Debug().Msg("migrate file not found")
-			}
-			log.Err(err).Msg("stating migration file")
-		}
+		// mt, err := os.ReadFile("/tmp/migration_required")
+		// if err != nil {
+		// 	if errors.Is(err, os.ErrNotExist) {
+		// 		log.Debug().Msg("migrate file not found")
+		// 	}
+		// 	log.Err(err).Msg("stating migration file")
+		// }
 
-		migrationType := string(mt)
+		// migrationType := string(mt)
+		migrationType, err := m.mrw.GetMigrationType()
+		if err != nil {
+			log.Error().Err(err).Msg("getting migration type")
+		}
 
 		switch migrationType {
 		case "manual":
@@ -376,6 +383,7 @@ func (m *swiftDialogMDMMigrator) renderMigration() error {
 			log.Debug().Msg("JVE_LOG: TODO")
 
 		default:
+			log.Debug().Msg("JVE_LOG: no migration file found")
 		}
 
 		if !m.props.IsUnmanaged {
@@ -411,12 +419,15 @@ func (m *swiftDialogMDMMigrator) renderMigration() error {
 			}
 
 			// TODO(JVE): only write if it doesn't exist
-			var typ []byte
-			if manual {
-				typ = []byte("manual")
-			}
-			if err := os.WriteFile("/tmp/migration_required", typ, 0o644); err != nil {
-				log.Error().Err(err).Msg("writing migration file")
+			// var typ []byte
+			// if manual {
+			// 	typ = []byte("manual")
+			// }
+			// if err := os.WriteFile("/tmp/migration_required", typ, 0o644); err != nil {
+			// 	log.Error().Err(err).Msg("writing migration file")
+			// }
+			if err := m.mrw.SetMigrationFile("manual"); err != nil {
+				log.Error().Err(err).Msg("set migration file")
 			}
 
 			if manual {
@@ -549,4 +560,21 @@ func (m *swiftDialogMDMMigrator) getMacOSMajorVersion() (int, error) {
 		return 0, fmt.Errorf("parsing macOS major version: %w", err)
 	}
 	return major, nil
+}
+
+func (m *swiftDialogMDMMigrator) MigrationFileExists() (bool, error) {
+	return m.mrw.FileExists()
+}
+
+func (m *swiftDialogMDMMigrator) RemoveMigrationFile() error {
+	if err := os.Remove(m.mrw.Path); err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			// that's ok, nop
+			return nil
+		}
+
+		return fmt.Errorf("removing migration file: %w", err)
+	}
+
+	return nil
 }

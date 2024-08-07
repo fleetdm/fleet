@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
 	"runtime"
 	"time"
@@ -12,6 +13,7 @@ import (
 	"fyne.io/systray"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/go-paniclog"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/migration"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/profiles"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/token"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update"
@@ -247,6 +249,11 @@ func main() {
 		}()
 
 		if runtime.GOOS == "darwin" {
+			homedir, err := os.UserHomeDir()
+			if err != nil {
+				log.Fatal().Err(err).Msg("failed to get user's home directory")
+			}
+			mrw := migration.NewReadWriter(path.Join(homedir, "Library", constant.MigrationFileName))
 			_, swiftDialogPath, _ := update.LocalTargetPaths(
 				tufUpdateRoot,
 				"swiftDialog",
@@ -259,6 +266,7 @@ func main() {
 					client:      client,
 					tokenReader: &tokenReader,
 				},
+				mrw,
 			)
 		}
 
@@ -342,7 +350,11 @@ func main() {
 				myDeviceItem.Enable()
 
 				// Check our file to see if we should migrate
-				migrateFile := doesMigrationFileExist()
+
+				migrateFile, err := mdmMigrator.MigrationFileExists()
+				if err != nil {
+					log.Debug().Err(err).Msg("JVE_LOG: checking if migration file exists at top of loop")
+				}
 				// if we have the file, but we're enrolled to Fleet, then we need to remove the file
 				// and not run the migrator as we're already in Fleet
 				shouldRunMigrator := sum.Notifications.NeedsMDMMigration || sum.Notifications.RenewEnrollmentProfile || migrateFile
@@ -397,8 +409,8 @@ func main() {
 						}
 					} else {
 						// we've already migrated, so remove the file
-						if err := os.Remove(constant.MigrationFileName); err != nil {
-							log.Debug().Err(err).Msg("removing migration file")
+						if err := mdmMigrator.RemoveMigrationFile(); err != nil {
+							log.Error().Err(err).Msg("failed to remove migration file")
 						}
 					}
 				} else {
