@@ -12,7 +12,11 @@ import useTeamIdParam from "hooks/useTeamIdParam";
 
 import { AppContext } from "context/app";
 
-import { ISoftwareTitleDetails, formatSoftwareType } from "interfaces/software";
+import {
+  ISoftwareTitleDetails,
+  formatSoftwareType,
+  isIpadOrIphoneSoftwareSource,
+} from "interfaces/software";
 import { ignoreAxiosError } from "interfaces/errors";
 import softwareAPI, {
   ISoftwareTitleResponse,
@@ -200,7 +204,7 @@ const SoftwareTitleDetailsPage = ({
               data={softwareTitle.versions ?? []}
               isLoading={isSoftwareTitleLoading}
               teamIdForApi={teamIdForApi}
-              isIPadOSOrIOSApp={["ios_apps", "ipados_apps"].includes(
+              isIPadOSOrIOSApp={isIpadOrIphoneSoftwareSource(
                 softwareTitle.source
               )}
               isAvailableForInstall={isAvailableForInstall}
