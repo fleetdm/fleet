@@ -123,7 +123,7 @@ In Figma:
   - Avoid using SVGs or icon fonts.
 3. Click the __Export__ button.
 
-
+<!-- Commenting this out as we don't have any planned landing pages in the future see: https://github.com/fleetdm/fleet/issues/21117
 ### Generate a new landing page
 
 Experimental pages are short-lived, temporary landing pages intended for a small audience. All experiments and landing pages need to go through the standard [drafting process](https://fleetdm.com/handbook/company/product-groups#making-changes) before they are created.
@@ -160,7 +160,7 @@ To generate a new page, you'll need:
 5. Start the website by running `node ./node_modules/sails/bin/sails lift` (or `sails lift` if you have Sails installed globally). The new landing page will be availible at `http://localhost:1337/imagine/{page-name}`.
 
 6. Replace the lorum ipsum and placeholder images on the generated page with the page's real content, and add a meta description and title by changing the `pageTitleForMeta` and `pageDescriptionForMeta in the page's `locals` in `website/config/routes.js`.
-
+-->
 
 ### Restart Algolia manually
 
