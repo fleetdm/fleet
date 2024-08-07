@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/authz"
@@ -22,12 +23,15 @@ type listVulnerabilitiesRequest struct {
 }
 
 type listVulnerabilitiesResponse struct {
-	Vulnerabilities []fleet.VulnerabilityWithMetadata `json:"vulnerabilities"`
-	Count           uint                              `json:"count"`
-	CountsUpdatedAt time.Time                         `json:"counts_updated_at"`
-	Meta            *fleet.PaginationMetadata         `json:"meta,omitempty"`
-	Err             error                             `json:"error,omitempty"`
+	Vulnerabilities    []fleet.VulnerabilityWithMetadata `json:"vulnerabilities"`
+	Count              uint                              `json:"count"`
+	CountsUpdatedAt    time.Time                         `json:"counts_updated_at"`
+	Meta               *fleet.PaginationMetadata         `json:"meta,omitempty"`
+	Err                error                             `json:"error,omitempty"`
+	KnownVulnerability *bool                             `json:"known_vulnerability,omitempty"`
 }
+
+var cveRegex = regexp.MustCompile(`^CVE-\d{4}-\d{4}\d*$`)
 
 func (r listVulnerabilitiesResponse) error() error { return r.Err }
 
@@ -50,11 +54,22 @@ func listVulnerabilitiesEndpoint(ctx context.Context, req interface{}, svc fleet
 		}
 	}
 
+	var knownVulnerability *bool
+	if len(vulns) == 0 && cveRegex.MatchString(request.ListOptions.MatchQuery) {
+		// If no vulnerabilities are returned, we need to check if the query was for a vulnerability known to fleet
+		known, err := svc.IsCVEKnownToFleet(ctx, request.ListOptions.MatchQuery)
+		if err != nil {
+			return listVulnerabilitiesResponse{Err: err}, nil
+		}
+		knownVulnerability = &known
+	}
+
 	return listVulnerabilitiesResponse{
-		Vulnerabilities: vulns,
-		Meta:            meta,
-		Count:           count,
-		CountsUpdatedAt: updatedAt,
+		Vulnerabilities:    vulns,
+		Meta:               meta,
+		Count:              count,
+		CountsUpdatedAt:    updatedAt,
+		KnownVulnerability: knownVulnerability,
 	}, nil
 }
 
@@ -97,6 +112,10 @@ func (svc *Service) CountVulnerabilities(ctx context.Context, opts fleet.VulnLis
 	}
 
 	return svc.ds.CountVulnerabilities(ctx, opts)
+}
+
+func (svc *Service) IsCVEKnownToFleet(ctx context.Context, cve string) (bool, error) {
+	return svc.ds.IsCVEKnownToFleet(ctx, cve)
 }
 
 type getVulnerabilityRequest struct {
