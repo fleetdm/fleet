@@ -1591,7 +1591,7 @@ type Datastore interface {
 	SetTeamVPPApps(ctx context.Context, teamID *uint, appIDs []VPPAppID) error
 	InsertVPPAppWithTeam(ctx context.Context, app *VPPApp, teamID *uint) (*VPPApp, error)
 
-	InsertHostVPPSoftwareInstall(ctx context.Context, hostID, userID uint, appID VPPAppID, commandUUID, associatedEventID string) error
+	InsertHostVPPSoftwareInstall(ctx context.Context, hostID, userID uint, appID VPPAppID, commandUUID, associatedEventID string, selfService bool) error
 	GetPastActivityDataForVPPAppInstall(ctx context.Context, commandResults *mdm.CommandResults) (*User, *ActivityInstalledAppStoreApp, error)
 }
 

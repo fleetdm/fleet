@@ -435,16 +435,16 @@ WHERE vat.global_or_team_id = ? AND va.title_id = ?
 }
 
 func (ds *Datastore) InsertHostVPPSoftwareInstall(ctx context.Context, hostID, userID uint, appID fleet.VPPAppID,
-	commandUUID, associatedEventID string) error {
+	commandUUID, associatedEventID string, selfService bool) error {
 	stmt := `
 INSERT INTO host_vpp_software_installs
-  (host_id, adam_id, platform, command_uuid, user_id, associated_event_id)
+  (host_id, adam_id, platform, command_uuid, user_id, associated_event_id, self_service)
 VALUES
-  (?,?,?,?,?,?)
+  (?,?,?,?,?,?,?)
 	`
 
 	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, hostID, appID.AdamID, appID.Platform, commandUUID, userID,
-		associatedEventID); err != nil {
+		associatedEventID, selfService); err != nil {
 		return ctxerr.Wrap(ctx, err, "insert into host_vpp_software_installs")
 	}
 

@@ -318,10 +318,10 @@ func (svc *Service) InstallSoftwareTitle(ctx context.Context, hostID uint, softw
 		return ctxerr.Wrap(ctx, err, "finding VPP app for title")
 	}
 
-	return svc.installSoftwareFromVPP(ctx, host, vppApp, mobileAppleDevice || fleet.AppleDevicePlatform(platform) == fleet.MacOSPlatform)
+	return svc.installSoftwareFromVPP(ctx, host, vppApp, mobileAppleDevice || fleet.AppleDevicePlatform(platform) == fleet.MacOSPlatform, false)
 }
 
-func (svc *Service) installSoftwareFromVPP(ctx context.Context, host *fleet.Host, vppApp *fleet.VPPApp, appleDevice bool) error {
+func (svc *Service) installSoftwareFromVPP(ctx context.Context, host *fleet.Host, vppApp *fleet.VPPApp, appleDevice bool, selfServie bool) error {
 	if !appleDevice {
 		return &fleet.BadRequestError{
 			Message: "VPP apps can only be installed only on Apple hosts.",
@@ -434,7 +434,7 @@ func (svc *Service) installSoftwareFromVPP(ctx context.Context, host *fleet.Host
 		return ctxerr.Wrapf(ctx, err, "sending command to install VPP %s application to host with serial %s", vppApp.AdamID, host.HardwareSerial)
 	}
 
-	err = svc.ds.InsertHostVPPSoftwareInstall(ctx, host.ID, user.ID, vppApp.VPPAppID, cmdUUID, eventID)
+	err = svc.ds.InsertHostVPPSoftwareInstall(ctx, host.ID, user.ID, vppApp.VPPAppID, cmdUUID, eventID, selfServie)
 	if err != nil {
 		return ctxerr.Wrapf(ctx, err, "inserting host vpp software install for host with serial %s and app with adamID %s", host.HardwareSerial, vppApp.AdamID)
 	}
@@ -744,20 +744,62 @@ func (svc *Service) BatchSetSoftwareInstallers(ctx context.Context, tmName strin
 func (svc *Service) SelfServiceInstallSoftwareTitle(ctx context.Context, host *fleet.Host, softwareTitleID uint) error {
 	installer, err := svc.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, host.TeamID, softwareTitleID, false)
 	if err != nil {
-		if fleet.IsNotFound(err) {
+		if !fleet.IsNotFound(err) {
+			return ctxerr.Wrap(ctx, err, "finding software installer for title")
+		}
+		installer = nil
+	}
+
+	if installer != nil {
+		if !installer.SelfService {
 			return &fleet.BadRequestError{
-				Message: "Software title has no package added. Please add software package to install.",
-				InternalErr: ctxerr.WrapWithData(
-					ctx, err, "couldn't find an installer for software title",
+				Message: "Software title is not available through self-service",
+				InternalErr: ctxerr.NewWithData(
+					ctx, "software title not available through self-service",
 					map[string]any{"host_id": host.ID, "team_id": host.TeamID, "title_id": softwareTitleID},
 				),
 			}
 		}
 
-		return ctxerr.Wrap(ctx, err, "finding software installer for title")
+		ext := filepath.Ext(installer.Name)
+		requiredPlatform := packageExtensionToPlatform(ext)
+		if requiredPlatform == "" {
+			// this should never happen
+			return ctxerr.Errorf(ctx, "software installer has unsupported type %s", ext)
+		}
+
+		if host.FleetPlatform() != requiredPlatform {
+			return &fleet.BadRequestError{
+				Message: fmt.Sprintf("Package (%s) can be installed only on %s hosts.", ext, requiredPlatform),
+				InternalErr: ctxerr.WrapWithData(
+					ctx, err, "invalid host platform for requested installer",
+					map[string]any{"host_id": host.ID, "team_id": host.TeamID, "title_id": softwareTitleID},
+				),
+			}
+		}
+
+		_, err = svc.ds.InsertSoftwareInstallRequest(ctx, host.ID, installer.InstallerID, true)
+		return ctxerr.Wrap(ctx, err, "inserting self-service software install request")
 	}
 
-	if !installer.SelfService {
+	vppApp, err := svc.ds.GetVPPAppByTeamAndTitleID(ctx, host.TeamID, softwareTitleID, false)
+	if err != nil {
+		// if we couldn't find an installer or a VPP app, return a bad
+		// request error
+		if fleet.IsNotFound(err) {
+			return &fleet.BadRequestError{
+				Message: "Couldn't install software. Software title is not available for install. Please add software package or App Store app to install.",
+				InternalErr: ctxerr.WrapWithData(
+					ctx, err, "couldn't find an installer or VPP app for software title",
+					map[string]any{"host_id": host.ID, "team_id": host.TeamID, "title_id": softwareTitleID},
+				),
+			}
+		}
+
+		return ctxerr.Wrap(ctx, err, "finding VPP app for title")
+	}
+
+	if !vppApp.SelfService {
 		return &fleet.BadRequestError{
 			Message: "Software title is not available through self-service",
 			InternalErr: ctxerr.NewWithData(
@@ -767,25 +809,10 @@ func (svc *Service) SelfServiceInstallSoftwareTitle(ctx context.Context, host *f
 		}
 	}
 
-	ext := filepath.Ext(installer.Name)
-	requiredPlatform := packageExtensionToPlatform(ext)
-	if requiredPlatform == "" {
-		// this should never happen
-		return ctxerr.Errorf(ctx, "software installer has unsupported type %s", ext)
-	}
+	platform := host.FleetPlatform()
+	mobileAppleDevice := fleet.AppleDevicePlatform(platform) == fleet.IOSPlatform || fleet.AppleDevicePlatform(platform) == fleet.IPadOSPlatform
 
-	if host.FleetPlatform() != requiredPlatform {
-		return &fleet.BadRequestError{
-			Message: fmt.Sprintf("Package (%s) can be installed only on %s hosts.", ext, requiredPlatform),
-			InternalErr: ctxerr.WrapWithData(
-				ctx, err, "invalid host platform for requested installer",
-				map[string]any{"host_id": host.ID, "team_id": host.TeamID, "title_id": softwareTitleID},
-			),
-		}
-	}
-
-	_, err = svc.ds.InsertSoftwareInstallRequest(ctx, host.ID, installer.InstallerID, true)
-	return ctxerr.Wrap(ctx, err, "inserting self-service software install request")
+	return svc.installSoftwareFromVPP(ctx, host, vppApp, mobileAppleDevice || fleet.AppleDevicePlatform(platform) == fleet.MacOSPlatform, true)
 }
 
 // packageExtensionToPlatform returns the platform name based on the
