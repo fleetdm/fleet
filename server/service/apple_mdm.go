@@ -3463,9 +3463,13 @@ func RenewSCEPCertificates(
 		}
 	}
 
-	migrationEnrollmentProfile := os.Getenv("FLEET_SILENT_MIGRATION_ENROLLMENT_PROFILE")
+	decodedMigrationEnrollmentProfile, err := base64.StdEncoding.DecodeString(os.Getenv("FLEET_SILENT_MIGRATION_ENROLLMENT_PROFILE"))
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "failed to decode silent migration enrollment profile")
+	}
 	hasAssocsFromMigration := len(assocsFromMigration) > 0
 
+	migrationEnrollmentProfile := string(decodedMigrationEnrollmentProfile)
 	if migrationEnrollmentProfile == "" && hasAssocsFromMigration {
 		level.Debug(logger).Log("msg", "found devices from migration that need SCEP renewals but FLEET_SILENT_MIGRATION_ENROLLMENT_PROFILE is empty")
 	}
