@@ -5511,7 +5511,8 @@ List all configuration profiles for macOS and Windows hosts enrolled to Fleet's 
       "checksum": "dGVzdAo=",
       "labels_exclude_any": [
        {
-        "name": "Label name 1"
+        "name": "Label name 1",
+        "id": 1
        }
       ]
     },
@@ -5525,11 +5526,13 @@ List all configuration profiles for macOS and Windows hosts enrolled to Fleet's 
       "checksum": "aCLemVr)",
       "labels_include_all": [
         {
-          "name": "Label name 1",
-          "broken": true
+          "name": "Label name 2",
+          "broken": true,
+          "id": 2
         },
         {
-          "name": "Label name 2"
+          "name": "Label name 3",
+          "id": 3
         }
       ]
     }
@@ -5577,10 +5580,12 @@ If one or more assigned labels are deleted the profile is considered broken (`br
   "labels_include_all": [
     {
       "name": "Label name 1",
+      "id": 1
       "broken": true
     },
     {
       "name": "Label name 2",
+      "id": 2
     }
   ]
 }
