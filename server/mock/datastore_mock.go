@@ -788,7 +788,7 @@ type InsertMDMAppleBootstrapPackageFunc func(ctx context.Context, bp *fleet.MDMA
 
 type CopyDefaultMDMAppleBootstrapPackageFunc func(ctx context.Context, ac *fleet.AppConfig, toTeamID uint) error
 
-type DeleteMDMAppleBootstrapPackageFunc func(ctx context.Context, teamID uint, pkgStore fleet.MDMBootstrapPackageStore) error
+type DeleteMDMAppleBootstrapPackageFunc func(ctx context.Context, teamID uint) error
 
 type GetMDMAppleBootstrapPackageMetaFunc func(ctx context.Context, teamID uint) (*fleet.MDMAppleBootstrapPackage, error)
 
@@ -5187,11 +5187,11 @@ func (s *DataStore) CopyDefaultMDMAppleBootstrapPackage(ctx context.Context, ac 
 	return s.CopyDefaultMDMAppleBootstrapPackageFunc(ctx, ac, toTeamID)
 }
 
-func (s *DataStore) DeleteMDMAppleBootstrapPackage(ctx context.Context, teamID uint, pkgStore fleet.MDMBootstrapPackageStore) error {
+func (s *DataStore) DeleteMDMAppleBootstrapPackage(ctx context.Context, teamID uint) error {
 	s.mu.Lock()
 	s.DeleteMDMAppleBootstrapPackageFuncInvoked = true
 	s.mu.Unlock()
-	return s.DeleteMDMAppleBootstrapPackageFunc(ctx, teamID, pkgStore)
+	return s.DeleteMDMAppleBootstrapPackageFunc(ctx, teamID)
 }
 
 func (s *DataStore) GetMDMAppleBootstrapPackageMeta(ctx context.Context, teamID uint) (*fleet.MDMAppleBootstrapPackage, error) {

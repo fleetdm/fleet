@@ -2004,7 +2004,7 @@ func TestApplyMacosSetup(t *testing.T) {
 		ds.InsertMDMAppleBootstrapPackageFunc = func(ctx context.Context, bp *fleet.MDMAppleBootstrapPackage, pkgStore fleet.MDMBootstrapPackageStore) error {
 			return nil
 		}
-		ds.DeleteMDMAppleBootstrapPackageFunc = func(ctx context.Context, teamID uint, pkgStore fleet.MDMBootstrapPackageStore) error {
+		ds.DeleteMDMAppleBootstrapPackageFunc = func(ctx context.Context, teamID uint) error {
 			return nil
 		}
 		ds.GetMDMAppleBootstrapPackageMetaFunc = func(ctx context.Context, teamID uint) (*fleet.MDMAppleBootstrapPackage, error) {
@@ -2455,7 +2455,7 @@ spec:
 			mockStore.metaHash = bp.Sha256
 			return nil
 		}
-		ds.DeleteMDMAppleBootstrapPackageFunc = func(ctx context.Context, teamID uint, pkgStore fleet.MDMBootstrapPackageStore) error {
+		ds.DeleteMDMAppleBootstrapPackageFunc = func(ctx context.Context, teamID uint) error {
 			require.Equal(t, uint(0), teamID)
 			return nil
 		}

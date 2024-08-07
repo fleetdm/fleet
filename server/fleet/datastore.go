@@ -1190,7 +1190,7 @@ type Datastore interface {
 	// specified team (and a new token is assigned). It also updates the team config with the default bootstrap package URL.
 	CopyDefaultMDMAppleBootstrapPackage(ctx context.Context, ac *AppConfig, toTeamID uint) error
 	// DeleteMDMAppleBootstrapPackage deletes the bootstrap package for the given team id.
-	DeleteMDMAppleBootstrapPackage(ctx context.Context, teamID uint, pkgStore MDMBootstrapPackageStore) error
+	DeleteMDMAppleBootstrapPackage(ctx context.Context, teamID uint) error
 	// GetMDMAppleBootstrapPackageMeta returns metadata about the bootstrap
 	// package for a team.
 	GetMDMAppleBootstrapPackageMeta(ctx context.Context, teamID uint) (*MDMAppleBootstrapPackage, error)

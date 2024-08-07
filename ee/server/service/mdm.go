@@ -435,7 +435,7 @@ func (svc *Service) DeleteMDMAppleBootstrapPackage(ctx context.Context, teamID *
 		return ctxerr.Wrap(ctx, err, "fetching bootstrap package metadata")
 	}
 
-	if err := svc.ds.DeleteMDMAppleBootstrapPackage(ctx, tmID, svc.bootstrapPackageStore); err != nil {
+	if err := svc.ds.DeleteMDMAppleBootstrapPackage(ctx, tmID); err != nil {
 		return ctxerr.Wrap(ctx, err, "deleting bootstrap package")
 	}
 

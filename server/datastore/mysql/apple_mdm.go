@@ -3085,10 +3085,13 @@ WHERE id = ?
 	})
 }
 
-func (ds *Datastore) DeleteMDMAppleBootstrapPackage(ctx context.Context, teamID uint, pkgStore fleet.MDMBootstrapPackageStore) error {
-	// TODO(mna): delete is one of the operations that must be supported by the
-	// S3 storage. In this case it would need to read the sha256 value first,
-	// then delete the corresponding key on S3, then delete the DB row.
+func (ds *Datastore) DeleteMDMAppleBootstrapPackage(ctx context.Context, teamID uint) error {
+	// NOTE: if S3 storage is used for the bootstrap package, we don't delete it
+	// here. The reason for this is that other teams may be using the same
+	// package, so it would use the same S3 key (based on its hash). Instead we
+	// rely on the cron job to clear unused packages from S3. Outside of using up
+	// space in the bucket, an unused package on S3 is not a problem.
+
 	stmt := "DELETE FROM mdm_apple_bootstrap_packages WHERE team_id = ?"
 	res, err := ds.writer(ctx).ExecContext(ctx, stmt, teamID)
 	if err != nil {

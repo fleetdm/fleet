@@ -7110,7 +7110,7 @@ func (s *integrationMDMTestSuite) TestMDMEnabledAndConfigured() {
 		}
 
 		// cleanup any residual bootstrap package
-		_ = s.ds.DeleteMDMAppleBootstrapPackage(ctx, tmID, nil)
+		_ = s.ds.DeleteMDMAppleBootstrapPackage(ctx, tmID)
 
 		// add new bootstrap package
 		require.NoError(t, s.ds.InsertMDMAppleBootstrapPackage(ctx, &fleet.MDMAppleBootstrapPackage{
