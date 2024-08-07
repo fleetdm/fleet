@@ -3224,8 +3224,6 @@ WHERE
 }
 
 func (ds *Datastore) GetMDMAppleBootstrapPackageMeta(ctx context.Context, teamID uint) (*fleet.MDMAppleBootstrapPackage, error) {
-	// TODO(mna): this shouldn't require any change, metadata is still all stored
-	// in the DB.
 	stmt := "SELECT team_id, name, sha256, token, created_at, updated_at FROM mdm_apple_bootstrap_packages WHERE team_id = ?"
 	var bp fleet.MDMAppleBootstrapPackage
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &bp, stmt, teamID); err != nil {
