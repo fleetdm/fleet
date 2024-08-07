@@ -306,39 +306,7 @@ func main() {
 					continue
 				}
 
-				// Check for null for backward compatibility with an old Fleet server
-				if sum.SelfService != nil && !*sum.SelfService {
-					selfServiceItem.Disable()
-					selfServiceItem.Hide()
-				} else {
-					selfServiceItem.Enable()
-					selfServiceItem.Show()
-				}
-
-				failingPolicies := 0
-				if sum.FailingPolicies != nil {
-					failingPolicies = int(*sum.FailingPolicies)
-				}
-
-				if failingPolicies > 0 {
-					if runtime.GOOS == "windows" {
-						// Windows (or maybe just the systray library?) doesn't support color emoji
-						// in the system tray menu, so we use text as an alternative.
-						if failingPolicies == 1 {
-							myDeviceItem.SetTitle("My device (1 issue)")
-						} else {
-							myDeviceItem.SetTitle(fmt.Sprintf("My device (%d issues)", failingPolicies))
-						}
-					} else {
-						myDeviceItem.SetTitle(fmt.Sprintf("🔴 My device (%d)", failingPolicies))
-					}
-				} else {
-					if runtime.GOOS == "windows" {
-						myDeviceItem.SetTitle("My device")
-					} else {
-						myDeviceItem.SetTitle("🟢 My device")
-					}
-				}
+				refreshBubble(sum.DesktopSummary, selfServiceItem, myDeviceItem)
 				myDeviceItem.Enable()
 
 				shouldRunMigrator := sum.Notifications.NeedsMDMMigration || sum.Notifications.RenewEnrollmentProfile
@@ -404,6 +372,23 @@ func main() {
 					if err := open.Browser(openURL); err != nil {
 						log.Error().Err(err).Str("url", openURL).Msg("open browser my device")
 					}
+					// Also refresh the device status
+					sum, err := client.DesktopSummary(tokenReader.GetCached())
+					switch {
+					case err == nil:
+						// OK
+					case errors.Is(err, service.ErrMissingLicense):
+						myDeviceItem.SetTitle("My device")
+						continue
+					case errors.Is(err, service.ErrUnauthenticated):
+						disableTray()
+						<-checkToken()
+						continue
+					default:
+						log.Error().Err(err).Msg("get desktop summary")
+						continue
+					}
+					refreshBubble(sum.DesktopSummary, selfServiceItem, myDeviceItem)
 				case <-transparencyItem.ClickedCh:
 					openURL := client.BrowserTransparencyURL(tokenReader.GetCached())
 					if err := open.Browser(openURL); err != nil {
@@ -414,6 +399,23 @@ func main() {
 					if err := open.Browser(openURL); err != nil {
 						log.Error().Err(err).Str("url", openURL).Msg("open browser self-service")
 					}
+					// Also refresh the device status
+					sum, err := client.DesktopSummary(tokenReader.GetCached())
+					switch {
+					case err == nil:
+						// OK
+					case errors.Is(err, service.ErrMissingLicense):
+						myDeviceItem.SetTitle("My device")
+						continue
+					case errors.Is(err, service.ErrUnauthenticated):
+						disableTray()
+						<-checkToken()
+						continue
+					default:
+						log.Error().Err(err).Msg("get desktop summary")
+						continue
+					}
+					refreshBubble(sum.DesktopSummary, selfServiceItem, myDeviceItem)
 				case <-migrateMDMItem.ClickedCh:
 					if err := mdmMigrator.Show(); err != nil {
 						go reportError(err, nil)
@@ -431,6 +433,42 @@ func main() {
 	}
 
 	systray.Run(onReady, onExit)
+}
+
+func refreshBubble(sum fleet.DesktopSummary, selfServiceItem *systray.MenuItem, myDeviceItem *systray.MenuItem) {
+	// Check for null for backward compatibility with an old Fleet server
+	if sum.SelfService != nil && !*sum.SelfService {
+		selfServiceItem.Disable()
+		selfServiceItem.Hide()
+	} else {
+		selfServiceItem.Enable()
+		selfServiceItem.Show()
+	}
+
+	failingPolicies := 0
+	if sum.FailingPolicies != nil {
+		failingPolicies = int(*sum.FailingPolicies)
+	}
+
+	if failingPolicies > 0 {
+		if runtime.GOOS == "windows" {
+			// Windows (or maybe just the systray library?) doesn't support color emoji
+			// in the system tray menu, so we use text as an alternative.
+			if failingPolicies == 1 {
+				myDeviceItem.SetTitle("My device (1 issue)")
+			} else {
+				myDeviceItem.SetTitle(fmt.Sprintf("My device (%d issues)", failingPolicies))
+			}
+		} else {
+			myDeviceItem.SetTitle(fmt.Sprintf("🔴 My device (%d)", failingPolicies))
+		}
+	} else {
+		if runtime.GOOS == "windows" {
+			myDeviceItem.SetTitle("My device")
+		} else {
+			myDeviceItem.SetTitle("🟢 My device")
+		}
+	}
 }
 
 type mdmMigrationHandler struct {
