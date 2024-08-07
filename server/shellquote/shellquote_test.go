@@ -9,6 +9,7 @@ import (
 )
 
 func TestSimpleSplit(t *testing.T) {
+	t.Parallel()
 	for _, elem := range simpleSplitTest {
 		output, err := Split(elem.input)
 		if err != nil {
@@ -20,6 +21,7 @@ func TestSimpleSplit(t *testing.T) {
 }
 
 func TestErrorSplit(t *testing.T) {
+	t.Parallel()
 	for _, elem := range errorSplitTest {
 		_, err := Split(elem.input)
 		if !errors.Is(err, elem.error) {
@@ -44,6 +46,7 @@ var simpleSplitTest = []struct {
 	{"\"quoted\\d\\\\\\\" text with\\\na backslash-escaped newline\"", []string{"quoted\\d\\\" text witha backslash-escaped newline"}},
 	{"text with an escaped \\\n newline in the middle", []string{"text", "with", "an", "escaped", "newline", "in", "the", "middle"}},
 	{"foo\"bar\"baz", []string{"foobarbaz"}},
+	{"--foo 6mI74pVBAidu1bALjY0F+wN4mPQyu8DUap/9M/kHp8I=", []string{"--foo", "6mI74pVBAidu1bALjY0F+wN4mPQyu8DUap/9M/kHp8I="}},
 }
 
 var errorSplitTest = []struct {
