@@ -101,8 +101,8 @@ const SoftwareTitleDetailsPage = ({
     }
   );
 
-  const hasSoftwarePackage = !!softwareTitle?.software_package;
-  const hasAppStoreApp = !!softwareTitle?.app_store_app;
+  const isAvailableForInstall =
+    !!softwareTitle?.software_package || !!softwareTitle?.app_store_app;
 
   const onDeleteInstaller = useCallback(() => {
     if (softwareTitle?.versions?.length) {
@@ -132,7 +132,7 @@ const SoftwareTitleDetailsPage = ({
     const showPackageCard =
       currentTeamId !== APP_CONTEXT_ALL_TEAMS_ID &&
       hasPermission &&
-      (hasSoftwarePackage || hasAppStoreApp);
+      isAvailableForInstall;
 
     if (showPackageCard) {
       const packageCardData = getPackageCardInfo(title);
@@ -163,7 +163,7 @@ const SoftwareTitleDetailsPage = ({
       return (
         <DetailsNoHosts
           header="Software not detected"
-          details="No hosts have this software installed."
+          details="Expecting to see software? Check back later."
         />
       );
     }
@@ -203,6 +203,7 @@ const SoftwareTitleDetailsPage = ({
               isIPadOSOrIOSApp={["ios_apps", "ipados_apps"].includes(
                 softwareTitle.source
               )}
+              isAvailableForInstall={isAvailableForInstall}
             />
           </Card>
         </>

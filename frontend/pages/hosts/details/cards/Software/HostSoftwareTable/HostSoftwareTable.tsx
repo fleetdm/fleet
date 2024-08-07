@@ -11,6 +11,7 @@ import { ISoftwareDropdownFilterVal } from "pages/SoftwarePage/SoftwareTitles/So
 import {
   ApplePlatform,
   APPLE_PLATFORM_DISPLAY_NAMES,
+  isIPadOrIPhone,
   Platform,
 } from "interfaces/platform";
 
@@ -189,14 +190,13 @@ const HostSoftwareTable = ({
 
   const memoizedEmptyComponent = useCallback(() => {
     const vulnFilterAndNotSupported =
-      ["ios", "ipados"].includes(platform) &&
-      hostSoftwareFilter === "vulnerableSoftware";
+      isIPadOrIPhone(platform) && hostSoftwareFilter === "vulnerableSoftware";
     return vulnFilterAndNotSupported ? (
       <VulnsNotSupported
         platformText={APPLE_PLATFORM_DISPLAY_NAMES[platform as ApplePlatform]}
       />
     ) : (
-      <EmptySoftwareTable isNotDetectingSoftware={searchQuery === ""} />
+      <EmptySoftwareTable noSearchQuery={searchQuery === ""} />
     );
   }, [hostSoftwareFilter, platform, searchQuery]);
 

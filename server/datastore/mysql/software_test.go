@@ -1,6 +1,7 @@
 package mysql
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"encoding/hex"
@@ -66,6 +67,8 @@ func TestSoftware(t *testing.T) {
 		{"ListHostSoftware", testListHostSoftware},
 		{"ListIOSHostSoftware", testListIOSHostSoftware},
 		{"SetHostSoftwareInstallResult", testSetHostSoftwareInstallResult},
+		{"ListHostSoftwareInstallThenTransferTeam", testListHostSoftwareInstallThenTransferTeam},
+		{"ListHostSoftwareInstallThenDeleteInstallers", testListHostSoftwareInstallThenDeleteInstallers},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -4342,4 +4345,217 @@ func testSetHostSoftwareInstallResult(t *testing.T, ds *Datastore) {
 	})
 	require.Error(t, err)
 	require.True(t, fleet.IsNotFound(err))
+}
+
+func testListHostSoftwareInstallThenTransferTeam(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	user := test.NewUser(t, ds, "user1", "user1@example.com", false)
+	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now(), test.WithPlatform("darwin"))
+	nanoEnroll(t, ds, host, false)
+	opts := fleet.HostSoftwareTitleListOptions{
+		ListOptions:                fleet.ListOptions{PerPage: 10, IncludeMetadata: true, OrderKey: "name", TestSecondaryOrderKey: "source"},
+		IncludeAvailableForInstall: true,
+	}
+
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team 1"})
+	require.NoError(t, err)
+	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "team 2"})
+	require.NoError(t, err)
+
+	err = ds.AddHostsToTeam(ctx, &team1.ID, []uint{host.ID})
+	require.NoError(t, err)
+	host.TeamID = &team1.ID
+
+	// add a single "externally-installed" software for that host
+	software := []fleet.Software{
+		{Name: "a", Version: "0.0.1", Source: "chrome_extensions"},
+	}
+	_, err = ds.UpdateHostSoftware(ctx, host.ID, software)
+	require.NoError(t, err)
+
+	// create a software installer for team 1
+	installerTm1, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript: "hello",
+		InstallerFile: bytes.NewReader([]byte("hello")),
+		StorageID:     "storage1",
+		Filename:      "file1",
+		Title:         "file1",
+		Version:       "1.0",
+		Source:        "apps",
+		TeamID:        &team1.ID,
+	})
+	require.NoError(t, err)
+
+	// install it on the host
+	hostInstall1, err := ds.InsertSoftwareInstallRequest(ctx, host.ID, installerTm1, false)
+	require.NoError(t, err)
+	err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
+		HostID:                host.ID,
+		InstallUUID:           hostInstall1,
+		InstallScriptExitCode: ptr.Int(0),
+	})
+	require.NoError(t, err)
+
+	// add a VPP app for team 1
+	vppTm1, err := ds.InsertVPPAppWithTeam(ctx,
+		&fleet.VPPApp{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_1", Platform: fleet.MacOSPlatform}, Name: "vpp1",
+			BundleIdentifier: "com.app.vpp1"}, &team1.ID)
+	require.NoError(t, err)
+
+	// fail to install it on the host
+	vpp1CmdUUID := createVPPAppInstallRequest(t, ds, host, vppTm1.AdamID, user.ID)
+	createVPPAppInstallResult(t, ds, host, vpp1CmdUUID, fleet.MDMAppleStatusError)
+
+	// add the successful installer to the reported installed software
+	software = []fleet.Software{
+		{Name: "a", Version: "0.0.1", Source: "chrome_extensions"},
+		{Name: "file1", Version: "1.0", Source: "apps"},
+	}
+	_, err = ds.UpdateHostSoftware(ctx, host.ID, software)
+	require.NoError(t, err)
+
+	// listing the host's software (including available for install) at this
+	// point lists "a", "file1" and "vpp1" (because of the install attempt)
+	sw, meta, err := ds.ListHostSoftware(ctx, host, opts)
+	require.NoError(t, err)
+	require.Len(t, sw, 3)
+	require.EqualValues(t, 3, meta.TotalResults)
+	require.Equal(t, sw[0].Name, "a")
+	require.Nil(t, sw[0].AppStoreApp)
+	require.Nil(t, sw[0].SoftwarePackage)
+	require.Equal(t, sw[1].Name, "file1")
+	require.Nil(t, sw[1].AppStoreApp)
+	require.NotNil(t, sw[1].SoftwarePackage)
+	require.Equal(t, sw[2].Name, "vpp1")
+	require.NotNil(t, sw[2].AppStoreApp)
+	require.Nil(t, sw[2].SoftwarePackage)
+
+	// move host to team 2
+	err = ds.AddHostsToTeam(ctx, &team2.ID, []uint{host.ID})
+	require.NoError(t, err)
+	host.TeamID = &team2.ID
+
+	// listing the host's software (including available for install) should now
+	// only list "a" and "file1" (because they are actually installed) and not
+	// link them to the installer/VPP app. With and without available software
+	// should result in the same rows (no available software in that new team).
+	for _, b := range []bool{true, false} {
+		opts.IncludeAvailableForInstall = b
+		sw, meta, err = ds.ListHostSoftware(ctx, host, opts)
+		require.NoError(t, err)
+		require.Len(t, sw, 2)
+		require.EqualValues(t, 2, meta.TotalResults)
+		require.Equal(t, sw[0].Name, "a")
+		require.Nil(t, sw[0].AppStoreApp)
+		require.Nil(t, sw[0].SoftwarePackage)
+		require.Equal(t, sw[1].Name, "file1")
+		require.Nil(t, sw[1].AppStoreApp)
+		require.Nil(t, sw[1].SoftwarePackage)
+	}
+}
+
+func testListHostSoftwareInstallThenDeleteInstallers(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	user := test.NewUser(t, ds, "user1", "user1@example.com", false)
+	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now(), test.WithPlatform("darwin"))
+	nanoEnroll(t, ds, host, false)
+	opts := fleet.HostSoftwareTitleListOptions{
+		ListOptions:                fleet.ListOptions{PerPage: 10, IncludeMetadata: true, OrderKey: "name", TestSecondaryOrderKey: "source"},
+		IncludeAvailableForInstall: true,
+	}
+
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team 1"})
+	require.NoError(t, err)
+
+	err = ds.AddHostsToTeam(ctx, &team1.ID, []uint{host.ID})
+	require.NoError(t, err)
+	host.TeamID = &team1.ID
+
+	// add a single "externally-installed" software for that host
+	software := []fleet.Software{
+		{Name: "a", Version: "0.0.1", Source: "chrome_extensions"},
+	}
+	_, err = ds.UpdateHostSoftware(ctx, host.ID, software)
+	require.NoError(t, err)
+
+	// create a software installer for team 1
+	installerTm1, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript: "hello",
+		InstallerFile: bytes.NewReader([]byte("hello")),
+		StorageID:     "storage1",
+		Filename:      "file1",
+		Title:         "file1",
+		Version:       "1.0",
+		Source:        "apps",
+		TeamID:        &team1.ID,
+	})
+	require.NoError(t, err)
+
+	// fail to install it on the host
+	hostInstall1, err := ds.InsertSoftwareInstallRequest(ctx, host.ID, installerTm1, false)
+	require.NoError(t, err)
+	err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
+		HostID:                host.ID,
+		InstallUUID:           hostInstall1,
+		InstallScriptExitCode: ptr.Int(1),
+	})
+	require.NoError(t, err)
+
+	// add a VPP app for team 1
+	vppTm1, err := ds.InsertVPPAppWithTeam(ctx,
+		&fleet.VPPApp{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_1", Platform: fleet.MacOSPlatform}, Name: "vpp1",
+			BundleIdentifier: "com.app.vpp1", LatestVersion: "1.0"}, &team1.ID)
+	require.NoError(t, err)
+
+	// install it on the host
+	vpp1CmdUUID := createVPPAppInstallRequest(t, ds, host, vppTm1.AdamID, user.ID)
+	createVPPAppInstallResult(t, ds, host, vpp1CmdUUID, fleet.MDMAppleStatusAcknowledged)
+
+	// add the successful VPP app to the reported installed software
+	software = []fleet.Software{
+		{Name: "a", Version: "0.0.1", Source: "chrome_extensions"},
+		{Name: "vpp1", Version: "1.0", Source: "apps", BundleIdentifier: "com.app.vpp1"},
+	}
+	_, err = ds.UpdateHostSoftware(ctx, host.ID, software)
+	require.NoError(t, err)
+
+	// listing the host's software (including available for install) at this
+	// point lists "a", "file1" and "vpp1" (because of the install attempt)
+	sw, meta, err := ds.ListHostSoftware(ctx, host, opts)
+	require.NoError(t, err)
+	require.Len(t, sw, 3)
+	require.EqualValues(t, 3, meta.TotalResults)
+	require.Equal(t, sw[0].Name, "a")
+	require.Nil(t, sw[0].AppStoreApp)
+	require.Nil(t, sw[0].SoftwarePackage)
+	require.Equal(t, sw[1].Name, "file1")
+	require.Nil(t, sw[1].AppStoreApp)
+	require.NotNil(t, sw[1].SoftwarePackage)
+	require.Equal(t, sw[2].Name, "vpp1")
+	require.NotNil(t, sw[2].AppStoreApp)
+	require.Nil(t, sw[2].SoftwarePackage)
+
+	// delete both installers
+	err = ds.DeleteSoftwareInstaller(ctx, installerTm1)
+	require.NoError(t, err)
+	err = ds.DeleteVPPAppFromTeam(ctx, &team1.ID, vppTm1.VPPAppID)
+	require.NoError(t, err)
+
+	// listing the host's software (including available for install) should now
+	// only list "a" and "vpp1" (because they are actually installed) and not
+	// link them to the installer/VPP app. With and without available software
+	// should result in the same rows (no available software anymore).
+	for _, b := range []bool{true, false} {
+		opts.IncludeAvailableForInstall = b
+		sw, meta, err = ds.ListHostSoftware(ctx, host, opts)
+		require.NoError(t, err)
+		require.Len(t, sw, 2)
+		require.EqualValues(t, 2, meta.TotalResults)
+		require.Equal(t, sw[0].Name, "a")
+		require.Nil(t, sw[0].AppStoreApp)
+		require.Nil(t, sw[0].SoftwarePackage)
+		require.Equal(t, sw[1].Name, "vpp1")
+		require.Nil(t, sw[1].AppStoreApp)
+		require.Nil(t, sw[1].SoftwarePackage)
+	}
 }

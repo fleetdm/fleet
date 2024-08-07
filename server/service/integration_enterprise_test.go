@@ -8299,7 +8299,7 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 	require.NotNil(t, resp.SoftwareTitles[0].SoftwarePackage.SelfService)
 	require.True(t, *resp.SoftwareTitles[0].SoftwarePackage.SelfService)
 
-	// no team but self-service returns the emacs software (technically impossible via the UI)
+	// "All teams" returns no software because the self-service software it's not installed (host_counts == 0).
 	resp = listSoftwareTitlesResponse{}
 	s.DoJSON(
 		"GET", "/api/latest/fleet/software/titles",
@@ -8308,15 +8308,9 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 		"self_service", "true",
 	)
 
-	require.Len(t, resp.SoftwareTitles, 2)
-	require.NotNil(t, resp.SoftwareTitles[0].SoftwarePackage)
-	require.NotNil(t, resp.SoftwareTitles[0].SoftwarePackage.SelfService)
-	require.True(t, *resp.SoftwareTitles[0].SoftwarePackage.SelfService)
-	require.NotNil(t, resp.SoftwareTitles[1].SoftwarePackage)
-	require.NotNil(t, resp.SoftwareTitles[1].SoftwarePackage.SelfService)
-	require.True(t, *resp.SoftwareTitles[1].SoftwarePackage.SelfService)
+	require.Empty(t, resp.SoftwareTitles, 0)
 
-	// team 0 returns the emacs software
+	// "No team" returns the emacs software
 	resp = listSoftwareTitlesResponse{}
 	s.DoJSON(
 		"GET", "/api/latest/fleet/software/titles",
