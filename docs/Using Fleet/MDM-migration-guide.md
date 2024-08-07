@@ -190,7 +190,7 @@ If your old MDM solution did enforce disk encryption, the end user will need to 
 
 In Fleet, the [Activation Lock](https://support.apple.com/en-us/HT208987) feature is disabled by default for automatically enrolled (DEP) hosts.
 
-Recently, Apple added the ability to manage activation lock in Apple Business Manager (ABM). For devices that are owned by the business and available in ABM, you can [turn off activation lock remotely](https://support.apple.com/en-ca/guide/apple-business-manager/axm812df1dd8/web).
+In 2024, Apple added the ability to manage activation lock in Apple Business Manager (ABM). For devices that are owned by the business and available in ABM, you can [turn off activation lock remotely](https://support.apple.com/en-ca/guide/apple-business-manager/axm812df1dd8/web).
 
 If a device is not available in ABM and has Activation Lock enabled, we recommend asking the end user to follow these instructions to disable Activation Lock before migrating the device to Fleet: https://support.apple.com/en-us/HT208987.
 
