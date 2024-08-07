@@ -183,7 +183,7 @@ Anyone in the product group can initiate an air guitar session.
 
 > An air guitar session may be used to design features that won't be delivered in the next 6 weeks.
 
-3. Prioritize: Bring the user story to [feature fest](https://fleetdm.com/handbook/product#rituals). If the user story is prioritized, proceed through the regular steps of specifying and designing as outlined in the drafting process. However, keep in mind that these are conceptual and may or may not proceed to engineering.
+2. Prioritize: Bring the user story to [feature fest](https://fleetdm.com/handbook/product#rituals). If the user story is prioritized, proceed through the regular steps of specifying and designing as outlined in the drafting process. However, keep in mind that these are conceptual and may or may not proceed to engineering.
 
 > An air guitar session may be needed before the next feature fest. In this case, the product group PM will prioritize the user story. 
 
