@@ -6,46 +6,7 @@ import (
 	"os"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
-	"github.com/rs/zerolog/log"
 )
-
-type Reader struct {
-	Path string
-}
-
-func (r *Reader) read() (string, error) {
-	data, err := os.ReadFile(r.Path)
-	if err != nil {
-		return "", err
-	}
-
-	return string(data), nil
-}
-
-func (r *Reader) GetMigrationType() (string, error) {
-	data, err := r.read()
-	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			return "", nil
-		}
-	}
-
-	return data, nil
-}
-
-func (r *Reader) FileExists() (bool, error) {
-	_, err := os.Stat(r.Path)
-	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			log.Debug().Msg("JVE_LOG: migration file not found")
-			return false, nil
-		}
-
-		return false, err
-	}
-
-	return true, nil
-}
 
 type ReadWriter struct {
 	*Reader
@@ -73,6 +34,19 @@ func (rw *ReadWriter) SetMigrationFile(typ string) error {
 	default:
 		return fmt.Errorf("load migration file %q: %w", rw.Path, err)
 	}
+	return nil
+}
+
+func (rw *ReadWriter) RemoveFile() error {
+	if err := os.Remove(rw.Path); err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			// that's ok, noop
+			return nil
+		}
+
+		return fmt.Errorf("removing migration file: %w", err)
+	}
+
 	return nil
 }
 

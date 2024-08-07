@@ -567,14 +567,5 @@ func (m *swiftDialogMDMMigrator) MigrationInProgress() (bool, error) {
 }
 
 func (m *swiftDialogMDMMigrator) MarkMigrationCompleted() error {
-	if err := os.Remove(m.mrw.Path); err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			// that's ok, nop
-			return nil
-		}
-
-		return fmt.Errorf("removing migration file: %w", err)
-	}
-
-	return nil
+	return m.mrw.RemoveFile()
 }
