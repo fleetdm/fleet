@@ -23,7 +23,11 @@ import Radio from "components/forms/fields/Radio";
 import Checkbox from "components/forms/fields/Checkbox";
 
 import SoftwareIcon from "../icons/SoftwareIcon";
-import { getErrorMessage, getUniqueAppId } from "./helpers";
+import {
+  generateRedirectQueryParams,
+  getErrorMessage,
+  getUniqueAppId,
+} from "./helpers";
 
 const baseClass = "app-store-vpp";
 
@@ -194,10 +198,8 @@ const AppStoreVpp = ({
           to install software.
         </>
       );
-      const queryParams = buildQueryStringFromParams({
-        team_id: teamId,
-        available_for_install: true,
-      });
+
+      const queryParams = generateRedirectQueryParams(teamId, isSelfService);
       // any unique string - triggers SW refetch
       setAddedSoftwareToken(`${Date.now()}`);
       router.push(`${PATHS.SOFTWARE}?${queryParams}`);
