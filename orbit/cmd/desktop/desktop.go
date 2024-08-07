@@ -350,15 +350,14 @@ func main() {
 				myDeviceItem.Enable()
 
 				// Check our file to see if we should migrate
-
-				migrateFile, err := mdmMigrator.MigrationFileExists()
+				migrationInProgress, err := mdmMigrator.MigrationInProgress()
 				if err != nil {
 					log.Debug().Err(err).Msg("JVE_LOG: checking if migration file exists at top of loop")
 				}
 				// if we have the file, but we're enrolled to Fleet, then we need to remove the file
 				// and not run the migrator as we're already in Fleet
-				shouldRunMigrator := sum.Notifications.NeedsMDMMigration || sum.Notifications.RenewEnrollmentProfile || migrateFile
-				log.Debug().Bool("shouldRunMigrator", shouldRunMigrator).Bool("migrateFile", migrateFile).Bool("needsMDMMigration", sum.Notifications.NeedsMDMMigration).Msg("JVE_LOG: checking if we should run migrator")
+				shouldRunMigrator := sum.Notifications.NeedsMDMMigration || sum.Notifications.RenewEnrollmentProfile || migrationInProgress
+				log.Debug().Bool("shouldRunMigrator", shouldRunMigrator).Bool("migrateFile", migrationInProgress).Bool("needsMDMMigration", sum.Notifications.NeedsMDMMigration).Msg("JVE_LOG: checking if we should run migrator")
 
 				if runtime.GOOS == "darwin" && shouldRunMigrator && mdmMigrator.CanRun() {
 					enrolled, enrollURL, err := profiles.IsEnrolledInMDM()
@@ -400,7 +399,7 @@ func main() {
 
 						// if the device is unmanaged or we're in force mode and the device needs
 						// migration, enable aggressive mode.
-						if isUnmanaged || forceModeEnabled || migrateFile {
+						if isUnmanaged || forceModeEnabled || migrationInProgress {
 							log.Info().Msg("MDM device is unmanaged or force mode enabled, automatically showing dialog")
 							if err := mdmMigrator.ShowInterval(); err != nil {
 								go reportError(err, nil)
@@ -408,8 +407,8 @@ func main() {
 							}
 						}
 					} else {
-						// we've already migrated, so remove the file
-						if err := mdmMigrator.RemoveMigrationFile(); err != nil {
+						// we're done with the migration, so mark it as complete.
+						if err := mdmMigrator.MarkMigrationCompleted(); err != nil {
 							log.Error().Err(err).Msg("failed to remove migration file")
 						}
 					}

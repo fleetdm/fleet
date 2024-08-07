@@ -562,11 +562,11 @@ func (m *swiftDialogMDMMigrator) getMacOSMajorVersion() (int, error) {
 	return major, nil
 }
 
-func (m *swiftDialogMDMMigrator) MigrationFileExists() (bool, error) {
+func (m *swiftDialogMDMMigrator) MigrationInProgress() (bool, error) {
 	return m.mrw.FileExists()
 }
 
-func (m *swiftDialogMDMMigrator) RemoveMigrationFile() error {
+func (m *swiftDialogMDMMigrator) MarkMigrationCompleted() error {
 	if err := os.Remove(m.mrw.Path); err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			// that's ok, nop
