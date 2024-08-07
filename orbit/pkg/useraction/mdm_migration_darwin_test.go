@@ -17,6 +17,7 @@ func (d dummyHandler) NotifyRemote() error {
 func (d dummyHandler) ShowInstructions() error { return nil }
 
 func TestWaitForUnenrollment(t *testing.T) {
+	t.Parallel()
 	m := &swiftDialogMDMMigrator{
 		handler:                   dummyHandler{},
 		baseDialog:                newBaseDialog("foo/bar"),
