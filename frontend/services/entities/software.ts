@@ -63,7 +63,7 @@ export interface ISoftwareVersionsQueryKey extends ISoftwareApiParams {
 
 export interface ISoftwareTitlesQueryKey extends ISoftwareApiParams {
   // used to trigger software refetches from sibling pages
-  addedSoftwareToken: string | null;
+  addedSoftwareToken?: string | null;
   scope: "software-titles";
 }
 
