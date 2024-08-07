@@ -1617,7 +1617,7 @@ This glossary provides definitions to commonly used terms within our space.
 | **open source** | Software with intentionally public code for the sake of transparency. |
 | **OS** | (Operating System) Software that provides the groundwork and instructions for a device's basic functions, including application use and controlling peripherals. |
 | **osquery**  | A tool that assembles low-level operating system analytics and monitoring. |
-| **out-of-policy device** | A device that is fails any security or vulnerability policy created in Fleet. |
+| **out-of-policy device** | A device that fails any security or vulnerability policy created in Fleet. |
 | **permissions** | Users have different abilities depending on the access level they have. |
 | **platform** | Any software or hardware for hosting an application, data, or service. |
 | **policies** | Yes or no questions you can ask using Fleet about your host devices. |
