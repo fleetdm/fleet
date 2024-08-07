@@ -927,7 +927,7 @@ const HostDetailsPage = ({
             <TabPanel>
               <SoftwareCard
                 id={host.id}
-                platform={host.platform as Platform} // TODO - typing
+                platform={host.platform}
                 softwareUpdatedAt={host.software_updated_at}
                 hostCanInstallSoftware={
                   !!host.orbit_version || isIosOrIpadosHost
