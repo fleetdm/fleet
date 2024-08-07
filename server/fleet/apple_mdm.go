@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
 	"time"
@@ -840,4 +841,13 @@ type MDMAppleDDMActivation struct {
 	Payload     MDMAppleDDMActivationPayload `json:"Payload"`
 	ServerToken string                       `json:"ServerToken"`
 	Type        string                       `json:"Type"` // "com.apple.activation.simple"
+}
+
+// MDMBootstrapPackageStore is the interface to store and retrieve bootstrap
+// package files. Fleet supports storing to the database and to an S3 bucket.
+type MDMBootstrapPackageStore interface {
+	Get(ctx context.Context, packageID string) (io.ReadCloser, int64, error)
+	Put(ctx context.Context, packageID string, content io.ReadSeeker) error
+	Exists(ctx context.Context, packageID string) (bool, error)
+	Cleanup(ctx context.Context, usedPackageIDs []string) (int, error)
 }

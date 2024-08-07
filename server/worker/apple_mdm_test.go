@@ -262,7 +262,7 @@ func TestAppleMDM(t *testing.T) {
 			Bytes:  []byte("test"),
 			Sha256: []byte("test"),
 			Token:  "token",
-		})
+		}, nil)
 		require.NoError(t, err)
 
 		mdmWorker := &AppleMDM{
@@ -314,7 +314,7 @@ func TestAppleMDM(t *testing.T) {
 			Bytes:  []byte("test"),
 			Sha256: []byte("test"),
 			Token:  "token",
-		})
+		}, nil)
 		require.NoError(t, err)
 
 		mdmWorker := &AppleMDM{
@@ -367,7 +367,7 @@ func TestAppleMDM(t *testing.T) {
 			Bytes:  []byte("test"),
 			Sha256: []byte("test"),
 			Token:  "token",
-		})
+		}, nil)
 		require.NoError(t, err)
 
 		mdmWorker := &AppleMDM{
