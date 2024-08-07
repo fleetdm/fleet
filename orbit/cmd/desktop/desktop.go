@@ -292,7 +292,7 @@ func main() {
 		// tray icon accordingly
 		go func() {
 			<-deviceEnabledChan
-			tic := time.NewTicker(10 * time.Second)
+			tic := time.NewTicker(5 * time.Minute)
 			defer tic.Stop()
 
 			for {
