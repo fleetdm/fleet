@@ -798,6 +798,8 @@ type GetMDMAppleBootstrapPackageSummaryFunc func(ctx context.Context, teamID uin
 
 type RecordHostBootstrapPackageFunc func(ctx context.Context, commandUUID string, hostUUID string) error
 
+type CleanupUnusedBootstrapPackagesFunc func(ctx context.Context, pkgStore fleet.MDMBootstrapPackageStore) error
+
 type GetHostMDMMacOSSetupFunc func(ctx context.Context, hostID uint) (*fleet.HostMDMMacOSSetup, error)
 
 type MDMGetEULAMetadataFunc func(ctx context.Context) (*fleet.MDMEULA, error)
@@ -2177,6 +2179,9 @@ type DataStore struct {
 
 	RecordHostBootstrapPackageFunc        RecordHostBootstrapPackageFunc
 	RecordHostBootstrapPackageFuncInvoked bool
+
+	CleanupUnusedBootstrapPackagesFunc        CleanupUnusedBootstrapPackagesFunc
+	CleanupUnusedBootstrapPackagesFuncInvoked bool
 
 	GetHostMDMMacOSSetupFunc        GetHostMDMMacOSSetupFunc
 	GetHostMDMMacOSSetupFuncInvoked bool
@@ -5220,6 +5225,13 @@ func (s *DataStore) RecordHostBootstrapPackage(ctx context.Context, commandUUID 
 	s.RecordHostBootstrapPackageFuncInvoked = true
 	s.mu.Unlock()
 	return s.RecordHostBootstrapPackageFunc(ctx, commandUUID, hostUUID)
+}
+
+func (s *DataStore) CleanupUnusedBootstrapPackages(ctx context.Context, pkgStore fleet.MDMBootstrapPackageStore) error {
+	s.mu.Lock()
+	s.CleanupUnusedBootstrapPackagesFuncInvoked = true
+	s.mu.Unlock()
+	return s.CleanupUnusedBootstrapPackagesFunc(ctx, pkgStore)
 }
 
 func (s *DataStore) GetHostMDMMacOSSetup(ctx context.Context, hostID uint) (*fleet.HostMDMMacOSSetup, error) {
