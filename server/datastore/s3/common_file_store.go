@@ -2,6 +2,7 @@ package s3
 
 import (
 	"context"
+	"errors"
 	"io"
 	"path"
 
@@ -47,6 +48,10 @@ func (s *commonFileStore) Get(ctx context.Context, fileID string) (io.ReadCloser
 
 // Put uploads a file to S3.
 func (s *commonFileStore) Put(ctx context.Context, fileID string, content io.ReadSeeker) error {
+	if fileID == "" {
+		return errors.New("S3 file identifier is empty")
+	}
+
 	key := s.keyForFile(fileID)
 	_, err := s.s3client.PutObject(&s3.PutObjectInput{
 		Bucket: &s.bucket,
