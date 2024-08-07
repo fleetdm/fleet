@@ -203,8 +203,10 @@ interface ISoftwarePackageCardProps {
   version: string;
   uploadedAt: string; // TODO: optional?
   status: {
-    installed: number;
+    verified: number;
+    verifying: number;
     pending: number;
+    blocked: number;
     failed: number;
   };
   isSelfService: boolean;
@@ -354,13 +356,13 @@ const SoftwarePackageCard = ({
         <PackageStatusCount
           softwareId={softwareId}
           status="verified"
-          count={status.installed}
+          count={status.verified}
           teamId={teamId}
         />
         <PackageStatusCount
           softwareId={softwareId}
           status="verifying"
-          count={status.installed} // TODO
+          count={status.verifying}
           teamId={teamId}
         />
         <PackageStatusCount
@@ -372,7 +374,7 @@ const SoftwarePackageCard = ({
         <PackageStatusCount
           softwareId={softwareId}
           status="blocked"
-          count={status.installed} // TODO
+          count={status.blocked}
           teamId={teamId}
         />
         <PackageStatusCount

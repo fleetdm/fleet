@@ -65,8 +65,10 @@ export interface ISoftwarePackage {
   self_service: boolean;
   icon_url: string | null;
   status: {
-    installed: number;
+    verified: number;
+    verifying: number;
     pending: number;
+    blocked: number;
     failed: number;
   };
   // for SW title details > read-only Options modal
@@ -86,8 +88,10 @@ export interface IAppStoreApp {
   latest_version: string;
   icon_url: string;
   status: {
-    installed: number;
+    verified: number;
+    verifying: number;
     pending: number;
+    blocked: number;
     failed: number;
   };
 }
