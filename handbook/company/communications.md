@@ -1228,6 +1228,7 @@ Numbers over 3 digits get commas:
 Use numerals and am or pm without a space in between:
 - 7am
 - 7:30pm
+
 Use a hyphen between times to indicate a time period:
 - 7am–10:30pm
 
