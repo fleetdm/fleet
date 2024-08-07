@@ -98,6 +98,29 @@ func (ds *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Du
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "amount hosts by osquery version")
 		}
+		/*		amountHostsByOsqueryVersion, err := amountHostsByOsqueryVersionDB(ctx, ds.reader(ctx))
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "amount hosts by osquery version")
+				}
+				amountHostsByOsqueryVersion, err := amountHostsByOsqueryVersionDB(ctx, ds.reader(ctx))
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "amount hosts by osquery version")
+				}
+				amountHostsByOsqueryVersion, err := amountHostsByOsqueryVersionDB(ctx, ds.reader(ctx))
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "amount hosts by osquery version")
+				}
+				amountHostsByOsqueryVersion, err := amountHostsByOsqueryVersionDB(ctx, ds.reader(ctx))
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "amount hosts by osquery version")
+				}
+
+					AIFeaturesDisabled:            true,
+					MaintenanceWindowsEnabled:     true,
+					MaintenanceWindowsConfigured:  true,
+					NumHostsFleetDesktopEnabled:   1984,
+
+		*/
 
 		stats.NumHostsEnrolled = amountEnrolledHosts
 		stats.NumUsers = amountUsers
