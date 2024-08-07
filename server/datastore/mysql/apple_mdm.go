@@ -2990,7 +2990,7 @@ func (ds *Datastore) InsertMDMAppleBootstrapPackage(ctx context.Context, bp *fle
 		return execInsert(bp.TeamID, bp.Name, bp.Sha256, bp.Bytes, bp.Token)
 	}
 
-	// using disctinct storages for content and metadata introduces an
+	// using distinct storages for content and metadata introduces an
 	// intractable problem: the operation cannot be atomic (all succeed or all
 	// fail together), so what we do instead is to minimize the risk of data
 	// inconsistency:
@@ -3106,16 +3106,30 @@ func (ds *Datastore) DeleteMDMAppleBootstrapPackage(ctx context.Context, teamID 
 }
 
 func (ds *Datastore) GetMDMAppleBootstrapPackageBytes(ctx context.Context, token string, pkgStore fleet.MDMBootstrapPackageStore) (*fleet.MDMAppleBootstrapPackage, error) {
-	// TODO(mna): Get is one of the operations that must be supported by the S3
-	// storage interface. The SELECT here would grab the name and sha256 in this
-	// case, using the hash to know which S3 key to retrieve.
-	stmt := "SELECT name, bytes FROM mdm_apple_bootstrap_packages WHERE token = ?"
+	const stmt = `SELECT name, bytes, sha256 FROM mdm_apple_bootstrap_packages WHERE token = ?`
 	var bp fleet.MDMAppleBootstrapPackage
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &bp, stmt, token); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, ctxerr.Wrap(ctx, notFound("BootstrapPackage").WithMessage(token))
 		}
 		return nil, ctxerr.Wrap(ctx, err, "get bootstrap package bytes")
+	}
+
+	if pkgStore != nil && len(bp.Bytes) == 0 {
+		// bootstrap package is stored on S3, retrieve it
+		pkgID := hex.EncodeToString(bp.Sha256)
+		rc, _, err := pkgStore.Get(ctx, pkgID)
+		if err != nil {
+			return nil, ctxerr.Wrapf(ctx, err, "get bootstrap package %s from S3", pkgID)
+		}
+		defer rc.Close()
+
+		// TODO: optimize memory usage by supporting a streaming approach
+		// throughout the API (we have a similar issue with software installers).
+		bp.Bytes, err = io.ReadAll(rc)
+		if err != nil {
+			return nil, ctxerr.Wrapf(ctx, err, "reading bootstrap package %s from S3", pkgID)
+		}
 	}
 	return &bp, nil
 }
