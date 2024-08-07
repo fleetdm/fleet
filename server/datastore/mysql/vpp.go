@@ -280,9 +280,9 @@ ON DUPLICATE KEY UPDATE
 func insertVPPAppTeams(ctx context.Context, tx sqlx.ExtContext, appID fleet.VPPAppID, teamID *uint) error {
 	stmt := `
 INSERT INTO vpp_apps_teams
-	(adam_id, global_or_team_id, team_id, platform)
+	(adam_id, global_or_team_id, team_id, platform, self_service)
 VALUES
-	(?, ?, ?, ?)
+	(?, ?, ?, ?, ?)
 	`
 
 	var globalOrTmID uint
@@ -294,10 +294,10 @@ VALUES
 		}
 	}
 
-	_, err := tx.ExecContext(ctx, stmt, appID.AdamID, globalOrTmID, teamID, appID.Platform)
+	_, err := tx.ExecContext(ctx, stmt, appID.AdamID, globalOrTmID, teamID, appID.Platform, appID.SelfService)
 	if IsDuplicate(err) {
 		err = &existsError{
-			Identifier:   fmt.Sprintf("%s %s", appID.AdamID, appID.Platform),
+			Identifier:   fmt.Sprintf("%s %s self_service: %v", appID.AdamID, appID.Platform, appID.SelfService),
 			TeamID:       teamID,
 			ResourceType: "VPPAppID",
 		}

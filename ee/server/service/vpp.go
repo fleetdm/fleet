@@ -84,14 +84,17 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 	payloadsWithPlatform := make([]fleet.VPPBatchPayloadWithPlatform, 0, len(payloads))
 	for _, payload := range payloads {
 		payloadsWithPlatform = append(payloadsWithPlatform, []fleet.VPPBatchPayloadWithPlatform{{
-			AppStoreID: payload.AppStoreID,
-			Platform:   fleet.IOSPlatform,
+			AppStoreID:  payload.AppStoreID,
+			SelfService: payload.SelfService,
+			Platform:    fleet.IOSPlatform,
 		}, {
-			AppStoreID: payload.AppStoreID,
-			Platform:   fleet.IPadOSPlatform,
+			AppStoreID:  payload.AppStoreID,
+			SelfService: payload.SelfService,
+			Platform:    fleet.IPadOSPlatform,
 		}, {
-			AppStoreID: payload.AppStoreID,
-			Platform:   fleet.MacOSPlatform,
+			AppStoreID:  payload.AppStoreID,
+			SelfService: payload.SelfService,
+			Platform:    fleet.MacOSPlatform,
 		}}...)
 	}
 
