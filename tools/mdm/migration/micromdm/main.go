@@ -1,12 +1,13 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
-	"encoding/xml"
 	"flag"
 	"fmt"
 	"io"
 	"log"
+	"log/slog"
 	"net/http"
 	"time"
 
@@ -26,54 +27,46 @@ func main() {
 		log.Fatal("--api-token and --url are required.")
 	}
 
-	log.Println("getting API token...")
 	client := newMicroMDMClient(*apiToken, *url)
 
 	http.HandleFunc("/", func(writer http.ResponseWriter, request *http.Request) {
 		body, err := io.ReadAll(request.Body)
 		if err != nil {
-			log.Printf("ERROR: reading request body: %s\n", err)
+			slog.With("error", err).Error("reading request body")
 			writer.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 
 		if len(body) == 0 {
-			log.Print("ERROR: empty request body")
+			slog.Error("empty request body")
 			writer.WriteHeader(http.StatusBadRequest)
 			return
 		}
+
+		slog.With("raw_body", string(body)).Debug("got request")
 
 		var deviceInfo struct {
 			Host struct {
-				HardwareSerial string `json:"hardware_serial"`
+				UUID string `json:"uuid"`
 			} `json:"host"`
 		}
 		if err := json.Unmarshal(body, &deviceInfo); err != nil {
-			log.Printf("ERROR: unmarshalling request body: %s\n", err)
+			slog.With("device_uuid", deviceInfo.Host.UUID, "error", err).Error("failed to unmarshal request body")
 			writer.WriteHeader(http.StatusBadRequest)
 			return
 		}
 
-		log.Printf("unenrolling %s", deviceInfo.Host.HardwareSerial)
-
-		jamfID, err := client.getJamfID(deviceInfo.Host.HardwareSerial)
-		if err != nil {
-			log.Printf("ERROR: getting Jamf ID from serial number: %s\n", err)
+		slog.With("device_uuid", deviceInfo.Host.UUID).Info("attempting to unenroll from MicroMDM")
+		if err := client.unmanageDevice(deviceInfo.Host.UUID); err != nil {
+			slog.With("device_uuid", deviceInfo.Host.UUID, "error", err).Error("failed to unenroll device")
 			writer.WriteHeader(http.StatusBadRequest)
 			return
 		}
 
-		log.Println("attempting to remove device from Jamf management...")
-		if err := client.unmanageDevice(jamfID); err != nil {
-			log.Printf("ERROR: unmanaging device: %s\n", err)
-			writer.WriteHeader(http.StatusBadRequest)
-			return
-		}
-
-		log.Printf("%s unenrolled", deviceInfo.Host.HardwareSerial)
+		slog.With("device_uuid", deviceInfo.Host.UUID).Info("device unenrolled")
 	})
 
-	log.Printf("server running at http://localhost:%s\n", *port)
+	slog.With("address", fmt.Sprintf("http://localhost:%s", *port)).Info("server running")
 	server := &http.Server{
 		Addr:              fmt.Sprintf(":%s", *port),
 		ReadHeaderTimeout: 3 * time.Second,
@@ -114,35 +107,43 @@ func (m *microMDMClient) doWithRequest(req *http.Request) ([]byte, error) {
 	return body, nil
 }
 
-func (m *microMDMClient) do(method, path string) ([]byte, error) {
-	req, err := http.NewRequest(method, path, nil)
+func (m *microMDMClient) do(method, path string, data any) ([]byte, error) {
+	var body []byte
+	if data != nil {
+		b, err := json.Marshal(data)
+		if err != nil {
+			return nil, fmt.Errorf("marshaling request body: %w", err)
+		}
+		body = b
+	}
+
+	makeReq := func() (*http.Request, error) {
+		if len(body) > 0 {
+			return http.NewRequest(method, path, bytes.NewBuffer(body))
+		}
+
+		return http.NewRequest(method, path, nil)
+	}
+
+	req, err := makeReq()
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Add("accept", "application/xml")
-	req.Header.Add("Authorization", "Bearer "+m.token)
+	req.Header.Add("accept", "application/json")
+	req.SetBasicAuth("micromdm", m.token)
 	return m.doWithRequest(req)
 }
 
-func (m *microMDMClient) unmanageDevice(jamfID string) error {
-	_, err := m.do("POST", fmt.Sprintf("%s/JSSResource/computercommands/command/UnmanageDevice/id/%s", *url, jamfID))
+func (m *microMDMClient) unmanageDevice(UUID string) error {
+	req := struct {
+		RequestType string `json:"request_type"`
+		UDID        string `json:"udid"`
+		Identifier  string `json:"identifier"`
+	}{
+		RequestType: "RemoveProfile",
+		UDID:        UUID,
+		Identifier:  "com.github.micromdm.micromdm.enroll",
+	}
+	_, err := m.do("POST", fmt.Sprintf("%s/v1/commands", m.url), &req)
 	return err
-}
-
-func (m *microMDMClient) getJamfID(serial string) (string, error) {
-	body, err := m.do("GET", fmt.Sprintf("%s/JSSResource/computers/serialnumber/%s", *url, serial))
-	if err != nil {
-		return "", err
-	}
-
-	var data struct {
-		XMLName xml.Name `xml:"computer"`
-		ID      string   `xml:"general>id"`
-	}
-
-	if err := xml.Unmarshal(body, &data); err != nil {
-		return "", err
-	}
-
-	return data.ID, nil
 }
