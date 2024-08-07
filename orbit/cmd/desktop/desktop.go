@@ -351,7 +351,8 @@ func main() {
 				// Check our file to see if we should migrate
 				migrationInProgress, err := mdmMigrator.MigrationInProgress()
 				if err != nil {
-					log.Debug().Err(err).Msg("JVE_LOG: checking if migration file exists at top of loop")
+					go reportError(err, nil)
+					log.Error().Err(err).Msg("checking if MDM migration is in progress")
 				}
 				// if we have the file, but we're enrolled to Fleet, then we need to remove the file
 				// and not run the migrator as we're already in Fleet
@@ -405,7 +406,8 @@ func main() {
 					} else {
 						// we're done with the migration, so mark it as complete.
 						if err := mdmMigrator.MarkMigrationCompleted(); err != nil {
-							log.Error().Err(err).Msg("failed to remove migration file")
+							go reportError(err, nil)
+							log.Error().Err(err).Msg("failed to mark MDM migration as completed")
 						}
 					}
 				} else {
