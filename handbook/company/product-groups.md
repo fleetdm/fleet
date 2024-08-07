@@ -186,6 +186,8 @@ Anyone in the product group can initiate an air guitar session.
 
 1. Initiate: Create a user story and add the `~air-guitar` label to indicate that it is going through the air guitar process. Air guitar issues are always intended to be designed right away. If they can't be, the requestor is notified via at-mention in the issue (that person is either the CSM or AE).
 
+> An air guitar session may be used to design features that won't be delivered in the next 6 weeks.
+
 2. Prioritize: Bring the user story to [feature fest](https://fleetdm.com/handbook/product#rituals). If the user story is prioritized, proceed through the regular steps of specifying and designing as outlined in the drafting process. However, keep in mind that these are conceptual and may or may not proceed to engineering.
 
 > An air guitar session may be needed before the next feature fest. In this case, the product group PM will prioritize the user story.
