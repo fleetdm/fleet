@@ -12,7 +12,7 @@ import deviceAPI, {
   IGetDeviceSoftwareResponse,
 } from "services/entities/device_user";
 import { IHostSoftware, ISoftware } from "interfaces/software";
-import { Platform } from "interfaces/platform";
+import { isIPadOrIPhone, Platform } from "interfaces/platform";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import { NotificationContext } from "context/notification";
 import { AppContext } from "context/app";
@@ -98,7 +98,7 @@ const HostSoftware = ({
 }: IHostSoftwareProps) => {
   const { renderFlash } = useContext(NotificationContext);
   const vulnFilterAndNotSupported =
-    ["ios", "ipados"].includes(platform ?? "") && queryParams.vulnerable;
+    isIPadOrIPhone(platform ?? "") && queryParams.vulnerable;
   const {
     isGlobalAdmin,
     isGlobalMaintainer,
