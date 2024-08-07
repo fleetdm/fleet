@@ -105,9 +105,8 @@ escape:
 			return "", "", UnterminatedEscapeError
 		}
 		c, l := utf8.DecodeRuneInString(input)
-		if c == '\n' {
-			// a backslash-escaped newline is elided from the output entirely
-		} else {
+		// a backslash-escaped newline is elided from the output entirely
+		if c != '\n' {
 			buf.WriteString(input[:l])
 		}
 		input = input[l:]
@@ -141,9 +140,8 @@ double:
 				cur = cur[l2:]
 				if strings.ContainsRune(doubleEscapeChars, c2) {
 					buf.WriteString(input[0 : len(input)-len(cur)-l-l2])
-					if c2 == '\n' {
-						// newline is special, skip the backslash entirely
-					} else {
+					// newline is special, skip the backslash entirely
+					if c2 != '\n' {
 						buf.WriteRune(c2)
 					}
 					input = cur
