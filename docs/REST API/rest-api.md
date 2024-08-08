@@ -4261,39 +4261,38 @@ OS vulnerability data is currently available for Windows and macOS. For other pl
 `Status: 200`
 
 ```json
-  "scripts": [
-    {
-      "script_id": 3,
-      "name": "remove-zoom-artifacts.sh",
-      "last_execution": {
-        "execution_id": "e797d6c6-3aae-11ee-be56-0242ac120002",
-        "executed_at": "2021-12-15T15:23:57Z",
-        "status": "error"
-      }
-    },
-    {
-      "script_id": 5,
-      "name": "set-timezone.sh",
-      "last_execution": {
-        "id": "e797d6c6-3aae-11ee-be56-0242ac120002",
-        "executed_at": "2021-12-15T15:23:57Z",
-        "status": "pending"
-      }
-    },
-    {
-      "script_id": 8,
-      "name": "uninstall-zoom.sh",
-      "last_execution": {
-        "id": "e797d6c6-3aae-11ee-be56-0242ac120002",
-        "executed_at": "2021-12-15T15:23:57Z",
-        "status": "ran"
-      }
+"scripts": [
+  {
+    "script_id": 3,
+    "name": "remove-zoom-artifacts.sh",
+    "last_execution": {
+      "execution_id": "e797d6c6-3aae-11ee-be56-0242ac120002",
+      "executed_at": "2021-12-15T15:23:57Z",
+      "status": "error"
     }
-  ],
-  "meta": {
-    "has_next_results": false,
-    "has_previous_results": false
+  },
+  {
+    "script_id": 5,
+    "name": "set-timezone.sh",
+    "last_execution": {
+      "id": "e797d6c6-3aae-11ee-be56-0242ac120002",
+      "executed_at": "2021-12-15T15:23:57Z",
+      "status": "pending"
+    }
+  },
+  {
+    "script_id": 8,
+    "name": "uninstall-zoom.sh",
+    "last_execution": {
+      "id": "e797d6c6-3aae-11ee-be56-0242ac120002",
+      "executed_at": "2021-12-15T15:23:57Z",
+      "status": "ran"
+    }
   }
+],
+"meta": {
+  "has_next_results": false,
+  "has_previous_results": false
 }
 
 ```
@@ -4310,6 +4309,7 @@ OS vulnerability data is currently available for Windows and macOS. For other pl
 | ---- | ------- | ---- | ---------------------------- |
 | id   | integer | path | **Required**. The host's ID. |
 | query   | string | query | Search query keywords. Searchable fields include `name`. |
+| available_for_install | boolean | query | If `true` or `1`, only list software that is available for install (added by the user). Default is `false`.  
 | page | integer | query | Page number of the results to fetch.|
 | per_page | integer | query | Results per page.|
 
@@ -4331,15 +4331,15 @@ OS vulnerability data is currently available for Windows and macOS. For other pl
       "software_package": {
         "name": "GoogleChrome.pkg",
         "version": "125.12.0.3",
-        "self_service": true,
-        "last_install": {
-          "install_uuid": "8bbb8ac2-b254-4387-8cba-4d8a0407368b",
-          "installed_at": "2024-05-15T15:23:57Z"
-        },
+        "self_service": true
       },
       "app_store_app": null
       "source": "apps",
       "status": "failed",
+      "last_install": {
+        "install_uuid": "8bbb8ac2-b254-4387-8cba-4d8a0407368b",
+        "installed_at": "2024-05-15T15:23:57Z"
+      },
       "installed_versions": [
         {
           "version": "121.0",
@@ -4355,11 +4355,11 @@ OS vulnerability data is currently available for Windows and macOS. For other pl
       "software_package": {
         "name": "FalconSensor-6.44.pkg"
         "self_service": false,
-        "last_install": null
       },
       "app_store_app": null    
       "source": "",
       "status": null,
+      "last_install": null,
       "installed_versions": [],
     },
     {
@@ -4368,14 +4368,10 @@ OS vulnerability data is currently available for Windows and macOS. For other pl
       "software_package": null
       "app_store_app": {
         "app_store_id": "1091189122"
-        "version": "2.04",
-        "last_install": {
-          "command_uuid": "0aa14ae5-58fe-491a-ac9a-e4ee2b3aac40",
-          "installed_at": "2024-05-15T15:23:57Z"
-        },
       },
       "source": "apps",
-      "status": "installed",
+      "status": null,
+      "last_install": null,
       "installed_versions": [
         {
           "version": "118.0",
@@ -4403,7 +4399,7 @@ OS vulnerability data is currently available for Windows and macOS. For other pl
 
 _Available in Fleet Premium._
 
-Install software on a macOS, Windows, or Linux (Ubuntu) host. Software title must have `software_package` added to be installed.
+Install software on a macOS, iOS, iPadOS, Windows, or Linux (Ubuntu) host. Software title must have `software_package` added to be installed.
 
 `POST /api/v1/fleet/hosts/:id/software/install/:software_title_id`
 
@@ -4731,7 +4727,7 @@ To wipe a macOS, iOS, iPadOS, or Windows host, the host must have MDM turned on.
 
 ```json
 {
-  "count": 2,
+  "count": 3,
   "activities": [
     {
       "created_at": "2023-07-27T14:35:08Z",
@@ -8583,9 +8579,9 @@ Deletes the session specified by ID. When the user associated with the session n
 
 ## Software
 
-- [Add package](#add-package)
-- [Download package](#download-package)
-- [Delete package or App Store app](#delete-package-or-app-store-app)
+- [Add software](#add-software)
+- [Download software](#download-software)
+- [Delete software available for install](#delete-software)
 - [Get installation result](#get-installation-result)
 - [List software](#list-software)
 - [List software versions](#list-software-versions)
@@ -8594,7 +8590,7 @@ Deletes the session specified by ID. When the user associated with the session n
 - [Get available App Store apps](#get-available-app-store-apps)
 - [Add App Store app](#add-app-store-app)
 
-### Add package
+### Add software
 
 _Available in Fleet Premium._
 
@@ -8655,7 +8651,7 @@ Content-Type: application/octet-stream
 `Status: 200`
 
 
-### Download package
+### Download software
 
 _Available in Fleet Premium._
 
@@ -8685,7 +8681,7 @@ Content-Length: <length>
 Body: <blob>
 ```
 
-### Delete package or App Store app
+### Delete software available for install
 
 > This **endpoint is experimental** and may change. You can find the upcoming breaking changes [here](https://github.com/fleetdm/fleet/pull/19291/files#diff-7246bc304b15c8865ed8eaa205e9c244d0a0314e4bae60cf553dc06147c38b64L8661-R8698).
 
@@ -9113,9 +9109,9 @@ Returns information about the specified software version.
 }
 ```
 
-### Get available App Store apps
+### List Apple App Store apps
 
-Returns the list of App Store (VPP) apps purchased in Apple Business Manager. Apps that are already added to a team won't be returned.
+Returns the list of App Store apps purchased in Apple Business Manager (VPP). Apps that are already added to a team won't be returned.
 
 `GET /api/v1/fleet/software/app_store_apps`
 
@@ -9135,20 +9131,32 @@ Returns the list of App Store (VPP) apps purchased in Apple Business Manager. Ap
 
 ```json
 {
-  "app_store_apps": {
+  "app_store_apps": [
     {
       "name": "Xcode",
       "icon_url": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/f1/65/1e/a4844ccd-486d-455f-bb31-67336fe46b14/AppIcon-1x_U007emarketing-0-7-0-85-220-0.png/512x512bb.jpg",
       "latest_version": "15.4",
-      "app_store_id": "497799835"
+      "app_store_id": "497799835",
+      "added": true,
+      "platform": "darwin"
     },
     {
       "name": "Logic Pro",
       "icon_url": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/f1/65/1e/a4844ccd-486d-455f-bb31-67336fe46b14/AppIcon-1x_U007emarketing-0-7-0-85-220-0.png/512x512bb.jpg",
       "latest_version": "2.04",
-      "app_store_id": "634148309"
+      "app_store_id": "634148309",
+      "added": false,
+      "platform": "ios"
     },
-}
+    {
+      "name": "Logic Pro",
+      "icon_url": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/f1/65/1e/a4844ccd-486d-455f-bb31-67336fe46b14/AppIcon-1x_U007emarketing-0-7-0-85-220-0.png/512x512bb.jpg",
+      "latest_version": "2.04",
+      "app_store_id": "634148309",
+      "added": false,
+      "platform": "ipados"
+    },
+  ]
 }
 ```
 
@@ -9166,6 +9174,7 @@ Add App Store (VPP) app purchased in Apple Business Manager.
 | ---- | ---- | -- | ----------- |
 | app_store_id   | string | body | **Required.** The ID of App Store app. |
 | team_id       | integer | body | **Required**. The team ID. Adds VPP software to the specified team.  |
+| platform | string | body | The platform of the app (`darwin`, `ios`, or `ipados`). Default is `darwin`. |
 
 #### Example
 
@@ -9176,7 +9185,8 @@ Add App Store (VPP) app purchased in Apple Business Manager.
 ```json
 {
   "app_store_id": "497799835",
-  "team_id": 2
+  "team_id": 2,
+  "platform": "ipados"
 }
 ```
 
@@ -9279,7 +9289,7 @@ Retrieve details about a vulnerability and its affected software and OS versions
       "name": "macOS 14.1.2",
       "name_only": "macOS",
       "version": "14.1.2",
-      "platform": "darwin",
+
       "resolved_in_version": "14.2",
       "generated_cpes": [
         "cpe:2.3:o:apple:macos:*:*:*:*:*:14.2:*:*",
