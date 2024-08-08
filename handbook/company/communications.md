@@ -1118,21 +1118,21 @@ As we use sentence case, only the first word is capitalized. But, if a word woul
 
 ### Headings and titles
 
-Headings and titles should give readers an accurate idea of a topic's content and help to guide them through your writing so they can quickly find what they need.
+Headings and titles should give an accurate idea of a topic's content and help guide readers through your writing so they can quickly find what they need.
 
 #### Static headings
 
-Static headings (`noun`) e.g., “Log destinations” are recommended for concept or reference topics.
+Use static headings (a `noun` or `noun phrase`) e.g., “Log destinations,” for concept or reference topics. Be as short and specific as possible.
 
 #### Task-based headings
 
-Task-based headings (`verb` + `the thing`) e.g., _“Configure a log destination”_ are recommended for guides and tutorials where the heading should revel the task that the reader is trying to achieve. 
+Use task-based headings (`verb` + `topic`) e.g., _“Configure a log destination”_ for guides and tutorials where the heading should reveal the task that the reader is trying to achieve. 
 
 #### Avoid _-ing_ verb forms in headings
 
-Avoid starting a heading with _-ing_ verb forms.
+Avoid starting a heading with _-ing_ verb form, if possible.
 
-_-ing_ verb forms are more difficult for non-native English readers to understand, translate inconsistently, and increase character counts in limit spaces, like docs navigation.
+_-ing_ verb forms are more difficult for non-native English readers to understand, translate inconsistently, and increase character counts in limit spaces, such as in docs navigation.
 
 | ✅ Recommended | ❌ Not recommended | 
 | ---------------- | -------------------- |
