@@ -1,0 +1,1 @@
+- Linux lock/unlock scripts now make use of pam_nologin to keep AD users locked out

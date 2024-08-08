@@ -2470,11 +2470,11 @@ func testMDMAppleIdPAccount(t *testing.T, ds *Datastore) {
 	require.ErrorAs(t, err, &nfe)
 	require.Nil(t, out)
 
-	out, err = ds.GetMDMIdPAccountByAccountUUID(ctx, acc.UUID)
+	out, err = ds.GetMDMIdPAccountByUUID(ctx, acc.UUID)
 	require.NoError(t, err)
 	require.Equal(t, acc, out)
 
-	out, err = ds.GetMDMIdPAccountByAccountUUID(ctx, "BAD-TOKEN")
+	out, err = ds.GetMDMIdPAccountByUUID(ctx, "BAD-TOKEN")
 	require.ErrorAs(t, err, &nfe)
 	require.Nil(t, out)
 }
@@ -5551,11 +5551,11 @@ func testMDMConfigAsset(t *testing.T, ds *Datastore) {
 	assets := []fleet.MDMConfigAsset{
 		{
 			Name:  fleet.MDMAssetCACert,
-			Value: []byte("some bytes"),
+			Value: []byte("a"),
 		},
 		{
 			Name:  fleet.MDMAssetCAKey,
-			Value: []byte("some other bytes"),
+			Value: []byte("b"),
 		},
 	}
 	wantAssets := map[fleet.MDMAssetName]fleet.MDMConfigAsset{}
@@ -5595,6 +5595,37 @@ func testMDMConfigAsset(t *testing.T, ds *Datastore) {
 	require.Len(t, h, 1)
 	require.NotEmpty(t, h[fleet.MDMAssetCACert])
 
+	// Replace the assets
+
+	newAssets := []fleet.MDMConfigAsset{
+		{
+			Name:  fleet.MDMAssetCACert,
+			Value: []byte("c"),
+		},
+		{
+			Name:  fleet.MDMAssetCAKey,
+			Value: []byte("d"),
+		},
+	}
+
+	wantNewAssets := map[fleet.MDMAssetName]fleet.MDMConfigAsset{}
+	for _, a := range newAssets {
+		wantNewAssets[a.Name] = a
+	}
+
+	err = ds.ReplaceMDMConfigAssets(ctx, newAssets)
+	require.NoError(t, err)
+
+	a, err = ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetCAKey})
+	require.NoError(t, err)
+	require.Equal(t, wantNewAssets, a)
+
+	h, err = ds.GetAllMDMConfigAssetsHashes(ctx, []fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetCAKey})
+	require.NoError(t, err)
+	require.Len(t, h, 2)
+	require.NotEmpty(t, h[fleet.MDMAssetCACert])
+	require.NotEmpty(t, h[fleet.MDMAssetCAKey])
+
 	// Soft delete the assets
 
 	err = ds.DeleteMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetCAKey})
@@ -5619,19 +5650,25 @@ func testMDMConfigAsset(t *testing.T, ds *Datastore) {
 
 	var ar []assetRow
 
-	err = sqlx.SelectContext(ctx, ds.reader(ctx), &ar, "SELECT name, value, deletion_uuid, deleted_at FROM mdm_config_assets WHERE name IN (?, ?) ORDER BY name", fleet.MDMAssetCACert, fleet.MDMAssetCAKey)
+	err = sqlx.SelectContext(ctx, ds.reader(ctx), &ar, "SELECT name, value, deletion_uuid, deleted_at FROM mdm_config_assets")
 	require.NoError(t, err)
 
-	require.Len(t, ar, 2)
+	require.Len(t, ar, 4)
 
-	for i, a := range ar {
-		require.Equal(t, assets[i].Name, fleet.MDMAssetName(a.Name))
-		require.NotEmpty(t, a.Value)
-		d, err := decrypt(a.Value, ds.serverPrivateKey)
+	expected := make(map[string]fleet.MDMConfigAsset)
+
+	for _, a := range append(assets, newAssets...) {
+		expected[string(a.Value)] = a
+	}
+
+	for _, got := range ar {
+		d, err := decrypt(got.Value, ds.serverPrivateKey)
 		require.NoError(t, err)
-		require.Equal(t, assets[i].Value, d)
-		require.NotEmpty(t, a.DeletionUUID)
-		require.NotEmpty(t, a.DeletedAt)
+		require.Equal(t, expected[string(d)].Name, fleet.MDMAssetName(got.Name))
+		require.NotEmpty(t, got.Value)
+		require.Equal(t, expected[string(d)].Value, d)
+		require.NotEmpty(t, got.DeletionUUID)
+		require.NotEmpty(t, got.DeletedAt)
 	}
 }
 

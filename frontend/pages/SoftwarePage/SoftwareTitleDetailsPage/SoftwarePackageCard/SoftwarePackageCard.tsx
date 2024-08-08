@@ -4,16 +4,12 @@ import React, {
   useLayoutEffect,
   useState,
 } from "react";
-
 import FileSaver from "file-saver";
 
 import PATHS from "router/paths";
-
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
-
 import { SoftwareInstallStatus, ISoftwarePackage } from "interfaces/software";
-
 import softwareAPI from "services/entities/software";
 
 import { buildQueryStringFromParams } from "utilities/url";
@@ -22,15 +18,20 @@ import { uploadedFromNow } from "utilities/date_format";
 
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
-
 import Card from "components/Card";
 import Graphic from "components/Graphic";
 import TooltipWrapper from "components/TooltipWrapper";
 import DataSet from "components/DataSet";
 import Icon from "components/Icon";
 
+import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
+
 import DeleteSoftwareModal from "../DeleteSoftwareModal";
 import AdvancedOptionsModal from "../AdvancedOptionsModal";
+import {
+  APP_STORE_APP_DROPDOWN_OPTIONS,
+  SOFTWARE_PACAKGE_DROPDOWN_OPTIONS,
+} from "./helpers";
 
 const baseClass = "software-package-card";
 
@@ -75,7 +76,7 @@ const SoftwareName = ({ name }: ISoftwareNameProps) => {
 interface IStatusDisplayOption {
   displayName: string;
   iconName: "success" | "pending-outline" | "error";
-  tooltip: string;
+  tooltip: React.ReactNode;
 }
 
 const STATUS_DISPLAY_OPTIONS: Record<
@@ -85,7 +86,12 @@ const STATUS_DISPLAY_OPTIONS: Record<
   installed: {
     displayName: "Installed",
     iconName: "success",
-    tooltip: "Fleet installed software on these hosts.",
+    tooltip: (
+      <>
+        Fleet installed software on these hosts. Currently, if the software is
+        uninstalled, the &quot;Installed&quot; status won&apos;t be updated.
+      </>
+    ),
   },
   pending: {
     displayName: "Pending",
@@ -142,30 +148,19 @@ const PackageStatusCount = ({
   );
 };
 
-const DROPDOWN_OPTIONS = [
-  {
-    label: "Download",
-    value: "download",
-  },
-  {
-    label: "Delete",
-    value: "delete",
-  },
-  {
-    label: "Advanced options",
-    value: "advanced",
-  },
-] as const;
-
-const ActionsDropdown = ({
-  onDownloadClick,
-  onDeleteClick,
-  onAdvancedOptionsClick,
-}: {
+interface IActionsDropdownProps {
+  isSoftwarePackage: boolean;
   onDownloadClick: () => void;
   onDeleteClick: () => void;
   onAdvancedOptionsClick: () => void;
-}) => {
+}
+
+const ActionsDropdown = ({
+  isSoftwarePackage,
+  onDownloadClick,
+  onDeleteClick,
+  onAdvancedOptionsClick,
+}: IActionsDropdownProps) => {
   const onSelect = (value: string) => {
     switch (value) {
       case "download":
@@ -189,20 +184,42 @@ const ActionsDropdown = ({
         onChange={onSelect}
         placeholder="Actions"
         searchable={false}
-        options={DROPDOWN_OPTIONS}
+        options={
+          isSoftwarePackage
+            ? SOFTWARE_PACAKGE_DROPDOWN_OPTIONS
+            : APP_STORE_APP_DROPDOWN_OPTIONS
+        }
       />
     </div>
   );
 };
 
 interface ISoftwarePackageCardProps {
-  softwarePackage: ISoftwarePackage;
+  name: string;
+  version: string;
+  uploadedAt: string; // TODO: optional?
+  status: {
+    installed: number;
+    pending: number;
+    failed: number;
+  };
+  isSelfService: boolean;
   softwareId: number;
   teamId: number;
+  // NOTE: we will only have this if we are working with a software package.
+  softwarePackage?: ISoftwarePackage;
   onDelete: () => void;
 }
 
+// NOTE: This component is depeent on having either a software package
+// (ISoftwarePackage) or an app store app (IAppStoreApp). If we add more types
+// of packages we should consider refactoring this to be more dynamic.
 const SoftwarePackageCard = ({
+  name,
+  version,
+  uploadedAt,
+  status,
+  isSelfService,
   softwarePackage,
   softwareId,
   teamId,
@@ -246,7 +263,7 @@ const SoftwarePackageCard = ({
           `Byte size (${resp.data.size}) does not match content-length header (${contentLength})`
         );
       }
-      const filename = softwarePackage.name;
+      const filename = name;
       const file = new File([resp.data], filename, {
         type: "application/octet-stream",
       });
@@ -260,10 +277,33 @@ const SoftwarePackageCard = ({
       }
       FileSaver.saveAs(file);
     } catch (e) {
-      console.log(e);
-      renderFlash("error", "Couldn’t download. Please try again.");
+      renderFlash("error", "Couldn't download. Please try again.");
     }
-  }, [renderFlash, softwareId, softwarePackage.name, teamId]);
+  }, [renderFlash, softwareId, name, teamId]);
+
+  const renderIcon = () => {
+    return softwarePackage ? (
+      <Graphic name="file-pkg" />
+    ) : (
+      <SoftwareIcon name="appStore" size="medium" />
+    );
+  };
+
+  const renderDetails = () => {
+    return !uploadedAt ? (
+      <span>Version {version}</span>
+    ) : (
+      <>
+        <span>Version {version} &bull; </span>
+        <TooltipWrapper
+          tipContent={internationalTimeFormat(new Date(uploadedAt))}
+          underline={false}
+        >
+          {uploadedFromNow(uploadedAt)}
+        </TooltipWrapper>
+      </>
+    );
+  };
 
   const showActions =
     isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
@@ -274,45 +314,35 @@ const SoftwarePackageCard = ({
         {/* TODO: main-info could be a seperate component as its reused on a couple
         pages already. Come back and pull this into a component */}
         <div className={`${baseClass}__main-info`}>
-          <Graphic name="file-pkg" />
+          {renderIcon()}
           <div className={`${baseClass}__info`}>
-            <SoftwareName name={softwarePackage.name} />
-            <span className={`${baseClass}__details`}>
-              <span>Version {softwarePackage.version} &bull; </span>
-              <TooltipWrapper
-                tipContent={internationalTimeFormat(
-                  new Date(softwarePackage.uploaded_at)
-                )}
-                underline={false}
-              >
-                {uploadedFromNow(softwarePackage.uploaded_at)}
-              </TooltipWrapper>
-            </span>
+            <SoftwareName name={name} />
+            <span className={`${baseClass}__details`}>{renderDetails()}</span>
           </div>
         </div>
         <div className={`${baseClass}__package-statuses`}>
           <PackageStatusCount
             softwareId={softwareId}
             status="installed"
-            count={softwarePackage.status.installed}
+            count={status.installed}
             teamId={teamId}
           />
           <PackageStatusCount
             softwareId={softwareId}
             status="pending"
-            count={softwarePackage.status.pending}
+            count={status.pending}
             teamId={teamId}
           />
           <PackageStatusCount
             softwareId={softwareId}
             status="failed"
-            count={softwarePackage.status.failed}
+            count={status.failed}
             teamId={teamId}
           />
         </div>
       </div>
       <div className={`${baseClass}__actions-wrapper`}>
-        {softwarePackage.self_service && (
+        {isSelfService && (
           <div className={`${baseClass}__self-service-badge`}>
             <Icon
               name="install-self-service"
@@ -324,6 +354,7 @@ const SoftwarePackageCard = ({
         )}
         {showActions && (
           <ActionsDropdown
+            isSoftwarePackage={!!softwarePackage}
             onDownloadClick={onDownloadClick}
             onDeleteClick={onDeleteClick}
             onAdvancedOptionsClick={onAdvancedOptionsClick}
@@ -332,9 +363,9 @@ const SoftwarePackageCard = ({
       </div>
       {showAdvancedOptionsModal && (
         <AdvancedOptionsModal
-          installScript={softwarePackage.install_script}
-          preInstallQuery={softwarePackage.pre_install_query}
-          postInstallScript={softwarePackage.post_install_script}
+          installScript={softwarePackage?.install_script ?? ""}
+          preInstallQuery={softwarePackage?.pre_install_query}
+          postInstallScript={softwarePackage?.post_install_script}
           onExit={() => setShowAdvancedOptionsModal(false)}
         />
       )}

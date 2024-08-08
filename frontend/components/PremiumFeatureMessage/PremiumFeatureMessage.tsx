@@ -6,10 +6,23 @@ import Icon from "components/Icon";
 
 interface IPremiumFeatureMessage {
   className?: string;
+  /** Aligns premium message, default: centered */
+  alignment?: "left";
 }
 
-const PremiumFeatureMessage = ({ className }: IPremiumFeatureMessage) => {
-  const classes = classnames("premium-feature-message-container", className);
+const baseClass = "premium-feature-message-container";
+
+const PremiumFeatureMessage = ({
+  className,
+  alignment,
+}: IPremiumFeatureMessage) => {
+  const classes = classnames(
+    baseClass,
+    {
+      [`${baseClass}__align-${alignment}`]: alignment !== undefined,
+    },
+    className
+  );
 
   return (
     <div className={classes}>

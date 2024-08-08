@@ -6743,6 +6743,15 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 			`, host.ID, calendarEventID)
 	require.NoError(t, err)
 
+	softwareInstaller, err := ds.MatchOrCreateSoftwareInstaller(context.Background(), &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:   "",
+		PreInstallQuery: "",
+		Title:           "ChocolateRain",
+	})
+	require.NoError(t, err)
+	_, err = ds.InsertSoftwareInstallRequest(context.Background(), host.ID, softwareInstaller, false)
+	require.NoError(t, err)
+
 	// Check there's an entry for the host in all the associated tables.
 	for _, hostRef := range hostRefs {
 		var ok bool
@@ -7616,14 +7625,12 @@ func testHostsLoadHostByOrbitNodeKey(t *testing.T, ds *Datastore) {
 
 		// the returned host by LoadHostByOrbitNodeKey will have the orbit key stored
 		h.OrbitNodeKey = &orbitKey
-		h.DiskEncryptionResetRequested = ptr.Bool(false)
 		returned, err := ds.LoadHostByOrbitNodeKey(ctx, orbitKey)
 		require.NoError(t, err)
 
 		// compare only the fields we care about
 		h.CreatedAt = returned.CreatedAt
 		h.UpdatedAt = returned.UpdatedAt
-		h.LastEnrolledAt = returned.LastEnrolledAt // FIXME: this seems to be flaky (off by one second) in CI so don't compare it
 		h.DEPAssignedToFleet = ptr.Bool(false)
 		assert.Equal(t, h, returned)
 	}
@@ -7697,8 +7704,8 @@ func testHostsLoadHostByOrbitNodeKey(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	loadFleet, err = ds.LoadHostByOrbitNodeKey(ctx, *hFleet.OrbitNodeKey)
 	require.NoError(t, err)
-	require.True(t, loadFleet.MDM.EncryptionKeyAvailable)
 	require.NoError(t, err)
+	require.True(t, loadFleet.MDM.EncryptionKeyAvailable)
 	require.NotNil(t, loadFleet.DiskEncryptionEnabled)
 	require.True(t, *loadFleet.DiskEncryptionEnabled)
 
@@ -8259,7 +8266,9 @@ func testHostsEnrollOrbit(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		h2OrbitFetched, err := ds.Host(ctx, h2Orbit.ID)
 		require.NoError(t, err)
-		require.NotEqual(t, h1OsqueryFetched.LastEnrolledAt, h2OrbitFetched.LastEnrolledAt)
+		// orbit should not update last_enrolled_at if re-enrolling (because last_enrolled_at
+		// is to be set by osquery only).
+		require.Equal(t, h1OsqueryFetched.LastEnrolledAt, h2OrbitFetched.LastEnrolledAt)
 		time.Sleep(1 * time.Second) // to test the update of last_enrolled_at
 		h2Osquery, err := ds.EnrollHost(ctx, false, dupUUID, dupUUID, dupHWSerial, uuid.New().String(), nil, 0)
 		require.NoError(t, err)
@@ -8360,8 +8369,8 @@ func testHostsEncryptionKeyRawDecryption(t *testing.T, ds *Datastore) {
 	// no disk encryption key information
 	got, err := ds.Host(ctx, host.ID)
 	require.NoError(t, err)
-	require.False(t, got.MDM.EncryptionKeyAvailable)
 	require.NotNil(t, got.MDM.TestGetRawDecryptable())
+	require.False(t, got.MDM.EncryptionKeyAvailable)
 	require.Equal(t, -1, *got.MDM.TestGetRawDecryptable())
 
 	// create the encryption key row, but unknown decryptable
@@ -8379,8 +8388,8 @@ func testHostsEncryptionKeyRawDecryption(t *testing.T, ds *Datastore) {
 
 	got, err = ds.Host(ctx, host.ID)
 	require.NoError(t, err)
-	require.False(t, got.MDM.EncryptionKeyAvailable)
 	require.NotNil(t, got.MDM.TestGetRawDecryptable())
+	require.False(t, got.MDM.EncryptionKeyAvailable)
 	require.Equal(t, 0, *got.MDM.TestGetRawDecryptable())
 
 	// mark the key as decryptable
@@ -8389,8 +8398,8 @@ func testHostsEncryptionKeyRawDecryption(t *testing.T, ds *Datastore) {
 
 	got, err = ds.Host(ctx, host.ID)
 	require.NoError(t, err)
-	require.True(t, got.MDM.EncryptionKeyAvailable)
 	require.NotNil(t, got.MDM.TestGetRawDecryptable())
+	require.True(t, got.MDM.EncryptionKeyAvailable)
 	require.Equal(t, 1, *got.MDM.TestGetRawDecryptable())
 }
 
@@ -9618,9 +9627,9 @@ func testListUpcomingHostMaintenanceWindows(t *testing.T, ds *Datastore) {
 	startTime := time.Now().UTC().Add(30 * time.Minute)
 	endTime := startTime.Add(30 * time.Minute)
 	calendarEvent, err := ds.CreateOrUpdateCalendarEvent(ctx, uuid.New().String(), "foo@example.com", startTime, endTime, []byte(`{}`),
-		timeZone, host.ID, fleet.CalendarWebhookStatusNone)
+		&timeZone, host.ID, fleet.CalendarWebhookStatusNone)
 	require.NoError(t, err)
-	require.Equal(t, calendarEvent.TimeZone, timeZone)
+	require.Equal(t, *calendarEvent.TimeZone, timeZone)
 
 	mWs, err = ds.ListUpcomingHostMaintenanceWindows(ctx, host.ID)
 	require.NoError(t, err)

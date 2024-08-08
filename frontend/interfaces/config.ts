@@ -35,18 +35,25 @@ interface ICustomSetting {
   labels_exclude_any?: string[];
 }
 
+export interface IAppleDeviceUpdates {
+  minimum_version: string;
+  deadline: string;
+}
+
 export interface IMdmConfig {
   enable_disk_encryption: boolean;
+  /** `enabled_and_configured` only tells us if Apples MDM has been enabled and
+  configured correctly. The naming is slightly confusing but at one point we
+  only supported apple mdm, so thats why it's name the way it is. */
   enabled_and_configured: boolean;
   apple_bm_default_team?: string;
   apple_bm_terms_expired: boolean;
   apple_bm_enabled_and_configured: boolean;
   windows_enabled_and_configured: boolean;
   end_user_authentication: IEndUserAuthentication;
-  macos_updates: {
-    minimum_version: string | null;
-    deadline: string | null;
-  };
+  macos_updates: IAppleDeviceUpdates;
+  ios_updates: IAppleDeviceUpdates;
+  ipados_updates: IAppleDeviceUpdates;
   macos_settings: {
     custom_settings: null | ICustomSetting[];
     enable_disk_encryption: boolean;

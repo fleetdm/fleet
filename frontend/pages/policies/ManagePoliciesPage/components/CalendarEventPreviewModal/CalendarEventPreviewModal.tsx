@@ -51,7 +51,7 @@ const CalendarEventPreviewModal = ({
                 💻 🚫 Scheduled maintenance
               </div>
               <div className={`${baseClass}__preview-header__time`}>
-                <span>Friday, April 5</span>
+                <span>Tuesday, June 18</span>
                 <span>⋅</span>
                 <span>5-5:30pm</span>
               </div>
