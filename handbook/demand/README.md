@@ -82,6 +82,7 @@ After an intent signal is discovered:
 5. Research the company, if necessary, viewing its LinkedIn company page to verify the relevant headcount.
 
 After an account is marked "[Research-ready](https://fleetdm.lightning.force.com/lightning/r/Report/00OUG000001LerV2AS/view?queryScope=userFolders)".
+
 1. Research missing contacts and add them to salesforce if they are real by using the [ABM maneuvers spreadsheet](https://docs.google.com/spreadsheets/d/1ijtBKTjPg_AodnKEZY0ivia70ttDR3VMURT8rpYwYiw/edit?gid=0#gid=0) to generate a Sales Nav search. Make sure they have "role", "buying situation", "linkedinUrl", "psychological stage", "intent signals" completely filled out and correct.
 2. For "lead source" for any new contacts, use lead source "Manual research"
 3. Rank the account in terms of closability and fit based on what we see from it and its contacts. Mark any account that is not a fit as "Distraction" instead of "Prospect"
