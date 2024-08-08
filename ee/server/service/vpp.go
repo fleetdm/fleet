@@ -116,7 +116,7 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 				return fleet.NewInvalidArgumentError("app_store_apps.platform",
 					fmt.Sprintf("platform must be one of '%s', '%s', or '%s", fleet.IOSPlatform, fleet.IPadOSPlatform, fleet.MacOSPlatform))
 			}
-			vppAppIDs = append(vppAppIDs, fleet.VPPAppID{AdamID: payload.AppStoreID, Platform: payload.Platform})
+			vppAppIDs = append(vppAppIDs, fleet.VPPAppID{AdamID: payload.AppStoreID, Platform: payload.Platform, SelfService: payload.SelfService})
 		}
 
 		var missingAssets []string
@@ -383,13 +383,13 @@ func getVPPAppsMetadata(ctx context.Context, ids []fleet.VPPAppID) ([]*fleet.VPP
 	var apps []*fleet.VPPApp
 
 	// Map of adamID to platform.
-	var adamIDMap = make(map[string]map[fleet.AppleDevicePlatform]struct{})
+	var adamIDMap = make(map[string]map[fleet.AppleDevicePlatform]bool)
 	for _, id := range ids {
 		if _, ok := adamIDMap[id.AdamID]; !ok {
-			adamIDMap[id.AdamID] = make(map[fleet.AppleDevicePlatform]struct{}, 1)
-			adamIDMap[id.AdamID][id.Platform] = struct{}{}
+			adamIDMap[id.AdamID] = make(map[fleet.AppleDevicePlatform]bool, 1)
+			adamIDMap[id.AdamID][id.Platform] = id.SelfService
 		} else {
-			adamIDMap[id.AdamID][id.Platform] = struct{}{}
+			adamIDMap[id.AdamID][id.Platform] = id.SelfService
 		}
 	}
 
@@ -405,20 +405,22 @@ func getVPPAppsMetadata(ctx context.Context, ids []fleet.VPPAppID) ([]*fleet.VPP
 	for adamID, metadata := range assetMetatada {
 		platforms := getPlatformsFromSupportedDevices(metadata.SupportedDevices)
 		for platform := range platforms {
-			if _, ok := adamIDMap[adamID][platform]; !ok {
+			if selfService, ok := adamIDMap[adamID][platform]; ok {
+				app := &fleet.VPPApp{
+					VPPAppID: fleet.VPPAppID{
+						AdamID:      adamID,
+						Platform:    platform,
+						SelfService: selfService,
+					},
+					BundleIdentifier: metadata.BundleID,
+					IconURL:          metadata.ArtworkURL,
+					Name:             metadata.TrackName,
+					LatestVersion:    metadata.Version,
+				}
+				apps = append(apps, app)
+			} else {
 				continue
 			}
-			app := &fleet.VPPApp{
-				VPPAppID: fleet.VPPAppID{
-					AdamID:   adamID,
-					Platform: platform,
-				},
-				BundleIdentifier: metadata.BundleID,
-				IconURL:          metadata.ArtworkURL,
-				Name:             metadata.TrackName,
-				LatestVersion:    metadata.Version,
-			}
-			apps = append(apps, app)
 		}
 	}
 
