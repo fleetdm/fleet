@@ -1222,3 +1222,15 @@ func IsEligibleForDEPMigration(host *Host, mdmInfo *HostMDM, isConnectedToFleetM
 		// the checkout message from the host.
 		(!isConnectedToFleetMDM || mdmInfo.Name != WellKnownMDMFleet)
 }
+
+// IsEligibleForManualMigration returns true if the host is manually enrolled into a 3rd party MDM
+// and is able to migrate to Fleet.
+func IsEligibleForManualMigration(host *Host, mdmInfo *HostMDM, isConnectedToFleetMDM bool) bool {
+	return host.IsOsqueryEnrolled() &&
+		!host.IsDEPAssignedToFleet() &&
+		mdmInfo != nil &&
+		!mdmInfo.InstalledFromDep &&
+		!mdmInfo.HasJSONProfileAssigned() &&
+		mdmInfo.Enrolled &&
+		(!isConnectedToFleetMDM || mdmInfo.Name != WellKnownMDMFleet)
+}

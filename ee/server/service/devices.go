@@ -62,7 +62,7 @@ func (svc *Service) TriggerMigrateMDMDevice(ctx context.Context, host *fleet.Hos
 		return ctxerr.Wrap(ctx, err, "fetching host mdm info")
 	}
 
-	if !fleet.IsEligibleForDEPMigration(host, mdmInfo, connected) {
+	if !fleet.IsEligibleForDEPMigration(host, mdmInfo, connected) && !fleet.IsEligibleForManualMigration(host, mdmInfo, connected) {
 		bre.InternalErr = ctxerr.New(ctx, "host not eligible for macOS migration")
 	}
 
@@ -139,9 +139,10 @@ func (svc *Service) GetFleetDesktopSummary(ctx context.Context) (fleet.DesktopSu
 			sum.Notifications.RenewEnrollmentProfile = true
 		}
 
-		if fleet.IsEligibleForDEPMigration(host, mdmInfo, connected) {
+		if fleet.IsEligibleForDEPMigration(host, mdmInfo, connected) || fleet.IsEligibleForManualMigration(host, mdmInfo, connected) {
 			sum.Notifications.NeedsMDMMigration = true
 		}
+
 	}
 
 	// organization information

@@ -35,6 +35,7 @@ func (s *SwiftDialogDownloader) Run(cfg *fleet.OrbitConfig) error {
 	}
 
 	if !cfg.Notifications.NeedsMDMMigration && !cfg.Notifications.RenewEnrollmentProfile {
+		log.Debug().Msg("got false needs migration and false renew enrollment")
 		return nil
 	}
 

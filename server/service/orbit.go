@@ -204,7 +204,7 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 		}
 
 		if appConfig.MDM.MacOSMigration.Enable &&
-			fleet.IsEligibleForDEPMigration(host, mdmInfo, isConnectedToFleetMDM) {
+			(fleet.IsEligibleForDEPMigration(host, mdmInfo, isConnectedToFleetMDM) || fleet.IsEligibleForManualMigration(host, mdmInfo, isConnectedToFleetMDM)) {
 			notifs.NeedsMDMMigration = true
 		}
 

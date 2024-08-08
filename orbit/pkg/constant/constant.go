@@ -55,4 +55,11 @@ const (
 	// ServerOverridesFileName is the name of the file in the root directory
 	// that specifies the override configuration fetched from the server.
 	ServerOverridesFileName = "server-overrides.json"
+	// MigrationFileName is the name of the file used by fleetd to determine if the host is
+	// partially through an MDM migration.
+	MigrationFileName = "mdm_migration.txt"
+	// MDMMigrationTypeManual indicates that the MDM migration is for a manually enrolled host.
+	MDMMigrationTypeManual = "manual"
+	// MDMMigrationTypeADE indicates that the MDM migration is for an ADE enrolled host.
+	MDMMigrationTypeADE = "ade"
 )

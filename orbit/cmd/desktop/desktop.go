@@ -12,6 +12,7 @@ import (
 	"fyne.io/systray"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/go-paniclog"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/migration"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/profiles"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/token"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update"
@@ -247,6 +248,12 @@ func main() {
 		}()
 
 		if runtime.GOOS == "darwin" {
+			dir, err := migrationFileDir()
+			if err != nil {
+				log.Fatal().Err(err).Msg("getting directory for MDM migration file")
+			}
+
+			mrw := migration.NewReadWriter(dir, constant.MigrationFileName)
 			_, swiftDialogPath, _ := update.LocalTargetPaths(
 				tufUpdateRoot,
 				"swiftDialog",
@@ -259,6 +266,7 @@ func main() {
 					client:      client,
 					tokenReader: &tokenReader,
 				},
+				mrw,
 			)
 		}
 
@@ -341,7 +349,15 @@ func main() {
 				}
 				myDeviceItem.Enable()
 
-				shouldRunMigrator := sum.Notifications.NeedsMDMMigration || sum.Notifications.RenewEnrollmentProfile
+				// Check our file to see if we should migrate
+				migrationInProgress, err := mdmMigrator.MigrationInProgress()
+				if err != nil {
+					go reportError(err, nil)
+					log.Error().Err(err).Msg("checking if MDM migration is in progress")
+				}
+				// if we have the file, but we're enrolled to Fleet, then we need to remove the file
+				// and not run the migrator as we're already in Fleet
+				shouldRunMigrator := sum.Notifications.NeedsMDMMigration || sum.Notifications.RenewEnrollmentProfile || migrationInProgress
 
 				if runtime.GOOS == "darwin" && shouldRunMigrator && mdmMigrator.CanRun() {
 					enrolled, enrollURL, err := profiles.IsEnrolledInMDM()
@@ -381,12 +397,18 @@ func main() {
 
 						// if the device is unmanaged or we're in force mode and the device needs
 						// migration, enable aggressive mode.
-						if isUnmanaged || forceModeEnabled {
+						if isUnmanaged || forceModeEnabled || migrationInProgress {
 							log.Info().Msg("MDM device is unmanaged or force mode enabled, automatically showing dialog")
 							if err := mdmMigrator.ShowInterval(); err != nil {
 								go reportError(err, nil)
 								log.Error().Err(err).Msg("showing MDM migration dialog at interval")
 							}
+						}
+					} else {
+						// we're done with the migration, so mark it as complete.
+						if err := mdmMigrator.MarkMigrationCompleted(); err != nil {
+							go reportError(err, nil)
+							log.Error().Err(err).Msg("failed to mark MDM migration as completed")
 						}
 					}
 				} else {
@@ -562,4 +584,13 @@ func logDir() (string, error) {
 	}
 
 	return dir, nil
+}
+
+func migrationFileDir() (string, error) {
+	homedir, err := os.UserHomeDir()
+	if err != nil {
+		return "", fmt.Errorf("failed to get user's home directory: %w", err)
+	}
+
+	return filepath.Join(homedir, "Library/Caches/com.fleetdm.orbit"), nil
 }

@@ -14,6 +14,8 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/migration"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/profiles"
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/retry"
@@ -65,6 +67,14 @@ var mdmMigrationTemplate = template.Must(template.New("mdmMigrationTemplate").Pa
 Select **Start** and Remote Management window will appear soon:` +
 	"\n\n![Image showing MDM migration notification](https://fleetdm.com/images/permanent/mdm-migration-sonoma-1500x938.png)\n\n" +
 	"After you start, this window will popup every 15-20 minutes until you finish.",
+))
+
+var mdmManualMigrationTemplate = template.Must(template.New("").Parse(`
+## Migrate to Fleet
+
+Select **Start** and My device page will appear soon:` +
+	"\n\n![Image showing MDM migration notification](https://fleetdm.com/images/permanent/mdm-manual-migration-1024x500.png)\n\n" +
+	"After you start, this window will popup every 15 minutes until you finish.",
 ))
 
 var errorTemplate = template.Must(template.New("").Parse(`
@@ -166,7 +176,7 @@ func (b *baseDialog) render(flags ...string) (chan swiftDialogExitCode, chan err
 }
 
 // NewMDMMigrator creates a new  swiftDialogMDMMigrator with the right internal state.
-func NewMDMMigrator(path string, frequency time.Duration, handler MDMMigratorHandler) MDMMigrator {
+func NewMDMMigrator(path string, frequency time.Duration, handler MDMMigratorHandler, mrw *migration.ReadWriter) MDMMigrator {
 	return &swiftDialogMDMMigrator{
 		handler:                   handler,
 		baseDialog:                newBaseDialog(path),
@@ -174,6 +184,7 @@ func NewMDMMigrator(path string, frequency time.Duration, handler MDMMigratorHan
 		unenrollmentRetryInterval: defaultUnenrollmentRetryInterval,
 		// set a buffer size of 1 to allow one Show without blocking
 		showCh: make(chan struct{}, 1),
+		mrw:    mrw,
 	}
 }
 
@@ -198,6 +209,7 @@ type swiftDialogMDMMigrator struct {
 	// the enrollment status of the host
 	testEnrollmentCheckStatusFn func() (bool, string, error)
 	unenrollmentRetryInterval   time.Duration
+	mrw                         *migration.ReadWriter
 }
 
 /**
@@ -326,7 +338,21 @@ func (m *swiftDialogMDMMigrator) waitForUnenrollment() error {
 }
 
 func (m *swiftDialogMDMMigrator) renderMigration() error {
-	message, flags, err := m.getMessageAndFlags()
+	log.Debug().Msg("checking manual enrollment status")
+	manualProfileCheck, err := profiles.IsManuallyEnrolledInMDM()
+	if err != nil {
+		return err
+	}
+
+	// Check if we're in a manual migration.
+	migrationType, err := m.mrw.GetMigrationType()
+	if err != nil {
+		log.Error().Err(err).Msg("getting migration type")
+	}
+
+	isManual := manualProfileCheck || migrationType == constant.MDMMigrationTypeManual
+
+	message, flags, err := m.getMessageAndFlags(isManual)
 	if err != nil {
 		return fmt.Errorf("getting mdm migrator message: %w", err)
 	}
@@ -340,6 +366,22 @@ func (m *swiftDialogMDMMigrator) renderMigration() error {
 		// we don't perform any action for all the other buttons
 		if exitCode != primaryBtnExitCode {
 			return nil
+		}
+
+		// If we have the migration file and this is a manual migration, we should just send the
+		// user straight to the My device page
+
+		switch migrationType {
+		case constant.MDMMigrationTypeManual:
+			// The migration file only exists if we successfully hit the webhook
+			log.Info().Msg("showing instructions")
+
+			if err := m.handler.ShowInstructions(); err != nil {
+				return err
+			}
+			return nil
+		case constant.MDMMigrationTypeADE:
+		default:
 		}
 
 		if !m.props.IsUnmanaged {
@@ -374,6 +416,17 @@ func (m *swiftDialogMDMMigrator) renderMigration() error {
 				}
 			}
 
+			if err := m.mrw.SetMigrationFile(constant.MDMMigrationTypeManual); err != nil {
+				log.Error().Err(err).Msg("set migration file")
+			}
+
+			if isManual {
+				log.Info().Msg("showing instructions after unenrollment")
+				if err := m.handler.ShowInstructions(); err != nil {
+					return err
+				}
+			}
+
 			// close the spinner
 			// TODO: maybe it's better to use
 			// https://github.com/bartreardon/swiftDialog/wiki/Updating-Dialog-with-new-content
@@ -381,10 +434,6 @@ func (m *swiftDialogMDMMigrator) renderMigration() error {
 			m.baseDialog.Exit()
 		}
 
-		log.Info().Msg("showing instructions")
-		if err := m.handler.ShowInstructions(); err != nil {
-			return err
-		}
 	}
 
 	return nil
@@ -435,7 +484,7 @@ func (m *swiftDialogMDMMigrator) SetProps(props MDMMigratorProps) {
 	m.props = props
 }
 
-func (m *swiftDialogMDMMigrator) getMessageAndFlags() (*bytes.Buffer, []string, error) {
+func (m *swiftDialogMDMMigrator) getMessageAndFlags(isManual bool) (*bytes.Buffer, []string, error) {
 	vers, err := m.getMacOSMajorVersion()
 	if err != nil {
 		// log error for debugging and continue with default template
@@ -443,6 +492,10 @@ func (m *swiftDialogMDMMigrator) getMessageAndFlags() (*bytes.Buffer, []string, 
 	}
 
 	tmpl := mdmMigrationTemplate
+	if isManual {
+		tmpl = mdmManualMigrationTemplate
+	}
+
 	height := "669"
 	if vers != 0 && vers < 14 {
 		height = "440"
@@ -454,7 +507,7 @@ func (m *swiftDialogMDMMigrator) getMessageAndFlags() (*bytes.Buffer, []string, 
 		&message,
 		m.props,
 	); err != nil {
-		return nil, nil, fmt.Errorf("executing migrqation template: %w", err)
+		return nil, nil, fmt.Errorf("executing migration template: %w", err)
 	}
 
 	flags := []string{
@@ -501,4 +554,12 @@ func (m *swiftDialogMDMMigrator) getMacOSMajorVersion() (int, error) {
 		return 0, fmt.Errorf("parsing macOS major version: %w", err)
 	}
 	return major, nil
+}
+
+func (m *swiftDialogMDMMigrator) MigrationInProgress() (bool, error) {
+	return m.mrw.FileExists()
+}
+
+func (m *swiftDialogMDMMigrator) MarkMigrationCompleted() error {
+	return m.mrw.RemoveFile()
 }

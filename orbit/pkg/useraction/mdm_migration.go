@@ -19,6 +19,12 @@ type MDMMigrator interface {
 	ShowInterval() error
 	// Exit tries to stop any processes started by the migrator.
 	Exit()
+	// MigrationInProgress checks if the MDM migration is still in progress (i.e. the host is not
+	// yet fully enrolled in Fleet MDM).
+	MigrationInProgress() (bool, error)
+	// MarkMigrationCompleted marks the migration as completed. This is currently done by removing
+	// the migration file.
+	MarkMigrationCompleted() error
 }
 
 // MDMMigratorProps are props required to display the dialog. It's akin to the
