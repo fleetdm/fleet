@@ -17,8 +17,6 @@ import (
 	"text/template"
 	"time"
 
-	_ "embed"
-
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/migration"
 
@@ -591,7 +589,6 @@ func StartMDMMigrationOfflineWatcher(ctx context.Context, client *service.Device
 				return
 			case <-ticker.C:
 				log.Info().Msg("got tick")
-				// Replace watcher.ProcessTick() with your actual function call
 				go watcher.processTick(ctx)
 			}
 		}
@@ -618,11 +615,11 @@ func (o *offlineWatcher) processTick(ctx context.Context) {
 		// non-blocking release of dialog channel
 		select {
 		case <-o.swiftDialogCh:
-			log.Info().Msg("releaseing dialog channel")
+			log.Info().Msg("releasing dialog channel")
 		default:
+			// TODO: think through how this could happen in relation to the other processes using the dialog channel
 			log.Info().Msg("dialog channel already released")
 		}
-		// TODO: think through this in relation to the other processes using the dialog channel
 	}()
 
 	if !o.isUnmanaged() || !o.isOffline() {
@@ -662,7 +659,6 @@ func (o *offlineWatcher) isUnmanaged() bool {
 }
 
 func (o *offlineWatcher) isOffline() bool {
-	// ping the server to check if we're online
 	// TODO: should we rely on the Fleet server or should we use something else (e.g.,
 	// DNS lookup)?
 	err := o.client.Ping()
@@ -748,8 +744,8 @@ type swiftDialogMDMMigrationOffline struct {
 }
 
 func (m *swiftDialogMDMMigrationOffline) render(message string, flags ...string) (chan swiftDialogExitCode, chan error) {
-	// TODO: Need local URI for the image
-	// icon := "https://fleetdm.com/images/permanent/fleet-mark-color-40x40@4x.png"
+	image := "/Users/Shared/Frame2.png" // TODO: update this
+	// icon := m.props.OrgInfo.OrgLogoURL
 
 	flags = append([]string{
 		// disable the built-in title so we have full control over the
@@ -757,11 +753,11 @@ func (m *swiftDialogMDMMigrationOffline) render(message string, flags ...string)
 		"--title", "none",
 		// top icon
 		"--icon", "none", // disable the built-in icon because we will render the entire content as a single image for more control over the layout
-		// "--icon", "/Users/Shared/brandmark.png",
+		// "--icon", icon,
 		// "--iconsize", "80",
 		// "--centreicon",
 		// modal content
-		"--image", "/Users/Shared/Frame2.png",
+		"--image", image,
 		// "--message", "No internet connection. Please connect to the internet to continue.",
 		// "--messagefont", "size=16",
 		"--alignment", "center",
