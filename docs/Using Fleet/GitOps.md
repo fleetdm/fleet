@@ -20,7 +20,7 @@ The following files are responsible for running the GitHub action. Most users do
 The following are the required keys in the `default.yml` and any `teams/team-name.yml` files:
 
 ```yaml
-name: # Only teams/team-name.yml
+name: # Only teams/team-name.yml. To edit a team's name, change `name` but don't change the filename.
 policies:
 queries:
 agent_options:
@@ -231,12 +231,16 @@ controls:
     deadline_days: 5
     grace_period_days: 2
   macos_settings:
-    - path: ../lib/macos-profile1.mobileconfig
-      labels:
-        - Label name 1
-    - path: ../lib/macos-profile2.json
+    custom_settings:
+      - path: ../lib/macos-profile1.mobileconfig
+        labels_exclude_any:
+          - Label 1
+      - path: ../lib/macos-profile2.json
+        labels_include_all:
+          - Label 2
   windows_settings:
-    - path: ../lib/windows-profile.xml
+    custom_settings
+      - path: ../lib/windows-profile.xml
   macos_setup: # Available in Fleet Premium
     bootstrap_package: https://example.org/bootstrap_package.pkg
     enable_end_user_authentication: true
@@ -265,7 +269,7 @@ controls:
 
 Fleet supports adding [GitHub environment variables](https://docs.github.com/en/actions/learn-github-actions/variables#defining-environment-variables-for-a-single-workflow) in your configuration profiles. Use `$ENV_VARIABLE` format.
 
-Use `labels` to only apply (scope) profiles to hosts that have all those labels.
+Use `labels_include_all` to only apply (scope) profiles to hosts that have all those labels or `labels_exclude_any` to apply profiles to hosts that don't have any of those labels.
 
 #### macos_setup
 

@@ -33,7 +33,7 @@ func (s *nudgeTestSuite) TestUpdatesDisabled() {
 	t := s.T()
 	var err error
 	cfg := &fleet.OrbitConfig{}
-	cfg.NudgeConfig, err = fleet.NewNudgeConfig(fleet.MacOSUpdates{MinimumVersion: optjson.SetString("11"), Deadline: optjson.SetString("2022-01-04")})
+	cfg.NudgeConfig, err = fleet.NewNudgeConfig(fleet.AppleOSUpdateSettings{MinimumVersion: optjson.SetString("11"), Deadline: optjson.SetString("2022-01-04")})
 	require.NoError(t, err)
 	runNudgeFn := func(execPath, configPath string) error {
 		return nil
@@ -96,7 +96,7 @@ func (s *nudgeTestSuite) TestNudgeConfigFetcherAddNudge() {
 	require.Len(t, targets, 0)
 
 	// set the config
-	cfg.NudgeConfig, err = fleet.NewNudgeConfig(fleet.MacOSUpdates{MinimumVersion: optjson.SetString("11"), Deadline: optjson.SetString("2022-01-04")})
+	cfg.NudgeConfig, err = fleet.NewNudgeConfig(fleet.AppleOSUpdateSettings{MinimumVersion: optjson.SetString("11"), Deadline: optjson.SetString("2022-01-04")})
 	require.NoError(t, err)
 
 	// there's an error when the remote repo doesn't have the target yet

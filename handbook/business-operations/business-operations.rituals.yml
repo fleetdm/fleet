@@ -143,11 +143,11 @@
   moreInfoUrl: "https://fleetdm.com/handbook/business-operations#run-us-commission-payroll" # TODO update linked process and add a new process that captures MBO payment
   dri: "jostableford" 
 -
-  task: "Review state filings for the previous quarter" #TODO tie this to a responsibility 
+  task: "Review state filings for the previous quarter"
   startedOn: "2024-07-19" 
   frequency: "Quarterly"
   description: "Verify that state filings have been successfully submitted for the previous quarter" 
-  moreInfoUrl: 
+  moreInfoUrl: "https://fleetdm.com/handbook/business-operations#review-state-employment-tax-filings-for-the-previous-quarter"
   dri: "ireedy" 
 -
   task: "Investor reporting" 

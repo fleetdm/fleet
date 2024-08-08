@@ -19,10 +19,7 @@ import {
   ISoftwareTitlesResponse,
   ISoftwareVersionsResponse,
 } from "services/entities/software";
-import {
-  ISoftwareTitleWithPackageName,
-  ISoftwareVersion,
-} from "interfaces/software";
+import { ISoftwareTitle, ISoftwareVersion } from "interfaces/software";
 
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
@@ -63,6 +60,7 @@ interface ISoftwareTableProps {
   router: InjectedRouter;
   data?: ISoftwareTitlesResponse | ISoftwareVersionsResponse;
   showVersions: boolean;
+  installableSoftwareExists: boolean;
   isSoftwareEnabled: boolean;
   query: string;
   perPage: number;
@@ -81,6 +79,7 @@ const SoftwareTable = ({
   router,
   data,
   showVersions,
+  installableSoftwareExists,
   isSoftwareEnabled,
   query,
   perPage,
@@ -163,10 +162,7 @@ const SoftwareTable = ({
     [determineQueryParamChange, generateNewQueryParams, router, currentPath]
   );
 
-  let tableData:
-    | ISoftwareTitleWithPackageName[]
-    | ISoftwareVersion[]
-    | undefined;
+  let tableData: ISoftwareTitle[] | ISoftwareVersion[] | undefined;
   let generateTableConfig: ITableConfigGenerator;
 
   if (data === undefined) {
@@ -185,12 +181,8 @@ const SoftwareTable = ({
     return generateTableConfig(router, teamId);
   }, [generateTableConfig, data, router, teamId]);
 
-  // determines if a user be able to search in the table
-  const searchable =
-    isSoftwareEnabled &&
-    ((tableData && tableData.length > 0) ||
-      query !== "" ||
-      softwareFilter !== "allSoftware");
+  // determines if a user should be able to search in the table
+  const searchable = isSoftwareEnabled;
 
   const handleShowVersionsToggle = () => {
     const queryParams: Record<string, string | number | undefined> = {
@@ -344,7 +336,9 @@ const SoftwareTable = ({
           <EmptySoftwareTable
             softwareFilter={softwareFilter}
             isSoftwareDisabled={!isSoftwareEnabled}
-            isNotDetectingSoftware={query === ""}
+            noSearchQuery={query === ""}
+            isCollectingSoftware={data?.counts_updated_at === null}
+            installableSoftwareExists={installableSoftwareExists}
           />
         )}
         defaultSortHeader={orderKey}

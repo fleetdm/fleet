@@ -17,6 +17,7 @@ module.exports = {
     firstName: { type: 'string', required: true },
     lastName: { type: 'string', required: true },
     organization: { type: 'string' },
+    description: { type: 'string' },
     primaryBuyingSituation: { type: 'string' },
     psychologicalStage: {
       type: 'string',
@@ -51,7 +52,7 @@ module.exports = {
   },
 
 
-  fn: async function ({emailAddress, linkedinUrl, firstName, lastName, organization, primaryBuyingSituation, psychologicalStage, leadSource}) {
+  fn: async function ({emailAddress, linkedinUrl, firstName, lastName, organization, primaryBuyingSituation, psychologicalStage, leadSource, description}) {
     // Return undefined if we're not running in a production environment.
     if(sails.config.environment !== 'production') {
       sails.log.verbose('Skipping Salesforce integration...');
@@ -95,6 +96,9 @@ module.exports = {
     if(psychologicalStage) {
       valuesToSet.Stage__c = psychologicalStage;// eslint-disable-line camelcase
     }
+    if(description) {
+      valuesToSet.Description = description;
+    }
 
     let existingContactRecord;
     // Search for an existing Contact record using the provided email address or linkedIn profile URL.
@@ -111,6 +115,10 @@ module.exports = {
     }
 
     if(existingContactRecord) {
+      // If a description was provided and the contact has a description, append the new description to it.
+      if(description && existingContactRecord.Description) {
+        valuesToSet.Description = existingContactRecord.Description + '\n' + description;
+      }
       // console.log(`Exisitng contact found! ${existingContactRecord.Id}`);
       // If we found an existing contact, we'll update it with the information provided.
       salesforceContactId = existingContactRecord.Id;

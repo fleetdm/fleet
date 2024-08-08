@@ -26,3 +26,17 @@ Usage of ./mdmproxy:
 ```
 mdmproxy --migrate-udids '' --auth-token foo --existing-url https://3.14.233.249 --existing-hostname micromdm.example.com --fleet-url https://example.cloud.fleetdm.com --migrate-percentage 0
 ```
+
+### Check migration status
+
+To check the migration status for a given UDID, provide the `--migrate-udids` and
+`--migrate-percentage` flags with the `--check` flag:
+
+```
+$ go run . --migrate-percentage=50 --check E5C6DBBA-D5CC-4DB6-9560-995F17FB7A59
+E5C6DBBA-D5CC-4DB6-9560-995F17FB7A59 IS NOT migrated
+$ go run . --migrate-percentage=50 --check 575424CB-09D7-4CAD-8A7A-D3511FE8A7E2
+575424CB-09D7-4CAD-8A7A-D3511FE8A7E2 IS migrated
+```
+
+When the `--check` flag is used, the program prints the migration status and exits. The server is not started.

@@ -223,8 +223,10 @@ func setupDummyReplica(t testing.TB, testName string, ds *Datastore, opts *Datas
 // this happens because we create a database and import our test dump on the
 // leader each time `connectMySQL` is called, but we only do the same on the
 // replica when it's enabled via options.
-var mu sync.Mutex
-var databasesToReplicate string
+var (
+	mu                   sync.Mutex
+	databasesToReplicate string
+)
 
 func setupRealReplica(t testing.TB, testName string, ds *Datastore, options *dbOptions) {
 	t.Helper()
@@ -235,7 +237,7 @@ func setupRealReplica(t testing.TB, testName string, ds *Datastore, options *dbO
 		func() {
 			// Stop slave
 			if out, err := exec.Command(
-				"docker-compose", "exec", "-T", "mysql_replica_test",
+				"docker", "compose", "exec", "-T", "mysql_replica_test",
 				// Command run inside container
 				"mysql",
 				"-u"+testUsername, "-p"+testPassword,
@@ -280,7 +282,7 @@ func setupRealReplica(t testing.TB, testName string, ds *Datastore, options *dbO
 
 	// Configure slave and start replication
 	if out, err := exec.Command(
-		"docker-compose", "exec", "-T", "mysql_replica_test",
+		"docker", "compose", "exec", "-T", "mysql_replica_test",
 		// Command run inside container
 		"mysql",
 		"-u"+testUsername, "-p"+testPassword,
@@ -318,7 +320,6 @@ func setupRealReplica(t testing.TB, testName string, ds *Datastore, options *dbO
 	require.NoError(t, err)
 	ds.replica = replica
 	ds.readReplicaConfig = &replicaConfig
-
 }
 
 // initializeDatabase loads the dumped schema into a newly created database in
@@ -341,17 +342,20 @@ func initializeDatabase(t testing.TB, testName string, opts *DatastoreTestOption
 	}
 	for _, dbName := range dbs {
 		// Load schema from dumpfile
-		if out, err := exec.Command(
-			"docker-compose", "exec", "-T", "mysql_test",
+		sqlCommands := fmt.Sprintf(
+			"DROP DATABASE IF EXISTS %s; CREATE DATABASE %s; USE %s; SET FOREIGN_KEY_CHECKS=0; %s;",
+			dbName, dbName, dbName, schema,
+		)
+
+		cmd := exec.Command(
+			"docker", "compose", "exec", "-T", "mysql_test",
 			// Command run inside container
 			"mysql",
 			"-u"+testUsername, "-p"+testPassword,
-			"-e",
-			fmt.Sprintf(
-				"DROP DATABASE IF EXISTS %s; CREATE DATABASE %s; USE %s; SET FOREIGN_KEY_CHECKS=0; %s;",
-				dbName, dbName, dbName, schema,
-			),
-		).CombinedOutput(); err != nil {
+		)
+		cmd.Stdin = strings.NewReader(sqlCommands)
+		out, err := cmd.CombinedOutput()
+		if err != nil {
 			t.Error(err)
 			t.Error(string(out))
 			t.FailNow()
@@ -359,17 +363,20 @@ func initializeDatabase(t testing.TB, testName string, opts *DatastoreTestOption
 	}
 	if opts.RealReplica {
 		// Load schema from dumpfile
-		if out, err := exec.Command(
-			"docker-compose", "exec", "-T", "mysql_replica_test",
+		sqlCommands := fmt.Sprintf(
+			"DROP DATABASE IF EXISTS %s; CREATE DATABASE %s; USE %s; SET FOREIGN_KEY_CHECKS=0; %s;",
+			testName, testName, testName, schema,
+		)
+
+		cmd := exec.Command(
+			"docker", "compose", "exec", "-T", "mysql_replica_test",
 			// Command run inside container
 			"mysql",
 			"-u"+testUsername, "-p"+testPassword,
-			"-e",
-			fmt.Sprintf(
-				"DROP DATABASE IF EXISTS %s; CREATE DATABASE %s; USE %s; SET FOREIGN_KEY_CHECKS=0; %s;",
-				testName, testName, testName, schema,
-			),
-		).CombinedOutput(); err != nil {
+		)
+		cmd.Stdin = strings.NewReader(sqlCommands)
+		out, err := cmd.CombinedOutput()
+		if err != nil {
 			t.Error(err)
 			t.Error(string(out))
 			t.FailNow()
@@ -787,7 +794,6 @@ type MasterStatus struct {
 }
 
 func (ds *Datastore) MasterStatus(ctx context.Context) (MasterStatus, error) {
-
 	rows, err := ds.writer(ctx).Query("SHOW MASTER STATUS")
 	if err != nil {
 		return MasterStatus{}, ctxerr.Wrap(ctx, err, "show master status")
@@ -835,7 +841,6 @@ func (ds *Datastore) MasterStatus(ctx context.Context) (MasterStatus, error) {
 }
 
 func (ds *Datastore) ReplicaStatus(ctx context.Context) (map[string]interface{}, error) {
-
 	rows, err := ds.reader(ctx).QueryContext(ctx, "SHOW SLAVE STATUS")
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "show replica status")

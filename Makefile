@@ -281,7 +281,7 @@ binary-arch: .pre-binary-arch .pre-binary-bundle .pre-fleet
 
 # Drop, create, and migrate the e2e test database
 e2e-reset-db:
-	docker-compose exec -T mysql_test bash -c 'echo "drop database if exists e2e; create database e2e;" | MYSQL_PWD=toor mysql -uroot'
+	docker compose exec -T mysql_test bash -c 'echo "drop database if exists e2e; create database e2e;" | MYSQL_PWD=toor mysql -uroot'
 	./build/fleet prepare db --mysql_address=localhost:3307  --mysql_username=root --mysql_password=toor --mysql_database=e2e
 
 e2e-setup:
@@ -312,7 +312,7 @@ e2e-serve-premium: e2e-reset-db
 # Usage:
 # make e2e-set-desktop-token host_id=1 token=foo
 e2e-set-desktop-token:
-	docker-compose exec -T mysql_test bash -c 'echo "INSERT INTO e2e.host_device_auth (host_id, token) VALUES ($(host_id), \"$(token)\") ON DUPLICATE KEY UPDATE token=VALUES(token)" | MYSQL_PWD=toor mysql -uroot'
+	docker compose exec -T mysql_test bash -c 'echo "INSERT INTO e2e.host_device_auth (host_id, token) VALUES ($(host_id), \"$(token)\") ON DUPLICATE KEY UPDATE token=VALUES(token)" | MYSQL_PWD=toor mysql -uroot'
 
 changelog:
 	sh -c "find changes -type f | grep -v .keep | xargs -I {} sh -c 'grep \"\S\" {}; echo' > new-CHANGELOG.md"
@@ -347,7 +347,7 @@ fleetd-tuf:
 
 # Reset the development DB
 db-reset:
-	docker-compose exec -T mysql bash -c 'echo "drop database if exists fleet; create database fleet;" | MYSQL_PWD=toor mysql -uroot'
+	docker compose exec -T mysql bash -c 'echo "drop database if exists fleet; create database fleet;" | MYSQL_PWD=toor mysql -uroot'
 	./build/fleet prepare db --dev
 
 # Back up the development DB to file
@@ -423,6 +423,14 @@ endif
 	$(TMP_DIR)/swiftDialog_pkg_payload_expanded/Library/Application\ Support/Dialog/Dialog.app/Contents/MacOS/Dialog --version
 	tar czf $(out-path)/swiftDialog.app.tar.gz -C $(TMP_DIR)/swiftDialog_pkg_payload_expanded/Library/Application\ Support/Dialog/ Dialog.app
 	rm -rf $(TMP_DIR)
+
+# Generate escrowBuddy.pkg bundle from the Escrow Buddy repo.
+#
+# Usage:
+# make escrow-buddy-pkg version=1.0.0 out-path=.
+escrow-buddy-pkg:
+	curl -L https://github.com/macadmins/escrow-buddy/releases/download/v$(version)/Escrow.Buddy-$(version).pkg --output $(out-path)/escrowBuddy.pkg
+
 
 # Build and generate desktop.app.tar.gz bundle.
 #

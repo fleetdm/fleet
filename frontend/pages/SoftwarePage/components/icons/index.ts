@@ -6,7 +6,7 @@ import ChromeApp from "./ChromeApp";
 import Excel from "./Excel";
 import Extension from "./Extension";
 import Firefox from "./Firefox";
-import MacApp from "./MacApp";
+import AppleApp from "./AppleApp";
 import MacOS from "./MacOS";
 import Package from "./Package";
 import Safari from "./Safari";
@@ -20,6 +20,7 @@ import Zoom from "./Zoom";
 import ChromeOS from "./ChromeOS";
 import LinuxOS from "./LinuxOS";
 import Falcon from "./Falcon";
+import AppStore from "./AppStore";
 import iOS from "./iOS";
 import iPadOS from "./iPadOS";
 
@@ -33,6 +34,7 @@ const LINUX_OS_NAME_TO_ICON_MAP = HOST_LINUX_PLATFORMS.reduce(
 // icon for them, keys refer to application names, and are intended to be fuzzy
 // matched in the application logic.
 const SOFTWARE_NAME_TO_ICON_MAP = {
+  appStore: AppStore,
   "adobe acrobat reader": AcrobatReader,
   "microsoft excel": Excel,
   falcon: Falcon,
@@ -63,7 +65,9 @@ const SOFTWARE_SOURCE_TO_ICON_MAP = {
   atom_packages: Package,
   python_packages: Package,
   homebrew_packages: Package,
-  apps: MacApp,
+  apps: AppleApp,
+  ios_apps: AppleApp,
+  ipados_apps: AppleApp,
   programs: WindowsApp,
   chrome_extensions: Extension,
   safari_extensions: Extension,
