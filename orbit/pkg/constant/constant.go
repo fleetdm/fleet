@@ -57,8 +57,9 @@ const (
 	ServerOverridesFileName = "server-overrides.json"
 	// MigrationFileName is the name of the file used by fleetd to determine if the host is
 	// partially through an MDM migration.
-	// TODO(JVE): can this be put in the orbit root dir? will fleet desktop be allowed to edit it?
-	MigrationFileName      = "mdm_migration.txt"
+	MigrationFileName = "mdm_migration.txt"
+	// MDMMigrationTypeManual indicates that the MDM migration is for a manually enrolled host.
 	MDMMigrationTypeManual = "manual"
-	MDMMigrationTypeADE    = "ade"
+	// MDMMigrationTypeADE indicates that the MDM migration is for an ADE enrolled host.
+	MDMMigrationTypeADE = "ade"
 )

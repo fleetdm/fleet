@@ -69,12 +69,11 @@ Select **Start** and Remote Management window will appear soon:` +
 	"After you start, this window will popup every 15-20 minutes until you finish.",
 ))
 
-// TODO(JVE): remove the temporary URL below
 var mdmManualMigrationTemplate = template.Must(template.New("mdmManualMigrationTemplate").Parse(`
 ## Migrate to Fleet
 
 Select **Start** and My device page will appear soon:` +
-	"\n\n![Image showing MDM migration notification](https://jve-images-snicket.ngrok.app/manual-start.png)\n\n" +
+	"\n\n![Image showing MDM migration notification](https://fleetdm.com/images/permanent/mdm-manual-migration-1024x500.png)\n\n" +
 	"After you start, this window will popup every 15 minutes until you finish.",
 ))
 
@@ -339,7 +338,6 @@ func (m *swiftDialogMDMMigrator) waitForUnenrollment() error {
 }
 
 func (m *swiftDialogMDMMigrator) renderMigration() error {
-	// TODO(JVE): should this be passed as a prop?
 	log.Debug().Msg("checking manual enrollment status")
 	manualProfileCheck, err := profiles.IsManuallyEnrolledInMDM()
 	if err != nil {
