@@ -62,7 +62,6 @@ interface ISoftwareNameProps {
 }
 
 const SoftwareName = ({ name }: ISoftwareNameProps) => {
-  const name2 = "really really really really really so so long title name";
   const titleRef = React.useRef<HTMLDivElement>(null);
   const isTruncated = useTruncatedElement(titleRef);
 
@@ -75,7 +74,7 @@ const SoftwareName = ({ name }: ISoftwareNameProps) => {
       showArrow
     >
       <div ref={titleRef} className={`${baseClass}__title`}>
-        {name2}
+        {name}
       </div>
     </TooltipWrapper>
   );
@@ -180,12 +179,13 @@ const PackageStatusCount = ({
         underline={false}
         showArrow
         className={`${baseClass}__status-title`}
+        tipOffset={10}
       >
         <Icon name={displayData.iconName} />
         <span>{displayData.displayName}</span>
       </TooltipWrapper>
       <a className={`${baseClass}__status-count`} href={linkUrl}>
-        {count || 0} hosts
+        {count || 0} {strUtils.pluralize(count || 0, "host")}
       </a>
     </div>
   );
@@ -362,19 +362,9 @@ const SoftwarePackageCard = ({
   };
 
   const renderLabelInfo = () => {
-    const softwarePackageTEST: {
-      labels_include_any: ISoftwarePackageLabel[];
-      labels_exclude_any: ISoftwarePackageLabel[];
-    } = {
-      labels_include_any: [],
-      labels_exclude_any: [
-        { name: "Cool label", id: 40 },
-        { name: "Cooler label", id: 50 },
-      ],
-    };
-    const labels = softwarePackageTEST?.labels_include_any?.length
-      ? softwarePackageTEST.labels_include_any.map((label) => label.name)
-      : softwarePackageTEST.labels_exclude_any.map((label) => label.name) || [];
+    const labels = softwarePackage?.labels_include_any?.length
+      ? softwarePackage.labels_include_any.map((label) => label.name)
+      : softwarePackage?.labels_exclude_any.map((label) => label.name) || [];
 
     const count = labels.length;
 

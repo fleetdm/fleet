@@ -90,7 +90,7 @@ export interface IAppStoreApp {
     verified: number;
     verifying: number;
     pending: number;
-    blocked: number;
+    // App Store apps do not have blocked status
     failed: number;
   };
 }
