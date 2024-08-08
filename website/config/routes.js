@@ -529,6 +529,7 @@ module.exports.routes = {
   'GET /learn-more-about/host-identifiers': '/docs/rest-api/rest-api#get-host-by-identifier',
   'GET /learn-more-about/uninstall-fleetd': '/docs/using-fleet/faq#how-can-i-uninstall-fleetd',
   'GET /learn-more-about/vulnerability-processing': '/docs/using-fleet/vulnerability-processing',
+  // 'GET /learn-more-about/extract-package-version': 'TODO',
 
   // Sitemap
   // =============================================================================================================
