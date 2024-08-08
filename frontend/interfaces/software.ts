@@ -79,6 +79,7 @@ export interface IAppStoreApp {
   app_store_id: number;
   latest_version: string;
   icon_url: string;
+  self_service: boolean;
   status: {
     installed: number;
     pending: number;

@@ -9,8 +9,10 @@ import mdmAppleAPI, {
   IVppApp,
 } from "services/entities/mdm_apple";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
-
+import { buildQueryStringFromParams } from "utilities/url";
 import { PLATFORM_DISPLAY_NAMES } from "interfaces/platform";
+import { getErrorReason } from "interfaces/errors";
+import { NotificationContext } from "context/notification";
 
 import Card from "components/Card";
 import CustomLink from "components/CustomLink";
@@ -18,11 +20,14 @@ import Spinner from "components/Spinner";
 import Button from "components/buttons/Button";
 import DataError from "components/DataError";
 import Radio from "components/forms/fields/Radio";
-import { NotificationContext } from "context/notification";
-import { getErrorReason } from "interfaces/errors";
-import { buildQueryStringFromParams } from "utilities/url";
+import Checkbox from "components/forms/fields/Checkbox";
+
 import SoftwareIcon from "../icons/SoftwareIcon";
-import { getErrorMessage, getUniqueAppId } from "./helpers";
+import {
+  generateRedirectQueryParams,
+  getErrorMessage,
+  getUniqueAppId,
+} from "./helpers";
 
 const baseClass = "app-store-vpp";
 
@@ -142,6 +147,7 @@ const AppStoreVpp = ({
   const { renderFlash } = useContext(NotificationContext);
   const [isSubmitDisabled, setIsSubmitDisabled] = useState(true);
   const [selectedApp, setSelectedApp] = useState<IVppApp | null>(null);
+  const [isSelfService, setIsSelfService] = useState(false);
 
   const {
     data: vppInfo,
@@ -182,7 +188,8 @@ const AppStoreVpp = ({
       await mdmAppleAPI.addVppApp(
         teamId,
         selectedApp.app_store_id,
-        selectedApp.platform
+        selectedApp.platform,
+        isSelfService
       );
       renderFlash(
         "success",
@@ -191,10 +198,8 @@ const AppStoreVpp = ({
           to install software.
         </>
       );
-      const queryParams = buildQueryStringFromParams({
-        team_id: teamId,
-        available_for_install: true,
-      });
+
+      const queryParams = generateRedirectQueryParams(teamId, isSelfService);
       // any unique string - triggers SW refetch
       setAddedSoftwareToken(`${Date.now()}`);
       router.push(`${PATHS.SOFTWARE}?${queryParams}`);
@@ -225,7 +230,7 @@ const AppStoreVpp = ({
         return <NoVppAppsCard />;
       }
       return (
-        <>
+        <div className={`${baseClass}__modal-body`}>
           <VppAppList
             apps={vppApps}
             selectedApp={selectedApp}
@@ -236,7 +241,20 @@ const AppStoreVpp = ({
             apps, head to{" "}
             <CustomLink url="https://business.apple.com" text="ABM" newTab />
           </div>
-        </>
+          <Checkbox
+            value={isSelfService}
+            onChange={(newVal: boolean) => setIsSelfService(newVal)}
+            className={`${baseClass}__self-service-checkbox`}
+            tooltipContent={
+              <>
+                End users can install from <b>Fleet Desktop</b> {">"}{" "}
+                <b>Self-service</b>.
+              </>
+            }
+          >
+            Self-service
+          </Checkbox>
+        </div>
       );
     }
     return null;
