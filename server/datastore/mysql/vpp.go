@@ -162,21 +162,21 @@ func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, appIDs []
 	var toAddApps []fleet.VPPAppID
 	var toRemoveApps []fleet.VPPAppID
 
-	for existingAppTuple, existingAppID := range existingApps {
+	for existingApp := range existingApps {
 		var found bool
 		for _, adamID := range appIDs {
-			if adamID.VPPAppTuple == existingAppTuple {
+			// Self service value doesn't matter for removing app from team
+			if adamID.AdamID == existingApp.AdamID && adamID.Platform == existingApp.Platform {
 				found = true
 			}
 		}
 		if !found {
-			toRemoveApps = append(toRemoveApps, existingAppID)
+			toRemoveApps = append(toRemoveApps, existingApp)
 		}
 	}
 
 	for _, adamID := range appIDs {
-		// Re-add apps with a different self-service value to update DB
-		if existing, ok := existingApps[adamID.VPPAppTuple]; !ok || existing.SelfService != adamID.SelfService {
+		if _, ok := existingApps[adamID]; !ok {
 			toAddApps = append(toAddApps, adamID)
 		}
 	}
@@ -224,7 +224,7 @@ func (ds *Datastore) InsertVPPAppWithTeam(ctx context.Context, app *fleet.VPPApp
 	return app, nil
 }
 
-func (ds *Datastore) GetAssignedVPPApps(ctx context.Context, teamID *uint) (map[fleet.VPPAppTuple]fleet.VPPAppID, error) {
+func (ds *Datastore) GetAssignedVPPApps(ctx context.Context, teamID *uint) (map[fleet.VPPAppID]struct{}, error) {
 	stmt := `
 SELECT
 	adam_id, platform, self_service
@@ -243,9 +243,9 @@ WHERE
 		return nil, ctxerr.Wrap(ctx, err, "get assigned VPP apps")
 	}
 
-	appSet := make(map[fleet.VPPAppTuple]fleet.VPPAppID)
+	appSet := make(map[fleet.VPPAppID]struct{})
 	for _, r := range results {
-		appSet[r.VPPAppTuple] = r
+		appSet[r] = struct{}{}
 	}
 
 	return appSet, nil
