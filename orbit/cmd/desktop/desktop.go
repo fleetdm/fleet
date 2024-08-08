@@ -61,6 +61,7 @@ func setupRunners() {
 }
 
 func main() {
+	// TODO: graceful shutdown, releasing resources, stopping tickers, etc.?
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -185,6 +186,8 @@ func main() {
 			migrateMDMItem.Hide()
 		}
 
+		// TODO: we can probably extract this into a function that sets up both the migrator and the
+		// offline watcher
 		if runtime.GOOS == "darwin" {
 
 			dir, err := migrationFileDir()
@@ -194,6 +197,7 @@ func main() {
 
 			mrw := migration.NewReadWriter(dir, constant.MigrationFileName)
 
+			// TODO: when should we close this channel?
 			swiftDialogCh := make(chan struct{}, 1) // we use channel buffer size of 1 to allow one dialog at a time without blocking
 
 			_, swiftDialogPath, _ := update.LocalTargetPaths(
@@ -213,69 +217,6 @@ func main() {
 			)
 
 			useraction.StartMDMMigrationOfflineWatcher(ctx, client, swiftDialogPath, swiftDialogCh)
-
-			// 	// start loop with 3-minute interval to ping server and show dialog if offline
-			// 	go func() {
-			// 		ticker := time.NewTicker(1 * time.Minute) // TODO: update to 3 minutes
-			// 		defer ticker.Stop()
-			// 		log.Info().Msg("starting offline dialog loop")
-			// 		for {
-			// 			log.Info().Msg("waiting for tick")
-
-			// 			<-ticker.C
-			// 			// check if notifications file exists at the expected path
-			// 			homedir, err := os.UserHomeDir()
-			// 			if err != nil {
-			// 				log.Fatal().Err(err).Msg("failed to get user's home directory")
-			// 			}
-			// 			path := filepath.Join(homedir, "Library/fleet-notifications.txt") // TODO: update this
-			// 			_, err = os.Stat(path)
-			// 			if err != nil {
-			// 				if errors.Is(err, fs.ErrNotExist) {
-			// 					log.Info().Msg("notifications file does not exist, do nothing")
-			// 					continue
-			// 				}
-			// 				log.Error().Err(err).Msg("stat notifications file")
-			// 				continue
-			// 			}
-			// 			log.Info().Msg("notifications file exists, proceed to ping server")
-
-			// 			// ping the server to check if we're online
-			// 			// TODO: should we rely on the Fleet server or should we use something else (e.g.,
-			// 			// DNS lookup)?
-			// 			if err := client.Ping(); err != nil {
-			// 				if !(strings.Contains(err.Error(), "no such host") || strings.Contains(err.Error(), "dial tcp")) {
-			// 					// TODO: Do we want to do any matching on the error to show a different message?
-			// 					// Will errors always be of the shape "dial tcp: lookup <<host>>: no such host"?
-			// 					log.Error().Err(err).Msg("error pinging server does not contain dial tcp or no such host, do nothing")
-			// 					continue
-			// 				}
-			// 				log.Error().Err(err).Msg("error pinging server, proceed to show dialog")
-			// 			} else {
-			// 				log.Info().Msg("ping ok, do nothing")
-			// 				continue
-			// 			}
-
-			// 			// TODO: Maybe check profiles and skip showing the dialog if the device is managed?
-
-			// 			// check if dialog channel is available
-			// 			log.Info().Msg("checking if dialog channel is available")
-
-			// 			select {
-			// 			case swiftDialogCh <- struct{}{}:
-			// 				log.Info().Msg("showing offline dialog")
-			// 				if err := useraction.ShowDialogMDMMigrationOffline(swiftDialogPath, swiftDialogCh); err != nil {
-			// 					log.Error().Err(err).Msg("showing offline dialog")
-			// 				}
-			// 				log.Info().Msg("done showing offline dialog")
-			// 				continue
-			// 			default:
-			// 				// TODO: Do we worry about the other process never releasing the channel?
-			// 				log.Info().Msg("there's another dialog already open, skipping offline dialog")
-			// 				continue
-			// 			}
-			// 		}
-			// 	}()
 		}
 
 		refetchToken := func() {
@@ -521,6 +462,7 @@ func main() {
 		}()
 	}
 	onExit := func() {
+		// TODO: it doesn't look like this is actually triggering, at least when desktop gets killed for an update
 		if mdmMigrator != nil {
 			mdmMigrator.Exit()
 		}
