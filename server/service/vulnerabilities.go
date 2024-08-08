@@ -31,7 +31,8 @@ type listVulnerabilitiesResponse struct {
 	KnownVulnerability *bool                             `json:"known_vulnerability,omitempty"`
 }
 
-var cveRegex = regexp.MustCompile(`^CVE-\d{4}-\d{4}\d*$`)
+// Allow formats like: CVE-2017-12345, cve-2017-12345 or 2017-12345
+var cveRegex = regexp.MustCompile(`(?i)^(CVE-)?\d{4}-\d{4}\d*$`)
 
 func (r listVulnerabilitiesResponse) error() error { return r.Err }
 
@@ -55,13 +56,22 @@ func listVulnerabilitiesEndpoint(ctx context.Context, req interface{}, svc fleet
 	}
 
 	var knownVulnerability *bool
-	if len(vulns) == 0 && cveRegex.MatchString(request.ListOptions.MatchQuery) {
+	if len(vulns) == 0 && len(request.ListOptions.MatchQuery) > 0 {
 		// If no vulnerabilities are returned, we need to check if the query was for a vulnerability known to fleet
-		known, err := svc.IsCVEKnownToFleet(ctx, request.ListOptions.MatchQuery)
-		if err != nil {
-			return listVulnerabilitiesResponse{Err: err}, nil
+		query := request.ListOptions.MatchQuery
+		matches := cveRegex.FindStringSubmatch(query)
+		if matches != nil {
+			const cvePrefix = "CVE-"
+			if len(matches) > 1 && matches[1] == "" {
+				// If CVE prefix was missing, we add it
+				query = cvePrefix + query
+			}
+			known, err := svc.IsCVEKnownToFleet(ctx, query)
+			if err != nil {
+				return listVulnerabilitiesResponse{Err: err}, nil
+			}
+			knownVulnerability = &known
 		}
-		knownVulnerability = &known
 	}
 
 	return listVulnerabilitiesResponse{

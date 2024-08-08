@@ -8662,7 +8662,8 @@ func (s *integrationTestSuite) TestListVulnerabilities() {
 	require.NoError(t, err)
 
 	// insert CVEMeta
-	knownCVE := "CVE-2021-1299"
+	knownCVEWoPrefix := "2021-1299"
+	knownCVE := "cve-" + knownCVEWoPrefix
 	mockTime := time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC)
 	err = s.ds.InsertCVEMeta(context.Background(), []fleet.CVEMeta{
 		{
@@ -8786,6 +8787,15 @@ func (s *integrationTestSuite) TestListVulnerabilities() {
 
 	// test with a known CVE that does not match on software/OS
 	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities", nil, http.StatusOK, &resp, "query", knownCVE)
+	require.Empty(t, resp.Err)
+	assert.Len(s.T(), resp.Vulnerabilities, 0)
+	assert.Equal(t, resp.Count, uint(0))
+	assert.False(t, resp.Meta.HasPreviousResults)
+	assert.False(t, resp.Meta.HasNextResults)
+	assert.Equal(t, ptr.Bool(true), resp.KnownVulnerability)
+
+	// test with a known CVE that does not match on software/OS, but without CVE- prefix
+	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities", nil, http.StatusOK, &resp, "query", knownCVEWoPrefix)
 	require.Empty(t, resp.Err)
 	assert.Len(s.T(), resp.Vulnerabilities, 0)
 	assert.Equal(t, resp.Count, uint(0))
