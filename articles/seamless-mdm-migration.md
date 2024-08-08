@@ -36,6 +36,7 @@ Apple allows changing most values in profiles delivered by MDM, but the `ServerU
 
 It is recommended to follow the entire process on a staging/test MDM instance and devices, then repeat for the production instance and devices.
 
+
 ```mermaid
 ---
 title: Before migration
