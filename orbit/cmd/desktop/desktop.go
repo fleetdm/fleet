@@ -61,6 +61,7 @@ func setupRunners() {
 }
 
 func main() {
+	// TODO: graceful shutdown, releasing resources, stopping tickers, etc.?
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -190,6 +191,8 @@ func main() {
 			migrateMDMItem.Hide()
 		}
 
+		// TODO: we can probably extract this into a function that sets up both the migrator and the
+		// offline watcher
 		if runtime.GOOS == "darwin" {
 			dir, err := migration.Dir()
 			if err != nil {
@@ -438,6 +441,7 @@ func main() {
 		}()
 	}
 	onExit := func() {
+		// TODO: it doesn't look like this is actually triggering, at least when desktop gets killed for an update
 		if mdmMigrator != nil {
 			mdmMigrator.Exit()
 		}
