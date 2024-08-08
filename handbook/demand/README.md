@@ -82,6 +82,26 @@ The Head of Demand is the DRI for deploying Fleet's event budget, and events are
   - Next, decide which events in the **_following quarter_** the company will invest time or money into.  This includes any event that Fleet pays to send someone to or to sponsor, and even events where Fleet's only involvement is that a fleetie will be giving a talk or otherwise representing the brand.
   - Finally, qualify or disqualify any newly-entered event ideas by either verifying and setting the buying situation, or removing the event idea from the spreadsheet.
 
+### Upload contacts to SalesForce after an event
+
+Create the lead event source:
+1. [Create a new lead source](https://fleetdm.lightning.force.com/lightning/setup/ObjectManager/Contact/FieldsAndRelationships/LeadSource/view) with naming convention [Retired]Events - {Event name} 
+2. Add the new lead source name to the .csv of leads before uploading to Salesforce.
+3. Add a new column header labeled "Lead source" and add the new lead source name to each row in the CSV.
+
+Use the import wizard to upload contacts:
+
+1. Navigate to the [contact import wizard](https://fleetdm.lightning.force.com/one/one.app#eyJjb21wb25lbnREZWYiOiJvbmU6YWxvaGFQYWdlIiwiYXR0cmlidXRlcyI6eyJhZGRyZXNzIjoiL2RhdGFJbXBvcnRlci9kYXRhSW1wb3J0ZXIuYXBwP29iamVjdFNlbGVjdGlvbj1BY2NvdW50In0sInN0YXRlIjp7fX0%3D):
+2. Select standard object "Accounts and Contacts"
+3. Select "Add new and update existing records". (Do not change the matching rules)
+4. Upload the CSV
+5. Verify the mapped SalesForce object matches the correct CSV Headers
+6. Review & Start Import
+
+### Follow up after an event
+
+Email relevant information according to the event buying situation, but refer to the original lead list in [Google Drive](https://drive.google.com/drive/u/0/folders/1uXf95V6CHKHnqxRc9iQr0a0FnTZk3bXR) for those who asked for contact.
+If feedback is present in the original event CSV, manually add any worthwhile feedback to the contact description in SalesForce.
 
 ### Optimize ads through experimentation
 
@@ -149,7 +169,6 @@ Any changes to the current running ads visible to a user, including designs, key
 3. [Digital Marketing Manager](https://fleetdm.com/handbook/demand#team) makes changes and creates a calendar reminder to check performance either two weeks or four weeks from the date changes were made.
 
 > **Do changes to keywords or targeting require a design review?** Currently, all changes to these things require discussion with our product marketer.
-
 
 ### Engage with the community
 
