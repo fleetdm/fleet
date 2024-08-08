@@ -13,15 +13,8 @@ module.exports.routes = {
   //  ╦ ╦╔═╗╔╗ ╔═╗╔═╗╔═╗╔═╗╔═╗
   //  ║║║║╣ ╠╩╗╠═╝╠═╣║ ╦║╣ ╚═╗
   //  ╚╩╝╚═╝╚═╝╩  ╩ ╩╚═╝╚═╝╚═╝
-  'GET /profiles': { action: 'view-profiles' },
+  'GET /profiles': { action: 'profiles/view-profiles' },
   'GET /scripts': { action: 'view-scripts' },
-
-  // 'GET /welcome/:unused?':   { action: 'dashboard/view-welcome' },
-  // 'GET /faq':                { action:   'view-faq' },
-  // 'GET /legal/terms':        { action:   'legal/view-terms' },
-  // 'GET /legal/privacy':      { action:   'legal/view-privacy' },
-  // 'GET /contact':            { action:   'view-contact' },
-  // 'GET /signup':             { action: 'entrance/view-signup' },
 
   'GET /email/confirm':      { action: 'entrance/confirm-email' },
   'GET /email/confirmed':    { action: 'entrance/view-confirmed-email' },
@@ -62,5 +55,8 @@ module.exports.routes = {
   'POST  /api/v1/entrance/update-password-and-login':    { action: 'entrance/update-password-and-login' },
   'POST  /api/v1/deliver-contact-form-message':          { action: 'deliver-contact-form-message' },
   'POST  /api/v1/observe-my-session':                 { action: 'observe-my-session', hasSocketFeatures: true },
-
+  'POST /api/v1/delete-profile':                      { action: 'profiles/delete-profile' },
+  'GET /download-profile':                            { action: 'profiles/download-profile' },
+  'POST /api/v1/add-profile':                         { action: 'profiles/add-profile' },
+  'POST /api/v1/edit-profile':                       { action: 'profiles/edit-profile' },
 };
