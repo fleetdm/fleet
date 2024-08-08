@@ -2,12 +2,18 @@ package fleet
 
 import "time"
 
+// VPPAppTuple is used internally to match apps without the attributes
+// we add to enrich the type
+type VPPAppTuple struct {
+	AdamID   string              `db:"adam_id" json:"app_store_id"`
+	Platform AppleDevicePlatform `db:"platform" json:"platform"`
+}
+
 type VPPAppID struct {
+	VPPAppTuple
 	// AdamID is a unique identifier assigned to each app in
 	// the App Store, this value is managed by Apple.
-	AdamID      string              `db:"adam_id" json:"app_store_id"`
-	Platform    AppleDevicePlatform `db:"platform" json:"platform"`
-	SelfService bool                `db:"self_service" json:"self_service"`
+	SelfService bool `db:"self_service" json:"self_service"`
 }
 
 // VPPApp represents a VPP (Volume Purchase Program) application,
