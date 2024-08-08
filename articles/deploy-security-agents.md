@@ -94,4 +94,4 @@ See Fleet's [documentation](https://fleetdm.com/docs/using-fleet) and additional
 <meta name="category" value="guides">
 <meta name="publishedOn" value="2024-08-05">
 <meta name="articleImageUrl" value="../website/assets/images/articles/deploy-security-agents-1600x900@2x.png">
-<meta name="description" value="This guide will walk you through adding apps to Fleet for user self-service.">
+<meta name="description" value="This guide will walk you through adding software to Fleet.">
