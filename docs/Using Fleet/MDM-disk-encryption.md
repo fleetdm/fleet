@@ -8,7 +8,9 @@ In Fleet, you can enforce disk encryption for your macOS and Windows hosts.
 
 When disk encryption is enforced, hosts’ disk encryption keys will be stored in Fleet.
 
-For Windows hosts, disk encryption is enforced on the C: volume (default system/OS drive).
+For macOS hosts that automatically enroll, disk encryption is enforced during Setup Assistant.
+
+For Windows, disk encryption is enforced on the C: volume (default system/OS drive).
 
 ## Enforce disk encryption
 
