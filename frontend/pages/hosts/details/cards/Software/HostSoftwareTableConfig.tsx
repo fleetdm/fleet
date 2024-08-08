@@ -9,6 +9,7 @@ import {
   IHostSoftwarePackage,
   SoftwareInstallStatus,
   formatSoftwareType,
+  isIpadOrIphoneSoftwareSource,
 } from "interfaces/software";
 import {
   IHeaderProps,
@@ -47,7 +48,6 @@ type IInstalledVersionsCellProps = CellProps<
   IHostSoftware["installed_versions"]
 >;
 type IVulnerabilitiesCellProps = IInstalledVersionsCellProps;
-// type IActionsCellProps = CellProps<IHostSoftware, IHostSoftware["id"]>;
 
 const generateActions = ({
   userHasSWInstallPermission,
@@ -184,6 +184,9 @@ export const generateSoftwareTableHeaders = ({
       accessor: (originalRow) => originalRow.installed_versions,
       disableSortBy: true,
       Cell: (cellProps: IVulnerabilitiesCellProps) => {
+        if (isIpadOrIphoneSoftwareSource(cellProps.row.original.source)) {
+          return <TextCell value="Not supported" grey />;
+        }
         const vulnerabilities = getVulnerabilities(cellProps.cell.value ?? []);
         return <VulnerabilitiesCell vulnerabilities={vulnerabilities} />;
       },

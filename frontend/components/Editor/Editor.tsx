@@ -75,7 +75,7 @@ const Editor = ({
         <TooltipWrapper
           className={labelClassName}
           tipContent={labelTooltip}
-          position="top"
+          position="top-start"
         >
           {labelText}
         </TooltipWrapper>

@@ -541,7 +541,8 @@ var additionalHostRefsByUUID = map[string]string{
 // the rows are not deleted when the host is deleted, only a soft delete is
 // performed by setting a timestamp column to the current time.
 var additionalHostRefsSoftDelete = map[string]string{
-	"host_script_results": "host_deleted_at",
+	"host_script_results":    "host_deleted_at",
+	"host_software_installs": "host_deleted_at",
 }
 
 func (ds *Datastore) DeleteHost(ctx context.Context, hid uint) error {
@@ -1045,7 +1046,7 @@ func (ds *Datastore) applyHostFilters(
 				if err != nil {
 					return "", nil, ctxerr.Wrap(ctx, err, "get vpp app by team and title id")
 				}
-				vppAppJoin, vppAppParams, err := ds.vppAppJoin(vppApp.AdamID, *opt.SoftwareStatusFilter)
+				vppAppJoin, vppAppParams, err := ds.vppAppJoin(vppApp.VPPAppID, *opt.SoftwareStatusFilter)
 				if err != nil {
 					return "", nil, ctxerr.Wrap(ctx, err, "vpp app join")
 				}
@@ -4943,7 +4944,7 @@ func (ds *Datastore) ListUpcomingHostMaintenanceWindows(ctx context.Context, hid
 		WHERE
 			hce.host_id = ?
 			AND
-			ce.start_time > NOW()	
+			ce.start_time > NOW()
 		ORDER BY ce.start_time
 	`
 

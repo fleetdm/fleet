@@ -337,19 +337,17 @@ SELECT
 	hsi.post_install_script_output,
 	hsi.install_script_output,
 	hsi.host_id AS host_id,
-	h.computer_name AS host_display_name,
 	st.name AS software_title,
 	st.id AS software_title_id,
 	COALESCE(%s, '') AS status,
 	si.filename AS software_package,
-	h.team_id AS host_team_id,
 	hsi.user_id AS user_id,
 	hsi.post_install_script_exit_code,
 	hsi.install_script_exit_code,
-    hsi.self_service
+    hsi.self_service,
+    hsi.host_deleted_at
 FROM
 	host_software_installs hsi
-	JOIN hosts h ON h.id = hsi.host_id
 	JOIN software_installers si ON si.id = hsi.software_installer_id
 	JOIN software_titles st ON si.title_id = st.id
 WHERE
@@ -400,6 +398,7 @@ WHERE
 			FROM host_software_installs
 		WHERE
 			software_installer_id = :installer_id
+			AND host_deleted_at IS NULL
 		GROUP BY
 			host_id)) s`, softwareInstallerHostStatusNamedQuery("hsi", "status"))
 
@@ -421,7 +420,7 @@ WHERE
 	return &dest, nil
 }
 
-func (ds *Datastore) vppAppJoin(adamID string, status fleet.SoftwareInstallerStatus) (string, []interface{}, error) {
+func (ds *Datastore) vppAppJoin(appID fleet.VPPAppID, status fleet.SoftwareInstallerStatus) (string, []interface{}, error) {
 	stmt := fmt.Sprintf(`JOIN (
 SELECT
 	host_id
@@ -430,13 +429,13 @@ FROM
 LEFT OUTER JOIN
 	nano_command_results ncr ON ncr.command_uuid = hvsi.command_uuid
 WHERE
-	adam_id = :adam_id
+	adam_id = :adam_id AND platform = :platform
 	AND hvsi.id IN(
 		SELECT
 			max(id) -- ensure we use only the most recent install attempt for each host
 			FROM host_vpp_software_installs
 		WHERE
-			adam_id = :adam_id
+			adam_id = :adam_id AND platform = :platform
 		GROUP BY
 			host_id, adam_id)
 	AND (%s) = :status) hss ON hss.host_id = h.id
@@ -444,7 +443,8 @@ WHERE
 
 	return sqlx.Named(stmt, map[string]interface{}{
 		"status":                    status,
-		"adam_id":                   adamID,
+		"adam_id":                   appID.AdamID,
+		"platform":                  appID.Platform,
 		"software_status_installed": fleet.SoftwareInstallerInstalled,
 		"software_status_failed":    fleet.SoftwareInstallerFailed,
 		"software_status_pending":   fleet.SoftwareInstallerPending,

@@ -151,10 +151,13 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
   const [showPreviewTicketModal, setShowPreviewTicketModal] = useState(false);
   const [showAddSoftwareModal, setShowAddSoftwareModal] = useState(false);
   const [resetPageIndex, setResetPageIndex] = useState<boolean>(false);
+  const [addedSoftwareToken, setAddedSoftwareToken] = useState<string | null>(
+    null
+  );
 
   const {
     currentTeamId,
-    isAnyTeamSelected,
+    isAllTeamsSelected,
     isRouteOk,
     teamIdForApi,
     userTeams,
@@ -315,7 +318,7 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
 
   const renderPageActions = () => {
     const canManageAutomations =
-      isGlobalAdmin && (!isPremiumTier || !isAnyTeamSelected);
+      isGlobalAdmin && (!isPremiumTier || isAllTeamsSelected);
 
     const canAddSoftware =
       isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
@@ -345,8 +348,8 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
   const renderHeaderDescription = () => {
     return (
       <p>
-        Manage software and search for installed software, OS and
-        vulnerabilities {isAnyTeamSelected ? "on this team" : "for all hosts"}.
+        Manage software and search for installed software, OS, and
+        vulnerabilities {isAllTeamsSelected ? "for all hosts" : "on this team"}.
       </p>
     );
   };
@@ -385,6 +388,7 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
           showExploitedVulnerabilitiesOnly,
           softwareFilter,
           resetPageIndex,
+          addedSoftwareToken,
         })}
       </div>
     );
@@ -424,6 +428,8 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
             teamId={currentTeamId ?? 0}
             router={router}
             onExit={toggleAddSoftwareModal}
+            setAddedSoftwareToken={setAddedSoftwareToken}
+            isFreeTier={isFreeTier}
           />
         )}
       </div>

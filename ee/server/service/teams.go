@@ -1246,7 +1246,7 @@ func (svc *Service) editTeamFromSpec(
 
 	if spec.Software != nil {
 		if team.Config.Software == nil {
-			team.Config.Software = &fleet.TeamSpecSoftware{}
+			team.Config.Software = &fleet.SoftwareSpec{}
 		}
 
 		if spec.Software.Packages.Set {
