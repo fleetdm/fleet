@@ -95,3 +95,19 @@ Run the following command in the shell before running the Fleet server _and_ bef
 ``` sh
 ulimit -n 64000
 ```
+
+## Running with MDM
+
+Set up MDM on your server. To extract the SCEP challenge, you can use the [MDM asset extractor](https://github.com/fleetdm/fleet/tree/main/tools/mdm/assets).
+
+For your server, disable Apple push notifications since we will be using devices with fake UUIDs:
+
+```
+export FLEET_DEV_MDM_APPLE_DISABLE_PUSH=1
+```
+
+Example of running the agent with MDM. Note that `enroll_secret` is not needed for iPhone/iPad devices:
+
+```
+go run agent.go --os_templates ipad_13.18,iphone_14.6 --host_count 10 --mdm_scep_challenge 0d53306e-6d7a-9d14-a372-f9e53f9d62db
+```

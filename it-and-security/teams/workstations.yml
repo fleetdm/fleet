@@ -55,6 +55,7 @@ controls:
     - path: ../lib/collect-fleetd-logs.sh
     - path: ../lib/macos-see-automatic-enrollment-profile.sh
     - path: ../lib/macos-remove-old-nudge.sh
+    - path: ../lib/install-update-homebrew.sh
     - path: ../lib/windows-remove-fleetd.ps1
     - path: ../lib/windows-turn-off-mdm.ps1
 policies:
@@ -74,4 +75,8 @@ queries:
     interval: 300
     automations_enabled: false
     observer_can_run: true
-
+software:
+  - url: https://zoom.us/client/latest/Zoom.pkg?archType=arm64
+    pre_install_query: 
+      path: ../lib/macos-check-if-apple-silicon.queries.yml
+    self_service: true

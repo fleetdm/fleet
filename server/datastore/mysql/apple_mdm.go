@@ -2732,13 +2732,8 @@ func (ds *Datastore) InsertMDMIdPAccount(ctx context.Context, account *fleet.MDM
 	return ctxerr.Wrap(ctx, err, "creating new MDM IdP account")
 }
 
-func (ds *Datastore) AssociateMDMIdPAccount(ctx context.Context, accountUUID, hostUUID string) error {
-	_, err := ds.writer(ctx).ExecContext(ctx, `UPDATE mdm_idp_accounts SET host_uuid = ? WHERE uuid = ?`, hostUUID, accountUUID)
-	return ctxerr.Wrap(ctx, err, "associating MDM IdP account with device")
-}
-
 func (ds *Datastore) GetMDMIdPAccountByEmail(ctx context.Context, email string) (*fleet.MDMIdPAccount, error) {
-	stmt := `SELECT uuid, username, fullname, email, host_uuid, fleet_enroll_ref FROM mdm_idp_accounts WHERE email = ?`
+	stmt := `SELECT uuid, username, fullname, email FROM mdm_idp_accounts WHERE email = ?`
 	var acct fleet.MDMIdPAccount
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &acct, stmt, email)
 	if err != nil {
@@ -2750,39 +2745,13 @@ func (ds *Datastore) GetMDMIdPAccountByEmail(ctx context.Context, email string) 
 	return &acct, nil
 }
 
-func (ds *Datastore) GetMDMIdPAccountByAccountUUID(ctx context.Context, accountUUID string) (*fleet.MDMIdPAccount, error) {
-	stmt := `SELECT uuid, username, fullname, email, host_uuid, fleet_enroll_ref FROM mdm_idp_accounts WHERE uuid = ?`
+func (ds *Datastore) GetMDMIdPAccountByUUID(ctx context.Context, uuid string) (*fleet.MDMIdPAccount, error) {
+	stmt := `SELECT uuid, username, fullname, email FROM mdm_idp_accounts WHERE uuid = ?`
 	var acct fleet.MDMIdPAccount
-	err := sqlx.GetContext(ctx, ds.reader(ctx), &acct, stmt, accountUUID)
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &acct, stmt, uuid)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return nil, ctxerr.Wrap(ctx, notFound("MDMIdPAccount").WithMessage(fmt.Sprintf("with uuid %s", accountUUID)))
-		}
-		return nil, ctxerr.Wrap(ctx, err, "select mdm_idp_accounts")
-	}
-	return &acct, nil
-}
-
-func (ds *Datastore) GetMDMIdPAccountByHostUUID(ctx context.Context, hostUUID string) (*fleet.MDMIdPAccount, error) {
-	stmt := `SELECT uuid, username, fullname, email, host_uuid, fleet_enroll_ref FROM mdm_idp_accounts WHERE host_uuid = ?`
-	var acct fleet.MDMIdPAccount
-	err := sqlx.GetContext(ctx, ds.reader(ctx), &acct, stmt, hostUUID)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return nil, ctxerr.Wrap(ctx, notFound("MDMIdPAccount").WithMessage(fmt.Sprintf("with host uuid %s", hostUUID)))
-		}
-		return nil, ctxerr.Wrap(ctx, err, "select mdm_idp_accounts")
-	}
-	return &acct, nil
-}
-
-func (ds *Datastore) GetMDMIdPAccountByLegacyEnrollRef(ctx context.Context, ref string) (*fleet.MDMIdPAccount, error) {
-	stmt := `SELECT uuid, username, fullname, email, host_uuid, fleet_enroll_ref FROM mdm_idp_accounts WHERE fleet_enroll_ref = ?`
-	var acct fleet.MDMIdPAccount
-	err := sqlx.GetContext(ctx, ds.reader(ctx), &acct, stmt, ref)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return nil, ctxerr.Wrap(ctx, notFound("MDMIdPAccount").WithMessage(fmt.Sprintf("with fleet_enroll_ref %s", ref)))
+			return nil, ctxerr.Wrap(ctx, notFound("MDMIdPAccount").WithMessage(fmt.Sprintf("with uuid %s", uuid)))
 		}
 		return nil, ctxerr.Wrap(ctx, err, "select mdm_idp_accounts")
 	}
@@ -3676,20 +3645,6 @@ func (ds *Datastore) MDMResetEnrollment(ctx context.Context, hostUUID string) er
 			return ctxerr.Wrap(ctx, err, "resetting disk encryption key information for host")
 		}
 
-		// Delete any stored host emails sourced from mdm_idp_accounts. Note that we aren't deleting
-		// the mdm_idp_accounts themselves, just the host_emails associated with the host. This
-		// ensures that hosts that reenroll without IdP will have their emails removed. Hosts
-		// that reenroll with IdP will have their emails re-added in the
-		// AppleMDMPostDEPEnrollmentTask.
-		//
-		// TODO: Should we be applying any platform check here or is this ok for macOS, iOS, and Windows?
-		_, err = tx.ExecContext(ctx, `
-					DELETE FROM host_emails
-					WHERE host_id = ? AND source = ?`, host.ID, fleet.DeviceMappingMDMIdpAccounts)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "resetting host_emails sourced from mdm_idp_accounts")
-		}
-
 		if host.Platform == "darwin" {
 			// Deleting the matching entry on this table will cause
 			// the aggregate report to show this host as 'pending' to
@@ -4437,41 +4392,20 @@ func decrypt(encrypted []byte, privateKey string) ([]byte, error) {
 
 	decrypted, err := aesGCM.Open(nil, nonce, ciphertext, nil)
 	if err != nil {
-		return nil, fmt.Errorf("generate nonce: %w", err)
+		return nil, fmt.Errorf("decrypting: %w", err)
 	}
 
 	return decrypted, nil
 }
 
 func (ds *Datastore) InsertMDMConfigAssets(ctx context.Context, assets []fleet.MDMConfigAsset) error {
-	stmt := `
-INSERT INTO mdm_config_assets
-  (name, value, md5_checksum)
-VALUES
-  %s`
-
-	var args []any
-	var insertVals strings.Builder
-
-	for _, a := range assets {
-		encryptedVal, err := encrypt(a.Value, ds.serverPrivateKey)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, fmt.Sprintf("encrypting mdm config asset %s", a.Name))
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		if err := insertMDMConfigAssets(ctx, tx, assets, ds.serverPrivateKey); err != nil {
+			return ctxerr.Wrap(ctx, err, "insert mdm config assets")
 		}
 
-		hexChecksum := md5ChecksumBytes(encryptedVal)
-		insertVals.WriteString(`(?, ?, UNHEX(?)),`)
-		args = append(args, a.Name, encryptedVal, hexChecksum)
-	}
-
-	stmt = fmt.Sprintf(stmt, strings.TrimSuffix(insertVals.String(), ","))
-
-	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		_, err := tx.ExecContext(ctx, stmt, args...)
-		return err
+		return nil
 	})
-
-	return ctxerr.Wrap(ctx, err, "writing mdm config assets to db")
 }
 
 func (ds *Datastore) GetAllMDMConfigAssetsByName(ctx context.Context, assetNames []fleet.MDMAssetName) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
@@ -4557,6 +4491,16 @@ WHERE name IN (?) AND deletion_uuid = ''`
 }
 
 func (ds *Datastore) DeleteMDMConfigAssetsByName(ctx context.Context, assetNames []fleet.MDMAssetName) error {
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		if err := softDeleteMDMConfigAssetsByName(ctx, tx, assetNames); err != nil {
+			return ctxerr.Wrap(ctx, err, "delete mdm config assets by name")
+		}
+
+		return nil
+	})
+}
+
+func softDeleteMDMConfigAssetsByName(ctx context.Context, tx sqlx.ExtContext, assetNames []fleet.MDMAssetName) error {
 	stmt := `
 UPDATE
     mdm_config_assets
@@ -4571,11 +4515,58 @@ WHERE
 
 	stmt, args, err := sqlx.In(stmt, deletionUUID, assetNames)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "sqlx.In DeleteMDMConfigAssetsByName")
+		return ctxerr.Wrap(ctx, err, "sqlx.In softDeleteMDMConfigAssetsByName")
 	}
 
-	_, err = ds.writer(ctx).ExecContext(ctx, stmt, args...)
+	_, err = tx.ExecContext(ctx, stmt, args...)
 	return ctxerr.Wrap(ctx, err, "deleting mdm config assets")
+}
+
+func insertMDMConfigAssets(ctx context.Context, tx sqlx.ExtContext, assets []fleet.MDMConfigAsset, privateKey string) error {
+	stmt := `
+INSERT INTO mdm_config_assets
+  (name, value, md5_checksum)
+VALUES
+  %s`
+
+	var args []any
+	var insertVals strings.Builder
+
+	for _, a := range assets {
+		encryptedVal, err := encrypt(a.Value, privateKey)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, fmt.Sprintf("encrypting mdm config asset %s", a.Name))
+		}
+
+		hexChecksum := md5ChecksumBytes(encryptedVal)
+		insertVals.WriteString(`(?, ?, UNHEX(?)),`)
+		args = append(args, a.Name, encryptedVal, hexChecksum)
+	}
+
+	stmt = fmt.Sprintf(stmt, strings.TrimSuffix(insertVals.String(), ","))
+
+	_, err := tx.ExecContext(ctx, stmt, args...)
+
+	return ctxerr.Wrap(ctx, err, "writing mdm config assets to db")
+}
+
+func (ds *Datastore) ReplaceMDMConfigAssets(ctx context.Context, assets []fleet.MDMConfigAsset) error {
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		var names []fleet.MDMAssetName
+		for _, a := range assets {
+			names = append(names, a.Name)
+		}
+
+		if err := softDeleteMDMConfigAssetsByName(ctx, tx, names); err != nil {
+			return ctxerr.Wrap(ctx, err, "upsert mdm config assets soft delete")
+		}
+
+		if err := insertMDMConfigAssets(ctx, tx, assets, ds.serverPrivateKey); err != nil {
+			return ctxerr.Wrap(ctx, err, "upsert mdm config assets insert")
+		}
+
+		return nil
+	})
 }
 
 // ListIOSAndIPadOSToRefetch returns the UUIDs of iPhones/iPads that should be refetched

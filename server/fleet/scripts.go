@@ -287,7 +287,7 @@ func (hsr HostScriptResult) UserMessage(hostTimeout bool, hostTimeoutValue *int)
 
 func HostScriptTimeoutMessage(seconds *int) string {
 	var timeout int
-	if seconds == nil {
+	if seconds == nil || *seconds == 0 {
 		timeout = int(scripts.MaxHostExecutionTime.Seconds())
 	} else {
 		timeout = *seconds

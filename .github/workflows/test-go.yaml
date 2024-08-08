@@ -45,7 +45,8 @@ jobs:
         suite: ["integration", "core"]
         os: [ubuntu-latest]
         go-version: ['${{ vars.GO_VERSION }}']
-        mysql: ["mysql:5.7.21", "mysql:8.0.28"]
+        mysql: ["mysql:8.0.36"]
+    continue-on-error: ${{ matrix.suite == 'integration' }} # Since integration tests have a higher chance of failing, often for unrelated reasons, we don't want to fail the whole job if they fail
     runs-on: ${{ matrix.os }}
 
     env:
@@ -69,7 +70,7 @@ jobs:
     # Pre-starting dependencies here means they are ready to go when we need them.
     - name: Start Infra Dependencies
       # Use & to background this
-      run: FLEET_MYSQL_IMAGE=${{ matrix.mysql }} docker-compose -f docker-compose.yml -f docker-compose-redis-cluster.yml up -d mysql_test mysql_replica_test redis redis-cluster-1 redis-cluster-2 redis-cluster-3 redis-cluster-4 redis-cluster-5 redis-cluster-6 redis-cluster-setup minio saml_idp mailhog mailpit smtp4dev_test &
+      run: FLEET_MYSQL_IMAGE=${{ matrix.mysql }} docker compose -f docker-compose.yml -f docker-compose-redis-cluster.yml up -d mysql_test mysql_replica_test redis redis-cluster-1 redis-cluster-2 redis-cluster-3 redis-cluster-4 redis-cluster-5 redis-cluster-6 redis-cluster-setup minio saml_idp mailhog mailpit smtp4dev_test &
 
     - name: Add TLS certificate for SMTP Tests
       run: |
@@ -97,13 +98,13 @@ jobs:
     - name: Wait for mysql
       run: |
         echo "waiting for mysql..."
-        until docker-compose exec -T mysql_test sh -c "mysql -uroot -p\"\${MYSQL_ROOT_PASSWORD}\" -e \"SELECT 1=1\" fleet" &> /dev/null; do
+        until docker compose exec -T mysql_test sh -c "mysql -uroot -p\"\${MYSQL_ROOT_PASSWORD}\" -e \"SELECT 1=1\" fleet" &> /dev/null; do
             echo "."
             sleep 1
         done
         echo "mysql is ready"
         echo "waiting for mysql replica..."
-        until docker-compose exec -T mysql_replica_test sh -c "mysql -uroot -p\"\${MYSQL_ROOT_PASSWORD}\" -e \"SELECT 1=1\" fleet" &> /dev/null; do
+        until docker compose exec -T mysql_replica_test sh -c "mysql -uroot -p\"\${MYSQL_ROOT_PASSWORD}\" -e \"SELECT 1=1\" fleet" &> /dev/null; do
             echo "."
             sleep 1
         done

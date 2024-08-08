@@ -66,22 +66,10 @@ type AppConfigUpdater interface {
 // MDMIdPAccount contains account information of a third-party IdP that can be
 // later used for MDM operations like creating local accounts.
 type MDMIdPAccount struct {
-	// UUID is the unique identifier created when a new user email is ingested (e.g., from the IdP response
-	// payload during the DEP automatic enrollment flow). It is used to subsequently associate the
-	// IdP account info to the device UUID extracted from the DEP webview client request.
 	UUID     string
 	Username string
 	Fullname string
 	Email    string
-	// HostUUID is the unique device identifier associated with the MDM enrollment. For Apple
-	// devices, it corresponds to the UDID extracted from the `x-apple-aspen-deviceinfo` header of
-	// the DEP webview client request.
-	HostUUID string `db:"host_uuid"`
-	// FleetEnrollRef is a legacy reference that is preserved for devices that enrolled
-	// via a mobileconfig that included an enrollment reference query param in the service URL. It
-	// is preserved for backwards compatibility with existing enrollments because Apple requires
-	// server URLs to match exactly when re-enrolling (e.g., via `profiles renew -type enrollment`).
-	FleetEnrollRef string `db:"fleet_enroll_ref"`
 }
 
 type MDMAppleBootstrapPackage struct {
@@ -643,6 +631,8 @@ const (
 	// MDMAssetSCEPChallenge defines the shared secret used to issue SCEP
 	// certificatges to Apple devices.
 	MDMAssetSCEPChallenge MDMAssetName = "scep_challenge"
+	// MDMAssetVPPToken is the name of the token used by MDM to authenticate to Apple's VPP service.
+	MDMAssetVPPToken MDMAssetName = "vpp_token"
 )
 
 type MDMConfigAsset struct {
@@ -707,3 +697,45 @@ func FilterMacOSOnlyProfilesFromIOSIPadOS(profiles []*MDMAppleProfilePayload) []
 
 // RefetchCommandUUIDPrefix is the prefix used for MDM commands used to refetch information from iOS/iPadOS devices.
 const RefetchCommandUUIDPrefix = "REFETCH-"
+const RefetchAppsCommandUUIDPrefix = "REFETCH-APPS-"
+
+// VPPTokenInfo is the representation of the VPP token that we send out via API.
+type VPPTokenInfo struct {
+	OrgName   string `json:"org_name"`
+	RenewDate string `json:"renew_date"`
+	Location  string `json:"location"`
+}
+
+// VPPTokenRaw is the representation of the decoded JSON object that is downloaded from ABM.
+type VPPTokenRaw struct {
+	OrgName string `json:"orgName"`
+	Token   string `json:"token"`
+	ExpDate string `json:"expDate"`
+}
+
+// VPPTokenData is the VPP data we store in the DB.
+type VPPTokenData struct {
+	// Location comes from an Apple API:
+	// https://developer.apple.com/documentation/devicemanagement/client_config. It is the name of
+	// the "library" of apps in ABM that is associated with this VPP token.
+	Location string `json:"location"`
+
+	// Token is the token that is downloaded from ABM. It is a base64 encoded JSON object with the
+	// structure of `VPPTokenRaw`.
+	Token string `json:"token"`
+}
+type AppleDevice int
+
+const (
+	MacOS AppleDevice = iota
+	IOS
+	IPadOS
+)
+
+type AppleDevicePlatform string
+
+const (
+	MacOSPlatform  AppleDevicePlatform = "darwin"
+	IOSPlatform    AppleDevicePlatform = "ios"
+	IPadOSPlatform AppleDevicePlatform = "ipados"
+)

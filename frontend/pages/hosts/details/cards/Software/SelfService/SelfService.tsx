@@ -32,7 +32,7 @@ const DEFAULT_SELF_SERVICE_QUERY_PARAMS = {
   self_service: true,
 } as const;
 
-interface ISoftwareSelfServiceProps {
+export interface ISoftwareSelfServiceProps {
   contactUrl: string;
   deviceToken: string;
   isSoftwareEnabled?: boolean;
@@ -122,8 +122,11 @@ const SoftwareSelfService = ({
                   </div>
                   <div className={`${baseClass}__items`}>
                     {data.software.map((s) => {
-                      // concatenating install_uuid so item updates with fresh data on refetch
-                      const key = `${s.id}${s.last_install?.install_uuid}`;
+                      // TODO: update this if/when we support self-service app store apps
+                      const uuid =
+                        s.software_package?.last_install?.install_uuid || "";
+                      // concatenating uuid so item updates with fresh data on refetch
+                      const key = `${s.id}${uuid}`;
                       return (
                         <SelfServiceItem
                           key={key}

@@ -78,8 +78,6 @@ module.exports = {
       'sampfluger88',
       'ireedy',
       'mostlikelee',
-      'willmayhone88',
-      'pacamaster',
       'AnthonySnyder8',
       'jahzielv',
       'getvictor',

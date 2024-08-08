@@ -921,7 +921,7 @@ describe("Host Actions Dropdown", () => {
       expect(screen.queryByText("Wipe")).not.toBeInTheDocument();
     });
 
-    it("does not renders when a macOS host but does not have Fleet macOS mdm enabled and configured", async () => {
+    it("does not render for a macOS host if Fleet Apple MDM is not enabled and configured", async () => {
       const render = createCustomRenderer({
         context: {
           app: {

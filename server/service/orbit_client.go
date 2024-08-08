@@ -53,11 +53,10 @@ type OrbitClient struct {
 	ConfigReceivers []fleet.OrbitConfigReceiver
 	// How frequently a new config will be fetched
 	ReceiverUpdateInterval time.Duration
-	// Cancelable context used by ExecuteConfigReceivers to cancel the
-	// update loop
-	ReceiverUpdateContext context.Context
-	// ReceiverUpdateCancelFunc will be called when ReceiverUpdateContext is cancelled
-	ReceiverUpdateCancelFunc context.CancelFunc
+	// receiverUpdateContext used by ExecuteConfigReceivers to cancel the update loop.
+	receiverUpdateContext context.Context
+	// receiverUpdateCancelFunc is used to cancel receiverUpdateContext.
+	receiverUpdateCancelFunc context.CancelFunc
 }
 
 // time-to-live for config cache
@@ -147,7 +146,7 @@ func NewOrbitClient(
 	orbitHostInfo fleet.OrbitHostInfo,
 	onGetConfigErrFns *OnGetConfigErrFuncs,
 ) (*OrbitClient, error) {
-	orbitCapabilities := fleet.CapabilityMap{}
+	orbitCapabilities := fleet.GetOrbitClientCapabilities()
 	bc, err := newBaseClient(addr, insecureSkipVerify, rootCA, "", fleetClientCert, orbitCapabilities)
 	if err != nil {
 		return nil, err
@@ -165,9 +164,25 @@ func NewOrbitClient(
 		onGetConfigErrFns:          onGetConfigErrFns,
 		lastIdleConnectionsCleanup: time.Now(),
 		ReceiverUpdateInterval:     defaultOrbitConfigReceiverInterval,
-		ReceiverUpdateContext:      ctx,
-		ReceiverUpdateCancelFunc:   cancelFunc,
+		receiverUpdateContext:      ctx,
+		receiverUpdateCancelFunc:   cancelFunc,
 	}, nil
+}
+
+// TriggerOrbitRestart triggers a orbit process restart.
+func (oc *OrbitClient) TriggerOrbitRestart(reason string) {
+	log.Info().Msgf("orbit restart triggered: %s", reason)
+	oc.receiverUpdateCancelFunc()
+}
+
+// RestartTriggered returns true if any of the config receivers triggered an orbit restart.
+func (oc *OrbitClient) RestartTriggered() bool {
+	select {
+	case <-oc.receiverUpdateContext.Done():
+		return true
+	default:
+		return false
+	}
 }
 
 // closeIdleConnections attempts to close idle connections from the pool
@@ -252,7 +267,7 @@ func (oc *OrbitClient) ExecuteConfigReceivers() error {
 
 	for {
 		select {
-		case <-oc.ReceiverUpdateContext.Done():
+		case <-oc.receiverUpdateContext.Done():
 			return nil
 		case <-ticker.C:
 			if err := oc.RunConfigReceivers(); err != nil {
@@ -263,8 +278,7 @@ func (oc *OrbitClient) ExecuteConfigReceivers() error {
 }
 
 func (oc *OrbitClient) InterruptConfigReceivers(err error) {
-	log.Error().Err(err).Msg("interrupt config receivers")
-	oc.ReceiverUpdateCancelFunc()
+	oc.receiverUpdateCancelFunc()
 }
 
 // GetConfig returns the Orbit config fetched from Fleet server for this instance of OrbitClient.

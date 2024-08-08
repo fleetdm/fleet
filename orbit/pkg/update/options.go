@@ -41,6 +41,19 @@ var (
 		},
 	}
 
+	LinuxArm64Targets = Targets{
+		"orbit": TargetInfo{
+			Platform:   "linux-arm64",
+			Channel:    "stable",
+			TargetFile: "orbit",
+		},
+		"osqueryd": TargetInfo{
+			Platform:   "linux-arm64",
+			Channel:    "stable",
+			TargetFile: "osqueryd",
+		},
+	}
+
 	WindowsTargets = Targets{
 		"orbit": TargetInfo{
 			Platform:   "windows",
@@ -82,6 +95,20 @@ var (
 		},
 	}
 
+	DesktopLinuxArm64Target = TargetInfo{
+		Platform:             "linux-arm64",
+		Channel:              "stable",
+		TargetFile:           "desktop.tar.gz",
+		ExtractedExecSubPath: []string{"fleet-desktop", constant.DesktopAppExecName},
+		CustomCheckExec: func(execPath string) error {
+			cmd := exec.Command(execPath, "--help")
+			if out, err := cmd.CombinedOutput(); err != nil {
+				return fmt.Errorf("exec new version: %s: %w", string(out), err)
+			}
+			return nil
+		},
+	}
+
 	NudgeMacOSTarget = TargetInfo{
 		Platform:             "macos",
 		Channel:              "stable",
@@ -94,5 +121,11 @@ var (
 		Channel:              "stable",
 		TargetFile:           "swiftDialog.app.tar.gz",
 		ExtractedExecSubPath: []string{"Dialog.app", "Contents", "MacOS", "Dialog"},
+	}
+
+	EscrowBuddyMacOSTarget = TargetInfo{
+		Platform:   "macos",
+		Channel:    "stable",
+		TargetFile: "escrowBuddy.pkg",
 	}
 )

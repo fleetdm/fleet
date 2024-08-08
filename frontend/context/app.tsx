@@ -11,6 +11,7 @@ import {
 import { IUser } from "interfaces/user";
 import permissions from "utilities/permissions";
 import sort from "utilities/sort";
+import { hasLicenseExpired, willExpireWithinXDays } from "utilities/helpers";
 
 enum ACTIONS {
   SET_AVAILABLE_TEAMS = "SET_AVAILABLE_TEAMS",
@@ -20,6 +21,7 @@ enum ACTIONS {
   SET_ENROLL_SECRET = "SET_ENROLL_SECRET",
   SET_ABM_EXPIRY = "SET_ABM_EXPIRY",
   SET_APNS_EXPIRY = "SET_APNS_EXPIRY",
+  SET_VPP_EXPIRY = "SET_VPP_EXPIRY",
   SET_SANDBOX_EXPIRY = "SET_SANDBOX_EXPIRY",
   SET_NO_SANDBOX_HOSTS = "SET_NO_SANDBOX_HOSTS",
   SET_FILTERED_HOSTS_PATH = "SET_FILTERED_HOSTS_PATH",
@@ -62,6 +64,11 @@ interface ISetAPNsExpiryAction {
   apnsExpiry: string;
 }
 
+interface ISetVppExpiryAction {
+  type: ACTIONS.SET_VPP_EXPIRY;
+  vppExpiry: string;
+}
+
 interface ISetSandboxExpiryAction {
   type: ACTIONS.SET_SANDBOX_EXPIRY;
   sandboxExpiry: string;
@@ -99,6 +106,7 @@ type IAction =
   | ISetEnrollSecretAction
   | ISetABMExpiryAction
   | ISetAPNsExpiryAction
+  | ISetVppExpiryAction
   | ISetSandboxExpiryAction
   | ISetNoSandboxHostsAction
   | ISetFilteredHostsPathAction
@@ -137,14 +145,22 @@ type InitialStateType = {
   isOnlyObserver?: boolean;
   isObserverPlus?: boolean;
   isNoAccess?: boolean;
+  isAppleBmExpired: boolean;
+  isApplePnsExpired: boolean;
+  isVppExpired: boolean;
+  willAppleBmExpire: boolean;
+  willApplePnsExpire: boolean;
+  willVppExpire: boolean;
   abmExpiry?: string;
   apnsExpiry?: string;
+  vppExpiry?: string;
   sandboxExpiry?: string;
   noSandboxHosts?: boolean;
   filteredHostsPath?: string;
   filteredSoftwarePath?: string;
   filteredQueriesPath?: string;
   filteredPoliciesPath?: string;
+  isVppEnabled?: boolean;
   setAvailableTeams: (
     user: IUser | null,
     availableTeams: ITeamSummary[]
@@ -155,6 +171,7 @@ type InitialStateType = {
   setEnrollSecret: (enrollSecret: IEnrollSecret[]) => void;
   setAPNsExpiry: (apnsExpiry: string) => void;
   setABMExpiry: (abmExpiry: string) => void;
+  setVppExpiry: (vppExpiry: string) => void;
   setSandboxExpiry: (sandboxExpiry: string) => void;
   setNoSandboxHosts: (noSandboxHosts: boolean) => void;
   setFilteredHostsPath: (filteredHostsPath: string) => void;
@@ -196,6 +213,12 @@ export const initialState = {
   filteredSoftwarePath: undefined,
   filteredQueriesPath: undefined,
   filteredPoliciesPath: undefined,
+  isAppleBmExpired: false,
+  isApplePnsExpired: false,
+  isVppExpired: false,
+  willAppleBmExpire: false,
+  willApplePnsExpire: false,
+  willVppExpire: false,
   setAvailableTeams: () => null,
   setCurrentUser: () => null,
   setCurrentTeam: () => null,
@@ -203,6 +226,7 @@ export const initialState = {
   setEnrollSecret: () => null,
   setAPNsExpiry: () => null,
   setABMExpiry: () => null,
+  setVppExpiry: () => null,
   setSandboxExpiry: () => null,
   setNoSandboxHosts: () => null,
   setFilteredHostsPath: () => null,
@@ -328,6 +352,8 @@ const reducer = (state: InitialStateType, action: IAction) => {
       return {
         ...state,
         abmExpiry,
+        isAppleBmExpired: hasLicenseExpired(abmExpiry),
+        willAppleBmExpire: willExpireWithinXDays(abmExpiry, 30),
       };
     }
     case ACTIONS.SET_APNS_EXPIRY: {
@@ -335,6 +361,17 @@ const reducer = (state: InitialStateType, action: IAction) => {
       return {
         ...state,
         apnsExpiry,
+        isApplePnsExpired: hasLicenseExpired(apnsExpiry),
+        willApplePnsExpire: willExpireWithinXDays(apnsExpiry, 30),
+      };
+    }
+    case ACTIONS.SET_VPP_EXPIRY: {
+      const { vppExpiry } = action;
+      return {
+        ...state,
+        vppExpiry,
+        isVppExpired: hasLicenseExpired(vppExpiry),
+        willVppExpire: willExpireWithinXDays(vppExpiry, 30),
       };
     }
     case ACTIONS.SET_SANDBOX_EXPIRY: {
@@ -399,6 +436,13 @@ const AppProvider = ({ children }: Props): JSX.Element => {
     sandboxExpiry: state.sandboxExpiry,
     abmExpiry: state.abmExpiry,
     apnsExpiry: state.apnsExpiry,
+    vppExpiry: state.vppExpiry,
+    isAppleBmExpired: state.isAppleBmExpired,
+    isApplePnsExpired: state.isApplePnsExpired,
+    isVppExpired: state.isVppExpired,
+    willAppleBmExpire: state.willAppleBmExpire,
+    willApplePnsExpire: state.willApplePnsExpire,
+    willVppExpire: state.willVppExpire,
     noSandboxHosts: state.noSandboxHosts,
     filteredHostsPath: state.filteredHostsPath,
     filteredSoftwarePath: state.filteredSoftwarePath,
@@ -449,6 +493,12 @@ const AppProvider = ({ children }: Props): JSX.Element => {
     },
     setAPNsExpiry: (apnsExpiry: string) => {
       dispatch({ type: ACTIONS.SET_APNS_EXPIRY, apnsExpiry });
+    },
+    setVppExpiry: (vppExpiry: string) => {
+      dispatch({
+        type: ACTIONS.SET_VPP_EXPIRY,
+        vppExpiry,
+      });
     },
     setSandboxExpiry: (sandboxExpiry: string) => {
       dispatch({ type: ACTIONS.SET_SANDBOX_EXPIRY, sandboxExpiry });

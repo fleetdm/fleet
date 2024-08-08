@@ -43,6 +43,7 @@ interface ISoftwareTitlesProps {
   currentPage: number;
   teamId?: number;
   resetPageIndex: boolean;
+  addedSoftwareToken: string | null;
 }
 
 const SoftwareTitles = ({
@@ -56,10 +57,11 @@ const SoftwareTitles = ({
   currentPage,
   teamId,
   resetPageIndex,
+  addedSoftwareToken,
 }: ISoftwareTitlesProps) => {
   const showVersions = location.pathname === PATHS.SOFTWARE_VERSIONS;
 
-  // request to get software data
+  // for Titles view, request to get software data
   const {
     data: titlesData,
     isFetching: isTitlesFetching,
@@ -80,6 +82,7 @@ const SoftwareTitles = ({
         orderDirection,
         orderKey,
         teamId,
+        addedSoftwareToken,
         ...getSoftwareFilterForQueryKey(softwareFilter),
       },
     ],
@@ -91,7 +94,9 @@ const SoftwareTitles = ({
     }
   );
 
-  // request to get software versions data
+  // For Versions view, request software versions data. If empty, request titles available for
+  // install to determine empty state copy
+
   const {
     data: versionsData,
     isFetching: isVersionsFetching,
@@ -113,6 +118,7 @@ const SoftwareTitles = ({
         orderKey,
         teamId,
         vulnerable: softwareFilter === "vulnerableSoftware",
+        addedSoftwareToken,
       },
     ],
     ({ queryKey: [queryKey] }) =>
@@ -123,11 +129,45 @@ const SoftwareTitles = ({
     }
   );
 
-  if (isTitlesLoading || isVersionsLoading) {
+  const {
+    data: titlesAvailableForInstallResponse,
+    isFetching: isTitlesAFIFetching,
+    isLoading: isTitlesAFILoading,
+    isError: isTitlesAFIError,
+  } = useQuery<
+    ISoftwareTitlesResponse,
+    Error,
+    ISoftwareTitlesResponse,
+    [ISoftwareTitlesQueryKey]
+  >(
+    [
+      {
+        scope: "software-titles",
+        page: 0,
+        perPage,
+        query: "",
+        orderDirection,
+        orderKey,
+        teamId,
+        availableForInstall: true,
+      },
+    ],
+    ({ queryKey: [queryKey] }) =>
+      softwareAPI.getSoftwareTitles(omit(queryKey, "scope")),
+    {
+      ...QUERY_OPTIONS,
+      enabled:
+        location.pathname === PATHS.SOFTWARE_VERSIONS &&
+        versionsData &&
+        versionsData.count === 0,
+    }
+  );
+
+  if (isTitlesLoading || isVersionsLoading || isTitlesAFILoading) {
     return <Spinner />;
   }
 
-  if (isTitlesError || isVersionsError) {
+  if (isTitlesError || isVersionsError || isTitlesAFIError) {
     return <TableDataError className={`${baseClass}__table-error`} />;
   }
 
@@ -137,6 +177,7 @@ const SoftwareTitles = ({
         router={router}
         data={showVersions ? versionsData : titlesData}
         showVersions={showVersions}
+        installableSoftwareExists={!!titlesAvailableForInstallResponse?.count}
         isSoftwareEnabled={isSoftwareEnabled}
         query={query}
         perPage={perPage}
@@ -145,7 +186,9 @@ const SoftwareTitles = ({
         softwareFilter={softwareFilter}
         currentPage={currentPage}
         teamId={teamId}
-        isLoading={isTitlesFetching || isVersionsFetching}
+        isLoading={
+          isTitlesFetching || isVersionsFetching || isTitlesAFIFetching
+        }
         resetPageIndex={resetPageIndex}
       />
     </div>
