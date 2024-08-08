@@ -20,6 +20,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/vpp"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/go-kit/log/level"
 	"github.com/google/uuid"
 	"golang.org/x/sync/errgroup"
@@ -121,7 +122,7 @@ func (svc *Service) deleteVPPApp(ctx context.Context, teamID *uint, meta *fleet.
 	}
 
 	var teamName *string
-	if teamID != nil {
+	if teamID != nil && *teamID != 0 {
 		t, err := svc.ds.Team(ctx, *teamID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "getting team name for deleted VPP app")
@@ -161,11 +162,19 @@ func (svc *Service) deleteSoftwareInstaller(ctx context.Context, meta *fleet.Sof
 		teamName = &t.Name
 	}
 
+	var teamID *uint
+	switch {
+	case meta.TeamID == nil:
+		teamID = ptr.Uint(0)
+	case meta.TeamID != nil:
+		teamID = meta.TeamID
+	}
+
 	if err := svc.NewActivity(ctx, vc.User, fleet.ActivityTypeDeletedSoftware{
 		SoftwareTitle:   meta.SoftwareTitle,
 		SoftwarePackage: meta.Name,
 		TeamName:        teamName,
-		TeamID:          meta.TeamID,
+		TeamID:          teamID,
 		SelfService:     meta.SelfService,
 	}); err != nil {
 		return ctxerr.Wrap(ctx, err, "creating activity for deleted software")
@@ -463,12 +472,38 @@ func (svc *Service) GetSoftwareInstallResults(ctx context.Context, resultUUID st
 
 	res, err := svc.ds.GetSoftwareInstallResults(ctx, resultUUID)
 	if err != nil {
-		return nil, err
+		if fleet.IsNotFound(err) {
+			if err := svc.authz.Authorize(ctx, &fleet.HostSoftwareInstallerResultAuthz{}, fleet.ActionRead); err != nil {
+				return nil, err
+			}
+		}
+		svc.authz.SkipAuthorization(ctx)
+		return nil, ctxerr.Wrap(ctx, err, "get software install result")
 	}
 
-	// Team specific auth check
-	if err := svc.authz.Authorize(ctx, &fleet.HostSoftwareInstallerResultAuthz{HostTeamID: res.HostTeamID}, fleet.ActionRead); err != nil {
-		return nil, err
+	if res.HostDeletedAt == nil {
+		// host is not deleted, get it and authorize for the host's team
+		host, err := svc.ds.HostLite(ctx, res.HostID)
+		// if error is because the host does not exist, check first if the user
+		// had access to run a script (to prevent leaking valid host ids).
+		if err != nil {
+			if fleet.IsNotFound(err) {
+				if err := svc.authz.Authorize(ctx, &fleet.HostSoftwareInstallerResultAuthz{}, fleet.ActionRead); err != nil {
+					return nil, err
+				}
+			}
+			svc.authz.SkipAuthorization(ctx)
+			return nil, ctxerr.Wrap(ctx, err, "get host lite")
+		}
+		// Team specific auth check
+		if err := svc.authz.Authorize(ctx, &fleet.HostSoftwareInstallerResultAuthz{HostTeamID: host.TeamID}, fleet.ActionRead); err != nil {
+			return nil, err
+		}
+	} else {
+		// host was deleted, authorize for no-team as a fallback
+		if err := svc.authz.Authorize(ctx, &fleet.HostSoftwareInstallerResultAuthz{}, fleet.ActionRead); err != nil {
+			return nil, err
+		}
 	}
 
 	res.EnhanceOutputDetails()
@@ -545,25 +580,24 @@ func (svc *Service) addMetadataToSoftwarePayload(ctx context.Context, payload *f
 const maxInstallerSizeBytes int64 = 1024 * 1024 * 500
 
 func (svc *Service) BatchSetSoftwareInstallers(ctx context.Context, tmName string, payloads []fleet.SoftwareInstallerPayload, dryRun bool) error {
-	if tmName == "" {
-		svc.authz.SkipAuthorization(ctx) // so that the error message is not replaced by "forbidden"
-		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("team_name", "must not be empty"))
-	}
-
 	if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionRead); err != nil {
 		return err
 	}
 
-	tm, err := svc.ds.TeamByName(ctx, tmName)
-	if err != nil {
-		// If this is a dry run, the team may not have been created yet
-		if dryRun && fleet.IsNotFound(err) {
-			return nil
+	var teamID *uint
+	if tmName != "" {
+		tm, err := svc.ds.TeamByName(ctx, tmName)
+		if err != nil {
+			// If this is a dry run, the team may not have been created yet
+			if dryRun && fleet.IsNotFound(err) {
+				return nil
+			}
+			return err
 		}
-		return err
+		teamID = &tm.ID
 	}
 
-	if err := svc.authz.Authorize(ctx, &fleet.SoftwareInstaller{TeamID: &tm.ID}, fleet.ActionWrite); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.SoftwareInstaller{TeamID: teamID}, fleet.ActionWrite); err != nil {
 		return ctxerr.Wrap(ctx, err, "validating authorization")
 	}
 
@@ -637,7 +671,7 @@ func (svc *Service) BatchSetSoftwareInstallers(ctx context.Context, tmName strin
 			}
 
 			installer := &fleet.UploadSoftwareInstallerPayload{
-				TeamID:            &tm.ID,
+				TeamID:            teamID,
 				InstallScript:     p.InstallScript,
 				PreInstallQuery:   p.PreInstallQuery,
 				PostInstallScript: p.PostInstallScript,
@@ -697,7 +731,7 @@ func (svc *Service) BatchSetSoftwareInstallers(ctx context.Context, tmName strin
 		}
 	}
 
-	if err := svc.ds.BatchSetSoftwareInstallers(ctx, &tm.ID, installers); err != nil {
+	if err := svc.ds.BatchSetSoftwareInstallers(ctx, teamID, installers); err != nil {
 		return ctxerr.Wrap(ctx, err, "batch set software installers")
 	}
 

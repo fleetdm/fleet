@@ -298,30 +298,30 @@ func (c *GoogleCalendar) Configure(userEmail string) error {
 }
 
 func (c *GoogleCalendar) UpdateEventBody(event *fleet.CalendarEvent,
-	genBodyFn fleet.CalendarGenBodyFn) error {
+	genBodyFn fleet.CalendarGenBodyFn) (string, error) {
 	details, err := c.unmarshalDetails(event)
 	if err != nil {
-		return err
+		return "", err
 	}
 	gEvent, err := c.config.API.GetEvent(details.ID, "")
 	if err != nil {
-		return ctxerr.Wrap(c.config.Context, err, "retrieving Google calendar event")
+		return "", ctxerr.Wrap(c.config.Context, err, "retrieving Google calendar event")
 	}
 	// Check if the current description contains the conflict text
 	conflict := strings.Contains(gEvent.Description, fleet.CalendarEventConflictText)
 	var ok bool
 	gEvent.Description, ok, err = genBodyFn(conflict)
 	if err != nil {
-		return ctxerr.Wrap(c.config.Context, err, "generating calendar event body")
+		return "", ctxerr.Wrap(c.config.Context, err, "generating calendar event body")
 	}
 	if !ok {
-		return nil
+		return "", nil
 	}
-	_, err = c.config.API.UpdateEvent(gEvent)
+	updatedEvent, err := c.config.API.UpdateEvent(gEvent)
 	if err != nil {
-		return ctxerr.Wrap(c.config.Context, err, "updating Google calendar event")
+		return "", ctxerr.Wrap(c.config.Context, err, "updating Google calendar event")
 	}
-	return nil
+	return updatedEvent.Etag, nil
 }
 
 func (c *GoogleCalendar) GetAndUpdateEvent(event *fleet.CalendarEvent, genBodyFn fleet.CalendarGenBodyFn,
@@ -441,7 +441,8 @@ func (c *GoogleCalendar) GetAndUpdateEvent(event *fleet.CalendarEvent, genBodyFn
 			if err != nil {
 				return nil, false, err
 			}
-			fleetEvent, err := c.googleEventToFleetEvent(*startTime, *endTime, gEvent, event.UUID, details.ChannelID, details.ResourceID)
+			fleetEvent, err := c.googleEventToFleetEvent(*startTime, *endTime, gEvent, event.UUID, details.ChannelID, details.ResourceID,
+				details.BodyTag)
 			if err != nil {
 				return nil, false, err
 			}
@@ -674,8 +675,8 @@ func (c *GoogleCalendar) createEvent(
 		resourceID = opts.ResourceID
 	}
 
-	// Convert Google event to Fleet event
-	fleetEvent, err := c.googleEventToFleetEvent(eventStart, eventEnd, event, eventUUID, channelID, resourceID)
+	// Convert Google event to Fleet event. Body tag will be updated by the calling function.
+	fleetEvent, err := c.googleEventToFleetEvent(eventStart, eventEnd, event, eventUUID, channelID, resourceID, "body_tag")
 	if err != nil {
 		return nil, err
 	}
@@ -726,8 +727,7 @@ func getLocation(tz string, config *GoogleCalendarConfig) *time.Location {
 }
 
 func (c *GoogleCalendar) googleEventToFleetEvent(startTime time.Time, endTime time.Time, event *calendar.Event, eventUUID string,
-	channelID string,
-	resourceID string) (
+	channelID string, resourceID string, bodyTag string) (
 	*fleet.CalendarEvent, error,
 ) {
 	tzName := c.location.String()
@@ -742,6 +742,7 @@ func (c *GoogleCalendar) googleEventToFleetEvent(startTime time.Time, endTime ti
 		ETag:       event.Etag,
 		ChannelID:  channelID,
 		ResourceID: resourceID,
+		BodyTag:    bodyTag,
 	}
 	detailsJson, err := json.Marshal(details)
 	if err != nil {

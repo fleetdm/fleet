@@ -31,7 +31,7 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-func TestIntegrationLiveQueriesTestSuite(t *testing.T) {
+func TestIntegrationsLiveQueriesTestSuite(t *testing.T) {
 	testingSuite := new(liveQueriesTestSuite)
 	testingSuite.withServer.s = &testingSuite.Suite
 	suite.Run(t, testingSuite)

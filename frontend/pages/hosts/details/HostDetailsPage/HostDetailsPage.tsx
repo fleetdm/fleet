@@ -53,6 +53,8 @@ import {
   HOST_OSQUERY_DATA,
 } from "utilities/constants";
 
+import { isIPadOrIPhone, Platform } from "interfaces/platform";
+
 import Spinner from "components/Spinner";
 import TabsWrapper from "components/TabsWrapper";
 import MainContent from "components/MainContent";
@@ -333,7 +335,11 @@ const HostDetailsPage = ({
               } else {
                 renderFlash(
                   "error",
-                  `This host is offline. Please try refetching host vitals later.`
+                  `This host is ${
+                    isIPadOrIPhone(returnedHost.platform)
+                      ? "unavailable"
+                      : "offline"
+                  }. Please try refetching host vitals later.`
                 );
                 setShowRefetchSpinner(false);
               }
@@ -921,6 +927,7 @@ const HostDetailsPage = ({
             <TabPanel>
               <SoftwareCard
                 id={host.id}
+                platform={host.platform}
                 softwareUpdatedAt={host.software_updated_at}
                 hostCanInstallSoftware={
                   !!host.orbit_version || isIosOrIpadosHost
