@@ -87,9 +87,9 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 	assert.Equal(t, false, stats.HostExpiryEnabled)
 	assert.Equal(t, false, stats.MDMWindowsEnabled)
 	assert.Equal(t, false, stats.LiveQueryDisabled)
-	assert.Equal(t, false, stats.AIFeaturesDisabled)
-	assert.Equal(t, false, stats.MaintenanceWindowsEnabled)
-	assert.Equal(t, false, stats.MaintenanceWindowsConfigured)
+	assert.Equal(t, true, stats.AIFeaturesDisabled)
+	assert.Equal(t, true, stats.MaintenanceWindowsEnabled)
+	assert.Equal(t, true, stats.MaintenanceWindowsConfigured)
 	assert.Equal(t, 0, stats.NumHostsFleetDesktopEnabled)
 
 	firstIdentifier := stats.AnonymousIdentifier
@@ -231,9 +231,9 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 	assert.Equal(t, `[{"count":10,"loc":["a","b","c"]}]`, string(stats.StoredErrors))
 	assert.Equal(t, []fleet.HostsCountByOsqueryVersion{{OsqueryVersion: "4.9.0", NumHosts: 1}}, stats.HostsEnrolledByOsqueryVersion)
 	assert.Equal(t, []fleet.HostsCountByOrbitVersion{{OrbitVersion: "1.1.0", NumHosts: 1}}, stats.HostsEnrolledByOrbitVersion)
-	assert.Equal(t, false, stats.AIFeaturesDisabled)
-	assert.Equal(t, false, stats.MaintenanceWindowsEnabled)
-	assert.Equal(t, false, stats.MaintenanceWindowsConfigured)
+	assert.Equal(t, true, stats.AIFeaturesDisabled)
+	assert.Equal(t, true, stats.MaintenanceWindowsEnabled)
+	assert.Equal(t, true, stats.MaintenanceWindowsConfigured)
 	assert.Equal(t, 0, stats.NumHostsFleetDesktopEnabled)
 
 	err = ds.RecordStatisticsSent(ctx)
@@ -340,9 +340,9 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 		{Version: "", NumEnrolled: 1},
 	}, stats.HostsEnrolledByOperatingSystem[""])
 	assert.Equal(t, `[{"count":10,"loc":["a","b","c"]}]`, string(stats.StoredErrors))
-	assert.Equal(t, false, stats.AIFeaturesDisabled)
-	assert.Equal(t, false, stats.MaintenanceWindowsEnabled)
-	assert.Equal(t, false, stats.MaintenanceWindowsConfigured)
+	assert.Equal(t, true, stats.AIFeaturesDisabled)
+	assert.Equal(t, true, stats.MaintenanceWindowsEnabled)
+	assert.Equal(t, true, stats.MaintenanceWindowsConfigured)
 	assert.Equal(t, 0, stats.NumHostsFleetDesktopEnabled)
 
 	// Create multiple new sessions for a single user
