@@ -1,6 +1,6 @@
 # Seamless MDM migrations to Fleet
 
-Typical MDM migrations on macOS require end-user interaction and result in a window of time in which the device is unmanaged. This has consequences from users being kicked off wifi due to certificate profile removal, compliance failures due to unmanaged devices, and incomplete migrations. These concerns leave some organizations stuck on outdated MDM solutions that are no longer meeting their needs. There is a better way.
+Typical MDM migrations on macOS require end-user interaction and result in a window of time in which the device is unmanaged. This has consequences from users being kicked off wifi due to certificate profile removal, compliance issues with unmanaged devices, and incomplete migrations. These concerns leave some organizations stuck on outdated MDM solutions that are no longer meeting their needs. There is a better way.
 
 For customers with eligible MDM deployments, migration to Fleet is possible with no gap in management and without involving the end-user.
 
@@ -19,7 +19,43 @@ Seamless migration may still be possible with control of DNS along with a copy o
 
 Apple allows changing most values in profiles delivered by MDM, but the `ServerURL`, `CheckinURL`, and `PushTopic` cannot be changed without re-enrollment (and user actions). Control of DNS and the certificates allows the MDM to be swapped out without changing these.
 
+## High-level process
 
+The process outline is simple:
+
+1. Configure Fleet with the APNS & SCEP certificates/keys.
+2. Import database records letting Fleet know about the devices to be migrated.
+3. Install fleetd on the devices (through the existing MDM).
+4. Update DNS records to point devices to the Fleet server.
+
+
+```mermaid
+---
+title: Before migration
+---
+flowchart LR
+subgraph macOS Device
+  mdmclient[MDM client]
+end
+mdmclient -- Routed by DNS <br> (mdm.example.com)-->oldmdm
+oldmdm[Existing MDM Server]
+mdmclient ~~~ fleet
+fleet[Fleet Server]
+```
+
+```mermaid
+---
+title: After migration
+---
+flowchart LR
+subgraph macOS Device
+  mdmclient[MDM client]
+end
+oldmdm[Existing MDM Server]
+mdmclient ~~~ oldmdm
+mdmclient -- Routed by DNS <br> (mdm.example.com)-->fleet
+fleet[Fleet Server]
+```
 
 <meta name="category" value="guides">
 <meta name="authorFullName" value="Zach Wasserman">
