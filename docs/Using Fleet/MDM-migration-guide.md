@@ -182,9 +182,7 @@ To start, enforce FileVault (disk encryption) and escrow in Fleet. Learn how [he
 
 After turning on disk encryption in Fleet, share [these guided instructions](#how-to-turn-on-disk-encryption) with your end users.
 
-If your old MDM solution did not enforce disk encryption, the end user will need to restart or log out of the host.
-
-If your old MDM solution did enforce disk encryption, the end user will need to reset their disk encryption key by following the prompt on the My device page and inputting their password. 
+The end user will need to restart or log out of the host.
 
 ## Activation Lock
 
