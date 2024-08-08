@@ -370,6 +370,7 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 		TeamName:      &teamName,
 		SoftwareTitle: app.Name,
 		TeamID:        teamID,
+		SelfService:   app.SelfService,
 	}
 	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
 		return ctxerr.Wrap(ctx, err, "create activity for add app store app")

@@ -1682,6 +1682,7 @@ type ActivityAddedAppStoreApp struct {
 	TeamName      *string             `json:"team_name"`
 	TeamID        *uint               `json:"team_id"`
 	Platform      AppleDevicePlatform `json:"platform"`
+	SelfService   bool                `json:"self_service"`
 }
 
 func (a ActivityAddedAppStoreApp) ActivityName() string {
