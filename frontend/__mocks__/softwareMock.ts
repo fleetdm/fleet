@@ -168,6 +168,9 @@ const DEFAULT_SOFTWARE_PACKAGE_MOCK: ISoftwarePackage = {
     pending: 2,
     failed: 3,
   },
+  install_type: "manual",
+  labels_include_any: [],
+  labels_exclude_any: [],
 };
 
 export const createMockSoftwarePackage = (

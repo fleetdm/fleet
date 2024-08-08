@@ -17,9 +17,11 @@ export default PropTypes.shape({
 export type LabelType = "regular" | "builtin";
 export type LabelMembershipType = "dynamic" | "manual";
 
-export interface ILabelSummary {
+export interface ILabelIdentifier {
   id: number;
   name: string;
+}
+export interface ILabelSummary extends ILabelIdentifier {
   description?: string;
   label_type: LabelType;
 }
