@@ -43,6 +43,7 @@
     align-self: stretch;
     border-radius: 6px;
     border: 1px solid $ui-fleet-black-10;
+    font-size: $x-small;
   }
 
   &__status {
@@ -72,11 +73,11 @@
 
   &__actions-wrapper {
     display: flex;
-    justify-content: flex-end;
     gap: $pad-medium;
+    align-items: center;
   }
 
-  &__self-service-badge {
+  &__badge {
     display: flex;
     height: 18px;
     padding: 3px 6px;

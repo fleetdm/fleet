@@ -1,4 +1,4 @@
-export const SOFTWARE_PACAKGE_DROPDOWN_OPTIONS = [
+export const SOFTWARE_PACKAGE_DROPDOWN_OPTIONS = [
   {
     label: "Download",
     value: "download",

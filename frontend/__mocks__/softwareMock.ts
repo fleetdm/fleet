@@ -159,6 +159,7 @@ const DEFAULT_SOFTWARE_PACKAGE_MOCK: ISoftwarePackage = {
   name: "TestPackage-1.2.3.pkg",
   version: "1.2.3",
   uploaded_at: "2020-01-01T00:00:00.000Z",
+  install: "manual",
   install_script: "sudo installer -pkg /temp/FalconSensor-6.44.pkg -target /",
   pre_install_query: "SELECT 1 FROM macos_profiles WHERE uuid='abc123';",
   post_install_script:

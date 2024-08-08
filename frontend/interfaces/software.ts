@@ -71,7 +71,6 @@ export interface ISoftwarePackage {
     blocked: number;
     failed: number;
   };
-  // for SW title details > read-only Options modal
   install_type: InstallType;
   labels_include_any: ILabelIdentifier[];
   labels_exclude_any: ILabelIdentifier[];

@@ -9,12 +9,20 @@ import FileSaver from "file-saver";
 import PATHS from "router/paths";
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
-import { SoftwareInstallStatus, ISoftwarePackage } from "interfaces/software";
+import {
+  SoftwareInstallStatus,
+  ISoftwarePackage,
+  ISoftwarePackageLabel,
+} from "interfaces/software";
 import softwareAPI from "services/entities/software";
 
 import { buildQueryStringFromParams } from "utilities/url";
-import { internationalTimeFormat } from "utilities/helpers";
+import {
+  internationalTimeFormat,
+  tooltipTextWithLineBreaks,
+} from "utilities/helpers";
 import { uploadedFromNow } from "utilities/date_format";
+import strUtils from "utilities/strings";
 
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
@@ -29,7 +37,7 @@ import DeleteSoftwareModal from "../DeleteSoftwareModal";
 import PackageOptionsModal from "../PackageOptionsModal";
 import {
   APP_STORE_APP_DROPDOWN_OPTIONS,
-  SOFTWARE_PACAKGE_DROPDOWN_OPTIONS,
+  SOFTWARE_PACKAGE_DROPDOWN_OPTIONS,
 } from "./helpers";
 
 const baseClass = "software-package-card";
@@ -78,66 +86,12 @@ interface IStatusDisplayOption {
   tooltip: React.ReactNode;
 }
 
-const STATUS_DISPLAY_OPTIONS: Record<
-  SoftwareInstallStatus,
-  IStatusDisplayOption
-> = {
-  verified: {
-    displayName: "Verified",
-    iconName: "success",
-    tooltip: <>Software is installed on these hosts. Fleet verified.</>,
-  },
-  verifying: {
-    displayName: "Verifying",
-    iconName: "success-outline", // TODO
-    tooltip: (
-      <>
-        Software is installed on these hosts (install script exited with
-        <br /> exit code: 0). Fleet is verifying.
-      </>
-    ),
-  },
-  pending: {
-    displayName: "Pending",
-    iconName: "pending-outline",
-    tooltip: (
-      <>
-        Checking if the software is missing or an older version is
-        <br />
-        installed. If it is, Fleet is installing or will install when the host
-        <br />
-        comes online.
-      </>
-    ),
-  },
-  blocked: {
-    displayName: "Blocked",
-    iconName: "pending-outline", // TODO
-    tooltip: (
-      <>
-        Pre-install condition wasn&apos;t met.
-        <br /> The query didn&apos;t return results.
-      </>
-      // TODO If the software is a manual install show this copy instead: "Fleet is installing or will install when the host comes online."
-    ),
-  },
-  failed: {
-    displayName: "Failed",
-    iconName: "error",
-    tooltip: (
-      <>
-        These hosts failed to install software.
-        <br /> Click on a host to view error(s).
-      </>
-    ),
-  },
-};
-
 interface IPackageStatusCountProps {
   softwareId: number;
   status: SoftwareInstallStatus;
   count: number;
   teamId?: number;
+  isAutomaticInstall?: boolean;
 }
 
 const PackageStatusCount = ({
@@ -145,7 +99,67 @@ const PackageStatusCount = ({
   status,
   count,
   teamId,
+  isAutomaticInstall,
 }: IPackageStatusCountProps) => {
+  const STATUS_DISPLAY_OPTIONS: Record<
+    SoftwareInstallStatus,
+    IStatusDisplayOption
+  > = {
+    verified: {
+      displayName: "Verified",
+      iconName: "success",
+      tooltip: <>Software is installed on these hosts. Fleet verified.</>,
+    },
+    verifying: {
+      displayName: "Verifying",
+      iconName: "success-outline", // TODO
+      tooltip: (
+        <>
+          Software is installed on these hosts (install script exited with
+          <br /> exit code: 0). Fleet is verifying.
+        </>
+      ),
+    },
+    pending: {
+      displayName: "Pending",
+      iconName: "pending-outline",
+      tooltip: isAutomaticInstall ? (
+        <>
+          Checking if the software is missing or an older version is
+          <br />
+          installed. If it is, Fleet is installing or will install when the host
+          <br />
+          comes online.
+        </>
+      ) : (
+        <>
+          Fleet is installing or will install when <br />
+          the host comes online.
+        </>
+      ),
+    },
+    blocked: {
+      displayName: "Blocked",
+      iconName: "pending-outline", // TODO
+      tooltip: (
+        <>
+          Pre-install condition wasn&apos;t met.
+          <br /> The query didn&apos;t return results.
+        </>
+      ),
+    },
+    failed: {
+      displayName: "Failed",
+      iconName: "error",
+      tooltip: (
+        <>
+          These hosts failed to install software.
+          <br /> Click on a host to view error(s).
+        </>
+      ),
+    },
+  };
+
   const displayData = STATUS_DISPLAY_OPTIONS[status];
   const linkUrl = `${PATHS.MANAGE_HOSTS}?${buildQueryStringFromParams({
     software_title_id: softwareId,
@@ -165,7 +179,7 @@ const PackageStatusCount = ({
         <span>{displayData.displayName}</span>
       </TooltipWrapper>
       <a className={`${baseClass}__status-count`} href={linkUrl}>
-        {count} hosts
+        {count || 0} hosts
       </a>
     </div>
   );
@@ -209,7 +223,7 @@ const ActionsDropdown = ({
         searchable={false}
         options={
           isSoftwarePackage
-            ? SOFTWARE_PACAKGE_DROPDOWN_OPTIONS
+            ? SOFTWARE_PACKAGE_DROPDOWN_OPTIONS
             : APP_STORE_APP_DROPDOWN_OPTIONS
         }
       />
@@ -250,6 +264,7 @@ const SoftwarePackageCard = ({
   teamId,
   onDelete,
 }: ISoftwarePackageCardProps) => {
+  console.log("softwarePackage", softwarePackage);
   const {
     isGlobalAdmin,
     isGlobalMaintainer,
@@ -328,9 +343,62 @@ const SoftwarePackageCard = ({
     );
   };
 
+  const renderSelfServiceInfo = () => {
+    return (
+      <div className={`${baseClass}__badge`}>
+        <Icon
+          name="install-self-service"
+          size="small"
+          color="ui-fleet-black-75"
+        />
+        Self-service
+      </div>
+    );
+  };
+
+  const renderLabelInfo = () => {
+    const softwarePackageTEST: {
+      labels_include_any: ISoftwarePackageLabel[];
+      labels_exclude_any: ISoftwarePackageLabel[];
+    } = {
+      labels_include_any: [],
+      labels_exclude_any: [
+        { name: "Cool label", id: 40 },
+        { name: "Cooler label", id: 50 },
+      ],
+    };
+    const labels = softwarePackageTEST?.labels_include_any?.length
+      ? softwarePackageTEST.labels_include_any.map((label) => label.name)
+      : softwarePackageTEST.labels_exclude_any.map((label) => label.name) || [];
+
+    const count = labels.length;
+
+    return (
+      <TooltipWrapper
+        tipContent={tooltipTextWithLineBreaks(labels)}
+        underline={false}
+        showArrow
+        position="top"
+        tipOffset={10}
+      >
+        <div className={`${baseClass}__badge`}>
+          <Icon name="filter" size="small" color="ui-fleet-black-75" />
+          {`${count} ${strUtils.pluralize(count, "label")}`}
+        </div>
+      </TooltipWrapper>
+    );
+  };
+
   const showActions =
     isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
 
+  // const hasLabelInfo =
+  //   (softwarePackage?.labels_include_any &&
+  //     softwarePackage?.labels_include_any?.length > 0) ||
+  //   (softwarePackage?.labels_exclude_any &&
+  //     softwarePackage?.labels_exclude_any?.length > 0);
+
+  const hasLabelInfo = true;
   return (
     <Card
       borderRadiusSize="xxlarge"
@@ -351,16 +419,8 @@ const SoftwarePackageCard = ({
           </div>
         </div>
         <div className={`${baseClass}__actions-wrapper`}>
-          {isSelfService && (
-            <div className={`${baseClass}__self-service-badge`}>
-              <Icon
-                name="install-self-service"
-                size="small"
-                color="ui-fleet-black-75"
-              />
-              Self-service
-            </div>
-          )}
+          {isSelfService && renderSelfServiceInfo()}
+          {hasLabelInfo && renderLabelInfo()}
           {showActions && (
             <ActionsDropdown
               isSoftwarePackage={!!softwarePackage}
@@ -389,13 +449,16 @@ const SoftwarePackageCard = ({
           status="pending"
           count={status.pending}
           teamId={teamId}
+          isAutomaticInstall={softwarePackage?.install === "automatic"}
         />
-        <PackageStatusCount
-          softwareId={softwareId}
-          status="blocked"
-          count={status.blocked}
-          teamId={teamId}
-        />
+        {!!softwarePackage && (
+          <PackageStatusCount
+            softwareId={softwareId}
+            status="blocked"
+            count={status.blocked}
+            teamId={teamId}
+          />
+        )}
         <PackageStatusCount
           softwareId={softwareId}
           status="failed"

@@ -22,11 +22,11 @@ const PackageOptionsModal = ({
   onExit,
 }: IPackageOptionsModal) => {
   return (
-    <Modal className={baseClass} title="Advanced Options" onExit={onExit}>
+    <Modal className={baseClass} title="Options" onExit={onExit}>
       <>
         <p>
-          Advanced options are read-only. To change options, delete software and
-          add again.
+          Options are read-only. To change options, delete software and add
+          again.
         </p>
         <div className={`${baseClass}__form-inputs`}>
           <Editor
