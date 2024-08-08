@@ -143,7 +143,7 @@ const SoftwareTitles = ({
     [
       {
         scope: "software-titles",
-        page: 1,
+        page: 0,
         perPage,
         query: "",
         orderDirection,
