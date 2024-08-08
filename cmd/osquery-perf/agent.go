@@ -1372,11 +1372,9 @@ func (a *agent) installSoftwareItem(installerID string, orbitClient *service.Orb
 			} else if installer.PostInstallScript == "exit 1" {
 				payload.PostInstallScriptExitCode = ptr.Int(1)
 				payload.PostInstallScriptOutput = ptr.String("PostInstall on osquery-perf (always fail)")
-				failed = true
 			} else if a.softwareInstaller.postInstallFailureProb > 0.0 && rand.Float64() <= a.softwareInstaller.postInstallFailureProb {
 				payload.PostInstallScriptExitCode = ptr.Int(1)
 				payload.PostInstallScriptOutput = ptr.String("PostInstall on osquery-perf (fail)")
-				failed = true
 			} else {
 				payload.PostInstallScriptExitCode = ptr.Int(0)
 				payload.PostInstallScriptOutput = ptr.String("PostInstall on osquery-perf (pass)")
