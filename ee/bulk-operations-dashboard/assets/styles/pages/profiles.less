@@ -1,6 +1,16 @@
 #profiles {
 
+  [purpose='page-content'] {
+    padding: 24px 32px 64px 32px;
+  }
+  p {
+    margin-block-end: 0px;
+    font-size: 14px;
+    line-height: 150%;
+  }
   .table td {
+    font-size: 14px;
+    line-height: 150%;
     a {
       cursor: pointer;
       display: block;
@@ -11,7 +21,6 @@
     border-bottom: none;
     border-right: 1px solid #e2e4ea;
     vertical-align: middle;
-    padding: 1rem 1.5rem;
   }
   th.sortable {
     cursor: pointer;
@@ -136,5 +145,71 @@
       }
     }
   }
-
+  .pointer {
+    cursor: pointer;
+  }
+  [purpose='profile-upload-input'] {
+    display: flex;
+    padding: 32px;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 16px;
+    align-self: stretch;
+    border-radius: 4px;
+    border: 1px solid #E2E4EA;
+    background: #F9FAFC;
+    margin-bottom: 24px;
+  }
+  [purpose='profile-information'] {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: start;
+    gap: 16px;
+    // align-self: stretch;
+    border-radius: 4px;
+    padding: 16px 24px;
+    height: 72px;
+    border: 1px solid #E2E4EA;
+    background: #F9FAFC;
+    margin-bottom: 24px;
+    img {
+      margin-right: 16px;
+    }
+  }
+  [purpose='teams-picker'] {
+    // display: flex;
+    padding: 16px 24px;
+    // flex-direction: column;
+    // align-items: flex-start;
+    gap: 8px;
+    // align-self: stretch;
+    border-radius: 4px;
+    border: 1px solid #E2E4EA;
+    background: #F9FAFC;
+    margin-bottom: 24px;
+  }
+  // input[type='file'] {
+  //   display: none;
+  // }
+  [purpose='file-upload'] {
+    color: @core-vibrant-blue;
+    display: flex;
+    font-weight: 700;
+    font-size: 14px;
+    line-height: 150%;
+    margin-top: 24px;
+    cursor: pointer;
+    img {
+      margin-right: 8px;
+    }
+  }
+  [purpose='modal-buttons'] {
+    [purpose='cancel-button'] {
+      color: @core-vibrant-blue;
+      margin-right: 16px;
+      cursor: pointer;
+    }
+  }
 }

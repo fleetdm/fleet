@@ -16,6 +16,10 @@
     Google Fonts, etc. - above the «body» to prevent the page flickering when fonts
     load.) */ %>
 
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
+
     <% /* Certain scripts, normally analytics tools like Google Tag Manager and
     Google Analytics, should only be included in production: */
     if (sails.config.environment === 'production') { %>
@@ -45,36 +49,32 @@
   </head>
   <body>
     <div purpose="page-wrap">
-      <header class="navbar navbar-expand-sm navbar-dark bg-dark flex-column flex-md-row justify-content-between" purpose="page-header">
-        <a style="cursor: pointer;" class="navbar-brand mr-0" href="/"><img style="height: 20px;" class="logo" alt="NEW_APP_NAME logo" src="/images/logo.png"/></a>
-        <div class="navbar-nav flex-row">
+      <header class="navbar navbar-expand-sm navbar flex-row justify-content-between align-items-center" purpose="page-header">
+        <a style="cursor: pointer;" class="navbar-brand mr-0" href="/"><img style="height: 20px;" class="logo" alt="Fleet logo" src="images/fleet-logo-black-118x40@2x.png"/></a>
+        <div class="navbar-nav flex-row d-none d-sm-flex">
           <!-- LOGGED-IN NAVIGATION -->
+          <a class="nav-item nav-link mr-3 d-flex align-items-center" href="/profiles">Configuration profiles</a>
+          <a class="nav-item nav-link ml-3 mr-3 d-flex align-items-center" href="/scripts">Scripts</a>
           <% if(me) { %>
-          <a class="nav-item nav-link ml-2 ml-md-0 mr-2 mr-md-0" href="/contact">Help</a>
-          <!-- Only in desktop nav -->
-          <div class="nav-item dropdown d-none d-sm-block">
-            <a class="nav-link dropdown-toggle" id="header-account-menu-link" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Account</a>
-            <div style="left: auto; right: 0;" class="dropdown-menu" aria-labelledby="header-account-menu-link">
-              <a class="dropdown-item" href="/account">Settings</a>
-              <a class="dropdown-item" href="/logout">Sign out</a>
-            </div>
-          </div>
-          <!-- Only in mobile nav -->
-          <a class="nav-item nav-link ml-2 mr-2 d-block d-sm-none" href="/account">Account Settings</a>
-          <a class="nav-item nav-link ml-2 mr-2 d-block d-sm-none" href="/logout">Sign out</a>
+          <a class="nav-item nav-link ml-3 d-flex align-items-center" href="/logout">Sign out</a>
           <% } else { %>
-          <!-- LOGGED-OUT NAVIGATION -->
-          <a class="nav-item nav-link ml-2 ml-md-0 mr-2" href="/faq">FAQ</a>
-          <a class="nav-item nav-link ml-2 ml-md-0 mr-2" href="/login">Log in</a>
-          <!-- Only in desktop nav -->
-          <div class="form-inline d-none ml-2 d-md-block" >
-            <a class="btn btn-outline-info" href="/signup">Sign up</a>
-          </div>
-          <!-- Only in mobile nav -->
-          <a class="nav-item nav-link text-info ml-2 d-block d-md-none" href="/signup">Sign up</a>
+          <a class="nav-item nav-link ml-3 d-flex align-items-center mr-2" href="/login">Log in</a>
           <% } %>
         </div>
+        <div class="nav-item dropdown d-block d-sm-none">
+          <a class="nav-link nav-item d-flex" id="header-account-menu-link" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"><img class="align-self-center" alt="An icon indicating that interacting with this button will open the navigation menu." style="height: 16px;" src="/images/icon-hamburger-blue-16x14@2x.png"/></a>
+          <div style="left: auto; right: 0;" class="dropdown-menu" aria-labelledby="header-account-menu-link">
+            <a class="dropdown-item nav-link" href="/dashboard">Configuration profiles</a>
+            <a class="dropdown-item nav-link" href="/patch-progress">Scripts</a>
+            <% if(me) { %>
+            <a class="dropdown-item nav-link" href="/logout">Sign out</a>
+            <% } else { %>
+            <a class="dropdown-item nav-link" href="/login">Log in</a>
+            <% } %>
+          </div>
+        </div>
       </header>
+
 
       <!-- Alert if email has not been confirmed -->
       <% if(me&&me.emailChangeCandidate) { %>
@@ -93,16 +93,8 @@
 
       <%- body %>
 
-      <footer class="navbar navbar-light justify-content-between flex-row-reverse" purpose="page-footer">
-        <div class="nav" purpose="footer-nav">
-          <small class="nav-item d-inline-block"><a class="nav-link text-info px-1 px-sm-3" href="/contact">Contact<span class="d-none d-sm-inline"> us</span></a></small>
-          <small class="nav-item d-inline-block"><a class="nav-link text-info px-1 px-sm-3" href="/legal/terms">Terms<span class="d-none d-sm-inline"> of use</span></a></small>
-          <small class="nav-item d-inline-block"><a class="nav-link text-info px-1 px-sm-3" href="/legal/privacy">Privacy<span class="d-none d-sm-inline"> policy</span></a></small>
-          <% if(me) { %>
-          <small class="nav-item d-inline-block"><a class="nav-link text-info px-1 px-sm-3" href="/logout">Sign out</a></small>
-          <% } %>
-        </div>
-        <small purpose="footer-copy">Copyright &copy; <%= sails.config.custom.platformCopyrightYear %> <a target="_blank" href="NEW_APP_COMPANY_ABOUT_HREF">NEW_APP_COMPANY_NAME</a>. <br class="d-block d-sm-none"/>All rights reserved.</small>
+      <footer class="w-100 px-4 d-flex justify-content-end" style="position: absolute; bottom: 1rem;">
+        <a style="cursor: pointer;" class="navbar-brand mr-0" href="https://fleetdm.com"><img style="height: 24px;" class="logo" alt="Powered by Fleet" src="/images/powered-by-fleet-159x24@2x.png"/></a>
       </footer>
     </div>
 
@@ -142,9 +134,12 @@
     <script src="/js/components/ajax-button.component.js"></script>
     <script src="/js/components/ajax-form.component.js"></script>
     <script src="/js/components/cloud-error.component.js"></script>
+    <script src="/js/components/file-upload.component.js"></script>
     <script src="/js/components/js-timestamp.component.js"></script>
     <script src="/js/components/modal.component.js"></script>
+    <script src="/js/components/multifield.component.js"></script>
     <script src="/js/components/stripe-card-element.component.js"></script>
+    <script src="/js/utilities/get-mimetype-icon-class.js"></script>
     <script src="/js/utilities/open-stripe-checkout.js"></script>
     <script src="/js/pages/account/account-overview.page.js"></script>
     <script src="/js/pages/account/edit-password.page.js"></script>

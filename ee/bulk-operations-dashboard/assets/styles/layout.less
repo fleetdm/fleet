@@ -7,7 +7,30 @@ html, body {
   height: 100%;
   margin: 0;
 }
-
+[purpose='page-header'] {
+  background-color: #fff;
+  height: 60px;
+  border-bottom: 1px solid #c4ccd2;
+  .nav-link {
+    color: #292b2d;
+    font-weight: bold;
+    font-size: 14px;
+  }
+  .dropdown-item:hover {
+    background-color: unset;
+    color: #6a67fe;
+  }
+  button {
+    color: #292b2d;
+    font-weight: bold;
+    font-size: 14px;
+    background: none;
+    border: none;
+    &:focus {
+      outline: none;
+    }
+  }
+}
 [purpose='page-wrap'] {
   height: 100%;
   /* lesshint-disable */height: auto !important;/* lesshint-enable */
@@ -15,6 +38,10 @@ html, body {
   min-height: 100%;
   position: relative;
   padding-bottom: @footer-height;
+  color: #292b2d;
+  a {
+    color: #007697;
+  }
 }
 
 [purpose='page-footer'] {

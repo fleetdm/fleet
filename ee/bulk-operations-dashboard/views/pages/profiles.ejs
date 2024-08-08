@@ -1,6 +1,6 @@
 <div id="profiles" v-cloak>
 
-  <div class="container-fluid p-4">
+  <div purpose="page-content" class="container-fluid">
     <div class="d-flex flex-column">
       <div class="pb-0 pb-sm-4 d-flex flex-row justify-content-between">
         <div>
@@ -10,43 +10,25 @@
           <p class="mb-0 mr-2">Team:</p>
           <select class="custom-select team-select mr-3" v-model="teamFilter" @change="changeTeamFilter()">
             <option :value="undefined" selected>All teams</option>
-            <option v-for="team of teams" :value="team.fleetApid">{{team.name}}</option>
+            <option v-for="team of teams" :value="team.fleetApid">{{team.teamName}}</option>
           </select>
         </div>
       </div>
     </div>
-<!--     <div class="d-flex flex-sm-row flex-column justify-content-sm-between">
-      <div class="d-flex flex-md-row flex-column justify-content-start align-items-md-center">
-      <select class="custom-select team-select mr-3" v-model="teamApid" @change="changeFilteredTeam()">
-        <option value="undefined" selected>All teams</option>
-        <option v-for="option of teamsToDisplay" :value="option.id">{{option.name}}</option>
-      </select>
-      <a class="mt-md-0 mt-3 btn btn-inline btn-sm btn-primary mr-sm-3 mr-0" @click="clickOpenExportModal()">Export</a>
+    <div class="d-flex flex-row justify-content-between">
+      <div>
+        <p>Profiles</p>
       </div>
-      <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between pt-3 pt-sm-0">
-        <div>
-          <label class="mb-md-0 mb-3 text-nowrap mr-2">CVSS score is between</label>
-        </div>
-        <div class="d-flex flex-row align-items-center justify-content-start">
-          <select class="custom-select mr-2" v-model="minSeverity" @change="changeMinSeverity()">
-            <option v-if="!_.includes(severityFilterOptions, minSeverity)" :value="minSeverity" >{{minSeverity}}</option>
-            <option v-for="option of severityFilterOptions" :value="option">{{option}}</option>
-          </select>
-          <label class="mb-0">and</label>
-          <select class="custom-select ml-2" v-model="maxSeverity" @change="changeMaxSeverity()">
-            <option v-if="!_.includes(severityFilterOptions, maxSeverity)" :value="maxSeverity">{{maxSeverity}}</option>
-            <option v-for="option of severityFilterOptions" :value="option">{{option}}</option>
-          </select>
-        </div>
+      <div>
+        <p style="color: #6A67FE; cursor: pointer;" @click="clickOpenAddProfileModal()">+ Add profile</p>
       </div>
-    </div> -->
-    <p>Profiles</p>
+    </div>
     <div class="mb-4 border rounded table-responsive">
       <table class="table my-0">
         <thead>
           <tr>
             <th class="sortable" :class="sortDirection === 'ASC' ? 'ascending' : sortDirection === 'DESC' ? 'descending' : ''" @click="clickChangeSortDirection()">
-              <div style="cursor: pointer;" class="d-flex flex-row align-items-center">
+              <div style="cursor: pointer;" class="d-flex flex-row align-items-center pointer">
                 <small><strong>Name</strong></small>
                 <div class="sort-arrows">
                   <span class="ascending-arrow"></span>
@@ -84,13 +66,13 @@
               </a>
             </td>
             <td>
-              <js-timestamp :at="profile.createdAt" format="calendar"></js-timestamp>
+              <js-timestamp :at="profile.createdAt" format="timeago"></js-timestamp>
             </td>
             <td>
               <div class="d-flex flex-row align-items-start justify-content-end">
-                <img style="height: 21px; margin-right: 24px;" alt="download" src="/images/download-16x16@2x.png" @click="clickDownloadProfile(profile)">
-                <img style="height: 21px; margin-right: 24px;" alt="edit" src="/images/edit-pencil-16x21@2x.png" @click="clickOpenEditModal(profile)">
-                <img style="height: 21px" alt="delete" src="/images/delete-16x21@2x.png" @click="clickOpenDeleteModal(profile)">
+                <img style="height: 16px; margin-right: 24px;" alt="download" class="pointer" src="/images/download-16x16@2x.png" @click="clickDownloadProfile(profile)">
+                <img style="height: 16px; margin-right: 24px;" alt="edit" class="pointer" src="/images/edit-pencil-16x21@2x.png" @click="clickOpenEditModal(profile)">
+                <img style="height: 16px" alt="delete" class="pointer" src="/images/delete-16x21@2x.png" @click="clickOpenDeleteModal(profile)">
               </div>
             </td>
           </tr>
@@ -100,25 +82,102 @@
     <div v-if="false">
       <h2 class="px-3 text-center mx-auto pt-5">No profiles matching the selected filters were found.</h2>
     </div>
-<!--     <nav aria-label="vulnerability pages" v-if="!cloudError && pages.length > 1">
-      <ul class="pagination justify-content-end">
-        <li class="page-item" :class="currentPageIndex === 0? 'disabled' : ''">
-          <a aria-label="Previous" class="page-link" @click="clickPageButton(currentPageIndex-1)"><i class="left-arrow"></i><span class="d-none d-md-inline">&nbsp;&nbsp;Previous</span></a>
-        </li>
-        <li class="page-item" :class="currentPageIndex+1 === page? 'active' : ''" v-for="page of pages">
-          <a class="page-link disabled" v-if="page === '...'">{{page}}</a>
-          <a class="page-link" @click="clickPageButton(page-1)" v-else>{{page}}</a>
-        </li>
-        <li class="page-item" :class="currentPageIndex === pages.indexOf(pages[pages.length-1])? 'disabled' : ''">
-          <a aria-label="Next" class="page-link" @click="clickPageButton(currentPageIndex+1)"><span class="d-none d-md-inline">Next&nbsp;&nbsp;</span><i class="right-arrow"></i></a>
-        </li>
-      </ul>
-    </nav> -->
   </div>
   <h1>For development</h1>
   <h3>profiles</h3>
   <p v-for="profile in profiles">{{profile}}</p>
   <h3>team</h3>
   <p v-for="team in teams">{{team}}</p>
+<%//  ╔═╗╔╦╗╦╔╦╗  ╔═╗╦═╗╔═╗╔═╗╦╦  ╔═╗
+  //  ║╣  ║║║ ║   ╠═╝╠╦╝║ ║╠╣ ║║  ║╣
+  //  ╚═╝═╩╝╩ ╩   ╩  ╩╚═╚═╝╚  ╩╩═╝╚═╝%>
+  <modal v-if="modal === 'edit-profile'" hide-close-button="true" @close="closeModal()">
+    <div>
+      <div class="d-flex flex-row justify-content-between">
+        <h3>Edit profile</h3>
+        <div class="pointer" @click="closeModal()">&times;</div>
+      </div>
+      <!-- <ajax-form> -->
+        <div purpose="profile-information">
+          <div class="d-flex flex-row justify-content-start">
+            <img style="height: 40px; width: 34px;" src="/images/profile-34x40@2x.png">
+            <div class="d-flex flex-column">
+              <p><strong>{{profileToEdit.name}}</strong></p>
+              <p class="muted">{{platformFriendlyNames[profileToEdit.platform]}}</p>
+            </div>
+          </div>
+        </div>
+        <div purpose="profile-upload-input">
+          <div class="d-flex flex-column align-items-center">
+            <img style="height: 40px; width: 34px;" src="/images/profile-34x40@2x.png">
+            <p><strong>Upload configuration profile</strong></p>
+            <p class="muted">.mobileconfig and .json for macOS, iOS, and iPadOS.</p>
+            <p class="muted">.xml for Windows.</p>
+            <input type="file" accept=".xml,.mobileconfig">
+          </div>
+        </div>
+        <div purpose="teams-picker">
+          <p class="mb-2"><strong>Teams</strong></p>
+          <multifield :value="formData.teams" v-model="formData.teams" input-type="teamSelect" :select-options="teams" add-button-text="Add team"></multifield>
+        </div>
+        <div purpose="modal-buttons" class="d-flex flex-row justify-content-end align-items-center">
+          <ajax-button :syncing.sync="syncing" type="submit">Save</ajax-button>
+        </div>
+
+      <!-- </ajax-form> -->
+
+    </div>
+    {{profileToEdit}}
+  </modal>
+  <%//  ╔╦╗╔═╗╦  ╔═╗╔╦╗╔═╗  ╔═╗╦═╗╔═╗╔═╗╦╦  ╔═╗
+    //   ║║║╣ ║  ║╣  ║ ║╣   ╠═╝╠╦╝║ ║╠╣ ║║  ║╣
+    //  ═╩╝╚═╝╩═╝╚═╝ ╩ ╚═╝  ╩  ╩╚═╚═╝╚  ╩╩═╝╚═╝%>
+  <modal v-if="modal === 'delete-profile'" hide-close-button="true" @close="closeModal()">
+    <div class="d-flex flex-row justify-content-between">
+      <h3>Delete profile</h3>
+      <div class="pointer" @click="closeModal()">&times;</div>
+    </div>
+    <p>Delete this profile from all teams</p>
+    <div class="d-flex flex-row justify-content-end align-items-center">
+      <a class="text-danger mr-3" @click="closeModal()">Cancel</a>
+      <ajax-button class="btn btn-danger" :syncing.sync="syncing">Delete</ajax-button>
+    </div>
+  </modal>
+  <%//  ╔═╗╔╦╗╔╦╗  ╔═╗╦═╗╔═╗╔═╗╦╦  ╔═╗
+    //  ╠═╣ ║║ ║║  ╠═╝╠╦╝║ ║╠╣ ║║  ║╣
+    //  ╩ ╩═╩╝═╩╝  ╩  ╩╚═╚═╝╚  ╩╩═╝╚═╝%>
+  <modal v-if="modal === 'add-profile'" hide-close-button="true" @close="closeModal()">
+    <div>
+      <div class="d-flex flex-row justify-content-between">
+        <h3>Add profile</h3>
+        <div class="pointer" @click="closeModal()">&times;</div>
+      </div>
+      <ajax-form :handle-submitting="handleSubmittingAddPRofileForm" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-errors.sync="formErrors" :form-data="formData" :form-rules="addProfileFormRules" @submitted="submittedForm()">
+        <div purpose="profile-upload-input">
+          <div class="d-flex flex-column align-items-center">
+            <img style="height: 40px; width: 34px;" src="/images/profile-34x40@2x.png">
+            <p><strong>Upload configuration profile</strong></p>
+            <p class="muted">.mobileconfig and .json for macOS, iOS, and iPadOS.</p>
+            <p class="muted">.xml for Windows.</p>
+<!--             <label for='file-upload' purpose="file-upload">
+
+            </label> -->
+            <file-upload id="file-upload" mode="file" :disabled="syncing" accept=".xml,.mobileconfig" v-model="formData.newProfile"><img src="/images/upload-16x17@2x.png" style="height: 16px; width: 16px;">Choose File</file-upload>
+            <!-- <input id='file-upload' type="file" > -->
+          </div>
+        </div>
+        <div purpose="teams-picker">
+          <p class="mb-2"><strong>Teams</strong></p>
+          <multifield :value="formData.teams" v-model="formData.teams" input-type="teamSelect" :select-options="teams" add-button-text="Add team"></multifield>
+        </div>
+        <div purpose="modal-buttons" class="d-flex flex-row justify-content-end align-items-center">
+          <a purpose="cancel-button" @click="closeModal()">Cancel</a>
+          <ajax-button :syncing.sync="syncing" type="submit">Add</ajax-button>
+        </div>
+
+      </ajax-form>
+
+    </div>
+  </modal>
 </div>
 <%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>
