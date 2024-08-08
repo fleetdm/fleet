@@ -757,8 +757,7 @@ func (o *offlineWatcher) showSwiftDialogMDMMigrationOffline(ctx context.Context)
 
 type swiftDialogMDMMigrationOffline struct {
 	*baseDialog
-	props  MDMMigratorProps
-	showCh chan struct{}
+	props MDMMigratorProps
 }
 
 func (m *swiftDialogMDMMigrationOffline) render(message string, flags ...string) (chan swiftDialogExitCode, chan error) {
