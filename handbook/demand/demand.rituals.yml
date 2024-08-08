@@ -50,6 +50,13 @@
   description: "Every release cycle, upload the ☁️🌈 Sprint demos video to YouTube"
   moreInfoUrl: "https://fleetdm.com/handbook/demand#upload-to-youtube"
   dri: "Drew-P-drawers"
+- 
+  task: "Measure intent signals"
+  startedOn: "2024-08-09"
+  frequency: "Daily"
+  description: "Measure intent signals and update SalesForce"
+  moreInfoUrl: "https://fleetdm.com/handbook/demand#measure-intent-signals"
+  dri: "Drew-P-drawers"
 # -
 #   task: "Propose a fleet event"
 #   startedOn: "2023-10-02"
