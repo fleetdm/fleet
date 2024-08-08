@@ -416,11 +416,11 @@ func (m *swiftDialogMDMMigrator) renderMigration() error {
 				}
 			}
 
-			if err := m.mrw.SetMigrationFile(constant.MDMMigrationTypeManual); err != nil {
-				log.Error().Err(err).Msg("set migration file")
-			}
-
 			if isManual {
+				if err := m.mrw.SetMigrationFile(constant.MDMMigrationTypeManual); err != nil {
+					log.Error().Err(err).Msg("set migration file")
+				}
+
 				log.Info().Msg("showing instructions after unenrollment")
 				if err := m.handler.ShowInstructions(); err != nil {
 					return err
