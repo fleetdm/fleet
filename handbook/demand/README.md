@@ -62,9 +62,9 @@ To propose an ad, or a change to an ad:
 Things to go look at to see if (a) a contact [/account] needs to be created/edited (b) if an account is worth going after or warming up (c) an account is sales-ready to assign a lead/rep
 (in order of how worthwhile it is to spend time looking at the intent signal)
 
-1. Worthwhile accounts currently assigned to reps (i.e. pipeline + stage0 + pre-pipeline IQMs)
-2. Worthwhile accounts with trending psychological progression (as measured by fleetdm.com website signups (i.e. new contacts ± contacts that have increased their psystage to a certain point)
-3. Worthwhile accounts that fleeties have suggested to go after in ABM maneuver sheet
+1. Accounts currently assigned to reps (i.e. pipeline + stage0 + pre-pipeline IQMs)
+2. Accounts with trending psychological progression (as measured by fleetdm.com website signups (i.e. new contacts ± contacts that have increased their psystage to a certain point)
+3. Accounts that fleeties have suggested to go after in ABM maneuver sheet
 4. [MacAdmins Slack traffic](https://macadmins.slack.com/archives/C0214NELAE7/p1722561481530559) in the #fleet AND #osquery channels (channel joins, posts, reactions, thread replies, thread reactions)
 5. [LinkedIn page follows](https://www.linkedin.com/company/71111416/admin/analytics/followers/)
 6. [GitHub stars to fleetdm/fleet](https://github.com/fleetdm/fleet/stargazers) from non-fleeties
@@ -73,17 +73,21 @@ Things to go look at to see if (a) a contact [/account] needs to be created/edit
 
 Things to do to warm up an account and move it towards sales-readiness after discovering relevant intent signals.
 
+After an intent signal is discovered:
+
 1. Create the account in SalesForce if it doesn't already exist
 2. Fix and merge any duplicate accounts and contacts.
 3. Update the "Marketing stage" to "Research-ready".
 4. Fix and complete any incorrect, mistagged, or half-filled contacts already on the account. Then research all of the existing contacts and make sure they have "role", "buying situation", "linkedinUrl", "psychological stage", "intent signals" completely filled out and correct.
 5. Research the company, if necessary, viewing its LinkedIn company page to verify the relevant headcount.
-6. Research missing contacts and add them to salesforce if they are real by using the [ABM maneuvers spreadsheet](https://docs.google.com/spreadsheets/d/1ijtBKTjPg_AodnKEZY0ivia70ttDR3VMURT8rpYwYiw/edit?gid=0#gid=0) to generate a Sales Nav search. Make sure they have "role", "buying situation", "linkedinUrl", "psychological stage", "intent signals" completely filled out and correct.
-7. For "lead source" for any new contacts, use lead source "Manual research"
-8. Rank the account in terms of closability and fit based on what we see from it and its contacts. Mark any account that is not a fit as "Distraction" instead of "Prospect"
-11. Research and discover mutual connections between fleeties and Mac admin community members within those contacts to help determine fit.
-12. Check Snitcher activity for the account and the psystages of its contacts in Salesforce.
-13. Update the "marketing stage" AND "type" accordingly (qualify or disqualify based on whether the contacts look good). Start running ABM ads on the account if moving it to "Ads running" for a total of 60 days otherwise, stop them if moving it out of "Ads running"
+
+After an account is marked "[Research-ready](https://fleetdm.lightning.force.com/lightning/r/Report/00OUG000001LerV2AS/view?queryScope=userFolders)".
+1. Research missing contacts and add them to salesforce if they are real by using the [ABM maneuvers spreadsheet](https://docs.google.com/spreadsheets/d/1ijtBKTjPg_AodnKEZY0ivia70ttDR3VMURT8rpYwYiw/edit?gid=0#gid=0) to generate a Sales Nav search. Make sure they have "role", "buying situation", "linkedinUrl", "psychological stage", "intent signals" completely filled out and correct.
+2. For "lead source" for any new contacts, use lead source "Manual research"
+3. Rank the account in terms of closability and fit based on what we see from it and its contacts. Mark any account that is not a fit as "Distraction" instead of "Prospect"
+4. Research and discover mutual connections between fleeties and Mac admin community members within those contacts to help determine fit.
+5. Check Snitcher activity for the account and the psystages of its contacts in Salesforce.
+6. Update the "marketing stage" AND "type" accordingly (qualify or disqualify based on whether the contacts look good). Start running ABM ads on the account if moving it to "Ads running" for a total of 60 days otherwise, stop them if moving it out of "Ads running"
 
 ### Promote a post on LinkedIn
 
