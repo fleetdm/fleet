@@ -35,7 +35,7 @@ const Labels = ({ onLabelClick, labels }: ILabelsProps): JSX.Element => {
     <Card
       borderRadiusSize="xxlarge"
       includeShadow
-      largePadding
+      paddingSize="xxlarge"
       className={classNames}
     >
       <p className="card__header">Labels</p>

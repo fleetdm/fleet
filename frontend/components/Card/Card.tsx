@@ -23,11 +23,6 @@ interface ICardProps {
    * These correspond to the padding sizes in the design system. Look at
    * `padding.scss` for values */
   paddingSize?: "small" | "medium" | "large" | "xlarge" | "xxlarge";
-  /**
-   * @deprecated Use `paddingSize` prop instead.
-   *
-   * Increases to 40px padding. Defaults to `false` */
-  largePadding?: boolean;
 }
 
 /**
@@ -40,7 +35,6 @@ const Card = ({
   includeShadow = false,
   color = "white",
   className,
-  largePadding = false,
   paddingSize = "large",
 }: ICardProps) => {
   const classNames = classnames(
@@ -48,11 +42,8 @@ const Card = ({
     `${baseClass}__${color}`,
     `${baseClass}__radius-${borderRadiusSize}`,
     {
-      // TODO: simplify this when we've replaced largePadding prop with paddingSize
-      [`${baseClass}__padding-${paddingSize}`]:
-        !largePadding && paddingSize !== undefined,
+      [`${baseClass}__padding-${paddingSize}`]: paddingSize !== undefined,
       [`${baseClass}__shadow`]: includeShadow,
-      [`${baseClass}__large-padding`]: largePadding,
     },
     className
   );

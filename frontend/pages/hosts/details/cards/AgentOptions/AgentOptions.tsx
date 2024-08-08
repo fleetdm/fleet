@@ -55,7 +55,7 @@ const AgentOptions = ({
     <Card
       borderRadiusSize="xxlarge"
       includeShadow
-      largePadding
+      paddingSize="xxlarge"
       className={classNames}
     >
       {isChromeOS ? (

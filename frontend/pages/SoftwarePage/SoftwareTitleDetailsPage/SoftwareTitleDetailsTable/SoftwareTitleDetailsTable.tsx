@@ -14,8 +14,8 @@ import TableCount from "components/TableContainer/TableCount";
 import EmptyTable from "components/EmptyTable";
 import CustomLink from "components/CustomLink";
 
-import generateSoftwareTitleDetailsTableConfig from "./SoftwareTitleDetailsTableConfig";
 import SoftwareLastUpdatedInfo from "pages/SoftwarePage/components/SoftwareLastUpdatedInfo";
+import generateSoftwareTitleDetailsTableConfig from "./SoftwareTitleDetailsTableConfig";
 
 const DEFAULT_SORT_HEADER = "hosts_count";
 const DEFAULT_SORT_DIRECTION = "desc";
