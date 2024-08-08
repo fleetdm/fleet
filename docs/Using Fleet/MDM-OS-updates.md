@@ -12,13 +12,9 @@ Fleet UI:
 
 1. Head to the **Controls** > **OS updates** tab.
 
-2. To enforce OS updates for macOS, select **macOS** and set a **Minimum version** and **Deadline**.
+2. To enforce OS updates for macOS, iOS, or iPadOS, select the platform and set a **Minimum version** and **Deadline**.
 
 3. For Windows, select **Windows** and set a **Deadline** and **Grace period**.
-
-4. For iOS, select **iOS** and set a **Minimum version** and **Deadline**.
-
-5. For iPadOS, select **iPadOS** and set a **Minimum version** and **Deadline**.
 
 Fleet API: API documentation is [here](https://fleetdm.com/docs/rest-api/rest-api#modify-team).
 
