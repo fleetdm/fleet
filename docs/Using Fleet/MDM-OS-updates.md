@@ -52,7 +52,7 @@ Fleet enforces OS updates for quality and feature updates. Read more about the t
 
 ### iOS and iPadOS
 
-When a minimum version is enforced, end users will see a notification in their Notification Center after the deadline. They can’t continue until the OS update is installed.
+When a minimum version is enforced, end users will see a notification in their Notification Center after the deadline. They can’t use their iPhone or iPad until the OS update is installed.
 
 <meta name="pageOrderInSection" value="1503">
 <meta name="title" value="OS updates">
