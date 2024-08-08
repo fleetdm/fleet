@@ -4330,7 +4330,7 @@ OS vulnerability data is currently available for Windows and macOS. For other pl
         "self_service": false,
       },
       "app_store_app": null    
-      "source": "", #ios_apps,ipados_apps
+      "source": "",
       "status": null,
       "last_install": null,
       "installed_versions": [],
@@ -8786,7 +8786,7 @@ Get a list of all software.
       },
       "app_store_app": null,
       "versions_count": 3,
-      "source": "apps", # ios_apps,ipados_apps
+      "source": "apps",
       "browser": "",
       "hosts_count": 48,
       "versions": [
@@ -8899,7 +8899,7 @@ Get a list of all software versions.
         "id": 1,
         "name": "glibc",
         "version": "2.12",
-        "source": "rpm_packages", #ios_apps,ipados_apps
+        "source": "rpm_packages",
         "browser": "",
         "release": "1.212.el6",
         "vendor": "CentOS",
@@ -8982,7 +8982,7 @@ Returns information about the specified software. By default, `versions` are sor
       }
     },
     "app_store_app": null,
-    "source": "apps", #ios_apps,ipados_apps
+    "source": "apps",
     "browser": "",
     "hosts_count": 48,
     "versions": [
@@ -9078,7 +9078,7 @@ Returns information about the specified software version.
     "name": "Firefox.app",
     "version": "117.0",
     "bundle_identifier": "org.mozilla.firefox",
-    "source": "apps", #ios_apps,ipados_apps
+    "source": "apps",
     "browser": "",
     "generated_cpe": "cpe:2.3:a:mozilla:firefox:117.0:*:*:*:*:macos:*:*",
     "vulnerabilities": [
@@ -9284,8 +9284,8 @@ Retrieve details about a vulnerability and its affected software and OS versions
     {
       "os_version_id": 6,
       "hosts_count": 200,
-      "name": "macOS 14.1.2", #iOS 17.0.1,#iPadOS 17.0.1
-      "name_only": "macOS", #iOS,iPadOS
+      "name": "macOS 14.1.2",
+      "name_only": "macOS",
       "version": "14.1.2",
 
       "resolved_in_version": "14.2",
@@ -9300,7 +9300,7 @@ Retrieve details about a vulnerability and its affected software and OS versions
       "id": 2363,
       "name": "Docker Desktop",
       "version": "4.9.1",
-      "source": "programs", #ios_apps,ipados_apps
+      "source": "programs",
       "browser": "",
       "generated_cpe": "cpe:2.3:a:docker:docker_desktop:4.9.1:*:*:*:*:windows:*:*",
       "hosts_count": 50,
