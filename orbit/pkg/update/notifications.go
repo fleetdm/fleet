@@ -57,7 +57,6 @@ func ApplyRenewEnrollmentProfileConfigFetcherMiddleware(fetcher OrbitConfigFetch
 }
 
 func (h *renewEnrollmentProfileConfigReceiver) Run(config *fleet.OrbitConfig) error {
-	log.Debug().Bool("renewEnrollmentProfile", config.Notifications.RenewEnrollmentProfile).Bool("needsMDMMigration", config.Notifications.NeedsMDMMigration).Msg("top of renew enrollment run")
 	if config.Notifications.RenewEnrollmentProfile {
 		if h.cmdMu.TryLock() {
 			defer h.cmdMu.Unlock()
@@ -69,7 +68,6 @@ func (h *renewEnrollmentProfileConfigReceiver) Run(config *fleet.OrbitConfig) er
 			// See https://github.com/fleetdm/fleet/pull/9409#discussion_r1084382455
 
 			if time.Since(h.lastRun) > h.Frequency {
-				log.Debug().Bool("migration_check", (config.Notifications.NeedsMDMMigration && time.Since(h.lastRun) > 1*time.Minute)).Msg("going to run profile renew")
 				// we perform this check locally on the client too to avoid showing the
 				// dialog if the client is enrolled to an MDM server.
 				enrollFn := h.checkEnrollmentFn
