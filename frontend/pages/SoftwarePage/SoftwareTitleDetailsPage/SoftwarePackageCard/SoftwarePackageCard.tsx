@@ -62,6 +62,7 @@ interface ISoftwareNameProps {
 }
 
 const SoftwareName = ({ name }: ISoftwareNameProps) => {
+  const name2 = "really really really really really so so long title name";
   const titleRef = React.useRef<HTMLDivElement>(null);
   const isTruncated = useTruncatedElement(titleRef);
 
@@ -74,7 +75,7 @@ const SoftwareName = ({ name }: ISoftwareNameProps) => {
       showArrow
     >
       <div ref={titleRef} className={`${baseClass}__title`}>
-        {name}
+        {name2}
       </div>
     </TooltipWrapper>
   );
@@ -82,7 +83,12 @@ const SoftwareName = ({ name }: ISoftwareNameProps) => {
 
 interface IStatusDisplayOption {
   displayName: string;
-  iconName: "success" | "success-outline" | "pending-outline" | "error"; // TODO
+  iconName:
+    | "success"
+    | "success-outline"
+    | "pending-outline"
+    | "disable"
+    | "error";
   tooltip: React.ReactNode;
 }
 
@@ -140,7 +146,7 @@ const PackageStatusCount = ({
     },
     blocked: {
       displayName: "Blocked",
-      iconName: "pending-outline", // TODO
+      iconName: "disable",
       tooltip: (
         <>
           Pre-install condition wasn&apos;t met.
@@ -264,7 +270,6 @@ const SoftwarePackageCard = ({
   teamId,
   onDelete,
 }: ISoftwarePackageCardProps) => {
-  console.log("softwarePackage", softwarePackage);
   const {
     isGlobalAdmin,
     isGlobalMaintainer,
