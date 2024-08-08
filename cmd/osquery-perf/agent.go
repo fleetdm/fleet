@@ -1302,6 +1302,7 @@ func (a *agent) installSoftwareItem(installerID string, orbitClient *service.Orb
 			log.Println("create temp dir:", err)
 			return
 		}
+		defer os.RemoveAll(tmpDir)
 		path, err = orbitClient.DownloadSoftwareInstaller(installer.InstallerID, tmpDir)
 		if err != nil {
 			log.Println("download software installer:", err)
