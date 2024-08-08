@@ -17,6 +17,8 @@ export interface IEmptySoftwareTableProps {
   noSearchQuery?: boolean;
   /** isCollectingSoftware is only used on the Dashboard page with a TODO to revisit */
   isCollectingSoftware?: boolean;
+  /** true if the team has any software installers or VPP apps available to install on hosts */
+  installableSoftwareExists?: boolean;
 }
 
 const generateTypeText = (
@@ -38,6 +40,7 @@ const EmptySoftwareTable = ({
   isSoftwareDisabled,
   noSearchQuery,
   isCollectingSoftware,
+  installableSoftwareExists,
 }: IEmptySoftwareTableProps): JSX.Element => {
   const softwareTypeText = generateTypeText(tableName, softwareFilter);
 
@@ -50,10 +53,14 @@ const EmptySoftwareTable = ({
     emptySoftware.header = "No software detected";
   }
 
+  if (softwareFilter === "allSoftware" && installableSoftwareExists) {
+    emptySoftware.header = "No software detected";
+    emptySoftware.info = "Install software on your hosts to see versions.";
+  }
+
   if (isCollectingSoftware) {
     emptySoftware.header = "No software detected";
-    emptySoftware.info =
-      "This report is updated every hour to protect the performance of your devices.";
+    emptySoftware.info = `Expecting to see ${softwareTypeText}? Check back later.`;
   }
 
   if (isSoftwareDisabled) {
