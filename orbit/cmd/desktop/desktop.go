@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	_ "embed"
 	"errors"
 	"fmt"
@@ -60,6 +61,9 @@ func setupRunners() {
 }
 
 func main() {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	// Orbits uses --version to get the fleet-desktop version. Logs do not need to be set up when running this.
 	if len(os.Args) > 1 && os.Args[1] == "--version" {
 		// Must work with update.GetVersion
@@ -158,6 +162,7 @@ func main() {
 		if err != nil {
 			log.Fatal().Err(err).Msg("unable to initialize request client")
 		}
+
 		client.WithInvalidTokenRetry(func() string {
 			log.Debug().Msg("refetching token from disk for API retry")
 			newToken, err := tokenReader.Read()
@@ -169,13 +174,6 @@ func main() {
 			return newToken
 		})
 
-		refetchToken := func() {
-			if _, err := tokenReader.Read(); err != nil {
-				log.Error().Err(err).Msg("refetch token")
-			}
-			log.Debug().Msg("successfully refetched the token from disk")
-		}
-
 		disableTray := func() {
 			log.Debug().Msg("disabling tray items")
 			myDeviceItem.SetTitle("Connecting...")
@@ -185,6 +183,106 @@ func main() {
 			selfServiceItem.Hide()
 			migrateMDMItem.Disable()
 			migrateMDMItem.Hide()
+		}
+
+		if runtime.GOOS == "darwin" {
+
+			dir, err := migrationFileDir()
+			if err != nil {
+				log.Fatal().Err(err).Msg("getting directory for MDM migration file")
+			}
+
+			mrw := migration.NewReadWriter(dir, constant.MigrationFileName)
+
+			swiftDialogCh := make(chan struct{}, 1) // we use channel buffer size of 1 to allow one dialog at a time without blocking
+
+			_, swiftDialogPath, _ := update.LocalTargetPaths(
+				tufUpdateRoot,
+				"swiftDialog",
+				update.SwiftDialogMacOSTarget,
+			)
+			mdmMigrator = useraction.NewMDMMigrator(
+				swiftDialogPath,
+				15*time.Minute,
+				&mdmMigrationHandler{
+					client:      client,
+					tokenReader: &tokenReader,
+				},
+				mrw,
+				swiftDialogCh,
+			)
+
+			useraction.StartMDMMigrationOfflineWatcher(ctx, client, swiftDialogPath, swiftDialogCh)
+
+			// 	// start loop with 3-minute interval to ping server and show dialog if offline
+			// 	go func() {
+			// 		ticker := time.NewTicker(1 * time.Minute) // TODO: update to 3 minutes
+			// 		defer ticker.Stop()
+			// 		log.Info().Msg("starting offline dialog loop")
+			// 		for {
+			// 			log.Info().Msg("waiting for tick")
+
+			// 			<-ticker.C
+			// 			// check if notifications file exists at the expected path
+			// 			homedir, err := os.UserHomeDir()
+			// 			if err != nil {
+			// 				log.Fatal().Err(err).Msg("failed to get user's home directory")
+			// 			}
+			// 			path := filepath.Join(homedir, "Library/fleet-notifications.txt") // TODO: update this
+			// 			_, err = os.Stat(path)
+			// 			if err != nil {
+			// 				if errors.Is(err, fs.ErrNotExist) {
+			// 					log.Info().Msg("notifications file does not exist, do nothing")
+			// 					continue
+			// 				}
+			// 				log.Error().Err(err).Msg("stat notifications file")
+			// 				continue
+			// 			}
+			// 			log.Info().Msg("notifications file exists, proceed to ping server")
+
+			// 			// ping the server to check if we're online
+			// 			// TODO: should we rely on the Fleet server or should we use something else (e.g.,
+			// 			// DNS lookup)?
+			// 			if err := client.Ping(); err != nil {
+			// 				if !(strings.Contains(err.Error(), "no such host") || strings.Contains(err.Error(), "dial tcp")) {
+			// 					// TODO: Do we want to do any matching on the error to show a different message?
+			// 					// Will errors always be of the shape "dial tcp: lookup <<host>>: no such host"?
+			// 					log.Error().Err(err).Msg("error pinging server does not contain dial tcp or no such host, do nothing")
+			// 					continue
+			// 				}
+			// 				log.Error().Err(err).Msg("error pinging server, proceed to show dialog")
+			// 			} else {
+			// 				log.Info().Msg("ping ok, do nothing")
+			// 				continue
+			// 			}
+
+			// 			// TODO: Maybe check profiles and skip showing the dialog if the device is managed?
+
+			// 			// check if dialog channel is available
+			// 			log.Info().Msg("checking if dialog channel is available")
+
+			// 			select {
+			// 			case swiftDialogCh <- struct{}{}:
+			// 				log.Info().Msg("showing offline dialog")
+			// 				if err := useraction.ShowDialogMDMMigrationOffline(swiftDialogPath, swiftDialogCh); err != nil {
+			// 					log.Error().Err(err).Msg("showing offline dialog")
+			// 				}
+			// 				log.Info().Msg("done showing offline dialog")
+			// 				continue
+			// 			default:
+			// 				// TODO: Do we worry about the other process never releasing the channel?
+			// 				log.Info().Msg("there's another dialog already open, skipping offline dialog")
+			// 				continue
+			// 			}
+			// 		}
+			// 	}()
+		}
+
+		refetchToken := func() {
+			if _, err := tokenReader.Read(); err != nil {
+				log.Error().Err(err).Msg("refetch token")
+			}
+			log.Debug().Msg("successfully refetched the token from disk")
 		}
 
 		// checkToken performs API test calls to enable the "My device" item as
@@ -246,29 +344,6 @@ func main() {
 				}
 			}
 		}()
-
-		if runtime.GOOS == "darwin" {
-			dir, err := migrationFileDir()
-			if err != nil {
-				log.Fatal().Err(err).Msg("getting directory for MDM migration file")
-			}
-
-			mrw := migration.NewReadWriter(dir, constant.MigrationFileName)
-			_, swiftDialogPath, _ := update.LocalTargetPaths(
-				tufUpdateRoot,
-				"swiftDialog",
-				update.SwiftDialogMacOSTarget,
-			)
-			mdmMigrator = useraction.NewMDMMigrator(
-				swiftDialogPath,
-				15*time.Minute,
-				&mdmMigrationHandler{
-					client:      client,
-					tokenReader: &tokenReader,
-				},
-				mrw,
-			)
-		}
 
 		reportError := func(err error, info map[string]any) {
 			if !client.GetServerCapabilities().Has(fleet.CapabilityErrorReporting) {

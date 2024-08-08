@@ -3,13 +3,19 @@
 package useraction
 
 import (
+	"context"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/migration"
+	"github.com/fleetdm/fleet/v4/server/service"
 )
 
-func NewMDMMigrator(path string, frequency time.Duration, handler MDMMigratorHandler, mrw *migration.ReadWriter) MDMMigrator {
+func NewMDMMigrator(path string, frequency time.Duration, handler MDMMigratorHandler, mrw *migration.ReadWriter, showCh chan struct{}) MDMMigrator {
 	return &NoopMDMMigrator{}
+}
+
+func StartMDMMigrationOfflineWatcher(ctx context.Context, client *service.DeviceClient, swiftDialogPath string, swiftDialogCh chan struct{}) {
+	return
 }
 
 type NoopMDMMigrator struct{}
