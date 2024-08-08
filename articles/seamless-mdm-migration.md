@@ -26,6 +26,7 @@ Apple allows changing most values in profiles delivered by MDM, but the `ServerU
 3. Configure controls (profiles, updates, etc.) in Fleet.
 4. Install fleetd on the devices (through the existing MDM).
 5. Update DNS records to point devices to the Fleet server.
+6. Decommission the old server.
 
 It is recommended to follow the entire process on a staging/test MDM instance and devices, then repeat for the production instance and devices.
 
@@ -106,6 +107,40 @@ OS update configurations will apply automatically after the device is migrated.
 As of Fleet 4.55, disk encryption keys will automatically be re-escrowed after migration the next time the user logs into their device.
 
 ### Install fleetd
+
+Install fleetd on the devices to migrate. Devices with fleetd installed will begin to show up in the Fleet UI (with profiles in "Pending" state).
+
+Generate `.pkg` packages following the [standard enrollment documentation](https://fleetdm.com/docs/using-fleet/enroll-hosts). Install the package using the existing MDM or any other management tool.
+
+Devices are automatically assigned to Teams in Fleet based on the package they are provided, so be sure to distribute packages that assign devices to teams with the relevant configurations.
+
+### Update DNS
+
+Devices are now communicating with the Fleet server via the fleetd agent. They are not yet migrated for MDM.
+
+Ensure the Fleet server load balancer can terminate HTTPS using the existing server hostname. This typically involves issuing a certificate [with AWS ACM](https://docs.aws.amazon.com/acm/latest/userguide/gs-acm-request-public.html). In Fleet Cloud, the Fleet team will ask the customer team to update a DNS record for verification so that AWS can issue the certificate.
+
+Now the customer updates DNS to point the existing domain to the Fleet server load balancer. This typically involves setting a `CNAME` record with the hostname of the load balancer (eg. `mdm.example.com -> fleet-cloud-alb-1723349272.us-east-2.elb.amazonaws.com`).
+
+Devices will begin checking in to the Fleet server and receiving new configurations.
+
+### Decommission the old server
+
+At this point, the migration is complete. The old server can be decommissioned.
+
+Keep a database backup of the old server on hand in case it is ever needed for reference or recovery.
+
+## Gradual migration
+
+In the process described, when we update DNS all of the devices are migrated immediately. To minimize risk, it is often desired to gradually migrate devices.
+
+Fleet has created a [migration proxy](https://github.com/fleetdm/fleet/tree/main/tools/mdm/migration/mdmproxy) that can be used to gradually migrate specific devices and/or a percentage of devices. This allows gradual migration with progressively more devices migrated.
+
+## Conclusion
+
+Seamless MDM migrations on macOS *are* possible. If your current MDM deployment meets the requirements, work with the Fleet team to do it in your organization.
+
+Much is done under the hood, and ultimately we can provide a seamless migration experience for end-users.
 
 <meta name="category" value="guides">
 <meta name="authorFullName" value="Zach Wasserman">
