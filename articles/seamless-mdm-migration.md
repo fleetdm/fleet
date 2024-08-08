@@ -58,7 +58,7 @@ mdmclient -- Routed by DNS <br> (mdm.example.com)-->fleet
 fleet[Fleet Server]
 ```
 
-### Configure Fleet
+### 1. Configure Fleet
 
 The Fleet server must be configured with the APNS & SCEP certificates/keys copied from the existing server. This is done via manual modification of the Fleet database and configurations. The Fleet team will perform this configuration on Fleet Cloud instances, and can advise how to do it on self-hosted Fleet instances.
 
@@ -80,7 +80,7 @@ For a typical MicroMDM to Fleet migration, the following redirects are used:
 
 SCEP certificate renewals need special handling for migrated devices. This is configured (by, or with guidance from the Fleet team) in the server using the [`FLEET_SILENT_MIGRATION_ENROLLMENT_PROFILE` environment variable](https://github.com/fleetdm/fleet/pull/20063). When configured, migrated devices receive an enrollment profile with matching keys when SCEP renewal comes due (migrated devices reject the typical profile Fleet sends because it includes the new server URL).
 
-### Import database records
+### 2. Import database records
 
 The Fleet server is made aware of the devices that will be migrated by inserting records into the database. The Fleet team will perform this operation in Fleet Cloud, and can advise for self-hosted instances.
 
@@ -88,7 +88,7 @@ For MicroMDM, a [migration script](https://github.com/fleetdm/fleet/pull/18151) 
 
 For other MDM solutions, please work with the Fleet team to generate the appropriate records.
 
-### Configure controls
+### 3. Configure controls
 
 Next, configure the controls that will be applied to migrated devices. Use the Teams features in Fleet Premium to apply different configurations to different devices.
 
@@ -106,7 +106,7 @@ OS update configurations will apply automatically after the device is migrated.
 
 As of Fleet 4.55, disk encryption keys will automatically be re-escrowed after migration the next time the user logs into their device.
 
-### Install fleetd
+### 4. Install fleetd
 
 Install fleetd on the devices to migrate. Devices with fleetd installed will begin to show up in the Fleet UI (with profiles in "Pending" state).
 
@@ -114,7 +114,7 @@ Generate `.pkg` packages following the [standard enrollment documentation](https
 
 Devices are automatically assigned to Teams in Fleet based on the package they are provided, so be sure to distribute packages that assign devices to teams with the relevant configurations.
 
-### Update DNS
+### 5. Update DNS
 
 Devices are now communicating with the Fleet server via the fleetd agent. They are not yet migrated for MDM.
 
@@ -124,7 +124,7 @@ Now the customer updates DNS to point the existing domain to the Fleet server lo
 
 Devices will begin checking in to the Fleet server and receiving new configurations.
 
-### Decommission the old server
+### 6. Decommission the old server
 
 At this point, the migration is complete. The old server can be decommissioned.
 
@@ -134,7 +134,7 @@ Keep a database backup of the old server on hand in case it is ever needed for r
 
 In the process described, when we update DNS all of the devices are migrated immediately. To minimize risk, it is often desired to gradually migrate devices.
 
-Fleet has created a [migration proxy](https://github.com/fleetdm/fleet/tree/main/tools/mdm/migration/mdmproxy) that can be used to gradually migrate specific devices and/or a percentage of devices. This allows gradual migration with progressively more devices migrated.
+Fleet has created a [migration proxy](https://github.com/fleetdm/fleet/tree/main/tools/mdm/migration/mdmproxy) that can be used to gradually migrate specific devices and/or a percentage of devices. This allows a staged migration with progressively more devices migrated.
 
 ## Conclusion
 
