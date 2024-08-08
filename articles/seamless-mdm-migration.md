@@ -77,9 +77,35 @@ For a typical MicroMDM to Fleet migration, the following redirects are used:
 | /mdm/connect         | /mdm/apple/mdm  |
 | /scep                | /mdm/apple/scep |
 
-SCEP certificate renewals need special handling for migrated devices. This must be configured (by, or with guidance from the Fleet team) in the server using the [`FLEET_SILENT_MIGRATION_ENROLLMENT_PROFILE` environment variable](https://github.com/fleetdm/fleet/pull/20063). This configuration ensures that migrated devices receive an enrollment profile with matching keys when SCEP renewal comes due (migrated devices would reject the typical profile used because it would include the new server URL).
+SCEP certificate renewals need special handling for migrated devices. This is configured (by, or with guidance from the Fleet team) in the server using the [`FLEET_SILENT_MIGRATION_ENROLLMENT_PROFILE` environment variable](https://github.com/fleetdm/fleet/pull/20063). When configured, migrated devices receive an enrollment profile with matching keys when SCEP renewal comes due (migrated devices reject the typical profile Fleet sends because it includes the new server URL).
 
 ### Import database records
+
+The Fleet server is made aware of the devices that will be migrated by inserting records into the database. The Fleet team will perform this operation in Fleet Cloud, and can advise for self-hosted instances.
+
+For MicroMDM, a [migration script](https://github.com/fleetdm/fleet/pull/18151) has been made that will generate the necessary SQL statements from the MicroMDM database.
+
+For other MDM solutions, please work with the Fleet team to generate the appropriate records.
+
+### Configure controls
+
+Next, configure the controls that will be applied to migrated devices. Use the Teams features in Fleet Premium to apply different configurations to different devices.
+
+In particular,
+
+* [Configuration profiles](https://fleetdm.com/docs/using-fleet/mdm-custom-os-settings#custom-os-settings)
+* [OS updates](https://fleetdm.com/docs/using-fleet/mdm-os-updates)
+* [Disk encryption](https://fleetdm.com/docs/using-fleet/mdm-disk-encryption)
+
+When the device checks in after migration, Fleet will send the full set of configuration profiles configured for that device's team. Any profiles with identifiers matching existing profiles on the device will be updated in place.
+
+Fleet will not send commands to remove profiles that have not been configured in Fleet. Either remove these profiles before migration in the existing MDM before migration, or use `fleetctl` or the Fleet API to send an MDM command to remove any undesired profiles.
+
+OS update configurations will apply automatically after the device is migrated.
+
+As of Fleet 4.55, disk encryption keys will automatically be re-escrowed after migration the next time the user logs into their device.
+
+### Install fleetd
 
 <meta name="category" value="guides">
 <meta name="authorFullName" value="Zach Wasserman">
