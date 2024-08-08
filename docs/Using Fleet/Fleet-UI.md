@@ -1,5 +1,4 @@
 # Fleet UI
-- [For New Users](#for-new-users)
 - [Creating a query](#create-a-query)
 - [Running a query](#run-a-query)
 - [Scheduling a query](#schedule-a-query)
@@ -9,19 +8,9 @@
    <iframe src="https://www.youtube.com/embed/1VNvg3_drow" allowfullscreen></iframe>
 </div>
 
-## For New Users
-
-Given that logging infrastructure is not ready out-of-the-box, some new users report that it can be simpler to start by using policies as you become more familiar with using querying and osquery. Some helpful guides on policies are the [What are Fleet policies?](https://fleetdm.com/securing/what-are-fleet-policies) and the [Understanding the intricacies of Fleet policies](https://fleetdm.com/guides/understanding-the-intricacies-of-fleet-policies) documents.
-
-Ready to use queries and osquery? The steps below will walk you through creating, scheduling, and running a query. More information can be found in our guides [Standard query library](https://fleetdm.com/docs/using-fleet/standard-query-library) and [Osquery process](https://fleetdm.com/docs/using-fleet/osquery-process).
-
-Tip: It's helpful to review some common queries available in the Fleet's query library referenced above to understand how they work and what kind of data they can retrieve.
+Queries in Fleet allow you to ask questions to help you manage, monitor, and identify threats on your devices. This guide will walk you through how to create, schedule, and run a query.
 
 ## Create a query
-
-Queries in Fleet allow you to ask a multitude of questions to help you manage, monitor, and identify threats on your devices. 
-
-If you're unsure of what to ask, head to Fleet's [query library](https://fleetdm.com/queries). There you'll find common queries that have been tested by members of our community.
 
 How to create a query:
 
