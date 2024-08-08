@@ -69,7 +69,7 @@ Select **Start** and Remote Management window will appear soon:` +
 	"After you start, this window will popup every 15-20 minutes until you finish.",
 ))
 
-var mdmManualMigrationTemplate = template.Must(template.New("mdmManualMigrationTemplate").Parse(`
+var mdmManualMigrationTemplate = template.Must(template.New("").Parse(`
 ## Migrate to Fleet
 
 Select **Start** and My device page will appear soon:` +

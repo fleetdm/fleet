@@ -248,11 +248,12 @@ func main() {
 		}()
 
 		if runtime.GOOS == "darwin" {
-			homedir, err := os.UserHomeDir()
+			dir, err := migrationFileDir()
 			if err != nil {
-				log.Fatal().Err(err).Msg("failed to get user's home directory")
+				log.Fatal().Err(err).Msg("getting directory for MDM migration file")
 			}
-			mrw := migration.NewReadWriter(filepath.Join(homedir, "Library/Caches/com.fleetdm.orbit"), constant.MigrationFileName)
+
+			mrw := migration.NewReadWriter(dir, constant.MigrationFileName)
 			_, swiftDialogPath, _ := update.LocalTargetPaths(
 				tufUpdateRoot,
 				"swiftDialog",
@@ -583,4 +584,13 @@ func logDir() (string, error) {
 	}
 
 	return dir, nil
+}
+
+func migrationFileDir() (string, error) {
+	homedir, err := os.UserHomeDir()
+	if err != nil {
+		return "", fmt.Errorf("failed to get user's home directory: %w", err)
+	}
+
+	return filepath.Join(homedir, "Library/Caches/com.fleetdm.orbit"), nil
 }
