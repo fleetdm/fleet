@@ -163,7 +163,7 @@ const SoftwareTitleDetailsPage = ({
       return (
         <DetailsNoHosts
           header="Software not detected"
-          details="No hosts have this software installed."
+          details="Expecting to see software? Check back later."
         />
       );
     }
