@@ -25,6 +25,7 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/mdm/mdmtest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
@@ -490,6 +491,11 @@ type agent struct {
 	softwareQueryFailureProb         float64
 	softwareVSCodeExtensionsFailProb float64
 
+	softwareInstaller softwareInstaller
+
+	// Software installed on the host via Fleet. Key is the software name + version + bundle identifier.
+	installedSoftware map[string]map[string]string
+
 	//
 	// The following are exported to be used by the templates.
 	//
@@ -544,6 +550,12 @@ type softwareExtraEntityCount struct {
 	uniqueSoftwareUninstallCount int
 	uniqueSoftwareUninstallProb  float64
 }
+type softwareInstaller struct {
+	preInstallFailureProb  float64
+	installFailureProb     float64
+	postInstallFailureProb float64
+	mu                     *sync.Mutex
+}
 
 func newAgent(
 	agentIndex int,
@@ -552,6 +564,7 @@ func newAgent(
 	configInterval, logInterval, queryInterval, mdmCheckInInterval time.Duration,
 	softwareQueryFailureProb float64,
 	softwareVSCodeExtensionsQueryFailureProb float64,
+	softwareInstaller softwareInstaller,
 	softwareCount softwareEntityCount,
 	softwareVSCodeExtensionsCount softwareExtraEntityCount,
 	userCount entityCount,
@@ -642,6 +655,7 @@ func newAgent(
 
 		softwareQueryFailureProb:         softwareQueryFailureProb,
 		softwareVSCodeExtensionsFailProb: softwareVSCodeExtensionsQueryFailureProb,
+		softwareInstaller:                softwareInstaller,
 
 		macMDMClient: macMDMClient,
 		winMDMClient: winMDMClient,
@@ -967,6 +981,11 @@ func (a *agent) runOrbitLoop() {
 				// that will simulate executing them.
 				go a.execScripts(cfg.Notifications.PendingScriptExecutionIDs, orbitClient)
 			}
+			if len(cfg.Notifications.PendingSoftwareInstallerIDs) > 0 {
+				// there are pending software installations on this host, start a
+				// goroutine that will download the software
+				go a.installSoftware(cfg.Notifications.PendingSoftwareInstallerIDs, orbitClient)
+			}
 			if cfg.Notifications.NeedsProgrammaticWindowsMDMEnrollment &&
 				!a.mdmEnrolled() &&
 				a.winMDMClient != nil &&
@@ -1239,6 +1258,136 @@ func (a *agent) execScripts(execIDs []string, orbitClient *service.OrbitClient) 
 			return
 		}
 		log.Printf("did exec and save host script result: id=%s, output size=%d, runtime=%d, exit code=%d", execID, base64.StdEncoding.EncodedLen(n), runtime, exitCode)
+	}
+}
+
+func (a *agent) installSoftware(installerIDs []string, orbitClient *service.OrbitClient) {
+	// Only allow one software install to happen at a time.
+	if a.softwareInstaller.mu.TryLock() {
+		defer a.softwareInstaller.mu.Unlock()
+		for _, installerID := range installerIDs {
+			a.installSoftwareItem(installerID, orbitClient)
+		}
+	}
+}
+
+func (a *agent) installSoftwareItem(installerID string, orbitClient *service.OrbitClient) {
+	payload := &fleet.HostSoftwareInstallResultPayload{}
+	payload.InstallUUID = installerID
+	installer, err := orbitClient.GetInstallerDetails(installerID)
+	if err != nil {
+		log.Println("get installer details:", err)
+		return
+	}
+	failed := false
+	if installer.PreInstallCondition != "" {
+		time.Sleep(time.Duration(rand.Intn(1000)) * time.Millisecond)
+		if installer.PreInstallCondition == "select 1" {
+			// Always pass
+			payload.PreInstallConditionOutput = ptr.String("1")
+		} else if installer.PreInstallCondition == "select 0" ||
+			a.softwareInstaller.preInstallFailureProb > 0.0 && rand.Float64() <= a.softwareInstaller.preInstallFailureProb {
+			// Fail
+			payload.PreInstallConditionOutput = ptr.String("")
+			failed = true
+		} else {
+			payload.PreInstallConditionOutput = ptr.String("1")
+		}
+	}
+
+	var path string
+	if !failed {
+		tmpDir, err := os.MkdirTemp("", "")
+		if err != nil {
+			log.Println("create temp dir:", err)
+			return
+		}
+		path, err = orbitClient.DownloadSoftwareInstaller(installer.InstallerID, tmpDir)
+		if err != nil {
+			log.Println("download software installer:", err)
+			return
+		}
+
+		time.Sleep(time.Duration(rand.Intn(30)) * time.Second)
+		if installer.InstallScript == "exit 0" {
+			// Always pass
+			payload.InstallScriptExitCode = ptr.Int(0)
+			payload.InstallScriptOutput = ptr.String("Installed on osquery-perf (always pass)")
+		} else if installer.InstallScript == "exit 1" {
+			payload.InstallScriptExitCode = ptr.Int(1)
+			payload.InstallScriptOutput = ptr.String("Installed on osquery-perf (always fail)")
+			failed = true
+		} else if a.softwareInstaller.installFailureProb > 0.0 && rand.Float64() <= a.softwareInstaller.installFailureProb {
+			payload.InstallScriptExitCode = ptr.Int(1)
+			payload.InstallScriptOutput = ptr.String("Installed on osquery-perf (fail)")
+			failed = true
+		} else {
+			payload.InstallScriptExitCode = ptr.Int(0)
+			payload.InstallScriptOutput = ptr.String("Installed on osquery-perf (pass)")
+		}
+	}
+	if !failed {
+		// Figure out what we're actually installing here and add it to software inventory
+		f, err := os.Open(path)
+		if err != nil {
+			log.Println("open installer:", err)
+			return
+		}
+		defer f.Close()
+		meta, err := file.ExtractInstallerMetadata(f)
+		if err != nil {
+			log.Println("extract installer metadata:", err)
+			return
+		}
+		key := meta.Name + "+" + meta.Version + "+" + meta.BundleIdentifier
+		if a.installedSoftware == nil {
+			a.installedSoftware = make(map[string]map[string]string)
+		}
+		source := ""
+		switch a.os {
+		case "macos":
+			source = "apps"
+		case "windows":
+			source = "programs"
+		case "ubuntu":
+			source = "deb_packages"
+		default:
+			log.Printf("unknown OS to software installer: %s", a.os)
+			return
+		}
+		a.installedSoftware[key] = map[string]string{
+			"name":              meta.Name,
+			"version":           meta.Version,
+			"bundle_identifier": meta.BundleIdentifier,
+			"source":            source,
+			"installed_path":    path,
+		}
+
+		if installer.PostInstallScript != "" {
+			time.Sleep(time.Duration(rand.Intn(1000)) * time.Millisecond)
+			if installer.PostInstallScript == "exit 0" {
+				// Always pass
+				payload.PostInstallScriptExitCode = ptr.Int(0)
+				payload.PostInstallScriptOutput = ptr.String("PostInstall on osquery-perf (always pass)")
+			} else if installer.PostInstallScript == "exit 1" {
+				payload.PostInstallScriptExitCode = ptr.Int(1)
+				payload.PostInstallScriptOutput = ptr.String("PostInstall on osquery-perf (always fail)")
+				failed = true
+			} else if a.softwareInstaller.postInstallFailureProb > 0.0 && rand.Float64() <= a.softwareInstaller.postInstallFailureProb {
+				payload.PostInstallScriptExitCode = ptr.Int(1)
+				payload.PostInstallScriptOutput = ptr.String("PostInstall on osquery-perf (fail)")
+				failed = true
+			} else {
+				payload.PostInstallScriptExitCode = ptr.Int(0)
+				payload.PostInstallScriptOutput = ptr.String("PostInstall on osquery-perf (pass)")
+			}
+		}
+	}
+
+	err = orbitClient.SaveInstallerResult(payload)
+	if err != nil {
+		log.Println("save installer result:", err)
+		return
 	}
 }
 
@@ -1525,6 +1674,9 @@ func (a *agent) softwareMacOS() []map[string]string {
 	}
 	software := append(commonSoftware, uniqueSoftware...)
 	software = append(software, randomVulnerableSoftware...)
+	for _, sw := range a.installedSoftware {
+		software = append(software, sw)
+	}
 	rand.Shuffle(len(software), func(i, j int) {
 		software[i], software[j] = software[j], software[i]
 	})
@@ -2023,6 +2175,9 @@ func (a *agent) processQuery(name, query string) (
 		}
 		if ss == fleet.StatusOK {
 			results = windowsSoftware
+			for _, sw := range a.installedSoftware {
+				results = append(results, sw)
+			}
 		}
 		return true, results, &ss, nil, nil
 	case name == hostDetailQueryPrefix+"software_linux":
@@ -2034,6 +2189,9 @@ func (a *agent) processQuery(name, query string) (
 			switch a.os {
 			case "ubuntu":
 				results = ubuntuSoftware
+				for _, sw := range a.installedSoftware {
+					results = append(results, sw)
+				}
 			}
 		}
 		return true, results, &ss, nil, nil
@@ -2361,6 +2519,13 @@ func main() {
 		softwareQueryFailureProb                 = flag.Float64("software_query_fail_prob", 0.5, "Probability of the software query failing")
 		softwareVSCodeExtensionsQueryFailureProb = flag.Float64("software_vscode_extensions_query_fail_prob", 0.0, "Probability of the software vscode_extensions query failing")
 
+		softwareInstallerPreInstallFailureProb = flag.Float64("software_installer_pre_install_fail_prob", 0.05,
+			"Probability of the pre-install query failing")
+		softwareInstallerInstallFailureProb = flag.Float64("software_installer_install_fail_prob", 0.05,
+			"Probability of the install script failing")
+		softwareInstallerPostInstallFailureProb = flag.Float64("software_installer_post_install_fail_prob", 0.05,
+			"Probability of the post-install script failing")
+
 		commonSoftwareCount                          = flag.Int("common_software_count", 10, "Number of common installed applications reported to fleet")
 		commonVSCodeExtensionsSoftwareCount          = flag.Int("common_vscode_extensions_software_count", 5, "Number of common vscode_extensions installed applications reported to fleet")
 		commonSoftwareUninstallCount                 = flag.Int("common_software_uninstall_count", 1, "Number of common software to uninstall")
@@ -2527,6 +2692,12 @@ func main() {
 			*mdmCheckInInterval,
 			*softwareQueryFailureProb,
 			*softwareVSCodeExtensionsQueryFailureProb,
+			softwareInstaller{
+				preInstallFailureProb:  *softwareInstallerPreInstallFailureProb,
+				installFailureProb:     *softwareInstallerInstallFailureProb,
+				postInstallFailureProb: *softwareInstallerPostInstallFailureProb,
+				mu:                     new(sync.Mutex),
+			},
 			softwareEntityCount{
 				entityCount: entityCount{
 					common: *commonSoftwareCount,
