@@ -3,18 +3,31 @@ parasails.registerPage('profiles', {
   //  ║║║║║ ║ ║╠═╣║    ╚═╗ ║ ╠═╣ ║ ║╣
   //  ╩╝╚╝╩ ╩ ╩╩ ╩╩═╝  ╚═╝ ╩ ╩ ╩ ╩ ╚═╝
   data: {
-    sortDirection: 'DESC',
+    sortDirection: 'ASC',
     teamFilter: undefined,
     profilesToDisplay: [],
     platformFriendlyNames: {
-      'darwin': 'macOS, iOS, and ipadOS',
+      'darwin': 'macOS, iOS, ipadOS',
       'windows': 'Windows',
       'linux': 'Linux'
     },
     selectedTeam: {},
     modal: '',
     syncing: false,
-
+    formData: {},
+    formErrors: {},
+    addProfileFormRules: {
+      newProfile: {required: true}
+    },
+    editProfileFormRules: {
+      // no form rules, for this form.
+    },
+    addProfileFormRules: {
+      // newProfile: {required: true}
+    },
+    profileToEdit: {},
+    cloudError: '',
+    newProfile: undefined,
   },
 
   //  ╦  ╦╔═╗╔═╗╔═╗╦ ╦╔═╗╦  ╔═╗
@@ -74,6 +87,10 @@ parasails.registerPage('profiles', {
       // Or possible make these just open the download endpoint in a new tab to download it.
     },
     clickOpenEditModal: async function(profile) {
+      console.log(profile);
+      this.profileToEdit = _.clone(profile);
+      this.formData.teams = _.pluck(this.profileToEdit.teams, 'fleetApid');
+      console.log(this.formData.teams);
       this.modal = 'edit-profile';
     },
     clickOpenDeleteModal: async function(profile) {
@@ -81,6 +98,20 @@ parasails.registerPage('profiles', {
     },
     clickOpenAddProfileModal: async function() {
       this.modal = 'add-profile';
-    }
+    },
+    closeModal: async function() {
+      this.modal = '';
+      this.formErrors = {};
+      this.formData = {};
+      await this.forceRender();
+    },
+    submittedForm: async function() {
+      console.log(this.newProfile);
+    },
+    handleSubmittingAddProfileForm: async function() {
+      let argins = _.clone(this.formData);
+      let thisResponse = await Cloud.addProfile.with({newProfile: argins.newProfile, teams: argins.teams});
+      console.log(thisResponse);
+    },
   }
 });

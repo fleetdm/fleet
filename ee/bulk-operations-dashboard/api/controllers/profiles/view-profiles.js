@@ -37,7 +37,7 @@ module.exports = {
     for(let team of allTeams) {
       teams.push({
         fleetApid: team.id,
-        name: team.name,
+        teamName: team.name,
       });
     }
 
