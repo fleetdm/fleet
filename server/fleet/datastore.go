@@ -585,6 +585,10 @@ type Datastore interface {
 	// attempt on the host.
 	SetHostSoftwareInstallResult(ctx context.Context, result *HostSoftwareInstallResultPayload) error
 
+	// UploadedSoftwareExists checks if a software title with the given bundle identifier exists in
+	// the given team.
+	UploadedSoftwareExists(ctx context.Context, bundleIdentifier string, teamID *uint) (bool, error)
+
 	///////////////////////////////////////////////////////////////////////////////
 	// OperatingSystemsStore
 
@@ -692,12 +696,12 @@ type Datastore interface {
 	// Calendar events
 
 	CreateOrUpdateCalendarEvent(ctx context.Context, uuid string, email string, startTime time.Time, endTime time.Time, data []byte,
-		timeZone string, hostID uint, webhookStatus CalendarWebhookStatus) (*CalendarEvent, error)
+		timeZone *string, hostID uint, webhookStatus CalendarWebhookStatus) (*CalendarEvent, error)
 	GetCalendarEvent(ctx context.Context, email string) (*CalendarEvent, error)
 	GetCalendarEventDetailsByUUID(ctx context.Context, uuid string) (*CalendarEventDetails, error)
 	DeleteCalendarEvent(ctx context.Context, calendarEventID uint) error
 	UpdateCalendarEvent(ctx context.Context, calendarEventID uint, uuid string, startTime time.Time, endTime time.Time, data []byte,
-		timeZone string) error
+		timeZone *string) error
 	GetHostCalendarEvent(ctx context.Context, hostID uint) (*HostCalendarEvent, *CalendarEvent, error)
 	GetHostCalendarEventByEmail(ctx context.Context, email string) (*HostCalendarEvent, *CalendarEvent, error)
 	UpdateHostCalendarWebhookStatus(ctx context.Context, hostID uint, status CalendarWebhookStatus) error
@@ -861,26 +865,9 @@ type Datastore interface {
 
 	SetOrUpdateMunkiInfo(ctx context.Context, hostID uint, version string, errors, warnings []string) error
 	SetOrUpdateMDMData(ctx context.Context, hostID uint, isServer, enrolled bool, serverURL string, installedFromDep bool, name string, fleetEnrollRef string) error
-	// SetOrUpdateHostEmailsFromMDMIdPAccountsByLegacyEnrollRef sets or updates the host emails associated with the provided
-	// host based on the MDM IdP account information associated with the provided fleet enrollment
-	// reference.
-	//
-	// Deprecated: Use SetOrUpdateHostEmailsFromMdmIdpAccountsByHostUUID instead.
-	SetOrUpdateHostEmailsFromMDMIdPAccountsByLegacyEnrollRef(ctx context.Context, hostID uint, fleetEnrollmentRef string) error
-	// SetOrUpdateHostEmailsFromMDMIdPAccountsByHostUUID sets or updates the host emails associated
-	// with the provided host uuid based on the MDM IdP account information (if any) associated with the
-	// provided host uuid.
-	//
-	// Note: Use this method only if the host ID is not available to the caller, otherwise use
-	// SetOrUpdateHostEmailsFromMdmIdpAccountsByHostID.
-	SetOrUpdateHostEmailsFromMDMIdPAccountsByHostUUID(ctx context.Context, hostUUID string) error
-	// SetOrUpdateEmailsFromMDMIdPAccountsByHostID sets or updates the host emails associated with
-	// the provided host ID based on the MDM IdP account information (if any) associated with the
-	// provided host UUID.
-	//
-	// Note: Use this method when both the host ID and host UUID are known to the caller, otherwise
-	// use SetOrUpdateHostEmailsFromMdmIdpAccountsByHostUUID.
-	SetOrUpdateEmailsFromMDMIdPAccountsByHostID(ctx context.Context, hostID uint, hostUUID string) error
+	// SetOrUpdateHostEmailsFromMdmIdpAccounts sets or updates the host emails associated with the provided
+	// host based on the MDM IdP account information associated with the provided fleet enrollment reference.
+	SetOrUpdateHostEmailsFromMdmIdpAccounts(ctx context.Context, hostID uint, fleetEnrollmentRef string) error
 	SetOrUpdateHostDisksSpace(ctx context.Context, hostID uint, gigsAvailable, percentAvailable, gigsTotal float64) error
 	SetOrUpdateHostDisksEncryption(ctx context.Context, hostID uint, encrypted bool) error
 	// SetOrUpdateHostDiskEncryptionKey sets the base64, encrypted key for
@@ -895,8 +882,6 @@ type Datastore interface {
 	SetHostsDiskEncryptionKeyStatus(ctx context.Context, hostIDs []uint, encryptable bool, threshold time.Time) error
 	// GetHostDiskEncryptionKey returns the encryption key information for a given host
 	GetHostDiskEncryptionKey(ctx context.Context, hostID uint) (*HostDiskEncryptionKey, error)
-
-	SetDiskEncryptionResetStatus(ctx context.Context, hostID uint, status bool) error
 
 	// GetHostCertAssociationsToExpire retrieves host certificate
 	// associations that are close to expire and don't have a renewal in
@@ -1187,21 +1172,8 @@ type Datastore interface {
 	// InsertMDMIdPAccount inserts a new MDM IdP account
 	InsertMDMIdPAccount(ctx context.Context, account *MDMIdPAccount) error
 
-	// AssociateMDMIdPAccount adds device info to an existing MDM IdP account
-	AssociateMDMIdPAccount(ctx context.Context, accountUUID string, deviceUUID string) error
-
-	// GetMDMIdPAccountByAccountUUID returns MDM IdP account that matches the given account uuid.
-	GetMDMIdPAccountByAccountUUID(ctx context.Context, accountUUID string) (*MDMIdPAccount, error)
-
-	// GetMDMIdPAccountByHostUUID returns MDM IdP account that matches the given host uuid.
-	GetMDMIdPAccountByHostUUID(ctx context.Context, hostUUID string) (*MDMIdPAccount, error)
-
-	// GetMDMIdPAccountByLegacyEnrollRef returns MDM IdP account that matches the given Fleet
-	// enrollment ref.
-	//
-	// Deprecated: This method is deprecated and only used for backwards compatibility.
-	// GetMDMIdPAccountByAccountUUID and GetMDMIdPAccountByDeviceUUID are the preferred methods.
-	GetMDMIdPAccountByLegacyEnrollRef(ctx context.Context, ref string) (*MDMIdPAccount, error)
+	// GetMDMIdPAccountByUUID returns MDM IdP account that matches the given token.
+	GetMDMIdPAccountByUUID(ctx context.Context, uuid string) (*MDMIdPAccount, error)
 
 	// GetMDMIdPAccountByEmail returns MDM IdP account that matches the given email.
 	GetMDMIdPAccountByEmail(ctx context.Context, email string) (*MDMIdPAccount, error)
@@ -1331,6 +1303,11 @@ type Datastore interface {
 
 	// DeleteMDMConfigAssetsByName soft deletes the given MDM config assets.
 	DeleteMDMConfigAssetsByName(ctx context.Context, assetNames []MDMAssetName) error
+
+	// ReplaceMDMConfigAssets replaces (soft delete if they exist + insert) `MDMConfigAsset`s in a
+	// single transaction. Useful for "renew" flows where users are updating the assets with newly
+	// generated ones.
+	ReplaceMDMConfigAssets(ctx context.Context, assets []MDMConfigAsset) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Microsoft MDM
@@ -1571,18 +1548,31 @@ type Datastore interface {
 	// GetSoftwareInstallerMetadataByID returns the software installer corresponding to the installer id.
 	GetSoftwareInstallerMetadataByID(ctx context.Context, id uint) (*SoftwareInstaller, error)
 
-	// GetSoftwareInstallerMetadataByTitleID returns the software installer
-	// corresponding to the specified team and title ids. If withScriptContents
-	// is true, also returns the contents of the install and (if set)
-	// post-install scripts, otherwise those fields are left empty.
+	// GetSoftwareInstallerMetadataByTeamAndTitleID returns the software
+	// installer corresponding to the specified team and title ids. If
+	// withScriptContents is true, also returns the contents of the install and
+	// (if set) post-install scripts, otherwise those fields are left empty.
 	GetSoftwareInstallerMetadataByTeamAndTitleID(ctx context.Context, teamID *uint, titleID uint, withScriptContents bool) (*SoftwareInstaller, error)
+
+	GetVPPAppByTeamAndTitleID(ctx context.Context, teamID *uint, titleID uint, withScriptContents bool) (*VPPApp, error)
+	// GetVPPAppMetadataByTeamAndTitleID returns the VPP app corresponding to the
+	// specified team and title ids.
+	GetVPPAppMetadataByTeamAndTitleID(ctx context.Context, teamID *uint, titleID uint) (*VPPAppStoreApp, error)
 
 	// DeleteSoftwareInstaller deletes the software installer corresponding to the id.
 	DeleteSoftwareInstaller(ctx context.Context, id uint) error
 
-	// GetSoftwareInstallerContents returns the software install summary for the given
-	// software installer id.
+	// DeleteVPPAppFromTeam deletes the VPP app corresponding to the adamID from
+	// the provided team.
+	DeleteVPPAppFromTeam(ctx context.Context, teamID *uint, appID VPPAppID) error
+
+	// GetSummaryHostSoftwareInstalls returns the software install summary for
+	// the given software installer id.
 	GetSummaryHostSoftwareInstalls(ctx context.Context, installerID uint) (*SoftwareInstallerStatusSummary, error)
+
+	// GetSummaryHostVPPAppInstalls returns the VPP app install summary for the
+	// given team and VPP app adam_id.
+	GetSummaryHostVPPAppInstalls(ctx context.Context, teamID *uint, appID VPPAppID) (*VPPAppStatusSummary, error)
 
 	GetSoftwareInstallResults(ctx context.Context, resultsUUID string) (*HostSoftwareInstallerResult, error)
 
@@ -1595,6 +1585,14 @@ type Datastore interface {
 
 	// HasSelfServiceSoftwareInstallers returns true if self-service software installers are available for the team or globally.
 	HasSelfServiceSoftwareInstallers(ctx context.Context, platform string, teamID *uint) (bool, error)
+
+	BatchInsertVPPApps(ctx context.Context, apps []*VPPApp) error
+	GetAssignedVPPApps(ctx context.Context, teamID *uint) (map[VPPAppID]struct{}, error)
+	SetTeamVPPApps(ctx context.Context, teamID *uint, appIDs []VPPAppID) error
+	InsertVPPAppWithTeam(ctx context.Context, app *VPPApp, teamID *uint) (*VPPApp, error)
+
+	InsertHostVPPSoftwareInstall(ctx context.Context, hostID, userID uint, appID VPPAppID, commandUUID, associatedEventID string) error
+	GetPastActivityDataForVPPAppInstall(ctx context.Context, commandResults *mdm.CommandResults) (*User, *ActivityInstalledAppStoreApp, error)
 }
 
 // MDMAppleStore wraps nanomdm's storage and adds methods to deal with

@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -31,12 +32,34 @@ type mdmProxy struct {
 	// mutex is used to sync reads/updates to the migrateUDIDs and migratePercentage
 	mutex sync.RWMutex
 	// token is used to authenticate updates to the migrateUDIDs and migratePercentage
-	token string
+	token      string
+	debug      bool
+	logSkipped bool
+}
+
+func skipRequest(r *http.Request) bool {
+	// Throw out a bunch of common junk requests
+	return strings.Contains(r.URL.Path, ".php") ||
+		strings.Contains(r.URL.Path, ".git") ||
+		strings.Contains(r.URL.Path, ".yml") ||
+		strings.Contains(r.URL.Path, ".txt") ||
+		strings.Contains(r.URL.Path, ".py") ||
+		strings.Contains(r.URL.Path, "wp-") ||
+		strings.Contains(r.URL.Path, "private") ||
+		(r.URL.Path == "/" && r.Method == http.MethodPost)
 }
 
 func (m *mdmProxy) handleProxy(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Host != "" {
 		log.Printf("%s %s Forbidden", r.Method, r.URL.String())
+		http.Error(w, "Forbidden", http.StatusForbidden)
+		return
+	}
+
+	if skipRequest(r) {
+		if m.logSkipped {
+			log.Printf("Forbidden skipped request: %s %s", r.Method, r.URL.String())
+		}
 		http.Error(w, "Forbidden", http.StatusForbidden)
 		return
 	}
@@ -51,6 +74,27 @@ func (m *mdmProxy) handleProxy(w http.ResponseWriter, r *http.Request) {
 	// Send all micromdm API requests to the existing server
 	if strings.HasPrefix(r.URL.Path, "/v1") || strings.HasPrefix(r.URL.Path, "/push") {
 		log.Printf("%s %s -> Existing (API)", r.Method, r.URL.String())
+		m.existingProxy.ServeHTTP(w, r)
+		return
+	}
+
+	if r.URL.Path == "/" && r.Method == http.MethodGet {
+		log.Printf("%s %s -> Existing (Home)", r.Method, r.URL.String())
+		m.existingProxy.ServeHTTP(w, r)
+		return
+	}
+
+	if !strings.HasPrefix(r.URL.Path, "/mdm") {
+		if m.logSkipped {
+			log.Printf("Forbidden non-mdm request: %s %s", r.Method, r.URL.String())
+		}
+		http.Error(w, "Forbidden", http.StatusForbidden)
+		return
+	}
+
+	// Send all micromdm repo requests to the existing server
+	if strings.HasPrefix(r.URL.Path, "/repo") {
+		log.Printf("%s %s -> Existing (Repo)", r.Method, r.URL.String())
 		m.existingProxy.ServeHTTP(w, r)
 		return
 
@@ -78,6 +122,9 @@ func (m *mdmProxy) handleProxy(w http.ResponseWriter, r *http.Request) {
 	// Migrated UDIDs go to the Fleet server, otherwise requests go to the existing server.
 	if udid != "" && m.isUDIDMigrated(udid) {
 		log.Printf("%s %s (%s) -> Fleet", r.Method, r.URL.String(), udid)
+		if m.debug {
+			log.Printf("Fleet request: %s", string(body))
+		}
 		m.fleetProxy.ServeHTTP(w, r)
 	} else {
 		log.Printf("%s %s (%s) -> Existing", r.Method, r.URL.String(), udid)
@@ -238,12 +285,29 @@ func makeExistingProxy(existingURL, existingDNSName string) *httputil.ReversePro
 	return proxy
 }
 
-func makeFleetProxy(fleetURL string) *httputil.ReverseProxy {
+func makeFleetProxy(fleetURL string, debug bool) *httputil.ReverseProxy {
 	targetURL, err := url.Parse(fleetURL)
 	if err != nil {
 		panic("failed to parse fleet-url: " + err.Error())
 	}
 	proxy := httputil.NewSingleHostReverseProxy(targetURL)
+	if debug {
+		proxy.ModifyResponse = func(r *http.Response) error {
+			b, err := io.ReadAll(r.Body)
+			if err != nil {
+				return err
+			}
+			err = r.Body.Close()
+			if err != nil {
+				return err
+			}
+			r.Body = io.NopCloser(bytes.NewReader(b))
+
+			log.Println("Fleet response: ", string(b))
+
+			return nil
+		}
+	}
 
 	return proxy
 }
@@ -256,7 +320,37 @@ func main() {
 	migratePercentage := flag.Int("migrate-percentage", 0, "Percentage of clients to migrate from existing MDM to Fleet")
 	migrateUDIDs := flag.String("migrate-udids", "", "Space/newline-delimited list of UDIDs to migrate always")
 	serverAddr := flag.String("server-address", ":8080", "Address for server to listen on")
+	debug := flag.Bool("debug", false, "Enable debug logging")
+	logSkipped := flag.Bool("log-skipped", false, "Log skipped requests (usually from web scanners)")
+	check := flag.String("check", "", "Print whether the specified UDID is migrated with the current configuration, then exit")
 	flag.Parse()
+
+	udids, err := processUDIDs(bytes.NewBufferString(*migrateUDIDs))
+	if err != nil {
+		panic(err)
+	}
+
+	proxy := mdmProxy{
+		token:             *authToken,
+		existingServerURL: *existingURL,
+		fleetServerURL:    *fleetURL,
+		existingHostname:  *existingHostname,
+		migratePercentage: *migratePercentage,
+		migrateUDIDs:      udids,
+		existingProxy:     makeExistingProxy(*existingURL, *existingHostname),
+		fleetProxy:        makeFleetProxy(*fleetURL, *debug),
+		debug:             *debug,
+		logSkipped:        *logSkipped,
+	}
+
+	if len(*check) > 0 {
+		if proxy.isUDIDMigrated(*check) {
+			fmt.Printf("%s IS migrated\n", *check)
+		} else {
+			fmt.Printf("%s IS NOT migrated\n", *check)
+		}
+		os.Exit(0)
+	}
 
 	// Check required flags
 	if *existingURL == "" {
@@ -269,30 +363,17 @@ func main() {
 		log.Fatal("--fleet-url must be set")
 	}
 
-	udids, err := processUDIDs(bytes.NewBufferString(*migrateUDIDs))
-	if err != nil {
-		panic(err)
-	}
 	log.Printf("--migrate-udids set: %v", udids)
 	log.Printf("--migrate-percentage set: %d", *migratePercentage)
 	log.Printf("--existing-url set: %s", *existingURL)
 	log.Printf("--existing-hostname set: %s", *existingHostname)
 	log.Printf("--fleet-url set: %s", *fleetURL)
+	log.Printf("--debug set: %v", *debug)
+	log.Printf("--log-skipped set: %v", *logSkipped)
 	if *authToken != "" {
 		log.Printf("--auth-token set. Remote configuration enabled.")
 	} else {
 		log.Printf("--auth-token is empty. Remote configuration disabled.")
-	}
-
-	proxy := mdmProxy{
-		token:             *authToken,
-		existingServerURL: *existingURL,
-		fleetServerURL:    *fleetURL,
-		existingHostname:  *existingHostname,
-		migratePercentage: *migratePercentage,
-		migrateUDIDs:      udids,
-		existingProxy:     makeExistingProxy(*existingURL, *existingHostname),
-		fleetProxy:        makeFleetProxy(*fleetURL),
 	}
 
 	mux := http.NewServeMux()

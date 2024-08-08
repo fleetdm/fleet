@@ -78,6 +78,8 @@ const (
 	// CapabilityEndUserEmail denotes the ability of the server to support
 	// receiving the end-user email from orbit.
 	CapabilityEndUserEmail Capability = "end_user_email"
+	// CapabilityEscrowBuddy allows to use Escrow Buddy to rotate FileVault keys
+	CapabilityEscrowBuddy Capability = "escrow_buddy"
 )
 
 func GetServerOrbitCapabilities() CapabilityMap {
@@ -85,6 +87,7 @@ func GetServerOrbitCapabilities() CapabilityMap {
 		CapabilityOrbitEndpoints: {},
 		CapabilityTokenRotation:  {},
 		CapabilityEndUserEmail:   {},
+		CapabilityEscrowBuddy:    {},
 	}
 }
 
@@ -94,6 +97,12 @@ func GetServerDeviceCapabilities() CapabilityMap {
 		capabilities[CapabilityErrorReporting] = struct{}{}
 	}
 	return capabilities
+}
+
+func GetOrbitClientCapabilities() CapabilityMap {
+	return CapabilityMap{
+		CapabilityEscrowBuddy: {},
+	}
 }
 
 // CapabilitiesHeader is the header name used to communicate the capabilities.

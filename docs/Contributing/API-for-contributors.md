@@ -11,9 +11,9 @@
 - [Scripts](#scripts)
 - [Software](#software)
 
-This document includes the internal Fleet API routes that are helpful when developing or contributing to Fleet.
+> These endpoints are used by the Fleet UI, Fleet Desktop, and `fleetctl` clients and frequently change to reflect current functionality.
 
-These endpoints are used by the Fleet UI, Fleet Desktop, and `fleetctl` clients and will frequently change to reflect current functionality.
+This document includes the internal Fleet API routes that are helpful when developing or contributing to Fleet.
 
 If you are interested in gathering information from Fleet in a production environment, please see the [public Fleet REST API documentation](https://fleetdm.com/docs/using-fleet/rest-api).
 
@@ -696,7 +696,7 @@ Content-Type: application/octet-stream
 | team_id   | number | query | _Available in Fleet Premium_ The team ID to apply the custom settings to. Only one of `team_name`/`team_id` can be provided.          |
 | team_name | string | query | _Available in Fleet Premium_ The name of the team to apply the custom settings to. Only one of `team_name`/`team_id` can be provided. |
 | dry_run   | bool   | query | Validate the provided profiles and return any validation errors, but do not apply the changes.                                    |
-| profiles  | json   | body  | An array of objects, consisting of a `profile` base64-encoded .mobileconfig or JSON for macOS and XML (Windows) file, `labels` array of strings (label names), and `name` display name (for Windows configuration profiles and macOS declaration profiles).                                        |
+| profiles  | json   | body  | An array of objects, consisting of a `profile` base64-encoded .mobileconfig or JSON for macOS and XML (Windows) file, `labels_include_all` or `labels_exclude_any` array of strings (label names), and `name` display name (for Windows configuration profiles and macOS declaration profiles).                                        |
 
 
 If no team (id or name) is provided, the profiles are applied for all hosts (for _Fleet Free_) or for hosts that are not assigned to any team (for _Fleet Premium_). After the call, the provided list of `profiles` will be the active profiles for that team (or no team) - that is, any existing profile that is not part of that list will be removed, and an existing profile with the same payload identifier (macOS) as a new profile will be edited. If the list of provided `profiles` is empty, all profiles are removed for that team (or no team).
@@ -1429,9 +1429,9 @@ If the `name` is not already associated with an existing team, this API route cr
 | mdm.macos_updates.minimum_version         | string | body  | The required minimum operating system version.                                                                                                                                                                                      |
 | mdm.macos_updates.deadline                | string | body  | The required installation date for Nudge to enforce the operating system version.                                                                                                                                                   |
 | mdm.macos_settings                        | object | body  | The macOS-specific MDM settings.                                                                                                                                                                                                    |
-| mdm.macos_settings.custom_settings        | list   | body  | The list of objects consists of a `path` to .mobileconfig or JSON file and `labels` list of label names.                                                                                                                                                         |
+| mdm.macos_settings.custom_settings        | list   | body  | The list of objects consists of a `path` to .mobileconfig or JSON file and `labels_include_all` or `labels_exclude_any` list of label names.                                                                                                                                                         |
 | mdm.windows_settings                        | object | body  | The Windows-specific MDM settings.                                                                                                                                                                                                    |
-| mdm.windows_settings.custom_settings        | list   | body  | The list of objects consists of a `path` to XML files and `labels` list of label names.                                                                                                                                                         |
+| mdm.windows_settings.custom_settings        | list   | body  | The list of objects consists of a `path` to XML files and `labels_include_all` or `labels_exclude_any` list of label names.                                                                                                                                                         |
 | scripts                                   | list   | body  | A list of script files to add to this team so they can be executed at a later time.                                                                                                                                                 |
 | software                                   | object   | body  | The team's software that will be available for install.  |
 | software.packages                          | list   | body  | An array of objects. Each object consists of:`url`- URL to the software package (PKG, MSI, EXE or DEB),`install_script` - command that Fleet runs to install software, `pre_install_query` - condition query that determines if the install will proceed, `post_install_script` - script that runs after software install, and `self_service` boolean.   |
@@ -1494,21 +1494,25 @@ If the `name` is not already associated with an existing team, this API route cr
           "deadline": "2023-12-01"
         },
         "macos_settings": {
-          "custom_settings": {
-            "path": "path/to/profile1.mobileconfig"
-            "labels": ["Label 1", "Label 2"]
-          },
-          {
-            "path": "path/to/profile2.json"
-            "labels": ["Label 3", "Label 4"]
-          },
+          "custom_settings": [
+            {
+              "path": "path/to/profile1.mobileconfig"
+              "labels_include_all": ["Label 1", "Label 2"]
+            },
+            {
+              "path": "path/to/profile2.json"
+              "labels_exclude_any": ["Label 3", "Label 4"]
+            },
+          ],
           "enable_disk_encryption": true
         },
         "windows_settings": {
-          "custom_settings": {
-            "path": "path/to/profile3.xml"
-            "labels": ["Label 1", "Label 2"]
-          },
+          "custom_settings": [
+            {
+              "path": "path/to/profile3.xml"
+              "labels_include_all": ["Label 1", "Label 2"]
+            }
+          ]
         }
       },
       "scripts": ["path/to/script.sh"],
@@ -2538,6 +2542,7 @@ Gets all information required by Fleet Desktop, this includes things like the nu
 ```json
 {
   "failing_policies_count": 3,
+  "self_service": true,
   "notifications": {
     "needs_mdm_migration": true,
     "renew_enrollment_profile": false,
@@ -2819,27 +2824,6 @@ Signals the Fleet server to send a webbook request with the device UUID and seri
 
 ---
 
-#### Trigger FileVault key escrow
-
-Sends a signal to Fleet Desktop to initiate a FileVault key escrow. This is useful for setting the escrow key initially as well as in scenarios where a token rotation is required. **Requires Fleet Premium license**
-
-`POST /api/v1/fleet/device/{token}/rotate_encryption_key`
-
-##### Parameters
-
-| Name  | Type   | In   | Description                        |
-| ----- | ------ | ---- | ---------------------------------- |
-| token | string | path | The device's authentication token. |
-
-##### Example
-
-`POST /api/v1/fleet/device/abcdef012456789/rotate_encryption_key`
-
-##### Default response
-
-`Status: 204`
-
-
 ### Report an agent error
 
 Notifies the server about an agent error, resulting in two outcomes:
@@ -3041,8 +3025,8 @@ _Available in Fleet Premium._
 
 | Name      | Type   | In    | Description                                                                                                                                                           |
 | --------- | ------ | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| team_id   | number | query | The ID of the team to add the software package to. Only one team identifier (`team_id` or `team_name`) can be included in the request, omit this parameter if using `team_name`. |
-| team_name | string | query | The name of the team to add the software package to. Only one team identifier (`team_id` or `team_name`) can be included in the request, omit this parameter if using `team_id`. |
+| team_id   | number | query | The ID of the team to add the software package to. Only one team identifier (`team_id` or `team_name`) can be included in the request, omit this parameter if using `team_name`. Ommitting these parameters will add software to 'No Team'. |
+| team_name | string | query | The name of the team to add the software package to. Only one team identifier (`team_id` or `team_name`) can be included in the request, omit this parameter if using `team_id`. Ommitting these parameters will add software to 'No Team'. |
 | dry_run   | bool   | query | If `true`, will validate the provided software packages and return any validation errors, but will not apply the changes.                                                                         |
 | software  | object   | body  | The team's software that will be available for install.  |
 | software.packages   | list   | body  | An array of objects. Each object consists of:`url`- URL to the software package (PKG, MSI, EXE or DEB),`install_script` - command that Fleet runs to install software, `pre_install_query` - condition query that determines if the install will proceed, and `post_install_script` - script that runs after software install.   |
@@ -3057,3 +3041,43 @@ If both `team_id` and `team_name` parameters are included, this endpoint will re
 ##### Default response
 
 `Status: 204`
+
+ ### Run live script
+
+Run a live script and get results back (5 minute timeout). Live scripts only runs on the host if it has no other scripts running.
+
+`POST /api/v1/fleet/scripts/run/sync`
+
+#### Parameters
+
+| Name            | Type    | In   | Description                                      |
+| ----            | ------- | ---- | --------------------------------------------     |
+| host_id         | integer | body | **Required**. The host ID to run the script on.  |
+| script_id       | integer | body | The ID of the existing saved script to run. Only one of either `script_id`, `script_name` or `script_contents` can be included in the request; omit this parameter if using `script_contents` or `script_name`.  |
+| script_contents | string  | body | The contents of the script to run. Only one of either `script_contents`, `script_id` or `script_name` can be included in the request; omit this parameter if using `script_id` or `script_name`. |
+| script_name       | string | body | The name of the existing saved script to run. Only one of either `script_name`, `script_id` or `script_contents` can be included in the request; omit this parameter if using `script_contents` or `script_id`.  |
+| team_id       | integer | body | ID of the team the saved script referenced by `script_name` belongs to. Default: `0` (hosts assigned to "No team") |
+
+
+> Note that if both `script_id` and `script_contents` are included in the request, this endpoint will respond with an error.
+
+#### Example
+
+`POST /api/v1/fleet/scripts/run/sync`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "host_id": 1227,
+  "execution_id": "e797d6c6-3aae-11ee-be56-0242ac120002",
+  "script_contents": "echo 'hello'",
+  "output": "hello",
+  "message": "",
+  "runtime": 1,
+  "host_timeout": false,
+  "exit_code": 0
+}
+```

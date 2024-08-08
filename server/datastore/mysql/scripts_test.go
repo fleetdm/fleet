@@ -1102,14 +1102,14 @@ type scriptContents struct {
 func testInsertScriptContents(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 	contents := `echo foobar;`
-	res, err := insertScriptContents(ctx, contents, ds.writer(ctx))
+	res, err := insertScriptContents(ctx, ds.writer(ctx), contents)
 	require.NoError(t, err)
 	id, _ := res.LastInsertId()
 	require.Equal(t, int64(1), id)
 	expectedCS := md5ChecksumScriptContent(contents)
 
 	// insert same contents again, verify that the checksum and ID stayed the same
-	res, err = insertScriptContents(ctx, contents, ds.writer(ctx))
+	res, err = insertScriptContents(ctx, ds.writer(ctx), contents)
 	require.NoError(t, err)
 	id, _ = res.LastInsertId()
 	require.Equal(t, int64(1), id)

@@ -5,7 +5,7 @@ If some of the following don't apply, delete the relevant line.
 <!-- Note that API documentation changes are now addressed by the product design team. -->
 
 - [ ] Changes file added for user-visible changes in `changes/`, `orbit/changes/` or `ee/fleetd-chrome/changes`.
-  See [Changes files](https://fleetdm.com/docs/contributing/committing-changes#changes-files) for more information.
+  See [Changes files](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/Committing-Changes.md#changes-files) for more information.
 - [ ] Input data is properly validated, `SELECT *` is avoided, SQL injection is prevented (using placeholders for values in statements)
 - [ ] Added support on fleet's osquery simulator `cmd/osquery-perf` for new osquery data ingestion features.
 - [ ] Added/updated tests

@@ -1,5 +1,3 @@
-import { IMDMAppleEnrollmentProfileParams } from "services/entities/mdm";
-
 const API_VERSION = "latest";
 
 export default {
@@ -33,9 +31,6 @@ export default {
     `/${API_VERSION}/fleet/device/${token}/software`,
   DEVICE_SOFTWARE_INSTALL: (token: string, softwareTitleId: number) =>
     `/${API_VERSION}/fleet/device/${token}/software/install/${softwareTitleId}`,
-  DEVICE_USER_RESET_ENCRYPTION_KEY: (token: string): string => {
-    return `/${API_VERSION}/fleet/device/${token}/rotate_encryption_key`;
-  },
   DEVICE_USER_MDM_ENROLLMENT_PROFILE: (token: string): string => {
     return `/${API_VERSION}/fleet/device/${token}/mdm/apple/manual_enrollment_profile`;
   },
@@ -84,8 +79,13 @@ export default {
   MDM_APPLE_PNS: `/${API_VERSION}/fleet/apns`,
   MDM_APPLE_BM: `/${API_VERSION}/fleet/abm`,
   MDM_APPLE_BM_KEYS: `/${API_VERSION}/fleet/mdm/apple/dep/key_pair`,
+  MDM_APPLE_VPP_APPS: `/${API_VERSION}/fleet/software/app_store_apps`,
   MDM_SUMMARY: `/${API_VERSION}/fleet/hosts/summary/mdm`,
   MDM_REQUEST_CSR: `/${API_VERSION}/fleet/mdm/apple/request_csr`,
+
+  // Apple VPP endpoints
+  MDM_APPLE_VPP: `/${API_VERSION}/fleet/vpp`,
+  MDM_APPLE_VPP_TOKEN: `/${API_VERSION}/fleet/mdm/apple/vpp_token`,
 
   // MDM profile endpoints
   MDM_PROFILES: `/${API_VERSION}/fleet/mdm/profiles`,
@@ -95,14 +95,11 @@ export default {
   MDM_PROFILES_STATUS_SUMMARY: `/${API_VERSION}/fleet/mdm/profiles/summary`,
   MDM_DISK_ENCRYPTION_SUMMARY: `/${API_VERSION}/fleet/mdm/disk_encryption/summary`,
   MDM_APPLE_SSO: `/${API_VERSION}/fleet/mdm/sso`,
-  MDM_APPLE_ENROLLMENT_PROFILE: ({
-    token,
-    ref,
-    dep_device_info,
-  }: IMDMAppleEnrollmentProfileParams) => {
+  MDM_APPLE_ENROLLMENT_PROFILE: (token: string, ref?: string) => {
     const query = new URLSearchParams({ token });
-    ref && query.append("enrollment_reference", ref);
-    dep_device_info && query.append("dep_device_info", dep_device_info);
+    if (ref) {
+      query.append("enrollment_reference", ref);
+    }
     return `/api/mdm/apple/enroll?${query}`;
   },
   MDM_APPLE_SETUP_ENROLLMENT_PROFILE: `/${API_VERSION}/fleet/mdm/apple/enrollment_profile`,
@@ -154,6 +151,8 @@ export default {
     `/${API_VERSION}/fleet/software/install/results/${uuid}`,
   SOFTWARE_PACKAGE_INSTALL: (id: number) =>
     `/${API_VERSION}/fleet/software/packages/${id}`,
+  SOFTWARE_AVAILABLE_FOR_INSTALL: (id: number) =>
+    `/${API_VERSION}/fleet/software/titles/${id}/available_for_install`,
 
   // AI endpoints
   AUTOFILL_POLICY: `/${API_VERSION}/fleet/autofill/policy`,
@@ -204,4 +203,6 @@ export default {
   SCRIPT_RESULT: (executionId: string) =>
     `/${API_VERSION}/fleet/scripts/results/${executionId}`,
   SCRIPT_RUN: `/${API_VERSION}/fleet/scripts/run`,
+
+  COMMANDS_RESULTS: `/${API_VERSION}/fleet/commands/results`,
 };
