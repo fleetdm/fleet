@@ -292,9 +292,9 @@ export type IDeviceSoftware = IHostSoftware;
 
 const INSTALL_STATUS_PREDICATES: Record<SoftwareInstallStatus, string> = {
   failed: "failed to install",
-  verified: "installed TODO", // TODO
-  verifying: "TODO", // TODO
-  blocked: "TODO", // TODO
+  verified: "verified?", // TODO: jacob
+  verifying: "verifying?", // TODO: jacob
+  blocked: "blocked?", // TODO: jacob
   pending: "told Fleet to install",
 } as const;
 

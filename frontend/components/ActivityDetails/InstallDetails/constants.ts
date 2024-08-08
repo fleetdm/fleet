@@ -7,8 +7,8 @@ export const INSTALL_DETAILS_STATUS_ICONS: Record<
 > = {
   pending: "pending-outline",
   verified: "success-outline",
-  verifying: "success", // TODO,
-  blocked: "success", // TODO
+  verifying: "success",
+  blocked: "disable",
   failed: "error-outline",
 } as const;
 
