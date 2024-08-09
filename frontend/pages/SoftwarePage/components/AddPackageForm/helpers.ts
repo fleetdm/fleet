@@ -108,7 +108,7 @@ const FORM_VALIDATION_CONFIG: Record<
     validations: [],
   },
   installType: {
-    // TODO
+    // no validations related to install type
     validations: [],
   },
   labelsExcludeAny: {
@@ -169,5 +169,18 @@ export const generateFormValidation = (
 
   return formValidation;
 };
+
+export const INSTALL_TYPE_OPTIONS = [
+  {
+    label: "Automatic",
+    value: "automatic",
+    helpText: "Install if not installed or an older version is installed.",
+  },
+  {
+    label: "Manual",
+    value: "manual",
+    helpText: "Go to Host details page and manually install on each host.",
+  },
+];
 
 export default generateFormValidation;

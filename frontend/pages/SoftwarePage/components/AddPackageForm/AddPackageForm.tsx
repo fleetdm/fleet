@@ -4,9 +4,11 @@ import { NotificationContext } from "context/notification";
 import { getFileDetails } from "utilities/file/fileUtils";
 import getInstallScript from "utilities/software_install_scripts";
 
+import { ILabel, ILabelIdentifier } from "interfaces/label";
 import { InstallType } from "interfaces/software";
-import { ILabelIdentifier } from "interfaces/label";
 
+// @ts-ignore
+import Dropdown from "components/forms/fields/Dropdown";
 import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
 import Editor from "components/Editor";
@@ -19,7 +21,7 @@ import TooltipWrapper from "components/TooltipWrapper";
 
 import AddPackageAdvancedOptions from "../AddPackageAdvancedOptions";
 
-import { generateFormValidation } from "./helpers";
+import { generateFormValidation, INSTALL_TYPE_OPTIONS } from "./helpers";
 
 export const baseClass = "add-package-form";
 
@@ -62,6 +64,7 @@ interface IAddPackageFormProps {
   isUploading: boolean;
   onCancel: () => void;
   onSubmit: (formData: IAddPackageFormData) => void;
+  customLabels?: ILabel[];
 }
 
 const AddPackageForm = ({
@@ -79,7 +82,6 @@ const AddPackageForm = ({
     preInstallCondition: undefined,
     postInstallScript: undefined,
     selfService: false,
-    // TODO - confirm init value
     installType: "manual",
     labelsIncludeAny: [],
     labelsExcludeAny: [],
@@ -168,6 +170,10 @@ const AddPackageForm = ({
     );
   };
 
+  const onChangeInstallType = (value: InstallType) => {
+    const newData = { ...formData, installType: value };
+    setFormData(newData);
+  };
   const onToggleSelfServiceCheckbox = (value: boolean) => {
     const newData = { ...formData, selfService: value };
     setFormData(newData);
@@ -203,6 +209,7 @@ const AddPackageForm = ({
             }
           />
           {formData.software && (
+            // this is the Install script section - TODO(jacob) move into advanced section
             <Editor
               wrapEnabled
               maxLines={10}
@@ -221,6 +228,12 @@ const AddPackageForm = ({
               }
             />
           )}
+          <Dropdown
+            value={formData.installType}
+            options={INSTALL_TYPE_OPTIONS}
+            searchable={false}
+            onChange={onChangeInstallType}
+          />
           <Checkbox
             value={formData.selfService}
             onChange={onToggleSelfServiceCheckbox}
