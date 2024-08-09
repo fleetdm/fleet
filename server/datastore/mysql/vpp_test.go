@@ -412,7 +412,7 @@ func testVPPApps(t *testing.T, ds *Datastore) {
 	err = ds.InsertHostVPPSoftwareInstall(ctx, 1, u.ID, app1.VPPAppID, "a", "b", false)
 	require.NoError(t, err)
 
-	err = ds.InsertHostVPPSoftwareInstall(ctx, 2, u.ID, app2.VPPAppID, "c", "d", false)
+	err = ds.InsertHostVPPSoftwareInstall(ctx, 2, u.ID, app2.VPPAppID, "c", "d", true)
 	require.NoError(t, err)
 
 	var results []struct {
@@ -421,8 +421,9 @@ func testVPPApps(t *testing.T, ds *Datastore) {
 		AdamID            string `db:"adam_id"`
 		CommandUUID       string `db:"command_uuid"`
 		AssociatedEventID string `db:"associated_event_id"`
+		SelfService       bool   `db:"self_service"`
 	}
-	err = sqlx.SelectContext(ctx, ds.reader(ctx), &results, `SELECT host_id, user_id, adam_id, command_uuid, associated_event_id FROM host_vpp_software_installs ORDER BY adam_id`)
+	err = sqlx.SelectContext(ctx, ds.reader(ctx), &results, `SELECT host_id, user_id, adam_id, command_uuid, associated_event_id, self_service FROM host_vpp_software_installs ORDER BY adam_id`)
 	require.NoError(t, err)
 	require.Len(t, results, 2)
 	a1 := results[0]
@@ -432,11 +433,13 @@ func testVPPApps(t *testing.T, ds *Datastore) {
 	require.Equal(t, a1.AdamID, app1.AdamID)
 	require.Equal(t, a1.CommandUUID, "a")
 	require.Equal(t, a1.AssociatedEventID, "b")
+	require.False(t, a1.SelfService)
 	require.Equal(t, a2.HostID, uint(2))
 	require.Equal(t, a2.UserID, u.ID)
 	require.Equal(t, a2.AdamID, app2.AdamID)
 	require.Equal(t, a2.CommandUUID, "c")
 	require.Equal(t, a2.AssociatedEventID, "d")
+	require.True(t, a2.SelfService)
 
 	// Check that getting the assigned apps works
 	appSet, err := ds.GetAssignedVPPApps(ctx, &team.ID)
