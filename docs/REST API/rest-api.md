@@ -887,6 +887,14 @@ None.
       "minimum_version": "12.3.1",
       "deadline": "2022-01-01"
     },
+    "ios_updates": {
+      "minimum_version": "17.0.1",
+      "deadline": "2024-08-01"
+    },
+    "ipados_updates": {
+      "minimum_version": "17.0.1",
+      "deadline": "2024-08-01"
+    },
     "windows_updates": {
       "deadline_days": 5,
       "grace_period_days": 1
@@ -1171,6 +1179,14 @@ Modifies the Fleet's configuration with the supplied information.
     "macos_updates": {
       "minimum_version": "12.3.1",
       "deadline": "2022-01-01"
+    },
+    "ios_updates": {
+      "minimum_version": "17.0.1",
+      "deadline": "2024-08-01"
+    },
+    "ipados_updates": {
+      "minimum_version": "17.0.1",
+      "deadline": "2024-08-01"
     },
     "windows_updates": {
       "deadline_days": 5,
@@ -1681,11 +1697,14 @@ _Available in Fleet Premium._
 | apple_bm_default_team             | string  | _Available in Fleet Premium._ The default team to use with Apple Business Manager. |
 | windows_enabled_and_configured    | boolean | Enables Windows MDM support. |
 | enable_disk_encryption            | boolean | _Available in Fleet Premium._ Hosts that belong to no team will have disk encryption enabled if set to true. |
-| macos_updates                     | object  | See [`mdm.macos_updates`](#mdm-macos-updates). |
-| macos_migration                   | object  | See [`mdm.macos_migration`](#mdm-macos-migration). |
-| macos_setup                       | object  | See [`mdm.macos_setup`](#mdm-macos-setup). |
-| macos_settings                    | object  | See [`mdm.macos_settings`](#mdm-macos-settings). |
-| windows_settings                  | object  | See [`mdm.windows_settings`](#mdm-windows-settings). |
+| macos_updates         | object  | See [`mdm.macos_updates`](#mdm-macos-updates). |
+| ios_updates         | object  | See [`mdm.ios_updates`](#mdm-ios-updates). |
+| ipados_updates         | object  | See [`mdm.ipados_updates`](#mdm-ipados-updates). |
+| windows_updates         | object  | See [`mdm.window_updates`](#mdm-windows-updates). |
+| macos_migration         | object  | See [`mdm.macos_migration`](#mdm-macos-migration). |
+| macos_setup         | object  | See [`mdm.macos_setup`](#mdm-macos-setup). |
+| macos_settings         | object  | See [`mdm.macos_settings`](#mdm-macos-settings). |
+| windows_settings         | object  | See [`mdm.windows_settings`](#mdm-windows-settings). |
 
 <br/>
 
@@ -1699,6 +1718,32 @@ _Available in Fleet Premium._
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | minimum_version                   | string  | Hosts that belong to no team will be nudged until their macOS is at or above this version. |
 | deadline                          | string  | Hosts that belong to no team won't be able to dismiss the Nudge window once this deadline is past. |
+
+<br/>
+
+##### mdm.ios_updates
+
+_Available in Fleet Premium._
+
+`mdm.ios_updates` is an object with the following structure:
+
+| Name                              | Type    | Description   |
+| ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| minimum_version                   | string  | Hosts that belong to no team and are enrolled into Fleet's MDM will be nudged until their iOS is at or above this version. |
+| deadline                          | string  | Hosts that belong to no team and are enrolled into Fleet's MDM won't be able to dismiss the Nudge window once this deadline is past. |
+
+<br/>
+
+##### mdm.ipados_updates
+
+_Available in Fleet Premium._
+
+`mdm.ipados_updates` is an object with the following structure:
+
+| Name                              | Type    | Description   |
+| ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| minimum_version                   | string  | Hosts that belong to no team and are enrolled into Fleet's MDM will be nudged until their iPadOS is at or above this version. |
+| deadline                          | string  | Hosts that belong to no team and are enrolled into Fleet's MDM won't be able to dismiss the Nudge window once this deadline is past. |
 
 <br/>
 
@@ -9630,6 +9675,12 @@ _Available in Fleet Premium_
 | mdm                                                     | object  | body | MDM settings for the team.                                                                                                                                                                                |
 | &nbsp;&nbsp;macos_updates                               | object  | body | macOS updates settings.                                                                                                                                                                                   |
 | &nbsp;&nbsp;&nbsp;&nbsp;minimum_version                 | string  | body | Hosts that belong to this team and are enrolled into Fleet's MDM will be nudged until their macOS is at or above this version.                                                                            |
+| &nbsp;&nbsp;&nbsp;&nbsp;deadline                        | string  | body | Hosts that belong to this team and are enrolled into Fleet's MDM won't be able to dismiss the Nudge window once this deadline is past.                                                                    |
+| &nbsp;&nbsp;ios_updates                               | object  | body | iOS updates settings.                                                                                                                                                                                   |
+| &nbsp;&nbsp;&nbsp;&nbsp;minimum_version                 | string  | body | Hosts that belong to this team and are enrolled into Fleet's MDM will be nudged until their iOS is at or above this version.                                                                            |
+| &nbsp;&nbsp;&nbsp;&nbsp;deadline                        | string  | body | Hosts that belong to this team and are enrolled into Fleet's MDM won't be able to dismiss the Nudge window once this deadline is past.                                                                    |
+| &nbsp;&nbsp;ipados_updates                               | object  | body | iPadOS updates settings.                                                                                                                                                                                   |
+| &nbsp;&nbsp;&nbsp;&nbsp;minimum_version                 | string  | body | Hosts that belong to this team and are enrolled into Fleet's MDM will be nudged until their iPadOS is at or above this version.                                                                            |
 | &nbsp;&nbsp;&nbsp;&nbsp;deadline                        | string  | body | Hosts that belong to this team and are enrolled into Fleet's MDM won't be able to dismiss the Nudge window once this deadline is past.                                                                    |
 | &nbsp;&nbsp;windows_updates                             | object  | body | Windows updates settings.                                                                                                                                                                                   |
 | &nbsp;&nbsp;&nbsp;&nbsp;deadline_days                   | integer | body | Hosts that belong to this team and are enrolled into Fleet's MDM will have this number of days before updates are installed on Windows.                                                                   |
