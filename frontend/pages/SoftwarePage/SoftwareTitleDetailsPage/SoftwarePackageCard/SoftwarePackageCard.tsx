@@ -253,7 +253,7 @@ interface ISoftwarePackageCardProps {
   onDelete: () => void;
 }
 
-// NOTE: This component is depeent on having either a software package
+// NOTE: This component is dependent on having either a software package
 // (ISoftwarePackage) or an app store app (IAppStoreApp). If we add more types
 // of packages we should consider refactoring this to be more dynamic.
 const SoftwarePackageCard = ({
@@ -388,13 +388,12 @@ const SoftwarePackageCard = ({
   const showActions =
     isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
 
-  // const hasLabelInfo =
-  //   (softwarePackage?.labels_include_any &&
-  //     softwarePackage?.labels_include_any?.length > 0) ||
-  //   (softwarePackage?.labels_exclude_any &&
-  //     softwarePackage?.labels_exclude_any?.length > 0);
+  const hasLabelInfo =
+    (softwarePackage?.labels_include_any &&
+      softwarePackage?.labels_include_any.length > 0) ||
+    (softwarePackage?.labels_exclude_any &&
+      softwarePackage?.labels_exclude_any.length > 0);
 
-  const hasLabelInfo = true;
   return (
     <Card
       borderRadiusSize="xxlarge"
