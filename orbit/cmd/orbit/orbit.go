@@ -26,6 +26,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/installer"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/keystore"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/logging"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/migration"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/osquery"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/osservice"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/platform"
@@ -863,8 +864,12 @@ func main() {
 
 		switch runtime.GOOS {
 		case "darwin":
+			dir, err := migration.MigrationFileDir()
+			if err != nil {
+				log.Error().Err(err).Msg("getting migration file directory")
+			}
 			orbitClient.RegisterConfigReceiver(update.ApplyRenewEnrollmentProfileConfigFetcherMiddleware(
-				orbitClient, renewEnrollmentProfileCommandFrequency, fleetURL,
+				orbitClient, renewEnrollmentProfileCommandFrequency, fleetURL, migration.NewReadWriter(dir, constant.MigrationFileName),
 			))
 			const nudgeLaunchInterval = 30 * time.Minute
 			orbitClient.RegisterConfigReceiver(update.ApplyNudgeConfigReceiverMiddleware(update.NudgeConfigFetcherOptions{

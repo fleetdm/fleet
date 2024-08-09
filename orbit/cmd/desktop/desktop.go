@@ -248,7 +248,7 @@ func main() {
 		}()
 
 		if runtime.GOOS == "darwin" {
-			dir, err := migrationFileDir()
+			dir, err := migration.MigrationFileDir()
 			if err != nil {
 				log.Fatal().Err(err).Msg("getting directory for MDM migration file")
 			}
@@ -410,6 +410,8 @@ func main() {
 							go reportError(err, nil)
 							log.Error().Err(err).Msg("failed to mark MDM migration as completed")
 						}
+						migrateMDMItem.Disable()
+						migrateMDMItem.Hide()
 					}
 				} else {
 					migrateMDMItem.Disable()
@@ -584,13 +586,4 @@ func logDir() (string, error) {
 	}
 
 	return dir, nil
-}
-
-func migrationFileDir() (string, error) {
-	homedir, err := os.UserHomeDir()
-	if err != nil {
-		return "", fmt.Errorf("failed to get user's home directory: %w", err)
-	}
-
-	return filepath.Join(homedir, "Library/Caches/com.fleetdm.orbit"), nil
 }

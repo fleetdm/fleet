@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/bitlocker"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/migration"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/profiles"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/scripts"
 	fleetscripts "github.com/fleetdm/fleet/v4/pkg/scripts"
@@ -50,10 +51,11 @@ type renewEnrollmentProfileConfigReceiver struct {
 	lastRun time.Time
 
 	fleetURL string
+	mrw      *migration.ReadWriter
 }
 
-func ApplyRenewEnrollmentProfileConfigFetcherMiddleware(fetcher OrbitConfigFetcher, frequency time.Duration, fleetURL string) fleet.OrbitConfigReceiver {
-	return &renewEnrollmentProfileConfigReceiver{Frequency: frequency, fleetURL: fleetURL}
+func ApplyRenewEnrollmentProfileConfigFetcherMiddleware(fetcher OrbitConfigFetcher, frequency time.Duration, fleetURL string, mrw *migration.ReadWriter) fleet.OrbitConfigReceiver {
+	return &renewEnrollmentProfileConfigReceiver{Frequency: frequency, fleetURL: fleetURL, mrw: mrw}
 }
 
 func (h *renewEnrollmentProfileConfigReceiver) Run(config *fleet.OrbitConfig) error {
@@ -66,8 +68,16 @@ func (h *renewEnrollmentProfileConfigReceiver) Run(config *fleet.OrbitConfig) er
 			// enrolled (after the user's manual steps, and osquery reporting the
 			// updated mdm enrollment).
 			// See https://github.com/fleetdm/fleet/pull/9409#discussion_r1084382455
-
-			if time.Since(h.lastRun) > h.Frequency {
+			var migrationInProgress bool
+			if h.mrw != nil {
+				exists, err := h.mrw.FileExists()
+				if err != nil {
+					// just log it, we should still attempt to renew profiles
+					log.Error().Err(err).Msg("checking if migration in progress")
+				}
+				migrationInProgress = exists
+			}
+			if time.Since(h.lastRun) > h.Frequency || (migrationInProgress && time.Since(h.lastRun) > 1*time.Minute) {
 				// we perform this check locally on the client too to avoid showing the
 				// dialog if the client is enrolled to an MDM server.
 				enrollFn := h.checkEnrollmentFn
