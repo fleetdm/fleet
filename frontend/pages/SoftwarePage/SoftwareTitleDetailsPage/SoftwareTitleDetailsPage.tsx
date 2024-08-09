@@ -139,15 +139,9 @@ const SoftwareTitleDetailsPage = ({
       isAvailableForInstall;
 
     if (showPackageCard) {
-      const packageCardData = getPackageCardInfo(title);
       return (
         <SoftwarePackageCard
-          softwarePackage={packageCardData.softwarePackage}
-          name={packageCardData.name}
-          version={packageCardData.version}
-          uploadedAt={packageCardData.uploadedAt}
-          status={packageCardData.status}
-          isSelfService={packageCardData.isSelfService}
+          title={title}
           softwareId={softwareId}
           teamId={currentTeamId ?? APP_CONTEXT_NO_TEAM_ID}
           onDelete={onDeleteInstaller}

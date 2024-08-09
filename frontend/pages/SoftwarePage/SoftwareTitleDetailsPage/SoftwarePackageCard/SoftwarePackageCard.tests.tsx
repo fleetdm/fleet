@@ -4,13 +4,24 @@ import { screen, within } from "@testing-library/react";
 import { createCustomRenderer } from "test/test-utils";
 
 import createMockUser from "__mocks__/userMock";
-import { createMockSoftwarePackage } from "__mocks__/softwareMock";
+import {
+  createMockAppStoreApp,
+  createMockSoftwarePackage,
+  createMockSoftwareTitleDetails,
+} from "__mocks__/softwareMock";
 
 import SoftwarePackageCard from "./SoftwarePackageCard";
+import { getPackageCardInfo } from "../helpers";
 
-const softwarePackageMock = createMockSoftwarePackage({
-  self_service: true,
-  labels_include_any: [{ name: "Mock label", id: 20 }],
+const softwareTitleAsPackageMock = createMockSoftwareTitleDetails({
+  software_package: createMockSoftwarePackage({
+    self_service: true,
+    labels_include_any: [{ name: "Mock label", id: 20 }],
+  }),
+});
+
+const softwareTitleAsAppStoreAppMock = createMockSoftwareTitleDetails({
+  app_store_app: createMockAppStoreApp(),
 });
 
 describe("Software package section", () => {
@@ -28,23 +39,21 @@ describe("Software package section", () => {
 
       render(
         <SoftwarePackageCard
-          name={softwarePackageMock.name}
-          version={softwarePackageMock.version}
-          uploadedAt={softwarePackageMock.uploaded_at}
-          status={softwarePackageMock.status}
-          isSelfService={softwarePackageMock.self_service}
+          title={softwareTitleAsPackageMock}
           softwareId={123}
           teamId={1}
           onDelete={noop}
-          softwarePackage={softwarePackageMock}
         />
       );
       expect(
-        screen.getByText(new RegExp(softwarePackageMock.name, "i"))
+        screen.getByText(new RegExp(softwareTitleAsPackageMock.name, "i"))
       ).toBeInTheDocument();
       expect(
         screen.getByText(
-          new RegExp(`Version\\s+${softwarePackageMock.version}\\s+•`, "i")
+          new RegExp(
+            `Version\\s+${softwareTitleAsPackageMock.software_package?.version}\\s+•`,
+            "i"
+          )
         )
       ).toBeInTheDocument();
       expect(screen.getByText("Self-service")).toBeInTheDocument();
@@ -65,15 +74,10 @@ describe("Software package section", () => {
 
       render(
         <SoftwarePackageCard
-          name={softwarePackageMock.name}
-          version={softwarePackageMock.version}
-          uploadedAt={softwarePackageMock.uploaded_at}
-          status={softwarePackageMock.status}
-          isSelfService={softwarePackageMock.self_service}
+          title={softwareTitleAsPackageMock}
           softwareId={123}
           teamId={1}
           onDelete={noop}
-          softwarePackage={softwarePackageMock}
         />
       );
 
@@ -126,11 +130,7 @@ describe("Software package section", () => {
 
       render(
         <SoftwarePackageCard
-          name={softwarePackageMock.name}
-          version={softwarePackageMock.version}
-          uploadedAt={softwarePackageMock.uploaded_at}
-          status={softwarePackageMock.status}
-          isSelfService={softwarePackageMock.self_service}
+          title={softwareTitleAsAppStoreAppMock}
           softwareId={123}
           teamId={1}
           onDelete={noop}
@@ -144,7 +144,7 @@ describe("Software package section", () => {
     });
   });
   describe("shows correct actions in action dropdown", () => {
-    it("show download, options, and delete actiosn for software packages", async () => {
+    it("show download, options, and delete actions for software packages", async () => {
       const render = createCustomRenderer({
         context: {
           app: {
@@ -157,15 +157,10 @@ describe("Software package section", () => {
 
       const { user } = render(
         <SoftwarePackageCard
-          name={softwarePackageMock.name}
-          version={softwarePackageMock.version}
-          uploadedAt={softwarePackageMock.uploaded_at}
-          status={softwarePackageMock.status}
-          isSelfService={softwarePackageMock.self_service}
+          title={softwareTitleAsPackageMock}
           softwareId={123}
           teamId={1}
           onDelete={noop}
-          softwarePackage={softwarePackageMock}
         />
       );
 
@@ -188,11 +183,7 @@ describe("Software package section", () => {
 
       const { user } = render(
         <SoftwarePackageCard
-          name={softwarePackageMock.name}
-          version={softwarePackageMock.version}
-          uploadedAt={softwarePackageMock.uploaded_at}
-          status={softwarePackageMock.status}
-          isSelfService={softwarePackageMock.self_service}
+          title={softwareTitleAsAppStoreAppMock}
           softwareId={123}
           teamId={1}
           onDelete={noop}

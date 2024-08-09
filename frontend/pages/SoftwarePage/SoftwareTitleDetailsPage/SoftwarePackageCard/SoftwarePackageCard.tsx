@@ -11,7 +11,7 @@ import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
 import {
   SoftwareInstallStatus,
-  ISoftwarePackage,
+  ISoftwareTitleDetails,
   ISoftwarePackageStatus,
   IAppStoreAppStatus,
 } from "interfaces/software";
@@ -33,6 +33,7 @@ import TooltipWrapper from "components/TooltipWrapper";
 import Icon from "components/Icon";
 
 import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
+import { getPackageCardInfo } from "../helpers";
 
 import DeleteSoftwareModal from "../DeleteSoftwareModal";
 import PackageOptionsModal from "../PackageOptionsModal";
@@ -246,15 +247,9 @@ const ActionsDropdown = ({
 };
 
 interface ISoftwarePackageCardProps {
-  name: string;
-  version: string;
-  uploadedAt: string; // TODO: optional?
-  status: ISoftwarePackageStatus | IAppStoreAppStatus;
-  isSelfService: boolean;
+  title: ISoftwareTitleDetails;
   softwareId: number;
   teamId: number;
-  // NOTE: we will only have this if we are working with a software package.
-  softwarePackage?: ISoftwarePackage;
   onDelete: () => void;
 }
 
@@ -262,16 +257,20 @@ interface ISoftwarePackageCardProps {
 // (ISoftwarePackage) or an app store app (IAppStoreApp). If we add more types
 // of packages we should consider refactoring this to be more dynamic.
 const SoftwarePackageCard = ({
-  name,
-  version,
-  uploadedAt,
-  status,
-  isSelfService,
-  softwarePackage,
+  title,
   softwareId,
   teamId,
   onDelete,
 }: ISoftwarePackageCardProps) => {
+  const {
+    name,
+    version,
+    uploadedAt,
+    softwarePackage,
+    isSelfService,
+    status,
+  } = getPackageCardInfo(title);
+
   const {
     isGlobalAdmin,
     isGlobalMaintainer,
