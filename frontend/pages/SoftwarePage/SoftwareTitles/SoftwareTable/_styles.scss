@@ -25,9 +25,14 @@
     gap: $pad-medium;
   }
 
-  // Fix dropdown form bug
-  &__version-slider {
-    width: 210px;
+  &__filters {
+    .button {
+      padding-right: 0;
+
+      .children-wrapper {
+        gap: $pad-small;
+      }
+    }
   }
 
   .table-container {
@@ -45,6 +50,9 @@
       .controls {
         .form-field--dropdown {
           margin: 0;
+        }
+        .form-field {
+          width: initial; // Fix styling bugs of slider having form-field class on it
         }
       }
     }

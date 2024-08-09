@@ -29,6 +29,8 @@ import CustomLink from "components/CustomLink";
 import LastUpdatedText from "components/LastUpdatedText";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
 import TableCount from "components/TableContainer/TableCount";
+import Button from "components/buttons/Button";
+import Icon from "components/Icon";
 
 import EmptySoftwareTable from "pages/SoftwarePage/components/EmptySoftwareTable";
 
@@ -275,8 +277,8 @@ const SoftwareTable = ({
     );
   };
 
-  const renderCustomFilters = () => {
-    // Hide filters if no software is detected with no filters present
+  const renderCustomControls = () => {
+    // Hide controls if no software is detected with no filters present
     if (
       query === "" &&
       !showVersions &&
@@ -291,23 +293,42 @@ const SoftwareTable = ({
 
     return (
       <div className={`${baseClass}__filter-controls`}>
-        <div className={`${baseClass}__version-slider`}>
-          {/* div required dropdown form field width bug */}
-          <Slider
-            value={showVersions}
-            onChange={handleShowVersionsToggle}
-            inactiveText="Show versions"
-            activeText="Show versions"
+        {!showVersions && ( // Hidden when viewing versions table
+          <Dropdown
+            value={softwareFilter}
+            className={`${baseClass}__vuln_dropdown`}
+            options={options}
+            searchable={false}
+            onChange={handleCustomFilterDropdownChange}
+            tableFilterDropdown
           />
-        </div>
-        <Dropdown
-          value={softwareFilter}
-          className={`${baseClass}__vuln_dropdown`}
-          options={options}
-          searchable={false}
-          onChange={handleCustomFilterDropdownChange}
-          tableFilterDropdown
+        )}
+        <Slider
+          value={showVersions}
+          onChange={handleShowVersionsToggle}
+          inactiveText="Show versions"
+          activeText="Show versions"
         />
+      </div>
+    );
+  };
+
+  const renderCustomFilters = () => {
+    // Hide filters if no software is detected with no filters present
+    if (
+      query === "" &&
+      !showVersions &&
+      softwareFilter === "allSoftware" &&
+      data?.count === 0
+    )
+      return <></>;
+
+    return (
+      <div className={`${baseClass}__filters`}>
+        <Button variant="text-link">
+          <Icon name="filter" color="core-fleet-blue" />
+          <span>Add filter</span>
+        </Button>
       </div>
     );
   };
@@ -351,13 +372,14 @@ const SoftwareTable = ({
         isAllPagesSelected={false}
         disableNextPage={!data?.meta.has_next_results}
         searchable={searchable}
-        inputPlaceHolder="Search by name or vulnerabilities (CVEs)"
+        inputPlaceHolder="Search by name or vulnerability (CVE)"
         onQueryChange={onQueryChange}
         // additionalQueries serves as a trigger for the useDeepEffect hook
         // to fire onQueryChange for events happeing outside of
         // the TableContainer.
         // additionalQueries={softwareFilter}
-        customControl={searchable ? renderCustomFilters : undefined}
+        customControl={searchable ? renderCustomControls : undefined}
+        customFilters={searchable ? renderCustomFilters : undefined}
         stackControls
         renderCount={renderSoftwareCount}
         renderFooter={renderTableFooter}

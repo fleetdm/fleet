@@ -81,6 +81,7 @@ interface ITableContainerProps<T = any> {
     | ((queryData: ITableQueryData) => void)
     | ((queryData: ITableQueryData) => number);
   customControl?: () => JSX.Element;
+  customFilters?: () => JSX.Element;
   stackControls?: boolean;
   onSelectSingleRow?: (value: Row | IRowProps) => void;
   /** This is called when you click on a row. This was added as `onSelectSingleRow`
@@ -144,6 +145,7 @@ const TableContainer = <T,>({
   searchQueryColumn,
   onQueryChange,
   customControl,
+  customFilters,
   stackControls,
   onSelectSingleRow,
   onClickRow,
@@ -349,6 +351,7 @@ const TableContainer = <T,>({
               </ReactTooltip>
             </div>
           )}
+          {customFilters && customFilters()}
         </div>
       )}
       <div className={`${baseClass}__data-table-block`}>
