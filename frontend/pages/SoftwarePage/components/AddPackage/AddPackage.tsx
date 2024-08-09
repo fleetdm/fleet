@@ -1,14 +1,17 @@
 import React, { useContext, useEffect, useState } from "react";
 import { InjectedRouter } from "react-router";
-// import { useQuery } from "react-query";
+import { useQuery } from "react-query";
 
-// import { ILabel } from "interfaces/label";
+import { ILabel } from "interfaces/label";
 
 import PATHS from "router/paths";
 import { NotificationContext } from "context/notification";
 import softwareAPI from "services/entities/software";
-// import labelsAPI, { ILabelsResponse } from "services/entities/labels";
+import labelsAPI, { ILabelsResponse } from "services/entities/labels";
 import { QueryParams, buildQueryStringFromParams } from "utilities/url";
+
+import Spinner from "components/Spinner";
+import DataError from "components/DataError";
 
 import AddPackageForm from "../AddPackageForm";
 import { IAddSoftwareFormData } from "../AddPackageForm/AddSoftwareForm";
@@ -109,18 +112,31 @@ const AddPackage = ({
     setIsUploading(false);
   };
 
-  // const {
-  //   data: customLabels,
-  //   isLoading: isLoadingLabels,
-  //   refetch: refetchLabels,
-  // } = useQuery<ILabelsResponse, Error, ILabel[]>(
-  //   ["labels"],
-  //   () => labelsAPI.loadAll(),
-  //   {
-  //     select: (data: ILabelsResponse) =>
-  //       data.labels.filter((label) => label.type === "regular"),
-  //   }
-  // );
+  const {
+    data: customLabels,
+    isLoading: isLoadingLabels,
+    isError: errorLabels,
+    refetch: refetchLabels,
+  } = useQuery<ILabelsResponse, Error, ILabel[]>(
+    ["labels"],
+    () => labelsAPI.loadAll(),
+    {
+      select: (data: ILabelsResponse) =>
+        data.labels.filter((label) => label.label_type === "regular"),
+    }
+  );
+
+  if (isLoadingLabels) {
+    return <Spinner />;
+  }
+  if (errorLabels) {
+    return (
+      <DataError
+        description="Close this modal and try again."
+        className={`${baseClass}__error`}
+      />
+    );
+  }
 
   return (
     <div className={baseClass}>

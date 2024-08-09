@@ -217,7 +217,12 @@ const AppStoreVpp = ({
     }
 
     if (errorVppInfo || errorVppApps) {
-      return <DataError className={`${baseClass}__error`} />;
+      return (
+        <DataError
+          description="Close this modal and try again."
+          className={`${baseClass}__error`}
+        />
+      );
     }
 
     if (vppApps) {
@@ -236,30 +241,26 @@ const AppStoreVpp = ({
             apps, head to{" "}
             <CustomLink url="https://business.apple.com" text="ABM" newTab />
           </div>
+          <div className="modal-cta-wrap">
+            <Button
+              type="submit"
+              variant="brand"
+              disabled={isSubmitDisabled}
+              onClick={onAddSoftware}
+            >
+              Add software
+            </Button>
+            <Button onClick={onExit} variant="inverse">
+              Cancel
+            </Button>
+          </div>
         </>
       );
     }
     return null;
   };
 
-  return (
-    <div className={baseClass}>
-      {renderContent()}
-      <div className="modal-cta-wrap">
-        <Button
-          type="submit"
-          variant="brand"
-          disabled={isSubmitDisabled}
-          onClick={onAddSoftware}
-        >
-          Add software
-        </Button>
-        <Button onClick={onExit} variant="inverse">
-          Cancel
-        </Button>
-      </div>
-    </div>
-  );
+  return <div className={baseClass}>{renderContent()}</div>;
 };
 
 export default AppStoreVpp;
