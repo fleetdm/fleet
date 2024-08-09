@@ -8556,7 +8556,6 @@ _Available in Fleet Premium._
 
 Add a software package to install on macOS, Windows, and Linux (Ubuntu) hosts.
 
-
 `POST /api/v1/fleet/software/package`
 
 #### Parameters
@@ -8568,7 +8567,7 @@ Add a software package to install on macOS, Windows, and Linux (Ubuntu) hosts.
 | install_script  | string | form | Command that Fleet runs to install software. If not specified Fleet runs [default install command](https://github.com/fleetdm/fleet/tree/f71a1f183cc6736205510580c8366153ea083a8d/pkg/file/scripts) for each package type. |
 | pre_install_query  | string | form | Query that is pre-install condition. If the query doesn't return any result, Fleet won't proceed to install. |
 | post_install_script | string | form | The contents of the script to run after install. If the specified script fails (exit code non-zero) software install will be marked as failed and rolled back. |
-| install | string | form | Install method. Options are `manual` (use Install software to install on each host manually) and `automatic` installed to each host on the team. Default is `manual` |
+| install_type | string | form | Options are `manual` (install on each host manually via UI or API) and `automatic` (Fleet installs if not installed or an older version is installed.). Default is `manual` |
 | self_service | boolean | form | Self-service software is optional and can be installed by the end user. |
 | labels_include_any | array | form | _Available in Fleet Premium._ Software will only be installed/available for install on hosts that have any of these labels. Only one of either `labels_include_any` or `labels_exclude_any` can be included in the request. |
 | labels_exclude_any | array | form | _Available in Fleet Premium._ Software will only be installed/available for install on hosts that don't have any of these labels. Only one of either `labels_include_any` or `labels_exclude_any` can be included in the request. |
@@ -8939,7 +8938,7 @@ Returns information about the specified software. By default, `versions` are sor
       "installer_id": 23,
       "team_id": 3,
       "uploaded_at": "2024-04-01T14:22:58Z",
-      "install": "automatic"
+      "install_type": "automatic"
       "install_script": "sudo installer -pkg /temp/FalconSensor-6.44.pkg -target /",
       "pre_install_query": "SELECT 1 FROM macos_profiles WHERE uuid='c9f4f0d5-8426-4eb8-b61b-27c543c9d3db';",
       "post_install_script": "sudo /Applications/Falcon.app/Contents/Resources/falconctl license 0123456789ABCDEFGHIJKLMNOPQRSTUV-WX",
