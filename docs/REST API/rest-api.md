@@ -5385,6 +5385,8 @@ If `mdm_id`, `mdm_name`, `mdm_enrollment_status`, `os_settings`, or `os_settings
 
 ### Delete label
 
+<!-- Return the following error if the user attempts to delete a label that's being used as a custom target for software: Software uses this label as a custom target. Please delete the software and try again. -->
+
 Deletes the label specified by name.
 
 `DELETE /api/v1/fleet/labels/:name`
@@ -8645,7 +8647,6 @@ _Available in Fleet Premium._
 
 Add a software package to install on macOS, Windows, and Linux (Ubuntu) hosts.
 
-
 `POST /api/v1/fleet/software/package`
 
 #### Parameters
@@ -8657,7 +8658,11 @@ Add a software package to install on macOS, Windows, and Linux (Ubuntu) hosts.
 | install_script  | string | form | Command that Fleet runs to install software. If not specified Fleet runs [default install command](https://github.com/fleetdm/fleet/tree/f71a1f183cc6736205510580c8366153ea083a8d/pkg/file/scripts) for each package type. |
 | pre_install_query  | string | form | Query that is pre-install condition. If the query doesn't return any result, Fleet won't proceed to install. |
 | post_install_script | string | form | The contents of the script to run after install. If the specified script fails (exit code non-zero) software install will be marked as failed and rolled back. |
+| install_type | string | form | Options are `manual` (install on each host manually via UI or API) and `automatic` (Fleet automatically installs on hosts if not installed or an older version is installed) Default is `manual` |
 | self_service | boolean | form | Self-service software is optional and can be installed by the end user. |
+| labels_include_any | array | form | _Available in Fleet Premium._ Software will only be installed/available for install on hosts that have any of these labels. Only one of either `labels_include_any` or `labels_exclude_any` can be included in the request. |
+| labels_exclude_any | array | form | _Available in Fleet Premium._ Software will only be installed/available for install on hosts that don't have any of these labels. Only one of either `labels_include_any` or `labels_exclude_any` can be included in the request. |
+
 
 #### Example
 
@@ -8676,6 +8681,12 @@ Content-Type: multipart/form-data; boundary=------------------------d8c247122f59
 --------------------------d8c247122f594ba0
 Content-Disposition: form-data; name="team_id"
 1
+--------------------------d8c247122f594ba0
+Content-Disposition: form-data; name="install"
+automatic
+--------------------------d8c247122f594ba0
+Content-Disposition: form-data; name="labels_exclude_all"
+Label name
 --------------------------d8c247122f594ba0
 Content-Disposition: form-data; name="self_service"
 true
@@ -8785,6 +8796,7 @@ Get the results of a software installation.
    "host_display_name": "Marko's MacBook Pro",
    "status": "failed",
    "output": "Installing software...\nError: The operation can’t be completed because the item “Falcon” is in use.",
+   "detail": "The install script finished with exit code 0 but Fleet couldn't extract the version from the FalconSensor-6.44.pkg package.",
    "pre_install_query_output": "Query returned result\nSuccess",
    "post_install_script_output": "Running script...\nExit code: 1 (Failed)\nRolling back software install...\nSuccess"
  }
@@ -9022,13 +9034,26 @@ Returns information about the specified software. By default, `versions` are sor
       "installer_id": 23,
       "team_id": 3,
       "uploaded_at": "2024-04-01T14:22:58Z",
+      "install_type": "automatic"
       "install_script": "sudo installer -pkg /temp/FalconSensor-6.44.pkg -target /",
       "pre_install_query": "SELECT 1 FROM macos_profiles WHERE uuid='c9f4f0d5-8426-4eb8-b61b-27c543c9d3db';",
       "post_install_script": "sudo /Applications/Falcon.app/Contents/Resources/falconctl license 0123456789ABCDEFGHIJKLMNOPQRSTUV-WX",
       "self_service": true,
+      "labels_exclude_any": [
+        {
+          "name": "Label name 1",
+          "id": 1
+        },
+        {
+          "name": "Label name 2",
+          "id": 2
+        }
+      ],
       "status": {
-        "installed": 3,
+        "verified": 5,
+        "verifying": 3,
         "pending": 1,
+        "blocked": 1,
         "failed": 2,
       }
     },
