@@ -20,16 +20,12 @@ At Fleet, [anyone can contribute](https://fleetdm.com/handbook/company#openness)
 
 ## Current product groups
 
-| Product group             | Goal _(value for customers and/or community)_                       | Capacity\* |
-|:--------------------------|:--------------------------------------------------------------------|:-----------------|
-| [Endpoint ops](#endpoint-ops-group)                     | Increase and exceed maturity in the "Endpoint operations" category.             | 130       |
-| [MDM](#mdm-group)                                       | Reach maturity in the "MDM" product category.           | 156       |
+| Product group                            | Goal _(value for customers and/or community)_                         | Capacity\*   |
+|:-----------------------------------------|:----------------------------------------------------------------------|:-------------|
+| [Endpoint ops](#endpoint-ops-group)      | Increase and exceed maturity in the "Endpoint operations" category.   | 130          |
+| [MDM](#mdm-group)                        | Reach maturity in the "MDM" product category.                         | 156          |
 
-\* The number of estimated story points this group can take on per-sprint under ideal circumstances, used as a baseline number for planning and prioritizing user stories for drafting. In reality, capacity will vary as engineers are on-call, out-of-office, filling in for other product groups, etc.
-
-> _**What happened to "CX"?**  The customer experience (CX) group at Fleet is now [`#g-endpoint-ops`](#endpoint-ops-group)._
->
-> _Why?  Making users and customers happier and more successful is the goal of _every_ product group.  This includes simpler usage, lovable design + help text + error messages, fixed bugs, responding quickly to incidents, using Fleet's brand standards, more successful customer onboarding, features that drive more win-win meetings with contributors and Fleet's sales team, and "whole product solutions", including professional services, design partnerships, and training._
+\* The number of [estimated story points](https://fleetdm.com/handbook/company/communications#estimation-points) this group can take on per-sprint under ideal circumstances, used as a baseline number for planning and prioritizing user stories for drafting. In reality, capacity will vary as engineers are on-call, out-of-office, filling in for other product groups, etc.
 
 ### Endpoint ops group
 The goal of the endpoint ops group is to increase and exceed [Fleet's product maturity goals in the endpoint operations category](https://drive.google.com/file/d/11yQ_2WG7TbRErUpMBKWu_hQ5wRIZyQhr/view?usp=sharing).
@@ -76,16 +72,25 @@ Occasionally, changes are unplanned.  Like a patch for an unexpected bug, or a h
 
 > But wait, [isn't this "waterfall"?](https://about.gitlab.com/handbook/product-development-flow/#but-wait-isnt-this-waterfall) Waterfall is something else.  Between 2015-2023, GitLab and The Sails Company independently developed and coevolved similar delivery processes.  (What we call "drafting" and "implementation" at Fleet, is called "the validation phase" and "the build phase" at GitLab.)
 
+### Experimental features
+When a new feature is introduced it may be labeled as experimental. Experimental features are undergoing a rapid [incremental improvement and iteration process](https://fleetdm.com/handbook/company/why-this-way#why-lean-software-development) where new learnings may requires breaking changes. When we introduce experimental features, it is important that any API endpoints or configuration surface that may change in the future be clearly labeled as experimental.
+
+1. Apply the `~experimental` label to all associated user stories.
+2. Set the optional `isExperimental` property to "yes" in [pricing-features-table.yml](https://github.com/fleetdm/fleet/blob/main/handbook/company/pricing-features-table.yml).
+3. Make sure all API endpoints and configuration surface documentation includes the following message:
+
+> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+
 ### Breaking changes
-For product changes that cause breaking API or configuration changes or major impact for users (or even just the _impression_ of major impact!), the company plans migration thoughtfully.  That means the product department and E-group:
+For product changes that cause breaking API or configuration changes or major impact for users (or even just the _impression_ of major impact!), the company plans migration thoughtfully. If the feature was released as stable (not experimental), the product group and E-group:
 
-1. **Written:** Write a migration guide, even if that's just a Google Doc
-2. **Tested:** Test out the migration ourselves, first-hand, as an engineer.
-3. **Gamed out:** We pretend we are one or two key customers and try it out as a role play.
-4. **Adapt:** If it becomes clear that the plan is insufficient, then fix it.
-5. **Communicate:** Develop a plan for how to proactively communicate the change to customers.
+1. **Written:** Write a migration guide.
+2. **Tested:** Test the migration thoroughly as engineers.
+3. **Gamed out:** Pretend we are one or two key customers and try it out as a role play.
+4. **Adapt:** If it becomes clear that the plan is insufficient, fix it.
+5. **Communicate:** Create a plan for how to proactively communicate the change to customers.
 
-That all happens prior to work getting prioritized for the change.
+All of the steps above happen prior to any breaking changes to stable features being prioritized for implementation.
 
 #### API changes
 To maintain consistency, ensure perspective, and provide a single pair of eyes in the design of Fleet's REST API and API documentation, there is a single Directly Responsible Individual (DRI). The API design DRI will review and approve any alterations at the pull request stage, instead of making it a prerequisite during drafting of the story. You may tag the DRI in a GitHub issue with draft API specs in place to receive a review and feedback prior to implementation. Receiving a pre-review from the DRI is encouraged if the API changes introduce new endpoints, or substantially change existing endpoints.
@@ -108,7 +113,7 @@ cd website
 ### Drafting
 "Drafting" is the art of defining a change, designing and shepherding it through the drafting process until it is ready for implementation.
 
-The goal of drafting is to deliver software that works every time with less total effort and investment, without making contribution any less fun.  By researching and iterating [prior to development](https://fleetdm.com/handbook/company/why-this-way#why-do-we-use-a-wireframe-first-approach), we design better product features, crystallize fewer bad, preemptive naming decisions, and achieve better throughput: getting more done in less time. 
+The goal of drafting is to deliver software that works every time with less total effort and investment, without making contribution any less fun.  By researching and iterating [prior to development](https://fleetdm.com/handbook/company/why-this-way#why-do-we-use-a-wireframe-first-approach), we design better product features, crystallize fewer bad, preemptive naming decisions, and achieve better throughput: getting more done in less time.
 
 > Fleet's drafting process is focused first and foremost on product development, but it can be used for any kind of change that benefits from planning or a "dry run".  For example, imagine you work for a business who has decided to swap out one of your payroll or device management vendors.  You will probably need to plan and execute changes to a number of complicated onboarding/offboarding processes.
 
@@ -128,7 +133,7 @@ A user story is considered ready for implementation once:
 #### Writing a good user story
 Good user stories are short, with clear, unambiguous language.
 - What screen are they looking at?  (`As an observer on the host details page…`)
-- What do they want to do? (`As an observer on the host details page, I want to run a permitted query.`) 
+- What do they want to do? (`As an observer on the host details page, I want to run a permitted query.`)
 - Don't get hung up on the "so that I can ________" clause.  It is helpful, but optional.
 - Example: "As an admin I would like to be asked for confirmation before deleting a user so that I do not accidentally delete a user."
 
@@ -177,13 +182,15 @@ Here are some examples of questions that might be helpful to answer:
 These questions are helpful for the product team when considering what to prioritize.  (The act of writing the answers is a lot of the value!)  But these answers can also be helpful when users or contributors (including our future selves) have questions about how best to estimate, iterate, or refine.
 
 #### Initiate an air guitar session
-Anyone in the product group can initiate an air guitar session.   
+Anyone in the product group can initiate an air guitar session.
 
 1. Initiate: Create a user story and add the `~air-guitar` label to indicate that it is going through the air guitar process. Air guitar issues are always intended to be designed right away. If they can't be, the requestor is notified via at-mention in the issue (that person is either the CSM or AE).
 
+> An air guitar session may be used to design features that won't be delivered in the next 6 weeks.
+
 2. Prioritize: Bring the user story to [feature fest](https://fleetdm.com/handbook/product#rituals). If the user story is prioritized, proceed through the regular steps of specifying and designing as outlined in the drafting process. However, keep in mind that these are conceptual and may or may not proceed to engineering.
 
-> An air guitar session may be needed before the next feature fest. In this case, the product group PM will prioritize the user story. 
+> An air guitar session may be needed before the next feature fest. In this case, the product group PM will prioritize the user story.
 
 3. Review: Conduct an air guitar meeting where the idea or feature is discussed. Involve roles like the product manager, designer, and a sampling of engineers to provide various perspectives.
 
@@ -280,7 +287,7 @@ If the bug finder is not a Fleetie (e.g., a member of the community), then whoev
 
 Once raised, product design confirms whether or not it's critical and defines expected behavior. When outside of working hours for the product design team or if no one from product design responds within 1 hour, then fall back to the #help-p1 channel.
 
-Once the critical bug is confirmed, a [priority label](https://fleetdm.com/handbook/company/product-groups#high-priority-user-stories-and-bugs) is applied and the priority response process begins. Customer Success notifies impacted customers and the community if community features are impacted. If Customer Success is not available, the on-call engineer or infrastructure on-call engineer is responsible for this. If a quick fix workaround exists, that should be communicated as well for those who are already upgraded.
+Once the critical bug is confirmed, a [priority label](https://fleetdm.com/handbook/company/communications#high-priority-user-stories-and-bugs) is applied and the priority response process begins. Customer Success notifies impacted customers and the community if community features are impacted. If Customer Success is not available, the on-call engineer or infrastructure on-call engineer is responsible for this. If a quick fix workaround exists, that should be communicated as well for those who are already upgraded.
 
 The relevant release page on GitHub is updated to indicate that the release contains a critical bug, as shown on the [fleet-v4.45.0 release page](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.45.0).
 
@@ -289,10 +296,10 @@ When a critical bug is identified, we will then follow the patch release process
 > After a critical bug is fixed, [an incident postmortem](https://fleetdm.com/handbook/engineering#preform-an-incident-postmortem) is scheduled by the EM of the product group that fixed the bug.
 
 ## Feature fest
-To stay in-sync with our customers' needs, Fleet accepts feature requests from customers and community members on a sprint-by-sprint basis in the regular 🎁🗣 Feature Fest meeting. Anyone in the company is invited to submit requests or simply listen in on the 🎁🗣 Feature Fest meeting. Folks from the wider community can also [request an invite](https://fleetdm.com/contact). 
+To stay in-sync with our customers' needs, Fleet accepts feature requests from customers and community members on a sprint-by-sprint basis in the regular 🎁🗣 Feature Fest meeting. Anyone in the company is invited to submit requests or simply listen in on the 🎁🗣 Feature Fest meeting. Folks from the wider community can also [request an invite](https://fleetdm.com/contact).
 
 ### Making a request
-To make a feature request or advocate for a feature request from a customer or community member, [create an issue](https://github.com/fleetdm/fleet/issues/new/choose) using the feature request template and attend the next scheduled 🎁🗣 Feature Fest meeting. 
+To make a feature request or advocate for a feature request from a customer or community member, [create an issue](https://github.com/fleetdm/fleet/issues/new/choose) using the feature request template and attend the next scheduled 🎁🗣 Feature Fest meeting.
 
 Requests are weighed from top to bottom while prioritizing attendee requests. This means that if the individual that added a feature request is not in attendance, the feature request will be discussed towards the end of the call if there's time.
 
@@ -303,7 +310,7 @@ Before the **🎁🗣 Feature Fest** meeting, the [Customer renewals DRI](https:
 
 All community and contributor requests (non-customer) are left in the inbox. A high priority customer request may be a request that's blocking a customer from getting their job done or a request that's critical for customer renewal.
 
-Before the meeting, the Feature prioritization DRI adds requests from Fleet's roadmap that are planned for the next design sprint. The quarterly roadmap is in the [OKRs spreadsheet](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit?gid=0#gid=0).
+Before the meeting, the Feature prioritization DRI adds requests from Fleet's roadmap that are planned for the next design sprint. The quarterly roadmap is in the [OKRs spreadsheet](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit?gid=1846478041#gid=1846478041&range=393:419).
 
 At the **🎁🗣 Feature Fest** meeting, the Feature prioritization DRI weighs all requests in the inbox. When the team weighs a request, it is immediately prioritized or put to the side (not prioritized).
 
@@ -324,10 +331,10 @@ After the 🎁🗣 Feature Fest meeting, the Feature prioritization DRI  will cl
 **Prioritized features:** Remove `feature fest` label, add `:product` label, and move the issue to the "Ready" column in the drafting board. The request will then be assigned to a [Product Designer](https://fleetdm.com/handbook/company/product-groups#current-product-groups) during the "Design sprint kick-off" ritual.
 **Put to the side features:** Remove `feature fest` label and notify the requestor.
 
-> The product team's commitment to the requester is that a prioritized feature will be delivered within 6 weeks or the requester will be notified within 1 business day of the decision to de-prioritize the feature. 
+> The product team's commitment to the requester is that a prioritized feature will be delivered within 6 weeks or the requester will be notified within 1 business day of the decision to de-prioritize the feature.
 
 Potential reasons for why a feature may be de-prioritized include:
-- The work was not designed in time. Since Fleet's engineering sprints are 3 weeks each, this means that a prioritized feature has 3 weeks to be designed, approved, and estimated in order to make it to the engineering sprint. At the prioritization meeting, the perceived design complexity of proposed features will inevitably be different from the actual complexity. 
+- The work was not designed in time. Since Fleet's engineering sprints are 3 weeks each, this means that a prioritized feature has 3 weeks to be designed, approved, and estimated in order to make it to the engineering sprint. At the prioritization meeting, the perceived design complexity of proposed features will inevitably be different from the actual complexity.
   - This may be because other higher-priority design work took longer than expected or the work itself was more complex than expected
 - The was designed but was not selected for the sprint. When a new sprint starts, it is populated with bugs, features, and technical tasks. Depending on the size and quantity of non-feature work, certain features may not be selected for the sprint.
 
@@ -375,12 +382,12 @@ Once reproduced, QA documents the reproduction steps in the description and move
 #### Reproduced
 QA has reproduced the issue successfully. It should now be transferred to engineering.
 
-Remove the “reproduce” label, add the following labels: 
+Remove the “reproduce” label, add the following labels:
 
 1. The relevant product group (e.g. `#g-endpoint-ops`, `#g-mdm`, `#g-digital-experience`).
 3. The `~released bug` label if the bug is in a published version of Fleet, or `~unreleased bug` if it is not yet published.
-2. The `:incoming` label indicates to the EM that it is a new bug. 
-3. The `:release` label will place the bug on the team's release board. 
+2. The `:incoming` label indicates to the EM that it is a new bug.
+3. The `:release` label will place the bug on the team's release board.
 
 Once the bug is properly labeled, assign it to the [relevant engineering manager](https://fleetdm.com/handbook/company/product-groups#current-product-groups). (Make your best guess as to which team. The EM will re-assign if they think it belongs to another team.) [See on GitHub](https://github.com/fleetdm/fleet/issues?q=archived%3Afalse+org%3Afleetdm+is%3Aissue+is%3Aopen+label%3Abug+label%3A%3Aproduct%2C%3Arelease+-label%3A%3Areproduce+sort%3Aupdated-asc+).
 
@@ -389,10 +396,10 @@ Once the bug is properly labeled, assign it to the [relevant engineering manager
 #### In product drafting (as needed)
 If a bug requires input from product the `:product` label is added, the `:release` label is removed, and the PM is assigned to the issue. It will stay in this state until product closes the bug, or removes the `:product` label and assigns to an EM.
 
-#### In engineering 
+#### In engineering
 A bug is in engineering after it has been reproduced and assigned to an EM. If a bug meets the criteria for a [critical bug](https://fleetdm.com/handbook/engineering#critical-bugs), the `~critical bug` label is added, and the EM follows the [critical bug notification process](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/Releasing-Fleet.md#critical-bug-notification-process).
 
-During daily standup, the EM will filter the board to only `:incoming` bugs and review with the team. The EM will remove the `:incoming` label, prioritize the bug in the "Ready" coulmn, unassign themselves, and assign an engineer or leave it unassigned for the first available engineer.  
+During daily standup, the EM will filter the board to only `:incoming` bugs and review with the team. The EM will remove the `:incoming` label, prioritize the bug in the "Ready" coulmn, unassign themselves, and assign an engineer or leave it unassigned for the first available engineer.
 
 When fixing the bug, if the proposed solution requires changes that would affect the user experience (UI, API, or CLI), notify the EM and PM to align on the acceptability of the change.
 
@@ -406,32 +413,10 @@ For Endpoint ops support on MDM bugs:
 - Remove the `#g-mdm` label and add `#g-endpoint-ops` label.
 - Add `~assisting g-mdm` to clarify the bug’s origin.
 
-Fleet [always prioritizes bugs](https://fleetdm.com/handbook/product#prioritizing-improvements). 
+Fleet [always prioritizes bugs](https://fleetdm.com/handbook/product#prioritizing-improvements).
 
 #### Awaiting QA
 Bugs will be verified as fixed by QA when they are placed in the "Awaiting QA" column of the relevant product group's sprint board. If the bug is verified as fixed, it is moved to the "Ready for release" column of the sprint board. Otherwise, the remaining issues are noted in a comment, and it is moved back to the "In progress" column of the sprint board.
-
-## High priority user stories and bugs
-All issues are treated as standard priority by default. Some issues are assigned a priority label to indicate the level of urgency.
-
-- Emergency: `P0`
-  - Examples: Customer outage, confirmed security vulnerability ([critical bug](https://fleetdm.com/handbook/company/product-groups#release-testing)), a new feature is needed to address an immediate Fleet emergency.
-  - Response: Immediately stop other work to swarm the issue. Work 24/7 in shifts until resolved.
-  - Impact: Significant impact. May void current sprint.
-
-- Critical: `P1`
-  - Examples: A supported workflow is broken ([critical bug](https://fleetdm.com/handbook/company/product-groups#release-testing)), a potential security vulnerability, a new feature is required to address an immediate critical Fleet need.
-  - Response: Issue brought to next standup for estimation and immediately brought into the sprint. Necessary team members are assigned as their top priority.
-  - Impact: High impact. Does not void sprint, but reduces overall velocity and requires deprioritizing other work.
-
-- Urgent: `P2`
-  - Examples: A supported workflow is not functioning as intended, a newly drafted feature has an associated urgent Fleet need.
-  - Response: Issue is prioritized at the top of the next sprint. If opporunity cost of waiting for the next sprint is too high, it may be considered for current sprint.
-  - Impact: Low to medium impact. If prioritized into current sprint, may reduce overall velocity and require deprioritizing other work.
-
-Add as much context as possible to the issue description and assign labels to help the team understand the problem and what is driving the urgency. All issues with a `P0`, `P1`, or `P2` label should be assigned to the [DRI for what goes in a release](https://fleetdm.com/handbook/company/communications#directly-responsible-individuals-dris). For immediate action, follow up on Slack or by phone.
-
-Once the release DRI is aware of the issue, they will adjust the labels as needed and assign to the PM and EM of the appropriate product group. If they disagree with the priority label applied to the issue, they will contact the requestor to discuss further.
 
 ## How to reach the developer on-call
 Oncall engineers do not need to actively monitor Slack channels, except when called in by the Community or Customer teams. Members of those teams are instructed to `@oncall` in `#help-engineering` to get the attention of the on-call engineer to continue discussing any issues that come up. In some cases, the Community or Customer representative will continue to communicate with the requestor. In others, the on-call engineer will communicate directly (team members should use their judgment and discuss on a case-by-case basis how to best communicate with community members and customers).
@@ -441,7 +426,7 @@ See [the internal Google Doc](https://docs.google.com/document/d/1FNQdu23wc1S9Yo
 
 Fleet team members can also subscribe to the [shared calendar](https://calendar.google.com/calendar/u/0?cid=Y181MzVkYThiNzMxMGQwN2QzOWEwMzU0MWRkYzc5ZmVhYjk4MmU0NzQ1ZTFjNzkzNmIwMTAxOTllOWRmOTUxZWJhQGdyb3VwLmNhbGVuZGFyLmdvb2dsZS5jb20) for calendar events.
 
-New developers are added to the on-call rotation by their manager after they have completed onboarding and at least one full release cycle. We aim to alternate the rotation between product groups when possible. 
+New developers are added to the on-call rotation by their manager after they have completed onboarding and at least one full release cycle. We aim to alternate the rotation between product groups when possible.
 
 > The on-call rotation may be adjusted with approval from the EMs of any product groups affected. Any changes should be made before the start of the sprint so that capacity can be planned accordingly.
 
@@ -449,7 +434,7 @@ New developers are added to the on-call rotation by their manager after they hav
 - **Second-line response**
 The on-call developer is a second-line responder to questions raised by customers and community members.
 
-The on-call developer is responsible for the first response to community pull requests. 
+The on-call developer is responsible for the first response to community pull requests.
 
 Customer Support Engineers are responsible for the first response to Slack messages in the [#fleet channel](https://osquery.slack.com/archives/C01DXJL16D8) of osquery Slack, and other public Slacks. The Customer Success group is responsible for the first response to messages in private customer Slack channels.
 
@@ -490,16 +475,9 @@ The on-call developer changes each week on Wednesday.
 
 A Slack reminder should notify the on-call of the handoff. Please do the following:
 
-1. The new on-call developer should change the `@oncall` alias in Slack to point to them. In the
-   search box, type "people" and select "People & user groups." Switch to the "User groups" tab.
-   Click `@oncall`. In the right sidebar, click "Edit Members." Remove the former on-call, and add
-   yourself.
+1. The new on-call developer should change the `@oncall` alias in Slack to point to them. In the search box, type "people" and select "People & user groups." Switch to the "User groups" tab. Click `@oncall`. In the right sidebar, click "Edit Members." Remove the former on-call, and add yourself.
 
-2. Hand off newer conversations (Slack threads, issues, PRs, etc.). For more recent threads, the former on-call can unsubscribe from the thread, and the new on-call should subscribe. The former on-call should explicitly share each of
-   these threads and the new on-call can select "Get notified about new replies" in the "..." menu.
-   The former on-call can select "Turn off notifications for replies" in that same menu. It can be
-   helpful for the former on-call to remain available for any conversations they were deeply involved
-   in, so use your judgment on which threads to hand off. Anything not clearly handed off remains the responsibility of the former on-call developer.
+2. Hand off newer conversations (Slack threads, issues, PRs, etc.). For more recent threads, the former on-call can unsubscribe from the thread, and the new on-call should subscribe. The former on-call should explicitly share each of these threads and the new on-call can select "Get notified about new replies" in the "..." menu. The former on-call can select "Turn off notifications for replies" in that same menu. It can be helpful for the former on-call to remain available for any conversations they were deeply involved in, so use your judgment on which threads to hand off. Anything not clearly handed off remains the responsibility of the former on-call developer.
 
 In the Slack reminder thread, the on-call developer includes their retrospective. Please answer the following:
 
@@ -509,7 +487,7 @@ In the Slack reminder thread, the on-call developer includes their retrospective
 
 3. How did you spend the rest of your on-call week? This is a chance to demo or share what you learned.
 
-## Wireframes 
+## Wireframes
 - Showing these principles and ideas, to help remember the pros and cons and conceptualize the above visually.
 - Figma: [⚗️ Fleet product project](https://www.figma.com/files/project/17318630/%E2%9A%97%EF%B8%8F-Fleet-product?fuid=1234929285759903870)
 
@@ -539,7 +517,7 @@ When including an external link, specify a [redirect on fleetdm.com](https://git
 
 **Tooltips**
 
-All tooltips change the cursor to a question mark on hover. All tooltips have a solid background color. 
+All tooltips change the cursor to a question mark on hover. All tooltips have a solid background color.
 
 There are two types of tooltips. The two types of tooltips have some unique styles:
 
@@ -578,8 +556,8 @@ When writing copy for CLI help pages use the following descriptions:
 $ fleetctl <command with --hosts/--host flag> -h
 
 OPTIONS
---hosts     Hosts specified by hostname, uuid, osquery_host_id or node_key that you want to target.     
---host      Host specified by hostname, uuid, osquery_host_id or node_key that you want to target.     
+--hosts     Hosts specified by hostname, uuid, osquery_host_id or node_key that you want to target.
+--host      Host specified by hostname, uuid, osquery_host_id or node_key that you want to target.
 ```
 
 ## Meetings
@@ -605,7 +583,7 @@ All participants are expected to review the user story and associated designs an
 - Product Quality Specialist: Testing plan
 
 ### Design consultation
-Design consultations are scheduled as needed with the relevant participants, typically product designers and frontend engineers. It is an opportunity to collaborate and discuss design, implementation, and story requirements. The meeting is scheduled as needed by the product designer or frontend engineer when a user story is in the "Prioritized" column on the [drafting board](https://app.zenhub.com/workspaces/-drafting-ships-in-6-weeks-6192dd66ea2562000faea25c/board). 
+Design consultations are scheduled as needed with the relevant participants, typically product designers and frontend engineers. It is an opportunity to collaborate and discuss design, implementation, and story requirements. The meeting is scheduled as needed by the product designer or frontend engineer when a user story is in the "Prioritized" column on the [drafting board](https://app.zenhub.com/workspaces/-drafting-ships-in-6-weeks-6192dd66ea2562000faea25c/board).
 
 **Participants:**
 - Product Designer
@@ -614,7 +592,7 @@ Design consultations are scheduled as needed with the relevant participants, typ
 **Sample agenda**
 - Review user story requirements
 - Review wireframes
-- Discuss design input 
+- Discuss design input
 - Discuss implementation details
 
 ### Design reviews
@@ -669,13 +647,13 @@ This meeting is to disseminate engineering-wide announcements, promote cohesion 
 - Speak up and have short toes.  Write things down to make them complete. [🟣](https://fleetdm.com/handbook/company#openness)
 
 ## Product design conventions
-Behind every [wireframe at Fleet](https://fleetdm.com/handbook/company/why-this-way#why-do-we-use-a-wireframe-first-approach), there are 3 foundational design principles:  
+Behind every [wireframe at Fleet](https://fleetdm.com/handbook/company/why-this-way#why-do-we-use-a-wireframe-first-approach), there are 3 foundational design principles:
 
 - **Use-case first.** Taking advantage of top-level features vs. per-platform options allows us to take advantage of similarities and avoid having two different ways to configure the same thing.
 Start off cross-platform for every option, setting, and feature. If we **prove** it's impossible, _then_ work backward making it platform-specific.
 
 - **Bridge the gap.** Implement enough help text, links, guides, gifs, etc that a reasonably persistent human being can figure it out just by trying to use the UI.
-   Even if that means we have fewer features or slightly lower granularity (we can iterate and add more granularity later), make it easy enough to understand. Whether they're experienced Mac admins people or career Windows folks (even if someone has never used a Windows tool) they should _"get it"_. 
+   Even if that means we have fewer features or slightly lower granularity (we can iterate and add more granularity later), make it easy enough to understand. Whether they're experienced Mac admins people or career Windows folks (even if someone has never used a Windows tool) they should _"get it"_.
 
 - **Control the noise.** Bring the needs surface level, tuck away things you don't need by default (when possible, given time). For example, hide Windows controls if there are no Windows devices (based on number of Windows hosts).
 
@@ -701,7 +679,7 @@ Our scrum boards are exclusively composed of four types of scrum items:
 ## Sprints
 Sprints align with Fleet's [3-week release cycle](https://fleetdm.com/handbook/company/why-this-way#why-a-three-week-cadence).
 
-On the first day of each release, all estimated issues are moved into the relevant section of the new "Release" board, which has a kanban view per group. 
+On the first day of each release, all estimated issues are moved into the relevant section of the new "Release" board, which has a kanban view per group.
 
 Sprints are managed in [Zenhub](https://fleetdm.com/handbook/company/why-this-way#why-make-work-visible). To plan capacity for a sprint, [create a "Sprint" issue](https://github.com/fleetdm/confidential/issues/new/choose), replace the fake constants with real numbers, and attach the appropriate labels for your product group.
 
@@ -712,7 +690,7 @@ Sprints are numbered according to the release version. For example, for the spri
 Each sprint is marked by five essential ceremonies:
 
 1. **Sprint kickoff**: On the first day of the sprint, the team, along with stakeholders, select items from the backlog to work on. The team then commits to completing these items within the sprint.
-2. **Daily standup**: Every day, the team convenes for updates. During this session, each team member shares what they accomplished since the last standup, their plans until the next meeting, and any blockers they are experiencing. Standups should last no longer than fifteen minutes. If additional discussion is necessary, it takes place after the standup with only the required partipants. 
+2. **Daily standup**: Every day, the team convenes for updates. During this session, each team member shares what they accomplished since the last standup, their plans until the next meeting, and any blockers they are experiencing. Standups should last no longer than fifteen minutes. If additional discussion is necessary, it takes place after the standup with only the required partipants.
 3. **Weekly estimation sessions**: The team estimates backlog items once a week (three times per sprint). These sessions help to schedule work completion and align the roadmap with business needs. They also provide estimated work units for upcoming sprints. The EM is responsible for the point values assigned to each item and ensures they are as realistic as possible.
 4. **Sprint demo**: On the last day of each sprint, all engineering teams and stakeholders come together to review the next release. Engineers are allotted 3-10 minutes to showcase features, improvements, and bug fixes they have contributed to the upcoming release. We focus on changes that can be demoed live and avoid overly technical details so the presentation is accessible to everyone. Features should show what is capable and bugs should identify how this might have impacted existing customers and how this resolution fixed that. (These meetings are recorded and posted publicly to YouTube or other platforms, so participants should avoid mentioning customer names.  For example, instead of "Fastly", you can say "a publicly-traded hosting company", or use the [customer's codename](https://fleetdm.com/handbook/customers#customer-codenames).)
 5. **Sprint retrospective**: Also held on the last day of the sprint, this meeting encourages discussions among the team and stakeholders around three key areas: what went well, what could have been better, and what the team learned during the sprint.
@@ -729,11 +707,13 @@ Thus, to ensure consistency, completeness, and secure development practices, no 
 The following stubs are included only to make links backward compatible
 
 ##### Endpoint ops group
-Please see [handbook/company/product-groups#endpoint-ops-group](https://fleetdm.com/handbook/company/product-groups#endpoint-ops-group)
+Please see [handbook/company/product-groups/endpoint-ops-group](https://fleetdm.com/handbook/company/product-groups#endpoint-ops-group)
 
 ##### Air guitar
 Please see [handbook/company/initiate-an-air-guitar-session](https://fleetdm.com/handbook/company/product-groups#initiate-an-air-guitar-session)
 
+##### High priority user stories and bugs
+Please see [handbook/company/communications/high-priority-user-stories-and-bugs](https://fleetdm.com/handbook/company/communications#high-priority-user-stories-and-bugs)
 
 <meta name="maintainedBy" value="mikermcneil">
 <meta name="title" value="🛩️ Product groups">

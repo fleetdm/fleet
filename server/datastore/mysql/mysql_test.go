@@ -1301,3 +1301,85 @@ func TestBatchProcessDB(t *testing.T) {
 		require.Equal(t, 2, callCount)
 	})
 }
+
+func TestGetContextTryStmt(t *testing.T) {
+	ctx := context.Background()
+
+	dbMock, ds := mockDatastore(t)
+	ds.stmtCache = map[string]*sqlx.Stmt{}
+
+	t.Run("get with unknown statement error", func(t *testing.T) {
+		count := 0
+		query := "SELECT 1"
+
+		// first call to cache the statement
+		dbMock.ExpectPrepare(query)
+		mockResult := sqlmock.NewRows([]string{query})
+		mockResult.AddRow("1")
+		dbMock.ExpectQuery(query).WillReturnRows(mockResult)
+		err := ds.getContextTryStmt(ctx, &count, query)
+		require.NoError(t, err)
+		require.NoError(t, dbMock.ExpectationsWereMet())
+
+		// verify that the statement was cached
+		stmt := ds.loadOrPrepareStmt(ctx, query)
+		require.NotNil(t, stmt)
+
+		// call again to trigger the unknown statement error and ensure it retries
+		// first query, make it fail
+		queryMock := dbMock.ExpectQuery(query)
+		mySQLErr := &mysql.MySQLError{
+			Number: mysqlerr.ER_UNKNOWN_STMT_HANDLER,
+		}
+		queryMock.WillReturnError(mySQLErr)
+
+		// after the failure, a second call is made, this time without
+		// the prepared statement
+		mockResult = sqlmock.NewRows([]string{query})
+		mockResult.AddRow("1")
+		dbMock.ExpectQuery(query).WillReturnRows(mockResult)
+
+		// make the call and verify we removed the prepared statement
+		err = ds.getContextTryStmt(ctx, &count, query)
+		require.NoError(t, err)
+		require.NoError(t, dbMock.ExpectationsWereMet())
+		stmt = ds.loadOrPrepareStmt(ctx, query)
+		require.Nil(t, stmt)
+	})
+
+	t.Run("get with other error", func(t *testing.T) {
+		dbMock, ds := mockDatastore(t)
+		ds.stmtCache = map[string]*sqlx.Stmt{}
+		count := 0
+		query := "SELECT 1"
+
+		// first call to cache the statement
+		dbMock.ExpectPrepare(query)
+		mockResult := sqlmock.NewRows([]string{query})
+		mockResult.AddRow("1")
+		dbMock.ExpectQuery(query).WillReturnRows(mockResult)
+		err := ds.getContextTryStmt(ctx, &count, query)
+		require.NoError(t, err)
+		require.Equal(t, 1, count)
+		require.NoError(t, dbMock.ExpectationsWereMet())
+
+		// verify that the statement was cached
+		stmt := ds.loadOrPrepareStmt(ctx, query)
+		require.NotNil(t, stmt)
+
+		// return a duplicate error
+		queryMock := dbMock.ExpectQuery(query)
+		mySQLErr := &mysql.MySQLError{
+			Number: mysqlerr.ER_DUP_ENTRY,
+		}
+		queryMock.WillReturnError(mySQLErr)
+
+		count = 0
+		err = ds.getContextTryStmt(ctx, &count, query)
+		require.ErrorIs(t, mySQLErr, err)
+		require.NoError(t, dbMock.ExpectationsWereMet())
+		stmt = ds.loadOrPrepareStmt(ctx, query)
+		require.NotNil(t, stmt)
+	})
+
+}

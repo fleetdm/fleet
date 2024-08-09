@@ -1,0 +1,2 @@
+* Fixed a formatting error when an unrecognized error happens during BitLocker encryption.
+

@@ -887,6 +887,14 @@ None.
       "minimum_version": "12.3.1",
       "deadline": "2022-01-01"
     },
+    "ios_updates": {
+      "minimum_version": "17.0.1",
+      "deadline": "2024-08-01"
+    },
+    "ipados_updates": {
+      "minimum_version": "17.0.1",
+      "deadline": "2024-08-01"
+    },
     "windows_updates": {
       "deadline_days": 5,
       "grace_period_days": 1
@@ -1068,23 +1076,23 @@ Modifies the Fleet's configuration with the supplied information.
 
 #### Parameters
 
-| Name                              | Type    | In    | Description   |
-| ---------------------             | ------- | ----  | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| org_info          | object  | body  | See [org_info](#org-info). |
-| server_settings         | object  | body    | See [server_settings](#server-settings). |
-| smtp_settings         | object  | body    | See [smtp_settings](#smtp-settings). |
-| sso_settings         | object  | body    | See [sso_settings](#sso-settings). |
-| host_expiry_settings         | object  | body    | See [host_expiry_settings](#host-expiry-settings). |
-| activity_expiry_settings         | object  | body    | See [activity_expiry_settings](#activity-expiry-settings). |
-| agent_options                     | objects | body  | The agent_options spec that is applied to all hosts. In Fleet 4.0.0 the `api/v1/fleet/spec/osquery_options` endpoints were removed.                                                    |
-| fleet_desktop         | object  | body    | See [fleet_desktop](#fleet-desktop). |
-| webhook_settings      | object  | body    | See [webhook_settings](#webhook-settings). |
-| integrations                      | object  | body  | Includes `jira`, `zendesk`, and `google_calendar` arrays. See [integrations](#integrations) for details. |
-| mdm      | object  | body    | See [mdm](#mdm). |
-| features          | object  | body    | See [features](#features). |
-| scripts                           | list    | body  | A list of script files to add so they can be executed at a later time.                                                                                                                                                 |
-| force                             | boolean | query | Whether to force-apply the agent options even if there are validation errors.                                                                                                 |
-| dry_run                           | boolean | query | Whether to validate the configuration and return any validation errors **without** applying changes.                                                                         |
+| Name                     | Type    | In    | Description   |
+| -----------------------  | ------- | ----  | ------------------------------------------------------------------------------------------------------------------------------------ |
+| org_info                 | object  | body  | See [org_info](#org-info).                                                                                                           |
+| server_settings          | object  | body  | See [server_settings](#server-settings).                                                                                             |
+| smtp_settings            | object  | body  | See [smtp_settings](#smtp-settings).                                                                                                 |
+| sso_settings             | object  | body  | See [sso_settings](#sso-settings).                                                                                                   |
+| host_expiry_settings     | object  | body  | See [host_expiry_settings](#host-expiry-settings).                                                                                   |
+| activity_expiry_settings | object  | body  | See [activity_expiry_settings](#activity-expiry-settings).                                                                           |
+| agent_options            | objects | body  | The agent_options spec that is applied to all hosts. In Fleet 4.0.0 the `api/v1/fleet/spec/osquery_options` endpoints were removed.  |
+| fleet_desktop            | object  | body  | See [fleet_desktop](#fleet-desktop).                                                                                                 |
+| webhook_settings         | object  | body  | See [webhook_settings](#webhook-settings).                                                                                           |
+| integrations             | object  | body  | Includes `jira`, `zendesk`, and `google_calendar` arrays. See [integrations](#integrations) for details.                             |
+| mdm                      | object  | body  | See [mdm](#mdm).                                                                                                                     |
+| features                 | object  | body  | See [features](#features).                                                                                                           |
+| scripts                  | list    | body  | A list of script files to add so they can be executed at a later time.                                                               |
+| force                    | boolean | query | Whether to force-apply the agent options even if there are validation errors.                                                        |
+| dry_run                  | boolean | query | Whether to validate the configuration and return any validation errors **without** applying changes.                                 |
 
 
 #### Example
@@ -1171,6 +1179,14 @@ Modifies the Fleet's configuration with the supplied information.
     "macos_updates": {
       "minimum_version": "12.3.1",
       "deadline": "2022-01-01"
+    },
+    "ios_updates": {
+      "minimum_version": "17.0.1",
+      "deadline": "2024-08-01"
+    },
+    "ipados_updates": {
+      "minimum_version": "17.0.1",
+      "deadline": "2024-08-01"
     },
     "windows_updates": {
       "deadline_days": 5,
@@ -1310,11 +1326,11 @@ Modifies the Fleet's configuration with the supplied information.
 #### org_info
 
 | Name                              | Type    | Description   |
-| ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| org_name                          | string  | The organization name.                                                                                                                                     |
-| org_logo_url                      | string  | The URL for the organization logo.                                                                                                                         |
-| org_logo_url_light_background     | string  | The URL for the organization logo displayed in Fleet on top of light backgrounds.                                                                          |
-| contact_url                       | string  | A URL that can be used by end users to contact the organization.                                                                                          |
+| ---------------------             | ------- | ----------------------------------------------------------------------------------- |
+| org_name                          | string  | The organization name.                                                              |
+| org_logo_url                      | string  | The URL for the organization logo.                                                  |
+| org_logo_url_light_background     | string  | The URL for the organization logo displayed in Fleet on top of light backgrounds.   |
+| contact_url                       | string  | A URL that can be used by end users to contact the organization.                    |
 
 <br/>
 
@@ -1334,12 +1350,12 @@ Modifies the Fleet's configuration with the supplied information.
 #### server_settings
 
 | Name                              | Type    | Description   |
-| ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| server_url                        | string  | The Fleet server URL.                                                       |
-| enable_analytics                  | boolean | Whether to send anonymous usage statistics. Always enabled for Fleet Premium customers.                                                                             |
-| live_query_disabled               | boolean | Whether the live query capabilities are disabled.                                                                                                                   |
-| query_reports_disabled            | boolean | Whether query report capabilities are disabled.                                                                                                                   |
-| ai_features_disabled              | boolean | Whether AI features are disabled. |
+| ---------------------             | ------- | ------------------------------------------------------------------------------------------- |
+| server_url                        | string  | The Fleet server URL.                                                                       |
+| enable_analytics                  | boolean | Whether to send anonymous usage statistics. Always enabled for Fleet Premium customers.     |
+| live_query_disabled               | boolean | Whether the live query capabilities are disabled.                                           |
+| query_reports_disabled            | boolean | Whether query report capabilities are disabled.                                             |
+| ai_features_disabled              | boolean | Whether AI features are disabled.                                                           |
 | query_report_cap                  | integer | The maximum number of results to store per query report before the report is clipped. If increasing this cap, we recommend enabling reports for one query at time and monitoring your infrastructure. (Default: `1000`) |
 
 <br/>
@@ -1361,7 +1377,7 @@ Modifies the Fleet's configuration with the supplied information.
 #### smtp_settings
 
 | Name                              | Type    | Description   |
-| ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ---------------------             | ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | enable_smtp                       | boolean | Whether SMTP is enabled for the Fleet app.                                                                                                                            |
 | sender_address                    | string  | The sender email address for the Fleet app. An invitation email is an example of the emails that may use this sender address                                          |
 | server                            | string  | The SMTP server for the Fleet app.                                                                                                                                    |
@@ -1401,13 +1417,13 @@ Modifies the Fleet's configuration with the supplied information.
 #### sso_settings
 
 | Name                              | Type    | Description   |
-| ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ---------------------             | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | enable_sso                        | boolean | Whether or not SSO is enabled for the Fleet application. If this value is true, you must also include most of the SSO settings parameters below.                       |
-| entity_id                         | string  | The required entity ID is a URI that you use to identify Fleet when configuring the identity provider.                                                                 |
+| entity_id                         | string  | The required entity ID is a URI that you use to identify Fleet when configuring the identity provider. Must be 5 or more characters.                                   |
 | issuer_uri                        | string  | The URI you provide here must exactly match the Entity ID field used in the identity provider configuration.                                                           |
 | idp_image_url                     | string  | An optional link to an image such as a logo for the identity provider.                                                                                                 |
-| metadata_url                      | string  | A URL that references the identity provider metadata. If available from the identity provider, this is the preferred means of providing metadata.                      |
-| metadata                            | string  |  Metadata provided by the identity provider. Either `metadata` or a `metadata_url` must be provided. |
+| metadata_url                      | string  | A URL that references the identity provider metadata. If available from the identity provider, this is the preferred means of providing metadata. Must be either https or http |
+| metadata                          | string  |  Metadata provided by the identity provider. Either `metadata` or a `metadata_url` must be provided.                                                                   |
 | enable_sso_idp_login              | boolean | Determines whether Identity Provider (IdP) initiated login for Single sign-on (SSO) is enabled for the Fleet application.                                              |
 | enable_jit_provisioning           | boolean | _Available in Fleet Premium._ When enabled, allows [just-in-time user provisioning](https://fleetdm.com/docs/deploy/single-sign-on-sso#just-in-time-jit-user-provisioning). |
 
@@ -1434,9 +1450,9 @@ Modifies the Fleet's configuration with the supplied information.
 #### host_expiry_settings
 
 | Name                              | Type    | Description   |
-| ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | host_expiry_enabled               | boolean | When enabled, allows automatic cleanup of hosts that have not communicated with Fleet in some number of days.                                                  |
-| host_expiry_window                | integer | If a host has not communicated with Fleet in the specified number of days, it will be removed.                                                                 |
+| host_expiry_window                | integer | If a host has not communicated with Fleet in the specified number of days, it will be removed. Must be greater than 0 if host_expiry_enabled is set to true.   |
 
 <br/>
 
@@ -1454,9 +1470,9 @@ Modifies the Fleet's configuration with the supplied information.
 #### activity_expiry_settings
 
 | Name                              | Type    | Description   |
-| ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| activity_expiry_enabled           | boolean | When enabled, allows automatic cleanup of activities (and associated live query data) older than the specified number of days.                                                          |
-| activity_expiry_window            | integer | The number of days to retain activity records, if activity expiry is enabled.   |
+| ---------------------             | ------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| activity_expiry_enabled           | boolean | When enabled, allows automatic cleanup of activities (and associated live query data) older than the specified number of days.    |
+| activity_expiry_window            | integer | The number of days to retain activity records, if activity expiry is enabled.                                                     |
 
 <br/>
 
@@ -1476,8 +1492,8 @@ Modifies the Fleet's configuration with the supplied information.
 _Available in Fleet Premium._
 
 | Name                              | Type    | Description   |
-| ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| transparency_url                  | string  | The URL used to display transparency information to users of Fleet Desktop.                                                      |
+| ---------------------             | ------- | -------------------------------------------------------------------------------- |
+| transparency_url                  | string  | The URL used to display transparency information to users of Fleet Desktop.      |
 
 <br/>
 
@@ -1500,12 +1516,12 @@ _Available in Fleet Premium._
 + [`webhook_settings.activities_webhook`](#webhook-settings-activities-webhook)
 -->
 
-| Name                              | Type    | Description   |
-| ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| host_status_webhook             | list  | See [`webhook_settings.host_status_webhook`](#webhook-settings-host-status-webhook). |
-| failing_policies_webhook             | list  | See [`webhook_settings.failing_policies_webhook`](#webhook-settings-failing-policies-webhook). |
-| vulnerabilities_webhook             | list  | See [`webhook_settings.vulnerabilities_webhook`](#webhook-settings-vulnerabilities-webhook). |
-| activities_webhook             | list  | See [`webhook_settings.activities_webhook`](#webhook-settings-activities-webhook). |
+| Name                              | Type  | Description   |
+| ---------------------             | ----- | ---------------------------------------------------------------------------------------------- |
+| host_status_webhook               | list  | See [`webhook_settings.host_status_webhook`](#webhook-settings-host-status-webhook).           |
+| failing_policies_webhook          | list  | See [`webhook_settings.failing_policies_webhook`](#webhook-settings-failing-policies-webhook). |
+| vulnerabilities_webhook           | list  | See [`webhook_settings.vulnerabilities_webhook`](#webhook-settings-vulnerabilities-webhook).   |
+| activities_webhook                | list  | See [`webhook_settings.activities_webhook`](#webhook-settings-activities-webhook).             |
 
 <br/>
 
@@ -1514,11 +1530,11 @@ _Available in Fleet Premium._
 `webhook_settings.host_status_webhook` is an object with the following structure:
 
 | Name                              | Type    | Description   |
-| ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| enable_host_status_webhook        | boolean | Whether or not the host status webhook is enabled.                                                                 |
-| destination_url                   | string  | The URL to deliver the webhook request to.                                                     |
-| host_percentage                   | integer | The minimum percentage of hosts that must fail to check in to Fleet in order to trigger the webhook request.                                                              |
-| days_count                        | integer | The minimum number of days that the configured `host_percentage` must fail to check in to Fleet in order to trigger the webhook request.                                |
+| ---------------------             | ------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| enable_host_status_webhook        | boolean | Whether or not the host status webhook is enabled.                                                                                          |
+| destination_url                   | string  | The URL to deliver the webhook request to.                                                                                                  |
+| host_percentage                   | integer | The minimum percentage of hosts that must fail to check in to Fleet in order to trigger the webhook request.                                |
+| days_count                        | integer | The minimum number of days that the configured `host_percentage` must fail to check in to Fleet in order to trigger the webhook request.    |
 
 <br/>
 
@@ -1527,9 +1543,9 @@ _Available in Fleet Premium._
 `webhook_settings.failing_policies_webhook` is an object with the following structure:
 
 | Name                              | Type    | Description   |
-| ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| enable_failing_policies_webhook   | boolean | Whether or not the failing policies webhook is enabled. |
-| destination_url                   | string  | The URL to deliver the webhook requests to.                                                     |
+| ---------------------             | ------- | ------------------------------------------------------------------------------------------------------------------- |
+| enable_failing_policies_webhook   | boolean | Whether or not the failing policies webhook is enabled.                                                             |
+| destination_url                   | string  | The URL to deliver the webhook requests to.                                                                         |
 | policy_ids                        | array   | List of policy IDs to enable failing policies webhook.                                                              |
 | host_batch_size                   | integer | Maximum number of hosts to batch on failing policy webhook requests. The default, 0, means no batching (all hosts failing a policy are sent on one request). |
 
@@ -1540,9 +1556,9 @@ _Available in Fleet Premium._
 `webhook_settings.vulnerabilities_webhook` is an object with the following structure:
 
 | Name                              | Type    | Description   |
-| ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| enable_vulnerabilities_webhook    | boolean | Whether or not the vulnerabilities webhook is enabled. |
-| destination_url                   | string  | The URL to deliver the webhook requests to.                                                     |
+| ---------------------             | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| enable_vulnerabilities_webhook    | boolean | Whether or not the vulnerabilities webhook is enabled.                                                                                                  |
+| destination_url                   | string  | The URL to deliver the webhook requests to.                                                                                                             |
 | host_batch_size                   | integer | Maximum number of hosts to batch on vulnerabilities webhook requests. The default, 0, means no batching (all vulnerable hosts are sent on one request). |
 
 <br/>
@@ -1552,9 +1568,9 @@ _Available in Fleet Premium._
 `webhook_settings.activities_webhook` is an object with the following structure:
 
 | Name                              | Type    | Description   |
-| ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| enable_activities_webhook         | boolean | Whether or not the activity feed webhook is enabled. |
-| destination_url                   | string  | The URL to deliver the webhook requests to.                                                     |
+| ---------------------             | ------- | --------------------------------------------------------- |
+| enable_activities_webhook         | boolean | Whether or not the activity feed webhook is enabled.      |
+| destination_url                   | string  | The URL to deliver the webhook requests to.               |
 
 <br/>
 
@@ -1596,11 +1612,11 @@ _Available in Fleet Premium._
 + [`integrations.google_calendar`](#integrations-google-calendar)
 -->
 
-| Name                              | Type    | Description   |
-| ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| jira             | list  | See [`integrations.jira`](#integrations-jira). |
-| zendesk             | list  | See [`integrations.zendesk`](#integrations-zendesk). |
-| google_calendar             | list  | See [`integrations.google_calendar`](#integrations-google-calendar). |
+| Name                  | Type  | Description   |
+| --------------------- | ----- | -------------------------------------------------------------------- |
+| jira                  | list  | See [`integrations.jira`](#integrations-jira).                       |
+| zendesk               | list  | See [`integrations.zendesk`](#integrations-zendesk).                 |
+| google_calendar       | list  | See [`integrations.google_calendar`](#integrations-google-calendar). |
 
 
 > Note that when making changes to the `integrations` object, all integrations must be provided (not just the one being modified). This is because the endpoint will consider missing integrations as deleted.
@@ -1642,8 +1658,8 @@ _Available in Fleet Premium._
 `integrations.google_calendar` is an array of objects with the following structure:
 
 | Name                              | Type    | Description   |
-| ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| domain                            | string  | The domain for the Google Workspace service account to be used for this calendar integration. |
+| ---------------------             | ------- | --------------------------------------------------------------------------------------------------------------------- |
+| domain                            | string  | The domain for the Google Workspace service account to be used for this calendar integration.                         |
 | api_key_json                      | object  | The private key JSON downloaded when generating the service account API key to be used for this calendar integration. |
 
 <br/>
@@ -1682,6 +1698,9 @@ _Available in Fleet Premium._
 | windows_enabled_and_configured    | boolean | Enables Windows MDM support. |
 | enable_disk_encryption            | boolean | _Available in Fleet Premium._ Hosts that belong to no team will have disk encryption enabled if set to true. |
 | macos_updates         | object  | See [`mdm.macos_updates`](#mdm-macos-updates). |
+| ios_updates         | object  | See [`mdm.ios_updates`](#mdm-ios-updates). |
+| ipados_updates         | object  | See [`mdm.ipados_updates`](#mdm-ipados-updates). |
+| windows_updates         | object  | See [`mdm.window_updates`](#mdm-windows-updates). |
 | macos_migration         | object  | See [`mdm.macos_migration`](#mdm-macos-migration). |
 | macos_setup         | object  | See [`mdm.macos_setup`](#mdm-macos-setup). |
 | macos_settings         | object  | See [`mdm.macos_settings`](#mdm-macos-settings). |
@@ -1699,6 +1718,32 @@ _Available in Fleet Premium._
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | minimum_version                   | string  | Hosts that belong to no team will be nudged until their macOS is at or above this version. |
 | deadline                          | string  | Hosts that belong to no team won't be able to dismiss the Nudge window once this deadline is past. |
+
+<br/>
+
+##### mdm.ios_updates
+
+_Available in Fleet Premium._
+
+`mdm.ios_updates` is an object with the following structure:
+
+| Name                              | Type    | Description   |
+| ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| minimum_version                   | string  | Hosts that belong to no team and are enrolled into Fleet's MDM will be nudged until their iOS is at or above this version. |
+| deadline                          | string  | Hosts that belong to no team and are enrolled into Fleet's MDM won't be able to dismiss the Nudge window once this deadline is past. |
+
+<br/>
+
+##### mdm.ipados_updates
+
+_Available in Fleet Premium._
+
+`mdm.ipados_updates` is an object with the following structure:
+
+| Name                              | Type    | Description   |
+| ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| minimum_version                   | string  | Hosts that belong to no team and are enrolled into Fleet's MDM will be nudged until their iPadOS is at or above this version. |
+| deadline                          | string  | Hosts that belong to no team and are enrolled into Fleet's MDM won't be able to dismiss the Nudge window once this deadline is past. |
 
 <br/>
 
@@ -4328,14 +4373,18 @@ OS vulnerability data is currently available for Windows and macOS. For other pl
     {
       "id": 121,
       "name": "Google Chrome.app",
-      "package_available_for_install": "GoogleChrome.pkg",
-      "self_service": true,
+      "software_package": {
+        "name": "GoogleChrome.pkg",
+        "version": "125.12.0.3",
+        "self_service": true,
+        "last_install": {
+          "install_uuid": "8bbb8ac2-b254-4387-8cba-4d8a0407368b",
+          "installed_at": "2024-05-15T15:23:57Z"
+        },
+      },
+      "app_store_app": null
       "source": "apps",
       "status": "failed",
-      "last_install": {
-        "install_uuid": "8bbb8ac2-b254-4387-8cba-4d8a0407368b",
-        "installed_at": "2024-05-15T15:23:57Z"
-      },
       "installed_versions": [
         {
           "version": "121.0",
@@ -4348,20 +4397,30 @@ OS vulnerability data is currently available for Windows and macOS. For other pl
     {
       "id": 134,
       "name": "Falcon.app",
-      "package_available_for_install": "FalconSensor-6.44.pkg",
-      "self_service": false,
+      "software_package": {
+        "name": "FalconSensor-6.44.pkg"
+        "self_service": false,
+        "last_install": null
+      },
+      "app_store_app": null    
       "source": "",
       "status": null,
-      "last_install": null,
       "installed_versions": [],
     },
     {
       "id": 147,
-      "name": "Firefox.app",
+      "name": "Logic Pro",
+      "software_package": null
+      "app_store_app": {
+        "app_store_id": "1091189122"
+        "version": "2.04",
+        "last_install": {
+          "command_uuid": "0aa14ae5-58fe-491a-ac9a-e4ee2b3aac40",
+          "installed_at": "2024-05-15T15:23:57Z"
+        },
+      },
       "source": "apps",
-      "bundle_identifier": "org.mozilla.firefox",
-      "status": null,
-      "last_install": null,
+      "status": "installed",
       "installed_versions": [
         {
           "version": "118.0",
@@ -4424,8 +4483,8 @@ requested by a web browser.
 | order_key               | string  | query | What to order results by. Can be any column in the hosts table.                                                                                                                                                                                                                                                                             |
 | order_direction         | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include 'asc' and 'desc'. Default is 'asc'.                                                                                                                                                                                                               |
 | status                  | string  | query | Indicates the status of the hosts to return. Can either be 'new', 'online', 'offline', 'mia' or 'missing'.                                                                                                                                                                                                                                  |
-| query                   | string  | query | Search query keywords. Searchable fields include `hostname`, `hardware_serial`, `uuid`, `ipv4` and the hosts' email addresses (only searched if the query looks like an email address, i.e. contains an `@`, no space, etc.).                                                                                                                |
-| team_id                 | integer | query | _Available in Fleet Premium_. Filters the hosts to only include hosts in the specified team.                                                                                                                                                                                                                                                 |
+| query                   | string  | query | Search query keywords. Searchable fields include `hostname`, `hardware_serial`, `uuid`, `ipv4` and the hosts' email addresses (only searched if the query looks like an email address, i.e. contains an `@`, no space, etc.).                                                                                                               |
+| team_id                 | integer | query | _Available in Fleet Premium_. Filters the hosts to only include hosts in the specified team.                                                                                                                                                                                                                                                |
 | policy_id               | integer | query | The ID of the policy to filter hosts by.                                                                                                                                                                                                                                                                                                    |
 | policy_response         | string  | query | **Requires `policy_id`**. Valid options are 'passing' or 'failing'. **Note: If `policy_id` is specified _without_ including `policy_response`, this will also return hosts where the policy is not configured to run or failed to run.** |
 | software_version_id     | integer | query | The ID of the software version to filter hosts by.                                                                                                            |
@@ -4435,11 +4494,11 @@ requested by a web browser.
 | os_version              | string  | query | The version of the operating system to filter hosts by. `os_name` must also be specified with `os_version`                                                                                                                                                                                                                                  |
 | vulnerability           | string  | query | The cve to filter hosts by (including "cve-" prefix, case-insensitive).                                                                                                                                                                                                                                                                     |
 | mdm_id                  | integer | query | The ID of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider and URL).                                                                                                                                                                                                |
-| mdm_name                | string  | query | The name of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider).                                                                                                                                                                                                |
-| mdm_enrollment_status   | string  | query | The _mobile device management_ (MDM) enrollment status to filter hosts by. Valid options are 'manual', 'automatic', 'enrolled', 'pending', or 'unenrolled'.                                                                                                                                                                                                             |
+| mdm_name                | string  | query | The name of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider).                                                                                                                                                                                                      |
+| mdm_enrollment_status   | string  | query | The _mobile device management_ (MDM) enrollment status to filter hosts by. Valid options are 'manual', 'automatic', 'enrolled', 'pending', or 'unenrolled'.                                                                                                                                                                                 |
 | macos_settings          | string  | query | Filters the hosts by the status of the _mobile device management_ (MDM) profiles applied to hosts. Valid options are 'verified', 'verifying', 'pending', or 'failed'. **Note: If this filter is used in Fleet Premium without a team ID filter, the results include only hosts that are not assigned to any team.**                                                                                                                                                                                                             |
 | munki_issue_id          | integer | query | The ID of the _munki issue_ (a Munki-reported error or warning message) to filter hosts by (that is, filter hosts that are affected by that corresponding error or warning message).                                                                                                                                                        |
-| low_disk_space          | integer | query | _Available in Fleet Premium_. Filters the hosts to only include hosts with less GB of disk space available than this value. Must be a number between 1-100.                                                                                                                                                                                  |
+| low_disk_space          | integer | query | _Available in Fleet Premium_. Filters the hosts to only include hosts with less GB of disk space available than this value. Must be a number between 1-100.                                                                                                                                                                                 |
 | label_id                | integer | query | A valid label ID. Can only be used in combination with `order_key`, `order_direction`, `status`, `query` and `team_id`.                                                                                                                                                                                                                     |
 | bootstrap_package       | string | query | _Available in Fleet Premium_. Filters the hosts by the status of the MDM bootstrap package on the host. Valid options are 'installed', 'pending', or 'failed'. **Note: If this filter is used in Fleet Premium without a team ID filter, the results include only hosts that are not assigned to any team.** |
 | disable_failing_policies | boolean | query | If `true`, hosts will return failing policies as 0 (returned as the `issues` column) regardless of whether there are any that failed for the host. This is meant to be used when increased performance is needed in exchange for the extra information.      |
@@ -4830,8 +4889,8 @@ The live query will stop if the targeted host is offline, or if the query times 
 
 | Name      | Type  | In   | Description                                                                                                                                                        |
 |-----------|-------|------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| id       | integer  | path | **Required**. The target host ID. |
-| query            | string   | body | **Required**. The query SQL. |
+| id        | integer  | path | **Required**. The target host ID. |
+| query     | string   | body | **Required**. The query SQL. |
 
 
 #### Example
@@ -5393,8 +5452,8 @@ Add a configuration profile to enforce custom settings on macOS and Windows host
 | ------------------------- | -------- | ---- | ------------------------------------------------------------------------------------------------------------- |
 | profile                   | file     | form | **Required.** The .mobileconfig and JSON for macOS or XML for Windows file containing the profile. |
 | team_id                   | string   | form | _Available in Fleet Premium_. The team ID for the profile. If specified, the profile is applied to only hosts that are assigned to the specified team. If not specified, the profile is applied to only to hosts that are not assigned to any team. |
-| labels_include_all        | array     | form | _Available in Fleet Premium_. Profile will only be applied to hosts that have all of these labels. |
-| labels_exclude_any | array | form | _Available in Fleet Premium_. Profile will be applied to hosts that don’t have any of these labels. |
+| labels_include_all        | array     | form | _Available in Fleet Premium_. Profile will only be applied to hosts that have all of these labels. Only one of either `labels_include_all` or `labels_exclude_any` can be included in the request. |
+| labels_exclude_any | array | form | _Available in Fleet Premium_. Profile will be applied to hosts that don’t have any of these labels. Only one of either `labels_include_all` or `labels_exclude_any` can be included in the request. |
 
 #### Example
 
@@ -5511,7 +5570,8 @@ List all configuration profiles for macOS and Windows hosts enrolled to Fleet's 
       "checksum": "dGVzdAo=",
       "labels_exclude_any": [
        {
-        "name": "Label name 1"
+        "name": "Label name 1",
+        "id": 1
        }
       ]
     },
@@ -5525,11 +5585,13 @@ List all configuration profiles for macOS and Windows hosts enrolled to Fleet's 
       "checksum": "aCLemVr)",
       "labels_include_all": [
         {
-          "name": "Label name 1",
-          "broken": true
+          "name": "Label name 2",
+          "broken": true,
+          "id": 2
         },
         {
-          "name": "Label name 2"
+          "name": "Label name 3",
+          "id": 3
         }
       ]
     }
@@ -5577,10 +5639,12 @@ If one or more assigned labels are deleted the profile is considered broken (`br
   "labels_include_all": [
     {
       "name": "Label name 1",
+      "id": 1
       "broken": true
     },
     {
       "name": "Label name 2",
+      "id": 2
     }
   ]
 }
@@ -6350,6 +6414,7 @@ This endpoint returns the list of custom MDM commands that have been executed.
 
 - [Get Apple Push Notification service (APNs)](#get-apple-push-notification-service-apns)
 - [Get Apple Business Manager (ABM)](#get-apple-business-manager-abm)
+- [Get Volume Purchasing Program (VPP)](#get-volume-purchasing-program-vpp)
 
 ### Get Apple Push Notification service (APNs)
 
@@ -6401,6 +6466,30 @@ None.
   "mdm_server_url": "https://example.com/mdm/apple/mdm",
   "renew_date": "2023-11-29T00:00:00Z",
   "default_team": ""
+}
+```
+
+Get Volume Purchasing Program (VPP)
+
+> This **endpoint is experimental** and may change. You can find the upcoming breaking changes [here](https://github.com/fleetdm/fleet/pull/21043/files#diff-7246bc304b15c8865ed8eaa205e9c244d0a0314e4bae60cf553dc06147c38b64R6423-R6446.
+
+_Available in Fleet Premium_
+
+`GET /api/v1/fleet/vpp`
+
+#### Example
+
+`GET /api/v1/fleet/vpp`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "org_name": "Acme Inc.",
+  "renew_date": "2023-11-29T00:00:00Z",
+  "location": "Acme Inc. Main Address"
 }
 ```
 
@@ -8539,16 +8628,18 @@ Deletes the session specified by ID. When the user associated with the session n
 
 ## Software
 
-- [Add software](#add-software)
-- [Download software](#download-software)
-- [Delete software](#delete-software)
+- [Add package](#add-package)
+- [Download package](#download-package)
+- [Delete package or App Store app](#delete-package-or-app-store-app)
 - [Get installation result](#get-installation-result)
 - [List software](#list-software)
 - [List software versions](#list-software-versions)
 - [Get software](#get-software)
 - [Get software version](#get-software-version)
+- [Get available App Store apps](#get-available-app-store-apps)
+- [Add App Store app](#add-app-store-app)
 
-### Add software
+### Add package
 
 _Available in Fleet Premium._
 
@@ -8609,13 +8700,11 @@ Content-Type: application/octet-stream
 `Status: 200`
 
 
-### Download software
+### Download package
 
 _Available in Fleet Premium._
 
-Download a software package.
-
-`GET /api/v1/fleet/software/titles/:software_title_id/package/?alt=media`
+`GET /api/v1/fleet/software/titles/:software_title_id/package?alt=media`
 
 #### Parameters
 
@@ -8641,26 +8730,26 @@ Content-Length: <length>
 Body: <blob>
 ```
 
-### Delete software
+### Delete package or App Store app
 
-> This **endpoint, added in the app management feature, is experimental** may change. You can find the upcoming breaking changes [here](https://github.com/fleetdm/fleet/pull/19291/files#diff-7246bc304b15c8865ed8eaa205e9c244d0a0314e4bae60cf553dc06147c38b64L8661-R8698).
+> This **endpoint is experimental** and may change. You can find the upcoming breaking changes [here](https://github.com/fleetdm/fleet/pull/19291/files#diff-7246bc304b15c8865ed8eaa205e9c244d0a0314e4bae60cf553dc06147c38b64L8661-R8698).
 
 _Available in Fleet Premium._
 
-Delete a software package.
+Deletes software that's available for install (package or App Store app).
 
-`DELETE /api/v1/fleet/software/titles/:software_title_id/package`
+`DELETE /api/v1/fleet/software/titles/:software_title_id/available_for_install`
 
 #### Parameters
 
 | Name            | Type    | In   | Description                                      |
 | ----            | ------- | ---- | --------------------------------------------     |
-| software_title_id  | integer | path | **Required**. The ID of the software title for the software package to delete. |
+| software_title_id              | integer | path | **Required**. The ID of the software title to delete software available for install. |
 | team_id | integer | query | **Required**. The team ID. Deletes a software package added to the specified team. |
 
 #### Example
 
-`DELETE /api/v1/fleet/software/titles/24/package?team_id=2`
+`DELETE /api/v1/fleet/software/titles/24/available_for_install?team_id=2`
 
 ##### Default response
 
@@ -8739,8 +8828,12 @@ Get a list of all software.
     {
       "id": 12,
       "name": "Firefox.app",
-      "software_package": "FirefoxInstall.pkg",
-      "self_service": true,
+      "software_package": {
+        "name": "FirefoxInsall.pkg",
+        "version": "125.6",
+        "self_service": true
+      },
+      "app_store_app": null,
       "versions_count": 3,
       "source": "apps",
       "browser": "",
@@ -8767,7 +8860,7 @@ Get a list of all software.
       "id": 22,
       "name": "Google Chrome.app",
       "software_package": null,
-      "self_service": false,
+      "app_store_app": null,
       "versions_count": 5,
       "source": "apps",
       "browser": "",
@@ -8799,7 +8892,7 @@ Get a list of all software.
       "id": 32,
       "name": "1Password – Password Manager",
       "software_package": null,
-      "self_service": false,
+      "app_store_app": null,
       "versions_count": 1,
       "source": "chrome_extensions",
       "browser": "chrome",
@@ -8896,6 +8989,8 @@ Get a list of all software versions.
 
 ### Get software
 
+> The **new keys/values added in the app management features are experimental** and may change. You can find the upcoming breaking changes [here](https://github.com/fleetdm/fleet/pull/20872/files#diff-7246bc304b15c8865ed8eaa205e9c244d0a0314e4bae60cf553dc06147c38b64R8953-R8958).
+
 Returns information about the specified software. By default, `versions` are sorted in descending order by the `hosts_count` field.
 
 `GET /api/v1/fleet/software/titles/:id`
@@ -8920,6 +9015,7 @@ Returns information about the specified software. By default, `versions` are sor
   "software_title": {
     "id": 12,
     "name": "Firefox.app",
+    "bundle_identifier": "org.mozilla.firefox",
     "software_package": {
       "name": "FalconSensor-6.44.pkg",
       "version": "6.44",
@@ -8936,6 +9032,7 @@ Returns information about the specified software. By default, `versions` are sor
         "failed": 2,
       }
     },
+    "app_store_app": null,
     "source": "apps",
     "browser": "",
     "hosts_count": 48,
@@ -8957,6 +9054,47 @@ Returns information about the specified software. By default, `versions` are sor
         "version": "115.5",
         "vulnerabilities": ["CVE-2023-7654"],
         "hosts_count": 4
+      }
+    ]
+  }
+}
+```
+
+#### Example (App Store app)
+
+`GET /api/v1/fleet/software/titles/15`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "software_title": {
+    "id": 15,
+    "name": "Logic Pro",
+    "bundle_identifier": "com.apple.logic10",
+    "software_package": null,
+    "app_store_app": {
+      "name": "Logic Pro",
+      "app_store_id": "1091189122",
+      "latest_version": "2.04",
+      "icon_url": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/f1/65/1e/a4844ccd-486d-455f-bb31-67336fe46b14/AppIcon-1x_U007emarketing-0-7-0-85-220-0.png/512x512bb.jpg",
+      "status": {
+        "installed": 3,
+        "pending": 1,
+        "failed": 2,
+      }
+    },
+    "source": "apps",
+    "browser": "",
+    "hosts_count": 48,
+    "versions": [
+      {
+        "id": 123,
+        "version": "2.04",
+        "vulnerabilities": [],
+        "hosts_count": 24
       }
     ]
   }
@@ -9020,8 +9158,78 @@ Returns information about the specified software version.
 }
 ```
 
-## Vulnerabilities
+### Get available App Store apps
 
+Returns the list of App Store (VPP) apps purchased in Apple Business Manager. Apps that are already added to a team won't be returned.
+
+`GET /api/v1/fleet/software/app_store_apps`
+
+#### Parameters
+
+| Name    | Type | In | Description |
+| ------- | ---- | -- | ----------- |
+| team_id | integer | query | **Required**. The team ID. Lists available VPP software for specified team. |
+
+#### Example
+
+`GET /api/v1/fleet/software/app_store_apps/?team_id=3`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "app_store_apps": {
+    {
+      "name": "Xcode",
+      "icon_url": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/f1/65/1e/a4844ccd-486d-455f-bb31-67336fe46b14/AppIcon-1x_U007emarketing-0-7-0-85-220-0.png/512x512bb.jpg",
+      "latest_version": "15.4",
+      "app_store_id": "497799835"
+    },
+    {
+      "name": "Logic Pro",
+      "icon_url": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/f1/65/1e/a4844ccd-486d-455f-bb31-67336fe46b14/AppIcon-1x_U007emarketing-0-7-0-85-220-0.png/512x512bb.jpg",
+      "latest_version": "2.04",
+      "app_store_id": "634148309"
+    },
+}
+}
+```
+
+### Add App Store app
+
+_Available in Fleet Premium._
+
+Add App Store (VPP) app purchased in Apple Business Manager.
+
+`POST /api/v1/fleet/software/app_store_apps`
+
+#### Parameters
+
+| Name | Type | In | Description |
+| ---- | ---- | -- | ----------- |
+| app_store_id   | string | body | **Required.** The ID of App Store app. |
+| team_id       | integer | body | **Required**. The team ID. Adds VPP software to the specified team.  |
+
+#### Example
+
+`POST /api/v1/fleet/software/app_store_apps?team_id=3`
+
+##### Request body
+
+```json
+{
+  "app_store_id": "497799835",
+  "team_id": 2
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+## Vulnerabilities
 
 - [List vulnerabilities](#list-vulnerabilities)
 - [Get vulnerability](#get-vulnerability)
@@ -9623,6 +9831,12 @@ _Available in Fleet Premium_
 | mdm                                                     | object  | body | MDM settings for the team.                                                                                                                                                                                |
 | &nbsp;&nbsp;macos_updates                               | object  | body | macOS updates settings.                                                                                                                                                                                   |
 | &nbsp;&nbsp;&nbsp;&nbsp;minimum_version                 | string  | body | Hosts that belong to this team and are enrolled into Fleet's MDM will be nudged until their macOS is at or above this version.                                                                            |
+| &nbsp;&nbsp;&nbsp;&nbsp;deadline                        | string  | body | Hosts that belong to this team and are enrolled into Fleet's MDM won't be able to dismiss the Nudge window once this deadline is past.                                                                    |
+| &nbsp;&nbsp;ios_updates                               | object  | body | iOS updates settings.                                                                                                                                                                                   |
+| &nbsp;&nbsp;&nbsp;&nbsp;minimum_version                 | string  | body | Hosts that belong to this team and are enrolled into Fleet's MDM will be nudged until their iOS is at or above this version.                                                                            |
+| &nbsp;&nbsp;&nbsp;&nbsp;deadline                        | string  | body | Hosts that belong to this team and are enrolled into Fleet's MDM won't be able to dismiss the Nudge window once this deadline is past.                                                                    |
+| &nbsp;&nbsp;ipados_updates                               | object  | body | iPadOS updates settings.                                                                                                                                                                                   |
+| &nbsp;&nbsp;&nbsp;&nbsp;minimum_version                 | string  | body | Hosts that belong to this team and are enrolled into Fleet's MDM will be nudged until their iPadOS is at or above this version.                                                                            |
 | &nbsp;&nbsp;&nbsp;&nbsp;deadline                        | string  | body | Hosts that belong to this team and are enrolled into Fleet's MDM won't be able to dismiss the Nudge window once this deadline is past.                                                                    |
 | &nbsp;&nbsp;windows_updates                             | object  | body | Windows updates settings.                                                                                                                                                                                   |
 | &nbsp;&nbsp;&nbsp;&nbsp;deadline_days                   | integer | body | Hosts that belong to this team and are enrolled into Fleet's MDM will have this number of days before updates are installed on Windows.                                                                   |

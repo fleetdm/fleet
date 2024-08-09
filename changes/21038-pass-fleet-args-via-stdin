@@ -1,0 +1,1 @@
+Fleet server now accepts arguments via stdin. This is useful for passing secrets that you don't want to expose as env vars, in the command line, or in the config file.

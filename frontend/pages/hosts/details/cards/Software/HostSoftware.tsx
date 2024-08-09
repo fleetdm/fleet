@@ -12,7 +12,7 @@ import deviceAPI, {
   IGetDeviceSoftwareResponse,
 } from "services/entities/device_user";
 import { IHostSoftware, ISoftware } from "interfaces/software";
-import { Platform } from "interfaces/platform";
+import { HostPlatform, isIPadOrIPhone } from "interfaces/platform";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import { NotificationContext } from "context/notification";
 import { AppContext } from "context/app";
@@ -35,8 +35,7 @@ export interface ITableSoftware extends Omit<ISoftware, "vulnerabilities"> {
 interface IHostSoftwareProps {
   /** This is the host id or the device token */
   id: number | string;
-  /** The host's platform. Only used for the host details page, so can be omited on the Device User Page. */
-  platform?: Platform;
+  platform?: HostPlatform;
   softwareUpdatedAt?: string;
   hostCanInstallSoftware: boolean;
   router: InjectedRouter;
@@ -98,7 +97,7 @@ const HostSoftware = ({
 }: IHostSoftwareProps) => {
   const { renderFlash } = useContext(NotificationContext);
   const vulnFilterAndNotSupported =
-    ["ios", "ipados"].includes(platform ?? "") && queryParams.vulnerable;
+    isIPadOrIPhone(platform ?? "") && queryParams.vulnerable;
   const {
     isGlobalAdmin,
     isGlobalMaintainer,
