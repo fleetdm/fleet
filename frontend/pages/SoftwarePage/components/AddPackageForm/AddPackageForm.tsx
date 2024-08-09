@@ -18,6 +18,7 @@ import {
 } from "components/FileUploader/FileUploader";
 import Spinner from "components/Spinner";
 import TooltipWrapper from "components/TooltipWrapper";
+import Radio from "components/forms/fields/Radio";
 
 import AddPackageAdvancedOptions from "../AddPackageAdvancedOptions";
 
@@ -40,7 +41,7 @@ export interface IAddPackageFormData {
   preInstallCondition?: string;
   postInstallScript?: string;
   selfService: boolean;
-  installType: InstallType; // (TODO: confirm naming, current design is “install”, in conversation: https://github.com/fleetdm/fleet/pull/20872#discussion_r1710108284 )
+  installType: InstallType;
   labelsIncludeAny: ILabelIdentifier[];
   labelsExcludeAny: ILabelIdentifier[];
   // - “All hosts” - omit both of above (tbc w Noah: https://github.com/fleetdm/fleet/pull/20872#discussion_r1710119518)
@@ -76,6 +77,7 @@ const AddPackageForm = ({
 
   const [showPreInstallCondition, setShowPreInstallCondition] = useState(false);
   const [showPostInstallScript, setShowPostInstallScript] = useState(false);
+  const [useCustomTargets, setUseCustomTargets] = useState(false);
   const [formData, setFormData] = useState<IAddPackageFormData>({
     software: null,
     installScript: "",
@@ -186,6 +188,10 @@ const AddPackageForm = ({
     );
   };
 
+  const onChangeTargets = (val: string) => {
+    setUseCustomTargets(val === "custom");
+  };
+
   const isSubmitDisabled = !formValidation.isValid;
 
   return (
@@ -249,6 +255,27 @@ const AddPackageForm = ({
               Self-service
             </TooltipWrapper>
           </Checkbox>
+          <div className={`form-field ${baseClass}__target`}>
+            <div className="form-field__label">Target</div>
+            <Radio
+              className={`${baseClass}__radio-input`}
+              label="All hosts"
+              id="all-hosts-target"
+              checked={!useCustomTargets}
+              value="all"
+              // name="allHosts"
+              onChange={onChangeTargets}
+            />
+            <Radio
+              className={`${baseClass}__radio-input`}
+              label="Custom"
+              id="custom-target"
+              checked={useCustomTargets}
+              value="custom"
+              // name="customHosts"
+              onChange={onChangeTargets}
+            />
+          </div>
           <AddPackageAdvancedOptions
             errors={{
               preInstallCondition: formValidation.preInstallCondition?.message,
