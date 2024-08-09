@@ -296,11 +296,8 @@ func main() {
 		defer tic.Stop()
 		go func() {
 			<-deviceEnabledChan
-<<<<<<< HEAD
 			tic := time.NewTicker(10 * time.Second)
 			defer tic.Stop()
-=======
->>>>>>> main
 
 			for {
 				<-tic.C
