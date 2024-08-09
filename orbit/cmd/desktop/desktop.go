@@ -305,7 +305,7 @@ func main() {
 					<-checkToken()
 					continue
 				default:
-					log.Error().Err(err).Msg("get desktop summary")
+					log.Error().Err(err).Msg("getting desktop summary")
 					continue
 				}
 
