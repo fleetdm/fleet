@@ -1,12 +1,9 @@
 import React from "react";
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
-import { ITeam } from "interfaces/team";
 import CustomLink from "components/CustomLink";
 
 interface IDeleteSecretModal {
-  selectedTeam: number;
-  teams: ITeam[];
   onDeleteSecret: () => void;
   toggleDeleteSecretModal: () => void;
   isUpdatingSecret: boolean;
@@ -15,23 +12,10 @@ interface IDeleteSecretModal {
 const baseClass = "delete-secret-modal";
 
 const DeleteSecretModal = ({
-  selectedTeam,
-  teams,
   onDeleteSecret,
   toggleDeleteSecretModal,
   isUpdatingSecret,
 }: IDeleteSecretModal): JSX.Element => {
-  const renderTeam = () => {
-    if (typeof selectedTeam === "string") {
-      selectedTeam = parseInt(selectedTeam, 10);
-    }
-
-    if (selectedTeam === 0) {
-      return { name: "No team" };
-    }
-    return teams.find((team) => team.id === selectedTeam);
-  };
-
   return (
     <Modal
       onExit={toggleDeleteSecretModal}
