@@ -132,11 +132,9 @@ func (b *baseDialog) render(flags ...string) (chan swiftDialogExitCode, chan err
 	exitCodeCh := make(chan swiftDialogExitCode, 1)
 	errCh := make(chan error, 1)
 	go func() {
-		// all dialogs should always be blurred and on top
+		// all dialogs should always be centered
 		flags = append(
 			flags,
-			"--blurscreen",
-			"--ontop",
 			"--messageposition", "center",
 		)
 		cmd := exec.Command(b.path, flags...) //nolint:gosec
@@ -540,6 +538,13 @@ func (m *swiftDialogMDMMigrator) getMessageAndFlags(isManualMigration bool) (*by
 		"--height", height,
 	}
 
+	if !m.props.DisableTakeover {
+		flags = append(flags,
+			"--blurscreen",
+			"--ontop",
+		)
+	}
+
 	if m.props.OrgInfo.ContactURL != "" {
 		flags = append(flags,
 			// info button
@@ -724,19 +729,19 @@ func isOfflineError(err error) bool {
 // ShowDialogMDMMigrationOffline displays the dialog every time is called
 func (o *offlineWatcher) showSwiftDialogMDMMigrationOffline(ctx context.Context) error {
 	props := MDMMigratorProps{
-		// TODO
+		DisableTakeover: true,
 	}
 	m := swiftDialogMDMMigrationOffline{
 		baseDialog: newBaseDialog(o.swiftDialogPath),
 		props:      props,
 	}
 
-	message, flags, err := m.getMessageAndFlags()
+	flags, err := m.getFlags()
 	if err != nil {
-		return fmt.Errorf("getting offline dialog message: %w", err)
+		return fmt.Errorf("getting flags for offline dialog: %w", err)
 	}
 
-	exitCodeCh, errCh := m.render(message.String(), flags...)
+	exitCodeCh, errCh := m.render(flags...)
 
 	select {
 	case <-ctx.Done():
@@ -757,85 +762,41 @@ type swiftDialogMDMMigrationOffline struct {
 	props MDMMigratorProps
 }
 
-func (m *swiftDialogMDMMigrationOffline) render(message string, flags ...string) (chan swiftDialogExitCode, chan error) {
-	dir, err := migration.Dir()
-	if err != nil {
-		log.Error().Err(err).Msg("getting local directory")
-	}
-	imagePath := filepath.Join(dir, constant.MDMMigrationOfflineImageFileName)
-
-	// icon := m.props.OrgInfo.OrgLogoURL
-
-	flags = append([]string{
-		// disable the built-in title so we have full control over the
-		// content
-		"--title", "none",
-		// top icon
-		"--icon", "none", // disable the built-in icon because we will render the entire content as a single image for more control over the layout
-		// "--icon", icon,
-		// "--iconsize", "80",
-		// "--centreicon",
-		// modal content
-		"--image", imagePath,
-		// "--message", "No internet connection. Please connect to the internet to continue.",
-		// "--messagefont", "size=16",
-		"--alignment", "center",
-	}, flags...)
-
+func (m *swiftDialogMDMMigrationOffline) render(flags ...string) (chan swiftDialogExitCode, chan error) {
 	return m.baseDialog.render(flags...)
 }
 
-func (m *swiftDialogMDMMigrationOffline) getMessageAndFlags() (*bytes.Buffer, []string, error) {
-	tmpl := mdmMigrationOfflineTemplate
-	height := "669" // TODO: confirm this
-
-	var message bytes.Buffer
-	if err := tmpl.Execute(
-		&message,
-		m.props,
-	); err != nil {
-		return nil, nil, fmt.Errorf("executing migration template: %w", err)
+func (m *swiftDialogMDMMigrationOffline) getFlags() ([]string, error) {
+	dir, err := migration.Dir()
+	if err != nil {
+		log.Error().Err(err).Msg("getting local directory")
+		// TODO: return error?
 	}
+	imagePath := filepath.Join(dir, constant.MDMMigrationOfflineImageFileName)
+	// disable the built-in iconPath so we have full control over content
+	iconPath := "none"
+	// disable the built-in title so we have full control over content
+	title := "none"
 
 	flags := []string{
+		"--height", "669", // TODO: confirm this
+		// disable the built-in title so we have full control over content
+		"--title", title,
+		// top icon
+		"--icon", iconPath,
+		// modal content
+		"--image", imagePath,
+		"--alignment", "center",
 		// main button
 		"--button1text", "Close",
-		"--height", height,
 	}
 
-	return &message, flags, nil
+	if !m.props.DisableTakeover {
+		flags = append(flags,
+			"--blurscreen",
+			"--ontop",
+		)
+	}
+
+	return flags, nil
 }
-
-// TODO: Can we use a local URI for the image?
-var mdmMigrationOfflineTemplate = template.Must(template.New("mdmMigrationOfflineTemplate").Parse(`
-## Migrate to Fleet
-
-No internet connection. Please connect to internet to continue.` +
-	"\n\n" + "```" + `
-@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@&#@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-@@@@@@@@@@@@@@@@@@@@@@@@@@@%...,   ,@@@@@@@@@@@@@@@@@@@@@@@@
-@@@@@@@@@@@@@@@@@@@@@@@@@@@./*  *...,   @@@@@@@@@@@@@@@@@@@@
-@@@@@@@@@@@@@@@@@@@@@@@@@@@.,,       .../   &@@@@@@@@@@@@@@@
-@@@@@@@@@@@@@@@@@@@@@@@@@@.*,            *..,   *@@@@@@@@@@@
-@@@@@@@@@@@@@@@@@@@@@@@@@@.**                *....   @@@@@@@
-@@@@@@@@@@@@@@@@@@@@@@@@@*.,                     ,...*   @@@
-@@@@@@@@@@@@@@@@@@@@@@@@@.**                         ...., .
-@@@@@@@@@@@@@@@@@@@@@@@@*.,                             .*,,
-@@@@@@@@@@@@@@@@@@@@@@@@.*,                            ,.*,#
-@@@@@@@@@@@@@@@@@@@@@@@#.,                             ..,,@
-@@@@@@@@@@@@@@@@@@@@@@@@../,,,                        ..*,*@
-@@@@@@@@@@@@@@@@@@%*    /  *...,,/                    ..,,@@
-@@@@@@@@@@@@@@*.  **     *. .  ....*,*                .*,*@@
-@@@@@@@@@@, /*        ,,.      .#.  ,../,*.          *.,,@@@
-@@@@@@ /        ,,.    /(  */        *  (..*,,/      .(,,@@@
-@@/       /,**       /*       *** **     ,  ,..,,,/ (.,,@@@@
-@@/....       *,*        *,,       ,*    //  .   ,...*,,@@@@
-.....*....*       .,/        .,  *              *.  #@@@@@@@
-@@@@.....*....,        **.      ,(,,       .,*  ,,,,#@@@@@@@
-@@@@@@@@*....*.....        *,/        */,*  ,,,,,*.....(@@@@
-@@@@@@@@@@@@@.....,.....       *,/ /,,  /,,,,*.......@@@@@@@
-@@@@@@@@@@@@@@@@@.....*....,        *,,,,,......#@@@@@@@@@@@
-@@@@@@@@@@@@@@@@@@@@@,....*.....,,,,*.......@@@@@@@@@@@@@@@@
-@@@@@@@@@@@@@@@@@@@@@@@@@(.....//.......@@@@@@@@@@@@@@@@@@@@
-@@@@@@@@@@@@@@@@@@@@@@@@@@@@@&.....#@@@@@@@@@@@@@@@@@@@@@@@@` + "```",
-))
