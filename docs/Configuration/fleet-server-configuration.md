@@ -61,6 +61,7 @@ FLEET_LOGGING_JSON=true \
 --logging_json
 ```
 
+- Note: Command-line flags can also be piped in via stdin.
 
 ## Configuration options
 
