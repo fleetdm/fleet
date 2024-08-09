@@ -66,6 +66,11 @@ By default, queries that run on a schedule will only target platforms compatible
 ## Update agent options
 
 <!-- Heading is kept so that the link from the Fleet UI still works -->
+
+### Notice: No Centralized Logging
+
+Please note that the logs are currently stored locally on each device. There is no centralized logging until separate logging infrastructure, such as [Elasticsearch with Kibana](https://fleetdm.com/guides/using-elasticsearch-and-kibana-to-visualize-osquery-performance), are set up. Configure your logging infrastructure to centralize logs for better management and analysis.
+
 <span id="configuring-agent-options" name="configuring-agent-options"></span>
 
 > This content was relocated on 31st August 2023. 
