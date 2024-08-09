@@ -26,11 +26,11 @@ import Dropdown from "components/forms/fields/Dropdown";
 import TableContainer from "components/TableContainer";
 import Slider from "components/forms/fields/Slider";
 import CustomLink from "components/CustomLink";
-import LastUpdatedText from "components/LastUpdatedText";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
 import TableCount from "components/TableContainer/TableCount";
 
 import EmptySoftwareTable from "pages/SoftwarePage/components/EmptySoftwareTable";
+import SoftwareLastUpdatedInfo from "pages/SoftwarePage/components/SoftwareLastUpdatedInfo";
 
 import generateTitlesTableConfig from "./SoftwareTitlesTableConfig";
 import generateVersionsTableConfig from "./SoftwareVersionsTableConfig";
@@ -260,16 +260,7 @@ const SoftwareTable = ({
       <>
         <TableCount name="items" count={data?.count} />
         {tableData && data?.counts_updated_at && (
-          <LastUpdatedText
-            lastUpdatedAt={data.counts_updated_at}
-            customTooltipText={
-              <>
-                The last time software data was <br />
-                updated, including vulnerabilities <br />
-                and host counts.
-              </>
-            }
-          />
+          <SoftwareLastUpdatedInfo lastUpdatedAt={data.counts_updated_at} />
         )}
       </>
     );

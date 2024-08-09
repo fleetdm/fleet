@@ -72,7 +72,7 @@ const Activity = ({
     <Card
       borderRadiusSize="xxlarge"
       includeShadow
-      largePadding
+      paddingSize="xxlarge"
       className={baseClass}
     >
       {isLoading && (

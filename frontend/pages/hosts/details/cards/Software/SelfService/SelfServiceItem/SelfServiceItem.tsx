@@ -20,11 +20,28 @@ import { IStatusDisplayConfig } from "../../InstallStatusCell/InstallStatusCell"
 
 const baseClass = "self-service-item";
 
+// TODO: This is all todo, I just had to remove installed key
+// since the type installed was giving me typing errors for SoftwareInstallStatus on my branch
 const STATUS_CONFIG: Record<SoftwareInstallStatus, IStatusDisplayConfig> = {
-  installed: {
+  verified: {
     iconName: "success",
-    displayText: "Installed",
-    tooltip: ({ lastInstalledAt }) => (
+    displayText: "Installed", // TODO: Update tests to change this to Verified
+    tooltip: (
+      { lastInstalledAt } // TODO: confirm all tooltips
+    ) => (
+      <>
+        Software installed successfully ({dateAgo(lastInstalledAt as string)}).
+        Currently, if the software is uninstalled, the &quot;Installed&quot;
+        status won&apos;t be updated.
+      </>
+    ),
+  },
+  verifying: {
+    iconName: "success-outline",
+    displayText: "Verifying", // TODO
+    tooltip: (
+      { lastInstalledAt } // TODO
+    ) => (
       <>
         Software installed successfully ({dateAgo(lastInstalledAt as string)}).
         Currently, if the software is uninstalled, the &quot;Installed&quot;
@@ -36,6 +53,11 @@ const STATUS_CONFIG: Record<SoftwareInstallStatus, IStatusDisplayConfig> = {
     iconName: "pending-outline",
     displayText: "Install in progress...",
     tooltip: () => "Software installation in progress...",
+  },
+  blocked: {
+    iconName: "pending-outline", // TODO: add "disable" to type and change to disable icon
+    displayText: "TODO SelfServieItem.tsx", // TODO
+    tooltip: () => "", // TODO
   },
   failed: {
     iconName: "error",
@@ -130,7 +152,7 @@ const getInstallButtonText = (status: SoftwareInstallStatus | null) => {
       return "Install";
     case "failed":
       return "Retry";
-    case "installed":
+    case "verified":
       return "Reinstall";
     default:
       // we don't show a button for pending installs

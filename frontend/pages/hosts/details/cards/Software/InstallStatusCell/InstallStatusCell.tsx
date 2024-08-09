@@ -23,6 +23,7 @@ export type IStatusDisplayConfig = {
     | "success"
     | "pending-outline"
     | "error"
+    | "success-outline"
     | "install"
     | "install-self-service";
   displayText: string;
@@ -33,9 +34,9 @@ export const INSTALL_STATUS_DISPLAY_OPTIONS: Record<
   IStatusValue | "selfService",
   IStatusDisplayConfig
 > = {
-  installed: {
+  verified: {
     iconName: "success",
-    displayText: "Installed",
+    displayText: "Verified",
     tooltip: ({ lastInstalledAt: lastInstall }) => (
       <>
         Fleet installed software on this host ({dateAgo(lastInstall as string)}
@@ -44,10 +45,26 @@ export const INSTALL_STATUS_DISPLAY_OPTIONS: Record<
       </>
     ),
   },
+  verifying: {
+    iconName: "success-outline",
+    displayText: "Verifying",
+    tooltip: () => (
+      // TODO
+      <>TODO InstallStatusCell.tsx</>
+    ),
+  },
   pending: {
     iconName: "pending-outline",
     displayText: "Pending",
     tooltip: () => "Fleet will install software when the host comes online.",
+  },
+  blocked: {
+    iconName: "success", // TODO
+    displayText: "Blocking",
+    tooltip: () => (
+      // TODO
+      <>TODO InstallStatusCell.tsx</>
+    ),
   },
   failed: {
     iconName: "error",

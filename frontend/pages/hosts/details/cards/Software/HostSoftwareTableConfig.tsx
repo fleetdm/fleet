@@ -82,7 +82,7 @@ const generateActions = ({
   if (
     !hasSoftwareToInstall ||
     !userHasSWInstallPermission ||
-    status === "installed"
+    status === "verified"
   ) {
     actions.splice(indexInstallAction, 1);
     return actions;

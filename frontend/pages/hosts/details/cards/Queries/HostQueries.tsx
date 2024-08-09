@@ -142,7 +142,7 @@ const HostQueries = ({
     <Card
       borderRadiusSize="xxlarge"
       includeShadow
-      largePadding
+      paddingSize="xxlarge"
       className={baseClass}
     >
       <p className="card__header">Queries</p>

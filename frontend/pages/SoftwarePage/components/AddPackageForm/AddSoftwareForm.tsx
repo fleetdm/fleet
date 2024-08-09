@@ -4,8 +4,8 @@ import { NotificationContext } from "context/notification";
 import { getFileDetails } from "utilities/file/fileUtils";
 import getInstallScript from "utilities/software_install_scripts";
 
-import { ILabelIdentifier } from "interfaces/label";
 import { InstallType } from "interfaces/software";
+import { ILabelIdentifier } from "interfaces/label";
 
 import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";

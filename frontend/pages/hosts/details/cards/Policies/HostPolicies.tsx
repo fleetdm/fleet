@@ -137,7 +137,7 @@ const Policies = ({
     <Card
       borderRadiusSize="xxlarge"
       includeShadow
-      largePadding
+      paddingSize="xxlarge"
       className={baseClass}
     >
       <p className="card__header">Policies</p>

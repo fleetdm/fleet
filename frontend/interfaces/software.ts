@@ -55,6 +55,18 @@ export interface ISoftwareTitleVersion {
 }
 
 export type InstallType = "automatic" | "manual";
+
+export interface IAppStoreAppStatus {
+  verified: number;
+  verifying: number;
+  pending: number;
+  // App Store apps do not have blocked status
+  failed: number;
+}
+export interface ISoftwarePackageStatus extends IAppStoreAppStatus {
+  blocked: number;
+}
+
 export interface ISoftwarePackage {
   name: string;
   version: string;
@@ -64,12 +76,7 @@ export interface ISoftwarePackage {
   post_install_script?: string;
   self_service: boolean;
   icon_url: string | null;
-  status: {
-    installed: number;
-    pending: number;
-    failed: number;
-  };
-  // for SW title details > read-only Options modal
+  status: ISoftwarePackageStatus;
   install_type: InstallType;
   labels_include_any: ILabelIdentifier[];
   labels_exclude_any: ILabelIdentifier[];
@@ -85,11 +92,7 @@ export interface IAppStoreApp {
   app_store_id: number;
   latest_version: string;
   icon_url: string;
-  status: {
-    installed: number;
-    pending: number;
-    failed: number;
-  };
+  status: IAppStoreAppStatus;
 }
 
 export interface ISoftwareTitle {
@@ -102,6 +105,7 @@ export interface ISoftwareTitle {
   software_package: ISoftwarePackage | null;
   app_store_app: IAppStoreApp | null;
   browser?: string;
+  counts_updated_at?: string;
 }
 
 export interface ISoftwareTitleDetails {
@@ -198,7 +202,9 @@ export const formatSoftwareType = ({
  */
 export const SOFTWARE_INSTALL_STATUSES = [
   "failed",
-  "installed",
+  "verifying",
+  "verified",
+  "blocked",
   "pending",
 ] as const;
 
@@ -286,7 +292,9 @@ export type IDeviceSoftware = IHostSoftware;
 
 const INSTALL_STATUS_PREDICATES: Record<SoftwareInstallStatus, string> = {
   failed: "failed to install",
-  installed: "installed",
+  verified: "verified?", // TODO: jacob
+  verifying: "verifying?", // TODO: jacob
+  blocked: "blocked?", // TODO: jacob
   pending: "told Fleet to install",
 } as const;
 
@@ -301,8 +309,10 @@ export const getInstallStatusPredicate = (status: string | undefined) => {
 };
 
 export const INSTALL_STATUS_ICONS: Record<SoftwareInstallStatus, IconNames> = {
+  verified: "success",
+  verifying: "success-outline",
   pending: "pending-outline",
-  installed: "success-outline",
+  blocked: "disable",
   failed: "error-outline",
 } as const;
 

@@ -10,11 +10,11 @@ import { GITHUB_NEW_ISSUE_LINK } from "utilities/constants";
 
 import CustomLink from "components/CustomLink";
 import TableContainer from "components/TableContainer";
-import LastUpdatedText from "components/LastUpdatedText";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
 import TableCount from "components/TableContainer/TableCount";
 
 import EmptySoftwareTable from "pages/SoftwarePage/components/EmptySoftwareTable";
+import SoftwareLastUpdatedInfo from "pages/SoftwarePage/components/SoftwareLastUpdatedInfo";
 import { IOSVersionsResponse } from "services/entities/operating_systems";
 
 import generateTableConfig from "pages/DashboardPage/cards/OperatingSystems/OperatingSystemsTableConfig";
@@ -135,16 +135,7 @@ const SoftwareOSTable = ({
       <>
         <TableCount name="items" count={data?.count} />
         {data?.os_versions && data?.counts_updated_at && (
-          <LastUpdatedText
-            lastUpdatedAt={data.counts_updated_at}
-            customTooltipText={
-              <>
-                The last time software data was <br />
-                updated, including vulnerabilities <br />
-                and host counts.
-              </>
-            }
-          />
+          <SoftwareLastUpdatedInfo lastUpdatedAt={data.counts_updated_at} />
         )}
       </>
     );

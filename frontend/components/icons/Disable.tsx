@@ -5,7 +5,7 @@ interface IDisable {
   color?: Colors;
 }
 
-const Disable = ({ color = "core-fleet-blue" }: IDisable) => {
+const Disable = ({ color = "ui-fleet-black-50" }: IDisable) => {
   return (
     <svg
       width="16"

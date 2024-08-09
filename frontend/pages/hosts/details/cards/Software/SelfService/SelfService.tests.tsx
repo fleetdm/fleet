@@ -71,7 +71,7 @@ describe("SelfService", () => {
         software: [
           createMockDeviceSoftware({
             name: "test-software",
-            status: "installed",
+            status: "verified",
           }),
         ],
       })

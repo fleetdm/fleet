@@ -51,13 +51,6 @@
     padding: $pad-xxlarge;
   }
 
-  // 40px padding
-  // TODO: remove when we've replaced all instances of largePadding with
-  // paddingSize prop
-  &__large-padding {
-    padding: $pad-xxlarge;
-  }
-
   // color styles
   &__white {
     background-color: $core-white;
