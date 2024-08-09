@@ -488,7 +488,7 @@ func testSetTeamVPPApps(t *testing.T, ds *Datastore) {
 	// Assign 2 apps
 	err = ds.SetTeamVPPApps(ctx, &team.ID, []fleet.VPPAppTeam{
 		{VPPAppID: app1.VPPAppID},
-		{VPPAppID: app2.VPPAppID},
+		{VPPAppID: app2.VPPAppID, SelfService: true},
 	})
 	require.NoError(t, err)
 
@@ -497,6 +497,7 @@ func testSetTeamVPPApps(t *testing.T, ds *Datastore) {
 	require.Len(t, assigned, 2)
 	assert.Contains(t, assigned, app1.VPPAppID)
 	assert.Contains(t, assigned, app2.VPPAppID)
+	assert.True(t, assigned[app2.VPPAppID].SelfService)
 
 	// Assign an additional app
 	err = ds.SetTeamVPPApps(ctx, &team.ID, []fleet.VPPAppTeam{
@@ -512,11 +513,12 @@ func testSetTeamVPPApps(t *testing.T, ds *Datastore) {
 	require.Contains(t, assigned, app1.VPPAppID)
 	require.Contains(t, assigned, app2.VPPAppID)
 	require.Contains(t, assigned, app3.VPPAppID)
+	assert.False(t, assigned[app2.VPPAppID].SelfService)
 
 	// Swap one app out for another
 	err = ds.SetTeamVPPApps(ctx, &team.ID, []fleet.VPPAppTeam{
 		{VPPAppID: app1.VPPAppID},
-		{VPPAppID: app2.VPPAppID},
+		{VPPAppID: app2.VPPAppID, SelfService: true},
 		{VPPAppID: app4.VPPAppID},
 	})
 	require.NoError(t, err)
@@ -527,6 +529,7 @@ func testSetTeamVPPApps(t *testing.T, ds *Datastore) {
 	require.Contains(t, assigned, app1.VPPAppID)
 	require.Contains(t, assigned, app2.VPPAppID)
 	require.Contains(t, assigned, app4.VPPAppID)
+	assert.True(t, assigned[app2.VPPAppID].SelfService)
 
 	// Remove all apps
 	err = ds.SetTeamVPPApps(ctx, &team.ID, []fleet.VPPAppTeam{})
