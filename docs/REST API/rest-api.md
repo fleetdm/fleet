@@ -887,6 +887,14 @@ None.
       "minimum_version": "12.3.1",
       "deadline": "2022-01-01"
     },
+    "ios_updates": {
+      "minimum_version": "17.0.1",
+      "deadline": "2024-08-01"
+    },
+    "ipados_updates": {
+      "minimum_version": "17.0.1",
+      "deadline": "2024-08-01"
+    },
     "windows_updates": {
       "deadline_days": 5,
       "grace_period_days": 1
@@ -1171,6 +1179,14 @@ Modifies the Fleet's configuration with the supplied information.
     "macos_updates": {
       "minimum_version": "12.3.1",
       "deadline": "2022-01-01"
+    },
+    "ios_updates": {
+      "minimum_version": "17.0.1",
+      "deadline": "2024-08-01"
+    },
+    "ipados_updates": {
+      "minimum_version": "17.0.1",
+      "deadline": "2024-08-01"
     },
     "windows_updates": {
       "deadline_days": 5,
@@ -1681,11 +1697,14 @@ _Available in Fleet Premium._
 | apple_bm_default_team             | string  | _Available in Fleet Premium._ The default team to use with Apple Business Manager. |
 | windows_enabled_and_configured    | boolean | Enables Windows MDM support. |
 | enable_disk_encryption            | boolean | _Available in Fleet Premium._ Hosts that belong to no team will have disk encryption enabled if set to true. |
-| macos_updates                     | object  | See [`mdm.macos_updates`](#mdm-macos-updates). |
-| macos_migration                   | object  | See [`mdm.macos_migration`](#mdm-macos-migration). |
-| macos_setup                       | object  | See [`mdm.macos_setup`](#mdm-macos-setup). |
-| macos_settings                    | object  | See [`mdm.macos_settings`](#mdm-macos-settings). |
-| windows_settings                  | object  | See [`mdm.windows_settings`](#mdm-windows-settings). |
+| macos_updates         | object  | See [`mdm.macos_updates`](#mdm-macos-updates). |
+| ios_updates         | object  | See [`mdm.ios_updates`](#mdm-ios-updates). |
+| ipados_updates         | object  | See [`mdm.ipados_updates`](#mdm-ipados-updates). |
+| windows_updates         | object  | See [`mdm.window_updates`](#mdm-windows-updates). |
+| macos_migration         | object  | See [`mdm.macos_migration`](#mdm-macos-migration). |
+| macos_setup         | object  | See [`mdm.macos_setup`](#mdm-macos-setup). |
+| macos_settings         | object  | See [`mdm.macos_settings`](#mdm-macos-settings). |
+| windows_settings         | object  | See [`mdm.windows_settings`](#mdm-windows-settings). |
 
 <br/>
 
@@ -1699,6 +1718,32 @@ _Available in Fleet Premium._
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | minimum_version                   | string  | Hosts that belong to no team will be nudged until their macOS is at or above this version. |
 | deadline                          | string  | Hosts that belong to no team won't be able to dismiss the Nudge window once this deadline is past. |
+
+<br/>
+
+##### mdm.ios_updates
+
+_Available in Fleet Premium._
+
+`mdm.ios_updates` is an object with the following structure:
+
+| Name                              | Type    | Description   |
+| ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| minimum_version                   | string  | Hosts that belong to no team and are enrolled into Fleet's MDM will be nudged until their iOS is at or above this version. |
+| deadline                          | string  | Hosts that belong to no team and are enrolled into Fleet's MDM won't be able to dismiss the Nudge window once this deadline is past. |
+
+<br/>
+
+##### mdm.ipados_updates
+
+_Available in Fleet Premium._
+
+`mdm.ipados_updates` is an object with the following structure:
+
+| Name                              | Type    | Description   |
+| ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| minimum_version                   | string  | Hosts that belong to no team and are enrolled into Fleet's MDM will be nudged until their iPadOS is at or above this version. |
+| deadline                          | string  | Hosts that belong to no team and are enrolled into Fleet's MDM won't be able to dismiss the Nudge window once this deadline is past. |
 
 <br/>
 
@@ -4195,14 +4240,18 @@ Resends a configuration profile for the specified host.
     {
       "id": 121,
       "name": "Google Chrome.app",
-      "package_available_for_install": "GoogleChrome.pkg",
-      "self_service": true,
+      "software_package": {
+        "name": "GoogleChrome.pkg",
+        "version": "125.12.0.3",
+        "self_service": true,
+        "last_install": {
+          "install_uuid": "8bbb8ac2-b254-4387-8cba-4d8a0407368b",
+          "installed_at": "2024-05-15T15:23:57Z"
+        },
+      },
+      "app_store_app": null
       "source": "apps",
       "status": "failed",
-      "last_install": {
-        "install_uuid": "8bbb8ac2-b254-4387-8cba-4d8a0407368b",
-        "installed_at": "2024-05-15T15:23:57Z"
-      },
       "installed_versions": [
         {
           "version": "121.0",
@@ -4215,20 +4264,30 @@ Resends a configuration profile for the specified host.
     {
       "id": 134,
       "name": "Falcon.app",
-      "package_available_for_install": "FalconSensor-6.44.pkg",
-      "self_service": false,
+      "software_package": {
+        "name": "FalconSensor-6.44.pkg"
+        "self_service": false,
+        "last_install": null
+      },
+      "app_store_app": null    
       "source": "",
       "status": null,
-      "last_install": null,
       "installed_versions": [],
     },
     {
       "id": 147,
-      "name": "Firefox.app",
+      "name": "Logic Pro",
+      "software_package": null
+      "app_store_app": {
+        "app_store_id": "1091189122"
+        "version": "2.04",
+        "last_install": {
+          "command_uuid": "0aa14ae5-58fe-491a-ac9a-e4ee2b3aac40",
+          "installed_at": "2024-05-15T15:23:57Z"
+        },
+      },
       "source": "apps",
-      "bundle_identifier": "org.mozilla.firefox",
-      "status": null,
-      "last_install": null,
+      "status": "installed",
       "installed_versions": [
         {
           "version": "118.0",
@@ -6222,6 +6281,7 @@ This endpoint returns the list of custom MDM commands that have been executed.
 
 - [Get Apple Push Notification service (APNs)](#get-apple-push-notification-service-apns)
 - [Get Apple Business Manager (ABM)](#get-apple-business-manager-abm)
+- [Get Volume Purchasing Program (VPP)](#get-volume-purchasing-program-vpp)
 
 ### Get Apple Push Notification service (APNs)
 
@@ -6273,6 +6333,30 @@ None.
   "mdm_server_url": "https://example.com/mdm/apple/mdm",
   "renew_date": "2023-11-29T00:00:00Z",
   "default_team": ""
+}
+```
+
+Get Volume Purchasing Program (VPP)
+
+> This **endpoint is experimental** and may change. You can find the upcoming breaking changes [here](https://github.com/fleetdm/fleet/pull/21043/files#diff-7246bc304b15c8865ed8eaa205e9c244d0a0314e4bae60cf553dc06147c38b64R6423-R6446.
+
+_Available in Fleet Premium_
+
+`GET /api/v1/fleet/vpp`
+
+#### Example
+
+`GET /api/v1/fleet/vpp`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "org_name": "Acme Inc.",
+  "renew_date": "2023-11-29T00:00:00Z",
+  "location": "Acme Inc. Main Address"
 }
 ```
 
@@ -8411,9 +8495,9 @@ Deletes the session specified by ID. When the user associated with the session n
 
 ## Software
 
-- [Add software](#add-software)
-- [Download software](#download-software)
-- [Delete software](#delete-software)
+- [Add package](#add-package)
+- [Download package](#download-package)
+- [Delete package or App Store app](#delete-package-or-app-store-app)
 - [Get installation result](#get-installation-result)
 - [List software](#list-software)
 - [List software versions](#list-software-versions)
@@ -8421,8 +8505,10 @@ Deletes the session specified by ID. When the user associated with the session n
 - [Get software](#get-software)
 - [Get software version](#get-software-version)
 - [Get operating system version](#get-operating-system-version)
+- [Get available App Store apps](#get-available-app-store-apps)
+- [Add App Store app](#add-app-store-app)
 
-### Add software
+### Add package
 
 _Available in Fleet Premium._
 
@@ -8483,13 +8569,11 @@ Content-Type: application/octet-stream
 `Status: 200`
 
 
-### Download software
+### Download package
 
 _Available in Fleet Premium._
 
-Download a software package.
-
-`GET /api/v1/fleet/software/titles/:software_title_id/package/?alt=media`
+`GET /api/v1/fleet/software/titles/:software_title_id/package?alt=media`
 
 #### Parameters
 
@@ -8515,26 +8599,26 @@ Content-Length: <length>
 Body: <blob>
 ```
 
-### Delete software
+### Delete package or App Store app
 
 > This **endpoint is experimental** and may change. You can find the upcoming breaking changes [here](https://github.com/fleetdm/fleet/pull/19291/files#diff-7246bc304b15c8865ed8eaa205e9c244d0a0314e4bae60cf553dc06147c38b64L8661-R8698).
 
 _Available in Fleet Premium._
 
-Delete a software package.
+Deletes software that's available for install (package or App Store app).
 
-`DELETE /api/v1/fleet/software/titles/:software_title_id/package`
+`DELETE /api/v1/fleet/software/titles/:software_title_id/available_for_install`
 
 #### Parameters
 
 | Name            | Type    | In   | Description                                      |
 | ----            | ------- | ---- | --------------------------------------------     |
-| software_title_id  | integer | path | **Required**. The ID of the software title for the software package to delete. |
+| software_title_id              | integer | path | **Required**. The ID of the software title to delete software available for install. |
 | team_id | integer | query | **Required**. The team ID. Deletes a software package added to the specified team. |
 
 #### Example
 
-`DELETE /api/v1/fleet/software/titles/24/package?team_id=2`
+`DELETE /api/v1/fleet/software/titles/24/available_for_install?team_id=2`
 
 ##### Default response
 
@@ -8613,8 +8697,12 @@ Get a list of all software.
     {
       "id": 12,
       "name": "Firefox.app",
-      "software_package": "FirefoxInstall.pkg",
-      "self_service": true,
+      "software_package": {
+        "name": "FirefoxInsall.pkg",
+        "version": "125.6",
+        "self_service": true
+      },
+      "app_store_app": null,
       "versions_count": 3,
       "source": "apps",
       "browser": "",
@@ -8641,7 +8729,7 @@ Get a list of all software.
       "id": 22,
       "name": "Google Chrome.app",
       "software_package": null,
-      "self_service": false,
+      "app_store_app": null,
       "versions_count": 5,
       "source": "apps",
       "browser": "",
@@ -8673,7 +8761,7 @@ Get a list of all software.
       "id": 32,
       "name": "1Password – Password Manager",
       "software_package": null,
-      "self_service": false,
+      "app_store_app": null,
       "versions_count": 1,
       "source": "chrome_extensions",
       "browser": "chrome",
@@ -8868,6 +8956,7 @@ Returns information about the specified software. By default, `versions` are sor
   "software_title": {
     "id": 12,
     "name": "Firefox.app",
+    "bundle_identifier": "org.mozilla.firefox",
     "software_package": {
       "name": "FalconSensor-6.44.pkg",
       "version": "6.44",
@@ -8884,6 +8973,7 @@ Returns information about the specified software. By default, `versions` are sor
         "failed": 2,
       }
     },
+    "app_store_app": null,
     "source": "apps",
     "browser": "",
     "hosts_count": 48,
@@ -8905,6 +8995,47 @@ Returns information about the specified software. By default, `versions` are sor
         "version": "115.5",
         "vulnerabilities": ["CVE-2023-7654"],
         "hosts_count": 4
+      }
+    ]
+  }
+}
+```
+
+#### Example (App Store app)
+
+`GET /api/v1/fleet/software/titles/15`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "software_title": {
+    "id": 15,
+    "name": "Logic Pro",
+    "bundle_identifier": "com.apple.logic10",
+    "software_package": null,
+    "app_store_app": {
+      "name": "Logic Pro",
+      "app_store_id": "1091189122",
+      "latest_version": "2.04",
+      "icon_url": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/f1/65/1e/a4844ccd-486d-455f-bb31-67336fe46b14/AppIcon-1x_U007emarketing-0-7-0-85-220-0.png/512x512bb.jpg",
+      "status": {
+        "installed": 3,
+        "pending": 1,
+        "failed": 2,
+      }
+    },
+    "source": "apps",
+    "browser": "",
+    "hosts_count": 48,
+    "versions": [
+      {
+        "id": 123,
+        "version": "2.04",
+        "vulnerabilities": [],
+        "hosts_count": 24
       }
     ]
   }
@@ -9030,6 +9161,78 @@ OS vulnerability data is currently available for Windows and macOS. For other pl
 
 ## Vulnerabilities
 
+### Get available App Store apps
+
+Returns the list of App Store (VPP) apps purchased in Apple Business Manager. Apps that are already added to a team won't be returned.
+
+`GET /api/v1/fleet/software/app_store_apps`
+
+#### Parameters
+
+| Name    | Type | In | Description |
+| ------- | ---- | -- | ----------- |
+| team_id | integer | query | **Required**. The team ID. Lists available VPP software for specified team. |
+
+#### Example
+
+`GET /api/v1/fleet/software/app_store_apps/?team_id=3`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "app_store_apps": {
+    {
+      "name": "Xcode",
+      "icon_url": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/f1/65/1e/a4844ccd-486d-455f-bb31-67336fe46b14/AppIcon-1x_U007emarketing-0-7-0-85-220-0.png/512x512bb.jpg",
+      "latest_version": "15.4",
+      "app_store_id": "497799835"
+    },
+    {
+      "name": "Logic Pro",
+      "icon_url": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/f1/65/1e/a4844ccd-486d-455f-bb31-67336fe46b14/AppIcon-1x_U007emarketing-0-7-0-85-220-0.png/512x512bb.jpg",
+      "latest_version": "2.04",
+      "app_store_id": "634148309"
+    },
+}
+}
+```
+
+### Add App Store app
+
+_Available in Fleet Premium._
+
+Add App Store (VPP) app purchased in Apple Business Manager.
+
+`POST /api/v1/fleet/software/app_store_apps`
+
+#### Parameters
+
+| Name | Type | In | Description |
+| ---- | ---- | -- | ----------- |
+| app_store_id   | string | body | **Required.** The ID of App Store app. |
+| team_id       | integer | body | **Required**. The team ID. Adds VPP software to the specified team.  |
+
+#### Example
+
+`POST /api/v1/fleet/software/app_store_apps?team_id=3`
+
+##### Request body
+
+```json
+{
+  "app_store_id": "497799835",
+  "team_id": 2
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+## Vulnerabilities
 
 - [List vulnerabilities](#list-vulnerabilities)
 - [Get vulnerability](#get-vulnerability)
@@ -9631,6 +9834,12 @@ _Available in Fleet Premium_
 | mdm                                                     | object  | body | MDM settings for the team.                                                                                                                                                                                |
 | &nbsp;&nbsp;macos_updates                               | object  | body | macOS updates settings.                                                                                                                                                                                   |
 | &nbsp;&nbsp;&nbsp;&nbsp;minimum_version                 | string  | body | Hosts that belong to this team and are enrolled into Fleet's MDM will be nudged until their macOS is at or above this version.                                                                            |
+| &nbsp;&nbsp;&nbsp;&nbsp;deadline                        | string  | body | Hosts that belong to this team and are enrolled into Fleet's MDM won't be able to dismiss the Nudge window once this deadline is past.                                                                    |
+| &nbsp;&nbsp;ios_updates                               | object  | body | iOS updates settings.                                                                                                                                                                                   |
+| &nbsp;&nbsp;&nbsp;&nbsp;minimum_version                 | string  | body | Hosts that belong to this team and are enrolled into Fleet's MDM will be nudged until their iOS is at or above this version.                                                                            |
+| &nbsp;&nbsp;&nbsp;&nbsp;deadline                        | string  | body | Hosts that belong to this team and are enrolled into Fleet's MDM won't be able to dismiss the Nudge window once this deadline is past.                                                                    |
+| &nbsp;&nbsp;ipados_updates                               | object  | body | iPadOS updates settings.                                                                                                                                                                                   |
+| &nbsp;&nbsp;&nbsp;&nbsp;minimum_version                 | string  | body | Hosts that belong to this team and are enrolled into Fleet's MDM will be nudged until their iPadOS is at or above this version.                                                                            |
 | &nbsp;&nbsp;&nbsp;&nbsp;deadline                        | string  | body | Hosts that belong to this team and are enrolled into Fleet's MDM won't be able to dismiss the Nudge window once this deadline is past.                                                                    |
 | &nbsp;&nbsp;windows_updates                             | object  | body | Windows updates settings.                                                                                                                                                                                   |
 | &nbsp;&nbsp;&nbsp;&nbsp;deadline_days                   | integer | body | Hosts that belong to this team and are enrolled into Fleet's MDM will have this number of days before updates are installed on Windows.                                                                   |
