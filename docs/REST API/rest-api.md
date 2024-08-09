@@ -3066,6 +3066,16 @@ Returns the information of the specified host.
         "critical": false
       },
       {
+        "id": 3,
+        "name": "SomeQuery4",
+        "query": "SELECT * FROM baz;",
+        "description": "",
+        "resolution": "",
+        "platform": "",
+        "response": "error",
+        "critical": false
+      },
+      {
         "id": 1,
         "name": "SomeQuery",
         "query": "SELECT * FROM foo;",
@@ -6552,7 +6562,9 @@ For example, a policy might ask “Is Gatekeeper enabled on macOS devices?“ Th
       "created_at": "2021-12-15T15:23:57Z",
       "updated_at": "2021-12-15T15:23:57Z",
       "passing_host_count": 2000,
-      "failing_host_count": 300,
+      "failing_host_count": 20,
+      "errored_host_count": 0,
+      "pending_host_count": 20,
       "host_count_updated_at": "2023-12-20T15:23:57Z"
     },
     {
@@ -6571,6 +6583,8 @@ For example, a policy might ask “Is Gatekeeper enabled on macOS devices?“ Th
       "updated_at": "2022-02-10T20:59:35Z",
       "passing_host_count": 2300,
       "failing_host_count": 0,
+      "errored_host_count": 0,
+      "pending_host_count": 0,
       "host_count_updated_at": "2023-12-20T15:23:57Z"
     }
   ]
@@ -6641,6 +6655,8 @@ For example, a policy might ask “Is Gatekeeper enabled on macOS devices?“ Th
       "updated_at": "2021-12-15T15:23:57Z",
       "passing_host_count": 2000,
       "failing_host_count": 300,
+      "errored_host_count": 0,
+      "pending_host_count": 20,
       "host_count_updated_at": "2023-12-20T15:23:57Z"
     }
 }
@@ -6700,6 +6716,8 @@ For example, a policy might ask “Is Gatekeeper enabled on macOS devices?“ Th
     "updated_at": "2022-03-17T20:15:55Z",
     "passing_host_count": 0,
     "failing_host_count": 0,
+    "errored_host_count": 0,
+    "pending_host_count": 2300,
     "host_count_updated_at": null
   }
 }
@@ -6792,6 +6810,8 @@ For example, a policy might ask “Is Gatekeeper enabled on macOS devices?“ Th
     "updated_at": "2022-03-17T20:15:55Z",
     "passing_host_count": 0,
     "failing_host_count": 0,
+    "errored_host_count": 0,
+    "pending_host_count": 2300,
     "host_count_updated_at": null
   }
 }
@@ -6889,6 +6909,8 @@ Team policies work the same as policies, but at the team level.
       "updated_at": "2021-12-16T16:39:00Z",
       "passing_host_count": 2000,
       "failing_host_count": 300,
+      "errored_host_count": 0,
+      "pending_host_count": 20, 
       "host_count_updated_at": "2023-12-20T15:23:57Z",
       "calendar_events_enabled": true
     },
@@ -6908,6 +6930,8 @@ Team policies work the same as policies, but at the team level.
       "updated_at": "2021-12-16T16:39:00Z",
       "passing_host_count": 2300,
       "failing_host_count": 0,
+      "errored_host_count": 0,
+      "pending_host_count": 0,
       "host_count_updated_at": "2023-12-20T15:23:57Z",
       "calendar_events_enabled": false
     }
@@ -6929,6 +6953,8 @@ Team policies work the same as policies, but at the team level.
       "updated_at": "2022-08-30T15:08:26Z",
       "passing_host_count": 10,
       "failing_host_count": 9,
+      "errored_host_count": 0,
+      "pending_host_count": 3,
       "host_count_updated_at": "2023-12-20T15:23:57Z"
     }
   ]
@@ -6962,6 +6988,8 @@ Team policies work the same as policies, but at the team level.
       "updated_at": "2021-12-16T16:39:00Z",
       "passing_host_count": 2000,
       "failing_host_count": 300,
+      "errored_host_count": 0,
+      "pending_host_count": 20,
       "host_count_updated_at": "2023-12-20T15:23:57Z"
     },
     {
@@ -6980,6 +7008,8 @@ Team policies work the same as policies, but at the team level.
       "updated_at": "2021-12-16T16:39:00Z",
       "passing_host_count": 2300,
       "failing_host_count": 0,
+      "errored_host_count": 0,
+      "pending_host_count": 0,
       "host_count_updated_at": "2023-12-20T15:23:57Z"
     },
     {
@@ -6998,6 +7028,8 @@ Team policies work the same as policies, but at the team level.
       "updated_at": "2022-08-30T15:08:26Z",
       "passing_host_count": 10,
       "failing_host_count": 9,
+      "errored_host_count": 0,
+      "pending_host_count": 3,
       "host_count_updated_at": "2023-12-20T15:23:57Z"
     }
   ]
@@ -7068,6 +7100,8 @@ Team policies work the same as policies, but at the team level.
     "updated_at": "2021-12-16T16:39:00Z",
     "passing_host_count": 0,
     "failing_host_count": 0,
+    "errored_host_count": 0,
+    "pending_host_count": 2300,
     "host_count_updated_at": null,
     "calendar_events_enabled": true
   }
@@ -7133,6 +7167,8 @@ Either `query` or `query_id` must be provided.
     "updated_at": "2021-12-16T16:39:00Z",
     "passing_host_count": 0,
     "failing_host_count": 0,
+    "errored_host_count": 0,
+    "pending_host_count": 2300,
     "host_count_updated_at": null,
     "calendar_events_enabled": false
   }
@@ -7229,6 +7265,8 @@ Either `query` or `query_id` must be provided.
     "updated_at": "2021-12-16T16:39:00Z",
     "passing_host_count": 0,
     "failing_host_count": 0,
+    "errored_host_count": 0,
+    "pending_host_count": 2300,
     "host_count_updated_at": null,
     "calendar_events_enabled": true
   }
