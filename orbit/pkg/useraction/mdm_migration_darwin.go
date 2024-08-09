@@ -666,6 +666,7 @@ func (o *offlineWatcher) isOffline() bool {
 	err := o.client.Ping()
 	if err == nil {
 		log.Info().Msg("ping ok, device is online")
+		return false
 	}
 	if !isOfflineError(err) {
 		log.Error().Err(err).Msg("error pinging server does not contain dial tcp or no such host, assuming device is online")
@@ -677,6 +678,9 @@ func (o *offlineWatcher) isOffline() bool {
 }
 
 func isOfflineError(err error) bool {
+	if err == nil {
+		return false
+	}
 	offlineMsgs := []string{"no such host", "dial tcp", "no route to host"}
 	for _, msg := range offlineMsgs {
 		if strings.Contains(err.Error(), msg) {
