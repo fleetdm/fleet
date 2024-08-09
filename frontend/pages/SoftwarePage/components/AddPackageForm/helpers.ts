@@ -107,6 +107,20 @@ const FORM_VALIDATION_CONFIG: Record<
     // no validations related to self service
     validations: [],
   },
+  // IAddSoftwareFormValidatorKey,
+  // { validations: IValidation[] }
+  installType: {
+    // TODO
+    validations: [],
+  },
+  labelsExcludeAny: {
+    // TODO
+    validations: [],
+  },
+  labelsIncludeAny: {
+    // TODO
+    validations: [],
+  },
 };
 
 const getErrorMessage = (

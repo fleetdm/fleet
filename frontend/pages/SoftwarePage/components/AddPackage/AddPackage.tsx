@@ -1,9 +1,13 @@
 import React, { useContext, useEffect, useState } from "react";
 import { InjectedRouter } from "react-router";
+// import { useQuery } from "react-query";
+
+// import { ILabel } from "interfaces/label";
 
 import PATHS from "router/paths";
 import { NotificationContext } from "context/notification";
 import softwareAPI from "services/entities/software";
+// import labelsAPI, { ILabelsResponse } from "services/entities/labels";
 import { QueryParams, buildQueryStringFromParams } from "utilities/url";
 
 import AddPackageForm from "../AddPackageForm";
@@ -104,6 +108,19 @@ const AddPackage = ({
     onExit();
     setIsUploading(false);
   };
+
+  // const {
+  //   data: customLabels,
+  //   isLoading: isLoadingLabels,
+  //   refetch: refetchLabels,
+  // } = useQuery<ILabelsResponse, Error, ILabel[]>(
+  //   ["labels"],
+  //   () => labelsAPI.loadAll(),
+  //   {
+  //     select: (data: ILabelsResponse) =>
+  //       data.labels.filter((label) => label.type === "regular"),
+  //   }
+  // );
 
   return (
     <div className={baseClass}>

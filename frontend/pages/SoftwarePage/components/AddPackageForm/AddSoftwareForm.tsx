@@ -4,6 +4,9 @@ import { NotificationContext } from "context/notification";
 import { getFileDetails } from "utilities/file/fileUtils";
 import getInstallScript from "utilities/software_install_scripts";
 
+import { ILabelIdentifier } from "interfaces/label";
+import { InstallType } from "interfaces/software";
+
 import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
 import Editor from "components/Editor";
@@ -35,6 +38,10 @@ export interface IAddSoftwareFormData {
   preInstallCondition?: string;
   postInstallScript?: string;
   selfService: boolean;
+  installType: InstallType; // (TODO: confirm naming, current design is “install”, in conversation: https://github.com/fleetdm/fleet/pull/20872#discussion_r1710108284 )
+  labelsIncludeAny: ILabelIdentifier[];
+  labelsExcludeAny: ILabelIdentifier[];
+  // - “All hosts” - omit both of above (tbc w Noah: https://github.com/fleetdm/fleet/pull/20872#discussion_r1710119518)
 }
 
 export interface IFormValidation {
@@ -43,6 +50,12 @@ export interface IFormValidation {
   preInstallCondition?: { isValid: boolean; message?: string };
   postInstallScript?: { isValid: boolean; message?: string };
   selfService?: { isValid: boolean };
+  // TODO - confirm
+  installType?: { isValid: boolean };
+  // TODO - confirm
+  labelsIncludeAny?: { isValid: boolean };
+  // TODO - confirm
+  labelsExcludeAny?: { isValid: boolean };
 }
 
 interface IAddSoftwareFormProps {
@@ -66,6 +79,10 @@ const AddSoftwareForm = ({
     preInstallCondition: undefined,
     postInstallScript: undefined,
     selfService: false,
+    // TODO - confirm init value
+    installType: "manual",
+    labelsIncludeAny: [],
+    labelsExcludeAny: [],
   });
   const [formValidation, setFormValidation] = useState<IFormValidation>({
     isValid: false,

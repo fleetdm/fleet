@@ -4,6 +4,7 @@ import PropTypes from "prop-types";
 import { IconNames } from "components/icons";
 
 import vulnerabilityInterface from "./vulnerability";
+import { ILabelIdentifier } from "./label";
 
 export default PropTypes.shape({
   type: PropTypes.string,
@@ -53,6 +54,7 @@ export interface ISoftwareTitleVersion {
   hosts_count?: number;
 }
 
+export type InstallType = "automatic" | "manual";
 export interface ISoftwarePackage {
   name: string;
   version: string;
@@ -67,6 +69,10 @@ export interface ISoftwarePackage {
     pending: number;
     failed: number;
   };
+  // for SW title details > read-only Options modal
+  install_type: InstallType;
+  labels_include_any: ILabelIdentifier[];
+  labels_exclude_any: ILabelIdentifier[];
 }
 
 export const isSoftwarePackage = (
