@@ -3,20 +3,20 @@ import validator from "validator";
 // @ts-ignore
 import validateQuery from "components/forms/validators/validate_query";
 
-import { IAddSoftwareFormData, IFormValidation } from "./AddSoftwareForm";
+import { IAddPackageFormData, IFormValidation } from "./AddPackageForm";
 
-type IAddSoftwareFormValidatorKey = Exclude<
-  keyof IAddSoftwareFormData,
+type IAddPackageFormValidatorKey = Exclude<
+  keyof IAddPackageFormData,
   "installScript"
 >;
 
-type IMessageFunc = (formData: IAddSoftwareFormData) => string;
+type IMessageFunc = (formData: IAddPackageFormData) => string;
 type IValidationMessage = string | IMessageFunc;
 
 interface IValidation {
   name: string;
   isValid: (
-    formData: IAddSoftwareFormData,
+    formData: IAddPackageFormData,
     enabledPreInstallCondition?: boolean,
     enabledPostInstallScript?: boolean
   ) => boolean;
@@ -27,7 +27,7 @@ interface IValidation {
  *  to determine if a field is valid, and rules for generating an error message.
  */
 const FORM_VALIDATION_CONFIG: Record<
-  IAddSoftwareFormValidatorKey,
+  IAddPackageFormValidatorKey,
   { validations: IValidation[] }
 > = {
   software: {
@@ -43,7 +43,7 @@ const FORM_VALIDATION_CONFIG: Record<
       {
         name: "required",
         isValid: (
-          formData: IAddSoftwareFormData,
+          formData: IAddPackageFormData,
           enabledPreInstallCondition
         ) => {
           if (!enabledPreInstallCondition) {
@@ -110,7 +110,7 @@ const FORM_VALIDATION_CONFIG: Record<
 };
 
 const getErrorMessage = (
-  formData: IAddSoftwareFormData,
+  formData: IAddPackageFormData,
   message?: IValidationMessage
 ) => {
   if (message === undefined || typeof message === "string") {
@@ -120,7 +120,7 @@ const getErrorMessage = (
 };
 
 export const generateFormValidation = (
-  formData: IAddSoftwareFormData,
+  formData: IAddPackageFormData,
   showingPreInstallCondition: boolean,
   showingPostInstallScript: boolean
 ) => {

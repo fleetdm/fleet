@@ -7,7 +7,7 @@ import softwareAPI from "services/entities/software";
 import { QueryParams, buildQueryStringFromParams } from "utilities/url";
 
 import AddPackageForm from "../AddPackageForm";
-import { IAddSoftwareFormData } from "../AddPackageForm/AddSoftwareForm";
+import { IAddPackageFormData } from "../AddPackageForm/AddPackageForm";
 import { getErrorMessage } from "../AddSoftwareModal/helpers";
 
 const baseClass = "add-package";
@@ -60,7 +60,7 @@ const AddPackage = ({
     };
   }, [isUploading]);
 
-  const onAddPackage = async (formData: IAddSoftwareFormData) => {
+  const onAddPackage = async (formData: IAddPackageFormData) => {
     setIsUploading(true);
 
     if (formData.software && formData.software.size > MAX_FILE_SIZE_BYTES) {
@@ -111,6 +111,7 @@ const AddPackage = ({
         isUploading={isUploading}
         onCancel={onExit}
         onSubmit={onAddPackage}
+        customLabels={customLabels}
       />
     </div>
   );
