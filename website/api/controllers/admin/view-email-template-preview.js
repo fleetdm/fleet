@@ -155,6 +155,14 @@ module.exports = {
           notes: 'Fake organization 2 is looking for a managed cloud MDM solution with a name that ends with "eet"',
         };
         break;
+      case 'email-contact-form':
+        fakeData = {
+          firstName: 'Jane',
+          lastName: 'Williamson',
+          emailAddress: 'jane@example.com',
+          message: 'Hi, this is a contact form message!',
+        };
+        break;
       default:
         layout = 'layout-email-newsletter';
         fakeData = {
