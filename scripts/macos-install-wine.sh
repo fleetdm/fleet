@@ -6,8 +6,10 @@ set -eo pipefail
 
 brew_wine(){
 # Wine reference: https://wiki.winehq.org/MacOS
-# Wine can be installed without brew via a distribution such as https://github.com/Gcenx/macOS_Wine_builds/releases/tag/9.0 or by building from source.
-brew install --cask --no-quarantine https://raw.githubusercontent.com/Homebrew/homebrew-cask/1ecfe82f84e0f3c3c6b741d3ddc19a164c2cb18d/Casks/w/wine-stable.rb; exit 0
+# Wine can be installed without brew via a distribution such as
+# https://github.com/Gcenx/macOS_Wine_builds/releases/tag/9.0 or by building from source.
+curl "https://raw.githubusercontent.com/Homebrew/homebrew-cask/1ecfe82f84e0f3c3c6b741d3ddc19a164c2cb18d/Casks/w/wine-stable.rb" > wine-stable.rb
+brew install --HEAD wine-stable.rb ; exit 0
 }
 
 
