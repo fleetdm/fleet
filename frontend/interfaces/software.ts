@@ -309,10 +309,10 @@ export const getInstallStatusPredicate = (status: string | undefined) => {
 };
 
 export const INSTALL_STATUS_ICONS: Record<SoftwareInstallStatus, IconNames> = {
+  verified: "success",
+  verifying: "success-outline",
   pending: "pending-outline",
-  verified: "success-outline", // TODO
-  verifying: "success", // TODO
-  blocked: "success", // TODO
+  blocked: "disable",
   failed: "error-outline",
 } as const;
 
