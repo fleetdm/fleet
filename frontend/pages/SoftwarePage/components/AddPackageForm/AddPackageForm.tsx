@@ -17,11 +17,11 @@ import {
 import Spinner from "components/Spinner";
 import TooltipWrapper from "components/TooltipWrapper";
 
-import AddSoftwareAdvancedOptions from "../AddSoftwareAdvancedOptions";
+import AddPackageAdvancedOptions from "../AddPackageAdvancedOptions";
 
 import { generateFormValidation } from "./helpers";
 
-export const baseClass = "add-software-form";
+export const baseClass = "add-package-form";
 
 const UploadingSoftware = () => {
   return (
@@ -32,7 +32,7 @@ const UploadingSoftware = () => {
   );
 };
 
-export interface IAddSoftwareFormData {
+export interface IAddPackageFormData {
   software: File | null;
   installScript: string;
   preInstallCondition?: string;
@@ -58,22 +58,22 @@ export interface IFormValidation {
   labelsExcludeAny?: { isValid: boolean };
 }
 
-interface IAddSoftwareFormProps {
+interface IAddPackageFormProps {
   isUploading: boolean;
   onCancel: () => void;
-  onSubmit: (formData: IAddSoftwareFormData) => void;
+  onSubmit: (formData: IAddPackageFormData) => void;
 }
 
-const AddSoftwareForm = ({
+const AddPackageForm = ({
   isUploading,
   onCancel,
   onSubmit,
-}: IAddSoftwareFormProps) => {
+}: IAddPackageFormProps) => {
   const { renderFlash } = useContext(NotificationContext);
 
   const [showPreInstallCondition, setShowPreInstallCondition] = useState(false);
   const [showPostInstallScript, setShowPostInstallScript] = useState(false);
-  const [formData, setFormData] = useState<IAddSoftwareFormData>({
+  const [formData, setFormData] = useState<IAddPackageFormData>({
     software: null,
     installScript: "",
     preInstallCondition: undefined,
@@ -236,7 +236,7 @@ const AddSoftwareForm = ({
               Self-service
             </TooltipWrapper>
           </Checkbox>
-          <AddSoftwareAdvancedOptions
+          <AddPackageAdvancedOptions
             errors={{
               preInstallCondition: formValidation.preInstallCondition?.message,
               postInstallScript: formValidation.postInstallScript?.message,
@@ -264,4 +264,4 @@ const AddSoftwareForm = ({
   );
 };
 
-export default AddSoftwareForm;
+export default AddPackageForm;

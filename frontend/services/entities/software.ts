@@ -13,7 +13,7 @@ import {
   buildQueryStringFromParams,
   convertParamsToSnakeCase,
 } from "utilities/url";
-import { IAddSoftwareFormData } from "pages/SoftwarePage/components/AddPackageForm/AddSoftwareForm";
+import { IAddPackageFormData } from "pages/SoftwarePage/components/AddPackageForm/AddPackageForm";
 
 export interface ISoftwareApiParams {
   page?: number;
@@ -199,7 +199,7 @@ export default {
   },
 
   addSoftwarePackage: (
-    data: IAddSoftwareFormData,
+    data: IAddPackageFormData,
     teamId?: number,
     timeout?: number
   ) => {

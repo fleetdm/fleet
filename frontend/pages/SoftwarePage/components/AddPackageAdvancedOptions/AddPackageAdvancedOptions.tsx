@@ -6,9 +6,9 @@ import FleetAce from "components/FleetAce";
 import RevealButton from "components/buttons/RevealButton";
 import Checkbox from "components/forms/fields/Checkbox";
 
-const baseClass = "add-software-advanced-options";
+const baseClass = "add-package-advanced-options";
 
-interface IAddSoftwareAdvancedOptionsProps {
+interface IAddPackageAdvancedOptionsProps {
   errors: { preInstallCondition?: string; postInstallScript?: string };
   showPreInstallCondition: boolean;
   showPostInstallScript: boolean;
@@ -20,7 +20,7 @@ interface IAddSoftwareAdvancedOptionsProps {
   onChangePostInstallScript: (value?: string) => void;
 }
 
-const AddSoftwareAdvancedOptions = ({
+const AddPackageAdvancedOptions = ({
   errors,
   showPreInstallCondition,
   showPostInstallScript,
@@ -30,7 +30,7 @@ const AddSoftwareAdvancedOptions = ({
   onTogglePostInstallScript,
   onChangePreInstallCondition,
   onChangePostInstallScript,
-}: IAddSoftwareAdvancedOptionsProps) => {
+}: IAddPackageAdvancedOptionsProps) => {
   const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
 
   const onChangePreInstallCheckbox = () => {
@@ -107,4 +107,4 @@ const AddSoftwareAdvancedOptions = ({
   );
 };
 
-export default AddSoftwareAdvancedOptions;
+export default AddPackageAdvancedOptions;

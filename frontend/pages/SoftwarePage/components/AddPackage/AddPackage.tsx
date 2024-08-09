@@ -14,7 +14,7 @@ import Spinner from "components/Spinner";
 import DataError from "components/DataError";
 
 import AddPackageForm from "../AddPackageForm";
-import { IAddSoftwareFormData } from "../AddPackageForm/AddSoftwareForm";
+import { IAddPackageFormData } from "../AddPackageForm/AddPackageForm";
 import { getErrorMessage } from "../AddSoftwareModal/helpers";
 
 const baseClass = "add-package";
@@ -67,7 +67,7 @@ const AddPackage = ({
     };
   }, [isUploading]);
 
-  const onAddPackage = async (formData: IAddSoftwareFormData) => {
+  const onAddPackage = async (formData: IAddPackageFormData) => {
     setIsUploading(true);
 
     if (formData.software && formData.software.size > MAX_FILE_SIZE_BYTES) {
@@ -116,7 +116,6 @@ const AddPackage = ({
     data: customLabels,
     isLoading: isLoadingLabels,
     isError: errorLabels,
-    refetch: refetchLabels,
   } = useQuery<ILabelsResponse, Error, ILabel[]>(
     ["labels"],
     () => labelsAPI.loadAll(),
@@ -144,6 +143,7 @@ const AddPackage = ({
         isUploading={isUploading}
         onCancel={onExit}
         onSubmit={onAddPackage}
+        customLabels={customLabels}
       />
     </div>
   );
