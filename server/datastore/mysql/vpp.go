@@ -153,20 +153,20 @@ func (ds *Datastore) BatchInsertVPPApps(ctx context.Context, apps []*fleet.VPPAp
 	})
 }
 
-func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, appIDs []fleet.VPPAppID) error {
+func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, appFleets []fleet.VPPAppTeam) error {
 	existingApps, err := ds.GetAssignedVPPApps(ctx, teamID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "SetTeamVPPApps getting list of existing apps")
 	}
 
-	var toAddApps []fleet.VPPAppID
+	var toAddApps []fleet.VPPAppTeam
 	var toRemoveApps []fleet.VPPAppID
 
 	for existingApp := range existingApps {
 		var found bool
-		for _, adamID := range appIDs {
+		for _, appFleet := range appFleets {
 			// Self service value doesn't matter for removing app from team
-			if adamID.AdamID == existingApp.AdamID && adamID.Platform == existingApp.Platform {
+			if existingApp == appFleet.VPPAppID {
 				found = true
 			}
 		}
@@ -175,9 +175,9 @@ func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, appIDs []
 		}
 	}
 
-	for _, adamID := range appIDs {
-		if _, ok := existingApps[adamID]; !ok {
-			toAddApps = append(toAddApps, adamID)
+	for _, appFleet := range appFleets {
+		if existingFleet, ok := existingApps[appFleet.VPPAppID]; !ok || existingFleet.SelfService != appFleet.SelfService {
+			toAddApps = append(toAddApps, appFleet)
 		}
 	}
 
@@ -211,7 +211,7 @@ func (ds *Datastore) InsertVPPAppWithTeam(ctx context.Context, app *fleet.VPPApp
 			return ctxerr.Wrap(ctx, err, "InsertVPPAppWithTeam insertVPPApps transaction")
 		}
 
-		if err := insertVPPAppTeams(ctx, tx, app.VPPAppID, teamID); err != nil {
+		if err := insertVPPAppTeams(ctx, tx, app.VPPAppTeam, teamID); err != nil {
 			return ctxerr.Wrap(ctx, err, "InsertVPPAppWithTeam insertVPPAppTeams transaction")
 		}
 
@@ -224,7 +224,7 @@ func (ds *Datastore) InsertVPPAppWithTeam(ctx context.Context, app *fleet.VPPApp
 	return app, nil
 }
 
-func (ds *Datastore) GetAssignedVPPApps(ctx context.Context, teamID *uint) (map[fleet.VPPAppID]struct{}, error) {
+func (ds *Datastore) GetAssignedVPPApps(ctx context.Context, teamID *uint) (map[fleet.VPPAppID]fleet.VPPAppTeam, error) {
 	stmt := `
 SELECT
 	adam_id, platform, self_service
@@ -238,14 +238,14 @@ WHERE
 		tmID = *teamID
 	}
 
-	var results []fleet.VPPAppID
+	var results []fleet.VPPAppTeam
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, stmt, tmID); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get assigned VPP apps")
 	}
 
-	appSet := make(map[fleet.VPPAppID]struct{})
+	appSet := make(map[fleet.VPPAppID]fleet.VPPAppTeam)
 	for _, r := range results {
-		appSet[r] = struct{}{}
+		appSet[r.VPPAppID] = r
 	}
 
 	return appSet, nil
@@ -279,7 +279,7 @@ ON DUPLICATE KEY UPDATE
 	return ctxerr.Wrap(ctx, err, "insert VPP apps")
 }
 
-func insertVPPAppTeams(ctx context.Context, tx sqlx.ExtContext, appID fleet.VPPAppID, teamID *uint) error {
+func insertVPPAppTeams(ctx context.Context, tx sqlx.ExtContext, appID fleet.VPPAppTeam, teamID *uint) error {
 	stmt := `
 INSERT INTO vpp_apps_teams
 	(adam_id, global_or_team_id, team_id, platform, self_service)

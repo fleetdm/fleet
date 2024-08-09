@@ -5,16 +5,22 @@ import "time"
 type VPPAppID struct {
 	// AdamID is a unique identifier assigned to each app in
 	// the App Store, this value is managed by Apple.
-	AdamID      string              `db:"adam_id" json:"app_store_id"`
-	Platform    AppleDevicePlatform `db:"platform" json:"platform"`
-	SelfService bool                `db:"self_service" json:"self_service"`
+	AdamID   string              `db:"adam_id" json:"app_store_id"`
+	Platform AppleDevicePlatform `db:"platform" json:"platform"`
+}
+
+// VPPAppTeam contains extra metadata injected by fleet
+type VPPAppTeam struct {
+	VPPAppID
+
+	SelfService bool `db:"self_service" json:"self_service"`
 }
 
 // VPPApp represents a VPP (Volume Purchase Program) application,
 // this is used by Apple MDM to manage applications via Apple
 // Business Manager.
 type VPPApp struct {
-	VPPAppID
+	VPPAppTeam
 	// BundleIdentifier is the unique bundle identifier of the
 	// Application.
 	BundleIdentifier string `db:"bundle_identifier" json:"bundle_identifier"`

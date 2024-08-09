@@ -100,7 +100,7 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 		}}...)
 	}
 
-	var vppAppIDs []fleet.VPPAppID
+	var vppAppTeams []fleet.VPPAppTeam
 	// Don't check for token if we're only disassociating assets
 	if len(payloads) > 0 {
 		token, err := svc.getVPPToken(ctx)
@@ -116,7 +116,7 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 				return fleet.NewInvalidArgumentError("app_store_apps.platform",
 					fmt.Sprintf("platform must be one of '%s', '%s', or '%s", fleet.IOSPlatform, fleet.IPadOSPlatform, fleet.MacOSPlatform))
 			}
-			vppAppIDs = append(vppAppIDs, fleet.VPPAppID{AdamID: payload.AppStoreID, Platform: payload.Platform, SelfService: payload.SelfService})
+			vppAppTeams = append(vppAppTeams, fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: payload.AppStoreID, Platform: payload.Platform}, SelfService: payload.SelfService})
 		}
 
 		var missingAssets []string
@@ -131,7 +131,7 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 			assetMap[asset.AdamID] = struct{}{}
 		}
 
-		for _, vppAppID := range vppAppIDs {
+		for _, vppAppID := range vppAppTeams {
 			if _, ok := assetMap[vppAppID.AdamID]; !ok {
 				missingAssets = append(missingAssets, vppAppID.AdamID)
 			}
@@ -144,8 +144,8 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 	}
 
 	if !dryRun {
-		if len(vppAppIDs) > 0 {
-			apps, err := getVPPAppsMetadata(ctx, vppAppIDs)
+		if len(vppAppTeams) > 0 {
+			apps, err := getVPPAppsMetadata(ctx, vppAppTeams)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "refreshing VPP app metadata")
 			}
@@ -158,15 +158,15 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 				return ctxerr.Wrap(ctx, err, "inserting vpp app metadata")
 			}
 			// Filter out the apps with invalid platforms
-			if len(apps) != len(vppAppIDs) {
-				vppAppIDs = make([]fleet.VPPAppID, 0, len(apps))
+			if len(apps) != len(vppAppTeams) {
+				vppAppTeams = make([]fleet.VPPAppTeam, 0, len(apps))
 				for _, app := range apps {
-					vppAppIDs = append(vppAppIDs, app.VPPAppID)
+					vppAppTeams = append(vppAppTeams, app.VPPAppTeam)
 				}
 			}
 		}
 
-		if err := svc.ds.SetTeamVPPApps(ctx, &team.ID, vppAppIDs); err != nil {
+		if err := svc.ds.SetTeamVPPApps(ctx, &team.ID, vppAppTeams); err != nil {
 			return fleet.NewUserMessageError(ctxerr.Wrap(ctx, err, "set team vpp assets"), http.StatusInternalServerError)
 		}
 	}
@@ -224,16 +224,20 @@ func (svc *Service) GetAppStoreApps(ctx context.Context, teamID *uint) ([]*fleet
 				AdamID:   a.AdamID,
 				Platform: platform,
 			}
+			vppAppTeam := fleet.VPPAppTeam{
+				VPPAppID: vppAppID,
+			}
 			app := &fleet.VPPApp{
-				VPPAppID:         vppAppID,
+				VPPAppTeam:       vppAppTeam,
 				BundleIdentifier: m.BundleID,
 				IconURL:          m.ArtworkURL,
 				Name:             m.TrackName,
 				LatestVersion:    m.Version,
 			}
 
-			if _, ok := assignedApps[vppAppID]; ok {
+			if appFleet, ok := assignedApps[vppAppID]; ok {
 				// Then this is already assigned, so filter it out.
+				app.SelfService = appFleet.SelfService
 				appsToUpdate = append(appsToUpdate, app)
 				continue
 			}
@@ -279,7 +283,7 @@ func getPlatformsFromSupportedDevices(supportedDevices []string) map[fleet.Apple
 	return platforms
 }
 
-func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID fleet.VPPAppID) error {
+func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID fleet.VPPAppTeam) error {
 	if err := svc.authz.Authorize(ctx, &fleet.VPPApp{TeamID: teamID}, fleet.ActionWrite); err != nil {
 		return err
 	}
@@ -354,7 +358,7 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 	}
 
 	app := &fleet.VPPApp{
-		VPPAppID:         appID,
+		VPPAppTeam:       appID,
 		BundleIdentifier: assetMD.BundleID,
 		IconURL:          assetMD.ArtworkURL,
 		Name:             assetMD.TrackName,
@@ -379,7 +383,7 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 	return nil
 }
 
-func getVPPAppsMetadata(ctx context.Context, ids []fleet.VPPAppID) ([]*fleet.VPPApp, error) {
+func getVPPAppsMetadata(ctx context.Context, ids []fleet.VPPAppTeam) ([]*fleet.VPPApp, error) {
 	var apps []*fleet.VPPApp
 
 	// Map of adamID to platform.
@@ -407,9 +411,11 @@ func getVPPAppsMetadata(ctx context.Context, ids []fleet.VPPAppID) ([]*fleet.VPP
 		for platform := range platforms {
 			if selfService, ok := adamIDMap[adamID][platform]; ok {
 				app := &fleet.VPPApp{
-					VPPAppID: fleet.VPPAppID{
-						AdamID:      adamID,
-						Platform:    platform,
+					VPPAppTeam: fleet.VPPAppTeam{
+						VPPAppID: fleet.VPPAppID{
+							AdamID:   adamID,
+							Platform: platform,
+						},
 						SelfService: selfService,
 					},
 					BundleIdentifier: metadata.BundleID,
