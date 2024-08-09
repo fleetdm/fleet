@@ -665,6 +665,9 @@ func TestFullTeamGitOps(t *testing.T) {
 	// Team
 	var savedTeam *fleet.Team
 	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
+		if name == "Conflict" {
+			return &fleet.Team{}, nil
+		}
 		if savedTeam != nil && savedTeam.Name == name {
 			return savedTeam, nil
 		}
@@ -825,7 +828,15 @@ func TestFullTeamGitOps(t *testing.T) {
 	assert.Equal(t, newTeamName, savedTeam.Name)
 	assert.Equal(t, baseFilename, *savedTeam.Filename)
 
+	// Try to change team name again, but this time the new name conflicts with an existing team
+	t.Setenv("TEST_TEAM_NAME", "Conflict")
+	_, err = runAppNoChecks([]string{"gitops", "-f", file, "--dry-run"})
+	assert.ErrorContains(t, err, "team name already exists")
+	_, err = runAppNoChecks([]string{"gitops", "-f", file})
+	assert.ErrorContains(t, err, "team name already exists")
+
 	// Now clear the settings
+	t.Setenv("TEST_TEAM_NAME", newTeamName)
 	tmpFile, err := os.CreateTemp(t.TempDir(), "*.yml")
 	require.NoError(t, err)
 	secret := "TestSecret"
