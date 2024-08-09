@@ -36,33 +36,9 @@ Apple allows changing most values in profiles delivered by MDM, but the `ServerU
 
 It is recommended to follow the entire process on a staging/test MDM instance and devices, then repeat for the production instance and devices.
 
-```mermaid
----
-title: Before migration
----
-flowchart LR
-subgraph macOS Device
-  mdmclient[MDM client]
-end
-mdmclient -- Routed by DNS <br> (mdm.example.com)-->oldmdm
-oldmdm[Existing MDM Server]
-mdmclient ~~~ fleet
-fleet[Fleet Server]
-```
+[![Before migration](https://mermaid.ink/img/pako:eNpVUctuwjAQ_BVrT62URIaEvFRxqNKeSivBrZiDiTeJpdhGxqFQBN9eA23VXvY1o9lZ7RFqIxBKCMOQaSddjyV5xMZYJEq2ljtpNNNXtOnNR91x68jLnOntsPbwpiOK128LUuFO1sg0IUqoupeo3XJWzcitXDGNWjD9i5EwJHMzOBRkfSDV64I8rO2U3HlChHuuNj1GtVH3YTg1vfBTpm95-bSXWyd1Sy7qC7Q7tKu_wufzmTQ9orsY9mn5fIk_TAhAoVVcCn_z8WKXgetQIYPSlwIbPvSOAdMnT-WDM4uDrqF0dsAAho3gDivJ_eUKyob3Wz_dcP1uzL8eyiPsoRzTOBrHySim2SQtaBbAAco4S6NxTmmeZcUoLiZJfArg8ypAo5SOKC3iNM-LNMmTJAAU0hk7u32pNrqRrXdmzdB23xtPX3Gkloc?type=png)](https://mermaid.live/edit#pako:eNpVUctuwjAQ_BVrT62URIaEvFRxqNKeSivBrZiDiTeJpdhGxqFQBN9eA23VXvY1o9lZ7RFqIxBKCMOQaSddjyV5xMZYJEq2ljtpNNNXtOnNR91x68jLnOntsPbwpiOK128LUuFO1sg0IUqoupeo3XJWzcitXDGNWjD9i5EwJHMzOBRkfSDV64I8rO2U3HlChHuuNj1GtVH3YTg1vfBTpm95-bSXWyd1Sy7qC7Q7tKu_wufzmTQ9orsY9mn5fIk_TAhAoVVcCn_z8WKXgetQIYPSlwIbPvSOAdMnT-WDM4uDrqF0dsAAho3gDivJ_eUKyob3Wz_dcP1uzL8eyiPsoRzTOBrHySim2SQtaBbAAco4S6NxTmmeZcUoLiZJfArg8ypAo5SOKC3iNM-LNMmTJAAU0hk7u32pNrqRrXdmzdB23xtPX3Gkloc)
 
-```mermaid
----
-title: After migration
----
-flowchart LR
-subgraph macOS Device
-  mdmclient[MDM client]
-end
-oldmdm[Existing MDM Server]
-mdmclient ~~~ oldmdm
-mdmclient -- Routed by DNS <br> (mdm.example.com)-->fleet
-fleet[Fleet Server]
-```
+[![After migration](https://mermaid.ink/img/pako:eNpVUcFuwjAM_ZXIu2xSW7XQdaWakCYxTmOT4DayQ0jcNqJJUEgZDMG3L6Vs2g5JbL9n-9k5AjcCoYAwDKl20jVYkKfSoSVKVpY5aTTVF7BszCevmXXkZU71tl15eFMTxfjbgkxwJzlSTYgSijcStVvOJjPSmx9UoxZUm0Z4ePm8l1sndUU6xgLtDq1n_CaS8_lMeurfaBiSuWkdCrI6kMnrgjyu7JjcekKEe6Y2DUbcqLswHJcNousE-2c57e6fLhCAQquYFH7kYyeXgqtRIYXCm42sakch6AHB7Hrmt9NhJWu2eI2vGF9X1rR-okvWzXQ6pUD1yVdnrTOLg-ZQONtiAO1GMIcTyfyyFBR9Gdgw_W7MPx-KI-yhSPI8GgzTJE2T-GGU5UkABygGeRz5k8SDJL8fpGmcnQL4ulSIo8zH49Ewy_NRluZpGgAK6Yyd9R_LjS5l5aV5xVV9bXn6BriRpdY?type=png)](https://mermaid.live/edit#pako:eNpVUcFuwjAM_ZXIu2xSW7XQdaWakCYxTmOT4DayQ0jcNqJJUEgZDMG3L6Vs2g5JbL9n-9k5AjcCoYAwDKl20jVYkKfSoSVKVpY5aTTVF7BszCevmXXkZU71tl15eFMTxfjbgkxwJzlSTYgSijcStVvOJjPSmx9UoxZUm0Z4ePm8l1sndUU6xgLtDq1n_CaS8_lMeurfaBiSuWkdCrI6kMnrgjyu7JjcekKEe6Y2DUbcqLswHJcNousE-2c57e6fLhCAQquYFH7kYyeXgqtRIYXCm42sakch6AHB7Hrmt9NhJWu2eI2vGF9X1rR-okvWzXQ6pUD1yVdnrTOLg-ZQONtiAO1GMIcTyfyyFBR9Gdgw_W7MPx-KI-yhSPI8GgzTJE2T-GGU5UkABygGeRz5k8SDJL8fpGmcnQL4ulSIo8zH49Ewy_NRluZpGgAK6Yyd9R_LjS5l5aV5xVV9bXn6BriRpdY)
 
 ### 1. Configure Fleet
 
