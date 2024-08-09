@@ -32,6 +32,8 @@ type MDMMigrator interface {
 type MDMMigratorProps struct {
 	OrgInfo     fleet.DesktopOrgInfo
 	IsUnmanaged bool
+	// DisableTakeover is used to disable the blur and always on top features of the dialog.
+	DisableTakeover bool
 }
 
 // MDMMigratorHandler handles remote actions/callbacks that the migrator calls.
