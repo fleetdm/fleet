@@ -26,6 +26,10 @@ When a minimum version is enforced, the end users see a native macOS notificatio
 
 If the host was turned off when the deadline passed, the update will be scheduled an hour after it’s turned on.
 
+For Apple hosts (iOS 17.0+, iPadOS 17.0+, and macOS 14.0+) that use Automated Device Enrollment
+(ADE), the specified minimum version is enforced during ADE before device setup and enrollment can
+proceed.
+
 ### macOS (below version 14.0)
 
 End users are encouraged to update macOS (via [Nudge](https://github.com/macadmins/nudge)).
