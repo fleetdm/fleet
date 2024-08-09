@@ -172,7 +172,6 @@ const DEFAULT_SOFTWARE_PACKAGE_MOCK: ISoftwarePackage = {
     blocked: 0,
     failed: 3,
   },
-  install_type: "manual",
   labels_include_any: [],
   labels_exclude_any: [],
 };
