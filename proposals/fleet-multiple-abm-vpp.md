@@ -7,7 +7,6 @@
     - VPP tokens can be assigned to: "All teams", "No team" or a team. Default is "All teams"
     - ABM tokens can be assigned to: "No team" or a team. Default is "No team"
     - Multiple ABM/VPP tokens per team.
-    - Transferring hosts between teams is not allowed with > 1 token.
     - Same private key can be used for multiple tokens.
 
 ### ABM: gameplan overview
