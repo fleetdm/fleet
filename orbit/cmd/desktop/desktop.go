@@ -190,7 +190,7 @@ func main() {
 		// offline watcher
 		if runtime.GOOS == "darwin" {
 
-			dir, err := migrationFileDir()
+			dir, err := migration.Dir()
 			if err != nil {
 				log.Fatal().Err(err).Msg("getting directory for MDM migration file")
 			}
@@ -216,7 +216,7 @@ func main() {
 				swiftDialogCh,
 			)
 
-			useraction.StartMDMMigrationOfflineWatcher(ctx, client, swiftDialogPath, swiftDialogCh)
+			useraction.StartMDMMigrationOfflineWatcher(ctx, client, swiftDialogPath, swiftDialogCh, migration.FileWatcher(mrw))
 		}
 
 		refetchToken := func() {
@@ -601,13 +601,4 @@ func logDir() (string, error) {
 	}
 
 	return dir, nil
-}
-
-func migrationFileDir() (string, error) {
-	homedir, err := os.UserHomeDir()
-	if err != nil {
-		return "", fmt.Errorf("failed to get user's home directory: %w", err)
-	}
-
-	return filepath.Join(homedir, "Library/Caches/com.fleetdm.orbit"), nil
 }
