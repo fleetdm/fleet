@@ -191,6 +191,12 @@ func isMySQLAccessDenied(err error) bool {
 	return false
 }
 
+func isMySQLUnknownStatement(err error) bool {
+	err = ctxerr.Cause(err)
+	var mySQLErr *mysql.MySQLError
+	return errors.As(err, &mySQLErr) && (mySQLErr.Number == mysqlerr.ER_UNKNOWN_STMT_HANDLER)
+}
+
 // ErrPartialResult indicates that a batch operation was completed,
 // but some of the results are missing or incomplete.
 var ErrPartialResult = errors.New("batch operation completed with partial results")
