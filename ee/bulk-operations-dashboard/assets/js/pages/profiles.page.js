@@ -112,6 +112,7 @@ parasails.registerPage('profiles', {
       let argins = _.clone(this.formData);
       let thisResponse = await Cloud.addProfile.with({newProfile: argins.newProfile, teams: argins.teams});
       console.log(thisResponse);
+      this.profiles.push(thisResponse);
     },
   }
 });

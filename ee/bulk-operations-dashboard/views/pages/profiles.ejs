@@ -152,7 +152,7 @@
         <h3>Add profile</h3>
         <div class="pointer" @click="closeModal()">&times;</div>
       </div>
-      <ajax-form :handle-submitting="handleSubmittingAddPRofileForm" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-errors.sync="formErrors" :form-data="formData" :form-rules="addProfileFormRules" @submitted="submittedForm()">
+      <ajax-form :handle-submitting="handleSubmittingAddProfileForm" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-errors.sync="formErrors" :form-data="formData" :form-rules="addProfileFormRules" @submitted="submittedForm()">
         <div purpose="profile-upload-input">
           <div class="d-flex flex-column align-items-center">
             <img style="height: 40px; width: 34px;" src="/images/profile-34x40@2x.png">
