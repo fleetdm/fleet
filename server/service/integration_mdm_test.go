@@ -10038,9 +10038,9 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	// Add an app store app to non-existent team
 	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{TeamID: ptr.Uint(9999), AppStoreID: addedApp.AdamID}, http.StatusNotFound, &addAppResp)
 
-	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{TeamID: &team.ID, AppStoreID: addedApp.AdamID}, http.StatusOK, &addAppResp)
+	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{TeamID: &team.ID, AppStoreID: addedApp.AdamID, SelfService: true}, http.StatusOK, &addAppResp)
 	s.lastActivityMatches(fleet.ActivityAddedAppStoreApp{}.ActivityName(),
-		fmt.Sprintf(`{"team_name": "%s", "software_title": "%s", "app_store_id": "%s", "team_id": %d, "platform": "%s", "self_service": false}`, team.Name,
+		fmt.Sprintf(`{"team_name": "%s", "software_title": "%s", "app_store_id": "%s", "team_id": %d, "platform": "%s", "self_service": true}`, team.Name,
 			addedApp.Name, addedApp.AdamID, team.ID, addedApp.Platform), 0)
 
 	// Now we should be filtering out the app we added to team 1
