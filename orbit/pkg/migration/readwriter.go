@@ -57,7 +57,7 @@ func (rw *ReadWriter) RemoveFile() error {
 }
 
 func (rw *ReadWriter) GetMigrationType() (string, error) {
-	data, err := rw.read()
+	data, err := rw.read() // TODO: confirm error handling with jahziel, what about other errors?
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			return "", nil
@@ -106,6 +106,32 @@ func (rw *ReadWriter) read() (string, error) {
 
 func (rw *ReadWriter) setChmod() error {
 	return os.Chmod(rw.FileName, constant.DefaultWorldReadableFileMode)
+}
+
+func (rw *ReadWriter) NewFileWatcher() FileWatcher {
+	return &fileWatcher{rw: rw}
+}
+
+type FileWatcher interface {
+	GetMigrationType() (string, error)
+	FileExists() (bool, error)
+	DirExists() (bool, error)
+}
+
+type fileWatcher struct {
+	rw *ReadWriter
+}
+
+func (r *fileWatcher) GetMigrationType() (string, error) {
+	return r.rw.GetMigrationType()
+}
+
+func (r *fileWatcher) FileExists() (bool, error) {
+	return r.rw.FileExists()
+}
+
+func (r *fileWatcher) DirExists() (bool, error) {
+	return r.rw.DirExists()
 }
 
 func Dir() (string, error) {

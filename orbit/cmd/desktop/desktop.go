@@ -221,7 +221,7 @@ func main() {
 				swiftDialogCh,
 			)
 
-			useraction.StartMDMMigrationOfflineWatcher(ctx, client, swiftDialogPath, swiftDialogCh)
+			useraction.StartMDMMigrationOfflineWatcher(ctx, client, swiftDialogPath, swiftDialogCh, migration.FileWatcher(mrw))
 		}
 
 		refetchToken := func() {

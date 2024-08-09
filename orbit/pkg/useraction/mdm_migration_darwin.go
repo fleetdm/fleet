@@ -7,7 +7,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -587,11 +586,12 @@ func (m *swiftDialogMDMMigrator) MarkMigrationCompleted() error {
 	return m.mrw.RemoveFile()
 }
 
-func StartMDMMigrationOfflineWatcher(ctx context.Context, client *service.DeviceClient, swiftDialogPath string, swiftDialogCh chan struct{}) {
+func StartMDMMigrationOfflineWatcher(ctx context.Context, client *service.DeviceClient, swiftDialogPath string, swiftDialogCh chan struct{}, fileWatcher migration.FileWatcher) {
 	watcher := &offlineWatcher{
 		client:          client,
 		swiftDialogPath: swiftDialogPath,
 		swiftDialogCh:   swiftDialogCh,
+		fileWatcher:     fileWatcher,
 	}
 
 	// start loop with 3-minute interval to ping server and show dialog if offline
@@ -617,6 +617,7 @@ type offlineWatcher struct {
 	client          *service.DeviceClient
 	swiftDialogPath string
 	swiftDialogCh   chan struct{}
+	fileWatcher     migration.FileWatcher
 }
 
 func (o *offlineWatcher) processTick(ctx context.Context) {
@@ -653,23 +654,19 @@ func (o *offlineWatcher) processTick(ctx context.Context) {
 }
 
 func (o *offlineWatcher) isUnmanaged() bool {
-	// check if notifications file exists at the expected path
-	homedir, err := os.UserHomeDir()
+	mt, err := o.fileWatcher.GetMigrationType()
 	if err != nil {
-		log.Error().Err(err).Msg("failed to get user's home directory")
+		// TODO: confirm error handling with jahziel
+		log.Error().Err(err).Msg("getting migration type")
+	}
+
+	if mt == "" {
+		// TODO: confirm with jahziel that this is the intended behavior for this case
+		log.Info().Msg("no migration type found, do nothing")
 		return false
 	}
-	path := filepath.Join(homedir, "Library/fleet-notifications.txt") // TODO: update this
-	_, err = os.Stat(path)
-	if err != nil {
-		if errors.Is(err, fs.ErrNotExist) {
-			log.Info().Msg("notifications file does not exist, do nothing")
-			return false
-		}
-		log.Error().Err(err).Msg("stat notifications file")
-		return false
-	}
-	log.Info().Msg("notifications file exists, proceed to ping server")
+
+	log.Info().Msgf("device is unmanaged, migration type %s", mt)
 
 	// TODO: Maybe check show profiles and skip showing the dialog if the device is managed?
 
@@ -761,7 +758,12 @@ type swiftDialogMDMMigrationOffline struct {
 }
 
 func (m *swiftDialogMDMMigrationOffline) render(message string, flags ...string) (chan swiftDialogExitCode, chan error) {
-	image := "/Users/Shared/Frame2.png" // TODO: update this
+	dir, err := migration.Dir()
+	if err != nil {
+		log.Error().Err(err).Msg("getting local directory")
+	}
+	imagePath := filepath.Join(dir, constant.MDMMigrationOfflineImageFileName)
+
 	// icon := m.props.OrgInfo.OrgLogoURL
 
 	flags = append([]string{
@@ -774,7 +776,7 @@ func (m *swiftDialogMDMMigrationOffline) render(message string, flags ...string)
 		// "--iconsize", "80",
 		// "--centreicon",
 		// modal content
-		"--image", image,
+		"--image", imagePath,
 		// "--message", "No internet connection. Please connect to the internet to continue.",
 		// "--messagefont", "size=16",
 		"--alignment", "center",
