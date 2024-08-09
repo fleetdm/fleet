@@ -1,0 +1,1 @@
+Improved fleetctl gitops error message when trying to change team name to a team that already exists.

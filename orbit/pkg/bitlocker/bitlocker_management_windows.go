@@ -85,7 +85,7 @@ func encryptErrHandler(val int32) error {
 	case ErrorCodeProtectorExists:
 		msg = "key protector cannot be added; only one key protector of this type is allowed for this drive"
 	default:
-		msg = "error code returned during encryption: %d"
+		msg = fmt.Sprintf("error code returned during encryption: %d", val)
 	}
 
 	return &EncryptionError{msg, val}
