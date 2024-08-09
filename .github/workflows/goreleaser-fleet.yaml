@@ -20,7 +20,7 @@ permissions:
 
 jobs:
   goreleaser:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest-4-cores
     environment: Docker Hub
     permissions:
       contents: write
