@@ -12,7 +12,8 @@ import { NotificationContext } from "context/notification";
 import {
   SoftwareInstallStatus,
   ISoftwarePackage,
-  ISoftwarePackageLabel,
+  ISoftwarePackageStatus,
+  IAppStoreAppStatus,
 } from "interfaces/software";
 import softwareAPI from "services/entities/software";
 
@@ -191,6 +192,13 @@ const PackageStatusCount = ({
   );
 };
 
+// Type guard function to check if status is ISoftwarePackageStatus
+const isSoftwarePackageStatus = (
+  status: ISoftwarePackageStatus | IAppStoreAppStatus
+): status is ISoftwarePackageStatus => {
+  return (status as ISoftwarePackageStatus).blocked !== undefined;
+};
+
 interface IActionsDropdownProps {
   isSoftwarePackage: boolean;
   onDownloadClick: () => void;
@@ -241,13 +249,7 @@ interface ISoftwarePackageCardProps {
   name: string;
   version: string;
   uploadedAt: string; // TODO: optional?
-  status: {
-    verified: number;
-    verifying: number;
-    pending: number;
-    blocked: number;
-    failed: number;
-  };
+  status: ISoftwarePackageStatus | IAppStoreAppStatus;
   isSelfService: boolean;
   softwareId: number;
   teamId: number;
@@ -444,9 +446,9 @@ const SoftwarePackageCard = ({
           status="pending"
           count={status.pending}
           teamId={teamId}
-          isAutomaticInstall={softwarePackage?.install === "automatic"}
+          isAutomaticInstall={softwarePackage?.install_type === "automatic"}
         />
-        {!!softwarePackage && (
+        {isSoftwarePackageStatus(status) && (
           <PackageStatusCount
             softwareId={softwareId}
             status="blocked"

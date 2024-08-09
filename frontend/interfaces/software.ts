@@ -55,6 +55,18 @@ export interface ISoftwareTitleVersion {
 }
 
 export type InstallType = "automatic" | "manual";
+
+export interface IAppStoreAppStatus {
+  verified: number;
+  verifying: number;
+  pending: number;
+  // App Store apps do not have blocked status
+  failed: number;
+}
+export interface ISoftwarePackageStatus extends IAppStoreAppStatus {
+  blocked: number;
+}
+
 export interface ISoftwarePackage {
   name: string;
   version: string;
@@ -64,13 +76,7 @@ export interface ISoftwarePackage {
   post_install_script?: string;
   self_service: boolean;
   icon_url: string | null;
-  status: {
-    verified: number;
-    verifying: number;
-    pending: number;
-    blocked: number;
-    failed: number;
-  };
+  status: ISoftwarePackageStatus;
   install_type: InstallType;
   labels_include_any: ILabelIdentifier[];
   labels_exclude_any: ILabelIdentifier[];
@@ -86,13 +92,7 @@ export interface IAppStoreApp {
   app_store_id: number;
   latest_version: string;
   icon_url: string;
-  status: {
-    verified: number;
-    verifying: number;
-    pending: number;
-    // App Store apps do not have blocked status
-    failed: number;
-  };
+  status: IAppStoreAppStatus;
 }
 
 export interface ISoftwareTitle {
