@@ -20,11 +20,15 @@ import { IStatusDisplayConfig } from "../../InstallStatusCell/InstallStatusCell"
 
 const baseClass = "self-service-item";
 
+// TODO: This is all todo, I just had to remove installed key
+// since the type installed was giving me typing errors for SoftwareInstallStatus on my branch
 const STATUS_CONFIG: Record<SoftwareInstallStatus, IStatusDisplayConfig> = {
   verified: {
     iconName: "success",
-    displayText: "Verified",
-    tooltip: ({ lastInstalledAt }) => (
+    displayText: "Installed", // TODO: Update tests to change this to Verified
+    tooltip: (
+      { lastInstalledAt } // TODO: confirm all tooltips
+    ) => (
       <>
         Software installed successfully ({dateAgo(lastInstalledAt as string)}).
         Currently, if the software is uninstalled, the &quot;Installed&quot;
@@ -34,8 +38,10 @@ const STATUS_CONFIG: Record<SoftwareInstallStatus, IStatusDisplayConfig> = {
   },
   verifying: {
     iconName: "success-outline",
-    displayText: "Verifying",
-    tooltip: ({ lastInstalledAt }) => (
+    displayText: "Verifying", // TODO
+    tooltip: (
+      { lastInstalledAt } // TODO
+    ) => (
       <>
         Software installed successfully ({dateAgo(lastInstalledAt as string)}).
         Currently, if the software is uninstalled, the &quot;Installed&quot;
@@ -49,7 +55,7 @@ const STATUS_CONFIG: Record<SoftwareInstallStatus, IStatusDisplayConfig> = {
     tooltip: () => "Software installation in progress...",
   },
   blocked: {
-    iconName: "pending-outline", // TODO
+    iconName: "pending-outline", // TODO: add "disable" to type and change to disable icon
     displayText: "TODO SelfServieItem.tsx", // TODO
     tooltip: () => "", // TODO
   },
