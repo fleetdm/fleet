@@ -5326,7 +5326,7 @@ If `mdm_id`, `mdm_name`, `mdm_enrollment_status`, `os_settings`, or `os_settings
 
 ### Delete label
 
-<!-- Return the following error if the user attempts to delete a label that's being used as a custom target for software: Software uses this label as a custom target. Please delete the software and try again. -->
+<!-- Return the following error if the user attempts to delete a label that's being used as a custom target for software: Couldn't delete. Software uses this label as a custom target. Please delete the software and try again. -->
 
 Deletes the label specified by name.
 
