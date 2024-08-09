@@ -172,8 +172,8 @@ func (ds *Datastore) deleteCachedStmt(query string) {
 				"err", err,
 			)
 		}
+		delete(ds.stmtCache, query)
 	}
-	delete(ds.stmtCache, query)
 }
 
 // NewMDMAppleSCEPDepot returns a scep_depot.Depot that uses the Datastore
