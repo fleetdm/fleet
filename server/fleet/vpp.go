@@ -5,8 +5,9 @@ import "time"
 type VPPAppID struct {
 	// AdamID is a unique identifier assigned to each app in
 	// the App Store, this value is managed by Apple.
-	AdamID   string              `db:"adam_id" json:"app_store_id"`
-	Platform AppleDevicePlatform `db:"platform" json:"platform"`
+	AdamID      string              `db:"adam_id" json:"app_store_id"`
+	Platform    AppleDevicePlatform `db:"platform" json:"platform"`
+	SelfService bool                `db:"self_service" json:"self_service"`
 }
 
 // VPPApp represents a VPP (Volume Purchase Program) application,
@@ -43,6 +44,7 @@ type VPPAppStoreApp struct {
 	LatestVersion string               `db:"latest_version" json:"latest_version"`
 	IconURL       *string              `db:"icon_url" json:"icon_url"`
 	Status        *VPPAppStatusSummary `db:"-" json:"status"`
+	SelfService   bool                 `db:"self_service" json:"self_service"`
 }
 
 // VPPAppStatusSummary represents aggregated status metrics for a VPP app.

@@ -169,7 +169,8 @@ type TeamSpecSoftwareAsset struct {
 }
 
 type TeamSpecAppStoreApp struct {
-	AppStoreID string `json:"app_store_id"`
+	AppStoreID  string `json:"app_store_id"`
+	SelfService bool   `json:"self_service"`
 }
 
 type TeamMDM struct {

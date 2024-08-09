@@ -65,12 +65,15 @@ func testVPPAppMetadata(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, &fleet.VPPAppStoreApp{Name: "vpp1", VPPAppID: vpp1}, meta)
 
-	// try to add the same app again, fails
-	var existsErr *existsError
+	// try to add the same app again, update self_service field
 	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{Name: "vpp1", BundleIdentifier: "com.app.vpp1",
-		VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_1", Platform: fleet.MacOSPlatform}}, nil)
-	require.Error(t, err)
-	require.ErrorAs(t, err, &existsErr)
+		VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_1", Platform: fleet.MacOSPlatform, SelfService: true}}, nil)
+	require.NoError(t, err)
+
+	// get no-team app
+	meta, err = ds.GetVPPAppMetadataByTeamAndTitleID(ctx, nil, titleID1)
+	require.NoError(t, err)
+	require.Equal(t, &fleet.VPPAppStoreApp{Name: "vpp1", VPPAppID: vpp1, SelfService: true}, meta)
 
 	// create team1 app
 	va2, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{Name: "vpp2", BundleIdentifier: "com.app.vpp2",
@@ -83,11 +86,15 @@ func testVPPAppMetadata(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, &fleet.VPPAppStoreApp{Name: "vpp2", VPPAppID: vpp2}, meta)
 
-	// try to add the same app again, fails
+	// try to add the same app again, update self_service
 	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{Name: "vpp2", BundleIdentifier: "com.app.vpp2",
-		VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_2", Platform: fleet.MacOSPlatform}}, &team1.ID)
-	require.Error(t, err)
-	require.ErrorAs(t, err, &existsErr)
+		VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_2", Platform: fleet.MacOSPlatform, SelfService: true}}, &team1.ID)
+	require.NoError(t, err)
+
+	// get it for team 1
+	meta, err = ds.GetVPPAppMetadataByTeamAndTitleID(ctx, &team1.ID, titleID2)
+	require.NoError(t, err)
+	require.Equal(t, &fleet.VPPAppStoreApp{Name: "vpp2", VPPAppID: vpp2, SelfService: true}, meta)
 
 	// get it for team 2, does not exist
 	meta, err = ds.GetVPPAppMetadataByTeamAndTitleID(ctx, &team2.ID, titleID2)
@@ -103,7 +110,7 @@ func testVPPAppMetadata(t *testing.T, ds *Datastore) {
 	// get it for team 1 and team 2, both work
 	meta, err = ds.GetVPPAppMetadataByTeamAndTitleID(ctx, &team1.ID, titleID2)
 	require.NoError(t, err)
-	require.Equal(t, &fleet.VPPAppStoreApp{Name: "vpp2", VPPAppID: vpp2}, meta)
+	require.Equal(t, &fleet.VPPAppStoreApp{Name: "vpp2", VPPAppID: vpp2, SelfService: true}, meta)
 	meta, err = ds.GetVPPAppMetadataByTeamAndTitleID(ctx, &team2.ID, titleID2)
 	require.NoError(t, err)
 	require.Equal(t, &fleet.VPPAppStoreApp{Name: "vpp2", VPPAppID: vpp2}, meta)
@@ -402,10 +409,10 @@ func testVPPApps(t *testing.T, ds *Datastore) {
 		GlobalRole: ptr.String(fleet.RoleAdmin),
 	})
 	require.NoError(t, err)
-	err = ds.InsertHostVPPSoftwareInstall(ctx, 1, u.ID, app1.VPPAppID, "a", "b")
+	err = ds.InsertHostVPPSoftwareInstall(ctx, 1, u.ID, app1.VPPAppID, "a", "b", false)
 	require.NoError(t, err)
 
-	err = ds.InsertHostVPPSoftwareInstall(ctx, 2, u.ID, app2.VPPAppID, "c", "d")
+	err = ds.InsertHostVPPSoftwareInstall(ctx, 2, u.ID, app2.VPPAppID, "c", "d", true)
 	require.NoError(t, err)
 
 	var results []struct {
@@ -414,8 +421,9 @@ func testVPPApps(t *testing.T, ds *Datastore) {
 		AdamID            string `db:"adam_id"`
 		CommandUUID       string `db:"command_uuid"`
 		AssociatedEventID string `db:"associated_event_id"`
+		SelfService       bool   `db:"self_service"`
 	}
-	err = sqlx.SelectContext(ctx, ds.reader(ctx), &results, `SELECT host_id, user_id, adam_id, command_uuid, associated_event_id FROM host_vpp_software_installs ORDER BY adam_id`)
+	err = sqlx.SelectContext(ctx, ds.reader(ctx), &results, `SELECT host_id, user_id, adam_id, command_uuid, associated_event_id, self_service FROM host_vpp_software_installs ORDER BY adam_id`)
 	require.NoError(t, err)
 	require.Len(t, results, 2)
 	a1 := results[0]
@@ -425,11 +433,13 @@ func testVPPApps(t *testing.T, ds *Datastore) {
 	require.Equal(t, a1.AdamID, app1.AdamID)
 	require.Equal(t, a1.CommandUUID, "a")
 	require.Equal(t, a1.AssociatedEventID, "b")
+	require.False(t, a1.SelfService)
 	require.Equal(t, a2.HostID, uint(2))
 	require.Equal(t, a2.UserID, u.ID)
 	require.Equal(t, a2.AdamID, app2.AdamID)
 	require.Equal(t, a2.CommandUUID, "c")
 	require.Equal(t, a2.AssociatedEventID, "d")
+	require.True(t, a2.SelfService)
 
 	// Check that getting the assigned apps works
 	appSet, err := ds.GetAssignedVPPApps(ctx, &team.ID)

@@ -20,6 +20,7 @@ SELECT
 	vap.platform,
 	vap.name,
 	vap.latest_version,
+	vat.self_service,
 	NULLIF(vap.icon_url, '') AS icon_url
 FROM
 	vpp_apps vap
@@ -158,13 +159,14 @@ func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, appIDs []
 		return ctxerr.Wrap(ctx, err, "SetTeamVPPApps getting list of existing apps")
 	}
 
-	var missingApps []fleet.VPPAppID
+	var toAddApps []fleet.VPPAppID
 	var toRemoveApps []fleet.VPPAppID
 
 	for existingApp := range existingApps {
 		var found bool
 		for _, adamID := range appIDs {
-			if adamID == existingApp {
+			// Self service value doesn't matter for removing app from team
+			if adamID.AdamID == existingApp.AdamID && adamID.Platform == existingApp.Platform {
 				found = true
 			}
 		}
@@ -175,12 +177,12 @@ func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, appIDs []
 
 	for _, adamID := range appIDs {
 		if _, ok := existingApps[adamID]; !ok {
-			missingApps = append(missingApps, adamID)
+			toAddApps = append(toAddApps, adamID)
 		}
 	}
 
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		for _, toAdd := range missingApps {
+		for _, toAdd := range toAddApps {
 			if err := insertVPPAppTeams(ctx, tx, toAdd, teamID); err != nil {
 				return ctxerr.Wrap(ctx, err, "SetTeamVPPApps inserting vpp app into team")
 			}
@@ -225,7 +227,7 @@ func (ds *Datastore) InsertVPPAppWithTeam(ctx context.Context, app *fleet.VPPApp
 func (ds *Datastore) GetAssignedVPPApps(ctx context.Context, teamID *uint) (map[fleet.VPPAppID]struct{}, error) {
 	stmt := `
 SELECT
-	adam_id, platform
+	adam_id, platform, self_service
 FROM
 	vpp_apps_teams vat
 WHERE
@@ -280,9 +282,10 @@ ON DUPLICATE KEY UPDATE
 func insertVPPAppTeams(ctx context.Context, tx sqlx.ExtContext, appID fleet.VPPAppID, teamID *uint) error {
 	stmt := `
 INSERT INTO vpp_apps_teams
-	(adam_id, global_or_team_id, team_id, platform)
+	(adam_id, global_or_team_id, team_id, platform, self_service)
 VALUES
-	(?, ?, ?, ?)
+	(?, ?, ?, ?, ?)
+ON DUPLICATE KEY UPDATE self_service = VALUES(self_service)
 	`
 
 	var globalOrTmID uint
@@ -294,10 +297,10 @@ VALUES
 		}
 	}
 
-	_, err := tx.ExecContext(ctx, stmt, appID.AdamID, globalOrTmID, teamID, appID.Platform)
+	_, err := tx.ExecContext(ctx, stmt, appID.AdamID, globalOrTmID, teamID, appID.Platform, appID.SelfService)
 	if IsDuplicate(err) {
 		err = &existsError{
-			Identifier:   fmt.Sprintf("%s %s", appID.AdamID, appID.Platform),
+			Identifier:   fmt.Sprintf("%s %s self_service: %v", appID.AdamID, appID.Platform, appID.SelfService),
 			TeamID:       teamID,
 			ResourceType: "VPPAppID",
 		}
@@ -433,16 +436,16 @@ WHERE vat.global_or_team_id = ? AND va.title_id = ?
 }
 
 func (ds *Datastore) InsertHostVPPSoftwareInstall(ctx context.Context, hostID, userID uint, appID fleet.VPPAppID,
-	commandUUID, associatedEventID string) error {
+	commandUUID, associatedEventID string, selfService bool) error {
 	stmt := `
 INSERT INTO host_vpp_software_installs
-  (host_id, adam_id, platform, command_uuid, user_id, associated_event_id)
+  (host_id, adam_id, platform, command_uuid, user_id, associated_event_id, self_service)
 VALUES
-  (?,?,?,?,?,?)
+  (?,?,?,?,?,?,?)
 	`
 
 	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, hostID, appID.AdamID, appID.Platform, commandUUID, userID,
-		associatedEventID); err != nil {
+		associatedEventID, selfService); err != nil {
 		return ctxerr.Wrap(ctx, err, "insert into host_vpp_software_installs")
 	}
 
