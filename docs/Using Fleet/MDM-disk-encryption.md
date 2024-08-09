@@ -56,7 +56,7 @@ How to view the disk encryption key:
 
 ## Migrate macOS hosts
 
-When migrating macOS hosts another MDM solution, in order to complete the process of encrypting the hard drive and escrowing the key in Fleet, your end users must log out or restart their device.
+When migrating macOS hosts from another MDM solution, in order to complete the process of encrypting the hard drive and escrowing the key in Fleet, your end users must log out or restart their device.
 
 Share [these guided instructions](./MDM-migration-guide.md#how-to-turn-on-disk-encryption) with your end users.
 
