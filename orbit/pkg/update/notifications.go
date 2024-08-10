@@ -53,7 +53,7 @@ type renewEnrollmentProfileConfigReceiver struct {
 }
 
 func ApplyRenewEnrollmentProfileConfigFetcherMiddleware(fetcher OrbitConfigFetcher, frequency time.Duration, fleetURL string) fleet.OrbitConfigReceiver {
-	return &renewEnrollmentProfileConfigReceiver{Frequency: frequency, fleetURL: fleetURL, mrw: mrw}
+	return &renewEnrollmentProfileConfigReceiver{Frequency: frequency, fleetURL: fleetURL}
 }
 
 func (h *renewEnrollmentProfileConfigReceiver) Run(config *fleet.OrbitConfig) error {

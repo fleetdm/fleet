@@ -77,6 +77,15 @@ Select **Start** and My device page will appear soon:` +
 	"After you start, this window will popup every 15 minutes until you finish.",
 ))
 
+// TODO(JVE): test the image, and then add it to website folder
+var mdmADEMigrationTemplate = template.Must(template.New("").Parse(`
+## Migrate to Fleet
+
+Select **Start** and My device page will appear soon:` +
+	"\n\n![Image showing MDM migration notification](https://fleetdm.com/images/permanent/mdm-manual-migration-1024x500.png)\n\n" +
+	"After you start, **Remote Management** will popup every minute until you finish.",
+))
+
 var errorTemplate = template.Must(template.New("").Parse(`
 ### Something's gone wrong.
 
@@ -176,15 +185,16 @@ func (b *baseDialog) render(flags ...string) (chan swiftDialogExitCode, chan err
 }
 
 // NewMDMMigrator creates a new  swiftDialogMDMMigrator with the right internal state.
-func NewMDMMigrator(path string, frequency time.Duration, handler MDMMigratorHandler, mrw *migration.ReadWriter) MDMMigrator {
+func NewMDMMigrator(path string, frequency time.Duration, handler MDMMigratorHandler, mrw *migration.ReadWriter, fleetURL string) MDMMigrator {
 	return &swiftDialogMDMMigrator{
 		handler:                   handler,
 		baseDialog:                newBaseDialog(path),
 		frequency:                 frequency,
 		unenrollmentRetryInterval: defaultUnenrollmentRetryInterval,
 		// set a buffer size of 1 to allow one Show without blocking
-		showCh: make(chan struct{}, 1),
-		mrw:    mrw,
+		showCh:   make(chan struct{}, 1),
+		mrw:      mrw,
+		fleetURL: fleetURL,
 	}
 }
 
@@ -210,6 +220,7 @@ type swiftDialogMDMMigrator struct {
 	testEnrollmentCheckStatusFn func() (bool, string, error)
 	unenrollmentRetryInterval   time.Duration
 	mrw                         *migration.ReadWriter
+	fleetURL                    string
 }
 
 /**
@@ -338,21 +349,22 @@ func (m *swiftDialogMDMMigrator) waitForUnenrollment() error {
 }
 
 func (m *swiftDialogMDMMigrator) renderMigration() error {
-	log.Debug().Msg("checking manual enrollment status")
-	manualProfileCheck, err := profiles.IsManuallyEnrolledInMDM()
+	log.Debug().Msg("checking current enrollment status")
+	isCurrentlyManuallyEnrolled, err := profiles.IsManuallyEnrolledInMDM()
 	if err != nil {
 		return err
 	}
 
-	// Check if we're in a manual migration.
-	migrationType, err := m.mrw.GetMigrationType()
+	// Check what kind of migration was in progress, if any.
+	previousMigrationType, err := m.mrw.GetMigrationType()
 	if err != nil {
 		log.Error().Err(err).Msg("getting migration type")
 	}
 
-	isManual := manualProfileCheck || migrationType == constant.MDMMigrationTypeManual
+	m.props.IsManualMigration = isCurrentlyManuallyEnrolled || previousMigrationType == constant.MDMMigrationTypeManual
+	m.props.IsADEMigration = !isCurrentlyManuallyEnrolled || previousMigrationType == constant.MDMMigrationTypeADE
 
-	message, flags, err := m.getMessageAndFlags(isManual)
+	message, flags, err := m.getMessageAndFlags()
 	if err != nil {
 		return fmt.Errorf("getting mdm migrator message: %w", err)
 	}
@@ -368,20 +380,19 @@ func (m *swiftDialogMDMMigrator) renderMigration() error {
 			return nil
 		}
 
-		// If we have the migration file and this is a manual migration, we should just send the
-		// user straight to the My device page
+		if previousMigrationType == constant.MDMMigrationTypeADE {
+			// Do nothing; the Remote Management modal will be launched by Orbit every minute.
+			return nil
+		}
 
-		switch migrationType {
-		case constant.MDMMigrationTypeManual:
-			// The migration file only exists if we successfully hit the webhook
+		if previousMigrationType == constant.MDMMigrationTypeManual {
+			// Launch the "My device" page.
 			log.Info().Msg("showing instructions")
 
 			if err := m.handler.ShowInstructions(); err != nil {
 				return err
 			}
 			return nil
-		case constant.MDMMigrationTypeADE:
-		default:
 		}
 
 		if !m.props.IsUnmanaged {
@@ -416,7 +427,7 @@ func (m *swiftDialogMDMMigrator) renderMigration() error {
 				}
 			}
 
-			if isManual {
+			if m.props.IsManualMigration {
 				if err := m.mrw.SetMigrationFile(constant.MDMMigrationTypeManual); err != nil {
 					log.Error().Str("migration_type", constant.MDMMigrationTypeManual).Err(err).Msg("set migration file")
 				}
@@ -488,7 +499,7 @@ func (m *swiftDialogMDMMigrator) SetProps(props MDMMigratorProps) {
 	m.props = props
 }
 
-func (m *swiftDialogMDMMigrator) getMessageAndFlags(isManual bool) (*bytes.Buffer, []string, error) {
+func (m *swiftDialogMDMMigrator) getMessageAndFlags() (*bytes.Buffer, []string, error) {
 	vers, err := m.getMacOSMajorVersion()
 	if err != nil {
 		// log error for debugging and continue with default template
@@ -496,8 +507,12 @@ func (m *swiftDialogMDMMigrator) getMessageAndFlags(isManual bool) (*bytes.Buffe
 	}
 
 	tmpl := mdmMigrationTemplate
-	if isManual {
+	if m.props.IsManualMigration {
 		tmpl = mdmManualMigrationTemplate
+	}
+
+	if m.props.IsADEMigration {
+		tmpl = mdmADEMigrationTemplate
 	}
 
 	height := "669"

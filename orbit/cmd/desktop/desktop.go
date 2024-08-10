@@ -248,7 +248,7 @@ func main() {
 		}()
 
 		if runtime.GOOS == "darwin" {
-			dir, err := migration.MigrationFileDir()
+			dir, err := migration.Dir()
 			if err != nil {
 				log.Fatal().Err(err).Msg("getting directory for MDM migration file")
 			}
@@ -267,6 +267,7 @@ func main() {
 					tokenReader: &tokenReader,
 				},
 				mrw,
+				fleetURL,
 			)
 		}
 
@@ -296,7 +297,7 @@ func main() {
 		defer tic.Stop()
 		go func() {
 			<-deviceEnabledChan
-			tic := time.NewTicker(10 * time.Second)
+			tic := time.NewTicker(5 * time.Minute)
 			defer tic.Stop()
 
 			for {
