@@ -43,9 +43,9 @@ go.mod @fleetdm/go
 /server/ @fleetdm/go
 /server/service/handler.go @lucasmrod @getvictor @roperzh @gillespi314
 /server/mdm/ @roperzh @gillespi314 @lucasmrod @georgekarrv
-/server/worker/ @lucasmrod @getvictor @roperzh @gillespi314
-/server/vulnerabilities/ @lucasmrod @mostlikelee @getvictor
-/server/cron/ @getvictor @lucasmrod @roperzh @mostlikelee
+/server/worker/ @lucasmrod @getvictor @roperzh @gillespi314 @lukeheath
+/server/vulnerabilities/ @lucasmrod @mostlikelee @getvictor @lukeheath
+/server/cron/ @getvictor @lucasmrod @roperzh @mostlikelee @lukeheath
 /ee/fleetd-chrome @lucasmrod @getvictor @RachelElysia
 /ee/vulnerability-dashboard @eashaw
 /ee/cis @sharon-fdm @lucasmrod @RachelElysia @jacobshandling
