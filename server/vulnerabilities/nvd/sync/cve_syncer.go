@@ -788,8 +788,6 @@ func convertAPI20CVEToLegacy(cve nvdapi.CVE, logger log.Logger) *schema.NVDCVEFe
 		case description.Lang == "en-US":
 			// This occurred starting with Microsoft CVE-2024-38200
 			lang = "en"
-		case strings.HasPrefix(description.Lang, "en-"):
-			lang = description.Lang
 		default:
 			// Non-english descriptions are ignored.
 			continue
