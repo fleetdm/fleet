@@ -778,26 +778,29 @@ func derefPtr[T any](p *T) T {
 func convertAPI20CVEToLegacy(cve nvdapi.CVE, logger log.Logger) *schema.NVDCVEFeedJSON10DefCVEItem {
 	logger = log.With(logger, "cve", cve.ID)
 
-	var descriptions []*schema.CVEJSON40LangString
-	if len(cve.Descriptions) == 0 {
+	descriptions := make([]*schema.CVEJSON40LangString, 0, len(cve.Descriptions))
+	for _, description := range cve.Descriptions {
+		// Keep only english descriptions to match the legacy.
+		if description.Lang != "en" {
+			continue
+		}
+		descriptions = append(descriptions, &schema.CVEJSON40LangString{
+			Lang:  description.Lang,
+			Value: description.Value,
+		})
+	}
+
+	if *cve.ID == "CVE-2024-38219" {
+		fmt.Printf("VICTOR: Found CVE-2024-38219 with descriptions: %+v\n", cve.Descriptions)
+	}
+
+	if len(descriptions) == 0 {
 		fmt.Printf("VICTOR: Found a CVE with no descriptions: %s\n", *cve.ID)
 		// Populate a blank description to prevent Fleet cron job from crashing: https://github.com/fleetdm/fleet/issues/21239
 		descriptions = append(descriptions, &schema.CVEJSON40LangString{
 			Lang:  "en",
 			Value: "",
 		})
-	} else {
-		descriptions = make([]*schema.CVEJSON40LangString, 0, len(cve.Descriptions))
-		for _, description := range cve.Descriptions {
-			// Keep only english descriptions to match the legacy.
-			if description.Lang != "en" {
-				continue
-			}
-			descriptions = append(descriptions, &schema.CVEJSON40LangString{
-				Lang:  description.Lang,
-				Value: description.Value,
-			})
-		}
 	}
 
 	problemtypeData := make([]*schema.CVEJSON40ProblemtypeProblemtypeData, 0, len(cve.Weaknesses))
