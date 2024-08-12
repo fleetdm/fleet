@@ -454,7 +454,7 @@ Any Fleetie can follow the process below to add a priority label to an issue.
 
 Estimation points represent the effort required to complete a task. After accessing wireframes, we typically play planning poker, a gamified estimation technique, to determine the necessary story point value.
 
-We use the following story points to estimate website tasks:
+We use the following story points to estimate tasks:
 
 | Story point | Time |
 |:---|:--------------|

@@ -989,6 +989,8 @@ type Datastore interface {
 	CountVulnerabilities(ctx context.Context, opt VulnListOptions) (uint, error)
 	// UpdateVulnerabilityHostCounts updates hosts counts for all vulnerabilities.
 	UpdateVulnerabilityHostCounts(ctx context.Context) error
+	// IsCVEKnownToFleet checks if the provided CVE is known to Fleet.
+	IsCVEKnownToFleet(ctx context.Context, cve string) (bool, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Apple MDM

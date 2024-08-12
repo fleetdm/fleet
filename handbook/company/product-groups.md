@@ -25,7 +25,7 @@ At Fleet, [anyone can contribute](https://fleetdm.com/handbook/company#openness)
 | [Endpoint ops](#endpoint-ops-group)      | Increase and exceed maturity in the "Endpoint operations" category.   | 130          |
 | [MDM](#mdm-group)                        | Reach maturity in the "MDM" product category.                         | 156          |
 
-\* The number of estimated story points this group can take on per-sprint under ideal circumstances, used as a baseline number for planning and prioritizing user stories for drafting. In reality, capacity will vary as engineers are on-call, out-of-office, filling in for other product groups, etc.
+\* The number of [estimated story points](https://fleetdm.com/handbook/company/communications#estimation-points) this group can take on per-sprint under ideal circumstances, used as a baseline number for planning and prioritizing user stories for drafting. In reality, capacity will vary as engineers are on-call, out-of-office, filling in for other product groups, etc.
 
 ### Endpoint ops group
 The goal of the endpoint ops group is to increase and exceed [Fleet's product maturity goals in the endpoint operations category](https://drive.google.com/file/d/11yQ_2WG7TbRErUpMBKWu_hQ5wRIZyQhr/view?usp=sharing).
@@ -186,6 +186,8 @@ Anyone in the product group can initiate an air guitar session.
 
 1. Initiate: Create a user story and add the `~air-guitar` label to indicate that it is going through the air guitar process. Air guitar issues are always intended to be designed right away. If they can't be, the requestor is notified via at-mention in the issue (that person is either the CSM or AE).
 
+> An air guitar session may be used to design features that won't be delivered in the next 6 weeks.
+
 2. Prioritize: Bring the user story to [feature fest](https://fleetdm.com/handbook/product#rituals). If the user story is prioritized, proceed through the regular steps of specifying and designing as outlined in the drafting process. However, keep in mind that these are conceptual and may or may not proceed to engineering.
 
 > An air guitar session may be needed before the next feature fest. In this case, the product group PM will prioritize the user story.
@@ -308,7 +310,7 @@ Before the **🎁🗣 Feature Fest** meeting, the [Customer renewals DRI](https:
 
 All community and contributor requests (non-customer) are left in the inbox. A high priority customer request may be a request that's blocking a customer from getting their job done or a request that's critical for customer renewal.
 
-Before the meeting, the Feature prioritization DRI adds requests from Fleet's roadmap that are planned for the next design sprint. The quarterly roadmap is in the [OKRs spreadsheet](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit?gid=0#gid=0).
+Before the meeting, the Feature prioritization DRI adds requests from Fleet's roadmap that are planned for the next design sprint. The quarterly roadmap is in the [OKRs spreadsheet](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit?gid=1846478041#gid=1846478041&range=393:419).
 
 At the **🎁🗣 Feature Fest** meeting, the Feature prioritization DRI weighs all requests in the inbox. When the team weighs a request, it is immediately prioritized or put to the side (not prioritized).
 
