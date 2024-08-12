@@ -2615,13 +2615,21 @@ Lists the software installed on the current device.
       "source": "apps",
       "status": "failed",
       "installed_versions": [
-        { 
+        {
           "version": "121.0",
           "last_opened_at": "2024-04-01T23:03:07Z",
           "vulnerabilities": ["CVE-2023-1234","CVE-2023-4321","CVE-2023-7654"],
           "installed_paths": ["/Applications/Google Chrome.app"]
         }
-      ]
+      ],
+       "software_package": {
+        "name": "google-chrome-124-0-6367-207.pkg",
+        "version": "121.0",
+        "self_service": true,
+        "icon_url": null,
+        "last_install": null
+      },
+      "app_store_app": null
     },
     {
       "id": 143,
@@ -2631,13 +2639,21 @@ Lists the software installed on the current device.
       "source": "apps",
       "status": null,
       "installed_versions": [
-        { 
+        {
           "version": "125.6",
           "last_opened_at": "2024-04-01T23:03:07Z",
           "vulnerabilities": ["CVE-2023-1234","CVE-2023-4321","CVE-2023-7654"],
           "installed_paths": ["/Applications/Firefox.app"]
         }
-      ]
+      ],
+      "software_package": null,
+      "app_store_app": {
+        "app_store_id": "12345",
+        "version": "125.6",
+        "self_service": false,
+        "icon_url": "https://example.com/logo-light.jpg",
+        "last_install": null
+      },
     }
   ],
   "meta": {
@@ -2986,7 +3002,7 @@ If the Fleet instance is provided required parameters to complete setup.
 
 ## Scripts
 
-### Batch-apply scripts 
+### Batch-apply scripts
 
 _Available in Fleet Premium_
 
@@ -3015,7 +3031,7 @@ If both `team_id` and `team_name` parameters are included, this endpoint will re
 
 ## Software
 
-### Batch-apply software 
+### Batch-apply software
 
 _Available in Fleet Premium._
 
