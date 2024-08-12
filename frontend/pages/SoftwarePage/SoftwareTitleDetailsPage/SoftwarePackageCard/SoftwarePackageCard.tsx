@@ -272,7 +272,11 @@ const SoftwarePackageCard = ({
           filename = cd.parameters.filename;
         }
       } catch (e) {
-        // noop, we'll just use the name as is
+        // TODO: Refactor this component's props so we can derive a file extension from the `source`
+        // property from title detail response.
+        //
+        // For now, we'll just use the software name prop as the filename if we can't parse the
+        // content-disposition header.
       }
 
       const file = new File([resp.data], filename, {
