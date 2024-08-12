@@ -84,36 +84,32 @@ parasails.registerComponent('fileUpload', {
   //  ╩ ╩ ╩ ╩ ╩╩═╝
   template: `
   <div class="clearfix" :class="[mode === 'image' ? 'image-mode' : 'file-mode', isCurrentlyDisabled ? 'disabled' : '']">
-    <div class="image-preview" v-if="mode === 'image'">
-      <div class="image-preview-field" :class="[isEmpty ? 'empty' : '']" :style="{ backgroundImage: (isEmpty ? 'url('+(placeholderImageSrc||'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEYAAABGCAYAAABxLuKEAAAAAXNSR0IArs4c6QAABU1JREFUeAHtnE1oXFUUgDOT+aFdaGKsJg3FKIggiNOioLjo0E0XipQWC1XQlEB+oMS2tFjbzYh/lJb+xNj8kQSpoMzC1oXgrg0uXPYHBKEI6aYEkdC6KMnEJH63zAzpY+5w7r1vknnMvfB47513zrnnfHN/zpsJiU1MTDy7srLyTVNT09scmzkauT1cXV39IRaLDSSWl5e/42J3I9NYk/tmWPRwX4hzsWvNA38JAUZNd5xz0tN4nACDZZMC41sFAh5MBShK5MFowCQ0crUAXenv79+rex51+ejo6DHWkjO6PPyI0ZDxYDwYDQGNWLvGaPQfiaenp1sWFxc/4mYP8zTDuYXjPuvSTc5XWZsuco50MwYzPj6eAcoVgHQFMm9BlkWWHRsb6+b6YG9vrwIVyWa0xoyMjGQZFTcqQAkmn0HvmoIYfBCVezEYNX0AMm2QWAtwTPQNXNdeVQymUChcEIyUYMQZplUuKIzCvRgMyeyxTChrabehZiIwahoR5ZOWke60tNtQMxGYhYUFp0U0iouwCExzc/N9l48vitu2CIxLYuxMt1ygKtvJycmtqlRgIX/F1ZfUXgRGOSPBn6VOA3qzgXujW4DsX1pauhuPx69heBs4h4wcWCqLwRBYzqKPBwA9bGH3yGR4eLiNfscoE8oVOv7O85XBq7Y+pXZiMMXp9JnUcVGve2BgYNbQpqyeSCTOcqN2xHIrQrpQFtToQgxG9d/X15fjJIHzAL0j6F/lbNUYFW8CobuSMfIsO907lZ6FJTMCozpVcAhsO5czmiBm+AEvg571p5rL5dTUqfo6QR/n8vl8syYGZ3F57pp4Kk6rrLJRuwWnLo5Zps11zs6to6PjU5y8VM0RH86L8/PzfehcqqZn+8wKzNrOwoJR8slPxs/z6+gpEi+JtGd0Ph8aGvp+cHDwX62S5QPjqWTZj9gMKFMknBYaPJVKpU4KdY3U6goM0/IDoGRNMkD/qCoATWwkunUDpvh9z0VJ0AGdJAWg2tZDbXUDhu97TvPpt9lkh90BKuIdNrY6m7oAo2oWAuzVBSmRUxF/K9GT6mw4GEnNIkmGUfMGRd8+ia5EZ8PBtLe3f01SVWsWSSJKh6LvLFMqlD9rca5jgkEzLV4j0Y+R7+dIMcT/5n6C955LPT0990r6jJQ4hdwx7tURSqOfLhypt+/zHE4tVDB8WkeIRv1QXi7VCfYZ7k+xc3zC8zzXd4CVQv4+189xhNrwnaPom3Qt+kIDQ9Kq0PpSlyUgVF8KRhPXOjVnOb6fSKfTORwddXEWyhrDovcuQXzhEkjItocoFrtcfDqDYU15mUXvR4Ko3TAwzzDJF1xORZ8TmKmpqS3E/CvDd5N57DW32Fesj6w6sgbDApdmQf0FKNusel4HI2Ibtu3GGgwL3GU6fd2243Wy28GoOWDTlxUYdqATdPaeTYfrbcOosSr6jMEUd6Cv1jtBh/62UtsYb91GYOp0B5IwO67WRIliSUcMRpXwGP1UpztQKZ+KZ2JuSyaT6g1e3MRgOjs736KDUF72xNGFqEhd85+JOzEYirh7zFUj5yaB1FKXuH9rbW393aQP8bsSvxP9pdYYOtkbpelEvHfn5uYu85ekyzUBo5zi/A6n0yYdRFVXPJWimqBt3DGKtVWN8T/I/9A8i7yYKbaNJeEFXSLV1pinMdqpM4y6HChVU/BTSYPHg/FgNAQ0Yj9iPBgNAY3YjxgPRkNAI/YjxoPRENCI/YjxYDQENGI/YqqAKWieNbK4oEbM9UYmUCl3vpKYifMHPQd5+GclhQaUqf9RledvjT9swNxlKf8PY15tW38ii5sAAAAASUVORK5CYII=')+')' : 'none') }">
-        <img alt="preview of the image to be uploaded" v-if="previewSrc" :src="previewSrc"/>
+    <div v-if="mode === 'profiles'">
+      <div purpose="profile-upload-input" v-if="isEmpty">
+        <div class="d-flex flex-column align-items-center">
+          <!-- <input id='file-upload' type="file" > -->
+          <img style="height: 40px; width: 34px;" src="/images/profile-34x40@2x.png">
+          <p><strong>Upload configuration profile</strong></p>
+          <p class="muted">.mobileconfig and .json for macOS, iOS, and iPadOS.</p>
+          <p class="muted">.xml for Windows.</p>
+          <div class="btn-and-tips-if-relevant">
+            <label purpose="file-upload" for="file-upload-input">
+              <img src="/images/upload-16x17@2x.png" style="height: 16px; width: 16px; margin-right: 8px">Choose File
+            </label>
+            <input id="file-upload-input" type="file" class="file-input d-none" :disabled="isCurrentlyDisabled" :accept="mode === 'image' ? 'image/*' : ''" @change="changeFileInput($event)"/>
+          </div>
+        </div>
       </div>
-    </div>
-    <span class="file-metadata-preview" v-else-if="selectedFileName">
-      <i class="selected-file-mime-type fa" :class="selectedFileIconClass"/>
-      &nbsp;<span class="selected-file-name">{{selectedFileName}}</span>
-      <span class="selected-file-size" v-if="selectedFileSize && selectedFileSize > 1000000000">&nbsp;{{selectedFileSize / 1000000000 | round(1)}} GB</span>
-      <span class="selected-file-size" v-else-if="selectedFileSize && selectedFileSize > 1000000">&nbsp;{{selectedFileSize / 1000000 | round(1)}} MB</span>
-      <span class="selected-file-size" v-else-if="selectedFileSize && selectedFileSize > 1000">&nbsp;{{selectedFileSize / 1000 | round}} KB</span>
-      <span class="selected-file-size" v-else-if="selectedFileSize">&nbsp;{{selectedFileSize}} B</span>
-    </span>
-    <div class="btn-and-tips-if-relevant">
-      <slot name="image-upload-instructions">
-        <p class="text-muted" v-if="mode === 'image'">
-          <span>
-            <strong v-if="isEmpty">Please select an image.</strong>
-            <strong v-else>Here is your image.</strong>
-          </span>
-          <br/>
-          <span >For best results, choose a .png, .jpg, or .gif file smaller than 3 MB.</span>
-          <!-- 3 MB is roughly the upper limit of how big images are when captured from modern mobile devices. -->
-        </p>
-      </slot>
-      <span class="file-upload-button" :class="[buttonClass || 'btn btn-outline-primary', isEmpty ? 'no-file-selected' : 'file-selected']">
-        <span class="button-text" v-if="isEmpty">Choose {{mode === 'image' ? 'image' : 'a file'}}</span>
-        <span class="button-text" v-else>Change {{mode === 'image' ? 'image' : 'file'}}</span>
-        <input type="file" class="file-input" :disabled="isCurrentlyDisabled" :accept="mode === 'image' ? 'image/*' : ''" @change="changeFileInput($event)"/>
-      </span>
+      <div purpose="profile-information" v-else>
+        <div class="d-flex flex-row justify-content-start">
+          <img style="height: 40px; width: 34px;" src="/images/profile-34x40@2x.png">
+          <div class="d-flex flex-column">
+            <p><strong>{{selectedFileName.replace(/\.(xml|mobileconfig)$/g, '').replace(/^\d{4}-\d{2}-\d{2}_/, '')}}</strong></p>
+            <p class="muted" v-if="_.endsWith(selectedFileName, 'xml')">Windows</p>
+            <p class="muted" v-else>macOS, iOS, iPadOS</p>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
   `,
@@ -238,6 +234,7 @@ parasails.registerComponent('fileUpload', {
         // help text / appropriate icon in the DOM.
         this.isEmpty = false;
         this.selectedFileName = newFile.name;
+        this.selectedFileName = this.selectedFileName.replace(/^\d{4}\-\d{2}\-\d{2}_/, '');
         this.selectedFileMimeType = newFile.type;
         this.selectedFileIconClass = parasails.util.getMimetypeIconClass(newFile.type);
         this.selectedFileSize = newFile.size;
