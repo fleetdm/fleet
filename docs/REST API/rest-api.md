@@ -9129,7 +9129,7 @@ Body: <blob>
 
 ### List App Store apps
 
-Returns the list of Apple App Store (VPP) apps purchased in Apple Business Manager. Apps can only be added to team once.
+Returns the list of Apple App Store (VPP) that can be added to the specified team. If an app is already added to the team, it's excluded from the list.
 
 `GET /api/v1/fleet/software/app_store_apps`
 
@@ -9137,7 +9137,7 @@ Returns the list of Apple App Store (VPP) apps purchased in Apple Business Manag
 
 | Name    | Type | In | Description |
 | ------- | ---- | -- | ----------- |
-| team_id | integer | query | **Required**. The team ID. Lists available VPP software for specified team. |
+| team_id | integer | query | **Required**. The team ID. |
 
 #### Example
 
@@ -9155,7 +9155,6 @@ Returns the list of Apple App Store (VPP) apps purchased in Apple Business Manag
       "icon_url": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/f1/65/1e/a4844ccd-486d-455f-bb31-67336fe46b14/AppIcon-1x_U007emarketing-0-7-0-85-220-0.png/512x512bb.jpg",
       "latest_version": "15.4",
       "app_store_id": "497799835",
-      "added": true,
       "platform": "darwin"
     },
     {
@@ -9163,7 +9162,6 @@ Returns the list of Apple App Store (VPP) apps purchased in Apple Business Manag
       "icon_url": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/f1/65/1e/a4844ccd-486d-455f-bb31-67336fe46b14/AppIcon-1x_U007emarketing-0-7-0-85-220-0.png/512x512bb.jpg",
       "latest_version": "2.04",
       "app_store_id": "634148309",
-      "added": false,
       "platform": "ios"
     },
     {
@@ -9171,7 +9169,6 @@ Returns the list of Apple App Store (VPP) apps purchased in Apple Business Manag
       "icon_url": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/f1/65/1e/a4844ccd-486d-455f-bb31-67336fe46b14/AppIcon-1x_U007emarketing-0-7-0-85-220-0.png/512x512bb.jpg",
       "latest_version": "2.04",
       "app_store_id": "634148309",
-      "added": false,
       "platform": "ipados"
     },
   ]
