@@ -53,6 +53,7 @@ CREATE TABLE mdm_asset_assignments (
     id INT PRIMARY KEY,
     asset_id INT NOT NULL,
     team_id INT NULL, -- NULL if the asset is assigned to "no team" or "all teams"
+    target_platform varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL, -- if NULL, asset is not platform specific
     scope ENUM('all_teams', 'team', 'no_team') NOT NULL,
     FOREIGN KEY (asset_id) REFERENCES mdm_config_assets(id),
     FOREIGN KEY (team_id) REFERENCES teams(id),
