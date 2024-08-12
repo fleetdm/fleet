@@ -32,10 +32,10 @@ The VPP token is used to:
 
 To support multiple tokens, we need to:
 
-- Add a form to retrieve all tokens available for a team or "no team" this is `(team OR no team) ∪ all teams`
-- To get a list of available apps: loop over each token and get the available apps
+- Add a form to retrieve all tokens available for a team or "no team" this is `(team OR no team) ∪ all teams`.
+- To get a list of available apps: loop over each token, get and dedupe the available apps.
 - To assign an app to a host: loop over each token until we find the first one with available licenses, use it to assign the app to the host.
-    - Discuss: track the token used?
+- Track the token used to assign the app to the host.
 
 
 ### Database migrations
@@ -77,6 +77,21 @@ ALTER TABLE host_dep_assignments
 ADD COLUMN abm_token_id int unsigned NOT NULL
 FOREIGN KEY fk_hda_abm_token_id (abm_token_id) REFERENCES mdm_config_assets(id) ON DELETE SET NULL
 ```
+
+**Tracking tokens used to assign VPP apps**
+
+```sql
+ALTER TABLE host_vpp_software_installs
+ADD COLUMN vpp_token_id int unsigned DEFAULT NULL,
+FOREIGN KEY host_vpp_software_installs_vpp_token_id (vpp_token_id) REFERENCES mdm_config_assets(id) ON DELETE SET NULL
+```
+
+**Migrating current tokens**
+
+For instances already configured:
+
+- The ABM token is "assigned" to the configured default ABM team. We'll need a DB migration that will make it explicit that the existing ABM token belongs to that team, and that existing ADE-enrolled hosts we ADE-enrolled via that token.
+- The VPP token should be assigned to "All teams", and any existing app assignments should be tracked as assigned via that token.
 
 #### Queries
 
