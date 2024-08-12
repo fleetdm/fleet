@@ -272,6 +272,54 @@ const TableContainer = <T,>({
 
   return (
     <div className={wrapperClasses}>
+      <div className="container">
+        <div className="box">
+          {renderCount && !disableCount && (
+            <div
+              className={`${baseClass}__results-count ${
+                stackControls ? "stack-table-controls" : ""
+              }`}
+              style={opacity}
+            >
+              {renderCount()}
+            </div>
+          )}
+        </div>
+        <div className="box"> {customControl && customControl()}</div>
+        <div className="box middle">
+          {" "}
+          {searchable && !wideSearch && (
+            <div className={`${baseClass}__search`}>
+              <div
+                className={`${baseClass}__search-input ${
+                  stackControls ? "stack-table-controls" : ""
+                }`}
+                data-tip
+                data-for="search-tooltip"
+                data-tip-disable={!searchToolTipText}
+              >
+                <SearchField
+                  placeholder={inputPlaceHolder}
+                  defaultValue={searchQuery}
+                  onChange={onSearchQueryChange}
+                />
+              </div>
+              <ReactTooltip
+                effect="solid"
+                backgroundColor={COLORS["tooltip-bg"]}
+                id="search-tooltip"
+                data-html
+              >
+                <span className={`tooltip ${baseClass}__tooltip-text`}>
+                  {searchToolTipText}
+                </span>
+              </ReactTooltip>
+            </div>
+          )}
+        </div>
+        <div className="box"> {customFilters && customFilters()}</div>
+      </div>
+
       {wideSearch && searchable && (
         <div className={`${baseClass}__search-input wide-search`}>
           <SearchField

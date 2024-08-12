@@ -73,6 +73,7 @@ interface ISoftwareTableProps {
   teamId?: number;
   isLoading: boolean;
   resetPageIndex: boolean;
+  onAddFilterClick: () => void;
 }
 
 const baseClass = "software-table";
@@ -92,6 +93,7 @@ const SoftwareTable = ({
   teamId,
   isLoading,
   resetPageIndex,
+  onAddFilterClick,
 }: ISoftwareTableProps) => {
   const currentPath = showVersions
     ? PATHS.SOFTWARE_VERSIONS
@@ -325,7 +327,7 @@ const SoftwareTable = ({
 
     return (
       <div className={`${baseClass}__filters`}>
-        <Button variant="text-link">
+        <Button variant="text-link" onClick={onAddFilterClick}>
           <Icon name="filter" color="core-fleet-blue" />
           <span>Add filter</span>
         </Button>

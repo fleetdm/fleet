@@ -26,10 +26,12 @@ import Button from "components/buttons/Button";
 import MainContent from "components/MainContent";
 import TeamsHeader from "components/TeamsHeader";
 import TabsWrapper from "components/TabsWrapper";
+import { noop } from "lodash";
 
 import ManageAutomationsModal from "./components/ManageSoftwareAutomationsModal";
 import AddSoftwareModal from "./components/AddSoftwareModal";
 import { getSoftwareFilterFromQueryParams } from "./SoftwareTitles/SoftwareTable/helpers";
+import SoftwareFiltersModal from "./components/SoftwareFiltersModal";
 
 interface ISoftwareSubNavItem {
   name: string;
@@ -150,6 +152,7 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
   const [showPreviewPayloadModal, setShowPreviewPayloadModal] = useState(false);
   const [showPreviewTicketModal, setShowPreviewTicketModal] = useState(false);
   const [showAddSoftwareModal, setShowAddSoftwareModal] = useState(false);
+  const [showAddFilterModal, setShowAddFilterModal] = useState(false);
   const [resetPageIndex, setResetPageIndex] = useState<boolean>(false);
   const [addedSoftwareToken, setAddedSoftwareToken] = useState<string | null>(
     null
@@ -245,6 +248,10 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
   const togglePreviewTicketModal = useCallback(() => {
     setShowPreviewTicketModal(!showPreviewTicketModal);
   }, [setShowPreviewTicketModal, showPreviewTicketModal]);
+
+  const toggleAddFilterModal = useCallback(() => {
+    setShowAddFilterModal(!showAddFilterModal);
+  }, [setShowAddFilterModal, showAddFilterModal]);
 
   // TODO: move into manage automations modal
   const onCreateWebhookSubmit = async (
@@ -389,6 +396,7 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
           softwareFilter,
           resetPageIndex,
           addedSoftwareToken,
+          onAddFilterClick: toggleAddFilterModal,
         })}
       </div>
     );
@@ -431,6 +439,10 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
             setAddedSoftwareToken={setAddedSoftwareToken}
             isFreeTier={isFreeTier}
           />
+        )}
+
+        {showAddFilterModal && (
+          <SoftwareFiltersModal onExit={toggleAddFilterModal} onSubmit={noop} />
         )}
       </div>
     </MainContent>
