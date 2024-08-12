@@ -14,7 +14,7 @@ import (
 )
 
 func (ds *Datastore) GetVPPAppMetadataByTeamAndTitleID(ctx context.Context, teamID *uint, titleID uint) (*fleet.VPPAppStoreApp, error) {
-	query := `
+	const query = `
 SELECT
 	vap.adam_id,
 	vap.platform,
@@ -29,15 +29,14 @@ WHERE
 
 	// when team id is not nil, we need to filter by the global or team id given.
 	args := []any{titleID}
+	teamFilter := ""
 	if teamID != nil {
-		query = fmt.Sprintf(query, "AND vat.global_or_team_id = ?")
 		args = append(args, *teamID)
-	} else {
-		query = fmt.Sprintf(query, "")
+		teamFilter = "AND vat.global_or_team_id = ?"
 	}
 
 	var app fleet.VPPAppStoreApp
-	err := sqlx.GetContext(ctx, ds.reader(ctx), &app, query, args...)
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &app, fmt.Sprintf(query, teamFilter), args...)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, ctxerr.Wrap(ctx, notFound("VPPApp"), "get VPP app metadata")
