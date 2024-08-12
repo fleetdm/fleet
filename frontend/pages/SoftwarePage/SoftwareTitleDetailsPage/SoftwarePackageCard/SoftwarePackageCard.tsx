@@ -368,9 +368,13 @@ const SoftwarePackageCard = ({
 
     const count = labels.length;
 
+    const tooltipLines = softwarePackage?.labels_include_any?.length
+      ? ["Includes any:", ...labels]
+      : ["Excludes any:", ...labels];
+
     return (
       <TooltipWrapper
-        tipContent={tooltipTextWithLineBreaks(labels)}
+        tipContent={tooltipTextWithLineBreaks(tooltipLines)}
         underline={false}
         showArrow
         position="top"
