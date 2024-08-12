@@ -12,7 +12,7 @@ export interface IModalProps {
   children: JSX.Element;
   onExit: () => void;
   onEnter?: () => void;
-  /**     default 650px, large 800px, xlarge 850px, auto auto-width */
+  /**     default medium 650px, large 800px, xlarge 850px, auto auto-width */
   width?: ModalWidth;
   /**    isHidden can be set true to hide the modal when opening another modal */
   isHidden?: boolean;

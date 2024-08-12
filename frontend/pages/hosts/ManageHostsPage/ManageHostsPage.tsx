@@ -1059,10 +1059,15 @@ const ManageHostsPage = ({
       renderFlash("success", "Successfully deleted label.");
     } catch (error) {
       console.error(error);
-      // TODO(jacob)
-      // Error message when the user attempts to delete a label that's being used as a custom target for software? Confirming w/Noah: https://github.com/fleetdm/fleet/pull/20872/files#r1710124450
-      if (getErrorReason(error).includes("built-in")) {
+      const reason = getErrorReason(error);
+      if (reason.includes("built-in")) {
         renderFlash("error", "Built-in labels can’t be modified or deleted.");
+      } else if (
+        reason.includes(
+          "Couldn't delete. Software uses this label as a custom target. Please delete the software and try again."
+        )
+      ) {
+        renderFlash("error", reason);
       } else {
         renderFlash("error", "Could not delete label. Please try again.");
       }
