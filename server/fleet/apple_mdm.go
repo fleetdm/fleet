@@ -849,5 +849,5 @@ type MDMBootstrapPackageStore interface {
 	Get(ctx context.Context, packageID string) (io.ReadCloser, int64, error)
 	Put(ctx context.Context, packageID string, content io.ReadSeeker) error
 	Exists(ctx context.Context, packageID string) (bool, error)
-	Cleanup(ctx context.Context, usedPackageIDs []string) (int, error)
+	Cleanup(ctx context.Context, usedPackageIDs []string, removeCreatedBefore time.Time) (int, error)
 }

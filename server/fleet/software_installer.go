@@ -20,7 +20,7 @@ type SoftwareInstallerStore interface {
 	Get(ctx context.Context, installerID string) (io.ReadCloser, int64, error)
 	Put(ctx context.Context, installerID string, content io.ReadSeeker) error
 	Exists(ctx context.Context, installerID string) (bool, error)
-	Cleanup(ctx context.Context, usedInstallerIDs []string) (int, error)
+	Cleanup(ctx context.Context, usedInstallerIDs []string, removeCreatedBefore time.Time) (int, error)
 }
 
 // FailingSoftwareInstallerStore is an implementation of SoftwareInstallerStore

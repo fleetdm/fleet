@@ -355,7 +355,7 @@ func testCleanupUnusedSoftwareInstallers(t *testing.T, ds *Datastore) {
 	}
 
 	// cleanup an empty store
-	err = ds.CleanupUnusedSoftwareInstallers(ctx, store)
+	err = ds.CleanupUnusedSoftwareInstallers(ctx, store, time.Now())
 	require.NoError(t, err)
 	assertExisting(nil)
 
@@ -377,7 +377,7 @@ func testCleanupUnusedSoftwareInstallers(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	assertExisting([]string{ins0})
-	err = ds.CleanupUnusedSoftwareInstallers(ctx, store)
+	err = ds.CleanupUnusedSoftwareInstallers(ctx, store, time.Now())
 	require.NoError(t, err)
 	assertExisting([]string{ins0})
 
@@ -385,7 +385,7 @@ func testCleanupUnusedSoftwareInstallers(t *testing.T, ds *Datastore) {
 	err = ds.DeleteSoftwareInstaller(ctx, swi)
 	require.NoError(t, err)
 
-	err = ds.CleanupUnusedSoftwareInstallers(ctx, store)
+	err = ds.CleanupUnusedSoftwareInstallers(ctx, store, time.Now())
 	require.NoError(t, err)
 	assertExisting(nil)
 }

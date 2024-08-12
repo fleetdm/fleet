@@ -10,6 +10,7 @@ import (
 	"io"
 	"path"
 	"testing"
+	"time"
 
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -104,7 +105,7 @@ func TestSoftwareInstallerCleanup(t *testing.T) {
 	}
 
 	// cleanup an empty store
-	n, err := store.Cleanup(ctx, nil)
+	n, err := store.Cleanup(ctx, nil, time.Now())
 	require.NoError(t, err)
 	require.Equal(t, 0, n)
 
@@ -114,14 +115,14 @@ func TestSoftwareInstallerCleanup(t *testing.T) {
 	require.NoError(t, err)
 
 	// cleanup but mark it as used
-	n, err = store.Cleanup(ctx, []string{ins0})
+	n, err = store.Cleanup(ctx, []string{ins0}, time.Now())
 	require.NoError(t, err)
 	require.Equal(t, 0, n)
 
 	assertExisting([]string{ins0})
 
 	// cleanup but mark it as unused
-	n, err = store.Cleanup(ctx, []string{})
+	n, err = store.Cleanup(ctx, []string{}, time.Now())
 	require.NoError(t, err)
 	require.Equal(t, 1, n)
 
@@ -134,7 +135,7 @@ func TestSoftwareInstallerCleanup(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	n, err = store.Cleanup(ctx, []string{installers[0], installers[2]})
+	n, err = store.Cleanup(ctx, []string{installers[0], installers[2]}, time.Now())
 	require.NoError(t, err)
 	require.Equal(t, 2, n)
 
