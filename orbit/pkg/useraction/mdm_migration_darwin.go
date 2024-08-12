@@ -77,12 +77,11 @@ Select **Start** and My device page will appear soon:` +
 	"After you start, this window will popup every 15 minutes until you finish.",
 ))
 
-// TODO(JVE): test the image, and then add it to website folder
 var mdmADEMigrationTemplate = template.Must(template.New("").Parse(`
 ## Migrate to Fleet
 
-Select **Start** and My device page will appear soon:` +
-	"\n\n![Image showing MDM migration notification](https://fleetdm.com/images/permanent/mdm-manual-migration-1024x500.png)\n\n" +
+Select **Start** and Remote Management window will appear soon:` +
+	"\n\n![Image showing MDM migration notification](https://fleetdm.com/images/permanent/mdm-ade-migration-1024x500.png)\n\n" +
 	"After you start, **Remote Management** will popup every minute until you finish.",
 ))
 
@@ -368,7 +367,7 @@ func (m *swiftDialogMDMMigrator) renderMigration() error {
 
 	log.Debug().Bool("isManualMigration", isManualMigration).Bool("isADEMigration", isADEMigration).Bool("isCurrentlyManuallyEnrolled", isCurrentlyManuallyEnrolled).Str("previousMigrationType", previousMigrationType).Msg("props after assigning")
 
-	message, flags, err := m.getMessageAndFlags(isManualMigration, isADEMigration)
+	message, flags, err := m.getMessageAndFlags(isManualMigration)
 	if err != nil {
 		return fmt.Errorf("getting mdm migrator message: %w", err)
 	}
@@ -503,20 +502,16 @@ func (m *swiftDialogMDMMigrator) SetProps(props MDMMigratorProps) {
 	m.props = props
 }
 
-func (m *swiftDialogMDMMigrator) getMessageAndFlags(isManualMigration, isADEMigration bool) (*bytes.Buffer, []string, error) {
+func (m *swiftDialogMDMMigrator) getMessageAndFlags(isManualMigration bool) (*bytes.Buffer, []string, error) {
 	vers, err := m.getMacOSMajorVersion()
 	if err != nil {
 		// log error for debugging and continue with default template
 		log.Error().Err(err).Msg("getting macOS major version failed: using default migration template")
 	}
 
-	tmpl := mdmMigrationTemplate
+	tmpl := mdmADEMigrationTemplate
 	if isManualMigration {
 		tmpl = mdmManualMigrationTemplate
-	}
-
-	if isADEMigration {
-		tmpl = mdmADEMigrationTemplate
 	}
 
 	height := "669"
