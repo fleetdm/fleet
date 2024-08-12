@@ -1,10 +1,20 @@
 import React, { useContext, useEffect, useState } from "react";
 import { InjectedRouter } from "react-router";
+import { useQuery } from "react-query";
+
+import { ILabel } from "interfaces/label";
+import { getErrorReason } from "interfaces/errors";
 
 import PATHS from "router/paths";
 import { NotificationContext } from "context/notification";
 import softwareAPI from "services/entities/software";
 import { QueryParams, buildQueryStringFromParams } from "utilities/url";
+
+import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
+
+import CustomLink from "components/CustomLink";
+import Spinner from "components/Spinner";
+import DataError from "components/DataError";
 
 import AddPackageForm from "../AddPackageForm";
 import { IAddPackageFormData } from "../AddPackageForm/AddPackageForm";
@@ -98,6 +108,22 @@ const AddPackage = ({
         `${PATHS.SOFTWARE_TITLES}?${buildQueryStringFromParams(newQueryParams)}`
       );
     } catch (e) {
+      const reason = getErrorReason(e);
+      // TODO - confirm message matching
+      if (
+        reason.includes("Couldn't add. Fleet couldn't read the version from")
+      ) {
+        renderFlash(
+          "error",
+          `${reason}. ${(
+            <CustomLink
+              newTab
+              url={`${LEARN_MORE_ABOUT_BASE_LINK}/read-package-version`}
+              text="Learn more"
+            />
+          )} `
+        );
+      }
       renderFlash("error", getErrorMessage(e));
     }
 
