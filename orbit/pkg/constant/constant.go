@@ -62,6 +62,4 @@ const (
 	MDMMigrationTypeManual = "manual"
 	// MDMMigrationTypeADE indicates that the MDM migration is for an ADE enrolled host.
 	MDMMigrationTypeADE = "ade"
-	// MDMMigrationOfflineImageFileName is the name of the image file used in the offline MDM migration dialog.
-	MDMMigrationOfflineImageFileName = "mdm_migration_offline.png"
 )

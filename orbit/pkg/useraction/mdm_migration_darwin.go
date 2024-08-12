@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -94,6 +93,12 @@ var errorTemplate = template.Must(template.New("").Parse(`
 
 Please contact your IT admin [here]({{ .ContactURL }}).
 `))
+
+var mdmMigrationTemplateOffline = template.Must(template.New("").Parse(`
+## Migrate to Fleet
+
+🛜🚫 No internet connection. Please connect to internet to continue.`,
+))
 
 // baseDialog implements the basic building blocks to render dialogs using
 // swiftDialog.
@@ -771,26 +776,29 @@ func (m *swiftDialogMDMMigrationOffline) render(flags ...string) (chan swiftDial
 }
 
 func (m *swiftDialogMDMMigrationOffline) getFlags() ([]string, error) {
-	dir, err := migration.Dir()
-	if err != nil {
-		log.Error().Err(err).Msg("getting local directory")
-		// TODO: return error?
+	tmpl := mdmMigrationTemplateOffline
+	var message bytes.Buffer
+	if err := tmpl.Execute(
+		&message,
+		nil,
+	); err != nil {
+		return nil, fmt.Errorf("executing migration template: %w", err)
 	}
-	imagePath := filepath.Join(dir, constant.MDMMigrationOfflineImageFileName)
-	// disable the built-in iconPath so we have full control over content
-	iconPath := "none"
-	// disable the built-in title so we have full control over content
+
+	log.Info().Msgf("showing offline msg: %s", message.String())
+
+	// disable the built-in title and icon so we have full control over content
 	title := "none"
+	icon := "none"
 
 	flags := []string{
-		"--height", "669", // TODO: confirm this
-		// disable the built-in title so we have full control over content
-		"--title", title,
-		// top icon
-		"--icon", iconPath,
-		// modal content
-		"--image", imagePath,
+		"--height", "124",
 		"--alignment", "center",
+		"--title", title,
+		"--icon", icon,
+		// modal content
+		"--message", message.String(),
+		"--messagefont", "size=16",
 		// main button
 		"--button1text", "Close",
 	}
