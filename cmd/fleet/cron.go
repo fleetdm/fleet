@@ -735,6 +735,7 @@ func newCleanupsAndAggregationSchedule(
 	config *config.FleetConfig,
 	commander *apple_mdm.MDMAppleCommander,
 	softwareInstallStore fleet.SoftwareInstallerStore,
+	bootstrapPackageStore fleet.MDMBootstrapPackageStore,
 ) (*schedule.Schedule, error) {
 	const (
 		name            = string(fleet.CronCleanupsThenAggregation)
@@ -883,6 +884,9 @@ func newCleanupsAndAggregationSchedule(
 		}),
 		schedule.WithJob("cleanup_unused_software_installers", func(ctx context.Context) error {
 			return ds.CleanupUnusedSoftwareInstallers(ctx, softwareInstallStore)
+		}),
+		schedule.WithJob("cleanup_unused_bootstrap_packages", func(ctx context.Context) error {
+			return ds.CleanupUnusedBootstrapPackages(ctx, bootstrapPackageStore)
 		}),
 	)
 

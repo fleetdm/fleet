@@ -7119,7 +7119,7 @@ func (s *integrationMDMTestSuite) TestMDMEnabledAndConfigured() {
 			Token:  uuid.New().String(),
 			Bytes:  []byte("foo"),
 			Sha256: []byte("foo-sha256"),
-		}))
+		}, nil))
 
 		// add new setup assistant
 		_, err := s.ds.SetOrUpdateMDMAppleSetupAssistant(ctx, &fleet.MDMAppleSetupAssistant{

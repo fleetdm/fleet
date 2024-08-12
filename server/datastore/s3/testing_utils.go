@@ -26,6 +26,12 @@ func SetupTestSoftwareInstallerStore(tb testing.TB, bucket, prefix string) *Soft
 	return store
 }
 
+func SetupTestBootstrapPackageStore(tb testing.TB, bucket, prefix string) *BootstrapPackageStore {
+	store := setupTestStore(tb, bucket, prefix, NewBootstrapPackageStore)
+	tb.Cleanup(func() { cleanupStore(tb, store.s3store) })
+	return store
+}
+
 // SetupTestInstallerStore creates a new store with minio as a back-end
 // for local testing
 func SetupTestInstallerStore(tb testing.TB, bucket, prefix string) *InstallerStore {
