@@ -77,7 +77,7 @@ const InstallerInfo = ({ software }: IInstallerInfoProps) => {
           {name || installerPackage?.name}
         </div>
         <div className={`${baseClass}__item-version`}>
-          {installerPackage?.version ?? vppApp?.version ?? ""}
+          {installerPackage?.version || vppApp?.version || ""}
         </div>
       </div>
     </div>

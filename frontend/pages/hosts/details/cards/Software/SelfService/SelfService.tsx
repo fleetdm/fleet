@@ -124,7 +124,7 @@ const SoftwareSelfService = ({
                     {data.software.map((s) => {
                       let uuid =
                         s.software_package?.last_install?.install_uuid ??
-                        s.app_store_app?.app_store_id;
+                        s.app_store_app?.last_install?.command_uuid;
                       if (!uuid) {
                         uuid = "";
                       }
