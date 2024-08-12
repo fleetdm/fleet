@@ -58,14 +58,6 @@ const SoftwareFiltersModal = ({
   const [severity, setSeverity] = useState("any");
   const [hasKnownExploit, setHasKnownExploit] = useState(false);
 
-  const onSelectSeverity = (value: string) => {
-    setSeverity(value);
-  };
-
-  const onSelectExploit = (value: boolean) => {
-    setHasKnownExploit(value);
-  };
-
   const renderSeverityLabel = () => {
     return (
       <TooltipWrapper
@@ -93,12 +85,14 @@ const SoftwareFiltersModal = ({
           label={renderSeverityLabel()}
           options={SEVERITY_DROPDOWN_OPTIONS}
           value={severity}
-          onChange={onSelectSeverity}
+          onChange={(value: string) => {
+            setSeverity(value);
+          }}
           placeholder="Choose Table..."
           className={`${baseClass}__table-select`}
         />
         <Checkbox
-          onChange={onSelectExploit}
+          onChange={(value: boolean) => setHasKnownExploit(value)}
           name="hasKnownExploit"
           value={hasKnownExploit}
           parseTarget
