@@ -684,15 +684,13 @@ func testLabelsChangeDetails(t *testing.T, db *Datastore) {
 			profA.ProfileUUID, label.Name, label.ID)
 		return err
 	})
-	label.Description = "changed name"
-	err = db.ApplyLabelSpecs(context.Background(), []*fleet.LabelSpec{&label})
-	require.Nil(t, err)
-
-	filter = fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}}
-	saved, _, err = db.Label(context.Background(), label.ID, filter)
-	require.Nil(t, err)
-	assert.Equal(t, label.Name, saved.Name)
-	assert.Equal(t, label.Description, saved.Description)
+	label.Name = "changed name"
+	// ApplyLabelSpecs can't update the name -- it simply creates a new label, so we need to call SaveLabel.
+	saved.Name = label.Name
+	saved2, _, err := db.SaveLabel(context.Background(), saved, filter)
+	require.NoError(t, err)
+	assert.Equal(t, label.Name, saved2.Name)
+	assert.Equal(t, label.Description, saved2.Description)
 
 	var configProfileLabelName string
 	ExecAdhocSQL(t, db, func(q sqlx.ExtContext) error {

@@ -58,25 +58,18 @@ func (ds *Datastore) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSp
 				return ctxerr.Wrap(ctx, err, "exec ApplyLabelSpecs insert")
 			}
 
+			if s.LabelType == fleet.LabelTypeBuiltIn ||
+				s.LabelMembershipType != fleet.LabelMembershipTypeManual {
+				// No need to update membership
+				continue
+			}
+
 			var labelID uint
 			sql = `
 SELECT id from labels WHERE name = ?
 `
 			if err := sqlx.GetContext(ctx, tx, &labelID, sql, s.Name); err != nil {
 				return ctxerr.Wrap(ctx, err, "get label ID")
-			}
-
-			// Update the label name in mdm_configuration_profile_labels
-			sql = `UPDATE mdm_configuration_profile_labels SET label_name = ? WHERE label_id = ?`
-			_, err = tx.ExecContext(ctx, sql, s.Name, labelID)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "update label name in mdm_configuration_profile_labels")
-			}
-
-			if s.LabelType == fleet.LabelTypeBuiltIn ||
-				s.LabelMembershipType != fleet.LabelMembershipTypeManual {
-				// No need to update membership
-				continue
 			}
 
 			sql = `
