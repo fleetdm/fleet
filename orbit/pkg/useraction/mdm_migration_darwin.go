@@ -298,7 +298,7 @@ func (m *swiftDialogMDMMigrator) renderError() (chan swiftDialogExitCode, chan e
 // waitForUnenrollment waits 90 seconds (value determined by product) for the
 // device to unenroll from the current MDM solution. If the device doesn't
 // unenroll, an error is returned.
-func (m *swiftDialogMDMMigrator) waitForUnenrollment() error {
+func (m *swiftDialogMDMMigrator) waitForUnenrollment(isADEMigration bool) error {
 	maxRetries := int(mdmUnenrollmentTotalWaitTime.Seconds() / m.unenrollmentRetryInterval.Seconds())
 	checkFileFn := m.testEnrollmentCheckFileFn
 	if checkFileFn == nil {
@@ -315,14 +315,16 @@ func (m *swiftDialogMDMMigrator) waitForUnenrollment() error {
 	return retry.Do(func() error {
 		var unenrolled bool
 
-		fileExists, fileErr := checkFileFn()
-		if fileErr != nil {
-			log.Error().Err(fileErr).Msg("checking for existence of cloudConfigProfileInstalled in migration modal")
-		} else if fileExists {
-			log.Info().Msg("checking for existence of cloudConfigProfileInstalled in migration modal: found")
-		} else {
-			log.Info().Msg("checking for existence of cloudConfigProfileInstalled in migration modal: not found")
-			unenrolled = true
+		if isADEMigration {
+			fileExists, fileErr := checkFileFn()
+			if fileErr != nil {
+				log.Error().Err(fileErr).Msg("checking for existence of cloudConfigProfileInstalled in migration modal")
+			} else if fileExists {
+				log.Info().Msg("checking for existence of cloudConfigProfileInstalled in migration modal: found")
+			} else {
+				log.Info().Msg("checking for existence of cloudConfigProfileInstalled in migration modal: not found")
+				unenrolled = true
+			}
 		}
 
 		statusEnrolled, serverURL, statusErr := checkStatusFn()
@@ -361,10 +363,12 @@ func (m *swiftDialogMDMMigrator) renderMigration() error {
 		log.Error().Err(err).Msg("getting migration type")
 	}
 
-	m.props.IsManualMigration = isCurrentlyManuallyEnrolled || previousMigrationType == constant.MDMMigrationTypeManual
-	m.props.IsADEMigration = !isCurrentlyManuallyEnrolled || previousMigrationType == constant.MDMMigrationTypeADE
+	isManualMigration := isCurrentlyManuallyEnrolled || previousMigrationType == constant.MDMMigrationTypeManual
+	isADEMigration := previousMigrationType == constant.MDMMigrationTypeADE
 
-	message, flags, err := m.getMessageAndFlags()
+	log.Debug().Bool("isManualMigration", isManualMigration).Bool("isADEMigration", isADEMigration).Bool("isCurrentlyManuallyEnrolled", isCurrentlyManuallyEnrolled).Str("previousMigrationType", previousMigrationType).Msg("props after assigning")
+
+	message, flags, err := m.getMessageAndFlags(isManualMigration, isADEMigration)
 	if err != nil {
 		return fmt.Errorf("getting mdm migrator message: %w", err)
 	}
@@ -414,7 +418,7 @@ func (m *swiftDialogMDMMigrator) renderMigration() error {
 			}
 
 			log.Info().Msg("webhook sent, checking for unenrollment")
-			if err := m.waitForUnenrollment(); err != nil {
+			if err := m.waitForUnenrollment(isADEMigration); err != nil {
 				m.baseDialog.Exit()
 				errDialogExitChan, errDialogErrChan := m.renderError()
 				select {
@@ -427,7 +431,7 @@ func (m *swiftDialogMDMMigrator) renderMigration() error {
 				}
 			}
 
-			if m.props.IsManualMigration {
+			if isManualMigration {
 				if err := m.mrw.SetMigrationFile(constant.MDMMigrationTypeManual); err != nil {
 					log.Error().Str("migration_type", constant.MDMMigrationTypeManual).Err(err).Msg("set migration file")
 				}
@@ -499,7 +503,7 @@ func (m *swiftDialogMDMMigrator) SetProps(props MDMMigratorProps) {
 	m.props = props
 }
 
-func (m *swiftDialogMDMMigrator) getMessageAndFlags() (*bytes.Buffer, []string, error) {
+func (m *swiftDialogMDMMigrator) getMessageAndFlags(isManualMigration, isADEMigration bool) (*bytes.Buffer, []string, error) {
 	vers, err := m.getMacOSMajorVersion()
 	if err != nil {
 		// log error for debugging and continue with default template
@@ -507,11 +511,11 @@ func (m *swiftDialogMDMMigrator) getMessageAndFlags() (*bytes.Buffer, []string, 
 	}
 
 	tmpl := mdmMigrationTemplate
-	if m.props.IsManualMigration {
+	if isManualMigration {
 		tmpl = mdmManualMigrationTemplate
 	}
 
-	if m.props.IsADEMigration {
+	if isADEMigration {
 		tmpl = mdmADEMigrationTemplate
 	}
 

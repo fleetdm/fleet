@@ -292,12 +292,12 @@ func main() {
 
 		// poll the server to check the policy status of the host and update the
 		// tray icon accordingly
-		const checkInterval = 5 * time.Minute
+		const checkInterval = 10 * time.Second
 		tic := time.NewTicker(checkInterval)
 		defer tic.Stop()
 		go func() {
 			<-deviceEnabledChan
-			tic := time.NewTicker(5 * time.Minute)
+			tic := time.NewTicker(10 * time.Second)
 			defer tic.Stop()
 
 			for {
