@@ -8,7 +8,6 @@ import {
   SoftwareInstallStatus,
 } from "interfaces/software";
 import deviceApi from "services/entities/device_user";
-import { dateAgo } from "utilities/date_format";
 import { NotificationContext } from "context/notification";
 
 import Card from "components/Card";
@@ -16,61 +15,9 @@ import Button from "components/buttons/Button";
 import Icon from "components/Icon";
 import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
 
-import { IStatusDisplayConfig } from "../../InstallStatusCell/InstallStatusCell";
+import { INSTALL_STATUS_DISPLAY_OPTIONS } from "../../InstallStatusCell/InstallStatusCell";
 
 const baseClass = "self-service-item";
-
-// TODO: This is all todo, I just had to remove installed key
-// since the type installed was giving me typing errors for SoftwareInstallStatus on my branch
-const STATUS_CONFIG: Record<SoftwareInstallStatus, IStatusDisplayConfig> = {
-  verified: {
-    iconName: "success",
-    displayText: "Installed", // TODO: Update tests to change this to Verified
-    tooltip: (
-      { lastInstalledAt } // TODO: confirm all tooltips
-    ) => (
-      <>
-        Software installed successfully ({dateAgo(lastInstalledAt as string)}).
-        Currently, if the software is uninstalled, the &quot;Installed&quot;
-        status won&apos;t be updated.
-      </>
-    ),
-  },
-  verifying: {
-    iconName: "success-outline",
-    displayText: "Verifying", // TODO
-    tooltip: (
-      { lastInstalledAt } // TODO
-    ) => (
-      <>
-        Software installed successfully ({dateAgo(lastInstalledAt as string)}).
-        Currently, if the software is uninstalled, the &quot;Installed&quot;
-        status won&apos;t be updated.
-      </>
-    ),
-  },
-  pending: {
-    iconName: "pending-outline",
-    displayText: "Install in progress...",
-    tooltip: () => "Software installation in progress...",
-  },
-  blocked: {
-    iconName: "pending-outline", // TODO: add "disable" to type and change to disable icon
-    displayText: "TODO SelfServieItem.tsx", // TODO
-    tooltip: () => "", // TODO
-  },
-  failed: {
-    iconName: "error",
-    displayText: "Failed",
-    tooltip: ({ lastInstalledAt = "" }) => (
-      <>
-        Software failed to install
-        {lastInstalledAt ? ` (${dateAgo(lastInstalledAt)})` : ""}. Select{" "}
-        <b>Retry</b> to install again, or contact your IT department.
-      </>
-    ),
-  },
-};
 
 interface IInstallerInfoProps {
   software: IDeviceSoftware;
@@ -105,7 +52,10 @@ const InstallerStatus = ({
   status,
   last_install,
 }: IInstallerStatusProps) => {
-  const displayConfig = STATUS_CONFIG[status as keyof typeof STATUS_CONFIG];
+  const displayConfig =
+    INSTALL_STATUS_DISPLAY_OPTIONS[
+      status as keyof typeof INSTALL_STATUS_DISPLAY_OPTIONS
+    ];
   if (!displayConfig) {
     // API should ensure this never happens, but just in case
     return null;

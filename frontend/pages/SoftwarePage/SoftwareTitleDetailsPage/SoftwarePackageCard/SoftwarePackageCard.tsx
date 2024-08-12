@@ -115,11 +115,11 @@ const PackageStatusCount = ({
     verified: {
       displayName: "Verified",
       iconName: "success",
-      tooltip: <>Software is installed on these hosts. Fleet verified.</>,
+      tooltip: "Software is installed on these hosts. Fleet verified.",
     },
     verifying: {
       displayName: "Verifying",
-      iconName: "success-outline", // TODO
+      iconName: "success-outline",
       tooltip: (
         <>
           Software is installed on these hosts (install script exited with
@@ -193,7 +193,6 @@ const PackageStatusCount = ({
   );
 };
 
-// Type guard function to check if status is ISoftwarePackageStatus
 const isSoftwarePackageStatus = (
   status: ISoftwarePackageStatus | IAppStoreAppStatus
 ): status is ISoftwarePackageStatus => {
