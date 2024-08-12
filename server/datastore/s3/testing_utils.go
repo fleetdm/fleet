@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -111,6 +112,12 @@ func cleanupStore(tb testing.TB, store *s3store) {
 	resp, err := store.s3client.ListObjects(&s3.ListObjectsInput{
 		Bucket: &store.bucket,
 	})
+	if aerr, ok := err.(awserr.Error); ok {
+		if aerr.Code() == s3.ErrCodeNoSuchBucket {
+			// fine, nothing to clean-up if the bucket no longer exists, no error
+			return
+		}
+	}
 	require.NoError(tb, err)
 
 	var objs []*s3.ObjectIdentifier
