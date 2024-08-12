@@ -63,7 +63,7 @@ export const INSTALL_STATUS_DISPLAY_OPTIONS: Record<
   },
   blocked: {
     iconName: "disable",
-    displayText: "Blocking",
+    displayText: "Blocked",
     tooltip: () =>
       "Pre-install condition wasn't met. The query didn't return results.",
   },
