@@ -385,7 +385,13 @@ func testCleanupUnusedSoftwareInstallers(t *testing.T, ds *Datastore) {
 	err = ds.DeleteSoftwareInstaller(ctx, swi)
 	require.NoError(t, err)
 
-	err = ds.CleanupUnusedSoftwareInstallers(ctx, store, time.Now())
+	// would clean up, but not created before 1m ago
+	err = ds.CleanupUnusedSoftwareInstallers(ctx, store, time.Now().Add(-time.Minute))
+	require.NoError(t, err)
+	assertExisting([]string{ins0})
+
+	// do actual cleanup
+	err = ds.CleanupUnusedSoftwareInstallers(ctx, store, time.Now().Add(time.Minute))
 	require.NoError(t, err)
 	assertExisting(nil)
 }

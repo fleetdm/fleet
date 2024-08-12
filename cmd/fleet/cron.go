@@ -883,10 +883,16 @@ func newCleanupsAndAggregationSchedule(
 			return ds.CleanupActivitiesAndAssociatedData(ctx, maxCount, appConfig.ActivityExpirySettings.ActivityExpiryWindow)
 		}),
 		schedule.WithJob("cleanup_unused_software_installers", func(ctx context.Context) error {
-			return ds.CleanupUnusedSoftwareInstallers(ctx, softwareInstallStore)
+			// remove only those unused created more than a minute ago to avoid a
+			// race where we delete those created after the mysql query to get those
+			// in use.
+			return ds.CleanupUnusedSoftwareInstallers(ctx, softwareInstallStore, time.Now().Add(-time.Minute))
 		}),
 		schedule.WithJob("cleanup_unused_bootstrap_packages", func(ctx context.Context) error {
-			return ds.CleanupUnusedBootstrapPackages(ctx, bootstrapPackageStore)
+			// remove only those unused created more than a minute ago to avoid a
+			// race where we delete those created after the mysql query to get those
+			// in use.
+			return ds.CleanupUnusedBootstrapPackages(ctx, bootstrapPackageStore, time.Now().Add(-time.Minute))
 		}),
 	)
 
