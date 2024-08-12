@@ -8731,6 +8731,9 @@ Get a list of all software.
 | vulnerable              | bool    | query | If true or 1, only list software that has detected vulnerabilities. Default is `false`.                                                                                    |
 | available_for_install   | bool    | query | If `true` or `1`, only list software that is available for install (added by the user). Default is `false`.                                                                |
 | self_service    | bool    | query | If `true` or `1`, only lists self-service software. Default is `false`.  |
+| min_cvss_score | integer | query | _Available in Fleet Premium_. Filters to include only software with vulnerabilities that have a CVSS version 3.x base score higher than the specified value.   |
+| max_cvss_score | integer | query | _Available in Fleet Premium_. Filters to only include software with vulnerabilities that have a CVSS version 3.x base score lower than what's specified.   |
+| exploit | boolean | query | _Available in Fleet Premium_. If `true`, filters to only include software with vulnerabilities that have been actively exploited in the wild (`cisa_known_exploit: true`). Default is `false`.  |
 
 #### Example
 
@@ -8846,6 +8849,9 @@ Get a list of all software versions.
 | query                   | string  | query | Search query keywords. Searchable fields include `name`, `version`, and `cve`.                                                                                             |
 | team_id                 | integer | query | _Available in Fleet Premium_. Filters the software to only include the software installed on the hosts that are assigned to the specified team.                             |
 | vulnerable              | bool    | query | If true or 1, only list software that has detected vulnerabilities. Default is `false`.                                                                                    |
+| min_cvss_score | integer | query | _Available in Fleet Premium_. Filters to include only software with vulnerabilities that have a CVSS version 3.x base score higher than the specified value.   |
+| max_cvss_score | integer | query | _Available in Fleet Premium_. Filters to only include software with vulnerabilities that have a CVSS version 3.x base score lower than what's specified.   |
+| exploit | boolean | query | _Available in Fleet Premium_. If `true`, filters to only include software with vulnerabilities that have been actively exploited in the wild (`cisa_known_exploit: true`). Default is `false`.  |
 
 #### Example
 
@@ -9052,8 +9058,7 @@ Retrieves a list of all CVEs affecting software and/or OS versions.
 | order_direction | string | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`. |
 | query | string | query | Search query keywords. Searchable fields include `cve`. |
 | exploit | boolean | query | _Available in Fleet Premium_. If `true`, filters to only include vulnerabilities that have been actively exploited in the wild (`cisa_known_exploit: true`). Otherwise, includes vulnerabilities with any `cisa_known_exploit` value.  |
-| min_cvss_score | integer | query | _Available in Fleet Premium_. Filters to only include vulnerabilities with a CVSS version 3.x base score higher than what's specified.   |
-| max_cvss_score | integer | query | _Available in Fleet Premium_. Filters to only include vulnerabilities with a CVSS version 3.x base score lower than what's specified.   |
+
 
 ##### Default response
 
