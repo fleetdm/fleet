@@ -103,7 +103,7 @@ module.exports = {
     profileConfiguration = _.sortByOrder(profileConfiguration, 'name', 'asc');
     let undeployedProfiles = await UndeployedProfile.find();
 
-    profileConfiguration = _.merge(undeployedProfiles, profileConfiguration);
+    profileConfiguration = _.union(profileConfiguration, undeployedProfiles);
     console.log(profileConfiguration);
     // Respond with view.
     return {profiles: profileConfiguration, teams};

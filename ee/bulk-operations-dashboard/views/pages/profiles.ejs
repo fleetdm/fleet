@@ -83,11 +83,11 @@
       <h2 class="px-3 text-center mx-auto pt-5">No profiles matching the selected filters were found.</h2>
     </div>
   </div>
-  <h1>For development</h1>
+<!--   <h1>For development</h1>
   <h3>profiles</h3>
   <p v-for="profile in profiles">{{profile}}</p>
   <h3>team</h3>
-  <p v-for="team in teams">{{team}}</p>
+  <p v-for="team in teams">{{team}}</p> -->
 <%//  ╔═╗╔╦╗╦╔╦╗  ╔═╗╦═╗╔═╗╔═╗╦╦  ╔═╗
   //  ║╣  ║║║ ║   ╠═╝╠╦╝║ ║╠╣ ║║  ║╣
   //  ╚═╝═╩╝╩ ╩   ╩  ╩╚═╚═╝╚  ╩╩═╝╚═╝%>
@@ -97,8 +97,8 @@
         <h3>Edit profile</h3>
         <div class="pointer" @click="closeModal()">&times;</div>
       </div>
-      <!-- <ajax-form> -->
-        <div purpose="profile-information">
+      <ajax-form action="editProfile" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-errors.sync="formErrors" :form-data="formData" :form-rules="addProfileFormRules" @submitted="submittedForm()">
+        <div purpose="profile-information" v-if="!formData.newProfile">
           <div class="d-flex flex-row justify-content-start">
             <img style="height: 40px; width: 34px;" src="/images/profile-34x40@2x.png">
             <div class="d-flex flex-column">
@@ -107,27 +107,16 @@
             </div>
           </div>
         </div>
-        <div purpose="profile-upload-input">
-          <div class="d-flex flex-column align-items-center">
-            <img style="height: 40px; width: 34px;" src="/images/profile-34x40@2x.png">
-            <p><strong>Upload configuration profile</strong></p>
-            <p class="muted">.mobileconfig and .json for macOS, iOS, and iPadOS.</p>
-            <p class="muted">.xml for Windows.</p>
-            <input type="file" accept=".xml,.mobileconfig">
-          </div>
-        </div>
+        <file-upload id="file-upload" mode="profiles" :disabled="syncing" accept=".xml,.mobileconfig" v-model="formData.newProfile"></file-upload>
         <div purpose="teams-picker">
           <p class="mb-2"><strong>Teams</strong></p>
-          <multifield :value="formData.teams" v-model="formData.teams" input-type="teamSelect" :select-options="teams" add-button-text="Add team"></multifield>
+          <multifield :value="formData.teams" v-model="formData.newTeamIds" input-type="teamSelect" :select-options="teams" add-button-text="Add team"></multifield>
         </div>
         <div purpose="modal-buttons" class="d-flex flex-row justify-content-end align-items-center">
           <ajax-button :syncing.sync="syncing" type="submit">Save</ajax-button>
         </div>
-
-      <!-- </ajax-form> -->
-
+      </ajax-form>
     </div>
-    {{profileToEdit}}
   </modal>
   <%//  ╔╦╗╔═╗╦  ╔═╗╔╦╗╔═╗  ╔═╗╦═╗╔═╗╔═╗╦╦  ╔═╗
     //   ║║║╣ ║  ║╣  ║ ║╣   ╠═╝╠╦╝║ ║╠╣ ║║  ║╣
@@ -138,10 +127,12 @@
       <div class="pointer" @click="closeModal()">&times;</div>
     </div>
     <p>Delete this profile from all teams</p>
+    <ajax-form :handle-submitting="handleSubmittingDeleteProfileForm" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-errors.sync="formErrors" :form-data="formData" :form-rules="editProfileFormRules" @submitted="submittedForm()">
     <div class="d-flex flex-row justify-content-end align-items-center">
       <a class="text-danger mr-3" @click="closeModal()">Cancel</a>
       <ajax-button class="btn btn-danger" :syncing.sync="syncing">Delete</ajax-button>
     </div>
+    </ajax-form>
   </modal>
   <%//  ╔═╗╔╦╗╔╦╗  ╔═╗╦═╗╔═╗╔═╗╦╦  ╔═╗
     //  ╠═╣ ║║ ║║  ╠═╝╠╦╝║ ║╠╣ ║║  ║╣
@@ -153,19 +144,7 @@
         <div class="pointer" @click="closeModal()">&times;</div>
       </div>
       <ajax-form :handle-submitting="handleSubmittingAddProfileForm" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-errors.sync="formErrors" :form-data="formData" :form-rules="addProfileFormRules" @submitted="submittedForm()">
-        <div purpose="profile-upload-input">
-          <div class="d-flex flex-column align-items-center">
-            <img style="height: 40px; width: 34px;" src="/images/profile-34x40@2x.png">
-            <p><strong>Upload configuration profile</strong></p>
-            <p class="muted">.mobileconfig and .json for macOS, iOS, and iPadOS.</p>
-            <p class="muted">.xml for Windows.</p>
-<!--             <label for='file-upload' purpose="file-upload">
-
-            </label> -->
-            <file-upload id="file-upload" mode="file" :disabled="syncing" accept=".xml,.mobileconfig" v-model="formData.newProfile"><img src="/images/upload-16x17@2x.png" style="height: 16px; width: 16px;">Choose File</file-upload>
-            <!-- <input id='file-upload' type="file" > -->
-          </div>
-        </div>
+        <file-upload id="file-upload" mode="profiles" :disabled="syncing" accept=".xml,.mobileconfig" v-model="formData.newProfile"></file-upload>
         <div purpose="teams-picker">
           <p class="mb-2"><strong>Teams</strong></p>
           <multifield :value="formData.teams" v-model="formData.teams" input-type="teamSelect" :select-options="teams" add-button-text="Add team"></multifield>

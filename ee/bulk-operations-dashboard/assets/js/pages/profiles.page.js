@@ -14,6 +14,7 @@ parasails.registerPage('profiles', {
     selectedTeam: {},
     modal: '',
     syncing: false,
+    profiles: [],
     formData: {},
     formErrors: {},
     addProfileFormRules: {
@@ -82,6 +83,11 @@ parasails.registerPage('profiles', {
       console.log(profilesOnThisTeam);
     },
     clickDownloadProfile: async function(profile) {
+      if(!profile.teams){
+        window.open('/download-profile?id='+encodeURIComponent(profile.id));
+      } else {
+        window.open('/download-profile?uuid='+encodeURIComponent(profile.teams[0].uuid));
+      }
       // Call the download profile cloud action
       // Return the downloaded profile with the correct filename
       // Or possible make these just open the download endpoint in a new tab to download it.
@@ -89,11 +95,13 @@ parasails.registerPage('profiles', {
     clickOpenEditModal: async function(profile) {
       console.log(profile);
       this.profileToEdit = _.clone(profile);
-      this.formData.teams = _.pluck(this.profileToEdit.teams, 'fleetApid');
+      this.formData.newTeamIds = _.pluck(this.profileToEdit.teams, 'fleetApid');
       console.log(this.formData.teams);
+      this.formData.profile = profile;
       this.modal = 'edit-profile';
     },
     clickOpenDeleteModal: async function(profile) {
+      this.formData.profile = _.clone(profile);
       this.modal = 'delete-profile';
     },
     clickOpenAddProfileModal: async function() {
@@ -106,13 +114,40 @@ parasails.registerPage('profiles', {
       await this.forceRender();
     },
     submittedForm: async function() {
-      console.log(this.newProfile);
+      this.syncing = false;
+      this.closeModal();
+    },
+    handleSubmittingDeleteProfileForm: async function() {
+      let argins = _.clone(this.formData);
+      let response = await Cloud.deleteProfile.with({profile: argins.profile});
+      // this.syncing = false;
+      this.profiles = _.remove(this.profiles, (existingProfile)=>{
+        return existingProfile.name === argins.profile.name
+      })
     },
     handleSubmittingAddProfileForm: async function() {
       let argins = _.clone(this.formData);
-      let thisResponse = await Cloud.addProfile.with({newProfile: argins.newProfile, teams: argins.teams});
-      console.log(thisResponse);
-      this.profiles.push(thisResponse);
+      let newProfile = await Cloud.addProfile.with({newProfile: argins.newProfile, teams: argins.teams});
+      if(newProfile.teams) {
+        for(let team of newProfile.teams){
+          console.log(team.fleetApid)
+          let thisTeam = _.find(this.teams, {fleetApid: Number(team.fleetApid)});
+          team.teamName = thisTeam.teamName;
+        }
+        console.log(newProfile.teams);
+        console.log(newProfile);
+        let profileAlreadyExists = _.find(this.profiles, {name: newProfile.name});
+        if(profileAlreadyExists){
+          this.profiles = _.remove(this.profiles, (existingProfile)=>{
+            return existingProfile.name === newProfile.name;
+          })
+          newProfile.teams = _.merge(profileAlreadyExists.teams, newProfile.teams)
+          console.log(this.profiles);
+        }
+      }
+      console.log(this.profiles);
+      this.profiles.push(newProfile);
+      await this.forceRender;
     },
   }
 });
