@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
@@ -105,7 +106,7 @@ type SoftwareInstaller struct {
 
 // AuthzType implements authz.AuthzTyper.
 func (s *SoftwareInstaller) AuthzType() string {
-	return "software_installer"
+	return "installable_entity"
 }
 
 // SoftwareInstallerStatusSummary represents aggregated status metrics for a software installer package.
@@ -155,8 +156,6 @@ type HostSoftwareInstallerResult struct {
 	SoftwarePackage string `json:"software_package" db:"software_package"`
 	// HostID is the ID of the host.
 	HostID uint `json:"host_id" db:"host_id"`
-	// HostDisplayName is the display name of the host.
-	HostDisplayName string `json:"host_display_name" db:"host_display_name"`
 	// Status is the status of the software installer package on the host.
 	Status SoftwareInstallerStatus `json:"status" db:"status"`
 	// Detail is the detail of the software installer package on the host. TODO: does this field
@@ -172,9 +171,6 @@ type HostSoftwareInstallerResult struct {
 	CreatedAt time.Time `json:"created_at" db:"created_at"`
 	// UpdatedAt is the time the software installer request was last updated.
 	UpdatedAt *time.Time `json:"updated_at" db:"updated_at"`
-	// HostTeamID is the team ID of the host on which this software install was attempted. This
-	// field is not sent in the response, it is only used for internal authorization.
-	HostTeamID *uint `json:"-" db:"host_team_id"`
 	// UserID is the user ID that requested the software installation on that host.
 	UserID *uint `json:"-" db:"user_id"`
 	// InstallScriptExitCode is used internally to determine the output displayed to the user.
@@ -184,6 +180,9 @@ type HostSoftwareInstallerResult struct {
 	// SelfService indicates that the installation was queued by the
 	// end user and not an administrator
 	SelfService bool `json:"self_service" db:"self_service"`
+	// HostDeletedAt indicates if the data is associated with a
+	// deleted host
+	HostDeletedAt *time.Time `json:"-" db:"host_deleted_at"`
 }
 
 const (
@@ -310,33 +309,58 @@ type HostSoftwareWithInstaller struct {
 	ID                uint                            `json:"id" db:"id"`
 	Name              string                          `json:"name" db:"name"`
 	Source            string                          `json:"source" db:"source"`
-	SelfService       *bool                           `json:"self_service,omitempty" db:"self_service"`
 	Status            *SoftwareInstallerStatus        `json:"status" db:"status"`
-	LastInstall       *HostSoftwareInstall            `json:"last_install"`
 	InstalledVersions []*HostSoftwareInstalledVersion `json:"installed_versions"`
 
-	// PackageAvailableForInstall is only present for the user-authenticated
-	// endpoint, not the device-authenticated one.
-	PackageAvailableForInstall *string `json:"package_available_for_install,omitempty" db:"package_available_for_install"`
+	// SoftwarePackage provides software installer package information, it is
+	// only present if a software installer is available for the software title.
+	SoftwarePackage *SoftwarePackageOrApp `json:"software_package"`
 
-	// Package provides software installer package information, it is only
-	// present for the device-authenticated endpoint, not for the
-	// user-authenticated one.
-	Package *DeviceSoftwarePackage `json:"package,omitempty"`
+	// AppStoreApp provides VPP app information, it is only present if a VPP app
+	// is available for the software title.
+	AppStoreApp *SoftwarePackageOrApp `json:"app_store_app"`
 }
 
-// DeviceSoftwarePackage provides information about a software installer
-// package for self-service on a device.
-type DeviceSoftwarePackage struct {
-	Name    string `json:"name"`
-	Version string `json:"version"`
+// SoftwarePackageOrApp provides information about a software installer
+// package or a VPP app.
+type SoftwarePackageOrApp struct {
+	// AppStoreID is only present for VPP apps.
+	AppStoreID string `json:"app_store_id,omitempty"`
+	// Name is only present for software installer packages.
+	Name string `json:"name,omitempty"`
+
+	Version     string               `json:"version"`
+	SelfService *bool                `json:"self_service,omitempty"`
+	IconURL     *string              `json:"icon_url"`
+	LastInstall *HostSoftwareInstall `json:"last_install"`
+}
+
+type SoftwarePackageSpec struct {
+	URL               string                `json:"url"`
+	SelfService       bool                  `json:"self_service"`
+	PreInstallQuery   TeamSpecSoftwareAsset `json:"pre_install_query"`
+	InstallScript     TeamSpecSoftwareAsset `json:"install_script"`
+	PostInstallScript TeamSpecSoftwareAsset `json:"post_install_script"`
+}
+
+type SoftwareSpec struct {
+	Packages     optjson.Slice[SoftwarePackageSpec] `json:"packages,omitempty"`
+	AppStoreApps optjson.Slice[TeamSpecAppStoreApp] `json:"app_store_apps,omitempty"`
 }
 
 // HostSoftwareInstall represents installation of software on a host from a
 // Fleet software installer.
 type HostSoftwareInstall struct {
-	InstallUUID string    `json:"install_uuid" db:"install_id"`
-	InstalledAt time.Time `json:"installed_at" db:"installed_at"`
+	// InstallUUID is the the UUID of the script execution issued to install the related software. This
+	// field is only used if the install we're describing was for an uploaded software installer.
+	// Empty if the install was for an App Store app.
+	InstallUUID string `json:"install_uuid,omitempty"`
+
+	// CommandUUID is the UUID of the MDM command issued to install the related software. This field
+	// is only used if the install we're describing was for an App Store app.
+	// Empty if the install was for an uploaded software installer.
+	CommandUUID string    `json:"command_uuid,omitempty"`
+	InstalledAt time.Time `json:"installed_at"`
 }
 
 // HostSoftwareInstalledVersion represents a version of software installed on a

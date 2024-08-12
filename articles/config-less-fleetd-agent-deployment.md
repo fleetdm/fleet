@@ -72,6 +72,14 @@ fleetctl package --type=pkg --use-system-configuration --fleet-desktop
 msiexec /i fleetd-base.msi FLEET_URL="<target_url>" FLEET_SECRET="<secret_to_use>"
 ```
 
+Also, you can optionally pass `ENABLE_SCRIPTS`, `END_USER_EMAIL`, and `FLEET_DESKTOP` to the installer.
+
+For example, this command would install fleetd with script execution enabled, custom human-device mapping set, and Fleet Desktop enabled:
+
+```xml
+msiexec /i fleetd-base.msi ENABLE_SCRIPTS=true END_USER_EMAIL="user@example.com" FLEET_DESKTOP=true FLEET_URL="<target_url>" FLEET_SECRET="<secret_to_use>"
+```
+
 These steps are a flexible alternative to deploying Fleet's agent across macOS and Windows platforms. This method, focused on separating the configuration from the `fleetd` package, empowers you with more control and simplifies the management of your device enrollments.
 
 This approach complements the original packaging method, allowing you to choose the best fit for your organization’s needs. Whether you prioritize streamlined package generation or prefer granular control over configuration distribution, these methods foster an open, flexible environment for deploying Fleet.

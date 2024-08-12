@@ -12,11 +12,13 @@ import FilePdf from "./FilePdf";
 import FilePkg from "./FilePkg";
 import FileP7m from "./FileP7m";
 import FilePem from "./FilePem";
+import FileVpp from "./FileVpp";
 import EmptyHosts from "./EmptyHosts";
 import EmptyTeams from "./EmptyTeams";
 import EmptyPacks from "./EmptyPacks";
 import EmptySchedule from "./EmptySchedule";
 import CollectingResults from "./CollectingResults";
+import DataError from "./DataError";
 
 export const GRAPHIC_MAP = {
   // Empty state graphics
@@ -39,8 +41,10 @@ export const GRAPHIC_MAP = {
   "file-pkg": FilePkg,
   "file-p7m": FileP7m,
   "file-pem": FilePem,
+  "file-vpp": FileVpp,
   // Other graphics
   "collecting-results": CollectingResults,
+  "data-error": DataError,
 };
 
 export type GraphicNames = keyof typeof GRAPHIC_MAP;

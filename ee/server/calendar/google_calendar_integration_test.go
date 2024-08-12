@@ -45,7 +45,7 @@ func (s *googleCalendarIntegrationTestSuite) TearDownSuite() {
 
 // TestGoogleCalendarIntegration tests should be able to be run in parallel, but this is not natively supported by suites: https://github.com/stretchr/testify/issues/187
 // There are workarounds that can be explored.
-func TestGoogleCalendarIntegration(t *testing.T) {
+func TestIntegrationsGoogleCalendar(t *testing.T) {
 	testingSuite := new(googleCalendarIntegrationTestSuite)
 	suite.Run(t, testingSuite)
 }
@@ -67,7 +67,7 @@ func (s *googleCalendarIntegrationTestSuite) TestCreateGetDeleteEvent() {
 	gCal := NewGoogleCalendar(config)
 	err := gCal.Configure(userEmail)
 	require.NoError(t, err)
-	genBodyFn := func(bool) (string, bool, error) {
+	var genBodyFn fleet.CalendarGenBodyFn = func(bool) (string, bool, error) {
 		return "Test event", true, nil
 	}
 	eventDate := time.Now().Add(48 * time.Hour)

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { ReactNode } from "react";
 import classnames from "classnames";
 
 import TooltipWrapper from "components/TooltipWrapper";
@@ -6,7 +6,7 @@ import TooltipWrapper from "components/TooltipWrapper";
 const baseClass = "radio";
 
 export interface IRadioProps {
-  label: string;
+  label: ReactNode;
   value: string;
   id: string;
   onChange: (value: string) => void;

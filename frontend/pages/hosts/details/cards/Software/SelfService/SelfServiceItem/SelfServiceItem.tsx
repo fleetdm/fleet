@@ -4,6 +4,7 @@ import ReactTooltip from "react-tooltip";
 import {
   IDeviceSoftware,
   IHostSoftware,
+  ISoftwareLastInstall,
   SoftwareInstallStatus,
 } from "interfaces/software";
 import deviceApi from "services/entities/device_user";
@@ -26,6 +27,8 @@ const STATUS_CONFIG: Record<SoftwareInstallStatus, IStatusDisplayConfig> = {
     tooltip: ({ lastInstalledAt }) => (
       <>
         Software installed successfully ({dateAgo(lastInstalledAt as string)}).
+        Currently, if the software is uninstalled, the &quot;Installed&quot;
+        status won&apos;t be updated.
       </>
     ),
   },
@@ -40,7 +43,7 @@ const STATUS_CONFIG: Record<SoftwareInstallStatus, IStatusDisplayConfig> = {
     tooltip: ({ lastInstalledAt = "" }) => (
       <>
         Software failed to install
-        {lastInstalledAt ? `(${dateAgo(lastInstalledAt)})` : ""}. Select{" "}
+        {lastInstalledAt ? ` (${dateAgo(lastInstalledAt)})` : ""}. Select{" "}
         <b>Retry</b> to install again, or contact your IT department.
       </>
     ),
@@ -52,11 +55,11 @@ interface IInstallerInfoProps {
 }
 
 const InstallerInfo = ({ software }: IInstallerInfoProps) => {
-  const { name, source, package: installerPackage } = software;
+  const { name, source, software_package: installerPackage } = software;
   return (
     <div className={`${baseClass}__item-topline`}>
       <div className={`${baseClass}__item-icon`}>
-        <SoftwareIcon name={name} source={source} size="medium_large" />
+        <SoftwareIcon name={name} source={source} size="large" />
       </div>
       <div className={`${baseClass}__item-name-version`}>
         <div className={`${baseClass}__item-name`}>
@@ -70,10 +73,10 @@ const InstallerInfo = ({ software }: IInstallerInfoProps) => {
   );
 };
 
-type IInstallerStatusProps = Pick<
-  IHostSoftware,
-  "id" | "status" | "last_install"
->;
+// TODO: update if/when we support self-service app store apps
+type IInstallerStatusProps = Pick<IHostSoftware, "id" | "status"> & {
+  last_install: ISoftwareLastInstall | null;
+};
 
 const InstallerStatus = ({
   id,
@@ -137,10 +140,13 @@ const getInstallButtonText = (status: SoftwareInstallStatus | null) => {
 
 const InstallerStatusAction = ({
   deviceToken,
-  software: { id, status, last_install },
+  software: { id, status, software_package },
   onInstall,
 }: IInstallerStatusActionProps) => {
   const { renderFlash } = useContext(NotificationContext);
+
+  // TODO: update this if/when we support self-service app store apps
+  const last_install = software_package?.last_install || null;
 
   // localStatus is used to track the status of the any user-initiated install action
   const [localStatus, setLocalStatus] = React.useState<
@@ -152,7 +158,7 @@ const InstallerStatusAction = ({
   const displayStatus = localStatus || status;
   const installButtonText = getInstallButtonText(displayStatus);
 
-  // if the localStatus is "failed", we don't our tooltip to include the old installed_at date so we
+  // if the localStatus is "failed", we don't want our tooltip to include the old installed_at date so we
   // set this to null, which tells the tooltip to omit the parenthetical date
   const lastInstall = localStatus === "failed" ? null : last_install;
 

@@ -161,9 +161,10 @@ func (svc *Service) CalendarWebhook(ctx context.Context, eventUUID string, chann
 func (svc *Service) processCalendarEvent(ctx context.Context, eventDetails *fleet.CalendarEventDetails,
 	googleCalendarIntegrationConfig *fleet.GoogleCalendarIntegration, userCalendar fleet.UserCalendar) error {
 
+	var generatedTag string
 	// This flag indicates that calendar event should no longer exist, and we can stop watching it.
 	stopChannel := false
-	genBodyFn := func(conflict bool) (body string, ok bool, err error) {
+	var genBodyFn fleet.CalendarGenBodyFn = func(conflict bool) (body string, ok bool, err error) {
 
 		// This function is called when a new event is being created.
 		var team *fleet.Team
@@ -214,7 +215,8 @@ func (svc *Service) processCalendarEvent(ctx context.Context, eventDetails *flee
 			return "", false, err
 		}
 
-		return calendar.GenerateCalendarEventBody(ctx, svc.ds, team.Name, host, &sync.Map{}, conflict, svc.logger), true, nil
+		body, generatedTag = calendar.GenerateCalendarEventBody(ctx, svc.ds, team.Name, host, &sync.Map{}, conflict, svc.logger)
+		return body, true, nil
 	}
 
 	err := userCalendar.Configure(eventDetails.Email)
@@ -233,6 +235,12 @@ func (svc *Service) processCalendarEvent(ctx context.Context, eventDetails *flee
 			return ctxerr.Wrap(ctx, err, "set recent update flag")
 		}
 		// Event was updated, so we need to save it
+		if generatedTag != "" {
+			err = event.SaveDataItems("body_tag", generatedTag)
+		}
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "save calendar event body tag")
+		}
 		_, err = svc.ds.CreateOrUpdateCalendarEvent(ctx, event.UUID, event.Email, event.StartTime, event.EndTime, event.Data,
 			event.TimeZone, eventDetails.HostID, fleet.CalendarWebhookStatusNone)
 		if err != nil {

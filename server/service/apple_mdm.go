@@ -2717,56 +2717,7 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 	// Check if this is a result of a "refetch" command sent to iPhones/iPads
 	// to fetch their device information periodically.
 	if strings.HasPrefix(cmdResult.CommandUUID, fleet.RefetchCommandUUIDPrefix) {
-		host, err := svc.ds.HostByIdentifier(r.Context, cmdResult.UDID)
-		if err != nil {
-			return nil, ctxerr.Wrap(r.Context, err, "failed to get host by identifier")
-		}
-		var deviceInformationResponse struct {
-			QueryResponses map[string]interface{} `plist:"QueryResponses"`
-		}
-		if err := plist.Unmarshal(cmdResult.Raw, &deviceInformationResponse); err != nil {
-			return nil, ctxerr.Wrap(r.Context, err, "failed to unmarshal device information command result")
-		}
-		deviceName := deviceInformationResponse.QueryResponses["DeviceName"].(string)
-		deviceCapacity := deviceInformationResponse.QueryResponses["DeviceCapacity"].(float64)
-		availableDeviceCapacity := deviceInformationResponse.QueryResponses["AvailableDeviceCapacity"].(float64)
-		osVersion := deviceInformationResponse.QueryResponses["OSVersion"].(string)
-		wifiMac := deviceInformationResponse.QueryResponses["WiFiMAC"].(string)
-		productName := deviceInformationResponse.QueryResponses["ProductName"].(string)
-		host.ComputerName = deviceName
-		host.Hostname = deviceName
-		host.GigsDiskSpaceAvailable = availableDeviceCapacity
-		host.GigsTotalDiskSpace = deviceCapacity
-		var (
-			osVersionPrefix string
-			platform        string
-		)
-		if strings.HasPrefix(productName, "iPhone") {
-			osVersionPrefix = "iOS"
-			platform = "ios"
-		} else { // iPad
-			osVersionPrefix = "iPadOS"
-			platform = "ipados"
-		}
-		host.OSVersion = osVersionPrefix + " " + osVersion
-		host.PrimaryMac = wifiMac
-		host.HardwareModel = productName
-		host.DetailUpdatedAt = time.Now()
-		host.RefetchRequested = false
-		if err := svc.ds.UpdateHost(r.Context, host); err != nil {
-			return nil, ctxerr.Wrap(r.Context, err, "failed to update host")
-		}
-		if err := svc.ds.SetOrUpdateHostDisksSpace(r.Context, host.ID, availableDeviceCapacity, 100*availableDeviceCapacity/deviceCapacity, deviceCapacity); err != nil {
-			return nil, ctxerr.Wrap(r.Context, err, "failed to update host storage")
-		}
-		if err := svc.ds.UpdateHostOperatingSystem(r.Context, host.ID, fleet.OperatingSystem{
-			Name:     osVersionPrefix,
-			Version:  osVersion,
-			Platform: platform,
-		}); err != nil {
-			return nil, ctxerr.Wrap(r.Context, err, "failed to update host operating system")
-		}
-		return nil, nil
+		return svc.handleRefetch(r, cmdResult)
 	}
 
 	// We explicitly get the request type because it comes empty. There's a
@@ -2800,7 +2751,8 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 		if cmdResult.Status == fleet.MDMAppleStatusAcknowledged ||
 			cmdResult.Status == fleet.MDMAppleStatusError ||
 			cmdResult.Status == fleet.MDMAppleStatusCommandFormatError {
-			return nil, svc.ds.UpdateHostLockWipeStatusFromAppleMDMResult(r.Context, cmdResult.UDID, cmdResult.CommandUUID, requestType, cmdResult.Status == fleet.MDMAppleStatusAcknowledged)
+			return nil, svc.ds.UpdateHostLockWipeStatusFromAppleMDMResult(r.Context, cmdResult.UDID, cmdResult.CommandUUID, requestType,
+				cmdResult.Status == fleet.MDMAppleStatusAcknowledged)
 		}
 	case "DeclarativeManagement":
 		// set "pending-install" profiles to "verifying" or "failed"
@@ -2809,10 +2761,140 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 		detail := fmt.Sprintf("%s. Make sure the host is on macOS 13+, iOS 17+, iPadOS 17+.", apple_mdm.FmtErrorChain(cmdResult.ErrorChain))
 		err := svc.ds.MDMAppleSetPendingDeclarationsAs(r.Context, cmdResult.UDID, status, detail)
 		return nil, ctxerr.Wrap(r.Context, err, "update declaration status on DeclarativeManagement ack")
+	case "InstallApplication":
+		// Create an activity for installing only if we're in a terminal state
+		if cmdResult.Status == fleet.MDMAppleStatusAcknowledged ||
+			cmdResult.Status == fleet.MDMAppleStatusError ||
+			cmdResult.Status == fleet.MDMAppleStatusCommandFormatError {
+			user, act, err := svc.ds.GetPastActivityDataForVPPAppInstall(r.Context, cmdResult)
+			if err != nil {
+				if fleet.IsNotFound(err) {
+					// Then this isn't a VPP install, so no activity generated
+					return nil, nil
+				}
 
+				return nil, ctxerr.Wrap(r.Context, err, "fetching data for installed app store app activity")
+			}
+
+			if err := newActivity(r.Context, user, act, svc.ds, svc.logger); err != nil {
+				return nil, ctxerr.Wrap(r.Context, err, "creating activity for installed app store app")
+			}
+		}
 	}
 
 	return nil, nil
+}
+
+func (svc *MDMAppleCheckinAndCommandService) handleRefetch(r *mdm.Request, cmdResult *mdm.CommandResults) (*mdm.Command, error) {
+	ctx := r.Context
+	host, err := svc.ds.HostByIdentifier(ctx, cmdResult.UDID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "failed to get host by identifier")
+	}
+
+	if strings.HasPrefix(cmdResult.CommandUUID, fleet.RefetchAppsCommandUUIDPrefix) {
+		if host.Platform != "ios" && host.Platform != "ipados" {
+			return nil, ctxerr.New(ctx, "refetch apps command sent to non-iOS/non-iPadOS host")
+		}
+		source := "ios_apps"
+		if host.Platform == "ipados" {
+			source = "ipados_apps"
+		}
+
+		response := cmdResult.Raw
+		software, err := unmarshalAppList(ctx, response, source)
+		if err != nil {
+			return nil, err
+		}
+		_, err = svc.ds.UpdateHostSoftware(ctx, host.ID, software)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "update host software")
+		}
+
+		return nil, nil
+	}
+
+	var deviceInformationResponse struct {
+		QueryResponses map[string]interface{} `plist:"QueryResponses"`
+	}
+	if err := plist.Unmarshal(cmdResult.Raw, &deviceInformationResponse); err != nil {
+		return nil, ctxerr.Wrap(r.Context, err, "failed to unmarshal device information command result")
+	}
+	deviceName := deviceInformationResponse.QueryResponses["DeviceName"].(string)
+	deviceCapacity := deviceInformationResponse.QueryResponses["DeviceCapacity"].(float64)
+	availableDeviceCapacity := deviceInformationResponse.QueryResponses["AvailableDeviceCapacity"].(float64)
+	osVersion := deviceInformationResponse.QueryResponses["OSVersion"].(string)
+	wifiMac := deviceInformationResponse.QueryResponses["WiFiMAC"].(string)
+	productName := deviceInformationResponse.QueryResponses["ProductName"].(string)
+	host.ComputerName = deviceName
+	host.Hostname = deviceName
+	host.GigsDiskSpaceAvailable = availableDeviceCapacity
+	host.GigsTotalDiskSpace = deviceCapacity
+	var (
+		osVersionPrefix string
+		platform        string
+	)
+	if strings.HasPrefix(productName, "iPhone") {
+		osVersionPrefix = "iOS"
+		platform = "ios"
+	} else { // iPad
+		osVersionPrefix = "iPadOS"
+		platform = "ipados"
+	}
+	host.OSVersion = osVersionPrefix + " " + osVersion
+	host.PrimaryMac = wifiMac
+	host.HardwareModel = productName
+	host.DetailUpdatedAt = time.Now()
+	host.RefetchRequested = false
+	if err := svc.ds.UpdateHost(r.Context, host); err != nil {
+		return nil, ctxerr.Wrap(r.Context, err, "failed to update host")
+	}
+	if err := svc.ds.SetOrUpdateHostDisksSpace(r.Context, host.ID, availableDeviceCapacity, 100*availableDeviceCapacity/deviceCapacity,
+		deviceCapacity); err != nil {
+		return nil, ctxerr.Wrap(r.Context, err, "failed to update host storage")
+	}
+	if err := svc.ds.UpdateHostOperatingSystem(r.Context, host.ID, fleet.OperatingSystem{
+		Name:     osVersionPrefix,
+		Version:  osVersion,
+		Platform: platform,
+	}); err != nil {
+		return nil, ctxerr.Wrap(r.Context, err, "failed to update host operating system")
+	}
+	return nil, nil
+}
+
+func unmarshalAppList(ctx context.Context, response []byte, source string) ([]fleet.Software,
+	error) {
+	var appsResponse struct {
+		InstalledApplicationList []map[string]interface{} `plist:"InstalledApplicationList"`
+	}
+	if err := plist.Unmarshal(response, &appsResponse); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "failed to unmarshal installed application list command result")
+	}
+
+	truncateString := func(item interface{}, length int) string {
+		str, ok := item.(string)
+		if !ok {
+			return ""
+		}
+		runes := []rune(str)
+		if len(runes) > length {
+			return string(runes[:length])
+		}
+		return str
+	}
+
+	var software []fleet.Software
+	for _, app := range appsResponse.InstalledApplicationList {
+		software = append(software, fleet.Software{
+			Name:             truncateString(app["Name"], fleet.SoftwareNameMaxLength),
+			Version:          truncateString(app["ShortVersion"], fleet.SoftwareVersionMaxLength),
+			BundleIdentifier: truncateString(app["Identifier"], fleet.SoftwareBundleIdentifierMaxLength),
+			Source:           source,
+		})
+	}
+
+	return software, nil
 }
 
 // mdmAppleDeliveryStatusFromCommandStatus converts a MDM command status to a
@@ -3381,9 +3463,13 @@ func RenewSCEPCertificates(
 		}
 	}
 
-	migrationEnrollmentProfile := os.Getenv("FLEET_SILENT_MIGRATION_ENROLLMENT_PROFILE")
+	decodedMigrationEnrollmentProfile, err := base64.StdEncoding.DecodeString(os.Getenv("FLEET_SILENT_MIGRATION_ENROLLMENT_PROFILE"))
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "failed to decode silent migration enrollment profile")
+	}
 	hasAssocsFromMigration := len(assocsFromMigration) > 0
 
+	migrationEnrollmentProfile := string(decodedMigrationEnrollmentProfile)
 	if migrationEnrollmentProfile == "" && hasAssocsFromMigration {
 		level.Debug(logger).Log("msg", "found devices from migration that need SCEP renewals but FLEET_SILENT_MIGRATION_ENROLLMENT_PROFILE is empty")
 	}
