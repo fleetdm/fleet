@@ -10137,9 +10137,12 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	// Create a couple of hosts
 	orbitHost := createOrbitEnrolledHost(t, "darwin", "nonmdm", s.ds)
 	mdmHost, mdmDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
-	// selfServiceHost, selfServiceDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
-	// TODO Finish self-service test
 	setOrbitEnrollment(t, mdmHost, s.ds)
+	selfServiceHost, selfServiceDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	setOrbitEnrollment(t, selfServiceHost, s.ds)
+	selfServiceToken := "selfservicetoken"
+	updateDeviceTokenForHost(t, s.ds, selfServiceHost.ID, selfServiceToken)
+	s.appleVPPConfigSrvConfig.SerialNumbers = append(s.appleVPPConfigSrvConfig.SerialNumbers, selfServiceDevice.SerialNumber)
 	iOSHost, iOSMdmClient := s.createAppleMobileHostThenEnrollMDM("ios")
 	iPadOSHost, iPadOSMdmClient := s.createAppleMobileHostThenEnrollMDM("ipados")
 
@@ -10147,7 +10150,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	s.appleVPPConfigSrvConfig.SerialNumbers = append(s.appleVPPConfigSrvConfig.SerialNumbers, mdmHost.HardwareSerial,
 		iOSHost.HardwareSerial, iPadOSHost.HardwareSerial)
 	s.Do("POST", "/api/latest/fleet/hosts/transfer",
-		&addHostsToTeamRequest{HostIDs: []uint{mdmHost.ID, orbitHost.ID, iOSHost.ID, iPadOSHost.ID}, TeamID: &team.ID}, http.StatusOK)
+		&addHostsToTeamRequest{HostIDs: []uint{mdmHost.ID, orbitHost.ID, iOSHost.ID, iPadOSHost.ID, selfServiceHost.ID}, TeamID: &team.ID}, http.StatusOK)
 
 	// Add all apps to the team
 	addedApp = expectedApps[0]
@@ -10471,6 +10474,15 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 			assert.True(t, foundInstalledApp)
 		})
 	}
+
+	/// Attempt self-service install
+	// Not available for self-service
+	var ssInstallResp submitSelfServiceSoftwareInstallResponse
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/device/%s/software/install/%d", selfServiceToken, iPadOSTitleID), &fleetSelfServiceSoftwareInstallRequest{},
+		http.StatusBadRequest, &ssInstallResp)
+	// Successful install
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/device/%s/software/install/%d", selfServiceToken, macOSTitleID), &fleetSelfServiceSoftwareInstallRequest{},
+		http.StatusAccepted, &ssInstallResp)
 
 	// Delete VPP token and check that it's not appearing anymore
 	s.Do("DELETE", "/api/latest/fleet/mdm/apple/vpp_token", &deleteMDMAppleVPPTokenRequest{}, http.StatusNoContent)
