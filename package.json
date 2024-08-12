@@ -99,6 +99,7 @@
     "@tsconfig/recommended": "1.0.1",
     "@types/chrome": "0.0.237",
     "@types/classnames": "0.0.32",
+    "@types/content-disposition": "0.5.4",
     "@types/expect": "1.20.3",
     "@types/file-saver": "2.0.5",
     "@types/jest": "29.5.12",

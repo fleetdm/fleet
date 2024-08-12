@@ -5,6 +5,7 @@ import React, {
   useState,
 } from "react";
 import FileSaver from "file-saver";
+import { parse } from "content-disposition";
 
 import PATHS from "router/paths";
 import { AppContext } from "context/app";
@@ -263,7 +264,17 @@ const SoftwarePackageCard = ({
           `Byte size (${resp.data.size}) does not match content-length header (${contentLength})`
         );
       }
-      const filename = name;
+
+      let filename = name;
+      try {
+        const cd = parse(resp.headers["content-disposition"]);
+        if (cd.parameters.filename) {
+          filename = cd.parameters.filename;
+        }
+      } catch (e) {
+        // noop, we'll just use the name as is
+      }
+
       const file = new File([resp.data], filename, {
         type: "application/octet-stream",
       });
