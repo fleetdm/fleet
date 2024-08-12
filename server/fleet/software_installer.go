@@ -40,7 +40,7 @@ func (FailingSoftwareInstallerStore) Exists(ctx context.Context, installerID str
 	return false, errors.New("software installer store not properly configured")
 }
 
-func (FailingSoftwareInstallerStore) Cleanup(ctx context.Context, usedInstallerIDs []string) (int, error) {
+func (FailingSoftwareInstallerStore) Cleanup(ctx context.Context, usedInstallerIDs []string, removeCreatedBefore time.Time) (int, error) {
 	// do not fail for the failing store's cleanup, as unlike the other store
 	// methods, this will be called even if software installers are otherwise not
 	// used (by the cron job).

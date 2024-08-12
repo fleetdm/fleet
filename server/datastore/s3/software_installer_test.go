@@ -135,9 +135,15 @@ func TestSoftwareInstallerCleanup(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	n, err = store.Cleanup(ctx, []string{installers[0], installers[2]}, time.Now())
+	// cleanup with a time in the past, nothing gets removed
+	n, err = store.Cleanup(ctx, []string{}, time.Now().Add(-time.Minute))
+	require.NoError(t, err)
+	require.Equal(t, 0, n)
+	assertExisting([]string{installers[0], installers[1], installers[2], installers[3]})
+
+	// cleanup in the future, all unused get removed
+	n, err = store.Cleanup(ctx, []string{installers[0], installers[2]}, time.Now().Add(time.Minute))
 	require.NoError(t, err)
 	require.Equal(t, 2, n)
-
 	assertExisting([]string{installers[0], installers[2]})
 }
