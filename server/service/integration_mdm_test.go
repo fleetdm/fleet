@@ -9657,7 +9657,8 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 	assert.Contains(t, assoc, fleet.VPPAppID{AdamID: s.appleVPPConfigSrvConfig.Assets[1].AdamID, Platform: fleet.IOSPlatform})
 	assert.Contains(t, assoc, fleet.VPPAppID{AdamID: s.appleVPPConfigSrvConfig.Assets[1].AdamID, Platform: fleet.IPadOSPlatform})
 	// Only macOS version should be self-service
-	assert.Contains(t, assoc, fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: s.appleVPPConfigSrvConfig.Assets[1].AdamID, Platform: fleet.MacOSPlatform}, SelfService: true})
+	assert.Equal(t, fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: s.appleVPPConfigSrvConfig.Assets[1].AdamID, Platform: fleet.MacOSPlatform}, SelfService: true},
+		assoc[fleet.VPPAppID{AdamID: s.appleVPPConfigSrvConfig.Assets[1].AdamID, Platform: fleet.MacOSPlatform}])
 
 	// Reverse self-service associations
 	// Associating two apps we own
@@ -9673,10 +9674,10 @@ func (s *integrationMDMTestSuite) TestBatchAssociateAppStoreApps() {
 	assoc, err = s.ds.GetAssignedVPPApps(ctx, &tmGood.ID)
 	require.NoError(t, err)
 	require.Len(t, assoc, 4)
-	assert.Contains(t, assoc, fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: s.appleVPPConfigSrvConfig.Assets[0].AdamID, Platform: fleet.MacOSPlatform}, SelfService: true})
-	assert.Contains(t, assoc, fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: s.appleVPPConfigSrvConfig.Assets[1].AdamID, Platform: fleet.IOSPlatform}})
-	assert.Contains(t, assoc, fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: s.appleVPPConfigSrvConfig.Assets[1].AdamID, Platform: fleet.IPadOSPlatform}})
-	assert.Contains(t, assoc, fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: s.appleVPPConfigSrvConfig.Assets[1].AdamID, Platform: fleet.MacOSPlatform}})
+	assert.Equal(t, fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: s.appleVPPConfigSrvConfig.Assets[0].AdamID, Platform: fleet.MacOSPlatform}, SelfService: true}, assoc[fleet.VPPAppID{AdamID: s.appleVPPConfigSrvConfig.Assets[0].AdamID, Platform: fleet.MacOSPlatform}])
+	assert.Equal(t, fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: s.appleVPPConfigSrvConfig.Assets[1].AdamID, Platform: fleet.IOSPlatform}}, assoc[fleet.VPPAppID{AdamID: s.appleVPPConfigSrvConfig.Assets[1].AdamID, Platform: fleet.IOSPlatform}])
+	assert.Equal(t, fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: s.appleVPPConfigSrvConfig.Assets[1].AdamID, Platform: fleet.IPadOSPlatform}}, assoc[fleet.VPPAppID{AdamID: s.appleVPPConfigSrvConfig.Assets[1].AdamID, Platform: fleet.IPadOSPlatform}])
+	assert.Equal(t, fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: s.appleVPPConfigSrvConfig.Assets[1].AdamID, Platform: fleet.MacOSPlatform}}, assoc[fleet.VPPAppID{AdamID: s.appleVPPConfigSrvConfig.Assets[1].AdamID, Platform: fleet.MacOSPlatform}])
 
 	// Associate an app with a team with no team members
 	s.Do("POST", batchURL, batchAssociateAppStoreAppsRequest{Apps: []fleet.VPPBatchPayload{{AppStoreID: s.appleVPPConfigSrvConfig.Assets[0].AdamID}}}, http.StatusNoContent, "team_name", tmEmpty.Name)
@@ -10136,6 +10137,8 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	// Create a couple of hosts
 	orbitHost := createOrbitEnrolledHost(t, "darwin", "nonmdm", s.ds)
 	mdmHost, mdmDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	// selfServiceHost, selfServiceDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	// TODO Finish self-service test
 	setOrbitEnrollment(t, mdmHost, s.ds)
 	iOSHost, iOSMdmClient := s.createAppleMobileHostThenEnrollMDM("ios")
 	iPadOSHost, iPadOSMdmClient := s.createAppleMobileHostThenEnrollMDM("ipados")
@@ -10149,7 +10152,23 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	// Add all apps to the team
 	addedApp = expectedApps[0]
 	errApp := expectedApps[3]
-	for _, app := range expectedApps {
+	appSelfService := expectedApps[0]
+	// Add app 1 as self-service
+	addAppResp = addAppStoreAppResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps",
+		&addAppStoreAppRequest{TeamID: &team.ID, AppStoreID: appSelfService.AdamID, Platform: appSelfService.Platform, SelfService: true},
+		http.StatusOK, &addAppResp)
+	s.lastActivityMatches(
+		fleet.ActivityAddedAppStoreApp{}.ActivityName(),
+		fmt.Sprintf(`{"team_name": "%s", "software_title": "%s", "app_store_id": "%s", "team_id": %d, "platform": "%s", "self_service": true}`, team.Name,
+			appSelfService.Name, appSelfService.AdamID, team.ID, appSelfService.Platform),
+		0,
+	)
+	listSw = listSoftwareTitlesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listSw, "team_id", fmt.Sprint(team.ID),
+		"available_for_install", "true")
+	// Add remaining as non-self-service
+	for _, app := range expectedApps[1:] {
 		addAppResp = addAppStoreAppResponse{}
 		s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps",
 			&addAppStoreAppRequest{TeamID: &team.ID, AppStoreID: app.AdamID, Platform: app.Platform},
