@@ -28,63 +28,70 @@ module.exports = {
 
   fn: async function ({newProfile, teams}) {
     // console.log(newProfile);
-    console.log(teams);
+
     let path = require('path');
-
     let fileStream = newProfile._files[0].stream;
-
-    // console.log(fileStream);
     let profileFileName = fileStream.filename;
+    let datelessExtensionlessFilename = profileFileName.replace(/^\d{4}-\d{2}-\d{2}_/, '').replace(/\.[^/.]+$/, '');
+    let extension = '.'+profileFileName.split('.').pop();
     let tempFilePath = `.tmp/${profileFileName}`;
     let profilePlatform = 'darwin';
     if(_.endsWith(profileFileName, '.xml')) {
       profilePlatform = 'windows';
     }
-
     await sails.helpers.fs.writeStream.with({
       sourceStream: newProfile._files[0].stream,
       destination: tempFilePath,
       force: true,
     });
-    let profileToReturn;
-
-
     let profileContents = await sails.helpers.fs.read(tempFilePath);
-    // console.log(profileContents);
-    // console.log(file);
-    // console.log(newProfile);
+    await sails.helpers.fs.rmrf(path.join(sails.config.appPath, tempFilePath));
+
+
+    let profileToReturn;
     let newProfileInfo = {
-      name: profileFileName,
-      platform: profilePlatform,
+      name: datelessExtensionlessFilename,
+      platform: _.endsWith(profileFileName, '.xml') ? 'windows' : 'darwin',
+      profileType: extension,
+      createdAt: Date.now()
     };
     if(!teams) {
       newProfileInfo.profileContents = profileContents;
       profileToReturn = await UndeployedProfile.create(newProfileInfo).fetch();
     } else {
-      newProfile.teams = [];
-      for(let teamApid in teams){
+      let newTeams = [];
+      for(let teamApid of teams){
         let newProfileResponse = await sails.helpers.http.sendHttpRequest.with({
           method: 'POST',
           baseUrl: sails.config.custom.fleetBaseUrl,
           url: `/api/v1/fleet/configuration_profiles?team_id=${teamApid}`,
           enctype: 'multipart/form-data',
           body: {
-            profile: profileContents,
+            team_id: teamApid,
+            profile: {
+              options: {
+                filename: profileFileName,
+                contentType: 'application/octet-stream'
+              },
+              value: profileContents,
+            }
           },
           headers: {
             Authorization: `Bearer ${sails.config.custom.fleetApiToken}`,
           },
         });
-        console.log(newProfileResponse);
-        newProfileInfo.teams.push({
-          teamApid: teamApid,
-          uuid: newProfileResponse.profile_uuid
+        let parsedJsonResponse = JSON.parse(newProfileResponse.body)
+        let uuidForThisProfile = parsedJsonResponse.profile_uuid;
+        newTeams.push({
+          fleetApid: teamApid,
+          uuid: JSON.parse(newProfileResponse.body).profile_uuid
         })
       }
+      newProfileInfo.teams = newTeams;
       profileToReturn = newProfileInfo;
     }
 
-    await sails.helpers.fs.rmrf(path.join(sails.config.appPath, tempFilePath));
+
 
 
     // All done.
