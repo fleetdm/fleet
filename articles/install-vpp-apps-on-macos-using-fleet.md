@@ -93,6 +93,6 @@ This feature extends Fleet's capabilities for managing macOS, iOS, and iPadOS ho
 <meta name="authorFullName" value="Jahziel Villasana-Espinoza">
 <meta name="authorGitHubUsername" value="jahzielv">
 <meta name="category" value="guides">
-<meta name="publishedOn" value="2024-07-18">
+<meta name="publishedOn" value="2024-08-12">
 <meta name="articleImageUrl" value="../website/assets/images/articles/install-vpp-apps-on-macos-using-fleet-1600x900@2x.png">
 <meta name="description" value="This guide will walk you through installing VPP apps on macOS, iOS, and iPadOS using Fleet.">
