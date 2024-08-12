@@ -1,5 +1,7 @@
 import React, { useContext, useState } from "react";
 
+import PATHS from "router/paths";
+
 import { NotificationContext } from "context/notification";
 import { getFileDetails } from "utilities/file/fileUtils";
 import getInstallScript from "utilities/software_install_scripts";
@@ -18,10 +20,17 @@ import {
 import Spinner from "components/Spinner";
 import TooltipWrapper from "components/TooltipWrapper";
 import Radio from "components/forms/fields/Radio";
+import Card from "components/Card";
+import CustomLink from "components/CustomLink";
 
 import AddPackageAdvancedOptions from "../AddPackageAdvancedOptions";
 
-import { generateFormValidation, INSTALL_TYPE_OPTIONS } from "./helpers";
+import {
+  generateFormValidation,
+  INSTALL_TYPE_OPTIONS,
+  LABEL_HELP_TEXT_CONFIG,
+  LABEL_TARGET_MODES,
+} from "./helpers";
 
 export const baseClass = "add-package-form";
 
@@ -34,6 +43,25 @@ const UploadingSoftware = () => {
   );
 };
 
+const NoLabelsCard = () => {
+  return (
+    <Card borderRadiusSize="medium">
+      <div className={`${baseClass}__no-labels`}>
+        <p className={`${baseClass}__no-labels-title`}>
+          <b>No labels exist in Fleet</b>
+        </p>
+        <p className={`${baseClass}__no-labels-description`}>
+          Add label to target specific hosts.
+        </p>
+        <CustomLink
+          url={PATHS.LABEL_NEW}
+          text="Add label"
+          className={`${baseClass}__add-label-link`}
+        />
+      </div>
+    </Card>
+  );
+};
 export interface IAddPackageFormData {
   software: File | null;
   installScript: string;
@@ -41,9 +69,7 @@ export interface IAddPackageFormData {
   postInstallScript?: string;
   selfService: boolean;
   installType: InstallType;
-  labelsIncludeAny: ILabelIdentifier[];
-  labelsExcludeAny: ILabelIdentifier[];
-  // - “All hosts” - omit both of above (tbc w Noah: https://github.com/fleetdm/fleet/pull/20872#discussion_r1710119518)
+  selectedLabels: ILabelIdentifier[];
 }
 
 export interface IFormValidation {
@@ -55,15 +81,13 @@ export interface IFormValidation {
   // TODO - confirm
   installType?: { isValid: boolean };
   // TODO - confirm
-  labelsIncludeAny?: { isValid: boolean };
-  // TODO - confirm
-  labelsExcludeAny?: { isValid: boolean };
+  selectedLabels?: { isValid: boolean };
 }
 
 interface IAddPackageFormProps {
   isUploading: boolean;
   onCancel: () => void;
-  onSubmit: (formData: IAddPackageFormData) => void;
+  onSubmit: (formData: IAddPackageFormData, includeAnyLabels: boolean) => void;
   customLabels?: ILabel[];
 }
 
@@ -71,12 +95,15 @@ const AddPackageForm = ({
   isUploading,
   onCancel,
   onSubmit,
+  customLabels,
 }: IAddPackageFormProps) => {
   const { renderFlash } = useContext(NotificationContext);
 
   const [showPreInstallCondition, setShowPreInstallCondition] = useState(false);
   const [showPostInstallScript, setShowPostInstallScript] = useState(false);
   const [useCustomTargets, setUseCustomTargets] = useState(false);
+  // else exclude
+  const [includeAnyLabels, setIncludeAnyLabels] = useState(true);
   const [formData, setFormData] = useState<IAddPackageFormData>({
     software: null,
     installScript: "",
@@ -84,8 +111,7 @@ const AddPackageForm = ({
     postInstallScript: undefined,
     selfService: false,
     installType: "manual",
-    labelsIncludeAny: [],
-    labelsExcludeAny: [],
+    selectedLabels: [],
   });
   const [formValidation, setFormValidation] = useState<IFormValidation>({
     isValid: false,
@@ -122,7 +148,7 @@ const AddPackageForm = ({
 
   const onFormSubmit = (evt: React.FormEvent<HTMLFormElement>) => {
     evt.preventDefault();
-    onSubmit(formData);
+    onSubmit(formData, includeAnyLabels);
   };
 
   const onTogglePreInstallConditionCheckbox = (value: boolean) => {
@@ -191,7 +217,51 @@ const AddPackageForm = ({
     setUseCustomTargets(val === "custom");
   };
 
+  const onChangeLabelTargetMode = (val: string) => {
+    setIncludeAnyLabels(val === "include");
+  };
+
   const isSubmitDisabled = !formValidation.isValid;
+
+  const renderLabels = () =>
+    customLabels?.map((label) => (
+      <div className={`${baseClass}__label`} key={label.name}>
+        <Checkbox
+          className={`${baseClass}__checkbox`}
+          name={label.name}
+          value={!!selectedLabels[label.name]}
+          onChange={updateSelectedLabels}
+          parseTarget
+        />
+        <div className={`${baseClass}__label-name`}>{label.name}</div>
+      </div>
+    ));
+
+  const renderLabelsSection = () => {
+    if (!customLabels?.length) {
+      return <NoLabelsCard />;
+    }
+    return (
+      // <div className={`${baseClass}__custom-label-chooser`}>
+      <>
+        <Dropdown
+          value={includeAnyLabels ? "include" : "exclude"}
+          options={LABEL_TARGET_MODES}
+          searchable={false}
+          onChange={onChangeLabelTargetMode}
+        />
+        <div>
+          {
+            LABEL_HELP_TEXT_CONFIG[includeAnyLabels ? "include" : "exclude"][
+              formData.installType
+            ]
+          }
+        </div>
+        <div>{renderLabels()}</div>
+      </>
+      // </div>
+    );
+  };
 
   return (
     <div className={baseClass}>
@@ -255,6 +325,7 @@ const AddPackageForm = ({
               onChange={onChangeTargets}
             />
           </div>
+          {useCustomTargets && renderLabelsSection()}
           <AddPackageAdvancedOptions
             errors={{
               preInstallCondition: formValidation.preInstallCondition?.message,

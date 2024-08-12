@@ -71,7 +71,10 @@ const AddPackage = ({
     };
   }, [isUploading]);
 
-  const onAddPackage = async (formData: IAddPackageFormData) => {
+  const onAddPackage = async (
+    formData: IAddPackageFormData,
+    includeAnyLabels: boolean
+  ) => {
     setIsUploading(true);
 
     if (formData.software && formData.software.size > MAX_FILE_SIZE_BYTES) {

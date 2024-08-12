@@ -22,4 +22,17 @@
   .Select-control {
     height: fit-content;
   }
+
+  &__no-labels {
+    display: flex;
+    flex-direction: column;
+    min-height: 149px;
+    align-items: center;
+    justify-content: center;
+    gap: $pad-small;
+
+    p {
+      margin: 0;
+    }
+  }
 }

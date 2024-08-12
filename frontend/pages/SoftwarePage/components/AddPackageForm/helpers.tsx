@@ -1,9 +1,12 @@
+import React from "react";
+
 import validator from "validator";
 
 // @ts-ignore
 import validateQuery from "components/forms/validators/validate_query";
 
 import { IAddPackageFormData, IFormValidation } from "./AddPackageForm";
+import { InstallType } from "interfaces/software";
 
 type IAddPackageFormValidatorKey = Exclude<
   keyof IAddPackageFormData,
@@ -182,5 +185,50 @@ export const INSTALL_TYPE_OPTIONS = [
     helpText: "Go to Host details page and manually install on each host.",
   },
 ];
+
+export const LABEL_TARGET_MODES = [
+  {
+    label: "Include any",
+    value: "include",
+  },
+  {
+    label: "Exclude any",
+    value: "exclude",
+  },
+];
+
+export const LABEL_HELP_TEXT_CONFIG: Record<
+  string,
+  Record<InstallType, React.ReactNode>
+> = {
+  include: {
+    automatic: (
+      <>
+        Software will only be installed on hosts that have <b>any</b> of these
+        labels:
+      </>
+    ),
+    manual: (
+      <>
+        Software will only be available for install on hosts that have{" "}
+        <b>any</b> of these labels:
+      </>
+    ),
+  },
+  exclude: {
+    automatic: (
+      <>
+        Software will only be installed on hosts that don&apos;t have <b>any</b>{" "}
+        of these labels:
+      </>
+    ),
+    manual: (
+      <>
+        Software will only be available for install on hosts that don&apos;t
+        have <b>any</b> of these labels:
+      </>
+    ),
+  },
+} as const;
 
 export default generateFormValidation;

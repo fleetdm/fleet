@@ -755,7 +755,7 @@ const ManageHostsPage = ({
   };
 
   const onAddLabelClick = () => {
-    router.push(`${PATHS.NEW_LABEL}`);
+    router.push(`${PATHS.LABEL_NEW}`);
   };
 
   const onEditLabelClick = (evt: React.MouseEvent<HTMLButtonElement>) => {
