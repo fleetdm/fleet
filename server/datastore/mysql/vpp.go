@@ -25,16 +25,18 @@ FROM
 	vpp_apps vap
 	INNER JOIN vpp_apps_teams vat ON vat.adam_id = vap.adam_id AND vat.platform = vap.platform
 WHERE
-	vap.title_id = ? AND
-	vat.global_or_team_id = ?`
+	vap.title_id = ? %s`
 
-	var tmID uint
+	// when team id is not nil, we need to filter by the global or team id given.
+	args := []any{titleID}
+	teamFilter := ""
 	if teamID != nil {
-		tmID = *teamID
+		args = append(args, *teamID)
+		teamFilter = "AND vat.global_or_team_id = ?"
 	}
 
 	var app fleet.VPPAppStoreApp
-	err := sqlx.GetContext(ctx, ds.reader(ctx), &app, query, titleID, tmID)
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &app, fmt.Sprintf(query, teamFilter), args...)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, ctxerr.Wrap(ctx, notFound("VPPApp"), "get VPP app metadata")
