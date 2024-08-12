@@ -2,9 +2,12 @@ import { QueryParams } from "utilities/url";
 
 export type ISoftwareDropdownFilterVal =
   | "allSoftware"
-  | "vulnerableSoftware"
   | "installableSoftware"
   | "selfServiceSoftware";
+
+export type IHostSoftwareDropdownFilterVal =
+  | ISoftwareDropdownFilterVal
+  | "vulnerableSoftware";
 
 export const SOFTWARE_VERSIONS_DROPDOWN_OPTIONS = [
   {
@@ -39,23 +42,26 @@ export const getSoftwareFilterForQueryKey = (
       return { availableForInstall: true };
     case "selfServiceSoftware":
       return { selfService: true };
-    case "vulnerableSoftware":
-      return { vulnerable: true };
     default:
       return {};
   }
 };
 
 export const getSoftwareFilterFromQueryParams = (queryParams: QueryParams) => {
-  const { vulnerable, available_for_install, self_service } = queryParams;
+  const { available_for_install, self_service } = queryParams;
   switch (true) {
     case available_for_install === "true":
       return "installableSoftware";
     case self_service === "true":
       return "selfServiceSoftware";
-    case vulnerable === "true":
-      return "vulnerableSoftware";
     default:
       return "allSoftware";
   }
+};
+
+export type ISoftwareVulnFilters = {
+  vulnerable?: boolean;
+  exploit?: boolean;
+  min_cvss_score?: number;
+  max_cvss_score?: number;
 };

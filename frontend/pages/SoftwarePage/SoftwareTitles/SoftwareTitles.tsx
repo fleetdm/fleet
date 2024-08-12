@@ -21,6 +21,7 @@ import TableDataError from "components/DataError";
 import SoftwareTable from "./SoftwareTable";
 import {
   ISoftwareDropdownFilterVal,
+  ISoftwareVulnFilters,
   getSoftwareFilterForQueryKey,
 } from "./SoftwareTable/helpers";
 
@@ -40,6 +41,7 @@ interface ISoftwareTitlesProps {
   orderDirection: "asc" | "desc";
   orderKey: string;
   softwareFilter: ISoftwareDropdownFilterVal;
+  vulnFilters: ISoftwareVulnFilters;
   currentPage: number;
   teamId?: number;
   resetPageIndex: boolean;
@@ -55,6 +57,7 @@ const SoftwareTitles = ({
   orderDirection,
   orderKey,
   softwareFilter,
+  vulnFilters,
   currentPage,
   teamId,
   resetPageIndex,
@@ -85,6 +88,7 @@ const SoftwareTitles = ({
         orderKey,
         teamId,
         addedSoftwareToken,
+        ...vulnFilters,
         ...getSoftwareFilterForQueryKey(softwareFilter),
       },
     ],
@@ -119,8 +123,8 @@ const SoftwareTitles = ({
         orderDirection,
         orderKey,
         teamId,
-        vulnerable: softwareFilter === "vulnerableSoftware",
         addedSoftwareToken,
+        ...vulnFilters,
       },
     ],
     ({ queryKey: [queryKey] }) =>
@@ -152,6 +156,7 @@ const SoftwareTitles = ({
         orderKey,
         teamId,
         availableForInstall: true,
+        ...vulnFilters,
       },
     ],
     ({ queryKey: [queryKey] }) =>
@@ -193,6 +198,7 @@ const SoftwareTitles = ({
         }
         resetPageIndex={resetPageIndex}
         onAddFilterClick={onAddFilterClick}
+        vulnFilters={vulnFilters}
       />
     </div>
   );

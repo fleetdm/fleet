@@ -6,10 +6,14 @@ import React from "react";
 import CustomLink from "components/CustomLink";
 import EmptyTable from "components/EmptyTable";
 import { IEmptyTableProps } from "interfaces/empty_table";
-import { ISoftwareDropdownFilterVal } from "pages/SoftwarePage/SoftwareTitles/SoftwareTable/helpers";
+import {
+  ISoftwareDropdownFilterVal,
+  ISoftwareVulnFilters,
+} from "pages/SoftwarePage/SoftwareTitles/SoftwareTable/helpers";
 
 export interface IEmptySoftwareTableProps {
   softwareFilter?: ISoftwareDropdownFilterVal;
+  vulnFilters?: ISoftwareVulnFilters;
   /** tableName is displayed in the search empty state */
   tableName?: string;
   isSoftwareDisabled?: boolean;
@@ -23,12 +27,13 @@ export interface IEmptySoftwareTableProps {
 
 const generateTypeText = (
   tableName: string,
-  softwareFilter?: ISoftwareDropdownFilterVal
+  softwareFilter?: ISoftwareDropdownFilterVal,
+  vulnFilters?: ISoftwareVulnFilters
 ) => {
   if (softwareFilter === "installableSoftware") {
     return "installable software";
   }
-  if (softwareFilter === "vulnerableSoftware") {
+  if (vulnFilters?.vulnerable) {
     return "vulnerable software";
   }
   return tableName;
@@ -36,13 +41,18 @@ const generateTypeText = (
 
 const EmptySoftwareTable = ({
   softwareFilter = "allSoftware",
+  vulnFilters,
   tableName = "software",
   isSoftwareDisabled,
   noSearchQuery,
   isCollectingSoftware,
   installableSoftwareExists,
 }: IEmptySoftwareTableProps): JSX.Element => {
-  const softwareTypeText = generateTypeText(tableName, softwareFilter);
+  const softwareTypeText = generateTypeText(
+    tableName,
+    softwareFilter,
+    vulnFilters
+  );
 
   const emptySoftware: IEmptyTableProps = {
     header: "No items match the current search criteria",

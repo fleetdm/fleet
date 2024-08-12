@@ -38,6 +38,7 @@ import generateTitlesTableConfig from "./SoftwareTitlesTableConfig";
 import generateVersionsTableConfig from "./SoftwareVersionsTableConfig";
 import {
   ISoftwareDropdownFilterVal,
+  ISoftwareVulnFilters,
   SOFTWARE_TITLES_DROPDOWN_OPTIONS,
   SOFTWARE_VERSIONS_DROPDOWN_OPTIONS,
   getSoftwareFilterForQueryKey,
@@ -69,6 +70,7 @@ interface ISoftwareTableProps {
   orderDirection: "asc" | "desc";
   orderKey: string;
   softwareFilter: ISoftwareDropdownFilterVal;
+  vulnFilters: ISoftwareVulnFilters;
   currentPage: number;
   teamId?: number;
   isLoading: boolean;
@@ -89,6 +91,7 @@ const SoftwareTable = ({
   orderDirection,
   orderKey,
   softwareFilter,
+  vulnFilters,
   currentPage,
   teamId,
   isLoading,
@@ -131,10 +134,6 @@ const SoftwareTable = ({
       };
       if (softwareFilter === "installableSoftware") {
         newQueryParam.available_for_install = true.toString();
-      } else {
-        newQueryParam.vulnerable = (
-          softwareFilter === "vulnerableSoftware"
-        ).toString();
       }
 
       return newQueryParam;
@@ -189,23 +188,14 @@ const SoftwareTable = ({
   const searchable = isSoftwareEnabled;
 
   const handleShowVersionsToggle = () => {
-    const queryParams: Record<string, string | number | undefined> = {
+    const queryParams: Record<string, string | number | boolean | undefined> = {
       query,
       team_id: teamId,
       order_direction: orderDirection,
       order_key: orderKey,
       page: 0, // resets page index
+      ...vulnFilters,
     };
-
-    // if we are currently showing installable titles, we want to switch to
-    // all software versions. If not, we want to keep the current filter.
-    if (softwareFilter === "installableSoftware") {
-      queryParams.vulnerable = "false";
-    } else {
-      queryParams.vulnerable = (
-        softwareFilter === "vulnerableSoftware"
-      ).toString();
-    }
 
     router.replace(
       getNextLocationPath({
@@ -227,7 +217,28 @@ const SoftwareTable = ({
       orderDirection,
       orderKey,
       page: 0, // resets page index
+      ...vulnFilters,
       ...getSoftwareFilterForQueryKey(value),
+    };
+
+    router.replace(
+      getNextLocationPath({
+        pathPrefix: currentPath,
+        routeTemplate: "",
+        queryParams: convertParamsToSnakeCase(queryParams),
+      })
+    );
+  };
+
+  const handleVulnFiltersChange = (value: ISoftwareVulnFilters) => {
+    const queryParams: ISoftwareApiParams = {
+      query,
+      teamId,
+      orderDirection,
+      orderKey,
+      page: 0, // resets page index
+      // ...getSoftwareFilterForQueryKey(value), // TODO
+      ...value,
     };
 
     router.replace(

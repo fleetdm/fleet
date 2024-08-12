@@ -90,6 +90,7 @@ const SoftwareFiltersModal = ({
           }}
           placeholder="Choose Table..."
           className={`${baseClass}__table-select`}
+          disabled={!vulnSoftwareFilterEnabled}
         />
         <Checkbox
           onChange={(value: boolean) => setHasKnownExploit(value)}
@@ -97,6 +98,7 @@ const SoftwareFiltersModal = ({
           value={hasKnownExploit}
           parseTarget
           helpText="Software has vulnerabilities that have been actively exploited in the wild."
+          disabled={!vulnSoftwareFilterEnabled}
         >
           Has known exploit
         </Checkbox>
