@@ -6256,7 +6256,7 @@ func testMDMAppleBootstrapPackageWithS3(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// run the cleanup job
-	err = ds.CleanupUnusedBootstrapPackages(ctx, pkgStore)
+	err = ds.CleanupUnusedBootstrapPackages(ctx, pkgStore, time.Now())
 	require.NoError(t, err)
 
 	// team 1 can still be retrieved (it shares the same contents)
@@ -6306,7 +6306,7 @@ func testMDMAppleBootstrapPackageWithS3(t *testing.T, ds *Datastore) {
 	require.Equal(t, bp3.Bytes, bpContent.Bytes)
 
 	// run the cleanup job
-	err = ds.CleanupUnusedBootstrapPackages(ctx, pkgStore)
+	err = ds.CleanupUnusedBootstrapPackages(ctx, pkgStore, time.Now())
 	require.NoError(t, err)
 
 	ok, err = pkgStore.Exists(ctx, hex.EncodeToString(bp1.Sha256))

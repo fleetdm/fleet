@@ -1209,7 +1209,7 @@ type Datastore interface {
 
 	// CleanupUnusedBootstrapPackages will remove bootstrap packages that have no
 	// references to them from the mdm_apple_bootstrap_packages table.
-	CleanupUnusedBootstrapPackages(ctx context.Context, pkgStore MDMBootstrapPackageStore) error
+	CleanupUnusedBootstrapPackages(ctx context.Context, pkgStore MDMBootstrapPackageStore, removeCreatedBefore time.Time) error
 
 	// GetHostMDMMacOSSetup returns the MDM macOS setup information for the specified host id.
 	GetHostMDMMacOSSetup(ctx context.Context, hostID uint) (*HostMDMMacOSSetup, error)
@@ -1587,7 +1587,7 @@ type Datastore interface {
 
 	// CleanupUnusedSoftwareInstallers will remove software installers that have
 	// no references to them from the software_installers table.
-	CleanupUnusedSoftwareInstallers(ctx context.Context, softwareInstallStore SoftwareInstallerStore) error
+	CleanupUnusedSoftwareInstallers(ctx context.Context, softwareInstallStore SoftwareInstallerStore, removeCreatedBefore time.Time) error
 
 	// BatchSetSoftwareInstallers sets the software installers for the given team or no team.
 	BatchSetSoftwareInstallers(ctx context.Context, tmID *uint, installers []*UploadSoftwareInstallerPayload) error

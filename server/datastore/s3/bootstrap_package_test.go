@@ -10,6 +10,7 @@ import (
 	"io"
 	"path"
 	"testing"
+	"time"
 
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -104,7 +105,7 @@ func TestBootstrapPackageCleanup(t *testing.T) {
 	}
 
 	// cleanup an empty store
-	n, err := store.Cleanup(ctx, nil)
+	n, err := store.Cleanup(ctx, nil, time.Now())
 	require.NoError(t, err)
 	require.Equal(t, 0, n)
 
@@ -114,14 +115,14 @@ func TestBootstrapPackageCleanup(t *testing.T) {
 	require.NoError(t, err)
 
 	// cleanup but mark it as used
-	n, err = store.Cleanup(ctx, []string{ins0})
+	n, err = store.Cleanup(ctx, []string{ins0}, time.Now())
 	require.NoError(t, err)
 	require.Equal(t, 0, n)
 
 	assertExisting([]string{ins0})
 
 	// cleanup but mark it as unused
-	n, err = store.Cleanup(ctx, []string{})
+	n, err = store.Cleanup(ctx, []string{}, time.Now())
 	require.NoError(t, err)
 	require.Equal(t, 1, n)
 
@@ -134,9 +135,15 @@ func TestBootstrapPackageCleanup(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	n, err = store.Cleanup(ctx, []string{packages[0], packages[2]})
+	// cleanup with a time in the past, nothing gets removed
+	n, err = store.Cleanup(ctx, []string{}, time.Now().Add(-time.Minute))
+	require.NoError(t, err)
+	require.Equal(t, 0, n)
+	assertExisting([]string{packages[0], packages[1], packages[2], packages[3]})
+
+	// cleanup in the future, all unused get removed
+	n, err = store.Cleanup(ctx, []string{packages[0], packages[2]}, time.Now().Add(time.Minute))
 	require.NoError(t, err)
 	require.Equal(t, 2, n)
-
 	assertExisting([]string{packages[0], packages[2]})
 }

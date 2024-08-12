@@ -3235,7 +3235,7 @@ func (ds *Datastore) GetMDMAppleBootstrapPackageMeta(ctx context.Context, teamID
 	return &bp, nil
 }
 
-func (ds *Datastore) CleanupUnusedBootstrapPackages(ctx context.Context, pkgStore fleet.MDMBootstrapPackageStore) error {
+func (ds *Datastore) CleanupUnusedBootstrapPackages(ctx context.Context, pkgStore fleet.MDMBootstrapPackageStore, removeCreatedBefore time.Time) error {
 	if pkgStore == nil {
 		// no-op in this case, possible if not running with a Premium license or
 		// configured S3 storage
@@ -3252,7 +3252,7 @@ func (ds *Datastore) CleanupUnusedBootstrapPackages(ctx context.Context, pkgStor
 		pkgIDs = append(pkgIDs, hex.EncodeToString(sha))
 	}
 
-	_, err := pkgStore.Cleanup(ctx, pkgIDs)
+	_, err := pkgStore.Cleanup(ctx, pkgIDs, removeCreatedBefore)
 	return ctxerr.Wrap(ctx, err, "cleanup unused bootstrap packages")
 }
 

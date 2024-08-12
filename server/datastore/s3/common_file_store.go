@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"path"
+	"time"
 
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/s3"
@@ -78,7 +79,9 @@ func (s *commonFileStore) Exists(ctx context.Context, fileID string) (bool, erro
 	return true, nil
 }
 
-func (s *commonFileStore) Cleanup(ctx context.Context, usedFileIDs []string) (int, error) {
+func (s *commonFileStore) Cleanup(ctx context.Context, usedFileIDs []string, removeCreatedBefore time.Time) (int, error) {
+	removeCreatedBefore = removeCreatedBefore.UTC()
+
 	usedSet := make(map[string]struct{}, len(usedFileIDs))
 	for _, id := range usedFileIDs {
 		usedSet[id] = struct{}{}
@@ -101,9 +104,9 @@ func (s *commonFileStore) Cleanup(ctx context.Context, usedFileIDs []string) (in
 		return 0, ctxerr.Wrapf(ctx, err, "listing %s in S3 store", s.fileLabel)
 	}
 
-	// TODO(mna): there is an inherent risk that we could delete files that were
-	// added between the query to list used IDs and now. We could minimize that
-	// risk by checking that the S3 file is older than a few seconds.
+	// NOTE: there is an inherent risk that we could delete files that were added
+	// between the query to list used IDs and now. We minimize that risk by
+	// checking that the S3 file was created before removeCreatedBefore.
 	var toDeleteKeys []*s3.ObjectIdentifier
 	for _, item := range page.Contents {
 		if item.Key == nil {
@@ -112,7 +115,10 @@ func (s *commonFileStore) Cleanup(ctx context.Context, usedFileIDs []string) (in
 		if _, ok := usedSet[path.Base(*item.Key)]; ok {
 			continue
 		}
-		toDeleteKeys = append(toDeleteKeys, &s3.ObjectIdentifier{Key: item.Key})
+		if item.LastModified == nil || !item.LastModified.UTC().After(removeCreatedBefore) {
+			// default to doing the cleanup if we don't have the timestamp information
+			toDeleteKeys = append(toDeleteKeys, &s3.ObjectIdentifier{Key: item.Key})
+		}
 	}
 
 	if len(toDeleteKeys) == 0 {
