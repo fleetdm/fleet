@@ -8552,7 +8552,7 @@ Deletes the session specified by ID. When the user associated with the session n
 
 ### Add software
 
-<!-- Return the following error if the user attempts to add a package but Fleet can't extract the version: Couldn't deaddlete. Fleet couldn't read the version from <package-name>. -->
+<!-- Return the following error if the user attempts to add a package but Fleet can't extract the version: Couldn't add. Fleet couldn't read the version from <package-name>. -->
 
 _Available in Fleet Premium._
 
