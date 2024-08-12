@@ -62,6 +62,8 @@ func (rw *ReadWriter) GetMigrationType() (string, error) {
 		if errors.Is(err, os.ErrNotExist) {
 			return "", nil
 		}
+
+		return "", err
 	}
 
 	return data, nil
@@ -104,4 +106,13 @@ func (rw *ReadWriter) read() (string, error) {
 
 func (rw *ReadWriter) setChmod() error {
 	return os.Chmod(rw.FileName, constant.DefaultWorldReadableFileMode)
+}
+
+func Dir() (string, error) {
+	homedir, err := os.UserHomeDir()
+	if err != nil {
+		return "", fmt.Errorf("failed to get user's home directory: %w", err)
+	}
+
+	return filepath.Join(homedir, "Library/Caches/com.fleetdm.orbit"), nil
 }

@@ -107,6 +107,11 @@ func main() {
 
 	var mdmMigrator useraction.MDMMigrator
 
+	// This ticker is used for fetching the desktop summary. It is initialized here because it is
+	// stopped in `OnExit.`
+	const checkInterval = 10 * time.Second
+	summaryTicker := time.NewTicker(checkInterval)
+
 	onReady := func() {
 		log.Info().Msg("ready")
 
@@ -248,7 +253,7 @@ func main() {
 		}()
 
 		if runtime.GOOS == "darwin" {
-			dir, err := migrationFileDir()
+			dir, err := migration.Dir()
 			if err != nil {
 				log.Fatal().Err(err).Msg("getting directory for MDM migration file")
 			}
@@ -267,6 +272,7 @@ func main() {
 					tokenReader: &tokenReader,
 				},
 				mrw,
+				fleetURL,
 			)
 		}
 
@@ -291,16 +297,13 @@ func main() {
 
 		// poll the server to check the policy status of the host and update the
 		// tray icon accordingly
-		const checkInterval = 5 * time.Minute
-		tic := time.NewTicker(checkInterval)
-		defer tic.Stop()
 		go func() {
 			<-deviceEnabledChan
 
 			for {
-				<-tic.C
+				<-summaryTicker.C
 				// Reset the ticker to the intended interval, in case we reset it to 1ms
-				tic.Reset(checkInterval)
+				summaryTicker.Reset(checkInterval)
 				sum, err := client.DesktopSummary(tokenReader.GetCached())
 				switch {
 				case err == nil:
@@ -381,6 +384,8 @@ func main() {
 							go reportError(err, nil)
 							log.Error().Err(err).Msg("failed to mark MDM migration as completed")
 						}
+						migrateMDMItem.Disable()
+						migrateMDMItem.Hide()
 					}
 				} else {
 					migrateMDMItem.Disable()
@@ -398,7 +403,7 @@ func main() {
 						log.Error().Err(err).Str("url", openURL).Msg("open browser my device")
 					}
 					// Also refresh the device status by forcing the polling ticker to fire
-					tic.Reset(1 * time.Millisecond)
+					summaryTicker.Reset(1 * time.Millisecond)
 				case <-transparencyItem.ClickedCh:
 					openURL := client.BrowserTransparencyURL(tokenReader.GetCached())
 					if err := open.Browser(openURL); err != nil {
@@ -410,7 +415,7 @@ func main() {
 						log.Error().Err(err).Str("url", openURL).Msg("open browser self-service")
 					}
 					// Also refresh the device status by forcing the polling ticker to fire
-					tic.Reset(1 * time.Millisecond)
+					summaryTicker.Reset(1 * time.Millisecond)
 				case <-migrateMDMItem.ClickedCh:
 					if err := mdmMigrator.Show(); err != nil {
 						go reportError(err, nil)
@@ -424,6 +429,8 @@ func main() {
 		if mdmMigrator != nil {
 			mdmMigrator.Exit()
 		}
+		summaryTicker.Stop()
+
 		log.Info().Msg("exit")
 	}
 
@@ -595,13 +602,4 @@ func logDir() (string, error) {
 	}
 
 	return dir, nil
-}
-
-func migrationFileDir() (string, error) {
-	homedir, err := os.UserHomeDir()
-	if err != nil {
-		return "", fmt.Errorf("failed to get user's home directory: %w", err)
-	}
-
-	return filepath.Join(homedir, "Library/Caches/com.fleetdm.orbit"), nil
 }
