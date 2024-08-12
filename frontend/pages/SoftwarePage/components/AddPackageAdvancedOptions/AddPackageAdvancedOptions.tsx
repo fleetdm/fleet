@@ -11,25 +11,31 @@ const baseClass = "add-package-advanced-options";
 interface IAddPackageAdvancedOptionsProps {
   errors: { preInstallCondition?: string; postInstallScript?: string };
   showPreInstallCondition: boolean;
+  showInstallScript: boolean;
   showPostInstallScript: boolean;
   preInstallCondition?: string;
   postInstallScript?: string;
   onTogglePreInstallCondition: (value: boolean) => void;
   onTogglePostInstallScript: (value: boolean) => void;
   onChangePreInstallCondition: (value?: string) => void;
+  onChangeInstallScript: (value: string) => void;
   onChangePostInstallScript: (value?: string) => void;
+  installScript: string;
 }
 
 const AddPackageAdvancedOptions = ({
   errors,
   showPreInstallCondition,
+  showInstallScript,
   showPostInstallScript,
   preInstallCondition,
   postInstallScript,
   onTogglePreInstallCondition,
   onTogglePostInstallScript,
   onChangePreInstallCondition,
+  onChangeInstallScript,
   onChangePostInstallScript,
+  installScript,
 }: IAddPackageAdvancedOptionsProps) => {
   const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
 
@@ -61,6 +67,7 @@ const AddPackageAdvancedOptions = ({
           </Checkbox>
           {showPreInstallCondition && (
             <FleetAce
+              className="form-field"
               focus
               error={errors.preInstallCondition}
               value={preInstallCondition}
@@ -81,6 +88,26 @@ const AddPackageAdvancedOptions = ({
               }
             />
           )}
+          {showInstallScript && (
+            <Editor
+              wrapEnabled
+              maxLines={10}
+              name="install-script"
+              onChange={onChangeInstallScript}
+              value={installScript}
+              helpText="Shell (macOS and Linux) or PowerShell (Windows)."
+              label="Install script"
+              labelTooltip={
+                <>
+                  Fleet will run this script on hosts to install software. Use
+                  the
+                  <br />
+                  $INSTALLER_PATH variable to point to the installer.
+                </>
+              }
+              isFormField
+            />
+          )}
           <Checkbox
             value={showPostInstallScript}
             onChange={onChangePostInstallCheckbox}
@@ -90,6 +117,8 @@ const AddPackageAdvancedOptions = ({
           {showPostInstallScript && (
             <>
               <Editor
+                label="Script"
+                labelTooltip="Fleet will run this script after install."
                 focus
                 error={errors.postInstallScript}
                 wrapEnabled
@@ -98,6 +127,7 @@ const AddPackageAdvancedOptions = ({
                 onChange={onChangePostInstallScript}
                 value={postInstallScript}
                 helpText="Shell (macOS and Linux) or PowerShell (Windows)."
+                isFormField
               />
             </>
           )}

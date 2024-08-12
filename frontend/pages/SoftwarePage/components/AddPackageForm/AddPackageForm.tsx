@@ -6,7 +6,6 @@ import getInstallScript from "utilities/software_install_scripts";
 
 import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
-import Editor from "components/Editor";
 import {
   FileUploader,
   FileDetails,
@@ -185,25 +184,6 @@ const AddPackageForm = ({
               )
             }
           />
-          {formData.software && (
-            <Editor
-              wrapEnabled
-              maxLines={10}
-              name="install-script"
-              onChange={onChangeInstallScript}
-              value={formData.installScript}
-              helpText="Fleet will run this command on hosts to install software."
-              label="Install script"
-              labelTooltip={
-                <>
-                  For security agents, add the script provided by the vendor.
-                  <br />
-                  In custom scripts, you can use the $INSTALLER_PATH variable to
-                  point to the installer.
-                </>
-              }
-            />
-          )}
           <Checkbox
             value={formData.selfService}
             onChange={onToggleSelfServiceCheckbox}
@@ -225,13 +205,16 @@ const AddPackageForm = ({
               postInstallScript: formValidation.postInstallScript?.message,
             }}
             showPreInstallCondition={showPreInstallCondition}
+            showInstallScript={!!formData.software}
             showPostInstallScript={showPostInstallScript}
             preInstallCondition={formData.preInstallCondition}
             postInstallScript={formData.postInstallScript}
             onTogglePreInstallCondition={onTogglePreInstallConditionCheckbox}
             onTogglePostInstallScript={onTogglePostInstallScriptCheckbox}
             onChangePreInstallCondition={onChangePreInstallCondition}
+            onChangeInstallScript={onChangeInstallScript}
             onChangePostInstallScript={onChangePostInstallScript}
+            installScript={formData.installScript}
           />
           <div className="modal-cta-wrap">
             <Button type="submit" variant="brand" disabled={isSubmitDisabled}>
