@@ -100,7 +100,7 @@
 #  ║  ║ ║║║║ ║ ╠╦╝║ ║║    ╠═╣║ ╦║╣ ║║║ ║   ╚╗╔╝║╣ ╠╦╝╚═╗║║ ║║║║╚═╗
 #  ╚═╝╚═╝╝╚╝ ╩ ╩╚═╚═╝╩═╝  ╩ ╩╚═╝╚═╝╝╚╝ ╩    ╚╝ ╚═╝╩╚═╚═╝╩╚═╝╝╚╝╚═╝
 - industryName: Control agent versions
-  descrption: Manage agents remotely by setting different versions per-baseline.
+  description: Manage agents remotely by setting different versions per-baseline.
   documentationUrl: https://fleetdm.com/docs/configuration/agent-configuration#configure-fleetd-update-channels
   tier: Premium
   jamfProHasFeature: no
@@ -997,7 +997,7 @@
 #  ╚╗╔╝║ ║║  ║║║║╣ ╠╦╝╠═╣╠╩╗║║  ║ ║ ╚╦╝  ╚═╗║  ║ ║╠╦╝║╣ ╚═╗  ───  ║╣ ╠═╝╚═╗╚═╗  ╠═╣║║║ ║║  ║  ╚╗╔╝╚═╗╚═╗
 #   ╚╝ ╚═╝╩═╝╝╚╝╚═╝╩╚═╩ ╩╚═╝╩╩═╝╩ ╩  ╩   ╚═╝╚═╝╚═╝╩╚═╚═╝╚═╝       ╚═╝╩  ╚═╝╚═╝  ╩ ╩╝╚╝═╩╝  ╚═╝ ╚╝ ╚═╝╚═╝
 - industryName: Vulnerability scores
-  documentation: EPSS and CVSS
+  friendlyName: EPSS and CVSS
   documentationUrl: https://fleetdm.com/vulnerability-management
   tier: Premium
   jamfProHasFeature: no
