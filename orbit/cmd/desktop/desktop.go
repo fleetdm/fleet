@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	_ "embed"
 	"errors"
 	"fmt"
@@ -60,6 +61,10 @@ func setupRunners() {
 }
 
 func main() {
+	// FIXME: we need to do a better job of graceful shutdown, releasing resources, stopping
+	// tickers, etc. (https://github.com/fleetdm/fleet/issues/21256)
+	ctx, cancel := context.WithCancel(context.Background())
+
 	// Orbits uses --version to get the fleet-desktop version. Logs do not need to be set up when running this.
 	if len(os.Args) > 1 && os.Args[1] == "--version" {
 		// Must work with update.GetVersion
@@ -106,6 +111,9 @@ func main() {
 	go setupRunners()
 
 	var mdmMigrator useraction.MDMMigrator
+	// swiftDialogCh is a channel shared by the migrator and the offline watcher to
+	// coordinate the display of the dialog and ensure only one dialog is shown at a time.
+	var swiftDialogCh chan struct{}
 
 	// This ticker is used for fetching the desktop summary. It is initialized here because it is
 	// stopped in `OnExit.`
@@ -163,6 +171,7 @@ func main() {
 		if err != nil {
 			log.Fatal().Err(err).Msg("unable to initialize request client")
 		}
+
 		client.WithInvalidTokenRetry(func() string {
 			log.Debug().Msg("refetching token from disk for API retry")
 			newToken, err := tokenReader.Read()
@@ -174,13 +183,6 @@ func main() {
 			return newToken
 		})
 
-		refetchToken := func() {
-			if _, err := tokenReader.Read(); err != nil {
-				log.Error().Err(err).Msg("refetch token")
-			}
-			log.Debug().Msg("successfully refetched the token from disk")
-		}
-
 		disableTray := func() {
 			log.Debug().Msg("disabling tray items")
 			myDeviceItem.SetTitle("Connecting...")
@@ -190,6 +192,46 @@ func main() {
 			selfServiceItem.Hide()
 			migrateMDMItem.Disable()
 			migrateMDMItem.Hide()
+		}
+
+		// TODO: we can probably extract this into a function that sets up both the migrator and the
+		// offline watcher
+		if runtime.GOOS == "darwin" {
+			dir, err := migration.Dir()
+			if err != nil {
+				log.Fatal().Err(err).Msg("getting directory for MDM migration file")
+			}
+
+			mrw := migration.NewReadWriter(dir, constant.MigrationFileName)
+
+			// we use channel buffer size of 1 to allow one dialog at a time with non-blocking sends.
+			swiftDialogCh = make(chan struct{}, 1)
+
+			_, swiftDialogPath, _ := update.LocalTargetPaths(
+				tufUpdateRoot,
+				"swiftDialog",
+				update.SwiftDialogMacOSTarget,
+			)
+			mdmMigrator = useraction.NewMDMMigrator(
+				swiftDialogPath,
+				15*time.Minute,
+				&mdmMigrationHandler{
+					client:      client,
+					tokenReader: &tokenReader,
+				},
+				mrw,
+				fleetURL,
+				swiftDialogCh,
+			)
+
+			useraction.StartMDMMigrationOfflineWatcher(ctx, client, swiftDialogPath, swiftDialogCh, migration.FileWatcher(mrw))
+		}
+
+		refetchToken := func() {
+			if _, err := tokenReader.Read(); err != nil {
+				log.Error().Err(err).Msg("refetch token")
+			}
+			log.Debug().Msg("successfully refetched the token from disk")
 		}
 
 		// checkToken performs API test calls to enable the "My device" item as
@@ -251,30 +293,6 @@ func main() {
 				}
 			}
 		}()
-
-		if runtime.GOOS == "darwin" {
-			dir, err := migration.Dir()
-			if err != nil {
-				log.Fatal().Err(err).Msg("getting directory for MDM migration file")
-			}
-
-			mrw := migration.NewReadWriter(dir, constant.MigrationFileName)
-			_, swiftDialogPath, _ := update.LocalTargetPaths(
-				tufUpdateRoot,
-				"swiftDialog",
-				update.SwiftDialogMacOSTarget,
-			)
-			mdmMigrator = useraction.NewMDMMigrator(
-				swiftDialogPath,
-				15*time.Minute,
-				&mdmMigrationHandler{
-					client:      client,
-					tokenReader: &tokenReader,
-				},
-				mrw,
-				fleetURL,
-			)
-		}
 
 		reportError := func(err error, info map[string]any) {
 			if !client.GetServerCapabilities().Has(fleet.CapabilityErrorReporting) {
@@ -425,13 +443,19 @@ func main() {
 			}
 		}()
 	}
+
+	// FIXME: it doesn't look like this is actually triggering, at least when desktop gets
+	// killed (https://github.com/fleetdm/fleet/issues/21256)
 	onExit := func() {
+		log.Info().Msg("exit")
 		if mdmMigrator != nil {
 			mdmMigrator.Exit()
 		}
+		if swiftDialogCh != nil {
+			close(swiftDialogCh)
+		}
 		summaryTicker.Stop()
-
-		log.Info().Msg("exit")
+		cancel()
 	}
 
 	systray.Run(onReady, onExit)

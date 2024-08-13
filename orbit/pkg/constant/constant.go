@@ -62,4 +62,7 @@ const (
 	MDMMigrationTypeManual = "manual"
 	// MDMMigrationTypeADE indicates that the MDM migration is for an ADE enrolled host.
 	MDMMigrationTypeADE = "ade"
+	// MDMMigrationOfflineWatcherInterval is the interval at which the offline watcher checks for
+	// the presence of the migration file.
+	MDMMigrationOfflineWatcherInterval = 3 * time.Minute
 )
