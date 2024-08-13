@@ -194,37 +194,10 @@ func main() {
 			migrateMDMItem.Hide()
 		}
 
-		// TODO: we can probably extract this into a function that sets up both the migrator and the
-		// offline watcher
 		if runtime.GOOS == "darwin" {
-			dir, err := migration.Dir()
-			if err != nil {
-				log.Fatal().Err(err).Msg("getting directory for MDM migration file")
-			}
-
-			mrw := migration.NewReadWriter(dir, constant.MigrationFileName)
-
-			// we use channel buffer size of 1 to allow one dialog at a time with non-blocking sends.
-			swiftDialogCh = make(chan struct{}, 1)
-
-			_, swiftDialogPath, _ := update.LocalTargetPaths(
-				tufUpdateRoot,
-				"swiftDialog",
-				update.SwiftDialogMacOSTarget,
-			)
-			mdmMigrator = useraction.NewMDMMigrator(
-				swiftDialogPath,
-				15*time.Minute,
-				&mdmMigrationHandler{
-					client:      client,
-					tokenReader: &tokenReader,
-				},
-				mrw,
-				fleetURL,
-				swiftDialogCh,
-			)
-
-			useraction.StartMDMMigrationOfflineWatcher(ctx, client, swiftDialogPath, swiftDialogCh, migration.FileWatcher(mrw))
+			m, s := mdmMigrationSetup(ctx, tufUpdateRoot, fleetURL, client, &tokenReader)
+			mdmMigrator = m
+			swiftDialogCh = s
 		}
 
 		refetchToken := func() {
@@ -626,4 +599,37 @@ func logDir() (string, error) {
 	}
 
 	return dir, nil
+}
+
+func mdmMigrationSetup(ctx context.Context, tufUpdateRoot, fleetURL string, client *service.DeviceClient, tokenReader *token.Reader) (useraction.MDMMigrator, chan struct{}) {
+	dir, err := migration.Dir()
+	if err != nil {
+		log.Fatal().Err(err).Msg("getting directory for MDM migration file")
+	}
+
+	mrw := migration.NewReadWriter(dir, constant.MigrationFileName)
+
+	// we use channel buffer size of 1 to allow one dialog at a time with non-blocking sends.
+	swiftDialogCh := make(chan struct{}, 1)
+
+	_, swiftDialogPath, _ := update.LocalTargetPaths(
+		tufUpdateRoot,
+		"swiftDialog",
+		update.SwiftDialogMacOSTarget,
+	)
+	mdmMigrator := useraction.NewMDMMigrator(
+		swiftDialogPath,
+		15*time.Minute,
+		&mdmMigrationHandler{
+			client:      client,
+			tokenReader: tokenReader,
+		},
+		mrw,
+		fleetURL,
+		swiftDialogCh,
+	)
+
+	useraction.StartMDMMigrationOfflineWatcher(ctx, client, swiftDialogPath, swiftDialogCh, migration.FileWatcher(mrw))
+
+	return mdmMigrator, swiftDialogCh
 }

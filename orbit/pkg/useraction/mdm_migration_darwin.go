@@ -701,8 +701,6 @@ func (o *offlineWatcher) isUnmanaged() bool {
 
 	log.Debug().Msgf("offline dialog, device is unmanaged, migration type %s", mt)
 
-	// TODO: Maybe check show profiles and skip showing the dialog if the device is managed?
-
 	return true
 }
 
@@ -732,7 +730,7 @@ func isOfflineError(err error) bool {
 		}
 	}
 
-	//  //  TODO: We're starting with basic string matching and planning to improve error matching
+	//  //  NOTE: We're starting with basic string matching and planning to improve error matching
 	//  // in future iterations. Here's some ideas for stuff to add in addition to strings.Contains:
 	// 	if urlErr, ok := err.(*url.Error); ok {
 	// 		log.Info().Msg("is url error")
@@ -776,7 +774,7 @@ func (o *offlineWatcher) showSwiftDialogMDMMigrationOffline(ctx context.Context)
 	select {
 	case <-ctx.Done():
 		log.Debug().Msg("dialog context canceled")
-		// TODO: do we care about this? anything we need to clean up?
+		m.baseDialog.Exit()
 		return nil
 	case err := <-errCh:
 		return fmt.Errorf("showing offline dialog: %w", err)
