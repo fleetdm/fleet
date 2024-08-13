@@ -17,6 +17,16 @@ const isValidCVEFormat = (query: string): boolean => {
   return cveRegex.test(query);
 };
 
+const renderLearnMoreLink = () => {
+  return (
+    <CustomLink
+      url="https://fleetdm.com/learn-more-about/vulnerability-processing"
+      text="Learn more"
+      newTab
+    />
+  );
+};
+
 const EmptyVulnerabilitiesTable = ({
   isPremiumTier,
   teamId,
@@ -51,13 +61,12 @@ const EmptyVulnerabilitiesTable = ({
       emptySoftware.info =
         "If you're filtering by exploited CVEs, try removing the filter to expand your search.";
     }
-    emptySoftware.additionalInfo = (
-      <CustomLink
-        url="https://fleetdm.com/learn-more-about/vulnerability-processing"
-        text="Learn more"
-        newTab
-      />
-    );
+    emptySoftware.additionalInfo = renderLearnMoreLink();
+  } else if (knownVulnerability === false) {
+    emptySoftware.header = "This is not a known CVE";
+    emptySoftware.info =
+      "None of Fleet's vulnerability sources are aware of this CVE.";
+    emptySoftware.additionalInfo = renderLearnMoreLink();
   }
 
   if (isSoftwareDisabled) {
