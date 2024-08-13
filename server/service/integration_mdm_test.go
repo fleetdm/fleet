@@ -10377,10 +10377,14 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 		mdmClient      *mdmtest.TestAppleMDMClient
 		app            fleet.VPPApp
 		extraAvailable int
+		hostCount      int
+		deviceToken    string
 	}{
-		"iOS app install": {installHost: iOSHost, titleID: iOSTitleID, mdmClient: iOSMdmClient, app: iOSApp},
+		"iOS app install": {installHost: iOSHost, titleID: iOSTitleID, mdmClient: iOSMdmClient, app: iOSApp, hostCount: 1},
 		"iPadOS app install": {installHost: iPadOSHost, titleID: iPadOSTitleID, mdmClient: iPadOSMdmClient, app: iPadOSApp,
-			extraAvailable: 1},
+			extraAvailable: 1, hostCount: 1},
+		"macOS app install": {installHost: selfServiceHost, titleID: macOSTitleID, mdmClient: selfServiceDevice, app: macOSApp,
+			hostCount: 2, deviceToken: selfServiceToken},
 	}
 
 	for name, install := range installs {
@@ -10391,9 +10395,16 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 			mdmClient := install.mdmClient
 			app := install.app
 
-			installResp = installSoftwareResponse{}
-			s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/install/%d", installHost.ID, titleID),
-				&installSoftwareRequest{}, http.StatusAccepted, &installResp)
+			// Self-service install
+			if install.deviceToken != "" {
+				var ssInstallResp submitSelfServiceSoftwareInstallResponse
+				s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/device/%s/software/install/%d", install.deviceToken, install.titleID),
+					&fleetSelfServiceSoftwareInstallRequest{}, http.StatusAccepted, &ssInstallResp)
+			} else {
+				installResp = installSoftwareResponse{}
+				s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/install/%d", installHost.ID, titleID),
+					&installSoftwareRequest{}, http.StatusAccepted, &installResp)
+			}
 			countResp = countHostsResponse{}
 			s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", "pending", "team_id",
 				strconv.Itoa(int(team.ID)), "software_title_id", strconv.Itoa(int(titleID)))
@@ -10431,22 +10442,23 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 			listResp = listHostsResponse{}
 			s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "software_status", "installed", "team_id",
 				strconv.Itoa(int(team.ID)), "software_title_id", strconv.Itoa(int(titleID)))
-			assert.Len(t, listResp.Hosts, 1)
+			assert.Len(t, listResp.Hosts, install.hostCount)
 			countResp = countHostsResponse{}
 			s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", "installed", "team_id",
 				strconv.Itoa(int(team.ID)), "software_title_id", strconv.Itoa(int(titleID)))
-			assert.Equal(t, 1, countResp.Count)
+			assert.Equal(t, install.hostCount, countResp.Count)
 
 			s.lastActivityMatches(
 				fleet.ActivityInstalledAppStoreApp{}.ActivityName(),
 				fmt.Sprintf(
-					`{"host_id": %d, "host_display_name": "%s", "software_title": "%s", "app_store_id": "%s", "command_uuid": "%s", "status": "%s", "self_service": false}`,
+					`{"host_id": %d, "host_display_name": "%s", "software_title": "%s", "app_store_id": "%s", "command_uuid": "%s", "status": "%s", "self_service": %v}`,
 					installHost.ID,
 					installHost.DisplayName(),
 					app.Name,
 					app.AdamID,
 					cmdUUID,
 					fleet.SoftwareInstallerInstalled,
+					install.deviceToken != "",
 				),
 				0,
 			)
@@ -10454,7 +10466,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 			// Check list host software
 			getHostSw = getHostSoftwareResponse{}
 			s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", installHost.ID), nil, http.StatusOK, &getHostSw)
-			require.Len(t, getHostSw.Software, 1+install.extraAvailable)
+			require.Len(t, getHostSw.Software, install.hostCount+install.extraAvailable)
 			var foundInstalledApp bool
 			for index := range getHostSw.Software {
 				got1 = getHostSw.Software[index]
@@ -10475,14 +10487,12 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 		})
 	}
 
-	/// Attempt self-service install
-	// Not available for self-service
+	// Attempt (and fail) to self-service install iPad and iOS titles
 	var ssInstallResp submitSelfServiceSoftwareInstallResponse
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/device/%s/software/install/%d", selfServiceToken, iPadOSTitleID), &fleetSelfServiceSoftwareInstallRequest{},
 		http.StatusBadRequest, &ssInstallResp)
-	// Successful install
-	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/device/%s/software/install/%d", selfServiceToken, macOSTitleID), &fleetSelfServiceSoftwareInstallRequest{},
-		http.StatusAccepted, &ssInstallResp)
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/device/%s/software/install/%d", selfServiceToken, iOSTitleID), &fleetSelfServiceSoftwareInstallRequest{},
+		http.StatusBadRequest, &ssInstallResp)
 
 	// Delete VPP token and check that it's not appearing anymore
 	s.Do("DELETE", "/api/latest/fleet/mdm/apple/vpp_token", &deleteMDMAppleVPPTokenRequest{}, http.StatusNoContent)
