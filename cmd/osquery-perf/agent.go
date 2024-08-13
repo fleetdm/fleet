@@ -1339,25 +1339,27 @@ func (a *agent) installSoftwareItem(installerID string, orbitClient *service.Orb
 			log.Printf("WARNING: installer metadata is missing a name for installer:%d\n", installer.InstallerID)
 		} else {
 			key := meta.Name + "+" + meta.Version + "+" + meta.BundleIdentifier
-			source := ""
-			switch a.os {
-			case "macos":
-				source = "apps"
-			case "windows":
-				source = "programs"
-			case "ubuntu":
-				source = "deb_packages"
-			default:
-				log.Printf("unknown OS to software installer: %s", a.os)
-				return
+			if _, ok := a.installedSoftware.Load(key); !ok {
+				source := ""
+				switch a.os {
+				case "macos":
+					source = "apps"
+				case "windows":
+					source = "programs"
+				case "ubuntu":
+					source = "deb_packages"
+				default:
+					log.Printf("unknown OS to software installer: %s", a.os)
+					return
+				}
+				a.installedSoftware.Store(key, map[string]string{
+					"name":              meta.Name,
+					"version":           meta.Version,
+					"bundle_identifier": meta.BundleIdentifier,
+					"source":            source,
+					"installed_path":    os.DevNull,
+				})
 			}
-			a.installedSoftware.Store(key, map[string]string{
-				"name":              meta.Name,
-				"version":           meta.Version,
-				"bundle_identifier": meta.BundleIdentifier,
-				"source":            source,
-				"installed_path":    os.DevNull,
-			})
 		}
 
 		if installer.PostInstallScript != "" {
