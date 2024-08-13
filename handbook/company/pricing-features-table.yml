@@ -459,7 +459,7 @@
 - industryName: Declarative Device Management (DDM) support for configuration profiles
   description: Full support for Apple DDM configuration profiles.
   documentationUrl: https://fleetdm.com/docs/using-fleet/mdm-os-updates#macos
-  tier: Premium
+  tier: Free
   jamfProHasFeature: cloudOnly
   jamfProtectHasFeature: cloudOnly
   usualDepartment: IT
