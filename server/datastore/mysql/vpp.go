@@ -467,7 +467,8 @@ SELECT
 	hdn.display_name AS host_display_name,
 	st.name AS software_title,
 	hvsi.adam_id AS app_store_id,
-	hvsi.command_uuid AS command_uuid
+	hvsi.command_uuid AS command_uuid,
+    hvsi.self_service AS self_service
 FROM
 	host_vpp_software_installs hvsi
 	LEFT OUTER JOIN users u ON hvsi.user_id = u.id
@@ -487,6 +488,7 @@ WHERE
 		UserName        string `db:"user_name"`
 		UserID          uint   `db:"user_id"`
 		UserEmail       string `db:"user_email"`
+		SelfService     bool   `db:"self_service"`
 	}
 
 	listStmt, args, err := sqlx.Named(stmt, map[string]any{
@@ -532,6 +534,7 @@ WHERE
 		SoftwareTitle:   res.SoftwareTitle,
 		AppStoreID:      res.AppStoreID,
 		CommandUUID:     res.CommandUUID,
+		SelfService:     res.SelfService,
 		Status:          status,
 	}
 

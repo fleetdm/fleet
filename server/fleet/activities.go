@@ -1694,12 +1694,13 @@ func (a ActivityAddedAppStoreApp) Documentation() (activity string, details stri
 - "software_title": Name of the App Store app.
 - "app_store_id": ID of the app on the Apple App Store.
 - "platform": Platform of the app (` + "`darwin`, `ios`, or `ipados`" + `).
-- "self_service": App installation can be initiated by dovice owner.
+- "self_service": App installation can be initiated by device owner.
 - "team_name": Name of the team to which this App Store app was added, or ` + "`null`" + ` if it was added to no team.
 - "team_id": ID of the team to which this App Store app was added, or ` + "`null`" + `if it was added to no team.`, `{
   "software_title": "Logic Pro",
   "app_store_id": "1234567",
   "platform": "darwin",
+  "self_service": false,
   "team_name": "Workstations",
   "team_id": 1
 }`
@@ -1739,6 +1740,7 @@ type ActivityInstalledAppStoreApp struct {
 	AppStoreID      string `json:"app_store_id"`
 	CommandUUID     string `json:"command_uuid"`
 	Status          string `json:"status,omitempty"`
+	SelfService     bool   `json:"self_service"`
 }
 
 func (a ActivityInstalledAppStoreApp) HostIDs() []uint {
@@ -1752,11 +1754,13 @@ func (a ActivityInstalledAppStoreApp) ActivityName() string {
 func (a ActivityInstalledAppStoreApp) Documentation() (string, string, string) {
 	return "Generated when an App Store app is installed on a device.", `This activity contains the following fields:
 - host_id: ID of the host on which the app was installed.
+- self_service: App installation was initiated by device owner.
 - host_display_name: Display name of the host.
 - software_title: Name of the App Store app.
 - app_store_id: ID of the app on the Apple App Store.
 - command_uuid: UUID of the MDM command used to install the app.`, `{
   "host_id": 42,
+  "self_service": true,
   "host_display_name": "Anna's MacBook Pro",
   "software_title": "Logic Pro",
   "app_store_id": "1234567",
