@@ -9159,8 +9159,6 @@ OS vulnerability data is currently available for Windows and macOS. For other pl
 }
 ```
 
-## Vulnerabilities
-
 ### Get available App Store apps
 
 Returns the list of App Store (VPP) apps purchased in Apple Business Manager. Apps that are already added to a team won't be returned.
