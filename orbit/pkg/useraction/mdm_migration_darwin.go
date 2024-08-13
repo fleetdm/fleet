@@ -407,7 +407,7 @@ func (m *swiftDialogMDMMigrator) renderMigration() error {
 
 		if !m.props.IsUnmanaged {
 			// show the loading spinner
-			m.renderLoadingSpinner(vers < 15)
+			m.renderLoadingSpinner(vers < 14)
 
 			// send the API call
 			if notifyErr := m.handler.NotifyRemote(); notifyErr != nil {
@@ -438,9 +438,8 @@ func (m *swiftDialogMDMMigrator) renderMigration() error {
 			}
 
 			switch true {
-
-			case vers < 15:
-				if err := m.mrw.SetMigrationFile("pre-sonoma"); err != nil {
+			case vers < 14:
+				if err := m.mrw.SetMigrationFile(constant.MDMMigrationTypePreSonoma); err != nil {
 					log.Error().Str("migration_type", constant.MDMMigrationTypeADE).Err(err).Msg("set migration file")
 				}
 
