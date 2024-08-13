@@ -232,10 +232,12 @@ export default {
       );
 
       if (selectedLabelNames.length > 0) {
-        const labelField = `labels_${
+        const labelFieldName = `labels_${
           data.includeAnyLabels ? "include" : "exclude"
         }_any`;
-        formData.append(labelField, selectedLabelNames.join(","));
+        selectedLabelNames.forEach((labelName) => {
+          formData.append(labelFieldName, labelName);
+        });
       }
     }
 
