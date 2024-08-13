@@ -168,6 +168,13 @@ const routes = (
                   component={OrgSettingsPage}
                 />
                 <Route path="integrations" component={AdminIntegrationsPage} />
+                {/* This redirect is used to handle the old URL for these two
+                pages */}
+                <Redirect
+                  from="integrations/automatic-enrollment"
+                  to="integrations/mdm"
+                />
+                <Redirect from="integrations/vpp" to="integrations/mdm" />
                 <Route
                   path="integrations/:section"
                   component={AdminIntegrationsPage}
