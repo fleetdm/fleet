@@ -61,15 +61,7 @@ var mdmMigrationTemplatePreSonoma = template.Must(template.New("mdmMigrationTemp
 
 Select **Start** and look for this notification in your notification center:` +
 	"\n\n![Image showing MDM migration notification](https://fleetdm.com/images/permanent/mdm-migration-screenshot-notification-2048x480.png)\n\n" +
-	"After you start, this window will popup every 15-20 minutes until you finish.",
-))
-
-var mdmMigrationTemplate = template.Must(template.New("mdmMigrationTemplate").Parse(`
-## Migrate to Fleet
-
-Select **Start** and Remote Management window will appear soon:` +
-	"\n\n![Image showing MDM migration notification](https://fleetdm.com/images/permanent/mdm-migration-sonoma-1500x938.png)\n\n" +
-	"After you start, this window will popup every 15-20 minutes until you finish.",
+	"After you start, this window will popup every 15 minutes until you finish.",
 ))
 
 var mdmManualMigrationTemplate = template.Must(template.New("").Parse(`
@@ -93,6 +85,8 @@ var errorTemplate = template.Must(template.New("").Parse(`
 
 Please contact your IT admin [here]({{ .ContactURL }}).
 `))
+
+var unenrollPreSonoma = "## Migrate to Fleet\nUnenrolling you from your old MDM. This could take 90 seconds...\n\n![Image showing MDM migration notification](https://fleetdm.com/images/permanent/mdm-migration-pre-sonoma-unenroll-1024x500.png)"
 
 var mdmMigrationTemplateOffline = template.Must(template.New("").Parse(`
 ## Migrate to Fleet
@@ -280,12 +274,19 @@ func (m *swiftDialogMDMMigrator) render(message string, flags ...string) (chan s
 	return m.baseDialog.render(flags...)
 }
 
-func (m *swiftDialogMDMMigrator) renderLoadingSpinner() (chan swiftDialogExitCode, chan error) {
-	return m.render("## Migrate to Fleet\nUnenrolling you from your old MDM. This could take 90 seconds...",
+func (m *swiftDialogMDMMigrator) renderLoadingSpinner(preSonoma bool) (chan swiftDialogExitCode, chan error) {
+	body := "## Migrate to Fleet\nUnenrolling you from your old MDM. This could take 90 seconds..."
+	height := "200"
+	if preSonoma {
+		body = unenrollPreSonoma
+		height = "669"
+	}
+
+	return m.render(body,
 		"--button1text", "Start",
 		"--button1disabled",
 		"--quitkey", "x",
-		"--height", "220",
+		"--height", height,
 	)
 }
 
@@ -377,7 +378,13 @@ func (m *swiftDialogMDMMigrator) renderMigration() error {
 
 	log.Debug().Bool("isManualMigration", isManualMigration).Bool("isADEMigration", isADEMigration).Bool("isCurrentlyManuallyEnrolled", isCurrentlyManuallyEnrolled).Str("previousMigrationType", previousMigrationType).Msg("props after assigning")
 
-	message, flags, err := m.getMessageAndFlags(isManualMigration)
+	vers, err := m.getMacOSMajorVersion()
+	if err != nil {
+		// log error for debugging and continue with default template
+		log.Error().Err(err).Msg("getting macOS major version failed: using default migration template")
+	}
+
+	message, flags, err := m.getMessageAndFlags(vers, isManualMigration)
 	if err != nil {
 		return fmt.Errorf("getting mdm migrator message: %w", err)
 	}
@@ -410,7 +417,7 @@ func (m *swiftDialogMDMMigrator) renderMigration() error {
 
 		if !m.props.IsUnmanaged {
 			// show the loading spinner
-			m.renderLoadingSpinner()
+			m.renderLoadingSpinner(vers < 14)
 
 			// send the API call
 			if notifyErr := m.handler.NotifyRemote(); notifyErr != nil {
@@ -440,19 +447,32 @@ func (m *swiftDialogMDMMigrator) renderMigration() error {
 				}
 			}
 
-			if isManualMigration {
+			switch true {
+			case vers < 14:
+				if err := m.mrw.SetMigrationFile(constant.MDMMigrationTypePreSonoma); err != nil {
+					log.Error().Str("migration_type", constant.MDMMigrationTypeADE).Err(err).Msg("set migration file")
+				}
+
+				log.Info().Msg("showing instructions after pre-sonoma unenrollment")
+				if err := m.handler.ShowInstructions(); err != nil {
+					return err
+				}
+
+			case isManualMigration:
 				if err := m.mrw.SetMigrationFile(constant.MDMMigrationTypeManual); err != nil {
 					log.Error().Str("migration_type", constant.MDMMigrationTypeManual).Err(err).Msg("set migration file")
 				}
 
-				log.Info().Msg("showing instructions after unenrollment")
+				log.Info().Msg("showing instructions after manual unenrollment")
 				if err := m.handler.ShowInstructions(); err != nil {
 					return err
 				}
-			} else {
+
+			default:
 				if err := m.mrw.SetMigrationFile(constant.MDMMigrationTypeADE); err != nil {
 					log.Error().Str("migration_type", constant.MDMMigrationTypeADE).Err(err).Msg("set migration file")
 				}
+
 			}
 
 			// close the spinner
@@ -512,20 +532,14 @@ func (m *swiftDialogMDMMigrator) SetProps(props MDMMigratorProps) {
 	m.props = props
 }
 
-func (m *swiftDialogMDMMigrator) getMessageAndFlags(isManualMigration bool) (*bytes.Buffer, []string, error) {
-	vers, err := m.getMacOSMajorVersion()
-	if err != nil {
-		// log error for debugging and continue with default template
-		log.Error().Err(err).Msg("getting macOS major version failed: using default migration template")
-	}
-
+func (m *swiftDialogMDMMigrator) getMessageAndFlags(version int, isManualMigration bool) (*bytes.Buffer, []string, error) {
 	tmpl := mdmADEMigrationTemplate
 	if isManualMigration {
 		tmpl = mdmManualMigrationTemplate
 	}
 
 	height := "669"
-	if vers != 0 && vers < 14 {
+	if version != 0 && version < 15 {
 		height = "440"
 		tmpl = mdmMigrationTemplatePreSonoma
 	}

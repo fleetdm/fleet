@@ -62,6 +62,8 @@ const (
 	MDMMigrationTypeManual = "manual"
 	// MDMMigrationTypeADE indicates that the MDM migration is for an ADE enrolled host.
 	MDMMigrationTypeADE = "ade"
+	// MDMMigrationTypePreSonoma indicates that the MDM migration is for a host on a macOS version < 14.
+	MDMMigrationTypePreSonoma = "pre-sonoma"
 	// MDMMigrationOfflineWatcherInterval is the interval at which the offline watcher checks for
 	// the presence of the migration file.
 	MDMMigrationOfflineWatcherInterval = 3 * time.Minute

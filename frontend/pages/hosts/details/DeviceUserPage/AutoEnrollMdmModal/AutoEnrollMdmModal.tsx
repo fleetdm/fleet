@@ -2,28 +2,16 @@ import React from "react";
 
 import Button from "components/buttons/Button";
 import Modal from "components/Modal";
-import { IDeviceUserResponse } from "interfaces/host";
 
 interface IAutoEnrollMdmModalProps {
-  host: IDeviceUserResponse["host"];
   onCancel: () => void;
 }
 
 const baseClass = "auto-enroll-mdm-modal";
 
 const AutoEnrollMdmModal = ({
-  host: { platform, os_version },
   onCancel,
 }: IAutoEnrollMdmModalProps): JSX.Element => {
-  let isMacOsSonomaOrLater = false;
-  if (platform === "darwin" && os_version.startsWith("macOS ")) {
-    const [major] = os_version
-      .replace("macOS ", "")
-      .split(".")
-      .map((s) => parseInt(s, 10));
-    isMacOsSonomaOrLater = major >= 14;
-  }
-
   return (
     <Modal
       title="Turn on MDM"
@@ -41,18 +29,12 @@ const AutoEnrollMdmModal = ({
             <b>System Settings</b>.
           </li>
           <li>
-            {isMacOsSonomaOrLater ? (
-              <>
-                In the sidebar menu, select <b>Enroll in Remote Management</b>,
-                and select <b>Enroll</b>.
-              </>
-            ) : (
-              <>
-                In the search bar, type “Profiles.” Select <b>Profiles</b>, find
-                and double-click the <b>[Organization name] enrollment</b>{" "}
-                profile.
-              </>
-            )}
+            In the search bar, type “Profiles.” Select <b>Profiles</b>, find and
+            double-click the{" "}
+            <b>
+              [Organization name] <br /> enrollment
+            </b>{" "}
+            profile.
           </li>
           <li>
             Enter your password, and select <b>Enroll</b>.

@@ -223,6 +223,7 @@ func TestIsEligibleForDEPMigration(t *testing.T) {
 		enrolledInThirdPartyMDM bool
 		expected                bool
 		expectedManual          bool
+		hostOS                  string
 	}{
 		{
 			name:                    "Eligible for DEP migration",
@@ -268,6 +269,7 @@ func TestIsEligibleForDEPMigration(t *testing.T) {
 			enrolledInThirdPartyMDM: true,
 			expected:                false,
 			expectedManual:          true,
+			hostOS:                  "macOS 14.5",
 		},
 		{
 			name:                    "Not eligible - DEP assigned and DEP profile failed",
@@ -304,6 +306,17 @@ func TestIsEligibleForDEPMigration(t *testing.T) {
 			enrolledInThirdPartyMDM: true,
 			expected:                false,
 			expectedManual:          true,
+			hostOS:                  "macOS 14.5",
+		},
+		{
+			name:                    "Manual migration ineligible - enrolled in 3rd party, not DEP, but OS version too low",
+			osqueryHostID:           ptr.String("some-id"),
+			depAssignedToFleet:      ptr.Bool(false),
+			depProfileResponse:      "",
+			enrolledInThirdPartyMDM: true,
+			expected:                false,
+			expectedManual:          false,
+			hostOS:                  "macOS 13.9",
 		},
 	}
 
@@ -312,6 +325,7 @@ func TestIsEligibleForDEPMigration(t *testing.T) {
 			host := &Host{
 				OsqueryHostID:      tc.osqueryHostID,
 				DEPAssignedToFleet: tc.depAssignedToFleet,
+				OSVersion:          tc.hostOS,
 			}
 
 			mdmInfo := &HostMDM{
@@ -321,7 +335,9 @@ func TestIsEligibleForDEPMigration(t *testing.T) {
 			}
 
 			require.Equal(t, tc.expected, IsEligibleForDEPMigration(host, mdmInfo, false))
-			require.Equal(t, tc.expectedManual, IsEligibleForManualMigration(host, mdmInfo, false))
+			manual, err := IsEligibleForManualMigration(host, mdmInfo, false)
+			require.NoError(t, err)
+			require.Equal(t, tc.expectedManual, manual)
 		})
 	}
 }
