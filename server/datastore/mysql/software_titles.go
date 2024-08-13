@@ -321,6 +321,30 @@ GROUP BY st.id, package_self_service, package_name, package_version, vpp_app_sel
 	}
 
 	var args []any
+	if opt.VulnerableOnly && (opt.KnownExploit || opt.MinimumCVSS > 0 || opt.MaximumCVSS > 0) {
+		softwareJoin += `
+			INNER JOIN cve_meta cm ON scve.cve = cm.cve
+		`
+		if opt.KnownExploit {
+			softwareJoin += `
+				AND cm.cisa_known_exploit = 1
+			`
+		}
+		if opt.MinimumCVSS > 0 {
+			softwareJoin += `
+				AND cm.cvss_score >= ?
+			`
+			args = append(args, opt.MinimumCVSS)
+		}
+
+		if opt.MaximumCVSS > 0 {
+			softwareJoin += `
+				AND cm.cvss_score <= ?
+			`
+			args = append(args, opt.MaximumCVSS)
+		}
+	}
+
 	if match != "" {
 		additionalWhere = " (st.name LIKE ? OR scve.cve LIKE ?)"
 		match = likePattern(match)

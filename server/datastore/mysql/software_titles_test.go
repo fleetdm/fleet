@@ -30,6 +30,7 @@ func TestSoftwareTitles(t *testing.T) {
 		{"ListSoftwareTitlesAvailableForInstallFilter", testListSoftwareTitlesAvailableForInstallFilter},
 		{"ListSoftwareTitlesAllTeams", testListSoftwareTitlesAllTeams},
 		{"UploadedSoftwareExists", testUploadedSoftwareExists},
+		{"ListSoftwareTitlesVulnerabilityFilters", testListSoftwareTitlesVulnerabilityFilters},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -1282,4 +1283,246 @@ func testUploadedSoftwareExists(t *testing.T, ds *Datastore) {
 	exists, err = ds.UploadedSoftwareExists(ctx, "com.foo.installer2", &tm.ID)
 	require.NoError(t, err)
 	require.True(t, exists)
+}
+
+func testListSoftwareTitlesVulnerabilityFilters(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	host := test.NewHost(t, ds, "host", "", "hostkey", "hostuuid", time.Now())
+
+	software := []fleet.Software{
+		{Name: "chrome", Version: "0.0.1", Source: "apps"},
+		{Name: "chrome", Version: "0.0.3", Source: "apps"},
+		{Name: "safari", Version: "0.0.3", Source: "apps"},
+		{Name: "safari", Version: "0.0.1", Source: "apps"},
+		{Name: "firefox", Version: "0.0.3", Source: "apps"},
+		{Name: "edge", Version: "0.0.3", Source: "apps"},
+		{Name: "brave", Version: "0.0.3", Source: "apps"},
+		{Name: "opera", Version: "0.0.3", Source: "apps"},
+		{Name: "internet explorer", Version: "0.0.3", Source: "apps"},
+	}
+
+	sw, err := ds.UpdateHostSoftware(ctx, host.ID, software)
+	require.NoError(t, err)
+
+	var chrome001 uint
+	var safari001 uint
+	var firefox003 uint
+	var edge003 uint
+	var brave003 uint
+	var opera003 uint
+	for s := range sw.Inserted {
+		switch {
+		case sw.Inserted[s].Name == "chrome" && sw.Inserted[s].Version == "0.0.1":
+			chrome001 = sw.Inserted[s].ID
+		case sw.Inserted[s].Name == "safari" && sw.Inserted[s].Version == "0.0.1":
+			safari001 = sw.Inserted[s].ID
+		case sw.Inserted[s].Name == "firefox" && sw.Inserted[s].Version == "0.0.3":
+			firefox003 = sw.Inserted[s].ID
+		case sw.Inserted[s].Name == "edge" && sw.Inserted[s].Version == "0.0.3":
+			edge003 = sw.Inserted[s].ID
+		case sw.Inserted[s].Name == "brave" && sw.Inserted[s].Version == "0.0.3":
+			brave003 = sw.Inserted[s].ID
+		case sw.Inserted[s].Name == "opera" && sw.Inserted[s].Version == "0.0.3":
+			opera003 = sw.Inserted[s].ID
+		}
+	}
+
+	_, err = ds.InsertSoftwareVulnerability(ctx, fleet.SoftwareVulnerability{
+		SoftwareID: chrome001,
+		CVE:        "CVE-2024-1234",
+	}, fleet.NVDSource)
+	require.NoError(t, err)
+	_, err = ds.InsertSoftwareVulnerability(ctx, fleet.SoftwareVulnerability{
+		SoftwareID: safari001,
+		CVE:        "CVE-2024-1235",
+	}, fleet.NVDSource)
+	require.NoError(t, err)
+	_, err = ds.InsertSoftwareVulnerability(ctx, fleet.SoftwareVulnerability{
+		SoftwareID: firefox003,
+		CVE:        "CVE-2024-1236",
+	}, fleet.NVDSource)
+	require.NoError(t, err)
+	_, err = ds.InsertSoftwareVulnerability(ctx, fleet.SoftwareVulnerability{
+		SoftwareID: edge003,
+		CVE:        "CVE-2024-1237",
+	}, fleet.NVDSource)
+	require.NoError(t, err)
+	_, err = ds.InsertSoftwareVulnerability(ctx, fleet.SoftwareVulnerability{
+		SoftwareID: brave003,
+		CVE:        "CVE-2024-1238",
+	}, fleet.NVDSource)
+	require.NoError(t, err)
+	_, err = ds.InsertSoftwareVulnerability(ctx, fleet.SoftwareVulnerability{
+		SoftwareID: opera003,
+		CVE:        "CVE-2024-1239",
+	}, fleet.NVDSource)
+	require.NoError(t, err)
+
+	err = ds.InsertCVEMeta(ctx, []fleet.CVEMeta{
+		{
+			// chrome
+			CVE:              "CVE-2024-1234",
+			CVSSScore:        ptr.Float64(7.5),
+			CISAKnownExploit: ptr.Bool(true),
+		},
+		{
+			// safari
+			CVE:              "CVE-2024-1235",
+			CVSSScore:        ptr.Float64(7.5),
+			CISAKnownExploit: ptr.Bool(false),
+		},
+		{
+			// firefox
+			CVE:              "CVE-2024-1236",
+			CVSSScore:        ptr.Float64(8.0),
+			CISAKnownExploit: ptr.Bool(true),
+		},
+		{
+			// edge
+			CVE:              "CVE-2024-1237",
+			CVSSScore:        ptr.Float64(8.0),
+			CISAKnownExploit: ptr.Bool(false),
+		},
+		{
+			// brave
+			CVE:              "CVE-2024-1238",
+			CVSSScore:        ptr.Float64(9.0),
+			CISAKnownExploit: ptr.Bool(true),
+		},
+		// CVE-2024-1239 for opera has no CVE Meta
+	})
+	require.NoError(t, err)
+
+	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
+	require.NoError(t, ds.ReconcileSoftwareTitles(ctx))
+	require.NoError(t, ds.SyncHostsSoftwareTitles(ctx, time.Now()))
+
+	globalUser := &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}
+
+	tc := []struct {
+		name           string
+		opts           fleet.SoftwareTitleListOptions
+		expectedTitles []string
+	}{
+		{
+			name: "vulnerable only",
+			opts: fleet.SoftwareTitleListOptions{
+				ListOptions:    fleet.ListOptions{},
+				VulnerableOnly: true,
+			},
+			expectedTitles: []string{"chrome", "safari", "firefox", "edge", "brave", "opera"},
+		},
+		{
+			name: "known exploit true",
+			opts: fleet.SoftwareTitleListOptions{
+				ListOptions:    fleet.ListOptions{},
+				VulnerableOnly: true,
+				KnownExploit:   true,
+			},
+			expectedTitles: []string{"chrome", "firefox", "brave"},
+		},
+		{
+			name: "minimum cvss 8.0",
+			opts: fleet.SoftwareTitleListOptions{
+				ListOptions:    fleet.ListOptions{},
+				VulnerableOnly: true,
+				MinimumCVSS:    8.0,
+			},
+			expectedTitles: []string{"edge", "firefox", "brave"},
+		},
+		{
+			name: "minimum cvss 7.9",
+			opts: fleet.SoftwareTitleListOptions{
+				ListOptions:    fleet.ListOptions{},
+				VulnerableOnly: true,
+				MinimumCVSS:    7.9,
+			},
+			expectedTitles: []string{"edge", "firefox", "brave"},
+		},
+		{
+			name: "minimum cvss 8.0 and known exploit",
+			opts: fleet.SoftwareTitleListOptions{
+				ListOptions:    fleet.ListOptions{},
+				VulnerableOnly: true,
+				MinimumCVSS:    8.0,
+				KnownExploit:   true,
+			},
+			expectedTitles: []string{"firefox", "brave"},
+		},
+		{
+			name: "minimum cvss 7.5 and known exploit",
+			opts: fleet.SoftwareTitleListOptions{
+				ListOptions:    fleet.ListOptions{},
+				VulnerableOnly: true,
+				MinimumCVSS:    7.5,
+				KnownExploit:   true,
+			},
+			expectedTitles: []string{"chrome", "firefox", "brave"},
+		},
+		{
+			name: "maximum cvss 7.5",
+			opts: fleet.SoftwareTitleListOptions{
+				ListOptions:    fleet.ListOptions{},
+				VulnerableOnly: true,
+				MaximumCVSS:    7.5,
+			},
+			expectedTitles: []string{"chrome", "safari"},
+		},
+		{
+			name: "maximum cvss 7.6",
+			opts: fleet.SoftwareTitleListOptions{
+				ListOptions:    fleet.ListOptions{},
+				VulnerableOnly: true,
+				MaximumCVSS:    7.6,
+			},
+			expectedTitles: []string{"chrome", "safari"},
+		},
+		{
+			name: "maximum cvss 7.5 and known exploit",
+			opts: fleet.SoftwareTitleListOptions{
+				ListOptions:    fleet.ListOptions{},
+				VulnerableOnly: true,
+				MaximumCVSS:    7.5,
+				KnownExploit:   true,
+			},
+			expectedTitles: []string{"chrome"},
+		},
+		{
+			name: "minimum cvss 7.5 and maximum cvss 8.0",
+			opts: fleet.SoftwareTitleListOptions{
+				ListOptions:    fleet.ListOptions{},
+				VulnerableOnly: true,
+				MinimumCVSS:    7.5,
+				MaximumCVSS:    8.0,
+			},
+			expectedTitles: []string{"chrome", "safari", "firefox", "edge"},
+		},
+		{
+			name: "minimum cvss 7.5 and maximum cvss 8.0 and known exploit",
+			opts: fleet.SoftwareTitleListOptions{
+				ListOptions:    fleet.ListOptions{},
+				VulnerableOnly: true,
+				MinimumCVSS:    7.5,
+				MaximumCVSS:    8.0,
+				KnownExploit:   true,
+			},
+			expectedTitles: []string{"chrome", "firefox"},
+		},
+	}
+
+	assertTitles := func(t *testing.T, titles []fleet.SoftwareTitleListResult, expectedTitles []string) {
+		t.Helper()
+		require.Len(t, titles, len(expectedTitles))
+		for _, title := range titles {
+			require.Contains(t, expectedTitles, title.Name)
+		}
+	}
+
+	for _, tt := range tc {
+		t.Run(tt.name, func(t *testing.T) {
+			titles, _, _, err := ds.ListSoftwareTitles(ctx, tt.opts, fleet.TeamFilter{User: globalUser})
+			require.NoError(t, err)
+			assertTitles(t, titles, tt.expectedTitles)
+		})
+	}
 }
