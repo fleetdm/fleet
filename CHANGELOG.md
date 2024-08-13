@@ -7,7 +7,6 @@
 - `software` field should NOT be added to NO-TEAM before 4.55.0
 - `software` field is mandatory for NO-TEAM and TEAMs in 4.55.0 and up
 
-
 ### Endpoint operations
 
 - Added support for generating `fleetd` packages for Linux ARM64.
@@ -48,10 +47,14 @@ enrolled into teams (or no team) with disk encryption turned on. Thank you [home
 - Installed software list now includes Linux .deb packages that are 'on hold'.
 - Added a special-case to properly name the Notion .exe Windows installer the same as how it will be reported by osquery post-install.
 - Increased threshold to renew Apple SCEP certificates for MDM enrollments to 180 days.
-### Vulnerability Management
+
+### Vulnerability management
+
 - Fixed CVEs identified as 'Rejected' in NVD not matching against software.
 - Fixed false negative vulnerabilities with IntelliJ IDEA CE and PyCharm CE installed via Homebrew.
+
 ### Bug fixes and improvements
+
 - Dropped support for MySQL 5.7 and raised minimum required to MySQL 8.0.36.
 - Updated software pre-install to use new GitOps format for query.
 - Updated UI tooltips for pending OS settings.
