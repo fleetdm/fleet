@@ -76,7 +76,7 @@ func ABMToken(ctx context.Context, ds fleet.MDMAssetRetriever) (*nanodep_client.
 	assets, err := ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{
 		fleet.MDMAssetABMKey,
 		fleet.MDMAssetABMCert,
-		fleet.MDMAssetABMToken,
+		fleet.MDMAssetABMTokenDeprecated,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("loading ABM assets from the database: %w", err)
@@ -93,7 +93,7 @@ func ABMToken(ctx context.Context, ds fleet.MDMAssetRetriever) (*nanodep_client.
 	}
 
 	return DecryptRawABMToken(
-		assets[fleet.MDMAssetABMToken].Value,
+		assets[fleet.MDMAssetABMTokenDeprecated].Value,
 		leaf,
 		assets[fleet.MDMAssetABMKey].Value,
 	)

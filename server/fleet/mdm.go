@@ -625,9 +625,11 @@ const (
 	// MDMAssetABMCert is the name of the ABM (Apple Business Manager)
 	// private key used to encrypt MDMAssetABMToken
 	MDMAssetABMCert MDMAssetName = "abm_cert"
-	// MDMAssetABMToken is an encrypted JSON file that contains a token
-	// that can be used for the authentication process with the ABM API
-	MDMAssetABMToken MDMAssetName = "abm_token"
+	// MDMAssetABMTokenDeprecated is an encrypted JSON file that contains a token
+	// that can be used for the authentication process with the ABM API.
+	// Deprecated: ABM tokens are now stored in the abm_tokens, they are not in
+	// mdm_config_assets anymore.
+	MDMAssetABMTokenDeprecated MDMAssetName = "abm_token"
 	// MDMAssetSCEPChallenge defines the shared secret used to issue SCEP
 	// certificatges to Apple devices.
 	MDMAssetSCEPChallenge MDMAssetName = "scep_challenge"
