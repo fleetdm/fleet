@@ -82,7 +82,7 @@ WHERE
 
 	// get the current ABM configuration from the app config
 	const getABMCfg = `
-SELECT 
+SELECT
 	json_value->"$.mdm"
 FROM
 	app_config_json
@@ -138,17 +138,17 @@ LIMIT 1
 	const insABM = `
 INSERT INTO abm_tokens
 	(
-		organization_name, 
-		apple_id, 
-		terms_expired, 
-		renew_at, 
+		organization_name,
+		apple_id,
+		terms_expired,
+		renew_at,
 		token,
-		macos_default_team_id, 
-		ios_default_team_id, 
+		macos_default_team_id,
+		ios_default_team_id,
 		ipados_default_team_id
 	)
-VALUES 
-	('', '', ?, '1900-01-01', ?, ?, ?, ?)
+VALUES
+	('', '', ?, DATE('2000-01-01'), ?, ?, ?, ?)
 `
 	res, err := tx.Exec(insABM, abmTermsExpired, token, defaultTeamID, defaultTeamID, defaultTeamID)
 	if err != nil {
@@ -175,9 +175,9 @@ WHERE
 	const updDEP = `
 UPDATE
 	host_dep_assignments
-SET 
+SET
 	abm_token_id = ?
-WHERE 
+WHERE
 	deleted_at IS NULL
 `
 	if _, err = tx.Exec(updDEP, tokenID); err != nil {
