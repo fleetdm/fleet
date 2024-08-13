@@ -325,7 +325,7 @@ GROUP BY st.id, package_self_service, package_name, package_version, vpp_app_sel
 	}
 
 	var args []any
-	if opt.KnownExploit || opt.MinimumCVSS > 0 || opt.MaximumCVSS > 0 {
+	if opt.VulnerableOnly && (opt.KnownExploit || opt.MinimumCVSS > 0 || opt.MaximumCVSS > 0) {
 		softwareJoin += `
 			INNER JOIN cve_meta cm ON scve.cve = cm.cve
 		`
