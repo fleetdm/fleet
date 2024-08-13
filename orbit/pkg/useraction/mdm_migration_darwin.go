@@ -86,14 +86,13 @@ var errorTemplate = template.Must(template.New("").Parse(`
 Please contact your IT admin [here]({{ .ContactURL }}).
 `))
 
-var (
-	unenrollPreSonoma           = "## Migrate to Fleet\nUnenrolling you from your old MDM. This could take 90 seconds...\n\n![Image showing MDM migration notification](https://jve-images-snicket.ngrok.app/pre-sonoma.png)"
-	mdmMigrationTemplateOffline = template.Must(template.New("").Parse(`
+var unenrollPreSonoma = "## Migrate to Fleet\nUnenrolling you from your old MDM. This could take 90 seconds...\n\n![Image showing MDM migration notification](https://fleetdm.com/images/permanent/mdm-migration-pre-sonoma-unenroll-1024x500.png)"
+
+var mdmMigrationTemplateOffline = template.Must(template.New("").Parse(`
 ## Migrate to Fleet
 
 🛜🚫 No internet connection. Please connect to internet to continue.`,
-	))
-)
+))
 
 // baseDialog implements the basic building blocks to render dialogs using
 // swiftDialog.
