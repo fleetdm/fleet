@@ -8474,7 +8474,7 @@ Deletes the session specified by ID. When the user associated with the session n
 - [Add package](#add-package)
 - [List App Store apps](#list-app-store-apps)
 - [Add App Store app](#add-app-store-app)
-- [Install software](#install-software)
+- [Install package or App Store app](#install-package-or-app-store-app)
 - [Get package install result](#get-package-install-result)
 - [Download package](#download-package)
 - [Delete package or App Store app](#delete-package-or-app-store-app)
