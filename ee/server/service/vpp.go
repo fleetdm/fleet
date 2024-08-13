@@ -386,7 +386,7 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 func getVPPAppsMetadata(ctx context.Context, ids []fleet.VPPAppTeam) ([]*fleet.VPPApp, error) {
 	var apps []*fleet.VPPApp
 
-	// Map of adamID to platform.
+	// Map of adamID to platform, then to whether it's available as self-service.
 	var adamIDMap = make(map[string]map[fleet.AppleDevicePlatform]bool)
 	for _, id := range ids {
 		if _, ok := adamIDMap[id.AdamID]; !ok {
