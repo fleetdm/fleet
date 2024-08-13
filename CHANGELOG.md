@@ -2,7 +2,8 @@
 
 **NOTE:** Beginning with v4.55.0, Fleet no longer supports MySQL 5.7 because it has reached [end of life](https://mattermost.com/blog/mysql-5-7-reached-eol-upgrade-to-mysql-8-x-today/#:~:text=In%20October%202023%2C%20MySQL%205.7,to%20upgrade%20to%20MySQL%208.). The minimum version supported is MySQL 8.0.36.
 
-**NOTE:** software field is optional for TEAMs in 4.54.1 and lower
+**NOTE:** Changes to [software field](https://github.com/fleetdm/fleet-gitops/blob/main/teams/workstations.yml#L24) in Gitops:
+software field is optional for TEAMs in 4.54.1 and lower
 software field should NOT be added to NO-TEAM before 4.55.0
 software field is mandatory for NO-TEAM and TEAMs in 4.55.0 and up
 
