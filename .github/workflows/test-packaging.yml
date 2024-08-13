@@ -71,6 +71,10 @@ jobs:
       #   macos-14 runners
       run: |
         brew install docker
+        # The runners come with an old version of python@3.12 that fails to upgrade
+        # when python gets pulled in as a dep through the chain
+        # colima -> lima -> qemu -> glibc -> python@3.12
+        # Force upgrade it for now, remove once the problem is fixed
         brew install --overwrite python@3.12
         brew install colima
         colima start --mount $TMPDIR:w
