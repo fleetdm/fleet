@@ -14,23 +14,24 @@ While Fleet may still function partially or fully with OS versions older than th
 ## Some notes on compatibility
 
 ### Tables
+
 Not all osquery tables are available for every OS. Please check out the [osquery schema](https://fleetdm.com/tables) for detailed information. 
 
 If a table is not available for your host, Fleet will generally handle things behind the scenes for you. 
 
-### M1 Macs
-Fleet's agent (fleetd) generated for MacOS by `fleetctl package` does not include native support for M1 Macs. Some values returned may reflect the information returned by Rosetta rather than the system. For example, a CPU will show up as `i486`. 
+### Macs with Apple silicon
+
+Fleet's agent (fleetd) generated for macOS by `fleetctl package` does not include native support for Macs with Apple silicon. Some values returned may reflect the information returned by Rosetta rather than the system. For example, a CPU will show up as `i486`. 
 
 ### Linux
 
-> Ubuntu Linux:
-> Fleet Desktop currently supports Xorg as X11 server, Wayland is currently not supported.
-> Ubuntu 24.04 comes with Wayland enabled by default. To use X11 instead of Wayland you can set
-> `WaylandEnable=false` in `/etc/gdm3/custom.conf` and reboot.
+Fleet Desktop is supported on Ubuntu and Fedora. 
 
-> Fedora, CentOS 8 and 9 require a [gnome extension](https://extensions.gnome.org/extension/615/appindicator-support/) and Google Chrome for Fleet Desktop. Fleet Desktop is supported on CentOS 8+.
+Fedora requires a [gnome extension](https://extensions.gnome.org/extension/615/appindicator-support/) and Google Chrome for Fleet Desktop.
 
-> The `fleetctl package` command is not supported on DISA-STIG distribution.
+On Ubuntu, Fleet Desktop currently supports Xorg as X11 server, Wayland is currently not supported. Ubuntu 24.04 comes with Wayland enabled by default. To use X11 instead of Wayland you can set `WaylandEnable=false` in `/etc/gdm3/custom.conf` and reboot.
+
+The `fleetctl package` command is not supported on DISA-STIG distribution.
 
 <meta name="pageOrderInSection" value="1200">
 <meta name="description" value="This page contains information about operating systems that are compatible with Fleet's agent (fleetd).">
