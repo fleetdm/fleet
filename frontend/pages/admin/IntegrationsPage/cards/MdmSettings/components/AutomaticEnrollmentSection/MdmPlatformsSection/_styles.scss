@@ -42,39 +42,3 @@
     margin-top: 10px;
   }
 }
-
-.automatic-enrollment-card {
-  margin-top: 0;
-  margin-bottom: $pad-xxlarge;
-  font-size: $x-small;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-
-  h3 {
-    font-size: $x-small;
-    font-weight: $bold;
-    margin: 0 0 $pad-xsmall;
-  }
-
-  p {
-    margin: 0;
-    max-width: 520px;
-
-    span {
-      display: flex;
-      align-items: center;
-      gap: $pad-small;
-    }
-  }
-
-  &__turn-on-mdm {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: $pad-medium;
-
-    .button {
-      height: auto;
-    }
-  }
-}

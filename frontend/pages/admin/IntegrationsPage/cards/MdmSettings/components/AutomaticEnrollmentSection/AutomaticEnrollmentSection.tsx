@@ -34,18 +34,20 @@ const AutomaticEnrollmentSection = ({
 
   return (
     <SettingsSection title="Automatic Enrollment" className={baseClass}>
-      <AppleAutomaticEnrollmentCard
-        viewDetails={navigateToAppleAutomaticEnrollment}
-        turnOn={
-          !config?.mdm.enabled_and_configured
-            ? navigateToApplePushCertSetup
-            : undefined
-        }
-        configured={!!config?.mdm.apple_bm_enabled_and_configured}
-      />
-      <WindowsAutomaticEnrollmentCard
-        viewDetails={navigateToWindowsAutomaticEnrollment}
-      />
+      <div className={`${baseClass}__content`}>
+        <AppleAutomaticEnrollmentCard
+          viewDetails={navigateToAppleAutomaticEnrollment}
+          turnOn={
+            !config?.mdm.enabled_and_configured
+              ? navigateToApplePushCertSetup
+              : undefined
+          }
+          configured={!!config?.mdm.apple_bm_enabled_and_configured}
+        />
+        <WindowsAutomaticEnrollmentCard
+          viewDetails={navigateToWindowsAutomaticEnrollment}
+        />
+      </div>
     </SettingsSection>
   );
 };
