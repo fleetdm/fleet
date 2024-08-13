@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"os"
 	"strings"
 	"time"
@@ -1665,6 +1666,12 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 		return nil
 	}
 
+	const defaultBatchSize = 1000
+	batchSize := defaultBatchSize
+	if ds.testUpsertMDMDesiredProfilesBatchSize > 0 {
+		batchSize = ds.testUpsertMDMDesiredProfilesBatchSize
+	}
+
 	appleMDMProfilesDesiredStateQuery := generateDesiredStateQuery("profile")
 
 	// TODO(mna): the conditions here (and in toRemoveStmt) are subtly different
@@ -1708,18 +1715,30 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 		( hmap.host_uuid IS NOT NULL AND ( hmap.operation_type = ? OR hmap.operation_type IS NULL ) )
 `, fmt.Sprintf(appleMDMProfilesDesiredStateQuery, "h.uuid IN (?)", "h.uuid IN (?)", "h.uuid IN (?)"))
 
-	// TODO: if a very large number (~65K) of host uuids was matched (via
-	// uuids, teams or profile IDs), could result in too many placeholders (not
-	// an immediate concern).
-	stmt, args, err := sqlx.In(toInstallStmt, uuids, uuids, uuids, fleet.MDMOperationTypeRemove)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "building profiles to install statement")
-	}
-
+	totalBatches := int(math.Ceil(float64(len(uuids)) / float64(batchSize)))
 	var wantedProfiles []*fleet.MDMAppleProfilePayload
-	err = sqlx.SelectContext(ctx, tx, &wantedProfiles, stmt, args...)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "bulk set pending profile status execute")
+
+	for i := 0; i < totalBatches; i++ {
+		start := i * batchSize
+		end := start + batchSize
+		if end > len(uuids) {
+			end = len(uuids)
+		}
+
+		batchUUIDs := uuids[start:end]
+
+		stmt, args, err := sqlx.In(toInstallStmt, batchUUIDs, batchUUIDs, batchUUIDs, fleet.MDMOperationTypeRemove)
+		if err != nil {
+			return ctxerr.Wrapf(ctx, err, "building statement to select profiles to install, batch %d of %d", i, totalBatches)
+		}
+
+		var partialResult []*fleet.MDMAppleProfilePayload
+		err = sqlx.SelectContext(ctx, tx, &partialResult, stmt, args...)
+		if err != nil {
+			return ctxerr.Wrapf(ctx, err, "selecting profiles to install, batch %d of %d", i, totalBatches)
+		}
+
+		wantedProfiles = append(wantedProfiles, partialResult...)
 	}
 
 	// Exclude macOS only profiles from iPhones/iPads.
@@ -1756,17 +1775,25 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 		)
 `, fmt.Sprintf(appleMDMProfilesDesiredStateQuery, "h.uuid IN (?)", "h.uuid IN (?)", "h.uuid IN (?)"))
 
-	// TODO: if a very large number (~65K) of host uuids was matched (via
-	// uuids, teams or profile IDs), could result in too many placeholders (not
-	// an immediate concern). Note that uuids are provided twice.
-	stmt, args, err = sqlx.In(toRemoveStmt, uuids, uuids, uuids, uuids, fleet.MDMOperationTypeRemove)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "building profiles to remove statement")
-	}
 	var currentProfiles []*fleet.MDMAppleProfilePayload
-	err = sqlx.SelectContext(ctx, tx, &currentProfiles, stmt, args...)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "fetching profiles to remove")
+	for i := 0; i < totalBatches; i++ {
+		start := i * batchSize
+		end := start + batchSize
+		if end > len(uuids) {
+			end = len(uuids)
+		}
+
+		stmt, args, err := sqlx.In(toRemoveStmt, uuids, uuids, uuids, uuids, fleet.MDMOperationTypeRemove)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "building profiles to remove statement")
+		}
+		var partialResult []*fleet.MDMAppleProfilePayload
+		err = sqlx.SelectContext(ctx, tx, &partialResult, stmt, args...)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "fetching profiles to remove")
+		}
+
+		currentProfiles = append(currentProfiles, partialResult...)
 	}
 
 	if len(wantedProfiles) == 0 && len(currentProfiles) == 0 {
@@ -1833,12 +1860,6 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 		psb        strings.Builder
 		batchCount int
 	)
-
-	const defaultBatchSize = 1000 // results in this times 9 placeholders
-	batchSize := defaultBatchSize
-	if ds.testUpsertMDMDesiredProfilesBatchSize > 0 {
-		batchSize = ds.testUpsertMDMDesiredProfilesBatchSize
-	}
 
 	resetBatch := func() {
 		batchCount = 0
