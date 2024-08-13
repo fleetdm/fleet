@@ -76,7 +76,7 @@ export const getHostSelectStatuses = (isSandboxMode = false) => {
       disabled: false,
       label: "Offline hosts",
       value: "offline",
-      helpText: "Hosts that won’t respond to a live query.",
+      helpText: "Hosts that won't respond to a live query.",
     },
     {
       disabled: false,

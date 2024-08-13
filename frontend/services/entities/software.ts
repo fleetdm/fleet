@@ -13,7 +13,7 @@ import {
   buildQueryStringFromParams,
   convertParamsToSnakeCase,
 } from "utilities/url";
-import { IAddSoftwareFormData } from "pages/SoftwarePage/components/AddPackageForm/AddSoftwareForm";
+import { IAddPackageFormData } from "pages/SoftwarePage/components/AddPackageForm/AddPackageForm";
 
 export interface ISoftwareApiParams {
   page?: number;
@@ -199,7 +199,7 @@ export default {
   },
 
   addSoftwarePackage: (
-    data: IAddSoftwareFormData,
+    data: IAddPackageFormData,
     teamId?: number,
     timeout?: number
   ) => {
@@ -212,11 +212,36 @@ export default {
     const formData = new FormData();
     formData.append("software", data.software);
     formData.append("self_service", data.selfService.toString());
+    formData.append("install_type", data.installType);
     data.installScript && formData.append("install_script", data.installScript);
     data.preInstallCondition &&
       formData.append("pre_install_query", data.preInstallCondition);
     data.postInstallScript &&
       formData.append("post_install_script", data.postInstallScript);
+
+    if (data.useCustomTargets) {
+      // handles when a label has been selected then de-selected
+      const labelNameAcc: string[] = [];
+      const selectedLabelNames = Object.entries(data.selectedLabels).reduce(
+        (acc, [name, isSelected]) => {
+          if (isSelected) {
+            return [...acc, name];
+          }
+          return acc;
+        },
+        labelNameAcc
+      );
+
+      if (selectedLabelNames.length > 0) {
+        const labelFieldName = `labels_${
+          data.includeAnyLabels ? "include" : "exclude"
+        }_any`;
+        selectedLabelNames.forEach((labelName) => {
+          formData.append(labelFieldName, labelName);
+        });
+      }
+    }
+
     teamId && formData.append("team_id", teamId.toString());
 
     return sendRequest(

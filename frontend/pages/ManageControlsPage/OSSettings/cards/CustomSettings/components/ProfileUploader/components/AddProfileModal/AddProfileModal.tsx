@@ -77,7 +77,7 @@ interface IFileDetailsProps {
 
 // TODO: if we reuse this one more time, we should consider moving this
 // into FileUploader as a default preview. Currently we have this in
-// AddSoftwareForm.tsx and here.
+// AddPackageForm.tsx and here.
 const FileDetails = ({ details: { name, platform } }: IFileDetailsProps) => (
   <div className={`${baseClass}__selected-file`}>
     <ProfileGraphic baseClass={baseClass} />

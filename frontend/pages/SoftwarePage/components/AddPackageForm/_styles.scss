@@ -1,4 +1,4 @@
-.add-software-form {
+.add-package-form {
   &__uploading-message {
     display: flex;
     align-items: center;
@@ -18,5 +18,56 @@
 
   &__file-uploader {
     box-sizing: border-box;
+  }
+  &__include-any-toggle-text{
+    color: $ui-fleet-black-75;
+  }
+
+  &__fleet-label-selection {
+    display: flex;
+    max-height: 180px;
+    flex-direction: column;
+    border-radius: $border-radius;
+    border: 1px solid $ui-fleet-black-10;
+    overflow-y: auto;
+  }
+
+  &__fleet-label {
+    display: flex;
+    align-items: center;
+    gap: $pad-xlarge;
+    width: 100%;
+    padding: $pad-small $pad-medium;
+    box-sizing: border-box;
+
+    &:not(:last-child) {
+      border-bottom: 1px solid $ui-fleet-black-10;
+    }
+
+    .form-field--checkbox {
+      width: auto;
+    }
+  }
+
+  &__no-fleet-labels {
+    display: flex;
+    flex-direction: column;
+    min-height: 149px;
+    align-items: center;
+    justify-content: center;
+    gap: $pad-small;
+
+    p {
+      margin: 0;
+    }
+  }
+  .card {
+    box-sizing: border-box;
+  }
+
+  @-moz-document url-prefix() {
+    .Select-control {
+      height: fit-content;
+    }
   }
 }

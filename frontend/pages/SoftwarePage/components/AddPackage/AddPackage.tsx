@@ -1,17 +1,24 @@
 import React, { useContext, useEffect, useState } from "react";
 import { InjectedRouter } from "react-router";
-// import { useQuery } from "react-query";
+import { useQuery } from "react-query";
 
-// import { ILabel } from "interfaces/label";
+import { ILabel } from "interfaces/label";
+import { getErrorReason } from "interfaces/errors";
 
 import PATHS from "router/paths";
 import { NotificationContext } from "context/notification";
 import softwareAPI from "services/entities/software";
-// import labelsAPI, { ILabelsResponse } from "services/entities/labels";
+import labelsAPI, { ILabelsResponse } from "services/entities/labels";
 import { QueryParams, buildQueryStringFromParams } from "utilities/url";
 
+import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
+
+import CustomLink from "components/CustomLink";
+import Spinner from "components/Spinner";
+import DataError from "components/DataError";
+
 import AddPackageForm from "../AddPackageForm";
-import { IAddSoftwareFormData } from "../AddPackageForm/AddSoftwareForm";
+import { IAddPackageFormData } from "../AddPackageForm/AddPackageForm";
 import { getErrorMessage } from "../AddSoftwareModal/helpers";
 
 const baseClass = "add-package";
@@ -64,7 +71,7 @@ const AddPackage = ({
     };
   }, [isUploading]);
 
-  const onAddPackage = async (formData: IAddSoftwareFormData) => {
+  const onAddPackage = async (formData: IAddPackageFormData) => {
     setIsUploading(true);
 
     if (formData.software && formData.software.size > MAX_FILE_SIZE_BYTES) {
@@ -102,6 +109,21 @@ const AddPackage = ({
         `${PATHS.SOFTWARE_TITLES}?${buildQueryStringFromParams(newQueryParams)}`
       );
     } catch (e) {
+      const reason = getErrorReason(e);
+      if (
+        reason.includes("Couldn't add. Fleet couldn't read the version from")
+      ) {
+        renderFlash(
+          "error",
+          `${reason}. ${(
+            <CustomLink
+              newTab
+              url={`${LEARN_MORE_ABOUT_BASE_LINK}/read-package-version`}
+              text="Learn more"
+            />
+          )} `
+        );
+      }
       renderFlash("error", getErrorMessage(e));
     }
 
@@ -109,18 +131,30 @@ const AddPackage = ({
     setIsUploading(false);
   };
 
-  // const {
-  //   data: customLabels,
-  //   isLoading: isLoadingLabels,
-  //   refetch: refetchLabels,
-  // } = useQuery<ILabelsResponse, Error, ILabel[]>(
-  //   ["labels"],
-  //   () => labelsAPI.loadAll(),
-  //   {
-  //     select: (data: ILabelsResponse) =>
-  //       data.labels.filter((label) => label.type === "regular"),
-  //   }
-  // );
+  const {
+    data: customLabels,
+    isLoading: isLoadingLabels,
+    isError: errorLabels,
+  } = useQuery<ILabelsResponse, Error, ILabel[]>(
+    ["labels"],
+    () => labelsAPI.loadAll(),
+    {
+      select: (data: ILabelsResponse) =>
+        data.labels.filter((label) => label.label_type === "regular"),
+    }
+  );
+
+  if (isLoadingLabels) {
+    return <Spinner />;
+  }
+  if (errorLabels) {
+    return (
+      <DataError
+        description="Close this modal and try again."
+        className={`${baseClass}__error`}
+      />
+    );
+  }
 
   return (
     <div className={baseClass}>
@@ -128,6 +162,7 @@ const AddPackage = ({
         isUploading={isUploading}
         onCancel={onExit}
         onSubmit={onAddPackage}
+        customLabels={customLabels}
       />
     </div>
   );

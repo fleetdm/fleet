@@ -72,6 +72,7 @@ export default {
   },
 
   // Label pages
+  LABEL_NEW: `${URL_PREFIX}/labels/new`,
   LABEL_NEW_DYNAMIC: `${URL_PREFIX}/labels/new/dynamic`,
   LABEL_NEW_MANUAL: `${URL_PREFIX}/labels/new/manual`,
   LABEL_EDIT: (labelId: number) => `${URL_PREFIX}/labels/${labelId}`,
@@ -177,7 +178,6 @@ export default {
     return `${URL_PREFIX}/schedule/manage?team_id=${teamId}`;
   },
   MANAGE_POLICIES: `${URL_PREFIX}/policies/manage`,
-  NEW_LABEL: `${URL_PREFIX}/labels/new`,
   NEW_POLICY: `${URL_PREFIX}/policies/new`,
   NEW_QUERY: (teamId?: number) =>
     `${URL_PREFIX}/queries/new${teamId ? `?team_id=${teamId}` : ""}`,

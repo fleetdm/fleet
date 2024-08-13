@@ -60,9 +60,13 @@ export const HOST_STATUS_WEBHOOK_WINDOW_DROPDOWN_OPTIONS: IDropdownOption[] = [
 export const GITHUB_NEW_ISSUE_LINK =
   "https://github.com/fleetdm/fleet/issues/new?assignees=&labels=bug%2C%3Areproduce&template=bug-report.md";
 
-export const SUPPORT_LINK = "https://fleetdm.com/support";
+export const FLEET_WEBSITE_URL = "https://fleetdm.com";
 
-export const CONTACT_FLEET_LINK = "https://fleetdm.com/contact";
+export const SUPPORT_LINK = `${FLEET_WEBSITE_URL}/support`;
+
+export const CONTACT_FLEET_LINK = `${FLEET_WEBSITE_URL}/contact`;
+
+export const LEARN_MORE_ABOUT_BASE_LINK = `${FLEET_WEBSITE_URL}/learn-more-about`;
 
 /**  July 28, 2016 is the date of the initial commit to fleet/fleet. */
 export const INITIAL_FLEET_DATE = "2016-07-28T00:00:00Z";

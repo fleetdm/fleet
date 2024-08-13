@@ -1,22 +1,30 @@
+import React from "react";
+
 import validator from "validator";
+
+import { InstallType } from "interfaces/software";
 
 // @ts-ignore
 import validateQuery from "components/forms/validators/validate_query";
 
-import { IAddSoftwareFormData, IFormValidation } from "./AddSoftwareForm";
+import { IAddPackageFormData, IFormValidation } from "./AddPackageForm";
 
-type IAddSoftwareFormValidatorKey = Exclude<
-  keyof IAddSoftwareFormData,
-  "installScript"
+type IAddPackageFormValidatorKey = Exclude<
+  keyof IAddPackageFormData,
+  | "installScript"
+  | "installType"
+  | "selectedLabels"
+  | "includeAnyLabels"
+  | "useCustomTargets"
 >;
 
-type IMessageFunc = (formData: IAddSoftwareFormData) => string;
+type IMessageFunc = (formData: IAddPackageFormData) => string;
 type IValidationMessage = string | IMessageFunc;
 
 interface IValidation {
   name: string;
   isValid: (
-    formData: IAddSoftwareFormData,
+    formData: IAddPackageFormData,
     enabledPreInstallCondition?: boolean,
     enabledPostInstallScript?: boolean
   ) => boolean;
@@ -27,7 +35,7 @@ interface IValidation {
  *  to determine if a field is valid, and rules for generating an error message.
  */
 const FORM_VALIDATION_CONFIG: Record<
-  IAddSoftwareFormValidatorKey,
+  IAddPackageFormValidatorKey,
   { validations: IValidation[] }
 > = {
   software: {
@@ -43,7 +51,7 @@ const FORM_VALIDATION_CONFIG: Record<
       {
         name: "required",
         isValid: (
-          formData: IAddSoftwareFormData,
+          formData: IAddPackageFormData,
           enabledPreInstallCondition
         ) => {
           if (!enabledPreInstallCondition) {
@@ -107,24 +115,10 @@ const FORM_VALIDATION_CONFIG: Record<
     // no validations related to self service
     validations: [],
   },
-  // IAddSoftwareFormValidatorKey,
-  // { validations: IValidation[] }
-  installType: {
-    // TODO
-    validations: [],
-  },
-  labelsExcludeAny: {
-    // TODO
-    validations: [],
-  },
-  labelsIncludeAny: {
-    // TODO
-    validations: [],
-  },
 };
 
 const getErrorMessage = (
-  formData: IAddSoftwareFormData,
+  formData: IAddPackageFormData,
   message?: IValidationMessage
 ) => {
   if (message === undefined || typeof message === "string") {
@@ -134,7 +128,7 @@ const getErrorMessage = (
 };
 
 export const generateFormValidation = (
-  formData: IAddSoftwareFormData,
+  formData: IAddPackageFormData,
   showingPreInstallCondition: boolean,
   showingPostInstallScript: boolean
 ) => {
@@ -171,5 +165,63 @@ export const generateFormValidation = (
 
   return formValidation;
 };
+
+export const INSTALL_TYPE_OPTIONS = [
+  {
+    label: "Automatic",
+    value: "automatic",
+    helpText: "Install if not installed or an older version is installed.",
+  },
+  {
+    label: "Manual",
+    value: "manual",
+    helpText: "Go to Host details page and manually install on each host.",
+  },
+];
+
+export const LABEL_TARGET_MODES = [
+  {
+    label: "Include any",
+    value: "include",
+  },
+  {
+    label: "Exclude any",
+    value: "exclude",
+  },
+];
+
+export const LABEL_HELP_TEXT_CONFIG: Record<
+  string,
+  Record<InstallType, React.ReactNode>
+> = {
+  include: {
+    automatic: (
+      <>
+        Software will only be installed on hosts that have <b>any</b> of these
+        labels:
+      </>
+    ),
+    manual: (
+      <>
+        Software will only be available for install on hosts that have{" "}
+        <b>any</b> of these labels:
+      </>
+    ),
+  },
+  exclude: {
+    automatic: (
+      <>
+        Software will only be installed on hosts that don&apos;t have <b>any</b>{" "}
+        of these labels:
+      </>
+    ),
+    manual: (
+      <>
+        Software will only be available for install on hosts that don&apos;t
+        have <b>any</b> of these labels:
+      </>
+    ),
+  },
+} as const;
 
 export default generateFormValidation;

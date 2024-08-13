@@ -1,3 +1,8 @@
 .add-package {
   margin-top: $pad-large;
+
+  &__error {
+    margin: $pad-xxxlarge 0;
+  }
+
 }
