@@ -16,7 +16,7 @@ interface ISoftwareFiltersModalProps {
   onSubmit: (vulnFilters: ISoftwareVulnFilters) => void;
   vulnFiltersQueryParams: {
     vulnerable?: boolean;
-    hasKnownExploit?: boolean;
+    exploit?: boolean;
     minCvssScore?: number;
     maxCvssScore?: number;
   };
@@ -75,7 +75,7 @@ const SoftwareFiltersModal = ({
   );
   const [severity, setSeverity] = useState("any");
   const [hasKnownExploit, setHasKnownExploit] = useState(
-    vulnFiltersQueryParams.hasKnownExploit
+    vulnFiltersQueryParams.exploit
   );
   const [minCvssScore, setMinCvssScore] = useState<number | undefined>(
     vulnFiltersQueryParams.minCvssScore
@@ -103,6 +103,7 @@ const SoftwareFiltersModal = ({
       max_cvss_score: maxCvssScore,
     });
   };
+
   const renderSeverityLabel = () => {
     return (
       <TooltipWrapper
@@ -135,7 +136,9 @@ const SoftwareFiltersModal = ({
           disabled={!vulnSoftwareFilterEnabled}
         />
         <Checkbox
-          onChange={(value: boolean) => setHasKnownExploit(value)}
+          onChange={({ value }: { value: boolean }) =>
+            setHasKnownExploit(value)
+          }
           name="hasKnownExploit"
           value={hasKnownExploit}
           parseTarget

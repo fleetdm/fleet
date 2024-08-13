@@ -70,7 +70,7 @@ export const getSoftwareVulnFiltersFromQueryParams = (
 
   return {
     vulnerable: Boolean(vulnerable),
-    hasKnownExploit: Boolean(exploit),
+    exploit: Boolean(exploit),
     minCvssScore: parseQueryValueToNumberOrUndefined(min_cvss_score),
     maxCvssScore: parseQueryValueToNumberOrUndefined(max_cvss_score),
   };
