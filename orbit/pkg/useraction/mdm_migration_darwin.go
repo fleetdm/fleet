@@ -202,8 +202,7 @@ func NewMDMMigrator(path string, frequency time.Duration, handler MDMMigratorHan
 		unenrollmentRetryInterval: defaultUnenrollmentRetryInterval,
 		mrw:                       mrw,
 		fleetURL:                  fleetURL,
-		// TODO: verify buffer size of 1 to allow one Show without blocking?
-		showCh: showCh,
+		showCh:                    showCh,
 	}
 }
 

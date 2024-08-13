@@ -212,7 +212,6 @@ func main() {
 				"swiftDialog",
 				update.SwiftDialogMacOSTarget,
 			)
-
 			mdmMigrator = useraction.NewMDMMigrator(
 				swiftDialogPath,
 				15*time.Minute,
