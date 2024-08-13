@@ -57,7 +57,7 @@
 #  ╔═╝║╣ ╠╦╝║ ║───║ ║ ║║ ║║  ╠═╣  ╚═╗║╣  ║ ║ ║╠═╝
 #  ╚═╝╚═╝╩╚═╚═╝   ╩ ╚═╝╚═╝╚═╝╩ ╩  ╚═╝╚═╝ ╩ ╚═╝╩  
 - industryName: Zero-touch setup
-  description: Zero-touch setup for macOS, iOS/iPadOS (coming soon), and Windows.
+  description: Zero-touch setup for macOS, iOS/iPadOS, and Windows.
   documentationUrl: https://fleetdm.com/docs/using-fleet/mdm-macos-setup-experience
   tier: Premium
   jamfProHasFeature: appleOnly
@@ -66,8 +66,7 @@
   productCategories: [Device management]
   pricingTableCategories: [Device management]
   waysToUse:
-    - description: Zero-touch for iOS/iPadOS is coming soon (2024-07-15).
-    - description: Ship a macOS workstation to the end user's home and have them automatically enroll to Fleet during out-of-the-box setup.
+    - description: Ship a macOS, iOS, or iPadOS device to the end user's home and have them automatically enroll to Fleet during out-of-the-box setup.
     - description: Ship a Windows workstation to the end user's home and have them automatically enroll to Fleet during out-of-the-box setup.
     - description: Customize the out-of-the-box setup experience for your end users.
     - description: Install a bootstrap package to run custom scripts during the setup experience. Store the bootstrap package outside the Fleet database coming soon (2024-09-15) #customer-faltona
@@ -171,13 +170,12 @@
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/13281
     - description: Deploy custom declaration (DDM) profiles on macOS.
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/14550
-    - description: Target profiles to specific hosts using SQL. Exclusions coming soon (2024-07-15) #customer-rosner
+    - description: Target profiles to specific hosts using SQL.
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/17315
     - description: Automatically re-deploy configuration profiles when they're not installed.
-    - description: Deploy configuration profiles on iOS/iPadOS. Coming soon (2024-07-15).
+    - description: Deploy configuration profiles on iOS/iPadOS.
     - description: See a list of the upcoming MDM commands and scripts in unified queue. Coming soon (2024-07-15)
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/15920
-    - description: MDM commands for iOS/iPadOS are coming soon (2024-07-15).
     - description: Send MDM commands to tell end users to update their OS.
       moreInfoUrl: https://developer.apple.com/documentation/devicemanagement/schedule_an_os_update
   productCategories: [Device management]
@@ -222,7 +220,7 @@
 #  ╠═╣╠═╝╠═╝║  ║║  ╠═╣ ║ ║║ ║║║║   ║║║╣ ╠═╝║  ║ ║╚╦╝║║║║╣ ║║║ ║ 
 #  ╩ ╩╩  ╩  ╩═╝╩╚═╝╩ ╩ ╩ ╩╚═╝╝╚╝  ═╩╝╚═╝╩  ╩═╝╚═╝ ╩ ╩ ╩╚═╝╝╚╝ ╩ 
 - industryName: Application deployment
-  description: Deploy applications and security agents on macOS, iOS/iPadOS, Linux, Windows, and Android (coming soon) devices. Additionally, install macOS and iOS/iPadOS apps from the App Store (coming soon).
+  description: Deploy applications and security agents on macOS, iOS/iPadOS, Linux, Windows, and Android (coming soon) devices. Additionally, install macOS and iOS/iPadOS apps from the App Store.
   tier: Premium
   jamfProHasFeature: appleOnly
   jamfProtectHasFeature: no
@@ -235,10 +233,6 @@
    - description: Easily configure and install SentinelOne, Crowdstrike, and other security tools.
      moreInfoUrl: https://github.com/fleetdm/fleet/issues/14921 
    - description: Offer licenses for Photoshop and other App Sore apps for your end users.
-   - description: macOS coming soon (2024-07-15). #customer-rosner
-     moreInfoUrl: https://github.com/fleetdm/fleet/issues/18867
-   - description: iOS/iPadOS coming soon (2024-08-11).
-     moreInfoUrl: https://github.com/fleetdm/fleet/issues/14899
 #  
 #  ╔═╗╔═╗╦  ╔═╗  ╔═╗╔═╗╦═╗╦  ╦╦╔═╗╔═╗  ╔═╗╔═╗╔═╗╦  ╦╔═╗╔═╗╔╦╗╦╔═╗╔╗╔  ╦╔╗╔╔═╗╔╦╗╔═╗╦  ╦  ╔═╗╔╦╗╦╔═╗╔╗╔                                   
 #  ╚═╗║╣ ║  ╠╣   ╚═╗║╣ ╠╦╝╚╗╔╝║║  ║╣   ╠═╣╠═╝╠═╝║  ║║  ╠═╣ ║ ║║ ║║║║  ║║║║╚═╗ ║ ╠═╣║  ║  ╠═╣ ║ ║║ ║║║║                                   
