@@ -253,7 +253,10 @@ const AddPackageForm = ({
     [setIncludeAnyLabels]
   );
 
-  const isSubmitDisabled = !formValidation.isValid;
+  const noRequiredLabelTargets =
+    useCustomTargets && !Object.values(formData.selectedLabels).some(Boolean);
+
+  const isSubmitDisabled = !formValidation.isValid || noRequiredLabelTargets;
 
   const renderLabels = () => (
     <div className={`${baseClass}__fleet-label-selection`}>
