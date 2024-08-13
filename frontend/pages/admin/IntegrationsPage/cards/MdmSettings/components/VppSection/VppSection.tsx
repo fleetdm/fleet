@@ -24,10 +24,6 @@ interface IVppCardProps {
 }
 
 const VppCard = ({ isAppleMdmOn, isVppOn, router }: IVppCardProps) => {
-  const nagivateToMdm = () => {
-    router.push(PATHS.ADMIN_INTEGRATIONS_MDM);
-  };
-
   const navigateToVppSetup = () => {
     router.push(PATHS.ADMIN_INTEGRATIONS_VPP_SETUP);
   };
@@ -41,12 +37,10 @@ const VppCard = ({ isAppleMdmOn, isVppOn, router }: IVppCardProps) => {
           iOS, iPadOS) MDM.
         </p>
       </div>
-      <Button onClick={nagivateToMdm} variant="text-link">
-        Turn on MDM
-      </Button>
     </div>
   );
-  const isOnContent = (
+
+  const isVppOnContent = (
     <div className={`${baseClass}__vpp-on-content`}>
       <p>
         <span>
@@ -61,17 +55,17 @@ const VppCard = ({ isAppleMdmOn, isVppOn, router }: IVppCardProps) => {
     </div>
   );
 
-  const isOffContent = (
+  const isVppOffContent = (
     <div className={`${baseClass}__vpp-off-content`}>
       <div>
         <h3>Volume Purchasing Program (VPP)</h3>
         <p>
-          Install apps from Apple&apos;s App Store purchased through Apple
-          Business Manager.
+          Add a VPP connection to install Apple App Store apps purchased through
+          Apple Business Manager.
         </p>
       </div>
       <Button onClick={navigateToVppSetup} variant="brand">
-        Enable
+        Add VPP
       </Button>
     </div>
   );
@@ -81,7 +75,7 @@ const VppCard = ({ isAppleMdmOn, isVppOn, router }: IVppCardProps) => {
       return appleMdmDiabledContent;
     }
 
-    return isVppOn ? isOnContent : isOffContent;
+    return isVppOn ? isVppOnContent : isVppOffContent;
   };
 
   return (
