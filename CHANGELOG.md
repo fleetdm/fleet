@@ -8,7 +8,7 @@
 - `software` field is mandatory for NO-TEAM and TEAMs in 4.55.0 and up
 
 
-### Endpoint Operations
+### Endpoint operations
 
 - Added support for generating `fleetd` packages for Linux ARM64.
 - Added new `fleetctl package` --arch flag.
