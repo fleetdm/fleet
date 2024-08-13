@@ -70,6 +70,7 @@ jobs:
       # - colima is pre-installed in macos-12 runners, but not in macos-13 or
       #   macos-14 runners
       run: |
+        rm /usr/local/bin/2to3
         brew install docker colima
         colima start --mount $TMPDIR:w
 
