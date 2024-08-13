@@ -2,15 +2,16 @@ import React from "react";
 
 import validator from "validator";
 
+import { InstallType } from "interfaces/software";
+
 // @ts-ignore
 import validateQuery from "components/forms/validators/validate_query";
 
 import { IAddPackageFormData, IFormValidation } from "./AddPackageForm";
-import { InstallType } from "interfaces/software";
 
 type IAddPackageFormValidatorKey = Exclude<
   keyof IAddPackageFormData,
-  "installScript"
+  "installScript" | "installType" | "selectedLabels"
 >;
 
 type IMessageFunc = (formData: IAddPackageFormData) => string;
@@ -108,18 +109,6 @@ const FORM_VALIDATION_CONFIG: Record<
   },
   selfService: {
     // no validations related to self service
-    validations: [],
-  },
-  installType: {
-    // no validations related to install type
-    validations: [],
-  },
-  labelsExcludeAny: {
-    // TODO
-    validations: [],
-  },
-  labelsIncludeAny: {
-    // TODO
     validations: [],
   },
 };

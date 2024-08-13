@@ -1,4 +1,4 @@
-import React, { useContext, useState } from "react";
+import React, { useCallback, useContext, useState } from "react";
 
 import PATHS from "router/paths";
 
@@ -6,7 +6,7 @@ import { NotificationContext } from "context/notification";
 import { getFileDetails } from "utilities/file/fileUtils";
 import getInstallScript from "utilities/software_install_scripts";
 
-import { ILabel, ILabelIdentifier } from "interfaces/label";
+import { ILabel } from "interfaces/label";
 import { InstallType } from "interfaces/software";
 
 // @ts-ignore
@@ -46,17 +46,17 @@ const UploadingSoftware = () => {
 const NoLabelsCard = () => {
   return (
     <Card borderRadiusSize="medium">
-      <div className={`${baseClass}__no-labels`}>
-        <p className={`${baseClass}__no-labels-title`}>
+      <div className={`${baseClass}__no-fleet-labels`}>
+        <p className={`${baseClass}__no-fleet-labels-title`}>
           <b>No labels exist in Fleet</b>
         </p>
-        <p className={`${baseClass}__no-labels-description`}>
+        <p className={`${baseClass}__no-fleet-labels-description`}>
           Add label to target specific hosts.
         </p>
         <CustomLink
           url={PATHS.LABEL_NEW}
           text="Add label"
-          className={`${baseClass}__add-label-link`}
+          className={`${baseClass}__add-fleet-label-link`}
         />
       </div>
     </Card>
@@ -69,7 +69,7 @@ export interface IAddPackageFormData {
   postInstallScript?: string;
   selfService: boolean;
   installType: InstallType;
-  selectedLabels: ILabelIdentifier[];
+  selectedLabels: Record<string, boolean>; // label_name: isSelected
 }
 
 export interface IFormValidation {
@@ -78,10 +78,6 @@ export interface IFormValidation {
   preInstallCondition?: { isValid: boolean; message?: string };
   postInstallScript?: { isValid: boolean; message?: string };
   selfService?: { isValid: boolean };
-  // TODO - confirm
-  installType?: { isValid: boolean };
-  // TODO - confirm
-  selectedLabels?: { isValid: boolean };
 }
 
 interface IAddPackageFormProps {
@@ -111,7 +107,7 @@ const AddPackageForm = ({
     postInstallScript: undefined,
     selfService: false,
     installType: "manual",
-    selectedLabels: [],
+    selectedLabels: {},
   });
   const [formValidation, setFormValidation] = useState<IFormValidation>({
     isValid: false,
@@ -151,98 +147,136 @@ const AddPackageForm = ({
     onSubmit(formData, includeAnyLabels);
   };
 
-  const onTogglePreInstallConditionCheckbox = (value: boolean) => {
-    const newData = { ...formData, preInstallCondition: undefined };
-    setShowPreInstallCondition(value);
-    setFormData(newData);
-    setFormValidation(
-      generateFormValidation(newData, value, showPostInstallScript)
-    );
-  };
+  const onUpdateSelectedLabels = useCallback(
+    ({ name, value }: { name: string; value: boolean }) => {
+      const newSelectedLabels = { ...formData.selectedLabels, [name]: value };
+      setFormData({ ...formData, selectedLabels: newSelectedLabels });
+    },
+    [formData]
+  );
 
-  const onTogglePostInstallScriptCheckbox = (value: boolean) => {
-    const newData = { ...formData, postInstallScript: undefined };
-    setShowPostInstallScript(value);
-    setFormData(newData);
-    setFormValidation(
-      generateFormValidation(newData, showPreInstallCondition, value)
-    );
-  };
+  const onTogglePreInstallConditionCheckbox = useCallback(
+    (value: boolean) => {
+      const newData = { ...formData, preInstallCondition: undefined };
+      setShowPreInstallCondition(value);
+      setFormData(newData);
+      setFormValidation(
+        generateFormValidation(newData, value, showPostInstallScript)
+      );
+    },
+    [formData, showPostInstallScript]
+  );
 
-  const onChangeInstallScript = (value: string) => {
-    setFormData({ ...formData, installScript: value });
-  };
+  const onTogglePostInstallScriptCheckbox = useCallback(
+    (value: boolean) => {
+      const newData = { ...formData, postInstallScript: undefined };
+      setShowPostInstallScript(value);
+      setFormData(newData);
+      setFormValidation(
+        generateFormValidation(newData, showPreInstallCondition, value)
+      );
+    },
+    [formData, showPreInstallCondition]
+  );
 
-  const onChangePreInstallCondition = (value?: string) => {
-    const newData = { ...formData, preInstallCondition: value };
-    setFormData(newData);
-    setFormValidation(
-      generateFormValidation(
-        newData,
-        showPreInstallCondition,
-        showPostInstallScript
-      )
-    );
-  };
+  const onChangeInstallScript = useCallback(
+    (value: string) => {
+      setFormData({ ...formData, installScript: value });
+    },
+    [formData]
+  );
 
-  const onChangePostInstallScript = (value?: string) => {
-    const newData = { ...formData, postInstallScript: value };
-    setFormData(newData);
-    setFormValidation(
-      generateFormValidation(
-        newData,
-        showPreInstallCondition,
-        showPostInstallScript
-      )
-    );
-  };
+  const onChangePreInstallCondition = useCallback(
+    (value?: string) => {
+      const newData = { ...formData, preInstallCondition: value };
+      setFormData(newData);
+      setFormValidation(
+        generateFormValidation(
+          newData,
+          showPreInstallCondition,
+          showPostInstallScript
+        )
+      );
+    },
+    [formData, showPostInstallScript, showPreInstallCondition]
+  );
 
-  const onChangeInstallType = (value: InstallType) => {
-    const newData = { ...formData, installType: value };
-    setFormData(newData);
-  };
-  const onToggleSelfServiceCheckbox = (value: boolean) => {
-    const newData = { ...formData, selfService: value };
-    setFormData(newData);
-    setFormValidation(
-      generateFormValidation(
-        newData,
-        showPreInstallCondition,
-        showPostInstallScript
-      )
-    );
-  };
+  const onChangePostInstallScript = useCallback(
+    (value?: string) => {
+      const newData = { ...formData, postInstallScript: value };
+      setFormData(newData);
+      setFormValidation(
+        generateFormValidation(
+          newData,
+          showPreInstallCondition,
+          showPostInstallScript
+        )
+      );
+    },
+    [formData, showPostInstallScript, showPreInstallCondition]
+  );
 
-  const onChangeTargets = (val: string) => {
-    setUseCustomTargets(val === "custom");
-  };
+  const onChangeInstallType = useCallback(
+    (value: InstallType) => {
+      const newData = { ...formData, installType: value };
+      setFormData(newData);
+    },
+    [formData]
+  );
 
-  const onChangeLabelTargetMode = (val: string) => {
-    setIncludeAnyLabels(val === "include");
-  };
+  const onToggleSelfServiceCheckbox = useCallback(
+    (value: boolean) => {
+      const newData = { ...formData, selfService: value };
+      setFormData(newData);
+      setFormValidation(
+        generateFormValidation(
+          newData,
+          showPreInstallCondition,
+          showPostInstallScript
+        )
+      );
+    },
+    [formData, showPostInstallScript, showPreInstallCondition]
+  );
+
+  const onChangeTargets = useCallback(
+    (val: string) => {
+      setUseCustomTargets(val === "custom");
+    },
+    [setUseCustomTargets]
+  );
+
+  const onChangeLabelTargetMode = useCallback(
+    (val: string) => {
+      setIncludeAnyLabels(val === "include");
+    },
+    [setIncludeAnyLabels]
+  );
 
   const isSubmitDisabled = !formValidation.isValid;
 
-  const renderLabels = () =>
-    customLabels?.map((label) => (
-      <div className={`${baseClass}__label`} key={label.name}>
-        <Checkbox
-          className={`${baseClass}__checkbox`}
-          name={label.name}
-          value={!!selectedLabels[label.name]}
-          onChange={updateSelectedLabels}
-          parseTarget
-        />
-        <div className={`${baseClass}__label-name`}>{label.name}</div>
-      </div>
-    ));
+  const renderLabels = () => (
+    <div className={`${baseClass}__fleet-label-selection`}>
+      {customLabels?.map((label) => (
+        <div className={`${baseClass}__fleet-label`} key={label.name}>
+          <Checkbox
+            className={`${baseClass}__checkbox`}
+            name={label.name}
+            value={!!formData.selectedLabels[label.name]}
+            onChange={onUpdateSelectedLabels}
+            parseTarget
+          />
+          <div className={`${baseClass}__fleet-label-name`}>{label.name}</div>
+        </div>
+      ))}
+    </div>
+  );
 
   const renderLabelsSection = () => {
     if (!customLabels?.length) {
       return <NoLabelsCard />;
     }
     return (
-      // <div className={`${baseClass}__custom-label-chooser`}>
       <>
         <Dropdown
           value={includeAnyLabels ? "include" : "exclude"}
@@ -250,16 +284,15 @@ const AddPackageForm = ({
           searchable={false}
           onChange={onChangeLabelTargetMode}
         />
-        <div>
+        <div className={`${baseClass}__include-any-toggle-text`}>
           {
             LABEL_HELP_TEXT_CONFIG[includeAnyLabels ? "include" : "exclude"][
               formData.installType
             ]
           }
         </div>
-        <div>{renderLabels()}</div>
+        {renderLabels()}
       </>
-      // </div>
     );
   };
 
