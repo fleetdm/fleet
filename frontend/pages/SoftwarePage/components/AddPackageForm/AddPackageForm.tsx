@@ -65,12 +65,13 @@ const NoLabelsCard = () => {
 export interface IAddPackageFormData {
   software: File | null;
   installScript: string;
-  preInstallCondition?: string;
-  postInstallScript?: string;
-  selfService: boolean;
   installType: InstallType;
+  selfService: boolean;
+  useCustomTargets: boolean;
   includeAnyLabels: boolean;
   selectedLabels: Record<string, boolean>; // label_name: isSelected
+  preInstallCondition?: string;
+  postInstallScript?: string;
 }
 
 export interface IFormValidation {
@@ -98,13 +99,13 @@ const AddPackageForm = ({
 
   const [showPreInstallCondition, setShowPreInstallCondition] = useState(false);
   const [showPostInstallScript, setShowPostInstallScript] = useState(false);
-  const [useCustomTargets, setUseCustomTargets] = useState(false);
   const [formData, setFormData] = useState<IAddPackageFormData>({
     software: null,
     installScript: "",
     preInstallCondition: undefined,
     postInstallScript: undefined,
     selfService: false,
+    useCustomTargets: false,
     installType: "manual",
     selectedLabels: {},
     includeAnyLabels: true,
@@ -239,11 +240,12 @@ const AddPackageForm = ({
     [formData, showPostInstallScript, showPreInstallCondition]
   );
 
-  const onChangeTargets = useCallback(
+  const onChangeUseCustomTargets = useCallback(
     (val: string) => {
-      setUseCustomTargets(val === "custom");
+      const newData = { ...formData, useCustomTargets: val === "custom" };
+      setFormData(newData);
     },
-    [setUseCustomTargets]
+    [formData]
   );
 
   const onChangeLabelTargetMode = useCallback(
@@ -254,7 +256,8 @@ const AddPackageForm = ({
   );
 
   const noRequiredLabelTargets =
-    useCustomTargets && !Object.values(formData.selectedLabels).some(Boolean);
+    formData.useCustomTargets &&
+    !Object.values(formData.selectedLabels).some(Boolean);
 
   const isSubmitDisabled = !formValidation.isValid || noRequiredLabelTargets;
 
@@ -347,20 +350,20 @@ const AddPackageForm = ({
               className={`${baseClass}__radio-input`}
               label="All hosts"
               id="all-hosts-target"
-              checked={!useCustomTargets}
+              checked={!formData.useCustomTargets}
               value="all"
-              onChange={onChangeTargets}
+              onChange={onChangeUseCustomTargets}
             />
             <Radio
               className={`${baseClass}__radio-input`}
               label="Custom"
               id="custom-target"
-              checked={useCustomTargets}
+              checked={formData.useCustomTargets}
               value="custom"
-              onChange={onChangeTargets}
+              onChange={onChangeUseCustomTargets}
             />
           </div>
-          {useCustomTargets && renderLabelsSection()}
+          {formData.useCustomTargets && renderLabelsSection()}
           <AddPackageAdvancedOptions
             errors={{
               preInstallCondition: formValidation.preInstallCondition?.message,

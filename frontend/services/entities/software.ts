@@ -218,24 +218,27 @@ export default {
     data.postInstallScript &&
       formData.append("post_install_script", data.postInstallScript);
 
-    // handles when a label has been selected then de-selected
-    const labelNameAcc: string[] = [];
-    const selectedLabelNames = Object.entries(data.selectedLabels).reduce(
-      (acc, [name, isSelected]) => {
-        if (isSelected) {
-          return [...acc, name];
-        }
-        return acc;
-      },
-      labelNameAcc
-    );
+    if (data.useCustomTargets) {
+      // handles when a label has been selected then de-selected
+      const labelNameAcc: string[] = [];
+      const selectedLabelNames = Object.entries(data.selectedLabels).reduce(
+        (acc, [name, isSelected]) => {
+          if (isSelected) {
+            return [...acc, name];
+          }
+          return acc;
+        },
+        labelNameAcc
+      );
 
-    if (selectedLabelNames.length > 0) {
-      const labelField = `labels_${
-        data.includeAnyLabels ? "include" : "exclude"
-      }_any`;
-      formData.append(labelField, selectedLabelNames.join(","));
+      if (selectedLabelNames.length > 0) {
+        const labelField = `labels_${
+          data.includeAnyLabels ? "include" : "exclude"
+        }_any`;
+        formData.append(labelField, selectedLabelNames.join(","));
+      }
     }
+
     teamId && formData.append("team_id", teamId.toString());
 
     return sendRequest(
