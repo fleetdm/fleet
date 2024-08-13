@@ -18,6 +18,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Masterminds/semver"
 	"github.com/docker/go-units"
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
@@ -45,7 +46,6 @@ import (
 	"github.com/go-kit/log/level"
 	"github.com/google/uuid"
 	"github.com/groob/plist"
-	"golang.org/x/mod/semver"
 )
 
 type getMDMAppleCommandResultsRequest struct {
@@ -1310,7 +1310,7 @@ func (mdmAppleEnrollRequest) DecodeRequest(ctx context.Context, r *http.Request)
 	di := r.Header.Get("x-apple-aspen-deviceinfo")
 	if di != "" {
 		// extract x-apple-aspen-deviceinfo custom header from request
-		parsed, err := apple_mdm.ParseDeviceinfo(di, true)
+		parsed, err := apple_mdm.ParseDeviceinfo(di, false) // FIXME: use verify=true when we have better parsing for various Apple certs (https://github.com/fleetdm/fleet/issues/20879)
 		if err != nil {
 			return nil, &fleet.BadRequestError{
 				Message: "unable to parse deviceinfo header",
@@ -1470,23 +1470,28 @@ func (svc *Service) CheckMDMAppleEnrollmentWithMinimumOSVersion(ctx context.Cont
 	// 	return nil, nil
 	// }
 
-	// want, err := semver.NewVersion(settings.MinimumVersion.Value)
-	// if err != nil {
-	// 	return nil, ctxerr.Wrap(ctx, err, "parsing minimum version")
-	// }
-
-	// got, err := semver.NewVersion(m.OSVersion)
-	// if err != nil {
-	// 	return nil, ctxerr.Wrap(ctx, err, "parsing device os version")
-	// }
+	level.Debug(svc.logger).Log("msg", "checking os version", "machine_info", fmt.Sprintf("%+v", *m))
 
 	latest, err := gdmf.GetLatestOSVersion(apple_mdm.MachineInfo(*m))
 	if err != nil {
 		// log and continue
-		level.Error(svc.logger).Log("msg", "no match on apple software lookup service, skipping os version check", "machine_info", *m, "err", err)
+		level.Error(svc.logger).Log("msg", "no match on apple software lookup service, skipping os version check", "machine_info", fmt.Sprintf("%+v", *m), "err", err)
+		return nil, nil
 	}
 
-	if semver.Compare(m.OSVersion, latest.ProductVersion) < 0 {
+	want, err := semver.NewVersion(latest.ProductVersion)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "parsing latest version")
+	}
+
+	got, err := semver.NewVersion(m.OSVersion)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "parsing device os version")
+	}
+
+	if got.LessThan(want) {
+		level.Debug(svc.logger).Log("msg", "checking os version, needs update", "latest", latest.ProductVersion, "build", latest.Build, "got", m.OSVersion)
+
 		return fleet.NewMDMAppleSoftwareUpdateRequired(fleet.MDMAppleSoftwareUpdateAsset{
 			ProductVersion: latest.ProductVersion,
 			Build:          latest.Build,

@@ -10,28 +10,15 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Masterminds/semver"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/pkg/retry"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
-	"golang.org/x/mod/semver"
 )
 
 const baseURL = "https://gdmf.apple.com/v2/pmv"
 
-type AssetMetadata struct {
-	BundleID         string   `json:"bundleId"`
-	ArtworkURL       string   `json:"artworkUrl512"`
-	Version          string   `json:"version"`
-	TrackName        string   `json:"trackName"`
-	TrackID          uint     `json:"trackId"`
-	SupportedDevices []string `json:"supportedDevices"`
-}
-
-type AssetMetadataFilter struct {
-	Entity string
-}
-
-// Asset represents the metadata for an asset in the Apple Software Update API[1].
+// Asset represents the metadata for an asset in the Apple Software Lookup Service[1][2].
 // Example:
 //
 //	{
@@ -47,6 +34,8 @@ type AssetMetadataFilter struct {
 //	}
 //
 // [1]: http://gdmf.apple.com/v2/pmv
+// [2]:
+// https://support.apple.com/guide/deployment/use-mdm-to-deploy-software-updates-depafd2fad80/web
 type Asset struct {
 	ProductVersion   string   `json:"ProductVersion"`
 	Build            string   `json:"Build"`
@@ -55,8 +44,9 @@ type Asset struct {
 	SupportedDevices []string `json:"SupportedDevices"`
 }
 
-// AssetSets represents the metadata for a set of assets in the Apple Software Update API[1].
+// AssetSets represents the metadata for a set of assets in the Apple Software Lookup Service[1][2].
 // [1]: http://gdmf.apple.com/v2/pmv
+// [2]: https://support.apple.com/guide/deployment/use-mdm-to-deploy-software-updates-depafd2fad80/web
 type AssetSets struct {
 	IOS   []Asset `json:"iOS"`
 	MacOS []Asset `json:"macOS"`
@@ -64,33 +54,39 @@ type AssetSets struct {
 	// XROS     []Asset `json:"xrOS"`    // Fleet doesn't support xrOS yet
 }
 
-// APIResponse represents the response from the Apple Software Update API[1].
+// APIResponse represents the response from the Apple Software Lookup Service[1][2].
 // [1]: http://gdmf.apple.com/v2/pmv
+// [2]: https://support.apple.com/guide/deployment/use-mdm-to-deploy-software-updates-depafd2fad80/web
 type APIResponse struct {
 	PublicAssetSets AssetSets `json:"PublicAssetSets"`
 	AssetSets       AssetSets `json:"AssetSets"`
 	// PublicRapidSecurityResponses interface{} `json:"PublicRapidSecurityResponses"` // Fleet doesn't support PublicRapidSecurityResponses yet
 }
 
+// GetLatestOSVersion returns the latest OS version for the given device. The device is matched
+// against the Apple Software Update Lookup Service[1][2] to find the latest version. If no matching
+// asset is found, an error is returned.
+// [1]: http://gdmf.apple.com/v2/pmv
+// [2]: https://support.apple.com/guide/deployment/use-mdm-to-deploy-software-updates-depafd2fad80/web
 func GetLatestOSVersion(device apple_mdm.MachineInfo) (*Asset, error) {
 	r, err := GetAssetMetadata()
 	if err != nil {
 		return nil, fmt.Errorf("retrieving asset metadata: %w", err)
 	}
 
-	assetSet := r.PublicAssetSets.MacOS // Default to public asset set; note that if the device is not macOS, iPhone, or iPad, we'll fail to match the supported device and return an error below
+	assetSet := r.PublicAssetSets.MacOS // default to public asset set; note that if the device is not macOS, iPhone, or iPad, we'll fail to match the supported device and return an error below
 	if strings.HasPrefix(device.Product, "iPhone") || strings.HasPrefix(device.Product, "iPad") {
 		assetSet = r.PublicAssetSets.IOS
 	}
 	latestIdx := -1
-	for i, a := range assetSet {
-		for _, sd := range a.SupportedDevices {
-			if sd == device.Product || sd == device.SoftwareUpdateDeviceID {
+	for i, s := range assetSet {
+		for _, d := range s.SupportedDevices {
+			if d == device.Product || d == device.SoftwareUpdateDeviceID {
 				if latestIdx == -1 {
-					latestIdx = i // first supported device found, update the index
+					latestIdx = i // first match found, update the index
 					continue
 				}
-				if semver.Compare(a.ProductVersion, assetSet[latestIdx].ProductVersion) > 0 {
+				if compareVersions(assetSet[latestIdx].ProductVersion, s.ProductVersion) < 0 {
 					latestIdx = i // found a later version, update the index
 				}
 			}
@@ -102,12 +98,34 @@ func GetLatestOSVersion(device apple_mdm.MachineInfo) (*Asset, error) {
 	return &assetSet[latestIdx], nil
 }
 
+// compareVersions returns an integer comparing two versions according to semantic version
+// precedence. The result will be 0 if a == b, -1 if a < b, or +1 if a > b.
+// An invalid semantic version string is considered less than a valid one. All invalid semantic
+// version strings compare equal to each other.
+func compareVersions(a string, b string) int {
+	verA, errA := semver.NewVersion(a)
+	verB, errB := semver.NewVersion(b)
+	switch {
+	case errA != nil && errB != nil:
+		return 0
+	case errA != nil:
+		return -1
+	case errB != nil:
+		return 1
+	default:
+		return verA.Compare(verB)
+	}
+}
+
 // client is a package-level client (similar to http.DefaultClient) so it can
 // be reused instead of created as needed, as the internal Transport typically
 // has internal state (cached connections, etc) and it's safe for concurrent
 // use.
 var client = fleethttp.NewClient(fleethttp.WithTimeout(10 * time.Second))
 
+// GetAssetMetadata retrieves the asset metadata from the Apple Software Lookup Service[1][2].
+// [1]: http://gdmf.apple.com/v2/pmv
+// [2]: https://support.apple.com/guide/deployment/use-mdm-to-deploy-software-updates-depafd2fad80/web
 func GetAssetMetadata() (*APIResponse, error) {
 	baseURL := getBaseURL()
 	reqURL, err := url.Parse(baseURL)
@@ -143,11 +161,6 @@ func do[T any](req *http.Request, dest *T) error {
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		// limitedBody := body
-		// if len(limitedBody) > 1000 {
-		// 	limitedBody = limitedBody[:1000]
-		// }
-
 		if resp.StatusCode >= http.StatusInternalServerError {
 			return retry.Do(
 				func() error { return do(req, dest) },
