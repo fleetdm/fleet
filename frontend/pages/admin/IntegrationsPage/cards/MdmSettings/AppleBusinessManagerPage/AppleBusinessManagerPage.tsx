@@ -25,7 +25,7 @@ import DownloadKey from "../../../../components/DownloadFileButtons/DownloadABMK
 import DisableAutomaticEnrollmentModal from "./modals/DisableAutomaticEnrollmentModal";
 import RenewTokenModal from "./modals/RenewTokenModal";
 
-const baseClass = "apple-automatic-enrollment-page";
+const baseClass = "apple-business-manager-page";
 
 const ButtonWrap = ({
   onClickDisable,
@@ -46,11 +46,7 @@ const ButtonWrap = ({
   );
 };
 
-const AppleAutomaticEnrollmentPage = ({
-  router,
-}: {
-  router: InjectedRouter;
-}) => {
+const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
   const { renderFlash } = useContext(NotificationContext);
 
   const [isUploading, setIsUploading] = useState(false);
@@ -285,4 +281,4 @@ const AppleAutomaticEnrollmentPage = ({
   );
 };
 
-export default AppleAutomaticEnrollmentPage;
+export default AppleBusinessManagerPage;
