@@ -465,7 +465,7 @@ We use the following story points to estimate website tasks:
 | 8  | Up to a week  |
 | 13 | 1 to 2 weeks  |
 
-> As the number of story points increases, the uncertainty on exact level of effort also increases, sometimes in a way that looks disproportionate at a glance. This is in part because larger tasks have a higher chance of being underspecified (e.g. having edge cases taht weren't caught in planning) than smaller ones. This scale underscores why we develop iteratively: bite-sized functionality is easier to deliver on more predictable time scales.
+> Larger projects are estimated in a way that can sometimes look disproportionate to account for edge cases that weren't caught during planning. This helps us develop iteratively and deliver bite-sized functionality on more predictable time scales.
 
 
 ### Making a pull request
