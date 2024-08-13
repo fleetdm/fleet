@@ -143,3 +143,4 @@ queries:
   - path: ../lib/collect-software-permissions-system.queries.yml
   - path: ../lib/collect-software-permissions-user.queries.yml
   - path: ../lib/collect-crowdstrike-info.queries.yml
+software:
