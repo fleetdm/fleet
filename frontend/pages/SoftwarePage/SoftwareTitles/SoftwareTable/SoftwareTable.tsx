@@ -60,6 +60,7 @@ interface ISoftwareTableProps {
   router: InjectedRouter;
   data?: ISoftwareTitlesResponse | ISoftwareVersionsResponse;
   showVersions: boolean;
+  installableSoftwareExists: boolean;
   isSoftwareEnabled: boolean;
   query: string;
   perPage: number;
@@ -78,6 +79,7 @@ const SoftwareTable = ({
   router,
   data,
   showVersions,
+  installableSoftwareExists,
   isSoftwareEnabled,
   query,
   perPage,
@@ -335,6 +337,8 @@ const SoftwareTable = ({
             softwareFilter={softwareFilter}
             isSoftwareDisabled={!isSoftwareEnabled}
             noSearchQuery={query === ""}
+            isCollectingSoftware={data?.counts_updated_at === null}
+            installableSoftwareExists={installableSoftwareExists}
           />
         )}
         defaultSortHeader={orderKey}
