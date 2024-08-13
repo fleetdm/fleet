@@ -230,26 +230,6 @@ const SoftwareTable = ({
     );
   };
 
-  const handleVulnFiltersChange = (value: ISoftwareVulnFilters) => {
-    const queryParams: ISoftwareApiParams = {
-      query,
-      teamId,
-      orderDirection,
-      orderKey,
-      page: 0, // resets page index
-      // ...getSoftwareFilterForQueryKey(value), // TODO
-      ...value,
-    };
-
-    router.replace(
-      getNextLocationPath({
-        pathPrefix: currentPath,
-        routeTemplate: "",
-        queryParams: convertParamsToSnakeCase(queryParams),
-      })
-    );
-  };
-
   const handleRowSelect = (row: IRowProps) => {
     const hostsBySoftwareParams = showVersions
       ? {

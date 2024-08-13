@@ -11,7 +11,7 @@ import {
 } from "services/entities/hosts";
 import { isValidSoftwareInstallStatus } from "interfaces/software";
 
-type QueryValues = string | number | boolean | undefined | null;
+export type QueryValues = string | number | boolean | undefined | null;
 export type QueryParams = Record<string, QueryValues>;
 type FilteredQueryValues = string | number | boolean;
 type FilteredQueryParams = Record<string, FilteredQueryValues>;
@@ -44,6 +44,19 @@ interface IMutuallyExclusiveHostParams {
   diskEncryptionStatus?: DiskEncryptionStatus;
   bootstrapPackageStatus?: BootstrapPackageStatus;
 }
+
+export const parseQueryValueToNumberOrUndefined = (
+  value: QueryValues
+): number | undefined => {
+  if (typeof value === "number") {
+    return value;
+  }
+  if (typeof value === "string") {
+    const parsedValue = parseFloat(value);
+    return isNaN(parsedValue) ? undefined : parsedValue;
+  }
+  return undefined;
+};
 
 const reduceQueryParams = (
   params: string[],

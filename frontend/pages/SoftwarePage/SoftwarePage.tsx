@@ -17,20 +17,30 @@ import { ITeamConfig } from "interfaces/team";
 import { IWebhookSoftwareVulnerabilities } from "interfaces/webhook";
 import configAPI from "services/entities/config";
 import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
+import { ISoftwareApiParams } from "services/entities/software";
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
 import useTeamIdParam from "hooks/useTeamIdParam";
-import { buildQueryStringFromParams } from "utilities/url";
+import {
+  buildQueryStringFromParams,
+  convertParamsToSnakeCase,
+} from "utilities/url";
+import { getNextLocationPath } from "utilities/helpers";
 
 import Button from "components/buttons/Button";
 import MainContent from "components/MainContent";
 import TeamsHeader from "components/TeamsHeader";
 import TabsWrapper from "components/TabsWrapper";
-import { noop } from "lodash";
 
 import ManageAutomationsModal from "./components/ManageSoftwareAutomationsModal";
 import AddSoftwareModal from "./components/AddSoftwareModal";
-import { getSoftwareFilterFromQueryParams } from "./SoftwareTitles/SoftwareTable/helpers";
+import {
+  getSoftwareFilterForQueryKey,
+  getSoftwareFilterFromQueryParams,
+  getSoftwareVulnFiltersForQueryKey,
+  getSoftwareVulnFiltersFromQueryParams,
+  ISoftwareVulnFilters,
+} from "./SoftwareTitles/SoftwareTable/helpers";
 import SoftwareFiltersModal from "./components/SoftwareFiltersModal";
 
 interface ISoftwareSubNavItem {
@@ -95,9 +105,11 @@ interface ISoftwarePageProps {
     search: string;
     query: {
       team_id?: string;
-      vulnerable?: string;
       available_for_install?: string;
+      vulnerable?: string;
       exploit?: string;
+      min_cvss_score?: string;
+      max_cvss_score?: string;
       page?: string;
       query?: string;
       order_key?: string;
@@ -291,6 +303,27 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
     [handleTeamChange]
   );
 
+  const onApplyVulnFilters = (vulnFilters: ISoftwareVulnFilters) => {
+    const newQueryParams: ISoftwareApiParams = {
+      query,
+      teamId: currentTeamId,
+      orderDirection: sortDirection,
+      orderKey: sortHeader,
+      page: 0, // resets page index
+      ...getSoftwareFilterForQueryKey(softwareFilter),
+      ...getSoftwareVulnFiltersForQueryKey(vulnFilters),
+    };
+
+    router.replace(
+      getNextLocationPath({
+        pathPrefix: location.pathname,
+        routeTemplate: "",
+        queryParams: convertParamsToSnakeCase(newQueryParams),
+      })
+    );
+    toggleAddFilterModal();
+  };
+
   const navigateToNav = useCallback(
     (i: number): void => {
       setResetPageIndex(true); // Fixes flakey page reset in table state when switching between tabs
@@ -394,6 +427,7 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
           query,
           showExploitedVulnerabilitiesOnly,
           softwareFilter,
+          vulnFilters: getSoftwareVulnFiltersFromQueryParams(queryParams),
           resetPageIndex,
           addedSoftwareToken,
           onAddFilterClick: toggleAddFilterModal,
@@ -442,7 +476,13 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
         )}
 
         {showAddFilterModal && (
-          <SoftwareFiltersModal onExit={toggleAddFilterModal} onSubmit={noop} />
+          <SoftwareFiltersModal
+            onExit={toggleAddFilterModal}
+            onSubmit={onApplyVulnFilters}
+            vulnFiltersQueryParams={getSoftwareVulnFiltersFromQueryParams(
+              queryParams
+            )}
+          />
         )}
       </div>
     </MainContent>

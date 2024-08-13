@@ -1,4 +1,4 @@
-import { QueryParams } from "utilities/url";
+import { QueryParams, parseQueryValueToNumberOrUndefined } from "utilities/url";
 
 export type ISoftwareDropdownFilterVal =
   | "allSoftware"
@@ -9,29 +9,33 @@ export type IHostSoftwareDropdownFilterVal =
   | ISoftwareDropdownFilterVal
   | "vulnerableSoftware";
 
-export const SOFTWARE_VERSIONS_DROPDOWN_OPTIONS = [
-  {
-    disabled: false,
-    label: "All software",
-    value: "allSoftware",
-    helpText: "All software installed on your hosts.",
-  },
-];
+const ALL_SOFTWARE_OPTION = {
+  disabled: false,
+  label: "All software",
+  value: "allSoftware",
+  helpText: "All software installed on your hosts.",
+};
+
+const INSTALLABLE_SOFTWARE_OPTION = {
+  disabled: false,
+  label: "Available for install",
+  value: "installableSoftware",
+  helpText: "Software that can be installed on your hosts.",
+};
+
+const SELF_SERVICE_SOFTWARE_OPTION = {
+  disabled: false,
+  label: "Self-service",
+  value: "selfServiceSoftware",
+  helpText: "Software that end users can install from Fleet Desktop.",
+};
+
+export const SOFTWARE_VERSIONS_DROPDOWN_OPTIONS = [ALL_SOFTWARE_OPTION];
 
 export const SOFTWARE_TITLES_DROPDOWN_OPTIONS = [
-  ...SOFTWARE_VERSIONS_DROPDOWN_OPTIONS,
-  {
-    disabled: false,
-    label: "Available for install",
-    value: "installableSoftware",
-    helpText: "Software that can be installed on your hosts.",
-  },
-  {
-    disabled: false,
-    label: "Self-service",
-    value: "selfServiceSoftware",
-    helpText: "Software that end users can install from Fleet Desktop.",
-  },
+  ALL_SOFTWARE_OPTION,
+  INSTALLABLE_SOFTWARE_OPTION,
+  SELF_SERVICE_SOFTWARE_OPTION,
 ];
 
 export const getSoftwareFilterForQueryKey = (
@@ -59,9 +63,42 @@ export const getSoftwareFilterFromQueryParams = (queryParams: QueryParams) => {
   }
 };
 
+export const getSoftwareVulnFiltersFromQueryParams = (
+  queryParams: QueryParams
+) => {
+  const { vulnerable, exploit, min_cvss_score, max_cvss_score } = queryParams;
+
+  return {
+    vulnerable: Boolean(vulnerable),
+    hasKnownExploit: Boolean(exploit),
+    minCvssScore: parseQueryValueToNumberOrUndefined(min_cvss_score),
+    maxCvssScore: parseQueryValueToNumberOrUndefined(max_cvss_score),
+  };
+};
+
 export type ISoftwareVulnFilters = {
   vulnerable?: boolean;
   exploit?: boolean;
   min_cvss_score?: number;
   max_cvss_score?: number;
+};
+
+export const getSoftwareVulnFiltersForQueryKey = (
+  vulnFilters: ISoftwareVulnFilters
+) => {
+  if (!vulnFilters.vulnerable) {
+    return {};
+  }
+
+  const { exploit, min_cvss_score, max_cvss_score } = vulnFilters;
+
+  const isValidNumber = (value: any): value is number =>
+    value !== null && value !== undefined && !isNaN(value);
+
+  return {
+    vulnerable: true,
+    ...(exploit && { exploit: true }),
+    ...(isValidNumber(min_cvss_score) && { min_cvss_score }),
+    ...(isValidNumber(max_cvss_score) && { max_cvss_score }),
+  };
 };
