@@ -19,9 +19,6 @@
   &__file-uploader {
     box-sizing: border-box;
   }
-  .Select-control {
-    height: fit-content;
-  }
   &__include-any-toggle-text{
     color: $ui-fleet-black-75;
   }
@@ -66,5 +63,11 @@
   }
   .card {
     box-sizing: border-box;
+  }
+
+  @-moz-document url-prefix() {
+    .Select-control {
+      height: fit-content;
+    }
   }
 }

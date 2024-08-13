@@ -320,6 +320,7 @@ const AddPackageForm = ({
             }
           />
           <Dropdown
+            label="Install"
             value={formData.installType}
             options={INSTALL_TYPE_OPTIONS}
             searchable={false}
