@@ -9,7 +9,7 @@ import {
 } from "test/handlers/apple_mdm";
 import createMockConfig, { createMockMdmConfig } from "__mocks__/configMock";
 
-import Vpp from "./Vpp";
+import Vpp from "./VppSection";
 
 describe("Vpp Section", () => {
   it("renders turn on apple mdm message when apple mdm is not turned on ", async () => {

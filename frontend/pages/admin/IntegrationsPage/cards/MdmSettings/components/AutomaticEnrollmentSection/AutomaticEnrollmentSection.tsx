@@ -1,19 +1,23 @@
 import React, { useContext } from "react";
 import { InjectedRouter } from "react-router";
 import PATHS from "router/paths";
+
 import { AppContext } from "context/app";
-import SectionHeader from "components/SectionHeader";
 
-import WindowsAutomaticEnrollmentCard from "./components/WindowsAutomaticEnrollmentCard";
-import AppleAutomaticEnrollmentCard from "./components/AppleAutomaticEnrollmentCard";
+import SettingsSection from "pages/admin/components/SettingsSection";
 
-const baseClass = "mdm-platforms-section";
+import AppleAutomaticEnrollmentCard from "./AppleAutomaticEnrollmentCard";
+import WindowsAutomaticEnrollmentCard from "./WindowsAutomaticEnrollmentCard";
 
-interface IMdmPlatformsSectionProps {
+const baseClass = "automatic-enrollment-section";
+
+interface IAutomaticEnrollmentSectionProps {
   router: InjectedRouter;
 }
 
-const MdmPlatformsSection = ({ router }: IMdmPlatformsSectionProps) => {
+const AutomaticEnrollmentSection = ({
+  router,
+}: IAutomaticEnrollmentSectionProps) => {
   const { config } = useContext(AppContext);
 
   const navigateToWindowsAutomaticEnrollment = () => {
@@ -29,8 +33,7 @@ const MdmPlatformsSection = ({ router }: IMdmPlatformsSectionProps) => {
   };
 
   return (
-    <div className={baseClass}>
-      <SectionHeader title="Apple Business Manager" />
+    <SettingsSection title="Automatic Enrollment" className={baseClass}>
       <AppleAutomaticEnrollmentCard
         viewDetails={navigateToAppleAutomaticEnrollment}
         turnOn={
@@ -43,8 +46,8 @@ const MdmPlatformsSection = ({ router }: IMdmPlatformsSectionProps) => {
       <WindowsAutomaticEnrollmentCard
         viewDetails={navigateToWindowsAutomaticEnrollment}
       />
-    </div>
+    </SettingsSection>
   );
 };
 
-export default MdmPlatformsSection;
+export default AutomaticEnrollmentSection;

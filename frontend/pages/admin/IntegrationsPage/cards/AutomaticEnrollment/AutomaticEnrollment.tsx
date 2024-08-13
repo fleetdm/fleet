@@ -14,10 +14,10 @@ import PremiumFeatureMessage from "components/PremiumFeatureMessage/PremiumFeatu
 import EmptyTable from "components/EmptyTable/EmptyTable";
 import Button from "components/buttons/Button/Button";
 
-import MdmPlatformsSection from "./components/MdmPlatformsSection/MdmPlatformsSection";
-import DefaultTeamSection from "./components/DefaultTeamSection/DefaultTeamSection";
-import IdpSection from "./components/IdpSection/IdpSection";
-import EulaSection from "./components/EulaSection/EulaSection";
+import MdmPlatformsSection from "../MdmSettings/components/AutomaticEnrollmentSection/MdmPlatformsSection/MdmPlatformsSection";
+import IdpSection from "../MdmSettings/components/IdpSection/IdpSection";
+import EulaSection from "../MdmSettings/components/EulaSection/EulaSection";
+import DefaultTeamSection from "../MdmSettings/components/DefaultTeamSection";
 
 const baseClass = "automatic-enrollment";
 

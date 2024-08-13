@@ -9,13 +9,13 @@ import mdmAppleAPI, { IGetVppInfoResponse } from "services/entities/mdm_apple";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 
 import Card from "components/Card";
-import SectionHeader from "components/SectionHeader";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
 import Spinner from "components/Spinner";
 import DataError from "components/DataError";
+import SettingsSection from "pages/admin/components/SettingsSection";
 
-const baseClass = "vpp";
+const baseClass = "vpp-section";
 
 interface IVppCardProps {
   isAppleMdmOn: boolean;
@@ -91,11 +91,11 @@ const VppCard = ({ isAppleMdmOn, isVppOn, router }: IVppCardProps) => {
   );
 };
 
-interface IVppProps {
+interface IVppSectionProps {
   router: InjectedRouter;
 }
 
-const Vpp = ({ router }: IVppProps) => {
+const VppSection = ({ router }: IVppSectionProps) => {
   const { config } = useContext(AppContext);
 
   const { data: vppData, error: vppError, isLoading, isError } = useQuery<
@@ -125,11 +125,13 @@ const Vpp = ({ router }: IVppProps) => {
   };
 
   return (
-    <div className={baseClass}>
-      <SectionHeader title="Volume Purchasing Program (VPP)" />
+    <SettingsSection
+      title="Volume Purchasing Program (VPP)"
+      className={baseClass}
+    >
       <>{renderContent()}</>
-    </div>
+    </SettingsSection>
   );
 };
 
-export default Vpp;
+export default VppSection;

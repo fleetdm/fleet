@@ -7,7 +7,7 @@ import mdmAPI, { IEulaMetadataResponse } from "services/entities/mdm";
 import { NotificationContext } from "context/notification";
 
 import Spinner from "components/Spinner";
-import SectionHeader from "components/SectionHeader";
+import SettingsSection from "pages/admin/components/SettingsSection";
 
 import EulaUploader from "./components/EulaUploader/EulaUploader";
 import UploadedEulaView from "./components/UploadedEulaView/UploadedEulaView";
@@ -56,8 +56,10 @@ const EulaSection = () => {
   const noEulaUploaded = (error && error.status === 404) || !eulaMetadata;
 
   return (
-    <div className={baseClass}>
-      <SectionHeader title="End user license agreement (EULA)" />
+    <SettingsSection
+      className={baseClass}
+      title="End user license agreement (EULA)"
+    >
       {isLoading ? (
         <Spinner />
       ) : (
@@ -78,7 +80,7 @@ const EulaSection = () => {
           onCancel={() => setShowDeleteEulaModal(false)}
         />
       )}
-    </div>
+    </SettingsSection>
   );
 };
 

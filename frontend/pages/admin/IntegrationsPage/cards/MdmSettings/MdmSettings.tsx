@@ -8,14 +8,12 @@ import { AppContext } from "context/app";
 import mdmAppleAPI from "services/entities/mdm_apple";
 import { IMdmApple } from "interfaces/mdm";
 
-import PATHS from "router/paths";
-
-import Spinner from "components/Spinner";
-import SectionHeader from "components/SectionHeader";
-
-import EndUserMigrationSection from "./components/EndUserMigrationSection/EndUserMigrationSection";
-import WindowsMdmCard from "./components/WindowsMdmCard/WindowsMdmCard";
-import AppleMdmCard from "./components/AppleMdmCard/AppleMdmCard";
+import MdmSettingsSection from "./components/MdmSettingsSection";
+import AutomaticEnrollmentSection from "./components/AutomaticEnrollmentSection";
+import VppSection from "./components/VppSection";
+import IdpSection from "./components/IdpSection";
+import EulaSection from "./components/EulaSection";
+import EndUserMigrationSection from "./components/EndUserMigrationSection";
 
 const baseClass = "mdm-settings";
 
@@ -44,44 +42,29 @@ const MdmSettings = ({ router }: IMdmSettingsProps) => {
       // enabled, resulting in a 400 response. The race really should  be fixed higher up the chain where
       // we're fetching and setting the config, but for now we'll just assume that any 400 response
       // means that MDM is not enabled and we'll show the "Turn on MDM" button.
-      enabled: !!config?.mdm.enabled_and_configured,
       staleTime: 5000,
+      enabled: !!config?.mdm.enabled_and_configured,
     }
   );
 
-  const navigateToAppleMdm = () => {
-    router.push(PATHS.ADMIN_INTEGRATIONS_MDM_APPLE);
-  };
-
-  const navigateToWindowsMdm = () => {
-    router.push(PATHS.ADMIN_INTEGRATIONS_MDM_WINDOWS);
-  };
+  const hasAllData = !isLoadingMdmApple && !errorMdmApple;
 
   return (
     <div className={baseClass}>
-      <div className={`${baseClass}__section`}>
-        <SectionHeader title="Mobile device management (MDM)" />
-        {isLoadingMdmApple ? (
-          <Spinner />
-        ) : (
-          <div className={`${baseClass}__section ${baseClass}__mdm-section`}>
-            <AppleMdmCard
-              appleAPNInfo={appleAPNInfo}
-              errorData={errorMdmApple}
-              turnOnAppleMdm={navigateToAppleMdm}
-              viewDetails={navigateToAppleMdm}
-            />
-            <WindowsMdmCard
-              turnOnWindowsMdm={navigateToWindowsMdm}
-              editWindowsMdm={navigateToWindowsMdm}
-            />
-          </div>
-        )}
-      </div>
-      {isPremiumTier && appleAPNInfo && (
-        <div className={`${baseClass}__section`}>
+      <MdmSettingsSection
+        isLoading={isLoadingMdmApple}
+        appleAPNInfo={appleAPNInfo}
+        appleAPNError={errorMdmApple}
+        router={router}
+      />
+      {isPremiumTier && hasAllData && (
+        <>
+          <AutomaticEnrollmentSection router={router} />
+          <VppSection router={router} />
+          <IdpSection />
+          <EulaSection />
           <EndUserMigrationSection router={router} />
-        </div>
+        </>
       )}
     </div>
   );

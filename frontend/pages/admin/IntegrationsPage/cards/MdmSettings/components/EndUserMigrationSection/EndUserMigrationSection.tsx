@@ -21,6 +21,7 @@ import Button from "components/buttons/Button/Button";
 import SectionHeader from "components/SectionHeader";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage/PremiumFeatureMessage";
 import EmptyTable from "components/EmptyTable/EmptyTable";
+import SettingsSection from "pages/admin/components/SettingsSection";
 
 import ExampleWebhookUrlPayloadModal from "../ExampleWebhookUrlPayloadModal/ExampleWebhookUrlPayloadModal";
 
@@ -159,8 +160,7 @@ const EndUserMigrationSection = ({ router }: IEndUserMigrationSectionProps) => {
   }
 
   return (
-    <div className={baseClass}>
-      <SectionHeader title="End user migration workflow" />
+    <SettingsSection className={baseClass} title="End user migration workflow">
       <form>
         <p>
           Control the end user migration workflow for macOS hosts that
@@ -240,7 +240,7 @@ const EndUserMigrationSection = ({ router }: IEndUserMigrationSectionProps) => {
       {showExamplePayload && (
         <ExampleWebhookUrlPayloadModal onCancel={toggleExamplePayloadModal} />
       )}
-    </div>
+    </SettingsSection>
   );
 };
 
