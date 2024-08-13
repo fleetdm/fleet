@@ -272,7 +272,7 @@
 #  ╔╗ ╦ ╦╔═╗╔╦╗  ╔═╗╔╗╔╦═╗╔═╗╦  ╦  ╔╦╗╔═╗╔╗╔╔╦╗
 #  ╠╩╗╚╦╝║ ║ ║║  ║╣ ║║║╠╦╝║ ║║  ║  ║║║║╣ ║║║ ║ 
 #  ╚═╝ ╩ ╚═╝═╩╝  ╚═╝╝╚╝╩╚═╚═╝╩═╝╩═╝╩ ╩╚═╝╝╚╝ ╩ 
-- industryName: Bring Your Own Device (BYOD) enrollment
+- industryName: Bring your own device (BYOD) enrollment
   description: BYOD enrollment for macOS, iOS/iPadOS (coming soon), Windows, and Android (coming soon) devices.
   documentationUrl: https://fleetdm.com/guides/sysadmin-diaries-device-enrollment#byod-enrollment
   tier: Free
