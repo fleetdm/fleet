@@ -8299,7 +8299,7 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 	require.NotNil(t, resp.SoftwareTitles[0].SoftwarePackage.SelfService)
 	require.True(t, *resp.SoftwareTitles[0].SoftwarePackage.SelfService)
 
-	// no team but self-service returns the emacs software (technically impossible via the UI)
+	// "All teams" returns no software because the self-service software it's not installed (host_counts == 0).
 	resp = listSoftwareTitlesResponse{}
 	s.DoJSON(
 		"GET", "/api/latest/fleet/software/titles",
@@ -8308,15 +8308,9 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 		"self_service", "true",
 	)
 
-	require.Len(t, resp.SoftwareTitles, 2)
-	require.NotNil(t, resp.SoftwareTitles[0].SoftwarePackage)
-	require.NotNil(t, resp.SoftwareTitles[0].SoftwarePackage.SelfService)
-	require.True(t, *resp.SoftwareTitles[0].SoftwarePackage.SelfService)
-	require.NotNil(t, resp.SoftwareTitles[1].SoftwarePackage)
-	require.NotNil(t, resp.SoftwareTitles[1].SoftwarePackage.SelfService)
-	require.True(t, *resp.SoftwareTitles[1].SoftwarePackage.SelfService)
+	require.Empty(t, resp.SoftwareTitles, 0)
 
-	// team 0 returns the emacs software
+	// "No team" returns the emacs software
 	resp = listSoftwareTitlesResponse{}
 	s.DoJSON(
 		"GET", "/api/latest/fleet/software/titles",
@@ -9892,7 +9886,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 		meta, err := s.ds.GetSoftwareInstallerMetadataByID(context.Background(), id)
 		require.NoError(t, err)
 
-		if payload.TeamID != nil {
+		if payload.TeamID != nil && *payload.TeamID > 0 {
 			require.Equal(t, *payload.TeamID, *meta.TeamID)
 		} else {
 			require.Nil(t, meta.TeamID)
@@ -9951,8 +9945,11 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 		// download the installer
 		s.Do("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package?alt=media", titleID), nil, http.StatusBadRequest)
 
-		// delete the installer
+		// delete the installer from nil team fails
 		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleID), nil, http.StatusBadRequest)
+
+		// delete from team 0 succeeds
+		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleID), nil, http.StatusNoContent, "team_id", "0")
 	})
 
 	t.Run("create team software installer", func(t *testing.T) {
@@ -10027,6 +10024,72 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 		// download the installer, not found anymore
 		s.Do("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package?alt=media", titleID), nil, http.StatusNotFound, "team_id", fmt.Sprintf("%d", *payload.TeamID))
 	})
+
+	t.Run("create team 0 software installer", func(t *testing.T) {
+		payload := &fleet.UploadSoftwareInstallerPayload{
+			TeamID:            ptr.Uint(0),
+			InstallScript:     "another install script",
+			PreInstallQuery:   "another pre install query",
+			PostInstallScript: "another post install script",
+			Filename:          "ruby.deb",
+			// additional fields below are pre-populated so we can re-use the payload later for the test assertions
+			Title:       "ruby",
+			Version:     "1:2.5.1",
+			Source:      "deb_packages",
+			StorageID:   "df06d9ce9e2090d9cb2e8cd1f4d7754a803dc452bf93e3204e3acd3b95508628",
+			Platform:    "linux",
+			SelfService: true,
+		}
+		s.uploadSoftwareInstaller(payload, http.StatusOK, "")
+
+		// check the software installer
+		installerID, titleID := checkSoftwareInstaller(t, payload)
+
+		// check activity
+		s.lastActivityOfTypeMatches(fleet.ActivityTypeAddedSoftware{}.ActivityName(), fmt.Sprintf(`{"software_title": "ruby", "software_package": "ruby.deb", "team_name": null, "team_id": 0, "self_service": true}`), 0)
+
+		// upload again fails
+		s.uploadSoftwareInstaller(payload, http.StatusConflict, "already exists")
+
+		// download the installer
+		r := s.Do("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package?alt=media", titleID), nil, http.StatusOK, "team_id", fmt.Sprintf("%d", 0))
+		checkDownloadResponse(t, r, payload.Filename)
+
+		// create an orbit host that is not in the team
+		hostNotInTeam := createOrbitEnrolledHost(t, "windows", "orbit-host-no-team", s.ds)
+		// downloading installer still works because we allow it explicitly
+		s.Do("POST", "/api/fleet/orbit/software_install/package?alt=media", orbitDownloadSoftwareInstallerRequest{
+			InstallerID:  installerID,
+			OrbitNodeKey: *hostNotInTeam.OrbitNodeKey,
+		}, http.StatusOK)
+
+		// create an orbit host, assign to team
+		hostInTeam := createOrbitEnrolledHost(t, "windows", "orbit-host-team", s.ds)
+
+		// requesting download with alt != media fails
+		r = s.Do("POST", "/api/fleet/orbit/software_install/package?alt=FOOBAR", orbitDownloadSoftwareInstallerRequest{
+			InstallerID:  installerID,
+			OrbitNodeKey: *hostInTeam.OrbitNodeKey,
+		}, http.StatusBadRequest)
+		errMsg := extractServerErrorText(r.Body)
+		require.Contains(t, errMsg, "only alt=media is supported")
+
+		// valid download
+		r = s.Do("POST", "/api/fleet/orbit/software_install/package?alt=media", orbitDownloadSoftwareInstallerRequest{
+			InstallerID:  installerID,
+			OrbitNodeKey: *hostInTeam.OrbitNodeKey,
+		}, http.StatusOK)
+		checkDownloadResponse(t, r, payload.Filename)
+
+		// delete the installer
+		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleID), nil, http.StatusNoContent, "team_id", "0")
+
+		// check activity
+		s.lastActivityOfTypeMatches(fleet.ActivityTypeDeletedSoftware{}.ActivityName(), fmt.Sprintf(`{"software_title": "ruby", "software_package": "ruby.deb", "team_name": null, "team_id": 0, "self_service": true}`), 0)
+
+		// download the installer, not found anymore
+		s.Do("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package?alt=media", titleID), nil, http.StatusNotFound, "team_id", fmt.Sprintf("%d", 0))
+	})
 }
 
 func (s *integrationEnterpriseTestSuite) TestApplyTeamsSoftwareConfig() {
@@ -10092,7 +10155,7 @@ func (s *integrationEnterpriseTestSuite) TestApplyTeamsSoftwareConfig() {
 	}
 	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
 
-	wantSoftwarePackages := []fleet.TeamSpecSoftwarePackage{
+	wantSoftwarePackages := []fleet.SoftwarePackageSpec{
 		{
 			URL:               "http://foo.com",
 			SelfService:       true,
@@ -10251,9 +10314,6 @@ func (s *integrationEnterpriseTestSuite) TestApplyTeamsSoftwareConfig() {
 func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
 	t := s.T()
 
-	// a team name is required (we don't allow installers for "no team")
-	s.Do("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{}, http.StatusBadRequest)
-
 	// non-existent team
 	s.Do("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{}, http.StatusNotFound, "team_name", "foo")
 
@@ -10326,6 +10386,42 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
 	s.Do("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusNoContent, "team_name", tm.Name)
 	titlesResp = listSoftwareTitlesResponse{}
 	s.DoJSON("GET", "/api/v1/fleet/software/titles", nil, http.StatusOK, &titlesResp, "available_for_install", "true", "team_id", strconv.Itoa(int(tm.ID)))
+	require.Equal(t, 0, titlesResp.Count)
+	require.Len(t, titlesResp.SoftwareTitles, 0)
+
+	//////////////////////////
+	// Do a request with a valid URL with no team
+	//////////////////////////
+	softwareToInstall = []fleet.SoftwareInstallerPayload{
+		{URL: srv.URL},
+	}
+	s.Do("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusNoContent)
+
+	// check the application status on team 0
+	titlesResp = listSoftwareTitlesResponse{}
+	s.DoJSON("GET", "/api/v1/fleet/software/titles", nil, http.StatusOK, &titlesResp, "available_for_install", "true", "team_id", strconv.Itoa(int(0)))
+	require.Equal(t, 1, titlesResp.Count)
+	require.Len(t, titlesResp.SoftwareTitles, 1)
+
+	// same payload doesn't modify anything
+	s.Do("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusNoContent)
+	newTitlesResp = listSoftwareTitlesResponse{}
+	s.DoJSON("GET", "/api/v1/fleet/software/titles", nil, http.StatusOK, &newTitlesResp, "available_for_install", "true", "team_id", strconv.Itoa(int(0)))
+	require.Equal(t, titlesResp, newTitlesResp)
+
+	// setting self-service to true updates the software title metadata
+	softwareToInstall[0].SelfService = true
+	s.Do("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusNoContent)
+	newTitlesResp = listSoftwareTitlesResponse{}
+	s.DoJSON("GET", "/api/v1/fleet/software/titles", nil, http.StatusOK, &newTitlesResp, "available_for_install", "true", "team_id", strconv.Itoa(int(0)))
+	titlesResp.SoftwareTitles[0].SoftwarePackage.SelfService = ptr.Bool(true)
+	require.Equal(t, titlesResp, newTitlesResp)
+
+	// empty payload cleans the software items
+	softwareToInstall = []fleet.SoftwareInstallerPayload{}
+	s.Do("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{Software: softwareToInstall}, http.StatusNoContent)
+	titlesResp = listSoftwareTitlesResponse{}
+	s.DoJSON("GET", "/api/v1/fleet/software/titles", nil, http.StatusOK, &titlesResp, "available_for_install", "true", "team_id", strconv.Itoa(int(0)))
 	require.Equal(t, 0, titlesResp.Count)
 	require.Len(t, titlesResp.SoftwareTitles, 0)
 }
@@ -10619,6 +10715,22 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerHostRequests() {
 	require.Contains(t, extractServerErrorText(r.Body), "Invalid parameters. The combination of software_version_id and software_title_id is not allowed.")
 	r = s.Do("GET", "/api/latest/fleet/hosts", nil, http.StatusBadRequest, "software_status", "installed", "team_id", "1", "software_title_id", "1", "software_id", "1")
 	require.Contains(t, extractServerErrorText(r.Body), "Invalid parameters. The combination of software_id and software_title_id is not allowed.")
+
+	// Access software install result after host is deleted
+	err = s.ds.DeleteHost(context.Background(), h.ID)
+	require.NoError(t, err)
+
+	instResult, err := s.ds.GetSoftwareInstallResults(context.Background(), installUUID)
+	require.NoError(t, err)
+	require.NotNil(t, instResult.HostDeletedAt)
+
+	gsirr = getSoftwareInstallResultsResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/install/results/%s", installUUID), nil, http.StatusOK, &gsirr)
+	require.NoError(t, gsirr.Err)
+	require.NotNil(t, gsirr.Results)
+	results = gsirr.Results
+	require.Equal(t, installUUID, results.InstallUUID)
+	require.Equal(t, fleet.SoftwareInstallerPending, results.Status)
 }
 
 func (s *integrationEnterpriseTestSuite) TestSelfServiceSoftwareInstall() {
@@ -11643,11 +11755,15 @@ func (s *integrationEnterpriseTestSuite) TestCalendarCallback() {
 	require.NotZero(t, event.StartTime)
 	require.NotZero(t, event.EndTime)
 	require.NotEmpty(t, event.UUID)
+	bodyTag := event.GetBodyTag()
+	assert.NotEmpty(t, bodyTag)
 	assert.Equal(t, 1, calendar.MockChannelsCount())
 
 	// Get channel ID
 	type eventDetails struct {
 		ChannelID string `json:"channel_id"`
+		BodyTag   string `json:"body_tag"`
+		ETag      string `json:"etag"`
 	}
 	var details eventDetails
 	err = json.Unmarshal(event.Data, &details)
@@ -11770,6 +11886,8 @@ func (s *integrationEnterpriseTestSuite) TestCalendarCallback() {
 
 	err = json.Unmarshal(eventRecreated.Data, &details)
 	require.NoError(t, err)
+	assert.NotEmpty(t, details.BodyTag)
+	bodyTag = details.BodyTag
 
 	// New event callback should work
 	_ = s.DoRawWithHeaders("POST", "/api/v1/fleet/calendar/webhook/"+eventRecreated.UUID, []byte(""), http.StatusOK,
@@ -11806,6 +11924,30 @@ func (s *integrationEnterpriseTestSuite) TestCalendarCallback() {
 	assert.Greater(t, eventUpdated.StartTime, eventRecreated.StartTime)
 	assert.Equal(t, eventRecreated.EndTime, eventUpdated.EndTime)
 	assert.Equal(t, 1, calendar.MockChannelsCount())
+	assert.Equal(t, bodyTag, eventRecreated.GetBodyTag())
+
+	// Change the body contents of event.
+	events = calendar.ListGoogleMockEvents()
+	require.Len(t, events, 1)
+	eTag := "description change etag"
+	for _, e := range events {
+		e.Etag = eTag
+		e.Description = "new description"
+	}
+	// New event callback should cause Etag to update but Body tag to remain the same
+	_ = s.DoRawWithHeaders("POST", "/api/v1/fleet/calendar/webhook/"+eventRecreated.UUID, []byte(""), http.StatusOK,
+		map[string]string{
+			"X-Goog-Channel-Id":     details.ChannelID,
+			"X-Goog-Resource-State": "exists",
+		})
+	team1CalendarEvents, err = s.ds.ListCalendarEvents(ctx, &team1.ID)
+	require.NoError(t, err)
+	require.Len(t, team1CalendarEvents, 1)
+	eventDescUpdated := team1CalendarEvents[0]
+	err = json.Unmarshal(eventDescUpdated.Data, &details)
+	require.NoError(t, err)
+	assert.Equal(t, bodyTag, details.BodyTag)
+	assert.Equal(t, eTag, details.ETag)
 
 	// Update the time of the event again
 	events = calendar.ListGoogleMockEvents()
@@ -11815,6 +11957,7 @@ func (s *integrationEnterpriseTestSuite) TestCalendarCallback() {
 		require.NoError(t, err)
 		newStartTime := st.Add(5 * time.Minute).Format(time.RFC3339)
 		e.Start.DateTime = newStartTime
+		e.Etag = e.Etag + "1"
 	}
 
 	// Grab the lock
@@ -11865,6 +12008,9 @@ func (s *integrationEnterpriseTestSuite) TestCalendarCallback() {
 			require.NoError(t, err)
 			if len(team1CalendarEvents) == 1 && team1CalendarEvents[0].UUID == event.UUID &&
 				team1CalendarEvents[0].StartTime.After(event.StartTime) {
+				err = json.Unmarshal(team1CalendarEvents[0].Data, &details)
+				require.NoError(t, err)
+				assert.NotEqual(t, eTag, details.ETag, "ETag should have updated")
 				done <- struct{}{}
 				return
 			}
@@ -12227,7 +12373,6 @@ func (s *integrationEnterpriseTestSuite) TestCalendarEventBodyUpdate() {
 	require.Len(t, calEvents, 1)
 	assert.Contains(t, calEvents[0].Description, fleet.CalendarDefaultDescription)
 	assert.Contains(t, calEvents[0].Description, fleet.CalendarDefaultResolution)
-
 }
 
 func (s *integrationEnterpriseTestSuite) TestVPPAppsWithoutMDM() {

@@ -14,9 +14,9 @@ Fleet supports the [latest version of osquery](https://github.com/osquery/osquer
 
 > You must have `fleetctl` installed. [Learn how to install `fleetctl`](https://fleetdm.com/docs/using-fleet/fleetctl-cli#installing-fleetctl).
 
-The `fleetctl package` command is used to generate Fleet's agent (fleetd).
+The `fleetctl package` command is used to generate Fleet's agent (fleetd) install package..
 
-The `--type` flag is used to specify the fleetd installer type:
+The `--type` flag is used to specify the fleetd installer type. Note that Windows can only generate an MSI package:
 - macOS: .pkg
 - Windows: .msi
 - Linux: .deb or .rpm
@@ -39,7 +39,7 @@ To generate Fleet's agent (fleetd) in Fleet UI:
 
 1. Go to the **Hosts** page, and select **Add hosts**.
 2. Select the tab for your desired platform (e.g. macOS).
-3. A CLI command with all necessary flags will be generated. Copy and run the command with [fleetctl](https://fleetdm.com/docs/using-fleet/fleetctl-cli) installed.
+3. A CLI command with all necessary flags to generate an install package will be generated. Copy and run the command with [fleetctl](https://fleetdm.com/docs/using-fleet/fleetctl-cli) installed.
 
 ### Enroll host to a specific team
 

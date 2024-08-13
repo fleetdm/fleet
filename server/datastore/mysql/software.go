@@ -640,7 +640,7 @@ func (ds *Datastore) insertNewInstalledHostSoftwareDB(
 				      UPDATE software s
 				      JOIN software_titles st
 				      ON s.bundle_identifier = st.bundle_identifier AND
-				          IF(s.source IN ('ios_apps', 'ipados_apps'), s.source = st.source, 1)
+				          IF(s.source IN ('apps', 'ios_apps', 'ipados_apps'), s.source = st.source, 1)
 				      SET s.title_id = st.id
 				      WHERE s.title_id IS NULL
 				      OR s.title_id != st.id
@@ -1667,7 +1667,7 @@ FROM (
         NOT EXISTS (
             SELECT 1 FROM software_titles st
             WHERE s.bundle_identifier = st.bundle_identifier AND
-				IF(s.source IN ('ios_apps', 'ipados_apps'), s.source = st.source, 1)
+				IF(s.source IN ('apps', 'ios_apps', 'ipados_apps'), s.source = st.source, 1)
         )
         AND COALESCE(bundle_identifier, '') != ''
 
@@ -1718,7 +1718,7 @@ AND COALESCE(s.bundle_identifier, '') = '';
 UPDATE software s
 JOIN software_titles st
 ON s.bundle_identifier = st.bundle_identifier AND
-    IF(s.source IN ('ios_apps', 'ipados_apps'), s.source = st.source, 1)
+    IF(s.source IN ('apps', 'ios_apps', 'ipados_apps'), s.source = st.source, 1)
 SET s.title_id = st.id
 WHERE s.title_id IS NULL
 OR s.title_id != st.id;
@@ -2101,6 +2101,21 @@ AND EXISTS (SELECT 1 FROM software s JOIN software_cve scve ON scve.software_id 
 		`
 	}
 
+	var softwareIsInstalledOnHostClause string
+	if !opts.OnlyAvailableForInstall {
+		softwareIsInstalledOnHostClause = `
+			EXISTS (
+				SELECT 1
+				FROM
+					host_software hs
+				INNER JOIN
+					software s ON hs.software_id = s.id
+				WHERE
+					hs.host_id = :host_id AND
+					s.title_id = st.id
+			) OR `
+	}
+
 	// this statement lists only the software that is reported as installed on
 	// the host or has been attempted to be installed on the host.
 	stmtInstalled := fmt.Sprintf(`
@@ -2113,7 +2128,7 @@ AND EXISTS (SELECT 1 FROM software s JOIN software_cve scve ON scve.software_id 
 			si.version as package_version,
 			-- in a future iteration, will be supported for VPP apps
 			NULL as vpp_app_self_service,
-			vap.adam_id as vpp_app_adam_id,
+			vat.adam_id as vpp_app_adam_id,
 			vap.latest_version as vpp_app_version,
 			NULLIF(vap.icon_url, '') as vpp_app_icon_url,
 			COALESCE(hsi.created_at, hvsi.created_at) as last_install_installed_at,
@@ -2123,17 +2138,19 @@ AND EXISTS (SELECT 1 FROM software s JOIN software_cve scve ON scve.software_id 
 		FROM
 			software_titles st
 		LEFT OUTER JOIN
-			software_installers si ON st.id = si.title_id
+			software_installers si ON st.id = si.title_id AND si.global_or_team_id = :global_or_team_id
 		LEFT OUTER JOIN
 			host_software_installs hsi ON si.id = hsi.software_installer_id AND hsi.host_id = :host_id
 		LEFT OUTER JOIN
-			vpp_apps vap ON st.id = vap.title_id
+			vpp_apps vap ON st.id = vap.title_id AND vap.platform = :host_platform
 		LEFT OUTER JOIN
-			host_vpp_software_installs hvsi ON vap.adam_id = hvsi.adam_id AND hvsi.host_id = :host_id
+			vpp_apps_teams vat ON vap.adam_id = vat.adam_id AND vap.platform = vat.platform AND vat.global_or_team_id = :global_or_team_id
+		LEFT OUTER JOIN
+			host_vpp_software_installs hvsi ON vat.adam_id = hvsi.adam_id AND hvsi.host_id = :host_id
 		LEFT OUTER JOIN
 			nano_command_results ncr ON ncr.command_uuid = hvsi.command_uuid
 		WHERE
-			-- use the latest install only
+			-- use the latest install attempt only
 			( hsi.id IS NULL OR hsi.id = (
 				SELECT hsi2.id
 				FROM host_software_installs hsi2
@@ -2143,27 +2160,18 @@ AND EXISTS (SELECT 1 FROM software s JOIN software_cve scve ON scve.software_id 
 			( hvsi.id IS NULL OR hvsi.id = (
 				SELECT hvsi2.id
 				FROM host_vpp_software_installs hvsi2
-				WHERE hvsi2.host_id = hvsi.host_id AND hvsi2.adam_id = hvsi.adam_id
+				WHERE hvsi2.host_id = hvsi.host_id AND hvsi2.adam_id = hvsi.adam_id AND hvsi2.platform = hvsi.platform
 				ORDER BY hvsi2.created_at DESC
 				LIMIT 1 ) ) AND
-			-- software is installed on host
-			( EXISTS (
-				SELECT 1
-				FROM
-					host_software hs
-				INNER JOIN
-					software s ON hs.software_id = s.id
-				WHERE
-					hs.host_id = :host_id AND
-					s.title_id = st.id
-			) OR
-			-- or software install has been attempted on host (via installer or VPP app)
-			hsi.host_id IS NOT NULL OR hvsi.host_id IS NOT NULL )
-			-- make sure VPP platform matches
-			AND (vap.platform IS NULL OR vap.platform = :host_platform)
+
+			-- software is installed on host or software install has been attempted
+			-- on host (via installer or VPP app). If only available for install is
+			-- requested, then the software installed on host clause is empty.
+			( %s hsi.host_id IS NOT NULL OR hvsi.host_id IS NOT NULL )
 			%s
 			%s
-`, softwareInstallerHostStatusNamedQuery("hsi", ""), vppAppHostStatusNamedQuery("hvsi", "ncr", ""), onlySelfServiceClause, onlyVulnerableClause)
+`, softwareInstallerHostStatusNamedQuery("hsi", ""), vppAppHostStatusNamedQuery("hvsi", "ncr", ""),
+		softwareIsInstalledOnHostClause, onlySelfServiceClause, onlyVulnerableClause)
 
 	// this statement lists only the software that has never been installed nor
 	// attempted to be installed on the host, but that is available to be
@@ -2264,20 +2272,14 @@ AND EXISTS (SELECT 1 FROM software s JOIN software_cve scve ON scve.software_id 
 	}
 
 	stmt := stmtInstalled
-	if opts.AvailableForInstall || (opts.IncludeAvailableForInstall && !opts.VulnerableOnly) {
+	if opts.OnlyAvailableForInstall || (opts.IncludeAvailableForInstall && !opts.VulnerableOnly) {
 		namedArgs["vpp_apps_platforms"] = []fleet.AppleDevicePlatform{fleet.IOSPlatform, fleet.IPadOSPlatform, fleet.MacOSPlatform}
 		if fleet.IsLinux(host.Platform) {
 			namedArgs["host_compatible_platforms"] = fleet.HostLinuxOSs
 		} else {
 			namedArgs["host_compatible_platforms"] = []string{host.FleetPlatform()}
 		}
-		if opts.AvailableForInstall {
-			// Only available for install software
-			stmt = stmtAvailable
-		} else {
-			// All software, including available for install
-			stmt += ` UNION ` + stmtAvailable
-		}
+		stmt += ` UNION ` + stmtAvailable
 	}
 
 	// must resolve the named bindings here, before adding the searchLike which

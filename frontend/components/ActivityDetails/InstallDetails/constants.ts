@@ -14,7 +14,7 @@ const INSTALL_DETAILS_STATUS_PREDICATES: Record<
   SoftwareInstallStatus,
   string
 > = {
-  pending: "will install",
+  pending: "is installing or will install",
   installed: "installed",
   failed: "failed to install",
 } as const;

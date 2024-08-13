@@ -240,9 +240,10 @@ type HostSoftwareTitleListOptions struct {
 	// install (but not currently installed on the host) should be returned.
 	IncludeAvailableForInstall bool
 
-	// AvailableForInstall is a query argument that limits the returned software
-	// titles to those that are available for install on the host.
-	AvailableForInstall bool `query:"available_for_install,optional"`
+	// OnlyAvailableForInstall is set via a query argument that limits the
+	// returned software titles to only those that are available for install on
+	// the host.
+	OnlyAvailableForInstall bool `query:"available_for_install,optional"`
 
 	VulnerableOnly bool `query:"vulnerable,optional"`
 }

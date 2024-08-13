@@ -1,6 +1,8 @@
 package service
 
 import (
+	"net/url"
+
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
@@ -24,4 +26,13 @@ func (c *Client) ListSoftwareTitles(query string) ([]fleet.SoftwareTitleListResu
 		return nil, err
 	}
 	return responseBody.SoftwareTitles, nil
+}
+
+func (c *Client) ApplyNoTeamSoftwareInstallers(softwareInstallers []fleet.SoftwareInstallerPayload, opts fleet.ApplySpecOptions) error {
+	verb, path := "POST", "/api/latest/fleet/software/batch"
+	query, err := url.ParseQuery(opts.RawQuery())
+	if err != nil {
+		return err
+	}
+	return c.authenticatedRequestWithQuery(map[string]interface{}{"software": softwareInstallers}, verb, path, nil, query.Encode())
 }

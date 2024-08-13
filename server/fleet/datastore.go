@@ -989,6 +989,8 @@ type Datastore interface {
 	CountVulnerabilities(ctx context.Context, opt VulnListOptions) (uint, error)
 	// UpdateVulnerabilityHostCounts updates hosts counts for all vulnerabilities.
 	UpdateVulnerabilityHostCounts(ctx context.Context) error
+	// IsCVEKnownToFleet checks if the provided CVE is known to Fleet.
+	IsCVEKnownToFleet(ctx context.Context, cve string) (bool, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Apple MDM
@@ -1572,7 +1574,7 @@ type Datastore interface {
 
 	// GetSummaryHostVPPAppInstalls returns the VPP app install summary for the
 	// given team and VPP app adam_id.
-	GetSummaryHostVPPAppInstalls(ctx context.Context, teamID *uint, adamID string) (*VPPAppStatusSummary, error)
+	GetSummaryHostVPPAppInstalls(ctx context.Context, teamID *uint, appID VPPAppID) (*VPPAppStatusSummary, error)
 
 	GetSoftwareInstallResults(ctx context.Context, resultsUUID string) (*HostSoftwareInstallerResult, error)
 
@@ -1591,7 +1593,7 @@ type Datastore interface {
 	SetTeamVPPApps(ctx context.Context, teamID *uint, appIDs []VPPAppID) error
 	InsertVPPAppWithTeam(ctx context.Context, app *VPPApp, teamID *uint) (*VPPApp, error)
 
-	InsertHostVPPSoftwareInstall(ctx context.Context, hostID, userID uint, adamID, commandUUID, associatedEventID string) error
+	InsertHostVPPSoftwareInstall(ctx context.Context, hostID, userID uint, appID VPPAppID, commandUUID, associatedEventID string) error
 	GetPastActivityDataForVPPAppInstall(ctx context.Context, commandResults *mdm.CommandResults) (*User, *ActivityInstalledAppStoreApp, error)
 }
 

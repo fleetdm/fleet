@@ -138,7 +138,7 @@ There are many times in which community members, customers, and contributors are
 - Reach out to the contributor to thank them for their contribution
 - Consider sharing the contribution on social media
 - Ask if we could send the contributor any swag
-- If yes, follow the steps to fufuill a swag request.
+- If yes, follow the steps to fulfill a swag request.
 
 
 ### Run a new ad or change an existing ad

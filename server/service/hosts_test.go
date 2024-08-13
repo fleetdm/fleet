@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"net/http"
 	"strconv"
 	"testing"
 	"time"
@@ -13,6 +14,7 @@ import (
 	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/contexts/capabilities"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
@@ -23,6 +25,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
+	kitlog "github.com/go-kit/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.mozilla.org/pkcs7"
@@ -1861,7 +1864,7 @@ func TestBulkOperationFilterValidation(t *testing.T) {
 func TestSetDiskEncryptionNotifications(t *testing.T) {
 	ds := new(mock.Store)
 	ctx := context.Background()
-	svc := &Service{ds: ds}
+	svc := &Service{ds: ds, logger: kitlog.NewNopLogger()}
 
 	tests := []struct {
 		name                     string
@@ -1873,10 +1876,11 @@ func TestSetDiskEncryptionNotifications(t *testing.T) {
 		getHostDiskEncryptionKey func(context.Context, uint) (*fleet.HostDiskEncryptionKey, error)
 		expectedNotifications    *fleet.OrbitConfigNotifications
 		expectedError            bool
+		disableCapability        bool
 	}{
 		{
 			name: "no MDM configured",
-			host: &fleet.Host{ID: 1, Platform: "darwin"},
+			host: &fleet.Host{ID: 1, Platform: "darwin", OsqueryHostID: ptr.String("foo")},
 			appConfig: &fleet.AppConfig{
 				MDM: fleet.MDM{EnabledAndConfigured: false},
 			},
@@ -1889,7 +1893,7 @@ func TestSetDiskEncryptionNotifications(t *testing.T) {
 		},
 		{
 			name: "not connected to Fleet MDM",
-			host: &fleet.Host{ID: 1, Platform: "darwin"},
+			host: &fleet.Host{ID: 1, Platform: "darwin", OsqueryHostID: ptr.String("foo")},
 			appConfig: &fleet.AppConfig{
 				MDM: fleet.MDM{EnabledAndConfigured: true},
 			},
@@ -1915,7 +1919,7 @@ func TestSetDiskEncryptionNotifications(t *testing.T) {
 		},
 		{
 			name: "disk encryption not configured",
-			host: &fleet.Host{ID: 1, Platform: "darwin"},
+			host: &fleet.Host{ID: 1, Platform: "darwin", OsqueryHostID: ptr.String("foo")},
 			appConfig: &fleet.AppConfig{
 				MDM: fleet.MDM{EnabledAndConfigured: true},
 			},
@@ -1928,7 +1932,7 @@ func TestSetDiskEncryptionNotifications(t *testing.T) {
 		},
 		{
 			name: "darwin with decryptable key",
-			host: &fleet.Host{ID: 1, Platform: "darwin"},
+			host: &fleet.Host{ID: 1, Platform: "darwin", OsqueryHostID: ptr.String("foo")},
 			appConfig: &fleet.AppConfig{
 				MDM: fleet.MDM{EnabledAndConfigured: true},
 			},
@@ -1944,8 +1948,43 @@ func TestSetDiskEncryptionNotifications(t *testing.T) {
 			expectedError: false,
 		},
 		{
+			name: "darwin needs rotation but client is old",
+			host: &fleet.Host{ID: 1, Platform: "darwin", OsqueryHostID: ptr.String("foo")},
+			appConfig: &fleet.AppConfig{
+				MDM: fleet.MDM{EnabledAndConfigured: true},
+			},
+			diskEncryptionConfigured: true,
+			isConnectedToFleetMDM:    true,
+			mdmInfo:                  nil,
+			getHostDiskEncryptionKey: func(ctx context.Context, id uint) (*fleet.HostDiskEncryptionKey, error) {
+				return &fleet.HostDiskEncryptionKey{Decryptable: ptr.Bool(false)}, nil
+			},
+			expectedNotifications: &fleet.OrbitConfigNotifications{
+				RotateDiskEncryptionKey: true,
+			},
+			expectedError:     false,
+			disableCapability: true,
+		},
+		{
+			name: "darwin needs rotation",
+			host: &fleet.Host{ID: 1, Platform: "darwin", OsqueryHostID: ptr.String("foo")},
+			appConfig: &fleet.AppConfig{
+				MDM: fleet.MDM{EnabledAndConfigured: true},
+			},
+			diskEncryptionConfigured: true,
+			isConnectedToFleetMDM:    true,
+			mdmInfo:                  nil,
+			getHostDiskEncryptionKey: func(ctx context.Context, id uint) (*fleet.HostDiskEncryptionKey, error) {
+				return &fleet.HostDiskEncryptionKey{Decryptable: ptr.Bool(false)}, nil
+			},
+			expectedNotifications: &fleet.OrbitConfigNotifications{
+				RotateDiskEncryptionKey: true,
+			},
+			expectedError: false,
+		},
+		{
 			name: "windows server with no encryption needed",
-			host: &fleet.Host{ID: 1, Platform: "windows", DiskEncryptionEnabled: ptr.Bool(true)},
+			host: &fleet.Host{ID: 1, Platform: "windows", DiskEncryptionEnabled: ptr.Bool(true), OsqueryHostID: ptr.String("foo")},
 			appConfig: &fleet.AppConfig{
 				MDM: fleet.MDM{EnabledAndConfigured: true},
 			},
@@ -1962,7 +2001,7 @@ func TestSetDiskEncryptionNotifications(t *testing.T) {
 		},
 		{
 			name: "windows with encryption enabled but key missing",
-			host: &fleet.Host{ID: 1, Platform: "windows", DiskEncryptionEnabled: ptr.Bool(true)},
+			host: &fleet.Host{ID: 1, Platform: "windows", DiskEncryptionEnabled: ptr.Bool(true), OsqueryHostID: ptr.String("foo")},
 			appConfig: &fleet.AppConfig{
 				MDM: fleet.MDM{EnabledAndConfigured: true},
 			},
@@ -1979,7 +2018,7 @@ func TestSetDiskEncryptionNotifications(t *testing.T) {
 		},
 		{
 			name: "darwin with missing encryption key",
-			host: &fleet.Host{ID: 1, Platform: "darwin"},
+			host: &fleet.Host{ID: 1, Platform: "darwin", OsqueryHostID: ptr.String("foo")},
 			appConfig: &fleet.AppConfig{
 				MDM: fleet.MDM{EnabledAndConfigured: true},
 			},
@@ -1996,7 +2035,7 @@ func TestSetDiskEncryptionNotifications(t *testing.T) {
 		},
 		{
 			name: "windows with encryption key and not decryptable",
-			host: &fleet.Host{ID: 1, Platform: "windows", DiskEncryptionEnabled: ptr.Bool(true)},
+			host: &fleet.Host{ID: 1, Platform: "windows", DiskEncryptionEnabled: ptr.Bool(true), OsqueryHostID: ptr.String("foo")},
 			appConfig: &fleet.AppConfig{
 				MDM: fleet.MDM{EnabledAndConfigured: true},
 			},
@@ -2013,7 +2052,7 @@ func TestSetDiskEncryptionNotifications(t *testing.T) {
 		},
 		{
 			name: "windows with enforce BitLocker",
-			host: &fleet.Host{ID: 1, Platform: "windows", DiskEncryptionEnabled: ptr.Bool(false)},
+			host: &fleet.Host{ID: 1, Platform: "windows", DiskEncryptionEnabled: ptr.Bool(false), OsqueryHostID: ptr.String("foo")},
 			appConfig: &fleet.AppConfig{
 				MDM: fleet.MDM{EnabledAndConfigured: true},
 			},
@@ -2037,6 +2076,13 @@ func TestSetDiskEncryptionNotifications(t *testing.T) {
 			}
 			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 				return tt.appConfig, nil
+			}
+
+			if !tt.disableCapability {
+				r := http.Request{
+					Header: http.Header{fleet.CapabilitiesHeader: []string{string(fleet.CapabilityEscrowBuddy)}},
+				}
+				ctx = capabilities.NewContext(ctx, &r)
 			}
 
 			notifs := &fleet.OrbitConfigNotifications{}

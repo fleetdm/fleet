@@ -45,7 +45,7 @@ func (s *googleCalendarIntegrationTestSuite) TearDownSuite() {
 
 // TestGoogleCalendarIntegration tests should be able to be run in parallel, but this is not natively supported by suites: https://github.com/stretchr/testify/issues/187
 // There are workarounds that can be explored.
-func TestGoogleCalendarIntegration(t *testing.T) {
+func TestIntegrationsGoogleCalendar(t *testing.T) {
 	testingSuite := new(googleCalendarIntegrationTestSuite)
 	suite.Run(t, testingSuite)
 }

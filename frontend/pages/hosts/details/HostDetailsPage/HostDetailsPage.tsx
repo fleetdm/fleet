@@ -53,6 +53,8 @@ import {
   HOST_OSQUERY_DATA,
 } from "utilities/constants";
 
+import { isIPadOrIPhone, Platform } from "interfaces/platform";
+
 import Spinner from "components/Spinner";
 import TabsWrapper from "components/TabsWrapper";
 import MainContent from "components/MainContent";
@@ -313,7 +315,10 @@ const HostDetailsPage = ({
             // If our 60 second timer wasn't already started (e.g., if a refetch was pending when
             // the first page loads), we start it now if the host is online. If the host is offline,
             // we skip the refetch on page load.
-            if (returnedHost.status === "online") {
+            if (
+              returnedHost.status === "online" ||
+              isIPadOrIPhone(returnedHost.platform)
+            ) {
               setRefetchStartTime(Date.now());
               setTimeout(() => {
                 refetchHostDetails();
@@ -323,9 +328,13 @@ const HostDetailsPage = ({
               setShowRefetchSpinner(false);
             }
           } else {
+            // !!refetchStartTime
             const totalElapsedTime = Date.now() - refetchStartTime;
             if (totalElapsedTime < 60000) {
-              if (returnedHost.status === "online") {
+              if (
+                returnedHost.status === "online" ||
+                isIPadOrIPhone(returnedHost.platform)
+              ) {
                 setTimeout(() => {
                   refetchHostDetails();
                   refetchExtensions();
@@ -338,6 +347,7 @@ const HostDetailsPage = ({
                 setShowRefetchSpinner(false);
               }
             } else {
+              // totalElapsedTime > 60000
               renderFlash(
                 "error",
                 `We're having trouble fetching fresh vitals for this host. Please try again later.`
@@ -583,15 +593,29 @@ const HostDetailsPage = ({
           setScriptDetailsId(details?.script_execution_id || "");
           break;
         case "installed_software":
-          setPackageInstallDetails({ ...details });
+          setPackageInstallDetails({
+            ...details,
+            // FIXME: It seems like the backend is not using the correct display name when it returns
+            // upcoming install activities. As a workaround, we'll prefer the display name from
+            // the host object if it's available.
+            host_display_name:
+              host?.display_name || details?.host_display_name || "",
+          });
           break;
         case "installed_app_store_app":
-          setAppInstallDetails({ ...details });
+          setAppInstallDetails({
+            ...details,
+            // FIXME: It seems like the backend is not using the correct display name when it returns
+            // upcoming install activities. As a workaround, we'll prefer the display name from
+            // the host object if it's available.
+            host_display_name:
+              host?.display_name || details?.host_display_name || "",
+          });
           break;
         default: // do nothing
       }
     },
-    []
+    [host?.display_name]
   );
 
   const onLabelClick = (label: ILabel) => {
@@ -907,8 +931,11 @@ const HostDetailsPage = ({
             <TabPanel>
               <SoftwareCard
                 id={host.id}
+                platform={host.platform}
                 softwareUpdatedAt={host.software_updated_at}
-                isFleetdHost={!!host.orbit_version}
+                hostCanInstallSoftware={
+                  !!host.orbit_version || isIosOrIpadosHost
+                }
                 isSoftwareEnabled={featuresConfig?.enable_software_inventory}
                 router={router}
                 queryParams={parseHostSoftwareQueryParams(location.query)}

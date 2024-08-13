@@ -237,7 +237,7 @@ func setupRealReplica(t testing.TB, testName string, ds *Datastore, options *dbO
 		func() {
 			// Stop slave
 			if out, err := exec.Command(
-				"docker-compose", "exec", "-T", "mysql_replica_test",
+				"docker", "compose", "exec", "-T", "mysql_replica_test",
 				// Command run inside container
 				"mysql",
 				"-u"+testUsername, "-p"+testPassword,
@@ -282,7 +282,7 @@ func setupRealReplica(t testing.TB, testName string, ds *Datastore, options *dbO
 
 	// Configure slave and start replication
 	if out, err := exec.Command(
-		"docker-compose", "exec", "-T", "mysql_replica_test",
+		"docker", "compose", "exec", "-T", "mysql_replica_test",
 		// Command run inside container
 		"mysql",
 		"-u"+testUsername, "-p"+testPassword,
@@ -348,7 +348,7 @@ func initializeDatabase(t testing.TB, testName string, opts *DatastoreTestOption
 		)
 
 		cmd := exec.Command(
-			"docker-compose", "exec", "-T", "mysql_test",
+			"docker", "compose", "exec", "-T", "mysql_test",
 			// Command run inside container
 			"mysql",
 			"-u"+testUsername, "-p"+testPassword,
@@ -369,7 +369,7 @@ func initializeDatabase(t testing.TB, testName string, opts *DatastoreTestOption
 		)
 
 		cmd := exec.Command(
-			"docker-compose", "exec", "-T", "mysql_replica_test",
+			"docker", "compose", "exec", "-T", "mysql_replica_test",
 			// Command run inside container
 			"mysql",
 			"-u"+testUsername, "-p"+testPassword,
