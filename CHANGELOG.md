@@ -19,6 +19,7 @@
   - **NOTE:** These near real-time updates may add additional load to the Google Calendar API, so it is recommended to use API usage alerts or other monitoring methods.
 
 ### Device management
+
 - Integrated [Escrow Buddy](https://github.com/macadmins/escrow-buddy) to add enforcement of FileVault during the MacOS Setup Assistant process for hosts that are 
 enrolled into teams (or no team) with disk encryption turned on. Thank you [homebysix](https://github.com/homebysix) and team!
 - Updated `fleetd` to use [Escrow Buddy](https://github.com/macadmins/escrow-buddy) to rotate FileVault keys. Removed or modified internal API endpoints documented in the API for contributors.
