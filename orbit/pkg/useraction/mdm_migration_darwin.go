@@ -600,6 +600,9 @@ func (m *swiftDialogMDMMigrator) MarkMigrationCompleted() error {
 	return m.mrw.RemoveFile()
 }
 
+// StartMDMMigrationOfflineWatcher starts a watcher running on a 3-minute loop that checks if the
+// device goes offline in the process of migrating to Fleet's MDM and offline. If so, it shows a
+// dialog to prompt the user to connect to the internet.
 func StartMDMMigrationOfflineWatcher(ctx context.Context, client *service.DeviceClient, swiftDialogPath string, swiftDialogCh chan struct{}, fileWatcher migration.FileWatcher) {
 	if cap(swiftDialogCh) != 1 {
 		log.Fatal().Msg("swift dialog channel must have a buffer size of 1")
@@ -614,14 +617,14 @@ func StartMDMMigrationOfflineWatcher(ctx context.Context, client *service.Device
 
 	// start loop with 3-minute interval to ping server and show dialog if offline
 	go func() {
-		ticker := time.NewTicker(1 * time.Minute)
+		ticker := time.NewTicker(constant.MDMMigrationOfflineWatcherInterval)
 		defer ticker.Stop()
 
-		log.Info().Msg("starting offline dialog loop")
+		log.Info().Msg("starting watcher loop")
 		for {
 			select {
 			case <-ctx.Done():
-				log.Info().Msg("stopping offline dialog loop")
+				log.Debug().Msg("stopping offline dialog loop")
 				return
 			case <-ticker.C:
 				log.Debug().Msg("offline dialog, got tick")
@@ -640,12 +643,12 @@ type offlineWatcher struct {
 }
 
 func (o *offlineWatcher) processTick(ctx context.Context) {
-	// try to block the dialog channel
+	// try the dialog channel
 	select {
 	case o.swiftDialogCh <- struct{}{}:
-		log.Debug().Msg("offline dialog, blocking dialog channel")
+		log.Debug().Msg("occupying dialog channel")
 	default:
-		log.Debug().Msg("offline dialog, dialog channel already blocked")
+		log.Debug().Msg("dialog channel already occupied")
 		return
 	}
 
@@ -653,10 +656,10 @@ func (o *offlineWatcher) processTick(ctx context.Context) {
 		// non-blocking release of dialog channel
 		select {
 		case <-o.swiftDialogCh:
-			log.Debug().Msg("offline dialog, releasing dialog channel")
+			log.Debug().Msg("releasing dialog channel")
 		default:
-			// TODO: think through how this could happen in relation to the other processes using the dialog channel
-			log.Debug().Msg("offline dialog, dialog channel already released")
+			// this shouldn't happen so log for debugging
+			log.Debug().Msg("dialog channel already released")
 		}
 	}()
 
@@ -675,12 +678,10 @@ func (o *offlineWatcher) processTick(ctx context.Context) {
 func (o *offlineWatcher) isUnmanaged() bool {
 	mt, err := o.fileWatcher.GetMigrationType()
 	if err != nil {
-		// TODO: confirm error handling with jahziel
 		log.Error().Err(err).Msg("getting migration type")
 	}
 
 	if mt == "" {
-		// TODO: confirm with jahziel that this is the intended behavior for this case
 		log.Debug().Msg("offline dialog, no migration type found, do nothing")
 		return false
 	}
@@ -693,8 +694,6 @@ func (o *offlineWatcher) isUnmanaged() bool {
 }
 
 func (o *offlineWatcher) isOffline() bool {
-	// TODO: should we rely on the Fleet server or should we use something else (e.g.,
-	// DNS lookup)?
 	err := o.client.Ping()
 	if err == nil {
 		log.Debug().Msg("offline dialog, ping ok, device is online")
@@ -763,7 +762,7 @@ func (o *offlineWatcher) showSwiftDialogMDMMigrationOffline(ctx context.Context)
 
 	select {
 	case <-ctx.Done():
-		log.Info().Msg("dialog context canceled")
+		log.Debug().Msg("dialog context canceled")
 		// TODO: do we care about this? anything we need to clean up?
 		return nil
 	case err := <-errCh:
