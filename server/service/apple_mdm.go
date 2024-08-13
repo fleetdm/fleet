@@ -18,7 +18,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Masterminds/semver"
 	"github.com/docker/go-units"
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
@@ -32,6 +31,7 @@ import (
 	mdm_types "github.com/fleetdm/fleet/v4/server/mdm"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/appmanifest"
+	"github.com/fleetdm/fleet/v4/server/mdm/apple/gdmf"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/mdm/assets"
 	mdmcrypto "github.com/fleetdm/fleet/v4/server/mdm/crypto"
@@ -45,6 +45,7 @@ import (
 	"github.com/go-kit/log/level"
 	"github.com/google/uuid"
 	"github.com/groob/plist"
+	"golang.org/x/mod/semver"
 )
 
 type getMDMAppleCommandResultsRequest struct {
@@ -1444,43 +1445,52 @@ func (svc *Service) CheckMDMAppleEnrollmentWithMinimumOSVersion(ctx context.Cont
 		return nil, nil
 	}
 
-	// NOTE: Under the hood, the datastore is joining host_dep_assignments to the hosts table to
-	// look up DEP hosts by serial number. It grabs the team id and platform from the
-	// hosts table. Then it uses the team id to get either the global config or team config.
-	// Finally, it uses the platform to get os updates settings from the config for
-	// one of ios, ipados, or darwin, as applicable. There's a lot of assumptions going on here, not
-	// least of which is that the platform is correct in the hosts table. If the platform is wrong,
-	// we'll end up with a meaningless comparison of unrelated versions. We could potentially add
-	// some cross-check against the machine info to ensure that the platform of the host aligns with
-	// what we expect from the machine info. But that would involve work to derive the platform from
-	// the machine info (presumably from the product name, but that's not a 1:1 mapping).
-	settings, err := svc.ds.GetMDMAppleOSUpdatesSettingsByHostSerial(ctx, m.Serial)
+	// // NOTE: Under the hood, the datastore is joining host_dep_assignments to the hosts table to
+	// // look up DEP hosts by serial number. It grabs the team id and platform from the
+	// // hosts table. Then it uses the team id to get either the global config or team config.
+	// // Finally, it uses the platform to get os updates settings from the config for
+	// // one of ios, ipados, or darwin, as applicable. There's a lot of assumptions going on here, not
+	// // least of which is that the platform is correct in the hosts table. If the platform is wrong,
+	// // we'll end up with a meaningless comparison of unrelated versions. We could potentially add
+	// // some cross-check against the machine info to ensure that the platform of the host aligns with
+	// // what we expect from the machine info. But that would involve work to derive the platform from
+	// // the machine info (presumably from the product name, but that's not a 1:1 mapping).
+	// settings, err := svc.ds.GetMDMAppleOSUpdatesSettingsByHostSerial(ctx, m.Serial)
+	// if err != nil {
+	// 	if fleet.IsNotFound(err) {
+	// 		level.Info(svc.logger).Log("msg", "settings not found, skipping os version check", "machine_info", *m)
+	// 		return nil, nil
+	// 	}
+	// 	return nil, ctxerr.Wrap(ctx, err, "get os updates settings")
+	// }
+
+	// // TODO: confirm what this check should do
+	// if !settings.MinimumVersion.Set || !settings.MinimumVersion.Valid || settings.MinimumVersion.Value == "" {
+	// 	level.Info(svc.logger).Log("msg", "settings not set, skipping os version check", "machine_info", *m, "settings", settings)
+	// 	return nil, nil
+	// }
+
+	// want, err := semver.NewVersion(settings.MinimumVersion.Value)
+	// if err != nil {
+	// 	return nil, ctxerr.Wrap(ctx, err, "parsing minimum version")
+	// }
+
+	// got, err := semver.NewVersion(m.OSVersion)
+	// if err != nil {
+	// 	return nil, ctxerr.Wrap(ctx, err, "parsing device os version")
+	// }
+
+	latest, err := gdmf.GetLatestOSVersion(apple_mdm.MachineInfo(*m))
 	if err != nil {
-		if fleet.IsNotFound(err) {
-			level.Info(svc.logger).Log("msg", "settings not found, skipping os version check", "machine_info", *m)
-			return nil, nil
-		}
-		return nil, ctxerr.Wrap(ctx, err, "get os updates settings")
+		// log and continue
+		level.Error(svc.logger).Log("msg", "no match on apple software lookup service, skipping os version check", "machine_info", *m, "err", err)
 	}
 
-	// TODO: confirm what this check should do
-	if !settings.MinimumVersion.Set || !settings.MinimumVersion.Valid || settings.MinimumVersion.Value == "" {
-		level.Info(svc.logger).Log("msg", "settings not set, skipping os version check", "machine_info", *m, "settings", settings)
-		return nil, nil
-	}
-
-	want, err := semver.NewVersion(settings.MinimumVersion.Value)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "parsing minimum version")
-	}
-
-	got, err := semver.NewVersion(m.OSVersion)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "parsing device os version")
-	}
-
-	if got.LessThan(want) {
-		return fleet.NewMDMAppleSoftwareUpdateRequired(*settings), nil
+	if semver.Compare(m.OSVersion, latest.ProductVersion) < 0 {
+		return fleet.NewMDMAppleSoftwareUpdateRequired(fleet.MDMAppleSoftwareUpdateAsset{
+			ProductVersion: latest.ProductVersion,
+			Build:          latest.Build,
+		}), nil
 	}
 
 	return nil, nil
@@ -2974,7 +2984,8 @@ func (svc *MDMAppleCheckinAndCommandService) handleRefetch(r *mdm.Request, cmdRe
 }
 
 func unmarshalAppList(ctx context.Context, response []byte, source string) ([]fleet.Software,
-	error) {
+	error,
+) {
 	var appsResponse struct {
 		InstalledApplicationList []map[string]interface{} `plist:"InstalledApplicationList"`
 	}

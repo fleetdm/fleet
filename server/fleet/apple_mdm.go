@@ -895,9 +895,14 @@ type MDMAppleSoftwareUpdateRequired struct {
 	Details MDMAppleSoftwareUpdateRequiredDetails `json:"details"`
 }
 
-func NewMDMAppleSoftwareUpdateRequired(settings AppleOSUpdateSettings) *MDMAppleSoftwareUpdateRequired {
+func NewMDMAppleSoftwareUpdateRequired(asset MDMAppleSoftwareUpdateAsset) *MDMAppleSoftwareUpdateRequired {
 	return &MDMAppleSoftwareUpdateRequired{
 		Code:    MDMAppleSoftwareUpdateRequiredCode,
-		Details: MDMAppleSoftwareUpdateRequiredDetails{OSVersion: settings.MinimumVersion.Value},
+		Details: MDMAppleSoftwareUpdateRequiredDetails{OSVersion: asset.ProductVersion, BuildVersion: asset.Build},
 	}
+}
+
+type MDMAppleSoftwareUpdateAsset struct {
+	ProductVersion string `json:"ProductVersion"`
+	Build          string `json:"Build"`
 }
