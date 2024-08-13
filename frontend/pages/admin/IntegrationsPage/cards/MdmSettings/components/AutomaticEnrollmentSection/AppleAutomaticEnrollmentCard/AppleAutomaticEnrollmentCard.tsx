@@ -30,12 +30,7 @@ const AppleAutomaticEnrollmentCard = ({
   }
 
   return (
-    <Card
-      className={`${baseClass} ${
-        !isAppleMdmOn ? `${baseClass}__turn-on-mdm` : ""
-      }`}
-      color="gray"
-    >
+    <Card className={baseClass} color="gray">
       <div>
         {!icon && (
           <h3>Automatic enrollment for Apple (macOS, iOS, iPadOS) hosts.</h3>
@@ -53,7 +48,7 @@ const AppleAutomaticEnrollmentCard = ({
       </div>
       {isAppleMdmOn && !configured && (
         <Button
-          className="apple-details-button"
+          className="add-abm-button"
           onClick={viewDetails}
           variant="brand"
         >
@@ -61,11 +56,7 @@ const AppleAutomaticEnrollmentCard = ({
         </Button>
       )}
       {isAppleMdmOn && configured && (
-        <Button
-          className="apple-details-button"
-          onClick={viewDetails}
-          variant="text-icon"
-        >
+        <Button onClick={viewDetails} variant="text-icon">
           <Icon name="pencil" />
           Edit
         </Button>

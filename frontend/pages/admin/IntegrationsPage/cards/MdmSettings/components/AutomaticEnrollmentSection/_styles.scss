@@ -10,6 +10,7 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
+      gap: $pad-medium;
 
       h3 {
         font-size: $x-small;
@@ -27,14 +28,8 @@
         }
       }
 
-      &__turn-on-mdm {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: $pad-medium;
-
-        .button {
-          height: auto;
-        }
+      .add-abm-button {
+        white-space: nowrap;
       }
     }
   }

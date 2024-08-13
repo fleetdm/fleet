@@ -64,7 +64,11 @@ const VppCard = ({ isAppleMdmOn, isVppOn, router }: IVppCardProps) => {
           Apple Business Manager.
         </p>
       </div>
-      <Button onClick={navigateToVppSetup} variant="brand">
+      <Button
+        className={`${baseClass}__add-vpp-button`}
+        onClick={navigateToVppSetup}
+        variant="brand"
+      >
         Add VPP
       </Button>
     </div>
