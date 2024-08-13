@@ -25,6 +25,7 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/cmd/osquery-perf/installer_cache"
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/mdm/mdmtest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -55,6 +56,8 @@ var (
 	vsCodeExtensionsVulnerableSoftware []fleet.Software
 	windowsSoftware                    []map[string]string
 	ubuntuSoftware                     []map[string]string
+
+	installerMetadataCache installer_cache.Metadata
 )
 
 func loadMacOSVulnerableSoftware() {
@@ -494,7 +497,7 @@ type agent struct {
 	softwareInstaller softwareInstaller
 
 	// Software installed on the host via Fleet. Key is the software name + version + bundle identifier.
-	installedSoftware map[string]map[string]string
+	installedSoftware sync.Map
 
 	//
 	// The following are exported to be used by the templates.
@@ -1295,18 +1298,22 @@ func (a *agent) installSoftwareItem(installerID string, orbitClient *service.Orb
 		}
 	}
 
-	var path string
+	var meta *file.InstallerMetadata
 	if !failed {
-		tmpDir, err := os.MkdirTemp("", "")
+		var cacheMiss bool
+		// Download the file if needed to get its metadata
+		meta, cacheMiss, err = installerMetadataCache.Get(installer.InstallerID, orbitClient)
 		if err != nil {
-			log.Println("create temp dir:", err)
 			return
 		}
-		defer os.RemoveAll(tmpDir)
-		path, err = orbitClient.DownloadSoftwareInstaller(installer.InstallerID, tmpDir)
-		if err != nil {
-			log.Println("download software installer:", err)
-			return
+
+		if !cacheMiss {
+			// If we didn't download and analyze the file, we do a download and don't save the result
+			err = orbitClient.DownloadAndDiscardSoftwareInstaller(installer.InstallerID)
+			if err != nil {
+				log.Println("download and discard software installer:", err)
+				return
+			}
 		}
 
 		time.Sleep(time.Duration(rand.Intn(30)) * time.Second)
@@ -1328,40 +1335,29 @@ func (a *agent) installSoftwareItem(installerID string, orbitClient *service.Orb
 		}
 	}
 	if !failed {
-		// Figure out what we're actually installing here and add it to software inventory
-		f, err := os.Open(path)
-		if err != nil {
-			log.Println("open installer:", err)
-			return
-		}
-		defer f.Close()
-		meta, err := file.ExtractInstallerMetadata(f)
-		if err != nil {
-			log.Println("extract installer metadata:", err)
-			return
-		}
-		key := meta.Name + "+" + meta.Version + "+" + meta.BundleIdentifier
-		if a.installedSoftware == nil {
-			a.installedSoftware = make(map[string]map[string]string)
-		}
-		source := ""
-		switch a.os {
-		case "macos":
-			source = "apps"
-		case "windows":
-			source = "programs"
-		case "ubuntu":
-			source = "deb_packages"
-		default:
-			log.Printf("unknown OS to software installer: %s", a.os)
-			return
-		}
-		a.installedSoftware[key] = map[string]string{
-			"name":              meta.Name,
-			"version":           meta.Version,
-			"bundle_identifier": meta.BundleIdentifier,
-			"source":            source,
-			"installed_path":    path,
+		if meta.Name == "" {
+			log.Printf("WARNING: installer metadata is missing a name for installer:%d\n", installer.InstallerID)
+		} else {
+			key := meta.Name + "+" + meta.Version + "+" + meta.BundleIdentifier
+			source := ""
+			switch a.os {
+			case "macos":
+				source = "apps"
+			case "windows":
+				source = "programs"
+			case "ubuntu":
+				source = "deb_packages"
+			default:
+				log.Printf("unknown OS to software installer: %s", a.os)
+				return
+			}
+			a.installedSoftware.Store(key, map[string]string{
+				"name":              meta.Name,
+				"version":           meta.Version,
+				"bundle_identifier": meta.BundleIdentifier,
+				"source":            source,
+				"installed_path":    os.DevNull,
+			})
 		}
 
 		if installer.PostInstallScript != "" {
@@ -1673,9 +1669,6 @@ func (a *agent) softwareMacOS() []map[string]string {
 	}
 	software := append(commonSoftware, uniqueSoftware...)
 	software = append(software, randomVulnerableSoftware...)
-	for _, sw := range a.installedSoftware {
-		software = append(software, sw)
-	}
 	rand.Shuffle(len(software), func(i, j int) {
 		software[i], software[j] = software[j], software[i]
 	})
@@ -2174,9 +2167,10 @@ func (a *agent) processQuery(name, query string) (
 		}
 		if ss == fleet.StatusOK {
 			results = windowsSoftware
-			for _, sw := range a.installedSoftware {
-				results = append(results, sw)
-			}
+			a.installedSoftware.Range(func(key, value interface{}) bool {
+				results = append(results, value.(map[string]string))
+				return true
+			})
 		}
 		return true, results, &ss, nil, nil
 	case name == hostDetailQueryPrefix+"software_linux":
@@ -2188,9 +2182,10 @@ func (a *agent) processQuery(name, query string) (
 			switch a.os {
 			case "ubuntu":
 				results = ubuntuSoftware
-				for _, sw := range a.installedSoftware {
-					results = append(results, sw)
-				}
+				a.installedSoftware.Range(func(key, value interface{}) bool {
+					results = append(results, value.(map[string]string))
+					return true
+				})
 			}
 		}
 		return true, results, &ss, nil, nil
