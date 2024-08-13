@@ -17,7 +17,8 @@
 - Updated maintenance windows using Google Calendar so that calendar events are now recreated within 30 seconds if deleted or moved to the past.
   - Fleet server watches for potential changes for up to 1 week after original event time. If event is moved forward more than 1 week, then after 1 week Fleet server will check for event changes once every 30 minutes.
   - **NOTE:** These near real-time updates may add additional load to the Google Calendar API, so it is recommended to use API usage alerts or other monitoring methods.
-### Device Management
+
+### Device management
 - Integrated [Escrow Buddy](https://github.com/macadmins/escrow-buddy) to add enforcement of FileVault during the MacOS Setup Assistant process for hosts that are 
 enrolled into teams (or no team) with disk encryption turned on. Thank you [homebysix](https://github.com/homebysix) and team!
 - Updated `fleetd` to use [Escrow Buddy](https://github.com/macadmins/escrow-buddy) to rotate FileVault keys. Removed or modified internal API endpoints documented in the API for contributors.
