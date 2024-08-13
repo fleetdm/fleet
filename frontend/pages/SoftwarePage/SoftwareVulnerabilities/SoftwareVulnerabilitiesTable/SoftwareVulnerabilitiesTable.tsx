@@ -13,11 +13,11 @@ import { GITHUB_NEW_ISSUE_LINK } from "utilities/constants";
 import Dropdown from "components/forms/fields/Dropdown";
 import CustomLink from "components/CustomLink";
 import TableContainer from "components/TableContainer";
-import LastUpdatedText from "components/LastUpdatedText";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
 import TableCount from "components/TableContainer/TableCount";
 
 import EmptySoftwareTable from "pages/SoftwarePage/components/EmptySoftwareTable";
+import SoftwareLastUpdatedInfo from "pages/SoftwarePage/components/SoftwareLastUpdatedInfo";
 import { IVulnerabilitiesResponse } from "services/entities/vulnerabilities";
 import { buildQueryStringFromParams } from "utilities/url";
 import { getNextLocationPath } from "utilities/helpers";
@@ -187,16 +187,7 @@ const SoftwareVulnerabilitiesTable = ({
       <>
         <TableCount name="items" count={data?.count} />
         {data?.vulnerabilities && data?.counts_updated_at && (
-          <LastUpdatedText
-            lastUpdatedAt={data.counts_updated_at}
-            customTooltipText={
-              <>
-                The last time software data was <br />
-                updated, including vulnerabilities <br />
-                and host counts.
-              </>
-            }
-          />
+          <SoftwareLastUpdatedInfo lastUpdatedAt={data.counts_updated_at} />
         )}
       </>
     );

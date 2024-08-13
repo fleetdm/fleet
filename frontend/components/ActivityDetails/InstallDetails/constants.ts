@@ -5,8 +5,10 @@ export const INSTALL_DETAILS_STATUS_ICONS: Record<
   SoftwareInstallStatus,
   IconNames
 > = {
+  verified: "success-outline",
+  verifying: "success",
   pending: "pending-outline",
-  installed: "success-outline",
+  blocked: "disable",
   failed: "error-outline",
 } as const;
 
@@ -14,8 +16,10 @@ const INSTALL_DETAILS_STATUS_PREDICATES: Record<
   SoftwareInstallStatus,
   string
 > = {
+  verified: "verified", // TODO: Jacob - part of Jacob's modals ticket
+  verifying: "is verifying", // TODO: Jacob - part of Jacob's modals ticket
   pending: "is installing or will install",
-  installed: "installed",
+  blocked: "is blocked", // TODO: Jacob - part of Jacob's modals ticket
   failed: "failed to install",
 } as const;
 

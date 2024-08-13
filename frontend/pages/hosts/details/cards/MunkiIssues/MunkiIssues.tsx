@@ -29,7 +29,7 @@ const MunkiIssuesTable = ({
       className={`${baseClass} card`}
       borderRadiusSize="xxlarge"
       includeShadow
-      largePadding
+      paddingSize="xxlarge"
     >
       <p className="card__header">Munki issues</p>
 

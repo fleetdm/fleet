@@ -105,7 +105,8 @@ const DEFAULT_APP_STORE_APP_MOCK: IAppStoreApp = {
   icon_url: "https://via.placeholder.com/512",
   latest_version: "1.2.3",
   status: {
-    installed: 1,
+    verified: 1,
+    verifying: 4,
     pending: 2,
     failed: 3,
   },
@@ -157,6 +158,7 @@ const DEFAULT_SOFTWARE_PACKAGE_MOCK: ISoftwarePackage = {
   name: "TestPackage-1.2.3.pkg",
   version: "1.2.3",
   uploaded_at: "2020-01-01T00:00:00.000Z",
+  install_type: "manual",
   install_script: "sudo installer -pkg /temp/FalconSensor-6.44.pkg -target /",
   pre_install_query: "SELECT 1 FROM macos_profiles WHERE uuid='abc123';",
   post_install_script:
@@ -164,11 +166,12 @@ const DEFAULT_SOFTWARE_PACKAGE_MOCK: ISoftwarePackage = {
   self_service: false,
   icon_url: null,
   status: {
-    installed: 1,
+    verified: 1,
+    verifying: 4,
     pending: 2,
+    blocked: 0,
     failed: 3,
   },
-  install_type: "manual",
   labels_include_any: [],
   labels_exclude_any: [],
 };

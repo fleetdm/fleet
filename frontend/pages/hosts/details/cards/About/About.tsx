@@ -189,7 +189,7 @@ const About = ({
     <Card
       borderRadiusSize="xxlarge"
       includeShadow
-      largePadding
+      paddingSize="xxlarge"
       className={baseClass}
     >
       <p className="card__header">About</p>

@@ -8,7 +8,6 @@ import {
   SoftwareInstallStatus,
 } from "interfaces/software";
 import deviceApi from "services/entities/device_user";
-import { dateAgo } from "utilities/date_format";
 import { NotificationContext } from "context/notification";
 
 import Card from "components/Card";
@@ -16,39 +15,9 @@ import Button from "components/buttons/Button";
 import Icon from "components/Icon";
 import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
 
-import { IStatusDisplayConfig } from "../../InstallStatusCell/InstallStatusCell";
+import { INSTALL_STATUS_DISPLAY_OPTIONS } from "../../InstallStatusCell/InstallStatusCell";
 
 const baseClass = "self-service-item";
-
-const STATUS_CONFIG: Record<SoftwareInstallStatus, IStatusDisplayConfig> = {
-  installed: {
-    iconName: "success",
-    displayText: "Installed",
-    tooltip: ({ lastInstalledAt }) => (
-      <>
-        Software installed successfully ({dateAgo(lastInstalledAt as string)}).
-        Currently, if the software is uninstalled, the &quot;Installed&quot;
-        status won&apos;t be updated.
-      </>
-    ),
-  },
-  pending: {
-    iconName: "pending-outline",
-    displayText: "Install in progress...",
-    tooltip: () => "Software installation in progress...",
-  },
-  failed: {
-    iconName: "error",
-    displayText: "Failed",
-    tooltip: ({ lastInstalledAt = "" }) => (
-      <>
-        Software failed to install
-        {lastInstalledAt ? ` (${dateAgo(lastInstalledAt)})` : ""}. Select{" "}
-        <b>Retry</b> to install again, or contact your IT department.
-      </>
-    ),
-  },
-};
 
 interface IInstallerInfoProps {
   software: IDeviceSoftware;
@@ -83,7 +52,10 @@ const InstallerStatus = ({
   status,
   last_install,
 }: IInstallerStatusProps) => {
-  const displayConfig = STATUS_CONFIG[status as keyof typeof STATUS_CONFIG];
+  const displayConfig =
+    INSTALL_STATUS_DISPLAY_OPTIONS[
+      status as keyof typeof INSTALL_STATUS_DISPLAY_OPTIONS
+    ];
   if (!displayConfig) {
     // API should ensure this never happens, but just in case
     return null;
@@ -130,7 +102,7 @@ const getInstallButtonText = (status: SoftwareInstallStatus | null) => {
       return "Install";
     case "failed":
       return "Retry";
-    case "installed":
+    case "verified":
       return "Reinstall";
     default:
       // we don't show a button for pending installs

@@ -462,7 +462,7 @@ const HostSummary = ({
       <Card
         borderRadiusSize="xxlarge"
         includeShadow
-        largePadding
+        paddingSize="xxlarge"
         className={`${baseClass}-card`}
       >
         {!isIosOrIpadosHost && (

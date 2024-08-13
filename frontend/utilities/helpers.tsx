@@ -821,6 +821,17 @@ export const syntaxHighlight = (json: any): string => {
   /* eslint-enable no-useless-escape */
 };
 
+export const tooltipTextWithLineBreaks = (lines: string[]) => {
+  return lines.map((line) => {
+    return (
+      <span key={Math.random().toString().slice(2)}>
+        {line}
+        <br />
+      </span>
+    );
+  });
+};
+
 export const getSortedTeamOptions = memoize((teams: ITeam[]) =>
   teams
     .map((team) => {
@@ -1050,6 +1061,7 @@ export default {
   labelSlug,
   setupData,
   syntaxHighlight,
+  tooltipTextWithLineBreaks,
   normalizeEmptyValues,
   wait,
   wrapFleetHelper,

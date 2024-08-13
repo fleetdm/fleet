@@ -65,13 +65,13 @@ describe("SelfService", () => {
     );
   });
 
-  it("renders 'Reinstall' action button with 'Installed' status", async () => {
+  it("renders 'Reinstall' action button with 'Verified' status", async () => {
     mockServer.use(
       customDeviceSoftwareHandler({
         software: [
           createMockDeviceSoftware({
             name: "test-software",
-            status: "installed",
+            status: "verified",
           }),
         ],
       })
@@ -105,7 +105,7 @@ describe("SelfService", () => {
 
     expect(
       screen.getByTestId("self-service-item__status--test")
-    ).toHaveTextContent("Installed");
+    ).toHaveTextContent("Verified");
 
     expect(
       screen.getByTestId("self-service-item__item-action-button--test")
@@ -166,7 +166,7 @@ describe("SelfService", () => {
     ).toHaveTextContent("Install");
   });
 
-  it("renders no action button with 'Install in progress...' status", async () => {
+  it("renders no action button with 'Pending' status", async () => {
     mockServer.use(
       customDeviceSoftwareHandler({
         software: [
@@ -186,7 +186,59 @@ describe("SelfService", () => {
 
     expect(
       screen.getByTestId("self-service-item__status--test")
-    ).toHaveTextContent("Install in progress...");
+    ).toHaveTextContent("Pending");
+
+    expect(
+      screen.queryByTestId("self-service-item__item-action-button--test")
+    ).not.toBeInTheDocument();
+  });
+  it("renders no action button with 'Verifying' status", async () => {
+    mockServer.use(
+      customDeviceSoftwareHandler({
+        software: [
+          createMockDeviceSoftware({
+            name: "test-software",
+            status: "verifying",
+          }),
+        ],
+      })
+    );
+
+    const render = createCustomRenderer({ withBackendMock: true });
+    render(<SelfService {...TEST_PROPS} />);
+
+    // waiting for the device software data to render
+    await screen.findByText("test-software");
+
+    expect(
+      screen.getByTestId("self-service-item__status--test")
+    ).toHaveTextContent("Verifying");
+
+    expect(
+      screen.queryByTestId("self-service-item__item-action-button--test")
+    ).not.toBeInTheDocument();
+  });
+  it("renders no action button with 'Blocked' status", async () => {
+    mockServer.use(
+      customDeviceSoftwareHandler({
+        software: [
+          createMockDeviceSoftware({
+            name: "test-software",
+            status: "blocked",
+          }),
+        ],
+      })
+    );
+
+    const render = createCustomRenderer({ withBackendMock: true });
+    render(<SelfService {...TEST_PROPS} />);
+
+    // waiting for the device software data to render
+    await screen.findByText("test-software");
+
+    expect(
+      screen.getByTestId("self-service-item__status--test")
+    ).toHaveTextContent("Blocked");
 
     expect(
       screen.queryByTestId("self-service-item__item-action-button--test")

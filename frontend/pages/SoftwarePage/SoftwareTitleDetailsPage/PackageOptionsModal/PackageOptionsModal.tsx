@@ -6,27 +6,27 @@ import FleetAce from "components/FleetAce";
 import CustomLink from "components/CustomLink";
 import Editor from "components/Editor";
 
-const baseClass = "advanced-options-modal";
+const baseClass = "package-options-modal";
 
-interface IAdvancedOptionsModalProps {
+interface IPackageOptionsModal {
   installScript: string;
   preInstallQuery?: string;
   postInstallScript?: string;
   onExit: () => void;
 }
 
-const AdvancedOptionsModal = ({
+const PackageOptionsModal = ({
   installScript,
   preInstallQuery,
   postInstallScript,
   onExit,
-}: IAdvancedOptionsModalProps) => {
+}: IPackageOptionsModal) => {
   return (
-    <Modal className={baseClass} title="Advanced Options" onExit={onExit}>
+    <Modal className={baseClass} title="Options" onExit={onExit}>
       <>
         <p>
-          Advanced options are read-only. To change options, delete software and
-          add again.
+          Options are read-only. To change options, delete software and add
+          again.
         </p>
         <div className={`${baseClass}__form-inputs`}>
           <Editor
@@ -86,4 +86,4 @@ const AdvancedOptionsModal = ({
   );
 };
 
-export default AdvancedOptionsModal;
+export default PackageOptionsModal;

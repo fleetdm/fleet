@@ -21,7 +21,9 @@ interface TootipArgs {
 export type IStatusDisplayConfig = {
   iconName:
     | "success"
+    | "success-outline"
     | "pending-outline"
+    | "disable"
     | "error"
     | "install"
     | "install-self-service";
@@ -29,36 +31,53 @@ export type IStatusDisplayConfig = {
   tooltip: (args: TootipArgs) => ReactNode;
 };
 
+/** Status used for both Install status cell and self-service item */
 export const INSTALL_STATUS_DISPLAY_OPTIONS: Record<
   IStatusValue | "selfService",
   IStatusDisplayConfig
 > = {
-  installed: {
+  verified: {
     iconName: "success",
-    displayText: "Installed",
+    displayText: "Verified",
     tooltip: ({ lastInstalledAt: lastInstall }) => (
       <>
-        Fleet installed software on this host ({dateAgo(lastInstall as string)}
-        ). Currently, if the software is uninstalled, the &quot;Installed&quot;
-        status won&apos;t be updated.
+        Software is installed ({dateAgo(lastInstall as string)}
+        ). Fleet verified.
       </>
     ),
+  },
+  verifying: {
+    iconName: "success-outline",
+    displayText: "Verifying",
+    tooltip: () =>
+      "Software is installed (install script finished with exit code 0). Fleet is verifying.",
   },
   pending: {
     iconName: "pending-outline",
     displayText: "Pending",
-    tooltip: () => "Fleet will install software when the host comes online.",
+    tooltip: (isAutomaticInstall) => {
+      return isAutomaticInstall
+        ? "Fleet is checking if the software is installed and if not, Fleet is installing or will install when the host comes online."
+        : "Fleet is installing or will install when the host comes online.";
+    },
+  },
+  blocked: {
+    iconName: "disable",
+    displayText: "Blocked",
+    tooltip: () =>
+      "Pre-install condition wasn't met. The query didn't return results.",
   },
   failed: {
     iconName: "error",
     displayText: "Failed",
-    tooltip: ({ lastInstalledAt: lastInstall }) => (
+    tooltip: () => (
       <>
-        Fleet failed to install software ({dateAgo(lastInstall as string)} ago).
-        Select <b>Actions &gt; Software details</b> to see more.
+        The host failed to install software. To view errors, select{" "}
+        <b>Actions &gt; Show details</b>.
       </>
     ),
   },
+  /** Used only for Install status cell */
   avaiableForInstall: {
     iconName: "install",
     displayText: "Available for install",
@@ -75,6 +94,7 @@ export const INSTALL_STATUS_DISPLAY_OPTIONS: Record<
         </>
       ),
   },
+  /** Used only for Install status cell */
   selfService: {
     iconName: "install-self-service",
     displayText: "Self-service",

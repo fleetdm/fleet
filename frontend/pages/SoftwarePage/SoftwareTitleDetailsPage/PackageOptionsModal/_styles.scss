@@ -1,4 +1,4 @@
-.advanced-options-modal {
+.package-options-modal {
   &__form-inputs {
     display: flex;
     flex-direction: column;
@@ -8,6 +8,6 @@
   &__input-field {
     display: flex;
     flex-direction: column;
-    gap: $pad-medium
+    gap: $pad-medium;
   }
 }
